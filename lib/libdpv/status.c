@@ -47,7 +47,7 @@ static int status_width;
  * trimmed to fit within the console length (ANSI coloring not accounted for).
  */
 void
-status_printf(const char *fmt, ...)
+status_printf(const char * __restrict fmt, ...)
 {
 	int n, attrs;
 	chtype color = dlg_color_pair(dlg_color_table[BUTTON_ACTIVE_ATTR].fg,

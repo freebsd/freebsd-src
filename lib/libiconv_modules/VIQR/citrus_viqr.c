@@ -236,7 +236,7 @@ _citrus_VIQR_init_state(_VIQREncodingInfo * __restrict ei __unused,
 static __inline void
 /*ARGSUSED*/
 _citrus_VIQR_pack_state(_VIQREncodingInfo * __restrict ei __unused,
-    void *__restrict pspriv, const _VIQRState * __restrict psenc)
+    void * __restrict pspriv, const _VIQRState * __restrict psenc)
 {
 
 	memcpy(pspriv, (const void *)psenc, sizeof(*psenc));

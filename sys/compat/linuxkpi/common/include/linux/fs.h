@@ -394,7 +394,7 @@ static const struct file_operations __fops = {				\
 
 int simple_attr_open(struct inode *inode, struct file *filp,
     int (*get)(void *, uint64_t *), int (*set)(void *, uint64_t),
-    const char *fmt);
+    const char * __restrict fmt);
 
 int simple_attr_release(struct inode *inode, struct file *filp);
 

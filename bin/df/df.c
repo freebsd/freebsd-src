@@ -423,7 +423,7 @@ prthuman(const struct statfs *sfsp, int64_t used)
 }
 
 static void
-prthumanval(const char *fmt, int64_t bytes)
+prthumanval(const char * __restrict fmt, int64_t bytes)
 {
 	char buf[6];
 	int flags;
@@ -443,7 +443,7 @@ prthumanval(const char *fmt, int64_t bytes)
  * Print an inode count in "human-readable" format.
  */
 static void
-prthumanvalinode(const char *fmt, int64_t bytes)
+prthumanvalinode(const char * __restrict fmt, int64_t bytes)
 {
 	char buf[6];
 	int flags;

@@ -48,7 +48,7 @@ extern int g_collectstats;
 void g_confxml(void *, int flag);
 void g_conf_specific(struct sbuf *sb, struct g_geom **gps);
 void g_conf_cat_escaped(struct sbuf *sb, const char *buf);
-void g_conf_printf_escaped(struct sbuf *sb, const char *fmt, ...);
+void g_conf_printf_escaped(struct sbuf *sb, const char * __restrict fmt, ...);
 void g_confdot(void *, int flag);
 void g_conftxt(void *, int flag);
 

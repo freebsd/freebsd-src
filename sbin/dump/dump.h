@@ -94,10 +94,10 @@ extern	int tp_bshift;		/* log2(TP_BSIZE) */
 void	broadcast(const char *message);
 void	infosch(int);
 void	lastdump(int arg);	/* int should be char */
-void	msg(const char *fmt, ...) __printflike(1, 2);
-void	msgtail(const char *fmt, ...) __printflike(1, 2);
+void	msg(const char * __restrict fmt, ...) __printflike(1, 2);
+void	msgtail(const char * __restrict fmt, ...) __printflike(1, 2);
 int	query(const char *question);
-void	quit(const char *fmt, ...) __printflike(1, 2);
+void	quit(const char * __restrict fmt, ...) __printflike(1, 2);
 void	timeest(void);
 time_t	unctime(char *str);
 

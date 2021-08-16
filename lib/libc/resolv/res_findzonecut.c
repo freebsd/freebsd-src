@@ -716,7 +716,7 @@ do_query(res_state statp, const char *dname, ns_class class, ns_type qtype,
 }
 
 static void
-res_dprintf(const char *fmt, ...) {
+res_dprintf(const char * __restrict fmt, ...) {
 	va_list ap;
 
 	va_start(ap, fmt);

@@ -284,7 +284,7 @@ odoffset(int argc, char ***argvp)
 }
 
 static void
-odformat(const char *fmt)
+odformat(const char * __restrict fmt)
 {
 	char fchar;
 
@@ -309,7 +309,7 @@ odformat(const char *fmt)
 }
 
 static const char *
-odformatfp(char fchar __unused, const char *fmt)
+odformatfp(char fchar __unused, const char * __restrict fmt)
 {
 	size_t isize;
 	int digits;
@@ -364,7 +364,7 @@ odformatfp(char fchar __unused, const char *fmt)
 }
 
 static const char *
-odformatint(char fchar, const char *fmt)
+odformatint(char fchar, const char * __restrict fmt)
 {
 	unsigned long long n;
 	size_t isize;
@@ -429,7 +429,7 @@ odformatint(char fchar, const char *fmt)
 }
 
 static void
-odadd(const char *fmt)
+odadd(const char * __restrict fmt)
 {
 	static int needpad;
 

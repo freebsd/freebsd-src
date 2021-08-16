@@ -64,7 +64,7 @@ _citrus_mapper_none_mapper_getops(struct _citrus_mapper_ops *ops)
 
 static int
 /*ARGSUSED*/
-_citrus_mapper_none_mapper_init(struct _citrus_mapper_area *__restrict ma __unused,
+_citrus_mapper_none_mapper_init(struct _citrus_mapper_area * __restrict ma __unused,
     struct _citrus_mapper * __restrict cm, const char * __restrict dir __unused,
     const void * __restrict var __unused, size_t lenvar __unused,
     struct _citrus_mapper_traits * __restrict mt, size_t lenmt)

@@ -2331,7 +2331,7 @@ vtscsi_setup_sysctl(struct vtscsi_softc *sc)
 
 static void
 vtscsi_printf_req(struct vtscsi_request *req, const char *func,
-    const char *fmt, ...)
+    const char * __restrict fmt, ...)
 {
 	struct vtscsi_softc *sc;
 	union ccb *ccb;

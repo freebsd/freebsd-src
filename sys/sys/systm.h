@@ -202,31 +202,31 @@ critical_exit(void)
 typedef void early_putc_t(int ch);
 extern early_putc_t *early_putc;
 #endif
-int	kvprintf(char const *, void (*)(int, void*), void *, int,
+int	kvprintf(const char *__restrict, void (*)(int, void*), void *, int,
 	    __va_list) __printflike(1, 0);
-void	log(int, const char *, ...) __printflike(2, 3);
+void	log(int, const char *__restrict, ...) __printflike(2, 3);
 void	log_console(struct uio *);
-void	vlog(int, const char *, __va_list) __printflike(2, 0);
+void	vlog(int, const char *__restrict, __va_list) __printflike(2, 0);
 int	asprintf(char **ret, struct malloc_type *mtp, const char *format, 
 	    ...) __printflike(3, 4);
-int	printf(const char *, ...) __printflike(1, 2);
-int	snprintf(char *, size_t, const char *, ...) __printflike(3, 4);
-int	sprintf(char *buf, const char *, ...) __printflike(2, 3);
-int	uprintf(const char *, ...) __printflike(1, 2);
-int	vprintf(const char *, __va_list) __printflike(1, 0);
-int	vasprintf(char **ret, struct malloc_type *mtp, const char *format,
+int	printf(const char *__restrict, ...) __printflike(1, 2);
+int	snprintf(char *__restrict, size_t, const char *__restrict, ...) __printflike(3, 4);
+int	sprintf(char *__restrict buf, const char *__restrict, ...) __printflike(2, 3);
+int	uprintf(const char *__restrict, ...) __printflike(1, 2);
+int	vprintf(const char *__restrict, __va_list) __printflike(1, 0);
+int	vasprintf(char **__restrict ret, struct malloc_type *mtp, const char *__restrict format,
 	    __va_list ap) __printflike(3, 0);
-int	vsnprintf(char *, size_t, const char *, __va_list) __printflike(3, 0);
-int	vsnrprintf(char *, size_t, int, const char *, __va_list) __printflike(4, 0);
-int	vsprintf(char *buf, const char *, __va_list) __printflike(2, 0);
-int	sscanf(const char *, char const * _Nonnull, ...) __scanflike(2, 3);
-int	vsscanf(const char * _Nonnull, char const * _Nonnull, __va_list)  __scanflike(2, 0);
+int	vsnprintf(char *__restrict, size_t, const char *__restrict, __va_list) __printflike(3, 0);
+int	vsnrprintf(char *__restrict, size_t, int, const char *__restrict, __va_list) __printflike(4, 0);
+int	vsprintf(char *__restrict buf, const char *__restrict, __va_list) __printflike(2, 0);
+int	sscanf(const char *__restrict, char const *__restrict _Nonnull, ...) __scanflike(2, 3);
+int	vsscanf(const char *__restrict _Nonnull, char const *__restrict _Nonnull, __va_list)  __scanflike(2, 0);
 long	strtol(const char *, char **, int);
 u_long	strtoul(const char *, char **, int);
 quad_t	strtoq(const char *, char **, int);
 u_quad_t strtouq(const char *, char **, int);
-void	tprintf(struct proc *p, int pri, const char *, ...) __printflike(3, 4);
-void	vtprintf(struct proc *, int, const char *, __va_list) __printflike(3, 0);
+void	tprintf(struct proc *p, int pri, const char *__restrict, ...) __printflike(3, 4);
+void	vtprintf(struct proc *, int, const char *__restrict, __va_list) __printflike(3, 0);
 void	hexdump(const void *ptr, int length, const char *hdr, int flags);
 #define	HD_COLUMN_MASK	0xff
 #define	HD_DELIM_MASK	0xff00
@@ -238,7 +238,7 @@ void	hexdump(const void *ptr, int length, const char *hdr, int flags);
 void	explicit_bzero(void * _Nonnull, size_t);
 
 void	*memset(void * _Nonnull buf, int c, size_t len);
-void	*memcpy(void * _Nonnull to, const void * _Nonnull from, size_t len);
+void	*memcpy(void *__restrict _Nonnull to, const void *__restrict _Nonnull from, size_t len);
 void	*memmove(void * _Nonnull dest, const void * _Nonnull src, size_t n);
 int	memcmp(const void *b1, const void *b2, size_t len);
 

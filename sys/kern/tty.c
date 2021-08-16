@@ -1345,7 +1345,7 @@ SYSCTL_PROC(_kern, OID_AUTO, ttys, CTLTYPE_OPAQUE|CTLFLAG_RD|CTLFLAG_MPSAFE,
 
 int
 tty_makedevf(struct tty *tp, struct ucred *cred, int flags,
-    const char *fmt, ...)
+    const char * __restrict fmt, ...)
 {
 	va_list ap;
 	struct make_dev_args args;

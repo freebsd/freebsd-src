@@ -103,7 +103,7 @@ xenbus_strstate(XenbusState state)
 }
 
 void
-xenbus_dev_verror(device_t dev, int err, const char *fmt, va_list ap)
+xenbus_dev_verror(device_t dev, int err, const char * __restrict fmt, va_list ap)
 {
 	int ret __diagused;
 	unsigned int len;
@@ -139,7 +139,7 @@ xenbus_dev_verror(device_t dev, int err, const char *fmt, va_list ap)
 }
 
 void
-xenbus_dev_error(device_t dev, int err, const char *fmt, ...)
+xenbus_dev_error(device_t dev, int err, const char * __restrict fmt, ...)
 {
 	va_list ap;
 
@@ -149,7 +149,7 @@ xenbus_dev_error(device_t dev, int err, const char *fmt, ...)
 }
 
 void
-xenbus_dev_vfatal(device_t dev, int err, const char *fmt, va_list ap)
+xenbus_dev_vfatal(device_t dev, int err, const char * __restrict fmt, va_list ap)
 {
 	xenbus_dev_verror(dev, err, fmt, ap);
 	device_printf(dev, "Fatal error. Transitioning to Closing State\n");
@@ -157,7 +157,7 @@ xenbus_dev_vfatal(device_t dev, int err, const char *fmt, va_list ap)
 }
 
 void
-xenbus_dev_fatal(device_t dev, int err, const char *fmt, ...)
+xenbus_dev_fatal(device_t dev, int err, const char * __restrict fmt, ...)
 {
 	va_list ap;
 

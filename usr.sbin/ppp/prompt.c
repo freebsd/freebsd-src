@@ -379,7 +379,7 @@ prompt_Destroy(struct prompt *p, int verbose)
 }
 
 void
-prompt_Printf(struct prompt *p, const char *fmt,...)
+prompt_Printf(struct prompt *p, const char * __restrict fmt,...)
 {
   if (p && p->active) {
     va_list ap;
@@ -391,7 +391,7 @@ prompt_Printf(struct prompt *p, const char *fmt,...)
 }
 
 void
-prompt_vPrintf(struct prompt *p, const char *fmt, va_list ap)
+prompt_vPrintf(struct prompt *p, const char * __restrict fmt, va_list ap)
 {
   if (p && p->active) {
     char nfmt[LINE_LEN];

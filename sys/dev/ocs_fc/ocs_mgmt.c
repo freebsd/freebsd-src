@@ -2711,7 +2711,7 @@ void ocs_mgmt_emit_string(ocs_textbuf_t *textbuf, int mode, const char *name, co
  * @return none
  */
 
-void ocs_mgmt_emit_int(ocs_textbuf_t *textbuf, int mode, const char *name, const char *fmt, ...)
+void ocs_mgmt_emit_int(ocs_textbuf_t *textbuf, int mode, const char *name, const char * __restrict fmt, ...)
 {
 	va_list ap;
 	char valuebuf[64];

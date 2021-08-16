@@ -227,7 +227,7 @@ dtrace_debug_ksprintn(char *nbuf, uintmax_t num, int base, int *lenp, int upper)
 #define MAXNBUF (sizeof(intmax_t) * NBBY + 1)
 
 static void
-dtrace_debug_vprintf(int cpu, const char *fmt, va_list ap)
+dtrace_debug_vprintf(int cpu, const char * __restrict fmt, va_list ap)
 {
 	char nbuf[MAXNBUF];
 	const char *p, *percent, *q;
@@ -534,7 +534,7 @@ number:
 }
 
 void
-dtrace_debug_printf(const char *fmt, ...)
+dtrace_debug_printf(const char * __restrict fmt, ...)
 {
 	va_list ap;
 	int cpu;

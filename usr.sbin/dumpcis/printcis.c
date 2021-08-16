@@ -287,7 +287,7 @@ print_ext_speed(u_char x, int scale)
  *	call from print_io_map(), print_mem_map()
  */
 static int
-print_num(int sz, const char *fmt, u_char *p, int ofs)
+print_num(int sz, const char * __restrict fmt, u_char *p, int ofs)
 {
 	switch (sz) {
 	case 0:

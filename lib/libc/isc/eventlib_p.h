@@ -265,7 +265,7 @@ typedef struct {
 
 /* eventlib.c */
 #define evPrintf __evPrintf
-void evPrintf(const evContext_p *ctx, int level, const char *fmt, ...)
+void evPrintf(const evContext_p *ctx, int level, const char * __restrict fmt, ...)
      ISC_FORMAT_PRINTF(3, 4);
 
 #ifdef USE_POLL

@@ -512,7 +512,7 @@ hastd_secondary(struct hast_resource *res, struct nv *nvin)
 
 static void
 reqlog(int loglevel, int debuglevel, int error, struct hio *hio,
-    const char *fmt, ...)
+    const char * __restrict fmt, ...)
 {
 	char msg[1024];
 	va_list ap;
@@ -636,7 +636,7 @@ end:
 }
 
 static __dead2 void
-secondary_exit(int exitcode, const char *fmt, ...)
+secondary_exit(int exitcode, const char * __restrict fmt, ...)
 {
 	va_list ap;
 

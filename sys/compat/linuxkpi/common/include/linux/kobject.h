@@ -108,9 +108,9 @@ kobject_get(struct kobject *kobj)
 }
 
 struct kobject *kobject_create(void);
-int	kobject_set_name_vargs(struct kobject *kobj, const char *fmt, va_list);
+int	kobject_set_name_vargs(struct kobject *kobj, const char * __restrict fmt, va_list);
 int	kobject_add(struct kobject *kobj, struct kobject *parent,
-	    const char *fmt, ...);
+	    const char * __restrict fmt, ...);
 
 static inline struct kobject *
 kobject_create_and_add(const char *name, struct kobject *parent)
@@ -139,9 +139,9 @@ kobject_name(const struct kobject *kobj)
 	return kobj->name;
 }
 
-int	kobject_set_name(struct kobject *kobj, const char *fmt, ...);
+int	kobject_set_name(struct kobject *kobj, const char * __restrict fmt, ...);
 int	kobject_init_and_add(struct kobject *kobj, const struct kobj_type *ktype,
-	    struct kobject *parent, const char *fmt, ...);
+	    struct kobject *parent, const char * __restrict fmt, ...);
 
 static __inline void
 kobject_uevent_env(struct kobject *kobj, int action, char *envp[])

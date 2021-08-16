@@ -92,8 +92,8 @@ snprintf_func(int ch, struct snprintf_arg *const info)
 	}
 }
 
-static char const hex2ascii_lower[] = "0123456789abcdefghijklmnopqrstuvwxyz";
-static char const hex2ascii_upper[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+static  char const hex2ascii_lower[] = "0123456789abcdefghijklmnopqrstuvwxyz";
+static  char const hex2ascii_upper[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 #define	hex2ascii(hex)	(hex2ascii_lower[hex])
 #define	hex2ascii_upper(hex)	(hex2ascii_upper[hex])
 
@@ -122,7 +122,7 @@ ksprintn(char *nbuf, uintmax_t num, int base, int *lenp, int upper)
 }
 
 static int
-kvprintf(char const *fmt, struct snprintf_arg *arg, int radix, va_list ap)
+kvprintf(const char *__restrict fmt, struct snprintf_arg *arg, int radix, va_list ap)
 {
 #define PCHAR(c) snprintf_func((c), arg)
 	char nbuf[MAXNBUF];
@@ -434,7 +434,7 @@ number:
 }
 
 int
-rtld_snprintf(char *buf, size_t bufsize, const char *fmt, ...)
+rtld_snprintf(char *buf, size_t bufsize, const char * __restrict fmt, ...)
 {
 	va_list ap;
 	int retval;
@@ -446,7 +446,7 @@ rtld_snprintf(char *buf, size_t bufsize, const char *fmt, ...)
 }
 
 int
-rtld_vsnprintf(char *buf, size_t bufsize, const char *fmt, va_list ap)
+rtld_vsnprintf(char *buf, size_t bufsize, const char * __restrict fmt, va_list ap)
 {
 	struct snprintf_arg info;
 	int retval;
@@ -462,7 +462,7 @@ rtld_vsnprintf(char *buf, size_t bufsize, const char *fmt, va_list ap)
 }
 
 int
-rtld_vfdprintf(int fd, const char *fmt, va_list ap)
+rtld_vfdprintf(int fd, const char * __restrict fmt, va_list ap)
 {
 	char buf[512];
 	struct snprintf_arg info;
@@ -478,7 +478,7 @@ rtld_vfdprintf(int fd, const char *fmt, va_list ap)
 }
 
 int
-rtld_fdprintf(int fd, const char *fmt, ...)
+rtld_fdprintf(int fd, const char * __restrict fmt, ...)
 {
 	va_list ap;
 	int retval;
@@ -490,7 +490,7 @@ rtld_fdprintf(int fd, const char *fmt, ...)
 }
 
 int
-rtld_fdprintfx(int fd, const char *fmt, ...)
+rtld_fdprintfx(int fd, const char * __restrict fmt, ...)
 {
 	va_list ap;
 	int retval;

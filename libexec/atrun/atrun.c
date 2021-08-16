@@ -94,8 +94,8 @@ static const char rcsid[] =
 static const char * const atrun = "atrun"; /* service name for syslog etc. */
 static int debug = 0;
 
-void perr(const char *fmt, ...);
-void perrx(const char *fmt, ...);
+void perr(const char * __restrict fmt, ...);
+void perrx(const char * __restrict fmt, ...);
 static void usage(void);
 
 /* Local functions */
@@ -400,7 +400,7 @@ run_file(const char *filename, uid_t uid, gid_t gid)
 
 /* Needed in gloadavg.c */
 void
-perr(const char *fmt, ...)
+perr(const char * __restrict fmt, ...)
 {
     const char * const fmtadd = ": %m";
     char nfmt[strlen(fmt) + strlen(fmtadd) + 1];
@@ -422,7 +422,7 @@ perr(const char *fmt, ...)
 }
 
 void
-perrx(const char *fmt, ...)
+perrx(const char * __restrict fmt, ...)
 {
     va_list ap;
 

@@ -101,7 +101,7 @@ static nvlist_t	*pci_iov_get_vf_subsystem_schema(void);
 
 int
 pci_iov_attach_name(device_t dev, struct nvlist *pf_schema,
-    struct nvlist *vf_schema, const char *fmt, ...)
+    struct nvlist *vf_schema, const char * __restrict fmt, ...)
 {
 	char buf[NAME_MAX + 1];
 	va_list ap;

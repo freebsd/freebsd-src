@@ -60,7 +60,7 @@ public:
 	 *
 	 * \param fmt  Printf-like string format specifier.
 	 */
-	Exception(const char *fmt, ...);
+	Exception(const char * __restrict fmt, ...);
 
 	/**
 	 * \brief Augment/Modify a Exception's string data.
@@ -79,7 +79,7 @@ protected:
 	 * \brief Convert exception string format and arguments provided
 	 *        in event constructors into a linear string.
 	 */
-	void FormatLog(const char *fmt, va_list ap);
+	void FormatLog(const char * __restrict fmt, va_list ap);
 
 	std::string   m_log;
 };

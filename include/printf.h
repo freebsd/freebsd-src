@@ -117,7 +117,7 @@ int __printf_puts(struct __printf_io *io, const void *ptr, int len);
 int __printf_pad(struct __printf_io *io, int n, int zero);
 int __printf_out(struct __printf_io *io, const struct printf_info *pi, const void *ptr, int len);
 
-int __xvprintf(FILE *fp, const char *fmt0, va_list ap);
+int __xvprintf(FILE *fp, const char * __restrict fmt0, va_list ap);
 extern int __use_xprintf;
 
 /* GLIBC compat */

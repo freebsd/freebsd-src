@@ -60,7 +60,7 @@ int *int_create(void)
 static
 _attribute_printf(1, 2)
 void
-print_error(const char *fmt,...)
+print_error(const char * __restrict fmt,...)
 {
 
 }

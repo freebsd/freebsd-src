@@ -3211,7 +3211,7 @@ isp_default_wwn(ispsoftc_t * isp, int chan, int isactive, int iswwnn)
 }
 
 void
-isp_prt(ispsoftc_t *isp, int level, const char *fmt, ...)
+isp_prt(ispsoftc_t *isp, int level, const char * __restrict fmt, ...)
 {
 	int loc;
 	char lbuf[200];
@@ -3229,7 +3229,7 @@ isp_prt(ispsoftc_t *isp, int level, const char *fmt, ...)
 }
 
 void
-isp_xs_prt(ispsoftc_t *isp, XS_T *xs, int level, const char *fmt, ...)
+isp_xs_prt(ispsoftc_t *isp, XS_T *xs, int level, const char * __restrict fmt, ...)
 {
 	va_list ap;
 	if (level != ISP_LOGALL && (level & isp->isp_dblev) == 0) {

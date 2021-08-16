@@ -61,14 +61,14 @@
 .Ft int
 .Fn NgMkSockNode "const char *name" "int *csp" "int *dsp"
 .Ft int
-.Fn NgNameNode "int cs" "const char *path" "const char *fmt" ...
+.Fn NgNameNode "int cs" "const char *path" "const char * __restrict fmt" ...
 .Ft int
 .Fo NgSendMsg
 .Fa "int cs" "const char *path" "int cookie" "int cmd" "const void *arg"
 .Fa "size_t arglen"
 .Fc
 .Ft int
-.Fn NgSendAsciiMsg "int cs" "const char *path" "const char *fmt" ...
+.Fn NgSendAsciiMsg "int cs" "const char *path" "const char * __restrict fmt" ...
 .Ft int
 .Fo NgSendReplyMsg
 .Fa "int cs" "const char *path" "struct ng_mesg *msg" "const void *arg"
@@ -92,8 +92,8 @@
 .Fn NgSetDebug "int level"
 .Ft void
 .Fo NgSetErrLog
-.Fa "void \*[lp]*log\*[rp]\*[lp]const char *fmt, ...\*[rp]"
-.Fa "void \*[lp]*logx\*[rp]\*[lp]const char *fmt, ...\*[rp]"
+.Fa "void \*[lp]*log\*[rp]\*[lp]const char * __restrict fmt, ...\*[rp]"
+.Fa "void \*[lp]*logx\*[rp]\*[lp]const char * __restrict fmt, ...\*[rp]"
 .Fc
 .Sh DESCRIPTION
 These functions facilitate user-mode program participation in the kernel

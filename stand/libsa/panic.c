@@ -53,7 +53,7 @@ panic_action(void)
 }
 
 void
-panic(const char *fmt,...)
+panic(const char * __restrict fmt,...)
 {
 	va_list         ap;
 

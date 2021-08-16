@@ -41,7 +41,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/stdarg.h>
 
-static void filemon_output_event(struct filemon *filemon, const char *fmt, ...)
+static void filemon_output_event(struct filemon *filemon, const char * __restrict fmt, ...)
     __printflike(2, 3);
 
 static eventhandler_tag filemon_exec_tag;
@@ -77,7 +77,7 @@ filemon_output(struct filemon *filemon, char *msg, size_t len)
 }
 
 static void
-filemon_output_event(struct filemon *filemon, const char *fmt, ...)
+filemon_output_event(struct filemon *filemon, const char * __restrict fmt, ...)
 {
 	va_list ap;
 	size_t len;

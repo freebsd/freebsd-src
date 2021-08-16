@@ -564,7 +564,7 @@ ng_sscfu_shutdown(node_p node)
 }
 
 static void
-sscfu_verbose(struct sscfu *sscfu, void *arg, const char *fmt, ...)
+sscfu_verbose(struct sscfu *sscfu, void *arg, const char * __restrict fmt, ...)
 {
 	va_list ap;
 

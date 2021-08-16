@@ -2522,7 +2522,7 @@ fatalerror(char *s)
 }
 
 void
-reply(int n, const char *fmt, ...)
+reply(int n, const char * __restrict fmt, ...)
 {
 	va_list ap;
 
@@ -2541,7 +2541,7 @@ reply(int n, const char *fmt, ...)
 }
 
 void
-lreply(int n, const char *fmt, ...)
+lreply(int n, const char * __restrict fmt, ...)
 {
 	va_list ap;
 
@@ -3290,7 +3290,7 @@ reapchild(int signo)
 }
 
 static void
-appendf(char **strp, char *fmt, ...)
+appendf(char **strp, char * __restrict fmt, ...)
 {
 	va_list ap;
 	char *ostr, *p;

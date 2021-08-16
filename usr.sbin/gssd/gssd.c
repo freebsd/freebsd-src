@@ -348,7 +348,7 @@ gssd_delete_resource(uint64_t id)
 }
 
 static void
-gssd_verbose_out(const char *fmt, ...)
+gssd_verbose_out(const char * __restrict fmt, ...)
 {
 	va_list ap;
 

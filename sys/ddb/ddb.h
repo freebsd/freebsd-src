@@ -224,7 +224,7 @@ bool		db_map_equal(struct vm_map *, struct vm_map *);
 void		db_md_list_watchpoints(void);
 void		db_print_loc_and_inst(db_addr_t loc);
 void		db_print_thread(void);
-int		db_printf(const char *fmt, ...) __printflike(1, 2);
+int		db_printf(const char * __restrict fmt, ...) __printflike(1, 2);
 int		db_read_bytes(vm_offset_t addr, size_t size, char *data);
 				/* machine-dependent */
 int		db_readline(char *lstart, int lsize);

@@ -15,7 +15,7 @@
 #include "opts.h"
 
 
-void	verbose(int level, char *fmt, ...)
+void	verbose(int level, char * __restrict fmt, ...)
 {
 	va_list pvar;
 
@@ -27,7 +27,7 @@ void	verbose(int level, char *fmt, ...)
 }
 
 
-void	ipfkverbose(char *fmt, ...)
+void	ipfkverbose(char * __restrict fmt, ...)
 {
 	va_list pvar;
 

@@ -18,7 +18,7 @@ int	debuglevel = 0;
 
 
 void
-debug(int level, char *fmt, ...)
+debug(int level, char * __restrict fmt, ...)
 {
 	va_list pvar;
 
@@ -31,7 +31,7 @@ debug(int level, char *fmt, ...)
 
 
 void
-ipfkdebug(char *fmt, ...)
+ipfkdebug(char * __restrict fmt, ...)
 {
 	va_list pvar;
 

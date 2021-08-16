@@ -258,7 +258,7 @@ ng_uni_shutdown(node_p node)
  * CONTROL MESSAGES
  */
 static void
-uni_do_status(struct uni *uni, void *uarg, void *sbuf, const char *fmt, ...)
+uni_do_status(struct uni *uni, void *uarg, void *sbuf, const char * __restrict fmt, ...)
 {
 	va_list ap;
 
@@ -732,7 +732,7 @@ uni_saal_output(struct uni *uni, void *varg, enum saal_sig sig, struct uni_msg *
 }
 
 static void
-uni_verbose(struct uni *uni, void *varg, u_int fac, const char *fmt, ...)
+uni_verbose(struct uni *uni, void *varg, u_int fac, const char * __restrict fmt, ...)
 {
 	va_list ap;
 

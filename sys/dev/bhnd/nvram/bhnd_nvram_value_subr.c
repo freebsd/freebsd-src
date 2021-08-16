@@ -392,7 +392,7 @@ bhnd_nvram_value_size(const void *inp, size_t ilen, bhnd_nvram_type itype,
  *			underflow) the representation defined by @p fmt.
  */
 int
-bhnd_nvram_value_printf(const char *fmt, const void *inp, size_t ilen,
+bhnd_nvram_value_printf(const char * __restrict fmt, const void *inp, size_t ilen,
     bhnd_nvram_type itype, char *outp, size_t *olen, ...)
 {
 	va_list	ap;
@@ -433,7 +433,7 @@ bhnd_nvram_value_printf(const char *fmt, const void *inp, size_t ilen,
  *			underflow) the representation defined by @p fmt.
  */
 int
-bhnd_nvram_value_vprintf(const char *fmt, const void *inp, size_t ilen,
+bhnd_nvram_value_vprintf(const char * __restrict fmt, const void *inp, size_t ilen,
     bhnd_nvram_type itype, char *outp, size_t *olen, va_list ap)
 {
 	bhnd_nvram_val	val;

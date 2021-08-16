@@ -35,7 +35,7 @@
 .Sh SYNOPSIS
 .In geom/geom.h
 .Ft "struct g_provider *"
-.Fn g_new_providerf "struct g_geom *gp" "const char *fmt" ...
+.Fn g_new_providerf "struct g_geom *gp" "const char * __restrict fmt" ...
 .Ft void
 .Fn g_destroy_provider "struct g_provider *pp"
 .Ft void

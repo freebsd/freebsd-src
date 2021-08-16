@@ -649,7 +649,7 @@ enc_runcmd(struct enc_softc *enc, char *cdb, int cdbl, char *dptr, int *dlenp)
 }
 
 void
-enc_log(struct enc_softc *enc, const char *fmt, ...)
+enc_log(struct enc_softc *enc, const char * __restrict fmt, ...)
 {
 	va_list ap;
 

@@ -111,7 +111,7 @@ linux_emul_convpath(const char *path, enum uio_seg pathseg,
 }
 
 void
-linux_msg(const struct thread *td, const char *fmt, ...)
+linux_msg(const struct thread *td, const char * __restrict fmt, ...)
 {
 	va_list ap;
 	struct proc *p;

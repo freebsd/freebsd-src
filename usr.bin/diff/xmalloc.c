@@ -72,7 +72,7 @@ xstrdup(const char *str)
 }
 
 int
-xasprintf(char **ret, const char *fmt, ...)
+xasprintf(char ** __restrict ret, const char * __restrict fmt, ...)
 {
 	va_list ap;
 	int i;

@@ -119,7 +119,7 @@ static sig_atomic_t got_siginfo;
 static void infohandler(int);
 
 static void
-logmsg(int pri, const char *fmt, ...)
+logmsg(int pri, const char * __restrict fmt, ...)
 {
 	va_list ap;
 

@@ -98,7 +98,7 @@ __FBSDID("$FreeBSD$");
 } while (0)
 
 static __dead2 void
-child_fail_require(const char *file, int line, const char *fmt, ...)
+child_fail_require(const char *file, int line, const char * __restrict fmt, ...)
 {
 	va_list ap;
 	char buf[1024];

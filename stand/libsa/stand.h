@@ -290,13 +290,13 @@ static __inline int tolower(int c)
 extern void	setheap(void *base, void *top);
 extern char	*sbrk(int incr);
 
-extern int	printf(const char *fmt, ...) __printflike(1, 2);
-extern int	asprintf(char **buf, const char *cfmt, ...) __printflike(2, 3);
-extern int	sprintf(char *buf, const char *cfmt, ...) __printflike(2, 3);
-extern int	snprintf(char *buf, size_t size, const char *cfmt, ...) __printflike(3, 4);
-extern int	vprintf(const char *fmt, __va_list);
-extern int	vsprintf(char *buf, const char *cfmt, __va_list);
-extern int	vsnprintf(char *buf, size_t size, const char *cfmt, __va_list);
+extern int	printf(const char * __restrict fmt, ...) __printflike(1, 2);
+extern int	asprintf(char ** __restrict buf, const char * __restrict fmt, ...) __printflike(2, 3);
+extern int	sprintf(char * __restrict buf, const char * __restrict fmt, ...) __printflike(2, 3);
+extern int	snprintf(char * __restrict buf, size_t size, const char * __restrict fmt, ...) __printflike(3, 4);
+extern int	vprintf(const char * __restrict fmt, __va_list);
+extern int	vsprintf(char * __restrict buf, const char * __restrict fmt, __va_list);
+extern int	vsnprintf(char * __restrict buf, size_t size, const char * __restrict fmt, __va_list);
 
 extern void	twiddle(u_int callerdiv);
 extern void	twiddle_divisor(u_int globaldiv);
@@ -378,7 +378,7 @@ extern ev_sethook_t	env_noset;		/* refuse set operation */
 extern ev_unsethook_t	env_nounset;		/* refuse unset operation */
 
 /* stdlib.h routines */
-extern int		abs(int a);
+extern int		abs(int a) __pure2;
 extern void		abort(void) __dead2;
 extern long		strtol(const char * __restrict, char ** __restrict, int);
 extern long long	strtoll(const char * __restrict, char ** __restrict, int);

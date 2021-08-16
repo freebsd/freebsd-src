@@ -264,7 +264,7 @@ exit_regerror(int er, regex_t *re, const char *source)
  * -E flag functionality.
  */
 void
-m4_warnx(const char *fmt, ...)
+m4_warnx(const char * __restrict fmt, ...)
 {
 	va_list ap;
 

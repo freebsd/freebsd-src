@@ -4187,7 +4187,7 @@ _Static_assert((VHOLD_ALL_FLAGS & ~VHOLD_NO_SMR) == 0,
     "new hold count flag not added to vn_printf");
 
 void
-vn_printf(struct vnode *vp, const char *fmt, ...)
+vn_printf(struct vnode * __restrict vp, const char * __restrict fmt, ...)
 {
 	va_list ap;
 	char buf[256], buf2[16];

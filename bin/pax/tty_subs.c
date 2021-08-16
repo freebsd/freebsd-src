@@ -93,7 +93,7 @@ tty_init(void)
  */
 
 void
-tty_prnt(const char *fmt, ...)
+tty_prnt(const char * __restrict fmt, ...)
 {
 	va_list ap;
 	if (ttyoutf == NULL)
@@ -136,7 +136,7 @@ tty_read(char *str, int len)
  */
 
 void
-paxwarn(int set, const char *fmt, ...)
+paxwarn(int set, const char * __restrict fmt, ...)
 {
 	va_list ap;
 	va_start(ap, fmt);
@@ -164,7 +164,7 @@ paxwarn(int set, const char *fmt, ...)
  */
 
 void
-syswarn(int set, int errnum, const char *fmt, ...)
+syswarn(int set, int errnum, const char * __restrict fmt, ...)
 {
 	va_list ap;
 	va_start(ap, fmt);

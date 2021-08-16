@@ -9,7 +9,7 @@
 extern jmp_buf env;
 
 void
-error(const char *fmt, ...)
+error(const char * __restrict fmt, ...)
 {
 	va_list ap;
 
@@ -22,7 +22,7 @@ error(const char *fmt, ...)
 }
 
 int
-warning(const char *fmt, ...)
+warning(const char * __restrict fmt, ...)
 {
 	va_list ap;
 
@@ -39,7 +39,7 @@ warning(const char *fmt, ...)
 }
 
 int
-note(const char *fmt, ...)
+note(const char * __restrict fmt, ...)
 {
 	int ret;
 	va_list ap;

@@ -231,13 +231,13 @@ static	int	exit_value = 0;		/* exit value */
 
 static	const char *infile;		/* name of file coming in */
 
-static	void	maybe_err(const char *fmt, ...) __printflike(1, 2) __dead2;
+static	void	maybe_err(const char * __restrict fmt, ...) __printflike(1, 2) __dead2;
 #if !defined(NO_BZIP2_SUPPORT) || !defined(NO_PACK_SUPPORT) ||	\
     !defined(NO_XZ_SUPPORT) || !defined(NO_ZSTD_SUPPORT)
-static	void	maybe_errx(const char *fmt, ...) __printflike(1, 2) __dead2;
+static	void	maybe_errx(const char * __restrict fmt, ...) __printflike(1, 2) __dead2;
 #endif
-static	void	maybe_warn(const char *fmt, ...) __printflike(1, 2);
-static	void	maybe_warnx(const char *fmt, ...) __printflike(1, 2);
+static	void	maybe_warn(const char * __restrict fmt, ...) __printflike(1, 2);
+static	void	maybe_warnx(const char * __restrict fmt, ...) __printflike(1, 2);
 static	enum filetype file_gettype(u_char *);
 static	off_t	gz_compress(int, int, off_t *, const char *, uint32_t);
 static	off_t	gz_uncompress(int, int, char *, size_t, off_t *, const char *);
@@ -440,7 +440,7 @@ main(int argc, char **argv)
 
 /* maybe print a warning */
 void
-maybe_warn(const char *fmt, ...)
+maybe_warn(const char * __restrict fmt, ...)
 {
 	va_list ap;
 
@@ -455,7 +455,7 @@ maybe_warn(const char *fmt, ...)
 
 /* ... without an errno. */
 void
-maybe_warnx(const char *fmt, ...)
+maybe_warnx(const char * __restrict fmt, ...)
 {
 	va_list ap;
 
@@ -470,7 +470,7 @@ maybe_warnx(const char *fmt, ...)
 
 /* maybe print an error */
 void
-maybe_err(const char *fmt, ...)
+maybe_err(const char * __restrict fmt, ...)
 {
 	va_list ap;
 
@@ -486,7 +486,7 @@ maybe_err(const char *fmt, ...)
     !defined(NO_XZ_SUPPORT) || !defined(NO_ZSTD_SUPPORT)
 /* ... without an errno. */
 void
-maybe_errx(const char *fmt, ...)
+maybe_errx(const char * __restrict fmt, ...)
 {
 	va_list ap;
 

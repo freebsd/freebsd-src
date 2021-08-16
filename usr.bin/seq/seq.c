@@ -259,7 +259,7 @@ numeric(const char *s)
  * valid_format - validate user specified format string
  */
 static int
-valid_format(const char *fmt)
+valid_format(const char * __restrict fmt)
 {
 	unsigned conversions = 0;
 

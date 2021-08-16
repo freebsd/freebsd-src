@@ -281,7 +281,7 @@ int
 intr_event_create(struct intr_event **event, void *source, int flags, int irq,
     void (*pre_ithread)(void *), void (*post_ithread)(void *),
     void (*post_filter)(void *), int (*assign_cpu)(void *, int),
-    const char *fmt, ...)
+    const char * __restrict fmt, ...)
 {
 	struct intr_event *ie;
 	va_list ap;

@@ -58,7 +58,7 @@ __FBSDID("$FreeBSD$");
 #include "subr.h"
 
 int
-vsnprlcat(char *str, size_t size, const char *fmt, va_list ap)
+vsnprlcat(char * __restrict str, size_t size, const char * __restrict fmt, va_list ap)
 {
 	size_t len;
 
@@ -67,7 +67,7 @@ vsnprlcat(char *str, size_t size, const char *fmt, va_list ap)
 }
 
 int
-snprlcat(char *str, size_t size, const char *fmt, ...)
+snprlcat(char * __restrict str, size_t size, const char * __restrict fmt, ...)
 {
 	va_list ap;
 	int result;

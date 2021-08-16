@@ -81,7 +81,7 @@ log_set_peer_addr(const char *addr)
 }
 
 static void
-log_common(int priority, int log_errno, const char *fmt, va_list ap)
+log_common(int priority, int log_errno, const char * __restrict fmt, va_list ap)
 {
 	static char msgbuf[MSGBUF_LEN];
 	static char msgbuf_strvised[MSGBUF_LEN * 4 + 1];
@@ -141,7 +141,7 @@ log_common(int priority, int log_errno, const char *fmt, va_list ap)
 }
 
 void
-log_err(int eval, const char *fmt, ...)
+log_err(int eval, const char * __restrict fmt, ...)
 {
 	va_list ap;
 
@@ -153,7 +153,7 @@ log_err(int eval, const char *fmt, ...)
 }
 
 void
-log_errx(int eval, const char *fmt, ...)
+log_errx(int eval, const char * __restrict fmt, ...)
 {
 	va_list ap;
 
@@ -165,7 +165,7 @@ log_errx(int eval, const char *fmt, ...)
 }
 
 void
-log_warn(const char *fmt, ...)
+log_warn(const char * __restrict fmt, ...)
 {
 	va_list ap;
 
@@ -175,7 +175,7 @@ log_warn(const char *fmt, ...)
 }
 
 void
-log_warnx(const char *fmt, ...)
+log_warnx(const char * __restrict fmt, ...)
 {
 	va_list ap;
 
@@ -185,7 +185,7 @@ log_warnx(const char *fmt, ...)
 }
 
 void
-log_debugx(const char *fmt, ...)
+log_debugx(const char * __restrict fmt, ...)
 {
 	va_list ap;
 

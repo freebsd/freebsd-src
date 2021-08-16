@@ -186,7 +186,7 @@ errout:
  * Returns -1 if error and sets errno.
  */
 int
-NgNameNode(int cs, const char *path, const char *fmt, ...)
+NgNameNode(int cs, const char *path, const char * __restrict fmt, ...)
 {
 	struct ngm_name ngn;
 	va_list args;

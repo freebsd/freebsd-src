@@ -70,7 +70,7 @@ err_set_exit(void (*ef)(int))
 __weak_reference(_err, err);
 
 void
-_err(int eval, const char *fmt, ...)
+_err(int eval, const char * __restrict fmt, ...)
 {
 	va_list ap;
 	va_start(ap, fmt);
@@ -79,13 +79,13 @@ _err(int eval, const char *fmt, ...)
 }
 
 void
-verr(int eval, const char *fmt, va_list ap)
+verr(int eval, const char * __restrict fmt, va_list ap)
 {
 	verrc(eval, errno, fmt, ap);
 }
 
 void
-errc(int eval, int code, const char *fmt, ...)
+errc(int eval, int code, const char * __restrict fmt, ...)
 {
 	va_list ap;
 	va_start(ap, fmt);
@@ -94,7 +94,7 @@ errc(int eval, int code, const char *fmt, ...)
 }
 
 void
-verrc(int eval, int code, const char *fmt, va_list ap)
+verrc(int eval, int code, const char * __restrict fmt, va_list ap)
 {
 	if (err_file == NULL)
 		err_set_file(NULL);
@@ -110,7 +110,7 @@ verrc(int eval, int code, const char *fmt, va_list ap)
 }
 
 void
-errx(int eval, const char *fmt, ...)
+errx(int eval, const char * __restrict fmt, ...)
 {
 	va_list ap;
 	va_start(ap, fmt);
@@ -119,7 +119,7 @@ errx(int eval, const char *fmt, ...)
 }
 
 void
-verrx(int eval, const char *fmt, va_list ap)
+verrx(int eval, const char * __restrict fmt, va_list ap)
 {
 	if (err_file == NULL)
 		err_set_file(NULL);
@@ -135,7 +135,7 @@ verrx(int eval, const char *fmt, va_list ap)
 __weak_reference(_warn, warn);
 
 void
-_warn(const char *fmt, ...)
+_warn(const char * __restrict fmt, ...)
 {
 	va_list ap;
 	va_start(ap, fmt);
@@ -144,13 +144,13 @@ _warn(const char *fmt, ...)
 }
 
 void
-vwarn(const char *fmt, va_list ap)
+vwarn(const char * __restrict fmt, va_list ap)
 {
 	vwarnc(errno, fmt, ap);
 }
 
 void
-warnc(int code, const char *fmt, ...)
+warnc(int code, const char * __restrict fmt, ...)
 {
 	va_list ap;
 	va_start(ap, fmt);
@@ -159,7 +159,7 @@ warnc(int code, const char *fmt, ...)
 }
 
 void
-vwarnc(int code, const char *fmt, va_list ap)
+vwarnc(int code, const char * __restrict fmt, va_list ap)
 {
 	int saved_errno;
 
@@ -176,7 +176,7 @@ vwarnc(int code, const char *fmt, va_list ap)
 }
 
 void
-warnx(const char *fmt, ...)
+warnx(const char * __restrict fmt, ...)
 {
 	va_list ap;
 	va_start(ap, fmt);
@@ -185,7 +185,7 @@ warnx(const char *fmt, ...)
 }
 
 void
-vwarnx(const char *fmt, va_list ap)
+vwarnx(const char * __restrict fmt, va_list ap)
 {
 	int saved_errno;
 

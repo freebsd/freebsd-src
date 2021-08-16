@@ -89,7 +89,7 @@ extern	void ath_hal_assert_failed(const char* filename,
 		int lineno, const char* msg);
 #endif
 #ifdef AH_DEBUG
-extern	void DO_HALDEBUG(struct ath_hal *ah, u_int mask, const char* fmt, ...);
+extern	void DO_HALDEBUG(struct ath_hal *ah, u_int mask, const char * __restrict fmt, ...);
 #endif /* AH_DEBUG */
 
 /* NB: put this here instead of the driver to avoid circular references */
@@ -119,13 +119,13 @@ ath_hal_free(void* p)
 }
 
 void
-ath_hal_vprintf(struct ath_hal *ah, const char* fmt, va_list ap)
+ath_hal_vprintf(struct ath_hal *ah, const char * __restrict fmt, va_list ap)
 {
 	vprintf(fmt, ap);
 }
 
 void
-ath_hal_printf(struct ath_hal *ah, const char* fmt, ...)
+ath_hal_printf(struct ath_hal *ah, const char * __restrict fmt, ...)
 {
 	va_list ap;
 	va_start(ap, fmt);
@@ -160,7 +160,7 @@ ath_hal_reg_whilst_asleep(struct ath_hal *ah, uint32_t reg)
 }
 
 void
-DO_HALDEBUG(struct ath_hal *ah, u_int mask, const char* fmt, ...)
+DO_HALDEBUG(struct ath_hal *ah, u_int mask, const char * __restrict fmt, ...)
 {
 	if ((mask == HAL_DEBUG_UNMASKABLE) ||
 	    (ah != NULL && ah->ah_config.ah_debug & mask) ||

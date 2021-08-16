@@ -194,7 +194,7 @@ static const int gdb_regsize[] = {
 #include <stdio.h>
 
 static void __printflike(1, 2)
-debug(const char *fmt, ...)
+debug(const char * __restrict fmt, ...)
 {
 	static FILE *logfile;
 	va_list ap;

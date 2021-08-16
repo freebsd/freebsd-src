@@ -160,7 +160,7 @@ rndtest_test(struct rndtest_state *rsp)
 }
 
 static void
-rndtest_report(struct rndtest_state *rsp, int failure, const char *fmt, ...)
+rndtest_report(struct rndtest_state *rsp, int failure, const char * __restrict fmt, ...)
 {
 	char buf[80];
 	va_list ap;

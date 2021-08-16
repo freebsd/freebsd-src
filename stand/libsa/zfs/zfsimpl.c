@@ -1429,7 +1429,7 @@ state_name(vdev_state_t state)
 #else
 
 static int
-pager_printf(const char *fmt, ...)
+pager_printf(const char * __restrict fmt, ...)
 {
 	char line[80];
 	va_list args;

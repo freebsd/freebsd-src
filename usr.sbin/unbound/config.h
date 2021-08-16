@@ -1311,8 +1311,8 @@
 #define snprintf snprintf_unbound
 #define vsnprintf vsnprintf_unbound
 #include <stdarg.h>
-int snprintf (char *str, size_t count, const char *fmt, ...);
-int vsnprintf (char *str, size_t count, const char *fmt, va_list arg);
+int snprintf (char * __restrict str, size_t count, const char * __restrict fmt, ...);
+int vsnprintf (char * __restrict str, size_t count, const char * __restrict fmt, va_list arg);
 #endif /* HAVE_SNPRINTF or SNPRINTF_RET_BROKEN */
 
 #ifndef HAVE_INET_PTON

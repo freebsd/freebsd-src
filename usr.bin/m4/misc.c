@@ -267,7 +267,7 @@ killdiv(void)
 extern char *__progname;
 
 void
-m4errx(int eval, const char *fmt, ...)
+m4errx(int eval, const char * __restrict fmt, ...)
 {
 	fprintf(stderr, "%s: ", __progname);
 	fprintf(stderr, "%s at line %lu: ", CURRENT_NAME, CURRENT_LINE);
@@ -297,7 +297,7 @@ resizedivs(int n)
 }
 
 void *
-xalloc(size_t n, const char *fmt, ...)
+xalloc(size_t n, const char * __restrict fmt, ...)
 {
 	void *p = malloc(n);
 
@@ -316,7 +316,7 @@ xalloc(size_t n, const char *fmt, ...)
 }
 
 void *
-xcalloc(size_t n, size_t s, const char *fmt, ...)
+xcalloc(size_t n, size_t s, const char * __restrict fmt, ...)
 {
 	void *p = calloc(n, s);
 
@@ -335,7 +335,7 @@ xcalloc(size_t n, size_t s, const char *fmt, ...)
 }
 
 void *
-xrealloc(void *old, size_t n, const char *fmt, ...)
+xrealloc(void *old, size_t n, const char * __restrict fmt, ...)
 {
 	char *p = realloc(old, n);
 
@@ -355,7 +355,7 @@ xrealloc(void *old, size_t n, const char *fmt, ...)
 }
 
 void *
-xreallocarray(void *old, size_t s1, size_t s2, const char *fmt, ...)
+xreallocarray(void *old, size_t s1, size_t s2, const char * __restrict fmt, ...)
 {
 	void *p = reallocarray(old, s1, s2);
 

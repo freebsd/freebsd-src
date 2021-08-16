@@ -150,7 +150,7 @@ access the allocated memory.
 The passed pointer must be aligned to the system page size.
 .Pp
 .Ft "struct cuse_dev *"
-.Fn "cuse_dev_create" "const struct cuse_methods *mtod" "void *priv0" "void *priv1" "uid_t" "gid_t" "int permission" "const char *fmt" "..."
+.Fn "cuse_dev_create" "const struct cuse_methods *mtod" "void *priv0" "void *priv1" "uid_t" "gid_t" "int permission" "const char * __restrict fmt" "..."
 This function creates a new character device according to the given
 parameters.
 This function returns a valid cuse_dev structure pointer

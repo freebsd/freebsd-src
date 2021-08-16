@@ -35,8 +35,8 @@
 __BEGIN_DECLS
 
 void cap_syslog(cap_channel_t *chan, int pri,
-    const char *fmt, ...) __printflike(3, 4);
-void cap_vsyslog(cap_channel_t *chan, int priority, const char *fmt,
+    const char * __restrict fmt, ...) __printflike(3, 4);
+void cap_vsyslog(cap_channel_t *chan, int priority, const char * __restrict fmt,
     va_list ap) __printflike(3, 0);
 
 void cap_openlog(cap_channel_t *chan, const char *ident, int logopt,

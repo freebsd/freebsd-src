@@ -52,34 +52,34 @@
 .Sh SYNOPSIS
 .In err.h
 .Ft void
-.Fn err "int eval" "const char *fmt" "..."
+.Fn err "int eval" "const char * __restrict fmt" "..."
 .Ft void
 .Fn err_set_exit "void (*exitf)(int)"
 .Ft void
 .Fn err_set_file "void *vfp"
 .Ft void
-.Fn errc "int eval" "int code" "const char *fmt" "..."
+.Fn errc "int eval" "int code" "const char * __restrict fmt" "..."
 .Ft void
-.Fn errx "int eval" "const char *fmt" "..."
+.Fn errx "int eval" "const char * __restrict fmt" "..."
 .Ft void
-.Fn warn "const char *fmt" "..."
+.Fn warn "const char * __restrict fmt" "..."
 .Ft void
-.Fn warnc "int code" "const char *fmt" "..."
+.Fn warnc "int code" "const char * __restrict fmt" "..."
 .Ft void
-.Fn warnx "const char *fmt" "..."
+.Fn warnx "const char * __restrict fmt" "..."
 .In stdarg.h
 .Ft void
-.Fn verr "int eval" "const char *fmt" "va_list args"
+.Fn verr "int eval" "const char * __restrict fmt" "va_list args"
 .Ft void
-.Fn verrc "int eval" "int code" "const char *fmt" "va_list args"
+.Fn verrc "int eval" "int code" "const char * __restrict fmt" "va_list args"
 .Ft void
-.Fn verrx "int eval" "const char *fmt" "va_list args"
+.Fn verrx "int eval" "const char * __restrict fmt" "va_list args"
 .Ft void
-.Fn vwarn "const char *fmt" "va_list args"
+.Fn vwarn "const char * __restrict fmt" "va_list args"
 .Ft void
-.Fn vwarnc "int code" "const char *fmt" "va_list args"
+.Fn vwarnc "int code" "const char * __restrict fmt" "va_list args"
 .Ft void
-.Fn vwarnx "const char *fmt" "va_list args"
+.Fn vwarnx "const char * __restrict fmt" "va_list args"
 .Sh DESCRIPTION
 The
 .Fn err

@@ -66,7 +66,7 @@ struct ice_hw;
 device_t ice_hw_to_dev(struct ice_hw *hw);
 
 /* configure hw->debug_mask to enable debug prints */
-void ice_debug(struct ice_hw *hw, uint64_t mask, char *fmt, ...) __printflike(3, 4);
+void ice_debug(struct ice_hw *hw, uint64_t mask, char * __restrict fmt, ...) __printflike(3, 4);
 void ice_debug_array(struct ice_hw *hw, uint64_t mask, uint32_t rowsize,
 		     uint32_t groupsize, uint8_t *buf, size_t len);
 void ice_info_fwlog(struct ice_hw *hw, uint32_t rowsize, uint32_t groupsize,

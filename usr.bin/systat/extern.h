@@ -98,7 +98,7 @@ void	 die(int);
 void	 display(void);
 int	 dkinit(void);
 int	 dkcmd(char *, char *);
-void	 error(const char *fmt, ...) __printflike(1, 2);
+void	 error(const char * __restrict fmt, ...) __printflike(1, 2);
 void	 fetchicmp(void);
 void	 fetchicmp6(void);
 void	 fetchifstat(void);

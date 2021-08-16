@@ -60,25 +60,25 @@ int pjdlog_sock_get(void);
 void pjdlog_debug_set(int level);
 int pjdlog_debug_get(void);
 
-void pjdlog_prefix_set(const char *fmt, ...) __printflike(1, 2);
-void pjdlogv_prefix_set(const char *fmt, va_list ap) __printflike(1, 0);
+void pjdlog_prefix_set(const char * __restrict fmt, ...) __printflike(1, 2);
+void pjdlogv_prefix_set(const char * __restrict fmt, va_list ap) __printflike(1, 0);
 const char *pjdlog_prefix_get(void);
-void pjdlog_prefix_push(const char *fmt, ...) __printflike(1, 2);
-void pjdlogv_prefix_push(const char *fmt, va_list ap) __printflike(1, 0);
+void pjdlog_prefix_push(const char * __restrict fmt, ...) __printflike(1, 2);
+void pjdlogv_prefix_push(const char * __restrict fmt, va_list ap) __printflike(1, 0);
 void pjdlog_prefix_pop(void);
 
 void _pjdlogv_common(const char *func, const char *file, int line, int loglevel,
-    int debuglevel, int error, const char *fmt, va_list ap) __printflike(7, 0);
+    int debuglevel, int error, const char * __restrict fmt, va_list ap) __printflike(7, 0);
 void _pjdlog_common(const char *func, const char *file, int line, int loglevel,
-    int debuglevel, int error, const char *fmt, ...) __printflike(7, 8);
+    int debuglevel, int error, const char * __restrict fmt, ...) __printflike(7, 8);
 
 void _pjdlogv_exit(const char *func, const char *file, int line, int exitcode,
-    int error, const char *fmt, va_list ap) __printflike(6, 0) __dead2;
+    int error, const char * __restrict fmt, va_list ap) __printflike(6, 0) __dead2;
 void _pjdlog_exit(const char *func, const char *file, int line, int exitcode,
-    int error, const char *fmt, ...) __printflike(6, 7) __dead2;
+    int error, const char * __restrict fmt, ...) __printflike(6, 7) __dead2;
 
 void _pjdlog_abort(const char *func, const char *file, int line, int error,
-    const char *failedexpr, const char *fmt, ...) __printflike(6, 7) __dead2;
+    const char *failedexpr, const char * __restrict fmt, ...) __printflike(6, 7) __dead2;
 
 #ifdef notyet
 int pjdlog_receive(int sock);

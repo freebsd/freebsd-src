@@ -1066,7 +1066,7 @@ _rtld_bind(Obj_Entry *obj, Elf_Size reloff)
  * will return the message.
  */
 void
-_rtld_error(const char *fmt, ...)
+_rtld_error(const char * __restrict fmt, ...)
 {
 	va_list ap;
 
@@ -4932,7 +4932,7 @@ symlook_obj1_gnu(SymLook *req, const Obj_Entry *obj)
 }
 
 static void
-trace_calc_fmts(const char **main_local, const char **fmt1, const char **fmt2)
+trace_calc_fmts(const char **main_local, const char ** __restrict fmt1, const char ** __restrict fmt2)
 {
 	*main_local = ld_get_env_var(LD_TRACE_LOADED_OBJECTS_PROGNAME);
 	if (*main_local == NULL)
@@ -4949,7 +4949,7 @@ trace_calc_fmts(const char **main_local, const char **fmt1, const char **fmt2)
 
 static void
 trace_print_obj(Obj_Entry *obj, const char *name, const char *path,
-    const char *main_local, const char *fmt1, const char *fmt2)
+    const char *main_local, const char * __restrict fmt1, const char * __restrict fmt2)
 {
 	const char *fmt;
 	int c;
@@ -6204,7 +6204,7 @@ static const struct auxfmt {
 };
 
 static bool
-is_ptr_fmt(const char *fmt)
+is_ptr_fmt(const char * __restrict fmt)
 {
 	char last;
 

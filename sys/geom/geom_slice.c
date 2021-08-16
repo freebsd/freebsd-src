@@ -352,7 +352,7 @@ g_slice_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp, struct 
 }
 
 int
-g_slice_config(struct g_geom *gp, u_int idx, int how, off_t offset, off_t length, u_int sectorsize, const char *fmt, ...)
+g_slice_config(struct g_geom *gp, u_int idx, int how, off_t offset, off_t length, u_int sectorsize, const char * __restrict fmt, ...)
 {
 	struct g_provider *pp, *pp2;
 	struct g_slicer *gsp;

@@ -153,7 +153,7 @@ int xenbus_grant_ring(device_t dev, unsigned long ring_mfn, grant_ref_t *refp);
  * \param fmt  Printf format string followed by a variable number of
  *             printf arguments.
  */
-void xenbus_dev_error(device_t dev, int err, const char *fmt, ...)
+void xenbus_dev_error(device_t dev, int err, const char * __restrict fmt, ...)
 	__attribute__((format(printf, 3, 4)));
 
 /**
@@ -164,7 +164,7 @@ void xenbus_dev_error(device_t dev, int err, const char *fmt, ...)
  * \param fmt  Printf format string.
  * \param ap   Va_list of printf arguments.
  */
-void xenbus_dev_verror(device_t dev, int err, const char *fmt, va_list ap)
+void xenbus_dev_verror(device_t dev, int err, const char * __restrict fmt, va_list ap)
 	__attribute__((format(printf, 3, 0)));
 
 /**
@@ -176,7 +176,7 @@ void xenbus_dev_verror(device_t dev, int err, const char *fmt, va_list ap)
  * \param fmt  Printf format string followed by a variable number of
  *             printf arguments.
  */
-void xenbus_dev_fatal(device_t dev, int err, const char *fmt, ...)
+void xenbus_dev_fatal(device_t dev, int err, const char * __restrict fmt, ...)
 	__attribute__((format(printf, 3, 4)));
 
 /**
@@ -187,7 +187,7 @@ void xenbus_dev_fatal(device_t dev, int err, const char *fmt, ...)
  * \param fmt  Printf format string.
  * \param ap   Va_list of printf arguments.
  */
-void xenbus_dev_vfatal(device_t dev, int err, const char *fmt, va_list)
+void xenbus_dev_vfatal(device_t dev, int err, const char * __restrict fmt, va_list)
 	__attribute__((format(printf, 3, 0)));
 
 /**

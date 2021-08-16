@@ -502,7 +502,7 @@ check_maps(
 	char buf[BUFSIZE];
 	long i, j, k, l, m, size;
 	ufs2_daddr_t n, astart, aend, ustart, uend;
-	void (*msg)(const char *fmt, ...);
+	void (*msg)(const char * __restrict fmt, ...);
 
 	if (usesysctl)
 		msg = pfatal;

@@ -36,7 +36,7 @@ int		rpctls_checkhost(struct sockaddr *sad, X509 *cert,
 		    unsigned int wildcard);
 int		rpctls_loadcrlfile(SSL_CTX *ctx);
 void		rpctls_checkcrl(void);
-void		rpctls_verbose_out(const char *fmt, ...);
+void		rpctls_verbose_out(const char * __restrict fmt, ...);
 void		rpctls_svc_run(void);
 
 /*

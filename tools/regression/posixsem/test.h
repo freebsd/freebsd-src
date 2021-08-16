@@ -50,7 +50,7 @@ struct regression_test {
 	DATA_SET(regression_tests_set, _regtest_##function)
 
 void	fail(void);
-void	fail_err(const char *fmt, ...);
+void	fail_err(const char * __restrict fmt, ...);
 void	pass(void);
 void	run_tests(void);
 void	skip(const char *reason);

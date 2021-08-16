@@ -83,7 +83,7 @@ usb_ts_rand_noise(void)
 }
 
 uint8_t
-usb_ts_show_menu(uint8_t level, const char *title, const char *fmt,...)
+usb_ts_show_menu(uint8_t level, const char *title, const char * __restrict fmt,...)
 {
 	va_list args;
 	uint8_t x;

@@ -235,7 +235,7 @@ rpctls_checkcrl(void)
 }
 
 void
-rpctls_verbose_out(const char *fmt, ...)
+rpctls_verbose_out(const char * __restrict fmt, ...)
 {
 	va_list ap;
 

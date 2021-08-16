@@ -805,7 +805,7 @@ Variable numbers of arguments should look like this:
 #include <stdarg.h>
 
 void
-vaf(const char *fmt, ...)
+vaf(const char * __restrict fmt, ...)
 {
 	va_list ap;
 

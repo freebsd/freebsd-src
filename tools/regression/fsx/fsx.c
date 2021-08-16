@@ -138,7 +138,7 @@ int invl = 0;
 
 
 void
-prt(const char *fmt, ...)
+prt(const char * __restrict fmt, ...)
 {
 	va_list args;
 

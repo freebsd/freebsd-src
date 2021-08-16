@@ -390,7 +390,7 @@ mt_status_free(struct mt_status_data *status_data)
 }
 
 void
-mt_entry_sbuf(struct sbuf *sb, struct mt_status_entry *entry, char *fmt)
+mt_entry_sbuf(struct sbuf *sb, struct mt_status_entry *entry, char * __restrict fmt)
 {
 	switch(entry->var_type) {
 	case MT_TYPE_INT:

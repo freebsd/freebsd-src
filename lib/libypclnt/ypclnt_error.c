@@ -43,7 +43,7 @@
 #include "ypclnt.h"
 
 void
-ypclnt_error(ypclnt_t *ypclnt, const char *func, const char *fmt, ...)
+ypclnt_error(ypclnt_t *ypclnt, const char *func, const char * __restrict fmt, ...)
 {
 	char *errmsg;
 	va_list ap;

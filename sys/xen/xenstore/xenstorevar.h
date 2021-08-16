@@ -256,7 +256,7 @@ int xs_transaction_end(struct xs_transaction t, int abort);
  *          type of failure.
  */
 int xs_scanf(struct xs_transaction t,
-    const char *dir, const char *node, int *scancountp, const char *fmt, ...)
+    const char *dir, const char *node, int *scancountp, const char * __restrict fmt, ...)
     __attribute__((format(scanf, 5, 6)));
 
 /**
@@ -272,7 +272,7 @@ int xs_scanf(struct xs_transaction t,
  *          type of write failure.
  */
 int xs_printf(struct xs_transaction t, const char *dir,
-    const char *node, const char *fmt, ...)
+    const char *node, const char * __restrict fmt, ...)
     __attribute__((format(printf, 4, 5)));
 
 /**
@@ -288,7 +288,7 @@ int xs_printf(struct xs_transaction t, const char *dir,
  *          type of write failure.
  */
 int xs_vprintf(struct xs_transaction t, const char *dir,
-    const char *node, const char *fmt, va_list ap);
+    const char *node, const char * __restrict fmt, va_list ap);
 
 /**
  * Multi-file read within a single directory and scanf parsing of

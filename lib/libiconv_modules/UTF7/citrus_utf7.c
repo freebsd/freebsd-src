@@ -92,7 +92,7 @@ _citrus_UTF7_init_state(_UTF7EncodingInfo * __restrict ei __unused,
 static __inline void
 /*ARGSUSED*/
 _citrus_UTF7_pack_state(_UTF7EncodingInfo * __restrict ei __unused,
-    void *__restrict pspriv, const _UTF7State * __restrict s)
+    void * __restrict pspriv, const _UTF7State * __restrict s)
 {
 
 	memcpy(pspriv, (const void *)s, sizeof(*s));

@@ -40,9 +40,9 @@
 .In libcasper.h
 .In casper/cap_syslog.h
 .Ft void
-.Fn cap_syslog "cap_channel_t *chan" "int pri" "const char *fmt" "..."
+.Fn cap_syslog "cap_channel_t *chan" "int pri" "const char * __restrict fmt" "..."
 .Ft void
-.Fn cap_vsyslog "cap_channel_t *chan" "int priority" "const char *fmt" "va_list ap"
+.Fn cap_vsyslog "cap_channel_t *chan" "int priority" "const char * __restrict fmt" "va_list ap"
 .Ft void
 .Fn cap_openlog "cap_channel_t *chan" "const char *ident" "int logopt" "int facility"
 .Ft void

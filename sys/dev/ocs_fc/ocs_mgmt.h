@@ -98,7 +98,7 @@ extern void ocs_mgmt_end_unnumbered_section(ocs_textbuf_t *textbuf, const char *
 extern void ocs_mgmt_emit_property_name(ocs_textbuf_t *textbuf, int access, const char *name);
 extern void ocs_mgmt_emit_string(ocs_textbuf_t *textbuf, int access, const char *name, const char *value);
 __attribute__((format(printf,4,5)))
-extern void ocs_mgmt_emit_int(ocs_textbuf_t *textbuf, int access, const char *name, const char *fmt, ...);
+extern void ocs_mgmt_emit_int(ocs_textbuf_t *textbuf, int access, const char *name, const char * __restrict fmt, ...);
 extern void ocs_mgmt_emit_boolean(ocs_textbuf_t *textbuf, int access, const char *name, const int value);
 extern int parse_wwn(char *wwn_in, uint64_t *wwn_out);
 

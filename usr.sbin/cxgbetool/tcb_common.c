@@ -93,7 +93,7 @@ void tcb_prflush(void)
 }
 
 
-void tcb_code_err_exit(char *fmt, ...)
+void tcb_code_err_exit(const char * __restrict fmt, ...)
 {
   va_list args;
   va_start(args, fmt);
@@ -175,16 +175,16 @@ tcb_startswith_nc(char *cs, char *ct)
 
 static int g_PR_indent=1;
 
-void PR(char *fmt, ...)
+void PR(const char * __restrict fmt, ...)
 {
-  int fmt_len;
+  size_t fmt_len;
   va_list args;
   va_start(args,fmt);
 
   if (g_PR_indent) printf("  ");
   g_PR_indent=0;
-  fmt_len=(int) strlen(fmt);
-  if (fmt_len>0 && fmt[fmt_len-1]=='\n') g_PR_indent=1;
+  fmt_len= strlen(fmt);
+  if (fmt_len && fmt[fmt_len-1]=='\n') g_PR_indent=1;
 
   vprintf(fmt,args);
   tcb_prflush();

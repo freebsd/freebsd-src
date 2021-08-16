@@ -647,7 +647,7 @@ sbuf_putc_func(int c, void *arg)
 }
 
 int
-sbuf_vprintf(struct sbuf *s, const char *fmt, va_list ap)
+sbuf_vprintf(struct sbuf * __restrict s, const char * __restrict fmt, va_list ap)
 {
 
 	assert_sbuf_integrity(s);
@@ -663,7 +663,7 @@ sbuf_vprintf(struct sbuf *s, const char *fmt, va_list ap)
 }
 #else /* !_KERNEL */
 int
-sbuf_vprintf(struct sbuf *s, const char *fmt, va_list ap)
+sbuf_vprintf(struct sbuf * __restrict s, const char * __restrict fmt, va_list ap)
 {
 	va_list ap_copy;
 	int error, len;
@@ -736,7 +736,7 @@ sbuf_vprintf(struct sbuf *s, const char *fmt, va_list ap)
  * Format the given arguments and append the resulting string to an sbuf.
  */
 int
-sbuf_printf(struct sbuf *s, const char *fmt, ...)
+sbuf_printf(struct sbuf * __restrict s, const char * __restrict fmt, ...)
 {
 	va_list ap;
 	int result;

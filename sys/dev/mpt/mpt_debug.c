@@ -856,7 +856,7 @@ mpt_dump_request(struct mpt_softc *mpt, request_t *req)
 }
 
 void
-mpt_prt(struct mpt_softc *mpt, const char *fmt, ...)
+mpt_prt(struct mpt_softc *mpt, const char * __restrict fmt, ...)
 {
 	va_list ap;
 
@@ -867,7 +867,7 @@ mpt_prt(struct mpt_softc *mpt, const char *fmt, ...)
 }
 
 void
-mpt_prtc(struct mpt_softc *mpt, const char *fmt, ...)
+mpt_prtc(struct mpt_softc *mpt, const char * __restrict fmt, ...)
 {
 	va_list ap;
 

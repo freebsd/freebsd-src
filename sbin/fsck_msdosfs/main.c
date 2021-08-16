@@ -128,7 +128,7 @@ main(int argc, char **argv)
 
 /*VARARGS*/
 int
-ask(int def, const char *fmt, ...)
+ask(int def, const char * __restrict fmt, ...)
 {
 	va_list ap;
 

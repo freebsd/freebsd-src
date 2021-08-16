@@ -259,19 +259,19 @@ Returns the number of characters in
 if successful, or -1 if a read error occurs.
 .It Xo
 .Ft int
-.Fn printf "const char *fmt" "..."
+.Fn printf "const char * __restrict fmt" "..."
 .Xc
 .It Xo
 .Ft void
-.Fn vprintf "const char *fmt" "va_list ap"
+.Fn vprintf "const char * __restrict fmt" "va_list ap"
 .Xc
 .It Xo
 .Ft int
-.Fn sprintf "char *buf" "const char *fmt" "..."
+.Fn sprintf "char * __restrict buf" "const char * __restrict fmt" "..."
 .Xc
 .It Xo
 .Ft void
-.Fn vsprintf "char *buf" "const char *fmt" "va_list ap"
+.Fn vsprintf "char *buf" "const char * __restrict fmt" "va_list ap"
 .Xc
 .Pp
 The *printf functions implement a subset of the standard

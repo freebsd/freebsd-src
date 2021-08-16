@@ -116,7 +116,7 @@ struct cam_periph	*xpt_path_periph(struct cam_path *path);
 device_t		xpt_path_sim_device(const struct cam_path *path);
 void			xpt_print_path(struct cam_path *path);
 void			xpt_print_device(struct cam_ed *device);
-void			xpt_print(struct cam_path *path, const char *fmt, ...);
+void			xpt_print(struct cam_path *path, const char * __restrict fmt, ...);
 void			xpt_async(u_int32_t async_code, struct cam_path *path,
 				  void *async_arg);
 void			xpt_rescan(union ccb *ccb);

@@ -233,7 +233,7 @@ void	iavf_write_pci_cfg(struct iavf_hw *, u32, u16);
 */
 #define iavf_debug(h, m, s, ...)  iavf_debug_shared(h, m, s, ##__VA_ARGS__)
 void iavf_debug_shared(struct iavf_hw *hw, uint64_t mask,
-    char *fmt_str, ...) __printflike(3, 4);
+    char * __restrict fmt_str, ...) __printflike(3, 4);
 
 /*
 ** This hardware supports either 16 or 32 byte rx descriptors;

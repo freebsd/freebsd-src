@@ -125,7 +125,7 @@ writehook(void *cookie, const char *buf, int len)
  *	print message on log file; output is intended for syslogd(8).
  */
 void
-syslog(int pri, const char *fmt, ...)
+syslog(int pri, const char * __restrict fmt, ...)
 {
 	va_list ap;
 
@@ -135,7 +135,7 @@ syslog(int pri, const char *fmt, ...)
 }
 
 static void
-vsyslog1(int pri, const char *fmt, va_list ap)
+vsyslog1(int pri, const char * __restrict fmt, va_list ap)
 {
 	struct timeval now;
 	struct tm tm;
@@ -343,7 +343,7 @@ syslog_cancel_cleanup(void *arg __unused)
 }
 
 void
-vsyslog(int pri, const char *fmt, va_list ap)
+vsyslog(int pri, const char * __restrict fmt, va_list ap)
 {
 
 	THREAD_LOCK();

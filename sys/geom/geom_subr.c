@@ -371,7 +371,7 @@ g_retaste(struct g_class *mp)
 }
 
 struct g_geom *
-g_new_geomf(struct g_class *mp, const char *fmt, ...)
+g_new_geomf(struct g_class *mp, const char * __restrict fmt, ...)
 {
 	struct g_geom *gp;
 	va_list ap;
@@ -598,7 +598,7 @@ g_new_provider_event(void *arg, int flag)
 }
 
 struct g_provider *
-g_new_providerf(struct g_geom *gp, const char *fmt, ...)
+g_new_providerf(struct g_geom *gp, const char * __restrict fmt, ...)
 {
 	struct g_provider *pp;
 	struct sbuf *sb;
@@ -636,7 +636,7 @@ g_new_providerf(struct g_geom *gp, const char *fmt, ...)
 }
 
 void
-g_provider_add_alias(struct g_provider *pp, const char *fmt, ...)
+g_provider_add_alias(struct g_provider *pp, const char * __restrict fmt, ...)
 {
 	struct sbuf *sb;
 	struct g_geom_alias *gap;

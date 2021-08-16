@@ -50,7 +50,7 @@ SET_DECLARE(regression_tests_set, struct regression_test);
  * <status> <test #> [name] [# <fmt> [fmt args]]
  */
 static void
-vprint_status(const char *status, const char *fmt, va_list ap)
+vprint_status(const char *status, const char * __restrict fmt, va_list ap)
 {
 
 	printf("%s %d", status, test_index);
@@ -65,7 +65,7 @@ vprint_status(const char *status, const char *fmt, va_list ap)
 }
 
 static void
-print_status(const char *status, const char *fmt, ...)
+print_status(const char *status, const char * __restrict fmt, ...)
 {
 	va_list ap;
 
@@ -89,7 +89,7 @@ fail(void)
 }
 
 void
-fail_err(const char *fmt, ...)
+fail_err(const char * __restrict fmt, ...)
 {
 	va_list ap;
 

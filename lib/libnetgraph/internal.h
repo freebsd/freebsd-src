@@ -62,8 +62,8 @@
 
 extern int	_gNgDebugLevel;
 
-extern void	(*_NgLog)(const char *fmt, ...);
-extern void	(*_NgLogx)(const char *fmt, ...);
+extern void	(*_NgLog)(const char * __restrict fmt, ...);
+extern void	(*_NgLogx)(const char * __restrict fmt, ...);
 
 #define NGLOG	(*_NgLog)
 #define NGLOGX	(*_NgLogx)

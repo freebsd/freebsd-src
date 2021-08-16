@@ -268,7 +268,7 @@ OF_putchar(int c, void *arg __unused)
 }
 
 void
-OF_printf(const char *fmt, ...)
+OF_printf(const char * __restrict fmt, ...)
 {
 	va_list	va;
 

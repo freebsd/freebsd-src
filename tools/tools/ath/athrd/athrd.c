@@ -1637,13 +1637,13 @@ ath_hal_free(void* p)
 }
 
 void
-ath_hal_vprintf(struct ath_hal *ah, const char* fmt, va_list ap)
+ath_hal_vprintf(struct ath_hal *ah, const char * __restrict fmt, va_list ap)
 {
 	vprintf(fmt, ap);
 }
 
 void
-ath_hal_printf(struct ath_hal *ah, const char* fmt, ...)
+ath_hal_printf(struct ath_hal *ah, const char * __restrict fmt, ...)
 {
 	va_list ap;
 	va_start(ap, fmt);
@@ -1652,7 +1652,7 @@ ath_hal_printf(struct ath_hal *ah, const char* fmt, ...)
 }
 
 void
-DO_HALDEBUG(struct ath_hal *ah, u_int mask, const char* fmt, ...)
+DO_HALDEBUG(struct ath_hal *ah, u_int mask, const char * __restrict fmt, ...)
 {
 	__va_list ap;
 	va_start(ap, fmt);

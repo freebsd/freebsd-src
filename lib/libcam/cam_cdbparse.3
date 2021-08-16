@@ -106,13 +106,13 @@
 .Ft int
 .Fo csio_decode
 .Fa "struct ccb_scsiio *csio"
-.Fa "const char *fmt"
+.Fa "const char * __restrict fmt"
 .Fa "..."
 .Fc
 .Ft int
 .Fo csio_decode_visit
 .Fa "struct ccb_scsiio *csio"
-.Fa "const char *fmt"
+.Fa "const char * __restrict fmt"
 .Fa "void (*arg_put)(void *hook"
 .Fa "int letter"
 .Fa "void *val"
@@ -124,27 +124,27 @@
 .Fo buff_decode
 .Fa "uint8_t *buff"
 .Fa "size_t len"
-.Fa "const char *fmt"
+.Fa "const char * __restrict fmt"
 .Fa "..."
 .Fc
 .Ft int
 .Fo buff_decode_visit
 .Fa "uint8_t *buff"
 .Fa "size_t len"
-.Fa "const char *fmt"
+.Fa "const char * __restrict fmt"
 .Fa "void (*arg_put)(void *, int, void *, int, char *)"
 .Fa "void *puthook"
 .Fc
 .Ft int
 .Fo csio_encode
 .Fa "struct ccb_scsiio *csio"
-.Fa "const char *fmt"
+.Fa "const char * __restrict fmt"
 .Fa "..."
 .Fc
 .Ft int
 .Fo csio_encode_visit
 .Fa "struct ccb_scsiio *csio"
-.Fa "const char *fmt"
+.Fa "const char * __restrict fmt"
 .Fa "int (*arg_get)(void *hook, char *field_name)"
 .Fa "void *gethook"
 .Fc
@@ -152,7 +152,7 @@
 .Fo buff_encode_visit
 .Fa "uint8_t *buff"
 .Fa "size_t len"
-.Fa "const char *fmt"
+.Fa "const char * __restrict fmt"
 .Fa "int (*arg_get)(void *hook, char *field_name)"
 .Fa "void *gethook"
 .Fc

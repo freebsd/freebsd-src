@@ -65,13 +65,13 @@ static void bzero(void *b, size_t len);
 
 static int domount(const char *device, int quiet);
 
-static void panic(const char *fmt, ...) __dead2;
-static int printf(const char *fmt, ...);
+static void panic(const char * __restrict fmt, ...) __dead2;
+static int printf(const char * __restrict fmt, ...);
 static int putchar(char c, void *arg);
-static int vprintf(const char *fmt, va_list ap);
-static int vsnprintf(char *str, size_t sz, const char *fmt, va_list ap);
+static int vprintf(const char * __restrict fmt, va_list ap);
+static int vsnprintf(char *str, size_t sz, const char * __restrict fmt, va_list ap);
 
-static int __printf(const char *fmt, putc_func_t *putc, void *arg, va_list ap);
+static int __printf(const char * __restrict fmt, putc_func_t *putc, void *arg, va_list ap);
 static int __putc(char c, void *arg);
 static int __puts(const char *s, putc_func_t *putc, void *arg);
 static int __sputc(char c, void *arg);
@@ -645,7 +645,7 @@ dskread(void *buf, uint64_t lba, int nblk)
 }
 
 static void
-panic(const char *fmt, ...)
+panic(const char * __restrict fmt, ...)
 {
 	char buf[128];
 	va_list ap;
@@ -659,7 +659,7 @@ panic(const char *fmt, ...)
 }
 
 static int
-printf(const char *fmt, ...)
+printf(const char * __restrict fmt, ...)
 {
 	va_list ap;
 	int ret;
@@ -685,7 +685,7 @@ putchar(char c, void *arg)
 }
 
 static int
-vprintf(const char *fmt, va_list ap)
+vprintf(const char * __restrict fmt, va_list ap)
 {
 	int ret;
 
@@ -694,7 +694,7 @@ vprintf(const char *fmt, va_list ap)
 }
 
 static int
-vsnprintf(char *str, size_t sz, const char *fmt, va_list ap)
+vsnprintf(char *str, size_t sz, const char * __restrict fmt, va_list ap)
 {
 	struct sp_data sp;
 	int ret;
@@ -707,7 +707,7 @@ vsnprintf(char *str, size_t sz, const char *fmt, va_list ap)
 }
 
 static int
-__printf(const char *fmt, putc_func_t *putc, void *arg, va_list ap)
+__printf(const char * __restrict fmt, putc_func_t *putc, void *arg, va_list ap)
 {
 	char buf[(sizeof(long) * 8) + 1];
 	char *nbuf;

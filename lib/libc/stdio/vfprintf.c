@@ -175,7 +175,7 @@ __sprint(FILE *fp, struct __suio *uio, locale_t locale)
  * worries about ungetc buffers and so forth.
  */
 static int
-__sbprintf(FILE *fp, locale_t locale, const char *fmt, va_list ap)
+__sbprintf(FILE * __restrict fp, locale_t locale, const char * __restrict fmt, va_list ap)
 {
 	int ret;
 	FILE fake = FAKE_FILE;
@@ -307,7 +307,7 @@ vfprintf(FILE * __restrict fp, const char * __restrict fmt0, va_list ap)
  * Non-MT-safe version
  */
 int
-__vfprintf(FILE *fp, locale_t locale, const char *fmt0, va_list ap)
+__vfprintf(FILE * __restrict fp, locale_t locale, const char * __restrict fmt0, va_list ap)
 {
 	char *fmt;		/* format string */
 	int ch;			/* character from fmt */

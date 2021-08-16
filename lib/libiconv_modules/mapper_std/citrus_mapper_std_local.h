@@ -55,8 +55,8 @@ struct _citrus_mapper_std_rowcol {
 struct _citrus_mapper_std;
 
 typedef int (*_citrus_mapper_std_convert_t)(
-	struct _citrus_mapper_std *__restrict,
-	_index_t *__restrict, _index_t, void *__restrict);
+	struct _citrus_mapper_std * __restrict,
+	_index_t * __restrict, _index_t, void * __restrict);
 typedef void (*_citrus_mapper_std_uninit_t)(struct _citrus_mapper_std *);
 
 struct _citrus_mapper_std {

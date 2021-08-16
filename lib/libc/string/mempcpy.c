@@ -34,7 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 
 void *
-mempcpy(void *__restrict dst, const void *__restrict src, size_t len)
+mempcpy(void * __restrict dst, const void * __restrict src, size_t len)
 {
 	return ((char *)memcpy(dst, src, len) + len);
 }

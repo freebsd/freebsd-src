@@ -61,7 +61,7 @@ using std::stringstream;
 
 /*=========================== Class Implementations ==========================*/
 /*------------------------------- ZfsdException ------------------------------*/
-ZfsdException::ZfsdException(const char *fmt, ...)
+ZfsdException::ZfsdException(const char * __restrict fmt, ...)
  : DevdCtl::Exception(),
    m_poolConfig(NULL),
    m_vdevConfig(NULL)
@@ -73,7 +73,7 @@ ZfsdException::ZfsdException(const char *fmt, ...)
 	va_end(ap);
 }
 
-ZfsdException::ZfsdException(zpool_handle_t *pool, const char *fmt, ...)
+ZfsdException::ZfsdException(zpool_handle_t *pool, const char * __restrict fmt, ...)
  : DevdCtl::Exception(),
    m_poolConfig(zpool_get_config(pool, NULL)),
    m_vdevConfig(NULL)
@@ -85,7 +85,7 @@ ZfsdException::ZfsdException(zpool_handle_t *pool, const char *fmt, ...)
 	va_end(ap);
 }
 
-ZfsdException::ZfsdException(nvlist_t *poolConfig, const char *fmt, ...)
+ZfsdException::ZfsdException(nvlist_t *poolConfig, const char * __restrict fmt, ...)
  : DevdCtl::Exception(),
    m_poolConfig(poolConfig),
    m_vdevConfig(NULL)

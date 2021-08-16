@@ -101,7 +101,7 @@ struct mt_status_entry *mt_status_entry_find(struct mt_status_data *status_data,
 					     char *name);
 void mt_status_entry_free(struct mt_status_entry *entry);
 void mt_status_free(struct mt_status_data *status_data);
-void mt_entry_sbuf(struct sbuf *sb, struct mt_status_entry *entry, char *fmt);
+void mt_entry_sbuf(struct sbuf *sb, struct mt_status_entry *entry, char * __restrict fmt);
 void mt_param_parent_print(struct mt_status_entry *entry,
 			   struct mt_print_params *print_params);
 void mt_param_parent_sbuf(struct sbuf *sb, struct mt_status_entry *entry,

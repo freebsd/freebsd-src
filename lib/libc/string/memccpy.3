@@ -28,7 +28,7 @@
 .\"     @(#)memccpy.3	8.1 (Berkeley) 6/9/93
 .\" $FreeBSD$
 .\"
-.Dd June 9, 1993
+.Dd November 26, 2022
 .Dt MEMCCPY 3
 .Os
 .Sh NAME
@@ -39,7 +39,7 @@
 .Sh SYNOPSIS
 .In string.h
 .Ft void *
-.Fn memccpy "void *dst" "const void *src" "int c" "size_t len"
+.Fn memccpy "void * restrict dst" "const void * restrict src" "int c" "size_t len"
 .Sh DESCRIPTION
 The
 .Fn memccpy

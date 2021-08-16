@@ -201,7 +201,7 @@ get_pinnum_by_name(gpio_handle_t handle, const char *name) {
 }
 
 static void
-fail(const char *fmt, ...)
+fail(const char * __restrict fmt, ...)
 {
 	va_list ap;
 

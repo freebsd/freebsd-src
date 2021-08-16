@@ -49,10 +49,10 @@ __FBSDID("$FreeBSD$");
 
 extern int _rpcpmstart;
 extern char *progname;
-static void __verr(const char *fmt, va_list ap) __printflike(1, 0);
+static void __verr(const char * __restrict fmt, va_list ap) __printflike(1, 0);
 
 static void
-__verr(const char *fmt, va_list ap)
+__verr(const char * __restrict fmt, va_list ap)
 {
 	if (debug && !_rpcpmstart) {
 		fprintf(stderr,"%s: ",progname);
@@ -64,7 +64,7 @@ __verr(const char *fmt, va_list ap)
 }
 
 void
-yp_error(const char *fmt, ...)
+yp_error(const char * __restrict fmt, ...)
 {
 	va_list ap;
 	va_start(ap, fmt);

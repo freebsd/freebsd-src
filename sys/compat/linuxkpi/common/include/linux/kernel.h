@@ -177,7 +177,7 @@ struct va_format {
 };
 
 static inline int
-vscnprintf(char *buf, size_t size, const char *fmt, va_list args)
+vscnprintf(char *buf, size_t size, const char * __restrict fmt, va_list args)
 {
 	ssize_t ssize = size;
 	int i;
@@ -188,7 +188,7 @@ vscnprintf(char *buf, size_t size, const char *fmt, va_list args)
 }
 
 static inline int
-scnprintf(char *buf, size_t size, const char *fmt, ...)
+scnprintf(char *buf, size_t size, const char * __restrict fmt, ...)
 {
 	va_list args;
 	int i;

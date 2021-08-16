@@ -243,7 +243,7 @@ xdr_rpc_gss_unwrap_data(XDR *xdrs, xdrproc_t xdr_func, caddr_t xdr_ptr,
 #include <ctype.h>
 
 void
-log_debug(const char *fmt, ...)
+log_debug(const char * __restrict fmt, ...)
 {
 	va_list ap;
 
@@ -277,7 +277,7 @@ log_status(const char *m, gss_OID mech, OM_uint32 maj_stat, OM_uint32 min_stat)
 #else
 
 void
-log_debug(__unused const char *fmt, ...)
+log_debug(__unused const char * __restrict fmt, ...)
 {
 }
 

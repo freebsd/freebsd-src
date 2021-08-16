@@ -29,7 +29,7 @@
 #include <sys/cmn_err.h>
 
 void
-vcmn_err(int ce, const char *fmt, va_list adx)
+vcmn_err(int ce, const char * __restrict fmt, va_list adx)
 {
 	char buf[256];
 	const char *prefix;
@@ -65,7 +65,7 @@ vcmn_err(int ce, const char *fmt, va_list adx)
 }
 
 void
-cmn_err(int type, const char *fmt, ...)
+cmn_err(int type, const char * __restrict fmt, ...)
 {
 	va_list ap;
 

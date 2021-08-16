@@ -59,7 +59,7 @@ smash_stack(void)
 #define	testfmt(result, fmt, ...)       \
 	_testfmt((result), #__VA_ARGS__, fmt, __VA_ARGS__)
 static void
-_testfmt(const char *result, const char *argstr, const char *fmt,...)
+_testfmt(const char *result, const char *argstr, const char * __restrict fmt,...)
 {
 #define	BUF	100
 	wchar_t ws[BUF], wfmt[BUF], wresult[BUF];

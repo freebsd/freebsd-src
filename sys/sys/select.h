@@ -97,8 +97,8 @@ typedef	struct fd_set {
 #ifndef _KERNEL
 
 __BEGIN_DECLS
-int pselect(int, fd_set *__restrict, fd_set *__restrict, fd_set *__restrict,
-	const struct timespec *__restrict, const sigset_t *__restrict);
+int pselect(int, fd_set * __restrict, fd_set * __restrict, fd_set * __restrict,
+	const struct timespec * __restrict, const sigset_t * __restrict);
 #ifndef _SELECT_DECLARED
 #define	_SELECT_DECLARED
 /* XXX missing restrict type-qualifier */

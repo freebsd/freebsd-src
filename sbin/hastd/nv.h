@@ -54,82 +54,82 @@ int nv_validate(struct nv *nv, size_t *extrap);
 struct ebuf *nv_hton(struct nv *nv);
 struct nv *nv_ntoh(struct ebuf *eb);
 
-void nv_add_int8(struct nv *nv, int8_t value, const char *namefmt, ...)
+void nv_add_int8(struct nv *nv, int8_t value, const char * __restrict namefmt, ...)
     __printflike(3, 4);
-void nv_add_uint8(struct nv *nv, uint8_t value, const char *namefmt, ...)
+void nv_add_uint8(struct nv *nv, uint8_t value, const char * __restrict namefmt, ...)
     __printflike(3, 4);
-void nv_add_int16(struct nv *nv, int16_t value, const char *namefmt, ...)
+void nv_add_int16(struct nv *nv, int16_t value, const char * __restrict namefmt, ...)
     __printflike(3, 4);
-void nv_add_uint16(struct nv *nv, uint16_t value, const char *namefmt, ...)
+void nv_add_uint16(struct nv *nv, uint16_t value, const char * __restrict namefmt, ...)
     __printflike(3, 4);
-void nv_add_int32(struct nv *nv, int32_t value, const char *namefmt, ...)
+void nv_add_int32(struct nv *nv, int32_t value, const char * __restrict namefmt, ...)
     __printflike(3, 4);
-void nv_add_uint32(struct nv *nv, uint32_t value, const char *namefmt, ...)
+void nv_add_uint32(struct nv *nv, uint32_t value, const char * __restrict namefmt, ...)
     __printflike(3, 4);
-void nv_add_int64(struct nv *nv, int64_t value, const char *namefmt, ...)
+void nv_add_int64(struct nv *nv, int64_t value, const char * __restrict namefmt, ...)
     __printflike(3, 4);
-void nv_add_uint64(struct nv *nv, uint64_t value, const char *namefmt, ...)
+void nv_add_uint64(struct nv *nv, uint64_t value, const char * __restrict namefmt, ...)
     __printflike(3, 4);
 void nv_add_int8_array(struct nv *nv, const int8_t *value, size_t size,
-    const char *namefmt, ...) __printflike(4, 5);
+    const char * __restrict namefmt, ...) __printflike(4, 5);
 void nv_add_uint8_array(struct nv *nv, const uint8_t *value, size_t size,
-    const char *namefmt, ...) __printflike(4, 5);
+    const char * __restrict namefmt, ...) __printflike(4, 5);
 void nv_add_int16_array(struct nv *nv, const int16_t *value, size_t size,
-    const char *namefmt, ...) __printflike(4, 5);
+    const char * __restrict namefmt, ...) __printflike(4, 5);
 void nv_add_uint16_array(struct nv *nv, const uint16_t *value, size_t size,
-    const char *namefmt, ...) __printflike(4, 5);
+    const char * __restrict namefmt, ...) __printflike(4, 5);
 void nv_add_int32_array(struct nv *nv, const int32_t *value, size_t size,
-    const char *namefmt, ...) __printflike(4, 5);
+    const char * __restrict namefmt, ...) __printflike(4, 5);
 void nv_add_uint32_array(struct nv *nv, const uint32_t *value, size_t size,
-    const char *namefmt, ...) __printflike(4, 5);
+    const char * __restrict namefmt, ...) __printflike(4, 5);
 void nv_add_int64_array(struct nv *nv, const int64_t *value, size_t size,
-    const char *namefmt, ...) __printflike(4, 5);
+    const char * __restrict namefmt, ...) __printflike(4, 5);
 void nv_add_uint64_array(struct nv *nv, const uint64_t *value, size_t size,
-    const char *namefmt, ...) __printflike(4, 5);
-void nv_add_string(struct nv *nv, const char *value, const char *namefmt, ...)
+    const char * __restrict namefmt, ...) __printflike(4, 5);
+void nv_add_string(struct nv *nv, const char *value, const char * __restrict namefmt, ...)
     __printflike(3, 4);
-void nv_add_stringf(struct nv *nv, const char *name, const char *valuefmt, ...)
+void nv_add_stringf(struct nv *nv, const char *name, const char * __restrict valuefmt, ...)
     __printflike(3, 4);
-void nv_add_stringv(struct nv *nv, const char *name, const char *valuefmt,
+void nv_add_stringv(struct nv *nv, const char *name, const char * __restrict valuefmt,
     va_list valueap) __printflike(3, 0);
 
-int8_t nv_get_int8(struct nv *nv, const char *namefmt, ...)
+int8_t nv_get_int8(struct nv *nv, const char * __restrict namefmt, ...)
     __printflike(2, 3);
-uint8_t nv_get_uint8(struct nv *nv, const char *namefmt, ...)
+uint8_t nv_get_uint8(struct nv *nv, const char * __restrict namefmt, ...)
     __printflike(2, 3);
-int16_t nv_get_int16(struct nv *nv, const char *namefmt, ...)
+int16_t nv_get_int16(struct nv *nv, const char * __restrict namefmt, ...)
     __printflike(2, 3);
-uint16_t nv_get_uint16(struct nv *nv, const char *namefmt, ...)
+uint16_t nv_get_uint16(struct nv *nv, const char * __restrict namefmt, ...)
     __printflike(2, 3);
-int32_t nv_get_int32(struct nv *nv, const char *namefmt, ...)
+int32_t nv_get_int32(struct nv *nv, const char * __restrict namefmt, ...)
     __printflike(2, 3);
-uint32_t nv_get_uint32(struct nv *nv, const char *namefmt, ...)
+uint32_t nv_get_uint32(struct nv *nv, const char * __restrict namefmt, ...)
     __printflike(2, 3);
-int64_t nv_get_int64(struct nv *nv, const char *namefmt, ...)
+int64_t nv_get_int64(struct nv *nv, const char * __restrict namefmt, ...)
     __printflike(2, 3);
-uint64_t nv_get_uint64(struct nv *nv, const char *namefmt, ...)
+uint64_t nv_get_uint64(struct nv *nv, const char * __restrict namefmt, ...)
     __printflike(2, 3);
 const int8_t *nv_get_int8_array(struct nv *nv, size_t *sizep,
-    const char *namefmt, ...) __printflike(3, 4);
+    const char * __restrict namefmt, ...) __printflike(3, 4);
 const uint8_t *nv_get_uint8_array(struct nv *nv, size_t *sizep,
-    const char *namefmt, ...) __printflike(3, 4);
+    const char * __restrict namefmt, ...) __printflike(3, 4);
 const int16_t *nv_get_int16_array(struct nv *nv, size_t *sizep,
-    const char *namefmt, ...) __printflike(3, 4);
+    const char * __restrict namefmt, ...) __printflike(3, 4);
 const uint16_t *nv_get_uint16_array(struct nv *nv, size_t *sizep,
-    const char *namefmt, ...) __printflike(3, 4);
+    const char * __restrict namefmt, ...) __printflike(3, 4);
 const int32_t *nv_get_int32_array(struct nv *nv, size_t *sizep,
-    const char *namefmt, ...) __printflike(3, 4);
+    const char * __restrict namefmt, ...) __printflike(3, 4);
 const uint32_t *nv_get_uint32_array(struct nv *nv, size_t *sizep,
-    const char *namefmt, ...) __printflike(3, 4);
+    const char * __restrict namefmt, ...) __printflike(3, 4);
 const int64_t *nv_get_int64_array(struct nv *nv, size_t *sizep,
-    const char *namefmt, ...) __printflike(3, 4);
+    const char * __restrict namefmt, ...) __printflike(3, 4);
 const uint64_t *nv_get_uint64_array(struct nv *nv, size_t *sizep,
-    const char *namefmt, ...) __printflike(3, 4);
-const char *nv_get_string(struct nv *nv, const char *namefmt, ...)
+    const char * __restrict namefmt, ...) __printflike(3, 4);
+const char *nv_get_string(struct nv *nv, const char * __restrict namefmt, ...)
     __printflike(2, 3);
 
-bool nv_exists(struct nv *nv, const char *namefmt, ...) __printflike(2, 3);
-void nv_assert(struct nv *nv, const char *namefmt, ...) __printflike(2, 3);
+bool nv_exists(struct nv *nv, const char * __restrict namefmt, ...) __printflike(2, 3);
+void nv_assert(struct nv *nv, const char * __restrict namefmt, ...) __printflike(2, 3);
 void nv_dump(struct nv *nv);
 
 #endif	/* !_NV_H_ */

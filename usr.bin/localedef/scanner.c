@@ -832,7 +832,7 @@ yyerror(const char *msg)
 }
 
 void
-errf(const char *fmt, ...)
+errf(const char * __restrict fmt, ...)
 {
 	char	*msg;
 
@@ -848,7 +848,7 @@ errf(const char *fmt, ...)
 }
 
 void
-warn(const char *fmt, ...)
+warn(const char * __restrict fmt, ...)
 {
 	char	*msg;
 

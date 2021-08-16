@@ -883,7 +883,7 @@ getchunksize(void)
  * Get a standard format.
  */
 static int
-getstdfmt(const char *fmt, struct bpb *bpb)
+getstdfmt(const char * __restrict fmt, struct bpb *bpb)
 {
     u_int x, i;
 

@@ -165,7 +165,7 @@ putchar(int c, void *arg)
 }
 
 void
-xc_printf(const char *fmt, ...)
+xc_printf(const char * __restrict fmt, ...)
 {
 	va_list ap;
 	struct putchar_arg pca;

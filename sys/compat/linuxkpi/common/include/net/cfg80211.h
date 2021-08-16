@@ -1529,7 +1529,7 @@ wiphy_unregister(struct wiphy *wiphy)
 }
 
 static __inline void
-wiphy_warn(struct wiphy *wiphy, const char *fmt, ...)
+wiphy_warn(struct wiphy *wiphy, const char * __restrict fmt, ...)
 {
 	TODO();
 }

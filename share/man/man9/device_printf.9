@@ -34,7 +34,7 @@
 .In sys/param.h
 .In sys/bus.h
 .Ft int
-.Fn device_printf "device_t dev" "const char *fmt" ...
+.Fn device_printf "device_t dev" "const char * __restrict fmt" ...
 .Sh DESCRIPTION
 The
 .Fn device_printf

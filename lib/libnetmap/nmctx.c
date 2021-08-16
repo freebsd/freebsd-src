@@ -91,7 +91,7 @@ nmctx_set_default(struct nmctx *ctx)
 
 #define MAXERRMSG 1000
 void
-nmctx_ferror(struct nmctx *ctx, const char *fmt, ...)
+nmctx_ferror(struct nmctx *ctx, const char * __restrict fmt, ...)
 {
 	char errmsg[MAXERRMSG];
 	va_list ap;

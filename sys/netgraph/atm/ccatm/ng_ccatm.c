@@ -1158,7 +1158,7 @@ ng_ccatm_rcvdump(hook_p hook, item_p item)
 }
 
 static void
-ng_ccatm_log(const char *fmt, ...)
+ng_ccatm_log(const char * __restrict fmt, ...)
 {
 	va_list ap;
 

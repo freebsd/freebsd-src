@@ -647,7 +647,7 @@ ocs_ddump_endsection(ocs_textbuf_t *textbuf, const char *name, uint32_t instance
  */
 
 void
-ocs_ddump_value(ocs_textbuf_t *textbuf, const char *name, const char *fmt, ...)
+ocs_ddump_value(ocs_textbuf_t *textbuf, const char *name, const char * __restrict fmt, ...)
 {
 	va_list ap;
 	char valuebuf[64];
@@ -1804,7 +1804,7 @@ ocs_textbuf_free(ocs_t *ocs, ocs_textbuf_t *textbuf)
 }
 
 void
-ocs_textbuf_printf(ocs_textbuf_t *textbuf, const char *fmt, ...)
+ocs_textbuf_printf(ocs_textbuf_t *textbuf, const char * __restrict fmt, ...)
 {
 	va_list ap;
 
@@ -1816,7 +1816,7 @@ ocs_textbuf_printf(ocs_textbuf_t *textbuf, const char *fmt, ...)
 }
 
 void
-ocs_textbuf_vprintf(ocs_textbuf_t *textbuf, const char *fmt, va_list ap)
+ocs_textbuf_vprintf(ocs_textbuf_t *textbuf, const char * __restrict fmt, va_list ap)
 {
 	int avail;
 	int written;
@@ -2421,7 +2421,7 @@ ocs_ramlog_clear(ocs_t *ocs, ocs_ramlog_t *ramlog, int clear_start_of_day, int c
  */
 
 int32_t
-ocs_ramlog_printf(void *os, const char *fmt, ...)
+ocs_ramlog_printf(void *os, const char * __restrict fmt, ...)
 {
 	ocs_t *ocs = os;
 	va_list ap;
@@ -2451,7 +2451,7 @@ ocs_ramlog_printf(void *os, const char *fmt, ...)
  */
 
 int32_t
-ocs_ramlog_vprintf(ocs_ramlog_t *ramlog, const char *fmt, va_list ap)
+ocs_ramlog_vprintf(ocs_ramlog_t *ramlog, const char * __restrict fmt, va_list ap)
 {
 	if (ramlog == NULL || !ramlog->initialized) {
 		return -1;

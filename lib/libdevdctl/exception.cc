@@ -56,7 +56,7 @@ namespace DevdCtl
 /*=========================== Class Implementations ==========================*/
 /*--------------------------------- Exception --------------------------------*/
 void
-Exception::FormatLog(const char *fmt, va_list ap)
+Exception::FormatLog(const char * __restrict fmt, va_list ap)
 {
 	char buf[256];
 
@@ -64,7 +64,7 @@ Exception::FormatLog(const char *fmt, va_list ap)
 	m_log = buf;
 }
 
-Exception::Exception(const char *fmt, ...)
+Exception::Exception(const char * __restrict fmt, ...)
 {
 	va_list ap;
 

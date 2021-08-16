@@ -97,7 +97,7 @@ static int		pci_maprange(uint64_t mapreg);
 static pci_addr_t	pci_rombase(uint64_t mapreg);
 static int		pci_romsize(uint64_t testval);
 static void		pci_fixancient(pcicfgregs *cfg);
-static int		pci_printf(pcicfgregs *cfg, const char *fmt, ...);
+static int		pci_printf(pcicfgregs *cfg, const char * __restrict fmt, ...);
 
 static int		pci_porten(device_t dev);
 static int		pci_memen(device_t dev);
@@ -515,7 +515,7 @@ pci_find_class_from(uint8_t class, uint8_t subclass, device_t from)
 }
 
 static int
-pci_printf(pcicfgregs *cfg, const char *fmt, ...)
+pci_printf(pcicfgregs *cfg, const char * __restrict fmt, ...)
 {
 	va_list ap;
 	int retval;

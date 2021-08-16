@@ -109,7 +109,7 @@ ve_error_get(void)
 }
 
 int
-ve_error_set(const char *fmt, ...)
+ve_error_set(const char * __restrict fmt, ...)
 {
 	int rc;
 	va_list ap;

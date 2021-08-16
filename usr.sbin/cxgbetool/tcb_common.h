@@ -141,7 +141,7 @@ enum prntstyls {
 ///* functions needed by the tcbshowtN.c code */
 extern unsigned val(char *name);
 extern ui64 val64(char *name);
-extern void PR(char *fmt, ...);
+extern void PR(const char * __restrict fmt, ...);
 extern char *spr_tcp_state(unsigned state);
 extern char *spr_ip_version(unsigned ipver);
 extern char *spr_cctrl_sel(unsigned cctrl_sel0,unsigned cctrl_sel1);

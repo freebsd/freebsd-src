@@ -333,7 +333,7 @@ sig_handle(int sig)
 }
 
 static void
-logger(int pri, const char *fmt, ...)
+logger(int pri, const char * __restrict fmt, ...)
 {
 	char *buf;
 	va_list ap;

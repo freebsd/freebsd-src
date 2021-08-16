@@ -105,7 +105,7 @@ __FBSDID("$FreeBSD$");
 static int
 do_buff_decode(u_int8_t *buff, size_t len,
 	       void (*arg_put)(void *, int , void *, int, char *),
-	       void *puthook, const char *fmt, va_list *ap)
+	       void *puthook, const char * __restrict fmt, va_list *ap)
 {
 	int ind = 0;
 	int assigned = 0;
@@ -358,7 +358,7 @@ do_buff_decode(u_int8_t *buff, size_t len,
  */
 
 static int
-next_field(const char **pp, char *fmt, int *width_p, int *value_p, char *name,
+next_field(const char * __restrict * __restrict pp, char *fmt, int *width_p, int *value_p, char *name,
 	   int n_name, int *error_p, int *suppress_p)
 {
 	const char *p = *pp;
@@ -547,7 +547,7 @@ next_field(const char **pp, char *fmt, int *width_p, int *value_p, char *name,
 
 static int
 do_encode(u_char *buff, size_t vec_max, size_t *used,
-	  int (*arg_get)(void *, char *), void *gethook, const char *fmt,
+	  int (*arg_get)(void *, char *), void *gethook, const char * __restrict fmt,
 	  va_list *ap)
 {
 	int ind;
@@ -668,7 +668,7 @@ do_encode(u_char *buff, size_t vec_max, size_t *used,
 }
 
 int
-csio_decode(struct ccb_scsiio *csio, const char *fmt, ...)
+csio_decode(struct ccb_scsiio *csio, const char * __restrict fmt, ...)
 {
 	va_list ap;
 	int retval;
@@ -684,7 +684,7 @@ csio_decode(struct ccb_scsiio *csio, const char *fmt, ...)
 }
 
 int
-csio_decode_visit(struct ccb_scsiio *csio, const char *fmt,
+csio_decode_visit(struct ccb_scsiio *csio, const char * __restrict fmt,
 		  void (*arg_put)(void *, int, void *, int, char *),
 		  void *puthook)
 {
@@ -701,7 +701,7 @@ csio_decode_visit(struct ccb_scsiio *csio, const char *fmt,
 }
 
 int
-buff_decode(u_int8_t *buff, size_t len, const char *fmt, ...)
+buff_decode(u_int8_t *buff, size_t len, const char * __restrict fmt, ...)
 {
 	va_list ap;
 	int retval;
@@ -716,7 +716,7 @@ buff_decode(u_int8_t *buff, size_t len, const char *fmt, ...)
 }
 
 int
-buff_decode_visit(u_int8_t *buff, size_t len, const char *fmt,
+buff_decode_visit(u_int8_t *buff, size_t len, const char * __restrict fmt,
 		  void (*arg_put)(void *, int, void *, int, char *),
 		  void *puthook)
 {
@@ -812,7 +812,7 @@ csio_build_visit(struct ccb_scsiio *csio, u_int8_t *data_ptr,
 }
 
 int
-csio_encode(struct ccb_scsiio *csio, const char *fmt, ...)
+csio_encode(struct ccb_scsiio *csio, const char * __restrict fmt, ...)
 {
 	va_list ap;
 	int retval;
@@ -831,7 +831,7 @@ csio_encode(struct ccb_scsiio *csio, const char *fmt, ...)
 }
 
 int
-buff_encode_visit(u_int8_t *buff, size_t len, const char *fmt,
+buff_encode_visit(u_int8_t *buff, size_t len, const char * __restrict fmt,
 		  int (*arg_get)(void *hook, char *field_name), void *gethook)
 {
 
@@ -846,7 +846,7 @@ buff_encode_visit(u_int8_t *buff, size_t len, const char *fmt,
 }
 
 int
-csio_encode_visit(struct ccb_scsiio *csio, const char *fmt,
+csio_encode_visit(struct ccb_scsiio *csio, const char * __restrict fmt,
 		  int (*arg_get)(void *hook, char *field_name), void *gethook)
 {
 

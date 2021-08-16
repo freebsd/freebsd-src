@@ -337,10 +337,10 @@ static inline struct device *kobj_to_dev(struct kobject *kobj)
 }
 
 struct device *device_create(struct class *class, struct device *parent,
-	    dev_t devt, void *drvdata, const char *fmt, ...);
+	    dev_t devt, void *drvdata, const char * __restrict fmt, ...);
 struct device *device_create_groups_vargs(struct class *class, struct device *parent,
     dev_t devt, void *drvdata, const struct attribute_group **groups,
-    const char *fmt, va_list args);
+    const char * __restrict fmt, va_list args);
 
 /*
  * Devices are registered and created for exporting to sysfs. Create
@@ -404,7 +404,7 @@ device_create_release(struct device *dev)
 static inline struct device *
 device_create_with_groups(struct class *class,
     struct device *parent, dev_t devt, void *drvdata,
-    const struct attribute_group **groups, const char *fmt, ...)
+    const struct attribute_group **groups, const char * __restrict fmt, ...)
 {
 	va_list vargs;
 	struct device *dev;

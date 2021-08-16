@@ -221,7 +221,7 @@ xstrdup(const char *s)
  * Vanilla terminal output (buffered).
  */
 void
-say(const char *fmt, ...)
+say(const char * __restrict fmt, ...)
 {
 	va_list	ap;
 
@@ -235,7 +235,7 @@ say(const char *fmt, ...)
  * Terminal output, pun intended.
  */
 void
-fatal(const char *fmt, ...)
+fatal(const char * __restrict fmt, ...)
 {
 	va_list	ap;
 
@@ -250,7 +250,7 @@ fatal(const char *fmt, ...)
  * Say something from patch, something from the system, then silence . . .
  */
 void
-pfatal(const char *fmt, ...)
+pfatal(const char * __restrict fmt, ...)
 {
 	va_list	ap;
 	int	errnum = errno;
@@ -267,7 +267,7 @@ pfatal(const char *fmt, ...)
  * Get a response from the user via /dev/tty
  */
 void
-ask(const char *fmt, ...)
+ask(const char * __restrict fmt, ...)
 {
 	va_list	ap;
 	ssize_t	nr = 0;

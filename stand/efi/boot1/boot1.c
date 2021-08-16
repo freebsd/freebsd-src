@@ -35,7 +35,7 @@ __FBSDID("$FreeBSD$");
 #include "paths.h"
 #include "proto.h"
 
-static void efi_panic(EFI_STATUS s, const char *fmt, ...) __dead2 __printflike(2, 3);
+static void efi_panic(EFI_STATUS s, const char * __restrict fmt, ...) __dead2 __printflike(2, 3);
 
 const boot_module_t *boot_modules[] =
 {
@@ -290,7 +290,7 @@ exit(int error __unused)
  * it can try the next option on the list.
  */
 static void
-efi_panic(EFI_STATUS s, const char *fmt, ...)
+efi_panic(EFI_STATUS s, const char * __restrict fmt, ...)
 {
 	va_list ap;
 

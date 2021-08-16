@@ -558,7 +558,7 @@ warn_namespace_collision(const char *filter)
 }
 
 void
-xprintf(int opts, const char *fmt, ...)
+xprintf(int opts, const char * __restrict fmt, ...)
 {
 	va_list args;
 

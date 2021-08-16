@@ -179,7 +179,7 @@ thread_unwind(void)
 #endif
 
 void
-_thread_exitf(const char *fname, int lineno, const char *fmt, ...)
+_thread_exitf(const char *fname, int lineno, const char * __restrict fmt, ...)
 {
 	va_list ap;
 

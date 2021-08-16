@@ -173,13 +173,13 @@ void	 _kvm_bitmap_set(struct kvm_bitmap *, u_long);
 int	 _kvm_bitmap_next(struct kvm_bitmap *, u_long *);
 void	 _kvm_bitmap_deinit(struct kvm_bitmap *);
 
-void	 _kvm_err(kvm_t *kd, const char *program, const char *fmt, ...)
+void	 _kvm_err(kvm_t *kd, const char * __restrict program, const char * __restrict fmt, ...)
 	    __printflike(3, 4);
 void	 _kvm_freeprocs(kvm_t *kd);
 void	*_kvm_malloc(kvm_t *kd, size_t);
 int	 _kvm_nlist(kvm_t *, struct kvm_nlist *, int);
 void	*_kvm_realloc(kvm_t *kd, void *, size_t);
-void	 _kvm_syserr (kvm_t *kd, const char *program, const char *fmt, ...)
+void	 _kvm_syserr (kvm_t *kd, const char * __restrict program, const char * __restrict fmt, ...)
 	    __printflike(3, 4);
 int	 _kvm_vnet_selectpid(kvm_t *, pid_t);
 int	 _kvm_vnet_initialized(kvm_t *, int);

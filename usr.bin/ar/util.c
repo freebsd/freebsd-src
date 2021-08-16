@@ -40,12 +40,12 @@ __FBSDID("$FreeBSD$");
 #include "ar.h"
 
 static void	bsdar_vwarnc(struct bsdar *, int code,
-		    const char *fmt, va_list ap);
+		    const char * __restrict fmt, va_list ap);
 static void	bsdar_verrc(struct bsdar *bsdar, int code,
-		    const char *fmt, va_list ap);
+		    const char * __restrict fmt, va_list ap);
 
 static void
-bsdar_vwarnc(struct bsdar *bsdar, int code, const char *fmt, va_list ap)
+bsdar_vwarnc(struct bsdar *bsdar, int code, const char * __restrict fmt, va_list ap)
 {
 
 	fprintf(stderr, "%s: warning: ", bsdar->progname);
@@ -56,7 +56,7 @@ bsdar_vwarnc(struct bsdar *bsdar, int code, const char *fmt, va_list ap)
 }
 
 void
-bsdar_warnc(struct bsdar *bsdar, int code, const char *fmt, ...)
+bsdar_warnc(struct bsdar *bsdar, int code, const char * __restrict fmt, ...)
 {
 	va_list ap;
 
@@ -66,7 +66,7 @@ bsdar_warnc(struct bsdar *bsdar, int code, const char *fmt, ...)
 }
 
 static void
-bsdar_verrc(struct bsdar *bsdar, int code, const char *fmt, va_list ap)
+bsdar_verrc(struct bsdar *bsdar, int code, const char * __restrict fmt, va_list ap)
 {
 
 	fprintf(stderr, "%s: fatal: ", bsdar->progname);
@@ -77,7 +77,7 @@ bsdar_verrc(struct bsdar *bsdar, int code, const char *fmt, va_list ap)
 }
 
 void
-bsdar_errc(struct bsdar *bsdar, int code, const char *fmt, ...)
+bsdar_errc(struct bsdar *bsdar, int code, const char * __restrict fmt, ...)
 {
 	va_list ap;
 

@@ -93,7 +93,7 @@ typedef u_quad_t (*ccfntype)(const char *, char **, int);
 static const u_char *__sccl(char *, const u_char *);
 
 int
-sscanf(const char *ibuf, const char *fmt, ...)
+sscanf(const char * __restrict ibuf, const char * __restrict fmt, ...)
 {
 	va_list ap;
 	int ret;
@@ -105,7 +105,7 @@ sscanf(const char *ibuf, const char *fmt, ...)
 }
 
 int
-vsscanf(const char *inp, char const *fmt0, va_list ap)
+vsscanf(const char * __restrict inp, char const * __restrict fmt0, va_list ap)
 {
 	int inr;
 	const u_char *fmt = (const u_char *)fmt0;

@@ -142,10 +142,10 @@ static int sdhci_syctl_dumpcaps(SYSCTL_HANDLER_ARGS);
 static int sdhci_syctl_dumpregs(SYSCTL_HANDLER_ARGS);
 static void sdhci_getaddr(void *arg, bus_dma_segment_t *segs, int nsegs,
     int error);
-static int slot_printf(const struct sdhci_slot *slot, const char * fmt, ...)
+static int slot_printf(const struct sdhci_slot *slot, const char * __restrict fmt, ...)
     __printflike(2, 3);
 static int slot_sprintf(const struct sdhci_slot *slot, struct sbuf *s,
-    const char * fmt, ...) __printflike(3, 4);
+    const char * __restrict fmt, ...) __printflike(3, 4);
 static uint32_t sdhci_tuning_intmask(const struct sdhci_slot *slot);
 
 #define	SDHCI_LOCK(_slot)		mtx_lock(&(_slot)->mtx)

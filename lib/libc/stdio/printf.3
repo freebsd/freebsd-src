@@ -717,7 +717,7 @@ To allocate a 128 byte string and print into it:
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
-char *newfmt(const char *fmt, ...)
+char *newfmt(const char * __restrict fmt, ...)
 {
 	char *p;
 	va_list ap;

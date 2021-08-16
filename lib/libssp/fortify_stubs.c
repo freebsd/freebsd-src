@@ -34,26 +34,26 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 
 /* Signatures grabbed from LSB Core Specification 4.1 */
-void	*__memcpy_chk(void *dst, const void *src, size_t len,
+void	*__memcpy_chk(void * __restrict dst, const void * __restrict src, size_t len,
     size_t dstlen);
 void	*__memset_chk(void *dst, int c, size_t len, size_t dstlen);
-int	__snprintf_chk(char *str, size_t maxlen, int flag, size_t strlen,
-    const char *fmt, ...);
-int	__sprintf_chk(char *str, int flag, size_t strlen, const char *fmt, ...);
-char	*__stpcpy_chk(char *dst, const char *src, size_t dstlen);
-char	*__strcat_chk(char *dst, const char *src, size_t dstlen);
-char	*__strcpy_chk(char *dst, const char *src, size_t dstlen);
-char	*__strncat_chk(char *dst, const char *src, size_t len, size_t dstlen);
-char	*__strncpy_chk(char *dst, const char *src, size_t len, size_t dstlen);
-int	__vsnprintf_chk(char *str, size_t size, int flags, size_t len,
-    const char *format, va_list ap);
-int	__vsprintf_chk(char *str, int flag, size_t slen, const char *format,
+int	__snprintf_chk(char * __restrict str, size_t maxlen, int flag, size_t strlen,
+    const char * __restrict fmt, ...);
+int	__sprintf_chk(char *str, int flag, size_t strlen, const char * __restrict fmt, ...);
+char	*__stpcpy_chk(char * __restrict dst, const char * __restrict src, size_t dstlen);
+char	*__strcat_chk(char * __restrict dst, const char * __restrict src, size_t dstlen);
+char	*__strcpy_chk(char * __restrict dst, const char * __restrict src, size_t dstlen);
+char	*__strncat_chk(char * __restrict dst, const char * __restrict src, size_t len, size_t dstlen);
+char	*__strncpy_chk(char * __restrict dst, const char * __restrict src, size_t len, size_t dstlen);
+int	__vsnprintf_chk(char * __restrict str, size_t size, int flags, size_t len,
+    const char * __restrict format, va_list ap);
+int	__vsprintf_chk(char * __restrict str, int flag, size_t slen, const char * __restrict format,
     va_list ap);
 
 #define	ABORT()	abort2("_FORTIFY_SOURCE not supported", 0, NULL)
 
 void *
-__memcpy_chk(void *dst, const void *src, size_t len,
+__memcpy_chk(void * __restrict dst, const void * __restrict src, size_t len,
     size_t dstlen)
 {
 
@@ -61,72 +61,72 @@ __memcpy_chk(void *dst, const void *src, size_t len,
 }
 
 void *
-__memset_chk(void *dst, int c, size_t len, size_t dstlen)
+__memset_chk(void * __restrict dst, int c, size_t len, size_t dstlen)
 {
 
 	ABORT();
 }
 
 int
-__snprintf_chk(char *str, size_t maxlen, int flag, size_t strlen,
-    const char *fmt, ...)
+__snprintf_chk(char * __restrict str, size_t maxlen, int flag, size_t strlen,
+    const char * __restrict fmt, ...)
 {
 
 	ABORT();
 }
 
 int
-__sprintf_chk(char *str, int flag, size_t strlen, const char *fmt, ...)
+__sprintf_chk(char * __restrict str, int flag, size_t strlen, const char * __restrict fmt, ...)
 {
 
 	ABORT();
 }
 
 char *
-__stpcpy_chk(char *dst, const char *src, size_t dstlen)
+__stpcpy_chk(char * __restrict dst, const char * __restrict src, size_t dstlen)
 {
 
 	ABORT();
 }
 
 char *
-__strcat_chk(char *dst, const char *src, size_t dstlen)
+__strcat_chk(char * __restrict dst, const char * __restrict src, size_t dstlen)
 {
 
 	ABORT();
 }
 
 char *
-__strcpy_chk(char *dst, const char *src, size_t dstlen)
+__strcpy_chk(char * __restrict dst, const char * __restrict src, size_t dstlen)
 {
 
 	ABORT();
 }
 
 char *
-__strncat_chk(char *dst, const char *src, size_t len, size_t dstlen)
+__strncat_chk(char * __restrict dst, const char * __restrict src, size_t len, size_t dstlen)
 {
 
 	ABORT();
 }
 
 char *
-__strncpy_chk(char *dst, const char *src, size_t len, size_t dstlen)
+__strncpy_chk(char * __restrict dst, const char * __restrict src, size_t len, size_t dstlen)
 {
 
 	ABORT();
 }
 
 int
-__vsnprintf_chk(char *str, size_t size, int flags, size_t len,
-    const char *format, va_list ap)
+__vsnprintf_chk(char * __restrict str, size_t size, int flags, size_t len,
+    const char * __restrict format, va_list ap)
 {
 
 	ABORT();
 }
 
 int
-__vsprintf_chk(char *str, int flag, size_t slen, const char *format,
+__vsprintf_chk(char * __restrict str, int flag, size_t slen, const char * __restrict format,
     va_list ap)
 {
 

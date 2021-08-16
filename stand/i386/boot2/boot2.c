@@ -534,7 +534,7 @@ error:
 }
 
 static void
-printf(const char *fmt,...)
+printf(const char * __restrict fmt,...)
 {
 	va_list ap;
 	static char buf[10];

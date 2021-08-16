@@ -238,7 +238,7 @@ int	aio_writev(struct aiocb *);
  *	"acb_list" is an array of "nacb_listent" I/O control blocks.
  *	when all I/Os are complete, the optional signal "sig" is sent.
  */
-int	lio_listio(int, struct aiocb *__restrict const *__restrict, int,
+int	lio_listio(int, struct aiocb * __restrict const * __restrict, int,
     struct sigevent *);
 
 /*

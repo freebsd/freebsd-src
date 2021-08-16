@@ -393,7 +393,7 @@ pjdlog_debug_get(void)
  * Set prefix that will be used before each log.
  */
 void
-pjdlog_prefix_set(const char *fmt, ...)
+pjdlog_prefix_set(const char * __restrict fmt, ...)
 {
 	va_list ap;
 
@@ -408,7 +408,7 @@ pjdlog_prefix_set(const char *fmt, ...)
  * Set prefix that will be used before each log.
  */
 void
-pjdlogv_prefix_set(const char *fmt, va_list ap)
+pjdlogv_prefix_set(const char * __restrict fmt, va_list ap)
 {
 	int saved_errno;
 
@@ -439,7 +439,7 @@ pjdlog_prefix_get(void)
  * Set new prefix and put the current one on the stack.
  */
 void
-pjdlog_prefix_push(const char *fmt, ...)
+pjdlog_prefix_push(const char * __restrict fmt, ...)
 {
 	va_list ap;
 
@@ -454,7 +454,7 @@ pjdlog_prefix_push(const char *fmt, ...)
  * Set new prefix and put the current one on the stack.
  */
 void
-pjdlogv_prefix_push(const char *fmt, va_list ap)
+pjdlogv_prefix_push(const char * __restrict fmt, va_list ap)
 {
 
 	assert(pjdlog_initialized == PJDLOG_INITIALIZED);
@@ -508,7 +508,7 @@ pjdlog_level_to_string(int loglevel)
 }
 
 static int
-vsnprlcat(char *str, size_t size, const char *fmt, va_list ap)
+vsnprlcat(char *str, size_t size, const char * __restrict fmt, va_list ap)
 {
 	size_t len;
 
@@ -518,7 +518,7 @@ vsnprlcat(char *str, size_t size, const char *fmt, va_list ap)
 }
 
 static int
-snprlcat(char *str, size_t size, const char *fmt, ...)
+snprlcat(char *str, size_t size, const char * __restrict fmt, ...)
 {
 	va_list ap;
 	int result;
@@ -643,7 +643,7 @@ pjdlogv_common_single_line(const char *func, const char *file, int line,
  */
 void
 _pjdlogv_common(const char *func, const char *file, int line, int loglevel,
-    int debuglevel, int error, const char *fmt, va_list ap)
+    int debuglevel, int error, const char * __restrict fmt, va_list ap)
 {
 	char log[PJDLOG_MAX_MSGSIZE];
 	char *logp, *curline;
@@ -695,7 +695,7 @@ _pjdlogv_common(const char *func, const char *file, int line, int loglevel,
  */
 void
 _pjdlog_common(const char *func, const char *file, int line, int loglevel,
-    int debuglevel, int error, const char *fmt, ...)
+    int debuglevel, int error, const char * __restrict fmt, ...)
 {
 	va_list ap;
 
@@ -711,7 +711,7 @@ _pjdlog_common(const char *func, const char *file, int line, int loglevel,
  */
 void
 _pjdlogv_exit(const char *func, const char *file, int line, int exitcode,
-    int error, const char *fmt, va_list ap)
+    int error, const char * __restrict fmt, va_list ap)
 {
 
 	assert(pjdlog_initialized == PJDLOG_INITIALIZED);
@@ -727,7 +727,7 @@ _pjdlogv_exit(const char *func, const char *file, int line, int exitcode,
  */
 void
 _pjdlog_exit(const char *func, const char *file, int line, int exitcode,
-    int error, const char *fmt, ...)
+    int error, const char * __restrict fmt, ...)
 {
 	va_list ap;
 
@@ -744,7 +744,7 @@ _pjdlog_exit(const char *func, const char *file, int line, int exitcode,
  */
 void
 _pjdlog_abort(const char *func, const char *file, int line,
-    int error, const char *failedexpr, const char *fmt, ...)
+    int error, const char *failedexpr, const char * __restrict fmt, ...)
 {
 	va_list ap;
 

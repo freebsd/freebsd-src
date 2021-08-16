@@ -280,7 +280,7 @@ build_iovec(struct iovec **iov, int *iovlen, const char *name, void *val,
  */
 void
 build_iovec_argf(struct iovec **iov, int *iovlen, const char *name,
-    const char *fmt, ...)
+    const char * __restrict fmt, ...)
 {
 	va_list ap;
 	char val[255] = { 0 };

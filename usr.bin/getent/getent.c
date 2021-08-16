@@ -163,7 +163,7 @@ parsenum(const char *word, unsigned long *result)
  */
 static void
 printfmtstrings(char *strings[], const char *prefix, const char *sep,
-	const char *fmt, ...)
+	const char * __restrict fmt, ...)
 {
 	va_list		ap;
 	const char	*curpref;

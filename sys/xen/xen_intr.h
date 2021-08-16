@@ -180,7 +180,7 @@ void xen_intr_unbind(xen_intr_handle_t *handle);
  * \returns  0 on success, otherwise an errno.
  */
 int
-xen_intr_describe(xen_intr_handle_t port_handle, const char *fmt, ...)
+xen_intr_describe(xen_intr_handle_t port_handle, const char * __restrict fmt, ...)
 	__attribute__((format(printf, 2, 3)));
 
 /**

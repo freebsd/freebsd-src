@@ -299,7 +299,7 @@ parse_var(struct _citrus_mapper_zone *mz, struct _memstream *ms)
 
 static int
 /*ARGSUSED*/
-_citrus_mapper_zone_mapper_init(struct _citrus_mapper_area *__restrict ma __unused,
+_citrus_mapper_zone_mapper_init(struct _citrus_mapper_area * __restrict ma __unused,
     struct _citrus_mapper * __restrict cm, const char * __restrict dir __unused,
     const void * __restrict var, size_t lenvar,
     struct _citrus_mapper_traits * __restrict mt, size_t lenmt)

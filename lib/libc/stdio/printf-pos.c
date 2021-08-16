@@ -191,7 +191,7 @@ adduarg(struct typetable *types, int flags)
  * Add * arguments to the type array.
  */
 static inline int
-addaster(struct typetable *types, char **fmtp)
+addaster(struct typetable *types, char ** __restrict fmtp)
 {
 	char *cp;
 	u_int n2;
@@ -217,7 +217,7 @@ addaster(struct typetable *types, char **fmtp)
 }
 
 static inline int
-addwaster(struct typetable *types, wchar_t **fmtp)
+addwaster(struct typetable *types, wchar_t ** __restrict fmtp)
 {
 	wchar_t *cp;
 	u_int n2;
@@ -250,7 +250,7 @@ addwaster(struct typetable *types, wchar_t **fmtp)
  * Returns 0 on success. On failure, returns nonzero and sets errno.
  */ 
 int
-__find_arguments (const char *fmt0, va_list ap, union arg **argtable)
+__find_arguments (const char * __restrict fmt0, va_list ap, union arg **argtable)
 {
 	char *fmt;		/* format string */
 	int ch;			/* character from fmt */
@@ -443,7 +443,7 @@ error:
 
 /* wchar version of __find_arguments. */
 int
-__find_warguments (const wchar_t *fmt0, va_list ap, union arg **argtable)
+__find_warguments (const wchar_t * __restrict fmt0, va_list ap, union arg **argtable)
 {
 	wchar_t *fmt;		/* format string */
 	wchar_t ch;		/* character from fmt */

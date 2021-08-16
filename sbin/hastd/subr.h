@@ -48,8 +48,8 @@
 	errno = _rerrno;						\
 } while (0)
 
-int vsnprlcat(char *str, size_t size, const char *fmt, va_list ap);
-int snprlcat(char *str, size_t size, const char *fmt, ...);
+int vsnprlcat(char * __restrict str, size_t size, const char * __restrict fmt, va_list ap);
+int snprlcat(char * __restrict str, size_t size, const char * __restrict fmt, ...);
 
 int provinfo(struct hast_resource *res, bool dowrite);
 const char *role2str(int role);

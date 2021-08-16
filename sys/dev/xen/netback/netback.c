@@ -142,7 +142,7 @@ struct xnb_softc;
 struct xnb_pkt;
 
 static void	xnb_attach_failed(struct xnb_softc *xnb,
-				  int err, const char *fmt, ...)
+				  int err, const char * __restrict fmt, ...)
 				  __printflike(3,4);
 static int	xnb_shutdown(struct xnb_softc *xnb);
 static int	create_netdev(device_t dev);
@@ -1087,7 +1087,7 @@ xnb_shutdown(struct xnb_softc *xnb)
  * \param fmt  Printf style format and arguments
  */
 static void
-xnb_attach_failed(struct xnb_softc *xnb, int err, const char *fmt, ...)
+xnb_attach_failed(struct xnb_softc *xnb, int err, const char * __restrict fmt, ...)
 {
 	va_list ap;
 	va_list ap_hotplug;

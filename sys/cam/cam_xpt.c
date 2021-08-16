@@ -3811,7 +3811,7 @@ xpt_print_device(struct cam_ed *device)
 }
 
 void
-xpt_print(struct cam_path *path, const char *fmt, ...)
+xpt_print(struct cam_path *path, const char * __restrict fmt, ...)
 {
 	va_list ap;
 	struct sbuf sb;

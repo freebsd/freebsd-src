@@ -213,7 +213,7 @@ res_nupdate(res_state statp, ns_updrec *rrecp_in, ns_tsig_key *key) {
 /* Private. */
 
 static void
-res_dprintf(const char *fmt, ...) {
+res_dprintf(const char * __restrict fmt, ...) {
 	va_list ap;
 
 	va_start(ap, fmt);

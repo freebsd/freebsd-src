@@ -249,7 +249,7 @@ printisodate(struct tm *lt)
 #define	ATOI2(s)	((s) += 2, ((s)[-2] - '0') * 10 + ((s)[-1] - '0'))
 
 static void
-setthetime(const char *fmt, const char *p, int jflag)
+setthetime(const char * __restrict fmt, const char *p, int jflag)
 {
 	struct utmpx utx;
 	struct tm *lt;

@@ -66,7 +66,7 @@ int options_rfc_enabled = 1;
 int options_extra_enabled = 1;
 
 int
-options_set_request(enum opt_enum opt, const char *fmt, ...)
+options_set_request(enum opt_enum opt, const char * __restrict fmt, ...)
 {
 	va_list ap;
 	char *str;
@@ -89,7 +89,7 @@ options_set_request(enum opt_enum opt, const char *fmt, ...)
 }
 
 int
-options_set_reply(enum opt_enum opt, const char *fmt, ...)
+options_set_reply(enum opt_enum opt, const char * __restrict fmt, ...)
 {
 	va_list ap;
 	char *str;

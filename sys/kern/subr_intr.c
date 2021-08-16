@@ -464,7 +464,7 @@ isrc_free_irq(struct intr_irqsrc *isrc)
  */
 int
 intr_isrc_register(struct intr_irqsrc *isrc, device_t dev, u_int flags,
-    const char *fmt, ...)
+    const char * __restrict fmt, ...)
 {
 	int error;
 	va_list ap;

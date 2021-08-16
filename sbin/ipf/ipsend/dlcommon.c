@@ -1251,7 +1251,7 @@ dlmactype(u_long media)
 }
 
 /*VARARGS1*/
-err(char *fmt, char *a1, char *a2, char *a3, char *a4)
+err(char * __restrict fmt, char *a1, char *a2, char *a3, char *a4)
 {
 	(void) fprintf(stderr, fmt, a1, a2, a3, a4);
 	(void) fprintf(stderr, "\n");

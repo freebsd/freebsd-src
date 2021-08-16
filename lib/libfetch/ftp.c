@@ -178,7 +178,7 @@ ftp_chkerr(conn_t *conn)
  * Send a command and check reply
  */
 static int
-ftp_cmd(conn_t *conn, const char *fmt, ...)
+ftp_cmd(conn_t *conn, const char * __restrict fmt, ...)
 {
 	va_list ap;
 	size_t len;

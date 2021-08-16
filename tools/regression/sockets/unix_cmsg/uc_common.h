@@ -59,11 +59,11 @@ extern struct uc_cfg uc_cfg;
 
 int uc_check_msghdr(const struct msghdr *msghdr, size_t size);
 int uc_check_cmsghdr(const struct cmsghdr *cmsghdr, int type, size_t size);
-void uc_output(const char *format, ...) __printflike(1, 2);
-void uc_logmsgx(const char *format, ...) __printflike(1, 2);
-void uc_dbgmsg(const char *format, ...) __printflike(1, 2);
-void uc_logmsg(const char *format, ...) __printflike(1, 2);
-void uc_vlogmsgx(const char *format, va_list ap);
+void uc_output(const char * __restrict format, ...) __printflike(1, 2);
+void uc_logmsgx(const char * __restrict format, ...) __printflike(1, 2);
+void uc_dbgmsg(const char * __restrict format, ...) __printflike(1, 2);
+void uc_logmsg(const char * __restrict format, ...) __printflike(1, 2);
+void uc_vlogmsgx(const char * __restrict format, va_list ap);
 int uc_message_recv(int fd, struct msghdr *msghdr);
 int uc_message_send(int fd, const struct msghdr *msghdr);
 int uc_message_sendn(int fd, struct msghdr *msghdr);

@@ -565,7 +565,7 @@ estrdup(const char *str)
  * Print a message including an optional jail name.
  */
 void
-jail_note(const struct cfjail *j, const char *fmt, ...)
+jail_note(const struct cfjail *j, const char * __restrict fmt, ...)
 {
 	va_list ap, tap;
 	char *cs;
@@ -588,7 +588,7 @@ jail_note(const struct cfjail *j, const char *fmt, ...)
  * Print a warning message including an optional jail name.
  */
 void
-jail_warnx(const struct cfjail *j, const char *fmt, ...)
+jail_warnx(const struct cfjail *j, const char * __restrict fmt, ...)
 {
 	va_list ap, tap;
 	char *cs;

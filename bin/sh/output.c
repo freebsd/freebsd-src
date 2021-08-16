@@ -275,7 +275,7 @@ outclearerror(struct output *file)
 
 
 void
-outfmt(struct output *file, const char *fmt, ...)
+outfmt(struct output *file, const char * __restrict fmt, ...)
 {
 	va_list ap;
 
@@ -286,7 +286,7 @@ outfmt(struct output *file, const char *fmt, ...)
 
 
 void
-out1fmt(const char *fmt, ...)
+out1fmt(const char * __restrict fmt, ...)
 {
 	va_list ap;
 
@@ -296,7 +296,7 @@ out1fmt(const char *fmt, ...)
 }
 
 void
-out2fmt_flush(const char *fmt, ...)
+out2fmt_flush(const char * __restrict fmt, ...)
 {
 	va_list ap;
 
@@ -307,7 +307,7 @@ out2fmt_flush(const char *fmt, ...)
 }
 
 void
-fmtstr(char *outbuf, int length, const char *fmt, ...)
+fmtstr(char * __restrict outbuf, int length, const char * __restrict fmt, ...)
 {
 	va_list ap;
 
@@ -319,7 +319,7 @@ fmtstr(char *outbuf, int length, const char *fmt, ...)
 }
 
 static int
-doformat_wr(void *cookie, const char *buf, int len)
+doformat_wr(void *cookie, const char * __restrict buf, int len)
 {
 	struct output *o;
 
@@ -330,7 +330,7 @@ doformat_wr(void *cookie, const char *buf, int len)
 }
 
 void
-doformat(struct output *dest, const char *f, va_list ap)
+doformat(struct output *dest, const char * __restrict f, va_list ap)
 {
 	FILE *fp;
 

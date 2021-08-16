@@ -54,7 +54,7 @@ log_init(int n_debug)
 }
 
 void
-logit(int pri, const char *fmt, ...)
+logit(int pri, const char * __restrict fmt, ...)
 {
 	va_list	ap;
 
@@ -64,7 +64,7 @@ logit(int pri, const char *fmt, ...)
 }
 
 void
-vlog(int pri, const char *fmt, va_list ap)
+vlog(int pri, const char * __restrict fmt, va_list ap)
 {
 	char	*nfmt;
 

@@ -52,7 +52,7 @@ Return:
 Note:
 ******************************************************************************/
 static int
-careful_write(char *buf, int offset, int max, const char *fmt, ...)
+careful_write(char *buf, int offset, int max, const char * __restrict fmt, ...)
 {
     static char s[PAGE_SIZE]; /* Assumes serialization */
     va_list args;

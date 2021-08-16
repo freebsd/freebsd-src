@@ -340,7 +340,7 @@ struct keywords {
 };
 
 int
-yyerror(const char *fmt, ...)
+yyerror(const char * __restrict fmt, ...)
 {
 	va_list		 ap;
 	char		*msg;

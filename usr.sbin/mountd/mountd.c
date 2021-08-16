@@ -3738,7 +3738,7 @@ free_grp(struct grouplist *grp)
 
 #ifdef DEBUG
 static void
-SYSLOG(int pri, const char *fmt, ...)
+SYSLOG(int pri, const char * __restrict fmt, ...)
 {
 	va_list ap;
 

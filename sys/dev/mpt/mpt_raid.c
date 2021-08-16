@@ -121,9 +121,9 @@ static const char *mpt_vol_type(struct mpt_raid_volume *vol);
 static const char *mpt_vol_state(struct mpt_raid_volume *vol);
 static const char *mpt_disk_state(struct mpt_raid_disk *disk);
 static void mpt_vol_prt(struct mpt_softc *mpt, struct mpt_raid_volume *vol,
-    const char *fmt, ...);
+    const char * __restrict fmt, ...);
 static void mpt_disk_prt(struct mpt_softc *mpt, struct mpt_raid_disk *disk,
-    const char *fmt, ...);
+    const char * __restrict fmt, ...);
 
 static int mpt_issue_raid_req(struct mpt_softc *mpt,
     struct mpt_raid_volume *vol, struct mpt_raid_disk *disk, request_t *req,
@@ -192,7 +192,7 @@ mpt_disk_state(struct mpt_raid_disk *disk)
 
 static void
 mpt_vol_prt(struct mpt_softc *mpt, struct mpt_raid_volume *vol,
-	    const char *fmt, ...)
+	    const char * __restrict fmt, ...)
 {
 	va_list ap;
 
@@ -206,7 +206,7 @@ mpt_vol_prt(struct mpt_softc *mpt, struct mpt_raid_volume *vol,
 
 static void
 mpt_disk_prt(struct mpt_softc *mpt, struct mpt_raid_disk *disk,
-	     const char *fmt, ...)
+	     const char * __restrict fmt, ...)
 {
 	va_list ap;
 

@@ -53,7 +53,7 @@
  * Call the requested boottrace sysctl with provided va-formatted message.
  */
 static __inline void
-_boottrace(const char *sysctlname, const char *fmt, ...)
+_boottrace(const char *sysctlname, const char * __restrict fmt, ...)
 {
 	va_list ap;
 	char msg[BT_MSGLEN];
@@ -83,7 +83,7 @@ _boottrace(const char *sysctlname, const char *fmt, ...)
 extern bool boottrace_enabled;
 extern bool shutdown_trace;
 
-int  boottrace(const char *_tdname, const char *_eventfmt, ...)
+int  boottrace(const char *_tdname, const char * __restrict _eventfmt, ...)
     __printflike(2,3);
 void boottrace_reset(const char *_actor);
 int  boottrace_resize(u_int _newsize);

@@ -46,17 +46,18 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <string.h>
 
-char	*__strtok_r(char *, const char *, char **);
+char	*__strtok_r(char * __restrict, const char * __restrict, char ** __restrict);
 
 __weak_reference(__strtok_r, strtok_r);
 
 char *
-__strtok_r(char *s, const char *delim, char **last)
+__strtok_r(char * __restrict s, const char * __restrict delim, char ** __restrict last)
 {
-	char *spanp, *tok;
-	int c, sc;
+	const char *spanp;
+	char *tok;
+	char c, sc;
 
-	if (s == NULL && (s = *last) == NULL)
+	if (__predict_false(s == NULL && (s = *last) == NULL))
 		return (NULL);
 
 	/*
@@ -64,12 +65,12 @@ __strtok_r(char *s, const char *delim, char **last)
 	 */
 cont:
 	c = *s++;
-	for (spanp = (char *)delim; (sc = *spanp++) != 0;) {
+	for (spanp = delim; (sc = *spanp++) != '\0';) {
 		if (c == sc)
 			goto cont;
 	}
 
-	if (c == 0) {		/* no non-delimiter characters */
+	if (c == '\0') { /* no non-delimiter characters */
 		*last = NULL;
 		return (NULL);
 	}
@@ -81,23 +82,23 @@ cont:
 	 */
 	for (;;) {
 		c = *s++;
-		spanp = (char *)delim;
+		spanp = delim;
 		do {
 			if ((sc = *spanp++) == c) {
-				if (c == 0)
+				if (c == '\0')
 					s = NULL;
 				else
 					s[-1] = '\0';
 				*last = s;
 				return (tok);
 			}
-		} while (sc != 0);
+		} while (sc != '\0');
 	}
 	/* NOTREACHED */
 }
 
 char *
-strtok(char *s, const char *delim)
+strtok(char * __restrict s, const char * __restrict delim)
 {
 	static char *last;
 

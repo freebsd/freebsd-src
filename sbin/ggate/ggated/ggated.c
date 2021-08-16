@@ -598,7 +598,7 @@ connection_launch(struct ggd_connection *conn)
 }
 
 static void
-sendfail(int sfd, int error, const char *fmt, ...)
+sendfail(int sfd, int error, const char * __restrict fmt, ...)
 {
 	struct g_gate_sinit sinit;
 	va_list ap;

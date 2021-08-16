@@ -113,7 +113,7 @@
 .Fo mt_entry_sbuf
 .Fa "struct sbuf *sb"
 .Fa "struct mt_status_entry *entry"
-.Fa "char *fmt"
+.Fa "char * __restrict fmt"
 .Fc
 .Ft void
 .Fo mt_param_parent_sbuf

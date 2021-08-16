@@ -108,7 +108,7 @@ cdevname(void)
 }
 
 static void
-vmsg(int fatal, const char *fmt, va_list ap)
+vmsg(int fatal, const char * __restrict fmt, va_list ap)
 {
 	if (!fatal && preen)
 		(void) printf("%s: ", dev);
@@ -128,7 +128,7 @@ vmsg(int fatal, const char *fmt, va_list ap)
 
 /*VARARGS*/
 void
-pfatal(const char *fmt, ...)
+pfatal(const char * __restrict fmt, ...)
 {
 	va_list ap;
 
@@ -139,7 +139,7 @@ pfatal(const char *fmt, ...)
 
 /*VARARGS*/
 void
-pwarn(const char *fmt, ...)
+pwarn(const char * __restrict fmt, ...)
 {
 	va_list ap;
 
@@ -149,7 +149,7 @@ pwarn(const char *fmt, ...)
 }
 
 void
-perr(const char *fmt, ...)
+perr(const char * __restrict fmt, ...)
 {
 	va_list ap;
 
@@ -159,7 +159,7 @@ perr(const char *fmt, ...)
 }
 
 void
-panic(const char *fmt, ...)
+panic(const char * __restrict fmt, ...)
 {
 	va_list ap;
 

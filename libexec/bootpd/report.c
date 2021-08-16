@@ -89,7 +89,7 @@ static int numlevels = sizeof(levelnames) / sizeof(levelnames[0]);
  * The message passed in should not include a newline.
  */
 void
-report(int priority, const char *fmt,...)
+report(int priority, const char * __restrict fmt,...)
 {
 	va_list ap;
 	static char buf[128];

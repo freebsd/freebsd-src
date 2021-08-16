@@ -565,7 +565,7 @@ ocs_bitmap_clear(ocs_bitmap_t *bitmap, uint32_t bit)
 	bit_clear(bitmap, bit);
 }
 
-void _ocs_log(ocs_t *ocs, const char *func_name, int line, const char *fmt, ...)
+void _ocs_log(ocs_t *ocs, const char *func_name, int line, const char * __restrict fmt, ...)
 {
 	va_list ap;
 	char buf[256];

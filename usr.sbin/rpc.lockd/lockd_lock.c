@@ -181,7 +181,7 @@ int	same_netobj(const netobj *n0, const netobj *n1);
 int	same_filelock_identity(const struct file_lock *fl0,
     const struct file_lock *fl2);
 
-static void debuglog(char const *fmt, ...);
+static void debuglog(const char * __restrict fmt, ...);
 void dump_static_object(const unsigned char* object, const int sizeof_object,
                         unsigned char* hbuff, const int sizeof_hbuff,
                         unsigned char* cbuff, const int sizeof_cbuff);
@@ -219,7 +219,7 @@ enum nlm_stats	do_lock(struct file_lock *fl);
 void	do_clear(const char *hostname);
 
 void
-debuglog(char const *fmt, ...)
+debuglog(const char * __restrict fmt, ...)
 {
 	va_list ap;
 

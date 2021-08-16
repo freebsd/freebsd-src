@@ -133,7 +133,7 @@ bxe_reg_read32(struct bxe_softc *sc, bus_size_t offset)
 
 void
 elink_cb_dbg(struct bxe_softc *sc,
-             char             *fmt)
+             char             * __restrict fmt)
 {
     char buf[128];
     if (__predict_false(sc->debug & DBG_PHY)) {
@@ -144,7 +144,7 @@ elink_cb_dbg(struct bxe_softc *sc,
 
 void
 elink_cb_dbg1(struct bxe_softc *sc,
-              char             *fmt,
+              char             * __restrict fmt,
               uint32_t         arg1)
 {
     char tmp[128], buf[128];

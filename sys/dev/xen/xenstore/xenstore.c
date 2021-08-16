@@ -1491,7 +1491,7 @@ xs_transaction_end(struct xs_transaction t, int abort)
 
 int
 xs_scanf(struct xs_transaction t, const char *dir, const char *node,
-     int *scancountp, const char *fmt, ...)
+     int *scancountp, const char * __restrict fmt, ...)
 {
 	va_list ap;
 	int error, ns;
@@ -1515,7 +1515,7 @@ xs_scanf(struct xs_transaction t, const char *dir, const char *node,
 
 int
 xs_vprintf(struct xs_transaction t,
-    const char *dir, const char *node, const char *fmt, va_list ap)
+    const char *dir, const char *node, const char * __restrict fmt, va_list ap)
 {
 	struct sbuf *sb;
 	int error;
@@ -1531,7 +1531,7 @@ xs_vprintf(struct xs_transaction t,
 
 int
 xs_printf(struct xs_transaction t, const char *dir, const char *node,
-     const char *fmt, ...)
+     const char * __restrict fmt, ...)
 {
 	va_list ap;
 	int error;
@@ -1553,7 +1553,7 @@ xs_gather(struct xs_transaction t, const char *dir, ...)
 	va_start(ap, dir);
 	error = 0;
 	while (error == 0 && (name = va_arg(ap, char *)) != NULL) {
-		const char *fmt = va_arg(ap, char *);
+		const char * __restrict fmt = va_arg(ap, char *);
 		void *result = va_arg(ap, void *);
 		char *p;
 

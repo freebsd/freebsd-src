@@ -250,7 +250,7 @@ struct CAlignmentAssumptionData {
 };
 
 /* Local utility functions */
-static void Report(bool isFatal, const char *pFormat, ...) __printflike(2, 3);
+static void Report(bool isFatal, const char * __restrict pFormat, ...) __printflike(2, 3);
 static bool isAlreadyReported(struct CSourceLocation *pLocation);
 static size_t zDeserializeTypeWidth(struct CTypeDescriptor *pType);
 static void DeserializeLocation(char *pBuffer, size_t zBUfferLength, struct CSourceLocation *pLocation);

@@ -79,7 +79,7 @@ strident_canon(char *s, size_t n)
  * with strfree().
  */
 char *
-kmem_asprintf(const char *fmt, ...)
+kmem_asprintf(const char * __restrict fmt, ...)
 {
 	int size;
 	va_list adx;

@@ -159,7 +159,7 @@ _citrus_HZ_init_state(_HZEncodingInfo * __restrict ei,
 static __inline void
 /*ARGSUSED*/
 _citrus_HZ_pack_state(_HZEncodingInfo * __restrict ei __unused,
-    void *__restrict pspriv, const _HZState * __restrict psenc)
+    void * __restrict pspriv, const _HZState * __restrict psenc)
 {
 
 	memcpy(pspriv, (const void *)psenc, sizeof(*psenc));

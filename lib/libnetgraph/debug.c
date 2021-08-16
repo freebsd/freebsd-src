@@ -115,8 +115,8 @@ __FBSDID("$FreeBSD$");
 int     _gNgDebugLevel = 0;
 
 /* Debug printing functions */
-void    (*_NgLog) (const char *fmt,...) = warn;
-void    (*_NgLogx) (const char *fmt,...) = warnx;
+void    (*_NgLog) (const char * __restrict fmt,...) = warn;
+void    (*_NgLogx) (const char * __restrict fmt,...) = warnx;
 
 /* Internal functions */
 static const	char *NgCookie(int cookie);
@@ -204,8 +204,8 @@ NgSetDebug(int level)
  * Set debug logging functions.
  */
 void
-NgSetErrLog(void (*log) (const char *fmt,...),
-		void (*logx) (const char *fmt,...))
+NgSetErrLog(void (*log) (const char * __restrict fmt,...),
+		void (*logx) (const char * __restrict fmt,...))
 {
 	_NgLog = log;
 	_NgLogx = logx;

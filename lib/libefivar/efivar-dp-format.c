@@ -90,7 +90,7 @@ static char *
 EFIAPI
 UefiDevicePathLibCatPrint (
   IN OUT POOL_PRINT  *Str,
-  IN const char      *Fmt,
+  IN const char      * __restrict Fmt,
   ...
   )
 {

@@ -292,11 +292,11 @@ int g_handleattr_off_t(struct bio *bp, const char *attribute, off_t val);
 int g_handleattr_uint16_t(struct bio *bp, const char *attribute, uint16_t val);
 int g_handleattr_str(struct bio *bp, const char *attribute, const char *str);
 struct g_consumer * g_new_consumer(struct g_geom *gp);
-struct g_geom * g_new_geomf(struct g_class *mp, const char *fmt, ...)
+struct g_geom * g_new_geomf(struct g_class *mp, const char * __restrict fmt, ...)
     __printflike(2, 3);
-struct g_provider * g_new_providerf(struct g_geom *gp, const char *fmt, ...)
+struct g_provider * g_new_providerf(struct g_geom *gp, const char * __restrict fmt, ...)
     __printflike(2, 3);
-void g_provider_add_alias(struct g_provider *pp, const char *fmt, ...)
+void g_provider_add_alias(struct g_provider *pp, const char * __restrict fmt, ...)
     __printflike(2, 3);
 void g_resize_provider(struct g_provider *pp, off_t size);
 int g_retaste(struct g_class *mp);
@@ -347,7 +347,7 @@ void * g_read_data(struct g_consumer *cp, off_t offset, off_t length, int *error
 int g_write_data(struct g_consumer *cp, off_t offset, void *ptr, off_t length);
 int g_delete_data(struct g_consumer *cp, off_t offset, off_t length);
 void g_format_bio(struct sbuf *, const struct bio *bp);
-void g_print_bio(const char *prefix, const struct bio *bp, const char *fmtsuffix, ...) __printflike(3, 4);
+void g_print_bio(const char *prefix, const struct bio *bp, const char * __restrict fmtsuffix, ...) __printflike(3, 4);
 int g_use_g_read_data(void *, off_t, void **, int);
 int g_use_g_write_data(void *, off_t, void *, int);
 
@@ -437,8 +437,8 @@ void *gctl_get_param_flags(struct gctl_req *req, const char *param, int flags, i
 char const *gctl_get_asciiparam(struct gctl_req *req, const char *param);
 void *gctl_get_paraml(struct gctl_req *req, const char *param, int len);
 void *gctl_get_paraml_opt(struct gctl_req *req, const char *param, int len);
-int gctl_error(struct gctl_req *req, const char *fmt, ...) __printflike(2, 3);
-void gctl_msg(struct gctl_req *req, int, const char *fmt, ...) __printflike(3, 4);
+int gctl_error(struct gctl_req *req, const char * __restrict fmt, ...) __printflike(2, 3);
+void gctl_msg(struct gctl_req *req, int, const char * __restrict fmt, ...) __printflike(3, 4);
 void gctl_post_messages(struct gctl_req *req);
 struct g_class *gctl_get_class(struct gctl_req *req, char const *arg);
 struct g_geom *gctl_get_geom(struct gctl_req *req, struct g_class *mp, char const *arg);

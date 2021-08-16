@@ -40,8 +40,8 @@ __weak_reference(__sys_ppoll, __ppoll);
 
 #pragma weak ppoll
 int
-ppoll(struct pollfd pfd[], nfds_t nfds, const struct timespec *__restrict
-    timeout, const sigset_t *__restrict newsigmask)
+ppoll(struct pollfd pfd[], nfds_t nfds, const struct timespec * __restrict
+    timeout, const sigset_t * __restrict newsigmask)
 {
 
 	return (((int (*)(struct pollfd *, nfds_t, const struct timespec *,

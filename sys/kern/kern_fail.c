@@ -465,7 +465,7 @@ static char *parse_type(struct fail_point_entry *, char *);
  * @ingroup failpoint
  */
 void
-fail_point_init(struct fail_point *fp, const char *fmt, ...)
+fail_point_init(struct fail_point *fp, const char * __restrict fmt, ...)
 {
 	va_list ap;
 	char *name;

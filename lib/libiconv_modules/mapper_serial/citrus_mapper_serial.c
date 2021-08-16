@@ -115,7 +115,7 @@ uninit(struct _citrus_mapper_serial *sr)
 }
 
 static int
-parse_var(struct _citrus_mapper_area *__restrict ma,
+parse_var(struct _citrus_mapper_area * __restrict ma,
     struct _citrus_mapper_serial *sr, struct _memstream *ms)
 {
 	struct _region r;
@@ -158,7 +158,7 @@ parse_var(struct _citrus_mapper_area *__restrict ma,
 
 static int
 /*ARGSUSED*/
-_citrus_mapper_serial_mapper_init(struct _citrus_mapper_area *__restrict ma __unused,
+_citrus_mapper_serial_mapper_init(struct _citrus_mapper_area * __restrict ma __unused,
     struct _citrus_mapper * __restrict cm, const char * __restrict dir __unused,
     const void * __restrict var, size_t lenvar,
     struct _citrus_mapper_traits * __restrict mt, size_t lenmt)

@@ -192,7 +192,7 @@ pfsync_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
  * Display a formatted value, or a '-' in the same space.
  */
 static void
-show_stat(const char *fmt, int width, const char *name,
+show_stat(const char * __restrict fmt, int width, const char *name,
     u_long value, short showvalue, int div1000)
 {
 	const char *lsep, *rsep;

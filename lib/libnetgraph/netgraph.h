@@ -61,8 +61,8 @@ int	NgSendData(int, const char *, const u_char *, size_t);
 int	NgRecvData(int, u_char *, size_t, char *);
 int	NgAllocRecvData(int, u_char **, char *);
 int	NgSetDebug(int);
-void	NgSetErrLog(void (*)(const char *fmt, ...),
-	    void (*)(const char *fmt, ...));
+void	NgSetErrLog(void (*)(const char * __restrict fmt, ...),
+	    void (*)(const char * __restrict fmt, ...));
 __END_DECLS
 
 #endif

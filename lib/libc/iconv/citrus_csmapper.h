@@ -42,8 +42,8 @@
 
 #define _CITRUS_CSMAPPER_F_PREVENT_PIVOT	0x00000001
 __BEGIN_DECLS
-int	 _citrus_csmapper_open(struct _citrus_csmapper *__restrict *__restrict,
-	    const char *__restrict, const char *__restrict, uint32_t,
+int	 _citrus_csmapper_open(struct _citrus_csmapper * __restrict * __restrict,
+	    const char * __restrict, const char * __restrict, uint32_t,
 	    unsigned long *);
 __END_DECLS
 

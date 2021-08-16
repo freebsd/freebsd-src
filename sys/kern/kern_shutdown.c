@@ -826,7 +826,7 @@ kassert_sysctl_kassert(SYSCTL_HANDLER_ARGS)
  * or if we will log via printf and/or ktr.
  */
 void
-kassert_panic(const char *fmt, ...)
+kassert_panic(const char * __restrict fmt, ...)
 {
 	static char buf[256];
 	va_list ap;
@@ -895,7 +895,7 @@ kassert_panic(const char *fmt, ...)
  * the disks as this often leads to recursive panics.
  */
 void
-panic(const char *fmt, ...)
+panic(const char * __restrict fmt, ...)
 {
 	va_list ap;
 
@@ -904,7 +904,7 @@ panic(const char *fmt, ...)
 }
 
 void
-vpanic(const char *fmt, va_list ap)
+vpanic(const char * __restrict fmt, va_list ap)
 {
 #ifdef SMP
 	cpuset_t other_cpus;

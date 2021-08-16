@@ -59,7 +59,7 @@ struct simple_attr {
 int
 simple_attr_open(struct inode *inode, struct file *filp,
     int (*get)(void *, uint64_t *), int (*set)(void *, uint64_t),
-    const char *fmt)
+    const char * __restrict fmt)
 {
 	struct simple_attr *sattr;
 	sattr = malloc(sizeof(*sattr), M_LSATTR, M_ZERO | M_NOWAIT);

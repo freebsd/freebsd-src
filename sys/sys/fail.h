@@ -113,7 +113,7 @@ enum fail_point_return_code fail_point_eval_nontrivial(struct fail_point *,
  * from "fmt" and the subsequent arguments.
  * Pair with fail_point_destroy().
  */
-void fail_point_init(struct fail_point *, const char *fmt, ...)
+void fail_point_init(struct fail_point *, const char * __restrict fmt, ...)
     __printflike(2, 3);
 
 /* Return true iff this fail point is set to off, false otherwise */

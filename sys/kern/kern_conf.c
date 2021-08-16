@@ -60,7 +60,7 @@ static int destroy_dev_sched_cbl(struct cdev *dev,
 static void destroy_dev_tq(void *ctx, int pending);
 static void destroy_dev_tq_giant(void *ctx, int pending);
 static int make_dev_credv(int flags, struct cdev **dres, struct cdevsw *devsw,
-    int unit, struct ucred *cr, uid_t uid, gid_t gid, int mode, const char *fmt,
+    int unit, struct ucred *cr, uid_t uid, gid_t gid, int mode, const char * __restrict fmt,
     va_list ap);
 
 static struct cdev_priv_list cdevp_free_list =
@@ -706,7 +706,7 @@ prep_cdevsw(struct cdevsw *devsw, int flags)
 }
 
 static int
-prep_devname(struct cdev *dev, const char *fmt, va_list ap)
+prep_devname(struct cdev *dev, const char * __restrict fmt, va_list ap)
 {
 	int len;
 	char *from, *q, *s, *to;
@@ -771,7 +771,7 @@ make_dev_args_init_impl(struct make_dev_args *args, size_t sz)
 
 static int
 make_dev_sv(struct make_dev_args *args1, struct cdev **dres,
-    const char *fmt, va_list ap)
+    const char * __restrict fmt, va_list ap)
 {
 	struct cdev *dev, *dev_new;
 	struct make_dev_args args;
@@ -838,7 +838,7 @@ make_dev_sv(struct make_dev_args *args1, struct cdev **dres,
 
 int
 make_dev_s(struct make_dev_args *args, struct cdev **dres,
-    const char *fmt, ...)
+    const char * __restrict fmt, ...)
 {
 	va_list ap;
 	int res;
@@ -851,7 +851,7 @@ make_dev_s(struct make_dev_args *args, struct cdev **dres,
 
 static int
 make_dev_credv(int flags, struct cdev **dres, struct cdevsw *devsw, int unit,
-    struct ucred *cr, uid_t uid, gid_t gid, int mode, const char *fmt,
+    struct ucred *cr, uid_t uid, gid_t gid, int mode, const char * __restrict fmt,
     va_list ap)
 {
 	struct make_dev_args args;
@@ -869,7 +869,7 @@ make_dev_credv(int flags, struct cdev **dres, struct cdevsw *devsw, int unit,
 
 struct cdev *
 make_dev(struct cdevsw *devsw, int unit, uid_t uid, gid_t gid, int mode,
-    const char *fmt, ...)
+    const char * __restrict fmt, ...)
 {
 	struct cdev *dev;
 	va_list ap;
@@ -886,7 +886,7 @@ make_dev(struct cdevsw *devsw, int unit, uid_t uid, gid_t gid, int mode,
 
 struct cdev *
 make_dev_cred(struct cdevsw *devsw, int unit, struct ucred *cr, uid_t uid,
-    gid_t gid, int mode, const char *fmt, ...)
+    gid_t gid, int mode, const char * __restrict fmt, ...)
 {
 	struct cdev *dev;
 	va_list ap;
@@ -903,7 +903,7 @@ make_dev_cred(struct cdevsw *devsw, int unit, struct ucred *cr, uid_t uid,
 
 struct cdev *
 make_dev_credf(int flags, struct cdevsw *devsw, int unit, struct ucred *cr,
-    uid_t uid, gid_t gid, int mode, const char *fmt, ...)
+    uid_t uid, gid_t gid, int mode, const char * __restrict fmt, ...)
 {
 	struct cdev *dev;
 	va_list ap;
@@ -922,7 +922,7 @@ make_dev_credf(int flags, struct cdevsw *devsw, int unit, struct ucred *cr,
 
 int
 make_dev_p(int flags, struct cdev **cdev, struct cdevsw *devsw,
-    struct ucred *cr, uid_t uid, gid_t gid, int mode, const char *fmt, ...)
+    struct ucred *cr, uid_t uid, gid_t gid, int mode, const char * __restrict fmt, ...)
 {
 	va_list ap;
 	int res;
@@ -958,7 +958,7 @@ dev_depends(struct cdev *pdev, struct cdev *cdev)
 
 static int
 make_dev_alias_v(int flags, struct cdev **cdev, struct cdev *pdev,
-    const char *fmt, va_list ap)
+    const char * __restrict fmt, va_list ap)
 {
 	struct cdev *dev;
 	int error;
@@ -998,7 +998,7 @@ make_dev_alias_v(int flags, struct cdev **cdev, struct cdev *pdev,
 }
 
 struct cdev *
-make_dev_alias(struct cdev *pdev, const char *fmt, ...)
+make_dev_alias(struct cdev *pdev, const char * __restrict fmt, ...)
 {
 	struct cdev *dev;
 	va_list ap;
@@ -1015,7 +1015,7 @@ make_dev_alias(struct cdev *pdev, const char *fmt, ...)
 
 int
 make_dev_alias_p(int flags, struct cdev **cdev, struct cdev *pdev,
-    const char *fmt, ...)
+    const char * __restrict fmt, ...)
 {
 	va_list ap;
 	int res;

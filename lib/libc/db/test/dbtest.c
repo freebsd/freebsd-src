@@ -726,7 +726,7 @@ usage()
 #include <stdarg.h>
 
 void
-err(const char *fmt, ...)
+err(const char * __restrict fmt, ...)
 {
 	va_list ap;
 

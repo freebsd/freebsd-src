@@ -227,7 +227,7 @@ terminal_sync_ttysize(struct terminal *tm)
 }
 
 void
-terminal_maketty(struct terminal *tm, const char *fmt, ...)
+terminal_maketty(struct terminal *tm, const char * __restrict fmt, ...)
 {
 	struct tty *tp;
 	char name[8];

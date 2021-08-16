@@ -419,7 +419,7 @@ usage(int iscompress)
 }
 
 static void
-cwarnx(const char *fmt, ...)
+cwarnx(const char * __restrict fmt, ...)
 {
 	va_list ap;
 
@@ -430,7 +430,7 @@ cwarnx(const char *fmt, ...)
 }
 
 static void
-cwarn(const char *fmt, ...)
+cwarn(const char * __restrict fmt, ...)
 {
 	va_list ap;
 

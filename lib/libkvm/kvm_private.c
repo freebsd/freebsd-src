@@ -78,7 +78,7 @@ int __fdnlist(int, struct nlist *);
  * generate tons of error messages when trying to access bogus pointers).
  */
 void
-_kvm_err(kvm_t *kd, const char *program, const char *fmt, ...)
+_kvm_err(kvm_t *kd, const char *program, const char * __restrict fmt, ...)
 {
 	va_list ap;
 
@@ -95,7 +95,7 @@ _kvm_err(kvm_t *kd, const char *program, const char *fmt, ...)
 }
 
 void
-_kvm_syserr(kvm_t *kd, const char *program, const char *fmt, ...)
+_kvm_syserr(kvm_t *kd, const char *  __restrict program, const char * __restrict fmt, ...)
 {
 	va_list ap;
 	int n;

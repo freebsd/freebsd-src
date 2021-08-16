@@ -80,7 +80,7 @@ g_ctl_init(void)
  * or EINVAL if nerror isn't specified.
  */
 int
-gctl_error(struct gctl_req *req, const char *fmt, ...)
+gctl_error(struct gctl_req *req, const char * __restrict fmt, ...)
 {
 	va_list ap;
 
@@ -125,7 +125,7 @@ gctl_error(struct gctl_req *req, const char *fmt, ...)
  * are posted, the utility will EXIT_SUCCESS.
  */
 void
-gctl_msg(struct gctl_req *req, int errno, const char *fmt, ...)
+gctl_msg(struct gctl_req *req, int errno, const char * __restrict fmt, ...)
 {
 	va_list ap;
 

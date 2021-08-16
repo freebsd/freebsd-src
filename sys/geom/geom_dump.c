@@ -173,7 +173,7 @@ g_conf_cat_escaped(struct sbuf *sb, const char *buf)
 }
 
 void
-g_conf_printf_escaped(struct sbuf *sb, const char *fmt, ...)
+g_conf_printf_escaped(struct sbuf *sb, const char * __restrict fmt, ...)
 {
 	struct sbuf *s;
 	va_list ap;
@@ -326,7 +326,7 @@ g_confxml(void *p, int flag)
 }
 
 void
-(g_trace)(int level, const char *fmt, ...)
+(g_trace)(int level, const char * __restrict fmt, ...)
 {
 	va_list ap;
 

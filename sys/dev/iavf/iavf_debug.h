@@ -119,7 +119,7 @@ enum iavf_dbg_mask {
 };
 
 /* Debug printing */
-void iavf_debug_core(device_t dev, uint32_t enabled_mask, uint32_t mask, char *fmt, ...) __printflike(4,5);
+void iavf_debug_core(device_t dev, uint32_t enabled_mask, uint32_t mask, char * __restrict fmt, ...) __printflike(4,5);
 
 #define iavf_dbg(sc, m, s, ...)		iavf_debug_core(sc->dev, sc->dbg_mask, m, s, ##__VA_ARGS__)
 #define iavf_dbg_init(sc, s, ...)	iavf_debug_core(sc->dev, sc->dbg_mask, IAVF_DBG_INIT, s, ##__VA_ARGS__)

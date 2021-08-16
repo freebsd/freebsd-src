@@ -1086,12 +1086,12 @@ void	ieee80211_note_frame(const struct ieee80211vap *,
 } while (0)
 
 void ieee80211_discard_frame(const struct ieee80211vap *,
-	const struct ieee80211_frame *, const char *type, const char *fmt, ...);
+	const struct ieee80211_frame *, const char *type, const char * __restrict fmt, ...);
 void ieee80211_discard_ie(const struct ieee80211vap *,
-	const struct ieee80211_frame *, const char *type, const char *fmt, ...);
+	const struct ieee80211_frame *, const char *type, const char * __restrict fmt, ...);
 void ieee80211_discard_mac(const struct ieee80211vap *,
 	const uint8_t mac[IEEE80211_ADDR_LEN], const char *type,
-	const char *fmt, ...);
+	const char * __restrict fmt, ...);
 #else
 #define	IEEE80211_DPRINTF(_vap, _m, _fmt, ...)
 #define	IEEE80211_NOTE(_vap, _m, _ni, _fmt, ...)

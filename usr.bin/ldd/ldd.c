@@ -84,7 +84,7 @@ static void	usage(void);
 #define	_PATH_LDD32	"/usr/bin/ldd32"
 
 static int
-execldd32(char *file, char *fmt1, char *fmt2, int aflag)
+execldd32(char *file, char * __restrict fmt1, char * __restrict fmt2, int aflag)
 {
 	char *argv[9];
 	int i, rval, status;

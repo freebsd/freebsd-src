@@ -3467,7 +3467,7 @@ ripsuptrig(void)
 #endif
 
 static void
-fatal(const char *fmt, ...)
+fatal(const char * __restrict fmt, ...)
 {
 	va_list ap;
 	char buf[1024];
@@ -3484,7 +3484,7 @@ fatal(const char *fmt, ...)
 }
 
 static void
-tracet(int level, const char *fmt, ...)
+tracet(int level, const char * __restrict fmt, ...)
 {
 	va_list ap;
 
@@ -3505,7 +3505,7 @@ tracet(int level, const char *fmt, ...)
 }
 
 static void
-trace(int level, const char *fmt, ...)
+trace(int level, const char * __restrict fmt, ...)
 {
 	va_list ap;
 

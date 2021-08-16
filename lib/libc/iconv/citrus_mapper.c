@@ -71,8 +71,8 @@ struct _citrus_mapper_area {
 
 int
 _citrus_mapper_create_area(
-    struct _citrus_mapper_area *__restrict *__restrict rma,
-    const char *__restrict area)
+    struct _citrus_mapper_area * __restrict * __restrict rma,
+    const char * __restrict area)
 {
 	struct _citrus_mapper_area *ma;
 	struct stat st;
@@ -201,7 +201,7 @@ mapper_close(struct _citrus_mapper *cm)
  *	simply open a mapper. (without handling hash)
  */
 static int
-mapper_open(struct _citrus_mapper_area *__restrict ma,
+mapper_open(struct _citrus_mapper_area * __restrict ma,
     struct _citrus_mapper * __restrict * __restrict rcm,
     const char * __restrict module,
     const char * __restrict variable)
@@ -278,7 +278,7 @@ err:
  *	open a mapper.
  */
 int
-_citrus_mapper_open_direct(struct _citrus_mapper_area *__restrict ma,
+_citrus_mapper_open_direct(struct _citrus_mapper_area * __restrict ma,
     struct _citrus_mapper * __restrict * __restrict rcm,
     const char * __restrict module, const char * __restrict variable)
 {
@@ -311,7 +311,7 @@ match_func(struct _citrus_mapper *cm, const char *key)
  *	open a mapper with looking up "mapper.dir".
  */
 int
-_citrus_mapper_open(struct _citrus_mapper_area *__restrict ma,
+_citrus_mapper_open(struct _citrus_mapper_area * __restrict ma,
     struct _citrus_mapper * __restrict * __restrict rcm,
     const char * __restrict mapname)
 {

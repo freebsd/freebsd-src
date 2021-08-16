@@ -99,7 +99,7 @@ int		OF_init(void *cookie);
 
 /* Generic functions */
 int		OF_test(const char *name);
-void		OF_printf(const char *fmt, ...);
+void		OF_printf(const char * __restrict fmt, ...);
 
 /* Device tree functions */
 phandle_t	OF_peer(phandle_t node);

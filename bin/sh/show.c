@@ -294,7 +294,7 @@ trputc(int c)
 
 
 void
-sh_trace(const char *fmt, ...)
+sh_trace(const char * __restrict fmt, ...)
 {
 	va_list va;
 	va_start(va, fmt);

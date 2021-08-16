@@ -389,7 +389,7 @@ static struct {
  * Send a formatted line; optionally echo to terminal
  */
 static int
-http_cmd(conn_t *conn, const char *fmt, ...)
+http_cmd(conn_t *conn, const char * __restrict fmt, ...)
 {
 	va_list ap;
 	size_t len;

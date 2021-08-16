@@ -4491,7 +4491,7 @@ bus_bind_intr(device_t dev, struct resource *r, int cpu)
  */
 int
 bus_describe_intr(device_t dev, struct resource *irq, void *cookie,
-    const char *fmt, ...)
+    const char * __restrict fmt, ...)
 {
 	va_list ap;
 	char descr[MAXCOMLEN + 1];

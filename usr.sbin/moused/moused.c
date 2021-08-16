@@ -524,7 +524,7 @@ static void	hup(int sig);
 static void	cleanup(int sig);
 static void	pause_mouse(int sig);
 static void	usage(void);
-static void	log_or_warn(int log_pri, int errnum, const char *fmt, ...)
+static void	log_or_warn(int log_pri, int errnum, const char * __restrict fmt, ...)
 		    __printflike(3, 4);
 
 static int	r_identify(void);
@@ -1364,7 +1364,7 @@ usage(void)
  * `errnum' is non-zero, append its string form to the message.
  */
 static void
-log_or_warn(int log_pri, int errnum, const char *fmt, ...)
+log_or_warn(int log_pri, int errnum, const char * __restrict fmt, ...)
 {
 	va_list ap;
 	char buf[256];

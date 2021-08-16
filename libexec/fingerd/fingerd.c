@@ -234,7 +234,7 @@ main(int argc, char *argv[])
 #include <stdarg.h>
 
 void
-logerr(const char *fmt, ...)
+logerr(const char * __restrict fmt, ...)
 {
 	va_list ap;
 	va_start(ap, fmt);

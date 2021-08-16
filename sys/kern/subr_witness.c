@@ -330,10 +330,10 @@ static int	sysctl_debug_witness_channel(SYSCTL_HANDLER_ARGS);
 static void	witness_add_fullgraph(struct sbuf *sb, struct witness *parent);
 #ifdef DDB
 static void	witness_ddb_compute_levels(void);
-static void	witness_ddb_display(int(*)(const char *fmt, ...));
-static void	witness_ddb_display_descendants(int(*)(const char *fmt, ...),
+static void	witness_ddb_display(int(*)(const char * __restrict fmt, ...));
+static void	witness_ddb_display_descendants(int(*)(const char * __restrict fmt, ...),
 		    struct witness *, int indent);
-static void	witness_ddb_display_list(int(*prnt)(const char *fmt, ...),
+static void	witness_ddb_display_list(int(*prnt)(const char * __restrict fmt, ...),
 		    struct witness_list *list);
 static void	witness_ddb_level_descendants(struct witness *parent, int l);
 static void	witness_ddb_list(struct thread *td);
@@ -357,11 +357,11 @@ static struct witness_lock_order_data	*witness_lock_order_get(
 					    struct witness *parent,
 					    struct witness *child);
 static void	witness_list_lock(struct lock_instance *instance,
-		    int (*prnt)(const char *fmt, ...));
-static int	witness_output(const char *fmt, ...) __printflike(1, 2);
+		    int (*prnt)(const char * __restrict fmt, ...));
+static int	witness_output(const char * __restrict fmt, ...) __printflike(1, 2);
 static int	witness_output_drain(void *arg __unused, const char *data,
 		    int len);
-static int	witness_voutput(const char *fmt, va_list ap) __printflike(1, 0);
+static int	witness_voutput(const char * __restrict fmt, va_list ap) __printflike(1, 0);
 static void	witness_setflag(struct lock_object *lock, int flag, int set);
 
 FEATURE(witness, "kernel has witness(9) support");
@@ -981,7 +981,7 @@ witness_ddb_level_descendants(struct witness *w, int l)
 }
 
 static void
-witness_ddb_display_descendants(int(*prnt)(const char *fmt, ...),
+witness_ddb_display_descendants(int(*prnt)(const char * __restrict fmt, ...),
     struct witness *w, int indent)
 {
 	int i;
@@ -1013,7 +1013,7 @@ witness_ddb_display_descendants(int(*prnt)(const char *fmt, ...),
 }
 
 static void
-witness_ddb_display_list(int(*prnt)(const char *fmt, ...),
+witness_ddb_display_list(int(*prnt)(const char * __restrict fmt, ...),
     struct witness_list *list)
 {
 	struct witness *w;
@@ -1030,7 +1030,7 @@ witness_ddb_display_list(int(*prnt)(const char *fmt, ...),
 }
 
 static void
-witness_ddb_display(int(*prnt)(const char *fmt, ...))
+witness_ddb_display(int(*prnt)(const char * __restrict fmt, ...))
 {
 	struct witness *w;
 
@@ -1794,7 +1794,7 @@ witness_thread_exit(struct thread *td)
  * flags then a failure results in a panic as well.
  */
 int
-witness_warn(int flags, struct lock_object *lock, const char *fmt, ...)
+witness_warn(int flags, struct lock_object *lock, const char * __restrict fmt, ...)
 {
 	struct lock_list_entry *lock_list, *lle;
 	struct lock_instance *lock1;
@@ -2245,7 +2245,7 @@ find_instance(struct lock_list_entry *list, const struct lock_object *lock)
 
 static void
 witness_list_lock(struct lock_instance *instance,
-    int (*prnt)(const char *fmt, ...))
+    int (*prnt)(const char * __restrict fmt, ...))
 {
 	struct lock_object *lock;
 
@@ -2260,7 +2260,7 @@ witness_list_lock(struct lock_instance *instance,
 }
 
 static int
-witness_output(const char *fmt, ...)
+witness_output(const char * __restrict fmt, ...)
 {
 	va_list ap;
 	int ret;
@@ -2272,7 +2272,7 @@ witness_output(const char *fmt, ...)
 }
 
 static int
-witness_voutput(const char *fmt, va_list ap)
+witness_voutput(const char * __restrict fmt, va_list ap)
 {
 	int ret;
 
@@ -2315,7 +2315,7 @@ witness_proc_has_locks(struct proc *p)
 
 int
 witness_list_locks(struct lock_list_entry **lock_list,
-    int (*prnt)(const char *fmt, ...))
+    int (*prnt)(const char * __restrict fmt, ...))
 {
 	struct lock_list_entry *lle;
 	int i, nheld;
@@ -2338,7 +2338,7 @@ witness_list_locks(struct lock_list_entry **lock_list,
  */
 void
 witness_display_spinlock(struct lock_object *lock, struct thread *owner,
-    int (*prnt)(const char *fmt, ...))
+    int (*prnt)(const char * __restrict fmt, ...))
 {
 	struct lock_instance *instance;
 	struct pcpu *pc;

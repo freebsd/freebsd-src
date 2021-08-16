@@ -940,7 +940,7 @@ ieee80211_getbssid(const struct ieee80211vap *vap,
 #include <machine/stdarg.h>
 
 void
-ieee80211_note(const struct ieee80211vap *vap, const char *fmt, ...)
+ieee80211_note(const struct ieee80211vap *vap, const char * __restrict fmt, ...)
 {
 	char buf[256];		/* XXX */
 	va_list ap;
@@ -959,7 +959,7 @@ ieee80211_note(const struct ieee80211vap *vap, const char *fmt, ...)
 void
 ieee80211_note_frame(const struct ieee80211vap *vap,
 	const struct ieee80211_frame *wh,
-	const char *fmt, ...)
+	const char * __restrict fmt, ...)
 {
 	char buf[256];		/* XXX */
 	va_list ap;
@@ -978,7 +978,7 @@ ieee80211_note_frame(const struct ieee80211vap *vap,
 void
 ieee80211_note_mac(const struct ieee80211vap *vap,
 	const uint8_t mac[IEEE80211_ADDR_LEN],
-	const char *fmt, ...)
+	const char * __restrict fmt, ...)
 {
 	char buf[256];		/* XXX */
 	va_list ap;
@@ -996,7 +996,7 @@ ieee80211_note_mac(const struct ieee80211vap *vap,
 void
 ieee80211_discard_frame(const struct ieee80211vap *vap,
 	const struct ieee80211_frame *wh,
-	const char *type, const char *fmt, ...)
+	const char *type, const char * __restrict fmt, ...)
 {
 	char buf[256];		/* XXX */
 	va_list ap;
@@ -1018,7 +1018,7 @@ ieee80211_discard_frame(const struct ieee80211vap *vap,
 void
 ieee80211_discard_ie(const struct ieee80211vap *vap,
 	const struct ieee80211_frame *wh,
-	const char *type, const char *fmt, ...)
+	const char *type, const char * __restrict fmt, ...)
 {
 	char buf[256];		/* XXX */
 	va_list ap;
@@ -1039,7 +1039,7 @@ ieee80211_discard_ie(const struct ieee80211vap *vap,
 void
 ieee80211_discard_mac(const struct ieee80211vap *vap,
 	const uint8_t mac[IEEE80211_ADDR_LEN],
-	const char *type, const char *fmt, ...)
+	const char *type, const char * __restrict fmt, ...)
 {
 	char buf[256];		/* XXX */
 	va_list ap;

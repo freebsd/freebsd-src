@@ -115,8 +115,8 @@ __BEGIN_DECLS
 int	poll(struct pollfd _pfd[], nfds_t _nfds, int _timeout);
 #if __BSD_VISIBLE
 int	ppoll(struct pollfd _pfd[], nfds_t _nfds,
-	    const struct timespec *__restrict _timeout,
-	    const sigset_t *__restrict _newsigmask);
+	    const struct timespec * __restrict _timeout,
+	    const sigset_t * __restrict _newsigmask);
 #endif
 __END_DECLS
 

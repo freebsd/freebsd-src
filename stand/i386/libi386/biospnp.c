@@ -87,7 +87,7 @@ static uint16_t			pnp_NumNodes;
 static uint16_t			pnp_NodeSize;
 
 static void	biospnp_scanresdata(struct pnpinfo *pi, struct pnp_devNode *dn);
-static int	biospnp_call(int func, const char *fmt, ...);
+static int	biospnp_call(int func, const char * __restrict fmt, ...);
 
 #define vsegofs(vptr)	(((uint32_t)VTOPSEG(vptr) << 16) + VTOPOFF(vptr))
 
@@ -245,7 +245,7 @@ biospnp_scanresdata(struct pnpinfo *pi, struct pnp_devNode *dn)
  * this evil.
  */
 static int
-biospnp_call(int func, const char *fmt, ...)
+biospnp_call(int func, const char * __restrict fmt, ...)
 {
     va_list	ap;
     const char	*p;

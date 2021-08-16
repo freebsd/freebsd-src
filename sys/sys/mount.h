@@ -984,7 +984,7 @@ int	dounmount(struct mount *, uint64_t, struct thread *);
 int	kernel_mount(struct mntarg *ma, uint64_t flags);
 struct mntarg *mount_arg(struct mntarg *ma, const char *name, const void *val, int len);
 struct mntarg *mount_argb(struct mntarg *ma, int flag, const char *name);
-struct mntarg *mount_argf(struct mntarg *ma, const char *name, const char *fmt, ...);
+struct mntarg *mount_argf(struct mntarg *ma, const char *name, const char * __restrict fmt, ...);
 struct mntarg *mount_argsu(struct mntarg *ma, const char *name, const void *val, int len);
 void	statfs_scale_blocks(struct statfs *sf, long max_size);
 struct vfsconf *vfs_byname(const char *);
@@ -1003,8 +1003,8 @@ int	vfs_getopt_size(struct vfsoptlist *opts, const char *name,
 char	*vfs_getopts(struct vfsoptlist *, const char *, int *error);
 int	vfs_copyopt(struct vfsoptlist *, const char *, void *, int);
 int	vfs_filteropt(struct vfsoptlist *, const char **legal);
-void	vfs_opterror(struct vfsoptlist *opts, const char *fmt, ...);
-int	vfs_scanopt(struct vfsoptlist *opts, const char *name, const char *fmt, ...);
+void	vfs_opterror(struct vfsoptlist *opts, const char * __restrict fmt, ...);
+int	vfs_scanopt(struct vfsoptlist *opts, const char *name, const char * __restrict fmt, ...);
 int	vfs_setopt(struct vfsoptlist *opts, const char *name, void *value,
 	    int len);
 int	vfs_setopt_part(struct vfsoptlist *opts, const char *name, void *value,

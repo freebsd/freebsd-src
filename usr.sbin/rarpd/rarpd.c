@@ -110,7 +110,7 @@ static struct pidfh *pidfile_fh;
 static int	bpf_open(void);
 static in_addr_t	choose_ipaddr(in_addr_t **, in_addr_t, in_addr_t);
 static char	*eatoa(u_char *);
-static int	expand_syslog_m(const char *fmt, char **newfmt);
+static int	expand_syslog_m(const char * __restrict fmt, char **newfmt);
 static void	init(char *);
 static void	init_one(struct ifaddrs *, char *, int);
 static char	*intoa(in_addr_t);
@@ -947,7 +947,7 @@ eatoa(u_char *ea)
 }
 
 static void
-logmsg(int pri, const char *fmt, ...)
+logmsg(int pri, const char * __restrict fmt, ...)
 {
 	va_list v;
 	FILE *fp;
@@ -974,7 +974,7 @@ logmsg(int pri, const char *fmt, ...)
 }
 
 static int
-expand_syslog_m(const char *fmt, char **newfmt) {
+expand_syslog_m(const char * __restrict fmt, char **newfmt) {
 	const char *str, *m;
 	char *p, *np;
 

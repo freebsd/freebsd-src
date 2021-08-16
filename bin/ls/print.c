@@ -433,7 +433,7 @@ printdev(size_t width, dev_t dev)
 }
 
 static void
-ls_strftime(char *str, size_t len, const char *fmt, const struct tm *tm)
+ls_strftime(char * __restrict str, size_t len, const char * __restrict fmt, const struct tm *tm)
 {
 	char *posb, nfmt[BUFSIZ];
 	const char *format = fmt;

@@ -549,7 +549,7 @@ optpage(const char *arg, int hi)
  * Display a warning.
  */
 static void
-Warn(const char *locus, const char *fmt, ...)
+Warn(const char *locus, const char * __restrict fmt, ...)
 {
     va_list ap;
     char *s;

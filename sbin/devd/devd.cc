@@ -1281,7 +1281,7 @@ siginfohand(int)
  * otherwise.
  */
 static void
-devdlog(int priority, const char* fmt, ...)
+devdlog(int priority, const char* __restrict fmt, ...)
 {
 	va_list argp;
 

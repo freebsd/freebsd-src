@@ -89,7 +89,7 @@ usage(void)
 }
 
 static void
-rep_err(int eval, const char *fmt, ...)
+rep_err(int eval, const char * __restrict fmt, ...)
 {
 	va_list ap;
 
@@ -102,7 +102,7 @@ rep_err(int eval, const char *fmt, ...)
 }
 
 static void
-rep_errx(int eval, const char *fmt, ...)
+rep_errx(int eval, const char * __restrict fmt, ...)
 {
 	va_list ap;
 

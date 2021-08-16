@@ -35,7 +35,7 @@ __FBSDID("$FreeBSD$");
 #include "libc_private.h"
 
 ssize_t
-sendmmsg(int s, struct mmsghdr *__restrict msgvec, size_t vlen, int flags)
+sendmmsg(int s, struct mmsghdr * __restrict msgvec, size_t vlen, int flags)
 {
 	size_t i, sent;
 	ssize_t ret;

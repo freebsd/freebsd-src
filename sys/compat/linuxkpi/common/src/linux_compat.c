@@ -174,7 +174,7 @@ kobject_create(void)
 
 
 int
-kobject_set_name_vargs(struct kobject *kobj, const char *fmt, va_list args)
+kobject_set_name_vargs(struct kobject *kobj, const char * __restrict fmt, va_list args)
 {
 	va_list tmp_va;
 	int len;
@@ -217,7 +217,7 @@ kobject_set_name_vargs(struct kobject *kobj, const char *fmt, va_list args)
 }
 
 int
-kobject_set_name(struct kobject *kobj, const char *fmt, ...)
+kobject_set_name(struct kobject *kobj, const char * __restrict fmt, ...)
 {
 	va_list args;
 	int error;
@@ -253,7 +253,7 @@ kobject_add_complete(struct kobject *kobj, struct kobject *parent)
 }
 
 int
-kobject_add(struct kobject *kobj, struct kobject *parent, const char *fmt, ...)
+kobject_add(struct kobject *kobj, struct kobject *parent, const char * __restrict fmt, ...)
 {
 	va_list args;
 	int error;
@@ -439,7 +439,7 @@ const struct kobj_type linux_dev_ktype = {
 
 struct device *
 device_create(struct class *class, struct device *parent, dev_t devt,
-    void *drvdata, const char *fmt, ...)
+    void *drvdata, const char * __restrict fmt, ...)
 {
 	struct device *dev;
 	va_list args;
@@ -461,7 +461,7 @@ device_create(struct class *class, struct device *parent, dev_t devt,
 struct device *
 device_create_groups_vargs(struct class *class, struct device *parent,
     dev_t devt, void *drvdata, const struct attribute_group **groups,
-    const char *fmt, va_list args)
+    const char * __restrict fmt, va_list args)
 {
 	struct device *dev = NULL;
 	int retval = -ENODEV;
@@ -520,7 +520,7 @@ class_create(struct module *owner, const char *name)
 
 int
 kobject_init_and_add(struct kobject *kobj, const struct kobj_type *ktype,
-    struct kobject *parent, const char *fmt, ...)
+    struct kobject *parent, const char * __restrict fmt, ...)
 {
 	va_list args;
 	int error;
@@ -2024,7 +2024,7 @@ vunmap(void *addr)
 }
 
 static char *
-devm_kvasprintf(struct device *dev, gfp_t gfp, const char *fmt, va_list ap)
+devm_kvasprintf(struct device *dev, gfp_t gfp, const char * __restrict fmt, va_list ap)
 {
 	unsigned int len;
 	char *p;
@@ -2045,14 +2045,14 @@ devm_kvasprintf(struct device *dev, gfp_t gfp, const char *fmt, va_list ap)
 }
 
 char *
-kvasprintf(gfp_t gfp, const char *fmt, va_list ap)
+kvasprintf(gfp_t gfp, const char * __restrict fmt, va_list ap)
 {
 
 	return (devm_kvasprintf(NULL, gfp, fmt, ap));
 }
 
 char *
-lkpi_devm_kasprintf(struct device *dev, gfp_t gfp, const char *fmt, ...)
+lkpi_devm_kasprintf(struct device *dev, gfp_t gfp, const char * __restrict fmt, ...)
 {
 	va_list ap;
 	char *p;
@@ -2065,7 +2065,7 @@ lkpi_devm_kasprintf(struct device *dev, gfp_t gfp, const char *fmt, ...)
 }
 
 char *
-kasprintf(gfp_t gfp, const char *fmt, ...)
+kasprintf(gfp_t gfp, const char * __restrict fmt, ...)
 {
 	va_list ap;
 	char *p;

@@ -264,7 +264,7 @@ static struct {
 
 
 static int
-__v2printf(FILE *fp, const char *fmt0, unsigned pct, va_list ap)
+__v2printf(FILE * __restrict fp, const char * __restrict fmt0, unsigned pct, va_list ap)
 {
 	struct printf_info	*pi, *pil;
 	const char		*fmt;
@@ -575,7 +575,7 @@ extern int      __fflush(FILE *fp);
  * worries about ungetc buffers and so forth.
  */
 static int
-__v3printf(FILE *fp, const char *fmt, int pct, va_list ap)
+__v3printf(FILE *fp, const char * __restrict fmt, int pct, va_list ap)
 {
 	int ret;
 	FILE fake = FAKE_FILE;
@@ -604,7 +604,7 @@ __v3printf(FILE *fp, const char *fmt, int pct, va_list ap)
 }
 
 int
-__xvprintf(FILE *fp, const char *fmt0, va_list ap)
+__xvprintf(FILE *fp, const char * __restrict fmt0, va_list ap)
 {
 	unsigned u;
 	const char *p;

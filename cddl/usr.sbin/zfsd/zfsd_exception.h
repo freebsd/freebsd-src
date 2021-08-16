@@ -67,7 +67,7 @@ public:
 	 *
 	 * \param fmt  Printf-like string format specifier.
 	 */
-	ZfsdException(const char *fmt, ...);
+	ZfsdException(const char * __restrict fmt, ...);
 
 	/**
 	 * \brief ZfsdException constructor allowing arbitrary string

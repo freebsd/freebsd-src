@@ -129,7 +129,7 @@ uint32_t arc4random(void);
 void	 arc4random_buf(void *, size_t);
 uint32_t arc4random_uniform(uint32_t);
 void	 arc4rand(void *, u_int, int);
-int	 timingsafe_bcmp(const void *, const void *, size_t);
+int	 timingsafe_bcmp(const void *, const void *, size_t) __pure;
 void	*bsearch(const void *, const void *, size_t,
 	    size_t, int (*)(const void *, const void *));
 #ifndef	HAVE_INLINE_FFS
@@ -158,8 +158,8 @@ int	 flsll(long long);
 
 int	 fnmatch(const char *, const char *, int);
 int	 locc(int, char *, u_int);
-void	*memchr(const void *s, int c, size_t n);
-void	*memcchr(const void *s, int c, size_t n);
+void	*memchr(const void *s, int c, size_t n) __pure;
+void	*memcchr(const void *s, int c, size_t n) __pure;
 void	*memmem(const void *l, size_t l_len, const void *s, size_t s_len);
 void	 qsort(void *base, size_t nmemb, size_t size,
 	    int (*compar)(const void *, const void *));
@@ -167,40 +167,40 @@ void	 qsort_r(void *base, size_t nmemb, size_t size,
 	    int (*compar)(const void *, const void *, void *), void *thunk);
 u_long	 random(void);
 int	 scanc(u_int, const u_char *, const u_char *, int);
-int	 strcasecmp(const char *, const char *);
-char	*strcasestr(const char *, const char *);
+int	 strcasecmp(const char *, const char *) __pure;
+char	*strcasestr(const char *, const char *) __pure;
 char	*strcat(char * __restrict, const char * __restrict);
-char	*strchr(const char *, int);
-char	*strchrnul(const char *, int);
-int	 strcmp(const char *, const char *);
+char	*strchr(const char *, int) __pure;
+char	*strchrnul(const char *, int) __pure;
+int	 strcmp(const char *, const char *) __pure;
 char	*strcpy(char * __restrict, const char * __restrict);
-char	*strdup_flags(const char *__restrict, struct malloc_type *, int);
 size_t	 strcspn(const char *, const char *) __pure;
-char	*strdup(const char *__restrict, struct malloc_type *);
-char	*strncat(char *, const char *, size_t);
-char	*strndup(const char *__restrict, size_t, struct malloc_type *);
-size_t	 strlcat(char *, const char *, size_t);
-size_t	 strlcpy(char *, const char *, size_t);
-size_t	 strlen(const char *);
-int	 strncasecmp(const char *, const char *, size_t);
-int	 strncmp(const char *, const char *, size_t);
+char	*strdup_flags(const char * __restrict, struct malloc_type *, int) __malloc_like;
+char	*strdup(const char * __restrict, struct malloc_type *) __malloc_like;
+char	*strncat(char * __restrict, const char * __restrict, size_t);
+char	*strndup(const char * __restrict, size_t, struct malloc_type *) __malloc_like;
+size_t	 strlcat(char * __restrict, const char * __restrict, size_t);
+size_t	 strlcpy(char * __restrict, const char * __restrict, size_t);
+size_t	 strlen(const char *) __pure;
+int	 strncasecmp(const char *, const char *, size_t) __pure;
+int	 strncmp(const char *, const char *, size_t) __pure;
 char	*strncpy(char * __restrict, const char * __restrict, size_t);
-size_t	 strnlen(const char *, size_t);
+size_t	 strnlen(const char *, size_t) __pure;
 char	*strnstr(const char *, const char *, size_t);
-char	*strrchr(const char *, int);
+char	*strrchr(const char *, int) __pure;
 char	*strsep(char **, const char *delim);
-size_t	 strspn(const char *, const char *);
-char	*strstr(const char *, const char *);
-int	 strvalid(const char *, size_t);
+size_t	 strspn(const char *, const char *) __pure;
+char	*strstr(const char *, const char *) __pure;
+int	 strvalid(const char *, size_t) __pure;
 
 #ifdef SAN_NEEDS_INTERCEPTORS
 #ifndef SAN_INTERCEPTOR
 #define	SAN_INTERCEPTOR(func)	\
 	__CONCAT(SAN_INTERCEPTOR_PREFIX, __CONCAT(_, func))
 #endif
-char	*SAN_INTERCEPTOR(strcpy)(char *, const char *);
-int	SAN_INTERCEPTOR(strcmp)(const char *, const char *);
-size_t	SAN_INTERCEPTOR(strlen)(const char *);
+char	*SAN_INTERCEPTOR(strcpy)(char * __restrict, const char * __restrict);
+int	SAN_INTERCEPTOR(strcmp)(const char *, const char *) __pure;
+size_t	SAN_INTERCEPTOR(strlen)(const char *) __pure;
 #ifndef SAN_RUNTIME
 #define	strcpy(d, s)	SAN_INTERCEPTOR(strcpy)((d), (s))
 #define	strcmp(s1, s2)	SAN_INTERCEPTOR(strcmp)((s1), (s2))

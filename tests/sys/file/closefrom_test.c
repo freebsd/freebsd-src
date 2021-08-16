@@ -63,7 +63,7 @@ ok(const char *descr)
 }
 
 static void
-fail(const char *descr, const char *fmt, ...)
+fail(const char *descr, const char * __restrict fmt, ...)
 {
 	va_list ap;
 
@@ -91,7 +91,7 @@ cok(struct shared_info *info, const char *descr)
 }
 
 static void
-cfail(struct shared_info *info, const char *descr, const char *fmt, ...)
+cfail(struct shared_info *info, const char *descr, const char * __restrict fmt, ...)
 {
 	va_list ap;
 

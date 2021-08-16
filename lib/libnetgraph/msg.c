@@ -89,7 +89,7 @@ NgSendMsg(int cs, const char *path,
  * the command into binary, and then we send the binary.
  */
 int
-NgSendAsciiMsg(int cs, const char *path, const char *fmt, ...)
+NgSendAsciiMsg(int cs, const char *path, const char * __restrict fmt, ...)
 {
 	struct ng_mesg *reply, *binary, *ascii;
 	char *buf, *cmd, *args;

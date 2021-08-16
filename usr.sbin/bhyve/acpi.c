@@ -110,7 +110,7 @@ struct basl_fio {
  * Helper routines for writing to the DSDT from other modules.
  */
 void
-dsdt_line(const char *fmt, ...)
+dsdt_line(const char * __restrict fmt, ...)
 {
 	va_list ap;
 

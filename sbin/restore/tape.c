@@ -1600,7 +1600,7 @@ checksum(int *buf)
 #include <stdarg.h>
 
 void
-msg(const char *fmt, ...)
+msg(const char * __restrict fmt, ...)
 {
 	va_list ap;
 	va_start(ap, fmt);

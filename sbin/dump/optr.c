@@ -235,7 +235,7 @@ infosch(int signal __unused)
 }
 
 void
-msg(const char *fmt, ...)
+msg(const char * __restrict fmt, ...)
 {
 	va_list ap;
 
@@ -254,7 +254,7 @@ msg(const char *fmt, ...)
 }
 
 void
-msgtail(const char *fmt, ...)
+msgtail(const char * __restrict fmt, ...)
 {
 	va_list ap;
 
@@ -264,7 +264,7 @@ msgtail(const char *fmt, ...)
 }
 
 void
-quit(const char *fmt, ...)
+quit(const char * __restrict fmt, ...)
 {
 	va_list ap;
 

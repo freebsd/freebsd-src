@@ -1194,7 +1194,7 @@ ffs_write_inode(union dinode *dp, uint32_t ino, const fsinfo_t *fsopts)
 }
 
 void
-panic(const char *fmt, ...)
+panic(const char * __restrict fmt, ...)
 {
 	va_list ap;
 

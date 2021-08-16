@@ -163,7 +163,7 @@ show_mb(const char *mb)
 static char	*widemsg;
 
 void
-werr(const char *fmt, ...)
+werr(const char * __restrict fmt, ...)
 {
 	char	*msg;
 

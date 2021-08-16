@@ -146,8 +146,8 @@ static int say_next, hup_next;
 void *dup_mem(void *b, size_t c);
 void *copy_of(char *s);
 static void usage(void);
-void chat_logf(const char *fmt, ...);
-void fatal(int code, const char *fmt, ...);
+void chat_logf(const char * __restrict fmt, ...);
+void fatal(int code, const char * __restrict fmt, ...);
 SIGTYPE sigalrm(int signo);
 SIGTYPE sigint(int signo);
 SIGTYPE sigterm(int signo);
@@ -399,7 +399,7 @@ usage(void)
  * Send a message to syslog and/or stderr.
  */
 void
-chat_logf(const char *fmt, ...)
+chat_logf(const char * __restrict fmt, ...)
 {
     char line[1024];
     va_list args;
@@ -418,7 +418,7 @@ chat_logf(const char *fmt, ...)
  */
 
 void
-fatal(int code, const char *fmt, ...)
+fatal(int code, const char * __restrict fmt, ...)
 {
     char line[1024];
     va_list args;
@@ -1338,7 +1338,7 @@ pack_array(char **array, int end)
 #define OUTCHAR(c)	(buflen > 0? (--buflen, *buf++ = (c)): 0)
 
 int
-vfmtmsg(char *buf, int buflen, const char *fmt, va_list args)
+vfmtmsg(char *buf, int buflen, const char * __restrict fmt, va_list args)
 {
     int c, i, n;
     int width, prec, fillch;

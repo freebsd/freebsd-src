@@ -39,7 +39,7 @@ _CITRUS_MAPPER_GETOPS_FUNC_BASE(_citrus_##_n_##_mapper_getops)
 
 #define _CITRUS_MAPPER_DECLS(_m_)					\
 static int	 _citrus_##_m_##_mapper_init				\
-		    (struct _citrus_mapper_area *__restrict,		\
+		    (struct _citrus_mapper_area * __restrict,		\
 		    struct _citrus_mapper * __restrict,			\
 		    const char * __restrict, const void * __restrict,	\
 		    size_t, struct _citrus_mapper_traits * __restrict,	\
@@ -64,9 +64,9 @@ struct _citrus_mapper_ops _citrus_##_m_##_mapper_ops = {		\
 
 typedef _CITRUS_MAPPER_GETOPS_FUNC_BASE((*_citrus_mapper_getops_t));
 typedef	int (*_citrus_mapper_init_t)(
-    struct _citrus_mapper_area *__restrict,
-    struct _citrus_mapper *__restrict, const char *__restrict,
-    const void *__restrict, size_t,
+    struct _citrus_mapper_area * __restrict,
+    struct _citrus_mapper * __restrict, const char * __restrict,
+    const void * __restrict, size_t,
     struct _citrus_mapper_traits * __restrict, size_t);
 typedef void (*_citrus_mapper_uninit_t)(struct _citrus_mapper *);
 typedef int (*_citrus_mapper_convert_t)(struct _citrus_mapper * __restrict,

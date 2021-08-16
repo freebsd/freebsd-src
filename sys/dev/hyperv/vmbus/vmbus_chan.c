@@ -2265,7 +2265,7 @@ vmbus_chan_rx_empty(const struct vmbus_channel *chan)
 }
 
 static int
-vmbus_chan_printf(const struct vmbus_channel *chan, const char *fmt, ...)
+vmbus_chan_printf(const struct vmbus_channel *chan, const char * __restrict fmt, ...)
 {
 	va_list ap;
 	device_t dev;

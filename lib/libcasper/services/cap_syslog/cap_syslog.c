@@ -48,7 +48,7 @@ __FBSDID("$FreeBSD$");
 #define	CAP_SYSLOG_LIMIT	2048
 
 void
-cap_syslog(cap_channel_t *chan, int pri, const char *fmt, ...)
+cap_syslog(cap_channel_t *chan, int pri, const char * __restrict fmt, ...)
 {
 	va_list ap;
 
@@ -58,7 +58,7 @@ cap_syslog(cap_channel_t *chan, int pri, const char *fmt, ...)
 }
 
 void
-cap_vsyslog(cap_channel_t *chan, int priority, const char *fmt, va_list ap)
+cap_vsyslog(cap_channel_t *chan, int priority, const char * __restrict fmt, va_list ap)
 {
 	nvlist_t *nvl;
 	char message[CAP_SYSLOG_LIMIT];

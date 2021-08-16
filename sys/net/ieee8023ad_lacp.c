@@ -194,7 +194,7 @@ static const char *lacp_format_systemid(const struct lacp_systemid *, char *,
 		    size_t);
 static const char *lacp_format_portid(const struct lacp_portid *, char *,
 		    size_t);
-static void	lacp_dprintf(const struct lacp_port *, const char *, ...)
+static void	lacp_dprintf(const struct lacp_port * __restrict, const char * __restrict, ...)
 		    __attribute__((__format__(__printf__, 2, 3)));
 
 VNET_DEFINE_STATIC(int, lacp_debug);
@@ -2206,7 +2206,7 @@ lacp_dump_lacpdu(const struct lacpdu *du)
 }
 
 static void
-lacp_dprintf(const struct lacp_port *lp, const char *fmt, ...)
+lacp_dprintf(const struct lacp_port *lp, const char * __restrict fmt, ...)
 {
 	va_list va;
 

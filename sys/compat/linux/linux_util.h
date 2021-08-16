@@ -99,7 +99,7 @@ struct __hack
  */
 #define UNIMPLEMENTED(s)
 
-void linux_msg(const struct thread *td, const char *fmt, ...)
+void linux_msg(const struct thread *td, const char * __restrict fmt, ...)
 	__printflike(2, 3);
 
 struct linux_device_handler {

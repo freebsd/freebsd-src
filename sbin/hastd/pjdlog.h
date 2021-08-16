@@ -53,16 +53,16 @@ int pjdlog_mode_get(void);
 void pjdlog_debug_set(int level);
 int pjdlog_debug_get(void);
 
-void pjdlog_prefix_set(const char *fmt, ...) __printflike(1, 2);
-void pjdlogv_prefix_set(const char *fmt, va_list ap) __printflike(1, 0);
+void pjdlog_prefix_set(const char * __restrict fmt, ...) __printflike(1, 2);
+void pjdlogv_prefix_set(const char * __restrict fmt, va_list ap) __printflike(1, 0);
 
-void pjdlog_common(int loglevel, int debuglevel, int error, const char *fmt,
+void pjdlog_common(int loglevel, int debuglevel, int error, const char * __restrict fmt,
     ...) __printflike(4, 5);
-void pjdlogv_common(int loglevel, int debuglevel, int error, const char *fmt,
+void pjdlogv_common(int loglevel, int debuglevel, int error, const char * __restrict fmt,
     va_list ap) __printflike(4, 0);
 
-void pjdlog(int loglevel, const char *fmt, ...) __printflike(2, 3);
-void pjdlogv(int loglevel, const char *fmt, va_list ap) __printflike(2, 0);
+void pjdlog(int loglevel, const char * __restrict fmt, ...) __printflike(2, 3);
+void pjdlogv(int loglevel, const char * __restrict fmt, va_list ap) __printflike(2, 0);
 
 #define	pjdlogv_emergency(fmt, ap)	pjdlogv(LOG_EMERG, (fmt), (ap))
 #define	pjdlog_emergency(...)		pjdlog(LOG_EMERG, __VA_ARGS__)
@@ -79,20 +79,20 @@ void pjdlogv(int loglevel, const char *fmt, va_list ap) __printflike(2, 0);
 #define	pjdlogv_info(fmt, ap)		pjdlogv(LOG_INFO, (fmt), (ap))
 #define	pjdlog_info(...)		pjdlog(LOG_INFO, __VA_ARGS__)
 
-void pjdlog_debug(int debuglevel, const char *fmt, ...) __printflike(2, 3);
-void pjdlogv_debug(int debuglevel, const char *fmt, va_list ap) __printflike(2, 0);
+void pjdlog_debug(int debuglevel, const char * __restrict fmt, ...) __printflike(2, 3);
+void pjdlogv_debug(int debuglevel, const char * __restrict fmt, va_list ap) __printflike(2, 0);
 
-void pjdlog_errno(int loglevel, const char *fmt, ...) __printflike(2, 3);
-void pjdlogv_errno(int loglevel, const char *fmt, va_list ap) __printflike(2, 0);
+void pjdlog_errno(int loglevel, const char * __restrict fmt, ...) __printflike(2, 3);
+void pjdlogv_errno(int loglevel, const char * __restrict fmt, va_list ap) __printflike(2, 0);
 
-void pjdlog_exit(int exitcode, const char *fmt, ...) __printflike(2, 3) __dead2;
-void pjdlogv_exit(int exitcode, const char *fmt, va_list ap) __printflike(2, 0) __dead2;
+void pjdlog_exit(int exitcode, const char * __restrict fmt, ...) __printflike(2, 3) __dead2;
+void pjdlogv_exit(int exitcode, const char * __restrict fmt, va_list ap) __printflike(2, 0) __dead2;
 
-void pjdlog_exitx(int exitcode, const char *fmt, ...) __printflike(2, 3) __dead2;
-void pjdlogv_exitx(int exitcode, const char *fmt, va_list ap) __printflike(2, 0) __dead2;
+void pjdlog_exitx(int exitcode, const char * __restrict fmt, ...) __printflike(2, 3) __dead2;
+void pjdlogv_exitx(int exitcode, const char * __restrict fmt, va_list ap) __printflike(2, 0) __dead2;
 
 void pjdlog_abort(const char *func, const char *file, int line,
-    const char *failedexpr, const char *fmt, ...) __printflike(5, 6) __dead2;
+    const char *failedexpr, const char * __restrict fmt, ...) __printflike(5, 6) __dead2;
 
 #define	PJDLOG_VERIFY(expr)	do {					\
 	if (!(expr)) {							\

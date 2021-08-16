@@ -151,7 +151,7 @@ static MALLOC_DEFINE(M_XENBLOCKBACK, "xbbd", "Xen Block Back Driver Data");
 struct xbb_softc;
 struct xbb_xen_req;
 
-static void xbb_attach_failed(struct xbb_softc *xbb, int err, const char *fmt,
+static void xbb_attach_failed(struct xbb_softc *xbb, int err, const char * __restrict fmt,
 			      ...) __attribute__((format(printf, 3, 4)));
 static int  xbb_shutdown(struct xbb_softc *xbb);
 
@@ -3280,7 +3280,7 @@ xbb_shutdown(struct xbb_softc *xbb)
  * \param fmt  Printf style format and arguments
  */
 static void
-xbb_attach_failed(struct xbb_softc *xbb, int err, const char *fmt, ...)
+xbb_attach_failed(struct xbb_softc *xbb, int err, const char * __restrict fmt, ...)
 {
 	va_list ap;
 	va_list ap_hotplug;

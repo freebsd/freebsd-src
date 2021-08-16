@@ -318,7 +318,7 @@ cpsw_debugf_head(const char *funcname)
 }
 
 static void
-cpsw_debugf(const char *fmt, ...)
+cpsw_debugf(const char * __restrict fmt, ...)
 {
 	va_list ap;
 

@@ -475,7 +475,7 @@ LoadModules(void)
 #endif
 
 static void
-nglog(const char *fmt, ...)
+nglog(const char * __restrict fmt, ...)
 {
   char nfmt[256];
   va_list ap;
@@ -487,7 +487,7 @@ nglog(const char *fmt, ...)
 }
 
 static void
-nglogx(const char *fmt, ...)
+nglogx(const char * __restrict fmt, ...)
 {
   va_list ap;
 

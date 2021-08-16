@@ -133,12 +133,12 @@
 .Ft int
 .Fo sbuf_printf
 .Fa "struct sbuf *s"
-.Fa "const char *fmt" "..."
+.Fa "const char * __restrict fmt" "..."
 .Fc
 .Ft int
 .Fo sbuf_vprintf
 .Fa "struct sbuf *s"
-.Fa "const char *fmt"
+.Fa "const char * __restrict fmt"
 .Fa "va_list ap"
 .Fc
 .Ft int

@@ -368,7 +368,7 @@ extern char *ocs_strdup(const char *s);
 
 extern int loglevel;
 
-extern void _ocs_log(ocs_t *ocs, const char *func, int line, const char *fmt, ...);
+extern void _ocs_log(ocs_t *ocs, const char *func, int line, const char * __restrict fmt, ...);
 
 #define ocs_log_crit(os, fmt, ...)	ocs_log(os, LOG_CRIT, fmt, ##__VA_ARGS__);
 #define ocs_log_err(os, fmt, ...)	ocs_log(os, LOG_ERR, fmt, ##__VA_ARGS__);

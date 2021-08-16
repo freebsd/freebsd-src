@@ -301,7 +301,7 @@ mprsas_rescan_target(struct mpr_softc *sc, struct mprsas_target *targ)
 }
 
 static void
-mprsas_log_command(struct mpr_command *cm, u_int level, const char *fmt, ...)
+mprsas_log_command(struct mpr_command *cm, u_int level, const char * __restrict fmt, ...)
 {
 	struct sbuf sb;
 	va_list ap;

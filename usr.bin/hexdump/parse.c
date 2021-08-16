@@ -75,7 +75,7 @@ addfile(const char *name)
 }
 
 void
-add(const char *fmt)
+add(const char * __restrict fmt)
 {
 	unsigned const char *p, *savep;
 	static FS **nextfs;
@@ -511,7 +511,7 @@ badsfmt(void)
 }
 
 void
-badfmt(const char *fmt)
+badfmt(const char * __restrict fmt)
 {
 	errx(1, "\"%s\": bad format", fmt);
 }

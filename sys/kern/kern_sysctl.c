@@ -859,7 +859,7 @@ sysctl_remove_oid_locked(struct sysctl_oid *oidp, int del, int recurse)
 struct sysctl_oid *
 sysctl_add_oid(struct sysctl_ctx_list *clist, struct sysctl_oid_list *parent,
 	int number, const char *name, int kind, void *arg1, intmax_t arg2,
-	int (*handler)(SYSCTL_HANDLER_ARGS), const char *fmt, const char *descr,
+	int (*handler)(SYSCTL_HANDLER_ARGS), const char * __restrict fmt, const char *descr,
 	const char *label)
 {
 	struct sysctl_oid *oidp;

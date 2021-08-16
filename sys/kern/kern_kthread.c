@@ -82,7 +82,7 @@ kproc_start(const void *udata)
  */
 int
 kproc_create(void (*func)(void *), void *arg,
-    struct proc **newpp, int flags, int pages, const char *fmt, ...)
+    struct proc **newpp, int flags, int pages, const char * __restrict fmt, ...)
 {
 	struct fork_req fr;
 	int error;
@@ -253,7 +253,7 @@ kthread_start(const void *udata)
  */
 int
 kthread_add(void (*func)(void *), void *arg, struct proc *p,
-    struct thread **newtdp, int flags, int pages, const char *fmt, ...)
+    struct thread **newtdp, int flags, int pages, const char * __restrict fmt, ...)
 {
 	va_list ap;
 	struct thread *newtd, *oldtd;
@@ -454,7 +454,7 @@ kthread_suspend_check(void)
 int
 kproc_kthread_add(void (*func)(void *), void *arg,
             struct proc **procptr, struct thread **tdptr,
-            int flags, int pages, const char *procname, const char *fmt, ...) 
+            int flags, int pages, const char *procname, const char * __restrict fmt, ...) 
 {
 	int error;
 	va_list ap;

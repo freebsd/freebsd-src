@@ -229,7 +229,7 @@ fetch_syserr(void)
  * Emit status message
  */
 void
-fetch_info(const char *fmt, ...)
+fetch_info(const char * __restrict fmt, ...)
 {
 	va_list ap;
 

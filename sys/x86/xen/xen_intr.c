@@ -1191,7 +1191,7 @@ xen_intr_alloc_and_bind_ipi(u_int cpu, driver_filter_t filter,
 }
 
 int
-xen_intr_describe(xen_intr_handle_t port_handle, const char *fmt, ...)
+xen_intr_describe(xen_intr_handle_t port_handle, const char * __restrict fmt, ...)
 {
 	char descr[MAXCOMLEN + 1];
 	struct xenisrc *isrc;

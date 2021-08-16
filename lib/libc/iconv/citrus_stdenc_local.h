@@ -112,7 +112,7 @@ typedef int (*_citrus_stdenc_mbtocs_t)
     void * __restrict, size_t * __restrict,
     struct iconv_hooks *);
 typedef int (*_citrus_stdenc_cstomb_t)
-    (struct _citrus_stdenc *__restrict, char * __restrict, size_t,
+    (struct _citrus_stdenc * __restrict, char * __restrict, size_t,
     _citrus_csid_t, _citrus_index_t, void * __restrict,
     size_t * __restrict, struct iconv_hooks *);
 typedef int (*_citrus_stdenc_mbtowc_t)
@@ -122,11 +122,11 @@ typedef int (*_citrus_stdenc_mbtowc_t)
     void * __restrict, size_t * __restrict,
     struct iconv_hooks *);
 typedef int (*_citrus_stdenc_wctomb_t)
-    (struct _citrus_stdenc *__restrict, char * __restrict, size_t,
+    (struct _citrus_stdenc * __restrict, char * __restrict, size_t,
     _citrus_wc_t, void * __restrict, size_t * __restrict,
     struct iconv_hooks *);
 typedef int (*_citrus_stdenc_put_state_reset_t)
-    (struct _citrus_stdenc *__restrict, char * __restrict, size_t,
+    (struct _citrus_stdenc * __restrict, char * __restrict, size_t,
     void * __restrict, size_t * __restrict);
 typedef int (*_citrus_stdenc_get_state_desc_t)
     (struct _citrus_stdenc * __restrict, void * __restrict, int,

@@ -38,8 +38,8 @@ __FBSDID("$FreeBSD$");
 #include "libc_private.h"
 
 ssize_t
-recvmmsg(int s, struct mmsghdr *__restrict msgvec, size_t vlen, int flags,
-    const struct timespec *__restrict timeout)
+recvmmsg(int s, struct mmsghdr * __restrict msgvec, size_t vlen, int flags,
+    const struct timespec * __restrict timeout)
 {
 	struct pollfd pfd[1];
 	size_t i, rcvd;

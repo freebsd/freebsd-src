@@ -69,7 +69,7 @@ static void process_into_file(char *line, FILE *ofp);
 static void process_into_nvlist(char *line, nvlist_t *nvl);
 static void dump_nvlist(nvlist_t *nvl, FILE *ofp);
 
-static void errout(const char *fmt, ...)
+static void errout(const char * __restrict fmt, ...)
 {
 	va_list ap;
 

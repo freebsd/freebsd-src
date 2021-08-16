@@ -106,7 +106,7 @@ mtree_file_push(const char *name, FILE *fp)
 }
 
 static void
-mtree_print(const char *msgtype, const char *fmt, va_list ap)
+mtree_print(const char *msgtype, const char * __restrict fmt, va_list ap)
 {
 	struct mtree_fileinfo *fi;
 
@@ -120,7 +120,7 @@ mtree_print(const char *msgtype, const char *fmt, va_list ap)
 }
 
 static void
-mtree_error(const char *fmt, ...)
+mtree_error(const char * __restrict fmt, ...)
 {
 	va_list ap;
 
@@ -133,7 +133,7 @@ mtree_error(const char *fmt, ...)
 }
 
 static void
-mtree_warning(const char *fmt, ...)
+mtree_warning(const char * __restrict fmt, ...)
 {
 	va_list ap;
 

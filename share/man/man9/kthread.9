@@ -56,13 +56,13 @@
 .Fo kthread_add
 .Fa "void (*func)(void *)" "void *arg" "struct proc *procp"
 .Fa "struct thread **newtdpp" "int flags" "int pages"
-.Fa "const char *fmt" ...
+.Fa "const char * __restrict fmt" ...
 .Fc
 .Ft int
 .Fo kproc_kthread_add
 .Fa "void (*func)(void *)" "void *arg"
 .Fa "struct proc **procptr" "struct thread **tdptr"
-.Fa "int flags" "int pages" "char * procname" "const char *fmt" "..."
+.Fa "int flags" "int pages" "char * procname" "const char * __restrict fmt" "..."
 .Fc
 .Sh DESCRIPTION
 In

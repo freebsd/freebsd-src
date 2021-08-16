@@ -441,7 +441,7 @@ parseint(FILE *fp, char * __restrict buf, int width, int base, int flags)
  * __vfscanf - MT-safe version
  */
 int
-__vfscanf(FILE *fp, char const *fmt0, va_list ap)
+__vfscanf(FILE * __restrict fp, const char * __restrict fmt0, va_list ap)
 {
 	int ret;
 
@@ -451,7 +451,7 @@ __vfscanf(FILE *fp, char const *fmt0, va_list ap)
 	return (ret);
 }
 int
-vfscanf_l(FILE *fp, locale_t locale, char const *fmt0, va_list ap)
+vfscanf_l(FILE * __restrict fp, locale_t locale, const char * __restrict fmt0, va_list ap)
 {
 	int ret;
 	FIX_LOCALE(locale);
@@ -466,7 +466,7 @@ vfscanf_l(FILE *fp, locale_t locale, char const *fmt0, va_list ap)
  * __svfscanf - non-MT-safe version of __vfscanf
  */
 int
-__svfscanf(FILE *fp, locale_t locale, const char *fmt0, va_list ap)
+__svfscanf(FILE * __restrict fp, locale_t locale, const char * __restrict fmt0, va_list ap)
 {
 #define	GETARG(type)	((flags & SUPPRESS) ? SUPPRESS_PTR : va_arg(ap, type))
 	const u_char *fmt = (const u_char *)fmt0;

@@ -105,7 +105,7 @@ static void free_sys_event_tables(void)
 	}
 }
 
-int eprintf(int level, int var, const char *fmt, ...)
+int eprintf(int level, int var, const char * __restrict fmt, ...)
 {
 
 	int ret;

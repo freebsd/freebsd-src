@@ -86,10 +86,10 @@ int				 bhnd_nvram_val_encode_elem(
 				     bhnd_nvram_type otype);
 
 int				 bhnd_nvram_val_printf(bhnd_nvram_val *value,
-				     const char *fmt, char *outp, size_t *olen,
+				     const char * __restrict fmt, char *outp, size_t *olen,
 				     ...);
 int				 bhnd_nvram_val_vprintf(bhnd_nvram_val *value,
-				     const char *fmt, char *outp, size_t *olen,
+				     const char * __restrict fmt, char *outp, size_t *olen,
 				     va_list ap);
 
 const void			*bhnd_nvram_val_bytes(bhnd_nvram_val *value,

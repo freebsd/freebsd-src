@@ -60,7 +60,7 @@ __FBSDID("$FreeBSD$");
 #include "timelocal.h"
 #include "tzfile.h"
 
-static char * _strptime(const char *, const char *, struct tm *, int *, locale_t);
+static char * _strptime(const char * __restrict, const char * __restrict, struct tm * __restrict, int *, locale_t);
 
 #define	asizeof(a)	(sizeof(a) / sizeof((a)[0]))
 
@@ -86,7 +86,7 @@ first_wday_of(int year)
 }
 
 static char *
-_strptime(const char *buf, const char *fmt, struct tm *tm, int *GMTp,
+_strptime(const char * __restrict buf, const char * __restrict fmt, struct tm * __restrict tm, int *GMTp,
 		locale_t locale)
 {
 	char	c;

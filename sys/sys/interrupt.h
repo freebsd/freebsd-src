@@ -176,7 +176,7 @@ int	intr_event_bind_ithread_cpuset(struct intr_event *ie,
 int	intr_event_create(struct intr_event **event, void *source,
 	    int flags, int irq, void (*pre_ithread)(void *),
 	    void (*post_ithread)(void *), void (*post_filter)(void *),
-	    int (*assign_cpu)(void *, int), const char *fmt, ...)
+	    int (*assign_cpu)(void *, int), const char * __restrict fmt, ...)
 	    __printflike(9, 10);
 int	intr_event_describe_handler(struct intr_event *ie, void *cookie,
 	    const char *descr);

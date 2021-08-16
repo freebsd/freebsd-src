@@ -195,7 +195,7 @@ libc_format(const atf_error_t err, char *buf, size_t buflen)
 }
 
 atf_error_t
-atf_libc_error(int syserrno, const char *fmt, ...)
+atf_libc_error(int syserrno, const char *__restrict fmt, ...)
 {
     atf_error_t err;
     atf_libc_error_data_t data;

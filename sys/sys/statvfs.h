@@ -76,6 +76,6 @@ struct statvfs {
 
 __BEGIN_DECLS
 int	fstatvfs(int, struct statvfs *);
-int	statvfs(const char *__restrict, struct statvfs *__restrict);
+int	statvfs(const char * __restrict, struct statvfs * __restrict);
 __END_DECLS
 #endif /* _SYS_STATVFS_H_ */

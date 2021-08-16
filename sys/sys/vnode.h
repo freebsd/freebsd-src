@@ -753,7 +753,7 @@ int	vtruncbuf(struct vnode *vp, off_t length, int blksize);
 void	v_inval_buf_range(struct vnode *vp, daddr_t startlbn, daddr_t endlbn,
 	    int blksize);
 void	vunref(struct vnode *);
-void	vn_printf(struct vnode *vp, const char *fmt, ...) __printflike(2,3);
+void	vn_printf(struct vnode *vp, const char * __restrict fmt, ...) __printflike(2,3);
 int	vrecycle(struct vnode *vp);
 int	vrecyclel(struct vnode *vp);
 int	vn_bmap_seekhole_locked(struct vnode *vp, u_long cmd, off_t *off,

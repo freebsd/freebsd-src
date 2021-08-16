@@ -76,7 +76,7 @@ ieee80211_compute_duration(const struct ieee80211_rate_table *rt,
 } while (0)
 
 static void
-panic(const char *fmt, ...)
+panic(const char * __restrict fmt, ...)
 {
 	va_list ap;
 

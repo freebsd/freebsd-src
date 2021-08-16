@@ -15,7 +15,7 @@ extern int verbose;
 
 #include <stdbool.h>
 
-extern int eprintf(int level, int var, const char *fmt, ...);
+extern int eprintf(int level, int var, const char * __restrict fmt, ...);
 #define pr_fmt(fmt)	fmt
 
 #define pr_err(fmt, ...) \

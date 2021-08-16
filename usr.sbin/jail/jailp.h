@@ -201,8 +201,8 @@ extern void *erealloc(void *, size_t);
 extern char *estrdup(const char *);
 extern int create_jail(struct cfjail *j);
 extern void failed(struct cfjail *j);
-extern void jail_note(const struct cfjail *j, const char *fmt, ...);
-extern void jail_warnx(const struct cfjail *j, const char *fmt, ...);
+extern void jail_note(const struct cfjail *j, const char * __restrict fmt, ...);
+extern void jail_warnx(const struct cfjail *j, const char * __restrict fmt, ...);
 
 extern int next_command(struct cfjail *j);
 extern int finish_command(struct cfjail *j);

@@ -108,7 +108,7 @@ static struct sx	 audit_worker_lock;
 #define	AUDIT_WORKER_UNLOCK()		sx_xunlock(&audit_worker_lock)
 
 static void
-audit_worker_sync_vp(struct vnode *vp, struct mount *mp, const char *fmt, ...)
+audit_worker_sync_vp(struct vnode *vp, struct mount *mp, const char * __restrict fmt, ...)
 {
 	struct mount *mp1;
 	int error;

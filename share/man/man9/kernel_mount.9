@@ -48,7 +48,7 @@
 .Ft "struct mntarg *"
 .Fn mount_argb "struct mntarg *ma" "int flag" "const char *name"
 .Ft "struct mntarg *"
-.Fn mount_argf "struct mntarg *ma" "const char *name" "const char *fmt" ...
+.Fn mount_argf "struct mntarg *ma" "const char *name" "const char * __restrict fmt" ...
 .Ft "struct mntarg *"
 .Fo mount_argsu
 .Fa "struct mntarg *ma" "const char *name" "const void *val" "int len"

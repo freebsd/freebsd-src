@@ -308,7 +308,7 @@ cleanup(struct hast_resource *res)
 }
 
 static __dead2 void
-primary_exit(int exitcode, const char *fmt, ...)
+primary_exit(int exitcode, const char * __restrict fmt, ...)
 {
 	va_list ap;
 
@@ -321,7 +321,7 @@ primary_exit(int exitcode, const char *fmt, ...)
 }
 
 static __dead2 void
-primary_exitx(int exitcode, const char *fmt, ...)
+primary_exitx(int exitcode, const char * __restrict fmt, ...)
 {
 	va_list ap;
 
@@ -1102,7 +1102,7 @@ hastd_primary(struct hast_resource *res)
 
 static void
 reqlog(int loglevel, int debuglevel, struct g_gate_ctl_io *ggio,
-    const char *fmt, ...)
+    const char * __restrict fmt, ...)
 {
 	char msg[1024];
 	va_list ap;

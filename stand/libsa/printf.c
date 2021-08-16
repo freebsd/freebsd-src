@@ -59,7 +59,7 @@ __FBSDID("$FreeBSD$");
 typedef void (kvprintf_fn_t)(int, void *);
 
 static char	*ksprintn (char *buf, uintmax_t num, int base, int *len, int upper);
-static int	kvprintf(char const *fmt, kvprintf_fn_t *func, void *arg, int radix, va_list ap);
+static int	kvprintf(const char * __restrict fmt, kvprintf_fn_t *func, void *arg, int radix, va_list ap);
 
 static void
 putchar_wrapper(int cc, void *arg)
@@ -69,7 +69,7 @@ putchar_wrapper(int cc, void *arg)
 }
 
 int
-printf(const char *fmt, ...)
+printf(const char * __restrict fmt, ...)
 {
 	va_list ap;
 	int retval;
@@ -81,14 +81,14 @@ printf(const char *fmt, ...)
 }
 
 int
-vprintf(const char *fmt, va_list ap)
+vprintf(const char * __restrict fmt, va_list ap)
 {
 
 	return (kvprintf(fmt, putchar_wrapper, NULL, 10, ap));
 }
 
 int
-sprintf(char *buf, const char *cfmt, ...)
+sprintf(char * __restrict buf, const char * __restrict cfmt, ...)
 {
 	int retval;
 	va_list ap;
@@ -245,7 +245,7 @@ ksprintn(char *nbuf, uintmax_t num, int base, int *lenp, int upper)
  *		("%*D", len, ptr, " " -> XX XX XX XX ...
  */
 static int
-kvprintf(char const *fmt, kvprintf_fn_t *func, void *arg, int radix, va_list ap)
+kvprintf(const char * __restrict fmt, kvprintf_fn_t *func, void *arg, int radix, va_list ap)
 {
 #define PCHAR(c) { \
 	int cc = (c);				\

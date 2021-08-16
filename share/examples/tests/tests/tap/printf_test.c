@@ -51,7 +51,7 @@ static	int test_num = 1;
 #define	TEST_COUNT	7
 
 static void
-fail(const char *fmt, ...)
+fail(const char * __restrict fmt, ...)
 {
 	char *msg;
 	va_list ap;

@@ -91,7 +91,7 @@ _citrus_ZW_init_state(_ZWEncodingInfo * __restrict ei __unused,
 static __inline void
 /*ARGSUSED*/
 _citrus_ZW_pack_state(_ZWEncodingInfo * __restrict ei __unused,
-    void *__restrict pspriv, const _ZWState * __restrict psenc)
+    void * __restrict pspriv, const _ZWState * __restrict psenc)
 {
 
 	memcpy(pspriv, (const void *)psenc, sizeof(*psenc));
@@ -109,7 +109,7 @@ _citrus_ZW_unpack_state(_ZWEncodingInfo * __restrict ei __unused,
 
 static int
 _citrus_ZW_mbrtowc_priv(_ZWEncodingInfo * __restrict ei,
-    wchar_t * __restrict pwc, char **__restrict s, size_t n,
+    wchar_t * __restrict pwc, char ** __restrict s, size_t n,
     _ZWState * __restrict psenc, size_t * __restrict nresult)
 {
 	char *s0;
@@ -254,7 +254,7 @@ ilseq:
 static int
 /*ARGSUSED*/
 _citrus_ZW_wcrtomb_priv(_ZWEncodingInfo * __restrict ei __unused,
-    char *__restrict s, size_t n, wchar_t wc,
+    char * __restrict s, size_t n, wchar_t wc,
     _ZWState * __restrict psenc, size_t * __restrict nresult)
 {
 	int ch;
@@ -443,7 +443,7 @@ _citrus_ZW_encoding_module_uninit(_ZWEncodingInfo *ei __unused)
 static int
 /*ARGSUSED*/
 _citrus_ZW_encoding_module_init(_ZWEncodingInfo * __restrict ei __unused,
-    const void *__restrict var __unused, size_t lenvar __unused)
+    const void * __restrict var __unused, size_t lenvar __unused)
 {
 
 	return (0);

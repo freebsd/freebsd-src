@@ -62,7 +62,7 @@ struct smrs {
 uintptr_t smrs_current;
 
 static void
-smrs_error(struct smrs *smrs, const char *fmt, ...)
+smrs_error(struct smrs *smrs, const char * __restrict fmt, ...)
 {
 	va_list ap;
 

@@ -87,7 +87,7 @@ bool_t xdr_rpc_gss_unwrap_data(XDR *xdrs, xdrproc_t xdr_func,
 const char *_rpc_gss_num_to_qop(const char *mech, u_int num);
 void	_rpc_gss_set_error(int rpc_gss_error, int system_error);
 
-void	log_debug(const char *fmt, ...);
+void	log_debug(const char * __restrict fmt, ...);
 void	log_status(const char *m, gss_OID mech, OM_uint32 major,
     OM_uint32 minor);
 void	log_hexdump(const u_char *buf, int len, int offset);

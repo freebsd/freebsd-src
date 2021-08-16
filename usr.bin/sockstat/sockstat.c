@@ -191,7 +191,7 @@ static cap_channel_t *capsysctl;
 static cap_channel_t *cappwd;
 
 static int
-xprintf(const char *fmt, ...)
+xprintf(const char * __restrict fmt, ...)
 {
 	va_list ap;
 	int len;

@@ -130,7 +130,7 @@ size_t	 strspn(const char *, const char *) __pure;
 char	*strstr(const char *, const char *) __pure;
 char	*strtok(char * __restrict, const char * __restrict);
 #if __POSIX_VISIBLE >= 199506 || __XSI_VISIBLE >= 500
-char	*strtok_r(char *, const char *, char **);
+char	*strtok_r(char * __restrict, const char * __restrict, char ** __restrict);
 #endif
 size_t	 strxfrm(char * __restrict, const char * __restrict, size_t);
 #if __BSD_VISIBLE
@@ -146,8 +146,8 @@ typedef	__ssize_t	ssize_t;
 void	 swab(const void * __restrict, void * __restrict, ssize_t);
 #endif /* _SWAB_DECLARED */
 
-int	 timingsafe_bcmp(const void *, const void *, size_t);
-int	 timingsafe_memcmp(const void *, const void *, size_t);
+int	 timingsafe_bcmp(const void *, const void *, size_t) __pure;
+int	 timingsafe_memcmp(const void *, const void *, size_t) __pure;
 #endif /* __BSD_VISIBLE */
 
 #if __POSIX_VISIBLE >= 200112 || defined(_XLOCALE_H_)

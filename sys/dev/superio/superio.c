@@ -772,7 +772,7 @@ superio_get_resource_list(device_t dev, device_t child)
 }
 
 static int
-superio_printf(struct superio_devinfo *dinfo, const char *fmt, ...)
+superio_printf(struct superio_devinfo *dinfo, const char * __restrict fmt, ...)
 {
 	va_list ap;
 	int retval;

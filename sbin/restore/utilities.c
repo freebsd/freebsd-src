@@ -408,7 +408,7 @@ reply(char *question)
 #include <stdarg.h>
 
 void
-panic(const char *fmt, ...)
+panic(const char * __restrict fmt, ...)
 {
 	va_list ap;
 	va_start(ap, fmt);

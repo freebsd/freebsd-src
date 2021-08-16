@@ -55,7 +55,7 @@ LUA_API int   (lua_error) (lua_State *L) __dead2;
 #if defined(LUA_ERRFILE) && defined(LUALIB_API)
 LUALIB_API int (luaL_argerror) (lua_State *L, int arg, const char *extramsg) __dead2;
 LUALIB_API int (luaL_typeerror) (lua_State *L, int arg, const char *tname) __dead2;
-LUALIB_API int (luaL_error) (lua_State *L, const char *fmt, ...) __dead2;
+LUALIB_API int (luaL_error) (lua_State *L, const char * __restrict fmt, ...) __dead2;
 #endif
 
 int luaopen_jail(lua_State *);

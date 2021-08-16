@@ -359,7 +359,7 @@ die(int signo __unused)
 #include <stdarg.h>
 
 void
-error(const char *fmt, ...)
+error(const char * __restrict fmt, ...)
 {
 	va_list ap;
 	char buf[255];

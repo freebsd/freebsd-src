@@ -188,9 +188,9 @@ static bool epoch_trace_stack_print = true;
 SYSCTL_BOOL(_kern_epoch, OID_AUTO, trace_stack_print, CTLFLAG_RWTUN,
     &epoch_trace_stack_print, 0, "Print stack traces on epoch reports");
 
-static void epoch_trace_report(const char *fmt, ...) __printflike(1, 2);
+static void epoch_trace_report(const char * __restrict fmt, ...) __printflike(1, 2);
 static inline void
-epoch_trace_report(const char *fmt, ...)
+epoch_trace_report(const char * __restrict fmt, ...)
 {
 	va_list ap;
 	struct stackentry se, *new;

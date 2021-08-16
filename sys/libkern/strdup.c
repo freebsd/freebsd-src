@@ -54,7 +54,7 @@ strdup_flags(const char *string, struct malloc_type *type, int flags)
 }
 
 char *
-strdup(const char *string, struct malloc_type *type)
+strdup(const char * __restrict string, struct malloc_type *type)
 {
 
 	return (strdup_flags(string, type, M_WAITOK));

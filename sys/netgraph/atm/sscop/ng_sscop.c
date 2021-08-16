@@ -226,7 +226,7 @@ static const struct sscop_funcs sscop_funcs = {
 };
 
 static void
-sscop_verbose(struct sscop *sscop, void *arg, const char *fmt, ...)
+sscop_verbose(struct sscop *sscop, void *arg, const char * __restrict fmt, ...)
 {
 	va_list ap;
 

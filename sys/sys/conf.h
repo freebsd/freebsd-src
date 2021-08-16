@@ -287,23 +287,23 @@ void	dev_ref(struct cdev *dev);
 void	dev_refl(struct cdev *dev);
 void	dev_rel(struct cdev *dev);
 struct cdev *make_dev(struct cdevsw *_devsw, int _unit, uid_t _uid, gid_t _gid,
-		int _perms, const char *_fmt, ...) __printflike(6, 7);
+		int _perms, const char * __restrict _fmt, ...) __printflike(6, 7);
 struct cdev *make_dev_cred(struct cdevsw *_devsw, int _unit,
 		struct ucred *_cr, uid_t _uid, gid_t _gid, int _perms,
-		const char *_fmt, ...) __printflike(7, 8);
+		const char * __restrict _fmt, ...) __printflike(7, 8);
 struct cdev *make_dev_credf(int _flags,
 		struct cdevsw *_devsw, int _unit,
 		struct ucred *_cr, uid_t _uid, gid_t _gid, int _mode,
-		const char *_fmt, ...) __printflike(8, 9);
+		const char * __restrict _fmt, ...) __printflike(8, 9);
 int	make_dev_p(int _flags, struct cdev **_cdev, struct cdevsw *_devsw,
 		struct ucred *_cr, uid_t _uid, gid_t _gid, int _mode,
-		const char *_fmt, ...) __printflike(8, 9);
+		const char * __restrict _fmt, ...) __printflike(8, 9);
 int	make_dev_s(struct make_dev_args *_args, struct cdev **_cdev,
-		const char *_fmt, ...) __printflike(3, 4);
-struct cdev *make_dev_alias(struct cdev *_pdev, const char *_fmt, ...)
+		const char * __restrict _fmt, ...) __printflike(3, 4);
+struct cdev *make_dev_alias(struct cdev *_pdev, const char * __restrict _fmt, ...)
 		__printflike(2, 3);
 int	make_dev_alias_p(int _flags, struct cdev **_cdev, struct cdev *_pdev,
-		const char *_fmt, ...) __printflike(4, 5);
+		const char * __restrict _fmt, ...) __printflike(4, 5);
 int	make_dev_physpath_alias(int _flags, struct cdev **_cdev,
 		struct cdev *_pdev, struct cdev *_old_alias,
 		const char *_physpath);

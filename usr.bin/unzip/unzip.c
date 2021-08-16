@@ -102,7 +102,7 @@ static char *passphrase_buf;
 
 /* fatal error message + errno */
 static void
-error(const char *fmt, ...)
+error(const char * __restrict fmt, ...)
 {
 	va_list ap;
 
@@ -119,7 +119,7 @@ error(const char *fmt, ...)
 
 /* fatal error message, no errno */
 static void
-errorx(const char *fmt, ...)
+errorx(const char * __restrict fmt, ...)
 {
 	va_list ap;
 
@@ -136,7 +136,7 @@ errorx(const char *fmt, ...)
 
 /* non-fatal error message + errno */
 static void
-warning(const char *fmt, ...)
+warning(const char * __restrict fmt, ...)
 {
 	va_list ap;
 
@@ -152,7 +152,7 @@ warning(const char *fmt, ...)
 
 /* non-fatal error message, no errno */
 static void
-warningx(const char *fmt, ...)
+warningx(const char * __restrict fmt, ...)
 {
 	va_list ap;
 
@@ -168,7 +168,7 @@ warningx(const char *fmt, ...)
 
 /* informational message (if not -q) */
 static void
-info(const char *fmt, ...)
+info(const char * __restrict fmt, ...)
 {
 	va_list ap;
 
@@ -187,7 +187,7 @@ info(const char *fmt, ...)
 
 /* debug message (if unzip_debug) */
 static void
-debug(const char *fmt, ...)
+debug(const char * __restrict fmt, ...)
 {
 	va_list ap;
 

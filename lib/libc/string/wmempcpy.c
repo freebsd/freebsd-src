@@ -35,7 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <wchar.h>
 
 wchar_t *
-wmempcpy(wchar_t *__restrict dst, const wchar_t *__restrict src, size_t len)
+wmempcpy(wchar_t * __restrict dst, const wchar_t * __restrict src, size_t len)
 {
 	return (wmemcpy(dst, src, len) + len);
 }

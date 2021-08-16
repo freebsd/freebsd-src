@@ -375,7 +375,7 @@ main(int argc, char **argv)
  * reallocate as required.
  */
 static void
-argappend(char **dstp, const char *fmt, ...)
+argappend(char **dstp, const char * __restrict fmt, ...)
 {
 	char *old, *new;
 	va_list ap;
@@ -402,7 +402,7 @@ argappend(char **dstp, const char *fmt, ...)
  * Otherwise, do nothing.
  */
 static void
-debugprintf(const char *fmt, ...)
+debugprintf(const char * __restrict fmt, ...)
 {
 	va_list ap;
 

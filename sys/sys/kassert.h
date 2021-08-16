@@ -105,7 +105,7 @@ int	printf(const char *, ...) __printflike(1, 2);
 #else /* !_STANDALONE */
 #  if defined(WITNESS) || defined(INVARIANT_SUPPORT)
 #    ifdef KASSERT_PANIC_OPTIONAL
-void	kassert_panic(const char *fmt, ...)  __printflike(1, 2);
+void	kassert_panic(const char * __restrict fmt, ...)  __printflike(1, 2);
 #    else
 #      define kassert_panic	panic
 #    endif /* KASSERT_PANIC_OPTIONAL */

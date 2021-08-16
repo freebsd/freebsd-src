@@ -52,7 +52,7 @@ __FBSDID("$FreeBSD$");
 _DECLARE_DEBUG(LOG_DEBUG);
 
 bool
-nlmsg_report_err_msg(struct nl_pstate *npt, const char *fmt, ...)
+nlmsg_report_err_msg(struct nl_pstate *npt, const char * __restrict fmt, ...)
 {
 	va_list ap;
 

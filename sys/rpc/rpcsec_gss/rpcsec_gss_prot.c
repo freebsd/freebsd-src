@@ -327,7 +327,7 @@ xdr_rpc_gss_unwrap_data(struct mbuf **resultsp,
 #include <machine/stdarg.h>
 
 void
-rpc_gss_log_debug(const char *fmt, ...)
+rpc_gss_log_debug(const char * __restrict fmt, ...)
 {
 	va_list ap;
 
@@ -361,7 +361,7 @@ rpc_gss_log_status(const char *m, gss_OID mech, OM_uint32 maj_stat, OM_uint32 mi
 #else
 
 void
-rpc_gss_log_debug(__unused const char *fmt, ...)
+rpc_gss_log_debug(__unused const char * __restrict fmt, ...)
 {
 }
 

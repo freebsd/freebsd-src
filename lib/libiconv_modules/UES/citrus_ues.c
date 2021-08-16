@@ -81,7 +81,7 @@ _citrus_UES_init_state(_UESEncodingInfo * __restrict ei __unused,
 static __inline void
 /*ARGSUSED*/
 _citrus_UES_pack_state(_UESEncodingInfo * __restrict ei __unused,
-    void *__restrict pspriv, const _UESState * __restrict psenc)
+    void * __restrict pspriv, const _UESState * __restrict psenc)
 {
 
 	memcpy(pspriv, (const void *)psenc, sizeof(*psenc));

@@ -172,7 +172,7 @@ log_DisplayPrompts()
 }
 
 void
-log_WritePrompts(struct datalink *dl, const char *fmt,...)
+log_WritePrompts(struct datalink *dl, const char * __restrict fmt,...)
 {
   va_list ap;
   struct prompt *p;
@@ -314,7 +314,7 @@ log_Close()
 }
 
 void
-log_Printf(int lev, const char *fmt,...)
+log_Printf(int lev, const char * __restrict fmt,...)
 {
   va_list ap;
   struct prompt *prompt;

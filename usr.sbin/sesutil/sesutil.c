@@ -72,7 +72,7 @@ static int locate(int argc, char **argv);
 static int objmap(int argc, char **argv);
 static int sesled(int argc, char **argv, bool fault);
 static int show(int argc, char **argv);
-static void sesutil_print(int *style, const char *fmt, ...) __printflike(2,3);
+static void sesutil_print(int *style, const char * __restrict fmt, ...) __printflike(2,3);
 
 static struct command {
 	const char *name;
@@ -330,7 +330,7 @@ fault(int argc, char **argv)
 }
 
 static void
-sesutil_print(int *style, const char *fmt, ...)
+sesutil_print(int *style, const char * __restrict fmt, ...)
 {
 	va_list args;
 

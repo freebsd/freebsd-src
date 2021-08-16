@@ -380,7 +380,7 @@ dotrace(struct bt_table *btp, const char *eventname, const char *tdname)
  * printf-like arguments.
  */
 int
-boottrace(const char *tdname, const char *fmt, ...)
+boottrace(const char *tdname, const char * __restrict fmt, ...)
 {
 	char eventname[BT_EVENT_NAMELEN];
 	struct bt_table *btp;

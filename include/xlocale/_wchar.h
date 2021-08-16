@@ -112,7 +112,7 @@ int			 wscanf_l(locale_t, const wchar_t * __restrict, ...);
 int			 vfwscanf_l(FILE * __restrict, locale_t,
 			    const wchar_t * __restrict, __va_list);
 int			 vswscanf_l(const wchar_t * __restrict, locale_t,
-			    const wchar_t *__restrict, __va_list);
+			    const wchar_t * __restrict, __va_list);
 int			 vwscanf_l(locale_t, const wchar_t * __restrict,
 			    __va_list);
 float			 wcstof_l(const wchar_t * __restrict,

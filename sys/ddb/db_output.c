@@ -316,7 +316,7 @@ db_print_position(void)
  * Printing
  */
 int
-db_printf(const char *fmt, ...)
+db_printf(const char * __restrict fmt, ...)
 {
 #ifdef DDB_BUFR_SIZE
 	char bufr[DDB_BUFR_SIZE];
@@ -349,7 +349,7 @@ db_printf(const char *fmt, ...)
 int db_indent;
 
 void
-db_iprintf(const char *fmt,...)
+db_iprintf(const char * __restrict fmt,...)
 {
 #ifdef DDB_BUFR_SIZE
 	char bufr[DDB_BUFR_SIZE];

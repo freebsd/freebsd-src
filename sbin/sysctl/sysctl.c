@@ -239,7 +239,7 @@ main(int argc, char **argv)
  * directly in parse().
  */
 static bool
-parse_numeric(const char *newvalstr, const char *fmt, u_int kind,
+parse_numeric(const char *newvalstr, const char * __restrict fmt, u_int kind,
     void **newbufp, size_t *newsizep)
 {
 	void *newbuf;
@@ -850,7 +850,7 @@ S_bios_smap_xattr(size_t l2, void *p)
 #endif
 
 static int
-strIKtoi(const char *str, char **endptrp, const char *fmt)
+strIKtoi(const char *str, char **endptrp, const char * __restrict fmt)
 {
 	int kelv;
 	float temp;

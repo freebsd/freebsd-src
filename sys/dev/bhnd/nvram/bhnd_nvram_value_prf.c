@@ -99,7 +99,7 @@ static char const bhnd_nv_hex2ascii[] = "0123456789abcdefghijklmnopqrstuvwxyz";
  *			underflow) the representation defined by @p fmt.
  */
 int
-bhnd_nvram_val_printf(bhnd_nvram_val *value, const char *fmt, char *outp,
+bhnd_nvram_val_printf(bhnd_nvram_val *value, const char * __restrict fmt, char *outp,
     size_t *olen, ...)
 {
 	va_list	ap;
@@ -209,7 +209,7 @@ bhnd_nvram_val_printf(bhnd_nvram_val *value, const char *fmt, char *outp,
  *			underflow) the representation defined by @p fmt.
  */
 int
-bhnd_nvram_val_vprintf(bhnd_nvram_val *value, const char *fmt, char *outp,
+bhnd_nvram_val_vprintf(bhnd_nvram_val *value, const char * __restrict fmt, char *outp,
     size_t *olen, va_list ap)
 {
 	const void	*elem;
