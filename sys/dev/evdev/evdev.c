@@ -93,15 +93,6 @@ static void evdev_start_repeat(struct evdev_dev *, uint16_t);
 static void evdev_stop_repeat(struct evdev_dev *);
 static int evdev_check_event(struct evdev_dev *, uint16_t, uint16_t, int32_t);
 
-static inline void
-bit_change(bitstr_t *bitstr, int bit, int value)
-{
-	if (value)
-		bit_set(bitstr, bit);
-	else
-		bit_clear(bitstr, bit);
-}
-
 struct evdev_dev *
 evdev_alloc(void)
 {
@@ -908,20 +899,16 @@ evdev_restore_after_kdb(struct evdev_dev *evdev)
 	EVDEV_LOCK_ASSERT(evdev);
 
 	/* Report postponed leds */
-	for (code = 0; code < LED_CNT; code++)
-		if (bit_test(evdev->ev_kdb_led_states, code))
-			evdev_send_event(evdev, EV_LED, code,
-			    !bit_test(evdev->ev_led_states, code));
+	bit_foreach(evdev->ev_kdb_led_states, LED_CNT, code)
+		evdev_send_event(evdev, EV_LED, code,
+		    !bit_test(evdev->ev_led_states, code));
 	bit_nclear(evdev->ev_kdb_led_states, 0, LED_MAX);
 
 	/* Release stuck keys (CTRL + ALT + ESC) */
 	evdev_stop_repeat(evdev);
-	for (code = 0; code < KEY_CNT; code++) {
-		if (bit_test(evdev->ev_key_states, code)) {
-			evdev_send_event(evdev, EV_KEY, code, KEY_EVENT_UP);
-			evdev_send_event(evdev, EV_SYN, SYN_REPORT, 1);
-		}
-	}
+	bit_foreach(evdev->ev_key_states, KEY_CNT, code)
+		evdev_send_event(evdev, EV_KEY, code, KEY_EVENT_UP);
+	evdev_send_event(evdev, EV_SYN, SYN_REPORT, 1);
 }
 
 int
