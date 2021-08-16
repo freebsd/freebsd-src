@@ -179,6 +179,15 @@ enum	{ PF_ADDR_ADDRMASK, PF_ADDR_NOROUTE, PF_ADDR_DYNIFTL,
 #define FCNT_STATE_REMOVALS	2
 #define FCNT_MAX		3
 
+#ifdef _KERNEL
+#define FCNT_NAMES { \
+	"searches", \
+	"inserts", \
+	"removals", \
+	NULL \
+}
+#endif
+
 /* src_node operation counters */
 #define SCNT_SRC_NODE_SEARCH	0
 #define SCNT_SRC_NODE_INSERT	1
