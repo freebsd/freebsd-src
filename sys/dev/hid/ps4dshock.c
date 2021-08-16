@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/evdev/evdev.h>
 
 #define	HID_DEBUG_VAR	ps4dshock_debug
+#include <dev/hid/hgame.h>
 #include <dev/hid/hid.h>
 #include <dev/hid/hidbus.h>
 #include <dev/hid/hidquirk.h>
@@ -588,7 +589,6 @@ static const uint8_t	ps4dshock_rdesc[] = {
 #define	PS4DS_OUTPUT_REPORT5_SIZE	32
 #define	PS4DS_OUTPUT_REPORT11_SIZE	78
 
-static hidmap_cb_t	ps4dshock_hat_switch_cb;
 static hidmap_cb_t	ps4dshock_final_cb;
 static hidmap_cb_t	ps4dsacc_data_cb;
 static hidmap_cb_t	ps4dsacc_tstamp_cb;
@@ -743,7 +743,7 @@ static const struct hidmap_item ps4dshock_map[] = {
 	PS4DS_MAP_BTN(13,		BTN_MODE),
 	/* Click button is handled by touchpad driver */
 	/* PS4DS_MAP_BTN(14,	BTN_LEFT), */
-	PS4DS_MAP_GCB(HAT_SWITCH,	ps4dshock_hat_switch_cb),
+	PS4DS_MAP_GCB(HAT_SWITCH,	hgame_hat_switch_cb),
 	PS4DS_FINALCB(			ps4dshock_final_cb),
 };
 static const struct hidmap_item ps4dsacc_map[] = {
@@ -786,36 +786,6 @@ static const struct hid_device_id ps4dsmtp_devs[] = {
 	{ HID_BVP(BUS_USB, USB_VENDOR_SONY, 0x9cc),
 	  HID_TLC(HUP_DIGITIZERS, HUD_TOUCHPAD) },
 };
-
-static int
-ps4dshock_hat_switch_cb(HIDMAP_CB_ARGS)
-{
-	static const struct { int32_t x; int32_t y; } hat_switch_map[] = {
-	    {0, -1}, {1, -1}, {1, 0}, {1, 1}, {0, 1}, {-1, 1}, {-1, 0},
-	    {-1, -1},{0, 0}
-	};
-	struct evdev_dev *evdev = HIDMAP_CB_GET_EVDEV();
-	u_int idx;
-
-	switch (HIDMAP_CB_GET_STATE()) {
-	case HIDMAP_CB_IS_ATTACHING:
-		evdev_support_event(evdev, EV_ABS);
-		evdev_support_abs(evdev, ABS_HAT0X, -1, 1, 0, 0, 0);
-		evdev_support_abs(evdev, ABS_HAT0Y, -1, 1, 0, 0, 0);
-		break;
-
-	case HIDMAP_CB_IS_RUNNING:
-		idx = MIN(nitems(hat_switch_map) - 1, (u_int)ctx.data);
-		evdev_push_abs(evdev, ABS_HAT0X, hat_switch_map[idx].x);
-		evdev_push_abs(evdev, ABS_HAT0Y, hat_switch_map[idx].y);
-		break;
-
-	default:
-		break;
-	}
-
-	return (0);
-}
 
 static int
 ps4dshock_final_cb(HIDMAP_CB_ARGS)
@@ -1414,6 +1384,7 @@ DRIVER_MODULE(ps4dshock, hidbus, ps4dshock_driver, ps4dshock_devclass, NULL, 0);
 MODULE_DEPEND(ps4dshock, hid, 1, 1, 1);
 MODULE_DEPEND(ps4dshock, hidbus, 1, 1, 1);
 MODULE_DEPEND(ps4dshock, hidmap, 1, 1, 1);
+MODULE_DEPEND(ps4dshock, hgame, 1, 1, 1);
 MODULE_DEPEND(ps4dshock, evdev, 1, 1, 1);
 MODULE_VERSION(ps4dshock, 1);
 HID_PNP_INFO(ps4dshock_devs);
