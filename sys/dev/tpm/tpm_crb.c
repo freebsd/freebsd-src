@@ -155,18 +155,21 @@ tpmcrb_attach(device_t dev)
 	crb_sc = device_get_softc(dev);
 	sc = &crb_sc->base;
 	handle = acpi_get_handle(dev);
-
 	sc->dev = dev;
+
+	sx_init(&sc->dev_lock, "TPM driver lock");
+	sc->buf = malloc(TPM_BUFSIZE, M_TPM20, M_WAITOK);
 
 	sc->mem_rid = 0;
 	sc->mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &sc->mem_rid,
 					     RF_ACTIVE);
-	if (sc->mem_res == NULL)
+	if (sc->mem_res == NULL) {
+		tpmcrb_detach(dev);
 		return (ENXIO);
+	}
 
 	if(!tpmcrb_request_locality(sc, 0)) {
-		bus_release_resource(dev, SYS_RES_MEMORY,
-		    sc->mem_rid, sc->mem_res);
+		tpmcrb_detach(dev);
 		return (ENXIO);
 	}
 

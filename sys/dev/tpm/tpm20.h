@@ -100,6 +100,8 @@ __FBSDID("$FreeBSD$");
 #define	TPM2_START_METHOD_CRB		7
 #define	TPM2_START_METHOD_CRB_ACPI	8
 
+MALLOC_DECLARE(M_TPM20);
+
 struct tpm_sc {
 	device_t	dev;
 
