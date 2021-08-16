@@ -367,7 +367,7 @@ fbt_resume(void *arg, dtrace_id_t id, void *parg)
 static int
 fbt_ctfoff_init(modctl_t *lf, linker_ctf_t *lc)
 {
-	const Elf_Sym *symp = lc->symtab;;
+	const Elf_Sym *symp = lc->symtab;
 	const ctf_header_t *hp = (const ctf_header_t *) lc->ctftab;
 	const uint8_t *ctfdata = lc->ctftab + sizeof(ctf_header_t);
 	int i;
@@ -799,7 +799,7 @@ fbt_array_info(linker_ctf_t *lc, ctf_id_t type, ctf_arinfo_t *arp)
 static const char *
 ctf_strptr(linker_ctf_t *lc, int name)
 {
-	const ctf_header_t *hp = (const ctf_header_t *) lc->ctftab;;
+	const ctf_header_t *hp = (const ctf_header_t *) lc->ctftab;
 	const char *strp = "";
 
 	if (name < 0 || name >= hp->cth_strlen)
