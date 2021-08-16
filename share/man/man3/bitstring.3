@@ -58,7 +58,7 @@
 .\"     @(#)bitstring.3	8.1 (Berkeley) 7/19/93
 .\" $FreeBSD$
 .\"
-.Dd November 18, 2019
+.Dd August 8, 2021
 .Dt BITSTRING 3
 .Os
 .Sh NAME
@@ -106,6 +106,10 @@
 .Fn bit_ffc_area_at "bitstr_t *name" "int start" "int nbits" "int size" "int *value"
 .Ft void
 .Fn bit_ffs_area_at "bitstr_t *name" "int start" "int nbits" "int size" "int *value"
+.Fn bit_foreach "bitstr_t *name" "int nbits" "int var"
+.Fn bit_foreach_at "bitstr_t *name" "int start" "int nbits" "int var"
+.Fn bit_foreach_unset "bitstr_t *name" "int nbits" "int var"
+.Fn bit_foreach_unset_at "bitstr_t *name" "int start" "int nbits" "int var"
 .Ft void
 .Fn bit_nclear "bitstr_t *name" "int start" "int stop"
 .Ft void
@@ -326,6 +330,46 @@ bits referenced by
 .Fa name ,
 at or after the zero-based bit index
 .Fa start .
+.Pp
+The macro
+.Fn bit_foreach
+traverses all set bits in the array of
+.Fa nbits
+referenced by
+.Fa name
+in the forward direction, assigning each location in turn to
+.Fa var .
+.Pp
+The macro
+.Fn bit_foreach_at
+traverses all set bits in the array of
+.Fa nbits
+referenced by
+.Fa name
+in the forward direction at or after the zero-based bit index
+.Fa start ,
+assigning each location in turn to
+.Fa var .
+.Pp
+The macro
+.Fn bit_foreach_unset
+traverses all unset bits in the array of
+.Fa nbits
+referenced by
+.Fa name
+in the forward direction, assigning each location in turn to
+.Fa var .
+.Pp
+The macro
+.Fn bit_foreach_unset_at
+traverses all unset bits in the array of
+.Fa nbits
+referenced by
+.Fa name
+in the forward direction at or after the zero-based bit index
+.Fa start ,
+assigning each location in turn to
+.Fa var .
 .Pp
 The arguments in bit string macros are evaluated only once and may safely
 have side effects.
