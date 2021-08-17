@@ -48,6 +48,19 @@ start_cmd="growfs_start"
 stop_cmd=":"
 rcvar="growfs_enable"
 
+growfs_get_diskdev ()
+{
+	local _search=${1}
+	sysctl -b kern.geom.conftxt |
+	while read x1 _type _dev line
+	do
+		if [ "${_type}" = "DISK" -a -n "$(echo ${_search} | grep ${_dev})" ]; then
+			echo -n ${_dev}
+			break
+		fi
+	done
+}
+
 growfs_start ()
 {
 	echo "Growing root partition to fill device"
@@ -69,11 +82,22 @@ growfs_start ()
 		# raw device
 		rawdev="$rootdev"
 	else
-		rawdev=$(glabel status | awk '$1 == "'"$rootdev"'" { print $3 }')
+		rawdev=$(glabel status | awk -v rootdev=$rootdev 'index(rootdev, $1) { print $3; }')
 		if [ x"$rawdev" = x"" ]; then
 			echo "Can't figure out device for: $rootdev"
 			return
 		fi
+	fi
+
+	if [ x"diskid" = x"${rootdev%/*}" ]; then
+		search=$rootdev
+	else
+		search=$rawdev
+	fi
+
+	diskdev=$(growfs_get_diskdev ${search})
+	if [ -z "${diskdev}" ]; then
+		diskdev=${rootdev}
 	fi
 
 	sysctl -b kern.geom.conftxt | awk '
@@ -104,8 +128,8 @@ growfs_start ()
 		}
 		exit 0
 	}
-}' dev="$rawdev"
-	gpart commit "$rootdev"
+}' dev="$search"
+	gpart commit "$diskdev" 2> /dev/null
 	case "$FSTYPE" in
 	ufs)
 		growfs -y /dev/"$rootdev"
