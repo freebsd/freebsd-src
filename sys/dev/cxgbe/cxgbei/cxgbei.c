@@ -97,8 +97,8 @@ static struct cxgbei_worker_thread_softc *cwt_softc;
 static struct proc *cxgbei_proc;
 
 static void
-read_pdu_limits(struct adapter *sc, uint32_t *max_tx_pdu_len,
-    uint32_t *max_rx_pdu_len)
+read_pdu_limits(struct adapter *sc, uint32_t *max_tx_data_len,
+    uint32_t *max_rx_data_len)
 {
 	uint32_t tx_len, rx_len, r, v;
 
@@ -114,8 +114,17 @@ read_pdu_limits(struct adapter *sc, uint32_t *max_tx_pdu_len,
 	rx_len = min(rx_len, v);
 	tx_len = min(tx_len, v);
 
-	*max_tx_pdu_len = rounddown2(tx_len, 512);
-	*max_rx_pdu_len = rounddown2(rx_len, 512);
+	/*
+	 * AHS is not supported by the kernel so we'll not account for
+	 * it either in our PDU len -> data segment len conversions.
+	 */
+	rx_len -= ISCSI_BHS_SIZE + ISCSI_HEADER_DIGEST_SIZE +
+	    ISCSI_DATA_DIGEST_SIZE;
+	tx_len -= ISCSI_BHS_SIZE + ISCSI_HEADER_DIGEST_SIZE +
+	    ISCSI_DATA_DIGEST_SIZE;
+
+	*max_tx_data_len = rounddown2(tx_len, 512);
+	*max_rx_data_len = rounddown2(rx_len, 512);
 }
 
 /*
@@ -135,7 +144,7 @@ cxgbei_init(struct adapter *sc, struct cxgbei_data *ci)
 	MPASS(sc->vres.iscsi.size > 0);
 	MPASS(ci != NULL);
 
-	read_pdu_limits(sc, &ci->max_tx_pdu_len, &ci->max_rx_pdu_len);
+	read_pdu_limits(sc, &ci->max_tx_data_len, &ci->max_rx_data_len);
 
 	pr = &ci->pr;
 	r = t4_read_reg(sc, A_ULP_RX_ISCSI_PSZ);
