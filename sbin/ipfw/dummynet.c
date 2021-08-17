@@ -23,6 +23,7 @@
  */
 
 #define NEW_AQM
+#include <sys/limits.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 /* XXX there are several sysctl leftover here */
@@ -794,9 +795,9 @@ is_valid_number(const char *s)
  * set clocking interface or bandwidth value
  */
 static void
-read_bandwidth(char *arg, int *bandwidth, char *if_name, int namelen)
+read_bandwidth(char *arg, uint32_t *bandwidth, char *if_name, int namelen)
 {
-	if (*bandwidth != -1)
+	if (*bandwidth != (uint32_t)-1)
 		warnx("duplicate token, override bandwidth value!");
 
 	if (arg[0] >= 'a' && arg[0] <= 'z') {
@@ -810,7 +811,7 @@ read_bandwidth(char *arg, int *bandwidth, char *if_name, int namelen)
 		strlcpy(if_name, arg, namelen);
 		*bandwidth = 0;
 	} else {	/* read bandwidth value */
-		int bw;
+		uint64_t bw;
 		char *end = NULL;
 
 		bw = strtoul(arg, &end, 0);
@@ -829,10 +830,10 @@ read_bandwidth(char *arg, int *bandwidth, char *if_name, int namelen)
 		    _substrcmp2(end, "by", "bytes") == 0)
 			bw *= 8;
 
-		if (bw < 0)
+		if (bw > UINT_MAX)
 			errx(EX_DATAERR, "bandwidth too large");
 
-		*bandwidth = bw;
+		*bandwidth = (uint32_t)bw;
 		if (if_name)
 			if_name[0] = '\0';
 	}
@@ -1737,7 +1738,7 @@ end_mask:
 	if (p) {
 		if (p->delay > 10000)
 			errx(EX_DATAERR, "delay must be < 10000");
-		if (p->bandwidth == -1)
+		if (p->bandwidth == (uint32_t)-1)
 			p->bandwidth = 0;
 	}
 	if (fs) {
