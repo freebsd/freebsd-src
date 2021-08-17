@@ -386,6 +386,49 @@ int dnskey_algo_is_supported(struct ub_packed_rrset_key* dnskey_rrset,
 		dnskey_idx));
 }
 
+int dnskey_size_is_supported(struct ub_packed_rrset_key* dnskey_rrset,
+	size_t dnskey_idx)
+{
+#ifdef DEPRECATE_RSA_1024
+	uint8_t* rdata;
+	size_t len;
+	int alg = dnskey_get_algo(dnskey_rrset, dnskey_idx);
+	size_t keysize;
+
+	rrset_get_rdata(dnskey_rrset, dnskey_idx, &rdata, &len);
+	if(len < 2+4)
+		return 0;
+	keysize = sldns_rr_dnskey_key_size_raw(rdata+2+4, len-2-4, alg);
+
+	switch((sldns_algorithm)alg) {
+	case LDNS_RSAMD5:
+	case LDNS_RSASHA1:
+	case LDNS_RSASHA1_NSEC3:
+	case LDNS_RSASHA256:
+	case LDNS_RSASHA512:
+		/* reject RSA keys of 1024 bits and shorter */
+		if(keysize <= 1024)
+			return 0;
+		break;
+	default:
+		break;
+	}
+#else
+	(void)dnskey_rrset; (void)dnskey_idx;
+#endif /* DEPRECATE_RSA_1024 */
+	return 1;
+}
+
+int dnskeyset_size_is_supported(struct ub_packed_rrset_key* dnskey_rrset)
+{
+	size_t i, num = rrset_get_count(dnskey_rrset);
+	for(i=0; i<num; i++) {
+		if(!dnskey_size_is_supported(dnskey_rrset, i))
+			return 0;
+	}
+	return 1;
+}
+
 void algo_needs_init_dnskey_add(struct algo_needs* n,
         struct ub_packed_rrset_key* dnskey, uint8_t* sigalg)
 {
@@ -1187,7 +1230,7 @@ rrset_canonical(struct regional* region, sldns_buffer* buf,
 	 * section, to prevent that a wildcard synthesized NSEC can be used in
 	 * the non-existence proves. */
 	if(ntohs(k->rk.type) == LDNS_RR_TYPE_NSEC &&
-		section == LDNS_SECTION_AUTHORITY) {
+		section == LDNS_SECTION_AUTHORITY && qstate) {
 		k->rk.dname = regional_alloc_init(qstate->region, can_owner,
 			can_owner_len);
 		if(!k->rk.dname)
@@ -1196,6 +1239,59 @@ rrset_canonical(struct regional* region, sldns_buffer* buf,
 	}
 	
 
+	return 1;
+}
+
+int
+rrset_canonicalize_to_buffer(struct regional* region, sldns_buffer* buf,
+	struct ub_packed_rrset_key* k)
+{
+	struct rbtree_type* sortree = NULL;
+	struct packed_rrset_data* d = (struct packed_rrset_data*)k->entry.data;
+	uint8_t* can_owner = NULL;
+	size_t can_owner_len = 0;
+	struct canon_rr* walk;
+	struct canon_rr* rrs;
+
+	sortree = (struct rbtree_type*)regional_alloc(region,
+		sizeof(rbtree_type));
+	if(!sortree)
+		return 0;
+	if(d->count > RR_COUNT_MAX)
+		return 0; /* integer overflow protection */
+	rrs = regional_alloc(region, sizeof(struct canon_rr)*d->count);
+	if(!rrs) {
+		return 0;
+	}
+	rbtree_init(sortree, &canonical_tree_compare);
+	canonical_sort(k, d, sortree, rrs);
+
+	sldns_buffer_clear(buf);
+	RBTREE_FOR(walk, struct canon_rr*, sortree) {
+		/* see if there is enough space left in the buffer */
+		if(sldns_buffer_remaining(buf) < can_owner_len + 2 + 2 + 4
+			+ d->rr_len[walk->rr_idx]) {
+			log_err("verify: failed to canonicalize, "
+				"rrset too big");
+			return 0;
+		}
+		/* determine canonical owner name */
+		if(can_owner)
+			sldns_buffer_write(buf, can_owner, can_owner_len);
+		else	{
+			can_owner = sldns_buffer_current(buf);
+			sldns_buffer_write(buf, k->rk.dname, k->rk.dname_len);
+			query_dname_tolower(can_owner);
+			can_owner_len = k->rk.dname_len;
+		}
+		sldns_buffer_write(buf, &k->rk.type, 2);
+		sldns_buffer_write(buf, &k->rk.rrset_class, 2);
+		sldns_buffer_write_u32(buf, d->rr_ttl[walk->rr_idx]);
+		sldns_buffer_write(buf, d->rr_data[walk->rr_idx],
+			d->rr_len[walk->rr_idx]);
+		canonicalize_rdata(buf, k, d->rr_len[walk->rr_idx]);
+	}
+	sldns_buffer_flip(buf);
 	return 1;
 }
 

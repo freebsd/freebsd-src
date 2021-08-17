@@ -195,6 +195,9 @@ enum sldns_enum_rr_type
 	LDNS_RR_TYPE_CDNSKEY = 60, /** RFC 7344 */
 	LDNS_RR_TYPE_OPENPGPKEY = 61, /* RFC 7929 */
 	LDNS_RR_TYPE_CSYNC = 62, /* RFC 7477 */
+	LDNS_RR_TYPE_ZONEMD = 63, /* draft-ietf-dnsop-dns-zone-digest-12 */
+    LDNS_RR_TYPE_SVCB = 64, /* draft-ietf-dnsop-svcb-https-04 */
+    LDNS_RR_TYPE_HTTPS = 65, /* draft-ietf-dnsop-svcb-https-04 */
 
 	LDNS_RR_TYPE_SPF = 99, /* RFC 4408 */
 
@@ -352,8 +355,13 @@ enum sldns_enum_rdf_type
 	/** TSIG extended 16bit error value */
 	LDNS_RDF_TYPE_TSIGERROR,
 
+	/* draft-ietf-dnsop-svcb-https-05:
+	 * each SvcParam consisting of a SvcParamKey=SvcParamValue pair or
+	 * a standalone SvcParamKey */
+	LDNS_RDF_TYPE_SVCPARAM,
+
         /* Aliases */
-        LDNS_RDF_TYPE_BITMAP = LDNS_RDF_TYPE_NSEC
+        LDNS_RDF_TYPE_BITMAP = LDNS_RDF_TYPE_NSEC,
 };
 typedef enum sldns_enum_rdf_type sldns_rdf_type;
 

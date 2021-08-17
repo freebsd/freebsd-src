@@ -640,25 +640,37 @@ store_rrset(sldns_buffer* pkt, struct msg_parse* msg, struct module_env* env,
 
 /**
  * Check if right hand name in NSEC is within zone
+ * @param pkt: the packet buffer for decompression.
  * @param rrset: the NSEC rrset
  * @param zonename: the zone name.
  * @return true if BAD.
  */
-static int sanitize_nsec_is_overreach(struct rrset_parse* rrset, 
-	uint8_t* zonename)
+static int sanitize_nsec_is_overreach(sldns_buffer* pkt,
+	struct rrset_parse* rrset, uint8_t* zonename)
 {
 	struct rr_parse* rr;
 	uint8_t* rhs;
 	size_t len;
 	log_assert(rrset->type == LDNS_RR_TYPE_NSEC);
 	for(rr = rrset->rr_first; rr; rr = rr->next) {
+		size_t pos = sldns_buffer_position(pkt);
+		size_t rhspos;
 		rhs = rr->ttl_data+4+2;
 		len = sldns_read_uint16(rr->ttl_data+4);
-		if(!dname_valid(rhs, len)) {
-			/* malformed domain name in rdata */
+		rhspos = rhs-sldns_buffer_begin(pkt);
+		sldns_buffer_set_position(pkt, rhspos);
+		if(pkt_dname_len(pkt) == 0) {
+			/* malformed */
+			sldns_buffer_set_position(pkt, pos);
 			return 1;
 		}
-		if(!dname_subdomain_c(rhs, zonename)) {
+		if(sldns_buffer_position(pkt)-rhspos > len) {
+			/* outside of rdata boundaries */
+			sldns_buffer_set_position(pkt, pos);
+			return 1;
+		}
+		sldns_buffer_set_position(pkt, pos);
+		if(!pkt_sub(pkt, rhs, zonename)) {
 			/* overreaching */
 			return 1;
 		}
@@ -791,7 +803,7 @@ scrub_sanitize(sldns_buffer* pkt, struct msg_parse* msg,
 		}
 		/* check if right hand side of NSEC is within zone */
 		if(rrset->type == LDNS_RR_TYPE_NSEC &&
-			sanitize_nsec_is_overreach(rrset, zonename)) {
+			sanitize_nsec_is_overreach(pkt, rrset, zonename)) {
 			remove_rrset("sanitize: removing overreaching NSEC "
 				"RRset:", pkt, msg, prev, &rrset);
 			continue;

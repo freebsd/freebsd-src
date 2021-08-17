@@ -329,7 +329,10 @@ parse_create_rrset(sldns_buffer* pkt, struct rrset_parse* pset,
 		return 0;
 	/* copy & decompress */
 	if(!parse_rr_copy(pkt, pset, *data)) {
-		if(!region) free(*data);
+		if(!region) {
+			free(*data);
+			*data = NULL;
+		}
 		return 0;
 	}
 	return 1;
@@ -394,8 +397,13 @@ parse_copy_decompress_rrset(sldns_buffer* pkt, struct msg_parse* msg,
 	pk->rk.type = htons(pset->type);
 	pk->rk.rrset_class = pset->rrset_class;
 	/** read data part. */
-	if(!parse_create_rrset(pkt, pset, &data, region))
+	if(!parse_create_rrset(pkt, pset, &data, region)) {
+		if(!region) {
+			free(pk->rk.dname);
+			pk->rk.dname = NULL;
+		}
 		return 0;
+	}
 	pk->entry.data = (void*)data;
 	pk->entry.key = (void*)pk;
 	pk->entry.hash = pset->hash;
@@ -825,9 +833,15 @@ log_dns_msg(const char* str, struct query_info* qinfo, struct reply_info* rep)
 	/* not particularly fast but flexible, make wireformat and print */
 	sldns_buffer* buf = sldns_buffer_new(65535);
 	struct regional* region = regional_create();
-	if(!reply_info_encode(qinfo, rep, 0, rep->flags, buf, 0, 
+	if(!(buf && region)) {
+		log_err("%s: log_dns_msg: out of memory", str);
+		sldns_buffer_free(buf);
+		regional_destroy(region);
+		return;
+	}
+	if(!reply_info_encode(qinfo, rep, 0, rep->flags, buf, 0,
 		region, 65535, 1, 0)) {
-		log_info("%s: log_dns_msg: out of memory", str);
+		log_err("%s: log_dns_msg: out of memory", str);
 	} else {
 		char* s = sldns_wire2str_pkt(sldns_buffer_begin(buf),
 			sldns_buffer_limit(buf));

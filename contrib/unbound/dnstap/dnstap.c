@@ -302,43 +302,74 @@ dt_fill_buffer(sldns_buffer *b, ProtobufCBinaryData *p, protobuf_c_boolean *has)
 
 static void
 dt_msg_fill_net(struct dt_msg *dm,
-		struct sockaddr_storage *ss,
+		struct sockaddr_storage *qs,
+		struct sockaddr_storage *rs,
 		enum comm_point_type cptype,
-		ProtobufCBinaryData *addr, protobuf_c_boolean *has_addr,
-		uint32_t *port, protobuf_c_boolean *has_port)
+		ProtobufCBinaryData *qaddr, protobuf_c_boolean *has_qaddr,
+		uint32_t *qport, protobuf_c_boolean *has_qport,
+		ProtobufCBinaryData *raddr, protobuf_c_boolean *has_raddr,
+		uint32_t *rport, protobuf_c_boolean *has_rport)
 {
-	log_assert(ss->ss_family == AF_INET6 || ss->ss_family == AF_INET);
-	if (ss->ss_family == AF_INET6) {
-		struct sockaddr_in6 *s = (struct sockaddr_in6 *) ss;
+	log_assert(qs->ss_family == AF_INET6 || qs->ss_family == AF_INET);
+	if (qs->ss_family == AF_INET6) {
+		struct sockaddr_in6 *q = (struct sockaddr_in6 *) qs;
 
 		/* socket_family */
 		dm->m.socket_family = DNSTAP__SOCKET_FAMILY__INET6;
 		dm->m.has_socket_family = 1;
 
 		/* addr: query_address or response_address */
-		addr->data = s->sin6_addr.s6_addr;
-		addr->len = 16; /* IPv6 */
-		*has_addr = 1;
+		qaddr->data = q->sin6_addr.s6_addr;
+		qaddr->len = 16; /* IPv6 */
+		*has_qaddr = 1;
 
 		/* port: query_port or response_port */
-		*port = ntohs(s->sin6_port);
-		*has_port = 1;
-	} else if (ss->ss_family == AF_INET) {
-		struct sockaddr_in *s = (struct sockaddr_in *) ss;
+		*qport = ntohs(q->sin6_port);
+		*has_qport = 1;
+	} else if (qs->ss_family == AF_INET) {
+		struct sockaddr_in *q = (struct sockaddr_in *) qs;
 
 		/* socket_family */
 		dm->m.socket_family = DNSTAP__SOCKET_FAMILY__INET;
 		dm->m.has_socket_family = 1;
 
 		/* addr: query_address or response_address */
-		addr->data = (uint8_t *) &s->sin_addr.s_addr;
-		addr->len = 4; /* IPv4 */
-		*has_addr = 1;
+		qaddr->data = (uint8_t *) &q->sin_addr.s_addr;
+		qaddr->len = 4; /* IPv4 */
+		*has_qaddr = 1;
 
 		/* port: query_port or response_port */
-		*port = ntohs(s->sin_port);
-		*has_port = 1;
+		*qport = ntohs(q->sin_port);
+		*has_qport = 1;
 	}
+
+	/*
+	 * This block is to fill second set of fields in DNSTAP-message defined as request_/response_ names.
+	 * Additional responsive structure is: struct sockaddr_storage *rs
+	 */
+        if (rs && rs->ss_family == AF_INET6) {
+                struct sockaddr_in6 *r = (struct sockaddr_in6 *) rs;
+
+                /* addr: query_address or response_address */
+                raddr->data = r->sin6_addr.s6_addr;
+                raddr->len = 16; /* IPv6 */
+                *has_raddr = 1;
+
+                /* port: query_port or response_port */
+                *rport = ntohs(r->sin6_port);
+                *has_rport = 1;
+        } else if (rs && rs->ss_family == AF_INET) {
+                struct sockaddr_in *r = (struct sockaddr_in *) rs;
+
+                /* addr: query_address or response_address */
+                raddr->data = (uint8_t *) &r->sin_addr.s_addr;
+                raddr->len = 4; /* IPv4 */
+                *has_raddr = 1;
+
+                /* port: query_port or response_port */
+                *rport = ntohs(r->sin_port);
+                *has_rport = 1;
+        }
 
 	log_assert(cptype == comm_udp || cptype == comm_tcp);
 	if (cptype == comm_udp) {
@@ -355,6 +386,7 @@ dt_msg_fill_net(struct dt_msg *dm,
 void
 dt_msg_send_client_query(struct dt_env *env,
 			 struct sockaddr_storage *qsock,
+			 struct sockaddr_storage *rsock,
 			 enum comm_point_type cptype,
 			 sldns_buffer *qmsg)
 {
@@ -374,11 +406,14 @@ dt_msg_send_client_query(struct dt_env *env,
 	/* query_message */
 	dt_fill_buffer(qmsg, &dm.m.query_message, &dm.m.has_query_message);
 
-	/* socket_family, socket_protocol, query_address, query_port */
+	/* socket_family, socket_protocol, query_address, query_port, response_address, response_port */
 	log_assert(cptype == comm_udp || cptype == comm_tcp);
-	dt_msg_fill_net(&dm, qsock, cptype,
+	dt_msg_fill_net(&dm, qsock, rsock, cptype,
 			&dm.m.query_address, &dm.m.has_query_address,
-			&dm.m.query_port, &dm.m.has_query_port);
+			&dm.m.query_port, &dm.m.has_query_port,
+			&dm.m.response_address, &dm.m.has_response_address,
+			&dm.m.response_port, &dm.m.has_response_port);
+
 
 	if (dt_pack(&dm.d, &dm.buf, &dm.len_buf))
 		dt_send(env, dm.buf, dm.len_buf);
@@ -387,6 +422,7 @@ dt_msg_send_client_query(struct dt_env *env,
 void
 dt_msg_send_client_response(struct dt_env *env,
 			    struct sockaddr_storage *qsock,
+			    struct sockaddr_storage *rsock,
 			    enum comm_point_type cptype,
 			    sldns_buffer *rmsg)
 {
@@ -406,11 +442,13 @@ dt_msg_send_client_response(struct dt_env *env,
 	/* response_message */
 	dt_fill_buffer(rmsg, &dm.m.response_message, &dm.m.has_response_message);
 
-	/* socket_family, socket_protocol, query_address, query_port */
+	/* socket_family, socket_protocol, query_address, query_port, response_address, response_port */
 	log_assert(cptype == comm_udp || cptype == comm_tcp);
-	dt_msg_fill_net(&dm, qsock, cptype,
+	dt_msg_fill_net(&dm, qsock, rsock, cptype,
 			&dm.m.query_address, &dm.m.has_query_address,
-			&dm.m.query_port, &dm.m.has_query_port);
+			&dm.m.query_port, &dm.m.has_query_port,
+                        &dm.m.response_address, &dm.m.has_response_address,
+                        &dm.m.response_port, &dm.m.has_response_port);
 
 	if (dt_pack(&dm.d, &dm.buf, &dm.len_buf))
 		dt_send(env, dm.buf, dm.len_buf);
@@ -419,6 +457,7 @@ dt_msg_send_client_response(struct dt_env *env,
 void
 dt_msg_send_outside_query(struct dt_env *env,
 			  struct sockaddr_storage *rsock,
+			  struct sockaddr_storage *qsock,
 			  enum comm_point_type cptype,
 			  uint8_t *zone, size_t zone_len,
 			  sldns_buffer *qmsg)
@@ -454,11 +493,13 @@ dt_msg_send_outside_query(struct dt_env *env,
 	/* query_message */
 	dt_fill_buffer(qmsg, &dm.m.query_message, &dm.m.has_query_message);
 
-	/* socket_family, socket_protocol, response_address, response_port */
+	/* socket_family, socket_protocol, response_address, response_port, query_address, query_port */
 	log_assert(cptype == comm_udp || cptype == comm_tcp);
-	dt_msg_fill_net(&dm, rsock, cptype,
+	dt_msg_fill_net(&dm, rsock, qsock, cptype,
 			&dm.m.response_address, &dm.m.has_response_address,
-			&dm.m.response_port, &dm.m.has_response_port);
+			&dm.m.response_port, &dm.m.has_response_port,
+			&dm.m.query_address, &dm.m.has_query_address,
+			&dm.m.query_port, &dm.m.has_query_port);
 
 	if (dt_pack(&dm.d, &dm.buf, &dm.len_buf))
 		dt_send(env, dm.buf, dm.len_buf);
@@ -466,18 +507,19 @@ dt_msg_send_outside_query(struct dt_env *env,
 
 void
 dt_msg_send_outside_response(struct dt_env *env,
-			     struct sockaddr_storage *rsock,
-			     enum comm_point_type cptype,
-			     uint8_t *zone, size_t zone_len,
-			     uint8_t *qbuf, size_t qbuf_len,
-			     const struct timeval *qtime,
-			     const struct timeval *rtime,
-			     sldns_buffer *rmsg)
+	struct sockaddr_storage *rsock,
+	struct sockaddr_storage *qsock,
+	enum comm_point_type cptype,
+	uint8_t *zone, size_t zone_len,
+	uint8_t *qbuf, size_t qbuf_len,
+	const struct timeval *qtime,
+	const struct timeval *rtime,
+	sldns_buffer *rmsg)
 {
 	struct dt_msg dm;
 	uint16_t qflags;
 
-	log_assert(qbuf_len >= sizeof(qflags));
+	(void)qbuf_len; log_assert(qbuf_len >= sizeof(qflags));
 	memcpy(&qflags, qbuf, sizeof(qflags));
 	qflags = ntohs(qflags);
 
@@ -510,11 +552,13 @@ dt_msg_send_outside_response(struct dt_env *env,
 	/* response_message */
 	dt_fill_buffer(rmsg, &dm.m.response_message, &dm.m.has_response_message);
 
-	/* socket_family, socket_protocol, response_address, response_port */
+	/* socket_family, socket_protocol, response_address, response_port, query_address, query_port */
 	log_assert(cptype == comm_udp || cptype == comm_tcp);
-	dt_msg_fill_net(&dm, rsock, cptype,
+	dt_msg_fill_net(&dm, rsock, qsock, cptype,
 			&dm.m.response_address, &dm.m.has_response_address,
-			&dm.m.response_port, &dm.m.has_response_port);
+			&dm.m.response_port, &dm.m.has_response_port,
+			&dm.m.query_address, &dm.m.has_query_address,
+			&dm.m.query_port, &dm.m.has_query_port);
 
 	if (dt_pack(&dm.d, &dm.buf, &dm.len_buf))
 		dt_send(env, dm.buf, dm.len_buf);

@@ -1,0 +1,92 @@
+$ORIGIN test-vectors.
+$TTL 3600
+
+@	SOA	primary admin 1 3600 1800 7200 3600
+
+	NS	primary
+primary	A	127.0.0.1
+; D.1. AliasForm
+
+v01	SVCB	0 foo.example.com.
+
+; D.2. ServiceForm
+; The first form is the simple "use the ownername".
+
+v02	SVCB	1 .
+
+; This vector only has a port.
+
+v03	SVCB	16 foo.example.com. port=53
+
+; This example has a key that is not registered, its value is unquoted.
+
+v04	SVCB	1 foo.example.com. key667=hello
+
+; This example has a key that is not registered, its value is quoted and
+; contains a decimal-escaped character.
+
+v05	SVCB	1 foo.example.com. key667="hello\210qoo"
+
+; Here, two IPv6 hints are quoted in the presentation format.
+
+v06	SVCB	1 foo.example.com. ipv6hint="2001:db8::1,2001:db8::53:1"
+
+; This example shows a single IPv6 hint in IPv4 mapped IPv6 presentation format.
+
+v07	SVCB	1 example.com. ipv6hint="2001:db8:ffff:ffff:ffff:ffff:198.51.100.100"
+
+; In the next vector, neither the SvcParamValues nor the mandatory keys are
+; sorted in presentation format, but are correctly sorted in the wire-format.
+
+v08	SVCB	16 foo.example.org. (alpn=h2,h3-19 mandatory=ipv4hint,alpn
+                    ipv4hint=192.0.2.1)
+
+; This last (two) vectors has an alpn value with an escaped comma and an
+; escaped backslash in two presentation formats.
+
+v09	SVCB	16 foo.example.org. alpn="f\\\\oo\\,bar,h2"
+v10	SVCB	16 foo.example.org. alpn=f\\\092oo\092,bar,h2
+
+
+; D.1. AliasForm
+
+v11	HTTPS	0 foo.example.com.
+
+; D.2. ServiceForm
+; The first form is the simple "use the ownername".
+
+v12	HTTPS	1 .
+
+; This vector only has a port.
+
+v13	HTTPS	16 foo.example.com. port=53
+
+; This example has a key that is not registered, its value is unquoted.
+
+v14	HTTPS	1 foo.example.com. key667=hello
+
+; This example has a key that is not registered, its value is quoted and
+; contains a decimal-escaped character.
+
+v15	HTTPS	1 foo.example.com. key667="hello\210qoo"
+
+; Here, two IPv6 hints are quoted in the presentation format.
+
+v16	HTTPS	1 foo.example.com. ipv6hint="2001:db8::1,2001:db8::53:1"
+
+; This example shows a single IPv6 hint in IPv4 mapped IPv6 presentation format.
+
+v17	HTTPS	1 example.com. ipv6hint="2001:db8:ffff:ffff:ffff:ffff:198.51.100.100"
+
+; In the next vector, neither the SvcParamValues nor the mandatory keys are
+; sorted in presentation format, but are correctly sorted in the wire-format.
+
+v18	HTTPS	16 foo.example.org. (alpn=h2,h3-19 mandatory=ipv4hint,alpn
+                    ipv4hint=192.0.2.1)
+
+; This last (two) vectors has an alpn value with an escaped comma and an
+; escaped backslash in two presentation formats.
+
+v19	HTTPS	16 foo.example.org. alpn="f\\\\oo\\,bar,h2"
+v20	HTTPS	16 foo.example.org. alpn=f\\\092oo\092,bar,h2
+
