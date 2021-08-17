@@ -217,6 +217,7 @@ static int32_t rack_use_rfo = 1;
 static int32_t rack_use_rsm_rfo = 1;
 static int32_t rack_max_abc_post_recovery = 2;
 static int32_t rack_client_low_buf = 0;
+static int32_t rack_dsack_std_based = 0x3;	/* bit field bit 1 sets rc_rack_tmr_std_based and bit 2 sets rc_rack_use_dsack */
 #ifdef TCP_ACCOUNTING
 static int32_t rack_tcp_accounting = 0;
 #endif
@@ -1375,6 +1376,12 @@ rack_init_sysctls(void)
 	    &rack_tcp_accounting, 0,
 	    "Should we turn on TCP accounting for all rack sessions?");
 #endif
+
+	SYSCTL_ADD_S32(&rack_sysctl_ctx,
+	    SYSCTL_CHILDREN(rack_misc),
+	    OID_AUTO, "rack_dsack_ctl", CTLFLAG_RW,
+	    &rack_dsack_std_based, 3,
+	    "How do we process dsack with respect to rack timers, bit field, 3 is standards based?");
 	SYSCTL_ADD_S32(&rack_sysctl_ctx,
 	    SYSCTL_CHILDREN(rack_misc),
 	    OID_AUTO, "prr_addback_max", CTLFLAG_RW,
@@ -2069,6 +2076,44 @@ configured_rate:
 		return (rack->r_ctl.rack_per_of_gp_ss);
 	else
 		return (rack->r_ctl.rack_per_of_gp_ca);
+}
+
+static void
+rack_log_dsack_event(struct tcp_rack *rack, uint8_t mod, uint32_t flex4, uint32_t flex5, uint32_t flex6)
+{
+	/*
+	 * Types of logs (mod value)
+	 * 1 = dsack_persists reduced by 1 via T-O or fast recovery exit.
+	 * 2 = a dsack round begins, persist is reset to 16.
+	 * 3 = a dsack round ends
+	 * 4 = Dsack option increases rack rtt flex5 is the srtt input, flex6 is thresh
+	 * 5 = Socket option set changing the control flags rc_rack_tmr_std_based, rc_rack_use_dsack
+	 * 6 = Final rack rtt, flex4 is srtt and flex6 is final limited thresh.
+	 */
+	if (rack->rc_tp->t_logstate != TCP_LOG_STATE_OFF) {
+		union tcp_log_stackspecific log;
+		struct timeval tv;
+
+		memset(&log, 0, sizeof(log));
+		log.u_bbr.flex1 = rack->rc_rack_tmr_std_based;
+		log.u_bbr.flex1 <<= 1;
+		log.u_bbr.flex1 |= rack->rc_rack_use_dsack;
+		log.u_bbr.flex1 <<= 1;
+		log.u_bbr.flex1 |= rack->rc_dsack_round_seen;
+		log.u_bbr.flex2 = rack->r_ctl.dsack_round_end;
+		log.u_bbr.flex3 = rack->r_ctl.num_dsack;
+		log.u_bbr.flex4 = flex4;
+		log.u_bbr.flex5 = flex5;
+		log.u_bbr.flex6 = flex6;
+		log.u_bbr.flex7 = rack->r_ctl.dsack_persist;
+		log.u_bbr.flex8 = mod;
+		log.u_bbr.timeStamp = tcp_get_usecs(&tv);
+		TCP_LOG_EVENTP(rack->rc_tp, NULL,
+		    &rack->rc_inp->inp_socket->so_rcv,
+		    &rack->rc_inp->inp_socket->so_snd,
+		    RACK_DSACK_HANDLING, 0,
+		    0, &log, false, &tv);
+	}
 }
 
 static void
@@ -4862,6 +4907,13 @@ rack_post_recovery(struct tcpcb *tp, uint32_t th_ack)
 	}
 	rack_log_to_prr(rack, 14, orig_cwnd);
 	tp->snd_recover = tp->snd_una;
+	if (rack->r_ctl.dsack_persist) {
+		rack->r_ctl.dsack_persist--;
+		if (rack->r_ctl.num_dsack && (rack->r_ctl.dsack_persist == 0)) {
+			rack->r_ctl.num_dsack = 0;
+		}
+		rack_log_dsack_event(rack, 1, __LINE__, 0, 0);
+	}
 	EXIT_RECOVERY(tp->t_flags);
 }
 
@@ -5097,24 +5149,38 @@ rack_calc_thresh_rack(struct tcp_rack *rack, uint32_t srtt, uint32_t cts)
 	} else {
 		lro = 0;
 	}
-	thresh = srtt + rack->r_ctl.rc_pkt_delay;
-	if (lro) {
+	if (rack->rc_rack_tmr_std_based == 0) {
+		thresh = srtt + rack->r_ctl.rc_pkt_delay;
+	} else {
+		/* Standards based pkt-delay is 1/4 srtt */
+		thresh = srtt +  (srtt >> 2);
+	}
+	if (lro && (rack->rc_rack_tmr_std_based == 0)) {
 		/* It must be set, if not you get 1/4 rtt */
 		if (rack->r_ctl.rc_reorder_shift)
 			thresh += (srtt >> rack->r_ctl.rc_reorder_shift);
 		else
 			thresh += (srtt >> 2);
-	} else {
-		thresh += 1;
 	}
-	/* We don't let the rack timeout be above a RTO */
-	if (thresh > rack->rc_tp->t_rxtcur) {
-		thresh = rack->rc_tp->t_rxtcur;
+	if (rack->rc_rack_use_dsack &&
+	    lro &&
+	    (rack->r_ctl.num_dsack > 0)) {
+		/*
+		 * We only increase the reordering window if we
+		 * have seen reordering <and> we have a DSACK count.
+		 */
+		thresh += rack->r_ctl.num_dsack * (srtt >> 2);
+		rack_log_dsack_event(rack, 4, __LINE__, srtt, thresh);
+	}
+	/* SRTT * 2 is the ceiling */
+	if (thresh > (srtt * 2)) {
+		thresh = srtt * 2;
 	}
 	/* And we don't want it above the RTO max either */
 	if (thresh > rack_rto_max) {
 		thresh = rack_rto_max;
 	}
+	rack_log_dsack_event(rack, 6, __LINE__, srtt, thresh);
 	return (thresh);
 }
 
@@ -6219,6 +6285,13 @@ rack_timeout_tlp(struct tcpcb *tp, struct tcp_rack *rack, uint32_t cts, uint8_t 
 		collapsed_win = 1;
 		goto need_retran;
 	}
+	if (rack->r_ctl.dsack_persist && (rack->r_ctl.rc_tlp_cnt_out >= 1)) {
+		rack->r_ctl.dsack_persist--;
+		if (rack->r_ctl.num_dsack && (rack->r_ctl.dsack_persist == 0)) {
+			rack->r_ctl.num_dsack = 0;
+		}
+		rack_log_dsack_event(rack, 1, __LINE__, 0, 0);
+	}
 	if ((tp->t_flags & TF_GPUTINPROG) &&
 	    (rack->r_ctl.rc_tlp_cnt_out == 1)) {
 		/*
@@ -6349,7 +6422,6 @@ need_retran:
 			TAILQ_INSERT_AFTER(&rack->r_ctl.rc_tmap, rsm, nrsm, r_tnext);
 			nrsm->r_in_tmap = 1;
 		}
-		rsm->r_flags &= (~RACK_HAS_FIN);
 		rsm = nrsm;
 	}
 	rack->r_ctl.rc_tlpsend = rsm;
@@ -6754,6 +6826,13 @@ rack_timeout_rxt(struct tcpcb *tp, struct tcp_rack *rack, uint32_t cts)
 	    (tp->snd_una == tp->snd_max)) {
 		/* Nothing outstanding .. nothing to do */
 		return (0);
+	}
+	if (rack->r_ctl.dsack_persist) {
+		rack->r_ctl.dsack_persist--;
+		if (rack->r_ctl.num_dsack && (rack->r_ctl.dsack_persist == 0)) {
+			rack->r_ctl.num_dsack = 0;
+		}
+		rack_log_dsack_event(rack, 1, __LINE__, 0, 0);
 	}
 	/*
 	 * Rack can only run one timer  at a time, so we cannot
@@ -8218,6 +8297,22 @@ rack_need_set_test(struct tcpcb *tp,
 	}
 }
 
+static inline int
+is_rsm_inside_declared_tlp_block(struct tcp_rack *rack, struct rack_sendmap *rsm)
+{
+	if (SEQ_LT(rsm->r_end, rack->r_ctl.last_tlp_acked_start)) {
+		/* Behind our TLP definition or right at */
+		return (0);
+	}
+	if (SEQ_GT(rsm->r_start, rack->r_ctl.last_tlp_acked_end)) {
+		/* The start is beyond or right at our end of TLP definition */
+		return (0);
+	}
+	/* It has to be a sub-part of the original TLP recorded */
+	return (1);
+}
+
+
 static uint32_t
 rack_proc_sack_blk(struct tcpcb *tp, struct tcp_rack *rack, struct sackblk *sack,
 		   struct tcpopt *to, struct rack_sendmap **prsm, uint32_t cts, int *moved_two)
@@ -8253,6 +8348,46 @@ do_rest_ofb:
 	/* Ok we have an ACK for some piece of this rsm */
 	if (rsm->r_start != start) {
 		if ((rsm->r_flags & RACK_ACKED) == 0) {
+			/*
+			 * Before any splitting or hookery is
+			 * done is it a TLP of interest i.e. rxt?
+			 */
+			if ((rsm->r_flags & RACK_TLP) &&
+			    (rsm->r_rtr_cnt > 1)) {
+				/*
+				 * We are splitting a rxt TLP, check
+				 * if we need to save off the start/end
+				 */
+				if (rack->rc_last_tlp_acked_set &&
+				    (is_rsm_inside_declared_tlp_block(rack, rsm))) {
+					/*
+					 * We already turned this on since we are inside
+					 * the previous one was a partially sack now we
+					 * are getting another one (maybe all of it).
+					 *
+					 */
+					rack_log_dsack_event(rack, 10, __LINE__, rsm->r_start, rsm->r_end);
+					/*
+					 * Lets make sure we have all of it though.
+					 */
+					if (SEQ_LT(rsm->r_start, rack->r_ctl.last_tlp_acked_start)) {
+						rack->r_ctl.last_tlp_acked_start = rsm->r_start;
+						rack_log_dsack_event(rack, 11, __LINE__, rack->r_ctl.last_tlp_acked_start,
+								     rack->r_ctl.last_tlp_acked_end);
+					}
+					if (SEQ_GT(rsm->r_end, rack->r_ctl.last_tlp_acked_end)) {
+						rack->r_ctl.last_tlp_acked_end = rsm->r_end;
+						rack_log_dsack_event(rack, 11, __LINE__, rack->r_ctl.last_tlp_acked_start,
+								     rack->r_ctl.last_tlp_acked_end);
+					}
+				} else {
+					rack->r_ctl.last_tlp_acked_start = rsm->r_start;
+					rack->r_ctl.last_tlp_acked_end = rsm->r_end;
+					rack->rc_last_tlp_past_cumack = 0;
+					rack->rc_last_tlp_acked_set = 1;
+					rack_log_dsack_event(rack, 8, __LINE__, rsm->r_start, rsm->r_end);
+				}
+			}
 			/**
 			 * Need to split this in two pieces the before and after,
 			 * the before remains in the map, the after must be
@@ -8267,6 +8402,7 @@ do_rest_ofb:
 			 * But before we start down that path lets
 			 * see if the sack spans over on top of
 			 * the next guy and it is already sacked.
+			 *
 			 */
 			next = RB_NEXT(rack_rb_tree_head, &rack->r_ctl.rc_mtree, rsm);
 			if (next && (next->r_flags & RACK_ACKED) &&
@@ -8426,6 +8562,44 @@ do_rest_ofb:
 		 *  end                     |---------|
 		 */
 		if ((rsm->r_flags & RACK_ACKED) == 0) {
+			/*
+			 * Is it a TLP of interest?
+			 */
+			if ((rsm->r_flags & RACK_TLP) &&
+			    (rsm->r_rtr_cnt > 1)) {
+				/*
+				 * We are splitting a rxt TLP, check
+				 * if we need to save off the start/end
+				 */
+				if (rack->rc_last_tlp_acked_set &&
+				    (is_rsm_inside_declared_tlp_block(rack, rsm))) {
+					/*
+					 * We already turned this on since we are inside
+					 * the previous one was a partially sack now we
+					 * are getting another one (maybe all of it).
+					 */
+					rack_log_dsack_event(rack, 10, __LINE__, rsm->r_start, rsm->r_end);
+					/*
+					 * Lets make sure we have all of it though.
+					 */
+					if (SEQ_LT(rsm->r_start, rack->r_ctl.last_tlp_acked_start)) {
+						rack->r_ctl.last_tlp_acked_start = rsm->r_start;
+						rack_log_dsack_event(rack, 11, __LINE__, rack->r_ctl.last_tlp_acked_start,
+								     rack->r_ctl.last_tlp_acked_end);
+					}
+					if (SEQ_GT(rsm->r_end, rack->r_ctl.last_tlp_acked_end)) {
+						rack->r_ctl.last_tlp_acked_end = rsm->r_end;
+						rack_log_dsack_event(rack, 11, __LINE__, rack->r_ctl.last_tlp_acked_start,
+								     rack->r_ctl.last_tlp_acked_end);
+					}
+				} else {
+					rack->r_ctl.last_tlp_acked_start = rsm->r_start;
+					rack->r_ctl.last_tlp_acked_end = rsm->r_end;
+					rack->rc_last_tlp_past_cumack = 0;
+					rack->rc_last_tlp_acked_set = 1;
+					rack_log_dsack_event(rack, 8, __LINE__, rsm->r_start, rsm->r_end);
+				}
+			}
 			rack_update_rtt(tp, rack, rsm, to, cts, SACKED, 0);
 			changed += (rsm->r_end - rsm->r_start);
 			rack->r_ctl.rc_sacked += (rsm->r_end - rsm->r_start);
@@ -8441,7 +8615,6 @@ do_rest_ofb:
 				rack_need_set_test(tp, rack, rsm, tp->snd_una, __LINE__, RACK_USE_END);
 			rsm->r_ack_arrival = rack_to_usec_ts(&rack->r_ctl.act_rcv_time);
 			rsm->r_flags |= RACK_ACKED;
-			rsm->r_flags &= ~RACK_TLP;
 			if (rsm->r_in_tmap) {
 				TAILQ_REMOVE(&rack->r_ctl.rc_tmap, rsm, r_tnext);
 				rsm->r_in_tmap = 0;
@@ -8473,8 +8646,47 @@ do_rest_ofb:
 	 *  end                     |--|
 	 */
 	if ((rsm->r_flags & RACK_ACKED) == 0) {
+		/*
+		 * Is it a TLP of interest?
+		 */
+		if ((rsm->r_flags & RACK_TLP) &&
+		    (rsm->r_rtr_cnt > 1)) {
+			/*
+			 * We are splitting a rxt TLP, check
+			 * if we need to save off the start/end
+			 */
+			if (rack->rc_last_tlp_acked_set &&
+			    (is_rsm_inside_declared_tlp_block(rack, rsm))) {
+				/*
+				 * We already turned this on since we are inside
+				 * the previous one was a partially sack now we
+				 * are getting another one (maybe all of it).
+				 */
+				rack_log_dsack_event(rack, 10, __LINE__, rsm->r_start, rsm->r_end);
+				/*
+				 * Lets make sure we have all of it though.
+				 */
+				if (SEQ_LT(rsm->r_start, rack->r_ctl.last_tlp_acked_start)) {
+					rack->r_ctl.last_tlp_acked_start = rsm->r_start;
+					rack_log_dsack_event(rack, 11, __LINE__, rack->r_ctl.last_tlp_acked_start,
+							     rack->r_ctl.last_tlp_acked_end);
+				}
+				if (SEQ_GT(rsm->r_end, rack->r_ctl.last_tlp_acked_end)) {
+					rack->r_ctl.last_tlp_acked_end = rsm->r_end;
+					rack_log_dsack_event(rack, 11, __LINE__, rack->r_ctl.last_tlp_acked_start,
+							     rack->r_ctl.last_tlp_acked_end);
+				}
+			} else {
+				rack->r_ctl.last_tlp_acked_start = rsm->r_start;
+				rack->r_ctl.last_tlp_acked_end = rsm->r_end;
+				rack->rc_last_tlp_past_cumack = 0;
+				rack->rc_last_tlp_acked_set = 1;
+				rack_log_dsack_event(rack, 8, __LINE__, rsm->r_start, rsm->r_end);
+			}
+		}
 		prev = RB_PREV(rack_rb_tree_head, &rack->r_ctl.rc_mtree, rsm);
-		if (prev && (prev->r_flags & RACK_ACKED)) {
+		if (prev &&
+		    (prev->r_flags & RACK_ACKED)) {
 			/**
 			 * Goal, we want the right remainder of rsm to shrink
 			 * in place and span from (rsm->r_start = end) to rsm->r_end.
@@ -8488,6 +8700,9 @@ do_rest_ofb:
 			 *   prev     |----------|       (acked)
 			 *   rsm                 |-----| (non-acked)
 			 *   nrsm              |-| (temporary)
+			 *
+			 * Note if either prev/rsm is a TLP we don't
+			 * do this.
 			 */
 			nrsm = &stack_map;
 			memcpy(nrsm, rsm, sizeof(struct rack_sendmap));
@@ -8533,6 +8748,41 @@ do_rest_ofb:
 			if (nrsm == NULL) {
 				/* failed rrs what can we do but loose the sack info? */
 				goto out;
+			}
+			if ((rsm->r_flags & RACK_TLP) &&
+			    (rsm->r_rtr_cnt > 1)) {
+				/*
+				 * We are splitting a rxt TLP, check
+				 * if we need to save off the start/end
+				 */
+				if (rack->rc_last_tlp_acked_set &&
+				    (is_rsm_inside_declared_tlp_block(rack, rsm))) {
+					    /*
+					     * We already turned this on since this block is inside
+					     * the previous one was a partially sack now we
+					     * are getting another one (maybe all of it).
+					     */
+					    rack_log_dsack_event(rack, 10, __LINE__, rsm->r_start, rsm->r_end);
+					    /*
+					     * Lets make sure we have all of it though.
+					     */
+					    if (SEQ_LT(rsm->r_start, rack->r_ctl.last_tlp_acked_start)) {
+						    rack->r_ctl.last_tlp_acked_start = rsm->r_start;
+						    rack_log_dsack_event(rack, 11, __LINE__, rack->r_ctl.last_tlp_acked_start,
+									 rack->r_ctl.last_tlp_acked_end);
+					    }
+					    if (SEQ_GT(rsm->r_end, rack->r_ctl.last_tlp_acked_end)) {
+						    rack->r_ctl.last_tlp_acked_end = rsm->r_end;
+						    rack_log_dsack_event(rack, 11, __LINE__, rack->r_ctl.last_tlp_acked_start,
+									 rack->r_ctl.last_tlp_acked_end);
+					    }
+				    } else {
+					    rack->r_ctl.last_tlp_acked_start = rsm->r_start;
+					    rack->r_ctl.last_tlp_acked_end = rsm->r_end;
+					    rack->rc_last_tlp_acked_set = 1;
+					    rack->rc_last_tlp_past_cumack = 0;
+					    rack_log_dsack_event(rack, 8, __LINE__, rsm->r_start, rsm->r_end);
+				    }
 			}
 			/**
 			 * In this case nrsm becomes
@@ -8584,7 +8834,6 @@ do_rest_ofb:
 				rack_need_set_test(tp, rack, rsm, tp->snd_una, __LINE__, RACK_USE_END);
 			rsm->r_ack_arrival = rack_to_usec_ts(&rack->r_ctl.act_rcv_time);
 			rsm->r_flags |= RACK_ACKED;
-			rsm->r_flags &= ~RACK_TLP;
 			rack_log_map_chg(tp, rack, NULL, rsm, nrsm, MAP_SACK_M5, end, __LINE__);
 			if (rsm->r_in_tmap) {
 				TAILQ_REMOVE(&rack->r_ctl.rc_tmap, rsm, r_tnext);
@@ -8599,7 +8848,9 @@ do_rest_ofb:
 		moved++;
 	}
 out:
-	if (rsm && (rsm->r_flags & RACK_ACKED)) {
+	if (rsm &&
+	    ((rsm->r_flags & RACK_TLP) == 0) &&
+	    (rsm->r_flags & RACK_ACKED)) {
 		/*
 		 * Now can we merge where we worked
 		 * with either the previous or
@@ -8607,22 +8858,26 @@ out:
 		 */
 		next = RB_NEXT(rack_rb_tree_head, &rack->r_ctl.rc_mtree, rsm);
 		while (next) {
-		    if (next->r_flags & RACK_ACKED) {
+			if (next->r_flags & RACK_TLP)
+				break;
+			if (next->r_flags & RACK_ACKED) {
 			/* yep this and next can be merged */
-			rsm = rack_merge_rsm(rack, rsm, next);
-			next = RB_NEXT(rack_rb_tree_head, &rack->r_ctl.rc_mtree, rsm);
-		    } else
-			    break;
+				rsm = rack_merge_rsm(rack, rsm, next);
+				next = RB_NEXT(rack_rb_tree_head, &rack->r_ctl.rc_mtree, rsm);
+			} else
+				break;
 		}
 		/* Now what about the previous? */
 		prev = RB_PREV(rack_rb_tree_head, &rack->r_ctl.rc_mtree, rsm);
 		while (prev) {
-		    if (prev->r_flags & RACK_ACKED) {
-			/* yep the previous and this can be merged */
-			rsm = rack_merge_rsm(rack, prev, rsm);
-			prev = RB_PREV(rack_rb_tree_head, &rack->r_ctl.rc_mtree, rsm);
-		    } else
-			    break;
+			if (prev->r_flags & RACK_TLP)
+				break;
+			if (prev->r_flags & RACK_ACKED) {
+				/* yep the previous and this can be merged */
+				rsm = rack_merge_rsm(rack, prev, rsm);
+				prev = RB_PREV(rack_rb_tree_head, &rack->r_ctl.rc_mtree, rsm);
+			} else
+				break;
 		}
 	}
 	if (used_ref == 0) {
@@ -8744,6 +8999,55 @@ rack_process_to_cumack(struct tcpcb *tp, struct tcp_rack *rack, register uint32_
 	 * RTT's.
 	 */
 	rack->r_wanted_output = 1;
+
+	/* Tend any TLP that has been marked for 1/2 the seq space (its old)  */
+	if ((rack->rc_last_tlp_acked_set == 1)&&
+	    (rack->rc_last_tlp_past_cumack == 1) &&
+	    (SEQ_GT(rack->r_ctl.last_tlp_acked_start, th_ack))) {
+		/*
+		 * We have reached the point where our last rack
+		 * tlp retransmit sequence is ahead of the cum-ack.
+		 * This can only happen when the cum-ack moves all
+		 * the way around (its been a full 2^^31+1 bytes
+		 * or more since we sent a retransmitted TLP). Lets
+		 * turn off the valid flag since its not really valid.
+		 *
+		 * Note since sack's also turn on this event we have
+		 * a complication, we have to wait to age it out until
+		 * the cum-ack is by the TLP before checking which is
+		 * what the next else clause does.
+		 */
+		rack_log_dsack_event(rack, 9, __LINE__,
+				     rack->r_ctl.last_tlp_acked_start,
+				     rack->r_ctl.last_tlp_acked_end);
+		rack->rc_last_tlp_acked_set = 0;
+		rack->rc_last_tlp_past_cumack = 0;
+	} else if ((rack->rc_last_tlp_acked_set == 1) &&
+		   (rack->rc_last_tlp_past_cumack == 0) &&
+		   (SEQ_GEQ(th_ack, rack->r_ctl.last_tlp_acked_end))) {
+		/*
+		 * It is safe to start aging TLP's out.
+		 */
+		rack->rc_last_tlp_past_cumack = 1;
+	}
+	/* We do the same for the tlp send seq as well */
+	if ((rack->rc_last_sent_tlp_seq_valid == 1) &&
+	    (rack->rc_last_sent_tlp_past_cumack == 1) &&
+	    (SEQ_GT(rack->r_ctl.last_sent_tlp_seq,  th_ack))) {
+		rack_log_dsack_event(rack, 9, __LINE__,
+				     rack->r_ctl.last_sent_tlp_seq,
+				     (rack->r_ctl.last_sent_tlp_seq +
+				      rack->r_ctl.last_sent_tlp_len));
+		rack->rc_last_sent_tlp_seq_valid = 0;
+		rack->rc_last_sent_tlp_past_cumack = 0;
+	} else if ((rack->rc_last_sent_tlp_seq_valid == 1) &&
+		   (rack->rc_last_sent_tlp_past_cumack == 0) &&
+		   (SEQ_GEQ(th_ack, rack->r_ctl.last_sent_tlp_seq))) {
+		/*
+		 * It is safe to start aging TLP's send.
+		 */
+		rack->rc_last_sent_tlp_past_cumack = 1;
+	}
 more:
 	rsm = RB_MIN(rack_rb_tree_head, &rack->r_ctl.rc_mtree);
 	if (rsm == NULL) {
@@ -8778,6 +9082,48 @@ more:
 		return;
 	}
 	rack_update_rtt(tp, rack, rsm, to, cts, CUM_ACKED, th_ack);
+
+	/* Now was it a retransmitted TLP? */
+	if ((rsm->r_flags & RACK_TLP) &&
+	    (rsm->r_rtr_cnt > 1)) {
+		/*
+		 * Yes, this rsm was a TLP and retransmitted, remember that
+		 * since if a DSACK comes back on this we don't want
+		 * to think of it as a reordered segment. This may
+		 * get updated again with possibly even other TLPs
+		 * in flight, but thats ok. Only when we don't send
+		 * a retransmitted TLP for 1/2 the sequences space
+		 * will it get turned off (above).
+		 */
+		if (rack->rc_last_tlp_acked_set &&
+		    (is_rsm_inside_declared_tlp_block(rack, rsm))) {
+			/*
+			 * We already turned this on since the end matches,
+			 * the previous one was a partially ack now we
+			 * are getting another one (maybe all of it).
+			 */
+			rack_log_dsack_event(rack, 10, __LINE__, rsm->r_start, rsm->r_end);
+			/*
+			 * Lets make sure we have all of it though.
+			 */
+			if (SEQ_LT(rsm->r_start, rack->r_ctl.last_tlp_acked_start)) {
+				rack->r_ctl.last_tlp_acked_start = rsm->r_start;
+				rack_log_dsack_event(rack, 11, __LINE__, rack->r_ctl.last_tlp_acked_start,
+						     rack->r_ctl.last_tlp_acked_end);
+			}
+			if (SEQ_GT(rsm->r_end, rack->r_ctl.last_tlp_acked_end)) {
+				rack->r_ctl.last_tlp_acked_end = rsm->r_end;
+				rack_log_dsack_event(rack, 11, __LINE__, rack->r_ctl.last_tlp_acked_start,
+						     rack->r_ctl.last_tlp_acked_end);
+			}
+		} else {
+			rack->rc_last_tlp_past_cumack = 1;
+			rack->r_ctl.last_tlp_acked_start = rsm->r_start;
+			rack->r_ctl.last_tlp_acked_end = rsm->r_end;
+			rack->rc_last_tlp_acked_set = 1;
+			rack_log_dsack_event(rack, 8, __LINE__, rsm->r_start, rsm->r_end);
+		}
+	}
 	/* Now do we consume the whole thing? */
 	if (SEQ_GEQ(th_ack, rsm->r_end)) {
 		/* Its all consumed. */
@@ -9059,12 +9405,44 @@ static void
 rack_note_dsack(struct tcp_rack *rack, tcp_seq start, tcp_seq end)
 {
 
-	uint32_t am;
+	uint32_t am, l_end;
 
 	if (SEQ_GT(end, start))
 		am = end - start;
 	else
 		am = 0;
+	if ((rack->rc_last_tlp_acked_set ) &&
+	    (SEQ_GEQ(start, rack->r_ctl.last_tlp_acked_start)) &&
+	    (SEQ_LEQ(end, rack->r_ctl.last_tlp_acked_end))) {
+		/*
+		 * The DSACK is because of a TLP which we don't
+		 * do anything with the reordering window over since
+		 * it was not reordering that caused the DSACK but
+		 * our previous retransmit TLP.
+		 */
+		rack_log_dsack_event(rack, 7, __LINE__, start, end);
+		goto skip_dsack_round;
+	}
+	if (rack->rc_last_sent_tlp_seq_valid) {
+		l_end = rack->r_ctl.last_sent_tlp_seq + rack->r_ctl.last_sent_tlp_len;
+		if (SEQ_GEQ(start, rack->r_ctl.last_sent_tlp_seq) &&
+		    (SEQ_LEQ(end, l_end))) {
+			/*
+			 * This dsack is from the last sent TLP, ignore it
+			 * for reordering purposes.
+			 */
+			rack_log_dsack_event(rack, 7, __LINE__, start, end);
+			goto skip_dsack_round;
+		}
+	}
+	if (rack->rc_dsack_round_seen == 0) {
+		rack->rc_dsack_round_seen = 1;
+		rack->r_ctl.dsack_round_end = rack->rc_tp->snd_max;
+		rack->r_ctl.num_dsack++;
+		rack->r_ctl.dsack_persist = 16;	/* 16 is from the standard */
+		rack_log_dsack_event(rack, 2, __LINE__, 0, 0);
+	}
+skip_dsack_round:
 	/*
 	 * We keep track of how many DSACK blocks we get
 	 * after a recovery incident.
@@ -9233,15 +9611,23 @@ rack_log_ack(struct tcpcb *tp, struct tcpopt *to, struct tcphdr *th, int entered
 		    SEQ_LEQ(sack.end, tp->snd_max)) {
 			sack_blocks[num_sack_blks] = sack;
 			num_sack_blks++;
-#ifdef NETFLIX_STATS
 		} else if (SEQ_LEQ(sack.start, th_ack) &&
 			   SEQ_LEQ(sack.end, th_ack)) {
+#ifdef NETFLIX_STATS
 			/*
 			 * Its a D-SACK block.
 			 */
 			tcp_record_dsack(sack.start, sack.end);
 #endif
 			rack_note_dsack(rack, sack.start, sack.end);
+		}
+	}
+	if (rack->rc_dsack_round_seen) {
+		/* Is the dsack roound over? */
+		if (SEQ_GEQ(th_ack, rack->r_ctl.dsack_round_end)) {
+			/* Yes it is */
+			rack->rc_dsack_round_seen = 0;
+			rack_log_dsack_event(rack, 3, __LINE__, 0, 0);
 		}
 	}
 	/*
@@ -9823,7 +10209,9 @@ rack_process_ack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			RACK_TCPT_RANGESET(tp->t_rxtcur, RACK_REXMTVAL(tp),
 				      rack_rto_min, rack_rto_max, rack->r_ctl.timer_slop);
 		}
-		if ((th->th_ack == tp->snd_una) && (tiwin == tp->snd_wnd)) {
+		if ((th->th_ack == tp->snd_una) &&
+		    (tiwin == tp->snd_wnd) &&
+		    ((to->to_flags & TOF_SACK) == 0)) {
 			rack_strike_dupack(rack);
 			dup_ack_struck = 1;
 		}
@@ -12043,9 +12431,7 @@ rack_init_fsb_block(struct tcpcb *tp, struct tcp_rack *rack)
 #ifdef INET
 	struct ip *ip = NULL;
 #endif
-#if defined(INET) || defined(INET6)
 	struct udphdr *udp = NULL;
-#endif
 
 	/* Ok lets fill in the fast block, it can only be used with no IP options! */
 #ifdef INET6
@@ -12069,7 +12455,6 @@ rack_init_fsb_block(struct tcpcb *tp, struct tcp_rack *rack)
 				  ip6, rack->r_ctl.fsb.th);
 	} else
 #endif				/* INET6 */
-#ifdef INET
 	{
 		rack->r_ctl.fsb.tcp_ip_hdr_len = sizeof(struct tcpiphdr);
 		ip = (struct ip *)rack->r_ctl.fsb.tcp_ip_hdr;
@@ -12089,7 +12474,6 @@ rack_init_fsb_block(struct tcpcb *tp, struct tcp_rack *rack)
 				  tp->t_port,
 				  ip, rack->r_ctl.fsb.th);
 	}
-#endif
 	rack->r_fsb_inited = 1;
 }
 
@@ -12245,6 +12629,14 @@ rack_init(struct tcpcb *tp)
 	rack->r_ctl.rc_time_of_last_probertt = us_cts;
 	rack->r_ctl.challenge_ack_ts = tcp_ts_getticks();
 	rack->r_ctl.rc_time_probertt_starts = 0;
+	if (rack_dsack_std_based & 0x1) {
+		/* Basically this means all rack timers are at least (srtt + 1/4 srtt) */
+		rack->rc_rack_tmr_std_based = 1;
+	}
+	if (rack_dsack_std_based & 0x2) {
+		/* Basically this means  rack timers are extended based on dsack by up to (2 * srtt) */
+		rack->rc_rack_use_dsack = 1;
+	}
 	/* We require at least one measurement, even if the sysctl is 0 */
 	if (rack_req_measurements)
 		rack->r_ctl.req_measurements = rack_req_measurements;
@@ -13122,7 +13514,6 @@ rack_do_compressed_ack_processing(struct tcpcb *tp, struct socket *so, struct mb
 			}
 		} else if (ae->ack_val_set == ACK_DUPACK) {
 			/* Case D */
-
 			rack_strike_dupack(rack);
 		} else if (ae->ack_val_set == ACK_RWND) {
 			/* Case C */
@@ -13172,6 +13563,14 @@ rack_do_compressed_ack_processing(struct tcpcb *tp, struct socket *so, struct mb
 					rack->r_ctl.act_rcv_time = *tv;
 				}
 				rack_process_to_cumack(tp, rack, ae->ack, cts, to);
+				if (rack->rc_dsack_round_seen) {
+					/* Is the dsack roound over? */
+					if (SEQ_GEQ(ae->ack, rack->r_ctl.dsack_round_end)) {
+						/* Yes it is */
+						rack->rc_dsack_round_seen = 0;
+						rack_log_dsack_event(rack, 3, __LINE__, 0, 0);
+					}
+				}
 			}
 		}
 		/* And lets be sure to commit the rtt measurements for this ack */
@@ -13609,13 +14008,6 @@ rack_do_segment_nounlock(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 * the scale is zero.
 	 */
 	tiwin = th->th_win << tp->snd_scale;
-	/*
-	 * Parse options on any incoming segment.
-	 */
-	memset(&to, 0, sizeof(to));
-	tcp_dooptions(&to, (u_char *)(th + 1),
-	    (th->th_off << 2) - sizeof(struct tcphdr),
-	    (thflags & TH_SYN) ? TO_SYN : 0);
 #ifdef TCP_ACCOUNTING
 	if (thflags & TH_ACK) {
 		/*
@@ -13639,6 +14031,13 @@ rack_do_segment_nounlock(struct mbuf *m, struct tcphdr *th, struct socket *so,
 						    ctf_fixed_maxseg(tp));
 	}
 #endif
+	/*
+	 * Parse options on any incoming segment.
+	 */
+	memset(&to, 0, sizeof(to));
+	tcp_dooptions(&to, (u_char *)(th + 1),
+	    (th->th_off << 2) - sizeof(struct tcphdr),
+	    (thflags & TH_SYN) ? TO_SYN : 0);
 	NET_EPOCH_ASSERT();
 	INP_WLOCK_ASSERT(tp->t_inpcb);
 	KASSERT(tp->t_state > TCPS_LISTEN, ("%s: TCPS_LISTEN",
@@ -13769,14 +14168,6 @@ rack_do_segment_nounlock(struct mbuf *m, struct tcphdr *th, struct socket *so,
 #endif
 		return (1);
 	}
-
-	/*
-	 * Parse options on any incoming segment.
-	 */
-	tcp_dooptions(&to, (u_char *)(th + 1),
-	    (th->th_off << 2) - sizeof(struct tcphdr),
-	    (thflags & TH_SYN) ? TO_SYN : 0);
-
 	/*
 	 * If timestamps were negotiated during SYN/ACK and a
 	 * segment without a timestamp is received, silently drop
@@ -15230,7 +15621,7 @@ rack_fast_rsm_output(struct tcpcb *tp, struct tcp_rack *rack, struct rack_sendma
 	struct tcpopt to;
 	u_char opt[TCP_MAXOLEN];
 	uint32_t hdrlen, optlen;
-	int32_t slot, segsiz, max_val, tso = 0, error = 0, flags, ulen = 0;
+	int32_t slot, segsiz, max_val, tso = 0, error, flags, ulen = 0;
 	uint32_t us_cts;
 	uint32_t if_hw_tsomaxsegcount = 0, startseq;
 	uint32_t if_hw_tsomaxsegsize;
@@ -15250,10 +15641,13 @@ rack_fast_rsm_output(struct tcpcb *tp, struct tcp_rack *rack, struct rack_sendma
 	if (tp->t_port && (V_tcp_udp_tunneling_port == 0)) {
 		goto failed;
 	}
-	if (rsm->r_flags & RACK_TLP)
-		doing_tlp = 1;
-	else if (doing_tlp)
+	if (doing_tlp) {
+		/* Its a TLP add the flag, it may already be there but be sure */
 		rsm->r_flags |= RACK_TLP;
+	} else {
+		/* If it was a TLP it is not not on this retransmit */
+		rsm->r_flags &= ~RACK_TLP;
+	}
 	startseq = rsm->r_start;
 	segsiz = min(ctf_fixed_maxseg(tp), rack->r_ctl.rc_pace_min_segs);
 	inp = rack->rc_inp;
@@ -15555,8 +15949,15 @@ rack_fast_rsm_output(struct tcpcb *tp, struct tcp_rack *rack, struct rack_sendma
 		rack->rc_tlp_in_progress = 1;
 		rack->r_ctl.rc_tlp_cnt_out++;
 	}
-	if (error == 0)
+	if (error == 0) {
 		tcp_account_for_send(tp, len, 1, doing_tlp, rsm->r_hw_tls);
+		if (doing_tlp) {
+			rack->rc_last_sent_tlp_past_cumack = 0;
+			rack->rc_last_sent_tlp_seq_valid = 1;
+			rack->r_ctl.last_sent_tlp_seq = rsm->r_start;
+			rack->r_ctl.last_sent_tlp_len = rsm->r_end - rsm->r_start;
+		}
+	}
 	tp->t_flags &= ~(TF_ACKNOW | TF_DELACK);
 	rack->forced_ack = 0;	/* If we send something zap the FA flag */
 	if (IN_FASTRECOVERY(tp->t_flags) && rsm)
@@ -15710,7 +16111,7 @@ rack_fast_output(struct tcpcb *tp, struct tcp_rack *rack, uint64_t ts_val,
 	u_char opt[TCP_MAXOLEN];
 	uint32_t hdrlen, optlen;
 	int cnt_thru = 1;
-	int32_t slot, segsiz, len, max_val, tso = 0, sb_offset, error = 0, flags, ulen = 0;
+	int32_t slot, segsiz, len, max_val, tso = 0, sb_offset, error, flags, ulen = 0;
 	uint32_t us_cts, s_soff;
 	uint32_t if_hw_tsomaxsegcount = 0, startseq;
 	uint32_t if_hw_tsomaxsegsize;
@@ -16123,9 +16524,9 @@ rack_output(struct tcpcb *tp)
 	long tot_len_this_send = 0;
 #ifdef INET
 	struct ip *ip = NULL;
+#endif
 #ifdef TCPDEBUG
 	struct ipovly *ipov = NULL;
-#endif
 #endif
 	struct udphdr *udp = NULL;
 	struct tcp_rack *rack;
@@ -16134,10 +16535,7 @@ rack_output(struct tcpcb *tp)
 	uint8_t mark = 0;
 	uint8_t wanted_cookie = 0;
 	u_char opt[TCP_MAXOLEN];
-	unsigned ipoptlen, optlen, hdrlen;
-#if defined(INET) || defined(INET6)
-	unsigned ulen=0;
-#endif
+	unsigned ipoptlen, optlen, hdrlen, ulen=0;
 	uint32_t rack_seq;
 
 #if defined(IPSEC) || defined(IPSEC_SUPPORT)
@@ -16420,7 +16818,6 @@ again:
 		/* Retransmit timer */
 		rsm = rack->r_ctl.rc_resend;
 		rack->r_ctl.rc_resend = NULL;
-		rsm->r_flags &= ~RACK_TLP;
 		len = rsm->r_end - rsm->r_start;
 		sack_rxmit = 1;
 		sendalot = 0;
@@ -16433,7 +16830,6 @@ again:
 			len = segsiz;
 	} else if ((rsm = tcp_rack_output(tp, rack, cts)) != NULL) {
 		/* We have a retransmit that takes precedence */
-		rsm->r_flags &= ~RACK_TLP;
 		if ((!IN_FASTRECOVERY(tp->t_flags)) &&
 		    ((tp->t_flags & TF_WASFRECOVERY) == 0)) {
 			/* Enter recovery if not induced by a time-out */
@@ -16476,8 +16872,8 @@ again:
 		 * went off.
 		 */
 		rsm = rack->r_ctl.rc_tlpsend;
+		/* We are doing a TLP make sure the flag is preent */
 		rsm->r_flags |= RACK_TLP;
-
 		rack->r_ctl.rc_tlpsend = NULL;
 		sack_rxmit = 1;
 		tlen = rsm->r_end - rsm->r_start;
@@ -17837,29 +18233,21 @@ send:
 #endif
 	if ((ipoptlen == 0) && (rack->r_ctl.fsb.tcp_ip_hdr) &&  rack->r_fsb_inited) {
 #ifdef INET6
-		if (isipv6) {
+		if (isipv6)
 			ip6 = (struct ip6_hdr *)rack->r_ctl.fsb.tcp_ip_hdr;
-		} else
+		else
 #endif				/* INET6 */
-		{
-#ifdef INET
 			ip = (struct ip *)rack->r_ctl.fsb.tcp_ip_hdr;
-#endif
-		}
 		th = rack->r_ctl.fsb.th;
 		udp = rack->r_ctl.fsb.udp;
 		if (udp) {
 #ifdef INET6
-			if (isipv6) {
+			if (isipv6)
 				ulen = hdrlen + len - sizeof(struct ip6_hdr);
-			} else
+			else
 #endif				/* INET6 */
-			{
-#ifdef INET
 				ulen = hdrlen + len - sizeof(struct ip);
-				udp->uh_ulen = htons(ulen);
-#endif
-			}
+			udp->uh_ulen = htons(ulen);
 		}
 	} else {
 #ifdef INET6
@@ -17878,7 +18266,6 @@ send:
 		} else
 #endif				/* INET6 */
 		{
-#ifdef INET
 			ip = mtod(m, struct ip *);
 #ifdef TCPDEBUG
 			ipov = (struct ipovly *)ip;
@@ -17893,7 +18280,6 @@ send:
 			} else
 				th = (struct tcphdr *)(ip + 1);
 			tcpip_fillheaders(inp, tp->t_port, ip, th);
-#endif				/* INET */
 		}
 	}
 	/*
@@ -17932,15 +18318,11 @@ send:
 		if (len > 0 && SEQ_GEQ(tp->snd_nxt, tp->snd_max) &&
 		    (sack_rxmit == 0)) {
 #ifdef INET6
-			if (isipv6) {
+			if (isipv6)
 				ip6->ip6_flow |= htonl(IPTOS_ECN_ECT0 << 20);
-			} else
+			else
 #endif
-			{
-#ifdef INET
 				ip->ip_tos |= IPTOS_ECN_ECT0;
-#endif
-			}
 			KMOD_TCPSTAT_INC(tcps_ecn_ect0);
 			/*
 			 * Reply with proper ECN notifications.
@@ -18045,9 +18427,7 @@ send:
 			ip6 = mtod(m, struct ip6_hdr *);
 		else
 #endif				/* INET6 */
-#ifdef INET
 			ip = mtod(m, struct ip *);
-#endif				/* INET */
 		th = (struct tcphdr *)(cpto + ((uint8_t *)rack->r_ctl.fsb.th - rack->r_ctl.fsb.tcp_ip_hdr));
 		/* If we have a udp header lets set it into the mbuf as well */
 		if (udp)
@@ -18172,7 +18552,10 @@ send:
 			else
 				log.u_bbr.flex8 = 1;
 		} else {
-			log.u_bbr.flex8 = 0;
+			if (doing_tlp)
+				log.u_bbr.flex8 = 3;
+			else
+				log.u_bbr.flex8 = 0;
 		}
 		log.u_bbr.pacing_gain = rack_get_output_gain(rack, rsm);
 		log.u_bbr.flex7 = mark;
@@ -18298,6 +18681,12 @@ out:
 	 */
 	if (error == 0) {
 		tcp_account_for_send(tp, len, (rsm != NULL), doing_tlp, hw_tls);
+		if (rsm && doing_tlp) {
+			rack->rc_last_sent_tlp_past_cumack = 0;
+			rack->rc_last_sent_tlp_seq_valid = 1;
+			rack->r_ctl.last_sent_tlp_seq = rsm->r_start;
+			rack->r_ctl.last_sent_tlp_len = rsm->r_end - rsm->r_start;
+		}
 		rack->forced_ack = 0;	/* If we send something zap the FA flag */
 		if (rsm && (doing_tlp == 0)) {
 			/* Set we retransmitted */
@@ -18343,9 +18732,12 @@ out:
 			rack->r_ctl.rc_prr_sndcnt = 0;
 	}
 	sub_from_prr = 0;
-	if (doing_tlp && (rsm == NULL)) {
-		/* New send doing a TLP */
+	if (doing_tlp) {
+		/* Make sure the TLP is added */
 		add_flag |= RACK_TLP;
+	} else if (rsm) {
+		/* If its a resend without TLP then it must not have the flag */
+		rsm->r_flags &= ~RACK_TLP;
 	}
 	rack_log_output(tp, &to, len, rack_seq, (uint8_t) flags, error,
 			rack_to_usec_ts(&tv),
@@ -18962,6 +19354,14 @@ rack_set_profile(struct tcp_rack *rack, int prof)
 				rack_set_cc_pacing(rack);
 		} else
 			rack->rc_always_pace = 0;
+		if (rack_dsack_std_based & 0x1) {
+			/* Basically this means all rack timers are at least (srtt + 1/4 srtt) */
+			rack->rc_rack_tmr_std_based = 1;
+		}
+		if (rack_dsack_std_based & 0x2) {
+			/* Basically this means  rack timers are extended based on dsack by up to (2 * srtt) */
+			rack->rc_rack_use_dsack = 1;
+		}
 		if (rack_use_cmp_acks)
 			rack->r_use_cmp_ack = 1;
 		else
@@ -19051,6 +19451,20 @@ rack_process_option(struct tcpcb *tp, struct tcp_rack *rack, int sopt_name,
 
 	switch (sopt_name) {
 
+	case TCP_RACK_DSACK_OPT:
+		RACK_OPTS_INC(tcp_rack_dsack_opt);
+		if (optval & 0x1) {
+			rack->rc_rack_tmr_std_based = 1;
+		} else {
+			rack->rc_rack_tmr_std_based = 0;
+		}
+		if (optval & 0x2) {
+			rack->rc_rack_use_dsack = 1;
+		} else {
+			rack->rc_rack_use_dsack = 0;
+		}
+		rack_log_dsack_event(rack, 5, __LINE__, 0, 0);
+		break;
 	case TCP_RACK_PACING_BETA:
 		RACK_OPTS_INC(tcp_rack_beta);
 		if (strcmp(tp->cc_algo->name, CCALGONAME_NEWRENO) != 0) {
@@ -19761,6 +20175,7 @@ rack_set_sockopt(struct socket *so, struct sockopt *sopt,
 	case TCP_REC_ABC_VAL:			/*  URL:reclabc */
 	case TCP_RACK_MEASURE_CNT:		/*  URL:measurecnt */
 	case TCP_DEFER_OPTIONS:			/*  URL:defer */
+	case TCP_RACK_DSACK_OPT:		/*  URL:dsack */
 	case TCP_RACK_PACING_BETA:		/*  URL:pacing_beta */
 	case TCP_RACK_PACING_BETA_ECN:		/*  URL:pacing_beta_ecn */
 	case TCP_RACK_TIMER_SLOP:		/*  URL:timer_slop */
@@ -19937,6 +20352,15 @@ rack_get_sockopt(struct socket *so, struct sockopt *sopt,
 				optval = ((struct newreno *)tp->ccv->cc_data)->beta_ecn;
 			else
 				error = EINVAL;
+		}
+		break;
+	case TCP_RACK_DSACK_OPT:
+		optval = 0;
+		if (rack->rc_rack_tmr_std_based) {
+			optval |= 1;
+		}
+		if (rack->rc_rack_use_dsack) {
+			optval |= 2;
 		}
 		break;
 	case TCP_FAST_RSM_HACK:

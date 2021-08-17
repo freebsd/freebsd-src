@@ -309,6 +309,7 @@ struct tcphdr {
 #define TCP_RACK_PACING_BETA 1138	/* Changing the beta for pacing */
 #define TCP_RACK_PACING_BETA_ECN 1139	/* Changing the beta for ecn with pacing */
 #define TCP_RACK_TIMER_SLOP 1140	/* Set or get the timer slop used */
+#define TCP_RACK_DSACK_OPT 1141		/* How do we setup rack timer DSACK options bit 1/2 */
 
 /* Start of reserved space for third-party user-settable options. */
 #define	TCP_VENDOR	SO_VENDOR
