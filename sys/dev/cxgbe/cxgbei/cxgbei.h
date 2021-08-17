@@ -125,8 +125,8 @@ ip_to_icp(struct icl_pdu *ip)
 }
 
 struct cxgbei_data {
-	u_int max_tx_pdu_len;
-	u_int max_rx_pdu_len;
+	u_int max_tx_data_len;
+	u_int max_rx_data_len;
 
 	u_int ddp_threshold;
 	struct ppod_region pr;

@@ -783,6 +783,7 @@ icl_cxgbei_conn_handoff(struct icl_conn *ic, int fd)
 	struct tcpcb *tp;
 	struct toepcb *toep;
 	cap_rights_t rights;
+	u_int max_rx_pdu_len, max_tx_pdu_len;
 	int error, max_iso_pdus;
 
 	MPASS(icc->icc_signature == CXGBEI_CONN_SIGNATURE);
@@ -828,6 +829,17 @@ icl_cxgbei_conn_handoff(struct icl_conn *ic, int fd)
 	icc->sc = fa.sc;
 	ci = icc->sc->iscsi_ulp_softc;
 
+	max_rx_pdu_len = ISCSI_BHS_SIZE + ic->ic_max_recv_data_segment_length;
+	max_tx_pdu_len = ISCSI_BHS_SIZE + ic->ic_max_send_data_segment_length;
+	if (ic->ic_header_crc32c) {
+		max_rx_pdu_len += ISCSI_HEADER_DIGEST_SIZE;
+		max_tx_pdu_len += ISCSI_HEADER_DIGEST_SIZE;
+	}
+	if (ic->ic_data_crc32c) {
+		max_rx_pdu_len += ISCSI_DATA_DIGEST_SIZE;
+		max_tx_pdu_len += ISCSI_DATA_DIGEST_SIZE;
+	}
+
 	inp = sotoinpcb(so);
 	INP_WLOCK(inp);
 	tp = intotcpcb(inp);
@@ -853,7 +865,7 @@ icl_cxgbei_conn_handoff(struct icl_conn *ic, int fd)
 
 		if (icc->sc->tt.iso && chip_id(icc->sc) >= CHELSIO_T5) {
 			max_iso_pdus = CXGBEI_MAX_ISO_PAYLOAD /
-			    ci->max_tx_pdu_len;
+			    max_tx_pdu_len;
 			ic->ic_hw_isomax = max_iso_pdus *
 			    ic->ic_max_send_data_segment_length;
 		} else
@@ -864,15 +876,15 @@ icl_cxgbei_conn_handoff(struct icl_conn *ic, int fd)
 		toep->ulpcb = icc;
 
 		send_iscsi_flowc_wr(icc->sc, toep,
-		    roundup(max_iso_pdus * ci->max_tx_pdu_len, tp->t_maxseg));
+		    roundup(max_iso_pdus * max_tx_pdu_len, tp->t_maxseg));
 		set_ulp_mode_iscsi(icc->sc, toep, icc->ulp_submode);
 		error = 0;
 	}
 	INP_WUNLOCK(inp);
 
 	if (error == 0) {
-		error = icl_cxgbei_setsockopt(ic, so, ci->max_tx_pdu_len,
-		    ci->max_rx_pdu_len);
+		error = icl_cxgbei_setsockopt(ic, so, max_tx_pdu_len,
+		    max_rx_pdu_len);
 	}
 
 	return (error);
@@ -1378,18 +1390,12 @@ cxgbei_limits(struct adapter *sc, void *arg)
 		ci = sc->iscsi_ulp_softc;
 		MPASS(ci != NULL);
 
-		/*
-		 * AHS is not supported by the kernel so we'll not account for
-		 * it either in our PDU len -> data segment len conversions.
-		 */
 
-		max_dsl = ci->max_rx_pdu_len - ISCSI_BHS_SIZE -
-		    ISCSI_HEADER_DIGEST_SIZE - ISCSI_DATA_DIGEST_SIZE;
+		max_dsl = ci->max_rx_data_len;
 		if (idl->idl_max_recv_data_segment_length > max_dsl)
 			idl->idl_max_recv_data_segment_length = max_dsl;
 
-		max_dsl = ci->max_tx_pdu_len - ISCSI_BHS_SIZE -
-		    ISCSI_HEADER_DIGEST_SIZE - ISCSI_DATA_DIGEST_SIZE;
+		max_dsl = ci->max_tx_data_len;
 		if (idl->idl_max_send_data_segment_length > max_dsl)
 			idl->idl_max_send_data_segment_length = max_dsl;
 	}
