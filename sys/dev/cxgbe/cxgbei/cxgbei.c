@@ -123,8 +123,13 @@ read_pdu_limits(struct adapter *sc, uint32_t *max_tx_data_len,
 	tx_len -= ISCSI_BHS_SIZE + ISCSI_HEADER_DIGEST_SIZE +
 	    ISCSI_DATA_DIGEST_SIZE;
 
-	*max_tx_data_len = rounddown2(tx_len, 512);
-	*max_rx_data_len = rounddown2(rx_len, 512);
+	if (chip_id(sc) == CHELSIO_T5) {
+		rx_len = rounddown2(rx_len, 512);
+		tx_len = rounddown2(tx_len, 512);
+	}
+
+	*max_tx_data_len = tx_len;
+	*max_rx_data_len = rx_len;
 }
 
 /*
