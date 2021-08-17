@@ -144,14 +144,14 @@ VNET_DEFINE(unsigned int, fw_tables_sets) = 0;	/* Don't use set-aware tables */
 /* Use 128 tables by default */
 static unsigned int default_fw_tables = IPFW_TABLES_DEFAULT;
 
+static int jump_lookup_pos(struct ip_fw_chain *chain, struct ip_fw *f, int num,
+    int tablearg, int jump_backwards);
 #ifndef LINEAR_SKIPTO
-static int jump_fast(struct ip_fw_chain *chain, struct ip_fw *f, int num,
+static int jump_cached(struct ip_fw_chain *chain, struct ip_fw *f, int num,
     int tablearg, int jump_backwards);
-#define	JUMP(ch, f, num, targ, back)	jump_fast(ch, f, num, targ, back)
+#define	JUMP(ch, f, num, targ, back)	jump_cached(ch, f, num, targ, back)
 #else
-static int jump_linear(struct ip_fw_chain *chain, struct ip_fw *f, int num,
-    int tablearg, int jump_backwards);
-#define	JUMP(ch, f, num, targ, back)	jump_linear(ch, f, num, targ, back)
+#define	JUMP(ch, f, num, targ, back)	jump_lookup_pos(ch, f, num, targ, back)
 #endif
 
 /*
@@ -1227,60 +1227,83 @@ set_match(struct ip_fw_args *args, int slot,
 	args->flags |= IPFW_ARGS_REF;
 }
 
+static int
+jump_lookup_pos(struct ip_fw_chain *chain, struct ip_fw *f, int num,
+    int tablearg, int jump_backwards)
+{
+	int f_pos, i;
+
+	i = IP_FW_ARG_TABLEARG(chain, num, skipto);
+	/* make sure we do not jump backward */
+	if (jump_backwards == 0 && i <= f->rulenum)
+		i = f->rulenum + 1;
+
+#ifndef LINEAR_SKIPTO
+	if (chain->idxmap != NULL)
+		f_pos = chain->idxmap[i];
+	else
+		f_pos = ipfw_find_rule(chain, i, 0);
+#else
+	f_pos = chain->idxmap[i];
+#endif /* LINEAR_SKIPTO */
+
+	return (f_pos);
+}
+
+
 #ifndef LINEAR_SKIPTO
 /*
  * Helper function to enable cached rule lookups using
- * cached_id and cached_pos fields in ipfw rule.
+ * cache.id and cache.pos fields in ipfw rule.
  */
 static int
-jump_fast(struct ip_fw_chain *chain, struct ip_fw *f, int num,
+jump_cached(struct ip_fw_chain *chain, struct ip_fw *f, int num,
     int tablearg, int jump_backwards)
 {
 	int f_pos;
 
-	/* If possible use cached f_pos (in f->cached_pos),
-	 * whose version is written in f->cached_id
-	 * (horrible hacks to avoid changing the ABI).
+	/* Can't use cache with IP_FW_TARG */
+	if (num == IP_FW_TARG)
+		return jump_lookup_pos(chain, f, num, tablearg, jump_backwards);
+
+	/*
+	 * If possible use cached f_pos (in f->cache.pos),
+	 * whose version is written in f->cache.id (horrible hacks
+	 * to avoid changing the ABI).
+	 *
+	 * Multiple threads can execute the same rule simultaneously,
+	 * we need to ensure that cache.pos is updated before cache.id.
 	 */
-	if (num != IP_FW_TARG && f->cached_id == chain->id)
-		f_pos = f->cached_pos;
-	else {
-		int i = IP_FW_ARG_TABLEARG(chain, num, skipto);
-		/* make sure we do not jump backward */
-		if (jump_backwards == 0 && i <= f->rulenum)
-			i = f->rulenum + 1;
-		if (chain->idxmap != NULL)
-			f_pos = chain->idxmap[i];
-		else
-			f_pos = ipfw_find_rule(chain, i, 0);
-		/* update the cache */
-		if (num != IP_FW_TARG) {
-			f->cached_id = chain->id;
-			f->cached_pos = f_pos;
-		}
+
+#ifdef __LP64__
+	struct ip_fw_jump_cache cache;
+
+	cache.raw_value = f->cache.raw_value;
+	if (cache.id == chain->id)
+		return (cache.pos);
+
+	f_pos = jump_lookup_pos(chain, f, num, tablearg, jump_backwards);
+
+	cache.pos = f_pos;
+	cache.id = chain->id;
+	f->cache.raw_value = cache.raw_value;
+#else
+	if (f->cache.id == chain->id) {
+		/* Load pos after id */
+		atomic_thread_fence_acq();
+		return (f->cache.pos);
 	}
 
+	f_pos = jump_lookup_pos(chain, f, num, tablearg, jump_backwards);
+
+	f->cache.pos = f_pos;
+	/* Store id after pos */
+	atomic_thread_fence_rel();
+	f->cache.id = chain->id;
+#endif /* !__LP64__ */
 	return (f_pos);
 }
-#else
-/*
- * Helper function to enable real fast rule lookups.
- */
-static int
-jump_linear(struct ip_fw_chain *chain, struct ip_fw *f, int num,
-    int tablearg, int jump_backwards)
-{
-	int f_pos;
-
-	num = IP_FW_ARG_TABLEARG(chain, num, skipto);
-	/* make sure we do not jump backward */
-	if (jump_backwards == 0 && num <= f->rulenum)
-		num = f->rulenum + 1;
-	f_pos = chain->idxmap[num];
-
-	return (f_pos);
-}
-#endif
+#endif /* !LINEAR_SKIPTO */
 
 #define	TARG(k, f)	IP_FW_ARG_TABLEARG(chain, k, f)
 /*
