@@ -162,6 +162,7 @@ rpz_rr_to_action(uint16_t rr_type, uint8_t* rdatawl, size_t rdatalen)
 		case LDNS_RR_TYPE_RRSIG:
 		case LDNS_RR_TYPE_NSEC:
 		case LDNS_RR_TYPE_NSEC3:
+		case LDNS_RR_TYPE_NSEC3PARAM:
 			return RPZ_INVALID_ACTION;
 		case LDNS_RR_TYPE_CNAME:
 			break;
@@ -479,8 +480,21 @@ rpz_insert_qname_trigger(struct rpz* r, uint8_t* dname, size_t dnamelen,
 	int newzone = 0;
 
 	if(a == RPZ_TCP_ONLY_ACTION || a == RPZ_INVALID_ACTION) {
-		verbose(VERB_ALGO, "RPZ: skipping unsupported action: %s",
-			rpz_action_to_string(a));
+		char str[255+1];
+		if(rrtype == LDNS_RR_TYPE_SOA || rrtype == LDNS_RR_TYPE_NS ||
+			rrtype == LDNS_RR_TYPE_DNAME ||
+			rrtype == LDNS_RR_TYPE_DNSKEY ||
+			rrtype == LDNS_RR_TYPE_RRSIG ||
+			rrtype == LDNS_RR_TYPE_NSEC ||
+			rrtype == LDNS_RR_TYPE_NSEC3PARAM ||
+			rrtype == LDNS_RR_TYPE_NSEC3 ||
+			rrtype == LDNS_RR_TYPE_DS) {
+			free(dname);
+			return; /* no need to log these types as unsupported */
+		}
+		dname_str(dname, str);
+		verbose(VERB_ALGO, "RPZ: qname trigger, %s skipping unsupported action: %s",
+			str, rpz_action_to_string(a));
 		free(dname);
 		return;
 	}
@@ -552,8 +566,10 @@ rpz_insert_response_ip_trigger(struct rpz* r, uint8_t* dname, size_t dnamelen,
 
 	if(a == RPZ_TCP_ONLY_ACTION || a == RPZ_INVALID_ACTION ||
 		respa == respip_invalid) {
-		verbose(VERB_ALGO, "RPZ: skipping unsupported action: %s",
-			rpz_action_to_string(a));
+		char str[255+1];
+		dname_str(dname, str);
+		verbose(VERB_ALGO, "RPZ: respip trigger, %s skipping unsupported action: %s",
+			str, rpz_action_to_string(a));
 		return 0;
 	}
 
@@ -702,7 +718,7 @@ rpz_find_zone(struct rpz* r, uint8_t* qname, size_t qname_len, uint16_t qclass,
 	 * zone match, append '*' to that and do another lookup. */
 
 	ce = dname_get_shared_topdomain(z->name, qname);
-	if(!ce /* should not happen */ || !*ce /* root */) {
+	if(!ce /* should not happen */) {
 		lock_rw_unlock(&z->lock);
 		if(zones_keep_lock) {
 			lock_rw_unlock(&r->local_zones->lock);

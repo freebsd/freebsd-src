@@ -790,3 +790,18 @@ int sldns_b64url_pton(char const *src, size_t srcsize, uint8_t *target,
 	}
 	return sldns_b64_pton_base(src, srcsize, target, targsize, 1);
 }
+
+int sldns_b64_contains_nonurl(char const *src, size_t srcsize)
+{
+	const char* s = src;
+	while(*s && srcsize) {
+		char d = *s++;
+		srcsize--;
+		/* the '+' and the '/' and padding '=' is not allowed in b64
+		 * url encoding */
+		if(d == '+' || d == '/' || d == '=') {
+			return 1;
+		}
+	}
+	return 0;
+}

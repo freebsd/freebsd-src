@@ -151,6 +151,17 @@ generate_request(struct module_qstate* qstate, int id, uint8_t* name,
 	ask.qclass = qclass;
 	ask.local_alias = NULL;
 	log_query_info(VERB_ALGO, "ipsecmod: generate request", &ask);
+
+	/* Explicitly check for cycle before trying to attach. Will result in
+	 * cleaner error message. The attach_sub code also checks for cycle but the
+	 * message will be out of memory in both cases then. */
+	fptr_ok(fptr_whitelist_modenv_detect_cycle(qstate->env->detect_cycle));
+	if((*qstate->env->detect_cycle)(qstate, &ask,
+		(uint16_t)(BIT_RD|flags), 0, 0)) {
+		verbose(VERB_ALGO, "Could not generate request: cycle detected");
+		return 0;
+	}
+
 	fptr_ok(fptr_whitelist_modenv_attach_sub(qstate->env->attach_sub));
 	if(!(*qstate->env->attach_sub)(qstate, &ask,
 		(uint16_t)(BIT_RD|flags), 0, 0, &newq)){
@@ -408,6 +419,7 @@ ipsecmod_handle_query(struct module_qstate* qstate,
 			if(!qstate->env->cfg->ipsecmod_ignore_bogus &&
 				rrset_data->security == sec_status_bogus) {
 				log_err("ipsecmod: bogus IPSECKEY");
+				errinf(qstate, "ipsecmod: bogus IPSECKEY");
 				ipsecmod_error(qstate, id);
 				return;
 			}
@@ -415,6 +427,7 @@ ipsecmod_handle_query(struct module_qstate* qstate,
 			if(!call_hook(qstate, iq, ie) &&
 				qstate->env->cfg->ipsecmod_strict) {
 				log_err("ipsecmod: ipsecmod-hook failed");
+				errinf(qstate, "ipsecmod: ipsecmod-hook failed");
 				ipsecmod_error(qstate, id);
 				return;
 			}
@@ -486,6 +499,7 @@ ipsecmod_handle_response(struct module_qstate* qstate,
 			qstate->qinfo.qname_len, LDNS_RR_TYPE_IPSECKEY,
 			qstate->qinfo.qclass, 0)) {
 			log_err("ipsecmod: could not generate subquery.");
+			errinf(qstate, "ipsecmod: could not generate subquery.");
 			ipsecmod_error(qstate, id);
 		}
 		return;
@@ -509,6 +523,7 @@ ipsecmod_operate(struct module_qstate* qstate, enum module_ev event, int id,
 	if((event == module_event_new || event == module_event_pass) &&
 		iq == NULL) {
 		if(!ipsecmod_new(qstate, id)) {
+			errinf(qstate, "ipsecmod: could not ipsecmod_new");
 			ipsecmod_error(qstate, id);
 			return;
 		}
@@ -531,6 +546,7 @@ ipsecmod_operate(struct module_qstate* qstate, enum module_ev event, int id,
 	}
 	if(event == module_event_error) {
 		verbose(VERB_ALGO, "got called with event error, giving up");
+		errinf(qstate, "ipsecmod: got called with event error");
 		ipsecmod_error(qstate, id);
 		return;
 	}
@@ -541,6 +557,7 @@ ipsecmod_operate(struct module_qstate* qstate, enum module_ev event, int id,
 	}
 
 	log_err("ipsecmod: bad event %s", strmodulevent(event));
+	errinf(qstate, "ipsecmod: operate got bad event");
 	ipsecmod_error(qstate, id);
 	return;
 }

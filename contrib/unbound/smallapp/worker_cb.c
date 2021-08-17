@@ -1,5 +1,5 @@
 /*
- * checkconf/worker_cb.c - fake callback routines to make fptr_wlist work
+ * smallapp/worker_cb.c - fake callback routines to make fptr_wlist work
  *
  * Copyright (c) 2007, NLnet Labs. All rights reserved.
  *
@@ -60,14 +60,6 @@ void worker_handle_control_cmd(struct tube* ATTR_UNUSED(tube),
 int worker_handle_request(struct comm_point* ATTR_UNUSED(c), 
 	void* ATTR_UNUSED(arg), int ATTR_UNUSED(error),
         struct comm_reply* ATTR_UNUSED(repinfo))
-{
-	log_assert(0);
-	return 0;
-}
-
-int worker_handle_reply(struct comm_point* ATTR_UNUSED(c), 
-	void* ATTR_UNUSED(arg), int ATTR_UNUSED(error),
-        struct comm_reply* ATTR_UNUSED(reply_info))
 {
 	log_assert(0);
 	return 0;
@@ -141,14 +133,6 @@ struct outbound_entry* libworker_send_query(
 	socklen_t ATTR_UNUSED(addrlen), uint8_t* ATTR_UNUSED(zone),
 	size_t ATTR_UNUSED(zonelen), int ATTR_UNUSED(ssl_upstream),
 	char* ATTR_UNUSED(tls_auth_name), struct module_qstate* ATTR_UNUSED(q))
-{
-	log_assert(0);
-	return 0;
-}
-
-int libworker_handle_reply(struct comm_point* ATTR_UNUSED(c), 
-	void* ATTR_UNUSED(arg), int ATTR_UNUSED(error),
-        struct comm_reply* ATTR_UNUSED(reply_info))
 {
 	log_assert(0);
 	return 0;

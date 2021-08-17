@@ -28,6 +28,9 @@
 /* Whether daemon is deprecated */
 #undef DEPRECATED_DAEMON
 
+/* Deprecate RSA 1024 bit length, makes that an unsupported key */
+#undef DEPRECATE_RSA_1024
+
 /* Define this to enable kernel based UDP source port randomization. */
 #undef DISABLE_EXPLICIT_PORT_RANDOMISATION
 
@@ -426,6 +429,9 @@
 /* Define to 1 if you have the `OPENSSL_init_ssl' function. */
 #undef HAVE_OPENSSL_INIT_SSL
 
+/* Define to 1 if you have the <openssl/param_build.h> header file. */
+#undef HAVE_OPENSSL_PARAM_BUILD_H
+
 /* Define to 1 if you have the <openssl/rand.h> header file. */
 #undef HAVE_OPENSSL_RAND_H
 
@@ -434,6 +440,9 @@
 
 /* Define to 1 if you have the <openssl/ssl.h> header file. */
 #undef HAVE_OPENSSL_SSL_H
+
+/* Define to 1 if you have the `OSSL_PARAM_BLD_new' function. */
+#undef HAVE_OSSL_PARAM_BLD_NEW
 
 /* Define if you have POSIX threads libraries and header files. */
 #undef HAVE_PTHREAD
@@ -516,6 +525,9 @@
 /* Define if you have the SSL libraries installed. */
 #undef HAVE_SSL
 
+/* Define to 1 if you have the `SSL_CTX_set_alpn_protos' function. */
+#undef HAVE_SSL_CTX_SET_ALPN_PROTOS
+
 /* Define to 1 if you have the `SSL_CTX_set_alpn_select_cb' function. */
 #undef HAVE_SSL_CTX_SET_ALPN_SELECT_CB
 
@@ -529,8 +541,14 @@
    function. */
 #undef HAVE_SSL_CTX_SET_TLSEXT_TICKET_KEY_EVP_CB
 
+/* Define to 1 if you have the `SSL_get0_alpn_selected' function. */
+#undef HAVE_SSL_GET0_ALPN_SELECTED
+
 /* Define to 1 if you have the `SSL_get0_peername' function. */
 #undef HAVE_SSL_GET0_PEERNAME
+
+/* Define to 1 if you have the `SSL_get1_peer_certificate' function. */
+#undef HAVE_SSL_GET1_PEER_CERTIFICATE
 
 /* Define to 1 if you have the `SSL_set1_host' function. */
 #undef HAVE_SSL_SET1_HOST
@@ -846,6 +864,14 @@
 
 /* Define if you enable libevent */
 #undef USE_LIBEVENT
+
+/* Define this to enable use of /proc/sys/net/ipv4/ip_local_port_range as a
+   default outgoing port range. This is only for the libunbound on Linux and
+   does not affect unbound resolving daemon itself. This may severely limit
+   the number of available outgoing ports and thus decrease randomness. Define
+   this only when the target system restricts (e.g. some of SELinux enabled
+   distributions) the use of non-ephemeral ports. */
+#undef USE_LINUX_IP_LOCAL_PORT_RANGE
 
 /* Define if you want to use internal select based events */
 #undef USE_MINI_EVENT

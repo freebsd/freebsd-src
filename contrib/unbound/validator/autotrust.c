@@ -1077,6 +1077,17 @@ trustanchor_state2str(autr_state_type s)
         return " UNKNOWN ";
 }
 
+/** ctime r for autotrust */
+static char* autr_ctime_r(time_t* t, char* s)
+{
+	ctime_r(t, s);
+#ifdef USE_WINSOCK
+	if(strlen(s) > 10 && s[7]==' ' && s[8]=='0')
+		s[8]=' '; /* fix error in windows ctime */
+#endif
+	return s;
+}
+
 /** print ID to file */
 static int
 print_id(FILE* out, char* fname, uint8_t* nm, size_t nmlen, uint16_t dclass)
@@ -1123,13 +1134,13 @@ autr_write_contents(FILE* out, char* fn, struct trust_anchor* tp)
 	}
 	if(fprintf(out, ";;last_queried: %u ;;%s", 
 		(unsigned int)tp->autr->last_queried, 
-		ctime_r(&(tp->autr->last_queried), tmi)) < 0 ||
+		autr_ctime_r(&(tp->autr->last_queried), tmi)) < 0 ||
 	   fprintf(out, ";;last_success: %u ;;%s", 
 		(unsigned int)tp->autr->last_success,
-		ctime_r(&(tp->autr->last_success), tmi)) < 0 ||
+		autr_ctime_r(&(tp->autr->last_success), tmi)) < 0 ||
 	   fprintf(out, ";;next_probe_time: %u ;;%s", 
 		(unsigned int)tp->autr->next_probe_time,
-		ctime_r(&(tp->autr->next_probe_time), tmi)) < 0 ||
+		autr_ctime_r(&(tp->autr->next_probe_time), tmi)) < 0 ||
 	   fprintf(out, ";;query_failed: %d\n", (int)tp->autr->query_failed)<0
 	   || fprintf(out, ";;query_interval: %d\n", 
 	   (int)tp->autr->query_interval) < 0 ||
@@ -1160,7 +1171,7 @@ autr_write_contents(FILE* out, char* fn, struct trust_anchor* tp)
 			";;lastchange=%u ;;%s", str, (int)ta->s, 
 			trustanchor_state2str(ta->s), (int)ta->pending_count,
 			(unsigned int)ta->last_change, 
-			ctime_r(&(ta->last_change), tmi)) < 0) {
+			autr_ctime_r(&(ta->last_change), tmi)) < 0) {
 		   log_err("could not write to %s: %s", fn, strerror(errno));
 		   free(str);
 		   return 0;
@@ -1579,6 +1590,7 @@ key_matches_a_ds(struct module_env* env, struct val_env* ve,
 	for(ds_idx=0; ds_idx<num; ds_idx++) {
 		if(!ds_digest_algo_is_supported(ds_rrset, ds_idx) ||
 			!ds_key_algo_is_supported(ds_rrset, ds_idx) ||
+			!dnskey_size_is_supported(dnskey_rrset, key_idx) ||
 			ds_get_digest_algo(ds_rrset, ds_idx) != d)
 			continue;
 		if(ds_get_key_algo(ds_rrset, ds_idx)
@@ -1633,7 +1645,8 @@ update_events(struct module_env* env, struct val_env* ve,
 		}
 		/* is a key of this type supported?. Note rr_list and
 		 * packed_rrset are in the same order. */
-		if(!dnskey_algo_is_supported(dnskey_rrset, i)) {
+		if(!dnskey_algo_is_supported(dnskey_rrset, i) ||
+			!dnskey_size_is_supported(dnskey_rrset, i)) {
 			/* skip unknown algorithm key, it is useless to us */
 			log_nametypeclass(VERB_DETAIL, "trust point has "
 				"unsupported algorithm at", 
@@ -2262,7 +2275,7 @@ autr_debug_print_ta(struct autr_ta* ta)
 		return;
 	}
 	if(str[0]) str[strlen(str)-1]=0; /* remove newline */
-	ctime_r(&ta->last_change, buf);
+	(void)autr_ctime_r(&ta->last_change, buf);
 	if(buf[0]) buf[strlen(buf)-1]=0; /* remove newline */
 	log_info("[%s] %s ;;state:%d ;;pending_count:%d%s%s last:%s",
 		trustanchor_state2str(ta->s), str, ta->s, ta->pending_count,
@@ -2289,13 +2302,13 @@ autr_debug_print_tp(struct trust_anchor* tp)
 		log_packed_rrset(NO_VERBOSE, "DNSKEY:", tp->dnskey_rrset);
 	}
 	log_info("file %s", tp->autr->file);
-	ctime_r(&tp->autr->last_queried, buf);
+	(void)autr_ctime_r(&tp->autr->last_queried, buf);
 	if(buf[0]) buf[strlen(buf)-1]=0; /* remove newline */
 	log_info("last_queried: %u %s", (unsigned)tp->autr->last_queried, buf);
-	ctime_r(&tp->autr->last_success, buf);
+	(void)autr_ctime_r(&tp->autr->last_success, buf);
 	if(buf[0]) buf[strlen(buf)-1]=0; /* remove newline */
 	log_info("last_success: %u %s", (unsigned)tp->autr->last_success, buf);
-	ctime_r(&tp->autr->next_probe_time, buf);
+	(void)autr_ctime_r(&tp->autr->next_probe_time, buf);
 	if(buf[0]) buf[strlen(buf)-1]=0; /* remove newline */
 	log_info("next_probe_time: %u %s", (unsigned)tp->autr->next_probe_time,
 		buf);

@@ -53,21 +53,69 @@ on 1 byte), but shoehorning those bytes into integers efficiently is messy.
 #include "util/storage/lookup3.h"
 #include <stdio.h>      /* defines printf for tests */
 #include <time.h>       /* defines time_t for timings in the test */
-/*#include <stdint.h>     defines uint32_t etc  (from config.h) */
-#include <sys/param.h>  /* attempt to define endianness */
-#ifdef HAVE_SYS_TYPES_H
-# include <sys/types.h> /* attempt to define endianness (solaris) */
-#endif
-#if defined(linux) || defined(__OpenBSD__)
+
+/*
+ * If our build system provides endianness info, signalled by
+ * HAVE_TARGET_ENDIANNESS and the presence or absence of TARGET_IS_BIG_ENDIAN,
+ * use that. Otherwise try to work out the endianness.
+ */
+#if defined(HAVE_TARGET_ENDIANNESS)
+# if defined(TARGET_IS_BIG_ENDIAN)
+#  define HASH_LITTLE_ENDIAN 0
+#  define HASH_BIG_ENDIAN 1
+# else
+#  define HASH_LITTLE_ENDIAN 1
+#  define HASH_BIG_ENDIAN 0
+# endif
+#else
+# include <sys/param.h>  /* attempt to define endianness */
+# ifdef HAVE_SYS_TYPES_H
+#  include <sys/types.h> /* attempt to define endianness (solaris) */
+# endif
+# if defined(linux) || defined(__OpenBSD__)
 #  ifdef HAVE_ENDIAN_H
 #    include <endian.h>    /* attempt to define endianness */
 #  else
 #    include <machine/endian.h> /* on older OpenBSD */
 #  endif
-#endif
-#if defined(__FreeBSD__) || defined(__NetBSD__) || defined(__DragonFly__)
-#include <sys/endian.h> /* attempt to define endianness */
-#endif
+# endif
+# if defined(__FreeBSD__) || defined(__NetBSD__) || defined(__DragonFly__)
+#  include <sys/endian.h> /* attempt to define endianness */
+# endif
+  /*
+   * My best guess at if you are big-endian or little-endian.  This may
+   * need adjustment.
+   */
+# if (defined(__BYTE_ORDER) && defined(__LITTLE_ENDIAN) && \
+      __BYTE_ORDER == __LITTLE_ENDIAN) || \
+     (defined(i386) || defined(__i386__) || defined(__i486__) || \
+      defined(__i586__) || defined(__i686__) || defined(vax) || defined(MIPSEL) || defined(__x86))
+#  define HASH_LITTLE_ENDIAN 1
+#  define HASH_BIG_ENDIAN 0
+# elif (defined(__BYTE_ORDER) && defined(__BIG_ENDIAN) && \
+        __BYTE_ORDER == __BIG_ENDIAN) || \
+       (defined(sparc) || defined(__sparc) || defined(__sparc__) || defined(POWERPC) || defined(mc68000) || defined(sel))
+#  define HASH_LITTLE_ENDIAN 0
+#  define HASH_BIG_ENDIAN 1
+# elif defined(_MACHINE_ENDIAN_H_)
+  /* test for machine_endian_h protects failure if some are empty strings */
+#  if defined(_BYTE_ORDER) && defined(_BIG_ENDIAN) && _BYTE_ORDER == _BIG_ENDIAN
+#   define HASH_LITTLE_ENDIAN 0
+#   define HASH_BIG_ENDIAN 1
+#  endif
+#  if defined(_BYTE_ORDER) && defined(_LITTLE_ENDIAN) && _BYTE_ORDER == _LITTLE_ENDIAN
+#   define HASH_LITTLE_ENDIAN 1
+#   define HASH_BIG_ENDIAN 0
+#  endif /* _MACHINE_ENDIAN_H_ */
+# else
+#  define HASH_LITTLE_ENDIAN 0
+#  define HASH_BIG_ENDIAN 0
+# endif
+#endif /* defined(HAVE_TARGET_ENDIANNESS) */
+
+#define hashsize(n) ((uint32_t)1<<(n))
+#define hashmask(n) (hashsize(n)-1)
+#define rot(x,k) (((x)<<(k)) | ((x)>>(32-(k))))
 
 /* random initial value */
 static uint32_t raninit = (uint32_t)0xdeadbeef;
@@ -77,40 +125,6 @@ hash_set_raninit(uint32_t v)
 {
 	raninit = v;
 }
-
-/*
- * My best guess at if you are big-endian or little-endian.  This may
- * need adjustment.
- */
-#if (defined(__BYTE_ORDER) && defined(__LITTLE_ENDIAN) && \
-     __BYTE_ORDER == __LITTLE_ENDIAN) || \
-    (defined(i386) || defined(__i386__) || defined(__i486__) || \
-     defined(__i586__) || defined(__i686__) || defined(vax) || defined(MIPSEL) || defined(__x86))
-# define HASH_LITTLE_ENDIAN 1
-# define HASH_BIG_ENDIAN 0
-#elif (defined(__BYTE_ORDER) && defined(__BIG_ENDIAN) && \
-       __BYTE_ORDER == __BIG_ENDIAN) || \
-      (defined(sparc) || defined(__sparc) || defined(__sparc__) || defined(POWERPC) || defined(mc68000) || defined(sel))
-# define HASH_LITTLE_ENDIAN 0
-# define HASH_BIG_ENDIAN 1
-#elif defined(_MACHINE_ENDIAN_H_)
-/* test for machine_endian_h protects failure if some are empty strings */
-# if defined(_BYTE_ORDER) && defined(_BIG_ENDIAN) && _BYTE_ORDER == _BIG_ENDIAN
-#  define HASH_LITTLE_ENDIAN 0
-#  define HASH_BIG_ENDIAN 1
-# endif
-# if defined(_BYTE_ORDER) && defined(_LITTLE_ENDIAN) && _BYTE_ORDER == _LITTLE_ENDIAN
-#  define HASH_LITTLE_ENDIAN 1
-#  define HASH_BIG_ENDIAN 0
-# endif /* _MACHINE_ENDIAN_H_ */
-#else
-# define HASH_LITTLE_ENDIAN 0
-# define HASH_BIG_ENDIAN 0
-#endif
-
-#define hashsize(n) ((uint32_t)1<<(n))
-#define hashmask(n) (hashsize(n)-1)
-#define rot(x,k) (((x)<<(k)) | ((x)>>(32-(k))))
 
 /*
 -------------------------------------------------------------------------------

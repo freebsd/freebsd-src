@@ -59,6 +59,8 @@ struct reply_info;
 struct module_qstate;
 struct sock_list;
 struct ub_packed_rrset_key;
+struct module_stack;
+struct outside_network;
 
 /**
  * Process config options and set iterator module state.
@@ -130,7 +132,7 @@ struct dns_msg* dns_copy_msg(struct dns_msg* from, struct regional* regional);
  * 	can be prefetch-updates.
  * @param region: to copy modified (cache is better) rrs back to.
  * @param flags: with BIT_CD for dns64 AAAA translated queries.
- * @return void, because we are not interested in alloc errors,
+ * return void, because we are not interested in alloc errors,
  * 	the iterator and validator can operate on the results in their
  * 	scratch space (the qstate.region) and are not dependent on the cache.
  * 	It is useful to log the alloc failure (for the server operator),
@@ -380,9 +382,26 @@ int iter_dp_cangodown(struct query_info* qinfo, struct delegpt* dp);
  * Lookup if no_cache is set in stub or fwd.
  * @param qstate: query state with env with hints and fwds.
  * @param qinf: query name to lookup for.
+ * @param retdpname: returns NULL or the deepest enclosing name of fwd or stub.
+ * 	This is the name under which the closest lookup is going to happen.
+ * 	Used for NXDOMAIN checks, above that it is an nxdomain from a
+ * 	different server and zone. You can pass NULL to not get it.
+ * @param retdpnamelen: returns the length of the dpname.
  * @return true if no_cache is set in stub or fwd.
  */
 int iter_stub_fwd_no_cache(struct module_qstate *qstate,
-	struct query_info *qinf);
+	struct query_info *qinf, uint8_t** retdpname, size_t* retdpnamelen);
+
+/**
+ * Set support for IP4 and IP6 depending on outgoing interfaces
+ * in the outside network.  If none, no support, so no use to lookup
+ * the AAAA and then attempt to use it if there is no outgoing-interface
+ * for it.
+ * @param mods: modstack to find iterator module in.
+ * @param env: module env, find iterator module (if one) in there.
+ * @param outnet: outside network structure.
+ */
+void iterator_set_ip46_support(struct module_stack* mods,
+	struct module_env* env, struct outside_network* outnet);
 
 #endif /* ITERATOR_ITER_UTILS_H */

@@ -102,6 +102,18 @@ enum listen_type {
 	listen_type_http
 };
 
+/*
+ * socket properties (just like NSD nsd_socket structure definition)
+ */
+struct unbound_socket {
+	/** socket-address structure */
+        struct addrinfo *       addr;
+	/** socket descriptor returned by socket() syscall */
+        int                     s;
+	/** address family (AF_INET/IF_INET6) */
+        int                     fam;
+};
+
 /**
  * Single linked list to store shared ports that have been 
  * opened for use by all threads.
@@ -113,6 +125,8 @@ struct listen_port {
 	int fd;
 	/** type of file descriptor, udp or tcp */
 	enum listen_type ftype;
+	/** fill in unbpound_socket structure for every opened socket at Unbound startup */
+	struct unbound_socket* socket;
 };
 
 /**
@@ -136,16 +150,19 @@ struct listen_port* listening_ports_open(struct config_file* cfg,
  */
 void listening_ports_free(struct listen_port* list);
 
+struct config_strlist;
 /**
  * Resolve interface names in config and store result IP addresses
- * @param cfg: config
+ * @param ifs: array of interfaces.  The list of interface names, if not NULL.
+ * @param num_ifs: length of ifs array.
+ * @param list: if not NULL, this is used as the list of interface names.
  * @param resif: string array (malloced array of malloced strings) with
  * 	result.  NULL if cfg has none.
  * @param num_resif: length of resif.  Zero if cfg has zero num_ifs.
  * @return 0 on failure.
  */
-int resolve_interface_names(struct config_file* cfg, char*** resif,
-	int* num_resif);
+int resolve_interface_names(char** ifs, int num_ifs,
+	struct config_strlist* list, char*** resif, int* num_resif);
 
 /**
  * Create commpoints with for this thread for the shared ports.
@@ -423,5 +440,10 @@ int http2_submit_dns_response(void* v);
 #endif /* HAVE_NGHTTP2 */
 
 char* set_ip_dscp(int socket, int addrfamily, int ds);
+
+/** for debug and profiling purposes only
+ * @param ub_sock: the structure containing created socket info we want to print or log for
+ */
+void verbose_print_unbound_socket(struct unbound_socket* ub_sock);
 
 #endif /* LISTEN_DNSPORT_H */
