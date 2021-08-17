@@ -166,7 +166,7 @@ struct dn_pipe7 {        /* a pipe */
 	SLIST_ENTRY(dn_pipe7)    next;   /* linked list in a hash slot */
 
 	int pipe_nr ;       /* number   */
-	int bandwidth;      /* really, bytes/tick.  */
+	uint32_t bandwidth;      /* really, bytes/tick.  */
 	int delay ;         /* really, ticks    */
 
 	struct  mbuf *head, *tail ; /* packets in delay line */
@@ -231,7 +231,7 @@ struct dn_pipe8 {        /* a pipe */
 	SLIST_ENTRY(dn_pipe8)    next;   /* linked list in a hash slot */
 
 	int pipe_nr ;       /* number   */
-	int bandwidth;      /* really, bytes/tick.  */
+	uint32_t bandwidth;      /* really, bytes/tick.  */
 	int delay ;         /* really, ticks    */
 
 	struct  mbuf *head, *tail ; /* packets in delay line */
