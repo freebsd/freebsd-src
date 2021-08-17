@@ -247,6 +247,7 @@ struct rack_opts_stats {
 	uint64_t tcp_rack_beta;
 	uint64_t tcp_rack_beta_ecn;
 	uint64_t tcp_rack_timer_slop;
+	uint64_t tcp_rack_dsack_opt;
 };
 
 /* RTT shrink reasons */
@@ -384,12 +385,11 @@ struct rack_control {
 	uint32_t rc_prr_sndcnt;	/* Prr sndcnt Lock(a) */
 
 	uint32_t rc_sacked;	/* Tot sacked on scoreboard Lock(a) */
-	uint32_t xxx_rc_last_tlp_seq;	/* Last tlp sequence Lock(a) */
+	uint32_t last_sent_tlp_seq;	/* Last tlp sequence that was retransmitted Lock(a) */
 
 	uint32_t rc_prr_delivered;	/* during recovery prr var Lock(a) */
 	uint16_t rc_tlp_cnt_out;	/* count of times we have sent a TLP without new data */
-	uint16_t xxx_rc_tlp_seg_send_cnt;	/* Number of times we have TLP sent
-					 * rc_last_tlp_seq Lock(a) */
+	uint16_t last_sent_tlp_len;	/* Number of bytes in the last sent tlp */
 
 	uint32_t rc_loss_count;	/* How many bytes have been retransmitted
 				 * Lock(a) */
@@ -464,6 +464,8 @@ struct rack_control {
 	uint32_t rc_entry_gp_rtt;	/* Entry to PRTT gp-rtt */
 	uint32_t rc_loss_at_start;	/* At measurement window where was our lost value */
 
+	uint32_t dsack_round_end;	/* In a round of seeing a DSACK */
+	uint32_t num_dsack;		/* Count of dsack's seen  (1 per window)*/
 	uint32_t forced_ack_ts;
 	uint32_t rc_lower_rtt_us_cts;	/* Time our GP rtt was last lowered */
 	uint32_t rc_time_probertt_entered;
@@ -485,6 +487,8 @@ struct rack_control {
 	int32_t rc_scw_index;
 	uint32_t rc_tlp_threshold;	/* Socket option value Lock(a) */
 	uint32_t rc_last_timeout_snduna;
+	uint32_t last_tlp_acked_start;
+	uint32_t last_tlp_acked_end;
 	uint32_t challenge_ack_ts;
 	uint32_t challenge_ack_cnt;
 	uint32_t rc_min_to;	/* Socket option value Lock(a) */
@@ -503,6 +507,7 @@ struct rack_control {
 					 */
 	uint16_t rc_early_recovery_segs;	/* Socket option value Lock(a) */
 	uint16_t rc_reorder_shift;	/* Socket option value Lock(a) */
+	uint8_t dsack_persist;
 	uint8_t rc_no_push_at_mrtt;	/* No push when we exceed max rtt */
 	uint8_t num_measurements;	/* Number of measurements (up to 0xff, we freeze at 0xff)  */
 	uint8_t req_measurements;	/* How many measurements are required? */
@@ -552,8 +557,14 @@ struct tcp_rack {
 					      * Note this only happens if the cc name is newreno (CCALGONAME_NEWRENO).
 					      */
 
-		avail :2;
-	uint8_t avail_bytes;
+		rc_rack_tmr_std_based :1,
+		rc_rack_use_dsack: 1;
+	uint8_t rc_dsack_round_seen: 1,
+		rc_last_tlp_acked_set: 1,
+		rc_last_tlp_past_cumack: 1,
+		rc_last_sent_tlp_seq_valid: 1,
+		rc_last_sent_tlp_past_cumack: 1,
+		avail_bytes : 3;
 	uint32_t rc_rack_rtt;	/* RACK-RTT Lock(a) */
 	uint16_t r_mbuf_queue : 1,	/* Do we do mbuf queue for non-paced */
 		 rtt_limit_mul : 4,	/* muliply this by low rtt */

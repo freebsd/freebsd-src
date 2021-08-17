@@ -234,7 +234,8 @@ enum tcp_log_events {
 	TCP_LOG_HTTP_T,		/* logging of http request tracking 61 */
 	TCP_LOG_ACCOUNTING,	/* Log of TCP Accounting data 62 */
 	TCP_LOG_FSB,		/* FSB information 63 */
-	TCP_LOG_END		/* End (keep at end)                64 */
+	RACK_DSACK_HANDLING,	/* Handling of DSACK in rack for reordering window 64 */
+	TCP_LOG_END		/* End (keep at end)                65 */
 };
 
 enum tcp_log_states {
