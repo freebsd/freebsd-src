@@ -6126,7 +6126,7 @@ pf_test(int dir, int pflags, struct ifnet *ifp, struct mbuf **m0, struct inpcb *
 	int			 off, dirndx, pqid = 0;
 
 	PF_RULES_RLOCK_TRACKER;
-
+	KASSERT(dir == PF_IN || dir == PF_OUT, ("%s: bad direction %d\n", __func__, dir));
 	M_ASSERTPKTHDR(m);
 
 	if (!V_pf_status.running)
@@ -6575,6 +6575,7 @@ pf_test6(int dir, int pflags, struct ifnet *ifp, struct mbuf **m0, struct inpcb 
 	int			 off, terminal = 0, dirndx, rh_cnt = 0, pqid = 0;
 
 	PF_RULES_RLOCK_TRACKER;
+	KASSERT(dir == PF_IN || dir == PF_OUT, ("%s: bad direction %d\n", __func__, dir));
 	M_ASSERTPKTHDR(m);
 
 	if (!V_pf_status.running)
