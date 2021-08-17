@@ -495,6 +495,10 @@ specification. Some applications may be able to mitigate the replay risks in
 other ways and in such cases the built-in OpenSSL functionality is not required.
 Disabling anti-replay is equivalent to setting B<SSL_OP_NO_ANTI_REPLAY>.
 
+B<KTLS>: Enables kernel TLS if support has been compiled in, and it is supported
+by the negotiated ciphersuites and extensions. Equivalent to
+B<SSL_OP_ENABLE_KTLS>.
+
 =item B<VerifyMode>
 
 The B<value> argument is a comma separated list of flags to set.

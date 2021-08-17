@@ -114,22 +114,6 @@ enables this behaviour to allow interoperability with such broken
 implementations. Please note that setting this option breaks interoperability
 with correct implementations. This option only applies to DTLS over SCTP.
 
-=item SSL_MODE_NO_KTLS_TX
-
-Disable the use of the kernel TLS egress data-path.
-By default kernel TLS is enabled if it is supported by the negotiated ciphersuites
-and extensions and OpenSSL has been compiled with support for it.
-The kernel TLS data-path implements the record layer,
-and the crypto algorithm. The kernel will utilize the best hardware
-available for crypto. Using the kernel data-path should reduce the memory
-footprint of OpenSSL because no buffering is required. Also, the throughput
-should improve because data copy is avoided when user data is encrypted into
-kernel memory instead of the usual encrypt than copy to kernel.
-
-Kernel TLS might not support all the features of OpenSSL. For instance,
-renegotiation, and setting the maximum fragment size is not possible as of
-Linux 4.20.
-
 =back
 
 All modes are off by default except for SSL_MODE_AUTO_RETRY which is on by
@@ -150,7 +134,6 @@ L<SSL_write(3)>, L<SSL_get_error(3)>
 =head1 HISTORY
 
 SSL_MODE_ASYNC was added in OpenSSL 1.1.0.
-SSL_MODE_NO_KTLS_TX was first added to OpenSSL 3.0.0.
 
 =head1 COPYRIGHT
 
