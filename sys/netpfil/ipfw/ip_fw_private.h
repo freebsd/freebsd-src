@@ -265,6 +265,15 @@ struct tables_config;
  *  ACTION_PTR(r)	is the start of the first action (things to do
  *			once a rule matched).
  */
+struct ip_fw_jump_cache {
+	union {
+		struct {
+			uint32_t	id;
+			uint32_t	pos;
+		};
+		uint64_t	raw_value;
+	};
+};
 
 struct ip_fw {
 	uint16_t	act_ofs;	/* offset of action in 32-bit units */
@@ -273,10 +282,9 @@ struct ip_fw {
 	uint8_t		set;		/* rule set (0..31)		*/
 	uint8_t		flags;		/* currently unused		*/
 	counter_u64_t	cntr;		/* Pointer to rule counters	*/
+	struct ip_fw_jump_cache	cache;	/* used by jump_fast            */
 	uint32_t	timestamp;	/* tv_sec of last match		*/
 	uint32_t	id;		/* rule id			*/
-	uint32_t	cached_id;	/* used by jump_fast		*/
-	uint32_t	cached_pos;	/* used by jump_fast		*/
 	uint32_t	refcnt;		/* number of references		*/
 
 	struct ip_fw	*next;		/* linked list of deleted rules */
