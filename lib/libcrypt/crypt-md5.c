@@ -43,20 +43,25 @@ __FBSDID("$FreeBSD$");
  * UNIX password
  */
 
+#define MAGIC_LEN 3
+
 int
 crypt_md5(const char *pw, const char *salt, char *buffer)
 {
-	MD5_CTX	ctx,ctx1;
+	MD5_CTX ctx, ctx1;
 	unsigned long l;
-	int sl, pl;
-	u_int i;
+	size_t pl, sl;
+	size_t i;
 	u_char final[MD5_SIZE];
 	const char *ep;
 	static const char *magic = "$1$";
 
+	/* get the length of the password */
+	pl = strlen(pw);
+
 	/* If the salt starts with the magic string, skip that. */
-	if (!strncmp(salt, magic, strlen(magic)))
-		salt += strlen(magic);
+	if (!strncmp(salt, magic, MAGIC_LEN))
+		salt += MAGIC_LEN;
 
 	/* It stops at the first '$', max 8 chars */
 	for (ep = salt; *ep && *ep != '$' && ep < salt + 8; ep++)
@@ -68,37 +73,44 @@ crypt_md5(const char *pw, const char *salt, char *buffer)
 	MD5Init(&ctx);
 
 	/* The password first, since that is what is most unknown */
-	MD5Update(&ctx, (const u_char *)pw, strlen(pw));
+	MD5Update(&ctx, (const u_char *)pw, pl);
 
 	/* Then our magic string */
-	MD5Update(&ctx, (const u_char *)magic, strlen(magic));
+	MD5Update(&ctx, (const u_char *)magic, MAGIC_LEN);
 
 	/* Then the raw salt */
-	MD5Update(&ctx, (const u_char *)salt, (u_int)sl);
+	MD5Update(&ctx, (const u_char *)salt, sl);
 
 	/* Then just as many characters of the MD5(pw,salt,pw) */
 	MD5Init(&ctx1);
-	MD5Update(&ctx1, (const u_char *)pw, strlen(pw));
-	MD5Update(&ctx1, (const u_char *)salt, (u_int)sl);
-	MD5Update(&ctx1, (const u_char *)pw, strlen(pw));
+	MD5Update(&ctx1, (const u_char *)pw, pl);
+	MD5Update(&ctx1, (const u_char *)salt, sl);
+	MD5Update(&ctx1, (const u_char *)pw, pl);
 	MD5Final(final, &ctx1);
-	for(pl = (int)strlen(pw); pl > 0; pl -= MD5_SIZE)
-		MD5Update(&ctx, (const u_char *)final,
-		    (u_int)(pl > MD5_SIZE ? MD5_SIZE : pl));
+
+	for (i = pl / MD5_SIZE; i; --i) // pl >> 4
+		MD5Update(&ctx, (const u_char *)final, MD5_SIZE);
+
+	if ((i = pl % MD5_SIZE) != 0) // pl & 15
+		MD5Update(&ctx, (const u_char *)final, i);
 
 	/* Don't leave anything around in vm they could use. */
+#ifdef HAVE_MEMSET_S
+	memset_s(final, sizeof(final), 0, sizeof(final));
+#else
 	memset(final, 0, sizeof(final));
+#endif
 
 	/* Then something really weird... */
-	for (i = strlen(pw); i; i >>= 1)
-		if(i & 1)
-		    MD5Update(&ctx, (const u_char *)final, 1);
+	for (i = pl; i; i >>= 1)
+		if((i & 1) == 1)
+			MD5Update(&ctx, (const u_char *)final, 1);
 		else
-		    MD5Update(&ctx, (const u_char *)pw, 1);
+			MD5Update(&ctx, (const u_char *)pw, 1);
 
 	/* Now make the output string */
 	buffer = stpcpy(buffer, magic);
-	buffer = stpncpy(buffer, salt, (u_int)sl);
+	buffer = stpncpy(buffer, salt, sl);
 	*buffer++ = '$';
 
 	MD5Final(final, &ctx);
@@ -110,40 +122,45 @@ crypt_md5(const char *pw, const char *salt, char *buffer)
 	 */
 	for(i = 0; i < 1000; i++) {
 		MD5Init(&ctx1);
-		if(i & 1)
-			MD5Update(&ctx1, (const u_char *)pw, strlen(pw));
+		if((i & 1) == 1)
+			MD5Update(&ctx1, (const u_char *)pw, pl);
 		else
 			MD5Update(&ctx1, (const u_char *)final, MD5_SIZE);
 
 		if(i % 3)
-			MD5Update(&ctx1, (const u_char *)salt, (u_int)sl);
+			MD5Update(&ctx1, (const u_char *)salt, sl);
 
 		if(i % 7)
-			MD5Update(&ctx1, (const u_char *)pw, strlen(pw));
+			MD5Update(&ctx1, (const u_char *)pw, pl);
 
-		if(i & 1)
+		if((i & 1) == 1)
 			MD5Update(&ctx1, (const u_char *)final, MD5_SIZE);
 		else
-			MD5Update(&ctx1, (const u_char *)pw, strlen(pw));
+			MD5Update(&ctx1, (const u_char *)pw, pl);
 		MD5Final(final, &ctx1);
 	}
 
-	l = (final[ 0]<<16) | (final[ 6]<<8) | final[12];
+	l = (final[0] << 16) | (final[6] << 8) | final[12];
 	_crypt_to64(buffer, l, 4); buffer += 4;
-	l = (final[ 1]<<16) | (final[ 7]<<8) | final[13];
+	l = (final[1] << 16) | (final[7] << 8) | final[13];
 	_crypt_to64(buffer, l, 4); buffer += 4;
-	l = (final[ 2]<<16) | (final[ 8]<<8) | final[14];
+	l = (final[2] << 16) | (final[8] << 8) | final[14];
 	_crypt_to64(buffer, l, 4); buffer += 4;
-	l = (final[ 3]<<16) | (final[ 9]<<8) | final[15];
+	l = (final[3] << 16) | (final[9] << 8) | final[15];
 	_crypt_to64(buffer, l, 4); buffer += 4;
-	l = (final[ 4]<<16) | (final[10]<<8) | final[ 5];
+	l = (final[4] << 16) | (final[10] << 8) | final[5];
 	_crypt_to64(buffer, l, 4); buffer += 4;
 	l = final[11];
 	_crypt_to64(buffer, l, 2); buffer += 2;
 	*buffer = '\0';
 
 	/* Don't leave anything around in vm they could use. */
+	
+#ifdef HAVE_MEMSET_S
+	memset_s(final, sizeof(final), 0, sizeof(final));
+#else
 	memset(final, 0, sizeof(final));
+#endif
 
 	return (0);
 }

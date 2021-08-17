@@ -110,7 +110,7 @@ crypt_r(const char *passwd, const char *salt, struct crypt_data *data)
 	const struct crypt_format *cf;
 	int (*func)(const char *, const char *, char *);
 #ifdef HAS_DES
-	int len;
+	size_t len;
 #endif
 
 	for (cf = crypt_formats; cf->name != NULL; ++cf)

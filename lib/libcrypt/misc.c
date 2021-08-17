@@ -42,7 +42,7 @@ static char itoa64[] =		/* 0 ... 63 => ascii - 64 */
 void
 _crypt_to64(char *s, u_long v, int n)
 {
-	while (--n >= 0) {
+	for (; n > 0; n--) {
 		*s++ = itoa64[v&0x3f];
 		v >>= 6;
 	}
@@ -52,10 +52,9 @@ void
 b64_from_24bit(uint8_t B2, uint8_t B1, uint8_t B0, int n, char **cp)
 {
 	uint32_t w;
-	int i;
 
 	w = (B2 << 16) | (B1 << 8) | B0;
-	for (i = 0; i < n; i++) {
+	for (; n > 0; n--) {
 		**cp = itoa64[w&0x3f];
 		(*cp)++;
 		w >>= 6;

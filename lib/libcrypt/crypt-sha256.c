@@ -132,7 +132,7 @@ crypt_sha256(const char *key, const char *salt, char *buffer)
 	/* Take the binary representation of the length of the key and for
 	 * every 1 add the alternate sum, for every 0 the key. */
 	for (cnt = key_len; cnt > 0; cnt >>= 1)
-		if ((cnt & 1) != 0)
+		if ((cnt & 1) == 1)
 			SHA256_Update(&ctx, alt_result, 32);
 		else
 			SHA256_Update(&ctx, key, key_len);
@@ -183,21 +183,21 @@ crypt_sha256(const char *key, const char *salt, char *buffer)
 		SHA256_Init(&ctx);
 
 		/* Add key or last result. */
-		if ((cnt & 1) != 0)
+		if ((cnt & 1) == 1)
 			SHA256_Update(&ctx, p_bytes, key_len);
 		else
 			SHA256_Update(&ctx, alt_result, 32);
 
 		/* Add salt for numbers not divisible by 3. */
-		if (cnt % 3 != 0)
+		if (cnt % 3)
 			SHA256_Update(&ctx, s_bytes, salt_len);
 
 		/* Add key for numbers not divisible by 7. */
-		if (cnt % 7 != 0)
+		if (cnt % 7)
 			SHA256_Update(&ctx, p_bytes, key_len);
 
 		/* Add key or last result. */
-		if ((cnt & 1) != 0)
+		if ((cnt & 1) == 1)
 			SHA256_Update(&ctx, alt_result, 32);
 		else
 			SHA256_Update(&ctx, p_bytes, key_len);
