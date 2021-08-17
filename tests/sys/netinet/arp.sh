@@ -85,12 +85,48 @@ arp_del_success_cleanup() {
 	vnet_cleanup
 }
 
+atf_test_case "pending_delete_if" "cleanup"
+pending_delete_if_head() {
+	atf_set descr 'Test having pending link layer lookups on interface delete'
+	atf_set require.user root
+}
+
+pending_delete_if_body() {
+	vnet_init
+
+	jname="arp_pending_delete_if"
+	epair=$(vnet_mkepair)
+
+	ifconfig ${epair}b up
+
+	vnet_mkjail ${jname} ${epair}a
+	jexec ${jname} ifconfig ${epair}a 198.51.100.1/24
+	for i in `seq 2 200`
+	do
+		jexec ${jname} ping 198.51.100.${i} &
+	done
+
+	# Give the ping processes time to send their ARP requests
+	sleep 1
+
+	jexec ${jname} arp -an
+	jexec ${jname} killall ping
+
+	# Delete the interface. Test failure panics the machine.
+	ifconfig ${epair}b destroy
+}
+
+pending_delete_if_cleanup() {
+	vnet_cleanup
+}
+
 
 atf_init_test_cases()
 {
 
 	atf_add_test_case "arp_add_success"
 	atf_add_test_case "arp_del_success"
+	atf_add_test_case "pending_delete_if"
 }
 
 # end
