@@ -93,8 +93,14 @@ vfs_hash_get(const struct mount *mp, u_int hash, int flags, struct thread *td,
 			error = vget_finish(vp, flags, vs);
 			if (error == ENOENT && (flags & LK_NOWAIT) == 0)
 				break;
-			if (error)
+			if (error != 0)
 				return (error);
+			if (vp->v_hash != hash ||
+			    (fn != NULL && fn(vp, arg))) {
+				vput(vp);
+				/* Restart the bucket walk. */
+				break;
+			}
 			*vpp = vp;
 			return (0);
 		}
