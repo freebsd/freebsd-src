@@ -617,12 +617,18 @@ cachedb_extcache_store(struct module_qstate* qstate, struct cachedb_env* ie)
 static int
 cachedb_intcache_lookup(struct module_qstate* qstate)
 {
+	uint8_t* dpname=NULL;
+	size_t dpnamelen=0;
 	struct dns_msg* msg;
+	if(iter_stub_fwd_no_cache(qstate, &qstate->qinfo,
+		&dpname, &dpnamelen))
+		return 0; /* no cache for these queries */
 	msg = dns_cache_lookup(qstate->env, qstate->qinfo.qname,
 		qstate->qinfo.qname_len, qstate->qinfo.qtype,
 		qstate->qinfo.qclass, qstate->query_flags,
 		qstate->region, qstate->env->scratch,
-		1 /* no partial messages with only a CNAME */
+		1, /* no partial messages with only a CNAME */
+		dpname, dpnamelen
 		);
 	if(!msg && qstate->env->neg_cache &&
 		iter_qname_indicates_dnssec(qstate->env, &qstate->qinfo)) {

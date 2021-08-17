@@ -132,8 +132,17 @@ struct auth_zone {
 	/** for upstream: this zone answers queries that unbound intends to
 	 * send upstream. */
 	int for_upstream;
+	/** check ZONEMD records */
+	int zonemd_check;
+	/** reject absence of ZONEMD records */
+	int zonemd_reject_absence;
 	/** RPZ zones */
 	struct rpz* rpz;
+	/** store the env (worker thread specific) for the zonemd callbacks
+	 * from the mesh with the results of the lookup, if nonNULL, some
+	 * worker has already picked up the zonemd verification task and
+	 * this worker does not have to do it as well. */
+	struct module_env* zonemd_callback_env;
 	/** zone has been deleted */
 	int zone_deleted;
 	/** deletelist pointer, unused normally except during delete */
@@ -474,10 +483,13 @@ struct auth_zones* auth_zones_create(void);
  * @param cfg: config to apply.
  * @param setup: if true, also sets up values in the auth zones structure
  * @param is_rpz: set to 1 if at least one RPZ zone is configured.
+ * @param env: environment for offline verification.
+ * @param mods: modules in environment.
  * @return false on failure.
  */
 int auth_zones_apply_cfg(struct auth_zones* az, struct config_file* cfg,
-	int setup, int* is_rpz);
+	int setup, int* is_rpz, struct module_env* env,
+	struct module_stack* mods);
 
 /** initial pick up of worker timeouts, ties events to worker event loop
  * @param az: auth zones structure
@@ -625,6 +637,9 @@ int auth_zone_read_zonefile(struct auth_zone* z, struct config_file* cfg);
 /** find serial number of zone or false if none (no SOA record) */
 int auth_zone_get_serial(struct auth_zone* z, uint32_t* serial);
 
+/** Find auth_zone SOA and populate the values in xfr(soa values). */
+int xfr_find_soa(struct auth_zone* z, struct auth_xfer* xfr);
+
 /** compare auth_zones for sorted rbtree */
 int auth_zone_cmp(const void* z1, const void* z2);
 
@@ -684,5 +699,84 @@ void auth_xfer_transfer_lookup_callback(void* arg, int rcode,
  * 3.2.).
  */
 int compare_serial(uint32_t a, uint32_t b);
+
+/**
+ * Generate ZONEMD digest for the auth zone.
+ * @param z: the auth zone to digest.
+ * 	omits zonemd at apex and its RRSIG from the digest.
+ * @param scheme: the collation scheme to use.  Numbers as defined for ZONEMD.
+ * @param hashalgo: the hash algo, from the registry defined for ZONEMD type.
+ * @param hash: the result buffer.
+ * @param buflen: size of the result buffer, must be large enough. or the
+ * 	routine fails.
+ * @param resultlen: size of the hash in the result buffer of the result.
+ * @param region: temp region for allocs during canonicalisation.
+ * @param buf: temp buffer during canonicalisation.
+ * @param reason: failure reason, returns a string, NULL on success.
+ * @return false on failure.
+ */
+int auth_zone_generate_zonemd_hash(struct auth_zone* z, int scheme,
+	int hashalgo, uint8_t* hash, size_t buflen, size_t* resultlen,
+	struct regional* region, struct sldns_buffer* buf, char** reason);
+
+/** ZONEMD scheme definitions */
+#define ZONEMD_SCHEME_SIMPLE 1
+
+/** ZONEMD hash algorithm definition for SHA384 */
+#define ZONEMD_ALGO_SHA384 1
+/** ZONEMD hash algorithm definition for SHA512 */
+#define ZONEMD_ALGO_SHA512 2
+
+/** returns true if a zonemd hash algo is supported */
+int zonemd_hashalgo_supported(int hashalgo);
+/** returns true if a zonemd scheme is supported */
+int zonemd_scheme_supported(int scheme);
+
+/**
+ * Check ZONEMD digest for the auth zone.
+ * @param z: auth zone to digest.
+ * @param scheme: zonemd scheme.
+ * @param hashalgo: zonemd hash algorithm.
+ * @param hash: the hash to check.
+ * @param hashlen: length of hash buffer.
+ * @param region: temp region for allocs during canonicalisation.
+ * @param buf: temp buffer during canonicalisation.
+ * @param reason: string returned with failure reason.
+ * @return false on failure.
+ */
+int auth_zone_generate_zonemd_check(struct auth_zone* z, int scheme,
+	int hashalgo, uint8_t* hash, size_t hashlen, struct regional* region,
+	struct sldns_buffer* buf, char** reason);
+
+/**
+ * Perform ZONEMD checks and verification for the auth zone.
+ * This includes DNSSEC verification if applicable.
+ * @param z: auth zone to check.  Caller holds lock. wrlock.
+ * @param env: with temp region, buffer and config.
+ * @param mods: module stack for validator env.
+ * @param result: if not NULL, result string strdupped in here.
+ * @param offline: if true, there is no spawned lookup when online is needed.
+ * 	Those zones are skipped for ZONEMD checking.
+ * @param only_online: if true, only for ZONEMD that need online lookup
+ * 	of DNSKEY chain of trust are processed.
+ */
+void auth_zone_verify_zonemd(struct auth_zone* z, struct module_env* env,
+	struct module_stack* mods, char** result, int offline,
+	int only_online);
+
+/** mesh callback for zonemd on lookup of dnskey */
+void auth_zonemd_dnskey_lookup_callback(void* arg, int rcode,
+	struct sldns_buffer* buf, enum sec_status sec, char* why_bogus,
+	int was_ratelimited);
+
+/**
+ * Check the ZONEMD records that need online DNSSEC chain lookups,
+ * for them spawn the lookup process to get it checked out.
+ * Attaches the lookup process to the worker event base and mesh state.
+ * @param az: auth zones, every zones is checked.
+ * @param env: env of the worker where the task is attached.
+ */
+void auth_zones_pickup_zonemd_verify(struct auth_zones* az,
+	struct module_env* env);
 
 #endif /* SERVICES_AUTHZONE_H */

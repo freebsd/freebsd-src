@@ -1,0 +1,30 @@
+example.      86400   IN  SOA     ns1 admin 2018031900 (
+                                  1800 900 604800 86400 )
+example.      86400   IN  NS      ns1.example.
+example.      86400   IN  NS      ns2.example.
+example.      86400   IN  ZONEMD  2018031900 1 1 (
+                                  62e6cf51b02e54b9
+                                  b5f967d547ce4313
+                                  6792901f9f88e637
+                                  493daaf401c92c27
+                                  9dd10f0edb1c56f8
+                                  080211f8480ee306 )
+example.      86400   IN  ZONEMD  2018031900 1 2 (
+                                  08cfa1115c7b948c
+                                  4163a901270395ea
+                                  226a930cd2cbcf2f
+                                  a9a5e6eb85f37c8a
+                                  4e114d884e66f176
+                                  eab121cb02db7d65
+                                  2e0cc4827e7a3204
+                                  f166b47e5613fd27 )
+example.      86400   IN  ZONEMD  2018031900 1 240 (
+                                  e2d523f654b9422a
+                                  96c5a8f44607bbee )
+example.      86400   IN  ZONEMD  2018031900 241 1 (
+                                  e1846540e33a9e41
+                                  89792d18d5d131f6
+                                  05fc283e )
+ns1.example.  3600    IN  A       203.0.113.63
+ns2.example.  86400   IN  TXT     "This example has multiple digests"
+ns2.example.  3600    IN  AAAA    2001:db8::63

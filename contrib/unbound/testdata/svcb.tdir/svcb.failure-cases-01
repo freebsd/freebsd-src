@@ -1,0 +1,9 @@
+$ORIGIN failure-cases.
+$TTL 3600
+
+@       SOA     primary admin 0 0 0 0 0
+
+; Here there are multiple instances of the same SvcParamKey in the mandatory list
+
+f21	HTTPS   1 foo.example.com. ech="123"
+f21	HTTPS   1 foo.example.com. echconfig="123"

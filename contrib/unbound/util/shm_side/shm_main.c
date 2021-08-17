@@ -130,6 +130,7 @@ int shm_main_init(struct daemon* daemon)
 
 		/* Just release memory unused */
 		free(daemon->shm_info);
+		daemon->shm_info = NULL;
 
 		return 0;
 	}
@@ -143,6 +144,7 @@ int shm_main_init(struct daemon* daemon)
 
 		/* Just release memory unused */
 		free(daemon->shm_info);
+		daemon->shm_info = NULL;
 
 		return 0;
 	}
@@ -156,6 +158,7 @@ int shm_main_init(struct daemon* daemon)
 
 		/* Just release memory unused */
 		free(daemon->shm_info);
+		daemon->shm_info = NULL;
 
 		return 0;
 	}
@@ -170,6 +173,7 @@ int shm_main_init(struct daemon* daemon)
 
 		/* Just release memory unused */
 		free(daemon->shm_info);
+		daemon->shm_info = NULL;
 
 		return 0;
 	}
@@ -210,6 +214,8 @@ void shm_main_shutdown(struct daemon* daemon)
 	if (daemon->shm_info->ptr_arr)
 		shmdt(daemon->shm_info->ptr_arr);
 
+	free(daemon->shm_info);
+	daemon->shm_info = NULL;
 #else
 	(void)daemon;
 #endif /* HAVE_SHMGET */

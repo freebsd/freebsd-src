@@ -180,6 +180,23 @@ uint16_t ds_get_keytag(struct ub_packed_rrset_key* ds_rrset, size_t ds_idx);
 int dnskey_algo_is_supported(struct ub_packed_rrset_key* dnskey_rrset, 
 	size_t dnskey_idx);
 
+/**
+ * See if the DNSKEY size at that algorithm is supported.
+ * @param dnskey_rrset: DNSKEY rrset.
+ * @param dnskey_idx: index of RR in rrset.
+ * @return true if supported.
+ */
+int dnskey_size_is_supported(struct ub_packed_rrset_key* dnskey_rrset,
+	size_t dnskey_idx);
+
+/**
+ * See if the DNSKEY size at that algorithm is supported for all the
+ * RRs in the DNSKEY RRset.
+ * @param dnskey_rrset: DNSKEY rrset.
+ * @return true if supported.
+ */
+int dnskeyset_size_is_supported(struct ub_packed_rrset_key* dnskey_rrset);
+
 /** 
  * See if DS digest algorithm is supported 
  * @param ds_rrset: DS rrset
@@ -333,5 +350,17 @@ int canonical_tree_compare(const void* k1, const void* k2);
  */
 int rrset_canonical_equal(struct regional* region,
 	struct ub_packed_rrset_key* k1, struct ub_packed_rrset_key* k2);
+
+/**
+ * Canonicalize an rrset into the buffer.  For an auth zone record, so
+ * this does not use a signature, or the RRSIG TTL or the wildcard label
+ * count from the RRSIG.
+ * @param region: temporary region.
+ * @param buf: the buffer to use.
+ * @param k: the rrset to insert.
+ * @return false on alloc error.
+ */
+int rrset_canonicalize_to_buffer(struct regional* region,
+	struct sldns_buffer* buf, struct ub_packed_rrset_key* k);
 
 #endif /* VALIDATOR_VAL_SIGCRYPT_H */

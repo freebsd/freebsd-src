@@ -418,7 +418,7 @@ verify_dnskeys_with_ds_rr(struct module_env* env, struct val_env* ve,
 	struct module_qstate* qstate)
 {
 	enum sec_status sec = sec_status_bogus;
-	size_t i, num, numchecked = 0, numhashok = 0;
+	size_t i, num, numchecked = 0, numhashok = 0, numsizesupp = 0;
 	num = rrset_get_count(dnskey_rrset);
 	for(i=0; i<num; i++) {
 		/* Skip DNSKEYs that don't match the basic criteria. */
@@ -441,6 +441,11 @@ verify_dnskeys_with_ds_rr(struct module_env* env, struct val_env* ve,
 			continue;
 		}
 		numhashok++;
+		if(!dnskey_size_is_supported(dnskey_rrset, i)) {
+			verbose(VERB_ALGO, "DS okay but that DNSKEY size is not supported");
+			numsizesupp++;
+			continue;
+		}
 		verbose(VERB_ALGO, "DS match digest ok, trying signature");
 
 		/* Otherwise, we have a match! Make sure that the DNSKEY 
@@ -451,6 +456,10 @@ verify_dnskeys_with_ds_rr(struct module_env* env, struct val_env* ve,
 			return sec;
 		}
 		/* If it didn't validate with the DNSKEY, try the next one! */
+	}
+	if(numsizesupp != 0) {
+		/* there is a working DS, but that DNSKEY is not supported */
+		return sec_status_insecure;
 	}
 	if(numchecked == 0)
 		algo_needs_reason(env, ds_get_key_algo(ds_rrset, ds_idx),
@@ -519,17 +528,24 @@ val_verify_DNSKEY_with_DS(struct module_env* env, struct val_env* ve,
 			continue;
 		}
 
+		sec = verify_dnskeys_with_ds_rr(env, ve, dnskey_rrset,
+			ds_rrset, i, reason, qstate);
+		if(sec == sec_status_insecure)
+			continue;
+
 		/* Once we see a single DS with a known digestID and 
 		 * algorithm, we cannot return INSECURE (with a 
 		 * "null" KeyEntry). */
 		has_useful_ds = 1;
 
-		sec = verify_dnskeys_with_ds_rr(env, ve, dnskey_rrset, 
-			ds_rrset, i, reason, qstate);
 		if(sec == sec_status_secure) {
 			if(!sigalg || algo_needs_set_secure(&needs,
 				(uint8_t)ds_get_key_algo(ds_rrset, i))) {
 				verbose(VERB_ALGO, "DS matched DNSKEY.");
+				if(!dnskeyset_size_is_supported(dnskey_rrset)) {
+					verbose(VERB_ALGO, "DS works, but dnskeyset contain keys that are unsupported, treat as insecure");
+					return sec_status_insecure;
+				}
 				return sec_status_secure;
 			}
 		} else if(sigalg && sec == sec_status_bogus) {
@@ -631,17 +647,24 @@ val_verify_DNSKEY_with_TA(struct module_env* env, struct val_env* ve,
 			ds_get_digest_algo(ta_ds, i) != digest_algo)
 			continue;
 
+		sec = verify_dnskeys_with_ds_rr(env, ve, dnskey_rrset,
+			ta_ds, i, reason, qstate);
+		if(sec == sec_status_insecure)
+			continue;
+
 		/* Once we see a single DS with a known digestID and 
 		 * algorithm, we cannot return INSECURE (with a 
 		 * "null" KeyEntry). */
 		has_useful_ta = 1;
 
-		sec = verify_dnskeys_with_ds_rr(env, ve, dnskey_rrset, 
-			ta_ds, i, reason, qstate);
 		if(sec == sec_status_secure) {
 			if(!sigalg || algo_needs_set_secure(&needs,
 				(uint8_t)ds_get_key_algo(ta_ds, i))) {
 				verbose(VERB_ALGO, "DS matched DNSKEY.");
+				if(!dnskeyset_size_is_supported(dnskey_rrset)) {
+					verbose(VERB_ALGO, "trustanchor works, but dnskeyset contain keys that are unsupported, treat as insecure");
+					return sec_status_insecure;
+				}
 				return sec_status_secure;
 			}
 		} else if(sigalg && sec == sec_status_bogus) {
@@ -658,6 +681,8 @@ val_verify_DNSKEY_with_TA(struct module_env* env, struct val_env* ve,
 		/* Check to see if we can understand this DNSKEY */
 		if(!dnskey_algo_is_supported(ta_dnskey, i))
 			continue;
+		if(!dnskey_size_is_supported(ta_dnskey, i))
+			continue;
 
 		/* we saw a useful TA */
 		has_useful_ta = 1;
@@ -668,6 +693,10 @@ val_verify_DNSKEY_with_TA(struct module_env* env, struct val_env* ve,
 			if(!sigalg || algo_needs_set_secure(&needs,
 				(uint8_t)dnskey_get_algo(ta_dnskey, i))) {
 				verbose(VERB_ALGO, "anchor matched DNSKEY.");
+				if(!dnskeyset_size_is_supported(dnskey_rrset)) {
+					verbose(VERB_ALGO, "trustanchor works, but dnskeyset contain keys that are unsupported, treat as insecure");
+					return sec_status_insecure;
+				}
 				return sec_status_secure;
 			}
 		} else if(sigalg && sec == sec_status_bogus) {

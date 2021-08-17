@@ -75,10 +75,6 @@ struct outbound_entry* libworker_send_query(struct query_info* qinfo,
 	size_t zonelen, int ssl_upstream, char* tls_auth_name,
 	struct module_qstate* q);
 
-/** process incoming replies from the network */
-int libworker_handle_reply(struct comm_point* c, void* arg, int error,
-        struct comm_reply* reply_info);
-
 /** process incoming serviced query replies from the network */
 int libworker_handle_service_reply(struct comm_point* c, void* arg, int error,
         struct comm_reply* reply_info);
@@ -145,10 +141,6 @@ void worker_handle_control_cmd(struct tube* tube, uint8_t* msg, size_t len,
 /** handles callbacks from listening event interface */
 int worker_handle_request(struct comm_point* c, void* arg, int error,
 	struct comm_reply* repinfo);
-
-/** process incoming replies from the network */
-int worker_handle_reply(struct comm_point* c, void* arg, int error, 
-	struct comm_reply* reply_info);
 
 /** process incoming serviced query replies from the network */
 int worker_handle_service_reply(struct comm_point* c, void* arg, int error, 

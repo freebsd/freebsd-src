@@ -43,6 +43,7 @@
 #ifndef VALIDATOR_VAL_SECALGO_H
 #define VALIDATOR_VAL_SECALGO_H
 struct sldns_buffer;
+struct secalgo_hash;
 
 /** Return size of nsec3 hash algorithm, 0 if not supported */
 size_t nsec3_hash_algo_size_supported(int id);
@@ -66,6 +67,48 @@ int secalgo_nsec3_hash(int algo, unsigned char* buf, size_t len,
  * @param res: result is stored here (space 256/8 bytes).
  */
 void secalgo_hash_sha256(unsigned char* buf, size_t len, unsigned char* res);
+
+/**
+ * Start a hash of type sha384. Allocates structure, then inits it,
+ * so that a series of updates can be performed, before the final result.
+ * @return hash structure.  NULL on malloc failure or no support.
+ */
+struct secalgo_hash* secalgo_hash_create_sha384(void);
+
+/**
+ * Start a hash of type sha512. Allocates structure, then inits it,
+ * so that a series of updates can be performed, before the final result.
+ * @return hash structure.  NULL on malloc failure or no support.
+ */
+struct secalgo_hash* secalgo_hash_create_sha512(void);
+
+/**
+ * Update a hash with more information to add to it.
+ * @param hash: the hash that is updated.
+ * @param data: data to add.
+ * @param len: length of data.
+ * @return false on failure.
+ */
+int secalgo_hash_update(struct secalgo_hash* hash, uint8_t* data, size_t len);
+
+/**
+ * Get the final result of the hash.
+ * @param hash: the hash that has had updates to it.
+ * @param result: where to store the result.
+ * @param maxlen: length of the result buffer, eg. size of the allocation.
+ *	If not large enough the routine fails.
+ * @param resultlen: the length of the result, returned to the caller.
+ *	How much of maxlen is used.
+ * @return false on failure.
+ */
+int secalgo_hash_final(struct secalgo_hash* hash, uint8_t* result,
+	size_t maxlen, size_t* resultlen);
+
+/**
+ * Delete the hash structure.
+ * @param hash: the hash to delete.
+ */
+void secalgo_hash_delete(struct secalgo_hash* hash);
 
 /**
  * Return size of DS digest according to its hash algorithm.

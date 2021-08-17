@@ -38,5 +38,5 @@ char *ctime_r(const time_t *timep, char *buf)
 		strcpy(buf, result);
 	}
 	lock_basic_unlock(&ctime_lock);
-	return result;
+	return buf;
 }

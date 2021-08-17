@@ -1,0 +1,4 @@
+example.org. IN SOA ns.example.org. hostmaster.example.org. 200154054 28800 7200 604800 3600
+example.org. IN NS ns.example.org.
+www.example.org. IN A 127.0.0.1
+ns.example.org. IN A 127.0.0.1
