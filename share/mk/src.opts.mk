@@ -360,6 +360,13 @@ __DEFAULT_YES_OPTIONS+=OPENMP
 __DEFAULT_NO_OPTIONS+=OPENMP
 .endif
 
+.if ${.MAKE.OS} != "FreeBSD"
+# Bootstrapping the toolchain and building LLDB currently results in build
+# failures non-FreeBSD, so disable these options until the fixes that are
+# currently under review have landed.
+BROKEN_OPTIONS+=LLDB CLANG_BOOTSTRAP LLD_BOOTSTRAP
+.endif
+
 .include <bsd.mkopt.mk>
 
 #
