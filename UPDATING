@@ -12,6 +12,14 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20210823:
+	As of commit 622809b0868f OpenSSL no longer enables kernel TLS
+	by default.  Users can enable kernel TLS via the "KTLS" SSL
+	option.  This can be enabled globally by using a custom
+	OpenSSL config file via OPENSSL_CONF or via an
+	application-specific configuration option for applications
+	which permit setting SSL options via SSL_CONF_cmd(3).
+
 20210803:
 	Commits 9fb6e613373c and 9ec7dbf46b0a both changed the internal
 	KAPI between the NFS modules.  Bump __FreeBSD_version to 1300514.
