@@ -98,7 +98,7 @@ static struct proc *cxgbei_proc;
 
 static void
 read_pdu_limits(struct adapter *sc, uint32_t *max_tx_data_len,
-    uint32_t *max_rx_data_len)
+    uint32_t *max_rx_data_len, struct ppod_region *pr)
 {
 	uint32_t tx_len, rx_len, r, v;
 
@@ -122,6 +122,14 @@ read_pdu_limits(struct adapter *sc, uint32_t *max_tx_data_len,
 	    ISCSI_DATA_DIGEST_SIZE;
 	tx_len -= ISCSI_BHS_SIZE + ISCSI_HEADER_DIGEST_SIZE +
 	    ISCSI_DATA_DIGEST_SIZE;
+
+	/*
+	 * DDP can place only 4 pages for a single PDU.  A single
+	 * request might use larger pages than the smallest page size,
+	 * but that cannot be guaranteed.  Assume the smallest DDP
+	 * page size for this limit.
+	 */
+	rx_len = min(rx_len, 4 * (1U << pr->pr_page_shift[0]));
 
 	if (chip_id(sc) == CHELSIO_T5) {
 		rx_len = rounddown2(rx_len, 512);
@@ -149,8 +157,6 @@ cxgbei_init(struct adapter *sc, struct cxgbei_data *ci)
 	MPASS(sc->vres.iscsi.size > 0);
 	MPASS(ci != NULL);
 
-	read_pdu_limits(sc, &ci->max_tx_data_len, &ci->max_rx_data_len);
-
 	pr = &ci->pr;
 	r = t4_read_reg(sc, A_ULP_RX_ISCSI_PSZ);
 	rc = t4_init_ppod_region(pr, &sc->vres.iscsi, r, "iSCSI page pods");
@@ -175,6 +181,8 @@ cxgbei_init(struct adapter *sc, struct cxgbei_data *ci)
 		t4_set_reg_field(sc, A_ULP_RX_ISCSI_TAGMASK,
 		    V_ISCSITAGMASK(M_ISCSITAGMASK), pr->pr_tag_mask);
 	}
+
+	read_pdu_limits(sc, &ci->max_tx_data_len, &ci->max_rx_data_len, pr);
 
 	sysctl_ctx_init(&ci->ctx);
 	oid = device_get_sysctl_tree(sc->dev);	/* dev.t5nex.X */
