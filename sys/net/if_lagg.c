@@ -969,14 +969,16 @@ lagg_port_destroy(struct lagg_port *lp, int rundelport)
 			bcopy(lladdr, IF_LLADDR(sc->sc_ifp), sc->sc_ifp->if_addrlen);
 			lagg_proto_lladdr(sc);
 			EVENTHANDLER_INVOKE(iflladdr_event, sc->sc_ifp);
-		}
 
-		/*
-		 * Update lladdr for each port (new primary needs update
-		 * as well, to switch from old lladdr to its 'real' one)
-		 */
-		CK_SLIST_FOREACH(lp_ptr, &sc->sc_ports, lp_entries)
-			if_setlladdr(lp_ptr->lp_ifp, lladdr, lp_ptr->lp_ifp->if_addrlen);
+			/*
+			 * Update lladdr for each port (new primary needs update
+			 * as well, to switch from old lladdr to its 'real' one).
+			 * We can skip this if the lagg is being destroyed.
+			 */
+			CK_SLIST_FOREACH(lp_ptr, &sc->sc_ports, lp_entries)
+				if_setlladdr(lp_ptr->lp_ifp, lladdr,
+				    lp_ptr->lp_ifp->if_addrlen);
+		}
 	}
 
 	if (lp->lp_ifflags)
