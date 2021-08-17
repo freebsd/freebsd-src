@@ -261,7 +261,7 @@ int dname_is_root(uint8_t* dname);
  * Snip off first label from a dname, returning the parent zone.
  * @param dname: from what to strip off. uncompressed wireformat.
  * @param len: length, adjusted to become less.
- * @return stripped off, or "." if input was ".".
+ * return stripped off, or "." if input was ".".
  */
 void dname_remove_label(uint8_t** dname, size_t* len);
 
@@ -271,7 +271,7 @@ void dname_remove_label(uint8_t** dname, size_t* len);
  * @param len: length, adjusted to become less.
  * @param n: number of labels to strip off (from the left).
  * 	if 0, nothing happens.
- * @return stripped off, or "." if input was ".".
+ * return stripped off, or "." if input was ".".
  */
 void dname_remove_labels(uint8_t** dname, size_t* len, int n);
 

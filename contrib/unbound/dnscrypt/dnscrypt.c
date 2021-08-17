@@ -863,6 +863,7 @@ dnsc_parse_keys(struct dnsc_env *env, struct config_file *cfg)
 	return cert_id;
 }
 
+#ifdef SODIUM_MISUSE_HANDLER
 static void
 sodium_misuse_handler(void)
 {
@@ -872,6 +873,7 @@ sodium_misuse_handler(void)
 		" unbound in a chroot, make sure /dev/urandom is available. See"
 		" https://www.unbound.net/documentation/unbound.conf.html");
 }
+#endif
 
 
 /**

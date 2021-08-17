@@ -99,7 +99,7 @@ timeval_divide(struct timeval* avg, const struct timeval* sum, size_t d)
 {
 #ifndef S_SPLINT_S
 	size_t leftover;
-	if(d == 0) {
+	if(d <= 0) {
 		avg->tv_sec = 0;
 		avg->tv_usec = 0;
 		return;
@@ -108,7 +108,13 @@ timeval_divide(struct timeval* avg, const struct timeval* sum, size_t d)
 	avg->tv_usec = sum->tv_usec / d;
 	/* handle fraction from seconds divide */
 	leftover = sum->tv_sec - avg->tv_sec*d;
-	avg->tv_usec += (leftover*1000000)/d;
+	if(leftover <= 0)
+		leftover = 0;
+	avg->tv_usec += (((long long)leftover)*((long long)1000000))/d;
+	if(avg->tv_sec < 0)
+		avg->tv_sec = 0;
+	if(avg->tv_usec < 0)
+		avg->tv_usec = 0;
 #endif
 }
 
@@ -433,7 +439,7 @@ mesh_serve_expired_init(struct mesh_state* mstate, int timeout)
 	mstate->s.serve_expired_data->get_cached_answer =
 		mstate->s.serve_expired_data->get_cached_answer?
 		mstate->s.serve_expired_data->get_cached_answer:
-		mesh_serve_expired_lookup;
+		&mesh_serve_expired_lookup;
 
 	/* In case this timer already popped, start it again */
 	if(!mstate->s.serve_expired_data->timer) {
@@ -1813,8 +1819,7 @@ mesh_detect_cycle(struct module_qstate* qstate, struct query_info* qinfo,
 {
 	struct mesh_area* mesh = qstate->env->mesh;
 	struct mesh_state* dep_m = NULL;
-	if(!mesh_state_is_unique(qstate->mesh_info))
-		dep_m = mesh_area_find(mesh, NULL, qinfo, flags, prime, valrec);
+	dep_m = mesh_area_find(mesh, NULL, qinfo, flags, prime, valrec);
 	return mesh_detect_cycle_found(qstate, dep_m);
 }
 
@@ -1941,7 +1946,7 @@ mesh_serve_expired_callback(void* arg)
 	while(1) {
 		fptr_ok(fptr_whitelist_serve_expired_lookup(
 			qstate->serve_expired_data->get_cached_answer));
-		msg = qstate->serve_expired_data->get_cached_answer(qstate,
+		msg = (*qstate->serve_expired_data->get_cached_answer)(qstate,
 			lookup_qinfo);
 		if(!msg)
 			return;

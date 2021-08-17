@@ -158,7 +158,7 @@ struct local_zone {
 	rbtree_type data;
 	/** if data contains zone apex SOA data, this is a ptr to it. */
 	struct ub_packed_rrset_key* soa;
-	/** if data contains zone apex SOA data, this is a prt to an
+	/** if data contains zone apex SOA data, this is a ptr to an
 	 * artificial negative SOA rrset (TTL is the minimum of the TTL and the
 	 * SOA.MINIMUM). */
 	struct ub_packed_rrset_key* soa_negative;

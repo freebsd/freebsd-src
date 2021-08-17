@@ -141,6 +141,69 @@ secalgo_hash_sha256(unsigned char* buf, size_t len, unsigned char* res)
 #endif
 }
 
+/** hash structure for keeping track of running hashes */
+struct secalgo_hash {
+	/** the openssl message digest context */
+	EVP_MD_CTX* ctx;
+};
+
+/** create secalgo hash with hash type */
+static struct secalgo_hash* secalgo_hash_create_md(const EVP_MD* md)
+{
+	struct secalgo_hash* h;
+	if(!md)
+		return NULL;
+	h = calloc(1, sizeof(*h));
+	if(!h)
+		return NULL;
+	h->ctx = EVP_MD_CTX_create();
+	if(!h->ctx) {
+		free(h);
+		return NULL;
+	}
+	if(!EVP_DigestInit_ex(h->ctx, md, NULL)) {
+		EVP_MD_CTX_destroy(h->ctx);
+		free(h);
+		return NULL;
+	}
+	return h;
+}
+
+struct secalgo_hash* secalgo_hash_create_sha384(void)
+{
+	return secalgo_hash_create_md(EVP_sha384());
+}
+
+struct secalgo_hash* secalgo_hash_create_sha512(void)
+{
+	return secalgo_hash_create_md(EVP_sha512());
+}
+
+int secalgo_hash_update(struct secalgo_hash* hash, uint8_t* data, size_t len)
+{
+	return EVP_DigestUpdate(hash->ctx, (unsigned char*)data,
+		(unsigned int)len);
+}
+
+int secalgo_hash_final(struct secalgo_hash* hash, uint8_t* result,
+        size_t maxlen, size_t* resultlen)
+{
+	if(EVP_MD_CTX_size(hash->ctx) > (int)maxlen) {
+		*resultlen = 0;
+		log_err("secalgo_hash_final: hash buffer too small");
+		return 0;
+	}
+	*resultlen = EVP_MD_CTX_size(hash->ctx);
+	return EVP_DigestFinal_ex(hash->ctx, result, NULL);
+}
+
+void secalgo_hash_delete(struct secalgo_hash* hash)
+{
+	if(!hash) return;
+	EVP_MD_CTX_destroy(hash->ctx);
+	free(hash);
+}
+
 /**
  * Return size of DS digest according to its hash algorithm.
  * @param algo: DS digest algo.
@@ -450,29 +513,13 @@ static int
 setup_key_digest(int algo, EVP_PKEY** evp_key, const EVP_MD** digest_type, 
 	unsigned char* key, size_t keylen)
 {
-#if defined(USE_DSA) && defined(USE_SHA1)
-	DSA* dsa;
-#endif
-	RSA* rsa;
-
 	switch(algo) {
 #if defined(USE_DSA) && defined(USE_SHA1)
 		case LDNS_DSA:
 		case LDNS_DSA_NSEC3:
-			*evp_key = EVP_PKEY_new();
+			*evp_key = sldns_key_dsa2pkey_raw(key, keylen);
 			if(!*evp_key) {
-				log_err("verify: malloc failure in crypto");
-				return 0;
-			}
-			dsa = sldns_key_buf2dsa_raw(key, keylen);
-			if(!dsa) {
-				verbose(VERB_QUERY, "verify: "
-					"sldns_key_buf2dsa_raw failed");
-				return 0;
-			}
-			if(EVP_PKEY_assign_DSA(*evp_key, dsa) == 0) {
-				verbose(VERB_QUERY, "verify: "
-					"EVP_PKEY_assign_DSA failed");
+				verbose(VERB_QUERY, "verify: sldns_key_dsa2pkey failed");
 				return 0;
 			}
 #ifdef HAVE_EVP_DSS1
@@ -495,20 +542,9 @@ setup_key_digest(int algo, EVP_PKEY** evp_key, const EVP_MD** digest_type,
 #if defined(HAVE_EVP_SHA512) && defined(USE_SHA2)
 		case LDNS_RSASHA512:
 #endif
-			*evp_key = EVP_PKEY_new();
+			*evp_key = sldns_key_rsa2pkey_raw(key, keylen);
 			if(!*evp_key) {
-				log_err("verify: malloc failure in crypto");
-				return 0;
-			}
-			rsa = sldns_key_buf2rsa_raw(key, keylen);
-			if(!rsa) {
-				verbose(VERB_QUERY, "verify: "
-					"sldns_key_buf2rsa_raw SHA failed");
-				return 0;
-			}
-			if(EVP_PKEY_assign_RSA(*evp_key, rsa) == 0) {
-				verbose(VERB_QUERY, "verify: "
-					"EVP_PKEY_assign_RSA SHA failed");
+				verbose(VERB_QUERY, "verify: sldns_key_rsa2pkey SHA failed");
 				return 0;
 			}
 
@@ -532,20 +568,9 @@ setup_key_digest(int algo, EVP_PKEY** evp_key, const EVP_MD** digest_type,
 #endif /* defined(USE_SHA1) || (defined(HAVE_EVP_SHA256) && defined(USE_SHA2)) || (defined(HAVE_EVP_SHA512) && defined(USE_SHA2)) */
 
 		case LDNS_RSAMD5:
-			*evp_key = EVP_PKEY_new();
+			*evp_key = sldns_key_rsa2pkey_raw(key, keylen);
 			if(!*evp_key) {
-				log_err("verify: malloc failure in crypto");
-				return 0;
-			}
-			rsa = sldns_key_buf2rsa_raw(key, keylen);
-			if(!rsa) {
-				verbose(VERB_QUERY, "verify: "
-					"sldns_key_buf2rsa_raw MD5 failed");
-				return 0;
-			}
-			if(EVP_PKEY_assign_RSA(*evp_key, rsa) == 0) {
-				verbose(VERB_QUERY, "verify: "
-					"EVP_PKEY_assign_RSA MD5 failed");
+				verbose(VERB_QUERY, "verify: sldns_key_rsa2pkey MD5 failed");
 				return 0;
 			}
 			*digest_type = EVP_md5();
@@ -821,6 +846,64 @@ void
 secalgo_hash_sha256(unsigned char* buf, size_t len, unsigned char* res)
 {
 	(void)HASH_HashBuf(HASH_AlgSHA256, res, buf, (unsigned long)len);
+}
+
+/** the secalgo hash structure */
+struct secalgo_hash {
+	/** hash context */
+	HASHContext* ctx;
+};
+
+/** create hash struct of type */
+static struct secalgo_hash* secalgo_hash_create_type(HASH_HashType tp)
+{
+	struct secalgo_hash* h = calloc(1, sizeof(*h));
+	if(!h)
+		return NULL;
+	h->ctx = HASH_Create(tp);
+	if(!h->ctx) {
+		free(h);
+		return NULL;
+	}
+	return h;
+}
+
+struct secalgo_hash* secalgo_hash_create_sha384(void)
+{
+	return secalgo_hash_create_type(HASH_AlgSHA384);
+}
+
+struct secalgo_hash* secalgo_hash_create_sha512(void)
+{
+	return secalgo_hash_create_type(HASH_AlgSHA512);
+}
+
+int secalgo_hash_update(struct secalgo_hash* hash, uint8_t* data, size_t len)
+{
+	HASH_Update(hash->ctx, (unsigned char*)data, (unsigned int)len);
+	return 1;
+}
+
+int secalgo_hash_final(struct secalgo_hash* hash, uint8_t* result,
+        size_t maxlen, size_t* resultlen)
+{
+	unsigned int reslen = 0;
+	if(HASH_ResultLenContext(hash->ctx) > (unsigned int)maxlen) {
+		*resultlen = 0;
+		log_err("secalgo_hash_final: hash buffer too small");
+		return 0;
+	}
+	HASH_End(hash->ctx, (unsigned char*)result, &reslen,
+		(unsigned int)maxlen);
+	*resultlen = (size_t)reslen;
+	return 1;
+}
+
+void secalgo_hash_delete(struct secalgo_hash* hash)
+{
+	if(!hash) return;
+	HASH_Destroy(hash->ctx);
+	free(hash);
 }
 
 size_t
@@ -1449,6 +1532,82 @@ void
 secalgo_hash_sha256(unsigned char* buf, size_t len, unsigned char* res)
 {
 	_digest_nettle(SHA256_DIGEST_SIZE, (uint8_t*)buf, len, res);
+}
+
+/** secalgo hash structure */
+struct secalgo_hash {
+	/** if it is 384 or 512 */
+	int active;
+	/** context for sha384 */
+	struct sha384_ctx ctx384;
+	/** context for sha512 */
+	struct sha512_ctx ctx512;
+};
+
+struct secalgo_hash* secalgo_hash_create_sha384(void)
+{
+	struct secalgo_hash* h = calloc(1, sizeof(*h));
+	if(!h)
+		return NULL;
+	h->active = 384;
+	sha384_init(&h->ctx384);
+	return h;
+}
+
+struct secalgo_hash* secalgo_hash_create_sha512(void)
+{
+	struct secalgo_hash* h = calloc(1, sizeof(*h));
+	if(!h)
+		return NULL;
+	h->active = 512;
+	sha512_init(&h->ctx512);
+	return h;
+}
+
+int secalgo_hash_update(struct secalgo_hash* hash, uint8_t* data, size_t len)
+{
+	if(hash->active == 384) {
+		sha384_update(&hash->ctx384, len, data);
+	} else if(hash->active == 512) {
+		sha512_update(&hash->ctx512, len, data);
+	} else {
+		return 0;
+	}
+	return 1;
+}
+
+int secalgo_hash_final(struct secalgo_hash* hash, uint8_t* result,
+        size_t maxlen, size_t* resultlen)
+{
+	if(hash->active == 384) {
+		if(SHA384_DIGEST_SIZE > maxlen) {
+			*resultlen = 0;
+			log_err("secalgo_hash_final: hash buffer too small");
+			return 0;
+		}
+		*resultlen = SHA384_DIGEST_SIZE;
+		sha384_digest(&hash->ctx384, SHA384_DIGEST_SIZE,
+			(unsigned char*)result);
+	} else if(hash->active == 512) {
+		if(SHA512_DIGEST_SIZE > maxlen) {
+			*resultlen = 0;
+			log_err("secalgo_hash_final: hash buffer too small");
+			return 0;
+		}
+		*resultlen = SHA512_DIGEST_SIZE;
+		sha512_digest(&hash->ctx512, SHA512_DIGEST_SIZE,
+			(unsigned char*)result);
+	} else {
+		*resultlen = 0;
+		return 0;
+	}
+	return 1;
+}
+
+void secalgo_hash_delete(struct secalgo_hash* hash)
+{
+	if(!hash) return;
+	free(hash);
 }
 
 /**

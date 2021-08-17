@@ -1,5 +1,5 @@
 /*
- * checkconf/unbound-host.c - replacement for host that supports validation.
+ * smallapp/unbound-host.c - replacement for host that supports validation.
  *
  * Copyright (c) 2007, NLnet Labs. All rights reserved.
  *

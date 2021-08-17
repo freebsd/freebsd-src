@@ -50,6 +50,7 @@
 #include "services/cache/infra.h"
 #include "services/cache/dns.h"
 #include "services/cache/rrset.h"
+#include "services/outside_network.h"
 #include "util/net_help.h"
 #include "util/module.h"
 #include "util/log.h"
@@ -439,6 +440,7 @@ iter_filter_order(struct iter_env* iter_env, struct module_env* env,
 		prev = NULL;
 		a = dp->result_list;
 		for(i = 0; i < got_num; i++) {
+			if(!a) break; /* robustness */
 			swap_to_front = 0;
 			if(a->addr.ss_family != AF_INET6 && attempt == -1) {
 				/* if we only have ip4 at low attempt count,
@@ -496,6 +498,7 @@ iter_filter_order(struct iter_env* iter_env, struct module_env* env,
 		prev = NULL;
 		a = dp->result_list;
 		for(i = 0; i < got_num; i++) {
+			if(!a) break; /* robustness */
 			swap_to_front = 0;
 			if(a->addr.ss_family != AF_INET && attempt == -1) {
 				/* if we only have ip6 at low attempt count,
@@ -1390,7 +1393,8 @@ int iter_dp_cangodown(struct query_info* qinfo, struct delegpt* dp)
 }
 
 int
-iter_stub_fwd_no_cache(struct module_qstate *qstate, struct query_info *qinf)
+iter_stub_fwd_no_cache(struct module_qstate *qstate, struct query_info *qinf,
+	uint8_t** retdpname, size_t* retdpnamelen)
 {
 	struct iter_hints_stub *stub;
 	struct delegpt *dp;
@@ -1419,6 +1423,10 @@ iter_stub_fwd_no_cache(struct module_qstate *qstate, struct query_info *qinf)
 			dname_str(stub->dp->name, dpname);
 			verbose(VERB_ALGO, "stub for %s %s has no_cache", qname, dpname);
 		}
+		if(retdpname) {
+			*retdpname = stub->dp->name;
+			*retdpnamelen = stub->dp->namelen;
+		}
 		return (stub->dp->no_cache);
 	}
 
@@ -1431,7 +1439,31 @@ iter_stub_fwd_no_cache(struct module_qstate *qstate, struct query_info *qinf)
 			dname_str(dp->name, dpname);
 			verbose(VERB_ALGO, "forward for %s %s has no_cache", qname, dpname);
 		}
+		if(retdpname) {
+			*retdpname = dp->name;
+			*retdpnamelen = dp->namelen;
+		}
 		return (dp->no_cache);
 	}
+	if(retdpname) {
+		*retdpname = NULL;
+		*retdpnamelen = 0;
+	}
 	return 0;
+}
+
+void iterator_set_ip46_support(struct module_stack* mods,
+	struct module_env* env, struct outside_network* outnet)
+{
+	int m = modstack_find(mods, "iterator");
+	struct iter_env* ie = NULL;
+	if(m == -1)
+		return;
+	ie = (struct iter_env*)env->modinfo[m];
+	if(outnet->pending == NULL)
+		return; /* we are in testbound, no rbtree for UDP */
+	if(outnet->num_ip4 == 0)
+		ie->supports_ipv4 = 0;
+	if(outnet->num_ip6 == 0)
+		ie->supports_ipv6 = 0;
 }

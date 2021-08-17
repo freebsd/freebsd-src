@@ -63,6 +63,7 @@ struct edns_option;
 struct module_env;
 struct module_qstate;
 struct query_info;
+struct config_file;
 
 /**
  * Send queries to outside servers and wait for answers from servers.
@@ -158,6 +159,12 @@ struct outside_network {
 	size_t num_tcp;
 	/** number of tcp communication points in use. */
 	size_t num_tcp_outgoing;
+	/** max number of queries on a reuse connection */
+	size_t max_reuse_tcp_queries;
+	/** timeout for REUSE entries in milliseconds. */
+	int tcp_reuse_timeout;
+	/** timeout in milliseconds for TCP queries to auth servers. */
+	int tcp_auth_query_timeout;
 	/**
 	 * tree of still-open and waiting tcp connections for reuse.
 	 * can be closed and reopened to get a new tcp connection.
@@ -295,11 +302,6 @@ struct reuse_tcp {
 	struct outside_network* outnet;
 };
 
-/** max number of queries on a reuse connection */
-#define MAX_REUSE_TCP_QUERIES 200
-/** timeout for REUSE entries in milliseconds. */
-#define REUSE_TIMEOUT 60000
-
 /**
  * A query that has an answer pending for it.
  */
@@ -344,6 +346,8 @@ struct pending {
 struct pending_tcp {
 	/** next in list of free tcp comm points, or NULL. */
 	struct pending_tcp* next_free;
+	/** port for of the outgoing interface that is used */
+	struct port_if* pi;
 	/** tcp comm point it was sent on (and reply must come back on). */
 	struct comm_point* c;
 	/** the query being serviced, NULL if the pending_tcp is unused. */
@@ -408,6 +412,10 @@ struct waiting_tcp {
 	char* tls_auth_name;
 	/** the packet was involved in an error, to stop looping errors */
 	int error_count;
+#ifdef USE_DNSTAP
+	/** serviced query pointer for dnstap to get logging info, if nonNULL*/
+	struct serviced_query* sq;
+#endif
 };
 
 /**
@@ -534,6 +542,9 @@ struct serviced_query {
  * @param tls_use_sni: if SNI is used for TLS connections.
  * @param dtenv: environment to send dnstap events with (if enabled).
  * @param udp_connect: if the udp_connect option is enabled.
+ * @param max_reuse_tcp_queries: max number of queries on a reuse connection.
+ * @param tcp_reuse_timeout: timeout for REUSE entries in milliseconds.
+ * @param tcp_auth_query_timeout: timeout in milliseconds for TCP queries to auth servers.
  * @return: the new structure (with no pending answers) or NULL on error.
  */
 struct outside_network* outside_network_create(struct comm_base* base,
@@ -543,7 +554,8 @@ struct outside_network* outside_network_create(struct comm_base* base,
 	int numavailports, size_t unwanted_threshold, int tcp_mss,
 	void (*unwanted_action)(void*), void* unwanted_param, int do_udp,
 	void* sslctx, int delayclose, int tls_use_sni, struct dt_env *dtenv,
-	int udp_connect);
+	int udp_connect, int max_reuse_tcp_queries, int tcp_reuse_timeout,
+	int tcp_auth_query_timeout);
 
 /**
  * Delete outside_network structure.
@@ -670,12 +682,28 @@ struct waiting_tcp* reuse_tcp_by_id_find(struct reuse_tcp* reuse, uint16_t id);
 /** insert element in tree by id */
 void reuse_tree_by_id_insert(struct reuse_tcp* reuse, struct waiting_tcp* w);
 
+/** insert element in tcp_reuse tree and LRU list */
+int reuse_tcp_insert(struct outside_network* outnet,
+	struct pending_tcp* pend_tcp);
+
+/** touch the LRU of the element */
+void reuse_tcp_lru_touch(struct outside_network* outnet,
+	struct reuse_tcp* reuse);
+
+/** remove element from tree and LRU list */
+void reuse_tcp_remove_tree_list(struct outside_network* outnet,
+	struct reuse_tcp* reuse);
+
+/** snip the last reuse_tcp element off of the LRU list if any */
+struct reuse_tcp* reuse_tcp_lru_snip(struct outside_network* outnet);
+
 /** delete readwait waiting_tcp elements, deletes the elements in the list */
 void reuse_del_readwait(rbtree_type* tree_by_id);
 
 /** get TCP file descriptor for address, returns -1 on failure,
  * tcp_mss is 0 or maxseg size to set for TCP packets. */
-int outnet_get_tcp_fd(struct sockaddr_storage* addr, socklen_t addrlen, int tcp_mss, int dscp);
+int outnet_get_tcp_fd(struct sockaddr_storage* addr, socklen_t addrlen,
+	int tcp_mss, int dscp);
 
 /**
  * Create udp commpoint suitable for sending packets to the destination.
@@ -729,12 +757,13 @@ struct comm_point* outnet_comm_point_for_tcp(struct outside_network* outnet,
  * @param ssl: set to true for https.
  * @param host: hostname to use for the destination. part of http request.
  * @param path: pathname to lookup, eg. name of the file on the destination.
+ * @param cfg: running configuration for User-Agent setup.
  * @return http_out commpoint, or NULL.
  */
 struct comm_point* outnet_comm_point_for_http(struct outside_network* outnet,
 	comm_point_callback_type* cb, void* cb_arg,
 	struct sockaddr_storage* to_addr, socklen_t to_addrlen, int timeout,
-	int ssl, char* host, char* path);
+	int ssl, char* host, char* path, struct config_file* cfg);
 
 /** connect tcp connection to addr, 0 on failure */
 int outnet_tcp_connect(int s, struct sockaddr_storage* addr, socklen_t addrlen);

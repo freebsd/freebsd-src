@@ -15,7 +15,8 @@ addons:
       - openssl
       - libevent
       - expat
-    update: true
+    # homebrew update takes 20min or hangs, so disable update
+    #update: true
 
 jobs:
   include:
@@ -26,18 +27,22 @@ jobs:
       env:
         - CONFIG_OPTS="--enable-debug --disable-flto"
     - os: linux
-      name: Clang on Linux, Amd64
+      name: Clang on Linux, Amd64, clang-analysis
       compiler: clang
       arch: amd64
       env:
         - CONFIG_OPTS="--enable-debug --disable-flto"
+        - TEST_ANALYZER=yes
     - os: osx
-      name: Clang on OS X, Amd64
+      osx_image: xcode12.2
+      name: Clang on OS X, Amd64, clang-analysis
       compiler: clang
       arch: amd64
       env:
         - TEST_OSX=yes
-        - CONFIG_OPTS="--enable-debug --disable-flto --with-ssl=/usr/local/opt/openssl/"
+        - CONFIG_OPTS="--enable-debug --disable-flto --with-ssl=/usr/local/opt/openssl --with-libexpat=/usr/local/opt/expat"
+        - TEST_ANALYZER=yes
+        - HOMEBREW_NO_AUTO_UPDATE=1
     - os: linux
       name: Libevent, GCC on Linux, Amd64
       compiler: gcc
@@ -53,13 +58,15 @@ jobs:
         - TEST_LIBEVENT=yes
         - CONFIG_OPTS="--with-libevent"
     - os: osx
+      osx_image: xcode12.2
       name: Libevent, Clang on OS X, Amd64
       compiler: clang
       arch: amd64
       env:
         - TEST_OSX=yes
         - TEST_LIBEVENT=yes
-        - CONFIG_OPTS="--with-ssl=/usr/local/opt/openssl/ --with-libevent=/usr/local/opt/libevent/"
+        - CONFIG_OPTS="--disable-flto --with-ssl=/usr/local/opt/openssl --with-libevent=/usr/local/opt/libevent --with-libexpat=/usr/local/opt/expat"
+        - HOMEBREW_NO_AUTO_UPDATE=1
     - os: linux
       name: UBsan, GCC on Linux, Amd64
       compiler: gcc
@@ -131,7 +138,7 @@ jobs:
       env:
         - CONFIG_OPTS="--enable-debug --disable-flto"
     - os: osx
-      osx_image: xcode10
+      osx_image: xcode12.2
       name: Apple iPhone on iOS, armv7
       compiler: clang
       env:
@@ -141,8 +148,9 @@ jobs:
         - IOS_SDK=iPhoneOS
         - IOS_CPU=armv7s
         - IOS_PREFIX="$HOME/$IOS_SDK-$IOS_CPU"
+        - HOMEBREW_NO_AUTO_UPDATE=1
     - os: osx
-      osx_image: xcode10
+      osx_image: xcode12.2
       name: Apple iPhone on iOS, arm64
       compiler: clang
       env:
@@ -152,8 +160,9 @@ jobs:
         - IOS_SDK=iPhoneOS
         - IOS_CPU=arm64
         - IOS_PREFIX="$HOME/$IOS_SDK-$IOS_CPU"
+        - HOMEBREW_NO_AUTO_UPDATE=1
     - os: osx
-      osx_image: xcode10
+      osx_image: xcode12.2
       name: Apple TV on iOS, arm64
       compiler: clang
       env:
@@ -163,8 +172,9 @@ jobs:
         - IOS_SDK=AppleTVOS
         - IOS_CPU=arm64
         - IOS_PREFIX="$HOME/$IOS_SDK-$IOS_CPU"
+        - HOMEBREW_NO_AUTO_UPDATE=1
     - os: osx
-      osx_image: xcode10
+      osx_image: xcode12.2
       name: Apple Watch on iOS, armv7
       compiler: clang
       env:
@@ -174,8 +184,9 @@ jobs:
         - IOS_SDK=WatchOS
         - IOS_CPU=armv7k
         - IOS_PREFIX="$HOME/$IOS_SDK-$IOS_CPU"
+        - HOMEBREW_NO_AUTO_UPDATE=1
     - os: osx
-      osx_image: xcode10
+      osx_image: xcode12.2
       name: iPhoneSimulator on OS X, i386
       env:
         - TEST_IOS=yes
@@ -184,8 +195,9 @@ jobs:
         - IOS_CPU=i386
         - IOS_SDK=iPhoneSimulator
         - IOS_PREFIX="$HOME/$IOS_SDK-$IOS_CPU"
+        - HOMEBREW_NO_AUTO_UPDATE=1
     - os: osx
-      osx_image: xcode10
+      osx_image: xcode12.2
       name: iPhoneSimulator on OS X, x86_64
       env:
         - TEST_IOS=yes
@@ -194,8 +206,9 @@ jobs:
         - IOS_CPU=x86_64
         - IOS_SDK=iPhoneSimulator
         - IOS_PREFIX="$HOME/$IOS_SDK-$IOS_CPU"
+        - HOMEBREW_NO_AUTO_UPDATE=1
     - os: osx
-      osx_image: xcode10
+      osx_image: xcode12.2
       name: AppleTVSimulator on OS X, x86_64
       env:
         - TEST_IOS=yes
@@ -204,8 +217,9 @@ jobs:
         - IOS_CPU=x86_64
         - IOS_SDK=AppleTVSimulator
         - IOS_PREFIX="$HOME/$IOS_SDK-$IOS_CPU"
+        - HOMEBREW_NO_AUTO_UPDATE=1
     - os: osx
-      osx_image: xcode10
+      osx_image: xcode12.2
       name: WatchSimulator on OS X, i386
       env:
         - TEST_IOS=yes
@@ -214,6 +228,7 @@ jobs:
         - IOS_CPU=i386
         - IOS_SDK=WatchSimulator
         - IOS_PREFIX="$HOME/$IOS_SDK-$IOS_CPU"
+        - HOMEBREW_NO_AUTO_UPDATE=1
     - os: linux
       name: Android armv7a, Linux, Amd64
       compiler: clang
@@ -272,6 +287,22 @@ jobs:
         - ANDROID_NDK_ROOT="$HOME/android-ndk"
 
   allow_failures:
+    - os: osx
+      name: Apple iPhone on iOS, armv7
+    - os: osx
+      name: Apple iPhone on iOS, arm64
+    - os: osx
+      name: Apple TV on iOS, arm64
+    - os: osx
+      name: Apple Watch on iOS, armv7
+    - os: osx
+      name: iPhoneSimulator on OS X, i386
+    - os: osx
+      name: iPhoneSimulator on OS X, x86_64
+    - os: osx
+      name: AppleTVSimulator on OS X, x86_64
+    - os: osx
+      name: WatchSimulator on OS X, i386
     - os: linux
       name: Android armv7a, Linux, Amd64
     - os: linux
@@ -294,51 +325,56 @@ before_script:
 # https://docs.travis-ci.com/user/job-lifecycle/ in the Travis docs.
 script:
   - |
+    export MAKE_TEST="yes"
     if [ "$TEST_UBSAN" = "yes" ]; then
-      export CFLAGS="-DNDEBUG -g2 -O3 -fsanitize=undefined -fno-sanitize-recover"
-      ./configure
-      make -j 2
-      make test
+      export CFLAGS="-DNDEBUG -g2 -O3 -fsanitize=undefined -fno-sanitize-recover=all"
     elif [ "$TEST_ASAN" = "yes" ]; then
       export CFLAGS="-DNDEBUG -g2 -O3 -fsanitize=address"
-      ./configure
-      make -j 2
-      make test
-    elif [ "$TEST_IOS" = "yes" ]; then
+    fi
+  - |
+    if [ "$TEST_IOS" = "yes" ]; then
       export AUTOTOOLS_BUILD="$(./config.guess)"
       export PKG_CONFIG_PATH="$IOS_PREFIX/lib/pkgconfig"
       source ./contrib/ios/setenv_ios.sh
       ./contrib/ios/install_openssl.sh
       ./contrib/ios/install_expat.sh
-      ./configure \
-        --build="$AUTOTOOLS_BUILD" --host="$AUTOTOOLS_HOST" \
-        --prefix="$IOS_PREFIX" \
-        --with-ssl="$IOS_PREFIX" --disable-gost \
-        --with-libexpat="$IOS_PREFIX";
-      make -j 2
-      make install
-    elif [ "$TEST_ANDROID" = "yes" ]; then
+      export CONFIG_OPTS="\
+        --build=$AUTOTOOLS_BUILD --host=$AUTOTOOLS_HOST \
+        --prefix=$IOS_PREFIX \
+        --with-ssl=$IOS_PREFIX --disable-gost \
+        --with-libexpat=$IOS_PREFIX "
+      echo CONFIG_OPTS ${CONFIG_OPTS}
+      export MAKE_TEST=no
+      export TEST_INSTALL=yes
+    fi
+  - |
+    if [ "$TEST_ANDROID" = "yes" ]; then
       export AUTOTOOLS_BUILD="$(./config.guess)"
       export PKG_CONFIG_PATH="$ANDROID_PREFIX/lib/pkgconfig"
       ./contrib/android/install_ndk.sh
       source ./contrib/android/setenv_android.sh
       ./contrib/android/install_openssl.sh
       ./contrib/android/install_expat.sh
-      ./configure \
-        --build="$AUTOTOOLS_BUILD" --host="$AUTOTOOLS_HOST" \
-        --prefix="$ANDROID_PREFIX" \
-        --with-ssl="$ANDROID_PREFIX" --disable-gost \
-        --with-libexpat="$ANDROID_PREFIX";
-      make -j 2
+      export CONFIG_OPTS="\
+        --build=$AUTOTOOLS_BUILD --host=$AUTOTOOLS_HOST \
+        --prefix=$ANDROID_PREFIX \
+        --with-ssl=$ANDROID_PREFIX --disable-gost \
+        --with-libexpat=$ANDROID_PREFIX "
+      echo CONFIG_OPTS ${CONFIG_OPTS}
+      export MAKE_TEST=no
+      export TEST_INSTALL=yes
+    fi
+  - ./configure ${CONFIG_OPTS}
+  - make -j 2
+  - |
+    if [ "$MAKE_TEST" = "yes" ]; then
+      make test
+    fi
+  - |
+    if [ "$TEST_INSTALL" = "yes" ]; then
       make install
-    elif [ "$TEST_OSX" = "yes" ]; then
-      ./configure --enable-debug --disable-flto --with-ssl=/usr/local/opt/openssl/
-      make -j 2
-      make test
-      (cd testdata/clang-analysis.tdir; bash clang-analysis.test)
-    else
-      ./configure ${CONFIG_OPTS}
-      make -j 2
-      make test
+    fi
+  - |
+    if [ "$TEST_ANALYZER" = "yes" ]; then
       (cd testdata/clang-analysis.tdir; bash clang-analysis.test)
     fi

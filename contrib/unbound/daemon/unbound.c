@@ -197,6 +197,35 @@ checkrlimits(struct config_file* cfg)
 	size_t total = numthread * perthread + misc;
 	size_t avail;
 	struct rlimit rlim;
+	size_t memsize_expect = cfg->msg_cache_size + cfg->rrset_cache_size
+		+ (cfg->do_tcp?cfg->stream_wait_size:0)
+		+ (cfg->ip_ratelimit?cfg->ip_ratelimit_size:0)
+		+ (cfg->ratelimit?cfg->ratelimit_size:0)
+		+ (cfg->dnscrypt?cfg->dnscrypt_shared_secret_cache_size + cfg->dnscrypt_nonce_cache_size:0)
+		+ cfg->infra_cache_numhosts * (sizeof(struct infra_key)+sizeof(struct infra_data));
+	if(strstr(cfg->module_conf, "validator") && (cfg->trust_anchor_file_list || cfg->trust_anchor_list || cfg->auto_trust_anchor_file_list || cfg->trusted_keys_file_list)) {
+		memsize_expect += cfg->key_cache_size + cfg->neg_cache_size;
+	}
+#ifdef HAVE_NGHTTP2_NGHTTP2_H
+	if(cfg_has_https(cfg)) {
+		memsize_expect += cfg->http_query_buffer_size + cfg->http_response_buffer_size;
+	}
+#endif
+
+#ifdef RLIMIT_AS
+	if(getrlimit(RLIMIT_AS, &rlim) == 0) {
+		if(rlim.rlim_cur != (rlim_t)RLIM_INFINITY &&
+			rlim.rlim_cur < (rlim_t)memsize_expect) {
+			log_warn("the ulimit(max memory size) is smaller than the expected memory usage (added size of caches). %u < %u bytes", (unsigned)rlim.rlim_cur, (unsigned)memsize_expect);
+		}
+	}
+#endif
+	if(getrlimit(RLIMIT_DATA, &rlim) == 0) {
+		if(rlim.rlim_cur != (rlim_t)RLIM_INFINITY &&
+			rlim.rlim_cur < (rlim_t)memsize_expect) {
+			log_warn("the ulimit(data seg size) is smaller than the expected memory usage (added size of caches). %u < %u bytes", (unsigned)rlim.rlim_cur, (unsigned)memsize_expect);
+		}
+	}
 
 	if(total > 1024 && 
 		strncmp(ub_event_get_version(), "mini-event", 10) == 0) {

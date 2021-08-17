@@ -801,7 +801,7 @@ struct dns_msg*
 dns_cache_lookup(struct module_env* env,
 	uint8_t* qname, size_t qnamelen, uint16_t qtype, uint16_t qclass,
 	uint16_t flags, struct regional* region, struct regional* scratch,
-	int no_partial)
+	int no_partial, uint8_t* dpname, size_t dpnamelen)
 {
 	struct lruhash_entry* e;
 	struct query_info k;
@@ -923,6 +923,9 @@ dns_cache_lookup(struct module_env* env,
 	 * the same.  We search upwards for NXDOMAINs. */
 	if(env->cfg->harden_below_nxdomain) {
 		while(!dname_is_root(k.qname)) {
+			if(dpname && dpnamelen
+				&& !dname_subdomain_c(k.qname, dpname))
+				break; /* no synth nxdomain above the stub */
 			dname_remove_label(&k.qname, &k.qname_len);
 			h = query_info_hash(&k, flags);
 			e = slabhash_lookup(env->msg_cache, h, &k, 0);

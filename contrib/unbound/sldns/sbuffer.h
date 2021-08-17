@@ -202,7 +202,6 @@ INLINE void sldns_buffer_clear(sldns_buffer *buffer)
  * the position is set to 0.
  *
  * \param[in] buffer the buffer to flip
- * \return void
  */
 INLINE void sldns_buffer_flip(sldns_buffer *buffer)
 {
@@ -732,7 +731,6 @@ int sldns_buffer_printf(sldns_buffer *buffer, const char *format, ...)
 /**
  * frees the buffer.
  * \param[in] *buffer the buffer to be freed
- * \return void
  */
 void sldns_buffer_free(sldns_buffer *buffer);
 

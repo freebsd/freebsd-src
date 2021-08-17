@@ -495,6 +495,18 @@ int sldns_wire2str_dname_buf(uint8_t* dname, size_t dname_len, char* str,
 	size_t len);
 
 /**
+ * Convert wire SVCB to a string with user buffer.
+ * @param d: the SVCB data in uncompressed wireformat.
+ * @param dlen: length of the SVCB data.
+ * @param s: the string to write to.
+ * @param slen: length of string.
+ * @return the number of characters for this element, excluding zerobyte.
+ * 	Is larger or equal than str_len if output was truncated.
+ */
+int sldns_wire2str_svcparam_scan(uint8_t** d, size_t* dlen, char** s,
+	size_t* slen);
+
+/**
  * Scan wireformat rdf field to string, with user buffers.
  * It shifts the arguments to move along (see sldns_wire2str_pkt_scan).
  * @param data: wireformat data.

@@ -64,9 +64,6 @@ struct config_strlist;
  */
 #define BOGUS_KEY_TTL	60 /* seconds */
 
-/** max number of query restarts, number of IPs to probe */
-#define VAL_MAX_RESTART_COUNT 5
-
 /** Root key sentinel is ta preamble */
 #define SENTINEL_IS		"root-key-sentinel-is-ta-"
 /** Root key sentinel is not ta preamble */
@@ -94,6 +91,9 @@ struct val_env {
 
 	/** clock skew max for signatures */
 	int32_t skew_max;
+
+	/** max number of query restarts, number of IPs to probe */
+	int32_t max_restart;
 
 	/** TTL for bogus data; used instead of untrusted TTL from data.
 	 * Bogus data will not be verified more often than this interval. 

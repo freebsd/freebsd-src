@@ -1,0 +1,3 @@
+example.com. IN SOA ns.example.com. hostmaster.example.com. 1 3600 900 86400 3600
+example.com.	IN NS	ns.example.net.
+www.example.com. IN A	1.2.3.4

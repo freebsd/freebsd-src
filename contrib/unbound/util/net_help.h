@@ -42,6 +42,7 @@
 #ifndef NET_HELP_H
 #define NET_HELP_H
 #include "util/log.h"
+#include "util/random.h"
 struct sock_list;
 struct regional;
 struct config_strlist;
@@ -76,8 +77,6 @@ struct config_strlist;
 
 /** timeout in milliseconds for UDP queries to auth servers. */
 #define UDP_AUTH_QUERY_TIMEOUT 3000
-/** timeout in milliseconds for TCP queries to auth servers. */
-#define TCP_AUTH_QUERY_TIMEOUT 3000
 /** Advertised version of EDNS capabilities */
 #define EDNS_ADVERTISED_VERSION         0
 /** Advertised size of EDNS capabilities */
@@ -93,6 +92,9 @@ extern uint16_t EDNS_ADVERTISED_SIZE;
 #define DNSKEY_BIT_ZSK 0x0100
 /** DNSKEY secure entry point, KSK flag */
 #define DNSKEY_BIT_SEP 0x0001
+
+/** return a random 16-bit number given a random source */
+#define GET_RANDOM_ID(rnd) (((unsigned)ub_random(rnd)>>8) & 0xffff)
 
 /** minimal responses when positive answer */
 extern int MINIMAL_RESPONSES;

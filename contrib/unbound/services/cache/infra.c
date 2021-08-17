@@ -236,6 +236,9 @@ infra_create(struct config_file* cfg)
 		sizeof(struct infra_cache));
 	size_t maxmem = cfg->infra_cache_numhosts * (sizeof(struct infra_key)+
 		sizeof(struct infra_data)+INFRA_BYTES_NAME);
+	if(!infra) {
+		return NULL;
+	}
 	infra->hosts = slabhash_create(cfg->infra_cache_slabs,
 		INFRA_HOST_STARTSIZE, maxmem, &infra_sizefunc, &infra_compfunc,
 		&infra_delkeyfunc, &infra_deldatafunc, NULL);

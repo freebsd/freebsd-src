@@ -26,11 +26,15 @@
 #ifdef HAVE_OPENSSL_BN_H
 #include <openssl/bn.h>
 #endif
-#ifdef HAVE_OPENSSL_RSA_H
-#include <openssl/rsa.h>
-#endif
-#ifdef HAVE_OPENSSL_DSA_H
-#include <openssl/dsa.h>
+#ifdef HAVE_OPENSSL_PARAM_BUILD_H
+#  include <openssl/param_build.h>
+#else
+#  ifdef HAVE_OPENSSL_RSA_H
+#  include <openssl/rsa.h>
+#  endif
+#  ifdef HAVE_OPENSSL_DSA_H
+#  include <openssl/dsa.h>
+#  endif
 #endif
 #endif /* HAVE_SSL */
 
@@ -191,45 +195,59 @@ void sldns_key_EVP_unload_gost(void)
 }
 #endif /* USE_GOST */
 
-DSA *
-sldns_key_buf2dsa_raw(unsigned char* key, size_t len)
+/* Retrieve params as BIGNUM from raw buffer */
+static int
+sldns_key_dsa_buf_bignum(unsigned char* key, size_t len, BIGNUM** p,
+	BIGNUM** q, BIGNUM** g, BIGNUM** y)
 {
 	uint8_t T;
 	uint16_t length;
 	uint16_t offset;
-	DSA *dsa;
-	BIGNUM *Q; BIGNUM *P;
-	BIGNUM *G; BIGNUM *Y;
 
 	if(len == 0)
-		return NULL;
+		return 0;
 	T = (uint8_t)key[0];
 	length = (64 + T * 8);
 	offset = 1;
 
 	if (T > 8) {
-		return NULL;
+		return 0;
 	}
 	if(len < (size_t)1 + SHA_DIGEST_LENGTH + 3*length)
-		return NULL;
+		return 0;
 
-	Q = BN_bin2bn(key+offset, SHA_DIGEST_LENGTH, NULL);
+	*q = BN_bin2bn(key+offset, SHA_DIGEST_LENGTH, NULL);
 	offset += SHA_DIGEST_LENGTH;
 
-	P = BN_bin2bn(key+offset, (int)length, NULL);
+	*p = BN_bin2bn(key+offset, (int)length, NULL);
 	offset += length;
 
-	G = BN_bin2bn(key+offset, (int)length, NULL);
+	*g = BN_bin2bn(key+offset, (int)length, NULL);
 	offset += length;
 
-	Y = BN_bin2bn(key+offset, (int)length, NULL);
+	*y = BN_bin2bn(key+offset, (int)length, NULL);
 
+	if(!*q || !*p || !*g || !*y) {
+		BN_free(*q);
+		BN_free(*p);
+		BN_free(*g);
+		BN_free(*y);
+		return 0;
+	}
+	return 1;
+}
+
+#ifndef HAVE_OSSL_PARAM_BLD_NEW
+DSA *
+sldns_key_buf2dsa_raw(unsigned char* key, size_t len)
+{
+	DSA *dsa;
+	BIGNUM *Q=NULL, *P=NULL, *G=NULL, *Y=NULL;
+	if(!sldns_key_dsa_buf_bignum(key, len, &P, &Q, &G, &Y)) {
+		return NULL;
+	}
 	/* create the key and set its properties */
-	if(!Q || !P || !G || !Y || !(dsa = DSA_new())) {
-		BN_free(Q);
-		BN_free(P);
-		BN_free(G);
-		BN_free(Y);
+	if(!(dsa = DSA_new())) {
 		return NULL;
 	}
 #if OPENSSL_VERSION_NUMBER < 0x10100000 || defined(HAVE_LIBRESSL)
@@ -261,22 +279,111 @@ sldns_key_buf2dsa_raw(unsigned char* key, size_t len)
 
 	return dsa;
 }
+#endif /* HAVE_OSSL_PARAM_BLD_NEW */
 
-RSA *
-sldns_key_buf2rsa_raw(unsigned char* key, size_t len)
+EVP_PKEY *sldns_key_dsa2pkey_raw(unsigned char* key, size_t len)
+{
+#ifdef HAVE_OSSL_PARAM_BLD_NEW
+	EVP_PKEY* evp_key = NULL;
+	EVP_PKEY_CTX* ctx;
+	BIGNUM *p=NULL, *q=NULL, *g=NULL, *y=NULL;
+	OSSL_PARAM_BLD* param_bld;
+	OSSL_PARAM* params = NULL;
+	if(!sldns_key_dsa_buf_bignum(key, len, &p, &q, &g, &y)) {
+		return NULL;
+	}
+
+	param_bld = OSSL_PARAM_BLD_new();
+	if(!param_bld) {
+		BN_free(p);
+		BN_free(q);
+		BN_free(g);
+		BN_free(y);
+		return NULL;
+	}
+	if(!OSSL_PARAM_BLD_push_BN(param_bld, "p", p) ||
+	   !OSSL_PARAM_BLD_push_BN(param_bld, "g", g) ||
+	   !OSSL_PARAM_BLD_push_BN(param_bld, "q", q) ||
+	   !OSSL_PARAM_BLD_push_BN(param_bld, "pub", y)) {
+		OSSL_PARAM_BLD_free(param_bld);
+		BN_free(p);
+		BN_free(q);
+		BN_free(g);
+		BN_free(y);
+		return NULL;
+	}
+	params = OSSL_PARAM_BLD_to_param(param_bld);
+	OSSL_PARAM_BLD_free(param_bld);
+
+	ctx = EVP_PKEY_CTX_new_from_name(NULL, "DSA", NULL);
+	if(!ctx) {
+		OSSL_PARAM_free(params);
+		BN_free(p);
+		BN_free(q);
+		BN_free(g);
+		BN_free(y);
+		return NULL;
+	}
+	if(EVP_PKEY_fromdata_init(ctx) <= 0) {
+		EVP_PKEY_CTX_free(ctx);
+		OSSL_PARAM_free(params);
+		BN_free(p);
+		BN_free(q);
+		BN_free(g);
+		BN_free(y);
+		return NULL;
+	}
+	if(EVP_PKEY_fromdata(ctx, &evp_key, EVP_PKEY_PUBLIC_KEY, params) <= 0) {
+		EVP_PKEY_CTX_free(ctx);
+		OSSL_PARAM_free(params);
+		BN_free(p);
+		BN_free(q);
+		BN_free(g);
+		BN_free(y);
+		return NULL;
+	}
+
+	EVP_PKEY_CTX_free(ctx);
+	OSSL_PARAM_free(params);
+	BN_free(p);
+	BN_free(q);
+	BN_free(g);
+	BN_free(y);
+	return evp_key;
+#else
+	DSA* dsa;
+	EVP_PKEY* evp_key = EVP_PKEY_new();
+	if(!evp_key) {
+		return NULL;
+	}
+	dsa = sldns_key_buf2dsa_raw(key, len);
+	if(!dsa) {
+		EVP_PKEY_free(evp_key);
+		return NULL;
+	}
+	if(EVP_PKEY_assign_DSA(evp_key, dsa) == 0) {
+		DSA_free(dsa);
+		EVP_PKEY_free(evp_key);
+		return NULL;
+	}
+	return evp_key;
+#endif
+}
+
+/* Retrieve params as BIGNUM from raw buffer, n is modulus, e is exponent */
+static int
+sldns_key_rsa_buf_bignum(unsigned char* key, size_t len, BIGNUM** n,
+	BIGNUM** e)
 {
 	uint16_t offset;
 	uint16_t exp;
 	uint16_t int16;
-	RSA *rsa;
-	BIGNUM *modulus;
-	BIGNUM *exponent;
 
 	if (len == 0)
-		return NULL;
+		return 0;
 	if (key[0] == 0) {
 		if(len < 3)
-			return NULL;
+			return 0;
 		memmove(&int16, key+1, 2);
 		exp = ntohs(int16);
 		offset = 3;
@@ -287,23 +394,34 @@ sldns_key_buf2rsa_raw(unsigned char* key, size_t len)
 
 	/* key length at least one */
 	if(len < (size_t)offset + exp + 1)
-		return NULL;
+		return 0;
 
 	/* Exponent */
-	exponent = BN_new();
-	if(!exponent) return NULL;
-	(void) BN_bin2bn(key+offset, (int)exp, exponent);
+	*e = BN_new();
+	if(!*e) return 0;
+	(void) BN_bin2bn(key+offset, (int)exp, *e);
 	offset += exp;
 
 	/* Modulus */
-	modulus = BN_new();
-	if(!modulus) {
-		BN_free(exponent);
-		return NULL;
+	*n = BN_new();
+	if(!*n) {
+		BN_free(*e);
+		return 0;
 	}
 	/* length of the buffer must match the key length! */
-	(void) BN_bin2bn(key+offset, (int)(len - offset), modulus);
+	(void) BN_bin2bn(key+offset, (int)(len - offset), *n);
+	return 1;
+}
 
+#ifndef HAVE_OSSL_PARAM_BLD_NEW
+RSA *
+sldns_key_buf2rsa_raw(unsigned char* key, size_t len)
+{
+	BIGNUM* modulus = NULL;
+	BIGNUM* exponent = NULL;
+	RSA *rsa;
+	if(!sldns_key_rsa_buf_bignum(key, len, &modulus, &exponent))
+		return NULL;
 	rsa = RSA_new();
 	if(!rsa) {
 		BN_free(exponent);
@@ -326,6 +444,88 @@ sldns_key_buf2rsa_raw(unsigned char* key, size_t len)
 #endif
 
 	return rsa;
+}
+#endif /* HAVE_OSSL_PARAM_BLD_NEW */
+
+EVP_PKEY* sldns_key_rsa2pkey_raw(unsigned char* key, size_t len)
+{
+#ifdef HAVE_OSSL_PARAM_BLD_NEW
+	EVP_PKEY* evp_key = NULL;
+	EVP_PKEY_CTX* ctx;
+	BIGNUM *n=NULL, *e=NULL;
+	OSSL_PARAM_BLD* param_bld;
+	OSSL_PARAM* params = NULL;
+
+	if(!sldns_key_rsa_buf_bignum(key, len, &n, &e)) {
+		return NULL;
+	}
+
+	param_bld = OSSL_PARAM_BLD_new();
+	if(!param_bld) {
+		BN_free(n);
+		BN_free(e);
+		return NULL;
+	}
+	if(!OSSL_PARAM_BLD_push_BN(param_bld, "n", n)) {
+		OSSL_PARAM_BLD_free(param_bld);
+		BN_free(n);
+		BN_free(e);
+		return NULL;
+	}
+	if(!OSSL_PARAM_BLD_push_BN(param_bld, "e", e)) {
+		OSSL_PARAM_BLD_free(param_bld);
+		BN_free(n);
+		BN_free(e);
+		return NULL;
+	}
+	params = OSSL_PARAM_BLD_to_param(param_bld);
+	OSSL_PARAM_BLD_free(param_bld);
+
+	ctx = EVP_PKEY_CTX_new_from_name(NULL, "RSA", NULL);
+	if(!ctx) {
+		OSSL_PARAM_free(params);
+		BN_free(n);
+		BN_free(e);
+		return NULL;
+	}
+	if(EVP_PKEY_fromdata_init(ctx) <= 0) {
+		EVP_PKEY_CTX_free(ctx);
+		OSSL_PARAM_free(params);
+		BN_free(n);
+		BN_free(e);
+		return NULL;
+	}
+	if(EVP_PKEY_fromdata(ctx, &evp_key, EVP_PKEY_PUBLIC_KEY, params) <= 0) {
+		EVP_PKEY_CTX_free(ctx);
+		OSSL_PARAM_free(params);
+		BN_free(n);
+		BN_free(e);
+		return NULL;
+	}
+
+	EVP_PKEY_CTX_free(ctx);
+	OSSL_PARAM_free(params);
+	BN_free(n);
+	BN_free(e);
+	return evp_key;
+#else
+	RSA* rsa;
+	EVP_PKEY *evp_key = EVP_PKEY_new();
+	if(!evp_key) {
+		return NULL;
+	}
+	rsa = sldns_key_buf2rsa_raw(key, len);
+	if(!rsa) {
+		EVP_PKEY_free(evp_key);
+		return NULL;
+	}
+	if(EVP_PKEY_assign_RSA(evp_key, rsa) == 0) {
+		RSA_free(rsa);
+		EVP_PKEY_free(evp_key);
+		return NULL;
+	}
+	return evp_key;
+#endif
 }
 
 #ifdef USE_GOST
@@ -357,6 +557,62 @@ sldns_gost2pkey_raw(unsigned char* key, size_t keylen)
 EVP_PKEY*
 sldns_ecdsa2pkey_raw(unsigned char* key, size_t keylen, uint8_t algo)
 {
+#ifdef HAVE_OSSL_PARAM_BLD_NEW
+	unsigned char buf[256+2]; /* sufficient for 2*384/8+1 */
+	EVP_PKEY *evp_key = NULL;
+	EVP_PKEY_CTX* ctx;
+	OSSL_PARAM_BLD* param_bld;
+	OSSL_PARAM* params = NULL;
+	char* group = NULL;
+
+	/* check length, which uncompressed must be 2 bignums */
+	if(algo == LDNS_ECDSAP256SHA256) {
+		if(keylen != 2*256/8) return NULL;
+		group = "prime256v1";
+	} else if(algo == LDNS_ECDSAP384SHA384) {
+		if(keylen != 2*384/8) return NULL;
+		group = "P-384";
+	} else {
+		return NULL;
+	}
+	if(keylen+1 > sizeof(buf)) { /* sanity check */
+		return NULL;
+	}
+	/* prepend the 0x04 for uncompressed format */
+	buf[0] = POINT_CONVERSION_UNCOMPRESSED;
+	memmove(buf+1, key, keylen);
+
+	param_bld = OSSL_PARAM_BLD_new();
+	if(!param_bld) {
+		return NULL;
+	}
+	if(!OSSL_PARAM_BLD_push_utf8_string(param_bld, "group", group, 0) ||
+	   !OSSL_PARAM_BLD_push_octet_string(param_bld, "pub", buf, keylen+1)) {
+		OSSL_PARAM_BLD_free(param_bld);
+		return NULL;
+	}
+	params = OSSL_PARAM_BLD_to_param(param_bld);
+	OSSL_PARAM_BLD_free(param_bld);
+
+	ctx = EVP_PKEY_CTX_new_from_name(NULL, "EC", NULL);
+	if(!ctx) {
+		OSSL_PARAM_free(params);
+		return NULL;
+	}
+	if(EVP_PKEY_fromdata_init(ctx) <= 0) {
+		EVP_PKEY_CTX_free(ctx);
+		OSSL_PARAM_free(params);
+		return NULL;
+	}
+	if(EVP_PKEY_fromdata(ctx, &evp_key, EVP_PKEY_PUBLIC_KEY, params) <= 0) {
+		EVP_PKEY_CTX_free(ctx);
+		OSSL_PARAM_free(params);
+		return NULL;
+	}
+	EVP_PKEY_CTX_free(ctx);
+	OSSL_PARAM_free(params);
+	return evp_key;
+#else
 	unsigned char buf[256+2]; /* sufficient for 2*384/8+1 */
         const unsigned char* pp = buf;
         EVP_PKEY *evp_key;
@@ -393,6 +649,7 @@ sldns_ecdsa2pkey_raw(unsigned char* key, size_t keylen, uint8_t algo)
 		return NULL;
 	}
         return evp_key;
+#endif /* HAVE_OSSL_PARAM_BLD_NEW */
 }
 #endif /* USE_ECDSA */
 

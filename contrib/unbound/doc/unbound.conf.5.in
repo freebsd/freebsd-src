@@ -1,4 +1,4 @@
-.TH "unbound.conf" "5" "Feb  9, 2021" "NLnet Labs" "unbound 1.13.1"
+.TH "unbound.conf" "5" "Aug 12, 2021" "NLnet Labs" "unbound 1.13.2"
 .\"
 .\" unbound.conf.5 -- unbound.conf manual
 .\"
@@ -89,11 +89,11 @@ These options are part of the
 clause.
 .TP
 .B verbosity: \fI<number>
-The verbosity number, level 0 means no verbosity, only errors. Level 1
-gives operational information. Level 2 gives detailed operational
-information. Level 3 gives query level information, output per query.
-Level 4 gives algorithm level information.  Level 5 logs client
-identification for cache misses.  Default is level 1.
+The verbosity number, level 0 means no verbosity, only errors.  Level 1
+gives operational information.  Level 2 gives detailed operational
+information including short information per query.  Level 3 gives query level
+information, output per query.  Level 4 gives algorithm level information.
+Level 5 logs client identification for cache misses.  Default is level 1.
 The verbosity can also be increased from the commandline, see \fIunbound\fR(8).
 .TP
 .B statistics\-interval: \fI<seconds>
@@ -451,6 +451,19 @@ total number configured, and finally to 0 if the number of free buffers
 falls below 20% of the total number configured. A minimum timeout of
 200 milliseconds is observed regardless of the option value used.
 .TP
+.B tcp-reuse-timeout: \fI<msec>\fR
+The period Unbound will keep TCP persistent connections open to
+authority servers. This option defaults to 60000 milliseconds.
+.TP
+.B max-reuse-tcp-queries: \fI<number>\fR
+The maximum number of queries that can be sent on a persistent TCP
+connection.
+This option defaults to 200 queries.
+.TP
+.B tcp-auth-query-timeout: \fI<number>\fR
+Timeout in milliseconds for TCP queries to auth servers.
+This option defaults to 3000 milliseconds.
+.TP
 .B edns-tcp-keepalive: \fI<yes or no>\fR
 Enable or disable EDNS TCP Keepalive. Default is no.
 .TP
@@ -583,6 +596,7 @@ Default is yes.
 .B pad\-queries\-block\-size: \fI<number>
 The block size with which to pad queries sent over TLS upstreams.
 Default is 128.
+.TP
 .B tls\-use\-sni: \fI<yes or no>
 Enable or disable sending the SNI extension on TLS connections.
 Default is yes.
@@ -838,6 +852,17 @@ If enabled version.server and version.bind queries are refused.
 Set the version to report. If set to "", the default, then the package
 version is returned.
 .TP
+.B hide\-http\-user\-agent: \fI<yes or no>
+If enabled the HTTP header User-Agent is not set. Use with caution as some
+webserver configurations may reject HTTP requests lacking this header.
+If needed, it is better to explicitly set the
+.B http\-user\-agent
+below.
+.TP
+.B http\-user\-agent: \fI<string>
+Set the HTTP User-Agent header for outgoing HTTP requests. If set to "",
+the default, then the package name and version are used.
+.TP
 .B nsid:\fR <string>
 Add the specified nsid to the EDNS section of the answer when queried
 with an NSID EDNS enabled packet.  As a sequence of hex characters or
@@ -1012,7 +1037,7 @@ If yes, Unbound rotates RRSet order in response (the random number is taken
 from the query ID, for speed and thread safety).  Default is yes.
 .TP
 .B minimal-responses: \fI<yes or no>
-If yes, Unbound doesn't insert authority/additional sections into response
+If yes, Unbound does not insert authority/additional sections into response
 messages when those sections are not required.  This reduces response
 size significantly, and may avoid TCP fallback for some responses.
 This may cause a slight speedup.  The default is yes, even though the DNS
@@ -1030,15 +1055,24 @@ of this setting, if a trust anchor is loaded.
 .TP
 .B module\-config: \fI<"module names">
 Module configuration, a list of module names separated by spaces, surround
-the string with quotes (""). The modules can be validator, iterator.
-Setting this to "iterator" will result in a non\-validating server.
-Setting this to "validator iterator" will turn on DNSSEC validation.
-The ordering of the modules is important.
-You must also set trust\-anchors for validation to be useful.
-The default is "validator iterator".  When the server is built with
-EDNS client subnet support the default is "subnetcache validator iterator".
+the string with quotes (""). The modules can be \fIrespip\fR,
+\fIvalidator\fR, or \fIiterator\fR (and possibly more, see below).
+Setting this to just "\fIiterator\fR" will result in a non\-validating
+server.
+Setting this to "\fIvalidator iterator\fR" will turn on DNSSEC validation.
+The ordering of the modules is significant, the order decides the
+order of processing.
+You must also set \fItrust\-anchors\fR for validation to be useful.
+Adding \fIrespip\fR to the front will cause RPZ processing to be done on
+all queries.
+The default is "\fIvalidator iterator\fR".
+.IP
+When the server is built with
+EDNS client subnet support the default is "\fIsubnetcache validator
+iterator\fR".
 Most modules that need to be listed here have to be listed at the beginning
-of the line.  The cachedb module has to be listed just before the iterator.
+of the line.  The subnetcachedb module has to be listed just before
+the iterator.
 The python module can be listed in different places, it then processes the
 output of the module it is just before. The dynlib module can be listed pretty
 much anywhere, it is only a very thin wrapper that allows dynamic libraries to
@@ -1116,6 +1150,10 @@ allows for timezone setting problems in stable domains.  Setting both
 min and max very low disables the clock skew allowances.  Setting both
 min and max very high makes the validator check the signature timestamps
 less strictly.
+.TP
+.B val\-max\-restart: \fI<number>
+The maximum number the validator should restart validation with
+another authority in case of failed validation. Default is 5.
 .TP
 .B val\-bogus\-ttl: \fI<number>
 The time to live for bogus data. This is data that has failed validation;
@@ -1201,12 +1239,18 @@ Default is "no".
 .TP
 .B val\-nsec3\-keysize\-iterations: \fI<"list of values">
 List of keysize and iteration count values, separated by spaces, surrounded
-by quotes. Default is "1024 150 2048 500 4096 2500". This determines the
+by quotes. Default is "1024 150 2048 150 4096 150". This determines the
 maximum allowed NSEC3 iteration count before a message is simply marked
 insecure instead of performing the many hashing iterations. The list must
 be in ascending order and have at least one entry. If you set it to
 "1024 65535" there is no restriction to NSEC3 iteration values.
 This table must be kept short; a very long list could cause slower operation.
+.TP
+.B zonemd\-permissive\-mode: \fI<yes or no>
+If enabled the ZONEMD verification failures are only logged and do not cause
+the zone to be blocked and only return servfail.  Useful for testing out
+if it works, or if the operator only wants to be notified of a problem without
+disrupting service.  Default is no.
 .TP
 .B add\-holddown: \fI<seconds>
 Instruct the \fBauto\-trust\-anchor\-file\fR probe mechanism for RFC5011
@@ -1506,6 +1550,82 @@ Override the localzone type for queries from addresses matching netblock.
 Use this localzone type, regardless the type configured for the local-zone
 (both tagged and untagged) and regardless the type configured using
 access\-control\-tag\-action.
+.TP 5
+.B response\-ip: \fI<IP-netblock> <action>
+This requires use of the "respip" module.
+.IP
+If the IP address in an AAAA or A RR in the answer section of a
+response matches the specified IP netblock, the specified action will
+apply.
+\fI<action>\fR has generally the same semantics as that for
+\fIaccess-control-tag-action\fR, but there are some exceptions.
+.IP
+Actions for \fIresponse-ip\fR are different from those for
+\fIlocal-zone\fR in that in case of the former there is no point of
+such conditions as "the query matches it but there is no local data".
+Because of this difference, the semantics of \fIresponse-ip\fR actions
+are modified or simplified as follows: The \fIstatic, refuse,
+transparent, typetransparent,\fR and \fInodefault\fR actions are
+invalid for \fIresponse-ip\fR.
+Using any of these will cause the configuration to be rejected as
+faulty. The \fIdeny\fR action is non-conditional, i.e. it always
+results in dropping the corresponding query.
+The resolution result before applying the deny action is still cached
+and can be used for other queries.
+.TP 5
+.B response-ip-data: \fI<IP-netblock> <"resource record string">
+This requires use of the "respip" module.
+.IP
+This specifies the action data for \fIresponse-ip\fR with action being
+to redirect as specified by "\fIresource record string\fR".  "Resource
+record string" is similar to that of \fIaccess-control-tag-action\fR,
+but it must be of either AAAA, A or CNAME types.
+If the IP-netblock is an IPv6/IPV4 prefix, the record
+must be AAAA/A respectively, unless it is a CNAME (which can be used
+for both versions of IP netblocks).  If it is CNAME there must not be
+more than one \fIresponse-ip-data\fR for the same IP-netblock.
+Also, CNAME and other types of records must not coexist for the same
+IP-netblock, following the normal rules for CNAME records.
+The textual domain name for the CNAME does not have to be explicitly
+terminated with a dot ("."); the root name is assumed to be the origin
+for the name.
+.TP 5
+.B response-ip-tag: \fI<IP-netblock> <"list of tags">
+This requires use of the "respip" module.
+.IP
+Assign tags to response IP-netblocks.  If the IP address in an AAAA or
+A RR in the answer section of a response matches the specified
+IP-netblock, the specified tags are assigned to the IP address.
+Then, if an \fIaccess-control-tag\fR is defined for the client and it
+includes one of the tags for the response IP, the corresponding
+\fIaccess-control-tag-action\fR will apply.
+Tag matching rule is the same as that for \fIaccess-control-tag\fR and
+\fIlocal-zones\fR.
+Unlike \fIlocal-zone-tag\fR, \fIresponse-ip-tag\fR can be defined for
+an IP-netblock even if no \fIresponse-ip\fR is defined for that
+netblock.
+If multiple \fIresponse-ip-tag\fR options are specified for the same
+IP-netblock in different statements, all but the first will be
+ignored.
+However, this will not be flagged as a configuration error, but the
+result is probably not what was intended.
+.IP
+Actions specified in an
+\fIaccess-control-tag-action\fR that has a matching tag with
+\fIresponse-ip-tag\fR can be those that are "invalid" for
+\fIresponse-ip\fR listed above, since \fIaccess-control-tag-action\fRs
+can be shared with local zones.
+For these actions, if they behave differently depending on whether
+local data exists or not in case of local zones, the behavior for
+\fIresponse-ip-data\fR will generally result in NOERROR/NODATA instead
+of NXDOMAIN, since the \fIresponse-ip\fR data are inherently type
+specific, and non-existence of data does not indicate anything about
+the existence or non-existence of the qname itself.
+For example, if the matching tag action is \fIstatic\fR but there is
+no data for the corresponding \fIresponse-ip\fR configuration, then
+the result will be NOERROR/NODATA.
+The only case where NXDOMAIN is returned is when an
+\fIalways_nxdomain\fR action applies.
 .TP 5
 .B ratelimit: \fI<number or 0>
 Enable ratelimiting of queries sent to nameserver for performing recursion.
@@ -1818,7 +1938,9 @@ Name of the authority zone.
 .B primary: \fI<IP address or host name>
 Where to download a copy of the zone from, with AXFR and IXFR.  Multiple
 primaries can be specified.  They are all tried if one fails.
-With the "ip#name" notation a AXFR over TLS can be used.
+To use a nondefault port for DNS communication append '@' with the port number.
+You can append a '#' and a name, then AXFR over TLS can be used and the tls authentication certificates will be checked with that name.  If you combine
+the '@' and '#', the '@' comes first.
 If you point it at another Unbound instance, it would not work because
 that does not support AXFR/IXFR for the zone, but if you used \fBurl:\fR to download
 the zonefile as a text file from a webserver that would work.
@@ -1874,6 +1996,25 @@ for answering recursion queries.  Instead of sending queries over the internet
 to the authority servers for this zone, it'll fetch the data directly from
 the zone data.  Turn it on when you want unbound to provide recursion for
 downstream clients, and use the zone data as a local copy to speed up lookups.
+.TP
+.B zonemd\-check: \fI<yes or no>
+Enable this option to check ZONEMD records in the zone. Default is disabled.
+The ZONEMD record is a checksum over the zone data. This includes glue in
+the zone and data from the zone file, and excludes comments from the zone file.
+When there is a DNSSEC chain of trust, DNSSEC signatures are checked too.
+.TP
+.B zonemd\-reject\-absence: \fI<yes or no>
+Enable this option to reject the absence of the ZONEMD record.  Without it,
+when zonemd is not there it is not checked.  It is useful to enable for a
+nonDNSSEC signed zone where the operator wants to require the verification
+of a ZONEMD, hence a missing ZONEMD is a failure.  The action upon
+failure is controlled by the \fBzonemd\-permissive\-mode\fR option, for
+log only or also block the zone.  The default is no.
+.IP
+Without the option absence of a ZONEMD is only a failure when the zone is
+DNSSEC signed, and we have a trust anchor, and the DNSSEC verification of
+the absence of the ZONEMD fails.  With the option enabled, the absence of
+a ZONEMD is always a failure, also for nonDNSSEC signed zones.
 .TP
 .B zonefile: \fI<filename>
 The filename where the zone is stored.  If not given then no zonefile is used.
@@ -2376,6 +2517,15 @@ Name of the authority zone.
 .B primary: \fI<IP address or host name>
 Where to download a copy of the zone from, with AXFR and IXFR.  Multiple
 primaries can be specified.  They are all tried if one fails.
+To use a nondefault port for DNS communication append '@' with the port number.
+You can append a '#' and a name, then AXFR over TLS can be used and the tls authentication certificates will be checked with that name.  If you combine
+the '@' and '#', the '@' comes first.
+If you point it at another Unbound instance, it would not work because
+that does not support AXFR/IXFR for the zone, but if you used \fBurl:\fR to download
+the zonefile as a text file from a webserver that would work.
+If you specify the hostname, you cannot use the domain from the zonefile,
+because it may not have that when retrieving that data, instead use a plain
+IP address to avoid a circular dependency on retrieving that IP address.
 .TP
 .B master: \fI<IP address or host name>
 Alternate syntax for \fBprimary\fR.

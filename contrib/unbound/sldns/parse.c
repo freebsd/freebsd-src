@@ -149,6 +149,9 @@ sldns_fget_token_l(FILE *f, char *token, const char *delim, size_t limit, int *l
 		if (c != '\0' && c != '\n') {
 			*t++ = c;
 		}
+		if (c == '\n' && line_nr) {
+			*line_nr = *line_nr + 1;
+		}
 		if (c == '\\' && prev_c == '\\')
 			prev_c = 0;
 		else	prev_c = c;

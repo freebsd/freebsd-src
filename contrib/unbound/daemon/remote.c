@@ -130,7 +130,7 @@ timeval_divide(struct timeval* avg, const struct timeval* sum, long long d)
 {
 #ifndef S_SPLINT_S
 	size_t leftover;
-	if(d == 0) {
+	if(d <= 0) {
 		avg->tv_sec = 0;
 		avg->tv_usec = 0;
 		return;
@@ -139,7 +139,13 @@ timeval_divide(struct timeval* avg, const struct timeval* sum, long long d)
 	avg->tv_usec = sum->tv_usec / d;
 	/* handle fraction from seconds divide */
 	leftover = sum->tv_sec - avg->tv_sec*d;
-	avg->tv_usec += (leftover*1000000)/d;
+	if(leftover <= 0)
+		leftover = 0;
+	avg->tv_usec += (((long long)leftover)*((long long)1000000))/d;
+	if(avg->tv_sec < 0)
+		avg->tv_sec = 0;
+	if(avg->tv_usec < 0)
+		avg->tv_usec = 0;
 #endif
 }
 
@@ -364,13 +370,20 @@ struct listen_port* daemon_remote_open_ports(struct config_file* cfg)
 	struct listen_port* l = NULL;
 	log_assert(cfg->remote_control_enable && cfg->control_port);
 	if(cfg->control_ifs.first) {
-		struct config_strlist* p;
-		for(p = cfg->control_ifs.first; p; p = p->next) {
-			if(!add_open(p->str, cfg->control_port, &l, 1, cfg)) {
+		char** rcif = NULL;
+		int i, num_rcif = 0;
+		if(!resolve_interface_names(NULL, 0, cfg->control_ifs.first,
+			&rcif, &num_rcif)) {
+			return NULL;
+		}
+		for(i=0; i<num_rcif; i++) {
+			if(!add_open(rcif[i], cfg->control_port, &l, 1, cfg)) {
 				listening_ports_free(l);
+				config_del_strarray(rcif, num_rcif);
 				return NULL;
 			}
 		}
+		config_del_strarray(rcif, num_rcif);
 	} else {
 		/* defaults */
 		if(cfg->do_ip6 &&
@@ -1291,10 +1304,35 @@ do_zones_remove(RES* ssl, struct local_zones* zones)
 	(void)ssl_printf(ssl, "removed %d zones\n", num);
 }
 
+/** check syntax of newly added RR */
+static int
+check_RR_syntax(RES* ssl, char* str, int line)
+{
+	uint8_t rr[LDNS_RR_BUF_SIZE];
+	size_t len = sizeof(rr), dname_len = 0;
+	int s = sldns_str2wire_rr_buf(str, rr, &len, &dname_len, 3600,
+		NULL, 0, NULL, 0);
+	if(s != 0) {
+		char linestr[32];
+		if(line == 0)
+			linestr[0]=0;
+		else 	snprintf(linestr, sizeof(linestr), "line %d ", line);
+		if(!ssl_printf(ssl, "error parsing local-data at %sposition %d '%s': %s\n",
+			linestr, LDNS_WIREPARSE_OFFSET(s), str,
+			sldns_get_errorstr_parse(s)))
+			return 0;
+		return 0;
+	}
+	return 1;
+}
+
 /** Add new RR data */
 static int
-perform_data_add(RES* ssl, struct local_zones* zones, char* arg)
+perform_data_add(RES* ssl, struct local_zones* zones, char* arg, int line)
 {
+	if(!check_RR_syntax(ssl, arg, line)) {
+		return 0;
+	}
 	if(!local_zones_add_RR(zones, arg)) {
 		ssl_printf(ssl,"error in syntax or out of memory, %s\n", arg);
 		return 0;
@@ -1306,7 +1344,7 @@ perform_data_add(RES* ssl, struct local_zones* zones, char* arg)
 static void
 do_data_add(RES* ssl, struct local_zones* zones, char* arg)
 {
-	if(!perform_data_add(ssl, zones, arg))
+	if(!perform_data_add(ssl, zones, arg, 0))
 		return;
 	send_ok(ssl);
 }
@@ -1316,15 +1354,12 @@ static void
 do_datas_add(RES* ssl, struct local_zones* zones)
 {
 	char buf[2048];
-	int num = 0;
+	int num = 0, line = 0;
 	while(ssl_read_line(ssl, buf, sizeof(buf))) {
 		if(buf[0] == 0x04 && buf[1] == 0)
 			break; /* end of transmission */
-		if(!perform_data_add(ssl, zones, buf)) {
-			if(!ssl_printf(ssl, "error for input line: %s\n", buf))
-				return;
-		}
-		else
+		line++;
+		if(perform_data_add(ssl, zones, buf, line))
 			num++;
 	}
 	(void)ssl_printf(ssl, "added %d datas\n", num);
@@ -2510,6 +2545,8 @@ do_auth_zone_reload(RES* ssl, struct worker* worker, char* arg)
 	uint8_t* nm = NULL;
 	struct auth_zones* az = worker->env.auth_zones;
 	struct auth_zone* z = NULL;
+	struct auth_xfer* xfr = NULL;
+	char* reason = NULL;
 	if(!parse_arg_name(ssl, arg, &nm, &nmlen, &nmlabs))
 		return;
 	if(az) {
@@ -2518,19 +2555,63 @@ do_auth_zone_reload(RES* ssl, struct worker* worker, char* arg)
 		if(z) {
 			lock_rw_wrlock(&z->lock);
 		}
+		xfr = auth_xfer_find(az, nm, nmlen, LDNS_RR_CLASS_IN);
+		if(xfr) {
+			lock_basic_lock(&xfr->lock);
+		}
 		lock_rw_unlock(&az->lock);
 	}
 	free(nm);
 	if(!z) {
+		if(xfr) {
+			lock_basic_unlock(&xfr->lock);
+		}
 		(void)ssl_printf(ssl, "error no auth-zone %s\n", arg);
 		return;
 	}
 	if(!auth_zone_read_zonefile(z, worker->env.cfg)) {
 		lock_rw_unlock(&z->lock);
+		if(xfr) {
+			lock_basic_unlock(&xfr->lock);
+		}
 		(void)ssl_printf(ssl, "error failed to read %s\n", arg);
 		return;
 	}
+
+	z->zone_expired = 0;
+	if(xfr) {
+		xfr->zone_expired = 0;
+		if(!xfr_find_soa(z, xfr)) {
+			if(z->data.count == 0) {
+				lock_rw_unlock(&z->lock);
+				lock_basic_unlock(&xfr->lock);
+				(void)ssl_printf(ssl, "zone %s has no contents\n", arg);
+				return;
+			}
+			lock_rw_unlock(&z->lock);
+			lock_basic_unlock(&xfr->lock);
+			(void)ssl_printf(ssl, "error: no SOA in zone after read %s\n", arg);
+			return;
+		}
+		if(xfr->have_zone)
+			xfr->lease_time = *worker->env.now;
+		lock_basic_unlock(&xfr->lock);
+	}
+
+	auth_zone_verify_zonemd(z, &worker->env, &worker->env.mesh->mods,
+		&reason, 0, 0);
+	if(reason && z->zone_expired) {
+		lock_rw_unlock(&z->lock);
+		(void)ssl_printf(ssl, "error zonemd for %s failed: %s\n",
+			arg, reason);
+		free(reason);
+		return;
+	} else if(reason && strcmp(reason, "ZONEMD verification successful")
+		==0) {
+		(void)ssl_printf(ssl, "%s: %s\n", arg, reason);
+	}
 	lock_rw_unlock(&z->lock);
+	free(reason);
 	send_ok(ssl);
 }
 
@@ -3257,7 +3338,11 @@ int remote_control_callback(struct comm_point* c, void* arg, int err,
 	if (!rc->use_cert) {
 		verbose(VERB_ALGO, "unauthenticated remote control connection");
 	} else if(SSL_get_verify_result(s->ssl) == X509_V_OK) {
+#ifdef HAVE_SSL_GET1_PEER_CERTIFICATE
+		X509* x = SSL_get1_peer_certificate(s->ssl);
+#else
 		X509* x = SSL_get_peer_certificate(s->ssl);
+#endif
 		if(!x) {
 			verbose(VERB_DETAIL, "remote control connection "
 				"provided no client certificate");

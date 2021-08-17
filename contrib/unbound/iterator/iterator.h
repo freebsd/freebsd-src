@@ -61,7 +61,7 @@ struct rbtree_type;
  * its subqueries */
 #define MAX_TARGET_NX		5
 /** max number of query restarts. Determines max number of CNAME chain. */
-#define MAX_RESTART_COUNT       8
+#define MAX_RESTART_COUNT	11
 /** max number of referrals. Makes sure resolver does not run away */
 #define MAX_REFERRAL_COUNT	130
 /** max number of queries-sent-out.  Make sure large NS set does not loop */
@@ -406,6 +406,12 @@ struct iter_qstate {
 	int auth_zone_response;
 	/** True if the auth_zones should not be consulted for the query */
 	int auth_zone_avoid;
+	/** true if there have been scrubbing failures of reply packets */
+	int scrub_failures;
+	/** true if there have been parse failures of reply packets */
+	int parse_failures;
+	/** a failure printout address for last received answer */
+	struct comm_reply* fail_reply;
 };
 
 /**

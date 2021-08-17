@@ -14,7 +14,6 @@
 # Run the command unbound-control-setup to generate the key files.
 #
 # Environment variables for this script
-#	statefile	- where to put temporary statefile.
 #	unbound_conf	- where the unbound.conf file is located.
 #	unbound_control	- where to find unbound-control executable.
 #	spoof_warn	- what level to warn about spoofing
@@ -24,7 +23,6 @@
 # with:
 # [unbound*]
 # user root
-# env.statefile /usr/local/var/munin/plugin-state/unbound-state
 # env.unbound_conf /usr/local/etc/unbound/unbound.conf
 # env.unbound_control /usr/local/sbin/unbound-control
 # env.spoof_warn 1000
@@ -66,7 +64,6 @@ System with unbound daemon.
 
   [unbound*]
   user root
-  env.statefile /usr/local/var/munin/plugin-state/unbound-state
   env.unbound_conf /usr/local/etc/unbound/unbound.conf
   env.unbound_control /usr/local/sbin/unbound-control
   env.spoof_warn 1000
@@ -98,7 +95,8 @@ BSD
 
 =cut
 
-state=${statefile:-/usr/local/var/munin/plugin-state/unbound-state}
+state="${MUNIN_PLUGSTATE}/unbound.state"
+seentags="${MUNIN_PLUGSTATE}/unbound-seentags.state"
 conf=${unbound_conf:-/usr/local/etc/unbound/unbound.conf}
 ctrl=${unbound_control:-/usr/local/sbin/unbound-control}
 warn=${spoof_warn:-1000}
@@ -121,12 +119,24 @@ get_value ( ) {
 	fi
 }
 
+# Update list of seen query types etc to seentags file. This is run while
+# holding the lock, after the state file is updated.
+update_seentags() {
+    tmplist="$(cat ${seentags} 2> /dev/null)
+num.query.type.A
+num.query.class.IN
+num.query.opcode.QUERY
+num.answer.rcode.NOERROR
+"
+    (echo "${tmplist}"; grep ^num ${state} | sed -e 's/=.*//') | sort -u > ${seentags}
+}
+
 # download the state from the unbound server.
 get_state ( ) {
 	# obtain lock for fetching the state
 	# because there is a race condition in fetching and writing to file
 
-	# see if the lock is stale, if so, take it 
+	# see if the lock is stale, if so, take it
 	if test -f $lock ; then
 		pid="`cat $lock 2>&1`"
 		kill -0 "$pid" >/dev/null 2>&1
@@ -168,6 +178,7 @@ get_state ( ) {
 		rm -f $lock
 		exit 1
 	fi
+	update_seentags
 	rm -f $lock
 }
 
@@ -232,7 +243,7 @@ if test "$1" = "config" ; then
 		echo "graph_args --base 1000 -l 0"
 		echo "graph_vlabel queries / \${graph_period}"
 		echo "graph_scale no"
-		echo "graph_category DNS"
+		echo "graph_category dns"
 		for x in `grep "^thread[0-9][0-9]*\.num\.queries=" $state |
 			sed -e 's/=.*//'`; do
 			exist_config $x "queries handled by `basename $x .num.queries`"
@@ -256,7 +267,7 @@ if test "$1" = "config" ; then
 		echo "graph_args --base 1000 -l 0"
 		echo "graph_vlabel number of queries"
 		echo "graph_scale no"
-		echo "graph_category DNS"
+		echo "graph_category dns"
 		p_config "total.requestlist.avg" "Average size of queue on insert" "GAUGE"
 		p_config "total.requestlist.max" "Max size of queue (in 5 min)" "GAUGE"
 		p_config "total.requestlist.overwritten" "Number of queries replaced by new ones" "GAUGE"
@@ -267,7 +278,7 @@ if test "$1" = "config" ; then
 		echo "graph_title Unbound memory usage"
 		echo "graph_args --base 1024 -l 0"
 		echo "graph_vlabel memory used in bytes"
-		echo "graph_category DNS"
+		echo "graph_category dns"
 		p_config "mem.cache.rrset" "RRset cache memory" "GAUGE"
 		p_config "mem.cache.message" "Message cache memory" "GAUGE"
 		p_config "mem.mod.iterator" "Iterator module memory" "GAUGE"
@@ -283,9 +294,8 @@ if test "$1" = "config" ; then
 		echo "graph_args --base 1000 -l 0"
 		echo "graph_vlabel queries / \${graph_period}"
 		echo "graph_scale no"
-		echo "graph_category DNS"
-		for x in `grep "^num.query.type" $state`; do
-			nm=`echo $x | sed -e 's/=.*$//'`
+		echo "graph_category dns"
+		for nm in `grep "^num.query.type" $seentags`; do
 			tp=`echo $nm | sed -e s/num.query.type.//`
 			p_config "$nm" "$tp" "ABSOLUTE"
 		done
@@ -296,9 +306,8 @@ if test "$1" = "config" ; then
 		echo "graph_args --base 1000 -l 0"
 		echo "graph_vlabel queries / \${graph_period}"
 		echo "graph_scale no"
-		echo "graph_category DNS"
-		for x in `grep "^num.query.class" $state`; do
-			nm=`echo $x | sed -e 's/=.*$//'`
+		echo "graph_category dns"
+		for nm in `grep "^num.query.class" $seentags`; do
 			tp=`echo $nm | sed -e s/num.query.class.//`
 			p_config "$nm" "$tp" "ABSOLUTE"
 		done
@@ -309,9 +318,8 @@ if test "$1" = "config" ; then
 		echo "graph_args --base 1000 -l 0"
 		echo "graph_vlabel queries / \${graph_period}"
 		echo "graph_scale no"
-		echo "graph_category DNS"
-		for x in `grep "^num.query.opcode" $state`; do
-			nm=`echo $x | sed -e 's/=.*$//'`
+		echo "graph_category dns"
+		for nm in `grep "^num.query.opcode" $seentags`; do
 			tp=`echo $nm | sed -e s/num.query.opcode.//`
 			p_config "$nm" "$tp" "ABSOLUTE"
 		done
@@ -322,9 +330,8 @@ if test "$1" = "config" ; then
 		echo "graph_args --base 1000 -l 0"
 		echo "graph_vlabel answer packets / \${graph_period}"
 		echo "graph_scale no"
-		echo "graph_category DNS"
-		for x in `grep "^num.answer.rcode" $state`; do
-			nm=`echo $x | sed -e 's/=.*$//'`
+		echo "graph_category dns"
+		for nm in `grep "^num.answer.rcode" $seentags`; do
 			tp=`echo $nm | sed -e s/num.answer.rcode.//`
 			p_config "$nm" "$tp" "ABSOLUTE"
 		done
@@ -338,7 +345,7 @@ if test "$1" = "config" ; then
 		echo "graph_args --base 1000 -l 0"
 		echo "graph_vlabel queries / \${graph_period}"
 		echo "graph_scale no"
-		echo "graph_category DNS"
+		echo "graph_category dns"
 		p_config "num.query.flags.QR" "QR (query reply) flag" "ABSOLUTE"
 		p_config "num.query.flags.AA" "AA (auth answer) flag" "ABSOLUTE"
 		p_config "num.query.flags.TC" "TC (truncated) flag" "ABSOLUTE"
@@ -356,7 +363,7 @@ if test "$1" = "config" ; then
 		echo "graph_args --base 1000 -l 0"
 		echo "graph_vlabel queries / \${graph_period}"
 		echo "graph_scale no"
-		echo "graph_category DNS"
+		echo "graph_category dns"
 		echo hcache.label "cache hits"
 		echo hcache.min 0
 		echo hcache.type ABSOLUTE
@@ -467,27 +474,23 @@ memory)
 	done
 	;;
 by_type)
-	for x in `grep "^num.query.type" $state`; do
-		nm=`echo $x | sed -e 's/=.*$//'`
-		print_value_line $nm $x
+	for nm in `grep "^num.query.type" $seentags`; do
+		print_value $nm
 	done
 	;;
 by_class)
-	for x in `grep "^num.query.class" $state`; do
-		nm=`echo $x | sed -e 's/=.*$//'`
-		print_value_line $nm $x
+	for nm in `grep "^num.query.class" $seentags`; do
+		print_value $nm
 	done
 	;;
 by_opcode)
-	for x in `grep "^num.query.opcode" $state`; do
-		nm=`echo $x | sed -e 's/=.*$//'`
-		print_value_line $nm $x
+	for nm in `grep "^num.query.opcode" $seentags`; do
+		print_value $nm
 	done
 	;;
 by_rcode)
-	for x in `grep "^num.answer.rcode" $state`; do
-		nm=`echo $x | sed -e 's/=.*$//'`
-		print_value_line $nm $x
+	for nm in `grep "^num.answer.rcode" $seentags`; do
+		print_value $nm
 	done
 	print_value "num.answer.secure"
 	print_value "num.answer.bogus"

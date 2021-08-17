@@ -1,15 +1,14 @@
 Summary: Validating, recursive, and caching DNS resolver
 Name: unbound
-Version: 1.4.18
+Version: 1.13.1
 Release: 1%{?dist}
 License: BSD
 Url: http://www.nlnetlabs.nl/unbound/
-Source: http://www.unbound.net/downloads/%{name}-%{version}.tar.gz
+Source: http://www.nlnetlabs.nl/downloads/unbound/%{name}-%{version}.tar.gz
 #Source1: unbound.init
 Group: System Environment/Daemons
-Requires: ldns
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
-BuildRequires: flex, openssl-devel, expat-devel, ldns-devel
+BuildRequires: flex, openssl-devel, expat-devel
 
 %description
 Unbound is a validating, recursive, and caching DNS resolver.
@@ -42,7 +41,7 @@ install -d 0700 %{buildroot}%{_localstatedir}/%{name}
 install -d 0755 %{buildroot}%{_initrddir}
 install -m 0755 contrib/unbound.init %{buildroot}%{_initrddir}/unbound
 # add symbolic link from /etc/unbound.conf -> /var/unbound/unbound.conf
-ln -s %{_localstatedir}/unbound/unbound.conf %{buildroot}%{_sysconfdir}/unbound.conf 
+ln -s ../%{_localstatedir}/unbound/unbound.conf %{buildroot}%{_sysconfdir}/unbound.conf
 # remove static library from install (fedora packaging guidelines)
 rm -f %{buildroot}%{_libdir}/libunbound.a %{buildroot}%{_libdir}/libunbound.la
 
@@ -55,11 +54,12 @@ rm -rf ${RPM_BUILD_ROOT}
 %attr(0755,root,root) %{_initrddir}/%{name}
 %attr(0700,%{name},%{name}) %dir %{_localstatedir}/%{name}
 %attr(0644,%{name},%{name}) %config(noreplace) %{_localstatedir}/%{name}/unbound.conf
-%attr(0644,%{name},%{name}) %config(noreplace) %{_sysconfdir}/unbound.conf
+%config(noreplace) %{_sysconfdir}/unbound.conf
 %{_sbindir}/*
 %{_mandir}/*/*
 %{_includedir}/*
 %{_libdir}/libunbound*
+%{_libdir}/pkgconfig/libunbound*
 
 %pre
 getent group unbound >/dev/null || groupadd -r unbound
@@ -89,7 +89,13 @@ if [ "$1" -ge "1" ]; then
 fi
 
 %changelog
-* Thu Jul 13 2011 Wouter Wijngaards <wouter@nlnetlabs.nl> - 1.4.8
+* Thu Jun 10 2021 Wouter Wijngaards <wouter@nlnetlabs.nl> - 1.13.1
+- ldns and ldns-devel no longer required. Fixed date. Version to 1.13.1.
+- Removed symlink attr mode, made unbound.conf symlink relative.
+- Added pkgconfig/libunbound.pc to the packaged files.
+- fixed download url to nlnetlabs.nl download.
+
+* Wed Jul 13 2011 Wouter Wijngaards <wouter@nlnetlabs.nl> - 1.4.8
 - ldns required and ldns-devel required for build, no more ldns-builtin.
 
 * Thu Mar 17 2011 Wouter Wijngaards <wouter@nlnetlabs.nl> - 1.4.8

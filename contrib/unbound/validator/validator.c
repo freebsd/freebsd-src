@@ -137,6 +137,7 @@ val_apply_cfg(struct module_env* env, struct val_env* val_env,
 	val_env->date_override = cfg->val_date_override;
 	val_env->skew_min = cfg->val_sig_skew_min;
 	val_env->skew_max = cfg->val_sig_skew_max;
+	val_env->max_restart = cfg->val_max_restart;
 	c = cfg_count_numbers(cfg->val_nsec3_key_iterations);
 	if(c < 1 || (c&1)) {
 		log_err("validator: unparseable or odd nsec3 key "
@@ -1487,7 +1488,7 @@ processInit(struct module_qstate* qstate, struct val_qstate* vq,
 	enum val_classification subtype = val_classify_response(
 		qstate->query_flags, &qstate->qinfo, &vq->qchase, 
 		vq->orig_msg->rep, vq->rrset_skip);
-	if(vq->restart_count > VAL_MAX_RESTART_COUNT) {
+	if(vq->restart_count > ve->max_restart) {
 		verbose(VERB_ALGO, "restart count exceeded");
 		return val_error(qstate, id);
 	}
@@ -1640,7 +1641,7 @@ processInit(struct module_qstate* qstate, struct val_qstate* vq,
 			errinf(qstate, key_entry_get_reason(vq->key_entry));
 		}
 		/* no retries, stop bothering the authority until timeout */
-		vq->restart_count = VAL_MAX_RESTART_COUNT;
+		vq->restart_count = ve->max_restart;
 		vq->chase_reply->security = sec_status_bogus;
 		vq->state = VAL_FINISHED_STATE;
 		return 1;
@@ -1848,7 +1849,7 @@ processValidate(struct module_qstate* qstate, struct val_qstate* vq,
 			LDNS_RR_TYPE_DNSKEY, vq->key_entry->key_class);
 		vq->chase_reply->security = sec_status_bogus;
 		errinf(qstate, "while building chain of trust");
-		if(vq->restart_count >= VAL_MAX_RESTART_COUNT)
+		if(vq->restart_count >= ve->max_restart)
 			key_cache_insert(ve->kcache, vq->key_entry, qstate);
 		return 1;
 	}
@@ -2064,7 +2065,7 @@ processFinished(struct module_qstate* qstate, struct val_qstate* vq,
 	 * endless bogus revalidation */
 	if(vq->orig_msg->rep->security == sec_status_bogus) {
 		/* see if we can try again to fetch data */
-		if(vq->restart_count < VAL_MAX_RESTART_COUNT) {
+		if(vq->restart_count < ve->max_restart) {
 			int restart_count = vq->restart_count+1;
 			verbose(VERB_ALGO, "validation failed, "
 				"blacklist and retry to fetch data");
@@ -2605,6 +2606,7 @@ process_ds_response(struct module_qstate* qstate, struct val_qstate* vq,
 	int id, int rcode, struct dns_msg* msg, struct query_info* qinfo,
 	struct sock_list* origin)
 {
+	struct val_env* ve = (struct val_env*)qstate->env->modinfo[id];
 	struct key_entry_key* dske = NULL;
 	uint8_t* olds = vq->empty_DS_name;
 	vq->empty_DS_name = NULL;
@@ -2638,7 +2640,7 @@ process_ds_response(struct module_qstate* qstate, struct val_qstate* vq,
 		vq->chain_blacklist = NULL; /* fresh blacklist for next part*/
 		/* Keep the forState.state on FINDKEY. */
 	} else if(key_entry_isbad(dske) 
-		&& vq->restart_count < VAL_MAX_RESTART_COUNT) {
+		&& vq->restart_count < ve->max_restart) {
 		vq->empty_DS_name = olds;
 		val_blacklist(&vq->chain_blacklist, qstate->region, origin, 1);
 		qstate->errinf = NULL;
@@ -2691,7 +2693,7 @@ process_dnskey_response(struct module_qstate* qstate, struct val_qstate* vq,
 		/* bad response */
 		verbose(VERB_DETAIL, "Missing DNSKEY RRset in response to "
 			"DNSKEY query.");
-		if(vq->restart_count < VAL_MAX_RESTART_COUNT) {
+		if(vq->restart_count < ve->max_restart) {
 			val_blacklist(&vq->chain_blacklist, qstate->region,
 				origin, 1);
 			qstate->errinf = NULL;
@@ -2730,7 +2732,7 @@ process_dnskey_response(struct module_qstate* qstate, struct val_qstate* vq,
 	 * state. */
 	if(!key_entry_isgood(vq->key_entry)) {
 		if(key_entry_isbad(vq->key_entry)) {
-			if(vq->restart_count < VAL_MAX_RESTART_COUNT) {
+			if(vq->restart_count < ve->max_restart) {
 				val_blacklist(&vq->chain_blacklist, 
 					qstate->region, origin, 1);
 				qstate->errinf = NULL;
@@ -2807,7 +2809,7 @@ process_prime_response(struct module_qstate* qstate, struct val_qstate* vq,
 	lock_basic_unlock(&ta->lock);
 	if(vq->key_entry) {
 		if(key_entry_isbad(vq->key_entry) 
-			&& vq->restart_count < VAL_MAX_RESTART_COUNT) {
+			&& vq->restart_count < ve->max_restart) {
 			val_blacklist(&vq->chain_blacklist, qstate->region, 
 				origin, 1);
 			qstate->errinf = NULL;

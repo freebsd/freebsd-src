@@ -1,0 +1,127 @@
+uri.arpa.         3600    IN      SOA     sns.dns.icann.org. (
+    noc.dns.icann.org. 2018100702 10800 3600 1209600 3600 )
+uri.arpa.         3600    IN      RRSIG   NSEC 8 2 3600 (
+    20181028142623 20181007205525 47155 uri.arpa.
+    eEC4w/oXLR1Epwgv4MBiDtSBsXhqrJVvJWUpbX8XpetAvD35bxwNCUTi
+    /pAJVUXefegWeiriD2rkTgCBCMmn7YQIm3gdR+HjY/+o3BXNQnz97f+e
+    HAE9EDDzoNVfL1PyV/2fde9tDeUuAGVVwmD399NGq9jWYMRpyri2kysr q/g= )
+uri.arpa.         86400   IN      RRSIG   NS 8 2 86400 (
+    20181028172020 20181007175821 47155 uri.arpa.
+    ATyV2A2A8ZoggC+68u4GuP5MOUuR+2rr3eWOkEU55zAHld/7FiBxl4ln
+    4byJYy7NudUwlMOEXajqFZE7DVl8PpcvrP3HeeGaVzKqaWj+aus0jbKF
+    Bsvs2b1qDZemBfkz/IfAhUTJKnto0vSUicJKfItu0GjyYNJCz2CqEuGD Wxc= )
+uri.arpa.         600     IN      RRSIG   MX 8 2 600 (
+    20181028170556 20181007175821 47155 uri.arpa.
+    e7/r3KXDohX1lyVavetFFObp8fB8aXT76HnN9KCQDxSnSghNM83UQV0t
+    lTtD8JVeN1mCvcNFZpagwIgB7XhTtm6Beur/m5ES+4uSnVeS6Q66HBZK
+    A3mR95IpevuVIZvvJ+GcCAQpBo6KRODYvJ/c/ZG6sfYWkZ7qg/Em5/+3 4UI= )
+uri.arpa.         3600    IN      RRSIG   DNSKEY 8 2 3600 (
+    20181028152832 20181007175821 15796 uri.arpa.
+    nzpbnh0OqsgBBP8St28pLvPEQ3wZAUdEBuUwil+rtjjWlYYiqjPxZ286
+    XF4Rq1usfV5x71jZz5IqswOaQgia91ylodFpLuXD6FTGs2nXGhNKkg1V
+    chHgtwj70mXU72GefVgo8TxrFYzxuEFP5ZTP92t97FVWVVyyFd86sbbR
+    6DZj3uA2wEvqBVLECgJLrMQ9Yy7MueJl3UA4h4E6zO2JY9Yp0W9woq0B
+    dqkkwYTwzogyYffPmGAJG91RJ2h6cHtFjEZe2MnaY2glqniZ0WT9vXXd
+    uFPm0KD9U77Ac+ZtctAF9tsZwSdAoL365E2L1usZbA+K0BnPPqGFJRJk
+    5R0A1w== )
+uri.arpa.         3600    IN      RRSIG   DNSKEY 8 2 3600 (
+    20181028152832 20181007175821 55480 uri.arpa.
+    lWtQV/5szQjkXmbcD47/+rOW8kJPksRFHlzxxmzt906+DBYyfrH6uq5X
+    nHvrUlQO6M12uhqDeL+bDFVgqSpNy+42/OaZvaK3J8EzPZVBHPJykKMV
+    63T83aAiJrAyHzOaEdmzLCpalqcEE2ImzlLHSafManRfJL8Yuv+JDZFj
+    2WDWfEcUuwkmIZWX11zxp+DxwzyUlRl7x4+ok5iKZWIg5UnBAf6B8T75
+    WnXzlhCw3F2pXI0a5LYg71L3Tp/xhjN6Yy9jGlIRf5BjB59X2zra3a2R
+    PkI09SSnuEwHyF1mDaV5BmQrLGRnCjvwXA7ho2m+vv4SP5dUdXf+GTeA
+    1HeBfw== )
+uri.arpa.         3600    IN      RRSIG   SOA 8 2 3600 (
+    20181029114753 20181008222815 47155 uri.arpa.
+    qn8yBNoHDjGdT79U2Wu9IIahoS0YPOgYP8lG+qwPcrZ1BwGiHywuoUa2
+    Mx6BWZlg+HDyaxj2iOmox+IIqoUHhXUbO7IUkJFlgrOKCgAR2twDHrXu
+    9BUQHy9SoV16wYm3kBTEPyxW5FFm8vcdnKAF7sxSY8BbaYNpRIEjDx4A JUc= )
+uri.arpa.         3600    IN      NSEC    ftp.uri.arpa. NS SOA (
+    MX RRSIG NSEC DNSKEY )
+uri.arpa.         86400   IN      NS      a.iana-servers.net.
+uri.arpa.         86400   IN      NS      b.iana-servers.net.
+uri.arpa.         86400   IN      NS      c.iana-servers.net.
+uri.arpa.         86400   IN      NS      ns2.lacnic.net.
+uri.arpa.         86400   IN      NS      sec3.apnic.net.
+uri.arpa.         600     IN      MX      10 pechora.icann.org.
+uri.arpa.         3600    IN      DNSKEY  256 3 8 (
+    AwEAAcBi7tSart2J599zbYWspMNGN70IBWb4ziqyQYH9MTB/VCz6WyUK
+    uXunwiJJbbQ3bcLqTLWEw134B6cTMHrZpjTAb5WAwg4XcWUu8mdcPTiL
+    Bl6qVRlRD0WiFCTzuYUfkwsh1Rbr7rvrxSQhF5rh71zSpwV5jjjp65Wx
+    SdJjlH0B )
+uri.arpa.         3600    IN      DNSKEY  257 3 8 (
+    AwEAAbNVv6ulgRdO31MtAehz7j3ALRjwZglWesnzvllQl/+hBRZr9QoY
+    cO2I+DkO4Q1NKxox4DUIxj8SxPO3GwDuOFR9q2/CFi2O0mZjafbdYtWc
+    3zSdBbi3q0cwCIx7GuG9eqlL+pg7mdk9dgdNZfHwB0LnqTD8ebLPsrO/
+    Id7kBaiqYOfMlZnh2fp+2h6OOJZHtY0DK1UlssyB5PKsE0tVzo5s6zo9
+    iXKe5u+8WTMaGDY49vG80JPAKE7ezMiH/NZcUMiE0PRZ8D3foq2dYuS5
+    ym+vA83Z7v8A+Rwh4UGnjxKB8zmr803V0ASAmHz/gwH5Vb0nH+LObwFt
+    l3wpbp+Wpm8= )
+uri.arpa.         3600    IN      DNSKEY  257 3 8 (
+    AwEAAbwnFTakCvaUKsXji4mgmxZUJi1IygbnGahbkmFEa0L16J+TchKR
+    wcgzVfsxUGa2MmeA4hgkAooC3uy+tTmoMsgy8uq/JAj24DjiHzd46LfD
+    FK/qMidVqFpYSHeq2Vv5ojkuIsx4oe4KsafGWYNOczKZgH5loGjN2aJG
+    mrIm++XCphOskgCsQYl65MIzuXffzJyxlAuts+ecAIiVeqRaqQfr8LRU
+    7wIsLxinXirprtQrbor+EtvlHp9qXE6ARTZDzf4jvsNpKvLFZtmxzFf3
+    e/UJz5eHjpwDSiZL7xE8aE1o1nGfPtJx9ZnB3bapltaJ5wY+5XOCKgY0
+    xmJVvNQlwdE= )
+ftp.uri.arpa.     3600    IN      RRSIG   NSEC 8 3 3600 (
+    20181028080856 20181007175821 47155 uri.arpa.
+    HClGAqPxzkYkAT7Q/QNtQeB6YrkP6EPOef+9Qo5/2zngwAewXEAQiyF9
+    jD1USJiroM11QqBS3v3aIdW/LXORs4Ez3hLcKNO1cKHsOuWAqzmE+BPP
+    Arfh8N95jqh/q6vpaB9UtMkQ53tM2fYU1GszOLN0knxbHgDHAh2axMGH lqM= )
+ftp.uri.arpa.     604800  IN      RRSIG   NAPTR 8 3 604800 (
+    20181028103644 20181007205525 47155 uri.arpa.
+    WoLi+vZzkxaoLr2IGZnwkRvcDf6KxiWQd1WZP/U+AWnV+7MiqsWPZaf0
+    9toRErerGoFOiOASNxZjBGJrRgjmavOM9U+LZSconP9zrNFd4dIu6kp5
+    YxlQJ0uHOvx1ZHFCj6lAt1ACUIw04ZhMydTmi27c8MzEOMepvn7iH7r7 k7k= )
+ftp.uri.arpa.     3600    IN      NSEC    http.uri.arpa. NAPTR (
+    RRSIG NSEC )
+ftp.uri.arpa.     604800  IN      NAPTR   0 0 "" "" (
+    "!^ftp://([^:/?#]*).*$!\\1!i" . )
+http.uri.arpa.    3600    IN      RRSIG   NSEC 8 3 3600 (
+    20181029010647 20181007175821 47155 uri.arpa.
+    U03NntQ73LHWpfLmUK8nMsqkwVsOGW2KdsyuHYAjqQSZvKbtmbv7HBmE
+    H1+Ii3Z+wtfdMZBy5aC/6sHdx69BfZJs16xumycMlAy6325DKTQbIMN+
+    ift9GrKBC7cgCd2msF/uzSrYxxg4MJQzBPvlkwXnY3b7eJSlIXisBIn7 3b8= )
+http.uri.arpa.    604800  IN      RRSIG   NAPTR 8 3 604800 (
+    20181029011815 20181007205525 47155 uri.arpa.
+    T7mRrdag+WSmG+n22mtBSQ/0Y3v+rdDnfQV90LN5Fq32N5K2iYFajF7F
+    Tp56oOznytfcL4fHrqOE0wRc9NWOCCUec9C7Wa1gJQcllEvgoAM+L6f0
+    RsEjWq6+9jvlLKMXQv0xQuMX17338uoD/xiAFQSnDbiQKxwWMqVAimv5 7Zs= )
+http.uri.arpa.    3600    IN      NSEC    mailto.uri.arpa. NAPTR (
+    RRSIG NSEC )
+http.uri.arpa.    604800  IN      NAPTR   0 0 "" "" (
+    "!^http://([^:/?#]*).*$!\\1!i" . )
+mailto.uri.arpa.  3600    IN      RRSIG   NSEC 8 3 3600 (
+    20181028110727 20181007175821 47155 uri.arpa.
+    GvxzVL85rEukwGqtuLxek9ipwjBMfTOFIEyJ7afC8HxVMs6mfFa/nEM/
+    IdFvvFg+lcYoJSQYuSAVYFl3xPbgrxVSLK125QutCFMdC/YjuZEnq5cl
+    fQciMRD7R3+znZfm8d8u/snLV9w4D+lTBZrJJUBe1Efc8vum5vvV7819 ZoY= )
+mailto.uri.arpa.  604800  IN      RRSIG   NAPTR 8 3 604800 (
+    20181028141825 20181007205525 47155 uri.arpa.
+    MaADUgc3fc5v++M0YmqjGk3jBdfIA5RuP62hUSlPsFZO4k37erjIGCfF
+    j+g84yc+QgbSde0PQHszl9fE/+SU5ZXiS9YdcbzSZxp2erFpZOTchrpg
+    916T4vx6i59scodjb0l6bDyZ+mtIPrc1w6b4hUyOUTsDQoAJYxdfEuMg Vy4= )
+mailto.uri.arpa.  3600    IN      NSEC    urn.uri.arpa. NAPTR (
+    RRSIG NSEC )
+mailto.uri.arpa.  604800  IN      NAPTR   0 0 "" "" (
+    "!^mailto:(.*)@(.*)$!\\2!i" . )
+urn.uri.arpa.     3600    IN      RRSIG   NSEC 8 3 3600 (
+    20181028123243 20181007175821 47155 uri.arpa.
+    Hgsw4Deops1O8uWyELGe6hpR/OEqCnTHvahlwiQkHhO5CSEQrbhmFAWe
+    UOkmGAdTEYrSz+skLRQuITRMwzyFf4oUkZihGyhZyzHbcxWfuDc/Pd/9
+    DSl56gdeBwy1evn5wBTms8yWQVkNtphbJH395gRqZuaJs3LD/qTyJ5Dp LvA= )
+urn.uri.arpa.     604800  IN      RRSIG   NAPTR 8 3 604800 (
+    20181029071816 20181007205525 47155 uri.arpa.
+    ALIZD0vBqAQQt40GQ0Efaj8OCyE9xSRJRdyvyn/H/wZVXFRFKrQYrLAS
+    D/K7q6CMTOxTRCu2J8yes63WJiaJEdnh+dscXzZkmOg4n5PsgZbkvUSW
+    BiGtxvz5jNncM0xVbkjbtByrvJQAO1cU1mnlDKe1FmVB1uLpVdA9Ib4J hMU= )
+urn.uri.arpa.     3600    IN      NSEC    uri.arpa. NAPTR RRSIG (
+    NSEC )
+urn.uri.arpa.     604800  IN      NAPTR   0 0 "" "" (
+    "/urn:([^:]+)/\\1/i" . )
+uri.arpa.         3600    IN      SOA     sns.dns.icann.org. (
+    noc.dns.icann.org. 2018100702 10800 3600 1209600 3600 )

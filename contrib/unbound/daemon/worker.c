@@ -70,6 +70,7 @@
 #include "util/edns.h"
 #include "iterator/iter_fwd.h"
 #include "iterator/iter_hints.h"
+#include "iterator/iter_utils.h"
 #include "validator/autotrust.h"
 #include "validator/val_anchor.h"
 #include "respip/respip.h"
@@ -233,38 +234,6 @@ worker_send_cmd(struct worker* worker, enum worker_commands cmd)
 	if(!tube_write_msg(worker->cmd, (uint8_t*)&c, sizeof(c), 0)) {
 		log_err("worker send cmd %d failed", (int)cmd);
 	}
-}
-
-int 
-worker_handle_reply(struct comm_point* c, void* arg, int error, 
-	struct comm_reply* reply_info)
-{
-	struct module_qstate* q = (struct module_qstate*)arg;
-	struct worker* worker = q->env->worker;
-	struct outbound_entry e;
-	e.qstate = q;
-	e.qsent = NULL;
-
-	if(error != 0) {
-		mesh_report_reply(worker->env.mesh, &e, reply_info, error);
-		worker_mem_report(worker, NULL);
-		return 0;
-	}
-	/* sanity check. */
-	if(!LDNS_QR_WIRE(sldns_buffer_begin(c->buffer))
-		|| LDNS_OPCODE_WIRE(sldns_buffer_begin(c->buffer)) != 
-			LDNS_PACKET_QUERY
-		|| LDNS_QDCOUNT(sldns_buffer_begin(c->buffer)) > 1) {
-		/* error becomes timeout for the module as if this reply
-		 * never arrived. */
-		mesh_report_reply(worker->env.mesh, &e, reply_info, 
-			NETEVENT_TIMEOUT);
-		worker_mem_report(worker, NULL);
-		return 0;
-	}
-	mesh_report_reply(worker->env.mesh, &e, reply_info, NETEVENT_NOERROR);
-	worker_mem_report(worker, NULL);
-	return 0;
 }
 
 int 
@@ -1166,9 +1135,14 @@ worker_handle_request(struct comm_point* c, void* arg, int error,
 	}
 #endif
 #ifdef USE_DNSTAP
-	if(worker->dtenv.log_client_query_messages)
-		dt_msg_send_client_query(&worker->dtenv, &repinfo->addr, c->type,
-			c->buffer);
+	/*
+	 * sending src (client)/dst (local service) addresses over DNSTAP from incoming request handler
+	 */
+	if(worker->dtenv.log_client_query_messages) {
+		log_addr(VERB_ALGO, "request from client", &repinfo->addr, repinfo->addrlen);
+		log_addr(VERB_ALGO, "to local addr", (void*)repinfo->c->socket->addr->ai_addr, repinfo->c->socket->addr->ai_addrlen);
+		dt_msg_send_client_query(&worker->dtenv, &repinfo->addr, (void*)repinfo->c->socket->addr->ai_addr, c->type, c->buffer);
+	}
 #endif
 	acladdr = acl_addr_lookup(worker->daemon->acl, &repinfo->addr, 
 		repinfo->addrlen);
@@ -1592,9 +1566,14 @@ send_reply_rc:
 		if(is_secure_answer) worker->stats.ans_secure++;
 	}
 #ifdef USE_DNSTAP
-	if(worker->dtenv.log_client_response_messages)
-		dt_msg_send_client_response(&worker->dtenv, &repinfo->addr,
-			c->type, c->buffer);
+	/*
+	 * sending src (client)/dst (local service) addresses over DNSTAP from send_reply code label (when we serviced local zone for ex.)
+	 */
+	if(worker->dtenv.log_client_response_messages) {
+		log_addr(VERB_ALGO, "from local addr", (void*)repinfo->c->socket->addr->ai_addr, repinfo->c->socket->addr->ai_addrlen);
+                log_addr(VERB_ALGO, "response to client", &repinfo->addr, repinfo->addrlen);
+		dt_msg_send_client_response(&worker->dtenv, &repinfo->addr, (void*)repinfo->c->socket->addr->ai_addr, c->type, c->buffer);
+	}
 #endif
 	if(worker->env.cfg->log_replies)
 	{
@@ -1815,12 +1794,16 @@ worker_init(struct worker* worker, struct config_file *cfg,
 		&worker_alloc_cleanup, worker,
 		cfg->do_udp || cfg->udp_upstream_without_downstream,
 		worker->daemon->connect_sslctx, cfg->delay_close,
-		cfg->tls_use_sni, dtenv, cfg->udp_connect);
+		cfg->tls_use_sni, dtenv, cfg->udp_connect,
+		cfg->max_reuse_tcp_queries, cfg->tcp_reuse_timeout,
+		cfg->tcp_auth_query_timeout);
 	if(!worker->back) {
 		log_err("could not create outgoing sockets");
 		worker_delete(worker);
 		return 0;
 	}
+	iterator_set_ip46_support(&worker->daemon->mods, worker->daemon->env,
+		worker->back);
 	/* start listening to commands */
 	if(!tube_setup_bg_listen(worker->cmd, worker->base,
 		&worker_handle_control_cmd, worker)) {
@@ -1867,6 +1850,11 @@ worker_init(struct worker* worker, struct config_file *cfg,
 		return 0;
 	}
 	worker->env.mesh = mesh_create(&worker->daemon->mods, &worker->env);
+	if(!worker->env.mesh) {
+		log_err("malloc failure");
+		worker_delete(worker);
+		return 0;
+	}
 	/* Pass on daemon variables that we would need in the mesh area */
 	worker->env.mesh->use_response_ip = worker->daemon->use_response_ip;
 	worker->env.mesh->use_rpz = worker->daemon->use_rpz;
@@ -1877,6 +1865,11 @@ worker_init(struct worker* worker, struct config_file *cfg,
 	worker->env.kill_sub = &mesh_state_delete;
 	worker->env.detect_cycle = &mesh_detect_cycle;
 	worker->env.scratch_buffer = sldns_buffer_new(cfg->msg_buffer_size);
+	if(!worker->env.scratch_buffer) {
+		log_err("malloc failure");
+		worker_delete(worker);
+		return 0;
+	}
 	if(!(worker->env.fwds = forwards_create()) ||
 		!forwards_apply_cfg(worker->env.fwds, cfg)) {
 		log_err("Could not set forward zones");
@@ -1914,6 +1907,8 @@ worker_init(struct worker* worker, struct config_file *cfg,
 #endif
 		) {
 		auth_xfer_pickup_initial(worker->env.auth_zones, &worker->env);
+		auth_zones_pickup_zonemd_verify(worker->env.auth_zones,
+			&worker->env);
 	}
 #ifdef USE_DNSTAP
 	if(worker->daemon->cfg->dnstap
@@ -1929,10 +1924,6 @@ worker_init(struct worker* worker, struct config_file *cfg,
 		}
 	}
 #endif /* USE_DNSTAP */
-	if(!worker->env.mesh || !worker->env.scratch_buffer) {
-		worker_delete(worker);
-		return 0;
-	}
 	worker_mem_report(worker, NULL);
 	/* if statistics enabled start timer */
 	if(worker->env.cfg->stat_interval > 0) {
@@ -2057,14 +2048,6 @@ struct outbound_entry* libworker_send_query(
 	uint8_t* ATTR_UNUSED(zone), size_t ATTR_UNUSED(zonelen),
 	int ATTR_UNUSED(ssl_upstream), char* ATTR_UNUSED(tls_auth_name),
 	struct module_qstate* ATTR_UNUSED(q))
-{
-	log_assert(0);
-	return 0;
-}
-
-int libworker_handle_reply(struct comm_point* ATTR_UNUSED(c), 
-	void* ATTR_UNUSED(arg), int ATTR_UNUSED(error),
-        struct comm_reply* ATTR_UNUSED(reply_info))
 {
 	log_assert(0);
 	return 0;

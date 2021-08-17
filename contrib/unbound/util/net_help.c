@@ -887,7 +887,7 @@ log_cert(unsigned level, const char* str, void* cert)
 }
 #endif /* HAVE_SSL */
 
-#if defined(HAVE_SSL) && defined(HAVE_NGHTTP2)
+#if defined(HAVE_SSL) && defined(HAVE_NGHTTP2) && defined(HAVE_SSL_CTX_SET_ALPN_SELECT_CB)
 static int alpn_select_cb(SSL* ATTR_UNUSED(ssl), const unsigned char** out,
 	unsigned char* outlen, const unsigned char* in, unsigned int inlen,
 	void* ATTR_UNUSED(arg))
@@ -1609,5 +1609,4 @@ sock_close(int socket)
 {
 	closesocket(socket);
 }
-
 #  endif /* USE_WINSOCK */
