@@ -118,6 +118,8 @@ fstyp_hfsp(FILE *fp, char *label, size_t size)
 	retval = 0;
 
 	/* No label support yet. */
+	(void)size;
+	(void)label;
 
 fail:
 	free(hdr);

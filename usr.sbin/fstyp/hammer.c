@@ -43,6 +43,9 @@ __FBSDID("$FreeBSD$");
 
 #include "fstyp.h"
 
+extern int fsvtyp_hammer(const char *blkdevs, char *label, size_t size);
+extern int fsvtyp_hammer_partial(const char *blkdevs, char *label, size_t size);
+
 static hammer_volume_ondisk_t
 read_ondisk(FILE *fp)
 {
