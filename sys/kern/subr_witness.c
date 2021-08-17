@@ -541,7 +541,6 @@ static struct witness_order_list_entry order_lists[] = {
 	{ "udpinp", &lock_class_rw },
 	{ "in_multi_list_mtx", &lock_class_mtx_sleep },
 	{ "igmp_mtx", &lock_class_mtx_sleep },
-	{ "ifnet_rw", &lock_class_rw },
 	{ "if_addr_lock", &lock_class_mtx_sleep },
 	{ NULL, NULL },
 	/*
@@ -552,7 +551,6 @@ static struct witness_order_list_entry order_lists[] = {
 	{ "udpinp", &lock_class_rw },
 	{ "in6_multi_list_mtx", &lock_class_mtx_sleep },
 	{ "mld_mtx", &lock_class_mtx_sleep },
-	{ "ifnet_rw", &lock_class_rw },
 	{ "if_addr_lock", &lock_class_mtx_sleep },
 	{ NULL, NULL },
 	/*
