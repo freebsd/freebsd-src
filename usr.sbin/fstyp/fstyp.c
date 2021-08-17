@@ -61,7 +61,7 @@ static struct {
 	const char	*name;
 	fstyp_function	function;
 	bool		unmountable;
-	char		*precache_encoding;
+	const char	*precache_encoding;
 } fstypes[] = {
 	{ "apfs", &fstyp_apfs, true, NULL },
 	{ "befs", &fstyp_befs, false, NULL },
@@ -206,7 +206,7 @@ main(int argc, char **argv)
 #ifdef WITH_ICONV
 	/* Cache iconv conversion data before entering capability mode. */
 	if (show_label) {
-		for (i = 0; i < nitems(fstypes); i++) {
+		for (i = 0; i < (int)nitems(fstypes); i++) {
 			iconv_t cd;
 
 			if (fstypes[i].precache_encoding == NULL)
