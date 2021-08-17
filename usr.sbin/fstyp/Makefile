@@ -12,8 +12,6 @@ SRCS +=	zfs.c
 
 MAN=	fstyp.8
 
-WARNS?=	2
-
 .if ${MK_ICONV} == "yes"
 CFLAGS+=	-DWITH_ICONV
 .endif
