@@ -194,12 +194,23 @@ domain_init(void *arg)
 		(*dp->dom_init)();
 	for (pr = dp->dom_protosw; pr < dp->dom_protoswNPROTOSW; pr++) {
 		protosw_init(pr);
-		rm_wlock(&pftimo_lock);
-		if (pr->pr_fasttimo != NULL)
-			LIST_INSERT_HEAD(&pffast_list, pr, pr_fasttimos);
-		if (pr->pr_slowtimo != NULL)
-			LIST_INSERT_HEAD(&pfslow_list, pr, pr_slowtimos);
-		rm_wunlock(&pftimo_lock);
+
+		/*
+		 * Note that with VIMAGE enabled, domain_init() will be
+		 * re-invoked for each new vnet that's created.  The below lists
+		 * are intended to be system-wide, so avoid altering global
+		 * state for non-default vnets.
+		 */
+		if (IS_DEFAULT_VNET(curvnet)) {
+			rm_wlock(&pftimo_lock);
+			if (pr->pr_fasttimo != NULL)
+				LIST_INSERT_HEAD(&pffast_list, pr,
+				    pr_fasttimos);
+			if (pr->pr_slowtimo != NULL)
+				LIST_INSERT_HEAD(&pfslow_list, pr,
+				    pr_slowtimos);
+			rm_wunlock(&pftimo_lock);
+		}
 	}
 
 	/*
