@@ -86,7 +86,7 @@ static void
 sctp_handle_init(struct mbuf *m, int iphlen, int offset,
     struct sockaddr *src, struct sockaddr *dst, struct sctphdr *sh,
     struct sctp_init_chunk *cp, struct sctp_inpcb *inp,
-    struct sctp_tcb *stcb, struct sctp_nets *net, int *abort_no_unlock,
+    struct sctp_tcb *stcb, struct sctp_nets *net,
     uint8_t mflowtype, uint32_t mflowid,
     uint32_t vrf_id, uint16_t port)
 {
@@ -100,17 +100,17 @@ sctp_handle_init(struct mbuf *m, int iphlen, int offset,
 	}
 	/* Validate parameters */
 	init = &cp->init;
-	if ((ntohl(init->initiate_tag) == 0) ||
-	    (ntohl(init->a_rwnd) < SCTP_MIN_RWND) ||
+	if (ntohl(init->initiate_tag) == 0) {
+		goto outnow;
+	}
+	if ((ntohl(init->a_rwnd) < SCTP_MIN_RWND) ||
 	    (ntohs(init->num_inbound_streams) == 0) ||
 	    (ntohs(init->num_outbound_streams) == 0)) {
 		/* protocol error... send abort */
 		op_err = sctp_generate_cause(SCTP_CAUSE_INVALID_PARAM, "");
-		sctp_abort_association(inp, stcb, m, iphlen, src, dst, sh, op_err,
-		    mflowtype, mflowid,
+		sctp_send_abort(m, iphlen, src, dst, sh, init->initiate_tag, op_err,
+		    mflowtype, mflowid, inp->fibnum,
 		    vrf_id, port);
-		if (stcb)
-			*abort_no_unlock = 1;
 		goto outnow;
 	}
 	if (sctp_validate_init_auth_params(m, offset + sizeof(*cp),
@@ -118,11 +118,9 @@ sctp_handle_init(struct mbuf *m, int iphlen, int offset,
 		/* auth parameter(s) error... send abort */
 		op_err = sctp_generate_cause(SCTP_BASE_SYSCTL(sctp_diag_info_code),
 		    "Problem with AUTH parameters");
-		sctp_abort_association(inp, stcb, m, iphlen, src, dst, sh, op_err,
-		    mflowtype, mflowid,
+		sctp_send_abort(m, iphlen, src, dst, sh, init->initiate_tag, op_err,
+		    mflowtype, mflowid, inp->fibnum,
 		    vrf_id, port);
-		if (stcb)
-			*abort_no_unlock = 1;
 		goto outnow;
 	}
 	/* We are only accepting if we have a listening socket. */
@@ -4613,20 +4611,22 @@ process_control_chunks:
 			/* Honor our resource limit. */
 			if (chk_length > SCTP_LARGEST_INIT_ACCEPTED) {
 				op_err = sctp_generate_cause(SCTP_CAUSE_OUT_OF_RESC, "");
-				sctp_abort_association(inp, stcb, m, iphlen,
-				    src, dst, sh, op_err,
-				    mflowtype, mflowid,
+				sctp_send_abort(m, iphlen, src, dst, sh, 0, op_err,
+				    mflowtype, mflowid, inp->fibnum,
 				    vrf_id, port);
 				*offset = length;
+				if (stcb != NULL) {
+					SCTP_TCB_UNLOCK(stcb);
+				}
 				return (NULL);
 			}
 			sctp_handle_init(m, iphlen, *offset, src, dst, sh,
 			    (struct sctp_init_chunk *)ch, inp,
-			    stcb, *netp, &abort_no_unlock,
+			    stcb, *netp,
 			    mflowtype, mflowid,
 			    vrf_id, port);
 			*offset = length;
-			if ((!abort_no_unlock) && (stcb != NULL)) {
+			if (stcb != NULL) {
 				SCTP_TCB_UNLOCK(stcb);
 			}
 			return (NULL);
