@@ -1823,10 +1823,6 @@ eli_resize(struct gctl_req *req)
 		gctl_error(req, "Invalid oldsize: Out of range.");
 		goto out;
 	}
-	if (oldsize == mediasize) {
-		gctl_error(req, "Size hasn't changed.");
-		goto out;
-	}
 
 	/* Read metadata from the 'oldsize' offset. */
 	if (pread(provfd, sector, secsize, oldsize - secsize) != secsize) {
@@ -1864,6 +1860,10 @@ eli_resize(struct gctl_req *req)
 		gctl_error(req, "Provider size mismatch at oldsize.");
 		goto out;
 	}
+
+	/* The metadata is valid and nothing has changed.  Just exit. */
+	if (oldsize == mediasize)
+		goto out;
 
 	/*
 	 * Update the old metadata with the current provider size and write
