@@ -175,7 +175,7 @@ main(int argc, char **argv)
 	if (fd != -1)
 		close(fd);
 
-	return error ? EXIT_FAILURE : EXIT_SUCCESS;
+	return (error ? EXIT_FAILURE : EXIT_SUCCESS);
 }
 
 static void
