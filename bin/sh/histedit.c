@@ -565,27 +565,6 @@ bindcmd(int argc, char **argv)
 	return ret;
 }
 
-#else
-#include "error.h"
-
-int
-histcmd(int argc __unused, char **argv __unused)
-{
-
-	error("not compiled with history support");
-	/*NOTREACHED*/
-	return (0);
-}
-
-int
-bindcmd(int argc __unused, char **argv __unused)
-{
-
-	error("not compiled with line editing support");
-	return (0);
-}
-#endif
-
 /*
  * Comparator function for qsort(). The use of curpos here is to skip
  * characters that we already know to compare equal (common prefix).
@@ -706,3 +685,24 @@ sh_complete(EditLine *sel, int ch __unused)
 		L" \t\n\"\\'`@$><=;|&{(", NULL, NULL, (size_t)100,
 		NULL, &((int) {0}), NULL, NULL, FN_QUOTE_MATCH);
 }
+
+#else
+#include "error.h"
+
+int
+histcmd(int argc __unused, char **argv __unused)
+{
+
+	error("not compiled with history support");
+	/*NOTREACHED*/
+	return (0);
+}
+
+int
+bindcmd(int argc __unused, char **argv __unused)
+{
+
+	error("not compiled with line editing support");
+	return (0);
+}
+#endif
