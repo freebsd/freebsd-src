@@ -643,46 +643,37 @@ gre_setseqn(struct grehdr *gh, uint32_t seq)
 static uint32_t
 gre_flowid(struct gre_softc *sc, struct mbuf *m, uint32_t af)
 {
-	uint32_t flowid;
+	uint32_t flowid = 0;
 
 	if ((sc->gre_options & GRE_UDPENCAP) == 0 || sc->gre_port != 0)
-		return (0);
-#ifndef RSS
+		return (flowid);
 	switch (af) {
 #ifdef INET
 	case AF_INET:
+#ifdef RSS
+		flowid = rss_hash_ip4_2tuple(mtod(m, struct ip *)->ip_src,
+		    mtod(m, struct ip *)->ip_dst);
+		break;
+#endif
 		flowid = mtod(m, struct ip *)->ip_src.s_addr ^
 		    mtod(m, struct ip *)->ip_dst.s_addr;
 		break;
 #endif
 #ifdef INET6
 	case AF_INET6:
-		flowid = mtod(m, struct ip6_hdr *)->ip6_src.s6_addr32[3] ^
-		    mtod(m, struct ip6_hdr *)->ip6_dst.s6_addr32[3];
-		break;
-#endif
-	default:
-		flowid = 0;
-	}
-#else /* RSS */
-	switch (af) {
-#ifdef INET
-	case AF_INET:
-		flowid = rss_hash_ip4_2tuple(mtod(m, struct ip *)->ip_src,
-		    mtod(m, struct ip *)->ip_dst);
-		break;
-#endif
-#ifdef INET6
-	case AF_INET6:
+#ifdef RSS
 		flowid = rss_hash_ip6_2tuple(
 		    &mtod(m, struct ip6_hdr *)->ip6_src,
 		    &mtod(m, struct ip6_hdr *)->ip6_dst);
 		break;
 #endif
-	default:
-		flowid = 0;
-	}
+		flowid = mtod(m, struct ip6_hdr *)->ip6_src.s6_addr32[3] ^
+		    mtod(m, struct ip6_hdr *)->ip6_dst.s6_addr32[3];
+		break;
 #endif
+	default:
+		break;
+	}
 	return (flowid);
 }
 
