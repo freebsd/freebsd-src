@@ -1191,19 +1191,28 @@ vfs_domount_first(
 		mp->mnt_kern_flag &= ~MNTK_ASYNC;
 	MNT_IUNLOCK(mp);
 
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
-	cache_purge(vp);
 	VI_LOCK(vp);
-	vp->v_iflag &= ~VI_MOUNT;
+	cache_purge(vp);
 	vn_irflag_set_locked(vp, VIRF_MOUNTPOINT);
 	vp->v_mountedhere = mp;
+	VI_UNLOCK(vp);
+
+	/*
+	 * We need to lock both vnodes.
+	 *
+	 * Use vn_lock_pair to avoid establishing an ordering between vnodes
+	 * from different filesystems.
+	 */
+	vn_lock_pair(vp, false, newdp, false);
+
+	VI_LOCK(vp);
+	vp->v_iflag &= ~VI_MOUNT;
 	VI_UNLOCK(vp);
 	/* Place the new filesystem at the end of the mount list. */
 	mtx_lock(&mountlist_mtx);
 	TAILQ_INSERT_TAIL(&mountlist, mp, mnt_list);
 	mtx_unlock(&mountlist_mtx);
 	vfs_event_signal(NULL, VQ_MOUNT, 0);
-	vn_lock(newdp, LK_EXCLUSIVE | LK_RETRY);
 	VOP_UNLOCK(vp);
 	EVENTHANDLER_DIRECT_INVOKE(vfs_mounted, mp, newdp, td);
 	VOP_UNLOCK(newdp);
