@@ -661,11 +661,13 @@ nvpair_unpack_header(bool isbe, nvpair_t *nvp, const unsigned char *ptr,
 	if (!isbe) {
 		nvphdr.nvph_namesize = le16toh(nvphdr.nvph_namesize);
 		nvphdr.nvph_datasize = le64toh(nvphdr.nvph_datasize);
+		nvphdr.nvph_nitems = le64toh(nvphdr.nvph_nitems);
 	}
 #else
 	if (isbe) {
 		nvphdr.nvph_namesize = be16toh(nvphdr.nvph_namesize);
 		nvphdr.nvph_datasize = be64toh(nvphdr.nvph_datasize);
+		nvphdr.nvph_nitems = be64toh(nvphdr.nvph_nitems);
 	}
 #endif
 
