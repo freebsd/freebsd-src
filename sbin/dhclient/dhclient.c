@@ -931,6 +931,8 @@ void
 state_bound(void *ipp)
 {
 	struct interface_info *ip = ipp;
+	u_int8_t *dp = NULL;
+	int len;
 
 	ASSERT_STATE(state, S_BOUND);
 
@@ -938,10 +940,17 @@ state_bound(void *ipp)
 	make_request(ip, ip->client->active);
 	ip->client->xid = ip->client->packet.xid;
 
-	if (ip->client->active->options[DHO_DHCP_SERVER_IDENTIFIER].len == 4) {
-		memcpy(ip->client->destination.iabuf, ip->client->active->
-		    options[DHO_DHCP_SERVER_IDENTIFIER].data, 4);
-		ip->client->destination.len = 4;
+	if (ip->client->config->default_actions[DHO_DHCP_SERVER_IDENTIFIER] ==
+	    ACTION_SUPERSEDE) {
+		dp = ip->client->config->defaults[DHO_DHCP_SERVER_IDENTIFIER].data;
+		len = ip->client->config->defaults[DHO_DHCP_SERVER_IDENTIFIER].len;
+	} else {
+		dp = ip->client->active->options[DHO_DHCP_SERVER_IDENTIFIER].data;
+		len = ip->client->active->options[DHO_DHCP_SERVER_IDENTIFIER].len;
+	}
+	if (len == 4) {
+		memcpy(ip->client->destination.iabuf, dp, len);
+		ip->client->destination.len = len;
 	} else
 		ip->client->destination = iaddr_broadcast;
 
