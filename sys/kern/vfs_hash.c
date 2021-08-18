@@ -196,6 +196,7 @@ vfs_hash_insert(struct vnode *vp, u_int hash, int flags, struct thread *td,
 void
 vfs_hash_rehash(struct vnode *vp, u_int hash)
 {
+	ASSERT_VOP_ELOCKED(vp, "rehash requires excl lock");
 
 	rw_wlock(&vfs_hash_lock);
 	LIST_REMOVE(vp, v_hashlist);
