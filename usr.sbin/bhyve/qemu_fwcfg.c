@@ -17,6 +17,7 @@
 
 #include "acpi_device.h"
 #include "inout.h"
+#include "pci_lpc.h"
 #include "qemu_fwcfg.h"
 
 #define QEMU_FWCFG_ACPI_DEVICE_NAME "FWCF"
@@ -351,37 +352,49 @@ qemu_fwcfg_init(struct vmctx *const ctx)
 {
 	int error;
 
-	error = acpi_device_create(&fwcfg_sc.acpi_dev, ctx,
-	    QEMU_FWCFG_ACPI_DEVICE_NAME, QEMU_FWCFG_ACPI_HARDWARE_ID);
-	if (error) {
-		warnx("%s: failed to create ACPI device for QEMU FwCfg",
-		    __func__);
-		goto done;
-	}
+	/*
+	 * Bhyve supports fwctl (bhyve) and fwcfg (qemu) as firmware interfaces.
+	 * Both are using the same ports. So, it's not possible to provide both
+	 * interfaces at the same time to the guest. Therefore, only create acpi
+	 * tables and register io ports for fwcfg, if it's used.
+	 */
+	if (strcmp(lpc_fwcfg(), "qemu") == 0) {
+		error = acpi_device_create(&fwcfg_sc.acpi_dev, ctx,
+		    QEMU_FWCFG_ACPI_DEVICE_NAME, QEMU_FWCFG_ACPI_HARDWARE_ID);
+		if (error) {
+			warnx("%s: failed to create ACPI device for QEMU FwCfg",
+			    __func__);
+			goto done;
+		}
 
-	error = acpi_device_add_res_fixed_ioport(fwcfg_sc.acpi_dev,
-	    QEMU_FWCFG_SELECTOR_PORT_NUMBER, 2);
-	if (error) {
-		warnx("%s: failed to add fixed IO port for QEMU FwCfg",
-		    __func__);
-		goto done;
-	}
+		error = acpi_device_add_res_fixed_ioport(fwcfg_sc.acpi_dev,
+		    QEMU_FWCFG_SELECTOR_PORT_NUMBER, 2);
+		if (error) {
+			warnx("%s: failed to add fixed IO port for QEMU FwCfg",
+			    __func__);
+			goto done;
+		}
 
-	/* add handlers for fwcfg ports */
-	if ((error = qemu_fwcfg_register_port("qemu_fwcfg_selector",
-	    QEMU_FWCFG_SELECTOR_PORT_NUMBER, QEMU_FWCFG_SELECTOR_PORT_SIZE,
-	    QEMU_FWCFG_SELECTOR_PORT_FLAGS,
-	    qemu_fwcfg_selector_port_handler)) != 0) {
-		warnx("%s: Unable to register qemu fwcfg selector port 0x%x",
-		    __func__, QEMU_FWCFG_SELECTOR_PORT_NUMBER);
-		goto done;
-	}
-	if ((error = qemu_fwcfg_register_port("qemu_fwcfg_data",
-	    QEMU_FWCFG_DATA_PORT_NUMBER, QEMU_FWCFG_DATA_PORT_SIZE,
-	    QEMU_FWCFG_DATA_PORT_FLAGS, qemu_fwcfg_data_port_handler)) != 0) {
-		warnx("%s: Unable to register qemu fwcfg data port 0x%x",
-		    __func__, QEMU_FWCFG_DATA_PORT_NUMBER);
-		goto done;
+		/* add handlers for fwcfg ports */
+		if ((error = qemu_fwcfg_register_port("qemu_fwcfg_selector",
+		    QEMU_FWCFG_SELECTOR_PORT_NUMBER,
+		    QEMU_FWCFG_SELECTOR_PORT_SIZE,
+		    QEMU_FWCFG_SELECTOR_PORT_FLAGS,
+		    qemu_fwcfg_selector_port_handler)) != 0) {
+			warnx(
+			    "%s: Unable to register qemu fwcfg selector port 0x%x",
+			    __func__, QEMU_FWCFG_SELECTOR_PORT_NUMBER);
+			goto done;
+		}
+		if ((error = qemu_fwcfg_register_port("qemu_fwcfg_data",
+		    QEMU_FWCFG_DATA_PORT_NUMBER, QEMU_FWCFG_DATA_PORT_SIZE,
+		    QEMU_FWCFG_DATA_PORT_FLAGS,
+		    qemu_fwcfg_data_port_handler)) != 0) {
+			warnx(
+			    "%s: Unable to register qemu fwcfg data port 0x%x",
+			    __func__, QEMU_FWCFG_DATA_PORT_NUMBER);
+			goto done;
+		}
 	}
 
 	/* add common fwcfg items */

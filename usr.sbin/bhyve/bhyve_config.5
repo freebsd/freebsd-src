@@ -259,6 +259,7 @@ VGA framebuffer device attached to VNC server.
 .It Li lpc
 LPC PCI-ISA bridge with COM1-COM4 16550 serial ports,
 a boot ROM,
+an optional fwcfg type,
 and an optional debug/test device.
 This device must be configured on bus 0.
 .It Li hda
@@ -529,6 +530,13 @@ Settings for the COM2 serial port device.
 Settings for the COM3 serial port device.
 .It Va com4 Ta node Ta Ta
 Settings for the COM4 serial port device.
+.It Va fwcfg Ta string Ta bhyve Ta
+The fwcfg type to be used.
+Supported values are
+.Dq bhyve
+for fwctl and
+.Dq qemu
+for fwcfg.
 .It Va pc-testdev Ta bool Ta false Ta
 Enable the PC debug/test device.
 .El
