@@ -200,7 +200,9 @@ and
 .Cm com4 ,
 the boot ROM device
 .Cm bootrom ,
-and the debug/test device
+the
+.Cm fwcfg
+type and the debug/test device
 .Cm pc-testdev .
 .Pp
 The possible values for the
@@ -345,7 +347,7 @@ PCI 16550 serial device.
 .It Cm lpc
 LPC PCI-ISA bridge with COM1, COM2, COM3, and COM4 16550 serial ports,
 a boot ROM, and,
-optionally, the debug/test device.
+optionally, a fwcfg type and the debug/test device.
 The LPC bridge emulation can only be configured on bus 0.
 .It Cm fbuf
 Raw framebuffer device attached to VNC server.
@@ -518,6 +520,29 @@ If
 is provided, that file is also mapped in the boot firmware guest
 address space, and any modifications the guest makes will be saved
 to that file.
+.El
+.Pp
+Fwcfg types:
+.Bl -tag -width 10n
+.It Ar fwcfg
+The fwcfg interface is used to pass information such as the CPU count or ACPI tables to the guest firmware.
+Supported values are
+.Ql bhyve
+and
+.Ql qemu .
+Due to backward compatibility reasons,
+.Ql bhyve
+is the default option.
+When
+.Ql bhyve
+is used, bhyve's fwctl interface is used.
+It currently reports only the CPU count to the guest firmware.
+The
+.Ql qemu
+option uses QEMU's fwcfg interface.
+This interface is widely used and allows user-defined information to be passed to the guest.
+It is used for passing the CPU count, ACPI tables, a boot order and many other things to the guest.
+Some operating systems such as Fedora CoreOS can be configured by qemu's fwcfg interface as well.
 .El
 .Pp
 Pass-through device backends:
