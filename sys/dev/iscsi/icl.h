@@ -76,6 +76,14 @@ struct icl_pdu {
 	struct mbuf		*ip_data_mbuf;
 
 	/*
+	 * When a "large" received PDU represents multiple on-the-wire
+	 * PDUs, this is the count of additional on-the-wire PDUs.
+	 * For PDUs that match on-the-wire PDUs, this should be set to
+	 * zero.
+	 */
+	u_int			ip_additional_pdus;
+
+	/*
 	 * User (initiator or provider) private fields.
 	 */
 	void			*ip_prv0;
