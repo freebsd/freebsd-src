@@ -1346,7 +1346,6 @@ no_ddp:
 	prsv->prsv_tag &= ~pr->pr_alias_mask;
 	prsv->prsv_tag |= alias << pr->pr_alias_shift & pr->pr_alias_mask;
 
-	ddp->cmp.next_datasn = 0;
 	ddp->cmp.last_datasn = -1;
 	cxgbei_insert_cmp(icc, &ddp->cmp, prsv->prsv_tag);
 	*tttp = htobe32(prsv->prsv_tag);
