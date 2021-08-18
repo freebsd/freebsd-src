@@ -58,7 +58,6 @@ struct cxgbei_cmp {
 
 	uint32_t tt;		/* Transfer tag. */
 
-	uint32_t next_datasn;
 	uint32_t next_buffer_offset;
 	uint32_t last_datasn;
 };

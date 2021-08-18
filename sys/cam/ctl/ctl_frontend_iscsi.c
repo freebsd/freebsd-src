@@ -917,7 +917,7 @@ cfiscsi_pdu_handle_data_out(struct icl_pdu *request)
 		cfiscsi_session_terminate(cs);
 		return;
 	}
-	cdw->cdw_datasn++;
+	cdw->cdw_datasn += request->ip_additional_pdus + 1;
 
 	io = cdw->cdw_ctl_io;
 	KASSERT((io->io_hdr.flags & CTL_FLAG_DATA_MASK) != CTL_FLAG_DATA_IN,
