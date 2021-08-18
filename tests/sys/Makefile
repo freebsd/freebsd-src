@@ -31,6 +31,7 @@ TESTS_SUBDIRS+=		posixshm
 TESTS_SUBDIRS+=		sys
 TESTS_SUBDIRS+=		vfs
 TESTS_SUBDIRS+=		vm
+TESTS_SUBDIRS+=		vmm
 
 .if ${MK_AUDIT} != "no"
 _audit=	audit
