@@ -72,5 +72,6 @@ void    lpc_print_supported_devices(void);
 char	*lpc_pirq_name(int pin);
 void	lpc_pirq_routed(void);
 const char *lpc_bootrom(void);
+const char *lpc_fwcfg(void);
 
 #endif

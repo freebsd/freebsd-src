@@ -110,10 +110,20 @@ lpc_device_parse(const char *opts)
 			set_config_value("lpc.bootrom", romfile);
 
 			varfile = strsep(&str, ",");
-			if (varfile != NULL) {
+			if (varfile == NULL) {
+				error = 0;
+				goto done;
+			}
+			if (strchr(varfile, '=') == NULL) {
 				set_config_value("lpc.bootvars", varfile);
+			} else {
+				/* varfile doesn't exist, it's another config
+				 * option */
+				pci_parse_legacy_config(find_config_node("lpc"),
+				    varfile);
 			}
 
+			pci_parse_legacy_config(find_config_node("lpc"), str);
 			error = 0;
 			goto done;
 		}
@@ -158,6 +168,12 @@ lpc_bootrom(void)
 {
 
 	return (get_config_value("lpc.bootrom"));
+}
+
+const char *
+lpc_fwcfg(void)
+{
+	return (get_config_value("lpc.fwcfg"));
 }
 
 static void
