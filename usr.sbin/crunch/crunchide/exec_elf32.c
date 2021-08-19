@@ -155,7 +155,7 @@ xrealloc(void *ptr, size_t size, const char *fn, const char *use)
 }
 
 int
-ELFNAMEEND(check)(int fd, const char *fn)
+ELFNAMEEND(check)(int fd, const char *fn __unused)
 {
 	Elf_Ehdr eh;
 	struct stat sb;
@@ -435,12 +435,12 @@ ELFNAMEEND(hide)(int fd, const char *fn)
 	 * update section header table in ascending order of offset
 	 */
 	for (i = strtabidx + 1; i < shnum; i++) {
-		Elf_Off off, align;
-		off = xewtoh(layoutp[i - 1].shdr->sh_offset) +
+		Elf_Off soff, align;
+		soff = xewtoh(layoutp[i - 1].shdr->sh_offset) +
 		    xewtoh(layoutp[i - 1].shdr->sh_size);
 		align = xewtoh(layoutp[i].shdr->sh_addralign);
-		off = (off + (align - 1)) & ~(align - 1);
-		layoutp[i].shdr->sh_offset = htoxew(off);
+		soff = (soff + (align - 1)) & ~(align - 1);
+		layoutp[i].shdr->sh_offset = htoxew(soff);
 	}
 
 	/*

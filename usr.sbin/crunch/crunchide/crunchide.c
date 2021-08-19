@@ -76,7 +76,7 @@ __FBSDID("$FreeBSD$");
 
 #include "extern.h"
 
-char *pname = "crunchide";
+static const char *pname = "crunchide";
 
 void usage(void);
 
@@ -85,7 +85,7 @@ void add_file_to_keep_list(char *filename);
 
 int hide_syms(const char *filename);
 
-int verbose;
+static int verbose;
 
 int main(int, char *[]);
 
@@ -137,7 +137,7 @@ usage(void)
 
 /* ---------------------------- */
 
-struct keep {
+static struct keep {
     struct keep *next;
     char *sym;
 } *keep_list;
@@ -206,7 +206,7 @@ add_file_to_keep_list(char *filename)
 
 /* ---------------------------- */
 
-struct {
+static struct {
 	const char *name;
 	int	(*check)(int, const char *);	/* 1 if match, zero if not */
 	int	(*hide)(int, const char *);	/* non-zero if error */
