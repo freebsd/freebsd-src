@@ -96,8 +96,8 @@ char outmkname[MAXPATHLEN], outcfname[MAXPATHLEN], execfname[MAXPATHLEN];
 char tempfname[MAXPATHLEN], cachename[MAXPATHLEN], curfilename[MAXPATHLEN];
 bool tempfname_initialized = false;
 char outhdrname[MAXPATHLEN] ;	/* user-supplied header for *.mk */
-char *objprefix;		/* where are the objects ? */
-char *path_make;
+const char *objprefix;		/* where are the objects ? */
+const char *path_make;
 int linenum = -1;
 int goterror = 0;
 
@@ -123,7 +123,7 @@ void usage(void);
 void parse_conf_file(void);
 void gen_outputs(void);
 
-extern char *crunched_skel[];
+extern const char *crunched_skel[];
 
 
 int
@@ -721,7 +721,7 @@ fillin_program_objs(prog_t *p, char *path)
 	char *obj, *cp;
 	int fd, rc;
 	FILE *f;
-	char *objvar="OBJS";
+	const char *objvar="OBJS";
 	strlst_t *s;
 	char line[MAXLINELEN];
 
@@ -912,7 +912,7 @@ gen_output_makefile(void)
 void
 gen_output_cfile(void)
 {
-	char **cp;
+	const char **cp;
 	FILE *outcf;
 	prog_t *p;
 	strlst_t *s;
