@@ -233,6 +233,7 @@ static pci_vendor_info_t igb_vendor_info_array[] =
 	PVID(0x8086, E1000_DEV_ID_I210_COPPER_OEM1, "Intel(R) I210 (OEM)"),
 	PVID(0x8086, E1000_DEV_ID_I210_COPPER_FLASHLESS, "Intel(R) I210 Flashless (Copper)"),
 	PVID(0x8086, E1000_DEV_ID_I210_SERDES_FLASHLESS, "Intel(R) I210 Flashless (SERDES)"),
+	PVID(0x8086, E1000_DEV_ID_I210_SGMII_FLASHLESS, "Intel(R) I210 Flashless (SGMII)"),
 	PVID(0x8086, E1000_DEV_ID_I210_FIBER, "Intel(R) I210 (Fiber)"),
 	PVID(0x8086, E1000_DEV_ID_I210_SERDES, "Intel(R) I210 (SERDES)"),
 	PVID(0x8086, E1000_DEV_ID_I210_SGMII, "Intel(R) I210 (SGMII)"),
@@ -1088,9 +1089,6 @@ em_if_attach_pre(if_ctx_t ctx)
 			goto err_late;
 		}
 	}
-
-	/* Disable ULP support */
-	e1000_disable_ulp_lpt_lp(hw, TRUE);
 
 	/*
 	 * Get Wake-on-Lan and Management info for later use
@@ -3796,8 +3794,12 @@ em_enable_wakeup(if_ctx_t ctx)
 		E1000_WRITE_REG(&adapter->hw, E1000_RCTL, rctl);
 	}
 
-	if (!(adapter->wol & (E1000_WUFC_EX | E1000_WUFC_MAG | E1000_WUFC_MC)))
+	if (!(adapter->wol & (E1000_WUFC_EX | E1000_WUFC_MAG | E1000_WUFC_MC))) {
+		if (adapter->hw.mac.type >= e1000_pch_lpt) {
+			e1000_enable_ulp_lpt_lp(&adapter->hw, TRUE);
+		}
 		goto pme;
+	}
 
 	/* Advertise the wakeup capability */
 	ctrl = E1000_READ_REG(&adapter->hw, E1000_CTRL);

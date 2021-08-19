@@ -1,32 +1,32 @@
 /******************************************************************************
   SPDX-License-Identifier: BSD-3-Clause
 
-  Copyright (c) 2001-2015, Intel Corporation 
+  Copyright (c) 2001-2020, Intel Corporation
   All rights reserved.
-  
-  Redistribution and use in source and binary forms, with or without 
+
+  Redistribution and use in source and binary forms, with or without
   modification, are permitted provided that the following conditions are met:
-  
-   1. Redistributions of source code must retain the above copyright notice, 
+
+   1. Redistributions of source code must retain the above copyright notice,
       this list of conditions and the following disclaimer.
-  
-   2. Redistributions in binary form must reproduce the above copyright 
-      notice, this list of conditions and the following disclaimer in the 
+
+   2. Redistributions in binary form must reproduce the above copyright
+      notice, this list of conditions and the following disclaimer in the
       documentation and/or other materials provided with the distribution.
-  
-   3. Neither the name of the Intel Corporation nor the names of its 
-      contributors may be used to endorse or promote products derived from 
+
+   3. Neither the name of the Intel Corporation nor the names of its
+      contributors may be used to endorse or promote products derived from
       this software without specific prior written permission.
-  
+
   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
-  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
-  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE 
-  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
-  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
-  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
-  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
-  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
+  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
   POSSIBILITY OF SUCH DAMAGE.
 
@@ -195,6 +195,7 @@ static s32 e1000_write_nvm_srwr(struct e1000_hw *hw, u16 offset, u16 words,
 	}
 
 	for (i = 0; i < words; i++) {
+		ret_val = -E1000_ERR_NVM;
 		eewr = ((offset+i) << E1000_NVM_RW_ADDR_SHIFT) |
 			(data[i] << E1000_NVM_RW_REG_DATA) |
 			E1000_NVM_RW_REG_START;
@@ -341,6 +342,105 @@ static s32 e1000_read_invm_i210(struct e1000_hw *hw, u16 offset,
 		break;
 	}
 	return ret_val;
+}
+
+/**
+ *  e1000_read_invm_version - Reads iNVM version and image type
+ *  @hw: pointer to the HW structure
+ *  @invm_ver: version structure for the version read
+ *
+ *  Reads iNVM version and image type.
+ **/
+s32 e1000_read_invm_version(struct e1000_hw *hw,
+			    struct e1000_fw_version *invm_ver)
+{
+	u32 *record = NULL;
+	u32 *next_record = NULL;
+	u32 i = 0;
+	u32 invm_dword = 0;
+	u32 invm_blocks = E1000_INVM_SIZE - (E1000_INVM_ULT_BYTES_SIZE /
+					     E1000_INVM_RECORD_SIZE_IN_BYTES);
+	u32 buffer[E1000_INVM_SIZE];
+	s32 status = -E1000_ERR_INVM_VALUE_NOT_FOUND;
+	u16 version = 0;
+
+	DEBUGFUNC("e1000_read_invm_version");
+
+	/* Read iNVM memory */
+	for (i = 0; i < E1000_INVM_SIZE; i++) {
+		invm_dword = E1000_READ_REG(hw, E1000_INVM_DATA_REG(i));
+		buffer[i] = invm_dword;
+	}
+
+	/* Read version number */
+	for (i = 1; i < invm_blocks; i++) {
+		record = &buffer[invm_blocks - i];
+		next_record = &buffer[invm_blocks - i + 1];
+
+		/* Check if we have first version location used */
+		if ((i == 1) && ((*record & E1000_INVM_VER_FIELD_ONE) == 0)) {
+			version = 0;
+			status = E1000_SUCCESS;
+			break;
+		}
+		/* Check if we have second version location used */
+		else if ((i == 1) &&
+			 ((*record & E1000_INVM_VER_FIELD_TWO) == 0)) {
+			version = (*record & E1000_INVM_VER_FIELD_ONE) >> 3;
+			status = E1000_SUCCESS;
+			break;
+		}
+		/*
+		 * Check if we have odd version location
+		 * used and it is the last one used
+		 */
+		else if ((((*record & E1000_INVM_VER_FIELD_ONE) == 0) &&
+			 ((*record & 0x3) == 0)) || (((*record & 0x3) != 0) &&
+			 (i != 1))) {
+			version = (*next_record & E1000_INVM_VER_FIELD_TWO)
+				  >> 13;
+			status = E1000_SUCCESS;
+			break;
+		}
+		/*
+		 * Check if we have even version location
+		 * used and it is the last one used
+		 */
+		else if (((*record & E1000_INVM_VER_FIELD_TWO) == 0) &&
+			 ((*record & 0x3) == 0)) {
+			version = (*record & E1000_INVM_VER_FIELD_ONE) >> 3;
+			status = E1000_SUCCESS;
+			break;
+		}
+	}
+
+	if (status == E1000_SUCCESS) {
+		invm_ver->invm_major = (version & E1000_INVM_MAJOR_MASK)
+					>> E1000_INVM_MAJOR_SHIFT;
+		invm_ver->invm_minor = version & E1000_INVM_MINOR_MASK;
+	}
+	/* Read Image Type */
+	for (i = 1; i < invm_blocks; i++) {
+		record = &buffer[invm_blocks - i];
+		next_record = &buffer[invm_blocks - i + 1];
+
+		/* Check if we have image type in first location used */
+		if ((i == 1) && ((*record & E1000_INVM_IMGTYPE_FIELD) == 0)) {
+			invm_ver->invm_img_type = 0;
+			status = E1000_SUCCESS;
+			break;
+		}
+		/* Check if we have image type in first location used */
+		else if ((((*record & 0x3) == 0) &&
+			 ((*record & E1000_INVM_IMGTYPE_FIELD) == 0)) ||
+			 ((((*record & 0x3) != 0) && (i != 1)))) {
+			invm_ver->invm_img_type =
+				(*next_record & E1000_INVM_IMGTYPE_FIELD) >> 23;
+			status = E1000_SUCCESS;
+			break;
+		}
+	}
+	return status;
 }
 
 /**
