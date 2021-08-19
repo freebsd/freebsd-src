@@ -4,6 +4,7 @@
 cat <<!EOF
 /* File created via mkskel.sh */
 
+extern const char *crunched_skel[];
 const char *crunched_skel[] = {
 !EOF
 
