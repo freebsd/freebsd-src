@@ -218,7 +218,7 @@ SAME+=		ko_KR.eucKR ko_KR.CP949	# legacy (same charset)
 
 # C.UTF-8 is the default locale, so it should always been installed.
 ALWAYS=		C.UTF-8.LC_CTYPE
-FILES=		${LOCALES:NC.UTF-8:S/$/.LC_CTYPE/}
+FILES=		${LOCALES:NC.UTF-8:C/.+$/&.LC_CTYPE/}
 CLEANFILES=	${FILES}
 
 .for f t in ${SAME}
