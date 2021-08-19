@@ -1840,11 +1840,7 @@ init_gdb(struct vmctx *_ctx)
 
 	saddr = get_config_value("gdb.address");
 	if (saddr == NULL) {
-#if defined(INET)
-		saddr = "0.0.0.0";
-#elif defined(INET6)
-		saddr = "[::]";
-#endif
+		saddr = "localhost";
 	}
 
 	debug("==> starting on %s:%s, %swaiting\n",
@@ -1860,7 +1856,7 @@ init_gdb(struct vmctx *_ctx)
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
-	hints.ai_flags = AI_NUMERICHOST | AI_NUMERICSERV | AI_PASSIVE;
+	hints.ai_flags = AI_NUMERICSERV | AI_PASSIVE;
 
 	if (getaddrinfo(saddr, sport, &hints, &gdbaddr) != 0)
 		err(1, "gdb address resolve");
