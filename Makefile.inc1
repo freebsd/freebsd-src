@@ -2353,10 +2353,9 @@ ${_bt}-usr.bin/clang/llvm-tblgen: ${_bt}-lib/clang/libllvmminimal
 ${_bt}-usr.bin/clang/lldb-tblgen: ${_bt}-lib/clang/libllvmminimal
 .endif
 
-.if ${MK_LOCALES} != "no"
+# C.UTF-8 is always built in share/ctypes and we need localedef for that.
 _localedef=	usr.bin/localedef
 ${_bt}-usr.bin/localedef: ${_bt}-usr.bin/yacc ${_bt_lex_depend}
-.endif
 
 .if ${MK_ICONV} != "no"
 _mkesdb=	usr.bin/mkesdb
