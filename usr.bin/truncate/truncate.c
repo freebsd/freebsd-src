@@ -4,6 +4,11 @@
  * Copyright (c) 2000 Sheldon Hearn <sheldonh@FreeBSD.org>.
  * All rights reserved.
  *
+ * Copyright (c) 2021 The FreeBSD Foundation
+ *
+ * Portions of this software were developed by Ka Ho Ng <khng@FreeBSD.org>
+ * under sponsorship from the FreeBSD Foundation.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -49,25 +54,35 @@ main(int argc, char **argv)
 {
 	struct stat sb;
 	mode_t omode;
-	off_t oflow, rsize, sz, tsize, round;
+	off_t oflow, rsize, sz, tsize, round, off, len;
 	uint64_t usz;
-	int ch, error, fd, oflags;
+	int ch, error, fd, oflags, r;
+	int do_dealloc;
+	int do_truncate;
 	int no_create;
 	int do_relative;
 	int do_round;
 	int do_refer;
 	int got_size;
 	char *fname, *rname;
+	struct spacectl_range sr;
 
 	fd = -1;
-	rsize = tsize = sz = 0;
-	no_create = do_relative = do_round = do_refer = got_size = 0;
-	error = 0;
+	rsize = tsize = sz = off = 0;
+	len = -1;
+	do_dealloc = no_create = do_relative = do_round = do_refer =
+	    got_size = 0;
+	do_truncate = 1;
+	error = r = 0;
 	rname = NULL;
-	while ((ch = getopt(argc, argv, "cr:s:")) != -1)
+	while ((ch = getopt(argc, argv, "cdr:s:o:l:")) != -1)
 		switch (ch) {
 		case 'c':
 			no_create = 1;
+			break;
+		case 'd':
+			do_dealloc = 1;
+			do_truncate = 0;
 			break;
 		case 'r':
 			do_refer = 1;
@@ -89,6 +104,22 @@ main(int argc, char **argv)
 				-(off_t)usz : (off_t)usz;
 			got_size = 1;
 			break;
+		case 'o':
+			if (expand_number(optarg, &usz) == -1 ||
+			    (off_t)usz < 0)
+				errx(EXIT_FAILURE,
+				    "invalid offset argument `%s'", optarg);
+
+			off = usz;
+			break;
+		case 'l':
+			if (expand_number(optarg, &usz) == -1 ||
+			    (off_t)usz <= 0)
+				errx(EXIT_FAILURE,
+				    "invalid length argument `%s'", optarg);
+
+			len = usz;
+			break;
 		default:
 			usage();
 			/* NOTREACHED */
@@ -98,19 +129,22 @@ main(int argc, char **argv)
 	argc -= optind;
 
 	/*
-	 * Exactly one of do_refer or got_size must be specified.  Since
-	 * do_relative implies got_size, do_relative and do_refer are
-	 * also mutually exclusive.  See usage() for allowed invocations.
+	 * Exactly one of do_refer, got_size or do_dealloc must be specified.
+	 * Since do_relative implies got_size, do_relative, do_refer and
+	 * do_dealloc are also mutually exclusive.  If do_dealloc is specified,
+	 * the length argument must be set.  See usage() for allowed
+	 * invocations.
 	 */
-	if (do_refer + got_size != 1 || argc < 1)
+	if (argc < 1 || do_refer + got_size + do_dealloc != 1 ||
+	    (do_dealloc == 1 && len == -1))
 		usage();
-	if (do_refer) {
+	if (do_refer == 1) {
 		if (stat(rname, &sb) == -1)
 			err(EXIT_FAILURE, "%s", rname);
 		tsize = sb.st_size;
-	} else if (do_relative || do_round)
+	} else if (do_relative == 1 || do_round == 1)
 		rsize = sz;
-	else
+	else if (do_dealloc == 0)
 		tsize = sz;
 
 	if (no_create)
@@ -129,7 +163,7 @@ main(int argc, char **argv)
 			}
 			continue;
 		}
-		if (do_relative) {
+		if (do_relative == 1) {
 			if (fstat(fd, &sb) == -1) {
 				warn("%s", fname);
 				error++;
@@ -144,7 +178,7 @@ main(int argc, char **argv)
 			}
 			tsize = oflow;
 		}
-		if (do_round) {
+		if (do_round == 1) {
 			if (fstat(fd, &sb) == -1) {
 				warn("%s", fname);
 				error++;
@@ -166,10 +200,16 @@ main(int argc, char **argv)
 		if (tsize < 0)
 			tsize = 0;
 
-		if (ftruncate(fd, tsize) == -1) {
+		if (do_dealloc == 1) {
+			sr.r_offset = off;
+			sr.r_len = len;
+			r = fspacectl(fd, SPACECTL_DEALLOC, &sr, 0, &sr);
+		}
+		if (do_truncate == 1)
+			r = ftruncate(fd, tsize);
+		if (r == -1) {
 			warn("%s", fname);
 			error++;
-			continue;
 		}
 	}
 	if (fd != -1)
@@ -181,8 +221,9 @@ main(int argc, char **argv)
 static void
 usage(void)
 {
-	fprintf(stderr, "%s\n%s\n",
+	fprintf(stderr, "%s\n%s\n%s\n",
 	    "usage: truncate [-c] -s [+|-|%|/]size[K|k|M|m|G|g|T|t] file ...",
-	    "       truncate [-c] -r rfile file ...");
+	    "       truncate [-c] -r rfile file ...",
+	    "       truncate [-c] -d [-o offset[K|k|M|m|G|g|T|t]] -l length[K|k|M|m|G|g|T|t] file ...");
 	exit(EXIT_FAILURE);
 }
