@@ -78,12 +78,12 @@ __FBSDID("$FreeBSD$");
 
 static const char *pname = "crunchide";
 
-void usage(void);
+static void usage(void);
 
-void add_to_keep_list(char *symbol);
-void add_file_to_keep_list(char *filename);
+static void add_to_keep_list(char *symbol);
+static void add_file_to_keep_list(char *filename);
 
-int hide_syms(const char *filename);
+static int hide_syms(const char *filename);
 
 static int verbose;
 
@@ -126,7 +126,7 @@ main(int argc, char **argv)
     return errors;
 }
 
-void
+static void
 usage(void)
 {
     fprintf(stderr,
@@ -142,7 +142,7 @@ static struct keep {
     char *sym;
 } *keep_list;
 
-void
+static void
 add_to_keep_list(char *symbol)
 {
     struct keep *newp, *prevp, *curp;
@@ -182,7 +182,7 @@ in_keep_list(const char *symbol)
     return curp && cmp == 0;
 }
 
-void
+static void
 add_file_to_keep_list(char *filename)
 {
     FILE *keepf;
@@ -219,7 +219,7 @@ static struct {
 #endif
 };
 
-int
+static int
 hide_syms(const char *filename)
 {
 	int fd, i, n, rv;
