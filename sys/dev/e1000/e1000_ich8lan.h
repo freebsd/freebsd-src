@@ -1,32 +1,32 @@
 /******************************************************************************
   SPDX-License-Identifier: BSD-3-Clause
 
-  Copyright (c) 2001-2015, Intel Corporation 
+  Copyright (c) 2001-2020, Intel Corporation
   All rights reserved.
-  
-  Redistribution and use in source and binary forms, with or without 
+
+  Redistribution and use in source and binary forms, with or without
   modification, are permitted provided that the following conditions are met:
-  
-   1. Redistributions of source code must retain the above copyright notice, 
+
+   1. Redistributions of source code must retain the above copyright notice,
       this list of conditions and the following disclaimer.
-  
-   2. Redistributions in binary form must reproduce the above copyright 
-      notice, this list of conditions and the following disclaimer in the 
+
+   2. Redistributions in binary form must reproduce the above copyright
+      notice, this list of conditions and the following disclaimer in the
       documentation and/or other materials provided with the distribution.
-  
-   3. Neither the name of the Intel Corporation nor the names of its 
-      contributors may be used to endorse or promote products derived from 
+
+   3. Neither the name of the Intel Corporation nor the names of its
+      contributors may be used to endorse or promote products derived from
       this software without specific prior written permission.
-  
+
   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
-  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
-  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE 
-  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
-  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
-  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
-  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
-  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
+  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
   POSSIBILITY OF SUCH DAMAGE.
 
@@ -113,11 +113,12 @@
 #define E1000_FEXTNVM7_DISABLE_PB_READ	0x00040000
 #define E1000_FEXTNVM7_SIDE_CLK_UNGATE	0x00000004
 #define E1000_FEXTNVM7_DISABLE_SMB_PERST	0x00000020
+#define E1000_FEXTNVM8_UNBIND_DPG_FROM_MPHY	0x00000400
 #define E1000_FEXTNVM9_IOSFSB_CLKGATE_DIS	0x00000800
 #define E1000_FEXTNVM9_IOSFSB_CLKREQ_DIS	0x00001000
 #define E1000_FEXTNVM11_DISABLE_PB_READ		0x00000200
 #define E1000_FEXTNVM11_DISABLE_MULR_FIX	0x00002000
-
+#define E1000_FEXTNVM12_DONT_WAK_DPG_CLKREQ	0x00001000
 /* bit24: RXDCTL thresholds granularity: 0 - cache lines, 1 - descriptors */
 #define E1000_RXDCTL_THRESH_UNIT_DESC	0x01000000
 
@@ -327,6 +328,9 @@
 #define E1000_SVCR_OFF_TIMER_SHIFT	16
 #define E1000_SVT_OFF_HWM_MASK		0x0000001F
 
+#define E1000_PCI_VENDOR_ID_REGISTER	0x00
+#define E1000_PCI_REVISION_ID_REG	0x08
+
 void e1000_set_kmrn_lock_loss_workaround_ich8lan(struct e1000_hw *hw,
 						 bool state);
 void e1000_igp3_phy_powerdown_workaround_ich8lan(struct e1000_hw *hw);
@@ -334,6 +338,7 @@ void e1000_gig_downshift_workaround_ich8lan(struct e1000_hw *hw);
 void e1000_suspend_workarounds_ich8lan(struct e1000_hw *hw);
 u32 e1000_resume_workarounds_pchlan(struct e1000_hw *hw);
 s32 e1000_configure_k1_ich8lan(struct e1000_hw *hw, bool k1_enable);
+s32 e1000_configure_k0s_lpt(struct e1000_hw *hw, u8 entry_latency, u8 min_time);
 void e1000_copy_rx_addrs_to_phy_ich8lan(struct e1000_hw *hw);
 s32 e1000_lv_jumbo_workaround_ich8lan(struct e1000_hw *hw, bool enable);
 s32 e1000_read_emi_reg_locked(struct e1000_hw *hw, u16 addr, u16 *data);
