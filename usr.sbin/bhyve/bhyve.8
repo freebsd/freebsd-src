@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 18, 2021
+.Dd August 19, 2021
 .Dt BHYVE 8
 .Os
 .Sh NAME
@@ -137,16 +137,22 @@ Force
 .Nm
 to exit when a guest issues an access to an I/O port that is not emulated.
 This is intended for debug purposes.
-.It Fl G Ar port
+.It Fl G Xo
+.Sm off
+.Oo Ar w Oc
+.Oo Ar bind_address: Oc
+.Ar port
+.Sm on
+.Xc
 Start a debug server that uses the GDB protocol to export guest state to a
 debugger.
 An IPv4 TCP socket will be bound to the supplied
+.Ar bind_address
+and
 .Ar port
 to listen for debugger connections.
 Only a single debugger may be attached to the debug server at a time.
-If
-.Ar port
-begins with
+If the option begins with
 .Sq w ,
 .Nm
 will pause execution at the first instruction waiting for a debugger to attach.

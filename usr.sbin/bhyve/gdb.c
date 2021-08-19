@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <netdb.h>
 #include <pthread.h>
 #include <pthread_np.h>
 #include <stdbool.h>
@@ -59,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <vmmapi.h>
 
 #include "bhyverun.h"
+#include "config.h"
 #include "gdb.h"
 #include "mem.h"
 #include "mevent.h"
@@ -1818,12 +1820,35 @@ limit_gdb_socket(int s)
 #endif
 
 void
-init_gdb(struct vmctx *_ctx, int sport, bool wait)
+init_gdb(struct vmctx *_ctx)
 {
-	struct sockaddr_in sin;
 	int error, flags, optval, s;
+	struct addrinfo hints;
+	struct addrinfo *gdbaddr;
+	const char *saddr, *value;
+	char *sport;
+	bool wait;
 
-	debug("==> starting on %d, %swaiting\n", sport, wait ? "" : "not ");
+	value = get_config_value("gdb.port");
+	if (value == NULL)
+		return;
+	sport = strdup(value);
+	if (sport == NULL)
+		errx(4, "Failed to allocate memory");
+
+	wait = get_config_bool_default("gdb.wait", false);
+
+	saddr = get_config_value("gdb.address");
+	if (saddr == NULL) {
+#if defined(INET)
+		saddr = "0.0.0.0";
+#elif defined(INET6)
+		saddr = "[::]";
+#endif
+	}
+
+	debug("==> starting on %s:%s, %swaiting\n",
+	    saddr, sport, wait ? "" : "not ");
 
 	error = pthread_mutex_init(&gdb_lock, NULL);
 	if (error != 0)
@@ -1832,20 +1857,23 @@ init_gdb(struct vmctx *_ctx, int sport, bool wait)
 	if (error != 0)
 		errc(1, error, "gdb cv init");
 
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = AF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_flags = AI_NUMERICHOST | AI_NUMERICSERV | AI_PASSIVE;
+
+	if (getaddrinfo(saddr, sport, &hints, &gdbaddr) != 0)
+		err(1, "gdb address resolve");
+
 	ctx = _ctx;
-	s = socket(PF_INET, SOCK_STREAM, 0);
+	s = socket(gdbaddr->ai_family, gdbaddr->ai_socktype, 0);
 	if (s < 0)
 		err(1, "gdb socket create");
 
 	optval = 1;
 	(void)setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
 
-	sin.sin_len = sizeof(sin);
-	sin.sin_family = AF_INET;
-	sin.sin_addr.s_addr = htonl(INADDR_ANY);
-	sin.sin_port = htons(sport);
-
-	if (bind(s, (struct sockaddr *)&sin, sizeof(sin)) < 0)
+	if (bind(s, gdbaddr->ai_addr, gdbaddr->ai_addrlen) < 0)
 		err(1, "gdb socket bind");
 
 	if (listen(s, 1) < 0)
@@ -1874,4 +1902,6 @@ init_gdb(struct vmctx *_ctx, int sport, bool wait)
 #endif
 	mevent_add(s, EVF_READ, new_connection, NULL);
 	gdb_active = true;
+	freeaddrinfo(gdbaddr);
+	free(sport);
 }
