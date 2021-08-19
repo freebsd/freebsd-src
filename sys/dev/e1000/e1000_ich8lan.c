@@ -1,32 +1,32 @@
 /******************************************************************************
   SPDX-License-Identifier: BSD-3-Clause
 
-  Copyright (c) 2001-2015, Intel Corporation 
+  Copyright (c) 2001-2020, Intel Corporation
   All rights reserved.
-  
-  Redistribution and use in source and binary forms, with or without 
+
+  Redistribution and use in source and binary forms, with or without
   modification, are permitted provided that the following conditions are met:
-  
-   1. Redistributions of source code must retain the above copyright notice, 
+
+   1. Redistributions of source code must retain the above copyright notice,
       this list of conditions and the following disclaimer.
-  
-   2. Redistributions in binary form must reproduce the above copyright 
-      notice, this list of conditions and the following disclaimer in the 
+
+   2. Redistributions in binary form must reproduce the above copyright
+      notice, this list of conditions and the following disclaimer in the
       documentation and/or other materials provided with the distribution.
-  
-   3. Neither the name of the Intel Corporation nor the names of its 
-      contributors may be used to endorse or promote products derived from 
+
+   3. Neither the name of the Intel Corporation nor the names of its
+      contributors may be used to endorse or promote products derived from
       this software without specific prior written permission.
-  
+
   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
-  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
-  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE 
-  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
-  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
-  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
-  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
-  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
+  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
   POSSIBILITY OF SUCH DAMAGE.
 
@@ -72,6 +72,7 @@
 
 #include "e1000_api.h"
 
+static s32  e1000_oem_bits_config_ich8lan(struct e1000_hw *hw, bool d0_state);
 static s32  e1000_acquire_swflag_ich8lan(struct e1000_hw *hw);
 static void e1000_release_swflag_ich8lan(struct e1000_hw *hw);
 static s32  e1000_acquire_nvm_ich8lan(struct e1000_hw *hw);
@@ -730,6 +731,7 @@ static s32 e1000_init_nvm_params_ich8lan(struct e1000_hw *hw)
 static s32 e1000_init_mac_params_ich8lan(struct e1000_hw *hw)
 {
 	struct e1000_mac_info *mac = &hw->mac;
+	u16 pci_cfg;
 
 	DEBUGFUNC("e1000_init_mac_params_ich8lan");
 
@@ -808,6 +810,15 @@ static s32 e1000_init_mac_params_ich8lan(struct e1000_hw *hw)
 			e1000_update_mc_addr_list_pch2lan;
 		/* fall-through */
 	case e1000_pchlan:
+		/* save PCH revision_id */
+		e1000_read_pci_cfg(hw, E1000_PCI_REVISION_ID_REG, &pci_cfg);
+		/* SPT uses full byte for revision ID,
+		 * as opposed to previous generations
+		 */
+		if (hw->mac.type >= e1000_pch_spt)
+			hw->revision_id = (u8)(pci_cfg &= 0x00FF);
+		else
+			hw->revision_id = (u8)(pci_cfg &= 0x000F);
 		/* check management mode */
 		mac->ops.check_mng_mode = e1000_check_mng_mode_pchlan;
 		/* ID LED init */
@@ -841,7 +852,7 @@ static s32 e1000_init_mac_params_ich8lan(struct e1000_hw *hw)
 /**
  *  __e1000_access_emi_reg_locked - Read/write EMI register
  *  @hw: pointer to the HW structure
- *  @addr: EMI address to program
+ *  @address: EMI address to program
  *  @data: pointer to value to read/write from/to the EMI address
  *  @read: boolean flag to indicate read or write
  *
@@ -1279,6 +1290,28 @@ s32 e1000_enable_ulp_lpt_lp(struct e1000_hw *hw, bool to_sx)
 	    (hw->dev_spec.ich8lan.ulp_state == e1000_ulp_state_on))
 		return 0;
 
+	if (!to_sx) {
+		int i = 0;
+		/* Poll up to 5 seconds for Cable Disconnected indication */
+		while (!(E1000_READ_REG(hw, E1000_FEXT) &
+			 E1000_FEXT_PHY_CABLE_DISCONNECTED)) {
+			/* Bail if link is re-acquired */
+			if (E1000_READ_REG(hw, E1000_STATUS) & E1000_STATUS_LU)
+				return -E1000_ERR_PHY;
+			if (i++ == 100)
+				break;
+
+			msec_delay(50);
+		}
+		DEBUGOUT2("CABLE_DISCONNECTED %s set after %dmsec\n",
+			  (E1000_READ_REG(hw, E1000_FEXT) &
+			   E1000_FEXT_PHY_CABLE_DISCONNECTED) ? "" : "not",
+			  i * 50);
+		if (!(E1000_READ_REG(hw, E1000_FEXT) &
+		    E1000_FEXT_PHY_CABLE_DISCONNECTED))
+			return 0;
+	}
+
 	if (E1000_READ_REG(hw, E1000_FWSM) & E1000_ICH_FWSM_FW_VALID) {
 		/* Request ME configure ULP mode in the PHY */
 		mac_reg = E1000_READ_REG(hw, E1000_H2ME);
@@ -1288,30 +1321,13 @@ s32 e1000_enable_ulp_lpt_lp(struct e1000_hw *hw, bool to_sx)
 		goto out;
 	}
 
-	if (!to_sx) {
-		int i = 0;
-
-		/* Poll up to 5 seconds for Cable Disconnected indication */
-		while (!(E1000_READ_REG(hw, E1000_FEXT) &
-			 E1000_FEXT_PHY_CABLE_DISCONNECTED)) {
-			/* Bail if link is re-acquired */
-			if (E1000_READ_REG(hw, E1000_STATUS) & E1000_STATUS_LU)
-				return -E1000_ERR_PHY;
-
-			if (i++ == 100)
-				break;
-
-			msec_delay(50);
-		}
-		DEBUGOUT2("CABLE_DISCONNECTED %s set after %dmsec\n",
-			 (E1000_READ_REG(hw, E1000_FEXT) &
-			  E1000_FEXT_PHY_CABLE_DISCONNECTED) ? "" : "not",
-			 i * 50);
-	}
-
 	ret_val = hw->phy.ops.acquire(hw);
 	if (ret_val)
 		goto out;
+
+	/* During S0 Idle keep the phy in PCI-E mode */
+	if (hw->dev_spec.ich8lan.smbus_disable)
+		goto skip_smbus;
 
 	/* Force SMBus mode in PHY */
 	ret_val = e1000_read_phy_reg_hv_locked(hw, CV_SMB_CTRL, &phy_reg);
@@ -1325,7 +1341,7 @@ s32 e1000_enable_ulp_lpt_lp(struct e1000_hw *hw, bool to_sx)
 	mac_reg |= E1000_CTRL_EXT_FORCE_SMBUS;
 	E1000_WRITE_REG(hw, E1000_CTRL_EXT, mac_reg);
 
-	/* Si workaround for ULP entry flow on i127/rev6 h/w.  Enable
+	/* Si workaround for ULP entry flow on i217/rev6 h/w.  Enable
 	 * LPLU and disable Gig speed when entering ULP
 	 */
 	if ((hw->phy.type == e1000_phy_i217) && (hw->phy.revision == 6)) {
@@ -1342,6 +1358,21 @@ s32 e1000_enable_ulp_lpt_lp(struct e1000_hw *hw, bool to_sx)
 
 		if (ret_val)
 			goto release;
+	}
+
+skip_smbus:
+	if (!to_sx) {
+		/* Change the 'Link Status Change' interrupt to trigger
+		 * on 'Cable Status Change'
+		 */
+		ret_val = e1000_read_kmrn_reg_locked(hw,
+						     E1000_KMRNCTRLSTA_OP_MODES,
+						     &phy_reg);
+		if (ret_val)
+			goto release;
+		phy_reg |= E1000_KMRNCTRLSTA_OP_MODES_LSC2CSC;
+		e1000_write_kmrn_reg_locked(hw, E1000_KMRNCTRLSTA_OP_MODES,
+					    phy_reg);
 	}
 
 	/* Set Inband ULP Exit, Reset to SMBus mode and
@@ -1376,6 +1407,15 @@ s32 e1000_enable_ulp_lpt_lp(struct e1000_hw *hw, bool to_sx)
 	phy_reg |= I218_ULP_CONFIG1_START;
 	e1000_write_phy_reg_hv_locked(hw, I218_ULP_CONFIG1, phy_reg);
 
+	if (!to_sx) {
+		/* Disable Tx so that the MAC doesn't send any (buffered)
+		 * packets to the PHY.
+		 */
+		mac_reg = E1000_READ_REG(hw, E1000_TCTL);
+		mac_reg &= ~E1000_TCTL_EN;
+		E1000_WRITE_REG(hw, E1000_TCTL, mac_reg);
+	}
+
 	if ((hw->phy.type == e1000_phy_i217) && (hw->phy.revision == 6) &&
 	    to_sx && (E1000_READ_REG(hw, E1000_STATUS) & E1000_STATUS_LU)) {
 		ret_val = e1000_write_phy_reg_hv_locked(hw, HV_OEM_BITS,
@@ -1409,10 +1449,17 @@ out:
  *  to disable ULP mode (force=FALSE); otherwise, for example when unloading
  *  the driver or during Sx->S0 transitions, this is called with force=TRUE
  *  to forcibly disable ULP.
+
+ *  When the cable is plugged in while the device is in D0, a Cable Status
+ *  Change interrupt is generated which causes this function to be called
+ *  to partially disable ULP mode and restart autonegotiation.  This function
+ *  is then called again due to the resulting Link Status Change interrupt
+ *  to finish cleaning up after the ULP flow.
  */
 s32 e1000_disable_ulp_lpt_lp(struct e1000_hw *hw, bool force)
 {
 	s32 ret_val = E1000_SUCCESS;
+	u8 ulp_exit_timeout = 30;
 	u32 mac_reg;
 	u16 phy_reg;
 	int i = 0;
@@ -1434,10 +1481,12 @@ s32 e1000_disable_ulp_lpt_lp(struct e1000_hw *hw, bool force)
 			E1000_WRITE_REG(hw, E1000_H2ME, mac_reg);
 		}
 
-		/* Poll up to 300msec for ME to clear ULP_CFG_DONE. */
+		if (hw->mac.type == e1000_pch_cnp)
+			ulp_exit_timeout = 100;
+
 		while (E1000_READ_REG(hw, E1000_FWSM) &
 		       E1000_FWSM_ULP_CFG_DONE) {
-			if (i++ == 30) {
+			if (i++ == ulp_exit_timeout) {
 				ret_val = -E1000_ERR_PHY;
 				goto out;
 			}
@@ -1455,6 +1504,20 @@ s32 e1000_disable_ulp_lpt_lp(struct e1000_hw *hw, bool force)
 			mac_reg = E1000_READ_REG(hw, E1000_H2ME);
 			mac_reg &= ~E1000_H2ME_ULP;
 			E1000_WRITE_REG(hw, E1000_H2ME, mac_reg);
+
+			/* Restore link speed advertisements and restart
+			 * Auto-negotiation
+			 */
+			if (hw->mac.autoneg) {
+				ret_val = e1000_phy_setup_autoneg(hw);
+				if (ret_val)
+					goto out;
+			} else {
+				ret_val = e1000_setup_copper_link_generic(hw);
+				if (ret_val)
+					goto out;
+			}
+			ret_val = e1000_oem_bits_config_ich8lan(hw, true);
 		}
 
 		goto out;
@@ -1463,6 +1526,16 @@ s32 e1000_disable_ulp_lpt_lp(struct e1000_hw *hw, bool force)
 	ret_val = hw->phy.ops.acquire(hw);
 	if (ret_val)
 		goto out;
+
+	/* Revert the change to the 'Link Status Change'
+	 * interrupt to trigger on 'Cable Status Change'
+	 */
+	ret_val = e1000_read_kmrn_reg_locked(hw, E1000_KMRNCTRLSTA_OP_MODES,
+					     &phy_reg);
+	if (ret_val)
+		goto release;
+	phy_reg &= ~E1000_KMRNCTRLSTA_OP_MODES_LSC2CSC;
+	e1000_write_kmrn_reg_locked(hw, E1000_KMRNCTRLSTA_OP_MODES, phy_reg);
 
 	if (force)
 		/* Toggle LANPHYPC Value bit */
@@ -1506,24 +1579,54 @@ s32 e1000_disable_ulp_lpt_lp(struct e1000_hw *hw, bool force)
 	ret_val = e1000_read_phy_reg_hv_locked(hw, I218_ULP_CONFIG1, &phy_reg);
 	if (ret_val)
 		goto release;
-	phy_reg &= ~(I218_ULP_CONFIG1_IND |
-		     I218_ULP_CONFIG1_STICKY_ULP |
-		     I218_ULP_CONFIG1_RESET_TO_SMBUS |
-		     I218_ULP_CONFIG1_WOL_HOST |
-		     I218_ULP_CONFIG1_INBAND_EXIT |
-		     I218_ULP_CONFIG1_EN_ULP_LANPHYPC |
-		     I218_ULP_CONFIG1_DIS_CLR_STICKY_ON_PERST |
-		     I218_ULP_CONFIG1_DISABLE_SMB_PERST);
-	e1000_write_phy_reg_hv_locked(hw, I218_ULP_CONFIG1, phy_reg);
+	/* CSC interrupt received due to ULP Indication */
+	if ((phy_reg & I218_ULP_CONFIG1_IND) || force) {
+		phy_reg &= ~(I218_ULP_CONFIG1_IND |
+			     I218_ULP_CONFIG1_STICKY_ULP |
+			     I218_ULP_CONFIG1_RESET_TO_SMBUS |
+			     I218_ULP_CONFIG1_WOL_HOST |
+			     I218_ULP_CONFIG1_INBAND_EXIT |
+			     I218_ULP_CONFIG1_EN_ULP_LANPHYPC |
+			     I218_ULP_CONFIG1_DIS_CLR_STICKY_ON_PERST |
+			     I218_ULP_CONFIG1_DISABLE_SMB_PERST);
+		e1000_write_phy_reg_hv_locked(hw, I218_ULP_CONFIG1, phy_reg);
 
-	/* Commit ULP changes by starting auto ULP configuration */
-	phy_reg |= I218_ULP_CONFIG1_START;
-	e1000_write_phy_reg_hv_locked(hw, I218_ULP_CONFIG1, phy_reg);
+		/* Commit ULP changes by starting auto ULP configuration */
+		phy_reg |= I218_ULP_CONFIG1_START;
+		e1000_write_phy_reg_hv_locked(hw, I218_ULP_CONFIG1, phy_reg);
 
-	/* Clear Disable SMBus Release on PERST# in MAC */
-	mac_reg = E1000_READ_REG(hw, E1000_FEXTNVM7);
-	mac_reg &= ~E1000_FEXTNVM7_DISABLE_SMB_PERST;
-	E1000_WRITE_REG(hw, E1000_FEXTNVM7, mac_reg);
+		/* Clear Disable SMBus Release on PERST# in MAC */
+		mac_reg = E1000_READ_REG(hw, E1000_FEXTNVM7);
+		mac_reg &= ~E1000_FEXTNVM7_DISABLE_SMB_PERST;
+		E1000_WRITE_REG(hw, E1000_FEXTNVM7, mac_reg);
+
+		if (!force) {
+			hw->phy.ops.release(hw);
+
+			if (hw->mac.autoneg)
+				e1000_phy_setup_autoneg(hw);
+			else
+				e1000_setup_copper_link_generic(hw);
+
+			e1000_sw_lcd_config_ich8lan(hw);
+
+			e1000_oem_bits_config_ich8lan(hw, true);
+
+			/* Set ULP state to unknown and return non-zero to
+			 * indicate no link (yet) and re-enter on the next LSC
+			 * to finish disabling ULP flow.
+			 */
+			hw->dev_spec.ich8lan.ulp_state =
+			    e1000_ulp_state_unknown;
+
+			return 1;
+		}
+	}
+
+	/* Re-enable Tx */
+	mac_reg = E1000_READ_REG(hw, E1000_TCTL);
+	mac_reg |= E1000_TCTL_EN;
+	E1000_WRITE_REG(hw, E1000_TCTL, mac_reg);
 
 release:
 	hw->phy.ops.release(hw);
@@ -1553,7 +1656,7 @@ static s32 e1000_check_for_copper_link_ich8lan(struct e1000_hw *hw)
 	struct e1000_mac_info *mac = &hw->mac;
 	s32 ret_val, tipg_reg = 0;
 	u16 emi_addr, emi_val = 0;
-	bool link;
+	bool link = false;
 	u16 phy_reg;
 
 	DEBUGFUNC("e1000_check_for_copper_link_ich8lan");
@@ -1566,13 +1669,28 @@ static s32 e1000_check_for_copper_link_ich8lan(struct e1000_hw *hw)
 	if (!mac->get_link_status)
 		return E1000_SUCCESS;
 
-	/* First we want to see if the MII Status Register reports
-	 * link.  If so, then we want to get the current speed/duplex
-	 * of the PHY.
-	 */
-	ret_val = e1000_phy_has_link_generic(hw, 1, 0, &link);
-	if (ret_val)
-		return ret_val;
+	if ((hw->mac.type < e1000_pch_lpt) ||
+	    (hw->device_id == E1000_DEV_ID_PCH_LPT_I217_LM) ||
+	    (hw->device_id == E1000_DEV_ID_PCH_LPT_I217_V)) {
+		/* First we want to see if the MII Status Register reports
+		 * link.  If so, then we want to get the current speed/duplex
+		 * of the PHY.
+		 */
+		ret_val = e1000_phy_has_link_generic(hw, 1, 0, &link);
+		if (ret_val)
+			return ret_val;
+	} else {
+		/* Check the MAC's STATUS register to determine link state
+		 * since the PHY could be inaccessible while in ULP mode.
+		 */
+		link = !!(E1000_READ_REG(hw, E1000_STATUS) & E1000_STATUS_LU);
+		if (link)
+			ret_val = e1000_disable_ulp_lpt_lp(hw, false);
+		else
+			ret_val = e1000_enable_ulp_lpt_lp(hw, false);
+		if (ret_val)
+			return ret_val;
+	}
 
 	if (hw->mac.type == e1000_pchlan) {
 		ret_val = e1000_k1_gig_workaround_hv(hw, link);
@@ -1619,8 +1737,6 @@ static s32 e1000_check_for_copper_link_ich8lan(struct e1000_hw *hw)
 
 
 		if (hw->mac.type >= e1000_pch_lpt) {
-			u16 phy_reg;
-
 			hw->phy.ops.read_reg_locked(hw, I217_PLL_CLOCK_GATE_REG,
 						    &phy_reg);
 			phy_reg &= ~I217_PLL_CLOCK_GATE_MASK;
@@ -1726,6 +1842,11 @@ static s32 e1000_check_for_copper_link_ich8lan(struct e1000_hw *hw)
 
 	/* Clear link partner's EEE ability */
 	hw->dev_spec.ich8lan.eee_lp_ability = 0;
+
+	/* Configure K0s minimum time */
+	if (hw->mac.type >= e1000_pch_lpt) {
+		e1000_configure_k0s_lpt(hw, K1_ENTRY_LATENCY, K1_MIN_TIME);
+	}
 
 	if (hw->mac.type >= e1000_pch_lpt) {
 		u32 fextnvm6 = E1000_READ_REG(hw, E1000_FEXTNVM6);
@@ -2474,7 +2595,7 @@ release:
 /**
  *  e1000_configure_k1_ich8lan - Configure K1 power state
  *  @hw: pointer to the HW structure
- *  @enable: K1 state to configure
+ *  @k1_enable: K1 state to configure
  *
  *  Configure the K1 power state based on the provided parameter.
  *  Assumes semaphore already acquired.
@@ -2622,6 +2743,7 @@ static s32 e1000_set_mdio_slow_mode_hv(struct e1000_hw *hw)
 /**
  *  e1000_hv_phy_workarounds_ich8lan - A series of Phy workarounds to be
  *  done after every PHY reset.
+ *  @hw: pointer to the HW structure
  **/
 static s32 e1000_hv_phy_workarounds_ich8lan(struct e1000_hw *hw)
 {
@@ -2943,6 +3065,7 @@ s32 e1000_lv_jumbo_workaround_ich8lan(struct e1000_hw *hw, bool enable)
 /**
  *  e1000_lv_phy_workarounds_ich8lan - A series of Phy workarounds to be
  *  done after every PHY reset.
+ *  @hw: pointer to the HW structure
  **/
 static s32 e1000_lv_phy_workarounds_ich8lan(struct e1000_hw *hw)
 {
@@ -4307,7 +4430,7 @@ static s32 e1000_update_nvm_checksum_ich8lan(struct e1000_hw *hw)
 							  (u8)(data >> 8));
 		if (ret_val)
 			break;
-	 }
+	}
 
 	/* Don't bother writing the segment valid bits if sector
 	 * programming failed.
@@ -4961,6 +5084,7 @@ static s32 e1000_reset_hw_ich8lan(struct e1000_hw *hw)
 	u16 kum_cfg;
 	u32 ctrl, reg;
 	s32 ret_val;
+	u16 pci_cfg;
 
 	DEBUGFUNC("e1000_reset_hw_ich8lan");
 
@@ -5021,10 +5145,27 @@ static s32 e1000_reset_hw_ich8lan(struct e1000_hw *hw)
 			e1000_gate_hw_phy_config_ich8lan(hw, TRUE);
 	}
 	ret_val = e1000_acquire_swflag_ich8lan(hw);
+
+	/* Read from EXTCNF_CTRL in e1000_acquire_swflag_ich8lan function
+	 * may occur during global reset and cause system hang.
+	 * Configuration space access creates the needed delay.
+	 * Write to E1000_STRAP RO register E1000_PCI_VENDOR_ID_REGISTER value
+	 * insures configuration space read is done before global reset.
+	 */
+	e1000_read_pci_cfg(hw, E1000_PCI_VENDOR_ID_REGISTER, &pci_cfg);
+	E1000_WRITE_REG(hw, E1000_STRAP, pci_cfg);
 	DEBUGOUT("Issuing a global reset to ich8lan\n");
 	E1000_WRITE_REG(hw, E1000_CTRL, (ctrl | E1000_CTRL_RST));
 	/* cannot issue a flush here because it hangs the hardware */
 	msec_delay(20);
+
+	/* Configuration space access improve HW level time sync mechanism.
+	 * Write to E1000_STRAP RO register E1000_PCI_VENDOR_ID_REGISTER
+	 * value to insure configuration space read is done
+	 * before any access to mac register.
+	 */
+	e1000_read_pci_cfg(hw, E1000_PCI_VENDOR_ID_REGISTER, &pci_cfg);
+	E1000_WRITE_REG(hw, E1000_STRAP, pci_cfg);
 
 	/* Set Phy Config Counter to 50msec */
 	if (hw->mac.type == e1000_pch2lan) {
@@ -5597,7 +5738,7 @@ void e1000_igp3_phy_powerdown_workaround_ich8lan(struct e1000_hw *hw)
 void e1000_gig_downshift_workaround_ich8lan(struct e1000_hw *hw)
 {
 	s32 ret_val;
-	u16 reg_data;
+	u16 reg_data = 0;
 
 	DEBUGFUNC("e1000_gig_downshift_workaround_ich8lan");
 
@@ -6117,3 +6258,44 @@ release:
 	}
 }
 
+/**
+ *  e1000_configure_k0s_lpt - Configure K0s power state
+ *  @hw: pointer to the HW structure
+ *  @entry_latency: Tx idle period for entering K0s - valid values are 0 to 3.
+ *	0 corresponds to 128ns, each value over 0 doubles the duration.
+ *  @min_time: Minimum Tx idle period allowed  - valid values are 0 to 4.
+ *	0 corresponds to 128ns, each value over 0 doubles the duration.
+ *
+ *  Configure the K1 power state based on the provided parameter.
+ *  Assumes semaphore already acquired.
+ *
+ *  Success returns 0, Failure returns:
+ *	-E1000_ERR_PHY (-2) in case of access error
+ *	-E1000_ERR_PARAM (-4) in case of parameters error
+ **/
+s32 e1000_configure_k0s_lpt(struct e1000_hw *hw, u8 entry_latency, u8 min_time)
+{
+	s32 ret_val;
+	u16 kmrn_reg = 0;
+
+	DEBUGFUNC("e1000_configure_k0s_lpt");
+
+	if (entry_latency > 3 || min_time > 4)
+		return -E1000_ERR_PARAM;
+
+	ret_val = e1000_read_kmrn_reg_locked(hw, E1000_KMRNCTRLSTA_K0S_CTRL,
+					     &kmrn_reg);
+	if (ret_val)
+		return ret_val;
+
+	/* for now don't touch the latency */
+	kmrn_reg &= ~(E1000_KMRNCTRLSTA_K0S_CTRL_MIN_TIME_MASK);
+	kmrn_reg |= ((min_time << E1000_KMRNCTRLSTA_K0S_CTRL_MIN_TIME_SHIFT));
+
+	ret_val = e1000_write_kmrn_reg_locked(hw, E1000_KMRNCTRLSTA_K0S_CTRL,
+					      kmrn_reg);
+	if (ret_val)
+		return ret_val;
+
+	return E1000_SUCCESS;
+}
