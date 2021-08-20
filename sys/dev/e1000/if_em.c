@@ -1076,11 +1076,8 @@ em_if_attach_pre(if_ctx_t ctx)
 
 	if (!em_is_valid_ether_addr(hw->mac.addr)) {
 		if (adapter->vf_ifp) {
-			u8 addr[ETHER_ADDR_LEN];
-			arc4rand(&addr, sizeof(addr), 0);
-			addr[0] &= 0xFE;
-			addr[0] |= 0x02;
-			bcopy(addr, hw->mac.addr, sizeof(addr));
+			ether_gen_addr(iflib_get_ifp(ctx),
+			    (struct ether_addr *)hw->mac.addr);
 		} else {
 			device_printf(dev, "Invalid MAC address\n");
 			error = EIO;

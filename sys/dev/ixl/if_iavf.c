@@ -433,13 +433,9 @@ iavf_if_attach_pre(if_ctx_t ctx)
 	iavf_dbg_init(sc, "Resource Acquisition complete\n");
 
 	/* If no mac address was assigned just make a random one */
-	if (!iavf_check_ether_addr(hw->mac.addr)) {
-		u8 addr[ETHER_ADDR_LEN];
-		arc4rand(&addr, sizeof(addr), 0);
-		addr[0] &= 0xFE;
-		addr[0] |= 0x02;
-		bcopy(addr, hw->mac.addr, sizeof(addr));
-	}
+	if (!iavf_check_ether_addr(hw->mac.addr))
+		ether_gen_addr(iflib_get_ifp(ctx),
+		    (struct ether_addr *)hw->mac.addr);
 	bcopy(hw->mac.addr, hw->mac.perm_addr, ETHER_ADDR_LEN);
 	iflib_set_mac(ctx, hw->mac.addr);
 
