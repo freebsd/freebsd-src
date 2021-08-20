@@ -57,8 +57,7 @@ struct mprsas_target {
 #define MPR_TARGET_FLAGS_RAID_COMPONENT (1 << 4)
 #define MPR_TARGET_FLAGS_VOLUME         (1 << 5)
 #define MPR_TARGET_IS_SATA_SSD	(1 << 6)
-#define MPRSAS_TARGET_INRECOVERY (MPRSAS_TARGET_INABORT | \
-    MPRSAS_TARGET_INRESET | MPRSAS_TARGET_INCHIPRESET)
+#define MPRSAS_TARGET_TOREMOVE	(1 << 7)
 
 	uint16_t	tid;
 	SLIST_HEAD(, mprsas_lun) luns;
@@ -95,6 +94,7 @@ struct mprsas_softc {
 #define MPRSAS_DISCOVERY_TIMEOUT_PENDING	(1 << 2)
 #define MPRSAS_QUEUE_FROZEN	(1 << 3)
 #define	MPRSAS_SHUTDOWN		(1 << 4)
+#define	MPRSAS_TOREMOVE		(1 << 5)
 	u_int			maxtargets;
 	struct mprsas_target	*targets;
 	struct cam_devq		*devq;

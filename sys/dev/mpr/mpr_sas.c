@@ -413,6 +413,34 @@ mprsas_remove_volume(struct mpr_softc *sc, struct mpr_command *tm)
 }
 
 /*
+ * Retry mprsas_prepare_remove() if some previous attempt failed to allocate
+ * high priority command due to limit reached.
+ */
+void
+mprsas_prepare_remove_retry(struct mprsas_softc *sassc)
+{
+	struct mprsas_target *target;
+	int i;
+
+	if ((sassc->flags & MPRSAS_TOREMOVE) == 0)
+		return;
+
+	for (i = 0; i < sassc->maxtargets; i++) {
+		target = &sassc->targets[i];
+		if ((target->flags & MPRSAS_TARGET_TOREMOVE) == 0)
+			continue;
+		if (TAILQ_EMPTY(&sassc->sc->high_priority_req_list))
+			return;
+		target->flags &= ~MPRSAS_TARGET_TOREMOVE;
+		if (target->flags & MPR_TARGET_FLAGS_VOLUME)
+			mprsas_prepare_volume_remove(sassc, target->handle);
+		else
+			mprsas_prepare_remove(sassc, target->handle);
+	}
+	sassc->flags &= ~MPRSAS_TOREMOVE;
+}
+
+/*
  * No Need to call "MPI2_SAS_OP_REMOVE_DEVICE" For Volume removal.
  * Otherwise Volume Delete is same as Bare Drive Removal.
  */
@@ -440,8 +468,8 @@ mprsas_prepare_volume_remove(struct mprsas_softc *sassc, uint16_t handle)
 
 	cm = mprsas_alloc_tm(sc);
 	if (cm == NULL) {
-		mpr_dprint(sc, MPR_ERROR,
-		    "%s: command alloc failure\n", __func__);
+		targ->flags |= MPRSAS_TARGET_TOREMOVE;
+		sassc->flags |= MPRSAS_TOREMOVE;
 		return;
 	}
 
@@ -506,8 +534,8 @@ mprsas_prepare_remove(struct mprsas_softc *sassc, uint16_t handle)
 
 	tm = mprsas_alloc_tm(sc);
 	if (tm == NULL) {
-		mpr_dprint(sc, MPR_ERROR, "%s: command alloc failure\n",
-		    __func__);
+		targ->flags |= MPRSAS_TARGET_TOREMOVE;
+		sassc->flags |= MPRSAS_TOREMOVE;
 		return;
 	}
 
