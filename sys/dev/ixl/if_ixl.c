@@ -49,7 +49,7 @@
  *********************************************************************/
 #define IXL_DRIVER_VERSION_MAJOR	2
 #define IXL_DRIVER_VERSION_MINOR	3
-#define IXL_DRIVER_VERSION_BUILD	0
+#define IXL_DRIVER_VERSION_BUILD	1
 
 #define IXL_DRIVER_VERSION_STRING			\
     __XSTRING(IXL_DRIVER_VERSION_MAJOR) "."		\
