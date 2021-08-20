@@ -459,6 +459,8 @@ duplicate(struct range *r1, struct range *r2)
 		do {
 			c = getc(fp[0]);
 			d = getc(fp[1]);
+			if (c == -1 && d == -1)
+				break;
 			if (c == -1 || d== -1)
 				errx(EXIT_FAILURE, "logic error");
 			nchar++;
@@ -528,10 +530,17 @@ edscript(int n)
 		}
 		fseek(fp[2], (long)de[n].new.from, SEEK_SET);
 		for (k = de[n].new.to - de[n].new.from; k > 0; k-= j) {
+			size_t r;
 			j = k > BUFSIZ ? BUFSIZ : k;
-			if (fread(block, 1, j, fp[2]) != j)
+			r = fread(block, 1, j, fp[2]);
+			if (r == 0) {
+				if (feof(fp[2]))
+					break;
 				errx(2, "logic error");
-			fwrite(block, 1, j, stdout);
+			}
+			if (r != j)
+				j = r;
+			(void)fwrite(block, 1, j, stdout);
 		}
 		if (!oflag || !overlap[n])
 			printf(".\n");
@@ -557,22 +566,22 @@ increase(void)
 	newsz = szchanges == 0 ? 64 : 2 * szchanges;
 	incr = newsz - szchanges;
 
-	p = realloc(d13, newsz * sizeof(struct diff));
+	p = reallocarray(d13, newsz, sizeof(struct diff));
 	if (p == NULL)
 		err(1, NULL);
 	memset(p + szchanges, 0, incr * sizeof(struct diff));
 	d13 = p;
-	p = realloc(d23, newsz * sizeof(struct diff));
+	p = reallocarray(d23, newsz, sizeof(struct diff));
 	if (p == NULL)
 		err(1, NULL);
 	memset(p + szchanges, 0, incr * sizeof(struct diff));
 	d23 = p;
-	p = realloc(de, newsz * sizeof(struct diff));
+	p = reallocarray(de, newsz, sizeof(struct diff));
 	if (p == NULL)
 		err(1, NULL);
 	memset(p + szchanges, 0, incr * sizeof(struct diff));
 	de = p;
-	q = realloc(overlap, newsz * sizeof(char));
+	q = reallocarray(overlap, newsz, sizeof(char));
 	if (q == NULL)
 		err(1, NULL);
 	memset(q + szchanges, 0, incr * sizeof(char));
