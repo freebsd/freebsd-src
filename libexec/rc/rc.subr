@@ -958,6 +958,11 @@ run_rc_command()
 			_pidcmd='rc_pid=$(check_process '"$_procname $command_interpreter"')'
 		fi
 		_keywords="${_keywords} status poll"
+	else
+		if [ ! -z "${status_cmd}" ]
+		then
+			_keywords="${_keywords} status"
+		fi
 	fi
 
 	if [ -z "$rc_arg" ]; then
