@@ -382,7 +382,8 @@ umcs7840_attach(device_t dev)
 	/* clear stall at first run */
 	mtx_lock(&sc->sc_mtx);
 	for (subunit = 0; subunit < sc->sc_numports; ++subunit) {
-		usbd_xfer_set_zlp(sc->sc_ports[sc->sc_ucom[subunit].sc_portno].sc_xfer[UMCS7840_BULK_WR_EP]);
+		usbd_xfer_set_stall(sc->sc_ports[sc->sc_ucom[subunit].sc_portno].sc_xfer[UMCS7840_BULK_RD_EP]);
+		usbd_xfer_set_stall(sc->sc_ports[sc->sc_ucom[subunit].sc_portno].sc_xfer[UMCS7840_BULK_WR_EP]);
 	}
 	mtx_unlock(&sc->sc_mtx);
 
@@ -915,16 +916,13 @@ umcs7840_write_callbackN(struct usb_xfer *xfer, usb_error_t error, uint8_t subun
 	case USB_ST_SETUP:
 	case USB_ST_TRANSFERRED:
 tr_setup:
-		if (usbd_xfer_get_and_clr_zlp(xfer))
-			break;
-
 		pc = usbd_xfer_get_frame(xfer, 0);
 		if (ucom_get_data(ucom, pc, 0, usbd_xfer_max_len(xfer), &actlen)) {
 			DPRINTF("Port %d write, has %d bytes\n", ucom->sc_portno, actlen);
 			usbd_xfer_set_frame_len(xfer, 0, actlen);
 			usbd_transfer_submit(xfer);
 		}
-		break;
+		return;
 
 	default:			/* Error */
 		if (error != USB_ERR_CANCELLED) {
@@ -932,7 +930,7 @@ tr_setup:
 			usbd_xfer_set_stall(xfer);
 			goto tr_setup;
 		}
-		break;
+		return;
 	}
 }
 

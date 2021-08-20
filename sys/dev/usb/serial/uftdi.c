@@ -1118,6 +1118,7 @@ uftdi_attach(device_t dev)
 	/* clear stall at first run */
 	mtx_lock(&sc->sc_mtx);
 	usbd_xfer_set_stall(sc->sc_xfer[UFTDI_BULK_DT_WR]);
+	usbd_xfer_set_stall(sc->sc_xfer[UFTDI_BULK_DT_RD]);
 	mtx_unlock(&sc->sc_mtx);
 
 	/* set a valid "lcr" value */
