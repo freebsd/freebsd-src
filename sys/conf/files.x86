@@ -264,6 +264,12 @@ dev/isci/scil/scif_sas_task_request_states.c			optional isci
 dev/isci/scil/scif_sas_timer.c					optional isci
 dev/itwd/itwd.c							optional itwd
 dev/kvm_clock/kvm_clock.c	optional	kvm_clock
+dev/mana/gdma_main.c		optional	mana
+dev/mana/mana_en.c		optional	mana
+dev/mana/mana_sysctl.c		optional	mana
+dev/mana/shm_channel.c		optional	mana
+dev/mana/hw_channel.c		optional	mana
+dev/mana/gdma_util.c		optional	mana
 dev/qat/qat.c			optional qat
 dev/qat/qat_ae.c		optional qat
 dev/qat/qat_c2xxx.c		optional qat
