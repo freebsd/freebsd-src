@@ -66,6 +66,7 @@ struct bcache {
     caddr_t		bcache_data;
     size_t		bcache_nblks;
     size_t		ra;
+    daddr_t		bcache_nextblkno;
 };
 
 static u_int bcache_total_nblks;	/* set by bcache_init */
@@ -163,6 +164,7 @@ bcache_allocate(void)
     }
     bcache_units++;
     bc->ra = BCACHE_READAHEAD;	/* optimistic read ahead */
+    bc->bcache_nextblkno = -1;
     return (bc);
 }
 
@@ -291,6 +293,14 @@ read_strategy(void *devdata, int rw, daddr_t blk, size_t size,
     else
 	ra = bc->bcache_nblks - BHASH(bc, p_blk + p_size);
 
+    /*
+     * Only trigger read-ahead if we detect two blocks being read
+     * sequentially.
+     */
+    if ((bc->bcache_nextblkno != blk) && ra != 0) {
+        ra = 0;
+    }
+
     if (ra != 0 && ra != bc->bcache_nblks) { /* do we have RA space? */
 	ra = MIN(bc->ra, ra - 1);
 	ra = rounddown(ra, 16);		/* multiple of 16 blocks */
@@ -342,8 +352,11 @@ read_strategy(void *devdata, int rw, daddr_t blk, size_t size,
     }
 
  done:
-    if ((result == 0) && (rsize != NULL))
-	*rsize = size;
+    if (result == 0) {
+        if (rsize != NULL)
+	    *rsize = size;
+        bc->bcache_nextblkno = blk + (size / DEV_BSIZE);
+    }
     return(result);
 }
 
