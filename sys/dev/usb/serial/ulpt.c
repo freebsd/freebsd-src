@@ -218,9 +218,6 @@ ulpt_write_callback(struct usb_xfer *xfer, usb_error_t error)
 	case USB_ST_TRANSFERRED:
 	case USB_ST_SETUP:
 tr_setup:
-		if (usbd_xfer_get_and_clr_zlp(xfer))
-			break;
-
 		pc = usbd_xfer_get_frame(xfer, 0);
 		max = usbd_xfer_max_len(xfer);
 		if (usb_fifo_get_data(f, pc, 0, max, &actlen, 0)) {
@@ -439,6 +436,10 @@ unlpt_open(struct usb_fifo *fifo, int fflags)
 		return (EBUSY);
 	}
 	if (fflags & FREAD) {
+		/* clear stall first */
+		mtx_lock(&sc->sc_mtx);
+		usbd_xfer_set_stall(sc->sc_xfer[ULPT_BULK_DT_RD]);
+		mtx_unlock(&sc->sc_mtx);
 		if (usb_fifo_alloc_buffer(fifo,
 		    usbd_xfer_max_len(sc->sc_xfer[ULPT_BULK_DT_RD]),
 		    ULPT_IFQ_MAXLEN)) {
@@ -450,7 +451,7 @@ unlpt_open(struct usb_fifo *fifo, int fflags)
 	if (fflags & FWRITE) {
 		/* clear stall first */
 		mtx_lock(&sc->sc_mtx);
-		usbd_xfer_set_zlp(sc->sc_xfer[ULPT_BULK_DT_WR]);
+		usbd_xfer_set_stall(sc->sc_xfer[ULPT_BULK_DT_WR]);
 		mtx_unlock(&sc->sc_mtx);
 		if (usb_fifo_alloc_buffer(fifo,
 		    usbd_xfer_max_len(sc->sc_xfer[ULPT_BULK_DT_WR]),

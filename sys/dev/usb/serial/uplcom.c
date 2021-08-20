@@ -507,12 +507,14 @@ uplcom_attach(device_t dev)
 		goto detach;
 	}
 
-	mtx_lock(&sc->sc_mtx);
-	usbd_xfer_set_zlp(sc->sc_xfer[UPLCOM_BULK_DT_WR]);
-	mtx_unlock(&sc->sc_mtx);
-
-	if (sc->sc_chiptype == TYPE_PL2303HX ||
-	    sc->sc_chiptype == TYPE_PL2303HXD) {
+	if (sc->sc_chiptype == TYPE_PL2303) {
+		/* HX variants seem to lock up after a clear stall request. */
+		mtx_lock(&sc->sc_mtx);
+		usbd_xfer_set_stall(sc->sc_xfer[UPLCOM_BULK_DT_WR]);
+		usbd_xfer_set_stall(sc->sc_xfer[UPLCOM_BULK_DT_RD]);
+		mtx_unlock(&sc->sc_mtx);
+	} else if (sc->sc_chiptype == TYPE_PL2303HX ||
+		   sc->sc_chiptype == TYPE_PL2303HXD) {
 		/* reset upstream data pipes */
 		if (uplcom_pl2303_do(sc->sc_udev, UT_WRITE_VENDOR_DEVICE,
 		    UPLCOM_SET_REQUEST, 8, 0, 0) ||
@@ -1092,9 +1094,6 @@ uplcom_write_callback(struct usb_xfer *xfer, usb_error_t error)
 	case USB_ST_SETUP:
 	case USB_ST_TRANSFERRED:
 tr_setup:
-		if (usbd_xfer_get_and_clr_zlp(xfer))
-			break;
-
 		pc = usbd_xfer_get_frame(xfer, 0);
 		if (ucom_get_data(&sc->sc_ucom, pc, 0,
 		    UPLCOM_BULK_BUF_SIZE, &actlen)) {
@@ -1103,7 +1102,7 @@ tr_setup:
 			usbd_xfer_set_frame_len(xfer, 0, actlen);
 			usbd_transfer_submit(xfer);
 		}
-		break;
+		return;
 
 	default:			/* Error */
 		if (error != USB_ERR_CANCELLED) {
@@ -1111,7 +1110,7 @@ tr_setup:
 			usbd_xfer_set_stall(xfer);
 			goto tr_setup;
 		}
-		break;
+		return;
 	}
 }
 
