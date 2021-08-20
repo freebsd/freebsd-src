@@ -57,8 +57,10 @@ __start(int argc, char *argv[], char *env[], void (*cleanup)(void))
 
 	if (&_DYNAMIC != NULL)
 		atexit(cleanup);
-	else
+	else {
+		process_irelocs();
 		_init_tls();
+	}
 
 #ifdef GCRT
 	atexit(_mcleanup);
