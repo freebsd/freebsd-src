@@ -279,15 +279,6 @@ mana_free_counters(counter_u64_t *begin, int size)
 		counter_u64_free(*begin);
 }
 
-static inline void
-mana_reset_counters(counter_u64_t *begin, int size)
-{
-	counter_u64_t *end = (counter_u64_t *)((char *)begin + size);
-
-	for (; begin < end; ++begin)
-		counter_u64_zero(*begin);
-}
-
 static bool
 mana_can_tx(struct gdma_queue *wq)
 {
