@@ -889,6 +889,12 @@ cryptodev_op(struct csession *cse, const struct crypt_op *cop)
 		dst += cse->ivsize;
 	}
 
+	if (cop->mac == NULL && cse->hashsize != 0 && (crp->crp_op & CRYPTO_OP_VERIFY_DIGEST) != 0) {
+                SDT_PROBE1(opencrypto, dev, ioctl, error, __LINE__);
+	        error = EINVAL;
+		goto bail;
+	}
+
 	if (cop->mac != NULL && crp->crp_op & CRYPTO_OP_VERIFY_DIGEST) {
 		error = copyin(cop->mac, cod->buf + crp->crp_digest_start,
 		    cse->hashsize);
