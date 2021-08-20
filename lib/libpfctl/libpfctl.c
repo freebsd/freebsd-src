@@ -671,11 +671,11 @@ pf_state_export_to_state(struct pfctl_state *ps, const struct pf_state_export *s
 	pf_state_peer_export_to_state_peer(&ps->src, &s->src);
 	pf_state_peer_export_to_state_peer(&ps->dst, &s->dst);
 	bcopy(&s->rt_addr, &ps->rt_addr, sizeof(ps->rt_addr));
-	ps->rule = s->rule;
-	ps->anchor = s->anchor;
-	ps->nat_rule = s->nat_rule;
-	ps->creation = s->creation;
-	ps->expire = s->expire;
+	ps->rule = ntohl(s->rule);
+	ps->anchor = ntohl(s->anchor);
+	ps->nat_rule = ntohl(s->nat_rule);
+	ps->creation = ntohl(s->creation);
+	ps->expire = ntohl(s->expire);
 	ps->packets[0] = s->packets[0];
 	ps->packets[1] = s->packets[1];
 	ps->bytes[0] = s->bytes[0];
