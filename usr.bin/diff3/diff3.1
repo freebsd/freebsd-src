@@ -38,7 +38,11 @@
 .Nd 3-way differential file comparison
 .Sh SYNOPSIS
 .Nm diff3
-.Op Fl 3aEeXx
+.Op Fl 3aEeiXx
+.Op Fl Fl diff-program Ar program
+.Op Fl L | Fl Fl label Ar label1
+.Op Fl L | Fl Fl label Ar label2
+.Op Fl L | Fl Fl label Ar label3
 .Ar file1 file2 file3
 .Sh DESCRIPTION
 The
@@ -60,15 +64,16 @@ new versions.
 .Pp
 The options are as follows:
 .Bl -tag -width "-E, -X"
-.It Fl 3
+.It Fl 3 , Fl Fl easy-only
 Produces an output script suitable for
 .Xr ed 1
 with changes
 specific only to
 .Ar file3 .
-.It Fl a
+.It Fl a , Fl Fl text
 Treat all files as ASCII.
-.It Fl E , X
+.It Fl E , Fl Fl show-overlap
+.It Fl X
 Similar to
 .Fl e
 and
@@ -77,7 +82,7 @@ respectively, but treat overlapping changes (i.e., changes that would
 be noted with ==== in the normal listing) differently.
 The overlapping lines from both files will be inserted by the edit script,
 bracketed by "<<<<<<" and ">>>>>>" lines.
-.It Fl e
+.It Fl e , Fl Fl ed
 Produces output in a form suitable as an input script for the
 .Xr ed 1
 utility.
@@ -99,11 +104,27 @@ and
 It is useful for backing out changes specific to
 .Ar file2
 only.
-.It Fl x
+.It Fl i
+Appends 'w' and 'q'
+.Xr ed 1
+commands.
+.It Fl L , Fl Fl label
+Defines labels to print instead of file names
+.Ar file1 ,
+.Ar file2
+and
+.Ar file3 .
+.It Fl x, Fl Fl overlap-only
 Produces an output script suitable for
 .Xr ed 1
 with changes
 specific only to all three versions.
+.It Fl Fl diff-program Ar program
+Use
+.Ar program
+instead of the default
+.Xr diff 1
+to compare files.
 .El
 .Pp
 The
