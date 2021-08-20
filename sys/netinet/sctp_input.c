@@ -1244,26 +1244,23 @@ sctp_handle_init_ack(struct mbuf *m, int iphlen, int offset,
 		    "sctp_handle_init_ack: TCB is null\n");
 		return (-1);
 	}
-	init_ack = &cp->init;
-	/* Validate parameters. */
-	if ((ntohl(init_ack->initiate_tag) == 0) ||
-	    (ntohl(init_ack->a_rwnd) < SCTP_MIN_RWND) ||
-	    (ntohs(init_ack->num_inbound_streams) == 0) ||
-	    (ntohs(init_ack->num_outbound_streams) == 0)) {
-		/* protocol error... send an abort */
-		op_err = sctp_generate_cause(SCTP_CAUSE_INVALID_PARAM, "");
-		sctp_abort_association(stcb->sctp_ep, stcb, m, iphlen,
-		    src, dst, sh, op_err,
-		    mflowtype, mflowid,
-		    vrf_id, net->port);
-		*abort_no_unlock = 1;
-		return (-1);
-	}
-	/* process according to association state... */
-	switch (SCTP_GET_STATE(stcb)) {
-	case SCTP_STATE_COOKIE_WAIT:
-		/* this is the expected state for this chunk */
-		/* process the INIT-ACK parameters */
+	/* Only process the INIT-ACK chunk in COOKIE WAIT state. */
+	if (SCTP_GET_STATE(stcb) == SCTP_STATE_COOKIE_WAIT) {
+		init_ack = &cp->init;
+		/* Validate parameters. */
+		if ((ntohl(init_ack->initiate_tag) == 0) ||
+		    (ntohl(init_ack->a_rwnd) < SCTP_MIN_RWND) ||
+		    (ntohs(init_ack->num_inbound_streams) == 0) ||
+		    (ntohs(init_ack->num_outbound_streams) == 0)) {
+			/* One of the mandatory parameters is illegal. */
+			op_err = sctp_generate_cause(SCTP_CAUSE_INVALID_PARAM, "");
+			sctp_abort_association(stcb->sctp_ep, stcb, m, iphlen,
+			    src, dst, sh, op_err,
+			    mflowtype, mflowid,
+			    vrf_id, net->port);
+			*abort_no_unlock = 1;
+			return (-1);
+		}
 		if (stcb->asoc.primary_destination->dest_state &
 		    SCTP_ADDR_UNCONFIRMED) {
 			/*
@@ -1284,11 +1281,11 @@ sctp_handle_init_ack(struct mbuf *m, int iphlen, int offset,
 			/* error in parsing parameters */
 			return (-1);
 		}
-		/* update our state */
+		/* Update our state. */
 		SCTPDBG(SCTP_DEBUG_INPUT2, "moving to COOKIE-ECHOED state\n");
 		SCTP_SET_STATE(stcb, SCTP_STATE_COOKIE_ECHOED);
 
-		/* reset the RTO calc */
+		/* Reset the RTO calculation. */
 		if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_THRESHOLD_LOGGING) {
 			sctp_misc_ints(SCTP_THRESHOLD_CLEAR,
 			    stcb->asoc.overall_error_count,
@@ -1299,34 +1296,20 @@ sctp_handle_init_ack(struct mbuf *m, int iphlen, int offset,
 		stcb->asoc.overall_error_count = 0;
 		(void)SCTP_GETTIME_TIMEVAL(&stcb->asoc.time_entered);
 		/*
-		 * collapse the init timer back in case of a exponential
-		 * backoff
+		 * Collapse the init timer back in case of a exponential
+		 * backoff.
 		 */
 		sctp_timer_start(SCTP_TIMER_TYPE_COOKIE, stcb->sctp_ep,
 		    stcb, net);
 		/*
-		 * the send at the end of the inbound data processing will
-		 * cause the cookie to be sent
+		 * The output routine at the end of the inbound data
+		 * processing will cause the cookie to be sent.
 		 */
-		break;
-	case SCTP_STATE_SHUTDOWN_SENT:
-		/* incorrect state... discard */
-		break;
-	case SCTP_STATE_COOKIE_ECHOED:
-		/* incorrect state... discard */
-		break;
-	case SCTP_STATE_OPEN:
-		/* incorrect state... discard */
-		break;
-	case SCTP_STATE_EMPTY:
-	case SCTP_STATE_INUSE:
-	default:
-		/* incorrect state... discard */
+		SCTPDBG(SCTP_DEBUG_INPUT1, "Leaving handle-init-ack end\n");
+		return (0);
+	} else {
 		return (-1);
-		break;
 	}
-	SCTPDBG(SCTP_DEBUG_INPUT1, "Leaving handle-init-ack end\n");
-	return (0);
 }
 
 static struct sctp_tcb *
