@@ -178,11 +178,9 @@ static void
 nameicap_tracker_add(struct nameidata *ndp, struct vnode *dp)
 {
 	struct nameicap_tracker *nt;
-	struct componentname *cnp;
 
 	if ((ndp->ni_lcf & NI_LCF_CAP_DOTDOT) == 0 || dp->v_type != VDIR)
 		return;
-	cnp = &ndp->ni_cnd;
 	nt = TAILQ_LAST(&ndp->ni_cap_tracker, nameicap_tracker_head);
 	if (nt != NULL && nt->dp == dp)
 		return;
