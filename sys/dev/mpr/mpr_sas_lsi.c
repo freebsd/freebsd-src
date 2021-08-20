@@ -1428,6 +1428,7 @@ mprsas_volume_add(struct mpr_softc *sc, u16 handle)
 	targ->tid = id;
 	targ->handle = handle;
 	targ->devname = wwid;
+	targ->flags = MPR_TARGET_FLAGS_VOLUME;
 	TAILQ_INIT(&targ->commands);
 	TAILQ_INIT(&targ->timedout_commands);
 	while (!SLIST_EMPTY(&targ->luns)) {
