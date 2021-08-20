@@ -465,12 +465,10 @@ ixv_if_attach_pre(if_ctx_t ctx)
 
 	/* If no mac address was assigned, make a random one */
 	if (!ixv_check_ether_addr(hw->mac.addr)) {
-		u8 addr[ETHER_ADDR_LEN];
-		arc4rand(&addr, sizeof(addr), 0);
-		addr[0] &= 0xFE;
-		addr[0] |= 0x02;
-		bcopy(addr, hw->mac.addr, sizeof(addr));
-		bcopy(addr, hw->mac.perm_addr, sizeof(addr));
+		ether_gen_addr(iflib_get_ifp(ctx),
+		    (struct ether_addr *)hw->mac.addr);
+		bcopy(hw->mac.addr, hw->mac.perm_addr,
+		    sizeof(hw->mac.perm_addr));
 	}
 
 	/* Most of the iflib initialization... */
