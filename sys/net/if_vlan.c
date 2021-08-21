@@ -305,6 +305,10 @@ static	int vlan_setflag(struct ifnet *ifp, int flag, int status,
 static	int vlan_setflags(struct ifnet *ifp, int status);
 static	int vlan_setmulti(struct ifnet *ifp);
 static	int vlan_transmit(struct ifnet *ifp, struct mbuf *m);
+#ifdef ALTQ
+static void vlan_altq_start(struct ifnet *ifp);
+static	int vlan_altq_transmit(struct ifnet *ifp, struct mbuf *m);
+#endif
 static	int vlan_output(struct ifnet *ifp, struct mbuf *m,
     const struct sockaddr *dst, struct route *ro);
 static	void vlan_unconfig(struct ifnet *ifp);
@@ -1097,7 +1101,15 @@ vlan_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 	ifp->if_dunit = unit;
 
 	ifp->if_init = vlan_init;
+#ifdef ALTQ
+	ifp->if_start = vlan_altq_start;
+	ifp->if_transmit = vlan_altq_transmit;
+	IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
+	ifp->if_snd.ifq_drv_maxlen = 0;
+	IFQ_SET_READY(&ifp->if_snd);
+#else
 	ifp->if_transmit = vlan_transmit;
+#endif
 	ifp->if_qflush = vlan_qflush;
 	ifp->if_ioctl = vlan_ioctl;
 #if defined(KERN_TLS) || defined(RATELIMIT)
@@ -1150,6 +1162,9 @@ vlan_clone_destroy(struct if_clone *ifc, struct ifnet *ifp)
 	if (ifp->if_vlantrunk)
 		return (EBUSY);
 
+#ifdef ALTQ
+	IFQ_PURGE(&ifp->if_snd);
+#endif
 	ether_ifdetach(ifp);	/* first, remove it from system-wide lists */
 	vlan_unconfig(ifp);	/* now it can be unconfigured and freed */
 	/*
@@ -1270,6 +1285,38 @@ vlan_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 
 	return p->if_output(ifp, m, dst, ro);
 }
+
+#ifdef ALTQ
+static void
+vlan_altq_start(if_t ifp)
+{
+	struct ifaltq *ifq = &ifp->if_snd;
+	struct mbuf *m;
+
+	IFQ_LOCK(ifq);
+	IFQ_DEQUEUE_NOLOCK(ifq, m);
+	while (m != NULL) {
+		vlan_transmit(ifp, m);
+		IFQ_DEQUEUE_NOLOCK(ifq, m);
+	}
+	IFQ_UNLOCK(ifq);
+}
+
+static int
+vlan_altq_transmit(if_t ifp, struct mbuf *m)
+{
+	int err;
+
+	if (ALTQ_IS_ENABLED(&ifp->if_snd)) {
+		IFQ_ENQUEUE(&ifp->if_snd, m, err);
+		if (err == 0)
+			vlan_altq_start(ifp);
+	} else
+		err = vlan_transmit(ifp, m);
+
+	return (err);
+}
+#endif	/* ALTQ */
 
 /*
  * The ifp->if_qflush entry point for vlan(4) is a no-op.
