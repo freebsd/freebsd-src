@@ -115,7 +115,6 @@ static struct filterops targread_filtops = {
 
 static struct cdevsw targ_cdevsw = {
 	.d_version =	D_VERSION,
-	.d_flags =	D_NEEDGIANT,
 	.d_open =	targopen,
 	.d_read =	targread,
 	.d_write =	targwrite,
