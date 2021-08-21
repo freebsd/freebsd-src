@@ -2546,7 +2546,7 @@ icmp6_redirect_output(struct mbuf *m0, struct nhop_object *nh)
 		struct nd_opt_hdr *nd_opt;
 		char *lladdr;
 
-		ln = nd6_lookup(router_ll6, 0, ifp);
+		ln = nd6_lookup(router_ll6, LLE_SF(AF_INET6,  0), ifp);
 		if (ln == NULL)
 			goto nolladdropt;
 

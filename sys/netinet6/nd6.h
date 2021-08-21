@@ -379,6 +379,7 @@ void nd6_cache_lladdr(struct ifnet *, struct in6_addr *,
 bool nd6_try_set_entry_addr(struct ifnet *ifp, struct llentry *lle, char *lladdr);
 struct mbuf *nd6_grab_holdchain(struct llentry *);
 int nd6_flush_holdchain(struct ifnet *, struct llentry *, struct mbuf *);
+void nd6_flush_children_holdchain(struct ifnet *, struct llentry *);
 int nd6_add_ifa_lle(struct in6_ifaddr *);
 void nd6_rem_ifa_lle(struct in6_ifaddr *, int);
 int nd6_output_ifp(struct ifnet *, struct ifnet *, struct mbuf *,

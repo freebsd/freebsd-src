@@ -176,8 +176,8 @@ firewire_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 #ifdef INET6
 	case AF_INET6:
 		if (unicast) {
-			error = nd6_resolve(fc->fc_ifp, is_gw, m, dst,
-			    (u_char *) destfw, NULL, NULL);
+			error = nd6_resolve(fc->fc_ifp, LLE_SF(AF_INET6, is_gw),
+			    m, dst, (u_char *) destfw, NULL, NULL);
 			if (error)
 				return (error == EWOULDBLOCK ? 0 : error);
 		}

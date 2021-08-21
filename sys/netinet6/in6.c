@@ -2335,6 +2335,11 @@ in6_lltable_lookup(struct lltable *llt, u_int flags,
 	lle = in6_lltable_find_dst(llt, &sin6->sin6_addr);
 	if (lle == NULL)
 		return (NULL);
+
+	int family = flags >> 16;
+	if (__predict_false(family != AF_INET6))
+		lle = llentry_lookup_family(lle, family);
+
 	if (flags & LLE_UNLOCKED)
 		return (lle);
 
