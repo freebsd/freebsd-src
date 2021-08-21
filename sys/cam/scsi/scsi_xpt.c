@@ -178,7 +178,6 @@ do {									\
 
 typedef enum {
 	PROBE_INQUIRY_CKSUM	= 0x01,
-	PROBE_SERIAL_CKSUM	= 0x02,
 	PROBE_NO_ANNOUNCE	= 0x04,
 	PROBE_EXTLUN		= 0x08
 } probe_flags;
@@ -775,8 +774,6 @@ again:
 	}
 	case PROBE_INQUIRY:
 	case PROBE_FULL_INQUIRY:
-	case PROBE_INQUIRY_BASIC_DV1:
-	case PROBE_INQUIRY_BASIC_DV2:
 	{
 		u_int inquiry_len;
 		struct scsi_inquiry_data *inq_buf;
@@ -791,19 +788,19 @@ again:
 		 * serial number check finish, we attempt to figure out
 		 * whether we still have the same device.
 		 */
-		if (((periph->path->device->flags & CAM_DEV_UNCONFIGURED) == 0)
-		 && ((softc->flags & PROBE_INQUIRY_CKSUM) == 0)) {
+		if (periph->path->device->flags & CAM_DEV_UNCONFIGURED) {
+			softc->flags &= ~PROBE_INQUIRY_CKSUM;
+		} else if ((softc->flags & PROBE_INQUIRY_CKSUM) == 0) {
 			MD5Init(&softc->context);
 			MD5Update(&softc->context, (unsigned char *)inq_buf,
 				  sizeof(struct scsi_inquiry_data));
-			softc->flags |= PROBE_INQUIRY_CKSUM;
 			if (periph->path->device->serial_num_len > 0) {
 				MD5Update(&softc->context,
 					  periph->path->device->serial_num,
 					  periph->path->device->serial_num_len);
-				softc->flags |= PROBE_SERIAL_CKSUM;
 			}
 			MD5Final(softc->digest, &softc->context);
+			softc->flags |= PROBE_INQUIRY_CKSUM;
 		}
 
 		if (softc->action == PROBE_INQUIRY)
@@ -819,22 +816,6 @@ again:
 		 */
 		inquiry_len = roundup2(inquiry_len, 2);
 
-		if (softc->action == PROBE_INQUIRY_BASIC_DV1
-		 || softc->action == PROBE_INQUIRY_BASIC_DV2) {
-			inq_buf = malloc(inquiry_len, M_CAMXPT, M_NOWAIT);
-		}
-		if (inq_buf == NULL) {
-			xpt_print(periph->path, "malloc failure- skipping Basic"
-			    "Domain Validation\n");
-			PROBE_SET_ACTION(softc, PROBE_DV_EXIT);
-			scsi_test_unit_ready(csio,
-					     /*retries*/4,
-					     probedone,
-					     MSG_SIMPLE_Q_TAG,
-					     SSD_FULL_SIZE,
-					     /*timeout*/60000);
-			break;
-		}
 		scsi_inquiry(csio,
 			     /*retries*/4,
 			     probedone,
@@ -1018,6 +999,40 @@ done:
 			break;
 		}
 		goto done;
+	}
+	case PROBE_INQUIRY_BASIC_DV1:
+	case PROBE_INQUIRY_BASIC_DV2:
+	{
+		u_int inquiry_len;
+		struct scsi_inquiry_data *inq_buf;
+
+		inq_buf = &periph->path->device->inq_data;
+		inquiry_len = roundup2(SID_ADDITIONAL_LENGTH(inq_buf), 2);
+		inq_buf = malloc(inquiry_len, M_CAMXPT, M_NOWAIT);
+		if (inq_buf == NULL) {
+			xpt_print(periph->path, "malloc failure- skipping Basic"
+			    "Domain Validation\n");
+			PROBE_SET_ACTION(softc, PROBE_DV_EXIT);
+			scsi_test_unit_ready(csio,
+					     /*retries*/4,
+					     probedone,
+					     MSG_SIMPLE_Q_TAG,
+					     SSD_FULL_SIZE,
+					     /*timeout*/60000);
+			break;
+		}
+
+		scsi_inquiry(csio,
+			     /*retries*/4,
+			     probedone,
+			     MSG_SIMPLE_Q_TAG,
+			     (u_int8_t *)inq_buf,
+			     inquiry_len,
+			     /*evpd*/FALSE,
+			     /*page_code*/0,
+			     SSD_MIN_SIZE,
+			     /*timeout*/60 * 1000);
+		break;
 	}
 	default:
 		panic("probestart: invalid action state 0x%x\n", softc->action);
