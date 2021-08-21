@@ -484,10 +484,7 @@ command_more(int argc, char *argv[])
 	}
 	pager_close();
 
-	if (res == 0)
-		return (CMD_OK);
-	else
-		return (CMD_ERROR);
+	return (CMD_OK);
 }
 
 static int
