@@ -1567,7 +1567,9 @@ rmc_restart(struct rm_class *cl)
 	int		 s;
 
 	s = splnet();
+	NET_EPOCH_ENTER();
 	IFQ_LOCK(ifd->ifq_);
+	CURVNET_SET(ifd->ifq_->altq_ifp->if_vnet);
 	if (cl->sleeping_) {
 		cl->sleeping_ = 0;
 		cl->undertime_.tv_sec = 0;
@@ -1577,7 +1579,9 @@ rmc_restart(struct rm_class *cl)
 			(ifd->restart)(ifd->ifq_);
 		}
 	}
+	CURVNET_RESTORE();
 	IFQ_UNLOCK(ifd->ifq_);
+	NET_EPOCH_EXIT();
 	splx(s);
 }
 
