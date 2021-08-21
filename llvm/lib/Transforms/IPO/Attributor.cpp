@@ -32,6 +32,7 @@
 #include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Instruction.h"
+#include "llvm/IR/Instructions.h"
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/NoFolder.h"
 #include "llvm/IR/ValueHandle.h"
@@ -250,10 +251,12 @@ Value *AA::getWithType(Value &V, Type &Ty) {
       return Constant::getNullValue(&Ty);
     if (C->getType()->isPointerTy() && Ty.isPointerTy())
       return ConstantExpr::getPointerCast(C, &Ty);
-    if (C->getType()->isIntegerTy() && Ty.isIntegerTy())
-      return ConstantExpr::getTrunc(C, &Ty, /* OnlyIfReduced */ true);
-    if (C->getType()->isFloatingPointTy() && Ty.isFloatingPointTy())
-      return ConstantExpr::getFPTrunc(C, &Ty, /* OnlyIfReduced */ true);
+    if (C->getType()->getPrimitiveSizeInBits() >= Ty.getPrimitiveSizeInBits()) {
+      if (C->getType()->isIntegerTy() && Ty.isIntegerTy())
+        return ConstantExpr::getTrunc(C, &Ty, /* OnlyIfReduced */ true);
+      if (C->getType()->isFloatingPointTy() && Ty.isFloatingPointTy())
+        return ConstantExpr::getFPTrunc(C, &Ty, /* OnlyIfReduced */ true);
+    }
   }
   return nullptr;
 }
@@ -1023,7 +1026,7 @@ bool Attributor::checkForAllUses(function_ref<bool(const Use &, bool &)> Pred,
 
   while (!Worklist.empty()) {
     const Use *U = Worklist.pop_back_val();
-    if (!Visited.insert(U).second)
+    if (isa<PHINode>(U->getUser()) && !Visited.insert(U).second)
       continue;
     LLVM_DEBUG(dbgs() << "[Attributor] Check use: " << **U << " in "
                       << *U->getUser() << "\n");
@@ -1925,49 +1928,85 @@ void Attributor::createShallowWrapper(Function &F) {
   NumFnShallowWrappersCreated++;
 }
 
+bool Attributor::isInternalizable(Function &F) {
+  if (F.isDeclaration() || F.hasLocalLinkage() ||
+      GlobalValue::isInterposableLinkage(F.getLinkage()))
+    return false;
+  return true;
+}
+
 Function *Attributor::internalizeFunction(Function &F, bool Force) {
   if (!AllowDeepWrapper && !Force)
     return nullptr;
-  if (F.isDeclaration() || F.hasLocalLinkage() ||
-      GlobalValue::isInterposableLinkage(F.getLinkage()))
+  if (!isInternalizable(F))
     return nullptr;
 
-  Module &M = *F.getParent();
-  FunctionType *FnTy = F.getFunctionType();
+  SmallPtrSet<Function *, 2> FnSet = {&F};
+  DenseMap<Function *, Function *> InternalizedFns;
+  internalizeFunctions(FnSet, InternalizedFns);
 
-  // create a copy of the current function
-  Function *Copied = Function::Create(FnTy, F.getLinkage(), F.getAddressSpace(),
-                                      F.getName() + ".internalized");
-  ValueToValueMapTy VMap;
-  auto *NewFArgIt = Copied->arg_begin();
-  for (auto &Arg : F.args()) {
-    auto ArgName = Arg.getName();
-    NewFArgIt->setName(ArgName);
-    VMap[&Arg] = &(*NewFArgIt++);
+  return InternalizedFns[&F];
+}
+
+bool Attributor::internalizeFunctions(SmallPtrSetImpl<Function *> &FnSet,
+                                      DenseMap<Function *, Function *> &FnMap) {
+  for (Function *F : FnSet)
+    if (!Attributor::isInternalizable(*F))
+      return false;
+
+  FnMap.clear();
+  // Generate the internalized version of each function.
+  for (Function *F : FnSet) {
+    Module &M = *F->getParent();
+    FunctionType *FnTy = F->getFunctionType();
+
+    // Create a copy of the current function
+    Function *Copied =
+        Function::Create(FnTy, F->getLinkage(), F->getAddressSpace(),
+                         F->getName() + ".internalized");
+    ValueToValueMapTy VMap;
+    auto *NewFArgIt = Copied->arg_begin();
+    for (auto &Arg : F->args()) {
+      auto ArgName = Arg.getName();
+      NewFArgIt->setName(ArgName);
+      VMap[&Arg] = &(*NewFArgIt++);
+    }
+    SmallVector<ReturnInst *, 8> Returns;
+
+    // Copy the body of the original function to the new one
+    CloneFunctionInto(Copied, F, VMap,
+                      CloneFunctionChangeType::LocalChangesOnly, Returns);
+
+    // Set the linakage and visibility late as CloneFunctionInto has some
+    // implicit requirements.
+    Copied->setVisibility(GlobalValue::DefaultVisibility);
+    Copied->setLinkage(GlobalValue::PrivateLinkage);
+
+    // Copy metadata
+    SmallVector<std::pair<unsigned, MDNode *>, 1> MDs;
+    F->getAllMetadata(MDs);
+    for (auto MDIt : MDs)
+      if (!Copied->hasMetadata())
+        Copied->addMetadata(MDIt.first, *MDIt.second);
+
+    M.getFunctionList().insert(F->getIterator(), Copied);
+    Copied->setDSOLocal(true);
+    FnMap[F] = Copied;
   }
-  SmallVector<ReturnInst *, 8> Returns;
 
-  // Copy the body of the original function to the new one
-  CloneFunctionInto(Copied, &F, VMap, CloneFunctionChangeType::LocalChangesOnly,
-                    Returns);
+  // Replace all uses of the old function with the new internalized function
+  // unless the caller is a function that was just internalized.
+  for (Function *F : FnSet) {
+    auto &InternalizedFn = FnMap[F];
+    auto IsNotInternalized = [&](Use &U) -> bool {
+      if (auto *CB = dyn_cast<CallBase>(U.getUser()))
+        return !FnMap.lookup(CB->getCaller());
+      return false;
+    };
+    F->replaceUsesWithIf(InternalizedFn, IsNotInternalized);
+  }
 
-  // Set the linakage and visibility late as CloneFunctionInto has some implicit
-  // requirements.
-  Copied->setVisibility(GlobalValue::DefaultVisibility);
-  Copied->setLinkage(GlobalValue::PrivateLinkage);
-
-  // Copy metadata
-  SmallVector<std::pair<unsigned, MDNode *>, 1> MDs;
-  F.getAllMetadata(MDs);
-  for (auto MDIt : MDs)
-    if (!Copied->hasMetadata())
-      Copied->addMetadata(MDIt.first, *MDIt.second);
-
-  M.getFunctionList().insert(F.getIterator(), Copied);
-  F.replaceAllUsesWith(Copied);
-  Copied->setDSOLocal(true);
-
-  return Copied;
+  return true;
 }
 
 bool Attributor::isValidFunctionSignatureRewrite(
