@@ -59,6 +59,7 @@ create_stderr_usage_file()
 	_custom_create_file print \
 	    "usage: truncate [-c] -s [+|-|%|/]size[K|k|M|m|G|g|T|t] file ..."
 	_custom_create_file print "       truncate [-c] -r rfile file ..."
+	_custom_create_file print "       truncate [-c] -d [-o offset[K|k|M|m|G|g|T|t]] -l length[K|k|M|m|G|g|T|t] file ..."
 }
 
 atf_test_case illegal_option
