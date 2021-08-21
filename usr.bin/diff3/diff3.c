@@ -264,6 +264,12 @@ get_line(FILE *b, size_t *n)
 	if ((len = getline(&buf, &bufsize, b)) < 0)
 		return (NULL);
 
+	if (strip_cr && len >= 2 && strcmp("\r\n", &(buf[len - 2])) == 0) {
+		buf[len - 2] = '\n';
+		buf[len - 1] = '\0';
+		len--;
+	}
+
 	if (n != NULL)
 		*n = len;
 
@@ -599,7 +605,7 @@ main(int argc, char **argv)
 	char *labels[] = { NULL, NULL, NULL };
 	const char *diffprog = DIFF_PATH;
 	char *file1, *file2, *file3;
-	char *diffargv[6];
+	char *diffargv[7];
 	int diffargc = 0;
 	int fd13[2], fd23[2];
 	int pd13, pd23;
@@ -657,6 +663,7 @@ main(int argc, char **argv)
 			break;
 		case STRIPCR_OPT:
 			strip_cr = 1;
+			diffargv[diffargc++] = __DECONST(char *, "--strip-trailing-cr");
 			break;
 		}
 	}

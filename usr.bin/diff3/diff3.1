@@ -40,6 +40,7 @@
 .Nm diff3
 .Op Fl 3aEeiXx
 .Op Fl Fl diff-program Ar program
+.Op Fl Fl strip-trailing-cr
 .Op Fl L | Fl Fl label Ar label1
 .Op Fl L | Fl Fl label Ar label2
 .Op Fl L | Fl Fl label Ar label3
@@ -125,6 +126,8 @@ Use
 instead of the default
 .Xr diff 1
 to compare files.
+.It Fl Fl strip-trailing-cr
+Strip trailing carriage return on input files.
 .El
 .Pp
 The
