@@ -139,7 +139,7 @@ static void nd6_free_redirect(const struct llentry *);
 static void nd6_llinfo_timer(void *);
 static void nd6_llinfo_settimer_locked(struct llentry *, long);
 static void clear_llinfo_pqueue(struct llentry *);
-static int nd6_resolve_slow(struct ifnet *, int, struct mbuf *,
+static int nd6_resolve_slow(struct ifnet *, int, int, struct mbuf *,
     const struct sockaddr_in6 *, u_char *, uint32_t *, struct llentry **);
 static int nd6_need_cache(struct ifnet *);
 
@@ -529,6 +529,10 @@ nd6_llinfo_settimer_locked(struct llentry *ln, long tick)
 	int canceled;
 
 	LLE_WLOCK_ASSERT(ln);
+
+	/* Do not schedule timers for child LLEs. */
+	if (ln->la_flags & LLE_CHILD)
+		return;
 
 	if (tick < 0) {
 		ln->la_expire = 0;
@@ -1375,11 +1379,26 @@ nd6_is_addr_neighbor(const struct sockaddr_in6 *addr, struct ifnet *ifp)
 	 * Even if the address matches none of our addresses, it might be
 	 * in the neighbor cache.
 	 */
-	if ((lle = nd6_lookup(&addr->sin6_addr, 0, ifp)) != NULL) {
+	if ((lle = nd6_lookup(&addr->sin6_addr, LLE_SF(AF_INET6, 0), ifp)) != NULL) {
 		LLE_RUNLOCK(lle);
 		rc = 1;
 	}
 	return (rc);
+}
+
+static __noinline void
+nd6_free_children(struct llentry *lle)
+{
+	struct llentry *child_lle;
+
+	NET_EPOCH_ASSERT();
+	LLE_WLOCK_ASSERT(lle);
+
+	while ((child_lle = CK_SLIST_FIRST(&lle->lle_children)) != NULL) {
+		LLE_WLOCK(child_lle);
+		lltable_unlink_child_entry(child_lle);
+		llentry_free(child_lle);
+	}
 }
 
 /*
@@ -1388,27 +1407,48 @@ nd6_is_addr_neighbor(const struct sockaddr_in6 *addr, struct ifnet *ifp)
  * Returns true on success.
  * In any case, @lle is returned wlocked.
  */
+static __noinline bool
+nd6_try_set_entry_addr_locked(struct ifnet *ifp, struct llentry *lle, char *lladdr)
+{
+	u_char buf[LLE_MAX_LINKHDR];
+	int fam, off;
+	size_t sz;
+
+	sz = sizeof(buf);
+	if (lltable_calc_llheader(ifp, AF_INET6, lladdr, buf, &sz, &off) != 0)
+		return (false);
+
+	/* Update data */
+	lltable_set_entry_addr(ifp, lle, buf, sz, off);
+
+	struct llentry *child_lle;
+	CK_SLIST_FOREACH(child_lle, &lle->lle_children, lle_child_next) {
+		LLE_WLOCK(child_lle);
+		fam = child_lle->r_family;
+		sz = sizeof(buf);
+		if (lltable_calc_llheader(ifp, fam, lladdr, buf, &sz, &off) == 0) {
+			/* success */
+			lltable_set_entry_addr(ifp, child_lle, buf, sz, off);
+			child_lle->ln_state = ND6_LLINFO_REACHABLE;
+		}
+		LLE_WUNLOCK(child_lle);
+	}
+
+	return (true);
+}
+
 bool
 nd6_try_set_entry_addr(struct ifnet *ifp, struct llentry *lle, char *lladdr)
 {
-	u_char linkhdr[LLE_MAX_LINKHDR];
-	size_t linkhdrsize;
-	int lladdr_off;
-
+	NET_EPOCH_ASSERT();
 	LLE_WLOCK_ASSERT(lle);
-
-	linkhdrsize = sizeof(linkhdr);
-	if (lltable_calc_llheader(ifp, AF_INET6, lladdr,
-	    linkhdr, &linkhdrsize, &lladdr_off) != 0) {
-		return (false);
-	}
 
 	if (!lltable_acquire_wlock(ifp, lle))
 		return (false);
-	lltable_set_entry_addr(ifp, lle, linkhdr, linkhdrsize, lladdr_off);
+	bool ret = nd6_try_set_entry_addr_locked(ifp, lle, lladdr);
 	IF_AFDATA_WUNLOCK(ifp);
 
-	return (true);
+	return (ret);
 }
 
 /*
@@ -1431,6 +1471,8 @@ nd6_free(struct llentry **lnp, int gc)
 
 	LLE_WLOCK_ASSERT(ln);
 	ND6_RLOCK_ASSERT();
+
+	KASSERT((ln->la_flags & LLE_CHILD) == 0, ("child lle"));
 
 	ifp = lltable_get_ifp(ln->lle_tbl);
 	if ((ND_IFINFO(ifp)->flags & ND6_IFF_ACCEPT_RTADV) != 0)
@@ -1552,6 +1594,8 @@ nd6_free(struct llentry **lnp, int gc)
 		lltable_unlink_entry(ln->lle_tbl, ln);
 	}
 	IF_AFDATA_UNLOCK(ifp);
+
+	nd6_free_children(ln);
 
 	llentry_free(ln);
 	if (dr != NULL)
@@ -1827,7 +1871,7 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 			return (error);
 
 		NET_EPOCH_ENTER(et);
-		ln = nd6_lookup(&nb_addr, 0, ifp);
+		ln = nd6_lookup(&nb_addr, LLE_SF(AF_INET6, 0), ifp);
 		NET_EPOCH_EXIT(et);
 
 		if (ln == NULL) {
@@ -1977,7 +2021,7 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 	 * description on it in NS section (RFC 2461 7.2.3).
 	 */
 	flags = lladdr ? LLE_EXCLUSIVE : 0;
-	ln = nd6_lookup(from, flags, ifp);
+	ln = nd6_lookup(from, LLE_SF(AF_INET6, flags), ifp);
 	is_newentry = 0;
 	if (ln == NULL) {
 		flags |= LLE_EXCLUSIVE;
@@ -2001,7 +2045,7 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 		IF_AFDATA_WLOCK(ifp);
 		LLE_WLOCK(ln);
 		/* Prefer any existing lle over newly-created one */
-		ln_tmp = nd6_lookup(from, LLE_EXCLUSIVE, ifp);
+		ln_tmp = nd6_lookup(from, LLE_SF(AF_INET6, LLE_EXCLUSIVE), ifp);
 		if (ln_tmp == NULL)
 			lltable_link_entry(LLTABLE6(ifp), ln);
 		IF_AFDATA_WUNLOCK(ifp);
@@ -2086,6 +2130,8 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 
 	if (chain != NULL)
 		nd6_flush_holdchain(ifp, ln, chain);
+	if (do_update)
+		nd6_flush_children_holdchain(ifp, ln);
 
 	/*
 	 * When the link-layer address of a router changes, select the
@@ -2227,7 +2273,7 @@ nd6_output_ifp(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m,
  * - other errors (alloc failure, etc)
  */
 int
-nd6_resolve(struct ifnet *ifp, int is_gw, struct mbuf *m,
+nd6_resolve(struct ifnet *ifp, int gw_flags, struct mbuf *m,
     const struct sockaddr *sa_dst, u_char *desten, uint32_t *pflags,
     struct llentry **plle)
 {
@@ -2261,8 +2307,9 @@ nd6_resolve(struct ifnet *ifp, int is_gw, struct mbuf *m,
 		}
 	}
 
-	ln = nd6_lookup(&dst6->sin6_addr, plle ? LLE_EXCLUSIVE : LLE_UNLOCKED,
-	    ifp);
+	int family = gw_flags >> 16;
+	int lookup_flags = plle ? LLE_EXCLUSIVE : LLE_UNLOCKED;
+	ln = nd6_lookup(&dst6->sin6_addr, LLE_SF(family, lookup_flags), ifp);
 	if (ln != NULL && (ln->r_flags & RLLE_VALID) != 0) {
 		/* Entry found, let's copy lle info */
 		bcopy(ln->r_linkdata, desten, ln->r_hdrlen);
@@ -2278,19 +2325,39 @@ nd6_resolve(struct ifnet *ifp, int is_gw, struct mbuf *m,
 	} else if (plle && ln)
 		LLE_WUNLOCK(ln);
 
-	return (nd6_resolve_slow(ifp, 0, m, dst6, desten, pflags, plle));
+	return (nd6_resolve_slow(ifp, family, 0, m, dst6, desten, pflags, plle));
 }
 
 /*
- * Finds or creates a new llentry for @addr.
+ * Finds or creates a new llentry for @addr and @family.
  * Returns wlocked llentry or NULL.
+ *
+ *
+ * Child LLEs.
+ *
+ * Do not have their own state machine (gets marked as static)
+ *  settimer bails out for child LLEs just in case.
+ *
+ * Locking order: parent lle gets locked first, chen goes the child.
  */
 static __noinline struct llentry *
-nd6_get_llentry(struct ifnet *ifp, const struct in6_addr *addr)
+nd6_get_llentry(struct ifnet *ifp, const struct in6_addr *addr, int family)
 {
+	struct llentry *child_lle = NULL;
 	struct llentry *lle, *lle_tmp;
 
 	lle = nd6_alloc(addr, 0, ifp);
+	if (lle != NULL && family != AF_INET6) {
+		child_lle = nd6_alloc(addr, 0, ifp);
+		if (child_lle == NULL) {
+			lltable_free_entry(LLTABLE6(ifp), lle);
+			return (NULL);
+		}
+		child_lle->r_family = family;
+		child_lle->la_flags |= LLE_CHILD | LLE_STATIC;
+		child_lle->ln_state = ND6_LLINFO_INCOMPLETE;
+	}
+
 	if (lle == NULL) {
 		char ip6buf[INET6_ADDRSTRLEN];
 		log(LOG_DEBUG,
@@ -2303,15 +2370,30 @@ nd6_get_llentry(struct ifnet *ifp, const struct in6_addr *addr)
 	IF_AFDATA_WLOCK(ifp);
 	LLE_WLOCK(lle);
 	/* Prefer any existing entry over newly-created one */
-	lle_tmp = nd6_lookup(addr, LLE_EXCLUSIVE, ifp);
+	lle_tmp = nd6_lookup(addr, LLE_SF(AF_INET6, LLE_EXCLUSIVE), ifp);
 	if (lle_tmp == NULL)
 		lltable_link_entry(LLTABLE6(ifp), lle);
-	IF_AFDATA_WUNLOCK(ifp);
-	if (lle_tmp != NULL) {
+	else {
 		lltable_free_entry(LLTABLE6(ifp), lle);
-		return (lle_tmp);
-	} else
-		return (lle);
+		lle = lle_tmp;
+	}
+	if (child_lle != NULL) {
+		/* Check if child lle for the same family exists */
+		lle_tmp = llentry_lookup_family(lle, child_lle->r_family);
+		LLE_WLOCK(child_lle);
+		if (lle_tmp == NULL) {
+			/* Attach */
+			lltable_link_child_entry(lle, child_lle);
+		} else {
+			/* child lle already exists, free newly-created one */
+			lltable_free_entry(LLTABLE6(ifp), child_lle);
+			child_lle = lle_tmp;
+		}
+		LLE_WUNLOCK(lle);
+		lle = child_lle;
+	}
+	IF_AFDATA_WUNLOCK(ifp);
+	return (lle);
 }
 
 /*
@@ -2326,7 +2408,7 @@ nd6_get_llentry(struct ifnet *ifp, const struct in6_addr *addr)
  * Set noinline to be dtrace-friendly
  */
 static __noinline int
-nd6_resolve_slow(struct ifnet *ifp, int flags, struct mbuf *m,
+nd6_resolve_slow(struct ifnet *ifp, int family, int flags, struct mbuf *m,
     const struct sockaddr_in6 *dst, u_char *desten, uint32_t *pflags,
     struct llentry **plle)
 {
@@ -2343,14 +2425,14 @@ nd6_resolve_slow(struct ifnet *ifp, int flags, struct mbuf *m,
 	 * At this point, the destination of the packet must be a unicast
 	 * or an anycast address(i.e. not a multicast).
 	 */
-	lle = nd6_lookup(&dst->sin6_addr, LLE_EXCLUSIVE, ifp);
+	lle = nd6_lookup(&dst->sin6_addr, LLE_SF(family, LLE_EXCLUSIVE), ifp);
 	if ((lle == NULL) && nd6_is_addr_neighbor(dst, ifp))  {
 		/*
 		 * Since nd6_is_addr_neighbor() internally calls nd6_lookup(),
 		 * the condition below is not very efficient.  But we believe
 		 * it is tolerable, because this should be a rare case.
 		 */
-		lle = nd6_get_llentry(ifp, &dst->sin6_addr);
+		lle = nd6_get_llentry(ifp, &dst->sin6_addr, family);
 	}
 
 	if (lle == NULL) {
@@ -2367,7 +2449,7 @@ nd6_resolve_slow(struct ifnet *ifp, int flags, struct mbuf *m,
 	 * neighbor unreachability detection on expiration.
 	 * (RFC 2461 7.3.3)
 	 */
-	if (lle->ln_state == ND6_LLINFO_STALE)
+	if ((!(lle->la_flags & LLE_CHILD)) && (lle->ln_state == ND6_LLINFO_STALE))
 		nd6_llinfo_setstate(lle, ND6_LLINFO_DELAY);
 
 	/*
@@ -2432,6 +2514,14 @@ nd6_resolve_slow(struct ifnet *ifp, int flags, struct mbuf *m,
 	 */
 	psrc = NULL;
 	send_ns = 0;
+
+	/* If we have child lle, switch to the parent to send NS */
+	if (lle->la_flags & LLE_CHILD) {
+		struct llentry *lle_parent = lle->lle_parent;
+		LLE_WUNLOCK(lle);
+		lle = lle_parent;
+		LLE_WLOCK(lle);
+	}
 	if (lle->la_asked == 0) {
 		lle->la_asked++;
 		send_ns = 1;
@@ -2463,7 +2553,7 @@ nd6_resolve_addr(struct ifnet *ifp, int flags, const struct sockaddr *dst,
 	int error;
 
 	flags |= LLE_ADDRONLY;
-	error = nd6_resolve_slow(ifp, flags, NULL,
+	error = nd6_resolve_slow(ifp, AF_INET6, flags, NULL,
 	    (const struct sockaddr_in6 *)dst, desten, pflags, NULL);
 	return (error);
 }
@@ -2497,6 +2587,22 @@ nd6_flush_holdchain(struct ifnet *ifp, struct llentry *lle, struct mbuf *chain)
 	 * note that intermediate errors are blindly ignored
 	 */
 	return (error);
+}
+
+__noinline void
+nd6_flush_children_holdchain(struct ifnet *ifp, struct llentry *lle)
+{
+	struct llentry *child_lle;
+	struct mbuf *chain;
+
+	NET_EPOCH_ASSERT();
+
+	CK_SLIST_FOREACH(child_lle, &lle->lle_children, lle_child_next) {
+		LLE_WLOCK(child_lle);
+		chain = nd6_grab_holdchain(child_lle);
+		LLE_WUNLOCK(child_lle);
+		nd6_flush_holdchain(ifp, child_lle, chain);
+	}
 }
 
 static int
@@ -2552,7 +2658,7 @@ nd6_add_ifa_lle(struct in6_ifaddr *ia)
 	IF_AFDATA_WLOCK(ifp);
 	LLE_WLOCK(ln);
 	/* Unlink any entry if exists */
-	ln_tmp = lla_lookup(LLTABLE6(ifp), LLE_EXCLUSIVE, dst);
+	ln_tmp = lla_lookup(LLTABLE6(ifp), LLE_SF(AF_INET6, LLE_EXCLUSIVE), dst);
 	if (ln_tmp != NULL)
 		lltable_unlink_entry(LLTABLE6(ifp), ln_tmp);
 	lltable_link_entry(LLTABLE6(ifp), ln);

@@ -253,7 +253,8 @@ infiniband_resolve_addr(struct ifnet *ifp, struct mbuf *m,
 #ifdef INET6
 	case AF_INET6:
 		if ((m->m_flags & M_MCAST) == 0) {
-			error = nd6_resolve(ifp, 0, m, dst, phdr, &lleflags, plle);
+			error = nd6_resolve(ifp, LLE_SF(AF_INET6, 0), m, dst,
+			    phdr, &lleflags, plle);
 		} else {
 			infiniband_ipv6_multicast_map(
 			    &((const struct sockaddr_in6 *)dst)->sin6_addr,
