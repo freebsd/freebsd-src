@@ -630,6 +630,7 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 	size_t linkhdrsize;
 	int flags, is_override, is_router, is_solicited;
 	int lladdr_off, lladdrlen, checklink;
+	bool flush_holdchain = false;
 
 	NET_EPOCH_ASSERT();
 
@@ -747,7 +748,7 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 	 * If no neighbor cache entry is found, NA SHOULD silently be
 	 * discarded.
 	 */
-	ln = nd6_lookup(&taddr6, LLE_EXCLUSIVE, ifp);
+	ln = nd6_lookup(&taddr6, LLE_SF(AF_INET6, LLE_EXCLUSIVE), ifp);
 	if (ln == NULL) {
 		goto freeit;
 	}
@@ -773,6 +774,7 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 		if (!nd6_try_set_entry_addr(ifp, ln, lladdr))
 			goto freeit;
 
+		flush_holdchain = true;
 		EVENTHANDLER_INVOKE(lle_event, ln, LLENTRY_RESOLVED);
 		if (is_solicited)
 			nd6_llinfo_setstate(ln, ND6_LLINFO_REACHABLE);
@@ -899,6 +901,8 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 
 	if (chain != NULL)
 		nd6_flush_holdchain(ifp, ln, chain);
+	if (flush_holdchain)
+		nd6_flush_children_holdchain(ifp, ln);
 
 	if (checklink)
 		pfxlist_onlink_check();
