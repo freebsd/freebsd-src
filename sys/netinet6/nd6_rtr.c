@@ -972,7 +972,7 @@ defrouter_select_fib(int fibnum)
 	TAILQ_FOREACH(dr, &V_nd6_defrouter, dr_entry) {
 		NET_EPOCH_ENTER(et);
 		if (selected_dr == NULL && dr->ifp->if_fib == fibnum &&
-		    (ln = nd6_lookup(&dr->rtaddr, 0, dr->ifp)) &&
+		    (ln = nd6_lookup(&dr->rtaddr, LLE_SF(AF_INET6, 0), dr->ifp)) &&
 		    ND6_IS_LLINFO_PROBREACH(ln)) {
 			selected_dr = dr;
 			defrouter_ref(selected_dr);
@@ -1814,7 +1814,8 @@ find_pfxlist_reachable_router(struct nd_prefix *pr)
 
 	NET_EPOCH_ENTER(et);
 	LIST_FOREACH(pfxrtr, &pr->ndpr_advrtrs, pfr_entry) {
-		ln = nd6_lookup(&pfxrtr->router->rtaddr, 0, pfxrtr->router->ifp);
+		ln = nd6_lookup(&pfxrtr->router->rtaddr, LLE_SF(AF_INET6, 0),
+		    pfxrtr->router->ifp);
 		if (ln == NULL)
 			continue;
 		canreach = ND6_IS_LLINFO_PROBREACH(ln);
