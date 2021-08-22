@@ -466,6 +466,7 @@ IPFIREWALL_PMOD		opt_ipfw.h
 IPSEC			opt_ipsec.h
 IPSEC_DEBUG		opt_ipsec.h
 IPSEC_SUPPORT		opt_ipsec.h
+IPSEC_OFFLOAD		opt_ipsec.h
 IPSTEALTH
 KERN_TLS
 KRPC

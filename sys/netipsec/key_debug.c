@@ -155,6 +155,8 @@ kdebug_sadb_exttype(uint16_t type)
 	X_NAME(SA_REPLAY);
 	X_NAME(NEW_ADDRESS_SRC);
 	X_NAME(NEW_ADDRESS_DST);
+	X_NAME(LFT_CUR_SW_OFFL);
+	X_NAME(LFT_CUR_HW_OFFL);
 	default:
 		return ("UNKNOWN");
 	};
@@ -251,6 +253,9 @@ kdebug_sadb(struct sadb_msg *base)
 		case SADB_X_EXT_NAT_T_DPORT:
 			kdebug_sadb_x_natt(ext);
 			break;
+		case SADB_X_EXT_LFT_CUR_SW_OFFL:
+		case SADB_X_EXT_LFT_CUR_HW_OFFL:
+			kdebug_sadb_lifetime(ext);
 		default:
 			printf("%s: invalid ext_type %u\n", __func__,
 			    ext->sadb_ext_type);
