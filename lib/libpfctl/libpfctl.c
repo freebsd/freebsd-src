@@ -860,7 +860,6 @@ pfctl_get_syncookies(int dev, struct pfctl_syncookies *s)
 	nvl = nvlist_unpack(nv.data, nv.len, 0);
 	free(nv.data);
 	if (nvl == NULL) {
-		free(nv.data);
 		return (EIO);
 	}
 
