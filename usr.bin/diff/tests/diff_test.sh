@@ -18,6 +18,7 @@ atf_test_case conflicting_format
 atf_test_case label
 atf_test_case report_identical
 atf_test_case non_regular_file
+atf_test_case binary
 
 simple_body()
 {
@@ -265,6 +266,18 @@ non_regular_file_body()
 		diff --label A --label B -u A B
 }
 
+binary_body()
+{
+	# the NUL byte has to be after at least BUFSIZ bytes to trick asciifile()
+	yes 012345678901234567890123456789012345678901234567890 | head -n 174 > A
+	cp A B
+	printf '\n\0\n' >> A
+	printf '\nx\n' >> B
+
+	atf_check -o inline:"Binary files A and B differ\n" -s exit:1 diff A B
+	atf_check -o inline:"176c\nx\n.\n" -s exit:1 diff -ae A B
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case simple
@@ -285,4 +298,5 @@ atf_init_test_cases()
 	atf_add_test_case label
 	atf_add_test_case report_identical
 	atf_add_test_case non_regular_file
+	atf_add_test_case binary
 }
