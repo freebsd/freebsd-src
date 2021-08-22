@@ -394,6 +394,10 @@ struct rt_addrinfo {
 		}							\
 	} while (0)
 
+#define RO_GET_FAMILY(ro, dst)	((ro) != NULL &&		\
+	(ro)->ro_flags & RT_HAS_GW				\
+	? (ro)->ro_dst.sa_family : (dst)->sa_family)
+
 /*
  * Validate a cached route based on a supplied cookie.  If there is an
  * out-of-date cache, simply free it.  Update the generation number

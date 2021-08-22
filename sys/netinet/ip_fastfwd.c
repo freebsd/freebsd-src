@@ -199,7 +199,9 @@ ip_tryforward(struct mbuf *m)
 	struct ip *ip;
 	struct mbuf *m0 = NULL;
 	struct nhop_object *nh = NULL;
-	struct sockaddr_in dst;
+	struct route ro;
+	struct sockaddr_in *dst;
+	const struct sockaddr *gw;
 	struct in_addr dest, odest, rtdest;
 	uint16_t ip_len, ip_off;
 	int error = 0;
@@ -421,19 +423,23 @@ passout:
 	ip_len = ntohs(ip->ip_len);
 	ip_off = ntohs(ip->ip_off);
 
-	bzero(&dst, sizeof(dst));
-	dst.sin_family = AF_INET;
-	dst.sin_len = sizeof(dst);
-	if (nh->nh_flags & NHF_GATEWAY)
-		dst.sin_addr = nh->gw4_sa.sin_addr;
-	else
-		dst.sin_addr = dest;
+	bzero(&ro, sizeof(ro));
+	dst = (struct sockaddr_in *)&ro.ro_dst;
+	dst->sin_family = AF_INET;
+	dst->sin_len = sizeof(*dst);
+	dst->sin_addr = dest;
+	if (nh->nh_flags & NHF_GATEWAY) {
+		gw = &nh->gw_sa;
+		ro.ro_flags |= RT_HAS_GW;
+	} else
+		gw = (const struct sockaddr *)dst;
 
 	/*
 	 * Handle redirect case.
 	 */
 	redest.s_addr = 0;
-	if (V_ipsendredirects && (nh->nh_ifp == m->m_pkthdr.rcvif))
+	if (V_ipsendredirects && (nh->nh_ifp == m->m_pkthdr.rcvif) &&
+	    gw->sa_family == AF_INET)
 		mcopy = ip_redir_alloc(m, nh, ip, &redest.s_addr);
 
 	/*
@@ -448,8 +454,7 @@ passout:
 		 * Send off the packet via outgoing interface
 		 */
 		IP_PROBE(send, NULL, NULL, ip, nh->nh_ifp, ip, NULL);
-		error = (*nh->nh_ifp->if_output)(nh->nh_ifp, m,
-		    (struct sockaddr *)&dst, NULL);
+		error = (*nh->nh_ifp->if_output)(nh->nh_ifp, m, gw, &ro);
 	} else {
 		/*
 		 * Handle EMSGSIZE with icmp reply needfrag for TCP MTU discovery
@@ -484,7 +489,7 @@ passout:
 				    mtod(m, struct ip *), nh->nh_ifp,
 				    mtod(m, struct ip *), NULL);
 				error = (*nh->nh_ifp->if_output)(nh->nh_ifp, m,
-				    (struct sockaddr *)&dst, NULL);
+				    gw, &ro);
 				if (error)
 					break;
 			} while ((m = m0) != NULL);
