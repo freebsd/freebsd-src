@@ -25,9 +25,9 @@ namespace lldb_private {
 
 class ObjectFileJITDelegate {
 public:
-  ObjectFileJITDelegate() {}
+  ObjectFileJITDelegate() = default;
 
-  virtual ~ObjectFileJITDelegate() {}
+  virtual ~ObjectFileJITDelegate() = default;
 
   virtual lldb::ByteOrder GetByteOrder() const = 0;
 
@@ -495,6 +495,16 @@ public:
       return std::string();
   }
 
+  /// Some object files may have the number of bits used for addressing
+  /// embedded in them, e.g. a Mach-O core file using an LC_NOTE.  These
+  /// object files can return the address mask that should be used in
+  /// the Process.
+  /// \return
+  ///     The mask will have bits set which aren't used for addressing --
+  ///     typically, the high bits.
+  ///     Zero is returned when no address bits mask is available.
+  virtual lldb::addr_t GetAddressMask() { return 0; }
+
   /// When the ObjectFile is a core file, lldb needs to locate the "binary" in
   /// the core file.  lldb can iterate over the pages looking for a valid
   /// binary, but some core files may have metadata  describing where the main
@@ -666,6 +676,22 @@ public:
   /// Creates a plugin-specific call frame info
   virtual std::unique_ptr<CallFrameInfo> CreateCallFrameInfo();
 
+  /// Load binaries listed in a corefile
+  ///
+  /// A corefile may have metadata listing binaries that can be loaded,
+  /// and the offsets at which they were loaded.  This method will try
+  /// to add them to the Target.  If any binaries were loaded,
+  ///
+  /// \param[in] process
+  ///     Process where to load binaries.
+  ///
+  /// \return
+  ///     Returns true if any binaries were loaded.
+
+  virtual bool LoadCoreFileImages(lldb_private::Process &process) {
+    return false;
+  }
+
 protected:
   // Member variables.
   FileSpec m_file;
@@ -695,8 +721,6 @@ protected:
   ///     Returns \b true if the architecture was changed, \b
   ///     false otherwise.
   bool SetModulesArchitecture(const ArchSpec &new_arch);
-
-  ConstString GetNextSyntheticSymbolName();
 
   static lldb::DataBufferSP MapFileData(const FileSpec &file, uint64_t Size,
                                         uint64_t Offset);

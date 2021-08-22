@@ -24,8 +24,6 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/raw_ostream.h"
 
-#include <sstream>
-
 using namespace llvm;
 #define DEBUG_TYPE "inline"
 
@@ -159,6 +157,7 @@ bool InlineAdvisorAnalysis::Result::tryCreate(InlineParams Params,
   auto &FAM = MAM.getResult<FunctionAnalysisManagerModuleProxy>(M).getManager();
   switch (Mode) {
   case InliningAdvisorMode::Default:
+    LLVM_DEBUG(dbgs() << "Using default inliner heuristic.\n");
     Advisor.reset(new DefaultInlineAdvisor(M, FAM, Params));
     // Restrict replay to default advisor, ML advisors are stateful so
     // replay will need augmentations to interleave with them correctly.
@@ -170,6 +169,7 @@ bool InlineAdvisorAnalysis::Result::tryCreate(InlineParams Params,
     break;
   case InliningAdvisorMode::Development:
 #ifdef LLVM_HAVE_TF_API
+    LLVM_DEBUG(dbgs() << "Using development-mode inliner policy.\n");
     Advisor =
         llvm::getDevelopmentModeAdvisor(M, MAM, [&FAM, Params](CallBase &CB) {
           auto OIC = getDefaultInlineAdvice(CB, FAM, Params);
@@ -179,6 +179,7 @@ bool InlineAdvisorAnalysis::Result::tryCreate(InlineParams Params,
     break;
   case InliningAdvisorMode::Release:
 #ifdef LLVM_HAVE_TF_AOT
+    LLVM_DEBUG(dbgs() << "Using release-mode inliner policy.\n");
     Advisor = llvm::getReleaseModeAdvisor(M, MAM);
 #endif
     break;
@@ -279,8 +280,7 @@ shouldBeDeferred(Function *Caller, InlineCost IC, int &TotalSecondaryCost,
 }
 
 namespace llvm {
-static std::basic_ostream<char> &operator<<(std::basic_ostream<char> &R,
-                                            const ore::NV &Arg) {
+static raw_ostream &operator<<(raw_ostream &R, const ore::NV &Arg) {
   return R << Arg.Val;
 }
 
@@ -302,7 +302,8 @@ RemarkT &operator<<(RemarkT &&R, const InlineCost &IC) {
 } // namespace llvm
 
 std::string llvm::inlineCostStr(const InlineCost &IC) {
-  std::stringstream Remark;
+  std::string Buffer;
+  raw_string_ostream Remark(Buffer);
   Remark << IC;
   return Remark.str();
 }
@@ -383,7 +384,8 @@ llvm::shouldInline(CallBase &CB,
 }
 
 std::string llvm::getCallSiteLocation(DebugLoc DLoc) {
-  std::ostringstream CallSiteLoc;
+  std::string Buffer;
+  raw_string_ostream CallSiteLoc(Buffer);
   bool First = true;
   for (DILocation *DIL = DLoc.get(); DIL; DIL = DIL->getInlinedAt()) {
     if (!First)

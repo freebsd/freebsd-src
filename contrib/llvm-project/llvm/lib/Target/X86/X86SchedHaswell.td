@@ -125,6 +125,10 @@ defm : X86WriteRes<WriteLoad,    [HWPort23], 5, [1], 1>;
 defm : X86WriteRes<WriteMove,    [HWPort0156], 1, [1], 1>;
 def  : WriteRes<WriteZero,       []>;
 
+// Model the effect of clobbering the read-write mask operand of the GATHER operation.
+// Does not cost anything by itself, only has latency, matching that of the WriteLoad,
+defm : X86WriteRes<WriteVecMaskedGatherWriteback, [], 5, [], 0>;
+
 // Arithmetic.
 defm : HWWriteResPair<WriteALU,    [HWPort0156], 1>;
 defm : HWWriteResPair<WriteADC,    [HWPort06, HWPort0156], 2, [1,1], 2>;
@@ -432,6 +436,7 @@ defm : HWWriteResPair<WriteBlend,  [HWPort5], 1, [1], 1, 6>;
 defm : HWWriteResPair<WriteBlendY, [HWPort5], 1, [1], 1, 7>;
 defm : HWWriteResPair<WriteBlendZ, [HWPort5], 1, [1], 1, 7>; // Unsupported = 1
 defm : HWWriteResPair<WriteShuffle256, [HWPort5], 3, [1], 1, 7>;
+defm : HWWriteResPair<WriteVPMOV256, [HWPort5], 3, [1], 1, 7>;
 defm : HWWriteResPair<WriteVarShuffle256, [HWPort5], 3, [1], 1, 7>;
 defm : HWWriteResPair<WriteVarBlend,  [HWPort5], 2, [2], 2, 6>;
 defm : HWWriteResPair<WriteVarBlendY, [HWPort5], 2, [2], 2, 7>;
@@ -777,7 +782,7 @@ def : InstRW<[HWWrite3P01], (instrs COM_FIPr, COM_FIr, UCOM_FIPr, UCOM_FIr)>;
 def : InstRW<[HWWriteP1], (instregex "TST_F")>;
 
 // FXAM.
-def : InstRW<[HWWrite2P1], (instrs FXAM)>;
+def : InstRW<[HWWrite2P1], (instrs XAM_F)>;
 
 // FPREM.
 def HWWriteFPREM : SchedWriteRes<[]> {

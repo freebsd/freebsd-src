@@ -125,7 +125,7 @@ let Command = "breakpoint set" in {
   def breakpoint_set_address : Option<"address", "a">, Group<2>,
     Arg<"AddressOrExpression">, Required,
     Desc<"Set the breakpoint at the specified address.  If the address maps "
-    "uniquely toa particular binary, then the address will be converted to "
+    "uniquely to a particular binary, then the address will be converted to "
     "a \"file\"address, so that the breakpoint will track that binary+offset "
     "no matter where the binary eventually loads.  Alternately, if you also "
     "specify the module - with the -s option - then the address will be "
@@ -200,7 +200,7 @@ let Command = "breakpoint set" in {
   def breakpoint_set_move_to_nearest_code : Option<"move-to-nearest-code", "m">,
     Groups<[1,9,12]>, Arg<"Boolean">,
     Desc<"Move breakpoints to nearest code. If not set the "
-    "target.move-to-nearest-codesetting is used.">;
+    "target.move-to-nearest-code setting is used.">;
   def breakpoint_set_file_colon_line : Option<"joint-specifier", "y">, Group<12>, Arg<"FileLineColumn">,
     Required, Completion<"SourceFile">,
     Desc<"A specifier in the form filename:line[:column] for setting file & line breakpoints.">;
@@ -655,7 +655,7 @@ let Command = "process launch" in {
     Desc<"Set the current working directory to <path> when running the inferior.">;
   def process_launch_arch : Option<"arch", "a">, Arg<"Architecture">,
     Desc<"Set the architecture for the process to launch when ambiguous.">;
-  def process_launch_environment : Option<"environment", "v">,
+  def process_launch_environment : Option<"environment", "E">,
     Arg<"None">, Desc<"Specify an environment variable name/value string "
     "(--environment NAME=VALUE). Can be specified multiple times for subsequent "
     "environment entries.">;
@@ -730,6 +730,12 @@ let Command = "process status" in {
     Desc<"Show verbose process status including extended crash information.">;
 }
 
+let Command = "process save_core" in {
+  def process_save_core_style : Option<"style", "s">, Group<1>,
+    EnumArg<"SaveCoreStyle", "SaveCoreStyles()">, Desc<"Request a specific style "
+    "of corefile to be saved.">;
+}
+
 let Command = "script import" in {
   def script_import_allow_reload : Option<"allow-reload", "r">, Group<1>,
     Desc<"Allow the script to be loaded even if it was already loaded before. "
@@ -739,6 +745,8 @@ let Command = "script import" in {
     Group<1>, Desc<"Resolve non-absolute paths relative to the location of the "
     "current command file. This argument can only be used when the command is "
     "being sourced from a file.">;
+  def silent : Option<"silent", "s">, Group<1>,
+    Desc<"If true don't print any script output while importing.">;
 }
 
 let Command = "script add" in {
@@ -1041,16 +1049,30 @@ let Command = "thread plan list" in {
 }
 
 let Command = "thread trace dump instructions" in {
+  def thread_trace_dump_instructions_forwards: Option<"forwards", "f">, Group<1>,
+    Desc<"If specified, the trace is traversed forwards chronologically "
+    "starting at the oldest instruction. Otherwise, it starts at the most "
+    "recent one and the traversal is backwards.">;
   def thread_trace_dump_instructions_count : Option<"count", "c">, Group<1>,
     Arg<"Count">,
-    Desc<"The number of instructions to display ending at the current position.">;
-  def thread_trace_dump_instructions_position : Option<"position", "p">,
+    Desc<"The number of instructions to display starting at the most recent "
+    "instruction, or the oldest if --forwards is provided.">;
+  def thread_trace_dump_instructions_skip: Option<"skip", "s">,
     Group<1>,
     Arg<"Index">,
-    Desc<"The position to use instead of the current position of the trace.">;
+    Desc<"How many instruction to skip from the end of the trace to start "
+    "dumping instructions, or from the beginning if --forwards is provided">;
   def thread_trace_dump_instructions_raw : Option<"raw", "r">,
     Group<1>,
     Desc<"Dump only instruction address without disassembly nor symbol information.">;
+  def thread_trace_dump_instructions_show_tsc : Option<"tsc", "t">,
+    Group<1>,
+    Desc<"For each instruction, print the corresponding timestamp counter if available.">;
+}
+
+let Command = "thread trace dump info" in {
+  def thread_trace_dump_info_verbose : Option<"verbose", "v">, Group<1>,
+    Desc<"show verbose thread trace dump info">;
 }
 
 let Command = "type summary add" in {

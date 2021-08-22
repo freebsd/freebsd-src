@@ -11,8 +11,8 @@
 // used to compute the "hotness" of the diagnostic message.
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_IR_OPTIMIZATIONDIAGNOSTICINFO_H
-#define LLVM_IR_OPTIMIZATIONDIAGNOSTICINFO_H
+#ifndef LLVM_ANALYSIS_OPTIMIZATIONREMARKEMITTER_H
+#define LLVM_ANALYSIS_OPTIMIZATIONREMARKEMITTER_H
 
 #include "llvm/ADT/Optional.h"
 #include "llvm/Analysis/BlockFrequencyInfo.h"
@@ -61,6 +61,12 @@ public:
   bool invalidate(Function &F, const PreservedAnalyses &PA,
                   FunctionAnalysisManager::Invalidator &Inv);
 
+  /// Return true iff at least *some* remarks are enabled.
+  bool enabled() const {
+    return F->getContext().getLLVMRemarkStreamer() ||
+           F->getContext().getDiagHandlerPtr()->isAnyRemarkEnabled();
+  }
+
   /// Output the remark via the diagnostic handler and to the
   /// optimization record file.
   void emit(DiagnosticInfoOptimizationBase &OptDiag);
@@ -73,9 +79,11 @@ public:
     // remarks enabled. We can't currently check whether remarks are requested
     // for the calling pass since that requires actually building the remark.
 
-    if (F->getContext().getLLVMRemarkStreamer() ||
-        F->getContext().getDiagHandlerPtr()->isAnyRemarkEnabled()) {
+    if (enabled()) {
       auto R = RemarkBuilder();
+      static_assert(
+          std::is_base_of<DiagnosticInfoOptimizationBase, decltype(R)>::value,
+          "the lambda passed to emit() must return a remark");
       emit((DiagnosticInfoOptimizationBase &)R);
     }
   }
@@ -166,4 +174,4 @@ public:
   Result run(Function &F, FunctionAnalysisManager &AM);
 };
 }
-#endif // LLVM_IR_OPTIMIZATIONDIAGNOSTICINFO_H
+#endif // LLVM_ANALYSIS_OPTIMIZATIONREMARKEMITTER_H

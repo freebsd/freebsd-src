@@ -56,6 +56,7 @@ Expected<std::unique_ptr<Binary>> object::createBinary(MemoryBufferRef Buffer,
   case file_magic::elf_executable:
   case file_magic::elf_shared_object:
   case file_magic::elf_core:
+  case file_magic::goff_object:
   case file_magic::macho_object:
   case file_magic::macho_executable:
   case file_magic::macho_fixed_virtual_memory_shared_lib:
@@ -97,7 +98,7 @@ Expected<std::unique_ptr<Binary>> object::createBinary(MemoryBufferRef Buffer,
 Expected<OwningBinary<Binary>>
 object::createBinary(StringRef Path, LLVMContext *Context, bool InitContent) {
   ErrorOr<std::unique_ptr<MemoryBuffer>> FileOrErr =
-      MemoryBuffer::getFileOrSTDIN(Path, /*FileSize=*/-1,
+      MemoryBuffer::getFileOrSTDIN(Path, /*IsText=*/false,
                                    /*RequiresNullTerminator=*/false);
   if (std::error_code EC = FileOrErr.getError())
     return errorCodeToError(EC);

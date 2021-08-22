@@ -256,7 +256,7 @@ SymbolFile *SymbolFileNativePDB::CreateInstance(ObjectFileSP objfile_sp) {
 SymbolFileNativePDB::SymbolFileNativePDB(ObjectFileSP objfile_sp)
     : SymbolFile(std::move(objfile_sp)) {}
 
-SymbolFileNativePDB::~SymbolFileNativePDB() {}
+SymbolFileNativePDB::~SymbolFileNativePDB() = default;
 
 uint32_t SymbolFileNativePDB::CalculateAbilities() {
   uint32_t abilities = 0;
@@ -1001,7 +1001,7 @@ uint32_t SymbolFileNativePDB::ResolveSymbolContext(
 }
 
 uint32_t SymbolFileNativePDB::ResolveSymbolContext(
-    const FileSpec &file_spec, uint32_t line, bool check_inlines,
+    const SourceLocationSpec &src_location_spec,
     lldb::SymbolContextItem resolve_scope, SymbolContextList &sc_list) {
   return 0;
 }
@@ -1039,7 +1039,7 @@ static void TerminateLineSequence(LineTable &table,
   table.AppendLineEntryToSequence(seq.get(), base_addr + block.CodeSize,
                                   last_line, 0, file_number, false, false,
                                   false, false, true);
-  table.InsertSequence(seq.release());
+  table.InsertSequence(seq.get());
 }
 
 bool SymbolFileNativePDB::ParseLineTable(CompileUnit &comp_unit) {

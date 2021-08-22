@@ -21,6 +21,7 @@
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/iterator.h"
 #include "llvm/ADT/iterator_range.h"
 #include "llvm/Analysis/AliasAnalysis.h"
@@ -285,7 +286,7 @@ instructionClobbersQuery(const MemoryDef *MD, const MemoryLocation &UseLoc,
     case Intrinsic::invariant_end:
     case Intrinsic::assume:
     case Intrinsic::experimental_noalias_scope_decl:
-      return {false, NoAlias};
+      return {false, AliasResult(AliasResult::NoAlias)};
     case Intrinsic::dbg_addr:
     case Intrinsic::dbg_declare:
     case Intrinsic::dbg_label:
@@ -298,16 +299,17 @@ instructionClobbersQuery(const MemoryDef *MD, const MemoryLocation &UseLoc,
 
   if (auto *CB = dyn_cast_or_null<CallBase>(UseInst)) {
     ModRefInfo I = AA.getModRefInfo(DefInst, CB);
-    AR = isMustSet(I) ? MustAlias : MayAlias;
+    AR = isMustSet(I) ? AliasResult::MustAlias : AliasResult::MayAlias;
     return {isModOrRefSet(I), AR};
   }
 
   if (auto *DefLoad = dyn_cast<LoadInst>(DefInst))
     if (auto *UseLoad = dyn_cast_or_null<LoadInst>(UseInst))
-      return {!areLoadsReorderable(UseLoad, DefLoad), MayAlias};
+      return {!areLoadsReorderable(UseLoad, DefLoad),
+              AliasResult(AliasResult::MayAlias)};
 
   ModRefInfo I = AA.getModRefInfo(DefInst, UseLoc);
-  AR = isMustSet(I) ? MustAlias : MayAlias;
+  AR = isMustSet(I) ? AliasResult::MustAlias : AliasResult::MayAlias;
   return {isModSet(I), AR};
 }
 
@@ -343,7 +345,7 @@ struct UpwardsMemoryQuery {
   const Instruction *Inst = nullptr;
   // The MemoryAccess we actually got called with, used to test local domination
   const MemoryAccess *OriginalAccess = nullptr;
-  Optional<AliasResult> AR = MayAlias;
+  Optional<AliasResult> AR = AliasResult(AliasResult::MayAlias);
   bool SkipSelfAccess = false;
 
   UpwardsMemoryQuery() = default;
@@ -569,14 +571,14 @@ template <class AliasAnalysisType> class ClobberWalker {
     for (MemoryAccess *Current : def_chain(Desc.Last)) {
       Desc.Last = Current;
       if (Current == StopAt || Current == SkipStopAt)
-        return {Current, false, MayAlias};
+        return {Current, false, AliasResult(AliasResult::MayAlias)};
 
       if (auto *MD = dyn_cast<MemoryDef>(Current)) {
         if (MSSA.isLiveOnEntryDef(MD))
-          return {MD, true, MustAlias};
+          return {MD, true, AliasResult(AliasResult::MustAlias)};
 
         if (!--*UpwardWalkLimit)
-          return {Current, true, MayAlias};
+          return {Current, true, AliasResult(AliasResult::MayAlias)};
 
         ClobberAlias CA =
             instructionClobbersQuery(MD, Desc.Loc, Query->Inst, AA);
@@ -590,7 +592,7 @@ template <class AliasAnalysisType> class ClobberWalker {
 
     assert(isa<MemoryPhi>(Desc.Last) &&
            "Ended at a non-clobber that's not a phi?");
-    return {Desc.Last, false, MayAlias};
+    return {Desc.Last, false, AliasResult(AliasResult::MayAlias)};
   }
 
   void addSearches(MemoryPhi *Phi, SmallVectorImpl<ListIndex> &PausedSearches,
@@ -1408,7 +1410,7 @@ void MemorySSA::OptimizeUses::optimizeUsesInBlock(
     if (!LocInfo.LastKillValid) {
       LocInfo.LastKill = VersionStack.size() - 1;
       LocInfo.LastKillValid = true;
-      LocInfo.AR = MayAlias;
+      LocInfo.AR = AliasResult::MayAlias;
     }
 
     // At this point, we should have corrected last kill and LowerBound to be
@@ -2171,17 +2173,13 @@ void MemoryDef::print(raw_ostream &OS) const {
 }
 
 void MemoryPhi::print(raw_ostream &OS) const {
-  bool First = true;
+  ListSeparator LS(",");
   OS << getID() << " = MemoryPhi(";
   for (const auto &Op : operands()) {
     BasicBlock *BB = getIncomingBlock(Op);
     MemoryAccess *MA = cast<MemoryAccess>(Op);
-    if (!First)
-      OS << ',';
-    else
-      First = false;
 
-    OS << '{';
+    OS << LS << '{';
     if (BB->hasName())
       OS << BB->getName();
     else
@@ -2405,22 +2403,23 @@ MemoryAccess *
 MemorySSA::ClobberWalkerBase<AliasAnalysisType>::getClobberingMemoryAccessBase(
     MemoryAccess *StartingAccess, const MemoryLocation &Loc,
     unsigned &UpwardWalkLimit) {
-  if (isa<MemoryPhi>(StartingAccess))
-    return StartingAccess;
+  assert(!isa<MemoryUse>(StartingAccess) && "Use cannot be defining access");
 
-  auto *StartingUseOrDef = cast<MemoryUseOrDef>(StartingAccess);
-  if (MSSA->isLiveOnEntryDef(StartingUseOrDef))
-    return StartingUseOrDef;
+  Instruction *I = nullptr;
+  if (auto *StartingUseOrDef = dyn_cast<MemoryUseOrDef>(StartingAccess)) {
+    if (MSSA->isLiveOnEntryDef(StartingUseOrDef))
+      return StartingUseOrDef;
 
-  Instruction *I = StartingUseOrDef->getMemoryInst();
+    I = StartingUseOrDef->getMemoryInst();
 
-  // Conservatively, fences are always clobbers, so don't perform the walk if we
-  // hit a fence.
-  if (!isa<CallBase>(I) && I->isFenceLike())
-    return StartingUseOrDef;
+    // Conservatively, fences are always clobbers, so don't perform the walk if
+    // we hit a fence.
+    if (!isa<CallBase>(I) && I->isFenceLike())
+      return StartingUseOrDef;
+  }
 
   UpwardsMemoryQuery Q;
-  Q.OriginalAccess = StartingUseOrDef;
+  Q.OriginalAccess = StartingAccess;
   Q.StartingLoc = Loc;
   Q.Inst = nullptr;
   Q.IsCall = false;
@@ -2428,16 +2427,14 @@ MemorySSA::ClobberWalkerBase<AliasAnalysisType>::getClobberingMemoryAccessBase(
   // Unlike the other function, do not walk to the def of a def, because we are
   // handed something we already believe is the clobbering access.
   // We never set SkipSelf to true in Q in this method.
-  MemoryAccess *DefiningAccess = isa<MemoryUse>(StartingUseOrDef)
-                                     ? StartingUseOrDef->getDefiningAccess()
-                                     : StartingUseOrDef;
-
   MemoryAccess *Clobber =
-      Walker.findClobber(DefiningAccess, Q, UpwardWalkLimit);
-  LLVM_DEBUG(dbgs() << "Starting Memory SSA clobber for " << *I << " is ");
-  LLVM_DEBUG(dbgs() << *StartingUseOrDef << "\n");
-  LLVM_DEBUG(dbgs() << "Final Memory SSA clobber for " << *I << " is ");
-  LLVM_DEBUG(dbgs() << *Clobber << "\n");
+      Walker.findClobber(StartingAccess, Q, UpwardWalkLimit);
+  LLVM_DEBUG({
+    dbgs() << "Clobber starting at access " << *StartingAccess << "\n";
+    if (I)
+      dbgs() << "  for instruction " << *I << "\n";
+    dbgs() << "  is " << *Clobber << "\n";
+  });
   return Clobber;
 }
 
@@ -2494,8 +2491,9 @@ MemorySSA::ClobberWalkerBase<AliasAnalysisType>::getClobberingMemoryAccessBase(
     StartingAccess->setOptimized(OptimizedAccess);
     if (MSSA->isLiveOnEntryDef(OptimizedAccess))
       StartingAccess->setOptimizedAccessType(None);
-    else if (Q.AR == MustAlias)
-      StartingAccess->setOptimizedAccessType(MustAlias);
+    else if (Q.AR && *Q.AR == AliasResult::MustAlias)
+      StartingAccess->setOptimizedAccessType(
+          AliasResult(AliasResult::MustAlias));
   } else
     OptimizedAccess = StartingAccess->getOptimized();
 
@@ -2554,6 +2552,10 @@ bool upward_defs_iterator::IsGuaranteedLoopInvariant(Value *Ptr) const {
   };
 
   Ptr = Ptr->stripPointerCasts();
+  if (auto *I = dyn_cast<Instruction>(Ptr)) {
+    if (I->getParent()->isEntryBlock())
+      return true;
+  }
   if (auto *GEP = dyn_cast<GEPOperator>(Ptr)) {
     return IsGuaranteedLoopInvariantBase(GEP->getPointerOperand()) &&
            GEP->hasAllConstantIndices();

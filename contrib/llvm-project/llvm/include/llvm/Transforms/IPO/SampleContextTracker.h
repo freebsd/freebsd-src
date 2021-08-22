@@ -15,10 +15,9 @@
 #ifndef LLVM_TRANSFORMS_IPO_SAMPLECONTEXTTRACKER_H
 #define LLVM_TRANSFORMS_IPO_SAMPLECONTEXTTRACKER_H
 
-#include "llvm/ADT/SmallSet.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
-#include "llvm/Analysis/CallGraph.h"
 #include "llvm/IR/DebugInfoMetadata.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/ProfileData/SampleProf.h"
@@ -55,7 +54,7 @@ public:
                                       bool DeleteNode = true);
   void removeChildContext(const LineLocation &CallSite, StringRef CalleeName);
   std::map<uint32_t, ContextTrieNode> &getAllChildContext();
-  const StringRef getFuncName() const;
+  StringRef getFuncName() const;
   FunctionSamples *getFunctionSamples() const;
   void setFunctionSamples(FunctionSamples *FSamples);
   LineLocation getCallSiteLoc() const;
@@ -91,7 +90,7 @@ private:
 // calling context and the context is identified by path from root to the node.
 class SampleContextTracker {
 public:
-  using ContextSamplesTy = SmallSet<FunctionSamples *, 16>;
+  using ContextSamplesTy = SmallVector<FunctionSamples *, 16>;
 
   SampleContextTracker(StringMap<FunctionSamples> &Profiles);
   // Query context profile for a specific callee with given name at a given
@@ -114,20 +113,21 @@ public:
   FunctionSamples *getBaseSamplesFor(const Function &Func,
                                      bool MergeContext = true);
   // Query base profile for a given function by name.
-  FunctionSamples *getBaseSamplesFor(StringRef Name, bool MergeContext);
+  FunctionSamples *getBaseSamplesFor(StringRef Name, bool MergeContext = true);
+  // Retrieve the context trie node for given profile context
+  ContextTrieNode *getContextFor(const SampleContext &Context);
   // Mark a context profile as inlined when function is inlined.
   // This makes sure that inlined context profile will be excluded in
   // function's base profile.
   void markContextSamplesInlined(const FunctionSamples *InlinedSamples);
+  ContextTrieNode &getRootContext();
   void promoteMergeContextSamplesTree(const Instruction &Inst,
                                       StringRef CalleeName);
-  void addCallGraphEdges(CallGraph &CG, StringMap<Function *> &SymbolMap);
   // Dump the internal context profile trie.
   void dump();
 
 private:
   ContextTrieNode *getContextFor(const DILocation *DIL);
-  ContextTrieNode *getContextFor(const SampleContext &Context);
   ContextTrieNode *getCalleeContextFor(const DILocation *DIL,
                                        StringRef CalleeName);
   ContextTrieNode *getOrCreateContextPath(const SampleContext &Context,
@@ -142,7 +142,7 @@ private:
                                                   StringRef ContextStrToRemove);
 
   // Map from function name to context profiles (excluding base profile)
-  StringMap<ContextSamplesTy> FuncToCtxtProfileSet;
+  StringMap<ContextSamplesTy> FuncToCtxtProfiles;
 
   // Root node for context trie tree
   ContextTrieNode RootContext;

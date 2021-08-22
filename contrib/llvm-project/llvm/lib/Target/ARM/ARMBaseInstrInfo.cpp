@@ -1306,17 +1306,12 @@ unsigned ARMBaseInstrInfo::isStoreToStackSlot(const MachineInstr &MI,
   case ARM::tSTRspi:
   case ARM::VSTRD:
   case ARM::VSTRS:
+  case ARM::VSTR_P0_off:
+  case ARM::MVE_VSTRWU32:
     if (MI.getOperand(1).isFI() && MI.getOperand(2).isImm() &&
         MI.getOperand(2).getImm() == 0) {
       FrameIndex = MI.getOperand(1).getIndex();
       return MI.getOperand(0).getReg();
-    }
-    break;
-  case ARM::VSTR_P0_off:
-    if (MI.getOperand(0).isFI() && MI.getOperand(1).isImm() &&
-        MI.getOperand(1).getImm() == 0) {
-      FrameIndex = MI.getOperand(0).getIndex();
-      return ARM::P0;
     }
     break;
   case ARM::VST1q64:
@@ -1543,17 +1538,12 @@ unsigned ARMBaseInstrInfo::isLoadFromStackSlot(const MachineInstr &MI,
   case ARM::tLDRspi:
   case ARM::VLDRD:
   case ARM::VLDRS:
+  case ARM::VLDR_P0_off:
+  case ARM::MVE_VLDRWU32:
     if (MI.getOperand(1).isFI() && MI.getOperand(2).isImm() &&
         MI.getOperand(2).getImm() == 0) {
       FrameIndex = MI.getOperand(1).getIndex();
       return MI.getOperand(0).getReg();
-    }
-    break;
-  case ARM::VLDR_P0_off:
-    if (MI.getOperand(0).isFI() && MI.getOperand(1).isImm() &&
-        MI.getOperand(1).getImm() == 0) {
-      FrameIndex = MI.getOperand(0).getIndex();
-      return ARM::P0;
     }
     break;
   case ARM::VLD1q64:
@@ -5391,7 +5381,9 @@ bool ARMBaseInstrInfo::getInsertSubregLikeInputs(
 
   switch (MI.getOpcode()) {
   case ARM::VSETLNi32:
+  case ARM::MVE_VMOV_to_lane_32:
     // dX = VSETLNi32 dY, rZ, imm
+    // qX = MVE_VMOV_to_lane_32 qY, rZ, imm
     const MachineOperand &MOBaseReg = MI.getOperand(1);
     const MachineOperand &MOInsertedReg = MI.getOperand(2);
     if (MOInsertedReg.isUndef())
@@ -5402,7 +5394,7 @@ bool ARMBaseInstrInfo::getInsertSubregLikeInputs(
 
     InsertedReg.Reg = MOInsertedReg.getReg();
     InsertedReg.SubReg = MOInsertedReg.getSubReg();
-    InsertedReg.SubIdx = MOIndex.getImm() == 0 ? ARM::ssub_0 : ARM::ssub_1;
+    InsertedReg.SubIdx = ARM::ssub_0 + MOIndex.getImm();
     return true;
   }
   llvm_unreachable("Target dependent opcode missing");
@@ -6120,6 +6112,7 @@ ARMBaseInstrInfo::getOutliningType(MachineBasicBlock::iterator &MIT,
   // Be conservative with ARMv8.1 MVE instructions.
   if (Opc == ARM::t2BF_LabelPseudo || Opc == ARM::t2DoLoopStart ||
       Opc == ARM::t2DoLoopStartTP || Opc == ARM::t2WhileLoopStart ||
+      Opc == ARM::t2WhileLoopStartLR || Opc == ARM::t2WhileLoopStartTP ||
       Opc == ARM::t2LoopDec || Opc == ARM::t2LoopEnd ||
       Opc == ARM::t2LoopEndDec)
     return outliner::InstrType::Illegal;

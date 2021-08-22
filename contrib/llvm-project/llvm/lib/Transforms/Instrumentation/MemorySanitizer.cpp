@@ -1178,9 +1178,11 @@ struct MemorySanitizerVisitor : public InstVisitor<MemorySanitizerVisitor> {
       FunctionCallee Fn = MS.MaybeStoreOriginFn[SizeIndex];
       Value *ConvertedShadow2 =
           IRB.CreateZExt(ConvertedShadow, IRB.getIntNTy(8 * (1 << SizeIndex)));
-      IRB.CreateCall(Fn,
-                     {ConvertedShadow2,
-                      IRB.CreatePointerCast(Addr, IRB.getInt8PtrTy()), Origin});
+      CallBase *CB = IRB.CreateCall(
+          Fn, {ConvertedShadow2,
+               IRB.CreatePointerCast(Addr, IRB.getInt8PtrTy()), Origin});
+      CB->addParamAttr(0, Attribute::ZExt);
+      CB->addParamAttr(2, Attribute::ZExt);
     } else {
       Value *Cmp = convertToBool(ConvertedShadow, IRB, "_mscmp");
       Instruction *CheckTerm = SplitBlockAndInsertIfThen(
@@ -1250,9 +1252,11 @@ struct MemorySanitizerVisitor : public InstVisitor<MemorySanitizerVisitor> {
       FunctionCallee Fn = MS.MaybeWarningFn[SizeIndex];
       Value *ConvertedShadow2 =
           IRB.CreateZExt(ConvertedShadow, IRB.getIntNTy(8 * (1 << SizeIndex)));
-      IRB.CreateCall(Fn, {ConvertedShadow2, MS.TrackOrigins && Origin
-                                                ? Origin
-                                                : (Value *)IRB.getInt32(0)});
+      CallBase *CB = IRB.CreateCall(
+          Fn, {ConvertedShadow2,
+               MS.TrackOrigins && Origin ? Origin : (Value *)IRB.getInt32(0)});
+      CB->addParamAttr(0, Attribute::ZExt);
+      CB->addParamAttr(1, Attribute::ZExt);
     } else {
       Value *Cmp = convertToBool(ConvertedShadow, IRB, "_mscmp");
       Instruction *CheckTerm = SplitBlockAndInsertIfThen(
@@ -1948,7 +1952,8 @@ struct MemorySanitizerVisitor : public InstVisitor<MemorySanitizerVisitor> {
 
     IRBuilder<> IRB(&I);
     Value *Addr = I.getOperand(0);
-    Value *ShadowPtr = getShadowOriginPtr(Addr, IRB, I.getType(), Align(1),
+    Value *Val = I.getOperand(1);
+    Value *ShadowPtr = getShadowOriginPtr(Addr, IRB, Val->getType(), Align(1),
                                           /*isStore*/ true)
                            .first;
 
@@ -1959,9 +1964,9 @@ struct MemorySanitizerVisitor : public InstVisitor<MemorySanitizerVisitor> {
     // The other argument can potentially be uninitialized, but we can not
     // detect this situation reliably without possible false positives.
     if (isa<AtomicCmpXchgInst>(I))
-      insertShadowCheck(I.getOperand(1), &I);
+      insertShadowCheck(Val, &I);
 
-    IRB.CreateStore(getCleanShadow(&I), ShadowPtr);
+    IRB.CreateStore(getCleanShadow(Val), ShadowPtr);
 
     setShadow(&I, getCleanShadow(&I));
     setOrigin(&I, getCleanOrigin());
@@ -2188,8 +2193,8 @@ struct MemorySanitizerVisitor : public InstVisitor<MemorySanitizerVisitor> {
     if (!MS.TrackOrigins) return;
     IRBuilder<> IRB(&I);
     OriginCombiner OC(this, IRB);
-    for (Instruction::op_iterator OI = I.op_begin(); OI != I.op_end(); ++OI)
-      OC.Add(OI->get());
+    for (Use &Op : I.operands())
+      OC.Add(Op.get());
     OC.Done(&I);
   }
 
@@ -2239,8 +2244,8 @@ struct MemorySanitizerVisitor : public InstVisitor<MemorySanitizerVisitor> {
   void handleShadowOr(Instruction &I) {
     IRBuilder<> IRB(&I);
     ShadowAndOriginCombiner SC(this, IRB);
-    for (Instruction::op_iterator OI = I.op_begin(); OI != I.op_end(); ++OI)
-      SC.Add(OI->get());
+    for (Use &Op : I.operands())
+      SC.Add(Op.get());
     SC.Done(&I);
   }
 
@@ -2514,6 +2519,23 @@ struct MemorySanitizerVisitor : public InstVisitor<MemorySanitizerVisitor> {
   void visitShl(BinaryOperator &I) { handleShift(I); }
   void visitAShr(BinaryOperator &I) { handleShift(I); }
   void visitLShr(BinaryOperator &I) { handleShift(I); }
+
+  void handleFunnelShift(IntrinsicInst &I) {
+    IRBuilder<> IRB(&I);
+    // If any of the S2 bits are poisoned, the whole thing is poisoned.
+    // Otherwise perform the same shift on S0 and S1.
+    Value *S0 = getShadow(&I, 0);
+    Value *S1 = getShadow(&I, 1);
+    Value *S2 = getShadow(&I, 2);
+    Value *S2Conv =
+        IRB.CreateSExt(IRB.CreateICmpNE(S2, getCleanShadow(S2)), S2->getType());
+    Value *V2 = I.getOperand(2);
+    Function *Intrin = Intrinsic::getDeclaration(
+        I.getModule(), I.getIntrinsicID(), S2Conv->getType());
+    Value *Shift = IRB.CreateCall(Intrin, {S0, S1, V2});
+    setShadow(&I, IRB.CreateOr(Shift, S2Conv));
+    setOriginForNaryOp(I);
+  }
 
   /// Instrument llvm.memmove
   ///
@@ -3112,7 +3134,7 @@ struct MemorySanitizerVisitor : public InstVisitor<MemorySanitizerVisitor> {
     if (PropagateShadow) {
       std::tie(ShadowPtr, OriginPtr) =
           getShadowOriginPtr(Addr, IRB, ShadowTy, Alignment, /*isStore*/ false);
-      setShadow(&I, IRB.CreateMaskedLoad(ShadowPtr, Alignment, Mask,
+      setShadow(&I, IRB.CreateMaskedLoad(ShadowTy, ShadowPtr, Alignment, Mask,
                                          getShadow(PassThru), "_msmaskedld"));
     } else {
       setShadow(&I, getCleanShadow(&I));
@@ -3505,6 +3527,11 @@ struct MemorySanitizerVisitor : public InstVisitor<MemorySanitizerVisitor> {
     case Intrinsic::x86_sse2_max_sd:
     case Intrinsic::x86_sse2_min_sd:
       handleBinarySdIntrinsic(I);
+      break;
+
+    case Intrinsic::fshl:
+    case Intrinsic::fshr:
+      handleFunnelShift(I);
       break;
 
     case Intrinsic::is_constant:
@@ -4049,8 +4076,7 @@ struct MemorySanitizerVisitor : public InstVisitor<MemorySanitizerVisitor> {
         NumRetOutputs = 1;
     }
     InlineAsm::ConstraintInfoVector Constraints = IA->ParseConstraints();
-    for (size_t i = 0, n = Constraints.size(); i < n; i++) {
-      InlineAsm::ConstraintInfo Info = Constraints[i];
+    for (const InlineAsm::ConstraintInfo &Info : Constraints) {
       switch (Info.Type) {
       case InlineAsm::isOutput:
         NumOutputs++;
@@ -5028,7 +5054,7 @@ struct VarArgSystemZHelper : public VarArgHelper {
   void visitCallBase(CallBase &CB, IRBuilder<> &IRB) override {
     bool IsSoftFloatABI = CB.getCalledFunction()
                               ->getFnAttribute("use-soft-float")
-                              .getValueAsString() == "true";
+                              .getValueAsBool();
     unsigned GpOffset = SystemZGpOffset;
     unsigned FpOffset = SystemZFpOffset;
     unsigned VrIndex = 0;

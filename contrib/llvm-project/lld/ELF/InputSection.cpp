@@ -540,8 +540,7 @@ static uint32_t getARMUndefinedRelativeWeakVA(RelType type, uint32_t a,
 }
 
 // The comment above getARMUndefinedRelativeWeakVA applies to this function.
-static uint64_t getAArch64UndefinedRelativeWeakVA(uint64_t type, uint64_t a,
-                                                  uint64_t p) {
+static uint64_t getAArch64UndefinedRelativeWeakVA(uint64_t type, uint64_t p) {
   switch (type) {
   // Unresolved branch relocations to weak references resolve to next
   // instruction, this is 4 bytes on from P.
@@ -549,7 +548,7 @@ static uint64_t getAArch64UndefinedRelativeWeakVA(uint64_t type, uint64_t a,
   case R_AARCH64_CONDBR19:
   case R_AARCH64_JUMP26:
   case R_AARCH64_TSTBR14:
-    return p + 4 + a;
+    return p + 4;
   // Unresolved non branch pc-relative relocations
   case R_AARCH64_PREL16:
   case R_AARCH64_PREL32:
@@ -557,9 +556,23 @@ static uint64_t getAArch64UndefinedRelativeWeakVA(uint64_t type, uint64_t a,
   case R_AARCH64_ADR_PREL_LO21:
   case R_AARCH64_LD_PREL_LO19:
   case R_AARCH64_PLT32:
-    return p + a;
+    return p;
   }
   llvm_unreachable("AArch64 pc-relative relocation expected\n");
+}
+
+static uint64_t getRISCVUndefinedRelativeWeakVA(uint64_t type, uint64_t p) {
+  switch (type) {
+  case R_RISCV_BRANCH:
+  case R_RISCV_JAL:
+  case R_RISCV_CALL:
+  case R_RISCV_CALL_PLT:
+  case R_RISCV_RVC_BRANCH:
+  case R_RISCV_RVC_JUMP:
+    return p;
+  default:
+    return 0;
+  }
 }
 
 // ARM SBREL relocations are of the form S + A - B where B is the static base
@@ -758,14 +771,18 @@ uint64_t InputSectionBase::getRelocTargetVA(const InputFile *file, RelType type,
       // Some PC relative ARM (Thumb) relocations align down the place.
       p = p & 0xfffffffc;
     if (sym.isUndefWeak()) {
-      // On ARM and AArch64 a branch to an undefined weak resolves to the
-      // next instruction, otherwise the place.
+      // On ARM and AArch64 a branch to an undefined weak resolves to the next
+      // instruction, otherwise the place. On RISCV, resolve an undefined weak
+      // to the same instruction to cause an infinite loop (making the user
+      // aware of the issue) while ensuring no overflow.
       if (config->emachine == EM_ARM)
         dest = getARMUndefinedRelativeWeakVA(type, a, p);
       else if (config->emachine == EM_AARCH64)
-        dest = getAArch64UndefinedRelativeWeakVA(type, a, p);
+        dest = getAArch64UndefinedRelativeWeakVA(type, p) + a;
       else if (config->emachine == EM_PPC)
         dest = p;
+      else if (config->emachine == EM_RISCV)
+        dest = getRISCVUndefinedRelativeWeakVA(type, p) + a;
       else
         dest = sym.getVA(a);
     } else {
@@ -832,7 +849,7 @@ uint64_t InputSectionBase::getRelocTargetVA(const InputFile *file, RelType type,
   case R_TLSGD_GOT:
     return in.got->getGlobalDynOffset(sym) + a;
   case R_TLSGD_GOTPLT:
-    return in.got->getVA() + in.got->getGlobalDynOffset(sym) + a - in.gotPlt->getVA();
+    return in.got->getGlobalDynAddr(sym) + a - in.gotPlt->getVA();
   case R_TLSGD_PC:
     return in.got->getGlobalDynAddr(sym) + a - p;
   case R_TLSLD_GOTPLT:
@@ -1319,6 +1336,11 @@ template <class ELFT> void EhInputSection::split() {
 
 template <class ELFT, class RelTy>
 void EhInputSection::split(ArrayRef<RelTy> rels) {
+  // getReloc expects the relocations to be sorted by r_offset. See the comment
+  // in scanRelocs.
+  SmallVector<RelTy, 0> storage;
+  rels = sortRels(rels, storage);
+
   unsigned relI = 0;
   for (size_t off = 0, end = data().size(); off != end;) {
     size_t size = readEhRecordSize(this, off);
@@ -1422,8 +1444,7 @@ SectionPiece *MergeInputSection::getSectionPiece(uint64_t offset) {
 uint64_t MergeInputSection::getParentOffset(uint64_t offset) const {
   // If Offset is not at beginning of a section piece, it is not in the map.
   // In that case we need to search from the original section piece vector.
-  const SectionPiece &piece =
-      *(const_cast<MergeInputSection *>(this)->getSectionPiece (offset));
+  const SectionPiece &piece = *getSectionPiece(offset);
   uint64_t addend = offset - piece.inputOff;
   return piece.outputOff + addend;
 }

@@ -79,7 +79,23 @@ class UnresolvedSetImpl;
 class VarTemplateDecl;
 
 /// The top declaration context.
-class TranslationUnitDecl : public Decl, public DeclContext {
+class TranslationUnitDecl : public Decl,
+                            public DeclContext,
+                            public Redeclarable<TranslationUnitDecl> {
+  using redeclarable_base = Redeclarable<TranslationUnitDecl>;
+
+  TranslationUnitDecl *getNextRedeclarationImpl() override {
+    return getNextRedeclaration();
+  }
+
+  TranslationUnitDecl *getPreviousDeclImpl() override {
+    return getPreviousDecl();
+  }
+
+  TranslationUnitDecl *getMostRecentDeclImpl() override {
+    return getMostRecentDecl();
+  }
+
   ASTContext &Ctx;
 
   /// The (most recently entered) anonymous namespace for this
@@ -91,6 +107,16 @@ class TranslationUnitDecl : public Decl, public DeclContext {
   virtual void anchor();
 
 public:
+  using redecl_range = redeclarable_base::redecl_range;
+  using redecl_iterator = redeclarable_base::redecl_iterator;
+
+  using redeclarable_base::getMostRecentDecl;
+  using redeclarable_base::getPreviousDecl;
+  using redeclarable_base::isFirstDecl;
+  using redeclarable_base::redecls;
+  using redeclarable_base::redecls_begin;
+  using redeclarable_base::redecls_end;
+
   ASTContext &getASTContext() const { return Ctx; }
 
   NamespaceDecl *getAnonymousNamespace() const { return AnonymousNamespace; }
@@ -356,6 +382,10 @@ public:
   /// a C++ class.
   bool isCXXInstanceMember() const;
 
+  /// Determine if the declaration obeys the reserved identifier rules of the
+  /// given language.
+  ReservedIdentifierStatus isReserved(const LangOptions &LangOpts) const;
+
   /// Determine what kind of linkage this entity has.
   ///
   /// This is not the linkage as defined by the standard or the codegen notion
@@ -577,6 +607,16 @@ public:
   /// Set whether this is an inline namespace declaration.
   void setInline(bool Inline) {
     AnonOrFirstNamespaceAndInline.setInt(Inline);
+  }
+
+  /// Returns true if the inline qualifier for \c Name is redundant.
+  bool isRedundantInlineQualifierFor(DeclarationName Name) const {
+    if (!isInline())
+      return false;
+    auto X = lookup(Name);
+    auto Y = getParent()->lookup(Name);
+    return std::distance(X.begin(), X.end()) ==
+      std::distance(Y.begin(), Y.end());
   }
 
   /// Get the original (first) namespace declaration.
@@ -1476,6 +1516,9 @@ public:
   void setEscapingByref() {
     NonParmVarDeclBits.EscapingByref = true;
   }
+
+  /// Determines if this variable's alignment is dependent.
+  bool hasDependentAlignment() const;
 
   /// Retrieve the variable declaration from which this variable could
   /// be instantiated, if it is an instantiation (rather than a non-template).

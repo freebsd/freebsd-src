@@ -29,13 +29,14 @@
 #include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/CodeGen/MachineJumpTableInfo.h"
 #include "llvm/CodeGen/MachineMemOperand.h"
+#include "llvm/CodeGen/MachineModuleSlotTracker.h"
 #include "llvm/CodeGen/MachineOperand.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/PseudoSourceValue.h"
+#include "llvm/CodeGen/TargetFrameLowering.h"
 #include "llvm/CodeGen/TargetInstrInfo.h"
 #include "llvm/CodeGen/TargetRegisterInfo.h"
 #include "llvm/CodeGen/TargetSubtargetInfo.h"
-#include "llvm/CodeGen/TargetFrameLowering.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DebugInfo.h"
@@ -135,6 +136,9 @@ public:
   void convertCallSiteObjects(yaml::MachineFunction &YMF,
                               const MachineFunction &MF,
                               ModuleSlotTracker &MST);
+  void convertMachineMetadataNodes(yaml::MachineFunction &YMF,
+                                   const MachineFunction &MF,
+                                   MachineModuleSlotTracker &MST);
 
 private:
   void initRegisterMaskIds(const MachineFunction &MF);
@@ -215,15 +219,19 @@ void MIRPrinter::print(const MachineFunction &MF) {
       MachineFunctionProperties::Property::FailedISel);
 
   convert(YamlMF, MF.getRegInfo(), MF.getSubtarget().getRegisterInfo());
-  ModuleSlotTracker MST(MF.getFunction().getParent());
+  MachineModuleSlotTracker MST(&MF);
   MST.incorporateFunction(MF.getFunction());
   convert(MST, YamlMF.FrameInfo, MF.getFrameInfo());
   convertStackObjects(YamlMF, MF, MST);
   convertCallSiteObjects(YamlMF, MF, MST);
-  for (auto &Sub : MF.DebugValueSubstitutions)
-    YamlMF.DebugValueSubstitutions.push_back({Sub.first.first, Sub.first.second,
-                                              Sub.second.first,
-                                              Sub.second.second});
+  for (const auto &Sub : MF.DebugValueSubstitutions) {
+    const auto &SubSrc = Sub.Src;
+    const auto &SubDest = Sub.Dest;
+    YamlMF.DebugValueSubstitutions.push_back({SubSrc.first, SubSrc.second,
+                                              SubDest.first,
+                                              SubDest.second,
+                                              Sub.Subreg});
+  }
   if (const auto *ConstantPool = MF.getConstantPool())
     convert(YamlMF, *ConstantPool);
   if (const auto *JumpTableInfo = MF.getJumpTableInfo())
@@ -243,6 +251,10 @@ void MIRPrinter::print(const MachineFunction &MF) {
     IsNewlineNeeded = true;
   }
   StrOS.flush();
+  // Convert machine metadata collected during the print of the machine
+  // function.
+  convertMachineMetadataNodes(YamlMF, MF, MST);
+
   yaml::Output Out(OS);
   if (!SimplifyMIR)
       Out.setWriteDefaultValues(true);
@@ -351,6 +363,7 @@ void MIRPrinter::convert(ModuleSlotTracker &MST,
   YamlMFI.HasOpaqueSPAdjustment = MFI.hasOpaqueSPAdjustment();
   YamlMFI.HasVAStart = MFI.hasVAStart();
   YamlMFI.HasMustTailInVarArgFunc = MFI.hasMustTailInVarArgFunc();
+  YamlMFI.HasTailCall = MFI.hasTailCall();
   YamlMFI.LocalFrameSize = MFI.getLocalFrameSize();
   if (MFI.getSavePoint()) {
     raw_string_ostream StrOS(YamlMFI.SavePoint.Value);
@@ -522,6 +535,19 @@ void MIRPrinter::convertCallSiteObjects(yaml::MachineFunction &YMF,
                  return A.CallLocation.Offset < B.CallLocation.Offset;
                return A.CallLocation.BlockNum < B.CallLocation.BlockNum;
              });
+}
+
+void MIRPrinter::convertMachineMetadataNodes(yaml::MachineFunction &YMF,
+                                             const MachineFunction &MF,
+                                             MachineModuleSlotTracker &MST) {
+  MachineModuleSlotTracker::MachineMDNodeListType MDList;
+  MST.collectMachineMDNodes(MDList);
+  for (auto &MD : MDList) {
+    std::string NS;
+    raw_string_ostream StrOS(NS);
+    MD.second->print(StrOS, MST, MF.getFunction().getParent());
+    YMF.MachineMetadataNodes.push_back(StrOS.str());
+  }
 }
 
 void MIRPrinter::convert(yaml::MachineFunction &MF,

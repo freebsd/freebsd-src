@@ -687,8 +687,7 @@ public:
 
   bool getExactInverse(APFloat *inv) const;
 
-  friend int ilogb(const DoubleAPFloat &Arg);
-  friend DoubleAPFloat scalbn(DoubleAPFloat X, int Exp, roundingMode);
+  friend DoubleAPFloat scalbn(const DoubleAPFloat &X, int Exp, roundingMode);
   friend DoubleAPFloat frexp(const DoubleAPFloat &X, int &Exp, roundingMode);
   friend hash_code hash_value(const DoubleAPFloat &Arg);
 };
@@ -1133,8 +1132,20 @@ public:
   APInt bitcastToAPInt() const {
     APFLOAT_DISPATCH_ON_SEMANTICS(bitcastToAPInt());
   }
-  double convertToDouble() const { return getIEEE().convertToDouble(); }
-  float convertToFloat() const { return getIEEE().convertToFloat(); }
+
+  /// Converts this APFloat to host double value.
+  ///
+  /// \pre The APFloat must be built using semantics, that can be represented by
+  /// the host double type without loss of precision. It can be IEEEdouble and
+  /// shorter semantics, like IEEEsingle and others.
+  double convertToDouble() const;
+
+  /// Converts this APFloat to host float value.
+  ///
+  /// \pre The APFloat must be built using semantics, that can be represented by
+  /// the host float type without loss of precision. It can be IEEEsingle and
+  /// shorter semantics, like IEEEhalf.
+  float convertToFloat() const;
 
   bool operator==(const APFloat &RHS) const { return compare(RHS) == cmpEqual; }
 
@@ -1219,6 +1230,7 @@ public:
   bool isSmallest() const { APFLOAT_DISPATCH_ON_SEMANTICS(isSmallest()); }
   bool isLargest() const { APFLOAT_DISPATCH_ON_SEMANTICS(isLargest()); }
   bool isInteger() const { APFLOAT_DISPATCH_ON_SEMANTICS(isInteger()); }
+  bool isIEEE() const { return usesLayout<IEEEFloat>(getSemantics()); }
 
   APFloat &operator=(const APFloat &RHS) = default;
   APFloat &operator=(APFloat &&RHS) = default;

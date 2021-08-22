@@ -17,6 +17,7 @@
 #include "llvm/CodeGen/GlobalISel/GISelChangeObserver.h"
 #include "llvm/CodeGen/GlobalISel/LegalizerHelper.h"
 #include "llvm/CodeGen/GlobalISel/LegalizerInfo.h"
+#include "llvm/CodeGen/MachineRegisterInfo.h"
 
 namespace llvm {
 
@@ -34,6 +35,8 @@ public:
                          MachineInstr &MI) const override;
 
 private:
+  bool legalizeBSwap(MachineInstr &MI, MachineRegisterInfo &MRI,
+                     MachineIRBuilder &MIRBuilder) const;
   bool legalizeVaArg(MachineInstr &MI, MachineRegisterInfo &MRI,
                      MachineIRBuilder &MIRBuilder) const;
   bool legalizeLoadStore(MachineInstr &MI, MachineRegisterInfo &MRI,
@@ -47,6 +50,15 @@ private:
                                   MachineIRBuilder &MIRBuilder,
                                   GISelChangeObserver &Observer) const;
   bool legalizeVectorTrunc(MachineInstr &MI, LegalizerHelper &Helper) const;
+  bool legalizeBitfieldExtract(MachineInstr &MI, MachineRegisterInfo &MRI,
+                               LegalizerHelper &Helper) const;
+  bool legalizeRotate(MachineInstr &MI, MachineRegisterInfo &MRI,
+                      LegalizerHelper &Helper) const;
+  bool legalizeCTPOP(MachineInstr &MI, MachineRegisterInfo &MRI,
+                     LegalizerHelper &Helper) const;
+  bool legalizeAtomicCmpxchg128(MachineInstr &MI, MachineRegisterInfo &MRI,
+                                LegalizerHelper &Helper) const;
+  bool legalizeCTTZ(MachineInstr &MI, LegalizerHelper &Helper) const;
   const AArch64Subtarget *ST;
 };
 } // End llvm namespace.

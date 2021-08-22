@@ -32,12 +32,15 @@ namespace coff {
 SectionChunk::SectionChunk(ObjFile *f, const coff_section *h)
     : Chunk(SectionKind), file(f), header(h), repl(this) {
   // Initialize relocs.
-  setRelocs(file->getCOFFObj()->getRelocations(header));
+  if (file)
+    setRelocs(file->getCOFFObj()->getRelocations(header));
 
   // Initialize sectionName.
   StringRef sectionName;
-  if (Expected<StringRef> e = file->getCOFFObj()->getSectionName(header))
-    sectionName = *e;
+  if (file) {
+    if (Expected<StringRef> e = file->getCOFFObj()->getSectionName(header))
+      sectionName = *e;
+  }
   sectionNameData = sectionName.data();
   sectionNameSize = sectionName.size();
 
@@ -49,7 +52,10 @@ SectionChunk::SectionChunk(ObjFile *f, const coff_section *h)
   // enabled, treat non-comdat sections as roots. Generally optimized object
   // files will be built with -ffunction-sections or /Gy, so most things worth
   // stripping will be in a comdat.
-  live = !config->doGC || !isCOMDAT();
+  if (config)
+    live = !config->doGC || !isCOMDAT();
+  else
+    live = true;
 }
 
 // SectionChunk is one of the most frequently allocated classes, so it is
@@ -454,11 +460,21 @@ void SectionChunk::writeAndRelocateSubsection(ArrayRef<uint8_t> sec,
 }
 
 void SectionChunk::addAssociative(SectionChunk *child) {
-  // Insert this child at the head of the list.
+  // Insert the child section into the list of associated children. Keep the
+  // list ordered by section name so that ICF does not depend on section order.
   assert(child->assocChildren == nullptr &&
          "associated sections cannot have their own associated children");
-  child->assocChildren = assocChildren;
-  assocChildren = child;
+  SectionChunk *prev = this;
+  SectionChunk *next = assocChildren;
+  for (; next != nullptr; prev = next, next = next->assocChildren) {
+    if (next->getSectionName() <= child->getSectionName())
+      break;
+  }
+
+  // Insert child between prev and next.
+  assert(prev->assocChildren == next);
+  prev->assocChildren = child;
+  child->assocChildren = next;
 }
 
 static uint8_t getBaserelType(const coff_relocation &rel) {
@@ -466,6 +482,8 @@ static uint8_t getBaserelType(const coff_relocation &rel) {
   case AMD64:
     if (rel.Type == IMAGE_REL_AMD64_ADDR64)
       return IMAGE_REL_BASED_DIR64;
+    if (rel.Type == IMAGE_REL_AMD64_ADDR32)
+      return IMAGE_REL_BASED_HIGHLOW;
     return IMAGE_REL_BASED_ABSOLUTE;
   case I386:
     if (rel.Type == IMAGE_REL_I386_DIR32)
@@ -798,6 +816,27 @@ void RVATableChunk::writeTo(uint8_t *buf) const {
     begin[cnt++] = co.inputChunk->getRVA() + co.offset;
   std::sort(begin, begin + cnt);
   assert(std::unique(begin, begin + cnt) == begin + cnt &&
+         "RVA tables should be de-duplicated");
+}
+
+void RVAFlagTableChunk::writeTo(uint8_t *buf) const {
+  struct RVAFlag {
+    ulittle32_t rva;
+    uint8_t flag;
+  };
+  auto flags =
+      makeMutableArrayRef(reinterpret_cast<RVAFlag *>(buf), syms.size());
+  for (auto t : zip(syms, flags)) {
+    const auto &sym = std::get<0>(t);
+    auto &flag = std::get<1>(t);
+    flag.rva = sym.inputChunk->getRVA() + sym.offset;
+    flag.flag = 0;
+  }
+  llvm::sort(flags,
+             [](const RVAFlag &a, const RVAFlag &b) { return a.rva < b.rva; });
+  assert(llvm::unique(flags, [](const RVAFlag &a,
+                                const RVAFlag &b) { return a.rva == b.rva; }) ==
+             flags.end() &&
          "RVA tables should be de-duplicated");
 }
 

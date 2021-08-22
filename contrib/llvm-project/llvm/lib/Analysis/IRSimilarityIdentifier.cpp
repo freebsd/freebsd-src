@@ -176,8 +176,8 @@ void IRInstructionMapper::convertToUnsignedVec(
 
   if (HaveLegalRange) {
     mapToIllegalUnsigned(It, IntegerMappingForBB, InstrListForBB, true);
-    for_each(InstrListForBB,
-             [this](IRInstructionData *ID) { this->IDL->push_back(*ID); });
+    for (IRInstructionData *ID : InstrListForBB)
+      this->IDL->push_back(*ID);
     llvm::append_range(InstrList, InstrListForBB);
     llvm::append_range(IntegerMapping, IntegerMappingForBB);
   }
@@ -702,7 +702,7 @@ void IRSimilarityIdentifier::populateMapper(
 /// \param [out] CandsForRepSubstring - The vector to store the generated
 /// IRSimilarityCandidates.
 static void createCandidatesFromSuffixTree(
-    IRInstructionMapper Mapper, std::vector<IRInstructionData *> &InstrList,
+    const IRInstructionMapper& Mapper, std::vector<IRInstructionData *> &InstrList,
     std::vector<unsigned> &IntegerMapping, SuffixTree::RepeatedSubstring &RS,
     std::vector<IRSimilarityCandidate> &CandsForRepSubstring) {
 
@@ -835,8 +835,8 @@ void IRSimilarityIdentifier::findCandidates(
   // Iterate over the subsequences found by the Suffix Tree to create
   // IRSimilarityCandidates for each repeated subsequence and determine which
   // instances are structurally similar to one another.
-  for (auto It = ST.begin(), Et = ST.end(); It != Et; ++It) {
-    createCandidatesFromSuffixTree(Mapper, InstrList, IntegerMapping, *It,
+  for (SuffixTree::RepeatedSubstring &RS : ST) {
+    createCandidatesFromSuffixTree(Mapper, InstrList, IntegerMapping, RS,
                                    CandsForRepSubstring);
 
     if (CandsForRepSubstring.size() < 2)
@@ -891,7 +891,7 @@ IRSimilarityIdentifierWrapperPass::IRSimilarityIdentifierWrapperPass()
 }
 
 bool IRSimilarityIdentifierWrapperPass::doInitialization(Module &M) {
-  IRSI.reset(new IRSimilarityIdentifier(M));
+  IRSI.reset(new IRSimilarityIdentifier());
   return false;
 }
 
@@ -901,8 +901,7 @@ bool IRSimilarityIdentifierWrapperPass::doFinalization(Module &M) {
 }
 
 bool IRSimilarityIdentifierWrapperPass::runOnModule(Module &M) {
-  // All the real work is done in the constructor for the pass.
-  IRSI.reset(new IRSimilarityIdentifier(M));
+  IRSI->findSimilarity(M);
   return false;
 }
 
@@ -910,7 +909,9 @@ AnalysisKey IRSimilarityAnalysis::Key;
 IRSimilarityIdentifier IRSimilarityAnalysis::run(Module &M,
                                                ModuleAnalysisManager &) {
 
-  return IRSimilarityIdentifier(M);
+  auto IRSI = IRSimilarityIdentifier();
+  IRSI.findSimilarity(M);
+  return IRSI;
 }
 
 PreservedAnalyses
@@ -923,11 +924,16 @@ IRSimilarityAnalysisPrinterPass::run(Module &M, ModuleAnalysisManager &AM) {
        << CandVec.begin()->getLength() << ".  Found in: \n";
     for (IRSimilarityCandidate &Cand : CandVec) {
       OS << "  Function: " << Cand.front()->Inst->getFunction()->getName().str()
-         << ",  Basic Block: ";
+         << ", Basic Block: ";
       if (Cand.front()->Inst->getParent()->getName().str() == "")
-        OS << "(unnamed)\n";
+        OS << "(unnamed)";
       else
-        OS << Cand.front()->Inst->getParent()->getName().str() << "\n";
+        OS << Cand.front()->Inst->getParent()->getName().str();
+      OS << "\n    Start Instruction: ";
+      Cand.frontInstruction()->print(OS);
+      OS << "\n      End Instruction: ";
+      Cand.backInstruction()->print(OS);
+      OS << "\n";
     }
   }
 

@@ -128,7 +128,7 @@ FileManager::getDirectoryRef(StringRef DirName, bool CacheFailure) {
   // Stat("C:") does not recognize "C:" as a valid directory
   std::string DirNameStr;
   if (DirName.size() > 1 && DirName.back() == ':' &&
-      DirName.equals_lower(llvm::sys::path::root_name(DirName))) {
+      DirName.equals_insensitive(llvm::sys::path::root_name(DirName))) {
     DirNameStr = DirName.str() + '.';
     DirName = DirNameStr;
   }
@@ -384,9 +384,12 @@ FileEntryRef FileManager::getVirtualFileRef(StringRef Filename, off_t Size,
 
   // Now that all ancestors of Filename are in the cache, the
   // following call is guaranteed to find the DirectoryEntry from the
-  // cache.
-  auto DirInfo = expectedToOptional(
-      getDirectoryFromFile(*this, Filename, /*CacheFailure=*/true));
+  // cache. A virtual file can also have an empty filename, that could come
+  // from a source location preprocessor directive with an empty filename as
+  // an example, so we need to pretend it has a name to ensure a valid directory
+  // entry can be returned.
+  auto DirInfo = expectedToOptional(getDirectoryFromFile(
+      *this, Filename.empty() ? "." : Filename, /*CacheFailure=*/true));
   assert(DirInfo &&
          "The directory of a virtual file should already be in the cache.");
 
@@ -608,7 +611,7 @@ StringRef FileManager::getCanonicalName(const DirectoryEntry *Dir) {
 
   SmallString<4096> CanonicalNameBuf;
   if (!FS->getRealPath(Dir->getName(), CanonicalNameBuf))
-    CanonicalName = StringRef(CanonicalNameBuf).copy(CanonicalNameStorage);
+    CanonicalName = CanonicalNameBuf.str().copy(CanonicalNameStorage);
 
   CanonicalNames.insert({Dir, CanonicalName});
   return CanonicalName;
@@ -624,7 +627,7 @@ StringRef FileManager::getCanonicalName(const FileEntry *File) {
 
   SmallString<4096> CanonicalNameBuf;
   if (!FS->getRealPath(File->getName(), CanonicalNameBuf))
-    CanonicalName = StringRef(CanonicalNameBuf).copy(CanonicalNameStorage);
+    CanonicalName = CanonicalNameBuf.str().copy(CanonicalNameStorage);
 
   CanonicalNames.insert({File, CanonicalName});
   return CanonicalName;

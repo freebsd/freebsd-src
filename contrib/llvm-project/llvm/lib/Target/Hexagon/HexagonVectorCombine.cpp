@@ -22,12 +22,14 @@
 #include "llvm/Analysis/InstructionSimplify.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/Analysis/ValueTracking.h"
+#include "llvm/Analysis/VectorUtils.h"
 #include "llvm/CodeGen/TargetPassConfig.h"
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/Intrinsics.h"
 #include "llvm/IR/IntrinsicsHexagon.h"
+#include "llvm/IR/Metadata.h"
 #include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/KnownBits.h"
@@ -179,12 +181,13 @@ private:
 
   struct ByteSpan {
     struct Segment {
+      // Segment of a Value: 'Len' bytes starting at byte 'Begin'.
       Segment(Value *Val, int Begin, int Len)
           : Val(Val), Start(Begin), Size(Len) {}
       Segment(const Segment &Seg) = default;
-      Value *Val;
-      int Start;
-      int Size;
+      Value *Val; // Value representable as a sequence of bytes.
+      int Start;  // First byte of the value that belongs to the segment.
+      int Size;   // Number of bytes in the segment.
     };
 
     struct Block {
@@ -192,13 +195,14 @@ private:
       Block(Value *Val, int Off, int Len, int Pos)
           : Seg(Val, Off, Len), Pos(Pos) {}
       Block(const Block &Blk) = default;
-      Segment Seg;
-      int Pos;
+      Segment Seg; // Value segment.
+      int Pos;     // Position (offset) of the segment in the Block.
     };
 
     int extent() const;
     ByteSpan section(int Start, int Length) const;
     ByteSpan &shift(int Offset);
+    SmallVector<Value *, 8> values() const;
 
     int size() const { return Blocks.size(); }
     Block &operator[](int i) { return Blocks[i]; }
@@ -295,9 +299,10 @@ template <> StoreInst *isCandidate<StoreInst>(Instruction *In) {
   return getIfUnordered(dyn_cast<StoreInst>(In));
 }
 
-#if !defined(_MSC_VER) || _MSC_VER >= 1924
-// VS2017 has trouble compiling this:
+#if !defined(_MSC_VER) || _MSC_VER >= 1926
+// VS2017 and some versions of VS2019 have trouble compiling this:
 // error C2976: 'std::map': too few template arguments
+// VS 2019 16.x is known to work, except for 16.4/16.5 (MSC_VER 1924/1925)
 template <typename Pred, typename... Ts>
 void erase_if(std::map<Ts...> &map, Pred p)
 #else
@@ -352,6 +357,13 @@ auto AlignVectors::ByteSpan::shift(int Offset) -> ByteSpan & {
   for (Block &B : Blocks)
     B.Pos += Offset;
   return *this;
+}
+
+auto AlignVectors::ByteSpan::values() const -> SmallVector<Value *, 8> {
+  SmallVector<Value *, 8> Values(Blocks.size());
+  for (int i = 0, e = Blocks.size(); i != e; ++i)
+    Values[i] = Blocks[i].Seg.Val;
+  return Values;
 }
 
 auto AlignVectors::getAlignFromValue(const Value *V) const -> Align {
@@ -428,16 +440,21 @@ auto AlignVectors::createAdjustedPointer(IRBuilder<> &Builder, Value *Ptr,
     -> Value * {
   // The adjustment is in bytes, but if it's a multiple of the type size,
   // we don't need to do pointer casts.
-  Type *ElemTy = cast<PointerType>(Ptr->getType())->getElementType();
-  int ElemSize = HVC.getSizeOf(ElemTy);
-  if (Adjust % ElemSize == 0) {
-    Value *Tmp0 = Builder.CreateGEP(Ptr, HVC.getConstInt(Adjust / ElemSize));
-    return Builder.CreatePointerCast(Tmp0, ValTy->getPointerTo());
+  auto *PtrTy = cast<PointerType>(Ptr->getType());
+  if (!PtrTy->isOpaque()) {
+    Type *ElemTy = PtrTy->getElementType();
+    int ElemSize = HVC.getSizeOf(ElemTy);
+    if (Adjust % ElemSize == 0) {
+      Value *Tmp0 =
+          Builder.CreateGEP(ElemTy, Ptr, HVC.getConstInt(Adjust / ElemSize));
+      return Builder.CreatePointerCast(Tmp0, ValTy->getPointerTo());
+    }
   }
 
   PointerType *CharPtrTy = Type::getInt8PtrTy(HVC.F.getContext());
   Value *Tmp0 = Builder.CreatePointerCast(Ptr, CharPtrTy);
-  Value *Tmp1 = Builder.CreateGEP(Tmp0, HVC.getConstInt(Adjust));
+  Value *Tmp1 = Builder.CreateGEP(Type::getInt8Ty(HVC.F.getContext()), Tmp0,
+                                  HVC.getConstInt(Adjust));
   return Builder.CreatePointerCast(Tmp1, ValTy->getPointerTo());
 }
 
@@ -458,7 +475,7 @@ auto AlignVectors::createAlignedLoad(IRBuilder<> &Builder, Type *ValTy,
     return PassThru;
   if (Mask == ConstantInt::getTrue(Mask->getType()))
     return Builder.CreateAlignedLoad(ValTy, Ptr, Align(Alignment));
-  return Builder.CreateMaskedLoad(Ptr, Align(Alignment), Mask, PassThru);
+  return Builder.CreateMaskedLoad(ValTy, Ptr, Align(Alignment), Mask, PassThru);
 }
 
 auto AlignVectors::createAlignedStore(IRBuilder<> &Builder, Value *Val,
@@ -520,11 +537,6 @@ auto AlignVectors::createAddressGroups() -> bool {
   erase_if(AddrGroups, [&](auto &G) {
     return !llvm::any_of(
         G.second, [&](auto &I) { return HVC.HST.isTypeForHVX(I.ValTy); });
-  });
-  // Remove groups where everything is properly aligned.
-  erase_if(AddrGroups, [&](auto &G) {
-    return llvm::all_of(G.second,
-                        [&](auto &I) { return I.HaveAlign >= I.NeedAlign; });
   });
 
   return !AddrGroups.empty();
@@ -768,28 +780,37 @@ auto AlignVectors::realignGroup(const MoveGroup &Move) const -> bool {
 
   Type *SecTy = HVC.getByteTy(ScLen);
   int NumSectors = (VSpan.extent() + ScLen - 1) / ScLen;
+  bool DoAlign = !HVC.isZero(AlignVal);
 
   if (Move.IsLoad) {
     ByteSpan ASpan;
     auto *True = HVC.getFullValue(HVC.getBoolTy(ScLen));
     auto *Undef = UndefValue::get(SecTy);
 
-    for (int i = 0; i != NumSectors + 1; ++i) {
+    for (int i = 0; i != NumSectors + DoAlign; ++i) {
       Value *Ptr = createAdjustedPointer(Builder, AlignAddr, SecTy, i * ScLen);
       // FIXME: generate a predicated load?
       Value *Load = createAlignedLoad(Builder, SecTy, Ptr, ScLen, True, Undef);
+      // If vector shifting is potentially needed, accumulate metadata
+      // from source sections of twice the load width.
+      int Start = (i - DoAlign) * ScLen;
+      int Width = (1 + DoAlign) * ScLen;
+      propagateMetadata(cast<Instruction>(Load),
+                        VSpan.section(Start, Width).values());
       ASpan.Blocks.emplace_back(Load, ScLen, i * ScLen);
     }
 
-    for (int j = 0; j != NumSectors; ++j) {
-      ASpan[j].Seg.Val = HVC.vralignb(Builder, ASpan[j].Seg.Val,
-                                      ASpan[j + 1].Seg.Val, AlignVal);
+    if (DoAlign) {
+      for (int j = 0; j != NumSectors; ++j) {
+        ASpan[j].Seg.Val = HVC.vralignb(Builder, ASpan[j].Seg.Val,
+                                        ASpan[j + 1].Seg.Val, AlignVal);
+      }
     }
 
     for (ByteSpan::Block &B : VSpan) {
-      ByteSpan Section = ASpan.section(B.Pos, B.Seg.Size).shift(-B.Pos);
+      ByteSpan ASection = ASpan.section(B.Pos, B.Seg.Size).shift(-B.Pos);
       Value *Accum = UndefValue::get(HVC.getByteTy(B.Seg.Size));
-      for (ByteSpan::Block &S : Section) {
+      for (ByteSpan::Block &S : ASection) {
         Value *Pay = HVC.vbytes(Builder, getPayload(S.Seg.Val));
         Accum =
             HVC.insertb(Builder, Accum, Pay, S.Seg.Start, S.Seg.Size, S.Pos);
@@ -822,13 +843,13 @@ auto AlignVectors::realignGroup(const MoveGroup &Move) const -> bool {
 
     // Create an extra "undef" sector at the beginning and at the end.
     // They will be used as the left/right filler in the vlalign step.
-    for (int i = -1; i != NumSectors + 1; ++i) {
+    for (int i = (DoAlign ? -1 : 0); i != NumSectors + DoAlign; ++i) {
       // For stores, the size of each section is an aligned vector length.
       // Adjust the store offsets relative to the section start offset.
-      ByteSpan Section = VSpan.section(i * ScLen, ScLen).shift(-i * ScLen);
+      ByteSpan VSection = VSpan.section(i * ScLen, ScLen).shift(-i * ScLen);
       Value *AccumV = UndefValue::get(SecTy);
       Value *AccumM = HVC.getNullValue(SecTy);
-      for (ByteSpan::Block &S : Section) {
+      for (ByteSpan::Block &S : VSection) {
         Value *Pay = getPayload(S.Seg.Val);
         Value *Mask = HVC.rescale(Builder, MakeVec(Builder, getMask(S.Seg.Val)),
                                   Pay->getType(), HVC.getByteTy());
@@ -842,19 +863,29 @@ auto AlignVectors::realignGroup(const MoveGroup &Move) const -> bool {
     }
 
     // vlalign
-    for (int j = 1; j != NumSectors + 2; ++j) {
-      ASpanV[j - 1].Seg.Val = HVC.vlalignb(Builder, ASpanV[j - 1].Seg.Val,
-                                           ASpanV[j].Seg.Val, AlignVal);
-      ASpanM[j - 1].Seg.Val = HVC.vlalignb(Builder, ASpanM[j - 1].Seg.Val,
-                                           ASpanM[j].Seg.Val, AlignVal);
+    if (DoAlign) {
+      for (int j = 1; j != NumSectors + 2; ++j) {
+        ASpanV[j - 1].Seg.Val = HVC.vlalignb(Builder, ASpanV[j - 1].Seg.Val,
+                                             ASpanV[j].Seg.Val, AlignVal);
+        ASpanM[j - 1].Seg.Val = HVC.vlalignb(Builder, ASpanM[j - 1].Seg.Val,
+                                             ASpanM[j].Seg.Val, AlignVal);
+      }
     }
 
-    for (int i = 0; i != NumSectors + 1; ++i) {
+    for (int i = 0; i != NumSectors + DoAlign; ++i) {
       Value *Ptr = createAdjustedPointer(Builder, AlignAddr, SecTy, i * ScLen);
       Value *Val = ASpanV[i].Seg.Val;
       Value *Mask = ASpanM[i].Seg.Val; // bytes
-      if (!HVC.isUndef(Val) && !HVC.isZero(Mask))
-        createAlignedStore(Builder, Val, Ptr, ScLen, HVC.vlsb(Builder, Mask));
+      if (!HVC.isUndef(Val) && !HVC.isZero(Mask)) {
+        Value *Store = createAlignedStore(Builder, Val, Ptr, ScLen,
+                                          HVC.vlsb(Builder, Mask));
+        // If vector shifting is potentially needed, accumulate metadata
+        // from source sections of twice the store width.
+        int Start = (i - DoAlign) * ScLen;
+        int Width = (1 + DoAlign) * ScLen;
+        propagateMetadata(cast<Instruction>(Store),
+                          VSpan.section(Start, Width).values());
+      }
     }
   }
 
@@ -1295,8 +1326,7 @@ auto HexagonVectorCombine::calculatePointerDifference(Value *Ptr0,
     return None;
 
   Builder B(Gep0->getParent());
-  Value *BasePtr = Gep0->getPointerOperand();
-  int Scale = DL.getTypeStoreSize(BasePtr->getType()->getPointerElementType());
+  int Scale = DL.getTypeStoreSize(Gep0->getSourceElementType());
 
   // FIXME: for now only check GEPs with a single index.
   if (Gep0->getNumOperands() != 2 || Gep1->getNumOperands() != 2)
@@ -1382,6 +1412,11 @@ auto HexagonVectorCombine::isSafeToMoveBeforeInBB(const Instruction &In,
     const Instruction &I = *It;
     if (llvm::is_contained(Ignore, &I))
       continue;
+    // assume intrinsic can be ignored
+    if (auto *II = dyn_cast<IntrinsicInst>(&I)) {
+      if (II->getIntrinsicID() == Intrinsic::assume)
+        continue;
+    }
     // Parts based on isSafeToMoveBefore from CoveMoverUtils.cpp.
     if (I.mayThrow())
       return false;
@@ -1457,6 +1492,8 @@ public:
   }
 
   bool runOnFunction(Function &F) override {
+    if (skipFunction(F))
+      return false;
     AliasAnalysis &AA = getAnalysis<AAResultsWrapperPass>().getAAResults();
     AssumptionCache &AC =
         getAnalysis<AssumptionCacheTracker>().getAssumptionCache(F);

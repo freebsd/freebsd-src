@@ -57,7 +57,9 @@ public:
     while (IndentForLevel.size() <= Line.Level)
       IndentForLevel.push_back(-1);
     if (Line.InPPDirective) {
-      Indent = Line.Level * Style.IndentWidth + AdditionalIndent;
+      unsigned IndentWidth =
+          (Style.PPIndentWidth >= 0) ? Style.PPIndentWidth : Style.IndentWidth;
+      Indent = Line.Level * IndentWidth + AdditionalIndent;
     } else {
       IndentForLevel.resize(Line.Level + 1);
       Indent = getIndent(IndentForLevel, Line.Level);
@@ -101,8 +103,13 @@ private:
     if (RootToken.isAccessSpecifier(false) ||
         RootToken.isObjCAccessSpecifier() ||
         (RootToken.isOneOf(Keywords.kw_signals, Keywords.kw_qsignals) &&
-         RootToken.Next && RootToken.Next->is(tok::colon)))
-      return Style.AccessModifierOffset;
+         RootToken.Next && RootToken.Next->is(tok::colon))) {
+      // The AccessModifierOffset may be overriden by IndentAccessModifiers,
+      // in which case we take a negative value of the IndentWidth to simulate
+      // the upper indent level.
+      return Style.IndentAccessModifiers ? -Style.IndentWidth
+                                         : Style.AccessModifierOffset;
+    }
     return 0;
   }
 
@@ -416,7 +423,17 @@ private:
       }
       return MergedLines;
     }
-    if (TheLine->First->is(tok::kw_if)) {
+    auto IsElseLine = [&TheLine]() -> bool {
+      const FormatToken *First = TheLine->First;
+      if (First->is(tok::kw_else))
+        return true;
+
+      return First->is(tok::r_brace) && First->Next &&
+             First->Next->is(tok::kw_else);
+    };
+    if (TheLine->First->is(tok::kw_if) ||
+        (IsElseLine() && (Style.AllowShortIfStatementsOnASingleLine ==
+                          FormatStyle::SIS_AllIfsAndElse))) {
       return Style.AllowShortIfStatementsOnASingleLine
                  ? tryMergeSimpleControlStatement(I, E, Limit)
                  : 0;
@@ -466,7 +483,8 @@ private:
       return 0;
     Limit = limitConsideringMacros(I + 1, E, Limit);
     AnnotatedLine &Line = **I;
-    if (!Line.First->is(tok::kw_do) && Line.Last->isNot(tok::r_paren))
+    if (!Line.First->is(tok::kw_do) && !Line.First->is(tok::kw_else) &&
+        !Line.Last->is(tok::kw_else) && Line.Last->isNot(tok::r_paren))
       return 0;
     // Only merge do while if do is the only statement on the line.
     if (Line.First->is(tok::kw_do) && !Line.Last->is(tok::kw_do))
@@ -477,7 +495,8 @@ private:
                              TT_LineComment))
       return 0;
     // Only inline simple if's (no nested if or else), unless specified
-    if (Style.AllowShortIfStatementsOnASingleLine != FormatStyle::SIS_Always) {
+    if (Style.AllowShortIfStatementsOnASingleLine ==
+        FormatStyle::SIS_WithoutElse) {
       if (I + 2 != E && Line.startsWith(tok::kw_if) &&
           I[2]->First->is(tok::kw_else))
         return 0;
@@ -804,8 +823,20 @@ protected:
       return true;
 
     if (NewLine) {
-      int AdditionalIndent = State.Stack.back().Indent -
-                             Previous.Children[0]->Level * Style.IndentWidth;
+      const ParenState &P = State.Stack.back();
+
+      int AdditionalIndent =
+          P.Indent - Previous.Children[0]->Level * Style.IndentWidth;
+
+      if (Style.LambdaBodyIndentation == FormatStyle::LBI_OuterScope &&
+          P.NestedBlockIndent == P.LastSpace) {
+        if (State.NextToken->MatchingParen &&
+            State.NextToken->MatchingParen->is(TT_LambdaLBrace)) {
+          State.Stack.pop_back();
+        }
+        if (LBrace->is(TT_LambdaLBrace))
+          AdditionalIndent = 0;
+      }
 
       Penalty +=
           BlockFormatter->format(Previous.Children, DryRun, AdditionalIndent,
@@ -1103,6 +1134,7 @@ unsigned UnwrappedLineFormatter::format(
   unsigned Penalty = 0;
   LevelIndentTracker IndentTracker(Style, Keywords, Lines[0]->Level,
                                    AdditionalIndent);
+  const AnnotatedLine *PrevPrevLine = nullptr;
   const AnnotatedLine *PreviousLine = nullptr;
   const AnnotatedLine *NextLine = nullptr;
 
@@ -1141,7 +1173,7 @@ unsigned UnwrappedLineFormatter::format(
     if (ShouldFormat && TheLine.Type != LT_Invalid) {
       if (!DryRun) {
         bool LastLine = Line->First->is(tok::eof);
-        formatFirstToken(TheLine, PreviousLine, Lines, Indent,
+        formatFirstToken(TheLine, PreviousLine, PrevPrevLine, Lines, Indent,
                          LastLine ? LastStartColumn : NextStartColumn + Indent);
       }
 
@@ -1187,7 +1219,7 @@ unsigned UnwrappedLineFormatter::format(
                               TheLine.LeadingEmptyLinesAffected);
         // Format the first token.
         if (ReformatLeadingWhitespace)
-          formatFirstToken(TheLine, PreviousLine, Lines,
+          formatFirstToken(TheLine, PreviousLine, PrevPrevLine, Lines,
                            TheLine.First->OriginalColumn,
                            TheLine.First->OriginalColumn);
         else
@@ -1203,6 +1235,7 @@ unsigned UnwrappedLineFormatter::format(
     }
     if (!DryRun)
       markFinalized(TheLine.First);
+    PrevPrevLine = PreviousLine;
     PreviousLine = &TheLine;
   }
   PenaltyCache[CacheKey] = Penalty;
@@ -1211,6 +1244,7 @@ unsigned UnwrappedLineFormatter::format(
 
 void UnwrappedLineFormatter::formatFirstToken(
     const AnnotatedLine &Line, const AnnotatedLine *PreviousLine,
+    const AnnotatedLine *PrevPrevLine,
     const SmallVectorImpl<AnnotatedLine *> &Lines, unsigned Indent,
     unsigned NewlineIndent) {
   FormatToken &RootToken = *Line.First;
@@ -1242,6 +1276,8 @@ void UnwrappedLineFormatter::formatFirstToken(
   if (!Style.KeepEmptyLinesAtTheStartOfBlocks && PreviousLine &&
       PreviousLine->Last->is(tok::l_brace) &&
       !PreviousLine->startsWithNamespace() &&
+      !(PrevPrevLine && PrevPrevLine->startsWithNamespace() &&
+        PreviousLine->startsWith(tok::l_brace)) &&
       !startsExternCBlock(*PreviousLine))
     Newlines = 1;
 
@@ -1249,16 +1285,17 @@ void UnwrappedLineFormatter::formatFirstToken(
   if (PreviousLine && RootToken.isAccessSpecifier()) {
     switch (Style.EmptyLineBeforeAccessModifier) {
     case FormatStyle::ELBAMS_Never:
-      if (RootToken.NewlinesBefore > 1)
+      if (Newlines > 1)
         Newlines = 1;
       break;
     case FormatStyle::ELBAMS_Leave:
       Newlines = std::max(RootToken.NewlinesBefore, 1u);
       break;
     case FormatStyle::ELBAMS_LogicalBlock:
-      if (PreviousLine->Last->isOneOf(tok::semi, tok::r_brace) &&
-          RootToken.NewlinesBefore <= 1)
+      if (PreviousLine->Last->isOneOf(tok::semi, tok::r_brace) && Newlines <= 1)
         Newlines = 2;
+      if (PreviousLine->First->isAccessSpecifier())
+        Newlines = 1; // Previous is an access modifier remove all new lines.
       break;
     case FormatStyle::ELBAMS_Always: {
       const FormatToken *previousToken;
@@ -1266,17 +1303,34 @@ void UnwrappedLineFormatter::formatFirstToken(
         previousToken = PreviousLine->Last->getPreviousNonComment();
       else
         previousToken = PreviousLine->Last;
-      if ((!previousToken || !previousToken->is(tok::l_brace)) &&
-          RootToken.NewlinesBefore <= 1)
+      if ((!previousToken || !previousToken->is(tok::l_brace)) && Newlines <= 1)
         Newlines = 2;
     } break;
     }
   }
 
-  // Remove empty lines after access specifiers.
+  // Insert or remove empty line after access specifiers.
   if (PreviousLine && PreviousLine->First->isAccessSpecifier() &&
-      (!PreviousLine->InPPDirective || !RootToken.HasUnescapedNewline))
-    Newlines = std::min(1u, Newlines);
+      (!PreviousLine->InPPDirective || !RootToken.HasUnescapedNewline)) {
+    // EmptyLineBeforeAccessModifier is handling the case when two access
+    // modifiers follow each other.
+    if (!RootToken.isAccessSpecifier()) {
+      switch (Style.EmptyLineAfterAccessModifier) {
+      case FormatStyle::ELAAMS_Never:
+        Newlines = 1;
+        break;
+      case FormatStyle::ELAAMS_Leave:
+        Newlines = std::max(Newlines, 1u);
+        break;
+      case FormatStyle::ELAAMS_Always:
+        if (RootToken.is(tok::r_brace)) // Do not add at end of class.
+          Newlines = 1u;
+        else
+          Newlines = std::max(Newlines, 2u);
+        break;
+      }
+    }
+  }
 
   if (Newlines)
     Indent = NewlineIndent;

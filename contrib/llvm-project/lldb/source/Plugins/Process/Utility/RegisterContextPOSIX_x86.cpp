@@ -6,9 +6,9 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <cerrno>
+#include <cstdint>
 #include <cstring>
-#include <errno.h>
-#include <stdint.h>
 
 #include "lldb/Target/Process.h"
 #include "lldb/Target/Target.h"
@@ -448,7 +448,7 @@ RegisterContextPOSIX_x86::RegisterContextPOSIX_x86(
   m_fpr_type = eNotValid;
 }
 
-RegisterContextPOSIX_x86::~RegisterContextPOSIX_x86() {}
+RegisterContextPOSIX_x86::~RegisterContextPOSIX_x86() = default;
 
 RegisterContextPOSIX_x86::FPRType RegisterContextPOSIX_x86::GetFPRType() {
   if (m_fpr_type == eNotValid) {

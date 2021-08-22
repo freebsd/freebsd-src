@@ -22,12 +22,14 @@
 #include "clang/AST/ExprCXX.h"
 #include "clang/AST/PrettyDeclStackTrace.h"
 #include "clang/AST/StmtCXX.h"
+#include "clang/Basic/DarwinSDKInfo.h"
 #include "clang/Basic/DiagnosticOptions.h"
 #include "clang/Basic/PartialDiagnostic.h"
 #include "clang/Basic/SourceManager.h"
 #include "clang/Basic/Stack.h"
 #include "clang/Basic/TargetInfo.h"
 #include "clang/Lex/HeaderSearch.h"
+#include "clang/Lex/HeaderSearchOptions.h"
 #include "clang/Lex/Preprocessor.h"
 #include "clang/Sema/CXXFieldCollector.h"
 #include "clang/Sema/DelayedDiagnostic.h"
@@ -54,6 +56,26 @@ SourceLocation Sema::getLocForEndOfToken(SourceLocation Loc, unsigned Offset) {
 }
 
 ModuleLoader &Sema::getModuleLoader() const { return PP.getModuleLoader(); }
+
+DarwinSDKInfo *
+Sema::getDarwinSDKInfoForAvailabilityChecking(SourceLocation Loc,
+                                              StringRef Platform) {
+  if (CachedDarwinSDKInfo)
+    return CachedDarwinSDKInfo->get();
+  auto SDKInfo = parseDarwinSDKInfo(
+      PP.getFileManager().getVirtualFileSystem(),
+      PP.getHeaderSearchInfo().getHeaderSearchOpts().Sysroot);
+  if (SDKInfo && *SDKInfo) {
+    CachedDarwinSDKInfo = std::make_unique<DarwinSDKInfo>(std::move(**SDKInfo));
+    return CachedDarwinSDKInfo->get();
+  }
+  if (!SDKInfo)
+    llvm::consumeError(SDKInfo.takeError());
+  Diag(Loc, diag::warn_missing_sdksettings_for_availability_checking)
+      << Platform;
+  CachedDarwinSDKInfo = std::unique_ptr<DarwinSDKInfo>();
+  return nullptr;
+}
 
 IdentifierInfo *
 Sema::InventAbbreviatedTemplateParameterTypeName(IdentifierInfo *ParamName,
@@ -183,6 +205,7 @@ Sema::Sema(Preprocessor &pp, ASTContext &ctxt, ASTConsumer &consumer,
       DisableTypoCorrection(false), TyposCorrected(0), AnalysisWarnings(*this),
       ThreadSafetyDeclCache(nullptr), VarDataSharingAttributesStack(nullptr),
       CurScope(nullptr), Ident_super(nullptr), Ident___float128(nullptr) {
+  assert(pp.TUKind == TUKind);
   TUScope = nullptr;
   isConstantEvaluatedOverride = false;
 
@@ -299,7 +322,6 @@ void Sema::Initialize() {
   if (getLangOpts().OpenCL) {
     getOpenCLOptions().addSupport(
         Context.getTargetInfo().getSupportedOpenCLOpts(), getLangOpts());
-    getOpenCLOptions().enableSupportedCore(getLangOpts());
     addImplicitTypedef("sampler_t", Context.OCLSamplerTy);
     addImplicitTypedef("event_t", Context.OCLEventTy);
     if (getLangOpts().OpenCLCPlusPlus || getLangOpts().OpenCLVersion >= 200) {
@@ -309,25 +331,12 @@ void Sema::Initialize() {
       addImplicitTypedef("atomic_int", Context.getAtomicType(Context.IntTy));
       addImplicitTypedef("atomic_uint",
                          Context.getAtomicType(Context.UnsignedIntTy));
-      auto AtomicLongT = Context.getAtomicType(Context.LongTy);
-      addImplicitTypedef("atomic_long", AtomicLongT);
-      auto AtomicULongT = Context.getAtomicType(Context.UnsignedLongTy);
-      addImplicitTypedef("atomic_ulong", AtomicULongT);
       addImplicitTypedef("atomic_float",
                          Context.getAtomicType(Context.FloatTy));
-      auto AtomicDoubleT = Context.getAtomicType(Context.DoubleTy);
-      addImplicitTypedef("atomic_double", AtomicDoubleT);
       // OpenCLC v2.0, s6.13.11.6 requires that atomic_flag is implemented as
       // 32-bit integer and OpenCLC v2.0, s6.1.1 int is always 32-bit wide.
       addImplicitTypedef("atomic_flag", Context.getAtomicType(Context.IntTy));
-      auto AtomicIntPtrT = Context.getAtomicType(Context.getIntPtrType());
-      addImplicitTypedef("atomic_intptr_t", AtomicIntPtrT);
-      auto AtomicUIntPtrT = Context.getAtomicType(Context.getUIntPtrType());
-      addImplicitTypedef("atomic_uintptr_t", AtomicUIntPtrT);
-      auto AtomicSizeT = Context.getAtomicType(Context.getSizeType());
-      addImplicitTypedef("atomic_size_t", AtomicSizeT);
-      auto AtomicPtrDiffT = Context.getAtomicType(Context.getPointerDiffType());
-      addImplicitTypedef("atomic_ptrdiff_t", AtomicPtrDiffT);
+
 
       // OpenCL v2.0 s6.13.11.6:
       // - The atomic_long and atomic_ulong types are supported if the
@@ -340,31 +349,50 @@ void Sema::Initialize() {
       //   atomic_intptr_t, atomic_uintptr_t, atomic_size_t and
       //   atomic_ptrdiff_t are supported if the cl_khr_int64_base_atomics and
       //   cl_khr_int64_extended_atomics extensions are supported.
-      std::vector<QualType> Atomic64BitTypes;
-      Atomic64BitTypes.push_back(AtomicLongT);
-      Atomic64BitTypes.push_back(AtomicULongT);
-      Atomic64BitTypes.push_back(AtomicDoubleT);
-      if (Context.getTypeSize(AtomicSizeT) == 64) {
-        Atomic64BitTypes.push_back(AtomicSizeT);
-        Atomic64BitTypes.push_back(AtomicIntPtrT);
-        Atomic64BitTypes.push_back(AtomicUIntPtrT);
-        Atomic64BitTypes.push_back(AtomicPtrDiffT);
-      }
-      for (auto &I : Atomic64BitTypes)
-        setOpenCLExtensionForType(I,
-            "cl_khr_int64_base_atomics cl_khr_int64_extended_atomics");
 
-      setOpenCLExtensionForType(AtomicDoubleT, "cl_khr_fp64");
+      auto AddPointerSizeDependentTypes = [&]() {
+        auto AtomicSizeT = Context.getAtomicType(Context.getSizeType());
+        auto AtomicIntPtrT = Context.getAtomicType(Context.getIntPtrType());
+        auto AtomicUIntPtrT = Context.getAtomicType(Context.getUIntPtrType());
+        auto AtomicPtrDiffT =
+            Context.getAtomicType(Context.getPointerDiffType());
+        addImplicitTypedef("atomic_size_t", AtomicSizeT);
+        addImplicitTypedef("atomic_intptr_t", AtomicIntPtrT);
+        addImplicitTypedef("atomic_uintptr_t", AtomicUIntPtrT);
+        addImplicitTypedef("atomic_ptrdiff_t", AtomicPtrDiffT);
+      };
+
+      if (Context.getTypeSize(Context.getSizeType()) == 32) {
+        AddPointerSizeDependentTypes();
+      }
+
+      std::vector<QualType> Atomic64BitTypes;
+      if (getOpenCLOptions().isSupported("cl_khr_int64_base_atomics",
+                                         getLangOpts()) &&
+          getOpenCLOptions().isSupported("cl_khr_int64_extended_atomics",
+                                         getLangOpts())) {
+        if (getOpenCLOptions().isSupported("cl_khr_fp64", getLangOpts())) {
+          auto AtomicDoubleT = Context.getAtomicType(Context.DoubleTy);
+          addImplicitTypedef("atomic_double", AtomicDoubleT);
+          Atomic64BitTypes.push_back(AtomicDoubleT);
+        }
+        auto AtomicLongT = Context.getAtomicType(Context.LongTy);
+        auto AtomicULongT = Context.getAtomicType(Context.UnsignedLongTy);
+        addImplicitTypedef("atomic_long", AtomicLongT);
+        addImplicitTypedef("atomic_ulong", AtomicULongT);
+
+
+        if (Context.getTypeSize(Context.getSizeType()) == 64) {
+          AddPointerSizeDependentTypes();
+        }
+      }
     }
 
-    setOpenCLExtensionForType(Context.DoubleTy, "cl_khr_fp64");
 
-#define GENERIC_IMAGE_TYPE_EXT(Type, Id, Ext) \
-    setOpenCLExtensionForType(Context.Id, Ext);
-#include "clang/Basic/OpenCLImageTypes.def"
-#define EXT_OPAQUE_TYPE(ExtType, Id, Ext) \
-    addImplicitTypedef(#ExtType, Context.Id##Ty); \
-    setOpenCLExtensionForType(Context.Id##Ty, #Ext);
+#define EXT_OPAQUE_TYPE(ExtType, Id, Ext)                                      \
+  if (getOpenCLOptions().isSupported(#Ext, getLangOpts())) {                   \
+    addImplicitTypedef(#ExtType, Context.Id##Ty);                              \
+  }
 #include "clang/Basic/OpenCLExtensionTypes.def"
   }
 
@@ -384,6 +412,12 @@ void Sema::Initialize() {
 #define PPC_VECTOR_VSX_TYPE(Name, Id, Size) \
     addImplicitTypedef(#Name, Context.Id##Ty);
 #include "clang/Basic/PPCTypes.def"
+  }
+
+  if (Context.getTargetInfo().hasRISCVVTypes()) {
+#define RVV_TYPE(Name, Id, SingletonId)                                        \
+  addImplicitTypedef(Name, Context.SingletonId);
+#include "clang/Basic/RISCVVTypes.def"
   }
 
   if (Context.getTargetInfo().hasBuiltinMSVaList()) {
@@ -565,13 +599,14 @@ ExprResult Sema::ImpCastExprToType(Expr *E, QualType Ty,
                                    const CXXCastPath *BasePath,
                                    CheckedConversionKind CCK) {
 #ifndef NDEBUG
-  if (VK == VK_RValue && !E->isRValue()) {
+  if (VK == VK_PRValue && !E->isPRValue()) {
     switch (Kind) {
     default:
-      llvm_unreachable(("can't implicitly cast lvalue to rvalue with this cast "
-                        "kind: " +
-                        std::string(CastExpr::getCastKindName(Kind)))
-                           .c_str());
+      llvm_unreachable(
+          ("can't implicitly cast glvalue to prvalue with this cast "
+           "kind: " +
+           std::string(CastExpr::getCastKindName(Kind)))
+              .c_str());
     case CK_Dependent:
     case CK_LValueToRValue:
     case CK_ArrayToPointerDecay:
@@ -581,8 +616,8 @@ ExprResult Sema::ImpCastExprToType(Expr *E, QualType Ty,
       break;
     }
   }
-  assert((VK == VK_RValue || Kind == CK_Dependent || !E->isRValue()) &&
-         "can't cast rvalue to lvalue");
+  assert((VK == VK_PRValue || Kind == CK_Dependent || !E->isPRValue()) &&
+         "can't cast prvalue to glvalue");
 #endif
 
   diagnoseNullableToNonnullConversion(Ty, E->getType(), E->getBeginLoc());
@@ -594,16 +629,36 @@ ExprResult Sema::ImpCastExprToType(Expr *E, QualType Ty,
   if (ExprTy == TypeTy)
     return E;
 
-  // C++1z [conv.array]: The temporary materialization conversion is applied.
-  // We also use this to fuel C++ DR1213, which applies to C++11 onwards.
-  if (Kind == CK_ArrayToPointerDecay && getLangOpts().CPlusPlus &&
-      E->getValueKind() == VK_RValue) {
-    // The temporary is an lvalue in C++98 and an xvalue otherwise.
-    ExprResult Materialized = CreateMaterializeTemporaryExpr(
-        E->getType(), E, !getLangOpts().CPlusPlus11);
-    if (Materialized.isInvalid())
-      return ExprError();
-    E = Materialized.get();
+  if (Kind == CK_ArrayToPointerDecay) {
+    // C++1z [conv.array]: The temporary materialization conversion is applied.
+    // We also use this to fuel C++ DR1213, which applies to C++11 onwards.
+    if (getLangOpts().CPlusPlus && E->isPRValue()) {
+      // The temporary is an lvalue in C++98 and an xvalue otherwise.
+      ExprResult Materialized = CreateMaterializeTemporaryExpr(
+          E->getType(), E, !getLangOpts().CPlusPlus11);
+      if (Materialized.isInvalid())
+        return ExprError();
+      E = Materialized.get();
+    }
+    // C17 6.7.1p6 footnote 124: The implementation can treat any register
+    // declaration simply as an auto declaration. However, whether or not
+    // addressable storage is actually used, the address of any part of an
+    // object declared with storage-class specifier register cannot be
+    // computed, either explicitly(by use of the unary & operator as discussed
+    // in 6.5.3.2) or implicitly(by converting an array name to a pointer as
+    // discussed in 6.3.2.1).Thus, the only operator that can be applied to an
+    // array declared with storage-class specifier register is sizeof.
+    if (VK == VK_PRValue && !getLangOpts().CPlusPlus && !E->isPRValue()) {
+      if (const auto *DRE = dyn_cast<DeclRefExpr>(E)) {
+        if (const auto *VD = dyn_cast<VarDecl>(DRE->getDecl())) {
+          if (VD->getStorageClass() == SC_Register) {
+            Diag(E->getExprLoc(), diag::err_typecheck_address_of)
+                << /*register variable*/ 3 << E->getSourceRange();
+            return ExprError();
+          }
+        }
+      }
+    }
   }
 
   if (ImplicitCastExpr *ImpCast = dyn_cast<ImplicitCastExpr>(E)) {
@@ -800,8 +855,21 @@ static void checkUndefinedButUsed(Sema &S) {
       // FIXME: We can promote this to an error. The function or variable can't
       // be defined anywhere else, so the program must necessarily violate the
       // one definition rule.
-      S.Diag(VD->getLocation(), diag::warn_undefined_internal)
-        << isa<VarDecl>(VD) << VD;
+      bool IsImplicitBase = false;
+      if (const auto *BaseD = dyn_cast<FunctionDecl>(VD)) {
+        auto *DVAttr = BaseD->getAttr<OMPDeclareVariantAttr>();
+        if (DVAttr && !DVAttr->getTraitInfo().isExtensionActive(
+                          llvm::omp::TraitProperty::
+                              implementation_extension_disable_implicit_base)) {
+          const auto *Func = cast<FunctionDecl>(
+              cast<DeclRefExpr>(DVAttr->getVariantFuncRef())->getDecl());
+          IsImplicitBase = BaseD->isImplicit() &&
+                           Func->getIdentifier()->isMangledOpenMPVariantName();
+        }
+      }
+      if (!S.getLangOpts().OpenMP || !IsImplicitBase)
+        S.Diag(VD->getLocation(), diag::warn_undefined_internal)
+            << isa<VarDecl>(VD) << VD;
     } else if (auto *FD = dyn_cast<FunctionDecl>(VD)) {
       (void)FD;
       assert(FD->getMostRecentDecl()->isInlined() &&
@@ -1556,6 +1624,8 @@ public:
   DeferredDiagnosticsEmitter(Sema &S)
       : Inherited(S), ShouldEmitRootNode(false), InOMPDeviceContext(0) {}
 
+  bool shouldVisitDiscardedStmt() const { return false; }
+
   void VisitOMPTargetDirective(OMPTargetDirective *Node) {
     ++InOMPDeviceContext;
     Inherited::VisitOMPTargetDirective(Node);
@@ -1763,7 +1833,7 @@ Sema::SemaDiagnosticBuilder Sema::Diag(SourceLocation Loc, unsigned DiagID,
   bool IsError = Diags.getDiagnosticIDs()->isDefaultMappingAsError(DiagID);
   bool ShouldDefer = getLangOpts().CUDA && LangOpts.GPUDeferDiag &&
                      DiagnosticIDs::isDeferrable(DiagID) &&
-                     (DeferHint || !IsError);
+                     (DeferHint || DeferDiags || !IsError);
   auto SetIsLastErrorImmediate = [&](bool Flag) {
     if (IsError)
       IsLastErrorImmediate = Flag;
@@ -1928,6 +1998,9 @@ void Sema::RecordParsingTemplateParameterDepth(unsigned Depth) {
 
 // Check that the type of the VarDecl has an accessible copy constructor and
 // resolve its destructor's exception specification.
+// This also performs initialization of block variables when they are moved
+// to the heap. It uses the same rules as applicable for implicit moves
+// according to the C++ standard in effect ([class.copy.elision]p3).
 static void checkEscapingByref(VarDecl *VD, Sema &S) {
   QualType T = VD->getType();
   EnterExpressionEvaluationContext scope(
@@ -1935,9 +2008,18 @@ static void checkEscapingByref(VarDecl *VD, Sema &S) {
   SourceLocation Loc = VD->getLocation();
   Expr *VarRef =
       new (S.Context) DeclRefExpr(S.Context, VD, false, T, VK_LValue, Loc);
-  ExprResult Result = S.PerformMoveOrCopyInitialization(
-      InitializedEntity::InitializeBlock(Loc, T, false), VD, VD->getType(),
-      VarRef, /*AllowNRVO=*/true);
+  ExprResult Result;
+  auto IE = InitializedEntity::InitializeBlock(Loc, T, false);
+  if (S.getLangOpts().CPlusPlus2b) {
+    auto *E = ImplicitCastExpr::Create(S.Context, T, CK_NoOp, VarRef, nullptr,
+                                       VK_XValue, FPOptionsOverride());
+    Result = S.PerformCopyInitialization(IE, SourceLocation(), E);
+  } else {
+    Result = S.PerformMoveOrCopyInitialization(
+        IE, Sema::NamedReturnInfo{VD, Sema::NamedReturnInfo::MoveEligible},
+        VarRef);
+  }
+
   if (!Result.isInvalid()) {
     Result = S.MaybeCreateExprWithCleanups(Result);
     Expr *Init = Result.getAs<Expr>();
@@ -2060,6 +2142,11 @@ void Sema::setFunctionHasBranchProtectedScope() {
 void Sema::setFunctionHasIndirectGoto() {
   if (!FunctionScopes.empty())
     FunctionScopes.back()->setHasIndirectGoto();
+}
+
+void Sema::setFunctionHasMustTail() {
+  if (!FunctionScopes.empty())
+    FunctionScopes.back()->setHasMustTail();
 }
 
 BlockScopeInfo *Sema::getCurBlock() {
@@ -2302,13 +2389,11 @@ bool Sema::tryExprAsCall(Expr &E, QualType &ZeroArgCallReturnTy,
 ///  ill-formed expression.
 static void noteOverloads(Sema &S, const UnresolvedSetImpl &Overloads,
                           const SourceLocation FinalNoteLoc) {
-  int ShownOverloads = 0;
-  int SuppressedOverloads = 0;
+  unsigned ShownOverloads = 0;
+  unsigned SuppressedOverloads = 0;
   for (UnresolvedSetImpl::iterator It = Overloads.begin(),
        DeclsEnd = Overloads.end(); It != DeclsEnd; ++It) {
-    // FIXME: Magic number for max shown overloads stolen from
-    // OverloadCandidateSet::NoteCandidates.
-    if (ShownOverloads >= 4 && S.Diags.getShowOverloads() == Ovl_Best) {
+    if (ShownOverloads >= S.Diags.getNumOverloadCandidatesToShow()) {
       ++SuppressedOverloads;
       continue;
     }
@@ -2323,6 +2408,8 @@ static void noteOverloads(Sema &S, const UnresolvedSetImpl &Overloads,
     S.Diag(Fn->getLocation(), diag::note_possible_target_of_call);
     ++ShownOverloads;
   }
+
+  S.Diags.overloadCandidatesShown(ShownOverloads);
 
   if (SuppressedOverloads)
     S.Diag(FinalNoteLoc, diag::note_ovl_too_many_candidates)
@@ -2447,115 +2534,4 @@ CapturedRegionScopeInfo *Sema::getCurCapturedRegion() {
 const llvm::MapVector<FieldDecl *, Sema::DeleteLocs> &
 Sema::getMismatchingDeleteExpressions() const {
   return DeleteExprs;
-}
-
-void Sema::setOpenCLExtensionForType(QualType T, llvm::StringRef ExtStr) {
-  if (ExtStr.empty())
-    return;
-  llvm::SmallVector<StringRef, 1> Exts;
-  ExtStr.split(Exts, " ", /* limit */ -1, /* keep empty */ false);
-  auto CanT = T.getCanonicalType().getTypePtr();
-  for (auto &I : Exts)
-    OpenCLTypeExtMap[CanT].insert(I.str());
-}
-
-void Sema::setOpenCLExtensionForDecl(Decl *FD, StringRef ExtStr) {
-  llvm::SmallVector<StringRef, 1> Exts;
-  ExtStr.split(Exts, " ", /* limit */ -1, /* keep empty */ false);
-  if (Exts.empty())
-    return;
-  for (auto &I : Exts)
-    OpenCLDeclExtMap[FD].insert(I.str());
-}
-
-void Sema::setCurrentOpenCLExtensionForType(QualType T) {
-  if (CurrOpenCLExtension.empty())
-    return;
-  setOpenCLExtensionForType(T, CurrOpenCLExtension);
-}
-
-void Sema::setCurrentOpenCLExtensionForDecl(Decl *D) {
-  if (CurrOpenCLExtension.empty())
-    return;
-  setOpenCLExtensionForDecl(D, CurrOpenCLExtension);
-}
-
-std::string Sema::getOpenCLExtensionsFromDeclExtMap(FunctionDecl *FD) {
-  if (!OpenCLDeclExtMap.empty())
-    return getOpenCLExtensionsFromExtMap(FD, OpenCLDeclExtMap);
-
-  return "";
-}
-
-std::string Sema::getOpenCLExtensionsFromTypeExtMap(FunctionType *FT) {
-  if (!OpenCLTypeExtMap.empty())
-    return getOpenCLExtensionsFromExtMap(FT, OpenCLTypeExtMap);
-
-  return "";
-}
-
-template <typename T, typename MapT>
-std::string Sema::getOpenCLExtensionsFromExtMap(T *FDT, MapT &Map) {
-  auto Loc = Map.find(FDT);
-  return llvm::join(Loc->second, " ");
-}
-
-bool Sema::isOpenCLDisabledDecl(Decl *FD) {
-  auto Loc = OpenCLDeclExtMap.find(FD);
-  if (Loc == OpenCLDeclExtMap.end())
-    return false;
-  for (auto &I : Loc->second) {
-    if (!getOpenCLOptions().isEnabled(I))
-      return true;
-  }
-  return false;
-}
-
-template <typename T, typename DiagLocT, typename DiagInfoT, typename MapT>
-bool Sema::checkOpenCLDisabledTypeOrDecl(T D, DiagLocT DiagLoc,
-                                         DiagInfoT DiagInfo, MapT &Map,
-                                         unsigned Selector,
-                                         SourceRange SrcRange) {
-  auto Loc = Map.find(D);
-  if (Loc == Map.end())
-    return false;
-  bool Disabled = false;
-  for (auto &I : Loc->second) {
-    if (I != CurrOpenCLExtension && !getOpenCLOptions().isEnabled(I)) {
-      Diag(DiagLoc, diag::err_opencl_requires_extension) << Selector << DiagInfo
-                                                         << I << SrcRange;
-      Disabled = true;
-    }
-  }
-  return Disabled;
-}
-
-bool Sema::checkOpenCLDisabledTypeDeclSpec(const DeclSpec &DS, QualType QT) {
-  // Check extensions for declared types.
-  Decl *Decl = nullptr;
-  if (auto TypedefT = dyn_cast<TypedefType>(QT.getTypePtr()))
-    Decl = TypedefT->getDecl();
-  if (auto TagT = dyn_cast<TagType>(QT.getCanonicalType().getTypePtr()))
-    Decl = TagT->getDecl();
-  auto Loc = DS.getTypeSpecTypeLoc();
-
-  // Check extensions for vector types.
-  // e.g. double4 is not allowed when cl_khr_fp64 is absent.
-  if (QT->isExtVectorType()) {
-    auto TypePtr = QT->castAs<ExtVectorType>()->getElementType().getTypePtr();
-    return checkOpenCLDisabledTypeOrDecl(TypePtr, Loc, QT, OpenCLTypeExtMap);
-  }
-
-  if (checkOpenCLDisabledTypeOrDecl(Decl, Loc, QT, OpenCLDeclExtMap))
-    return true;
-
-  // Check extensions for builtin types.
-  return checkOpenCLDisabledTypeOrDecl(QT.getCanonicalType().getTypePtr(), Loc,
-                                       QT, OpenCLTypeExtMap);
-}
-
-bool Sema::checkOpenCLDisabledDecl(const NamedDecl &D, const Expr &E) {
-  IdentifierInfo *FnName = D.getIdentifier();
-  return checkOpenCLDisabledTypeOrDecl(&D, E.getBeginLoc(), FnName,
-                                       OpenCLDeclExtMap, 1, D.getSourceRange());
 }

@@ -112,6 +112,7 @@ def : WriteRes<WriteStoreNT, [SBPort23, SBPort4]>;
 def : WriteRes<WriteLoad,    [SBPort23]> { let Latency = 5; }
 def : WriteRes<WriteMove,    [SBPort015]>;
 def : WriteRes<WriteZero,    []>;
+def : WriteRes<WriteVecMaskedGatherWriteback, []> { let Latency = 5; let NumMicroOps = 0; }
 
 // Arithmetic.
 defm : SBWriteResPair<WriteALU,    [SBPort015], 1>;
@@ -573,6 +574,7 @@ def : WriteRes<WriteNop, []>;
 defm : SBWriteResPair<WriteFShuffle256, [SBPort5], 1, [1], 1, 7>;
 defm : SBWriteResPair<WriteFVarShuffle256, [SBPort5], 1, [1], 1, 7>;
 defm : SBWriteResPair<WriteShuffle256, [SBPort5], 1, [1], 1, 7>;
+defm : SBWriteResPair<WriteVPMOV256, [SBPort5], 1, [1], 1, 7>;
 defm : SBWriteResPair<WriteVarShuffle256, [SBPort5], 1, [1], 1, 7>;
 defm : SBWriteResPair<WriteFMA,  [SBPort01],  5>;
 defm : SBWriteResPair<WriteFMAX, [SBPort01],  5>;

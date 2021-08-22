@@ -41,6 +41,7 @@ namespace scudo {
 
 template <typename Config> class SizeClassAllocator32 {
 public:
+  typedef typename Config::PrimaryCompactPtrT CompactPtrT;
   typedef typename Config::SizeClassMap SizeClassMap;
   // The bytemap can only track UINT8_MAX - 1 classes.
   static_assert(SizeClassMap::LargestClassId <= (UINT8_MAX - 1), "");
@@ -59,15 +60,18 @@ public:
 
   static bool canAllocate(uptr Size) { return Size <= SizeClassMap::MaxSize; }
 
-  void initLinkerInitialized(s32 ReleaseToOsInterval) {
+  void init(s32 ReleaseToOsInterval) {
     if (SCUDO_FUCHSIA)
       reportError("SizeClassAllocator32 is not supported on Fuchsia");
 
-    PossibleRegions.initLinkerInitialized();
+    if (SCUDO_TRUSTY)
+      reportError("SizeClassAllocator32 is not supported on Trusty");
 
+    DCHECK(isAligned(reinterpret_cast<uptr>(this), alignof(ThisT)));
+    PossibleRegions.init();
     u32 Seed;
     const u64 Time = getMonotonicTime();
-    if (UNLIKELY(!getRandom(reinterpret_cast<void *>(&Seed), sizeof(Seed))))
+    if (!getRandom(reinterpret_cast<void *>(&Seed), sizeof(Seed)))
       Seed = static_cast<u32>(
           Time ^ (reinterpret_cast<uptr>(SizeClassInfoArray) >> 6));
     for (uptr I = 0; I < NumClasses; I++) {
@@ -78,10 +82,6 @@ public:
       Sci->ReleaseInfo.LastReleaseAtNs = Time;
     }
     setOption(Option::ReleaseInterval, static_cast<sptr>(ReleaseToOsInterval));
-  }
-  void init(s32 ReleaseToOsInterval) {
-    memset(this, 0, sizeof(*this));
-    initLinkerInitialized(ReleaseToOsInterval);
   }
 
   void unmapTestOnly() {
@@ -95,11 +95,20 @@ public:
         MinRegionIndex = Sci->MinRegionIndex;
       if (Sci->MaxRegionIndex > MaxRegionIndex)
         MaxRegionIndex = Sci->MaxRegionIndex;
+      *Sci = {};
     }
     for (uptr I = MinRegionIndex; I < MaxRegionIndex; I++)
       if (PossibleRegions[I])
         unmap(reinterpret_cast<void *>(I * RegionSize), RegionSize);
     PossibleRegions.unmapTestOnly();
+  }
+
+  CompactPtrT compactPtr(UNUSED uptr ClassId, uptr Ptr) const {
+    return static_cast<CompactPtrT>(Ptr);
+  }
+
+  void *decompactPtr(UNUSED uptr ClassId, CompactPtrT CompactPtr) const {
+    return reinterpret_cast<void *>(static_cast<uptr>(CompactPtr));
   }
 
   TransferBatch *popBatch(CacheT *C, uptr ClassId) {
@@ -359,17 +368,18 @@ private:
     // Fill the transfer batches and put them in the size-class freelist. We
     // need to randomize the blocks for security purposes, so we first fill a
     // local array that we then shuffle before populating the batches.
-    void *ShuffleArray[ShuffleArraySize];
+    CompactPtrT ShuffleArray[ShuffleArraySize];
     DCHECK_LE(NumberOfBlocks, ShuffleArraySize);
 
     uptr P = Region + Offset;
     for (u32 I = 0; I < NumberOfBlocks; I++, P += Size)
-      ShuffleArray[I] = reinterpret_cast<void *>(P);
+      ShuffleArray[I] = reinterpret_cast<CompactPtrT>(P);
     // No need to shuffle the batches size class.
     if (ClassId != SizeClassMap::BatchClassId)
       shuffle(ShuffleArray, NumberOfBlocks, &Sci->RandState);
     for (u32 I = 0; I < NumberOfBlocks;) {
-      TransferBatch *B = C->createBatch(ClassId, ShuffleArray[I]);
+      TransferBatch *B =
+          C->createBatch(ClassId, reinterpret_cast<void *>(ShuffleArray[I]));
       if (UNLIKELY(!B))
         return nullptr;
       const u32 N = Min(MaxCount, NumberOfBlocks - I);
@@ -435,7 +445,7 @@ private:
     if (BlockSize < PageSize / 16U) {
       if (!Force && BytesPushed < Sci->AllocatedUser / 16U)
         return 0;
-      // We want 8x% to 9x% free bytes (the larger the bock, the lower the %).
+      // We want 8x% to 9x% free bytes (the larger the block, the lower the %).
       if ((BytesInFreeList * 100U) / Sci->AllocatedUser <
           (100U - 1U - BlockSize / 16U))
         return 0;
@@ -463,8 +473,11 @@ private:
     auto SkipRegion = [this, First, ClassId](uptr RegionIndex) {
       return (PossibleRegions[First + RegionIndex] - 1U) != ClassId;
     };
-    releaseFreeMemoryToOS(Sci->FreeList, Base, RegionSize, NumberOfRegions,
-                          BlockSize, &Recorder, SkipRegion);
+    auto DecompactPtr = [](CompactPtrT CompactPtr) {
+      return reinterpret_cast<uptr>(CompactPtr);
+    };
+    releaseFreeMemoryToOS(Sci->FreeList, RegionSize, NumberOfRegions, BlockSize,
+                          &Recorder, DecompactPtr, SkipRegion);
     if (Recorder.getReleasedRangesCount() > 0) {
       Sci->ReleaseInfo.PushedBlocksAtLastRelease = Sci->Stats.PushedBlocks;
       Sci->ReleaseInfo.RangesReleased += Recorder.getReleasedRangesCount();
@@ -476,17 +489,17 @@ private:
     return TotalReleasedBytes;
   }
 
-  SizeClassInfo SizeClassInfoArray[NumClasses];
+  SizeClassInfo SizeClassInfoArray[NumClasses] = {};
 
   // Track the regions in use, 0 is unused, otherwise store ClassId + 1.
-  ByteMap PossibleRegions;
-  atomic_s32 ReleaseToOsIntervalMs;
+  ByteMap PossibleRegions = {};
+  atomic_s32 ReleaseToOsIntervalMs = {};
   // Unless several threads request regions simultaneously from different size
   // classes, the stash rarely contains more than 1 entry.
   static constexpr uptr MaxStashedRegions = 4;
   HybridMutex RegionsStashMutex;
-  uptr NumberOfStashedRegions;
-  uptr RegionsStash[MaxStashedRegions];
+  uptr NumberOfStashedRegions = 0;
+  uptr RegionsStash[MaxStashedRegions] = {};
 };
 
 } // namespace scudo

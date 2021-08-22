@@ -22,6 +22,9 @@
 #include <cstdint>
 #include <cstring>
 #include <string>
+#if __cplusplus > 201402L
+#include <string_view>
+#endif
 #include <system_error>
 #include <type_traits>
 
@@ -137,6 +140,13 @@ public:
   // Configuration Interface
   //===--------------------------------------------------------------------===//
 
+  /// If possible, pre-allocate \p ExtraSize bytes for stream data.
+  /// i.e. it extends internal buffers to keep additional ExtraSize bytes.
+  /// So that the stream could keep at least tell() + ExtraSize bytes
+  /// without re-allocations. reserveExtraSpace() does not change
+  /// the size/data of the stream.
+  virtual void reserveExtraSpace(uint64_t ExtraSize) {}
+
   /// Set the stream to be buffered, with an automatically determined buffer
   /// size.
   void SetBuffered();
@@ -225,6 +235,12 @@ public:
     // Avoid the fast path, it would only increase code size for a marginal win.
     return write(Str.data(), Str.length());
   }
+
+#if __cplusplus > 201402L
+  raw_ostream &operator<<(const std::string_view &Str) {
+    return write(Str.data(), Str.length());
+  }
+#endif
 
   raw_ostream &operator<<(const SmallVectorImpl<char> &Str) {
     return write(Str.data(), Str.size());
@@ -626,6 +642,10 @@ public:
     flush();
     return OS;
   }
+
+  void reserveExtraSpace(uint64_t ExtraSize) override {
+    OS.reserve(tell() + ExtraSize);
+  }
 };
 
 /// A raw_ostream that writes to an SmallVector or SmallString.  This is a
@@ -659,6 +679,10 @@ public:
 
   /// Return a StringRef for the vector contents.
   StringRef str() const { return StringRef(OS.data(), OS.size()); }
+
+  void reserveExtraSpace(uint64_t ExtraSize) override {
+    OS.reserve(tell() + ExtraSize);
+  }
 };
 
 /// A raw_ostream that discards all output.
@@ -698,6 +722,17 @@ public:
       : raw_svector_ostream(Buffer), OS(std::move(OS)) {}
   ~buffer_unique_ostream() override { *OS << str(); }
 };
+
+class Error;
+
+/// This helper creates an output stream and then passes it to \p Write.
+/// The stream created is based on the specified \p OutputFileName:
+/// llvm::outs for "-", raw_null_ostream for "/dev/null", and raw_fd_ostream
+/// for other names. For raw_fd_ostream instances, the stream writes to
+/// a temporary file. The final output file is atomically replaced with the
+/// temporary file after the \p Write function is finished.
+Error writeToOutput(StringRef OutputFileName,
+                    std::function<Error(raw_ostream &)> Write);
 
 } // end namespace llvm
 

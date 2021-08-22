@@ -99,16 +99,18 @@ initializeRecordStreamer(const Module &M,
   if (!MCII)
     return;
 
-  MCObjectFileInfo MOFI;
-  MCContext MCCtx(MAI.get(), MRI.get(), &MOFI);
-  MOFI.InitMCObjectFileInfo(TT, /*PIC*/ false, MCCtx);
-  MOFI.setSDKVersion(M.getSDKVersion());
-  RecordStreamer Streamer(MCCtx, M);
-  T->createNullTargetStreamer(Streamer);
-
   std::unique_ptr<MemoryBuffer> Buffer(MemoryBuffer::getMemBuffer(InlineAsm));
   SourceMgr SrcMgr;
   SrcMgr.AddNewSourceBuffer(std::move(Buffer), SMLoc());
+
+  MCContext MCCtx(TT, MAI.get(), MRI.get(), STI.get(), &SrcMgr);
+  std::unique_ptr<MCObjectFileInfo> MOFI(
+      T->createMCObjectFileInfo(MCCtx, /*PIC=*/false));
+  MOFI->setSDKVersion(M.getSDKVersion());
+  MCCtx.setObjectFileInfo(MOFI.get());
+  RecordStreamer Streamer(MCCtx, M);
+  T->createNullTargetStreamer(Streamer);
+
   std::unique_ptr<MCAsmParser> Parser(
       createMCAsmParser(SrcMgr, MCCtx, Streamer, *MAI));
 

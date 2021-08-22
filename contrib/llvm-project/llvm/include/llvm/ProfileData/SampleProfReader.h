@@ -28,6 +28,7 @@
 //       offsetA1[.discriminator]: number_of_samples [fn7:num fn8:num ... ]
 //       ...
 //      !CFGChecksum: num
+//      !Attribute: flags
 //
 // This is a nested tree in which the indentation represents the nesting level
 // of the inline stack. There are no blank lines in the file. And the spacing
@@ -127,6 +128,8 @@
 //
 // a. CFG Checksum (a.k.a. function hash):
 //   !CFGChecksum: 12345
+// b. CFG Checksum (see ContextAttributeMask):
+//   !Atribute: 1
 //
 //
 // Binary format
@@ -233,6 +236,7 @@
 #include "llvm/ProfileData/GCOV.h"
 #include "llvm/ProfileData/SampleProf.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Support/Discriminator.h"
 #include "llvm/Support/ErrorOr.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/SymbolRemappingReader.h"
@@ -347,6 +351,22 @@ public:
   /// Read and validate the file header.
   virtual std::error_code readHeader() = 0;
 
+  /// Set the bits for FS discriminators. Parameter Pass specify the sequence
+  /// number, Pass == i is for the i-th round of adding FS discriminators.
+  /// Pass == 0 is for using base discriminators.
+  void setDiscriminatorMaskedBitFrom(FSDiscriminatorPass P) {
+    MaskedBitFrom = getFSPassBitEnd(P);
+  }
+
+  /// Get the bitmask the discriminators: For FS profiles, return the bit
+  /// mask for this pass. For non FS profiles, return (unsigned) -1.
+  uint32_t getDiscriminatorMask() const {
+    if (!ProfileIsFS)
+      return 0xFFFFFFFF;
+    assert((MaskedBitFrom != 0) && "MaskedBitFrom is not set properly");
+    return getN1Bits(MaskedBitFrom);
+  }
+
   /// The interface to read sample profiles from the associated file.
   std::error_code read() {
     if (std::error_code EC = readImpl())
@@ -363,7 +383,11 @@ public:
   /// Print the profile for \p FName on stream \p OS.
   void dumpFunctionProfile(StringRef FName, raw_ostream &OS = dbgs());
 
-  virtual void collectFuncsFrom(const Module &M) {}
+  /// Collect functions with definitions in Module M. For reader which
+  /// support loading function profiles on demand, return true when the
+  /// reader has been given a module. Always return false for reader
+  /// which doesn't support loading function profiles on demand.
+  virtual bool collectFuncsFromModule() { return false; }
 
   /// Print all the profiles on stream \p OS.
   void dump(raw_ostream &OS = dbgs());
@@ -415,14 +439,18 @@ public:
 
   /// Create a sample profile reader appropriate to the file format.
   /// Create a remapper underlying if RemapFilename is not empty.
+  /// Parameter P specifies the FSDiscriminatorPass.
   static ErrorOr<std::unique_ptr<SampleProfileReader>>
   create(const std::string Filename, LLVMContext &C,
+         FSDiscriminatorPass P = FSDiscriminatorPass::Base,
          const std::string RemapFilename = "");
 
   /// Create a sample profile reader from the supplied memory buffer.
   /// Create a remapper underlying if RemapFilename is not empty.
+  /// Parameter P specifies the FSDiscriminatorPass.
   static ErrorOr<std::unique_ptr<SampleProfileReader>>
   create(std::unique_ptr<MemoryBuffer> &B, LLVMContext &C,
+         FSDiscriminatorPass P = FSDiscriminatorPass::Base,
          const std::string RemapFilename = "");
 
   /// Return the profile summary.
@@ -454,8 +482,12 @@ public:
   /// Don't read profile without context if the flag is set. This is only meaningful
   /// for ExtBinary format.
   virtual void setSkipFlatProf(bool Skip) {}
+  /// Return whether any name in the profile contains ".__uniq." suffix.
+  virtual bool hasUniqSuffix() { return false; }
 
   SampleProfileReaderItaniumRemapper *getRemapper() { return Remapper.get(); }
+
+  void setModule(const Module *Mod) { M = Mod; }
 
 protected:
   /// Map every function to its associated profile.
@@ -494,8 +526,20 @@ protected:
   /// Number of context-sensitive profiles.
   uint32_t CSProfileCount = 0;
 
+  /// Whether the function profiles use FS discriminators.
+  bool ProfileIsFS = false;
+
   /// \brief The format of sample.
   SampleProfileFormat Format = SPF_None;
+
+  /// \brief The current module being compiled if SampleProfileReader
+  /// is used by compiler. If SampleProfileReader is used by other
+  /// tools which are not compiler, M is usually nullptr.
+  const Module *M = nullptr;
+
+  /// Zero out the discriminator bits higher than bit MaskedBitFrom (0 based).
+  /// The default is to keep all the bits.
+  uint32_t MaskedBitFrom = 31;
 };
 
 class SampleProfileReaderText : public SampleProfileReader {
@@ -634,7 +678,7 @@ protected:
   std::error_code readSecHdrTableEntry(uint32_t Idx);
   std::error_code readSecHdrTable();
 
-  std::error_code readFuncMetadata();
+  std::error_code readFuncMetadata(bool ProfileHasAttribute);
   std::error_code readFuncOffsetTable();
   std::error_code readFuncProfiles();
   std::error_code readMD5NameTable();
@@ -656,8 +700,6 @@ protected:
   DenseMap<StringRef, uint64_t> FuncOffsetTable;
   /// The set containing the functions to use when compiling a module.
   DenseSet<StringRef> FuncsToUse;
-  /// Use all functions from the input profile.
-  bool UseAllFuncs = true;
 
   /// Use fixed length MD5 instead of ULEB128 encoding so NameTable doesn't
   /// need to be read in up front and can be directly accessed using index.
@@ -692,8 +734,9 @@ public:
   uint64_t getFileSize();
   virtual bool dumpSectionInfo(raw_ostream &OS = dbgs()) override;
 
-  /// Collect functions with definitions in Module \p M.
-  void collectFuncsFrom(const Module &M) override;
+  /// Collect functions with definitions in Module M. Return true if
+  /// the reader has been given a module.
+  bool collectFuncsFromModule() override;
 
   /// Return whether names in the profile are all MD5 numbers.
   virtual bool useMD5() override { return MD5StringBuf.get(); }
@@ -731,8 +774,6 @@ private:
   DenseMap<StringRef, uint64_t> FuncOffsetTable;
   /// The set containing the functions to use when compiling a module.
   DenseSet<StringRef> FuncsToUse;
-  /// Use all functions from the input profile.
-  bool UseAllFuncs = true;
   virtual std::error_code verifySPMagic(uint64_t Magic) override;
   virtual std::error_code readNameTable() override;
   /// Read a string indirectly via the name table.
@@ -751,8 +792,9 @@ public:
   /// Read samples only for functions to use.
   std::error_code readImpl() override;
 
-  /// Collect functions to be used when compiling Module \p M.
-  void collectFuncsFrom(const Module &M) override;
+  /// Collect functions with definitions in Module M. Return true if
+  /// the reader has been given a module.
+  bool collectFuncsFromModule() override;
 
   /// Return whether names in the profile are all MD5 numbers.
   virtual bool useMD5() override { return true; }

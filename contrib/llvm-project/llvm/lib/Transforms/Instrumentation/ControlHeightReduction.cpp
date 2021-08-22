@@ -27,6 +27,7 @@
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/MDBuilder.h"
+#include "llvm/IR/PassManager.h"
 #include "llvm/InitializePasses.h"
 #include "llvm/Support/BranchProbability.h"
 #include "llvm/Support/CommandLine.h"
@@ -765,6 +766,11 @@ CHRScope * CHR::findScope(Region *R) {
   // Exclude loops
   for (BasicBlock *Pred : predecessors(Entry))
     if (R->contains(Pred))
+      return nullptr;
+  // If any of the basic blocks have address taken, we must skip this region
+  // because we cannot clone basic blocks that have address taken.
+  for (BasicBlock *BB : R->blocks())
+    if (BB->hasAddressTaken())
       return nullptr;
   if (Exit) {
     // Try to find an if-then block (check if R is an if-then).
@@ -2095,9 +2101,7 @@ PreservedAnalyses ControlHeightReductionPass::run(
   bool Changed = CHR(F, BFI, DT, PSI, RI, ORE).run();
   if (!Changed)
     return PreservedAnalyses::all();
-  auto PA = PreservedAnalyses();
-  PA.preserve<GlobalsAA>();
-  return PA;
+  return PreservedAnalyses::none();
 }
 
 } // namespace llvm

@@ -18,9 +18,7 @@
 using namespace lldb;
 using namespace lldb_private;
 
-SBSymbol::SBSymbol() : m_opaque_ptr(nullptr) {
-  LLDB_RECORD_CONSTRUCTOR_NO_ARGS(SBSymbol);
-}
+SBSymbol::SBSymbol() { LLDB_RECORD_CONSTRUCTOR_NO_ARGS(SBSymbol); }
 
 SBSymbol::SBSymbol(lldb_private::Symbol *lldb_object_ptr)
     : m_opaque_ptr(lldb_object_ptr) {}
@@ -132,10 +130,10 @@ SBInstructionList SBSymbol::GetInstructions(SBTarget target,
       ModuleSP module_sp = symbol_addr.GetModule();
       if (module_sp) {
         AddressRange symbol_range(symbol_addr, m_opaque_ptr->GetByteSize());
-        const bool prefer_file_cache = false;
+        const bool force_live_memory = true;
         sb_instructions.SetDisassembler(Disassembler::DisassembleRange(
             module_sp->GetArchitecture(), nullptr, flavor_string, *target_sp,
-            symbol_range, prefer_file_cache));
+            symbol_range, force_live_memory));
       }
     }
   }

@@ -5,7 +5,7 @@
 .PATH:		${CLANG_SRCS}/lib/Headers
 
 INCSGROUPS=	INCS CUDA OMP PPC
-INCSDIR=	${LIBDIR}/clang/12.0.1/include
+INCSDIR=	${LIBDIR}/clang/13.0.0/include
 CUDADIR=	${INCSDIR}/cuda_wrappers
 OMPDIR=		${INCSDIR}/openmp_wrappers
 PPCDIR=		${INCSDIR}/ppc_wrappers
@@ -65,6 +65,7 @@ INCS+=		avxintrin.h
 INCS+=		avxvnniintrin.h
 INCS+=		bmi2intrin.h
 INCS+=		bmiintrin.h
+INCS+=		builtins.h
 INCS+=		cet.h
 INCS+=		cetintrin.h
 INCS+=		cldemoteintrin.h
@@ -79,9 +80,13 @@ INCS+=		fma4intrin.h
 INCS+=		fmaintrin.h
 INCS+=		fxsrintrin.h
 INCS+=		gfniintrin.h
+INCS+=		hexagon_circ_brev_intrinsics.h
+INCS+=		hexagon_protos.h
+INCS+=		hexagon_types.h
 INCS+=		hresetintrin.h
 INCS+=		htmintrin.h
 INCS+=		htmxlintrin.h
+INCS+=		hvx_hexagon_protos.h
 INCS+=		ia32intrin.h
 INCS+=		immintrin.h
 INCS+=		invpcidintrin.h
@@ -180,6 +185,14 @@ arm_${hdr:H}.h: ${CLANG_SRCS}/include/clang/Basic/arm_${hdr:H}.td
 	    -I ${CLANG_SRCS}/include/clang/Basic -d ${.TARGET:C/$/.d/} \
 	    -o ${.TARGET} ${CLANG_SRCS}/include/clang/Basic/arm_${hdr:H}.td
 GENINCS+=	arm_${hdr:H}.h
+.endfor
+
+.for hdr in vector/vector-header
+riscv_${hdr:H}.h: ${CLANG_SRCS}/include/clang/Basic/riscv_${hdr:H}.td
+	${CLANG_TBLGEN} -gen-riscv-${hdr:T} \
+	    -I ${CLANG_SRCS}/include/clang/Basic -d ${.TARGET:C/$/.d/} \
+	    -o ${.TARGET} ${CLANG_SRCS}/include/clang/Basic/riscv_${hdr:H}.td
+GENINCS+=	riscv_${hdr:H}.h
 .endfor
 
 CLEANFILES=	${GENINCS} ${GENINCS:C/$/.d/}

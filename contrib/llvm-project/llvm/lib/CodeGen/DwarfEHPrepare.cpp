@@ -42,6 +42,12 @@ using namespace llvm;
 #define DEBUG_TYPE "dwarfehprepare"
 
 STATISTIC(NumResumesLowered, "Number of resume calls lowered");
+STATISTIC(NumCleanupLandingPadsUnreachable,
+          "Number of cleanup landing pads found unreachable");
+STATISTIC(NumCleanupLandingPadsRemaining,
+          "Number of cleanup landing pads remaining");
+STATISTIC(NumNoUnwind, "Number of functions with nounwind");
+STATISTIC(NumUnwind, "Number of functions with unwind");
 
 namespace {
 
@@ -153,7 +159,7 @@ size_t DwarfEHPrepare::pruneUnreachableResumes(
       BasicBlock *BB = RI->getParent();
       new UnreachableInst(Ctx, RI);
       RI->eraseFromParent();
-      simplifyCFG(BB, *TTI, RequireAndPreserveDomTree ? DTU : nullptr);
+      simplifyCFG(BB, *TTI, DTU);
     }
   }
   Resumes.resize(ResumesLeft);
@@ -163,6 +169,10 @@ size_t DwarfEHPrepare::pruneUnreachableResumes(
 bool DwarfEHPrepare::InsertUnwindResumeCalls() {
   SmallVector<ResumeInst *, 16> Resumes;
   SmallVector<LandingPadInst *, 16> CleanupLPads;
+  if (F.doesNotThrow())
+    NumNoUnwind++;
+  else
+    NumUnwind++;
   for (BasicBlock &BB : F) {
     if (auto *RI = dyn_cast<ResumeInst>(BB.getTerminator()))
       Resumes.push_back(RI);
@@ -170,6 +180,8 @@ bool DwarfEHPrepare::InsertUnwindResumeCalls() {
       if (LP->isCleanup())
         CleanupLPads.push_back(LP);
   }
+
+  NumCleanupLandingPadsRemaining += CleanupLPads.size();
 
   if (Resumes.empty())
     return false;
@@ -182,8 +194,19 @@ bool DwarfEHPrepare::InsertUnwindResumeCalls() {
   LLVMContext &Ctx = F.getContext();
 
   size_t ResumesLeft = Resumes.size();
-  if (OptLevel != CodeGenOpt::None)
+  if (OptLevel != CodeGenOpt::None) {
     ResumesLeft = pruneUnreachableResumes(Resumes, CleanupLPads);
+#if LLVM_ENABLE_STATS
+    unsigned NumRemainingLPs = 0;
+    for (BasicBlock &BB : F) {
+      if (auto *LP = BB.getLandingPadInst())
+        if (LP->isCleanup())
+          NumRemainingLPs++;
+    }
+    NumCleanupLandingPadsUnreachable += CleanupLPads.size() - NumRemainingLPs;
+    NumCleanupLandingPadsRemaining -= CleanupLPads.size() - NumRemainingLPs;
+#endif
+  }
 
   if (ResumesLeft == 0)
     return true; // We pruned them all.
@@ -242,24 +265,14 @@ bool DwarfEHPrepare::InsertUnwindResumeCalls() {
   CI->setDoesNotReturn();
   new UnreachableInst(Ctx, UnwindBB);
 
-  if (DTU && RequireAndPreserveDomTree)
+  if (DTU)
     DTU->applyUpdates(Updates);
 
   return true;
 }
 
 bool DwarfEHPrepare::run() {
-  assert(((OptLevel == CodeGenOpt::None || !RequireAndPreserveDomTree) ||
-          (DTU &&
-           DTU->getDomTree().verify(DominatorTree::VerificationLevel::Full))) &&
-         "Original domtree is invalid?");
-
   bool Changed = InsertUnwindResumeCalls();
-
-  assert(((OptLevel == CodeGenOpt::None || !RequireAndPreserveDomTree) ||
-          (DTU &&
-           DTU->getDomTree().verify(DominatorTree::VerificationLevel::Full))) &&
-         "Original domtree is invalid?");
 
   return Changed;
 }
@@ -268,7 +281,7 @@ static bool prepareDwarfEH(CodeGenOpt::Level OptLevel,
                            FunctionCallee &RewindFunction, Function &F,
                            const TargetLowering &TLI, DominatorTree *DT,
                            const TargetTransformInfo *TTI) {
-  DomTreeUpdater DTU(DT, DomTreeUpdater::UpdateStrategy::Eager);
+  DomTreeUpdater DTU(DT, DomTreeUpdater::UpdateStrategy::Lazy);
 
   return DwarfEHPrepare(OptLevel, RewindFunction, F, TLI, DT ? &DTU : nullptr,
                         TTI)
@@ -295,8 +308,11 @@ public:
     const TargetLowering &TLI = *TM.getSubtargetImpl(F)->getTargetLowering();
     DominatorTree *DT = nullptr;
     const TargetTransformInfo *TTI = nullptr;
+    if (auto *DTWP = getAnalysisIfAvailable<DominatorTreeWrapperPass>())
+      DT = &DTWP->getDomTree();
     if (OptLevel != CodeGenOpt::None) {
-      DT = &getAnalysis<DominatorTreeWrapperPass>().getDomTree();
+      if (!DT)
+        DT = &getAnalysis<DominatorTreeWrapperPass>().getDomTree();
       TTI = &getAnalysis<TargetTransformInfoWrapperPass>().getTTI(F);
     }
     return prepareDwarfEH(OptLevel, RewindFunction, F, TLI, DT, TTI);
@@ -308,9 +324,8 @@ public:
     if (OptLevel != CodeGenOpt::None) {
       AU.addRequired<DominatorTreeWrapperPass>();
       AU.addRequired<TargetTransformInfoWrapperPass>();
-      if (RequireAndPreserveDomTree)
-        AU.addPreserved<DominatorTreeWrapperPass>();
     }
+    AU.addPreserved<DominatorTreeWrapperPass>();
   }
 
   StringRef getPassName() const override {

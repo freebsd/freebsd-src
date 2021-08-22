@@ -50,6 +50,7 @@
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/Scalar.h"
+#include "llvm/Transforms/Utils/Local.h"
 #include <cassert>
 #include <cstddef>
 #include <utility>
@@ -521,10 +522,14 @@ bool AggressiveDeadCodeElimination::removeDeadInstructions() {
         // If intrinsic is pointing at a live SSA value, there may be an
         // earlier optimization bug: if we know the location of the variable,
         // why isn't the scope of the location alive?
-        if (Value *V = DII->getVariableLocation())
-          if (Instruction *II = dyn_cast<Instruction>(V))
-            if (isLive(II))
+        for (Value *V : DII->location_ops()) {
+          if (Instruction *II = dyn_cast<Instruction>(V)) {
+            if (isLive(II)) {
               dbgs() << "Dropping debug info for " << *DII << "\n";
+              break;
+            }
+          }
+        }
       }
     }
   });
@@ -548,6 +553,7 @@ bool AggressiveDeadCodeElimination::removeDeadInstructions() {
 
     // Prepare to delete.
     Worklist.push_back(&I);
+    salvageDebugInfo(I);
     I.dropAllReferences();
   }
 
@@ -696,7 +702,6 @@ PreservedAnalyses ADCEPass::run(Function &F, FunctionAnalysisManager &FAM) {
     PA.preserve<DominatorTreeAnalysis>();
     PA.preserve<PostDominatorTreeAnalysis>();
   }
-  PA.preserve<GlobalsAA>();
   return PA;
 }
 
