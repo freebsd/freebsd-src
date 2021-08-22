@@ -180,6 +180,8 @@ struct context_vec {
 	int	d;		/* end line in new file */
 };
 
+enum readhash { RH_BINARY, RH_OK, RH_EOF };
+
 #define MIN_PAD		1
 static FILE	*opentemp(const char *);
 static void	 output(char *, FILE *, char *, FILE *, int);
@@ -188,7 +190,7 @@ static void	 range(int, int, const char *);
 static void	 uni_range(int, int);
 static void	 dump_context_vec(FILE *, FILE *, int);
 static void	 dump_unified_vec(FILE *, FILE *, int);
-static void	 prepare(int, FILE *, size_t, int);
+static bool	 prepare(int, FILE *, size_t, int);
 static void	 prune(void);
 static void	 equiv(struct line *, int, struct line *, int, int *);
 static void	 unravel(int);
@@ -206,7 +208,7 @@ static int	 search(int *, int, int);
 static int	 skipline(FILE *);
 static int	 isqrt(int);
 static int	 stone(int *, int, int *, int *, int);
-static int	 readhash(FILE *, int);
+static enum readhash readhash(FILE *, int, unsigned *);
 static int	 files_differ(FILE *, FILE *, int);
 static char	*match_function(const long *, int, FILE *);
 static char	*preadline(int, size_t, off_t);
@@ -380,14 +382,16 @@ diffreg(char *file1, char *file2, int flags, int capsicum)
 		status |= 1;
 		goto closem;
 	}
-	if ((flags & D_FORCEASCII) == 0 &&
-	    (!asciifile(f1) || !asciifile(f2))) {
+	if ((flags & D_FORCEASCII) != 0) {
+		(void)prepare(0, f1, stb1.st_size, flags);
+		(void)prepare(1, f2, stb2.st_size, flags);
+	} else if (!asciifile(f1) || !asciifile(f2) ||
+		    !prepare(0, f1, stb1.st_size, flags) ||
+		    !prepare(1, f2, stb2.st_size, flags)) {
 		rval = D_BINARY;
 		status |= 1;
 		goto closem;
 	}
-	prepare(0, f1, stb1.st_size, flags);
-	prepare(1, f2, stb2.st_size, flags);
 
 	prune();
 	sort(sfile[0], slen[0]);
@@ -511,12 +515,13 @@ splice(char *dir, char *path)
 	return (buf);
 }
 
-static void
+static bool
 prepare(int i, FILE *fd, size_t filesize, int flags)
 {
 	struct line *p;
-	int h;
-	size_t sz, j;
+	unsigned h;
+	size_t sz, j = 0;
+	enum readhash r;
 
 	rewind(fd);
 
@@ -525,15 +530,23 @@ prepare(int i, FILE *fd, size_t filesize, int flags)
 		sz = 100;
 
 	p = xcalloc(sz + 3, sizeof(*p));
-	for (j = 0; (h = readhash(fd, flags));) {
-		if (j == sz) {
-			sz = sz * 3 / 2;
-			p = xreallocarray(p, sz + 3, sizeof(*p));
+	while ((r = readhash(fd, flags, &h)) != RH_EOF)
+		switch (r) {
+		case RH_EOF: /* otherwise clang complains */
+		case RH_BINARY:
+			return (false);
+		case RH_OK:
+			if (j == sz) {
+				sz = sz * 3 / 2;
+				p = xreallocarray(p, sz + 3, sizeof(*p));
+			}
+			p[++j].value = h;
 		}
-		p[++j].value = h;
-	}
+
 	len[i] = j;
 	file[i] = p;
+
+	return (true);
 }
 
 static void
@@ -1350,8 +1363,8 @@ fetch(long *f, int a, int b, FILE *lb, int ch, int oldfile, int flags)
 /*
  * Hash function taken from Robert Sedgewick, Algorithms in C, 3d ed., p 578.
  */
-static int
-readhash(FILE *f, int flags)
+static enum readhash
+readhash(FILE *f, int flags, unsigned *hash)
 {
 	int i, t, space;
 	unsigned sum;
@@ -1360,6 +1373,9 @@ readhash(FILE *f, int flags)
 	space = 0;
 	for (i = 0;;) {
 		switch (t = getc(f)) {
+		case '\0':
+			if ((flags & D_FORCEASCII) == 0)
+				return (RH_BINARY);
 		case '\r':
 			if (flags & D_STRIPCR) {
 				t = getc(f);
@@ -1387,18 +1403,15 @@ readhash(FILE *f, int flags)
 			continue;
 		case EOF:
 			if (i == 0)
-				return (0);
+				return (RH_EOF);
 			/* FALLTHROUGH */
 		case '\n':
 			break;
 		}
 		break;
 	}
-	/*
-	 * There is a remote possibility that we end up with a zero sum.
-	 * Zero is used as an EOF marker, so return 1 instead.
-	 */
-	return (sum == 0 ? 1 : sum);
+	*hash = sum;
+	return (RH_OK);
 }
 
 static int
