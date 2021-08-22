@@ -1212,10 +1212,10 @@ vfs_domount_first(
 	MNT_IUNLOCK(mp);
 
 	VI_LOCK(vp);
-	cache_purge(vp);
 	vn_irflag_set_locked(vp, VIRF_MOUNTPOINT);
 	vp->v_mountedhere = mp;
 	VI_UNLOCK(vp);
+	cache_purge(vp);
 
 	/*
 	 * We need to lock both vnodes.
