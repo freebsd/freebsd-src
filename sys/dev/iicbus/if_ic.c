@@ -372,7 +372,7 @@ icoutput(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	if (dst->sa_family == AF_UNSPEC)
 		bcopy(dst->sa_data, &hdr, sizeof(hdr));
 	else 
-		hdr = dst->sa_family;
+		hdr = RO_GET_FAMILY(ro, dst);
 
 	mtx_lock(&sc->ic_lock);
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;

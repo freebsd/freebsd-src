@@ -689,7 +689,9 @@ ipf_fastroute(m0, mpp, fin, fdp)
 	register struct mbuf *m = *mpp;
 	int len, off, error = 0, hlen, code;
 	struct ifnet *ifp, *sifp;
-	struct sockaddr_in dst;
+	struct route ro;
+	struct sockaddr_in *dst;
+	const struct sockaddr *gw;
 	struct nhop_object *nh;
 	u_long fibnum = 0;
 	u_short ip_off;
@@ -739,10 +741,12 @@ ipf_fastroute(m0, mpp, fin, fdp)
 	/*
 	 * Route packet.
 	 */
-	bzero(&dst, sizeof (dst));
-	dst.sin_family = AF_INET;
-	dst.sin_addr = ip->ip_dst;
-	dst.sin_len = sizeof(dst);
+	bzero(&ro, sizeof (ro));
+	dst = (struct sockaddr_in *)&ro.ro_dst;
+	dst->sin_family = AF_INET;
+	dst->sin_addr = ip->ip_dst;
+	dst->sin_len = sizeof(dst);
+	gw = (const struct sockaddr *)dst;
 
 	fr = fin->fin_fr;
 	if ((fr != NULL) && !(fr->fr_flags & FR_KEEPSTATE) && (fdp != NULL) &&
@@ -762,11 +766,11 @@ ipf_fastroute(m0, mpp, fin, fdp)
 	}
 
 	if ((fdp != NULL) && (fdp->fd_ip.s_addr != 0))
-		dst.sin_addr = fdp->fd_ip;
+		dst->sin_addr = fdp->fd_ip;
 
 	fibnum = M_GETFIB(m0);
 	NET_EPOCH_ASSERT();
-	nh = fib4_lookup(fibnum, dst.sin_addr, 0, NHR_NONE, 0);
+	nh = fib4_lookup(fibnum, dst->sin_addr, 0, NHR_NONE, 0);
 	if (nh == NULL) {
 		if (in_localaddr(ip->ip_dst))
 			error = EHOSTUNREACH;
@@ -777,8 +781,10 @@ ipf_fastroute(m0, mpp, fin, fdp)
 
 	if (ifp == NULL)
 		ifp = nh->nh_ifp;
-	if (nh->nh_flags & NHF_GATEWAY)
-		dst.sin_addr = nh->gw4_sa.sin_addr;
+	if (nh->nh_flags & NHF_GATEWAY) {
+		gw = &nh->gw_sa;
+		ro.ro_flags |= RT_HAS_GW;
+	}
 
 	/*
 	 * For input packets which are being "fastrouted", they won't
@@ -822,9 +828,7 @@ ipf_fastroute(m0, mpp, fin, fdp)
 	if (ntohs(ip->ip_len) <= ifp->if_mtu) {
 		if (!ip->ip_sum)
 			ip->ip_sum = in_cksum(m, hlen);
-		error = (*ifp->if_output)(ifp, m, (struct sockaddr *)&dst,
-			    NULL
-			);
+		error = (*ifp->if_output)(ifp, m, gw, &ro);
 		goto done;
 	}
 	/*
@@ -904,10 +908,7 @@ sendorfree:
 		m0 = m->m_act;
 		m->m_act = 0;
 		if (error == 0)
-			error = (*ifp->if_output)(ifp, m,
-			    (struct sockaddr *)&dst,
-			    NULL
-			    );
+			error = (*ifp->if_output)(ifp, m, gw, &ro);
 		else
 			FREE_MB_T(m);
 	}

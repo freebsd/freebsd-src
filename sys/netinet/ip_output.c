@@ -212,7 +212,7 @@ ip_output_pfil(struct mbuf **mp, struct ifnet *ifp, int flags,
 
 static int
 ip_output_send(struct inpcb *inp, struct ifnet *ifp, struct mbuf *m,
-    const struct sockaddr_in *gw, struct route *ro, bool stamp_tag)
+    const struct sockaddr *gw, struct route *ro, bool stamp_tag)
 {
 #ifdef KERN_TLS
 	struct ktls_session *tls = NULL;
@@ -273,7 +273,7 @@ ip_output_send(struct inpcb *inp, struct ifnet *ifp, struct mbuf *m,
 		m->m_pkthdr.csum_flags |= CSUM_SND_TAG;
 	}
 
-	error = (*ifp->if_output)(ifp, m, (const struct sockaddr *)gw, ro);
+	error = (*ifp->if_output)(ifp, m, gw, ro);
 
 done:
 	/* Check for route change invalidating send tags. */
@@ -329,12 +329,13 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 	int mtu = 0;
 	int error = 0;
 	int vlan_pcp = -1;
-	struct sockaddr_in *dst, sin;
-	const struct sockaddr_in *gw;
+	struct sockaddr_in *dst;
+	const struct sockaddr *gw;
 	struct in_ifaddr *ia = NULL;
 	struct in_addr src;
 	int isbroadcast;
 	uint16_t ip_len, ip_off;
+	struct route iproute;
 	uint32_t fibnum;
 #if defined(IPSEC) || defined(IPSEC_SUPPORT)
 	int no_route_but_check_spd = 0;
@@ -386,23 +387,23 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 	 * therefore we need restore gw if we're redoing lookup.
 	 */
 	fibnum = (inp != NULL) ? inp->inp_inc.inc_fibnum : M_GETFIB(m);
-	if (ro != NULL)
-		dst = (struct sockaddr_in *)&ro->ro_dst;
-	else
-		dst = &sin;
-	if (ro == NULL || ro->ro_nh == NULL) {
-		bzero(dst, sizeof(*dst));
+	if (ro == NULL) {
+		ro = &iproute;
+		bzero(ro, sizeof (*ro));
+	}
+	dst = (struct sockaddr_in *)&ro->ro_dst;
+	if (ro->ro_nh == NULL) {
 		dst->sin_family = AF_INET;
 		dst->sin_len = sizeof(*dst);
 		dst->sin_addr = ip->ip_dst;
 	}
-	gw = dst;
+	gw = (const struct sockaddr *)dst;
 again:
 	/*
 	 * Validate route against routing table additions;
 	 * a better/more specific route might have been added.
 	 */
-	if (inp != NULL && ro != NULL && ro->ro_nh != NULL)
+	if (inp != NULL && ro->ro_nh != NULL)
 		NH_VALIDATE(ro, &inp->inp_rt_cookie, fibnum);
 	/*
 	 * If there is a cached route,
@@ -412,7 +413,7 @@ again:
 	 * cache with IPv6.
 	 * Also check whether routing cache needs invalidation.
 	 */
-	if (ro != NULL && ro->ro_nh != NULL &&
+	if (ro->ro_nh != NULL &&
 	    ((!NH_IS_VALID(ro->ro_nh)) || dst->sin_family != AF_INET ||
 	    dst->sin_addr.s_addr != ip->ip_dst.s_addr))
 		RO_INVALIDATE_CACHE(ro);
@@ -469,7 +470,7 @@ again:
 			src = IA_SIN(ia)->sin_addr;
 		else
 			src.s_addr = INADDR_ANY;
-	} else if (ro != NULL) {
+	} else if (ro != &iproute) {
 		if (ro->ro_nh == NULL) {
 			/*
 			 * We want to do any cloning requested by the link
@@ -502,11 +503,11 @@ again:
 		counter_u64_add(nh->nh_pksent, 1);
 		rt_update_ro_flags(ro, nh);
 		if (nh->nh_flags & NHF_GATEWAY)
-			gw = &nh->gw4_sa;
+			gw = &nh->gw_sa;
 		if (nh->nh_flags & NHF_HOST)
 			isbroadcast = (nh->nh_flags & NHF_BROADCAST);
-		else if (ifp->if_flags & IFF_BROADCAST)
-			isbroadcast = in_ifaddr_broadcast(gw->sin_addr, ia);
+		else if ((ifp->if_flags & IFF_BROADCAST) && (gw->sa_family == AF_INET))
+			isbroadcast = in_ifaddr_broadcast(((const struct sockaddr_in *)gw)->sin_addr, ia);
 		else
 			isbroadcast = 0;
 		mtu = nh->nh_mtu;
@@ -531,22 +532,16 @@ again:
 		}
 		ifp = nh->nh_ifp;
 		mtu = nh->nh_mtu;
-		/*
-		 * We are rewriting here dst to be gw actually, contradicting
-		 * comment at the beginning of the function. However, in this
-		 * case we are always dealing with on stack dst.
-		 * In case if pfil(9) sends us back to beginning of the
-		 * function, the dst would be rewritten by ip_output_pfil().
-		 */
-		MPASS(dst == &sin);
+		rt_update_ro_flags(ro, nh);
 		if (nh->nh_flags & NHF_GATEWAY)
-			dst->sin_addr = nh->gw4_sa.sin_addr;
+			gw = &nh->gw_sa;
 		ia = ifatoia(nh->nh_ifa);
 		src = IA_SIN(ia)->sin_addr;
 		isbroadcast = (((nh->nh_flags & (NHF_HOST | NHF_BROADCAST)) ==
 		    (NHF_HOST | NHF_BROADCAST)) ||
 		    ((ifp->if_flags & IFF_BROADCAST) &&
-		    in_ifaddr_broadcast(dst->sin_addr, ia)));
+		    (gw->sa_family == AF_INET) &&
+		    in_ifaddr_broadcast(((const struct sockaddr_in *)gw)->sin_addr, ia)));
 	}
 
 	/* Catch a possible divide by zero later. */
@@ -561,7 +556,7 @@ again:
 		 * still points to the address in "ro".  (It may have been
 		 * changed to point to a gateway address, above.)
 		 */
-		gw = dst;
+		gw = (const struct sockaddr *)dst;
 		/*
 		 * See if the caller provided any multicast options
 		 */
@@ -721,7 +716,7 @@ sendit:
 				RO_NHFREE(ro);
 				ro->ro_prepend = NULL;
 			}
-			gw = dst;
+			gw = (const struct sockaddr *)dst;
 			ip = mtod(m, struct ip *);
 			goto again;
 		}
