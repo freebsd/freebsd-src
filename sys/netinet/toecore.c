@@ -483,7 +483,8 @@ toe_l2_resolve(struct toedev *tod, struct ifnet *ifp, struct sockaddr *sa,
 #endif
 #ifdef INET6
 	case AF_INET6:
-		rc = nd6_resolve(ifp, LLE_SF(AF_INET6, 0), NULL, sa, lladdr, NULL, NULL);
+		rc = nd6_resolve(ifp, LLE_SF(AF_INET6, 0), NULL, sa, lladdr,
+		    NULL, NULL);
 		break;
 #endif
 	default:

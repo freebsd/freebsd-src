@@ -1065,13 +1065,16 @@ ip_forward(struct mbuf *m, int srcrt)
 
 			if (nh_ia != NULL &&
 			    (src & nh_ia->ia_subnetmask) == nh_ia->ia_subnet) {
-				if (nh->nh_flags & NHF_GATEWAY)
-					dest.s_addr = nh->gw4_sa.sin_addr.s_addr;
-				else
-					dest.s_addr = ip->ip_dst.s_addr;
 				/* Router requirements says to only send host redirects */
 				type = ICMP_REDIRECT;
 				code = ICMP_REDIRECT_HOST;
+				if (nh->nh_flags & NHF_GATEWAY) {
+				    if (nh->gw_sa.sa_family == AF_INET)
+					dest.s_addr = nh->gw4_sa.sin_addr.s_addr;
+				    else /* Do not redirect in case gw is AF_INET6 */
+					type = 0;
+				} else
+					dest.s_addr = ip->ip_dst.s_addr;
 			}
 		}
 	}

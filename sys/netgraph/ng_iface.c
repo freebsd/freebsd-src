@@ -371,7 +371,7 @@ ng_iface_output(struct ifnet *ifp, struct mbuf *m,
 	if (dst->sa_family == AF_UNSPEC)
 		bcopy(dst->sa_data, &af, sizeof(af));
 	else
-		af = dst->sa_family;
+		af = RO_GET_FAMILY(ro, dst);
 
 	/* Berkeley packet filter */
 	ng_iface_bpftap(ifp, m, af);

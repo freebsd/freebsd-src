@@ -364,6 +364,10 @@ hash_insert(priv_p priv, struct flow_hash_entry *hsh, struct flow_rec *r,
 			fle->f.fle_o_ifx = nh->nh_ifp->if_index;
 			if (nh->gw_sa.sa_family == AF_INET)
 				fle->f.next_hop = nh->gw4_sa.sin_addr;
+			/*
+			 * XXX we're leaving an empty gateway here for
+			 * IPv6 nexthops.
+			 */
 			fle->f.dst_mask = plen;
 		}
 	}

@@ -780,6 +780,7 @@ sppp_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	int ipproto = PPP_IP;
 #endif
 	int debug = ifp->if_flags & IFF_DEBUG;
+	int af = RO_GET_FAMILY(ro, dst);
 
 	SPPP_LOCK(sp);
 
@@ -805,7 +806,7 @@ sppp_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 		 * dialout event in case IPv6 has been
 		 * administratively disabled on that interface.
 		 */
-		if (dst->sa_family == AF_INET6 &&
+		if (af == AF_INET6 &&
 		    !(sp->confflags & CONF_ENABLE_IPV6))
 			goto drop;
 #endif
@@ -818,7 +819,7 @@ sppp_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	}
 
 #ifdef INET
-	if (dst->sa_family == AF_INET) {
+	if (af == AF_INET) {
 		/* XXX Check mbuf length here? */
 		struct ip *ip = mtod (m, struct ip*);
 		struct tcphdr *tcp = (struct tcphdr*) ((long*)ip + ip->ip_hl);
@@ -888,14 +889,14 @@ sppp_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 #endif
 
 #ifdef INET6
-	if (dst->sa_family == AF_INET6) {
+	if (af == AF_INET6) {
 		/* XXX do something tricky here? */
 	}
 #endif
 
 	if (sp->pp_mode == PP_FR) {
 		/* Add frame relay header. */
-		m = sppp_fr_header (sp, m, dst->sa_family);
+		m = sppp_fr_header (sp, m, af);
 		if (! m)
 			goto nobufs;
 		goto out;
@@ -926,7 +927,7 @@ nobufs:		if (debug)
 		h->control = PPP_UI;                 /* Unnumbered Info */
 	}
 
-	switch (dst->sa_family) {
+	switch (af) {
 #ifdef INET
 	case AF_INET:   /* Internet Protocol */
 		if (sp->pp_mode == IFF_CISCO)

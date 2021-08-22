@@ -673,6 +673,7 @@ debugnet_connect(const struct debugnet_conn_params *dcp,
 			goto cleanup;
 		}
 
+		/* TODO support AF_INET6 */
 		if (nh->gw_sa.sa_family == AF_INET)
 			gw_sin = &nh->gw4_sa;
 		else {

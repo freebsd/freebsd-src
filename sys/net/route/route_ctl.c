@@ -106,6 +106,14 @@ SYSCTL_UINT(_net_route, OID_AUTO, multipath, _MP_FLAGS | CTLFLAG_VNET,
     &VNET_NAME(rib_route_multipath), 0, "Enable route multipath");
 #undef _MP_FLAGS
 
+#if defined(INET) && defined(INET6)
+FEATURE(ipv4_rfc5549_support, "Route IPv4 packets via IPv6 nexthops");
+#define V_rib_route_ipv6_nexthop VNET(rib_route_ipv6_nexthop)
+VNET_DEFINE(u_int, rib_route_ipv6_nexthop) = 1;
+SYSCTL_UINT(_net_route, OID_AUTO, ipv6_nexthop, CTLFLAG_RW | CTLFLAG_VNET,
+    &VNET_NAME(rib_route_ipv6_nexthop), 0, "Enable IPv4 route via IPv6 Next Hop address");
+#endif
+
 /* Routing table UMA zone */
 VNET_DEFINE_STATIC(uma_zone_t, rtzone);
 #define	V_rtzone	VNET(rtzone)
@@ -196,6 +204,20 @@ get_rnh(uint32_t fibnum, const struct rt_addrinfo *info)
 
 	return (rnh);
 }
+
+#if defined(INET) && defined(INET6)
+static bool
+rib_can_ipv6_nexthop_address(struct rib_head *rh)
+{
+	int result;
+
+	CURVNET_SET(rh->rib_vnet);
+	result = !!V_rib_route_ipv6_nexthop;
+	CURVNET_RESTORE();
+
+	return (result);
+}
+#endif
 
 #ifdef ROUTE_MPATH
 static bool
@@ -582,7 +604,13 @@ check_gateway(struct rib_head *rnh, struct sockaddr *dst,
 		return (true);
 	else if (gateway->sa_family == AF_LINK)
 		return (true);
-	return (false);
+#if defined(INET) && defined(INET6)
+	else if (dst->sa_family == AF_INET && gateway->sa_family == AF_INET6 &&
+		rib_can_ipv6_nexthop_address(rnh))
+		return (true);
+#endif
+	else
+		return (false);
 }
 
 /*
