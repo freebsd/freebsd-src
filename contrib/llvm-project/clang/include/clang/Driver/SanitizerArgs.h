@@ -12,6 +12,7 @@
 #include "clang/Driver/Types.h"
 #include "llvm/Option/Arg.h"
 #include "llvm/Option/ArgList.h"
+#include "llvm/Transforms/Instrumentation/AddressSanitizerOptions.h"
 #include <string>
 #include <vector>
 
@@ -25,10 +26,10 @@ class SanitizerArgs {
   SanitizerSet RecoverableSanitizers;
   SanitizerSet TrapSanitizers;
 
-  std::vector<std::string> UserBlacklistFiles;
-  std::vector<std::string> SystemBlacklistFiles;
+  std::vector<std::string> UserIgnorelistFiles;
+  std::vector<std::string> SystemIgnorelistFiles;
   std::vector<std::string> CoverageAllowlistFiles;
-  std::vector<std::string> CoverageBlocklistFiles;
+  std::vector<std::string> CoverageIgnorelistFiles;
   int CoverageFeatures = 0;
   int MsanTrackOrigins = 0;
   bool MsanUseAfterDtor = true;
@@ -43,6 +44,8 @@ class SanitizerArgs {
   bool AsanUseOdrIndicator = false;
   bool AsanInvalidPointerCmp = false;
   bool AsanInvalidPointerSub = false;
+  bool AsanOutlineInstrumentation = false;
+  llvm::AsanDtorKind AsanDtorKind = llvm::AsanDtorKind::Invalid;
   std::string HwasanAbi;
   bool LinkRuntimes = true;
   bool LinkCXXRuntimes = false;
@@ -56,6 +59,9 @@ class SanitizerArgs {
   // True if cross-dso CFI support if provided by the system (i.e. Android).
   bool ImplicitCfiRuntime = false;
   bool NeedsMemProfRt = false;
+  bool HwasanUseAliases = false;
+  llvm::AsanDetectStackUseAfterReturnMode AsanUseAfterReturn =
+      llvm::AsanDetectStackUseAfterReturnMode::Invalid;
 
 public:
   /// Parses the sanitizer arguments from an argument list.
@@ -67,6 +73,9 @@ public:
   bool needsAsanRt() const { return Sanitizers.has(SanitizerKind::Address); }
   bool needsHwasanRt() const {
     return Sanitizers.has(SanitizerKind::HWAddress);
+  }
+  bool needsHwasanAliasesRt() const {
+    return needsHwasanRt() && HwasanUseAliases;
   }
   bool needsTsanRt() const { return Sanitizers.has(SanitizerKind::Thread); }
   bool needsMsanRt() const { return Sanitizers.has(SanitizerKind::Memory); }

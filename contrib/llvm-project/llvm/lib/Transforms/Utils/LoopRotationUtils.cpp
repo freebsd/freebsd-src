@@ -26,7 +26,7 @@
 #include "llvm/Analysis/TargetTransformInfo.h"
 #include "llvm/Analysis/ValueTracking.h"
 #include "llvm/IR/CFG.h"
-#include "llvm/IR/DebugInfoMetadata.h"
+#include "llvm/IR/DebugInfo.h"
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/IntrinsicInst.h"
@@ -46,6 +46,10 @@ using namespace llvm;
 
 STATISTIC(NumNotRotatedDueToHeaderSize,
           "Number of loops not rotated due to the header size");
+STATISTIC(NumInstrsHoisted,
+          "Number of instructions hoisted into loop preheader");
+STATISTIC(NumInstrsDuplicated,
+          "Number of instructions cloned into loop preheader");
 STATISTIC(NumRotated, "Number of loops rotated");
 
 static cl::opt<bool>
@@ -179,9 +183,7 @@ static void RewriteUsesOfClonedInstructions(BasicBlock *OrigHeader,
         NewVal = SSA.GetValueInMiddleOfBlock(UserBB);
       else
         NewVal = UndefValue::get(OrigHeaderVal->getType());
-      DbgValue->setOperand(0,
-                           MetadataAsValue::get(OrigHeaderVal->getContext(),
-                                                ValueAsMetadata::get(NewVal)));
+      DbgValue->replaceVariableLocationOp(OrigHeaderVal, NewVal);
     }
   }
 }
@@ -386,11 +388,15 @@ bool LoopRotate::rotateLoop(Loop *L, bool SimplifiedLatch) {
     // possible or create a clone in the OldPreHeader if not.
     Instruction *LoopEntryBranch = OrigPreheader->getTerminator();
 
-    // Record all debug intrinsics preceding LoopEntryBranch to avoid duplication.
+    // Record all debug intrinsics preceding LoopEntryBranch to avoid
+    // duplication.
     using DbgIntrinsicHash =
-      std::pair<std::pair<Value *, DILocalVariable *>, DIExpression *>;
+        std::pair<std::pair<hash_code, DILocalVariable *>, DIExpression *>;
     auto makeHash = [](DbgVariableIntrinsic *D) -> DbgIntrinsicHash {
-      return {{D->getVariableLocation(), D->getVariable()}, D->getExpression()};
+      auto VarLocOps = D->location_ops();
+      return {{hash_combine_range(VarLocOps.begin(), VarLocOps.end()),
+               D->getVariable()},
+              D->getExpression()};
     };
     SmallDenseSet<DbgIntrinsicHash, 8> DbgIntrinsics;
     for (auto I = std::next(OrigPreheader->rbegin()), E = OrigPreheader->rend();
@@ -422,11 +428,13 @@ bool LoopRotate::rotateLoop(Loop *L, bool SimplifiedLatch) {
           !Inst->mayWriteToMemory() && !Inst->isTerminator() &&
           !isa<DbgInfoIntrinsic>(Inst) && !isa<AllocaInst>(Inst)) {
         Inst->moveBefore(LoopEntryBranch);
+        ++NumInstrsHoisted;
         continue;
       }
 
       // Otherwise, create a duplicate of the instruction.
       Instruction *C = Inst->clone();
+      ++NumInstrsDuplicated;
 
       // Eagerly remap the operands of the instruction.
       RemapInstruction(C, ValueMap,
@@ -459,9 +467,8 @@ bool LoopRotate::rotateLoop(Loop *L, bool SimplifiedLatch) {
         C->setName(Inst->getName());
         C->insertBefore(LoopEntryBranch);
 
-        if (auto *II = dyn_cast<IntrinsicInst>(C))
-          if (II->getIntrinsicID() == Intrinsic::assume)
-            AC->registerAssumption(II);
+        if (auto *II = dyn_cast<AssumeInst>(C))
+          AC->registerAssumption(II);
         // MemorySSA cares whether the cloned instruction was inserted or not, and
         // not whether it can be remapped to a simplified value.
         if (MSSAU)
@@ -630,6 +637,7 @@ bool LoopRotate::rotateLoop(Loop *L, bool SimplifiedLatch) {
       }
       assert(SplitLatchEdge &&
              "Despite splitting all preds, failed to split latch exit?");
+      (void)SplitLatchEdge;
     } else {
       // We can fold the conditional branch in the preheader, this makes things
       // simpler. The first step is to remove the extra edge to the Exit block.

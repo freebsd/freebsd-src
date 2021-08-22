@@ -13,7 +13,6 @@
 #define LLVM_CLANG_LIB_BASIC_TARGETS_OSTARGETS_H
 
 #include "Targets.h"
-#include "llvm/MC/MCSectionMachO.h"
 
 namespace clang {
 namespace targets {
@@ -112,15 +111,6 @@ public:
     }
 
     this->MCountName = "\01mcount";
-  }
-
-  std::string isValidSectionSpecifier(StringRef SR) const override {
-    // Let MCSectionMachO validate this.
-    StringRef Segment, Section;
-    unsigned TAA, StubSize;
-    bool HasTAA;
-    return llvm::MCSectionMachO::ParseSectionSpecifier(SR, Segment, Section,
-                                                       TAA, HasTAA, StubSize);
   }
 
   const char *getStaticInitSectionSpecifier() const override {
@@ -260,6 +250,9 @@ public:
       break;
     case llvm::Triple::arm:
       this->MCountName = "__mcount";
+      break;
+    case llvm::Triple::riscv32:
+    case llvm::Triple::riscv64:
       break;
     }
   }
@@ -491,6 +484,9 @@ public:
     case llvm::Triple::sparcv9:
       this->MCountName = "_mcount";
       break;
+    case llvm::Triple::riscv32:
+    case llvm::Triple::riscv64:
+      break;
     }
   }
 };
@@ -679,6 +675,12 @@ protected:
     Builder.defineMacro("_POWER");
 
     Builder.defineMacro("_AIX");
+    Builder.defineMacro("__TOS_AIX__");
+
+    if (Opts.C11) {
+      Builder.defineMacro("__STDC_NO_ATOMICS__");
+      Builder.defineMacro("__STDC_NO_THREADS__");
+    }
 
     if (Opts.EnableAIXExtendedAltivecABI)
       Builder.defineMacro("__EXTABI__");
@@ -699,6 +701,7 @@ protected:
     if (OsVersion >= std::make_pair(6, 1)) Builder.defineMacro("_AIX61");
     if (OsVersion >= std::make_pair(7, 1)) Builder.defineMacro("_AIX71");
     if (OsVersion >= std::make_pair(7, 2)) Builder.defineMacro("_AIX72");
+    if (OsVersion >= std::make_pair(7, 3)) Builder.defineMacro("_AIX73");
 
     // FIXME: Do not define _LONG_LONG when -fno-long-long is specified.
     Builder.defineMacro("_LONG_LONG");
@@ -788,10 +791,11 @@ public:
   ZOSTargetInfo(const llvm::Triple &Triple, const TargetOptions &Opts)
       : OSTargetInfo<Target>(Triple, Opts) {
     this->WCharType = TargetInfo::UnsignedInt;
+    this->MaxAlignedAttribute = 128;
     this->UseBitFieldTypeAlignment = false;
     this->UseZeroLengthBitfieldAlignment = true;
+    this->UseLeadingZeroLengthBitfield = false;
     this->ZeroLengthBitfieldBoundary = 32;
-    this->MinGlobalAlign = 0;
     this->DefaultAlignForAttributeAligned = 128;
   }
 };
@@ -940,11 +944,21 @@ class LLVM_LIBRARY_VISIBILITY EmscriptenTargetInfo
                     MacroBuilder &Builder) const final {
     WebAssemblyOSTargetInfo<Target>::getOSDefines(Opts, Triple, Builder);
     Builder.defineMacro("__EMSCRIPTEN__");
+    if (Opts.POSIXThreads)
+      Builder.defineMacro("__EMSCRIPTEN_PTHREADS__");
   }
 
 public:
-  explicit EmscriptenTargetInfo(const llvm::Triple &Triple, const TargetOptions &Opts)
-      : WebAssemblyOSTargetInfo<Target>(Triple, Opts) {}
+  explicit EmscriptenTargetInfo(const llvm::Triple &Triple,
+                                const TargetOptions &Opts)
+      : WebAssemblyOSTargetInfo<Target>(Triple, Opts) {
+    // Keeping the alignment of long double to 8 bytes even though its size is
+    // 16 bytes allows emscripten to have an 8-byte-aligned max_align_t which
+    // in turn gives is a 8-byte aligned malloc.
+    // Emscripten's ABI is unstable and we may change this back to 128 to match
+    // the WebAssembly default in the future.
+    this->LongDoubleAlign = 64;
+  }
 };
 
 } // namespace targets

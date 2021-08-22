@@ -344,7 +344,7 @@ int16_t PPCInstrInfo::getFMAOpIdxInfo(unsigned Opcode) const {
 //
 // 2: Reduce register pressure.
 // Try to reassociate FMA with FSUB and a constant like below:
-// C is a floatint point const.
+// C is a floating point const.
 //
 // Pattern 1:
 //   A = FSUB  X,  Y      (Leaf)
@@ -362,7 +362,7 @@ int16_t PPCInstrInfo::getFMAOpIdxInfo(unsigned Opcode) const {
 //
 //  Before the transformation, A must be assigned with different hardware
 //  register with D. After the transformation, A and D must be assigned with
-//  same hardware register due to TIE attricute of FMA instructions.
+//  same hardware register due to TIE attribute of FMA instructions.
 //
 bool PPCInstrInfo::getFMAPatterns(
     MachineInstr &Root, SmallVectorImpl<MachineCombinerPattern> &Patterns,
@@ -1096,6 +1096,8 @@ bool PPCInstrInfo::isReallyTriviallyReMaterializable(const MachineInstr &MI,
     break;
   case PPC::LI:
   case PPC::LI8:
+  case PPC::PLI:
+  case PPC::PLI8:
   case PPC::LIS:
   case PPC::LIS8:
   case PPC::ADDIStocHA:
@@ -1106,6 +1108,7 @@ bool PPCInstrInfo::isReallyTriviallyReMaterializable(const MachineInstr &MI,
   case PPC::XXLXORspz:
   case PPC::XXLXORdpz:
   case PPC::XXLEQVOnes:
+  case PPC::XXSPLTI32DX:
   case PPC::V_SET0B:
   case PPC::V_SET0H:
   case PPC::V_SET0:
@@ -1256,8 +1259,10 @@ void PPCInstrInfo::insertNoop(MachineBasicBlock &MBB,
 }
 
 /// Return the noop instruction to use for a noop.
-void PPCInstrInfo::getNoop(MCInst &NopInst) const {
-  NopInst.setOpcode(PPC::NOP);
+MCInst PPCInstrInfo::getNop() const {
+  MCInst Nop;
+  Nop.setOpcode(PPC::NOP);
+  return Nop;
 }
 
 // Branch analysis.
@@ -1829,6 +1834,22 @@ void PPCInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
     if (SrcPrimed && !KillSrc)
       BuildMI(MBB, I, DL, get(PPC::XXMTACC), SrcReg).addReg(SrcReg);
     return;
+  } else if (PPC::G8pRCRegClass.contains(DestReg) &&
+             PPC::G8pRCRegClass.contains(SrcReg)) {
+    // TODO: Handle G8RC to G8pRC (and vice versa) copy.
+    unsigned DestRegIdx = DestReg - PPC::G8p0;
+    MCRegister DestRegSub0 = PPC::X0 + 2 * DestRegIdx;
+    MCRegister DestRegSub1 = PPC::X0 + 2 * DestRegIdx + 1;
+    unsigned SrcRegIdx = SrcReg - PPC::G8p0;
+    MCRegister SrcRegSub0 = PPC::X0 + 2 * SrcRegIdx;
+    MCRegister SrcRegSub1 = PPC::X0 + 2 * SrcRegIdx + 1;
+    BuildMI(MBB, I, DL, get(PPC::OR8), DestRegSub0)
+        .addReg(SrcRegSub0)
+        .addReg(SrcRegSub0, getKillRegState(KillSrc));
+    BuildMI(MBB, I, DL, get(PPC::OR8), DestRegSub1)
+        .addReg(SrcRegSub1)
+        .addReg(SrcRegSub1, getKillRegState(KillSrc));
+    return;
   } else
     llvm_unreachable("Impossible reg-to-reg copy");
 
@@ -1881,6 +1902,8 @@ unsigned PPCInstrInfo::getSpillIndex(const TargetRegisterClass *RC) const {
     assert(Subtarget.pairedVectorMemops() &&
            "Register unexpected when paired memops are disabled.");
     OpcodeIndex = SOK_PairedVecSpill;
+  } else if (PPC::G8pRCRegClass.hasSubClassEq(RC)) {
+    OpcodeIndex = SOK_PairedG8Spill;
   } else {
     llvm_unreachable("Unknown regclass!");
   }
@@ -2888,6 +2911,7 @@ PPCInstrInfo::getSerializableBitmaskMachineOperandTargetFlags() const {
       {MO_TLSGD_FLAG, "ppc-tlsgd"},
       {MO_TLSLD_FLAG, "ppc-tlsld"},
       {MO_TPREL_FLAG, "ppc-tprel"},
+      {MO_TLSGDM_FLAG, "ppc-tlsgdm"},
       {MO_GOT_TLSGD_PCREL_FLAG, "ppc-got-tlsgd-pcrel"},
       {MO_GOT_TLSLD_PCREL_FLAG, "ppc-got-tlsld-pcrel"},
       {MO_GOT_TPREL_PCREL_FLAG, "ppc-got-tprel-pcrel"}};
@@ -3136,11 +3160,11 @@ void PPCInstrInfo::replaceInstrOperandWithImm(MachineInstr &MI,
   Register InUseReg = MI.getOperand(OpNo).getReg();
   MI.getOperand(OpNo).ChangeToImmediate(Imm);
 
-  if (MI.implicit_operands().empty())
-    return;
-
   // We need to make sure that the MI didn't have any implicit use
-  // of this REG any more.
+  // of this REG any more. We don't call MI.implicit_operands().empty() to
+  // return early, since MI's MCID might be changed in calling context, as a
+  // result its number of explicit operands may be changed, thus the begin of
+  // implicit operand is changed.
   const TargetRegisterInfo *TRI = &getRegisterInfo();
   int UseOpIdx = MI.findRegisterUseOperandIdx(InUseReg, false, TRI);
   if (UseOpIdx >= 0) {
@@ -4412,21 +4436,17 @@ bool PPCInstrInfo::isImmElgibleForForwarding(const MachineOperand &ImmMO,
     // Sign-extend to 64-bits.
     // DefMI may be folded with another imm form instruction, the result Imm is
     // the sum of Imm of DefMI and BaseImm which is from imm form instruction.
+    APInt ActualValue(64, ImmMO.getImm() + BaseImm, true);
+    if (III.SignedImm && !ActualValue.isSignedIntN(III.ImmWidth))
+      return false;
+    if (!III.SignedImm && !ActualValue.isIntN(III.ImmWidth))
+      return false;
     Imm = SignExtend64<16>(ImmMO.getImm() + BaseImm);
 
     if (Imm % III.ImmMustBeMultipleOf)
       return false;
     if (III.TruncateImmTo)
       Imm &= ((1 << III.TruncateImmTo) - 1);
-    if (III.SignedImm) {
-      APInt ActualValue(64, Imm, true);
-      if (!ActualValue.isSignedIntN(III.ImmWidth))
-        return false;
-    } else {
-      uint64_t UnsignedMax = (1 << III.ImmWidth) - 1;
-      if ((uint64_t)Imm > UnsignedMax)
-        return false;
-    }
   }
   else
     return false;
@@ -4743,7 +4763,12 @@ bool PPCInstrInfo::transformToNewImmFormFedByAdd(
   LLVM_DEBUG(DefMI.dump());
 
   MI.getOperand(III.OpNoForForwarding).setReg(RegMO->getReg());
-  MI.getOperand(III.OpNoForForwarding).setIsKill(RegMO->isKill());
+  if (RegMO->isKill()) {
+    MI.getOperand(III.OpNoForForwarding).setIsKill(true);
+    // Clear the killed flag in RegMO. Doing this here can handle some cases
+    // that DefMI and MI are not in same basic block.
+    RegMO->setIsKill(false);
+  }
   MI.getOperand(III.ImmOpNo).setImm(Imm);
 
   // FIXME: fix kill/dead flag if MI and DefMI are not in same basic block.
@@ -5156,7 +5181,8 @@ bool PPCInstrInfo::isTOCSaveMI(const MachineInstr &MI) const {
   unsigned TOCSaveOffset = Subtarget.getFrameLowering()->getTOCSaveOffset();
   unsigned StackOffset = MI.getOperand(1).getImm();
   Register StackReg = MI.getOperand(2).getReg();
-  if (StackReg == PPC::X1 && StackOffset == TOCSaveOffset)
+  Register SPReg = Subtarget.isPPC64() ? PPC::X1 : PPC::R1;
+  if (StackReg == SPReg && StackOffset == TOCSaveOffset)
     return true;
 
   return false;

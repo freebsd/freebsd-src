@@ -1056,6 +1056,14 @@ let Predicates = [HasNoV9] in {
 		     "rd %tbr, $rd", []>;
 }
 
+// PC don't exist on the SparcV8, only the V9.
+let Predicates = [HasV9] in {
+  let rs2 = 0, rs1 = 5 in
+    def RDPC : F3_1<2, 0b101000,
+		     (outs IntRegs:$rd), (ins),
+		     "rd %pc, $rd", []>;
+}
+
 // Section B.29 - Write State Register Instructions
 def WRASRrr : F3_1<2, 0b110000,
                  (outs ASRRegs:$rd), (ins IntRegs:$rs1, IntRegs:$rs2),
@@ -1533,6 +1541,11 @@ def : Pat<(i32 (ctpop i32:$src)),
 let Predicates = [HasV9], hasSideEffects = 1, rd = 0, rs1 = 0b01111 in
  def MEMBARi : F3_2<2, 0b101000, (outs), (ins MembarTag:$simm13),
                     "membar $simm13", []>;
+
+let Predicates = [HasV9], rd = 15, rs1 = 0b00000 in
+  def SIR: F3_2<2, 0b110000, (outs),
+                (ins simm13Op:$simm13),
+                 "sir $simm13", []>;
 
 // The CAS instruction, unlike other instructions, only comes in a
 // form which requires an ASI be provided. The ASI value hardcoded

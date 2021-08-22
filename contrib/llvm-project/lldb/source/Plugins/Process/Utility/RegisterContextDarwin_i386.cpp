@@ -15,7 +15,7 @@
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/Compiler.h"
 
-#include <stddef.h>
+#include <cstddef>
 
 #include <memory>
 
@@ -405,7 +405,7 @@ RegisterContextDarwin_i386::RegisterContextDarwin_i386(
   }
 }
 
-RegisterContextDarwin_i386::~RegisterContextDarwin_i386() {}
+RegisterContextDarwin_i386::~RegisterContextDarwin_i386() = default;
 
 void RegisterContextDarwin_i386::InvalidateAllRegisters() {
   InvalidateAllRegisterStates();

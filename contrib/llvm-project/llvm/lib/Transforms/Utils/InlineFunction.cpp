@@ -27,8 +27,9 @@
 #include "llvm/Analysis/CaptureTracking.h"
 #include "llvm/Analysis/EHPersonalities.h"
 #include "llvm/Analysis/InstructionSimplify.h"
+#include "llvm/Analysis/ObjCARCAnalysisUtils.h"
+#include "llvm/Analysis/ObjCARCUtil.h"
 #include "llvm/Analysis/ProfileSummaryInfo.h"
-#include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Analysis/ValueTracking.h"
 #include "llvm/Analysis/VectorUtils.h"
 #include "llvm/IR/Argument.h"
@@ -44,6 +45,7 @@
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/IRBuilder.h"
+#include "llvm/IR/InlineAsm.h"
 #include "llvm/IR/InstrTypes.h"
 #include "llvm/IR/Instruction.h"
 #include "llvm/IR/Instructions.h"
@@ -61,6 +63,7 @@
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Transforms/Utils/AssumeBundleBuilder.h"
 #include "llvm/Transforms/Utils/Cloning.h"
+#include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Transforms/Utils/ValueMapper.h"
 #include <algorithm>
 #include <cassert>
@@ -543,8 +546,15 @@ static BasicBlock *HandleCallsInBlockInlinedThroughInvoke(
     // instructions require no special handling.
     CallInst *CI = dyn_cast<CallInst>(I);
 
-    if (!CI || CI->doesNotThrow() || CI->isInlineAsm())
+    if (!CI || CI->doesNotThrow())
       continue;
+
+    if (CI->isInlineAsm()) {
+      InlineAsm *IA = cast<InlineAsm>(CI->getCalledOperand());
+      if (!IA->canThrow()) {
+        continue;
+      }
+    }
 
     // We do not need to (and in fact, cannot) convert possibly throwing calls
     // to @llvm.experimental_deoptimize (resp. @llvm.experimental.guard) into
@@ -929,7 +939,8 @@ void ScopedAliasMetadataDeepCloner::remap(Function::iterator FStart,
 /// parameters with noalias metadata specifying the new scope, and tag all
 /// non-derived loads, stores and memory intrinsics with the new alias scopes.
 static void AddAliasScopeMetadata(CallBase &CB, ValueToValueMapTy &VMap,
-                                  const DataLayout &DL, AAResults *CalleeAAR) {
+                                  const DataLayout &DL, AAResults *CalleeAAR,
+                                  ClonedCodeInfo &InlinedFunctionInfo) {
   if (!EnableNoAliasConversion)
     return;
 
@@ -999,7 +1010,7 @@ static void AddAliasScopeMetadata(CallBase &CB, ValueToValueMapTy &VMap,
         continue;
 
       Instruction *NI = dyn_cast<Instruction>(VMI->second);
-      if (!NI)
+      if (!NI || InlinedFunctionInfo.isSimplified(I, NI))
         continue;
 
       bool IsArgMemOnlyCall = false, IsFuncCall = false;
@@ -1025,6 +1036,11 @@ static void AddAliasScopeMetadata(CallBase &CB, ValueToValueMapTy &VMap,
         IsFuncCall = true;
         if (CalleeAAR) {
           FunctionModRefBehavior MRB = CalleeAAR->getModRefBehavior(Call);
+
+          // We'll retain this knowledge without additional metadata.
+          if (AAResults::onlyAccessesInaccessibleMem(MRB))
+            continue;
+
           if (AAResults::onlyAccessesArgPointees(MRB))
             IsArgMemOnlyCall = true;
         }
@@ -1280,7 +1296,7 @@ static void AddAlignmentAssumptions(CallBase &CB, InlineFunctionInfo &IFI) {
 
       CallInst *NewAsmp =
           IRBuilder<>(&CB).CreateAlignmentAssumption(DL, ArgVal, Align);
-      AC->registerAssumption(NewAsmp);
+      AC->registerAssumption(cast<AssumeInst>(NewAsmp));
     }
   }
 }
@@ -1504,9 +1520,11 @@ static void fixupLineNumbers(Function *Fn, Function::iterator FI,
          BI != BE; ++BI) {
       // Loop metadata needs to be updated so that the start and end locs
       // reference inlined-at locations.
-      auto updateLoopInfoLoc = [&Ctx, &InlinedAtNode, &IANodes](
-                                   const DILocation &Loc) -> DILocation * {
-        return inlineDebugLoc(&Loc, InlinedAtNode, Ctx, IANodes).get();
+      auto updateLoopInfoLoc = [&Ctx, &InlinedAtNode,
+                                &IANodes](Metadata *MD) -> Metadata * {
+        if (auto *Loc = dyn_cast_or_null<DILocation>(MD))
+          return inlineDebugLoc(Loc, InlinedAtNode, Ctx, IANodes).get();
+        return MD;
       };
       updateLoopMetadataDebugLocations(*BI, updateLoopInfoLoc);
 
@@ -1636,6 +1654,99 @@ void llvm::updateProfileCallee(
   }
 }
 
+/// An operand bundle "clang.arc.attachedcall" on a call indicates the call
+/// result is implicitly consumed by a call to retainRV or claimRV immediately
+/// after the call. This function inlines the retainRV/claimRV calls.
+///
+/// There are three cases to consider:
+///
+/// 1. If there is a call to autoreleaseRV that takes a pointer to the returned
+///    object in the callee return block, the autoreleaseRV call and the
+///    retainRV/claimRV call in the caller cancel out. If the call in the caller
+///    is a claimRV call, a call to objc_release is emitted.
+///
+/// 2. If there is a call in the callee return block that doesn't have operand
+///    bundle "clang.arc.attachedcall", the operand bundle on the original call
+///    is transferred to the call in the callee.
+///
+/// 3. Otherwise, a call to objc_retain is inserted if the call in the caller is
+///    a retainRV call.
+static void
+inlineRetainOrClaimRVCalls(CallBase &CB,
+                           const SmallVectorImpl<ReturnInst *> &Returns) {
+  Module *Mod = CB.getModule();
+  bool IsRetainRV = objcarc::hasAttachedCallOpBundle(&CB, true),
+       IsClaimRV = !IsRetainRV;
+
+  for (auto *RI : Returns) {
+    Value *RetOpnd = objcarc::GetRCIdentityRoot(RI->getOperand(0));
+    BasicBlock::reverse_iterator I = ++(RI->getIterator().getReverse());
+    BasicBlock::reverse_iterator EI = RI->getParent()->rend();
+    bool InsertRetainCall = IsRetainRV;
+    IRBuilder<> Builder(RI->getContext());
+
+    // Walk backwards through the basic block looking for either a matching
+    // autoreleaseRV call or an unannotated call.
+    for (; I != EI;) {
+      auto CurI = I++;
+
+      // Ignore casts.
+      if (isa<CastInst>(*CurI))
+        continue;
+
+      if (auto *II = dyn_cast<IntrinsicInst>(&*CurI)) {
+        if (II->getIntrinsicID() == Intrinsic::objc_autoreleaseReturnValue &&
+            II->hasNUses(0) &&
+            objcarc::GetRCIdentityRoot(II->getOperand(0)) == RetOpnd) {
+          // If we've found a matching authoreleaseRV call:
+          // - If claimRV is attached to the call, insert a call to objc_release
+          //   and erase the autoreleaseRV call.
+          // - If retainRV is attached to the call, just erase the autoreleaseRV
+          //   call.
+          if (IsClaimRV) {
+            Builder.SetInsertPoint(II);
+            Function *IFn =
+                Intrinsic::getDeclaration(Mod, Intrinsic::objc_release);
+            Value *BC =
+                Builder.CreateBitCast(RetOpnd, IFn->getArg(0)->getType());
+            Builder.CreateCall(IFn, BC, "");
+          }
+          II->eraseFromParent();
+          InsertRetainCall = false;
+        }
+      } else if (auto *CI = dyn_cast<CallInst>(&*CurI)) {
+        if (objcarc::GetRCIdentityRoot(CI) == RetOpnd &&
+            !objcarc::hasAttachedCallOpBundle(CI)) {
+          // If we've found an unannotated call that defines RetOpnd, add a
+          // "clang.arc.attachedcall" operand bundle.
+          Value *BundleArgs[] = {ConstantInt::get(
+              Builder.getInt64Ty(),
+              objcarc::getAttachedCallOperandBundleEnum(IsRetainRV))};
+          OperandBundleDef OB("clang.arc.attachedcall", BundleArgs);
+          auto *NewCall = CallBase::addOperandBundle(
+              CI, LLVMContext::OB_clang_arc_attachedcall, OB, CI);
+          NewCall->copyMetadata(*CI);
+          CI->replaceAllUsesWith(NewCall);
+          CI->eraseFromParent();
+          InsertRetainCall = false;
+        }
+      }
+
+      break;
+    }
+
+    if (InsertRetainCall) {
+      // The retainRV is attached to the call and we've failed to find a
+      // matching autoreleaseRV or an annotated call in the callee. Emit a call
+      // to objc_retain.
+      Builder.SetInsertPoint(RI);
+      Function *IFn = Intrinsic::getDeclaration(Mod, Intrinsic::objc_retain);
+      Value *BC = Builder.CreateBitCast(RetOpnd, IFn->getArg(0)->getType());
+      Builder.CreateCall(IFn, BC, "");
+    }
+  }
+}
+
 /// This function inlines the called function into the basic block of the
 /// caller. This returns false if it is not possible to inline this call.
 /// The program is still in a well defined state if this occurs though.
@@ -1672,6 +1783,8 @@ llvm::InlineResult llvm::InlineFunction(CallBase &CB, InlineFunctionInfo &IFI,
         continue;
       // ... and "funclet" operand bundles.
       if (Tag == LLVMContext::OB_funclet)
+        continue;
+      if (Tag == LLVMContext::OB_clang_arc_attachedcall)
         continue;
 
       return InlineResult::failure("unsupported operand bundle");
@@ -1835,17 +1948,27 @@ llvm::InlineResult llvm::InlineFunction(CallBase &CB, InlineFunctionInfo &IFI,
     // happy with whatever the cloner can do.
     CloneAndPruneFunctionInto(Caller, CalledFunc, VMap,
                               /*ModuleLevelChanges=*/false, Returns, ".i",
-                              &InlinedFunctionInfo, &CB);
+                              &InlinedFunctionInfo);
     // Remember the first block that is newly cloned over.
     FirstNewBlock = LastBlock; ++FirstNewBlock;
 
-    if (IFI.CallerBFI != nullptr && IFI.CalleeBFI != nullptr)
-      // Update the BFI of blocks cloned into the caller.
-      updateCallerBFI(OrigBB, VMap, IFI.CallerBFI, IFI.CalleeBFI,
-                      CalledFunc->front());
+    // Insert retainRV/clainRV runtime calls.
+    if (objcarc::hasAttachedCallOpBundle(&CB))
+      inlineRetainOrClaimRVCalls(CB, Returns);
 
-    updateCallProfile(CalledFunc, VMap, CalledFunc->getEntryCount(), CB,
-                      IFI.PSI, IFI.CallerBFI);
+    // Updated caller/callee profiles only when requested. For sample loader
+    // inlining, the context-sensitive inlinee profile doesn't need to be
+    // subtracted from callee profile, and the inlined clone also doesn't need
+    // to be scaled based on call site count.
+    if (IFI.UpdateProfile) {
+      if (IFI.CallerBFI != nullptr && IFI.CalleeBFI != nullptr)
+        // Update the BFI of blocks cloned into the caller.
+        updateCallerBFI(OrigBB, VMap, IFI.CallerBFI, IFI.CalleeBFI,
+                        CalledFunc->front());
+
+      updateCallProfile(CalledFunc, VMap, CalledFunc->getEntryCount(), CB,
+                        IFI.PSI, IFI.CallerBFI);
+    }
 
     // Inject byval arguments initialization.
     for (std::pair<Value*, Value*> &Init : ByValInit)
@@ -1915,7 +2038,7 @@ llvm::InlineResult llvm::InlineFunction(CallBase &CB, InlineFunctionInfo &IFI,
     SAMetadataCloner.remap(FirstNewBlock, Caller->end());
 
     // Add noalias metadata if necessary.
-    AddAliasScopeMetadata(CB, VMap, DL, CalleeAAR);
+    AddAliasScopeMetadata(CB, VMap, DL, CalleeAAR, InlinedFunctionInfo);
 
     // Clone return attributes on the callsite into the calls within the inlined
     // function which feed into its return value.
@@ -1929,9 +2052,8 @@ llvm::InlineResult llvm::InlineFunction(CallBase &CB, InlineFunctionInfo &IFI,
       for (BasicBlock &NewBlock :
            make_range(FirstNewBlock->getIterator(), Caller->end()))
         for (Instruction &I : NewBlock)
-          if (auto *II = dyn_cast<IntrinsicInst>(&I))
-            if (II->getIntrinsicID() == Intrinsic::assume)
-              IFI.GetAssumptionCache(*Caller).registerAssumption(II);
+          if (auto *II = dyn_cast<AssumeInst>(&I))
+            IFI.GetAssumptionCache(*Caller).registerAssumption(II);
   }
 
   // If there are any alloca instructions in the block that used to be the entry
@@ -2068,7 +2190,11 @@ llvm::InlineResult llvm::InlineFunction(CallBase &CB, InlineFunctionInfo &IFI,
 
   // Leave lifetime markers for the static alloca's, scoping them to the
   // function we just inlined.
-  if (InsertLifetime && !IFI.StaticAllocas.empty()) {
+  // We need to insert lifetime intrinsics even at O0 to avoid invalid
+  // access caused by multithreaded coroutines. The check
+  // `Caller->isPresplitCoroutine()` would affect AlwaysInliner at O0 only.
+  if ((InsertLifetime || Caller->isPresplitCoroutine()) &&
+      !IFI.StaticAllocas.empty()) {
     IRBuilder<> builder(&FirstNewBlock->front());
     for (unsigned ai = 0, ae = IFI.StaticAllocas.size(); ai != ae; ++ai) {
       AllocaInst *AI = IFI.StaticAllocas[ai];
@@ -2201,7 +2327,7 @@ llvm::InlineResult llvm::InlineFunction(CallBase &CB, InlineFunctionInfo &IFI,
       // As such, we replace the cleanupret with unreachable.
       if (auto *CleanupRet = dyn_cast<CleanupReturnInst>(BB->getTerminator()))
         if (CleanupRet->unwindsToCaller() && EHPadForCallUnwindsLocally)
-          changeToUnreachable(CleanupRet, /*UseLLVMTrap=*/false);
+          changeToUnreachable(CleanupRet);
 
       Instruction *I = BB->getFirstNonPHI();
       if (!I->isEHPad())
@@ -2255,6 +2381,7 @@ llvm::InlineResult llvm::InlineFunction(CallBase &CB, InlineFunctionInfo &IFI,
 
         SmallVector<OperandBundleDef, 1> OpBundles;
         DeoptCall->getOperandBundlesAsDefs(OpBundles);
+        auto DeoptAttributes = DeoptCall->getAttributes();
         DeoptCall->eraseFromParent();
         assert(!OpBundles.empty() &&
                "Expected at least the deopt operand bundle");
@@ -2263,6 +2390,7 @@ llvm::InlineResult llvm::InlineFunction(CallBase &CB, InlineFunctionInfo &IFI,
         CallInst *NewDeoptCall =
             Builder.CreateCall(NewDeoptIntrinsic, CallArgs, OpBundles);
         NewDeoptCall->setCallingConv(CallingConv);
+        NewDeoptCall->setAttributes(DeoptAttributes);
         if (NewDeoptCall->getType()->isVoidTy())
           Builder.CreateRetVoid();
         else
@@ -2315,14 +2443,17 @@ llvm::InlineResult llvm::InlineFunction(CallBase &CB, InlineFunctionInfo &IFI,
   // before we splice the inlined code into the CFG and lose track of which
   // blocks were actually inlined, collect the call sites. We only do this if
   // call graph updates weren't requested, as those provide value handle based
-  // tracking of inlined call sites instead.
+  // tracking of inlined call sites instead. Calls to intrinsics are not
+  // collected because they are not inlineable.
   if (InlinedFunctionInfo.ContainsCalls && !IFI.CG) {
     // Otherwise just collect the raw call sites that were inlined.
     for (BasicBlock &NewBB :
          make_range(FirstNewBlock->getIterator(), Caller->end()))
       for (Instruction &I : NewBB)
         if (auto *CB = dyn_cast<CallBase>(&I))
-          IFI.InlinedCallSites.push_back(CB);
+          if (!(CB->getCalledFunction() &&
+                CB->getCalledFunction()->isIntrinsic()))
+            IFI.InlinedCallSites.push_back(CB);
   }
 
   // If we cloned in _exactly one_ basic block, and if that block ends in a

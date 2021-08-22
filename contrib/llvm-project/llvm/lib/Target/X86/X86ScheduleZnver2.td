@@ -178,6 +178,10 @@ def : WriteRes<WriteStoreNT, [Zn2AGU]>;
 def : WriteRes<WriteMove,    [Zn2ALU]>;
 def : WriteRes<WriteLoad,    [Zn2AGU]> { let Latency = 8; }
 
+// Model the effect of clobbering the read-write mask operand of the GATHER operation.
+// Does not cost anything by itself, only has latency, matching that of the WriteLoad,
+def : WriteRes<WriteVecMaskedGatherWriteback, []> { let Latency = 8; let NumMicroOps = 0; }
+
 def : WriteRes<WriteZero,  []>;
 def : WriteRes<WriteLEA, [Zn2ALU]>;
 defm : Zn2WriteResPair<WriteALU,   [Zn2ALU], 1>;
@@ -419,6 +423,7 @@ defm : Zn2WriteResFpuPair<WriteBlend,      [Zn2FPU01], 1>;
 defm : Zn2WriteResFpuPair<WriteBlendY,     [Zn2FPU01], 1>;
 defm : X86WriteResPairUnsupported<WriteBlendZ>;
 defm : Zn2WriteResFpuPair<WriteShuffle256, [Zn2FPU],   2>;
+defm : Zn2WriteResFpuPair<WriteVPMOV256,   [Zn2FPU12],  4, [1], 2, 4>;
 defm : Zn2WriteResFpuPair<WriteVarShuffle256, [Zn2FPU],   2>;
 defm : Zn2WriteResFpuPair<WritePSADBW,     [Zn2FPU0],  3>;
 defm : Zn2WriteResFpuPair<WritePSADBWX,    [Zn2FPU0],  3>;
@@ -978,7 +983,7 @@ def : InstRW<[Zn2WriteFPU03], (instregex "FICOM(P?)(16|32)m")>;
 def : InstRW<[Zn2WriteFPU0Lat1], (instregex "TST_F")>;
 
 // FXAM.
-def : InstRW<[Zn2WriteFPU3Lat1], (instrs FXAM)>;
+def : InstRW<[Zn2WriteFPU3Lat1], (instrs XAM_F)>;
 
 // FPREM.
 def : InstRW<[WriteMicrocoded], (instrs FPREM)>;
@@ -1028,11 +1033,6 @@ def : InstRW<[Zn2WriteFPU12], (instrs MMX_PACKSSDWirr,
 def : InstRW<[Zn2WriteFPU12m], (instrs MMX_PACKSSDWirm,
                                       MMX_PACKSSWBirm,
                                       MMX_PACKUSWBirm)>;
-
-// VPMOVSX/ZX BW BD BQ WD WQ DQ.
-// y <- x.
-def : InstRW<[Zn2WriteFPU12Y], (instregex "VPMOV(SX|ZX)(BW|BD|BQ|WD|WQ|DQ)Yrr")>;
-def : InstRW<[Zn2WriteFPU12Ym], (instregex "VPMOV(SX|ZX)(BW|BD|BQ|WD|WQ|DQ)Yrm")>;
 
 def Zn2WriteFPU013 : SchedWriteRes<[Zn2FPU013]> ;
 def Zn2WriteFPU013Y : SchedWriteRes<[Zn2FPU013]> ;

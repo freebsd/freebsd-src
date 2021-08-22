@@ -6,7 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include <errno.h>
+#include <cerrno>
 
 #include "lldb/Host/Config.h"
 
@@ -16,11 +16,13 @@
 #include "lldb/Utility/StreamString.h"
 #include "lldb/Utility/StringExtractorGDBRemote.h"
 #include "lldb/Utility/UnimplementedError.h"
+#include "llvm/Support/JSON.h"
 #include <cstring>
 
 using namespace lldb;
 using namespace lldb_private;
 using namespace lldb_private::process_gdb_remote;
+using namespace llvm;
 
 GDBRemoteCommunicationServer::GDBRemoteCommunicationServer(
     const char *comm_name, const char *listener_name)
@@ -31,7 +33,7 @@ GDBRemoteCommunicationServer::GDBRemoteCommunicationServer(
              bool &quit) { return this->Handle_QErrorStringEnable(packet); });
 }
 
-GDBRemoteCommunicationServer::~GDBRemoteCommunicationServer() {}
+GDBRemoteCommunicationServer::~GDBRemoteCommunicationServer() = default;
 
 void GDBRemoteCommunicationServer::RegisterPacketHandler(
     StringExtractorGDBRemote::ServerPacketType packet_type,
@@ -150,4 +152,22 @@ GDBRemoteCommunicationServer::SendOKResponse() {
 
 bool GDBRemoteCommunicationServer::HandshakeWithClient() {
   return GetAck() == PacketResult::Success;
+}
+
+GDBRemoteCommunication::PacketResult
+GDBRemoteCommunicationServer::SendJSONResponse(const json::Value &value) {
+  std::string json_string;
+  raw_string_ostream os(json_string);
+  os << value;
+  os.flush();
+  StreamGDBRemote escaped_response;
+  escaped_response.PutEscapedBytes(json_string.c_str(), json_string.size());
+  return SendPacketNoLock(escaped_response.GetString());
+}
+
+GDBRemoteCommunication::PacketResult
+GDBRemoteCommunicationServer::SendJSONResponse(Expected<json::Value> value) {
+  if (!value)
+    return SendErrorResponse(value.takeError());
+  return SendJSONResponse(*value);
 }

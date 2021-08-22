@@ -50,9 +50,18 @@ public:
                         const SelectionDAG &DAG) const override;
 
   bool allowsMisalignedMemoryAccesses(
-      EVT VT, unsigned AS, unsigned Align,
+      EVT VT, unsigned AS, Align Alignment,
       MachineMemOperand::Flags Flags = MachineMemOperand::MONone,
       bool *IsFast = nullptr) const override;
+
+  virtual bool canCombineTruncStore(EVT ValVT, EVT MemVT,
+                                    bool LegalOperations) const override {
+    // R600 has "custom" lowering for truncating stores despite not supporting
+    // those instructions. If we allow that custom lowering in the DAG combiner
+    // then all truncates are merged into truncating stores, giving worse code
+    // generation. This hook prevents the DAG combiner performing that combine.
+    return isTruncStoreLegal(ValVT, MemVT);
+  }
 
 private:
   unsigned Gen;
@@ -85,8 +94,7 @@ private:
   SDValue LowerLOAD(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerBRCOND(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerTrig(SDValue Op, SelectionDAG &DAG) const;
-  SDValue LowerSHLParts(SDValue Op, SelectionDAG &DAG) const;
-  SDValue LowerSRXParts(SDValue Op, SelectionDAG &DAG) const;
+  SDValue LowerShiftParts(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerUADDSUBO(SDValue Op, SelectionDAG &DAG,
                         unsigned mainop, unsigned ovf) const;
 

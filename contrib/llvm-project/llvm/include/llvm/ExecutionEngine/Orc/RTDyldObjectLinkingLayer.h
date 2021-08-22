@@ -28,15 +28,18 @@
 #include <functional>
 #include <list>
 #include <memory>
-#include <string>
 #include <utility>
 #include <vector>
 
 namespace llvm {
 namespace orc {
 
-class RTDyldObjectLinkingLayer : public ObjectLayer, private ResourceManager {
+class RTDyldObjectLinkingLayer
+    : public RTTIExtends<RTDyldObjectLinkingLayer, ObjectLayer>,
+      private ResourceManager {
 public:
+  static char ID;
+
   /// Functor for receiving object-loaded notifications.
   using NotifyLoadedFunction = std::function<void(
       MaterializationResponsibility &R, const object::ObjectFile &Obj,

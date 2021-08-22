@@ -45,49 +45,134 @@ public:
   /// \return
   ///     A trace instance or an error in case of failures.
   static llvm::Expected<lldb::TraceSP>
-  CreateInstance(const llvm::json::Value &trace_session_file,
-                 llvm::StringRef session_file_dir, Debugger &debugger);
+  CreateInstanceForSessionFile(const llvm::json::Value &trace_session_file,
+                               llvm::StringRef session_file_dir,
+                               Debugger &debugger);
+
+  static llvm::Expected<lldb::TraceSP>
+  CreateInstanceForLiveProcess(Process &process);
 
   static ConstString GetPluginNameStatic();
 
   uint32_t GetPluginVersion() override;
   /// \}
 
+  lldb::CommandObjectSP
+  GetProcessTraceStartCommand(CommandInterpreter &interpreter) override;
+
+  lldb::CommandObjectSP
+  GetThreadTraceStartCommand(CommandInterpreter &interpreter) override;
+
   llvm::StringRef GetSchema() override;
 
-  void TraverseInstructions(
-      const Thread &thread, size_t position, TraceDirection direction,
-      std::function<bool(size_t index, llvm::Expected<lldb::addr_t> load_addr)>
-          callback) override;
+  lldb::TraceCursorUP GetCursor(Thread &thread) override;
 
-  size_t GetInstructionCount(const Thread &thread) override;
+  void DumpTraceInfo(Thread &thread, Stream &s, bool verbose) override;
 
-  size_t GetCursorPosition(const Thread &thread) override;
+  llvm::Optional<size_t> GetRawTraceSize(Thread &thread);
+
+  void DoRefreshLiveProcessState(
+      llvm::Expected<TraceGetStateResponse> state) override;
+
+  bool IsTraced(const Thread &thread) override;
+
+  const char *GetStartConfigurationHelp() override;
+
+  /// Start tracing a live process.
+  ///
+  /// \param[in] thread_buffer_size
+  ///     Trace size per thread in bytes.
+  ///
+  /// \param[in] total_buffer_size_limit
+  ///     Maximum total trace size per process in bytes.
+  ///     More information in TraceIntelPT::GetStartConfigurationHelp().
+  ///
+  /// \param[in] enable_tsc
+  ///     Whether to use enable TSC timestamps or not.
+  ///     More information in TraceIntelPT::GetStartConfigurationHelp().
+  ///
+  /// \param[in] psb_period
+  ///
+  ///     This value defines the period in which PSB packets will be generated.
+  ///     More information in TraceIntelPT::GetStartConfigurationHelp();
+  ///
+  /// \return
+  ///     \a llvm::Error::success if the operation was successful, or
+  ///     \a llvm::Error otherwise.
+  llvm::Error Start(size_t thread_buffer_size, size_t total_buffer_size_limit,
+                    bool enable_tsc, llvm::Optional<size_t> psb_period);
+
+  /// \copydoc Trace::Start
+  llvm::Error Start(StructuredData::ObjectSP configuration =
+                        StructuredData::ObjectSP()) override;
+
+  /// Start tracing live threads.
+  ///
+  /// \param[in] tids
+  ///     Threads to trace.
+  ///
+  /// \param[in] thread_buffer_size
+  ///     Trace size per thread in bytes.
+  ///
+  /// \param[in] enable_tsc
+  ///     Whether to use enable TSC timestamps or not.
+  ///     More information in TraceIntelPT::GetStartConfigurationHelp().
+  ///
+  /// \param[in] psb_period
+  ///
+  ///     This value defines the period in which PSB packets will be generated.
+  ///     More information in TraceIntelPT::GetStartConfigurationHelp().
+  ///
+  /// \return
+  ///     \a llvm::Error::success if the operation was successful, or
+  ///     \a llvm::Error otherwise.
+  llvm::Error Start(llvm::ArrayRef<lldb::tid_t> tids, size_t thread_buffer_size,
+                    bool enable_tsc, llvm::Optional<size_t> psb_period);
+
+  /// \copydoc Trace::Start
+  llvm::Error Start(llvm::ArrayRef<lldb::tid_t> tids,
+                    StructuredData::ObjectSP configuration =
+                        StructuredData::ObjectSP()) override;
+
+  /// Get the thread buffer content for a live thread
+  llvm::Expected<std::vector<uint8_t>> GetLiveThreadBuffer(lldb::tid_t tid);
+
+  llvm::Expected<pt_cpu> GetCPUInfo();
 
 private:
   friend class TraceIntelPTSessionFileParser;
 
+  llvm::Expected<pt_cpu> GetCPUInfoForLiveProcess();
+
   /// \param[in] trace_threads
   ///     ThreadTrace instances, which are not live-processes and whose trace
   ///     files are fixed.
-  TraceIntelPT(const pt_cpu &pt_cpu,
-               const std::vector<std::shared_ptr<ThreadTrace>> &traced_threads);
+  TraceIntelPT(
+      const pt_cpu &cpu_info,
+      const std::vector<lldb::ThreadPostMortemTraceSP> &traced_threads);
+
+  /// Constructor for live processes
+  TraceIntelPT(Process &live_process)
+      : Trace(live_process), m_thread_decoders(){};
 
   /// Decode the trace of the given thread that, i.e. recontruct the traced
-  /// instructions. That trace must be managed by this class.
+  /// instructions.
   ///
   /// \param[in] thread
   ///     If \a thread is a \a ThreadTrace, then its internal trace file will be
   ///     decoded. Live threads are not currently supported.
   ///
   /// \return
-  ///     A \a DecodedThread instance if decoding was successful, or a \b
-  ///     nullptr if the thread's trace is not managed by this class.
-  const DecodedThread *Decode(const Thread &thread);
+  ///     A \a DecodedThread shared pointer with the decoded instructions. Any
+  ///     errors are embedded in the instruction list.
+  DecodedThreadSP Decode(Thread &thread);
 
-  pt_cpu m_pt_cpu;
-  std::map<std::pair<lldb::pid_t, lldb::tid_t>, ThreadTraceDecoder>
-      m_trace_threads;
+  /// It is provided by either a session file or a live process' "cpuInfo"
+  /// binary data.
+  llvm::Optional<pt_cpu> m_cpu_info;
+  std::map<const Thread *, std::unique_ptr<ThreadDecoder>> m_thread_decoders;
+  /// Error gotten after a failed live process update, if any.
+  llvm::Optional<std::string> m_live_refresh_error;
 };
 
 } // namespace trace_intel_pt

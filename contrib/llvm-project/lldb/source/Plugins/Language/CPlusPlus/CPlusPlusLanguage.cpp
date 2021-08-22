@@ -59,6 +59,11 @@ lldb_private::ConstString CPlusPlusLanguage::GetPluginNameStatic() {
   return g_name;
 }
 
+bool CPlusPlusLanguage::SymbolNameFitsToLanguage(Mangled mangled) const {
+  const char *mangled_name = mangled.GetMangledName().GetCString();
+  return mangled_name && CPlusPlusLanguage::IsCPPMangledName(mangled_name);
+}
+
 // PluginInterface protocol
 
 lldb_private::ConstString CPlusPlusLanguage::GetPluginName() {
@@ -1054,7 +1059,7 @@ CPlusPlusLanguage::GetHardcodedSummaries() {
                       .SetSkipReferences(false),
                   lldb_private::formatters::VectorTypeSummaryProvider,
                   "vector_type pointer summary provider"));
-          if (valobj.GetCompilerType().IsVectorType(nullptr, nullptr)) {
+          if (valobj.GetCompilerType().IsVectorType()) {
             if (fmt_mgr.GetCategory(g_vectortypes)->IsEnabled())
               return formatter_sp;
           }
@@ -1074,7 +1079,7 @@ CPlusPlusLanguage::GetHardcodedSummaries() {
                       .SetSkipReferences(false),
                   lldb_private::formatters::BlockPointerSummaryProvider,
                   "block pointer summary provider"));
-          if (valobj.GetCompilerType().IsBlockPointerType(nullptr)) {
+          if (valobj.GetCompilerType().IsBlockPointerType()) {
             return formatter_sp;
           }
           return nullptr;
@@ -1104,7 +1109,7 @@ CPlusPlusLanguage::GetHardcodedSynthetics() {
                   .SetNonCacheable(true),
               "vector_type synthetic children",
               lldb_private::formatters::VectorTypeSyntheticFrontEndCreator));
-      if (valobj.GetCompilerType().IsVectorType(nullptr, nullptr)) {
+      if (valobj.GetCompilerType().IsVectorType()) {
         if (fmt_mgr.GetCategory(g_vectortypes)->IsEnabled())
           return formatter_sp;
       }
@@ -1123,7 +1128,7 @@ CPlusPlusLanguage::GetHardcodedSynthetics() {
                   .SetNonCacheable(true),
               "block pointer synthetic children",
               lldb_private::formatters::BlockPointerSyntheticFrontEndCreator));
-      if (valobj.GetCompilerType().IsBlockPointerType(nullptr)) {
+      if (valobj.GetCompilerType().IsBlockPointerType()) {
         return formatter_sp;
       }
       return nullptr;
@@ -1147,7 +1152,7 @@ bool CPlusPlusLanguage::IsSourceFile(llvm::StringRef file_path) const {
   const auto suffixes = {".cpp", ".cxx", ".c++", ".cc",  ".c",
                          ".h",   ".hh",  ".hpp", ".hxx", ".h++"};
   for (auto suffix : suffixes) {
-    if (file_path.endswith_lower(suffix))
+    if (file_path.endswith_insensitive(suffix))
       return true;
   }
 

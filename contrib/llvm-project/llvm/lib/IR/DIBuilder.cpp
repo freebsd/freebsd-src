@@ -243,11 +243,16 @@ DIMacroFile *DIBuilder::createTempMacroFile(DIMacroFile *Parent,
   return MF;
 }
 
-DIEnumerator *DIBuilder::createEnumerator(StringRef Name, int64_t Val,
+DIEnumerator *DIBuilder::createEnumerator(StringRef Name, uint64_t Val,
                                           bool IsUnsigned) {
   assert(!Name.empty() && "Unable to create enumerator without name");
   return DIEnumerator::get(VMContext, APInt(64, Val, !IsUnsigned), IsUnsigned,
                            Name);
+}
+
+DIEnumerator *DIBuilder::createEnumerator(StringRef Name, APSInt Value) {
+  assert(!Name.empty() && "Unable to create enumerator without name");
+  return DIEnumerator::get(VMContext, APInt(Value), Value.isUnsigned(), Name);
 }
 
 DIBasicType *DIBuilder::createUnspecifiedType(StringRef Name) {
@@ -523,6 +528,18 @@ DICompositeType *DIBuilder::createEnumerationType(
   AllEnumTypes.push_back(CTy);
   trackIfUnresolved(CTy);
   return CTy;
+}
+
+DIDerivedType *DIBuilder::createSetType(DIScope *Scope, StringRef Name,
+                                        DIFile *File, unsigned LineNo,
+                                        uint64_t SizeInBits,
+                                        uint32_t AlignInBits, DIType *Ty) {
+  auto *R =
+      DIDerivedType::get(VMContext, dwarf::DW_TAG_set_type, Name, File, LineNo,
+                         getNonCompileUnitScope(Scope), Ty, SizeInBits,
+                         AlignInBits, 0, None, DINode::FlagZero);
+  trackIfUnresolved(R);
+  return R;
 }
 
 DICompositeType *DIBuilder::createArrayType(

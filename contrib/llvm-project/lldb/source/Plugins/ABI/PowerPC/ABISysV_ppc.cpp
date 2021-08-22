@@ -520,7 +520,7 @@ ValueObjectSP ABISysV_ppc::GetReturnValueObjectSimple(
 
   const uint32_t type_flags = return_compiler_type.GetTypeInfo();
   if (type_flags & eTypeIsScalar) {
-    value.SetValueType(Value::eValueTypeScalar);
+    value.SetValueType(Value::ValueType::Scalar);
 
     bool success = false;
     if (type_flags & eTypeIsInteger) {
@@ -603,7 +603,7 @@ ValueObjectSP ABISysV_ppc::GetReturnValueObjectSimple(
         reg_ctx->GetRegisterInfoByName("r3", 0)->kinds[eRegisterKindLLDB];
     value.GetScalar() =
         (uint64_t)thread.GetRegisterContext()->ReadRegisterAsUnsigned(r3_id, 0);
-    value.SetValueType(Value::eValueTypeScalar);
+    value.SetValueType(Value::ValueType::Scalar);
     return_valobj_sp = ValueObjectConstResult::Create(
         thread.GetStackFrameAtIndex(0).get(), value, ConstString(""));
   } else if (type_flags & eTypeIsVector) {
@@ -683,8 +683,6 @@ ValueObjectSP ABISysV_ppc::GetReturnValueObjectImpl(
       r3_value.GetData(r3_data);
       rdx_value.GetData(rdx_data);
 
-      uint32_t fp_bytes =
-          0; // Tracks how much of the xmm registers we've consumed so far
       uint32_t integer_bytes =
           0; // Tracks how much of the r3/rds registers we've consumed so far
 
@@ -751,7 +749,6 @@ ValueObjectSP ABISysV_ppc::GetReturnValueObjectImpl(
             break;
           } else if (*field_bit_width == 64) {
             copy_from_offset = 0;
-            fp_bytes += field_byte_width;
           } else if (*field_bit_width == 32) {
             // This one is kind of complicated.  If we are in an "eightbyte"
             // with another float, we'll be stuffed into an xmm register with
@@ -815,8 +812,6 @@ ValueObjectSP ABISysV_ppc::GetReturnValueObjectImpl(
                 copy_from_offset = integer_bytes - 8;
                 integer_bytes += field_byte_width;
               }
-            } else {
-              fp_bytes += field_byte_width;
             }
           }
         }
@@ -900,6 +895,7 @@ bool ABISysV_ppc::CreateDefaultUnwindPlan(UnwindPlan &unwind_plan) {
   UnwindPlan::RowSP row(new UnwindPlan::Row);
 
   const int32_t ptr_size = 4;
+  row->SetUnspecifiedRegistersAreUndefined(true);
   row->GetCFAValue().SetIsRegisterDereferenced(sp_reg_num);
 
   row->SetRegisterLocationToAtCFAPlusOffset(pc_reg_num, ptr_size * 1, true);

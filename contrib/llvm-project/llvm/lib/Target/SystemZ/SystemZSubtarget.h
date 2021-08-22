@@ -68,10 +68,16 @@ protected:
   bool HasVectorPackedDecimalEnhancement;
   bool HasEnhancedSort;
   bool HasDeflateConversion;
+  bool HasVectorPackedDecimalEnhancement2;
+  bool HasNNPAssist;
+  bool HasBEAREnhancement;
+  bool HasResetDATProtection;
+  bool HasProcessorActivityInstrumentation;
   bool HasSoftFloat;
 
 private:
   Triple TargetTriple;
+  SystemZCallingConventionRegisters *SpecialRegisters;
   SystemZInstrInfo InstrInfo;
   SystemZTargetLowering TLInfo;
   SystemZSelectionDAGInfo TSInfo;
@@ -79,9 +85,18 @@ private:
 
   SystemZSubtarget &initializeSubtargetDependencies(StringRef CPU,
                                                     StringRef FS);
+  SystemZCallingConventionRegisters *initializeSpecialRegisters(void);
+
 public:
   SystemZSubtarget(const Triple &TT, const std::string &CPU,
                    const std::string &FS, const TargetMachine &TM);
+
+  ~SystemZSubtarget();
+
+  SystemZCallingConventionRegisters *getSpecialRegisters() const {
+    assert(SpecialRegisters && "Unsupported SystemZ calling convention");
+    return SpecialRegisters;
+  }
 
   const TargetFrameLowering *getFrameLowering() const override {
     return &FrameLowering;
@@ -240,6 +255,27 @@ public:
   // Return true if the target has the deflate-conversion facility.
   bool hasDeflateConversion() const { return HasDeflateConversion; }
 
+  // Return true if the target has the vector-packed-decimal
+  // enhancement facility 2.
+  bool hasVectorPackedDecimalEnhancement2() const {
+    return HasVectorPackedDecimalEnhancement2;
+  }
+
+  // Return true if the target has the NNP-assist facility.
+  bool hasNNPAssist() const { return HasNNPAssist; }
+
+  // Return true if the target has the BEAR-enhancement facility.
+  bool hasBEAREnhancement() const { return HasBEAREnhancement; }
+
+  // Return true if the target has the reset-DAT-protection facility.
+  bool hasResetDATProtection() const { return HasResetDATProtection; }
+
+  // Return true if the target has the processor-activity-instrumentation
+  // facility.
+  bool hasProcessorActivityInstrumentation() const {
+    return HasProcessorActivityInstrumentation;
+  }
+
   // Return true if soft float should be used.
   bool hasSoftFloat() const { return HasSoftFloat; }
 
@@ -248,6 +284,15 @@ public:
   bool isPC32DBLSymbol(const GlobalValue *GV, CodeModel::Model CM) const;
 
   bool isTargetELF() const { return TargetTriple.isOSBinFormatELF(); }
+
+  // Returns TRUE if we are generating GOFF object code
+  bool isTargetGOFF() const { return TargetTriple.isOSBinFormatGOFF(); }
+
+  // Returns TRUE if we are using XPLINK64 linkage convention
+  bool isTargetXPLINK64() const { return (isTargetGOFF() && isTargetzOS()); }
+
+  // Returns TRUE if we are generating code for a s390x machine running zOS
+  bool isTargetzOS() const { return TargetTriple.isOSzOS(); }
 };
 } // end namespace llvm
 

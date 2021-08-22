@@ -83,6 +83,11 @@ void AVRFrameLowering::emitPrologue(MachineFunction &MF,
         .addReg(AVR::R0, RegState::Kill)
         .addReg(AVR::R0, RegState::Kill)
         .setMIFlag(MachineInstr::FrameSetup);
+    BuildMI(MBB, MBBI, DL, TII.get(AVR::EORRdRr))
+        .addReg(AVR::R1, RegState::Define)
+        .addReg(AVR::R1, RegState::Kill)
+        .addReg(AVR::R1, RegState::Kill)
+        .setMIFlag(MachineInstr::FrameSetup);
   }
 
   // Early exit if the frame pointer is not needed in this function.
@@ -362,7 +367,7 @@ MachineBasicBlock::iterator AVRFrameLowering::eliminateCallFramePseudoInstr(
       New->getOperand(3).setIsDead();
 
       BuildMI(MBB, MI, DL, TII.get(AVR::SPWRITE), AVR::SP)
-          .addReg(AVR::R31R30, RegState::Kill);
+          .addReg(AVR::R31R30);
 
       // Make sure the remaining stack stores are converted to real store
       // instructions.

@@ -9,7 +9,7 @@
 #ifndef LLDB_SOURCE_PLUGINS_TYPESYSTEM_CLANG_TYPESYSTEMCLANG_H
 #define LLDB_SOURCE_PLUGINS_TYPESYSTEM_CLANG_TYPESYSTEMCLANG_H
 
-#include <stdint.h>
+#include <cstdint>
 
 #include <functional>
 #include <initializer_list>
@@ -265,7 +265,7 @@ public:
       clang::DeclContext::lookup_result result = decl_context->lookup(myName);
 
       if (!result.empty()) {
-        clang::NamedDecl *named_decl = result[0];
+        clang::NamedDecl *named_decl = *result.begin();
         if (const RecordDeclType *record_decl =
                 llvm::dyn_cast<RecordDeclType>(named_decl))
           compiler_type.SetCompilerType(
@@ -328,6 +328,8 @@ public:
         (!packed_args || !packed_args->packed_args);
     }
 
+    bool hasParameterPack() const { return static_cast<bool>(packed_args); }
+
     llvm::SmallVector<const char *, 2> names;
     llvm::SmallVector<clang::TemplateArgument, 2> args;
     
@@ -378,13 +380,6 @@ public:
                                bool isForwardDecl, bool isInternal,
                                ClangASTMetadata *metadata = nullptr);
 
-  bool SetTagTypeKind(clang::QualType type, int kind) const;
-
-  bool SetDefaultAccessForRecordFields(clang::RecordDecl *record_decl,
-                                       int default_accessibility,
-                                       int *assigned_accessibilities,
-                                       size_t num_assigned_accessibilities);
-
   // Returns a mask containing bits from the TypeSystemClang::eTypeXXX
   // enumerations
 
@@ -421,7 +416,7 @@ public:
                              int storage, bool add_decl = false);
 
   void SetFunctionParameters(clang::FunctionDecl *function_decl,
-                             clang::ParmVarDecl **params, unsigned num_params);
+                             llvm::ArrayRef<clang::ParmVarDecl *> params);
 
   CompilerType CreateBlockPointerType(const CompilerType &function_type);
 

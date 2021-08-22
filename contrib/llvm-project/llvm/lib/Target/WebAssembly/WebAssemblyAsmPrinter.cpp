@@ -14,14 +14,16 @@
 //===----------------------------------------------------------------------===//
 
 #include "WebAssemblyAsmPrinter.h"
-#include "MCTargetDesc/WebAssemblyInstPrinter.h"
 #include "MCTargetDesc/WebAssemblyMCTargetDesc.h"
 #include "MCTargetDesc/WebAssemblyTargetStreamer.h"
 #include "TargetInfo/WebAssemblyTargetInfo.h"
+#include "Utils/WebAssemblyTypeUtilities.h"
+#include "Utils/WebAssemblyUtilities.h"
 #include "WebAssembly.h"
 #include "WebAssemblyMCInstLower.h"
 #include "WebAssemblyMachineFunctionInfo.h"
 #include "WebAssemblyRegisterInfo.h"
+#include "WebAssemblyRuntimeLibcallSignatures.h"
 #include "WebAssemblyTargetMachine.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/StringExtras.h"
@@ -169,14 +171,126 @@ MCSymbolWasm *WebAssemblyAsmPrinter::getMCSymbolForFunction(
   return WasmSym;
 }
 
-void WebAssemblyAsmPrinter::emitEndOfAsmFile(Module &M) {
+void WebAssemblyAsmPrinter::emitGlobalVariable(const GlobalVariable *GV) {
+  if (!WebAssembly::isWasmVarAddressSpace(GV->getAddressSpace())) {
+    AsmPrinter::emitGlobalVariable(GV);
+    return;
+  }
+
+  assert(!GV->isThreadLocal());
+
+  MCSymbolWasm *Sym = cast<MCSymbolWasm>(getSymbol(GV));
+
+  if (!Sym->getType()) {
+    const WebAssemblyTargetLowering &TLI = *Subtarget->getTargetLowering();
+    SmallVector<EVT, 1> VTs;
+    ComputeValueVTs(TLI, GV->getParent()->getDataLayout(), GV->getValueType(),
+                    VTs);
+    if (VTs.size() != 1 ||
+        TLI.getNumRegisters(GV->getParent()->getContext(), VTs[0]) != 1)
+      report_fatal_error("Aggregate globals not yet implemented");
+    MVT VT = TLI.getRegisterType(GV->getParent()->getContext(), VTs[0]);
+    bool Mutable = true;
+    wasm::ValType Type = WebAssembly::toValType(VT);
+    Sym->setType(wasm::WASM_SYMBOL_TYPE_GLOBAL);
+    Sym->setGlobalType(wasm::WasmGlobalType{uint8_t(Type), Mutable});
+  }
+
+  emitVisibility(Sym, GV->getVisibility(), !GV->isDeclaration());
+  if (GV->hasInitializer()) {
+    assert(getSymbolPreferLocal(*GV) == Sym);
+    emitLinkage(GV, Sym);
+    getTargetStreamer()->emitGlobalType(Sym);
+    OutStreamer->emitLabel(Sym);
+    // TODO: Actually emit the initializer value.  Otherwise the global has the
+    // default value for its type (0, ref.null, etc).
+    OutStreamer->AddBlankLine();
+  }
+}
+
+MCSymbol *WebAssemblyAsmPrinter::getOrCreateWasmSymbol(StringRef Name) {
+  auto *WasmSym = cast<MCSymbolWasm>(GetExternalSymbolSymbol(Name));
+
+  // May be called multiple times, so early out.
+  if (WasmSym->getType().hasValue())
+    return WasmSym;
+
+  const WebAssemblySubtarget &Subtarget = getSubtarget();
+
+  // Except for certain known symbols, all symbols used by CodeGen are
+  // functions. It's OK to hardcode knowledge of specific symbols here; this
+  // method is precisely there for fetching the signatures of known
+  // Clang-provided symbols.
+  if (Name == "__stack_pointer" || Name == "__tls_base" ||
+      Name == "__memory_base" || Name == "__table_base" ||
+      Name == "__tls_size" || Name == "__tls_align") {
+    bool Mutable =
+        Name == "__stack_pointer" || Name == "__tls_base";
+    WasmSym->setType(wasm::WASM_SYMBOL_TYPE_GLOBAL);
+    WasmSym->setGlobalType(wasm::WasmGlobalType{
+        uint8_t(Subtarget.hasAddr64() ? wasm::WASM_TYPE_I64
+                                      : wasm::WASM_TYPE_I32),
+        Mutable});
+    return WasmSym;
+  }
+
+  SmallVector<wasm::ValType, 4> Returns;
+  SmallVector<wasm::ValType, 4> Params;
+  if (Name == "__cpp_exception") {
+    WasmSym->setType(wasm::WASM_SYMBOL_TYPE_TAG);
+    // We can't confirm its signature index for now because there can be
+    // imported exceptions. Set it to be 0 for now.
+    WasmSym->setTagType(
+        {wasm::WASM_TAG_ATTRIBUTE_EXCEPTION, /* SigIndex */ 0});
+    // We may have multiple C++ compilation units to be linked together, each of
+    // which defines the exception symbol. To resolve them, we declare them as
+    // weak.
+    WasmSym->setWeak(true);
+    WasmSym->setExternal(true);
+
+    // All C++ exceptions are assumed to have a single i32 (for wasm32) or i64
+    // (for wasm64) param type and void return type. The reaon is, all C++
+    // exception values are pointers, and to share the type section with
+    // functions, exceptions are assumed to have void return type.
+    Params.push_back(Subtarget.hasAddr64() ? wasm::ValType::I64
+                                           : wasm::ValType::I32);
+  } else { // Function symbols
+    WasmSym->setType(wasm::WASM_SYMBOL_TYPE_FUNCTION);
+    getLibcallSignature(Subtarget, Name, Returns, Params);
+  }
+  auto Signature = std::make_unique<wasm::WasmSignature>(std::move(Returns),
+                                                         std::move(Params));
+  WasmSym->setSignature(Signature.get());
+  addSignature(std::move(Signature));
+
+  return WasmSym;
+}
+
+void WebAssemblyAsmPrinter::emitExternalDecls(const Module &M) {
+  if (signaturesEmitted)
+    return;
+  signaturesEmitted = true;
+
+  // Normally symbols for globals get discovered as the MI gets lowered,
+  // but we need to know about them ahead of time.
+  MachineModuleInfoWasm &MMIW = MMI->getObjFileInfo<MachineModuleInfoWasm>();
+  for (const auto &Name : MMIW.MachineSymbolsUsed) {
+    getOrCreateWasmSymbol(Name.getKey());
+  }
+
   for (auto &It : OutContext.getSymbols()) {
-    // Emit a .globaltype and .eventtype declaration.
+    // Emit .globaltype, .tagtype, or .tabletype declarations.
     auto Sym = cast<MCSymbolWasm>(It.getValue());
-    if (Sym->getType() == wasm::WASM_SYMBOL_TYPE_GLOBAL)
-      getTargetStreamer()->emitGlobalType(Sym);
-    else if (Sym->getType() == wasm::WASM_SYMBOL_TYPE_EVENT)
-      getTargetStreamer()->emitEventType(Sym);
+    if (Sym->getType() == wasm::WASM_SYMBOL_TYPE_GLOBAL) {
+      // .globaltype already handled by emitGlobalVariable for defined
+      // variables; here we make sure the types of external wasm globals get
+      // written to the file.
+      if (Sym->isUndefined())
+        getTargetStreamer()->emitGlobalType(Sym);
+    } else if (Sym->getType() == wasm::WASM_SYMBOL_TYPE_TAG)
+      getTargetStreamer()->emitTagType(Sym);
+    else if (Sym->getType() == wasm::WASM_SYMBOL_TYPE_TABLE)
+      getTargetStreamer()->emitTableType(Sym);
   }
 
   DenseSet<MCSymbol *> InvokeSymbols;
@@ -241,14 +355,33 @@ void WebAssemblyAsmPrinter::emitEndOfAsmFile(Module &M) {
       getTargetStreamer()->emitExportName(Sym, Name);
     }
   }
+}
+  
+void WebAssemblyAsmPrinter::emitEndOfAsmFile(Module &M) {
+  emitExternalDecls(M);
+
+  // When a function's address is taken, a TABLE_INDEX relocation is emitted
+  // against the function symbol at the use site.  However the relocation
+  // doesn't explicitly refer to the table.  In the future we may want to
+  // define a new kind of reloc against both the function and the table, so
+  // that the linker can see that the function symbol keeps the table alive,
+  // but for now manually mark the table as live.
+  for (const auto &F : M) {
+    if (!F.isIntrinsic() && F.hasAddressTaken()) {
+      MCSymbolWasm *FunctionTable =
+          WebAssembly::getOrCreateFunctionTableSymbol(OutContext, Subtarget);
+      OutStreamer->emitSymbolAttribute(FunctionTable, MCSA_NoDeadStrip);    
+      break;
+    }
+  }
 
   for (const auto &G : M.globals()) {
-    if (!G.hasInitializer() && G.hasExternalLinkage()) {
-      if (G.getValueType()->isSized()) {
-        uint16_t Size = M.getDataLayout().getTypeAllocSize(G.getValueType());
-        OutStreamer->emitELFSize(getSymbol(&G),
-                                 MCConstantExpr::create(Size, OutContext));
-      }
+    if (!G.hasInitializer() && G.hasExternalLinkage() &&
+        !WebAssembly::isWasmVarAddressSpace(G.getAddressSpace()) &&
+        G.getValueType()->isSized()) {
+      uint16_t Size = M.getDataLayout().getTypeAllocSize(G.getValueType());
+      OutStreamer->emitELFSize(getSymbol(&G),
+                               MCConstantExpr::create(Size, OutContext));
     }
   }
 
@@ -391,6 +524,17 @@ void WebAssemblyAsmPrinter::emitConstantPool() {
 void WebAssemblyAsmPrinter::emitJumpTableInfo() {
   // Nothing to do; jump tables are incorporated into the instruction stream.
 }
+
+void WebAssemblyAsmPrinter::emitLinkage(const GlobalValue *GV, MCSymbol *Sym)
+  const {
+  AsmPrinter::emitLinkage(GV, Sym);
+  // This gets called before the function label and type are emitted.
+  // We use it to emit signatures of external functions.
+  // FIXME casts!
+  const_cast<WebAssemblyAsmPrinter *>(this)
+    ->emitExternalDecls(*MMI->getModule());
+}
+
 
 void WebAssemblyAsmPrinter::emitFunctionBodyStart() {
   const Function &F = MF->getFunction();

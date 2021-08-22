@@ -41,7 +41,6 @@
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/PassManager.h"
 #include "llvm/IR/PatternMatch.h"
-#include "llvm/IR/Statepoint.h"
 #include "llvm/IR/Type.h"
 #include "llvm/IR/Use.h"
 #include "llvm/IR/Value.h"
@@ -109,8 +108,29 @@ struct SimpleValue {
 
   static bool canHandle(Instruction *Inst) {
     // This can only handle non-void readnone functions.
-    if (CallInst *CI = dyn_cast<CallInst>(Inst))
+    // Also handled are constrained intrinsic that look like the types
+    // of instruction handled below (UnaryOperator, etc.).
+    if (CallInst *CI = dyn_cast<CallInst>(Inst)) {
+      if (Function *F = CI->getCalledFunction()) {
+        switch ((Intrinsic::ID)F->getIntrinsicID()) {
+        case Intrinsic::experimental_constrained_fadd:
+        case Intrinsic::experimental_constrained_fsub:
+        case Intrinsic::experimental_constrained_fmul:
+        case Intrinsic::experimental_constrained_fdiv:
+        case Intrinsic::experimental_constrained_frem:
+        case Intrinsic::experimental_constrained_fptosi:
+        case Intrinsic::experimental_constrained_sitofp:
+        case Intrinsic::experimental_constrained_fptoui:
+        case Intrinsic::experimental_constrained_uitofp:
+        case Intrinsic::experimental_constrained_fcmp:
+        case Intrinsic::experimental_constrained_fcmps: {
+          auto *CFP = cast<ConstrainedFPIntrinsic>(CI);
+          return CFP->isDefaultFPEnvironment();
+        }
+        }
+      }
       return CI->doesNotAccessMemory() && !CI->getType()->isVoidTy();
+    }
     return isa<CastInst>(Inst) || isa<UnaryOperator>(Inst) ||
            isa<BinaryOperator>(Inst) || isa<GetElementPtrInst>(Inst) ||
            isa<CmpInst>(Inst) || isa<SelectInst>(Inst) ||
@@ -280,6 +300,13 @@ static unsigned getHashValueImpl(SimpleValue Val) {
     return hash_combine(II->getOpcode(), LHS, RHS);
   }
 
+  // gc.relocate is 'special' call: its second and third operands are
+  // not real values, but indices into statepoint's argument list.
+  // Get values they point to.
+  if (const GCRelocateInst *GCR = dyn_cast<GCRelocateInst>(Inst))
+    return hash_combine(GCR->getOpcode(), GCR->getOperand(0),
+                        GCR->getBasePtr(), GCR->getDerivedPtr());
+
   // Mix in the opcode.
   return hash_combine(
       Inst->getOpcode(),
@@ -340,6 +367,13 @@ static bool isEqualImpl(SimpleValue LHS, SimpleValue RHS) {
     return LII->getArgOperand(0) == RII->getArgOperand(1) &&
            LII->getArgOperand(1) == RII->getArgOperand(0);
   }
+
+  // See comment above in `getHashValue()`.
+  if (const GCRelocateInst *GCR1 = dyn_cast<GCRelocateInst>(LHSI))
+    if (const GCRelocateInst *GCR2 = dyn_cast<GCRelocateInst>(RHSI))
+      return GCR1->getOperand(0) == GCR2->getOperand(0) &&
+             GCR1->getBasePtr() == GCR2->getBasePtr() &&
+             GCR1->getDerivedPtr() == GCR2->getDerivedPtr();
 
   // Min/max can occur with commuted operands, non-canonical predicates,
   // and/or non-canonical operands.
@@ -454,13 +488,6 @@ template <> struct DenseMapInfo<CallValue> {
 unsigned DenseMapInfo<CallValue>::getHashValue(CallValue Val) {
   Instruction *Inst = Val.Inst;
 
-  // gc.relocate is 'special' call: its second and third operands are
-  // not real values, but indices into statepoint's argument list.
-  // Get values they point to.
-  if (const GCRelocateInst *GCR = dyn_cast<GCRelocateInst>(Inst))
-    return hash_combine(GCR->getOpcode(), GCR->getOperand(0),
-                        GCR->getBasePtr(), GCR->getDerivedPtr());
-
   // Hash all of the operands as pointers and mix in the opcode.
   return hash_combine(
       Inst->getOpcode(),
@@ -471,13 +498,6 @@ bool DenseMapInfo<CallValue>::isEqual(CallValue LHS, CallValue RHS) {
   Instruction *LHSI = LHS.Inst, *RHSI = RHS.Inst;
   if (LHS.isSentinel() || RHS.isSentinel())
     return LHSI == RHSI;
-
-  // See comment above in `getHashValue()`.
-  if (const GCRelocateInst *GCR1 = dyn_cast<GCRelocateInst>(LHSI))
-    if (const GCRelocateInst *GCR2 = dyn_cast<GCRelocateInst>(RHSI))
-      return GCR1->getOperand(0) == GCR2->getOperand(0) &&
-             GCR1->getBasePtr() == GCR2->getBasePtr() &&
-             GCR1->getDerivedPtr() == GCR2->getDerivedPtr();
 
   return LHSI->isIdenticalTo(RHSI);
 }
@@ -1220,9 +1240,8 @@ bool EarlyCSE::processNode(DomTreeNode *Node) {
     // they're marked as such to ensure preservation of control dependencies),
     // and this pass will not bother with its removal. However, we should mark
     // its condition as true for all dominated blocks.
-    if (match(&Inst, m_Intrinsic<Intrinsic::assume>())) {
-      auto *CondI =
-          dyn_cast<Instruction>(cast<CallInst>(Inst).getArgOperand(0));
+    if (auto *Assume = dyn_cast<AssumeInst>(&Inst)) {
+      auto *CondI = dyn_cast<Instruction>(Assume->getArgOperand(0));
       if (CondI && SimpleValue::canHandle(CondI)) {
         LLVM_DEBUG(dbgs() << "EarlyCSE considering assumption: " << Inst
                           << '\n');
@@ -1618,7 +1637,6 @@ PreservedAnalyses EarlyCSEPass::run(Function &F,
 
   PreservedAnalyses PA;
   PA.preserveSet<CFGAnalyses>();
-  PA.preserve<GlobalsAA>();
   if (UseMemorySSA)
     PA.preserve<MemorySSAAnalysis>();
   return PA;

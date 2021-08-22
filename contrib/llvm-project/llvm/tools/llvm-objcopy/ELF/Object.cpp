@@ -29,16 +29,14 @@
 #include <utility>
 #include <vector>
 
-namespace llvm {
-namespace objcopy {
-namespace elf {
-
-using namespace object;
-using namespace ELF;
+using namespace llvm;
+using namespace llvm::ELF;
+using namespace llvm::objcopy::elf;
+using namespace llvm::object;
 
 template <class ELFT> void ELFWriter<ELFT>::writePhdr(const Segment &Seg) {
-  uint8_t *B = Buf.getBufferStart() + Obj.ProgramHdrSegment.Offset +
-               Seg.Index * sizeof(Elf_Phdr);
+  uint8_t *B = reinterpret_cast<uint8_t *>(Buf->getBufferStart()) +
+               Obj.ProgramHdrSegment.Offset + Seg.Index * sizeof(Elf_Phdr);
   Elf_Phdr &Phdr = *reinterpret_cast<Elf_Phdr *>(B);
   Phdr.p_type = Seg.Type;
   Phdr.p_flags = Seg.Flags;
@@ -67,7 +65,8 @@ void SectionBase::replaceSectionReferences(
 void SectionBase::onRemove() {}
 
 template <class ELFT> void ELFWriter<ELFT>::writeShdr(const SectionBase &Sec) {
-  uint8_t *B = Buf.getBufferStart() + Sec.HeaderOffset;
+  uint8_t *B =
+      reinterpret_cast<uint8_t *>(Buf->getBufferStart()) + Sec.HeaderOffset;
   Elf_Shdr &Shdr = *reinterpret_cast<Elf_Shdr *>(B);
   Shdr.sh_name = Sec.NameIndex;
   Shdr.sh_type = Sec.Type;
@@ -191,7 +190,7 @@ template <class T> static T checkedGetHex(StringRef S) {
 // Fills exactly Len bytes of buffer with hexadecimal characters
 // representing value 'X'
 template <class T, class Iterator>
-static Iterator utohexstr(T X, Iterator It, size_t Len) {
+static Iterator toHexStr(T X, Iterator It, size_t Len) {
   // Fill range with '0'
   std::fill(It, It + Len, '0');
 
@@ -220,13 +219,13 @@ IHexLineData IHexRecord::getLine(uint8_t Type, uint16_t Addr,
   assert(Line.size());
   auto Iter = Line.begin();
   *Iter++ = ':';
-  Iter = utohexstr(Data.size(), Iter, 2);
-  Iter = utohexstr(Addr, Iter, 4);
-  Iter = utohexstr(Type, Iter, 2);
+  Iter = toHexStr(Data.size(), Iter, 2);
+  Iter = toHexStr(Addr, Iter, 4);
+  Iter = toHexStr(Type, Iter, 2);
   for (uint8_t X : Data)
-    Iter = utohexstr(X, Iter, 2);
+    Iter = toHexStr(X, Iter, 2);
   StringRef S(Line.data() + 1, std::distance(Line.begin() + 1, Iter));
-  Iter = utohexstr(getChecksum(S), Iter, 2);
+  Iter = toHexStr(getChecksum(S), Iter, 2);
   *Iter++ = '\r';
   *Iter++ = '\n';
   assert(Iter == Line.end());
@@ -474,7 +473,7 @@ Error ELFSectionWriter<ELFT>::visit(const DecompressedSection &Sec) {
     return createStringError(errc::invalid_argument,
                              "'" + Sec.Name + "': " + toString(std::move(Err)));
 
-  uint8_t *Buf = Out.getBufferStart() + Sec.Offset;
+  uint8_t *Buf = reinterpret_cast<uint8_t *>(Out.getBufferStart()) + Sec.Offset;
   std::copy(DecompressedContent.begin(), DecompressedContent.end(), Buf);
 
   return Error::success();
@@ -519,7 +518,7 @@ Error BinarySectionWriter::visit(const CompressedSection &Sec) {
 
 template <class ELFT>
 Error ELFSectionWriter<ELFT>::visit(const CompressedSection &Sec) {
-  uint8_t *Buf = Out.getBufferStart() + Sec.Offset;
+  uint8_t *Buf = reinterpret_cast<uint8_t *>(Out.getBufferStart()) + Sec.Offset;
   if (Sec.CompressionType == DebugCompressionType::None) {
     std::copy(Sec.OriginalData.begin(), Sec.OriginalData.end(), Buf);
     return Error::success();
@@ -624,7 +623,8 @@ void StringTableSection::prepareForLayout() {
 }
 
 Error SectionWriter::visit(const StringTableSection &Sec) {
-  Sec.StrTabBuilder.write(Out.getBufferStart() + Sec.Offset);
+  Sec.StrTabBuilder.write(reinterpret_cast<uint8_t *>(Out.getBufferStart()) +
+                          Sec.Offset);
   return Error::success();
 }
 
@@ -638,7 +638,7 @@ Error StringTableSection::accept(MutableSectionVisitor &Visitor) {
 
 template <class ELFT>
 Error ELFSectionWriter<ELFT>::visit(const SectionIndexSection &Sec) {
-  uint8_t *Buf = Out.getBufferStart() + Sec.Offset;
+  uint8_t *Buf = reinterpret_cast<uint8_t *>(Out.getBufferStart()) + Sec.Offset;
   llvm::copy(Sec.Indexes, reinterpret_cast<Elf_Word *>(Buf));
   return Error::success();
 }
@@ -979,7 +979,7 @@ static void writeRel(const RelRange &Relocations, T *Buf) {
 
 template <class ELFT>
 Error ELFSectionWriter<ELFT>::visit(const RelocationSection &Sec) {
-  uint8_t *Buf = Out.getBufferStart() + Sec.Offset;
+  uint8_t *Buf = reinterpret_cast<uint8_t *>(Out.getBufferStart()) + Sec.Offset;
   if (Sec.Type == SHT_REL)
     writeRel(Sec.Relocations, reinterpret_cast<Elf_Rel *>(Buf));
   else
@@ -1069,6 +1069,12 @@ Error Section::removeSectionReferences(
 void GroupSection::finalize() {
   this->Info = Sym ? Sym->Index : 0;
   this->Link = SymTab ? SymTab->Index : 0;
+  // Linker deduplication for GRP_COMDAT is based on Sym->Name. The local/global
+  // status is not part of the equation. If Sym is localized, the intention is
+  // likely to make the group fully localized. Drop GRP_COMDAT to suppress
+  // deduplication. See https://groups.google.com/g/generic-abi/c/2X6mR-s2zoc
+  if ((FlagWord & GRP_COMDAT) && Sym && Sym->Binding == STB_LOCAL)
+    this->FlagWord &= ~GRP_COMDAT;
 }
 
 Error GroupSection::removeSectionReferences(
@@ -1160,7 +1166,8 @@ GnuDebugLinkSection::GnuDebugLinkSection(StringRef File,
 
 template <class ELFT>
 Error ELFSectionWriter<ELFT>::visit(const GnuDebugLinkSection &Sec) {
-  unsigned char *Buf = Out.getBufferStart() + Sec.Offset;
+  unsigned char *Buf =
+      reinterpret_cast<uint8_t *>(Out.getBufferStart()) + Sec.Offset;
   Elf_Word *CRC =
       reinterpret_cast<Elf_Word *>(Buf + Sec.Size - sizeof(Elf_Word));
   *CRC = Sec.CRC32;
@@ -1180,7 +1187,7 @@ template <class ELFT>
 Error ELFSectionWriter<ELFT>::visit(const GroupSection &Sec) {
   ELF::Elf32_Word *Buf =
       reinterpret_cast<ELF::Elf32_Word *>(Out.getBufferStart() + Sec.Offset);
-  *Buf++ = Sec.FlagWord;
+  support::endian::write32<ELFT::TargetEndianness>(Buf++, Sec.FlagWord);
   for (SectionBase *S : Sec.GroupMembers)
     support::endian::write32<ELFT::TargetEndianness>(Buf++, S->Index);
   return Error::success();
@@ -1201,6 +1208,10 @@ static bool sectionWithinSegment(const SectionBase &Sec, const Segment &Seg) {
   // segments and ensures that the section "belongs" to the second segment and
   // not the first.
   uint64_t SecSize = Sec.Size ? Sec.Size : 1;
+
+  // Ignore just added sections.
+  if (Sec.OriginalOffset == std::numeric_limits<uint64_t>::max())
+    return false;
 
   if (Sec.Type == SHT_NOBITS) {
     if (!(Sec.Flags & SHF_ALLOC))
@@ -1290,8 +1301,9 @@ void BinaryELFBuilder::addData(SymbolTableSection *SymTab) {
   DataSection.Flags = ELF::SHF_ALLOC | ELF::SHF_WRITE;
 
   std::string SanitizedFilename = MemBuf->getBufferIdentifier().str();
-  std::replace_if(std::begin(SanitizedFilename), std::end(SanitizedFilename),
-                  [](char C) { return !isalnum(C); }, '_');
+  std::replace_if(
+      std::begin(SanitizedFilename), std::end(SanitizedFilename),
+      [](char C) { return !isAlnum(C); }, '_');
   Twine Prefix = Twine("_binary_") + SanitizedFilename;
 
   SymTab->addSymbol(Prefix + "_start", STB_GLOBAL, STT_NOTYPE, &DataSection,
@@ -1505,7 +1517,8 @@ Error ELFBuilder<ELFT>::initGroupSection(GroupSection *GroupSec) {
       reinterpret_cast<const ELF::Elf32_Word *>(GroupSec->Contents.data());
   const ELF::Elf32_Word *End =
       Word + GroupSec->Contents.size() / sizeof(ELF::Elf32_Word);
-  GroupSec->setFlagWord(*Word++);
+  GroupSec->setFlagWord(
+      support::endian::read32<ELFT::TargetEndianness>(Word++));
   for (; Word != End; ++Word) {
     uint32_t Index = support::endian::read32<ELFT::TargetEndianness>(Word);
     Expected<SectionBase *> Sec = SecTable.getSection(
@@ -1778,7 +1791,7 @@ template <class ELFT> Error ELFBuilder<ELFT>::readSectionHeaders() {
     Sec->OriginalIndex = Sec->Index;
     Sec->OriginalData =
         ArrayRef<uint8_t>(ElfFile.base() + Shdr.sh_offset,
-                          (Shdr.sh_type == SHT_NOBITS) ? 0 : Shdr.sh_size);
+                          (Shdr.sh_type == SHT_NOBITS) ? (size_t)0 : Shdr.sh_size);
   }
 
   return Error::success();
@@ -1971,7 +1984,7 @@ Expected<std::unique_ptr<Object>> ELFReader::create(bool EnsureSymtab) const {
 }
 
 template <class ELFT> void ELFWriter<ELFT>::writeEhdr() {
-  Elf_Ehdr &Ehdr = *reinterpret_cast<Elf_Ehdr *>(Buf.getBufferStart());
+  Elf_Ehdr &Ehdr = *reinterpret_cast<Elf_Ehdr *>(Buf->getBufferStart());
   std::fill(Ehdr.e_ident, Ehdr.e_ident + 16, 0);
   Ehdr.e_ident[EI_MAG0] = 0x7f;
   Ehdr.e_ident[EI_MAG1] = 'E';
@@ -2036,7 +2049,7 @@ template <class ELFT> void ELFWriter<ELFT>::writeShdrs() {
   // This reference serves to write the dummy section header at the begining
   // of the file. It is not used for anything else
   Elf_Shdr &Shdr =
-      *reinterpret_cast<Elf_Shdr *>(Buf.getBufferStart() + Obj.SHOff);
+      *reinterpret_cast<Elf_Shdr *>(Buf->getBufferStart() + Obj.SHOff);
   Shdr.sh_name = 0;
   Shdr.sh_type = SHT_NULL;
   Shdr.sh_flags = 0;
@@ -2076,7 +2089,7 @@ template <class ELFT> Error ELFWriter<ELFT>::writeSectionData() {
 template <class ELFT> void ELFWriter<ELFT>::writeSegmentData() {
   for (Segment &Seg : Obj.segments()) {
     size_t Size = std::min<size_t>(Seg.FileSize, Seg.getContents().size());
-    std::memcpy(Buf.getBufferStart() + Seg.Offset, Seg.getContents().data(),
+    std::memcpy(Buf->getBufferStart() + Seg.Offset, Seg.getContents().data(),
                 Size);
   }
 
@@ -2087,12 +2100,12 @@ template <class ELFT> void ELFWriter<ELFT>::writeSegmentData() {
       continue;
     uint64_t Offset =
         Sec.OriginalOffset - Parent->OriginalOffset + Parent->Offset;
-    std::memset(Buf.getBufferStart() + Offset, 0, Sec.Size);
+    std::memset(Buf->getBufferStart() + Offset, 0, Sec.Size);
   }
 }
 
 template <class ELFT>
-ELFWriter<ELFT>::ELFWriter(Object &Obj, Buffer &Buf, bool WSH,
+ELFWriter<ELFT>::ELFWriter(Object &Obj, raw_ostream &Buf, bool WSH,
                            bool OnlyKeepDebug)
     : Writer(Obj, Buf), WriteSectionHeaders(WSH && Obj.HadShdrs),
       OnlyKeepDebug(OnlyKeepDebug) {}
@@ -2311,18 +2324,19 @@ static uint64_t layoutSegmentsForOnlyKeepDebug(std::vector<Segment *> &Segments,
                                                uint64_t HdrEnd) {
   uint64_t MaxOffset = 0;
   for (Segment *Seg : Segments) {
-    // An empty segment contains no section (see sectionWithinSegment). If it
-    // has a parent segment, copy the parent segment's offset field. This works
-    // for empty PT_TLS. We don't handle empty segments without a parent for
-    // now.
-    if (Seg->ParentSegment != nullptr && Seg->MemSize == 0)
-      Seg->Offset = Seg->ParentSegment->Offset;
-
-    const SectionBase *FirstSec = Seg->firstSection();
-    if (Seg->Type == PT_PHDR || !FirstSec)
+    if (Seg->Type == PT_PHDR)
       continue;
 
-    uint64_t Offset = FirstSec->Offset;
+    // The segment offset is generally the offset of the first section.
+    //
+    // For a segment containing no section (see sectionWithinSegment), if it has
+    // a parent segment, copy the parent segment's offset field. This works for
+    // empty PT_TLS. If no parent segment, use 0: the segment is not useful for
+    // debugging anyway.
+    const SectionBase *FirstSec = Seg->firstSection();
+    uint64_t Offset =
+        FirstSec ? FirstSec->Offset
+                 : (Seg->ParentSegment ? Seg->ParentSegment->Offset : 0);
     uint64_t FileSize = 0;
     for (const SectionBase *Sec : Seg->Sections) {
       uint64_t Size = Sec->Type == SHT_NOBITS ? 0 : Sec->Size;
@@ -2409,7 +2423,11 @@ template <class ELFT> Error ELFWriter<ELFT>::write() {
     return E;
   if (WriteSectionHeaders)
     writeShdrs();
-  return Buf.commit();
+
+  // TODO: Implement direct writing to the output stream (without intermediate
+  // memory buffer Buf).
+  Out.write(Buf->getBufferStart(), Buf->getBufferSize());
+  return Error::success();
 }
 
 static Error removeUnneededSections(Object &Obj) {
@@ -2450,8 +2468,10 @@ template <class ELFT> Error ELFWriter<ELFT>::finalize() {
   bool NeedsLargeIndexes = false;
   if (Obj.sections().size() >= SHN_LORESERVE) {
     SectionTableRef Sections = Obj.sections();
+    // Sections doesn't include the null section header, so account for this
+    // when skipping the first N sections.
     NeedsLargeIndexes =
-        any_of(drop_begin(Sections, SHN_LORESERVE),
+        any_of(drop_begin(Sections, SHN_LORESERVE - 1),
                [](const SectionBase &Sec) { return Sec.HasSymbol; });
     // TODO: handle case where only one section needs the large index table but
     // only needs it because the large index table hasn't been removed yet.
@@ -2529,9 +2549,14 @@ template <class ELFT> Error ELFWriter<ELFT>::finalize() {
     Sec.finalize();
   }
 
-  if (Error E = Buf.allocate(totalSize()))
-    return E;
-  SecWriter = std::make_unique<ELFSectionWriter<ELFT>>(Buf);
+  size_t TotalSize = totalSize();
+  Buf = WritableMemoryBuffer::getNewMemBuffer(TotalSize);
+  if (!Buf)
+    return createStringError(errc::not_enough_memory,
+                             "failed to allocate memory buffer of " +
+                                 Twine::utohexstr(TotalSize) + " bytes");
+
+  SecWriter = std::make_unique<ELFSectionWriter<ELFT>>(*Buf);
   return Error::success();
 }
 
@@ -2540,7 +2565,10 @@ Error BinaryWriter::write() {
     if (Error Err = Sec.accept(*SecWriter))
       return Err;
 
-  return Buf.commit();
+  // TODO: Implement direct writing to the output stream (without intermediate
+  // memory buffer Buf).
+  Out.write(Buf->getBufferStart(), Buf->getBufferSize());
+  return Error::success();
 }
 
 Error BinaryWriter::finalize() {
@@ -2553,7 +2581,7 @@ Error BinaryWriter::finalize() {
     if (Sec.ParentSegment != nullptr)
       Sec.Addr =
           Sec.Offset - Sec.ParentSegment->Offset + Sec.ParentSegment->PAddr;
-    if (Sec.Size > 0)
+    if (Sec.Type != SHT_NOBITS && Sec.Size > 0)
       MinAddr = std::min(MinAddr, Sec.Addr);
   }
 
@@ -2568,9 +2596,12 @@ Error BinaryWriter::finalize() {
       TotalSize = std::max(TotalSize, Sec.Offset + Sec.Size);
     }
 
-  if (Error E = Buf.allocate(TotalSize))
-    return E;
-  SecWriter = std::make_unique<BinarySectionWriter>(Buf);
+  Buf = WritableMemoryBuffer::getNewMemBuffer(TotalSize);
+  if (!Buf)
+    return createStringError(errc::not_enough_memory,
+                             "failed to allocate memory buffer of " +
+                                 Twine::utohexstr(TotalSize) + " bytes");
+  SecWriter = std::make_unique<BinarySectionWriter>(*Buf);
   return Error::success();
 }
 
@@ -2608,7 +2639,7 @@ uint64_t IHexWriter::writeEndOfFileRecord(uint8_t *Buf) {
 }
 
 Error IHexWriter::write() {
-  IHexSectionWriter Writer(Buf);
+  IHexSectionWriter Writer(*Buf);
   // Write sections.
   for (const SectionBase *Sec : Sections)
     if (Error Err = Sec->accept(Writer))
@@ -2616,11 +2647,17 @@ Error IHexWriter::write() {
 
   uint64_t Offset = Writer.getBufferOffset();
   // Write entry point address.
-  Offset += writeEntryPointRecord(Buf.getBufferStart() + Offset);
+  Offset += writeEntryPointRecord(
+      reinterpret_cast<uint8_t *>(Buf->getBufferStart()) + Offset);
   // Write EOF.
-  Offset += writeEndOfFileRecord(Buf.getBufferStart() + Offset);
+  Offset += writeEndOfFileRecord(
+      reinterpret_cast<uint8_t *>(Buf->getBufferStart()) + Offset);
   assert(Offset == TotalSize);
-  return Buf.commit();
+
+  // TODO: Implement direct writing to the output stream (without intermediate
+  // memory buffer Buf).
+  Out.write(Buf->getBufferStart(), Buf->getBufferSize());
+  return Error::success();
 }
 
 Error IHexWriter::checkSection(const SectionBase &Sec) {
@@ -2634,37 +2671,27 @@ Error IHexWriter::checkSection(const SectionBase &Sec) {
 }
 
 Error IHexWriter::finalize() {
-  bool UseSegments = false;
-  auto ShouldWrite = [](const SectionBase &Sec) {
-    return (Sec.Flags & ELF::SHF_ALLOC) && (Sec.Type != ELF::SHT_NOBITS);
-  };
-  auto IsInPtLoad = [](const SectionBase &Sec) {
-    return Sec.ParentSegment && Sec.ParentSegment->Type == ELF::PT_LOAD;
-  };
-
   // We can't write 64-bit addresses.
   if (addressOverflows32bit(Obj.Entry))
     return createStringError(errc::invalid_argument,
-                             "Entry point address 0x%llx overflows 32 bits.",
+                             "Entry point address 0x%llx overflows 32 bits",
                              Obj.Entry);
 
-  // If any section we're to write has segment then we
-  // switch to using physical addresses. Otherwise we
-  // use section virtual address.
   for (const SectionBase &Sec : Obj.sections())
-    if (ShouldWrite(Sec) && IsInPtLoad(Sec)) {
-      UseSegments = true;
-      break;
-    }
-
-  for (const SectionBase &Sec : Obj.sections())
-    if (ShouldWrite(Sec) && (!UseSegments || IsInPtLoad(Sec))) {
+    if ((Sec.Flags & ELF::SHF_ALLOC) && Sec.Type != ELF::SHT_NOBITS &&
+        Sec.Size > 0) {
       if (Error E = checkSection(Sec))
         return E;
       Sections.insert(&Sec);
     }
 
-  IHexSectionWriterBase LengthCalc(Buf);
+  std::unique_ptr<WritableMemoryBuffer> EmptyBuffer =
+      WritableMemoryBuffer::getNewMemBuffer(0);
+  if (!EmptyBuffer)
+    return createStringError(errc::not_enough_memory,
+                             "failed to allocate memory buffer of 0 bytes");
+
+  IHexSectionWriterBase LengthCalc(*EmptyBuffer);
   for (const SectionBase *Sec : Sections)
     if (Error Err = Sec->accept(LengthCalc))
       return Err;
@@ -2674,10 +2701,19 @@ Error IHexWriter::finalize() {
   TotalSize = LengthCalc.getBufferOffset() +
               (Obj.Entry ? IHexRecord::getLineLength(4) : 0) +
               IHexRecord::getLineLength(0);
-  if (Error E = Buf.allocate(TotalSize))
-    return E;
+
+  Buf = WritableMemoryBuffer::getNewMemBuffer(TotalSize);
+  if (!Buf)
+    return createStringError(errc::not_enough_memory,
+                             "failed to allocate memory buffer of " +
+                                 Twine::utohexstr(TotalSize) + " bytes");
+
   return Error::success();
 }
+
+namespace llvm {
+namespace objcopy {
+namespace elf {
 
 template class ELFBuilder<ELF64LE>;
 template class ELFBuilder<ELF64BE>;

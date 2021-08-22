@@ -119,8 +119,7 @@ class ModuleInlinerWrapperPass
     : public PassInfoMixin<ModuleInlinerWrapperPass> {
 public:
   ModuleInlinerWrapperPass(
-      InlineParams Params = getInlineParams(), bool Debugging = false,
-      bool MandatoryFirst = true,
+      InlineParams Params = getInlineParams(), bool MandatoryFirst = true,
       InliningAdvisorMode Mode = InliningAdvisorMode::Default,
       unsigned MaxDevirtIterations = 0);
   ModuleInlinerWrapperPass(ModuleInlinerWrapperPass &&Arg) = default;
@@ -131,9 +130,9 @@ public:
   /// before run is called, as part of pass pipeline building.
   CGSCCPassManager &getPM() { return PM; }
 
-  /// Allow adding module-level analyses benefiting the contained CGSCC passes.
-  template <class T> void addRequiredModuleAnalysis() {
-    MPM.addPass(RequireAnalysisPass<T, Module>());
+  /// Allow adding module-level passes benefiting the contained CGSCC passes.
+  template <class T> void addModulePass(T Pass) {
+    MPM.addPass(std::move(Pass));
   }
 
 private:

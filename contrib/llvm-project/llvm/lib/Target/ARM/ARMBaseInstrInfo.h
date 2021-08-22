@@ -366,7 +366,9 @@ public:
 
   bool isUnspillableTerminatorImpl(const MachineInstr *MI) const override {
     return MI->getOpcode() == ARM::t2LoopEndDec ||
-           MI->getOpcode() == ARM::t2DoLoopStartTP;
+           MI->getOpcode() == ARM::t2DoLoopStartTP ||
+           MI->getOpcode() == ARM::t2WhileLoopStartLR ||
+           MI->getOpcode() == ARM::t2WhileLoopStartTP;
   }
 
 private:
@@ -644,11 +646,6 @@ static inline bool isJumpTableBranchOpcode(int Opc) {
          Opc == ARM::t2BR_JT;
 }
 
-static inline bool isLowOverheadTerminatorOpcode(int Opc) {
-  return Opc == ARM::t2DoLoopStartTP || Opc == ARM::t2WhileLoopStart ||
-         Opc == ARM::t2LoopEnd || Opc == ARM::t2LoopEndDec;
-}
-
 static inline
 bool isIndirectBranchOpcode(int Opc) {
   return Opc == ARM::BX || Opc == ARM::MOVPCRX || Opc == ARM::tBRIND;
@@ -888,8 +885,12 @@ inline bool isLegalAddressImm(unsigned Opcode, int Imm,
     return std::abs(Imm) < (((1 << 7) * 4) - 1) && Imm % 4 == 0;
   case ARMII::AddrModeT2_i8:
     return std::abs(Imm) < (((1 << 8) * 1) - 1);
+  case ARMII::AddrMode2:
+    return std::abs(Imm) < (((1 << 12) * 1) - 1);
   case ARMII::AddrModeT2_i12:
     return Imm >= 0 && Imm < (((1 << 12) * 1) - 1);
+  case ARMII::AddrModeT2_i8s4:
+    return std::abs(Imm) < (((1 << 8) * 4) - 1) && Imm % 4 == 0;
   default:
     llvm_unreachable("Unhandled Addressing mode");
   }

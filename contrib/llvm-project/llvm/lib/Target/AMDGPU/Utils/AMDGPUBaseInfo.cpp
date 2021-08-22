@@ -30,7 +30,8 @@
 
 static llvm::cl::opt<unsigned> AmdhsaCodeObjectVersion(
   "amdhsa-code-object-version", llvm::cl::Hidden,
-  llvm::cl::desc("AMDHSA Code Object Version"), llvm::cl::init(3));
+  llvm::cl::desc("AMDHSA Code Object Version"), llvm::cl::init(4),
+  llvm::cl::ZeroOrMore);
 
 namespace {
 
@@ -96,21 +97,34 @@ Optional<uint8_t> getHsaAbiVersion(const MCSubtargetInfo *STI) {
     return ELF::ELFABIVERSION_AMDGPU_HSA_V2;
   case 3:
     return ELF::ELFABIVERSION_AMDGPU_HSA_V3;
+  case 4:
+    return ELF::ELFABIVERSION_AMDGPU_HSA_V4;
   default:
-    return ELF::ELFABIVERSION_AMDGPU_HSA_V3;
+    report_fatal_error(Twine("Unsupported AMDHSA Code Object Version ") +
+                       Twine(AmdhsaCodeObjectVersion));
   }
 }
 
 bool isHsaAbiVersion2(const MCSubtargetInfo *STI) {
-  if (const auto &&HsaAbiVer = getHsaAbiVersion(STI))
-    return HsaAbiVer.getValue() == ELF::ELFABIVERSION_AMDGPU_HSA_V2;
+  if (Optional<uint8_t> HsaAbiVer = getHsaAbiVersion(STI))
+    return *HsaAbiVer == ELF::ELFABIVERSION_AMDGPU_HSA_V2;
   return false;
 }
 
 bool isHsaAbiVersion3(const MCSubtargetInfo *STI) {
-  if (const auto &&HsaAbiVer = getHsaAbiVersion(STI))
-    return HsaAbiVer.getValue() == ELF::ELFABIVERSION_AMDGPU_HSA_V3;
+  if (Optional<uint8_t> HsaAbiVer = getHsaAbiVersion(STI))
+    return *HsaAbiVer == ELF::ELFABIVERSION_AMDGPU_HSA_V3;
   return false;
+}
+
+bool isHsaAbiVersion4(const MCSubtargetInfo *STI) {
+  if (Optional<uint8_t> HsaAbiVer = getHsaAbiVersion(STI))
+    return *HsaAbiVer == ELF::ELFABIVERSION_AMDGPU_HSA_V4;
+  return false;
+}
+
+bool isHsaAbiVersion3Or4(const MCSubtargetInfo *STI) {
+  return isHsaAbiVersion3(STI) || isHsaAbiVersion4(STI);
 }
 
 #define GET_MIMGBaseOpcodesTable_IMPL
@@ -141,6 +155,34 @@ int getMaskedMIMGOp(unsigned Opc, unsigned NewChannels) {
   return NewInfo ? NewInfo->Opcode : -1;
 }
 
+unsigned getAddrSizeMIMGOp(const MIMGBaseOpcodeInfo *BaseOpcode,
+                           const MIMGDimInfo *Dim, bool IsA16,
+                           bool IsG16Supported) {
+  unsigned AddrWords = BaseOpcode->NumExtraArgs;
+  unsigned AddrComponents = (BaseOpcode->Coordinates ? Dim->NumCoords : 0) +
+                            (BaseOpcode->LodOrClampOrMip ? 1 : 0);
+  if (IsA16)
+    AddrWords += divideCeil(AddrComponents, 2);
+  else
+    AddrWords += AddrComponents;
+
+  // Note: For subtargets that support A16 but not G16, enabling A16 also
+  // enables 16 bit gradients.
+  // For subtargets that support A16 (operand) and G16 (done with a different
+  // instruction encoding), they are independent.
+
+  if (BaseOpcode->Gradients) {
+    if ((IsA16 && !IsG16Supported) || BaseOpcode->G16)
+      // There are two gradients per coordinate, we pack them separately.
+      // For the 3d case,
+      // we get (dy/du, dx/du) (-, dz/du) (dy/dv, dx/dv) (-, dz/dv)
+      AddrWords += alignTo<2>(Dim->NumGradients / 2);
+    else
+      AddrWords += Dim->NumGradients;
+  }
+  return AddrWords;
+}
+
 struct MUBUFInfo {
   uint16_t Opcode;
   uint16_t BaseOpcode;
@@ -148,6 +190,7 @@ struct MUBUFInfo {
   bool has_vaddr;
   bool has_srsrc;
   bool has_soffset;
+  bool IsBufferInv;
 };
 
 struct MTBUFInfo {
@@ -164,12 +207,23 @@ struct SMInfo {
   bool IsBuffer;
 };
 
+struct VOPInfo {
+  uint16_t Opcode;
+  bool IsSingle;
+};
+
 #define GET_MTBUFInfoTable_DECL
 #define GET_MTBUFInfoTable_IMPL
 #define GET_MUBUFInfoTable_DECL
 #define GET_MUBUFInfoTable_IMPL
 #define GET_SMInfoTable_DECL
 #define GET_SMInfoTable_IMPL
+#define GET_VOP1InfoTable_DECL
+#define GET_VOP1InfoTable_IMPL
+#define GET_VOP2InfoTable_DECL
+#define GET_VOP2InfoTable_IMPL
+#define GET_VOP3InfoTable_DECL
+#define GET_VOP3InfoTable_IMPL
 #include "AMDGPUGenSearchableTables.inc"
 
 int getMTBUFBaseOpcode(unsigned Opc) {
@@ -232,9 +286,29 @@ bool getMUBUFHasSoffset(unsigned Opc) {
   return Info ? Info->has_soffset : false;
 }
 
+bool getMUBUFIsBufferInv(unsigned Opc) {
+  const MUBUFInfo *Info = getMUBUFOpcodeHelper(Opc);
+  return Info ? Info->IsBufferInv : false;
+}
+
 bool getSMEMIsBuffer(unsigned Opc) {
   const SMInfo *Info = getSMEMOpcodeHelper(Opc);
   return Info ? Info->IsBuffer : false;
+}
+
+bool getVOP1IsSingle(unsigned Opc) {
+  const VOPInfo *Info = getVOP1OpcodeHelper(Opc);
+  return Info ? Info->IsSingle : false;
+}
+
+bool getVOP2IsSingle(unsigned Opc) {
+  const VOPInfo *Info = getVOP2OpcodeHelper(Opc);
+  return Info ? Info->IsSingle : false;
+}
+
+bool getVOP3IsSingle(unsigned Opc) {
+  const VOPInfo *Info = getVOP3OpcodeHelper(Opc);
+  return Info ? Info->IsSingle : false;
 }
 
 // Wrapper for Tablegen'd function.  enum Subtarget is not defined in any
@@ -247,7 +321,8 @@ int getMCOpcode(uint16_t Opcode, unsigned Gen) {
 namespace IsaInfo {
 
 AMDGPUTargetID::AMDGPUTargetID(const MCSubtargetInfo &STI)
-    : XnackSetting(TargetIDSetting::Any), SramEccSetting(TargetIDSetting::Any) {
+    : STI(STI), XnackSetting(TargetIDSetting::Any),
+      SramEccSetting(TargetIDSetting::Any) {
   if (!STI.getFeatureBits().test(FeatureSupportsXNACK))
     XnackSetting = TargetIDSetting::Unsupported;
   if (!STI.getFeatureBits().test(FeatureSupportsSRAMECC))
@@ -334,25 +409,109 @@ void AMDGPUTargetID::setTargetIDFromTargetIDStream(StringRef TargetID) {
   }
 }
 
-void streamIsaVersion(const MCSubtargetInfo *STI, raw_ostream &Stream) {
-  auto TargetTriple = STI->getTargetTriple();
-  auto Version = getIsaVersion(STI->getCPU());
+std::string AMDGPUTargetID::toString() const {
+  std::string StringRep = "";
+  raw_string_ostream StreamRep(StringRep);
 
-  Stream << TargetTriple.getArchName() << '-'
-         << TargetTriple.getVendorName() << '-'
-         << TargetTriple.getOSName() << '-'
-         << TargetTriple.getEnvironmentName() << '-'
-         << "gfx"
-         << Version.Major
-         << Version.Minor
-         << Version.Stepping;
+  auto TargetTriple = STI.getTargetTriple();
+  auto Version = getIsaVersion(STI.getCPU());
 
-  if (hasXNACK(*STI))
-    Stream << "+xnack";
-  if (hasSRAMECC(*STI))
-    Stream << "+sramecc";
+  StreamRep << TargetTriple.getArchName() << '-'
+            << TargetTriple.getVendorName() << '-'
+            << TargetTriple.getOSName() << '-'
+            << TargetTriple.getEnvironmentName() << '-';
 
-  Stream.flush();
+  std::string Processor = "";
+  // TODO: Following else statement is present here because we used various
+  // alias names for GPUs up until GFX9 (e.g. 'fiji' is same as 'gfx803').
+  // Remove once all aliases are removed from GCNProcessors.td.
+  if (Version.Major >= 9)
+    Processor = STI.getCPU().str();
+  else
+    Processor = (Twine("gfx") + Twine(Version.Major) + Twine(Version.Minor) +
+                 Twine(Version.Stepping))
+                    .str();
+
+  std::string Features = "";
+  if (Optional<uint8_t> HsaAbiVersion = getHsaAbiVersion(&STI)) {
+    switch (*HsaAbiVersion) {
+    case ELF::ELFABIVERSION_AMDGPU_HSA_V2:
+      // Code object V2 only supported specific processors and had fixed
+      // settings for the XNACK.
+      if (Processor == "gfx600") {
+      } else if (Processor == "gfx601") {
+      } else if (Processor == "gfx602") {
+      } else if (Processor == "gfx700") {
+      } else if (Processor == "gfx701") {
+      } else if (Processor == "gfx702") {
+      } else if (Processor == "gfx703") {
+      } else if (Processor == "gfx704") {
+      } else if (Processor == "gfx705") {
+      } else if (Processor == "gfx801") {
+        if (!isXnackOnOrAny())
+          report_fatal_error(
+              "AMD GPU code object V2 does not support processor " + Processor +
+              " without XNACK");
+      } else if (Processor == "gfx802") {
+      } else if (Processor == "gfx803") {
+      } else if (Processor == "gfx805") {
+      } else if (Processor == "gfx810") {
+        if (!isXnackOnOrAny())
+          report_fatal_error(
+              "AMD GPU code object V2 does not support processor " + Processor +
+              " without XNACK");
+      } else if (Processor == "gfx900") {
+        if (isXnackOnOrAny())
+          Processor = "gfx901";
+      } else if (Processor == "gfx902") {
+        if (isXnackOnOrAny())
+          Processor = "gfx903";
+      } else if (Processor == "gfx904") {
+        if (isXnackOnOrAny())
+          Processor = "gfx905";
+      } else if (Processor == "gfx906") {
+        if (isXnackOnOrAny())
+          Processor = "gfx907";
+      } else if (Processor == "gfx90c") {
+        if (isXnackOnOrAny())
+          report_fatal_error(
+              "AMD GPU code object V2 does not support processor " + Processor +
+              " with XNACK being ON or ANY");
+      } else {
+        report_fatal_error(
+            "AMD GPU code object V2 does not support processor " + Processor);
+      }
+      break;
+    case ELF::ELFABIVERSION_AMDGPU_HSA_V3:
+      // xnack.
+      if (isXnackOnOrAny())
+        Features += "+xnack";
+      // In code object v2 and v3, "sramecc" feature was spelled with a
+      // hyphen ("sram-ecc").
+      if (isSramEccOnOrAny())
+        Features += "+sram-ecc";
+      break;
+    case ELF::ELFABIVERSION_AMDGPU_HSA_V4:
+      // sramecc.
+      if (getSramEccSetting() == TargetIDSetting::Off)
+        Features += ":sramecc-";
+      else if (getSramEccSetting() == TargetIDSetting::On)
+        Features += ":sramecc+";
+      // xnack.
+      if (getXnackSetting() == TargetIDSetting::Off)
+        Features += ":xnack-";
+      else if (getXnackSetting() == TargetIDSetting::On)
+        Features += ":xnack+";
+      break;
+    default:
+      break;
+    }
+  }
+
+  StreamRep << Processor << Features;
+
+  StreamRep.flush();
+  return StringRep;
 }
 
 unsigned getWavefrontSize(const MCSubtargetInfo *STI) {
@@ -402,6 +561,8 @@ unsigned getMinWavesPerEU(const MCSubtargetInfo *STI) {
 
 unsigned getMaxWavesPerEU(const MCSubtargetInfo *STI) {
   // FIXME: Need to take scratch memory into account.
+  if (isGFX90A(*STI))
+    return 8;
   if (!isGFX10Plus(*STI))
     return 10;
   return hasGFX10_3Insts(*STI) ? 16 : 20;
@@ -531,6 +692,9 @@ unsigned getNumSGPRBlocks(const MCSubtargetInfo *STI, unsigned NumSGPRs) {
 
 unsigned getVGPRAllocGranule(const MCSubtargetInfo *STI,
                              Optional<bool> EnableWavefrontSize32) {
+  if (STI->getFeatureBits().test(FeatureGFX90AInsts))
+    return 8;
+
   bool IsWave32 = EnableWavefrontSize32 ?
       *EnableWavefrontSize32 :
       STI->getFeatureBits().test(FeatureWavefrontSize32);
@@ -543,6 +707,8 @@ unsigned getVGPRAllocGranule(const MCSubtargetInfo *STI,
 
 unsigned getVGPREncodingGranule(const MCSubtargetInfo *STI,
                                 Optional<bool> EnableWavefrontSize32) {
+  if (STI->getFeatureBits().test(FeatureGFX90AInsts))
+    return 8;
 
   bool IsWave32 = EnableWavefrontSize32 ?
       *EnableWavefrontSize32 :
@@ -552,12 +718,16 @@ unsigned getVGPREncodingGranule(const MCSubtargetInfo *STI,
 }
 
 unsigned getTotalNumVGPRs(const MCSubtargetInfo *STI) {
+  if (STI->getFeatureBits().test(FeatureGFX90AInsts))
+    return 512;
   if (!isGFX10Plus(*STI))
     return 256;
   return STI->getFeatureBits().test(FeatureWavefrontSize32) ? 1024 : 512;
 }
 
 unsigned getAddressableNumVGPRs(const MCSubtargetInfo *STI) {
+  if (STI->getFeatureBits().test(FeatureGFX90AInsts))
+    return 512;
   return 256;
 }
 
@@ -652,6 +822,11 @@ amdhsa::kernel_descriptor_t getDefaultAmdhsaKernelDescriptor(
                     STI->getFeatureBits().test(FeatureCuMode) ? 0 : 1);
     AMDHSA_BITS_SET(KD.compute_pgm_rsrc1,
                     amdhsa::COMPUTE_PGM_RSRC1_MEM_ORDERED, 1);
+  }
+  if (AMDGPU::isGFX90A(*STI)) {
+    AMDHSA_BITS_SET(KD.compute_pgm_rsrc3,
+                    amdhsa::COMPUTE_PGM_RSRC3_GFX90A_TG_SPLIT,
+                    STI->getFeatureBits().test(FeatureTgSplit) ? 1 : 0);
   }
   return KD;
 }
@@ -1049,23 +1224,32 @@ int64_t getMsgId(const StringRef Name) {
   return ID_UNKNOWN_;
 }
 
-static bool isValidMsgId(int64_t MsgId) {
-  return (ID_GAPS_FIRST_ <= MsgId && MsgId < ID_GAPS_LAST_) && IdSymbolic[MsgId];
-}
-
 bool isValidMsgId(int64_t MsgId, const MCSubtargetInfo &STI, bool Strict) {
   if (Strict) {
-    if (MsgId == ID_GS_ALLOC_REQ || MsgId == ID_GET_DOORBELL)
+    switch (MsgId) {
+    case ID_SAVEWAVE:
+      return isVI(STI) || isGFX9Plus(STI);
+    case ID_STALL_WAVE_GEN:
+    case ID_HALT_WAVES:
+    case ID_ORDERED_PS_DONE:
+    case ID_GS_ALLOC_REQ:
+    case ID_GET_DOORBELL:
       return isGFX9Plus(STI);
-    else
-      return isValidMsgId(MsgId);
+    case ID_EARLY_PRIM_DEALLOC:
+      return isGFX9(STI);
+    case ID_GET_DDID:
+      return isGFX10Plus(STI);
+    default:
+      return 0 <= MsgId && MsgId < ID_GAPS_LAST_ && IdSymbolic[MsgId];
+    }
   } else {
     return 0 <= MsgId && isUInt<ID_WIDTH_>(MsgId);
   }
 }
 
 StringRef getMsgName(int64_t MsgId) {
-  return isValidMsgId(MsgId)? IdSymbolic[MsgId] : "";
+  assert(0 <= MsgId && MsgId < ID_GAPS_LAST_);
+  return IdSymbolic[MsgId];
 }
 
 int64_t getMsgOpId(int64_t MsgId, const StringRef Name) {
@@ -1080,7 +1264,9 @@ int64_t getMsgOpId(int64_t MsgId, const StringRef Name) {
   return OP_UNKNOWN_;
 }
 
-bool isValidMsgOp(int64_t MsgId, int64_t OpId, bool Strict) {
+bool isValidMsgOp(int64_t MsgId, int64_t OpId, const MCSubtargetInfo &STI,
+                  bool Strict) {
+  assert(isValidMsgId(MsgId, STI, Strict));
 
   if (!Strict)
     return 0 <= OpId && isUInt<OP_WIDTH_>(OpId);
@@ -1103,7 +1289,9 @@ StringRef getMsgOpName(int64_t MsgId, int64_t OpId) {
   return (MsgId == ID_SYSMSG)? OpSysSymbolic[OpId] : OpGsSymbolic[OpId];
 }
 
-bool isValidMsgStream(int64_t MsgId, int64_t OpId, int64_t StreamId, bool Strict) {
+bool isValidMsgStream(int64_t MsgId, int64_t OpId, int64_t StreamId,
+                      const MCSubtargetInfo &STI, bool Strict) {
+  assert(isValidMsgOp(MsgId, OpId, STI, Strict));
 
   if (!Strict)
     return 0 <= StreamId && isUInt<STREAM_ID_WIDTH_>(StreamId);
@@ -1154,6 +1342,17 @@ uint64_t encodeMsg(uint64_t MsgId,
 
 unsigned getInitialPSInputAddr(const Function &F) {
   return getIntegerAttribute(F, "InitialPSInputAddr", 0);
+}
+
+bool getHasColorExport(const Function &F) {
+  // As a safe default always respond as if PS has color exports.
+  return getIntegerAttribute(
+             F, "amdgpu-color-export",
+             F.getCallingConv() == CallingConv::AMDGPU_PS ? 1 : 0) != 0;
+}
+
+bool getHasDepthExport(const Function &F) {
+  return getIntegerAttribute(F, "amdgpu-depth-export", 0) != 0;
 }
 
 bool isShader(CallingConv::ID cc) {
@@ -1259,12 +1458,24 @@ bool isGCN3Encoding(const MCSubtargetInfo &STI) {
   return STI.getFeatureBits()[AMDGPU::FeatureGCN3Encoding];
 }
 
+bool isGFX10_AEncoding(const MCSubtargetInfo &STI) {
+  return STI.getFeatureBits()[AMDGPU::FeatureGFX10_AEncoding];
+}
+
 bool isGFX10_BEncoding(const MCSubtargetInfo &STI) {
   return STI.getFeatureBits()[AMDGPU::FeatureGFX10_BEncoding];
 }
 
 bool hasGFX10_3Insts(const MCSubtargetInfo &STI) {
   return STI.getFeatureBits()[AMDGPU::FeatureGFX10_3Insts];
+}
+
+bool isGFX90A(const MCSubtargetInfo &STI) {
+  return STI.getFeatureBits()[AMDGPU::FeatureGFX90AInsts];
+}
+
+bool hasArchitectedFlatScratch(const MCSubtargetInfo &STI) {
+  return STI.getFeatureBits()[AMDGPU::FeatureArchitectedFlatScratch];
 }
 
 bool isSGPR(unsigned Reg, const MCRegisterInfo* TRI) {
@@ -1374,6 +1585,9 @@ bool isSISrcFPOperand(const MCInstrDesc &Desc, unsigned OpNo) {
   case AMDGPU::OPERAND_REG_INLINE_AC_FP16:
   case AMDGPU::OPERAND_REG_INLINE_AC_V2FP16:
   case AMDGPU::OPERAND_REG_INLINE_AC_V2INT16:
+  case AMDGPU::OPERAND_REG_IMM_V2FP32:
+  case AMDGPU::OPERAND_REG_INLINE_C_V2FP32:
+  case AMDGPU::OPERAND_REG_INLINE_AC_FP64:
     return true;
   default:
     return false;
@@ -1413,41 +1627,67 @@ unsigned getRegBitWidth(unsigned RCID) {
   case AMDGPU::VReg_64RegClassID:
   case AMDGPU::AReg_64RegClassID:
   case AMDGPU::SReg_64_XEXECRegClassID:
+  case AMDGPU::VReg_64_Align2RegClassID:
+  case AMDGPU::AReg_64_Align2RegClassID:
     return 64;
   case AMDGPU::SGPR_96RegClassID:
   case AMDGPU::SReg_96RegClassID:
   case AMDGPU::VReg_96RegClassID:
   case AMDGPU::AReg_96RegClassID:
+  case AMDGPU::VReg_96_Align2RegClassID:
+  case AMDGPU::AReg_96_Align2RegClassID:
+  case AMDGPU::AV_96RegClassID:
     return 96;
   case AMDGPU::SGPR_128RegClassID:
   case AMDGPU::SReg_128RegClassID:
   case AMDGPU::VReg_128RegClassID:
   case AMDGPU::AReg_128RegClassID:
+  case AMDGPU::VReg_128_Align2RegClassID:
+  case AMDGPU::AReg_128_Align2RegClassID:
+  case AMDGPU::AV_128RegClassID:
     return 128;
   case AMDGPU::SGPR_160RegClassID:
   case AMDGPU::SReg_160RegClassID:
   case AMDGPU::VReg_160RegClassID:
   case AMDGPU::AReg_160RegClassID:
+  case AMDGPU::VReg_160_Align2RegClassID:
+  case AMDGPU::AReg_160_Align2RegClassID:
+  case AMDGPU::AV_160RegClassID:
     return 160;
   case AMDGPU::SGPR_192RegClassID:
   case AMDGPU::SReg_192RegClassID:
   case AMDGPU::VReg_192RegClassID:
   case AMDGPU::AReg_192RegClassID:
+  case AMDGPU::VReg_192_Align2RegClassID:
+  case AMDGPU::AReg_192_Align2RegClassID:
     return 192;
+  case AMDGPU::SGPR_224RegClassID:
+  case AMDGPU::SReg_224RegClassID:
+  case AMDGPU::VReg_224RegClassID:
+  case AMDGPU::AReg_224RegClassID:
+  case AMDGPU::VReg_224_Align2RegClassID:
+  case AMDGPU::AReg_224_Align2RegClassID:
+    return 224;
   case AMDGPU::SGPR_256RegClassID:
   case AMDGPU::SReg_256RegClassID:
   case AMDGPU::VReg_256RegClassID:
   case AMDGPU::AReg_256RegClassID:
+  case AMDGPU::VReg_256_Align2RegClassID:
+  case AMDGPU::AReg_256_Align2RegClassID:
     return 256;
   case AMDGPU::SGPR_512RegClassID:
   case AMDGPU::SReg_512RegClassID:
   case AMDGPU::VReg_512RegClassID:
   case AMDGPU::AReg_512RegClassID:
+  case AMDGPU::VReg_512_Align2RegClassID:
+  case AMDGPU::AReg_512_Align2RegClassID:
     return 512;
   case AMDGPU::SGPR_1024RegClassID:
   case AMDGPU::SReg_1024RegClassID:
   case AMDGPU::VReg_1024RegClassID:
   case AMDGPU::AReg_1024RegClassID:
+  case AMDGPU::VReg_1024_Align2RegClassID:
+  case AMDGPU::AReg_1024_Align2RegClassID:
     return 1024;
   default:
     llvm_unreachable("Unexpected register class");
