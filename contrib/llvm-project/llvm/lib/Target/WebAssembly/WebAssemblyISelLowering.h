@@ -45,12 +45,43 @@ public:
   WebAssemblyTargetLowering(const TargetMachine &TM,
                             const WebAssemblySubtarget &STI);
 
+  enum WasmAddressSpace : unsigned {
+    // WebAssembly uses the following address spaces:
+    // AS 0 : is the default address space for values in linear memory
+    DEFAULT = 0,
+    // AS 1 : is a non-integral address space for global variables
+    GLOBAL = 1,
+    // AS 10 : is a non-integral address space for externref values
+    EXTERNREF = 10,
+    // AS 20 : is a non-integral address space for funcref values
+    FUNCREF = 20,
+  };
+
+  MVT getPointerTy(const DataLayout &DL, uint32_t AS = 0) const override {
+    if (AS == WasmAddressSpace::EXTERNREF)
+      return MVT::externref;
+    if (AS == WasmAddressSpace::FUNCREF)
+      return MVT::funcref;
+    return TargetLowering::getPointerTy(DL, AS);
+  }
+  MVT getPointerMemTy(const DataLayout &DL, uint32_t AS = 0) const override {
+    if (AS == WasmAddressSpace::EXTERNREF)
+      return MVT::externref;
+    if (AS == WasmAddressSpace::FUNCREF)
+      return MVT::funcref;
+    return TargetLowering::getPointerMemTy(DL, AS);
+  }
+
+  static bool isFuncrefType(const Type *Ty);
+  static bool isExternrefType(const Type *Ty);
+
 private:
   /// Keep a pointer to the WebAssemblySubtarget around so that we can make the
   /// right decision when generating code for different targets.
   const WebAssemblySubtarget *Subtarget;
 
   AtomicExpansionKind shouldExpandAtomicRMWInIR(AtomicRMWInst *) const override;
+  bool shouldScalarizeBinop(SDValue VecOp) const override;
   FastISel *createFastISel(FunctionLoweringInfo &FuncInfo,
                            const TargetLibraryInfo *LibInfo) const override;
   MVT getScalarShiftAmountTy(const DataLayout &DL, EVT) const override;
@@ -66,7 +97,7 @@ private:
   bool isLegalAddressingMode(const DataLayout &DL, const AddrMode &AM, Type *Ty,
                              unsigned AS,
                              Instruction *I = nullptr) const override;
-  bool allowsMisalignedMemoryAccesses(EVT, unsigned AddrSpace, unsigned Align,
+  bool allowsMisalignedMemoryAccesses(EVT, unsigned AddrSpace, Align Alignment,
                                       MachineMemOperand::Flags Flags,
                                       bool *Fast) const override;
   bool isIntDivCheap(EVT VT, AttributeList Attr) const override;
@@ -119,6 +150,9 @@ private:
   SDValue LowerSETCC(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerAccessVectorElement(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerShift(SDValue Op, SelectionDAG &DAG) const;
+  SDValue LowerFP_TO_INT_SAT(SDValue Op, SelectionDAG &DAG) const;
+  SDValue LowerLoad(SDValue Op, SelectionDAG &DAG) const;
+  SDValue LowerStore(SDValue Op, SelectionDAG &DAG) const;
 
   // Custom DAG combine hooks
   SDValue

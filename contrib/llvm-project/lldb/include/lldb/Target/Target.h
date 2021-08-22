@@ -37,8 +37,6 @@
 
 namespace lldb_private {
 
-class ClangModulesDeclVendor;
-
 OptionEnumValues GetDynamicValueTypes();
 
 enum InlineStrategy {
@@ -211,7 +209,7 @@ public:
 
   void SetDisplayRecognizedArguments(bool b);
 
-  const ProcessLaunchInfo &GetProcessLaunchInfo();
+  const ProcessLaunchInfo &GetProcessLaunchInfo() const;
 
   void SetProcessLaunchInfo(const ProcessLaunchInfo &launch_info);
 
@@ -226,6 +224,10 @@ public:
   bool GetAutoInstallMainExecutable() const;
 
   void UpdateLaunchInfoFromProperties();
+
+  void SetDebugUtilityExpression(bool debug);
+
+  bool GetDebugUtilityExpression() const;
 
 private:
   // Callbacks for m_launch_info.
@@ -1001,11 +1003,12 @@ public:
   // read from const sections in object files, read from the target. This
   // version of ReadMemory will try and read memory from the process if the
   // process is alive. The order is:
-  // 1 - if (prefer_file_cache == true) then read from object file cache
-  // 2 - if there is a valid process, try and read from its memory
-  // 3 - if (prefer_file_cache == false) then read from object file cache
-  size_t ReadMemory(const Address &addr, bool prefer_file_cache, void *dst,
-                    size_t dst_len, Status &error,
+  // 1 - if (force_live_memory == false) and the address falls in a read-only
+  // section, then read from the file cache
+  // 2 - if there is a process, then read from memory
+  // 3 - if there is no process, then read from the file cache
+  size_t ReadMemory(const Address &addr, void *dst, size_t dst_len,
+                    Status &error, bool force_live_memory = false,
                     lldb::addr_t *load_addr_ptr = nullptr);
 
   size_t ReadCStringFromMemory(const Address &addr, std::string &out_str,
@@ -1014,18 +1017,19 @@ public:
   size_t ReadCStringFromMemory(const Address &addr, char *dst,
                                size_t dst_max_len, Status &result_error);
 
-  size_t ReadScalarIntegerFromMemory(const Address &addr,
-                                     bool prefer_file_cache, uint32_t byte_size,
+  size_t ReadScalarIntegerFromMemory(const Address &addr, uint32_t byte_size,
                                      bool is_signed, Scalar &scalar,
-                                     Status &error);
+                                     Status &error,
+                                     bool force_live_memory = false);
 
   uint64_t ReadUnsignedIntegerFromMemory(const Address &addr,
-                                         bool prefer_file_cache,
                                          size_t integer_byte_size,
-                                         uint64_t fail_value, Status &error);
+                                         uint64_t fail_value, Status &error,
+                                         bool force_live_memory = false);
 
-  bool ReadPointerFromMemory(const Address &addr, bool prefer_file_cache,
-                             Status &error, Address &pointer_addr);
+  bool ReadPointerFromMemory(const Address &addr, Status &error,
+                             Address &pointer_addr,
+                             bool force_live_memory = false);
 
   SectionLoadList &GetSectionLoadList() {
     return m_section_load_history.GetCurrentSectionLoadList();
@@ -1122,7 +1126,19 @@ public:
   ///
   /// \return
   ///   The trace object. It might be undefined.
-  const lldb::TraceSP &GetTrace();
+  lldb::TraceSP GetTrace();
+
+  /// Create a \a Trace object for the current target using the using the
+  /// default supported tracing technology for this process.
+  ///
+  /// \return
+  ///     The new \a Trace or an \a llvm::Error if a \a Trace already exists or
+  ///     the trace couldn't be created.
+  llvm::Expected<lldb::TraceSP> CreateTrace();
+
+  /// If a \a Trace object is present, this returns it, otherwise a new Trace is
+  /// created with \a Trace::CreateTrace.
+  llvm::Expected<lldb::TraceSP> GetTraceOrCreate();
 
   // Since expressions results can persist beyond the lifetime of a process,
   // and the const expression results are available after a process is gone, we
@@ -1325,8 +1341,6 @@ public:
 
   SourceManager &GetSourceManager();
 
-  ClangModulesDeclVendor *GetClangModulesDeclVendor();
-
   // Methods.
   lldb::SearchFilterSP
   GetSearchFilterForModule(const FileSpec *containingModule);
@@ -1410,15 +1424,15 @@ protected:
   typedef std::map<lldb::LanguageType, lldb::REPLSP> REPLMap;
   REPLMap m_repl_map;
 
-  std::unique_ptr<ClangModulesDeclVendor> m_clang_modules_decl_vendor_up;
-
   lldb::SourceManagerUP m_source_manager_up;
 
   typedef std::map<lldb::user_id_t, StopHookSP> StopHookCollection;
   StopHookCollection m_stop_hooks;
   lldb::user_id_t m_stop_hook_next_id;
+  uint32_t m_latest_stop_hook_id; /// This records the last natural stop at
+                                  /// which we ran a stop-hook.
   bool m_valid;
-  bool m_suppress_stop_hooks;
+  bool m_suppress_stop_hooks; /// Used to not run stop hooks for expressions
   bool m_is_dummy_target;
   unsigned m_next_persistent_variable_index = 0;
   /// An optional \a lldb_private::Trace object containing processor trace

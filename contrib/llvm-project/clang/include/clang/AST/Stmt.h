@@ -518,7 +518,7 @@ protected:
 
     unsigned : NumExprBits;
 
-    unsigned Kind : 6;
+    unsigned Kind : 7;
     unsigned PartOfExplicitCast : 1; // Only set for ImplicitCastExpr.
 
     /// True if the call expression has some floating-point features.
@@ -1798,6 +1798,7 @@ public:
 class LabelStmt : public ValueStmt {
   LabelDecl *TheDecl;
   Stmt *SubStmt;
+  bool SideEntry = false;
 
 public:
   /// Build a label statement.
@@ -1833,6 +1834,8 @@ public:
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == LabelStmtClass;
   }
+  bool isSideEntry() const { return SideEntry; }
+  void setSideEntry(bool SE) { SideEntry = SE; }
 };
 
 /// Represents an attribute applied to a statement.
@@ -2080,6 +2083,7 @@ public:
   /// If this is an 'if constexpr', determine which substatement will be taken.
   /// Otherwise, or if the condition is value-dependent, returns None.
   Optional<const Stmt*> getNondiscardedCase(const ASTContext &Ctx) const;
+  Optional<Stmt *> getNondiscardedCase(const ASTContext &Ctx);
 
   bool isObjCAvailabilityCheck() const;
 
@@ -2119,7 +2123,7 @@ class SwitchStmt final : public Stmt,
   friend TrailingObjects;
 
   /// Points to a linked list of case and default statements.
-  SwitchCase *FirstCase;
+  SwitchCase *FirstCase = nullptr;
 
   // SwitchStmt is followed by several trailing objects,
   // some of which optional. Note that it would be more convenient to

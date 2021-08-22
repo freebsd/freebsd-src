@@ -266,6 +266,25 @@ void RuntimeDyldELF::resolveX86_64Relocation(const SectionEntry &Section,
     break;
   case ELF::R_X86_64_NONE:
     break;
+  case ELF::R_X86_64_8: {
+    Value += Addend;
+    assert((int64_t)Value <= INT8_MAX && (int64_t)Value >= INT8_MIN);
+    uint8_t TruncatedAddr = (Value & 0xFF);
+    *Section.getAddressWithOffset(Offset) = TruncatedAddr;
+    LLVM_DEBUG(dbgs() << "Writing " << format("%p", TruncatedAddr) << " at "
+                      << format("%p\n", Section.getAddressWithOffset(Offset)));
+    break;
+  }
+  case ELF::R_X86_64_16: {
+    Value += Addend;
+    assert((int64_t)Value <= INT16_MAX && (int64_t)Value >= INT16_MIN);
+    uint16_t TruncatedAddr = (Value & 0xFFFF);
+    support::ulittle16_t::ref(Section.getAddressWithOffset(Offset)) =
+        TruncatedAddr;
+    LLVM_DEBUG(dbgs() << "Writing " << format("%p", TruncatedAddr) << " at "
+                      << format("%p\n", Section.getAddressWithOffset(Offset)));
+    break;
+  }
   case ELF::R_X86_64_64: {
     support::ulittle64_t::ref(Section.getAddressWithOffset(Offset)) =
         Value + Addend;
@@ -409,6 +428,25 @@ void RuntimeDyldELF::resolveAArch64Relocation(const SectionEntry &Section,
   case ELF::R_AARCH64_PREL64:
     write(isBE, TargetPtr, Value + Addend - FinalAddress);
     break;
+  case ELF::R_AARCH64_CONDBR19: {
+    uint64_t BranchImm = Value + Addend - FinalAddress;
+
+    assert(isInt<21>(BranchImm));
+    *TargetPtr &= 0xff00001fU;
+    // Immediate:20:2 goes in bits 23:5 of Bcc, CBZ, CBNZ
+    or32le(TargetPtr, (BranchImm & 0x001FFFFC) << 3);
+    break;
+  }
+  case ELF::R_AARCH64_TSTBR14: {
+    uint64_t BranchImm = Value + Addend - FinalAddress;
+
+    assert(isInt<16>(BranchImm));
+
+    *TargetPtr &= 0xfff8001fU;
+    // Immediate:15:2 goes in bits 18:5 of TBZ, TBNZ
+    or32le(TargetPtr, (BranchImm & 0x0FFFFFFC) << 3);
+    break;
+  }
   case ELF::R_AARCH64_CALL26: // fallthrough
   case ELF::R_AARCH64_JUMP26: {
     // Operation: S+A-P. Set Call or B immediate value to bits fff_fffc of the
@@ -481,6 +519,33 @@ void RuntimeDyldELF::resolveAArch64Relocation(const SectionEntry &Section,
     // from bits 11:4 of X
     or32AArch64Imm(TargetPtr, getBits(Value + Addend, 4, 11));
     break;
+  case ELF::R_AARCH64_LD_PREL_LO19: {
+    // Operation: S + A - P
+    uint64_t Result = Value + Addend - FinalAddress;
+
+    // "Check that -2^20 <= result < 2^20".
+    assert(isInt<21>(Result));
+
+    *TargetPtr &= 0xff00001fU;
+    // Immediate goes in bits 23:5 of LD imm instruction, taken
+    // from bits 20:2 of X
+    *TargetPtr |= ((Result & 0xffc) << (5 - 2));
+    break;
+  }
+  case ELF::R_AARCH64_ADR_PREL_LO21: {
+    // Operation: S + A - P
+    uint64_t Result = Value + Addend - FinalAddress;
+
+    // "Check that -2^20 <= result < 2^20".
+    assert(isInt<21>(Result));
+
+    *TargetPtr &= 0x9f00001fU;
+    // Immediate goes in bits 23:5, 30:29 of ADR imm instruction, taken
+    // from bits 20:0 of X
+    *TargetPtr |= ((Result & 0xffc) << (5 - 2));
+    *TargetPtr |= (Result & 0x3) << 29;
+    break;
+  }
   }
 }
 
@@ -886,14 +951,17 @@ void RuntimeDyldELF::resolveBPFRelocation(const SectionEntry &Section,
     report_fatal_error("Relocation type not implemented yet!");
     break;
   case ELF::R_BPF_NONE:
+  case ELF::R_BPF_64_64:
+  case ELF::R_BPF_64_32:
+  case ELF::R_BPF_64_NODYLD32:
     break;
-  case ELF::R_BPF_64_64: {
+  case ELF::R_BPF_64_ABS64: {
     write(isBE, Section.getAddressWithOffset(Offset), Value + Addend);
     LLVM_DEBUG(dbgs() << "Writing " << format("%p", (Value + Addend)) << " at "
                       << format("%p\n", Section.getAddressWithOffset(Offset)));
     break;
   }
-  case ELF::R_BPF_64_32: {
+  case ELF::R_BPF_64_ABS32: {
     Value += Addend;
     assert(Value <= UINT32_MAX);
     write(isBE, Section.getAddressWithOffset(Offset), static_cast<uint32_t>(Value));
@@ -1204,7 +1272,9 @@ RuntimeDyldELF::processRelocationRef(
   LLVM_DEBUG(dbgs() << "\t\tSectionID: " << SectionID << " Offset: " << Offset
                     << "\n");
   if ((Arch == Triple::aarch64 || Arch == Triple::aarch64_be)) {
-    if (RelType == ELF::R_AARCH64_CALL26 || RelType == ELF::R_AARCH64_JUMP26) {
+    if ((RelType == ELF::R_AARCH64_CALL26 ||
+         RelType == ELF::R_AARCH64_JUMP26) &&
+        MemMgr.allowStubAllocation()) {
       resolveAArch64Branch(SectionID, Value, RelI, Stubs);
     } else if (RelType == ELF::R_AARCH64_ADR_GOT_PAGE) {
       // Craete new GOT entry or find existing one. If GOT entry is
@@ -1667,7 +1737,7 @@ RuntimeDyldELF::processRelocationRef(
       // equivalent to the usual PLT implementation except that we use the stub
       // mechanism in RuntimeDyld (which puts stubs at the end of the section)
       // rather than allocating a PLT section.
-      if (Value.SymbolName) {
+      if (Value.SymbolName && MemMgr.allowStubAllocation()) {
         // This is a call to an external function.
         // Look for an existing stub.
         SectionEntry *Section = &Sections[SectionID];
@@ -1712,9 +1782,9 @@ RuntimeDyldELF::processRelocationRef(
         resolveRelocation(*Section, Offset, StubAddress, ELF::R_X86_64_PC32,
                           Addend);
       } else {
-        RelocationEntry RE(SectionID, Offset, ELF::R_X86_64_PC32, Value.Addend,
-                  Value.Offset);
-        addRelocationForSection(RE, Value.SectionID);
+        Value.Addend += support::ulittle32_t::ref(
+            computePlaceholderAddress(SectionID, Offset));
+        processSimpleRelocation(SectionID, Offset, ELF::R_X86_64_PC32, Value);
       }
     } else if (RelType == ELF::R_X86_64_GOTPCREL ||
                RelType == ELF::R_X86_64_GOTPCRELX ||

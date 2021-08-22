@@ -13,7 +13,7 @@ SRCS+=		llvm-symbolizer.cpp
 CFLAGS+=	-I${.OBJDIR}
 
 INCFILE=	Opts.inc
-TDFILE=		${LLVM_SRCS}/tools/llvm-symbolizer/Opts.td
+TDFILE=		${LLVM_BASE}/${SRCDIR}/Opts.td
 GENOPT=		-gen-opt-parser-defs
 ${INCFILE}: ${TDFILE}
 	${LLVM_TBLGEN} ${GENOPT} -I ${LLVM_SRCS}/include -d ${.TARGET:C/$/.d/} \

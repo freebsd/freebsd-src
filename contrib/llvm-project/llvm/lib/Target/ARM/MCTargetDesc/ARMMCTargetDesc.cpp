@@ -107,9 +107,8 @@ static bool getARMStoreDeprecationInfo(MCInst &MI, const MCSubtargetInfo &STI,
   assert(MI.getNumOperands() >= 4 && "expected >= 4 arguments");
   for (unsigned OI = 4, OE = MI.getNumOperands(); OI < OE; ++OI) {
     assert(MI.getOperand(OI).isReg() && "expected register");
-    if (MI.getOperand(OI).getReg() == ARM::SP ||
-        MI.getOperand(OI).getReg() == ARM::PC) {
-      Info = "use of SP or PC in the list is deprecated";
+    if (MI.getOperand(OI).getReg() == ARM::PC) {
+      Info = "use of PC in the list is deprecated";
       return true;
     }
   }
@@ -134,9 +133,6 @@ static bool getARMLoadDeprecationInfo(MCInst &MI, const MCSubtargetInfo &STI,
     case ARM::PC:
       ListContainsPC = true;
       break;
-    case ARM::SP:
-      Info = "use of SP in the list is deprecated";
-      return true;
     }
   }
 
@@ -197,6 +193,24 @@ bool ARM_MC::isCPSRDefined(const MCInst &MI, const MCInstrInfo *MCII) {
       return true;
   }
   return false;
+}
+
+uint64_t ARM_MC::evaluateBranchTarget(const MCInstrDesc &InstDesc,
+                                      uint64_t Addr, int64_t Imm) {
+  // For ARM instructions the PC offset is 8 bytes, for Thumb instructions it
+  // is 4 bytes.
+  uint64_t Offset =
+      ((InstDesc.TSFlags & ARMII::FormMask) == ARMII::ThumbFrm) ? 4 : 8;
+
+  // A Thumb instruction BLX(i) can be 16-bit aligned while targets Arm code
+  // which is 32-bit aligned. The target address for the case is calculated as
+  //   targetAddress = Align(PC,4) + imm32;
+  // where
+  //   Align(x, y) = y * (x DIV y);
+  if (InstDesc.getOpcode() == ARM::tBLXi)
+    Addr &= ~0x3;
+
+  return Addr + Imm + Offset;
 }
 
 MCSubtargetInfo *ARM_MC::createARMMCSubtargetInfo(const Triple &TT,
@@ -412,55 +426,20 @@ public:
     return MCInstrAnalysis::isConditionalBranch(Inst);
   }
 
-  bool evaluateBranch(const MCInst &Inst, uint64_t Addr,
-                      uint64_t Size, uint64_t &Target) const override {
-    // We only handle PCRel branches for now.
-    if (Inst.getNumOperands() == 0 ||
-        Info->get(Inst.getOpcode()).OpInfo[0].OperandType !=
-            MCOI::OPERAND_PCREL)
-      return false;
-
-    int64_t Imm = Inst.getOperand(0).getImm();
-    Target = Addr+Imm+8; // In ARM mode the PC is always off by 8 bytes.
-    return true;
-  }
-};
-
-class ThumbMCInstrAnalysis : public ARMMCInstrAnalysis {
-public:
-  ThumbMCInstrAnalysis(const MCInstrInfo *Info) : ARMMCInstrAnalysis(Info) {}
-
   bool evaluateBranch(const MCInst &Inst, uint64_t Addr, uint64_t Size,
                       uint64_t &Target) const override {
-    unsigned OpId;
-    switch (Inst.getOpcode()) {
-    default:
-      OpId = 0;
-      if (Inst.getNumOperands() == 0)
-        return false;
-      break;
-    case ARM::MVE_WLSTP_8:
-    case ARM::MVE_WLSTP_16:
-    case ARM::MVE_WLSTP_32:
-    case ARM::MVE_WLSTP_64:
-    case ARM::t2WLS:
-    case ARM::MVE_LETP:
-    case ARM::t2LEUpdate:
-      OpId = 2;
-      break;
-    case ARM::t2LE:
-      OpId = 1;
-      break;
+    const MCInstrDesc &Desc = Info->get(Inst.getOpcode());
+
+    // Find the PC-relative immediate operand in the instruction.
+    for (unsigned OpNum = 0; OpNum < Desc.getNumOperands(); ++OpNum) {
+      if (Inst.getOperand(OpNum).isImm() &&
+          Desc.OpInfo[OpNum].OperandType == MCOI::OPERAND_PCREL) {
+        int64_t Imm = Inst.getOperand(OpNum).getImm();
+        Target = ARM_MC::evaluateBranchTarget(Desc, Addr, Imm);
+        return true;
+      }
     }
-
-    // We only handle PCRel branches for now.
-    if (Info->get(Inst.getOpcode()).OpInfo[OpId].OperandType !=
-        MCOI::OPERAND_PCREL)
-      return false;
-
-    // In Thumb mode the PC is always off by 4 bytes.
-    Target = Addr + Inst.getOperand(OpId).getImm() + 4;
-    return true;
+    return false;
   }
 };
 
@@ -468,10 +447,6 @@ public:
 
 static MCInstrAnalysis *createARMMCInstrAnalysis(const MCInstrInfo *Info) {
   return new ARMMCInstrAnalysis(Info);
-}
-
-static MCInstrAnalysis *createThumbMCInstrAnalysis(const MCInstrInfo *Info) {
-  return new ThumbMCInstrAnalysis(Info);
 }
 
 bool ARM::isCDECoproc(size_t Coproc, const MCSubtargetInfo &STI) {
@@ -521,10 +496,9 @@ extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeARMTargetMC() {
   }
 
   // Register the MC instruction analyzer.
-  for (Target *T : {&getTheARMLETarget(), &getTheARMBETarget()})
+  for (Target *T : {&getTheARMLETarget(), &getTheARMBETarget(),
+                    &getTheThumbLETarget(), &getTheThumbBETarget()})
     TargetRegistry::RegisterMCInstrAnalysis(*T, createARMMCInstrAnalysis);
-  for (Target *T : {&getTheThumbLETarget(), &getTheThumbBETarget()})
-    TargetRegistry::RegisterMCInstrAnalysis(*T, createThumbMCInstrAnalysis);
 
   for (Target *T : {&getTheARMLETarget(), &getTheThumbLETarget()}) {
     TargetRegistry::RegisterMCCodeEmitter(*T, createARMLEMCCodeEmitter);

@@ -8,9 +8,9 @@
 
 #include "lldb/Utility/ReproducerInstrumentation.h"
 #include "lldb/Utility/Reproducer.h"
+#include <cstdio>
+#include <cstdlib>
 #include <limits>
-#include <stdio.h>
-#include <stdlib.h>
 #include <thread>
 
 using namespace lldb_private;
@@ -193,8 +193,8 @@ unsigned ObjectToIndex::GetIndexForObjectImpl(const void *object) {
 }
 
 Recorder::Recorder()
-    : m_serializer(nullptr), m_pretty_func(), m_pretty_args(),
-      m_local_boundary(false), m_result_recorded(true),
+    : m_pretty_func(), m_pretty_args(),
+
       m_sequence(std::numeric_limits<unsigned>::max()) {
   if (!g_global_boundary) {
     g_global_boundary = true;

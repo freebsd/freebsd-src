@@ -29,7 +29,6 @@ DPADD+=		${OBJTOP}/lib/clang/lib${lib}/lib${lib}.a
 LDADD+=		${OBJTOP}/lib/clang/lib${lib}/lib${lib}.a
 .endfor
 
-LLVM_TBLGEN?=	llvm-tblgen
 INCFILE=	LLGSOptions.inc
 TDFILE=		${LLDB_SRCS}/tools/lldb-server/LLGSOptions.td
 GENOPT=		-gen-opt-parser-defs
@@ -38,6 +37,7 @@ ${INCFILE}: ${TDFILE}
 	    -o ${.TARGET} ${TDFILE}
 TGHDRS+=	${INCFILE}
 
+DEPENDFILES+=	${TGHDRS:C/$/.d/}
 DPSRCS+=	${TGHDRS}
 CLEANFILES+=	${TGHDRS} ${TGHDRS:C/$/.d/}
 

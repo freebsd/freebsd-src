@@ -101,13 +101,13 @@ void __llvm_profile_reset_counters(void);
 /*!
  * \brief Merge profile data from buffer.
  *
- * Read profile data form buffer \p Profile  and merge with
- * in-process profile counters. The client is expected to
- * have checked or already knows the profile data in the
- * buffer matches the in-process counter structure before
- * calling it.
+ * Read profile data form buffer \p Profile  and merge with in-process profile
+ * counters. The client is expected to have checked or already knows the profile
+ * data in the buffer matches the in-process counter structure before calling
+ * it. Returns 0 (success) if the profile data is valid. Upon reading
+ * invalid/corrupted profile data, returns 1 (failure).
  */
-void __llvm_profile_merge_from_buffer(const char *Profile, uint64_t Size);
+int __llvm_profile_merge_from_buffer(const char *Profile, uint64_t Size);
 
 /*! \brief Check if profile in buffer matches the current binary.
  *
@@ -318,12 +318,5 @@ extern uint64_t INSTR_PROF_RAW_VERSION_VAR; /* __llvm_profile_raw_version */
  * from compiler command line. This variable has default visibility.
  */
 extern char INSTR_PROF_PROFILE_NAME_VAR[1]; /* __llvm_profile_filename. */
-
-/*!
- * This variable is a weak symbol defined in InstrProfilingBiasVar.c. It
- * allows compiler instrumentation to provide overriding definition with
- * value from compiler command line. This variable has hidden visibility.
- */
-COMPILER_RT_VISIBILITY extern intptr_t __llvm_profile_counter_bias;
 
 #endif /* PROFILE_INSTRPROFILING_H_ */

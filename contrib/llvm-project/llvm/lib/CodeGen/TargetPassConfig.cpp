@@ -39,6 +39,7 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Support/Discriminator.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/SaveAndRestore.h"
 #include "llvm/Support/Threading.h"
@@ -164,6 +165,13 @@ static cl::opt<GlobalISelAbortMode> EnableGlobalISelAbort(
         clEnumValN(GlobalISelAbortMode::Enable, "1", "Enable the abort"),
         clEnumValN(GlobalISelAbortMode::DisableWithDiag, "2",
                    "Disable the abort but emit a diagnostic on failure")));
+
+// An option that disables inserting FS-AFDO discriminators before emit.
+// This is mainly for debugging and tuning purpose.
+static cl::opt<bool>
+    FSNoFinalDiscrim("fs-no-final-discrim", cl::init(false), cl::Hidden,
+                     cl::desc("Do not insert FS-AFDO discriminators before "
+                              "emit."));
 
 // Temporary option to allow experimenting with MachineScheduler as a post-RA
 // scheduler. Targets can "properly" enable this with
@@ -333,6 +341,8 @@ struct InsertedPass {
 } // end anonymous namespace
 
 namespace llvm {
+
+extern cl::opt<bool> EnableFSDiscriminator;
 
 class PassConfigImpl {
 public:
@@ -847,8 +857,8 @@ void TargetPassConfig::addIRPasses() {
 
   // Run GC lowering passes for builtin collectors
   // TODO: add a pass insertion point here
-  addPass(createGCLoweringPass());
-  addPass(createShadowStackGCLoweringPass());
+  addPass(&GCLoweringID);
+  addPass(&ShadowStackGCLoweringID);
   addPass(createLowerConstantIntrinsicsPass());
 
   // Make sure that no unreachable blocks are instruction selected.
@@ -858,11 +868,16 @@ void TargetPassConfig::addIRPasses() {
   if (getOptLevel() != CodeGenOpt::None && !DisableConstantHoisting)
     addPass(createConstantHoistingPass());
 
+  if (getOptLevel() != CodeGenOpt::None)
+    addPass(createReplaceWithVeclibLegacyPass());
+
   if (getOptLevel() != CodeGenOpt::None && !DisablePartialLibcallInlining)
     addPass(createPartiallyInlineLibCallsPass());
 
-  // Instrument function entry and exit, e.g. with calls to mcount().
-  addPass(createPostInlineEntryExitInstrumenterPass());
+  // Expand vector predication intrinsics into standard IR instructions.
+  // This pass has to run before ScalarizeMaskedMemIntrin and ExpandReduction
+  // passes since it emits those kinds of intrinsics.
+  addPass(createExpandVectorPredicationPass());
 
   // Add scalarization of target's unsupported masked memory intrinsics pass.
   // the unsupported intrinsic will be replaced with a chain of basic blocks,
@@ -924,7 +939,6 @@ void TargetPassConfig::addPassesToHandleExceptions() {
 void TargetPassConfig::addCodeGenPrepare() {
   if (getOptLevel() != CodeGenOpt::None && !DisableCGP)
     addPass(createCodeGenPreparePass());
-  addPass(createRewriteSymbolsPass());
 }
 
 /// Add common passes that perform LLVM IR to IR transforms in preparation for
@@ -1109,6 +1123,8 @@ void TargetPassConfig::addMachinePasses() {
   // Run post-ra passes.
   addPostRegAlloc();
 
+  addPass(&RemoveRedundantDebugValuesID, false);
+
   addPass(&FixupStatepointCallerSavedID);
 
   // Insert prolog/epilog code.  Eliminate abstract frame index references...
@@ -1162,6 +1178,14 @@ void TargetPassConfig::addMachinePasses() {
   addPass(&XRayInstrumentationID);
   addPass(&PatchableFunctionID);
 
+  if (EnableFSDiscriminator && !FSNoFinalDiscrim)
+    // Add FS discriminators here so that all the instruction duplicates
+    // in different BBs get their own discriminators. With this, we can "sum"
+    // the SampleFDO counters instead of using MAX. This will improve the
+    // SampleFDO profile quality.
+    addPass(createMIRAddFSDiscriminatorsPass(
+        sampleprof::FSDiscriminatorPass::PassLast));
+
   addPreEmitPass();
 
   if (TM->Options.EnableIPRA)
@@ -1187,12 +1211,14 @@ void TargetPassConfig::addMachinePasses() {
   }
 
   // Machine function splitter uses the basic block sections feature. Both
-  // cannot be enabled at the same time.
-  if (TM->Options.EnableMachineFunctionSplitter ||
-      EnableMachineFunctionSplitter) {
-    addPass(createMachineFunctionSplitterPass());
-  } else if (TM->getBBSectionsType() != llvm::BasicBlockSection::None) {
+  // cannot be enabled at the same time. Basic block sections takes precedence.
+  // FIXME: In principle, BasicBlockSection::Labels and splitting can used
+  // together. Update this check once we have addressed any issues.
+  if (TM->getBBSectionsType() != llvm::BasicBlockSection::None) {
     addPass(llvm::createBasicBlockSectionsPass(TM->getBBSectionsFuncListBuf()));
+  } else if (TM->Options.EnableMachineFunctionSplitter ||
+             EnableMachineFunctionSplitter) {
+    addPass(createMachineFunctionSplitterPass());
   }
 
   // Add passes that directly emit MI after all other MI passes.
@@ -1309,11 +1335,15 @@ FunctionPass *TargetPassConfig::createRegAllocPass(bool Optimized) {
 }
 
 bool TargetPassConfig::addRegAssignAndRewriteFast() {
-  if (RegAlloc != &useDefaultRegisterAllocator &&
-      RegAlloc != &createFastRegisterAllocator)
+  if (RegAlloc != (RegisterRegAlloc::FunctionPassCtor)&useDefaultRegisterAllocator &&
+      RegAlloc != (RegisterRegAlloc::FunctionPassCtor)&createFastRegisterAllocator)
     report_fatal_error("Must use fast (default) register allocator for unoptimized regalloc.");
 
   addPass(createRegAllocPass(false));
+
+  // Allow targets to change the register assignments after
+  // fast register allocation.
+  addPostFastRegAllocRewrite();
   return true;
 }
 

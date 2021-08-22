@@ -54,7 +54,7 @@
 using namespace llvm;
 using namespace llvm::object;
 using namespace llvm::COFF;
-using llvm::sys::Process;
+using namespace llvm::sys;
 
 namespace lld {
 namespace coff {
@@ -149,17 +149,17 @@ using MBErrPair = std::pair<std::unique_ptr<MemoryBuffer>, std::error_code>;
 // Create a std::future that opens and maps a file using the best strategy for
 // the host platform.
 static std::future<MBErrPair> createFutureForFile(std::string path) {
-#if _WIN32
+#if _WIN64
   // On Windows, file I/O is relatively slow so it is best to do this
-  // asynchronously.
+  // asynchronously.  But 32-bit has issues with potentially launching tons
+  // of threads
   auto strategy = std::launch::async;
 #else
   auto strategy = std::launch::deferred;
 #endif
   return std::async(strategy, [=]() {
-    auto mbOrErr = MemoryBuffer::getFile(path,
-                                         /*FileSize*/ -1,
-                                         /*RequiresNullTerminator*/ false);
+    auto mbOrErr = MemoryBuffer::getFile(path, /*IsText=*/false,
+                                         /*RequiresNullTerminator=*/false);
     if (!mbOrErr)
       return MBErrPair{nullptr, mbOrErr.getError()};
     return MBErrPair{std::move(*mbOrErr), std::error_code()};
@@ -235,7 +235,11 @@ void LinkerDriver::addBuffer(std::unique_ptr<MemoryBuffer> mb,
     error(filename + ": is not a native COFF file. Recompile without /GL");
     break;
   case file_magic::pecoff_executable:
-    if (filename.endswith_lower(".dll")) {
+    if (config->mingw) {
+      symtab->addFile(make<DLLFile>(mbref));
+      break;
+    }
+    if (filename.endswith_insensitive(".dll")) {
       error(filename + ": bad file type. Did you specify a DLL instead of an "
                        "import library?");
       break;
@@ -409,6 +413,10 @@ void LinkerDriver::parseDirectives(InputFile *file) {
     case OPT_section:
       parseSection(arg->getValue());
       break;
+    case OPT_stack:
+      parseNumbers(arg->getValue(), &config->stackReserve,
+                   &config->stackCommit);
+      break;
     case OPT_subsystem: {
       bool gotVersion = false;
       parseSubsystem(arg->getValue(), &config->subsystem,
@@ -471,7 +479,7 @@ Optional<StringRef> LinkerDriver::findFile(StringRef filename) {
       return None;
   }
 
-  if (path.endswith_lower(".lib"))
+  if (path.endswith_insensitive(".lib"))
     visitedLibs.insert(std::string(sys::path::filename(path)));
   return path;
 }
@@ -622,6 +630,14 @@ static uint64_t getDefaultImageBase() {
   return config->dll ? 0x10000000 : 0x400000;
 }
 
+static std::string rewritePath(StringRef s) {
+  if (fs::exists(s))
+    return relativeToRoot(s);
+  return std::string(s);
+}
+
+// Reconstructs command line arguments so that so that you can re-run
+// the same command with the same inputs. This is for --reproduce.
 static std::string createResponseFile(const opt::InputArgList &args,
                                       ArrayRef<StringRef> filePaths,
                                       ArrayRef<StringRef> searchPaths) {
@@ -642,6 +658,24 @@ static std::string createResponseFile(const opt::InputArgList &args,
     case OPT_manifestinput:
     case OPT_manifestuac:
       break;
+    case OPT_call_graph_ordering_file:
+    case OPT_deffile:
+    case OPT_natvis:
+      os << arg->getSpelling() << quote(rewritePath(arg->getValue())) << '\n';
+      break;
+    case OPT_order: {
+      StringRef orderFile = arg->getValue();
+      orderFile.consume_front("@");
+      os << arg->getSpelling() << '@' << quote(rewritePath(orderFile)) << '\n';
+      break;
+    }
+    case OPT_pdbstream: {
+      const std::pair<StringRef, StringRef> nameFile =
+          StringRef(arg->getValue()).split("=");
+      os << arg->getSpelling() << nameFile.first << '='
+         << quote(rewritePath(nameFile.second)) << '\n';
+      break;
+    }
     case OPT_implib:
     case OPT_pdb:
     case OPT_pdbstripped:
@@ -664,7 +698,16 @@ static std::string createResponseFile(const opt::InputArgList &args,
   return std::string(data.str());
 }
 
-enum class DebugKind { Unknown, None, Full, FastLink, GHash, Dwarf, Symtab };
+enum class DebugKind {
+  Unknown,
+  None,
+  Full,
+  FastLink,
+  GHash,
+  NoGHash,
+  Dwarf,
+  Symtab
+};
 
 static DebugKind parseDebugKind(const opt::InputArgList &args) {
   auto *a = args.getLastArg(OPT_debug, OPT_debug_opt);
@@ -674,14 +717,15 @@ static DebugKind parseDebugKind(const opt::InputArgList &args) {
     return DebugKind::Full;
 
   DebugKind debug = StringSwitch<DebugKind>(a->getValue())
-                     .CaseLower("none", DebugKind::None)
-                     .CaseLower("full", DebugKind::Full)
-                     .CaseLower("fastlink", DebugKind::FastLink)
-                     // LLD extensions
-                     .CaseLower("ghash", DebugKind::GHash)
-                     .CaseLower("dwarf", DebugKind::Dwarf)
-                     .CaseLower("symtab", DebugKind::Symtab)
-                     .Default(DebugKind::Unknown);
+                        .CaseLower("none", DebugKind::None)
+                        .CaseLower("full", DebugKind::Full)
+                        .CaseLower("fastlink", DebugKind::FastLink)
+                        // LLD extensions
+                        .CaseLower("ghash", DebugKind::GHash)
+                        .CaseLower("noghash", DebugKind::NoGHash)
+                        .CaseLower("dwarf", DebugKind::Dwarf)
+                        .CaseLower("symtab", DebugKind::Symtab)
+                        .Default(DebugKind::Unknown);
 
   if (debug == DebugKind::FastLink) {
     warn("/debug:fastlink unsupported; using /debug:full");
@@ -803,7 +847,7 @@ static void createImportLibrary(bool asLib) {
   // If the import library already exists, replace it only if the contents
   // have changed.
   ErrorOr<std::unique_ptr<MemoryBuffer>> oldBuf = MemoryBuffer::getFile(
-      path, /*FileSize*/ -1, /*RequiresNullTerminator*/ false);
+      path, /*IsText=*/false, /*RequiresNullTerminator=*/false);
   if (!oldBuf) {
     handleError(writeImportLibrary(libName, path, exports, config->machine,
                                    config->mingw));
@@ -823,7 +867,7 @@ static void createImportLibrary(bool asLib) {
   }
 
   std::unique_ptr<MemoryBuffer> newBuf = check(MemoryBuffer::getFile(
-      tmpName, /*FileSize*/ -1, /*RequiresNullTerminator*/ false));
+      tmpName, /*IsText=*/false, /*RequiresNullTerminator=*/false));
   if ((*oldBuf)->getBuffer() != newBuf->getBuffer()) {
     oldBuf->reset();
     handleError(errorCodeToError(sys::fs::rename(tmpName, path)));
@@ -833,10 +877,16 @@ static void createImportLibrary(bool asLib) {
 }
 
 static void parseModuleDefs(StringRef path) {
-  std::unique_ptr<MemoryBuffer> mb = CHECK(
-      MemoryBuffer::getFile(path, -1, false, true), "could not open " + path);
+  std::unique_ptr<MemoryBuffer> mb =
+      CHECK(MemoryBuffer::getFile(path, /*IsText=*/false,
+                                  /*RequiresNullTerminator=*/false,
+                                  /*IsVolatile=*/true),
+            "could not open " + path);
   COFFModuleDefinition m = check(parseCOFFModuleDefinition(
       mb->getMemBufferRef(), config->machine, config->mingw));
+
+  // Include in /reproduce: output if applicable.
+  driver->takeBuffer(std::move(mb));
 
   if (config->outputFile.empty())
     config->outputFile = std::string(saver.save(m.OutputFile));
@@ -919,8 +969,11 @@ static void parseOrderFile(StringRef arg) {
 
   // Open a file.
   StringRef path = arg.substr(1);
-  std::unique_ptr<MemoryBuffer> mb = CHECK(
-      MemoryBuffer::getFile(path, -1, false, true), "could not open " + path);
+  std::unique_ptr<MemoryBuffer> mb =
+      CHECK(MemoryBuffer::getFile(path, /*IsText=*/false,
+                                  /*RequiresNullTerminator=*/false,
+                                  /*IsVolatile=*/true),
+            "could not open " + path);
 
   // Parse a file. An order file contains one symbol per line.
   // All symbols that were not present in a given order file are
@@ -938,11 +991,17 @@ static void parseOrderFile(StringRef arg) {
     else
       config->order[s] = INT_MIN + config->order.size();
   }
+
+  // Include in /reproduce: output if applicable.
+  driver->takeBuffer(std::move(mb));
 }
 
 static void parseCallGraphFile(StringRef path) {
-  std::unique_ptr<MemoryBuffer> mb = CHECK(
-      MemoryBuffer::getFile(path, -1, false, true), "could not open " + path);
+  std::unique_ptr<MemoryBuffer> mb =
+      CHECK(MemoryBuffer::getFile(path, /*IsText=*/false,
+                                  /*RequiresNullTerminator=*/false,
+                                  /*IsVolatile=*/true),
+            "could not open " + path);
 
   // Build a map from symbol name to section.
   DenseMap<StringRef, Symbol *> map;
@@ -978,6 +1037,9 @@ static void parseCallGraphFile(StringRef path) {
       if (SectionChunk *to = findSection(fields[1]))
         config->callGraphProfile[{from, to}] += count;
   }
+
+  // Include in /reproduce: output if applicable.
+  driver->takeBuffer(std::move(mb));
 }
 
 static void readCallGraphsFromObjectFiles() {
@@ -1085,9 +1147,9 @@ static void parsePDBAltPath(StringRef altPath) {
     // text between first and second % as variable name.
     buf.append(altPath.substr(cursor, firstMark - cursor));
     StringRef var = altPath.substr(firstMark, secondMark - firstMark + 1);
-    if (var.equals_lower("%_pdb%"))
+    if (var.equals_insensitive("%_pdb%"))
       buf.append(pdbBasename);
-    else if (var.equals_lower("%_ext%"))
+    else if (var.equals_insensitive("%_ext%"))
       buf.append(binaryExtension);
     else {
       warn("only %_PDB% and %_EXT% supported in /pdbaltpath:, keeping " +
@@ -1141,10 +1203,10 @@ void LinkerDriver::convertResources() {
 // -exclude-all-symbols option, so that lld-link behaves like link.exe rather
 // than MinGW in the case that nothing is explicitly exported.
 void LinkerDriver::maybeExportMinGWSymbols(const opt::InputArgList &args) {
-  if (!config->dll)
-    return;
-
   if (!args.hasArg(OPT_export_all_symbols)) {
+    if (!config->dll)
+      return;
+
     if (!config->exports.empty())
       return;
     if (args.hasArg(OPT_exclude_all_symbols))
@@ -1162,12 +1224,18 @@ void LinkerDriver::maybeExportMinGWSymbols(const opt::InputArgList &args) {
     if (!exporter.shouldExport(def))
       return;
 
+    if (!def->isGCRoot) {
+      def->isGCRoot = true;
+      config->gcroot.push_back(def);
+    }
+
     Export e;
     e.name = def->getName();
     e.sym = def;
     if (Chunk *c = def->getChunk())
       if (!(c->getOutputCharacteristics() & IMAGE_SCN_MEM_EXECUTE))
         e.data = true;
+    s->isUsedInRegularObj = true;
     config->exports.push_back(e);
   });
 }
@@ -1209,7 +1277,9 @@ void LinkerDriver::linkerMain(ArrayRef<const char *> argsArr) {
 
   // If the first command line argument is "/lib", link.exe acts like lib.exe.
   // We call our own implementation of lib.exe that understands bitcode files.
-  if (argsArr.size() > 1 && StringRef(argsArr[1]).equals_lower("/lib")) {
+  if (argsArr.size() > 1 &&
+      (StringRef(argsArr[1]).equals_insensitive("/lib") ||
+       StringRef(argsArr[1]).equals_insensitive("-lib"))) {
     if (llvm::libDriverMain(argsArr.slice(1)) != 0)
       fatal("lib failed");
     return;
@@ -1339,7 +1409,7 @@ void LinkerDriver::linkerMain(ArrayRef<const char *> argsArr) {
   // Handle /debug
   DebugKind debug = parseDebugKind(args);
   if (debug == DebugKind::Full || debug == DebugKind::Dwarf ||
-      debug == DebugKind::GHash) {
+      debug == DebugKind::GHash || debug == DebugKind::NoGHash) {
     config->debug = true;
     config->incremental = true;
   }
@@ -1362,7 +1432,8 @@ void LinkerDriver::linkerMain(ArrayRef<const char *> argsArr) {
 
   // Handle /pdb
   bool shouldCreatePDB =
-      (debug == DebugKind::Full || debug == DebugKind::GHash);
+      (debug == DebugKind::Full || debug == DebugKind::GHash ||
+       debug == DebugKind::NoGHash);
   if (shouldCreatePDB) {
     if (auto *arg = args.getLastArg(OPT_pdb))
       config->pdbPath = arg->getValue();
@@ -1516,8 +1587,9 @@ void LinkerDriver::linkerMain(ArrayRef<const char *> argsArr) {
 
   // Handle /opt.
   bool doGC = debug == DebugKind::None || args.hasArg(OPT_profile);
-  unsigned icfLevel =
-      args.hasArg(OPT_profile) ? 0 : 1; // 0: off, 1: limited, 2: on
+  Optional<ICFLevel> icfLevel = None;
+  if (args.hasArg(OPT_profile))
+    icfLevel = ICFLevel::None;
   unsigned tailMerge = 1;
   bool ltoNewPM = LLVM_ENABLE_NEW_PASS_MANAGER;
   bool ltoDebugPM = false;
@@ -1531,9 +1603,11 @@ void LinkerDriver::linkerMain(ArrayRef<const char *> argsArr) {
       } else if (s == "noref") {
         doGC = false;
       } else if (s == "icf" || s.startswith("icf=")) {
-        icfLevel = 2;
+        icfLevel = ICFLevel::All;
+      } else if (s == "safeicf") {
+        icfLevel = ICFLevel::Safe;
       } else if (s == "noicf") {
-        icfLevel = 0;
+        icfLevel = ICFLevel::None;
       } else if (s == "lldtailmerge") {
         tailMerge = 2;
       } else if (s == "nolldtailmerge") {
@@ -1565,16 +1639,12 @@ void LinkerDriver::linkerMain(ArrayRef<const char *> argsArr) {
     }
   }
 
-  // Limited ICF is enabled if GC is enabled and ICF was never mentioned
-  // explicitly.
-  // FIXME: LLD only implements "limited" ICF, i.e. it only merges identical
-  // code. If the user passes /OPT:ICF explicitly, LLD should merge identical
-  // comdat readonly data.
-  if (icfLevel == 1 && !doGC)
-    icfLevel = 0;
+  if (!icfLevel)
+    icfLevel = doGC ? ICFLevel::All : ICFLevel::None;
   config->doGC = doGC;
-  config->doICF = icfLevel > 0;
-  config->tailMerge = (tailMerge == 1 && config->doICF) || tailMerge == 2;
+  config->doICF = icfLevel.getValue();
+  config->tailMerge =
+      (tailMerge == 1 && config->doICF != ICFLevel::None) || tailMerge == 2;
   config->ltoNewPassManager = ltoNewPM;
   config->ltoDebugPassManager = ltoDebugPM;
 
@@ -1677,14 +1747,16 @@ void LinkerDriver::linkerMain(ArrayRef<const char *> argsArr) {
   config->thinLTOObjectSuffixReplace =
       getOldNewOptions(args, OPT_thinlto_object_suffix_replace);
   config->ltoObjPath = args.getLastArgValue(OPT_lto_obj_path);
+  config->ltoCSProfileGenerate = args.hasArg(OPT_lto_cs_profile_generate);
+  config->ltoCSProfileFile = args.getLastArgValue(OPT_lto_cs_profile_file);
   // Handle miscellaneous boolean flags.
   config->allowBind = args.hasFlag(OPT_allowbind, OPT_allowbind_no, true);
   config->allowIsolation =
       args.hasFlag(OPT_allowisolation, OPT_allowisolation_no, true);
   config->incremental =
       args.hasFlag(OPT_incremental, OPT_incremental_no,
-                   !config->doGC && !config->doICF && !args.hasArg(OPT_order) &&
-                       !args.hasArg(OPT_profile));
+                   !config->doGC && config->doICF == ICFLevel::None &&
+                       !args.hasArg(OPT_order) && !args.hasArg(OPT_profile));
   config->integrityCheck =
       args.hasFlag(OPT_integritycheck, OPT_integritycheck_no, false);
   config->cetCompat = args.hasFlag(OPT_cetcompat, OPT_cetcompat_no, false);
@@ -1694,7 +1766,7 @@ void LinkerDriver::linkerMain(ArrayRef<const char *> argsArr) {
   config->terminalServerAware =
       !config->dll && args.hasFlag(OPT_tsaware, OPT_tsaware_no, true);
   config->debugDwarf = debug == DebugKind::Dwarf;
-  config->debugGHashes = debug == DebugKind::GHash;
+  config->debugGHashes = debug == DebugKind::GHash || debug == DebugKind::Full;
   config->debugSymtab = debug == DebugKind::Symtab;
   config->autoImport =
       args.hasFlag(OPT_auto_import, OPT_auto_import_no, config->mingw);
@@ -1702,6 +1774,9 @@ void LinkerDriver::linkerMain(ArrayRef<const char *> argsArr) {
       OPT_runtime_pseudo_reloc, OPT_runtime_pseudo_reloc_no, config->mingw);
   config->callGraphProfileSort = args.hasFlag(
       OPT_call_graph_profile_sort, OPT_call_graph_profile_sort_no, true);
+  config->stdcallFixup =
+      args.hasFlag(OPT_stdcall_fixup, OPT_stdcall_fixup_no, config->mingw);
+  config->warnStdcallFixup = !args.hasArg(OPT_stdcall_fixup);
 
   // Don't warn about long section names, such as .debug_info, for mingw or
   // when -debug:dwarf is requested.
@@ -1733,7 +1808,7 @@ void LinkerDriver::linkerMain(ArrayRef<const char *> argsArr) {
     config->incremental = false;
   }
 
-  if (config->incremental && config->doICF) {
+  if (config->incremental && config->doICF != ICFLevel::None) {
     warn("ignoring '/incremental' because ICF is enabled; use '/opt:noicf' to "
          "disable");
     config->incremental = false;
@@ -1963,6 +2038,9 @@ void LinkerDriver::linkerMain(ArrayRef<const char *> argsArr) {
   symtab->addAbsolute(mangle("__guard_longjmp_table"), 0);
   // Needed for MSVC 2017 15.5 CRT.
   symtab->addAbsolute(mangle("__enclave_config"), 0);
+  // Needed for MSVC 2019 16.8 CRT.
+  symtab->addAbsolute(mangle("__guard_eh_cont_count"), 0);
+  symtab->addAbsolute(mangle("__guard_eh_cont_table"), 0);
 
   if (config->pseudoRelocs) {
     symtab->addAbsolute(mangle("__RUNTIME_PSEUDO_RELOC_LIST__"), 0);
@@ -2032,10 +2110,10 @@ void LinkerDriver::linkerMain(ArrayRef<const char *> argsArr) {
   if (!wrapped.empty())
     while (run());
 
-  if (config->autoImport) {
+  if (config->autoImport || config->stdcallFixup) {
     // MinGW specific.
     // Load any further object files that might be needed for doing automatic
-    // imports.
+    // imports, and do stdcall fixups.
     //
     // For cases with no automatically imported symbols, this iterates once
     // over the symbol table and doesn't do anything.
@@ -2047,7 +2125,13 @@ void LinkerDriver::linkerMain(ArrayRef<const char *> argsArr) {
     // normal object file as well (although that won't be used for the
     // actual autoimport later on). If this pass adds new undefined references,
     // we won't iterate further to resolve them.
-    symtab->loadMinGWAutomaticImports();
+    //
+    // If stdcall fixups only are needed for loading import entries from
+    // a DLL without import library, this also just needs running once.
+    // If it ends up pulling in more object files from static libraries,
+    // (and maybe doing more stdcall fixups along the way), this would need
+    // to loop these two calls.
+    symtab->loadMinGWSymbols();
     run();
   }
 
@@ -2059,6 +2143,13 @@ void LinkerDriver::linkerMain(ArrayRef<const char *> argsArr) {
     symtab->reportUnresolvable();
   if (errorCount())
     return;
+
+  config->hadExplicitExports = !config->exports.empty();
+  if (config->mingw) {
+    // In MinGW, all symbols are automatically exported if no symbols
+    // are chosen to be exported.
+    maybeExportMinGWSymbols(args);
+  }
 
   // Do LTO by compiling bitcode input files to a set of native COFF files then
   // link those files (unless -thinlto-index-only was given, in which case we
@@ -2084,12 +2175,7 @@ void LinkerDriver::linkerMain(ArrayRef<const char *> argsArr) {
   if (errorCount())
     return;
 
-  config->hadExplicitExports = !config->exports.empty();
   if (config->mingw) {
-    // In MinGW, all symbols are automatically exported if no symbols
-    // are chosen to be exported.
-    maybeExportMinGWSymbols(args);
-
     // Make sure the crtend.o object is the last object file. This object
     // file can contain terminating section chunks that need to be placed
     // last. GNU ld processes files and static libraries explicitly in the
@@ -2169,16 +2255,33 @@ void LinkerDriver::linkerMain(ArrayRef<const char *> argsArr) {
     config->printSymbolOrder = arg->getValue();
 
   // Identify unreferenced COMDAT sections.
-  if (config->doGC)
+  if (config->doGC) {
+    if (config->mingw) {
+      // markLive doesn't traverse .eh_frame, but the personality function is
+      // only reached that way. The proper solution would be to parse and
+      // traverse the .eh_frame section, like the ELF linker does.
+      // For now, just manually try to retain the known possible personality
+      // functions. This doesn't bring in more object files, but only marks
+      // functions that already have been included to be retained.
+      for (const char *n : {"__gxx_personality_v0", "__gcc_personality_v0"}) {
+        Defined *d = dyn_cast_or_null<Defined>(symtab->findUnderscore(n));
+        if (d && !d->isGCRoot) {
+          d->isGCRoot = true;
+          config->gcroot.push_back(d);
+        }
+      }
+    }
+
     markLive(symtab->getChunks());
+  }
 
   // Needs to happen after the last call to addFile().
   convertResources();
 
   // Identify identical COMDAT sections to merge them.
-  if (config->doICF) {
+  if (config->doICF != ICFLevel::None) {
     findKeepUniqueSections();
-    doICF(symtab->getChunks());
+    doICF(symtab->getChunks(), config->doICF);
   }
 
   // Write the result.

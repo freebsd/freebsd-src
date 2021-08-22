@@ -7,22 +7,25 @@
 //===----------------------------------------------------------------------===//
 
 #include "MachOObjcopy.h"
-#include "../CopyConfig.h"
 #include "../llvm-objcopy.h"
+#include "CommonConfig.h"
 #include "MachOReader.h"
 #include "MachOWriter.h"
+#include "MultiFormatConfig.h"
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/Object/ArchiveWriter.h"
 #include "llvm/Object/MachOUniversal.h"
 #include "llvm/Object/MachOUniversalWriter.h"
 #include "llvm/Support/Errc.h"
 #include "llvm/Support/Error.h"
+#include "llvm/Support/FileOutputBuffer.h"
+#include "llvm/Support/SmallVectorMemoryBuffer.h"
 
-namespace llvm {
-namespace objcopy {
-namespace macho {
+using namespace llvm;
+using namespace llvm::objcopy;
+using namespace llvm::objcopy::macho;
+using namespace llvm::object;
 
-using namespace object;
 using SectionPred = std::function<bool(const std::unique_ptr<Section> &Sec)>;
 using LoadCommandPred = std::function<bool(const LoadCommand &LC)>;
 
@@ -46,7 +49,7 @@ static StringRef getPayloadString(const LoadCommand &LC) {
       .rtrim('\0');
 }
 
-static Error removeSections(const CopyConfig &Config, Object &Obj) {
+static Error removeSections(const CommonConfig &Config, Object &Obj) {
   SectionPred RemovePred = [](const std::unique_ptr<Section> &) {
     return false;
   };
@@ -77,14 +80,14 @@ static Error removeSections(const CopyConfig &Config, Object &Obj) {
   return Obj.removeSections(RemovePred);
 }
 
-static void markSymbols(const CopyConfig &Config, Object &Obj) {
+static void markSymbols(const CommonConfig &, Object &Obj) {
   // Symbols referenced from the indirect symbol table must not be removed.
   for (IndirectSymbolEntry &ISE : Obj.IndirectSymTable.Symbols)
     if (ISE.Symbol)
       (*ISE.Symbol)->Referenced = true;
 }
 
-static void updateAndRemoveSymbols(const CopyConfig &Config, Object &Obj) {
+static void updateAndRemoveSymbols(const CommonConfig &Config, Object &Obj) {
   for (SymbolEntry &Sym : Obj.SymTable) {
     auto I = Config.SymbolsToRename.find(Sym.Name);
     if (I != Config.SymbolsToRename.end())
@@ -93,6 +96,10 @@ static void updateAndRemoveSymbols(const CopyConfig &Config, Object &Obj) {
 
   auto RemovePred = [Config, &Obj](const std::unique_ptr<SymbolEntry> &N) {
     if (N->Referenced)
+      return false;
+    if (Config.KeepUndefined && N->isUndefinedSymbol())
+      return false;
+    if (N->n_desc & MachO::REFERENCED_DYNAMICALLY)
       return false;
     if (Config.StripAll)
       return true;
@@ -132,7 +139,7 @@ static LoadCommand buildRPathLoadCommand(StringRef Path) {
   return LC;
 }
 
-static Error processLoadCommands(const CopyConfig &Config, Object &Obj) {
+static Error processLoadCommands(const CommonConfig &Config, Object &Obj) {
   // Remove RPaths.
   DenseSet<StringRef> RPathsToRemove(Config.RPathsToRemove.begin(),
                                      Config.RPathsToRemove.end());
@@ -326,26 +333,7 @@ static Error isValidMachOCannonicalName(StringRef Name) {
   return Error::success();
 }
 
-static Error handleArgs(const CopyConfig &Config, Object &Obj) {
-  if (Config.AllowBrokenLinks || !Config.BuildIdLinkDir.empty() ||
-      Config.BuildIdLinkInput || Config.BuildIdLinkOutput ||
-      !Config.SplitDWO.empty() || !Config.SymbolsPrefix.empty() ||
-      !Config.AllocSectionsPrefix.empty() || !Config.KeepSection.empty() ||
-      Config.NewSymbolVisibility || !Config.SymbolsToGlobalize.empty() ||
-      !Config.SymbolsToKeep.empty() || !Config.SymbolsToLocalize.empty() ||
-      !Config.SymbolsToWeaken.empty() || !Config.SymbolsToKeepGlobal.empty() ||
-      !Config.SectionsToRename.empty() ||
-      !Config.UnneededSymbolsToRemove.empty() ||
-      !Config.SetSectionAlignment.empty() || !Config.SetSectionFlags.empty() ||
-      Config.ExtractDWO || Config.LocalizeHidden || Config.PreserveDates ||
-      Config.StripAllGNU || Config.StripDWO || Config.StripNonAlloc ||
-      Config.StripSections || Config.Weaken || Config.DecompressDebugSections ||
-      Config.StripUnneeded || Config.DiscardMode == DiscardType::Locals ||
-      !Config.SymbolsToAdd.empty() || Config.EntryExpr) {
-    return createStringError(llvm::errc::invalid_argument,
-                             "option not supported by llvm-objcopy for MachO");
-  }
-
+static Error handleArgs(const CommonConfig &Config, Object &Obj) {
   // Dump sections before add/remove for compatibility with GNU objcopy.
   for (StringRef Flag : Config.DumpSection) {
     StringRef SectionName;
@@ -385,8 +373,10 @@ static Error handleArgs(const CopyConfig &Config, Object &Obj) {
   return Error::success();
 }
 
-Error executeObjcopyOnBinary(const CopyConfig &Config,
-                             object::MachOObjectFile &In, Buffer &Out) {
+Error objcopy::macho::executeObjcopyOnBinary(const CommonConfig &Config,
+                                             const MachOConfig &,
+                                             object::MachOObjectFile &In,
+                                             raw_ostream &Out) {
   MachOReader Reader(In);
   Expected<std::unique_ptr<Object>> O = Reader.create();
   if (!O)
@@ -414,9 +404,9 @@ Error executeObjcopyOnBinary(const CopyConfig &Config,
   return Writer.write();
 }
 
-Error executeObjcopyOnMachOUniversalBinary(CopyConfig &Config,
-                                           const MachOUniversalBinary &In,
-                                           Buffer &Out) {
+Error objcopy::macho::executeObjcopyOnMachOUniversalBinary(
+    const MultiFormatConfig &Config, const MachOUniversalBinary &In,
+    raw_ostream &Out) {
   SmallVector<OwningBinary<Binary>, 2> Binaries;
   SmallVector<Slice, 2> Slices;
   for (const auto &O : In.objects()) {
@@ -429,7 +419,7 @@ Error executeObjcopyOnMachOUniversalBinary(CopyConfig &Config,
       Expected<std::unique_ptr<MemoryBuffer>> OutputBufferOrErr =
           writeArchiveToBuffer(*NewArchiveMembersOrErr,
                                (*ArOrErr)->hasSymbolTable(), (*ArOrErr)->kind(),
-                               Config.DeterministicArchives,
+                               Config.getCommonConfig().DeterministicArchives,
                                (*ArOrErr)->isThin());
       if (!OutputBufferOrErr)
         return OutputBufferOrErr.takeError();
@@ -453,36 +443,39 @@ Error executeObjcopyOnMachOUniversalBinary(CopyConfig &Config,
     Expected<std::unique_ptr<MachOObjectFile>> ObjOrErr = O.getAsObjectFile();
     if (!ObjOrErr) {
       consumeError(ObjOrErr.takeError());
-      return createStringError(std::errc::invalid_argument,
-                               "slice for '%s' of the universal Mach-O binary "
-                               "'%s' is not a Mach-O object or an archive",
-                               O.getArchFlagName().c_str(),
-                               Config.InputFilename.str().c_str());
+      return createStringError(
+          std::errc::invalid_argument,
+          "slice for '%s' of the universal Mach-O binary "
+          "'%s' is not a Mach-O object or an archive",
+          O.getArchFlagName().c_str(),
+          Config.getCommonConfig().InputFilename.str().c_str());
     }
     std::string ArchFlagName = O.getArchFlagName();
-    MemBuffer MB(ArchFlagName);
-    if (Error E = executeObjcopyOnBinary(Config, **ObjOrErr, MB))
+
+    SmallVector<char, 0> Buffer;
+    raw_svector_ostream MemStream(Buffer);
+
+    Expected<const MachOConfig &> MachO = Config.getMachOConfig();
+    if (!MachO)
+      return MachO.takeError();
+
+    if (Error E = executeObjcopyOnBinary(Config.getCommonConfig(), *MachO,
+                                         **ObjOrErr, MemStream))
       return E;
-    std::unique_ptr<WritableMemoryBuffer> OutputBuffer =
-        MB.releaseMemoryBuffer();
-    Expected<std::unique_ptr<Binary>> BinaryOrErr =
-        object::createBinary(*OutputBuffer);
+
+    std::unique_ptr<MemoryBuffer> MB =
+        std::make_unique<SmallVectorMemoryBuffer>(std::move(Buffer),
+                                                  ArchFlagName);
+    Expected<std::unique_ptr<Binary>> BinaryOrErr = object::createBinary(*MB);
     if (!BinaryOrErr)
       return BinaryOrErr.takeError();
-    Binaries.emplace_back(std::move(*BinaryOrErr), std::move(OutputBuffer));
+    Binaries.emplace_back(std::move(*BinaryOrErr), std::move(MB));
     Slices.emplace_back(*cast<MachOObjectFile>(Binaries.back().getBinary()),
                         O.getAlign());
   }
-  Expected<std::unique_ptr<MemoryBuffer>> B =
-      writeUniversalBinaryToBuffer(Slices);
-  if (!B)
-    return B.takeError();
-  if (Error E = Out.allocate((*B)->getBufferSize()))
-    return E;
-  memcpy(Out.getBufferStart(), (*B)->getBufferStart(), (*B)->getBufferSize());
-  return Out.commit();
-}
 
-} // end namespace macho
-} // end namespace objcopy
-} // end namespace llvm
+  if (Error Err = writeUniversalBinaryToStream(Slices, Out))
+    return Err;
+
+  return Error::success();
+}

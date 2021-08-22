@@ -274,7 +274,7 @@ void Preprocessor::PrintStats() {
   llvm::errs() << "    " << NumEnteredSourceFiles << " source files entered.\n";
   llvm::errs() << "    " << MaxIncludeStackDepth << " max include stack depth\n";
   llvm::errs() << "  " << NumIf << " #if/#ifndef/#ifdef.\n";
-  llvm::errs() << "  " << NumElse << " #else/#elif.\n";
+  llvm::errs() << "  " << NumElse << " #else/#elif/#elifdef/#elifndef.\n";
   llvm::errs() << "  " << NumEndif << " #endif.\n";
   llvm::errs() << "  " << NumPragma << " #pragma.\n";
   llvm::errs() << NumSkipped << " #if/#ifndef#ifdef regions skipped\n";
@@ -442,15 +442,15 @@ bool Preprocessor::SetCodeCompletionPoint(const FileEntry *File,
 
 void Preprocessor::CodeCompleteIncludedFile(llvm::StringRef Dir,
                                             bool IsAngled) {
+  setCodeCompletionReached();
   if (CodeComplete)
     CodeComplete->CodeCompleteIncludedFile(Dir, IsAngled);
-  setCodeCompletionReached();
 }
 
 void Preprocessor::CodeCompleteNaturalLanguage() {
+  setCodeCompletionReached();
   if (CodeComplete)
     CodeComplete->CodeCompleteNaturalLanguage();
-  setCodeCompletionReached();
 }
 
 /// getSpelling - This method is used to get the spelling of a token into a
@@ -716,6 +716,12 @@ IdentifierInfo *Preprocessor::LookUpIdentifierInfo(Token &Identifier) const {
   }
 
   // Update the token info (identifier info and appropriate token kind).
+  // FIXME: the raw_identifier may contain leading whitespace which is removed
+  // from the cleaned identifier token. The SourceLocation should be updated to
+  // refer to the non-whitespace character. For instance, the text "\\\nB" (a
+  // line continuation before 'B') is parsed as a single tok::raw_identifier and
+  // is cleaned to tok::identifier "B". After cleaning the token's length is
+  // still 3 and the SourceLocation refers to the location of the backslash.
   Identifier.setIdentifierInfo(II);
   if (getLangOpts().MSVCCompat && II->isCPlusPlusOperatorKeyword() &&
       getSourceManager().isInSystemHeader(Identifier.getLocation()))

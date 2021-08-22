@@ -110,6 +110,9 @@ AARCH64_ARCH_EXT_NAME("ls64",         AArch64::AEK_LS64,        "+ls64",  "-ls64
 AARCH64_ARCH_EXT_NAME("brbe",         AArch64::AEK_BRBE,        "+brbe",  "-brbe")
 AARCH64_ARCH_EXT_NAME("pauth",        AArch64::AEK_PAUTH,       "+pauth", "-pauth")
 AARCH64_ARCH_EXT_NAME("flagm",        AArch64::AEK_FLAGM,       "+flagm", "-flagm")
+AARCH64_ARCH_EXT_NAME("sme",          AArch64::AEK_SME,         "+sme",   "-sme")
+AARCH64_ARCH_EXT_NAME("sme-f64",      AArch64::AEK_SMEF64,      "+sme-f64", "-sme-f64")
+AARCH64_ARCH_EXT_NAME("sme-i64",      AArch64::AEK_SMEI64,      "+sme-i64", "-sme-i64")
 #undef AARCH64_ARCH_EXT_NAME
 
 #ifndef AARCH64_CPU_NAME
@@ -184,12 +187,14 @@ AARCH64_CPU_NAME("apple-a9", ARMV8A, FK_CRYPTO_NEON_FP_ARMV8, false,
 AARCH64_CPU_NAME("apple-a10", ARMV8A, FK_CRYPTO_NEON_FP_ARMV8, false,
                  (AArch64::AEK_CRC | AArch64::AEK_RDM))
 AARCH64_CPU_NAME("apple-a11", ARMV8_2A, FK_CRYPTO_NEON_FP_ARMV8, false,
-                 (AArch64::AEK_NONE))
+                 (AArch64::AEK_FP16))
 AARCH64_CPU_NAME("apple-a12", ARMV8_3A, FK_CRYPTO_NEON_FP_ARMV8, false,
                  (AArch64::AEK_FP16))
 AARCH64_CPU_NAME("apple-a13", ARMV8_4A, FK_CRYPTO_NEON_FP_ARMV8, false,
                  (AArch64::AEK_FP16 | AArch64::AEK_FP16FML))
 AARCH64_CPU_NAME("apple-a14", ARMV8_5A, FK_CRYPTO_NEON_FP_ARMV8, false,
+                 (AArch64::AEK_FP16 | AArch64::AEK_FP16FML))
+AARCH64_CPU_NAME("apple-m1", ARMV8_5A, FK_CRYPTO_NEON_FP_ARMV8, false,
                  (AArch64::AEK_FP16 | AArch64::AEK_FP16FML))
 AARCH64_CPU_NAME("apple-s4", ARMV8_3A, FK_CRYPTO_NEON_FP_ARMV8, false,
                  (AArch64::AEK_FP16))

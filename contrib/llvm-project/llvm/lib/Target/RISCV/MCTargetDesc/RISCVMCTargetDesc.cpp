@@ -18,9 +18,12 @@
 #include "RISCVTargetStreamer.h"
 #include "TargetInfo/RISCVTargetInfo.h"
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/MC/MCAsmBackend.h"
 #include "llvm/MC/MCAsmInfo.h"
+#include "llvm/MC/MCCodeEmitter.h"
 #include "llvm/MC/MCInstrAnalysis.h"
 #include "llvm/MC/MCInstrInfo.h"
+#include "llvm/MC/MCObjectWriter.h"
 #include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCSubtargetInfo.h"
@@ -64,10 +67,12 @@ static MCAsmInfo *createRISCVMCAsmInfo(const MCRegisterInfo &MRI,
 
 static MCSubtargetInfo *createRISCVMCSubtargetInfo(const Triple &TT,
                                                    StringRef CPU, StringRef FS) {
-  std::string CPUName = std::string(CPU);
-  if (CPUName.empty())
-    CPUName = TT.isArch64Bit() ? "generic-rv64" : "generic-rv32";
-  return createRISCVMCSubtargetInfoImpl(TT, CPUName, /*TuneCPU*/ CPUName, FS);
+  if (CPU.empty())
+    CPU = TT.isArch64Bit() ? "generic-rv64" : "generic-rv32";
+  if (CPU == "generic")
+    report_fatal_error(Twine("CPU 'generic' is not supported. Use ") +
+                       (TT.isArch64Bit() ? "generic-rv64" : "generic-rv32"));
+  return createRISCVMCSubtargetInfoImpl(TT, CPU, /*TuneCPU*/ CPU, FS);
 }
 
 static MCInstPrinter *createRISCVMCInstPrinter(const Triple &T,
@@ -136,6 +141,17 @@ static MCInstrAnalysis *createRISCVInstrAnalysis(const MCInstrInfo *Info) {
   return new RISCVMCInstrAnalysis(Info);
 }
 
+namespace {
+MCStreamer *createRISCVELFStreamer(const Triple &T, MCContext &Context,
+                                   std::unique_ptr<MCAsmBackend> &&MAB,
+                                   std::unique_ptr<MCObjectWriter> &&MOW,
+                                   std::unique_ptr<MCCodeEmitter> &&MCE,
+                                   bool RelaxAll) {
+  return createRISCVELFStreamer(Context, std::move(MAB), std::move(MOW),
+                                std::move(MCE), RelaxAll);
+}
+} // end anonymous namespace
+
 extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeRISCVTargetMC() {
   for (Target *T : {&getTheRISCV32Target(), &getTheRISCV64Target()}) {
     TargetRegistry::RegisterMCAsmInfo(*T, createRISCVMCAsmInfo);
@@ -145,6 +161,7 @@ extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeRISCVTargetMC() {
     TargetRegistry::RegisterMCCodeEmitter(*T, createRISCVMCCodeEmitter);
     TargetRegistry::RegisterMCInstPrinter(*T, createRISCVMCInstPrinter);
     TargetRegistry::RegisterMCSubtargetInfo(*T, createRISCVMCSubtargetInfo);
+    TargetRegistry::RegisterELFStreamer(*T, createRISCVELFStreamer);
     TargetRegistry::RegisterObjectTargetStreamer(
         *T, createRISCVObjectTargetStreamer);
     TargetRegistry::RegisterMCInstrAnalysis(*T, createRISCVInstrAnalysis);

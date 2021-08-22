@@ -83,6 +83,7 @@ struct MIToken {
     kw_cfi_adjust_cfa_offset,
     kw_cfi_escape,
     kw_cfi_def_cfa,
+    kw_cfi_llvm_def_aspace_cfa,
     kw_cfi_register,
     kw_cfi_remember_state,
     kw_cfi_restore,
@@ -126,6 +127,10 @@ struct MIToken {
     kw_heap_alloc_marker,
     kw_bbsections,
     kw_unknown_size,
+    kw_unknown_address,
+
+    // Metadata types.
+    kw_distinct,
 
     // Named metadata keywords
     md_tbaa,

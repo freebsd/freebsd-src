@@ -27,7 +27,6 @@
 #include <functional>
 #include <list>
 #include <memory>
-#include <string>
 #include <utility>
 #include <vector>
 
@@ -52,22 +51,33 @@ class ObjectLinkingLayerJITLinkContext;
 /// Clients can use this class to add relocatable object files to an
 /// ExecutionSession, and it typically serves as the base layer (underneath
 /// a compiling layer like IRCompileLayer) for the rest of the JIT.
-class ObjectLinkingLayer : public ObjectLayer, private ResourceManager {
+class ObjectLinkingLayer : public RTTIExtends<ObjectLinkingLayer, ObjectLayer>,
+                           private ResourceManager {
   friend class ObjectLinkingLayerJITLinkContext;
 
 public:
+  static char ID;
+
   /// Plugin instances can be added to the ObjectLinkingLayer to receive
   /// callbacks when code is loaded or emitted, and when JITLink is being
   /// configured.
   class Plugin {
   public:
-    using JITLinkSymbolVector = std::vector<const jitlink::Symbol *>;
-    using LocalDependenciesMap = DenseMap<SymbolStringPtr, JITLinkSymbolVector>;
+    using JITLinkSymbolSet = DenseSet<jitlink::Symbol *>;
+    using SyntheticSymbolDependenciesMap =
+        DenseMap<SymbolStringPtr, JITLinkSymbolSet>;
 
     virtual ~Plugin();
     virtual void modifyPassConfig(MaterializationResponsibility &MR,
-                                  const Triple &TT,
+                                  jitlink::LinkGraph &G,
                                   jitlink::PassConfiguration &Config) {}
+
+    // Deprecated. Don't use this in new code. There will be a proper mechanism
+    // for capturing object buffers.
+    virtual void notifyMaterializing(MaterializationResponsibility &MR,
+                                     jitlink::LinkGraph &G,
+                                     jitlink::JITLinkContext &Ctx,
+                                     MemoryBufferRef InputObject) {}
 
     virtual void notifyLoaded(MaterializationResponsibility &MR) {}
     virtual Error notifyEmitted(MaterializationResponsibility &MR) {
@@ -79,19 +89,23 @@ public:
                                              ResourceKey SrcKey) = 0;
 
     /// Return any dependencies that synthetic symbols (e.g. init symbols)
-    /// have on locally scoped jitlink::Symbols. This is used by the
-    /// ObjectLinkingLayer to update the dependencies for the synthetic
-    /// symbols.
-    virtual LocalDependenciesMap
-    getSyntheticSymbolLocalDependencies(MaterializationResponsibility &MR) {
-      return LocalDependenciesMap();
+    /// have on symbols in the LinkGraph.
+    /// This is used by the ObjectLinkingLayer to update the dependencies for
+    /// the synthetic symbols.
+    virtual SyntheticSymbolDependenciesMap
+    getSyntheticSymbolDependencies(MaterializationResponsibility &MR) {
+      return SyntheticSymbolDependenciesMap();
     }
   };
 
   using ReturnObjectBufferFunction =
       std::function<void(std::unique_ptr<MemoryBuffer>)>;
 
-  /// Construct an ObjectLinkingLayer.
+  /// Construct an ObjectLinkingLayer using the ExecutorProcessControl
+  /// instance's memory manager.
+  ObjectLinkingLayer(ExecutionSession &ES);
+
+  /// Construct an ObjectLinkingLayer using a custom memory manager.
   ObjectLinkingLayer(ExecutionSession &ES,
                      jitlink::JITLinkMemoryManager &MemMgr);
 
@@ -118,6 +132,17 @@ public:
     Plugins.push_back(std::move(P));
     return *this;
   }
+
+  /// Add a LinkGraph to the JITDylib targeted by the given tracker.
+  Error add(ResourceTrackerSP, std::unique_ptr<jitlink::LinkGraph> G);
+
+  /// Add a LinkGraph to the given JITDylib.
+  Error add(JITDylib &JD, std::unique_ptr<jitlink::LinkGraph> G) {
+    return add(JD.getDefaultResourceTracker(), std::move(G));
+  }
+
+  // Un-hide ObjectLayer add methods.
+  using ObjectLayer::add;
 
   /// Emit an object file.
   void emit(std::unique_ptr<MaterializationResponsibility> R,
@@ -161,7 +186,8 @@ public:
 private:
   using AllocPtr = std::unique_ptr<jitlink::JITLinkMemoryManager::Allocation>;
 
-  void modifyPassConfig(MaterializationResponsibility &MR, const Triple &TT,
+  void modifyPassConfig(MaterializationResponsibility &MR,
+                        jitlink::LinkGraph &G,
                         jitlink::PassConfiguration &PassConfig);
   void notifyLoaded(MaterializationResponsibility &MR);
   Error notifyEmitted(MaterializationResponsibility &MR, AllocPtr Alloc);
@@ -184,7 +210,8 @@ public:
   EHFrameRegistrationPlugin(
       ExecutionSession &ES,
       std::unique_ptr<jitlink::EHFrameRegistrar> Registrar);
-  void modifyPassConfig(MaterializationResponsibility &MR, const Triple &TT,
+  void modifyPassConfig(MaterializationResponsibility &MR,
+                        jitlink::LinkGraph &G,
                         jitlink::PassConfiguration &PassConfig) override;
   Error notifyEmitted(MaterializationResponsibility &MR) override;
   Error notifyFailed(MaterializationResponsibility &MR) override;

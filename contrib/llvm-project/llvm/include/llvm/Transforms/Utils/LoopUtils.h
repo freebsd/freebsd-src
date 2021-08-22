@@ -37,6 +37,7 @@ class MemorySSAUpdater;
 class OptimizationRemarkEmitter;
 class PredIteratorCache;
 class ScalarEvolution;
+class ScalarEvolutionExpander;
 class SCEV;
 class SCEVExpander;
 class TargetLibraryInfo;
@@ -164,7 +165,7 @@ bool hoistRegion(DomTreeNode *, AAResults *, LoopInfo *, DominatorTree *,
                  BlockFrequencyInfo *, TargetLibraryInfo *, Loop *,
                  AliasSetTracker *, MemorySSAUpdater *, ScalarEvolution *,
                  ICFLoopSafetyInfo *, SinkAndHoistLICMFlags &,
-                 OptimizationRemarkEmitter *);
+                 OptimizationRemarkEmitter *, bool);
 
 /// This function deletes dead loops. The caller of this function needs to
 /// guarantee that the loop is infact dead.
@@ -209,23 +210,12 @@ SmallVector<DomTreeNode *, 16> collectChildrenInLoop(DomTreeNode *N,
 /// Returns the instructions that use values defined in the loop.
 SmallVector<Instruction *, 8> findDefsUsedOutsideOfLoop(Loop *L);
 
-/// Find string metadata for loop
-///
-/// If it has a value (e.g. {"llvm.distribute", 1} return the value as an
-/// operand or null otherwise.  If the string metadata is not found return
-/// Optional's not-a-value.
-Optional<const MDOperand *> findStringMetadataForLoop(const Loop *TheLoop,
-                                                      StringRef Name);
-
-/// Find named metadata for a loop with an integer value.
-llvm::Optional<int> getOptionalIntLoopAttribute(Loop *TheLoop, StringRef Name);
-
 /// Find a combination of metadata ("llvm.loop.vectorize.width" and
 /// "llvm.loop.vectorize.scalable.enable") for a loop and use it to construct a
 /// ElementCount. If the metadata "llvm.loop.vectorize.width" cannot be found
 /// then None is returned.
 Optional<ElementCount>
-getOptionalElementCountLoopAttribute(Loop *TheLoop);
+getOptionalElementCountLoopAttribute(const Loop *TheLoop);
 
 /// Create a new loop identifier for a loop created from a loop transformation.
 ///
@@ -262,9 +252,6 @@ bool hasDisableAllTransformsHint(const Loop *L);
 /// Look for the loop attribute that disables the LICM transformation heuristics.
 bool hasDisableLICMTransformsHint(const Loop *L);
 
-/// Look for the loop attribute that requires progress within the loop.
-bool hasMustProgress(const Loop *L);
-
 /// The mode sets how eager a transformation should be applied.
 enum TransformationMode {
   /// The pass can use heuristics to determine whether a transformation should
@@ -294,11 +281,11 @@ enum TransformationMode {
 
 /// @{
 /// Get the mode for LLVM's supported loop transformations.
-TransformationMode hasUnrollTransformation(Loop *L);
-TransformationMode hasUnrollAndJamTransformation(Loop *L);
-TransformationMode hasVectorizeTransformation(Loop *L);
-TransformationMode hasDistributeTransformation(Loop *L);
-TransformationMode hasLICMVersioningTransformation(Loop *L);
+TransformationMode hasUnrollTransformation(const Loop *L);
+TransformationMode hasUnrollAndJamTransformation(const Loop *L);
+TransformationMode hasVectorizeTransformation(const Loop *L);
+TransformationMode hasDistributeTransformation(const Loop *L);
+TransformationMode hasLICMVersioningTransformation(const Loop *L);
 /// @}
 
 /// Set input string into loop metadata by keeping other values intact.
@@ -306,9 +293,6 @@ TransformationMode hasLICMVersioningTransformation(Loop *L);
 /// different.
 void addStringMetadataToLoop(Loop *TheLoop, const char *MDString,
                              unsigned V = 0);
-
-/// Returns true if Name is applied to TheLoop and enabled.
-bool getBooleanLoopAttribute(const Loop *TheLoop, StringRef Name);
 
 /// Returns a loop's estimated trip count based on branch weight metadata.
 /// In addition if \p EstimatedLoopInvocationWeight is not null it is
@@ -355,6 +339,7 @@ bool canSinkOrHoistInst(Instruction &I, AAResults *AA, DominatorTree *DT,
                         OptimizationRemarkEmitter *ORE = nullptr);
 
 /// Returns a Min/Max operation corresponding to MinMaxRecurrenceKind.
+/// The Builder's fast-math-flags must be set to propagate the expected values.
 Value *createMinMaxOp(IRBuilderBase &Builder, RecurKind RK, Value *Left,
                       Value *Right);
 
@@ -385,7 +370,13 @@ Value *createSimpleTargetReduction(IRBuilderBase &B,
 /// required to implement the reduction.
 /// Fast-math-flags are propagated using the RecurrenceDescriptor.
 Value *createTargetReduction(IRBuilderBase &B, const TargetTransformInfo *TTI,
-                             RecurrenceDescriptor &Desc, Value *Src);
+                             const RecurrenceDescriptor &Desc, Value *Src);
+
+/// Create an ordered reduction intrinsic using the given recurrence
+/// descriptor \p Desc.
+Value *createOrderedReduction(IRBuilderBase &B,
+                              const RecurrenceDescriptor &Desc, Value *Src,
+                              Value *Start);
 
 /// Get the intersection (logical and) of all of the potential IR flags
 /// of each scalar operation (VL) that will be converted into a vector (I).
@@ -480,7 +471,39 @@ Loop *cloneLoop(Loop *L, Loop *PL, ValueToValueMapTy &VM,
 std::pair<Instruction *, Instruction *>
 addRuntimeChecks(Instruction *Loc, Loop *TheLoop,
                  const SmallVectorImpl<RuntimePointerCheck> &PointerChecks,
-                 ScalarEvolution *SE);
+                 SCEVExpander &Expander);
+
+/// Struct to hold information about a partially invariant condition.
+struct IVConditionInfo {
+  /// Instructions that need to be duplicated and checked for the unswitching
+  /// condition.
+  SmallVector<Instruction *> InstToDuplicate;
+
+  /// Constant to indicate for which value the condition is invariant.
+  Constant *KnownValue = nullptr;
+
+  /// True if the partially invariant path is no-op (=does not have any
+  /// side-effects and no loop value is used outside the loop).
+  bool PathIsNoop = true;
+
+  /// If the partially invariant path reaches a single exit block, ExitForPath
+  /// is set to that block. Otherwise it is nullptr.
+  BasicBlock *ExitForPath = nullptr;
+};
+
+/// Check if the loop header has a conditional branch that is not
+/// loop-invariant, because it involves load instructions. If all paths from
+/// either the true or false successor to the header or loop exists do not
+/// modify the memory feeding the condition, perform 'partial unswitching'. That
+/// is, duplicate the instructions feeding the condition in the pre-header. Then
+/// unswitch on the duplicated condition. The condition is now known in the
+/// unswitched version for the 'invariant' path through the original loop.
+///
+/// If the branch condition of the header is partially invariant, return a pair
+/// containing the instructions to duplicate and a boolean Constant to update
+/// the condition in the loops created for the true or false successors.
+Optional<IVConditionInfo> hasPartialIVCondition(Loop &L, unsigned MSSAThreshold,
+                                                MemorySSA &MSSA, AAResults &AA);
 
 } // end namespace llvm
 

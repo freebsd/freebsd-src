@@ -22,15 +22,15 @@ DPADD+=		${OBJTOP}/lib/clang/lib${lib}/lib${lib}.a
 LDADD+=		${OBJTOP}/lib/clang/lib${lib}/lib${lib}.a
 .endfor
 
-LLVM_TBLGEN?=	llvm-tblgen
 INCFILE=	Options.inc
-TDFILE=		${LLDB_SRCS}/tools/driver/Options.td
+TDFILE=		${LLVM_BASE}/${SRCDIR}/Options.td
 GENOPT=		-gen-opt-parser-defs
 ${INCFILE}: ${TDFILE}
 	${LLVM_TBLGEN} ${GENOPT} -I ${LLVM_SRCS}/include -d ${.TARGET:C/$/.d/} \
 	    -o ${.TARGET} ${TDFILE}
 TGHDRS+=	${INCFILE}
 
+DEPENDFILES+=	${TGHDRS:C/$/.d/}
 DPSRCS+=	${TGHDRS}
 CLEANFILES+=	${TGHDRS} ${TGHDRS:C/$/.d/}
 

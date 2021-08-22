@@ -428,4 +428,4 @@ static const int __elast3 = 106;
 
 #endif // __cplusplus
 
-#endif  // _LIBCPP_ERRNO_H
+#endif // _LIBCPP_ERRNO_H

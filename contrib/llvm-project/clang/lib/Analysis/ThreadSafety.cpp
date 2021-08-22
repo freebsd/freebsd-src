@@ -105,32 +105,37 @@ class FactSet;
 ///
 /// FIXME: this analysis does not currently support re-entrant locking.
 class FactEntry : public CapabilityExpr {
+public:
+  /// Where a fact comes from.
+  enum SourceKind {
+    Acquired, ///< The fact has been directly acquired.
+    Asserted, ///< The fact has been asserted to be held.
+    Declared, ///< The fact is assumed to be held by callers.
+    Managed,  ///< The fact has been acquired through a scoped capability.
+  };
+
 private:
   /// Exclusive or shared.
-  LockKind LKind;
+  LockKind LKind : 8;
+
+  // How it was acquired.
+  SourceKind Source : 8;
 
   /// Where it was acquired.
   SourceLocation AcquireLoc;
 
-  /// True if the lock was asserted.
-  bool Asserted;
-
-  /// True if the lock was declared.
-  bool Declared;
-
 public:
   FactEntry(const CapabilityExpr &CE, LockKind LK, SourceLocation Loc,
-            bool Asrt, bool Declrd = false)
-      : CapabilityExpr(CE), LKind(LK), AcquireLoc(Loc), Asserted(Asrt),
-        Declared(Declrd) {}
+            SourceKind Src)
+      : CapabilityExpr(CE), LKind(LK), Source(Src), AcquireLoc(Loc) {}
   virtual ~FactEntry() = default;
 
   LockKind kind() const { return LKind;      }
   SourceLocation loc() const { return AcquireLoc; }
-  bool asserted() const { return Asserted; }
-  bool declared() const { return Declared; }
 
-  void setDeclared(bool D) { Declared = D; }
+  bool asserted() const { return Source == Asserted; }
+  bool declared() const { return Source == Declared; }
+  bool managed() const { return Source == Managed; }
 
   virtual void
   handleRemovalFromIntersection(const FactSet &FSet, FactManager &FactMan,
@@ -851,20 +856,16 @@ static void findBlockLocations(CFG *CFGraph,
 namespace {
 
 class LockableFactEntry : public FactEntry {
-private:
-  /// managed by ScopedLockable object
-  bool Managed;
-
 public:
   LockableFactEntry(const CapabilityExpr &CE, LockKind LK, SourceLocation Loc,
-                    bool Mng = false, bool Asrt = false)
-      : FactEntry(CE, LK, Loc, Asrt), Managed(Mng) {}
+                    SourceKind Src = Acquired)
+      : FactEntry(CE, LK, Loc, Src) {}
 
   void
   handleRemovalFromIntersection(const FactSet &FSet, FactManager &FactMan,
                                 SourceLocation JoinLoc, LockErrorKind LEK,
                                 ThreadSafetyHandler &Handler) const override {
-    if (!Managed && !asserted() && !negative() && !isUniversal()) {
+    if (!asserted() && !negative() && !isUniversal()) {
       Handler.handleMutexHeldEndOfScope("mutex", toString(), loc(), JoinLoc,
                                         LEK);
     }
@@ -903,7 +904,7 @@ private:
 
 public:
   ScopedLockableFactEntry(const CapabilityExpr &CE, SourceLocation Loc)
-      : FactEntry(CE, LK_Exclusive, Loc, false) {}
+      : FactEntry(CE, LK_Exclusive, Loc, Acquired) {}
 
   void addLock(const CapabilityExpr &M) {
     UnderlyingMutexes.emplace_back(M.sexpr(), UCK_Acquired);
@@ -983,7 +984,7 @@ private:
     } else {
       FSet.removeLock(FactMan, !Cp);
       FSet.addLock(FactMan,
-                   std::make_unique<LockableFactEntry>(Cp, kind, loc));
+                   std::make_unique<LockableFactEntry>(Cp, kind, loc, Managed));
     }
   }
 
@@ -1049,15 +1050,15 @@ public:
                       const CFGBlock* PredBlock,
                       const CFGBlock *CurrBlock);
 
-  void intersectAndWarn(FactSet &FSet1, const FactSet &FSet2,
-                        SourceLocation JoinLoc,
-                        LockErrorKind LEK1, LockErrorKind LEK2,
-                        bool Modify=true);
+  bool join(const FactEntry &a, const FactEntry &b);
 
-  void intersectAndWarn(FactSet &FSet1, const FactSet &FSet2,
-                        SourceLocation JoinLoc, LockErrorKind LEK1,
-                        bool Modify=true) {
-    intersectAndWarn(FSet1, FSet2, JoinLoc, LEK1, LEK1, Modify);
+  void intersectAndWarn(FactSet &EntrySet, const FactSet &ExitSet,
+                        SourceLocation JoinLoc, LockErrorKind EntryLEK,
+                        LockErrorKind ExitLEK);
+
+  void intersectAndWarn(FactSet &EntrySet, const FactSet &ExitSet,
+                        SourceLocation JoinLoc, LockErrorKind LEK) {
+    intersectAndWarn(EntrySet, ExitSet, JoinLoc, LEK, LEK);
   }
 
   void runAnalysis(AnalysisDeclContext &AC);
@@ -1854,10 +1855,11 @@ void BuildLockset::handleCall(const Expr *Exp, const NamedDecl *D,
         CapExprSet AssertLocks;
         Analyzer->getMutexIDs(AssertLocks, A, Exp, D, VD);
         for (const auto &AssertLock : AssertLocks)
-          Analyzer->addLock(FSet,
-                            std::make_unique<LockableFactEntry>(
-                                AssertLock, LK_Exclusive, Loc, false, true),
-                            ClassifyDiagnostic(A));
+          Analyzer->addLock(
+              FSet,
+              std::make_unique<LockableFactEntry>(AssertLock, LK_Exclusive, Loc,
+                                                  FactEntry::Asserted),
+              ClassifyDiagnostic(A));
         break;
       }
       case attr::AssertSharedLock: {
@@ -1866,10 +1868,11 @@ void BuildLockset::handleCall(const Expr *Exp, const NamedDecl *D,
         CapExprSet AssertLocks;
         Analyzer->getMutexIDs(AssertLocks, A, Exp, D, VD);
         for (const auto &AssertLock : AssertLocks)
-          Analyzer->addLock(FSet,
-                            std::make_unique<LockableFactEntry>(
-                                AssertLock, LK_Shared, Loc, false, true),
-                            ClassifyDiagnostic(A));
+          Analyzer->addLock(
+              FSet,
+              std::make_unique<LockableFactEntry>(AssertLock, LK_Shared, Loc,
+                                                  FactEntry::Asserted),
+              ClassifyDiagnostic(A));
         break;
       }
 
@@ -1882,7 +1885,7 @@ void BuildLockset::handleCall(const Expr *Exp, const NamedDecl *D,
                             std::make_unique<LockableFactEntry>(
                                 AssertLock,
                                 A->isShared() ? LK_Shared : LK_Exclusive, Loc,
-                                false, true),
+                                FactEntry::Asserted),
                             ClassifyDiagnostic(A));
         break;
       }
@@ -1943,14 +1946,16 @@ void BuildLockset::handleCall(const Expr *Exp, const NamedDecl *D,
     Analyzer->removeLock(FSet, M, Loc, Dtor, LK_Generic, CapDiagKind);
 
   // Add locks.
+  FactEntry::SourceKind Source =
+      isScopedVar ? FactEntry::Managed : FactEntry::Acquired;
   for (const auto &M : ExclusiveLocksToAdd)
-    Analyzer->addLock(FSet, std::make_unique<LockableFactEntry>(
-                                M, LK_Exclusive, Loc, isScopedVar),
-                      CapDiagKind);
+    Analyzer->addLock(
+        FSet, std::make_unique<LockableFactEntry>(M, LK_Exclusive, Loc, Source),
+        CapDiagKind);
   for (const auto &M : SharedLocksToAdd)
-    Analyzer->addLock(FSet, std::make_unique<LockableFactEntry>(
-                                M, LK_Shared, Loc, isScopedVar),
-                      CapDiagKind);
+    Analyzer->addLock(
+        FSet, std::make_unique<LockableFactEntry>(M, LK_Shared, Loc, Source),
+        CapDiagKind);
 
   if (isScopedVar) {
     // Add the managing object as a dummy mutex, mapped to the underlying mutex.
@@ -2051,15 +2056,11 @@ void BuildLockset::VisitCallExpr(const CallExpr *Exp) {
 
     if (ME && MD) {
       if (ME->isArrow()) {
-        if (MD->isConst())
-          checkPtAccess(CE->getImplicitObjectArgument(), AK_Read);
-        else // FIXME -- should be AK_Written
-          checkPtAccess(CE->getImplicitObjectArgument(), AK_Read);
+        // Should perhaps be AK_Written if !MD->isConst().
+        checkPtAccess(CE->getImplicitObjectArgument(), AK_Read);
       } else {
-        if (MD->isConst())
-          checkAccess(CE->getImplicitObjectArgument(), AK_Read);
-        else     // FIXME -- should be AK_Written
-          checkAccess(CE->getImplicitObjectArgument(), AK_Read);
+        // Should perhaps be AK_Written if !MD->isConst().
+        checkAccess(CE->getImplicitObjectArgument(), AK_Read);
       }
     }
 
@@ -2169,7 +2170,7 @@ void BuildLockset::VisitDeclStmt(const DeclStmt *S) {
         if (!CtorD || !CtorD->hasAttrs())
           continue;
         handleCall(E, CtorD, VD);
-      } else if (isa<CallExpr>(E) && E->isRValue()) {
+      } else if (isa<CallExpr>(E) && E->isPRValue()) {
         // If the object is initialized by a function call that returns a
         // scoped lockable by value, use the attributes on the copy or move
         // constructor to figure out what effect that should have on the
@@ -2187,6 +2188,28 @@ void BuildLockset::VisitDeclStmt(const DeclStmt *S) {
   }
 }
 
+/// Given two facts merging on a join point, decide whether to warn and which
+/// one to keep.
+///
+/// \return  false if we should keep \p A, true if we should keep \p B.
+bool ThreadSafetyAnalyzer::join(const FactEntry &A, const FactEntry &B) {
+  if (A.kind() != B.kind()) {
+    // For managed capabilities, the destructor should unlock in the right mode
+    // anyway. For asserted capabilities no unlocking is needed.
+    if ((A.managed() || A.asserted()) && (B.managed() || B.asserted())) {
+      // The shared capability subsumes the exclusive capability.
+      return B.kind() == LK_Shared;
+    } else {
+      Handler.handleExclusiveAndShared("mutex", B.toString(), B.loc(), A.loc());
+      // Take the exclusive capability to reduce further warnings.
+      return B.kind() == LK_Exclusive;
+    }
+  } else {
+    // The non-asserted capability is the one we want to track.
+    return A.asserted() && !B.asserted();
+  }
+}
+
 /// Compute the intersection of two locksets and issue warnings for any
 /// locks in the symmetric difference.
 ///
@@ -2196,55 +2219,44 @@ void BuildLockset::VisitDeclStmt(const DeclStmt *S) {
 /// are the same. In the event of a difference, we use the intersection of these
 /// two locksets at the start of D.
 ///
-/// \param FSet1 The first lockset.
-/// \param FSet2 The second lockset.
+/// \param EntrySet A lockset for entry into a (possibly new) block.
+/// \param ExitSet The lockset on exiting a preceding block.
 /// \param JoinLoc The location of the join point for error reporting
-/// \param LEK1 The error message to report if a mutex is missing from LSet1
-/// \param LEK2 The error message to report if a mutex is missing from Lset2
-void ThreadSafetyAnalyzer::intersectAndWarn(FactSet &FSet1,
-                                            const FactSet &FSet2,
+/// \param EntryLEK The warning if a mutex is missing from \p EntrySet.
+/// \param ExitLEK The warning if a mutex is missing from \p ExitSet.
+void ThreadSafetyAnalyzer::intersectAndWarn(FactSet &EntrySet,
+                                            const FactSet &ExitSet,
                                             SourceLocation JoinLoc,
-                                            LockErrorKind LEK1,
-                                            LockErrorKind LEK2,
-                                            bool Modify) {
-  FactSet FSet1Orig = FSet1;
+                                            LockErrorKind EntryLEK,
+                                            LockErrorKind ExitLEK) {
+  FactSet EntrySetOrig = EntrySet;
 
-  // Find locks in FSet2 that conflict or are not in FSet1, and warn.
-  for (const auto &Fact : FSet2) {
-    const FactEntry *LDat1 = nullptr;
-    const FactEntry *LDat2 = &FactMan[Fact];
-    FactSet::iterator Iter1  = FSet1.findLockIter(FactMan, *LDat2);
-    if (Iter1 != FSet1.end()) LDat1 = &FactMan[*Iter1];
+  // Find locks in ExitSet that conflict or are not in EntrySet, and warn.
+  for (const auto &Fact : ExitSet) {
+    const FactEntry &ExitFact = FactMan[Fact];
 
-    if (LDat1) {
-      if (LDat1->kind() != LDat2->kind()) {
-        Handler.handleExclusiveAndShared("mutex", LDat2->toString(),
-                                         LDat2->loc(), LDat1->loc());
-        if (Modify && LDat1->kind() != LK_Exclusive) {
-          // Take the exclusive lock, which is the one in FSet2.
-          *Iter1 = Fact;
-        }
-      }
-      else if (Modify && LDat1->asserted() && !LDat2->asserted()) {
-        // The non-asserted lock in FSet2 is the one we want to track.
-        *Iter1 = Fact;
-      }
-    } else {
-      LDat2->handleRemovalFromIntersection(FSet2, FactMan, JoinLoc, LEK1,
-                                           Handler);
+    FactSet::iterator EntryIt = EntrySet.findLockIter(FactMan, ExitFact);
+    if (EntryIt != EntrySet.end()) {
+      if (join(FactMan[*EntryIt], ExitFact) &&
+          EntryLEK == LEK_LockedSomePredecessors)
+        *EntryIt = Fact;
+    } else if (!ExitFact.managed()) {
+      ExitFact.handleRemovalFromIntersection(ExitSet, FactMan, JoinLoc,
+                                             EntryLEK, Handler);
     }
   }
 
-  // Find locks in FSet1 that are not in FSet2, and remove them.
-  for (const auto &Fact : FSet1Orig) {
-    const FactEntry *LDat1 = &FactMan[Fact];
-    const FactEntry *LDat2 = FSet2.findLock(FactMan, *LDat1);
+  // Find locks in EntrySet that are not in ExitSet, and remove them.
+  for (const auto &Fact : EntrySetOrig) {
+    const FactEntry *EntryFact = &FactMan[Fact];
+    const FactEntry *ExitFact = ExitSet.findLock(FactMan, *EntryFact);
 
-    if (!LDat2) {
-      LDat1->handleRemovalFromIntersection(FSet1Orig, FactMan, JoinLoc, LEK2,
-                                           Handler);
-      if (Modify)
-        FSet1.removeLock(FactMan, *LDat1);
+    if (!ExitFact) {
+      if (!EntryFact->managed() || ExitLEK == LEK_LockedSomeLoopIterations)
+        EntryFact->handleRemovalFromIntersection(EntrySetOrig, FactMan, JoinLoc,
+                                                 ExitLEK, Handler);
+      if (ExitLEK == LEK_LockedSomePredecessors)
+        EntrySet.removeLock(FactMan, *EntryFact);
     }
   }
 }
@@ -2368,13 +2380,13 @@ void ThreadSafetyAnalyzer::runAnalysis(AnalysisDeclContext &AC) {
 
     // FIXME -- Loc can be wrong here.
     for (const auto &Mu : ExclusiveLocksToAdd) {
-      auto Entry = std::make_unique<LockableFactEntry>(Mu, LK_Exclusive, Loc);
-      Entry->setDeclared(true);
+      auto Entry = std::make_unique<LockableFactEntry>(Mu, LK_Exclusive, Loc,
+                                                       FactEntry::Declared);
       addLock(InitialLockset, std::move(Entry), CapDiagKind, true);
     }
     for (const auto &Mu : SharedLocksToAdd) {
-      auto Entry = std::make_unique<LockableFactEntry>(Mu, LK_Shared, Loc);
-      Entry->setDeclared(true);
+      auto Entry = std::make_unique<LockableFactEntry>(Mu, LK_Shared, Loc,
+                                                       FactEntry::Declared);
       addLock(InitialLockset, std::move(Entry), CapDiagKind, true);
     }
   }
@@ -2468,11 +2480,9 @@ void ThreadSafetyAnalyzer::runAnalysis(AnalysisDeclContext &AC) {
                        PrevBlock, CurrBlock);
 
         // Do not update EntrySet.
-        intersectAndWarn(CurrBlockInfo->EntrySet, PrevLockset,
-                         PrevBlockInfo->ExitLoc,
-                         IsLoop ? LEK_LockedSomeLoopIterations
-                                : LEK_LockedSomePredecessors,
-                         false);
+        intersectAndWarn(
+            CurrBlockInfo->EntrySet, PrevLockset, PrevBlockInfo->ExitLoc,
+            IsLoop ? LEK_LockedSomeLoopIterations : LEK_LockedSomePredecessors);
       }
     }
 
@@ -2520,10 +2530,8 @@ void ThreadSafetyAnalyzer::runAnalysis(AnalysisDeclContext &AC) {
       CFGBlock *FirstLoopBlock = *SI;
       CFGBlockInfo *PreLoop = &BlockInfo[FirstLoopBlock->getBlockID()];
       CFGBlockInfo *LoopEnd = &BlockInfo[CurrBlockID];
-      intersectAndWarn(LoopEnd->ExitSet, PreLoop->EntrySet,
-                       PreLoop->EntryLoc,
-                       LEK_LockedSomeLoopIterations,
-                       false);
+      intersectAndWarn(PreLoop->EntrySet, LoopEnd->ExitSet, PreLoop->EntryLoc,
+                       LEK_LockedSomeLoopIterations);
     }
   }
 
@@ -2551,11 +2559,8 @@ void ThreadSafetyAnalyzer::runAnalysis(AnalysisDeclContext &AC) {
     ExpectedExitSet.removeLock(FactMan, Lock);
 
   // FIXME: Should we call this function for all blocks which exit the function?
-  intersectAndWarn(ExpectedExitSet, Final->ExitSet,
-                   Final->ExitLoc,
-                   LEK_LockedAtEndOfFunction,
-                   LEK_NotLockedAtEndOfFunction,
-                   false);
+  intersectAndWarn(ExpectedExitSet, Final->ExitSet, Final->ExitLoc,
+                   LEK_LockedAtEndOfFunction, LEK_NotLockedAtEndOfFunction);
 
   Handler.leaveFunction(CurrentFunction);
 }

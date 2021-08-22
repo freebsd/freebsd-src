@@ -10,7 +10,7 @@
 #include "lldb/Host/FileSystem.h"
 #include "lldb/Utility/Log.h"
 
-#include <stdio.h>
+#include <cstdio>
 
 using namespace lldb;
 using namespace lldb_private;
@@ -43,7 +43,7 @@ StreamFile::StreamFile(const char *path, File::OpenOptions options,
   }
 }
 
-StreamFile::~StreamFile() {}
+StreamFile::~StreamFile() = default;
 
 void StreamFile::Flush() { m_file_sp->Flush(); }
 

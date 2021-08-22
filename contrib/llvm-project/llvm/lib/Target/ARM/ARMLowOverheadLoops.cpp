@@ -31,7 +31,7 @@
 /// during the transform and pseudo instructions are replaced by real ones. In
 /// some cases, when we have to revert to a 'normal' loop, we have to introduce
 /// multiple instructions for a single pseudo (see RevertWhile and
-/// RevertLoopEnd). To handle this situation, t2WhileLoopStart and t2LoopEnd
+/// RevertLoopEnd). To handle this situation, t2WhileLoopStartLR and t2LoopEnd
 /// are defined to be as large as this maximum sequence of replacement
 /// instructions.
 ///
@@ -101,10 +101,6 @@ static bool shouldInspect(MachineInstr &MI) {
   return isDomainMVE(&MI) || isVectorPredicate(&MI) || hasVPRUse(MI);
 }
 
-static bool isDo(MachineInstr *MI) {
-  return MI->getOpcode() != ARM::t2WhileLoopStart;
-}
-
 namespace {
 
   using InstSet = SmallPtrSetImpl<MachineInstr *>;
@@ -158,7 +154,7 @@ namespace {
 
       if (auto *Preheader = ML.getLoopPreheader())
         GetPredecessor(Preheader);
-      else if (auto *Preheader = MLI.findLoopPreheader(&ML, true))
+      else if (auto *Preheader = MLI.findLoopPreheader(&ML, true, true))
         GetPredecessor(Preheader);
     }
   };
@@ -386,7 +382,7 @@ namespace {
       MF = ML.getHeader()->getParent();
       if (auto *MBB = ML.getLoopPreheader())
         Preheader = MBB;
-      else if (auto *MBB = MLI.findLoopPreheader(&ML, true))
+      else if (auto *MBB = MLI.findLoopPreheader(&ML, true, true))
         Preheader = MBB;
       VPTState::reset();
     }
@@ -442,11 +438,11 @@ namespace {
     MachineOperand &getLoopStartOperand() {
       if (IsTailPredicationLegal())
         return TPNumElements;
-      return isDo(Start) ? Start->getOperand(1) : Start->getOperand(0);
+      return Start->getOperand(1);
     }
 
     unsigned getStartOpcode() const {
-      bool IsDo = isDo(Start);
+      bool IsDo = isDoLoopStart(*Start);
       if (!IsTailPredicationLegal())
         return IsDo ? ARM::t2DLS : ARM::t2WLS;
 
@@ -630,31 +626,13 @@ bool LowOverheadLoop::ValidateTailPredicate() {
     return false;
   }
 
-  // Check that creating a [W|D]LSTP, which will define LR with an element
-  // count instead of iteration count, won't affect any other instructions
-  // than the LoopStart and LoopDec.
-  // TODO: We should try to insert the [W|D]LSTP after any of the other uses.
-  Register StartReg = isDo(Start) ? Start->getOperand(1).getReg()
-                                  : Start->getOperand(0).getReg();
-  if (StartInsertPt == Start && StartReg == ARM::LR) {
-    if (auto *IterCount = RDA.getMIOperand(Start, isDo(Start) ? 1 : 0)) {
-      SmallPtrSet<MachineInstr *, 2> Uses;
-      RDA.getGlobalUses(IterCount, MCRegister::from(ARM::LR), Uses);
-      for (auto *Use : Uses) {
-        if (Use != Start && Use != Dec) {
-          LLVM_DEBUG(dbgs() << " ARM Loops: Found LR use: " << *Use);
-          return false;
-        }
-      }
-    }
-  }
-
   // For tail predication, we need to provide the number of elements, instead
   // of the iteration count, to the loop start instruction. The number of
   // elements is provided to the vctp instruction, so we need to check that
   // we can use this register at InsertPt.
   MachineInstr *VCTP = VCTPs.back();
-  if (Start->getOpcode() == ARM::t2DoLoopStartTP) {
+  if (Start->getOpcode() == ARM::t2DoLoopStartTP ||
+      Start->getOpcode() == ARM::t2WhileLoopStartTP) {
     TPNumElements = Start->getOperand(2);
     StartInsertPt = Start;
     StartInsertBB = Start->getParent();
@@ -796,6 +774,22 @@ bool LowOverheadLoop::ValidateTailPredicate() {
       ToRemove.insert(ElementChain.begin(), ElementChain.end());
     }
   }
+
+  // If we converted the LoopStart to a t2DoLoopStartTP/t2WhileLoopStartTP, we
+  // can also remove any extra instructions in the preheader, which often
+  // includes a now unused MOV.
+  if ((Start->getOpcode() == ARM::t2DoLoopStartTP ||
+       Start->getOpcode() == ARM::t2WhileLoopStartTP) &&
+      Preheader && !Preheader->empty() &&
+      !RDA.hasLocalDefBefore(VCTP, VCTP->getOperand(1).getReg())) {
+    if (auto *Def = RDA.getUniqueReachingMIDef(
+            &Preheader->back(), VCTP->getOperand(1).getReg().asMCReg())) {
+      SmallPtrSet<MachineInstr*, 2> Ignore;
+      Ignore.insert(VCTPs.begin(), VCTPs.end());
+      TryRemove(Def, RDA, ToRemove, Ignore);
+    }
+  }
+
   return true;
 }
 
@@ -1050,53 +1044,21 @@ void LowOverheadLoop::Validate(ARMBasicBlockUtils *BBUtils) {
       return false;
     }
 
-    if (Start->getOpcode() == ARM::t2WhileLoopStart &&
-        (BBUtils->getOffsetOf(Start) >
-         BBUtils->getOffsetOf(Start->getOperand(1).getMBB()) ||
-         !BBUtils->isBBInRange(Start, Start->getOperand(1).getMBB(), 4094))) {
-      LLVM_DEBUG(dbgs() << "ARM Loops: WLS offset is out-of-range!\n");
-      return false;
+    if (isWhileLoopStart(*Start)) {
+      MachineBasicBlock *TargetBB = getWhileLoopStartTargetBB(*Start);
+      if (BBUtils->getOffsetOf(Start) > BBUtils->getOffsetOf(TargetBB) ||
+          !BBUtils->isBBInRange(Start, TargetBB, 4094)) {
+        LLVM_DEBUG(dbgs() << "ARM Loops: WLS offset is out-of-range!\n");
+        return false;
+      }
     }
     return true;
   };
 
-  // Find a suitable position to insert the loop start instruction. It needs to
-  // be able to safely define LR.
-  auto FindStartInsertionPoint = [](MachineInstr *Start, MachineInstr *Dec,
-                                    MachineBasicBlock::iterator &InsertPt,
-                                    MachineBasicBlock *&InsertBB,
-                                    ReachingDefAnalysis &RDA,
-                                    InstSet &ToRemove) {
-    // For a t2DoLoopStart it is always valid to use the start insertion point.
-    // For WLS we can define LR if LR already contains the same value.
-    if (isDo(Start) || Start->getOperand(0).getReg() == ARM::LR) {
-      InsertPt = MachineBasicBlock::iterator(Start);
-      InsertBB = Start->getParent();
-      return true;
-    }
-
-    // We've found no suitable LR def and Start doesn't use LR directly. Can we
-    // just define LR anyway?
-    if (!RDA.isSafeToDefRegAt(Start, MCRegister::from(ARM::LR)))
-      return false;
-
-    InsertPt = MachineBasicBlock::iterator(Start);
-    InsertBB = Start->getParent();
-    return true;
-  };
-
-  if (!FindStartInsertionPoint(Start, Dec, StartInsertPt, StartInsertBB, RDA,
-                               ToRemove)) {
-    LLVM_DEBUG(dbgs() << "ARM Loops: Unable to find safe insertion point.\n");
-    Revert = true;
-    return;
-  }
-  LLVM_DEBUG(if (StartInsertPt == StartInsertBB->end())
-               dbgs() << "ARM Loops: Will insert LoopStart at end of block\n";
-             else
-               dbgs() << "ARM Loops: Will insert LoopStart at "
-                      << *StartInsertPt
-            );
+  StartInsertPt = MachineBasicBlock::iterator(Start);
+  StartInsertBB = Start->getParent();
+  LLVM_DEBUG(dbgs() << "ARM Loops: Will insert LoopStart at "
+                    << *StartInsertPt);
 
   Revert = !ValidateRanges(Start, End, BBUtils, ML);
   CannotTailPredicate = !ValidateTailPredicate();
@@ -1122,7 +1084,85 @@ bool LowOverheadLoop::AddVCTP(MachineInstr *MI) {
   return true;
 }
 
-bool LowOverheadLoop::ValidateMVEInst(MachineInstr* MI) {
+static bool ValidateMVEStore(MachineInstr *MI, MachineLoop *ML) {
+
+  auto GetFrameIndex = [](MachineMemOperand *Operand) {
+    const PseudoSourceValue *PseudoValue = Operand->getPseudoValue();
+    if (PseudoValue && PseudoValue->kind() == PseudoSourceValue::FixedStack) {
+      if (const auto *FS = dyn_cast<FixedStackPseudoSourceValue>(PseudoValue)) {
+        return FS->getFrameIndex();
+      }
+    }
+    return -1;
+  };
+
+  auto IsStackOp = [GetFrameIndex](MachineInstr *I) {
+    switch (I->getOpcode()) {
+    case ARM::MVE_VSTRWU32:
+    case ARM::MVE_VLDRWU32: {
+      return I->getOperand(1).getReg() == ARM::SP &&
+             I->memoperands().size() == 1 &&
+             GetFrameIndex(I->memoperands().front()) >= 0;
+    }
+    default:
+      return false;
+    }
+  };
+
+  // An unpredicated vector register spill is allowed if all of the uses of the
+  // stack slot are within the loop
+  if (MI->getOpcode() != ARM::MVE_VSTRWU32 || !IsStackOp(MI))
+    return false;
+
+  // Search all blocks after the loop for accesses to the same stack slot.
+  // ReachingDefAnalysis doesn't work for sp as it relies on registers being
+  // live-out (which sp never is) to know what blocks to look in
+  if (MI->memoperands().size() == 0)
+    return false;
+  int FI = GetFrameIndex(MI->memoperands().front());
+
+  MachineFrameInfo FrameInfo = MI->getParent()->getParent()->getFrameInfo();
+  if (FI == -1 || !FrameInfo.isSpillSlotObjectIndex(FI))
+    return false;
+
+  SmallVector<MachineBasicBlock *> Frontier;
+  ML->getExitBlocks(Frontier);
+  SmallPtrSet<MachineBasicBlock *, 4> Visited{MI->getParent()};
+  unsigned Idx = 0;
+  while (Idx < Frontier.size()) {
+    MachineBasicBlock *BB = Frontier[Idx];
+    bool LookAtSuccessors = true;
+    for (auto &I : *BB) {
+      if (!IsStackOp(&I) || I.memoperands().size() == 0)
+        continue;
+      if (GetFrameIndex(I.memoperands().front()) != FI)
+        continue;
+      // If this block has a store to the stack slot before any loads then we
+      // can ignore the block
+      if (I.getOpcode() == ARM::MVE_VSTRWU32) {
+        LookAtSuccessors = false;
+        break;
+      }
+      // If the store and the load are using the same stack slot then the
+      // store isn't valid for tail predication
+      if (I.getOpcode() == ARM::MVE_VLDRWU32)
+        return false;
+    }
+
+    if (LookAtSuccessors) {
+      for (auto Succ : BB->successors()) {
+        if (!Visited.contains(Succ) && !is_contained(Frontier, Succ))
+          Frontier.push_back(Succ);
+      }
+    }
+    Visited.insert(BB);
+    Idx++;
+  }
+
+  return true;
+}
+
+bool LowOverheadLoop::ValidateMVEInst(MachineInstr *MI) {
   if (CannotTailPredicate)
     return false;
 
@@ -1178,7 +1218,7 @@ bool LowOverheadLoop::ValidateMVEInst(MachineInstr* MI) {
 
   // If the instruction is already explicitly predicated, then the conversion
   // will be fine, but ensure that all store operations are predicated.
-  if (MI->mayStore())
+  if (MI->mayStore() && !ValidateMVEStore(MI, &ML))
     return IsUse;
 
   // If this instruction defines the VPR, update the predicate for the
@@ -1235,16 +1275,15 @@ bool ARMLowOverheadLoops::ProcessLoop(MachineLoop *ML) {
   for (auto I = ML->begin(), E = ML->end(); I != E; ++I)
     Changed |= ProcessLoop(*I);
 
-  LLVM_DEBUG(dbgs() << "ARM Loops: Processing loop containing:\n";
-             if (auto *Preheader = ML->getLoopPreheader())
-               dbgs() << " - " << Preheader->getName() << "\n";
-             else if (auto *Preheader = MLI->findLoopPreheader(ML))
-               dbgs() << " - " << Preheader->getName() << "\n";
-             else if (auto *Preheader = MLI->findLoopPreheader(ML, true))
-               dbgs() << " - " << Preheader->getName() << "\n";
-             for (auto *MBB : ML->getBlocks())
-               dbgs() << " - " << MBB->getName() << "\n";
-            );
+  LLVM_DEBUG({
+    dbgs() << "ARM Loops: Processing loop containing:\n";
+    if (auto *Preheader = ML->getLoopPreheader())
+      dbgs() << " - Preheader: " << printMBBReference(*Preheader) << "\n";
+    else if (auto *Preheader = MLI->findLoopPreheader(ML, true, true))
+      dbgs() << " - Preheader: " << printMBBReference(*Preheader) << "\n";
+    for (auto *MBB : ML->getBlocks())
+      dbgs() << " - Block: " << printMBBReference(*MBB) << "\n";
+  });
 
   // Search the given block for a loop start instruction. If one isn't found,
   // and there's only one predecessor block, search that one too.
@@ -1266,7 +1305,7 @@ bool ARMLowOverheadLoops::ProcessLoop(MachineLoop *ML) {
   if (LoLoop.Preheader)
     LoLoop.Start = SearchForStart(LoLoop.Preheader);
   else
-    return false;
+    return Changed;
 
   // Find the low-overhead loop components and decide whether or not to fall
   // back to a normal loop. Also look for a vctp instructions and decide
@@ -1300,8 +1339,11 @@ bool ARMLowOverheadLoops::ProcessLoop(MachineLoop *ML) {
   LLVM_DEBUG(LoLoop.dump());
   if (!LoLoop.FoundAllComponents()) {
     LLVM_DEBUG(dbgs() << "ARM Loops: Didn't find loop start, update, end\n");
-    return false;
+    return Changed;
   }
+
+  assert(LoLoop.Start->getOpcode() != ARM::t2WhileLoopStart &&
+         "Expected t2WhileLoopStart to be removed before regalloc!");
 
   // Check that the only instruction using LoopDec is LoopEnd. This can only
   // happen when the Dec and End are separate, not a single t2LoopEndDec.
@@ -1325,11 +1367,11 @@ bool ARMLowOverheadLoops::ProcessLoop(MachineLoop *ML) {
 // another low register.
 void ARMLowOverheadLoops::RevertWhile(MachineInstr *MI) const {
   LLVM_DEBUG(dbgs() << "ARM Loops: Reverting to cmp: " << *MI);
-  MachineBasicBlock *DestBB = MI->getOperand(1).getMBB();
+  MachineBasicBlock *DestBB = getWhileLoopStartTargetBB(*MI);
   unsigned BrOpc = BBUtils->isBBInRange(MI, DestBB, 254) ?
     ARM::tBcc : ARM::t2Bcc;
 
-  RevertWhileLoopStart(MI, TII, BrOpc);
+  RevertWhileLoopStartLR(MI, TII, BrOpc);
 }
 
 void ARMLowOverheadLoops::RevertDo(MachineInstr *MI) const {
@@ -1426,8 +1468,7 @@ void ARMLowOverheadLoops::IterationCountDCE(LowOverheadLoop &LoLoop) {
 
   LLVM_DEBUG(dbgs() << "ARM Loops: Trying DCE on loop iteration count.\n");
 
-  MachineInstr *Def =
-      RDA->getMIOperand(LoLoop.Start, isDo(LoLoop.Start) ? 1 : 0);
+  MachineInstr *Def = RDA->getMIOperand(LoLoop.Start, 1);
   if (!Def) {
     LLVM_DEBUG(dbgs() << "ARM Loops: Couldn't find iteration count.\n");
     return;
@@ -1452,17 +1493,26 @@ MachineInstr* ARMLowOverheadLoops::ExpandLoopStart(LowOverheadLoop &LoLoop) {
   unsigned Opc = LoLoop.getStartOpcode();
   MachineOperand &Count = LoLoop.getLoopStartOperand();
 
-  MachineInstrBuilder MIB =
-    BuildMI(*MBB, InsertPt, Start->getDebugLoc(), TII->get(Opc));
+  // A DLS lr, lr we needn't emit
+  MachineInstr* NewStart;
+  if (Opc == ARM::t2DLS && Count.isReg() && Count.getReg() == ARM::LR) {
+    LLVM_DEBUG(dbgs() << "ARM Loops: Didn't insert start: DLS lr, lr");
+    NewStart = nullptr;
+  } else {
+    MachineInstrBuilder MIB =
+      BuildMI(*MBB, InsertPt, Start->getDebugLoc(), TII->get(Opc));
 
-  MIB.addDef(ARM::LR);
-  MIB.add(Count);
-  if (!isDo(Start))
-    MIB.add(Start->getOperand(1));
+    MIB.addDef(ARM::LR);
+    MIB.add(Count);
+    if (isWhileLoopStart(*Start))
+      MIB.addMBB(getWhileLoopStartTargetBB(*Start));
+
+    LLVM_DEBUG(dbgs() << "ARM Loops: Inserted start: " << *MIB);
+    NewStart = &*MIB;
+  }
 
   LoLoop.ToRemove.insert(Start);
-  LLVM_DEBUG(dbgs() << "ARM Loops: Inserted start: " << *MIB);
-  return &*MIB;
+  return NewStart;
 }
 
 void ARMLowOverheadLoops::ConvertVPTBlocks(LowOverheadLoop &LoLoop) {
@@ -1640,7 +1690,7 @@ void ARMLowOverheadLoops::Expand(LowOverheadLoop &LoLoop) {
   };
 
   if (LoLoop.Revert) {
-    if (LoLoop.Start->getOpcode() == ARM::t2WhileLoopStart)
+    if (isWhileLoopStart(*LoLoop.Start))
       RevertWhile(LoLoop.Start);
     else
       RevertDo(LoLoop.Start);
@@ -1650,7 +1700,8 @@ void ARMLowOverheadLoops::Expand(LowOverheadLoop &LoLoop) {
       RevertLoopEnd(LoLoop.End, RevertLoopDec(LoLoop.Dec));
   } else {
     LoLoop.Start = ExpandLoopStart(LoLoop);
-    RemoveDeadBranch(LoLoop.Start);
+    if (LoLoop.Start)
+      RemoveDeadBranch(LoLoop.Start);
     LoLoop.End = ExpandLoopEnd(LoLoop);
     RemoveDeadBranch(LoLoop.End);
     if (LoLoop.IsTailPredicationLegal())
@@ -1710,7 +1761,7 @@ bool ARMLowOverheadLoops::RevertNonLoops() {
     Changed = true;
 
     for (auto *Start : Starts) {
-      if (Start->getOpcode() == ARM::t2WhileLoopStart)
+      if (isWhileLoopStart(*Start))
         RevertWhile(Start);
       else
         RevertDo(Start);

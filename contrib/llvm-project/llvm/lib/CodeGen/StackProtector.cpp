@@ -70,6 +70,7 @@ StackProtector::StackProtector() : FunctionPass(ID), SSPBufferSize(8) {
 INITIALIZE_PASS_BEGIN(StackProtector, DEBUG_TYPE,
                       "Insert stack protectors", false, true)
 INITIALIZE_PASS_DEPENDENCY(TargetPassConfig)
+INITIALIZE_PASS_DEPENDENCY(DominatorTreeWrapperPass)
 INITIALIZE_PASS_END(StackProtector, DEBUG_TYPE,
                     "Insert stack protectors", false, true)
 
@@ -379,9 +380,8 @@ static Value *getStackGuard(const TargetLoweringBase *TLI, Module *M,
                             IRBuilder<> &B,
                             bool *SupportsSelectionDAGSP = nullptr) {
   Value *Guard = TLI->getIRStackGuard(B);
-  auto GuardMode = TLI->getTargetMachine().Options.StackProtectorGuard;
-  if ((GuardMode == llvm::StackProtectorGuards::TLS ||
-       GuardMode == llvm::StackProtectorGuards::None) && Guard)
+  StringRef GuardMode = M->getStackProtectorGuard();
+  if ((GuardMode == "tls" || GuardMode.empty()) && Guard)
     return B.CreateLoad(B.getInt8PtrTy(), Guard, true, "StackGuard");
 
   // Use SelectionDAG SSP handling, since there isn't an IR guard.

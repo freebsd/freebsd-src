@@ -128,14 +128,6 @@ void SetAddressSpaceUnlimited() {
   CHECK(AddressSpaceIsUnlimited());
 }
 
-void SleepForSeconds(int seconds) {
-  sleep(seconds);
-}
-
-void SleepForMillis(int millis) {
-  usleep(millis * 1000);
-}
-
 void Abort() {
 #if !SANITIZER_GO
   // If we are handling SIGABRT, unhandle it first.
@@ -143,7 +135,7 @@ void Abort() {
   if (GetHandleSignalMode(SIGABRT) != kHandleSignalNo) {
     struct sigaction sigact;
     internal_memset(&sigact, 0, sizeof(sigact));
-    sigact.sa_sigaction = (sa_sigaction_t)SIG_DFL;
+    sigact.sa_handler = SIG_DFL;
     internal_sigaction(SIGABRT, &sigact, nullptr);
   }
 #endif
@@ -181,10 +173,9 @@ void SetAlternateSignalStack() {
   // TODO(glider): the mapped stack should have the MAP_STACK flag in the
   // future. It is not required by man 2 sigaltstack now (they're using
   // malloc()).
-  void *base = MmapOrDie(GetAltStackSize(), __func__);
-  altstack.ss_sp = (char*) base;
-  altstack.ss_flags = 0;
   altstack.ss_size = GetAltStackSize();
+  altstack.ss_sp = (char *)MmapOrDie(altstack.ss_size, __func__);
+  altstack.ss_flags = 0;
   CHECK_EQ(0, sigaltstack(&altstack, nullptr));
 }
 

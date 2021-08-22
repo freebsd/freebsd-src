@@ -19,6 +19,7 @@
 namespace llvm {
 class StringRef;
 template <unsigned> class SmallString;
+template <typename T> class Expected;
 
 namespace XCOFF {
 
@@ -26,12 +27,16 @@ namespace XCOFF {
 
 constexpr size_t FileNamePadSize = 6;
 constexpr size_t NameSize = 8;
+constexpr size_t FileHeaderSize32 = 20;
+constexpr size_t SectionHeaderSize32 = 40;
 constexpr size_t SymbolTableEntrySize = 18;
 constexpr size_t RelocationSerializationSize32 = 10;
 constexpr uint16_t RelocOverflow = 65535;
 constexpr uint8_t AllocRegNo = 31;
 
 enum ReservedSectionNum : int16_t { N_DEBUG = -2, N_ABS = -1, N_UNDEF = 0 };
+
+enum MagicNumber : uint16_t { XCOFF32 = 0x01DF, XCOFF64 = 0x01F7 };
 
 // x_smclas field of x_csect from system header: /usr/include/syms.h
 /// Storage Mapping Class definitions.
@@ -253,29 +258,6 @@ enum RelocationType : uint8_t {
                 ///< large code model TOC-relative relocation.
 };
 
-struct FileHeader32 {
-  uint16_t Magic;
-  uint16_t NumberOfSections;
-  int32_t TimeStamp;
-  uint32_t SymbolTableFileOffset;
-  int32_t NumberOfSymbolTableEntries;
-  uint16_t AuxiliaryHeaderSize;
-  uint16_t Flags;
-};
-
-struct SectionHeader32 {
-  char Name[XCOFF::NameSize];
-  uint32_t PhysicalAddress;
-  uint32_t VirtualAddress;
-  uint32_t Size;
-  uint32_t FileOffsetToData;
-  uint32_t FileOffsetToRelocations;
-  uint32_t FileOffsetToLineNumbers;
-  uint16_t NumberOfRelocations;
-  uint16_t NumberOfLineNumbers;
-  int32_t Flags;
-};
-
 enum CFileStringType : uint8_t {
   XFT_FN = 0,  ///< Specifies the source-file name.
   XFT_CT = 1,  ///< Specifies the compiler time stamp.
@@ -294,9 +276,25 @@ enum CFileCpuId : uint8_t {
   TCPU_970 = 19   ///< PPC970 - PowerPC 64-bit architecture.
 };
 
+enum SymbolAuxType : uint8_t {
+  AUX_EXCEPT = 255, ///< Identifies an exception auxiliary entry.
+  AUX_FCN = 254,    ///< Identifies a function auxiliary entry.
+  AUX_SYM = 253,    ///< Identifies a symbol auxiliary entry.
+  AUX_FILE = 252,   ///< Identifies a file auxiliary entry.
+  AUX_CSECT = 251,  ///< Identifies a csect auxiliary entry.
+  AUX_SECT = 250    ///< Identifies a SECT auxiliary entry.
+};                  // 64-bit XCOFF file only.
+
 StringRef getMappingClassString(XCOFF::StorageMappingClass SMC);
 StringRef getRelocationTypeString(XCOFF::RelocationType Type);
-SmallString<32> parseParmsType(uint32_t Value, unsigned ParmsNum);
+Expected<SmallString<32>> parseParmsType(uint32_t Value, unsigned FixedParmsNum,
+                                         unsigned FloatingParmsNum);
+Expected<SmallString<32>> parseParmsTypeWithVecInfo(uint32_t Value,
+                                                    unsigned FixedParmsNum,
+                                                    unsigned FloatingParmsNum,
+                                                    unsigned VectorParmsNum);
+Expected<SmallString<32>> parseVectorParmsType(uint32_t Value,
+                                               unsigned ParmsNum);
 
 struct TracebackTable {
   enum LanguageID : uint8_t {
@@ -352,8 +350,8 @@ struct TracebackTable {
   static constexpr uint32_t FPRSavedShift = 24;
 
   // Byte 6
-  static constexpr uint32_t HasVectorInfoMask = 0x0080'0000;
-  static constexpr uint32_t HasExtensionTableMask = 0x0040'0000;
+  static constexpr uint32_t HasExtensionTableMask = 0x0080'0000;
+  static constexpr uint32_t HasVectorInfoMask = 0x0040'0000;
   static constexpr uint32_t GPRSavedMask = 0x003F'0000;
   static constexpr uint32_t GPRSavedShift = 16;
 
@@ -391,6 +389,8 @@ struct TracebackTable {
   static constexpr uint32_t ParmTypeIsVectorShortBit = 0x4000'0000;
   static constexpr uint32_t ParmTypeIsVectorIntBit = 0x8000'0000;
   static constexpr uint32_t ParmTypeIsVectorFloatBit = 0xC000'0000;
+
+  static constexpr uint8_t WidthOfParamType = 2;
 };
 
 // Extended Traceback table flags.
@@ -405,6 +405,13 @@ enum ExtendedTBTableFlag : uint8_t {
 
 StringRef getNameForTracebackTableLanguageId(TracebackTable::LanguageID LangId);
 SmallString<32> getExtendedTBTableFlagString(uint8_t Flag);
+
+struct CsectProperties {
+  CsectProperties(StorageMappingClass SMC, SymbolType ST)
+      : MappingClass(SMC), Type(ST) {}
+  StorageMappingClass MappingClass;
+  SymbolType Type;
+};
 
 } // end namespace XCOFF
 } // end namespace llvm

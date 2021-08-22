@@ -21,6 +21,7 @@ SRCS+=		ClangSyntaxEmitter.cpp
 SRCS+=		ClangTypeNodesEmitter.cpp
 SRCS+=		MveEmitter.cpp
 SRCS+=		NeonEmitter.cpp
+SRCS+=		RISCVVEmitter.cpp
 SRCS+=		SveEmitter.cpp
 SRCS+=		TableGen.cpp
 

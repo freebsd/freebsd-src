@@ -8,9 +8,26 @@ SRCDIR=		llvm/tools/llvm-objdump
 SRCS+=		COFFDump.cpp
 SRCS+=		ELFDump.cpp
 SRCS+=		MachODump.cpp
+SRCS+=		SourcePrinter.cpp
 SRCS+=		WasmDump.cpp
 SRCS+=		XCOFFDump.cpp
 SRCS+=		llvm-objdump.cpp
+
+.include "${SRCTOP}/lib/clang/llvm.pre.mk"
+
+CFLAGS+=	-I${.OBJDIR}
+
+.for hdr in ObjdumpOpts OtoolOpts
+${hdr}.inc: ${LLVM_BASE}/${SRCDIR}/${hdr}.td
+	${LLVM_TBLGEN} -gen-opt-parser-defs \
+	    -I ${LLVM_SRCS}/tools/llvm-objcopy -I ${LLVM_SRCS}/include \
+	    -d ${.TARGET}.d -o ${.TARGET} ${LLVM_BASE}/${SRCDIR}/${hdr}.td
+TGHDRS+=	${hdr}.inc
+.endfor
+
+DEPENDFILES+=	${TGHDRS:C/$/.d/}
+DPSRCS+=	${TGHDRS}
+CLEANFILES+=	${TGHDRS} ${TGHDRS:C/$/.d/}
 
 LIBADD+=	z
 

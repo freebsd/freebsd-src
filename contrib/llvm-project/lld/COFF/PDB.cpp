@@ -374,22 +374,27 @@ static void translateIdSymbols(MutableArrayRef<uint8_t> &recordData,
     // Note that LF_FUNC_ID and LF_MFUNC_ID have the same record layout, and
     // in both cases we just need the second type index.
     if (!ti->isSimple() && !ti->isNoneType()) {
+      TypeIndex newType = TypeIndex(SimpleTypeKind::NotTranslated);
       if (config->debugGHashes) {
         auto idToType = tMerger.funcIdToType.find(*ti);
-        if (idToType == tMerger.funcIdToType.end()) {
-          warn(formatv("S_[GL]PROC32_ID record in {0} refers to PDB item "
-                       "index {1:X} which is not a LF_[M]FUNC_ID record",
-                       source->file->getName(), ti->getIndex()));
-          *ti = TypeIndex(SimpleTypeKind::NotTranslated);
-        } else {
-          *ti = idToType->second;
-        }
+        if (idToType != tMerger.funcIdToType.end())
+          newType = idToType->second;
       } else {
-        CVType funcIdData = tMerger.getIDTable().getType(*ti);
-        ArrayRef<uint8_t> tiBuf = funcIdData.data().slice(8, 4);
-        assert(tiBuf.size() == 4 && "corrupt LF_[M]FUNC_ID record");
-        *ti = *reinterpret_cast<const TypeIndex *>(tiBuf.data());
+        if (tMerger.getIDTable().contains(*ti)) {
+          CVType funcIdData = tMerger.getIDTable().getType(*ti);
+          if (funcIdData.length() >= 8 && (funcIdData.kind() == LF_FUNC_ID ||
+                                           funcIdData.kind() == LF_MFUNC_ID)) {
+            newType = *reinterpret_cast<const TypeIndex *>(&funcIdData.data()[8]);
+          }
+        }
       }
+      if (newType == TypeIndex(SimpleTypeKind::NotTranslated)) {
+        warn(formatv("procedure symbol record for `{0}` in {1} refers to PDB "
+                     "item index {2:X} which is not a valid function ID record",
+                     getSymbolName(CVSymbol(recordData)),
+                     source->file->getName(), ti->getIndex()));
+      }
+      *ti = newType;
     }
 
     kind = (kind == SymbolKind::S_GPROC32_ID) ? SymbolKind::S_GPROC32
@@ -1063,7 +1068,7 @@ void PDBLinker::createModuleDBI(ObjFile *file) {
   bool inArchive = !file->parentName.empty();
   objName = inArchive ? file->parentName : file->getName();
   pdbMakeAbsolute(objName);
-  StringRef modName = inArchive ? file->getName() : StringRef(objName);
+  StringRef modName = inArchive ? file->getName() : objName.str();
 
   file->moduleDBI = &exitOnErr(dbiBuilder.addModuleInfo(modName));
   file->moduleDBI->setObjFileName(objName);
@@ -1180,8 +1185,25 @@ void PDBLinker::addPublicsToPDB() {
     // Only emit external, defined, live symbols that have a chunk. Static,
     // non-external symbols do not appear in the symbol table.
     auto *def = dyn_cast<Defined>(s);
-    if (def && def->isLive() && def->getChunk())
+    if (def && def->isLive() && def->getChunk()) {
+      // Don't emit a public symbol for coverage data symbols. LLVM code
+      // coverage (and PGO) create a __profd_ and __profc_ symbol for every
+      // function. C++ mangled names are long, and tend to dominate symbol size.
+      // Including these names triples the size of the public stream, which
+      // results in bloated PDB files. These symbols generally are not helpful
+      // for debugging, so suppress them.
+      StringRef name = def->getName();
+      if (name.data()[0] == '_' && name.data()[1] == '_') {
+        // Drop the '_' prefix for x86.
+        if (config->machine == I386)
+          name = name.drop_front(1);
+        if (name.startswith("__profd_") || name.startswith("__profc_") ||
+            name.startswith("__covrec_")) {
+          return;
+        }
+      }
       publics.push_back(createPublic(def));
+    }
   });
 
   if (!publics.empty()) {
@@ -1280,7 +1302,14 @@ void PDBLinker::addNatvisFiles() {
       warn("Cannot open input file: " + file);
       continue;
     }
-    builder.addInjectedSource(file, std::move(*dataOrErr));
+    std::unique_ptr<MemoryBuffer> data = std::move(*dataOrErr);
+
+    // Can't use takeBuffer() here since addInjectedSource() takes ownership.
+    if (driver->tar)
+      driver->tar->append(relativeToRoot(data->getBufferIdentifier()),
+                          data->getBuffer());
+
+    builder.addInjectedSource(file, std::move(data));
   }
 }
 
@@ -1293,7 +1322,9 @@ void PDBLinker::addNamedStreams() {
       warn("Cannot open input file: " + file);
       continue;
     }
-    exitOnErr(builder.addNamedStream(stream, (*dataOrErr)->getBuffer()));
+    std::unique_ptr<MemoryBuffer> data = std::move(*dataOrErr);
+    exitOnErr(builder.addNamedStream(stream, data->getBuffer()));
+    driver->takeBuffer(std::move(data));
   }
 }
 
@@ -1634,9 +1665,13 @@ void PDBLinker::addSections(ArrayRef<OutputSection *> outputSections,
 }
 
 void PDBLinker::commit(codeview::GUID *guid) {
-  ExitOnError exitOnErr((config->pdbPath + ": ").str());
-  // Write to a file.
-  exitOnErr(builder.commit(config->pdbPath, guid));
+  // Print an error and continue if PDB writing fails. This is done mainly so
+  // the user can see the output of /time and /summary, which is very helpful
+  // when trying to figure out why a PDB file is too large.
+  if (Error e = builder.commit(config->pdbPath, guid)) {
+    checkError(std::move(e));
+    error("failed to write PDB file " + Twine(config->pdbPath));
+  }
 }
 
 static uint32_t getSecrelReloc() {

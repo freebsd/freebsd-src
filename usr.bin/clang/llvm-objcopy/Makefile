@@ -5,13 +5,11 @@
 PROG_CXX=	llvm-objcopy
 
 SRCDIR=		llvm/tools/llvm-objcopy
-SRCS+=		Buffer.cpp
 SRCS+=		COFF/COFFObjcopy.cpp
 SRCS+=		COFF/Object.cpp
 SRCS+=		COFF/Reader.cpp
 SRCS+=		COFF/Writer.cpp
-SRCS+=		CopyConfig.cpp
-SRCS+=		ELF/ELFConfig.cpp
+SRCS+=		ConfigManager.cpp
 SRCS+=		ELF/ELFObjcopy.cpp
 SRCS+=		ELF/Object.cpp
 SRCS+=		MachO/MachOLayoutBuilder.cpp

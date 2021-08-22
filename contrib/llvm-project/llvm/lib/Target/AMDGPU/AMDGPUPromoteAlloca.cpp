@@ -126,8 +126,13 @@ public:
 char AMDGPUPromoteAlloca::ID = 0;
 char AMDGPUPromoteAllocaToVector::ID = 0;
 
-INITIALIZE_PASS(AMDGPUPromoteAlloca, DEBUG_TYPE,
-                "AMDGPU promote alloca to vector or LDS", false, false)
+INITIALIZE_PASS_BEGIN(AMDGPUPromoteAlloca, DEBUG_TYPE,
+                      "AMDGPU promote alloca to vector or LDS", false, false)
+// Move LDS uses from functions to kernels before promote alloca for accurate
+// estimation of LDS available
+INITIALIZE_PASS_DEPENDENCY(AMDGPULowerModuleLDS)
+INITIALIZE_PASS_END(AMDGPUPromoteAlloca, DEBUG_TYPE,
+                    "AMDGPU promote alloca to vector or LDS", false, false)
 
 INITIALIZE_PASS(AMDGPUPromoteAllocaToVector, DEBUG_TYPE "-to-vector",
                 "AMDGPU promote alloca to vector", false, false)
@@ -656,6 +661,11 @@ bool AMDGPUPromoteAllocaImpl::collectUsesWithPtrTypes(
       continue;
     }
 
+    // Do not promote vector/aggregate type instructions. It is hard to track
+    // their users.
+    if (isa<InsertValueInst>(User) || isa<InsertElementInst>(User))
+      return false;
+
     if (!User->getType()->isPointerTy())
       continue;
 
@@ -943,13 +953,15 @@ bool AMDGPUPromoteAllocaImpl::handleAlloca(AllocaInst &I, bool SufficientLDS) {
   I.replaceAllUsesWith(Offset);
   I.eraseFromParent();
 
+  SmallVector<IntrinsicInst *> DeferredIntrs;
+
   for (Value *V : WorkList) {
     CallInst *Call = dyn_cast<CallInst>(V);
     if (!Call) {
       if (ICmpInst *CI = dyn_cast<ICmpInst>(V)) {
         Value *Src0 = CI->getOperand(0);
-        Type *EltTy = Src0->getType()->getPointerElementType();
-        PointerType *NewTy = PointerType::get(EltTy, AMDGPUAS::LOCAL_ADDRESS);
+        PointerType *NewTy = PointerType::getWithSamePointeeType(
+            cast<PointerType>(Src0->getType()), AMDGPUAS::LOCAL_ADDRESS);
 
         if (isa<ConstantPointerNull>(CI->getOperand(0)))
           CI->setOperand(0, ConstantPointerNull::get(NewTy));
@@ -965,8 +977,8 @@ bool AMDGPUPromoteAllocaImpl::handleAlloca(AllocaInst &I, bool SufficientLDS) {
       if (isa<AddrSpaceCastInst>(V))
         continue;
 
-      Type *EltTy = V->getType()->getPointerElementType();
-      PointerType *NewTy = PointerType::get(EltTy, AMDGPUAS::LOCAL_ADDRESS);
+      PointerType *NewTy = PointerType::getWithSamePointeeType(
+          cast<PointerType>(V->getType()), AMDGPUAS::LOCAL_ADDRESS);
 
       // FIXME: It doesn't really make sense to try to do this for all
       // instructions.
@@ -997,22 +1009,13 @@ bool AMDGPUPromoteAllocaImpl::handleAlloca(AllocaInst &I, bool SufficientLDS) {
       // These intrinsics are for address space 0 only
       Intr->eraseFromParent();
       continue;
-    case Intrinsic::memcpy: {
-      MemCpyInst *MemCpy = cast<MemCpyInst>(Intr);
-      Builder.CreateMemCpy(MemCpy->getRawDest(), MemCpy->getDestAlign(),
-                           MemCpy->getRawSource(), MemCpy->getSourceAlign(),
-                           MemCpy->getLength(), MemCpy->isVolatile());
-      Intr->eraseFromParent();
+    case Intrinsic::memcpy:
+    case Intrinsic::memmove:
+      // These have 2 pointer operands. In case if second pointer also needs
+      // to be replaced we defer processing of these intrinsics until all
+      // other values are processed.
+      DeferredIntrs.push_back(Intr);
       continue;
-    }
-    case Intrinsic::memmove: {
-      MemMoveInst *MemMove = cast<MemMoveInst>(Intr);
-      Builder.CreateMemMove(MemMove->getRawDest(), MemMove->getDestAlign(),
-                            MemMove->getRawSource(), MemMove->getSourceAlign(),
-                            MemMove->getLength(), MemMove->isVolatile());
-      Intr->eraseFromParent();
-      continue;
-    }
     case Intrinsic::memset: {
       MemSetInst *MemSet = cast<MemSetInst>(Intr);
       Builder.CreateMemSet(
@@ -1032,11 +1035,11 @@ bool AMDGPUPromoteAllocaImpl::handleAlloca(AllocaInst &I, bool SufficientLDS) {
       continue;
     case Intrinsic::objectsize: {
       Value *Src = Intr->getOperand(0);
-      Type *SrcTy = Src->getType()->getPointerElementType();
-      Function *ObjectSize = Intrinsic::getDeclaration(Mod,
-        Intrinsic::objectsize,
-        { Intr->getType(), PointerType::get(SrcTy, AMDGPUAS::LOCAL_ADDRESS) }
-      );
+      Function *ObjectSize = Intrinsic::getDeclaration(
+          Mod, Intrinsic::objectsize,
+          {Intr->getType(),
+           PointerType::getWithSamePointeeType(
+               cast<PointerType>(Src->getType()), AMDGPUAS::LOCAL_ADDRESS)});
 
       CallInst *NewCall = Builder.CreateCall(
           ObjectSize,
@@ -1050,6 +1053,27 @@ bool AMDGPUPromoteAllocaImpl::handleAlloca(AllocaInst &I, bool SufficientLDS) {
       llvm_unreachable("Don't know how to promote alloca intrinsic use.");
     }
   }
+
+  for (IntrinsicInst *Intr : DeferredIntrs) {
+    Builder.SetInsertPoint(Intr);
+    Intrinsic::ID ID = Intr->getIntrinsicID();
+    assert(ID == Intrinsic::memcpy || ID == Intrinsic::memmove);
+
+    MemTransferInst *MI = cast<MemTransferInst>(Intr);
+    auto *B =
+      Builder.CreateMemTransferInst(ID, MI->getRawDest(), MI->getDestAlign(),
+                                    MI->getRawSource(), MI->getSourceAlign(),
+                                    MI->getLength(), MI->isVolatile());
+
+    for (unsigned I = 1; I != 3; ++I) {
+      if (uint64_t Bytes = Intr->getDereferenceableBytes(I)) {
+        B->addDereferenceableAttr(I, Bytes);
+      }
+    }
+
+    Intr->eraseFromParent();
+  }
+
   return true;
 }
 

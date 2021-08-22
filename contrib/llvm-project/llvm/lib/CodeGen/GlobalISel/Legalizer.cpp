@@ -43,6 +43,13 @@ static cl::opt<bool>
                          cl::desc("Should enable CSE in Legalizer"),
                          cl::Optional, cl::init(false));
 
+// This is a temporary hack, should be removed soon.
+static cl::opt<bool> AllowGInsertAsArtifact(
+    "allow-ginsert-as-artifact",
+    cl::desc("Allow G_INSERT to be considered an artifact. Hack around AMDGPU "
+             "test infinite loops."),
+    cl::Optional, cl::init(true));
+
 enum class DebugLocVerifyLevel {
   None,
   Legalizations,
@@ -103,6 +110,8 @@ static bool isArtifact(const MachineInstr &MI) {
   case TargetOpcode::G_BUILD_VECTOR:
   case TargetOpcode::G_EXTRACT:
     return true;
+  case TargetOpcode::G_INSERT:
+    return AllowGInsertAsArtifact;
   }
 }
 using InstListTy = GISelWorkList<256>;
@@ -230,7 +239,7 @@ Legalizer::legalizeMachineFunction(MachineFunction &MF, const LegalizerInfo &LI,
       }
 
       // Do the legalization for this instruction.
-      auto Res = Helper.legalizeInstrStep(MI);
+      auto Res = Helper.legalizeInstrStep(MI, LocObserver);
       // Error out if we couldn't legalize this instruction. We may want to
       // fall back to DAG ISel instead in the future.
       if (Res == LegalizerHelper::UnableToLegalize) {

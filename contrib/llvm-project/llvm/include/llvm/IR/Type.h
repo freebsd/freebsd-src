@@ -28,7 +28,6 @@
 
 namespace llvm {
 
-template<class GraphType> struct GraphTraits;
 class IntegerType;
 class LLVMContext;
 class PointerType;
@@ -228,6 +227,9 @@ public:
   /// True if this is an instance of PointerType.
   bool isPointerTy() const { return getTypeID() == PointerTyID; }
 
+  /// True if this is an instance of an opaque PointerType.
+  bool isOpaquePointerTy() const;
+
   /// Return true if this is a pointer type or a vector of pointer types.
   bool isPtrOrPtrVectorTy() const { return getScalarType()->isPointerTy(); }
 
@@ -308,6 +310,10 @@ public:
   /// ppc long double), this method returns -1.
   int getFPMantissaWidth() const;
 
+  /// Return whether the type is IEEE compatible, as defined by the eponymous
+  /// method in APFloat.
+  bool isIEEE() const { return APFloat::getZero(getFltSemantics()).isIEEE(); }
+
   /// If this is a vector type, return the element type, otherwise return
   /// 'this'.
   inline Type *getScalarType() const {
@@ -375,6 +381,11 @@ public:
     assert(getTypeID() == PointerTyID);
     return ContainedTys[0];
   }
+
+  /// Given vector type, change the element type,
+  /// whilst keeping the old number of elements.
+  /// For non-vectors simply returns \p EltTy.
+  inline Type *getWithNewType(Type *EltTy) const;
 
   /// Given an integer or vector type, change the lane bitwidth to NewBitwidth,
   /// whilst keeping the old number of lanes.
@@ -475,6 +486,7 @@ public:
 
   /// Return a pointer to the current type. This is equivalent to
   /// PointerType::get(Foo, AddrSpace).
+  /// TODO: Remove this after opaque pointer transition is complete.
   PointerType *getPointerTo(unsigned AddrSpace = 0) const;
 
 private:

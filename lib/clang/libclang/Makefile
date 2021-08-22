@@ -163,6 +163,7 @@ SRCS_FUL+=	Analysis/Dominators.cpp
 SRCS_MIN+=	Analysis/ExprMutationAnalyzer.cpp
 SRCS_FUL+=	Analysis/IssueHash.cpp
 SRCS_MIN+=	Analysis/LiveVariables.cpp
+SRCS_FUL+=	Analysis/MacroExpansionContext.cpp
 SRCS_MIN+=	Analysis/ObjCNoReturn.cpp
 SRCS_FUL+=	Analysis/PathDiagnostic.cpp
 SRCS_MIN+=	Analysis/PostOrderCFGView.cpp
@@ -178,6 +179,7 @@ SRCS_MIN+=	Basic/Builtins.cpp
 SRCS_MIN+=	Basic/CharInfo.cpp
 SRCS_MIN+=	Basic/CodeGenOptions.cpp
 SRCS_MIN+=	Basic/Cuda.cpp
+SRCS_MIN+=	Basic/DarwinSDKInfo.cpp
 SRCS_MIN+=	Basic/Diagnostic.cpp
 SRCS_MIN+=	Basic/DiagnosticIDs.cpp
 SRCS_MIN+=	Basic/DiagnosticOptions.cpp
@@ -189,12 +191,12 @@ SRCS_MIN+=	Basic/IdentifierTable.cpp
 SRCS_MIN+=	Basic/LangOptions.cpp
 SRCS_MIN+=	Basic/LangStandards.cpp
 SRCS_MIN+=	Basic/Module.cpp
+SRCS_MIN+=	Basic/NoSanitizeList.cpp
 SRCS_MIN+=	Basic/ObjCRuntime.cpp
 SRCS_MIN+=	Basic/OpenCLOptions.cpp
 SRCS_MIN+=	Basic/OpenMPKinds.cpp
 SRCS_MIN+=	Basic/OperatorPrecedence.cpp
 SRCS_MIN+=	Basic/ProfileList.cpp
-SRCS_MIN+=	Basic/SanitizerBlacklist.cpp
 SRCS_MIN+=	Basic/SanitizerSpecialCaseList.cpp
 SRCS_MIN+=	Basic/Sanitizers.cpp
 SRCS_MIN+=	Basic/SourceLocation.cpp
@@ -212,8 +214,9 @@ SRCS_MIN+=	Basic/Targets/BPF.cpp
 SRCS_MIN+=	Basic/Targets/Hexagon.cpp
 SRCS_MIN+=	Basic/Targets/Lanai.cpp
 SRCS_MIN+=	Basic/Targets/Le64.cpp
-SRCS_MIN+=	Basic/Targets/MSP430.cpp
+SRCS_MIN+=	Basic/Targets/M68k.cpp
 SRCS_MIN+=	Basic/Targets/Mips.cpp
+SRCS_MIN+=	Basic/Targets/MSP430.cpp
 SRCS_MIN+=	Basic/Targets/NVPTX.cpp
 SRCS_MIN+=	Basic/Targets/OSTargets.cpp
 SRCS_MIN+=	Basic/Targets/PNaCl.cpp
@@ -293,7 +296,6 @@ SRCS_MIN+=	CodeGen/VarBypassDetector.cpp
 SRCS_FUL+=	CrossTU/CrossTranslationUnit.cpp
 SRCS_MIN+=	Driver/Action.cpp
 SRCS_MIN+=	Driver/Compilation.cpp
-SRCS_MIN+=	Driver/DarwinSDKInfo.cpp
 SRCS_MIN+=	Driver/Distro.cpp
 SRCS_MIN+=	Driver/Driver.cpp
 SRCS_MIN+=	Driver/DriverOptions.cpp
@@ -306,10 +308,12 @@ SRCS_MIN+=	Driver/Tool.cpp
 SRCS_MIN+=	Driver/ToolChain.cpp
 SRCS_MIN+=	Driver/ToolChains/AIX.cpp
 SRCS_MIN+=	Driver/ToolChains/AMDGPU.cpp
+SRCS_MIN+=	Driver/ToolChains/AMDGPUOpenMP.cpp
 SRCS_MIN+=	Driver/ToolChains/AVR.cpp
 SRCS_MIN+=	Driver/ToolChains/Ananas.cpp
 SRCS_MIN+=	Driver/ToolChains/Arch/AArch64.cpp
 SRCS_MIN+=	Driver/ToolChains/Arch/ARM.cpp
+SRCS_MIN+=	Driver/ToolChains/Arch/M68k.cpp
 SRCS_MIN+=	Driver/ToolChains/Arch/Mips.cpp
 SRCS_MIN+=	Driver/ToolChains/Arch/PPC.cpp
 SRCS_MIN+=	Driver/ToolChains/Arch/RISCV.cpp
@@ -666,7 +670,7 @@ SRCS_FUL+=	StaticAnalyzer/Core/CheckerRegistryData.cpp
 SRCS_FUL+=	StaticAnalyzer/Core/CommonBugCategories.cpp
 SRCS_FUL+=	StaticAnalyzer/Core/ConstraintManager.cpp
 SRCS_FUL+=	StaticAnalyzer/Core/CoreEngine.cpp
-SRCS_FUL+=	StaticAnalyzer/Core/DynamicSize.cpp
+SRCS_FUL+=	StaticAnalyzer/Core/DynamicExtent.cpp
 SRCS_FUL+=	StaticAnalyzer/Core/DynamicType.cpp
 SRCS_FUL+=	StaticAnalyzer/Core/Environment.cpp
 SRCS_FUL+=	StaticAnalyzer/Core/ExplodedGraph.cpp
@@ -982,6 +986,20 @@ clang/Basic/arm_sve_typeflags.inc: \
 	    -I ${CLANG_SRCS}/include/clang/Basic -d ${.TARGET:C/$/.d/} \
 	    -o ${.TARGET} ${CLANG_SRCS}/include/clang/Basic/arm_sve.td
 TGHDRS+=	clang/Basic/arm_sve_typeflags.inc
+
+clang/Basic/riscv_vector_builtins.inc: \
+	${CLANG_SRCS}/include/clang/Basic/riscv_vector.td
+	${CLANG_TBLGEN} -gen-riscv-vector-builtins \
+	    -I ${CLANG_SRCS}/include/clang/Basic -d ${.TARGET:C/$/.d/} \
+	    -o ${.TARGET} ${CLANG_SRCS}/include/clang/Basic/riscv_vector.td
+TGHDRS+=	clang/Basic/riscv_vector_builtins.inc
+
+clang/Basic/riscv_vector_builtin_cg.inc: \
+	${CLANG_SRCS}/include/clang/Basic/riscv_vector.td
+	${CLANG_TBLGEN} -gen-riscv-vector-builtin-codegen \
+	    -I ${CLANG_SRCS}/include/clang/Basic -d ${.TARGET:C/$/.d/} \
+	    -o ${.TARGET} ${CLANG_SRCS}/include/clang/Basic/riscv_vector.td
+TGHDRS+=	clang/Basic/riscv_vector_builtin_cg.inc
 
 clang/Driver/Options.inc: ${CLANG_SRCS}/include/clang/Driver/Options.td
 	${LLVM_TBLGEN} -gen-opt-parser-defs \

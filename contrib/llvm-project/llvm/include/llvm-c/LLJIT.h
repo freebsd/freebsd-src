@@ -78,6 +78,9 @@ void LLVMOrcDisposeLLJITBuilder(LLVMOrcLLJITBuilderRef Builder);
  * instance. Calling this function is optional: if it is not called then the
  * LLJITBuilder will use JITTargeTMachineBuilder::detectHost to construct a
  * JITTargetMachineBuilder.
+ *
+ * This function takes ownership of the JTMB argument: clients should not
+ * dispose of the JITTargetMachineBuilder after calling this function.
  */
 void LLVMOrcLLJITBuilderSetJITTargetMachineBuilder(
     LLVMOrcLLJITBuilderRef Builder, LLVMOrcJITTargetMachineBuilderRef JTMB);
@@ -205,8 +208,32 @@ LLVMErrorRef LLVMOrcLLJITAddLLVMIRModuleWithRT(LLVMOrcLLJITRef J,
  * This operation does not take ownership of the Name argument.
  */
 LLVMErrorRef LLVMOrcLLJITLookup(LLVMOrcLLJITRef J,
-                                LLVMOrcJITTargetAddress *Result,
+                                LLVMOrcExecutorAddress *Result,
                                 const char *Name);
+
+/**
+ * Returns a non-owning reference to the LLJIT instance's object linking layer.
+ */
+LLVMOrcObjectLayerRef LLVMOrcLLJITGetObjLinkingLayer(LLVMOrcLLJITRef J);
+
+/**
+ * Returns a non-owning reference to the LLJIT instance's object linking layer.
+ */
+LLVMOrcObjectTransformLayerRef
+LLVMOrcLLJITGetObjTransformLayer(LLVMOrcLLJITRef J);
+
+/**
+ * Returns a non-owning reference to the LLJIT instance's IR transform layer.
+ */
+LLVMOrcIRTransformLayerRef LLVMOrcLLJITGetIRTransformLayer(LLVMOrcLLJITRef J);
+
+/**
+ * Get the LLJIT instance's default data layout string.
+ *
+ * This string is owned by the LLJIT instance and does not need to be freed
+ * by the caller.
+ */
+const char *LLVMOrcLLJITGetDataLayoutStr(LLVMOrcLLJITRef J);
 
 LLVM_C_EXTERN_C_END
 

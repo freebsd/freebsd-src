@@ -65,8 +65,7 @@ public:
 
   void emitCalleeSavedFrameMoves(MachineBasicBlock &MBB,
                                  MachineBasicBlock::iterator MBBI,
-                                 const DebugLoc &DL,
-                                 bool IsPrologue) const override;
+                                 const DebugLoc &DL, bool IsPrologue) const;
 
   /// emitProlog/emitEpilog - These methods insert prolog and epilog code into
   /// the function.
@@ -192,6 +191,10 @@ public:
   bool has128ByteRedZone(const MachineFunction& MF) const;
 
 private:
+  bool isWin64Prologue(const MachineFunction &MF) const;
+
+  bool needsDwarfCFI(const MachineFunction &MF) const;
+
   uint64_t calculateMaxStackAlign(const MachineFunction &MF) const;
 
   /// Emit target stack probe as a call to a helper function

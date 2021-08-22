@@ -35,7 +35,7 @@ size_t LanguageSet::Size() const { return bitvector.count(); }
 bool LanguageSet::Empty() const { return bitvector.none(); }
 bool LanguageSet::operator[](unsigned i) const { return bitvector[i]; }
 
-TypeSystem::~TypeSystem() {}
+TypeSystem::~TypeSystem() = default;
 
 static lldb::TypeSystemSP CreateInstanceHelper(lldb::LanguageType language,
                                                Module *module, Target *target) {
@@ -178,10 +178,9 @@ TypeSystem::CreateUtilityFunction(std::string text, std::string name) {
 
 #pragma mark TypeSystemMap
 
-TypeSystemMap::TypeSystemMap()
-    : m_mutex(), m_map(), m_clear_in_progress(false) {}
+TypeSystemMap::TypeSystemMap() : m_mutex(), m_map() {}
 
-TypeSystemMap::~TypeSystemMap() {}
+TypeSystemMap::~TypeSystemMap() = default;
 
 void TypeSystemMap::Clear() {
   collection map;

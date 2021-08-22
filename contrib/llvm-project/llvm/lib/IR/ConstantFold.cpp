@@ -117,8 +117,9 @@ static Constant *FoldBitCast(Constant *V, Type *DestTy) {
   // the first element.  If so, return the appropriate GEP instruction.
   if (PointerType *PTy = dyn_cast<PointerType>(V->getType()))
     if (PointerType *DPTy = dyn_cast<PointerType>(DestTy))
-      if (PTy->getAddressSpace() == DPTy->getAddressSpace()
-          && PTy->getElementType()->isSized()) {
+      if (PTy->getAddressSpace() == DPTy->getAddressSpace() &&
+          !PTy->isOpaque() && !DPTy->isOpaque() &&
+          PTy->getElementType()->isSized()) {
         SmallVector<Value*, 8> IdxList;
         Value *Zero =
           Constant::getNullValue(Type::getInt32Ty(DPTy->getContext()));
@@ -348,14 +349,22 @@ static Constant *ExtractConstantBytes(Constant *C, unsigned ByteStart,
   }
 }
 
+/// Wrapper around getFoldedSizeOfImpl() that adds caching.
+static Constant *getFoldedSizeOf(Type *Ty, Type *DestTy, bool Folded,
+                                 DenseMap<Type *, Constant *> &Cache);
+
 /// Return a ConstantExpr with type DestTy for sizeof on Ty, with any known
 /// factors factored out. If Folded is false, return null if no factoring was
 /// possible, to avoid endlessly bouncing an unfoldable expression back into the
 /// top-level folder.
-static Constant *getFoldedSizeOf(Type *Ty, Type *DestTy, bool Folded) {
+static Constant *getFoldedSizeOfImpl(Type *Ty, Type *DestTy, bool Folded,
+                                     DenseMap<Type *, Constant *> &Cache) {
+  // This is the actual implementation of getFoldedSizeOf(). To get the caching
+  // behavior, we need to call getFoldedSizeOf() when we recurse.
+
   if (ArrayType *ATy = dyn_cast<ArrayType>(Ty)) {
     Constant *N = ConstantInt::get(DestTy, ATy->getNumElements());
-    Constant *E = getFoldedSizeOf(ATy->getElementType(), DestTy, true);
+    Constant *E = getFoldedSizeOf(ATy->getElementType(), DestTy, true, Cache);
     return ConstantExpr::getNUWMul(E, N);
   }
 
@@ -367,11 +376,11 @@ static Constant *getFoldedSizeOf(Type *Ty, Type *DestTy, bool Folded) {
         return ConstantExpr::getNullValue(DestTy);
       // Check for a struct with all members having the same size.
       Constant *MemberSize =
-        getFoldedSizeOf(STy->getElementType(0), DestTy, true);
+          getFoldedSizeOf(STy->getElementType(0), DestTy, true, Cache);
       bool AllSame = true;
       for (unsigned i = 1; i != NumElems; ++i)
         if (MemberSize !=
-            getFoldedSizeOf(STy->getElementType(i), DestTy, true)) {
+            getFoldedSizeOf(STy->getElementType(i), DestTy, true, Cache)) {
           AllSame = false;
           break;
         }
@@ -385,10 +394,10 @@ static Constant *getFoldedSizeOf(Type *Ty, Type *DestTy, bool Folded) {
   // to an arbitrary pointee.
   if (PointerType *PTy = dyn_cast<PointerType>(Ty))
     if (!PTy->getElementType()->isIntegerTy(1))
-      return
-        getFoldedSizeOf(PointerType::get(IntegerType::get(PTy->getContext(), 1),
-                                         PTy->getAddressSpace()),
-                        DestTy, true);
+      return getFoldedSizeOf(
+          PointerType::get(IntegerType::get(PTy->getContext(), 1),
+                           PTy->getAddressSpace()),
+          DestTy, true, Cache);
 
   // If there's no interesting folding happening, bail so that we don't create
   // a constant that looks like it needs folding but really doesn't.
@@ -401,6 +410,20 @@ static Constant *getFoldedSizeOf(Type *Ty, Type *DestTy, bool Folded) {
                                                     DestTy, false),
                             C, DestTy);
   return C;
+}
+
+static Constant *getFoldedSizeOf(Type *Ty, Type *DestTy, bool Folded,
+                                 DenseMap<Type *, Constant *> &Cache) {
+  // Check for previously generated folded size constant.
+  auto It = Cache.find(Ty);
+  if (It != Cache.end())
+    return It->second;
+  return Cache[Ty] = getFoldedSizeOfImpl(Ty, DestTy, Folded, Cache);
+}
+
+static Constant *getFoldedSizeOf(Type *Ty, Type *DestTy, bool Folded) {
+  DenseMap<Type *, Constant *> Cache;
+  return getFoldedSizeOf(Ty, DestTy, Folded, Cache);
 }
 
 /// Return a ConstantExpr with type DestTy for alignof on Ty, with any known
@@ -858,7 +881,7 @@ Constant *llvm::ConstantFoldExtractElementInstruction(Constant *Val,
 
   // ee (gep (ptr, idx0, ...), idx) -> gep (ee (ptr, idx), ee (idx0, idx), ...)
   if (auto *CE = dyn_cast<ConstantExpr>(Val)) {
-    if (CE->getOpcode() == Instruction::GetElementPtr) {
+    if (auto *GEP = dyn_cast<GEPOperator>(CE)) {
       SmallVector<Constant *, 8> Ops;
       Ops.reserve(CE->getNumOperands());
       for (unsigned i = 0, e = CE->getNumOperands(); i != e; ++i) {
@@ -872,7 +895,7 @@ Constant *llvm::ConstantFoldExtractElementInstruction(Constant *Val,
           Ops.push_back(Op);
       }
       return CE->getWithOperands(Ops, ValVTy->getElementType(), false,
-                                 Ops[0]->getType()->getPointerElementType());
+                                 GEP->getSourceElementType());
     } else if (CE->getOpcode() == Instruction::InsertElement) {
       if (const auto *IEIdx = dyn_cast<ConstantInt>(CE->getOperand(2))) {
         if (APSInt::isSameValue(APSInt(IEIdx->getValue()),
@@ -885,14 +908,10 @@ Constant *llvm::ConstantFoldExtractElementInstruction(Constant *Val,
     }
   }
 
-  // CAZ of type ScalableVectorType and n < CAZ->getMinNumElements() =>
-  //   extractelt CAZ, n -> 0
-  if (auto *ValSVTy = dyn_cast<ScalableVectorType>(Val->getType())) {
-    if (!CIdx->uge(ValSVTy->getMinNumElements())) {
-      if (auto *CAZ = dyn_cast<ConstantAggregateZero>(Val))
-        return CAZ->getElementValue(CIdx->getZExtValue());
-    }
-    return nullptr;
+  // Lane < Splat minimum vector width => extractelt Splat(x), Lane -> x
+  if (CIdx->getValue().ult(ValVTy->getElementCount().getKnownMinValue())) {
+    if (Constant *SplatVal = Val->getSplatValue())
+      return SplatVal;
   }
 
   return Val->getAggregateElement(CIdx);
@@ -1105,14 +1124,7 @@ Constant *llvm::ConstantFoldBinaryInstruction(unsigned Opcode, Constant *C1,
   }
 
   // Binary operations propagate poison.
-  // FIXME: Currently, or/and i1 poison aren't folded into poison because
-  // it causes miscompilation when combined with another optimization in
-  // InstCombine (select i1 -> and/or). The select fold is wrong, but
-  // fixing it requires an effort, so temporarily disable this until it is
-  // fixed.
-  bool PoisonFold = !C1->getType()->isIntegerTy(1) ||
-                    (Opcode != Instruction::Or && Opcode != Instruction::And);
-  if (PoisonFold && (isa<PoisonValue>(C1) || isa<PoisonValue>(C2)))
+  if (isa<PoisonValue>(C1) || isa<PoisonValue>(C2))
     return PoisonValue::get(C1->getType());
 
   // Handle scalar UndefValue and scalable vector UndefValue. Fixed-length
@@ -1742,7 +1754,7 @@ static ICmpInst::Predicate evaluateICmpRelation(Constant *V1, Constant *V2,
       if (!GV->hasExternalWeakLinkage() && !isa<GlobalAlias>(GV) &&
           !NullPointerIsDefined(nullptr /* F */,
                                 GV->getType()->getAddressSpace()))
-        return ICmpInst::ICMP_NE;
+        return ICmpInst::ICMP_UGT;
     }
   } else if (const BlockAddress *BA = dyn_cast<BlockAddress>(V1)) {
     if (isa<ConstantExpr>(V2)) {  // Swap as necessary.
@@ -1816,35 +1828,27 @@ static ICmpInst::Predicate evaluateICmpRelation(Constant *V1, Constant *V2,
         // If we are comparing a GEP to a null pointer, check to see if the base
         // of the GEP equals the null pointer.
         if (const GlobalValue *GV = dyn_cast<GlobalValue>(CE1Op0)) {
-          if (GV->hasExternalWeakLinkage())
-            // Weak linkage GVals could be zero or not. We're comparing that
-            // to null pointer so its greater-or-equal
-            return isSigned ? ICmpInst::ICMP_SGE : ICmpInst::ICMP_UGE;
-          else
-            // If its not weak linkage, the GVal must have a non-zero address
-            // so the result is greater-than
-            return isSigned ? ICmpInst::ICMP_SGT : ICmpInst::ICMP_UGT;
+          // If its not weak linkage, the GVal must have a non-zero address
+          // so the result is greater-than
+          if (!GV->hasExternalWeakLinkage())
+            return ICmpInst::ICMP_UGT;
         } else if (isa<ConstantPointerNull>(CE1Op0)) {
           // If we are indexing from a null pointer, check to see if we have any
           // non-zero indices.
           for (unsigned i = 1, e = CE1->getNumOperands(); i != e; ++i)
             if (!CE1->getOperand(i)->isNullValue())
               // Offsetting from null, must not be equal.
-              return isSigned ? ICmpInst::ICMP_SGT : ICmpInst::ICMP_UGT;
+              return ICmpInst::ICMP_UGT;
           // Only zero indexes from null, must still be zero.
           return ICmpInst::ICMP_EQ;
         }
         // Otherwise, we can't really say if the first operand is null or not.
       } else if (const GlobalValue *GV2 = dyn_cast<GlobalValue>(V2)) {
         if (isa<ConstantPointerNull>(CE1Op0)) {
-          if (GV2->hasExternalWeakLinkage())
-            // Weak linkage GVals could be zero or not. We're comparing it to
-            // a null pointer, so its less-or-equal
-            return isSigned ? ICmpInst::ICMP_SLE : ICmpInst::ICMP_ULE;
-          else
-            // If its not weak linkage, the GVal must have a non-zero address
-            // so the result is less-than
-            return isSigned ? ICmpInst::ICMP_SLT : ICmpInst::ICMP_ULT;
+          // If its not weak linkage, the GVal must have a non-zero address
+          // so the result is less-than
+          if (!GV2->hasExternalWeakLinkage())
+            return ICmpInst::ICMP_ULT;
         } else if (const GlobalValue *GV = dyn_cast<GlobalValue>(CE1Op0)) {
           if (GV == GV2) {
             // If this is a getelementptr of the same global, then it must be
@@ -1854,7 +1858,7 @@ static ICmpInst::Predicate evaluateICmpRelation(Constant *V1, Constant *V2,
             assert(CE1->getNumOperands() == 2 &&
                    !CE1->getOperand(1)->isNullValue() &&
                    "Surprising getelementptr!");
-            return isSigned ? ICmpInst::ICMP_SGT : ICmpInst::ICMP_UGT;
+            return ICmpInst::ICMP_UGT;
           } else {
             if (CE1GEP->hasAllZeroIndices())
               return areGlobalsPotentiallyEqual(GV, GV2);
@@ -1989,7 +1993,7 @@ Constant *llvm::ConstantFoldCompareInstruction(unsigned short pred,
       }
   // icmp eq/ne(GV,null) -> false/true
   } else if (C2->isNullValue()) {
-    if (const GlobalValue *GV = dyn_cast<GlobalValue>(C1))
+    if (const GlobalValue *GV = dyn_cast<GlobalValue>(C1)) {
       // Don't try to evaluate aliases.  External weak GV can be null.
       if (!isa<GlobalAlias>(GV) && !GV->hasExternalWeakLinkage() &&
           !NullPointerIsDefined(nullptr /* F */,
@@ -1999,6 +2003,16 @@ Constant *llvm::ConstantFoldCompareInstruction(unsigned short pred,
         else if (pred == ICmpInst::ICMP_NE)
           return ConstantInt::getTrue(C1->getContext());
       }
+    }
+
+    // The caller is expected to commute the operands if the constant expression
+    // is C2.
+    // C1 >= 0 --> true
+    if (pred == ICmpInst::ICMP_UGE)
+      return Constant::getAllOnesValue(ResultTy);
+    // C1 < 0 --> false
+    if (pred == ICmpInst::ICMP_ULT)
+      return Constant::getNullValue(ResultTy);
   }
 
   // If the comparison is a comparison between two i1's, simplify it.
@@ -2332,6 +2346,97 @@ static bool isIndexInRangeOfArrayType(uint64_t NumElements,
   return true;
 }
 
+// Combine Indices - If the source pointer to this getelementptr instruction
+// is a getelementptr instruction, combine the indices of the two
+// getelementptr instructions into a single instruction.
+static Constant *foldGEPOfGEP(GEPOperator *GEP, Type *PointeeTy, bool InBounds,
+                              ArrayRef<Value *> Idxs) {
+  if (PointeeTy != GEP->getResultElementType())
+    return nullptr;
+
+  Constant *Idx0 = cast<Constant>(Idxs[0]);
+  if (Idx0->isNullValue()) {
+    // Handle the simple case of a zero index.
+    SmallVector<Value*, 16> NewIndices;
+    NewIndices.reserve(Idxs.size() + GEP->getNumIndices());
+    NewIndices.append(GEP->idx_begin(), GEP->idx_end());
+    NewIndices.append(Idxs.begin() + 1, Idxs.end());
+    return ConstantExpr::getGetElementPtr(
+        GEP->getSourceElementType(), cast<Constant>(GEP->getPointerOperand()),
+        NewIndices, InBounds && GEP->isInBounds(), GEP->getInRangeIndex());
+  }
+
+  gep_type_iterator LastI = gep_type_end(GEP);
+  for (gep_type_iterator I = gep_type_begin(GEP), E = gep_type_end(GEP);
+       I != E; ++I)
+    LastI = I;
+
+  // We cannot combine indices if doing so would take us outside of an
+  // array or vector.  Doing otherwise could trick us if we evaluated such a
+  // GEP as part of a load.
+  //
+  // e.g. Consider if the original GEP was:
+  // i8* getelementptr ({ [2 x i8], i32, i8, [3 x i8] }* @main.c,
+  //                    i32 0, i32 0, i64 0)
+  //
+  // If we then tried to offset it by '8' to get to the third element,
+  // an i8, we should *not* get:
+  // i8* getelementptr ({ [2 x i8], i32, i8, [3 x i8] }* @main.c,
+  //                    i32 0, i32 0, i64 8)
+  //
+  // This GEP tries to index array element '8  which runs out-of-bounds.
+  // Subsequent evaluation would get confused and produce erroneous results.
+  //
+  // The following prohibits such a GEP from being formed by checking to see
+  // if the index is in-range with respect to an array.
+  if (!LastI.isSequential())
+    return nullptr;
+  ConstantInt *CI = dyn_cast<ConstantInt>(Idx0);
+  if (!CI)
+    return nullptr;
+  if (LastI.isBoundedSequential() &&
+      !isIndexInRangeOfArrayType(LastI.getSequentialNumElements(), CI))
+    return nullptr;
+
+  // TODO: This code may be extended to handle vectors as well.
+  auto *LastIdx = cast<Constant>(GEP->getOperand(GEP->getNumOperands()-1));
+  Type *LastIdxTy = LastIdx->getType();
+  if (LastIdxTy->isVectorTy())
+    return nullptr;
+
+  SmallVector<Value*, 16> NewIndices;
+  NewIndices.reserve(Idxs.size() + GEP->getNumIndices());
+  NewIndices.append(GEP->idx_begin(), GEP->idx_end() - 1);
+
+  // Add the last index of the source with the first index of the new GEP.
+  // Make sure to handle the case when they are actually different types.
+  if (LastIdxTy != Idx0->getType()) {
+    unsigned CommonExtendedWidth =
+        std::max(LastIdxTy->getIntegerBitWidth(),
+                 Idx0->getType()->getIntegerBitWidth());
+    CommonExtendedWidth = std::max(CommonExtendedWidth, 64U);
+
+    Type *CommonTy =
+        Type::getIntNTy(LastIdxTy->getContext(), CommonExtendedWidth);
+    Idx0 = ConstantExpr::getSExtOrBitCast(Idx0, CommonTy);
+    LastIdx = ConstantExpr::getSExtOrBitCast(LastIdx, CommonTy);
+  }
+
+  NewIndices.push_back(ConstantExpr::get(Instruction::Add, Idx0, LastIdx));
+  NewIndices.append(Idxs.begin() + 1, Idxs.end());
+
+  // The combined GEP normally inherits its index inrange attribute from
+  // the inner GEP, but if the inner GEP's last index was adjusted by the
+  // outer GEP, any inbounds attribute on that index is invalidated.
+  Optional<unsigned> IRIndex = GEP->getInRangeIndex();
+  if (IRIndex && *IRIndex == GEP->getNumIndices() - 1)
+    IRIndex = None;
+
+  return ConstantExpr::getGetElementPtr(
+      GEP->getSourceElementType(), cast<Constant>(GEP->getPointerOperand()),
+      NewIndices, InBounds && GEP->isInBounds(), IRIndex);
+}
+
 Constant *llvm::ConstantFoldGetElementPtr(Type *PointeeTy, Constant *C,
                                           bool InBounds,
                                           Optional<unsigned> InRangeIndex,
@@ -2389,91 +2494,9 @@ Constant *llvm::ConstantFoldGetElementPtr(Type *PointeeTy, Constant *C,
   }
 
   if (ConstantExpr *CE = dyn_cast<ConstantExpr>(C)) {
-    // Combine Indices - If the source pointer to this getelementptr instruction
-    // is a getelementptr instruction, combine the indices of the two
-    // getelementptr instructions into a single instruction.
-    //
-    if (CE->getOpcode() == Instruction::GetElementPtr) {
-      gep_type_iterator LastI = gep_type_end(CE);
-      for (gep_type_iterator I = gep_type_begin(CE), E = gep_type_end(CE);
-           I != E; ++I)
-        LastI = I;
-
-      // We cannot combine indices if doing so would take us outside of an
-      // array or vector.  Doing otherwise could trick us if we evaluated such a
-      // GEP as part of a load.
-      //
-      // e.g. Consider if the original GEP was:
-      // i8* getelementptr ({ [2 x i8], i32, i8, [3 x i8] }* @main.c,
-      //                    i32 0, i32 0, i64 0)
-      //
-      // If we then tried to offset it by '8' to get to the third element,
-      // an i8, we should *not* get:
-      // i8* getelementptr ({ [2 x i8], i32, i8, [3 x i8] }* @main.c,
-      //                    i32 0, i32 0, i64 8)
-      //
-      // This GEP tries to index array element '8  which runs out-of-bounds.
-      // Subsequent evaluation would get confused and produce erroneous results.
-      //
-      // The following prohibits such a GEP from being formed by checking to see
-      // if the index is in-range with respect to an array.
-      // TODO: This code may be extended to handle vectors as well.
-      bool PerformFold = false;
-      if (Idx0->isNullValue())
-        PerformFold = true;
-      else if (LastI.isSequential())
-        if (ConstantInt *CI = dyn_cast<ConstantInt>(Idx0))
-          PerformFold = (!LastI.isBoundedSequential() ||
-                         isIndexInRangeOfArrayType(
-                             LastI.getSequentialNumElements(), CI)) &&
-                        !CE->getOperand(CE->getNumOperands() - 1)
-                             ->getType()
-                             ->isVectorTy();
-
-      if (PerformFold) {
-        SmallVector<Value*, 16> NewIndices;
-        NewIndices.reserve(Idxs.size() + CE->getNumOperands());
-        NewIndices.append(CE->op_begin() + 1, CE->op_end() - 1);
-
-        // Add the last index of the source with the first index of the new GEP.
-        // Make sure to handle the case when they are actually different types.
-        Constant *Combined = CE->getOperand(CE->getNumOperands()-1);
-        // Otherwise it must be an array.
-        if (!Idx0->isNullValue()) {
-          Type *IdxTy = Combined->getType();
-          if (IdxTy != Idx0->getType()) {
-            unsigned CommonExtendedWidth =
-                std::max(IdxTy->getIntegerBitWidth(),
-                         Idx0->getType()->getIntegerBitWidth());
-            CommonExtendedWidth = std::max(CommonExtendedWidth, 64U);
-
-            Type *CommonTy =
-                Type::getIntNTy(IdxTy->getContext(), CommonExtendedWidth);
-            Constant *C1 = ConstantExpr::getSExtOrBitCast(Idx0, CommonTy);
-            Constant *C2 = ConstantExpr::getSExtOrBitCast(Combined, CommonTy);
-            Combined = ConstantExpr::get(Instruction::Add, C1, C2);
-          } else {
-            Combined =
-              ConstantExpr::get(Instruction::Add, Idx0, Combined);
-          }
-        }
-
-        NewIndices.push_back(Combined);
-        NewIndices.append(Idxs.begin() + 1, Idxs.end());
-
-        // The combined GEP normally inherits its index inrange attribute from
-        // the inner GEP, but if the inner GEP's last index was adjusted by the
-        // outer GEP, any inbounds attribute on that index is invalidated.
-        Optional<unsigned> IRIndex = cast<GEPOperator>(CE)->getInRangeIndex();
-        if (IRIndex && *IRIndex == CE->getNumOperands() - 2 && !Idx0->isNullValue())
-          IRIndex = None;
-
-        return ConstantExpr::getGetElementPtr(
-            cast<GEPOperator>(CE)->getSourceElementType(), CE->getOperand(0),
-            NewIndices, InBounds && cast<GEPOperator>(CE)->isInBounds(),
-            IRIndex);
-      }
-    }
+    if (auto *GEP = dyn_cast<GEPOperator>(CE))
+      if (Constant *C = foldGEPOfGEP(GEP, PointeeTy, InBounds, Idxs))
+        return C;
 
     // Attempt to fold casts to the same type away.  For example, folding:
     //

@@ -19,6 +19,7 @@
 #include "Symbols.h"
 #include "SyntheticSections.h"
 #include "Target.h"
+#include "lld/Common/Arrays.h"
 #include "lld/Common/Filesystem.h"
 #include "lld/Common/Memory.h"
 #include "lld/Common/Strings.h"
@@ -1087,7 +1088,7 @@ void PhdrEntry::add(OutputSection *sec) {
 // need these symbols, since IRELATIVE relocs are resolved through GOT
 // and PLT. For details, see http://www.airs.com/blog/archives/403.
 template <class ELFT> void Writer<ELFT>::addRelIpltSymbols() {
-  if (config->relocatable || needsInterpSection())
+  if (config->relocatable || config->isPic)
     return;
 
   // By default, __rela_iplt_{start,end} belong to a dummy section 0
@@ -1291,22 +1292,39 @@ findOrphanPos(std::vector<BaseCommand *>::iterator b,
 
 // Adds random priorities to sections not already in the map.
 static void maybeShuffle(DenseMap<const InputSectionBase *, int> &order) {
-  if (!config->shuffleSectionSeed)
+  if (config->shuffleSections.empty())
     return;
 
-  std::vector<int> priorities(inputSections.size() - order.size());
+  std::vector<InputSectionBase *> matched, sections = inputSections;
+  matched.reserve(sections.size());
+  for (const auto &patAndSeed : config->shuffleSections) {
+    matched.clear();
+    for (InputSectionBase *sec : sections)
+      if (patAndSeed.first.match(sec->name))
+        matched.push_back(sec);
+    const uint32_t seed = patAndSeed.second;
+    if (seed == UINT32_MAX) {
+      // If --shuffle-sections <section-glob>=-1, reverse the section order. The
+      // section order is stable even if the number of sections changes. This is
+      // useful to catch issues like static initialization order fiasco
+      // reliably.
+      std::reverse(matched.begin(), matched.end());
+    } else {
+      std::mt19937 g(seed ? seed : std::random_device()());
+      llvm::shuffle(matched.begin(), matched.end(), g);
+    }
+    size_t i = 0;
+    for (InputSectionBase *&sec : sections)
+      if (patAndSeed.first.match(sec->name))
+        sec = matched[i++];
+  }
+
   // Existing priorities are < 0, so use priorities >= 0 for the missing
   // sections.
-  int curPrio = 0;
-  for (int &prio : priorities)
-    prio = curPrio++;
-  uint32_t seed = *config->shuffleSectionSeed;
-  std::mt19937 g(seed ? seed : std::random_device()());
-  llvm::shuffle(priorities.begin(), priorities.end(), g);
-  int prioIndex = 0;
-  for (InputSectionBase *sec : inputSections) {
-    if (order.try_emplace(sec, priorities[prioIndex]).second)
-      ++prioIndex;
+  int prio = 0;
+  for (InputSectionBase *sec : sections) {
+    if (order.try_emplace(sec, prio).second)
+      ++prio;
   }
 }
 
@@ -1446,8 +1464,8 @@ static void sortSection(OutputSection *sec,
     return;
 
   // IRelative relocations that usually live in the .rel[a].dyn section should
-  // be proccessed last by the dynamic loader. To achieve that we add synthetic
-  // sections in the required order from the begining so that the in.relaIplt
+  // be processed last by the dynamic loader. To achieve that we add synthetic
+  // sections in the required order from the beginning so that the in.relaIplt
   // section is placed last in an output section. Here we just do not apply
   // sorting for an output section which holds the in.relaIplt section.
   if (in.relaIplt->getParent() == sec)
@@ -1769,7 +1787,7 @@ template <class ELFT> void Writer<ELFT>::finalizeAddressDependentContent() {
              Twine(os->alignment) + ")");
 }
 
-// If Input Sections have been shrinked (basic block sections) then
+// If Input Sections have been shrunk (basic block sections) then
 // update symbol values and sizes associated with these sections.  With basic
 // block sections, input sections can shrink when the jump instructions at
 // the end of the section are relaxed.
@@ -1871,26 +1889,44 @@ template <class ELFT> void Writer<ELFT>::optimizeBasicBlockJumps() {
 // out to be empty.
 static void removeUnusedSyntheticSections() {
   // All input synthetic sections that can be empty are placed after
-  // all regular ones. We iterate over them all and exit at first
-  // non-synthetic.
-  for (InputSectionBase *s : llvm::reverse(inputSections)) {
-    SyntheticSection *ss = dyn_cast<SyntheticSection>(s);
-    if (!ss)
-      return;
-    OutputSection *os = ss->getParent();
-    if (!os || ss->isNeeded())
-      continue;
+  // all regular ones. Reverse iterate to find the first synthetic section
+  // after a non-synthetic one which will be our starting point.
+  auto start = std::find_if(inputSections.rbegin(), inputSections.rend(),
+                            [](InputSectionBase *s) {
+                              return !isa<SyntheticSection>(s);
+                            })
+                   .base();
 
-    // If we reach here, then ss is an unused synthetic section and we want to
-    // remove it from the corresponding input section description, and
-    // orphanSections.
-    for (BaseCommand *b : os->sectionCommands)
-      if (auto *isd = dyn_cast<InputSectionDescription>(b))
-        llvm::erase_if(isd->sections,
-                       [=](InputSection *isec) { return isec == ss; });
-    llvm::erase_if(script->orphanSections,
-                   [=](const InputSectionBase *isec) { return isec == ss; });
-  }
+  DenseSet<InputSectionDescription *> isdSet;
+  // Mark unused synthetic sections for deletion
+  auto end = std::stable_partition(
+      start, inputSections.end(), [&](InputSectionBase *s) {
+        SyntheticSection *ss = dyn_cast<SyntheticSection>(s);
+        OutputSection *os = ss->getParent();
+        if (!os || ss->isNeeded())
+          return true;
+
+        // If we reach here, then ss is an unused synthetic section and we want
+        // to remove it from the corresponding input section description, and
+        // orphanSections.
+        for (BaseCommand *b : os->sectionCommands)
+          if (auto *isd = dyn_cast<InputSectionDescription>(b))
+            isdSet.insert(isd);
+
+        llvm::erase_if(
+            script->orphanSections,
+            [=](const InputSectionBase *isec) { return isec == ss; });
+
+        return false;
+      });
+
+  DenseSet<InputSectionBase *> unused(end, inputSections.end());
+  for (auto *isd : isdSet)
+    llvm::erase_if(isd->sections,
+                   [=](InputSection *isec) { return unused.count(isec); });
+
+  // Erase unused synthetic sections.
+  inputSections.erase(end, inputSections.end());
 }
 
 // Create output section objects and add them to OutputSections.
@@ -1988,6 +2024,10 @@ template <class ELFT> void Writer<ELFT>::finalizeSections() {
     in.iplt->addSymbols();
 
   if (config->unresolvedSymbolsInShlib != UnresolvedPolicy::Ignore) {
+    auto diagnose =
+        config->unresolvedSymbolsInShlib == UnresolvedPolicy::ReportError
+            ? errorOrWarn
+            : warn;
     // Error on undefined symbols in a shared object, if all of its DT_NEEDED
     // entries are seen. These cases would otherwise lead to runtime errors
     // reported by the dynamic linker.
@@ -1995,23 +2035,18 @@ template <class ELFT> void Writer<ELFT>::finalizeSections() {
     // ld.bfd traces all DT_NEEDED to emulate the logic of the dynamic linker to
     // catch more cases. That is too much for us. Our approach resembles the one
     // used in ld.gold, achieves a good balance to be useful but not too smart.
-    for (SharedFile *file : sharedFiles)
-      file->allNeededIsKnown =
+    for (SharedFile *file : sharedFiles) {
+      bool allNeededIsKnown =
           llvm::all_of(file->dtNeeded, [&](StringRef needed) {
             return symtab->soNames.count(needed);
           });
-
-    for (Symbol *sym : symtab->symbols())
-      if (sym->isUndefined() && !sym->isWeak())
-        if (auto *f = dyn_cast_or_null<SharedFile>(sym->file))
-          if (f->allNeededIsKnown) {
-            auto diagnose = config->unresolvedSymbolsInShlib ==
-                                    UnresolvedPolicy::ReportError
-                                ? errorOrWarn
-                                : warn;
-            diagnose(toString(f) + ": undefined reference to " +
-                     toString(*sym) + " [--no-allow-shlib-undefined]");
-          }
+      if (!allNeededIsKnown)
+        continue;
+      for (Symbol *sym : file->requiredSymbols)
+        if (sym->isUndefined() && !sym->isWeak())
+          diagnose(toString(file) + ": undefined reference to " +
+                   toString(*sym) + " [--no-allow-shlib-undefined]");
+    }
   }
 
   {
@@ -2039,7 +2074,8 @@ template <class ELFT> void Writer<ELFT>::finalizeSections() {
       for (const SymbolTableEntry &e : part.dynSymTab->getSymbols())
         syms.insert(e.sym);
       for (DynamicReloc &reloc : part.relaDyn->relocs)
-        if (reloc.sym && !reloc.useSymVA && syms.insert(reloc.sym).second)
+        if (reloc.sym && reloc.needsDynSymIndex() &&
+            syms.insert(reloc.sym).second)
           part.dynSymTab->addSymbol(reloc.sym);
     }
   }
@@ -2279,7 +2315,7 @@ void Writer<ELFT>::addStartStopSymbols(OutputSection *sec) {
 }
 
 static bool needsPtLoad(OutputSection *sec) {
-  if (!(sec->flags & SHF_ALLOC) || sec->noload)
+  if (!(sec->flags & SHF_ALLOC))
     return false;
 
   // Don't allocate VA space for TLS NOBITS sections. The PT_TLS PHDR is
@@ -2953,19 +2989,13 @@ template <class ELFT> void Writer<ELFT>::writeSections() {
   for (OutputSection *sec : outputSections)
     if (sec->type != SHT_REL && sec->type != SHT_RELA)
       sec->writeTo<ELFT>(Out::bufferStart + sec->offset);
-}
 
-// Split one uint8 array into small pieces of uint8 arrays.
-static std::vector<ArrayRef<uint8_t>> split(ArrayRef<uint8_t> arr,
-                                            size_t chunkSize) {
-  std::vector<ArrayRef<uint8_t>> ret;
-  while (arr.size() > chunkSize) {
-    ret.push_back(arr.take_front(chunkSize));
-    arr = arr.drop_front(chunkSize);
+  // Finally, check that all dynamic relocation addends were written correctly.
+  if (config->checkDynamicRelocs && config->writeAddends) {
+    for (OutputSection *sec : outputSections)
+      if (sec->type == SHT_REL || sec->type == SHT_RELA)
+        sec->checkDynRelAddends(Out::bufferStart);
   }
-  if (!arr.empty())
-    ret.push_back(arr);
-  return ret;
 }
 
 // Computes a hash value of Data using a given hash function.

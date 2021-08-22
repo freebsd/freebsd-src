@@ -26,6 +26,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
@@ -309,9 +310,8 @@ bool LUAnalysisCache::countLoop(const Loop *L, const TargetTransformInfo &TTI,
     // consideration code simplification opportunities and code that can
     // be shared by the resultant unswitched loops.
     CodeMetrics Metrics;
-    for (Loop::block_iterator I = L->block_begin(), E = L->block_end(); I != E;
-         ++I)
-      Metrics.analyzeBasicBlock(*I, TTI, EphValues);
+    for (BasicBlock *BB : L->blocks())
+      Metrics.analyzeBasicBlock(BB, TTI, EphValues);
 
     Props.SizeEstimation = Metrics.NumInsts;
     Props.CanBeUnswitchedCount = MaxSize / (Props.SizeEstimation);
@@ -387,8 +387,8 @@ void LUAnalysisCache::cloneData(const Loop *NewLoop, const Loop *OldLoop,
   // Clone unswitched values info:
   // for new loop switches we clone info about values that was
   // already unswitched and has redundant successors.
-  for (UnswitchedValsIt I = Insts.begin(); I != Insts.end(); ++I) {
-    const SwitchInst *OldInst = I->first;
+  for (const auto &I : Insts) {
+    const SwitchInst *OldInst = I.first;
     Value *NewI = VMap.lookup(OldInst);
     const SwitchInst *NewInst = cast_or_null<SwitchInst>(NewI);
     assert(NewInst && "All instructions that are in SrcBB must be in VMap.");
@@ -640,145 +640,6 @@ static bool equalityPropUnSafe(Value &LoopCond) {
   return false;
 }
 
-/// Check if the loop header has a conditional branch that is not
-/// loop-invariant, because it involves load instructions. If all paths from
-/// either the true or false successor to the header or loop exists do not
-/// modify the memory feeding the condition, perform 'partial unswitching'. That
-/// is, duplicate the instructions feeding the condition in the pre-header. Then
-/// unswitch on the duplicated condition. The condition is now known in the
-/// unswitched version for the 'invariant' path through the original loop.
-///
-/// If the branch condition of the header is partially invariant, return a pair
-/// containing the instructions to duplicate and a boolean Constant to update
-/// the condition in the loops created for the true or false successors.
-static std::pair<SmallVector<Instruction *, 4>, Constant *>
-hasPartialIVCondition(Loop *L, MemorySSA &MSSA, AAResults *AA) {
-  SmallVector<Instruction *, 4> ToDuplicate;
-
-  auto *TI = dyn_cast<BranchInst>(L->getHeader()->getTerminator());
-  if (!TI || !TI->isConditional())
-    return {};
-
-  auto *CondI = dyn_cast<CmpInst>(TI->getCondition());
-  // The case with the condition outside the loop should already be handled
-  // earlier.
-  if (!CondI || !L->contains(CondI))
-    return {};
-
-  ToDuplicate.push_back(CondI);
-
-  SmallVector<Value *, 4> WorkList;
-  WorkList.append(CondI->op_begin(), CondI->op_end());
-
-  SmallVector<MemoryAccess *, 4> AccessesToCheck;
-  SmallVector<MemoryLocation, 4> AccessedLocs;
-  while (!WorkList.empty()) {
-    Instruction *I = dyn_cast<Instruction>(WorkList.pop_back_val());
-    if (!I || !L->contains(I))
-      continue;
-
-    // TODO: support additional instructions.
-    if (!isa<LoadInst>(I) && !isa<GetElementPtrInst>(I))
-      return {};
-
-    // Do not duplicate volatile and atomic loads.
-    if (auto *LI = dyn_cast<LoadInst>(I))
-      if (LI->isVolatile() || LI->isAtomic())
-        return {};
-
-    ToDuplicate.push_back(I);
-    if (MemoryAccess *MA = MSSA.getMemoryAccess(I)) {
-      if (auto *MemUse = dyn_cast_or_null<MemoryUse>(MA)) {
-        // Queue the defining access to check for alias checks.
-        AccessesToCheck.push_back(MemUse->getDefiningAccess());
-        AccessedLocs.push_back(MemoryLocation::get(I));
-      } else {
-        // MemoryDefs may clobber the location or may be atomic memory
-        // operations. Bail out.
-        return {};
-      }
-    }
-    WorkList.append(I->op_begin(), I->op_end());
-  }
-
-  if (ToDuplicate.size() <= 1)
-    return {};
-
-  auto HasNoClobbersOnPath =
-      [L, AA, &AccessedLocs](BasicBlock *Succ, BasicBlock *Header,
-                             SmallVector<MemoryAccess *, 4> AccessesToCheck) {
-        // First, collect all blocks in the loop that are on a patch from Succ
-        // to the header.
-        SmallVector<BasicBlock *, 4> WorkList;
-        WorkList.push_back(Succ);
-        WorkList.push_back(Header);
-        SmallPtrSet<BasicBlock *, 4> Seen;
-        Seen.insert(Header);
-        while (!WorkList.empty()) {
-          BasicBlock *Current = WorkList.pop_back_val();
-          if (!L->contains(Current))
-            continue;
-          const auto &SeenIns = Seen.insert(Current);
-          if (!SeenIns.second)
-            continue;
-
-          WorkList.append(succ_begin(Current), succ_end(Current));
-        }
-
-        // Require at least 2 blocks on a path through the loop. This skips
-        // paths that directly exit the loop.
-        if (Seen.size() < 2)
-          return false;
-
-        // Next, check if there are any MemoryDefs that are on the path through
-        // the loop (in the Seen set) and they may-alias any of the locations in
-        // AccessedLocs. If that is the case, they may modify the condition and
-        // partial unswitching is not possible.
-        SmallPtrSet<MemoryAccess *, 4> SeenAccesses;
-        while (!AccessesToCheck.empty()) {
-          MemoryAccess *Current = AccessesToCheck.pop_back_val();
-          auto SeenI = SeenAccesses.insert(Current);
-          if (!SeenI.second || !Seen.contains(Current->getBlock()))
-            continue;
-
-          // Bail out if exceeded the threshold.
-          if (SeenAccesses.size() >= MSSAThreshold)
-            return false;
-
-          // MemoryUse are read-only accesses.
-          if (isa<MemoryUse>(Current))
-            continue;
-
-          // For a MemoryDef, check if is aliases any of the location feeding
-          // the original condition.
-          if (auto *CurrentDef = dyn_cast<MemoryDef>(Current)) {
-            if (any_of(AccessedLocs, [AA, CurrentDef](MemoryLocation &Loc) {
-                  return isModSet(
-                      AA->getModRefInfo(CurrentDef->getMemoryInst(), Loc));
-                }))
-              return false;
-          }
-
-          for (Use &U : Current->uses())
-            AccessesToCheck.push_back(cast<MemoryAccess>(U.getUser()));
-        }
-
-        return true;
-      };
-
-  // If we branch to the same successor, partial unswitching will not be
-  // beneficial.
-  if (TI->getSuccessor(0) == TI->getSuccessor(1))
-    return {};
-
-  if (HasNoClobbersOnPath(TI->getSuccessor(0), L->getHeader(), AccessesToCheck))
-    return {ToDuplicate, ConstantInt::getTrue(TI->getContext())};
-  if (HasNoClobbersOnPath(TI->getSuccessor(1), L->getHeader(), AccessesToCheck))
-    return {ToDuplicate, ConstantInt::getFalse(TI->getContext())};
-
-  return {};
-}
-
 /// Do actual work and unswitch loop if possible and profitable.
 bool LoopUnswitch::processCurrentLoop() {
   bool Changed = false;
@@ -986,17 +847,57 @@ bool LoopUnswitch::processCurrentLoop() {
   // metadata, to avoid unswitching the same loop multiple times.
   if (MSSA &&
       !findOptionMDForLoop(CurrentLoop, "llvm.loop.unswitch.partial.disable")) {
-    auto ToDuplicate = hasPartialIVCondition(CurrentLoop, *MSSA, AA);
-    if (!ToDuplicate.first.empty()) {
+    if (auto Info =
+            hasPartialIVCondition(*CurrentLoop, MSSAThreshold, *MSSA, *AA)) {
+      assert(!Info->InstToDuplicate.empty() &&
+             "need at least a partially invariant condition");
       LLVM_DEBUG(dbgs() << "loop-unswitch: Found partially invariant condition "
-                        << *ToDuplicate.first[0] << "\n");
-      ++NumBranches;
-      unswitchIfProfitable(ToDuplicate.first[0], ToDuplicate.second,
-                           CurrentLoop->getHeader()->getTerminator(),
-                           ToDuplicate.first);
+                        << *Info->InstToDuplicate[0] << "\n");
 
-      RedoLoop = false;
-      return true;
+      Instruction *TI = CurrentLoop->getHeader()->getTerminator();
+      Value *LoopCond = Info->InstToDuplicate[0];
+
+      // If the partially unswitched path is a no-op and has a single exit
+      // block, we do not need to do full unswitching. Instead, we can directly
+      // branch to the exit.
+      // TODO: Instead of duplicating the checks, we could also just directly
+      // branch to the exit from the conditional branch in the loop.
+      if (Info->PathIsNoop) {
+        if (HasBranchDivergence &&
+            getAnalysis<LegacyDivergenceAnalysis>().isDivergent(LoopCond)) {
+          LLVM_DEBUG(dbgs() << "NOT unswitching loop %"
+                            << CurrentLoop->getHeader()->getName()
+                            << " at non-trivial condition '"
+                            << *Info->KnownValue << "' == " << *LoopCond << "\n"
+                            << ". Condition is divergent.\n");
+          return false;
+        }
+
+        ++NumBranches;
+
+        BasicBlock *TrueDest = LoopHeader;
+        BasicBlock *FalseDest = Info->ExitForPath;
+        if (Info->KnownValue->isOneValue())
+          std::swap(TrueDest, FalseDest);
+
+        auto *OldBr =
+            cast<BranchInst>(CurrentLoop->getLoopPreheader()->getTerminator());
+        emitPreheaderBranchOnCondition(LoopCond, Info->KnownValue, TrueDest,
+                                       FalseDest, OldBr, TI,
+                                       Info->InstToDuplicate);
+        delete OldBr;
+        RedoLoop = false;
+        return true;
+      }
+
+      // Otherwise, the path is not a no-op. Run regular unswitching.
+      if (unswitchIfProfitable(LoopCond, Info->KnownValue,
+                               CurrentLoop->getHeader()->getTerminator(),
+                               Info->InstToDuplicate)) {
+        ++NumBranches;
+        RedoLoop = false;
+        return true;
+      }
     }
   }
 
@@ -1026,9 +927,9 @@ static bool isTrivialLoopExitBlockHelper(Loop *L, BasicBlock *BB,
   }
 
   // Otherwise, this is an unvisited intra-loop node.  Check all successors.
-  for (succ_iterator SI = succ_begin(BB), E = succ_end(BB); SI != E; ++SI) {
+  for (BasicBlock *Succ : successors(BB)) {
     // Check to see if the successor is a trivial loop exit.
-    if (!isTrivialLoopExitBlockHelper(L, *SI, ExitBB, Visited))
+    if (!isTrivialLoopExitBlockHelper(L, Succ, ExitBB, Visited))
       return false;
   }
 
@@ -1522,9 +1423,7 @@ void LoopUnswitch::unswitchNontrivialCondition(
       PHINode *PN = PHINode::Create(LPad->getType(), 0, "",
                                     &*ExitSucc->getFirstInsertionPt());
 
-      for (pred_iterator I = pred_begin(ExitSucc), E = pred_end(ExitSucc);
-           I != E; ++I) {
-        BasicBlock *BB = *I;
+      for (BasicBlock *BB : predecessors(ExitSucc)) {
         LandingPadInst *LPI = BB->getLandingPadInst();
         LPI->replaceAllUsesWith(PN);
         PN->addIncoming(LPI, BB);
@@ -1537,9 +1436,8 @@ void LoopUnswitch::unswitchNontrivialCondition(
     for (Instruction &I : *NewBlocks[NBI]) {
       RemapInstruction(&I, VMap,
                        RF_NoModuleLevelChanges | RF_IgnoreMissingLocals);
-      if (auto *II = dyn_cast<IntrinsicInst>(&I))
-        if (II->getIntrinsicID() == Intrinsic::assume)
-          AC->registerAssumption(II);
+      if (auto *II = dyn_cast<AssumeInst>(&I))
+        AC->registerAssumption(II);
     }
   }
 

@@ -100,6 +100,8 @@ AArch64RegisterInfo::getCalleeSavedRegs(const MachineFunction *MF) const {
       MF->getFunction().getAttributes().hasAttrSomewhere(
           Attribute::SwiftError))
     return CSR_AArch64_AAPCS_SwiftError_SaveList;
+  if (MF->getFunction().getCallingConv() == CallingConv::SwiftTail)
+    return CSR_AArch64_AAPCS_SwiftTail_SaveList;
   if (MF->getFunction().getCallingConv() == CallingConv::PreserveMost)
     return CSR_AArch64_RT_MostRegs_SaveList;
   if (MF->getFunction().getCallingConv() == CallingConv::Win64)
@@ -134,6 +136,8 @@ AArch64RegisterInfo::getDarwinCalleeSavedRegs(const MachineFunction *MF) const {
       MF->getFunction().getAttributes().hasAttrSomewhere(
           Attribute::SwiftError))
     return CSR_Darwin_AArch64_AAPCS_SwiftError_SaveList;
+  if (MF->getFunction().getCallingConv() == CallingConv::SwiftTail)
+    return CSR_Darwin_AArch64_AAPCS_SwiftTail_SaveList;
   if (MF->getFunction().getCallingConv() == CallingConv::PreserveMost)
     return CSR_Darwin_AArch64_RT_MostRegs_SaveList;
   return CSR_Darwin_AArch64_AAPCS_SaveList;
@@ -199,6 +203,8 @@ AArch64RegisterInfo::getDarwinCallPreservedMask(const MachineFunction &MF,
           ->supportSwiftError() &&
       MF.getFunction().getAttributes().hasAttrSomewhere(Attribute::SwiftError))
     return CSR_Darwin_AArch64_AAPCS_SwiftError_RegMask;
+  if (CC == CallingConv::SwiftTail)
+    return CSR_Darwin_AArch64_AAPCS_SwiftTail_RegMask;
   if (CC == CallingConv::PreserveMost)
     return CSR_Darwin_AArch64_RT_MostRegs_RegMask;
   return CSR_Darwin_AArch64_AAPCS_RegMask;
@@ -233,6 +239,11 @@ AArch64RegisterInfo::getCallPreservedMask(const MachineFunction &MF,
       MF.getFunction().getAttributes().hasAttrSomewhere(Attribute::SwiftError))
     return SCS ? CSR_AArch64_AAPCS_SwiftError_SCS_RegMask
                : CSR_AArch64_AAPCS_SwiftError_RegMask;
+  if (CC == CallingConv::SwiftTail) {
+    if (SCS)
+      report_fatal_error("ShadowCallStack attribute not supported with swifttail");
+    return CSR_AArch64_AAPCS_SwiftTail_RegMask;
+  }
   if (CC == CallingConv::PreserveMost)
     return SCS ? CSR_AArch64_RT_MostRegs_SCS_RegMask
                : CSR_AArch64_RT_MostRegs_RegMask;
@@ -382,7 +393,7 @@ bool AArch64RegisterInfo::hasBasePointer(const MachineFunction &MF) const {
   // stack needs to be dynamically re-aligned, the base pointer is the only
   // reliable way to reference the locals.
   if (MFI.hasVarSizedObjects() || MF.hasEHFunclets()) {
-    if (needsStackRealignment(MF))
+    if (hasStackRealignment(MF))
       return true;
 
     if (MF.getSubtarget<AArch64Subtarget>().hasSVE()) {
@@ -437,7 +448,7 @@ AArch64RegisterInfo::useFPForScavengingIndex(const MachineFunction &MF) const {
   assert((!MF.getSubtarget<AArch64Subtarget>().hasSVE() ||
           AFI->hasCalculatedStackSizeSVE()) &&
          "Expected SVE area to be calculated by this point");
-  return TFI.hasFP(MF) && !needsStackRealignment(MF) && !AFI->getStackSizeSVE();
+  return TFI.hasFP(MF) && !hasStackRealignment(MF) && !AFI->getStackSizeSVE();
 }
 
 bool AArch64RegisterInfo::requiresFrameIndexScavenging(
@@ -741,6 +752,9 @@ unsigned AArch64RegisterInfo::getRegPressureLimit(const TargetRegisterClass *RC,
   case AArch64::FPR128RegClassID:
     return 32;
 
+  case AArch64::MatrixIndexGPR32_12_15RegClassID:
+    return 4;
+
   case AArch64::DDRegClassID:
   case AArch64::DDDRegClassID:
   case AArch64::DDDDRegClassID:
@@ -761,7 +775,7 @@ unsigned AArch64RegisterInfo::getLocalAddressRegister(
   const auto &MFI = MF.getFrameInfo();
   if (!MF.hasEHFunclets() && !MFI.hasVarSizedObjects())
     return AArch64::SP;
-  else if (needsStackRealignment(MF))
+  else if (hasStackRealignment(MF))
     return getBaseRegister();
   return getFrameRegister(MF);
 }

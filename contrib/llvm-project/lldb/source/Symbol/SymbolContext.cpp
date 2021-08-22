@@ -26,9 +26,7 @@
 using namespace lldb;
 using namespace lldb_private;
 
-SymbolContext::SymbolContext()
-    : target_sp(), module_sp(), comp_unit(nullptr), function(nullptr),
-      block(nullptr), line_entry(), symbol(nullptr), variable(nullptr) {}
+SymbolContext::SymbolContext() : target_sp(), module_sp(), line_entry() {}
 
 SymbolContext::SymbolContext(const ModuleSP &m, CompileUnit *cu, Function *f,
                              Block *b, LineEntry *le, Symbol *s)
@@ -53,7 +51,7 @@ SymbolContext::SymbolContext(SymbolContextScope *sc_scope)
   sc_scope->CalculateSymbolContext(this);
 }
 
-SymbolContext::~SymbolContext() {}
+SymbolContext::~SymbolContext() = default;
 
 void SymbolContext::Clear(bool clear_target) {
   if (clear_target)
@@ -71,8 +69,7 @@ bool SymbolContext::DumpStopContext(Stream *s, ExecutionContextScope *exe_scope,
                                     const Address &addr, bool show_fullpaths,
                                     bool show_module, bool show_inlined_frames,
                                     bool show_function_arguments,
-                                    bool show_function_name,
-                                    bool show_inline_callsite_line_info) const {
+                                    bool show_function_name) const {
   bool dumped_something = false;
   if (show_module && module_sp) {
     if (show_fullpaths)
@@ -128,13 +125,14 @@ bool SymbolContext::DumpStopContext(Stream *s, ExecutionContextScope *exe_scope,
           s->Printf(" + %" PRIu64, inlined_function_offset);
         }
       }
-      if (show_inline_callsite_line_info) {
-        const Declaration &call_site = inlined_block_info->GetCallSite();
-        if (call_site.IsValid()) {
-          s->PutCString(" at ");
-          call_site.DumpStopContext(s, show_fullpaths);
-        }
-      } else if (line_entry.IsValid()) {
+      // "line_entry" will always be valid as GetParentOfInlinedScope(...) will
+      // fill it in correctly with the calling file and line. Previous code
+      // was extracting the calling file and line from inlined_block_info and
+      // using it right away which is not correct. On the first call to this
+      // function "line_entry" will contain the actual line table entry. On
+      // susequent calls "line_entry" will contain the calling file and line
+      // from the previous inline info.
+      if (line_entry.IsValid()) {
         s->PutCString(" at ");
         line_entry.DumpStopContext(s, show_fullpaths);
       }
@@ -928,7 +926,7 @@ SymbolContextSpecifier::SymbolContextSpecifier(const TargetSP &target_sp)
       m_start_line(0), m_end_line(0), m_function_spec(), m_class_name(),
       m_address_range_up(), m_type(eNothingSpecified) {}
 
-SymbolContextSpecifier::~SymbolContextSpecifier() {}
+SymbolContextSpecifier::~SymbolContextSpecifier() = default;
 
 bool SymbolContextSpecifier::AddLineSpecification(uint32_t line_no,
                                                   SpecificationType type) {
@@ -1188,7 +1186,7 @@ void SymbolContextSpecifier::GetDescription(
 
 SymbolContextList::SymbolContextList() : m_symbol_contexts() {}
 
-SymbolContextList::~SymbolContextList() {}
+SymbolContextList::~SymbolContextList() = default;
 
 void SymbolContextList::Append(const SymbolContext &sc) {
   m_symbol_contexts.push_back(sc);

@@ -269,6 +269,7 @@ def : WriteRes<WriteLoad,    [PdLoad]> { let Latency = 5; let ResourceCycles = [
 def : WriteRes<WriteStore,   [PdStore]>;
 def : WriteRes<WriteStoreNT, [PdStore]>;
 def : WriteRes<WriteMove,    [PdEX01]> { let ResourceCycles = [2]; }
+defm : X86WriteResUnsupported<WriteVecMaskedGatherWriteback>;
 
 // Load/store MXCSR.
 // FIXME: These are copy and pasted from WriteLoad/Store.
@@ -1196,6 +1197,7 @@ defm : PdWriteResYMMPair<WriteVecTestY,      [PdFPU01, PdFPFMA, PdEX0], 1, [2, 4
 defm : X86WriteResPairUnsupported<WriteVecTestZ>;
 
 defm : PdWriteResXMMPair<WriteShuffle256,    [PdFPU01, PdFPMAL]>;
+defm : PdWriteResXMMPair<WriteVPMOV256,      [PdFPU01, PdFPMAL]>;
 defm : PdWriteResXMMPair<WriteVarShuffle256, [PdFPU01, PdFPMAL]>;
 
 defm : PdWriteResXMMPair<WriteVarVecShift,   [PdFPU01, PdFPMAL], 3, [1, 2]>;

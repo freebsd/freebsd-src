@@ -115,8 +115,8 @@ static int appendPointer(char **Buffer, const char *BufferEnd, u64 ptr_value) {
   return Res;
 }
 
-int formatString(char *Buffer, uptr BufferLength, const char *Format,
-                 va_list Args) {
+static int formatString(char *Buffer, uptr BufferLength, const char *Format,
+                        va_list Args) {
   static const char *PrintfFormatsHelp =
       "Supported formatString formats: %([0-9]*)?(z|ll)?{d,u,x,X}; %p; "
       "%[-]([0-9]*)?(\\.\\*)?s; %c\n";
@@ -210,8 +210,15 @@ int formatString(char *Buffer, uptr BufferLength, const char *Format,
   return Res;
 }
 
+int formatString(char *Buffer, uptr BufferLength, const char *Format, ...) {
+  va_list Args;
+  va_start(Args, Format);
+  int Res = formatString(Buffer, BufferLength, Format, Args);
+  va_end(Args);
+  return Res;
+}
+
 void ScopedString::append(const char *Format, va_list Args) {
-  DCHECK_LT(Length, String.size());
   va_list ArgsCopy;
   va_copy(ArgsCopy, Args);
   // formatString doesn't currently support a null buffer or zero buffer length,
@@ -220,11 +227,13 @@ void ScopedString::append(const char *Format, va_list Args) {
   char C[1];
   const uptr AdditionalLength =
       static_cast<uptr>(formatString(C, sizeof(C), Format, Args)) + 1;
+  const uptr Length = length();
   String.resize(Length + AdditionalLength);
-  formatString(String.data() + Length, AdditionalLength, Format, ArgsCopy);
+  const uptr FormattedLength = static_cast<uptr>(formatString(
+      String.data() + Length, String.size() - Length, Format, ArgsCopy));
+  RAW_CHECK(data()[length()] == '\0');
+  RAW_CHECK(FormattedLength + 1 == AdditionalLength);
   va_end(ArgsCopy);
-  Length = strlen(String.data());
-  CHECK_LT(Length, String.size());
 }
 
 FORMAT(2, 3)
@@ -239,7 +248,7 @@ FORMAT(1, 2)
 void Printf(const char *Format, ...) {
   va_list Args;
   va_start(Args, Format);
-  ScopedString Msg(1024);
+  ScopedString Msg;
   Msg.append(Format, Args);
   outputRaw(Msg.data());
   va_end(Args);

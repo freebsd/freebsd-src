@@ -6,9 +6,9 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include <inttypes.h>
-#include <stdarg.h>
-#include <stddef.h>
+#include <cinttypes>
+#include <cstdarg>
+#include <cstddef>
 
 #include <memory>
 
@@ -467,7 +467,7 @@ RegisterContextDarwin_x86_64::RegisterContextDarwin_x86_64(
   }
 }
 
-RegisterContextDarwin_x86_64::~RegisterContextDarwin_x86_64() {}
+RegisterContextDarwin_x86_64::~RegisterContextDarwin_x86_64() = default;
 
 void RegisterContextDarwin_x86_64::InvalidateAllRegisters() {
   InvalidateAllRegisterStates();

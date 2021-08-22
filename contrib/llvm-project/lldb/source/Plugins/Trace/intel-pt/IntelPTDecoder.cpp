@@ -1,5 +1,4 @@
-//===-- IntelPTDecoder.cpp --------------------------------------*- C++ -*-===//
-//
+//===-- IntelPTDecoder.cpp --======----------------------------------------===//
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
@@ -10,10 +9,13 @@
 
 #include "llvm/Support/MemoryBuffer.h"
 
+#include "../common/ThreadPostMortemTrace.h"
+#include "DecodedThread.h"
+#include "TraceIntelPT.h"
 #include "lldb/Core/Module.h"
 #include "lldb/Core/Section.h"
 #include "lldb/Target/Target.h"
-#include "lldb/Target/ThreadTrace.h"
+#include "lldb/Utility/StringExtractor.h"
 
 using namespace lldb;
 using namespace lldb_private;
@@ -85,7 +87,7 @@ static int ProcessPTEvents(pt_insn_decoder &decoder, int errcode) {
       return errcode;
   }
   return 0;
-};
+}
 
 /// Decode all the instructions from a configured decoder.
 /// The decoding flow is based on
@@ -135,7 +137,23 @@ DecodeInstructions(pt_insn_decoder &decoder) {
         break;
       }
 
-      instructions.emplace_back(insn);
+      uint64_t time;
+      int time_error = pt_insn_time(&decoder, &time, nullptr, nullptr);
+      if (time_error == -pte_invalid) {
+        // This happens if we invoke the pt_insn_time method incorrectly,
+        // but the instruction is good though.
+        instructions.emplace_back(
+            make_error<IntelPTError>(time_error, insn.ip));
+        instructions.emplace_back(insn);
+        break;
+      }
+      if (time_error == -pte_no_time) {
+        // We simply don't have time information, i.e. None of TSC, MTC or CYC
+        // was enabled.
+        instructions.emplace_back(insn);
+      } else {
+        instructions.emplace_back(insn, time);
+      }
     }
   }
 
@@ -158,39 +176,26 @@ static int ReadProcessMemory(uint8_t *buffer, size_t size,
   return bytes_read;
 }
 
-static std::vector<IntelPTInstruction> makeInstructionListFromError(Error err) {
-  std::vector<IntelPTInstruction> instructions;
-  instructions.emplace_back(std::move(err));
-  return instructions;
-}
-
-static std::vector<IntelPTInstruction>
-CreateDecoderAndDecode(Process &process, const pt_cpu &pt_cpu,
-                       const FileSpec &trace_file) {
-  ErrorOr<std::unique_ptr<MemoryBuffer>> trace_or_error =
-      MemoryBuffer::getFile(trace_file.GetPath());
-  if (std::error_code err = trace_or_error.getError())
-    return makeInstructionListFromError(errorCodeToError(err));
-
-  MemoryBuffer &trace = **trace_or_error;
+static Expected<std::vector<IntelPTInstruction>>
+DecodeInMemoryTrace(Process &process, TraceIntelPT &trace_intel_pt,
+                    MutableArrayRef<uint8_t> buffer) {
+  Expected<pt_cpu> cpu_info = trace_intel_pt.GetCPUInfo();
+  if (!cpu_info)
+    return cpu_info.takeError();
 
   pt_config config;
   pt_config_init(&config);
-  config.cpu = pt_cpu;
+  config.cpu = *cpu_info;
 
   if (int errcode = pt_cpu_errata(&config.errata, &config.cpu))
-    return makeInstructionListFromError(make_error<IntelPTError>(errcode));
+    return make_error<IntelPTError>(errcode);
 
-  // The libipt library does not modify the trace buffer, hence the following
-  // cast is safe.
-  config.begin =
-      reinterpret_cast<uint8_t *>(const_cast<char *>(trace.getBufferStart()));
-  config.end =
-      reinterpret_cast<uint8_t *>(const_cast<char *>(trace.getBufferEnd()));
+  config.begin = buffer.data();
+  config.end = buffer.data() + buffer.size();
 
   pt_insn_decoder *decoder = pt_insn_alloc_decoder(&config);
   if (!decoder)
-    return makeInstructionListFromError(make_error<IntelPTError>(-pte_nomem));
+    return make_error<IntelPTError>(-pte_nomem);
 
   pt_image *image = pt_insn_get_image(decoder);
 
@@ -204,12 +209,71 @@ CreateDecoderAndDecode(Process &process, const pt_cpu &pt_cpu,
   return instructions;
 }
 
-const DecodedThread &ThreadTraceDecoder::Decode() {
-  if (!m_decoded_thread.hasValue()) {
-    m_decoded_thread = DecodedThread(
-        CreateDecoderAndDecode(*m_trace_thread->GetProcess(), m_pt_cpu,
-                               m_trace_thread->GetTraceFile()));
-  }
+static Expected<std::vector<IntelPTInstruction>>
+DecodeTraceFile(Process &process, TraceIntelPT &trace_intel_pt,
+                const FileSpec &trace_file, size_t &raw_trace_size) {
+  ErrorOr<std::unique_ptr<MemoryBuffer>> trace_or_error =
+      MemoryBuffer::getFile(trace_file.GetPath());
+  if (std::error_code err = trace_or_error.getError())
+    return errorCodeToError(err);
 
+  MemoryBuffer &trace = **trace_or_error;
+  MutableArrayRef<uint8_t> trace_data(
+      // The libipt library does not modify the trace buffer, hence the
+      // following cast is safe.
+      reinterpret_cast<uint8_t *>(const_cast<char *>(trace.getBufferStart())),
+      trace.getBufferSize());
+  raw_trace_size = trace_data.size();
+  return DecodeInMemoryTrace(process, trace_intel_pt, trace_data);
+}
+
+static Expected<std::vector<IntelPTInstruction>>
+DecodeLiveThread(Thread &thread, TraceIntelPT &trace, size_t &raw_trace_size) {
+  Expected<std::vector<uint8_t>> buffer =
+      trace.GetLiveThreadBuffer(thread.GetID());
+  if (!buffer)
+    return buffer.takeError();
+  raw_trace_size = buffer->size();
+  if (Expected<pt_cpu> cpu_info = trace.GetCPUInfo())
+    return DecodeInMemoryTrace(*thread.GetProcess(), trace,
+                               MutableArrayRef<uint8_t>(*buffer));
+  else
+    return cpu_info.takeError();
+}
+
+DecodedThreadSP ThreadDecoder::Decode() {
+  if (!m_decoded_thread.hasValue())
+    m_decoded_thread = DoDecode();
   return *m_decoded_thread;
+}
+
+PostMortemThreadDecoder::PostMortemThreadDecoder(
+    const lldb::ThreadPostMortemTraceSP &trace_thread, TraceIntelPT &trace)
+    : m_trace_thread(trace_thread), m_trace(trace) {}
+
+DecodedThreadSP PostMortemThreadDecoder::DoDecode() {
+  size_t raw_trace_size = 0;
+  if (Expected<std::vector<IntelPTInstruction>> instructions =
+          DecodeTraceFile(*m_trace_thread->GetProcess(), m_trace,
+                          m_trace_thread->GetTraceFile(), raw_trace_size))
+    return std::make_shared<DecodedThread>(m_trace_thread->shared_from_this(),
+                                           std::move(*instructions),
+                                           raw_trace_size);
+  else
+    return std::make_shared<DecodedThread>(m_trace_thread->shared_from_this(),
+                                           instructions.takeError());
+}
+
+LiveThreadDecoder::LiveThreadDecoder(Thread &thread, TraceIntelPT &trace)
+    : m_thread_sp(thread.shared_from_this()), m_trace(trace) {}
+
+DecodedThreadSP LiveThreadDecoder::DoDecode() {
+  size_t raw_trace_size = 0;
+  if (Expected<std::vector<IntelPTInstruction>> instructions =
+          DecodeLiveThread(*m_thread_sp, m_trace, raw_trace_size))
+    return std::make_shared<DecodedThread>(
+        m_thread_sp, std::move(*instructions), raw_trace_size);
+  else
+    return std::make_shared<DecodedThread>(m_thread_sp,
+                                           instructions.takeError());
 }

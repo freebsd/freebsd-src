@@ -23,6 +23,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -36,29 +37,6 @@
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <unistd.h>
-#endif
-
-#if defined(__FreeBSD__) && defined(__i386__)
-#define I386_FREEBSD 1
-#else
-#define I386_FREEBSD 0
-#endif
-
-#if !defined(_MSC_VER) && !I386_FREEBSD
-#include <stdint.h>
-#endif
-
-#if defined(_MSC_VER)
-typedef unsigned char uint8_t;
-typedef unsigned int uint32_t;
-typedef unsigned long long uint64_t;
-#elif I386_FREEBSD
-/* System headers define 'size_t' incorrectly on x64 FreeBSD (prior to
- * FreeBSD 10, r232261) when compiled in 32-bit mode.
- */
-typedef unsigned char uint8_t;
-typedef unsigned int uint32_t;
-typedef unsigned long long uint64_t;
 #endif
 
 #include "InstrProfiling.h"
@@ -483,8 +461,9 @@ void llvm_gcda_summary_info() {
 
   if (val != (uint32_t)-1) {
     /* There are counters present in the file. Merge them. */
-    if (val != (gcov_version >= 90 ? GCOV_TAG_OBJECT_SUMMARY
-                                   : GCOV_TAG_PROGRAM_SUMMARY)) {
+    uint32_t gcov_tag =
+        gcov_version >= 90 ? GCOV_TAG_OBJECT_SUMMARY : GCOV_TAG_PROGRAM_SUMMARY;
+    if (val != gcov_tag) {
       fprintf(stderr,
               "profiling: %s: cannot merge previous run count: "
               "corrupt object tag (0x%08x)\n",

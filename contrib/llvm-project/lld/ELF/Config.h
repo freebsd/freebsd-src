@@ -20,6 +20,7 @@
 #include "llvm/Support/CodeGen.h"
 #include "llvm/Support/Endian.h"
 #include "llvm/Support/GlobPattern.h"
+#include "llvm/Support/PrettyStackTrace.h"
 #include <atomic>
 #include <vector>
 
@@ -143,10 +144,11 @@ struct Configuration {
   bool armHasMovtMovw = false;
   bool armJ1J2BranchEncoding = false;
   bool asNeeded = false;
-  bool bsymbolic;
-  bool bsymbolicFunctions;
+  bool bsymbolic = false;
+  bool bsymbolicFunctions = false;
   bool callGraphProfileSort;
   bool checkSections;
+  bool checkDynamicRelocs;
   bool compressDebugSections;
   bool cref;
   std::vector<std::pair<llvm::GlobPattern, uint64_t>> deadRelocInNonAlloc;
@@ -187,6 +189,8 @@ struct Configuration {
   bool nostdlib;
   bool oFormatBinary;
   bool omagic;
+  bool optEB = false;
+  bool optEL = false;
   bool optimizeBBJumps;
   bool optRemarksWithHotness;
   bool picThunk;
@@ -196,7 +200,7 @@ struct Configuration {
   bool relocatable;
   bool relrPackDynRelocs;
   bool saveTemps;
-  llvm::Optional<uint32_t> shuffleSectionSeed;
+  std::vector<std::pair<llvm::GlobPattern, uint32_t>> shuffleSections;
   bool singleRoRx;
   bool shared;
   bool symbolic;
@@ -215,7 +219,6 @@ struct Configuration {
   bool warnBackrefs;
   std::vector<llvm::GlobPattern> warnBackrefsExclude;
   bool warnCommon;
-  bool warnIfuncTextrel;
   bool warnMissingEntry;
   bool warnSymbolOrdering;
   bool writeAddends;
@@ -238,6 +241,7 @@ struct Configuration {
   bool zRelro;
   bool zRodynamic;
   bool zShstk;
+  bool zStartStopGC;
   uint8_t zStartStopVisibility;
   bool zText;
   bool zRetpolineplt;
@@ -251,6 +255,7 @@ struct Configuration {
   UnresolvedPolicy unresolvedSymbols;
   UnresolvedPolicy unresolvedSymbolsInShlib;
   Target2Policy target2;
+  bool Power10Stub;
   ARMVFPArgKind armVFPArgs = ARMVFPArgKind::Default;
   BuildIdKind buildId = BuildIdKind::None;
   SeparateSegmentKind zSeparate;
@@ -353,6 +358,12 @@ static inline void errorOrWarn(const Twine &msg) {
   else
     warn(msg);
 }
+
+static inline void internalLinkerError(StringRef loc, const Twine &msg) {
+  errorOrWarn(loc + "internal linker error: " + msg + "\n" +
+              llvm::getBugReportMsg());
+}
+
 } // namespace elf
 } // namespace lld
 

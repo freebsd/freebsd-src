@@ -6,13 +6,13 @@
 //
 //===----------------------------------------------------------------------===//
 //
-#ifndef LLVM_INLINEADVISOR_H_
-#define LLVM_INLINEADVISOR_H_
+#ifndef LLVM_ANALYSIS_INLINEADVISOR_H
+#define LLVM_ANALYSIS_INLINEADVISOR_H
 
 #include "llvm/Analysis/InlineCost.h"
+#include "llvm/Analysis/Utils/ImportedFunctionsInliningStatistics.h"
 #include "llvm/Config/llvm-config.h"
 #include "llvm/IR/PassManager.h"
-#include "llvm/Analysis/Utils/ImportedFunctionsInliningStatistics.h"
 #include <memory>
 #include <unordered_set>
 
@@ -36,11 +36,7 @@ class OptimizationRemarkEmitter;
 /// requires the full C Tensorflow API library, and evaluates models
 /// dynamically. This mode also permits generating training logs, for offline
 /// training.
-enum class InliningAdvisorMode : int {
-  Default,
-  Release,
-  Development
-};
+enum class InliningAdvisorMode : int { Default, Release, Development };
 
 class InlineAdvisor;
 /// Capture state between an inlining decision having had been made, and
@@ -283,4 +279,4 @@ void setInlineRemark(CallBase &CB, StringRef Message);
 /// Utility for extracting the inline cost message to a string.
 std::string inlineCostStr(const InlineCost &IC);
 } // namespace llvm
-#endif // LLVM_INLINEADVISOR_H_
+#endif // LLVM_ANALYSIS_INLINEADVISOR_H

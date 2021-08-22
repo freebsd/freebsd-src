@@ -71,6 +71,7 @@ class OverloadExpr;
 class DependentScopeDeclRefExpr;
 class CXXConstructExpr;
 class CXXDefaultInitExpr;
+class CXXDefaultArgExpr;
 class LambdaExpr;
 class CXXUnresolvedConstructExpr;
 class CXXDependentScopeMemberExpr;
@@ -78,6 +79,7 @@ class MaterializeTemporaryExpr;
 class CXXFoldExpr;
 class TypeTraitExpr;
 class ConceptSpecializationExpr;
+class SYCLUniqueStableNameExpr;
 class PredefinedExpr;
 class CallExpr;
 class OffsetOfExpr;
@@ -155,6 +157,7 @@ ExprDependence computeDependence(OverloadExpr *E, bool KnownDependent,
 ExprDependence computeDependence(DependentScopeDeclRefExpr *E);
 ExprDependence computeDependence(CXXConstructExpr *E);
 ExprDependence computeDependence(CXXDefaultInitExpr *E);
+ExprDependence computeDependence(CXXDefaultArgExpr *E);
 ExprDependence computeDependence(LambdaExpr *E,
                                  bool ContainsUnexpandedParameterPack);
 ExprDependence computeDependence(CXXUnresolvedConstructExpr *E);
@@ -165,6 +168,7 @@ ExprDependence computeDependence(TypeTraitExpr *E);
 ExprDependence computeDependence(ConceptSpecializationExpr *E,
                                  bool ValueDependent);
 
+ExprDependence computeDependence(SYCLUniqueStableNameExpr *E);
 ExprDependence computeDependence(PredefinedExpr *E);
 ExprDependence computeDependence(CallExpr *E, llvm::ArrayRef<Expr *> PreArgs);
 ExprDependence computeDependence(OffsetOfExpr *E);

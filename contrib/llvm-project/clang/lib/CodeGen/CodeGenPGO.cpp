@@ -811,10 +811,10 @@ void CodeGenPGO::assignRegionCounters(GlobalDecl GD, llvm::Function *Fn) {
   if (isa<CXXDestructorDecl>(D) && GD.getDtorType() != Dtor_Base)
     return;
 
+  CGM.ClearUnusedCoverageMapping(D);
   if (Fn->hasFnAttribute(llvm::Attribute::NoProfile))
     return;
 
-  CGM.ClearUnusedCoverageMapping(D);
   setFuncName(Fn);
 
   mapRegionCounters(D);
@@ -960,6 +960,12 @@ void CodeGenPGO::emitCounterIncrement(CGBuilderTy &Builder, const Stmt *S,
     Builder.CreateCall(
         CGM.getIntrinsic(llvm::Intrinsic::instrprof_increment_step),
         makeArrayRef(Args));
+}
+
+void CodeGenPGO::setValueProfilingFlag(llvm::Module &M) {
+  if (CGM.getCodeGenOpts().hasProfileClangInstr())
+    M.addModuleFlag(llvm::Module::Warning, "EnableValueProfiling",
+                    uint32_t(EnableValueProfiling));
 }
 
 // This method either inserts a call to the profile run-time during

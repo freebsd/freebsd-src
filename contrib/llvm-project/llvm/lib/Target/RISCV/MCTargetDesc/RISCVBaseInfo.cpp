@@ -88,55 +88,78 @@ MCRegister getSCSPReg() { return RISCV::X18; }
 namespace RISCVFeatures {
 
 void validate(const Triple &TT, const FeatureBitset &FeatureBits) {
+  if (TT.isArch64Bit() && !FeatureBits[RISCV::Feature64Bit])
+    report_fatal_error("RV64 target requires an RV64 CPU");
+  if (!TT.isArch64Bit() && FeatureBits[RISCV::Feature64Bit])
+    report_fatal_error("RV32 target requires an RV32 CPU");
   if (TT.isArch64Bit() && FeatureBits[RISCV::FeatureRV32E])
     report_fatal_error("RV32E can't be enabled for an RV64 target");
 }
 
 } // namespace RISCVFeatures
 
-namespace RISCVVPseudosTable {
+// Encode VTYPE into the binary format used by the the VSETVLI instruction which
+// is used by our MC layer representation.
+//
+// Bits | Name       | Description
+// -----+------------+------------------------------------------------
+// 7    | vma        | Vector mask agnostic
+// 6    | vta        | Vector tail agnostic
+// 5:3  | vsew[2:0]  | Standard element width (SEW) setting
+// 2:0  | vlmul[2:0] | Vector register group multiplier (LMUL) setting
+unsigned RISCVVType::encodeVTYPE(RISCVII::VLMUL VLMUL, unsigned SEW,
+                                 bool TailAgnostic, bool MaskAgnostic) {
+  assert(isValidSEW(SEW) && "Invalid SEW");
+  unsigned VLMULBits = static_cast<unsigned>(VLMUL);
+  unsigned VSEWBits = Log2_32(SEW) - 3;
+  unsigned VTypeI = (VSEWBits << 3) | (VLMULBits & 0x7);
+  if (TailAgnostic)
+    VTypeI |= 0x40;
+  if (MaskAgnostic)
+    VTypeI |= 0x80;
 
-#define GET_RISCVVPseudosTable_IMPL
-#include "RISCVGenSearchableTables.inc"
+  return VTypeI;
+}
 
-} // namespace RISCVVPseudosTable
+std::pair<unsigned, bool> RISCVVType::decodeVLMUL(RISCVII::VLMUL VLMUL) {
+  switch (VLMUL) {
+  default:
+    llvm_unreachable("Unexpected LMUL value!");
+  case RISCVII::VLMUL::LMUL_1:
+  case RISCVII::VLMUL::LMUL_2:
+  case RISCVII::VLMUL::LMUL_4:
+  case RISCVII::VLMUL::LMUL_8:
+    return std::make_pair(1 << static_cast<unsigned>(VLMUL), false);
+  case RISCVII::VLMUL::LMUL_F2:
+  case RISCVII::VLMUL::LMUL_F4:
+  case RISCVII::VLMUL::LMUL_F8:
+    return std::make_pair(1 << (8 - static_cast<unsigned>(VLMUL)), true);
+  }
+}
 
 void RISCVVType::printVType(unsigned VType, raw_ostream &OS) {
-  RISCVVSEW VSEW = getVSEW(VType);
-  RISCVVLMUL VLMUL = getVLMUL(VType);
-
-  unsigned Sew = 1 << (static_cast<unsigned>(VSEW) + 3);
+  unsigned Sew = getSEW(VType);
   OS << "e" << Sew;
 
-  switch (VLMUL) {
-  case RISCVVLMUL::LMUL_RESERVED:
-    llvm_unreachable("Unexpected LMUL value!");
-  case RISCVVLMUL::LMUL_1:
-  case RISCVVLMUL::LMUL_2:
-  case RISCVVLMUL::LMUL_4:
-  case RISCVVLMUL::LMUL_8: {
-    unsigned LMul = 1 << static_cast<unsigned>(VLMUL);
-    OS << ",m" << LMul;
-    break;
-  }
-  case RISCVVLMUL::LMUL_F2:
-  case RISCVVLMUL::LMUL_F4:
-  case RISCVVLMUL::LMUL_F8: {
-    unsigned LMul = 1 << (8 - static_cast<unsigned>(VLMUL));
-    OS << ",mf" << LMul;
-    break;
-  }
-  }
+  unsigned LMul;
+  bool Fractional;
+  std::tie(LMul, Fractional) = decodeVLMUL(getVLMUL(VType));
+
+  if (Fractional)
+    OS << ", mf";
+  else
+    OS << ", m";
+  OS << LMul;
 
   if (isTailAgnostic(VType))
-    OS << ",ta";
+    OS << ", ta";
   else
-    OS << ",tu";
+    OS << ", tu";
 
   if (isMaskAgnostic(VType))
-    OS << ",ma";
+    OS << ", ma";
   else
-    OS << ",mu";
+    OS << ", mu";
 }
 
 } // namespace llvm

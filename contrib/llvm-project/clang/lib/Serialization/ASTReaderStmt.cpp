@@ -185,11 +185,13 @@ void ASTStmtReader::VisitDefaultStmt(DefaultStmt *S) {
 
 void ASTStmtReader::VisitLabelStmt(LabelStmt *S) {
   VisitStmt(S);
+  bool IsSideEntry = Record.readInt();
   auto *LD = readDeclAs<LabelDecl>();
   LD->setStmt(S);
   S->setDecl(LD);
   S->setSubStmt(Record.readSubStmt());
   S->setIdentLoc(readSourceLocation());
+  S->setSideEntry(IsSideEntry);
 }
 
 void ASTStmtReader::VisitAttributedStmt(AttributedStmt *S) {
@@ -577,6 +579,16 @@ void ASTStmtReader::VisitConstantExpr(ConstantExpr *E) {
   }
 
   E->setSubExpr(Record.readSubExpr());
+}
+
+void ASTStmtReader::VisitSYCLUniqueStableNameExpr(SYCLUniqueStableNameExpr *E) {
+  VisitExpr(E);
+
+  E->setLocation(readSourceLocation());
+  E->setLParenLocation(readSourceLocation());
+  E->setRParenLocation(readSourceLocation());
+
+  E->setTypeSourceInfo(Record.readTypeSourceInfo());
 }
 
 void ASTStmtReader::VisitPredefinedExpr(PredefinedExpr *E) {
@@ -1099,10 +1111,9 @@ void ASTStmtReader::VisitCastExpr(CastExpr *E) {
 
 void ASTStmtReader::VisitBinaryOperator(BinaryOperator *E) {
   bool hasFP_Features;
-  BinaryOperator::Opcode opc;
   VisitExpr(E);
   E->setHasStoredFPFeatures(hasFP_Features = Record.readInt());
-  E->setOpcode(opc = (BinaryOperator::Opcode)Record.readInt());
+  E->setOpcode((BinaryOperator::Opcode)Record.readInt());
   E->setLHS(Record.readSubExpr());
   E->setRHS(Record.readSubExpr());
   E->setOperatorLoc(readSourceLocation());
@@ -2273,17 +2284,27 @@ void ASTStmtReader::VisitAsTypeExpr(AsTypeExpr *E) {
 // OpenMP Directives.
 //===----------------------------------------------------------------------===//
 
+void ASTStmtReader::VisitOMPCanonicalLoop(OMPCanonicalLoop *S) {
+  VisitStmt(S);
+  for (Stmt *&SubStmt : S->SubStmts)
+    SubStmt = Record.readSubStmt();
+}
+
 void ASTStmtReader::VisitOMPExecutableDirective(OMPExecutableDirective *E) {
   Record.readOMPChildren(E->Data);
   E->setLocStart(readSourceLocation());
   E->setLocEnd(readSourceLocation());
 }
 
-void ASTStmtReader::VisitOMPLoopDirective(OMPLoopDirective *D) {
+void ASTStmtReader::VisitOMPLoopBasedDirective(OMPLoopBasedDirective *D) {
   VisitStmt(D);
   // Field CollapsedNum was read in ReadStmtFromStream.
   Record.skipInts(1);
   VisitOMPExecutableDirective(D);
+}
+
+void ASTStmtReader::VisitOMPLoopDirective(OMPLoopDirective *D) {
+  VisitOMPLoopBasedDirective(D);
 }
 
 void ASTStmtReader::VisitOMPParallelDirective(OMPParallelDirective *D) {
@@ -2294,6 +2315,14 @@ void ASTStmtReader::VisitOMPParallelDirective(OMPParallelDirective *D) {
 
 void ASTStmtReader::VisitOMPSimdDirective(OMPSimdDirective *D) {
   VisitOMPLoopDirective(D);
+}
+
+void ASTStmtReader::VisitOMPTileDirective(OMPTileDirective *D) {
+  VisitOMPLoopBasedDirective(D);
+}
+
+void ASTStmtReader::VisitOMPUnrollDirective(OMPUnrollDirective *D) {
+  VisitOMPLoopBasedDirective(D);
 }
 
 void ASTStmtReader::VisitOMPForDirective(OMPForDirective *D) {
@@ -2574,6 +2603,22 @@ void ASTStmtReader::VisitOMPTargetTeamsDistributeSimdDirective(
   VisitOMPLoopDirective(D);
 }
 
+void ASTStmtReader::VisitOMPInteropDirective(OMPInteropDirective *D) {
+  VisitStmt(D);
+  VisitOMPExecutableDirective(D);
+}
+
+void ASTStmtReader::VisitOMPDispatchDirective(OMPDispatchDirective *D) {
+  VisitStmt(D);
+  VisitOMPExecutableDirective(D);
+  D->setTargetCallLoc(Record.readSourceLocation());
+}
+
+void ASTStmtReader::VisitOMPMaskedDirective(OMPMaskedDirective *D) {
+  VisitStmt(D);
+  VisitOMPExecutableDirective(D);
+}
+
 //===----------------------------------------------------------------------===//
 // ASTReader Implementation
 //===----------------------------------------------------------------------===//
@@ -2769,6 +2814,10 @@ Stmt *ASTReader::ReadStmtFromStream(ModuleFile &F) {
       S = ConstantExpr::CreateEmpty(
           Context, static_cast<ConstantExpr::ResultStorageKind>(
                        /*StorageKind=*/Record[ASTStmtReader::NumExprFields]));
+      break;
+
+    case EXPR_SYCL_UNIQUE_STABLE_NAME:
+      S = SYCLUniqueStableNameExpr::CreateEmpty(Context);
       break;
 
     case EXPR_PREDEFINED:
@@ -3130,6 +3179,10 @@ Stmt *ASTReader::ReadStmtFromStream(ModuleFile &F) {
                                               nullptr);
       break;
 
+    case STMT_OMP_CANONICAL_LOOP:
+      S = OMPCanonicalLoop::createEmpty(Context);
+      break;
+
     case STMT_OMP_PARALLEL_DIRECTIVE:
       S =
         OMPParallelDirective::CreateEmpty(Context,
@@ -3142,6 +3195,20 @@ Stmt *ASTReader::ReadStmtFromStream(ModuleFile &F) {
       unsigned NumClauses = Record[ASTStmtReader::NumStmtFields + 1];
       S = OMPSimdDirective::CreateEmpty(Context, NumClauses,
                                         CollapsedNum, Empty);
+      break;
+    }
+
+    case STMT_OMP_TILE_DIRECTIVE: {
+      unsigned NumLoops = Record[ASTStmtReader::NumStmtFields];
+      unsigned NumClauses = Record[ASTStmtReader::NumStmtFields + 1];
+      S = OMPTileDirective::CreateEmpty(Context, NumClauses, NumLoops);
+      break;
+    }
+
+    case STMT_OMP_UNROLL_DIRECTIVE: {
+      assert(Record[ASTStmtReader::NumStmtFields] == 1 && "Unroll directive accepts only a single loop");
+      unsigned NumClauses = Record[ASTStmtReader::NumStmtFields + 1];
+      S = OMPUnrollDirective::CreateEmpty(Context, NumClauses);
       break;
     }
 
@@ -3477,6 +3544,21 @@ Stmt *ASTReader::ReadStmtFromStream(ModuleFile &F) {
           Context, NumClauses, CollapsedNum, Empty);
       break;
     }
+
+    case STMT_OMP_INTEROP_DIRECTIVE:
+      S = OMPInteropDirective::CreateEmpty(
+          Context, Record[ASTStmtReader::NumStmtFields], Empty);
+      break;
+
+    case STMT_OMP_DISPATCH_DIRECTIVE:
+      S = OMPDispatchDirective::CreateEmpty(
+          Context, Record[ASTStmtReader::NumStmtFields], Empty);
+      break;
+
+    case STMT_OMP_MASKED_DIRECTIVE:
+      S = OMPMaskedDirective::CreateEmpty(
+          Context, Record[ASTStmtReader::NumStmtFields], Empty);
+      break;
 
     case EXPR_CXX_OPERATOR_CALL:
       S = CXXOperatorCallExpr::CreateEmpty(

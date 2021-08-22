@@ -48,8 +48,11 @@ public:
   ///
   /// \param[in] name
   ///     The name of the function, as used in the text.
+  ///
+  /// \param[in] enable_debugging
+  ///     Enable debugging of this function.
   ClangUtilityFunction(ExecutionContextScope &exe_scope, std::string text,
-                       std::string name);
+                       std::string name, bool enable_debugging);
 
   ~ClangUtilityFunction() override;
 
@@ -71,9 +74,9 @@ public:
 private:
   class ClangUtilityFunctionHelper : public ClangExpressionHelper {
   public:
-    ClangUtilityFunctionHelper() {}
+    ClangUtilityFunctionHelper() = default;
 
-    ~ClangUtilityFunctionHelper() override {}
+    ~ClangUtilityFunctionHelper() override = default;
 
     /// Return the object that the parser should use when resolving external
     /// values.  May be NULL if everything should be self-contained.

@@ -249,8 +249,8 @@ public:
   // Pointer to this input file's .llvm_addrsig section, if it has one.
   const Elf_Shdr *addrsigSec = nullptr;
 
-  // SHT_LLVM_CALL_GRAPH_PROFILE table
-  ArrayRef<Elf_CGProfile> cgProfile;
+  // SHT_LLVM_CALL_GRAPH_PROFILE section index.
+  uint32_t cgProfileSectionIndex = 0;
 
   // Get cached DWARF information.
   DWARFCache *getDwarf();
@@ -381,11 +381,12 @@ public:
 
   template <typename ELFT> void parse();
 
-  // Used for --no-allow-shlib-undefined.
-  bool allNeededIsKnown;
-
   // Used for --as-needed
   bool isNeeded;
+
+  // Non-weak undefined symbols which are not yet resolved when the SO is
+  // parsed. Only filled for `--no-allow-shlib-undefined`.
+  std::vector<Symbol *> requiredSymbols;
 
 private:
   template <typename ELFT>

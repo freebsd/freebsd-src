@@ -11,8 +11,8 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_OPENMP_CONSTANTS_H
-#define LLVM_OPENMP_CONSTANTS_H
+#ifndef LLVM_FRONTEND_OPENMP_OMPCONSTANTS_H
+#define LLVM_FRONTEND_OPENMP_OMPCONSTANTS_H
 
 #include "llvm/ADT/BitmaskEnum.h"
 
@@ -107,8 +107,29 @@ inline std::string getAllAssumeClauseOptions() {
   return S + "'";
 }
 
+/// \note This needs to be kept in sync with kmp.h enum sched_type.
+/// Todo: Update kmp.h to include this file, and remove the enums in kmp.h
+///       To complete this, more enum values will need to be moved here.
+enum class OMPScheduleType {
+  StaticChunked = 33,
+  Static = 34, // static unspecialized
+  DistributeChunked = 91,
+  Distribute = 92,
+  DynamicChunked = 35,
+  GuidedChunked = 36, // guided unspecialized
+  Runtime = 37,
+  Auto = 38, // auto
+
+  ModifierMonotonic =
+      (1 << 29), // Set if the monotonic schedule modifier was present
+  ModifierNonmonotonic =
+      (1 << 30), // Set if the nonmonotonic schedule modifier was present
+  ModifierMask = ModifierMonotonic | ModifierNonmonotonic,
+  LLVM_MARK_AS_BITMASK_ENUM(/* LargestValue */ ModifierMask)
+};
+
 } // end namespace omp
 
 } // end namespace llvm
 
-#endif // LLVM_OPENMP_CONSTANTS_H
+#endif // LLVM_FRONTEND_OPENMP_OMPCONSTANTS_H

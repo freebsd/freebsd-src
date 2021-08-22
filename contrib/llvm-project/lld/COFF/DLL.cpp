@@ -158,7 +158,6 @@ binImports(const std::vector<DefinedImportData *> &imports) {
   return v;
 }
 
-// Export table
 // See Microsoft PE/COFF spec 4.3 for details.
 
 // A chunk for the delay import descriptor table etnry.
@@ -525,6 +524,8 @@ public:
       if (e.forwardChunk) {
         write32le(p, e.forwardChunk->getRVA() | bit);
       } else {
+        assert(cast<Defined>(e.sym)->getRVA() != 0 &&
+               "Exported symbol unmapped");
         write32le(p, cast<Defined>(e.sym)->getRVA() | bit);
       }
     }

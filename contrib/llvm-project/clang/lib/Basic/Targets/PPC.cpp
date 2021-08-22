@@ -56,6 +56,8 @@ bool PPCTargetInfo::handleTargetFeatures(std::vector<std::string> &Features,
       HasP10Vector = true;
     } else if (Feature == "+pcrelative-memops") {
       HasPCRelativeMemops = true;
+    } else if (Feature == "+prefix-instrs") {
+      HasPrefixInstrs = true;
     } else if (Feature == "+spe" || Feature == "+efpu2") {
       HasStrictFP = false;
       HasSPE = true;
@@ -67,6 +69,16 @@ bool PPCTargetInfo::handleTargetFeatures(std::vector<std::string> &Features,
       PairedVectorMemops = true;
     } else if (Feature == "+mma") {
       HasMMA = true;
+    } else if (Feature == "+rop-protect") {
+      HasROPProtect = true;
+    } else if (Feature == "+privileged") {
+      HasPrivileged = true;
+    } else if (Feature == "+isa-v207-instructions") {
+      IsISA2_07 = true;
+    } else if (Feature == "+isa-v30-instructions") {
+      IsISA3_0 = true;
+    } else if (Feature == "+isa-v31-instructions") {
+      IsISA3_1 = true;
     }
     // TODO: Finish this list and add an assert that we've handled them
     // all.
@@ -75,10 +87,164 @@ bool PPCTargetInfo::handleTargetFeatures(std::vector<std::string> &Features,
   return true;
 }
 
+static void defineXLCompatMacros(MacroBuilder &Builder) {
+  Builder.defineMacro("__popcntb", "__builtin_ppc_popcntb");
+  Builder.defineMacro("__poppar4", "__builtin_ppc_poppar4");
+  Builder.defineMacro("__poppar8", "__builtin_ppc_poppar8");
+  Builder.defineMacro("__eieio", "__builtin_ppc_eieio");
+  Builder.defineMacro("__iospace_eieio", "__builtin_ppc_iospace_eieio");
+  Builder.defineMacro("__isync", "__builtin_ppc_isync");
+  Builder.defineMacro("__lwsync", "__builtin_ppc_lwsync");
+  Builder.defineMacro("__iospace_lwsync", "__builtin_ppc_iospace_lwsync");
+  Builder.defineMacro("__sync", "__builtin_ppc_sync");
+  Builder.defineMacro("__iospace_sync", "__builtin_ppc_iospace_sync");
+  Builder.defineMacro("__dcbfl", "__builtin_ppc_dcbfl");
+  Builder.defineMacro("__dcbflp", "__builtin_ppc_dcbflp");
+  Builder.defineMacro("__dcbst", "__builtin_ppc_dcbst");
+  Builder.defineMacro("__dcbt", "__builtin_ppc_dcbt");
+  Builder.defineMacro("__dcbtst", "__builtin_ppc_dcbtst");
+  Builder.defineMacro("__dcbz", "__builtin_ppc_dcbz");
+  Builder.defineMacro("__icbt", "__builtin_ppc_icbt");
+  Builder.defineMacro("__compare_and_swap", "__builtin_ppc_compare_and_swap");
+  Builder.defineMacro("__compare_and_swaplp",
+                      "__builtin_ppc_compare_and_swaplp");
+  Builder.defineMacro("__fetch_and_add", "__builtin_ppc_fetch_and_add");
+  Builder.defineMacro("__fetch_and_addlp", "__builtin_ppc_fetch_and_addlp");
+  Builder.defineMacro("__fetch_and_and", "__builtin_ppc_fetch_and_and");
+  Builder.defineMacro("__fetch_and_andlp", "__builtin_ppc_fetch_and_andlp");
+  Builder.defineMacro("__fetch_and_or", "__builtin_ppc_fetch_and_or");
+  Builder.defineMacro("__fetch_and_orlp", "__builtin_ppc_fetch_and_orlp");
+  Builder.defineMacro("__fetch_and_swap", "__builtin_ppc_fetch_and_swap");
+  Builder.defineMacro("__fetch_and_swaplp", "__builtin_ppc_fetch_and_swaplp");
+  Builder.defineMacro("__ldarx", "__builtin_ppc_ldarx");
+  Builder.defineMacro("__lwarx", "__builtin_ppc_lwarx");
+  Builder.defineMacro("__lharx", "__builtin_ppc_lharx");
+  Builder.defineMacro("__lbarx", "__builtin_ppc_lbarx");
+  Builder.defineMacro("__stfiw", "__builtin_ppc_stfiw");
+  Builder.defineMacro("__stdcx", "__builtin_ppc_stdcx");
+  Builder.defineMacro("__stwcx", "__builtin_ppc_stwcx");
+  Builder.defineMacro("__sthcx", "__builtin_ppc_sthcx");
+  Builder.defineMacro("__stbcx", "__builtin_ppc_stbcx");
+  Builder.defineMacro("__tdw", "__builtin_ppc_tdw");
+  Builder.defineMacro("__tw", "__builtin_ppc_tw");
+  Builder.defineMacro("__trap", "__builtin_ppc_trap");
+  Builder.defineMacro("__trapd", "__builtin_ppc_trapd");
+  Builder.defineMacro("__fcfid", "__builtin_ppc_fcfid");
+  Builder.defineMacro("__fcfud", "__builtin_ppc_fcfud");
+  Builder.defineMacro("__fctid", "__builtin_ppc_fctid");
+  Builder.defineMacro("__fctidz", "__builtin_ppc_fctidz");
+  Builder.defineMacro("__fctiw", "__builtin_ppc_fctiw");
+  Builder.defineMacro("__fctiwz", "__builtin_ppc_fctiwz");
+  Builder.defineMacro("__fctudz", "__builtin_ppc_fctudz");
+  Builder.defineMacro("__fctuwz", "__builtin_ppc_fctuwz");
+  Builder.defineMacro("__cmpeqb", "__builtin_ppc_cmpeqb");
+  Builder.defineMacro("__cmprb", "__builtin_ppc_cmprb");
+  Builder.defineMacro("__setb", "__builtin_ppc_setb");
+  Builder.defineMacro("__cmpb", "__builtin_ppc_cmpb");
+  Builder.defineMacro("__mulhd", "__builtin_ppc_mulhd");
+  Builder.defineMacro("__mulhdu", "__builtin_ppc_mulhdu");
+  Builder.defineMacro("__mulhw", "__builtin_ppc_mulhw");
+  Builder.defineMacro("__mulhwu", "__builtin_ppc_mulhwu");
+  Builder.defineMacro("__maddhd", "__builtin_ppc_maddhd");
+  Builder.defineMacro("__maddhdu", "__builtin_ppc_maddhdu");
+  Builder.defineMacro("__maddld", "__builtin_ppc_maddld");
+  Builder.defineMacro("__rlwnm", "__builtin_ppc_rlwnm");
+  Builder.defineMacro("__rlwimi", "__builtin_ppc_rlwimi");
+  Builder.defineMacro("__rldimi", "__builtin_ppc_rldimi");
+  Builder.defineMacro("__load2r", "__builtin_ppc_load2r");
+  Builder.defineMacro("__load4r", "__builtin_ppc_load4r");
+  Builder.defineMacro("__load8r", "__builtin_ppc_load8r");
+  Builder.defineMacro("__store2r", "__builtin_ppc_store2r");
+  Builder.defineMacro("__store4r", "__builtin_ppc_store4r");
+  Builder.defineMacro("__store8r", "__builtin_ppc_store8r");
+  Builder.defineMacro("__extract_exp", "__builtin_ppc_extract_exp");
+  Builder.defineMacro("__extract_sig", "__builtin_ppc_extract_sig");
+  Builder.defineMacro("__mtfsb0", "__builtin_ppc_mtfsb0");
+  Builder.defineMacro("__mtfsb1", "__builtin_ppc_mtfsb1");
+  Builder.defineMacro("__mtfsf", "__builtin_ppc_mtfsf");
+  Builder.defineMacro("__mtfsfi", "__builtin_ppc_mtfsfi");
+  Builder.defineMacro("__insert_exp", "__builtin_ppc_insert_exp");
+  Builder.defineMacro("__fmsub", "__builtin_ppc_fmsub");
+  Builder.defineMacro("__fmsubs", "__builtin_ppc_fmsubs");
+  Builder.defineMacro("__fnmadd", "__builtin_ppc_fnmadd");
+  Builder.defineMacro("__fnmadds", "__builtin_ppc_fnmadds");
+  Builder.defineMacro("__fnmsub", "__builtin_ppc_fnmsub");
+  Builder.defineMacro("__fnmsubs", "__builtin_ppc_fnmsubs");
+  Builder.defineMacro("__fre", "__builtin_ppc_fre");
+  Builder.defineMacro("__fres", "__builtin_ppc_fres");
+  Builder.defineMacro("__swdiv_nochk", "__builtin_ppc_swdiv_nochk");
+  Builder.defineMacro("__swdivs_nochk", "__builtin_ppc_swdivs_nochk");
+  Builder.defineMacro("__alloca", "__builtin_alloca");
+  Builder.defineMacro("__vcipher", "__builtin_altivec_crypto_vcipher");
+  Builder.defineMacro("__vcipherlast", "__builtin_altivec_crypto_vcipherlast");
+  Builder.defineMacro("__vncipher", "__builtin_altivec_crypto_vncipher");
+  Builder.defineMacro("__vncipherlast",
+                      "__builtin_altivec_crypto_vncipherlast");
+  Builder.defineMacro("__vpermxor", "__builtin_altivec_crypto_vpermxor");
+  Builder.defineMacro("__vpmsumb", "__builtin_altivec_crypto_vpmsumb");
+  Builder.defineMacro("__vpmsumd", "__builtin_altivec_crypto_vpmsumd");
+  Builder.defineMacro("__vpmsumh", "__builtin_altivec_crypto_vpmsumh");
+  Builder.defineMacro("__vpmsumw", "__builtin_altivec_crypto_vpmsumw");
+  Builder.defineMacro("__divde", "__builtin_divde");
+  Builder.defineMacro("__divwe", "__builtin_divwe");
+  Builder.defineMacro("__divdeu", "__builtin_divdeu");
+  Builder.defineMacro("__divweu", "__builtin_divweu");
+  Builder.defineMacro("__alignx", "__builtin_ppc_alignx");
+  Builder.defineMacro("__bcopy", "bcopy");
+  Builder.defineMacro("__bpermd", "__builtin_bpermd");
+  Builder.defineMacro("__cntlz4", "__builtin_clz");
+  Builder.defineMacro("__cntlz8", "__builtin_clzll");
+  Builder.defineMacro("__cmplx", "__builtin_complex");
+  Builder.defineMacro("__cmplxf", "__builtin_complex");
+  Builder.defineMacro("__cnttz4", "__builtin_ctz");
+  Builder.defineMacro("__cnttz8", "__builtin_ctzll");
+  Builder.defineMacro("__darn", "__builtin_darn");
+  Builder.defineMacro("__darn_32", "__builtin_darn_32");
+  Builder.defineMacro("__darn_raw", "__builtin_darn_raw");
+  Builder.defineMacro("__dcbf", "__builtin_dcbf");
+  Builder.defineMacro("__fmadd", "__builtin_fma");
+  Builder.defineMacro("__fmadds", "__builtin_fmaf");
+  Builder.defineMacro("__labs", "__builtin_labs");
+  Builder.defineMacro("__llabs", "__builtin_llabs");
+  Builder.defineMacro("__popcnt4", "__builtin_popcount");
+  Builder.defineMacro("__popcnt8", "__builtin_popcountll");
+  Builder.defineMacro("__readflm", "__builtin_readflm");
+  Builder.defineMacro("__rotatel4", "__builtin_rotateleft32");
+  Builder.defineMacro("__rotatel8", "__builtin_rotateleft64");
+  Builder.defineMacro("__rdlam", "__builtin_ppc_rdlam");
+  Builder.defineMacro("__setflm", "__builtin_setflm");
+  Builder.defineMacro("__setrnd", "__builtin_setrnd");
+  Builder.defineMacro("__dcbtstt", "__builtin_ppc_dcbtstt");
+  Builder.defineMacro("__dcbtt", "__builtin_ppc_dcbtt");
+  Builder.defineMacro("__mftbu", "__builtin_ppc_mftbu");
+  Builder.defineMacro("__mfmsr", "__builtin_ppc_mfmsr");
+  Builder.defineMacro("__mtmsr", "__builtin_ppc_mtmsr");
+  Builder.defineMacro("__mfspr", "__builtin_ppc_mfspr");
+  Builder.defineMacro("__mtspr", "__builtin_ppc_mtspr");
+  Builder.defineMacro("__fric", "__builtin_ppc_fric");
+  Builder.defineMacro("__frim", "__builtin_ppc_frim");
+  Builder.defineMacro("__frims", "__builtin_ppc_frims");
+  Builder.defineMacro("__frin", "__builtin_ppc_frin");
+  Builder.defineMacro("__frins", "__builtin_ppc_frins");
+  Builder.defineMacro("__frip", "__builtin_ppc_frip");
+  Builder.defineMacro("__frips", "__builtin_ppc_frips");
+  Builder.defineMacro("__friz", "__builtin_ppc_friz");
+  Builder.defineMacro("__frizs", "__builtin_ppc_frizs");
+  Builder.defineMacro("__fsel", "__builtin_ppc_fsel");
+  Builder.defineMacro("__fsels", "__builtin_ppc_fsels");
+  Builder.defineMacro("__frsqrte", "__builtin_ppc_frsqrte");
+  Builder.defineMacro("__frsqrtes", "__builtin_ppc_frsqrtes");
+  Builder.defineMacro("__fsqrt", "__builtin_ppc_fsqrt");
+  Builder.defineMacro("__fsqrts", "__builtin_ppc_fsqrts");
+}
+
 /// PPCTargetInfo::getTargetDefines - Return a set of the PowerPC-specific
 /// #defines that are not tied to a specific subtarget.
 void PPCTargetInfo::getTargetDefines(const LangOptions &Opts,
                                      MacroBuilder &Builder) const {
+
+  defineXLCompatMacros(Builder);
+
   // Target identification.
   Builder.defineMacro("__ppc__");
   Builder.defineMacro("__PPC__");
@@ -128,6 +294,11 @@ void PPCTargetInfo::getTargetDefines(const LangOptions &Opts,
       Builder.defineMacro("__LONG_DOUBLE_IEEE128__");
     else
       Builder.defineMacro("__LONG_DOUBLE_IBM128__");
+  }
+
+  if (getTriple().isOSAIX() && Opts.LongDoubleSize == 64) {
+    assert(LongDoubleWidth == 64);
+    Builder.defineMacro("__LONGDOUBLE64");
   }
 
   // Define this for elfv2 (64-bit only) or 64-bit darwin.
@@ -194,8 +365,14 @@ void PPCTargetInfo::getTargetDefines(const LangOptions &Opts,
     Builder.defineMacro("__POWER9_VECTOR__");
   if (HasMMA)
     Builder.defineMacro("__MMA__");
+  if (HasROPProtect)
+    Builder.defineMacro("__ROP_PROTECT__");
+  if (HasPrivileged)
+    Builder.defineMacro("__PRIVILEGED__");
   if (HasP10Vector)
     Builder.defineMacro("__POWER10_VECTOR__");
+  if (HasPCRelativeMemops)
+    Builder.defineMacro("__PCREL__");
 
   Builder.defineMacro("__GCC_HAVE_SYNC_COMPARE_AND_SWAP_1");
   Builder.defineMacro("__GCC_HAVE_SYNC_COMPARE_AND_SWAP_2");
@@ -320,10 +497,24 @@ bool PPCTargetInfo::initFeatureMap(
                         .Case("pwr8", true)
                         .Default(false);
 
+  // ROP Protect is off by default.
+  Features["rop-protect"] = false;
+  // Privileged instructions are off by default.
+  Features["privileged"] = false;
+
   Features["spe"] = llvm::StringSwitch<bool>(CPU)
                         .Case("8548", true)
                         .Case("e500", true)
                         .Default(false);
+
+  Features["isa-v207-instructions"] = llvm::StringSwitch<bool>(CPU)
+                                          .Case("ppc64le", true)
+                                          .Case("pwr9", true)
+                                          .Case("pwr8", true)
+                                          .Default(false);
+
+  Features["isa-v30-instructions"] =
+      llvm::StringSwitch<bool>(CPU).Case("pwr9", true).Default(false);
 
   // Power10 includes all the same features as Power9 plus any features specific
   // to the Power10 core.
@@ -356,6 +547,19 @@ bool PPCTargetInfo::initFeatureMap(
     return false;
   }
 
+  if (!(ArchDefs & ArchDefinePwr8) &&
+      llvm::find(FeaturesVec, "+rop-protect") != FeaturesVec.end()) {
+    // We can turn on ROP Protect on Power 8 and above.
+    Diags.Report(diag::err_opt_not_valid_with_opt) << "-mrop-protect" << CPU;
+    return false;
+  }
+
+  if (!(ArchDefs & ArchDefinePwr8) &&
+      llvm::find(FeaturesVec, "+privileged") != FeaturesVec.end()) {
+    Diags.Report(diag::err_opt_not_valid_with_opt) << "-mprivileged" << CPU;
+    return false;
+  }
+
   return TargetInfo::initFeatureMap(Features, Diags, CPU, FeaturesVec);
 }
 
@@ -367,6 +571,8 @@ void PPCTargetInfo::addP10SpecificFeatures(
   Features["mma"] = true;
   Features["power10-vector"] = true;
   Features["pcrelative-memops"] = true;
+  Features["prefix-instrs"] = true;
+  Features["isa-v31-instructions"] = true;
   return;
 }
 
@@ -392,8 +598,14 @@ bool PPCTargetInfo::hasFeature(StringRef Feature) const {
       .Case("paired-vector-memops", PairedVectorMemops)
       .Case("power10-vector", HasP10Vector)
       .Case("pcrelative-memops", HasPCRelativeMemops)
+      .Case("prefix-instrs", HasPrefixInstrs)
       .Case("spe", HasSPE)
       .Case("mma", HasMMA)
+      .Case("rop-protect", HasROPProtect)
+      .Case("privileged", HasPrivileged)
+      .Case("isa-v207-instructions", IsISA2_07)
+      .Case("isa-v30-instructions", IsISA3_0)
+      .Case("isa-v31-instructions", IsISA3_1)
       .Default(false);
 }
 
@@ -422,6 +634,8 @@ void PPCTargetInfo::setFeatureEnabled(llvm::StringMap<bool> &Features,
       Features["power8-vector"] = Features["power9-vector"] = true;
     if (Name == "pcrel")
       Features["pcrelative-memops"] = true;
+    else if (Name == "prefixed")
+      Features["prefix-instrs"] = true;
     else
       Features[Name] = true;
   } else {
@@ -442,6 +656,8 @@ void PPCTargetInfo::setFeatureEnabled(llvm::StringMap<bool> &Features,
           Features["power10-vector"] = false;
     if (Name == "pcrel")
       Features["pcrelative-memops"] = false;
+    else if (Name == "prefixed")
+      Features["prefix-instrs"] = false;
     else
       Features[Name] = false;
   }
@@ -524,17 +740,17 @@ ArrayRef<TargetInfo::AddlRegName> PPCTargetInfo::getGCCAddlRegNames() const {
 }
 
 static constexpr llvm::StringLiteral ValidCPUNames[] = {
-    {"generic"}, {"440"},     {"450"},       {"601"},     {"602"},
-    {"603"},     {"603e"},    {"603ev"},     {"604"},     {"604e"},
-    {"620"},     {"630"},     {"g3"},        {"7400"},    {"g4"},
-    {"7450"},    {"g4+"},     {"750"},       {"8548"},    {"970"},
-    {"g5"},      {"a2"},      {"e500"},      {"e500mc"},  {"e5500"},
-    {"power3"},  {"pwr3"},    {"power4"},    {"pwr4"},    {"power5"},
-    {"pwr5"},    {"power5x"}, {"pwr5x"},     {"power6"},  {"pwr6"},
-    {"power6x"}, {"pwr6x"},   {"power7"},    {"pwr7"},    {"power8"},
-    {"pwr8"},    {"power9"},  {"pwr9"},      {"power10"}, {"pwr10"},
-    {"powerpc"}, {"ppc"},     {"powerpc64"}, {"ppc64"},   {"powerpc64le"},
-    {"ppc64le"}, {"future"}};
+    {"generic"},     {"440"},     {"450"},    {"601"},       {"602"},
+    {"603"},         {"603e"},    {"603ev"},  {"604"},       {"604e"},
+    {"620"},         {"630"},     {"g3"},     {"7400"},      {"g4"},
+    {"7450"},        {"g4+"},     {"750"},    {"8548"},      {"970"},
+    {"g5"},          {"a2"},      {"e500"},   {"e500mc"},    {"e5500"},
+    {"power3"},      {"pwr3"},    {"power4"}, {"pwr4"},      {"power5"},
+    {"pwr5"},        {"power5x"}, {"pwr5x"},  {"power6"},    {"pwr6"},
+    {"power6x"},     {"pwr6x"},   {"power7"}, {"pwr7"},      {"power8"},
+    {"pwr8"},        {"power9"},  {"pwr9"},   {"power10"},   {"pwr10"},
+    {"powerpc"},     {"ppc"},     {"ppc32"},  {"powerpc64"}, {"ppc64"},
+    {"powerpc64le"}, {"ppc64le"}, {"future"}};
 
 bool PPCTargetInfo::isValidCPUName(StringRef Name) const {
   return llvm::find(ValidCPUNames, Name) != std::end(ValidCPUNames);
@@ -544,14 +760,15 @@ void PPCTargetInfo::fillValidCPUList(SmallVectorImpl<StringRef> &Values) const {
   Values.append(std::begin(ValidCPUNames), std::end(ValidCPUNames));
 }
 
-void PPCTargetInfo::adjust(LangOptions &Opts) {
+void PPCTargetInfo::adjust(DiagnosticsEngine &Diags, LangOptions &Opts) {
   if (HasAltivec)
     Opts.AltiVec = 1;
-  TargetInfo::adjust(Opts);
+  TargetInfo::adjust(Diags, Opts);
   if (LongDoubleFormat != &llvm::APFloat::IEEEdouble())
     LongDoubleFormat = Opts.PPCIEEELongDouble
                            ? &llvm::APFloat::IEEEquad()
                            : &llvm::APFloat::PPCDoubleDouble();
+  Opts.IEEE128 = 1;
 }
 
 ArrayRef<Builtin::Info> PPCTargetInfo::getTargetBuiltins() const {

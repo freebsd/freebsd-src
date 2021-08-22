@@ -179,6 +179,9 @@ def err_invalid_suffix_constant : Error<
 def warn_cxx11_compat_digit_separator : Warning<
   "digit separators are incompatible with C++ standards before C++14">,
   InGroup<CXXPre14Compat>, DefaultIgnore;
+def warn_c2x_compat_digit_separator : Warning<
+  "digit separators are incompatible with C standards before C2x">,
+  InGroup<CPre2xCompat>, DefaultIgnore;
 def err_digit_separator_not_between_digits : Error<
   "digit separator cannot appear at %select{start|end}0 of digit sequence">;
 def warn_extraneous_char_constant : Warning<
@@ -452,9 +455,11 @@ def err_pp_malformed_ident : Error<"invalid #ident directive">;
 def err_pp_unterminated_conditional : Error<
   "unterminated conditional directive">;
 def pp_err_else_after_else : Error<"#else after #else">;
-def pp_err_elif_after_else : Error<"#elif after #else">;
+def pp_err_elif_after_else : Error<
+  "%select{#elif|#elifdef|#elifndef}0 after #else">;
 def pp_err_else_without_if : Error<"#else without #if">;
-def pp_err_elif_without_if : Error<"#elif without #if">;
+def pp_err_elif_without_if : Error<
+  "%select{#elif|#elifdef|#elifndef}0 without #if">;
 def err_pp_endif_without_if : Error<"#endif without #if">;
 def err_pp_expected_value_in_expr : Error<"expected value in expression">;
 def err_pp_expected_rparen : Error<"expected ')' in preprocessor expression">;

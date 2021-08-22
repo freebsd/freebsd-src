@@ -31,6 +31,7 @@
 #include "llvm/Analysis/LazyValueInfo.h"
 #include "llvm/Analysis/Loads.h"
 #include "llvm/Analysis/LoopInfo.h"
+#include "llvm/Analysis/MemoryLocation.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
 #include "llvm/Analysis/ValueTracking.h"
@@ -370,7 +371,6 @@ PreservedAnalyses JumpThreadingPass::run(Function &F,
   if (!Changed)
     return PreservedAnalyses::all();
   PreservedAnalyses PA;
-  PA.preserve<GlobalsAA>();
   PA.preserve<DominatorTreeAnalysis>();
   PA.preserve<LazyValueAnalysis>();
   return PA;
@@ -462,7 +462,7 @@ bool JumpThreadingPass::runImpl(Function &F, TargetLibraryInfo *TLI_,
         BasicBlock *Succ = BI->getSuccessor(0);
         if (
             // The terminator must be the only non-phi instruction in BB.
-            BB.getFirstNonPHIOrDbg()->isTerminator() &&
+            BB.getFirstNonPHIOrDbg(true)->isTerminator() &&
             // Don't alter Loop headers and latches to ensure another pass can
             // detect and transform nested loops later.
             !LoopHeaders.count(&BB) && !LoopHeaders.count(Succ) &&
@@ -733,23 +733,26 @@ bool JumpThreadingPass::computeValueKnownInPredecessorsImpl(
 
   // Handle some boolean conditions.
   if (I->getType()->getPrimitiveSizeInBits() == 1) {
+    using namespace PatternMatch;
+
     assert(Preference == WantInteger && "One-bit non-integer type?");
     // X | true -> true
     // X & false -> false
-    if (I->getOpcode() == Instruction::Or ||
-        I->getOpcode() == Instruction::And) {
+    Value *Op0, *Op1;
+    if (match(I, m_LogicalOr(m_Value(Op0), m_Value(Op1))) ||
+        match(I, m_LogicalAnd(m_Value(Op0), m_Value(Op1)))) {
       PredValueInfoTy LHSVals, RHSVals;
 
-      computeValueKnownInPredecessorsImpl(I->getOperand(0), BB, LHSVals,
-                                      WantInteger, RecursionSet, CxtI);
-      computeValueKnownInPredecessorsImpl(I->getOperand(1), BB, RHSVals,
-                                          WantInteger, RecursionSet, CxtI);
+      computeValueKnownInPredecessorsImpl(Op0, BB, LHSVals, WantInteger,
+                                          RecursionSet, CxtI);
+      computeValueKnownInPredecessorsImpl(Op1, BB, RHSVals, WantInteger,
+                                          RecursionSet, CxtI);
 
       if (LHSVals.empty() && RHSVals.empty())
         return false;
 
       ConstantInt *InterestingVal;
-      if (I->getOpcode() == Instruction::Or)
+      if (match(I, m_LogicalOr()))
         InterestingVal = ConstantInt::getTrue(I->getContext());
       else
         InterestingVal = ConstantInt::getFalse(I->getContext());
@@ -1105,6 +1108,7 @@ bool JumpThreadingPass::processBlock(BasicBlock *BB) {
     LLVM_DEBUG(dbgs() << "  In block '" << BB->getName()
                       << "' folding undef terminator: " << *BBTerm << '\n');
     BranchInst::Create(BBTerm->getSuccessor(BestSucc), BBTerm);
+    ++NumFolds;
     BBTerm->eraseFromParent();
     DTU->applyUpdatesPermissive(Updates);
     if (FI)
@@ -1150,8 +1154,8 @@ bool JumpThreadingPass::processBlock(BasicBlock *BB) {
       assert(CondBr->isConditional() && "Threading on unconditional terminator");
 
       LazyValueInfo::Tristate Ret =
-        LVI->getPredicateAt(CondCmp->getPredicate(), CondCmp->getOperand(0),
-                            CondConst, CondBr);
+          LVI->getPredicateAt(CondCmp->getPredicate(), CondCmp->getOperand(0),
+                              CondConst, CondBr, /*UseBlockValue=*/false);
       if (Ret != LazyValueInfo::Unknown) {
         unsigned ToRemove = Ret == LazyValueInfo::True ? 1 : 0;
         unsigned ToKeep = Ret == LazyValueInfo::True ? 0 : 1;
@@ -1160,6 +1164,7 @@ bool JumpThreadingPass::processBlock(BasicBlock *BB) {
         BranchInst *UncondBr =
           BranchInst::Create(CondBr->getSuccessor(ToKeep), CondBr);
         UncondBr->setDebugLoc(CondBr->getDebugLoc());
+        ++NumFolds;
         CondBr->eraseFromParent();
         if (CondCmp->use_empty())
           CondCmp->eraseFromParent();
@@ -1275,6 +1280,7 @@ bool JumpThreadingPass::processImpliedCondition(BasicBlock *BB) {
       RemoveSucc->removePredecessor(BB);
       BranchInst *UncondBI = BranchInst::Create(KeepSucc, BI);
       UncondBI->setDebugLoc(BI->getDebugLoc());
+      ++NumFolds;
       BI->eraseFromParent();
       DTU->applyUpdatesPermissive({{DominatorTree::Delete, BB, RemoveSucc}});
       if (HasProfileData)
@@ -1384,10 +1390,14 @@ bool JumpThreadingPass::simplifyPartiallyRedundantLoad(LoadInst *LoadI) {
            "Attempting to CSE volatile or atomic loads");
     // If this is a load on a phi pointer, phi-translate it and search
     // for available load/store to the pointer in predecessors.
-    Value *Ptr = LoadedPtr->DoPHITranslation(LoadBB, PredBB);
-    PredAvailable = FindAvailablePtrLoadStore(
-        Ptr, LoadI->getType(), LoadI->isAtomic(), PredBB, BBIt,
-        DefMaxInstsToScan, AA, &IsLoadCSE, &NumScanedInst);
+    Type *AccessTy = LoadI->getType();
+    const auto &DL = LoadI->getModule()->getDataLayout();
+    MemoryLocation Loc(LoadedPtr->DoPHITranslation(LoadBB, PredBB),
+                       LocationSize::precise(DL.getTypeStoreSize(AccessTy)),
+                       AATags);
+    PredAvailable = findAvailablePtrLoadStore(Loc, AccessTy, LoadI->isAtomic(),
+                                              PredBB, BBIt, DefMaxInstsToScan,
+                                              AA, &IsLoadCSE, &NumScanedInst);
 
     // If PredBB has a single predecessor, continue scanning through the
     // single predecessor.
@@ -1397,8 +1407,8 @@ bool JumpThreadingPass::simplifyPartiallyRedundantLoad(LoadInst *LoadI) {
       SinglePredBB = SinglePredBB->getSinglePredecessor();
       if (SinglePredBB) {
         BBIt = SinglePredBB->end();
-        PredAvailable = FindAvailablePtrLoadStore(
-            Ptr, LoadI->getType(), LoadI->isAtomic(), SinglePredBB, BBIt,
+        PredAvailable = findAvailablePtrLoadStore(
+            Loc, AccessTy, LoadI->isAtomic(), SinglePredBB, BBIt,
             (DefMaxInstsToScan - NumScanedInst), AA, &IsLoadCSE,
             &NumScanedInst);
       }
@@ -1720,6 +1730,7 @@ bool JumpThreadingPass::processThreadableEdges(Value *Cond, BasicBlock *BB,
       // Finally update the terminator.
       Instruction *Term = BB->getTerminator();
       BranchInst::Create(OnlyDest, Term);
+      ++NumFolds;
       Term->eraseFromParent();
       DTU->applyUpdatesPermissive(Updates);
       if (HasProfileData)
@@ -2737,7 +2748,8 @@ void JumpThreadingPass::unfoldSelectInstr(BasicBlock *Pred, BasicBlock *BB,
   PredTerm->removeFromParent();
   NewBB->getInstList().insert(NewBB->end(), PredTerm);
   // Create a conditional branch and update PHI nodes.
-  BranchInst::Create(NewBB, BB, SI->getCondition(), Pred);
+  auto *BI = BranchInst::Create(NewBB, BB, SI->getCondition(), Pred);
+  BI->applyMergedLocation(PredTerm->getDebugLoc(), SI->getDebugLoc());
   SIUse->setIncomingValue(Idx, SI->getFalseValue());
   SIUse->addIncoming(SI->getTrueValue(), NewBB);
 
@@ -2871,11 +2883,14 @@ bool JumpThreadingPass::tryToUnfoldSelectInCurrBB(BasicBlock *BB) {
       continue;
 
     auto isUnfoldCandidate = [BB](SelectInst *SI, Value *V) {
+      using namespace PatternMatch;
+
       // Check if SI is in BB and use V as condition.
       if (SI->getParent() != BB)
         return false;
       Value *Cond = SI->getCondition();
-      return (Cond && Cond == V && Cond->getType()->isIntegerTy(1));
+      bool IsAndOr = match(SI, m_CombineOr(m_LogicalAnd(), m_LogicalOr()));
+      return Cond && Cond == V && Cond->getType()->isIntegerTy(1) && !IsAndOr;
     };
 
     SelectInst *SI = nullptr;

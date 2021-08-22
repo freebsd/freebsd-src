@@ -57,6 +57,7 @@
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/IPO.h"
+#include "llvm/Transforms/Utils/Local.h"
 #include <cassert>
 #include <iterator>
 #include <map>
@@ -79,6 +80,7 @@ STATISTIC(NumNoRecurse, "Number of functions marked as norecurse");
 STATISTIC(NumNoUnwind, "Number of functions marked as nounwind");
 STATISTIC(NumNoFree, "Number of functions marked as nofree");
 STATISTIC(NumWillReturn, "Number of functions marked as willreturn");
+STATISTIC(NumNoSync, "Number of functions marked as nosync");
 
 static cl::opt<bool> EnableNonnullArgPropagation(
     "enable-nonnull-arg-prop", cl::init(true), cl::Hidden,
@@ -1266,15 +1268,13 @@ static bool InstrBreaksNoFree(Instruction &I, const SCCNodeSet &SCCNodes) {
   if (!CB)
     return false;
 
-  Function *Callee = CB->getCalledFunction();
-  if (!Callee)
-    return true;
-
-  if (Callee->doesNotFreeMemory())
+  if (CB->hasFnAttr(Attribute::NoFree))
     return false;
 
-  if (SCCNodes.contains(Callee))
-    return false;
+  // Speculatively assume in SCC.
+  if (Function *Callee = CB->getCalledFunction())
+    if (SCCNodes.contains(Callee))
+      return false;
 
   return true;
 }
@@ -1398,10 +1398,8 @@ static bool addNoRecurseAttrs(const SCCNodeSet &SCCNodes) {
 }
 
 static bool instructionDoesNotReturn(Instruction &I) {
-  if (auto *CB = dyn_cast<CallBase>(&I)) {
-    Function *Callee = CB->getCalledFunction();
-    return Callee && Callee->doesNotReturn();
-  }
+  if (auto *CB = dyn_cast<CallBase>(&I))
+    return CB->hasFnAttr(Attribute::NoReturn);
   return false;
 }
 
@@ -1434,6 +1432,12 @@ static bool addNoReturnAttrs(const SCCNodeSet &SCCNodes) {
 }
 
 static bool functionWillReturn(const Function &F) {
+  // We can infer and propagate function attributes only when we know that the
+  // definition we'll get at link time is *exactly* the definition we see now.
+  // For more details, see GlobalValue::mayBeDerefined.
+  if (!F.hasExactDefinition())
+    return false;
+
   // Must-progress function without side-effects must return.
   if (F.mustProgress() && F.onlyReadsMemory())
     return true;
@@ -1470,6 +1474,82 @@ static bool addWillReturn(const SCCNodeSet &SCCNodes) {
   }
 
   return Changed;
+}
+
+// Return true if this is an atomic which has an ordering stronger than
+// unordered.  Note that this is different than the predicate we use in
+// Attributor.  Here we chose to be conservative and consider monotonic
+// operations potentially synchronizing.  We generally don't do much with
+// monotonic operations, so this is simply risk reduction.
+static bool isOrderedAtomic(Instruction *I) {
+  if (!I->isAtomic())
+    return false;
+
+  if (auto *FI = dyn_cast<FenceInst>(I))
+    // All legal orderings for fence are stronger than monotonic.
+    return FI->getSyncScopeID() != SyncScope::SingleThread;
+  else if (isa<AtomicCmpXchgInst>(I) || isa<AtomicRMWInst>(I))
+    return true;
+  else if (auto *SI = dyn_cast<StoreInst>(I))
+    return !SI->isUnordered();
+  else if (auto *LI = dyn_cast<LoadInst>(I))
+    return !LI->isUnordered();
+  else {
+    llvm_unreachable("unknown atomic instruction?");
+  }
+}
+
+static bool InstrBreaksNoSync(Instruction &I, const SCCNodeSet &SCCNodes) {
+  // Volatile may synchronize
+  if (I.isVolatile())
+    return true;
+
+  // An ordered atomic may synchronize.  (See comment about on monotonic.)
+  if (isOrderedAtomic(&I))
+    return true;
+
+  auto *CB = dyn_cast<CallBase>(&I);
+  if (!CB)
+    // Non call site cases covered by the two checks above
+    return false;
+
+  if (CB->hasFnAttr(Attribute::NoSync))
+    return false;
+
+  // Non volatile memset/memcpy/memmoves are nosync
+  // NOTE: Only intrinsics with volatile flags should be handled here.  All
+  // others should be marked in Intrinsics.td.
+  if (auto *MI = dyn_cast<MemIntrinsic>(&I))
+    if (!MI->isVolatile())
+      return false;
+
+  // Speculatively assume in SCC.
+  if (Function *Callee = CB->getCalledFunction())
+    if (SCCNodes.contains(Callee))
+      return false;
+
+  return true;
+}
+
+// Infer the nosync attribute.
+static bool addNoSyncAttr(const SCCNodeSet &SCCNodes) {
+  AttributeInferer AI;
+  AI.registerAttrInference(AttributeInferer::InferenceDescriptor{
+      Attribute::NoSync,
+      // Skip already marked functions.
+      [](const Function &F) { return F.hasNoSync(); },
+      // Instructions that break nosync assumption.
+      [&SCCNodes](Instruction &I) {
+        return InstrBreaksNoSync(I, SCCNodes);
+      },
+      [](Function &F) {
+        LLVM_DEBUG(dbgs()
+                   << "Adding nosync attr to fn " << F.getName() << "\n");
+        F.setNoSync();
+        ++NumNoSync;
+      },
+      /* RequiresExactDefinition= */ true});
+  return AI.run(SCCNodes);
 }
 
 static SCCNodesResult createSCCNodeSet(ArrayRef<Function *> Functions) {
@@ -1527,6 +1607,16 @@ static bool deriveAttrsInPostOrder(ArrayRef<Function *> Functions,
     Changed |= addNoRecurseAttrs(Nodes.SCCNodes);
   }
 
+  Changed |= addNoSyncAttr(Nodes.SCCNodes);
+
+  // Finally, infer the maximal set of attributes from the ones we've inferred
+  // above.  This is handling the cases where one attribute on a signature
+  // implies another, but for implementation reasons the inference rule for
+  // the later is missing (or simply less sophisticated).
+  for (Function *F : Nodes.SCCNodes)
+    if (F)
+      Changed |= inferAttributesFromOthers(*F);
+
   return Changed;
 }
 
@@ -1548,8 +1638,12 @@ PreservedAnalyses PostOrderFunctionAttrsPass::run(LazyCallGraph::SCC &C,
     Functions.push_back(&N.getFunction());
   }
 
-  if (deriveAttrsInPostOrder(Functions, AARGetter))
-    return PreservedAnalyses::none();
+  if (deriveAttrsInPostOrder(Functions, AARGetter)) {
+    // We have not changed the call graph or removed/added functions.
+    PreservedAnalyses PA;
+    PA.preserve<FunctionAnalysisManagerCGSCCProxy>();
+    return PA;
+  }
 
   return PreservedAnalyses::all();
 }

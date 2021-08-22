@@ -185,7 +185,7 @@ public:
   /// Machine Function map.
   void deleteMachineFunctionFor(Function &F);
 
-  /// Keep track of various per-function pieces of information for backends
+  /// Keep track of various per-module pieces of information for backends
   /// that would like to do so.
   template<typename Ty>
   Ty &getObjFileInfo() {
@@ -242,6 +242,13 @@ public:
   /// address is taken.  If other blocks were RAUW'd to this one, we may have
   /// to emit them as well, return the whole set.
   ArrayRef<MCSymbol *> getAddrLabelSymbolToEmit(const BasicBlock *BB);
+
+  /// If the specified function has had any references to address-taken blocks
+  /// generated, but the block got deleted, return the symbol now so we can
+  /// emit it.  This prevents emitting a reference to a symbol that has no
+  /// definition.
+  void takeDeletedSymbolsForFunction(const Function *F,
+                                     std::vector<MCSymbol*> &Result);
 
   /// \name Exception Handling
   /// \{

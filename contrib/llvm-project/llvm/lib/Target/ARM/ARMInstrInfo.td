@@ -66,7 +66,7 @@ def SDT_ARMMEMBARRIER     : SDTypeProfile<0, 1, [SDTCisInt<0>]>;
 def SDT_ARMPREFETCH : SDTypeProfile<0, 3, [SDTCisPtrTy<0>, SDTCisSameAs<1, 2>,
                                            SDTCisInt<1>]>;
 
-def SDT_ARMTCRET : SDTypeProfile<0, 1, [SDTCisPtrTy<0>]>;
+def SDT_ARMTCRET : SDTypeProfile<0, 2, [SDTCisPtrTy<0>]>;
 
 def SDT_ARMBFI : SDTypeProfile<1, 3, [SDTCisVT<0, i32>, SDTCisVT<1, i32>,
                                       SDTCisVT<2, i32>, SDTCisVT<3, i32>]>;
@@ -240,6 +240,11 @@ def ARMqsub8b       : SDNode<"ARMISD::QSUB8b", SDT_ARMAnd, []>;
 def ARMqadd16b      : SDNode<"ARMISD::QADD16b", SDT_ARMAnd, []>;
 def ARMqsub16b      : SDNode<"ARMISD::QSUB16b", SDT_ARMAnd, []>;
 
+def ARMuqadd8b       : SDNode<"ARMISD::UQADD8b", SDT_ARMAnd, []>;
+def ARMuqsub8b       : SDNode<"ARMISD::UQSUB8b", SDT_ARMAnd, []>;
+def ARMuqadd16b      : SDNode<"ARMISD::UQADD16b", SDT_ARMAnd, []>;
+def ARMuqsub16b      : SDNode<"ARMISD::UQSUB16b", SDT_ARMAnd, []>;
+
 def SDT_ARMldrd     : SDTypeProfile<2, 1, [SDTCisVT<0, i32>, SDTCisSameAs<0, 1>, SDTCisPtrTy<2>]>;
 def ARMldrd         : SDNode<"ARMISD::LDRD", SDT_ARMldrd, [SDNPHasChain, SDNPMayLoad, SDNPMemOperand]>;
 
@@ -255,6 +260,10 @@ def ARMvdup      : SDNode<"ARMISD::VDUP", SDTypeProfile<1, 1, [SDTCisVec<0>]>>;
 def ARMvduplane  : SDNode<"ARMISD::VDUPLANE",
                           SDTypeProfile<1, 2, [SDTCisVec<0>, SDTCisVec<1>,
                                                SDTCisVT<2, i32>]>>;
+
+def SDTARMVIDUP  : SDTypeProfile<2, 2, [SDTCisVec<0>, SDTCisVT<1, i32>,
+                                          SDTCisVT<2, i32>, SDTCisVT<3, i32>]>;
+def ARMvidup    : SDNode<"ARMISD::VIDUP", SDTARMVIDUP>;
 
 def SDTARMVSHUF   : SDTypeProfile<1, 1, [SDTCisVec<0>, SDTCisSameAs<0, 1>]>;
 def ARMvrev64    : SDNode<"ARMISD::VREV64", SDTARMVSHUF>;
@@ -2619,15 +2628,16 @@ def BXJ : ABI<0b0001, (outs), (ins GPR:$func), NoItinerary, "bxj", "\t$func",
   let Inst{7-4} = 0b0010;
   let Inst{3-0} = func;
   let isBranch = 1;
+  let isIndirectBranch = 1;
 }
 
 // Tail calls.
 
 let isCall = 1, isTerminator = 1, isReturn = 1, isBarrier = 1, Uses = [SP] in {
-  def TCRETURNdi : PseudoInst<(outs), (ins i32imm:$dst), IIC_Br, []>,
+  def TCRETURNdi : PseudoInst<(outs), (ins i32imm:$dst, i32imm:$SPDiff), IIC_Br, []>,
                    Sched<[WriteBr]>;
 
-  def TCRETURNri : PseudoInst<(outs), (ins tcGPR:$dst), IIC_Br, []>,
+  def TCRETURNri : PseudoInst<(outs), (ins tcGPR:$dst, i32imm:$SPDiff), IIC_Br, []>,
                    Sched<[WriteBr]>;
 
   def TAILJMPd : ARMPseudoExpand<(outs), (ins arm_br_target:$dst),
@@ -3940,6 +3950,7 @@ def : ARMV5TEPat<(saddsat rGPR:$Rm, (saddsat rGPR:$Rn, rGPR:$Rn)),
                  (QDADD rGPR:$Rm, rGPR:$Rn)>;
 def : ARMV5TEPat<(ssubsat rGPR:$Rm, (saddsat rGPR:$Rn, rGPR:$Rn)),
                  (QDSUB rGPR:$Rm, rGPR:$Rn)>;
+
 def : ARMV6Pat<(ARMqadd8b rGPR:$Rm, rGPR:$Rn),
                (QADD8 rGPR:$Rm, rGPR:$Rn)>;
 def : ARMV6Pat<(ARMqsub8b rGPR:$Rm, rGPR:$Rn),
@@ -3957,6 +3968,16 @@ def QASX    : AAIIntrinsic<0b01100010, 0b11110011, "qasx", int_arm_qasx>;
 def QSAX    : AAIIntrinsic<0b01100010, 0b11110101, "qsax", int_arm_qsax>;
 def UQASX   : AAIIntrinsic<0b01100110, 0b11110011, "uqasx", int_arm_uqasx>;
 def UQSAX   : AAIIntrinsic<0b01100110, 0b11110101, "uqsax", int_arm_uqsax>;
+
+def : ARMV6Pat<(ARMuqadd8b rGPR:$Rm, rGPR:$Rn),
+               (UQADD8 rGPR:$Rm, rGPR:$Rn)>;
+def : ARMV6Pat<(ARMuqsub8b rGPR:$Rm, rGPR:$Rn),
+               (UQSUB8 rGPR:$Rm, rGPR:$Rn)>;
+def : ARMV6Pat<(ARMuqadd16b rGPR:$Rm, rGPR:$Rn),
+               (UQADD16 rGPR:$Rm, rGPR:$Rn)>;
+def : ARMV6Pat<(ARMuqsub16b rGPR:$Rm, rGPR:$Rn),
+               (UQSUB16 rGPR:$Rm, rGPR:$Rn)>;
+
 
 // Signed/Unsigned add/subtract
 
@@ -5278,7 +5299,7 @@ def : ARMPat<(stlex_2 (and GPR:$Rt, 0xffff), addr_offset_none:$addr),
 
 class acquiring_load<PatFrag base>
   : PatFrag<(ops node:$ptr), (base node:$ptr), [{
-  AtomicOrdering Ordering = cast<AtomicSDNode>(N)->getOrdering();
+  AtomicOrdering Ordering = cast<AtomicSDNode>(N)->getSuccessOrdering();
   return isAcquireOrStronger(Ordering);
 }]>;
 
@@ -5288,7 +5309,7 @@ def atomic_load_acquire_32 : acquiring_load<atomic_load_32>;
 
 class releasing_store<PatFrag base>
   : PatFrag<(ops node:$ptr, node:$val), (base node:$ptr, node:$val), [{
-  AtomicOrdering Ordering = cast<AtomicSDNode>(N)->getOrdering();
+  AtomicOrdering Ordering = cast<AtomicSDNode>(N)->getSuccessOrdering();
   return isReleaseOrStronger(Ordering);
 }]>;
 
@@ -5998,9 +6019,12 @@ def : ARMPat<(ARMWrapperJT tjumptable:$dst),
 // TODO: add,sub,and, 3-instr forms?
 
 // Tail calls. These patterns also apply to Thumb mode.
-def : Pat<(ARMtcret tcGPR:$dst), (TCRETURNri tcGPR:$dst)>;
-def : Pat<(ARMtcret (i32 tglobaladdr:$dst)), (TCRETURNdi texternalsym:$dst)>;
-def : Pat<(ARMtcret (i32 texternalsym:$dst)), (TCRETURNdi texternalsym:$dst)>;
+def : Pat<(ARMtcret tcGPR:$dst, (i32 timm:$SPDiff)),
+          (TCRETURNri tcGPR:$dst, timm:$SPDiff)>;
+def : Pat<(ARMtcret (i32 tglobaladdr:$dst), (i32 timm:$SPDiff)),
+          (TCRETURNdi texternalsym:$dst, (i32 timm:$SPDiff))>;
+def : Pat<(ARMtcret (i32 texternalsym:$dst), (i32 timm:$SPDiff)),
+          (TCRETURNdi texternalsym:$dst, i32imm:$SPDiff)>;
 
 // Direct calls
 def : ARMPat<(ARMcall texternalsym:$func), (BL texternalsym:$func)>;

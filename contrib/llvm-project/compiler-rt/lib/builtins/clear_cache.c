@@ -7,7 +7,9 @@
 //===----------------------------------------------------------------------===//
 
 #include "int_lib.h"
+#if defined(__linux__)
 #include <assert.h>
+#endif
 #include <stddef.h>
 
 #if __APPLE__
@@ -125,6 +127,7 @@ void __clear_cache(void *start, void *end) {
     for (addr = xstart & ~(icache_line_size - 1); addr < xend;
          addr += icache_line_size)
       __asm __volatile("ic ivau, %0" ::"r"(addr));
+    __asm __volatile("dsb ish");
   }
   __asm __volatile("isb sy");
 #elif defined(__powerpc64__)

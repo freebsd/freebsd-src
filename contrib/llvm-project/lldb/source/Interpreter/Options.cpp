@@ -25,9 +25,9 @@ using namespace lldb;
 using namespace lldb_private;
 
 // Options
-Options::Options() : m_getopt_table() { BuildValidOptionSets(); }
+Options::Options() { BuildValidOptionSets(); }
 
-Options::~Options() {}
+Options::~Options() = default;
 
 void Options::NotifyOptionParsingStarting(ExecutionContext *execution_context) {
   m_seen_options.clear();
@@ -137,7 +137,6 @@ bool Options::VerifyOptions(CommandReturnObject &result) {
     result.SetStatus(eReturnStatusSuccessFinishNoResult);
   } else {
     result.AppendError("invalid combination of options for the given command");
-    result.SetStatus(eReturnStatusFailed);
   }
 
   return options_are_valid;

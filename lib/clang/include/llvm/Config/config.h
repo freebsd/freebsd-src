@@ -155,6 +155,9 @@
 #define HAVE_MALLINFO 1
 #endif
 
+/* Define to 1 if you have the `mallinfo2' function. */
+/* #undef HAVE_MALLINFO2 */
+
 /* Define to 1 if you have the <malloc/malloc.h> header file. */
 #if __has_include(<malloc/malloc.h>)
 #define HAVE_MALLOC_MALLOC_H 1
@@ -252,11 +255,6 @@
 #define LLVM_ENABLE_TERMINFO 1
 #endif
 
-/* Define if the xar_open() function is supported this platform. */
-#if defined(__APPLE__)
-#define HAVE_LIBXAR
-#endif
-
 /* Define to 1 if you have the <termios.h> header file. */
 #define HAVE_TERMIOS_H 1
 
@@ -348,13 +346,20 @@
 #define LLVM_VERSION_PRINTER_SHOW_HOST_TARGET_INFO 1
 
 /* Define if libxml2 is supported on this platform. */
-/* #undef LLVM_LIBXML2_ENABLED */
+/* #undef LLVM_ENABLE_LIBXML2 */
 
 /* Define to the extension used for shared libraries, say, ".so". */
 #if defined(__APPLE__)
 #define LTDL_SHLIB_EXT ".dylib"
 #else
 #define LTDL_SHLIB_EXT ".so"
+#endif
+
+/* Define to the extension used for plugin libraries, say, ".so". */
+#if defined(__APPLE__)
+#define LLVM_PLUGIN_EXT ".dylib"
+#else
+#define LLVM_PLUGIN_EXT ".so"
 #endif
 
 /* Define to the address where bug reports for this package should be sent. */
@@ -364,10 +369,10 @@
 #define PACKAGE_NAME "LLVM"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "LLVM 12.0.1"
+#define PACKAGE_STRING "LLVM 13.0.0git"
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "12.0.1"
+#define PACKAGE_VERSION "13.0.0git"
 
 /* Define to the vendor of this package. */
 /* #undef PACKAGE_VENDOR */
@@ -390,11 +395,9 @@
 /* Define to the default GlobalISel coverage file prefix */
 /* #undef LLVM_GISEL_COV_PREFIX */
 
-/* Whether Timers signpost passes in Xcode Instruments */
-#if defined(__APPLE__)
-#define LLVM_SUPPORT_XCODE_SIGNPOSTS 1
-#else
-#define LLVM_SUPPORT_XCODE_SIGNPOSTS 0
-#endif
+/* Define to the default GlobalISel coverage file prefix */
+/* #undef LLVM_GISEL_COV_PREFIX */
+
+/* #undef HAVE_PROC_PID_RUSAGE */
 
 #endif

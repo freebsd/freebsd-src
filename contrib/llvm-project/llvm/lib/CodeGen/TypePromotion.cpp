@@ -30,9 +30,6 @@
 #include "llvm/IR/InstrTypes.h"
 #include "llvm/IR/Instruction.h"
 #include "llvm/IR/Instructions.h"
-#include "llvm/IR/IntrinsicInst.h"
-#include "llvm/IR/Intrinsics.h"
-#include "llvm/IR/IntrinsicsARM.h"
 #include "llvm/IR/Type.h"
 #include "llvm/IR/Value.h"
 #include "llvm/IR/Verifier.h"
@@ -923,9 +920,6 @@ bool TypePromotion::TryToPromote(Value *V, unsigned PromotedWidth) {
   if (ToPromote < 2 || (Blocks.size() == 1 && (NonFreeArgs > SafeWrap.size())))
     return false;
 
-  if (ToPromote < 2)
-    return false;
-
   IRPromoter Promoter(*Ctx, cast<IntegerType>(OrigTy), PromotedWidth,
                       CurrentVisited, Sources, Sinks, SafeWrap);
   Promoter.Mutate();
@@ -952,7 +946,8 @@ bool TypePromotion::runOnFunction(Function &F) {
   const TargetLowering *TLI = SubtargetInfo->getTargetLowering();
   const TargetTransformInfo &TII =
     getAnalysis<TargetTransformInfoWrapperPass>().getTTI(F);
-  RegisterBitWidth = TII.getRegisterBitWidth(false);
+  RegisterBitWidth =
+      TII.getRegisterBitWidth(TargetTransformInfo::RGK_Scalar).getFixedSize();
   Ctx = &F.getParent()->getContext();
 
   // Search up from icmps to try to promote their operands.

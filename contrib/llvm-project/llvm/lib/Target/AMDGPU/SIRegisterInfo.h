@@ -21,7 +21,9 @@ namespace llvm {
 
 class GCNSubtarget;
 class LiveIntervals;
+class LivePhysRegs;
 class RegisterBank;
+struct SGPRSpillBuilder;
 class SIMachineFunctionInfo;
 
 class SIRegisterInfo final : public AMDGPUGenRegisterInfo {
@@ -79,7 +81,7 @@ public:
   bool hasBasePointer(const MachineFunction &MF) const;
   Register getBaseRegister() const;
 
-  bool canRealignStack(const MachineFunction &MF) const override;
+  bool shouldRealignStack(const MachineFunction &MF) const override;
   bool requiresRegisterScavenging(const MachineFunction &Fn) const override;
 
   bool requiresFrameIndexScavenging(const MachineFunction &MF) const override;
@@ -106,18 +108,18 @@ public:
   const TargetRegisterClass *getPointerRegClass(
     const MachineFunction &MF, unsigned Kind = 0) const override;
 
-  void buildSGPRSpillLoadStore(MachineBasicBlock::iterator MI, int Index,
-                               int Offset, unsigned EltSize, Register VGPR,
-                               int64_t VGPRLanes, RegScavenger *RS,
-                               bool IsLoad) const;
+  void buildVGPRSpillLoadStore(SGPRSpillBuilder &SB, int Index, int Offset,
+                               bool IsLoad, bool IsKill = true) const;
 
   /// If \p OnlyToVGPR is true, this will only succeed if this
   bool spillSGPR(MachineBasicBlock::iterator MI,
                  int FI, RegScavenger *RS,
+                 LiveIntervals *LIS = nullptr,
                  bool OnlyToVGPR = false) const;
 
   bool restoreSGPR(MachineBasicBlock::iterator MI,
                    int FI, RegScavenger *RS,
+                   LiveIntervals *LIS = nullptr,
                    bool OnlyToVGPR = false) const;
 
   void eliminateFrameIndex(MachineBasicBlock::iterator MI, int SPAdj,
@@ -125,7 +127,8 @@ public:
                            RegScavenger *RS) const override;
 
   bool eliminateSGPRToVGPRSpillFrameIndex(MachineBasicBlock::iterator MI,
-                                          int FI, RegScavenger *RS) const;
+                                          int FI, RegScavenger *RS,
+                                          LiveIntervals *LIS = nullptr) const;
 
   StringRef getRegAsmName(MCRegister Reg) const override;
 
@@ -134,8 +137,13 @@ public:
     return getEncodingValue(Reg) & 0xff;
   }
 
-  static const TargetRegisterClass *getVGPRClassForBitWidth(unsigned BitWidth);
-  static const TargetRegisterClass *getAGPRClassForBitWidth(unsigned BitWidth);
+  LLVM_READONLY
+  const TargetRegisterClass *getVGPRClassForBitWidth(unsigned BitWidth) const;
+
+  LLVM_READONLY
+  const TargetRegisterClass *getAGPRClassForBitWidth(unsigned BitWidth) const;
+
+  LLVM_READONLY
   static const TargetRegisterClass *getSGPRClassForBitWidth(unsigned BitWidth);
 
   /// Return the 'base' register class for this register.
@@ -182,11 +190,20 @@ public:
   const TargetRegisterClass *
   getEquivalentSGPRClass(const TargetRegisterClass *VRC) const;
 
-  /// \returns The register class that is used for a sub-register of \p RC for
-  /// the given \p SubIdx.  If \p SubIdx equals NoSubRegister, \p RC will
-  /// be returned.
+  /// \returns The canonical register class that is used for a sub-register of
+  /// \p RC for the given \p SubIdx.  If \p SubIdx equals NoSubRegister, \p RC
+  /// will be returned.
   const TargetRegisterClass *getSubRegClass(const TargetRegisterClass *RC,
                                             unsigned SubIdx) const;
+
+  /// Returns a register class which is compatible with \p SuperRC, such that a
+  /// subregister exists with class \p SubRC with subregister index \p
+  /// SubIdx. If this is impossible (e.g., an unaligned subregister index within
+  /// a register tuple), return null.
+  const TargetRegisterClass *
+  getCompatibleSubRegClass(const TargetRegisterClass *SuperRC,
+                           const TargetRegisterClass *SubRC,
+                           unsigned SubIdx) const;
 
   bool shouldRewriteCopySrc(const TargetRegisterClass *DefRC,
                             unsigned DefSubReg,
@@ -268,6 +285,10 @@ public:
                     : &AMDGPU::SReg_64_XEXECRegClass;
   }
 
+  // Return the appropriate register class to use for 64-bit VGPRs for the
+  // subtarget.
+  const TargetRegisterClass *getVGPR64Class() const;
+
   MCRegister getVCC() const;
 
   const TargetRegisterClass *getRegClass(unsigned RCID) const;
@@ -279,6 +300,8 @@ public:
                                 LiveIntervals *LIS) const;
 
   const uint32_t *getAllVGPRRegMask() const;
+  const uint32_t *getAllAGPRRegMask() const;
+  const uint32_t *getAllVectorRegMask() const;
   const uint32_t *getAllAllocatableSRegMask() const;
 
   // \returns number of 32 bit registers covered by a \p LM
@@ -306,6 +329,10 @@ public:
   // \returns \p Reg otherwise.
   MCPhysReg get32BitRegister(MCPhysReg Reg) const;
 
+  // Returns true if a given register class is properly aligned for
+  // the subtarget.
+  bool isProperlyAlignedRC(const TargetRegisterClass &RC) const;
+
   /// Return all SGPR128 which satisfy the waves per execution unit requirement
   /// of the subtarget.
   ArrayRef<MCPhysReg> getAllSGPR128(const MachineFunction &MF) const;
@@ -318,16 +345,16 @@ public:
   /// of the subtarget.
   ArrayRef<MCPhysReg> getAllSGPR32(const MachineFunction &MF) const;
 
-private:
-  void buildSpillLoadStore(MachineBasicBlock::iterator MI,
-                           unsigned LoadStoreOp,
-                           int Index,
-                           Register ValueReg,
-                           bool ValueIsKill,
-                           MCRegister ScratchOffsetReg,
-                           int64_t InstrOffset,
-                           MachineMemOperand *MMO,
-                           RegScavenger *RS) const;
+  // Insert spill or restore instructions.
+  // When lowering spill pseudos, the RegScavenger should be set.
+  // For creating spill instructions during frame lowering, where no scavenger
+  // is available, LiveRegs can be used.
+  void buildSpillLoadStore(MachineBasicBlock &MBB,
+                           MachineBasicBlock::iterator MI, unsigned LoadStoreOp,
+                           int Index, Register ValueReg, bool ValueIsKill,
+                           MCRegister ScratchOffsetReg, int64_t InstrOffset,
+                           MachineMemOperand *MMO, RegScavenger *RS,
+                           LivePhysRegs *LiveRegs = nullptr) const;
 };
 
 } // End namespace llvm

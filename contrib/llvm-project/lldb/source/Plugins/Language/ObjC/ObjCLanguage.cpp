@@ -225,13 +225,16 @@ ConstString ObjCLanguage::MethodName::GetFullNameWithoutCategory(
   return ConstString();
 }
 
-std::vector<ConstString>
+std::vector<Language::MethodNameVariant>
 ObjCLanguage::GetMethodNameVariants(ConstString method_name) const {
-  std::vector<ConstString> variant_names;
+  std::vector<Language::MethodNameVariant> variant_names;
   ObjCLanguage::MethodName objc_method(method_name.GetCString(), false);
   if (!objc_method.IsValid(false)) {
     return variant_names;
   }
+
+  variant_names.emplace_back(objc_method.GetSelector(),
+                             lldb::eFunctionNameTypeSelector);
 
   const bool is_class_method =
       objc_method.GetType() == MethodName::eTypeClassMethod;
@@ -242,29 +245,41 @@ ObjCLanguage::GetMethodNameVariants(ConstString method_name) const {
 
   if (is_class_method || is_instance_method) {
     if (name_sans_category)
-      variant_names.emplace_back(name_sans_category);
+      variant_names.emplace_back(name_sans_category,
+                                 lldb::eFunctionNameTypeFull);
   } else {
     StreamString strm;
 
     strm.Printf("+%s", objc_method.GetFullName().GetCString());
-    variant_names.emplace_back(strm.GetString());
+    variant_names.emplace_back(ConstString(strm.GetString()),
+                               lldb::eFunctionNameTypeFull);
     strm.Clear();
 
     strm.Printf("-%s", objc_method.GetFullName().GetCString());
-    variant_names.emplace_back(strm.GetString());
+    variant_names.emplace_back(ConstString(strm.GetString()),
+                               lldb::eFunctionNameTypeFull);
     strm.Clear();
 
     if (name_sans_category) {
       strm.Printf("+%s", name_sans_category.GetCString());
-      variant_names.emplace_back(strm.GetString());
+      variant_names.emplace_back(ConstString(strm.GetString()),
+                                 lldb::eFunctionNameTypeFull);
       strm.Clear();
 
       strm.Printf("-%s", name_sans_category.GetCString());
-      variant_names.emplace_back(strm.GetString());
+      variant_names.emplace_back(ConstString(strm.GetString()),
+                                 lldb::eFunctionNameTypeFull);
     }
   }
 
   return variant_names;
+}
+
+bool ObjCLanguage::SymbolNameFitsToLanguage(Mangled mangled) const {
+  ConstString demangled_name = mangled.GetDemangledName();
+  if (!demangled_name)
+    return false;
+  return ObjCLanguage::IsPossibleObjCMethodName(demangled_name.GetCString());
 }
 
 static void LoadObjCFormatters(TypeCategoryImplSP objc_category_sp) {
@@ -990,8 +1005,11 @@ std::unique_ptr<Language::TypeScavenger> ObjCLanguage::GetTypeScavenger() {
       bool result = false;
 
       if (auto *target = exe_scope->CalculateTarget().get()) {
-        if (auto *clang_modules_decl_vendor =
-                target->GetClangModulesDeclVendor()) {
+        auto *persistent_vars = llvm::cast<ClangPersistentVariables>(
+            target->GetPersistentExpressionStateForLanguage(
+                lldb::eLanguageTypeC));
+        if (std::shared_ptr<ClangModulesDeclVendor> clang_modules_decl_vendor =
+                persistent_vars->GetClangModulesDeclVendor()) {
           ConstString key_cs(key);
           auto types = clang_modules_decl_vendor->FindTypes(
               key_cs, /*max_matches*/ UINT32_MAX);
@@ -1116,7 +1134,7 @@ bool ObjCLanguage::IsNilReference(ValueObject &valobj) {
 bool ObjCLanguage::IsSourceFile(llvm::StringRef file_path) const {
   const auto suffixes = {".h", ".m", ".M"};
   for (auto suffix : suffixes) {
-    if (file_path.endswith_lower(suffix))
+    if (file_path.endswith_insensitive(suffix))
       return true;
   }
   return false;

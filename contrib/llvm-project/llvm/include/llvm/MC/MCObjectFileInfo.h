@@ -218,6 +218,7 @@ protected:
   MCSection *PDataSection = nullptr;
   MCSection *XDataSection = nullptr;
   MCSection *SXDataSection = nullptr;
+  MCSection *GEHContSection = nullptr;
   MCSection *GFIDsSection = nullptr;
   MCSection *GIATsSection = nullptr;
   MCSection *GLJMPSection = nullptr;
@@ -226,7 +227,7 @@ protected:
   MCSection *TOCBaseSection = nullptr;
 
 public:
-  void InitMCObjectFileInfo(const Triple &TT, bool PIC, MCContext &ctx,
+  void initMCObjectFileInfo(MCContext &MCCtx, bool PIC,
                             bool LargeCodeModel = false);
   MCContext &getContext() const { return *Ctx; }
 
@@ -254,6 +255,7 @@ public:
   MCSection *getDataSection() const { return DataSection; }
   MCSection *getBSSSection() const { return BSSSection; }
   MCSection *getReadOnlySection() const { return ReadOnlySection; }
+  MCSection *getLSDASection() const { return LSDASection; }
   MCSection *getCompactUnwindSection() const { return CompactUnwindSection; }
   MCSection *getDwarfAbbrevSection() const { return DwarfAbbrevSection; }
   MCSection *getDwarfInfoSection() const { return DwarfInfoSection; }
@@ -405,6 +407,7 @@ public:
   MCSection *getPDataSection() const { return PDataSection; }
   MCSection *getXDataSection() const { return XDataSection; }
   MCSection *getSXDataSection() const { return SXDataSection; }
+  MCSection *getGEHContSection() const { return GEHContSection; }
   MCSection *getGFIDsSection() const { return GFIDsSection; }
   MCSection *getGIATsSection() const { return GIATsSection; }
   MCSection *getGLJMPSection() const { return GLJMPSection; }
@@ -414,28 +417,22 @@ public:
 
   MCSection *getEHFrameSection() const { return EHFrameSection; }
 
-  enum Environment { IsMachO, IsELF, IsCOFF, IsWasm, IsXCOFF };
-  Environment getObjectFileType() const { return Env; }
-
   bool isPositionIndependent() const { return PositionIndependent; }
 
 private:
-  Environment Env;
   bool PositionIndependent = false;
   MCContext *Ctx = nullptr;
-  Triple TT;
   VersionTuple SDKVersion;
 
   void initMachOMCObjectFileInfo(const Triple &T);
   void initELFMCObjectFileInfo(const Triple &T, bool Large);
+  void initGOFFMCObjectFileInfo(const Triple &T);
   void initCOFFMCObjectFileInfo(const Triple &T);
   void initWasmMCObjectFileInfo(const Triple &T);
   void initXCOFFMCObjectFileInfo(const Triple &T);
   MCSection *getDwarfComdatSection(const char *Name, uint64_t Hash) const;
 
 public:
-  const Triple &getTargetTriple() const { return TT; }
-
   void setSDKVersion(const VersionTuple &TheSDKVersion) {
     SDKVersion = TheSDKVersion;
   }

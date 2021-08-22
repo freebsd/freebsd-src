@@ -35,7 +35,8 @@ Optional<DbgVariableLocation>
 DbgVariableLocation::extractFromMachineInstruction(
     const MachineInstr &Instruction) {
   DbgVariableLocation Location;
-  if (!Instruction.isDebugValue())
+  // Variables calculated from multiple locations can't be represented here.
+  if (Instruction.getNumDebugOperands() != 1)
     return None;
   if (!Instruction.getDebugOperand(0).isReg())
     return None;
@@ -46,6 +47,15 @@ DbgVariableLocation::extractFromMachineInstruction(
   int64_t Offset = 0;
   const DIExpression *DIExpr = Instruction.getDebugExpression();
   auto Op = DIExpr->expr_op_begin();
+  // We can handle a DBG_VALUE_LIST iff it has exactly one location operand that
+  // appears exactly once at the start of the expression.
+  if (Instruction.isDebugValueList()) {
+    if (Instruction.getNumDebugOperands() == 1 &&
+        Op->getOp() == dwarf::DW_OP_LLVM_arg)
+      ++Op;
+    else
+      return None;
+  }
   while (Op != DIExpr->expr_op_end()) {
     switch (Op->getOp()) {
     case dwarf::DW_OP_constu: {
@@ -164,6 +174,12 @@ uint64_t DebugHandlerBase::getBaseTypeSize(const DIType *Ty) {
 }
 
 bool DebugHandlerBase::isUnsignedDIType(const DIType *Ty) {
+  // SROA may generate dbg value intrinsics to assign an unsigned value to a
+  // Fortran CHARACTER(1) type variables. Make them as unsigned.
+  if (isa<DIStringType>(Ty)) {
+    assert((Ty->getSizeInBits()) == 8 && "Not a valid unsigned type!");
+    return true;
+  }
   if (auto *CTy = dyn_cast<DICompositeType>(Ty)) {
     // FIXME: Enums without a fixed underlying type have unknown signedness
     // here, leading to incorrectly emitted constants.
@@ -261,7 +277,8 @@ void DebugHandlerBase::beginFunction(const MachineFunction *MF) {
       continue;
 
     auto IsDescribedByReg = [](const MachineInstr *MI) {
-      return MI->getDebugOperand(0).isReg() && MI->getDebugOperand(0).getReg();
+      return any_of(MI->debug_operands(),
+                    [](auto &MO) { return MO.isReg() && MO.getReg(); });
     };
 
     // The first mention of a function argument gets the CurrentFnBegin label,
@@ -273,16 +290,10 @@ void DebugHandlerBase::beginFunction(const MachineFunction *MF) {
     // doing that violates the ranges that are calculated in the history map.
     // However, we currently do not emit debug values for constant arguments
     // directly at the start of the function, so this code is still useful.
-    // FIXME: If the first mention of an argument is in a unique section basic
-    // block, we cannot always assign the CurrentFnBeginLabel as it lies in a
-    // different section.  Temporarily, we disable generating loc list
-    // information or DW_AT_const_value when the block is in a different
-    // section.
     const DILocalVariable *DIVar =
         Entries.front().getInstr()->getDebugVariable();
     if (DIVar->isParameter() &&
-        getDISubprogram(DIVar->getScope())->describes(&MF->getFunction()) &&
-        Entries.front().getInstr()->getParent()->sameSection(&MF->front())) {
+        getDISubprogram(DIVar->getScope())->describes(&MF->getFunction())) {
       if (!IsDescribedByReg(Entries.front().getInstr()))
         LabelsBeforeInsn[Entries.front().getInstr()] = Asm->getFunctionBegin();
       if (Entries.front().getInstr()->getDebugExpression()->isFragment()) {
@@ -368,22 +379,25 @@ void DebugHandlerBase::endInstruction() {
 
   DenseMap<const MachineInstr *, MCSymbol *>::iterator I =
       LabelsAfterInsn.find(CurMI);
-  CurMI = nullptr;
 
-  // No label needed.
-  if (I == LabelsAfterInsn.end())
+  // No label needed or label already assigned.
+  if (I == LabelsAfterInsn.end() || I->second) {
+    CurMI = nullptr;
     return;
+  }
 
-  // Label already assigned.
-  if (I->second)
-    return;
-
-  // We need a label after this instruction.
-  if (!PrevLabel) {
+  // We need a label after this instruction.  With basic block sections, just
+  // use the end symbol of the section if this is the last instruction of the
+  // section.  This reduces the need for an additional label and also helps
+  // merging ranges.
+  if (CurMI->getParent()->isEndSection() && CurMI->getNextNode() == nullptr) {
+    PrevLabel = CurMI->getParent()->getEndSymbol();
+  } else if (!PrevLabel) {
     PrevLabel = MMI->getContext().createTempSymbol();
     Asm->OutStreamer->emitLabel(PrevLabel);
   }
   I->second = PrevLabel;
+  CurMI = nullptr;
 }
 
 void DebugHandlerBase::endFunction(const MachineFunction *MF) {

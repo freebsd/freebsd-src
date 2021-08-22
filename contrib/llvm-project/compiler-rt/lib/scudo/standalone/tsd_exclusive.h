@@ -25,18 +25,36 @@ struct ThreadState {
 template <class Allocator> void teardownThread(void *Ptr);
 
 template <class Allocator> struct TSDRegistryExT {
-  void initLinkerInitialized(Allocator *Instance) {
-    Instance->initLinkerInitialized();
+  void init(Allocator *Instance) {
+    DCHECK(!Initialized);
+    Instance->init();
     CHECK_EQ(pthread_key_create(&PThreadKey, teardownThread<Allocator>), 0);
-    FallbackTSD.initLinkerInitialized(Instance);
+    FallbackTSD.init(Instance);
     Initialized = true;
   }
-  void init(Allocator *Instance) {
-    memset(this, 0, sizeof(*this));
-    initLinkerInitialized(Instance);
+
+  void initOnceMaybe(Allocator *Instance) {
+    ScopedLock L(Mutex);
+    if (LIKELY(Initialized))
+      return;
+    init(Instance); // Sets Initialized.
   }
 
-  void unmapTestOnly() {}
+  void unmapTestOnly(Allocator *Instance) {
+    DCHECK(Instance);
+    if (reinterpret_cast<Allocator *>(pthread_getspecific(PThreadKey))) {
+      DCHECK_EQ(reinterpret_cast<Allocator *>(pthread_getspecific(PThreadKey)),
+                Instance);
+      ThreadTSD.commitBack(Instance);
+      ThreadTSD = {};
+    }
+    CHECK_EQ(pthread_key_delete(PThreadKey), 0);
+    PThreadKey = {};
+    FallbackTSD.commitBack(Instance);
+    FallbackTSD = {};
+    State = {};
+    Initialized = false;
+  }
 
   ALWAYS_INLINE void initThreadMaybe(Allocator *Instance, bool MinimalInit) {
     if (LIKELY(State.InitState != ThreadState::NotInitialized))
@@ -80,13 +98,6 @@ template <class Allocator> struct TSDRegistryExT {
   bool getDisableMemInit() { return State.DisableMemInit; }
 
 private:
-  void initOnceMaybe(Allocator *Instance) {
-    ScopedLock L(Mutex);
-    if (LIKELY(Initialized))
-      return;
-    initLinkerInitialized(Instance); // Sets Initialized.
-  }
-
   // Using minimal initialization allows for global initialization while keeping
   // the thread specific structure untouched. The fallback structure will be
   // used instead.
@@ -96,14 +107,14 @@ private:
       return;
     CHECK_EQ(
         pthread_setspecific(PThreadKey, reinterpret_cast<void *>(Instance)), 0);
-    ThreadTSD.initLinkerInitialized(Instance);
+    ThreadTSD.init(Instance);
     State.InitState = ThreadState::Initialized;
     Instance->callPostInitCallback();
   }
 
-  pthread_key_t PThreadKey;
-  bool Initialized;
-  atomic_u8 Disabled;
+  pthread_key_t PThreadKey = {};
+  bool Initialized = false;
+  atomic_u8 Disabled = {};
   TSD<Allocator> FallbackTSD;
   HybridMutex Mutex;
   static thread_local ThreadState State;

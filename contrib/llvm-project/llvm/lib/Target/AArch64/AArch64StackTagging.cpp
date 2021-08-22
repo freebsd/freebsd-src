@@ -42,6 +42,7 @@
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/GetElementPtrTypeIterator.h"
+#include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Instruction.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/IntrinsicInst.h"
@@ -52,6 +53,7 @@
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Transforms/Instrumentation/AddressSanitizerCommon.h"
 #include "llvm/Transforms/Utils/Local.h"
 #include <cassert>
 #include <iterator>
@@ -238,7 +240,7 @@ public:
                       << ") zero\n");
     Value *Ptr = BasePtr;
     if (Offset)
-      Ptr = IRB.CreateConstGEP1_32(Ptr, Offset);
+      Ptr = IRB.CreateConstGEP1_32(IRB.getInt8Ty(), Ptr, Offset);
     IRB.CreateCall(SetTagZeroFn,
                    {Ptr, ConstantInt::get(IRB.getInt64Ty(), Size)});
   }
@@ -248,7 +250,7 @@ public:
                       << ") undef\n");
     Value *Ptr = BasePtr;
     if (Offset)
-      Ptr = IRB.CreateConstGEP1_32(Ptr, Offset);
+      Ptr = IRB.CreateConstGEP1_32(IRB.getInt8Ty(), Ptr, Offset);
     IRB.CreateCall(SetTagFn, {Ptr, ConstantInt::get(IRB.getInt64Ty(), Size)});
   }
 
@@ -257,7 +259,7 @@ public:
     LLVM_DEBUG(dbgs() << "    " << *A << "\n    " << *B << "\n");
     Value *Ptr = BasePtr;
     if (Offset)
-      Ptr = IRB.CreateConstGEP1_32(Ptr, Offset);
+      Ptr = IRB.CreateConstGEP1_32(IRB.getInt8Ty(), Ptr, Offset);
     IRB.CreateCall(StgpFn, {Ptr, A, B});
   }
 
@@ -284,6 +286,7 @@ public:
 class AArch64StackTagging : public FunctionPass {
   struct AllocaInfo {
     AllocaInst *AI;
+    TrackingVH<Instruction> OldAI; // Track through RAUW to replace debug uses.
     SmallVector<IntrinsicInst *, 2> LifetimeStart;
     SmallVector<IntrinsicInst *, 2> LifetimeEnd;
     SmallVector<DbgVariableIntrinsic *, 2> DbgVariableIntrinsics;
@@ -518,24 +521,6 @@ void AArch64StackTagging::alignAndPadAlloca(AllocaInfo &Info) {
   Info.AI = NewAI;
 }
 
-// Helper function to check for post-dominance.
-static bool postDominates(const PostDominatorTree *PDT, const IntrinsicInst *A,
-                          const IntrinsicInst *B) {
-  const BasicBlock *ABB = A->getParent();
-  const BasicBlock *BBB = B->getParent();
-
-  if (ABB != BBB)
-    return PDT->dominates(ABB, BBB);
-
-  for (const Instruction &I : *ABB) {
-    if (&I == B)
-      return true;
-    if (&I == A)
-      return false;
-  }
-  llvm_unreachable("Corrupt instruction list");
-}
-
 // FIXME: check for MTE extension
 bool AArch64StackTagging::runOnFunction(Function &Fn) {
   if (!Fn.hasFnAttribute(Attribute::SanitizeMemTag))
@@ -557,14 +542,16 @@ bool AArch64StackTagging::runOnFunction(Function &Fn) {
       Instruction *I = &*IT;
       if (auto *AI = dyn_cast<AllocaInst>(I)) {
         Allocas[AI].AI = AI;
+        Allocas[AI].OldAI = AI;
         continue;
       }
 
       if (auto *DVI = dyn_cast<DbgVariableIntrinsic>(I)) {
-        if (auto *AI =
-                dyn_cast_or_null<AllocaInst>(DVI->getVariableLocation())) {
-          Allocas[AI].DbgVariableIntrinsics.push_back(DVI);
-        }
+        for (Value *V : DVI->location_ops())
+          if (auto *AI = dyn_cast_or_null<AllocaInst>(V))
+            if (Allocas[AI].DbgVariableIntrinsics.empty() ||
+                Allocas[AI].DbgVariableIntrinsics.back() != DVI)
+              Allocas[AI].DbgVariableIntrinsics.push_back(DVI);
         continue;
       }
 
@@ -662,32 +649,11 @@ bool AArch64StackTagging::runOnFunction(Function &Fn) {
           cast<ConstantInt>(Start->getArgOperand(0))->getZExtValue();
       Size = alignTo(Size, kTagGranuleSize);
       tagAlloca(AI, Start->getNextNode(), Start->getArgOperand(1), Size);
-      // We need to ensure that if we tag some object, we certainly untag it
-      // before the function exits.
-      if (PDT != nullptr && postDominates(PDT, End, Start)) {
-        untagAlloca(AI, End, Size);
-      } else {
-        SmallVector<Instruction *, 8> ReachableRetVec;
-        unsigned NumCoveredExits = 0;
-        for (auto &RI : RetVec) {
-          if (!isPotentiallyReachable(Start, RI, nullptr, DT))
-            continue;
-          ReachableRetVec.push_back(RI);
-          if (DT != nullptr && DT->dominates(End, RI))
-            ++NumCoveredExits;
-        }
-        // If there's a mix of covered and non-covered exits, just put the untag
-        // on exits, so we avoid the redundancy of untagging twice.
-        if (NumCoveredExits == ReachableRetVec.size()) {
-          untagAlloca(AI, End, Size);
-        } else {
-          for (auto &RI : ReachableRetVec)
-            untagAlloca(AI, RI, Size);
-          // We may have inserted untag outside of the lifetime interval.
-          // Remove the lifetime end call for this alloca.
-          End->eraseFromParent();
-        }
-      }
+
+      auto TagEnd = [&](Instruction *Node) { untagAlloca(AI, Node, Size); };
+      if (!DT || !PDT ||
+          !forAllReachableExits(*DT, *PDT, Start, End, RetVec, TagEnd))
+        End->eraseFromParent();
     } else {
       uint64_t Size = Info.AI->getAllocationSizeInBits(*DL).getValue() / 8;
       Value *Ptr = IRB.CreatePointerCast(TagPCall, IRB.getInt8PtrTy());
@@ -705,9 +671,7 @@ bool AArch64StackTagging::runOnFunction(Function &Fn) {
 
     // Fixup debug intrinsics to point to the new alloca.
     for (auto DVI : Info.DbgVariableIntrinsics)
-      DVI->setArgOperand(
-          0,
-          MetadataAsValue::get(F->getContext(), LocalAsMetadata::get(Info.AI)));
+      DVI->replaceVariableLocationOp(Info.OldAI, Info.AI);
   }
 
   // If we have instrumented at least one alloca, all unrecognized lifetime

@@ -189,7 +189,7 @@ MachineInstrBuilder CSEMIRBuilder::buildInstr(unsigned Opc,
     assert(DstOps.size() == 1 && "Invalid dsts");
     if (Optional<APInt> Cst = ConstantFoldBinOp(Opc, SrcOps[0].getReg(),
                                                 SrcOps[1].getReg(), *getMRI()))
-      return buildConstant(DstOps[0], Cst->getSExtValue());
+      return buildConstant(DstOps[0], *Cst);
     break;
   }
   case TargetOpcode::G_SEXT_INREG: {
@@ -200,7 +200,17 @@ MachineInstrBuilder CSEMIRBuilder::buildInstr(unsigned Opc,
     const SrcOp &Src1 = SrcOps[1];
     if (auto MaybeCst =
             ConstantFoldExtOp(Opc, Src0.getReg(), Src1.getImm(), *getMRI()))
-      return buildConstant(Dst, MaybeCst->getSExtValue());
+      return buildConstant(Dst, *MaybeCst);
+    break;
+  }
+  case TargetOpcode::G_SITOFP:
+  case TargetOpcode::G_UITOFP: {
+    // Try to constant fold these.
+    assert(SrcOps.size() == 1 && "Invalid sources");
+    assert(DstOps.size() == 1 && "Invalid dsts");
+    if (Optional<APFloat> Cst = ConstantFoldIntToFloat(
+            Opc, DstOps[0].getLLTTy(*getMRI()), SrcOps[0].getReg(), *getMRI()))
+      return buildFConstant(DstOps[0], *Cst);
     break;
   }
   }

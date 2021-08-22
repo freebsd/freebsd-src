@@ -57,10 +57,9 @@ void MCTargetStreamer::changeSection(const MCSection *CurSection,
                                      MCSection *Section,
                                      const MCExpr *Subsection,
                                      raw_ostream &OS) {
-  Section->PrintSwitchToSection(
-      *Streamer.getContext().getAsmInfo(),
-      Streamer.getContext().getObjectFileInfo()->getTargetTriple(), OS,
-      Subsection);
+  Section->PrintSwitchToSection(*Streamer.getContext().getAsmInfo(),
+                                Streamer.getContext().getTargetTriple(), OS,
+                                Subsection);
 }
 
 void MCTargetStreamer::emitDwarfFileDirective(StringRef Directive) {
@@ -415,7 +414,8 @@ void MCStreamer::emitLabel(MCSymbol *Symbol, SMLoc Loc) {
   Symbol->redefineIfPossible();
 
   if (!Symbol->isUndefined() || Symbol->isVariable())
-    return getContext().reportError(Loc, "invalid symbol redefinition");
+    return getContext().reportError(Loc, "symbol '" + Twine(Symbol->getName()) +
+                                             "' is already defined");
 
   assert(!Symbol->isVariable() && "Cannot emit a variable symbol!");
   assert(getCurrentSectionOnly() && "Cannot emit before setting section!");
@@ -429,9 +429,7 @@ void MCStreamer::emitLabel(MCSymbol *Symbol, SMLoc Loc) {
     TS->emitLabel(Symbol);
 }
 
-void MCStreamer::emitCFISections(bool EH, bool Debug) {
-  assert(EH || Debug);
-}
+void MCStreamer::emitCFISections(bool EH, bool Debug) {}
 
 void MCStreamer::emitCFIStartProc(bool IsSimple, SMLoc Loc) {
   if (hasUnfinishedDwarfFrameInfo())
@@ -446,7 +444,8 @@ void MCStreamer::emitCFIStartProc(bool IsSimple, SMLoc Loc) {
   if (MAI) {
     for (const MCCFIInstruction& Inst : MAI->getInitialFrameState()) {
       if (Inst.getOperation() == MCCFIInstruction::OpDefCfa ||
-          Inst.getOperation() == MCCFIInstruction::OpDefCfaRegister) {
+          Inst.getOperation() == MCCFIInstruction::OpDefCfaRegister ||
+          Inst.getOperation() == MCCFIInstruction::OpLLVMDefAspaceCfa) {
         Frame.CurrentCfaRegister = Inst.getRegister();
       }
     }
@@ -512,6 +511,18 @@ void MCStreamer::emitCFIDefCfaRegister(int64_t Register) {
   MCSymbol *Label = emitCFILabel();
   MCCFIInstruction Instruction =
     MCCFIInstruction::createDefCfaRegister(Label, Register);
+  MCDwarfFrameInfo *CurFrame = getCurrentDwarfFrameInfo();
+  if (!CurFrame)
+    return;
+  CurFrame->Instructions.push_back(Instruction);
+  CurFrame->CurrentCfaRegister = static_cast<unsigned>(Register);
+}
+
+void MCStreamer::emitCFILLVMDefAspaceCfa(int64_t Register, int64_t Offset,
+                                         int64_t AddressSpace) {
+  MCSymbol *Label = emitCFILabel();
+  MCCFIInstruction Instruction = MCCFIInstruction::createLLVMDefAspaceCfa(
+      Label, Register, Offset, AddressSpace);
   MCDwarfFrameInfo *CurFrame = getCurrentDwarfFrameInfo();
   if (!CurFrame)
     return;
@@ -991,6 +1002,41 @@ void MCStreamer::Finish(SMLoc EndLoc) {
   finishImpl();
 }
 
+void MCStreamer::maybeEmitDwarf64Mark() {
+  if (Context.getDwarfFormat() != dwarf::DWARF64)
+    return;
+  AddComment("DWARF64 Mark");
+  emitInt32(dwarf::DW_LENGTH_DWARF64);
+}
+
+void MCStreamer::emitDwarfUnitLength(uint64_t Length, const Twine &Comment) {
+  assert(Context.getDwarfFormat() == dwarf::DWARF64 ||
+         Length <= dwarf::DW_LENGTH_lo_reserved);
+  maybeEmitDwarf64Mark();
+  AddComment(Comment);
+  emitIntValue(Length, dwarf::getDwarfOffsetByteSize(Context.getDwarfFormat()));
+}
+
+MCSymbol *MCStreamer::emitDwarfUnitLength(const Twine &Prefix,
+                                          const Twine &Comment) {
+  maybeEmitDwarf64Mark();
+  AddComment(Comment);
+  MCSymbol *Lo = Context.createTempSymbol(Prefix + "_start");
+  MCSymbol *Hi = Context.createTempSymbol(Prefix + "_end");
+
+  emitAbsoluteSymbolDiff(
+      Hi, Lo, dwarf::getDwarfOffsetByteSize(Context.getDwarfFormat()));
+  // emit the begin symbol after we generate the length field.
+  emitLabel(Lo);
+  // Return the Hi symbol to the caller.
+  return Hi;
+}
+
+void MCStreamer::emitDwarfLineStartLabel(MCSymbol *StartSym) {
+  // Set the value of the symbol, as we are at the start of the line table.
+  emitLabel(StartSym);
+}
+
 void MCStreamer::emitAssignment(MCSymbol *Symbol, const MCExpr *Value) {
   visitUsedExpr(*Value);
   Symbol->setVariableValue(Value);
@@ -1101,6 +1147,9 @@ void MCStreamer::EndCOFFSymbolDef() {
   llvm_unreachable("this directive only supported on COFF targets");
 }
 void MCStreamer::emitFileDirective(StringRef Filename) {}
+void MCStreamer::emitFileDirective(StringRef Filename, StringRef CompilerVerion,
+                                   StringRef TimeStamp, StringRef Description) {
+}
 void MCStreamer::EmitCOFFSymbolStorageClass(int StorageClass) {
   llvm_unreachable("this directive only supported on COFF targets");
 }
@@ -1127,8 +1176,8 @@ void MCStreamer::emitXCOFFRenameDirective(const MCSymbol *Name,
 }
 
 void MCStreamer::emitELFSize(MCSymbol *Symbol, const MCExpr *Value) {}
-void MCStreamer::emitELFSymverDirective(StringRef AliasName,
-                                        const MCSymbol *Aliasee) {}
+void MCStreamer::emitELFSymverDirective(const MCSymbol *OriginalSym,
+                                        StringRef Name, bool KeepOriginalSym) {}
 void MCStreamer::emitLocalCommonSymbol(MCSymbol *Symbol, uint64_t Size,
                                        unsigned ByteAlignment) {}
 void MCStreamer::emitTBSSSymbol(MCSection *Section, MCSymbol *Symbol,

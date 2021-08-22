@@ -625,7 +625,8 @@ bool DeclSpec::SetStorageClassSpec(Sema &S, SCS SC, SourceLocation Loc,
   // OpenCL v1.2 s6.8 changes this to "The auto and register storage-class
   // specifiers are not supported."
   if (S.getLangOpts().OpenCL &&
-      !S.getOpenCLOptions().isEnabled("cl_clang_storage_class_specifiers")) {
+      !S.getOpenCLOptions().isAvailableOption(
+          "cl_clang_storage_class_specifiers", S.getLangOpts())) {
     switch (SC) {
     case SCS_extern:
     case SCS_private_extern:
@@ -1474,6 +1475,7 @@ bool VirtSpecifiers::SetSpecifier(Specifier VS, SourceLocation Loc,
   case VS_GNU_Final:
   case VS_Sealed:
   case VS_Final:    VS_finalLoc = Loc; break;
+  case VS_Abstract: VS_abstractLoc = Loc; break;
   }
 
   return false;
@@ -1486,5 +1488,6 @@ const char *VirtSpecifiers::getSpecifierName(Specifier VS) {
   case VS_Final: return "final";
   case VS_GNU_Final: return "__final";
   case VS_Sealed: return "sealed";
+  case VS_Abstract: return "abstract";
   }
 }

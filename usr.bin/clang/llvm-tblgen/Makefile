@@ -9,6 +9,7 @@ SRCS+=		AsmWriterInst.cpp
 SRCS+=		Attributes.cpp
 SRCS+=		CTagsEmitter.cpp
 SRCS+=		CallingConvEmitter.cpp
+SRCS+=		CodeBeadsGen.cpp
 SRCS+=		CodeEmitterGen.cpp
 SRCS+=		CodeGenDAGPatterns.cpp
 SRCS+=		CodeGenHwModes.cpp

@@ -54,7 +54,7 @@ public:
   explicit ElaboratingDIEIterator(DWARFDIE d) : m_worklist(1, d) {}
 
   /// End marker
-  ElaboratingDIEIterator() {}
+  ElaboratingDIEIterator() = default;
 
   const DWARFDIE &operator*() const { return m_worklist.back(); }
   ElaboratingDIEIterator &operator++() {
@@ -192,7 +192,7 @@ DWARFDIE::LookupDeepestBlock(lldb::addr_t address) const {
   }
 
   if (check_children) {
-    for (DWARFDIE child = GetFirstChild(); child; child = child.GetSibling()) {
+    for (DWARFDIE child : children()) {
       if (DWARFDIE child_result = child.LookupDeepestBlock(address))
         return child_result;
     }

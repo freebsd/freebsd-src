@@ -39,13 +39,7 @@
 #include "llvm/Support/InitLLVM.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/PluginLoader.h"
-#include "llvm/Support/Signals.h"
 #include <cstdlib>
-
-#if !defined(_MSC_VER) && !defined(__MINGW32__)
-#include <signal.h> // for raise
-#include <unistd.h> // for _exit
-#endif
 
 using namespace lld;
 using namespace llvm;
@@ -56,11 +50,11 @@ enum Flavor {
   Gnu,       // -flavor gnu
   WinLink,   // -flavor link
   Darwin,    // -flavor darwin
-  DarwinNew, // -flavor darwinnew
+  DarwinOld, // -flavor darwinold
   Wasm,      // -flavor wasm
 };
 
-LLVM_ATTRIBUTE_NORETURN static void die(const Twine &s) {
+[[noreturn]] static void die(const Twine &s) {
   llvm::errs() << s << "\n";
   exit(1);
 }
@@ -70,8 +64,9 @@ static Flavor getFlavor(StringRef s) {
       .CasesLower("ld", "ld.lld", "gnu", Gnu)
       .CasesLower("wasm", "ld-wasm", Wasm)
       .CaseLower("link", WinLink)
-      .CasesLower("ld64", "ld64.lld", "darwin", Darwin)
-      .CasesLower("darwinnew", "ld64.lld.darwinnew", DarwinNew)
+      .CasesLower("ld64", "ld64.lld", "darwin", "darwinnew",
+                  "ld64.lld.darwinnew", Darwin)
+      .CasesLower("darwinold", "ld64.lld.darwinold", DarwinOld)
       .Default(Invalid);
 }
 
@@ -136,7 +131,7 @@ static Flavor parseFlavor(std::vector<const char *> &v) {
 
   // Deduct the flavor from argv[0].
   StringRef arg0 = path::filename(v[0]);
-  if (arg0.endswith_lower(".exe"))
+  if (arg0.endswith_insensitive(".exe"))
     arg0 = arg0.drop_back(4);
   return parseProgname(arg0);
 }
@@ -158,9 +153,9 @@ static int lldMain(int argc, const char **argv, llvm::raw_ostream &stdoutOS,
   case WinLink:
     return !coff::link(args, exitEarly, stdoutOS, stderrOS);
   case Darwin:
-    return !mach_o::link(args, exitEarly, stdoutOS, stderrOS);
-  case DarwinNew:
     return !macho::link(args, exitEarly, stdoutOS, stderrOS);
+  case DarwinOld:
+    return !mach_o::link(args, exitEarly, stdoutOS, stderrOS);
   case Wasm:
     return !lld::wasm::link(args, exitEarly, stdoutOS, stderrOS);
   default:
