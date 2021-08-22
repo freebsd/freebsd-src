@@ -84,6 +84,7 @@
 #include <netipsec/ipsec6.h>
 #endif
 #include <netipsec/ipsec_support.h>
+#include <netipsec/ipsec_offload.h>
 #include <netipsec/ah_var.h>
 #include <netipsec/esp_var.h>
 #include <netipsec/ipcomp_var.h>
@@ -210,6 +211,8 @@ ipsec4_perform_request(struct ifnet *ifp, struct mbuf *m, struct secpolicy *sp,
 	sav = ipsec4_allocsa(ifp, m, sp, &idx, &error);
 	if (sav == NULL) {
 		if (error == EJUSTRETURN) { /* No IPsec required */
+			(void)ipsec_accel_output(ifp, m, inp, sp, NULL,
+			    AF_INET, mtu);
 			key_freesp(&sp);
 			return (error);
 		}
@@ -221,6 +224,9 @@ ipsec4_perform_request(struct ifnet *ifp, struct mbuf *m, struct secpolicy *sp,
 	IPSEC_INIT_CTX(&ctx, &m, inp, sav, AF_INET, IPSEC_ENC_BEFORE);
 	if ((error = ipsec_run_hhooks(&ctx, HHOOK_TYPE_IPSEC_OUT)) != 0)
 		goto bad;
+
+	if (ipsec_accel_output(ifp, m, inp, sp, sav, AF_INET, mtu))
+		return (EJUSTRETURN);
 
 	ip = mtod(m, struct ip *);
 	dst = &sav->sah->saidx.dst;
@@ -597,6 +603,8 @@ ipsec6_perform_request(struct ifnet *ifp, struct mbuf *m, struct secpolicy *sp,
 	sav = ipsec6_allocsa(ifp, m, sp, &idx, &error);
 	if (sav == NULL) {
 		if (error == EJUSTRETURN) { /* No IPsec required */
+			(void)ipsec_accel_output(ifp, m, inp, sp, NULL,
+			    AF_INET6, mtu);
 			key_freesp(&sp);
 			return (error);
 		}
@@ -610,6 +618,9 @@ ipsec6_perform_request(struct ifnet *ifp, struct mbuf *m, struct secpolicy *sp,
 	IPSEC_INIT_CTX(&ctx, &m, inp, sav, AF_INET6, IPSEC_ENC_BEFORE);
 	if ((error = ipsec_run_hhooks(&ctx, HHOOK_TYPE_IPSEC_OUT)) != 0)
 		goto bad;
+
+	if (ipsec_accel_output(ifp, m, inp, sp, sav, AF_INET6, mtu))
+		return (EJUSTRETURN);
 
 	ip6 = mtod(m, struct ip6_hdr *); /* pfil can change mbuf */
 	dst = &sav->sah->saidx.dst;
@@ -859,6 +870,10 @@ ipsec_process_done(struct mbuf *m, struct secpolicy *sp, struct secasvar *sav,
 	struct m_tag *mtag;
 	int error;
 
+	if (sav->state >= SADB_SASTATE_DEAD) {
+		error = ESRCH;
+		goto bad;
+	}
 	saidx = &sav->sah->saidx;
 	switch (saidx->dst.sa.sa_family) {
 #ifdef INET

@@ -4464,6 +4464,8 @@ netipsec/ipsec.c		optional ipsec inet | ipsec inet6
 netipsec/ipsec_input.c		optional ipsec inet | ipsec inet6
 netipsec/ipsec_mbuf.c		optional ipsec inet | ipsec inet6
 netipsec/ipsec_mod.c		optional ipsec inet | ipsec inet6
+netipsec/ipsec_offload.c	optional ipsec ipsec_offload inet | \
+	ipsec ipsec_offload inet6
 netipsec/ipsec_output.c		optional ipsec inet | ipsec inet6
 netipsec/ipsec_pcb.c		optional ipsec inet | ipsec inet6 | \
 	ipsec_support inet | ipsec_support inet6
