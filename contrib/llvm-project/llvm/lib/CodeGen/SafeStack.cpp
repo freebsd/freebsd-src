@@ -23,6 +23,7 @@
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/AssumptionCache.h"
 #include "llvm/Analysis/BranchProbabilityInfo.h"
+#include "llvm/Analysis/DomTreeUpdater.h"
 #include "llvm/Analysis/InlineCost.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/ScalarEvolution.h"
@@ -130,6 +131,7 @@ class SafeStack {
   Function &F;
   const TargetLoweringBase &TL;
   const DataLayout &DL;
+  DomTreeUpdater *DTU;
   ScalarEvolution &SE;
 
   Type *StackPtrTy;
@@ -207,8 +209,8 @@ class SafeStack {
 
 public:
   SafeStack(Function &F, const TargetLoweringBase &TL, const DataLayout &DL,
-            ScalarEvolution &SE)
-      : F(F), TL(TL), DL(DL), SE(SE),
+            DomTreeUpdater *DTU, ScalarEvolution &SE)
+      : F(F), TL(TL), DL(DL), DTU(DTU), SE(SE),
         StackPtrTy(Type::getInt8PtrTy(F.getContext())),
         IntPtrTy(DL.getIntPtrType(F.getContext())),
         Int32Ty(Type::getInt32Ty(F.getContext())),
@@ -371,9 +373,13 @@ bool SafeStack::IsSafeStackAlloca(const Value *AllocaPtr, uint64_t AllocaSize) {
 
 Value *SafeStack::getStackGuard(IRBuilder<> &IRB, Function &F) {
   Value *StackGuardVar = TL.getIRStackGuard(IRB);
-  if (!StackGuardVar)
-    StackGuardVar =
-        F.getParent()->getOrInsertGlobal("__stack_chk_guard", StackPtrTy);
+  Module *M = F.getParent();
+
+  if (!StackGuardVar) {
+    TL.insertSSPDeclarations(*M);
+    return IRB.CreateCall(Intrinsic::getDeclaration(M, Intrinsic::stackguard));
+  }
+
   return IRB.CreateLoad(StackPtrTy, StackGuardVar, "StackGuard");
 }
 
@@ -419,8 +425,7 @@ void SafeStack::findInsts(Function &F,
   for (Argument &Arg : F.args()) {
     if (!Arg.hasByValAttr())
       continue;
-    uint64_t Size =
-        DL.getTypeStoreSize(Arg.getType()->getPointerElementType());
+    uint64_t Size = DL.getTypeStoreSize(Arg.getParamByValType());
     if (IsSafeStackAlloca(&Arg, Size))
       continue;
 
@@ -477,8 +482,7 @@ void SafeStack::checkStackGuard(IRBuilder<> &IRB, Function &F, Instruction &RI,
                         .createBranchWeights(SuccessProb.getNumerator(),
                                              FailureProb.getNumerator());
   Instruction *CheckTerm =
-      SplitBlockAndInsertIfThen(Cmp, &RI,
-                                /* Unreachable */ true, Weights);
+      SplitBlockAndInsertIfThen(Cmp, &RI, /* Unreachable */ true, Weights, DTU);
   IRBuilder<> IRBFail(CheckTerm);
   // FIXME: respect -fsanitize-trap / -ftrap-function here?
   FunctionCallee StackChkFail =
@@ -522,7 +526,7 @@ Value *SafeStack::moveStaticAllocasToUnsafeStack(
   }
 
   for (Argument *Arg : ByValArguments) {
-    Type *Ty = Arg->getType()->getPointerElementType();
+    Type *Ty = Arg->getParamByValType();
     uint64_t Size = DL.getTypeStoreSize(Ty);
     if (Size == 0)
       Size = 1; // Don't create zero-sized stack objects.
@@ -579,7 +583,7 @@ Value *SafeStack::moveStaticAllocasToUnsafeStack(
   for (Argument *Arg : ByValArguments) {
     unsigned Offset = SSL.getObjectOffset(Arg);
     MaybeAlign Align(SSL.getObjectAlignment(Arg));
-    Type *Ty = Arg->getType()->getPointerElementType();
+    Type *Ty = Arg->getParamByValType();
 
     uint64_t Size = DL.getTypeStoreSize(Ty);
     if (Size == 0)
@@ -864,6 +868,7 @@ public:
     AU.addRequired<TargetPassConfig>();
     AU.addRequired<TargetLibraryInfoWrapperPass>();
     AU.addRequired<AssumptionCacheTracker>();
+    AU.addPreserved<DominatorTreeWrapperPass>();
   }
 
   bool runOnFunction(Function &F) override {
@@ -893,15 +898,34 @@ public:
     // Compute DT and LI only for functions that have the attribute.
     // This is only useful because the legacy pass manager doesn't let us
     // compute analyzes lazily.
-    // In the backend pipeline, nothing preserves DT before SafeStack, so we
-    // would otherwise always compute it wastefully, even if there is no
-    // function with the safestack attribute.
-    DominatorTree DT(F);
-    LoopInfo LI(DT);
 
-    ScalarEvolution SE(F, TLI, ACT, DT, LI);
+    DominatorTree *DT;
+    bool ShouldPreserveDominatorTree;
+    Optional<DominatorTree> LazilyComputedDomTree;
 
-    return SafeStack(F, *TL, *DL, SE).run();
+    // Do we already have a DominatorTree avaliable from the previous pass?
+    // Note that we should *NOT* require it, to avoid the case where we end up
+    // not needing it, but the legacy PM would have computed it for us anyways.
+    if (auto *DTWP = getAnalysisIfAvailable<DominatorTreeWrapperPass>()) {
+      DT = &DTWP->getDomTree();
+      ShouldPreserveDominatorTree = true;
+    } else {
+      // Otherwise, we need to compute it.
+      LazilyComputedDomTree.emplace(F);
+      DT = LazilyComputedDomTree.getPointer();
+      ShouldPreserveDominatorTree = false;
+    }
+
+    // Likewise, lazily compute loop info.
+    LoopInfo LI(*DT);
+
+    DomTreeUpdater DTU(DT, DomTreeUpdater::UpdateStrategy::Lazy);
+
+    ScalarEvolution SE(F, TLI, ACT, *DT, LI);
+
+    return SafeStack(F, *TL, *DL, ShouldPreserveDominatorTree ? &DTU : nullptr,
+                     SE)
+        .run();
   }
 };
 
@@ -912,6 +936,7 @@ char SafeStackLegacyPass::ID = 0;
 INITIALIZE_PASS_BEGIN(SafeStackLegacyPass, DEBUG_TYPE,
                       "Safe Stack instrumentation pass", false, false)
 INITIALIZE_PASS_DEPENDENCY(TargetPassConfig)
+INITIALIZE_PASS_DEPENDENCY(DominatorTreeWrapperPass)
 INITIALIZE_PASS_END(SafeStackLegacyPass, DEBUG_TYPE,
                     "Safe Stack instrumentation pass", false, false)
 

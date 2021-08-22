@@ -194,7 +194,7 @@ Args &Args::operator=(const Args &rhs) {
 }
 
 // Destructor
-Args::~Args() {}
+Args::~Args() = default;
 
 void Args::Dump(Stream &s, const char *label_name) const {
   if (!label_name)
@@ -255,8 +255,6 @@ void Args::SetCommandString(llvm::StringRef command) {
   }
   m_argv.push_back(nullptr);
 }
-
-size_t Args::GetArgumentCount() const { return m_entries.size(); }
 
 const char *Args::GetArgumentAtIndex(size_t idx) const {
   if (idx < m_argv.size())
@@ -388,6 +386,7 @@ std::string Args::GetShellSafeArgument(const FileSpec &shell,
 
   static ShellDescriptor g_Shells[] = {{ConstString("bash"), " '\"<>()&"},
                                        {ConstString("tcsh"), " '\"<>()&$"},
+                                       {ConstString("zsh"), " '\"<>()&;\\|"},
                                        {ConstString("sh"), " '\"<>()&"}};
 
   // safe minimal set

@@ -30,6 +30,8 @@ def : Pat<(brcond (i32 (setne I32:$cond, 0)), bb:$dst),
           (BR_IF bb_op:$dst, I32:$cond)>;
 def : Pat<(brcond (i32 (seteq I32:$cond, 0)), bb:$dst),
           (BR_UNLESS bb_op:$dst, I32:$cond)>;
+def : Pat<(brcond (i32 (xor bool_node:$cond, (i32 1))), bb:$dst),
+          (BR_UNLESS bb_op:$dst, I32:$cond)>;
 
 // A list of branch targets enclosed in {} and separated by comma.
 // Used by br_table only.
@@ -127,14 +129,14 @@ let Predicates = [HasExceptionHandling] in {
 
 // Throwing an exception: throw / rethrow
 let isTerminator = 1, hasCtrlDep = 1, isBarrier = 1 in {
-defm THROW : I<(outs), (ins event_op:$tag, variable_ops),
-               (outs), (ins event_op:$tag),
+defm THROW : I<(outs), (ins tag_op:$tag, variable_ops),
+               (outs), (ins tag_op:$tag),
                [(WebAssemblythrow (WebAssemblywrapper texternalsym:$tag))],
                "throw   \t$tag", "throw   \t$tag", 0x08>;
 defm RETHROW : NRI<(outs), (ins i32imm:$depth), [], "rethrow \t$depth", 0x09>;
 } // isTerminator = 1, hasCtrlDep = 1, isBarrier = 1
-// For C++ support, we only rethrow the latest exception, thus always setting
-// the depth to 0.
+// The depth argument will be computed in CFGStackify. We set it to 0 here for
+// now.
 def : Pat<(int_wasm_rethrow), (RETHROW 0)>;
 
 // Region within which an exception is caught: try / end_try
@@ -147,14 +149,18 @@ defm END_TRY : NRI<(outs), (ins), [], "end_try", 0x0b>;
 let hasCtrlDep = 1, hasSideEffects = 1 in {
 // Currently 'catch' can only extract an i32, which is sufficient for C++
 // support, but according to the spec 'catch' can extract any number of values
-// based on the event type.
-defm CATCH : I<(outs I32:$dst), (ins event_op:$tag),
-               (outs), (ins event_op:$tag),
+// based on the tag type.
+defm CATCH : I<(outs I32:$dst), (ins tag_op:$tag),
+               (outs), (ins tag_op:$tag),
                [(set I32:$dst,
                  (WebAssemblycatch (WebAssemblywrapper texternalsym:$tag)))],
                "catch   \t$dst, $tag", "catch   \t$tag", 0x07>;
-defm CATCH_ALL : NRI<(outs), (ins), [], "catch_all", 0x05>;
+defm CATCH_ALL : NRI<(outs), (ins), [], "catch_all", 0x19>;
 }
+
+// Delegating an exception: delegate
+let isTerminator = 1, hasCtrlDep = 1, hasSideEffects = 1 in
+defm DELEGATE : NRI<(outs), (ins bb_op:$dst), [], "delegate \t $dst", 0x18>;
 
 // Pseudo instructions: cleanupret / catchret
 let isTerminator = 1, hasSideEffects = 1, isBarrier = 1, hasCtrlDep = 1,

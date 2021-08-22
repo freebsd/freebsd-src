@@ -316,6 +316,16 @@ void PHIElimination::LowerPHINode(MachineBasicBlock &MBB,
                                   IncomingReg, DestReg);
   }
 
+  if (MPhi->peekDebugInstrNum()) {
+    // If referred to by debug-info, store where this PHI was.
+    MachineFunction *MF = MBB.getParent();
+    unsigned ID = MPhi->peekDebugInstrNum();
+    auto P = MachineFunction::DebugPHIRegallocPos(&MBB, IncomingReg, 0);
+    auto Res = MF->DebugPHIPositions.insert({ID, P});
+    assert(Res.second);
+    (void)Res;
+  }
+
   // Update live variable information if there is any.
   if (LV) {
     if (IncomingReg) {
@@ -475,9 +485,10 @@ void PHIElimination::LowerPHINode(MachineBasicBlock &MBB,
           if (DefMI->isImplicitDef())
             ImpDefs.insert(DefMI);
       } else {
-        NewSrcInstr =
-            TII->createPHISourceCopy(opBlock, InsertPos, MPhi->getDebugLoc(),
-                                     SrcReg, SrcSubReg, IncomingReg);
+        // Delete the debug location, since the copy is inserted into a
+        // different basic block.
+        NewSrcInstr = TII->createPHISourceCopy(opBlock, InsertPos, nullptr,
+                                               SrcReg, SrcSubReg, IncomingReg);
       }
     }
 
@@ -550,9 +561,8 @@ void PHIElimination::LowerPHINode(MachineBasicBlock &MBB,
         LiveInterval &SrcLI = LIS->getInterval(SrcReg);
 
         bool isLiveOut = false;
-        for (MachineBasicBlock::succ_iterator SI = opBlock.succ_begin(),
-             SE = opBlock.succ_end(); SI != SE; ++SI) {
-          SlotIndex startIdx = LIS->getMBBStartIdx(*SI);
+        for (MachineBasicBlock *Succ : opBlock.successors()) {
+          SlotIndex startIdx = LIS->getMBBStartIdx(Succ);
           VNInfo *VNI = SrcLI.getVNInfoAt(startIdx);
 
           // Definitions by other PHIs are not truly live-in for our purposes.

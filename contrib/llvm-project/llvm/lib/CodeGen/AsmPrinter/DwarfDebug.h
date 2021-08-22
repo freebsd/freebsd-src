@@ -383,6 +383,8 @@ public:
     Default,
     Disabled,
     Ranges,
+    Expressions,
+    Form,
   };
 
 private:
@@ -438,7 +440,11 @@ private:
   AccelTable<AppleAccelTableOffsetData> AccelNamespace;
   AccelTable<AppleAccelTableTypeData> AccelTypes;
 
-  // Identify a debugger for "tuning" the debug info.
+  /// Identify a debugger for "tuning" the debug info.
+  ///
+  /// The "tuning" should be used to set defaults for individual feature flags
+  /// in DwarfDebug; if a given feature has a more specific command-line option,
+  /// that option should take precedence over the tuning.
   DebuggerKind DebuggerTuning = DebuggerKind::Default;
 
   MCDwarfDwoLineTable *getDwoLineTable(const DwarfCompileUnit &);
@@ -706,6 +712,18 @@ public:
     return MinimizeAddr == MinimizeAddrInV5::Ranges;
   }
 
+  // Returns whether novel exprloc addrx+offset encodings should be used to
+  // reduce debug_addr size.
+  bool useAddrOffsetExpressions() const {
+    return MinimizeAddr == MinimizeAddrInV5::Expressions;
+  }
+
+  // Returns whether addrx+offset LLVM extension form should be used to reduce
+  // debug_addr size.
+  bool useAddrOffsetForm() const {
+    return MinimizeAddr == MinimizeAddrInV5::Form;
+  }
+
   /// Returns whether to use sections as labels rather than temp symbols.
   bool useSectionsAsReferences() const {
     return UseSectionsAsReferences;
@@ -820,6 +838,7 @@ public:
   bool tuneForGDB() const { return DebuggerTuning == DebuggerKind::GDB; }
   bool tuneForLLDB() const { return DebuggerTuning == DebuggerKind::LLDB; }
   bool tuneForSCE() const { return DebuggerTuning == DebuggerKind::SCE; }
+  bool tuneForDBX() const { return DebuggerTuning == DebuggerKind::DBX; }
   /// @}
 
   const MCSymbol *getSectionLabel(const MCSection *S);

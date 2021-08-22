@@ -57,8 +57,8 @@ ThreadRegistry &memprofThreadRegistry() {
     // in TSD and can't reliably tell when no more TSD destructors will
     // be called. It would be wrong to reuse MemprofThreadContext for another
     // thread before all TSD destructors will be called for it.
-    memprof_thread_registry = new (thread_registry_placeholder) ThreadRegistry(
-        GetMemprofThreadContext, kMaxNumberOfThreads, kMaxNumberOfThreads);
+    memprof_thread_registry = new (thread_registry_placeholder)
+        ThreadRegistry(GetMemprofThreadContext);
     initialized = true;
   }
   return *memprof_thread_registry;
@@ -156,7 +156,7 @@ MemprofThread::ThreadStart(tid_t os_id,
 
 MemprofThread *CreateMainThread() {
   MemprofThread *main_thread = MemprofThread::Create(
-      /* start_routine */ nullptr, /* arg */ nullptr, /* parent_tid */ 0,
+      /* start_routine */ nullptr, /* arg */ nullptr, /* parent_tid */ kMainTid,
       /* stack */ nullptr, /* detached */ true);
   SetCurrentThread(main_thread);
   main_thread->ThreadStart(internal_getpid(),
@@ -171,8 +171,8 @@ void MemprofThread::SetThreadStackAndTls(const InitOptions *options) {
   DCHECK_EQ(options, nullptr);
   uptr tls_size = 0;
   uptr stack_size = 0;
-  GetThreadStackAndTls(tid() == 0, &stack_bottom_, &stack_size, &tls_begin_,
-                       &tls_size);
+  GetThreadStackAndTls(tid() == kMainTid, &stack_bottom_, &stack_size,
+                       &tls_begin_, &tls_size);
   stack_top_ = stack_bottom_ + stack_size;
   tls_end_ = tls_begin_ + tls_size;
   dtls_ = DTLS_Get();
@@ -214,7 +214,7 @@ u32 GetCurrentTidOrInvalid() {
 void EnsureMainThreadIDIsCorrect() {
   MemprofThreadContext *context =
       reinterpret_cast<MemprofThreadContext *>(TSDGet());
-  if (context && (context->tid == 0))
+  if (context && (context->tid == kMainTid))
     context->os_id = GetTid();
 }
 } // namespace __memprof

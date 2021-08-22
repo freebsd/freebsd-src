@@ -20,6 +20,7 @@
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Bitstream/BitCodes.h"
 #include "llvm/Support/Endian.h"
+#include "llvm/Support/MathExtras.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
 #include <vector>
@@ -302,10 +303,8 @@ public:
 
     // If there is a blockinfo for this BlockID, add all the predefined abbrevs
     // to the abbrev list.
-    if (BlockInfo *Info = getBlockInfo(BlockID)) {
-      CurAbbrevs.insert(CurAbbrevs.end(), Info->Abbrevs.begin(),
-                        Info->Abbrevs.end());
-    }
+    if (BlockInfo *Info = getBlockInfo(BlockID))
+      append_range(CurAbbrevs, Info->Abbrevs);
   }
 
   void ExitBlock() {

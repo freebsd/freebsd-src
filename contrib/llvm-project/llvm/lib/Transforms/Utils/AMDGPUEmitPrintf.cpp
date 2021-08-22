@@ -134,11 +134,11 @@ static Value *getStrlenWithNull(IRBuilder<> &Builder, Value *Str) {
 
   auto PtrPhi = Builder.CreatePHI(Str->getType(), 2);
   PtrPhi->addIncoming(Str, Prev);
-  auto PtrNext = Builder.CreateGEP(PtrPhi, One);
+  auto PtrNext = Builder.CreateGEP(Builder.getInt8Ty(), PtrPhi, One);
   PtrPhi->addIncoming(PtrNext, While);
 
   // Condition for the while loop.
-  auto Data = Builder.CreateLoad(PtrPhi);
+  auto Data = Builder.CreateLoad(Builder.getInt8Ty(), PtrPhi);
   auto Cmp = Builder.CreateICmpEQ(Data, CharZero);
   Builder.CreateCondBr(Cmp, WhileDone, While);
 

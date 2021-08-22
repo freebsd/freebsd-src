@@ -204,6 +204,11 @@ def X86call    : SDNode<"X86ISD::CALL",     SDT_X86Call,
                         [SDNPHasChain, SDNPOutGlue, SDNPOptInGlue,
                          SDNPVariadic]>;
 
+def X86call_rvmarker  : SDNode<"X86ISD::CALL_RVMARKER",     SDT_X86Call,
+                        [SDNPHasChain, SDNPOutGlue, SDNPOptInGlue,
+                         SDNPVariadic]>;
+
+
 def X86NoTrackCall : SDNode<"X86ISD::NT_CALL", SDT_X86Call,
                             [SDNPHasChain, SDNPOutGlue, SDNPOptInGlue,
                              SDNPVariadic]>;
@@ -2587,7 +2592,7 @@ let Predicates = [HasBMI], Defs = [EFLAGS] in {
 }
 
 multiclass bmi_bzhi<bits<8> opc, string mnemonic, RegisterClass RC,
-                    X86MemOperand x86memop, Intrinsic Int,
+                    X86MemOperand x86memop, SDNode Int,
                     PatFrag ld_frag, X86FoldableSchedWrite Sched> {
   def rr : I<opc, MRMSrcReg4VOp3, (outs RC:$dst), (ins RC:$src1, RC:$src2),
              !strconcat(mnemonic, "\t{$src2, $src1, $dst|$dst, $src1, $src2}"),
@@ -2962,14 +2967,15 @@ let Uses = [EAX], SchedRW = [WriteSystem] in
 //===----------------------------------------------------------------------===//
 // SERIALIZE Instruction
 //
-def SERIALIZE : I<0x01, MRM_E8, (outs), (ins), "serialize",
-                  [(int_x86_serialize)]>, PS,
-                  Requires<[HasSERIALIZE]>;
+let SchedRW = [WriteSystem] in
+  def SERIALIZE : I<0x01, MRM_E8, (outs), (ins), "serialize",
+                    [(int_x86_serialize)]>, PS,
+                    Requires<[HasSERIALIZE]>;
 
 //===----------------------------------------------------------------------===//
 // TSXLDTRK - TSX Suspend Load Address Tracking
 //
-let Predicates = [HasTSXLDTRK] in {
+let Predicates = [HasTSXLDTRK], SchedRW = [WriteSystem] in {
   def XSUSLDTRK : I<0x01, MRM_E8, (outs), (ins), "xsusldtrk",
                     [(int_x86_xsusldtrk)]>, XD;
   def XRESLDTRK : I<0x01, MRM_E9, (outs), (ins), "xresldtrk",
@@ -2979,7 +2985,7 @@ let Predicates = [HasTSXLDTRK] in {
 //===----------------------------------------------------------------------===//
 // UINTR Instructions
 //
-let Predicates = [HasUINTR, In64BitMode] in {
+let Predicates = [HasUINTR, In64BitMode], SchedRW = [WriteSystem] in {
   def UIRET : I<0x01, MRM_EC, (outs), (ins), "uiret",
                []>, XS;
   def CLUI : I<0x01, MRM_EE, (outs), (ins), "clui",

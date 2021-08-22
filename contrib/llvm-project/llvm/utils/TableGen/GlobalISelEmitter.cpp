@@ -90,7 +90,7 @@ std::string getEnumNameForPredicate(const TreePredicateFn &Predicate) {
 }
 
 /// Get the opcode used to check this predicate.
-std::string getMatchOpcodeForPredicate(const TreePredicateFn &Predicate) {
+std::string getMatchOpcodeForImmPredicate(const TreePredicateFn &Predicate) {
   return "GIM_Check" + Predicate.getImmTypeIdentifier().str() + "ImmPredicate";
 }
 
@@ -118,7 +118,9 @@ public:
       return;
     }
     if (Ty.isVector()) {
-      OS << "GILLT_v" << Ty.getNumElements() << "s" << Ty.getScalarSizeInBits();
+      OS << (Ty.isScalable() ? "GILLT_nxv" : "GILLT_v")
+         << Ty.getElementCount().getKnownMinValue() << "s"
+         << Ty.getScalarSizeInBits();
       return;
     }
     if (Ty.isPointer()) {
@@ -136,7 +138,10 @@ public:
       return;
     }
     if (Ty.isVector()) {
-      OS << "LLT::vector(" << Ty.getNumElements() << ", "
+      OS << "LLT::vector("
+         << (Ty.isScalable() ? "ElementCount::getScalable("
+                             : "ElementCount::getFixed(")
+         << Ty.getElementCount().getKnownMinValue() << "), "
          << Ty.getScalarSizeInBits() << ")";
       return;
     }
@@ -169,10 +174,21 @@ public:
     if (Ty.isPointer() && Ty.getAddressSpace() != Other.Ty.getAddressSpace())
       return Ty.getAddressSpace() < Other.Ty.getAddressSpace();
 
-    if (Ty.isVector() && Ty.getNumElements() != Other.Ty.getNumElements())
-      return Ty.getNumElements() < Other.Ty.getNumElements();
+    if (Ty.isVector() && Ty.getElementCount() != Other.Ty.getElementCount())
+      return std::make_tuple(Ty.isScalable(),
+                             Ty.getElementCount().getKnownMinValue()) <
+             std::make_tuple(Other.Ty.isScalable(),
+                             Other.Ty.getElementCount().getKnownMinValue());
 
-    return Ty.getSizeInBits() < Other.Ty.getSizeInBits();
+    assert((!Ty.isVector() || Ty.isScalable() == Other.Ty.isScalable()) &&
+           "Unexpected mismatch of scalable property");
+    return Ty.isVector()
+               ? std::make_tuple(Ty.isScalable(),
+                                 Ty.getSizeInBits().getKnownMinSize()) <
+                     std::make_tuple(Other.Ty.isScalable(),
+                                     Other.Ty.getSizeInBits().getKnownMinSize())
+               : Ty.getSizeInBits().getFixedSize() <
+                     Other.Ty.getSizeInBits().getFixedSize();
   }
 
   bool operator==(const LLTCodeGen &B) const { return Ty == B.Ty; }
@@ -187,12 +203,9 @@ class InstructionMatcher;
 static Optional<LLTCodeGen> MVTToLLT(MVT::SimpleValueType SVT) {
   MVT VT(SVT);
 
-  if (VT.isScalableVector())
-    return None;
-
-  if (VT.isFixedLengthVector() && VT.getVectorNumElements() != 1)
+  if (VT.isVector() && !VT.getVectorElementCount().isScalar())
     return LLTCodeGen(
-        LLT::vector(VT.getVectorNumElements(), VT.getScalarSizeInBits()));
+        LLT::vector(VT.getVectorElementCount(), VT.getScalarSizeInBits()));
 
   if (VT.isInteger() || VT.isFloatingPoint())
     return LLTCodeGen(LLT::scalar(VT.getSizeInBits()));
@@ -1562,6 +1575,40 @@ public:
   }
 };
 
+/// Generates code to check that this operand is an immediate whose value meets
+/// an immediate predicate.
+class OperandImmPredicateMatcher : public OperandPredicateMatcher {
+protected:
+  TreePredicateFn Predicate;
+
+public:
+  OperandImmPredicateMatcher(unsigned InsnVarID, unsigned OpIdx,
+                             const TreePredicateFn &Predicate)
+      : OperandPredicateMatcher(IPM_ImmPredicate, InsnVarID, OpIdx),
+        Predicate(Predicate) {}
+
+  bool isIdentical(const PredicateMatcher &B) const override {
+    return OperandPredicateMatcher::isIdentical(B) &&
+           Predicate.getOrigPatFragRecord() ==
+               cast<OperandImmPredicateMatcher>(&B)
+                   ->Predicate.getOrigPatFragRecord();
+  }
+
+  static bool classof(const PredicateMatcher *P) {
+    return P->getKind() == IPM_ImmPredicate;
+  }
+
+  void emitPredicateOpcodes(MatchTable &Table,
+                            RuleMatcher &Rule) const override {
+    Table << MatchTable::Opcode("GIM_CheckImmOperandPredicate")
+          << MatchTable::Comment("MI") << MatchTable::IntValue(InsnVarID)
+          << MatchTable::Comment("MO") << MatchTable::IntValue(OpIdx)
+          << MatchTable::Comment("Predicate")
+          << MatchTable::NamedValue(getEnumNameForPredicate(Predicate))
+          << MatchTable::LineBreak;
+  }
+};
+
 /// Generates code to check that a set of predicates match for a particular
 /// operand.
 class OperandMatcher : public PredicateListMatcher<OperandPredicateMatcher> {
@@ -1924,7 +1971,7 @@ public:
 
   void emitPredicateOpcodes(MatchTable &Table,
                             RuleMatcher &Rule) const override {
-    Table << MatchTable::Opcode(getMatchOpcodeForPredicate(Predicate))
+    Table << MatchTable::Opcode(getMatchOpcodeForImmPredicate(Predicate))
           << MatchTable::Comment("MI") << MatchTable::IntValue(InsnVarID)
           << MatchTable::Comment("Predicate")
           << MatchTable::NamedValue(getEnumNameForPredicate(Predicate))
@@ -3536,7 +3583,7 @@ private:
   const CodeGenInstruction *getEquivNode(Record &Equiv,
                                          const TreePatternNode *N) const;
 
-  Error importRulePredicates(RuleMatcher &M, ArrayRef<Predicate> Predicates);
+  Error importRulePredicates(RuleMatcher &M, ArrayRef<Record *> Predicates);
   Expected<InstructionMatcher &>
   createAndImportSelDAGMatcher(RuleMatcher &Rule,
                                InstructionMatcher &InsnMatcher,
@@ -3622,6 +3669,10 @@ private:
   /// otherwise.
   Optional<const CodeGenRegisterClass *>
   inferRegClassFromPattern(TreePatternNode *N);
+
+  /// Return the size of the MemoryVT in this predicate, if possible.
+  Optional<unsigned>
+  getMemSizeBitsFromPredicate(const TreePredicateFn &Predicate);
 
   // Add builtin predicates.
   Expected<InstructionMatcher &>
@@ -3723,17 +3774,28 @@ GlobalISelEmitter::GlobalISelEmitter(RecordKeeper &RK)
 
 //===- Emitter ------------------------------------------------------------===//
 
-Error
-GlobalISelEmitter::importRulePredicates(RuleMatcher &M,
-                                        ArrayRef<Predicate> Predicates) {
-  for (const Predicate &P : Predicates) {
-    if (!P.Def || P.getCondString().empty())
+Error GlobalISelEmitter::importRulePredicates(RuleMatcher &M,
+                                              ArrayRef<Record *> Predicates) {
+  for (Record *Pred : Predicates) {
+    if (Pred->getValueAsString("CondString").empty())
       continue;
-    declareSubtargetFeature(P.Def);
-    M.addRequiredFeature(P.Def);
+    declareSubtargetFeature(Pred);
+    M.addRequiredFeature(Pred);
   }
 
   return Error::success();
+}
+
+Optional<unsigned> GlobalISelEmitter::getMemSizeBitsFromPredicate(const TreePredicateFn &Predicate) {
+  Optional<LLTCodeGen> MemTyOrNone =
+      MVTToLLT(getValueType(Predicate.getMemoryVT()));
+
+  if (!MemTyOrNone)
+    return None;
+
+  // Align so unusual types like i1 don't get rounded down.
+  return llvm::alignTo(
+      static_cast<unsigned>(MemTyOrNone->get().getSizeInBits()), 8);
 }
 
 Expected<InstructionMatcher &> GlobalISelEmitter::addBuiltinPredicates(
@@ -3775,9 +3837,18 @@ Expected<InstructionMatcher &> GlobalISelEmitter::addBuiltinPredicates(
 
   if (Predicate.isStore()) {
     if (Predicate.isTruncStore()) {
-      // FIXME: If MemoryVT is set, we end up with 2 checks for the MMO size.
-      InsnMatcher.addPredicate<MemoryVsLLTSizePredicateMatcher>(
-          0, MemoryVsLLTSizePredicateMatcher::LessThan, 0);
+      if (Predicate.getMemoryVT() != nullptr) {
+        // FIXME: If MemoryVT is set, we end up with 2 checks for the MMO size.
+        auto MemSizeInBits = getMemSizeBitsFromPredicate(Predicate);
+        if (!MemSizeInBits)
+          return failedImport("MemVT could not be converted to LLT");
+
+        InsnMatcher.addPredicate<MemorySizePredicateMatcher>(0, *MemSizeInBits /
+                                                                    8);
+      } else {
+        InsnMatcher.addPredicate<MemoryVsLLTSizePredicateMatcher>(
+            0, MemoryVsLLTSizePredicateMatcher::LessThan, 0);
+      }
       return InsnMatcher;
     }
     if (Predicate.isNonTruncStore()) {
@@ -3804,19 +3875,12 @@ Expected<InstructionMatcher &> GlobalISelEmitter::addBuiltinPredicates(
 
   if (Predicate.isLoad() || Predicate.isStore() || Predicate.isAtomic()) {
     if (Predicate.getMemoryVT() != nullptr) {
-      Optional<LLTCodeGen> MemTyOrNone =
-          MVTToLLT(getValueType(Predicate.getMemoryVT()));
-
-      if (!MemTyOrNone)
+      auto MemSizeInBits = getMemSizeBitsFromPredicate(Predicate);
+      if (!MemSizeInBits)
         return failedImport("MemVT could not be converted to LLT");
 
-      // MMO's work in bytes so we must take care of unusual types like i1
-      // don't round down.
-      unsigned MemSizeInBits =
-          llvm::alignTo(MemTyOrNone->get().getSizeInBits(), 8);
-
       InsnMatcher.addPredicate<MemorySizePredicateMatcher>(0,
-                                                           MemSizeInBits / 8);
+                                                           *MemSizeInBits / 8);
       return InsnMatcher;
     }
   }
@@ -4153,6 +4217,17 @@ Error GlobalISelEmitter::importChildMatcher(
       }
       if (SrcChild->getOperator()->getName() == "timm") {
         OM.addPredicate<ImmOperandMatcher>();
+
+        // Add predicates, if any
+        for (const TreePredicateCall &Call : SrcChild->getPredicateCalls()) {
+          const TreePredicateFn &Predicate = Call.Fn;
+
+          // Only handle immediate patterns for now
+          if (Predicate.isImmediatePattern()) {
+            OM.addPredicate<OperandImmPredicateMatcher>(Predicate);
+          }
+        }
+
         return Error::success();
       }
     }
@@ -4464,7 +4539,6 @@ Expected<action_iterator> GlobalISelEmitter::importExplicitUseRenderer(
     return failedImport(
         "Dst pattern child def is an unsupported tablegen class");
   }
-
   return failedImport("Dst pattern child is an unsupported kind");
 }
 
@@ -5043,7 +5117,9 @@ Expected<RuleMatcher> GlobalISelEmitter::runOnPattern(const PatternToMatch &P) {
                                   "  =>  " +
                                   llvm::to_string(*P.getDstPattern()));
 
-  if (auto Error = importRulePredicates(M, P.getPredicates()))
+  SmallVector<Record *, 4> Predicates;
+  P.getPredicateRecords(Predicates);
+  if (auto Error = importRulePredicates(M, Predicates))
     return std::move(Error);
 
   // Next, analyze the pattern operators.
@@ -5351,7 +5427,7 @@ void GlobalISelEmitter::emitCxxPredicateFns(
     StringRef AdditionalDeclarations,
     std::function<bool(const Record *R)> Filter) {
   std::vector<const Record *> MatchedRecords;
-  const auto &Defs = RK.getAllDerivedDefinitions("PatFrag");
+  const auto &Defs = RK.getAllDerivedDefinitions("PatFrags");
   std::copy_if(Defs.begin(), Defs.end(), std::back_inserter(MatchedRecords),
                [&](Record *Record) {
                  return !Record->getValueAsString(CodeFieldName).empty() &&
@@ -5595,9 +5671,17 @@ void GlobalISelEmitter::run(raw_ostream &OS) {
       RK.getAllDerivedDefinitions("GIComplexOperandMatcher");
   llvm::sort(ComplexPredicates, orderByName);
 
-  std::vector<Record *> CustomRendererFns =
-      RK.getAllDerivedDefinitions("GICustomOperandRenderer");
-  llvm::sort(CustomRendererFns, orderByName);
+  std::vector<StringRef> CustomRendererFns;
+  transform(RK.getAllDerivedDefinitions("GICustomOperandRenderer"),
+            std::back_inserter(CustomRendererFns), [](const auto &Record) {
+              return Record->getValueAsString("RendererFn");
+            });
+  // Sort and remove duplicates to get a list of unique renderer functions, in
+  // case some were mentioned more than once.
+  llvm::sort(CustomRendererFns);
+  CustomRendererFns.erase(
+      std::unique(CustomRendererFns.begin(), CustomRendererFns.end()),
+      CustomRendererFns.end());
 
   unsigned MaxTemporaries = 0;
   for (const auto &Rule : Rules)
@@ -5674,13 +5758,6 @@ void GlobalISelEmitter::run(raw_ostream &OS) {
     "  AvailableFunctionFeatures = computeAvailableFunctionFeatures("
     "(const " << Target.getName() << "Subtarget *)&MF.getSubtarget(), &MF);\n"
     "}\n";
-
-  if (Target.getName() == "X86" || Target.getName() == "AArch64") {
-    // TODO: Implement PGSO.
-    OS << "static bool shouldOptForSize(const MachineFunction *MF) {\n";
-    OS << "    return MF->getFunction().hasOptSize();\n";
-    OS << "}\n\n";
-  }
 
   SubtargetFeatureInfo::emitComputeAvailableFeatures(
       Target.getName(), "InstructionSelector",
@@ -5791,17 +5868,15 @@ void GlobalISelEmitter::run(raw_ostream &OS) {
   OS << "// Custom renderers.\n"
      << "enum {\n"
      << "  GICR_Invalid,\n";
-  for (const auto &Record : CustomRendererFns)
-    OS << "  GICR_" << Record->getValueAsString("RendererFn") << ",\n";
+  for (const auto &Fn : CustomRendererFns)
+    OS << "  GICR_" << Fn << ",\n";
   OS << "};\n";
 
   OS << Target.getName() << "InstructionSelector::CustomRendererFn\n"
      << Target.getName() << "InstructionSelector::CustomRenderers[] = {\n"
      << "  nullptr, // GICR_Invalid\n";
-  for (const auto &Record : CustomRendererFns)
-    OS << "  &" << Target.getName()
-       << "InstructionSelector::" << Record->getValueAsString("RendererFn")
-       << ", // " << Record->getName() << "\n";
+  for (const auto &Fn : CustomRendererFns)
+    OS << "  &" << Target.getName() << "InstructionSelector::" << Fn << ",\n";
   OS << "};\n\n";
 
   llvm::stable_sort(Rules, [&](const RuleMatcher &A, const RuleMatcher &B) {

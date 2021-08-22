@@ -73,9 +73,9 @@ typedef void (*iterate_callback)(uintptr_t base, size_t size, void *arg);
 // pointer.
 void __scudo_get_error_info(struct scudo_error_info *error_info,
                             uintptr_t fault_addr, const char *stack_depot,
-                            const char *region_info, const char *memory,
-                            const char *memory_tags, uintptr_t memory_addr,
-                            size_t memory_size);
+                            const char *region_info, const char *ring_buffer,
+                            const char *memory, const char *memory_tags,
+                            uintptr_t memory_addr, size_t memory_size);
 
 enum scudo_error_type {
   UNKNOWN,
@@ -107,6 +107,9 @@ size_t __scudo_get_stack_depot_size();
 const char *__scudo_get_region_info_addr();
 size_t __scudo_get_region_info_size();
 
+const char *__scudo_get_ring_buffer_addr();
+size_t __scudo_get_ring_buffer_size();
+
 #ifndef M_DECAY_TIME
 #define M_DECAY_TIME -100
 #endif
@@ -117,7 +120,7 @@ size_t __scudo_get_region_info_size();
 
 // Tune the allocator's choice of memory tags to make it more likely that
 // a certain class of memory errors will be detected. The value argument should
-// be one of the enumerators of the scudo_memtag_tuning enum below.
+// be one of the M_MEMTAG_TUNING_* constants below.
 #ifndef M_MEMTAG_TUNING
 #define M_MEMTAG_TUNING -102
 #endif
@@ -142,13 +145,15 @@ size_t __scudo_get_region_info_size();
 #define M_TSDS_COUNT_MAX -202
 #endif
 
-enum scudo_memtag_tuning {
-  // Tune for buffer overflows.
-  M_MEMTAG_TUNING_BUFFER_OVERFLOW,
+// Tune for buffer overflows.
+#ifndef M_MEMTAG_TUNING_BUFFER_OVERFLOW
+#define M_MEMTAG_TUNING_BUFFER_OVERFLOW 0
+#endif
 
-  // Tune for use-after-free.
-  M_MEMTAG_TUNING_UAF,
-};
+// Tune for use-after-free.
+#ifndef M_MEMTAG_TUNING_UAF
+#define M_MEMTAG_TUNING_UAF 1
+#endif
 
 } // extern "C"
 

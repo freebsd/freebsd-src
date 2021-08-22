@@ -13,6 +13,7 @@
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/Signals.h"
 #include "llvm/Support/ThreadLocal.h"
+#include "llvm/Support/thread.h"
 #include <mutex>
 #include <setjmp.h>
 
@@ -82,7 +83,7 @@ public:
     // this occurs when using SEH on Windows with MSVC or clang-cl.
   }
 };
-}
+} // namespace
 
 static ManagedStatic<std::mutex> gCrashRecoveryContextMutex;
 static bool gCrashRecoveryEnabled = false;
@@ -485,7 +486,7 @@ struct RunSafelyOnThreadInfo {
   bool UseBackgroundPriority;
   bool Result;
 };
-}
+} // namespace
 
 static void RunSafelyOnThread_Dispatch(void *UserData) {
   RunSafelyOnThreadInfo *Info =
@@ -500,10 +501,12 @@ bool CrashRecoveryContext::RunSafelyOnThread(function_ref<void()> Fn,
                                              unsigned RequestedStackSize) {
   bool UseBackgroundPriority = hasThreadBackgroundPriority();
   RunSafelyOnThreadInfo Info = { Fn, this, UseBackgroundPriority, false };
-  llvm_execute_on_thread(RunSafelyOnThread_Dispatch, &Info,
-                         RequestedStackSize == 0
-                             ? llvm::None
-                             : llvm::Optional<unsigned>(RequestedStackSize));
+  llvm::thread Thread(RequestedStackSize == 0
+                          ? llvm::None
+                          : llvm::Optional<unsigned>(RequestedStackSize),
+                      RunSafelyOnThread_Dispatch, &Info);
+  Thread.join();
+
   if (CrashRecoveryContextImpl *CRC = (CrashRecoveryContextImpl *)Impl)
     CRC->setSwitchedThread();
   return Info.Result;

@@ -145,7 +145,7 @@ opt::InputArgList ELFOptTable::parse(ArrayRef<const char *> argv) {
 }
 
 void elf::printHelp() {
-  ELFOptTable().PrintHelp(
+  ELFOptTable().printHelp(
       lld::outs(), (config->progName + " [options] file...").str().c_str(),
       "lld", false /*ShowHidden*/, true /*ShowAllAliases*/);
   lld::outs() << "\n";
@@ -185,6 +185,9 @@ std::string elf::createResponseFile(const opt::InputArgList &args) {
       // directories for the output path (-o doesn't create directories).
       // Strip directories to prevent the issue.
       os << "-o " << quote(path::filename(arg->getValue())) << "\n";
+      break;
+    case OPT_lto_sample_profile:
+      os << arg->getSpelling() << quote(rewritePath(arg->getValue())) << "\n";
       break;
     case OPT_call_graph_ordering_file:
     case OPT_dynamic_list:

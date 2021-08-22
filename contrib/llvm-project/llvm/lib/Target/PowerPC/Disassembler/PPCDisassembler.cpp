@@ -160,6 +160,12 @@ static DecodeStatus DecodeG8RCRegisterClass(MCInst &Inst, uint64_t RegNo,
   return decodeRegisterClass(Inst, RegNo, XRegs);
 }
 
+static DecodeStatus DecodeG8pRCRegisterClass(MCInst &Inst, uint64_t RegNo,
+                                             uint64_t Address,
+                                             const void *Decoder) {
+  return decodeRegisterClass(Inst, RegNo, XRegs);
+}
+
 static DecodeStatus DecodeG8RC_NOX0RegisterClass(MCInst &Inst, uint64_t RegNo,
                                             uint64_t Address,
                                             const void *Decoder) {
@@ -276,6 +282,23 @@ static DecodeStatus decodeMemRIXOperands(MCInst &Inst, uint64_t Imm,
 
   Inst.addOperand(MCOperand::createImm(SignExtend64<16>(Disp << 2)));
   Inst.addOperand(MCOperand::createReg(RRegsNoR0[Base]));
+  return MCDisassembler::Success;
+}
+
+static DecodeStatus decodeMemRIHashOperands(MCInst &Inst, uint64_t Imm,
+                                            int64_t Address,
+                                            const void *Decoder) {
+  // Decode the memrix field for a hash store or hash check operation.
+  // The field is composed of a register and an immediate value that is 6 bits
+  // and covers the range -8 to -512. The immediate is always negative and 2s
+  // complement which is why we sign extend a 7 bit value.
+  const uint64_t Base = Imm >> 6;
+  const int64_t Disp = SignExtend64<7>((Imm & 0x3F) + 64) * 8;
+
+  assert(Base < 32 && "Invalid base register");
+
+  Inst.addOperand(MCOperand::createImm(Disp));
+  Inst.addOperand(MCOperand::createReg(RRegs[Base]));
   return MCDisassembler::Success;
 }
 

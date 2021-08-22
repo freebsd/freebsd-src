@@ -550,6 +550,10 @@ hash_code llvm::hash_value(const APInt &Arg) {
       hash_combine_range(Arg.U.pVal, Arg.U.pVal + Arg.getNumWords()));
 }
 
+unsigned DenseMapInfo<APInt>::getHashValue(const APInt &Key) {
+  return static_cast<unsigned>(hash_value(Key));
+}
+
 bool APInt::isSplat(unsigned SplatSizeInBits) const {
   assert(getBitWidth() % SplatSizeInBits == 0 &&
          "SplatSizeInBits must divide width!");
@@ -2275,14 +2279,6 @@ void APInt::toString(SmallVectorImpl<char> &Str, unsigned Radix,
 
   // Reverse the digits before returning.
   std::reverse(Str.begin()+StartDig, Str.end());
-}
-
-/// Returns the APInt as a std::string. Note that this is an inefficient method.
-/// It is better to pass in a SmallVector/SmallString to the methods above.
-std::string APInt::toString(unsigned Radix = 10, bool Signed = true) const {
-  SmallString<40> S;
-  toString(S, Radix, Signed, /* formatAsCLiteral = */false);
-  return std::string(S.str());
 }
 
 #if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)

@@ -99,6 +99,24 @@ namespace {
   };
 }
 
+/// Find a point in code which dominates all given instructions. We can safely
+/// assume that, whatever fact we can prove at the found point, this fact is
+/// also true for each of the given instructions.
+static Instruction *findCommonDominator(ArrayRef<Instruction *> Instructions,
+                                        DominatorTree &DT) {
+  Instruction *CommonDom = nullptr;
+  for (auto *Insn : Instructions)
+    if (!CommonDom || DT.dominates(Insn, CommonDom))
+      CommonDom = Insn;
+    else if (!DT.dominates(CommonDom, Insn))
+      // If there is no dominance relation, use common dominator.
+      CommonDom =
+          DT.findNearestCommonDominator(CommonDom->getParent(),
+                                        Insn->getParent())->getTerminator();
+  assert(CommonDom && "Common dominator not found?");
+  return CommonDom;
+}
+
 /// Fold an IV operand into its use.  This removes increments of an
 /// aligned IV when used by a instruction that ignores the low bits.
 ///
@@ -261,14 +279,14 @@ void SimplifyIndvar::eliminateIVComparison(ICmpInst *ICmp, Value *IVOperand) {
   const SCEV *S = SE->getSCEVAtScope(ICmp->getOperand(IVOperIdx), ICmpLoop);
   const SCEV *X = SE->getSCEVAtScope(ICmp->getOperand(1 - IVOperIdx), ICmpLoop);
 
-  // If the condition is always true or always false, replace it with
-  // a constant value.
-  if (SE->isKnownPredicate(Pred, S, X)) {
-    ICmp->replaceAllUsesWith(ConstantInt::getTrue(ICmp->getContext()));
-    DeadInsts.emplace_back(ICmp);
-    LLVM_DEBUG(dbgs() << "INDVARS: Eliminated comparison: " << *ICmp << '\n');
-  } else if (SE->isKnownPredicate(ICmpInst::getInversePredicate(Pred), S, X)) {
-    ICmp->replaceAllUsesWith(ConstantInt::getFalse(ICmp->getContext()));
+  // If the condition is always true or always false in the given context,
+  // replace it with a constant value.
+  SmallVector<Instruction *, 4> Users;
+  for (auto *U : ICmp->users())
+    Users.push_back(cast<Instruction>(U));
+  const Instruction *CtxI = findCommonDominator(Users, *DT);
+  if (auto Ev = SE->evaluatePredicateAt(Pred, S, X, CtxI)) {
+    ICmp->replaceAllUsesWith(ConstantInt::getBool(ICmp->getContext(), *Ev));
     DeadInsts.emplace_back(ICmp);
     LLVM_DEBUG(dbgs() << "INDVARS: Eliminated comparison: " << *ICmp << '\n');
   } else if (makeIVComparisonInvariant(ICmp, IVOperand)) {
@@ -404,46 +422,10 @@ void SimplifyIndvar::simplifyIVRemainder(BinaryOperator *Rem, Value *IVOperand,
   replaceSRemWithURem(Rem);
 }
 
-static bool willNotOverflow(ScalarEvolution *SE, Instruction::BinaryOps BinOp,
-                            bool Signed, const SCEV *LHS, const SCEV *RHS) {
-  const SCEV *(ScalarEvolution::*Operation)(const SCEV *, const SCEV *,
-                                            SCEV::NoWrapFlags, unsigned);
-  switch (BinOp) {
-  default:
-    llvm_unreachable("Unsupported binary op");
-  case Instruction::Add:
-    Operation = &ScalarEvolution::getAddExpr;
-    break;
-  case Instruction::Sub:
-    Operation = &ScalarEvolution::getMinusSCEV;
-    break;
-  case Instruction::Mul:
-    Operation = &ScalarEvolution::getMulExpr;
-    break;
-  }
-
-  const SCEV *(ScalarEvolution::*Extension)(const SCEV *, Type *, unsigned) =
-      Signed ? &ScalarEvolution::getSignExtendExpr
-             : &ScalarEvolution::getZeroExtendExpr;
-
-  // Check ext(LHS op RHS) == ext(LHS) op ext(RHS)
-  auto *NarrowTy = cast<IntegerType>(LHS->getType());
-  auto *WideTy =
-    IntegerType::get(NarrowTy->getContext(), NarrowTy->getBitWidth() * 2);
-
-  const SCEV *A =
-      (SE->*Extension)((SE->*Operation)(LHS, RHS, SCEV::FlagAnyWrap, 0),
-                       WideTy, 0);
-  const SCEV *B =
-      (SE->*Operation)((SE->*Extension)(LHS, WideTy, 0),
-                       (SE->*Extension)(RHS, WideTy, 0), SCEV::FlagAnyWrap, 0);
-  return A == B;
-}
-
 bool SimplifyIndvar::eliminateOverflowIntrinsic(WithOverflowInst *WO) {
   const SCEV *LHS = SE->getSCEV(WO->getLHS());
   const SCEV *RHS = SE->getSCEV(WO->getRHS());
-  if (!willNotOverflow(SE, WO->getBinaryOp(), WO->isSigned(), LHS, RHS))
+  if (!SE->willNotOverflow(WO->getBinaryOp(), WO->isSigned(), LHS, RHS))
     return false;
 
   // Proved no overflow, nuke the overflow check and, if possible, the overflow
@@ -484,7 +466,7 @@ bool SimplifyIndvar::eliminateOverflowIntrinsic(WithOverflowInst *WO) {
 bool SimplifyIndvar::eliminateSaturatingIntrinsic(SaturatingInst *SI) {
   const SCEV *LHS = SE->getSCEV(SI->getLHS());
   const SCEV *RHS = SE->getSCEV(SI->getRHS());
-  if (!willNotOverflow(SE, SI->getBinaryOp(), SI->isSigned(), LHS, RHS))
+  if (!SE->willNotOverflow(SI->getBinaryOp(), SI->isSigned(), LHS, RHS))
     return false;
 
   BinaryOperator *BO = BinaryOperator::Create(
@@ -738,34 +720,25 @@ bool SimplifyIndvar::eliminateIdentitySCEV(Instruction *UseInst,
 /// unsigned-overflow.  Returns true if anything changed, false otherwise.
 bool SimplifyIndvar::strengthenOverflowingOperation(BinaryOperator *BO,
                                                     Value *IVOperand) {
-  // Fastpath: we don't have any work to do if `BO` is `nuw` and `nsw`.
-  if (BO->hasNoUnsignedWrap() && BO->hasNoSignedWrap())
-    return false;
+  SCEV::NoWrapFlags Flags;
+  bool Deduced;
+  std::tie(Flags, Deduced) = SE->getStrengthenedNoWrapFlagsFromBinOp(
+      cast<OverflowingBinaryOperator>(BO));
 
-  if (BO->getOpcode() != Instruction::Add &&
-      BO->getOpcode() != Instruction::Sub &&
-      BO->getOpcode() != Instruction::Mul)
-    return false;
+  if (!Deduced)
+    return Deduced;
 
-  const SCEV *LHS = SE->getSCEV(BO->getOperand(0));
-  const SCEV *RHS = SE->getSCEV(BO->getOperand(1));
-  bool Changed = false;
+  BO->setHasNoUnsignedWrap(ScalarEvolution::maskFlags(Flags, SCEV::FlagNUW) ==
+                           SCEV::FlagNUW);
+  BO->setHasNoSignedWrap(ScalarEvolution::maskFlags(Flags, SCEV::FlagNSW) ==
+                         SCEV::FlagNSW);
 
-  if (!BO->hasNoUnsignedWrap() &&
-      willNotOverflow(SE, BO->getOpcode(), /* Signed */ false, LHS, RHS)) {
-    BO->setHasNoUnsignedWrap();
-    SE->forgetValue(BO);
-    Changed = true;
-  }
-
-  if (!BO->hasNoSignedWrap() &&
-      willNotOverflow(SE, BO->getOpcode(), /* Signed */ true, LHS, RHS)) {
-    BO->setHasNoSignedWrap();
-    SE->forgetValue(BO);
-    Changed = true;
-  }
-
-  return Changed;
+  // The getStrengthenedNoWrapFlagsFromBinOp() check inferred additional nowrap
+  // flags on addrecs while performing zero/sign extensions. We could call
+  // forgetValue() here to make sure those flags also propagate to any other
+  // SCEV expressions based on the addrec. However, this can have pathological
+  // compile-time impact, see https://bugs.llvm.org/show_bug.cgi?id=50384.
+  return Deduced;
 }
 
 /// Annotate the Shr in (X << IVOperand) >> C as exact using the
@@ -1386,7 +1359,7 @@ WidenIV::getExtendedOperandRecurrence(WidenIV::NarrowIVDefUse DU) {
 /// so, return the extended recurrence and the kind of extension used. Otherwise
 /// return {nullptr, Unknown}.
 WidenIV::WidenedRecTy WidenIV::getWideRecurrence(WidenIV::NarrowIVDefUse DU) {
-  if (!SE->isSCEVable(DU.NarrowUse->getType()))
+  if (!DU.NarrowUse->getType()->isIntegerTy())
     return {nullptr, Unknown};
 
   const SCEV *NarrowExpr = SE->getSCEV(DU.NarrowUse);
@@ -1575,17 +1548,7 @@ bool WidenIV::widenWithVariantUse(WidenIV::NarrowIVDefUse DU) {
   // We'll prove some facts that should be true in the context of ext users. If
   // there is no users, we are done now. If there are some, pick their common
   // dominator as context.
-  Instruction *Context = nullptr;
-  for (auto *Ext : ExtUsers) {
-    if (!Context || DT->dominates(Ext, Context))
-      Context = Ext;
-    else if (!DT->dominates(Context, Ext))
-      // For users that don't have dominance relation, use common dominator.
-      Context =
-          DT->findNearestCommonDominator(Context->getParent(), Ext->getParent())
-              ->getTerminator();
-  }
-  assert(Context && "Context not found?");
+  const Instruction *CtxI = findCommonDominator(ExtUsers, *DT);
 
   if (!CanSignExtend && !CanZeroExtend) {
     // Because InstCombine turns 'sub nuw' to 'add' losing the no-wrap flag, we
@@ -1601,8 +1564,8 @@ bool WidenIV::widenWithVariantUse(WidenIV::NarrowIVDefUse DU) {
       return false;
     if (!SE->isKnownNegative(RHS))
       return false;
-    bool ProvedSubNUW = SE->isKnownPredicateAt(
-        ICmpInst::ICMP_UGE, LHS, SE->getNegativeSCEV(RHS), Context);
+    bool ProvedSubNUW = SE->isKnownPredicateAt(ICmpInst::ICMP_UGE, LHS,
+                                               SE->getNegativeSCEV(RHS), CtxI);
     if (!ProvedSubNUW)
       return false;
     // In fact, our 'add' is 'sub nuw'. We will need to widen the 2nd operand as

@@ -14,6 +14,7 @@
 #define LLVM_LIB_CODEGEN_ASMPRINTER_WIN64EXCEPTION_H
 
 #include "EHStreamer.h"
+#include <vector>
 
 namespace llvm {
 class GlobalValue;
@@ -43,6 +44,9 @@ class LLVM_LIBRARY_VISIBILITY WinException : public EHStreamer {
 
   /// The section of the last funclet start.
   MCSection *CurrentFuncletTextSection = nullptr;
+
+  /// The list of symbols to add to the ehcont section
+  std::vector<const MCSymbol *> EHContTargets;
 
   void emitCSpecificHandlerTable(const MachineFunction *MF);
 

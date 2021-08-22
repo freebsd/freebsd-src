@@ -187,7 +187,7 @@ CXXNewExpr::CXXNewExpr(bool IsGlobalNew, FunctionDecl *OperatorNew,
                        Expr *Initializer, QualType Ty,
                        TypeSourceInfo *AllocatedTypeInfo, SourceRange Range,
                        SourceRange DirectInitRange)
-    : Expr(CXXNewExprClass, Ty, VK_RValue, OK_Ordinary),
+    : Expr(CXXNewExprClass, Ty, VK_PRValue, OK_Ordinary),
       OperatorNew(OperatorNew), OperatorDelete(OperatorDelete),
       AllocatedTypeInfo(AllocatedTypeInfo), Range(Range),
       DirectInitRange(DirectInitRange) {
@@ -275,7 +275,8 @@ CXXNewExpr *CXXNewExpr::CreateEmpty(const ASTContext &Ctx, bool IsArray,
 }
 
 bool CXXNewExpr::shouldNullCheckAllocation() const {
-  return getOperatorNew()
+  return !getOperatorNew()->hasAttr<ReturnsNonNullAttr>() &&
+         getOperatorNew()
              ->getType()
              ->castAs<FunctionProtoType>()
              ->isNothrow() &&
@@ -321,7 +322,7 @@ CXXPseudoDestructorExpr::CXXPseudoDestructorExpr(
     SourceLocation OperatorLoc, NestedNameSpecifierLoc QualifierLoc,
     TypeSourceInfo *ScopeType, SourceLocation ColonColonLoc,
     SourceLocation TildeLoc, PseudoDestructorTypeStorage DestroyedType)
-    : Expr(CXXPseudoDestructorExprClass, Context.BoundMemberTy, VK_RValue,
+    : Expr(CXXPseudoDestructorExprClass, Context.BoundMemberTy, VK_PRValue,
            OK_Ordinary),
       Base(static_cast<Stmt *>(Base)), IsArrow(isArrow),
       OperatorLoc(OperatorLoc), QualifierLoc(QualifierLoc),
@@ -670,6 +671,7 @@ CXXMethodDecl *CXXMemberCallExpr::getMethodDecl() const {
     return cast<CXXMethodDecl>(MemExpr->getMemberDecl());
 
   // FIXME: Will eventually need to cope with member pointers.
+  // NOTE: Update makeTailCallIfSwiftAsync on fixing this.
   return nullptr;
 }
 
@@ -951,9 +953,9 @@ CXXDefaultInitExpr::CXXDefaultInitExpr(const ASTContext &Ctx,
                                        SourceLocation Loc, FieldDecl *Field,
                                        QualType Ty, DeclContext *UsedContext)
     : Expr(CXXDefaultInitExprClass, Ty.getNonLValueExprType(Ctx),
-           Ty->isLValueReferenceType()
-               ? VK_LValue
-               : Ty->isRValueReferenceType() ? VK_XValue : VK_RValue,
+           Ty->isLValueReferenceType()   ? VK_LValue
+           : Ty->isRValueReferenceType() ? VK_XValue
+                                         : VK_PRValue,
            /*FIXME*/ OK_Ordinary),
       Field(Field), UsedContext(UsedContext) {
   CXXDefaultInitExprBits.Loc = Loc;
@@ -1057,7 +1059,7 @@ CXXConstructExpr::CXXConstructExpr(
     bool ListInitialization, bool StdInitListInitialization,
     bool ZeroInitialization, ConstructionKind ConstructKind,
     SourceRange ParenOrBraceRange)
-    : Expr(SC, Ty, VK_RValue, OK_Ordinary), Constructor(Ctor),
+    : Expr(SC, Ty, VK_PRValue, OK_Ordinary), Constructor(Ctor),
       ParenOrBraceRange(ParenOrBraceRange), NumArgs(Args.size()) {
   CXXConstructExprBits.Elidable = Elidable;
   CXXConstructExprBits.HadMultipleCandidates = HadMultipleCandidates;
@@ -1125,7 +1127,7 @@ LambdaExpr::LambdaExpr(QualType T, SourceRange IntroducerRange,
                        bool ExplicitResultType, ArrayRef<Expr *> CaptureInits,
                        SourceLocation ClosingBrace,
                        bool ContainsUnexpandedParameterPack)
-    : Expr(LambdaExprClass, T, VK_RValue, OK_Ordinary),
+    : Expr(LambdaExprClass, T, VK_PRValue, OK_Ordinary),
       IntroducerRange(IntroducerRange), CaptureDefaultLoc(CaptureDefaultLoc),
       ClosingBrace(ClosingBrace) {
   LambdaExprBits.NumCaptures = CaptureInits.size();
@@ -1326,10 +1328,9 @@ CXXUnresolvedConstructExpr::CXXUnresolvedConstructExpr(QualType T,
                                                        ArrayRef<Expr *> Args,
                                                        SourceLocation RParenLoc)
     : Expr(CXXUnresolvedConstructExprClass, T,
-           (TSI->getType()->isLValueReferenceType()
-                ? VK_LValue
-                : TSI->getType()->isRValueReferenceType() ? VK_XValue
-                                                          : VK_RValue),
+           (TSI->getType()->isLValueReferenceType()   ? VK_LValue
+            : TSI->getType()->isRValueReferenceType() ? VK_XValue
+                                                      : VK_PRValue),
            OK_Ordinary),
       TSI(TSI), LParenLoc(LParenLoc), RParenLoc(RParenLoc) {
   CXXUnresolvedConstructExprBits.NumArgs = Args.size();
@@ -1668,7 +1669,7 @@ bool MaterializeTemporaryExpr::isUsableInConstantExpressions(
 TypeTraitExpr::TypeTraitExpr(QualType T, SourceLocation Loc, TypeTrait Kind,
                              ArrayRef<TypeSourceInfo *> Args,
                              SourceLocation RParenLoc, bool Value)
-    : Expr(TypeTraitExprClass, T, VK_RValue, OK_Ordinary), Loc(Loc),
+    : Expr(TypeTraitExprClass, T, VK_PRValue, OK_Ordinary), Loc(Loc),
       RParenLoc(RParenLoc) {
   assert(Kind <= TT_Last && "invalid enum value!");
   TypeTraitExprBits.Kind = Kind;

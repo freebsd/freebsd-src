@@ -68,30 +68,65 @@ static inline bool isVCTP(const MachineInstr *MI) {
   return false;
 }
 
-static inline bool isLoopStart(MachineInstr &MI) {
+static inline bool isDoLoopStart(const MachineInstr &MI) {
   return MI.getOpcode() == ARM::t2DoLoopStart ||
-         MI.getOpcode() == ARM::t2DoLoopStartTP ||
-         MI.getOpcode() == ARM::t2WhileLoopStart;
+         MI.getOpcode() == ARM::t2DoLoopStartTP;
 }
 
-// WhileLoopStart holds the exit block, so produce a cmp lr, 0 and then a
-// beq that branches to the exit branch.
-inline void RevertWhileLoopStart(MachineInstr *MI, const TargetInstrInfo *TII,
-                        unsigned BrOpc = ARM::t2Bcc) {
-  MachineBasicBlock *MBB = MI->getParent();
+static inline bool isWhileLoopStart(const MachineInstr &MI) {
+  return MI.getOpcode() == ARM::t2WhileLoopStart ||
+         MI.getOpcode() == ARM::t2WhileLoopStartLR ||
+         MI.getOpcode() == ARM::t2WhileLoopStartTP;
+}
 
-  // Cmp
-  MachineInstrBuilder MIB =
-      BuildMI(*MBB, MI, MI->getDebugLoc(), TII->get(ARM::t2CMPri));
-  MIB.add(MI->getOperand(0));
-  MIB.addImm(0);
-  MIB.addImm(ARMCC::AL);
-  MIB.addReg(ARM::NoRegister);
+static inline bool isLoopStart(const MachineInstr &MI) {
+  return isDoLoopStart(MI) || isWhileLoopStart(MI);
+}
+
+// Return the TargetBB stored in a t2WhileLoopStartLR/t2WhileLoopStartTP.
+inline MachineBasicBlock *getWhileLoopStartTargetBB(const MachineInstr &MI) {
+  assert(isWhileLoopStart(MI) && "Expected WhileLoopStart!");
+  unsigned Op = MI.getOpcode() == ARM::t2WhileLoopStartTP ? 3 : 2;
+  return MI.getOperand(Op).getMBB();
+}
+
+// WhileLoopStart holds the exit block, so produce a subs Op0, Op1, 0 and then a
+// beq that branches to the exit branch.
+// If UseCmp is true, this will create a t2CMP instead of a t2SUBri, meaning the
+// value of LR into the loop will not be setup. This is used if the LR setup is
+// done via another means (via a t2DoLoopStart, for example).
+inline void RevertWhileLoopStartLR(MachineInstr *MI, const TargetInstrInfo *TII,
+                                   unsigned BrOpc = ARM::t2Bcc,
+                                   bool UseCmp = false) {
+  MachineBasicBlock *MBB = MI->getParent();
+  assert((MI->getOpcode() == ARM::t2WhileLoopStartLR ||
+          MI->getOpcode() == ARM::t2WhileLoopStartTP) &&
+         "Only expected a t2WhileLoopStartLR/TP in RevertWhileLoopStartLR!");
+
+  // Subs/Cmp
+  if (UseCmp) {
+    MachineInstrBuilder MIB =
+        BuildMI(*MBB, MI, MI->getDebugLoc(), TII->get(ARM::t2CMPri));
+    MIB.add(MI->getOperand(1));
+    MIB.addImm(0);
+    MIB.addImm(ARMCC::AL);
+    MIB.addReg(ARM::NoRegister);
+  } else {
+    MachineInstrBuilder MIB =
+        BuildMI(*MBB, MI, MI->getDebugLoc(), TII->get(ARM::t2SUBri));
+    MIB.add(MI->getOperand(0));
+    MIB.add(MI->getOperand(1));
+    MIB.addImm(0);
+    MIB.addImm(ARMCC::AL);
+    MIB.addReg(ARM::NoRegister);
+    MIB.addReg(ARM::CPSR, RegState::Define);
+  }
 
   // Branch
-  MIB = BuildMI(*MBB, MI, MI->getDebugLoc(), TII->get(BrOpc));
-  MIB.add(MI->getOperand(1)); // branch target
-  MIB.addImm(ARMCC::EQ);      // condition code
+  MachineInstrBuilder MIB =
+      BuildMI(*MBB, MI, MI->getDebugLoc(), TII->get(BrOpc));
+  MIB.addMBB(getWhileLoopStartTargetBB(*MI)); // branch target
+  MIB.addImm(ARMCC::EQ);                      // condition code
   MIB.addReg(ARM::CPSR);
 
   MI->eraseFromParent();

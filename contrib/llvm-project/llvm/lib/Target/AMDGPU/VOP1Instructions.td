@@ -60,9 +60,12 @@ class VOP1_Pseudo <string opName, VOPProfile P, list<dag> pattern=[], bit VOP1On
 }
 
 class VOP1_Real <VOP1_Pseudo ps, int EncodingFamily> :
+  VOP_Real <ps>,
   InstSI <ps.OutOperandList, ps.InOperandList, ps.Mnemonic # ps.AsmOperands, []>,
   SIMCInstr <ps.PseudoInstr, EncodingFamily> {
 
+  let VALU = 1;
+  let VOP1 = 1;
   let isPseudo = 0;
   let isCodeGenOnly = 0;
 
@@ -79,6 +82,10 @@ class VOP1_Real <VOP1_Pseudo ps, int EncodingFamily> :
   let UseNamedOperandTable = ps.UseNamedOperandTable;
   let Uses                 = ps.Uses;
   let Defs                 = ps.Defs;
+  let SchedRW              = ps.SchedRW;
+  let mayLoad              = ps.mayLoad;
+  let mayStore             = ps.mayStore;
+  let TRANS                = ps.TRANS;
 }
 
 class VOP1_SDWA_Pseudo <string OpName, VOPProfile P, list<dag> pattern=[]> :
@@ -144,6 +151,15 @@ def VOP1_F64_I32 : VOPProfileI2F <f64, i32>;
 def VOP1_F32_I32 : VOPProfileI2F <f32, i32>;
 def VOP1_F16_I16 : VOPProfileI2F <f16, i16>;
 
+class VOP_SPECIAL_OMOD_PROF<ValueType dstVt, ValueType srcVt> :
+  VOPProfile<[dstVt, srcVt, untyped, untyped]> {
+
+  let HasOMod = 1;
+}
+def VOP_I32_F32_SPECIAL_OMOD : VOP_SPECIAL_OMOD_PROF<i32, f32>;
+def VOP_I32_F64_SPECIAL_OMOD : VOP_SPECIAL_OMOD_PROF<i32, f64>;
+def VOP_I16_F16_SPECIAL_OMOD : VOP_SPECIAL_OMOD_PROF<i16, f16>;
+
 //===----------------------------------------------------------------------===//
 // VOP1 Instructions
 //===----------------------------------------------------------------------===//
@@ -187,8 +203,10 @@ def V_READFIRSTLANE_B32 :
   let Inst{31-25} = 0x3f; //encoding
 }
 
+let isReMaterializable = 1 in {
 let SchedRW = [WriteDoubleCvt] in {
-defm V_CVT_I32_F64 : VOP1Inst <"v_cvt_i32_f64", VOP_I32_F64,  fp_to_sint>;
+// OMod clears exceptions when set in this instruction
+defm V_CVT_I32_F64 : VOP1Inst <"v_cvt_i32_f64", VOP_I32_F64_SPECIAL_OMOD,  fp_to_sint>;
 
 let mayRaiseFPException = 0 in {
 defm V_CVT_F64_I32 : VOP1Inst <"v_cvt_f64_i32", VOP1_F64_I32, sint_to_fp>;
@@ -196,7 +214,8 @@ defm V_CVT_F64_I32 : VOP1Inst <"v_cvt_f64_i32", VOP1_F64_I32, sint_to_fp>;
 
 defm V_CVT_F32_F64 : VOP1Inst <"v_cvt_f32_f64", VOP_F32_F64,  fpround>;
 defm V_CVT_F64_F32 : VOP1Inst <"v_cvt_f64_f32", VOP_F64_F32,  fpextend>;
-defm V_CVT_U32_F64 : VOP1Inst <"v_cvt_u32_f64", VOP_I32_F64,  fp_to_uint>;
+// OMod clears exceptions when set in this instruction
+defm V_CVT_U32_F64 : VOP1Inst <"v_cvt_u32_f64", VOP_I32_F64_SPECIAL_OMOD,  fp_to_uint>;
 
 let mayRaiseFPException = 0 in {
 defm V_CVT_F64_U32 : VOP1Inst <"v_cvt_f64_u32", VOP1_F64_I32, uint_to_fp>;
@@ -213,11 +232,12 @@ defm V_CVT_F32_I32 : VOP1Inst <"v_cvt_f32_i32", VOP1_F32_I32, sint_to_fp>;
 defm V_CVT_F32_U32 : VOP1Inst <"v_cvt_f32_u32", VOP1_F32_I32, uint_to_fp>;
 }
 
-defm V_CVT_U32_F32 : VOP1Inst <"v_cvt_u32_f32", VOP_I32_F32, fp_to_uint>;
-defm V_CVT_I32_F32 : VOP1Inst <"v_cvt_i32_f32", VOP_I32_F32, fp_to_sint>;
-let FPDPRounding = 1 in {
+// OMod clears exceptions when set in these 2 instructions
+defm V_CVT_U32_F32 : VOP1Inst <"v_cvt_u32_f32", VOP_I32_F32_SPECIAL_OMOD, fp_to_uint>;
+defm V_CVT_I32_F32 : VOP1Inst <"v_cvt_i32_f32", VOP_I32_F32_SPECIAL_OMOD, fp_to_sint>;
+let FPDPRounding = 1, isReMaterializable = 0 in {
 defm V_CVT_F16_F32 : VOP1Inst <"v_cvt_f16_f32", VOP_F16_F32, fpround>;
-} // End FPDPRounding = 1
+} // End FPDPRounding = 1, isReMaterializable = 0
 
 defm V_CVT_F32_F16 : VOP1Inst <"v_cvt_f32_f16", VOP_F32_F16, fpextend>;
 
@@ -268,7 +288,7 @@ defm V_FFBL_B32 : VOP1Inst <"v_ffbl_b32", VOP_I32_I32, AMDGPUffbl_b32>;
 defm V_FFBH_I32 : VOP1Inst <"v_ffbh_i32", VOP_I32_I32, AMDGPUffbh_i32>;
 
 let SchedRW = [WriteDoubleAdd] in {
-defm V_FREXP_EXP_I32_F64 : VOP1Inst <"v_frexp_exp_i32_f64", VOP_I32_F64, int_amdgcn_frexp_exp>;
+defm V_FREXP_EXP_I32_F64 : VOP1Inst <"v_frexp_exp_i32_f64", VOP_I32_F64_SPECIAL_OMOD, int_amdgcn_frexp_exp>;
 defm V_FREXP_MANT_F64 : VOP1Inst <"v_frexp_mant_f64", VOP_F64_F64, int_amdgcn_frexp_mant>;
 let FPDPRounding = 1 in {
 defm V_FRACT_F64 : VOP1Inst <"v_fract_f64", VOP_F64_F64, AMDGPUfract>;
@@ -277,6 +297,7 @@ defm V_FRACT_F64 : VOP1Inst <"v_fract_f64", VOP_F64_F64, AMDGPUfract>;
 
 defm V_FREXP_EXP_I32_F32 : VOP1Inst <"v_frexp_exp_i32_f32", VOP_I32_F32, int_amdgcn_frexp_exp>;
 defm V_FREXP_MANT_F32 : VOP1Inst <"v_frexp_mant_f32", VOP_F32_F32, int_amdgcn_frexp_mant>;
+} // End isReMaterializable = 1
 
 let VOPAsmPrefer32Bit = 1 in {
 defm V_CLREXCP : VOP1Inst <"v_clrexcp", VOP_NO_EXT<VOP_NONE>>;
@@ -337,6 +358,7 @@ defm V_MOVRELS_B32 : VOP1Inst <"v_movrels_b32", VOP_MOVRELS>;
 defm V_MOVRELSD_B32 : VOP1Inst <"v_movrelsd_b32", VOP_MOVRELSD>;
 } // End Uses = [M0, EXEC]
 
+let isReMaterializable = 1 in {
 let SubtargetPredicate = isGFX6GFX7 in {
   let TRANS = 1, SchedRW = [WriteTrans32] in {
     defm V_LOG_CLAMP_F32 :
@@ -351,12 +373,12 @@ let SubtargetPredicate = isGFX6GFX7 in {
       VOP1Inst<"v_rsq_legacy_f32", VOP_F32_F32, int_amdgcn_rsq_legacy>;
   } // End TRANS = 1, SchedRW = [WriteTrans32]
 
-  let SchedRW = [WriteDouble] in {
+  let SchedRW = [WriteTrans64] in {
     defm V_RCP_CLAMP_F64 :
       VOP1Inst<"v_rcp_clamp_f64", VOP_F64_F64>;
     defm V_RSQ_CLAMP_F64 :
       VOP1Inst<"v_rsq_clamp_f64", VOP_F64_F64, AMDGPUrsq_clamp>;
-  } // End SchedRW = [WriteDouble]
+  } // End SchedRW = [WriteTrans64]
 } // End SubtargetPredicate = isGFX6GFX7
 
 let SubtargetPredicate = isGFX7GFX8GFX9 in {
@@ -374,6 +396,7 @@ let SubtargetPredicate = isGFX7Plus in {
     defm V_FLOOR_F64 : VOP1Inst<"v_floor_f64", VOP_F64_F64, ffloor>;
   } // End SchedRW = [WriteDoubleAdd]
 } // End SubtargetPredicate = isGFX7Plus
+} // End isReMaterializable = 1
 
 let SubtargetPredicate = Has16BitInsts in {
 
@@ -381,8 +404,9 @@ let FPDPRounding = 1 in {
 defm V_CVT_F16_U16 : VOP1Inst <"v_cvt_f16_u16", VOP1_F16_I16, uint_to_fp>;
 defm V_CVT_F16_I16 : VOP1Inst <"v_cvt_f16_i16", VOP1_F16_I16, sint_to_fp>;
 } // End FPDPRounding = 1
-defm V_CVT_U16_F16 : VOP1Inst <"v_cvt_u16_f16", VOP_I16_F16, fp_to_uint>;
-defm V_CVT_I16_F16 : VOP1Inst <"v_cvt_i16_f16", VOP_I16_F16, fp_to_sint>;
+// OMod clears exceptions when set in these two instructions
+defm V_CVT_U16_F16 : VOP1Inst <"v_cvt_u16_f16", VOP_I16_F16_SPECIAL_OMOD, fp_to_uint>;
+defm V_CVT_I16_F16 : VOP1Inst <"v_cvt_i16_f16", VOP_I16_F16_SPECIAL_OMOD, fp_to_sint>;
 let TRANS = 1, SchedRW = [WriteTrans32] in {
 defm V_RCP_F16 : VOP1Inst <"v_rcp_f16", VOP_F16_F16, AMDGPUrcp>;
 defm V_SQRT_F16 : VOP1Inst <"v_sqrt_f16", VOP_F16_F16, any_amdgcn_sqrt>;
@@ -393,7 +417,7 @@ defm V_SIN_F16 : VOP1Inst <"v_sin_f16", VOP_F16_F16, AMDGPUsin>;
 defm V_COS_F16 : VOP1Inst <"v_cos_f16", VOP_F16_F16, AMDGPUcos>;
 } // End TRANS = 1, SchedRW = [WriteTrans32]
 defm V_FREXP_MANT_F16 : VOP1Inst <"v_frexp_mant_f16", VOP_F16_F16, int_amdgcn_frexp_mant>;
-defm V_FREXP_EXP_I16_F16 : VOP1Inst <"v_frexp_exp_i16_f16", VOP_I16_F16, int_amdgcn_frexp_exp>;
+defm V_FREXP_EXP_I16_F16 : VOP1Inst <"v_frexp_exp_i16_f16", VOP_I16_F16_SPECIAL_OMOD, int_amdgcn_frexp_exp>;
 defm V_FLOOR_F16 : VOP1Inst <"v_floor_f16", VOP_F16_F16, ffloor>;
 defm V_CEIL_F16 : VOP1Inst <"v_ceil_f16", VOP_F16_F16, fceil>;
 defm V_TRUNC_F16 : VOP1Inst <"v_trunc_f16", VOP_F16_F16, ftrunc>;
@@ -434,11 +458,12 @@ let SubtargetPredicate = isGFX9Plus in {
     let SchedRW = [Write64Bit, Write64Bit];
   }
 
+  let isReMaterializable = 1 in
   defm V_SAT_PK_U8_I16    : VOP1Inst<"v_sat_pk_u8_i16", VOP_I32_I32>;
 
   let mayRaiseFPException = 0 in {
-    defm V_CVT_NORM_I16_F16 : VOP1Inst<"v_cvt_norm_i16_f16", VOP_I16_F16>;
-    defm V_CVT_NORM_U16_F16 : VOP1Inst<"v_cvt_norm_u16_f16", VOP_I16_F16>;
+    defm V_CVT_NORM_I16_F16 : VOP1Inst<"v_cvt_norm_i16_f16", VOP_I16_F16_SPECIAL_OMOD>;
+    defm V_CVT_NORM_U16_F16 : VOP1Inst<"v_cvt_norm_u16_f16", VOP_I16_F16_SPECIAL_OMOD>;
   } // End mayRaiseFPException = 0
 } // End SubtargetPredicate = isGFX9Plus
 
@@ -461,6 +486,18 @@ let SubtargetPredicate = isGFX10Plus in {
   } // End Uses = [M0]
 } // End SubtargetPredicate = isGFX10Plus
 
+def VOPProfileAccMov : VOP_NO_EXT<VOP_I32_I32> {
+  let DstRC = RegisterOperand<AGPR_32>;
+  let Src0RC32 = RegisterOperand<AGPR_32>;
+  let Asm32 = " $vdst, $src0";
+}
+
+def V_ACCVGPR_MOV_B32 : VOP1_Pseudo<"v_accvgpr_mov_b32", VOPProfileAccMov, [], 1> {
+  let SubtargetPredicate = isGFX90APlus;
+  let isReMaterializable = 1;
+  let isAsCheapAsAMove = 1;
+}
+
 //===----------------------------------------------------------------------===//
 // Target-specific instruction encodings.
 //===----------------------------------------------------------------------===//
@@ -471,6 +508,7 @@ class VOP1_DPP<bits<8> op, VOP1_DPP_Pseudo ps, VOPProfile p = ps.Pfl, bit isDPP1
   let Defs = ps.Defs;
   let SchedRW = ps.SchedRW;
   let Uses = ps.Uses;
+  let TRANS = ps.TRANS;
 
   bits<8> vdst;
   let Inst{8-0}   = 0xfa;
@@ -498,9 +536,6 @@ class VOP1_DPP8<bits<8> op, VOP1_Pseudo ps, VOPProfile p = ps.Pfl> :
   let Inst{16-9}  = op;
   let Inst{24-17} = !if(p.EmitDst, vdst{7-0}, 0);
   let Inst{31-25} = 0x3f;
-
-  let AssemblerPredicate = HasDPP8;
-  let SubtargetPredicate = HasDPP8;
 }
 
 //===----------------------------------------------------------------------===//
@@ -822,6 +857,8 @@ defm V_SWAP_B32          : VOP1Only_Real_vi <0x51>;
 defm V_SAT_PK_U8_I16     : VOP1_Real_vi<0x4f>;
 defm V_CVT_NORM_I16_F16  : VOP1_Real_vi<0x4d>;
 defm V_CVT_NORM_U16_F16  : VOP1_Real_vi<0x4e>;
+
+defm V_ACCVGPR_MOV_B32   : VOP1Only_Real_vi<0x52>;
 
 // Copy of v_mov_b32 with $vdst as a use operand for use with VGPR
 // indexing mode. vdst can't be treated as a def for codegen purposes,

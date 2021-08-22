@@ -1030,13 +1030,16 @@ void BTFDebug::generatePatchImmReloc(const MCSymbol *ORSym, uint32_t RootId,
   FieldRelocTable[SecNameOff].push_back(FieldReloc);
 }
 
-void BTFDebug::processReloc(const MachineOperand &MO) {
+void BTFDebug::processGlobalValue(const MachineOperand &MO) {
   // check whether this is a candidate or not
   if (MO.isGlobal()) {
     const GlobalValue *GVal = MO.getGlobal();
     auto *GVar = dyn_cast<GlobalVariable>(GVal);
-    if (!GVar)
+    if (!GVar) {
+      // Not a global variable. Maybe an extern function reference.
+      processFuncPrototypes(dyn_cast<Function>(GVal));
       return;
+    }
 
     if (!GVar->hasAttribute(BPFCoreSharedInfo::AmaAttr) &&
         !GVar->hasAttribute(BPFCoreSharedInfo::TypeIdAttr))
@@ -1087,12 +1090,12 @@ void BTFDebug::beginInstruction(const MachineInstr *MI) {
     //
     // If the insn is "r2 = LD_imm64 @<an TypeIdAttr global>",
     // The LD_imm64 result will be replaced with a btf type id.
-    processReloc(MI->getOperand(1));
+    processGlobalValue(MI->getOperand(1));
   } else if (MI->getOpcode() == BPF::CORE_MEM ||
              MI->getOpcode() == BPF::CORE_ALU32_MEM ||
              MI->getOpcode() == BPF::CORE_SHIFT) {
     // relocation insn is a load, store or shift insn.
-    processReloc(MI->getOperand(3));
+    processGlobalValue(MI->getOperand(3));
   } else if (MI->getOpcode() == BPF::JAL) {
     // check extern function references
     const MachineOperand &MO = MI->getOperand(0);
@@ -1146,10 +1149,6 @@ void BTFDebug::processGlobals(bool ProcessingMapDef) {
         SecName = ".rodata";
       else
         SecName = Global.getInitializer()->isZeroValue() ? ".bss" : ".data";
-    } else {
-      // extern variables without explicit section,
-      // put them into ".extern" section.
-      SecName = ".extern";
     }
 
     if (ProcessingMapDef != SecName.startswith(".maps"))
@@ -1213,7 +1212,9 @@ void BTFDebug::processGlobals(bool ProcessingMapDef) {
         std::make_unique<BTFKindVar>(Global.getName(), GVTypeId, GVarInfo);
     uint32_t VarId = addType(std::move(VarEntry));
 
-    assert(!SecName.empty());
+    // An empty SecName means an extern variable without section attribute.
+    if (SecName.empty())
+      continue;
 
     // Find or create a DataSec
     if (DataSecEntries.find(std::string(SecName)) == DataSecEntries.end()) {

@@ -67,6 +67,8 @@ public:
 
   bool GetPointerReturnRegister(const char *&name) override;
 
+  lldb::addr_t FixAddress(lldb::addr_t pc, lldb::addr_t mask) override;
+
   // Static Functions
 
   static void Initialize();
@@ -82,6 +84,9 @@ public:
   lldb_private::ConstString GetPluginName() override;
 
   uint32_t GetPluginVersion() override;
+
+  lldb::addr_t FixCodeAddress(lldb::addr_t pc) override;
+  lldb::addr_t FixDataAddress(lldb::addr_t pc) override;
 
 protected:
   lldb::ValueObjectSP

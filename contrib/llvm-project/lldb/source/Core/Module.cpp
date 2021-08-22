@@ -59,12 +59,12 @@
 #include "llvm/Support/Signals.h"
 #include "llvm/Support/raw_ostream.h"
 
-#include <assert.h>
+#include <cassert>
+#include <cinttypes>
+#include <cstdarg>
 #include <cstdint>
-#include <inttypes.h>
+#include <cstring>
 #include <map>
-#include <stdarg.h>
-#include <string.h>
 #include <type_traits>
 #include <utility>
 
@@ -257,9 +257,7 @@ Module::Module(const FileSpec &file_spec, const ArchSpec &arch,
               m_object_name.IsEmpty() ? "" : ")");
 }
 
-Module::Module()
-    : m_object_offset(0), m_file_has_changed(false),
-      m_first_file_changed_log(false) {
+Module::Module() : m_file_has_changed(false), m_first_file_changed_log(false) {
   std::lock_guard<std::recursive_mutex> guard(
       GetAllocationModuleCollectionMutex());
   GetModuleCollection().push_back(this);
@@ -440,8 +438,6 @@ CompUnitSP Module::GetCompileUnitAtIndex(size_t index) {
 
 bool Module::ResolveFileAddress(lldb::addr_t vm_addr, Address &so_addr) {
   std::lock_guard<std::recursive_mutex> guard(m_mutex);
-  LLDB_SCOPED_TIMERF("Module::ResolveFileAddress (vm_addr = 0x%" PRIx64 ")",
-                     vm_addr);
   SectionList *section_list = GetSectionList();
   if (section_list)
     return so_addr.ResolveAddressUsingFileSections(vm_addr, section_list);
@@ -598,9 +594,13 @@ uint32_t Module::ResolveSymbolContextsForFileSpec(
 
   const uint32_t initial_count = sc_list.GetSize();
 
-  if (SymbolFile *symbols = GetSymbolFile())
-    symbols->ResolveSymbolContext(file_spec, line, check_inlines, resolve_scope,
-                                  sc_list);
+  if (SymbolFile *symbols = GetSymbolFile()) {
+    // TODO: Handle SourceLocationSpec column information
+    SourceLocationSpec location_spec(file_spec, line, /*column=*/llvm::None,
+                                     check_inlines, /*exact_match=*/false);
+
+    symbols->ResolveSymbolContext(location_spec, resolve_scope, sc_list);
+  }
 
   return sc_list.GetSize() - initial_count;
 }
@@ -917,7 +917,12 @@ void Module::FindAddressesForLine(const lldb::TargetSP target_sp,
                                   std::vector<Address> &output_local,
                                   std::vector<Address> &output_extern) {
   SearchFilterByModule filter(target_sp, m_file);
-  AddressResolverFileLine resolver(file, line, true);
+
+  // TODO: Handle SourceLocationSpec column information
+  SourceLocationSpec location_spec(file, line, /*column=*/llvm::None,
+                                   /*check_inlines=*/true,
+                                   /*exact_match=*/false);
+  AddressResolverFileLine resolver(location_spec);
   resolver.ResolveAddress(filter);
 
   for (size_t n = 0; n < resolver.GetNumberOfAddresses(); n++) {
@@ -1072,8 +1077,6 @@ std::string Module::GetSpecificationDescription() const {
 
 void Module::GetDescription(llvm::raw_ostream &s,
                             lldb::DescriptionLevel level) {
-  std::lock_guard<std::recursive_mutex> guard(m_mutex);
-
   if (level >= eDescriptionLevelFull) {
     if (m_arch.IsValid())
       s << llvm::formatv("({0}) ", m_arch.GetArchitectureName());
@@ -1525,9 +1528,9 @@ bool Module::LoadScriptingResourceInTarget(Target *target, Status &error,
             }
             StreamString scripting_stream;
             scripting_fspec.Dump(scripting_stream.AsRawOstream());
-            const bool init_lldb_globals = false;
+            LoadScriptOptions options;
             bool did_load = script_interpreter->LoadScriptingModule(
-                scripting_stream.GetData(), init_lldb_globals, error);
+                scripting_stream.GetData(), options, error);
             if (!did_load)
               return false;
           }
@@ -1595,13 +1598,18 @@ bool Module::MatchesModuleSpec(const ModuleSpec &module_ref) {
 bool Module::FindSourceFile(const FileSpec &orig_spec,
                             FileSpec &new_spec) const {
   std::lock_guard<std::recursive_mutex> guard(m_mutex);
-  return m_source_mappings.FindFile(orig_spec, new_spec);
+  if (auto remapped = m_source_mappings.FindFile(orig_spec)) {
+    new_spec = *remapped;
+    return true;
+  }
+  return false;
 }
 
-bool Module::RemapSourceFile(llvm::StringRef path,
-                             std::string &new_path) const {
+llvm::Optional<std::string> Module::RemapSourceFile(llvm::StringRef path) const {
   std::lock_guard<std::recursive_mutex> guard(m_mutex);
-  return m_source_mappings.RemapPath(path, new_path);
+  if (auto remapped = m_source_mappings.RemapPath(path))
+    return remapped->GetPath();
+  return {};
 }
 
 void Module::RegisterXcodeSDK(llvm::StringRef sdk_name, llvm::StringRef sysroot) {

@@ -386,11 +386,8 @@ CXXMethodDecl *Sema::startLambdaDefinition(CXXRecordDecl *Class,
   //   trailing-return-type respectively.
   DeclarationName MethodName
     = Context.DeclarationNames.getCXXOperatorName(OO_Call);
-  DeclarationNameLoc MethodNameLoc;
-  MethodNameLoc.CXXOperatorName.BeginOpNameLoc
-    = IntroducerRange.getBegin().getRawEncoding();
-  MethodNameLoc.CXXOperatorName.EndOpNameLoc
-    = IntroducerRange.getEnd().getRawEncoding();
+  DeclarationNameLoc MethodNameLoc =
+      DeclarationNameLoc::makeCXXOperatorNameLoc(IntroducerRange);
   CXXMethodDecl *Method = CXXMethodDecl::Create(
       Context, Class, EndLoc,
       DeclarationNameInfo(MethodName, IntroducerRange.getBegin(),
@@ -464,11 +461,15 @@ void Sema::handleLambdaNumbering(
   std::tie(MCtx, ManglingContextDecl) =
       getCurrentMangleNumberContext(Class->getDeclContext());
   bool HasKnownInternalLinkage = false;
-  if (!MCtx && getLangOpts().CUDA) {
+  if (!MCtx && (getLangOpts().CUDA || getLangOpts().SYCLIsDevice ||
+                getLangOpts().SYCLIsHost)) {
     // Force lambda numbering in CUDA/HIP as we need to name lambdas following
     // ODR. Both device- and host-compilation need to have a consistent naming
     // on kernel functions. As lambdas are potential part of these `__global__`
     // function names, they needs numbering following ODR.
+    // Also force for SYCL, since we need this for the
+    // __builtin_sycl_unique_stable_name implementation, which depends on lambda
+    // mangling.
     MCtx = getMangleNumberingContext(Class, ManglingContextDecl);
     assert(MCtx && "Retrieving mangle numbering context failed!");
     HasKnownInternalLinkage = true;
@@ -685,7 +686,7 @@ static void adjustBlockReturnsToEnum(Sema &S, ArrayRef<ReturnStmt*> returns,
 
     Expr *E = (cleanups ? cleanups->getSubExpr() : retValue);
     E = ImplicitCastExpr::Create(S.Context, returnType, CK_IntegralCast, E,
-                                 /*base path*/ nullptr, VK_RValue,
+                                 /*base path*/ nullptr, VK_PRValue,
                                  FPOptionsOverride());
     if (cleanups) {
       cleanups->setSubExpr(E);
@@ -1380,7 +1381,6 @@ static void addFunctionPointerConversion(Sema &S, SourceRange IntroducerRange,
   DeclarationName ConversionName
     = S.Context.DeclarationNames.getCXXConversionFunctionName(
         S.Context.getCanonicalType(PtrToFunctionTy));
-  DeclarationNameLoc ConvNameLoc;
   // Construct a TypeSourceInfo for the conversion function, and wire
   // all the parameters appropriately for the FunctionProtoTypeLoc
   // so that everything works during transformation/instantiation of
@@ -1399,7 +1399,8 @@ static void addFunctionPointerConversion(Sema &S, SourceRange IntroducerRange,
   // operators ParmVarDecls below.
   TypeSourceInfo *ConvNamePtrToFunctionTSI =
       S.Context.getTrivialTypeSourceInfo(PtrToFunctionTy, Loc);
-  ConvNameLoc.NamedType.TInfo = ConvNamePtrToFunctionTSI;
+  DeclarationNameLoc ConvNameLoc =
+      DeclarationNameLoc::makeNamedTypeLoc(ConvNamePtrToFunctionTSI);
 
   // The conversion function is a conversion to a pointer-to-function.
   TypeSourceInfo *ConvTSI = S.Context.getTrivialTypeSourceInfo(ConvTy, Loc);
@@ -1550,8 +1551,8 @@ static void addBlockPointerConversion(Sema &S,
   DeclarationName Name
     = S.Context.DeclarationNames.getCXXConversionFunctionName(
         S.Context.getCanonicalType(BlockPtrTy));
-  DeclarationNameLoc NameLoc;
-  NameLoc.NamedType.TInfo = S.Context.getTrivialTypeSourceInfo(BlockPtrTy, Loc);
+  DeclarationNameLoc NameLoc = DeclarationNameLoc::makeNamedTypeLoc(
+      S.Context.getTrivialTypeSourceInfo(BlockPtrTy, Loc));
   CXXConversionDecl *Conversion = CXXConversionDecl::Create(
       S.Context, Class, Loc, DeclarationNameInfo(Name, Loc, NameLoc), ConvTy,
       S.Context.getTrivialTypeSourceInfo(ConvTy, Loc),

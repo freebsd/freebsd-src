@@ -116,7 +116,7 @@ BinaryOperator *ASTMaker::makeAssignment(const Expr *LHS, const Expr *RHS,
                                          QualType Ty) {
   return BinaryOperator::Create(
       C, const_cast<Expr *>(LHS), const_cast<Expr *>(RHS), BO_Assign, Ty,
-      VK_RValue, OK_Ordinary, SourceLocation(), FPOptionsOverride());
+      VK_PRValue, OK_Ordinary, SourceLocation(), FPOptionsOverride());
 }
 
 BinaryOperator *ASTMaker::makeComparison(const Expr *LHS, const Expr *RHS,
@@ -125,7 +125,7 @@ BinaryOperator *ASTMaker::makeComparison(const Expr *LHS, const Expr *RHS,
          BinaryOperator::isComparisonOp(Op));
   return BinaryOperator::Create(
       C, const_cast<Expr *>(LHS), const_cast<Expr *>(RHS), Op,
-      C.getLogicalOperationType(), VK_RValue, OK_Ordinary, SourceLocation(),
+      C.getLogicalOperationType(), VK_PRValue, OK_Ordinary, SourceLocation(),
       FPOptionsOverride());
 }
 
@@ -169,7 +169,7 @@ ImplicitCastExpr *ASTMaker::makeImplicitCast(const Expr *Arg, QualType Ty,
                                   /* CastKind=*/CK,
                                   /* Expr=*/const_cast<Expr *>(Arg),
                                   /* CXXCastPath=*/nullptr,
-                                  /* ExprValueKind=*/VK_RValue,
+                                  /* ExprValueKind=*/VK_PRValue,
                                   /* FPFeatures */ FPOptionsOverride());
 }
 
@@ -264,7 +264,7 @@ static CallExpr *create_call_once_funcptr_call(ASTContext &C, ASTMaker M,
     llvm_unreachable("Unexpected state");
   }
 
-  return CallExpr::Create(C, SubExpr, CallArgs, C.VoidTy, VK_RValue,
+  return CallExpr::Create(C, SubExpr, CallArgs, C.VoidTy, VK_PRValue,
                           SourceLocation(), FPOptionsOverride());
 }
 
@@ -291,7 +291,7 @@ static CallExpr *create_call_once_lambda_call(ASTContext &C, ASTMaker M,
       /*AstContext=*/C, OO_Call, callOperatorDeclRef,
       /*Args=*/CallArgs,
       /*QualType=*/C.VoidTy,
-      /*ExprValueType=*/VK_RValue,
+      /*ExprValueType=*/VK_PRValue,
       /*SourceLocation=*/SourceLocation(),
       /*FPFeatures=*/FPOptionsOverride());
 }
@@ -451,7 +451,7 @@ static Stmt *create_call_once(ASTContext &C, const FunctionDecl *D) {
                          CK_IntegralToBoolean),
       /* opc=*/UO_LNot,
       /* QualType=*/C.IntTy,
-      /* ExprValueKind=*/VK_RValue,
+      /* ExprValueKind=*/VK_PRValue,
       /* ExprObjectKind=*/OK_Ordinary, SourceLocation(),
       /* CanOverflow*/ false, FPOptionsOverride());
 
@@ -513,13 +513,13 @@ static Stmt *create_dispatch_once(ASTContext &C, const FunctionDecl *D) {
       /*StmtClass=*/M.makeLvalueToRvalue(/*Expr=*/Block),
       /*Args=*/None,
       /*QualType=*/C.VoidTy,
-      /*ExprValueType=*/VK_RValue,
+      /*ExprValueType=*/VK_PRValue,
       /*SourceLocation=*/SourceLocation(), FPOptionsOverride());
 
   // (2) Create the assignment to the predicate.
   Expr *DoneValue =
       UnaryOperator::Create(C, M.makeIntegerLiteral(0, C.LongTy), UO_Not,
-                            C.LongTy, VK_RValue, OK_Ordinary, SourceLocation(),
+                            C.LongTy, VK_PRValue, OK_Ordinary, SourceLocation(),
                             /*CanOverflow*/ false, FPOptionsOverride());
 
   BinaryOperator *B =
@@ -580,7 +580,7 @@ static Stmt *create_dispatch_sync(ASTContext &C, const FunctionDecl *D) {
   ASTMaker M(C);
   DeclRefExpr *DR = M.makeDeclRefExpr(PV);
   ImplicitCastExpr *ICE = M.makeLvalueToRvalue(DR, Ty);
-  CallExpr *CE = CallExpr::Create(C, ICE, None, C.VoidTy, VK_RValue,
+  CallExpr *CE = CallExpr::Create(C, ICE, None, C.VoidTy, VK_PRValue,
                                   SourceLocation(), FPOptionsOverride());
   return CE;
 }
@@ -742,8 +742,9 @@ static const ObjCIvarDecl *findBackingIvar(const ObjCPropertyDecl *Prop) {
 
 static Stmt *createObjCPropertyGetter(ASTContext &Ctx,
                                       const ObjCMethodDecl *MD) {
-    // First, find the backing ivar.
+  // First, find the backing ivar.
   const ObjCIvarDecl *IVar = nullptr;
+  const ObjCPropertyDecl *Prop = nullptr;
 
   // Property accessor stubs sometimes do not correspond to any property decl
   // in the current interface (but in a superclass). They still have a
@@ -751,53 +752,56 @@ static Stmt *createObjCPropertyGetter(ASTContext &Ctx,
   if (MD->isSynthesizedAccessorStub()) {
     const ObjCInterfaceDecl *IntD = MD->getClassInterface();
     const ObjCImplementationDecl *ImpD = IntD->getImplementation();
-    for (const auto *PI: ImpD->property_impls()) {
-      if (const ObjCPropertyDecl *P = PI->getPropertyDecl()) {
-        if (P->getGetterName() == MD->getSelector())
-          IVar = P->getPropertyIvarDecl();
+    for (const auto *PI : ImpD->property_impls()) {
+      if (const ObjCPropertyDecl *Candidate = PI->getPropertyDecl()) {
+        if (Candidate->getGetterName() == MD->getSelector()) {
+          Prop = Candidate;
+          IVar = Prop->getPropertyIvarDecl();
+        }
       }
     }
   }
 
   if (!IVar) {
-    const ObjCPropertyDecl *Prop = MD->findPropertyDecl();
+    Prop = MD->findPropertyDecl();
     IVar = findBackingIvar(Prop);
-    if (!IVar)
-      return nullptr;
+  }
 
-    // Ignore weak variables, which have special behavior.
-    if (Prop->getPropertyAttributes() & ObjCPropertyAttribute::kind_weak)
-      return nullptr;
+  if (!IVar || !Prop)
+    return nullptr;
 
-    // Look to see if Sema has synthesized a body for us. This happens in
-    // Objective-C++ because the return value may be a C++ class type with a
-    // non-trivial copy constructor. We can only do this if we can find the
-    // @synthesize for this property, though (or if we know it's been auto-
-    // synthesized).
-    const ObjCImplementationDecl *ImplDecl =
+  // Ignore weak variables, which have special behavior.
+  if (Prop->getPropertyAttributes() & ObjCPropertyAttribute::kind_weak)
+    return nullptr;
+
+  // Look to see if Sema has synthesized a body for us. This happens in
+  // Objective-C++ because the return value may be a C++ class type with a
+  // non-trivial copy constructor. We can only do this if we can find the
+  // @synthesize for this property, though (or if we know it's been auto-
+  // synthesized).
+  const ObjCImplementationDecl *ImplDecl =
       IVar->getContainingInterface()->getImplementation();
-    if (ImplDecl) {
-      for (const auto *I : ImplDecl->property_impls()) {
-        if (I->getPropertyDecl() != Prop)
-          continue;
+  if (ImplDecl) {
+    for (const auto *I : ImplDecl->property_impls()) {
+      if (I->getPropertyDecl() != Prop)
+        continue;
 
-        if (I->getGetterCXXConstructor()) {
-          ASTMaker M(Ctx);
-          return M.makeReturn(I->getGetterCXXConstructor());
-        }
+      if (I->getGetterCXXConstructor()) {
+        ASTMaker M(Ctx);
+        return M.makeReturn(I->getGetterCXXConstructor());
       }
     }
-
-    // Sanity check that the property is the same type as the ivar, or a
-    // reference to it, and that it is either an object pointer or trivially
-    // copyable.
-    if (!Ctx.hasSameUnqualifiedType(IVar->getType(),
-                                    Prop->getType().getNonReferenceType()))
-      return nullptr;
-    if (!IVar->getType()->isObjCLifetimeType() &&
-        !IVar->getType().isTriviallyCopyableType(Ctx))
-      return nullptr;
   }
+
+  // Sanity check that the property is the same type as the ivar, or a
+  // reference to it, and that it is either an object pointer or trivially
+  // copyable.
+  if (!Ctx.hasSameUnqualifiedType(IVar->getType(),
+                                  Prop->getType().getNonReferenceType()))
+    return nullptr;
+  if (!IVar->getType()->isObjCLifetimeType() &&
+      !IVar->getType().isTriviallyCopyableType(Ctx))
+    return nullptr;
 
   // Generate our body:
   //   return self->_ivar;
@@ -807,11 +811,8 @@ static Stmt *createObjCPropertyGetter(ASTContext &Ctx,
   if (!selfVar)
     return nullptr;
 
-  Expr *loadedIVar =
-    M.makeObjCIvarRef(
-      M.makeLvalueToRvalue(
-        M.makeDeclRefExpr(selfVar),
-        selfVar->getType()),
+  Expr *loadedIVar = M.makeObjCIvarRef(
+      M.makeLvalueToRvalue(M.makeDeclRefExpr(selfVar), selfVar->getType()),
       IVar);
 
   if (!MD->getReturnType()->isReferenceType())

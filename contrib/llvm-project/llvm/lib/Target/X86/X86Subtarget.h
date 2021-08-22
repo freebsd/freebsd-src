@@ -247,9 +247,13 @@ class X86Subtarget final : public X86GenSubtargetInfo {
   /// True if LZCNT/TZCNT instructions have a false dependency on the destination register.
   bool HasLZCNTFalseDeps = false;
 
-  /// True if its preferable to combine to a single shuffle using a variable
-  /// mask over multiple fixed shuffles.
-  bool HasFastVariableShuffle = false;
+  /// True if its preferable to combine to a single cross-lane shuffle
+  /// using a variable mask over multiple fixed shuffles.
+  bool HasFastVariableCrossLaneShuffle = false;
+
+  /// True if its preferable to combine to a single per-lane shuffle
+  /// using a variable mask over multiple fixed shuffles.
+  bool HasFastVariablePerLaneShuffle = false;
 
   /// True if vzeroupper instructions should be inserted after code that uses
   /// ymm or zmm registers.
@@ -433,6 +437,9 @@ class X86Subtarget final : public X86GenSubtargetInfo {
   /// Prefer a left/right vector logical shifts pair over a shift+and pair.
   bool HasFastVectorShiftMasks = false;
 
+  /// Prefer a movbe over a single-use load + bswap / single-use bswap + store.
+  bool HasFastMOVBE = false;
+
   /// Use a retpoline thunk rather than indirect calls to block speculative
   /// execution.
   bool UseRetpolineIndirectCalls = false;
@@ -603,14 +610,12 @@ public:
 
   /// Is this x86_64 with the ILP32 programming model (x32 ABI)?
   bool isTarget64BitILP32() const {
-    return In64BitMode && (TargetTriple.getEnvironment() == Triple::GNUX32 ||
-                           TargetTriple.isOSNaCl());
+    return In64BitMode && (TargetTriple.isX32() || TargetTriple.isOSNaCl());
   }
 
   /// Is this x86_64 with the LP64 programming model (standard AMD64, no x32)?
   bool isTarget64BitLP64() const {
-    return In64BitMode && (TargetTriple.getEnvironment() != Triple::GNUX32 &&
-                           !TargetTriple.isOSNaCl());
+    return In64BitMode && (!TargetTriple.isX32() && !TargetTriple.isOSNaCl());
   }
 
   PICStyles::Style getPICStyle() const { return PICStyle; }
@@ -701,8 +706,11 @@ public:
   bool useLeaForSP() const { return UseLeaForSP; }
   bool hasPOPCNTFalseDeps() const { return HasPOPCNTFalseDeps; }
   bool hasLZCNTFalseDeps() const { return HasLZCNTFalseDeps; }
-  bool hasFastVariableShuffle() const {
-    return HasFastVariableShuffle;
+  bool hasFastVariableCrossLaneShuffle() const {
+    return HasFastVariableCrossLaneShuffle;
+  }
+  bool hasFastVariablePerLaneShuffle() const {
+    return HasFastVariablePerLaneShuffle;
   }
   bool insertVZEROUPPER() const { return InsertVZEROUPPER; }
   bool hasFastGather() const { return HasFastGather; }
@@ -714,6 +722,7 @@ public:
   bool hasFastHorizontalOps() const { return HasFastHorizontalOps; }
   bool hasFastScalarShiftMasks() const { return HasFastScalarShiftMasks; }
   bool hasFastVectorShiftMasks() const { return HasFastVectorShiftMasks; }
+  bool hasFastMOVBE() const { return HasFastMOVBE; }
   bool hasMacroFusion() const { return HasMacroFusion; }
   bool hasBranchFusion() const { return HasBranchFusion; }
   bool hasERMSB() const { return HasERMSB; }
@@ -885,6 +894,7 @@ public:
     case CallingConv::Fast:
     case CallingConv::Tail:
     case CallingConv::Swift:
+    case CallingConv::SwiftTail:
     case CallingConv::X86_FastCall:
     case CallingConv::X86_StdCall:
     case CallingConv::X86_ThisCall:
@@ -941,7 +951,7 @@ public:
     return TargetSubtargetInfo::ANTIDEP_CRITICAL;
   }
 
-  bool enableAdvancedRASplitCost() const override { return true; }
+  bool enableAdvancedRASplitCost() const override { return false; }
 };
 
 } // end namespace llvm

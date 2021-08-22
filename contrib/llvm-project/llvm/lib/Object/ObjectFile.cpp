@@ -94,9 +94,7 @@ bool ObjectFile::isBerkeleyData(DataRefImpl Sec) const {
   return isSectionData(Sec);
 }
 
-bool ObjectFile::isDebugSection(StringRef SectionName) const {
-  return false;
-}
+bool ObjectFile::isDebugSection(DataRefImpl Sec) const { return false; }
 
 Expected<section_iterator>
 ObjectFile::getRelocatedSection(DataRefImpl Sec) const {
@@ -147,6 +145,7 @@ ObjectFile::createObjectFile(MemoryBufferRef Object, file_magic Type,
   case file_magic::windows_resource:
   case file_magic::pdb:
   case file_magic::minidump:
+  case file_magic::goff_object:
     return errorCodeToError(object_error::invalid_file_type);
   case file_magic::tapi_file:
     return errorCodeToError(object_error::invalid_file_type);

@@ -10,6 +10,7 @@
 #define LLD_MACHO_INPUT_FILES_H
 
 #include "MachOStructs.h"
+#include "Target.h"
 
 #include "lld/Common/LLVM.h"
 #include "lld/Common/Memory.h"
@@ -19,23 +20,25 @@
 #include "llvm/DebugInfo/DWARF/DWARFUnit.h"
 #include "llvm/Object/Archive.h"
 #include "llvm/Support/MemoryBuffer.h"
-#include "llvm/TextAPI/MachO/InterfaceFile.h"
-#include "llvm/TextAPI/MachO/TextAPIReader.h"
+#include "llvm/TextAPI/TextAPIReader.h"
 
-#include <map>
 #include <vector>
 
 namespace llvm {
 namespace lto {
 class InputFile;
 } // namespace lto
+namespace MachO {
+class InterfaceFile;
+} // namespace MachO
 class TarWriter;
 } // namespace llvm
 
 namespace lld {
 namespace macho {
 
-class InputSection;
+struct PlatformInfo;
+class ConcatInputSection;
 class Symbol;
 struct Reloc;
 enum class RefState : uint8_t;
@@ -45,9 +48,13 @@ enum class RefState : uint8_t;
 extern std::unique_ptr<llvm::TarWriter> tar;
 
 // If .subsections_via_symbols is set, each InputSection will be split along
-// symbol boundaries. The keys of a SubsectionMap represent the offsets of
-// each subsection from the start of the original pre-split InputSection.
-using SubsectionMap = std::map<uint32_t, InputSection *>;
+// symbol boundaries. The field offset represents the offset of the subsection
+// from the start of the original pre-split InputSection.
+struct SubsectionEntry {
+  uint64_t offset;
+  InputSection *isec;
+};
+using SubsectionMap = std::vector<SubsectionEntry>;
 
 class InputFile {
 public:
@@ -78,8 +85,7 @@ protected:
   InputFile(Kind kind, MemoryBufferRef mb)
       : mb(mb), id(idCount++), fileKind(kind), name(mb.getBufferIdentifier()) {}
 
-  InputFile(Kind kind, const llvm::MachO::InterfaceFile &interface)
-      : id(idCount++), fileKind(kind), name(saver.save(interface.getPath())) {}
+  InputFile(Kind, const llvm::MachO::InterfaceFile &);
 
 private:
   const Kind fileKind;
@@ -89,34 +95,41 @@ private:
 };
 
 // .o file
-class ObjFile : public InputFile {
+class ObjFile final : public InputFile {
 public:
   ObjFile(MemoryBufferRef mb, uint32_t modTime, StringRef archiveName);
   static bool classof(const InputFile *f) { return f->kind() == ObjKind; }
 
   llvm::DWARFUnit *compileUnit = nullptr;
   const uint32_t modTime;
-  ArrayRef<llvm::MachO::section_64> sectionHeaders;
-  std::vector<InputSection *> debugSections;
+  std::vector<ConcatInputSection *> debugSections;
+  ArrayRef<llvm::MachO::data_in_code_entry> dataInCodeEntries;
 
 private:
-  void parseSections(ArrayRef<llvm::MachO::section_64>);
-  void parseSymbols(ArrayRef<lld::structs::nlist_64> nList, const char *strtab,
+  template <class LP> void parse();
+  template <class Section> void parseSections(ArrayRef<Section>);
+  template <class LP>
+  void parseSymbols(ArrayRef<typename LP::section> sectionHeaders,
+                    ArrayRef<typename LP::nlist> nList, const char *strtab,
                     bool subsectionsViaSymbols);
-  Symbol *parseNonSectionSymbol(const structs::nlist_64 &sym, StringRef name);
-  void parseRelocations(const llvm::MachO::section_64 &, SubsectionMap &);
+  template <class NList>
+  Symbol *parseNonSectionSymbol(const NList &sym, StringRef name);
+  template <class Section>
+  void parseRelocations(ArrayRef<Section> sectionHeaders, const Section &,
+                        SubsectionMap &);
   void parseDebugInfo();
+  void parseDataInCode();
 };
 
 // command-line -sectcreate file
-class OpaqueFile : public InputFile {
+class OpaqueFile final : public InputFile {
 public:
   OpaqueFile(MemoryBufferRef mb, StringRef segName, StringRef sectName);
   static bool classof(const InputFile *f) { return f->kind() == OpaqueKind; }
 };
 
-// .dylib file
-class DylibFile : public InputFile {
+// .dylib or .tbd file
+class DylibFile final : public InputFile {
 public:
   // Mach-O dylibs can re-export other dylibs as sub-libraries, meaning that the
   // symbols in those sub-libraries will be available under the umbrella
@@ -125,24 +138,50 @@ public:
   // the root dylib to ensure symbols in the child library are correctly bound
   // to the root. On the other hand, if a dylib is being directly loaded
   // (through an -lfoo flag), then `umbrella` should be a nullptr.
-  explicit DylibFile(MemoryBufferRef mb, DylibFile *umbrella = nullptr);
-
+  explicit DylibFile(MemoryBufferRef mb, DylibFile *umbrella,
+                     bool isBundleLoader = false);
   explicit DylibFile(const llvm::MachO::InterfaceFile &interface,
-                     DylibFile *umbrella = nullptr);
+                     DylibFile *umbrella = nullptr,
+                     bool isBundleLoader = false);
+
+  void parseLoadCommands(MemoryBufferRef mb);
+  void parseReexports(const llvm::MachO::InterfaceFile &interface);
 
   static bool classof(const InputFile *f) { return f->kind() == DylibKind; }
 
-  StringRef dylibName;
+  StringRef installName;
+  DylibFile *exportingFile = nullptr;
+  DylibFile *umbrella;
+  SmallVector<StringRef, 2> rpaths;
   uint32_t compatibilityVersion = 0;
   uint32_t currentVersion = 0;
-  uint64_t ordinal = 0; // Ordinal numbering starts from 1, so 0 is a sentinel
+  int64_t ordinal = 0; // Ordinal numbering starts from 1, so 0 is a sentinel
   RefState refState;
   bool reexport = false;
+  bool forceNeeded = false;
   bool forceWeakImport = false;
+  bool deadStrippable = false;
+  bool explicitlyLinked = false;
+
+  unsigned numReferencedSymbols = 0;
+
+  bool isReferenced() const { return numReferencedSymbols > 0; }
+
+  // An executable can be used as a bundle loader that will load the output
+  // file being linked, and that contains symbols referenced, but not
+  // implemented in the bundle. When used like this, it is very similar
+  // to a Dylib, so we re-used the same class to represent it.
+  bool isBundleLoader;
+
+private:
+  bool handleLDSymbol(StringRef originalName);
+  void handleLDPreviousSymbol(StringRef name, StringRef originalName);
+  void handleLDInstallNameSymbol(StringRef name, StringRef originalName);
+  void checkAppExtensionSafety(bool dylibIsAppExtensionSafe) const;
 };
 
 // .a file
-class ArchiveFile : public InputFile {
+class ArchiveFile final : public InputFile {
 public:
   explicit ArchiveFile(std::unique_ptr<llvm::object::Archive> &&file);
   static bool classof(const InputFile *f) { return f->kind() == ArchiveKind; }
@@ -155,9 +194,10 @@ private:
   llvm::DenseSet<uint64_t> seen;
 };
 
-class BitcodeFile : public InputFile {
+class BitcodeFile final : public InputFile {
 public:
-  explicit BitcodeFile(MemoryBufferRef mb);
+  explicit BitcodeFile(MemoryBufferRef mb, StringRef archiveName,
+                       uint64_t offsetInArchive);
   static bool classof(const InputFile *f) { return f->kind() == BitcodeKind; }
 
   std::unique_ptr<llvm::lto::InputFile> obj;
@@ -167,8 +207,43 @@ extern llvm::SetVector<InputFile *> inputFiles;
 
 llvm::Optional<MemoryBufferRef> readFile(StringRef path);
 
-const llvm::MachO::load_command *
-findCommand(const llvm::MachO::mach_header_64 *, uint32_t type);
+namespace detail {
+
+template <class CommandType, class... Types>
+std::vector<const CommandType *>
+findCommands(const void *anyHdr, size_t maxCommands, Types... types) {
+  std::vector<const CommandType *> cmds;
+  std::initializer_list<uint32_t> typesList{types...};
+  const auto *hdr = reinterpret_cast<const llvm::MachO::mach_header *>(anyHdr);
+  const uint8_t *p =
+      reinterpret_cast<const uint8_t *>(hdr) + target->headerSize;
+  for (uint32_t i = 0, n = hdr->ncmds; i < n; ++i) {
+    auto *cmd = reinterpret_cast<const CommandType *>(p);
+    if (llvm::is_contained(typesList, cmd->cmd)) {
+      cmds.push_back(cmd);
+      if (cmds.size() == maxCommands)
+        return cmds;
+    }
+    p += cmd->cmdsize;
+  }
+  return cmds;
+}
+
+} // namespace detail
+
+// anyHdr should be a pointer to either mach_header or mach_header_64
+template <class CommandType = llvm::MachO::load_command, class... Types>
+const CommandType *findCommand(const void *anyHdr, Types... types) {
+  std::vector<const CommandType *> cmds =
+      detail::findCommands<CommandType>(anyHdr, 1, types...);
+  return cmds.size() ? cmds[0] : nullptr;
+}
+
+template <class CommandType = llvm::MachO::load_command, class... Types>
+std::vector<const CommandType *> findCommands(const void *anyHdr,
+                                              Types... types) {
+  return detail::findCommands<CommandType>(anyHdr, 0, types...);
+}
 
 } // namespace macho
 

@@ -24,6 +24,7 @@
 #include "llvm/CodeGen/ScheduleDAGMutation.h"
 #include "llvm/CodeGen/TargetSubtargetInfo.h"
 #include "llvm/MC/MCInstrItineraries.h"
+#include "llvm/Support/Alignment.h"
 #include <memory>
 #include <string>
 #include <vector>
@@ -179,6 +180,12 @@ public:
   bool hasV67OpsOnly() const {
     return getHexagonArchVersion() == Hexagon::ArchEnum::V67;
   }
+  bool hasV68Ops() const {
+    return getHexagonArchVersion() >= Hexagon::ArchEnum::V68;
+  }
+  bool hasV68OpsOnly() const {
+    return getHexagonArchVersion() == Hexagon::ArchEnum::V68;
+  }
 
   bool useAudioOps() const { return UseAudioOps; }
   bool useCompound() const { return UseCompound; }
@@ -211,6 +218,9 @@ public:
   }
   bool useHVXV67Ops() const {
     return HexagonHVXVersion >= Hexagon::ArchEnum::V67;
+  }
+  bool useHVXV68Ops() const {
+    return HexagonHVXVersion >= Hexagon::ArchEnum::V68;
   }
   bool useHVX128BOps() const { return useHVXOps() && UseHVX128BOps; }
   bool useHVX64BOps() const { return useHVXOps() && UseHVX64BOps; }
@@ -279,10 +289,10 @@ public:
   bool isHVXVectorType(MVT VecTy, bool IncludeBool = false) const;
   bool isTypeForHVX(Type *VecTy, bool IncludeBool = false) const;
 
-  unsigned getTypeAlignment(MVT Ty) const {
+  Align getTypeAlignment(MVT Ty) const {
     if (isHVXVectorType(Ty, true))
-      return getVectorLength();
-    return Ty.getSizeInBits() / 8;
+      return Align(getVectorLength());
+    return Align(std::max<unsigned>(1, Ty.getSizeInBits() / 8));
   }
 
   unsigned getL1CacheLineSize() const;

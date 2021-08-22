@@ -59,6 +59,9 @@ public:
   AIX(const Driver &D, const llvm::Triple &Triple,
       const llvm::opt::ArgList &Args);
 
+  bool parseInlineAsmUsingAsmParser() const override {
+    return ParseInlineAsmUsingAsmParser;
+  }
   bool isPICDefault() const override { return true; }
   bool isPIEDefault() const override { return false; }
   bool isPICDefaultForced() const override { return true; }
@@ -74,12 +77,20 @@ public:
 
   RuntimeLibType GetDefaultRuntimeLibType() const override;
 
+  // Set default DWARF version to 3 for now as latest AIX OS supports version 3.
+  unsigned GetDefaultDwarfVersion() const override { return 3; }
+
+  llvm::DebuggerKind getDefaultDebuggerTuning() const override {
+    return llvm::DebuggerKind::DBX;
+  }
+
 protected:
   Tool *buildAssembler() const override;
   Tool *buildLinker() const override;
 
 private:
   llvm::StringRef GetHeaderSysroot(const llvm::opt::ArgList &DriverArgs) const;
+  bool ParseInlineAsmUsingAsmParser;
 };
 
 } // end namespace toolchains

@@ -240,6 +240,18 @@ MachineInstrBuilder MachineIRBuilder::buildCopy(const DstOp &Res,
   return buildInstr(TargetOpcode::COPY, Res, Op);
 }
 
+MachineInstrBuilder MachineIRBuilder::buildAssertSExt(const DstOp &Res,
+                                                      const SrcOp &Op,
+                                                      unsigned Size) {
+  return buildInstr(TargetOpcode::G_ASSERT_SEXT, Res, Op).addImm(Size);
+}
+
+MachineInstrBuilder MachineIRBuilder::buildAssertZExt(const DstOp &Res,
+                                                      const SrcOp &Op,
+                                                      unsigned Size) {
+  return buildInstr(TargetOpcode::G_ASSERT_ZEXT, Res, Op).addImm(Size);
+}
+
 MachineInstrBuilder MachineIRBuilder::buildConstant(const DstOp &Res,
                                                     const ConstantInt &Val) {
   LLT Ty = Res.getLLTTy(*getMRI());
@@ -335,10 +347,9 @@ MachineIRBuilder::buildLoad(const DstOp &Dst, const SrcOp &Addr,
   MMOFlags |= MachineMemOperand::MOLoad;
   assert((MMOFlags & MachineMemOperand::MOStore) == 0);
 
-  uint64_t Size = MemoryLocation::getSizeOrUnknown(
-      TypeSize::Fixed(Dst.getLLTTy(*getMRI()).getSizeInBytes()));
+  LLT Ty = Dst.getLLTTy(*getMRI());
   MachineMemOperand *MMO =
-      getMF().getMachineMemOperand(PtrInfo, MMOFlags, Size, Alignment, AAInfo);
+      getMF().getMachineMemOperand(PtrInfo, MMOFlags, Ty, Alignment, AAInfo);
   return buildLoad(Dst, Addr, *MMO);
 }
 
@@ -361,7 +372,7 @@ MachineInstrBuilder MachineIRBuilder::buildLoadFromOffset(
   MachineMemOperand &BaseMMO, int64_t Offset) {
   LLT LoadTy = Dst.getLLTTy(*getMRI());
   MachineMemOperand *OffsetMMO =
-    getMF().getMachineMemOperand(&BaseMMO, Offset, LoadTy.getSizeInBytes());
+      getMF().getMachineMemOperand(&BaseMMO, Offset, LoadTy);
 
   if (Offset == 0) // This may be a size or type changing load.
     return buildLoad(Dst, BasePtr, *OffsetMMO);
@@ -394,10 +405,9 @@ MachineIRBuilder::buildStore(const SrcOp &Val, const SrcOp &Addr,
   MMOFlags |= MachineMemOperand::MOStore;
   assert((MMOFlags & MachineMemOperand::MOLoad) == 0);
 
-  uint64_t Size = MemoryLocation::getSizeOrUnknown(
-      TypeSize::Fixed(Val.getLLTTy(*getMRI()).getSizeInBytes()));
+  LLT Ty = Val.getLLTTy(*getMRI());
   MachineMemOperand *MMO =
-      getMF().getMachineMemOperand(PtrInfo, MMOFlags, Size, Alignment, AAInfo);
+      getMF().getMachineMemOperand(PtrInfo, MMOFlags, Ty, Alignment, AAInfo);
   return buildStore(Val, Addr, *MMO);
 }
 
@@ -472,6 +482,15 @@ MachineInstrBuilder MachineIRBuilder::buildZExtOrTrunc(const DstOp &Res,
 MachineInstrBuilder MachineIRBuilder::buildAnyExtOrTrunc(const DstOp &Res,
                                                          const SrcOp &Op) {
   return buildExtOrTrunc(TargetOpcode::G_ANYEXT, Res, Op);
+}
+
+MachineInstrBuilder MachineIRBuilder::buildZExtInReg(const DstOp &Res,
+                                                     const SrcOp &Op,
+                                                     int64_t ImmOp) {
+  LLT ResTy = Res.getLLTTy(*getMRI());
+  auto Mask = buildConstant(
+      ResTy, APInt::getLowBitsSet(ResTy.getScalarSizeInBits(), ImmOp));
+  return buildAnd(Res, Op, Mask);
 }
 
 MachineInstrBuilder MachineIRBuilder::buildCast(const DstOp &Dst,
@@ -657,10 +676,11 @@ MachineInstrBuilder MachineIRBuilder::buildShuffleVector(const DstOp &Res,
   assert(Src1Ty.getNumElements() + Src2Ty.getNumElements() >= Mask.size());
   assert(DstTy.getElementType() == Src1Ty.getElementType() &&
          DstTy.getElementType() == Src2Ty.getElementType());
+  (void)DstTy;
   (void)Src1Ty;
   (void)Src2Ty;
   ArrayRef<int> MaskAlloc = getMF().allocateShuffleMask(Mask);
-  return buildInstr(TargetOpcode::G_SHUFFLE_VECTOR, {DstTy}, {Src1, Src2})
+  return buildInstr(TargetOpcode::G_SHUFFLE_VECTOR, {Res}, {Src1, Src2})
       .addShuffleMask(MaskAlloc);
 }
 
@@ -1095,7 +1115,8 @@ MachineInstrBuilder MachineIRBuilder::buildInstr(unsigned Opc,
                                  DstOps[0].getLLTTy(*getMRI());
                         }) &&
            "type mismatch in output list");
-    assert(DstOps.size() * DstOps[0].getLLTTy(*getMRI()).getSizeInBits() ==
+    assert((TypeSize::ScalarTy)DstOps.size() *
+                   DstOps[0].getLLTTy(*getMRI()).getSizeInBits() ==
                SrcOps[0].getLLTTy(*getMRI()).getSizeInBits() &&
            "input operands do not cover output register");
     break;
@@ -1109,7 +1130,8 @@ MachineInstrBuilder MachineIRBuilder::buildInstr(unsigned Opc,
                                  SrcOps[0].getLLTTy(*getMRI());
                         }) &&
            "type mismatch in input list");
-    assert(SrcOps.size() * SrcOps[0].getLLTTy(*getMRI()).getSizeInBits() ==
+    assert((TypeSize::ScalarTy)SrcOps.size() *
+                   SrcOps[0].getLLTTy(*getMRI()).getSizeInBits() ==
                DstOps[0].getLLTTy(*getMRI()).getSizeInBits() &&
            "input operands do not cover output register");
     if (SrcOps.size() == 1)
@@ -1160,7 +1182,8 @@ MachineInstrBuilder MachineIRBuilder::buildInstr(unsigned Opc,
                                  SrcOps[0].getLLTTy(*getMRI());
                         }) &&
            "type mismatch in input list");
-    assert(SrcOps.size() * SrcOps[0].getLLTTy(*getMRI()).getSizeInBits() ==
+    assert((TypeSize::ScalarTy)SrcOps.size() *
+                   SrcOps[0].getLLTTy(*getMRI()).getSizeInBits() ==
                DstOps[0].getLLTTy(*getMRI()).getSizeInBits() &&
            "input scalars do not exactly cover the output vector register");
     break;
@@ -1193,7 +1216,8 @@ MachineInstrBuilder MachineIRBuilder::buildInstr(unsigned Opc,
                                       SrcOps[0].getLLTTy(*getMRI()));
                         }) &&
            "type mismatch in input list");
-    assert(SrcOps.size() * SrcOps[0].getLLTTy(*getMRI()).getSizeInBits() ==
+    assert((TypeSize::ScalarTy)SrcOps.size() *
+                   SrcOps[0].getLLTTy(*getMRI()).getSizeInBits() ==
                DstOps[0].getLLTTy(*getMRI()).getSizeInBits() &&
            "input vectors do not exactly cover the output vector register");
     break;

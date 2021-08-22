@@ -61,6 +61,9 @@ void AIXException::emitExceptionInfoTable(const MCSymbol *LSDA,
 }
 
 void AIXException::endFunction(const MachineFunction *MF) {
+  // There is no easy way to access register information in `AIXException`
+  // class. when ShouldEmitEHBlock is false and VRs are saved, A dumy eh info
+  // table are emitted in PPCAIXAsmPrinter::emitFunctionBodyEnd.
   if (!TargetLoweringObjectFileXCOFF::ShouldEmitEHBlock(MF))
     return;
 
@@ -69,8 +72,8 @@ void AIXException::endFunction(const MachineFunction *MF) {
   const Function &F = MF->getFunction();
   assert(F.hasPersonalityFn() &&
          "Landingpads are presented, but no personality routine is found.");
-  const Function *Per =
-      dyn_cast<Function>(F.getPersonalityFn()->stripPointerCasts());
+  const GlobalValue *Per =
+      dyn_cast<GlobalValue>(F.getPersonalityFn()->stripPointerCasts());
   const MCSymbol *PerSym = Asm->TM.getSymbol(Per);
 
   emitExceptionInfoTable(LSDALabel, PerSym);

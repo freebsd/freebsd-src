@@ -291,26 +291,6 @@ static ExprResult buildOperatorCoawaitCall(Sema &SemaRef, Scope *S,
                                   cast<UnresolvedLookupExpr>(R.get()));
 }
 
-static Expr *buildBuiltinCall(Sema &S, SourceLocation Loc, Builtin::ID Id,
-                              MultiExprArg CallArgs) {
-  StringRef Name = S.Context.BuiltinInfo.getName(Id);
-  LookupResult R(S, &S.Context.Idents.get(Name), Loc, Sema::LookupOrdinaryName);
-  S.LookupName(R, S.TUScope, /*AllowBuiltinCreation=*/true);
-
-  auto *BuiltInDecl = R.getAsSingle<FunctionDecl>();
-  assert(BuiltInDecl && "failed to find builtin declaration");
-
-  ExprResult DeclRef =
-      S.BuildDeclRefExpr(BuiltInDecl, BuiltInDecl->getType(), VK_LValue, Loc);
-  assert(DeclRef.isUsable() && "Builtin reference cannot fail");
-
-  ExprResult Call =
-      S.BuildCallExpr(/*Scope=*/nullptr, DeclRef.get(), Loc, CallArgs, Loc);
-
-  assert(!Call.isInvalid() && "Call to builtin cannot fail!");
-  return Call.get();
-}
-
 static ExprResult buildCoroutineHandle(Sema &S, QualType PromiseType,
                                        SourceLocation Loc) {
   QualType CoroHandleType = lookupCoroutineHandleType(S, PromiseType, Loc);
@@ -327,7 +307,7 @@ static ExprResult buildCoroutineHandle(Sema &S, QualType PromiseType,
   }
 
   Expr *FramePtr =
-      buildBuiltinCall(S, Loc, Builtin::BI__builtin_coro_frame, {});
+      S.BuildBuiltinCallExpr(Loc, Builtin::BI__builtin_coro_frame, {});
 
   CXXScopeSpec SS;
   ExprResult FromAddr =
@@ -404,8 +384,8 @@ static Expr *maybeTailCall(Sema &S, QualType RetType, Expr *E,
   // the resume call and return instruction, which would interfere with the
   // musttail call contract.
   JustAddress = S.MaybeCreateExprWithCleanups(JustAddress);
-  return buildBuiltinCall(S, Loc, Builtin::BI__builtin_coro_resume,
-                          JustAddress);
+  return S.BuildBuiltinCallExpr(Loc, Builtin::BI__builtin_coro_resume,
+                                JustAddress);
 }
 
 /// Build calls to await_ready, await_suspend, and await_resume for a co_await
@@ -897,7 +877,7 @@ ExprResult Sema::BuildResolvedCoawaitExpr(SourceLocation Loc, Expr *E,
 
   // If the expression is a temporary, materialize it as an lvalue so that we
   // can use it multiple times.
-  if (E->getValueKind() == VK_RValue)
+  if (E->isPRValue())
     E = CreateMaterializeTemporaryExpr(E->getType(), E, true);
 
   // The location of the `co_await` token cannot be used when constructing
@@ -957,7 +937,7 @@ ExprResult Sema::BuildCoyieldExpr(SourceLocation Loc, Expr *E) {
 
   // If the expression is a temporary, materialize it as an lvalue so that we
   // can use it multiple times.
-  if (E->getValueKind() == VK_RValue)
+  if (E->isPRValue())
     E = CreateMaterializeTemporaryExpr(E->getType(), E, true);
 
   // Build the await_ready, await_suspend, await_resume calls.
@@ -994,25 +974,10 @@ StmtResult Sema::BuildCoreturnStmt(SourceLocation Loc, Expr *E,
     E = R.get();
   }
 
-  // Move the return value if we can
-  if (E) {
-    auto NRVOCandidate = this->getCopyElisionCandidate(E->getType(), E, CES_AsIfByStdMove);
-    if (NRVOCandidate) {
-      InitializedEntity Entity =
-          InitializedEntity::InitializeResult(Loc, E->getType(), NRVOCandidate);
-      ExprResult MoveResult = this->PerformMoveOrCopyInitialization(
-          Entity, NRVOCandidate, E->getType(), E);
-      if (MoveResult.get())
-        E = MoveResult.get();
-    }
-  }
-
-  // FIXME: If the operand is a reference to a variable that's about to go out
-  // of scope, we should treat the operand as an xvalue for this overload
-  // resolution.
   VarDecl *Promise = FSI->CoroutinePromise;
   ExprResult PC;
   if (E && (isa<InitListExpr>(E) || !E->getType()->isVoidType())) {
+    getNamedReturnInfo(E, SimplerImplicitMoveMode::ForceOn);
     PC = buildPromiseCall(*this, Promise, Loc, "return_value", E);
   } else {
     E = MakeFullDiscardedValueExpr(E).get();
@@ -1372,10 +1337,10 @@ bool CoroutineStmtBuilder::makeNewAndDeleteExpr() {
     return false;
 
   Expr *FramePtr =
-      buildBuiltinCall(S, Loc, Builtin::BI__builtin_coro_frame, {});
+      S.BuildBuiltinCallExpr(Loc, Builtin::BI__builtin_coro_frame, {});
 
   Expr *FrameSize =
-      buildBuiltinCall(S, Loc, Builtin::BI__builtin_coro_size, {});
+      S.BuildBuiltinCallExpr(Loc, Builtin::BI__builtin_coro_size, {});
 
   // Make new call.
 
@@ -1404,7 +1369,7 @@ bool CoroutineStmtBuilder::makeNewAndDeleteExpr() {
     return false;
 
   Expr *CoroFree =
-      buildBuiltinCall(S, Loc, Builtin::BI__builtin_coro_free, {FramePtr});
+      S.BuildBuiltinCallExpr(Loc, Builtin::BI__builtin_coro_free, {FramePtr});
 
   SmallVector<Expr *, 2> DeleteArgs{CoroFree};
 
@@ -1569,7 +1534,7 @@ bool CoroutineStmtBuilder::makeGroDeclAndReturnStmt() {
     // Trigger a nice error message.
     InitializedEntity Entity =
         InitializedEntity::InitializeResult(Loc, FnRetType, false);
-    S.PerformMoveOrCopyInitialization(Entity, nullptr, FnRetType, ReturnValue);
+    S.PerformCopyInitialization(Entity, SourceLocation(), ReturnValue);
     noteMemberDeclaredHere(S, ReturnValue, Fn);
     return false;
   }
@@ -1585,8 +1550,8 @@ bool CoroutineStmtBuilder::makeGroDeclAndReturnStmt() {
     return false;
 
   InitializedEntity Entity = InitializedEntity::InitializeVariable(GroDecl);
-  ExprResult Res = S.PerformMoveOrCopyInitialization(Entity, nullptr, GroType,
-                                                     this->ReturnValue);
+  ExprResult Res =
+      S.PerformCopyInitialization(Entity, SourceLocation(), ReturnValue);
   if (Res.isInvalid())
     return false;
 

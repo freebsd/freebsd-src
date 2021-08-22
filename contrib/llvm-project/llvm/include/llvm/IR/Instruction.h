@@ -170,6 +170,11 @@ public:
   bool isExceptionalTerminator() const {
     return isExceptionalTerminator(getOpcode());
   }
+
+  /// It checks if this instruction is the only user of at least one of
+  /// its operands.
+  bool isOnlyUserOfAnyOperand();
+
   bool isIndirectTerminator() const {
     return isIndirectTerminator(getOpcode());
   }
@@ -327,6 +332,8 @@ public:
   /// @{
   /// Passes are required to drop metadata they don't understand. This is a
   /// convenience method for passes to do so.
+  /// dropUndefImplyingAttrsAndUnknownMetadata should be used instead of
+  /// this API if the Instruction being modified is a call.
   void dropUnknownNonDebugMetadata(ArrayRef<unsigned> KnownIDs);
   void dropUnknownNonDebugMetadata() {
     return dropUnknownNonDebugMetadata(None);
@@ -385,6 +392,13 @@ public:
   /// Drops flags that may cause this instruction to evaluate to poison despite
   /// having non-poison inputs.
   void dropPoisonGeneratingFlags();
+
+  /// This function drops non-debug unknown metadata (through
+  /// dropUnknownNonDebugMetadata). For calls, it also drops parameter and 
+  /// return attributes that can cause undefined behaviour. Both of these should
+  /// be done by passes which move instructions in IR.
+  void
+  dropUndefImplyingAttrsAndUnknownMetadata(ArrayRef<unsigned> KnownIDs = {});
 
   /// Determine whether the exact flag is set.
   bool isExact() const;
@@ -597,6 +611,9 @@ public:
   /// Return true if this atomic instruction stores to memory.
   bool hasAtomicStore() const;
 
+  /// Return true if this instruction has a volatile memory access.
+  bool isVolatile() const;
+
   /// Return true if this instruction may throw an exception.
   bool mayThrow() const;
 
@@ -619,11 +636,16 @@ public:
 
   /// Return true if the instruction may have side effects.
   ///
+  /// Side effects are:
+  ///  * Writing to memory.
+  ///  * Unwinding.
+  ///  * Not returning (e.g. an infinite loop).
+  ///
   /// Note that this does not consider malloc and alloca to have side
   /// effects because the newly allocated memory is completely invisible to
   /// instructions which don't use the returned value.  For cases where this
   /// matters, isSafeToSpeculativelyExecute may be more appropriate.
-  bool mayHaveSideEffects() const { return mayWriteToMemory() || mayThrow(); }
+  bool mayHaveSideEffects() const;
 
   /// Return true if the instruction can be removed if the result is unused.
   ///
@@ -653,6 +675,10 @@ public:
   /// Return true if the instruction is a llvm.lifetime.start or
   /// llvm.lifetime.end marker.
   bool isLifetimeStartOrEnd() const;
+
+  /// Return true if the instruction is a llvm.launder.invariant.group or
+  /// llvm.strip.invariant.group.
+  bool isLaunderOrStripInvariantGroup() const;
 
   /// Return true if the instruction is a DbgInfoIntrinsic or PseudoProbeInst.
   bool isDebugOrPseudoInst() const;

@@ -72,7 +72,7 @@ Core
 ----
 
 The Core source files contain basic functionality that is required in the
-debugger as well as the class represeting the debugger it self (Debugger). A
+debugger as well as the class representing the debugger itself (Debugger). A
 wide variety of classes are implemented:
 
 - Address (section offset addressing)
@@ -172,11 +172,11 @@ Utility
 
 This module contains the lowest layers of LLDB. A lot of these classes don't
 really have anything to do with debugging -- they are just there because the
-higher layers of the debugger use these clasess to implement their
+higher layers of the debugger use these classes to implement their
 functionality. Others are data structures used in many other parts of the
-debugger (TraceOptions). Most of the functionality in this module could be
-useful in an application that is not a debugger; however, providing a general
-purpose C++ library is an explicit non-goal of this module.
+debugger. Most of the functionality in this module could be useful in an
+application that is not a debugger; however, providing a general purpose C++
+library is an explicit non-goal of this module..
 
 This module provides following functionality:
 
