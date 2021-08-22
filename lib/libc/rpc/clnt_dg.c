@@ -92,9 +92,9 @@ static void clnt_dg_destroy(CLIENT *);
  *	This machinery implements per-fd locks for MT-safety.  It is not
  *	sufficient to do per-CLIENT handle locks for MT-safety because a
  *	user may create more than one CLIENT handle with the same fd behind
- *	it.  Therfore, we allocate an array of flags (dg_fd_locks), protected
+ *	it.  Therefore, we allocate an array of flags (dg_fd_locks), protected
  *	by the clnt_fd_lock mutex, and an array (dg_cv) of condition variables
- *	similarly protected.  Dg_fd_lock[fd] == 1 => a call is activte on some
+ *	similarly protected.  Dg_fd_lock[fd] == 1 => a call is active on some
  *	CLIENT handle created for that fd.
  *	The current implementation holds locks across the entire RPC and reply,
  *	including retransmissions.  Yes, this is silly, and as soon as this
