@@ -901,8 +901,10 @@ ipsec_newpolicies(struct ipsec_softc *sc, struct secpolicy *sp[IPSEC_SPCOUNT],
 	}
 	return (0);
 fail:
-	for (i = 0; i < IPSEC_SPCOUNT; i++)
-		key_freesp(&sp[i]);
+	for (i = 0; i < IPSEC_SPCOUNT; i++) {
+		if (sp[i] != NULL)
+			key_freesp(&sp[i]);
+	}
 	return (ENOMEM);
 }
 
