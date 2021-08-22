@@ -1435,16 +1435,6 @@ nm_iszombie(struct netmap_adapter *na)
 	return na == NULL || (na->na_flags & NAF_ZOMBIE);
 }
 
-static inline void
-nm_update_hostrings_mode(struct netmap_adapter *na)
-{
-	/* Process nr_mode and nr_pending_mode for host rings. */
-	na->tx_rings[na->num_tx_rings]->nr_mode =
-		na->tx_rings[na->num_tx_rings]->nr_pending_mode;
-	na->rx_rings[na->num_rx_rings]->nr_mode =
-		na->rx_rings[na->num_rx_rings]->nr_pending_mode;
-}
-
 void nm_set_native_flags(struct netmap_adapter *);
 void nm_clear_native_flags(struct netmap_adapter *);
 
