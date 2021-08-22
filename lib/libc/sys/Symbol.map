@@ -495,10 +495,12 @@ FBSDprivate_1.0 {
 	__sys_aio_error;
 	__sys_aio_fsync;
 	__sys_aio_read;
+	__sys_aio_readv;
 	__sys_aio_return;
 	__sys_aio_suspend;
 	__sys_aio_waitcomplete;
 	__sys_aio_write;
+	__sys_aio_writev;
 	_audit;
 	__sys_audit;
 	_auditctl;

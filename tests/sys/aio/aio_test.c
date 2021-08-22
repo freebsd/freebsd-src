@@ -1627,6 +1627,12 @@ ATF_TC_BODY(vectored_file_poll, tc)
 	aio_file_test(poll, NULL, true);
 }
 
+ATF_TC_WITHOUT_HEAD(vectored_thread);
+ATF_TC_BODY(vectored_thread, tc)
+{
+	aio_file_test(poll_signaled, setup_thread(), true);
+}
+
 ATF_TC_WITH_CLEANUP(vectored_md_poll);
 ATF_TC_HEAD(vectored_md_poll, tc)
 {
@@ -1814,6 +1820,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, vectored_zvol_poll);
 	ATF_TP_ADD_TC(tp, vectored_unaligned);
 	ATF_TP_ADD_TC(tp, vectored_socket_poll);
+	ATF_TP_ADD_TC(tp, vectored_thread);
 
 	return (atf_no_error());
 }

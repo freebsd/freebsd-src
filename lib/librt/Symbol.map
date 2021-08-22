@@ -31,6 +31,11 @@ FBSD_1.5 {
 	timer_oshandle_np;
 };
 
+FBSD_1.6 {
+	aio_readv;
+	aio_writev;
+};
+
 FBSDprivate_1.0 {
 	_mq_open;
 	_mq_close;
