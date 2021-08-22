@@ -2323,6 +2323,7 @@ in6_lltable_lookup(struct lltable *llt, u_int flags,
 	const struct sockaddr *l3addr)
 {
 	const struct sockaddr_in6 *sin6 = (const struct sockaddr_in6 *)l3addr;
+	int family = flags >> 16;
 	struct llentry *lle;
 
 	IF_AFDATA_LOCK_ASSERT(llt->llt_ifp);
@@ -2333,12 +2334,12 @@ in6_lltable_lookup(struct lltable *llt, u_int flags,
 	    ("wrong lle request flags: %#x", flags));
 
 	lle = in6_lltable_find_dst(llt, &sin6->sin6_addr);
-	if (lle == NULL)
-		return (NULL);
 
-	int family = flags >> 16;
 	if (__predict_false(family != AF_INET6))
 		lle = llentry_lookup_family(lle, family);
+
+	if (lle == NULL)
+		return (NULL);
 
 	if (flags & LLE_UNLOCKED)
 		return (lle);
