@@ -26,7 +26,8 @@ ${PACKAGE}FILES+=	\
 	header.out \
 	header_ns.out \
 	ifdef.out \
-	group-format.out
+	group-format.out \
+	strip_o.out
 
 NETBSD_ATF_TESTS_SH+=	netbsd_diff_test
 

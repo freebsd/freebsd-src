@@ -9,6 +9,7 @@ atf_test_case group_format
 atf_test_case side_by_side
 atf_test_case brief_format
 atf_test_case b230049
+atf_test_case stripcr_o
 atf_test_case b252515
 atf_test_case Bflag
 atf_test_case Nflag
@@ -66,6 +67,14 @@ b230049_body()
 	atf_check -o empty -s eq:0 \
 		diff -up --strip-trailing-cr -L b230049_a.in -L b230049_b.in \
 		    b230049_a.in b230049_b.in
+}
+
+stripcr_o_body()
+{
+	printf 'a\nX\nc\n' > stripcr_o_X.in
+	printf 'a\r\nY\r\nc\r\n' > stripcr_o_Y.in
+	atf_check -o "file:$(atf_get_srcdir)/strip_o.out" -s eq:1 \
+		diff -L1 -L2 -u --strip-trailing-cr stripcr_o_X.in stripcr_o_Y.in
 }
 
 b252515_body()
@@ -267,6 +276,7 @@ atf_init_test_cases()
 	atf_add_test_case side_by_side
 	atf_add_test_case brief_format
 	atf_add_test_case b230049
+	atf_add_test_case stripcr_o
 	atf_add_test_case b252515
 	atf_add_test_case Bflag
 	atf_add_test_case Nflag
