@@ -434,7 +434,7 @@ ext2_cg_validate(struct m_ext2fs *fs)
 		}
 		if (i_tables <= last_cg_block) {
 			SDT_PROBE2(ext2fs, , vfsops, ext2_cg_validate_error,
-			    "inode talbes overlaps gds", i);
+			    "inode tables overlaps gds", i);
 			return (EINVAL);
 		}
 		if (i_tables < first_block ||
