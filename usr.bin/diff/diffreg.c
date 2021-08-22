@@ -1273,7 +1273,16 @@ fetch(long *f, int a, int b, FILE *lb, int ch, int oldfile, int flags)
 		}
 		col = 0;
 		for (j = 0, lastc = '\0'; j < nc; j++, lastc = c) {
-			if ((c = getc(lb)) == EOF) {
+			c = getc(lb);
+			if (flags & D_STRIPCR && c == '\r') {
+				if ((c = getc(lb)) == '\n')
+					j++;
+				else {
+					ungetc(c, lb);
+					c = '\r';
+				}
+			}
+			if (c == EOF) {
 				if (diff_format == D_EDIT ||
 				    diff_format == D_REVERSE ||
 				    diff_format == D_NREVERSE)
