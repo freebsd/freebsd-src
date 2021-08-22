@@ -4050,9 +4050,9 @@ vm_page_unwire_noq(vm_page_t m)
 
 	old = vm_page_drop(m, 1);
 	KASSERT(VPRC_WIRE_COUNT(old) != 0,
-	    ("vm_page_unref: counter underflow for page %p", m));
+	    ("%s: counter underflow for page %p", __func__,  m));
 	KASSERT((m->flags & PG_FICTITIOUS) == 0 || VPRC_WIRE_COUNT(old) > 1,
-	    ("vm_page_unref: missing ref on fictitious page %p", m));
+	    ("%s: missing ref on fictitious page %p", __func__, m));
 
 	if (VPRC_WIRE_COUNT(old) > 1)
 		return (false);
