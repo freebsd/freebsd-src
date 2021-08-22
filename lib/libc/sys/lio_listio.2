@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 7, 2019
+.Dd August 22, 2021
 .Dt LIO_LISTIO 2
 .Os
 .Sh NAME
@@ -66,11 +66,17 @@ The following operations are supported:
 .It Dv LIO_READ
 Read data as if by a call to
 .Xr aio_read 2 .
+.It Dv LIO_READV
+Read data as if by a call to
+.Xr aio_readv 2 .
 .It Dv LIO_NOP
 No operation.
 .It Dv LIO_WRITE
 Write data as if by a call to
 .Xr aio_write 2 .
+.It Dv LIO_WRITEV
+Write data as if by a call to
+.Xr aio_writev 2 .
 .El
 .Pp
 If the
@@ -205,7 +211,9 @@ structure individually by calling
 .Sh SEE ALSO
 .Xr aio_error 2 ,
 .Xr aio_read 2 ,
+.Xr aio_readv 2 ,
 .Xr aio_write 2 ,
+.Xr aio_writev 2 ,
 .Xr read 2 ,
 .Xr write 2 ,
 .Xr sigevent 3 ,
@@ -216,6 +224,12 @@ The
 .Fn lio_listio
 function is expected to conform to
 .St -p1003.1-2001 .
+The
+.Dv LIO_READV
+and
+.Dv LIO_WRITEV
+operations are
+.Fx extensions, and should not be used in portable code.
 .Sh HISTORY
 The
 .Fn lio_listio

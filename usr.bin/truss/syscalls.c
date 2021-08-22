@@ -754,7 +754,7 @@ static struct xlat lio_modes[] = {
 };
 
 static struct xlat lio_opcodes[] = {
-	X(LIO_WRITE) X(LIO_READ) X(LIO_NOP)
+	X(LIO_WRITE) X(LIO_READ) X(LIO_READV) X(LIO_WRITEV) X(LIO_NOP)
 	XEND
 };
 
