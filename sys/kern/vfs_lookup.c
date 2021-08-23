@@ -97,9 +97,9 @@ static int
 crossmp_vop_lock1(struct vop_lock1_args *ap)
 {
 	struct vnode *vp;
-	struct lock *lk __unused;
-	const char *file __unused;
-	int flags, line __unused;
+	struct lock *lk __diagused;
+	const char *file __diagused;
+	int flags, line __diagused;
 
 	vp = ap->a_vp;
 	lk = vp->v_vnlock;
@@ -123,7 +123,7 @@ static int
 crossmp_vop_unlock(struct vop_unlock_args *ap)
 {
 	struct vnode *vp;
-	struct lock *lk __unused;
+	struct lock *lk __diagused;
 
 	vp = ap->a_vp;
 	lk = vp->v_vnlock;
