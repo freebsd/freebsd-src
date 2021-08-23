@@ -182,7 +182,7 @@ main(int argc, char **argv)
 						    mntbuf->f_mntfromname,
 						    mntbuf->f_mntonname, buf);
 					else if (errno == EPERM)
-						errx(1, "Only priviledged users"
+						errx(1, "Only privileged users"
 						    " can use the -m option");
 				}
 				mntbuf++;
