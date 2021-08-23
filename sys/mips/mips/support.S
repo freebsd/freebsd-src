@@ -440,10 +440,9 @@ memsetsmallclr:
 END(memset)
 
 /*
- * bzero(s1, n)
+ * blkclr(s1, n)
  */
-LEAF(bzero)
-XLEAF(blkclr)
+LEAF(blkclr)
 	.set	noreorder
 	blt	a1, 12, smallclr	# small amount to clear?
 	PTR_SUBU	a3, zero, a0		# compute # bytes to word align address
@@ -471,7 +470,7 @@ smallclr:
 2:
 	j	ra
 	nop
-END(bzero)
+END(blkclr)
 
 /*
  * bit = ffs(value)
