@@ -40,26 +40,6 @@
 
 	.text
 
-/*
- * bcopy family
- * void bzero(void *buf, u_int len)
- */
-ENTRY(bzero)
-	pushl	%edi
-	movl	8(%esp),%edi
-	movl	12(%esp),%ecx
-	xorl	%eax,%eax
-	shrl	$2,%ecx
-	rep
-	stosl
-	movl	12(%esp),%ecx
-	andl	$3,%ecx
-	rep
-	stosb
-	popl	%edi
-	ret
-END(bzero)
-
 ENTRY(sse2_pagezero)
 	pushl	%ebx
 	movl	8(%esp),%ecx
