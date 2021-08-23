@@ -279,7 +279,7 @@ Values between 0 and 9 are supported.
 The interpretation of the compression level depends on the chosen
 compression method.
 .El
-.It Format cpio
+.It Format bin
 .Bl -tag -compact -width indent
 .It Cm hdrcharset
 The value is used as a character set name that will be
@@ -514,6 +514,18 @@ lines that specify default values for the following files and/or directories.
 XXX needs explanation XXX
 .El
 .It Format newc
+.Bl -tag -compact -width indent
+.It Cm hdrcharset
+The value is used as a character set name that will be
+used when translating file names.
+.El
+.It Format odc
+.Bl -tag -compact -width indent
+.It Cm hdrcharset
+The value is used as a character set name that will be
+used when translating file names.
+.El
+.It Format pwb
 .Bl -tag -compact -width indent
 .It Cm hdrcharset
 The value is used as a character set name that will be

@@ -188,9 +188,18 @@ used when translating file names.
 .El
 .It Format cpio
 .Bl -tag -compact -width indent
+.It Cm compat-2x
+Libarchive 2.x incorrectly encoded Unicode filenames on
+some platforms.
+This option mimics the libarchive 2.x filename handling
+so that such archives can be read correctly.
 .It Cm hdrcharset
 The value is used as a character set name that will be
 used when translating file names.
+.It Cm pwb
+When reading a binary CPIO archive, assume that it is
+in the original PWB cpio format, and handle file mode
+bits accordingly.  The default is to assume v7 format.
 .El
 .It Format iso9660
 .Bl -tag -compact -width indent

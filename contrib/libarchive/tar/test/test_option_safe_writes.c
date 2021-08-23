@@ -58,7 +58,7 @@ DEFINE_TEST(test_option_safe_writes)
 	}
 	assertEqualInt(0, chdir(".."));
 
-	/* Extract created archive withe safe writes */
+	/* Extract created archive with safe writes */
 	assertEqualInt(0,
 	    systemf("%s -x -C out --safe-writes -f t.tar "
 	    ">unpack.out 2>unpack.err", testprog));
