@@ -9,7 +9,6 @@ kern/pic_if.m					optional intrng
 kern/subr_devmap.c				standard
 kern/subr_intr.c				optional intrng
 kern/subr_physmem.c				standard
-libkern/bcmp.c					standard
 libkern/memcmp.c				standard	\
 	compile-with "${NORMAL_C:N-fsanitize*}"
 libkern/memset.c				standard	\
