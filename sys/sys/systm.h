@@ -344,7 +344,6 @@ void	hexdump(const void *ptr, int length, const char *hdr, int flags);
 void	bcopy(const void * _Nonnull from, void * _Nonnull to, size_t len);
 void	bzero(void * _Nonnull buf, size_t len);
 void	explicit_bzero(void * _Nonnull, size_t);
-int	bcmp(const void *b1, const void *b2, size_t len);
 
 void	*memset(void * _Nonnull buf, int c, size_t len);
 void	*memcpy(void * _Nonnull to, const void * _Nonnull from, size_t len);
