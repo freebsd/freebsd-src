@@ -127,17 +127,8 @@ END(fillw)
 
 /*
  * memmove(dst, src, cnt) (return dst)
- * bcopy(src, dst, cnt)
  *  ws@tools.de     (Wolfgang Solfrank, TooLs GmbH) +49-228-985800
  */
-ENTRY(bcopy)
-	movl	4(%esp),%eax
-	movl	8(%esp),%edx
-	movl	%eax,8(%esp)
-	movl	%edx,4(%esp)
-	jmp	memmove
-END(bcopy)
-
 ENTRY(memmove)
 	pushl	%ebp
 	movl	%esp,%ebp
