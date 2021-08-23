@@ -230,6 +230,8 @@ DEFINE_TEST(test_basic)
 	basic_cpio("copy_odc", "--format=odc", "", msg, msg);
 	basic_cpio("copy_newc", "-H newc", "", result, "2 blocks\n");
 	basic_cpio("copy_cpio", "-H odc", "", msg, msg);
+	msg = "1 block\n";
+	basic_cpio("copy_bin", "-H bin", "", msg, msg);
 	msg = canSymlink() ? "9 blocks\n" : "8 blocks\n";
 	basic_cpio("copy_ustar", "-H ustar", "", msg, msg);
 
