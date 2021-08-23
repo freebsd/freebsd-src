@@ -30,7 +30,7 @@
 .\"     @(#)diff3.1	8.2 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd May 25, 2017
+.Dd August 23, 2021
 .Dt DIFF3 1
 .Os
 .Sh NAME
@@ -38,7 +38,7 @@
 .Nd 3-way differential file comparison
 .Sh SYNOPSIS
 .Nm diff3
-.Op Fl 3aEeiXx
+.Op Fl 3aEeiTXx
 .Op Fl Fl diff-program Ar program
 .Op Fl Fl strip-trailing-cr
 .Op Fl L | Fl Fl label Ar label1
@@ -115,6 +115,13 @@ Defines labels to print instead of file names
 .Ar file2
 and
 .Ar file3 .
+.It Fl T, Fl Fl initial-tab
+In the normal listing,
+use a tab instead of two spaces
+at the beginning of each line.
+In modes that produce an
+.Xr ed 1
+script, this option changes nothing.
 .It Fl x, Fl Fl overlap-only
 Produces an output script suitable for
 .Xr ed 1
