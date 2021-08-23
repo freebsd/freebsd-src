@@ -10,6 +10,7 @@ ${PACKAGE}FILES+=	\
 	2.txt \
 	3.txt \
 	1.out \
+	1t.out \
 	2.out \
 	3.out \
 	4.out \
