@@ -56,40 +56,44 @@ The end of the archive is indicated by a special record with
 the pathname
 .Dq TRAILER!!! .
 .Ss PWB format
-XXX Any documentation of the original PWB/UNIX 1.0 format? XXX
-.Ss Old Binary Format
-The old binary
+The PWB binary
 .Nm
-format stores numbers as 2-byte and 4-byte binary values.
+format is the original format, when cpio was introduced as part of the
+Programmer's Work Bench system, a variant of 6th Edition UNIX.  It
+stores numbers as 2-byte and 4-byte binary values.
 Each entry begins with a header in the following format:
+.Pp
 .Bd -literal -offset indent
-struct header_old_cpio {
-        unsigned short   c_magic;
-        unsigned short   c_dev;
-        unsigned short   c_ino;
-        unsigned short   c_mode;
-        unsigned short   c_uid;
-        unsigned short   c_gid;
-        unsigned short   c_nlink;
-        unsigned short   c_rdev;
-	unsigned short   c_mtime[2];
-        unsigned short   c_namesize;
-	unsigned short   c_filesize[2];
+struct header_pwb_cpio {
+        short   h_magic;
+        short   h_dev;
+        short   h_ino;
+        short   h_mode;
+        short   h_uid;
+        short   h_gid;
+        short   h_nlink;
+        short   h_majmin;
+        long    h_mtime;
+        short   h_namesize;
+        long    h_filesize;
 };
 .Ed
 .Pp
 The
-.Va unsigned short
-fields here are 16-bit integer values; the
-.Va unsigned int
-fields are 32-bit integer values.
-The fields are as follows
+.Va short
+fields here are 16-bit integer values, while the
+.Va long
+fields are 32 bit integers.  Since PWB UNIX, like the 6th Edition UNIX
+it was based on, only ran on PDP-11 computers, they
+are in PDP-endian format, which has little-endian shorts, and
+big-endian longs.  That is, the long integer whose hexadecimal
+representation is 0x12345678 would be stored in four successive bytes
+as 0x34, 0x12, 0x78, 0x56.
+The fields are as follows:
 .Bl -tag -width indent
-.It Va magic
+.It Va h_magic
 The integer value octal 070707.
-This value can be used to determine whether this archive is
-written with little-endian or big-endian integers.
-.It Va dev , Va ino
+.It Va h_dev , Va h_ino
 The device and inode numbers from the disk.
 These are used by programs that read
 .Nm
@@ -97,9 +101,94 @@ archives to determine when two entries refer to the same file.
 Programs that synthesize
 .Nm
 archives should be careful to set these to distinct values for each entry.
-.It Va mode
-The mode specifies both the regular permissions and the file type.
-It consists of several bit fields as follows:
+.It Va h_mode
+The mode specifies both the regular permissions and the file type, and
+it also holds a couple of bits that are irrelevant to the cpio format,
+because the field is actually a raw copy of the mode field in the inode
+representing the file.  These are the IALLOC flag, which shows that
+the inode entry is in use, and the ILARG flag, which shows that the
+file it represents is large enough to have indirect blocks pointers in
+the inode.
+The mode is decoded as follows:
+.Pp
+.Bl -tag -width "MMMMMMM" -compact
+.It 0100000
+IALLOC flag - irrelevant to cpio.
+.It 0060000
+This masks the file type bits.
+.It 0040000
+File type value for directories.
+.It 0020000
+File type value for character special devices.
+.It 0060000
+File type value for block special devices.
+.It 0010000
+ILARG flag - irrelevant to cpio.
+.It 0004000
+SUID bit.
+.It 0002000
+SGID bit.
+.It 0001000
+Sticky bit.
+.It 0000777
+The lower 9 bits specify read/write/execute permissions
+for world, group, and user following standard POSIX conventions.
+.El
+.It Va h_uid , Va h_gid
+The numeric user id and group id of the owner.
+.It Va h_nlink
+The number of links to this file.
+Directories always have a value of at least two here.
+Note that hardlinked files include file data with every copy in the archive.
+.It Va h_majmin
+For block special and character special entries,
+this field contains the associated device number, with the major
+number in the high byte, and the minor number in the low byte.
+For all other entry types, it should be set to zero by writers
+and ignored by readers.
+.It Va h_mtime
+Modification time of the file, indicated as the number
+of seconds since the start of the epoch,
+00:00:00 UTC January 1, 1970.
+.It Va h_namesize
+The number of bytes in the pathname that follows the header.
+This count includes the trailing NUL byte.
+.It Va h_filesize
+The size of the file.  Note that this archive format is limited to 16
+megabyte file sizes, because PWB UNIX, like 6th Edition, only used
+an unsigned 24 bit integer for the file size internally.
+.El
+.Pp
+The pathname immediately follows the fixed header.
+If
+.Cm h_namesize
+is odd, an additional NUL byte is added after the pathname.
+The file data is then appended, again with an additional NUL
+appended if needed to get the next header at an even offset.
+.Pp
+Hardlinked files are not given special treatment;
+the full file contents are included with each copy of the
+file.
+.Ss New Binary Format
+The new binary
+.Nm
+format showed up when cpio was adopted into late 7th Edition UNIX.
+It is exactly like the PWB binary format, described above, except for
+three changes:
+.Pp
+First, UNIX now ran on more than one hardware type, so the endianness
+of 16 bit integers must be determined by observing the magic number at
+the start of the header.  The 32 bit integers are still always stored
+with the most significant word first, though, so each of those two, in
+the struct shown above, was stored as an array of two 16 bit integers,
+in the traditional order.  Those 16 bit integers, like all the others
+in the struct, were accessed using a macro that byte swapped them if
+necessary.
+.Pp
+Next, 7th Edition had more file types to store, and the IALLOC and ILARG
+flag bits were re-purposed to accommodate these.  The revised use of the
+various bits is as follows:
+.Pp
 .Bl -tag -width "MMMMMMM" -compact
 .It 0170000
 This masks the file type bits.
@@ -124,51 +213,26 @@ SUID bit.
 SGID bit.
 .It 0001000
 Sticky bit.
-On some systems, this modifies the behavior of executables and/or directories.
 .It 0000777
 The lower 9 bits specify read/write/execute permissions
 for world, group, and user following standard POSIX conventions.
 .El
-.It Va uid , Va gid
-The numeric user id and group id of the owner.
-.It Va nlink
-The number of links to this file.
-Directories always have a value of at least two here.
-Note that hardlinked files include file data with every copy in the archive.
-.It Va rdev
-For block special and character special entries,
-this field contains the associated device number.
-For all other entry types, it should be set to zero by writers
-and ignored by readers.
-.It Va mtime
-Modification time of the file, indicated as the number
-of seconds since the start of the epoch,
-00:00:00 UTC January 1, 1970.
-The four-byte integer is stored with the most-significant 16 bits first
-followed by the least-significant 16 bits.
-Each of the two 16 bit values are stored in machine-native byte order.
-.It Va namesize
-The number of bytes in the pathname that follows the header.
-This count includes the trailing NUL byte.
-.It Va filesize
-The size of the file.
-Note that this archive format is limited to
-four gigabyte file sizes.
-See
-.Va mtime
-above for a description of the storage of four-byte integers.
-.El
 .Pp
-The pathname immediately follows the fixed header.
-If the
-.Cm namesize
-is odd, an additional NUL byte is added after the pathname.
-The file data is then appended, padded with NUL
-bytes to an even length.
+Finally, the file size field now represents a signed 32 bit integer in
+the underlying file system, so the maximum file size has increased to
+2 gigabytes.
 .Pp
-Hardlinked files are not given special treatment;
-the full file contents are included with each copy of the
-file.
+Note that there is no obvious way to tell which of the two binary
+formats an archive uses, other than to see which one makes more
+sense.  The typical error scenario is that a PWB format archive
+unpacked as if it were in the new format will create named sockets
+instead of directories, and then fail to unpack files that should
+go in those directories.  Running
+.Va bsdcpio -itv
+on an unknown archive will make it obvious which it is: if it's
+PWB format, directories will be listed with an 's' instead of
+a 'd' as the first character of the mode string, and the larger
+files will have a '?' in that position.
 .Ss Portable ASCII Format
 .St -susv2
 standardized an ASCII variant that is portable across all
@@ -180,6 +244,7 @@ format or as the
 format.
 It stores the same numeric fields as the old binary format, but
 represents them as 6-character or 11-character octal values.
+.Pp
 .Bd -literal -offset indent
 struct cpio_odc_header {
         char    c_magic[6];
@@ -196,9 +261,9 @@ struct cpio_odc_header {
 };
 .Ed
 .Pp
-The fields are identical to those in the old binary format.
+The fields are identical to those in the new binary format.
 The name and file body follow the fixed header.
-Unlike the old binary format, there is no additional padding
+Unlike the binary formats, there is no additional padding
 after the pathname or file contents.
 If the files being archived are themselves entirely ASCII, then
 the resulting archive will be entirely ASCII, except for the
@@ -207,6 +272,7 @@ NUL byte that terminates the name field.
 The "new" ASCII format uses 8-byte hexadecimal fields for
 all numbers and separates device numbers into separate fields
 for major and minor numbers.
+.Pp
 .Bd -literal -offset indent
 struct cpio_newc_header {
         char    c_magic[6];
@@ -227,7 +293,7 @@ struct cpio_newc_header {
 .Ed
 .Pp
 Except as specified below, the fields here match those specified
-for the old binary format above.
+for the new binary format above.
 .Bl -tag -width indent
 .It Va magic
 The string
@@ -288,9 +354,9 @@ while working in AT&T's Unix Support Group.
 It appeared in 1977 as part of PWB/UNIX 1.0, the
 .Dq Programmer's Work Bench
 derived from
-.At v6
+.At 6th Edition UNIX
 that was used internally at AT&T.
-Both the old binary and old character formats were in use
+Both the new binary and old character formats were in use
 by 1980, according to the System III source released
 by SCO under their
 .Dq Ancient Unix
@@ -304,9 +370,9 @@ The
 format is mis-named, as it uses a simple checksum and
 not a cyclic redundancy check.
 .Pp
-The old binary format is limited to 16 bits for user id,
-group id, device, and inode numbers.
-It is limited to 4 gigabyte file sizes.
+The binary formats are limited to 16 bits for user id, group id,
+device, and inode numbers.  They are limited to 16 megabyte and 2
+gigabyte file sizes for the older and newer variants, respectively.
 .Pp
 The old ASCII format is limited to 18 bits for
 the user id, group id, device, and inode numbers.

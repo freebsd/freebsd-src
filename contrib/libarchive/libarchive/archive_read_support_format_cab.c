@@ -2110,7 +2110,6 @@ lzx_decode_init(struct lzx_stream *strm, int w_bits)
 		ds->pos_tbl = malloc(sizeof(ds->pos_tbl[0]) * w_slot);
 		if (ds->pos_tbl == NULL)
 			return (ARCHIVE_FATAL);
-		lzx_huffman_free(&(ds->mt));
 	}
 
 	for (footer = 0; footer < 18; footer++)

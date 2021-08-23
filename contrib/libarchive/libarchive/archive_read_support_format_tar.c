@@ -1908,7 +1908,7 @@ pax_attribute(struct archive_read *a, struct tar *tar,
 		}
 		if (strcmp(key, "GNU.sparse.numbytes") == 0) {
 			tar->sparse_numbytes = tar_atol10(value, strlen(value));
-			if (tar->sparse_numbytes != -1) {
+			if (tar->sparse_offset != -1) {
 				if (gnu_add_sparse_entry(a, tar,
 				    tar->sparse_offset, tar->sparse_numbytes)
 				    != ARCHIVE_OK)
@@ -2645,14 +2645,14 @@ tar_atol_base_n(const char *p, size_t char_cnt, int base)
 
 		maxval = INT64_MIN;
 		limit = -(INT64_MIN / base);
-		last_digit_limit = INT64_MIN % base;
+		last_digit_limit = -(INT64_MIN % base);
 	}
 
 	l = 0;
 	if (char_cnt != 0) {
 		digit = *p - '0';
 		while (digit >= 0 && digit < base  && char_cnt != 0) {
-			if (l>limit || (l == limit && digit > last_digit_limit)) {
+			if (l>limit || (l == limit && digit >= last_digit_limit)) {
 				return maxval; /* Truncate on overflow. */
 			}
 			l = (l * base) + digit;

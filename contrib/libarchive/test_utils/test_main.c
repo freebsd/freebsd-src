@@ -3680,7 +3680,7 @@ get_refdir(const char *d)
 	}
 
 	/* Get the current dir. */
-#ifdef PATH_MAX
+#if defined(PATH_MAX) && !defined(__GLIBC__)
 	pwd = getcwd(NULL, PATH_MAX);/* Solaris getcwd needs the size. */
 #else
 	pwd = getcwd(NULL, 0);
@@ -3775,7 +3775,7 @@ main(int argc, char **argv)
 	(void)argc; /* UNUSED */
 
 	/* Get the current dir. */
-#ifdef PATH_MAX
+#if defined(PATH_MAX) && !defined(__GLIBC__)
 	pwd = getcwd(NULL, PATH_MAX);/* Solaris getcwd needs the size. */
 #else
 	pwd = getcwd(NULL, 0);
