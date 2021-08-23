@@ -232,31 +232,6 @@ ENTRY(memcpy)
 	ret
 END(memcpy)
 
-ENTRY(bcmp)
-	pushl	%edi
-	pushl	%esi
-	movl	12(%esp),%edi
-	movl	16(%esp),%esi
-	movl	20(%esp),%edx
-
-	movl	%edx,%ecx
-	shrl	$2,%ecx
-	repe
-	cmpsl
-	jne	1f
-
-	movl	%edx,%ecx
-	andl	$3,%ecx
-	repe
-	cmpsb
-1:
-	setne	%al
-	movsbl	%al,%eax
-	popl	%esi
-	popl	%edi
-	ret
-END(bcmp)
-
 /*
  * Handling of special 386 registers and descriptor tables etc
  */
