@@ -836,44 +836,6 @@ DB_SHOW_COMMAND(frame, db_show_frame)
 }
 #endif
 
-#undef bzero
-void
-bzero(void *buf, size_t len)
-{
-	caddr_t	p;
-
-	p = buf;
-
-	while (((vm_offset_t) p & (sizeof(u_long) - 1)) && len) {
-		*p++ = 0;
-		len--;
-	}
-
-	while (len >= sizeof(u_long) * 8) {
-		*(u_long*) p = 0;
-		*((u_long*) p + 1) = 0;
-		*((u_long*) p + 2) = 0;
-		*((u_long*) p + 3) = 0;
-		len -= sizeof(u_long) * 8;
-		*((u_long*) p + 4) = 0;
-		*((u_long*) p + 5) = 0;
-		*((u_long*) p + 6) = 0;
-		*((u_long*) p + 7) = 0;
-		p += sizeof(u_long) * 8;
-	}
-
-	while (len >= sizeof(u_long)) {
-		*(u_long*) p = 0;
-		len -= sizeof(u_long);
-		p += sizeof(u_long);
-	}
-
-	while (len) {
-		*p++ = 0;
-		len--;
-	}
-}
-
 /* __stack_chk_fail_local() is called in secure-plt (32-bit). */
 #if !defined(__powerpc64__)
 extern void __stack_chk_fail(void);
