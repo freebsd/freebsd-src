@@ -224,7 +224,9 @@ libarchive_la_SOURCES= \
 	libarchive/archive_write_set_format_ar.c \
 	libarchive/archive_write_set_format_by_name.c \
 	libarchive/archive_write_set_format_cpio.c \
+	libarchive/archive_write_set_format_cpio_binary.c \
 	libarchive/archive_write_set_format_cpio_newc.c \
+	libarchive/archive_write_set_format_cpio_odc.c \
 	libarchive/archive_write_set_format_filter_by_ext.c \
 	libarchive/archive_write_set_format_iso9660.c \
 	libarchive/archive_write_set_format_mtree.c \
@@ -548,6 +550,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_too_many_filters.c \
 	libarchive/test/test_read_truncated.c \
 	libarchive/test/test_read_truncated_filter.c \
+	libarchive/test/test_short_writes.c \
 	libarchive/test/test_sparse_basic.c \
 	libarchive/test/test_tar_filenames.c \
 	libarchive/test/test_tar_large.c \
@@ -557,6 +560,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_write_disk.c \
 	libarchive/test/test_write_disk_appledouble.c \
 	libarchive/test/test_write_disk_failures.c \
+	libarchive/test/test_write_disk_fixup.c \
 	libarchive/test/test_write_disk_hardlink.c \
 	libarchive/test/test_write_disk_hfs_compression.c \
 	libarchive/test/test_write_disk_lookup.c \
@@ -898,6 +902,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_warc.warc.uu \
 	libarchive/test/test_read_format_zip.zip.uu \
 	libarchive/test/test_read_format_zip_7075_utf8_paths.zip.uu \
+	libarchive/test/test_read_format_zip_7z_deflate.zip.uu \
 	libarchive/test/test_read_format_zip_7z_lzma.zip.uu \
 	libarchive/test/test_read_format_zip_bz2_hang.zip.uu \
 	libarchive/test/test_read_format_zip_bzip2.zipx.uu \

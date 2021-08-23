@@ -1844,7 +1844,7 @@ tree_next(struct tree *t)
 					continue;
 				return (r);
 			} else {
-				HANDLE h = FindFirstFileW(d, &t->_findData);
+				HANDLE h = FindFirstFileW(t->stack->full_path.s, &t->_findData);
 				if (h == INVALID_HANDLE_VALUE) {
 					la_dosmaperr(GetLastError());
 					t->tree_errno = errno;

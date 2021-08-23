@@ -10,6 +10,8 @@ FreeBSD_task:
       BS: cmake
   matrix:
     freebsd_instance:
+      image_family: freebsd-13-0
+    freebsd_instance:
       image_family: freebsd-12-2
     freebsd_instance:
       image_family: freebsd-11-4
@@ -21,7 +23,7 @@ FreeBSD_task:
   build_script:
   - ./build/ci/build.sh -a build
   test_script:
-  - ./build/ci/build.sh -a test
+  - env SKIP_TEST_RESTORE_ATIME=1 ./build/ci/build.sh -a test
   - ./build/ci/cirrus_ci/ci.sh test
   install_script:
   - ./build/ci/build.sh -a install

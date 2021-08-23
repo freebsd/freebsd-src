@@ -246,7 +246,7 @@ function hextoi(hex)
 # Exclusion code points specified by  
 # http://unicode.org/Public/6.0.0/ucd/CompositionExclusions.txt
 ##
-# 1. Script Specifices
+# 1. Script Specifics
 ##
 \$1 ~/^095[89ABCDEF]\$/ {
     next

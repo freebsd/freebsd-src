@@ -192,6 +192,12 @@ main(int argc, char *argv[])
 		case '0': /* GNU convention: --null, -0 */
 			cpio->option_null = 1;
 			break;
+		case '6': /* in/out: assume/create 6th edition (PWB) format */
+			cpio->option_pwb = 1;
+			break;
+		case '7': /* out: create archive using 7th Edition binary format */
+			cpio->format = "bin";
+			break;
 		case 'A': /* NetBSD/OpenBSD */
 			cpio->option_append = 1;
 			break;
@@ -400,11 +406,12 @@ main(int argc, char *argv[])
 
 	switch (cpio->mode) {
 	case 'o':
-		/* TODO: Implement old binary format in libarchive,
-		   use that here. */
-		if (cpio->format == NULL)
-			cpio->format = "odc"; /* Default format */
-
+		if (cpio->format == NULL) {
+			if (cpio->option_pwb)
+				cpio->format = "pwb";
+			else
+				cpio->format = "cpio";
+		}
 		mode_out(cpio);
 		break;
 	case 'i':
@@ -462,7 +469,7 @@ static const char *long_help_msg =
 	"  -v Verbose filenames     -V  one dot per file\n"
 	"Create: %p -o [options]  < [list of files] > [archive]\n"
 	"  -J,-y,-z,--lzma  Compress archive with xz/bzip2/gzip/lzma\n"
-	"  --format {odc|newc|ustar}  Select archive format\n"
+	"  --format {pwb|bin|odc|newc|ustar}  Select archive format\n"
 	"List: %p -it < [archive]\n"
 	"Extract: %p -i [options] < [archive]\n";
 
@@ -970,6 +977,8 @@ mode_in(struct cpio *cpio)
 		lafe_errc(1, 0, "Couldn't allocate archive object");
 	archive_read_support_filter_all(a);
 	archive_read_support_format_all(a);
+	if (cpio->option_pwb)
+		archive_read_set_options(a, "pwb");
 	if (cpio->passphrase != NULL)
 		r = archive_read_add_passphrase(a, cpio->passphrase);
 	else
@@ -1080,6 +1089,8 @@ mode_list(struct cpio *cpio)
 		lafe_errc(1, 0, "Couldn't allocate archive object");
 	archive_read_support_filter_all(a);
 	archive_read_support_format_all(a);
+	if (cpio->option_pwb)
+		archive_read_set_options(a, "pwb");
 	if (cpio->passphrase != NULL)
 		r = archive_read_add_passphrase(a, cpio->passphrase);
 	else

@@ -141,7 +141,7 @@ compat_lzma(const char *name)
 
 DEFINE_TEST(test_compat_lzma)
 {
-	/* This sample has been added junk datas to its tail. */
+	/* This sample has been added junk data to its tail. */
 	compat_lzma("test_compat_lzma_1.tlz");
 	/* This sample has been made by lzma with option -e,
 	 * the first byte of which is 0x5e.

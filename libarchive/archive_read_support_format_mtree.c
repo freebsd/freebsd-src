@@ -408,7 +408,7 @@ next_line(struct archive_read *a,
 		*ravail = *avail;
 		*b += diff;
 		*avail -= diff;
-		tested = len;/* Skip some bytes we already determinated. */
+		tested = len;/* Skip some bytes we already determined. */
 		len = get_line_size(*b + len, *avail - len, nl);
 		if (len >= 0)
 			len += tested;
@@ -1074,7 +1074,7 @@ read_mtree(struct archive_read *a, struct mtree *mtree)
 			continue;
 		/* Non-printable characters are not allowed */
 		for (s = p;s < p + len - 1; s++) {
-			if (!isprint(*s)) {
+			if (!isprint((unsigned char)*s)) {
 				r = ARCHIVE_FATAL;
 				break;
 			}
@@ -2035,13 +2035,13 @@ mtree_atol(char **p, int base)
 
 	if (**p == '-') {
 		limit = INT64_MIN / base;
-		last_digit_limit = INT64_MIN % base;
+		last_digit_limit = -(INT64_MIN % base);
 		++(*p);
 
 		l = 0;
 		digit = parsedigit(**p);
 		while (digit >= 0 && digit < base) {
-			if (l < limit || (l == limit && digit > last_digit_limit))
+			if (l < limit || (l == limit && digit >= last_digit_limit))
 				return INT64_MIN;
 			l = (l * base) - digit;
 			digit = parsedigit(*++(*p));

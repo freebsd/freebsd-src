@@ -46,6 +46,13 @@
 #define	__LA_DEAD
 #endif
 
+#if defined(__GNUC__) && (__GNUC__ > 2 || \
+			  (__GNUC__ == 2 && __GNUC_MINOR__ >= 7))
+#define	__LA_UNUSED	__attribute__((__unused__))
+#else
+#define	__LA_UNUSED
+#endif
+
 #define	ARCHIVE_WRITE_MAGIC	(0xb0c5c0deU)
 #define	ARCHIVE_READ_MAGIC	(0xdeb0c5U)
 #define	ARCHIVE_WRITE_DISK_MAGIC (0xc001b0c5U)

@@ -54,7 +54,7 @@ DEFINE_TEST(test_write_format_cpio_odc)
 
 	/* Create a new archive in memory. */
 	assert((a = archive_write_new()) != NULL);
-	assertEqualIntA(a, 0, archive_write_set_format_cpio(a));
+	assertEqualIntA(a, 0, archive_write_set_format_cpio_odc(a));
 	assertEqualIntA(a, 0, archive_write_add_filter_none(a));
 	assertEqualIntA(a, 0, archive_write_open_memory(a, buff, buffsize, &used));
 

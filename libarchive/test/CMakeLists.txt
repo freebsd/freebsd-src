@@ -199,6 +199,7 @@ IF(ENABLE_TEST)
     test_read_too_many_filters.c
     test_read_truncated.c
     test_read_truncated_filter.c
+    test_short_writes.c
     test_sparse_basic.c
     test_tar_filenames.c
     test_tar_large.c
@@ -208,6 +209,7 @@ IF(ENABLE_TEST)
     test_write_disk.c
     test_write_disk_appledouble.c
     test_write_disk_failures.c
+    test_write_disk_fixup.c
     test_write_disk_hardlink.c
     test_write_disk_hfs_compression.c
     test_write_disk_lookup.c

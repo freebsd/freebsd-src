@@ -37,7 +37,7 @@ has_xattr(const char *filename, const char *xattrname)
 {
 	char *nl, *nlp;
 	ssize_t r;
-	int exisiting;
+	int existing;
 
 	r = listxattr(filename, NULL, 0, XATTR_SHOWCOMPRESSION);
 	if (r < 0)
@@ -55,15 +55,15 @@ has_xattr(const char *filename, const char *xattrname)
 		return (0);
 	}
 
-	exisiting = 0;
+	existing = 0;
 	for (nlp = nl; nlp < nl + r; nlp += strlen(nlp) + 1) {
 		if (strcmp(nlp, xattrname) == 0) {
-			exisiting = 1;
+			existing = 1;
 			break;
 		}
 	}
 	free(nl);
-	return (exisiting);
+	return (existing);
 }
 #endif
 

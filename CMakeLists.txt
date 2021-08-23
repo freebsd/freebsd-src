@@ -77,7 +77,7 @@ math(EXPR INTERFACE_VERSION  "13 + ${_minor}")
 # ?? Should there be more here ??
 SET(SOVERSION "${INTERFACE_VERSION}")
 
-# Enalbe CMAKE_PUSH_CHECK_STATE() and CMAKE_POP_CHECK_STATE() macros
+# Enable CMAKE_PUSH_CHECK_STATE() and CMAKE_POP_CHECK_STATE() macros
 # saving and restoring the state of the variables.
 INCLUDE(CMakePushCheckState)
 
@@ -378,7 +378,7 @@ IF(WIN32 AND NOT CMAKE_CL_64 AND NOT CYGWIN)
   SET(__GNUWIN32PATH "C:/Program Files/GnuWin32")
 ENDIF(WIN32 AND NOT CMAKE_CL_64 AND NOT CYGWIN)
 IF(DEFINED __GNUWIN32PATH AND EXISTS "${__GNUWIN32PATH}")
-  # You have to add a path availabel DLL file into PATH environment variable.
+  # You have to add a path available DLL file into PATH environment variable.
   # Maybe DLL path is "C:/Program Files/GnuWin32/bin".
   # The zlib and the bzip2 Setup program have installed programs and DLLs into
   # "C:/Program Files/GnuWin32" by default.
@@ -1015,7 +1015,7 @@ MACRO(CHECK_ICONV LIB TRY_ICONV_CONST)
         CMAKE_C_COMPILER_ID MATCHES "^Clang$")
       #
       # During checking iconv proto type, we should use -Werror to avoid the
-      # success of iconv detection with a warnig which success is a miss
+      # success of iconv detection with a warning which success is a miss
       # detection. So this needs for all build mode(even it's a release mode).
       #
       SET(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -Werror")
@@ -1352,6 +1352,7 @@ CHECK_FUNCTION_EXISTS_GLIBC(lchflags HAVE_LCHFLAGS)
 CHECK_FUNCTION_EXISTS_GLIBC(lchmod HAVE_LCHMOD)
 CHECK_FUNCTION_EXISTS_GLIBC(lchown HAVE_LCHOWN)
 CHECK_FUNCTION_EXISTS_GLIBC(link HAVE_LINK)
+CHECK_FUNCTION_EXISTS_GLIBC(linkat HAVE_LINKAT)
 CHECK_FUNCTION_EXISTS_GLIBC(localtime_r HAVE_LOCALTIME_R)
 CHECK_FUNCTION_EXISTS_GLIBC(lstat HAVE_LSTAT)
 CHECK_FUNCTION_EXISTS_GLIBC(lutimes HAVE_LUTIMES)
@@ -1420,6 +1421,10 @@ CHECK_C_SOURCE_COMPILES(
 CHECK_C_SOURCE_COMPILES(
   "#include <sys/types.h>\n#include <sys/mount.h>\nint main(void) { struct xvfsconf v; return sizeof(v);}"
   HAVE_STRUCT_XVFSCONF)
+
+CHECK_C_SOURCE_COMPILES(
+  "#include <sys/types.h>\n#include <sys/mount.h>\nint main(void) { struct statfs s; return sizeof(s);}"
+  HAVE_STRUCT_STATFS)
 
 # Make sure we have the POSIX version of readdir_r, not the
 # older 2-argument version.
@@ -1496,9 +1501,14 @@ CHECK_STRUCT_HAS_MEMBER("struct tm" tm_gmtoff
 CHECK_STRUCT_HAS_MEMBER("struct tm" __tm_gmtoff
     "time.h" HAVE_STRUCT_TM___TM_GMTOFF)
 
+IF(HAVE_STRUCT_STATFS)
 # Check for f_namemax in struct statfs
 CHECK_STRUCT_HAS_MEMBER("struct statfs" f_namemax
     "sys/param.h;sys/mount.h" HAVE_STRUCT_STATFS_F_NAMEMAX)
+# Check for f_iosize in struct statfs
+CHECK_STRUCT_HAS_MEMBER("struct statfs" f_iosize
+    "sys/param.h;sys/mount.h" HAVE_STRUCT_STATFS_F_IOSIZE)
+ENDIF(HAVE_STRUCT_STATFS)
 
 # Check for birthtime in struct stat
 CHECK_STRUCT_HAS_MEMBER("struct stat" st_birthtime

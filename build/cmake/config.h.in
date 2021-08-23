@@ -744,6 +744,9 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have the `link' function. */
 #cmakedefine HAVE_LINK 1
 
+/* Define to 1 if you have the `linkat' function. */
+#cmakedefine HAVE_LINKAT 1
+
 /* Define to 1 if you have the <linux/fiemap.h> header file. */
 #cmakedefine HAVE_LINUX_FIEMAP_H 1
 

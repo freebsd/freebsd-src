@@ -99,7 +99,7 @@ replace ()
             print \".Dt ${binary^^} 1\";
             next;
         }
-        # replace the first occurence of \"$pattern\" by \"$binary\"
+        # replace the first occurrence of \"$pattern\" by \"$binary\"
         !stop && /^.Nm $pattern/ {
             print \".Nm $binary\" ;
             stop = 1 ;

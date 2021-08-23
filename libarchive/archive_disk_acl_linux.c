@@ -343,6 +343,11 @@ set_richacl(struct archive *a, int fd, const char *name,
 		return (ARCHIVE_FAILED);
 	}
 
+	if (S_ISLNK(mode)) {
+		/* Linux does not support RichACLs on symbolic links */
+		return (ARCHIVE_OK);
+	}
+
 	richacl = richacl_alloc(entries);
 	if (richacl == NULL) {
 		archive_set_error(a, errno,
@@ -455,7 +460,7 @@ exit_free:
 #if ARCHIVE_ACL_LIBACL
 static int
 set_acl(struct archive *a, int fd, const char *name,
-    struct archive_acl *abstract_acl,
+    struct archive_acl *abstract_acl, __LA_MODE_T mode,
     int ae_requested_type, const char *tname)
 {
 	int		 acl_type = 0;
@@ -486,6 +491,18 @@ set_acl(struct archive *a, int fd, const char *name,
 		errno = ENOENT;
 		archive_set_error(a, errno, "Unsupported ACL type");
 		return (ARCHIVE_FAILED);
+	}
+
+	if (S_ISLNK(mode)) {
+		/* Linux does not support ACLs on symbolic links */
+		return (ARCHIVE_OK);
+	}
+
+	if (acl_type == ACL_TYPE_DEFAULT && !S_ISDIR(mode)) {
+		errno = EINVAL;
+		archive_set_error(a, errno,
+		    "Cannot set default ACL on non-directory");
+		return (ARCHIVE_WARN);
 	}
 
 	acl = acl_init(entries);
@@ -727,14 +744,14 @@ archive_write_disk_set_acls(struct archive *a, int fd, const char *name,
 	    & ARCHIVE_ENTRY_ACL_TYPE_POSIX1E) != 0) {
 		if ((archive_acl_types(abstract_acl)
 		    & ARCHIVE_ENTRY_ACL_TYPE_ACCESS) != 0) {
-			ret = set_acl(a, fd, name, abstract_acl,
+			ret = set_acl(a, fd, name, abstract_acl, mode,
 			    ARCHIVE_ENTRY_ACL_TYPE_ACCESS, "access");
 			if (ret != ARCHIVE_OK)
 				return (ret);
 		}
 		if ((archive_acl_types(abstract_acl)
 		    & ARCHIVE_ENTRY_ACL_TYPE_DEFAULT) != 0)
-			ret = set_acl(a, fd, name, abstract_acl,
+			ret = set_acl(a, fd, name, abstract_acl, mode,
 			    ARCHIVE_ENTRY_ACL_TYPE_DEFAULT, "default");
 	}
 #endif	/* ARCHIVE_ACL_LIBACL */

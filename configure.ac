@@ -4,8 +4,8 @@ dnl First, define all of the version numbers up front.
 dnl In particular, this allows the version macro to be used in AC_INIT
 
 dnl These first two version numbers are updated automatically on each release.
-m4_define([LIBARCHIVE_VERSION_S],[3.5.1])
-m4_define([LIBARCHIVE_VERSION_N],[3005001])
+m4_define([LIBARCHIVE_VERSION_S],[3.5.2])
+m4_define([LIBARCHIVE_VERSION_N],[3005002])
 
 dnl bsdtar and bsdcpio versioning tracks libarchive
 m4_define([BSDTAR_VERSION_S],LIBARCHIVE_VERSION_S())
@@ -107,6 +107,7 @@ AC_SUBST(PLATFORMCPPFLAGS)
 AC_PROG_CC
 AC_PROG_CC_C99
 AM_PROG_CC_C_O
+AC_PROG_CPP
 AC_USE_SYSTEM_EXTENSIONS
 AC_LIBTOOL_WIN32_DLL
 AC_PROG_LIBTOOL
@@ -380,7 +381,7 @@ if test "x$with_iconv" != "xno"; then
     AC_CHECK_FUNCS([locale_charset])
     LIBS="${am_save_LIBS}"
     if test "x$ac_cv_func_locale_charset" != "xyes"; then
-      # If locale_charset() is not in libiconv, we have to find libcharset. 
+      # If locale_charset() is not in libiconv, we have to find libcharset.
       AC_CHECK_LIB(charset,locale_charset)
     fi
   fi
@@ -565,6 +566,13 @@ AC_CHECK_MEMBERS([struct statfs.f_namemax],,,
 #include <sys/mount.h>
 ])
 
+# Check for f_iosize in struct statfs
+AC_CHECK_MEMBERS([struct statfs.f_iosize],,,
+[
+#include <sys/param.h>
+#include <sys/mount.h>
+])
+
 # Check for f_iosize in struct statvfs
 AC_CHECK_MEMBERS([struct statvfs.f_iosize],,,
 [
@@ -648,7 +656,7 @@ AC_CHECK_FUNCS([fstat fstatat fstatfs fstatvfs ftruncate])
 AC_CHECK_FUNCS([futimens futimes futimesat])
 AC_CHECK_FUNCS([geteuid getpid getgrgid_r getgrnam_r])
 AC_CHECK_FUNCS([getpwnam_r getpwuid_r getvfsbyname gmtime_r])
-AC_CHECK_FUNCS([lchflags lchmod lchown link localtime_r lstat lutimes])
+AC_CHECK_FUNCS([lchflags lchmod lchown link linkat localtime_r lstat lutimes])
 AC_CHECK_FUNCS([mbrtowc memmove memset])
 AC_CHECK_FUNCS([mkdir mkfifo mknod mkstemp])
 AC_CHECK_FUNCS([nl_langinfo openat pipe poll posix_spawnp readlink readlinkat])
@@ -671,6 +679,13 @@ AC_CHECK_TYPES(struct vfsconf,,,
 	])
 
 AC_CHECK_TYPES(struct xvfsconf,,,
+	[#if HAVE_SYS_TYPES_H
+	#include <sys/types.h>
+	#endif
+	#include <sys/mount.h>
+	])
+
+AC_CHECK_TYPES(struct statfs,,,
 	[#if HAVE_SYS_TYPES_H
 	#include <sys/types.h>
 	#endif

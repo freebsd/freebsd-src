@@ -443,7 +443,7 @@ translate_acl(struct archive_read_disk *a,
 
 static int
 set_acl(struct archive *a, int fd, const char *name,
-    struct archive_acl *abstract_acl,
+    struct archive_acl *abstract_acl, __LA_MODE_T mode,
     int ae_requested_type, const char *tname)
 {
 	aclent_t	 *aclent;
@@ -466,7 +466,6 @@ set_acl(struct archive *a, int fd, const char *name,
 	entries = archive_acl_reset(abstract_acl, ae_requested_type);
 	if (entries == 0)
 		return (ARCHIVE_OK);
-
 
 	switch (ae_requested_type) {
 	case ARCHIVE_ENTRY_ACL_TYPE_POSIX1E:
@@ -491,6 +490,12 @@ set_acl(struct archive *a, int fd, const char *name,
 		    "Can't allocate memory for acl buffer");
 		return (ARCHIVE_FAILED);
 	}
+
+        if (S_ISLNK(mode)) {
+                /* Skip ACLs on symbolic links */
+		ret = ARCHIVE_OK;
+		goto exit_free;
+        }
 
 	e = 0;
 
@@ -801,7 +806,7 @@ archive_write_disk_set_acls(struct archive *a, int fd, const char *name,
 	if ((archive_acl_types(abstract_acl)
 	    & ARCHIVE_ENTRY_ACL_TYPE_POSIX1E) != 0) {
 		/* Solaris writes POSIX.1e access and default ACLs together */
-		ret = set_acl(a, fd, name, abstract_acl,
+		ret = set_acl(a, fd, name, abstract_acl, mode,
 		    ARCHIVE_ENTRY_ACL_TYPE_POSIX1E, "posix1e");
 
 		/* Simultaneous POSIX.1e and NFSv4 is not supported */
@@ -810,7 +815,7 @@ archive_write_disk_set_acls(struct archive *a, int fd, const char *name,
 #if ARCHIVE_ACL_SUNOS_NFS4
 	else if ((archive_acl_types(abstract_acl) &
 	    ARCHIVE_ENTRY_ACL_TYPE_NFS4) != 0) {
-		ret = set_acl(a, fd, name, abstract_acl,
+		ret = set_acl(a, fd, name, abstract_acl, mode,
 		    ARCHIVE_ENTRY_ACL_TYPE_NFS4, "nfs4");
 	}
 #endif
