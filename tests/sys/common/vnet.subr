@@ -23,6 +23,13 @@ vnet_mkbridge()
 	echo ${ifname}
 }
 
+vnet_mkvlan()
+{
+	ifname=$(ifconfig vlan create)
+	echo ${ifname} >> created_interfaces.lst
+	echo ${ifname}
+}
+
 vnet_mkjail()
 {
 	jailname=$1
