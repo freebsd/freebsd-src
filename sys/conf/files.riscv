@@ -21,7 +21,6 @@ kern/subr_devmap.c		standard
 kern/subr_dummy_vdso_tc.c	standard
 kern/subr_intr.c		standard
 kern/subr_physmem.c		standard
-libkern/bcmp.c			standard
 libkern/bcopy.c			standard
 libkern/ffs.c			standard
 libkern/ffsl.c			standard
