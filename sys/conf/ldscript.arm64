@@ -82,6 +82,21 @@ SECTIONS
     *(.data)
     *(.gnu.linkonce.d*)
   }
+  . = ALIGN(128);
+  .data.read_frequently :
+  {
+    *(SORT_BY_ALIGNMENT(.data.read_frequently))
+  }
+  .data.read_mostly :
+  {
+    *(.data.read_mostly)
+  }
+  . = ALIGN(128);
+  .data.exclusive_cache_line :
+  {
+    *(.data.exclusive_cache_line)
+  }
+  . = ALIGN(128);
   .data1   : { *(.data1) }
   . = ALIGN(32 / 8);
   _start_ctors = .;
