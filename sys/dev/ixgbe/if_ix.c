@@ -4694,27 +4694,33 @@ ixgbe_sbuf_fw_version(struct ixgbe_hw *hw, struct sbuf *buf)
 	struct ixgbe_nvm_version nvm_ver = {0};
 	uint16_t phyfw = 0;
 	int status;
+	const char *space = "";
 
 	ixgbe_get_oem_prod_version(hw, &nvm_ver); /* OEM's NVM version */
 	ixgbe_get_orom_version(hw, &nvm_ver); /* Option ROM */
 	ixgbe_get_etk_id(hw, &nvm_ver); /* eTrack identifies a build in Intel's SCM */
 	status = ixgbe_get_phy_firmware_version(hw, &phyfw);
 
-	if (nvm_ver.oem_valid)
-		sbuf_printf(buf, "NVM OEM V%d.%d R%d ", nvm_ver.oem_major,
+	if (nvm_ver.oem_valid) {
+		sbuf_printf(buf, "NVM OEM V%d.%d R%d", nvm_ver.oem_major,
 		    nvm_ver.oem_minor, nvm_ver.oem_release);
+		space = " ";
+	}
 
-	if (nvm_ver.or_valid)
-		sbuf_printf(buf, "Option ROM V%d-b%d-p%d ", nvm_ver.or_major,
-		    nvm_ver.or_build, nvm_ver.or_patch);
+	if (nvm_ver.or_valid) {
+		sbuf_printf(buf, "%sOption ROM V%d-b%d-p%d",
+		    space, nvm_ver.or_major, nvm_ver.or_build, nvm_ver.or_patch);
+		space = " ";
+	}
 
-	if (nvm_ver.etk_id != ((NVM_VER_INVALID << NVM_ETK_SHIFT) | NVM_VER_INVALID))
-		sbuf_printf(buf, "eTrack 0x%08x ", nvm_ver.etk_id);
+	if (nvm_ver.etk_id != ((NVM_VER_INVALID << NVM_ETK_SHIFT) |
+	    NVM_VER_INVALID)) {
+		sbuf_printf(buf, "%seTrack 0x%08x", space, nvm_ver.etk_id);
+		space = " ";
+	}
 
 	if (phyfw != 0 && status == IXGBE_SUCCESS)
-		sbuf_printf(buf, "PHY FW V%d ", phyfw);
-
-	sbuf_trim(buf);
+		sbuf_printf(buf, "%sPHY FW V%d", space, phyfw);
 } /* ixgbe_sbuf_fw_version */
 
 /************************************************************************
