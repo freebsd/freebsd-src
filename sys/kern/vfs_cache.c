@@ -253,6 +253,8 @@ SDT_PROBE_DEFINE3(vfs, fplookup, lookup, done, "struct nameidata", "int", "bool"
 SDT_PROBE_DECLARE(vfs, namei, lookup, entry);
 SDT_PROBE_DECLARE(vfs, namei, lookup, return);
 
+static char __read_frequently cache_fast_lookup_enabled = true;
+
 /*
  * This structure describes the elements in the cache of recent
  * names looked up by namei.
@@ -442,10 +444,6 @@ static u_long __exclusive_cache_line	numneg;	/* number of negative entries alloc
 static u_long __exclusive_cache_line	numcache;/* number of cache entries allocated */
 
 struct nchstats	nchstats;		/* cache effectiveness statistics */
-
-static bool __read_frequently cache_fast_revlookup = true;
-SYSCTL_BOOL(_vfs, OID_AUTO, cache_fast_revlookup, CTLFLAG_RW,
-    &cache_fast_revlookup, 0, "");
 
 static bool __read_mostly cache_rename_add = true;
 SYSCTL_BOOL(_vfs, OID_AUTO, cache_rename_add, CTLFLAG_RW,
@@ -3440,7 +3438,7 @@ vn_fullpath_any_smr(struct vnode *vp, struct vnode *rdir, char *buf,
 
 	VFS_SMR_ASSERT_ENTERED();
 
-	if (!cache_fast_revlookup) {
+	if (!atomic_load_char(&cache_fast_lookup_enabled)) {
 		vfs_smr_exit();
 		return (-1);
 	}
@@ -3845,7 +3843,6 @@ DB_SHOW_COMMAND(vpath, db_show_vpath)
 #endif
 
 static int cache_fast_lookup = 1;
-static char __read_frequently cache_fast_lookup_enabled = true;
 
 #define CACHE_FPL_FAILED	-2020
 
