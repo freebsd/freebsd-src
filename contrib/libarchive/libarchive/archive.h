@@ -36,7 +36,7 @@
  * assert that ARCHIVE_VERSION_NUMBER >= 2012108.
  */
 /* Note: Compiler will complain if this does not match archive_entry.h! */
-#define	ARCHIVE_VERSION_NUMBER 3005001
+#define	ARCHIVE_VERSION_NUMBER 3005002
 
 #include <sys/stat.h>
 #include <stddef.h>  /* for wchar_t */
@@ -155,7 +155,7 @@ __LA_DECL int		archive_version_number(void);
 /*
  * Textual name/version of the library, useful for version displays.
  */
-#define	ARCHIVE_VERSION_ONLY_STRING "3.5.1"
+#define	ARCHIVE_VERSION_ONLY_STRING "3.5.2"
 #define	ARCHIVE_VERSION_STRING "libarchive " ARCHIVE_VERSION_ONLY_STRING
 __LA_DECL const char *	archive_version_string(void);
 
@@ -319,6 +319,7 @@ typedef const char *archive_passphrase_callback(struct archive *,
 #define	ARCHIVE_FORMAT_CPIO_SVR4_NOCRC		(ARCHIVE_FORMAT_CPIO | 4)
 #define	ARCHIVE_FORMAT_CPIO_SVR4_CRC		(ARCHIVE_FORMAT_CPIO | 5)
 #define	ARCHIVE_FORMAT_CPIO_AFIO_LARGE		(ARCHIVE_FORMAT_CPIO | 6)
+#define	ARCHIVE_FORMAT_CPIO_PWB			(ARCHIVE_FORMAT_CPIO | 7)
 #define	ARCHIVE_FORMAT_SHAR			0x20000
 #define	ARCHIVE_FORMAT_SHAR_BASE		(ARCHIVE_FORMAT_SHAR | 1)
 #define	ARCHIVE_FORMAT_SHAR_DUMP		(ARCHIVE_FORMAT_SHAR | 2)
@@ -800,7 +801,10 @@ __LA_DECL int archive_write_set_format_7zip(struct archive *);
 __LA_DECL int archive_write_set_format_ar_bsd(struct archive *);
 __LA_DECL int archive_write_set_format_ar_svr4(struct archive *);
 __LA_DECL int archive_write_set_format_cpio(struct archive *);
+__LA_DECL int archive_write_set_format_cpio_bin(struct archive *);
 __LA_DECL int archive_write_set_format_cpio_newc(struct archive *);
+__LA_DECL int archive_write_set_format_cpio_odc(struct archive *);
+__LA_DECL int archive_write_set_format_cpio_pwb(struct archive *);
 __LA_DECL int archive_write_set_format_gnutar(struct archive *);
 __LA_DECL int archive_write_set_format_iso9660(struct archive *);
 __LA_DECL int archive_write_set_format_mtree(struct archive *);

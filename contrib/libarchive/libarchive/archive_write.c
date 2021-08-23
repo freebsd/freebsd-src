@@ -482,6 +482,8 @@ archive_write_client_close(struct archive_write_filter *f)
 	ssize_t block_length;
 	ssize_t target_block_length;
 	ssize_t bytes_written;
+	size_t to_write;
+	char *p;
 	int ret = ARCHIVE_OK;
 
 	/* If there's pending data, pad and write the last block */
@@ -504,9 +506,24 @@ archive_write_client_close(struct archive_write_filter *f)
 			    target_block_length - block_length);
 			block_length = target_block_length;
 		}
-		bytes_written = (a->client_writer)(&a->archive,
-		    a->client_data, state->buffer, block_length);
-		ret = bytes_written <= 0 ? ARCHIVE_FATAL : ARCHIVE_OK;
+		p = state->buffer;
+		to_write = block_length;
+		while (to_write > 0) {
+			bytes_written = (a->client_writer)(&a->archive,
+			    a->client_data, p, to_write);
+			if (bytes_written <= 0) {
+				ret = ARCHIVE_FATAL;
+				break;
+			}
+			if ((size_t)bytes_written > to_write) {
+				archive_set_error(&(a->archive),
+						  -1, "write overrun");
+				ret = ARCHIVE_FATAL;
+				break;
+			}
+			p += bytes_written;
+			to_write -= bytes_written;
+		}
 	}
 	if (a->client_closer)
 		(*a->client_closer)(&a->archive, a->client_data);

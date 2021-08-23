@@ -79,6 +79,7 @@ Currently, the library automatically detects and reads the following formats:
   * POSIX octet-oriented cpio
   * SVR4 ASCII cpio
   * Binary cpio (big-endian or little-endian)
+  * PWB binary cpio
   * ISO9660 CD-ROM images (with optional Rockridge or Joliet extensions)
   * ZIP archives (with uncompressed or "deflate" compressed entries, including support for encrypted Zip archives)
   * ZIPX archives (with support for bzip2, ppmd8, lzma and xz compressed entries)
@@ -110,6 +111,8 @@ The library can create archives in any of the following formats:
   * Old V7 tar format
   * POSIX octet-oriented cpio
   * SVR4 "newc" cpio
+  * Binary cpio (little-endian)
+  * PWB binary cpio
   * shar archives
   * ZIP archives (with uncompressed or "deflate" compressed entries)
   * GNU and BSD 'ar' archives

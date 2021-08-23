@@ -577,7 +577,7 @@ DEFINE_TEST(test_sparse_basic)
 
 	/* Check if the filesystem where CWD on can
 	 * report the number of the holes of a sparse file. */
-#ifdef PATH_MAX
+#if defined(PATH_MAX) && !defined(__GLIBC__)
 	cwd = getcwd(NULL, PATH_MAX);/* Solaris getcwd needs the size. */
 #else
 	cwd = getcwd(NULL, 0);
@@ -637,7 +637,7 @@ DEFINE_TEST(test_fully_sparse_files)
 
 	/* Check if the filesystem where CWD on can
 	 * report the number of the holes of a sparse file. */
-#ifdef PATH_MAX
+#if defined(PATH_MAX) && !defined(__GLIBC__)
 	cwd = getcwd(NULL, PATH_MAX);/* Solaris getcwd needs the size. */
 #else
 	cwd = getcwd(NULL, 0);

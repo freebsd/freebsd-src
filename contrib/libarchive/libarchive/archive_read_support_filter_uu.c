@@ -248,7 +248,7 @@ bid_get_line(struct archive_read_filter *filter,
 		*ravail = *avail;
 		*b += diff;
 		*avail -= diff;
-		tested = len;/* Skip some bytes we already determinated. */
+		tested = len;/* Skip some bytes we already determined. */
 		len = get_line(*b + tested, *avail - tested, nl);
 		if (len >= 0)
 			len += tested;

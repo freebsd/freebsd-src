@@ -958,17 +958,17 @@ archive_read_format_rar_read_header(struct archive_read *a,
       crc32_val = 0;
       while (skip > 0) {
 	      size_t to_read = skip;
-	      ssize_t did_read;
-	      if (to_read > 32 * 1024) {
+	      if (to_read > 32 * 1024)
 		      to_read = 32 * 1024;
-	      }
-	      if ((h = __archive_read_ahead(a, to_read, &did_read)) == NULL) {
+	      if ((h = __archive_read_ahead(a, to_read, NULL)) == NULL) {
+		      archive_set_error(&a->archive,  ARCHIVE_ERRNO_FILE_FORMAT,
+			  "Bad RAR file");
 		      return (ARCHIVE_FATAL);
 	      }
 	      p = h;
-	      crc32_val = crc32(crc32_val, (const unsigned char *)p, (unsigned)did_read);
-	      __archive_read_consume(a, did_read);
-	      skip -= did_read;
+	      crc32_val = crc32(crc32_val, (const unsigned char *)p, to_read);
+	      __archive_read_consume(a, to_read);
+	      skip -= to_read;
       }
       if ((crc32_val & 0xffff) != crc32_expected) {
 	      archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,

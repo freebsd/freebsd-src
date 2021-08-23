@@ -201,28 +201,27 @@ POSIX.1-2001 extended the ustar format to create the
 .Dq pax interchange
 format.
 .Ss Cpio Formats
-The libarchive library can read a number of common cpio variants and can write
-.Dq odc
-and
-.Dq newc
-format archives.
-A cpio archive stores each entry as a fixed-size header followed
-by a variable-length filename and variable-length data.
-Unlike the tar format, the cpio format does only minimal padding
-of the header or file data.
-There are several cpio variants, which differ primarily in
-how they store the initial header: some store the values as
-octal or hexadecimal numbers in ASCII, others as binary values of
-varying byte order and length.
+The libarchive library can read and write a number of common cpio
+variants.  A cpio archive stores each entry as a fixed-size header
+followed by a variable-length filename and variable-length data.
+Unlike the tar format, the cpio format does only minimal padding of
+the header or file data.  There are several cpio variants, which
+differ primarily in how they store the initial header: some store the
+values as octal or hexadecimal numbers in ASCII, others as binary
+values of varying byte order and length.
 .Bl -tag -width indent
 .It Cm binary
-The libarchive library transparently reads both big-endian and little-endian
-variants of the original binary cpio format.
-This format used 32-bit binary values for file size and mtime,
-and 16-bit binary values for the other fields.
+The libarchive library transparently reads both big-endian and
+little-endian variants of the the two binary cpio formats; the
+original one from PWB/UNIX, and the later, more widely used, variant.
+This format used 32-bit binary values for file size and mtime, and
+16-bit binary values for the other fields.  The formats support only
+the file types present in UNIX at the time of their creation.  File
+sizes are limited to 24 bits in the PWB format, because of the limits
+of the file system, and to 31 bits in the newer binary format, where
+signed 32 bit longs were used.
 .It Cm odc
-The libarchive library can both read and write this
-POSIX-standard format, which is officially known as the
+This is the POSIX standardized format, which is officially known as the
 .Dq cpio interchange format
 or the
 .Dq octet-oriented cpio archive format

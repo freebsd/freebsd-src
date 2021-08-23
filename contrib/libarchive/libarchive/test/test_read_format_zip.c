@@ -998,3 +998,30 @@ DEFINE_TEST(test_read_format_zip_7z_lzma)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_free(a));
 }
+
+DEFINE_TEST(test_read_format_zip_7z_deflate)
+{
+	const char *refname = "test_read_format_zip_7z_deflate.zip";
+	struct archive_entry *ae;
+	struct archive *a;
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	extract_reference_file(refname);
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_zip(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+		archive_read_open_filename(a, refname, 10240));
+	//read first symlink
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualInt(AE_IFLNK, archive_entry_filetype(ae));
+	assertEqualString("libxkbcommon-x11.so.0.0.0",
+		archive_entry_symlink(ae));
+	//read second symlink
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualInt(AE_IFLNK, archive_entry_filetype(ae));
+	assertEqualString("libxkbcommon-x11.so.0.0.0",
+		archive_entry_symlink(ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_free(a));
+}

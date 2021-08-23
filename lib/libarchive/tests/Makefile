@@ -214,6 +214,7 @@ TESTS_SRCS= \
 	test_read_too_many_filters.c		\
 	test_read_truncated.c			\
 	test_read_truncated_filter.c		\
+	test_short_writes.c			\
 	test_sparse_basic.c			\
 	test_tar_filenames.c			\
 	test_tar_large.c			\
@@ -223,6 +224,7 @@ TESTS_SRCS= \
 	test_write_disk.c			\
 	test_write_disk_appledouble.c		\
 	test_write_disk_failures.c		\
+	test_write_disk_fixup.c			\
 	test_write_disk_hardlink.c		\
 	test_write_disk_hfs_compression.c	\
 	test_write_disk_lookup.c		\
@@ -582,6 +584,7 @@ ${PACKAGE}FILES+=	test_read_format_ustar_filename_koi8r.tar.Z.uu
 ${PACKAGE}FILES+=	test_read_format_warc.warc.uu
 ${PACKAGE}FILES+=	test_read_format_zip.zip.uu
 ${PACKAGE}FILES+=	test_read_format_zip_7075_utf8_paths.zip.uu
+${PACKAGE}FILES+=	test_read_format_zip_7z_deflate.zip.uu
 ${PACKAGE}FILES+=	test_read_format_zip_7z_lzma.zip.uu
 ${PACKAGE}FILES+=	test_read_format_zip_bz2_hang.zip.uu
 ${PACKAGE}FILES+=	test_read_format_zip_bzip2.zipx.uu

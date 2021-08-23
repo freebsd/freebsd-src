@@ -4076,6 +4076,7 @@ int archive_read_support_format_rar5(struct archive *_a) {
 	if(ARCHIVE_OK != rar5_init(rar)) {
 		archive_set_error(&ar->archive, ENOMEM,
 		    "Can't allocate rar5 filter buffer");
+		free(rar);
 		return ARCHIVE_FATAL;
 	}
 

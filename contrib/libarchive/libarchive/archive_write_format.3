@@ -35,7 +35,10 @@
 .Nm archive_write_set_format_ar_svr4 ,
 .Nm archive_write_set_format_by_name ,
 .Nm archive_write_set_format_cpio ,
+.Nm archive_write_set_format_cpio_bin ,
 .Nm archive_write_set_format_cpio_newc ,
+.Nm archive_write_set_format_cpio_odc ,
+.Nm archive_write_set_format_cpio_pwb ,
 .Nm archive_write_set_format_filter_by_ext ,
 .Nm archive_write_set_format_filter_by_ext_def ,
 .Nm archive_write_set_format_gnutar ,
@@ -73,7 +76,13 @@ Streaming Archive Library (libarchive, -larchive)
 .Ft int
 .Fn archive_write_set_format_cpio "struct archive *"
 .Ft int
+.Fn archive_write_set_format_cpio_bin "struct archive *"
+.Ft int
 .Fn archive_write_set_format_cpio_newc "struct archive *"
+.Ft int
+.Fn archive_write_set_format_cpio_odc "struct archive *"
+.Ft int
+.Fn archive_write_set_format_cpio_pwb "struct archive *"
 .Ft int
 .Fn archive_write_set_format_filter_by_ext "struct archive *" "const char *filename"
 .Ft int
@@ -119,17 +128,20 @@ to create a new archive with the same format as an existing archive.
 .It Fn archive_write_set_format_by_name
 Sets the corresponding format based on the common name.
 .It Xo
-.Fn archive_write_set_format_filter_by_ext ,
+.Fn archive_write_set_format_filter_by_ext
 .Fn archive_write_set_format_filter_by_ext_def
 .Xc
 Sets both filters and format based on the output filename.
 Supported extensions: .7z, .zip, .jar, .cpio, .iso, .a, .ar, .tar, .tgz, .tar.gz, .tar.bz2, .tar.xz
 .It Xo
 .Fn archive_write_set_format_7zip
-.Fn archive_write_set_format_ar_bsd ,
-.Fn archive_write_set_format_ar_svr4 ,
+.Fn archive_write_set_format_ar_bsd
+.Fn archive_write_set_format_ar_svr4
 .Fn archive_write_set_format_cpio
+.Fn archive_write_set_format_cpio_bin
 .Fn archive_write_set_format_cpio_newc
+.Fn archive_write_set_format_cpio_odc
+.Fn archive_write_set_format_cpio_pwb
 .Fn archive_write_set_format_gnutar
 .Fn archive_write_set_format_iso9660
 .Fn archive_write_set_format_mtree

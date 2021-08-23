@@ -82,6 +82,13 @@ all operating modes.
 .It Fl 0 , Fl Fl null
 Read filenames separated by NUL characters instead of newlines.
 This is necessary if any of the filenames being read might contain newlines.
+.It Fl 6 , Fl Fl pwb
+When reading a binary format archive, assume it's the earlier one,
+from the PWB variant of 6th Edition UNIX.
+When writing a cpio archive, use the PWB format.
+.It Fl 7 , Fl Fl binary
+(o mode only)
+When writing a cpio archive, use the (newer, non-PWB) binary format.
 .It Fl A
 (o mode only)
 Append to the specified archive.
