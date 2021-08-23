@@ -84,12 +84,7 @@ __FBSDID("$FreeBSD$");
    unrolled loop processes 64 bytes per iteration.
 */
 
-ENTRY(bcopy)
-	/* Switch the input pointers when called as bcopy */
-	mov	x3, x1
-	mov	x1, x0
-	mov	x0, x3
-EENTRY(memmove)
+ENTRY(memmove)
 	sub	tmp1, dstin, src
 	cmp	count, 96
 	ccmp	tmp1, count, 2, hi
@@ -146,5 +141,4 @@ EENTRY(memmove)
 	stp	B_l, B_h, [dstin, 16]
 	stp	C_l, C_h, [dstin]
 3:	ret
-EEND(memmove)
-END(bcopy)
+END(memmove)
