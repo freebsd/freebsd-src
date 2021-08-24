@@ -285,6 +285,7 @@ void evdev_mt_set_last_slot(struct evdev_dev *, int);
 int32_t evdev_mt_get_value(struct evdev_dev *, int, int16_t);
 void evdev_mt_set_value(struct evdev_dev *, int, int16_t, int32_t);
 int32_t evdev_mt_reassign_id(struct evdev_dev *, int, int32_t);
+bool evdev_mt_record_event(struct evdev_dev *, uint16_t, uint16_t, int32_t);
 
 /* Utility functions: */
 void evdev_client_dumpqueue(struct evdev_client *);
