@@ -74,6 +74,14 @@ and
 are updated to reflect the portion of the range that
 still needs to be zeroed/deallocated on return.
 Partial result is considered a successful operation.
+For a successful completion without an unprocessed portion of the range,
+.Fa *len
+is updated to be the value 0, and
+.Fa *offset
+is updated to be the smallest of
+.Fa *offset +
+.Fa *len
+passed to the call and the end-of-file offset.
 .Sh LOCKS
 The vnode should be locked on entry and will still be locked on exit.
 .Sh RETURN VALUES
