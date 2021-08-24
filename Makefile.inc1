@@ -93,6 +93,9 @@ X${COMPILER}?=	${${COMPILER}}
 # a cross compiler.
 .if ${XCC:N${CCACHE_BIN}:M/*}
 MK_CLANG_BOOTSTRAP=	no
+# Make sure sub-makes see the option as disabled so the hack in bsd.sys.mk to
+# work around incompatible headers in Clang's resource directory is enabled.
+.MAKEOVERRIDES+=	MK_CLANG_BOOTSTRAP
 .endif
 
 # Pull in compiler metadata from buildworld/toolchain if possible to avoid
