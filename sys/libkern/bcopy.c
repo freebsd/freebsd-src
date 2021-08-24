@@ -52,7 +52,6 @@ __FBSDID("$FreeBSD$");
 
 #undef memcpy
 #undef memmove
-#undef bcopy
 
 /*
  * sizeof(word) MUST BE A POWER OF TWO
@@ -147,10 +146,3 @@ done:
 }
 
 __strong_reference(memcpy, memmove);
-
-void
-(bcopy)(const void *src0, void *dst0, size_t length)
-{
-
-	memcpy(dst0, src0, length);
-}
