@@ -442,6 +442,7 @@ pci_vtcon_sock_rx(int fd __unused, enum ev_type t __unused, void *arg)
 
 	do {
 		n = vq_getchain(vq, &iov, 1, &req);
+		assert(n == 1);
 		len = readv(sock->vss_conn_fd, &iov, n);
 
 		if (len == 0 || (len < 0 && errno == EWOULDBLOCK)) {
@@ -582,7 +583,6 @@ pci_vtcon_control_send(struct pci_vtcon_softc *sc,
 		return;
 
 	n = vq_getchain(vq, &iov, 1, &req);
-
 	assert(n == 1);
 
 	memcpy(iov.iov_base, ctrl, sizeof(struct pci_vtcon_control));
@@ -602,14 +602,14 @@ pci_vtcon_notify_tx(void *vsc, struct vqueue_info *vq)
 	struct pci_vtcon_port *port;
 	struct iovec iov[1];
 	struct vi_req req;
-	uint16_t n;
+	int n;
 
 	sc = vsc;
 	port = pci_vtcon_vq_to_port(sc, vq);
 
 	while (vq_has_descs(vq)) {
 		n = vq_getchain(vq, iov, 1, &req);
-		assert(n >= 1);
+		assert(n == 1);
 		if (port != NULL)
 			port->vsp_cb(port, port->vsp_arg, iov, 1);
 

@@ -559,15 +559,16 @@ pci_vtscsi_controlq_notify(void *vsc, struct vqueue_info *vq)
 	struct pci_vtscsi_softc *sc;
 	struct iovec iov[VTSCSI_MAXSEG];
 	struct vi_req req;
-	uint16_t n;
 	void *buf = NULL;
 	size_t bufsize;
-	int iolen;
+	int iolen, n;
 
 	sc = vsc;
 
 	while (vq_has_descs(vq)) {
 		n = vq_getchain(vq, iov, VTSCSI_MAXSEG, &req);
+		assert(n >= 1 && n <= VTSCSI_MAXSEG);
+
 		bufsize = iov_to_buf(iov, n, &buf);
 		iolen = pci_vtscsi_control_handle(sc, buf, bufsize);
 		buf_to_iov(buf + bufsize - iolen, iolen, iov, n,
@@ -597,13 +598,14 @@ pci_vtscsi_requestq_notify(void *vsc, struct vqueue_info *vq)
 	struct pci_vtscsi_request *req;
 	struct iovec iov[VTSCSI_MAXSEG];
 	struct vi_req vireq;
-	uint16_t n;
+	int n;
 
 	sc = vsc;
 	q = &sc->vss_queues[vq->vq_num - 2];
 
 	while (vq_has_descs(vq)) {
 		n = vq_getchain(vq, iov, VTSCSI_MAXSEG, &vireq);
+		assert(n >= 1 && n <= VTSCSI_MAXSEG);
 
 		req = calloc(1, sizeof(struct pci_vtscsi_request));
 		req->vsr_idx = vireq.idx;
