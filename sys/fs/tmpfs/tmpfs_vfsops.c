@@ -479,7 +479,7 @@ tmpfs_mount(struct mount *mp)
 	vfs_getnewfsid(mp);
 	vfs_mountedfrom(mp, "tmpfs");
 
-	return 0;
+	return (0);
 }
 
 /* ARGSUSED2 */
@@ -644,7 +644,7 @@ tmpfs_statfs(struct mount *mp, struct statfs *sbp)
 		sbp->f_ffree = sbp->f_files - used;
 	/* sbp->f_owner = tmp->tn_uid; */
 
-	return 0;
+	return (0);
 }
 
 static int
