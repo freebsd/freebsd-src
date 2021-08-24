@@ -77,6 +77,19 @@ SYSCTL_INT(_hw_cpu_quirks, OID_AUTO, actlr_set,
     CTLFLAG_RDTUN | CTLFLAG_NOFETCH, &cpu_quirks_actlr_set, 0,
     "Bits to be set in ACTLR");
 
+static int
+sysctl_hw_cpu_quirks_actrl_value(SYSCTL_HANDLER_ARGS)
+{
+	uint32_t reg;
+
+	reg = cp15_actlr_get();
+	return (SYSCTL_OUT(req, &reg, sizeof(reg)));
+}
+SYSCTL_PROC(_hw_cpu_quirks, OID_AUTO, actlr_value,
+    CTLTYPE_UINT | CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, 0,
+    sysctl_hw_cpu_quirks_actrl_value, "IU",
+    "Value of ACTLR");
+
 /* Read and parse CPU id scheme */
 void
 cpuinfo_init(void)
