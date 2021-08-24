@@ -102,6 +102,29 @@ struct evdev_methods
 	evdev_keycode_t		*ev_set_keycode;
 };
 
+union evdev_mt_slot {
+	int32_t         val[MT_CNT];
+	struct {
+		int32_t maj;		/* ABS_MT_TOUCH_MAJOR */
+		int32_t min;		/* ABS_MT_TOUCH_MINOR */
+		int32_t w_maj;		/* ABS_MT_WIDTH_MAJOR */
+		int32_t w_min;		/* ABS_MT_WIDTH_MINOR */
+		int32_t ori;		/* ABS_MT_ORIENTATION */
+		int32_t x;		/* ABS_MT_POSITION_X */
+		int32_t y;		/* ABS_MT_POSITION_Y */
+		int32_t type;		/* ABS_MT_TOOL_TYPE */
+		int32_t blob_id;	/* ABS_MT_BLOB_ID */
+		int32_t id;		/* ABS_MT_TRACKING_ID */
+		int32_t p;		/* ABS_MT_PRESSURE */
+		int32_t dist;		/* ABS_MT_DISTANCE */
+		int32_t tool_x;		/* ABS_MT_TOOL_X */
+		int32_t tool_y;		/* ABS_MT_TOOL_Y */
+	};
+};
+_Static_assert(offsetof(union evdev_mt_slot, tool_y) ==
+    offsetof(union evdev_mt_slot, val[ABS_MT_INDEX(ABS_MT_TOOL_Y)]),
+    "evdev_mt_slot array members does not match their structure aliases");
+
 /* Input device interface: */
 struct evdev_dev *evdev_alloc(void);
 void evdev_free(struct evdev_dev *);
@@ -134,6 +157,7 @@ void *evdev_get_softc(struct evdev_dev *);
 int evdev_get_mt_slot_by_tracking_id(struct evdev_dev *, int32_t);
 void evdev_support_mt_compat(struct evdev_dev *);
 void evdev_push_mt_compat(struct evdev_dev *);
+int evdev_mt_push_slot(struct evdev_dev *, int, union evdev_mt_slot *);
 void evdev_mt_push_autorel(struct evdev_dev *);
 static inline int
 evdev_mt_id_to_slot(struct evdev_dev *evdev, int32_t id)
