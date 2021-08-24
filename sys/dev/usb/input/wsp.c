@@ -720,7 +720,10 @@ wsp_probe(device_t self)
 	/* check if we are attaching to the first match */
 	if (uaa->info.bIfaceIndex != i)
 		return (ENXIO);
-	return (usbd_lookup_id_by_uaa(wsp_devs, sizeof(wsp_devs), uaa));
+	if (usbd_lookup_id_by_uaa(wsp_devs, sizeof(wsp_devs), uaa) != 0)
+		return (ENXIO);
+
+	return (BUS_PROBE_DEFAULT);
 }
 
 static int

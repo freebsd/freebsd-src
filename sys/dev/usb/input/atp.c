@@ -2175,11 +2175,11 @@ atp_probe(device_t self)
 
 	if ((usbd_lookup_id_by_uaa(fg_devs, sizeof(fg_devs), uaa)) == 0)
 		return ((uaa->info.bInterfaceProtocol == UIPROTO_MOUSE) ?
-			0 : ENXIO);
+			BUS_PROBE_DEFAULT : ENXIO);
 
 	if ((usbd_lookup_id_by_uaa(wsp_devs, sizeof(wsp_devs), uaa)) == 0)
 		if (uaa->info.bIfaceIndex == WELLSPRING_INTERFACE_INDEX)
-			return (0);
+			return (BUS_PROBE_DEFAULT);
 
 	return (ENXIO);
 }
