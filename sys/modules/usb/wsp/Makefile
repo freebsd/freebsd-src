@@ -30,7 +30,7 @@ S=     ${SRCTOP}/sys
 .PATH: $S/dev/usb/input
 
 KMOD=	wsp
-SRCS=	opt_bus.h opt_usb.h device_if.h bus_if.h usb_if.h vnode_if.h usbdevs.h \
-	wsp.c
+SRCS=	opt_bus.h opt_evdev.h opt_usb.h device_if.h bus_if.h usb_if.h \
+	vnode_if.h usbdevs.h wsp.c
 
 .include <bsd.kmod.mk>

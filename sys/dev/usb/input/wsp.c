@@ -29,6 +29,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_evdev.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -55,6 +57,11 @@ __FBSDID("$FreeBSD$");
 
 #define	USB_DEBUG_VAR wsp_debug
 #include <dev/usb/usb_debug.h>
+
+#ifdef EVDEV_SUPPORT
+#include <dev/evdev/input.h>
+#include <dev/evdev/evdev.h>
+#endif
 
 #include <sys/mouse.h>
 
@@ -288,9 +295,14 @@ struct tp_finger {
 } __packed;
 
 /* trackpad finger data size, empirically at least ten fingers */
+#ifdef EVDEV_SUPPORT
+#define	MAX_FINGERS		MAX_MT_SLOTS
+#else
 #define	MAX_FINGERS		16
+#endif
 #define	SIZEOF_FINGER		sizeof(struct tp_finger)
 #define	SIZEOF_ALL_FINGERS	(MAX_FINGERS * SIZEOF_FINGER)
+#define	MAX_FINGER_ORIENTATION	16384
 
 #if (WSP_BUFFER_MAX < ((MAX_FINGERS * FSIZE_TYPE4) + FINGER_TYPE4))
 #error "WSP_BUFFER_MAX is too small"
@@ -313,50 +325,147 @@ enum {
 	WSP_FLAG_MAX,
 };
 
+/* device-specific parameters */
+struct wsp_param {
+	int snratio;			/* signal-to-noise ratio */
+	int min;			/* device minimum reading */
+	int max;			/* device maximum reading */
+	int size;			/* physical size, mm */
+};
+
 /* device-specific configuration */
 struct wsp_dev_params {
 	const struct wsp_tp* tp;
+	struct wsp_param p;		/* finger pressure limits */
+	struct wsp_param w;		/* finger width limits */
+	struct wsp_param x;		/* horizontal limits */
+	struct wsp_param y;		/* vertical limits */
+	struct wsp_param o;		/* orientation limits */
 };
+
+/* logical signal quality */
+#define	SN_PRESSURE	45		/* pressure signal-to-noise ratio */
+#define	SN_WIDTH	25		/* width signal-to-noise ratio */
+#define	SN_COORD	250		/* coordinate signal-to-noise ratio */
+#define	SN_ORIENT	10		/* orientation signal-to-noise ratio */
 
 static const struct wsp_dev_params wsp_dev_params[WSP_FLAG_MAX] = {
 	[WSP_FLAG_WELLSPRING1] = {
 		.tp = wsp_tp + TYPE1,
+		.p = { SN_PRESSURE, 0, 256, 0 },
+		.w = { SN_WIDTH, 0, 2048, 0 },
+		.x = { SN_COORD, -4824, 5342, 105 },
+		.y = { SN_COORD, -172, 5820, 75 },
+		.o = { SN_ORIENT,
+		    -MAX_FINGER_ORIENTATION, MAX_FINGER_ORIENTATION, 0 },
 	},
 	[WSP_FLAG_WELLSPRING2] = {
 		.tp = wsp_tp + TYPE1,
+		.p = { SN_PRESSURE, 0, 256, 0 },
+		.w = { SN_WIDTH, 0, 2048, 0 },
+		.x = { SN_COORD, -4824, 4824, 105 },
+		.y = { SN_COORD, -172, 4290, 75 },
+		.o = { SN_ORIENT,
+		    -MAX_FINGER_ORIENTATION, MAX_FINGER_ORIENTATION, 0 },
 	},
 	[WSP_FLAG_WELLSPRING3] = {
 		.tp = wsp_tp + TYPE2,
+		.p = { SN_PRESSURE, 0, 300, 0 },
+		.w = { SN_WIDTH, 0, 2048, 0 },
+		.x = { SN_COORD, -4460, 5166, 105 },
+		.y = { SN_COORD, -75, 6700, 75 },
+		.o = { SN_ORIENT,
+		    -MAX_FINGER_ORIENTATION, MAX_FINGER_ORIENTATION, 0 },
 	},
 	[WSP_FLAG_WELLSPRING4] = {
 		.tp = wsp_tp + TYPE2,
+		.p = { SN_PRESSURE, 0, 300, 0 },
+		.w = { SN_WIDTH, 0, 2048, 0 },
+		.x = { SN_COORD, -4620, 5140, 105 },
+		.y = { SN_COORD, -150, 6600, 75 },
+		.o = { SN_ORIENT,
+		    -MAX_FINGER_ORIENTATION, MAX_FINGER_ORIENTATION, 0 },
 	},
 	[WSP_FLAG_WELLSPRING4A] = {
 		.tp = wsp_tp + TYPE2,
+		.p = { SN_PRESSURE, 0, 300, 0 },
+		.w = { SN_WIDTH, 0, 2048, 0 },
+		.x = { SN_COORD, -4616, 5112, 105 },
+		.y = { SN_COORD, -142, 5234, 75 },
+		.o = { SN_ORIENT,
+		    -MAX_FINGER_ORIENTATION, MAX_FINGER_ORIENTATION, 0 },
 	},
 	[WSP_FLAG_WELLSPRING5] = {
 		.tp = wsp_tp + TYPE2,
+		.p = { SN_PRESSURE, 0, 300, 0 },
+		.w = { SN_WIDTH, 0, 2048, 0 },
+		.x = { SN_COORD, -4415, 5050, 105 },
+		.y = { SN_COORD, -55, 6680, 75 },
+		.o = { SN_ORIENT,
+		    -MAX_FINGER_ORIENTATION, MAX_FINGER_ORIENTATION, 0 },
 	},
 	[WSP_FLAG_WELLSPRING6] = {
 		.tp = wsp_tp + TYPE2,
+		.p = { SN_PRESSURE, 0, 300, 0 },
+		.w = { SN_WIDTH, 0, 2048, 0 },
+		.x = { SN_COORD, -4620, 5140, 105 },
+		.y = { SN_COORD, -150, 6600, 75 },
+		.o = { SN_ORIENT,
+		    -MAX_FINGER_ORIENTATION, MAX_FINGER_ORIENTATION, 0 },
 	},
 	[WSP_FLAG_WELLSPRING5A] = {
 		.tp = wsp_tp + TYPE2,
+		.p = { SN_PRESSURE, 0, 300, 0 },
+		.w = { SN_WIDTH, 0, 2048, 0 },
+		.x = { SN_COORD, -4750, 5280, 105 },
+		.y = { SN_COORD, -150, 6730, 75 },
+		.o = { SN_ORIENT,
+		    -MAX_FINGER_ORIENTATION, MAX_FINGER_ORIENTATION, 0 },
 	},
 	[WSP_FLAG_WELLSPRING6A] = {
 		.tp = wsp_tp + TYPE2,
+		.p = { SN_PRESSURE, 0, 300, 0 },
+		.w = { SN_WIDTH, 0, 2048, 0 },
+		.x = { SN_COORD, -4620, 5140, 105 },
+		.y = { SN_COORD, -150, 6600, 75 },
+		.o = { SN_ORIENT,
+		    -MAX_FINGER_ORIENTATION, MAX_FINGER_ORIENTATION, 0 },
 	},
 	[WSP_FLAG_WELLSPRING7] = {
 		.tp = wsp_tp + TYPE2,
+		.p = { SN_PRESSURE, 0, 300, 0 },
+		.w = { SN_WIDTH, 0, 2048, 0 },
+		.x = { SN_COORD, -4750, 5280, 105 },
+		.y = { SN_COORD, -150, 6730, 75 },
+		.o = { SN_ORIENT,
+		    -MAX_FINGER_ORIENTATION, MAX_FINGER_ORIENTATION, 0 },
 	},
 	[WSP_FLAG_WELLSPRING7A] = {
 		.tp = wsp_tp + TYPE2,
+		.p = { SN_PRESSURE, 0, 300, 0 },
+		.w = { SN_WIDTH, 0, 2048, 0 },
+		.x = { SN_COORD, -4750, 5280, 105 },
+		.y = { SN_COORD, -150, 6730, 75 },
+		.o = { SN_ORIENT,
+		    -MAX_FINGER_ORIENTATION, MAX_FINGER_ORIENTATION, 0 },
 	},
 	[WSP_FLAG_WELLSPRING8] = {
 		.tp = wsp_tp + TYPE3,
+		.p = { SN_PRESSURE, 0, 300, 0 },
+		.w = { SN_WIDTH, 0, 2048, 0 },
+		.x = { SN_COORD, -4620, 5140, 105 },
+		.y = { SN_COORD, -150, 6600, 75 },
+		.o = { SN_ORIENT,
+		    -MAX_FINGER_ORIENTATION, MAX_FINGER_ORIENTATION, 0 },
 	},
 	[WSP_FLAG_WELLSPRING9] = {
 		.tp = wsp_tp + TYPE4,
+		.p = { SN_PRESSURE, 0, 300, 0 },
+		.w = { SN_WIDTH, 0, 2048, 0 },
+		.x = { SN_COORD, -4828, 5345, 105 },
+		.y = { SN_COORD, -203, 6803, 75 },
+		.o = { SN_ORIENT,
+		    -MAX_FINGER_ORIENTATION, MAX_FINGER_ORIENTATION, 0 },
 	},
 };
 #define	WSP_DEV(v,p,i) { USB_VPI(USB_VENDOR_##v, USB_PRODUCT_##v##_##p, i) }
@@ -445,12 +554,17 @@ struct wsp_softc {
 
 	const struct wsp_dev_params *sc_params;	/* device configuration */
 
+#ifdef EVDEV_SUPPORT
+	struct evdev_dev *sc_evdev;
+#endif
 	mousehw_t sc_hw;
 	mousemode_t sc_mode;
 	u_int	sc_pollrate;
 	mousestatus_t sc_status;
+	int	sc_fflags;
 	u_int	sc_state;
-#define	WSP_ENABLED	       0x01
+#define	WSP_ENABLED		0x01
+#define	WSP_EVDEV_OPENED	0x02
 
 	struct tp_finger *index[MAX_FINGERS];	/* finger index data */
 	int16_t	pos_x[MAX_FINGERS];	/* position array */
@@ -491,8 +605,8 @@ struct wsp_softc {
 /*
  * function prototypes
  */
-static usb_fifo_cmd_t wsp_start_read;
-static usb_fifo_cmd_t wsp_stop_read;
+static usb_fifo_cmd_t wsp_fifo_start_read;
+static usb_fifo_cmd_t wsp_fifo_stop_read;
 static usb_fifo_open_t wsp_open;
 static usb_fifo_close_t wsp_close;
 static usb_fifo_ioctl_t wsp_ioctl;
@@ -501,10 +615,19 @@ static struct usb_fifo_methods wsp_fifo_methods = {
 	.f_open = &wsp_open,
 	.f_close = &wsp_close,
 	.f_ioctl = &wsp_ioctl,
-	.f_start_read = &wsp_start_read,
-	.f_stop_read = &wsp_stop_read,
+	.f_start_read = &wsp_fifo_start_read,
+	.f_stop_read = &wsp_fifo_stop_read,
 	.basename[0] = WSP_DRIVER_NAME,
 };
+
+#ifdef EVDEV_SUPPORT
+static evdev_open_t wsp_ev_open;
+static evdev_close_t wsp_ev_close;
+static const struct evdev_methods wsp_evdev_methods = {
+	.ev_open = &wsp_ev_open,
+	.ev_close = &wsp_ev_close,
+};
+#endif
 
 /* device initialization and shutdown */
 static int wsp_enable(struct wsp_softc *sc);
@@ -714,6 +837,56 @@ wsp_attach(device_t dev)
 	sc->sc_touch = WSP_UNTOUCH;
 	sc->scr_mode = WSP_SCR_NONE;
 
+#ifdef EVDEV_SUPPORT
+	sc->sc_evdev = evdev_alloc();
+	evdev_set_name(sc->sc_evdev, device_get_desc(dev));
+	evdev_set_phys(sc->sc_evdev, device_get_nameunit(dev));
+	evdev_set_id(sc->sc_evdev, BUS_USB, uaa->info.idVendor,
+	    uaa->info.idProduct, 0);
+	evdev_set_serial(sc->sc_evdev, usb_get_serial(uaa->device));
+	evdev_set_methods(sc->sc_evdev, sc, &wsp_evdev_methods);
+	evdev_support_prop(sc->sc_evdev, INPUT_PROP_POINTER);
+	evdev_support_event(sc->sc_evdev, EV_SYN);
+	evdev_support_event(sc->sc_evdev, EV_ABS);
+	evdev_support_event(sc->sc_evdev, EV_KEY);
+
+#define WSP_SUPPORT_ABS(evdev, code, param)				\
+	evdev_support_abs((evdev), (code), (param).min, (param).max,	\
+	((param).max - (param).min) / (param).snratio, 0,		\
+	(param).size != 0 ? ((param).max - (param).min) / (param).size : 0);
+
+	/* finger position */
+	WSP_SUPPORT_ABS(sc->sc_evdev, ABS_MT_POSITION_X, sc->sc_params->x);
+	WSP_SUPPORT_ABS(sc->sc_evdev, ABS_MT_POSITION_Y, sc->sc_params->y);
+	/* finger pressure */
+	WSP_SUPPORT_ABS(sc->sc_evdev, ABS_MT_PRESSURE, sc->sc_params->p);
+	/* finger touch area */
+	WSP_SUPPORT_ABS(sc->sc_evdev, ABS_MT_TOUCH_MAJOR, sc->sc_params->w);
+	WSP_SUPPORT_ABS(sc->sc_evdev, ABS_MT_TOUCH_MINOR, sc->sc_params->w);
+	/* finger approach area */
+	WSP_SUPPORT_ABS(sc->sc_evdev, ABS_MT_WIDTH_MAJOR, sc->sc_params->w);
+	WSP_SUPPORT_ABS(sc->sc_evdev, ABS_MT_WIDTH_MINOR, sc->sc_params->w);
+	/* finger orientation */
+	WSP_SUPPORT_ABS(sc->sc_evdev, ABS_MT_ORIENTATION, sc->sc_params->o);
+	/* button properties */
+	evdev_support_key(sc->sc_evdev, BTN_LEFT);
+	if ((sc->sc_params->tp->caps & HAS_INTEGRATED_BUTTON) != 0)
+		evdev_support_prop(sc->sc_evdev, INPUT_PROP_BUTTONPAD);
+	/* Enable automatic touch assignment for type B MT protocol */
+	evdev_support_abs(sc->sc_evdev, ABS_MT_SLOT,
+	    0, MAX_FINGERS - 1, 0, 0, 0);
+	evdev_support_abs(sc->sc_evdev, ABS_MT_TRACKING_ID,
+	    -1, MAX_FINGERS - 1, 0, 0, 0);
+	evdev_set_flag(sc->sc_evdev, EVDEV_FLAG_MT_TRACK);
+	evdev_set_flag(sc->sc_evdev, EVDEV_FLAG_MT_AUTOREL);
+	/* Synaptics compatibility events */
+	evdev_set_flag(sc->sc_evdev, EVDEV_FLAG_MT_STCOMPAT);
+
+	err = evdev_register(sc->sc_evdev);
+	if (err)
+		goto detach;
+#endif
+
 	return (0);
 
 detach:
@@ -734,6 +907,10 @@ wsp_detach(device_t dev)
 	mtx_unlock(&sc->sc_mutex);
 
 	usb_fifo_detach(&sc->sc_fifo);
+
+#ifdef EVDEV_SUPPORT
+	evdev_free(sc->sc_evdev);
+#endif
 
 	usbd_transfer_unsetup(sc->sc_xfer, WSP_N_TRANSFER);
 
@@ -761,6 +938,9 @@ wsp_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 	int rdz = 0;
 	int len;
 	int i;
+#ifdef EVDEV_SUPPORT
+	int slot = 0;
+#endif
 
 	wsp_runing_rangecheck(&tun);
 
@@ -829,8 +1009,31 @@ wsp_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 			sc->pos_x[i] = f->abs_x;
 			sc->pos_y[i] = -f->abs_y;
 			sc->index[i] = f;
+#ifdef EVDEV_SUPPORT
+			if (evdev_rcpt_mask & EVDEV_RCPT_HW_MOUSE && f->touch_major != 0) {
+				union evdev_mt_slot slot_data = {
+					.id = slot,
+					.x = f->abs_x,
+					.y = params->y.min + params->y.max - f->abs_y,
+					.p = f->pressure,
+					.maj = f->touch_major << 1,
+					.min = f->touch_minor << 1,
+					.w_maj = f->tool_major << 1,
+					.w_min = f->tool_minor << 1,
+					.ori = params->o.max - f->orientation,
+				};
+				evdev_mt_push_slot(sc->sc_evdev, slot, &slot_data);
+				slot++;
+			}
+#endif
 		}
 
+#ifdef EVDEV_SUPPORT
+		if (evdev_rcpt_mask & EVDEV_RCPT_HW_MOUSE) {
+			evdev_push_key(sc->sc_evdev, BTN_LEFT, ibt);
+			evdev_sync(sc->sc_evdev);
+		}
+#endif
 		sc->sc_status.flags &= ~MOUSE_POSCHANGED;
 		sc->sc_status.flags &= ~MOUSE_STDBUTTONSCHANGED;
 		sc->sc_status.obutton = sc->sc_status.button;
@@ -1135,9 +1338,8 @@ wsp_reset_buf(struct wsp_softc *sc)
 }
 
 static void
-wsp_start_read(struct usb_fifo *fifo)
+wsp_start_read(struct wsp_softc *sc)
 {
-	struct wsp_softc *sc = usb_fifo_softc(fifo);
 	int rate;
 
 	/* Check if we should override the default polling interval */
@@ -1158,48 +1360,108 @@ wsp_start_read(struct usb_fifo *fifo)
 }
 
 static void
-wsp_stop_read(struct usb_fifo *fifo)
+wsp_stop_read(struct wsp_softc *sc)
 {
-	struct wsp_softc *sc = usb_fifo_softc(fifo);
-
 	usbd_transfer_stop(sc->sc_xfer[WSP_INTR_DT]);
 }
 
 static int
 wsp_open(struct usb_fifo *fifo, int fflags)
 {
+	struct wsp_softc *sc = usb_fifo_softc(fifo);
+	int rc = 0;
+
 	DPRINTFN(WSP_LLEVEL_INFO, "\n");
 
+	if (sc->sc_fflags & fflags)
+		return (EBUSY);
+
 	if (fflags & FREAD) {
-		struct wsp_softc *sc = usb_fifo_softc(fifo);
-		int rc;
-
-		if (sc->sc_state & WSP_ENABLED)
-			return (EBUSY);
-
 		if (usb_fifo_alloc_buffer(fifo,
 		    WSP_FIFO_BUF_SIZE, WSP_FIFO_QUEUE_MAXLEN)) {
 			return (ENOMEM);
 		}
-		rc = wsp_enable(sc);
+#ifdef EVDEV_SUPPORT
+		if ((sc->sc_state & WSP_EVDEV_OPENED) == 0)
+#endif
+			rc = wsp_enable(sc);
 		if (rc != 0) {
 			usb_fifo_free_buffer(fifo);
 			return (rc);
 		}
 	}
+	sc->sc_fflags |= fflags & (FREAD | FWRITE);
 	return (0);
 }
 
 static void
 wsp_close(struct usb_fifo *fifo, int fflags)
 {
-	if (fflags & FREAD) {
-		struct wsp_softc *sc = usb_fifo_softc(fifo);
+	struct wsp_softc *sc = usb_fifo_softc(fifo);
 
-		wsp_disable(sc);
+	if (fflags & FREAD) {
+#ifdef EVDEV_SUPPORT
+		if ((sc->sc_state & WSP_EVDEV_OPENED) == 0)
+#endif
+			wsp_disable(sc);
 		usb_fifo_free_buffer(fifo);
 	}
+
+	sc->sc_fflags &= ~(fflags & (FREAD | FWRITE));
 }
+
+static void
+wsp_fifo_start_read(struct usb_fifo *fifo)
+{
+	struct wsp_softc *sc = usb_fifo_softc(fifo);
+
+	wsp_start_read(sc);
+}
+
+static void
+wsp_fifo_stop_read(struct usb_fifo *fifo)
+{
+	struct wsp_softc *sc = usb_fifo_softc(fifo);
+
+#ifdef EVDEV_SUPPORT
+	if ((sc->sc_state & WSP_EVDEV_OPENED) == 0)
+#endif
+		wsp_stop_read(sc);
+}
+
+#ifdef EVDEV_SUPPORT
+static int
+wsp_ev_open(struct evdev_dev *evdev)
+{
+	struct wsp_softc *sc = evdev_get_softc(evdev);
+	int rc = 0;
+
+	mtx_lock(&sc->sc_mutex);
+	if (sc->sc_fflags == 0)
+		rc = wsp_enable(sc);
+	if (rc == 0) {
+		wsp_start_read(sc);
+		sc->sc_state |= WSP_EVDEV_OPENED;
+	}
+	mtx_unlock(&sc->sc_mutex);
+
+	return (rc);
+}
+
+static int
+wsp_ev_close(struct evdev_dev *evdev)
+{
+	struct wsp_softc *sc = evdev_get_softc(evdev);
+
+	mtx_lock(&sc->sc_mutex);
+	sc->sc_state &= ~WSP_EVDEV_OPENED;
+	if (sc->sc_fflags == 0)
+		wsp_stop_read(sc);
+	mtx_unlock(&sc->sc_mutex);
+
+	return (0);
+}
+#endif
 
 int
 wsp_ioctl(struct usb_fifo *fifo, u_long cmd, void *addr, int fflags)
@@ -1312,5 +1574,8 @@ static devclass_t wsp_devclass;
 DRIVER_MODULE(wsp, uhub, wsp_driver, wsp_devclass, NULL, 0);
 MODULE_DEPEND(wsp, usb, 1, 1, 1);
 MODULE_DEPEND(wsp, hid, 1, 1, 1);
+#ifdef EVDEV_SUPPORT
+MODULE_DEPEND(wsp, evdev, 1, 1, 1);
+#endif
 MODULE_VERSION(wsp, 1);
 USB_PNP_HOST_INFO(wsp_devs);
