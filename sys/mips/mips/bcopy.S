@@ -74,7 +74,6 @@ XLEAF(memmove)
 	move	a1, v0
 
 XLEAF(bcopy)
-XLEAF(ovbcopy)
 	/*
 	 *	Make sure we can copy forwards.
 	 */
