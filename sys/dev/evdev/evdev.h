@@ -162,6 +162,7 @@ void evdev_push_mt_compat(struct evdev_dev *);
 int evdev_mt_push_slot(struct evdev_dev *, int, union evdev_mt_slot *);
 int evdev_mt_push_frame(struct evdev_dev *, union evdev_mt_slot *, int);
 void evdev_mt_match_frame(struct evdev_dev *, union evdev_mt_slot *, int);
+union evdev_mt_slot *evdev_mt_get_match_slots(struct evdev_dev *);
 void evdev_mt_push_autorel(struct evdev_dev *);
 static inline int
 evdev_mt_id_to_slot(struct evdev_dev *evdev, int32_t id)
