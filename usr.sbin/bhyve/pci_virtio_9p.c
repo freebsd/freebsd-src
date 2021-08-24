@@ -198,12 +198,13 @@ pci_vt9p_notify(void *vsc, struct vqueue_info *vq)
 	struct pci_vt9p_softc *sc;
 	struct pci_vt9p_request *preq;
 	struct vi_req req;
-	uint16_t n;
+	int n;
 
 	sc = vsc;
 
 	while (vq_has_descs(vq)) {
 		n = vq_getchain(vq, iov, VT9P_MAX_IOV, &req);
+		assert(n >= 1 && n <= VT9P_MAX_IOV);
 		preq = calloc(1, sizeof(struct pci_vt9p_request));
 		preq->vsr_sc = sc;
 		preq->vsr_idx = req.idx;
