@@ -34,4 +34,7 @@ MLINKS+= clang.1 cc.1 \
 
 LIBADD+=	z
 
+# Ensure we don't add CFLAGS.clang when using GCC
+NO_TARGET_FLAGS=
+
 .include "../clang.prog.mk"
