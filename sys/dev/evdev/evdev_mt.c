@@ -49,11 +49,15 @@ _Static_assert(MAX_MT_SLOTS < sizeof(slotset_t) * 8, "MAX_MT_SLOTS too big");
 #define FOREACHBIT(v, i) \
 	for ((i) = ffs(v) - 1; (i) != -1; (i) = ffs((v) & (~1 << (i))) - 1)
 
-static uint16_t evdev_mtstmap[][2] = {
-	{ ABS_MT_POSITION_X, ABS_X },
-	{ ABS_MT_POSITION_Y, ABS_Y },
-	{ ABS_MT_PRESSURE, ABS_PRESSURE },
-	{ ABS_MT_TOUCH_MAJOR, ABS_TOOL_WIDTH },
+struct {
+	uint16_t	mt;
+	uint16_t	st;
+	int32_t		max;
+} static evdev_mtstmap[] = {
+	{ ABS_MT_POSITION_X,	ABS_X,		0 },
+	{ ABS_MT_POSITION_Y,	ABS_Y,		0 },
+	{ ABS_MT_PRESSURE,	ABS_PRESSURE,	255 },
+	{ ABS_MT_TOUCH_MAJOR,	ABS_TOOL_WIDTH,	15 },
 };
 
 struct evdev_mt_slot {
@@ -62,6 +66,7 @@ struct evdev_mt_slot {
 
 struct evdev_mt {
 	int			last_reported_slot;
+	u_int			mtst_events;
 	/* the set of slots with active touches */
 	slotset_t		touches;
 	/* the set of slots with unsynchronized state */
@@ -175,9 +180,20 @@ evdev_get_mt_slot_by_tracking_id(struct evdev_dev *evdev, int32_t tracking_id)
 	return (ffc_slot(evdev, mt->touches | mt->frame));
 }
 
+static inline int32_t
+evdev_mt_normalize(int32_t value, int32_t mtmin, int32_t mtmax, int32_t stmax)
+{
+	if (stmax != 0 && mtmax != mtmin) {
+		value = (value - mtmin) * stmax / (mtmax - mtmin);
+		value = MAX(MIN(value, stmax), 0);
+	}
+	return (value);
+}
+
 void
 evdev_support_mt_compat(struct evdev_dev *evdev)
 {
+	struct input_absinfo *ai;
 	int i;
 
 	if (evdev->ev_absinfo == NULL)
@@ -191,14 +207,28 @@ evdev_support_mt_compat(struct evdev_dev *evdev)
 		evdev_support_nfingers(evdev, MAXIMAL_MT_SLOT(evdev) + 1);
 
 	/* Echo 0-th MT-slot as ST-slot */
-	for (i = 0; i < nitems(evdev_mtstmap); i++)
-		if (bit_test(evdev->ev_abs_flags, evdev_mtstmap[i][0]))
-			evdev_support_abs(evdev, evdev_mtstmap[i][1],
-			    evdev->ev_absinfo[evdev_mtstmap[i][0]].minimum,
-			    evdev->ev_absinfo[evdev_mtstmap[i][0]].maximum,
+	for (i = 0; i < nitems(evdev_mtstmap); i++) {
+		if (!bit_test(evdev->ev_abs_flags, evdev_mtstmap[i].mt) ||
+		     bit_test(evdev->ev_abs_flags, evdev_mtstmap[i].st))
+			continue;
+		ai = evdev->ev_absinfo + evdev_mtstmap[i].mt;
+		evdev->ev_mt->mtst_events |= 1U << i;
+		if (evdev_mtstmap[i].max != 0)
+			evdev_support_abs(evdev, evdev_mtstmap[i].st,
 			    0,
-			    evdev->ev_absinfo[evdev_mtstmap[i][0]].flat,
-			    evdev->ev_absinfo[evdev_mtstmap[i][0]].resolution);
+			    evdev_mtstmap[i].max,
+			    0,
+			    evdev_mt_normalize(
+			      ai->flat, 0, ai->maximum, evdev_mtstmap[i].max),
+			    0);
+		else
+			evdev_support_abs(evdev, evdev_mtstmap[i].st,
+			    ai->minimum,
+			    ai->maximum,
+			    0,
+			    ai->flat,
+			    ai->resolution);
+	}
 }
 
 static void
@@ -215,12 +245,13 @@ evdev_mt_send_st_compat(struct evdev_dev *evdev)
 	/* Send first active MT-slot state as single touch report */
 	st_slot = ffs(mt->touches) - 1;
 	if (st_slot != -1)
-		for (i = 0; i < nitems(evdev_mtstmap); i++)
-			if (bit_test(evdev->ev_abs_flags, evdev_mtstmap[i][1]))
-				evdev_send_event(evdev, EV_ABS,
-				    evdev_mtstmap[i][1],
-				    evdev_mt_get_value(evdev, st_slot,
-				    evdev_mtstmap[i][0]));
+		FOREACHBIT(mt->mtst_events, i)
+			evdev_send_event(evdev, EV_ABS, evdev_mtstmap[i].st,
+			    evdev_mt_normalize(evdev_mt_get_value(evdev,
+			      st_slot, evdev_mtstmap[i].mt),
+			      evdev->ev_absinfo[evdev_mtstmap[i].mt].minimum,
+			      evdev->ev_absinfo[evdev_mtstmap[i].mt].maximum,
+			      evdev_mtstmap[i].max));
 
 	/* Touchscreens should not report tool taps */
 	if (!bit_test(evdev->ev_prop_flags, INPUT_PROP_DIRECT))
