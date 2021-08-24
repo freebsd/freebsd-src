@@ -892,6 +892,15 @@ iscsi_pdu_handle_scsi_response(struct icl_pdu *response)
 	}
 
 	ccb = io->io_ccb;
+	if (ntohl(bhssr->bhssr_expdatasn) != io->io_datasn) {
+		ISCSI_SESSION_WARN(is,
+		    "ExpDataSN mismatch in SCSI Response (%u vs %u)",
+		    ntohl(bhssr->bhssr_expdatasn), io->io_datasn);
+		icl_pdu_free(response);
+		iscsi_session_reconnect(is);
+		ISCSI_SESSION_UNLOCK(is);
+		return;
+	}
 
 	/*
 	 * With iSER, after getting good response we can be sure
@@ -1047,6 +1056,17 @@ iscsi_pdu_handle_data_in(struct icl_pdu *response)
 		return;
 	}
 
+	if (io->io_datasn != ntohl(bhsdi->bhsdi_datasn)) {
+		ISCSI_SESSION_WARN(is, "received Data-In PDU with "
+		    "DataSN %u, while expected %u; dropping connection",
+		    ntohl(bhsdi->bhsdi_datasn), io->io_datasn);
+		icl_pdu_free(response);
+		iscsi_session_reconnect(is);
+		ISCSI_SESSION_UNLOCK(is);
+		return;
+	}
+	io->io_datasn += response->ip_additional_pdus + 1;
+
 	data_segment_len = icl_pdu_data_segment_length(response);
 	if (data_segment_len == 0) {
 		/*
@@ -1096,7 +1116,6 @@ iscsi_pdu_handle_data_in(struct icl_pdu *response)
 	icl_pdu_get_data(response, 0, csio->data_ptr + oreceived, data_segment_len);
 
 	/*
-	 * XXX: Check DataSN.
 	 * XXX: Check F.
 	 */
 	if ((bhsdi->bhsdi_flags & BHSDI_FLAGS_S) == 0) {
