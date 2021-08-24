@@ -341,7 +341,6 @@ void	hexdump(const void *ptr, int length, const char *hdr, int flags);
 #define	HD_OMIT_CHARS	(1 << 18)
 
 #define ovbcopy(f, t, l) bcopy((f), (t), (l))
-void	bcopy(const void * _Nonnull from, void * _Nonnull to, size_t len);
 void	explicit_bzero(void * _Nonnull, size_t);
 
 void	*memset(void * _Nonnull buf, int c, size_t len);
