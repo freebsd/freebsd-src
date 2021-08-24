@@ -714,7 +714,7 @@ tmpfs_alloc_dirent(struct tmpfs_mount *tmp, struct tmpfs_node *node,
 
 	*de = nde;
 
-	return 0;
+	return (0);
 }
 
 /*
@@ -1861,11 +1861,11 @@ tmpfs_chmod(struct vnode *vp, mode_t mode, struct ucred *cred, struct thread *p)
 
 	/* Disallow this operation if the file system is mounted read-only. */
 	if (vp->v_mount->mnt_flag & MNT_RDONLY)
-		return EROFS;
+		return (EROFS);
 
 	/* Immutable or append-only files cannot be modified, either. */
 	if (node->tn_flags & (IMMUTABLE | APPEND))
-		return EPERM;
+		return (EPERM);
 
 	/*
 	 * To modify the permissions on a file, must possess VADMIN
