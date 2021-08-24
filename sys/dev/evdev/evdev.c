@@ -701,15 +701,23 @@ evdev_modify_event(struct evdev_dev *evdev, uint16_t type, uint16_t code,
 		break;
 
 	case EV_ABS:
-		fuzz = evdev->ev_absinfo[code].fuzz;
-		if (fuzz == 0 || code == ABS_MT_SLOT)
+		if (code == ABS_MT_SLOT)
 			break;
 		else if (!ABS_IS_MT(code))
 			old_value = evdev->ev_absinfo[code].value;
-		else if (bit_test(evdev->ev_abs_flags, ABS_MT_SLOT))
+		else if (!bit_test(evdev->ev_abs_flags, ABS_MT_SLOT))
+			/* Pass MT protocol type A events as is */
+			break;
+		else if (code == ABS_MT_TRACKING_ID) {
+			*value = evdev_mt_reassign_id(evdev,
+			    evdev_mt_get_last_slot(evdev), *value);
+			break;
+		} else
 			old_value = evdev_mt_get_value(evdev,
 			    evdev_mt_get_last_slot(evdev), code);
-		else	/* Pass MT protocol type A events as is */
+
+		fuzz = evdev->ev_absinfo[code].fuzz;
+		if (fuzz == 0)
 			break;
 
 		abs_change = abs(*value - old_value);

@@ -90,6 +90,7 @@ extern int evdev_sysmouse_t_axis;
 					 * current MT protocol type B report */
 #define	EVDEV_FLAG_EXT_EPOCH	0x03	/* evdev_push_* is allways called with
 					 * input (global) epoch entered */
+#define	EVDEV_FLAG_MT_KEEPID	0x04	/* Do not reassign tracking ID */
 #define	EVDEV_FLAG_MAX		0x1F
 #define	EVDEV_FLAG_CNT		(EVDEV_FLAG_MAX + 1)
 
