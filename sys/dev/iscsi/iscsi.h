@@ -44,6 +44,7 @@ struct iscsi_outstanding {
 	TAILQ_ENTRY(iscsi_outstanding)	io_next;
 	union ccb			*io_ccb;
 	size_t				io_received;
+	uint32_t			io_datasn;
 	uint32_t			io_initiator_task_tag;
 	uint32_t			io_referenced_task_tag;
 	void				*io_icl_prv;
