@@ -1138,14 +1138,13 @@ vop_stddeallocate(struct vop_deallocate_args *ap)
 
 	vp = ap->a_vp;
 	offset = *ap->a_offset;
-	len = *ap->a_len;
 	cred = ap->a_cred;
 
 	error = VOP_GETATTR(vp, &va, cred);
 	if (error)
 		return (error);
 
-	len = omin(OFF_MAX - offset, *ap->a_len);
+	len = omin((off_t)va.va_size - offset, *ap->a_len);
 	while (len > 0) {
 		noff = offset;
 		error = vn_bmap_seekhole_locked(vp, FIOSEEKDATA, &noff, cred);
@@ -1184,6 +1183,11 @@ vop_stddeallocate(struct vop_deallocate_args *ap)
 		len -= xfersize;
 		if (should_yield())
 			break;
+	}
+	/* Handle the case when offset is beyond EOF */
+	if (len < 0) {
+		offset += len;
+		len = 0;
 	}
 out:
 	*ap->a_offset = offset;

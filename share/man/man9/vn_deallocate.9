@@ -95,6 +95,14 @@ Attempt to bypass buffer cache.
 and
 .Fa *length
 are updated to reflect the unprocessed operation range of the call.
+For a successful completion,
+.Fa *length
+is updated to be the value 0, and
+.Fa *offset
+is updated to be the smallest of
+.Fa *offset +
+.Fa *length
+passed to the call and the end-of-file offset.
 .Sh RETURN VALUES
 Upon successful completion, the value 0 is returned; otherwise the
 appropriate error is returned.

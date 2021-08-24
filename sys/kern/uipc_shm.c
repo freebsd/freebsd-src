@@ -1905,6 +1905,8 @@ shm_deallocate(struct shmfd *shmfd, off_t *offset, off_t *length, int flags)
 	off = *offset;
 	len = *length;
 	KASSERT(off + len <= (vm_ooffset_t)OFF_MAX, ("off + len overflows"));
+	if (off + len > shmfd->shm_size)
+		len = shmfd->shm_size - off;
 	object = shmfd->shm_object;
 	startofs = off & PAGE_MASK;
 	endofs = (off + len) & PAGE_MASK;
@@ -1912,6 +1914,13 @@ shm_deallocate(struct shmfd *shmfd, off_t *offset, off_t *length, int flags)
 	piend = OFF_TO_IDX(off + len);
 	pi = OFF_TO_IDX(off + PAGE_MASK);
 	error = 0;
+
+	/* Handle the case when offset is beyond shm size */
+	if ((off_t)len < 0) {
+		*offset = shmfd->shm_size;
+		*length = 0;
+		return (0);
+	}
 
 	VM_OBJECT_WLOCK(object);
 
@@ -1974,8 +1983,6 @@ shm_fspacectl(struct file *fp, int cmd, off_t *offset, off_t *length, int flags,
 			break;
 		}
 		error = shm_deallocate(shmfd, &off, &len, flags);
-		if (error != 0)
-			break;
 		*offset = off;
 		*length = len;
 		break;
