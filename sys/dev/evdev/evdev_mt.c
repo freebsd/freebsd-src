@@ -79,6 +79,7 @@ struct evdev_mt {
 	int			last_reported_slot;
 	uint16_t		tracking_id;
 	int32_t			tracking_ids[MAX_MT_SLOTS];
+	bool			type_a;
 	u_int			mtst_events;
 	/* the set of slots with active touches */
 	slotset_t		touches;
@@ -108,6 +109,16 @@ evdev_mt_init(struct evdev_dev *evdev)
 	struct evdev_mt *mt;
 	size_t size = offsetof(struct evdev_mt, slots);
 	int slot, slots;
+	bool type_a;
+
+	type_a = !bit_test(evdev->ev_abs_flags, ABS_MT_SLOT);
+	if (type_a) {
+		/* Add events produced by MT type A to type B converter */
+		evdev_support_abs(evdev,
+		    ABS_MT_SLOT, 0, MAX_MT_SLOTS - 1, 0, 0, 0);
+		evdev_support_abs(evdev,
+		    ABS_MT_TRACKING_ID, -1, MAX_MT_SLOTS - 1, 0, 0, 0);
+	}
 
 	slots = MAXIMAL_MT_SLOT(evdev) + 1;
 	size += sizeof(mt->slots[0]) * slots;
@@ -118,6 +129,7 @@ evdev_mt_init(struct evdev_dev *evdev)
 
 	mt = malloc(size, M_EVDEV, M_WAITOK | M_ZERO);
 	evdev->ev_mt = mt;
+	mt->type_a = type_a;
 
 	if (bit_test(evdev->ev_flags, EVDEV_FLAG_MT_TRACK)) {
 		mt->match_slots = mt->slots + slots;
@@ -186,13 +198,16 @@ evdev_mt_push_slot(struct evdev_dev *evdev, int slot,
 	struct evdev_mt *mt = evdev->ev_mt;
 	bool type_a = !bit_test(evdev->ev_abs_flags, ABS_MT_SLOT);
 
-	if (type_a && state == NULL)
+	if ((type_a || (mt != NULL && mt->type_a)) && state == NULL)
 		return (EINVAL);
 	if (!type_a && (slot < 0 || slot > MAXIMAL_MT_SLOT(evdev)))
 		return (EINVAL);
 
 	EVDEV_ENTER(evdev);
-	if (bit_test(evdev->ev_flags, EVDEV_FLAG_MT_TRACK)) {
+	if (bit_test(evdev->ev_flags, EVDEV_FLAG_MT_TRACK) && mt->type_a) {
+		mt->match_slots[mt->match_slot] = *state;
+		evdev_mt_record_event(evdev, EV_SYN, SYN_MT_REPORT, 1);
+	} else if (bit_test(evdev->ev_flags, EVDEV_FLAG_MT_TRACK)) {
 		evdev_mt_record_event(evdev, EV_ABS, ABS_MT_SLOT, slot);
 		if (state != NULL)
 			mt->match_slots[mt->match_slot] = *state;
@@ -394,14 +409,25 @@ evdev_mt_record_event(struct evdev_dev *evdev, uint16_t type, uint16_t code,
 	EVDEV_LOCK_ASSERT(evdev);
 
 	switch (type) {
+	case EV_SYN:
+		if (code == SYN_MT_REPORT) {
+			/* MT protocol type A support */
+			KASSERT(mt->type_a, ("Not a MT type A protocol"));
+			mt->match_frame |= 1U << mt->match_slot;
+			mt->match_slot++;
+			return (true);
+		}
+		break;
 	case EV_ABS:
 		if (code == ABS_MT_SLOT) {
 			/* MT protocol type B support */
+			KASSERT(!mt->type_a, ("Not a MT type B protocol"));
 			KASSERT(value >= 0, ("Negative slot number"));
 			mt->match_slot = value;
 			mt->match_frame |= 1U << mt->match_slot;
 			return (true);
 		} else if (code == ABS_MT_TRACKING_ID) {
+			KASSERT(!mt->type_a, ("Not a MT type B protocol"));
 			if (value == -1)
 				mt->match_frame &= ~(1U << mt->match_slot);
 			return (true);
@@ -495,6 +521,8 @@ evdev_get_mt_slot_by_tracking_id(struct evdev_dev *evdev, int32_t tracking_id)
 {
 	struct evdev_mt *mt = evdev->ev_mt;
 	int slot;
+
+	KASSERT(!mt->type_a, ("Not a MT type B protocol"));
 
 	/*
 	 * Ignore tracking_id if slot assignment is performed by evdev.
