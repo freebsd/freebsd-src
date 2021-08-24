@@ -88,6 +88,11 @@ INCS+=		strings.h
 SRCS+=		explicit_bzero.c
 .endif
 
+_WITH_FSPACECTL!= grep -c fspacectl ${HOST_INCLUDE_ROOT}/fcntl.h || true
+.if ${_WITH_FSPACECTL} == 0
+INCS+=		fcntl.h
+SRCS+=		fspacectl.c
+.endif
 
 .if exists(${HOST_INCLUDE_ROOT}/capsicum_helpers.h)
 _WITH_CAPH_ENTER!= grep -c caph_enter ${HOST_INCLUDE_ROOT}/capsicum_helpers.h || true
