@@ -876,6 +876,7 @@ evdev_send_event(struct evdev_dev *evdev, uint16_t type, uint16_t code,
 
 	EVDEV_LOCK_ASSERT(evdev);
 
+	evdev_modify_event(evdev, type, code, &value);
 	sparse =  evdev_sparse_event(evdev, type, code, value);
 	switch (sparse) {
 	case EV_REPORT_MT_SLOT:
@@ -939,7 +940,6 @@ evdev_push_event(struct evdev_dev *evdev, uint16_t type, uint16_t code,
 		evdev_restore_after_kdb(evdev);
 	}
 
-	evdev_modify_event(evdev, type, code, &value);
 	if (type == EV_SYN && code == SYN_REPORT &&
 	    bit_test(evdev->ev_abs_flags, ABS_MT_SLOT))
 		evdev_mt_sync_frame(evdev);
