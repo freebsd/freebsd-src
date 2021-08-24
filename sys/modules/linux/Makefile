@@ -66,7 +66,7 @@ VDSOFLAGS=-mregparm=0
 .endif
 
 linux${SFX}_locore.o: linux${SFX}_assym.h assym.inc
-	${CC} -c -x assembler-with-cpp -DLOCORE -fPIC -pipe -O2 -Werror \
+	${CC} -c -x assembler-with-cpp -DLOCORE -fPIC -pipe -O3 -Werror \
 	-msoft-float \
 	-fno-common -nostdinc -fasynchronous-unwind-tables \
 	-fno-omit-frame-pointer -foptimize-sibling-calls ${VDSOFLAGS} \
@@ -74,7 +74,7 @@ linux${SFX}_locore.o: linux${SFX}_assym.h assym.inc
 	    ${.IMPSRC} -o ${.TARGET}
 
 linux${SFX}_vdso_gtod.o: linux_vdso_gtod.inc ${VDSODEPS}
-	${CC} -c -fPIC -pipe -O2 -Werror -msoft-float \
+	${CC} -c -fPIC -pipe -O3 -Werror -msoft-float \
 	-fno-common -nostdinc -fasynchronous-unwind-tables \
 	-fno-omit-frame-pointer -foptimize-sibling-calls ${VDSOFLAGS} \
 	-fno-stack-protector -I. -I${SYSDIR} -I${SRCTOP}/include \
