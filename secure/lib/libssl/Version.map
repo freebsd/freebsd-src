@@ -512,5 +512,4 @@ OPENSSL_1_1_1 {
 OPENSSL_1_1_1a {
     global:
         SSL_get_signature_type_nid;
-    local: *;
 } OPENSSL_1_1_1;
