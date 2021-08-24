@@ -11,6 +11,29 @@ handbook:
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20210824:
+	13.0-RELEASE-p4	FreeBSD-EN-21:23.virtio_blk
+			FreeBSD-EN-21:24.libcrypto
+			FreeBSD-EN-21:25.bhyve
+			FreeBSD-SA-21:13.bhyve
+			FreeBSD-SA-21:14.ggatec
+			FreeBSD-SA-21:15.libfetch
+			FreeBSD-SA-21:16.openssl
+
+	Fix virtio_blk(4) failing to attach on some hypervisors. [EN-21:23.virtio_blk]
+
+	Fix OpenSSL 1.1.1e API functions not being exported. [EN-21:24.libcrypto]
+
+	Fix NVMe iovec construction for large IOs. [EN-21:25.bhyve]
+
+	Fix missing error handling in bhyve(8) device models. [SA-21:13.bhyve]
+
+	Fix remote code execution in ggatec(8). [SA-21:14.ggatec]
+
+	Fix libfetch out of bounds read. [SA-21:15.libfetch]
+
+	Fix multiple OpenSSL vulnerabilities. [SA-21:16.openssl]
+
 20210629:
 	13.0-RELEASE-p3	FreeBSD-EN-21:18.libc++
 			FreeBSD-EN-21:19.libcasper
