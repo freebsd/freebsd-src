@@ -42,6 +42,13 @@
 #define	debugf(fmt, args...)
 #endif
 
+typedef	u_int	slotset_t;
+
+_Static_assert(MAX_MT_SLOTS < sizeof(slotset_t) * 8, "MAX_MT_SLOTS too big");
+
+#define FOREACHBIT(v, i) \
+	for ((i) = ffs(v) - 1; (i) != -1; (i) = ffs((v) & (~1 << (i))) - 1)
+
 static uint16_t evdev_mtstmap[][2] = {
 	{ ABS_MT_POSITION_X, ABS_X },
 	{ ABS_MT_POSITION_Y, ABS_Y },
@@ -50,17 +57,26 @@ static uint16_t evdev_mtstmap[][2] = {
 };
 
 struct evdev_mt_slot {
-	uint64_t	ev_report;
 	int32_t		val[MT_CNT];
 };
 
 struct evdev_mt {
 	int			last_reported_slot;
+	/* the set of slots with active touches */
+	slotset_t		touches;
+	/* the set of slots with unsynchronized state */
+	slotset_t		frame;
 	struct evdev_mt_slot	slots[];
 };
 
 static void	evdev_mt_send_st_compat(struct evdev_dev *);
 static void	evdev_mt_send_autorel(struct evdev_dev *);
+
+static inline int
+ffc_slot(struct evdev_dev *evdev, slotset_t slots)
+{
+	return (ffs(~slots & (2U << MAXIMAL_MT_SLOT(evdev)) - 1) - 1);
+}
 
 void
 evdev_mt_init(struct evdev_dev *evdev)
@@ -73,17 +89,9 @@ evdev_mt_init(struct evdev_dev *evdev)
 	     sizeof(struct evdev_mt_slot) * slots, M_EVDEV, M_WAITOK | M_ZERO);
 
 	/* Initialize multitouch protocol type B states */
-	for (slot = 0; slot < slots; slot++) {
-		/*
-		 * .ev_report should not be initialized to initial value of
-		 * report counter (0) as it brokes free slot detection in
-		 * evdev_get_mt_slot_by_tracking_id. So initialize it to -1
-		 */
-		evdev->ev_mt->slots[slot] = (struct evdev_mt_slot) {
-			.ev_report = 0xFFFFFFFFFFFFFFFFULL,
-			.val[ABS_MT_INDEX(ABS_MT_TRACKING_ID)] = -1,
-		};
-	}
+	for (slot = 0; slot < slots; slot++)
+		evdev->ev_mt->slots[slot].val[ABS_MT_INDEX(ABS_MT_TRACKING_ID)]
+		    = -1;
 
 	if (bit_test(evdev->ev_flags, EVDEV_FLAG_MT_STCOMPAT))
 		evdev_support_mt_compat(evdev);
@@ -103,6 +111,7 @@ evdev_mt_sync_frame(struct evdev_dev *evdev)
 	if (evdev->ev_report_opened &&
 	    bit_test(evdev->ev_flags, EVDEV_FLAG_MT_STCOMPAT))
 		evdev_mt_send_st_compat(evdev);
+	evdev->ev_mt->frame = 0;
 }
 
 int
@@ -118,7 +127,7 @@ evdev_mt_set_last_slot(struct evdev_dev *evdev, int slot)
 
 	MPASS(slot >= 0 && slot <= MAXIMAL_MT_SLOT(evdev));
 
-	mt->slots[slot].ev_report = evdev->ev_report_count;
+	mt->frame |= 1U << slot;
 	mt->last_reported_slot = slot;
 }
 
@@ -140,6 +149,12 @@ evdev_mt_set_value(struct evdev_dev *evdev, int slot, int16_t code,
 
 	MPASS(slot >= 0 && slot <= MAXIMAL_MT_SLOT(evdev));
 
+	if (code == ABS_MT_TRACKING_ID) {
+		if (value != -1)
+			mt->touches |= 1U << slot;
+		else
+			mt->touches &= ~(1U << slot);
+	}
 	mt->slots[slot].val[ABS_MT_INDEX(code)] = value;
 }
 
@@ -147,25 +162,17 @@ int
 evdev_get_mt_slot_by_tracking_id(struct evdev_dev *evdev, int32_t tracking_id)
 {
 	struct evdev_mt *mt = evdev->ev_mt;
-	int32_t tr_id;
-	int slot, free_slot = -1;
+	int slot;
 
-	for (slot = 0; slot <= MAXIMAL_MT_SLOT(evdev); slot++) {
-		tr_id = evdev_mt_get_value(evdev, slot, ABS_MT_TRACKING_ID);
-		if (tr_id == tracking_id)
+	FOREACHBIT(mt->touches, slot)
+		if (evdev_mt_get_value(evdev, slot, ABS_MT_TRACKING_ID) ==
+		    tracking_id)
 			return (slot);
-		/*
-		 * Its possible that slot will be reassigned in a place of just
-		 * released one within the same report. To avoid this compare
-		 * report counter with slot`s report number updated with each
-		 * ABS_MT_TRACKING_ID change.
-		 */
-		if (free_slot == -1 && tr_id == -1 &&
-		    mt->slots[slot].ev_report != evdev->ev_report_count)
-			free_slot = slot;
-	}
-
-	return (free_slot);
+	/*
+	 * Do not allow allocation of new slot in a place of just
+	 * released one within the same report.
+	 */
+	return (ffc_slot(evdev, mt->touches | mt->frame));
 }
 
 void
@@ -194,29 +201,18 @@ evdev_support_mt_compat(struct evdev_dev *evdev)
 			    evdev->ev_absinfo[evdev_mtstmap[i][0]].resolution);
 }
 
-static int32_t
-evdev_count_fingers(struct evdev_dev *evdev)
-{
-	int nfingers = 0, i;
-
-	for (i = 0; i <= MAXIMAL_MT_SLOT(evdev); i++)
-		if (evdev_mt_get_value(evdev, i, ABS_MT_TRACKING_ID) != -1)
-			nfingers++;
-
-	return (nfingers);
-}
-
 static void
 evdev_mt_send_st_compat(struct evdev_dev *evdev)
 {
+	struct evdev_mt *mt = evdev->ev_mt;
 	int nfingers, i;
 
 	EVDEV_LOCK_ASSERT(evdev);
 
-	nfingers = evdev_count_fingers(evdev);
+	nfingers = bitcount(mt->touches);
 	evdev_send_event(evdev, EV_KEY, BTN_TOUCH, nfingers > 0);
 
-	if (evdev_mt_get_value(evdev, 0, ABS_MT_TRACKING_ID) != -1)
+	if ((mt->touches & 1U << 0) != 0)
 		/* Echo 0-th MT-slot as ST-slot */
 		for (i = 0; i < nitems(evdev_mtstmap); i++)
 			if (bit_test(evdev->ev_abs_flags, evdev_mtstmap[i][1]))
@@ -250,13 +246,9 @@ evdev_mt_send_autorel(struct evdev_dev *evdev)
 
 	EVDEV_LOCK_ASSERT(evdev);
 
-	for (slot = 0; slot <= MAXIMAL_MT_SLOT(evdev); slot++) {
-		if (mt->slots[slot].ev_report != evdev->ev_report_count &&
-		    evdev_mt_get_value(evdev, slot, ABS_MT_TRACKING_ID) != -1){
-			evdev_send_event(evdev, EV_ABS, ABS_MT_SLOT, slot);
-			evdev_send_event(evdev, EV_ABS, ABS_MT_TRACKING_ID,
-			    -1);
-		}
+	FOREACHBIT(mt->touches & ~mt->frame, slot) {
+		evdev_send_event(evdev, EV_ABS, ABS_MT_SLOT, slot);
+		evdev_send_event(evdev, EV_ABS, ABS_MT_TRACKING_ID, -1);
 	}
 }
 
