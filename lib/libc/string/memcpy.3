@@ -86,19 +86,3 @@ The
 function
 conforms to
 .St -isoC .
-.Sh BUGS
-In this implementation
-.Fn memcpy
-and
-.Fn mempcpy
-are implemented using
-.Xr bcopy 3 ,
-and therefore the strings may overlap.
-On other systems, copying overlapping strings may produce surprises.
-Programs intended to be portable should use
-.Xr memmove 3
-when
-.Fa src
-and
-.Fa dst
-may overlap.
