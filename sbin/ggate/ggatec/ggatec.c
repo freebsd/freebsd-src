@@ -145,7 +145,21 @@ send_thread(void *arg __unused)
 		case BIO_WRITE:
 			hdr.gh_cmd = GGATE_CMD_WRITE;
 			break;
+		default:
+			g_gate_log(LOG_NOTICE, "Unknown gctl_cmd: %i", ggio.gctl_cmd);
+			ggio.gctl_error = EOPNOTSUPP;
+			g_gate_ioctl(G_GATE_CMD_DONE, &ggio);
+			continue;
 		}
+
+		/* Don't send requests for more data than we can handle the response for! */
+		if (ggio.gctl_length > MAXPHYS) {
+			g_gate_log(LOG_ERR, "Request too big: %zd", ggio.gctl_length);
+			ggio.gctl_error = EOPNOTSUPP;
+			g_gate_ioctl(G_GATE_CMD_DONE, &ggio);
+			continue;
+		}
+
 		hdr.gh_seq = ggio.gctl_seq;
 		hdr.gh_offset = ggio.gctl_offset;
 		hdr.gh_length = ggio.gctl_length;
@@ -218,6 +232,12 @@ recv_thread(void *arg __unused)
 		ggio.gctl_offset = hdr.gh_offset;
 		ggio.gctl_length = hdr.gh_length;
 		ggio.gctl_error = hdr.gh_error;
+
+		/* Do not overflow our buffer if there is a bogus response. */
+		if (ggio.gctl_length > (off_t) sizeof(buf)) {
+			g_gate_log(LOG_ERR, "Received too big response: %zd", ggio.gctl_length);
+			break;
+		}
 
 		if (ggio.gctl_error == 0 && ggio.gctl_cmd == GGATE_CMD_READ) {
 			data = g_gate_recv(recvfd, ggio.gctl_data,
