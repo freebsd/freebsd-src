@@ -907,7 +907,8 @@ pfctl_id_kill_states(int dev, const char *iface, int opts)
 		kill.kill_match = true;
 
 	if ((sscanf(state_kill[1], "%jx/%x",
-	    &kill.cmp.id, &kill.cmp.creatorid)) == 2)
+	    &kill.cmp.id, &kill.cmp.creatorid)) == 2) {
+	}
 	else if ((sscanf(state_kill[1], "%jx", &kill.cmp.id)) == 1) {
 		kill.cmp.creatorid = 0;
 	} else {
