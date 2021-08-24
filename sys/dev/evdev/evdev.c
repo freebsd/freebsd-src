@@ -306,8 +306,9 @@ evdev_register_common(struct evdev_dev *evdev)
 		}
 	}
 
-	/* Initialize multitouch protocol type B states */
-	if (bit_test(evdev->ev_abs_flags, ABS_MT_SLOT))
+	/* Initialize multitouch protocol type B states or A to B converter */
+	if (bit_test(evdev->ev_abs_flags, ABS_MT_SLOT) ||
+	    bit_test(evdev->ev_flags, EVDEV_FLAG_MT_TRACK))
 		evdev_mt_init(evdev);
 
 	/* Estimate maximum report size */
