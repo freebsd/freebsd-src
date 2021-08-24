@@ -664,7 +664,6 @@ BSARGS= 	DESTDIR= \
 		MK_CLANG_FORMAT=no \
 		MK_CLANG_FULL=no \
 		MK_HTML=no \
-		MK_LLDB=no \
 		MK_MAN=no \
 		MK_PROFILE=no \
 		MK_RETPOLINE=no \
@@ -704,7 +703,9 @@ TMAKE=		\
 XMAKE=		${BMAKE} \
 		TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
 		MK_CLANG_IS_CC=${MK_CLANG_BOOTSTRAP} \
-		MK_GDB=no MK_TESTS=no
+		MK_GDB=no \
+		MK_LLDB=no \
+		MK_TESTS=no
 
 # kernel-tools stage
 KTMAKEENV=	INSTALL="sh ${.CURDIR}/tools/install.sh" \
