@@ -707,8 +707,8 @@ evdev_modify_event(struct evdev_dev *evdev, uint16_t type, uint16_t code,
 		else if (!ABS_IS_MT(code))
 			old_value = evdev->ev_absinfo[code].value;
 		else if (bit_test(evdev->ev_abs_flags, ABS_MT_SLOT))
-			old_value = evdev_get_mt_value(evdev,
-			    evdev_get_last_mt_slot(evdev), code);
+			old_value = evdev_mt_get_value(evdev,
+			    evdev_mt_get_last_slot(evdev), code);
 		else	/* Pass MT protocol type A events as is */
 			break;
 
@@ -788,7 +788,7 @@ evdev_sparse_event(struct evdev_dev *evdev, uint16_t type, uint16_t code,
 		switch (code) {
 		case ABS_MT_SLOT:
 			/* Postpone ABS_MT_SLOT till next event */
-			evdev_set_last_mt_slot(evdev, value);
+			evdev_mt_set_last_slot(evdev, value);
 			return (EV_SKIP_EVENT);
 
 		case ABS_MT_FIRST ... ABS_MT_LAST:
@@ -796,11 +796,11 @@ evdev_sparse_event(struct evdev_dev *evdev, uint16_t type, uint16_t code,
 			if (!bit_test(evdev->ev_abs_flags, ABS_MT_SLOT))
 				break;
 			/* Don`t repeat MT protocol type B events */
-			last_mt_slot = evdev_get_last_mt_slot(evdev);
-			if (evdev_get_mt_value(evdev, last_mt_slot, code)
+			last_mt_slot = evdev_mt_get_last_slot(evdev);
+			if (evdev_mt_get_value(evdev, last_mt_slot, code)
 			     == value)
 				return (EV_SKIP_EVENT);
-			evdev_set_mt_value(evdev, last_mt_slot, code, value);
+			evdev_mt_set_value(evdev, last_mt_slot, code, value);
 			if (last_mt_slot != CURRENT_MT_SLOT(evdev)) {
 				CURRENT_MT_SLOT(evdev) = last_mt_slot;
 				evdev->ev_report_opened = true;
@@ -941,11 +941,8 @@ evdev_push_event(struct evdev_dev *evdev, uint16_t type, uint16_t code,
 
 	evdev_modify_event(evdev, type, code, &value);
 	if (type == EV_SYN && code == SYN_REPORT &&
-	     bit_test(evdev->ev_flags, EVDEV_FLAG_MT_AUTOREL))
-		evdev_send_mt_autorel(evdev);
-	if (type == EV_SYN && code == SYN_REPORT && evdev->ev_report_opened &&
-	    bit_test(evdev->ev_flags, EVDEV_FLAG_MT_STCOMPAT))
-		evdev_send_mt_compat(evdev);
+	    bit_test(evdev->ev_abs_flags, ABS_MT_SLOT))
+		evdev_mt_sync_frame(evdev);
 	evdev_send_event(evdev, type, code, value);
 
 	EVDEV_EXIT(evdev);

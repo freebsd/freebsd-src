@@ -131,11 +131,15 @@ void evdev_set_flag(struct evdev_dev *, uint16_t);
 void *evdev_get_softc(struct evdev_dev *);
 
 /* Multitouch related functions: */
-int32_t evdev_get_mt_slot_by_tracking_id(struct evdev_dev *, int32_t);
-void evdev_support_nfingers(struct evdev_dev *, int32_t);
+int evdev_get_mt_slot_by_tracking_id(struct evdev_dev *, int32_t);
 void evdev_support_mt_compat(struct evdev_dev *);
-void evdev_push_nfingers(struct evdev_dev *, int32_t);
 void evdev_push_mt_compat(struct evdev_dev *);
+void evdev_mt_push_autorel(struct evdev_dev *);
+static inline int
+evdev_mt_id_to_slot(struct evdev_dev *evdev, int32_t id)
+{
+	return (evdev_get_mt_slot_by_tracking_id(evdev, id));
+}
 
 /* Utility functions: */
 uint16_t evdev_hid2key(int);
@@ -144,6 +148,8 @@ uint16_t evdev_scancode2key(int *, int);
 void evdev_push_mouse_btn(struct evdev_dev *, int);
 void evdev_push_leds(struct evdev_dev *, int);
 void evdev_push_repeats(struct evdev_dev *, keyboard_t *);
+void evdev_support_nfingers(struct evdev_dev *, int);
+void evdev_push_nfingers(struct evdev_dev *, int);
 
 /* Event reporting shortcuts: */
 static __inline int

@@ -279,14 +279,14 @@ void evdev_revoke_client(struct evdev_client *);
 /* Multitouch related functions: */
 void evdev_mt_init(struct evdev_dev *);
 void evdev_mt_free(struct evdev_dev *);
-int32_t evdev_get_last_mt_slot(struct evdev_dev *);
-void evdev_set_last_mt_slot(struct evdev_dev *, int32_t);
-int32_t evdev_get_mt_value(struct evdev_dev *, int32_t, int16_t);
-void evdev_set_mt_value(struct evdev_dev *, int32_t, int16_t, int32_t);
-void evdev_send_mt_compat(struct evdev_dev *);
-void evdev_send_mt_autorel(struct evdev_dev *);
+void evdev_mt_sync_frame(struct evdev_dev *);
+int evdev_mt_get_last_slot(struct evdev_dev *);
+void evdev_mt_set_last_slot(struct evdev_dev *, int);
+int32_t evdev_mt_get_value(struct evdev_dev *, int, int16_t);
+void evdev_mt_set_value(struct evdev_dev *, int, int16_t, int32_t);
 
 /* Utility functions: */
 void evdev_client_dumpqueue(struct evdev_client *);
+void evdev_send_nfingers(struct evdev_dev *, int);
 
 #endif	/* _DEV_EVDEV_EVDEV_PRIVATE_H */

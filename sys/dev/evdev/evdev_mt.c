@@ -42,14 +42,6 @@
 #define	debugf(fmt, args...)
 #endif
 
-static uint16_t evdev_fngmap[] = {
-	BTN_TOOL_FINGER,
-	BTN_TOOL_DOUBLETAP,
-	BTN_TOOL_TRIPLETAP,
-	BTN_TOOL_QUADTAP,
-	BTN_TOOL_QUINTTAP,
-};
-
 static uint16_t evdev_mtstmap[][2] = {
 	{ ABS_MT_POSITION_X, ABS_X },
 	{ ABS_MT_POSITION_Y, ABS_Y },
@@ -58,23 +50,26 @@ static uint16_t evdev_mtstmap[][2] = {
 };
 
 struct evdev_mt_slot {
-	uint64_t ev_report;
-	int32_t ev_mt_states[MT_CNT];
+	uint64_t	ev_report;
+	int32_t		val[MT_CNT];
 };
 
 struct evdev_mt {
-	int32_t	ev_mt_last_reported_slot;
-	struct evdev_mt_slot ev_mt_slots[];
+	int			last_reported_slot;
+	struct evdev_mt_slot	slots[];
 };
+
+static void	evdev_mt_send_st_compat(struct evdev_dev *);
+static void	evdev_mt_send_autorel(struct evdev_dev *);
 
 void
 evdev_mt_init(struct evdev_dev *evdev)
 {
-	int32_t slot, slots;
+	int slot, slots;
 
 	slots = MAXIMAL_MT_SLOT(evdev) + 1;
 
-	evdev->ev_mt = malloc(offsetof(struct evdev_mt, ev_mt_slots) +
+	evdev->ev_mt = malloc(offsetof(struct evdev_mt, slots) +
 	     sizeof(struct evdev_mt_slot) * slots, M_EVDEV, M_WAITOK | M_ZERO);
 
 	/* Initialize multitouch protocol type B states */
@@ -84,9 +79,9 @@ evdev_mt_init(struct evdev_dev *evdev)
 		 * report counter (0) as it brokes free slot detection in
 		 * evdev_get_mt_slot_by_tracking_id. So initialize it to -1
 		 */
-		evdev->ev_mt->ev_mt_slots[slot] = (struct evdev_mt_slot) {
+		evdev->ev_mt->slots[slot] = (struct evdev_mt_slot) {
 			.ev_report = 0xFFFFFFFFFFFFFFFFULL,
-			.ev_mt_states[ABS_MT_INDEX(ABS_MT_TRACKING_ID)] = -1,
+			.val[ABS_MT_INDEX(ABS_MT_TRACKING_ID)] = -1,
 		};
 	}
 
@@ -97,49 +92,66 @@ evdev_mt_init(struct evdev_dev *evdev)
 void
 evdev_mt_free(struct evdev_dev *evdev)
 {
-
 	free(evdev->ev_mt, M_EVDEV);
 }
 
-int32_t
-evdev_get_last_mt_slot(struct evdev_dev *evdev)
+void
+evdev_mt_sync_frame(struct evdev_dev *evdev)
 {
+	if (bit_test(evdev->ev_flags, EVDEV_FLAG_MT_AUTOREL))
+		evdev_mt_send_autorel(evdev);
+	if (evdev->ev_report_opened &&
+	    bit_test(evdev->ev_flags, EVDEV_FLAG_MT_STCOMPAT))
+		evdev_mt_send_st_compat(evdev);
+}
 
-	return (evdev->ev_mt->ev_mt_last_reported_slot);
+int
+evdev_mt_get_last_slot(struct evdev_dev *evdev)
+{
+	return (evdev->ev_mt->last_reported_slot);
 }
 
 void
-evdev_set_last_mt_slot(struct evdev_dev *evdev, int32_t slot)
+evdev_mt_set_last_slot(struct evdev_dev *evdev, int slot)
 {
+	struct evdev_mt *mt = evdev->ev_mt;
 
-	evdev->ev_mt->ev_mt_slots[slot].ev_report = evdev->ev_report_count;
-	evdev->ev_mt->ev_mt_last_reported_slot = slot;
-}
+	MPASS(slot >= 0 && slot <= MAXIMAL_MT_SLOT(evdev));
 
-inline int32_t
-evdev_get_mt_value(struct evdev_dev *evdev, int32_t slot, int16_t code)
-{
-
-	return (evdev->ev_mt->
-	    ev_mt_slots[slot].ev_mt_states[ABS_MT_INDEX(code)]);
-}
-
-inline void
-evdev_set_mt_value(struct evdev_dev *evdev, int32_t slot, int16_t code,
-    int32_t value)
-{
-
-	evdev->ev_mt->ev_mt_slots[slot].ev_mt_states[ABS_MT_INDEX(code)] =
-	    value;
+	mt->slots[slot].ev_report = evdev->ev_report_count;
+	mt->last_reported_slot = slot;
 }
 
 int32_t
+evdev_mt_get_value(struct evdev_dev *evdev, int slot, int16_t code)
+{
+	struct evdev_mt *mt = evdev->ev_mt;
+
+	MPASS(slot >= 0 && slot <= MAXIMAL_MT_SLOT(evdev));
+
+	return (mt->slots[slot].val[ABS_MT_INDEX(code)]);
+}
+
+void
+evdev_mt_set_value(struct evdev_dev *evdev, int slot, int16_t code,
+    int32_t value)
+{
+	struct evdev_mt *mt = evdev->ev_mt;
+
+	MPASS(slot >= 0 && slot <= MAXIMAL_MT_SLOT(evdev));
+
+	mt->slots[slot].val[ABS_MT_INDEX(code)] = value;
+}
+
+int
 evdev_get_mt_slot_by_tracking_id(struct evdev_dev *evdev, int32_t tracking_id)
 {
-	int32_t tr_id, slot, free_slot = -1;
+	struct evdev_mt *mt = evdev->ev_mt;
+	int32_t tr_id;
+	int slot, free_slot = -1;
 
 	for (slot = 0; slot <= MAXIMAL_MT_SLOT(evdev); slot++) {
-		tr_id = evdev_get_mt_value(evdev, slot, ABS_MT_TRACKING_ID);
+		tr_id = evdev_mt_get_value(evdev, slot, ABS_MT_TRACKING_ID);
 		if (tr_id == tracking_id)
 			return (slot);
 		/*
@@ -149,8 +161,7 @@ evdev_get_mt_slot_by_tracking_id(struct evdev_dev *evdev, int32_t tracking_id)
 		 * ABS_MT_TRACKING_ID change.
 		 */
 		if (free_slot == -1 && tr_id == -1 &&
-		    evdev->ev_mt->ev_mt_slots[slot].ev_report !=
-		    evdev->ev_report_count)
+		    mt->slots[slot].ev_report != evdev->ev_report_count)
 			free_slot = slot;
 	}
 
@@ -158,18 +169,9 @@ evdev_get_mt_slot_by_tracking_id(struct evdev_dev *evdev, int32_t tracking_id)
 }
 
 void
-evdev_support_nfingers(struct evdev_dev *evdev, int32_t nfingers)
-{
-	int32_t i;
-
-	for (i = 0; i < MIN(nitems(evdev_fngmap), nfingers); i++)
-		evdev_support_key(evdev, evdev_fngmap[i]);
-}
-
-void
 evdev_support_mt_compat(struct evdev_dev *evdev)
 {
-	int32_t i;
+	int i;
 
 	if (evdev->ev_absinfo == NULL)
 		return;
@@ -195,56 +197,32 @@ evdev_support_mt_compat(struct evdev_dev *evdev)
 static int32_t
 evdev_count_fingers(struct evdev_dev *evdev)
 {
-	int32_t nfingers = 0, i;
+	int nfingers = 0, i;
 
 	for (i = 0; i <= MAXIMAL_MT_SLOT(evdev); i++)
-		if (evdev_get_mt_value(evdev, i, ABS_MT_TRACKING_ID) != -1)
+		if (evdev_mt_get_value(evdev, i, ABS_MT_TRACKING_ID) != -1)
 			nfingers++;
 
 	return (nfingers);
 }
 
 static void
-evdev_send_nfingers(struct evdev_dev *evdev, int32_t nfingers)
+evdev_mt_send_st_compat(struct evdev_dev *evdev)
 {
-	int32_t i;
-
-	EVDEV_LOCK_ASSERT(evdev);
-
-	if (nfingers > nitems(evdev_fngmap))
-		nfingers = nitems(evdev_fngmap);
-
-	for (i = 0; i < nitems(evdev_fngmap); i++)
-		evdev_send_event(evdev, EV_KEY, evdev_fngmap[i],
-		    nfingers == i + 1);
-}
-
-void
-evdev_push_nfingers(struct evdev_dev *evdev, int32_t nfingers)
-{
-
-	EVDEV_ENTER(evdev);
-	evdev_send_nfingers(evdev, nfingers);
-	EVDEV_EXIT(evdev);
-}
-
-void
-evdev_send_mt_compat(struct evdev_dev *evdev)
-{
-	int32_t nfingers, i;
+	int nfingers, i;
 
 	EVDEV_LOCK_ASSERT(evdev);
 
 	nfingers = evdev_count_fingers(evdev);
 	evdev_send_event(evdev, EV_KEY, BTN_TOUCH, nfingers > 0);
 
-	if (evdev_get_mt_value(evdev, 0, ABS_MT_TRACKING_ID) != -1)
+	if (evdev_mt_get_value(evdev, 0, ABS_MT_TRACKING_ID) != -1)
 		/* Echo 0-th MT-slot as ST-slot */
 		for (i = 0; i < nitems(evdev_mtstmap); i++)
 			if (bit_test(evdev->ev_abs_flags, evdev_mtstmap[i][1]))
 				evdev_send_event(evdev, EV_ABS,
 				    evdev_mtstmap[i][1],
-				    evdev_get_mt_value(evdev, 0,
+				    evdev_mt_get_value(evdev, 0,
 				    evdev_mtstmap[i][0]));
 
 	/* Touchscreens should not report tool taps */
@@ -260,24 +238,32 @@ evdev_push_mt_compat(struct evdev_dev *evdev)
 {
 
 	EVDEV_ENTER(evdev);
-	evdev_send_mt_compat(evdev);
+	evdev_mt_send_st_compat(evdev);
 	EVDEV_EXIT(evdev);
 }
 
-void
-evdev_send_mt_autorel(struct evdev_dev *evdev)
+static void
+evdev_mt_send_autorel(struct evdev_dev *evdev)
 {
-	int32_t slot;
+	struct evdev_mt *mt = evdev->ev_mt;
+	int slot;
 
 	EVDEV_LOCK_ASSERT(evdev);
 
 	for (slot = 0; slot <= MAXIMAL_MT_SLOT(evdev); slot++) {
-		if (evdev->ev_mt->ev_mt_slots[slot].ev_report !=
-		    evdev->ev_report_count &&
-		    evdev_get_mt_value(evdev, slot, ABS_MT_TRACKING_ID) != -1){
+		if (mt->slots[slot].ev_report != evdev->ev_report_count &&
+		    evdev_mt_get_value(evdev, slot, ABS_MT_TRACKING_ID) != -1){
 			evdev_send_event(evdev, EV_ABS, ABS_MT_SLOT, slot);
 			evdev_send_event(evdev, EV_ABS, ABS_MT_TRACKING_ID,
 			    -1);
 		}
 	}
+}
+
+void
+evdev_mt_push_autorel(struct evdev_dev *evdev)
+{
+	EVDEV_ENTER(evdev);
+	evdev_mt_send_autorel(evdev);
+	EVDEV_EXIT(evdev);
 }
