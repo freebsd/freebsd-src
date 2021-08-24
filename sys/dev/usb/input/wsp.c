@@ -169,7 +169,8 @@ enum tp_type {
 	TYPE1,			/* plain trackpad */
 	TYPE2,			/* button integrated in trackpad */
 	TYPE3,			/* additional header fields since June 2013 */
-	TYPE4                   /* additional header field for pressure data */
+	TYPE4,                  /* additional header field for pressure data */
+	TYPE_CNT
 };
 
 /* trackpad finger data offsets, le16-aligned */
@@ -191,6 +192,67 @@ enum tp_type {
 #define FSIZE_TYPE2             (14 * 2)
 #define FSIZE_TYPE3             (14 * 2)
 #define FSIZE_TYPE4             (15 * 2)
+
+struct wsp_tp {
+	uint8_t	caps;			/* device capability bitmask */
+	uint8_t	button;			/* offset to button data */
+	uint8_t	offset;			/* offset to trackpad finger data */
+	uint8_t fsize;			/* bytes in single finger block */
+	uint8_t delta;			/* offset from header to finger struct */
+	uint8_t iface_index;
+	uint8_t um_size;		/* usb control message length */
+	uint8_t um_req_idx;		/* usb control message index */
+	uint8_t um_switch_idx;		/* usb control message mode switch index */
+	uint8_t um_switch_on;		/* usb control message mode switch on */
+	uint8_t um_switch_off;		/* usb control message mode switch off */
+} const static wsp_tp[TYPE_CNT] = {
+	[TYPE1] = {
+		.caps = 0,
+		.button = 0,
+		.offset = FINGER_TYPE1,
+		.fsize = FSIZE_TYPE1,
+		.delta = 0,
+		.iface_index = 0,
+		.um_size = 8,
+		.um_req_idx = 0x00,
+		.um_switch_idx = 0,
+		.um_switch_on = 0x01,
+		.um_switch_off = 0x08,
+	},
+	[TYPE2] = {
+		.caps = HAS_INTEGRATED_BUTTON,
+		.button = BUTTON_TYPE2,
+		.offset = FINGER_TYPE2,
+		.fsize = FSIZE_TYPE2,
+		.delta = 0,
+		.iface_index = 0,
+		.um_size = 8,
+		.um_req_idx = 0x00,
+		.um_switch_idx = 0,
+		.um_switch_on = 0x01,
+		.um_switch_off = 0x08,
+	},
+	[TYPE3] = {
+		.caps = HAS_INTEGRATED_BUTTON,
+		.button = BUTTON_TYPE3,
+		.offset = FINGER_TYPE3,
+		.fsize = FSIZE_TYPE3,
+		.delta = 0,
+	},
+	[TYPE4] = {
+		.caps = HAS_INTEGRATED_BUTTON,
+		.button = BUTTON_TYPE4,
+		.offset = FINGER_TYPE4,
+		.fsize = FSIZE_TYPE4,
+		.delta = 2,
+		.iface_index = 2,
+		.um_size = 2,
+		.um_req_idx = 0x02,
+		.um_switch_idx = 1,
+		.um_switch_on = 0x01,
+		.um_switch_off = 0x00,
+	},
+};
 
 /* trackpad finger header - little endian */
 struct tp_header {
@@ -253,215 +315,48 @@ enum {
 
 /* device-specific configuration */
 struct wsp_dev_params {
-	uint8_t	caps;			/* device capability bitmask */
-	uint8_t	tp_type;		/* type of trackpad interface */
-	uint8_t	tp_button;		/* offset to button data */
-	uint8_t	tp_offset;		/* offset to trackpad finger data */
-	uint8_t tp_fsize;		/* bytes in single finger block */
-	uint8_t tp_delta;		/* offset from header to finger struct */
-	uint8_t iface_index;
-	uint8_t um_size;		/* usb control message length */
-	uint8_t um_req_val;		/* usb control message value */
-	uint8_t um_req_idx;		/* usb control message index */
-	uint8_t um_switch_idx;		/* usb control message mode switch index */
-	uint8_t um_switch_on;		/* usb control message mode switch on */
-	uint8_t um_switch_off;		/* usb control message mode switch off */
+	const struct wsp_tp* tp;
 };
 
 static const struct wsp_dev_params wsp_dev_params[WSP_FLAG_MAX] = {
 	[WSP_FLAG_WELLSPRING1] = {
-		.caps = 0,
-		.tp_type = TYPE1,
-		.tp_button = 0,
-		.tp_offset = FINGER_TYPE1,
-		.tp_fsize = FSIZE_TYPE1,
-		.tp_delta = 0,
-		.iface_index = 0,
-		.um_size = 8,
-		.um_req_val = 0x03,
-		.um_req_idx = 0x00,
-		.um_switch_idx = 0,
-		.um_switch_on = 0x01,
-		.um_switch_off = 0x08,
+		.tp = wsp_tp + TYPE1,
 	},
 	[WSP_FLAG_WELLSPRING2] = {
-		.caps = 0,
-		.tp_type = TYPE1,
-		.tp_button = 0,
-		.tp_offset = FINGER_TYPE1,
-		.tp_fsize = FSIZE_TYPE1,
-		.tp_delta = 0,
-		.iface_index = 0,
-		.um_size = 8,
-		.um_req_val = 0x03,
-		.um_req_idx = 0x00,
-		.um_switch_idx = 0,
-		.um_switch_on = 0x01,
-		.um_switch_off = 0x08,
+		.tp = wsp_tp + TYPE1,
 	},
 	[WSP_FLAG_WELLSPRING3] = {
-		.caps = HAS_INTEGRATED_BUTTON,
-		.tp_type = TYPE2,
-		.tp_button = BUTTON_TYPE2,
-		.tp_offset = FINGER_TYPE2,
-		.tp_fsize = FSIZE_TYPE2,
-		.tp_delta = 0,
-		.iface_index = 0,
-		.um_size = 8,
-		.um_req_val = 0x03,
-		.um_req_idx = 0x00,
-		.um_switch_idx = 0,
-		.um_switch_on = 0x01,
-		.um_switch_off = 0x08,
+		.tp = wsp_tp + TYPE2,
 	},
 	[WSP_FLAG_WELLSPRING4] = {
-		.caps = HAS_INTEGRATED_BUTTON,
-		.tp_type = TYPE2,
-		.tp_button = BUTTON_TYPE2,
-		.tp_offset = FINGER_TYPE2,
-		.tp_fsize = FSIZE_TYPE2,
-		.tp_delta = 0,
-		.iface_index = 0,
-		.um_size = 8,
-		.um_req_val = 0x03,
-		.um_req_idx = 0x00,
-		.um_switch_idx = 0,
-		.um_switch_on = 0x01,
-		.um_switch_off = 0x08,
+		.tp = wsp_tp + TYPE2,
 	},
 	[WSP_FLAG_WELLSPRING4A] = {
-		.caps = HAS_INTEGRATED_BUTTON,
-		.tp_type = TYPE2,
-		.tp_button = BUTTON_TYPE2,
-		.tp_offset = FINGER_TYPE2,
-		.tp_fsize = FSIZE_TYPE2,
-		.tp_delta = 0,
-		.iface_index = 0,
-		.um_size = 8,
-		.um_req_val = 0x03,
-		.um_req_idx = 0x00,
-		.um_switch_idx = 0,
-		.um_switch_on = 0x01,
-		.um_switch_off = 0x08,
+		.tp = wsp_tp + TYPE2,
 	},
 	[WSP_FLAG_WELLSPRING5] = {
-		.caps = HAS_INTEGRATED_BUTTON,
-		.tp_type = TYPE2,
-		.tp_button = BUTTON_TYPE2,
-		.tp_offset = FINGER_TYPE2,
-		.tp_fsize = FSIZE_TYPE2,
-		.tp_delta = 0,
-		.iface_index = 0,
-		.um_size = 8,
-		.um_req_val = 0x03,
-		.um_req_idx = 0x00,
-		.um_switch_idx = 0,
-		.um_switch_on = 0x01,
-		.um_switch_off = 0x08,
+		.tp = wsp_tp + TYPE2,
 	},
 	[WSP_FLAG_WELLSPRING6] = {
-		.caps = HAS_INTEGRATED_BUTTON,
-		.tp_type = TYPE2,
-		.tp_button = BUTTON_TYPE2,
-		.tp_offset = FINGER_TYPE2,
-		.tp_fsize = FSIZE_TYPE2,
-		.tp_delta = 0,
-		.iface_index = 0,
-		.um_size = 8,
-		.um_req_val = 0x03,
-		.um_req_idx = 0x00,
-		.um_switch_idx = 0,
-		.um_switch_on = 0x01,
-		.um_switch_off = 0x08,
+		.tp = wsp_tp + TYPE2,
 	},
 	[WSP_FLAG_WELLSPRING5A] = {
-		.caps = HAS_INTEGRATED_BUTTON,
-		.tp_type = TYPE2,
-		.tp_button = BUTTON_TYPE2,
-		.tp_offset = FINGER_TYPE2,
-		.tp_fsize = FSIZE_TYPE2,
-		.tp_delta = 0,
-		.iface_index = 0,
-		.um_size = 8,
-		.um_req_val = 0x03,
-		.um_req_idx = 0x00,
-		.um_switch_idx = 0,
-		.um_switch_on = 0x01,
-		.um_switch_off = 0x08,
+		.tp = wsp_tp + TYPE2,
 	},
 	[WSP_FLAG_WELLSPRING6A] = {
-		.caps = HAS_INTEGRATED_BUTTON,
-		.tp_type = TYPE2,
-		.tp_button = BUTTON_TYPE2,
-		.tp_offset = FINGER_TYPE2,
-		.tp_fsize = FSIZE_TYPE2,
-		.tp_delta = 0,
-		.um_size = 8,
-		.um_req_val = 0x03,
-		.um_req_idx = 0x00,
-		.um_switch_idx = 0,
-		.um_switch_on = 0x01,
-		.um_switch_off = 0x08,
+		.tp = wsp_tp + TYPE2,
 	},
 	[WSP_FLAG_WELLSPRING7] = {
-		.caps = HAS_INTEGRATED_BUTTON,
-		.tp_type = TYPE2,
-		.tp_button = BUTTON_TYPE2,
-		.tp_offset = FINGER_TYPE2,
-		.tp_fsize = FSIZE_TYPE2,
-		.tp_delta = 0,
-		.iface_index = 0,
-		.um_size = 8,
-		.um_req_val = 0x03,
-		.um_req_idx = 0x00,
-		.um_switch_idx = 0,
-		.um_switch_on = 0x01,
-		.um_switch_off = 0x08,
+		.tp = wsp_tp + TYPE2,
 	},
 	[WSP_FLAG_WELLSPRING7A] = {
-		.caps = HAS_INTEGRATED_BUTTON,
-		.tp_type = TYPE2,
-		.tp_button = BUTTON_TYPE2,
-		.tp_offset = FINGER_TYPE2,
-		.tp_fsize = FSIZE_TYPE2,
-		.tp_delta = 0,
-		.iface_index = 0,
-		.um_size = 8,
-		.um_req_val = 0x03,
-		.um_req_idx = 0x00,
-		.um_switch_idx = 0,
-		.um_switch_on = 0x01,
-		.um_switch_off = 0x08,
+		.tp = wsp_tp + TYPE2,
 	},
 	[WSP_FLAG_WELLSPRING8] = {
-		.caps = HAS_INTEGRATED_BUTTON,
-		.tp_type = TYPE3,
-		.tp_button = BUTTON_TYPE3,
-		.tp_offset = FINGER_TYPE3,
-		.tp_fsize = FSIZE_TYPE3,
-		.tp_delta = 0,
-		.iface_index = 0,
-		.um_size = 8,
-		.um_req_val = 0x03,
-		.um_req_idx = 0x00,
-		.um_switch_idx = 0,
-		.um_switch_on = 0x01,
-		.um_switch_off = 0x08,
+		.tp = wsp_tp + TYPE3,
 	},
 	[WSP_FLAG_WELLSPRING9] = {
-		.caps = HAS_INTEGRATED_BUTTON,
-		.tp_type = TYPE4,
-		.tp_button = BUTTON_TYPE4,
-		.tp_offset = FINGER_TYPE4,
-		.tp_fsize = FSIZE_TYPE4,
-		.tp_delta = 2,
-		.iface_index = 2,
-		.um_size = 2,
-		.um_req_val = 0x03,
-		.um_req_idx = 0x02,
-		.um_switch_idx = 1,
-		.um_switch_on = 0x01,
-		.um_switch_off = 0x00,
+		.tp = wsp_tp + TYPE4,
 	},
 };
 #define	WSP_DEV(v,p,i) { USB_VPI(USB_VENDOR_##v, USB_PRODUCT_##v##_##p, i) }
@@ -647,12 +542,12 @@ wsp_set_device_mode(struct wsp_softc *sc, uint8_t on)
 	usb_error_t err;
 
 	/* Type 3 does not require a mode switch */
-	if (params->tp_type == TYPE3)
+	if (params->tp == wsp_tp + TYPE3)
 		return 0;
 
 	err = usbd_req_get_report(sc->sc_usb_device, NULL,
-	    mode_bytes, params->um_size, params->iface_index,
-	    params->um_req_val, params->um_req_idx);
+	    mode_bytes, params->tp->um_size, params->tp->iface_index,
+	    UHID_FEATURE_REPORT, params->tp->um_req_idx);
 
 	if (err != USB_ERR_NORMAL_COMPLETION) {
 		DPRINTF("Failed to read device mode (%d)\n", err);
@@ -667,12 +562,12 @@ wsp_set_device_mode(struct wsp_softc *sc, uint8_t on)
 	 */
 	pause("WHW", hz / 4);
 
-	mode_bytes[params->um_switch_idx] = 
-	    on ? params->um_switch_on : params->um_switch_off;
+	mode_bytes[params->tp->um_switch_idx] =
+	    on ? params->tp->um_switch_on : params->tp->um_switch_off;
 
 	return (usbd_req_set_report(sc->sc_usb_device, NULL,
-	    mode_bytes, params->um_size, params->iface_index, 
-	    params->um_req_val, params->um_req_idx));
+	    mode_bytes, params->tp->um_size, params->tp->iface_index,
+	    UHID_FEATURE_REPORT, params->tp->um_req_idx));
 }
 
 static int
@@ -881,8 +776,8 @@ wsp_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 		pc = usbd_xfer_get_frame(xfer, 0);
 		usbd_copy_out(pc, 0, sc->tp_data, len);
 
-		if ((len < params->tp_offset + params->tp_fsize) ||
-		    ((len - params->tp_offset) % params->tp_fsize) != 0) {
+		if ((len < params->tp->offset + params->tp->fsize) ||
+		    ((len - params->tp->offset) % params->tp->fsize) != 0) {
 			DPRINTFN(WSP_LLEVEL_INFO, "Invalid length: %d, %x, %x\n",
 			    len, sc->tp_data[0], sc->tp_data[1]);
 			goto tr_setup;
@@ -895,10 +790,12 @@ wsp_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 
 		h = (struct tp_header *)(sc->tp_data);
 
-		if (params->tp_type >= TYPE2) {
-			ibt = sc->tp_data[params->tp_button];
-			ntouch = sc->tp_data[params->tp_button - 1];
-		}
+		if (params->tp != wsp_tp + TYPE1) {
+			ibt = sc->tp_data[params->tp->button];
+			ntouch = sc->tp_data[params->tp->button - 1];
+		} else
+			ntouch = (len - params->tp->offset) / params->tp->fsize;
+
 		/* range check */
 		if (ntouch < 0)
 			ntouch = 0;
@@ -906,7 +803,7 @@ wsp_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 			ntouch = MAX_FINGERS;
 
 		for (i = 0; i != ntouch; i++) {
-			f = (struct tp_finger *)(sc->tp_data + params->tp_offset + params->tp_delta + i * params->tp_fsize);
+			f = (struct tp_finger *)(sc->tp_data + params->tp->offset + params->tp->delta + i * params->tp->fsize);
 			/* swap endianness, if any */
 			if (le16toh(0x1234) != 0x1234) {
 				f->origin = le16toh((uint16_t)f->origin);
@@ -940,9 +837,9 @@ wsp_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 		sc->sc_status.button = 0;
 
 		if (ibt != 0) {
-			if ((params->caps & HAS_INTEGRATED_BUTTON) && ntouch == 2)
+			if ((params->tp->caps & HAS_INTEGRATED_BUTTON) && ntouch == 2)
 				sc->sc_status.button |= MOUSE_BUTTON3DOWN;
-			else if ((params->caps & HAS_INTEGRATED_BUTTON) && ntouch == 3)
+			else if ((params->tp->caps & HAS_INTEGRATED_BUTTON) && ntouch == 3)
 				sc->sc_status.button |= MOUSE_BUTTON2DOWN;
 			else 
 				sc->sc_status.button |= MOUSE_BUTTON1DOWN;
@@ -989,7 +886,7 @@ wsp_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 				 */
 				switch (sc->ntaps) {
 				case 1:
-					if (!(params->caps & HAS_INTEGRATED_BUTTON) || tun.enable_single_tap_clicks) {
+					if (!(params->tp->caps & HAS_INTEGRATED_BUTTON) || tun.enable_single_tap_clicks) {
 						wsp_add_to_queue(sc, 0, 0, 0, MOUSE_BUTTON1DOWN);
 						DPRINTFN(WSP_LLEVEL_INFO, "LEFT CLICK!\n");
 					}
