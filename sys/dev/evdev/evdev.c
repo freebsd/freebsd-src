@@ -951,8 +951,13 @@ evdev_push_event(struct evdev_dev *evdev, uint16_t type, uint16_t code,
 	if (type == EV_SYN && code == SYN_REPORT &&
 	    bit_test(evdev->ev_abs_flags, ABS_MT_SLOT))
 		evdev_mt_sync_frame(evdev);
-	evdev_send_event(evdev, type, code, value);
+	else
+		if (bit_test(evdev->ev_flags, EVDEV_FLAG_MT_TRACK) &&
+		    evdev_mt_record_event(evdev, type, code, value))
+			goto exit;
 
+	evdev_send_event(evdev, type, code, value);
+exit:
 	EVDEV_EXIT(evdev);
 
 	return (0);
