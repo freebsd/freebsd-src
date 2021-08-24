@@ -556,15 +556,16 @@ pci_vtscsi_controlq_notify(void *vsc, struct vqueue_info *vq)
 {
 	struct pci_vtscsi_softc *sc;
 	struct iovec iov[VTSCSI_MAXSEG];
-	uint16_t idx, n;
+	uint16_t idx;
 	void *buf = NULL;
 	size_t bufsize;
-	int iolen;
+	int iolen, n;
 
 	sc = vsc;
 
 	while (vq_has_descs(vq)) {
 		n = vq_getchain(vq, &idx, iov, VTSCSI_MAXSEG, NULL);
+		assert(n >= 1 && n <= VTSCSI_MAXSEG);
 		bufsize = iov_to_buf(iov, n, &buf);
 		iolen = pci_vtscsi_control_handle(sc, buf, bufsize);
 		buf_to_iov(buf + bufsize - iolen, iolen, iov, n,
@@ -594,8 +595,8 @@ pci_vtscsi_requestq_notify(void *vsc, struct vqueue_info *vq)
 	struct pci_vtscsi_request *req;
 	struct iovec iov[VTSCSI_MAXSEG];
 	uint16_t flags[VTSCSI_MAXSEG];
-	uint16_t idx, n, i;
-	int readable;
+	uint16_t idx, i;
+	int readable, n;
 
 	sc = vsc;
 	q = &sc->vss_queues[vq->vq_num - 2];
@@ -603,6 +604,7 @@ pci_vtscsi_requestq_notify(void *vsc, struct vqueue_info *vq)
 	while (vq_has_descs(vq)) {
 		readable = 0;
 		n = vq_getchain(vq, &idx, iov, VTSCSI_MAXSEG, flags);
+		assert(n >= 1 && n <= VTSCSI_MAXSEG);
 
 		/* Count readable descriptors */
 		for (i = 0; i < n; i++) {
