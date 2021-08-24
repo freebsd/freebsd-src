@@ -704,8 +704,11 @@ ftp_transfer(conn_t *conn, const char *oper, const char *file,
 				goto ouch;
 			}
 			l = (e == FTP_PASSIVE_MODE ? 6 : 21);
-			for (i = 0; *p && i < l; i++, p++)
+			for (i = 0; *p && i < l; i++, p++) {
 				addr[i] = strtol(p, &p, 10);
+				if (*p == '\0' && i < l - 1)
+					break;
+			}
 			if (i < l) {
 				e = FTP_PROTOCOL_ERROR;
 				goto ouch;
