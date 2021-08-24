@@ -25,6 +25,21 @@
  *
  * $FreeBSD$
  */
+/*-
+ * Copyright (c) 2015, 2016 Ulf Brosziewski
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
 
 #include <sys/param.h>
 #include <sys/lock.h>
@@ -69,6 +84,7 @@ struct evdev_mt {
 	slotset_t		touches;
 	/* the set of slots with unsynchronized state */
 	slotset_t		frame;
+	int			*matrix;
 	union evdev_mt_slot	slots[];
 };
 
@@ -84,12 +100,24 @@ ffc_slot(struct evdev_dev *evdev, slotset_t slots)
 void
 evdev_mt_init(struct evdev_dev *evdev)
 {
+	struct evdev_mt *mt;
+	size_t size = offsetof(struct evdev_mt, slots);
 	int slot, slots;
 
 	slots = MAXIMAL_MT_SLOT(evdev) + 1;
+	size += sizeof(mt->slots[0]) * slots;
+	if (bit_test(evdev->ev_flags, EVDEV_FLAG_MT_TRACK)) {
+		size += sizeof(mt->matrix[0]) * (slots + 6) * slots;
+	}
 
-	evdev->ev_mt = malloc(offsetof(struct evdev_mt, slots) +
-	     sizeof(union evdev_mt_slot) * slots, M_EVDEV, M_WAITOK | M_ZERO);
+	mt = malloc(size, M_EVDEV, M_WAITOK | M_ZERO);
+	evdev->ev_mt = mt;
+
+	if (bit_test(evdev->ev_flags, EVDEV_FLAG_MT_TRACK)) {
+		evdev_support_abs(evdev,
+		    ABS_MT_TRACKING_ID, -1, slots - 1, 0, 0, 0);
+		mt->matrix = (int *)(mt->slots + slots);
+	}
 
 	/* Initialize multitouch protocol type B states */
 	for (slot = 0; slot < slots; slot++)
@@ -157,6 +185,185 @@ evdev_mt_push_slot(struct evdev_dev *evdev, int slot,
 
 	EVDEV_ENTER(evdev);
 	evdev_mt_send_slot(evdev, slot, state);
+	EVDEV_EXIT(evdev);
+
+	return (0);
+}
+
+/*
+ * Find a minimum-weight matching for an m-by-n matrix.
+ *
+ * m must be greater than or equal to n. The size of the buffer must be
+ * at least 3m + 3n.
+ *
+ * On return, the first m elements of the buffer contain the row-to-
+ * column mappings, i.e., buffer[i] is the column index for row i, or -1
+ * if there is no assignment for that row (which may happen if n < m).
+ *
+ * Wrong results because of overflows will not occur with input values
+ * in the range of 0 to INT_MAX / 2 inclusive.
+ *
+ * The function applies the Dinic-Kronrod algorithm. It is not modern or
+ * popular, but it seems to be a good choice for small matrices at least.
+ * The original form of the algorithm is modified as follows: There is no
+ * initial search for row minima, the initial assignments are in a
+ * "virtual" column with the index -1 and zero values. This permits inputs
+ * with n < m, and it simplifies the reassignments.
+ */
+static void
+evdev_mt_matching(int *matrix, int m, int n, int *buffer)
+{
+	int i, j, k, d, e, row, col, delta;
+	int *p;
+	int *r2c = buffer;	/* row-to-column assignments */
+	int *red = r2c + m;	/* reduced values of the assignments */
+	int *mc = red + m;	/* row-wise minimal elements of cs */
+	int *cs = mc + m;	/* the column set */
+	int *c2r = cs + n;	/* column-to-row assignments in cs */
+	int *cd = c2r + n;	/* column deltas (reduction) */
+
+	for (p = r2c; p < red; *p++ = -1) {}
+	for (; p < mc; *p++ = 0) {}
+	for (col = 0; col < n; col++) {
+		delta = INT_MAX;
+		for (i = 0, p = matrix + col; i < m; i++, p += n) {
+			d = *p - red[i];
+			if (d < delta || (d == delta && r2c[i] < 0)) {
+				delta = d;
+				row = i;
+			}
+		}
+		cd[col] = delta;
+		if (r2c[row] < 0) {
+			r2c[row] = col;
+			continue;
+		}
+		for (p = mc; p < cs; *p++ = col) {}
+		for (k = 0; (j = r2c[row]) >= 0;) {
+			cs[k++] = j;
+			c2r[j] = row;
+			mc[row] -= n;
+			delta = INT_MAX;
+			for (i = 0, p = matrix; i < m; i++, p += n)
+				if (mc[i] >= 0) {
+					d = p[mc[i]] - cd[mc[i]];
+					e = p[j] - cd[j];
+					if (e < d) {
+						d = e;
+						mc[i] = j;
+					}
+					d -= red[i];
+					if (d < delta || (d == delta
+					    && r2c[i] < 0)) {
+						delta = d;
+						row = i;
+					}
+				}
+			cd[col] += delta;
+			for (i = 0; i < k; i++) {
+				cd[cs[i]] += delta;
+				red[c2r[cs[i]]] -= delta;
+			}
+		}
+		for (j = mc[row]; (r2c[row] = j) != col;) {
+			row = c2r[j];
+			j = mc[row] + n;
+		}
+	}
+}
+
+/*
+ * Assign tracking IDs to the points in the pt array.  The tracking ID
+ * assignment pairs the points with points of the previous frame in
+ * such a way that the sum of the squared distances is minimal.  Using
+ * squares instead of simple distances favours assignments with more uniform
+ * distances, and it is faster.
+ * Set tracking id to -1 for unassigned (new) points.
+ */
+void
+evdev_mt_match_frame(struct evdev_dev *evdev, union evdev_mt_slot *pt,
+    int size)
+{
+	struct evdev_mt *mt = evdev->ev_mt;
+	int i, j, m, n, dx, dy, slot, num_touches;
+	int *p, *r2c, *c2r;
+
+	EVDEV_LOCK_ASSERT(evdev);
+	MPASS(mt->matrix != NULL);
+	MPASS(size >= 0 && size <= MAXIMAL_MT_SLOT(evdev) + 1);
+
+	if (size == 0)
+		return;
+
+	p = mt->matrix;
+	num_touches = bitcount(mt->touches);
+	if (num_touches >= size) {
+		FOREACHBIT(mt->touches, slot)
+			for (i = 0; i < size; i++) {
+				dx = pt[i].x - mt->slots[slot].x;
+				dy = pt[i].y - mt->slots[slot].y;
+				*p++ = dx * dx + dy * dy;
+			}
+		m = num_touches;
+		n = size;
+	} else {
+		for (i = 0; i < size; i++)
+			FOREACHBIT(mt->touches, slot) {
+				dx = pt[i].x - mt->slots[slot].x;
+				dy = pt[i].y - mt->slots[slot].y;
+				*p++ = dx * dx + dy * dy;
+			}
+		m = size;
+		n = num_touches;
+	}
+	evdev_mt_matching(mt->matrix, m, n, p);
+
+	r2c = p;
+	c2r = p + m;
+	for (i = 0; i < m; i++)
+		if ((j = r2c[i]) >= 0)
+			c2r[j] = i;
+
+	p = (n == size ? c2r : r2c);
+	for (i = 0; i < size; i++)
+		if (*p++ < 0)
+			pt[i].id = -1;
+
+	p = (n == size ? r2c : c2r);
+	FOREACHBIT(mt->touches, slot)
+		if ((i = *p++) >= 0)
+			pt[i].id = mt->tracking_ids[slot];
+}
+
+static void
+evdev_mt_send_frame(struct evdev_dev *evdev, union evdev_mt_slot *pt, int size)
+{
+	struct evdev_mt *mt = evdev->ev_mt;
+	union evdev_mt_slot *slot;
+
+	EVDEV_LOCK_ASSERT(evdev);
+	MPASS(size >= 0 && size <= MAXIMAL_MT_SLOT(evdev) + 1);
+
+	/*
+	 * While MT-matching assign tracking IDs of new contacts to be equal
+	 * to a slot number to make things simpler.
+	 */
+	for (slot = pt; slot < pt + size; slot++) {
+		if (slot->id < 0)
+			slot->id = ffc_slot(evdev, mt->touches | mt->frame);
+		if (slot->id >= 0)
+			evdev_mt_send_slot(evdev, slot->id, slot);
+	}
+}
+
+int
+evdev_mt_push_frame(struct evdev_dev *evdev, union evdev_mt_slot *pt, int size)
+{
+	if (size < 0 || size > MAXIMAL_MT_SLOT(evdev) + 1)
+		return (EINVAL);
+
+	EVDEV_ENTER(evdev);
+	evdev_mt_send_frame(evdev, pt, size);
 	EVDEV_EXIT(evdev);
 
 	return (0);
