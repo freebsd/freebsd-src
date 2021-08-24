@@ -376,7 +376,7 @@ in_aifaddr_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp, struct thread *td)
 	    (dstaddr->sin_len != sizeof(struct sockaddr_in) ||
 	     dstaddr->sin_addr.s_addr == INADDR_ANY))
 		return (EDESTADDRREQ);
-	if (vhid > 0 && carp_attach_p == NULL)
+	if (vhid != 0 && carp_attach_p == NULL)
 		return (EPROTONOSUPPORT);
 
 	/*
