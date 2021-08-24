@@ -16,6 +16,28 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20210824:	p10	FreeBSD-EN-21:24.libcrypto
+			FreeBSD-EN-21:25.bhyve
+			FreeBSD-SA-21:13.bhyve
+			FreeBSD-SA-21:14.ggatec
+			FreeBSD-SA-21:15.libfetch
+			FreeBSD-SA-21:16.openssl
+			FreeBSD-SA-21:17.openssl
+
+		Fix OpenSSL 1.1.1e API functions not being exported. [EN-21:24.libcrypto]
+
+		Fix NVMe iovec construction for large IOs. [EN-21:25.bhyve]
+
+		Fix missing error handling in bhyve(8) device models. [SA-21:13.bhyve]
+
+		Fix remote code execution in ggatec(8). [SA-21:14.ggatec]
+
+		Fix libfetch out of bounds read. [SA-21:15.libfetch]
+
+		Fix multiple OpenSSL vulnerabilities. [SA-21:16.openssl]
+
+		Fix multiple vulnerabilities in OpenSSL. [SA-21:17.openssl]
+
 20210629:	p9	FreeBSD-EN-21:19.libcasper
 			FreeBSD-EN-21:22.linux_futex
 
