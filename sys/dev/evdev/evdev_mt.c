@@ -205,20 +205,21 @@ static void
 evdev_mt_send_st_compat(struct evdev_dev *evdev)
 {
 	struct evdev_mt *mt = evdev->ev_mt;
-	int nfingers, i;
+	int nfingers, i, st_slot;
 
 	EVDEV_LOCK_ASSERT(evdev);
 
 	nfingers = bitcount(mt->touches);
 	evdev_send_event(evdev, EV_KEY, BTN_TOUCH, nfingers > 0);
 
-	if ((mt->touches & 1U << 0) != 0)
-		/* Echo 0-th MT-slot as ST-slot */
+	/* Send first active MT-slot state as single touch report */
+	st_slot = ffs(mt->touches) - 1;
+	if (st_slot != -1)
 		for (i = 0; i < nitems(evdev_mtstmap); i++)
 			if (bit_test(evdev->ev_abs_flags, evdev_mtstmap[i][1]))
 				evdev_send_event(evdev, EV_ABS,
 				    evdev_mtstmap[i][1],
-				    evdev_mt_get_value(evdev, 0,
+				    evdev_mt_get_value(evdev, st_slot,
 				    evdev_mtstmap[i][0]));
 
 	/* Touchscreens should not report tool taps */
