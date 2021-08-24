@@ -57,6 +57,7 @@
  */
 
 #include <stdio.h>
+#include <limits.h>
 #include "cryptlib.h"
 #include <openssl/evp.h>
 #include <openssl/err.h>
@@ -357,6 +358,19 @@ static int evp_EncryptDecryptUpdate(EVP_CIPHER_CTX *ctx,
             return 1;
         } else {
             j = bl - i;
+
+            /*
+             * Once we've processed the first j bytes from in, the amount of
+             * data left that is a multiple of the block length is:
+             * (inl - j) & ~(bl - 1)
+             * We must ensure that this amount of data, plus the one block that
+             * we process from ctx->buf does not exceed INT_MAX
+             */
+            if (((inl - j) & ~(bl - 1)) > INT_MAX - bl) {
+                EVPerr(EVP_F_EVP_ENCRYPTDECRYPTUPDATE,
+                       EVP_R_OUTPUT_WOULD_OVERFLOW);
+                return 0;
+            }
             memcpy(&(ctx->buf[i]), in, j);
             if (!M_do_cipher(ctx, out, ctx->buf, bl))
                 return 0;
@@ -482,6 +496,19 @@ int EVP_DecryptUpdate(EVP_CIPHER_CTX *ctx, unsigned char *out, int *outl,
     OPENSSL_assert(b <= sizeof(ctx->final));
 
     if (ctx->final_used) {
+        /*
+         * final_used is only ever set if buf_len is 0. Therefore the maximum
+         * length output we will ever see from evp_EncryptDecryptUpdate is
+         * the maximum multiple of the block length that is <= inl, or just:
+         * inl & ~(b - 1)
+         * Since final_used has been set then the final output length is:
+         * (inl & ~(b - 1)) + b
+         * This must never exceed INT_MAX
+         */
+        if ((inl & ~(b - 1)) > INT_MAX - b) {
+            EVPerr(EVP_F_EVP_DECRYPTUPDATE, EVP_R_OUTPUT_WOULD_OVERFLOW);
+            return 0;
+        }
         memcpy(out, ctx->final, b);
         out += b;
         fix_len = 1;
