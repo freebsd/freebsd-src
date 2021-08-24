@@ -519,6 +519,70 @@ interface_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "id" "cleanup"
+id_head()
+{
+	atf_set descr 'Test killing states by id'
+	atf_set require.user root
+	atf_set require.progs scapy
+}
+
+id_body()
+{
+	pft_init
+
+	epair=$(vnet_mkepair)
+	ifconfig ${epair}a 192.0.2.1/24 up
+
+	vnet_mkjail alcatraz ${epair}b
+	jexec alcatraz ifconfig ${epair}b 192.0.2.2/24 up
+	jexec alcatraz pfctl -e
+
+	pft_set_rules alcatraz "block all" \
+		"pass in proto tcp" \
+		"pass in proto icmp"
+
+	# Sanity check & establish state
+	# Note: use pft_ping so we always use the same ID, so pf considers all
+	# echo requests part of the same flow.
+	atf_check -s exit:0 -o ignore ${common_dir}/pft_ping.py \
+		--sendif ${epair}a \
+		--to 192.0.2.2 \
+		--replyif ${epair}a
+
+	# Change rules to now deny the ICMP traffic
+	pft_set_rules noflush alcatraz "block all"
+
+	# Established state means we can still ping alcatraz
+	atf_check -s exit:0 -o ignore ${common_dir}/pft_ping.py \
+		--sendif ${epair}a \
+		--to 192.0.2.2 \
+		--replyif ${epair}a
+
+	# Get the state ID
+	id=$(jexec alcatraz pfctl -ss -vvv | grep -A 3 icmp |
+	    grep -A 3 192.0.2.2 | awk '/id:/ { printf("%s/%s", $2, $4); }')
+
+	# Kill the wrong ID
+	jexec alcatraz pfctl -k id -k 1
+	atf_check -s exit:0 -o ignore ${common_dir}/pft_ping.py \
+		--sendif ${epair}a \
+		--to 192.0.2.2 \
+		--replyif ${epair}a
+
+	# Kill the correct ID
+	jexec alcatraz pfctl -k id -k ${id}
+	atf_check -s exit:1 -o ignore ${common_dir}/pft_ping.py \
+		--sendif ${epair}a \
+		--to 192.0.2.2 \
+		--replyif ${epair}a
+}
+
+id_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "v4"
@@ -528,4 +592,5 @@ atf_init_test_cases()
 	atf_add_test_case "gateway"
 	atf_add_test_case "match"
 	atf_add_test_case "interface"
+	atf_add_test_case "id"
 }
