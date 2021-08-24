@@ -62,6 +62,8 @@ struct {
 
 struct evdev_mt {
 	int			last_reported_slot;
+	uint16_t		tracking_id;
+	int32_t			tracking_ids[MAX_MT_SLOTS];
 	u_int			mtst_events;
 	/* the set of slots with active touches */
 	slotset_t		touches;
@@ -93,6 +95,9 @@ evdev_mt_init(struct evdev_dev *evdev)
 	for (slot = 0; slot < slots; slot++)
 		evdev->ev_mt->slots[slot].id = -1;
 
+	if (!bit_test(evdev->ev_flags, EVDEV_FLAG_MT_KEEPID))
+		evdev_support_abs(evdev,
+		    ABS_MT_TRACKING_ID, -1, UINT16_MAX, 0, 0, 0);
 	if (bit_test(evdev->ev_flags, EVDEV_FLAG_MT_STCOMPAT))
 		evdev_support_mt_compat(evdev);
 }
@@ -208,13 +213,41 @@ evdev_get_mt_slot_by_tracking_id(struct evdev_dev *evdev, int32_t tracking_id)
 	int slot;
 
 	FOREACHBIT(mt->touches, slot)
-		if (mt->slots[slot].id == tracking_id)
+		if (mt->tracking_ids[slot] == tracking_id)
 			return (slot);
 	/*
 	 * Do not allow allocation of new slot in a place of just
 	 * released one within the same report.
 	 */
 	return (ffc_slot(evdev, mt->touches | mt->frame));
+}
+
+int32_t
+evdev_mt_reassign_id(struct evdev_dev *evdev, int slot, int32_t id)
+{
+	struct evdev_mt *mt = evdev->ev_mt;
+	int32_t nid;
+
+	if (id == -1 || bit_test(evdev->ev_flags, EVDEV_FLAG_MT_KEEPID)) {
+		mt->tracking_ids[slot] = id;
+		return (id);
+	}
+
+	nid = evdev_mt_get_value(evdev, slot, ABS_MT_TRACKING_ID);
+	if (nid != -1) {
+		KASSERT(id == mt->tracking_ids[slot],
+		    ("MT-slot tracking id has changed"));
+		return (nid);
+	}
+
+	mt->tracking_ids[slot] = id;
+again:
+	nid = mt->tracking_id++;
+	FOREACHBIT(mt->touches, slot)
+		if (evdev_mt_get_value(evdev, slot, ABS_MT_TRACKING_ID) == nid)
+			goto again;
+
+	return (nid);
 }
 
 static inline int32_t
