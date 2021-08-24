@@ -196,7 +196,7 @@ evdev_support_mt_compat(struct evdev_dev *evdev)
 			evdev_support_abs(evdev, evdev_mtstmap[i][1],
 			    evdev->ev_absinfo[evdev_mtstmap[i][0]].minimum,
 			    evdev->ev_absinfo[evdev_mtstmap[i][0]].maximum,
-			    evdev->ev_absinfo[evdev_mtstmap[i][0]].fuzz,
+			    0,
 			    evdev->ev_absinfo[evdev_mtstmap[i][0]].flat,
 			    evdev->ev_absinfo[evdev_mtstmap[i][0]].resolution);
 }
