@@ -908,7 +908,6 @@ pfctl_id_kill_states(int dev, const char *iface, int opts)
 
 	if ((sscanf(state_kill[1], "%jx/%x",
 	    &kill.cmp.id, &kill.cmp.creatorid)) == 2)
-		HTONL(kill.cmp.creatorid);
 	else if ((sscanf(state_kill[1], "%jx", &kill.cmp.id)) == 1) {
 		kill.cmp.creatorid = 0;
 	} else {
@@ -920,7 +919,6 @@ pfctl_id_kill_states(int dev, const char *iface, int opts)
 		usage();
 	}
 
-	kill.cmp.id = htobe64(kill.cmp.id);
 	if (pfctl_kill_states(dev, &kill, &killed))
 		err(1, "DIOCKILLSTATES");
 
