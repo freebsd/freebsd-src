@@ -5906,9 +5906,12 @@ struct SCEVDbgValueBuilder {
     pushValue(V);
   }
 
-  void pushConst(const SCEVConstant *C) {
+  bool pushConst(const SCEVConstant *C) {
+    if (C->getAPInt().getMinSignedBits() > 64)
+      return false;
     Expr.push_back(llvm::dwarf::DW_OP_consts);
     Expr.push_back(C->getAPInt().getSExtValue());
+    return true;
   }
 
   /// Several SCEV types are sequences of the same arithmetic operator applied
@@ -5947,10 +5950,10 @@ struct SCEVDbgValueBuilder {
   bool pushSCEV(const llvm::SCEV *S) {
     bool Success = true;
     if (const SCEVConstant *StartInt = dyn_cast<SCEVConstant>(S)) {
-      pushConst(StartInt);
+      Success &= pushConst(StartInt);
 
     } else if (const SCEVUnknown *U = dyn_cast<SCEVUnknown>(S)) {
-      if(!U->getValue())
+      if (!U->getValue())
         return false;
       pushValue(U->getValue());
 
@@ -6033,6 +6036,8 @@ struct SCEVDbgValueBuilder {
   /// SCEV constant value is an identity function.
   bool isIdentityFunction(uint64_t Op, const SCEV *S) {
     if (const SCEVConstant *C = dyn_cast<SCEVConstant>(S)) {
+      if (C->getAPInt().getMinSignedBits() > 64)
+        return false;
       int64_t I = C->getAPInt().getSExtValue();
       switch (Op) {
       case llvm::dwarf::DW_OP_plus:
@@ -6162,6 +6167,9 @@ DbgRewriteSalvageableDVIs(llvm::Loop *L, ScalarEvolution &SE,
   bool Changed = false;
   if (const SCEVAddRecExpr *IVAddRec =
           dyn_cast<SCEVAddRecExpr>(SCEVInductionVar)) {
+    if (!IVAddRec->isAffine())
+      return false;
+
     SCEVDbgValueBuilder IterCountExpr;
     IterCountExpr.pushValue(LSRInductionVar);
     if (!IterCountExpr.SCEVToIterCountExpr(*IVAddRec, SE))
@@ -6180,6 +6188,8 @@ DbgRewriteSalvageableDVIs(llvm::Loop *L, ScalarEvolution &SE,
       // supported by SCEV salvaging. But, we can attempt a salvage by restoring
       // the pre-LSR single-op expression.
       if (DVIRec.DVI->hasArgList()) {
+        if (!DVIRec.DVI->getVariableLocationOp(0))
+          continue;
         llvm::Type *Ty = DVIRec.DVI->getVariableLocationOp(0)->getType();
         DVIRec.DVI->setRawLocation(
             llvm::ValueAsMetadata::get(UndefValue::get(Ty)));
@@ -6207,7 +6217,8 @@ DbgGatherSalvagableDVI(Loop *L, ScalarEvolution &SE,
       if (DVI->hasArgList())
         continue;
 
-      if (!SE.isSCEVable(DVI->getVariableLocationOp(0)->getType()))
+      if (!DVI->getVariableLocationOp(0) ||
+          !SE.isSCEVable(DVI->getVariableLocationOp(0)->getType()))
         continue;
 
       SalvageableDVISCEVs.push_back(
@@ -6232,9 +6243,8 @@ static llvm::PHINode *GetInductionVariable(const Loop &L, ScalarEvolution &SE,
     assert(isa<PHINode>(&*IV) && "Expected PhI node.");
     if (SE.isSCEVable((*IV).getType())) {
       PHINode *Phi = dyn_cast<PHINode>(&*IV);
-      LLVM_DEBUG(const llvm::SCEV *S = SE.getSCEV(Phi);
-                 dbgs() << "scev-salvage: IV : " << *IV << "with SCEV: " << *S
-                 << "\n");
+      LLVM_DEBUG(dbgs() << "scev-salvage: IV : " << *IV
+                        << "with SCEV: " << *SE.getSCEV(Phi) << "\n");
       return Phi;
     }
   }

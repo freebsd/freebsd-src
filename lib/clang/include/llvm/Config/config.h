@@ -369,10 +369,10 @@
 #define PACKAGE_NAME "LLVM"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "LLVM 13.0.0git"
+#define PACKAGE_STRING "LLVM 13.0.0"
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "13.0.0git"
+#define PACKAGE_VERSION "13.0.0"
 
 /* Define to the vendor of this package. */
 /* #undef PACKAGE_VENDOR */
@@ -391,9 +391,6 @@
 
 /* Whether GlobalISel rule coverage is being collected */
 #define LLVM_GISEL_COV_ENABLED 0
-
-/* Define to the default GlobalISel coverage file prefix */
-/* #undef LLVM_GISEL_COV_PREFIX */
 
 /* Define to the default GlobalISel coverage file prefix */
 /* #undef LLVM_GISEL_COV_PREFIX */
