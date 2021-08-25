@@ -1917,7 +1917,6 @@ shm_deallocate(struct shmfd *shmfd, off_t *offset, off_t *length, int flags)
 
 	/* Handle the case when offset is on or beyond shm size. */
 	if ((off_t)len <= 0) {
-		*offset = shmfd->shm_size;
 		*length = 0;
 		return (0);
 	}
