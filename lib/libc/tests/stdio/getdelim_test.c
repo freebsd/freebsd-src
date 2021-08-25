@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2009 David Schultz <das@FreeBSD.org>
+ * Copyright (c) 2021 Dell EMC
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,6 +28,12 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/param.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/wait.h>
+
+#include <fcntl.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -221,6 +228,196 @@ ATF_TC_BODY(empty_NULL_buffer, tc)
 	fclose(fp);
 }
 
+static void
+_ipc_read(int fd, char wait_c)
+{
+	char c;
+	ssize_t len;
+
+	c = 0;
+	while (c != wait_c) {
+		len = read(fd, &c, 1);
+		ATF_CHECK_MSG(len != 0,
+		    "EOF on IPC pipe while waiting. Did other side fail?");
+		ATF_CHECK_MSG(len == 1 || errno == EINTR,
+		    "read %zu bytes errno %d\n", len, errno);
+		if (len != 1 || errno != EINTR)
+			break;
+	}
+}
+
+static void
+_ipc_write(int fd, char c)
+{
+
+	while ((write(fd, &c, 1) != 1))
+		ATF_REQUIRE(errno == EINTR);
+}
+
+static void
+ipc_wait(int ipcfd[2])
+{
+
+	_ipc_read(ipcfd[0], '+');
+	/* Send ACK. */
+	_ipc_write(ipcfd[1], '-');
+}
+
+static void
+ipc_wakeup(int ipcfd[2])
+{
+
+	_ipc_write(ipcfd[1], '+');
+	/* Wait for ACK. */
+	_ipc_read(ipcfd[0], '-');
+}
+
+static void
+_nonblock_eagain(int buf_mode)
+{
+	FILE *fp;
+	const char delim = '!';
+	const char *strs[] = {
+	    "first line partial!",
+	    "second line is sent in full!",
+	    "third line is sent partially!",
+	    "last line is sent in full!",
+	};
+	char *line;
+	size_t linecap, strslen[nitems(strs)];
+	ssize_t linelen;
+	int fd_fifo, flags, i, ipcfd[2], pipedes[2], pipedes2[2], status;
+	pid_t pid;
+
+	line = NULL;
+	linecap = 0;
+	for (i = 0; i < nitems(strslen); i++)
+		strslen[i] = strlen(strs[i]);
+	ATF_REQUIRE(pipe2(pipedes, O_CLOEXEC) == 0);
+	ATF_REQUIRE(pipe2(pipedes2, O_CLOEXEC) == 0);
+
+	(void)unlink("fifo");
+	ATF_REQUIRE(mkfifo("fifo", 0666) == 0);
+	ATF_REQUIRE((pid = fork()) >= 0);
+	if (pid == 0) {
+		close(pipedes[0]);
+		ipcfd[1] = pipedes[1];
+		ipcfd[0] = pipedes2[0];
+		close(pipedes2[1]);
+
+		ATF_REQUIRE((fd_fifo = open("fifo", O_WRONLY)) != -1);
+
+		/* Partial write. */
+		ATF_REQUIRE(write(fd_fifo, strs[0], strslen[0] - 3) ==
+		    strslen[0] - 3);
+		ipc_wakeup(ipcfd);
+
+		ipc_wait(ipcfd);
+		/* Finish off the first line. */
+		ATF_REQUIRE(write(fd_fifo,
+		    &(strs[0][strslen[0] - 3]), 3) == 3);
+		/* And include the second full line and a partial 3rd line. */
+		ATF_REQUIRE(write(fd_fifo, strs[1], strslen[1]) == strslen[1]);
+		ATF_REQUIRE(write(fd_fifo, strs[2], strslen[2] - 3) ==
+		    strslen[2] - 3);
+		ipc_wakeup(ipcfd);
+
+		ipc_wait(ipcfd);
+		/* Finish the partial write and partially send the last. */
+		ATF_REQUIRE(write(fd_fifo,
+		    &(strs[2][strslen[2] - 3]), 3) == 3);
+		ATF_REQUIRE(write(fd_fifo, strs[3], strslen[3] - 3) ==
+		    strslen[3] - 3);
+		ipc_wakeup(ipcfd);
+
+		ipc_wait(ipcfd);
+		/* Finish the write */
+		ATF_REQUIRE(write(fd_fifo,
+		    &(strs[3][strslen[3] - 3]), 3) == 3);
+		ipc_wakeup(ipcfd);
+		_exit(0);
+	}
+	ipcfd[0] = pipedes[0];
+	close(pipedes[1]);
+	close(pipedes2[0]);
+	ipcfd[1] = pipedes2[1];
+
+	ATF_REQUIRE((fp = fopen("fifo", "r")) != NULL);
+	setvbuf(fp, (char *)NULL, buf_mode, 0);
+	ATF_REQUIRE((flags = fcntl(fileno(fp), F_GETFL, 0)) != -1);
+	ATF_REQUIRE(fcntl(fileno(fp), F_SETFL, flags | O_NONBLOCK) >= 0);
+
+	/* Wait until the writer completes its partial write. */
+	ipc_wait(ipcfd);
+	ATF_REQUIRE_ERRNO(EAGAIN,
+	    (linelen = getdelim(&line, &linecap, delim, fp)) == -1);
+	ATF_REQUIRE_STREQ("", line);
+	ATF_REQUIRE(ferror(fp));
+	ATF_REQUIRE(!feof(fp));
+	clearerr(fp);
+	ipc_wakeup(ipcfd);
+
+	ipc_wait(ipcfd);
+	/*
+	 * Should now have the finished first line, a full second line,
+	 * and a partial third line.
+	 */
+	ATF_CHECK(getdelim(&line, &linecap, delim, fp) == strslen[0]);
+	ATF_REQUIRE_STREQ(strs[0], line);
+	ATF_REQUIRE(getdelim(&line, &linecap, delim, fp) == strslen[1]);
+	ATF_REQUIRE_STREQ(strs[1], line);
+
+	ATF_REQUIRE_ERRNO(EAGAIN,
+	    (linelen = getdelim(&line, &linecap, delim, fp)) == -1);
+	ATF_REQUIRE_STREQ("", line);
+	ATF_REQUIRE(ferror(fp));
+	ATF_REQUIRE(!feof(fp));
+	clearerr(fp);
+	ipc_wakeup(ipcfd);
+
+	/* Wait for the partial write to be completed and another to be done. */
+	ipc_wait(ipcfd);
+	ATF_REQUIRE((linelen = getdelim(&line, &linecap, delim, fp)) != -1);
+	ATF_REQUIRE(!ferror(fp));
+	ATF_REQUIRE(!feof(fp));
+	ATF_REQUIRE_STREQ(strs[2], line);
+	ATF_REQUIRE(linelen == strslen[2]);
+
+	ATF_REQUIRE_ERRNO(EAGAIN,
+	    (linelen = getdelim(&line, &linecap, delim, fp)) == -1);
+	ATF_REQUIRE_STREQ("", line);
+	ATF_REQUIRE(ferror(fp));
+	ATF_REQUIRE(!feof(fp));
+	clearerr(fp);
+	ipc_wakeup(ipcfd);
+
+	ipc_wait(ipcfd);
+	ATF_REQUIRE((linelen = getdelim(&line, &linecap, delim, fp)) != -1);
+	ATF_REQUIRE(!ferror(fp));
+	ATF_REQUIRE(!feof(fp));
+	ATF_REQUIRE_STREQ(strs[3], line);
+	ATF_REQUIRE(linelen == strslen[3]);
+
+	ATF_REQUIRE(waitpid(pid, &status, WEXITED) != -1);
+	ATF_REQUIRE(WIFEXITED(status));
+	ATF_REQUIRE(WEXITSTATUS(status) == 0);
+}
+
+ATF_TC_WITHOUT_HEAD(nonblock_eagain_buffered);
+ATF_TC_BODY(nonblock_eagain_buffered, tc)
+{
+
+	_nonblock_eagain(_IOFBF);
+}
+
+ATF_TC_WITHOUT_HEAD(nonblock_eagain_unbuffered);
+ATF_TC_BODY(nonblock_eagain_unbuffered, tc)
+{
+
+	_nonblock_eagain(_IONBF);
+}
+
+
 ATF_TP_ADD_TCS(tp)
 {
 
@@ -230,6 +427,8 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, invalid_params);
 	ATF_TP_ADD_TC(tp, nul);
 	ATF_TP_ADD_TC(tp, empty_NULL_buffer);
+	ATF_TP_ADD_TC(tp, nonblock_eagain_unbuffered);
+	ATF_TP_ADD_TC(tp, nonblock_eagain_buffered);
 
 	return (atf_no_error());
 }
