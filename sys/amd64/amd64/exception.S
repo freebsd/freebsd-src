@@ -524,7 +524,6 @@ prot_addrf:
 	SUPERALIGN_TEXT
 IDTVEC(fast_syscall_pti)
 	swapgs
-	lfence
 	cmpq	$~0,PCPU(UCR3)
 	je	fast_syscall_common
 	movq	%rax,PCPU(SCRATCH_RAX)
@@ -535,7 +534,6 @@ IDTVEC(fast_syscall_pti)
 	SUPERALIGN_TEXT
 IDTVEC(fast_syscall)
 	swapgs
-	lfence
 fast_syscall_common:
 	movq	%rsp,PCPU(SCRATCH_RSP)
 	movq	PCPU(RSP0),%rsp
