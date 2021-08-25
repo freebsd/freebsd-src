@@ -27,7 +27,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd August 18, 2021
+.Dd August 25, 2021
 .Dt FSPACECTL 2
 .Os
 .Sh NAME
@@ -73,10 +73,9 @@ operation range,
 .Fa "rmsr->r_len"
 is updated to be the value 0, and
 .Fa "rmsr->r_offset"
-is updated to be the smallest of
-.Fa "rqsr->r_offset" +
-.Fa "rqsr->r_len" ;
-and the end-of-file offset.
+is updated to be
+.Fa "rqsr->r_offset"
+plus the number of bytes zeroed before the end-of-file.
 The file descriptor's file offset is not used or modified by the system call.
 Both
 .Fa rqsr
