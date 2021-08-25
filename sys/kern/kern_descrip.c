@@ -1153,88 +1153,72 @@ fsetown(pid_t pgid, struct sigio **sigiop)
 		return (0);
 	}
 
-	ret = 0;
-	osigio = NULL;
-
 	sigio = malloc(sizeof(struct sigio), M_SIGIO, M_WAITOK);
 	sigio->sio_pgid = pgid;
 	sigio->sio_ucred = crhold(curthread->td_ucred);
 	sigio->sio_myref = sigiop;
 
+	osigio = NULL;
+	ret = 0;
 	if (pgid > 0) {
 		ret = pget(pgid, PGET_NOTWEXIT | PGET_NOTID | PGET_HOLD, &proc);
 		SIGIO_LOCK();
-		if (ret != 0)
-			goto fail;
+		if (ret == 0) {
+			osigio = funsetown_locked(*sigiop);
 
-		osigio = funsetown_locked(*sigiop);
-
-		PROC_LOCK(proc);
-		_PRELE(proc);
-		if ((proc->p_flag & P_WEXIT) != 0) {
+			PROC_LOCK(proc);
+			_PRELE(proc);
+			if ((proc->p_flag & P_WEXIT) != 0) {
+				ret = ESRCH;
+			} else if (proc->p_session !=
+			    curthread->td_proc->p_session) {
+				/*
+				 * Policy - Don't allow a process to FSETOWN a
+				 * process in another session.
+				 *
+				 * Remove this test to allow maximum flexibility
+				 * or restrict FSETOWN to the current process or
+				 * process group for maximum safety.
+				 */
+				ret = EPERM;
+			} else {
+				sigio->sio_proc = proc;
+				SLIST_INSERT_HEAD(&proc->p_sigiolst, sigio,
+				    sio_pgsigio);
+			}
 			PROC_UNLOCK(proc);
-			ret = ESRCH;
-			goto fail;
 		}
-
-		/*
-		 * Policy - Don't allow a process to FSETOWN a process
-		 * in another session.
-		 *
-		 * Remove this test to allow maximum flexibility or
-		 * restrict FSETOWN to the current process or process
-		 * group for maximum safety.
-		 */
-		if (proc->p_session != curthread->td_proc->p_session) {
-			PROC_UNLOCK(proc);
-			ret = EPERM;
-			goto fail;
-		}
-
-		sigio->sio_proc = proc;
-		SLIST_INSERT_HEAD(&proc->p_sigiolst, sigio, sio_pgsigio);
-		PROC_UNLOCK(proc);
 	} else /* if (pgid < 0) */ {
 		sx_slock(&proctree_lock);
 		SIGIO_LOCK();
 		pgrp = pgfind(-pgid);
 		if (pgrp == NULL) {
-			sx_sunlock(&proctree_lock);
 			ret = ESRCH;
-			goto fail;
-		}
+		} else {
+			osigio = funsetown_locked(*sigiop);
 
-		osigio = funsetown_locked(*sigiop);
-
-		/*
-		 * Policy - Don't allow a process to FSETOWN a process
-		 * in another session.
-		 *
-		 * Remove this test to allow maximum flexibility or
-		 * restrict FSETOWN to the current process or process
-		 * group for maximum safety.
-		 */
-		if (pgrp->pg_session != curthread->td_proc->p_session) {
-			sx_sunlock(&proctree_lock);
+			if (pgrp->pg_session != curthread->td_proc->p_session) {
+				/*
+				 * Policy - Don't allow a process to FSETOWN a
+				 * process in another session.
+				 *
+				 * Remove this test to allow maximum flexibility
+				 * or restrict FSETOWN to the current process or
+				 * process group for maximum safety.
+				 */
+				ret = EPERM;
+			} else {
+				sigio->sio_pgrp = pgrp;
+				SLIST_INSERT_HEAD(&pgrp->pg_sigiolst, sigio,
+				    sio_pgsigio);
+			}
 			PGRP_UNLOCK(pgrp);
-			ret = EPERM;
-			goto fail;
 		}
-
-		sigio->sio_pgrp = pgrp;
-		SLIST_INSERT_HEAD(&pgrp->pg_sigiolst, sigio, sio_pgsigio);
-		PGRP_UNLOCK(pgrp);
 		sx_sunlock(&proctree_lock);
 	}
-	*sigiop = sigio;
+	if (ret == 0)
+		*sigiop = sigio;
 	SIGIO_UNLOCK();
-	if (osigio != NULL)
-		sigiofree(osigio);
-	return (0);
-
-fail:
-	SIGIO_UNLOCK();
-	sigiofree(sigio);
 	if (osigio != NULL)
 		sigiofree(osigio);
 	return (ret);
