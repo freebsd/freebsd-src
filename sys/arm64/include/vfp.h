@@ -35,7 +35,7 @@
 #define	VFPCR_AHP		(0x04000000)	/* alt. half-precision: */
 #define	VFPCR_DN		(0x02000000)	/* default NaN enable */
 #define	VFPCR_FZ		(0x01000000)	/* flush to zero enabled */
-#define	VFPCR_INIT		VFPCR_DN	/* Default fpcr after exec */
+#define	VFPCR_INIT		0		/* Default fpcr after exec */
 
 #define	VFPCR_RMODE_OFF		22		/* rounding mode offset */
 #define	VFPCR_RMODE_MASK	(0x00c00000)	/* rounding mode mask */
