@@ -696,6 +696,12 @@ out:
 }
 
 static int
+tmpfs_deallocate(struct vop_deallocate_args *v)
+{
+	return (tmpfs_reg_punch_hole(v->a_vp, v->a_offset, v->a_len));
+}
+
+static int
 tmpfs_fsync(struct vop_fsync_args *v)
 {
 	struct vnode *vp = v->a_vp;
@@ -1840,6 +1846,7 @@ struct vop_vector tmpfs_vnodeop_entries = {
 	.vop_read =			tmpfs_read,
 	.vop_read_pgcache =		tmpfs_read_pgcache,
 	.vop_write =			tmpfs_write,
+	.vop_deallocate =		tmpfs_deallocate,
 	.vop_fsync =			tmpfs_fsync,
 	.vop_remove =			tmpfs_remove,
 	.vop_link =			tmpfs_link,
