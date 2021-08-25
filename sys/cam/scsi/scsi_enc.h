@@ -75,23 +75,23 @@
  *
  *
  * An application finds out how many elements an enclosure instance
- * is managing by performing a ENCIOC_GETNELM operation. It then
- * performs a ENCIOC_GETELMMAP to get the map that contains the
- * elment identifiers for all elements (see encioc_element_t below).
+ * manages by performing a ENCIOC_GETNELM operation. It then
+ * performs an ENCIOC_GETELMMAP to get the map that contains the
+ * element identifiers for all elements (see encioc_element_t below).
  * This information is static.
  * 
  * The application may perform ENCIOC_GETELMSTAT operations to retrieve
- * status on an element (see the enc_elm_status_t structure below),
- * ENCIOC_SETELMSTAT operations to set status for an element.
+ * status on an element (see the encioc_elm_status_t structure below),
+ * and ENCIOC_SETELMSTAT operations to set status for an element.
  *
- * Similarly, overall enclosure status me be fetched or set via
- * ENCIOC_GETENCSTAT or  ENCIOC_SETENCSTAT operations (see encioc_enc_status_t
+ * Similarly, overall enclosure status may be fetched or set via
+ * ENCIOC_GETENCSTAT or ENCIOC_SETENCSTAT operations (see encioc_enc_status_t
  * below).
  *
  * Readers should note that there is nothing that requires either a set
  * or a clear operation to actually latch and do anything in the target.
  *
- * A ENCIOC_INIT operation causes the enclosure to be initialized.
+ * An ENCIOC_INIT operation causes the enclosure to be initialized.
  */
 
 /* Element Types */
