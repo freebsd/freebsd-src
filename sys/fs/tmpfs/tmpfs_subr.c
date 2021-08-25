@@ -1775,6 +1775,91 @@ tmpfs_reg_resize(struct vnode *vp, off_t newsize, boolean_t ignerr)
 	return (0);
 }
 
+/*
+ * Punch hole in the aobj associated with the regular file pointed to by 'vp'.
+ * Requests completely beyond the end-of-file are converted to no-op.
+ *
+ * Returns 0 on success or error code from tmpfs_partial_page_invalidate() on
+ * failure.
+ */
+int
+tmpfs_reg_punch_hole(struct vnode *vp, off_t *offset, off_t *length)
+{
+	struct tmpfs_mount *tmp;
+	struct tmpfs_node *node;
+	vm_object_t object;
+	vm_pindex_t pistart, pi, piend;
+	int startofs, endofs, end;
+	off_t off, len;
+	int error;
+
+	KASSERT(*length <= OFF_MAX - *offset, ("%s: offset + length overflows",
+	    __func__));
+	node = VP_TO_TMPFS_NODE(vp);
+	KASSERT(node->tn_type == VREG, ("%s: node is not regular file",
+	    __func__));
+	object = node->tn_reg.tn_aobj;
+	tmp = VFS_TO_TMPFS(vp->v_mount);
+	off = *offset;
+	len = omin(node->tn_size - off, *length);
+	startofs = off & PAGE_MASK;
+	endofs = (off + len) & PAGE_MASK;
+	pistart = OFF_TO_IDX(off);
+	piend = OFF_TO_IDX(off + len);
+	pi = OFF_TO_IDX((vm_ooffset_t)off + PAGE_MASK);
+	error = 0;
+
+	/* Handle the case when offset is on or beyond file size. */
+	if (len <= 0) {
+		*length = 0;
+		return (0);
+	}
+
+	VM_OBJECT_WLOCK(object);
+
+	/*
+	 * If there is a partial page at the beginning of the hole-punching
+	 * request, fill the partial page with zeroes.
+	 */
+	if (startofs != 0) {
+		end = pistart != piend ? PAGE_SIZE : endofs;
+		error = tmpfs_partial_page_invalidate(object, pistart, startofs,
+		    end, FALSE);
+		if (error != 0)
+			goto out;
+		off += end - startofs;
+		len -= end - startofs;
+	}
+
+	/*
+	 * Toss away the full pages in the affected area.
+	 */
+	if (pi < piend) {
+		vm_object_page_remove(object, pi, piend, 0);
+		off += IDX_TO_OFF(piend - pi);
+		len -= IDX_TO_OFF(piend - pi);
+	}
+
+	/*
+	 * If there is a partial page at the end of the hole-punching request,
+	 * fill the partial page with zeroes.
+	 */
+	if (endofs != 0 && pistart != piend) {
+		error = tmpfs_partial_page_invalidate(object, piend, 0, endofs,
+		    FALSE);
+		if (error != 0)
+			goto out;
+		off += endofs;
+		len -= endofs;
+	}
+
+out:
+	VM_OBJECT_WUNLOCK(object);
+	*offset = off;
+	*length = len;
+	return (error);
+}
+
 void
 tmpfs_check_mtime(struct vnode *vp)
 {
