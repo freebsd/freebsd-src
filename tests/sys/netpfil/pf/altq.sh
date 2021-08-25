@@ -145,6 +145,54 @@ cbq_vlan_cleanup()
 	altq_cleanup
 }
 
+atf_test_case "codel_bridge" "cleanup"
+codel_bridge_head()
+{
+	atf_set descr 'codel over if_bridge test'
+	atf_set require.user root
+}
+
+codel_bridge_body()
+{
+	altq_init
+	is_altq_supported codel
+
+	epair=$(vnet_mkepair)
+	ifconfig ${epair}a 192.0.2.1/24 up
+
+	vnet_mkjail altq_codel_bridge ${epair}b
+
+	bridge=$(jexec altq_codel_bridge ifconfig bridge create)
+	jexec altq_codel_bridge ifconfig ${bridge} addm ${epair}b
+	jexec altq_codel_bridge ifconfig ${epair}b up
+	jexec altq_codel_bridge ifconfig ${bridge} 192.0.2.2/24 up
+
+	# Sanity check
+	atf_check -s exit:0 -o ignore ping -i .1 -c 3 -s 1200 192.0.2.2
+
+	jexec altq_codel_bridge pfctl -e
+	pft_set_rules altq_codel_bridge \
+		"altq on ${bridge} bandwidth 1000b codelq queue { slow }" \
+		"match queue slow" \
+		"pass"
+
+	# "Saturate the link"
+	ping -i .1 -c 5 -s 1200 192.0.2.2
+
+	# We should now be hitting the limits and get these packet dropped.
+	rcv=$(ping -i .1 -c 5 -s 1200 192.0.2.2 | tr "," "\n" | awk '/packets received/ { print $1; }')
+	echo "Received $rcv packets"
+	if [ ${rcv} -gt 1 ]
+	then
+		atf_fail "Received ${rcv} packets in a saturated link"
+	fi
+}
+
+codel_bridge_cleanup()
+{
+	altq_cleanup
+}
+
 atf_test_case "prioritise" "cleanup"
 prioritise_head()
 {
@@ -242,5 +290,6 @@ atf_init_test_cases()
 	atf_add_test_case "hfsc"
 	atf_add_test_case "match"
 	atf_add_test_case "cbq_vlan"
+	atf_add_test_case "codel_bridge"
 	atf_add_test_case "prioritise"
 }
