@@ -15,6 +15,7 @@ SRCS+=		memory_resource.cpp
 
 WARNS?=		0
 CXXFLAGS+=	${PICFLAG}
+CFLAGS+=	-isystem ${.CURDIR}/../libc++
 CXXFLAGS+=	-isystem ${SRCDIR}/include
 CXXFLAGS+=	-nostdinc++
 CXXFLAGS+=	-nostdlib

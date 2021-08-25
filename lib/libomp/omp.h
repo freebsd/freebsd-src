@@ -142,12 +142,12 @@
     extern int   __KAI_KMPC_CONVENTION  omp_get_initial_device (void);
     extern void* __KAI_KMPC_CONVENTION  omp_target_alloc(size_t, int);
     extern void  __KAI_KMPC_CONVENTION  omp_target_free(void *, int);
-    extern int   __KAI_KMPC_CONVENTION  omp_target_is_present(void *, int);
-    extern int   __KAI_KMPC_CONVENTION  omp_target_memcpy(void *, void *, size_t, size_t, size_t, int, int);
-    extern int   __KAI_KMPC_CONVENTION  omp_target_memcpy_rect(void *, void *, size_t, int, const size_t *,
+    extern int   __KAI_KMPC_CONVENTION  omp_target_is_present(const void *, int);
+    extern int   __KAI_KMPC_CONVENTION  omp_target_memcpy(void *, const void *, size_t, size_t, size_t, int, int);
+    extern int   __KAI_KMPC_CONVENTION  omp_target_memcpy_rect(void *, const void *, size_t, int, const size_t *,
                                             const size_t *, const size_t *, const size_t *, const size_t *, int, int);
-    extern int   __KAI_KMPC_CONVENTION  omp_target_associate_ptr(void *, void *, size_t, size_t, int);
-    extern int   __KAI_KMPC_CONVENTION  omp_target_disassociate_ptr(void *, int);
+    extern int   __KAI_KMPC_CONVENTION  omp_target_associate_ptr(const void *, const void *, size_t, size_t, int);
+    extern int   __KAI_KMPC_CONVENTION  omp_target_disassociate_ptr(const void *, int);
 
     /* OpenMP 5.0 */
     extern int   __KAI_KMPC_CONVENTION  omp_get_device_num (void);
@@ -183,6 +183,16 @@
         omp_irc_other = -6
     } omp_interop_rc_t;
 
+    typedef enum omp_interop_fr {
+        omp_ifr_cuda = 1,
+        omp_ifr_cuda_driver = 2,
+        omp_ifr_opencl = 3,
+        omp_ifr_sycl = 4,
+        omp_ifr_hip = 5,
+        omp_ifr_level_zero = 6,
+        omp_ifr_last = 7
+    } omp_interop_fr_t;
+
     typedef void * omp_interop_t;
 
     /*!
@@ -212,7 +222,7 @@
     /*!
      * The `omp_get_interop_rc_desc` routine retrieves a description of the return code associated with an `omp_interop_t` object.
      */
-    extern const char * __KAI_KMPC_CONVENTION  omp_get_interop_rc_desc(const omp_interop_rc_t, omp_interop_rc_t);
+    extern const char * __KAI_KMPC_CONVENTION  omp_get_interop_rc_desc(const omp_interop_t, omp_interop_rc_t);
 
     /* OpenMP 5.1 device memory routines */
 
@@ -231,6 +241,7 @@
      * The `omp_get_mapped_ptr` routine returns the device pointer that is associated with a host pointer for a given device.
      */
     extern void * __KAI_KMPC_CONVENTION  omp_get_mapped_ptr(const void *, int);
+    extern int    __KAI_KMPC_CONVENTION  omp_target_is_accessible(const void *, size_t, int);
 
     /* kmp API functions */
     extern int    __KAI_KMPC_CONVENTION  kmp_get_stacksize          (void);
@@ -358,12 +369,21 @@
     extern __KMP_IMP omp_allocator_handle_t const omp_cgroup_mem_alloc;
     extern __KMP_IMP omp_allocator_handle_t const omp_pteam_mem_alloc;
     extern __KMP_IMP omp_allocator_handle_t const omp_thread_mem_alloc;
+    /* Preview of target memory support */
+    extern __KMP_IMP omp_allocator_handle_t const llvm_omp_target_host_mem_alloc;
+    extern __KMP_IMP omp_allocator_handle_t const llvm_omp_target_shared_mem_alloc;
+    extern __KMP_IMP omp_allocator_handle_t const llvm_omp_target_device_mem_alloc;
+
     typedef omp_uintptr_t omp_memspace_handle_t;
     extern __KMP_IMP omp_memspace_handle_t const omp_default_mem_space;
     extern __KMP_IMP omp_memspace_handle_t const omp_large_cap_mem_space;
     extern __KMP_IMP omp_memspace_handle_t const omp_const_mem_space;
     extern __KMP_IMP omp_memspace_handle_t const omp_high_bw_mem_space;
     extern __KMP_IMP omp_memspace_handle_t const omp_low_lat_mem_space;
+    /* Preview of target memory support */
+    extern __KMP_IMP omp_memspace_handle_t const llvm_omp_target_host_mem_space;
+    extern __KMP_IMP omp_memspace_handle_t const llvm_omp_target_shared_mem_space;
+    extern __KMP_IMP omp_memspace_handle_t const llvm_omp_target_device_mem_space;
 #   else
 #       if __cplusplus >= 201103
     typedef enum omp_allocator_handle_t : omp_uintptr_t
@@ -380,6 +400,10 @@
       omp_cgroup_mem_alloc = 6,
       omp_pteam_mem_alloc = 7,
       omp_thread_mem_alloc = 8,
+      /* Preview of target memory support */
+      llvm_omp_target_host_mem_alloc = 100,
+      llvm_omp_target_shared_mem_alloc = 101,
+      llvm_omp_target_device_mem_alloc = 102,
       KMP_ALLOCATOR_MAX_HANDLE = UINTPTR_MAX
     } omp_allocator_handle_t;
 #       if __cplusplus >= 201103
@@ -393,6 +417,10 @@
       omp_const_mem_space = 2,
       omp_high_bw_mem_space = 3,
       omp_low_lat_mem_space = 4,
+      /* Preview of target memory support */
+      llvm_omp_target_host_mem_space = 100,
+      llvm_omp_target_shared_mem_space = 101,
+      llvm_omp_target_device_mem_space = 102,
       KMP_MEMSPACE_MAX_HANDLE = UINTPTR_MAX
     } omp_memspace_handle_t;
 #   endif
@@ -443,8 +471,23 @@
 
     extern int __KAI_KMPC_CONVENTION omp_get_supported_active_levels(void);
 
+    /* OpenMP 5.1 */
+    extern void __KAI_KMPC_CONVENTION omp_set_num_teams(int num_teams);
+    extern int __KAI_KMPC_CONVENTION omp_get_max_teams(void);
+    extern void __KAI_KMPC_CONVENTION omp_set_teams_thread_limit(int limit);
+    extern int __KAI_KMPC_CONVENTION omp_get_teams_thread_limit(void);
+
     /* OpenMP 5.1 Display Environment */
     extern void omp_display_env(int verbose);
+
+#   if defined(_OPENMP) && _OPENMP >= 201811
+    #pragma omp begin declare variant match(device={kind(host)})
+    static inline int omp_is_initial_device(void) { return 1; }
+    #pragma omp end declare variant
+    #pragma omp begin declare variant match(device={kind(nohost)})
+    static inline int omp_is_initial_device(void) { return 0; }
+    #pragma omp end declare variant
+#   endif
 
 #   undef __KAI_KMPC_CONVENTION
 #   undef __KMP_IMP

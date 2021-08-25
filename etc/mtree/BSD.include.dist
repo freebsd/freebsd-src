@@ -79,13 +79,27 @@
             ..
         ..
         v1
+            __algorithm
+            ..
+            __format
+            ..
+            __functional
+            ..
+            __iterator
+            ..
             __memory
+            ..
+            __random
+            ..
+            __ranges
+            ..
+            __utility
+            ..
+            __variant
             ..
             experimental
             ..
             ext
-            ..
-            tr1
             ..
         ..
     ..
