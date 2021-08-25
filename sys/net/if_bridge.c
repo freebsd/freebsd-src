@@ -298,6 +298,10 @@ static void	bridge_init(void *);
 static void	bridge_dummynet(struct mbuf *, struct ifnet *);
 static void	bridge_stop(struct ifnet *, int);
 static int	bridge_transmit(struct ifnet *, struct mbuf *);
+#ifdef ALTQ
+static void	bridge_altq_start(if_t);
+static int	bridge_altq_transmit(if_t, struct mbuf *);
+#endif
 static void	bridge_qflush(struct ifnet *);
 static struct mbuf *bridge_input(struct ifnet *, struct mbuf *);
 static int	bridge_output(struct ifnet *, struct mbuf *, struct sockaddr *,
@@ -726,7 +730,15 @@ bridge_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	if_initname(ifp, bridge_name, unit);
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = bridge_ioctl;
+#ifdef ALTQ
+	ifp->if_start = bridge_altq_start;
+	ifp->if_transmit = bridge_altq_transmit;
+	IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
+	ifp->if_snd.ifq_drv_maxlen = 0;
+	IFQ_SET_READY(&ifp->if_snd);
+#else
 	ifp->if_transmit = bridge_transmit;
+#endif
 	ifp->if_qflush = bridge_qflush;
 	ifp->if_init = bridge_init;
 	ifp->if_type = IFT_BRIDGE;
@@ -798,6 +810,9 @@ bridge_clone_destroy(struct ifnet *ifp)
 	BRIDGE_LIST_UNLOCK();
 
 	bstp_detach(&sc->sc_stp);
+#ifdef ALTQ
+	IFQ_PURGE(&ifp->if_snd);
+#endif
 	NET_EPOCH_EXIT(et);
 
 	ether_ifdetach(ifp);
@@ -2218,6 +2233,38 @@ bridge_transmit(struct ifnet *ifp, struct mbuf *m)
 
 	return (error);
 }
+
+#ifdef ALTQ
+static void
+bridge_altq_start(if_t ifp)
+{
+	struct ifaltq *ifq = &ifp->if_snd;
+	struct mbuf *m;
+
+	IFQ_LOCK(ifq);
+	IFQ_DEQUEUE_NOLOCK(ifq, m);
+	while (m != NULL) {
+		bridge_transmit(ifp, m);
+		IFQ_DEQUEUE_NOLOCK(ifq, m);
+	}
+	IFQ_UNLOCK(ifq);
+}
+
+static int
+bridge_altq_transmit(if_t ifp, struct mbuf *m)
+{
+	int err;
+
+	if (ALTQ_IS_ENABLED(&ifp->if_snd)) {
+		IFQ_ENQUEUE(&ifp->if_snd, m, err);
+		if (err == 0)
+			bridge_altq_start(ifp);
+	} else
+		err = bridge_transmit(ifp, m);
+
+	return (err);
+}
+#endif	/* ALTQ */
 
 /*
  * The ifp->if_qflush entry point for if_bridge(4) is no-op.
