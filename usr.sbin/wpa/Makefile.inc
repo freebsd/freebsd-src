@@ -15,10 +15,19 @@ HOSTAPD_DISTDIR?=	${WPA_DISTDIR}/hostapd
 CFLAGS+=-I${.CURDIR}
 CFLAGS+=-I${HOSTAPD_DISTDIR}
 CFLAGS+=-I${WPA_DISTDIR}/src
+CFLAGS+=-I${WPA_DISTDIR}/src/ap
 CFLAGS+=-I${WPA_DISTDIR}/src/common
 CFLAGS+=-I${WPA_DISTDIR}/src/crypto
 CFLAGS+=-I${WPA_DISTDIR}/src/drivers
+CFLAGS+=-I${WPA_DISTDIR}/src/eap_common
+CFLAGS+=-I${WPA_DISTDIR}/src/eap_peer
+CFLAGS+=-I${WPA_DISTDIR}/src/eap_server
+CFLAGS+=-I${WPA_DISTDIR}/src/eapol_auth
+CFLAGS+=-I${WPA_DISTDIR}/src/eapol_supp
 CFLAGS+=-I${WPA_DISTDIR}/src/l2_packet
+CFLAGS+=-I${WPA_DISTDIR}/src/radius
+CFLAGS+=-I${WPA_DISTDIR}/src/rsn_supp
+CFLAGS+=-I${WPA_DISTDIR}/src/tls
 CFLAGS+=-I${WPA_DISTDIR}/src/utils
 CFLAGS+=-I${WPA_DISTDIR}/src/wps
 
@@ -95,5 +104,3 @@ NEED_FIPS186_2_PRF=y
 CFLAGS+=-DEAP_GPSK_SHA256
 NEED_AES_OMAC1=y
 .endif
-
-.include <bsd.own.mk>
