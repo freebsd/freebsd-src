@@ -1307,35 +1307,41 @@ pfctl_show_states(int dev, const char *iface, int opts)
 int
 pfctl_show_status(int dev, int opts)
 {
-	struct pf_status	status;
+	struct pfctl_status	*status;
 	struct pfctl_syncookies	cookies;
 
-	if (ioctl(dev, DIOCGETSTATUS, &status)) {
+	if ((status = pfctl_get_status(dev)) == NULL) {
 		warn("DIOCGETSTATUS");
 		return (-1);
 	}
 	if (pfctl_get_syncookies(dev, &cookies)) {
+		pfctl_free_status(status);
 		warn("DIOCGETSYNCOOKIES");
 		return (-1);
 	}
 	if (opts & PF_OPT_SHOWALL)
 		pfctl_print_title("INFO:");
-	print_status(&status, &cookies, opts);
+	print_status(status, &cookies, opts);
+	pfctl_free_status(status);
 	return (0);
 }
 
 int
 pfctl_show_running(int dev)
 {
-	struct pf_status status;
+	struct pfctl_status *status;
+	int running;
 
-	if (ioctl(dev, DIOCGETSTATUS, &status)) {
+	if ((status = pfctl_get_status(dev)) == NULL) {
 		warn("DIOCGETSTATUS");
 		return (-1);
 	}
 
-	print_running(&status);
-	return (!status.running);
+	running = status->running;
+
+	print_running(status);
+	pfctl_free_status(status);
+	return (!running);
 }
 
 int
