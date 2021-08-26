@@ -43,8 +43,7 @@ MAN=		efivar.3
 
 CFLAGS+=	-I${EFIBOOT}/include
 CFLAGS+=	-I${.CURDIR} -I${EDK2INC}
-
-CFLAGS.efivar-dp-format.c=-Wno-unused-parameter
+CFLAGS+=	-fno-strict-aliasing
 
 MLINKS+=efivar.3 efi_set_variables_supported.3 \
 	efivar.3 efi_del_variable.3 \
@@ -65,4 +64,9 @@ WARNS?=		9
 
 .include <bsd.lib.mk>
 
-CFLAGS+= -fno-strict-aliasing -Wno-cast-align -Wno-unused-parameter
+CWARNFLAGS+=	-Wno-cast-align
+CWARNFLAGS+=	-Wno-unused-parameter
+
+.if ${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} >= 130000
+CWARNFLAGS+=	-Wno-unused-but-set-variable
+.endif
