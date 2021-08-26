@@ -122,7 +122,6 @@ struct mntlist mountlist = TAILQ_HEAD_INITIALIZER(mountlist);
 
 /* For any iteration/modification of mountlist */
 struct mtx_padalign __exclusive_cache_line mountlist_mtx;
-MTX_SYSINIT(mountlist, &mountlist_mtx, "mountlist", MTX_DEF);
 
 EVENTHANDLER_LIST_DEFINE(vfs_mounted);
 EVENTHANDLER_LIST_DEFINE(vfs_unmounted);
@@ -188,6 +187,7 @@ vfs_mount_init(void *dummy __unused)
 	deferred_unmount_retry_delay_hz = hz;
 	mount_zone = uma_zcreate("Mountpoints", sizeof(struct mount), NULL,
 	    NULL, mount_init, mount_fini, UMA_ALIGN_CACHE, UMA_ZONE_NOFREE);
+	mtx_init(&mountlist_mtx, "mountlist", NULL, MTX_DEF);
 }
 SYSINIT(vfs_mount, SI_SUB_VFS, SI_ORDER_ANY, vfs_mount_init, NULL);
 
