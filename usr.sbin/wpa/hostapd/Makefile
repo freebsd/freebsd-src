@@ -5,12 +5,14 @@
 
 .include "../Makefile.crypto"
 
-.PATH.c:${HOSTAPD_DISTDIR}
+.PATH.c:${HOSTAPD_DISTDIR} \
+	${WPA_DISTDIR}/src/drivers
 
 PACKAGE=	hostapd
 PROG=	hostapd
 SRCS=	config_file.c \
 	ctrl_iface.c \
+	driver_bsd.c \
 	eap_register.c \
 	main.c
 

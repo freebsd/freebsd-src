@@ -18,6 +18,7 @@ SRCS=	blacklist.c \
 	config_file.c \
 	ctrl_iface.c \
 	ctrl_iface_unix.c \
+	driver_bsd.c \
 	eap_register.c \
 	events.c \
 	gas_query.c \

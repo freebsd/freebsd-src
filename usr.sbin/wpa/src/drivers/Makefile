@@ -10,7 +10,6 @@ INTERNALLIB=
 .PATH:	${WPA_DISTDIR}/src/drivers
 
 SRCS=	drivers.c \
-	driver_bsd.c \
 	driver_common.c \
 	driver_wired.c \
 	driver_wired_common.c
