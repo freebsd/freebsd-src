@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <err.h>
 #include <ifaddrs.h>
+#include <inttypes.h>
 #include <unistd.h>
 
 #include "pfctl_parser.h"
@@ -497,8 +498,9 @@ const char	* const pf_fcounters[FCNT_MAX+1] = FCNT_NAMES;
 const char	* const pf_scounters[FCNT_MAX+1] = FCNT_NAMES;
 
 void
-print_status(struct pf_status *s, struct pfctl_syncookies *cookies, int opts)
+print_status(struct pfctl_status *s, struct pfctl_syncookies *cookies, int opts)
 {
+	struct pfctl_status_counter	*c;
 	char			statline[80], *running;
 	time_t			runtime;
 	int			i;
@@ -574,56 +576,44 @@ print_status(struct pf_status *s, struct pfctl_syncookies *cookies, int opts)
 		    (unsigned long long)s->pcounters[1][1][PF_DROP]);
 	}
 	printf("%-27s %14s %16s\n", "State Table", "Total", "Rate");
-	printf("  %-25s %14u %14s\n", "current entries", s->states, "");
-	for (i = 0; i < FCNT_MAX; i++) {
-		printf("  %-25s %14llu ", pf_fcounters[i],
-			    (unsigned long long)s->fcounters[i]);
+	printf("  %-25s %14" PRIu64 " %14s\n", "current entries", s->states, "");
+	TAILQ_FOREACH(c, &s->fcounters, entry) {
+		printf("  %-25s %14lu ", c->name, c->counter);
 		if (runtime > 0)
 			printf("%14.1f/s\n",
-			    (double)s->fcounters[i] / (double)runtime);
+			    (double)c->counter / (double)runtime);
 		else
 			printf("%14s\n", "");
 	}
 	if (opts & PF_OPT_VERBOSE) {
 		printf("Source Tracking Table\n");
-		printf("  %-25s %14u %14s\n", "current entries",
+		printf("  %-25s %14" PRIu64 " %14s\n", "current entries",
 		    s->src_nodes, "");
-		for (i = 0; i < SCNT_MAX; i++) {
-			printf("  %-25s %14lld ", pf_scounters[i],
-#ifdef __FreeBSD__
-				    (long long)s->scounters[i]);
-#else
-				    s->scounters[i]);
-#endif
+		TAILQ_FOREACH(c, &s->scounters, entry) {
+			printf("  %-25s %14lu ", c->name, c->counter);
 			if (runtime > 0)
 				printf("%14.1f/s\n",
-				    (double)s->scounters[i] / (double)runtime);
+				    (double)c->counter / (double)runtime);
 			else
 				printf("%14s\n", "");
 		}
 	}
 	printf("Counters\n");
-	for (i = 0; i < PFRES_MAX; i++) {
-		printf("  %-25s %14llu ", pf_reasons[i],
-		    (unsigned long long)s->counters[i]);
+	TAILQ_FOREACH(c, &s->counters, entry) {
+		printf("  %-25s %14" PRIu64 " ", c->name, c->counter);
 		if (runtime > 0)
 			printf("%14.1f/s\n",
-			    (double)s->counters[i] / (double)runtime);
+			    (double)c->counter / (double)runtime);
 		else
 			printf("%14s\n", "");
 	}
 	if (opts & PF_OPT_VERBOSE) {
 		printf("Limit Counters\n");
-		for (i = 0; i < LCNT_MAX; i++) {
-			printf("  %-25s %14lld ", pf_lcounters[i],
-#ifdef __FreeBSD__
-				    (unsigned long long)s->lcounters[i]);
-#else
-				    s->lcounters[i]);
-#endif
+		TAILQ_FOREACH(c, &s->lcounters, entry) {
+			printf("  %-25s %14" PRIu64 " ", c->name, c->counter);
 			if (runtime > 0)
 				printf("%14.1f/s\n",
-				    (double)s->lcounters[i] / (double)runtime);
+				    (double)c->counter / (double)runtime);
 			else
 				printf("%14s\n", "");
 		}
@@ -636,7 +626,7 @@ print_status(struct pf_status *s, struct pfctl_syncookies *cookies, int opts)
 }
 
 void
-print_running(struct pf_status *status)
+print_running(struct pfctl_status *status)
 {
 	printf("%s\n", status->running ? "Enabled" : "Disabled");
 }
