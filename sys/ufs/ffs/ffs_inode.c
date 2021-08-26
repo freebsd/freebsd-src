@@ -153,9 +153,14 @@ loop:
 	error = ffs_breadz(VFSTOUFS(vp->v_mount), ITODEVVP(ip), bn, bn,
 	     (int) fs->fs_bsize, NULL, NULL, 0, NOCRED, flags, NULL, &bp);
 	if (error != 0) {
-		if (error != EBUSY)
+		/*
+		 * If EBUSY was returned without GB_LOCK_NOWAIT (which
+		 * requests trylock for buffer lock), it is for some
+		 * other reason and we should not handle it specially.
+		 */
+		if (error != EBUSY || (flags & GB_LOCK_NOWAIT) == 0)
 			return (error);
-		KASSERT((IS_SNAPSHOT(ip)), ("EBUSY from non-snapshot"));
+
 		/*
 		 * Wait for our inode block to become available.
 		 *
