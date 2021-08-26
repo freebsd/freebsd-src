@@ -180,9 +180,9 @@ out:
 
 #ifndef EFI_STAGING_SIZE
 #if defined(__arm__)
-#define	EFI_STAGING_SIZE	M(32)
+#define	EFI_STAGING_SIZE	32
 #else
-#define	EFI_STAGING_SIZE	M(64)
+#define	EFI_STAGING_SIZE	64
 #endif
 #endif
 
@@ -315,7 +315,7 @@ efi_copy_init(void)
 	EFI_STATUS	status;
 	unsigned long nr_pages;
 
-	nr_pages = EFI_SIZE_TO_PAGES((EFI_STAGING_SIZE));
+	nr_pages = EFI_SIZE_TO_PAGES(M(1) * (EFI_STAGING_SIZE));
 
 #if defined(__i386__) || defined(__amd64__)
 	/*
