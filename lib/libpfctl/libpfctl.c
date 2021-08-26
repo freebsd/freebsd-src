@@ -122,6 +122,121 @@ pf_nvuint_64_array(const nvlist_t *nvl, const char *name, size_t maxelems,
 }
 
 static void
+_pfctl_get_status_counters(const nvlist_t *nvl,
+    struct pfctl_status_counters *counters)
+{
+	const uint64_t		*ids, *counts;
+	const char *const	*names;
+	size_t id_len, counter_len, names_len;
+
+	ids = nvlist_get_number_array(nvl, "ids", &id_len);
+	counts = nvlist_get_number_array(nvl, "counters", &counter_len);
+	names = nvlist_get_string_array(nvl, "names", &names_len);
+	assert(id_len == counter_len);
+	assert(counter_len == names_len);
+
+	TAILQ_INIT(counters);
+
+	for (size_t i = 0; i < id_len; i++) {
+		struct pfctl_status_counter *c;
+
+		c = malloc(sizeof(*c));
+
+		c->id = ids[i];
+		c->counter = counts[i];
+		c->name = strdup(names[i]);
+
+		TAILQ_INSERT_TAIL(counters, c, entry);
+	}
+}
+
+struct pfctl_status *
+pfctl_get_status(int dev)
+{
+	struct pfioc_nv	 nv;
+	struct pfctl_status	*status;
+	nvlist_t	*nvl;
+	size_t		 len;
+	const void	*chksum;
+
+	status = calloc(1, sizeof(*status));
+	if (status == NULL)
+		return (NULL);
+
+	nv.data = malloc(4096);
+	nv.len = nv.size = 4096;
+
+	if (ioctl(dev, DIOCGETSTATUSNV, &nv)) {
+		free(nv.data);
+		free(status);
+		return (NULL);
+	}
+
+	nvl = nvlist_unpack(nv.data, nv.len, 0);
+	free(nv.data);
+	if (nvl == NULL) {
+		free(status);
+		return (NULL);
+	}
+
+	status->running = nvlist_get_bool(nvl, "running");
+	status->since = nvlist_get_number(nvl, "since");
+	status->debug = nvlist_get_number(nvl, "debug");
+	status->hostid = nvlist_get_number(nvl, "hostid");
+	status->states = nvlist_get_number(nvl, "states");
+	status->src_nodes = nvlist_get_number(nvl, "src_nodes");
+
+	strlcpy(status->ifname, nvlist_get_string(nvl, "ifname"),
+	    IFNAMSIZ);
+	chksum = nvlist_get_binary(nvl, "chksum", &len);
+	assert(len == PF_MD5_DIGEST_LENGTH);
+	memcpy(status->pf_chksum, chksum, len);
+
+	_pfctl_get_status_counters(nvlist_get_nvlist(nvl, "counters"),
+	    &status->counters);
+	_pfctl_get_status_counters(nvlist_get_nvlist(nvl, "lcounters"),
+	    &status->lcounters);
+	_pfctl_get_status_counters(nvlist_get_nvlist(nvl, "fcounters"),
+	    &status->fcounters);
+	_pfctl_get_status_counters(nvlist_get_nvlist(nvl, "scounters"),
+	    &status->scounters);
+
+	pf_nvuint_64_array(nvl, "pcounters", 2 * 2 * 3,
+	    (uint64_t *)status->pcounters, NULL);
+	pf_nvuint_64_array(nvl, "bcounters", 2 * 2,
+	    (uint64_t *)status->bcounters, NULL);
+
+	nvlist_destroy(nvl);
+
+	return (status);
+}
+
+void
+pfctl_free_status(struct pfctl_status *status)
+{
+	struct pfctl_status_counter *c, *tmp;
+
+	TAILQ_FOREACH_SAFE(c, &status->counters, entry, tmp) {
+		free(c->name);
+		free(c);
+	}
+	TAILQ_FOREACH_SAFE(c, &status->lcounters, entry, tmp) {
+		free(c->name);
+		free(c);
+	}
+	TAILQ_FOREACH_SAFE(c, &status->fcounters, entry, tmp) {
+		free(c->name);
+		free(c);
+	}
+	TAILQ_FOREACH_SAFE(c, &status->scounters, entry, tmp) {
+		free(c->name);
+		free(c);
+	}
+
+	free(status);
+}
+
+static void
 pfctl_nv_add_addr(nvlist_t *nvparent, const char *name,
     const struct pf_addr *addr)
 {

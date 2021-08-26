@@ -38,6 +38,33 @@
 
 struct pfctl_anchor;
 
+struct pfctl_status_counter {
+	uint64_t	 id;
+	uint64_t	 counter;
+	char		*name;
+
+	TAILQ_ENTRY(pfctl_status_counter) entry;
+};
+TAILQ_HEAD(pfctl_status_counters, pfctl_status_counter);
+
+struct pfctl_status {
+	bool		running;
+	uint32_t	since;
+	uint32_t	debug;
+	uint32_t	hostid;
+	uint64_t	states;
+	uint64_t	src_nodes;
+	char		ifname[IFNAMSIZ];
+	uint8_t		pf_chksum[PF_MD5_DIGEST_LENGTH];
+
+	struct pfctl_status_counters	 counters;
+	struct pfctl_status_counters	 lcounters;
+	struct pfctl_status_counters	 fcounters;
+	struct pfctl_status_counters	 scounters;
+	uint64_t	pcounters[2][2][3];
+	uint64_t	bcounters[2][2];
+};
+
 struct pfctl_pool {
 	struct pf_palist	 list;
 	struct pf_pooladdr	*cur;
@@ -252,6 +279,9 @@ enum pfctl_syncookies_mode {
 struct pfctl_syncookies {
 	enum pfctl_syncookies_mode	mode;
 };
+
+struct pfctl_status* pfctl_get_status(int dev);
+void	pfctl_free_status(struct pfctl_status *status);
 
 int	pfctl_get_rule(int dev, u_int32_t nr, u_int32_t ticket,
 	    const char *anchor, u_int32_t ruleset, struct pfctl_rule *rule,
