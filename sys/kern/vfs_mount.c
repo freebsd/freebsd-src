@@ -1588,7 +1588,7 @@ kern_unmount(struct thread *td, const char *path, int flags)
 {
 	struct nameidata nd;
 	struct mount *mp;
-	char *pathbuf;
+	char *fsidbuf, *pathbuf;
 	fsid_t fsid;
 	int error;
 
@@ -1599,22 +1599,34 @@ kern_unmount(struct thread *td, const char *path, int flags)
 			return (error);
 	}
 
-	pathbuf = malloc(MNAMELEN, M_TEMP, M_WAITOK);
-	error = copyinstr(path, pathbuf, MNAMELEN, NULL);
-	if (error) {
-		free(pathbuf, M_TEMP);
-		return (error);
-	}
 	if (flags & MNT_BYFSID) {
-		AUDIT_ARG_TEXT(pathbuf);
+		fsidbuf = malloc(MNAMELEN, M_TEMP, M_WAITOK);
+		error = copyinstr(path, fsidbuf, MNAMELEN, NULL);
+		if (error) {
+			free(fsidbuf, M_TEMP);
+			return (error);
+		}
+
+		AUDIT_ARG_TEXT(fsidbuf);
 		/* Decode the filesystem ID. */
-		if (sscanf(pathbuf, "FSID:%d:%d", &fsid.val[0], &fsid.val[1]) != 2) {
-			free(pathbuf, M_TEMP);
+		if (sscanf(fsidbuf, "FSID:%d:%d", &fsid.val[0], &fsid.val[1]) != 2) {
+			free(fsidbuf, M_TEMP);
 			return (EINVAL);
 		}
 
 		mp = vfs_getvfs(&fsid);
+		free(fsidbuf, M_TEMP);
+		if (mp == NULL) {
+			return (ENOENT);
+		}
 	} else {
+		pathbuf = malloc(MNAMELEN, M_TEMP, M_WAITOK);
+		error = copyinstr(path, pathbuf, MNAMELEN, NULL);
+		if (error) {
+			free(pathbuf, M_TEMP);
+			return (error);
+		}
+
 		/*
 		 * Try to find global path for path argument.
 		 */
@@ -1635,16 +1647,16 @@ kern_unmount(struct thread *td, const char *path, int flags)
 			}
 		}
 		mtx_unlock(&mountlist_mtx);
-	}
-	free(pathbuf, M_TEMP);
-	if (mp == NULL) {
-		/*
-		 * Previously we returned ENOENT for a nonexistent path and
-		 * EINVAL for a non-mountpoint.  We cannot tell these apart
-		 * now, so in the !MNT_BYFSID case return the more likely
-		 * EINVAL for compatibility.
-		 */
-		return ((flags & MNT_BYFSID) ? ENOENT : EINVAL);
+		free(pathbuf, M_TEMP);
+		if (mp == NULL) {
+			/*
+			 * Previously we returned ENOENT for a nonexistent path and
+			 * EINVAL for a non-mountpoint.  We cannot tell these apart
+			 * now, so in the !MNT_BYFSID case return the more likely
+			 * EINVAL for compatibility.
+			 */
+			return (EINVAL);
+		}
 	}
 
 	/*
