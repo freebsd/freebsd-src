@@ -10,3 +10,6 @@ CXXFLAGS+=	${GTESTS_FLAGS}
 
 # Silence warnings about usage of deprecated std::auto_ptr
 CXXWARNFLAGS+=	-Wno-deprecated-declarations
+
+# Silence warnings about usage of deprecated implicit copy constructors
+CXXWARNFLAGS+=  -Wno-deprecated-copy
