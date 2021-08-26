@@ -894,7 +894,7 @@ mseq_read(struct cdev *i_dev, struct uio *uio, int ioflag)
 	/*
 	 * I think the semantics are to return as soon
 	 * as possible.
-	 * Second thought, it doens't seem like midimoutain
+	 * Second thought, it doesn't seem like midimoutain
 	 * expects that at all.
 	 * TODO: Look up in some sort of spec
 	 */
@@ -1441,7 +1441,7 @@ mseq_poll(struct cdev *i_dev, int events, struct thread *td)
 
 	ret = 0;
 
-	/* Look up the apropriate queue and select it. */
+	/* Look up the appropriate queue and select it. */
 	if ((events & (POLLOUT | POLLWRNORM)) != 0) {
 		/* Start playing. */
 		scp->playing = 1;

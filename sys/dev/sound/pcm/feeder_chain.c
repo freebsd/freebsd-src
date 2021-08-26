@@ -652,7 +652,7 @@ feeder_chain(struct pcm_channel *c)
 	}
 
 	/*
-	 * The 'hardware' possibly have different intepretation of channel
+	 * The 'hardware' possibly have different interpretation of channel
 	 * matrixing, so get it first .....
 	 */
 	hwmatrix = CHANNEL_GETMATRIX(c->methods, c->devinfo, hwfmt);
