@@ -145,10 +145,102 @@ cbq_vlan_cleanup()
 	altq_cleanup
 }
 
+atf_test_case "prioritise" "cleanup"
+prioritise_head()
+{
+	atf_set descr "Test prioritising one type of traffic over the other"
+	atf_set require.user root
+}
+
+prioritise_body()
+{
+	altq_init
+	is_altq_supported cbq
+
+	epair=$(vnet_mkepair)
+	vnet_mkjail altq_prioritise ${epair}b
+
+	ifconfig ${epair}a 192.0.2.1/24 up
+	jexec altq_prioritise ifconfig ${epair}b 192.0.2.2/24 up
+
+	jexec altq_prioritise /usr/sbin/inetd -p inetd-altq.pid \
+	    $(atf_get_srcdir)/../pf/echo_inetd.conf
+
+	# Sanity check
+	atf_check -s exit:0 -o ignore ping -i .1 -c 3 -s 1200 192.0.2.2
+
+	jexec altq_prioritise pfctl -e
+	pft_set_rules altq_prioritise \
+		"altq on ${epair}b bandwidth 6000b cbq queue { default, slow }" \
+		"queue default priority 7 cbq(default)" \
+		"queue slow priority 1 cbq" \
+		"match proto icmp queue slow" \
+		"match proto tcp queue default" \
+		"pass"
+
+	# single ping succeeds just fine
+	atf_check -s exit:0 -o ignore ping -c 1 192.0.2.2
+
+	# Unsaturated TCP succeeds
+	reply=$(echo "foo" | nc -w 5 -N 192.0.2.2 7)
+	if [ "$reply" != "foo" ];
+	then
+		atf_fail "Unsaturated echo failed"
+	fi
+
+	# "Saturate the link"
+	ping -i .01 -c 50 -s 1200 192.0.2.2
+
+	# We should now be hitting the limits and get these packet dropped.
+	rcv=$(ping -i .1 -c 5 -s 1200 192.0.2.2 | tr "," "\n" | awk '/packets received/ { print $1; }')
+	echo "Received $rcv packets"
+	if [ ${rcv} -gt 1 ]
+	then
+		atf_fail "Received ${rcv} packets in a saturated link"
+	fi
+
+	# TCP should still pass
+	for i in `seq 1 10`
+	do
+		reply=$(echo "foo_${i}" | nc -w 5 -N 192.0.2.2 7)
+		if [ "$reply" != "foo_${i}" ];
+		then
+			atf_fail "Prioritised echo failed ${i}"
+		fi
+
+	done
+
+	# Now reverse priority
+	pft_set_rules altq_prioritise \
+		"altq on ${epair}b bandwidth 6000b cbq queue { default, slow }" \
+		"queue default priority 7 cbq(default)" \
+		"queue slow priority 1 cbq" \
+		"match proto tcp queue slow" \
+		"match proto icmp queue default" \
+		"pass"
+
+	atf_check -s exit:0 -o ignore ping -c 1 192.0.2.2
+	ping -i .01 -c 50 -s 1200 192.0.2.2
+	for i in `seq 1 10`
+	do
+		reply=$(echo "foo_${i}" | nc -w 5 -N 192.0.2.2 7)
+		if [ "$reply" == "foo_${i}" ];
+		then
+			atf_fail "Unexpected echo success"
+		fi
+
+	done
+}
+
+prioritise_cleanup()
+{
+	altq_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "hfsc"
 	atf_add_test_case "match"
 	atf_add_test_case "cbq_vlan"
+	atf_add_test_case "prioritise"
 }
-
