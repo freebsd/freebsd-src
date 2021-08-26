@@ -83,6 +83,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/taskqueue.h>
 #include <sys/buf_ring.h>
 #include <sys/eventhandler.h>
+#include <sys/epoch.h>
 
 #include <machine/atomic.h>
 #include <machine/in_cksum.h>
@@ -2883,7 +2884,11 @@ static void
 hn_chan_rollup(struct hn_rx_ring *rxr, struct hn_tx_ring *txr)
 {
 #if defined(INET) || defined(INET6)
+	struct epoch_tracker et;
+
+	NET_EPOCH_ENTER(et);
 	tcp_lro_flush_all(&rxr->hn_lro);
+	NET_EPOCH_EXIT(et);
 #endif
 
 	/*
@@ -7459,6 +7464,7 @@ static void
 hn_nvs_handle_rxbuf(struct hn_rx_ring *rxr, struct vmbus_channel *chan,
     const struct vmbus_chanpkt_hdr *pkthdr)
 {
+	struct epoch_tracker et;
 	const struct vmbus_chanpkt_rxbuf *pkt;
 	const struct hn_nvs_hdr *nvs_hdr;
 	int count, i, hlen;
@@ -7496,6 +7502,7 @@ hn_nvs_handle_rxbuf(struct hn_rx_ring *rxr, struct vmbus_channel *chan,
 		return;
 	}
 
+	NET_EPOCH_ENTER(et);
 	/* Each range represents 1 RNDIS pkt that contains 1 Ethernet frame */
 	for (i = 0; i < count; ++i) {
 		int ofs, len;
@@ -7511,6 +7518,7 @@ hn_nvs_handle_rxbuf(struct hn_rx_ring *rxr, struct vmbus_channel *chan,
 		rxr->rsc.is_last = (i == (count - 1));
 		hn_rndis_rxpkt(rxr, rxr->hn_rxbuf + ofs, len);
 	}
+	NET_EPOCH_EXIT(et);
 
 	/*
 	 * Ack the consumed RXBUF associated w/ this channel packet,
