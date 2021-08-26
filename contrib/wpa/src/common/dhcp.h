@@ -9,6 +9,7 @@
 #ifndef DHCP_H
 #define DHCP_H
 
+#if defined(__FreeBSD__)
 /*
  * Translate Linux to FreeBSD
  */
@@ -24,6 +25,7 @@
 #define check		ip_sum
 #define saddr		ip_src
 #define daddr		ip_dst
+#endif
 
 #include <netinet/ip.h>
 #if __FAVOR_BSD
