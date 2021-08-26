@@ -145,10 +145,10 @@ ffs_update(vp, waitfor)
 	 * snapshot vnode to prevent it from being removed while we are
 	 * waiting for the buffer.
 	 */
+loop:
 	flags = 0;
 	if (IS_SNAPSHOT(ip))
 		flags = GB_LOCK_NOWAIT;
-loop:
 	bn = fsbtodb(fs, ino_to_fsba(fs, ip->i_number));
 	error = ffs_breadz(VFSTOUFS(vp->v_mount), ITODEVVP(ip), bn, bn,
 	     (int) fs->fs_bsize, NULL, NULL, 0, NOCRED, flags, NULL, &bp);
@@ -176,6 +176,11 @@ loop:
 		vrele(vp);
 		if (VN_IS_DOOMED(vp))
 			return (ENOENT);
+
+		/*
+		 * Recalculate flags, because the vnode was relocked and
+		 * could no longer be a snapshot.
+		 */
 		goto loop;
 	}
 	if (DOINGSOFTDEP(vp))
