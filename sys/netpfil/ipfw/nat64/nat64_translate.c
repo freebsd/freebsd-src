@@ -622,27 +622,22 @@ static struct nhop_object *
 nat64_find_route6(struct sockaddr_in6 *dst, struct mbuf *m)
 {
 	struct nhop_object *nh;
+
 	NET_EPOCH_ASSERT();
-	nh = fib6_lookup(M_GETFIB(m), &dst->sin6_addr, 0, 0, 0);
+	nh = fib6_lookup(M_GETFIB(m), &dst->sin6_addr, 0, NHR_NONE, 0);
 	if (nh == NULL)
-		return NULL;
+		return (NULL);
 	if (nh->nh_flags & (NHF_BLACKHOLE | NHF_REJECT))
-		return NULL;
-	/*
-	 * XXX: we need to use destination address with embedded scope
-	 * zone id, because LLTABLE uses such form of addresses for lookup.
-	 */
+		return (NULL);
+
 	dst->sin6_family = AF_INET6;
 	dst->sin6_len = sizeof(*dst);
-	dst->sin6_addr = ifatoia6(nh->nh_ifa)->ia_addr.sin6_addr;
-	if (IN6_IS_SCOPE_LINKLOCAL(&dst->sin6_addr))
-		dst->sin6_addr.s6_addr16[1] =
-		    htons(nh->nh_ifp->if_index & 0xffff);
+	if (nh->nh_flags & NHF_GATEWAY)
+		dst->sin6_addr = nh->gw6_sa.sin6_addr;
 	dst->sin6_port = 0;
 	dst->sin6_scope_id = 0;
 	dst->sin6_flowinfo = 0;
-
-	return nh;
+	return (nh);
 }
 
 #define	NAT64_ICMP6_PLEN	64
@@ -776,17 +771,18 @@ nat64_find_route4(struct sockaddr_in *dst, struct mbuf *m)
 	struct nhop_object *nh;
 
 	NET_EPOCH_ASSERT();
-	nh = fib4_lookup(M_GETFIB(m), dst->sin_addr, 0, 0, 0);
+	nh = fib4_lookup(M_GETFIB(m), dst->sin_addr, 0, NHR_NONE, 0);
 	if (nh == NULL)
-		return NULL;
+		return (NULL);
 	if (nh->nh_flags & (NHF_BLACKHOLE | NHF_BROADCAST | NHF_REJECT))
-		return NULL;
+		return (NULL);
 
 	dst->sin_family = AF_INET;
 	dst->sin_len = sizeof(*dst);
-	dst->sin_addr = IA_SIN(nh->nh_ifa)->sin_addr;
+	if (nh->nh_flags & NHF_GATEWAY)
+		dst->sin_addr = nh->gw4_sa.sin_addr;
 	dst->sin_port = 0;
-	return nh;
+	return (nh);
 }
 
 #define	NAT64_ICMP_PLEN	64
