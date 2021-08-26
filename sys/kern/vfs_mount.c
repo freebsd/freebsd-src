@@ -1589,7 +1589,8 @@ kern_unmount(struct thread *td, const char *path, int flags)
 	struct nameidata nd;
 	struct mount *mp;
 	char *pathbuf;
-	int error, id0, id1;
+	fsid_t fsid;
+	int error;
 
 	AUDIT_ARG_VALUE(flags);
 	if (jailed(td->td_ucred) || usermount == 0) {
@@ -1607,20 +1608,12 @@ kern_unmount(struct thread *td, const char *path, int flags)
 	if (flags & MNT_BYFSID) {
 		AUDIT_ARG_TEXT(pathbuf);
 		/* Decode the filesystem ID. */
-		if (sscanf(pathbuf, "FSID:%d:%d", &id0, &id1) != 2) {
+		if (sscanf(pathbuf, "FSID:%d:%d", &fsid.val[0], &fsid.val[1]) != 2) {
 			free(pathbuf, M_TEMP);
 			return (EINVAL);
 		}
 
-		mtx_lock(&mountlist_mtx);
-		TAILQ_FOREACH_REVERSE(mp, &mountlist, mntlist, mnt_list) {
-			if (mp->mnt_stat.f_fsid.val[0] == id0 &&
-			    mp->mnt_stat.f_fsid.val[1] == id1) {
-				vfs_ref(mp);
-				break;
-			}
-		}
-		mtx_unlock(&mountlist_mtx);
+		mp = vfs_getvfs(&fsid);
 	} else {
 		/*
 		 * Try to find global path for path argument.
