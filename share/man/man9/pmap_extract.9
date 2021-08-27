@@ -38,7 +38,7 @@
 .In vm/pmap.h
 .Ft vm_paddr_t
 .Fn pmap_extract "pmap_t pmap" "vm_offset_t va"
-.Ft vm_paddr_t
+.Ft vm_page_t
 .Fn pmap_extract_and_hold "pmap_t pmap" "vm_offset_t va" "vm_prot_t prot"
 .Sh DESCRIPTION
 The
@@ -73,7 +73,9 @@ will be returned.
 .Pp
 The
 .Fn pmap_extract_and_hold
-function will return the physical page address associated with the
+function will return the
+.Ft vm_page_t
+associated with the
 virtual address
 .Fa va
 inside the physical map
