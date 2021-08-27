@@ -1,14 +1,15 @@
 /*-
- * Copyright (c) 2015-2016 Ruslan Bukin <br@bsdpad.com>
- * All rights reserved.
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
- * Portions of this software were developed by SRI International and the
- * University of Cambridge Computer Laboratory under DARPA/AFRL contract
- * FA8750-10-C-0237 ("CTSRD"), as part of the DARPA CRASH research programme.
+ * Copyright (C) 2014,2019 Andrew Turner
+ * Copyright (c) 2014-2015 The FreeBSD Foundation
  *
- * Portions of this software were developed by the University of Cambridge
- * Computer Laboratory as part of the CTSRD Project, with support from the
- * UK Higher Education Innovation Fund (HEIF).
+ * This software was developed by Andrew Turner under
+ * sponsorship from the FreeBSD Foundation.
+ *
+ * This software was developed by SRI International and the University of
+ * Cambridge Computer Laboratory under DARPA/AFRL contract FA8750-10-C-0237
+ * ("CTSRD"), as part of the DARPA CRASH research programme.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -34,28 +35,34 @@
  * $FreeBSD$
  */
 
-#ifndef	_MACHINE_REG_H_
-#define	_MACHINE_REG_H_
+#ifndef	_SYS_REG_H_
+#define	_SYS_REG_H_
 
-struct reg {
-	uint64_t ra;		/* return address */
-	uint64_t sp;		/* stack pointer */
-	uint64_t gp;		/* global pointer */
-	uint64_t tp;		/* thread pointer */
-	uint64_t t[7];		/* temporaries */
-	uint64_t s[12];		/* saved registers */
-	uint64_t a[8];		/* function arguments */
-	uint64_t sepc;		/* exception program counter */
-	uint64_t sstatus;	/* status register */
-};
+#include <machine/reg.h>
 
-struct fpreg {
-	uint64_t	fp_x[32][2];	/* Floating point registers */
-	uint64_t	fp_fcsr;	/* Floating point control reg */
-};
+#ifdef _KERNEL
+int	fill_regs(struct thread *, struct reg *);
+int	set_regs(struct thread *, struct reg *);
+int	fill_fpregs(struct thread *, struct fpreg *);
+int	set_fpregs(struct thread *, struct fpreg *);
+int	fill_dbregs(struct thread *, struct dbreg *);
+int	set_dbregs(struct thread *, struct dbreg *);
+#ifdef COMPAT_FREEBSD32
+int	fill_regs32(struct thread *, struct reg32 *);
+int	set_regs32(struct thread *, struct reg32 *);
+#ifndef fill_fpregs32
+int	fill_fpregs32(struct thread *, struct fpreg32 *);
+#endif
+#ifndef set_fpregs32
+int	set_fpregs32(struct thread *, struct fpreg32 *);
+#endif
+#ifndef fill_dbregs32
+int	fill_dbregs32(struct thread *, struct dbreg32 *);
+#endif
+#ifndef set_dbregs32
+int	set_dbregs32(struct thread *, struct dbreg32 *);
+#endif
+#endif
+#endif
 
-struct dbreg {
-	int dummy;
-};
-
-#endif /* !_MACHINE_REG_H_ */
+#endif

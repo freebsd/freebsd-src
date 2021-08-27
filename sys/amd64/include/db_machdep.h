@@ -30,7 +30,6 @@
 #define	_MACHINE_DB_MACHDEP_H_
 
 #include <machine/frame.h>
-#include <machine/reg.h>
 #include <machine/trap.h>
 
 typedef	vm_offset_t	db_addr_t;	/* address - unsigned */

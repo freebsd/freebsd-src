@@ -36,7 +36,7 @@
 #ifndef _MACHINE_MD_VAR_H_
 #define	_MACHINE_MD_VAR_H_
 
-#include <machine/reg.h>
+#include <machine/regnum.h>
 
 /*
  * Miscellaneous machine-dependent declarations.

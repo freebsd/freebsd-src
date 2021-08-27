@@ -93,7 +93,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/signalvar.h>
 
 #include <machine/fpu.h>
-#include <machine/reg.h>
 
 #include <powerpc/fpu/fpu_emu.h>
 #include <powerpc/fpu/fpu_extern.h>

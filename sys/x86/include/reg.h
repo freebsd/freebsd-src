@@ -244,26 +244,10 @@ struct __dbreg64 {
 #undef __dbreg64
 
 #ifdef _KERNEL
-struct thread;
-
 /*
  * XXX these interfaces are MI, so they should be declared in a MI place.
  */
-int	fill_regs(struct thread *, struct reg *);
 int	fill_frame_regs(struct trapframe *, struct reg *);
-int	set_regs(struct thread *, struct reg *);
-int	fill_fpregs(struct thread *, struct fpreg *);
-int	set_fpregs(struct thread *, struct fpreg *);
-int	fill_dbregs(struct thread *, struct dbreg *);
-int	set_dbregs(struct thread *, struct dbreg *);
-#ifdef COMPAT_FREEBSD32
-int	fill_regs32(struct thread *, struct reg32 *);
-int	set_regs32(struct thread *, struct reg32 *);
-int	fill_fpregs32(struct thread *, struct fpreg32 *);
-int	set_fpregs32(struct thread *, struct fpreg32 *);
-int	fill_dbregs32(struct thread *, struct dbreg32 *);
-int	set_dbregs32(struct thread *, struct dbreg32 *);
-#endif
 #endif
 
 #endif /* !_MACHINE_REG_H_ */
