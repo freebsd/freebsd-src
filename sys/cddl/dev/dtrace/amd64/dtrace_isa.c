@@ -35,7 +35,6 @@
 
 #include <machine/frame.h>
 #include <machine/md_var.h>
-#include <machine/reg.h>
 #include <machine/stack.h>
 #include <x86/ifunc.h>
 

@@ -29,6 +29,7 @@
 #include <sys/types.h>
 #include <sys/kdb.h>
 #include <sys/pcpu.h>
+#include <sys/reg.h>
 #include <sys/smp.h>
 #include <sys/systm.h>
 

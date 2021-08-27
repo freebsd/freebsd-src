@@ -56,7 +56,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/fpu.h>
 #include <machine/ieeefp.h>
-#include <machine/reg.h>
 
 #include <powerpc/fpu/fpu_arith.h>
 #include <powerpc/fpu/fpu_emu.h>

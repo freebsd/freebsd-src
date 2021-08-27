@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kdb.h>
 #include <sys/proc.h>
+#include <sys/reg.h>
 #include <sys/smp.h>
 #include <sys/stack.h>
 #include <sys/sysent.h>
@@ -38,7 +39,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/md_var.h>
 #include <machine/pcb.h>
-#include <machine/reg.h>
 #include <machine/stack.h>
 
 #include <vm/vm.h>

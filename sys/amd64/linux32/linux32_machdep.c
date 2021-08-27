@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
+#include <sys/reg.h>
 #include <sys/resource.h>
 #include <sys/resourcevar.h>
 #include <sys/syscallsubr.h>
@@ -61,7 +62,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 #include <machine/pcb.h>
 #include <machine/psl.h>
-#include <machine/reg.h>
 #include <machine/segments.h>
 #include <machine/specialreg.h>
 #include <x86/ifunc.h>

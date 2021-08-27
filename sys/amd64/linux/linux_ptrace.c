@@ -40,7 +40,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/syscallsubr.h>
 
 #include <machine/pcb.h>
-#include <machine/reg.h>
 
 #include <amd64/linux/linux.h>
 #include <amd64/linux/linux_proto.h>

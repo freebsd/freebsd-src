@@ -36,11 +36,11 @@
 #include <sys/types.h>
 #include <sys/dtrace_bsd.h>
 #include <sys/proc.h>
+#include <sys/reg.h>
 #include <sys/rmlock.h>
 #include <cddl/dev/dtrace/dtrace_cddl.h>
 #include <cddl/dev/dtrace/x86/regset.h>
 #include <machine/segments.h>
-#include <machine/reg.h>
 #include <machine/pcb.h>
 #include <machine/trap.h>
 #include <sys/sysmacros.h>

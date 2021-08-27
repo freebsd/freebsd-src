@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/reg.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
@@ -53,8 +54,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/signalvar.h>
 #include <sys/caprights.h>
 #include <sys/filedesc.h>
-
-#include <machine/reg.h>
 
 #include <security/audit/audit.h>
 

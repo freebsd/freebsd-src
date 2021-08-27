@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/imgact.h>
 #include <sys/ktr.h>
 #include <sys/proc.h>
+#include <sys/reg.h>
 #include <sys/sdt.h>
 
 #include <security/audit/audit.h>

@@ -51,7 +51,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/malloc.h>
 
-#include <machine/reg.h>
 #include <machine/cpu.h>
 #include <machine/hwfunc.h>
 #include <machine/mips_opcode.h>

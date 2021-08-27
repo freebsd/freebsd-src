@@ -48,8 +48,6 @@
 #include <sys/sysent.h>
 #include <sys/uio.h>
 
-#include <machine/reg.h>
-
 #include <fs/pseudofs/pseudofs.h>
 #include <fs/procfs/procfs.h>
 
