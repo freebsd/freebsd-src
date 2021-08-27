@@ -1961,7 +1961,8 @@ void TargetLoweringBase::insertSSPDeclarations(Module &M) const {
                                   GlobalVariable::ExternalLinkage, nullptr,
                                   "__stack_chk_guard");
     if (TM.getRelocationModel() == Reloc::Static &&
-        !TM.getTargetTriple().isWindowsGNUEnvironment())
+        !TM.getTargetTriple().isWindowsGNUEnvironment() &&
+	!(TM.getTargetTriple().isPPC64() && TM.getTargetTriple().isOSFreeBSD()))
       GV->setDSOLocal(true);
   }
 }
