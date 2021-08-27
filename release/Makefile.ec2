@@ -18,6 +18,9 @@ PUBLICSNAP=	--publicsnap
 EC2SNSREL=	${REVISION}-${BRANCH}
 EC2SNSVERS=	${GITBRANCH}@${GITREV}
 .endif
+.if defined(SSMPREFIX) && !empty(SSMPREFIX)
+SSMOPTS=	--ssm-name ${SSMPREFIX}/${TARGET_ARCH:S/aarch64/arm64/}/base/ufs/${REVISION}/${BRANCH}
+.endif
 .if ${TARGET_ARCH} != "amd64"
 EC2ARCH=	--${TARGET_ARCH:S/aarch64/arm64/}
 .endif
@@ -62,7 +65,7 @@ ec2ami: cw-ec2 ${CW_EC2_PORTINSTALL}
 	@false
 .endif
 	/usr/local/bin/bsdec2-image-upload ${PUBLISH} ${PUBLICSNAP} \
-	    ${EC2ARCH} --sriov --ena \
+	    ${EC2ARCH} ${SSMOPTS} --sriov --ena \
 	    ${.OBJDIR}/ec2.raw \
 	    "${TYPE} ${REVISION}-${BRANCH}-${TARGET}${AMINAMESUFFIX}" \
 	    "${TYPE}/${TARGET} ${GITBRANCH}@${GITREV}" \
