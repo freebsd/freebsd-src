@@ -5,6 +5,39 @@ PLAINFILES=plainfiles
 PORT=33080
 CONF=gg.exports
 
+atf_test_case ggatec_trim cleanup
+ggatec_trim_head()
+{
+	atf_set "descr" "ggatec survives a trim"
+	atf_set "require.progs" "ggatec"
+	atf_set "require.user" "root"
+	atf_set "timeout" 60
+}
+
+ggatec_trim_body()
+{
+	load_ggate
+
+	us=$(alloc_ggate_dev)
+	work=$(alloc_md)
+	atf_check -e ignore -o ignore dd if=/dev/random of=/dev/$work bs=1m count=1 conv=notrunc
+	echo $CONF >> $PLAINFILES
+	echo "localhost RW /dev/$work" > $CONF
+	atf_check ggated -p $PORT -F $PIDFILE $CONF
+	atf_check ggatec create -p $PORT -u $us localhost /dev/$work
+	ggate_dev=/dev/ggate${us}
+	wait_for_ggate_device ${ggate_dev}
+
+	# ggatec only supports read or write.
+	atf_check -s not-exit:0 -e ignore -o ignore trim -q -f ${ggate_dev}
+}
+
+ggatec_trim_cleanup()
+{
+	common_cleanup
+}
+
+
 atf_test_case ggated cleanup
 ggated_head()
 {
@@ -133,6 +166,7 @@ atf_init_test_cases()
 	atf_add_test_case ggated
 	atf_add_test_case ggatel_file
 	atf_add_test_case ggatel_md
+	atf_add_test_case ggatec_trim
 }
 
 alloc_ggate_dev()
