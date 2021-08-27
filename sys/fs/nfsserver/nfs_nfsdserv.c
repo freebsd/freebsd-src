@@ -5390,6 +5390,111 @@ nfsmout:
 }
 
 /*
+ * nfs deallocate service
+ */
+int
+nfsrvd_deallocate(struct nfsrv_descript *nd, __unused int isdgram,
+    vnode_t vp, struct nfsexstuff *exp)
+{
+	uint32_t *tl;
+	struct nfsvattr forat;
+	int error = 0, forat_ret = 1, gotproxystateid;
+	off_t off, len;
+	struct nfsstate st, *stp = &st;
+	struct nfslock lo, *lop = &lo;
+	nfsv4stateid_t stateid;
+	nfsquad_t clientid;
+	nfsattrbit_t attrbits;
+
+	gotproxystateid = 0;
+	NFSM_DISSECT(tl, uint32_t *, NFSX_STATEID + 2 * NFSX_HYPER);
+	stp->ls_flags = (NFSLCK_CHECK | NFSLCK_WRITEACCESS);
+	lop->lo_flags = NFSLCK_WRITE;
+	stp->ls_ownerlen = 0;
+	stp->ls_op = NULL;
+	stp->ls_uid = nd->nd_cred->cr_uid;
+	stp->ls_stateid.seqid = fxdr_unsigned(u_int32_t, *tl++);
+	clientid.lval[0] = stp->ls_stateid.other[0] = *tl++;
+	clientid.lval[1] = stp->ls_stateid.other[1] = *tl++;
+	if ((nd->nd_flag & ND_IMPLIEDCLID) != 0) {
+		if ((nd->nd_flag & ND_NFSV41) != 0)
+			clientid.qval = nd->nd_clientid.qval;
+		else if (nd->nd_clientid.qval != clientid.qval)
+			printf("EEK2 multiple clids\n");
+	} else {
+		if ((nd->nd_flag & ND_NFSV41) != 0)
+			printf("EEK! no clientid from session\n");
+		nd->nd_flag |= ND_IMPLIEDCLID;
+		nd->nd_clientid.qval = clientid.qval;
+	}
+	stp->ls_stateid.other[2] = *tl++;
+	/*
+	 * Don't allow this to be done for a DS.
+	 */
+	if ((nd->nd_flag & ND_DSSERVER) != 0)
+		nd->nd_repstat = NFSERR_NOTSUPP;
+	/* However, allow the proxy stateid. */
+	if (stp->ls_stateid.seqid == 0xffffffff &&
+	    stp->ls_stateid.other[0] == 0x55555555 &&
+	    stp->ls_stateid.other[1] == 0x55555555 &&
+	    stp->ls_stateid.other[2] == 0x55555555)
+		gotproxystateid = 1;
+	off = fxdr_hyper(tl); tl += 2;
+	lop->lo_first = off;
+	len = fxdr_hyper(tl);
+	if (len < 0)
+		len = OFF_MAX;
+	NFSD_DEBUG(4, "dealloc: off=%jd len=%jd\n", (intmax_t)off,
+	    (intmax_t)len);
+	lop->lo_end = lop->lo_first + len;
+	/*
+	 * Sanity check the offset and length.
+	 * off and len are off_t (signed int64_t) whereas
+	 * lo_first and lo_end are uint64_t and, as such,
+	 * if off >= 0 && len > 0, lo_end cannot overflow
+	 * unless off_t is changed to something other than
+	 * int64_t.  Check lo_end < lo_first in case that
+	 * is someday the case.
+	 * The error to return is not specified by RFC 7862 so I
+	 * made this compatible with the Linux knfsd.
+	 */
+	if (nd->nd_repstat == 0) {
+		if (off < 0 || lop->lo_end > NFSRV_MAXFILESIZE)
+			nd->nd_repstat = NFSERR_FBIG;
+		else if (len == 0 || lop->lo_end < lop->lo_first)
+			nd->nd_repstat = NFSERR_INVAL;
+	}
+
+	if (nd->nd_repstat == 0 && vnode_vtype(vp) != VREG)
+		nd->nd_repstat = NFSERR_WRONGTYPE;
+	NFSZERO_ATTRBIT(&attrbits);
+	NFSSETBIT_ATTRBIT(&attrbits, NFSATTRBIT_OWNER);
+	forat_ret = nfsvno_getattr(vp, &forat, nd, curthread, 1, &attrbits);
+	if (nd->nd_repstat == 0)
+		nd->nd_repstat = forat_ret;
+	if (nd->nd_repstat == 0 && (forat.na_uid != nd->nd_cred->cr_uid ||
+	     NFSVNO_EXSTRICTACCESS(exp)))
+		nd->nd_repstat = nfsvno_accchk(vp, VWRITE, nd->nd_cred, exp,
+		    curthread, NFSACCCHK_ALLOWOWNER, NFSACCCHK_VPISLOCKED,
+		    NULL);
+	if (nd->nd_repstat == 0 && gotproxystateid == 0)
+		nd->nd_repstat = nfsrv_lockctrl(vp, &stp, &lop, NULL, clientid,
+		    &stateid, exp, nd, curthread);
+
+	if (nd->nd_repstat == 0)
+		nd->nd_repstat = nfsvno_deallocate(vp, off, len, nd->nd_cred,
+		    curthread);
+	vput(vp);
+	NFSD_DEBUG(4, "eo deallocate=%d\n", nd->nd_repstat);
+	NFSEXITCODE2(0, nd);
+	return (0);
+nfsmout:
+	vput(vp);
+	NFSEXITCODE2(error, nd);
+	return (error);
+}
+
+/*
  * nfs copy service
  */
 int
