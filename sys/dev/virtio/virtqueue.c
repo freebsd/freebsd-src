@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/sdt.h>
 #include <sys/sglist.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -136,6 +137,11 @@ static int	vq_ring_enable_interrupt(struct virtqueue *, uint16_t);
 static int	vq_ring_must_notify_host(struct virtqueue *);
 static void	vq_ring_notify_host(struct virtqueue *);
 static void	vq_ring_free_chain(struct virtqueue *, uint16_t);
+
+SDT_PROVIDER_DEFINE(virtqueue);
+SDT_PROBE_DEFINE6(virtqueue, , enqueue_segments, entry, "struct virtqueue *",
+    "struct vring_desc *", "uint16_t", "struct sglist *", "int", "int");
+SDT_PROBE_DEFINE1(virtqueue, , enqueue_segments, return, "uint16_t");
 
 #define vq_modern(_vq) 		(((_vq)->vq_flags & VIRTQUEUE_FLAG_MODERN) != 0)
 #define vq_htog16(_vq, _val) 	virtio_htog16(vq_modern(_vq), _val)
@@ -703,6 +709,9 @@ vq_ring_enqueue_segments(struct virtqueue *vq, struct vring_desc *desc,
 	int i, needed;
 	uint16_t idx;
 
+	SDT_PROBE6(virtqueue, , enqueue_segments, entry, vq, desc, head_idx,
+	    sg, readable, writable);
+
 	needed = readable + writable;
 
 	for (i = 0, idx = head_idx, seg = sg->sg_segs;
@@ -722,6 +731,7 @@ vq_ring_enqueue_segments(struct virtqueue *vq, struct vring_desc *desc,
 			dp->flags |= vq_gtoh16(vq, VRING_DESC_F_WRITE);
 	}
 
+	SDT_PROBE1(virtqueue, , enqueue_segments, return, idx);
 	return (idx);
 }
 
