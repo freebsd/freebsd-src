@@ -298,6 +298,15 @@ struct protosw inet6sw[] = {
 {
 	.pr_type =		SOCK_RAW,
 	.pr_domain =		&inet6domain,
+	.pr_protocol =		IPPROTO_ETHERIP,
+	.pr_flags =		PR_ATOMIC|PR_ADDR|PR_LASTHDR,
+	.pr_input =		encap6_input,
+	.pr_ctloutput =		rip6_ctloutput,
+	.pr_usrreqs =		&rip6_usrreqs
+},
+{
+	.pr_type =		SOCK_RAW,
+	.pr_domain =		&inet6domain,
 	.pr_protocol =		IPPROTO_GRE,
 	.pr_flags =		PR_ATOMIC|PR_ADDR|PR_LASTHDR,
 	.pr_input =		encap6_input,
