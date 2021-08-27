@@ -350,23 +350,26 @@ static int
 xen_intr_release_isrc(struct xenisrc *isrc)
 {
 
-	mtx_lock(&xen_intr_isrc_lock);
 	KASSERT(isrc->xi_intsrc.is_handlers == 0,
 	    ("Release called, but xenisrc still in use"));
-	evtchn_mask_port(isrc->xi_port);
-	evtchn_clear_port(isrc->xi_port);
+	mtx_lock(&xen_intr_isrc_lock);
+	if (is_valid_evtchn(isrc->xi_port)) {
+		evtchn_mask_port(isrc->xi_port);
+		evtchn_clear_port(isrc->xi_port);
 
-	/* Rebind port to CPU 0. */
-	evtchn_cpu_mask_port(isrc->xi_cpu, isrc->xi_port);
-	evtchn_cpu_unmask_port(0, isrc->xi_port);
+		/* Rebind port to CPU 0. */
+		evtchn_cpu_mask_port(isrc->xi_cpu, isrc->xi_port);
+		evtchn_cpu_unmask_port(0, isrc->xi_port);
 
-	if (isrc->xi_close != 0 && is_valid_evtchn(isrc->xi_port)) {
-		struct evtchn_close close = { .port = isrc->xi_port };
-		if (HYPERVISOR_event_channel_op(EVTCHNOP_close, &close))
-			panic("EVTCHNOP_close failed");
+		if (isrc->xi_close != 0) {
+			struct evtchn_close close = { .port = isrc->xi_port };
+
+			if (HYPERVISOR_event_channel_op(EVTCHNOP_close, &close))
+				panic("EVTCHNOP_close failed");
+		}
+
+		xen_intr_port_to_isrc[isrc->xi_port] = NULL;
 	}
-
-	xen_intr_port_to_isrc[isrc->xi_port] = NULL;
 	isrc->xi_cpu = 0;
 	isrc->xi_type = EVTCHN_TYPE_UNBOUND;
 	isrc->xi_port = 0;
