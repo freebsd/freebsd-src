@@ -69,7 +69,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 #include <vm/uma.h>
 
-#include <machine/reg.h>
 #include <machine/cpu.h>
 #include <machine/mips_opcode.h>
 #include <machine/asm.h>
