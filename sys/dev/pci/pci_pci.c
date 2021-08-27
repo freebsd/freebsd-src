@@ -2345,6 +2345,7 @@ pcib_adjust_resource(device_t bus, device_t child, int type, struct resource *r,
 {
 	struct pcib_softc *sc;
 	struct pcib_window *w;
+	rman_res_t wmask;
 	int error;
 
 	sc = device_get_softc(bus);
@@ -2375,9 +2376,18 @@ pcib_adjust_resource(device_t bus, device_t child, int type, struct resource *r,
 		 * then we need to expand the window.
 		 */
 		if (start < w->base || end > w->limit) {
-			error = pcib_expand_window(sc, w, type, start, end);
+			wmask = ((rman_res_t)1 << w->step) - 1;
+			error = pcib_expand_window(sc, w, type,
+			    MIN(start & ~wmask, w->base),
+			    MAX(end | wmask, w->limit));
 			if (error != 0)
 				return (error);
+			if (bootverbose)
+				device_printf(sc->dev,
+				    "grew %s window to %#jx-%#jx\n",
+				    w->name, (uintmax_t)w->base,
+				    (uintmax_t)w->limit);
+			pcib_write_windows(sc, w->mask);
 		}
 	}
 
