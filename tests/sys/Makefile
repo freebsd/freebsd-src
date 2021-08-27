@@ -28,6 +28,7 @@ TESTS_SUBDIRS+=		netmap
 TESTS_SUBDIRS+=		netpfil
 TESTS_SUBDIRS+=		opencrypto
 TESTS_SUBDIRS+=		posixshm
+TESTS_SUBDIRS+=		ses
 TESTS_SUBDIRS+=		sys
 TESTS_SUBDIRS+=		vfs
 TESTS_SUBDIRS+=		vm
