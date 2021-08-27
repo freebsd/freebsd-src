@@ -77,6 +77,8 @@ CXXWARNFLAGS.readdir.cc+=	-Wno-cast-align
 .if ${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} >= 80000
 CXXWARNFLAGS+=	-Wno-class-memaccess
 .endif
+# Supress warnings about deprecated implicit copy constructors in gtest.
+CXXWARNFLAGS+=  -Wno-deprecated-copy
 CXXFLAGS+=	-I${SRCTOP}/tests
 CXXFLAGS+=	-I${FUSEFS}
 CXXFLAGS+=	-I${MOUNT}
