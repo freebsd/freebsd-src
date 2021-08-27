@@ -129,12 +129,8 @@ mergesort(void *base, size_t nmemb, size_t size, cmp_t cmp)
 	if (nmemb == 0)
 		return (0);
 
-	/*
-	 * XXX
-	 * Stupid subtraction for the Cray.
-	 */
 	iflag = 0;
-	if (!(size % ISIZE) && !(((char *)base - (char *)0) % ISIZE))
+	if (__is_aligned(size, ISIZE) && __is_aligned(base, ISIZE))
 		iflag = 1;
 
 	if ((list2 = malloc(nmemb * size + PSIZE)) == NULL)
