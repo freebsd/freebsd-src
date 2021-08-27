@@ -511,10 +511,7 @@ kern_connectat(struct thread *td, int dirfd, int fd, struct sockaddr *sa)
 	if (error != 0)
 		goto bad;
 #endif
-	if (dirfd == AT_FDCWD)
-		error = soconnect(so, sa, td);
-	else
-		error = soconnectat(dirfd, so, sa, td);
+	error = soconnectat(dirfd, so, sa, td);
 	if (error != 0)
 		goto bad;
 	if ((so->so_state & SS_NBIO) && (so->so_state & SS_ISCONNECTING)) {
