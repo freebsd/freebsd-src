@@ -114,7 +114,7 @@ struct abort {
  *    for cache operations working on virtual addresses. For now, we will
  *    consider this abort as fatal. In fact, no cache maintenance on
  *    not mapped virtual addresses should be called. As cache maintenance
- *    operation (except DMB, DSB, and Flush Prefetch Buffer) are priviledged,
+ *    operation (except DMB, DSB, and Flush Prefetch Buffer) are privileged,
  *    the abort is fatal for user mode as well for now. (This is good place to
  *    note that cache maintenance on virtual address fill TLB.)
  * Acces Bit (L1 & L2):
@@ -654,7 +654,7 @@ abort_align(struct trapframe *tf, u_int idx, u_int fsr, u_int far,
  * According to manual, FAULT_ICACHE is translation fault during cache
  * maintenance operation. In fact, no cache maintenance operation on
  * not mapped virtual addresses should be called. As cache maintenance
- * operation (except DMB, DSB, and Flush Prefetch Buffer) are priviledged,
+ * operation (except DMB, DSB, and Flush Prefetch Buffer) are privileged,
  * the abort is concider as fatal for now. However, all the matter with
  * cache maintenance operation on virtual addresses could be really complex
  * and fuzzy in SMP case, so maybe in future standard fault mechanism

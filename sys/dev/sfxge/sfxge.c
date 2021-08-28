@@ -984,7 +984,7 @@ sfxge_vpd_init(struct sfxge_softc *sc)
 
 	if ((rc = efx_vpd_size(sc->enp, &sc->vpd_size)) != 0) {
 		/*
-		 * Unpriviledged functions deny VPD access.
+		 * Unprivileged functions deny VPD access.
 		 * Simply skip VPD in this case.
 		 */
 		if (rc == EACCES)

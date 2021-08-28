@@ -62,7 +62,7 @@ static d_open_t	perfmon_open;
 static d_ioctl_t perfmon_ioctl;
 
 /*
- * XXX perfmon_init_dev(void *) is a split from the perfmon_init() funtion. 
+ * XXX perfmon_init_dev(void *) is a split from the perfmon_init() function.
  * This solves a problem for DEVFS users.  It loads the "perfmon" driver after
  * the DEVFS subsystem has been kicked into action.  The SI_ORDER_ANY is to
  * assure that it is the most lowest priority task which, guarantees the
