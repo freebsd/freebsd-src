@@ -666,7 +666,7 @@ nd6_is_stale(struct llentry *lle, long *pdelay, int *do_switch)
 		/*
 		 * V_nd6_delay still not passed since the first
 		 * hit in STALE state.
-		 * Reshedule timer and return.
+		 * Reschedule timer and return.
 		 */
 		*pdelay = (long)(nd_delay - delay) * hz;
 		return (1);
@@ -850,7 +850,7 @@ nd6_llinfo_timer(void *arg)
 		if (nd6_is_stale(ln, &delay, &do_switch) != 0) {
 			/*
 			 * No packet has used this entry and GC timeout
-			 * has not been passed. Reshedule timer and
+			 * has not been passed. Reschedule timer and
 			 * return.
 			 */
 			nd6_llinfo_settimer_locked(ln, delay);
