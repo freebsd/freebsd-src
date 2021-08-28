@@ -442,7 +442,7 @@ int decompress_buffer(struct cudbg_buffer *pc_buff,
 				remaining = chunk_size;
 				checksum = 1L;
 				for (;;) {
-					/* Write a funtion for this */
+					/* Write a function for this */
 					r = (CUDBG_BLOCK_SIZE < remaining) ?
 					    CUDBG_BLOCK_SIZE : remaining;
 					bytes_read =

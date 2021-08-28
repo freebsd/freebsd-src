@@ -118,7 +118,7 @@ oce_reset_fun(POCE_SOFTC sc)
 }
 
 /**
- * @brief  		This funtions tells firmware we are
+ * @brief  		This functions tells firmware we are
  *			done with commands.
  * @param sc            software handle to the device
  * @returns             0 on success, ETIMEDOUT on failure

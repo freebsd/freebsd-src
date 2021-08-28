@@ -256,7 +256,7 @@ struct meminfo {
 #endif
 
 /*
- * We use our own malloc/realloc/free funtions, so we can collect statistics
+ * We use our own malloc/realloc/free functions, so we can collect statistics
  * and force journal switch when we're running out of cache.
  */
 static void *
