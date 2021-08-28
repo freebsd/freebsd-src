@@ -1,6 +1,6 @@
 .\" $FreeBSD$
 .\"
-.Dd October 23, 2018
+.Dd August 28, 2021
 .Dt LDD 1
 .Os
 .Sh NAME
@@ -9,7 +9,6 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl a
-.Op Fl v
 .Op Fl f Ar format
 .Ar program ...
 .Sh DESCRIPTION
@@ -47,16 +46,6 @@ The
 .Fl a
 option displays the list of all objects that are needed by each loaded
 object.
-This option does not work with
-.Xr a.out 5
-binaries.
-.Pp
-The
-.Fl v
-option displays a verbose listing of the dynamic linking headers
-encoded in the executable.
-See the source code and include
-files for the definitive meaning of all the fields.
 .Sh IMPLEMENTATION NOTES
 .Nm
 lists the dependencies of an executable by setting
@@ -82,8 +71,3 @@ A
 .Nm
 utility first appeared in SunOS 4.0, it appeared in its current form in
 .Fx 1.1 .
-.Pp
-The
-.Fl v
-support is based on code written by
-.An John Polstra Aq Mt jdp@polstra.com
