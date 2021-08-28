@@ -1158,14 +1158,12 @@ fsetown(pid_t pgid, struct sigio **sigiop)
 	sigio->sio_ucred = crhold(curthread->td_ucred);
 	sigio->sio_myref = sigiop;
 
-	osigio = NULL;
 	ret = 0;
 	if (pgid > 0) {
 		ret = pget(pgid, PGET_NOTWEXIT | PGET_NOTID | PGET_HOLD, &proc);
 		SIGIO_LOCK();
+		osigio = funsetown_locked(*sigiop);
 		if (ret == 0) {
-			osigio = funsetown_locked(*sigiop);
-
 			PROC_LOCK(proc);
 			_PRELE(proc);
 			if ((proc->p_flag & P_WEXIT) != 0) {
@@ -1191,12 +1189,11 @@ fsetown(pid_t pgid, struct sigio **sigiop)
 	} else /* if (pgid < 0) */ {
 		sx_slock(&proctree_lock);
 		SIGIO_LOCK();
+		osigio = funsetown_locked(*sigiop);
 		pgrp = pgfind(-pgid);
 		if (pgrp == NULL) {
 			ret = ESRCH;
 		} else {
-			osigio = funsetown_locked(*sigiop);
-
 			if (pgrp->pg_session != curthread->td_proc->p_session) {
 				/*
 				 * Policy - Don't allow a process to FSETOWN a
