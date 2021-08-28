@@ -53,7 +53,7 @@
  *
  * The Tigon 2 contains 2 R4000 CPUs and requires a newer firmware
  * revision, which supports new features such as extended commands,
- * extended jumbo receive ring desciptors and a mini receive ring.
+ * extended jumbo receive ring descriptors and a mini receive ring.
  *
  * Alteon Networks is to be commended for releasing such a vast amount
  * of development material for the Tigon NIC without requiring an NDA
