@@ -2445,7 +2445,7 @@ sk_encap(sc_if, m_head)
 	}
 	sc_if->sk_cdata.sk_tx_prod = frag;
 
-	/* set EOF on the last desciptor */
+	/* set EOF on the last descriptor */
 	frag = (frag + SK_TX_RING_CNT - 1) % SK_TX_RING_CNT;
 	f = &sc_if->sk_rdata.sk_tx_ring[frag];
 	f->sk_ctl |= htole32(SK_TXCTL_LASTFRAG | SK_TXCTL_EOF_INTR);

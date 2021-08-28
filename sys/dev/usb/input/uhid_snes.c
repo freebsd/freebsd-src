@@ -296,7 +296,7 @@ uhid_snes_ioctl(struct usb_fifo *fifo, u_long cmd, void *data, int fflags)
 
 		ugd->ugd_actlen = size;
 		if (ugd->ugd_data == NULL)
-			break; /*desciptor length only*/
+			break; /* descriptor length only*/
 		error = copyout(sc->sc_repdesc_ptr, ugd->ugd_data, size);
 		break;
 

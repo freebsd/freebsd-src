@@ -697,7 +697,7 @@ static void
 mge_free_dma(struct mge_softc *sc)
 {
 
-	/* Free desciptors and mbufs */
+	/* Free descriptors and mbufs */
 	mge_free_desc(sc, sc->mge_rx_desc, MGE_RX_DESC_NUM, sc->mge_rx_dtag, 1);
 	mge_free_desc(sc, sc->mge_tx_desc, MGE_TX_DESC_NUM, sc->mge_tx_dtag, 0);
 
