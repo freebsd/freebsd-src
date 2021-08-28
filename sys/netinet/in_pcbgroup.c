@@ -186,7 +186,7 @@ in_pcbgroup_init(struct inpcbinfo *pcbinfo, u_int hashfields,
 		 * XXXRW: The notion of a bucket to CPU mapping is common at
 		 * both pcbgroup and RSS layers -- does that mean that we
 		 * should migrate it all from RSS to here, and just leave RSS
-		 * responsible only for providing hashing and mapping funtions?
+		 * responsible only for providing hashing and mapping functions?
 		 */
 #ifdef RSS
 		pcbgroup->ipg_cpu = rss_getcpu(pgn);
