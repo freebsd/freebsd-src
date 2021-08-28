@@ -204,6 +204,7 @@ bad:
 			else if (Eflag) {
 				el_set(el, EL_EDITOR, "emacs");
 				el_set(el, EL_BIND, "^R", "em-inc-search-prev", NULL);
+				el_set(el, EL_BIND, "^W", "ed-delete-prev-word", NULL);
 			}
 			el_set(el, EL_BIND, "^I", "sh-complete", NULL);
 			el_source(el, NULL);
