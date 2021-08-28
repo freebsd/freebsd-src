@@ -132,6 +132,8 @@ static int nfsrpc_readrpc(vnode_t , struct uio *, struct ucred *,
 static int nfsrpc_writerpc(vnode_t , struct uio *, int *, int *,
     struct ucred *, nfsv4stateid_t *, NFSPROC_T *, struct nfsvattr *, int *,
     void *);
+static int nfsrpc_deallocaterpc(vnode_t, off_t, off_t, nfsv4stateid_t *,
+    struct nfsvattr *, int *, struct ucred *, NFSPROC_T *, void *);
 static int nfsrpc_createv23(vnode_t , char *, int, struct vattr *,
     nfsquad_t, int, struct ucred *, NFSPROC_T *, struct nfsvattr *,
     struct nfsvattr *, struct nfsfh **, int *, int *, void *);
@@ -2085,6 +2087,116 @@ nfsmout:
 		m_freem(nd->nd_mrep);
 	*iomode = committed;
 	if (nd->nd_repstat && !error)
+		error = nd->nd_repstat;
+	return (error);
+}
+
+/*
+ * Do an nfs deallocate operation.
+ */
+int
+nfsrpc_deallocate(vnode_t vp, off_t offs, off_t len, struct nfsvattr *nap,
+    int *attrflagp, struct ucred *cred, NFSPROC_T *p, void *stuff)
+{
+	int error, expireret = 0, openerr, retrycnt;
+	uint32_t clidrev = 0;
+	struct nfsmount *nmp = VFSTONFS(vp->v_mount);
+	struct nfsfh *nfhp;
+	nfsv4stateid_t stateid;
+	void *lckp;
+
+	if (nmp->nm_clp != NULL)
+		clidrev = nmp->nm_clp->nfsc_clientidrev;
+	retrycnt = 0;
+	do {
+		lckp = NULL;
+		openerr = 1;
+		nfhp = VTONFS(vp)->n_fhp;
+		error = nfscl_getstateid(vp, nfhp->nfh_fh, nfhp->nfh_len,
+		    NFSV4OPEN_ACCESSWRITE, 0, cred, p, &stateid, &lckp);
+		if (error != 0) {
+			/*
+			 * No Open stateid, so try and open the file
+			 * now.
+			 */
+			openerr = nfsrpc_open(vp, FWRITE, cred, p);
+			if (openerr == 0)
+				nfscl_getstateid(vp, nfhp->nfh_fh,
+				    nfhp->nfh_len, NFSV4OPEN_ACCESSWRITE, 0,
+				    cred, p, &stateid, &lckp);
+		}
+		error = nfsrpc_deallocaterpc(vp, offs, len, &stateid, nap,
+		    attrflagp, cred, p, stuff);
+		if (error == NFSERR_STALESTATEID)
+			nfscl_initiate_recovery(nmp->nm_clp);
+		if (lckp != NULL)
+			nfscl_lockderef(lckp);
+		if (openerr == 0)
+			nfsrpc_close(vp, 0, p);
+		if (error == NFSERR_GRACE || error == NFSERR_STALESTATEID ||
+		    error == NFSERR_STALEDONTRECOVER || error == NFSERR_DELAY ||
+		    error == NFSERR_OLDSTATEID || error == NFSERR_BADSESSION) {
+			(void) nfs_catnap(PZERO, error, "nfs_deallocate");
+		} else if ((error == NFSERR_EXPIRED ||
+		    error == NFSERR_BADSTATEID) && clidrev != 0) {
+			expireret = nfscl_hasexpired(nmp->nm_clp, clidrev, p);
+		}
+		retrycnt++;
+	} while (error == NFSERR_GRACE || error == NFSERR_STALESTATEID ||
+	    error == NFSERR_STALEDONTRECOVER || error == NFSERR_DELAY ||
+	    error == NFSERR_BADSESSION ||
+	    (error == NFSERR_OLDSTATEID && retrycnt < 20) ||
+	    ((error == NFSERR_EXPIRED || error == NFSERR_BADSTATEID) &&
+	     expireret == 0 && clidrev != 0 && retrycnt < 4));
+	if (error && retrycnt >= 4)
+		error = EIO;
+	return (error);
+}
+
+/*
+ * The actual deallocate RPC.
+ */
+static int
+nfsrpc_deallocaterpc(vnode_t vp, off_t offs, off_t len,
+    nfsv4stateid_t *stateidp, struct nfsvattr *nap, int *attrflagp,
+    struct ucred *cred, NFSPROC_T *p, void *stuff)
+{
+	uint32_t *tl;
+	struct nfsnode *np = VTONFS(vp);
+	int error, wccflag;
+	struct nfsrv_descript nfsd;
+	struct nfsrv_descript *nd = &nfsd;
+	nfsattrbit_t attrbits;
+
+	*attrflagp = 0;
+	NFSCL_REQSTART(nd, NFSPROC_DEALLOCATE, vp);
+	nfsm_stateidtom(nd, stateidp, NFSSTATEID_PUTSTATEID);
+	NFSM_BUILD(tl, uint32_t *, 2 * NFSX_HYPER);
+	txdr_hyper(offs, tl);
+	tl += 2;
+	txdr_hyper(len, tl);
+	NFSWRITEGETATTR_ATTRBIT(&attrbits);
+	NFSM_BUILD(tl, uint32_t *, NFSX_UNSIGNED);
+	*tl = txdr_unsigned(NFSV4OP_GETATTR);
+	nfsrv_putattrbit(nd, &attrbits);
+	error = nfscl_request(nd, vp, p, cred, stuff);
+	if (error != 0)
+		return (error);
+	wccflag = 0;
+	error = nfscl_wcc_data(nd, vp, nap, attrflagp, &wccflag, stuff);
+	if (error != 0)
+		goto nfsmout;
+	if (nd->nd_repstat == 0) {
+		NFSM_DISSECT(tl, uint32_t *, 2 * NFSX_UNSIGNED);
+		error = nfsm_loadattr(nd, nap);
+		if (error != 0)
+			goto nfsmout;
+		*attrflagp = NFS_LATTR_NOSHRINK;
+	}
+	NFSWRITERPC_SETTIME(wccflag, np, nap, 1);
+nfsmout:
+	m_freem(nd->nd_mrep);
+	if (nd->nd_repstat != 0 && error == 0)
 		error = nd->nd_repstat;
 	return (error);
 }

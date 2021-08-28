@@ -553,6 +553,8 @@ int nfscl_findlayoutforio(struct nfscllayout *, uint64_t, uint32_t,
 void nfscl_freenfsclds(struct nfsclds *);
 int nfsrpc_allocate(vnode_t, off_t, off_t, struct nfsvattr *, int *,
     struct ucred *, NFSPROC_T *, void *);
+int nfsrpc_deallocate(vnode_t, off_t, off_t, struct nfsvattr *, int *,
+    struct ucred *, NFSPROC_T *, void *);
 int nfsrpc_copy_file_range(vnode_t, off_t *, vnode_t, off_t *, size_t *,
     unsigned int, int *, struct nfsvattr *, int *, struct nfsvattr *,
     struct ucred *, bool, bool *);
