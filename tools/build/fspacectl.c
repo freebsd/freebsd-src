@@ -36,9 +36,10 @@ __FBSDID("$FreeBSD$");
  * This is currently a stub implementation of fspacectl(2).
  */
 int
-fspacectl(int fd, int cmd, const struct spacectl_range *rqsr, int flags,
-    struct spacectl_range *rmsr)
+fspacectl(int fd __unused, int cmd __unused,
+    const struct spacectl_range *rqsr __unused, int flags __unused,
+    struct spacectl_range *rmsr __unused)
 {
-        errno = ENOSYS;
-        return (-1);
+	errno = ENOSYS;
+	return (-1);
 }
