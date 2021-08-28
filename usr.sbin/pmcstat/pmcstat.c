@@ -1455,7 +1455,7 @@ main(int argc, char **argv)
 		    args.pa_verbosity > 0)
 			warnx(
 "WARNING: at least %u event%s were discarded while running.\n"
-"Please consider tuning the \"kern.hwpmc.nbuffers\" tunable.",
+"Please consider tuning the \"kern.hwpmc.nbuffers_pcpu\" tunable.",
 	 		    ds_end.pm_buffer_requests_failed -
 			    ds_start.pm_buffer_requests_failed,
 			    ((ds_end.pm_buffer_requests_failed -
