@@ -234,7 +234,7 @@ ocs_fdb_dump(ocs_t *ocs)
  * @par Description
  * This function creates a DMA buffer to hold a Lancer dump,
  * sets the dump location to point to that buffer, then calls
- * ocs_gen_dump to cause a dump to be transfered to the buffer.
+ * ocs_gen_dump to cause a dump to be transferred to the buffer.
  * After the dump is complete it copies the dump to the provided
  * user space buffer.
  *

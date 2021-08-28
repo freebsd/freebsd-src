@@ -966,7 +966,7 @@ hw_queue_teardown(ocs_hw_t *hw)
  * If wq_steering is OCS_HW_WQ_STEERING_REQUEST, then a WQ from the EQ that
  * the IO request came in on is selected.
  *
- * If wq_steering is OCS_HW_WQ_STEERING_CPU, then a WQ associted with the
+ * If wq_steering is OCS_HW_WQ_STEERING_CPU, then a WQ associated with the
  * CPU the request is made on is selected.
  *
  * @param hw pointer to HW object
