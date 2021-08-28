@@ -86,7 +86,7 @@ SYSCTL_INT(_kern_hwpmc, OID_AUTO, logbuffersize, CTLFLAG_RDTUN,
     &pmclog_buffer_size, 0, "size of log buffers in kilobytes");
 
 /*
- * kern.hwpmc.nbuffer -- number of global log buffers
+ * kern.hwpmc.nbuffers_pcpu -- number of global log buffers
  */
 
 static int pmc_nlogbuffers_pcpu = PMC_NLOGBUFFERS_PCPU;
