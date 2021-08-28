@@ -624,7 +624,7 @@ rtsx_handle_card_present(struct rtsx_softc *sc)
 }
 
 /*
- * This funtion is called at startup.
+ * This function is called at startup.
  */
 static void
 rtsx_card_task(void *arg, int pending __unused)

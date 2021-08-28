@@ -247,7 +247,7 @@ EXTERN int	gotdefterm;
 EXTERN FILE	*fscript;		/* FILE for scripting */
 
 EXTERN int	fildes[2];		/* file transfer synchronization channel */
-EXTERN int	repdes[2];		/* read process sychronization channel */
+EXTERN int	repdes[2];		/* read process synchronization channel */
 EXTERN int	FD;			/* open file descriptor to remote host */
 EXTERN int	AC;			/* open file descriptor to dialer (v831 only) */
 EXTERN int	vflag;			/* print .tiprc initialization sequence */

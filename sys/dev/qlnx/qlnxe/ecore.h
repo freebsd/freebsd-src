@@ -702,7 +702,7 @@ struct ecore_hwfn {
 	struct ecore_ptt		*p_main_ptt;
 	struct ecore_ptt		*p_dpc_ptt;
 
-	/* PTP will be used only by the leading funtion.
+	/* PTP will be used only by the leading function.
 	 * Usage of all PTP-apis should be synchronized as result.
 	 */
 	struct ecore_ptt		*p_ptp_ptt;
