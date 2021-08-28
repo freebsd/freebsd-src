@@ -121,7 +121,7 @@ typedef struct SCIF_SAS_CONTROLLER
    SCI_BASE_CONTROLLER_STATE_HANDLER_T * state_handlers;
 
    /**
-    * This field contains the memory desciptors defining the physical
+    * This field contains the memory descriptors defining the physical
     * memory requirements for this controller.
     */
    SCI_PHYSICAL_MEMORY_DESCRIPTOR_T mdes[SCIF_SAS_MAX_MEMORY_DESCRIPTORS];

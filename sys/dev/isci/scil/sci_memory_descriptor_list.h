@@ -96,7 +96,7 @@ typedef struct SCI_PHYSICAL_MEMORY_DESCRIPTOR
    void * virtual_address;
 
    /**
-    * This field contains the physical address associated with this desciptor
+    * This field contains the physical address associated with this descriptor 
     * element. This field shall be zero when the descriptor is retrieved from
     * the SCI implementation.  The user shall set this field prior
     * sci_controller_start()
