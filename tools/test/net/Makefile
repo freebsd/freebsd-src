@@ -2,6 +2,7 @@
 
 PROGS=	listen connect
 MAN=
+WARNS?=	6
 
 test:	${PROGS}
 

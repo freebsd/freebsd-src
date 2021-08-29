@@ -51,6 +51,8 @@ TEST_METADATA+= required_user="root"
 TEST_METADATA+= is_exclusive="true"
 TEST_METADATA+=	required_files="/etc/rc.d/auditd"
 
+WARNS?=	6
+
 LDFLAGS+=	-lbsm -lutil
 
 .include <bsd.test.mk>

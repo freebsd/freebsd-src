@@ -13,3 +13,5 @@ CXXWARNFLAGS+=	-Wno-deprecated-declarations
 
 # Silence warnings about usage of deprecated implicit copy constructors
 CXXWARNFLAGS+=  -Wno-deprecated-copy
+
+WARNS?=		6

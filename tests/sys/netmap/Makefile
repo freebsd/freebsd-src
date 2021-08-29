@@ -11,4 +11,6 @@ PLAIN_TESTS_C+=	ctrl-api-test
 CFLAGS+=	-I${SRCTOP}/tests
 LIBADD+= 	pthread
 
+WARNS?=		6
+
 .include <bsd.test.mk>

@@ -21,4 +21,6 @@ PYMODULES=	cryptodev.py cryptodevh.py cryptotest.py
 
 ${PACKAGE}FILES+=	${PYMODULES}
 
+WARNS?=	6
+
 .include <bsd.test.mk>

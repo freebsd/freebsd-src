@@ -12,4 +12,6 @@ PLAIN_TESTS_C+= pipe_reverse2_test
 PLAIN_TESTS_C+= pipe_reverse_test
 PLAIN_TESTS_C+= pipe_wraparound_test
 
+WARNS?=		6
+
 .include <bsd.test.mk>

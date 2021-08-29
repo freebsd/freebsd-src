@@ -34,6 +34,8 @@ BINDIR?=/usr/bin
 
 LIBADD=	util
 
+WARNS?=	6
+
 HAS_TESTS=
 SUBDIR.${MK_TESTS}+= tests
 

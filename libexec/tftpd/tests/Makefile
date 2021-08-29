@@ -9,6 +9,7 @@ TEST_METADATA.functional+=	timeout=15
 .endif
 
 LIBADD=	util
+WARNS?=	6
 CSTD=	c11
 
 .include <bsd.test.mk>
