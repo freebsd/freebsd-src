@@ -961,7 +961,6 @@ unionfs_fsync(struct vop_fsync_args *ap)
 static int
 unionfs_remove(struct vop_remove_args *ap)
 {
-	int		error;
 	char	       *path;
 	struct unionfs_node *dunp;
 	struct unionfs_node *unp;
@@ -973,6 +972,8 @@ unionfs_remove(struct vop_remove_args *ap)
 	struct componentname *cnp;
 	struct componentname cn;
 	struct thread  *td;
+	int		error;
+	int		pathlen;
 
 	UNIONFS_INTERNAL_DEBUG("unionfs_remove: enter\n");
 
@@ -992,7 +993,7 @@ unionfs_remove(struct vop_remove_args *ap)
 		/* search vnode */
 		VOP_UNLOCK(ap->a_vp);
 		error = unionfs_relookup(udvp, &vp, cnp, &cn, td,
-		    cnp->cn_nameptr, strlen(cnp->cn_nameptr), DELETE);
+		    cnp->cn_nameptr, cnp->cn_namelen, DELETE);
 		if (error != 0 && error != ENOENT) {
 			vn_lock(ap->a_vp, LK_EXCLUSIVE | LK_RETRY);
 			return (error);
@@ -1002,7 +1003,6 @@ unionfs_remove(struct vop_remove_args *ap)
 			/* target vnode in upper */
 			uvp = vp;
 			vrele(vp);
-			path = NULL;
 		} else {
 			/* target vnode in lower */
 			if (vp != NULLVP) {
@@ -1013,14 +1013,16 @@ unionfs_remove(struct vop_remove_args *ap)
 			}
 			vn_lock(ap->a_vp, LK_EXCLUSIVE | LK_RETRY);
 			lvp = ap->a_vp;
-			path = ap->a_cnp->cn_nameptr;
 		}
+		path = cnp->cn_nameptr;
+		pathlen = cnp->cn_namelen;
 	} else {
 		ump = MOUNTTOUNIONFSMOUNT(ap->a_vp->v_mount);
 		unp = VTOUNIONFS(ap->a_vp);
 		uvp = unp->un_uppervp;
 		lvp = unp->un_lowervp;
 		path = unp->un_path;
+		pathlen = unp->un_pathlen;
 	}
 
 	if (udvp == NULLVP)
@@ -1036,7 +1038,7 @@ unionfs_remove(struct vop_remove_args *ap)
 			cnp->cn_flags |= DOWHITEOUT;
 		error = VOP_REMOVE(udvp, uvp, cnp);
 	} else if (lvp != NULLVP)
-		error = unionfs_mkwhiteout(udvp, cnp, td, path);
+		error = unionfs_mkwhiteout(udvp, cnp, td, path, pathlen);
 
 	UNIONFS_INTERNAL_DEBUG("unionfs_remove: leave (%d)\n", error);
 
@@ -1262,7 +1264,7 @@ unionfs_rename(struct vop_rename_args *ap)
 		if (error != 0)
 			goto unionfs_rename_abort;
 
-		/* Locke of tvp is canceled in order to avoid recursive lock. */
+		/* Lock of tvp is canceled in order to avoid recursive lock. */
 		if (tvp != NULLVP && tvp != tdvp)
 			VOP_UNLOCK(tvp);
 		error = unionfs_relookup_for_rename(tdvp, tcnp, td);
@@ -1421,7 +1423,8 @@ unionfs_rmdir(struct vop_rmdir_args *ap)
 			error = VOP_RMDIR(udvp, uvp, cnp);
 	}
 	else if (lvp != NULLVP)
-		error = unionfs_mkwhiteout(udvp, cnp, td, unp->un_path);
+		error = unionfs_mkwhiteout(udvp, cnp, td,
+		    unp->un_path, unp->un_pathlen);
 
 	if (error == 0) {
 		cache_purge(ap->a_dvp);

@@ -98,6 +98,7 @@ struct unionfs_node {
 
 	u_long		un_hashmask;		/* bit mask */
 	char           *un_path;		/* path */
+	int		un_pathlen;		/* strlen of path */
 	int		un_flag;		/* unionfs node flag */
 };
 
@@ -124,7 +125,8 @@ int unionfs_copyfile(struct unionfs_node *unp, int docopy, struct ucred *cred, s
 void unionfs_create_uppervattr_core(struct unionfs_mount *ump, struct vattr *lva, struct vattr *uva, struct thread *td);
 int unionfs_create_uppervattr(struct unionfs_mount *ump, struct vnode *lvp, struct vattr *uva, struct ucred *cred, struct thread *td);
 int unionfs_mkshadowdir(struct unionfs_mount *ump, struct vnode *duvp, struct unionfs_node *unp, struct componentname *cnp, struct thread *td);
-int unionfs_mkwhiteout(struct vnode *dvp, struct componentname *cnp, struct thread *td, char *path);
+int unionfs_mkwhiteout(struct vnode *dvp, struct componentname *cnp,
+    struct thread *td, char *path, int pathlen);
 int unionfs_relookup(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp, struct componentname *cn, struct thread *td, char *path, int pathlen, u_long nameiop);
 int unionfs_relookup_for_create(struct vnode *dvp, struct componentname *cnp, struct thread *td);
 int unionfs_relookup_for_delete(struct vnode *dvp, struct componentname *cnp, struct thread *td);
