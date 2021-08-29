@@ -3519,6 +3519,8 @@ vn_deallocate_impl(struct vnode *vp, off_t *offset, off_t *length, int flags,
 				mp = NULL;
 			}
 		}
+		if (error == 0 && len != 0)
+			maybe_yield();
 	}
 out:
 	if (rl_cookie != NULL)
