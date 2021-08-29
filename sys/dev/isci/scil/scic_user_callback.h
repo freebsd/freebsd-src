@@ -76,7 +76,7 @@ extern "C" {
  *        a handle for this timer for use in further timer interactions.
  *
  * @warning The "timer_callback" method should be executed in a mutually
- *          exlusive manner from the controller completion handler
+ *          exclusive  manner from the controller completion handler
  *          handler (refer to scic_controller_get_handler_methods()).
  *
  * @param[in]  controller This parameter specifies the controller with
