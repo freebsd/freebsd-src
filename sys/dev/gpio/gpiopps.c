@@ -130,7 +130,7 @@ gpiopps_ifltr(void *arg)
 	 * written only by the pps_capture() routine and read only by the
 	 * pps_event() routine.  We don't need lock-based management of access
 	 * to the capture area because we have time-based access management:  we
-	 * can't be reading and writing concurently because we can't be running
+	 * can't be reading and writing concurrently because we can't be running
 	 * both the threaded and filter handlers concurrently (because a new
 	 * hardware interrupt can't happen until the threaded handler for the
 	 * current interrupt exits, after which the system does the EOI that
