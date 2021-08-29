@@ -332,6 +332,7 @@ unionfs_nodeget(struct mount *mp, struct vnode *uppervp,
 		    malloc(cnp->cn_namelen +1, M_UNIONFSPATH, M_WAITOK|M_ZERO);
 		bcopy(cnp->cn_nameptr, unp->un_path, cnp->cn_namelen);
 		unp->un_path[cnp->cn_namelen] = '\0';
+		unp->un_pathlen = cnp->cn_namelen;
 	}
 	vp->v_type = vt;
 	vp->v_data = unp;
@@ -420,6 +421,7 @@ unionfs_noderem(struct vnode *vp, struct thread *td)
 	if (unp->un_path != NULL) {
 		free(unp->un_path, M_UNIONFSPATH);
 		unp->un_path = NULL;
+		unp->un_pathlen = 0;
 	}
 
 	if (unp->un_hashtbl != NULL) {
@@ -576,16 +578,12 @@ unionfs_relookup(struct vnode *dvp, struct vnode **vpp,
 	int	error;
 
 	cn->cn_namelen = pathlen;
-	cn->cn_pnbuf = uma_zalloc(namei_zone, M_WAITOK);
-	bcopy(path, cn->cn_pnbuf, pathlen);
-	cn->cn_pnbuf[pathlen] = '\0';
-
+	cn->cn_pnbuf = path;
 	cn->cn_nameiop = nameiop;
 	cn->cn_flags = (LOCKPARENT | LOCKLEAF | HASBUF | SAVENAME | ISLASTCN);
 	cn->cn_lkflags = LK_EXCLUSIVE;
 	cn->cn_thread = td;
 	cn->cn_cred = cnp->cn_cred;
-
 	cn->cn_nameptr = cn->cn_pnbuf;
 
 	if (nameiop == DELETE)
@@ -599,11 +597,15 @@ unionfs_relookup(struct vnode *dvp, struct vnode **vpp,
 	VOP_UNLOCK(dvp);
 
 	if ((error = relookup(dvp, vpp, cn))) {
-		uma_zfree(namei_zone, cn->cn_pnbuf);
-		cn->cn_flags &= ~HASBUF;
 		vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY);
 	} else
 		vrele(dvp);
+
+	KASSERT((cn->cn_flags & HASBUF) != 0,
+	    ("%s: HASBUF cleared", __func__));
+	KASSERT((cn->cn_flags & SAVENAME) != 0,
+	    ("%s: SAVENAME cleared", __func__));
+	KASSERT(cn->cn_pnbuf == path, ("%s: cn_pnbuf changed", __func__));
 
 	return (error);
 }
@@ -630,7 +632,7 @@ unionfs_relookup_for_create(struct vnode *dvp, struct componentname *cnp,
 	vp = NULLVP;
 
 	error = unionfs_relookup(udvp, &vp, cnp, &cn, td, cnp->cn_nameptr,
-	    strlen(cnp->cn_nameptr), CREATE);
+	    cnp->cn_namelen, CREATE);
 	if (error)
 		return (error);
 
@@ -641,16 +643,6 @@ unionfs_relookup_for_create(struct vnode *dvp, struct componentname *cnp,
 			vput(vp);
 
 		error = EEXIST;
-	}
-
-	if (cn.cn_flags & HASBUF) {
-		uma_zfree(namei_zone, cn.cn_pnbuf);
-		cn.cn_flags &= ~HASBUF;
-	}
-
-	if (!error) {
-		cn.cn_flags |= (cnp->cn_flags & HASBUF);
-		cnp->cn_flags = cn.cn_flags;
 	}
 
 	return (error);
@@ -674,7 +666,7 @@ unionfs_relookup_for_delete(struct vnode *dvp, struct componentname *cnp,
 	vp = NULLVP;
 
 	error = unionfs_relookup(udvp, &vp, cnp, &cn, td, cnp->cn_nameptr,
-	    strlen(cnp->cn_nameptr), DELETE);
+	    cnp->cn_namelen, DELETE);
 	if (error)
 		return (error);
 
@@ -685,16 +677,6 @@ unionfs_relookup_for_delete(struct vnode *dvp, struct componentname *cnp,
 			vrele(vp);
 		else
 			vput(vp);
-	}
-
-	if (cn.cn_flags & HASBUF) {
-		uma_zfree(namei_zone, cn.cn_pnbuf);
-		cn.cn_flags &= ~HASBUF;
-	}
-
-	if (!error) {
-		cn.cn_flags |= (cnp->cn_flags & HASBUF);
-		cnp->cn_flags = cn.cn_flags;
 	}
 
 	return (error);
@@ -718,7 +700,7 @@ unionfs_relookup_for_rename(struct vnode *dvp, struct componentname *cnp,
 	vp = NULLVP;
 
 	error = unionfs_relookup(udvp, &vp, cnp, &cn, td, cnp->cn_nameptr,
-	    strlen(cnp->cn_nameptr), RENAME);
+	    cnp->cn_namelen, RENAME);
 	if (error)
 		return (error);
 
@@ -729,18 +711,7 @@ unionfs_relookup_for_rename(struct vnode *dvp, struct componentname *cnp,
 			vput(vp);
 	}
 
-	if (cn.cn_flags & HASBUF) {
-		uma_zfree(namei_zone, cn.cn_pnbuf);
-		cn.cn_flags &= ~HASBUF;
-	}
-
-	if (!error) {
-		cn.cn_flags |= (cnp->cn_flags & HASBUF);
-		cnp->cn_flags = cn.cn_flags;
-	}
-
 	return (error);
-
 }
 
 /*
@@ -848,11 +819,11 @@ unionfs_mkshadowdir(struct unionfs_mount *ump, struct vnode *udvp,
 			vput(uvp);
 
 		error = EEXIST;
-		goto unionfs_mkshadowdir_free_out;
+		goto unionfs_mkshadowdir_abort;
 	}
 
 	if ((error = vn_start_write(udvp, &mp, V_WAIT | PCATCH)))
-		goto unionfs_mkshadowdir_free_out;
+		goto unionfs_mkshadowdir_abort;
 	unionfs_create_uppervattr_core(ump, &lva, &va, td);
 
 	error = VOP_MKDIR(udvp, &uvp, &nd.ni_cnd, &va);
@@ -869,12 +840,6 @@ unionfs_mkshadowdir(struct unionfs_mount *ump, struct vnode *udvp,
 	}
 	vn_finished_write(mp);
 
-unionfs_mkshadowdir_free_out:
-	if (nd.ni_cnd.cn_flags & HASBUF) {
-		uma_zfree(namei_zone, nd.ni_cnd.cn_pnbuf);
-		nd.ni_cnd.cn_flags &= ~HASBUF;
-	}
-
 unionfs_mkshadowdir_abort:
 	cnp->cn_cred = credbk;
 	chgproccnt(cred->cr_ruidinfo, -1, 0);
@@ -890,26 +855,20 @@ unionfs_mkshadowdir_abort:
  */
 int
 unionfs_mkwhiteout(struct vnode *dvp, struct componentname *cnp,
-		   struct thread *td, char *path)
+		   struct thread *td, char *path, int pathlen)
 {
-	int		error;
 	struct vnode   *wvp;
 	struct nameidata nd;
 	struct mount   *mp;
-
-	if (path == NULL)
-		path = cnp->cn_nameptr;
+	int		error;
 
 	wvp = NULLVP;
 	NDPREINIT(&nd);
 	if ((error = unionfs_relookup(dvp, &wvp, cnp, &nd.ni_cnd, td, path,
-	    strlen(path), CREATE)))
+	    pathlen, CREATE))) {
 		return (error);
+	}
 	if (wvp != NULLVP) {
-		if (nd.ni_cnd.cn_flags & HASBUF) {
-			uma_zfree(namei_zone, nd.ni_cnd.cn_pnbuf);
-			nd.ni_cnd.cn_flags &= ~HASBUF;
-		}
 		if (dvp == wvp)
 			vrele(wvp);
 		else
@@ -925,11 +884,6 @@ unionfs_mkwhiteout(struct vnode *dvp, struct componentname *cnp,
 	vn_finished_write(mp);
 
 unionfs_mkwhiteout_free_out:
-	if (nd.ni_cnd.cn_flags & HASBUF) {
-		uma_zfree(namei_zone, nd.ni_cnd.cn_pnbuf);
-		nd.ni_cnd.cn_flags &= ~HASBUF;
-	}
-
 	return (error);
 }
 
@@ -969,9 +923,8 @@ unionfs_vn_create_on_upper(struct vnode **vpp, struct vnode *udvp,
 	if (unp->un_path == NULL)
 		panic("unionfs: un_path is null");
 
-	nd.ni_cnd.cn_namelen = strlen(unp->un_path);
-	nd.ni_cnd.cn_pnbuf = uma_zalloc(namei_zone, M_WAITOK);
-	bcopy(unp->un_path, nd.ni_cnd.cn_pnbuf, nd.ni_cnd.cn_namelen + 1);
+	nd.ni_cnd.cn_namelen = unp->un_pathlen;
+	nd.ni_cnd.cn_pnbuf = unp->un_path;
 	nd.ni_cnd.cn_nameiop = CREATE;
 	nd.ni_cnd.cn_flags = LOCKPARENT | LOCKLEAF | HASBUF | SAVENAME |
 	    ISLASTCN;
@@ -1015,10 +968,12 @@ unionfs_vn_create_on_upper_free_out1:
 	VOP_UNLOCK(udvp);
 
 unionfs_vn_create_on_upper_free_out2:
-	if (nd.ni_cnd.cn_flags & HASBUF) {
-		uma_zfree(namei_zone, nd.ni_cnd.cn_pnbuf);
-		nd.ni_cnd.cn_flags &= ~HASBUF;
-	}
+	KASSERT((nd.ni_cnd.cn_flags & HASBUF) != 0,
+	    ("%s: HASBUF cleared", __func__));
+	KASSERT((nd.ni_cnd.cn_flags & SAVENAME) != 0,
+	    ("%s: SAVENAME cleared", __func__));
+	KASSERT(nd.ni_cnd.cn_pnbuf == unp->un_path,
+	    ("%s: cn_pnbuf changed", __func__));
 
 	return (error);
 }
