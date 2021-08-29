@@ -161,6 +161,11 @@ enum	{ PF_ADDR_ADDRMASK, PF_ADDR_NOROUTE, PF_ADDR_DYNIFTL,
 #define LCNT_OVERLOAD_TABLE	5	/* entry added to overload table */
 #define LCNT_OVERLOAD_FLUSH	6	/* state entries flushed */
 #define LCNT_MAX		7	/* total+1 */
+/* Only available via the nvlist-based API */
+#define KLCNT_SYNFLOODS		7	/* synfloods detected */
+#define KLCNT_SYNCOOKIES_SENT	8	/* syncookies sent */
+#define KLCNT_SYNCOOKIES_VALID	9	/* syncookies validated */
+#define KLCNT_MAX		10	/* total+1 */
 
 #define LCNT_NAMES { \
 	"max states per rule", \
@@ -170,6 +175,19 @@ enum	{ PF_ADDR_ADDRMASK, PF_ADDR_NOROUTE, PF_ADDR_DYNIFTL,
 	"max-src-conn-rate", \
 	"overload table insertion", \
 	"overload flush states", \
+	NULL \
+}
+#define KLCNT_NAMES { \
+	"max states per rule", \
+	"max-src-states", \
+	"max-src-nodes", \
+	"max-src-conn", \
+	"max-src-conn-rate", \
+	"overload table insertion", \
+	"overload flush states", \
+	"synfloods detected", \
+	"syncookies sent", \
+	"syncookies validated", \
 	NULL \
 }
 
