@@ -362,9 +362,9 @@ main(int argc, char **argv)
 	}
 
 	if (dflags & D_EMPTY1 && dflags & D_EMPTY2){
-		warn("%s", argv[0]);	
+		warn("%s", argv[0]);
 		warn("%s", argv[1]);
-		exit(2);	
+		exit(2);
 	}
 
 	if (stb1.st_mode == 0)
@@ -477,8 +477,10 @@ print_only(const char *path, size_t dirlen, const char *entry)
 void
 print_status(int val, char *path1, char *path2, const char *entry)
 {
-	if (label[0] != NULL) path1 = label[0];
-	if (label[1] != NULL) path2 = label[1];
+	if (label[0] != NULL)
+		path1 = label[0];
+	if (label[1] != NULL)
+		path2 = label[1];
 
 	switch (val) {
 	case D_BINARY:
@@ -535,10 +537,10 @@ usage(void)
 	    "            [--no-ignore-case] [--normal] [--tabsize] [-I pattern] [-L label]\n"
 	    "            [-S name] [-X file] [-x pattern] dir1 dir2\n"
 	    "       diff [-aBbditwW] [--expand-tabs] [--ignore-all-blanks]\n"
-            "            [--ignore-blank-lines] [--ignore-case] [--minimal]\n"
-            "            [--no-ignore-file-name-case] [--strip-trailing-cr]\n"
-            "            [--suppress-common-lines] [--tabsize] [--text] [--width]\n"
-            "            -y | --side-by-side file1 file2\n");
+	    "            [--ignore-blank-lines] [--ignore-case] [--minimal]\n"
+	    "            [--no-ignore-file-name-case] [--strip-trailing-cr]\n"
+	    "            [--suppress-common-lines] [--tabsize] [--text] [--width]\n"
+	    "            -y | --side-by-side file1 file2\n");
 
 	exit(2);
 }
