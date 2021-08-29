@@ -6564,7 +6564,8 @@ int
 nfsvno_allocate(struct vnode *vp, off_t off, off_t len, struct ucred *cred,
     NFSPROC_T *p)
 {
-	int error, trycnt;
+	int error;
+	off_t olen;
 
 	ASSERT_VOP_ELOCKED(vp, "nfsvno_allocate vp");
 	/*
@@ -6575,15 +6576,17 @@ nfsvno_allocate(struct vnode *vp, off_t off, off_t len, struct ucred *cred,
 	    NULL, NULL, NULL, NULL, &len, 0, NULL);
 	if (error != ENOENT)
 		return (error);
-	error = 0;
 
 	/*
-	 * Do the actual VOP_ALLOCATE(), looping a reasonable number of
-	 * times to achieve completion.
+	 * Do the actual VOP_ALLOCATE(), looping so long as
+	 * progress is being made, to achieve completion.
 	 */
-	trycnt = 0;
-	while (error == 0 && len > 0 && trycnt++ < 20)
+	do {
+		olen = len;
 		error = VOP_ALLOCATE(vp, &off, &len);
+		if (error == 0 && len > 0 && olen > len)
+			maybe_yield();
+	} while (error == 0 && len > 0 && olen > len);
 	if (error == 0 && len > 0)
 		error = NFSERR_IO;
 	NFSEXITCODE(error);
