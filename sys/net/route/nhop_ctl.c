@@ -286,7 +286,7 @@ fill_nhop_from_info(struct nhop_priv *nh_priv, struct rt_addrinfo *info)
 	if ((error = set_nhop_gw_from_info(nh, info)) != 0)
 		return (error);
 
-	nh->nh_ifp = info->rti_ifa->ifa_ifp;
+	nh->nh_ifp = (info->rti_ifp != NULL) ? info->rti_ifp : info->rti_ifa->ifa_ifp;
 	nh->nh_ifa = info->rti_ifa;
 	/* depends on the gateway */
 	nh->nh_aifp = get_aifp(nh);
