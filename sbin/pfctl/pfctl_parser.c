@@ -578,7 +578,7 @@ print_status(struct pfctl_status *s, struct pfctl_syncookies *cookies, int opts)
 	printf("%-27s %14s %16s\n", "State Table", "Total", "Rate");
 	printf("  %-25s %14" PRIu64 " %14s\n", "current entries", s->states, "");
 	TAILQ_FOREACH(c, &s->fcounters, entry) {
-		printf("  %-25s %14lu ", c->name, c->counter);
+		printf("  %-25s %14" PRIu64 " ", c->name, c->counter);
 		if (runtime > 0)
 			printf("%14.1f/s\n",
 			    (double)c->counter / (double)runtime);
@@ -590,7 +590,7 @@ print_status(struct pfctl_status *s, struct pfctl_syncookies *cookies, int opts)
 		printf("  %-25s %14" PRIu64 " %14s\n", "current entries",
 		    s->src_nodes, "");
 		TAILQ_FOREACH(c, &s->scounters, entry) {
-			printf("  %-25s %14lu ", c->name, c->counter);
+			printf("  %-25s %14" PRIu64 " ", c->name, c->counter);
 			if (runtime > 0)
 				printf("%14.1f/s\n",
 				    (double)c->counter / (double)runtime);
