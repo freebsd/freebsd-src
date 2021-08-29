@@ -109,7 +109,7 @@ scif_cb_timer_stop(SCI_CONTROLLER_HANDLE_T controller, void *timer)
  *        a handle for this timer for use in further timer interactions.
  *
  * @warning The "timer_callback" method should be executed in a mutually
- *          exlusive manner from the controller completion handler
+ *          exclusive manner from the controller completion handler
  *          handler (refer to scic_controller_get_handler_methods()).
  *
  * @param[in]  timer_callback This parameter specifies the callback method
