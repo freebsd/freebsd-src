@@ -233,7 +233,7 @@ acpi_video_push_evdev_event(struct evdev_dev *evdev, UINT32 notify)
 	int i;
 	uint16_t key;
 
-	/* Do not allow to execute 2 instances this routine concurently */
+	/* Do not allow to execute 2 instances this routine concurrently */
 	ACPI_SERIAL_ASSERT(video_output);
 
 	for (i = 0; i < nitems(acpi_video_evdev_map); i++) {
