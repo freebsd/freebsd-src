@@ -228,8 +228,10 @@ CFLAGS+=-nobuiltininc -idirafter ${COMPILER_RESOURCE_DIR}/include
 .endif
 .endif
 
-CLANG_OPT_SMALL= -mstack-alignment=8 -mllvm -inline-threshold=3\
-		 -mllvm -simplifycfg-dup-ret
+CLANG_OPT_SMALL= -mstack-alignment=8 -mllvm -inline-threshold=3
+.if ${COMPILER_VERSION} < 130000
+CLANG_OPT_SMALL+= -mllvm -simplifycfg-dup-ret
+.endif
 CLANG_OPT_SMALL+= -mllvm -enable-load-pre=false
 CFLAGS.clang+=	 -Qunused-arguments
 # The libc++ headers use c++11 extensions.  These are normally silenced because
