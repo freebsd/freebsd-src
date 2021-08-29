@@ -180,7 +180,7 @@ hammer_time_xen(vm_paddr_t start_info_paddr)
 			HYPERVISOR_shutdown(SHUTDOWN_crash);
 		}
 		mod = (struct hvm_modlist_entry *)
-		    (vm_paddr_t)start_info->modlist_paddr + KERNBASE;
+		    (start_info->modlist_paddr + KERNBASE);
 		if (mod[0].paddr >= physfree) {
 			xc_printf("ERROR: unexpected module memory address\n");
 			HYPERVISOR_shutdown(SHUTDOWN_crash);
