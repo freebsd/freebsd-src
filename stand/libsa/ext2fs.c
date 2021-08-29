@@ -127,8 +127,8 @@ struct fs_ops ext2fs_fsops = {
 #define EXT2_R0_ISIZE		128	/* inode size */
 #define EXT2_R0_FIRSTINO	11	/* first inode */
 
-#define EXT2_MINBSHIFT		10	/* mininum block shift */
-#define EXT2_MINFSHIFT		10	/* mininum frag shift */
+#define EXT2_MINBSHIFT		10	/* minimum block shift */
+#define EXT2_MINFSHIFT		10	/* minimum frag shift */
 
 #define EXT2_NDADDR		12	/* # of direct blocks */
 #define EXT2_NIADDR		3	/* # of indirect blocks */
