@@ -256,6 +256,7 @@ pf_syncookie_send(struct mbuf *m, int off, struct pf_pdesc *pd)
 	pf_send_tcp(NULL, pd->af, pd->dst, pd->src, *pd->dport, *pd->sport,
 	    iss, ntohl(pd->hdr.tcp.th_seq) + 1, TH_SYN|TH_ACK, 0, mss,
 	    0, 1, 0);
+	counter_u64_add(V_pf_status.lcounters[KLCNT_SYNCOOKIES_SENT], 1);
 }
 
 uint8_t
@@ -274,6 +275,8 @@ pf_syncookie_validate(struct pf_pdesc *pd)
 	hash = pf_syncookie_mac(pd, cookie, seq);
 	if ((ack & ~0xff) != (hash & ~0xff))
 		return (0);
+
+	counter_u64_add(V_pf_status.lcounters[KLCNT_SYNCOOKIES_VALID], 1);
 
 	return (1);
 }

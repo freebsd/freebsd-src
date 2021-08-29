@@ -368,7 +368,7 @@ pfattach_vnet(void)
 
 	for (int i = 0; i < PFRES_MAX; i++)
 		V_pf_status.counters[i] = counter_u64_alloc(M_WAITOK);
-	for (int i = 0; i < LCNT_MAX; i++)
+	for (int i = 0; i < KLCNT_MAX; i++)
 		V_pf_status.lcounters[i] = counter_u64_alloc(M_WAITOK);
 	for (int i = 0; i < FCNT_MAX; i++)
 		pf_counter_u64_init(&V_pf_status.fcounters[i], M_WAITOK);
@@ -3125,7 +3125,7 @@ DIOCGETSTATESV2_full:
 			pf_counter_u64_zero(&V_pf_status.fcounters[i]);
 		for (int i = 0; i < SCNT_MAX; i++)
 			counter_u64_zero(V_pf_status.scounters[i]);
-		for (int i = 0; i < LCNT_MAX; i++)
+		for (int i = 0; i < KLCNT_MAX; i++)
 			counter_u64_zero(V_pf_status.lcounters[i]);
 		V_pf_status.since = time_second;
 		if (*V_pf_status.ifname)
@@ -4927,7 +4927,7 @@ pf_getstatus(struct pfioc_nv *nv)
 	int              error;
 	struct pf_status s;
 	char *pf_reasons[PFRES_MAX+1] = PFRES_NAMES;
-	char *pf_lcounter[LCNT_MAX+1] = LCNT_NAMES;
+	char *pf_lcounter[KLCNT_MAX+1] = KLCNT_NAMES;
 	char *pf_fcounter[FCNT_MAX+1] = FCNT_NAMES;
 	PF_RULES_RLOCK_TRACKER;
 
@@ -4954,7 +4954,7 @@ pf_getstatus(struct pfioc_nv *nv)
 
 	/* lcounters */
 	error = pf_add_status_counters(nvl, "lcounters", V_pf_status.lcounters,
-	    LCNT_MAX, pf_lcounter);
+	    KLCNT_MAX, pf_lcounter);
 	if (error != 0)
 		ERROUT(error);
 
@@ -5805,7 +5805,7 @@ pf_unload_vnet(void)
 
 	for (int i = 0; i < PFRES_MAX; i++)
 		counter_u64_free(V_pf_status.counters[i]);
-	for (int i = 0; i < LCNT_MAX; i++)
+	for (int i = 0; i < KLCNT_MAX; i++)
 		counter_u64_free(V_pf_status.lcounters[i]);
 	for (int i = 0; i < FCNT_MAX; i++)
 		pf_counter_u64_deinit(&V_pf_status.fcounters[i]);
