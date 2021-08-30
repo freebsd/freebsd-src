@@ -1642,7 +1642,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 		atomic_store_short((u_short *)0x472, 0x1234);
 	}
 
-	physfree += ucode_load_bsp(physfree + KERNBASE);
+	physfree += ucode_load_bsp(physfree - kernphys + KERNSTART);
 	physfree = roundup2(physfree, PAGE_SIZE);
 
 	identify_cpu1();
