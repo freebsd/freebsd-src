@@ -213,9 +213,10 @@ aesni_encrypt_icm(int rounds, const void *key_schedule, size_t len,
 	__m128i ctr5, ctr6, ctr7, ctr8;
 	__m128i BSWAP_EPI64;
 	__m128i tout[8];
+	__m128i block;
 	struct blocks8 *top;
 	const struct blocks8 *blks;
-	size_t i, cnt;
+	size_t i, cnt, resid;
 
 	BSWAP_EPI64 = _mm_set_epi8(8,9,10,11,12,13,14,15,0,1,2,3,4,5,6,7);
 
@@ -273,12 +274,19 @@ aesni_encrypt_icm(int rounds, const void *key_schedule, size_t len,
 		to += AES_BLOCK_LEN;
 	}
 
-	/* handle remaining partial round */
-	if (len % AES_BLOCK_LEN != 0) {
+	/*
+	 * Handle remaining partial round.  Copy the remaining payload onto the
+	 * stack to ensure that the full block can be loaded safely.
+	 */
+	resid = len % AES_BLOCK_LEN;
+	if (resid != 0) {
 		tmp1 = _mm_shuffle_epi8(ctr1, BSWAP_EPI64);
 		tot = aesni_enc(rounds - 1, key_schedule, tmp1);
-		tot = tot ^ _mm_loadu_si128((const __m128i *)from);
-		memcpy(to, &tot, len % AES_BLOCK_LEN);
+		block = _mm_setzero_si128();
+		memcpy(&block, from, resid);
+		tot = tot ^ _mm_loadu_si128(&block);
+		memcpy(to, &tot, resid);
+		explicit_bzero(&block, sizeof(block));
 	}
 }
 
