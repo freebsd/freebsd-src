@@ -181,6 +181,11 @@
    We've added code to auth2.c to enforce the host.allow, host.deny,
    times.allow and times.deny login class capabilities.
 
+   This change was introduced in 5b400a39b8ad and been reworked a few
+   times (35762f591338, 076ad2f836d5, fc3c19a9fcee, 8d8b29232156).
+   A simplified version has been submitted as an OpenSSH-portable pull
+   request in https://github.com/openssh/openssh-portable/pull/262.
+
 8) HPN
 
    We no longer have the HPN patches (adaptive buffer size for
