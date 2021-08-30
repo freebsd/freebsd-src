@@ -744,6 +744,9 @@ iap_allocate_pmc(int cpu, int ri, struct pmc *pm,
 	KASSERT(ri >= 0 && ri < core_iap_npmc,
 	    ("[core,%d] illegal row-index value %d", __LINE__, ri));
 
+	if (a->pm_class != PMC_CLASS_IAP)
+		return (EINVAL);
+
 	/* check requested capabilities */
 	caps = a->pm_caps;
 	if ((IAP_PMC_CAPS & caps) != caps)

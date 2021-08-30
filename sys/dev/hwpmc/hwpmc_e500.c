@@ -376,6 +376,9 @@ e500_allocate_pmc(int cpu, int ri, struct pmc *pm,
 	KASSERT(ri >= 0 && ri < E500_MAX_PMCS,
 	    ("[powerpc,%d] illegal row index %d", __LINE__, ri));
 
+	if (a->pm_class != PMC_CLASS_E500)
+		return (EINVAL);
+
 	caps = a->pm_caps;
 
 	pe = a->pm_ev;

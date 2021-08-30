@@ -526,6 +526,9 @@ ucp_allocate_pmc(int cpu, int ri, struct pmc *pm,
 	KASSERT(ri >= 0 && ri < uncore_ucp_npmc,
 	    ("[uncore,%d] illegal row-index value %d", __LINE__, ri));
 
+	if (a->pm_class != PMC_CLASS_UCP)
+		return (EINVAL);
+
 	/* check requested capabilities */
 	caps = a->pm_caps;
 	if ((UCP_PMC_CAPS & caps) != caps)
