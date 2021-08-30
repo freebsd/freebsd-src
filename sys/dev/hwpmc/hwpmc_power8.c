@@ -167,6 +167,9 @@ power8_allocate_pmc(int cpu, int ri, struct pmc *pm,
 	counter = PM_EVENT_COUNTER(pe);
 	config = PM_EVENT_CODE(pe);
 
+	if (a->pm_class != PMC_CLASS_POWER8)
+		return (EINVAL);
+
 	/*
 	 * PMC5 and PMC6 are not programmable and always count instructions
 	 * completed and cycles, respectively.

@@ -82,6 +82,7 @@ extern size_t ppc_event_codes_size;
 extern int ppc_event_first;
 extern int ppc_event_last;
 extern int ppc_max_pmcs;
+extern enum pmc_class ppc_class;
 
 extern void (*powerpc_set_pmc)(int cpu, int ri, int config);
 extern pmc_value_t (*powerpc_pmcn_read)(unsigned int pmc);
