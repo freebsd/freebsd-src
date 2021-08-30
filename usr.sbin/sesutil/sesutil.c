@@ -505,7 +505,7 @@ objmap(int argc, char **argv __unused)
 			}
 			if (ioctl(fd, ENCIOC_GETELMDEVNAMES,
 			    (caddr_t) &e_devname) <0) {
-				/* We don't care if this fails */
+				/* Continue even if we can't look up devnames */
 				e_devname.elm_devnames[0] = '\0';
 			}
 			xo_open_instance("elements");
