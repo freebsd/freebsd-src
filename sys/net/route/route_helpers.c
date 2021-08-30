@@ -434,6 +434,9 @@ get_inet_parent_prefix(uint32_t fibnum, struct in_addr addr, int plen)
 	struct radix_node *rn;
 
 	rt = fib4_lookup_rt(fibnum, addr, 0, NHR_UNLOCKED, &rnd);
+	if (rt == NULL)
+		return (NULL);
+
 	rt_get_inet_prefix_plen(rt, &addr4, &parent_plen, &scopeid);
 	if (parent_plen <= plen)
 		return (rt);
@@ -503,6 +506,9 @@ get_inet6_parent_prefix(uint32_t fibnum, const struct in6_addr *paddr, int plen)
 	struct radix_node *rn;
 
 	rt = fib6_lookup_rt(fibnum, paddr, 0, NHR_UNLOCKED, &rnd);
+	if (rt == NULL)
+		return (NULL);
+
 	rt_get_inet6_prefix_plen(rt, &addr6, &parent_plen, &scopeid);
 	if (parent_plen <= plen)
 		return (rt);
