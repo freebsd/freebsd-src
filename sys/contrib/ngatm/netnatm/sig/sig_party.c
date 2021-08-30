@@ -95,7 +95,7 @@ uni_create_partyx(struct call *c, u_int epref, u_int mine, uint32_t cookie)
 	p->call = c;
 	p->epref = epref;
 	p->flags = mine;
-	p->state = UNI_EPSTATE_NULL;;
+	p->state = UNI_EPSTATE_NULL;
 
 	TIMER_INIT_PARTY(p, t397);
 	TIMER_INIT_PARTY(p, t398);
