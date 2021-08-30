@@ -238,10 +238,7 @@ iaf_allocate_pmc(int cpu, int ri, struct pmc *pm,
 	if (ri < 0 || ri > core_iaf_npmc)
 		return (EINVAL);
 
-	caps = a->pm_caps;
-
-	if (a->pm_class != PMC_CLASS_IAF ||
-	    (caps & IAF_PMC_CAPS) != caps)
+	if (a->pm_class != PMC_CLASS_IAF)
 		return (EINVAL);
 
 	iap = &a->pm_md.pm_iap;
@@ -293,6 +290,7 @@ iaf_allocate_pmc(int cpu, int ri, struct pmc *pm,
 	if (config & IAP_INT)
 		flags |= IAF_PMI;
 
+	caps = a->pm_caps;
 	if (caps & PMC_CAP_INTERRUPT)
 		flags |= IAF_PMI;
 	if (caps & PMC_CAP_SYSTEM)
@@ -736,7 +734,6 @@ iap_allocate_pmc(int cpu, int ri, struct pmc *pm,
     const struct pmc_op_pmcallocate *a)
 {
 	uint8_t ev;
-	uint32_t caps;
 	const struct pmc_md_iap_op_pmcallocate *iap;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
@@ -747,10 +744,6 @@ iap_allocate_pmc(int cpu, int ri, struct pmc *pm,
 	if (a->pm_class != PMC_CLASS_IAP)
 		return (EINVAL);
 
-	/* check requested capabilities */
-	caps = a->pm_caps;
-	if ((IAP_PMC_CAPS & caps) != caps)
-		return (EPERM);
 	iap = &a->pm_md.pm_iap;
 	ev = IAP_EVSEL_GET(iap->pm_iap_config);
 

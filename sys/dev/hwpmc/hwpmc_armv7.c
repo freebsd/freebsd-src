@@ -141,7 +141,6 @@ armv7_allocate_pmc(int cpu, int ri, struct pmc *pm,
 	struct armv7_cpu *pac;
 	enum pmc_event pe;
 	uint32_t config;
-	uint32_t caps;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[armv7,%d] illegal CPU value %d", __LINE__, cpu));
@@ -150,7 +149,6 @@ armv7_allocate_pmc(int cpu, int ri, struct pmc *pm,
 
 	pac = armv7_pcpu[cpu];
 
-	caps = a->pm_caps;
 	if (a->pm_class != PMC_CLASS_ARMV7)
 		return (EINVAL);
 	pe = a->pm_ev;

@@ -83,12 +83,6 @@ tsc_allocate_pmc(int cpu, int ri, struct pmc *pm,
 	if (a->pm_class != PMC_CLASS_TSC)
 		return (EINVAL);
 
-	if ((pm->pm_caps & TSC_CAPS) == 0)
-		return (EINVAL);
-
-	if ((pm->pm_caps & ~TSC_CAPS) != 0)
-		return (EPERM);
-
 	if (a->pm_ev != PMC_EV_TSC_TSC ||
 	    a->pm_mode != PMC_MODE_SC)
 		return (EINVAL);

@@ -192,7 +192,7 @@ static int
 ucf_allocate_pmc(int cpu, int ri, struct pmc *pm,
     const struct pmc_op_pmcallocate *a)
 {
-	uint32_t caps, flags;
+	uint32_t flags;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[uncore,%d] illegal CPU %d", __LINE__, cpu));
@@ -202,10 +202,7 @@ ucf_allocate_pmc(int cpu, int ri, struct pmc *pm,
 	if (ri < 0 || ri > uncore_ucf_npmc)
 		return (EINVAL);
 
-	caps = a->pm_caps;
-
-	if (a->pm_class != PMC_CLASS_UCF ||
-	    (caps & UCF_PMC_CAPS) != caps)
+	if (a->pm_class != PMC_CLASS_UCF)
 		return (EINVAL);
 
 	flags = UCF_EN;
@@ -518,7 +515,6 @@ ucp_allocate_pmc(int cpu, int ri, struct pmc *pm,
     const struct pmc_op_pmcallocate *a)
 {
 	uint8_t ev;
-	uint32_t caps;
 	const struct pmc_md_ucp_op_pmcallocate *ucp;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
@@ -528,11 +524,6 @@ ucp_allocate_pmc(int cpu, int ri, struct pmc *pm,
 
 	if (a->pm_class != PMC_CLASS_UCP)
 		return (EINVAL);
-
-	/* check requested capabilities */
-	caps = a->pm_caps;
-	if ((UCP_PMC_CAPS & caps) != caps)
-		return (EPERM);
 
 	ucp = &a->pm_md.pm_ucp;
 	ev = UCP_EVSEL(ucp->pm_ucp_config);
