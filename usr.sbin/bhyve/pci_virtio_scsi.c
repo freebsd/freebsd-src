@@ -682,7 +682,7 @@ static int
 pci_vtscsi_init(struct vmctx *ctx, struct pci_devinst *pi, nvlist_t *nvl)
 {
 	struct pci_vtscsi_softc *sc;
-	const char *devname, *value;;
+	const char *devname, *value;
 	int i;
 
 	sc = calloc(1, sizeof(struct pci_vtscsi_softc));
