@@ -219,6 +219,9 @@ sfspi_setup(struct sfspi_softc *sc, uint32_t cs, uint32_t mode,
 	SFSPI_WRITE(sc, SFSPI_REG_SCKDIV, sckdiv);
 
 	switch (mode) {
+	case SPIBUS_MODE_NONE:
+		sckmode = 0;
+		break;
 	case SPIBUS_MODE_CPHA:
 		sckmode = SFSPI_SCKMODE_PHA;
 		break;
@@ -228,6 +231,8 @@ sfspi_setup(struct sfspi_softc *sc, uint32_t cs, uint32_t mode,
 	case SPIBUS_MODE_CPOL_CPHA:
 		sckmode = SFSPI_SCKMODE_PHA | SFSPI_SCKMODE_POL;
 		break;
+	default:
+		return (EINVAL);
 	}
 	SFSPI_WRITE(sc, SFSPI_REG_SCKMODE, sckmode);
 
