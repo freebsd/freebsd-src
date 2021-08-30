@@ -164,7 +164,7 @@ static int
 arm64_allocate_pmc(int cpu, int ri, struct pmc *pm,
   const struct pmc_op_pmcallocate *a)
 {
-	uint32_t caps, config;
+	uint32_t config;
 	struct arm64_cpu *pac;
 	enum pmc_event pe;
 
@@ -175,7 +175,6 @@ arm64_allocate_pmc(int cpu, int ri, struct pmc *pm,
 
 	pac = arm64_pcpu[cpu];
 
-	caps = a->pm_caps;
 	if (a->pm_class != PMC_CLASS_ARMV8) {
 		return (EINVAL);
 	}
