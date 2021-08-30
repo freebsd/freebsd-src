@@ -130,7 +130,7 @@ typedef enum {
 	"Device Slot",					\
 	"Power Supply",					\
 	"Cooling",					\
-	"Temperature Sensors",				\
+	"Temperature Sensor",				\
 	"Door",						\
 	"Audible alarm",				\
 	"Enclosure Services Controller Electronics",	\
