@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/domainset.h>
+#include <sys/endian.h>
 #include <sys/ktls.h>
 #include <sys/lock.h>
 #include <sys/mbuf.h>
@@ -73,7 +74,8 @@ __FBSDID("$FreeBSD$");
 #ifdef TCP_OFFLOAD
 #include <netinet/tcp_offload.h>
 #endif
-#include <opencrypto/xform.h>
+#include <opencrypto/cryptodev.h>
+#include <opencrypto/ktls.h>
 #include <vm/uma_dbg.h>
 #include <vm/vm.h>
 #include <vm/vm_pageout.h>
@@ -2024,6 +2026,72 @@ ktls_buffer_alloc(struct ktls_wq *wq, struct mbuf *m)
 	return (buf);
 }
 
+static int
+ktls_encrypt_record(struct ktls_wq *wq, struct mbuf *m,
+    struct ktls_session *tls, struct ktls_ocf_encrypt_state *state)
+{
+	vm_page_t pg;
+	int error, i, len, off;
+
+	KASSERT((m->m_flags & (M_EXTPG | M_NOTREADY)) == (M_EXTPG | M_NOTREADY),
+	    ("%p not unready & nomap mbuf\n", m));
+	KASSERT(ptoa(m->m_epg_npgs) <= ktls_maxlen,
+	    ("page count %d larger than maximum frame length %d", m->m_epg_npgs,
+	    ktls_maxlen));
+
+	/* Anonymous mbufs are encrypted in place. */
+	if ((m->m_epg_flags & EPG_FLAG_ANON) != 0)
+		return (tls->sw_encrypt(state, tls, m, NULL, 0));
+
+	/*
+	 * For file-backed mbufs (from sendfile), anonymous wired
+	 * pages are allocated and used as the encryption destination.
+	 */
+	if ((state->cbuf = ktls_buffer_alloc(wq, m)) != NULL) {
+		len = ptoa(m->m_epg_npgs - 1) + m->m_epg_last_len -
+		    m->m_epg_1st_off;
+		state->dst_iov[0].iov_base = (char *)state->cbuf +
+		    m->m_epg_1st_off;
+		state->dst_iov[0].iov_len = len;
+		state->parray[0] = DMAP_TO_PHYS((vm_offset_t)state->cbuf);
+		i = 1;
+	} else {
+		off = m->m_epg_1st_off;
+		for (i = 0; i < m->m_epg_npgs; i++, off = 0) {
+			do {
+				pg = vm_page_alloc(NULL, 0, VM_ALLOC_NORMAL |
+				    VM_ALLOC_NOOBJ | VM_ALLOC_NODUMP |
+				    VM_ALLOC_WIRED | VM_ALLOC_WAITFAIL);
+			} while (pg == NULL);
+
+			len = m_epg_pagelen(m, i, off);
+			state->parray[i] = VM_PAGE_TO_PHYS(pg);
+			state->dst_iov[i].iov_base =
+			    (char *)PHYS_TO_DMAP(state->parray[i]) + off;
+			state->dst_iov[i].iov_len = len;
+		}
+	}
+	KASSERT(i + 1 <= nitems(state->dst_iov), ("dst_iov is too small"));
+	state->dst_iov[i].iov_base = m->m_epg_trail;
+	state->dst_iov[i].iov_len = m->m_epg_trllen;
+
+	error = tls->sw_encrypt(state, tls, m, state->dst_iov, i + 1);
+
+	if (__predict_false(error != 0)) {
+		/* Free the anonymous pages. */
+		if (state->cbuf != NULL)
+			uma_zfree(ktls_buffer_zone, state->cbuf);
+		else {
+			for (i = 0; i < m->m_epg_npgs; i++) {
+				pg = PHYS_TO_VM_PAGE(state->parray[i]);
+				(void)vm_page_unwire_noq(pg);
+				vm_page_free(pg);
+			}
+		}
+	}
+	return (error);
+}
+
 void
 ktls_enqueue(struct mbuf *m, struct socket *so, int page_count)
 {
@@ -2055,19 +2123,48 @@ ktls_enqueue(struct mbuf *m, struct socket *so, int page_count)
 	counter_u64_add(ktls_cnt_tx_queued, 1);
 }
 
-#define	MAX_TLS_PAGES	(1 + btoc(TLS_MAX_MSG_SIZE_V10_2))
+/*
+ * Once a file-backed mbuf (from sendfile) has been encrypted, free
+ * the pages from the file and replace them with the anonymous pages
+ * allocated in ktls_encrypt_record().
+ */
+static void
+ktls_finish_nonanon(struct mbuf *m, struct ktls_ocf_encrypt_state *state)
+{
+	int i;
+
+	MPASS((m->m_epg_flags & EPG_FLAG_ANON) == 0);
+
+	/* Free the old pages. */
+	m->m_ext.ext_free(m);
+
+	/* Replace them with the new pages. */
+	if (state->cbuf != NULL) {
+		for (i = 0; i < m->m_epg_npgs; i++)
+			m->m_epg_pa[i] = state->parray[0] + ptoa(i);
+
+		/* Contig pages should go back to the cache. */
+		m->m_ext.ext_free = ktls_free_mext_contig;
+	} else {
+		for (i = 0; i < m->m_epg_npgs; i++)
+			m->m_epg_pa[i] = state->parray[i];
+
+		/* Use the basic free routine. */
+		m->m_ext.ext_free = mb_free_mext_pgs;
+	}
+
+	/* Pages are now writable. */
+	m->m_epg_flags |= EPG_FLAG_ANON;
+}
 
 static __noinline void
 ktls_encrypt(struct ktls_wq *wq, struct mbuf *top)
 {
+	struct ktls_ocf_encrypt_state state;
 	struct ktls_session *tls;
 	struct socket *so;
 	struct mbuf *m;
-	vm_paddr_t parray[MAX_TLS_PAGES + 1];
-	struct iovec dst_iov[MAX_TLS_PAGES + 2];
-	vm_page_t pg;
-	void *cbuf;
-	int error, i, len, npages, off, total_pages;
+	int error, npages, total_pages;
 
 	so = top->m_epg_so;
 	tls = top->m_epg_tls;
@@ -2101,85 +2198,18 @@ ktls_encrypt(struct ktls_wq *wq, struct mbuf *top)
 		KASSERT(m->m_epg_tls == tls,
 		    ("different TLS sessions in a single mbuf chain: %p vs %p",
 		    tls, m->m_epg_tls));
-		KASSERT((m->m_flags & (M_EXTPG | M_NOTREADY)) ==
-		    (M_EXTPG | M_NOTREADY),
-		    ("%p not unready & nomap mbuf (top = %p)\n", m, top));
 		KASSERT(npages + m->m_epg_npgs <= total_pages,
 		    ("page count mismatch: top %p, total_pages %d, m %p", top,
 		    total_pages, m));
-		KASSERT(ptoa(m->m_epg_npgs) <= ktls_maxlen,
-		    ("page count %d larger than maximum frame length %d",
-		    m->m_epg_npgs, ktls_maxlen));
 
-		/*
-		 * For anonymous mbufs, encryption is done in place.
-		 * For file-backed mbufs (from sendfile), anonymous
-		 * wired pages are allocated and used as the
-		 * encryption destination.
-		 */
-		if ((m->m_epg_flags & EPG_FLAG_ANON) != 0) {
-			error = (*tls->sw_encrypt)(tls, m, NULL, 0);
-		} else {
-			if ((cbuf = ktls_buffer_alloc(wq, m)) != NULL) {
-				len = ptoa(m->m_epg_npgs - 1) +
-				    m->m_epg_last_len - m->m_epg_1st_off;
-				dst_iov[0].iov_base = (char *)cbuf +
-				    m->m_epg_1st_off;
-				dst_iov[0].iov_len = len;
-				parray[0] = DMAP_TO_PHYS((vm_offset_t)cbuf);
-				i = 1;
-			} else {
-				off = m->m_epg_1st_off;
-				for (i = 0; i < m->m_epg_npgs; i++, off = 0) {
-					do {
-						pg = vm_page_alloc(NULL, 0,
-						    VM_ALLOC_NORMAL |
-						    VM_ALLOC_NOOBJ |
-						    VM_ALLOC_NODUMP |
-						    VM_ALLOC_WIRED |
-						    VM_ALLOC_WAITFAIL);
-					} while (pg == NULL);
-
-					len = m_epg_pagelen(m, i, off);
-					parray[i] = VM_PAGE_TO_PHYS(pg);
-					dst_iov[i].iov_base =
-					    (char *)(void *)PHYS_TO_DMAP(
-					    parray[i]) + off;
-					dst_iov[i].iov_len = len;
-				}
-			}
-			KASSERT(i + 1 <= nitems(dst_iov),
-			    ("dst_iov is too small"));
-			dst_iov[i].iov_base = m->m_epg_trail;
-			dst_iov[i].iov_len = m->m_epg_trllen;
-
-			error = (*tls->sw_encrypt)(tls, m, dst_iov, i + 1);
-
-			/* Free the old pages. */
-			m->m_ext.ext_free(m);
-
-			/* Replace them with the new pages. */
-			if (cbuf != NULL) {
-				for (i = 0; i < m->m_epg_npgs; i++)
-					m->m_epg_pa[i] = parray[0] + ptoa(i);
-
-				/* Contig pages should go back to the cache. */
-				m->m_ext.ext_free = ktls_free_mext_contig;
-			} else {
-				for (i = 0; i < m->m_epg_npgs; i++)
-					m->m_epg_pa[i] = parray[i];
-
-				/* Use the basic free routine. */
-				m->m_ext.ext_free = mb_free_mext_pgs;
-			}
-
-			/* Pages are now writable. */
-			m->m_epg_flags |= EPG_FLAG_ANON;
-		}
+		error = ktls_encrypt_record(wq, m, tls, &state);
 		if (error) {
 			counter_u64_add(ktls_offload_failed_crypto, 1);
 			break;
 		}
+
+		if ((m->m_epg_flags & EPG_FLAG_ANON) == 0)
+			ktls_finish_nonanon(m, &state);
 
 		npages += m->m_epg_nrdy;
 
@@ -2201,6 +2231,118 @@ ktls_encrypt(struct ktls_wq *wq, struct mbuf *top)
 		so->so_proto->pr_usrreqs->pru_abort(so);
 		so->so_error = EIO;
 		mb_free_notready(top, total_pages);
+	}
+
+	SOCK_LOCK(so);
+	sorele(so);
+	CURVNET_RESTORE();
+}
+
+void
+ktls_encrypt_cb(struct ktls_ocf_encrypt_state *state, int error)
+{
+	struct ktls_session *tls;
+	struct socket *so;
+	struct mbuf *m;
+	int npages;
+
+	m = state->m;
+
+	if ((m->m_epg_flags & EPG_FLAG_ANON) == 0)
+		ktls_finish_nonanon(m, state);
+
+	so = state->so;
+	free(state, M_KTLS);
+
+	/*
+	 * Drop a reference to the session now that it is no longer
+	 * needed.  Existing code depends on encrypted records having
+	 * no associated session vs yet-to-be-encrypted records having
+	 * an associated session.
+	 */
+	tls = m->m_epg_tls;
+	m->m_epg_tls = NULL;
+	ktls_free(tls);
+
+	if (error != 0)
+		counter_u64_add(ktls_offload_failed_crypto, 1);
+
+	CURVNET_SET(so->so_vnet);
+	npages = m->m_epg_nrdy;
+
+	if (error == 0) {
+		(void)(*so->so_proto->pr_usrreqs->pru_ready)(so, m, npages);
+	} else {
+		so->so_proto->pr_usrreqs->pru_abort(so);
+		so->so_error = EIO;
+		mb_free_notready(m, npages);
+	}
+
+	SOCK_LOCK(so);
+	sorele(so);
+	CURVNET_RESTORE();
+}
+
+/*
+ * Similar to ktls_encrypt, but used with asynchronous OCF backends
+ * (coprocessors) where encryption does not use host CPU resources and
+ * it can be beneficial to queue more requests than CPUs.
+ */
+static __noinline void
+ktls_encrypt_async(struct ktls_wq *wq, struct mbuf *top)
+{
+	struct ktls_ocf_encrypt_state *state;
+	struct ktls_session *tls;
+	struct socket *so;
+	struct mbuf *m, *n;
+	int error, mpages, npages, total_pages;
+
+	so = top->m_epg_so;
+	tls = top->m_epg_tls;
+	KASSERT(tls != NULL, ("tls = NULL, top = %p\n", top));
+	KASSERT(so != NULL, ("so = NULL, top = %p\n", top));
+#ifdef INVARIANTS
+	top->m_epg_so = NULL;
+#endif
+	total_pages = top->m_epg_enc_cnt;
+	npages = 0;
+
+	error = 0;
+	for (m = top; npages != total_pages; m = n) {
+		KASSERT(m->m_epg_tls == tls,
+		    ("different TLS sessions in a single mbuf chain: %p vs %p",
+		    tls, m->m_epg_tls));
+		KASSERT(npages + m->m_epg_npgs <= total_pages,
+		    ("page count mismatch: top %p, total_pages %d, m %p", top,
+		    total_pages, m));
+
+		state = malloc(sizeof(*state), M_KTLS, M_WAITOK | M_ZERO);
+		soref(so);
+		state->so = so;
+		state->m = m;
+
+		mpages = m->m_epg_nrdy;
+		n = m->m_next;
+
+		error = ktls_encrypt_record(wq, m, tls, state);
+		if (error) {
+			counter_u64_add(ktls_offload_failed_crypto, 1);
+			free(state, M_KTLS);
+			CURVNET_SET(so->so_vnet);
+			SOCK_LOCK(so);
+			sorele(so);
+			CURVNET_RESTORE();
+			break;
+		}
+
+		npages += mpages;
+	}
+
+	CURVNET_SET(so->so_vnet);
+	if (error != 0) {
+		so->so_proto->pr_usrreqs->pru_abort(so);
+		so->so_error = EIO;
+		mb_free_notready(m, total_pages - npages);
 	}
 
 	SOCK_LOCK(so);
@@ -2306,7 +2448,10 @@ ktls_work_thread(void *ctx)
 				ktls_free(m->m_epg_tls);
 				m_free_raw(m);
 			} else {
-				ktls_encrypt(wq, m);
+				if (m->m_epg_tls->sync_dispatch)
+					ktls_encrypt(wq, m);
+				else
+					ktls_encrypt_async(wq, m);
 				counter_u64_add(ktls_cnt_tx_queued, -1);
 			}
 		}
