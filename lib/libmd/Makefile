@@ -131,7 +131,7 @@ ACFLAGS+= -DELF -Wa,--noexecstack
 .endif
 .if ${MACHINE_CPUARCH} == "aarch64"
 SRCS+=	sha256c_arm64.c
-SHARED_CFLAGS+= -DARM64_SHA2
+CFLAGS+= -DARM64_SHA2
 CFLAGS.sha256c_arm64.c+= -march=armv8-a+crypto
 .endif
 .endif # ${USE_ASM_SOURCES} != 0
