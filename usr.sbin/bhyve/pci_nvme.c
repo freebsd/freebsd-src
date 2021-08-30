@@ -1825,7 +1825,7 @@ pci_nvme_release_ioreq(struct pci_nvme_softc *sc, struct pci_nvme_ioreq *req)
 static struct pci_nvme_ioreq *
 pci_nvme_get_ioreq(struct pci_nvme_softc *sc)
 {
-	struct pci_nvme_ioreq *req = NULL;;
+	struct pci_nvme_ioreq *req = NULL;
 
 	sem_wait(&sc->iosemlock);
 	pthread_mutex_lock(&sc->mtx);
