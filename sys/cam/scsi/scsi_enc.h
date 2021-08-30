@@ -154,7 +154,9 @@ typedef enum {
 	"SAS Connector"					\
 }
 
+#ifdef _KERNEL
 extern const char *elm_type_names[];
+#endif
 
 typedef struct encioc_element {
 	/* Element Index */
