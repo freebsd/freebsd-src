@@ -1,4 +1,4 @@
-#	$OpenBSD: banner.sh,v 1.3 2017/04/30 23:34:55 djm Exp $
+#	$OpenBSD: banner.sh,v 1.4 2021/08/08 06:38:33 dtucker Exp $
 #	Placed in the Public Domain.
 
 tid="banner"
@@ -37,7 +37,9 @@ done
 
 trace "test suppress banner (-q)"
 verbose "test $tid: suppress banner (-q)"
-( ${SSH} -q -F $OBJ/ssh_proxy otherhost true 2>$OBJ/banner.out && \
+# ssh-log-wrapper drops "-q" to preserve debug output so use ssh directly
+# for just this test.
+( ${REAL_SSH} -q -F $OBJ/ssh_proxy otherhost true 2>$OBJ/banner.out && \
 	cmp $OBJ/empty.in $OBJ/banner.out ) || \
 	fail "suppress banner (-q)"
 

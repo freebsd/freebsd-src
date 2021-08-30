@@ -1,4 +1,4 @@
-/* $OpenBSD: sshsig.h,v 1.9 2020/08/31 00:17:41 djm Exp $ */
+/* $OpenBSD: sshsig.h,v 1.10 2021/07/23 03:37:52 djm Exp $ */
 /*
  * Copyright (c) 2019 Google LLC
  *
@@ -86,7 +86,7 @@ int sshsig_dearmor(struct sshbuf *sig, struct sshbuf **out);
  * an allowed_keys file. Returns 0 on success.
  */
 int sshsig_check_allowed_keys(const char *path, const struct sshkey *sign_key,
-    const char *principal, const char *ns);
+    const char *principal, const char *ns, uint64_t verify_time);
 
 /* Parse zero or more allowed_keys signature options */
 struct sshsigopt *sshsigopt_parse(const char *opts,
@@ -102,6 +102,6 @@ int sshsig_get_pubkey(struct sshbuf *signature, struct sshkey **pubkey);
  * 0 on success.
  */
 int sshsig_find_principals(const char *path, const struct sshkey *sign_key,
-    char **principal);
+    uint64_t verify_time, char **principal);
 
 #endif /* SSHSIG_H */

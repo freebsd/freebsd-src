@@ -45,7 +45,7 @@ SHA-2 signatures (SHA-256 and SHA-512 respectively):
     rsa-sha2-512-cert-v01@openssh.com
 
 These RSA/SHA-2 types should not appear in keys at rest or transmitted
-on their wire, but do appear in a SSH_MSG_KEXINIT's host-key algorithms
+on the wire, but do appear in a SSH_MSG_KEXINIT's host-key algorithms
 field or in the "public key algorithm name" field of a "publickey"
 SSH_USERAUTH_REQUEST to indicate that the signature will use the
 specified algorithm.
@@ -159,12 +159,11 @@ p, q, g, y are the DSA parameters as described in FIPS-186-2.
 curve and public key are respectively the ECDSA "[identifier]" and "Q"
 defined in section 3.1 of RFC5656.
 
-pk is the encoded Ed25519 public key as defined by
-draft-josefsson-eddsa-ed25519-03.
+pk is the encoded Ed25519 public key as defined by RFC8032.
 
 serial is an optional certificate serial number set by the CA to
 provide an abbreviated way to refer to certificates from that CA.
-If a CA does not wish to number its certificates it must set this
+If a CA does not wish to number its certificates, it must set this
 field to zero.
 
 type specifies whether this certificate is for identification of a user
@@ -217,13 +216,13 @@ signature is computed over all preceding fields from the initial string
 up to, and including the signature key. Signatures are computed and
 encoded according to the rules defined for the CA's public key algorithm
 (RFC4253 section 6.6 for ssh-rsa and ssh-dss, RFC5656 for the ECDSA
-types), and draft-josefsson-eddsa-ed25519-03 for Ed25519.
+types, and RFC8032 for Ed25519).
 
 Critical options
 ----------------
 
 The critical options section of the certificate specifies zero or more
-options on the certificates validity. The format of this field
+options on the certificate's validity. The format of this field
 is a sequence of zero or more tuples:
 
     string       name
@@ -234,7 +233,7 @@ sequence. Each named option may only appear once in a certificate.
 
 The name field identifies the option and the data field encodes
 option-specific information (see below). All options are
-"critical", if an implementation does not recognise a option
+"critical"; if an implementation does not recognise a option,
 then the validating party should refuse to accept the certificate.
 
 Custom options should append the originating author or organisation's
@@ -256,9 +255,17 @@ source-address          string        Comma-separated list of source addresses
                                       for authentication. Addresses are
                                       specified in CIDR format (nn.nn.nn.nn/nn
                                       or hhhh::hhhh/nn).
-                                      If this option is not present then
+                                      If this option is not present, then
                                       certificates may be presented from any
                                       source address.
+
+verify-required         empty         Flag indicating that signatures made
+                                      with this certificate must assert FIDO
+                                      user verification (e.g. PIN or
+                                      biometric). This option only makes sense
+                                      for the U2F/FIDO security key types that
+                                      support this feature in their signature
+                                      formats.
 
 Extensions
 ----------
@@ -280,11 +287,11 @@ their data fields are:
 
 Name                    Format        Description
 -----------------------------------------------------------------------------
-no-presence-required    empty         Flag indicating that signatures made
+no-touch-required       empty         Flag indicating that signatures made
                                       with this certificate need not assert
-                                      user presence. This option only make
-                                      sense for the U2F/FIDO security key
-                                      types that support this feature in
+                                      FIDO user presence. This option only
+                                      makes sense for the U2F/FIDO security
+                                      key types that support this feature in
                                       their signature formats.
 
 permit-X11-forwarding   empty         Flag indicating that X11 forwarding
@@ -298,7 +305,7 @@ permit-agent-forwarding empty         Flag indicating that agent forwarding
 
 permit-port-forwarding  empty         Flag indicating that port-forwarding
                                       should be allowed. If this option is
-                                      not present then no port forwarding will
+                                      not present, then no port forwarding will
                                       be allowed.
 
 permit-pty              empty         Flag indicating that PTY allocation
@@ -311,4 +318,4 @@ permit-user-rc          empty         Flag indicating that execution of
                                       of this script will not be permitted if
                                       this option is not present.
 
-$OpenBSD: PROTOCOL.certkeys,v 1.17 2019/11/25 00:57:51 djm Exp $
+$OpenBSD: PROTOCOL.certkeys,v 1.19 2021/06/05 13:47:00 naddy Exp $

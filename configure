@@ -6949,6 +6949,32 @@ $as_echo "no" >&6; }
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
 
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking if compiler accepts variable declarations after code" >&5
+$as_echo_n "checking if compiler accepts variable declarations after code... " >&6; }
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+#include <stdlib.h>
+int
+main ()
+{
+ int a; a = 1; int b = 1; exit(a-b);
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+   { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+
+$as_echo "#define VARIABLE_DECLARATION_AFTER_CODE 1" >>confdefs.h
+
+else
+   { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+
 if test "x$no_attrib_nonnull" != "x1" ; then
 
 $as_echo "#define HAVE_ATTRIBUTE__NONNULL__ 1" >>confdefs.h
@@ -11489,6 +11515,7 @@ for ac_func in  \
 	pledge \
 	poll \
 	prctl \
+	pselect \
 	pstat \
 	raise \
 	readpassphrase \
@@ -15319,7 +15346,7 @@ if test ! -z "$SONY" ; then
   LIBS="$LIBS -liberty";
 fi
 
-# Check for  long long datatypes
+# Check for long long datatypes
 ac_fn_c_check_type "$LINENO" "long long" "ac_cv_type_long_long" "$ac_includes_default"
 if test "x$ac_cv_type_long_long" = xyes; then :
 
@@ -15479,6 +15506,49 @@ $as_echo "$ac_cv_sizeof_long_long_int" >&6; }
 
 cat >>confdefs.h <<_ACEOF
 #define SIZEOF_LONG_LONG_INT $ac_cv_sizeof_long_long_int
+_ACEOF
+
+
+# The cast to long int works around a bug in the HP C Compiler
+# version HP92453-01 B.11.11.23709.GP, which incorrectly rejects
+# declarations like `int a3[[(sizeof (unsigned char)) >= 0]];'.
+# This bug is HP SR number 8606223364.
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking size of time_t" >&5
+$as_echo_n "checking size of time_t... " >&6; }
+if ${ac_cv_sizeof_time_t+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  if ac_fn_c_compute_int "$LINENO" "(long int) (sizeof (time_t))" "ac_cv_sizeof_time_t"        "
+    #include <sys/types.h>
+    #ifdef HAVE_SYS_TIME_H
+    # include <sys/time.h>
+    #endif
+    #ifdef HAVE_TIME_H
+    # include <time.h>
+    #endif
+
+
+"; then :
+
+else
+  if test "$ac_cv_type_time_t" = yes; then
+     { { $as_echo "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
+$as_echo "$as_me: error: in \`$ac_pwd':" >&2;}
+as_fn_error 77 "cannot compute sizeof (time_t)
+See \`config.log' for more details" "$LINENO" 5; }
+   else
+     ac_cv_sizeof_time_t=0
+   fi
+fi
+
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_sizeof_time_t" >&5
+$as_echo "$ac_cv_sizeof_time_t" >&6; }
+
+
+
+cat >>confdefs.h <<_ACEOF
+#define SIZEOF_TIME_T $ac_cv_sizeof_time_t
 _ACEOF
 
 
@@ -16198,6 +16268,16 @@ if test "x$ac_cv_type_sig_atomic_t" = xyes; then :
 
 cat >>confdefs.h <<_ACEOF
 #define HAVE_SIG_ATOMIC_T 1
+_ACEOF
+
+
+fi
+ac_fn_c_check_type "$LINENO" "sighandler_t" "ac_cv_type_sighandler_t" "#include <signal.h>
+"
+if test "x$ac_cv_type_sighandler_t" = xyes; then :
+
+cat >>confdefs.h <<_ACEOF
+#define HAVE_SIGHANDLER_T 1
 _ACEOF
 
 
@@ -18633,6 +18713,164 @@ $as_echo "#define KRB5 1" >>confdefs.h
 		KRB5_MSG="yes"
 
 		if test -n "$ac_tool_prefix"; then
+  # Extract the first word of "${ac_tool_prefix}pkg-config", so it can be a program name with args.
+set dummy ${ac_tool_prefix}pkg-config; ac_word=$2
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+$as_echo_n "checking for $ac_word... " >&6; }
+if ${ac_cv_path_PKGCONFIG+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  case $PKGCONFIG in
+  [\\/]* | ?:[\\/]*)
+  ac_cv_path_PKGCONFIG="$PKGCONFIG" # Let the user override the test with a path.
+  ;;
+  *)
+  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
+    ac_cv_path_PKGCONFIG="$as_dir/$ac_word$ac_exec_ext"
+    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+  ;;
+esac
+fi
+PKGCONFIG=$ac_cv_path_PKGCONFIG
+if test -n "$PKGCONFIG"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $PKGCONFIG" >&5
+$as_echo "$PKGCONFIG" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+
+fi
+if test -z "$ac_cv_path_PKGCONFIG"; then
+  ac_pt_PKGCONFIG=$PKGCONFIG
+  # Extract the first word of "pkg-config", so it can be a program name with args.
+set dummy pkg-config; ac_word=$2
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+$as_echo_n "checking for $ac_word... " >&6; }
+if ${ac_cv_path_ac_pt_PKGCONFIG+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  case $ac_pt_PKGCONFIG in
+  [\\/]* | ?:[\\/]*)
+  ac_cv_path_ac_pt_PKGCONFIG="$ac_pt_PKGCONFIG" # Let the user override the test with a path.
+  ;;
+  *)
+  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
+    ac_cv_path_ac_pt_PKGCONFIG="$as_dir/$ac_word$ac_exec_ext"
+    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+  ;;
+esac
+fi
+ac_pt_PKGCONFIG=$ac_cv_path_ac_pt_PKGCONFIG
+if test -n "$ac_pt_PKGCONFIG"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_pt_PKGCONFIG" >&5
+$as_echo "$ac_pt_PKGCONFIG" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+  if test "x$ac_pt_PKGCONFIG" = x; then
+    PKGCONFIG="no"
+  else
+    case $cross_compiling:$ac_tool_warned in
+yes:)
+{ $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: using cross tools not prefixed with host triplet" >&5
+$as_echo "$as_me: WARNING: using cross tools not prefixed with host triplet" >&2;}
+ac_tool_warned=yes ;;
+esac
+    PKGCONFIG=$ac_pt_PKGCONFIG
+  fi
+else
+  PKGCONFIG="$ac_cv_path_PKGCONFIG"
+fi
+
+		use_pkgconfig_for_krb5=
+		if test "x$PKGCONFIG" != "xno"; then
+			{ $as_echo "$as_me:${as_lineno-$LINENO}: checking if $PKGCONFIG knows about kerberos5" >&5
+$as_echo_n "checking if $PKGCONFIG knows about kerberos5... " >&6; }
+			if "$PKGCONFIG" krb5; then
+				{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+				use_pkgconfig_for_krb5=yes
+			else
+				{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+			fi
+		fi
+		if test "x$use_pkgconfig_for_krb5" = "xyes"; then
+			K5CFLAGS=`$PKGCONFIG --cflags krb5`
+			K5LIBS=`$PKGCONFIG --libs krb5`
+			CPPFLAGS="$CPPFLAGS $K5CFLAGS"
+
+			{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for gssapi support" >&5
+$as_echo_n "checking for gssapi support... " >&6; }
+			if "$PKGCONFIG" krb5-gssapi; then
+				{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+
+$as_echo "#define GSSAPI 1" >>confdefs.h
+
+				GSSCFLAGS="`$PKGCONFIG --cflags krb5-gssapi`"
+				GSSLIBS="`$PKGCONFIG --libs krb5-gssapi`"
+				CPPFLAGS="$CPPFLAGS $GSSCFLAGS"
+			else
+				{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+			fi
+			{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether we are using Heimdal" >&5
+$as_echo_n "checking whether we are using Heimdal... " >&6; }
+			cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+ #include <krb5.h>
+
+int
+main ()
+{
+ char *tmp = heimdal_version;
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+   { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+
+$as_echo "#define HEIMDAL 1" >>confdefs.h
+
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+		else
+			if test -n "$ac_tool_prefix"; then
   # Extract the first word of "${ac_tool_prefix}krb5-config", so it can be a program name with args.
 set dummy ${ac_tool_prefix}krb5-config; ac_word=$2
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
@@ -18732,29 +18970,29 @@ else
   KRB5CONF="$ac_cv_path_KRB5CONF"
 fi
 
-		if test -x $KRB5CONF ; then
-			K5CFLAGS="`$KRB5CONF --cflags`"
-			K5LIBS="`$KRB5CONF --libs`"
-			CPPFLAGS="$CPPFLAGS $K5CFLAGS"
+			if test -x $KRB5CONF ; then
+				K5CFLAGS="`$KRB5CONF --cflags`"
+				K5LIBS="`$KRB5CONF --libs`"
+				CPPFLAGS="$CPPFLAGS $K5CFLAGS"
 
-			{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for gssapi support" >&5
+				{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for gssapi support" >&5
 $as_echo_n "checking for gssapi support... " >&6; }
-			if $KRB5CONF | grep gssapi >/dev/null ; then
-				{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+				if $KRB5CONF | grep gssapi >/dev/null ; then
+					{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
 
 $as_echo "#define GSSAPI 1" >>confdefs.h
 
-				GSSCFLAGS="`$KRB5CONF --cflags gssapi`"
-				GSSLIBS="`$KRB5CONF --libs gssapi`"
-				CPPFLAGS="$CPPFLAGS $GSSCFLAGS"
-			else
-				{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+					GSSCFLAGS="`$KRB5CONF --cflags gssapi`"
+					GSSLIBS="`$KRB5CONF --libs gssapi`"
+					CPPFLAGS="$CPPFLAGS $GSSCFLAGS"
+				else
+					{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
-			fi
-			{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether we are using Heimdal" >&5
+				fi
+				{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether we are using Heimdal" >&5
 $as_echo_n "checking whether we are using Heimdal... " >&6; }
-			cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+				cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
  #include <krb5.h>
 
@@ -18778,12 +19016,12 @@ $as_echo "no" >&6; }
 
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
-		else
-			CPPFLAGS="$CPPFLAGS -I${KRB5ROOT}/include"
-			LDFLAGS="$LDFLAGS -L${KRB5ROOT}/lib"
-			{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether we are using Heimdal" >&5
+			else
+				CPPFLAGS="$CPPFLAGS -I${KRB5ROOT}/include"
+				LDFLAGS="$LDFLAGS -L${KRB5ROOT}/lib"
+				{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether we are using Heimdal" >&5
 $as_echo_n "checking whether we are using Heimdal... " >&6; }
-			cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+				cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
  #include <krb5.h>
 
@@ -18798,11 +19036,11 @@ _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
    { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
-					 $as_echo "#define HEIMDAL 1" >>confdefs.h
+						 $as_echo "#define HEIMDAL 1" >>confdefs.h
 
-					 K5LIBS="-lkrb5"
-					 K5LIBS="$K5LIBS -lcom_err -lasn1"
-					 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for net_write in -lroken" >&5
+						 K5LIBS="-lkrb5"
+						 K5LIBS="$K5LIBS -lcom_err -lasn1"
+						 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for net_write in -lroken" >&5
 $as_echo_n "checking for net_write in -lroken... " >&6; }
 if ${ac_cv_lib_roken_net_write+:} false; then :
   $as_echo_n "(cached) " >&6
@@ -18842,7 +19080,7 @@ if test "x$ac_cv_lib_roken_net_write" = xyes; then :
   K5LIBS="$K5LIBS -lroken"
 fi
 
-					 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for des_cbc_encrypt in -ldes" >&5
+						 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for des_cbc_encrypt in -ldes" >&5
 $as_echo_n "checking for des_cbc_encrypt in -ldes... " >&6; }
 if ${ac_cv_lib_des_des_cbc_encrypt+:} false; then :
   $as_echo_n "(cached) " >&6
@@ -18886,11 +19124,11 @@ fi
 else
    { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
-					 K5LIBS="-lkrb5 -lk5crypto -lcom_err"
+						 K5LIBS="-lkrb5 -lk5crypto -lcom_err"
 
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
-			{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing dn_expand" >&5
+				{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing dn_expand" >&5
 $as_echo_n "checking for library containing dn_expand... " >&6; }
 if ${ac_cv_search_dn_expand+:} false; then :
   $as_echo_n "(cached) " >&6
@@ -18947,7 +19185,7 @@ if test "$ac_res" != no; then :
 fi
 
 
-			{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for gss_init_sec_context in -lgssapi_krb5" >&5
+				{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for gss_init_sec_context in -lgssapi_krb5" >&5
 $as_echo_n "checking for gss_init_sec_context in -lgssapi_krb5... " >&6; }
 if ${ac_cv_lib_gssapi_krb5_gss_init_sec_context+:} false; then :
   $as_echo_n "(cached) " >&6
@@ -18986,7 +19224,7 @@ $as_echo "$ac_cv_lib_gssapi_krb5_gss_init_sec_context" >&6; }
 if test "x$ac_cv_lib_gssapi_krb5_gss_init_sec_context" = xyes; then :
    $as_echo "#define GSSAPI 1" >>confdefs.h
 
-				  GSSLIBS="-lgssapi_krb5"
+					  GSSLIBS="-lgssapi_krb5"
 else
    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for gss_init_sec_context in -lgssapi" >&5
 $as_echo_n "checking for gss_init_sec_context in -lgssapi... " >&6; }
@@ -19027,7 +19265,7 @@ $as_echo "$ac_cv_lib_gssapi_gss_init_sec_context" >&6; }
 if test "x$ac_cv_lib_gssapi_gss_init_sec_context" = xyes; then :
    $as_echo "#define GSSAPI 1" >>confdefs.h
 
-					  GSSLIBS="-lgssapi"
+						  GSSLIBS="-lgssapi"
 else
    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for gss_init_sec_context in -lgss" >&5
 $as_echo_n "checking for gss_init_sec_context in -lgss... " >&6; }
@@ -19068,7 +19306,7 @@ $as_echo "$ac_cv_lib_gss_gss_init_sec_context" >&6; }
 if test "x$ac_cv_lib_gss_gss_init_sec_context" = xyes; then :
    $as_echo "#define GSSAPI 1" >>confdefs.h
 
-						  GSSLIBS="-lgss"
+							  GSSLIBS="-lgss"
 else
   { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Cannot find any suitable gss-api library - build may fail" >&5
 $as_echo "$as_me: WARNING: Cannot find any suitable gss-api library - build may fail" >&2;}
@@ -19081,13 +19319,13 @@ fi
 fi
 
 
-			ac_fn_c_check_header_mongrel "$LINENO" "gssapi.h" "ac_cv_header_gssapi_h" "$ac_includes_default"
+				ac_fn_c_check_header_mongrel "$LINENO" "gssapi.h" "ac_cv_header_gssapi_h" "$ac_includes_default"
 if test "x$ac_cv_header_gssapi_h" = xyes; then :
 
 else
    unset ac_cv_header_gssapi_h
-				  CPPFLAGS="$CPPFLAGS -I${KRB5ROOT}/include/gssapi"
-				  for ac_header in gssapi.h
+					  CPPFLAGS="$CPPFLAGS -I${KRB5ROOT}/include/gssapi"
+					  for ac_header in gssapi.h
 do :
   ac_fn_c_check_header_mongrel "$LINENO" "gssapi.h" "ac_cv_header_gssapi_h" "$ac_includes_default"
 if test "x$ac_cv_header_gssapi_h" = xyes; then :
@@ -19109,9 +19347,9 @@ fi
 
 
 
-			oldCPP="$CPPFLAGS"
-			CPPFLAGS="$CPPFLAGS -I${KRB5ROOT}/include/gssapi"
-			ac_fn_c_check_header_mongrel "$LINENO" "gssapi_krb5.h" "ac_cv_header_gssapi_krb5_h" "$ac_includes_default"
+				oldCPP="$CPPFLAGS"
+				CPPFLAGS="$CPPFLAGS -I${KRB5ROOT}/include/gssapi"
+				ac_fn_c_check_header_mongrel "$LINENO" "gssapi_krb5.h" "ac_cv_header_gssapi_krb5_h" "$ac_includes_default"
 if test "x$ac_cv_header_gssapi_krb5_h" = xyes; then :
 
 else
@@ -19120,6 +19358,7 @@ fi
 
 
 
+			fi
 		fi
 		if test -n "${rpath_opt}" ; then
 			LDFLAGS="$LDFLAGS ${rpath_opt}${KRB5ROOT}/lib"

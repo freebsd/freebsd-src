@@ -1,4 +1,4 @@
-/* $OpenBSD: auth2-hostbased.c,v 1.46 2021/01/27 10:05:28 djm Exp $ */
+/* $OpenBSD: auth2-hostbased.c,v 1.47 2021/07/23 03:37:52 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -213,7 +213,7 @@ hostbased_key_allowed(struct ssh *ssh, struct passwd *pw,
 	debug2_f("access allowed by auth_rhosts2");
 
 	if (sshkey_is_cert(key) &&
-	    sshkey_cert_check_authority(key, 1, 0, 0, lookup, &reason)) {
+	    sshkey_cert_check_authority_now(key, 1, 0, 0, lookup, &reason)) {
 		error("%s", reason);
 		auth_debug_add("%s", reason);
 		return 0;

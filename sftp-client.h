@@ -1,4 +1,4 @@
-/* $OpenBSD: sftp-client.h,v 1.30 2021/03/31 22:16:34 djm Exp $ */
+/* $OpenBSD: sftp-client.h,v 1.34 2021/08/09 23:47:44 djm Exp $ */
 
 /*
  * Copyright (c) 2001-2004 Damien Miller <djm@openbsd.org>
@@ -61,6 +61,11 @@ struct sftp_limits {
 	u_int64_t open_handles;
 };
 
+/* print flag values */
+#define SFTP_QUIET		0	/* be quiet during transfers */
+#define SFTP_PRINT		1	/* list files and show progress bar */
+#define SFTP_PROGRESS_ONLY	2	/* progress bar only */
+
 /*
  * Initialise a SSH filexfer connection. Returns NULL on error or
  * a pointer to a initialized sftp_conn struct on success.
@@ -108,11 +113,17 @@ int do_lsetstat(struct sftp_conn *conn, const char *path, Attrib *a);
 /* Canonicalise 'path' - caller must free result */
 char *do_realpath(struct sftp_conn *, const char *);
 
+/* Canonicalisation with tilde expansion (requires server extension) */
+char *do_expand_path(struct sftp_conn *, const char *);
+
+/* Returns non-zero if server can tilde-expand paths */
+int can_expand_path(struct sftp_conn *);
+
 /* Get statistics for filesystem hosting file at "path" */
 int do_statvfs(struct sftp_conn *, const char *, struct sftp_statvfs *, int);
 
 /* Rename 'oldpath' to 'newpath' */
-int do_rename(struct sftp_conn *, const char *, const char *, int force_legacy);
+int do_rename(struct sftp_conn *, const char *, const char *, int);
 
 /* Link 'oldpath' to 'newpath' */
 int do_hardlink(struct sftp_conn *, const char *, const char *);
@@ -135,7 +146,7 @@ int do_download(struct sftp_conn *, const char *, const char *,
  * times if 'pflag' is set
  */
 int download_dir(struct sftp_conn *, const char *, const char *,
-    Attrib *, int, int, int, int);
+    Attrib *, int, int, int, int, int);
 
 /*
  * Upload 'local_path' to 'remote_path'. Preserve permissions and times
@@ -148,7 +159,25 @@ int do_upload(struct sftp_conn *, const char *, const char *, int, int, int);
  * times if 'pflag' is set
  */
 int upload_dir(struct sftp_conn *, const char *, const char *, int, int, int,
-    int);
+    int, int);
+
+/*
+ * Download a 'from_path' from the 'from' connection and upload it to
+ * to 'to' connection at 'to_path'.
+ */
+int
+do_crossload(struct sftp_conn *from, struct sftp_conn *to,
+    const char *from_path, const char *to_path,
+    Attrib *a, int preserve_flag);
+
+/*
+ * Recursively download a directory from 'from_path' from the 'from'
+ * connection and upload it to 'to' connection at 'to_path'.
+ */
+int crossload_dir(struct sftp_conn *from, struct sftp_conn *to,
+    const char *from_path, const char *to_path,
+    Attrib *dirattrib, int preserve_flag, int print_flag,
+    int follow_link_flag);
 
 /* Concatenate paths, taking care of slashes. Caller must free result. */
 char *path_append(const char *, const char *);

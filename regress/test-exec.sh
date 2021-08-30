@@ -1,45 +1,7 @@
-#	$OpenBSD: test-exec.sh,v 1.79 2021/04/06 23:57:56 dtucker Exp $
+#	$OpenBSD: test-exec.sh,v 1.86 2021/08/08 08:27:28 dtucker Exp $
 #	Placed in the Public Domain.
 
 #SUDO=sudo
-
-# Unbreak GNU head(1)
-_POSIX2_VERSION=199209
-export _POSIX2_VERSION
-
-case `uname -s 2>/dev/null` in
-OSF1*)
-	BIN_SH=xpg4
-	export BIN_SH
-	;;
-CYGWIN*)
-	os=cygwin
-	;;
-esac
-
-# If configure tells us to use a different egrep, create a wrapper function
-# to call it.  This means we don't need to change all the tests that depend
-# on a good implementation.
-if test "x${EGREP}" != "x"; then
-	egrep ()
-{
-	 ${EGREP} "$@"
-}
-fi
-
-if [ -x /usr/ucb/whoami ]; then
-	USER=`/usr/ucb/whoami`
-elif whoami >/dev/null 2>&1; then
-	USER=`whoami`
-elif logname >/dev/null 2>&1; then
-	USER=`logname`
-else
-	USER=`id -un`
-fi
-if test -z "$LOGNAME"; then
-	LOGNAME="${USER}"
-	export LOGNAME
-fi
 
 if [ ! -x "$TEST_SSH_ELAPSED_TIMES" ]; then
 	STARTTIME=`date '+%s'`
@@ -77,6 +39,46 @@ else
 fi
 unset SSH_AUTH_SOCK
 
+# Portable-specific settings.
+
+if [ -x /usr/ucb/whoami ]; then
+	USER=`/usr/ucb/whoami`
+elif whoami >/dev/null 2>&1; then
+	USER=`whoami`
+elif logname >/dev/null 2>&1; then
+	USER=`logname`
+else
+	USER=`id -un`
+fi
+if test -z "$LOGNAME"; then
+	LOGNAME="${USER}"
+	export LOGNAME
+fi
+
+# Unbreak GNU head(1)
+_POSIX2_VERSION=199209
+export _POSIX2_VERSION
+
+case `uname -s 2>/dev/null` in
+OSF1*)
+	BIN_SH=xpg4
+	export BIN_SH
+	;;
+CYGWIN*)
+	os=cygwin
+	;;
+esac
+
+# If configure tells us to use a different egrep, create a wrapper function
+# to call it.  This means we don't need to change all the tests that depend
+# on a good implementation.
+if test "x${EGREP}" != "x"; then
+	egrep ()
+{
+	 ${EGREP} "$@"
+}
+fi
+
 SRC=`dirname ${SCRIPT}`
 
 # defaults
@@ -100,6 +102,7 @@ CONCH=conch
 
 # Tools used by multiple tests
 NC=$OBJ/netcat
+OPENSSL_BIN="${OPENSSL_BIN:-openssl}"
 
 if [ "x$TEST_SSH_SSH" != "x" ]; then
 	SSH="${TEST_SSH_SSH}"
@@ -154,6 +157,9 @@ if [ "x$TEST_SSH_PKCS11_HELPER" != "x" ]; then
 fi
 if [ "x$TEST_SSH_SK_HELPER" != "x" ]; then
 	SSH_SK_HELPER="${TEST_SSH_SK_HELPER}"
+fi
+if [ "x$TEST_SSH_OPENSSL" != "x" ]; then
+	OPENSSL_BIN="${TEST_SSH_OPENSSL}"
 fi
 
 # Path to sshd must be absolute for rexec
@@ -250,10 +256,15 @@ fi
 >$TEST_REGRESS_LOGFILE
 
 # Create wrapper ssh with logging.  We can't just specify "SSH=ssh -E..."
-# because sftp and scp don't handle spaces in arguments.
+# because sftp and scp don't handle spaces in arguments.  scp and sftp like
+# to use -q so we remove those to preserve our debug logging.  In the rare
+# instance where -q is desirable -qq is equivalent and is not removed.
 SSHLOGWRAP=$OBJ/ssh-log-wrapper.sh
-echo "#!/bin/sh" > $SSHLOGWRAP
-echo "exec ${SSH} -E${TEST_SSH_LOGFILE} "'"$@"' >>$SSHLOGWRAP
+cat >$SSHLOGWRAP <<EOD
+#!/bin/sh
+for i in "\$@";do shift;case "\$i" in -q):;; *) set -- "\$@" "\$i";;esac;done
+exec ${SSH} -E${TEST_SSH_LOGFILE} "\$@"
+EOD
 
 chmod a+rx $OBJ/ssh-log-wrapper.sh
 REAL_SSH="$SSH"
@@ -323,6 +334,8 @@ md5 () {
 		cksum
 	elif have_prog sum; then
 		sum
+	elif [ -x ${OPENSSL_BIN} ]; then
+		${OPENSSL_BIN} md5
 	else
 		wc -c
 	fi
@@ -595,7 +608,7 @@ for t in ${SSH_HOSTKEY_TYPES}; do
 	) >> $OBJ/known_hosts
 
 	# use key as host key, too
-	$SUDO cp $OBJ/$t $OBJ/host.$t
+	(umask 077; $SUDO cp $OBJ/$t $OBJ/host.$t)
 	echo HostKey $OBJ/host.$t >> $OBJ/sshd_config
 
 	# don't use SUDO for proxy connect

@@ -1,4 +1,4 @@
-#	$OpenBSD: forwarding.sh,v 1.23 2019/07/20 09:50:58 dtucker Exp $
+#	$OpenBSD: forwarding.sh,v 1.24 2021/05/07 09:23:40 dtucker Exp $
 #	Placed in the Public Domain.
 
 tid="local and remote forwarding"
@@ -29,7 +29,7 @@ rm -f $CTL
 ${SSH} -S $CTL -N -M -F $OBJ/ssh_config -f $fwd somehost
 
 trace "transfer over forwarded channels and check result"
-${SSH} -F $OBJ/ssh_config -p$last -o 'ConnectionAttempts=4' \
+${SSH} -F $OBJ/ssh_config -p$last -o 'ConnectionAttempts=10' \
 	somehost cat ${DATA} > ${COPY}
 test -s ${COPY}		|| fail "failed copy of ${DATA}"
 cmp ${DATA} ${COPY}	|| fail "corrupted copy of ${DATA}"
@@ -110,7 +110,7 @@ rm -f $CTL
 ${SSH} -S $CTL -N -M -F $OBJ/ssh_config -f somehost
 
 trace "config file: transfer over forwarded channels and check result"
-${SSH} -F $OBJ/ssh_config -p${base}02 -o 'ConnectionAttempts=4' \
+${SSH} -F $OBJ/ssh_config -p${base}02 -o 'ConnectionAttempts=10' \
 	somehost cat ${DATA} > ${COPY}
 test -s ${COPY}		|| fail "failed copy of ${DATA}"
 cmp ${DATA} ${COPY}	|| fail "corrupted copy of ${DATA}"
@@ -124,7 +124,7 @@ ${SSH} -S $CTL -N -M -f -F $OBJ/ssh_config -R${base}01:[$OBJ/unix-1.fwd] somehos
 ${SSH} -S $CTL.1 -N -M -f -F $OBJ/ssh_config -L[$OBJ/unix-1.fwd]:[$OBJ/unix-2.fwd] somehost
 ${SSH} -S $CTL.2 -N -M -f -F $OBJ/ssh_config -R[$OBJ/unix-2.fwd]:[$OBJ/unix-3.fwd] somehost
 ${SSH} -S $CTL.3 -N -M -f -F $OBJ/ssh_config -L[$OBJ/unix-3.fwd]:127.0.0.1:$PORT somehost
-${SSH} -F $OBJ/ssh_config -p${base}01 -o 'ConnectionAttempts=4' \
+${SSH} -F $OBJ/ssh_config -p${base}01 -o 'ConnectionAttempts=10' \
 	somehost cat ${DATA} > ${COPY}
 test -s ${COPY}			|| fail "failed copy ${DATA}"
 cmp ${DATA} ${COPY}		|| fail "corrupted copy of ${DATA}"

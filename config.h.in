@@ -1067,6 +1067,9 @@
 /* Define to 1 if you have the `proc_pidinfo' function. */
 #undef HAVE_PROC_PIDINFO
 
+/* Define to 1 if you have the `pselect' function. */
+#undef HAVE_PSELECT
+
 /* Define to 1 if you have the `pstat' function. */
 #undef HAVE_PSTAT
 
@@ -1274,6 +1277,9 @@
 
 /* Define to 1 if you have the `sigaction' function. */
 #undef HAVE_SIGACTION
+
+/* Define to 1 if the system has the type `sighandler_t'. */
+#undef HAVE_SIGHANDLER_T
 
 /* Define to 1 if you have the `sigvec' function. */
 #undef HAVE_SIGVEC
@@ -1880,6 +1886,9 @@
 /* The size of `short int', as computed by sizeof. */
 #undef SIZEOF_SHORT_INT
 
+/* The size of `time_t', as computed by sizeof. */
+#undef SIZEOF_TIME_T
+
 /* Define as const if snprintf() can declare const char *fmt */
 #undef SNPRINTF_CONST
 
@@ -1973,6 +1982,9 @@
 
 /* Define if you have Solaris projects */
 #undef USE_SOLARIS_PROJECTS
+
+/* compiler variable declarations after code */
+#undef VARIABLE_DECLARATION_AFTER_CODE
 
 /* compiler supports variable length arrays */
 #undef VARIABLE_LENGTH_ARRAYS

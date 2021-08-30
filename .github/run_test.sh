@@ -1,33 +1,34 @@
-#!/usr/bin/env bash
+#!/bin/sh
 
-. .github/configs $1 $2
+. .github/configs $1
 
 [ -z "${SUDO}" ] || ${SUDO} mkdir -p /var/empty
 
 set -ex
 
+output_failed_logs() {
+    for i in regress/failed*; do
+        if [ -f "$i" ]; then
+            echo -------------------------------------------------------------------------
+            echo LOGFILE $i
+            cat $i
+            echo -------------------------------------------------------------------------
+        fi
+    done
+}
+trap output_failed_logs 0
+
 if [ -z "${LTESTS}" ]; then
     make ${TEST_TARGET} SKIP_LTESTS="${SKIP_LTESTS}"
-    result=$?
 else
     make ${TEST_TARGET} SKIP_LTESTS="${SKIP_LTESTS}" LTESTS="${LTESTS}"
-    result=$?
 fi
 
 if [ ! -z "${SSHD_CONFOPTS}" ]; then
-    echo "rerunning tests with TEST_SSH_SSHD_CONFOPTS='${SSHD_CONFOPTS}'"
-    make t-exec TEST_SSH_SSHD_CONFOPTS="${SSHD_CONFOPTS}"
-    result2=$?
-    if [ "${result2}" -ne 0 ]; then
-        result="${result2}"
+    echo "rerunning t-exec with TEST_SSH_SSHD_CONFOPTS='${SSHD_CONFOPTS}'"
+    if [ -z "${LTESTS}" ]; then
+        make t-exec SKIP_LTESTS="${SKIP_LTESTS}" TEST_SSH_SSHD_CONFOPTS="${SSHD_CONFOPTS}"
+    else
+        make t-exec SKIP_LTESTS="${SKIP_LTESTS}" LTESTS="${LTESTS}" TEST_SSH_SSHD_CONFOPTS="${SSHD_CONFOPTS}"
     fi
-fi
-
-if [ "$result" -ne "0" ]; then
-    for i in regress/failed*; do
-        echo -------------------------------------------------------------------------
-        echo LOGFILE $i
-        cat $i
-        echo -------------------------------------------------------------------------
-    done
 fi

@@ -304,6 +304,12 @@ typedef long long intmax_t;
 typedef unsigned long long uintmax_t;
 #endif
 
+#if SIZEOF_TIME_T == SIZEOF_LONG_LONG_INT
+# define SSH_TIME_T_MAX LLONG_MAX
+#else
+# define SSH_TIME_T_MAX INT_MAX
+#endif
+
 #ifndef HAVE_U_CHAR
 typedef unsigned char u_char;
 # define HAVE_U_CHAR
@@ -895,10 +901,10 @@ struct winsize {
 #endif
 
 /*
- * sntrup761 uses variable length arrays, only enable if the compiler
- * supports them.
+ * sntrup761 uses variable length arrays and c99-style declarations after code,
+ * so only enable if the compiler supports them.
  */
-#ifdef VARIABLE_LENGTH_ARRAYS
+#if defined(VARIABLE_LENGTH_ARRAYS) && defined(VARIABLE_DECLARATION_AFTER_CODE)
 # define USE_SNTRUP761X25519 1
 #endif
 #endif /* _DEFINES_H */

@@ -1,4 +1,4 @@
-/* $OpenBSD: misc.h,v 1.95 2021/04/03 06:18:40 djm Exp $ */
+/* $OpenBSD: misc.h,v 1.98 2021/08/09 23:47:44 djm Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -45,6 +45,7 @@ struct ForwardOptions {
 /* misc.c */
 
 char	*chop(char *);
+void	 rtrim(char *);
 void	skip_space(char **);
 char	*strdelim(char **);
 char	*strdelimw(char **);
@@ -70,6 +71,7 @@ int	 parse_user_host_port(const char *, char **, char **, int *);
 int	 parse_uri(const char *, const char *, char **, char **, int *, char **);
 int	 convtime(const char *);
 const char *fmt_timeframe(time_t t);
+int	 tilde_expand(const char *, uid_t, char **);
 char	*tilde_expand_filename(const char *, uid_t);
 
 char	*dollar_expand(int *, const char *string, ...);
@@ -175,9 +177,15 @@ void mktemp_proto(char *, size_t);
 
 void	 child_set_env(char ***envp, u_int *envsizep, const char *name,
 	    const char *value);
+const char *lookup_env_in_list(const char *env,
+	    char * const *envs, size_t nenvs);
 
-int	 argv_split(const char *, int *, char ***);
+int	 argv_split(const char *, int *, char ***, int);
 char	*argv_assemble(int, char **argv);
+char	*argv_next(int *, char ***);
+void	 argv_consume(int *);
+void	 argv_free(char **, int);
+
 int	 exited_cleanly(pid_t, const char *, const char *, int);
 
 struct stat;

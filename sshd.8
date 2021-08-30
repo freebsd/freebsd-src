@@ -33,8 +33,8 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: sshd.8,v 1.314 2021/04/03 05:46:41 djm Exp $
-.Dd $Mdocdate: April 3 2021 $
+.\" $OpenBSD: sshd.8,v 1.316 2021/07/30 14:28:13 jmc Exp $
+.Dd $Mdocdate: July 30 2021 $
 .Dt SSHD 8
 .Os
 .Sh NAME
@@ -58,8 +58,7 @@
 .Nm
 (OpenSSH Daemon) is the daemon program for
 .Xr ssh 1 .
-Together these programs replace rlogin and rsh,
-and provide secure encrypted communications between two untrusted hosts
+It provides secure encrypted communications between two untrusted hosts
 over an insecure network.
 .Pp
 .Nm
@@ -107,7 +106,7 @@ supplied in any order, either with multiple
 .Fl C
 options or as a comma-separated list.
 The keywords are
-.Dq addr,
+.Dq addr ,
 .Dq user ,
 .Dq host ,
 .Dq laddr ,
@@ -135,7 +134,9 @@ This allows easy monitoring of
 Debug mode.
 The server sends verbose debug output to standard error,
 and does not put itself in the background.
-The server also will not fork and will only process one connection.
+The server also will not
+.Xr fork 2
+and will only process one connection.
 This option is only intended for debugging for the server.
 Multiple
 .Fl d
@@ -355,7 +356,8 @@ exists and the
 option is set, runs it; else if
 .Pa /etc/ssh/sshrc
 exists, runs
-it; otherwise runs xauth.
+it; otherwise runs
+.Xr xauth 1 .
 The
 .Dq rc
 files are given the X11
@@ -665,24 +667,25 @@ option.
 .Pp
 An example authorized_keys file:
 .Bd -literal -offset 3n
-# Comments allowed at start of line
-ssh-rsa AAAAB3Nza...LiPk== user@example.net
-from="*.sales.example.net,!pc.sales.example.net" ssh-rsa
-AAAAB2...19Q== john@example.net
-command="dump /home",no-pty,no-port-forwarding ssh-rsa
-AAAAC3...51R== example.net
-permitopen="192.0.2.1:80",permitopen="192.0.2.2:25" ssh-rsa
-AAAAB5...21S==
-permitlisten="localhost:8080",permitopen="localhost:22000" ssh-rsa
-AAAAB5...21S==
-tunnel="0",command="sh /etc/netstart tun0" ssh-rsa AAAA...==
-jane@example.net
-restrict,command="uptime" ssh-rsa AAAA1C8...32Tv==
-user@example.net
-restrict,pty,command="nethack" ssh-rsa AAAA1f8...IrrC5==
-user@example.net
-no-touch-required sk-ecdsa-sha2-nistp256@openssh.com AAAAInN...Ko==
-user@example.net
+# Comments are allowed at start of line. Blank lines are allowed.
+# Plain key, no restrictions
+ssh-rsa ...
+# Forced command, disable PTY and all forwarding
+restrict,command="dump /home" ssh-rsa ...
+# Restriction of ssh -L forwarding destinations
+permitopen="192.0.2.1:80",permitopen="192.0.2.2:25" ssh-rsa ...
+# Restriction of ssh -R forwarding listeners
+permitlisten="localhost:8080",permitlisten="[::1]:22000" ssh-rsa ...
+# Configuration for tunnel forwarding
+tunnel="0",command="sh /etc/netstart tun0" ssh-rsa ...
+# Override of restriction to allow PTY allocation
+restrict,pty,command="nethack" ssh-rsa ...
+# Allow FIDO key without requiring touch
+no-touch-required sk-ecdsa-sha2-nistp256@openssh.com ...
+# Require user-verification (e.g. PIN or biometric) for FIDO key
+verify-required sk-ecdsa-sha2-nistp256@openssh.com ...
+# Trust CA key, allow touch-less FIDO if requested in certificate
+cert-authority,no-touch-required,principals="user_a" ssh-rsa ...
 .Ed
 .Sh SSH_KNOWN_HOSTS FILE FORMAT
 The

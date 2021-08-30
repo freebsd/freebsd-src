@@ -29,9 +29,9 @@
 
 #include <sys/types.h>
 
-#include <signal.h>
 #include <stdio.h>
 #include <string.h>
+#include <signal.h>
 
 #include "openbsd-compat/openssl-compat.h"
 #include <openssl/dh.h>

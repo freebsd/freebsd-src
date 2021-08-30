@@ -1,4 +1,4 @@
-/* $OpenBSD: session.c,v 1.328 2021/04/03 06:18:41 djm Exp $ */
+/* $OpenBSD: session.c,v 1.329 2021/08/11 05:20:17 djm Exp $ */
 /*
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
@@ -1783,12 +1783,11 @@ session_dump(void)
 	for (i = 0; i < sessions_nalloc; i++) {
 		Session *s = &sessions[i];
 
-		debug("dump: used %d next_unused %d session %d %p "
+		debug("dump: used %d next_unused %d session %d "
 		    "channel %d pid %ld",
 		    s->used,
 		    s->next_unused,
 		    s->self,
-		    s,
 		    s->chanid,
 		    (long)s->pid);
 	}

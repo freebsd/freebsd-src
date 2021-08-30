@@ -22,6 +22,12 @@ LIBCRYPTOFLAGS=""
 case "$config" in
     default|sol64)
 	;;
+    c89)
+	CC="gcc"
+	CFLAGS="-Wall -std=c89 -pedantic -Werror=vla"
+	CONFIGFLAGS="--without-openssl --without-zlib"
+	TEST_TARGET=t-exec
+	;;
     kitchensink)
 	CONFIGFLAGS="--with-kerberos5 --with-libedit --with-pam"
 	CONFIGFLAGS="${CONFIGFLAGS} --with-security-key-builtin --with-selinux"
@@ -36,15 +42,19 @@ case "$config" in
     libedit)
 	CONFIGFLAGS="--with-libedit"
 	;;
+    pam-krb5)
+	CONFIGFLAGS="--with-pam --with-kerberos5"
+	SSHD_CONFOPTS="UsePam yes"
+	;;
     *pam)
 	CONFIGFLAGS="--with-pam"
 	SSHD_CONFOPTS="UsePam yes"
 	;;
-    libressl-head)
-	LIBCRYPTOFLAGS="--with-ssl-dir=/opt/libressl/head --with-rpath=-Wl,-rpath,"
+    libressl-*)
+	LIBCRYPTOFLAGS="--with-ssl-dir=/opt/libressl --with-rpath=-Wl,-rpath,"
 	;;
-    openssl-head)
-	LIBCRYPTOFLAGS="--with-ssl-dir=/opt/openssl/head --with-rpath=-Wl,-rpath,"
+    openssl-*)
+	LIBCRYPTOFLAGS="--with-ssl-dir=/opt/openssl --with-rpath=-Wl,-rpath,"
 	;;
     selinux)
 	CONFIGFLAGS="--with-selinux"
@@ -104,10 +114,39 @@ case "$config" in
 esac
 
 case "${TARGET_HOST}" in
+    dfly58*|dfly60*)
+	# scp 3-way connection hangs on these so skip until sorted.
+	SKIP_LTESTS=scp3
+	;;
+    hurd)
+	SKIP_LTESTS="forwarding multiplex proxy-connect hostkey-agent agent-ptrace"
+	;;
+    minix3)
+	CC="clang"
+	LIBCRYPTOFLAGS="--without-openssl"
+	# Minix does not have a loopback interface so we have to skip any
+	# test that relies on it.
+	TEST_TARGET=t-exec
+	SKIP_LTESTS="addrmatch cfgparse key-options reexec agent connect"
+	SKIP_LTESTS="$SKIP_LTESTS keyscan rekey allow-deny-users connect-uri"
+	SKIP_LTESTS="$SKIP_LTESTS knownhosts-command sftp-uri brokenkeys"
+	SKIP_LTESTS="$SKIP_LTESTS exit-status login-timeout stderr-data"
+	SKIP_LTESTS="$SKIP_LTESTS cfgmatch forward-control multiplex transfer"
+	SKIP_LTESTS="$SKIP_LTESTS cfgmatchlisten forwarding reconfigure"
+	SUDO=""
+	;;
+    nbsd4)
+	# System compiler will ICE on some files with fstack-protector
+	CONFIGFLAGS="${CONFIGFLAGS} --without-hardening"
+	;;
     sol10|sol11)
 	# sol10 VM is 32bit and the unit tests are slow.
 	# sol11 has 4 test configs so skip unit tests to speed up.
 	TEST_TARGET="tests SKIP_UNIT=1"
+	;;
+    win10)
+	# No sudo on Windows.
+	SUDO=""
 	;;
 esac
 
@@ -123,4 +162,9 @@ fi
 
 CONFIGFLAGS="${CONFIGFLAGS} ${LIBCRYPTOFLAGS}"
 
-export LTESTS SUDO TEST_TARGET TEST_SSH_UNSAFE_PERMISSIONS
+if [ -x "$(which plink 2>/dev/null)" ]; then
+	REGRESS_INTEROP_PUTTY=yes
+	export REGRESS_INTEROP_PUTTY
+fi
+
+export CC CFLAGS LTESTS SUDO TEST_TARGET TEST_SSH_UNSAFE_PERMISSIONS

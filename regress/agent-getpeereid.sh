@@ -15,7 +15,7 @@ else
 fi
 case "x$SUDO" in
 	xsudo) sudo=1;;
-	xdoas) ;;
+	xdoas|xdoas\ *) ;;
 	x)
 		echo "need SUDO to switch to uid $UNPRIV"
 		echo SKIPPED

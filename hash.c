@@ -1,5 +1,3 @@
-/* $OpenBSD: hash.c,v 1.4 2017/12/14 21:07:39 naddy Exp $ */
-
 /* $OpenBSD: hash.c,v 1.6 2019/11/29 00:11:21 djm Exp $ */
 /*
  * Public domain. Author: Christian Weisgerber <naddy@openbsd.org>

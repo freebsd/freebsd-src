@@ -1,4 +1,4 @@
-/* $OpenBSD: sftp-server.c,v 1.127 2021/04/03 06:18:41 djm Exp $ */
+/* $OpenBSD: sftp-server.c,v 1.129 2021/08/09 23:47:44 djm Exp $ */
 /*
  * Copyright (c) 2000-2004 Markus Friedl.  All rights reserved.
  *
@@ -115,6 +115,7 @@ static void process_extended_hardlink(u_int32_t id);
 static void process_extended_fsync(u_int32_t id);
 static void process_extended_lsetstat(u_int32_t id);
 static void process_extended_limits(u_int32_t id);
+static void process_extended_expand(u_int32_t id);
 static void process_extended(u_int32_t id);
 
 struct sftp_handler {
@@ -157,7 +158,9 @@ static const struct sftp_handler extended_handlers[] = {
 	{ "hardlink", "hardlink@openssh.com", 0, process_extended_hardlink, 1 },
 	{ "fsync", "fsync@openssh.com", 0, process_extended_fsync, 1 },
 	{ "lsetstat", "lsetstat@openssh.com", 0, process_extended_lsetstat, 1 },
-	{ "limits", "limits@openssh.com", 0, process_extended_limits, 1 },
+	{ "limits", "limits@openssh.com", 0, process_extended_limits, 0 },
+	{ "expand-path", "expand-path@openssh.com", 0,
+	    process_extended_expand, 0 },
 	{ NULL, NULL, 0, NULL, 0 }
 };
 
@@ -706,6 +709,7 @@ process_init(void)
 	compose_extension(msg, "fsync@openssh.com", "1");
 	compose_extension(msg, "lsetstat@openssh.com", "1");
 	compose_extension(msg, "limits@openssh.com", "1");
+	compose_extension(msg, "expand-path@openssh.com", "1");
 
 	send_msg(msg);
 	sshbuf_free(msg);
@@ -1491,13 +1495,13 @@ process_extended_limits(u_int32_t id)
 	struct sshbuf *msg;
 	int r;
 	uint64_t nfiles = 0;
-#ifdef HAVE_GETRLIMIT
+#if defined(HAVE_GETRLIMIT) && defined(RLIMIT_NOFILE)
 	struct rlimit rlim;
 #endif
 
 	debug("request %u: limits", id);
 
-#ifdef HAVE_GETRLIMIT
+#if defined(HAVE_GETRLIMIT) && defined(RLIMIT_NOFILE)
 	if (getrlimit(RLIMIT_NOFILE, &rlim) != -1 && rlim.rlim_cur > 5)
 		nfiles = rlim.rlim_cur - 5; /* stdio(3) + syslog + spare */
 #endif
@@ -1517,6 +1521,63 @@ process_extended_limits(u_int32_t id)
 		fatal_fr(r, "compose");
 	send_msg(msg);
 	sshbuf_free(msg);
+}
+
+static void
+process_extended_expand(u_int32_t id)
+{
+	char cwd[PATH_MAX], resolvedname[PATH_MAX];
+	char *path, *npath;
+	int r;
+	Stat s;
+
+	if ((r = sshbuf_get_cstring(iqueue, &path, NULL)) != 0)
+		fatal_fr(r, "parse");
+	if (getcwd(cwd, sizeof(cwd)) == NULL) {
+		send_status(id, errno_to_portable(errno));
+		goto out;
+	}
+
+	debug3("request %u: expand, original \"%s\"", id, path);
+	if (path[0] == '\0') {
+		/* empty path */
+		free(path);
+		path = xstrdup(".");
+	} else if (*path == '~') {
+		/* ~ expand path */
+		/* Special-case for "~" and "~/" to respect homedir flag */
+		if (strcmp(path, "~") == 0) {
+			free(path);
+			path = xstrdup(cwd);
+		} else if (strncmp(path, "~/", 2) == 0) {
+			npath = xstrdup(path + 2);
+			free(path);
+			xasprintf(&path, "%s/%s", cwd, npath);
+		} else {
+			/* ~user expansions */
+			if (tilde_expand(path, pw->pw_uid, &npath) != 0) {
+				send_status(id, errno_to_portable(EINVAL));
+				goto out;
+			}
+			free(path);
+			path = npath;
+		}
+	} else if (*path != '/') {
+		/* relative path */
+		xasprintf(&npath, "%s/%s", cwd, path);
+		free(path);
+		path = npath;
+	}
+	verbose("expand \"%s\"", path);
+	if (sftp_realpath(path, resolvedname) == NULL) {
+		send_status(id, errno_to_portable(errno));
+		goto out;
+	}
+	attrib_clear(&s.attrib);
+	s.name = s.long_name = resolvedname;
+	send_names(id, 1, &s);
+ out:
+	free(path);
 }
 
 static void

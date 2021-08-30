@@ -1,4 +1,4 @@
-/* $OpenBSD: servconf.h,v 1.154 2021/04/03 06:18:40 djm Exp $ */
+/* $OpenBSD: servconf.h,v 1.155 2021/07/02 05:11:21 dtucker Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -146,7 +146,6 @@ typedef struct {
 	int     password_authentication;	/* If true, permit password
 						 * authentication. */
 	int     kbd_interactive_authentication;	/* If true, permit */
-	int     challenge_response_authentication;
 	int     permit_empty_passwd;	/* If false, do not permit empty
 					 * passwords. */
 	int     permit_user_env;	/* If true, read ~/.ssh/environment */

@@ -445,7 +445,7 @@ getgrouplist(const char *user, gid_t pgid, gid_t *groups, int *grpcnt)
 	char *cp, *grplist, *grp;
 	gid_t gid;
 	int ret = 0, ngroups = 0, maxgroups;
-	long l;
+	long long ll;
 
 	maxgroups = *grpcnt;
 
@@ -463,12 +463,12 @@ getgrouplist(const char *user, gid_t pgid, gid_t *groups, int *grpcnt)
 
 	/* copy each entry from getgrset into group list */
 	while ((grp = strsep(&grplist, ",")) != NULL) {
-		l = strtol(grp, NULL, 10);
-		if (ngroups >= maxgroups || l == LONG_MIN || l == LONG_MAX) {
+		ll = strtoll(grp, NULL, 10);
+		if (ngroups >= maxgroups || ll < 0 || ll > UID_MAX) {
 			ret = -1;
 			goto out;
 		}
-		gid = (gid_t)l;
+		gid = (gid_t)ll;
 		if (gid == pgid)
 			continue;	/* we have already added primary gid */
 		groups[ngroups++] = gid;

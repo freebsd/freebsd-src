@@ -1,4 +1,4 @@
-/* $OpenBSD: serverloop.c,v 1.226 2021/04/03 06:18:41 djm Exp $ */
+/* $OpenBSD: serverloop.c,v 1.228 2021/07/16 09:00:23 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -88,11 +88,6 @@ extern int use_privsep;
 
 static int no_more_sessions = 0; /* Disallow further sessions. */
 
-/*
- * This SIGCHLD kludge is used to detect when the child exits.  The server
- * will exit after that, as soon as forwarded connections have terminated.
- */
-
 static volatile sig_atomic_t child_terminated = 0;	/* The child has terminated. */
 
 /* Cleanup on signals (!use_privsep case only) */
@@ -115,59 +110,11 @@ bind_permitted(int port, uid_t uid)
 	return 1;
 }
 
-/*
- * we write to this pipe if a SIGCHLD is caught in order to avoid
- * the race between select() and child_terminated
- */
-static int notify_pipe[2];
-static void
-notify_setup(void)
-{
-	if (pipe(notify_pipe) == -1) {
-		error("pipe(notify_pipe) failed %s", strerror(errno));
-	} else if ((fcntl(notify_pipe[0], F_SETFD, FD_CLOEXEC) == -1) ||
-	    (fcntl(notify_pipe[1], F_SETFD, FD_CLOEXEC) == -1)) {
-		error("fcntl(notify_pipe, F_SETFD) failed %s", strerror(errno));
-		close(notify_pipe[0]);
-		close(notify_pipe[1]);
-	} else {
-		set_nonblock(notify_pipe[0]);
-		set_nonblock(notify_pipe[1]);
-		return;
-	}
-	notify_pipe[0] = -1;	/* read end */
-	notify_pipe[1] = -1;	/* write end */
-}
-static void
-notify_parent(void)
-{
-	if (notify_pipe[1] != -1)
-		(void)write(notify_pipe[1], "", 1);
-}
-static void
-notify_prepare(fd_set *readset)
-{
-	if (notify_pipe[0] != -1)
-		FD_SET(notify_pipe[0], readset);
-}
-static void
-notify_done(fd_set *readset)
-{
-	char c;
-
-	if (notify_pipe[0] != -1 && FD_ISSET(notify_pipe[0], readset))
-		while (read(notify_pipe[0], &c, 1) != -1)
-			debug2_f("reading");
-}
-
 /*ARGSUSED*/
 static void
 sigchld_handler(int sig)
 {
-	int save_errno = errno;
 	child_terminated = 1;
-	notify_parent();
-	errno = save_errno;
 }
 
 /*ARGSUSED*/
@@ -211,8 +158,8 @@ client_alive_check(struct ssh *ssh)
 }
 
 /*
- * Sleep in select() until we can do something.  This will initialize the
- * select masks.  Upon return, the masks will indicate which descriptors
+ * Sleep in pselect() until we can do something.  This will initialize the
+ * pselect masks.  Upon return, the masks will indicate which descriptors
  * have data or can accept data.  Optionally, a maximum time can be specified
  * for the duration of the wait (0 = infinite).
  */
@@ -220,16 +167,16 @@ static void
 wait_until_can_do_something(struct ssh *ssh,
     int connection_in, int connection_out,
     fd_set **readsetp, fd_set **writesetp, int *maxfdp,
-    u_int *nallocp, u_int64_t max_time_ms)
+    u_int *nallocp, u_int64_t max_time_ms, sigset_t *sigsetp)
 {
-	struct timeval tv, *tvp;
+	struct timespec ts, *tsp;
 	int ret;
 	time_t minwait_secs = 0;
 	int client_alive_scheduled = 0;
 	/* time we last heard from the client OR sent a keepalive */
 	static time_t last_client_time;
 
-	/* Allocate and update select() masks for channel descriptors. */
+	/* Allocate and update pselect() masks for channel descriptors. */
 	channel_prepare_select(ssh, readsetp, writesetp, maxfdp,
 	    nallocp, &minwait_secs);
 
@@ -262,7 +209,6 @@ wait_until_can_do_something(struct ssh *ssh,
 	if (channel_not_very_much_buffered_data())
 #endif
 	FD_SET(connection_in, *readsetp);
-	notify_prepare(*readsetp);
 
 	/*
 	 * If we have buffered packet data going to the client, mark that
@@ -280,26 +226,26 @@ wait_until_can_do_something(struct ssh *ssh,
 			max_time_ms = 100;
 
 	if (max_time_ms == 0)
-		tvp = NULL;
+		tsp = NULL;
 	else {
-		tv.tv_sec = max_time_ms / 1000;
-		tv.tv_usec = 1000 * (max_time_ms % 1000);
-		tvp = &tv;
+		ts.tv_sec = max_time_ms / 1000;
+		ts.tv_nsec = 1000000 * (max_time_ms % 1000);
+		tsp = &ts;
 	}
 
 	/* Wait for something to happen, or the timeout to expire. */
-	ret = select((*maxfdp)+1, *readsetp, *writesetp, NULL, tvp);
+	ret = pselect((*maxfdp)+1, *readsetp, *writesetp, NULL, tsp, sigsetp);
 
 	if (ret == -1) {
 		memset(*readsetp, 0, *nallocp);
 		memset(*writesetp, 0, *nallocp);
 		if (errno != EINTR)
-			error("select: %.100s", strerror(errno));
+			error("pselect: %.100s", strerror(errno));
 	} else if (client_alive_scheduled) {
 		time_t now = monotime();
 
 		/*
-		 * If the select timed out, or returned for some other reason
+		 * If the pselect timed out, or returned for some other reason
 		 * but we haven't heard from the client in time, send keepalive.
 		 */
 		if (ret == 0 || (last_client_time != 0 && last_client_time +
@@ -310,8 +256,6 @@ wait_until_can_do_something(struct ssh *ssh,
 			last_client_time = now;
 		}
 	}
-
-	notify_done(*readsetp);
 }
 
 /*
@@ -374,13 +318,8 @@ static void
 collect_children(struct ssh *ssh)
 {
 	pid_t pid;
-	sigset_t oset, nset;
 	int status;
 
-	/* block SIGCHLD while we check for dead children */
-	sigemptyset(&nset);
-	sigaddset(&nset, SIGCHLD);
-	sigprocmask(SIG_BLOCK, &nset, &oset);
 	if (child_terminated) {
 		debug("Received SIGCHLD.");
 		while ((pid = waitpid(-1, &status, WNOHANG)) > 0 ||
@@ -389,19 +328,21 @@ collect_children(struct ssh *ssh)
 				session_close_by_pid(ssh, pid, status);
 		child_terminated = 0;
 	}
-	sigprocmask(SIG_SETMASK, &oset, NULL);
 }
 
 void
 server_loop2(struct ssh *ssh, Authctxt *authctxt)
 {
 	fd_set *readset = NULL, *writeset = NULL;
-	int max_fd;
+	int r, max_fd;
 	u_int nalloc = 0, connection_in, connection_out;
 	u_int64_t rekey_timeout_ms = 0;
+	sigset_t bsigset, osigset;
 
 	debug("Entering interactive session for SSH2.");
 
+	if (sigemptyset(&bsigset) == -1 || sigaddset(&bsigset, SIGCHLD) == -1)
+		error_f("bsigset setup: %s", strerror(errno));
 	ssh_signal(SIGCHLD, sigchld_handler);
 	child_terminated = 0;
 	connection_in = ssh_packet_get_connection_in(ssh);
@@ -413,10 +354,7 @@ server_loop2(struct ssh *ssh, Authctxt *authctxt)
 		ssh_signal(SIGQUIT, sigterm_handler);
 	}
 
-	notify_setup();
-
 	max_fd = MAXIMUM(connection_in, connection_out);
-	max_fd = MAXIMUM(max_fd, notify_pipe[0]);
 
 	server_init_dispatch(ssh);
 
@@ -434,8 +372,19 @@ server_loop2(struct ssh *ssh, Authctxt *authctxt)
 			rekey_timeout_ms = 0;
 		}
 
+		/*
+		 * Block SIGCHLD while we check for dead children, then pass
+		 * the old signal mask through to pselect() so that it'll wake
+		 * up immediately if a child exits after we've called waitpid().
+		 */
+		if (sigprocmask(SIG_BLOCK, &bsigset, &osigset) == -1)
+			error_f("bsigset sigprocmask: %s", strerror(errno));
+		collect_children(ssh);
 		wait_until_can_do_something(ssh, connection_in, connection_out,
-		    &readset, &writeset, &max_fd, &nalloc, rekey_timeout_ms);
+		    &readset, &writeset, &max_fd, &nalloc, rekey_timeout_ms,
+		    &osigset);
+		if (sigprocmask(SIG_UNBLOCK, &bsigset, &osigset) == -1)
+			error_f("osigset sigprocmask: %s", strerror(errno));
 
 		if (received_sigterm) {
 			logit("Exiting on signal %d", (int)received_sigterm);
@@ -443,11 +392,13 @@ server_loop2(struct ssh *ssh, Authctxt *authctxt)
 			cleanup_exit(255);
 		}
 
-		collect_children(ssh);
 		if (!ssh_packet_is_rekeying(ssh))
 			channel_after_select(ssh, readset, writeset);
 		if (process_input(ssh, readset, connection_in) < 0)
 			break;
+		/* A timeout may have triggered rekeying */
+		if ((r = ssh_packet_check_rekey(ssh)) != 0)
+			fatal_fr(r, "cannot start rekeying");
 		process_output(ssh, writeset, connection_out);
 	}
 	collect_children(ssh);

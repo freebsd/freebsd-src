@@ -1,4 +1,4 @@
-/* $OpenBSD: sshsig.c,v 1.20 2021/01/31 10:50:10 dtucker Exp $ */
+/* $OpenBSD: sshsig.c,v 1.21 2021/07/23 04:00:59 djm Exp $ */
 /*
  * Copyright (c) 2019 Google LLC
  *
@@ -616,6 +616,7 @@ sshsig_verify_fd(struct sshbuf *signature, int fd,
 struct sshsigopt {
 	int ca;
 	char *namespaces;
+	uint64_t valid_after, valid_before;
 };
 
 struct sshsigopt *
@@ -624,6 +625,7 @@ sshsigopt_parse(const char *opts, const char *path, u_long linenum,
 {
 	struct sshsigopt *ret;
 	int r;
+	char *opt;
 	const char *errstr = NULL;
 
 	if ((ret = calloc(1, sizeof(*ret))) == NULL)
@@ -643,6 +645,34 @@ sshsigopt_parse(const char *opts, const char *path, u_long linenum,
 			ret->namespaces = opt_dequote(&opts, &errstr);
 			if (ret->namespaces == NULL)
 				goto fail;
+		} else if (opt_match(&opts, "valid-after")) {
+			if (ret->valid_after != 0) {
+				errstr = "multiple \"valid-after\" clauses";
+				goto fail;
+			}
+			if ((opt = opt_dequote(&opts, &errstr)) == NULL)
+				goto fail;
+			if (parse_absolute_time(opt, &ret->valid_after) != 0 ||
+			    ret->valid_after == 0) {
+				free(opt);
+				errstr = "invalid \"valid-after\" time";
+				goto fail;
+			}
+			free(opt);
+		} else if (opt_match(&opts, "valid-before")) {
+			if (ret->valid_before != 0) {
+				errstr = "multiple \"valid-before\" clauses";
+				goto fail;
+			}
+			if ((opt = opt_dequote(&opts, &errstr)) == NULL)
+				goto fail;
+			if (parse_absolute_time(opt, &ret->valid_before) != 0 ||
+			    ret->valid_before == 0) {
+				free(opt);
+				errstr = "invalid \"valid-before\" time";
+				goto fail;
+			}
+			free(opt);
 		}
 		/*
 		 * Skip the comma, and move to the next option
@@ -660,6 +690,12 @@ sshsigopt_parse(const char *opts, const char *path, u_long linenum,
 			errstr = "unexpected end-of-options";
 			goto fail;
 		}
+	}
+	/* final consistency check */
+	if (ret->valid_after != 0 && ret->valid_before != 0 &&
+	    ret->valid_before <= ret->valid_after) {
+		errstr = "\"valid-before\" time is before \"valid-after\"";
+		goto fail;
 	}
 	/* success */
 	return ret;
@@ -779,17 +815,36 @@ parse_principals_key_and_options(const char *path, u_long linenum, char *line,
 static int
 check_allowed_keys_line(const char *path, u_long linenum, char *line,
     const struct sshkey *sign_key, const char *principal,
-    const char *sig_namespace)
+    const char *sig_namespace, uint64_t verify_time)
 {
 	struct sshkey *found_key = NULL;
-	int r, found = 0;
+	int r, success = 0;
 	const char *reason = NULL;
 	struct sshsigopt *sigopts = NULL;
+	char tvalid[64], tverify[64];
 
 	/* Parse the line */
 	if ((r = parse_principals_key_and_options(path, linenum, line,
 	    principal, NULL, &found_key, &sigopts)) != 0) {
 		/* error already logged */
+		goto done;
+	}
+
+	if (!sigopts->ca && sshkey_equal(found_key, sign_key)) {
+		/* Exact match of key */
+		debug("%s:%lu: matched key", path, linenum);
+	} else if (sigopts->ca && sshkey_is_cert(sign_key) &&
+	    sshkey_equal_public(sign_key->cert->signature_key, found_key)) {
+		/* Match of certificate's CA key */
+		if ((r = sshkey_cert_check_authority(sign_key, 0, 1, 0,
+		    verify_time, principal, &reason)) != 0) {
+			error("%s:%lu: certificate not authorized: %s",
+			    path, linenum, reason);
+			goto done;
+		}
+		debug("%s:%lu: matched certificate CA key", path, linenum);
+	} else {
+		/* Didn't match key */
 		goto done;
 	}
 
@@ -801,36 +856,37 @@ check_allowed_keys_line(const char *path, u_long linenum, char *line,
 		goto done;
 	}
 
-	if (!sigopts->ca && sshkey_equal(found_key, sign_key)) {
-		/* Exact match of key */
-		debug("%s:%lu: matched key and principal", path, linenum);
-		/* success */
-		found = 1;
-	} else if (sigopts->ca && sshkey_is_cert(sign_key) &&
-	    sshkey_equal_public(sign_key->cert->signature_key, found_key)) {
-		/* Match of certificate's CA key */
-		if ((r = sshkey_cert_check_authority(sign_key, 0, 1, 0,
-		    principal, &reason)) != 0) {
-			error("%s:%lu: certificate not authorized: %s",
-			    path, linenum, reason);
-			goto done;
-		}
-		debug("%s:%lu: matched certificate CA key", path, linenum);
-		/* success */
-		found = 1;
-	} else {
-		/* Principal matched but key didn't */
+	/* check key time validity */
+	format_absolute_time((uint64_t)verify_time, tverify, sizeof(tverify));
+	if (sigopts->valid_after != 0 &&
+	    (uint64_t)verify_time < sigopts->valid_after) {
+		format_absolute_time(sigopts->valid_after,
+		    tvalid, sizeof(tvalid));
+		error("%s:%lu: key is not yet valid: "
+		    "verify time %s < valid-after %s", path, linenum,
+		    tverify, tvalid);
 		goto done;
 	}
+	if (sigopts->valid_before != 0 &&
+	    (uint64_t)verify_time > sigopts->valid_before) {
+		format_absolute_time(sigopts->valid_before,
+		    tvalid, sizeof(tvalid));
+		error("%s:%lu: key has expired: "
+		    "verify time %s > valid-before %s", path, linenum,
+		    tverify, tvalid);
+		goto done;
+	}
+	success = 1;
+
  done:
 	sshkey_free(found_key);
 	sshsigopt_free(sigopts);
-	return found ? 0 : SSH_ERR_KEY_NOT_FOUND;
+	return success ? 0 : SSH_ERR_KEY_NOT_FOUND;
 }
 
 int
 sshsig_check_allowed_keys(const char *path, const struct sshkey *sign_key,
-    const char *principal, const char *sig_namespace)
+    const char *principal, const char *sig_namespace, uint64_t verify_time)
 {
 	FILE *f = NULL;
 	char *line = NULL;
@@ -850,7 +906,7 @@ sshsig_check_allowed_keys(const char *path, const struct sshkey *sign_key,
 	while (getline(&line, &linesize, f) != -1) {
 		linenum++;
 		r = check_allowed_keys_line(path, linenum, line, sign_key,
-		    principal, sig_namespace);
+		    principal, sig_namespace, verify_time);
 		free(line);
 		line = NULL;
 		linesize = 0;
@@ -871,7 +927,7 @@ sshsig_check_allowed_keys(const char *path, const struct sshkey *sign_key,
 
 static int
 cert_filter_principals(const char *path, u_long linenum,
-    char **principalsp, const struct sshkey *cert)
+    char **principalsp, const struct sshkey *cert, uint64_t verify_time)
 {
 	char *cp, *oprincipals, *principals;
 	const char *reason;
@@ -894,7 +950,7 @@ cert_filter_principals(const char *path, u_long linenum,
 		}
 		/* Check against principals list in certificate */
 		if ((r = sshkey_cert_check_authority(cert, 0, 1, 0,
-		    cp, &reason)) != 0) {
+		    verify_time, cp, &reason)) != 0) {
 			debug("%s:%lu: principal \"%s\" not authorized: %s",
 			    path, linenum, cp, reason);
 			continue;
@@ -925,7 +981,7 @@ cert_filter_principals(const char *path, u_long linenum,
 
 static int
 get_matching_principals_from_line(const char *path, u_long linenum, char *line,
-    const struct sshkey *sign_key, char **principalsp)
+    const struct sshkey *sign_key, uint64_t verify_time, char **principalsp)
 {
 	struct sshkey *found_key = NULL;
 	char *principals = NULL;
@@ -951,7 +1007,7 @@ get_matching_principals_from_line(const char *path, u_long linenum, char *line,
 	    sshkey_equal_public(sign_key->cert->signature_key, found_key)) {
 		/* Remove principals listed in file but not allowed by cert */
 		if ((r = cert_filter_principals(path, linenum,
-		    &principals, sign_key)) != 0) {
+		    &principals, sign_key, verify_time)) != 0) {
 			/* error already displayed */
 			debug_r(r, "%s:%lu: cert_filter_principals",
 			    path, linenum);
@@ -977,7 +1033,7 @@ get_matching_principals_from_line(const char *path, u_long linenum, char *line,
 
 int
 sshsig_find_principals(const char *path, const struct sshkey *sign_key,
-    char **principals)
+    uint64_t verify_time, char **principals)
 {
 	FILE *f = NULL;
 	char *line = NULL;
@@ -996,7 +1052,7 @@ sshsig_find_principals(const char *path, const struct sshkey *sign_key,
 	while (getline(&line, &linesize, f) != -1) {
 		linenum++;
 		r = get_matching_principals_from_line(path, linenum, line,
-		    sign_key, principals);
+		    sign_key, verify_time, principals);
 		free(line);
 		line = NULL;
 		linesize = 0;

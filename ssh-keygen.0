@@ -32,11 +32,13 @@ SYNOPSIS
      ssh-keygen -k -f krl_file [-u] [-s ca_public] [-z version_number]
                 file ...
      ssh-keygen -Q [-l] -f krl_file file ...
-     ssh-keygen -Y find-principals -s signature_file -f allowed_signers_file
-     ssh-keygen -Y check-novalidate -n namespace -s signature_file
+     ssh-keygen -Y find-principals [-O option] -s signature_file
+                -f allowed_signers_file
+     ssh-keygen -Y check-novalidate [-O option] -n namespace -s signature_file
      ssh-keygen -Y sign -f key_file -n namespace file ...
-     ssh-keygen -Y verify -f allowed_signers_file -I signer_identity
-                -n namespace -s signature_file [-r revocation_file]
+     ssh-keygen -Y verify [-O option] -f allowed_signers_file
+                -I signer_identity -n namespace -s signature_file
+                [-r revocation_file]
 
 DESCRIPTION
      ssh-keygen generates, manages and converts authentication keys for
@@ -303,6 +305,19 @@ DESCRIPTION
                      potentially sensitive.  By default, this information is
                      discarded.
 
+             When performing signature-related options using the -Y flag, the
+             following options are accepted:
+
+             print-pubkey
+                     Print the full public key to standard output after
+                     signature verification.
+
+             verify-time=timestamp
+                     Specifies a time to use when validating signatures
+                     instead of the current time.  The time may be specified
+                     as a date in YYYYMMDD format or a time in
+                     YYYYMMDDHHMM[SS] format.
+
              The -O option may be specified multiple times.
 
      -P passphrase
@@ -488,8 +503,7 @@ MODULI GENERATION
      generator option.  Valid generator values are 2, 3, and 5.
 
      Screened DH groups may be installed in /etc/moduli.  It is important that
-     this file contains moduli of a range of bit lengths and that both ends of
-     a connection share common moduli.
+     this file contains moduli of a range of bit lengths.
 
      A number of options are available for moduli generation and screening via
      the -O flag:
@@ -740,12 +754,21 @@ ALLOWED SIGNERS
              (CA) and that certificates signed by this CA may be accepted for
              verification.
 
-     namespaces="namespace-list"
+     namespaces=namespace-list
              Specifies a pattern-list of namespaces that are accepted for this
              key.  If this option is present, the signature namespace embedded
              in the signature object and presented on the verification
              command-line must match the specified list before the key will be
              considered acceptable.
+
+     valid-after=timestamp
+             Indicates that the key is valid for use at or after the specified
+             timestamp, which may be a date in YYYYMMDD format or a time in
+             YYYYMMDDHHMM[SS] format.
+
+     valid-before=timestamp
+             Indicates that the key is valid for use at or before the
+             specified timestamp.
 
      When verifying signatures made by certificates, the expected principal
      name must match both the principals pattern in the allowed signers file
@@ -812,4 +835,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 6.9                    November 27, 2020                   OpenBSD 6.9
+OpenBSD 6.9                     August 11, 2021                    OpenBSD 6.9

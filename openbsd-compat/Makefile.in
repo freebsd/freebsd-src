@@ -79,6 +79,7 @@ COMPAT=	arc4random.o \
 	bsd-nextstep.o \
 	bsd-openpty.o \
 	bsd-poll.o \
+	bsd-pselect.o \
 	bsd-setres_id.o \
 	bsd-signal.o \
 	bsd-snprintf.o \
@@ -94,6 +95,7 @@ COMPAT=	arc4random.o \
 PORTS=	port-aix.o \
 	port-irix.o \
 	port-linux.o \
+	port-prngd.o \
 	port-solaris.o \
 	port-net.o \
 	port-uw.o

@@ -1,4 +1,4 @@
-/* $OpenBSD: auth2-pubkey.c,v 1.107 2021/04/03 06:18:40 djm Exp $ */
+/* $OpenBSD: auth2-pubkey.c,v 1.109 2021/07/23 03:37:52 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -475,7 +475,8 @@ match_principals_command(struct ssh *ssh, struct passwd *user_pw,
 	}
 
 	/* Turn the command into an argument vector */
-	if (argv_split(options.authorized_principals_command, &ac, &av) != 0) {
+	if (argv_split(options.authorized_principals_command,
+	    &ac, &av, 0) != 0) {
 		error("AuthorizedPrincipalsCommand \"%s\" contains "
 		    "invalid quotes", options.authorized_principals_command);
 		goto out;
@@ -673,7 +674,7 @@ check_authkey_line(struct ssh *ssh, struct passwd *pw, struct sshkey *key,
 		reason = "Certificate does not contain an authorized principal";
 		goto fail_reason;
 	}
-	if (sshkey_cert_check_authority(key, 0, 0, 0,
+	if (sshkey_cert_check_authority_now(key, 0, 0, 0,
 	    keyopts->cert_principals == NULL ? pw->pw_name : NULL,
 	    &reason) != 0)
 		goto fail_reason;
@@ -793,7 +794,7 @@ user_cert_trusted_ca(struct ssh *ssh, struct passwd *pw, struct sshkey *key,
 	}
 	if (use_authorized_principals && principals_opts == NULL)
 		fatal_f("internal error: missing principals_opts");
-	if (sshkey_cert_check_authority(key, 0, 1, 0,
+	if (sshkey_cert_check_authority_now(key, 0, 1, 0,
 	    use_authorized_principals ? NULL : pw->pw_name, &reason) != 0)
 		goto fail_reason;
 
@@ -926,7 +927,7 @@ user_key_command_allowed2(struct ssh *ssh, struct passwd *user_pw,
 	}
 
 	/* Turn the command into an argument vector */
-	if (argv_split(options.authorized_keys_command, &ac, &av) != 0) {
+	if (argv_split(options.authorized_keys_command, &ac, &av, 0) != 0) {
 		error("AuthorizedKeysCommand \"%s\" contains invalid quotes",
 		    options.authorized_keys_command);
 		goto out;

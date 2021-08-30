@@ -14,7 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $OpenBSD: krl.c,v 1.52 2020/10/18 11:32:01 djm Exp $ */
+/* $OpenBSD: krl.c,v 1.53 2021/06/04 06:19:07 djm Exp $ */
 
 #include "includes.h"
 
@@ -61,7 +61,7 @@ struct revoked_serial {
 };
 static int serial_cmp(struct revoked_serial *a, struct revoked_serial *b);
 RB_HEAD(revoked_serial_tree, revoked_serial);
-RB_GENERATE_STATIC(revoked_serial_tree, revoked_serial, tree_entry, serial_cmp);
+RB_GENERATE_STATIC(revoked_serial_tree, revoked_serial, tree_entry, serial_cmp)
 
 /* Tree of key IDs */
 struct revoked_key_id {
@@ -70,7 +70,7 @@ struct revoked_key_id {
 };
 static int key_id_cmp(struct revoked_key_id *a, struct revoked_key_id *b);
 RB_HEAD(revoked_key_id_tree, revoked_key_id);
-RB_GENERATE_STATIC(revoked_key_id_tree, revoked_key_id, tree_entry, key_id_cmp);
+RB_GENERATE_STATIC(revoked_key_id_tree, revoked_key_id, tree_entry, key_id_cmp)
 
 /* Tree of blobs (used for keys and fingerprints) */
 struct revoked_blob {
@@ -80,7 +80,7 @@ struct revoked_blob {
 };
 static int blob_cmp(struct revoked_blob *a, struct revoked_blob *b);
 RB_HEAD(revoked_blob_tree, revoked_blob);
-RB_GENERATE_STATIC(revoked_blob_tree, revoked_blob, tree_entry, blob_cmp);
+RB_GENERATE_STATIC(revoked_blob_tree, revoked_blob, tree_entry, blob_cmp)
 
 /* Tracks revoked certs for a single CA */
 struct revoked_certs {

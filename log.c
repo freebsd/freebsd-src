@@ -1,4 +1,4 @@
-/* $OpenBSD: log.c,v 1.58 2021/04/15 16:24:31 markus Exp $ */
+/* $OpenBSD: log.c,v 1.59 2021/05/07 04:11:51 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -466,8 +466,9 @@ sshlogv(const char *file, const char *func, int line, int showfunc,
 	const char *cp;
 	size_t i;
 
-	snprintf(tag, sizeof(tag), "%.48s:%.48s():%d",
-	    (cp = strrchr(file, '/')) == NULL ? file : cp + 1, func, line);
+	snprintf(tag, sizeof(tag), "%.48s:%.48s():%d (pid=%ld)",
+	    (cp = strrchr(file, '/')) == NULL ? file : cp + 1, func, line,
+	    (long)getpid());
 	for (i = 0; i < nlog_verbose; i++) {
 		if (match_pattern_list(tag, log_verbose[i], 0) == 1) {
 			forced = 1;

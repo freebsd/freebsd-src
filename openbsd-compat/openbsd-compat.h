@@ -49,6 +49,7 @@
 #include "fnmatch.h"
 
 #if defined(HAVE_LOGIN_CAP) && !defined(HAVE_LOGIN_GETPWCLASS)
+# include <login_cap.h>
 # define login_getpwclass(pw) login_getclass(pw->pw_class)
 #endif
 
@@ -194,9 +195,9 @@ int writev(int, struct iovec *, int);
 #endif
 
 /* Home grown routines */
+#include "bsd-signal.h"
 #include "bsd-misc.h"
 #include "bsd-setres_id.h"
-#include "bsd-signal.h"
 #include "bsd-statvfs.h"
 #include "bsd-waitpid.h"
 #include "bsd-poll.h"

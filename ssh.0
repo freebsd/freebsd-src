@@ -21,8 +21,8 @@ DESCRIPTION
 
      ssh connects and logs into the specified destination, which may be
      specified as either [user@]hostname or a URI of the form
-     ssh://[user@]hostname[:port].  The user must prove his/her identity to
-     the remote machine using one of several methods (see below).
+     ssh://[user@]hostname[:port].  The user must prove their identity to the
+     remote machine using one of several methods (see below).
 
      If a command is specified, it is executed on the remote host instead of a
      login shell.
@@ -121,7 +121,8 @@ DESCRIPTION
              If the ExitOnForwardFailure configuration option is set to M-bM-^@M-^\yesM-bM-^@M-^],
              then a client started with -f will wait for all remote port
              forwards to be successfully established before placing itself in
-             the background.
+             the background.  Refer to the description of
+             ForkAfterAuthentication in ssh_config(5) for details.
 
      -G      Causes ssh to print its configuration after evaluating Host and
              Match blocks and exit.
@@ -205,7 +206,8 @@ DESCRIPTION
              keyword for more information.
 
      -N      Do not execute a remote command.  This is useful for just
-             forwarding ports.
+             forwarding ports.  Refer to the description of SessionType in
+             ssh_config(5) for details.
 
      -n      Redirects stdin from /dev/null (actually, prevents reading from
              stdin).  This must be used when ssh is run in the background.  A
@@ -215,7 +217,8 @@ DESCRIPTION
              be automatically forwarded over an encrypted channel.  The ssh
              program will be put in the background.  (This does not work if
              ssh needs to ask for a password or passphrase; see also the -f
-             option.)
+             option.)  Refer to the description of StdinNull in ssh_config(5)
+             for details.
 
      -O ctl_cmd
              Control an active connection multiplexing master process.  When
@@ -245,7 +248,6 @@ DESCRIPTION
                    CanonicalizePermittedCNAMEs
                    CASignatureAlgorithms
                    CertificateFile
-                   ChallengeResponseAuthentication
                    CheckHostIP
                    Ciphers
                    ClearAllForwardings
@@ -259,6 +261,7 @@ DESCRIPTION
                    EscapeChar
                    ExitOnForwardFailure
                    FingerprintHash
+                   ForkAfterAuthentication
                    ForwardAgent
                    ForwardX11
                    ForwardX11Timeout
@@ -307,7 +310,9 @@ DESCRIPTION
                    SendEnv
                    ServerAliveInterval
                    ServerAliveCountMax
+                   SessionType
                    SetEnv
+                   StdinNull
                    StreamLocalBindMask
                    StreamLocalBindUnlink
                    StrictHostKeyChecking
@@ -326,18 +331,18 @@ DESCRIPTION
              a per-host basis in the configuration file.
 
      -Q query_option
-             Queries ssh for the algorithms supported for the specified
-             version 2.  The available features are: cipher (supported
-             symmetric ciphers), cipher-auth (supported symmetric ciphers that
-             support authenticated encryption), help (supported query terms
-             for use with the -Q flag), mac (supported message integrity
-             codes), kex (key exchange algorithms), key (key types), key-cert
-             (certificate key types), key-plain (non-certificate key types),
-             key-sig (all key types and signature algorithms),
-             protocol-version (supported SSH protocol versions), and sig
-             (supported signature algorithms).  Alternatively, any keyword
-             from ssh_config(5) or sshd_config(5) that takes an algorithm list
-             may be used as an alias for the corresponding query_option.
+             Queries for the algorithms supported by one of the following
+             features: cipher (supported symmetric ciphers), cipher-auth
+             (supported symmetric ciphers that support authenticated
+             encryption), help (supported query terms for use with the -Q
+             flag), mac (supported message integrity codes), kex (key exchange
+             algorithms), key (key types), key-cert (certificate key types),
+             key-plain (non-certificate key types), key-sig (all key types and
+             signature algorithms), protocol-version (supported SSH protocol
+             versions), and sig (supported signature algorithms).
+             Alternatively, any keyword from ssh_config(5) or sshd_config(5)
+             that takes an algorithm list may be used as an alias for the
+             corresponding query_option.
 
      -q      Quiet mode.  Causes most warning and diagnostic messages to be
              suppressed.
@@ -388,7 +393,8 @@ DESCRIPTION
      -s      May be used to request invocation of a subsystem on the remote
              system.  Subsystems facilitate the use of SSH as a secure
              transport for other applications (e.g. sftp(1)).  The subsystem
-             is specified as the remote command.
+             is specified as the remote command.  Refer to the description of
+             SessionType in ssh_config(5) for details.
 
      -T      Disable pseudo-terminal allocation.
 
@@ -457,7 +463,7 @@ AUTHENTICATION
 
      The methods available for authentication are: GSSAPI-based
      authentication, host-based authentication, public key authentication,
-     challenge-response authentication, and password authentication.
+     keyboard-interactive authentication, and password authentication.
      Authentication methods are tried in the order specified above, though
      PreferredAuthentications can be used to change the default order.
 
@@ -496,7 +502,7 @@ AUTHENTICATION
      different method.  These may be viewed by increasing the LogLevel to
      DEBUG or higher (e.g. by using the -v flag).
 
-     The user creates his/her key pair by running ssh-keygen(1).  This stores
+     The user creates their key pair by running ssh-keygen(1).  This stores
      the private key in ~/.ssh/id_dsa (DSA), ~/.ssh/id_ecdsa (ECDSA),
      ~/.ssh/id_ecdsa_sk (authenticator-hosted ECDSA), ~/.ssh/id_ed25519
      (Ed25519), ~/.ssh/id_ed25519_sk (authenticator-hosted Ed25519), or
@@ -505,7 +511,7 @@ AUTHENTICATION
      ECDSA), ~/.ssh/id_ed25519.pub (Ed25519), ~/.ssh/id_ed25519_sk.pub
      (authenticator-hosted Ed25519), or ~/.ssh/id_rsa.pub (RSA) in the user's
      home directory.  The user should then copy the public key to
-     ~/.ssh/authorized_keys in his/her home directory on the remote machine.
+     ~/.ssh/authorized_keys in their home directory on the remote machine.
      The authorized_keys file corresponds to the conventional ~/.rhosts file,
      and has one key per line, though the lines can be very long.  After this,
      the user can log in without giving the password.
@@ -521,10 +527,10 @@ AUTHENTICATION
      may be with an authentication agent.  See ssh-agent(1) and (optionally)
      the AddKeysToAgent directive in ssh_config(5) for more information.
 
-     Challenge-response authentication works as follows: The server sends an
-     arbitrary "challenge" text, and prompts for a response.  Examples of
-     challenge-response authentication include BSD Authentication (see
-     login.conf(5)) and PAM (some non-OpenBSD systems).
+     Keyboard-interactive authentication works as follows: The server sends an
+     arbitrary "challenge" text and prompts for a response, possibly multiple
+     times.  Examples of keyboard-interactive authentication include BSD
+     Authentication (see login.conf(5)) and PAM (some non-OpenBSD systems).
 
      Finally, if other authentication methods fail, ssh prompts the user for a
      password.  The password is sent to the remote host for checking; however,
@@ -1001,4 +1007,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 6.9                    February 15, 2021                   OpenBSD 6.9
+OpenBSD 6.9                      July 28, 2021                     OpenBSD 6.9

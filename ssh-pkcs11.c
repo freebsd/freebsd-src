@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-pkcs11.c,v 1.52 2020/11/22 22:38:26 djm Exp $ */
+/* $OpenBSD: ssh-pkcs11.c,v 1.54 2021/08/11 05:20:17 djm Exp $ */
 /*
  * Copyright (c) 2010 Markus Friedl.  All rights reserved.
  * Copyright (c) 2014 Pedro Martelletto. All rights reserved.
@@ -111,8 +111,8 @@ pkcs11_provider_finalize(struct pkcs11_provider *p)
 	CK_RV rv;
 	CK_ULONG i;
 
-	debug("pkcs11_provider_finalize: %p refcount %d valid %d",
-	    p, p->refcount, p->valid);
+	debug_f("provider \"%s\" refcount %d valid %d",
+	    p->name, p->refcount, p->valid);
 	if (!p->valid)
 		return;
 	for (i = 0; i < p->nslots; i++) {
@@ -135,10 +135,10 @@ pkcs11_provider_finalize(struct pkcs11_provider *p)
 static void
 pkcs11_provider_unref(struct pkcs11_provider *p)
 {
-	debug("pkcs11_provider_unref: %p refcount %d", p, p->refcount);
+	debug_f("provider \"%s\" refcount %d", p->name, p->refcount);
 	if (--p->refcount <= 0) {
 		if (p->valid)
-			error("pkcs11_provider_unref: %p still valid", p);
+			error_f("provider \"%s\" still valid", p->name);
 		free(p->name);
 		free(p->slotlist);
 		free(p->slotinfo);
@@ -166,7 +166,7 @@ pkcs11_provider_lookup(char *provider_id)
 	struct pkcs11_provider *p;
 
 	TAILQ_FOREACH(p, &pkcs11_providers, next) {
-		debug("check %p %s", p, p->name);
+		debug("check provider \"%s\"", p->name);
 		if (!strcmp(provider_id, p->name))
 			return (p);
 	}
@@ -337,8 +337,8 @@ pkcs11_check_obj_bool_attrib(struct pkcs11_key *k11, CK_OBJECT_HANDLE obj,
 		return (-1);
 	}
 	*val = flag != 0;
-	debug_f("provider %p slot %lu object %lu: attrib %lu = %d",
-	    k11->provider, k11->slotidx, obj, type, *val);
+	debug_f("provider \"%s\" slot %lu object %lu: attrib %lu = %d",
+	    k11->provider->name, k11->slotidx, obj, type, *val);
 	return (0);
 }
 
@@ -430,7 +430,7 @@ pkcs11_rsa_private_encrypt(int flen, const u_char *from, u_char *to, RSA *rsa,
 	int			rval = -1;
 
 	if ((k11 = RSA_get_ex_data(rsa, rsa_idx)) == NULL) {
-		error("RSA_get_ex_data failed for rsa %p", rsa);
+		error("RSA_get_ex_data failed");
 		return (-1);
 	}
 
@@ -973,7 +973,7 @@ pkcs11_fetch_x509_pubkey(struct pkcs11_provider *p, CK_ULONG slotidx,
 	}
 
 	/* Decode DER-encoded cert subject */
-	cp = cert_attr[2].pValue;
+	cp = cert_attr[1].pValue;
 	if ((x509_name = d2i_X509_NAME(NULL, &cp,
 	    cert_attr[1].ulValueLen)) == NULL ||
 	    (subject = X509_NAME_oneline(x509_name, NULL, 0)) == NULL)

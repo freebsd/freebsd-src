@@ -131,7 +131,9 @@ SSHDOBJS=sshd.o auth-rhosts.o auth-passwd.o \
 	sandbox-seccomp-filter.o sandbox-capsicum.o sandbox-pledge.o \
 	sandbox-solaris.o uidswap.o $(SKOBJS)
 
-SCP_OBJS=	scp.o progressmeter.o
+SFTP_CLIENT_OBJS=sftp-common.o sftp-client.o sftp-glob.o
+
+SCP_OBJS=	scp.o progressmeter.o $(SFTP_CLIENT_OBJS)
 
 SSHADD_OBJS=	ssh-add.o $(SKOBJS)
 
@@ -149,7 +151,7 @@ SSHKEYSCAN_OBJS=ssh-keyscan.o $(SKOBJS)
 
 SFTPSERVER_OBJS=sftp-common.o sftp-server.o sftp-server-main.o
 
-SFTP_OBJS=	sftp.o sftp-client.o sftp-common.o sftp-glob.o progressmeter.o
+SFTP_OBJS=	sftp.o progressmeter.o $(SFTP_CLIENT_OBJS)
 
 MANPAGES	= moduli.5.out scp.1.out ssh-add.1.out ssh-agent.1.out ssh-keygen.1.out ssh-keyscan.1.out ssh.1.out sshd.8.out sftp-server.8.out sftp.1.out ssh-keysign.8.out ssh-pkcs11-helper.8.out ssh-sk-helper.8.out sshd_config.5.out ssh_config.5.out
 MANPAGES_IN	= moduli.5 scp.1 ssh-add.1 ssh-agent.1 ssh-keygen.1 ssh-keyscan.1 ssh.1 sshd.8 sftp-server.8 sftp.1 ssh-keysign.8 ssh-pkcs11-helper.8 ssh-sk-helper.8 sshd_config.5 ssh_config.5
@@ -235,7 +237,7 @@ ssh-keyscan$(EXEEXT): $(LIBCOMPAT) libssh.a $(SSHKEYSCAN_OBJS)
 	$(LD) -o $@ $(SSHKEYSCAN_OBJS) $(LDFLAGS) -lssh -lopenbsd-compat -lssh $(LIBS)
 
 sftp-server$(EXEEXT): $(LIBCOMPAT) libssh.a $(SFTPSERVER_OBJS)
-	$(LD) -o $@ $(SFTPSERVER_OBJS) $(LDFLAGS) -lssh -lopenbsd-compat $(LIBS)
+	$(LD) -o $@ $(SFTPSERVER_OBJS) $(LDFLAGS) -lssh -lopenbsd-compat -lssh $(LIBS)
 
 sftp$(EXEEXT): $(LIBCOMPAT) libssh.a $(SFTP_OBJS)
 	$(LD) -o $@ $(SFTP_OBJS) $(LDFLAGS) -lssh -lopenbsd-compat $(LIBS) $(LIBEDIT)
@@ -648,7 +650,8 @@ UNITTESTS_TEST_MISC_OBJS=\
 	regress/unittests/misc/test_parse.o \
 	regress/unittests/misc/test_expand.o \
 	regress/unittests/misc/test_convtime.o \
-	regress/unittests/misc/test_argv.o
+	regress/unittests/misc/test_argv.o \
+	regress/unittests/misc/test_strdelim.o
 
 regress/unittests/misc/test_misc$(EXEEXT): \
     ${UNITTESTS_TEST_MISC_OBJS} \
@@ -701,7 +704,7 @@ regress-unit-binaries: regress-prep $(REGRESSLIBS) \
 	regress/unittests/sshbuf/test_sshbuf$(EXEEXT) \
 	regress/unittests/sshkey/test_sshkey$(EXEEXT) \
 	regress/unittests/sshsig/test_sshsig$(EXEEXT) \
-	regress/unittests/utf8/test_utf8$(EXEEXT) \
+	regress/unittests/utf8/test_utf8$(EXEEXT)
 
 tests:	file-tests t-exec interop-tests unit
 	echo all tests passed

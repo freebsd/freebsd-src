@@ -1,4 +1,4 @@
-/* $OpenBSD: sshkey.c,v 1.116 2021/04/03 06:18:41 djm Exp $ */
+/* $OpenBSD: sshkey.c,v 1.119 2021/07/23 03:37:52 djm Exp $ */
 /*
  * Copyright (c) 2000, 2001 Markus Friedl.  All rights reserved.
  * Copyright (c) 2008 Alexander von Gernler.  All rights reserved.
@@ -3077,10 +3077,9 @@ sshkey_certify(struct sshkey *k, struct sshkey *ca, const char *alg,
 int
 sshkey_cert_check_authority(const struct sshkey *k,
     int want_host, int require_principal, int wildcard_pattern,
-    const char *name, const char **reason)
+    uint64_t verify_time, const char *name, const char **reason)
 {
 	u_int i, principal_matches;
-	time_t now = time(NULL);
 
 	if (reason == NULL)
 		return SSH_ERR_INVALID_ARGUMENT;
@@ -3099,16 +3098,11 @@ sshkey_cert_check_authority(const struct sshkey *k,
 			return SSH_ERR_KEY_CERT_INVALID;
 		}
 	}
-	if (now < 0) {
-		/* yikes - system clock before epoch! */
+	if (verify_time < k->cert->valid_after) {
 		*reason = "Certificate invalid: not yet valid";
 		return SSH_ERR_KEY_CERT_INVALID;
 	}
-	if ((u_int64_t)now < k->cert->valid_after) {
-		*reason = "Certificate invalid: not yet valid";
-		return SSH_ERR_KEY_CERT_INVALID;
-	}
-	if ((u_int64_t)now >= k->cert->valid_before) {
+	if (verify_time >= k->cert->valid_before) {
 		*reason = "Certificate invalid: expired";
 		return SSH_ERR_KEY_CERT_INVALID;
 	}
@@ -3141,13 +3135,29 @@ sshkey_cert_check_authority(const struct sshkey *k,
 }
 
 int
+sshkey_cert_check_authority_now(const struct sshkey *k,
+    int want_host, int require_principal, int wildcard_pattern,
+    const char *name, const char **reason)
+{
+	time_t now;
+
+	if ((now = time(NULL)) < 0) {
+		/* yikes - system clock before epoch! */
+		*reason = "Certificate invalid: not yet valid";
+		return SSH_ERR_KEY_CERT_INVALID;
+	}
+	return sshkey_cert_check_authority(k, want_host, require_principal,
+	    wildcard_pattern, (uint64_t)now, name, reason);
+}
+
+int
 sshkey_cert_check_host(const struct sshkey *key, const char *host,
     int wildcard_principals, const char *ca_sign_algorithms,
     const char **reason)
 {
 	int r;
 
-	if ((r = sshkey_cert_check_authority(key, 1, 0, wildcard_principals,
+	if ((r = sshkey_cert_check_authority_now(key, 1, 0, wildcard_principals,
 	    host, reason)) != 0)
 		return r;
 	if (sshbuf_len(key->cert->critical) != 0) {
@@ -3166,28 +3176,16 @@ size_t
 sshkey_format_cert_validity(const struct sshkey_cert *cert, char *s, size_t l)
 {
 	char from[32], to[32], ret[128];
-	time_t tt;
-	struct tm *tm;
 
 	*from = *to = '\0';
 	if (cert->valid_after == 0 &&
 	    cert->valid_before == 0xffffffffffffffffULL)
 		return strlcpy(s, "forever", l);
 
-	if (cert->valid_after != 0) {
-		/* XXX revisit INT_MAX in 2038 :) */
-		tt = cert->valid_after > INT_MAX ?
-		    INT_MAX : cert->valid_after;
-		tm = localtime(&tt);
-		strftime(from, sizeof(from), "%Y-%m-%dT%H:%M:%S", tm);
-	}
-	if (cert->valid_before != 0xffffffffffffffffULL) {
-		/* XXX revisit INT_MAX in 2038 :) */
-		tt = cert->valid_before > INT_MAX ?
-		    INT_MAX : cert->valid_before;
-		tm = localtime(&tt);
-		strftime(to, sizeof(to), "%Y-%m-%dT%H:%M:%S", tm);
-	}
+	if (cert->valid_after != 0)
+		format_absolute_time(cert->valid_after, from, sizeof(from));
+	if (cert->valid_before != 0xffffffffffffffffULL)
+		format_absolute_time(cert->valid_before, to, sizeof(to));
 
 	if (cert->valid_after == 0)
 		snprintf(ret, sizeof(ret), "before %s", to);

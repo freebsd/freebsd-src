@@ -37,6 +37,8 @@ Lots of debugging is printed along the way.
 <pre id="enrollresultraw" style="color: #008; font-family: monospace;"></pre>
 <h2>attestationObject</h2>
 <pre id="enrollresultattestobj" style="color: #008; font-family: monospace;"></pre>
+<h2>key handle</h2>
+<pre id="keyhandle" style="color: #008; font-family: monospace;"></pre>
 <h2>authData raw</h2>
 <pre id="enrollresultauthdataraw" style="color: #008; font-family: monospace;"></pre>
 <h2>authData</h2>
@@ -45,6 +47,8 @@ Lots of debugging is printed along the way.
 <pre id="enrollresultpkblob" style="color: #008; font-family: monospace;"></pre>
 <h2>SSH pubkey string</h2>
 <pre id="enrollresultpk" style="color: #008; font-family: monospace;"></pre>
+<h2>SSH private key string</h2>
+<pre id="enrollresultprivkey" style="color: #008; font-family: monospace;"></pre>
 </span>
 <span id="assertsection" style="visibility: hidden;">
 <h2>Assert</h2>
@@ -241,12 +245,16 @@ var SSHMSG = function() {
 	this.r = []
 }
 
-SSHMSG.prototype.serialise = function() {
+SSHMSG.prototype.length = function() {
 	let len = 0
 	for (buf of this.r) {
 		len += buf.length
 	}
-	let r = new ArrayBuffer(len)
+	return len
+}
+
+SSHMSG.prototype.serialise = function() {
+	let r = new ArrayBuffer(this.length())
 	let v = new Uint8Array(r)
 	let offset = 0
 	for (buf of this.r) {
@@ -279,6 +287,12 @@ SSHMSG.prototype.putU32 = function(v) {
 
 SSHMSG.prototype.put = function(v) {
 	this.r.push(new Uint8Array(v))
+}
+
+SSHMSG.prototype.putStringRaw = function(v) {
+	let enc = new TextEncoder();
+	let venc = enc.encode(v)
+	this.put(venc)
 }
 
 SSHMSG.prototype.putString = function(v) {
@@ -392,6 +406,9 @@ function enrollSuccess(result) {
 	clientData = u8dec.decode(result.response.clientDataJSON)
 	document.getElementById("enrollresultjson").innerText = clientData
 
+	// Show the raw key handle.
+	document.getElementById("keyhandle").innerText = hexdump(result.rawId)
+
 	// Decode and show the attestationObject
 	document.getElementById("enrollresultraw").innerText = hexdump(result.response.attestationObject)
 	let aod = new CBORDecode(result.response.attestationObject)
@@ -416,6 +433,14 @@ function enrollSuccess(result) {
 	let pk64 = btoa(String.fromCharCode(...new Uint8Array(window.rawKey)));
 	let pk = "sk-ecdsa-sha2-nistp256@openssh.com " + pk64
 	document.getElementById("enrollresultpk").innerText = pk
+
+	// Format a private key too.
+	flags = 0x01 // SSH_SK_USER_PRESENCE_REQD
+	window.rawPrivkey = reformatPrivkey(authData.attestedCredentialData.credentialPublicKey, window.enrollOpts.rp.id, result.rawId, flags)
+	let privkeyFileBlob = privkeyFile(window.rawKey, window.rawPrivkey, window.enrollOpts.user.name, window.enrollOpts.rp.id)
+	let privk64 = btoa(String.fromCharCode(...new Uint8Array(privkeyFileBlob)));
+	let privkey = "-----BEGIN OPENSSH PRIVATE KEY-----\n" + wrapString(privk64, 70) + "-----END OPENSSH PRIVATE KEY-----\n"
+	document.getElementById("enrollresultprivkey").innerText = privkey
 
 	// Success: show the assertion form.
 	document.getElementById("assertsection").style.visibility = "visible"
@@ -456,7 +481,15 @@ function decodeAuthenticatorData(authData, expectCred) {
 	return r
 }
 
-function reformatPubkey(pk, rpid) {
+function wrapString(s, l) {
+	ret = ""
+	for (i = 0; i < s.length; i += l) {
+		ret += s.slice(i, i + l) + "\n"
+	}
+	return ret
+}
+
+function checkPubkey(pk) {
 	// pk is in COSE format. We only care about a tiny subset.
 	if (pk[1] != 2) {
 		console.dir(pk)
@@ -471,11 +504,52 @@ function reformatPubkey(pk, rpid) {
 	if (pk[-2].byteLength != 32 || pk[-3].byteLength != 32) {
 		throw new Error("pubkey EC coords have bad length")
 	}
+}
+
+function reformatPubkey(pk, rpid) {
+	checkPubkey(pk)
 	let msg = new SSHMSG()
 	msg.putString("sk-ecdsa-sha2-nistp256@openssh.com")	// Key type
 	msg.putString("nistp256")				// Key curve
 	msg.putECPoint(pk[-2], pk[-3])				// EC key
 	msg.putString(rpid)					// RP ID
+	return msg.serialise()
+}
+
+function reformatPrivkey(pk, rpid, kh, flags) {
+	checkPubkey(pk)
+	let msg = new SSHMSG()
+	msg.putString("sk-ecdsa-sha2-nistp256@openssh.com")	// Key type
+	msg.putString("nistp256")				// Key curve
+	msg.putECPoint(pk[-2], pk[-3])				// EC key
+	msg.putString(rpid)					// RP ID
+	msg.putU8(flags)					// flags
+	msg.putBytes(kh)					// handle
+	msg.putString("")					// reserved
+	return msg.serialise()
+}
+
+function privkeyFile(pub, priv, user, rp) {
+	let innerMsg = new SSHMSG()
+	innerMsg.putU32(0xdeadbeef)				// check byte
+	innerMsg.putU32(0xdeadbeef)				// check byte
+	innerMsg.put(priv)					// privkey
+	innerMsg.putString("webauthn.html " + user + "@" + rp)	// comment
+	// Pad to cipher blocksize (8).
+	p = 1
+	while (innerMsg.length() % 8 != 0) {
+		innerMsg.putU8(p++)
+	}
+	let msg = new SSHMSG()
+	msg.putStringRaw("openssh-key-v1")			// Magic
+	msg.putU8(0)						// \0 terminate
+	msg.putString("none")					// cipher
+	msg.putString("none")					// KDF
+	msg.putString("")					// KDF options
+	msg.putU32(1)						// nkeys
+	msg.putBytes(pub)					// pubkey
+	msg.putSSHMSG(innerMsg)					// inner
+	//msg.put(innerMsg.serialise())				// inner
 	return msg.serialise()
 }
 

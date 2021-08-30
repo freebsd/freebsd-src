@@ -152,7 +152,8 @@ DESCRIPTION
 
              If this option is enabled, then the configuration files are
              processed again using the new target name to pick up any new
-             configuration in matching Host and Match stanzas.
+             configuration in matching Host and Match stanzas.  A value of
+             none disables the use of a ProxyJump host.
 
      CanonicalizeMaxDots
              Specifies the maximum number of dot characters in a hostname
@@ -176,9 +177,17 @@ DESCRIPTION
              Specifies which algorithms are allowed for signing of
              certificates by certificate authorities (CAs).  The default is:
 
-                   ssh-ed25519,ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
-                   sk-ssh-ed25519@openssh.com,sk-ecdsa-sha2-nistp256@openssh.com,
+                   ssh-ed25519,ecdsa-sha2-nistp256,
+                   ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
+                   sk-ssh-ed25519@openssh.com,
+                   sk-ecdsa-sha2-nistp256@openssh.com,
                    rsa-sha2-512,rsa-sha2-256
+
+             If the specified list begins with a M-bM-^@M-^X+M-bM-^@M-^Y character, then the
+             specified algorithms will be appended to the default set instead
+             of replacing them.  If the specified list begins with a M-bM-^@M-^X-M-bM-^@M-^Y
+             character, then the specified algorithms (including wildcards)
+             will be removed from the default set instead of replacing them.
 
              ssh(1) will not accept host certificates signed using algorithms
              other than those specified.
@@ -199,10 +208,6 @@ DESCRIPTION
              configuration files; these certificates will be tried in
              sequence.  Multiple CertificateFile directives will add to the
              list of certificates used for authentication.
-
-     ChallengeResponseAuthentication
-             Specifies whether to use challenge-response authentication.  The
-             argument to this keyword must be yes (the default) or no.
 
      CheckHostIP
              If set to yes ssh(1) will additionally check the host IP address
@@ -370,6 +375,23 @@ DESCRIPTION
      FingerprintHash
              Specifies the hash algorithm used when displaying key
              fingerprints.  Valid options are: md5 and sha256 (the default).
+
+     ForkAfterAuthentication
+             Requests ssh to go to background just before command execution.
+             This is useful if ssh is going to ask for passwords or
+             passphrases, but the user wants it in the background.  This
+             implies the StdinNull configuration option being set to M-bM-^@M-^\yesM-bM-^@M-^].
+             The recommended way to start X11 programs at a remote site is
+             with something like ssh -f host xterm, which is the same as ssh
+             host xterm if the ForkAfterAuthentication configuration option is
+             set to M-bM-^@M-^\yesM-bM-^@M-^].
+
+             If the ExitOnForwardFailure configuration option is set to M-bM-^@M-^\yesM-bM-^@M-^],
+             then a client started with the ForkAfterAuthentication
+             configuration option being set to M-bM-^@M-^\yesM-bM-^@M-^] will wait for all remote
+             port forwards to be successfully established before placing
+             itself in the background.  The argument to this keyword must be
+             yes (same as the -f option) or no (the default).
 
      ForwardAgent
              Specifies whether the connection to the authentication agent (if
@@ -627,6 +649,7 @@ DESCRIPTION
      KbdInteractiveAuthentication
              Specifies whether to use keyboard-interactive authentication.
              The argument to this keyword must be yes (the default) or no.
+             ChallengeResponseAuthentication is a deprecated alias for this.
 
      KbdInteractiveDevices
              Specifies the list of methods to use in keyboard-interactive
@@ -1008,9 +1031,24 @@ DESCRIPTION
              default is 0, indicating that these messages will not be sent to
              the server.
 
+     SessionType
+             May be used to either request invocation of a subsystem on the
+             remote system, or to prevent the execution of a remote command at
+             all.  The latter is useful for just forwarding ports.  The
+             argument to this keyword must be none (same as the -N option),
+             subsystem (same as the -s option) or default (shell or command
+             execution).
+
      SetEnv  Directly specify one or more environment variables and their
-             contents to be sent to the server.  Similarly to SendEnv, the
-             server must be prepared to accept the environment variable.
+             contents to be sent to the server.  Similarly to SendEnv, with
+             the exception of the TERM variable, the server must be prepared
+             to accept the environment variable.
+
+     StdinNull
+             Redirects stdin from /dev/null (actually, prevents reading from
+             stdin).  Either this or the equivalent -n option must be used
+             when ssh is run in the background.  The argument to this keyword
+             must be yes (same as the -n option) or no (the default).
 
      StreamLocalBindMask
              Sets the octal file creation mode mask (umask) used when creating
@@ -1043,7 +1081,7 @@ DESCRIPTION
              This option forces the user to manually add all new hosts.
 
              If this flag is set to M-bM-^@M-^\accept-newM-bM-^@M-^] then ssh will automatically
-             add new host keys to the user known hosts files, but will not
+             add new host keys to the user's known_hosts file, but will not
              permit connections to hosts with changed host keys.  If this flag
              is set to M-bM-^@M-^\noM-bM-^@M-^] or M-bM-^@M-^\offM-bM-^@M-^], ssh will automatically add new host keys
              to the user known hosts files and allow connections to hosts with
@@ -1214,7 +1252,7 @@ TOKENS
            %r    The remote username.
            %T    The local tun(4) or tap(4) network interface assigned if
                  tunnel forwarding was requested, or "NONE" otherwise.
-           %t    The type of the server host key, e.g.  ssh-ed25519
+           %t    The type of the server host key, e.g.  ssh-ed25519.
            %u    The local username.
 
      CertificateFile, ControlPath, IdentityAgent, IdentityFile,
@@ -1265,4 +1303,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 6.9                      April 4, 2021                     OpenBSD 6.9
+OpenBSD 6.9                     August 12, 2021                    OpenBSD 6.9

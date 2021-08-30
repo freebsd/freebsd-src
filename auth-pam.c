@@ -1392,6 +1392,5 @@ sshpam_set_maxtries_reached(int reached)
 	sshpam_maxtries_reached = 1;
 	options.password_authentication = 0;
 	options.kbd_interactive_authentication = 0;
-	options.challenge_response_authentication = 0;
 }
 #endif /* USE_PAM */

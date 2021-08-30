@@ -9,9 +9,9 @@ SYNOPSIS
           [-h host_key_file] [-o option] [-p port] [-u len]
 
 DESCRIPTION
-     sshd (OpenSSH Daemon) is the daemon program for ssh(1).  Together these
-     programs replace rlogin and rsh, and provide secure encrypted
-     communications between two untrusted hosts over an insecure network.
+     sshd (OpenSSH Daemon) is the daemon program for ssh(1).  It provides
+     secure encrypted communications between two untrusted hosts over an
+     insecure network.
 
      sshd listens for connections from clients.  It is normally started at
      boot from /etc/rc.  It forks a new daemon for each incoming connection.
@@ -37,7 +37,7 @@ DESCRIPTION
              written to standard output.  The connection parameters are
              supplied as keyword=value pairs and may be supplied in any order,
              either with multiple -C options or as a comma-separated list.
-             The keywords are M-bM-^@M-^\addr,M-bM-^@M-^] M-bM-^@M-^\userM-bM-^@M-^], M-bM-^@M-^\hostM-bM-^@M-^], M-bM-^@M-^\laddrM-bM-^@M-^], M-bM-^@M-^\lportM-bM-^@M-^], and
+             The keywords are M-bM-^@M-^\addrM-bM-^@M-^], M-bM-^@M-^\userM-bM-^@M-^], M-bM-^@M-^\hostM-bM-^@M-^], M-bM-^@M-^\laddrM-bM-^@M-^], M-bM-^@M-^\lportM-bM-^@M-^], and
              M-bM-^@M-^\rdomainM-bM-^@M-^] and correspond to source address, user, resolved source
              host name, local address, local port number and routing domain
              respectively.
@@ -53,7 +53,7 @@ DESCRIPTION
 
      -d      Debug mode.  The server sends verbose debug output to standard
              error, and does not put itself in the background.  The server
-             also will not fork and will only process one connection.  This
+             also will not fork(2) and will only process one connection.  This
              option is only intended for debugging for the server.  Multiple
              -d options increase the debugging level.  Maximum is 3.
 
@@ -190,7 +190,7 @@ LOGIN PROCESS
 
            8.   If ~/.ssh/rc exists and the sshd_config(5) PermitUserRC option
                 is set, runs it; else if /etc/ssh/sshrc exists, runs it;
-                otherwise runs xauth.  The M-bM-^@M-^\rcM-bM-^@M-^] files are given the X11
+                otherwise runs xauth(1).  The M-bM-^@M-^\rcM-bM-^@M-^] files are given the X11
                 authentication protocol and cookie in standard input.  See
                 SSHRC, below.
 
@@ -417,24 +417,25 @@ AUTHORIZED_KEYS FILE FORMAT
 
      An example authorized_keys file:
 
-        # Comments allowed at start of line
-        ssh-rsa AAAAB3Nza...LiPk== user@example.net
-        from="*.sales.example.net,!pc.sales.example.net" ssh-rsa
-        AAAAB2...19Q== john@example.net
-        command="dump /home",no-pty,no-port-forwarding ssh-rsa
-        AAAAC3...51R== example.net
-        permitopen="192.0.2.1:80",permitopen="192.0.2.2:25" ssh-rsa
-        AAAAB5...21S==
-        permitlisten="localhost:8080",permitopen="localhost:22000" ssh-rsa
-        AAAAB5...21S==
-        tunnel="0",command="sh /etc/netstart tun0" ssh-rsa AAAA...==
-        jane@example.net
-        restrict,command="uptime" ssh-rsa AAAA1C8...32Tv==
-        user@example.net
-        restrict,pty,command="nethack" ssh-rsa AAAA1f8...IrrC5==
-        user@example.net
-        no-touch-required sk-ecdsa-sha2-nistp256@openssh.com AAAAInN...Ko==
-        user@example.net
+        # Comments are allowed at start of line. Blank lines are allowed.
+        # Plain key, no restrictions
+        ssh-rsa ...
+        # Forced command, disable PTY and all forwarding
+        restrict,command="dump /home" ssh-rsa ...
+        # Restriction of ssh -L forwarding destinations
+        permitopen="192.0.2.1:80",permitopen="192.0.2.2:25" ssh-rsa ...
+        # Restriction of ssh -R forwarding listeners
+        permitlisten="localhost:8080",permitlisten="[::1]:22000" ssh-rsa ...
+        # Configuration for tunnel forwarding
+        tunnel="0",command="sh /etc/netstart tun0" ssh-rsa ...
+        # Override of restriction to allow PTY allocation
+        restrict,pty,command="nethack" ssh-rsa ...
+        # Allow FIDO key without requiring touch
+        no-touch-required sk-ecdsa-sha2-nistp256@openssh.com ...
+        # Require user-verification (e.g. PIN or biometric) for FIDO key
+        verify-required sk-ecdsa-sha2-nistp256@openssh.com ...
+        # Trust CA key, allow touch-less FIDO if requested in certificate
+        cert-authority,no-touch-required,principals="user_a" ssh-rsa ...
 
 SSH_KNOWN_HOSTS FILE FORMAT
      The /etc/ssh/ssh_known_hosts and ~/.ssh/known_hosts files contain host
@@ -669,4 +670,4 @@ AUTHORS
      versions 1.5 and 2.0.  Niels Provos and Markus Friedl contributed support
      for privilege separation.
 
-OpenBSD 6.9                      April 3, 2021                     OpenBSD 6.9
+OpenBSD 6.9                      July 30, 2021                     OpenBSD 6.9

@@ -1,4 +1,4 @@
-/* $OpenBSD: channels.c,v 1.406 2021/04/03 06:18:40 djm Exp $ */
+/* $OpenBSD: channels.c,v 1.407 2021/05/19 01:24:05 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -333,7 +333,27 @@ channel_register_fds(struct ssh *ssh, Channel *c, int rfd, int wfd, int efd,
 #endif
 
 	/* enable nonblocking mode */
-	if (nonblock) {
+	c->restore_block = 0;
+	if (nonblock == CHANNEL_NONBLOCK_STDIO) {
+		/*
+		 * Special handling for stdio file descriptors: do not set
+		 * non-blocking mode if they are TTYs. Otherwise prepare to
+		 * restore their blocking state on exit to avoid interfering
+		 * with other programs that follow.
+		 */
+		if (rfd != -1 && !isatty(rfd) && fcntl(rfd, F_GETFL) == 0) {
+			c->restore_block |= CHANNEL_RESTORE_RFD;
+			set_nonblock(rfd);
+		}
+		if (wfd != -1 && !isatty(wfd) && fcntl(wfd, F_GETFL) == 0) {
+			c->restore_block |= CHANNEL_RESTORE_WFD;
+			set_nonblock(wfd);
+		}
+		if (efd != -1 && !isatty(efd) && fcntl(efd, F_GETFL) == 0) {
+			c->restore_block |= CHANNEL_RESTORE_EFD;
+			set_nonblock(efd);
+		}
+	} else if (nonblock) {
 		if (rfd != -1)
 			set_nonblock(rfd);
 		if (wfd != -1)
@@ -422,17 +442,23 @@ channel_find_maxfd(struct ssh_channels *sc)
 }
 
 int
-channel_close_fd(struct ssh *ssh, int *fdp)
+channel_close_fd(struct ssh *ssh, Channel *c, int *fdp)
 {
 	struct ssh_channels *sc = ssh->chanctxt;
-	int ret = 0, fd = *fdp;
+	int ret, fd = *fdp;
 
-	if (fd != -1) {
-		ret = close(fd);
-		*fdp = -1;
-		if (fd == sc->channel_max_fd)
-			channel_find_maxfd(sc);
-	}
+	if (fd == -1)
+		return 0;
+
+	if ((*fdp == c->rfd && (c->restore_block & CHANNEL_RESTORE_RFD) != 0) ||
+	   (*fdp == c->wfd && (c->restore_block & CHANNEL_RESTORE_WFD) != 0) ||
+	   (*fdp == c->efd && (c->restore_block & CHANNEL_RESTORE_EFD) != 0))
+		(void)fcntl(*fdp, F_SETFL, 0);	/* restore blocking */
+
+	ret = close(fd);
+	*fdp = -1;
+	if (fd == sc->channel_max_fd)
+		channel_find_maxfd(sc);
 	return ret;
 }
 
@@ -442,13 +468,13 @@ channel_close_fds(struct ssh *ssh, Channel *c)
 {
 	int sock = c->sock, rfd = c->rfd, wfd = c->wfd, efd = c->efd;
 
-	channel_close_fd(ssh, &c->sock);
+	channel_close_fd(ssh, c, &c->sock);
 	if (rfd != sock)
-		channel_close_fd(ssh, &c->rfd);
+		channel_close_fd(ssh, c, &c->rfd);
 	if (wfd != sock && wfd != rfd)
-		channel_close_fd(ssh, &c->wfd);
+		channel_close_fd(ssh, c, &c->wfd);
 	if (efd != sock && efd != rfd && efd != wfd)
-		channel_close_fd(ssh, &c->efd);
+		channel_close_fd(ssh, c, &c->efd);
 }
 
 static void
@@ -702,7 +728,7 @@ channel_stop_listening(struct ssh *ssh)
 			case SSH_CHANNEL_X11_LISTENER:
 			case SSH_CHANNEL_UNIX_LISTENER:
 			case SSH_CHANNEL_RUNIX_LISTENER:
-				channel_close_fd(ssh, &c->sock);
+				channel_close_fd(ssh, c, &c->sock);
 				channel_free(ssh, c);
 				break;
 			}
@@ -1491,7 +1517,8 @@ channel_decode_socks5(Channel *c, struct sshbuf *input, struct sshbuf *output)
 
 Channel *
 channel_connect_stdio_fwd(struct ssh *ssh,
-    const char *host_to_connect, u_short port_to_connect, int in, int out)
+    const char *host_to_connect, u_short port_to_connect,
+    int in, int out, int nonblock)
 {
 	Channel *c;
 
@@ -1499,7 +1526,7 @@ channel_connect_stdio_fwd(struct ssh *ssh,
 
 	c = channel_new(ssh, "stdio-forward", SSH_CHANNEL_OPENING, in, out,
 	    -1, CHAN_TCP_WINDOW_DEFAULT, CHAN_TCP_PACKET_DEFAULT,
-	    0, "stdio-forward", /*nonblock*/0);
+	    0, "stdio-forward", nonblock);
 
 	c->path = xstrdup(host_to_connect);
 	c->host_port = port_to_connect;
@@ -1649,7 +1676,7 @@ channel_post_x11_listener(struct ssh *ssh, Channel *c,
 	if (c->single_connection) {
 		oerrno = errno;
 		debug2("single_connection: closing X11 listener.");
-		channel_close_fd(ssh, &c->sock);
+		channel_close_fd(ssh, c, &c->sock);
 		chan_mark_dead(ssh, c);
 		errno = oerrno;
 	}
@@ -2058,7 +2085,7 @@ channel_handle_efd_write(struct ssh *ssh, Channel *c,
 		return 1;
 	if (len <= 0) {
 		debug2("channel %d: closing write-efd %d", c->self, c->efd);
-		channel_close_fd(ssh, &c->efd);
+		channel_close_fd(ssh, c, &c->efd);
 	} else {
 		if ((r = sshbuf_consume(c->extended, len)) != 0)
 			fatal_fr(r, "channel %i: consume", c->self);
@@ -2087,7 +2114,7 @@ channel_handle_efd_read(struct ssh *ssh, Channel *c,
 		return 1;
 	if (len <= 0) {
 		debug2("channel %d: closing read-efd %d", c->self, c->efd);
-		channel_close_fd(ssh, &c->efd);
+		channel_close_fd(ssh, c, &c->efd);
 	} else if (c->extended_usage == CHAN_EXTENDED_IGNORE)
 		debug3("channel %d: discard efd", c->self);
 	else if ((r = sshbuf_put(c->extended, buf, len)) != 0)
@@ -3421,7 +3448,6 @@ channel_setup_fwd_listener_tcpip(struct ssh *ssh, int type,
 		}
 		/* Start listening for connections on the socket. */
 		if (listen(sock, SSH_LISTEN_BACKLOG) == -1) {
-			error("listen: %.100s", strerror(errno));
 			error("listen [%s]:%s: %.100s", ntop, strport,
 			    strerror(errno));
 			close(sock);
@@ -3985,7 +4011,7 @@ channel_request_rforward_cancel_streamlocal(struct ssh *ssh, const char *path)
 
 	return 0;
 }
- 
+
 /*
  * Request cancellation of remote forwarding of a connection from local side.
  */

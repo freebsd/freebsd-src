@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-pkcs11-helper.c,v 1.24 2020/10/18 11:32:02 djm Exp $ */
+/* $OpenBSD: ssh-pkcs11-helper.c,v 1.25 2021/08/11 05:20:17 djm Exp $ */
 /*
  * Copyright (c) 2010 Markus Friedl.  All rights reserved.
  *
@@ -98,7 +98,8 @@ lookup_key(struct sshkey *k)
 	struct pkcs11_keyinfo *ki;
 
 	TAILQ_FOREACH(ki, &pkcs11_keylist, next) {
-		debug("check %p %s %s", ki, ki->providername, ki->label);
+		debug("check %s %s %s", sshkey_type(ki->key),
+		    ki->providername, ki->label);
 		if (sshkey_equal(k, ki->key))
 			return (ki->key);
 	}
@@ -350,7 +351,6 @@ main(int argc, char **argv)
 	log_init(__progname, log_level, log_facility, log_stderr);
 
 	pkcs11_init(0);
-
 	in = STDIN_FILENO;
 	out = STDOUT_FILENO;
 
