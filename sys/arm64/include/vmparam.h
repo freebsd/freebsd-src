@@ -156,6 +156,9 @@
 #define	VM_MIN_KERNEL_ADDRESS	(0xffff000000000000UL)
 #define	VM_MAX_KERNEL_ADDRESS	(0xffff008000000000UL)
 
+/* The address bits that hold a pointer authentication code */
+#define	PAC_ADDR_MASK		(0xff7f000000000000UL)
+
 /* If true addr is in the kernel address space */
 #define	ADDR_IS_KERNEL(addr)	(((addr) & (1ul << 55)) == (1ul << 55))
 /* If true addr is in its canonical form (i.e. no TBI, PAC, etc.) */

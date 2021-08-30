@@ -83,6 +83,11 @@ struct dbreg32 {
 	int dummy;
 };
 
+struct arm64_addr_mask {
+	__uint64_t	code;
+	__uint64_t	data;
+};
+
 #define	__HAVE_REG32
 
 #endif /* !_MACHINE_REG_H_ */

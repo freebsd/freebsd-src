@@ -3204,6 +3204,9 @@ ATF_TC_BODY(ptrace__PT_CONTINUE_with_signal_thread_sigmask, tc)
 ATF_TC_WITHOUT_HEAD(ptrace__PT_REGSET);
 ATF_TC_BODY(ptrace__PT_REGSET, tc)
 {
+#if defined(__aarch64__)
+	struct arm64_addr_mask addr_mask;
+#endif
 	struct prstatus prstatus;
 	struct iovec vec;
 	pid_t child, wpid;
@@ -3241,6 +3244,16 @@ ATF_TC_BODY(ptrace__PT_REGSET, tc)
 	/* Write the registers back. */
 	ATF_REQUIRE(ptrace(PT_SETREGSET, wpid, (caddr_t)&vec, NT_PRSTATUS) !=
 	    -1);
+
+#if defined(__aarch64__)
+	vec.iov_base = &addr_mask;
+	vec.iov_len = sizeof(addr_mask);
+	ATF_REQUIRE(ptrace(PT_GETREGSET, wpid, (caddr_t)&vec,
+	    NT_ARM_ADDR_MASK) != -1);
+	REQUIRE_EQ(addr_mask.code, addr_mask.data);
+	ATF_REQUIRE(addr_mask.code == 0 ||
+	    addr_mask.code == 0xff7f000000000000UL);
+#endif
 
 	REQUIRE_EQ(ptrace(PT_CONTINUE, child, (caddr_t)1, 0), 0);
 

@@ -46,6 +46,8 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/armreg.h>
 #include <machine/cpu.h>
+#include <machine/reg.h>
+#include <machine/vmparam.h>
 
 #define	SCTLR_PTRAUTH	(SCTLR_EnIA | SCTLR_EnIB | SCTLR_EnDA | SCTLR_EnDB)
 
@@ -82,8 +84,12 @@ ptrauth_init(void)
 	 * it will also be available on any non-boot CPUs. If this is ever
 	 * not the case we will have to add a quirk.
 	 */
-	if (ID_AA64ISAR1_APA_VAL(isar1) > 0 || ID_AA64ISAR1_API_VAL(isar1) > 0)
+	if (ID_AA64ISAR1_APA_VAL(isar1) > 0 ||
+	    ID_AA64ISAR1_API_VAL(isar1) > 0) {
 		enable_ptrauth = true;
+		elf64_addr_mask.code |= PAC_ADDR_MASK;
+		elf64_addr_mask.data |= PAC_ADDR_MASK;
+	}
 }
 
 /* Copy the keys when forking a new process */
