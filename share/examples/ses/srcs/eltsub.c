@@ -62,7 +62,7 @@ geteltnm(int type)
 		sprintf(rbuf, "Cooling");
 		break;
 	case ELMTYP_THERM:
-		sprintf(rbuf, "Temperature Sensors");
+		sprintf(rbuf, "Temperature Sensor");
 		break;
 	case ELMTYP_DOORLOCK:
 		sprintf(rbuf, "Door Lock");
