@@ -266,6 +266,8 @@ get_info_weight(const struct rt_addrinfo *info, uint32_t default_weight)
 	/* Keep upper 1 byte for adm distance purposes */
 	if (weight > RT_MAX_WEIGHT)
 		weight = RT_MAX_WEIGHT;
+	else if (weight == 0)
+		weight = default_weight;
 
 	return (weight);
 }
