@@ -314,25 +314,6 @@ input_userauth_request(int type, u_int32_t seq, struct ssh *ssh)
 		    authctxt->user, authctxt->service, user, service);
 	}
 
-#ifdef HAVE_LOGIN_CAP
-	if (authctxt->pw != NULL &&
-	    (lc = PRIVSEP(login_getpwclass(authctxt->pw))) != NULL) {
-		from_host = auth_get_canonical_hostname(ssh, options.use_dns);
-		from_ip = ssh_remote_ipaddr(ssh);
-		if (!auth_hostok(lc, from_host, from_ip)) {
-			logit("Denied connection for %.200s from %.200s [%.200s].",
-			    authctxt->pw->pw_name, from_host, from_ip);
-			packet_disconnect("Sorry, you are not allowed to connect.");
-		}
-		if (!auth_timeok(lc, time(NULL))) {
-			logit("LOGIN %.200s REFUSED (TIME) FROM %.200s",
-			    authctxt->pw->pw_name, from_host);
-			packet_disconnect("Logins not available right now.");
-		}
-		PRIVSEP(login_close(lc));
-	}
-#endif  /* HAVE_LOGIN_CAP */
-
 	/* reset state */
 	auth2_challenge_stop(ssh);
 
