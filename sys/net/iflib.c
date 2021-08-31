@@ -6200,7 +6200,7 @@ iflib_irq_set_affinity(if_ctx_t ctx, if_irq_t irq, iflib_intr_type_t type,
 	base_cpuid = ctx->ifc_sysctl_core_offset;
 	cpuid = get_cpuid_for_queue(ctx, base_cpuid, qid, type == IFLIB_INTR_TX);
 	err = taskqgroup_attach_cpu(tqg, gtask, uniq, cpuid,
-	    rman_get_start(irq->ii_res), name);
+	    irq ? rman_get_start(irq->ii_res) : -1, name);
 	if (err) {
 		device_printf(dev, "taskqgroup_attach_cpu failed %d\n", err);
 		return (err);
@@ -6337,7 +6337,7 @@ iflib_softirq_alloc_generic(if_ctx_t ctx, if_irq_t irq, iflib_intr_type_t type, 
 	err = iflib_irq_set_affinity(ctx, irq, type, qid, gtask, tqg, q, name);
 	if (err) {
 		dev = ctx->ifc_dev;
-		taskqgroup_attach(tqg, gtask, q, rman_get_start(irq->ii_res),
+		taskqgroup_attach(tqg, gtask, q, irq ? rman_get_start(irq->ii_res) : -1,
 		    name);
 	}
 }
