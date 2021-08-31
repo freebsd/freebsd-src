@@ -3,7 +3,7 @@
 freebsd_instance:
   image: freebsd-12-2-release-amd64
   cpu: 8
-  memory: 24G
+  memory: 8G
 
 env:
   CIRRUS_CLONE_DEPTH: 1
