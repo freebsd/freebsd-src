@@ -267,6 +267,36 @@ attach_with_specific_unit_number_cleanup()
 	cleanup_common
 }
 
+atf_test_case attach_size_rounddown cleanup
+attach_size_rounddown()
+{
+	atf_set "descr" "Verify that md provider sizes are a multiple of the sector size"
+}
+attach_size_rounddown_body()
+{
+	local md
+	local ss=8192
+	local ms=$(($ss + 4096))
+	local ms2=$((2 * $ss + 4096))
+
+	# Use a sector size that's a likely multiple of PAGE_SIZE, as md(4)
+	# expects that for swap MDs.
+	atf_check -s exit:0 -o save:mdconfig.out -e empty \
+	    -x "mdconfig -a -t swap -S $ss -s ${ms}b"
+	md=$(cat mdconfig.out)
+	# 12288 bytes should be rounded down to one sector.
+	check_diskinfo "$md" 8192 1 $ss
+
+	# Resize and verify that the new size was also rounded down.
+	atf_check -s exit:0 -o empty -e empty \
+	    -x "mdconfig -r -u ${md#md} -s ${ms2}b"
+	check_diskinfo "$md" 16384 2 $ss
+}
+attach_size_rounddown()
+{
+	cleanup_common
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case attach_vnode_non_explicit_type
@@ -277,4 +307,5 @@ atf_init_test_cases()
 	atf_add_test_case attach_malloc
 	atf_add_test_case attach_swap
 	atf_add_test_case attach_with_specific_unit_number
+	atf_add_test_case attach_size_rounddown
 }
