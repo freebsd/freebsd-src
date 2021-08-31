@@ -7,7 +7,7 @@ compute_engine_instance:
   image_project: freebsd-org-cloud-dev
   image: freebsd-13-0-release-amd64
   cpu: 8
-  memory: 24G
+  memory: 8G
   disk: 40
 
 task:
