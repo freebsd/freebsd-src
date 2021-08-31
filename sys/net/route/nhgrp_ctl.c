@@ -255,7 +255,6 @@ static struct nhgrp_priv *
 alloc_nhgrp(struct weightened_nhop *wn, int num_nhops)
 {
 	uint32_t nhgrp_size;
-	int flags = M_NOWAIT;
 	struct nhgrp_object *nhg;
 	struct nhgrp_priv *nhg_priv;
 
@@ -266,7 +265,7 @@ alloc_nhgrp(struct weightened_nhop *wn, int num_nhops)
 	}
 
 	size_t sz = get_nhgrp_alloc_size(nhgrp_size, num_nhops);
-	nhg = malloc(sz, M_NHOP, flags | M_ZERO);
+	nhg = malloc(sz, M_NHOP, M_NOWAIT | M_ZERO);
 	if (nhg == NULL) {
 		return (NULL);
 	}
