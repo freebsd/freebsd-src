@@ -568,6 +568,9 @@ getpwnamallow(const char *user)
 	struct ssh *ssh = active_state; /* XXX */
 #ifdef HAVE_LOGIN_CAP
 	extern login_cap_t *lc;
+#ifdef HAVE_AUTH_HOSTOK
+	const char *from_host, *from_ip;
+#endif
 #ifdef BSD_AUTH
 	auth_session_t *as;
 #endif
@@ -622,6 +625,21 @@ getpwnamallow(const char *user)
 		debug("unable to get login class: %s", user);
 		return (NULL);
 	}
+#ifdef HAVE_AUTH_HOSTOK
+	from_host = auth_get_canonical_hostname(ssh, options.use_dns);
+	from_ip = ssh_remote_ipaddr(ssh);
+	if (!auth_hostok(lc, from_host, from_ip)) {
+		debug("Denied connection for %.200s from %.200s [%.200s].",
+		    pw->pw_name, from_host, from_ip);
+		return (NULL);
+	}
+#endif /* HAVE_AUTH_HOSTOK */
+#ifdef HAVE_AUTH_TIMEOK
+	if (!auth_timeok(lc, time(NULL))) {
+		debug("LOGIN %.200s REFUSED (TIME)", pw->pw_name);
+		return (NULL);
+	}
+#endif /* HAVE_AUTH_TIMEOK */
 #ifdef BSD_AUTH
 	if ((as = auth_open()) == NULL || auth_setpwd(as, pw) != 0 ||
 	    auth_approval(as, lc, pw->pw_name, "ssh") <= 0) {

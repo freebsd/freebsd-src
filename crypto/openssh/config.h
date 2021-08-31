@@ -211,6 +211,12 @@
 /* Define to 1 if you have the `aug_get_machine' function. */
 /* #undef HAVE_AUG_GET_MACHINE */
 
+/* Define to 1 if you have the `auth_hostok' function. */
+#define HAVE_AUTH_HOSTOK 1
+
+/* Define to 1 if you have the `auth_timeok' function. */
+#define HAVE_AUTH_TIMEOK 1
+
 /* Define to 1 if you have the `b64_ntop' function. */
 /* #undef HAVE_B64_NTOP */
 
