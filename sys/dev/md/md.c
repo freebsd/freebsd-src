@@ -1580,6 +1580,7 @@ mdresize(struct md_s *sc, struct md_req *mdr)
 	}
 
 	sc->mediasize = mdr->md_mediasize;
+
 	g_topology_lock();
 	g_resize_provider(sc->pp, sc->mediasize);
 	g_topology_unlock();
@@ -1787,6 +1788,7 @@ kern_mdresize_locked(struct md_req *mdr)
 		return (ENOENT);
 	if (mdr->md_mediasize < sc->sectorsize)
 		return (EINVAL);
+	mdr->md_mediasize -= mdr->md_mediasize % sc->sectorsize;
 	if (mdr->md_mediasize < sc->mediasize &&
 	    !(sc->flags & MD_FORCE) &&
 	    !(mdr->md_options & MD_FORCE))
