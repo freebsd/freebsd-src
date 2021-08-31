@@ -2804,7 +2804,7 @@ sctp_remove_laddr(struct sctp_laddr *laddr)
 /* sctp_ifap is used to bypass normal local address validation checks */
 int
 sctp_inpcb_bind(struct socket *so, struct sockaddr *addr,
-    struct sctp_ifa *sctp_ifap, struct thread *p)
+    struct sctp_ifa *sctp_ifap, struct thread *td)
 {
 	/* bind a ep to a socket address */
 	struct sctppcbhead *head;
@@ -2815,6 +2815,8 @@ sctp_inpcb_bind(struct socket *so, struct sockaddr *addr,
 	uint16_t lport;
 	int error;
 	uint32_t vrf_id;
+
+	KASSERT(td != NULL, ("%s: null thread", __func__));
 
 	lport = 0;
 	bindall = 1;
@@ -2833,10 +2835,6 @@ sctp_inpcb_bind(struct socket *so, struct sockaddr *addr,
 		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, EINVAL);
 		return (EINVAL);
 	}
-#ifdef INVARIANTS
-	if (p == NULL)
-		panic("null proc/thread");
-#endif
 	if (addr != NULL) {
 		switch (addr->sa_family) {
 #ifdef INET
@@ -2861,7 +2859,7 @@ sctp_inpcb_bind(struct socket *so, struct sockaddr *addr,
 				 * will transmute the ip address to the
 				 * proper value.
 				 */
-				if (p && (error = prison_local_ip4(p->td_ucred, &sin->sin_addr)) != 0) {
+				if ((error = prison_local_ip4(td->td_ucred, &sin->sin_addr)) != 0) {
 					SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, error);
 					return (error);
 				}
@@ -2892,7 +2890,7 @@ sctp_inpcb_bind(struct socket *so, struct sockaddr *addr,
 				 * will transmute the ipv6 address to the
 				 * proper value.
 				 */
-				if (p && (error = prison_local_ip6(p->td_ucred, &sin6->sin6_addr,
+				if ((error = prison_local_ip6(td->td_ucred, &sin6->sin6_addr,
 				    (SCTP_IPV6_V6ONLY(inp) != 0))) != 0) {
 					SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, error);
 					return (error);
@@ -2929,9 +2927,7 @@ sctp_inpcb_bind(struct socket *so, struct sockaddr *addr,
 		 */
 		/* got to be root to get at low ports */
 		if (ntohs(lport) < IPPORT_RESERVED) {
-			if ((p != NULL) && ((error =
-			    priv_check(p, PRIV_NETINET_RESERVEDPORT)
-			    ) != 0)) {
+			if ((error = priv_check(td, PRIV_NETINET_RESERVEDPORT)) != 0) {
 				SCTP_INP_DECR_REF(inp);
 				SCTP_INP_WUNLOCK(inp);
 				SCTP_INP_INFO_WUNLOCK();
@@ -3021,9 +3017,7 @@ continue_anyway:
 			first = MODULE_GLOBAL(ipport_hifirstauto);
 			last = MODULE_GLOBAL(ipport_hilastauto);
 		} else if (ip_inp->inp_flags & INP_LOWPORT) {
-			if (p && (error =
-			    priv_check(p, PRIV_NETINET_RESERVEDPORT)
-			    )) {
+			if ((error = priv_check(td, PRIV_NETINET_RESERVEDPORT)) != 0) {
 				SCTP_INP_DECR_REF(inp);
 				SCTP_INP_WUNLOCK(inp);
 				SCTP_INP_INFO_WUNLOCK();
