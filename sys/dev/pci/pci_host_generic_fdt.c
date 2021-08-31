@@ -138,6 +138,14 @@ pci_host_generic_setup_fdt(device_t dev)
 	/* TODO parse FDT bus ranges */
 	sc->base.bus_start = 0;
 	sc->base.bus_end = 0xFF;
+	
+	/*
+	 * ofw_pcib uses device unit as PCI domain number.
+	 * Do the same. Some boards have multiple RCs handled
+	 * by different drivers, this ensures that there are
+	 * no collisions.
+	 */
+	sc->base.ecam = device_get_unit(dev);
 
 	error = pci_host_generic_core_attach(dev);
 	if (error != 0)
