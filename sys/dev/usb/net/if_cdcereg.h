@@ -37,6 +37,8 @@
 #ifndef _USB_IF_CDCEREG_H_
 #define	_USB_IF_CDCEREG_H_
 
+#define CDCE_BIT(x) (1 << (x))
+
 #define	CDCE_FRAMES_MAX	8		/* units */
 #define	CDCE_IND_SIZE_MAX 32            /* bytes */
 
@@ -103,6 +105,19 @@ struct cdce_softc {
 #define	CDCE_NOTIFY_SPEED_CHANGE	1
 #define	CDCE_NOTIFY_DONE		2
 };
+
+/*
+ * Taken from USB CDC Subclass Specification for Ethernet Devices v1.2,
+ * section 6.2.4.
+ */
+
+#define	CDC_SET_ETHERNET_PACKET_FILTER	0x43	/* Command code. */
+
+#define	CDC_PACKET_TYPE_PROMISC		CDCE_BIT(0)
+#define	CDC_PACKET_TYPE_ALL_MULTICAST	CDCE_BIT(1)	/* Allmulti. */
+#define	CDC_PACKET_TYPE_DIRECTED	CDCE_BIT(2)	/* Filter unicast by mac. */
+#define	CDC_PACKET_TYPE_BROADCAST	CDCE_BIT(3)
+#define	CDC_PACKET_TYPE_MULTICAST	CDCE_BIT(4)	/* Multicast filtering, not supported. */
 
 #define	CDCE_LOCK(_sc)			mtx_lock(&(_sc)->sc_mtx)
 #define	CDCE_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_mtx)
