@@ -2918,9 +2918,10 @@ sctp_inpcb_bind(struct socket *so, struct sockaddr *addr,
 	/* Setup a vrf_id to be the default for the non-bind-all case. */
 	vrf_id = inp->def_vrf_id;
 
-	/* increase our count due to the unlock we do */
-	SCTP_INP_INCR_REF(inp);
 	if (lport) {
+		/* increase our count due to the unlock we do */
+		SCTP_INP_INCR_REF(inp);
+
 		/*
 		 * Did the caller specify a port? if so we must see if an ep
 		 * already has this one bound.
@@ -2991,6 +2992,7 @@ sctp_inpcb_bind(struct socket *so, struct sockaddr *addr,
 		}
 continue_anyway:
 		SCTP_INP_WLOCK(inp);
+		SCTP_INP_DECR_REF(inp);
 		if (bindall) {
 			/* verify that no lport is not used by a singleton */
 			if ((port_reuse_active == 0) &&
@@ -3000,7 +3002,6 @@ continue_anyway:
 				    (sctp_is_feature_on(inp_tmp, SCTP_PCB_FLAGS_PORTREUSE))) {
 					port_reuse_active = 1;
 				} else {
-					SCTP_INP_DECR_REF(inp);
 					SCTP_INP_WUNLOCK(inp);
 					SCTP_INP_INFO_WUNLOCK();
 					SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, EADDRINUSE);
@@ -3018,7 +3019,6 @@ continue_anyway:
 			last = MODULE_GLOBAL(ipport_hilastauto);
 		} else if (ip_inp->inp_flags & INP_LOWPORT) {
 			if ((error = priv_check(td, PRIV_NETINET_RESERVEDPORT)) != 0) {
-				SCTP_INP_DECR_REF(inp);
 				SCTP_INP_WUNLOCK(inp);
 				SCTP_INP_INFO_WUNLOCK();
 				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, error);
@@ -3047,7 +3047,6 @@ continue_anyway:
 			}
 			if (!done) {
 				if (--count == 0) {
-					SCTP_INP_DECR_REF(inp);
 					SCTP_INP_WUNLOCK(inp);
 					SCTP_INP_INFO_WUNLOCK();
 					SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, EADDRINUSE);
@@ -3061,7 +3060,6 @@ continue_anyway:
 		}
 		lport = htons(candidate);
 	}
-	SCTP_INP_DECR_REF(inp);
 	if (inp->sctp_flags & (SCTP_PCB_FLAGS_SOCKET_GONE |
 	    SCTP_PCB_FLAGS_SOCKET_ALLGONE)) {
 		/*
