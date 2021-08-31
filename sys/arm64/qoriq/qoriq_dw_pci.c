@@ -101,13 +101,7 @@ static struct qoriq_dw_pci_cfg ls2028_cfg = {
 /* Compatible devices. */
 static struct ofw_compat_data compat_data[] = {
 	{"fsl,ls1012a-pcie", (uintptr_t)&ls1012_cfg},
-	/*
-	 * XXX: On LS1028ARDB attaching this driver causes external abort.
-	 * Disable it for now.
-	 */
-#ifdef notyet
 	{"fsl,ls1028a-pcie", (uintptr_t)&ls2028_cfg},
-#endif
 	{"fsl,ls1043a-pcie", (uintptr_t)&ls1043_cfg},
 	{"fsl,ls1046a-pcie", (uintptr_t)&ls1012_cfg},
 	{"fsl,ls2080a-pcie", (uintptr_t)&ls2080_cfg},
@@ -156,7 +150,7 @@ qorif_dw_pci_get_link(device_t dev, bool *status)
 	reg = pci_dw_dbi_rd4(sc->dev, sc->soc_cfg->pex_pf0_dgb);
 	reg >>=  sc->soc_cfg->ltssm_bit;
 	reg &= 0x3F;
-	*status = (reg = 0x11) ? true: false;
+	*status = (reg == 0x11) ? true : false;
 	return (0);
 }
 
