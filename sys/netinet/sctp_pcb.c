@@ -2818,6 +2818,7 @@ sctp_inpcb_bind(struct socket *so, struct sockaddr *addr,
 
 	KASSERT(td != NULL, ("%s: null thread", __func__));
 
+	error = 0;
 	lport = 0;
 	bindall = 1;
 	inp = (struct sctp_inpcb *)so->so_pcb;
@@ -2830,10 +2831,13 @@ sctp_inpcb_bind(struct socket *so, struct sockaddr *addr,
 		SCTPDBG_ADDR(SCTP_DEBUG_PCB1, addr);
 	}
 #endif
+	SCTP_INP_INFO_WLOCK();
+	SCTP_INP_WLOCK(inp);
 	if ((inp->sctp_flags & SCTP_PCB_FLAGS_UNBOUND) == 0) {
+		error = EINVAL;
 		/* already did a bind, subsequent binds NOT allowed ! */
-		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, EINVAL);
-		return (EINVAL);
+		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, error);
+		goto out;
 	}
 	if (addr != NULL) {
 		switch (addr->sa_family) {
@@ -2844,12 +2848,14 @@ sctp_inpcb_bind(struct socket *so, struct sockaddr *addr,
 
 				/* IPV6_V6ONLY socket? */
 				if (SCTP_IPV6_V6ONLY(inp)) {
-					SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, EINVAL);
-					return (EINVAL);
+					error = EINVAL;
+					SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, error);
+					goto out;
 				}
 				if (addr->sa_len != sizeof(*sin)) {
-					SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, EINVAL);
-					return (EINVAL);
+					error = EINVAL;
+					SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, error);
+					goto out;
 				}
 
 				sin = (struct sockaddr_in *)addr;
@@ -2861,7 +2867,7 @@ sctp_inpcb_bind(struct socket *so, struct sockaddr *addr,
 				 */
 				if ((error = prison_local_ip4(td->td_ucred, &sin->sin_addr)) != 0) {
 					SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, error);
-					return (error);
+					goto out;
 				}
 				if (sin->sin_addr.s_addr != INADDR_ANY) {
 					bindall = 0;
@@ -2879,10 +2885,10 @@ sctp_inpcb_bind(struct socket *so, struct sockaddr *addr,
 				struct sockaddr_in6 *sin6;
 
 				sin6 = (struct sockaddr_in6 *)addr;
-
 				if (addr->sa_len != sizeof(*sin6)) {
-					SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, EINVAL);
-					return (EINVAL);
+					error = EINVAL;
+					SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, error);
+					goto out;
 				}
 				lport = sin6->sin6_port;
 				/*
@@ -2893,14 +2899,15 @@ sctp_inpcb_bind(struct socket *so, struct sockaddr *addr,
 				if ((error = prison_local_ip6(td->td_ucred, &sin6->sin6_addr,
 				    (SCTP_IPV6_V6ONLY(inp) != 0))) != 0) {
 					SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, error);
-					return (error);
+					goto out;
 				}
 				if (!IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr)) {
 					bindall = 0;
 					/* KAME hack: embed scopeid */
 					if (sa6_embedscope(sin6, MODULE_GLOBAL(ip6_use_defzone)) != 0) {
-						SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, EINVAL);
-						return (EINVAL);
+						error = EINVAL;
+						SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, error);
+						goto out;
 					}
 				}
 				/* this must be cleared for ifa_ifwithaddr() */
@@ -2909,12 +2916,11 @@ sctp_inpcb_bind(struct socket *so, struct sockaddr *addr,
 			}
 #endif
 		default:
-			SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, EAFNOSUPPORT);
-			return (EAFNOSUPPORT);
+			error = EAFNOSUPPORT;
+			SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, error);
+			goto out;
 		}
 	}
-	SCTP_INP_INFO_WLOCK();
-	SCTP_INP_WLOCK(inp);
 	/* Setup a vrf_id to be the default for the non-bind-all case. */
 	vrf_id = inp->def_vrf_id;
 
@@ -2930,9 +2936,7 @@ sctp_inpcb_bind(struct socket *so, struct sockaddr *addr,
 		if (ntohs(lport) < IPPORT_RESERVED) {
 			if ((error = priv_check(td, PRIV_NETINET_RESERVEDPORT)) != 0) {
 				SCTP_INP_DECR_REF(inp);
-				SCTP_INP_WUNLOCK(inp);
-				SCTP_INP_INFO_WUNLOCK();
-				return (error);
+				goto out;
 			}
 		}
 		SCTP_INP_WUNLOCK(inp);
@@ -2959,9 +2963,9 @@ sctp_inpcb_bind(struct socket *so, struct sockaddr *addr,
 					goto continue_anyway;
 				}
 				SCTP_INP_DECR_REF(inp);
-				SCTP_INP_INFO_WUNLOCK();
-				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, EADDRINUSE);
-				return (EADDRINUSE);
+				error = EADDRINUSE;
+				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, error);
+				goto out_inp_unlocked;
 			}
 		} else {
 			inp_tmp = sctp_pcb_findep(addr, 0, 1, vrf_id);
@@ -2985,9 +2989,9 @@ sctp_inpcb_bind(struct socket *so, struct sockaddr *addr,
 					goto continue_anyway;
 				}
 				SCTP_INP_DECR_REF(inp);
-				SCTP_INP_INFO_WUNLOCK();
-				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, EADDRINUSE);
-				return (EADDRINUSE);
+				error = EADDRINUSE;
+				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, error);
+				goto out_inp_unlocked;
 			}
 		}
 continue_anyway:
@@ -3002,10 +3006,9 @@ continue_anyway:
 				    (sctp_is_feature_on(inp_tmp, SCTP_PCB_FLAGS_PORTREUSE))) {
 					port_reuse_active = 1;
 				} else {
-					SCTP_INP_WUNLOCK(inp);
-					SCTP_INP_INFO_WUNLOCK();
-					SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, EADDRINUSE);
-					return (EADDRINUSE);
+					error = EADDRINUSE;
+					SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, error);
+					goto out;
 				}
 			}
 		}
@@ -3018,10 +3021,8 @@ continue_anyway:
 			last = MODULE_GLOBAL(ipport_hilastauto);
 		} else if (ip_inp->inp_flags & INP_LOWPORT) {
 			if ((error = priv_check(td, PRIV_NETINET_RESERVEDPORT)) != 0) {
-				SCTP_INP_WUNLOCK(inp);
-				SCTP_INP_INFO_WUNLOCK();
 				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, error);
-				return (error);
+				goto out;
 			}
 			first = MODULE_GLOBAL(ipport_lowfirstauto);
 			last = MODULE_GLOBAL(ipport_lowlastauto);
@@ -3045,10 +3046,9 @@ continue_anyway:
 				break;
 			}
 			if (--count == 0) {
-				SCTP_INP_WUNLOCK(inp);
-				SCTP_INP_INFO_WUNLOCK();
-				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, EADDRINUSE);
-				return (EADDRINUSE);
+				error = EADDRINUSE;
+				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, error);
+				goto out;
 			}
 			if (candidate == last)
 				candidate = first;
@@ -3062,10 +3062,9 @@ continue_anyway:
 		 * this really should not happen. The guy did a non-blocking
 		 * bind and then did a close at the same time.
 		 */
-		SCTP_INP_WUNLOCK(inp);
-		SCTP_INP_INFO_WUNLOCK();
-		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, EINVAL);
-		return (EINVAL);
+		error = EINVAL;
+		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, error);
+		goto out;
 	}
 	/* ok we look clear to give out this port, so lets setup the binding */
 	if (bindall) {
@@ -3153,21 +3152,19 @@ continue_anyway:
 			    vrf_id, SCTP_ADDR_NOT_LOCKED);
 		}
 		if (ifa == NULL) {
+			error = EADDRNOTAVAIL;
 			/* Can't find an interface with that address */
-			SCTP_INP_WUNLOCK(inp);
-			SCTP_INP_INFO_WUNLOCK();
-			SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, EADDRNOTAVAIL);
-			return (EADDRNOTAVAIL);
+			SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, error);
+			goto out;
 		}
 #ifdef INET6
 		if (addr->sa_family == AF_INET6) {
 			/* GAK, more FIXME IFA lock? */
 			if (ifa->localifa_flags & SCTP_ADDR_IFA_UNUSEABLE) {
 				/* Can't bind a non-existent addr. */
-				SCTP_INP_WUNLOCK(inp);
-				SCTP_INP_INFO_WUNLOCK();
-				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, EINVAL);
-				return (EINVAL);
+				error = EINVAL;
+				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, error);
+				goto out;
 			}
 		}
 #endif
@@ -3180,11 +3177,8 @@ continue_anyway:
 
 		/* add this address to the endpoint list */
 		error = sctp_insert_laddr(&inp->sctp_addr_list, ifa, 0);
-		if (error != 0) {
-			SCTP_INP_WUNLOCK(inp);
-			SCTP_INP_INFO_WUNLOCK();
-			return (error);
-		}
+		if (error != 0)
+			goto out;
 		inp->laddr_count++;
 	}
 	/* find the bucket */
@@ -3203,10 +3197,14 @@ continue_anyway:
 	inp->sctp_lport = lport;
 
 	/* turn off just the unbound flag */
+	KASSERT((inp->sctp_flags & SCTP_PCB_FLAGS_UNBOUND) != 0,
+	    ("%s: inp %p is already bound", __func__, inp));
 	inp->sctp_flags &= ~SCTP_PCB_FLAGS_UNBOUND;
+out:
 	SCTP_INP_WUNLOCK(inp);
+out_inp_unlocked:
 	SCTP_INP_INFO_WUNLOCK();
-	return (0);
+	return (error);
 }
 
 static void
