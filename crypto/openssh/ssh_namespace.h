@@ -657,7 +657,6 @@
 #define sshbuf_dump_data			Fssh_sshbuf_dump_data
 #define sshbuf_dup_string			Fssh_sshbuf_dup_string
 #define sshbuf_free				Fssh_sshbuf_free
-#define sshbuf_free_passwd			Fssh_sshbuf_free_passwd
 #define sshbuf_from				Fssh_sshbuf_from
 #define sshbuf_fromb				Fssh_sshbuf_fromb
 #define sshbuf_froms				Fssh_sshbuf_froms
@@ -668,7 +667,6 @@
 #define sshbuf_get_cstring			Fssh_sshbuf_get_cstring
 #define sshbuf_get_ec				Fssh_sshbuf_get_ec
 #define sshbuf_get_eckey			Fssh_sshbuf_get_eckey
-#define sshbuf_get_passwd			Fssh_sshbuf_get_passwd
 #define sshbuf_get_string			Fssh_sshbuf_get_string
 #define sshbuf_get_string_direct		Fssh_sshbuf_get_string_direct
 #define sshbuf_get_stringb			Fssh_sshbuf_get_stringb
@@ -690,7 +688,6 @@
 #define sshbuf_put_cstring			Fssh_sshbuf_put_cstring
 #define sshbuf_put_ec				Fssh_sshbuf_put_ec
 #define sshbuf_put_eckey			Fssh_sshbuf_put_eckey
-#define sshbuf_put_passwd			Fssh_sshbuf_put_passwd
 #define sshbuf_put_string			Fssh_sshbuf_put_string
 #define sshbuf_put_stringb			Fssh_sshbuf_put_stringb
 #define sshbuf_put_u16				Fssh_sshbuf_put_u16
