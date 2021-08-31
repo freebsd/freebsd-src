@@ -1046,8 +1046,11 @@ ddf_meta_read(struct g_consumer *cp, struct ddf_meta *meta)
 	uint32_t val;
 
 	ddf_meta_free(meta);
+
 	pp = cp->provider;
 	ss = meta->sectorsize = pp->sectorsize;
+	if (ss < sizeof(*hdr))
+		return (ENXIO);
 	/* Read anchor block. */
 	abuf = g_read_data(cp, pp->mediasize - ss, ss, &error);
 	if (abuf == NULL) {
