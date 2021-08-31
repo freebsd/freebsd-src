@@ -117,6 +117,7 @@ static int cdce_media_change_cb(struct ifnet *);
 static void cdce_media_status_cb(struct ifnet *, struct ifmediareq *);
 
 static uint32_t	cdce_m_crc32(struct mbuf *, uint32_t, uint32_t);
+static void	cdce_set_filter(struct usb_ether *);
 
 #ifdef USB_DEBUG
 static int cdce_debug = 0;
@@ -593,6 +594,9 @@ cdce_attach_post_sub(struct usb_ether *ue)
 	ifmedia_add(&sc->sc_media, IFM_ETHER | IFM_AUTO, 0, NULL);
 	ifmedia_set(&sc->sc_media, IFM_ETHER | IFM_AUTO);
 	sc->sc_media.ifm_media = sc->sc_media.ifm_cur->ifm_media;
+	CDCE_LOCK(sc);
+	cdce_set_filter(ue);
+	CDCE_UNLOCK(sc);
 
 	return 0;
 }
@@ -1025,15 +1029,44 @@ cdce_stop(struct usb_ether *ue)
 static void
 cdce_setmulti(struct usb_ether *ue)
 {
-	/* no-op */
-	return;
+
+	cdce_set_filter(ue);
 }
 
 static void
 cdce_setpromisc(struct usb_ether *ue)
 {
-	/* no-op */
-	return;
+
+	cdce_set_filter(ue);
+}
+
+static void
+cdce_set_filter(struct usb_ether *ue)
+{
+	struct cdce_softc *sc = uether_getsc(ue);
+	struct ifnet *ifp = uether_getifp(ue);
+	struct usb_device_request req;
+	uint16_t value;
+
+	value = CDC_PACKET_TYPE_DIRECTED | CDC_PACKET_TYPE_BROADCAST;
+	if (if_getflags(ifp) & IFF_PROMISC)
+		value |= CDC_PACKET_TYPE_PROMISC;
+	if (if_getflags(ifp) & IFF_ALLMULTI)
+		value |= CDC_PACKET_TYPE_ALL_MULTICAST;
+
+	req.bmRequestType = UT_CLASS | UT_INTERFACE;
+	req.bRequest = CDC_SET_ETHERNET_PACKET_FILTER;
+	USETW(req.wValue, value);
+	req.wIndex[0] = sc->sc_ifaces_index[1];
+	req.wIndex[1] = 0;
+	USETW(req.wLength, 0);
+
+	/*
+	 * Function below will drop the sc mutex.
+	 * We can do that since we're called from a separate task,
+	 * that simply wraps the setpromisc/setmulti methods.
+	 */
+	usbd_do_request(sc->sc_ue.ue_udev, &sc->sc_mtx, &req, NULL);
 }
 
 static int
