@@ -250,7 +250,8 @@ nvidia_meta_read(struct g_consumer *cp)
 	uint32_t checksum, *ptr;
 
 	pp = cp->provider;
-
+	if (pp->sectorsize < sizeof(*meta))
+		return (NULL);
 	/* Read the anchor sector. */
 	buf = g_read_data(cp,
 	    pp->mediasize - 2 * pp->sectorsize, pp->sectorsize, &error);
