@@ -652,7 +652,7 @@ nvme_qpair_process_completions(struct nvme_qpair *qpair)
 }
 
 static void
-nvme_qpair_msix_handler(void *arg)
+nvme_qpair_msi_handler(void *arg)
 {
 	struct nvme_qpair *qpair = arg;
 
@@ -670,7 +670,7 @@ nvme_qpair_construct(struct nvme_qpair *qpair,
 	uint8_t			*queuemem, *prpmem, *prp_list;
 	int			i, err;
 
-	qpair->vector = ctrlr->msix_enabled ? qpair->id : 0;
+	qpair->vector = ctrlr->msi_count > 1 ? qpair->id : 0;
 	qpair->num_entries = num_entries;
 	qpair->num_trackers = num_trackers;
 	qpair->ctrlr = ctrlr;
@@ -795,7 +795,7 @@ nvme_qpair_construct(struct nvme_qpair *qpair,
 	    qpair->num_entries, M_NVME, DOMAINSET_PREF(qpair->domain),
 	    M_ZERO | M_WAITOK);
 
-	if (ctrlr->msix_enabled) {
+	if (ctrlr->msi_count > 1) {
 		/*
 		 * MSI-X vector resource IDs start at 1, so we add one to
 		 *  the queue's vector to get the corresponding rid to use.
@@ -804,10 +804,14 @@ nvme_qpair_construct(struct nvme_qpair *qpair,
 
 		qpair->res = bus_alloc_resource_any(ctrlr->dev, SYS_RES_IRQ,
 		    &qpair->rid, RF_ACTIVE);
+		if (qpair->res == NULL) {
+			nvme_printf(ctrlr, "unable to allocate MSI\n");
+			goto out;
+		}
 		if (bus_setup_intr(ctrlr->dev, qpair->res,
 		    INTR_TYPE_MISC | INTR_MPSAFE, NULL,
-		    nvme_qpair_msix_handler, qpair, &qpair->tag) != 0) {
-			nvme_printf(ctrlr, "unable to setup intx handler\n");
+		    nvme_qpair_msi_handler, qpair, &qpair->tag) != 0) {
+			nvme_printf(ctrlr, "unable to setup MSI\n");
 			goto out;
 		}
 		if (qpair->id == 0) {

@@ -1203,7 +1203,7 @@ nvme_ctrlr_poll(struct nvme_controller *ctrlr)
  * interrupts in the controller.
  */
 void
-nvme_ctrlr_intx_handler(void *arg)
+nvme_ctrlr_shared_handler(void *arg)
 {
 	struct nvme_controller *ctrlr = arg;
 

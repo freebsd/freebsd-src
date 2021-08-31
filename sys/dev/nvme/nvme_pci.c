@@ -47,7 +47,7 @@ static int    nvme_pci_detach(device_t);
 static int    nvme_pci_suspend(device_t);
 static int    nvme_pci_resume(device_t);
 
-static void nvme_ctrlr_setup_interrupts(struct nvme_controller *ctrlr);
+static int nvme_ctrlr_setup_interrupts(struct nvme_controller *ctrlr);
 
 static device_method_t nvme_pci_methods[] = {
 	/* Device interface */
@@ -188,7 +188,9 @@ nvme_pci_attach(device_t dev)
 	if (status != 0)
 		goto bad;
 	pci_enable_busmaster(dev);
-	nvme_ctrlr_setup_interrupts(ctrlr);
+	status = nvme_ctrlr_setup_interrupts(ctrlr);
+	if (status != 0)
+		goto bad;
 	return nvme_attach(dev);
 bad:
 	if (ctrlr->resource != NULL) {
@@ -208,7 +210,7 @@ bad:
 		bus_release_resource(dev, SYS_RES_IRQ,
 		    rman_get_rid(ctrlr->res), ctrlr->res);
 
-	if (ctrlr->msix_enabled)
+	if (ctrlr->msi_count > 0)
 		pci_release_msi(dev);
 
 	return status;
@@ -221,54 +223,60 @@ nvme_pci_detach(device_t dev)
 	int rv;
 
 	rv = nvme_detach(dev);
-	if (ctrlr->msix_enabled)
+	if (ctrlr->msi_count > 0)
 		pci_release_msi(dev);
 	pci_disable_busmaster(dev);
 	return (rv);
 }
 
 static int
-nvme_ctrlr_configure_intx(struct nvme_controller *ctrlr)
+nvme_ctrlr_setup_shared(struct nvme_controller *ctrlr, int rid)
 {
+	int error;
 
-	ctrlr->msix_enabled = 0;
 	ctrlr->num_io_queues = 1;
-	ctrlr->rid = 0;
+	ctrlr->rid = rid;
 	ctrlr->res = bus_alloc_resource_any(ctrlr->dev, SYS_RES_IRQ,
 	    &ctrlr->rid, RF_SHAREABLE | RF_ACTIVE);
-
 	if (ctrlr->res == NULL) {
-		nvme_printf(ctrlr, "unable to allocate shared IRQ\n");
+		nvme_printf(ctrlr, "unable to allocate shared interrupt\n");
 		return (ENOMEM);
 	}
 
-	if (bus_setup_intr(ctrlr->dev, ctrlr->res,
-	    INTR_TYPE_MISC | INTR_MPSAFE, NULL, nvme_ctrlr_intx_handler,
-	    ctrlr, &ctrlr->tag) != 0) {
-		nvme_printf(ctrlr, "unable to setup intx handler\n");
-		return (ENOMEM);
+	error = bus_setup_intr(ctrlr->dev, ctrlr->res,
+	    INTR_TYPE_MISC | INTR_MPSAFE, NULL, nvme_ctrlr_shared_handler,
+	    ctrlr, &ctrlr->tag);
+	if (error) {
+		nvme_printf(ctrlr, "unable to setup shared interrupt\n");
+		return (error);
 	}
 
 	return (0);
 }
 
-static void
+static int
 nvme_ctrlr_setup_interrupts(struct nvme_controller *ctrlr)
 {
 	device_t	dev;
 	int		force_intx, num_io_queues, per_cpu_io_queues;
 	int		min_cpus_per_ioq;
-	int		num_vectors_requested, num_vectors_allocated;
+	int		num_vectors_requested;
 
 	dev = ctrlr->dev;
 
 	force_intx = 0;
 	TUNABLE_INT_FETCH("hw.nvme.force_intx", &force_intx);
-	if (force_intx || pci_msix_count(dev) < 2) {
-		nvme_ctrlr_configure_intx(ctrlr);
-		return;
-	}
+	if (force_intx)
+		return (nvme_ctrlr_setup_shared(ctrlr, 0));
 
+	if (pci_msix_count(dev) == 0)
+		goto msi;
+
+	/*
+	 * Try to allocate one MSI-X per core for I/O queues, plus one
+	 * for admin queue, but accept single shared MSI-X if have to.
+	 * Fall back to MSI if can't get any MSI-X.
+	 */
 	num_io_queues = mp_ncpus;
 	TUNABLE_INT_FETCH("hw.nvme.num_io_queues", &num_io_queues);
 	if (num_io_queues < 1 || num_io_queues > mp_ncpus)
@@ -286,31 +294,45 @@ nvme_ctrlr_setup_interrupts(struct nvme_controller *ctrlr)
 		    max(1, mp_ncpus / min_cpus_per_ioq));
 	}
 
-	num_io_queues = min(num_io_queues, pci_msix_count(dev) - 1);
+	num_io_queues = min(num_io_queues, max(1, pci_msix_count(dev) - 1));
 
 again:
 	if (num_io_queues > vm_ndomains)
 		num_io_queues -= num_io_queues % vm_ndomains;
-	/* One vector for per core I/O queue, plus one vector for admin queue. */
-	num_vectors_requested = num_io_queues + 1;
-	num_vectors_allocated = num_vectors_requested;
-	if (pci_alloc_msix(dev, &num_vectors_allocated) != 0) {
-		nvme_ctrlr_configure_intx(ctrlr);
-		return;
+	num_vectors_requested = min(num_io_queues + 1, pci_msix_count(dev));
+	ctrlr->msi_count = num_vectors_requested;
+	if (pci_alloc_msix(dev, &ctrlr->msi_count) != 0) {
+		nvme_printf(ctrlr, "unable to allocate MSI-X\n");
+		ctrlr->msi_count = 0;
+		goto msi;
 	}
-	if (num_vectors_allocated < 2) {
+	if (ctrlr->msi_count == 1)
+		return (nvme_ctrlr_setup_shared(ctrlr, 1));
+	if (ctrlr->msi_count != num_vectors_requested) {
 		pci_release_msi(dev);
-		nvme_ctrlr_configure_intx(ctrlr);
-		return;
-	}
-	if (num_vectors_allocated != num_vectors_requested) {
-		pci_release_msi(dev);
-		num_io_queues = num_vectors_allocated - 1;
+		num_io_queues = ctrlr->msi_count - 1;
 		goto again;
 	}
 
-	ctrlr->msix_enabled = 1;
 	ctrlr->num_io_queues = num_io_queues;
+	return (0);
+
+msi:
+	/*
+	 * Try to allocate 2 MSIs (admin and I/O queues), but accept single
+	 * shared if have to.  Fall back to INTx if can't get any MSI.
+	 */
+	ctrlr->msi_count = min(pci_msi_count(dev), 2);
+	if (ctrlr->msi_count > 0) {
+		if (pci_alloc_msi(dev, &ctrlr->msi_count) != 0) {
+			nvme_printf(ctrlr, "unable to allocate MSI\n");
+			ctrlr->msi_count = 0;
+		} else if (ctrlr->msi_count == 2) {
+			ctrlr->num_io_queues = 1;
+			return (0);
+		}
+	}
+	return (nvme_ctrlr_setup_shared(ctrlr, ctrlr->msi_count > 0 ? 1 : 0));
 }
 
 static int

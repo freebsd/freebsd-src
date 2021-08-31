@@ -244,7 +244,7 @@ struct nvme_controller {
 	int			bar4_resource_id;
 	struct resource		*bar4_resource;
 
-	uint32_t		msix_enabled;
+	int			msi_count;
 	uint32_t		enable_aborts;
 
 	uint32_t		num_io_queues;
@@ -553,7 +553,7 @@ void	nvme_notify_fail_consumers(struct nvme_controller *ctrlr);
 void	nvme_notify_new_controller(struct nvme_controller *ctrlr);
 void	nvme_notify_ns(struct nvme_controller *ctrlr, int nsid);
 
-void	nvme_ctrlr_intx_handler(void *arg);
+void	nvme_ctrlr_shared_handler(void *arg);
 void	nvme_ctrlr_poll(struct nvme_controller *ctrlr);
 
 int	nvme_ctrlr_suspend(struct nvme_controller *ctrlr);
