@@ -1822,8 +1822,11 @@ itimers_event_exit_exec(int start_idx, struct proc *p)
 	}
 	if (its->its_timers[0] == NULL && its->its_timers[1] == NULL &&
 	    its->its_timers[2] == NULL) {
-		free(its, M_SUBPROC);
+		/* Synchronize with itimer_proc_continue(). */
+		PROC_LOCK(p);
 		p->p_itimers = NULL;
+		PROC_UNLOCK(p);
+		free(its, M_SUBPROC);
 	}
 }
 
