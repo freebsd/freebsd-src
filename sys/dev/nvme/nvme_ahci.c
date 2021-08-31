@@ -87,19 +87,18 @@ nvme_ahci_attach(device_t dev)
 	ctrlr->rid = 0;
 	ctrlr->res = bus_alloc_resource_any(dev, SYS_RES_IRQ,
 	    &ctrlr->rid, RF_SHAREABLE | RF_ACTIVE);
-
 	if (ctrlr->res == NULL) {
-		nvme_printf(ctrlr, "unable to allocate shared IRQ\n");
+		nvme_printf(ctrlr, "unable to allocate shared interrupt\n");
 		ret = ENOMEM;
 		goto bad;
 	}
 
-	ctrlr->msix_enabled = 0;
+	ctrlr->msi_count = 0;
 	ctrlr->num_io_queues = 1;
 	if (bus_setup_intr(dev, ctrlr->res,
-	    INTR_TYPE_MISC | INTR_MPSAFE, NULL, nvme_ctrlr_intx_handler,
+	    INTR_TYPE_MISC | INTR_MPSAFE, NULL, nvme_ctrlr_shared_handler,
 	    ctrlr, &ctrlr->tag) != 0) {
-		nvme_printf(ctrlr, "unable to setup intx handler\n");
+		nvme_printf(ctrlr, "unable to setup shared interrupt\n");
 		ret = ENOMEM;
 		goto bad;
 	}
