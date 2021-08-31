@@ -3012,7 +3012,6 @@ continue_anyway:
 	} else {
 		uint16_t first, last, candidate;
 		uint16_t count;
-		int done;
 
 		if (ip_inp->inp_flags & INP_HIGHPORT) {
 			first = MODULE_GLOBAL(ipport_hifirstauto);
@@ -3040,25 +3039,22 @@ continue_anyway:
 		count = last - first + 1;	/* number of candidates */
 		candidate = first + sctp_select_initial_TSN(&inp->sctp_ep) % (count);
 
-		done = 0;
-		while (!done) {
+		for (;;) {
 			if (sctp_isport_inuse(inp, htons(candidate), inp->def_vrf_id) == NULL) {
-				done = 1;
+				lport = htons(candidate);
+				break;
 			}
-			if (!done) {
-				if (--count == 0) {
-					SCTP_INP_WUNLOCK(inp);
-					SCTP_INP_INFO_WUNLOCK();
-					SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, EADDRINUSE);
-					return (EADDRINUSE);
-				}
-				if (candidate == last)
-					candidate = first;
-				else
-					candidate = candidate + 1;
+			if (--count == 0) {
+				SCTP_INP_WUNLOCK(inp);
+				SCTP_INP_INFO_WUNLOCK();
+				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, EADDRINUSE);
+				return (EADDRINUSE);
 			}
+			if (candidate == last)
+				candidate = first;
+			else
+				candidate = candidate + 1;
 		}
-		lport = htons(candidate);
 	}
 	if (inp->sctp_flags & (SCTP_PCB_FLAGS_SOCKET_GONE |
 	    SCTP_PCB_FLAGS_SOCKET_ALLGONE)) {
