@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+PACKAGE=	vt-data
+
 FONTS=	gallant.fnt \
 	terminus-b32.fnt \
 	tom-thumb.fnt \

@@ -104,5 +104,7 @@ utilities_COMMENT=	Non-vital programs and libraries
 utilities_DESC=		Non-vital programs and libraries
 vi_COMMENT= 		Vi Editor
 vi_DESC= 		Vi Editor
+vt_COMMENT=		VT fonts and keyboard files
+vt_DESC=		VT fonts and keyboard files
 wpa_COMMENT=		802.11 Supplicant
 wpa_DESC=		802.11 Supplicant
