@@ -4895,6 +4895,11 @@ process_control_chunks:
 				struct sctp_inpcb *linp;
 				struct sctp_tmit_chunk *chk;
 
+				if (inp->sctp_flags & (SCTP_PCB_FLAGS_SOCKET_GONE |
+				    SCTP_PCB_FLAGS_SOCKET_ALLGONE)) {
+					goto abend;
+				}
+
 				if (stcb) {
 					linp = NULL;
 				} else {
@@ -4903,11 +4908,6 @@ process_control_chunks:
 
 				if (linp != NULL) {
 					SCTP_ASOC_CREATE_LOCK(linp);
-					if ((inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_GONE) ||
-					    (inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_ALLGONE)) {
-						SCTP_ASOC_CREATE_UNLOCK(linp);
-						goto abend;
-					}
 				}
 
 				if (netp != NULL) {
