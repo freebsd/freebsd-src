@@ -156,6 +156,9 @@ codel_bridge_body()
 {
 	altq_init
 	is_altq_supported codel
+	if ! kldstat -q -m if_bridge; then
+		atf_skip "This test requires if_bridge"
+	fi
 
 	epair=$(vnet_mkepair)
 	ifconfig ${epair}a 192.0.2.1/24 up
