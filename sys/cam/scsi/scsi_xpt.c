@@ -2620,18 +2620,10 @@ scsi_action(union ccb *start_ccb)
 {
 
 	if (start_ccb->ccb_h.func_code != XPT_SCSI_IO) {
-#ifdef notyet
 		KASSERT((start_ccb->ccb_h.alloc_flags & CAM_CCB_FROM_UMA) == 0,
 		    ("%s: ccb %p, func_code %#x should not be allocated "
 		    "from UMA zone\n",
 		    __func__, start_ccb, start_ccb->ccb_h.func_code));
-#else
-		if ((start_ccb->ccb_h.alloc_flags & CAM_CCB_FROM_UMA) != 0) {
-			printf("%s: ccb %p, func_code %#x should not be allocated "
-			    "from UMA zone\n",
-			    __func__, start_ccb, start_ccb->ccb_h.func_code);
-		}
-#endif
 	}
 
 	switch (start_ccb->ccb_h.func_code) {
