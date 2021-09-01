@@ -98,6 +98,7 @@ struct unionfs_node {
 
 	u_long		un_hashmask;		/* bit mask */
 	char           *un_path;		/* path */
+	int		un_pathlen;		/* strlen of path */
 	int		un_flag;		/* unionfs node flag */
 };
 
@@ -112,23 +113,36 @@ struct unionfs_node {
 #define	VTOUNIONFS(vp) ((struct unionfs_node *)(vp)->v_data)
 #define	UNIONFSTOV(xp) ((xp)->un_vnode)
 
-int unionfs_init(struct vfsconf *vfsp);
-int unionfs_uninit(struct vfsconf *vfsp);
-int unionfs_nodeget(struct mount *mp, struct vnode *uppervp, struct vnode *lowervp, struct vnode *dvp, struct vnode **vpp, struct componentname *cnp, struct thread *td);
-void unionfs_noderem(struct vnode *vp, struct thread *td);
-void unionfs_get_node_status(struct unionfs_node *unp, struct thread *td, struct unionfs_node_status **unspp);
-void unionfs_tryrem_node_status(struct unionfs_node *unp, struct unionfs_node_status *unsp);
-
-int unionfs_check_rmdir(struct vnode *vp, struct ucred *cred, struct thread *td);
-int unionfs_copyfile(struct unionfs_node *unp, int docopy, struct ucred *cred, struct thread *td);
-void unionfs_create_uppervattr_core(struct unionfs_mount *ump, struct vattr *lva, struct vattr *uva, struct thread *td);
-int unionfs_create_uppervattr(struct unionfs_mount *ump, struct vnode *lvp, struct vattr *uva, struct ucred *cred, struct thread *td);
-int unionfs_mkshadowdir(struct unionfs_mount *ump, struct vnode *duvp, struct unionfs_node *unp, struct componentname *cnp, struct thread *td);
-int unionfs_mkwhiteout(struct vnode *dvp, struct componentname *cnp, struct thread *td, char *path);
-int unionfs_relookup(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp, struct componentname *cn, struct thread *td, char *path, int pathlen, u_long nameiop);
-int unionfs_relookup_for_create(struct vnode *dvp, struct componentname *cnp, struct thread *td);
-int unionfs_relookup_for_delete(struct vnode *dvp, struct componentname *cnp, struct thread *td);
-int unionfs_relookup_for_rename(struct vnode *dvp, struct componentname *cnp, struct thread *td);
+int	unionfs_init(struct vfsconf *);
+int	unionfs_uninit(struct vfsconf *);
+int	unionfs_nodeget(struct mount *, struct vnode *, struct vnode *,
+	    struct vnode *, struct vnode **, struct componentname *,
+	    struct thread *);
+void	unionfs_noderem(struct vnode *, struct thread *);
+void	unionfs_get_node_status(struct unionfs_node *, struct thread *,
+	    struct unionfs_node_status **);
+void	unionfs_tryrem_node_status(struct unionfs_node *,
+	    struct unionfs_node_status *);
+int	unionfs_check_rmdir(struct vnode *, struct ucred *, struct thread *td);
+int	unionfs_copyfile(struct unionfs_node *, int, struct ucred *,
+	    struct thread *);
+void	unionfs_create_uppervattr_core(struct unionfs_mount *, struct vattr *,
+	    struct vattr *, struct thread *);
+int	unionfs_create_uppervattr(struct unionfs_mount *, struct vnode *,
+	    struct vattr *, struct ucred *, struct thread *);
+int	unionfs_mkshadowdir(struct unionfs_mount *, struct vnode *,
+	    struct unionfs_node *, struct componentname *, struct thread *);
+int	unionfs_mkwhiteout(struct vnode *, struct componentname *,
+	    struct thread *, char *, int);
+int	unionfs_relookup(struct vnode *, struct vnode **,
+	    struct componentname *, struct componentname *, struct thread *,
+	    char *, int, u_long);
+int	unionfs_relookup_for_create(struct vnode *, struct componentname *,
+	    struct thread *td);
+int	unionfs_relookup_for_delete(struct vnode *, struct componentname *,
+	    struct thread *);
+int	unionfs_relookup_for_rename(struct vnode *, struct componentname *,
+	    struct thread *td);
 
 #ifdef DIAGNOSTIC
 struct vnode   *unionfs_checklowervp(struct vnode *vp, char *fil, int lno);
