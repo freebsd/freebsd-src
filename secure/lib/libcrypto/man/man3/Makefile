@@ -832,6 +832,7 @@ MLINKS+= BN_bn2bin.3 BN_lebin2bn.3
 MLINKS+= BN_bn2bin.3 BN_mpi2bn.3
 MLINKS+= BN_bn2bin.3 BN_print.3
 MLINKS+= BN_bn2bin.3 BN_print_fp.3
+MLINKS+= BN_cmp.3 BN_abs_is_word.3
 MLINKS+= BN_cmp.3 BN_is_odd.3
 MLINKS+= BN_cmp.3 BN_is_one.3
 MLINKS+= BN_cmp.3 BN_is_word.3
