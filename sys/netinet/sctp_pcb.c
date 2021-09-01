@@ -4900,6 +4900,9 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 	if (stcb->asoc.in_asocid_hash) {
 		LIST_REMOVE(stcb, sctp_tcbasocidhash);
 	}
+	if (inp->sctp_socket == NULL) {
+		stcb->sctp_socket = NULL;
+	}
 	/* Now lets remove it from the list of ALL associations in the EP */
 	LIST_REMOVE(stcb, sctp_tcblist);
 	if (from_inpcbfree == SCTP_NORMAL_PROC) {
