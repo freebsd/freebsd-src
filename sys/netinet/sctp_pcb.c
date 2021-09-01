@@ -4802,8 +4802,6 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 			SCTP_CLEAR_SUBSTATE(stcb, SCTP_STATE_IN_ACCEPT_QUEUE);
 			sctp_timer_start(SCTP_TIMER_TYPE_ASOCKILL, inp, stcb, NULL);
 		}
-		SCTP_TCB_SEND_UNLOCK(stcb);
-		SCTP_TCB_UNLOCK(stcb);
 		if ((inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_ALLGONE) ||
 		    (inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_GONE))
 			/* nothing around */
@@ -4813,6 +4811,8 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 			sctp_sorwakeup(inp, so);
 			sctp_sowwakeup(inp, so);
 		}
+		SCTP_TCB_SEND_UNLOCK(stcb);
+		SCTP_TCB_UNLOCK(stcb);
 
 #ifdef SCTP_LOG_CLOSING
 		sctp_log_closing(inp, stcb, 9);
