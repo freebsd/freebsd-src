@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2017 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -44,9 +44,12 @@ static int x509v3_add_len_value(const char *name, const char *value,
 
     if (name != NULL && (tname = OPENSSL_strdup(name)) == NULL)
         goto err;
-    if (value != NULL) {
-        /* We don't allow embeded NUL characters */
-        if (memchr(value, 0, vallen) != NULL)
+    if (value != NULL && vallen > 0) {
+        /*
+         * We tolerate a single trailing NUL character, but otherwise no
+         * embedded NULs
+         */
+        if (memchr(value, 0, vallen - 1) != NULL)
             goto err;
         tvalue = OPENSSL_strndup(value, vallen);
         if (tvalue == NULL)
@@ -63,7 +66,7 @@ static int x509v3_add_len_value(const char *name, const char *value,
         goto err;
     return 1;
  err:
-    X509V3err(X509V3_F_X509V3_ADD_VALUE, ERR_R_MALLOC_FAILURE);
+    X509V3err(X509V3_F_X509V3_ADD_LEN_VALUE, ERR_R_MALLOC_FAILURE);
     if (sk_allocated) {
         sk_CONF_VALUE_free(*extlist);
         *extlist = NULL;
