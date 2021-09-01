@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+PACKAGE=	vt-data
+
 FILES=	INDEX.keymaps \
 	am.kbd \
 	be.acc.kbd \
