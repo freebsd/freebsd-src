@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 2, 2021
+.Dd September 2, 2021
 .Dt PROCCONTROL 1
 .Os
 .Sh NAME
@@ -72,6 +72,8 @@ Controls the implicit PROT_MAX application for
 .It Ar nonewprivs
 Controls disabling the setuid and sgid bits for
 .Xr execve 2 .
+.It Ar wxmap
+Controls the write exclusive execute mode for mappings.
 .It Ar kpti
 Controls the KPTI enable, AMD64 only.
 .It Ar la48
