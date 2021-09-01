@@ -107,6 +107,18 @@ __FBSDID("$FreeBSD$");
 	rw_wunlock(&SCTP_BASE_INFO(ipi_ep_mtx));			\
 } while (0)
 
+#define SCTP_INP_INFO_LOCK_ASSERT() do {				\
+	rw_assert(&SCTP_BASE_INFO(ipi_ep_mtx), RA_LOCKED);		\
+} while (0)
+
+#define SCTP_INP_INFO_RLOCK_ASSERT() do {				\
+	rw_assert(&SCTP_BASE_INFO(ipi_ep_mtx), RA_RLOCKED);		\
+} while (0)
+
+#define SCTP_INP_INFO_WLOCK_ASSERT() do {				\
+	rw_assert(&SCTP_BASE_INFO(ipi_ep_mtx), RA_WLOCKED);		\
+} while (0)
+
 #define SCTP_MCORE_QLOCK_INIT(cpstr) do {				\
 	mtx_init(&(cpstr)->que_mtx, "sctp-mcore_queue","queue_lock",	\
 	         MTX_DEF | MTX_DUPOK);					\
