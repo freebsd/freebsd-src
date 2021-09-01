@@ -24,6 +24,8 @@
 
 #include "crypto/engine.h"
 
+/* #define ENGINE_DEVCRYPTO_DEBUG */
+
 #if CRYPTO_ALGORITHM_MIN < CRYPTO_ALGORITHM_MAX
 # define CHECK_BSD_STYLE_MACROS
 #endif
@@ -759,6 +761,9 @@ void engine_load_devcrypto_int()
     int fd;
 
     if ((fd = open("/dev/crypto", O_RDWR, 0)) < 0) {
+#ifndef ENGINE_DEVCRYPTO_DEBUG
+        if (errno != ENOENT)
+#endif
             fprintf(stderr, "Could not open /dev/crypto: %s\n", strerror(errno));
         return;
     }
