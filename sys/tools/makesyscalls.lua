@@ -151,6 +151,7 @@ local known_flags = {
 	NOPROTO		= 0x00000040,
 	NOSTD		= 0x00000080,
 	NOTSTATIC	= 0x00000100,
+	CAPENABLED	= 0x00000200,
 
 	-- Compat flags start from here.  We have plenty of space.
 }
@@ -1059,7 +1060,8 @@ process_syscall_def = function(line)
 	-- If applicable; strip the ABI prefix from the name
 	local stripped_name = strip_abi_prefix(funcname)
 
-	if config["capenabled"][funcname] ~= nil or
+	if flags & known_flags['CAPENABLED'] ~= 0 or
+	    config["capenabled"][funcname] ~= nil or
 	    config["capenabled"][stripped_name] ~= nil then
 		sysflags = "SYF_CAPENABLED"
 	end
