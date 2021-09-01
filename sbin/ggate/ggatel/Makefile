@@ -5,6 +5,7 @@
 PROG=	ggatel
 MAN=	ggatel.8
 SRCS=	ggatel.c ggate.c
+PACKAGE=	ggate
 
 CFLAGS+= -DLIBGEOM
 CFLAGS+= -I${.CURDIR:H}/shared
