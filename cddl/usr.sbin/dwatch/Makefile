@@ -2,6 +2,8 @@
 
 .include <src.opts.mk>
 
+PACKAGE=	dwatch
+
 SUBDIR= libexec
 
 .if ${MK_EXAMPLES} != "no"
