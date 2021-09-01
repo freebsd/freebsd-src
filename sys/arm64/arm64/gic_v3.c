@@ -78,6 +78,7 @@ __FBSDID("$FreeBSD$");
 
 static bus_get_domain_t gic_v3_get_domain;
 static bus_read_ivar_t gic_v3_read_ivar;
+static bus_write_ivar_t gic_v3_write_ivar;
 
 static pic_disable_intr_t gic_v3_disable_intr;
 static pic_enable_intr_t gic_v3_enable_intr;
@@ -113,6 +114,7 @@ static device_method_t gic_v3_methods[] = {
 	/* Bus interface */
 	DEVMETHOD(bus_get_domain,	gic_v3_get_domain),
 	DEVMETHOD(bus_read_ivar,	gic_v3_read_ivar),
+	DEVMETHOD(bus_write_ivar,	gic_v3_write_ivar),
 
 	/* Interrupt controller interface */
 	DEVMETHOD(pic_disable_intr,	gic_v3_disable_intr),
@@ -242,6 +244,33 @@ gic_r_write_8(device_t dev, bus_size_t offset, uint64_t val)
 	bus_write_8(rdist, offset, val);
 }
 
+static void
+gic_v3_reserve_msi_range(device_t dev, u_int start, u_int count)
+{
+	struct gic_v3_softc *sc;
+	int i;
+
+	sc = device_get_softc(dev);
+
+	KASSERT((start + count) < sc->gic_nirqs,
+	    ("%s: Trying to allocate too many MSI IRQs: %d + %d > %d", __func__,
+	    start, count, sc->gic_nirqs));
+	for (i = 0; i < count; i++) {
+		KASSERT(sc->gic_irqs[start + i].gi_isrc.isrc_handlers == 0,
+		    ("%s: MSI interrupt %d already has a handler", __func__,
+		    count + i));
+		KASSERT(sc->gic_irqs[start + i].gi_pol == INTR_POLARITY_CONFORM,
+		    ("%s: MSI interrupt %d already has a polarity", __func__,
+		    count + i));
+		KASSERT(sc->gic_irqs[start + i].gi_trig == INTR_TRIGGER_CONFORM,
+		    ("%s: MSI interrupt %d already has a trigger", __func__,
+		    count + i));
+		sc->gic_irqs[start + i].gi_pol = INTR_POLARITY_HIGH;
+		sc->gic_irqs[start + i].gi_trig = INTR_TRIGGER_EDGE;
+		sc->gic_irqs[start + i].gi_flags |= GI_FLAG_MSI;
+	}
+}
+
 /*
  * Device interface.
  */
@@ -332,15 +361,10 @@ gic_v3_attach(device_t dev)
 		}
 	}
 
+	mtx_init(&sc->gic_mbi_mtx, "GICv3 mbi lock", NULL, MTX_DEF);
 	if (sc->gic_mbi_start > 0) {
-		/* Reserve these interrupts for MSI/MSI-X use */
-		for (irq = sc->gic_mbi_start; irq <= sc->gic_mbi_end; irq++) {
-			sc->gic_irqs[irq].gi_pol = INTR_POLARITY_HIGH;
-			sc->gic_irqs[irq].gi_trig = INTR_TRIGGER_EDGE;
-			sc->gic_irqs[irq].gi_flags |= GI_FLAG_MSI;
-		}
-
-		mtx_init(&sc->gic_mbi_mtx, "GICv3 mbi lock", NULL, MTX_DEF);
+		gic_v3_reserve_msi_range(dev, sc->gic_mbi_start,
+		    sc->gic_mbi_end - sc->gic_mbi_start);
 
 		if (bootverbose) {
 			device_printf(dev, "using spi %u to %u\n", sc->gic_mbi_start,
@@ -442,6 +466,56 @@ gic_v3_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 		KASSERT(sc->gic_bus <= GIC_BUS_MAX,
 		    ("gic_v3_read_ivar: Invalid bus type %u", sc->gic_bus));
 		*result = sc->gic_bus;
+		return (0);
+	case GIC_IVAR_MBI_START:
+		*result = sc->gic_mbi_start;
+		return (0);
+	case GIC_IVAR_MBI_COUNT:
+		*result = sc->gic_mbi_end - sc->gic_mbi_start;
+		return (0);
+	}
+
+	return (ENOENT);
+}
+
+static int
+gic_v3_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
+{
+	struct gic_v3_softc *sc;
+
+	sc = device_get_softc(dev);
+
+	switch(which) {
+	case GICV3_IVAR_NIRQS:
+	case GICV3_IVAR_REDIST:
+	case GIC_IVAR_HW_REV:
+	case GIC_IVAR_BUS:
+		return (EINVAL);
+	case GIC_IVAR_MBI_START:
+		/*
+		 * GIC_IVAR_MBI_START must be set once and first. This allows
+		 * us to reserve the registers when GIC_IVAR_MBI_COUNT is set.
+		 */
+		MPASS(sc->gic_mbi_start == 0);
+		MPASS(sc->gic_mbi_end == 0);
+		MPASS(value >= GIC_FIRST_SPI);
+		MPASS(value < sc->gic_nirqs);
+
+		sc->gic_mbi_start = value;
+		return (0);
+	case GIC_IVAR_MBI_COUNT:
+		MPASS(sc->gic_mbi_start != 0);
+		MPASS(sc->gic_mbi_end == 0);
+		MPASS(value >= sc->gic_mbi_start);
+		MPASS(value >= GIC_FIRST_SPI);
+
+		sc->gic_mbi_end = value - sc->gic_mbi_start;
+
+		MPASS(sc->gic_mbi_end <= sc->gic_nirqs);
+
+		/* Reserve these interrupts for MSI/MSI-X use */
+		gic_v3_reserve_msi_range(dev, sc->gic_mbi_start, value);
+
 		return (0);
 	}
 

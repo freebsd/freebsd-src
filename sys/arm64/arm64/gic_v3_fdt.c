@@ -143,7 +143,7 @@ gic_v3_fdt_attach(device_t dev)
 		if (ret % 2 == 0) {
 			/* Limit to a single range for now. */
 			sc->gic_mbi_start = mbi_ranges[0];
-			sc->gic_mbi_end = mbi_ranges[0] + mbi_ranges[1] - 1;
+			sc->gic_mbi_end = mbi_ranges[0] + mbi_ranges[1];
 		} else {
 			if (bootverbose)
 				device_printf(dev, "Malformed mbi-ranges property\n");
