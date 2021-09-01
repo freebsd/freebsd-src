@@ -1127,7 +1127,7 @@ reply:
 	 * by if_output().
 	 */
 	if (error != 0 && error != EAFNOSUPPORT) {
-		m_freem(m)；
+		m_freem(m);
 		ARP_LOG(LOG_ERR, "Failed to calculate ARP header on %s: %d\n",
 		    if_name(ifp), error);
 		return;
