@@ -5,6 +5,8 @@
 
 .include <src.opts.mk>
 
+PACKAGE=	telnet
+
 TELNETDIR=	${SRCTOP}/contrib/telnet
 .PATH:		${TELNETDIR}/telnetd
 
