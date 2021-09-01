@@ -63,17 +63,17 @@ struct arm_gic_softc {
 
 	int			nranges;
 	struct arm_gic_range *	ranges;
+
+	u_int			sc_spi_start;
+	u_int			sc_spi_end;
+	u_int			sc_spi_count;
 };
 
 DECLARE_CLASS(arm_gic_driver);
 
 struct arm_gicv2m_softc {
 	struct resource	*sc_mem;
-	struct mtx	sc_mutex;
 	uintptr_t	sc_xref;
-	u_int		sc_spi_start;
-	u_int		sc_spi_end;
-	u_int		sc_spi_count;
 };
 
 DECLARE_CLASS(arm_gicv2m_driver);

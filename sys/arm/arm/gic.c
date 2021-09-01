@@ -501,6 +501,56 @@ arm_gic_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 		    ("arm_gic_read_ivar: Invalid bus type %u", sc->gic_bus));
 		*result = sc->gic_bus;
 		return (0);
+	case GIC_IVAR_MBI_START:
+		*result = sc->sc_spi_start;
+		return (0);
+	case GIC_IVAR_MBI_COUNT:
+		*result = sc->sc_spi_count;
+		return (0);
+	}
+
+	return (ENOENT);
+}
+
+static int
+arm_gic_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
+{
+	struct arm_gic_softc *sc;
+
+	sc = device_get_softc(dev);
+
+	switch(which) {
+	case GIC_IVAR_HW_REV:
+	case GIC_IVAR_BUS:
+		return (EINVAL);
+	case GIC_IVAR_MBI_START:
+		/*
+		 * GIC_IVAR_MBI_START must be set once and first. This allows
+		 * us to reserve the registers when GIC_IVAR_MBI_COUNT is set.
+		 */
+		MPASS(sc->sc_spi_start == 0);
+		MPASS(sc->sc_spi_count == 0);
+		MPASS(value >= GIC_FIRST_SPI);
+		MPASS(value < sc->nirqs);
+
+		sc->sc_spi_start = value;
+		return (0);
+	case GIC_IVAR_MBI_COUNT:
+		MPASS(sc->sc_spi_start != 0);
+		MPASS(sc->sc_spi_count == 0);
+		MPASS(value >= sc->sc_spi_start);
+		MPASS(value >= GIC_FIRST_SPI);
+
+		sc->sc_spi_count = value;
+		sc->sc_spi_end = sc->sc_spi_start + sc->sc_spi_count;
+
+		MPASS(sc->sc_spi_end <= sc->nirqs);
+
+		/* Reserve these interrupts for MSI/MSI-X use */
+		arm_gic_reserve_msi_range(dev, sc->sc_spi_start,
+		    sc->sc_spi_count);
+
+		return (0);
 	}
 
 	return (ENOENT);
@@ -995,6 +1045,148 @@ arm_gic_ipi_setup(device_t dev, u_int ipi, struct intr_irqsrc **isrcp)
 }
 #endif
 
+static int
+arm_gic_alloc_msi(device_t dev, device_t child, int count, int maxcount,
+    device_t *pic, struct intr_irqsrc **srcs)
+{
+	struct arm_gic_softc *sc;
+	int i, irq, end_irq;
+	bool found;
+
+	KASSERT(powerof2(count), ("%s: bad count", __func__));
+	KASSERT(powerof2(maxcount), ("%s: bad maxcount", __func__));
+
+	sc = device_get_softc(dev);
+
+	mtx_lock(&sc->mutex);
+
+	found = false;
+	for (irq = sc->sc_spi_start; irq < sc->sc_spi_end; irq++) {
+		/* Start on an aligned interrupt */
+		if ((irq & (maxcount - 1)) != 0)
+			continue;
+
+		/* Assume we found a valid range until shown otherwise */
+		found = true;
+
+		/* Check this range is valid */
+		for (end_irq = irq; end_irq != irq + count; end_irq++) {
+			/* No free interrupts */
+			if (end_irq == sc->sc_spi_end) {
+				found = false;
+				break;
+			}
+
+			KASSERT((sc->gic_irqs[end_irq].gi_flags & GI_FLAG_MSI)!= 0,
+			    ("%s: Non-MSI interrupt found", __func__));
+
+			/* This is already used */
+			if ((sc->gic_irqs[end_irq].gi_flags & GI_FLAG_MSI_USED) ==
+			    GI_FLAG_MSI_USED) {
+				found = false;
+				break;
+			}
+		}
+		if (found)
+			break;
+	}
+
+	/* Not enough interrupts were found */
+	if (!found || irq == sc->sc_spi_end) {
+		mtx_unlock(&sc->mutex);
+		return (ENXIO);
+	}
+
+	for (i = 0; i < count; i++) {
+		/* Mark the interrupt as used */
+		sc->gic_irqs[irq + i].gi_flags |= GI_FLAG_MSI_USED;
+	}
+	mtx_unlock(&sc->mutex);
+
+	for (i = 0; i < count; i++)
+		srcs[i] = (struct intr_irqsrc *)&sc->gic_irqs[irq + i];
+	*pic = dev;
+
+	return (0);
+}
+
+static int
+arm_gic_release_msi(device_t dev, device_t child, int count,
+    struct intr_irqsrc **isrc)
+{
+	struct arm_gic_softc *sc;
+	struct gic_irqsrc *gi;
+	int i;
+
+	sc = device_get_softc(dev);
+
+	mtx_lock(&sc->mutex);
+	for (i = 0; i < count; i++) {
+		gi = (struct gic_irqsrc *)isrc[i];
+
+		KASSERT((gi->gi_flags & GI_FLAG_MSI_USED) == GI_FLAG_MSI_USED,
+		    ("%s: Trying to release an unused MSI-X interrupt",
+		    __func__));
+
+		gi->gi_flags &= ~GI_FLAG_MSI_USED;
+	}
+	mtx_unlock(&sc->mutex);
+
+	return (0);
+}
+
+static int
+arm_gic_alloc_msix(device_t dev, device_t child, device_t *pic,
+    struct intr_irqsrc **isrcp)
+{
+	struct arm_gic_softc *sc;
+	int irq;
+
+	sc = device_get_softc(dev);
+
+	mtx_lock(&sc->mutex);
+	/* Find an unused interrupt */
+	for (irq = sc->sc_spi_start; irq < sc->sc_spi_end; irq++) {
+		KASSERT((sc->gic_irqs[irq].gi_flags & GI_FLAG_MSI) != 0,
+		    ("%s: Non-MSI interrupt found", __func__));
+		if ((sc->gic_irqs[irq].gi_flags & GI_FLAG_MSI_USED) == 0)
+			break;
+	}
+	/* No free interrupt was found */
+	if (irq == sc->sc_spi_end) {
+		mtx_unlock(&sc->mutex);
+		return (ENXIO);
+	}
+
+	/* Mark the interrupt as used */
+	sc->gic_irqs[irq].gi_flags |= GI_FLAG_MSI_USED;
+	mtx_unlock(&sc->mutex);
+
+	*isrcp = (struct intr_irqsrc *)&sc->gic_irqs[irq];
+	*pic = dev;
+
+	return (0);
+}
+
+static int
+arm_gic_release_msix(device_t dev, device_t child, struct intr_irqsrc *isrc)
+{
+	struct arm_gic_softc *sc;
+	struct gic_irqsrc *gi;
+
+	sc = device_get_softc(dev);
+	gi = (struct gic_irqsrc *)isrc;
+
+	KASSERT((gi->gi_flags & GI_FLAG_MSI_USED) == GI_FLAG_MSI_USED,
+	    ("%s: Trying to release an unused MSI-X interrupt", __func__));
+
+	mtx_lock(&sc->mutex);
+	gi->gi_flags &= ~GI_FLAG_MSI_USED;
+	mtx_unlock(&sc->mutex);
+
+	return (0);
+}
+
 static device_method_t arm_gic_methods[] = {
 	/* Bus interface */
 	DEVMETHOD(bus_print_child,	arm_gic_print_child),
@@ -1003,6 +1195,7 @@ static device_method_t arm_gic_methods[] = {
 	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
 	DEVMETHOD(bus_activate_resource,bus_generic_activate_resource),
 	DEVMETHOD(bus_read_ivar,	arm_gic_read_ivar),
+	DEVMETHOD(bus_write_ivar,	arm_gic_write_ivar),
 
 	/* Interrupt controller interface */
 	DEVMETHOD(pic_disable_intr,	arm_gic_disable_intr),
@@ -1019,6 +1212,13 @@ static device_method_t arm_gic_methods[] = {
 	DEVMETHOD(pic_ipi_send,		arm_gic_ipi_send),
 	DEVMETHOD(pic_ipi_setup,	arm_gic_ipi_setup),
 #endif
+
+	/* MSI/MSI-X */
+	DEVMETHOD(msi_alloc_msi,	arm_gic_alloc_msi),
+	DEVMETHOD(msi_release_msi,	arm_gic_release_msi),
+	DEVMETHOD(msi_alloc_msix,	arm_gic_alloc_msix),
+	DEVMETHOD(msi_release_msix,	arm_gic_release_msix),
+
 	{ 0, 0 }
 };
 
@@ -1040,6 +1240,7 @@ arm_gicv2m_attach(device_t dev)
 {
 	struct arm_gicv2m_softc *sc;
 	uint32_t typer;
+	u_int spi_start, spi_count;
 	int rid;
 
 	sc = device_get_softc(dev);
@@ -1053,21 +1254,16 @@ arm_gicv2m_attach(device_t dev)
 	}
 
 	typer = bus_read_4(sc->sc_mem, GICV2M_MSI_TYPER);
-	sc->sc_spi_start = MSI_TYPER_SPI_BASE(typer);
-	sc->sc_spi_count = MSI_TYPER_SPI_COUNT(typer);
-	sc->sc_spi_end = sc->sc_spi_start + sc->sc_spi_count;
-
-	/* Reserve these interrupts for MSI/MSI-X use */
-	arm_gic_reserve_msi_range(device_get_parent(dev), sc->sc_spi_start,
-	    sc->sc_spi_count);
-
-	mtx_init(&sc->sc_mutex, "GICv2m lock", NULL, MTX_DEF);
+	spi_start = MSI_TYPER_SPI_BASE(typer);
+	spi_count = MSI_TYPER_SPI_COUNT(typer);
+	gic_set_mbi_start(dev, spi_start);
+	gic_set_mbi_count(dev, spi_count);
 
 	intr_msi_register(dev, sc->sc_xref);
 
 	if (bootverbose)
-		device_printf(dev, "using spi %u to %u\n", sc->sc_spi_start,
-		    sc->sc_spi_start + sc->sc_spi_count - 1);
+		device_printf(dev, "using spi %u to %u\n", spi_start,
+		    spi_start + spi_count - 1);
 
 	return (0);
 }
@@ -1076,146 +1272,28 @@ static int
 arm_gicv2m_alloc_msi(device_t dev, device_t child, int count, int maxcount,
     device_t *pic, struct intr_irqsrc **srcs)
 {
-	struct arm_gic_softc *psc;
-	struct arm_gicv2m_softc *sc;
-	int i, irq, end_irq;
-	bool found;
-
-	KASSERT(powerof2(count), ("%s: bad count", __func__));
-	KASSERT(powerof2(maxcount), ("%s: bad maxcount", __func__));
-
-	psc = device_get_softc(device_get_parent(dev));
-	sc = device_get_softc(dev);
-
-	mtx_lock(&sc->sc_mutex);
-
-	found = false;
-	for (irq = sc->sc_spi_start; irq < sc->sc_spi_end; irq++) {
-		/* Start on an aligned interrupt */
-		if ((irq & (maxcount - 1)) != 0)
-			continue;
-
-		/* Assume we found a valid range until shown otherwise */
-		found = true;
-
-		/* Check this range is valid */
-		for (end_irq = irq; end_irq != irq + count; end_irq++) {
-			/* No free interrupts */
-			if (end_irq == sc->sc_spi_end) {
-				found = false;
-				break;
-			}
-
-			KASSERT((psc->gic_irqs[end_irq].gi_flags & GI_FLAG_MSI)!= 0,
-			    ("%s: Non-MSI interrupt found", __func__));
-
-			/* This is already used */
-			if ((psc->gic_irqs[end_irq].gi_flags & GI_FLAG_MSI_USED) ==
-			    GI_FLAG_MSI_USED) {
-				found = false;
-				break;
-			}
-		}
-		if (found)
-			break;
-	}
-
-	/* Not enough interrupts were found */
-	if (!found || irq == sc->sc_spi_end) {
-		mtx_unlock(&sc->sc_mutex);
-		return (ENXIO);
-	}
-
-	for (i = 0; i < count; i++) {
-		/* Mark the interrupt as used */
-		psc->gic_irqs[irq + i].gi_flags |= GI_FLAG_MSI_USED;
-	}
-	mtx_unlock(&sc->sc_mutex);
-
-	for (i = 0; i < count; i++)
-		srcs[i] = (struct intr_irqsrc *)&psc->gic_irqs[irq + i];
-	*pic = device_get_parent(dev);
-
-	return (0);
+	return (MSI_ALLOC_MSI(device_get_parent(dev), child, count, maxcount,
+	    pic, srcs));
 }
 
 static int
 arm_gicv2m_release_msi(device_t dev, device_t child, int count,
     struct intr_irqsrc **isrc)
 {
-	struct arm_gicv2m_softc *sc;
-	struct gic_irqsrc *gi;
-	int i;
-
-	sc = device_get_softc(dev);
-
-	mtx_lock(&sc->sc_mutex);
-	for (i = 0; i < count; i++) {
-		gi = (struct gic_irqsrc *)isrc[i];
-
-		KASSERT((gi->gi_flags & GI_FLAG_MSI_USED) == GI_FLAG_MSI_USED,
-		    ("%s: Trying to release an unused MSI-X interrupt",
-		    __func__));
-
-		gi->gi_flags &= ~GI_FLAG_MSI_USED;
-	}
-	mtx_unlock(&sc->sc_mutex);
-
-	return (0);
+	return (MSI_RELEASE_MSI(device_get_parent(dev), child, count, isrc));
 }
 
 static int
 arm_gicv2m_alloc_msix(device_t dev, device_t child, device_t *pic,
     struct intr_irqsrc **isrcp)
 {
-	struct arm_gicv2m_softc *sc;
-	struct arm_gic_softc *psc;
-	int irq;
-
-	psc = device_get_softc(device_get_parent(dev));
-	sc = device_get_softc(dev);
-
-	mtx_lock(&sc->sc_mutex);
-	/* Find an unused interrupt */
-	for (irq = sc->sc_spi_start; irq < sc->sc_spi_end; irq++) {
-		KASSERT((psc->gic_irqs[irq].gi_flags & GI_FLAG_MSI) != 0,
-		    ("%s: Non-MSI interrupt found", __func__));
-		if ((psc->gic_irqs[irq].gi_flags & GI_FLAG_MSI_USED) == 0)
-			break;
-	}
-	/* No free interrupt was found */
-	if (irq == sc->sc_spi_end) {
-		mtx_unlock(&sc->sc_mutex);
-		return (ENXIO);
-	}
-
-	/* Mark the interrupt as used */
-	psc->gic_irqs[irq].gi_flags |= GI_FLAG_MSI_USED;
-	mtx_unlock(&sc->sc_mutex);
-
-	*isrcp = (struct intr_irqsrc *)&psc->gic_irqs[irq];
-	*pic = device_get_parent(dev);
-
-	return (0);
+	return (MSI_ALLOC_MSIX(device_get_parent(dev), child, pic, isrcp));
 }
 
 static int
 arm_gicv2m_release_msix(device_t dev, device_t child, struct intr_irqsrc *isrc)
 {
-	struct arm_gicv2m_softc *sc;
-	struct gic_irqsrc *gi;
-
-	sc = device_get_softc(dev);
-	gi = (struct gic_irqsrc *)isrc;
-
-	KASSERT((gi->gi_flags & GI_FLAG_MSI_USED) == GI_FLAG_MSI_USED,
-	    ("%s: Trying to release an unused MSI-X interrupt", __func__));
-
-	mtx_lock(&sc->sc_mutex);
-	gi->gi_flags &= ~GI_FLAG_MSI_USED;
-	mtx_unlock(&sc->sc_mutex);
-
-	return (0);
+	return (MSI_RELEASE_MSIX(device_get_parent(dev), child, isrc));
 }
 
 static int
