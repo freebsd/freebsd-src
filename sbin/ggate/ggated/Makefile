@@ -5,6 +5,7 @@
 PROG=	ggated
 MAN=	ggated.8
 SRCS=	ggated.c ggate.c
+PACKAGE=	ggate
 
 LIBADD=	pthread util
 

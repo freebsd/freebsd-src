@@ -5,6 +5,7 @@
 PROG=	ggatec
 MAN=	ggatec.8
 SRCS=	ggatec.c ggate.c
+PACKAGE=	ggate
 
 CFLAGS+= -DMAX_SEND_SIZE=32768
 CFLAGS+= -DLIBGEOM
