@@ -34,6 +34,7 @@ afterinstallconfig:
 .if ${MK_TELNET} != "no"
 CONFGROUPS+=	TELNET
 TELNET+=	telnetd
+TELNETPACKAGE=	telnet
 .endif
 
 .include <bsd.prog.mk>
