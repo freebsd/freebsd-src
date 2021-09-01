@@ -87,22 +87,22 @@
 0	AUE_NULL	STD {
 		int nosys(void);
 	} syscall nosys_args int
-1	AUE_EXIT	STD {
+1	AUE_EXIT	STD|CAPENABLED {
 		void sys_exit(
 		    int rval
 		);
 	} exit sys_exit_args void
-2	AUE_FORK	STD {
+2	AUE_FORK	STD|CAPENABLED {
 		int fork(void);
 	}
-3	AUE_READ	STD {
+3	AUE_READ	STD|CAPENABLED {
 		ssize_t read(
 		    int fd,
 		    _Out_writes_bytes_(nbyte) void *buf,
 		    size_t nbyte
 		);
 	}
-4	AUE_WRITE	STD {
+4	AUE_WRITE	STD|CAPENABLED {
 		ssize_t write(
 		    int fd,
 		    _In_reads_bytes_(nbyte) const void *buf,
@@ -118,7 +118,7 @@
 	}
 ; XXX should be		{ int open(const char *path, int flags, ...); }
 ; but we're not ready for varargs.
-6	AUE_CLOSE	STD {
+6	AUE_CLOSE	STD|CAPENABLED {
 		int close(
 		    int fd
 		);
@@ -179,7 +179,7 @@
 		    int gid
 		);
 	}
-17	AUE_NULL	STD {
+17	AUE_NULL	STD|CAPENABLED {
 		void *break(
 		    _In_ char *nsize
 		);
@@ -191,14 +191,14 @@
 		    int mode
 		);
 	}
-19	AUE_LSEEK	COMPAT {
+19	AUE_LSEEK	COMPAT|CAPENABLED {
 		long lseek(
 		    int fd,
 		    long offset,
 		    int whence
 		);
 	}
-20	AUE_GETPID	STD {
+20	AUE_GETPID	STD|CAPENABLED {
 		pid_t getpid(void);
 	}
 21	AUE_MOUNT	STD {
@@ -215,15 +215,15 @@
 		    int flags
 		);
 	}
-23	AUE_SETUID	STD {
+23	AUE_SETUID	STD|CAPENABLED {
 		int setuid(
 		    uid_t uid
 		);
 	}
-24	AUE_GETUID	STD {
+24	AUE_GETUID	STD|CAPENABLED {
 		uid_t getuid(void);
 	}
-25	AUE_GETEUID	STD {
+25	AUE_GETEUID	STD|CAPENABLED {
 		uid_t geteuid(void);
 	}
 26	AUE_PTRACE	STD {
@@ -234,21 +234,21 @@
 		    int data
 		);
 	}
-27	AUE_RECVMSG	STD {
+27	AUE_RECVMSG	STD|CAPENABLED {
 		int recvmsg(
 		    int s,
 		    _Inout_ struct msghdr *msg,
 		    int flags
 		);
 	}
-28	AUE_SENDMSG	STD {
+28	AUE_SENDMSG	STD|CAPENABLED {
 		int sendmsg(
 		    int s,
 		    _In_ struct msghdr *msg,
 		    int flags
 		);
 	}
-29	AUE_RECVFROM	STD {
+29	AUE_RECVFROM	STD|CAPENABLED {
 		int recvfrom(
 		    int s,
 		    _Out_writes_bytes_(len) void *buf,
@@ -258,21 +258,21 @@
 		    _Inout_opt_ __socklen_t *fromlenaddr
 		);
 	}
-30	AUE_ACCEPT	STD {
+30	AUE_ACCEPT	STD|CAPENABLED {
 		int accept(
 		    int s,
 		    _Out_writes_bytes_opt_(*anamelen) struct sockaddr *name,
 		    _Inout_opt_ __socklen_t *anamelen
 		);
 	}
-31	AUE_GETPEERNAME	STD {
+31	AUE_GETPEERNAME	STD|CAPENABLED {
 		int getpeername(
 		    int fdes,
 		    _Out_writes_bytes_(*alen) struct sockaddr *asa,
 		    _Inout_opt_ __socklen_t *alen
 		);
 	}
-32	AUE_GETSOCKNAME	STD {
+32	AUE_GETSOCKNAME	STD|CAPENABLED {
 		int getsockname(
 		    int fdes,
 		    _Out_writes_bytes_(*alen) struct sockaddr *asa,
@@ -291,16 +291,16 @@
 		    u_long flags
 		);
 	}
-35	AUE_FCHFLAGS	STD {
+35	AUE_FCHFLAGS	STD|CAPENABLED {
 		int fchflags(
 		    int fd,
 		    u_long flags
 		);
 	}
-36	AUE_SYNC	STD {
+36	AUE_SYNC	STD|CAPENABLED {
 		int sync(void);
 	}
-37	AUE_KILL	STD {
+37	AUE_KILL	STD|CAPENABLED {
 		int kill(
 		    int pid,
 		    int signum
@@ -312,7 +312,7 @@
 		    _Out_ struct ostat *ub
 		);
 	}
-39	AUE_GETPPID	STD {
+39	AUE_GETPPID	STD|CAPENABLED {
 		pid_t getppid(void);
 	}
 40	AUE_LSTAT	COMPAT {
@@ -321,18 +321,18 @@
 		    _Out_ struct ostat *ub
 		);
 	}
-41	AUE_DUP		STD {
+41	AUE_DUP		STD|CAPENABLED {
 		int dup(
 		    u_int fd
 		);
 	}
-42	AUE_PIPE	COMPAT10 {
+42	AUE_PIPE	COMPAT10|CAPENABLED {
 		int pipe(void);
 	}
-43	AUE_GETEGID	STD {
+43	AUE_GETEGID	STD|CAPENABLED {
 		gid_t getegid(void);
 	}
-44	AUE_PROFILE	STD {
+44	AUE_PROFILE	STD|CAPENABLED {
 		int profil(
 		    _Out_writes_bytes_(size) char *samples,
 		    size_t size,
@@ -348,17 +348,17 @@
 		    int pid
 		);
 	}
-46	AUE_SIGACTION	COMPAT {
+46	AUE_SIGACTION	COMPAT|CAPENABLED {
 		int sigaction(
 		    int signum,
 		    _In_opt_ struct osigaction *nsa,
 		    _Out_opt_ struct osigaction *osa
 		);
 	}
-47	AUE_GETGID	STD {
+47	AUE_GETGID	STD|CAPENABLED {
 		gid_t getgid(void);
 	}
-48	AUE_SIGPROCMASK	COMPAT {
+48	AUE_SIGPROCMASK	COMPAT|CAPENABLED {
 		int sigprocmask(
 		    int how,
 		    osigset_t mask
@@ -367,7 +367,7 @@
 ; XXX note nonstandard (bogus) calling convention - the libc stub passes
 ; us the mask, not a pointer to it, and we return the old mask as the
 ; (int) return value.
-49	AUE_GETLOGIN	STD {
+49	AUE_GETLOGIN	STD|CAPENABLED {
 		int getlogin(
 		    _Out_writes_z_(namelen) char *namebuf,
 		    u_int namelen
@@ -383,16 +383,16 @@
 		    _In_z_ const char *path
 		);
 	}
-52	AUE_SIGPENDING	COMPAT {
+52	AUE_SIGPENDING	COMPAT|CAPENABLED {
 		int sigpending(void);
 	}
-53	AUE_SIGALTSTACK	STD {
+53	AUE_SIGALTSTACK	STD|CAPENABLED {
 		int sigaltstack(
 		    _In_opt_ stack_t *ss,
 		    _Out_opt_ stack_t *oss
 		);
 	}
-54	AUE_IOCTL	STD {
+54	AUE_IOCTL	STD|CAPENABLED {
 		int ioctl(
 		    int fd,
 		    u_long com,
@@ -429,7 +429,7 @@
 		    _In_z_ char **envv
 		);
 	}
-60	AUE_UMASK	STD {
+60	AUE_UMASK	STD|CAPENABLED {
 		int umask(
 		    mode_t newmask
 		);
@@ -439,7 +439,7 @@
 		    _In_z_ const char *path
 		);
 	}
-62	AUE_FSTAT	COMPAT {
+62	AUE_FSTAT	COMPAT|CAPENABLED {
 		int fstat(
 		    int fd,
 		    _Out_ struct ostat *sb
@@ -454,10 +454,10 @@
 		    int arg
 		);
 	}
-64	AUE_NULL	COMPAT {
+64	AUE_NULL	COMPAT|CAPENABLED {
 		int getpagesize(void);
 	}
-65	AUE_MSYNC	STD {
+65	AUE_MSYNC	STD|CAPENABLED {
 		int msync(
 		    _In_ void *addr,
 		    size_t len,
@@ -469,17 +469,17 @@
 	}
 67	AUE_NULL	OBSOL	vread
 68	AUE_NULL	OBSOL	vwrite
-69	AUE_SBRK	STD {
+69	AUE_SBRK	STD|CAPENABLED {
 		int sbrk(
 		    int incr
 		);
 	}
-70	AUE_SSTK	STD {
+70	AUE_SSTK	STD|CAPENABLED {
 		int sstk(
 		    int incr
 		);
 	}
-71	AUE_MMAP	COMPAT {
+71	AUE_MMAP	COMPAT|CAPENABLED {
 		void *mmap(
 		    _In_ void *addr,
 		    int len,
@@ -494,20 +494,20 @@
 		    int anom
 		);
 	}
-73	AUE_MUNMAP	STD {
+73	AUE_MUNMAP	STD|CAPENABLED {
 		int munmap(
 		    _In_ void *addr,
 		    size_t len
 		);
 	}
-74	AUE_MPROTECT	STD {
+74	AUE_MPROTECT	STD|CAPENABLED {
 		int mprotect(
 		    _In_ void *addr,
 		    size_t len,
 		    int prot
 		);
 	}
-75	AUE_MADVISE	STD {
+75	AUE_MADVISE	STD|CAPENABLED {
 		int madvise(
 		    _In_ void *addr,
 		    size_t len,
@@ -516,14 +516,14 @@
 	}
 76	AUE_NULL	OBSOL	vhangup
 77	AUE_NULL	OBSOL	vlimit
-78	AUE_MINCORE	STD {
+78	AUE_MINCORE	STD|CAPENABLED {
 		int mincore(
 		    _In_ const void *addr,
 		    size_t len,
 		    _Out_writes_bytes_(len/PAGE_SIZE) char *vec
 		);
 	}
-79	AUE_GETGROUPS	STD {
+79	AUE_GETGROUPS	STD|CAPENABLED {
 		int getgroups(
 		    int gidsetsize,
 		    _Out_writes_opt_(gidsetsize) gid_t *gidset
@@ -535,7 +535,7 @@
 		    _In_reads_(gidsetsize) gid_t *gidset
 		);
 	}
-81	AUE_GETPGRP	STD {
+81	AUE_GETPGRP	STD|CAPENABLED {
 		int getpgrp(void);
 	}
 82	AUE_SETPGRP	STD {
@@ -544,7 +544,7 @@
 		    int pgid
 		);
 	}
-83	AUE_SETITIMER	STD {
+83	AUE_SETITIMER	STD|CAPENABLED {
 		int setitimer(
 		    u_int which,
 		    _In_ struct itimerval *itv,
@@ -559,13 +559,13 @@
 		    _In_z_ const char *name
 		);
 	}
-86	AUE_GETITIMER	STD {
+86	AUE_GETITIMER	STD|CAPENABLED {
 		int getitimer(
 		    u_int which,
 		    _Out_ struct itimerval *itv
 		);
 	}
-87	AUE_SYSCTL	COMPAT {
+87	AUE_SYSCTL	COMPAT|CAPENABLED {
 		int gethostname(
 		    _Out_writes_z_(len) char *hostname,
 		    u_int len
@@ -577,17 +577,17 @@
 		    u_int len
 		);
 	}
-89	AUE_GETDTABLESIZE	STD {
+89	AUE_GETDTABLESIZE	STD|CAPENABLED {
 		int getdtablesize(void);
 	}
-90	AUE_DUP2	STD {
+90	AUE_DUP2	STD|CAPENABLED {
 		int dup2(
 		    u_int from,
 		    u_int to
 		);
 	}
 91	AUE_NULL	RESERVED
-92	AUE_FCNTL	STD {
+92	AUE_FCNTL	STD|CAPENABLED {
 		int fcntl(
 		    int fd,
 		    int cmd,
@@ -596,7 +596,7 @@
 	}
 ; XXX should be { int fcntl(int fd, int cmd, ...); }
 ; but we're not ready for varargs.
-93	AUE_SELECT	STD {
+93	AUE_SELECT	STD|CAPENABLED {
 		int select(
 		    int nd,
 		    _Inout_opt_ fd_set *in,
@@ -606,19 +606,19 @@
 		);
 	}
 94	AUE_NULL	RESERVED
-95	AUE_FSYNC	STD {
+95	AUE_FSYNC	STD|CAPENABLED {
 		int fsync(
 		    int fd
 		);
 	}
-96	AUE_SETPRIORITY	STD {
+96	AUE_SETPRIORITY	STD|CAPENABLED {
 		int setpriority(
 		    int which,
 		    int who,
 		    int prio
 		);
 	}
-97	AUE_SOCKET	STD {
+97	AUE_SOCKET	STD|CAPENABLED {
 		int socket(
 		    int domain,
 		    int type,
@@ -632,20 +632,20 @@
 		    int namelen
 		);
 	}
-99	AUE_ACCEPT	COMPAT {
+99	AUE_ACCEPT	COMPAT|CAPENABLED {
 		int accept(
 		    int s,
 		    _Out_writes_bytes_opt_(*anamelen) struct sockaddr *name,
 		    int *anamelen
 		);
 	}
-100	AUE_GETPRIORITY	STD {
+100	AUE_GETPRIORITY	STD|CAPENABLED {
 		int getpriority(
 		    int which,
 		    int who
 		);
 	}
-101	AUE_SEND	COMPAT {
+101	AUE_SEND	COMPAT|CAPENABLED {
 		int send(
 		    int s,
 		    _In_reads_bytes_(len) const void *buf,
@@ -653,7 +653,7 @@
 		    int flags
 		);
 	}
-102	AUE_RECV	COMPAT {
+102	AUE_RECV	COMPAT|CAPENABLED {
 		int recv(
 		    int s,
 		    _Out_writes_bytes_(len) void *buf,
@@ -661,7 +661,7 @@
 		    int flags
 		);
 	}
-103	AUE_SIGRETURN	COMPAT {
+103	AUE_SIGRETURN	COMPAT|CAPENABLED {
 		int sigreturn(
 		    _In_ struct osigcontext *sigcntxp
 		);
@@ -673,7 +673,7 @@
 		    int namelen
 		);
 	}
-105	AUE_SETSOCKOPT	STD {
+105	AUE_SETSOCKOPT	STD|CAPENABLED {
 		int setsockopt(
 		    int s,
 		    int level,
@@ -682,51 +682,51 @@
 		    int valsize
 		);
 	}
-106	AUE_LISTEN	STD {
+106	AUE_LISTEN	STD|CAPENABLED {
 		int listen(
 		    int s,
 		    int backlog
 		);
 	}
 107	AUE_NULL	OBSOL	vtimes
-108	AUE_NULL	COMPAT {
+108	AUE_NULL	COMPAT|CAPENABLED {
 		int sigvec(
 		    int signum,
 		    _In_opt_ struct sigvec *nsv,
 		    _Out_opt_ struct sigvec *osv
 		);
 	}
-109	AUE_NULL	COMPAT {
+109	AUE_NULL	COMPAT|CAPENABLED {
 		int sigblock(
 		    int mask
 		);
 	}
-110	AUE_NULL	COMPAT {
+110	AUE_NULL	COMPAT|CAPENABLED {
 		int sigsetmask(
 		    int mask
 		);
 	}
-111	AUE_NULL	COMPAT {
+111	AUE_NULL	COMPAT|CAPENABLED {
 		int sigsuspend(
 		    osigset_t mask
 		);
 	}
 ; XXX note nonstandard (bogus) calling convention - the libc stub passes
 ; us the mask, not a pointer to it.
-112	AUE_NULL	COMPAT {
+112	AUE_NULL	COMPAT|CAPENABLED {
 		int sigstack(
 		    _In_opt_ struct sigstack *nss,
 		    _Out_opt_ struct sigstack *oss
 		);
 	}
-113	AUE_RECVMSG	COMPAT {
+113	AUE_RECVMSG	COMPAT|CAPENABLED {
 		int recvmsg(
 		    int s,
 		    _Inout_ struct omsghdr *msg,
 		    int flags
 		);
 	}
-114	AUE_SENDMSG	COMPAT {
+114	AUE_SENDMSG	COMPAT|CAPENABLED {
 		int sendmsg(
 		    int s,
 		    _In_ const void *msg,
@@ -734,19 +734,19 @@
 		);
 	}
 115	AUE_NULL	OBSOL	vtrace
-116	AUE_GETTIMEOFDAY	STD {
+116	AUE_GETTIMEOFDAY	STD|CAPENABLED {
 		int gettimeofday(
 		    _Out_ struct timeval *tp,
 		    _Out_opt_ struct timezone *tzp
 		);
 	}
-117	AUE_GETRUSAGE	STD {
+117	AUE_GETRUSAGE	STD|CAPENABLED {
 		int getrusage(
 		    int who,
 		    _Out_ struct rusage *rusage
 		);
 	}
-118	AUE_GETSOCKOPT	STD {
+118	AUE_GETSOCKOPT	STD|CAPENABLED {
 		int getsockopt(
 		    int s,
 		    int level,
@@ -756,14 +756,14 @@
 		);
 	}
 119	AUE_NULL	RESERVED
-120	AUE_READV	STD {
+120	AUE_READV	STD|CAPENABLED {
 		int readv(
 		    int fd,
 		    _Inout_updates_(iovcnt) struct iovec *iovp,
 		    u_int iovcnt
 		);
 	}
-121	AUE_WRITEV	STD {
+121	AUE_WRITEV	STD|CAPENABLED {
 		int writev(
 		    int fd,
 		    _In_reads_opt_(iovcnt) struct iovec *iovp,
@@ -776,20 +776,20 @@
 		    _In_opt_ struct timezone *tzp
 		);
 	}
-123	AUE_FCHOWN	STD {
+123	AUE_FCHOWN	STD|CAPENABLED {
 		int fchown(
 		    int fd,
 		    int uid,
 		    int gid
 		);
 	}
-124	AUE_FCHMOD	STD {
+124	AUE_FCHMOD	STD|CAPENABLED {
 		int fchmod(
 		    int fd,
 		    mode_t mode
 		);
 	}
-125	AUE_RECVFROM	COMPAT|NOARGS {
+125	AUE_RECVFROM	COMPAT|NOARGS|CAPENABLED {
 		int recvfrom(
 		    int s,
 		    _Out_writes_(len) void *buf,
@@ -799,13 +799,13 @@
 		    _Inout_ int *fromlenaddr
 		);
 	} recvfrom recvfrom_args int
-126	AUE_SETREUID	STD {
+126	AUE_SETREUID	STD|CAPENABLED {
 		int setreuid(
 		    int ruid,
 		    int euid
 		);
 	}
-127	AUE_SETREGID	STD {
+127	AUE_SETREGID	STD|CAPENABLED {
 		int setregid(
 		    int rgid,
 		    int egid
@@ -823,13 +823,13 @@
 		    long length
 		);
 	}
-130	AUE_FTRUNCATE	COMPAT {
+130	AUE_FTRUNCATE	COMPAT|CAPENABLED {
 		int ftruncate(
 		    int fd,
 		    long length
 		);
 	}
-131	AUE_FLOCK	STD {
+131	AUE_FLOCK	STD|CAPENABLED {
 		int flock(
 		    int fd,
 		    int how
@@ -841,7 +841,7 @@
 		    mode_t mode
 		);
 	}
-133	AUE_SENDTO	STD {
+133	AUE_SENDTO	STD|CAPENABLED {
 		int sendto(
 		    int s,
 		    _In_reads_bytes_(len) const void *buf,
@@ -851,13 +851,13 @@
 		    int tolen
 		);
 	}
-134	AUE_SHUTDOWN	STD {
+134	AUE_SHUTDOWN	STD|CAPENABLED {
 		int shutdown(
 		    int s,
 		    int how
 		);
 	}
-135	AUE_SOCKETPAIR	STD {
+135	AUE_SOCKETPAIR	STD|CAPENABLED {
 		int socketpair(
 		    int domain,
 		    int type,
@@ -889,14 +889,14 @@
 		    _Out_opt_ struct timeval *olddelta
 		);
 	}
-141	AUE_GETPEERNAME	COMPAT {
+141	AUE_GETPEERNAME	COMPAT|CAPENABLED {
 		int getpeername(
 		    int fdes,
 		    _Out_writes_bytes_(*alen) struct sockaddr *asa,
 		    _Inout_opt_ int *alen
 		);
 	}
-142	AUE_SYSCTL	COMPAT {
+142	AUE_SYSCTL	COMPAT|CAPENABLED {
 		long gethostid(void);
 	}
 143	AUE_SYSCTL	COMPAT {
@@ -904,13 +904,13 @@
 		    long hostid
 		);
 	}
-144	AUE_GETRLIMIT	COMPAT {
+144	AUE_GETRLIMIT	COMPAT|CAPENABLED {
 		int getrlimit(
 		    u_int which,
 		    _Out_ struct orlimit *rlp
 		);
 	}
-145	AUE_SETRLIMIT	COMPAT {
+145	AUE_SETRLIMIT	COMPAT|CAPENABLED {
 		int setrlimit(
 		    u_int which,
 		    _Out_ struct orlimit *rlp
@@ -922,7 +922,7 @@
 		    int signum
 		);
 	}
-147	AUE_SETSID	STD {
+147	AUE_SETSID	STD|CAPENABLED {
 		int setsid(void);
 	}
 148	AUE_QUOTACTL	STD {
@@ -936,7 +936,7 @@
 149	AUE_O_QUOTA	COMPAT {
 		int quota(void);
 	}
-150	AUE_GETSOCKNAME	COMPAT|NOARGS {
+150	AUE_GETSOCKNAME	COMPAT|NOARGS|CAPENABLED {
 		int getsockname(
 		    int fdec,
 		    _Out_writes_bytes_(*alen) struct sockaddr *asa,
@@ -961,7 +961,7 @@
 		    _In_ void *argp
 		);
 	}
-156	AUE_GETDIRENTRIES	COMPAT {
+156	AUE_GETDIRENTRIES	COMPAT|CAPENABLED {
 		int getdirentries(
 		    int fd,
 		    _Out_writes_bytes_(count) char *buf,
@@ -975,7 +975,7 @@
 		    _Out_ struct ostatfs *buf
 		);
 	}
-158	AUE_FSTATFS	COMPAT4 {
+158	AUE_FSTATFS	COMPAT4|CAPENABLED {
 		int fstatfs(
 		    int fd,
 		    _Out_ struct ostatfs *buf
@@ -994,7 +994,7 @@
 		    _Out_ struct fhandle *fhp
 		);
 	}
-162	AUE_SYSCTL	COMPAT4 {
+162	AUE_SYSCTL	COMPAT4|CAPENABLED {
 		int getdomainname(
 		    _Out_writes_z_(len) char *domainname,
 		    int len
@@ -1011,13 +1011,13 @@
 		    _Out_ struct utsname *name
 		);
 	}
-165	AUE_SYSARCH	STD {
+165	AUE_SYSARCH	STD|CAPENABLED {
 		int sysarch(
 		    int op,
 		    _In_z_ char *parms
 		);
 	}
-166	AUE_RTPRIO	STD {
+166	AUE_RTPRIO	STD|CAPENABLED {
 		int rtprio(
 		    int function,
 		    pid_t pid,
@@ -1056,7 +1056,7 @@
 	}
 ; XXX should be { int shmsys(int which, ...); }
 172	AUE_NULL	RESERVED
-173	AUE_PREAD	COMPAT6 {
+173	AUE_PREAD	COMPAT6|CAPENABLED {
 		ssize_t pread(
 		    int fd,
 		    _Out_writes_bytes_(nbyte) void *buf,
@@ -1065,7 +1065,7 @@
 		    off_t offset
 		);
 	}
-174	AUE_PWRITE	COMPAT6 {
+174	AUE_PWRITE	COMPAT6|CAPENABLED {
 		ssize_t pwrite(
 		    int fd,
 		    _In_reads_bytes_(nbyte) const void *buf,
@@ -1085,17 +1085,17 @@
 		);
 	}
 177-180	AUE_NULL	RESERVED
-181	AUE_SETGID	STD {
+181	AUE_SETGID	STD|CAPENABLED {
 		int setgid(
 		    gid_t gid
 		);
 	}
-182	AUE_SETEGID	STD {
+182	AUE_SETEGID	STD|CAPENABLED {
 		int setegid(
 		    gid_t egid
 		);
 	}
-183	AUE_SETEUID	STD {
+183	AUE_SETEUID	STD|CAPENABLED {
 		int seteuid(
 		    uid_t euid
 		);
@@ -1110,7 +1110,7 @@
 		    _Out_ struct freebsd11_stat *ub
 		);
 	}
-189	AUE_FSTAT	COMPAT11 {
+189	AUE_FSTAT	COMPAT11|CAPENABLED {
 		int fstat(
 		    int fd,
 		    _Out_ struct freebsd11_stat *sb
@@ -1128,26 +1128,26 @@
 		    int name
 		);
 	}
-192	AUE_FPATHCONF	STD {
+192	AUE_FPATHCONF	STD|CAPENABLED {
 		int fpathconf(
 		    int fd,
 		    int name
 		);
 	}
 193	AUE_NULL	RESERVED
-194	AUE_GETRLIMIT	STD {
+194	AUE_GETRLIMIT	STD|CAPENABLED {
 		int getrlimit(
 		    u_int which,
 		    _Out_ struct rlimit *rlp
 		);
 	} getrlimit __getrlimit_args int
-195	AUE_SETRLIMIT	STD {
+195	AUE_SETRLIMIT	STD|CAPENABLED {
 		int setrlimit(
 		    u_int which,
 		    _In_ struct rlimit *rlp
 		);
 	} setrlimit __setrlimit_args int
-196	AUE_GETDIRENTRIES	COMPAT11 {
+196	AUE_GETDIRENTRIES	COMPAT11|CAPENABLED {
 		int getdirentries(
 		    int fd,
 		    _Out_writes_bytes_(count) char *buf,
@@ -1155,7 +1155,7 @@
 		    _Out_ long *basep
 		);
 	}
-197	AUE_MMAP	COMPAT6 {
+197	AUE_MMAP	COMPAT6|CAPENABLED {
 		void *mmap(
 		    _In_ void *addr,
 		    size_t len,
@@ -1169,7 +1169,7 @@
 198	AUE_NULL	NOPROTO {
 		int nosys(void);
 	} __syscall __syscall_args int
-199	AUE_LSEEK	COMPAT6 {
+199	AUE_LSEEK	COMPAT6|CAPENABLED {
 		off_t lseek(
 		    int fd,
 		    int pad,
@@ -1184,14 +1184,14 @@
 		    off_t length
 		);
 	}
-201	AUE_FTRUNCATE	COMPAT6 {
+201	AUE_FTRUNCATE	COMPAT6|CAPENABLED {
 		int ftruncate(
 		    int fd,
 		    int pad,
 		    off_t length
 		);
 	}
-202	AUE_SYSCTL	STD {
+202	AUE_SYSCTL	STD|CAPENABLED {
 		int __sysctl(
 		    _In_reads_(namelen) int *name,
 		    u_int namelen,
@@ -1201,13 +1201,13 @@
 		    size_t newlen
 		);
 	} __sysctl sysctl_args int
-203	AUE_MLOCK	STD {
+203	AUE_MLOCK	STD|CAPENABLED {
 		int mlock(
 		    _In_ const void *addr,
 		    size_t len
 		);
 	}
-204	AUE_MUNLOCK	STD {
+204	AUE_MUNLOCK	STD|CAPENABLED {
 		int munlock(
 		    _In_ const void *addr,
 		    size_t len
@@ -1218,19 +1218,19 @@
 		    _In_z_ const char *path
 		);
 	}
-206	AUE_FUTIMES	STD {
+206	AUE_FUTIMES	STD|CAPENABLED {
 		int futimes(
 		    int fd,
 		    _In_reads_(2) struct timeval *tptr
 		);
 	}
-207	AUE_GETPGID	STD {
+207	AUE_GETPGID	STD|CAPENABLED {
 		int getpgid(
 		    pid_t pid
 		);
 	}
 208	AUE_NULL	RESERVED
-209	AUE_POLL	STD {
+209	AUE_POLL	STD|CAPENABLED {
 		int poll(
 		    _Inout_updates_(nfds) struct pollfd *fds,
 		    u_int nfds,
@@ -1330,7 +1330,7 @@
 		    int shmflg
 		);
 	}
-232	AUE_NULL	STD {
+232	AUE_NULL	STD|CAPENABLED {
 		int clock_gettime(
 		    clockid_t clock_id,
 		    _Out_ struct timespec *tp
@@ -1342,25 +1342,25 @@
 		    _In_ const struct timespec *tp
 		);
 	}
-234	AUE_NULL	STD {
+234	AUE_NULL	STD|CAPENABLED {
 		int clock_getres(
 		    clockid_t clock_id,
 		    _Out_ struct timespec *tp
 		);
 	}
-235	AUE_NULL	STD {
+235	AUE_NULL	STD|CAPENABLED {
 		int ktimer_create(
 		    clockid_t clock_id,
 		    _In_ struct sigevent *evp,
 		    _Out_ int *timerid
 		);
 	}
-236	AUE_NULL	STD {
+236	AUE_NULL	STD|CAPENABLED {
 		int ktimer_delete(
 		    int timerid
 		);
 	}
-237	AUE_NULL	STD {
+237	AUE_NULL	STD|CAPENABLED {
 		int ktimer_settime(
 		    int timerid,
 		    int flags,
@@ -1368,18 +1368,18 @@
 		    _Out_opt_ struct itimerspec *ovalue
 		);
 	}
-238	AUE_NULL	STD {
+238	AUE_NULL	STD|CAPENABLED {
 		int ktimer_gettime(
 		    int timerid,
 		    _Out_ struct itimerspec *value
 		);
 	}
-239	AUE_NULL	STD {
+239	AUE_NULL	STD|CAPENABLED {
 		int ktimer_getoverrun(
 		    int timerid
 		);
 	}
-240	AUE_NULL	STD {
+240	AUE_NULL	STD|CAPENABLED {
 		int nanosleep(
 		    _In_ const struct timespec *rqtp,
 		    _Out_opt_ struct timespec *rmtp
@@ -1416,13 +1416,13 @@
 		    _Out_ clockid_t *clock_id
 		);
 	}
-248	AUE_NULL	STD {
+248	AUE_NULL	STD|CAPENABLED {
 		int ntp_gettime(
 		    _Out_ struct ntptimeval *ntvp
 		);
 	}
 249	AUE_NULL	RESERVED
-250	AUE_MINHERIT	STD {
+250	AUE_MINHERIT	STD|CAPENABLED {
 		int minherit(
 		    _In_ void *addr,
 		    size_t len,
@@ -1435,7 +1435,7 @@
 		);
 	}
 252	AUE_POLL	OBSOL	openbsd_poll
-253	AUE_ISSETUGID	STD {
+253	AUE_ISSETUGID	STD|CAPENABLED {
 		int issetugid(void);
 	}
 254	AUE_LCHOWN	STD {
@@ -1445,17 +1445,17 @@
 		    int gid
 		);
 	}
-255	AUE_AIO_READ	STD {
+255	AUE_AIO_READ	STD|CAPENABLED {
 		int aio_read(
 		    _Inout_ struct aiocb *aiocbp
 		);
 	}
-256	AUE_AIO_WRITE	STD {
+256	AUE_AIO_WRITE	STD|CAPENABLED {
 		int aio_write(
 		    _Inout_ struct aiocb *aiocbp
 		);
 	}
-257	AUE_LIO_LISTIO	STD {
+257	AUE_LIO_LISTIO	STD|CAPENABLED {
 		int lio_listio(
 		    int mode,
 		    _Inout_updates_(nent) struct aiocb * const *acb_list,
@@ -1464,7 +1464,7 @@
 		);
 	}
 258-271	AUE_NULL	RESERVED
-272	AUE_O_GETDENTS	COMPAT11 {
+272	AUE_O_GETDENTS	COMPAT11|CAPENABLED {
 		int getdents(
 		    int fd,
 		    _Out_writes_bytes_(count) char *buf,
@@ -1505,7 +1505,7 @@
 		);
 	}
 281-288	AUE_NULL	RESERVED
-289	AUE_PREADV	STD {
+289	AUE_PREADV	STD|CAPENABLED {
 		ssize_t preadv(
 		    int fd,
 		    _In_reads_(iovcnt) struct iovec *iovp,
@@ -1513,7 +1513,7 @@
 		    off_t offset
 		);
 	}
-290	AUE_PWRITEV	STD {
+290	AUE_PWRITEV	STD|CAPENABLED {
 		ssize_t pwritev(
 		    int fd,
 		    _In_reads_(iovcnt) struct iovec *iovp,
@@ -1592,19 +1592,19 @@
 		    int fileid
 		);
 	}
-310	AUE_GETSID	STD {
+310	AUE_GETSID	STD|CAPENABLED {
 		int getsid(
 		    pid_t pid
 		);
 	}
-311	AUE_SETRESUID	STD {
+311	AUE_SETRESUID	STD|CAPENABLED {
 		int setresuid(
 		    uid_t ruid,
 		    uid_t euid,
 		    uid_t suid
 		);
 	}
-312	AUE_SETRESGID	STD {
+312	AUE_SETRESGID	STD|CAPENABLED {
 		int setresgid(
 		    gid_t rgid,
 		    gid_t egid,
@@ -1612,40 +1612,40 @@
 		);
 	}
 313	AUE_NULL	OBSOL	signanosleep
-314	AUE_AIO_RETURN	STD {
+314	AUE_AIO_RETURN	STD|CAPENABLED {
 		ssize_t aio_return(
 		    _Inout_ struct aiocb *aiocbp
 		);
 	}
-315	AUE_AIO_SUSPEND	STD {
+315	AUE_AIO_SUSPEND	STD|CAPENABLED {
 		int aio_suspend(
 		    _Inout_updates_(nent) struct aiocb * const * aiocbp,
 		    int nent,
 		    _In_opt_ const struct timespec *timeout
 		);
 	}
-316	AUE_AIO_CANCEL	STD {
+316	AUE_AIO_CANCEL	STD|CAPENABLED {
 		int aio_cancel(
 		    int fd,
 		    _In_opt_ struct aiocb *aiocbp
 		);
 	}
-317	AUE_AIO_ERROR	STD {
+317	AUE_AIO_ERROR	STD|CAPENABLED {
 		int aio_error(
 		    _In_ struct aiocb *aiocbp
 		);
 	}
-318	AUE_AIO_READ	COMPAT6 {
+318	AUE_AIO_READ	COMPAT6|CAPENABLED {
 		int aio_read(
 		    _Inout_  struct oaiocb *aiocbp
 		);
 	}
-319	AUE_AIO_WRITE	COMPAT6 {
+319	AUE_AIO_WRITE	COMPAT6|CAPENABLED {
 		int aio_write(
 		    _Inout_ struct oaiocb *aiocbp
 		);
 	}
-320	AUE_LIO_LISTIO	COMPAT6 {
+320	AUE_LIO_LISTIO	COMPAT6|CAPENABLED {
 		int lio_listio(
 		    int mode,
 		    _Inout_updates_(nent) struct oaiocb * const *acb_list,
@@ -1653,17 +1653,17 @@
 		    _In_opt_ struct osigevent *sig
 		);
 	}
-321	AUE_NULL	STD {
+321	AUE_NULL	STD|CAPENABLED {
 		int yield(void);
 	}
 322	AUE_NULL	OBSOL	thr_sleep
 323	AUE_NULL	OBSOL	thr_wakeup
-324	AUE_MLOCKALL	STD {
+324	AUE_MLOCKALL	STD|CAPENABLED {
 		int mlockall(
 		    int how
 		);
 	}
-325	AUE_MUNLOCKALL	STD {
+325	AUE_MUNLOCKALL	STD|CAPENABLED {
 		int munlockall(void); }
 326	AUE_GETCWD	STD {
 		int __getcwd(
@@ -1671,56 +1671,56 @@
 		    size_t buflen
 		);
 	}
-327	AUE_NULL	STD {
+327	AUE_NULL	STD|CAPENABLED {
 		int sched_setparam(
 		    pid_t pid,
 		    _In_ const struct sched_param *param
 		);
 	}
-328	AUE_NULL	STD {
+328	AUE_NULL	STD|CAPENABLED {
 		int sched_getparam(
 		    pid_t pid,
 		    _Out_ struct sched_param *param
 		);
 	}
-329	AUE_NULL	STD {
+329	AUE_NULL	STD|CAPENABLED {
 		int sched_setscheduler(
 		    pid_t pid,
 		    int policy,
 		    _In_ const struct sched_param *param
 		);
 	}
-330	AUE_NULL	STD {
+330	AUE_NULL	STD|CAPENABLED {
 		int sched_getscheduler(
 		    pid_t pid
 		);
 	}
-331	AUE_NULL	STD {
+331	AUE_NULL	STD|CAPENABLED {
 		int sched_yield(void);
 	}
-332	AUE_NULL	STD {
+332	AUE_NULL	STD|CAPENABLED {
 		int sched_get_priority_max(
 		    int policy
 		);
 	}
-333	AUE_NULL	STD {
+333	AUE_NULL	STD|CAPENABLED {
 		int sched_get_priority_min(
 		    int policy
 		);
 	}
-334	AUE_NULL	STD {
+334	AUE_NULL	STD|CAPENABLED {
 		int sched_rr_get_interval(
 		    pid_t pid,
 		    _Out_ struct timespec *interval
 		);
 	}
-335	AUE_NULL	STD {
+335	AUE_NULL	STD|CAPENABLED {
 		int utrace(
 		   _In_reads_bytes_(len) const void *addr,
 		    size_t len
 		);
 	}
-336	AUE_SENDFILE	COMPAT4 {
+336	AUE_SENDFILE	COMPAT4|CAPENABLED {
 		int sendfile(
 		    int fd,
 		    int s,
@@ -1752,43 +1752,43 @@
 		    int a_followSymlinks
 		);
 	}
-340	AUE_SIGPROCMASK	STD {
+340	AUE_SIGPROCMASK	STD|CAPENABLED {
 		int sigprocmask(
 		    int how,
 		    _In_opt_ const sigset_t *set,
 		    _Out_opt_ sigset_t *oset
 		);
 	}
-341	AUE_SIGSUSPEND	STD {
+341	AUE_SIGSUSPEND	STD|CAPENABLED {
 		int sigsuspend(
 		    _In_ const sigset_t *sigmask
 		);
 	}
-342	AUE_SIGACTION	COMPAT4 {
+342	AUE_SIGACTION	COMPAT4|CAPENABLED {
 		int sigaction(
 		    int sig,
 		    _In_opt_ const struct sigaction *act,
 		    _Out_opt_ struct sigaction *oact
 		);
 	}
-343	AUE_SIGPENDING	STD {
+343	AUE_SIGPENDING	STD|CAPENABLED {
 		int sigpending(
 		    _In_ sigset_t *set
 		);
 	}
-344	AUE_SIGRETURN	COMPAT4 {
+344	AUE_SIGRETURN	COMPAT4|CAPENABLED {
 		int sigreturn(
 		    _In_ const struct ucontext4 *sigcntxp
 		);
 	}
-345	AUE_SIGWAIT	STD {
+345	AUE_SIGWAIT	STD|CAPENABLED {
 		int sigtimedwait(
 		    _In_ const sigset_t *set,
 		    _Out_opt_ siginfo_t *info,
 		    _In_opt_ const struct timespec *timeout
 		);
 	}
-346	AUE_NULL	STD {
+346	AUE_NULL	STD|CAPENABLED {
 		int sigwaitinfo(
 		    _In_ const sigset_t *set,
 		    _Out_opt_ siginfo_t *info
@@ -1808,14 +1808,14 @@
 		    _In_ struct acl *aclp
 		);
 	}
-349	AUE_ACL_GET_FD	STD {
+349	AUE_ACL_GET_FD	STD|CAPENABLED {
 		int __acl_get_fd(
 		    int filedes,
 		    acl_type_t type,
 		    _Out_ struct acl *aclp
 		);
 	}
-350	AUE_ACL_SET_FD	STD {
+350	AUE_ACL_SET_FD	STD|CAPENABLED {
 		int __acl_set_fd(
 		    int filedes,
 		    acl_type_t type,
@@ -1828,7 +1828,7 @@
 		    acl_type_t type
 		);
 	}
-352	AUE_ACL_DELETE_FD	STD {
+352	AUE_ACL_DELETE_FD	STD|CAPENABLED {
 		int __acl_delete_fd(
 		    int filedes,
 		    acl_type_t type
@@ -1841,7 +1841,7 @@
 		    _In_ struct acl *aclp
 		);
 	}
-354	AUE_ACL_CHECK_FD	STD {
+354	AUE_ACL_CHECK_FD	STD|CAPENABLED {
 		int __acl_aclcheck_fd(
 		    int filedes,
 		    acl_type_t type,
@@ -1882,30 +1882,30 @@
 		    _In_z_ const char *attrname
 		);
 	}
-359	AUE_AIO_WAITCOMPLETE	STD {
+359	AUE_AIO_WAITCOMPLETE	STD|CAPENABLED {
 		ssize_t aio_waitcomplete(
 		    _Outptr_result_maybenull_ struct aiocb **aiocbp,
 		    _In_opt_ struct timespec *timeout
 		);
 	}
-360	AUE_GETRESUID	STD {
+360	AUE_GETRESUID	STD|CAPENABLED {
 		int getresuid(
 		    _Out_opt_ uid_t *ruid,
 		    _Out_opt_ uid_t *euid,
 		    _Out_opt_ uid_t *suid
 		);
 	}
-361	AUE_GETRESGID	STD {
+361	AUE_GETRESGID	STD|CAPENABLED {
 		int getresgid(
 		    _Out_opt_ gid_t *rgid,
 		    _Out_opt_ gid_t *egid,
 		    _Out_opt_ gid_t *sgid
 		);
 	}
-362	AUE_KQUEUE	STD {
+362	AUE_KQUEUE	STD|CAPENABLED {
 		int kqueue(void);
 	}
-363	AUE_KEVENT	COMPAT11 {
+363	AUE_KEVENT	COMPAT11|CAPENABLED {
 		int kevent(
 		    int fd,
 		    _In_reads_opt_(nchanges) struct kevent_freebsd11 *changelist,
@@ -1922,7 +1922,7 @@
 368	AUE_NULL	OBSOL	__cap_set_fd
 369	AUE_NULL	OBSOL	__cap_set_file
 370	AUE_NULL	RESERVED
-371	AUE_EXTATTR_SET_FD	STD {
+371	AUE_EXTATTR_SET_FD	STD|CAPENABLED {
 		ssize_t extattr_set_fd(
 		    int fd,
 		    int attrnamespace,
@@ -1931,7 +1931,7 @@
 		    size_t nbytes
 		);
 	}
-372	AUE_EXTATTR_GET_FD	STD {
+372	AUE_EXTATTR_GET_FD	STD|CAPENABLED {
 		ssize_t extattr_get_fd(
 		    int fd,
 		    int attrnamespace,
@@ -1940,7 +1940,7 @@
 		    size_t nbytes
 		);
 	}
-373	AUE_EXTATTR_DELETE_FD	STD {
+373	AUE_EXTATTR_DELETE_FD	STD|CAPENABLED {
 		int extattr_delete_fd(
 		    int fd,
 		    int attrnamespace,
@@ -1982,17 +1982,17 @@
 381	AUE_NULL	OBSOL	kse_create
 382	AUE_NULL	OBSOL	kse_thr_interrupt
 383	AUE_NULL	OBSOL	kse_release
-384	AUE_NULL	STD {
+384	AUE_NULL	STD|CAPENABLED {
 		int __mac_get_proc(
 		    _In_ struct mac *mac_p
 		);
 	}
-385	AUE_NULL	STD {
+385	AUE_NULL	STD|CAPENABLED {
 		int __mac_set_proc(
 		    _In_ struct mac *mac_p
 		);
 	}
-386	AUE_NULL	STD {
+386	AUE_NULL	STD|CAPENABLED {
 		int __mac_get_fd(
 		    int fd,
 		    _In_ struct mac *mac_p
@@ -2004,7 +2004,7 @@
 		    _In_ struct mac *mac_p
 		);
 	}
-388	AUE_NULL	STD {
+388	AUE_NULL	STD|CAPENABLED {
 		int __mac_set_fd(
 		    int fd,
 		    _In_ struct mac *mac_p
@@ -2030,13 +2030,13 @@
 		    u_long flags
 		);
 	}
-392	AUE_NULL	STD {
+392	AUE_NULL	STD|CAPENABLED {
 		int uuidgen(
 		    _Out_writes_(count) struct uuid *store,
 		    int count
 		);
 	}
-393	AUE_SENDFILE	STD {
+393	AUE_SENDFILE	STD|CAPENABLED {
 		int sendfile(
 		    int fd,
 		    int s,
@@ -2067,7 +2067,7 @@
 		    _Out_ struct freebsd11_statfs *buf
 		);
 	}
-397	AUE_FSTATFS	COMPAT11 {
+397	AUE_FSTATFS	COMPAT11|CAPENABLED {
 		int fstatfs(
 		    int fd,
 		    _Out_ struct freebsd11_statfs *buf
@@ -2182,25 +2182,25 @@
 		    _In_ struct mac *mac_p
 		);
 	}
-416	AUE_SIGACTION	STD {
+416	AUE_SIGACTION	STD|CAPENABLED {
 		int sigaction(
 		    int sig,
 		    _In_opt_ const struct sigaction *act,
 		    _Out_opt_ struct sigaction *oact
 		);
 	}
-417	AUE_SIGRETURN	STD {
+417	AUE_SIGRETURN	STD|CAPENABLED {
 		int sigreturn(
 		    _In_ const struct __ucontext *sigcntxp
 		);
 	}
 418-420	AUE_NULL	RESERVED
-421	AUE_NULL	STD {
+421	AUE_NULL	STD|CAPENABLED {
 		int getcontext(
 		    _Out_ struct __ucontext *ucp
 		);
 	}
-422	AUE_NULL	STD {
+422	AUE_NULL	STD|CAPENABLED {
 		int setcontext(
 		    _In_ const struct __ucontext *ucp
 		);
@@ -2243,30 +2243,30 @@
 		    _In_ struct acl *aclp
 		);
 	}
-429	AUE_SIGWAIT	STD {
+429	AUE_SIGWAIT	STD|CAPENABLED {
 		int sigwait(
 		    _In_ const sigset_t *set,
 		    _Out_ int *sig
 		);
 	}
-430	AUE_THR_CREATE	STD {
+430	AUE_THR_CREATE	STD|CAPENABLED {
 		int thr_create(
 		    _In_ ucontext_t *ctx,
 		    _Out_ long *id,
 		    int flags
 		);
 	}
-431	AUE_THR_EXIT	STD {
+431	AUE_THR_EXIT	STD|CAPENABLED {
 		void thr_exit(
 		    _Out_opt_ long *state
 		);
 	}
-432	AUE_NULL	STD {
+432	AUE_NULL	STD|CAPENABLED {
 		int thr_self(
 		    _Out_ long *id
 		);
 	}
-433	AUE_THR_KILL	STD {
+433	AUE_THR_KILL	STD|CAPENABLED {
 		int thr_kill(
 		    long id,
 		    int sig
@@ -2290,7 +2290,7 @@
 		    int jid
 		);
 	}
-437	AUE_EXTATTR_LIST_FD	STD {
+437	AUE_EXTATTR_LIST_FD	STD|CAPENABLED {
 		ssize_t extattr_list_fd(
 		    int fd,
 		    int attrnamespace,
@@ -2322,12 +2322,12 @@
 		    _In_opt_ const struct timespec *abstime
 		);
 	}
-442	AUE_NULL	STD {
+442	AUE_NULL	STD|CAPENABLED {
 		int thr_suspend(
 		    _In_opt_ const struct timespec *timeout
 		);
 	}
-443	AUE_NULL	STD {
+443	AUE_NULL	STD|CAPENABLED {
 		int thr_wake(
 		    long id
 		);
@@ -2351,33 +2351,33 @@
 		    u_int length
 		);
 	}
-447	AUE_GETAUID	STD {
+447	AUE_GETAUID	STD|CAPENABLED {
 		int getauid(
 		    _Out_ uid_t *auid
 		);
 	}
-448	AUE_SETAUID	STD {
+448	AUE_SETAUID	STD|CAPENABLED {
 		int setauid(
 		    _In_ uid_t *auid
 		);
 	}
-449	AUE_GETAUDIT	STD {
+449	AUE_GETAUDIT	STD|CAPENABLED {
 		int getaudit(
 		    _Out_ struct auditinfo *auditinfo
 		);
 	}
-450	AUE_SETAUDIT	STD {
+450	AUE_SETAUDIT	STD|CAPENABLED {
 		int setaudit(
 		    _In_ struct auditinfo *auditinfo
 		);
 	}
-451	AUE_GETAUDIT_ADDR	STD {
+451	AUE_GETAUDIT_ADDR	STD|CAPENABLED {
 		int getaudit_addr(
 		    _Out_writes_bytes_(length) struct auditinfo_addr *auditinfo_addr,
 		    u_int length
 		);
 	}
-452	AUE_SETAUDIT_ADDR	STD {
+452	AUE_SETAUDIT_ADDR	STD|CAPENABLED {
 		int setaudit_addr(
 		    _In_reads_bytes_(length) struct auditinfo_addr *auditinfo_addr,
 		    u_int length
@@ -2388,7 +2388,7 @@
 		    _In_z_ const char *path
 		);
 	}
-454	AUE_NULL	STD {
+454	AUE_NULL	STD|CAPENABLED {
 		int _umtx_op(
 		    _Inout_ void *obj,
 		    int op,
@@ -2397,13 +2397,13 @@
 		    _In_ void *uaddr2
 		);
 	}
-455	AUE_THR_NEW	STD {
+455	AUE_THR_NEW	STD|CAPENABLED {
 		int thr_new(
 		    _In_ struct thr_param *param,
 		    int param_size
 		);
 	}
-456	AUE_NULL	STD {
+456	AUE_NULL	STD|CAPENABLED {
 		int sigqueue(
 		    pid_t pid,
 		    int signum,
@@ -2419,14 +2419,14 @@
 		    _In_opt_ const struct mq_attr *attr
 		);
 	}
-458	AUE_MQ_SETATTR	NOSTD {
+458	AUE_MQ_SETATTR	NOSTD|CAPENABLED {
 		int kmq_setattr(
 		    int mqd,
 		    _In_opt_ const struct mq_attr *attr,
 		    _Out_opt_ struct mq_attr *oattr
 		);
 	}
-459	AUE_MQ_TIMEDRECEIVE	NOSTD {
+459	AUE_MQ_TIMEDRECEIVE	NOSTD|CAPENABLED {
 		int kmq_timedreceive(
 		    int mqd,
 		    _Out_writes_bytes_(msg_len) char *msg_ptr,
@@ -2435,7 +2435,7 @@
 		    _In_opt_ const struct timespec *abs_timeout
 		);
 	}
-460	AUE_MQ_TIMEDSEND	NOSTD {
+460	AUE_MQ_TIMEDSEND	NOSTD|CAPENABLED {
 		int kmq_timedsend(
 		    int mqd,
 		    _In_reads_bytes_(msg_len) const char *msg_ptr,
@@ -2444,7 +2444,7 @@
 		    _In_opt_ const struct timespec *abs_timeout
 		);
 	}
-461	AUE_MQ_NOTIFY	NOSTD {
+461	AUE_MQ_NOTIFY	NOSTD|CAPENABLED {
 		int kmq_notify(
 		    int mqd,
 		    _In_opt_ const struct sigevent *sigev
@@ -2455,26 +2455,26 @@
 		    _In_z_ const char *path
 		);
 	}
-463	AUE_NULL	STD {
+463	AUE_NULL	STD|CAPENABLED {
 		int abort2(
 		    _In_z_ const char *why,
 		    int nargs,
 		    _In_reads_(nargs) void **args
 		);
 	}
-464	AUE_NULL	STD {
+464	AUE_NULL	STD|CAPENABLED {
 		int thr_set_name(
 		    long id,
 		    _In_z_ const char *name
 		);
 	}
-465	AUE_AIO_FSYNC	STD {
+465	AUE_AIO_FSYNC	STD|CAPENABLED {
 		int aio_fsync(
 		    int op,
 		    _In_ struct aiocb *aiocbp
 		);
 	}
-466	AUE_RTPRIO	STD {
+466	AUE_RTPRIO	STD|CAPENABLED {
 		int rtprio_thread(
 		    int function,
 		    lwpid_t lwpid,
@@ -2482,13 +2482,13 @@
 		);
 	}
 467-470	AUE_NULL	RESERVED
-471	AUE_SCTP_PEELOFF	NOSTD {
+471	AUE_SCTP_PEELOFF	NOSTD|CAPENABLED {
 		int sctp_peeloff(
 		    int sd,
 		    uint32_t name
 		);
 	}
-472	AUE_SCTP_GENERIC_SENDMSG	NOSTD {
+472	AUE_SCTP_GENERIC_SENDMSG	NOSTD|CAPENABLED {
 		int sctp_generic_sendmsg(
 		    int sd,
 		    _In_reads_bytes_(mlen) void *msg,
@@ -2499,7 +2499,7 @@
 		    int flags
 		);
 	}
-473	AUE_SCTP_GENERIC_SENDMSG_IOV	NOSTD {
+473	AUE_SCTP_GENERIC_SENDMSG_IOV	NOSTD|CAPENABLED {
 		int sctp_generic_sendmsg_iov(
 		    int sd,
 		    _In_reads_(iovlen) struct iovec *iov,
@@ -2510,7 +2510,7 @@
 		    int flags
 		);
 	}
-474	AUE_SCTP_GENERIC_RECVMSG	NOSTD {
+474	AUE_SCTP_GENERIC_RECVMSG	NOSTD|CAPENABLED {
 		int sctp_generic_recvmsg(
 		    int sd,
 		    _In_reads_(iovlen) struct iovec *iov,
@@ -2521,7 +2521,7 @@
 		    _Out_opt_ int *msg_flags
 		);
 	}
-475	AUE_PREAD	STD {
+475	AUE_PREAD	STD|CAPENABLED {
 		ssize_t pread(
 		    int fd,
 		    _Out_writes_bytes_(nbyte) void *buf,
@@ -2529,7 +2529,7 @@
 		    off_t offset
 		);
 	}
-476	AUE_PWRITE	STD {
+476	AUE_PWRITE	STD|CAPENABLED {
 		ssize_t pwrite(
 		    int fd,
 		    _In_reads_bytes_(nbyte) const void *buf,
@@ -2537,7 +2537,7 @@
 		    off_t offset
 		);
 	}
-477	AUE_MMAP	STD {
+477	AUE_MMAP	STD|CAPENABLED {
 		void *mmap(
 		    _In_ void *addr,
 		    size_t len,
@@ -2547,7 +2547,7 @@
 		    off_t pos
 		);
 	}
-478	AUE_LSEEK	STD {
+478	AUE_LSEEK	STD|CAPENABLED {
 		off_t lseek(
 		    int fd,
 		    off_t offset,
@@ -2560,7 +2560,7 @@
 		    off_t length
 		);
 	}
-480	AUE_FTRUNCATE	STD {
+480	AUE_FTRUNCATE	STD|CAPENABLED {
 		int ftruncate(
 		    int fd,
 		    off_t length
@@ -2573,7 +2573,7 @@
 		    int sig
 		);
 	}
-482	AUE_SHMOPEN	COMPAT12 {
+482	AUE_SHMOPEN	COMPAT12|CAPENABLED {
 		int shm_open(
 		    _In_z_ const char *path,
 		    int flags,
@@ -2605,7 +2605,7 @@
 		    _Out_ cpusetid_t *setid
 		);
 	}
-487	AUE_NULL	STD {
+487	AUE_NULL	STD|CAPENABLED {
 		int cpuset_getaffinity(
 		    cpulevel_t level,
 		    cpuwhich_t which,
@@ -2614,7 +2614,7 @@
 		    _Out_ cpuset_t *mask
 		);
 	}
-488	AUE_NULL	STD {
+488	AUE_NULL	STD|CAPENABLED {
 		int cpuset_setaffinity(
 		    cpulevel_t level,
 		    cpuwhich_t which,
@@ -2623,7 +2623,7 @@
 		    _Out_ const cpuset_t *mask
 		);
 	}
-489	AUE_FACCESSAT	STD {
+489	AUE_FACCESSAT	STD|CAPENABLED {
 		int faccessat(
 		    int fd,
 		    _In_z_ const char *path,
@@ -2631,7 +2631,7 @@
 		    int flag
 		);
 	}
-490	AUE_FCHMODAT	STD {
+490	AUE_FCHMODAT	STD|CAPENABLED {
 		int fchmodat(
 		    int fd,
 		    _In_z_ const char *path,
@@ -2639,7 +2639,7 @@
 		    int flag
 		);
 	}
-491	AUE_FCHOWNAT	STD {
+491	AUE_FCHOWNAT	STD|CAPENABLED {
 		int fchownat(
 		    int fd,
 		    _In_z_ const char *path,
@@ -2648,14 +2648,14 @@
 		    int flag
 		);
 	}
-492	AUE_FEXECVE	STD {
+492	AUE_FEXECVE	STD|CAPENABLED {
 		int fexecve(
 		    int fd,
 		    _In_ char **argv,
 		    _In_ char **envv
 		);
 	}
-493	AUE_FSTATAT	COMPAT11 {
+493	AUE_FSTATAT	COMPAT11|CAPENABLED {
 		int fstatat(
 		    int fd,
 		    _In_z_ const char *path,
@@ -2663,14 +2663,14 @@
 		    int flag
 		);
 	}
-494	AUE_FUTIMESAT	STD {
+494	AUE_FUTIMESAT	STD|CAPENABLED {
 		int futimesat(
 		    int fd,
 		    _In_z_ const char *path,
 		    _In_reads_(2) struct timeval *times
 		);
 	}
-495	AUE_LINKAT	STD {
+495	AUE_LINKAT	STD|CAPENABLED {
 		int linkat(
 		    int fd1,
 		    _In_z_ const char *path1,
@@ -2679,21 +2679,21 @@
 		    int flag
 		);
 	}
-496	AUE_MKDIRAT	STD {
+496	AUE_MKDIRAT	STD|CAPENABLED {
 		int mkdirat(
 		    int fd,
 		    _In_z_ const char *path,
 		    mode_t mode
 		);
 	}
-497	AUE_MKFIFOAT	STD {
+497	AUE_MKFIFOAT	STD|CAPENABLED {
 		int mkfifoat(
 		    int fd,
 		    _In_z_ const char *path,
 		    mode_t mode
 		);
 	}
-498	AUE_MKNODAT	COMPAT11 {
+498	AUE_MKNODAT	COMPAT11|CAPENABLED {
 		int mknodat(
 		    int fd,
 		    _In_z_ const char *path,
@@ -2702,7 +2702,7 @@
 		);
 	}
 ; XXX: see the comment for open
-499	AUE_OPENAT_RWTC	STD {
+499	AUE_OPENAT_RWTC	STD|CAPENABLED {
 		int openat(
 		    int fd,
 		    _In_z_ const char *path,
@@ -2710,7 +2710,7 @@
 		    mode_t mode
 		);
 	}
-500	AUE_READLINKAT	STD {
+500	AUE_READLINKAT	STD|CAPENABLED {
 		ssize_t readlinkat(
 		    int fd,
 		    _In_z_ const char *path,
@@ -2718,7 +2718,7 @@
 		    size_t bufsize
 		);
 	}
-501	AUE_RENAMEAT	STD {
+501	AUE_RENAMEAT	STD|CAPENABLED {
 		int renameat(
 		    int oldfd,
 		    _In_z_ const char *old,
@@ -2726,14 +2726,14 @@
 		    _In_z_ const char *new
 		);
 	}
-502	AUE_SYMLINKAT	STD {
+502	AUE_SYMLINKAT	STD|CAPENABLED {
 		int symlinkat(
 		    _In_z_ const char *path1,
 		    int fd,
 		    _In_z_ const char *path2
 		);
 	}
-503	AUE_UNLINKAT	STD {
+503	AUE_UNLINKAT	STD|CAPENABLED {
 		int unlinkat(
 		    int fd,
 		    _In_z_ const char *path,
@@ -2770,7 +2770,7 @@
 		    int jid
 		);
 	}
-509	AUE_CLOSEFROM	COMPAT12 {
+509	AUE_CLOSEFROM	COMPAT12|CAPENABLED {
 		int closefrom(
 		    int lowfd
 		);
@@ -2804,41 +2804,41 @@
 		);
 	}
 514	AUE_NULL	OBSOL	cap_new
-515	AUE_CAP_RIGHTS_GET	STD {
+515	AUE_CAP_RIGHTS_GET	STD|CAPENABLED {
 		int __cap_rights_get(
 		    int version,
 		    int fd,
 		    _Out_ cap_rights_t *rightsp
 		);
 	}
-516	AUE_CAP_ENTER	STD {
+516	AUE_CAP_ENTER	STD|CAPENABLED {
 		int cap_enter(void);
 	}
-517	AUE_CAP_GETMODE	STD {
+517	AUE_CAP_GETMODE	STD|CAPENABLED {
 		int cap_getmode(
 		    _Out_ u_int *modep
 		);
 	}
-518	AUE_PDFORK	STD {
+518	AUE_PDFORK	STD|CAPENABLED {
 		int pdfork(
 		    _Out_ int *fdp,
 		    int flags
 		);
 	}
-519	AUE_PDKILL	STD {
+519	AUE_PDKILL	STD|CAPENABLED {
 		int pdkill(
 		    int fd,
 		    int signum
 		);
 	}
-520	AUE_PDGETPID	STD {
+520	AUE_PDGETPID	STD|CAPENABLED {
 		int pdgetpid(
 		    int fd,
 		    _Out_ pid_t *pidp
 		);
 	}
 521	AUE_NULL	RESERVED
-522	AUE_SELECT	STD {
+522	AUE_SELECT	STD|CAPENABLED {
 		int pselect(
 		    int nd,
 		    _Inout_opt_ fd_set *in,
@@ -2848,7 +2848,7 @@
 		    _In_opt_ const sigset_t *sm
 		);
 	}
-523	AUE_GETLOGINCLASS	STD {
+523	AUE_GETLOGINCLASS	STD|CAPENABLED {
 		int getloginclass(
 		    _Out_writes_z_(namelen) char *namebuf,
 		    size_t namelen
@@ -2899,7 +2899,7 @@
 		    size_t outbuflen
 		);
 	}
-530	AUE_POSIX_FALLOCATE	STD {
+530	AUE_POSIX_FALLOCATE	STD|CAPENABLED {
 		int posix_fallocate(
 		    int fd,
 		    off_t offset,
@@ -2924,39 +2924,39 @@
 		    _Out_opt_ siginfo_t *info
 		);
 	}
-533	AUE_CAP_RIGHTS_LIMIT	STD {
+533	AUE_CAP_RIGHTS_LIMIT	STD|CAPENABLED {
 		int cap_rights_limit(
 		    int fd,
 		    _In_ cap_rights_t *rightsp
 		);
 	}
-534	AUE_CAP_IOCTLS_LIMIT	STD {
+534	AUE_CAP_IOCTLS_LIMIT	STD|CAPENABLED {
 		int cap_ioctls_limit(
 		    int fd,
 		    _In_reads_(ncmds) const u_long *cmds,
 		    size_t ncmds
 		);
 	}
-535	AUE_CAP_IOCTLS_GET	STD {
+535	AUE_CAP_IOCTLS_GET	STD|CAPENABLED {
 		ssize_t cap_ioctls_get(
 		    int fd,
 		    _Out_writes_(maxcmds) u_long *cmds,
 		    size_t maxcmds
 		);
 	}
-536	AUE_CAP_FCNTLS_LIMIT	STD {
+536	AUE_CAP_FCNTLS_LIMIT	STD|CAPENABLED {
 		int cap_fcntls_limit(
 		    int fd,
 		    uint32_t fcntlrights
 		);
 	}
-537	AUE_CAP_FCNTLS_GET	STD {
+537	AUE_CAP_FCNTLS_GET	STD|CAPENABLED {
 		int cap_fcntls_get(
 		    int fd,
 		    _Out_ uint32_t *fcntlrightsp
 		);
 	}
-538	AUE_BINDAT	STD {
+538	AUE_BINDAT	STD|CAPENABLED {
 		int bindat(
 		    int fd,
 		    int s,
@@ -2964,7 +2964,7 @@
 		    int namelen
 		);
 	}
-539	AUE_CONNECTAT	STD {
+539	AUE_CONNECTAT	STD|CAPENABLED {
 		int connectat(
 		    int fd,
 		    int s,
@@ -2972,7 +2972,7 @@
 		    int namelen
 		);
 	}
-540	AUE_CHFLAGSAT	STD {
+540	AUE_CHFLAGSAT	STD|CAPENABLED {
 		int chflagsat(
 		    int fd,
 		    _In_z_ const char *path,
@@ -2980,7 +2980,7 @@
 		    int atflag
 		);
 	}
-541	AUE_ACCEPT	STD {
+541	AUE_ACCEPT	STD|CAPENABLED {
 		int accept4(
 		    int s,
 		    _Out_writes_bytes_opt_(*anamelen) struct sockaddr *name,
@@ -2988,7 +2988,7 @@
 		    int flags
 		);
 	}
-542	AUE_PIPE	STD {
+542	AUE_PIPE	STD|CAPENABLED {
 		int pipe2(
 		    _Out_writes_(2) int *fildes,
 		    int flags
@@ -3007,7 +3007,7 @@
 		    _In_opt_ void *data
 		);
 	}
-545	AUE_POLL	STD {
+545	AUE_POLL	STD|CAPENABLED {
 		int ppoll(
 		    _Inout_updates_(nfds) struct pollfd *fds,
 		    u_int nfds,
@@ -3015,13 +3015,13 @@
 		    _In_opt_ const sigset_t *set
 		);
 	}
-546	AUE_FUTIMES	STD {
+546	AUE_FUTIMES	STD|CAPENABLED {
 		int futimens(
 		    int fd,
 		    _In_reads_(2) struct timespec *times
 		);
 	}
-547	AUE_FUTIMESAT	STD {
+547	AUE_FUTIMESAT	STD|CAPENABLED {
 		int utimensat(
 		    int fd,
 		    _In_z_ const char *path,
@@ -3031,18 +3031,18 @@
 	}
 548	AUE_NULL	OBSOL	numa_getaffinity
 549	AUE_NULL	OBSOL	numa_setaffinity
-550	AUE_FSYNC	STD {
+550	AUE_FSYNC	STD|CAPENABLED {
 		int fdatasync(
 		    int fd
 		);
 	}
-551	AUE_FSTAT	STD {
+551	AUE_FSTAT	STD|CAPENABLED {
 		int fstat(
 		    int fd,
 		    _Out_ struct stat *sb
 		);
 	}
-552	AUE_FSTATAT	STD {
+552	AUE_FSTATAT	STD|CAPENABLED {
 		int fstatat(
 		    int fd,
 		    _In_z_ const char *path,
@@ -3056,7 +3056,7 @@
 		    _Out_ struct stat *sb
 		);
 	}
-554	AUE_GETDIRENTRIES STD {
+554	AUE_GETDIRENTRIES STD|CAPENABLED {
 		ssize_t getdirentries(
 		    int fd,
 		    _Out_writes_bytes_(count) char *buf,
@@ -3070,7 +3070,7 @@
 		    _Out_ struct statfs *buf
 		);
 	}
-556	AUE_FSTATFS	STD {
+556	AUE_FSTATFS	STD|CAPENABLED {
 		int fstatfs(
 		    int fd,
 		    _Out_ struct statfs *buf
@@ -3089,7 +3089,7 @@
 		    _Out_ struct statfs *buf
 		);
 	}
-559	AUE_MKNODAT	STD {
+559	AUE_MKNODAT	STD|CAPENABLED {
 		int mknodat(
 		    int fd,
 		    _In_z_ const char *path,
@@ -3097,7 +3097,7 @@
 		    dev_t dev
 		);
 	}
-560	AUE_KEVENT	STD {
+560	AUE_KEVENT	STD|CAPENABLED {
 		int kevent(
 		    int fd,
 		    _In_reads_opt_(nchanges) struct kevent *changelist,
@@ -3107,7 +3107,7 @@
 		    _In_opt_ const struct timespec *timeout
 		);
 	}
-561	AUE_NULL	STD {
+561	AUE_NULL	STD|CAPENABLED {
 		int cpuset_getdomain(
 		    cpulevel_t level,
 		    cpuwhich_t which,
@@ -3117,7 +3117,7 @@
 		    _Out_ int *policy
 		);
 	}
-562	AUE_NULL	STD {
+562	AUE_NULL	STD|CAPENABLED {
 		int cpuset_setdomain(
 		    cpulevel_t level,
 		    cpuwhich_t which,
@@ -3127,7 +3127,7 @@
 		    int policy
 		);
 	}
-563	AUE_NULL	STD {
+563	AUE_NULL	STD|CAPENABLED {
 		int getrandom(
 		    _Out_writes_bytes_(buflen) void *buf,
 		    size_t buflen,
@@ -3162,7 +3162,7 @@
 		    size_t bufsize
 		);
 	}
-568	AUE_UNLINKAT	STD {
+568	AUE_UNLINKAT	STD|CAPENABLED {
 		int funlinkat(
 		    int dfd,
 		    _In_z_ const char *path,
@@ -3170,7 +3170,7 @@
 		    int flag
 		);
 	}
-569	AUE_NULL	STD {
+569	AUE_NULL	STD|CAPENABLED {
 		ssize_t copy_file_range(
 		    int infd,
 		    _Inout_opt_ off_t *inoffp,
@@ -3180,7 +3180,7 @@
 		    unsigned int flags
 		);
 	}
-570	AUE_SYSCTL	STD {
+570	AUE_SYSCTL	STD|CAPENABLED {
 		int __sysctlbyname(
 		    _In_reads_(namelen) const char *name,
 		    size_t namelen,
@@ -3190,7 +3190,7 @@
 		    size_t newlen
 		);
 	}
-571	AUE_SHMOPEN	STD {
+571	AUE_SHMOPEN	STD|CAPENABLED {
 		int shm_open2(
 		    _In_z_ const char *path,
 		    int flags,
@@ -3206,7 +3206,7 @@
 		    int flags
 		);
 	}
-573	AUE_NULL	STD {
+573	AUE_NULL	STD|CAPENABLED {
 		int sigfastblock(
 		    int cmd,
 		    _Inout_opt_ uint32_t *ptr
@@ -3221,7 +3221,7 @@
 		    int flags
 		);
 	}
-575	AUE_CLOSERANGE	STD {
+575	AUE_CLOSERANGE	STD|CAPENABLED {
 		int close_range(
 		    u_int lowfd,
 		    u_int highfd,
@@ -3235,24 +3235,24 @@
 		    _In_z_ const char *path
 		);
 	}
-577	AUE_SPECIALFD	STD {
+577	AUE_SPECIALFD	STD|CAPENABLED {
 		int __specialfd(
 		    int type,
 		    _In_reads_bytes_(len) const void *req,
 		    size_t len
 		);
 	}
-578	AUE_AIO_WRITEV	STD {
+578	AUE_AIO_WRITEV	STD|CAPENABLED {
 		int aio_writev(
 		    _Inout_ struct aiocb *aiocbp
 		);
 	}
-579	AUE_AIO_READV	STD {
+579	AUE_AIO_READV	STD|CAPENABLED {
 		int aio_readv(
 		    _Inout_ struct aiocb *aiocbp
 		);
 	}
-580	AUE_FSPACECTL	STD {
+580	AUE_FSPACECTL	STD|CAPENABLED {
 		int fspacectl(
 		    int fd,
 		    int cmd,
