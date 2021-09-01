@@ -17,6 +17,7 @@
 ;		COMPAT7, COMPAT11, COMPAT12, NODEF, NOARGS, NOPROTO, NOSTD
 ;		The COMPAT* options may be combined with one or more NO*
 ;		options separated by '|' with no spaces (e.g. COMPAT|NOARGS)
+;		The CAPENABLED option may be ORed into a type.
 ;	name	pseudo-prototype of syscall routine
 ;		If one of the following alts is different, then all appear:
 ;	altname	name of system call if different
@@ -47,6 +48,7 @@
 ;		function prototype in sys/sysproto.h.  Does add a
 ;		definition to syscall.h besides adding a sysent.
 ;	NOTSTATIC syscall is loadable
+;	CAPENABLED syscall is allowed in capability mode
 
 ; annotations:
 ;	SAL 2.0 annotations are used to specify how system calls treat
