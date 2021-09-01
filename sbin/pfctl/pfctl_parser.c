@@ -60,7 +60,6 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <err.h>
 #include <ifaddrs.h>
-#include <inttypes.h>
 #include <unistd.h>
 
 #include "pfctl_parser.h"
@@ -576,9 +575,9 @@ print_status(struct pfctl_status *s, struct pfctl_syncookies *cookies, int opts)
 		    (unsigned long long)s->pcounters[1][1][PF_DROP]);
 	}
 	printf("%-27s %14s %16s\n", "State Table", "Total", "Rate");
-	printf("  %-25s %14" PRIu64 " %14s\n", "current entries", s->states, "");
+	printf("  %-25s %14jx %14s\n", "current entries", s->states, "");
 	TAILQ_FOREACH(c, &s->fcounters, entry) {
-		printf("  %-25s %14" PRIu64 " ", c->name, c->counter);
+		printf("  %-25s %14jx ", c->name, c->counter);
 		if (runtime > 0)
 			printf("%14.1f/s\n",
 			    (double)c->counter / (double)runtime);
@@ -587,10 +586,10 @@ print_status(struct pfctl_status *s, struct pfctl_syncookies *cookies, int opts)
 	}
 	if (opts & PF_OPT_VERBOSE) {
 		printf("Source Tracking Table\n");
-		printf("  %-25s %14" PRIu64 " %14s\n", "current entries",
+		printf("  %-25s %14jx %14s\n", "current entries",
 		    s->src_nodes, "");
 		TAILQ_FOREACH(c, &s->scounters, entry) {
-			printf("  %-25s %14" PRIu64 " ", c->name, c->counter);
+			printf("  %-25s %14jx ", c->name, c->counter);
 			if (runtime > 0)
 				printf("%14.1f/s\n",
 				    (double)c->counter / (double)runtime);
@@ -600,7 +599,7 @@ print_status(struct pfctl_status *s, struct pfctl_syncookies *cookies, int opts)
 	}
 	printf("Counters\n");
 	TAILQ_FOREACH(c, &s->counters, entry) {
-		printf("  %-25s %14" PRIu64 " ", c->name, c->counter);
+		printf("  %-25s %14jx ", c->name, c->counter);
 		if (runtime > 0)
 			printf("%14.1f/s\n",
 			    (double)c->counter / (double)runtime);
@@ -610,7 +609,7 @@ print_status(struct pfctl_status *s, struct pfctl_syncookies *cookies, int opts)
 	if (opts & PF_OPT_VERBOSE) {
 		printf("Limit Counters\n");
 		TAILQ_FOREACH(c, &s->lcounters, entry) {
-			printf("  %-25s %14" PRIu64 " ", c->name, c->counter);
+			printf("  %-25s %14jx ", c->name, c->counter);
 			if (runtime > 0)
 				printf("%14.1f/s\n",
 				    (double)c->counter / (double)runtime);
