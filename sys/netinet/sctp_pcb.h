@@ -526,6 +526,9 @@ struct sctp_inpcb *sctp_pcb_findep(struct sockaddr *, int, int, uint32_t);
 int
 sctp_inpcb_bind(struct socket *, struct sockaddr *,
     struct sctp_ifa *, struct thread *);
+int
+sctp_inpcb_bind_locked(struct sctp_inpcb *, struct sockaddr *,
+    struct sctp_ifa *, struct thread *);
 
 struct sctp_tcb *
 sctp_findassociation_addr(struct mbuf *, int,
