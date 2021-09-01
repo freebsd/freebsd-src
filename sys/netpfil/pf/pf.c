@@ -1482,6 +1482,42 @@ pf_send(struct pf_send_entry *pfse)
 	swi_sched(V_pf_swi_cookie, 0);
 }
 
+static bool
+pf_isforlocal(struct mbuf *m, int af)
+{
+	switch (af) {
+	case AF_INET: {
+		struct rm_priotracker in_ifa_tracker;
+		struct ip *ip;
+		struct in_ifaddr *ia = NULL;
+
+		ip = mtod(m, struct ip *);
+		IN_IFADDR_RLOCK(&in_ifa_tracker);
+		LIST_FOREACH(ia, INADDR_HASH(ip->ip_dst.s_addr), ia_hash) {
+			if (IA_SIN(ia)->sin_addr.s_addr == ip->ip_dst.s_addr) {
+				IN_IFADDR_RUNLOCK(&in_ifa_tracker);
+				return (true);
+			}
+		}
+		IN_IFADDR_RUNLOCK(&in_ifa_tracker);
+		break;
+	}
+	case AF_INET6: {
+		struct ip6_hdr *ip6;
+		struct in6_ifaddr *ia;
+		ip6 = mtod(m, struct ip6_hdr *);
+		ia = in6ifa_ifwithaddr(&ip6->ip6_dst, 0 /* XXX */, false);
+		if (ia == NULL)
+			return (false);
+		return (! (ia->ia6_flags & IN6_IFF_NOTREADY));
+	}
+	default:
+		panic("Unsupported af %d", af);
+	}
+
+	return (false);
+}
+
 void
 pf_intr(void *v)
 {
@@ -1501,9 +1537,18 @@ pf_intr(void *v)
 	STAILQ_FOREACH_SAFE(pfse, &queue, pfse_next, next) {
 		switch (pfse->pfse_type) {
 #ifdef INET
-		case PFSE_IP:
-			ip_output(pfse->pfse_m, NULL, NULL, 0, NULL, NULL);
+		case PFSE_IP: {
+			if (pf_isforlocal(pfse->pfse_m, AF_INET)) {
+				pfse->pfse_m->m_flags |= M_SKIP_FIREWALL;
+				pfse->pfse_m->m_pkthdr.csum_flags |=
+				    CSUM_IP_VALID | CSUM_IP_CHECKED;
+				ip_input(pfse->pfse_m);
+			} else {
+				ip_output(pfse->pfse_m, NULL, NULL, 0, NULL,
+				    NULL);
+			}
 			break;
+		}
 		case PFSE_ICMP:
 			icmp_error(pfse->pfse_m, pfse->icmpopts.type,
 			    pfse->icmpopts.code, 0, pfse->icmpopts.mtu);
@@ -1511,8 +1556,13 @@ pf_intr(void *v)
 #endif /* INET */
 #ifdef INET6
 		case PFSE_IP6:
-			ip6_output(pfse->pfse_m, NULL, NULL, 0, NULL, NULL,
-			    NULL);
+			if (pf_isforlocal(pfse->pfse_m, AF_INET6)) {
+				pfse->pfse_m->m_flags |= M_SKIP_FIREWALL;
+				ip6_input(pfse->pfse_m);
+			} else {
+				ip6_output(pfse->pfse_m, NULL, NULL, 0, NULL,
+				    NULL, NULL);
+			}
 			break;
 		case PFSE_ICMP6:
 			icmp6_error(pfse->pfse_m, pfse->icmpopts.type,
@@ -2656,7 +2706,9 @@ pf_build_tcp(const struct pf_krule *r, sa_family_t af,
 #endif /* ALTQ */
 	m->m_data += max_linkhdr;
 	m->m_pkthdr.len = m->m_len = len;
-	m->m_pkthdr.rcvif = NULL;
+	/* The rest of the stack assumes a rcvif, so provide one.
+	 * This is a locally generated packet, so .. close enough. */
+	m->m_pkthdr.rcvif = V_loif;
 	bzero(m->m_data, len);
 	switch (af) {
 #ifdef INET
