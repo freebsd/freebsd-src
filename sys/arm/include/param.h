@@ -124,7 +124,7 @@
 #define	MAXPAGESIZES	2		/* maximum number of supported page sizes */
 
 #ifndef KSTACK_PAGES
-#define KSTACK_PAGES    4
+#define KSTACK_PAGES    2
 #endif /* !KSTACK_PAGES */
 
 #ifndef FPCONTEXTSIZE
