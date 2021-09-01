@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+PACKAGE=	syscons-data
+
 FILES=	INDEX.keymaps \
 	be.iso.kbd be.iso.acc.kbd \
 	bg.bds.ctrlcaps.kbd bg.phonetic.ctrlcaps.kbd \
