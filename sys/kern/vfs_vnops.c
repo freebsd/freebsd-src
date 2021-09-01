@@ -3463,7 +3463,8 @@ vn_fallocate(struct file *fp, off_t offset, off_t len, struct thread *td)
 
 static int
 vn_deallocate_impl(struct vnode *vp, off_t *offset, off_t *length, int flags,
-    int ioflag, struct ucred *active_cred, struct ucred *file_cred)
+    int ioflag, struct ucred *cred, struct ucred *active_cred,
+    struct ucred *file_cred)
 {
 	struct mount *mp;
 	void *rl_cookie;
@@ -3510,7 +3511,7 @@ vn_deallocate_impl(struct vnode *vp, off_t *offset, off_t *length, int flags,
 #endif
 		if (error == 0)
 			error = VOP_DEALLOCATE(vp, &off, &len, flags, ioflag,
-			    active_cred);
+			    cred);
 
 		if ((ioflag & IO_NODELOCKED) == 0) {
 			VOP_UNLOCK(vp);
@@ -3530,17 +3531,24 @@ out:
 	return (error);
 }
 
+/*
+ * This function is supposed to be used in the situations where the deallocation
+ * is not triggered by a user request.
+ */
 int
 vn_deallocate(struct vnode *vp, off_t *offset, off_t *length, int flags,
     int ioflag, struct ucred *active_cred, struct ucred *file_cred)
 {
+	struct ucred *cred;
+
 	if (*offset < 0 || *length <= 0 || *length > OFF_MAX - *offset ||
 	    flags != 0)
 		return (EINVAL);
 	if (vp->v_type != VREG)
 		return (ENODEV);
 
-	return (vn_deallocate_impl(vp, offset, length, flags, ioflag,
+	cred = file_cred != NOCRED ? file_cred : active_cred;
+	return (vn_deallocate_impl(vp, offset, length, flags, ioflag, cred,
 	    active_cred, file_cred));
 }
 
@@ -3565,7 +3573,7 @@ vn_fspacectl(struct file *fp, int cmd, off_t *offset, off_t *length, int flags,
 	switch (cmd) {
 	case SPACECTL_DEALLOC:
 		error = vn_deallocate_impl(vp, offset, length, flags, ioflag,
-		    active_cred, fp->f_cred);
+		    active_cred, active_cred, fp->f_cred);
 		break;
 	default:
 		panic("vn_fspacectl: unknown cmd %d", cmd);
