@@ -220,6 +220,14 @@ ppb_unlock(device_t bus)
 	mtx_unlock(ppb->ppc_lock);
 }
 
+struct mtx *
+ppb_get_lock(device_t bus)
+{
+	struct ppb_data *ppb = DEVTOSOFTC(bus);
+
+	return (ppb->ppc_lock);
+}
+
 void
 _ppb_assert_locked(device_t bus, const char *file, int line)
 {

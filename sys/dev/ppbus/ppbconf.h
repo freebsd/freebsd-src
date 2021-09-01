@@ -259,6 +259,7 @@ extern int ppb_release_bus(device_t, device_t);
 /* bus related functions */
 extern void ppb_lock(device_t);
 extern void ppb_unlock(device_t);
+extern struct mtx *ppb_get_lock(device_t);
 extern void _ppb_assert_locked(device_t, const char *, int);
 extern void ppb_init_callout(device_t, struct callout *, int);
 extern int ppb_sleep(device_t, void *, int, const char *, int);

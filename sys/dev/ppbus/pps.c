@@ -141,9 +141,11 @@ ppsattach(device_t dev)
 	    UID_ROOT, GID_WHEEL, 0600, PPS_NAME "%d", unit);
 	sc->devs[0] = d;
 	sc->pps[0].ppscap = PPS_CAPTUREASSERT | PPS_ECHOASSERT;
+	sc->pps[0].driver_abi = PPS_ABI_VERSION;
+	sc->pps[0].driver_mtx = ppb_get_lock(ppbus);
 	d->si_drv1 = sc;
 	d->si_drv2 = (void*)0;
-	pps_init(&sc->pps[0]);
+	pps_init_abi(&sc->pps[0]);
 
 	ppb_lock(ppbus);
 	if (ppb_request_bus(ppbus, dev, PPB_DONTWAIT)) {
@@ -193,9 +195,11 @@ ppsattach(device_t dev)
 			  UID_ROOT, GID_WHEEL, 0600, PPS_NAME "%db%d", unit, i - 1);
 			sc->devs[i] = d;
 			sc->pps[i].ppscap = PPS_CAPTUREASSERT | PPS_CAPTURECLEAR;
+			sc->pps[i].driver_abi = PPS_ABI_VERSION;
+			sc->pps[i].driver_mtx = ppb_get_lock(ppbus);
 			d->si_drv1 = sc;
 			d->si_drv2 = (void *)(intptr_t)i;
-			pps_init(&sc->pps[i]);
+			pps_init_abi(&sc->pps[i]);
 		}
 		ppb_lock(ppbus);
 	} while (0);
