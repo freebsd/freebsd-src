@@ -178,7 +178,8 @@ main(int argc, char *argv[])
 			error = procctl(P_PID, pid, PROC_STACKGAP_STATUS, &arg);
 			break;
 		case MODE_NO_NEW_PRIVS:
-			error = procctl(P_PID, pid, PROC_NO_NEW_PRIVS_STATUS, &arg);
+			error = procctl(P_PID, pid, PROC_NO_NEW_PRIVS_STATUS,
+			    &arg);
 			break;
 #ifdef PROC_KPTI_CTL
 		case MODE_KPTI:
@@ -349,7 +350,8 @@ main(int argc, char *argv[])
 		case MODE_NO_NEW_PRIVS:
 			arg = enable ? PROC_NO_NEW_PRIVS_ENABLE :
 			    PROC_NO_NEW_PRIVS_DISABLE;
-			error = procctl(P_PID, pid, PROC_NO_NEW_PRIVS_CTL, &arg);
+			error = procctl(P_PID, pid, PROC_NO_NEW_PRIVS_CTL,
+			    &arg);
 			break;
 #ifdef PROC_KPTI_CTL
 		case MODE_KPTI:
