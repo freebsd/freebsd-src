@@ -943,7 +943,6 @@
 		    _Inout_ int *alen
 		);
 	} getsockname getsockname_args int
-
 151-153	AUE_NULL	RESERVED
 ; 154 is initialised by the NLM code, if present.
 154	AUE_NULL	NOSTD {
@@ -1664,7 +1663,8 @@
 		);
 	}
 325	AUE_MUNLOCKALL	STD|CAPENABLED {
-		int munlockall(void); }
+		int munlockall(void);
+	}
 326	AUE_GETCWD	STD {
 		int __getcwd(
 		    _Out_writes_z_(buflen) char *buf,
