@@ -33,6 +33,8 @@
 
 #define	GIC_IVAR_HW_REV		500
 #define	GIC_IVAR_BUS		501
+#define	GIC_IVAR_MBI_START	510
+#define	GIC_IVAR_MBI_COUNT	511
 
 /* GIC_IVAR_BUS values */
 #define	GIC_BUS_UNKNOWN		0
@@ -42,6 +44,8 @@
 
 __BUS_ACCESSOR(gic, hw_rev, GIC, HW_REV, u_int);
 __BUS_ACCESSOR(gic, bus, GIC, BUS, u_int);
+__BUS_ACCESSOR(gic, mbi_start, GIC, MBI_START, u_int);
+__BUS_ACCESSOR(gic, mbi_count, GIC, MBI_COUNT, u_int);
 
 /* Software Generated Interrupts */
 #define	GIC_FIRST_SGI		 0	/* Irqs 0-15 are SGIs/IPIs. */
