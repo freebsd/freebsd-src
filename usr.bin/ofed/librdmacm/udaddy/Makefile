@@ -1,5 +1,6 @@
 # $FreeBSD$
 
+PACKAGE=	rdma
 PROG=	udaddy
 MAN=	udaddy.1
 SRCS=	udaddy.c common.c
