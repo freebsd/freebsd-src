@@ -343,7 +343,7 @@ taskqueue_enqueue_timeout(struct taskqueue *queue,
 {
 
 	return (taskqueue_enqueue_timeout_sbt(queue, ttask, ticks * tick_sbt,
-	    0, 0));
+	    0, C_HARDCLOCK));
 }
 
 static void
