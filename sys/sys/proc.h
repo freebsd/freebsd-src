@@ -838,6 +838,8 @@ struct proc {
 #define	P2_ITSTOPPED		0x00002000
 #define	P2_PTRACEREQ		0x00004000	/* Active ptrace req */
 #define	P2_NO_NEW_PRIVS		0x00008000	/* Ignore setuid */
+#define	P2_WXORX_DISABLE	0x00010000	/* WX mappings enabled */
+#define	P2_WXORX_ENABLE_EXEC	0x00020000	/* WXORX enabled after exec */
 
 /* Flags protected by proctree_lock, kept in p_treeflags. */
 #define	P_TREE_ORPHANED		0x00000001	/* Reparented, on orphan list */

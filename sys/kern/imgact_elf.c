@@ -1216,7 +1216,8 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	 */
 	if (imgp->credential_setid) {
 		PROC_LOCK(imgp->proc);
-		imgp->proc->p_flag2 &= ~(P2_ASLR_ENABLE | P2_ASLR_DISABLE);
+		imgp->proc->p_flag2 &= ~(P2_ASLR_ENABLE | P2_ASLR_DISABLE |
+		    P2_WXORX_DISABLE | P2_WXORX_ENABLE_EXEC);
 		PROC_UNLOCK(imgp->proc);
 	}
 	if ((sv->sv_flags & SV_ASLR) == 0 ||
@@ -1239,7 +1240,9 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 			imgp->map_flags |= MAP_ASLR_IGNSTART;
 	}
 
-	if (!__elfN(allow_wx) && (fctl0 & NT_FREEBSD_FCTL_WXNEEDED) == 0)
+	if ((!__elfN(allow_wx) && (fctl0 & NT_FREEBSD_FCTL_WXNEEDED) == 0 &&
+	    (imgp->proc->p_flag2 & P2_WXORX_DISABLE) == 0) ||
+	    (imgp->proc->p_flag2 & P2_WXORX_ENABLE_EXEC) != 0)
 		imgp->map_flags |= MAP_WXORX;
 
 	error = exec_new_vmspace(imgp, sv);

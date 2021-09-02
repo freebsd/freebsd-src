@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 1, 2021
+.Dd September 2, 2021
 .Dt PROCCTL 2
 .Os
 .Sh NAME
@@ -599,6 +599,62 @@ following values is written:
 .It Dv PROC_NO_NEW_PRIVS_ENABLE
 .It Dv PROC_NO_NEW_PRIVS_DISABLE
 .El
+.It Dv PROC_WXMAP_CTL
+Controls the 'write exclusive against execution' permissions for the
+mappings in the process address space.
+It overrides the global settings established by the
+.Dv kern.elf{32/64}.allow_wx
+sysctl,
+and the corresponding bit in the ELF control note, see
+.Xr elfctl 1 .
+.Pp
+The
+.Fa data
+parameter must point to the integer variable holding one of the
+following values:
+.Bl -tag -width PROC_WX_MAPPINGS_DISALLOW_EXEC
+.It Dv PROC_WX_MAPPINGS_PERMIT
+Enable creation of mappings that have both write and execute
+protection attributes, in the specified process' address space.
+.It Dv PROC_WX_MAPPINGS_DISALLOW_EXEC
+In the new address space created by
+.Xr execve 2 ,
+disallow creation of mappings that have both write and execute
+permissions.
+.El
+.Pp
+Once creation of writeable and executable mappings is allowed,
+it is impossible (and pointless) to disallow it.
+The only way to ensure the absence of such mappings after they
+were enabled in a given process, is to set the
+.Dv PROC_WX_MAPPINGS_DISALLOW_EXEC
+flag and
+.Xr execve 2
+an image.
+.It Dv PROC_WXMAP_STATUS
+Returns the current status of the 'write exclusive against execution'
+enforcement for the specified process.
+The
+.Dv data
+parameter must point to the integer variable, where one of the
+following values is written:
+.Bl -tag -width PROC_WX_MAPPINGS_DISALLOW_EXEC
+.It Dv PROC_WX_MAPPINGS_PERMIT
+Creation of simultaneously writable and executable mapping is permitted,
+otherwise the process cannot create such mappings.
+.It Dv PROC_WX_MAPPINGS_DISALLOW_EXEC
+After
+.Xr execve 2 ,
+the new address space should disallow creation of simultaneously
+writable and executable mappings.
+.El
+.Pp
+Additionally, if the address space of the process disallows
+creation of simultaneously writable and executable mappings and
+it is guaranteed that no such mapping was created since address space
+creation, the
+.Dv PROC_WXORX_ENFORCE
+flag is set in the returned value.
 .El
 .Sh x86 MACHINE-SPECIFIC REQUESTS
 .Bl -tag -width PROC_KPTI_STATUS
@@ -648,6 +704,12 @@ feature, as it is bypassable both by the kernel and privileged processes,
 and via other system mechanisms.
 As such, it should not be utilized to reliably protect cryptographic
 keying material or other confidential data.
+.Pp
+Note that processes can trivially bypass the 'no simultaneously
+writable and executable mappings' policy by first marking some mapping
+as writeable and write code to it, then removing write and adding
+execute permission.
+This may be legitimately required by some programs, such as JIT compilers.
 .Sh RETURN VALUES
 If an error occurs, a value of -1 is returned and
 .Va errno
