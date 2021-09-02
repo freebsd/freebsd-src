@@ -44,7 +44,7 @@ s=$?
 [ -f mmap36.core ] &&
     { ls -l mmap36.core; mv mmap36.core $dir; s=1; }
 cd $odir
-[ $s -eq 0 ] && rm -f mmap36.c mmap36
+[ $s -eq 0 ] && rm -f $dir/mmap36.c $dir/mmap36
 exit $s
 
 EOF
