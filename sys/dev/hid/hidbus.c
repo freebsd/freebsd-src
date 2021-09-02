@@ -172,6 +172,25 @@ hidbus_locate(const void *desc, hid_size_t size, int32_t u, enum hid_kind k,
 	return (0);
 }
 
+bool
+hidbus_is_collection(const void *desc, hid_size_t size, int32_t usage,
+    uint8_t tlc_index)
+{
+	struct hid_data *d;
+	struct hid_item h;
+	bool ret = false;
+
+	d = hid_start_parse(desc, size, 0);
+	HIDBUS_FOREACH_ITEM(d, &h, tlc_index) {
+		if (h.kind == hid_collection && h.usage == usage) {
+			ret = true;
+			break;
+		}
+	}
+	hid_end_parse(d);
+	return (ret);
+}
+
 static device_t
 hidbus_add_child(device_t dev, u_int order, const char *name, int unit)
 {
