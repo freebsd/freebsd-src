@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+PACKAGE=	kerberos
+
 PROG=	hxtool
 MAN=
 CFLAGS+=	-I${KRB5DIR}/lib/hx509 \

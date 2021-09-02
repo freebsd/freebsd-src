@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+PACKAGE=	kerberos
+
 PROG=	kf
 MAN=	kf.1
 CFLAGS+=	-I${KRB5DIR}/lib/asn1 \

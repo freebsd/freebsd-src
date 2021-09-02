@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+PACKAGE=	kerberos
+
 LIB=	kadm5srv
 LDFLAGS=	-Wl,--no-undefined
 LIBADD=	com_err hdb krb5 roken

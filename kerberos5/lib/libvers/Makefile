@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+PACKAGE=	kerberos
+
 LIB=	vers
 INTERNALLIB=
 SRCS=	print_version.c roken.h

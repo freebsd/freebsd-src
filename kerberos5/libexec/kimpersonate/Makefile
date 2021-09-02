@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+PACKAGE=	kerberos
+
 PROG=	kimpersonate
 MAN=	kimpersonate.8
 CFLAGS+=	-I${KRB5DIR}/lib/hx509 \

@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+PACKAGE=	kerberos
+
 PROG=	hprop
 MAN=	hprop.8
 SRCS=	hprop.c mit_dump.c

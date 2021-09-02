@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+PACKAGE=	kerberos
+
 LIB=	sl
 INTERNALLIB=
 SRCS=	sl.c
