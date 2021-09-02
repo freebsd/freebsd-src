@@ -8,7 +8,7 @@ configure_args="
     --sysconfdir=/etc/ssh
     --with-pam
     --with-ssl-dir=/usr
-    --with-tcp-wrappers
+    --without-tcp-wrappers
     --with-libedit
     --with-ssl-engine
     --without-xauth
