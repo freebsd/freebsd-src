@@ -1845,6 +1845,8 @@ psm_register_synaptics(device_t dev)
 	evdev_set_id(evdev_a, BUS_I8042, PS2_MOUSE_VENDOR,
 	    PS2_MOUSE_SYNAPTICS_PRODUCT, 0);
 	evdev_set_methods(evdev_a, sc, &psm_ev_methods_a);
+	if (sc->synhw.capReportsV)
+		evdev_set_flag(evdev_a, EVDEV_FLAG_MT_TRACK);
 
 	evdev_support_event(evdev_a, EV_SYN);
 	evdev_support_event(evdev_a, EV_KEY);
