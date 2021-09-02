@@ -74,11 +74,11 @@ while [ $((`date +%s` - start)) -lt 120 ]; do
 	while (a=`mount | egrep /mnt`) do sleep 1; done
 
 	# first fsck will attempt journal recovery
-	$fsck -d -y /dev/$md
+	$fsck -y /dev/$md
 
 	# second fsck will do traditional fsck to check for any errors
 	# from journal recovery
-	$fsck -d -y /dev/$md
+	$fsck -y /dev/$md
 	wait
 done
 mdconfig -d -u ${md#md}
