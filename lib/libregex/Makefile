@@ -2,7 +2,6 @@
 
 .include <src.opts.mk>
 
-PACKAGE=lib${LIB}
 LIB=	regex
 SHLIB_MAJOR=	1
 SHLIB_MINOR=	0
