@@ -98,7 +98,8 @@ struct hidmap_item {
 	bool			has_cb:1;
 	bool			final_cb:1;
 	bool			invert_value:1;
-	u_int			reserved:10;
+	bool			forbidden:1;	/* Forbidden by driver */
+	u_int			reserved:9;
 };
 
 #define	HIDMAP_ANY(_page, _usage, _type, _code)				\
