@@ -212,8 +212,8 @@ translator ipfw_rule_info_t < struct ip_fw *r > {
 	flags =		r->flags;
 	set =		r->set;
 	rule_id =	r->id;
-	cached_id =	r->cached_id;
-	cached_pos =	r->cached_pos;
+	cached_id =	r->cache.id;
+	cached_pos =	r->cache.pos;
 	refcnt =	r->refcnt;
 };
 
