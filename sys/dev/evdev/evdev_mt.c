@@ -93,6 +93,7 @@ struct evdev_mt {
 	union evdev_mt_slot	slots[];
 };
 
+static void	evdev_mt_support_st_compat(struct evdev_dev *);
 static void	evdev_mt_send_st_compat(struct evdev_dev *);
 static void	evdev_mt_send_autorel(struct evdev_dev *);
 static void	evdev_mt_replay_events(struct evdev_dev *);
@@ -144,7 +145,7 @@ evdev_mt_init(struct evdev_dev *evdev)
 		evdev_support_abs(evdev,
 		    ABS_MT_TRACKING_ID, -1, UINT16_MAX, 0, 0, 0);
 	if (bit_test(evdev->ev_flags, EVDEV_FLAG_MT_STCOMPAT))
-		evdev_support_mt_compat(evdev);
+		evdev_mt_support_st_compat(evdev);
 }
 
 void
@@ -517,7 +518,7 @@ evdev_mt_set_value(struct evdev_dev *evdev, int slot, int16_t code,
 }
 
 int
-evdev_get_mt_slot_by_tracking_id(struct evdev_dev *evdev, int32_t tracking_id)
+evdev_mt_id_to_slot(struct evdev_dev *evdev, int32_t tracking_id)
 {
 	struct evdev_mt *mt = evdev->ev_mt;
 	int slot;
@@ -579,8 +580,8 @@ evdev_mt_normalize(int32_t value, int32_t mtmin, int32_t mtmax, int32_t stmax)
 	return (value);
 }
 
-void
-evdev_support_mt_compat(struct evdev_dev *evdev)
+static void
+evdev_mt_support_st_compat(struct evdev_dev *evdev)
 {
 	struct input_absinfo *ai;
 	int i;
@@ -648,15 +649,6 @@ evdev_mt_send_st_compat(struct evdev_dev *evdev)
 
 	if (nfingers == 0)
 		evdev_send_event(evdev, EV_ABS, ABS_PRESSURE, 0);
-}
-
-void
-evdev_push_mt_compat(struct evdev_dev *evdev)
-{
-
-	EVDEV_ENTER(evdev);
-	evdev_mt_send_st_compat(evdev);
-	EVDEV_EXIT(evdev);
 }
 
 static void
