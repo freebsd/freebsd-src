@@ -71,7 +71,7 @@ for i in `jot 6`; do
 done
 mdconfig -d -u $mdstart
 rm -f $dir/mmap34
-[ $s -eq 0 ] && rm -f mmap34.c
+[ $s -eq 0 ] && rm -f /tmp/mmap34.c
 exit $s
 
 EOF
