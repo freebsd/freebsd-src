@@ -46,9 +46,10 @@ libssh_builddir=$(realpath $(ssh_make -V.OBJDIR))
 libssh=libprivatessh.a
 
 # Clear the existing header
+generated="@""generated"
 cat >${header} <<EOF
 /*
- * This file was machine-generated.  Do not edit manually.
+ * This file was machine-$generated.  Do not edit manually.
  * Run crypto/openssh/freebsd-namespace.sh to regenerate.
  */
 EOF
