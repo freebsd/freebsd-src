@@ -112,8 +112,112 @@ pipe_v6_cleanup()
 	firewall_cleanup $1
 }
 
+queue_head()
+{
+	atf_set descr 'Basic queue test'
+	atf_set require.user root
+}
+
+queue_body()
+{
+	fw=$1
+	firewall_init $fw
+	dummynet_init $fw
+
+	epair=$(vnet_mkepair)
+	vnet_mkjail alcatraz ${epair}b
+
+	ifconfig ${epair}a 192.0.2.1/24 up
+	jexec alcatraz ifconfig ${epair}b 192.0.2.2/24 up
+	jexec alcatraz /usr/sbin/inetd -p inetd-alcatraz.pid \
+	    $(atf_get_srcdir)/../pf/echo_inetd.conf
+
+	# Sanity check
+	atf_check -s exit:0 -o ignore ping -i .1 -c 3 -s 1200 192.0.2.2
+	reply=$(echo "foo" | nc -N 192.0.2.2 7)
+	if [ "$reply" != "foo" ];
+	then
+		atf_fail "Echo sanity check failed"
+	fi
+
+	jexec alcatraz dnctl pipe 1 config bw 1MByte/s
+	jexec alcatraz dnctl sched 1 config pipe 1 type wf2q+
+	jexec alcatraz dnctl queue 100 config sched 1 weight 99 mask all
+	jexec alcatraz dnctl queue 200 config sched 1 weight 1 mask all
+
+	firewall_config alcatraz ${fw} \
+		"ipfw"	\
+			"ipfw add 1000 queue 100 tcp from 192.0.2.2 to any out" \
+			"ipfw add 1001 queue 200 icmp from 192.0.2.2 to any out" \
+			"ipfw add 1002 allow ip from any to any"
+
+	# Single ping succeeds
+	atf_check -s exit:0 -o ignore ping -c 1 192.0.2.2
+
+	# Unsaturated TCP succeeds
+	reply=$(echo "foo" | nc -w 5 -N 192.0.2.2 7)
+	if [ "$reply" != "foo" ];
+	then
+		atf_fail "Unsaturated echo failed"
+	fi
+
+	# Saturate the link
+	ping -f -s 1300 192.0.2.2 &
+
+	# Allow this to fill the queue
+	sleep 1
+
+	# TCP should still just pass
+	fails=0
+	for i in `seq 1 3`
+	do
+		result=$(dd if=/dev/zero bs=1024 count=2000 | timeout 3 nc -w 5 -N 192.0.2.2 7 | wc -c)
+		if [ $result -ne 2048000 ];
+		then
+			echo "Failed to prioritise TCP traffic. Got only $result bytes"
+			fails=$(( ${fails} + 1 ))
+		fi
+	done
+	if [ ${fails} -gt 0 ];
+	then
+		atf_fail "We failed prioritisation ${fails} times"
+	fi
+
+	# This will fail if we reverse the pola^W priority
+	firewall_config alcatraz ${fw} \
+		"ipfw"	\
+			"ipfw add 1000 queue 200 tcp from 192.0.2.2 to any out" \
+			"ipfw add 1001 queue 100 icmp from 192.0.2.2 to any out" \
+			"ipfw add 1002 allow ip from any to any"
+
+	jexec alcatraz ping -f -s 1300 192.0.2.1 &
+	sleep 1
+
+	fails=0
+	for i in `seq 1 3`
+	do
+		result=$(dd if=/dev/zero bs=1024 count=2000 | timeout 3 nc -w 5 -N 192.0.2.2 7 | wc -c)
+		if [ $result -ne 2048000 ];
+		then
+			echo "Failed to prioritise TCP traffic. Got only $result bytes"
+			fails=$(( ${fails} + 1 ))
+		fi
+	done
+	if [ ${fails} -lt 3 ];
+	then
+		atf_fail "We failed reversed prioritisation only ${fails} times."
+	fi
+}
+
+queue_cleanup()
+{
+	firewall_cleanup $1
+}
+
 setup_tests		\
 	pipe		\
 		ipfw	\
 	pipe_v6		\
+		ipfw	\
+	queue		\
 		ipfw
