@@ -481,7 +481,10 @@ hidmap_probe_hid_descr(void *d_ptr, hid_size_t d_len, uint8_t tlc_index,
 	/* Check that all mandatory usages are present in report descriptor */
 	if (items != 0) {
 		for (i = 0; i < nitems_map; i++) {
-			if (map[i].required && isclr(caps, i)) {
+			KASSERT(!(map[i].required && map[i].forbidden),
+			    ("both required & forbidden item flags are set"));
+			if ((map[i].required && isclr(caps, i)) ||
+			    (map[i].forbidden && isset(caps, i))) {
 				items = 0;
 				break;
 			}
