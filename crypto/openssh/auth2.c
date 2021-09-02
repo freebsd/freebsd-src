@@ -260,10 +260,6 @@ input_userauth_request(int type, u_int32_t seq, struct ssh *ssh)
 	char *user, *service, *method, *style = NULL;
 	int authenticated = 0;
 	double tstart = monotime_double();
-#ifdef HAVE_LOGIN_CAP
-	login_cap_t *lc;
-	const char *from_host, *from_ip;
-#endif
 
 	if (authctxt == NULL)
 		fatal("input_userauth_request: no authctxt");
