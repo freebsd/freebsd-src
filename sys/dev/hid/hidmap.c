@@ -451,7 +451,8 @@ hidmap_probe_hid_descr(void *d_ptr, hid_size_t d_len, uint8_t tlc_index,
 	bool do_free = false;
 
 	if (caps == NULL) {
-		caps = malloc(HIDMAP_CAPS_SZ(nitems_map), M_DEVBUF, M_WAITOK);
+		caps = malloc(HIDMAP_CAPS_SZ(nitems_map), M_DEVBUF,
+		    M_WAITOK | M_ZERO);
 		do_free = true;
 	} else
 		bzero (caps, HIDMAP_CAPS_SZ(nitems_map));
