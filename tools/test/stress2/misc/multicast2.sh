@@ -20,7 +20,7 @@ ifconfig vtnet0 delete 2>/dev/null
 ifconfig epair create
 ifconfig epair0a 0/24 up
 ifconfig epair0a destroy
-service mdnsd onestop
+timeout 2m service mdnsd onestop
 
 while pkill swap; do :; done
 wait
