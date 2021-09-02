@@ -204,6 +204,8 @@ struct hmt_softc {
 	uint8_t			report_id;
 	uint32_t		max_button;
 	bool			has_int_button;
+	bool			has_cont_count;
+	bool			has_scan_time;
 	bool			is_clickpad;
 	bool			do_timestamps;
 #ifdef IICHID_SAMPLING
@@ -371,7 +373,8 @@ hmt_attach(device_t dev)
 		sc->cont_count_max = MAX_MT_SLOTS;
 	}
 
-	if (hid_test_quirk(hw, HQ_MT_TIMESTAMP) || hmt_timestamps)
+	if (sc->has_scan_time &&
+	    (hid_test_quirk(hw, HQ_MT_TIMESTAMP) || hmt_timestamps))
 		sc->do_timestamps = true;
 #ifdef IICHID_SAMPLING
 	if (hid_test_quirk(hw, HQ_IICHID_SAMPLING))
@@ -438,13 +441,14 @@ hmt_attach(device_t dev)
 	}
 
 	/* Announce information about the touch device */
-	device_printf(sc->dev, "Multitouch %s with %d external button%s%s\n",
+	device_printf(sc->dev, "%s %s with %d external button%s%s\n",
+	    sc->cont_count_max > 1 ? "Multitouch" : "Singletouch",
 	    sc->type == HMT_TYPE_TOUCHSCREEN ? "touchscreen" : "touchpad",
 	    nbuttons, nbuttons != 1 ? "s" : "",
 	    sc->is_clickpad ? ", click-pad" : "");
 	device_printf(sc->dev,
-	    "%d contacts with [%s%s%s%s%s] properties. Report range [%d:%d] - [%d:%d]\n",
-	    (int)sc->cont_count_max,
+	    "%d contact%s with [%s%s%s%s%s] properties. Report range [%d:%d] - [%d:%d]\n",
+	    (int)sc->cont_count_max, sc->cont_count_max != 1 ? "s" : "",
 	    isset(sc->caps, HMT_IN_RANGE) ? "R" : "",
 	    isset(sc->caps, HMT_CONFIDENCE) ? "C" : "",
 	    isset(sc->caps, HMT_WIDTH) ? "W" : "",
@@ -513,6 +517,12 @@ hmt_intr(void *context, void *buf, hid_size_t len)
 	}
 
 	/*
+	 * "In Serial mode, each packet contains information that describes a
+	 * single physical contact point. Multiple contacts are streamed
+	 * serially. In this mode, devices report all contact information in a
+	 * series of packets. The device sends a separate packet for each
+	 * concurrent contact."
+	 *
 	 * "In Parallel mode, devices report all contact information in a
 	 * single packet. Each physical contact is represented by a logical
 	 * collection that is embedded in the top-level collection."
@@ -521,7 +531,10 @@ hmt_intr(void *context, void *buf, hid_size_t len)
 	 * report with contactid=0 but contactids are zero-based, find
 	 * contactcount first.
 	 */
-	cont_count = hid_get_udata(buf, len, &sc->cont_count_loc);
+	if (sc->has_cont_count)
+		cont_count = hid_get_udata(buf, len, &sc->cont_count_loc);
+	else
+		cont_count = 1;
 	/*
 	 * "In Hybrid mode, the number of contacts that can be reported in one
 	 * report is less than the maximum number of contacts that the device
@@ -753,7 +766,6 @@ hmt_hid_parse(struct hmt_softc *sc, const void *d_ptr, hid_size_t d_len,
 				sc->cont_count_loc = hi.loc;
 				break;
 			}
-			/* Scan time is required but clobbered by evdev */
 			if (hi.collevel == 1 && hi.usage ==
 			    HID_USAGE2(HUP_DIGITIZERS, HUD_SCAN_TIME)) {
 				scan_time_found = true;
@@ -804,7 +816,7 @@ hmt_hid_parse(struct hmt_softc *sc, const void *d_ptr, hid_size_t d_len,
 	hid_end_parse(hd);
 
 	/* Check for required HID Usages */
-	if (!cont_count_found || !scan_time_found || cont == 0)
+	if ((!cont_count_found && cont != 1) || cont == 0)
 		return (HMT_TYPE_UNSUPPORTED);
 	for (i = 0; i < HMT_N_USAGES; i++) {
 		if (hmt_hid_map[i].required && isclr(sc->caps, i))
@@ -842,6 +854,8 @@ hmt_hid_parse(struct hmt_softc *sc, const void *d_ptr, hid_size_t d_len,
 	sc->cont_count_max = cont_count_max;
 	sc->nconts_per_report = cont;
 	sc->has_int_button = has_int_button;
+	sc->has_cont_count = cont_count_found;
+	sc->has_scan_time = scan_time_found;
 
 	return (type);
 }
