@@ -300,7 +300,7 @@ hmt_attach(device_t dev)
 	const struct hid_device_info *hw = hid_get_device_info(dev);
 	void *d_ptr;
 	uint8_t *fbuf = NULL;
-	hid_size_t d_len, fsize;
+	hid_size_t d_len, fsize, rsize;
 	uint32_t cont_count_max;
 	int nbuttons, btn;
 	size_t i;
@@ -321,9 +321,10 @@ hmt_attach(device_t dev)
 
 	/* Fetch and parse "Contact count maximum" feature report */
 	if (sc->cont_max_rlen > 1) {
-		err = hid_get_report(dev, fbuf, sc->cont_max_rlen, NULL,
+		err = hid_get_report(dev, fbuf, sc->cont_max_rlen, &rsize,
 		    HID_FEATURE_REPORT, sc->cont_max_rid);
-		if (err == 0) {
+		if (err == 0 && (rsize - 1) * 8 >=
+		    sc->cont_max_loc.pos + sc->cont_max_loc.size) {
 			cont_count_max = hid_get_udata(fbuf + 1,
 			    sc->cont_max_rlen - 1, &sc->cont_max_loc);
 			/*
@@ -334,23 +335,24 @@ hmt_attach(device_t dev)
 				sc->cont_count_max = cont_count_max;
 		} else
 			DPRINTF("hid_get_report error=%d\n", err);
-	} else
-		DPRINTF("Feature report %hhu size invalid: %u\n",
-		    sc->cont_max_rid, sc->cont_max_rlen);
+	}
+	if (sc->cont_count_max == 0)
+		sc->cont_count_max = sc->type == HMT_TYPE_TOUCHSCREEN ? 10 : 5;
 
 	/* Fetch and parse "Button type" feature report */
 	if (sc->btn_type_rlen > 1 && sc->btn_type_rid != sc->cont_max_rid) {
 		bzero(fbuf, fsize);
-		err = hid_get_report(dev, fbuf, sc->btn_type_rlen, NULL,
+		err = hid_get_report(dev, fbuf, sc->btn_type_rlen, &rsize,
 		    HID_FEATURE_REPORT, sc->btn_type_rid);
-	}
-	if (sc->btn_type_rlen > 1) {
-		if (err == 0)
-			sc->is_clickpad = hid_get_udata(fbuf + 1,
-			    sc->btn_type_rlen - 1, &sc->btn_type_loc) == 0;
-		else
+		if (err != 0)
 			DPRINTF("hid_get_report error=%d\n", err);
 	}
+	if (sc->btn_type_rlen > 1 && err == 0 && (rsize - 1) * 8 >=
+	    sc->btn_type_loc.pos + sc->btn_type_loc.size)
+		sc->is_clickpad = hid_get_udata(fbuf + 1, sc->btn_type_rlen - 1,
+		    &sc->btn_type_loc) == 0;
+	else
+		sc->is_clickpad = sc->max_button == 0 && sc->has_int_button;
 
 	/* Fetch THQA certificate to enable some devices like WaveShare */
 	if (sc->thqa_cert_rlen > 1 && sc->thqa_cert_rid != sc->cont_max_rid)
