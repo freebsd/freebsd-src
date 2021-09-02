@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+PACKAGE=	kerberos
+
 PROG=	kadmind
 MAN=	kadmind.8
 SRCS=	rpc.c \

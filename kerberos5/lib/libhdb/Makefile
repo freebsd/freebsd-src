@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+PACKAGE=	kerberos
+
 LIB=	hdb
 LDFLAGS=	-Wl,--no-undefined ${LDAPLDFLAGS}
 VERSION_MAP=	${KRB5DIR}/lib/hdb/version-script.map

@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+PACKAGE=	kerberos
+
 PROG=	string2key
 MAN=	string2key.8
 CFLAGS+=	-I${KRB5DIR}/kdc \

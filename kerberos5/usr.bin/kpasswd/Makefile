@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+PACKAGE=	kerberos
+
 PROG=	kpasswd
 CFLAGS+=-I${KRB5DIR}/lib/roken
 LIBADD=	hdb krb5 roken vers crypto

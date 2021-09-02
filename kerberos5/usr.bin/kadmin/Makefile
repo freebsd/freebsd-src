@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+PACKAGE=	kerberos
+
 PROG=	kadmin
 MAN=	kadmin.8
 

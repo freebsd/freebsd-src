@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+PACKAGE=	kerberos
+
 LIB=	kafs5
 LDFLAGS=	-Wl,--no-undefined
 LIBADD=	asn1 krb5 roken

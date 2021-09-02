@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+PACKAGE=	kerberos
+
 PROG=	digest-service
 MAN=
 CFLAGS+=	-I${KRB5DIR}/kdc \

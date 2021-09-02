@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+PACKAGE=	kerberos
+
 PROG=	ipropd-master
 MAN=	iprop.8
 SRCS=	ipropd_common.c ipropd_master.c kadm5_err.h
