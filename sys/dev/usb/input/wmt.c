@@ -94,105 +94,101 @@ enum wmt_input_mode {
 };
 
 enum {
-	WMT_TIP_SWITCH,
-#define	WMT_SLOT	WMT_TIP_SWITCH
-	WMT_WIDTH,
-#define	WMT_MAJOR	WMT_WIDTH
-	WMT_HEIGHT,
-#define WMT_MINOR	WMT_HEIGHT
-	WMT_ORIENTATION,
-	WMT_X,
-	WMT_Y,
-	WMT_CONTACTID,
-	WMT_PRESSURE,
-	WMT_IN_RANGE,
-	WMT_CONFIDENCE,
-	WMT_TOOL_X,
-	WMT_TOOL_Y,
-	WMT_N_USAGES,
+	WMT_TIP_SWITCH =	ABS_MT_INDEX(ABS_MT_TOOL_TYPE),
+	WMT_WIDTH =		ABS_MT_INDEX(ABS_MT_TOUCH_MAJOR),
+	WMT_HEIGHT =		ABS_MT_INDEX(ABS_MT_TOUCH_MINOR),
+	WMT_ORIENTATION =	ABS_MT_INDEX(ABS_MT_ORIENTATION),
+	WMT_X =			ABS_MT_INDEX(ABS_MT_POSITION_X),
+	WMT_Y =			ABS_MT_INDEX(ABS_MT_POSITION_Y),
+	WMT_CONTACTID =		ABS_MT_INDEX(ABS_MT_TRACKING_ID),
+	WMT_PRESSURE =		ABS_MT_INDEX(ABS_MT_PRESSURE),
+	WMT_IN_RANGE =		ABS_MT_INDEX(ABS_MT_DISTANCE),
+	WMT_CONFIDENCE =	ABS_MT_INDEX(ABS_MT_BLOB_ID),
+	WMT_TOOL_X =		ABS_MT_INDEX(ABS_MT_TOOL_X),
+	WMT_TOOL_Y =		ABS_MT_INDEX(ABS_MT_TOOL_Y),
 };
 
-#define	WMT_NO_CODE	(ABS_MAX + 10)
+#define	WMT_N_USAGES	MT_CNT
 #define	WMT_NO_USAGE	-1
 
 struct wmt_hid_map_item {
 	char		name[5];
 	int32_t 	usage;		/* HID usage */
-	uint32_t	code;		/* Evdev event code */
+	bool		reported;	/* Item value is passed to evdev */
 	bool		required;	/* Required for MT Digitizers */
 };
 
 static const struct wmt_hid_map_item wmt_hid_map[WMT_N_USAGES] = {
-	[WMT_TIP_SWITCH] = {	/* WMT_SLOT */
+	[WMT_TIP_SWITCH] = {
 		.name = "TIP",
 		.usage = HID_USAGE2(HUP_DIGITIZERS, HUD_TIP_SWITCH),
-		.code = ABS_MT_SLOT,
+		.reported = false,
 		.required = true,
 	},
-	[WMT_WIDTH] = {		/* WMT_MAJOR */
+	[WMT_WIDTH] = {
 		.name = "WDTH",
 		.usage = HID_USAGE2(HUP_DIGITIZERS, HUD_WIDTH),
-		.code = ABS_MT_TOUCH_MAJOR,
+		.reported = true,
 		.required = false,
 	},
-	[WMT_HEIGHT] = {	/* WMT_MINOR */
+	[WMT_HEIGHT] = {
 		.name = "HGHT",
 		.usage = HID_USAGE2(HUP_DIGITIZERS, HUD_HEIGHT),
-		.code = ABS_MT_TOUCH_MINOR,
+		.reported = true,
 		.required = false,
 	},
 	[WMT_ORIENTATION] = {
 		.name = "ORIE",
 		.usage = WMT_NO_USAGE,
-		.code = ABS_MT_ORIENTATION,
+		.reported = true,
 		.required = false,
 	},
 	[WMT_X] = {
 		.name = "X",
 		.usage = HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_X),
-		.code = ABS_MT_POSITION_X,
+		.reported = true,
 		.required = true,
 	},
 	[WMT_Y] = {
 		.name = "Y",
 		.usage = HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_Y),
-		.code = ABS_MT_POSITION_Y,
+		.reported = true,
 		.required = true,
 	},
 	[WMT_CONTACTID] = {
 		.name = "C_ID",
 		.usage = HID_USAGE2(HUP_DIGITIZERS, HUD_CONTACTID),
-		.code = ABS_MT_TRACKING_ID,
+		.reported = true,
 		.required = true,
 	},
 	[WMT_PRESSURE] = {
 		.name = "PRES",
 		.usage = HID_USAGE2(HUP_DIGITIZERS, HUD_TIP_PRESSURE),
-		.code = ABS_MT_PRESSURE,
+		.reported = true,
 		.required = false,
 	},
 	[WMT_IN_RANGE] = {
 		.name = "RANG",
 		.usage = HID_USAGE2(HUP_DIGITIZERS, HUD_IN_RANGE),
-		.code = ABS_MT_DISTANCE,
+		.reported = true,
 		.required = false,
 	},
 	[WMT_CONFIDENCE] = {
 		.name = "CONF",
 		.usage = HID_USAGE2(HUP_DIGITIZERS, HUD_CONFIDENCE),
-		.code = WMT_NO_CODE,
+		.reported = false,
 		.required = false,
 	},
 	[WMT_TOOL_X] = {	/* Shares HID usage with WMT_X */
 		.name = "TL_X",
 		.usage = HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_X),
-		.code = ABS_MT_TOOL_X,
+		.reported = true,
 		.required = false,
 	},
 	[WMT_TOOL_Y] = {	/* Shares HID usage with WMT_Y */
 		.name = "TL_Y",
 		.usage = HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_Y),
-		.code = ABS_MT_TOOL_Y,
+		.reported = true,
 		.required = false,
 	},
 };
@@ -207,6 +203,7 @@ struct wmt_softc {
 	device_t		dev;
 	enum wmt_type		type;
 
+	int32_t			cont_count_max;
 	struct mtx		mtx;
 	struct wmt_absinfo	ai[WMT_N_USAGES];
 	struct hid_location	locs[MAX_MT_SLOTS][WMT_N_USAGES];
@@ -223,7 +220,7 @@ struct wmt_softc {
 	struct usb_xfer		*xfer[WMT_N_TRANSFER];
 	struct evdev_dev	*evdev;
 
-	uint32_t		slot_data[WMT_N_USAGES];
+	union evdev_mt_slot	slot_data;
 	uint8_t			caps[howmany(WMT_N_USAGES, 8)];
 	uint8_t			buttons[howmany(WMT_BTN_MAX, 8)];
 	uint32_t		isize;
@@ -361,7 +358,7 @@ wmt_attach(device_t dev)
 			 * 'Contact Count Maximum'
 			 */
 			if (cont_count_max > 0)
-				sc->ai[WMT_SLOT].max = cont_count_max - 1;
+				sc->cont_count_max = cont_count_max;
 		} else
 			DPRINTF("usbd_req_get_report error=(%s)\n",
 			    usbd_errstr(err));
@@ -400,10 +397,10 @@ wmt_attach(device_t dev)
 	}
 
 	/* Cap contact count maximum to MAX_MT_SLOTS */
-	if (sc->ai[WMT_SLOT].max >= MAX_MT_SLOTS) {
+	if (sc->cont_count_max > MAX_MT_SLOTS) {
 		DPRINTF("Hardware reported %d contacts while only %d is "
-		    "supported\n", (int)sc->ai[WMT_SLOT].max+1, MAX_MT_SLOTS);
-		sc->ai[WMT_SLOT].max = MAX_MT_SLOTS - 1;
+		    "supported\n", (int)sc->cont_count_max, MAX_MT_SLOTS);
+		sc->cont_count_max = MAX_MT_SLOTS;
 	}
 
 	if (/*usb_test_quirk(hw, UQ_MT_TIMESTAMP) ||*/ wmt_timestamps)
@@ -456,9 +453,11 @@ wmt_attach(device_t dev)
 			}
 		}
 	}
+	evdev_support_abs(sc->evdev,
+	    ABS_MT_SLOT, 0, sc->cont_count_max - 1, 0, 0, 0);
 	WMT_FOREACH_USAGE(sc->caps, i) {
-		if (wmt_hid_map[i].code != WMT_NO_CODE)
-			evdev_support_abs(sc->evdev, wmt_hid_map[i].code,
+		if (wmt_hid_map[i].reported)
+			evdev_support_abs(sc->evdev, ABS_MT_FIRST + i,
 			    sc->ai[i].min, sc->ai[i].max, 0, 0, sc->ai[i].res);
 	}
 
@@ -473,7 +472,7 @@ wmt_attach(device_t dev)
 	    sc->is_clickpad ? ", click-pad" : "");
 	device_printf(sc->dev,
 	    "%d contacts and [%s%s%s%s%s]. Report range [%d:%d] - [%d:%d]\n",
-	    (int)sc->ai[WMT_SLOT].max + 1,
+	    (int)sc->cont_count_max,
 	    isset(sc->caps, WMT_IN_RANGE) ? "R" : "",
 	    isset(sc->caps, WMT_CONFIDENCE) ? "C" : "",
 	    isset(sc->caps, WMT_WIDTH) ? "W" : "",
@@ -504,14 +503,14 @@ static void
 wmt_process_report(struct wmt_softc *sc, uint8_t *buf, int len)
 {
 	size_t usage;
-	uint32_t *slot_data = sc->slot_data;
+	union evdev_mt_slot *slot_data;
 	uint32_t cont, btn;
 	uint32_t cont_count;
 	uint32_t width;
 	uint32_t height;
 	uint32_t int_btn = 0;
 	uint32_t left_btn = 0;
-	int32_t slot;
+	int slot;
 	uint32_t scan_time;
 	int32_t delta;
 
@@ -558,56 +557,49 @@ wmt_process_report(struct wmt_softc *sc, uint8_t *buf, int len)
 
 	/* Use protocol Type B for reporting events */
 	for (cont = 0; cont < cont_count; cont++) {
+		slot_data = &sc->slot_data;
 		bzero(slot_data, sizeof(sc->slot_data));
 		WMT_FOREACH_USAGE(sc->caps, usage) {
 			if (sc->locs[cont][usage].size > 0)
-				slot_data[usage] = hid_get_udata(
+				slot_data->val[usage] = hid_get_udata(
 				    buf, len, &sc->locs[cont][usage]);
 		}
 
-		slot = evdev_get_mt_slot_by_tracking_id(sc->evdev,
-		    slot_data[WMT_CONTACTID]);
+		slot = evdev_mt_id_to_slot(sc->evdev, slot_data->id);
 
 #ifdef USB_DEBUG
 		DPRINTFN(6, "cont%01x: data = ", cont);
 		if (wmt_debug >= 6) {
 			WMT_FOREACH_USAGE(sc->caps, usage) {
 				if (wmt_hid_map[usage].usage != WMT_NO_USAGE)
-					printf("%04x ", slot_data[usage]);
+					printf("%04x ", slot_data->val[usage]);
 			}
-			printf("slot = %d\n", (int)slot);
+			printf("slot = %d\n", slot);
 		}
 #endif
 
 		if (slot == -1) {
 			DPRINTF("Slot overflow for contact_id %u\n",
-			    (unsigned)slot_data[WMT_CONTACTID]);
+			    (unsigned)slot_data->id);
 			continue;
 		}
 
-		if (slot_data[WMT_TIP_SWITCH] != 0 &&
+		if (slot_data->val[WMT_TIP_SWITCH] != 0 &&
 		    !(isset(sc->caps, WMT_CONFIDENCE) &&
-		      slot_data[WMT_CONFIDENCE] == 0)) {
+		      slot_data->val[WMT_CONFIDENCE] == 0)) {
 			/* This finger is in proximity of the sensor */
 			sc->touch = true;
-			slot_data[WMT_SLOT] = slot;
-			slot_data[WMT_IN_RANGE] = !slot_data[WMT_IN_RANGE];
+			slot_data->dist = !slot_data->val[WMT_IN_RANGE];
 			/* Divided by two to match visual scale of touch */
-			width = slot_data[WMT_WIDTH] >> 1;
-			height = slot_data[WMT_HEIGHT] >> 1;
-			slot_data[WMT_ORIENTATION] = width > height;
-			slot_data[WMT_MAJOR] = MAX(width, height);
-			slot_data[WMT_MINOR] = MIN(width, height);
+			width = slot_data->val[WMT_WIDTH] >> 1;
+			height = slot_data->val[WMT_HEIGHT] >> 1;
+			slot_data->ori = width > height;
+			slot_data->maj = MAX(width, height);
+			slot_data->min = MIN(width, height);
+		} else
+			slot_data = NULL;
 
-			WMT_FOREACH_USAGE(sc->caps, usage)
-				if (wmt_hid_map[usage].code != WMT_NO_CODE)
-					evdev_push_abs(sc->evdev,
-					    wmt_hid_map[usage].code,
-					    slot_data[usage]);
-		} else {
-			evdev_push_abs(sc->evdev, ABS_MT_SLOT, slot);
-			evdev_push_abs(sc->evdev, ABS_MT_TRACKING_ID, -1);
-		}
+		evdev_mt_push_slot(sc->evdev, slot, slot_data);
 	}
 
 	sc->nconts_todo -= cont_count;
@@ -948,13 +940,6 @@ wmt_hid_parse(struct wmt_softc *sc, const void *d_ptr, uint16_t d_len)
 	if (cont_count_max < 1)
 		cont_count_max = cont;
 
-	/* Set number of MT protocol type B slots */
-	sc->ai[WMT_SLOT] = (struct wmt_absinfo) {
-		.min = 0,
-		.max = cont_count_max - 1,
-		.res = 0,
-	};
-
 	/* Report touch orientation if both width and height are supported */
 	if (isset(sc->caps, WMT_WIDTH) && isset(sc->caps, WMT_HEIGHT)) {
 		setbit(sc->caps, WMT_ORIENTATION);
@@ -976,6 +961,7 @@ wmt_hid_parse(struct wmt_softc *sc, const void *d_ptr, uint16_t d_len)
 	sc->report_id = report_id;
 	sc->nconts_per_report = cont;
 	sc->has_int_button = has_int_button;
+	sc->cont_count_max = cont_count_max;
 
 	return (type);
 }
