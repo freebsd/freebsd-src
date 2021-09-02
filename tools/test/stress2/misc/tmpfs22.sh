@@ -105,8 +105,8 @@ main(void)
 	if (fstat(fd, &st2) == -1)
 		err(1, "fstat 2");
 	s = 0;
-	if (st1.st_mtime != st2.st_mtime) {
-		fprintf(stderr, "mtime differs: %ld %ld\n",
+	if (st1.st_mtime == st2.st_mtime) {
+		fprintf(stderr, "mtime is unchanged: %ld %ld\n",
 		    (long)st1.st_mtime, (long)st2.st_mtime);
 		s=1;
 	}
