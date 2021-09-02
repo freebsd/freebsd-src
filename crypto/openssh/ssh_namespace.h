@@ -1,5 +1,5 @@
 /*
- * This file was machine-generated.  Do not edit manually.
+ * This file was machine-@generated.  Do not edit manually.
  * Run crypto/openssh/freebsd-namespace.sh to regenerate.
  */
 #define Blowfish_decipher			Fssh_Blowfish_decipher
@@ -440,6 +440,7 @@
 #define platform_sys_dir_uid			Fssh_platform_sys_dir_uid
 #define pledge					Fssh_pledge
 #define poly1305_auth				Fssh_poly1305_auth
+#define poly64					Fssh_poly64
 #define poly_hash				Fssh_poly_hash
 #define port_open_helper			Fssh_port_open_helper
 #define prime_test				Fssh_prime_test
