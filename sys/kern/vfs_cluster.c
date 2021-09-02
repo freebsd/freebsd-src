@@ -646,7 +646,7 @@ void
 cluster_write(struct vnode *vp, struct vn_clusterw *vnc, struct buf *bp,
     u_quad_t filesize, int seqcount, int gbflags)
 {
-	daddr_t lbn;
+	daddr_t lbn, pbn;
 	int maxclen, cursize;
 	int lblocksize;
 	int async;
@@ -753,14 +753,16 @@ cluster_write(struct vnode *vp, struct vn_clusterw *vnc, struct buf *bp,
 		    bp->b_blkno == bp->b_lblkno &&
 		    (VOP_BMAP(vp, lbn, NULL, &bp->b_blkno, &maxclen,
 		    NULL) != 0 || bp->b_blkno == -1)) {
+			pbn = bp->b_blkno;
 			bawrite(bp);
 			vnc->v_clen = 0;
-			vnc->v_lasta = bp->b_blkno;
+			vnc->v_lasta = pbn;
 			vnc->v_cstart = lbn + 1;
 			vnc->v_lastw = lbn;
 			return;
 		}
 		vnc->v_clen = maxclen;
+		pbn = bp->b_blkno;
 		if (!async && maxclen == 0) {	/* I/O not contiguous */
 			vnc->v_cstart = lbn + 1;
 			bawrite(bp);
@@ -774,6 +776,7 @@ cluster_write(struct vnode *vp, struct vn_clusterw *vnc, struct buf *bp,
 		 * are operating sequentially, otherwise let the buf or
 		 * update daemon handle it.
 		 */
+		pbn = bp->b_blkno;
 		bdwrite(bp);
 		if (seqcount > 1) {
 			cluster_wbuild_wb(vp, lblocksize, vnc->v_cstart,
@@ -785,15 +788,17 @@ cluster_write(struct vnode *vp, struct vn_clusterw *vnc, struct buf *bp,
 		/*
 		 * We are low on memory, get it going NOW
 		 */
+		pbn = bp->b_blkno;
 		bawrite(bp);
 	} else {
 		/*
 		 * In the middle of a cluster, so just delay the I/O for now.
 		 */
+		pbn = bp->b_blkno;
 		bdwrite(bp);
 	}
 	vnc->v_lastw = lbn;
-	vnc->v_lasta = bp->b_blkno;
+	vnc->v_lasta = pbn;
 }
 
 /*
