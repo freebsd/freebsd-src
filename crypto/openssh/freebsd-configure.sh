@@ -30,14 +30,14 @@ export PATH=/bin:/sbin:/usr/bin:/usr/sbin
 
 # Generate config.h with krb5 and stash it
 sh configure $configure_args --with-kerberos5=/usr
-mv config.log config.log.orig
-mv config.h config.h.orig
+mv config.log config.log.kerberos5
+mv config.h config.h.kerberos5
 
 # Generate config.h without krb5
 sh configure $configure_args --without-kerberos5
 
 # Extract the difference
 echo '/* $Free''BSD$ */' > krb5_config.h
-diff -u config.h.orig config.h |
+diff -u config.h.kerberos5 config.h |
 	sed -n '/^-#define/s/^-//p' |
-	grep -Ff /dev/stdin config.h.orig >> krb5_config.h
+	grep -Ff /dev/stdin config.h.kerberos5 >> krb5_config.h
