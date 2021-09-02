@@ -181,7 +181,7 @@ struct vmem {
 #define	BT_END(bt)	((bt)->bt_start + (bt)->bt_size - 1)
 
 #if defined(DIAGNOSTIC)
-static int enable_vmem_check = 1;
+static int enable_vmem_check = 0;
 SYSCTL_INT(_debug, OID_AUTO, vmem_check, CTLFLAG_RWTUN,
     &enable_vmem_check, 0, "Enable vmem check");
 static void vmem_check(vmem_t *);
