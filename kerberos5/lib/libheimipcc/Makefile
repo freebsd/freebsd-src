@@ -1,5 +1,7 @@
 #$FreeBSD$
 
+PACKAGE=	kerberos
+
 LIB=	heimipcc
 PRIVATELIB=
 LIBADD=	heimbase roken pthread

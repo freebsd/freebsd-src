@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+PACKAGE=	kerberos
+
 PROG=	kdestroy
 CFLAGS+=-I${KRB5DIR}/lib/roken
 LIBADD=	kafs5 krb5 roken vers

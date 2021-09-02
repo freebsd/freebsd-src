@@ -1,5 +1,7 @@
 #$FreeBSD$
 
+PACKAGE=	kerberos
+
 LIB=	kdc
 LDFLAGS=	-Wl,--no-undefined
 VERSION_MAP= ${KRB5DIR}/kdc/version-script.map

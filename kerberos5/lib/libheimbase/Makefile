@@ -1,5 +1,7 @@
 #$FreeBSD$
 
+PACKAGE=	kerberos
+
 LIB=	heimbase
 LDFLAGS=	-Wl,--no-undefined
 LIBADD=	pthread

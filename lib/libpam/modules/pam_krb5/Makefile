@@ -24,6 +24,8 @@
 #
 # $FreeBSD$
 
+PACKAGE=	kerberos
+
 LIB=	pam_krb5
 SRCS=	pam_krb5.c
 MAN=	pam_krb5.8

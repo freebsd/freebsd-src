@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+PACKAGE=	kerberos
+
 LIB=	heimntlm
 LDFLAGS=	-Wl,--no-undefined
 LIBADD=	crypto com_err krb5 roken
