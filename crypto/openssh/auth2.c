@@ -309,7 +309,6 @@ input_userauth_request(int type, u_int32_t seq, struct ssh *ssh)
 		    "(%s,%s) -> (%s,%s)",
 		    authctxt->user, authctxt->service, user, service);
 	}
-
 	/* reset state */
 	auth2_challenge_stop(ssh);
 
