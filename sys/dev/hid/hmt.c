@@ -78,105 +78,101 @@ enum hmt_type {
 };
 
 enum {
-	HMT_TIP_SWITCH,
-#define	HMT_SLOT	HMT_TIP_SWITCH
-	HMT_WIDTH,
-#define	HMT_MAJOR	HMT_WIDTH
-	HMT_HEIGHT,
-#define HMT_MINOR	HMT_HEIGHT
-	HMT_ORIENTATION,
-	HMT_X,
-	HMT_Y,
-	HMT_CONTACTID,
-	HMT_PRESSURE,
-	HMT_IN_RANGE,
-	HMT_CONFIDENCE,
-	HMT_TOOL_X,
-	HMT_TOOL_Y,
-	HMT_N_USAGES,
+	HMT_TIP_SWITCH =	ABS_MT_INDEX(ABS_MT_TOOL_TYPE),
+	HMT_WIDTH =		ABS_MT_INDEX(ABS_MT_TOUCH_MAJOR),
+	HMT_HEIGHT =		ABS_MT_INDEX(ABS_MT_TOUCH_MINOR),
+	HMT_ORIENTATION = 	ABS_MT_INDEX(ABS_MT_ORIENTATION),
+	HMT_X =			ABS_MT_INDEX(ABS_MT_POSITION_X),
+	HMT_Y =			ABS_MT_INDEX(ABS_MT_POSITION_Y),
+	HMT_CONTACTID = 	ABS_MT_INDEX(ABS_MT_TRACKING_ID),
+	HMT_PRESSURE =		ABS_MT_INDEX(ABS_MT_PRESSURE),
+	HMT_IN_RANGE = 		ABS_MT_INDEX(ABS_MT_DISTANCE),
+	HMT_CONFIDENCE = 	ABS_MT_INDEX(ABS_MT_BLOB_ID),
+	HMT_TOOL_X =		ABS_MT_INDEX(ABS_MT_TOOL_X),
+	HMT_TOOL_Y = 		ABS_MT_INDEX(ABS_MT_TOOL_Y),
 };
 
-#define	HMT_NO_CODE	(ABS_MAX + 10)
+#define	HMT_N_USAGES	MT_CNT
 #define	HMT_NO_USAGE	-1
 
 struct hmt_hid_map_item {
 	char		name[5];
 	int32_t 	usage;		/* HID usage */
-	uint32_t	code;		/* Evdev event code */
+	bool		reported;	/* Item value is passed to evdev */
 	bool		required;	/* Required for MT Digitizers */
 };
 
 static const struct hmt_hid_map_item hmt_hid_map[HMT_N_USAGES] = {
-	[HMT_TIP_SWITCH] = {	/* HMT_SLOT */
+	[HMT_TIP_SWITCH] = {
 		.name = "TIP",
 		.usage = HID_USAGE2(HUP_DIGITIZERS, HUD_TIP_SWITCH),
-		.code = ABS_MT_SLOT,
+		.reported = false,
 		.required = true,
 	},
-	[HMT_WIDTH] = {		/* HMT_MAJOR */
+	[HMT_WIDTH] = {
 		.name = "WDTH",
 		.usage = HID_USAGE2(HUP_DIGITIZERS, HUD_WIDTH),
-		.code = ABS_MT_TOUCH_MAJOR,
+		.reported = true,
 		.required = false,
 	},
-	[HMT_HEIGHT] = {	/* HMT_MINOR */
+	[HMT_HEIGHT] = {
 		.name = "HGHT",
 		.usage = HID_USAGE2(HUP_DIGITIZERS, HUD_HEIGHT),
-		.code = ABS_MT_TOUCH_MINOR,
+		.reported = true,
 		.required = false,
 	},
 	[HMT_ORIENTATION] = {
 		.name = "ORIE",
 		.usage = HMT_NO_USAGE,
-		.code = ABS_MT_ORIENTATION,
+		.reported = true,
 		.required = false,
 	},
 	[HMT_X] = {
 		.name = "X",
 		.usage = HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_X),
-		.code = ABS_MT_POSITION_X,
+		.reported = true,
 		.required = true,
 	},
 	[HMT_Y] = {
 		.name = "Y",
 		.usage = HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_Y),
-		.code = ABS_MT_POSITION_Y,
+		.reported = true,
 		.required = true,
 	},
 	[HMT_CONTACTID] = {
 		.name = "C_ID",
 		.usage = HID_USAGE2(HUP_DIGITIZERS, HUD_CONTACTID),
-		.code = ABS_MT_TRACKING_ID,
+		.reported = true,
 		.required = true,
 	},
 	[HMT_PRESSURE] = {
 		.name = "PRES",
 		.usage = HID_USAGE2(HUP_DIGITIZERS, HUD_TIP_PRESSURE),
-		.code = ABS_MT_PRESSURE,
+		.reported = true,
 		.required = false,
 	},
 	[HMT_IN_RANGE] = {
 		.name = "RANG",
 		.usage = HID_USAGE2(HUP_DIGITIZERS, HUD_IN_RANGE),
-		.code = ABS_MT_DISTANCE,
+		.reported = true,
 		.required = false,
 	},
 	[HMT_CONFIDENCE] = {
 		.name = "CONF",
 		.usage = HID_USAGE2(HUP_DIGITIZERS, HUD_CONFIDENCE),
-		.code = HMT_NO_CODE,
+		.reported = false,
 		.required = false,
 	},
-	[HMT_TOOL_X] = {	/* Shares HID usage with HMT_X */
+	[HMT_TOOL_X] = { /* Shares HID usage with POS_X */
 		.name = "TL_X",
 		.usage = HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_X),
-		.code = ABS_MT_TOOL_X,
+		.reported = true,
 		.required = false,
 	},
-	[HMT_TOOL_Y] = {	/* Shares HID usage with HMT_Y */
+	[HMT_TOOL_Y] = { /* Shares HID usage with POS_Y */
 		.name = "TL_Y",
 		.usage = HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_Y),
-		.code = ABS_MT_TOOL_Y,
+		.reported = true,
 		.required = false,
 	},
 };
@@ -200,7 +196,7 @@ struct hmt_softc {
 
 	struct evdev_dev	*evdev;
 
-	uint32_t		slot_data[HMT_N_USAGES];
+	union evdev_mt_slot	slot_data;
 	uint8_t			caps[howmany(HMT_N_USAGES, 8)];
 	uint8_t			buttons[howmany(HMT_BTN_MAX, 8)];
 	uint32_t		nconts_per_report;
@@ -375,13 +371,6 @@ hmt_attach(device_t dev)
 		sc->cont_count_max = MAX_MT_SLOTS;
 	}
 
-	/* Set number of MT protocol type B slots */
-	sc->ai[HMT_SLOT] = (struct hid_absinfo) {
-		.min = 0,
-		.max = sc->cont_count_max - 1,
-		.res = 0,
-	};
-
 	if (hid_test_quirk(hw, HQ_MT_TIMESTAMP) || hmt_timestamps)
 		sc->do_timestamps = true;
 #ifdef IICHID_SAMPLING
@@ -434,9 +423,11 @@ hmt_attach(device_t dev)
 			}
 		}
 	}
+	evdev_support_abs(sc->evdev,
+	    ABS_MT_SLOT, 0, sc->cont_count_max - 1, 0, 0, 0);
 	HMT_FOREACH_USAGE(sc->caps, i) {
-		if (hmt_hid_map[i].code != HMT_NO_CODE)
-			evdev_support_abs(sc->evdev, hmt_hid_map[i].code,
+		if (hmt_hid_map[i].reported)
+			evdev_support_abs(sc->evdev, ABS_MT_FIRST + i,
 			    sc->ai[i].min, sc->ai[i].max, 0, 0, sc->ai[i].res);
 	}
 
@@ -480,14 +471,14 @@ hmt_intr(void *context, void *buf, hid_size_t len)
 {
 	struct hmt_softc *sc = context;
 	size_t usage;
-	uint32_t *slot_data = sc->slot_data;
+	union evdev_mt_slot *slot_data;
 	uint32_t cont, btn;
 	uint32_t cont_count;
 	uint32_t width;
 	uint32_t height;
 	uint32_t int_btn = 0;
 	uint32_t left_btn = 0;
-	int32_t slot;
+	int slot;
 	uint32_t scan_time;
 	int32_t delta;
 	uint8_t id;
@@ -502,10 +493,7 @@ hmt_intr(void *context, void *buf, hid_size_t len)
 	if (sc->iichid_sampling && len == 0) {
 		sc->prev_touch = false;
 		sc->timestamp = 0;
-		for (slot = 0; slot <= sc->ai[HMT_SLOT].max; slot++) {
-			evdev_push_abs(sc->evdev, ABS_MT_SLOT, slot);
-			evdev_push_abs(sc->evdev, ABS_MT_TRACKING_ID, -1);
-		}
+		/* EVDEV_FLAG_MT_AUTOREL releases all touches for us */
 		evdev_sync(sc->evdev);
 		return;
 	}
@@ -567,56 +555,49 @@ hmt_intr(void *context, void *buf, hid_size_t len)
 
 	/* Use protocol Type B for reporting events */
 	for (cont = 0; cont < cont_count; cont++) {
+		slot_data = &sc->slot_data;
 		bzero(slot_data, sizeof(sc->slot_data));
 		HMT_FOREACH_USAGE(sc->caps, usage) {
 			if (sc->locs[cont][usage].size > 0)
-				slot_data[usage] = hid_get_udata(
+				slot_data->val[usage] = hid_get_udata(
 				    buf, len, &sc->locs[cont][usage]);
 		}
 
-		slot = evdev_get_mt_slot_by_tracking_id(sc->evdev,
-		    slot_data[HMT_CONTACTID]);
+		slot = evdev_mt_id_to_slot(sc->evdev, slot_data->id);
 
 #ifdef HID_DEBUG
 		DPRINTFN(6, "cont%01x: data = ", cont);
 		if (hmt_debug >= 6) {
 			HMT_FOREACH_USAGE(sc->caps, usage) {
 				if (hmt_hid_map[usage].usage != HMT_NO_USAGE)
-					printf("%04x ", slot_data[usage]);
+					printf("%04x ", slot_data->val[usage]);
 			}
-			printf("slot = %d\n", (int)slot);
+			printf("slot = %d\n", slot);
 		}
 #endif
 
 		if (slot == -1) {
 			DPRINTF("Slot overflow for contact_id %u\n",
-			    (unsigned)slot_data[HMT_CONTACTID]);
+			    (unsigned)slot_data->id);
 			continue;
 		}
 
-		if (slot_data[HMT_TIP_SWITCH] != 0 &&
+		if (slot_data->val[HMT_TIP_SWITCH] != 0 &&
 		    !(isset(sc->caps, HMT_CONFIDENCE) &&
-		      slot_data[HMT_CONFIDENCE] == 0)) {
+		      slot_data->val[HMT_CONFIDENCE] == 0)) {
 			/* This finger is in proximity of the sensor */
 			sc->touch = true;
-			slot_data[HMT_SLOT] = slot;
-			slot_data[HMT_IN_RANGE] = !slot_data[HMT_IN_RANGE];
+			slot_data->dist = !slot_data->val[HMT_IN_RANGE];
 			/* Divided by two to match visual scale of touch */
-			width = slot_data[HMT_WIDTH] >> 1;
-			height = slot_data[HMT_HEIGHT] >> 1;
-			slot_data[HMT_ORIENTATION] = width > height;
-			slot_data[HMT_MAJOR] = MAX(width, height);
-			slot_data[HMT_MINOR] = MIN(width, height);
+			width = slot_data->val[HMT_WIDTH] >> 1;
+			height = slot_data->val[HMT_HEIGHT] >> 1;
+			slot_data->ori = width > height;
+			slot_data->maj = MAX(width, height);
+			slot_data->min = MIN(width, height);
+		} else
+			slot_data = NULL;
 
-			HMT_FOREACH_USAGE(sc->caps, usage)
-				if (hmt_hid_map[usage].code != HMT_NO_CODE)
-					evdev_push_abs(sc->evdev,
-					    hmt_hid_map[usage].code,
-					    slot_data[usage]);
-		} else {
-			evdev_push_abs(sc->evdev, ABS_MT_SLOT, slot);
-			evdev_push_abs(sc->evdev, ABS_MT_TRACKING_ID, -1);
-		}
+		evdev_mt_push_slot(sc->evdev, slot, slot_data);
 	}
 
 	sc->nconts_todo -= cont_count;
