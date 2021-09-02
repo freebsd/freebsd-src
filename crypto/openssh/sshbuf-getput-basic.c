@@ -25,7 +25,6 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "xmalloc.h"
 #include "ssherr.h"
 #include "sshbuf.h"
 
