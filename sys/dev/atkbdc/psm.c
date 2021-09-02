@@ -1730,14 +1730,6 @@ psm_push_st_finger(struct psm_softc *sc, const finger_t *f)
 		evdev_push_abs(sc->evdev_a, ABS_TOOL_WIDTH, f->w);
 }
 
-static void
-psm_release_mt_slot(struct evdev_dev *evdev, int32_t slot)
-{
-
-	evdev_push_abs(evdev, ABS_MT_SLOT, slot);
-	evdev_push_abs(evdev, ABS_MT_TRACKING_ID, -1);
-}
-
 static int
 psm_register(device_t dev, int model_code)
 {
@@ -1845,6 +1837,8 @@ psm_register_synaptics(device_t dev)
 	evdev_set_id(evdev_a, BUS_I8042, PS2_MOUSE_VENDOR,
 	    PS2_MOUSE_SYNAPTICS_PRODUCT, 0);
 	evdev_set_methods(evdev_a, sc, &psm_ev_methods_a);
+	if (sc->synhw.capAdvancedGestures || sc->synhw.capReportsV)
+		evdev_set_flag(evdev_a, EVDEV_FLAG_MT_AUTOREL);
 	if (sc->synhw.capReportsV)
 		evdev_set_flag(evdev_a, EVDEV_FLAG_MT_TRACK);
 
@@ -1923,6 +1917,7 @@ psm_register_elantech(device_t dev)
 	evdev_set_id(evdev_a, BUS_I8042, PS2_MOUSE_VENDOR,
 	    PS2_MOUSE_ELANTECH_PRODUCT, 0);
 	evdev_set_methods(evdev_a, sc, &psm_ev_methods_a);
+	evdev_set_flag(evdev_a, EVDEV_FLAG_MT_AUTOREL);
 
 	evdev_support_event(evdev_a, EV_SYN);
 	evdev_support_event(evdev_a, EV_KEY);
@@ -3597,12 +3592,9 @@ proc_synaptics(struct psm_softc *sc, packetbuf_t *pb, mousestatus_t *ms,
 
 #ifdef EVDEV_SUPPORT
 	if (evdev_rcpt_mask & EVDEV_RCPT_HW_MOUSE) {
-		for (id = 0; id < PSM_FINGERS; id++) {
+		for (id = 0; id < PSM_FINGERS; id++)
 			if (PSM_FINGER_IS_SET(f[id]))
 				psm_push_mt_finger(sc, id, &f[id]);
-			else
-				psm_release_mt_slot(sc->evdev_a, id);
-		}
 		evdev_push_key(sc->evdev_a, BTN_TOUCH, nfingers > 0);
 		evdev_push_nfingers(sc->evdev_a, nfingers);
 		if (nfingers > 0)
@@ -4772,9 +4764,6 @@ proc_elantech(struct psm_softc *sc, packetbuf_t *pb, mousestatus_t *ms,
 				evdev_push_abs(sc->evdev_a, ABS_MT_TOUCH_MAJOR,
 				    f[id].w * sc->elanhw.dptracex);
 			}
-			if (sc->elanaction.mask & (1 << id) &&
-			    !(mask & (1 << id)))
-				psm_release_mt_slot(sc->evdev_a, id);
 		}
 		evdev_push_key(sc->evdev_a, BTN_TOUCH, nfingers > 0);
 		evdev_push_nfingers(sc->evdev_a, nfingers);
