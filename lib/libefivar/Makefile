@@ -31,7 +31,7 @@ EDK2INC=${SRCTOP}/sys/contrib/edk2/Include
 
 .PATH:	${EFIBOOT}/libefi
 
-PACKAGE=lib${LIB}
+PACKAGE=	efi-tools
 LIB=		efivar
 SRCS=		efivar.c efichar.c efivar-dp-format.c \
 		efivar-dp-parse.c \
