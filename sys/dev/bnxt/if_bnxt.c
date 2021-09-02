@@ -796,6 +796,9 @@ bnxt_attach_pre(if_ctx_t ctx)
 	    IFCAP_VLAN_HWCSUM | IFCAP_JUMBO_MTU;
 
 	if (bnxt_wol_supported(softc))
+		scctx->isc_capabilities |= IFCAP_WOL_MAGIC;
+	bnxt_get_wol_settings(softc);
+	if (softc->wol)
 		scctx->isc_capenable |= IFCAP_WOL_MAGIC;
 
 	/* Get the queue config */
@@ -804,8 +807,6 @@ bnxt_attach_pre(if_ctx_t ctx)
 		device_printf(softc->dev, "attach: hwrm qportcfg failed\n");
 		goto failed;
 	}
-
-	bnxt_get_wol_settings(softc);
 
 	/* Now perform a function reset */
 	rc = bnxt_hwrm_func_reset(softc);
@@ -1600,7 +1601,7 @@ bnxt_wol_config(if_ctx_t ctx)
 	if (!bnxt_wol_supported(softc))
 		return -ENOTSUP;
 
-	if (if_getcapabilities(ifp) & IFCAP_WOL_MAGIC) {
+	if (if_getcapenable(ifp) & IFCAP_WOL_MAGIC) {
 		if (!softc->wol) {
 			if (bnxt_hwrm_alloc_wol_fltr(softc))
 				return -EBUSY;
