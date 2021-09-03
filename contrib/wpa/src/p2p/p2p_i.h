@@ -548,6 +548,9 @@ struct p2p_data {
 	/* Override option for preferred operating channel in GO Negotiation */
 	u8 override_pref_op_class;
 	u8 override_pref_channel;
+	bool p2p_6ghz_capable;
+	bool include_6ghz;
+	bool allow_6ghz;
 };
 
 /**
@@ -698,6 +701,8 @@ int p2p_channel_random_social(struct p2p_channels *chans, u8 *op_class,
 			      u8 *op_channel,
 			      struct wpa_freq_range_list *avoid_list,
 			      struct wpa_freq_range_list *disallow_list);
+void p2p_copy_channels(struct p2p_channels *dst, const struct p2p_channels *src,
+		       bool allow_6ghz);
 
 /* p2p_parse.c */
 void p2p_copy_filter_devname(char *dst, size_t dst_len,

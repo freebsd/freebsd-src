@@ -52,6 +52,7 @@ static char *ctrl_ifname = NULL;
 static const char *global = NULL;
 static const char *pid_file = NULL;
 static const char *action_file = NULL;
+static int reconnect = 0;
 static int ping_interval = 5;
 static int interactive = 0;
 static char *ifname_prefix = NULL;
@@ -80,7 +81,7 @@ static void update_ifnames(struct wpa_ctrl *ctrl);
 
 static void usage(void)
 {
-	printf("wpa_cli [-p<path to ctrl sockets>] [-i<ifname>] [-hvB] "
+	printf("wpa_cli [-p<path to ctrl sockets>] [-i<ifname>] [-hvBr] "
 	       "[-a<action file>] \\\n"
 	       "        [-P<pid file>] [-g<global ctrl>] [-G<ping interval>] "
 	       "\\\n"
@@ -91,6 +92,8 @@ static void usage(void)
 	       "  -a = run in daemon mode executing the action file based on "
 	       "events from\n"
 	       "       wpa_supplicant\n"
+	       "  -r = try to reconnect when client socket is disconnected.\n"
+	       "       This is useful only when used with -a.\n"
 	       "  -B = run a daemon in the background\n"
 	       "  default path: " CONFIG_CTRL_IFACE_DIR "\n"
 	       "  default interface: first interface found in socket path\n");
@@ -474,7 +477,7 @@ static char ** wpa_cli_complete_set(const char *str, int pos)
 		"p2p_optimize_listen_chan", "p2p_go_ht40", "p2p_go_vht",
 		"p2p_disabled", "p2p_go_ctwindow", "p2p_no_group_iface",
 		"p2p_ignore_shared_freq", "ip_addr_go", "ip_addr_mask",
-		"ip_addr_start", "ip_addr_end",
+		"ip_addr_start", "ip_addr_end", "p2p_go_edmg",
 #endif /* CONFIG_P2P */
 		"country", "bss_max_count", "bss_expiration_age",
 		"bss_expiration_scan_count", "filter_ssids", "filter_rssi",
@@ -490,7 +493,8 @@ static char ** wpa_cli_complete_set(const char *str, int pos)
 		"p2p_go_max_inactivity", "auto_interworking", "okc", "pmf",
 		"sae_groups", "dtim_period", "beacon_int",
 		"ap_vendor_elements", "ignore_old_scan_res", "freq_list",
-		"scan_cur_freq", "sched_scan_interval",
+		"scan_cur_freq", "scan_res_valid_for_connect",
+		"sched_scan_interval",
 		"tdls_external_control", "osu_dir", "wowlan_triggers",
 		"p2p_search_delay", "mac_addr", "rand_addr_lifetime",
 		"preassoc_mac_addr", "key_mgmt_offload", "passive_scan",
@@ -499,6 +503,7 @@ static char ** wpa_cli_complete_set(const char *str, int pos)
 		"ignore_auth_resp",
 #endif /* CONFIG_TESTING_OPTIONS */
 		"relative_rssi", "relative_band_adjust",
+		"extended_key_id",
 	};
 	int i, num_fields = ARRAY_SIZE(fields);
 
@@ -585,12 +590,13 @@ static char ** wpa_cli_complete_get(const char *str, int pos)
 		"wps_nfc_dev_pw_id", "ext_password_backend",
 		"p2p_go_max_inactivity", "auto_interworking", "okc", "pmf",
 		"dtim_period", "beacon_int", "ignore_old_scan_res",
-		"scan_cur_freq", "sched_scan_interval",
+		"scan_cur_freq", "scan_res_valid_for_connect",
+		"sched_scan_interval",
 		"sched_scan_start_delay",
 		"tdls_external_control", "osu_dir", "wowlan_triggers",
 		"p2p_search_delay", "mac_addr", "rand_addr_lifetime",
 		"preassoc_mac_addr", "key_mgmt_offload", "passive_scan",
-		"reassoc_same_bss_optim"
+		"reassoc_same_bss_optim", "extended_key_id"
 	};
 	int i, num_fields = ARRAY_SIZE(fields);
 
@@ -1284,9 +1290,10 @@ static int wpa_cli_cmd_bssid(struct wpa_ctrl *ctrl, int argc, char *argv[])
 }
 
 
-static int wpa_cli_cmd_blacklist(struct wpa_ctrl *ctrl, int argc, char *argv[])
+static int wpa_cli_cmd_bssid_ignore(struct wpa_ctrl *ctrl, int argc,
+				    char *argv[])
 {
-	return wpa_cli_cmd(ctrl, "BLACKLIST", 0, argc, argv);
+	return wpa_cli_cmd(ctrl, "BSSID_IGNORE", 0, argc, argv);
 }
 
 
@@ -1299,7 +1306,7 @@ static int wpa_cli_cmd_log_level(struct wpa_ctrl *ctrl, int argc, char *argv[])
 static int wpa_cli_cmd_list_networks(struct wpa_ctrl *ctrl, int argc,
 				     char *argv[])
 {
-	return wpa_ctrl_command(ctrl, "LIST_NETWORKS");
+	return wpa_cli_cmd(ctrl, "LIST_NETWORKS", 0, argc, argv);
 }
 
 
@@ -1402,11 +1409,11 @@ static int wpa_cli_cmd_get_network(struct wpa_ctrl *ctrl, int argc,
 
 
 static const char *network_fields[] = {
-	"ssid", "scan_ssid", "bssid", "bssid_blacklist",
-	"bssid_whitelist", "psk", "proto", "key_mgmt",
+	"ssid", "scan_ssid", "bssid", "bssid_ignore",
+	"bssid_accept", "psk", "proto", "key_mgmt",
 	"bg_scan_period", "pairwise", "group", "auth_alg", "scan_freq",
 	"freq_list", "max_oper_chwidth", "ht40", "vht", "vht_center_freq1",
-	"vht_center_freq2", "ht",
+	"vht_center_freq2", "ht", "edmg",
 #ifdef IEEE8021X_EAPOL
 	"eap", "identity", "anonymous_identity", "password", "ca_cert",
 	"ca_path", "client_cert", "private_key", "private_key_passwd",
@@ -1427,22 +1434,19 @@ static const char *network_fields[] = {
 #ifdef IEEE8021X_EAPOL
 	"eap_workaround", "pac_file", "fragment_size", "ocsp",
 #endif /* IEEE8021X_EAPOL */
-#ifdef CONFIG_MESH
-	"mode", "no_auto_peer", "mesh_rssi_threshold",
-#else /* CONFIG_MESH */
 	"mode",
-#endif /* CONFIG_MESH */
 	"proactive_key_caching", "disabled", "id_str",
-#ifdef CONFIG_IEEE80211W
 	"ieee80211w",
-#endif /* CONFIG_IEEE80211W */
 	"mixed_cell", "frequency", "fixed_freq",
 #ifdef CONFIG_MESH
+	"no_auto_peer", "mesh_rssi_threshold",
 	"mesh_basic_rates", "dot11MeshMaxRetries",
 	"dot11MeshRetryTimeout", "dot11MeshConfirmTimeout",
 	"dot11MeshHoldingTimeout",
 #endif /* CONFIG_MESH */
 	"wpa_ptk_rekey", "bgscan", "ignore_broadcast_ssid",
+	"wpa_deny_ptk0_rekey",
+	"enable_edmg", "edmg_channel",
 #ifdef CONFIG_P2P
 	"go_p2p_dev_addr", "p2p_client_list", "psk_list",
 #endif /* CONFIG_P2P */
@@ -1459,6 +1463,9 @@ static const char *network_fields[] = {
 	"vht_tx_mcs_nss_3", "vht_tx_mcs_nss_4", "vht_tx_mcs_nss_5",
 	"vht_tx_mcs_nss_6", "vht_tx_mcs_nss_7", "vht_tx_mcs_nss_8",
 #endif /* CONFIG_VHT_OVERRIDES */
+#ifdef CONFIG_HE_OVERRIDES
+	"disable_he",
+#endif /* CONFIG_HE_OVERRIDES */
 	"ap_max_inactivity", "dtim_period", "beacon_int",
 #ifdef CONFIG_MACSEC
 	"macsec_policy",
@@ -1702,15 +1709,25 @@ static char ** wpa_cli_complete_bss(const char *str, int pos)
 static int wpa_cli_cmd_get_capability(struct wpa_ctrl *ctrl, int argc,
 				      char *argv[])
 {
-	if (argc < 1 || argc > 2) {
-		printf("Invalid GET_CAPABILITY command: need either one or "
-		       "two arguments\n");
+	if (argc < 1 || argc > 3) {
+		printf("Invalid GET_CAPABILITY command: need at least one argument and max three arguments\n");
 		return -1;
 	}
 
-	if ((argc == 2) && os_strcmp(argv[1], "strict") != 0) {
-		printf("Invalid GET_CAPABILITY command: second argument, "
-		       "if any, must be 'strict'\n");
+	if (argc > 1 && os_strcmp(argv[0], "key_mgmt") != 0 &&
+	    os_strncmp(argv[1], "iftype=", 7) == 0) {
+		printf("Invalid GET_CAPABILITY command: 'iftype=' param is allowed only for 'key_mgmt'\n");
+		return -1;
+	}
+
+	if (argc == 2 && os_strcmp(argv[1], "strict") != 0 &&
+	    os_strncmp(argv[1], "iftype=", 7) != 0) {
+		printf("Invalid GET_CAPABILITY command: the second argument, if any, must be 'strict' OR 'iftype=<iftype_name>'\n");
+		return -1;
+	}
+
+	if (argc == 3 && os_strcmp(argv[2], "strict") != 0) {
+		printf("Invalid GET_CAPABILITY command: the third argument, if any, must be 'strict'\n");
 		return -1;
 	}
 
@@ -1737,7 +1754,13 @@ static char ** wpa_cli_complete_get_capability(const char *str, int pos)
 		"acs",
 #endif /* CONFIG_ACS */
 	};
+	const char *iftypes[] = {
+		"iftype=STATION", "iftype=AP", "iftype=P2P_CLIENT",
+		"iftype=P2P_GO", "iftype=AP_VLAN", "iftype=IBSS", "iftype=NAN",
+		"iftype=P2P_DEVICE", "iftype=MESH",
+	};
 	int i, num_fields = ARRAY_SIZE(fields);
+	int num_iftypes = ARRAY_SIZE(iftypes);
 	char **res = NULL;
 
 	if (arg == 1) {
@@ -1751,6 +1774,21 @@ static char ** wpa_cli_complete_get_capability(const char *str, int pos)
 		}
 	}
 	if (arg == 2) {
+		/* the second argument can be "iftype=<iftype_name>" OR
+		 * "strict" */
+		res = os_calloc(num_iftypes + 2, sizeof(char *));
+		if (!res)
+			return NULL;
+		res[0] = os_strdup("strict");
+		if (!res[0])
+			return res;
+		for (i = 0; i < num_iftypes; i++) {
+			res[i + 1] = os_strdup(iftypes[i]);
+			if (!res[i + 1])
+				return res;
+		}
+	}
+	if (arg == 3) {
 		res = os_calloc(1 + 1, sizeof(char *));
 		if (res == NULL)
 			return NULL;
@@ -1783,7 +1821,7 @@ static int wpa_cli_cmd_interface(struct wpa_ctrl *ctrl, int argc, char *argv[])
 	}
 
 	if (wpa_cli_open_connection(ctrl_ifname, 1) == 0) {
-		printf("Connected to interface '%s.\n", ctrl_ifname);
+		printf("Connected to interface '%s'.\n", ctrl_ifname);
 	} else {
 		printf("Could not connect to interface '%s' - re-trying\n",
 		       ctrl_ifname);
@@ -2888,6 +2926,20 @@ static int wpa_cli_cmd_neighbor_rep_request(struct wpa_ctrl *ctrl, int argc,
 }
 
 
+static int wpa_cli_cmd_twt_setup(struct wpa_ctrl *ctrl, int argc,
+				 char *argv[])
+{
+	return wpa_cli_cmd(ctrl, "TWT_SETUP", 0, argc, argv);
+}
+
+
+static int wpa_cli_cmd_twt_teardown(struct wpa_ctrl *ctrl, int argc,
+				    char *argv[])
+{
+	return wpa_cli_cmd(ctrl, "TWT_TEARDOWN", 0, argc, argv);
+}
+
+
 static int wpa_cli_cmd_erp_flush(struct wpa_ctrl *ctrl, int argc, char *argv[])
 {
 	return wpa_ctrl_command(ctrl, "ERP_FLUSH");
@@ -2959,6 +3011,13 @@ static int wpa_cli_cmd_dpp_bootstrap_info(struct wpa_ctrl *ctrl, int argc,
 }
 
 
+static int wpa_cli_cmd_dpp_bootstrap_set(struct wpa_ctrl *ctrl, int argc,
+					 char *argv[])
+{
+	return wpa_cli_cmd(ctrl, "DPP_BOOTSTRAP_SET", 1, argc, argv);
+}
+
+
 static int wpa_cli_cmd_dpp_auth_init(struct wpa_ctrl *ctrl, int argc,
 				     char *argv[])
 {
@@ -3021,7 +3080,144 @@ static int wpa_cli_cmd_dpp_pkex_remove(struct wpa_ctrl *ctrl, int argc,
 	return wpa_cli_cmd(ctrl, "DPP_PKEX_REMOVE", 1, argc, argv);
 }
 
+
+#ifdef CONFIG_DPP2
+
+static int wpa_cli_cmd_dpp_controller_start(struct wpa_ctrl *ctrl, int argc,
+					    char *argv[])
+{
+	return wpa_cli_cmd(ctrl, "DPP_CONTROLLER_START", 1, argc, argv);
+}
+
+
+static int wpa_cli_cmd_dpp_controller_stop(struct wpa_ctrl *ctrl, int argc,
+					    char *argv[])
+{
+	return wpa_ctrl_command(ctrl, "DPP_CONTROLLER_STOP");
+}
+
+
+static int wpa_cli_cmd_dpp_chirp(struct wpa_ctrl *ctrl, int argc,
+				 char *argv[])
+{
+	return wpa_cli_cmd(ctrl, "DPP_CHIRP", 1, argc, argv);
+}
+
+
+static int wpa_cli_cmd_dpp_stop_chirp(struct wpa_ctrl *ctrl, int argc,
+				      char *argv[])
+{
+	return wpa_ctrl_command(ctrl, "DPP_STOP_CHIRP");
+}
+
+#endif /* CONFIG_DPP2 */
 #endif /* CONFIG_DPP */
+
+
+static int wpa_ctrl_command_bss(struct wpa_ctrl *ctrl, const char *cmd)
+{
+	char buf[512], *pos, *bssid = NULL, *freq = NULL, *level = NULL,
+		*flags = NULL, *ssid = NULL;
+	size_t len;
+	int ret, id = -1;
+
+	if (!ctrl_conn)
+		return -1;
+	len = sizeof(buf) - 1;
+	ret = wpa_ctrl_request(ctrl, cmd, os_strlen(cmd), buf, &len,
+			       wpa_cli_msg_cb);
+	if (ret == -2) {
+		printf("'%s' command timed out.\n", cmd);
+		return -2;
+	} else if (ret < 0) {
+		printf("'%s' command failed.\n", cmd);
+		return -1;
+	}
+
+	buf[len] = '\0';
+	if (os_memcmp(buf, "FAIL", 4) == 0)
+		return -1;
+
+	pos = buf;
+	while (*pos != '\0') {
+		if (str_starts(pos, "id="))
+			id = atoi(pos + 3);
+		if (str_starts(pos, "bssid="))
+			bssid = pos + 6;
+		if (str_starts(pos, "freq="))
+			freq = pos + 5;
+		if (str_starts(pos, "level="))
+			level = pos + 6;
+		if (str_starts(pos, "flags="))
+			flags = pos + 6;
+		if (str_starts(pos, "ssid="))
+			ssid = pos + 5;
+
+		while (*pos != '\0' && *pos != '\n')
+			pos++;
+		*pos++ = '\0';
+	}
+	if (id != -1)
+		printf("%s\t%s\t%s\t%s\t%s\n", bssid ? bssid : "N/A",
+		       freq ? freq : "N/A", level ? level : "N/A",
+		       flags ? flags : "N/A", ssid ? ssid : "N/A");
+	return id;
+}
+
+
+static int wpa_cli_cmd_all_bss(struct wpa_ctrl *ctrl, int argc, char *argv[])
+{
+	char cmd[64];
+	int id = -1;
+	unsigned int mask;
+
+	printf("bssid / frequency / signal level / flags / ssid\n");
+
+	mask = WPA_BSS_MASK_ID | WPA_BSS_MASK_BSSID | WPA_BSS_MASK_FREQ |
+		WPA_BSS_MASK_LEVEL | WPA_BSS_MASK_FLAGS | WPA_BSS_MASK_SSID;
+	do {
+		if (id < 0)
+			os_snprintf(cmd, sizeof(cmd), "BSS FIRST MASK=0x%x",
+				    mask);
+		else
+			os_snprintf(cmd, sizeof(cmd), "BSS NEXT-%d MASK=0x%x",
+				    id, mask);
+		id = wpa_ctrl_command_bss(ctrl, cmd);
+	} while (id >= 0);
+
+	return 0;
+}
+
+
+#ifdef CONFIG_PASN
+
+static int wpa_cli_cmd_pasn_auth_start(struct wpa_ctrl *ctrl, int argc,
+				       char *argv[])
+{
+	return wpa_cli_cmd(ctrl, "PASN_AUTH_START", 4, argc, argv);
+}
+
+
+static int wpa_cli_cmd_pasn_auth_stop(struct wpa_ctrl *ctrl, int argc,
+				      char *argv[])
+{
+	return wpa_cli_cmd(ctrl, "PASN_AUTH_STOP", 0, argc, argv);
+}
+
+static int wpa_cli_cmd_ptksa_cache_list(struct wpa_ctrl *ctrl, int argc,
+					char *argv[])
+{
+	return wpa_cli_cmd(ctrl, "PTKSA_CACHE_LIST", 0, argc, argv);
+}
+
+
+static int wpa_cli_cmd_pasn_deauth(struct wpa_ctrl *ctrl, int argc,
+				   char *argv[])
+{
+	return wpa_cli_cmd(ctrl, "PASN_DEAUTH", 1, argc, argv);
+}
+
+#endif /* CONFIG_PASN */
 
 
 enum wpa_cli_cmd_flags {
@@ -3150,11 +3346,15 @@ static const struct wpa_cli_cmd wpa_cli_commands[] = {
 	{ "bssid", wpa_cli_cmd_bssid, wpa_cli_complete_network_id,
 	  cli_cmd_flag_none,
 	  "<network id> <BSSID> = set preferred BSSID for an SSID" },
-	{ "blacklist", wpa_cli_cmd_blacklist, wpa_cli_complete_bss,
+	{ "bssid_ignore", wpa_cli_cmd_bssid_ignore, wpa_cli_complete_bss,
 	  cli_cmd_flag_none,
-	  "<BSSID> = add a BSSID to the blacklist\n"
-	  "blacklist clear = clear the blacklist\n"
-	  "blacklist = display the blacklist" },
+	  "<BSSID> = add a BSSID to the list of temporarily ignored BSSs\n"
+	  "bssid_ignore clear = clear the list of temporarily ignored BSSIDs\n"
+	  "bssid_ignore = display the list of temporarily ignored BSSIDs" },
+	{ "blacklist", /* deprecated alias for bssid_ignore */
+	  wpa_cli_cmd_bssid_ignore, wpa_cli_complete_bss,
+	  cli_cmd_flag_none,
+	  "= deprecated alias for bssid_ignore" },
 	{ "log_level", wpa_cli_cmd_log_level, NULL,
 	  cli_cmd_flag_none,
 	  "<level> [<timestamp>] = update the log level/timestamp\n"
@@ -3626,6 +3826,14 @@ static const struct wpa_cli_cmd wpa_cli_commands[] = {
 	  wpa_cli_cmd_neighbor_rep_request, NULL, cli_cmd_flag_none,
 	  "[ssid=<SSID>] [lci] [civic] = Trigger request to AP for neighboring AP report (with optional given SSID in hex or enclosed in double quotes, default: current SSID; with optional LCI and location civic request)"
 	},
+	{ "twt_setup",
+	  wpa_cli_cmd_twt_setup, NULL, cli_cmd_flag_none,
+	  "[dialog=<token>] [exponent=<exponent>] [mantissa=<mantissa>] [min_twt=<Min TWT>] [setup_cmd=<setup-cmd>] [twt=<u64>] [requestor=0|1] [trigger=0|1] [implicit=0|1] [flow_type=0|1] [flow_id=<3-bit-id>] [protection=0|1] [twt_channel=<twt chanel id>] [control=<control-u8>] = Send TWT Setup frame"
+	},
+	{ "twt_teardown",
+	  wpa_cli_cmd_twt_teardown, NULL, cli_cmd_flag_none,
+	  "[flags=<value>] = Send TWT Teardown frame"
+	},
 	{ "erp_flush", wpa_cli_cmd_erp_flush, NULL, cli_cmd_flag_none,
 	  "= flush ERP keys" },
 	{ "mac_rand_scan",
@@ -3657,6 +3865,9 @@ static const struct wpa_cli_cmd wpa_cli_commands[] = {
 	{ "dpp_bootstrap_info", wpa_cli_cmd_dpp_bootstrap_info, NULL,
 	  cli_cmd_flag_none,
 	  "<id> = show DPP bootstrap information" },
+	{ "dpp_bootstrap_set", wpa_cli_cmd_dpp_bootstrap_set, NULL,
+	  cli_cmd_flag_none,
+	  "<id> [conf=..] [ssid=<SSID>] [ssid_charset=#] [psk=<PSK>] [pass=<passphrase>] [configurator=<id>] [conn_status=#] [akm_use_selector=<0|1>] [group_id=..] [expiry=#] [csrattrs=..] = set DPP configurator parameters" },
 	{ "dpp_auth_init", wpa_cli_cmd_dpp_auth_init, NULL, cli_cmd_flag_none,
 	  "peer=<id> [own=<id>] = initiate DPP bootstrapping" },
 	{ "dpp_listen", wpa_cli_cmd_dpp_listen, NULL, cli_cmd_flag_none,
@@ -3682,7 +3893,37 @@ static const struct wpa_cli_cmd wpa_cli_commands[] = {
 	{ "dpp_pkex_remove", wpa_cli_cmd_dpp_pkex_remove, NULL,
 	  cli_cmd_flag_none,
 	  "*|<id> = remove DPP pkex information" },
+#ifdef CONFIG_DPP2
+	{ "dpp_controller_start", wpa_cli_cmd_dpp_controller_start, NULL,
+	  cli_cmd_flag_none,
+	  "[tcp_port=<port>] [role=..] = start DPP controller" },
+	{ "dpp_controller_stop", wpa_cli_cmd_dpp_controller_stop, NULL,
+	  cli_cmd_flag_none,
+	  "= stop DPP controller" },
+	{ "dpp_chirp", wpa_cli_cmd_dpp_chirp, NULL,
+	  cli_cmd_flag_none,
+	  "own=<BI ID> iter=<count> = start DPP chirp" },
+	{ "dpp_stop_chirp", wpa_cli_cmd_dpp_stop_chirp, NULL,
+	  cli_cmd_flag_none,
+	  "= stop DPP chirp" },
+#endif /* CONFIG_DPP2 */
 #endif /* CONFIG_DPP */
+	{ "all_bss", wpa_cli_cmd_all_bss, NULL, cli_cmd_flag_none,
+	  "= list all BSS entries (scan results)" },
+#ifdef CONFIG_PASN
+	{ "pasn_auth_start", wpa_cli_cmd_pasn_auth_start, NULL,
+	  cli_cmd_flag_none,
+	  "bssid=<BSSID> akmp=<WPA key mgmt> cipher=<WPA cipher> group=<group> nid=<network id> = Start PASN authentication" },
+	{ "pasn_auth_stop", wpa_cli_cmd_pasn_auth_stop, NULL,
+	  cli_cmd_flag_none,
+	  "= Stop PASN authentication" },
+	{ "ptksa_cache_list", wpa_cli_cmd_ptksa_cache_list, NULL,
+	  cli_cmd_flag_none,
+	  "= Get the PTKSA Cache" },
+	{ "pasn_deauth", wpa_cli_cmd_pasn_deauth, NULL,
+	  cli_cmd_flag_none,
+	  "bssid=<BSSID> = Remove PASN PTKSA state" },
+#endif /* CONFIG_PASN */
 	{ NULL, NULL, NULL, cli_cmd_flag_none, NULL }
 };
 
@@ -4007,6 +4248,12 @@ static void wpa_cli_action_process(const char *msg)
 		wpa_cli_exec(action_file, ifname, pos);
 	} else if (str_starts(pos, WPS_EVENT_ACTIVE)) {
 		wpa_cli_exec(action_file, ifname, pos);
+	} else if (str_starts(pos, WPS_EVENT_OVERLAP)) {
+		wpa_cli_exec(action_file, ifname, pos);
+	} else if (str_starts(pos, WPS_EVENT_PIN_ACTIVE)) {
+		wpa_cli_exec(action_file, ifname, pos);
+	} else if (str_starts(pos, WPS_EVENT_CANCEL)) {
+		wpa_cli_exec(action_file, ifname, pos);
 	} else if (str_starts(pos, WPS_EVENT_TIMEOUT)) {
 		wpa_cli_exec(action_file, ifname, pos);
 	} else if (str_starts(pos, WPS_EVENT_FAIL)) {
@@ -4041,7 +4288,8 @@ static void wpa_cli_action_process(const char *msg)
 		wpa_cli_exec(action_file, ifname, pos);
 	} else if (str_starts(pos, WPA_EVENT_TERMINATING)) {
 		printf("wpa_supplicant is terminating - stop monitoring\n");
-		wpa_cli_quit = 1;
+		if (!reconnect)
+			wpa_cli_quit = 1;
 	}
 }
 
@@ -4233,6 +4481,10 @@ static void wpa_cli_recv_pending(struct wpa_ctrl *ctrl, int action_monitor)
 	if (wpa_ctrl_pending(ctrl) < 0) {
 		printf("Connection to wpa_supplicant lost - trying to "
 		       "reconnect\n");
+		if (reconnect) {
+			eloop_terminate();
+			return;
+		}
 		wpa_cli_reconnect();
 	}
 }
@@ -4580,6 +4832,8 @@ static void wpa_cli_cleanup(void)
 static void wpa_cli_terminate(int sig, void *ctx)
 {
 	eloop_terminate();
+	if (reconnect)
+		wpa_cli_quit = 1;
 }
 
 
@@ -4610,8 +4864,11 @@ static char * wpa_cli_get_default_ifname(void)
 		if (dent->d_type != DT_SOCK && dent->d_type != DT_UNKNOWN)
 			continue;
 #endif /* _DIRENT_HAVE_D_TYPE */
+		/* Skip current/previous directory and special P2P Device
+		 * interfaces. */
 		if (os_strcmp(dent->d_name, ".") == 0 ||
-		    os_strcmp(dent->d_name, "..") == 0)
+		    os_strcmp(dent->d_name, "..") == 0 ||
+		    os_strncmp(dent->d_name, "p2p-dev-", 8) == 0)
 			continue;
 		printf("Selected interface '%s'\n", dent->d_name);
 		ifname = os_strdup(dent->d_name);
@@ -4657,7 +4914,7 @@ int main(int argc, char *argv[])
 		return -1;
 
 	for (;;) {
-		c = getopt(argc, argv, "a:Bg:G:hi:p:P:s:v");
+		c = getopt(argc, argv, "a:Bg:G:hi:p:P:rs:v");
 		if (c < 0)
 			break;
 		switch (c) {
@@ -4689,6 +4946,9 @@ int main(int argc, char *argv[])
 		case 'P':
 			pid_file = optarg;
 			break;
+		case 'r':
+			reconnect = 1;
+			break;
 		case 's':
 			client_socket_dir = optarg;
 			break;
@@ -4714,7 +4974,22 @@ int main(int argc, char *argv[])
 	if (ctrl_ifname == NULL)
 		ctrl_ifname = wpa_cli_get_default_ifname();
 
-	if (interactive) {
+	if (reconnect && action_file && ctrl_ifname) {
+		while (!wpa_cli_quit) {
+			if (ctrl_conn)
+				wpa_cli_action(ctrl_conn);
+			else
+				os_sleep(1, 0);
+			wpa_cli_close_connection();
+			wpa_cli_open_connection(ctrl_ifname, 0);
+			if (ctrl_conn) {
+				if (wpa_ctrl_attach(ctrl_conn) != 0)
+					wpa_cli_close_connection();
+				else
+					wpa_cli_attached = 1;
+			}
+		}
+	} else if (interactive) {
 		wpa_cli_interactive();
 	} else {
 		if (!global &&

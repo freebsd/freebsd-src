@@ -44,19 +44,19 @@ static int wpas_macsec_get_capability(void *priv, enum macsec_cap *cap)
 }
 
 
-static int wpas_enable_protect_frames(void *wpa_s, Boolean enabled)
+static int wpas_enable_protect_frames(void *wpa_s, bool enabled)
 {
 	return wpa_drv_enable_protect_frames(wpa_s, enabled);
 }
 
 
-static int wpas_enable_encrypt(void *wpa_s, Boolean enabled)
+static int wpas_enable_encrypt(void *wpa_s, bool enabled)
 {
 	return wpa_drv_enable_encrypt(wpa_s, enabled);
 }
 
 
-static int wpas_set_replay_protect(void *wpa_s, Boolean enabled, u32 window)
+static int wpas_set_replay_protect(void *wpa_s, bool enabled, u32 window)
 {
 	return wpa_drv_set_replay_protect(wpa_s, enabled, window);
 }
@@ -68,7 +68,7 @@ static int wpas_set_current_cipher_suite(void *wpa_s, u64 cs)
 }
 
 
-static int wpas_enable_controlled_port(void *wpa_s, Boolean enabled)
+static int wpas_enable_controlled_port(void *wpa_s, bool enabled)
 {
 	return wpa_drv_enable_controlled_port(wpa_s, enabled);
 }
@@ -376,7 +376,7 @@ void * ieee802_1x_notify_create_actor(struct wpa_supplicant *wpa_s,
 	wpa_hexdump(MSG_DEBUG, "Derived CKN", ckn->name, ckn->len);
 
 	res = ieee802_1x_kay_create_mka(wpa_s->kay, ckn, cak, 0,
-					EAP_EXCHANGE, FALSE);
+					EAP_EXCHANGE, false);
 
 fail:
 	if (msk) {
@@ -424,7 +424,7 @@ void * ieee802_1x_create_preshared_mka(struct wpa_supplicant *wpa_s,
 	ckn->len = ssid->mka_ckn_len;
 	os_memcpy(ckn->name, ssid->mka_ckn, ckn->len);
 
-	res = ieee802_1x_kay_create_mka(wpa_s->kay, ckn, cak, 0, PSK, FALSE);
+	res = ieee802_1x_kay_create_mka(wpa_s->kay, ckn, cak, 0, PSK, false);
 	if (res)
 		goto free_cak;
 

@@ -74,8 +74,8 @@ static struct wpabuf * eap_gtc_buildReq(struct eap_sm *sm, void *priv, u8 id)
 }
 
 
-static Boolean eap_gtc_check(struct eap_sm *sm, void *priv,
-			     struct wpabuf *respData)
+static bool eap_gtc_check(struct eap_sm *sm, void *priv,
+			  struct wpabuf *respData)
 {
 	const u8 *pos;
 	size_t len;
@@ -83,10 +83,10 @@ static Boolean eap_gtc_check(struct eap_sm *sm, void *priv,
 	pos = eap_hdr_validate(EAP_VENDOR_IETF, EAP_TYPE_GTC, respData, &len);
 	if (pos == NULL || len < 1) {
 		wpa_printf(MSG_INFO, "EAP-GTC: Invalid frame");
-		return TRUE;
+		return true;
 	}
 
-	return FALSE;
+	return false;
 }
 
 
@@ -184,14 +184,14 @@ static void eap_gtc_process(struct eap_sm *sm, void *priv,
 }
 
 
-static Boolean eap_gtc_isDone(struct eap_sm *sm, void *priv)
+static bool eap_gtc_isDone(struct eap_sm *sm, void *priv)
 {
 	struct eap_gtc_data *data = priv;
 	return data->state != CONTINUE;
 }
 
 
-static Boolean eap_gtc_isSuccess(struct eap_sm *sm, void *priv)
+static bool eap_gtc_isSuccess(struct eap_sm *sm, void *priv)
 {
 	struct eap_gtc_data *data = priv;
 	return data->state == SUCCESS;

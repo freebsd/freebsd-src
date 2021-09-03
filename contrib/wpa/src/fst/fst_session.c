@@ -71,7 +71,7 @@ struct fst_session {
 		 * specific session object */
 	struct fst_group *group;
 	enum fst_session_state state;
-	Boolean stt_armed;
+	bool stt_armed;
 };
 
 static struct dl_list global_sessions_list;
@@ -145,12 +145,12 @@ static u32 fst_find_free_session_id(void)
 	struct fst_session *s;
 
 	for (i = 0; i < (u32) -1; i++) {
-		Boolean in_use = FALSE;
+		bool in_use = false;
 
 		foreach_fst_session(s) {
 			if (s->id == global_session_id) {
 				fst_session_global_inc_id();
-				in_use = TRUE;
+				in_use = true;
 				break;
 			}
 		}
@@ -184,7 +184,7 @@ static void fst_session_stt_arm(struct fst_session *s)
 	/* Action frames sometimes get delayed. Use relaxed timeout (2*) */
 	eloop_register_timeout(0, 2 * TU_TO_US(FST_DEFAULT_SESSION_TIMEOUT_TU),
 			       fst_session_timeout_handler, NULL, s);
-	s->stt_armed = TRUE;
+	s->stt_armed = true;
 }
 
 
@@ -192,12 +192,12 @@ static void fst_session_stt_disarm(struct fst_session *s)
 {
 	if (s->stt_armed) {
 		eloop_cancel_timeout(fst_session_timeout_handler, NULL, s);
-		s->stt_armed = FALSE;
+		s->stt_armed = false;
 	}
 }
 
 
-static Boolean fst_session_is_in_transition(struct fst_session *s)
+static bool fst_session_is_in_transition(struct fst_session *s)
 {
 	/* See spec, 10.32.2.2  Transitioning between states */
 	return s->stt_armed;
@@ -267,7 +267,7 @@ static void fst_session_reset_ex(struct fst_session *s, enum fst_reason reason)
 }
 
 
-static int fst_session_send_action(struct fst_session *s, Boolean old_iface,
+static int fst_session_send_action(struct fst_session *s, bool old_iface,
 				   const void *payload, size_t size,
 				   const struct wpabuf *extra_buf)
 {
@@ -344,11 +344,11 @@ static int fst_session_send_tear_down(struct fst_session *s)
 	td.action = FST_ACTION_TEAR_DOWN;
 	td.fsts_id = host_to_le32(s->data.fsts_id);
 
-	res = fst_session_send_action(s, TRUE, &td, sizeof(td), NULL);
+	res = fst_session_send_action(s, true, &td, sizeof(td), NULL);
 	if (!res)
-		fst_printf_sframe(s, TRUE, MSG_INFO, "FST TearDown sent");
+		fst_printf_sframe(s, true, MSG_INFO, "FST TearDown sent");
 	else
-		fst_printf_sframe(s, TRUE, MSG_ERROR,
+		fst_printf_sframe(s, true, MSG_ERROR,
 				  "failed to send FST TearDown");
 
 	return res;
@@ -481,10 +481,10 @@ static void fst_session_handle_setup_request(struct fst_iface *iface,
 		return;
 	}
 
-	fst_session_set_iface(s, iface, TRUE);
-	fst_session_set_peer_addr(s, mgmt->sa, TRUE);
-	fst_session_set_iface(s, new_iface, FALSE);
-	fst_session_set_peer_addr(s, new_iface_peer_addr, FALSE);
+	fst_session_set_iface(s, iface, true);
+	fst_session_set_peer_addr(s, mgmt->sa, true);
+	fst_session_set_iface(s, new_iface, false);
+	fst_session_set_peer_addr(s, new_iface_peer_addr, false);
 	fst_session_set_llt(s, FST_LLT_VAL_TO_MS(le_to_host32(req->llt)));
 	s->data.pending_setup_req_dlgt = req->dialog_token;
 	s->data.fsts_id = le_to_host32(req->stie.fsts_id);
@@ -687,8 +687,8 @@ static void fst_session_handle_ack_request(struct fst_session *s,
 	res.dialog_token = req->dialog_token;
 	res.fsts_id = req->fsts_id;
 
-	if (!fst_session_send_action(s, FALSE, &res, sizeof(res), NULL)) {
-		fst_printf_sframe(s, FALSE, MSG_INFO, "FST Ack Response sent");
+	if (!fst_session_send_action(s, false, &res, sizeof(res), NULL)) {
+		fst_printf_sframe(s, false, MSG_INFO, "FST Ack Response sent");
 		fst_session_stt_disarm(s);
 		fst_session_set_state(s, FST_SESSION_STATE_TRANSITION_DONE,
 				      NULL);
@@ -785,7 +785,7 @@ struct fst_session * fst_session_create(struct fst_group *g)
 
 
 void fst_session_set_iface(struct fst_session *s, struct fst_iface *iface,
-			   Boolean is_old)
+			   bool is_old)
 {
 	if (is_old)
 		s->data.old_iface = iface;
@@ -802,7 +802,7 @@ void fst_session_set_llt(struct fst_session *s, u32 llt)
 
 
 void fst_session_set_peer_addr(struct fst_session *s, const u8 *addr,
-			       Boolean is_old)
+			       bool is_old)
 {
 	u8 *a = is_old ? s->data.old_peer_addr : s->data.new_peer_addr;
 
@@ -850,14 +850,14 @@ int fst_session_initiate_setup(struct fst_session *s)
 	}
 
 	if (!fst_iface_is_connected(s->data.old_iface, s->data.old_peer_addr,
-				    FALSE)) {
+				    false)) {
 		fst_printf_session(s, MSG_ERROR,
 				   "The preset old peer address is not connected");
 		return -EINVAL;
 	}
 
 	if (!fst_iface_is_connected(s->data.new_iface, s->data.new_peer_addr,
-				    FALSE)) {
+				    false)) {
 		fst_printf_session(s, MSG_ERROR,
 				   "The preset new peer address is not connected");
 		return -EINVAL;
@@ -905,12 +905,12 @@ int fst_session_initiate_setup(struct fst_session *s)
 	req.stie.old_band_op = 1;
 	req.stie.old_band_setup = 0;
 
-	res = fst_session_send_action(s, TRUE, &req, sizeof(req),
+	res = fst_session_send_action(s, true, &req, sizeof(req),
 				      fst_iface_get_mbie(s->data.old_iface));
 	if (!res) {
 		s->data.fsts_id = fsts_id;
 		s->data.pending_setup_req_dlgt = dialog_token;
-		fst_printf_sframe(s, TRUE, MSG_INFO, "FST Setup Request sent");
+		fst_printf_sframe(s, true, MSG_INFO, "FST Setup Request sent");
 		fst_session_set_state(s, FST_SESSION_STATE_SETUP_COMPLETION,
 				      NULL);
 
@@ -955,7 +955,7 @@ int fst_session_respond(struct fst_session *s, u8 status_code)
 	}
 
 	if (!fst_iface_is_connected(s->data.old_iface,
-				    s->data.old_peer_addr, FALSE)) {
+				    s->data.old_peer_addr, false)) {
 		fst_printf_session(s, MSG_ERROR,
 				   "The preset peer address is not in the peer list");
 		return -EINVAL;
@@ -1000,15 +1000,15 @@ int fst_session_respond(struct fst_session *s, u8 status_code)
 				   status_code);
 	}
 
-	if (fst_session_send_action(s, TRUE, &res, sizeof(res),
+	if (fst_session_send_action(s, true, &res, sizeof(res),
 				    fst_iface_get_mbie(s->data.old_iface))) {
-		fst_printf_sframe(s, TRUE, MSG_ERROR,
+		fst_printf_sframe(s, true, MSG_ERROR,
 				  "cannot send FST Setup Response with code %d",
 				  status_code);
 		return -EINVAL;
 	}
 
-	fst_printf_sframe(s, TRUE, MSG_INFO, "FST Setup Response sent");
+	fst_printf_sframe(s, true, MSG_INFO, "FST Setup Response sent");
 
 	if (status_code != WLAN_STATUS_SUCCESS) {
 		union fst_session_state_switch_extra evext = {
@@ -1053,14 +1053,14 @@ int fst_session_initiate_switch(struct fst_session *s)
 	req.dialog_token = dialog_token;
 	req.fsts_id = host_to_le32(s->data.fsts_id);
 
-	res = fst_session_send_action(s, FALSE, &req, sizeof(req), NULL);
+	res = fst_session_send_action(s, false, &req, sizeof(req), NULL);
 	if (!res) {
-		fst_printf_sframe(s, FALSE, MSG_INFO, "FST Ack Request sent");
+		fst_printf_sframe(s, false, MSG_INFO, "FST Ack Request sent");
 		fst_session_set_state(s, FST_SESSION_STATE_TRANSITION_DONE,
 				      NULL);
 		fst_session_stt_arm(s);
 	} else {
-		fst_printf_sframe(s, FALSE, MSG_ERROR,
+		fst_printf_sframe(s, false, MSG_ERROR,
 				  "Cannot send FST Ack Request");
 	}
 
@@ -1091,7 +1091,7 @@ void fst_session_handle_action(struct fst_session *s,
 		break;
 	case FST_ACTION_ON_CHANNEL_TUNNEL:
 	default:
-		fst_printf_sframe(s, FALSE, MSG_ERROR,
+		fst_printf_sframe(s, false, MSG_ERROR,
 				  "Unsupported FST Action frame");
 		break;
 	}
@@ -1137,7 +1137,7 @@ struct fst_group * fst_session_get_group(struct fst_session *s)
 }
 
 
-struct fst_iface * fst_session_get_iface(struct fst_session *s, Boolean is_old)
+struct fst_iface * fst_session_get_iface(struct fst_session *s, bool is_old)
 {
 	return is_old ? s->data.old_iface : s->data.new_iface;
 }
@@ -1149,7 +1149,7 @@ u32 fst_session_get_id(struct fst_session *s)
 }
 
 
-const u8 * fst_session_get_peer_addr(struct fst_session *s, Boolean is_old)
+const u8 * fst_session_get_peer_addr(struct fst_session *s, bool is_old)
 {
 	return is_old ? s->data.old_peer_addr : s->data.new_peer_addr;
 }
@@ -1232,7 +1232,7 @@ void fst_session_on_action_rx(struct fst_iface *iface,
 
 
 int fst_session_set_str_ifname(struct fst_session *s, const char *ifname,
-			       Boolean is_old)
+			       bool is_old)
 {
 	struct fst_group *g = fst_session_get_group(s);
 	struct fst_iface *i;
@@ -1252,7 +1252,7 @@ int fst_session_set_str_ifname(struct fst_session *s, const char *ifname,
 
 
 int fst_session_set_str_peer_addr(struct fst_session *s, const char *mac,
-				  Boolean is_old)
+				  bool is_old)
 {
 	u8 peer_addr[ETH_ALEN];
 	int res = fst_read_peer_addr(mac, peer_addr);
@@ -1330,11 +1330,11 @@ static int get_group_fill_session(struct fst_group **g, struct fst_session *s)
 	if (!s->data.old_iface)
 		return -EINVAL;
 
-	old_addr = fst_iface_get_peer_first(s->data.old_iface, &ctx, TRUE);
+	old_addr = fst_iface_get_peer_first(s->data.old_iface, &ctx, true);
 	if (!old_addr)
 		return -EINVAL;
 
-	new_addr = fst_iface_get_peer_first(s->data.new_iface, &ctx, TRUE);
+	new_addr = fst_iface_get_peer_first(s->data.new_iface, &ctx, true);
 	if (!new_addr)
 		return -EINVAL;
 
@@ -1350,7 +1350,7 @@ static int get_group_fill_session(struct fst_group **g, struct fst_session *s)
 int fst_test_req_send_fst_request(const char *params)
 {
 	int fsts_id;
-	Boolean is_valid;
+	bool is_valid;
 	char *endp;
 	struct fst_setup_req req;
 	struct fst_session s;
@@ -1394,7 +1394,7 @@ int fst_test_req_send_fst_request(const char *params)
 			req.stie.new_band_id = req.stie.old_band_id;
 	}
 
-	return fst_session_send_action(&s, TRUE, &req, sizeof(req),
+	return fst_session_send_action(&s, true, &req, sizeof(req),
 				       s.data.old_iface->mb_ie);
 }
 
@@ -1402,7 +1402,7 @@ int fst_test_req_send_fst_request(const char *params)
 int fst_test_req_send_fst_response(const char *params)
 {
 	int fsts_id;
-	Boolean is_valid;
+	bool is_valid;
 	char *endp;
 	struct fst_setup_res res;
 	struct fst_session s;
@@ -1437,7 +1437,7 @@ int fst_test_req_send_fst_response(const char *params)
 	 * If some session has just received an FST Setup Request, then
 	 * use the correct dialog token copied from this request.
 	 */
-	_s = fst_find_session_in_progress(fst_session_get_peer_addr(&s, TRUE),
+	_s = fst_find_session_in_progress(fst_session_get_peer_addr(&s, true),
 					  g);
 	res.dialog_token = (_s && fst_session_is_ready_pending(_s)) ?
 		_s->data.pending_setup_req_dlgt : g->dialog_token;
@@ -1469,7 +1469,7 @@ int fst_test_req_send_fst_response(const char *params)
 			res.stie.new_band_id = res.stie.old_band_id;
 	}
 
-	return fst_session_send_action(&s, TRUE, &res, sizeof(res),
+	return fst_session_send_action(&s, true, &res, sizeof(res),
 				       s.data.old_iface->mb_ie);
 }
 
@@ -1477,7 +1477,7 @@ int fst_test_req_send_fst_response(const char *params)
 int fst_test_req_send_ack_request(const char *params)
 {
 	int fsts_id;
-	Boolean is_valid;
+	bool is_valid;
 	char *endp;
 	struct fst_ack_req req;
 	struct fst_session s;
@@ -1498,14 +1498,14 @@ int fst_test_req_send_ack_request(const char *params)
 	req.dialog_token = g->dialog_token;
 	req.fsts_id = host_to_le32(fsts_id);
 
-	return fst_session_send_action(&s, FALSE, &req, sizeof(req), NULL);
+	return fst_session_send_action(&s, false, &req, sizeof(req), NULL);
 }
 
 
 int fst_test_req_send_ack_response(const char *params)
 {
 	int fsts_id;
-	Boolean is_valid;
+	bool is_valid;
 	char *endp;
 	struct fst_ack_res res;
 	struct fst_session s;
@@ -1526,14 +1526,14 @@ int fst_test_req_send_ack_response(const char *params)
 	res.dialog_token = g->dialog_token;
 	res.fsts_id = host_to_le32(fsts_id);
 
-	return fst_session_send_action(&s, FALSE, &res, sizeof(res), NULL);
+	return fst_session_send_action(&s, false, &res, sizeof(res), NULL);
 }
 
 
 int fst_test_req_send_tear_down(const char *params)
 {
 	int fsts_id;
-	Boolean is_valid;
+	bool is_valid;
 	char *endp;
 	struct fst_tear_down td;
 	struct fst_session s;
@@ -1553,14 +1553,14 @@ int fst_test_req_send_tear_down(const char *params)
 	td.action = FST_ACTION_TEAR_DOWN;
 	td.fsts_id = host_to_le32(fsts_id);
 
-	return fst_session_send_action(&s, TRUE, &td, sizeof(td), NULL);
+	return fst_session_send_action(&s, true, &td, sizeof(td), NULL);
 }
 
 
 u32 fst_test_req_get_fsts_id(const char *params)
 {
 	int sid;
-	Boolean is_valid;
+	bool is_valid;
 	char *endp;
 	struct fst_session *s;
 

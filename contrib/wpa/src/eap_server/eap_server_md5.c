@@ -73,8 +73,8 @@ static struct wpabuf * eap_md5_buildReq(struct eap_sm *sm, void *priv, u8 id)
 }
 
 
-static Boolean eap_md5_check(struct eap_sm *sm, void *priv,
-			     struct wpabuf *respData)
+static bool eap_md5_check(struct eap_sm *sm, void *priv,
+			  struct wpabuf *respData)
 {
 	const u8 *pos;
 	size_t len;
@@ -82,16 +82,16 @@ static Boolean eap_md5_check(struct eap_sm *sm, void *priv,
 	pos = eap_hdr_validate(EAP_VENDOR_IETF, EAP_TYPE_MD5, respData, &len);
 	if (pos == NULL || len < 1) {
 		wpa_printf(MSG_INFO, "EAP-MD5: Invalid frame");
-		return TRUE;
+		return true;
 	}
 	if (*pos != CHAP_MD5_LEN || 1 + CHAP_MD5_LEN > len) {
 		wpa_printf(MSG_INFO, "EAP-MD5: Invalid response "
 			   "(response_len=%d payload_len=%lu",
 			   *pos, (unsigned long) len);
-		return TRUE;
+		return true;
 	}
 
-	return FALSE;
+	return false;
 }
 
 
@@ -136,14 +136,14 @@ static void eap_md5_process(struct eap_sm *sm, void *priv,
 }
 
 
-static Boolean eap_md5_isDone(struct eap_sm *sm, void *priv)
+static bool eap_md5_isDone(struct eap_sm *sm, void *priv)
 {
 	struct eap_md5_data *data = priv;
 	return data->state != CONTINUE;
 }
 
 
-static Boolean eap_md5_isSuccess(struct eap_sm *sm, void *priv)
+static bool eap_md5_isSuccess(struct eap_sm *sm, void *priv)
 {
 	struct eap_md5_data *data = priv;
 	return data->state == SUCCESS;

@@ -81,17 +81,17 @@ static int dfs_is_chan_allowed(struct hostapd_channel_data *chan, int n_chans)
 	 * We will also choose this first channel as the control one.
 	 */
 	int allowed_40[] = { 36, 44, 52, 60, 100, 108, 116, 124, 132, 149, 157,
-			     184, 192 };
+			     165, 173, 184, 192 };
 	/*
 	 * VHT80, valid channels based on center frequency:
-	 * 42, 58, 106, 122, 138, 155
+	 * 42, 58, 106, 122, 138, 155, 171
 	 */
-	int allowed_80[] = { 36, 52, 100, 116, 132, 149 };
+	int allowed_80[] = { 36, 52, 100, 116, 132, 149, 165 };
 	/*
 	 * VHT160 valid channels based on center frequency:
-	 * 50, 114
+	 * 50, 114, 163
 	 */
-	int allowed_160[] = { 36, 100 };
+	int allowed_160[] = { 36, 100, 149 };
 	int *allowed = allowed_40;
 	unsigned int i, allowed_no = 0;
 
@@ -144,30 +144,44 @@ static int dfs_chan_range_available(struct hostapd_hw_modes *mode,
 	int i;
 	u32 bw = num_chan_to_bw(num_chans);
 
-	if (first_chan_idx + num_chans > mode->num_channels)
+	if (first_chan_idx + num_chans > mode->num_channels) {
+		wpa_printf(MSG_DEBUG,
+			   "DFS: some channels in range not defined");
 		return 0;
+	}
 
 	first_chan = &mode->channels[first_chan_idx];
 
 	/* hostapd DFS implementation assumes the first channel as primary.
 	 * If it's not allowed to use the first channel as primary, decline the
 	 * whole channel range. */
-	if (!chan_pri_allowed(first_chan))
+	if (!chan_pri_allowed(first_chan)) {
+		wpa_printf(MSG_DEBUG, "DFS: primary chanenl not allowed");
 		return 0;
+	}
 
 	for (i = 0; i < num_chans; i++) {
 		chan = dfs_get_chan_data(mode, first_chan->freq + i * 20,
 					 first_chan_idx);
-		if (!chan)
+		if (!chan) {
+			wpa_printf(MSG_DEBUG, "DFS: no channel data for %d",
+				   first_chan->freq + i * 20);
 			return 0;
+		}
 
 		/* HT 40 MHz secondary channel availability checked only for
 		 * primary channel */
-		if (!chan_bw_allowed(chan, bw, 1, !i))
+		if (!chan_bw_allowed(chan, bw, 1, !i)) {
+			wpa_printf(MSG_DEBUG, "DFS: bw now allowed for %d",
+				   first_chan->freq + i * 20);
 			return 0;
+		}
 
-		if (!dfs_channel_available(chan, skip_radar))
+		if (!dfs_channel_available(chan, skip_radar)) {
+			wpa_printf(MSG_DEBUG, "DFS: channel not available %d",
+				   first_chan->freq + i * 20);
 			return 0;
+		}
 	}
 
 	return 1;
@@ -210,22 +224,36 @@ static int dfs_find_channel(struct hostapd_iface *iface,
 		if (iface->conf->ieee80211n &&
 		    iface->conf->secondary_channel &&
 		    (!dfs_is_chan_allowed(chan, n_chans) ||
-		     !(chan->allowed_bw & HOSTAPD_CHAN_WIDTH_40P)))
+		     !(chan->allowed_bw & HOSTAPD_CHAN_WIDTH_40P))) {
+			wpa_printf(MSG_DEBUG,
+				   "DFS: channel %d (%d) is incompatible",
+				   chan->freq, chan->chan);
 			continue;
+		}
 
 		/* Skip incompatible chandefs */
-		if (!dfs_chan_range_available(mode, i, n_chans, skip_radar))
+		if (!dfs_chan_range_available(mode, i, n_chans, skip_radar)) {
+			wpa_printf(MSG_DEBUG,
+				   "DFS: range not available for %d (%d)",
+				   chan->freq, chan->chan);
 			continue;
+		}
 
-		if (!is_in_chanlist(iface, chan))
+		if (!is_in_chanlist(iface, chan)) {
+			wpa_printf(MSG_DEBUG,
+				   "DFS: channel %d (%d) not in chanlist",
+				   chan->freq, chan->chan);
 			continue;
+		}
 
 		if (ret_chan && idx == channel_idx) {
-			wpa_printf(MSG_DEBUG, "Selected ch. #%d", chan->chan);
+			wpa_printf(MSG_DEBUG, "Selected channel %d (%d)",
+				   chan->freq, chan->chan);
 			*ret_chan = chan;
 			return idx;
 		}
-		wpa_printf(MSG_DEBUG, "Adding channel: %d", chan->chan);
+		wpa_printf(MSG_DEBUG, "Adding channel %d (%d)",
+			   chan->freq, chan->chan);
 		channel_idx++;
 	}
 	return channel_idx;
@@ -235,6 +263,7 @@ static int dfs_find_channel(struct hostapd_iface *iface,
 static void dfs_adjust_center_freq(struct hostapd_iface *iface,
 				   struct hostapd_channel_data *chan,
 				   int secondary_channel,
+				   int sec_chan_idx_80p80,
 				   u8 *oper_centr_freq_seg0_idx,
 				   u8 *oper_centr_freq_seg1_idx)
 {
@@ -261,8 +290,14 @@ static void dfs_adjust_center_freq(struct hostapd_iface *iface,
 	case CHANWIDTH_160MHZ:
 		*oper_centr_freq_seg0_idx = chan->chan + 14;
 		break;
+	case CHANWIDTH_80P80MHZ:
+		*oper_centr_freq_seg0_idx = chan->chan + 6;
+		*oper_centr_freq_seg1_idx = sec_chan_idx_80p80 + 6;
+		break;
+
 	default:
-		wpa_printf(MSG_INFO, "DFS only VHT20/40/80/160 is supported now");
+		wpa_printf(MSG_INFO,
+			   "DFS: Unsupported channel width configuration");
 		*oper_centr_freq_seg0_idx = 0;
 		break;
 	}
@@ -441,8 +476,11 @@ dfs_get_valid_channel(struct hostapd_iface *iface,
 {
 	struct hostapd_hw_modes *mode;
 	struct hostapd_channel_data *chan = NULL;
+	struct hostapd_channel_data *chan2 = NULL;
 	int num_available_chandefs;
-	int chan_idx;
+	int chan_idx, chan_idx2;
+	int sec_chan_idx_80p80 = -1;
+	int i;
 	u32 _rand;
 
 	wpa_printf(MSG_DEBUG, "DFS: Selecting random channel");
@@ -459,6 +497,8 @@ dfs_get_valid_channel(struct hostapd_iface *iface,
 
 	/* Get the count first */
 	num_available_chandefs = dfs_find_channel(iface, NULL, 0, skip_radar);
+	wpa_printf(MSG_DEBUG, "DFS: num_available_chandefs=%d",
+		   num_available_chandefs);
 	if (num_available_chandefs == 0)
 		return NULL;
 
@@ -466,6 +506,12 @@ dfs_get_valid_channel(struct hostapd_iface *iface,
 		return NULL;
 	chan_idx = _rand % num_available_chandefs;
 	dfs_find_channel(iface, &chan, chan_idx, skip_radar);
+	if (!chan) {
+		wpa_printf(MSG_DEBUG, "DFS: no random channel found");
+		return NULL;
+	}
+	wpa_printf(MSG_DEBUG, "DFS: got random channel %d (%d)",
+		   chan->freq, chan->chan);
 
 	/* dfs_find_channel() calculations assume HT40+ */
 	if (iface->conf->secondary_channel)
@@ -473,8 +519,45 @@ dfs_get_valid_channel(struct hostapd_iface *iface,
 	else
 		*secondary_channel = 0;
 
+	/* Get secondary channel for HT80P80 */
+	if (hostapd_get_oper_chwidth(iface->conf) == CHANWIDTH_80P80MHZ) {
+		if (num_available_chandefs <= 1) {
+			wpa_printf(MSG_ERROR,
+				   "only 1 valid chan, can't support 80+80");
+			return NULL;
+		}
+
+		/*
+		 * Loop all channels except channel1 to find a valid channel2
+		 * that is not adjacent to channel1.
+		 */
+		for (i = 0; i < num_available_chandefs - 1; i++) {
+			/* start from chan_idx + 1, end when chan_idx - 1 */
+			chan_idx2 = (chan_idx + 1 + i) % num_available_chandefs;
+			dfs_find_channel(iface, &chan2, chan_idx2, skip_radar);
+			if (chan2 && abs(chan2->chan - chan->chan) > 12) {
+				/* two channels are not adjacent */
+				sec_chan_idx_80p80 = chan2->chan;
+				wpa_printf(MSG_DEBUG,
+					   "DFS: got second chan: %d (%d)",
+					   chan2->freq, chan2->chan);
+				break;
+			}
+		}
+
+		/* Check if we got a valid secondary channel which is not
+		 * adjacent to the first channel.
+		 */
+		if (sec_chan_idx_80p80 == -1) {
+			wpa_printf(MSG_INFO,
+				   "DFS: failed to get chan2 for 80+80");
+			return NULL;
+		}
+	}
+
 	dfs_adjust_center_freq(iface, chan,
 			       *secondary_channel,
+			       sec_chan_idx_80p80,
 			       oper_centr_freq_seg0_idx,
 			       oper_centr_freq_seg1_idx);
 
@@ -515,6 +598,7 @@ static int set_dfs_state(struct hostapd_iface *iface, int freq, int ht_enabled,
 	int n_chans = 1, i;
 	struct hostapd_hw_modes *mode;
 	int frequency = freq;
+	int frequency2 = 0;
 	int ret = 0;
 
 	mode = iface->current_mode;
@@ -542,6 +626,11 @@ static int set_dfs_state(struct hostapd_iface *iface, int freq, int ht_enabled,
 		n_chans = 4;
 		frequency = cf1 - 30;
 		break;
+	case CHAN_WIDTH_80P80:
+		n_chans = 4;
+		frequency = cf1 - 30;
+		frequency2 = cf2 - 30;
+		break;
 	case CHAN_WIDTH_160:
 		n_chans = 8;
 		frequency = cf1 - 70;
@@ -557,6 +646,11 @@ static int set_dfs_state(struct hostapd_iface *iface, int freq, int ht_enabled,
 	for (i = 0; i < n_chans; i++) {
 		ret += set_dfs_state_freq(iface, frequency, state);
 		frequency = frequency + 20;
+
+		if (chan_width == CHAN_WIDTH_80P80) {
+			ret += set_dfs_state_freq(iface, frequency2, state);
+			frequency2 = frequency2 + 20;
+		}
 	}
 
 	return ret;
@@ -662,6 +756,9 @@ int hostapd_handle_dfs(struct hostapd_iface *iface)
 	int res, n_chans, n_chans1, start_chan_idx, start_chan_idx1;
 	int skip_radar = 0;
 
+	if (is_6ghz_freq(iface->freq))
+		return 1;
+
 	if (!iface->current_mode) {
 		/*
 		 * This can happen with drivers that do not provide mode
@@ -759,7 +856,7 @@ int hostapd_handle_dfs(struct hostapd_iface *iface)
 }
 
 
-static int hostapd_config_dfs_chan_available(struct hostapd_iface *iface)
+int hostapd_is_dfs_chan_available(struct hostapd_iface *iface)
 {
 	int n_chans, n_chans1, start_chan_idx, start_chan_idx1;
 
@@ -807,7 +904,7 @@ int hostapd_dfs_complete_cac(struct hostapd_iface *iface, int success, int freq,
 			 * another radio.
 			 */
 			if (iface->state != HAPD_IFACE_ENABLED &&
-			    hostapd_config_dfs_chan_available(iface)) {
+			    hostapd_is_dfs_chan_available(iface)) {
 				hostapd_setup_interface_complete(iface, 0);
 				iface->cac_started = 0;
 			}
@@ -837,6 +934,44 @@ int hostapd_dfs_pre_cac_expired(struct hostapd_iface *iface, int freq,
 }
 
 
+static struct hostapd_channel_data *
+dfs_downgrade_bandwidth(struct hostapd_iface *iface, int *secondary_channel,
+			u8 *oper_centr_freq_seg0_idx,
+			u8 *oper_centr_freq_seg1_idx, int *skip_radar)
+{
+	struct hostapd_channel_data *channel;
+
+	for (;;) {
+		channel = dfs_get_valid_channel(iface, secondary_channel,
+						oper_centr_freq_seg0_idx,
+						oper_centr_freq_seg1_idx,
+						*skip_radar);
+		if (channel) {
+			wpa_printf(MSG_DEBUG, "DFS: Selected channel: %d",
+				   channel->chan);
+			return channel;
+		}
+
+		if (*skip_radar) {
+			*skip_radar = 0;
+		} else {
+			int oper_chwidth;
+
+			oper_chwidth = hostapd_get_oper_chwidth(iface->conf);
+			if (oper_chwidth == CHANWIDTH_USE_HT)
+				break;
+			*skip_radar = 1;
+			hostapd_set_oper_chwidth(iface->conf, oper_chwidth - 1);
+		}
+	}
+
+	wpa_printf(MSG_INFO,
+		   "%s: no DFS channels left, waiting for NOP to finish",
+		   __func__);
+	return NULL;
+}
+
+
 static int hostapd_dfs_start_channel_switch_cac(struct hostapd_iface *iface)
 {
 	struct hostapd_channel_data *channel;
@@ -854,8 +989,14 @@ static int hostapd_dfs_start_channel_switch_cac(struct hostapd_iface *iface)
 					skip_radar);
 
 	if (!channel) {
-		wpa_printf(MSG_ERROR, "No valid channel available");
-		return err;
+		channel = dfs_downgrade_bandwidth(iface, &secondary_channel,
+						  &oper_centr_freq_seg0_idx,
+						  &oper_centr_freq_seg1_idx,
+						  &skip_radar);
+		if (!channel) {
+			wpa_printf(MSG_ERROR, "No valid channel available");
+			return err;
+		}
 	}
 
 	wpa_printf(MSG_DEBUG, "DFS will switch to a new channel %d",
@@ -884,11 +1025,14 @@ static int hostapd_dfs_start_channel_switch(struct hostapd_iface *iface)
 	int secondary_channel;
 	u8 oper_centr_freq_seg0_idx;
 	u8 oper_centr_freq_seg1_idx;
+	u8 new_vht_oper_chwidth;
 	int skip_radar = 1;
 	struct csa_settings csa_settings;
 	unsigned int i;
 	int err = 1;
 	struct hostapd_hw_modes *cmode = iface->current_mode;
+	u8 current_vht_oper_chwidth = hostapd_get_oper_chwidth(iface->conf);
+	int ieee80211_mode = IEEE80211_MODE_AP;
 
 	wpa_printf(MSG_DEBUG, "%s called (CAC active: %s, CSA active: %s)",
 		   __func__, iface->cac_started ? "yes" : "no",
@@ -922,28 +1066,33 @@ static int hostapd_dfs_start_channel_switch(struct hostapd_iface *iface)
 		 * requires to perform a CAC first.
 		 */
 		skip_radar = 0;
-		channel = dfs_get_valid_channel(iface, &secondary_channel,
-						&oper_centr_freq_seg0_idx,
-						&oper_centr_freq_seg1_idx,
-						skip_radar);
+		channel = dfs_downgrade_bandwidth(iface, &secondary_channel,
+						  &oper_centr_freq_seg0_idx,
+						  &oper_centr_freq_seg1_idx,
+						  &skip_radar);
 		if (!channel) {
-			wpa_printf(MSG_INFO,
-				   "%s: no DFS channels left, waiting for NOP to finish",
-				   __func__);
-			return err;
+			/*
+			 * Toggle interface state to enter DFS state
+			 * until NOP is finished.
+			 */
+			hostapd_disable_iface(iface);
+			hostapd_enable_iface(iface);
+			return 0;
 		}
 
-		iface->freq = channel->freq;
-		iface->conf->channel = channel->chan;
-		iface->conf->secondary_channel = secondary_channel;
-		hostapd_set_oper_centr_freq_seg0_idx(iface->conf,
-						     oper_centr_freq_seg0_idx);
-		hostapd_set_oper_centr_freq_seg1_idx(iface->conf,
-						     oper_centr_freq_seg1_idx);
+		if (!skip_radar) {
+			iface->freq = channel->freq;
+			iface->conf->channel = channel->chan;
+			iface->conf->secondary_channel = secondary_channel;
+			hostapd_set_oper_centr_freq_seg0_idx(
+				iface->conf, oper_centr_freq_seg0_idx);
+			hostapd_set_oper_centr_freq_seg1_idx(
+				iface->conf, oper_centr_freq_seg1_idx);
 
-		hostapd_disable_iface(iface);
-		hostapd_enable_iface(iface);
-		return 0;
+			hostapd_disable_iface(iface);
+			hostapd_enable_iface(iface);
+			return 0;
+		}
 	}
 
 	wpa_printf(MSG_DEBUG, "DFS will switch to a new channel %d",
@@ -952,23 +1101,32 @@ static int hostapd_dfs_start_channel_switch(struct hostapd_iface *iface)
 		"freq=%d chan=%d sec_chan=%d", channel->freq,
 		channel->chan, secondary_channel);
 
+	new_vht_oper_chwidth = hostapd_get_oper_chwidth(iface->conf);
+	hostapd_set_oper_chwidth(iface->conf, current_vht_oper_chwidth);
+
 	/* Setup CSA request */
 	os_memset(&csa_settings, 0, sizeof(csa_settings));
 	csa_settings.cs_count = 5;
 	csa_settings.block_tx = 1;
+#ifdef CONFIG_MESH
+	if (iface->mconf)
+		ieee80211_mode = IEEE80211_MODE_MESH;
+#endif /* CONFIG_MESH */
 	err = hostapd_set_freq_params(&csa_settings.freq_params,
 				      iface->conf->hw_mode,
 				      channel->freq,
 				      channel->chan,
+				      iface->conf->enable_edmg,
+				      iface->conf->edmg_channel,
 				      iface->conf->ieee80211n,
 				      iface->conf->ieee80211ac,
 				      iface->conf->ieee80211ax,
 				      secondary_channel,
-				      hostapd_get_oper_chwidth(iface->conf),
+				      new_vht_oper_chwidth,
 				      oper_centr_freq_seg0_idx,
 				      oper_centr_freq_seg1_idx,
 				      cmode->vht_capab,
-				      &cmode->he_capab[IEEE80211_MODE_AP]);
+				      &cmode->he_capab[ieee80211_mode]);
 
 	if (err) {
 		wpa_printf(MSG_ERROR, "DFS failed to calculate CSA freq params");
@@ -988,6 +1146,7 @@ static int hostapd_dfs_start_channel_switch(struct hostapd_iface *iface)
 		iface->freq = channel->freq;
 		iface->conf->channel = channel->chan;
 		iface->conf->secondary_channel = secondary_channel;
+		hostapd_set_oper_chwidth(iface->conf, new_vht_oper_chwidth);
 		hostapd_set_oper_centr_freq_seg0_idx(iface->conf,
 						     oper_centr_freq_seg0_idx);
 		hostapd_set_oper_centr_freq_seg1_idx(iface->conf,
@@ -1024,8 +1183,10 @@ int hostapd_dfs_radar_detected(struct hostapd_iface *iface, int freq,
 		return 0;
 
 	/* mark radar frequency as invalid */
-	set_dfs_state(iface, freq, ht_enabled, chan_offset, chan_width,
-		      cf1, cf2, HOSTAPD_CHAN_DFS_UNAVAILABLE);
+	res = set_dfs_state(iface, freq, ht_enabled, chan_offset, chan_width,
+			    cf1, cf2, HOSTAPD_CHAN_DFS_UNAVAILABLE);
+	if (!res)
+		return 0;
 
 	/* Skip if reported radar event not overlapped our channels */
 	res = dfs_are_channels_overlapped(iface, freq, chan_width, cf1, cf2);
@@ -1067,7 +1228,9 @@ int hostapd_is_dfs_required(struct hostapd_iface *iface)
 {
 	int n_chans, n_chans1, start_chan_idx, start_chan_idx1, res;
 
-	if (!iface->conf->ieee80211h || !iface->current_mode ||
+	if ((!(iface->drv_flags & WPA_DRIVER_FLAGS_DFS_OFFLOAD) &&
+	     !iface->conf->ieee80211h) ||
+	    !iface->current_mode ||
 	    iface->current_mode->mode != HOSTAPD_MODE_IEEE80211A)
 		return 0;
 
@@ -1093,11 +1256,18 @@ int hostapd_dfs_start_cac(struct hostapd_iface *iface, int freq,
 			  int ht_enabled, int chan_offset, int chan_width,
 			  int cf1, int cf2)
 {
+	/* This is called when the driver indicates that an offloaded DFS has
+	 * started CAC. */
+	hostapd_set_state(iface, HAPD_IFACE_DFS);
+	/* TODO: How to check CAC time for ETSI weather channels? */
+	iface->dfs_cac_ms = 60000;
 	wpa_msg(iface->bss[0]->msg_ctx, MSG_INFO, DFS_EVENT_CAC_START
 		"freq=%d chan=%d chan_offset=%d width=%d seg0=%d "
 		"seg1=%d cac_time=%ds",
-		freq, (freq - 5000) / 5, chan_offset, chan_width, cf1, cf2, 60);
+		freq, (freq - 5000) / 5, chan_offset, chan_width, cf1, cf2,
+		iface->dfs_cac_ms / 1000);
 	iface->cac_started = 1;
+	os_get_reltime(&iface->dfs_cac_start);
 	return 0;
 }
 
@@ -1111,6 +1281,8 @@ int hostapd_dfs_start_cac(struct hostapd_iface *iface, int freq,
  */
 int hostapd_handle_dfs_offload(struct hostapd_iface *iface)
 {
+	int dfs_res;
+
 	wpa_printf(MSG_DEBUG, "%s: iface->cac_started: %d",
 		   __func__, iface->cac_started);
 
@@ -1126,10 +1298,11 @@ int hostapd_handle_dfs_offload(struct hostapd_iface *iface)
 		return 1;
 	}
 
-	if (ieee80211_is_dfs(iface->freq, iface->hw_features,
-			     iface->num_hw_features)) {
-		wpa_printf(MSG_DEBUG, "%s: freq %d MHz requires DFS",
-			   __func__, iface->freq);
+	dfs_res = hostapd_is_dfs_required(iface);
+	if (dfs_res > 0) {
+		wpa_printf(MSG_DEBUG,
+			   "%s: freq %d MHz requires DFS for %d chans",
+			   __func__, iface->freq, dfs_res);
 		return 0;
 	}
 
@@ -1137,4 +1310,61 @@ int hostapd_handle_dfs_offload(struct hostapd_iface *iface)
 		   "%s: freq %d MHz does not require DFS. Continue channel/AP setup",
 		   __func__, iface->freq);
 	return 2;
+}
+
+
+int hostapd_is_dfs_overlap(struct hostapd_iface *iface, enum chan_width width,
+			   int center_freq)
+{
+	struct hostapd_channel_data *chan;
+	struct hostapd_hw_modes *mode = iface->current_mode;
+	int half_width;
+	int res = 0;
+	int i;
+
+	if (!iface->conf->ieee80211h || !mode ||
+	    mode->mode != HOSTAPD_MODE_IEEE80211A)
+		return 0;
+
+	switch (width) {
+	case CHAN_WIDTH_20_NOHT:
+	case CHAN_WIDTH_20:
+		half_width = 10;
+		break;
+	case CHAN_WIDTH_40:
+		half_width = 20;
+		break;
+	case CHAN_WIDTH_80:
+	case CHAN_WIDTH_80P80:
+		half_width = 40;
+		break;
+	case CHAN_WIDTH_160:
+		half_width = 80;
+		break;
+	default:
+		wpa_printf(MSG_WARNING, "DFS chanwidth %d not supported",
+			   width);
+		return 0;
+	}
+
+	for (i = 0; i < mode->num_channels; i++) {
+		chan = &mode->channels[i];
+
+		if (!(chan->flag & HOSTAPD_CHAN_RADAR))
+			continue;
+
+		if ((chan->flag & HOSTAPD_CHAN_DFS_MASK) ==
+		    HOSTAPD_CHAN_DFS_AVAILABLE)
+			continue;
+
+		if (center_freq - chan->freq < half_width &&
+		    chan->freq - center_freq < half_width)
+			res++;
+	}
+
+	wpa_printf(MSG_DEBUG, "DFS CAC required: (%d, %d): in range: %s",
+		   center_freq - half_width, center_freq + half_width,
+		   res ? "yes" : "no");
+
+	return res;
 }

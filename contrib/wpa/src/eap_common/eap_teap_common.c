@@ -17,6 +17,9 @@
 #include "eap_teap_common.h"
 
 
+static int tls_cipher_suite_mac_sha384(u16 cs);
+
+
 void eap_teap_put_tlv_hdr(struct wpabuf *buf, u16 type, u16 len)
 {
 	struct teap_tlv_hdr hdr;
@@ -67,24 +70,27 @@ struct wpabuf * eap_teap_tlv_eap_payload(struct wpabuf *buf)
 }
 
 
-static int eap_teap_tls_prf(const u8 *secret, size_t secret_len,
+static int eap_teap_tls_prf(u16 tls_cs, const u8 *secret, size_t secret_len,
 			    const char *label, const u8 *seed, size_t seed_len,
 			    u8 *out, size_t outlen)
 {
 	/* TODO: TLS-PRF for TLSv1.3 */
+	if (tls_cipher_suite_mac_sha384(tls_cs))
+		return tls_prf_sha384(secret, secret_len, label, seed, seed_len,
+				      out, outlen);
 	return tls_prf_sha256(secret, secret_len, label, seed, seed_len,
 			      out, outlen);
 }
 
 
-int eap_teap_derive_eap_msk(const u8 *simck, u8 *msk)
+int eap_teap_derive_eap_msk(u16 tls_cs, const u8 *simck, u8 *msk)
 {
 	/*
 	 * RFC 7170, Section 5.4: EAP Master Session Key Generation
 	 * MSK = TLS-PRF(S-IMCK[j], "Session Key Generating Function", 64)
 	 */
 
-	if (eap_teap_tls_prf(simck, EAP_TEAP_SIMCK_LEN,
+	if (eap_teap_tls_prf(tls_cs, simck, EAP_TEAP_SIMCK_LEN,
 			     "Session Key Generating Function", (u8 *) "", 0,
 			     msk, EAP_TEAP_KEY_LEN) < 0)
 		return -1;
@@ -94,7 +100,7 @@ int eap_teap_derive_eap_msk(const u8 *simck, u8 *msk)
 }
 
 
-int eap_teap_derive_eap_emsk(const u8 *simck, u8 *emsk)
+int eap_teap_derive_eap_emsk(u16 tls_cs, const u8 *simck, u8 *emsk)
 {
 	/*
 	 * RFC 7170, Section 5.4: EAP Master Session Key Generation
@@ -102,7 +108,7 @@ int eap_teap_derive_eap_emsk(const u8 *simck, u8 *emsk)
 	 *        "Extended Session Key Generating Function", 64)
 	 */
 
-	if (eap_teap_tls_prf(simck, EAP_TEAP_SIMCK_LEN,
+	if (eap_teap_tls_prf(tls_cs, simck, EAP_TEAP_SIMCK_LEN,
 			     "Extended Session Key Generating Function",
 			     (u8 *) "", 0, emsk, EAP_EMSK_LEN) < 0)
 		return -1;
@@ -112,7 +118,7 @@ int eap_teap_derive_eap_emsk(const u8 *simck, u8 *emsk)
 }
 
 
-int eap_teap_derive_cmk_basic_pw_auth(const u8 *s_imck_msk, u8 *cmk)
+int eap_teap_derive_cmk_basic_pw_auth(u16 tls_cs, const u8 *s_imck_msk, u8 *cmk)
 {
 	u8 imsk[32], imck[EAP_TEAP_IMCK_LEN];
 	int res;
@@ -123,7 +129,7 @@ int eap_teap_derive_cmk_basic_pw_auth(const u8 *s_imck_msk, u8 *cmk)
 	 * published. For now, derive CMK[0] based on S-IMCK[0] and
 	 * IMSK of 32 octets of zeros. */
 	os_memset(imsk, 0, 32);
-	res = eap_teap_tls_prf(s_imck_msk, EAP_TEAP_SIMCK_LEN,
+	res = eap_teap_tls_prf(tls_cs, s_imck_msk, EAP_TEAP_SIMCK_LEN,
 			       "Inner Methods Compound Keys",
 			       imsk, 32, imck, sizeof(imck));
 	if (res < 0)
@@ -136,7 +142,8 @@ int eap_teap_derive_cmk_basic_pw_auth(const u8 *s_imck_msk, u8 *cmk)
 }
 
 
-int eap_teap_derive_imck(const u8 *prev_s_imck_msk, const u8 *prev_s_imck_emsk,
+int eap_teap_derive_imck(u16 tls_cs,
+			 const u8 *prev_s_imck_msk, const u8 *prev_s_imck_emsk,
 			 const u8 *msk, size_t msk_len,
 			 const u8 *emsk, size_t emsk_len,
 			 u8 *s_imck_msk, u8 *cmk_msk,
@@ -170,14 +177,16 @@ int eap_teap_derive_imck(const u8 *prev_s_imck_msk, const u8 *prev_s_imck_emsk,
 		context[0] = 0;
 		context[1] = 0;
 		context[2] = 64;
-		if (eap_teap_tls_prf(emsk, emsk_len, "TEAPbindkey@ietf.org",
+		if (eap_teap_tls_prf(tls_cs, emsk, emsk_len,
+				     "TEAPbindkey@ietf.org",
 				     context, sizeof(context), imsk, 64) < 0)
 			return -1;
 
 		wpa_hexdump_key(MSG_DEBUG, "EAP-TEAP: IMSK from EMSK",
 				imsk, 32);
 
-		res = eap_teap_tls_prf(prev_s_imck_emsk, EAP_TEAP_SIMCK_LEN,
+		res = eap_teap_tls_prf(tls_cs,
+				       prev_s_imck_emsk, EAP_TEAP_SIMCK_LEN,
 				       "Inner Methods Compound Keys",
 				       imsk, 32, imck, EAP_TEAP_IMCK_LEN);
 		forced_memzero(imsk, sizeof(imsk));
@@ -207,7 +216,7 @@ int eap_teap_derive_imck(const u8 *prev_s_imck_msk, const u8 *prev_s_imck_emsk,
 		wpa_hexdump_key(MSG_DEBUG, "EAP-TEAP: Zero IMSK", imsk, 32);
 	}
 
-	res = eap_teap_tls_prf(prev_s_imck_msk, EAP_TEAP_SIMCK_LEN,
+	res = eap_teap_tls_prf(tls_cs, prev_s_imck_msk, EAP_TEAP_SIMCK_LEN,
 			       "Inner Methods Compound Keys",
 			       imsk, 32, imck, EAP_TEAP_IMCK_LEN);
 	forced_memzero(imsk, sizeof(imsk));
@@ -418,6 +427,17 @@ int eap_teap_parse_tlv(struct eap_teap_tlv_parse *tlv,
 		       int tlv_type, u8 *pos, size_t len)
 {
 	switch (tlv_type) {
+	case TEAP_TLV_IDENTITY_TYPE:
+		if (len < 2) {
+			wpa_printf(MSG_INFO,
+				   "EAP-TEAP: Too short Identity-Type TLV");
+			tlv->result = TEAP_STATUS_FAILURE;
+			break;
+		}
+		tlv->identity_type = WPA_GET_BE16(pos);
+		wpa_printf(MSG_DEBUG, "EAP-TEAP: Identity-Type: %u",
+			   tlv->identity_type);
+		break;
 	case TEAP_TLV_RESULT:
 		wpa_hexdump(MSG_MSGDUMP, "EAP-TEAP: Result TLV", pos, len);
 		if (tlv->result) {
@@ -451,6 +471,15 @@ int eap_teap_parse_tlv(struct eap_teap_tlv_parse *tlv,
 		}
 		tlv->nak = pos;
 		tlv->nak_len = len;
+		break;
+	case TEAP_TLV_ERROR:
+		if (len < 4) {
+			wpa_printf(MSG_INFO, "EAP-TEAP: Too short Error TLV");
+			tlv->result = TEAP_STATUS_FAILURE;
+			break;
+		}
+		tlv->error_code = WPA_GET_BE32(pos);
+		wpa_printf(MSG_DEBUG, "EAP-TEAP: Error: %u", tlv->error_code);
 		break;
 	case TEAP_TLV_REQUEST_ACTION:
 		wpa_hexdump(MSG_MSGDUMP, "EAP-TEAP: Request-Action TLV",
@@ -661,12 +690,29 @@ struct wpabuf * eap_teap_tlv_error(enum teap_error_codes error)
 }
 
 
-int eap_teap_allowed_anon_prov_phase2_method(u8 type)
+struct wpabuf * eap_teap_tlv_identity_type(enum teap_identity_types id)
+{
+	struct wpabuf *buf;
+
+	buf = wpabuf_alloc(4 + 2);
+	if (!buf)
+		return NULL;
+	wpa_printf(MSG_DEBUG,
+		   "EAP-TEAP: Add Identity-Type TLV(Identity-Type=%d)", id);
+	wpabuf_put_be16(buf, TEAP_TLV_IDENTITY_TYPE);
+	wpabuf_put_be16(buf, 2);
+	wpabuf_put_be16(buf, id);
+	return buf;
+}
+
+
+int eap_teap_allowed_anon_prov_phase2_method(int vendor, enum eap_type type)
 {
 	/* RFC 7170, Section 3.8.3: MUST provide mutual authentication,
 	 * provide key generation, and be resistant to dictionary attack.
 	 * Section 3.8 also mentions requirement for using EMSK Compound MAC. */
-	return type == EAP_TYPE_PWD || type == EAP_TYPE_EKE;
+	return vendor == EAP_VENDOR_IETF &&
+		(type == EAP_TYPE_PWD || type == EAP_TYPE_EKE);
 }
 
 

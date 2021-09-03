@@ -38,6 +38,10 @@ union wps_event_data;
 struct mesh_conf;
 #endif /* CONFIG_MESH */
 
+#ifdef CONFIG_CTRL_IFACE_UDP
+#define CTRL_IFACE_COOKIE_LEN 8
+#endif /* CONFIG_CTRL_IFACE_UDP */
+
 struct hostapd_iface;
 
 struct hapd_interfaces {
@@ -72,6 +76,11 @@ struct hapd_interfaces {
 #ifdef CONFIG_DPP
 	struct dpp_global *dpp;
 #endif /* CONFIG_DPP */
+
+#ifdef CONFIG_CTRL_IFACE_UDP
+       unsigned char ctrl_iface_cookie[CTRL_IFACE_COOKIE_LEN];
+#endif /* CONFIG_CTRL_IFACE_UDP */
+
 };
 
 enum hostapd_chan_status {
@@ -179,13 +188,12 @@ struct hostapd_data {
 	u64 acct_session_id;
 	struct radius_das_data *radius_das;
 
-	struct iapp_data *iapp;
-
 	struct hostapd_cached_radius_acl *acl_cache;
 	struct hostapd_acl_query_data *acl_queries;
 
 	struct wpa_authenticator *wpa_auth;
 	struct eapol_authenticator *eapol_auth;
+	struct eap_config *eap_cfg;
 
 	struct rsn_preauth_interface *preauth_iface;
 	struct os_reltime michael_mic_failure;
@@ -318,10 +326,10 @@ struct hostapd_data {
 
 #ifdef CONFIG_SAE
 	/** Key used for generating SAE anti-clogging tokens */
-	u8 sae_token_key[8];
-	struct os_reltime last_sae_token_key_update;
-	u16 sae_token_idx;
-	u16 sae_pending_token_idx[256];
+	u8 comeback_key[8];
+	struct os_reltime last_comeback_key_update;
+	u16 comeback_idx;
+	u16 comeback_pending_idx[256];
 	int dot11RSNASAERetransPeriod; /* msec */
 	struct dl_list sae_commit_queue; /* struct hostapd_sae_commit_queue */
 #endif /* CONFIG_SAE */
@@ -337,12 +345,17 @@ struct hostapd_data {
 	u8 last_gtk[WPA_GTK_MAX_LEN];
 	size_t last_gtk_len;
 
-#ifdef CONFIG_IEEE80211W
 	enum wpa_alg last_igtk_alg;
 	int last_igtk_key_idx;
 	u8 last_igtk[WPA_IGTK_MAX_LEN];
 	size_t last_igtk_len;
-#endif /* CONFIG_IEEE80211W */
+
+	enum wpa_alg last_bigtk_alg;
+	int last_bigtk_key_idx;
+	u8 last_bigtk[WPA_BIGTK_MAX_LEN];
+	size_t last_bigtk_len;
+
+	bool force_backlog_bytes;
 #endif /* CONFIG_TESTING_OPTIONS */
 
 #ifdef CONFIG_MBO
@@ -358,6 +371,8 @@ struct hostapd_data {
 	unsigned int range_req_active:1;
 
 	int dhcp_sock; /* UDP socket used with the DHCP server */
+
+	struct ptksa_cache *ptksa;
 
 #ifdef CONFIG_DPP
 	int dpp_init_done;
@@ -380,6 +395,16 @@ struct hostapd_data {
 	unsigned int dpp_resp_wait_time;
 	unsigned int dpp_resp_max_tries;
 	unsigned int dpp_resp_retry_time;
+#ifdef CONFIG_DPP2
+	struct wpabuf *dpp_presence_announcement;
+	struct dpp_bootstrap_info *dpp_chirp_bi;
+	int dpp_chirp_freq;
+	int *dpp_chirp_freqs;
+	int dpp_chirp_iter;
+	int dpp_chirp_round;
+	int dpp_chirp_scan_done;
+	int dpp_chirp_listen;
+#endif /* CONFIG_DPP2 */
 #ifdef CONFIG_TESTING_OPTIONS
 	char *dpp_config_obj_override;
 	char *dpp_discovery_override;
@@ -398,6 +423,10 @@ struct hostapd_data {
 #ifdef CONFIG_SQLITE
 	sqlite3 *rad_attr_db;
 #endif /* CONFIG_SQLITE */
+
+#ifdef CONFIG_CTRL_IFACE_UDP
+       unsigned char ctrl_iface_cookie[CTRL_IFACE_COOKIE_LEN];
+#endif /* CONFIG_CTRL_IFACE_UDP */
 };
 
 
@@ -465,9 +494,7 @@ struct hostapd_iface {
 	struct ap_info *ap_hash[STA_HASH_SIZE];
 
 	u64 drv_flags;
-
-	/* SMPS modes supported by the driver (WPA_DRIVER_SMPS_MODE_*) */
-	unsigned int smps_modes;
+	u64 drv_flags2;
 
 	/*
 	 * A bitmap of supported protocols for probe response offload. See
@@ -566,6 +593,9 @@ struct hostapd_iface {
 
 	/* Previous WMM element information */
 	struct hostapd_wmm_ac_params prev_wmm[WMM_AC_NUM];
+
+	int (*enable_iface_cb)(struct hostapd_iface *iface);
+	int (*disable_iface_cb)(struct hostapd_iface *iface);
 };
 
 /* hostapd.c */
@@ -594,13 +624,17 @@ void hostapd_interface_deinit_free(struct hostapd_iface *iface);
 int hostapd_enable_iface(struct hostapd_iface *hapd_iface);
 int hostapd_reload_iface(struct hostapd_iface *hapd_iface);
 int hostapd_disable_iface(struct hostapd_iface *hapd_iface);
+void hostapd_bss_deinit_no_free(struct hostapd_data *hapd);
+void hostapd_free_hapd_data(struct hostapd_data *hapd);
+void hostapd_cleanup_iface_partial(struct hostapd_iface *iface);
 int hostapd_add_iface(struct hapd_interfaces *ifaces, char *buf);
 int hostapd_remove_iface(struct hapd_interfaces *ifaces, char *buf);
 void hostapd_channel_list_updated(struct hostapd_iface *iface, int initiator);
 void hostapd_set_state(struct hostapd_iface *iface, enum hostapd_iface_state s);
 const char * hostapd_state_text(enum hostapd_iface_state s);
 int hostapd_csa_in_progress(struct hostapd_iface *iface);
-void hostapd_chan_switch_vht_config(struct hostapd_data *hapd, int vht_enabled);
+void hostapd_chan_switch_config(struct hostapd_data *hapd,
+				struct hostapd_freq_params *freq_params);
 int hostapd_switch_channel(struct hostapd_data *hapd,
 			   struct csa_settings *settings);
 void
@@ -609,6 +643,7 @@ hostapd_switch_channel_fallback(struct hostapd_iface *iface,
 void hostapd_cleanup_cs_params(struct hostapd_data *hapd);
 void hostapd_periodic_iface(struct hostapd_iface *iface);
 int hostapd_owe_trans_get_info(struct hostapd_data *hapd);
+void hostapd_ocv_check_csa_sa_query(void *eloop_ctx, void *timeout_ctx);
 
 /* utils.c */
 int hostapd_register_probereq_cb(struct hostapd_data *hapd,

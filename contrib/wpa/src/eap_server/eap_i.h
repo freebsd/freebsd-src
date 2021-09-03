@@ -23,7 +23,7 @@
  */
 struct eap_method {
 	int vendor;
-	EapType method;
+	enum eap_type method;
 	const char *name;
 
 	void * (*init)(struct eap_sm *sm);
@@ -32,15 +32,14 @@ struct eap_method {
 
 	struct wpabuf * (*buildReq)(struct eap_sm *sm, void *priv, u8 id);
 	int (*getTimeout)(struct eap_sm *sm, void *priv);
-	Boolean (*check)(struct eap_sm *sm, void *priv,
-			 struct wpabuf *respData);
+	bool (*check)(struct eap_sm *sm, void *priv, struct wpabuf *respData);
 	void (*process)(struct eap_sm *sm, void *priv,
 			struct wpabuf *respData);
-	Boolean (*isDone)(struct eap_sm *sm, void *priv);
+	bool (*isDone)(struct eap_sm *sm, void *priv);
 	u8 * (*getKey)(struct eap_sm *sm, void *priv, size_t *len);
 	/* isSuccess is not specified in draft-ietf-eap-statemachine-05.txt,
 	 * but it is useful in implementing Policy.getDecision() */
-	Boolean (*isSuccess)(struct eap_sm *sm, void *priv);
+	bool (*isSuccess)(struct eap_sm *sm, void *priv);
 
 	/**
 	 * free - Free EAP method data
@@ -128,7 +127,7 @@ struct eap_sm {
 	/* Full authenticator state machine local variables */
 
 	/* Long-term (maintained between packets) */
-	EapType currentMethod;
+	enum eap_type currentMethod;
 	int currentId;
 	enum {
 		METHOD_PROPOSED, METHOD_CONTINUE, METHOD_END
@@ -138,13 +137,13 @@ struct eap_sm {
 	int methodTimeout;
 
 	/* Short-term (not maintained between packets) */
-	Boolean rxResp;
-	Boolean rxInitiate;
+	bool rxResp;
+	bool rxInitiate;
 	int respId;
-	EapType respMethod;
+	enum eap_type respMethod;
 	int respVendor;
 	u32 respVendorMethod;
-	Boolean ignore;
+	bool ignore;
 	enum {
 		DECISION_SUCCESS, DECISION_FAILURE, DECISION_CONTINUE,
 		DECISION_PASSTHROUGH, DECISION_INITIATE_REAUTH_START
@@ -153,8 +152,8 @@ struct eap_sm {
 	/* Miscellaneous variables */
 	const struct eap_method *m; /* selected EAP method */
 	/* not defined in RFC 4137 */
-	Boolean changed;
-	void *eapol_ctx, *msg_ctx;
+	bool changed;
+	void *eapol_ctx;
 	const struct eapol_callbacks *eapol_cb;
 	void *eap_method_priv;
 	u8 *identity;
@@ -167,13 +166,12 @@ struct eap_sm {
 	struct eap_user *user;
 	int user_eap_method_index;
 	int init_phase2;
-	void *ssl_ctx;
-	struct eap_sim_db_data *eap_sim_db_priv;
-	Boolean backend_auth;
-	Boolean update_user;
-	int eap_server;
+	const struct eap_config *cfg;
+	struct eap_config cfg_buf;
+	bool update_user;
 
-	int num_rounds;
+	unsigned int num_rounds;
+	unsigned int num_rounds_short;
 	enum {
 		METHOD_PENDING_NONE, METHOD_PENDING_WAIT, METHOD_PENDING_CONT
 	} method_pending;
@@ -181,42 +179,15 @@ struct eap_sm {
 	u8 *auth_challenge;
 	u8 *peer_challenge;
 
-	u8 *pac_opaque_encr_key;
-	u8 *eap_fast_a_id;
-	size_t eap_fast_a_id_len;
-	char *eap_fast_a_id_info;
-	enum {
-		NO_PROV, ANON_PROV, AUTH_PROV, BOTH_PROV
-	} eap_fast_prov;
-	int pac_key_lifetime;
-	int pac_key_refresh_time;
-	int eap_teap_auth;
-	int eap_teap_pac_no_inner;
-	int eap_sim_aka_result_ind;
-	int eap_sim_id;
-	int tnc;
-	u16 pwd_group;
-	struct wps_context *wps;
 	struct wpabuf *assoc_wps_ie;
 	struct wpabuf *assoc_p2p_ie;
 
-	Boolean start_reauth;
+	bool start_reauth;
 
 	u8 peer_addr[ETH_ALEN];
 
-	/* Fragmentation size for EAP method init() handler */
-	int fragment_size;
-
-	int pbc_in_m1;
-
-	const u8 *server_id;
-	size_t server_id_len;
-
-	Boolean initiate_reauth_start_sent;
-	Boolean try_initiate_reauth;
-	int erp;
-	unsigned int tls_session_lifetime;
-	unsigned int tls_flags;
+	bool initiate_reauth_start_sent;
+	bool try_initiate_reauth;
 
 #ifdef CONFIG_TESTING_OPTIONS
 	u32 tls_test_flags;

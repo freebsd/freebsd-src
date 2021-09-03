@@ -22,7 +22,9 @@
 static int vlan_if_add(struct hostapd_data *hapd, struct hostapd_vlan *vlan,
 		       int existsok)
 {
-	int ret, i;
+	int ret;
+#ifdef CONFIG_WEP
+	int i;
 
 	for (i = 0; i < NUM_WEP_KEYS; i++) {
 		if (!hapd->conf->ssid.wep.key[i])
@@ -32,6 +34,7 @@ static int vlan_if_add(struct hostapd_data *hapd, struct hostapd_vlan *vlan,
 			   vlan->ifname);
 		return -1;
 	}
+#endif /* CONFIG_WEP */
 
 	if (!iface_exists(vlan->ifname))
 		ret = hostapd_vlan_if_add(hapd, vlan->ifname);

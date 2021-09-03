@@ -38,9 +38,33 @@ void tlsv1_client_free_dh(struct tlsv1_client *conn)
 }
 
 
-int tls_derive_pre_master_secret(u8 *pre_master_secret)
+u16 tls_client_highest_ver(struct tlsv1_client *conn)
 {
-	WPA_PUT_BE16(pre_master_secret, TLS_VERSION);
+	u16 tls_version = TLS_VERSION;
+
+	/* Pick the highest locally enabled TLS version */
+#ifdef CONFIG_TLSV12
+	if ((conn->flags & TLS_CONN_DISABLE_TLSv1_2) &&
+	    tls_version == TLS_VERSION_1_2)
+		tls_version = TLS_VERSION_1_1;
+#endif /* CONFIG_TLSV12 */
+#ifdef CONFIG_TLSV11
+	if ((conn->flags & TLS_CONN_DISABLE_TLSv1_1) &&
+	    tls_version == TLS_VERSION_1_1)
+		tls_version = TLS_VERSION_1;
+#endif /* CONFIG_TLSV11 */
+	if ((conn->flags & TLS_CONN_DISABLE_TLSv1_0) &&
+	    tls_version == TLS_VERSION_1)
+		return 0;
+
+	return tls_version;
+}
+
+
+int tls_derive_pre_master_secret(struct tlsv1_client *conn,
+				 u8 *pre_master_secret)
+{
+	WPA_PUT_BE16(pre_master_secret, tls_client_highest_ver(conn));
 	if (os_get_random(pre_master_secret + 2,
 			  TLS_PRE_MASTER_SECRET_LEN - 2))
 		return -1;
@@ -844,6 +868,7 @@ int tlsv1_client_set_cred(struct tlsv1_client *conn,
 void tlsv1_client_set_flags(struct tlsv1_client *conn, unsigned int flags)
 {
 	conn->flags = flags;
+	conn->rl.tls_version = tls_client_highest_ver(conn);
 }
 
 

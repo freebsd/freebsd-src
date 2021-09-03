@@ -18,7 +18,7 @@ def usage():
 	print("  		[-w <wpas_dbus_interface>]")
 	print("Options:")
 	print("  -i = interface name")
-	print("  -p = persistant group = 0 (0=false, 1=true)")
+	print("  -p = persistent group = 0 (0=false, 1=true)")
 	print("  -f = frequency")
 	print("  -o = persistent group object path")
 	print("  -w = wpas dbus interface = fi.w1.wpa_supplicant1")
@@ -57,7 +57,7 @@ class P2P_Group_Add (threading.Thread):
 	global wpas_dbus_interfaces_interface
 	global wpas_dbus_interfaces_p2pdevice
 
-	# Arguements
+	# Arguments
 	global P2PDictionary
 
 	# Constructor
@@ -120,7 +120,7 @@ class P2P_Group_Add (threading.Thread):
 			signal_name="WpsFailed")
 
 		# Sets up p2p_group_add dictionary
-	def constructArguements(self):
+	def constructArguments(self):
 		self.P2PDictionary = {'persistent':self.persistent}
 
 		if (self.frequency != None):
@@ -141,7 +141,7 @@ class P2P_Group_Add (threading.Thread):
 			self.p2p_interface.GroupAdd(self.P2PDictionary)
 
 		except:
-			print("Error:\n  Could not preform group add")
+			print("Error:\n  Could not perform group add")
 			usage()
 			os._exit(0)
 
@@ -172,7 +172,7 @@ if __name__ == "__main__":
 		usage()
 		quit()
 
-	# If theres a switch, override default option
+	# If there's a switch, override default option
 	for key, value in options:
 		# Help
 		if (key == "-h"):
@@ -213,9 +213,9 @@ if __name__ == "__main__":
 		p2p_group_add_test = P2P_Group_Add(interface_name,wpas_dbus_interface,
 					persistent,frequency,persistent_group_object)
 	except:
-		print("Error:\n  Invalid Arguements")
+		print("Error:\n  Invalid Arguments")
 
-	p2p_group_add_test.constructArguements()
+	p2p_group_add_test.constructArguments()
 	p2p_group_add_test.start()
 	time.sleep(5)
 	print("Error:\n  Group formation timed out")

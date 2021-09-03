@@ -144,7 +144,7 @@ static TNC_Result TNC_TNCC_SendMessage(
 	TNC_MessageType messageType)
 {
 	struct tnc_if_imc *imc;
-	unsigned char *b64;
+	char *b64;
 	size_t b64len;
 
 	wpa_printf(MSG_DEBUG, "TNC: TNC_TNCC_SendMessage(imcID=%lu "
@@ -629,8 +629,7 @@ static unsigned char * tncc_get_base64(char *start, size_t *decoded_len)
 		return NULL;
 	*pos2 = '\0';
 
-	decoded = base64_decode((unsigned char *) pos, os_strlen(pos),
-				decoded_len);
+	decoded = base64_decode(pos, os_strlen(pos), decoded_len);
 	*pos2 = '<';
 	if (decoded == NULL) {
 		wpa_printf(MSG_DEBUG, "TNC: Failed to decode Base64 data");

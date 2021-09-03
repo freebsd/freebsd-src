@@ -82,6 +82,7 @@ struct privsep_cmd_set_key {
 	size_t seq_len;
 	u8 key[32];
 	size_t key_len;
+	enum key_flag key_flag;
 };
 
 enum privsep_event {
