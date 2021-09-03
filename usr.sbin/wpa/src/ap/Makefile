@@ -28,6 +28,7 @@ SRCS=	accounting.c \
 	ieee802_11_shared.c \
 	ieee802_11_vht.c \
 	ieee802_1x.c \
+	mbo_ap.c \
 	neighbor_db.c \
 	pmksa_cache_auth.c \
 	preauth_auth.c \
@@ -39,6 +40,7 @@ SRCS=	accounting.c \
 	vlan_ifconfig.c \
 	vlan_init.c \
 	wmm.c \
+	wnm_ap.c \
 	wpa_auth.c \
 	wpa_auth_glue.c \
 	wpa_auth_ie.c \
