@@ -5,7 +5,6 @@
 KMOD=	vmd
 
 SRCS=	\
-	vmd_bus.c	\
 	vmd.c		\
 	bus_if.h	\
 	device_if.h	\
