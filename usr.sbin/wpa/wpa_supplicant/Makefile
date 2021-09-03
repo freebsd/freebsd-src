@@ -23,6 +23,7 @@ SRCS=	bss.c \
 	events.c \
 	gas_query.c \
 	main.c \
+	mbo.c \
 	notify.c \
 	op_classes.c \
 	offchannel.c \
@@ -32,6 +33,7 @@ SRCS=	bss.c \
 	scan.c \
 	twt.c \
 	wmm_ac.c \
+	wnm_sta.c \
 	wpa_supplicant.c \
 	wpas_glue.c
 
