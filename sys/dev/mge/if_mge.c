@@ -883,7 +883,7 @@ mge_attach(device_t dev)
 
 	mge_get_mac_address(sc, hwaddr);
 	ether_ifattach(ifp, hwaddr);
-	callout_init(&sc->wd_callout, 0);
+	callout_init(&sc->wd_callout, 1);
 
 	/* Attach PHY(s) */
 	if (sc->phy_attached) {
@@ -2147,10 +2147,10 @@ mge_add_sysctls(struct mge_softc *sc)
 	children = SYSCTL_CHILDREN(tree);
 
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "rx_time",
-	    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, sc, MGE_IC_RX,
+	    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_MPSAFE, sc, MGE_IC_RX,
 	    mge_sysctl_ic, "I", "IC RX time threshold");
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "tx_time",
-	    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, sc, MGE_IC_TX,
+	    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_MPSAFE, sc, MGE_IC_TX,
 	    mge_sysctl_ic, "I", "IC TX time threshold");
 }
 
