@@ -28,7 +28,7 @@
 .\"	@(#)mprotect.2	8.1 (Berkeley) 6/9/93
 .\" $FreeBSD$
 .\"
-.Dd February 26, 2020
+.Dd September 3, 2021
 .Dt MPROTECT 2
 .Os
 .Sh NAME
@@ -46,11 +46,6 @@ The
 system call
 changes the specified pages to have protection
 .Fa prot .
-Not all implementations will guarantee protection on a page basis;
-the granularity of protection changes may be as large as an entire region.
-A region is the virtual address space defined by the start
-and end addresses of a
-.Vt "struct vm_map_entry" .
 .Pp
 Currently these protection bits are known,
 which can be combined, OR'd together:
