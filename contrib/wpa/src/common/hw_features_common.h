@@ -14,24 +14,32 @@
 
 struct hostapd_channel_data * hw_get_channel_chan(struct hostapd_hw_modes *mode,
 						  int chan, int *freq);
-struct hostapd_channel_data * hw_get_channel_freq(struct hostapd_hw_modes *mode,
-						  int freq, int *chan);
+struct hostapd_channel_data *
+hw_mode_get_channel(struct hostapd_hw_modes *mode, int freq, int *chan);
+
+struct hostapd_channel_data *
+hw_get_channel_freq(enum hostapd_hw_mode mode, int freq, int *chan,
+		    struct hostapd_hw_modes *hw_features, int num_hw_features);
 
 int hw_get_freq(struct hostapd_hw_modes *mode, int chan);
-int hw_get_chan(struct hostapd_hw_modes *mode, int freq);
+int hw_get_chan(enum hostapd_hw_mode mode, int freq,
+		struct hostapd_hw_modes *hw_features, int num_hw_features);
 
-int allowed_ht40_channel_pair(struct hostapd_hw_modes *mode, int pri_chan,
-			      int sec_chan);
+int allowed_ht40_channel_pair(enum hostapd_hw_mode mode,
+			      struct hostapd_channel_data *p_chan,
+			      struct hostapd_channel_data *s_chan);
 void get_pri_sec_chan(struct wpa_scan_res *bss, int *pri_chan, int *sec_chan);
-int check_40mhz_5g(struct hostapd_hw_modes *mode,
-		   struct wpa_scan_results *scan_res, int pri_chan,
-		   int sec_chan);
+int check_40mhz_5g(struct wpa_scan_results *scan_res,
+		   struct hostapd_channel_data *pri_chan,
+		   struct hostapd_channel_data *sec_chan);
+int check_bss_coex_40mhz(struct wpa_scan_res *bss, int pri_freq, int sec_freq);
 int check_40mhz_2g4(struct hostapd_hw_modes *mode,
 		    struct wpa_scan_results *scan_res, int pri_chan,
 		    int sec_chan);
 int hostapd_set_freq_params(struct hostapd_freq_params *data,
 			    enum hostapd_hw_mode mode,
-			    int freq, int channel, int ht_enabled,
+			    int freq, int channel, int edmg, u8 edmg_channel,
+			    int ht_enabled,
 			    int vht_enabled, int he_enabled,
 			    int sec_channel_offset,
 			    int oper_chwidth, int center_segment0,

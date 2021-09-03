@@ -29,7 +29,7 @@ void fst_group_delete(struct fst_group *g);
 
 void fst_group_update_ie(struct fst_group *g);
 
-static inline Boolean fst_group_has_ifaces(struct fst_group *g)
+static inline bool fst_group_has_ifaces(struct fst_group *g)
 {
 	return !dl_list_empty(&g->ifaces);
 }
@@ -44,7 +44,7 @@ static inline const char * fst_group_get_id(struct fst_group *g)
 	return g->group_id;
 }
 
-Boolean fst_group_delete_if_empty(struct fst_group *group);
+bool fst_group_delete_if_empty(struct fst_group *group);
 struct fst_iface * fst_group_get_iface_by_name(struct fst_group *g,
 					       const char *ifname);
 struct fst_iface *

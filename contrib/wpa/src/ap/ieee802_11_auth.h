@@ -16,18 +16,25 @@ enum {
 	HOSTAPD_ACL_ACCEPT_TIMEOUT = 3
 };
 
+struct radius_sta {
+	u32 session_timeout;
+	u32 acct_interim_interval;
+	struct vlan_description vlan_id;
+	struct hostapd_sta_wpa_psk_short *psk;
+	char *identity;
+	char *radius_cui;
+};
+
 int hostapd_check_acl(struct hostapd_data *hapd, const u8 *addr,
 		      struct vlan_description *vlan_id);
 int hostapd_allowed_address(struct hostapd_data *hapd, const u8 *addr,
-			    const u8 *msg, size_t len, u32 *session_timeout,
-			    u32 *acct_interim_interval,
-			    struct vlan_description *vlan_id,
-			    struct hostapd_sta_wpa_psk_short **psk,
-			    char **identity, char **radius_cui,
+			    const u8 *msg, size_t len, struct radius_sta *out,
 			    int is_probe_req);
 int hostapd_acl_init(struct hostapd_data *hapd);
 void hostapd_acl_deinit(struct hostapd_data *hapd);
 void hostapd_free_psk_list(struct hostapd_sta_wpa_psk_short *psk);
 void hostapd_acl_expire(struct hostapd_data *hapd);
+void hostapd_copy_psk_list(struct hostapd_sta_wpa_psk_short **psk,
+			   struct hostapd_sta_wpa_psk_short *src);
 
 #endif /* IEEE802_11_AUTH_H */

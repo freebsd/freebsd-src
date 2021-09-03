@@ -195,8 +195,8 @@ static struct wpabuf * eap_pax_buildReq(struct eap_sm *sm, void *priv, u8 id)
 }
 
 
-static Boolean eap_pax_check(struct eap_sm *sm, void *priv,
-			     struct wpabuf *respData)
+static bool eap_pax_check(struct eap_sm *sm, void *priv,
+			  struct wpabuf *respData)
 {
 	struct eap_pax_data *data = priv;
 	struct eap_pax_hdr *resp;
@@ -207,7 +207,7 @@ static Boolean eap_pax_check(struct eap_sm *sm, void *priv,
 	pos = eap_hdr_validate(EAP_VENDOR_IETF, EAP_TYPE_PAX, respData, &len);
 	if (pos == NULL || len < sizeof(*resp) + EAP_PAX_ICV_LEN) {
 		wpa_printf(MSG_INFO, "EAP-PAX: Invalid frame");
-		return TRUE;
+		return true;
 	}
 
 	mlen = sizeof(struct eap_hdr) + 1 + len;
@@ -225,14 +225,14 @@ static Boolean eap_pax_check(struct eap_sm *sm, void *priv,
 	    resp->op_code != EAP_PAX_OP_STD_2) {
 		wpa_printf(MSG_DEBUG, "EAP-PAX: Expected PAX_STD-2 - "
 			   "ignore op %d", resp->op_code);
-		return TRUE;
+		return true;
 	}
 
 	if (data->state == PAX_STD_3 &&
 	    resp->op_code != EAP_PAX_OP_ACK) {
 		wpa_printf(MSG_DEBUG, "EAP-PAX: Expected PAX-ACK - "
 			   "ignore op %d", resp->op_code);
-		return TRUE;
+		return true;
 	}
 
 	if (resp->op_code != EAP_PAX_OP_STD_2 &&
@@ -244,38 +244,38 @@ static Boolean eap_pax_check(struct eap_sm *sm, void *priv,
 	if (data->mac_id != resp->mac_id) {
 		wpa_printf(MSG_DEBUG, "EAP-PAX: Expected MAC ID 0x%x, "
 			   "received 0x%x", data->mac_id, resp->mac_id);
-		return TRUE;
+		return true;
 	}
 
 	if (resp->dh_group_id != EAP_PAX_DH_GROUP_NONE) {
 		wpa_printf(MSG_INFO, "EAP-PAX: Expected DH Group ID 0x%x, "
 			   "received 0x%x", EAP_PAX_DH_GROUP_NONE,
 			   resp->dh_group_id);
-		return TRUE;
+		return true;
 	}
 
 	if (resp->public_key_id != EAP_PAX_PUBLIC_KEY_NONE) {
 		wpa_printf(MSG_INFO, "EAP-PAX: Expected Public Key ID 0x%x, "
 			   "received 0x%x", EAP_PAX_PUBLIC_KEY_NONE,
 			   resp->public_key_id);
-		return TRUE;
+		return true;
 	}
 
 	if (resp->flags & EAP_PAX_FLAGS_MF) {
 		/* TODO: add support for reassembling fragments */
 		wpa_printf(MSG_INFO, "EAP-PAX: fragmentation not supported");
-		return TRUE;
+		return true;
 	}
 
 	if (resp->flags & EAP_PAX_FLAGS_CE) {
 		wpa_printf(MSG_INFO, "EAP-PAX: Unexpected CE flag");
-		return TRUE;
+		return true;
 	}
 
 	if (data->keys_set) {
 		if (len - sizeof(*resp) < EAP_PAX_ICV_LEN) {
 			wpa_printf(MSG_INFO, "EAP-PAX: No ICV in the packet");
-			return TRUE;
+			return true;
 		}
 		icv = wpabuf_mhead_u8(respData) + mlen - EAP_PAX_ICV_LEN;
 		wpa_hexdump(MSG_MSGDUMP, "EAP-PAX: ICV", icv, EAP_PAX_ICV_LEN);
@@ -285,18 +285,18 @@ static Boolean eap_pax_check(struct eap_sm *sm, void *priv,
 				NULL, 0, NULL, 0, icvbuf) < 0) {
 			wpa_printf(MSG_INFO,
 				   "EAP-PAX: Failed to calculate ICV");
-			return TRUE;
+			return true;
 		}
 
 		if (os_memcmp_const(icvbuf, icv, EAP_PAX_ICV_LEN) != 0) {
 			wpa_printf(MSG_INFO, "EAP-PAX: Invalid ICV");
 			wpa_hexdump(MSG_MSGDUMP, "EAP-PAX: Expected ICV",
 				    icvbuf, EAP_PAX_ICV_LEN);
-			return TRUE;
+			return true;
 		}
 	}
 
-	return FALSE;
+	return false;
 }
 
 
@@ -513,7 +513,7 @@ static void eap_pax_process(struct eap_sm *sm, void *priv,
 }
 
 
-static Boolean eap_pax_isDone(struct eap_sm *sm, void *priv)
+static bool eap_pax_isDone(struct eap_sm *sm, void *priv)
 {
 	struct eap_pax_data *data = priv;
 	return data->state == SUCCESS || data->state == FAILURE;
@@ -563,7 +563,7 @@ static u8 * eap_pax_get_emsk(struct eap_sm *sm, void *priv, size_t *len)
 }
 
 
-static Boolean eap_pax_isSuccess(struct eap_sm *sm, void *priv)
+static bool eap_pax_isSuccess(struct eap_sm *sm, void *priv)
 {
 	struct eap_pax_data *data = priv;
 	return data->state == SUCCESS;

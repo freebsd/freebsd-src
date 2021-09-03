@@ -158,7 +158,7 @@ int est_load_cacerts(struct hs20_osu_client *ctx, const char *url)
 		return -1;
 	}
 
-	pkcs7 = base64_decode((unsigned char *) resp, resp_len, &pkcs7_len);
+	pkcs7 = base64_decode(resp, resp_len, &pkcs7_len);
 	if (pkcs7 && pkcs7_len < resp_len / 2) {
 		wpa_printf(MSG_INFO, "Too short base64 decode (%u bytes; downloaded %u bytes) - assume this was binary",
 			   (unsigned int) pkcs7_len, (unsigned int) resp_len);
@@ -639,8 +639,7 @@ int est_build_csr(struct hs20_osu_client *ctx, const char *url)
 			return -1;
 		}
 
-		attrs = base64_decode((unsigned char *) resp, resp_len,
-				      &attrs_len);
+		attrs = base64_decode(resp, resp_len, &attrs_len);
 		os_free(resp);
 
 		if (attrs == NULL) {
@@ -734,7 +733,7 @@ int est_simple_enroll(struct hs20_osu_client *ctx, const char *url,
 	}
 	wpa_printf(MSG_DEBUG, "EST simpleenroll response: %s", resp);
 
-	pkcs7 = base64_decode((unsigned char *) resp, resp_len, &pkcs7_len);
+	pkcs7 = base64_decode(resp, resp_len, &pkcs7_len);
 	if (pkcs7 == NULL) {
 		wpa_printf(MSG_INFO, "EST workaround - Could not decode base64, assume this is DER encoded PKCS7");
 		pkcs7 = os_malloc(resp_len);

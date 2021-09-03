@@ -138,12 +138,8 @@ static int tls_process_ocsp_single_response(struct tlsv1_client *conn,
 	 */
 
 	/* CertID ::= SEQUENCE */
-	if (asn1_get_next(resp, len, &hdr) < 0 ||
-	    hdr.class != ASN1_CLASS_UNIVERSAL ||
-	    hdr.tag != ASN1_TAG_SEQUENCE) {
-		wpa_printf(MSG_DEBUG,
-			   "OCSP: Expected SEQUENCE (CertID) - found class %d tag 0x%x",
-			   hdr.class, hdr.tag);
+	if (asn1_get_next(resp, len, &hdr) < 0 || !asn1_is_sequence(&hdr)) {
+		asn1_unexpected(&hdr, "OCSP: Expected SEQUENCE (CertID)");
 		return -1;
 	}
 	pos = hdr.payload;
@@ -163,11 +159,9 @@ static int tls_process_ocsp_single_response(struct tlsv1_client *conn,
 
 	/* issuerNameHash  OCTET STRING */
 	if (asn1_get_next(pos, end - pos, &hdr) < 0 ||
-	    hdr.class != ASN1_CLASS_UNIVERSAL ||
-	    hdr.tag != ASN1_TAG_OCTETSTRING) {
-		wpa_printf(MSG_DEBUG,
-			   "OCSP: Expected OCTET STRING (issuerNameHash) - found class %d tag 0x%x",
-			   hdr.class, hdr.tag);
+	    !asn1_is_octetstring(&hdr)) {
+		asn1_unexpected(&hdr,
+				"OCSP: Expected OCTET STRING (issuerNameHash)");
 		return -1;
 	}
 	name_hash = hdr.payload;
@@ -190,11 +184,9 @@ static int tls_process_ocsp_single_response(struct tlsv1_client *conn,
 
 	/* issuerKeyHash  OCTET STRING */
 	if (asn1_get_next(pos, end - pos, &hdr) < 0 ||
-	    hdr.class != ASN1_CLASS_UNIVERSAL ||
-	    hdr.tag != ASN1_TAG_OCTETSTRING) {
-		wpa_printf(MSG_DEBUG,
-			   "OCSP: Expected OCTET STRING (issuerKeyHash) - found class %d tag 0x%x",
-			   hdr.class, hdr.tag);
+	    !asn1_is_octetstring(&hdr)) {
+		asn1_unexpected(&hdr,
+				"OCSP: Expected OCTET STRING (issuerKeyHash)");
 		return -1;
 	}
 	key_hash = hdr.payload;
@@ -214,11 +206,10 @@ static int tls_process_ocsp_single_response(struct tlsv1_client *conn,
 
 	/* serialNumber CertificateSerialNumber ::= INTEGER */
 	if (asn1_get_next(pos, end - pos, &hdr) < 0 ||
-	    hdr.class != ASN1_CLASS_UNIVERSAL ||
-	    hdr.tag != ASN1_TAG_INTEGER ||
+	    !asn1_is_integer(&hdr) ||
 	    hdr.length < 1 || hdr.length > X509_MAX_SERIAL_NUM_LEN) {
-		wpa_printf(MSG_DEBUG, "OCSP: No INTEGER tag found for serialNumber; class=%d tag=0x%x length=%u",
-			   hdr.class, hdr.tag, hdr.length);
+		asn1_unexpected(&hdr,
+				"OCSP: No INTEGER tag found for serialNumber");
 		return -1;
 	}
 	serial_number = hdr.payload;
@@ -240,12 +231,16 @@ static int tls_process_ocsp_single_response(struct tlsv1_client *conn,
 	pos = end;
 	end = resp + len;
 
-	/* certStatus CertStatus ::= CHOICE */
+	/* certStatus CertStatus ::= CHOICE
+	 *
+	 * CertStatus ::= CHOICE {
+	 *     good        [0]     IMPLICIT NULL,
+	 *     revoked     [1]     IMPLICIT RevokedInfo,
+	 *     unknown     [2]     IMPLICIT UnknownInfo }
+	 */
 	if (asn1_get_next(pos, end - pos, &hdr) < 0 ||
 	    hdr.class != ASN1_CLASS_CONTEXT_SPECIFIC) {
-		wpa_printf(MSG_DEBUG,
-			   "OCSP: Expected CHOICE (CertStatus) - found class %d tag 0x%x",
-			   hdr.class, hdr.tag);
+		asn1_unexpected(&hdr, "OCSP: Expected CHOICE (CertStatus)");
 		return -1;
 	}
 	cert_status = hdr.tag;
@@ -257,8 +252,7 @@ static int tls_process_ocsp_single_response(struct tlsv1_client *conn,
 	os_get_time(&now);
 	/* thisUpdate  GeneralizedTime */
 	if (asn1_get_next(pos, end - pos, &hdr) < 0 ||
-	    hdr.class != ASN1_CLASS_UNIVERSAL ||
-	    hdr.tag != ASN1_TAG_GENERALIZEDTIME ||
+	    !asn1_is_generalizedtime(&hdr) ||
 	    x509_parse_time(hdr.payload, hdr.length, hdr.tag, &update) < 0) {
 		wpa_printf(MSG_DEBUG, "OCSP: Failed to parse thisUpdate");
 		return -1;
@@ -275,12 +269,11 @@ static int tls_process_ocsp_single_response(struct tlsv1_client *conn,
 	if (pos < end) {
 		if (asn1_get_next(pos, end - pos, &hdr) < 0)
 			return -1;
-		if (hdr.class == ASN1_CLASS_CONTEXT_SPECIFIC && hdr.tag == 0) {
+		if (asn1_is_cs_tag(&hdr, 0) && hdr.constructed) {
 			const u8 *next = hdr.payload + hdr.length;
 
 			if (asn1_get_next(hdr.payload, hdr.length, &hdr) < 0 ||
-			    hdr.class != ASN1_CLASS_UNIVERSAL ||
-			    hdr.tag != ASN1_TAG_GENERALIZEDTIME ||
+			    !asn1_is_generalizedtime(&hdr) ||
 			    x509_parse_time(hdr.payload, hdr.length, hdr.tag,
 					    &update) < 0) {
 				wpa_printf(MSG_DEBUG,
@@ -329,11 +322,9 @@ tls_process_ocsp_responses(struct tlsv1_client *conn,
 	while (pos < end) {
 		/* SingleResponse ::= SEQUENCE */
 		if (asn1_get_next(pos, end - pos, &hdr) < 0 ||
-		    hdr.class != ASN1_CLASS_UNIVERSAL ||
-		    hdr.tag != ASN1_TAG_SEQUENCE) {
-			wpa_printf(MSG_DEBUG,
-				   "OCSP: Expected SEQUENCE (SingleResponse) - found class %d tag 0x%x",
-				   hdr.class, hdr.tag);
+		    !asn1_is_sequence(&hdr)) {
+			asn1_unexpected(&hdr,
+					"OCSP: Expected SEQUENCE (SingleResponse)");
 			return TLS_OCSP_INVALID;
 		}
 		if (tls_process_ocsp_single_response(conn, cert, issuer,
@@ -381,12 +372,9 @@ tls_process_basic_ocsp_response(struct tlsv1_client *conn,
 	 *    certs            [0] EXPLICIT SEQUENCE OF Certificate OPTIONAL }
 	 */
 
-	if (asn1_get_next(resp, len, &hdr) < 0 ||
-	    hdr.class != ASN1_CLASS_UNIVERSAL ||
-	    hdr.tag != ASN1_TAG_SEQUENCE) {
-		wpa_printf(MSG_DEBUG,
-			   "OCSP: Expected SEQUENCE (BasicOCSPResponse) - found class %d tag 0x%x",
-			   hdr.class, hdr.tag);
+	if (asn1_get_next(resp, len, &hdr) < 0 || !asn1_is_sequence(&hdr)) {
+		asn1_unexpected(&hdr,
+				"OCSP: Expected SEQUENCE (BasicOCSPResponse)");
 		return TLS_OCSP_INVALID;
 	}
 	pos = hdr.payload;
@@ -394,11 +382,9 @@ tls_process_basic_ocsp_response(struct tlsv1_client *conn,
 
 	/* ResponseData ::= SEQUENCE */
 	if (asn1_get_next(pos, end - pos, &hdr) < 0 ||
-	    hdr.class != ASN1_CLASS_UNIVERSAL ||
-	    hdr.tag != ASN1_TAG_SEQUENCE) {
-		wpa_printf(MSG_DEBUG,
-			   "OCSP: Expected SEQUENCE (ResponseData) - found class %d tag 0x%x",
-			   hdr.class, hdr.tag);
+	    !asn1_is_sequence(&hdr)) {
+		asn1_unexpected(&hdr,
+				"OCSP: Expected SEQUENCE (ResponseData)");
 		return TLS_OCSP_INVALID;
 	}
 	resp_data = hdr.payload;
@@ -413,11 +399,9 @@ tls_process_basic_ocsp_response(struct tlsv1_client *conn,
 
 	/* signature  BIT STRING */
 	if (asn1_get_next(pos, end - pos, &hdr) < 0 ||
-	    hdr.class != ASN1_CLASS_UNIVERSAL ||
-	    hdr.tag != ASN1_TAG_BITSTRING) {
-		wpa_printf(MSG_DEBUG,
-			   "OCSP: Expected BITSTRING (signature) - found class %d tag 0x%x",
-			   hdr.class, hdr.tag);
+	    !asn1_is_bitstring(&hdr)) {
+		asn1_unexpected(&hdr,
+				"OCSP: Expected BITSTRING (signature)");
 		return TLS_OCSP_INVALID;
 	}
 	if (hdr.length < 1)
@@ -439,11 +423,9 @@ tls_process_basic_ocsp_response(struct tlsv1_client *conn,
 	/* certs  [0] EXPLICIT SEQUENCE OF Certificate OPTIONAL */
 	if (pos < end) {
 		if (asn1_get_next(pos, end - pos, &hdr) < 0 ||
-		    hdr.class != ASN1_CLASS_CONTEXT_SPECIFIC ||
-		    hdr.tag != 0) {
-			wpa_printf(MSG_DEBUG,
-				   "OCSP: Expected [0] EXPLICIT (certs) - found class %d tag 0x%x",
-				   hdr.class, hdr.tag);
+		    !hdr.constructed || !asn1_is_cs_tag(&hdr, 0)) {
+			asn1_unexpected(&hdr,
+					"OCSP: Expected [0] EXPLICIT (certs)");
 			return TLS_OCSP_INVALID;
 		}
 		wpa_hexdump(MSG_MSGDUMP, "OCSP: certs",
@@ -454,11 +436,9 @@ tls_process_basic_ocsp_response(struct tlsv1_client *conn,
 			struct x509_certificate *cert;
 
 			if (asn1_get_next(pos, end - pos, &hdr) < 0 ||
-			    hdr.class != ASN1_CLASS_UNIVERSAL ||
-			    hdr.tag != ASN1_TAG_SEQUENCE) {
-				wpa_printf(MSG_DEBUG,
-					   "OCSP: Expected SEQUENCE (Certificate) - found class %d tag 0x%x",
-					   hdr.class, hdr.tag);
+			    !asn1_is_sequence(&hdr)) {
+				asn1_unexpected(&hdr,
+						"OCSP: Expected SEQUENCE (Certificate)");
 				goto fail;
 			}
 
@@ -491,16 +471,12 @@ tls_process_basic_ocsp_response(struct tlsv1_client *conn,
 	 * version [0] EXPLICIT Version DEFAULT v1
 	 * Version ::= INTEGER { v1(0) }
 	 */
-	if (asn1_get_next(pos, end - pos, &hdr) < 0 &&
-	    hdr.class == ASN1_CLASS_CONTEXT_SPECIFIC &&
-	    hdr.tag == 0) {
+	if (asn1_get_next(pos, end - pos, &hdr) == 0 && hdr.constructed &&
+	    asn1_is_cs_tag(&hdr, 0)) {
 		if (asn1_get_next(pos, end - pos, &hdr) < 0 ||
-		    hdr.class != ASN1_CLASS_UNIVERSAL ||
-		    hdr.tag != ASN1_TAG_INTEGER ||
-		    hdr.length != 1) {
-			wpa_printf(MSG_DEBUG,
-				   "OCSP: No INTEGER (len=1) tag found for version field - found class %d tag 0x%x length %d",
-				   hdr.class, hdr.tag, hdr.length);
+		    !asn1_is_integer(&hdr) || hdr.length != 1) {
+			asn1_unexpected(&hdr,
+					"OCSP: No INTEGER (len=1) tag found for version field");
 			goto fail;
 		}
 		wpa_printf(MSG_DEBUG, "OCSP: ResponseData version %u",
@@ -524,9 +500,7 @@ tls_process_basic_ocsp_response(struct tlsv1_client *conn,
 	 */
 	if (asn1_get_next(pos, end - pos, &hdr) < 0 ||
 	    hdr.class != ASN1_CLASS_CONTEXT_SPECIFIC) {
-		wpa_printf(MSG_DEBUG,
-			   "OCSP: Expected CHOICE (ResponderID) - found class %d tag 0x%x",
-			   hdr.class, hdr.tag);
+		asn1_unexpected(&hdr, "OCSP: Expected CHOICE (ResponderID)");
 		goto fail;
 	}
 
@@ -539,11 +513,9 @@ tls_process_basic_ocsp_response(struct tlsv1_client *conn,
 	} else if (hdr.tag == 2) {
 		/* KeyHash ::= OCTET STRING */
 		if (asn1_get_next(hdr.payload, hdr.length, &hdr) < 0 ||
-		    hdr.class != ASN1_CLASS_UNIVERSAL ||
-		    hdr.tag != ASN1_TAG_OCTETSTRING) {
-			wpa_printf(MSG_DEBUG,
-				   "OCSP: Expected OCTET STRING (KeyHash) - found class %d tag 0x%x",
-				   hdr.class, hdr.tag);
+		    !asn1_is_octetstring(&hdr)) {
+			asn1_unexpected(&hdr,
+					"OCSP: Expected OCTET STRING (KeyHash)");
 			goto fail;
 		}
 		key_hash = hdr.payload;
@@ -564,8 +536,7 @@ tls_process_basic_ocsp_response(struct tlsv1_client *conn,
 
 	/* producedAt  GeneralizedTime */
 	if (asn1_get_next(pos, end - pos, &hdr) < 0 ||
-	    hdr.class != ASN1_CLASS_UNIVERSAL ||
-	    hdr.tag != ASN1_TAG_GENERALIZEDTIME ||
+	    !asn1_is_generalizedtime(&hdr) ||
 	    x509_parse_time(hdr.payload, hdr.length, hdr.tag,
 			    &produced_at) < 0) {
 		wpa_printf(MSG_DEBUG, "OCSP: Failed to parse producedAt");
@@ -577,11 +548,9 @@ tls_process_basic_ocsp_response(struct tlsv1_client *conn,
 
 	/* responses  SEQUENCE OF SingleResponse */
 	if (asn1_get_next(pos, end - pos, &hdr) < 0 ||
-	    hdr.class != ASN1_CLASS_UNIVERSAL ||
-	    hdr.tag != ASN1_TAG_SEQUENCE) {
-		wpa_printf(MSG_DEBUG,
-			   "OCSP: Expected SEQUENCE (responses) - found class %d tag 0x%x",
-			   hdr.class, hdr.tag);
+	    !asn1_is_sequence(&hdr)) {
+		asn1_unexpected(&hdr,
+				"OCSP: Expected SEQUENCE (responses)");
 		goto fail;
 	}
 	responses = hdr.payload;
@@ -697,12 +666,9 @@ enum tls_ocsp_result tls_process_ocsp_response(struct tlsv1_client *conn,
 	 *    responseBytes   [0] EXPLICIT ResponseBytes OPTIONAL }
 	 */
 
-	if (asn1_get_next(resp, len, &hdr) < 0 ||
-	    hdr.class != ASN1_CLASS_UNIVERSAL ||
-	    hdr.tag != ASN1_TAG_SEQUENCE) {
-		wpa_printf(MSG_DEBUG,
-			   "OCSP: Expected SEQUENCE (OCSPResponse) - found class %d tag 0x%x",
-			   hdr.class, hdr.tag);
+	if (asn1_get_next(resp, len, &hdr) < 0 || !asn1_is_sequence(&hdr)) {
+		asn1_unexpected(&hdr,
+				"OCSP: Expected SEQUENCE (OCSPResponse)");
 		return TLS_OCSP_INVALID;
 	}
 	pos = hdr.payload;
@@ -710,12 +676,9 @@ enum tls_ocsp_result tls_process_ocsp_response(struct tlsv1_client *conn,
 
 	/* OCSPResponseStatus ::= ENUMERATED */
 	if (asn1_get_next(pos, end - pos, &hdr) < 0 ||
-	    hdr.class != ASN1_CLASS_UNIVERSAL ||
-	    hdr.tag != ASN1_TAG_ENUMERATED ||
-	    hdr.length != 1) {
-		wpa_printf(MSG_DEBUG,
-			   "OCSP: Expected ENUMERATED (responseStatus) - found class %d tag 0x%x length %u",
-			   hdr.class, hdr.tag, hdr.length);
+	    !asn1_is_enumerated(&hdr) || hdr.length != 1) {
+		asn1_unexpected(&hdr,
+				"OCSP: Expected ENUMERATED (responseStatus)");
 		return TLS_OCSP_INVALID;
 	}
 	resp_status = hdr.payload[0];
@@ -730,12 +693,10 @@ enum tls_ocsp_result tls_process_ocsp_response(struct tlsv1_client *conn,
 	if (pos == end)
 		return TLS_OCSP_NO_RESPONSE;
 
-	if (asn1_get_next(pos, end - pos, &hdr) < 0 ||
-	    hdr.class != ASN1_CLASS_CONTEXT_SPECIFIC ||
-	    hdr.tag != 0) {
-		wpa_printf(MSG_DEBUG,
-			   "OCSP: Expected [0] EXPLICIT (responseBytes) - found class %d tag 0x%x",
-			   hdr.class, hdr.tag);
+	if (asn1_get_next(pos, end - pos, &hdr) < 0 || !hdr.constructed ||
+	    !asn1_is_cs_tag(&hdr, 0)) {
+		asn1_unexpected(&hdr,
+				"OCSP: Expected [0] EXPLICIT (responseBytes)");
 		return TLS_OCSP_INVALID;
 	}
 
@@ -746,11 +707,9 @@ enum tls_ocsp_result tls_process_ocsp_response(struct tlsv1_client *conn,
 	 */
 
 	if (asn1_get_next(hdr.payload, hdr.length, &hdr) < 0 ||
-	    hdr.class != ASN1_CLASS_UNIVERSAL ||
-	    hdr.tag != ASN1_TAG_SEQUENCE) {
-		wpa_printf(MSG_DEBUG,
-			   "OCSP: Expected SEQUENCE (ResponseBytes) - found class %d tag 0x%x",
-			   hdr.class, hdr.tag);
+	    !asn1_is_sequence(&hdr)) {
+		asn1_unexpected(&hdr,
+				"OCSP: Expected SEQUENCE (ResponseBytes)");
 		return TLS_OCSP_INVALID;
 	}
 	pos = hdr.payload;
@@ -771,11 +730,8 @@ enum tls_ocsp_result tls_process_ocsp_response(struct tlsv1_client *conn,
 
 	/* response       OCTET STRING */
 	if (asn1_get_next(pos, end - pos, &hdr) < 0 ||
-	    hdr.class != ASN1_CLASS_UNIVERSAL ||
-	    hdr.tag != ASN1_TAG_OCTETSTRING) {
-		wpa_printf(MSG_DEBUG,
-			   "OCSP: Expected OCTET STRING (response) - found class %d tag 0x%x",
-			   hdr.class, hdr.tag);
+	    !asn1_is_octetstring(&hdr)) {
+		asn1_unexpected(&hdr, "OCSP: Expected OCTET STRING (response)");
 		return TLS_OCSP_INVALID;
 	}
 

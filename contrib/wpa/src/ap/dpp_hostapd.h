@@ -1,6 +1,7 @@
 /*
  * hostapd / DPP integration
  * Copyright (c) 2017, Qualcomm Atheros, Inc.
+ * Copyright (c) 2018-2020, The Linux Foundation
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -9,7 +10,12 @@
 #ifndef DPP_HOSTAPD_H
 #define DPP_HOSTAPD_H
 
+struct dpp_bootstrap_info;
+
 int hostapd_dpp_qr_code(struct hostapd_data *hapd, const char *cmd);
+int hostapd_dpp_nfc_uri(struct hostapd_data *hapd, const char *cmd);
+int hostapd_dpp_nfc_handover_req(struct hostapd_data *hapd, const char *cmd);
+int hostapd_dpp_nfc_handover_sel(struct hostapd_data *hapd, const char *cmd);
 int hostapd_dpp_auth_init(struct hostapd_data *hapd, const char *cmd);
 int hostapd_dpp_listen(struct hostapd_data *hapd, const char *cmd);
 void hostapd_dpp_listen_stop(struct hostapd_data *hapd);
@@ -34,5 +40,10 @@ int hostapd_dpp_init(struct hostapd_data *hapd);
 void hostapd_dpp_deinit(struct hostapd_data *hapd);
 void hostapd_dpp_init_global(struct hapd_interfaces *ifaces);
 void hostapd_dpp_deinit_global(struct hapd_interfaces *ifaces);
+
+int hostapd_dpp_controller_start(struct hostapd_data *hapd, const char *cmd);
+int hostapd_dpp_chirp(struct hostapd_data *hapd, const char *cmd);
+void hostapd_dpp_chirp_stop(struct hostapd_data *hapd);
+void hostapd_dpp_remove_bi(void *ctx, struct dpp_bootstrap_info *bi);
 
 #endif /* DPP_HOSTAPD_H */

@@ -15,38 +15,14 @@
 #define EAPOL_SM_FROM_PMKSA_CACHE BIT(3)
 
 struct eapol_auth_config {
+	const struct eap_config *eap_cfg;
 	int eap_reauth_period;
 	int wpa;
 	int individual_wep_key_len;
-	int eap_server;
-	void *ssl_ctx;
-	void *msg_ctx;
-	void *eap_sim_db_priv;
 	char *eap_req_id_text; /* a copy of this will be allocated */
 	size_t eap_req_id_text_len;
 	int erp_send_reauth_start;
 	char *erp_domain; /* a copy of this will be allocated */
-	int erp; /* Whether ERP is enabled on authentication server */
-	unsigned int tls_session_lifetime;
-	unsigned int tls_flags;
-	u8 *pac_opaque_encr_key;
-	u8 *eap_fast_a_id;
-	size_t eap_fast_a_id_len;
-	char *eap_fast_a_id_info;
-	int eap_fast_prov;
-	int pac_key_lifetime;
-	int pac_key_refresh_time;
-	int eap_teap_auth;
-	int eap_teap_pac_no_inner;
-	int eap_sim_aka_result_ind;
-	int eap_sim_id;
-	int tnc;
-	struct wps_context *wps;
-	int fragment_size;
-	u16 pwd_group;
-	int pbc_in_m1;
-	const u8 *server_id;
-	size_t server_id_len;
 
 	/* Opaque context pointer to owner data for callback functions */
 	void *ctx;

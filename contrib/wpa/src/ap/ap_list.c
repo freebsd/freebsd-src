@@ -228,7 +228,6 @@ void ap_list_process_beacon(struct hostapd_iface *iface,
 		set_beacon++;
 	}
 
-#ifdef CONFIG_IEEE80211N
 	if (!iface->olbc_ht && !ap->ht_support &&
 	    (ap->channel == 0 ||
 	     ap->channel == iface->conf->channel ||
@@ -241,7 +240,6 @@ void ap_list_process_beacon(struct hostapd_iface *iface,
 			   MAC2STR(ap->addr), ap->channel);
 		set_beacon++;
 	}
-#endif /* CONFIG_IEEE80211N */
 
 	if (set_beacon)
 		ieee802_11_update_beacons(iface);
@@ -285,14 +283,12 @@ void ap_list_timer(struct hostapd_iface *iface)
 			iface->olbc = 0;
 			set_beacon++;
 		}
-#ifdef CONFIG_IEEE80211N
 		if (!olbc_ht && iface->olbc_ht) {
 			wpa_printf(MSG_DEBUG, "OLBC HT not detected anymore");
 			iface->olbc_ht = 0;
 			hostapd_ht_operation_update(iface);
 			set_beacon++;
 		}
-#endif /* CONFIG_IEEE80211N */
 	}
 
 	if (set_beacon)

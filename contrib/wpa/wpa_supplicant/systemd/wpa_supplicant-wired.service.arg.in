@@ -12,4 +12,4 @@ Type=simple
 ExecStart=@BINDIR@/wpa_supplicant -c/etc/wpa_supplicant/wpa_supplicant-wired-%I.conf -Dwired -i%I
 
 [Install]
-Alias=multi-user.target.wants/wpa_supplicant-wired@%i.service
+WantedBy=multi-user.target

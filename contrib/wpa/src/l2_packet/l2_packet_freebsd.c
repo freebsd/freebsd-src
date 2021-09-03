@@ -8,7 +8,8 @@
  */
 
 #include "includes.h"
-#if defined(__APPLE__) || defined(__GLIBC__)
+#include <sys/param.h>
+#if defined(__APPLE__) || defined(__GLIBC__) || defined(__FreeBSD_version)
 #include <net/bpf.h>
 #endif /* __APPLE__ */
 #include <pcap.h>
@@ -84,7 +85,7 @@ static void l2_packet_receive(int sock, void *eloop_ctx, void *sock_ctx)
 
 	packet = pcap_next(pcap, &hdr);
 
-	if (packet == NULL || hdr.caplen < sizeof(*ethhdr))
+	if (!l2->rx_callback || !packet || hdr.caplen < sizeof(*ethhdr))
 		return;
 
 	ethhdr = (struct l2_ethhdr *) packet;

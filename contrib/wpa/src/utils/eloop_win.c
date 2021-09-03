@@ -54,7 +54,7 @@ struct eloop_data {
 
 	struct dl_list timeout;
 
-	int signal_count;
+	size_t signal_count;
 	struct eloop_signal *signals;
 	int signaled;
 	int pending_terminate;
@@ -422,7 +422,7 @@ int eloop_replenish_timeout(unsigned int req_secs, unsigned int req_usecs,
 #if 0
 static void eloop_handle_signal(int sig)
 {
-	int i;
+	size_t i;
 
 	eloop.signaled++;
 	for (i = 0; i < eloop.signal_count; i++) {
@@ -437,7 +437,7 @@ static void eloop_handle_signal(int sig)
 
 static void eloop_process_pending_signals(void)
 {
-	int i;
+	size_t i;
 
 	if (eloop.signaled == 0)
 		return;
@@ -517,7 +517,7 @@ int eloop_register_signal_terminate(eloop_signal_handler handler,
 
 	eloop.term_signal.handler = handler;
 	eloop.term_signal.user_data = user_data;
-		
+
 	return 0;
 }
 

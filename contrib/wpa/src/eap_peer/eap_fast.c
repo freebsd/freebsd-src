@@ -162,7 +162,7 @@ static void * eap_fast_init(struct eap_sm *sm)
 
 	if (eap_peer_select_phase2_methods(config, "auth=",
 					   &data->phase2_types,
-					   &data->num_phase2_types) < 0) {
+					   &data->num_phase2_types, 0) < 0) {
 		eap_fast_deinit(sm, data);
 		return NULL;
 	}
@@ -364,22 +364,24 @@ static int eap_fast_init_phase2_method(struct eap_sm *sm,
 }
 
 
-static int eap_fast_select_phase2_method(struct eap_fast_data *data, u8 type)
+static int eap_fast_select_phase2_method(struct eap_fast_data *data,
+					 int vendor, enum eap_type type)
 {
 	size_t i;
 
 	/* TODO: TNC with anonymous provisioning; need to require both
 	 * completed MSCHAPv2 and TNC */
 
-	if (data->anon_provisioning && type != EAP_TYPE_MSCHAPV2) {
-		wpa_printf(MSG_INFO, "EAP-FAST: Only EAP-MSCHAPv2 is allowed "
-			   "during unauthenticated provisioning; reject phase2"
-			   " type %d", type);
+	if (data->anon_provisioning &&
+	    (vendor != EAP_VENDOR_IETF || type != EAP_TYPE_MSCHAPV2)) {
+		wpa_printf(MSG_INFO,
+			   "EAP-FAST: Only EAP-MSCHAPv2 is allowed during unauthenticated provisioning; reject phase2 type %u:%u",
+			   vendor, type);
 		return -1;
 	}
 
 #ifdef EAP_TNC
-	if (type == EAP_TYPE_TNC) {
+	if (vendor == EAP_VENDOR_IETF && type == EAP_TYPE_TNC) {
 		data->phase2_type.vendor = EAP_VENDOR_IETF;
 		data->phase2_type.method = EAP_TYPE_TNC;
 		wpa_printf(MSG_DEBUG, "EAP-FAST: Selected Phase 2 EAP "
@@ -391,7 +393,7 @@ static int eap_fast_select_phase2_method(struct eap_fast_data *data, u8 type)
 #endif /* EAP_TNC */
 
 	for (i = 0; i < data->num_phase2_types; i++) {
-		if (data->phase2_types[i].vendor != EAP_VENDOR_IETF ||
+		if (data->phase2_types[i].vendor != vendor ||
 		    data->phase2_types[i].method != type)
 			continue;
 
@@ -404,7 +406,9 @@ static int eap_fast_select_phase2_method(struct eap_fast_data *data, u8 type)
 		break;
 	}
 
-	if (type != data->phase2_type.method || type == EAP_TYPE_NONE)
+	if (vendor != data->phase2_type.vendor ||
+	    type != data->phase2_type.method ||
+	    (vendor == EAP_VENDOR_IETF && type == EAP_TYPE_NONE))
 		return -1;
 
 	return 0;
@@ -422,6 +426,8 @@ static int eap_fast_phase2_request(struct eap_sm *sm,
 	struct eap_method_ret iret;
 	struct eap_peer_config *config = eap_get_config(sm);
 	struct wpabuf msg;
+	int vendor = EAP_VENDOR_IETF;
+	enum eap_type method;
 
 	if (len <= sizeof(struct eap_hdr)) {
 		wpa_printf(MSG_INFO, "EAP-FAST: too short "
@@ -429,14 +435,27 @@ static int eap_fast_phase2_request(struct eap_sm *sm,
 		return -1;
 	}
 	pos = (u8 *) (hdr + 1);
-	wpa_printf(MSG_DEBUG, "EAP-FAST: Phase 2 Request: type=%d", *pos);
-	if (*pos == EAP_TYPE_IDENTITY) {
+	method = *pos;
+	if (method == EAP_TYPE_EXPANDED) {
+		if (len < sizeof(struct eap_hdr) + 8) {
+			wpa_printf(MSG_INFO,
+				   "EAP-FAST: Too short Phase 2 request (expanded header) (len=%lu)",
+				   (unsigned long) len);
+			return -1;
+		}
+		vendor = WPA_GET_BE24(pos + 1);
+		method = WPA_GET_BE32(pos + 4);
+	}
+	wpa_printf(MSG_DEBUG, "EAP-FAST: Phase 2 Request: type=%u:%u",
+		   vendor, method);
+	if (vendor == EAP_VENDOR_IETF && method == EAP_TYPE_IDENTITY) {
 		*resp = eap_sm_buildIdentity(sm, hdr->identifier, 1);
 		return 0;
 	}
 
 	if (data->phase2_priv && data->phase2_method &&
-	    *pos != data->phase2_type.method) {
+	    (vendor != data->phase2_type.vendor ||
+	     method != data->phase2_type.method)) {
 		wpa_printf(MSG_DEBUG, "EAP-FAST: Phase 2 EAP sequence - "
 			   "deinitialize previous method");
 		data->phase2_method->deinit(sm, data->phase2_priv);
@@ -448,7 +467,7 @@ static int eap_fast_phase2_request(struct eap_sm *sm,
 
 	if (data->phase2_type.vendor == EAP_VENDOR_IETF &&
 	    data->phase2_type.method == EAP_TYPE_NONE &&
-	    eap_fast_select_phase2_method(data, *pos) < 0) {
+	    eap_fast_select_phase2_method(data, vendor, method) < 0) {
 		if (eap_peer_tls_phase2_nak(data->phase2_types,
 					    data->num_phase2_types,
 					    hdr, resp))
@@ -459,8 +478,9 @@ static int eap_fast_phase2_request(struct eap_sm *sm,
 	if ((data->phase2_priv == NULL &&
 	     eap_fast_init_phase2_method(sm, data) < 0) ||
 	    data->phase2_method == NULL) {
-		wpa_printf(MSG_INFO, "EAP-FAST: Failed to initialize "
-			   "Phase 2 EAP method %d", *pos);
+		wpa_printf(MSG_INFO,
+			   "EAP-FAST: Failed to initialize Phase 2 EAP method %u:%u",
+			   vendor, method);
 		ret->methodState = METHOD_DONE;
 		ret->decision = DECISION_FAIL;
 		return -1;
@@ -1668,7 +1688,7 @@ static struct wpabuf * eap_fast_process(struct eap_sm *sm, void *priv,
 
 
 #if 0 /* FIX */
-static Boolean eap_fast_has_reauth_data(struct eap_sm *sm, void *priv)
+static bool eap_fast_has_reauth_data(struct eap_sm *sm, void *priv)
 {
 	struct eap_fast_data *data = priv;
 	return tls_connection_established(sm->ssl_ctx, data->ssl.conn);
@@ -1734,7 +1754,7 @@ static int eap_fast_get_status(struct eap_sm *sm, void *priv, char *buf,
 }
 
 
-static Boolean eap_fast_isKeyAvailable(struct eap_sm *sm, void *priv)
+static bool eap_fast_isKeyAvailable(struct eap_sm *sm, void *priv)
 {
 	struct eap_fast_data *data = priv;
 	return data->success;

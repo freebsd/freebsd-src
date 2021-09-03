@@ -61,6 +61,10 @@ enum l2_packet_filter_type {
  * points to len bytes of the payload after the layer 2 header and similarly,
  * TX buffers start with payload. This behavior can be changed by setting
  * l2_hdr=1 to include the layer 2 header in the data buffer.
+ *
+ * IF rx_callback is NULL, receive operation is not opened at all, i.e., only
+ * the TX path and additional helper functions for fetching MAC and IP
+ * addresses can be used.
  */
 struct l2_packet_data * l2_packet_init(
 	const char *ifname, const u8 *own_addr, unsigned short protocol,

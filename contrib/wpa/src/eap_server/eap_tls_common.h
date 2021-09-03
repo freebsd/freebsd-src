@@ -73,7 +73,7 @@ struct eap_ssl_data {
 #define EAP_WFA_UNAUTH_TLS_TYPE 254
 
 
-struct wpabuf * eap_tls_msg_alloc(EapType type, size_t payload_len,
+struct wpabuf * eap_tls_msg_alloc(enum eap_type type, size_t payload_len,
 				  u8 code, u8 identifier);
 int eap_server_tls_ssl_init(struct eap_sm *sm, struct eap_ssl_data *data,
 			    int verify_peer, int eap_type);

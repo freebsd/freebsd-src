@@ -266,7 +266,6 @@ void wpa_ctrl_close(struct wpa_ctrl *ctrl)
 void wpa_ctrl_cleanup(void)
 {
 	DIR *dir;
-	struct dirent entry;
 	struct dirent *result;
 	size_t dirnamelen;
 	size_t maxcopy;
@@ -284,8 +283,8 @@ void wpa_ctrl_cleanup(void)
 	}
 	namep = pathname + dirnamelen;
 	maxcopy = PATH_MAX - dirnamelen;
-	while (readdir_r(dir, &entry, &result) == 0 && result != NULL) {
-		if (os_strlcpy(namep, entry.d_name, maxcopy) < maxcopy)
+	while ((result = readdir(dir)) != NULL) {
+		if (os_strlcpy(namep, result->d_name, maxcopy) < maxcopy)
 			unlink(pathname);
 	}
 	closedir(dir);

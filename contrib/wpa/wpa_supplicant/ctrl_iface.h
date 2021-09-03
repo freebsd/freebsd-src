@@ -1,6 +1,6 @@
 /*
  * WPA Supplicant / UNIX domain socket -based control interface
- * Copyright (c) 2004-2005, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2004-2020, Jouni Malinen <j@w1.fi>
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -10,6 +10,10 @@
 #define CTRL_IFACE_H
 
 #ifdef CONFIG_CTRL_IFACE
+
+#ifndef CTRL_IFACE_MAX_LEN
+#define CTRL_IFACE_MAX_LEN 8192
+#endif /* CTRL_IFACE_MAX_LEN */
 
 /* Shared functions from ctrl_iface.c; to be called by ctrl_iface backends */
 
@@ -66,14 +70,17 @@ wpa_supplicant_ctrl_iface_init(struct wpa_supplicant *wpa_s);
 
 /**
  * wpa_supplicant_ctrl_iface_deinit - Deinitialize control interface
+ * @wpa_s: Pointer to wpa_supplicant data
  * @priv: Pointer to private data from wpa_supplicant_ctrl_iface_init()
  *
  * Deinitialize the control interface that was initialized with
- * wpa_supplicant_ctrl_iface_init().
+ * wpa_supplicant_ctrl_iface_init() and any data related to the wpa_s instance.
+ * @priv may be %NULL if the control interface has not yet been initialized.
  *
  * Required to be implemented in each control interface backend.
  */
-void wpa_supplicant_ctrl_iface_deinit(struct ctrl_iface_priv *priv);
+void wpa_supplicant_ctrl_iface_deinit(struct wpa_supplicant *wpa_s,
+				      struct ctrl_iface_priv *priv);
 
 /**
  * wpa_supplicant_ctrl_iface_wait - Wait for ctrl_iface monitor
@@ -124,7 +131,8 @@ wpa_supplicant_ctrl_iface_init(struct wpa_supplicant *wpa_s)
 }
 
 static inline void
-wpa_supplicant_ctrl_iface_deinit(struct ctrl_iface_priv *priv)
+wpa_supplicant_ctrl_iface_deinit(struct wpa_supplicant *wpa_s,
+				 struct ctrl_iface_priv *priv)
 {
 }
 

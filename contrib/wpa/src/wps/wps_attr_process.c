@@ -39,9 +39,10 @@ int wps_process_authenticator(struct wps_data *wps, const u8 *authenticator,
 	len[0] = wpabuf_len(wps->last_msg);
 	addr[1] = wpabuf_head(msg);
 	len[1] = wpabuf_len(msg) - 4 - WPS_AUTHENTICATOR_LEN;
-	hmac_sha256_vector(wps->authkey, WPS_AUTHKEY_LEN, 2, addr, len, hash);
 
-	if (os_memcmp_const(hash, authenticator, WPS_AUTHENTICATOR_LEN) != 0) {
+	if (hmac_sha256_vector(wps->authkey, WPS_AUTHKEY_LEN, 2, addr, len,
+			       hash) < 0 ||
+	    os_memcmp_const(hash, authenticator, WPS_AUTHENTICATOR_LEN) != 0) {
 		wpa_printf(MSG_DEBUG, "WPS: Incorrect Authenticator");
 		return -1;
 	}
@@ -70,8 +71,8 @@ int wps_process_key_wrap_auth(struct wps_data *wps, struct wpabuf *msg,
 		return -1;
 	}
 
-	hmac_sha256(wps->authkey, WPS_AUTHKEY_LEN, head, len, hash);
-	if (os_memcmp_const(hash, key_wrap_auth, WPS_KWA_LEN) != 0) {
+	if (hmac_sha256(wps->authkey, WPS_AUTHKEY_LEN, head, len, hash) < 0 ||
+	    os_memcmp_const(hash, key_wrap_auth, WPS_KWA_LEN) != 0) {
 		wpa_printf(MSG_DEBUG, "WPS: Invalid KWA");
 		return -1;
 	}

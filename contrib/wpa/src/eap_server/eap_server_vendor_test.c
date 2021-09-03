@@ -88,8 +88,8 @@ static struct wpabuf * eap_vendor_test_buildReq(struct eap_sm *sm, void *priv,
 }
 
 
-static Boolean eap_vendor_test_check(struct eap_sm *sm, void *priv,
-				     struct wpabuf *respData)
+static bool eap_vendor_test_check(struct eap_sm *sm, void *priv,
+				  struct wpabuf *respData)
 {
 	const u8 *pos;
 	size_t len;
@@ -97,10 +97,10 @@ static Boolean eap_vendor_test_check(struct eap_sm *sm, void *priv,
 	pos = eap_hdr_validate(EAP_VENDOR_ID, EAP_VENDOR_TYPE, respData, &len);
 	if (pos == NULL || len < 1) {
 		wpa_printf(MSG_INFO, "EAP-VENDOR-TEST: Invalid frame");
-		return TRUE;
+		return true;
 	}
 
-	return FALSE;
+	return false;
 }
 
 
@@ -130,7 +130,7 @@ static void eap_vendor_test_process(struct eap_sm *sm, void *priv,
 }
 
 
-static Boolean eap_vendor_test_isDone(struct eap_sm *sm, void *priv)
+static bool eap_vendor_test_isDone(struct eap_sm *sm, void *priv)
 {
 	struct eap_vendor_test_data *data = priv;
 	return data->state == SUCCESS;
@@ -158,7 +158,7 @@ static u8 * eap_vendor_test_getKey(struct eap_sm *sm, void *priv, size_t *len)
 }
 
 
-static Boolean eap_vendor_test_isSuccess(struct eap_sm *sm, void *priv)
+static bool eap_vendor_test_isSuccess(struct eap_sm *sm, void *priv)
 {
 	struct eap_vendor_test_data *data = priv;
 	return data->state == SUCCESS;

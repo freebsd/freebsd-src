@@ -9,6 +9,30 @@
 #ifndef SCAN_H
 #define SCAN_H
 
+/*
+ * Noise floor values to use when we have signal strength
+ * measurements, but no noise floor measurements. These values were
+ * measured in an office environment with many APs.
+ */
+#define DEFAULT_NOISE_FLOOR_2GHZ (-89)
+#define DEFAULT_NOISE_FLOOR_5GHZ (-92)
+#define DEFAULT_NOISE_FLOOR_6GHZ (-92)
+
+/*
+ * Channels with a great SNR can operate at full rate. What is a great SNR?
+ * This doc https://supportforums.cisco.com/docs/DOC-12954 says, "the general
+ * rule of thumb is that any SNR above 20 is good." This one
+ * http://www.cisco.com/en/US/tech/tk722/tk809/technologies_q_and_a_item09186a00805e9a96.shtml#qa23
+ * recommends 25 as a minimum SNR for 54 Mbps data rate. The estimates used in
+ * scan_est_throughput() allow even smaller SNR values for the maximum rates
+ * (21 for 54 Mbps, 22 for VHT80 MCS9, 24 for HT40 and HT20 MCS7). Use 25 as a
+ * somewhat conservative value here.
+ */
+#define GREAT_SNR 25
+
+#define IS_2P4GHZ(n) (n >= 2412 && n <= 2484)
+#define IS_5GHZ(n) (n > 4000 && n < 5895)
+
 int wpa_supplicant_enabled_networks(struct wpa_supplicant *wpa_s);
 void wpa_supplicant_req_scan(struct wpa_supplicant *wpa_s, int sec, int usec);
 int wpa_supplicant_delayed_sched_scan(struct wpa_supplicant *wpa_s,
@@ -52,12 +76,21 @@ void wpas_mac_addr_rand_scan_clear(struct wpa_supplicant *wpa_s,
 int wpas_mac_addr_rand_scan_set(struct wpa_supplicant *wpa_s,
 				unsigned int type, const u8 *addr,
 				const u8 *mask);
+int wpas_mac_addr_rand_scan_get_mask(struct wpa_supplicant *wpa_s,
+				     unsigned int type, u8 *mask);
 int wpas_abort_ongoing_scan(struct wpa_supplicant *wpa_s);
 void filter_scan_res(struct wpa_supplicant *wpa_s,
 		     struct wpa_scan_results *res);
 void scan_snr(struct wpa_scan_res *res);
 void scan_est_throughput(struct wpa_supplicant *wpa_s,
 			 struct wpa_scan_res *res);
+unsigned int wpas_get_est_tpt(const struct wpa_supplicant *wpa_s,
+			      const u8 *ies, size_t ies_len, int rate,
+			      int snr, int freq);
 void wpa_supplicant_set_default_scan_ies(struct wpa_supplicant *wpa_s);
+int wpa_add_scan_freqs_list(struct wpa_supplicant *wpa_s,
+			    enum hostapd_hw_mode band,
+			    struct wpa_driver_scan_params *params,
+			    bool is_6ghz);
 
 #endif /* SCAN_H */

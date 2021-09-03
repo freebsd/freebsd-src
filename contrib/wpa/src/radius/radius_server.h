@@ -51,142 +51,7 @@ struct radius_server_conf {
 	 */
 	void *conf_ctx;
 
-	/**
-	 * eap_sim_db_priv - EAP-SIM/AKA database context
-	 *
-	 * This is passed to the EAP-SIM/AKA server implementation as a
-	 * callback context.
-	 */
-	void *eap_sim_db_priv;
-
-	/**
-	 * ssl_ctx - TLS context
-	 *
-	 * This is passed to the EAP server implementation as a callback
-	 * context for TLS operations.
-	 */
-	void *ssl_ctx;
-
-	/**
-	 * pac_opaque_encr_key - PAC-Opaque encryption key for EAP-FAST
-	 *
-	 * This parameter is used to set a key for EAP-FAST to encrypt the
-	 * PAC-Opaque data. It can be set to %NULL if EAP-FAST is not used. If
-	 * set, must point to a 16-octet key.
-	 */
-	u8 *pac_opaque_encr_key;
-
-	/**
-	 * eap_fast_a_id - EAP-FAST authority identity (A-ID)
-	 *
-	 * If EAP-FAST is not used, this can be set to %NULL. In theory, this
-	 * is a variable length field, but due to some existing implementations
-	 * requiring A-ID to be 16 octets in length, it is recommended to use
-	 * that length for the field to provide interoperability with deployed
-	 * peer implementations.
-	 */
-	u8 *eap_fast_a_id;
-
-	/**
-	 * eap_fast_a_id_len - Length of eap_fast_a_id buffer in octets
-	 */
-	size_t eap_fast_a_id_len;
-
-	/**
-	 * eap_fast_a_id_info - EAP-FAST authority identifier information
-	 *
-	 * This A-ID-Info contains a user-friendly name for the A-ID. For
-	 * example, this could be the enterprise and server names in
-	 * human-readable format. This field is encoded as UTF-8. If EAP-FAST
-	 * is not used, this can be set to %NULL.
-	 */
-	char *eap_fast_a_id_info;
-
-	/**
-	 * eap_fast_prov - EAP-FAST provisioning modes
-	 *
-	 * 0 = provisioning disabled, 1 = only anonymous provisioning allowed,
-	 * 2 = only authenticated provisioning allowed, 3 = both provisioning
-	 * modes allowed.
-	 */
-	int eap_fast_prov;
-
-	/**
-	 * pac_key_lifetime - EAP-FAST PAC-Key lifetime in seconds
-	 *
-	 * This is the hard limit on how long a provisioned PAC-Key can be
-	 * used.
-	 */
-	int pac_key_lifetime;
-
-	/**
-	 * pac_key_refresh_time - EAP-FAST PAC-Key refresh time in seconds
-	 *
-	 * This is a soft limit on the PAC-Key. The server will automatically
-	 * generate a new PAC-Key when this number of seconds (or fewer) of the
-	 * lifetime remains.
-	 */
-	int pac_key_refresh_time;
-
-	int eap_teap_auth;
-	int eap_teap_pac_no_inner;
-
-	/**
-	 * eap_sim_aka_result_ind - EAP-SIM/AKA protected success indication
-	 *
-	 * This controls whether the protected success/failure indication
-	 * (AT_RESULT_IND) is used with EAP-SIM and EAP-AKA.
-	 */
-	int eap_sim_aka_result_ind;
-
-	int eap_sim_id;
-
-	/**
-	 * tnc - Trusted Network Connect (TNC)
-	 *
-	 * This controls whether TNC is enabled and will be required before the
-	 * peer is allowed to connect. Note: This is only used with EAP-TTLS
-	 * and EAP-FAST. If any other EAP method is enabled, the peer will be
-	 * allowed to connect without TNC.
-	 */
-	int tnc;
-
-	/**
-	 * pwd_group - EAP-pwd D-H group
-	 *
-	 * This is used to select which D-H group to use with EAP-pwd.
-	 */
-	u16 pwd_group;
-
-	/**
-	 * server_id - Server identity
-	 */
-	const char *server_id;
-
-	/**
-	 * erp - Whether EAP Re-authentication Protocol (ERP) is enabled
-	 *
-	 * This controls whether the authentication server derives ERP key
-	 * hierarchy (rRK and rIK) from full EAP authentication and allows
-	 * these keys to be used to perform ERP to derive rMSK instead of full
-	 * EAP authentication to derive MSK.
-	 */
-	int erp;
-
 	const char *erp_domain;
-
-	unsigned int tls_session_lifetime;
-
-	unsigned int tls_flags;
-
-	/**
-	 * wps - Wi-Fi Protected Setup context
-	 *
-	 * If WPS is used with an external RADIUS server (which is quite
-	 * unlikely configuration), this is used to provide a pointer to WPS
-	 * context data. Normally, this can be set to %NULL.
-	 */
-	struct wps_context *wps;
 
 	/**
 	 * ipv6 - Whether to enable IPv6 support in the RADIUS server
@@ -227,11 +92,6 @@ struct radius_server_conf {
 	 */
 	size_t eap_req_id_text_len;
 
-	/*
-	 * msg_ctx - Context data for wpa_msg() calls
-	 */
-	void *msg_ctx;
-
 #ifdef CONFIG_RADIUS_TEST
 	const char *dump_msk_file;
 #endif /* CONFIG_RADIUS_TEST */
@@ -241,6 +101,8 @@ struct radius_server_conf {
 	char *hs20_sim_provisioning_url;
 
 	char *t_c_server_url;
+
+	struct eap_config *eap_cfg;
 };
 
 

@@ -137,7 +137,7 @@ static void * eap_peap_init(struct eap_sm *sm)
 	data = os_zalloc(sizeof(*data));
 	if (data == NULL)
 		return NULL;
-	sm->peap_done = FALSE;
+	sm->peap_done = false;
 	data->peap_version = EAP_PEAP_VERSION;
 	data->force_peap_version = -1;
 	data->peap_outer_success = 2;
@@ -148,7 +148,7 @@ static void * eap_peap_init(struct eap_sm *sm)
 
 	if (eap_peer_select_phase2_methods(config, "auth=",
 					   &data->phase2_types,
-					   &data->num_phase2_types) < 0) {
+					   &data->num_phase2_types, 0) < 0) {
 		eap_peap_deinit(sm, data);
 		return NULL;
 	}
@@ -603,6 +603,8 @@ static int eap_peap_phase2_request(struct eap_sm *sm,
 	u8 *pos;
 	struct eap_method_ret iret;
 	struct eap_peer_config *config = eap_get_config(sm);
+	int vendor;
+	enum eap_type method;
 
 	if (len <= sizeof(struct eap_hdr)) {
 		wpa_printf(MSG_INFO, "EAP-PEAP: too short "
@@ -666,13 +668,26 @@ static int eap_peap_phase2_request(struct eap_sm *sm,
 #endif /* EAP_TNC */
 		/* fall through */
 	default:
+		vendor = EAP_VENDOR_IETF;
+		method = *pos;
+
+		if (method == EAP_TYPE_EXPANDED) {
+			if (len < sizeof(struct eap_hdr) + 8) {
+				wpa_printf(MSG_INFO,
+					   "EAP-PEAP: Too short Phase 2 request (expanded header) (len=%lu)",
+					   (unsigned long) len);
+				return -1;
+			}
+			vendor = WPA_GET_BE24(pos + 1);
+			method = WPA_GET_BE32(pos + 4);
+		}
+
 		if (data->phase2_type.vendor == EAP_VENDOR_IETF &&
 		    data->phase2_type.method == EAP_TYPE_NONE) {
 			size_t i;
 			for (i = 0; i < data->num_phase2_types; i++) {
-				if (data->phase2_types[i].vendor !=
-				    EAP_VENDOR_IETF ||
-				    data->phase2_types[i].method != *pos)
+				if (data->phase2_types[i].vendor != vendor ||
+				    data->phase2_types[i].method != method)
 					continue;
 
 				data->phase2_type.vendor =
@@ -686,8 +701,9 @@ static int eap_peap_phase2_request(struct eap_sm *sm,
 				break;
 			}
 		}
-		if (*pos != data->phase2_type.method ||
-		    *pos == EAP_TYPE_NONE) {
+		if (vendor != data->phase2_type.vendor ||
+		    method != data->phase2_type.method ||
+		    (vendor == EAP_VENDOR_IETF && method == EAP_TYPE_NONE)) {
 			if (eap_peer_tls_phase2_nak(data->phase2_types,
 						    data->num_phase2_types,
 						    hdr, resp))
@@ -787,6 +803,10 @@ static int eap_peap_decrypt(struct eap_sm *sm, struct eap_peap_data *data,
 	res = eap_peer_tls_decrypt(sm, &data->ssl, in_data, &in_decrypted);
 	if (res)
 		return res;
+	if (wpabuf_len(in_decrypted) == 0) {
+		wpabuf_free(in_decrypted);
+		return 1;
+	}
 
 continue_req:
 	wpa_hexdump_buf(MSG_DEBUG, "EAP-PEAP: Decrypted Phase 2 EAP",
@@ -904,7 +924,7 @@ continue_req:
 				/* No EAP-Success expected for Phase 1 (outer,
 				 * unencrypted auth), so force EAP state
 				 * machine to SUCCESS state. */
-				sm->peap_done = TRUE;
+				sm->peap_done = true;
 			}
 		} else {
 			/* FIX: ? */
@@ -914,7 +934,7 @@ continue_req:
 		wpa_printf(MSG_DEBUG, "EAP-PEAP: Phase 2 Failure");
 		ret->decision = DECISION_FAIL;
 		ret->methodState = METHOD_MAY_CONT;
-		ret->allowNotifications = FALSE;
+		ret->allowNotifications = false;
 		/* Reply with EAP-Failure within the TLS channel to complete
 		 * failure reporting. */
 		resp = wpabuf_alloc(sizeof(struct eap_hdr));
@@ -998,7 +1018,7 @@ static struct wpabuf * eap_peap_process(struct eap_sm *sm, void *priv,
 				   data->force_peap_version);
 			ret->methodState = METHOD_DONE;
 			ret->decision = DECISION_FAIL;
-			ret->allowNotifications = FALSE;
+			ret->allowNotifications = false;
 			return NULL;
 		}
 		wpa_printf(MSG_DEBUG, "EAP-PEAP: Using PEAP version %d",
@@ -1065,7 +1085,11 @@ static struct wpabuf * eap_peap_process(struct eap_sm *sm, void *priv,
 		}
 
 		if (tls_connection_established(sm->ssl_ctx, data->ssl.conn)) {
-			char *label;
+			const char *label;
+			const u8 eap_tls13_context[1] = { EAP_TYPE_PEAP };
+			const u8 *context = NULL;
+			size_t context_len = 0;
+
 			wpa_printf(MSG_DEBUG,
 				   "EAP-PEAP: TLS done, proceed to Phase 2");
 			eap_peap_free_key(data);
@@ -1075,16 +1099,25 @@ static struct wpabuf * eap_peap_process(struct eap_sm *sm, void *priv,
 			 * PEAPv1 implementations seem to be using the old
 			 * label, "client EAP encryption", instead. Use the old
 			 * label by default, but allow it to be configured with
-			 * phase1 parameter peaplabel=1. */
-			if (data->force_new_label)
+			 * phase1 parameter peaplabel=1.
+			 *
+			 * When using TLS 1.3, draft-ietf-emu-tls-eap-types
+			 * defines a new set of label and context parameters.
+			 */
+			if (data->ssl.tls_v13) {
+				label = "EXPORTER_EAP_TLS_Key_Material";
+				context = eap_tls13_context;
+				context_len = sizeof(eap_tls13_context);
+			} else if (data->force_new_label) {
 				label = "client PEAP encryption";
-			else
+			} else {
 				label = "client EAP encryption";
+			}
 			wpa_printf(MSG_DEBUG, "EAP-PEAP: using label '%s' in "
 				   "key derivation", label);
 			data->key_data =
 				eap_peer_tls_derive_key(sm, &data->ssl, label,
-							NULL, 0,
+							context, context_len,
 							EAP_TLS_KEY_LEN +
 							EAP_EMSK_LEN);
 			if (data->key_data) {
@@ -1150,7 +1183,7 @@ static struct wpabuf * eap_peap_process(struct eap_sm *sm, void *priv,
 	}
 
 	if (ret->methodState == METHOD_DONE) {
-		ret->allowNotifications = FALSE;
+		ret->allowNotifications = false;
 	}
 
 	if (res == 1) {
@@ -1163,7 +1196,7 @@ static struct wpabuf * eap_peap_process(struct eap_sm *sm, void *priv,
 }
 
 
-static Boolean eap_peap_has_reauth_data(struct eap_sm *sm, void *priv)
+static bool eap_peap_has_reauth_data(struct eap_sm *sm, void *priv)
 {
 	struct eap_peap_data *data = priv;
 	return tls_connection_established(sm->ssl_ctx, data->ssl.conn) &&
@@ -1204,7 +1237,7 @@ static void * eap_peap_init_for_reauth(struct eap_sm *sm, void *priv)
 	data->phase2_eap_started = 0;
 	data->resuming = 1;
 	data->reauth = 1;
-	sm->peap_done = FALSE;
+	sm->peap_done = false;
 	return priv;
 }
 
@@ -1229,7 +1262,7 @@ static int eap_peap_get_status(struct eap_sm *sm, void *priv, char *buf,
 }
 
 
-static Boolean eap_peap_isKeyAvailable(struct eap_sm *sm, void *priv)
+static bool eap_peap_isKeyAvailable(struct eap_sm *sm, void *priv)
 {
 	struct eap_peap_data *data = priv;
 	return data->key_data != NULL && data->phase2_success;

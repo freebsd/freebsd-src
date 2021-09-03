@@ -56,6 +56,9 @@ In general, the best way of generating a suitable formatted patch file
 is by committing the changes to a cloned git repository and using git
 format-patch. The patch can then be sent, e.g., with git send-email.
 
+A list of pending patches waiting for review is available in
+Patchwork: https://patchwork.ozlabs.org/project/hostap/list/
+
 
 History of license and contributions terms
 ------------------------------------------
@@ -140,7 +143,7 @@ The license terms used for hostap.git files
 
 Modified BSD license (no advertisement clause):
 
-Copyright (c) 2002-2019, Jouni Malinen <j@w1.fi> and contributors
+Copyright (c) 2002-2021, Jouni Malinen <j@w1.fi> and contributors
 All Rights Reserved.
 
 Redistribution and use in source and binary forms, with or without

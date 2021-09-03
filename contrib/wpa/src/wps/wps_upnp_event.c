@@ -96,8 +96,8 @@ static struct wps_event_ *event_dequeue(struct subscription *s)
 }
 
 
-/* event_delete_all -- delete entire event queue and current event */
-void event_delete_all(struct subscription *s)
+/* wps_upnp_event_delete_all -- delete entire event queue and current event */
+void wps_upnp_event_delete_all(struct subscription *s)
 {
 	struct wps_event_ *e;
 	while ((e = event_dequeue(s)) != NULL)
@@ -134,11 +134,11 @@ static void event_retry(struct wps_event_ *e, int do_next_address)
 		event_delete(e);
 		s->last_event_failed = 1;
 		if (!dl_list_empty(&s->event_queue))
-			event_send_all_later(s->sm);
+			wps_upnp_event_send_all_later(s->sm);
 		return;
 	}
 	dl_list_add(&s->event_queue, &e->list);
-	event_send_all_later(sm);
+	wps_upnp_event_send_all_later(sm);
 }
 
 
@@ -229,7 +229,7 @@ static void event_http_cb(void *ctx, struct http_client *c,
 
 		/* Schedule sending more if there is more to send */
 		if (!dl_list_empty(&s->event_queue))
-			event_send_all_later(s->sm);
+			wps_upnp_event_send_all_later(s->sm);
 		break;
 	case HTTP_CLIENT_FAILED:
 		wpa_printf(MSG_DEBUG, "WPS UPnP: Event send failure");
@@ -329,19 +329,19 @@ static void event_send_all_later_handler(void *eloop_data, void *user_ctx)
 
 	if (nerrors) {
 		/* Try again later */
-		event_send_all_later(sm);
+		wps_upnp_event_send_all_later(sm);
 	}
 }
 
 
-/* event_send_all_later -- schedule sending events to all subscribers
+/* wps_upnp_event_send_all_later -- schedule sending events to all subscribers
  * that need it.
  * This avoids two problems:
  * -- After getting a subscription, we should not send the first event
  *      until after our reply is fully queued to be sent back,
  * -- Possible stack depth or infinite recursion issues.
  */
-void event_send_all_later(struct upnp_wps_device_sm *sm)
+void wps_upnp_event_send_all_later(struct upnp_wps_device_sm *sm)
 {
 	/*
 	 * The exact time in the future isn't too important. Waiting a bit
@@ -355,8 +355,8 @@ void event_send_all_later(struct upnp_wps_device_sm *sm)
 }
 
 
-/* event_send_stop_all -- cleanup */
-void event_send_stop_all(struct upnp_wps_device_sm *sm)
+/* wps_upnp_event_send_stop_all -- cleanup */
+void wps_upnp_event_send_stop_all(struct upnp_wps_device_sm *sm)
 {
 	if (sm->event_send_all_queued)
 		eloop_cancel_timeout(event_send_all_later_handler, NULL, sm);
@@ -365,13 +365,14 @@ void event_send_stop_all(struct upnp_wps_device_sm *sm)
 
 
 /**
- * event_add - Add a new event to a queue
+ * wps_upnp_event_add - Add a new event to a queue
  * @s: Subscription
  * @data: Event data (is copied; caller retains ownership)
  * @probereq: Whether this is a Probe Request event
  * Returns: 0 on success, -1 on error, 1 on max event queue limit reached
  */
-int event_add(struct subscription *s, const struct wpabuf *data, int probereq)
+int wps_upnp_event_add(struct subscription *s, const struct wpabuf *data,
+		       int probereq)
 {
 	struct wps_event_ *e;
 	unsigned int len;
@@ -417,6 +418,6 @@ int event_add(struct subscription *s, const struct wpabuf *data, int probereq)
 	wpa_printf(MSG_DEBUG, "WPS UPnP: Queue event %p for subscriber %p "
 		   "(queue len %u)", e, s, len + 1);
 	dl_list_add_tail(&s->event_queue, &e->list);
-	event_send_all_later(s->sm);
+	wps_upnp_event_send_all_later(s->sm);
 	return 0;
 }

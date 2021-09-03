@@ -35,6 +35,7 @@ struct eap_teap_data {
 	void *phase2_priv;
 	int phase2_success;
 	int inner_method_done;
+	int iresult_verified;
 	int result_success_done;
 	int on_tx_completion;
 
@@ -168,7 +169,7 @@ static void * eap_teap_init(struct eap_sm *sm)
 		eap_teap_parse_phase1(data, config->phase1);
 
 	if ((data->provisioning_allowed & EAP_TEAP_PROV_AUTH) &&
-	    !config->ca_cert && !config->ca_path) {
+	    !config->cert.ca_cert && !config->cert.ca_path) {
 		/* Prevent PAC provisioning without mutual authentication
 		 * (either by validating server certificate or by suitable
 		 * inner EAP method). */
@@ -179,7 +180,7 @@ static void * eap_teap_init(struct eap_sm *sm)
 
 	if (eap_peer_select_phase2_methods(config, "auth=",
 					   &data->phase2_types,
-					   &data->num_phase2_types) < 0) {
+					   &data->num_phase2_types, 0) < 0) {
 		eap_teap_deinit(sm, data);
 		return NULL;
 	}
@@ -277,8 +278,10 @@ static int eap_teap_derive_msk(struct eap_teap_data *data)
 {
 	/* FIX: RFC 7170 does not describe whether MSK or EMSK based S-IMCK[j]
 	 * is used in this derivation */
-	if (eap_teap_derive_eap_msk(data->simck_msk, data->key_data) < 0 ||
-	    eap_teap_derive_eap_emsk(data->simck_msk, data->emsk) < 0)
+	if (eap_teap_derive_eap_msk(data->tls_cs, data->simck_msk,
+				    data->key_data) < 0 ||
+	    eap_teap_derive_eap_emsk(data->tls_cs, data->simck_msk,
+				     data->emsk) < 0)
 		return -1;
 	data->success = 1;
 	return 0;
@@ -309,6 +312,7 @@ static int eap_teap_init_phase2_method(struct eap_sm *sm,
 				       struct eap_teap_data *data)
 {
 	data->inner_method_done = 0;
+	data->iresult_verified = 0;
 	data->phase2_method =
 		eap_peer_get_eap_method(data->phase2_type.vendor,
 					data->phase2_type.method);
@@ -323,7 +327,8 @@ static int eap_teap_init_phase2_method(struct eap_sm *sm,
 }
 
 
-static int eap_teap_select_phase2_method(struct eap_teap_data *data, u8 type)
+static int eap_teap_select_phase2_method(struct eap_teap_data *data,
+					 int vendor, enum eap_type type)
 {
 	size_t i;
 
@@ -331,15 +336,15 @@ static int eap_teap_select_phase2_method(struct eap_teap_data *data, u8 type)
 	 * completed inner EAP authentication (EAP-pwd or EAP-EKE) and TNC */
 
 	if (data->anon_provisioning &&
-	    !eap_teap_allowed_anon_prov_phase2_method(type)) {
+	    !eap_teap_allowed_anon_prov_phase2_method(vendor, type)) {
 		wpa_printf(MSG_INFO,
-			   "EAP-TEAP: EAP type %u not allowed during unauthenticated provisioning",
-			   type);
+			   "EAP-TEAP: EAP type %u:%u not allowed during unauthenticated provisioning",
+			   vendor, type);
 		return -1;
 	}
 
 #ifdef EAP_TNC
-	if (type == EAP_TYPE_TNC) {
+	if (vendor == EAP_VENDOR_IETF && type == EAP_TYPE_TNC) {
 		data->phase2_type.vendor = EAP_VENDOR_IETF;
 		data->phase2_type.method = EAP_TYPE_TNC;
 		wpa_printf(MSG_DEBUG,
@@ -351,7 +356,7 @@ static int eap_teap_select_phase2_method(struct eap_teap_data *data, u8 type)
 #endif /* EAP_TNC */
 
 	for (i = 0; i < data->num_phase2_types; i++) {
-		if (data->phase2_types[i].vendor != EAP_VENDOR_IETF ||
+		if (data->phase2_types[i].vendor != vendor ||
 		    data->phase2_types[i].method != type)
 			continue;
 
@@ -364,10 +369,28 @@ static int eap_teap_select_phase2_method(struct eap_teap_data *data, u8 type)
 		break;
 	}
 
-	if (type != data->phase2_type.method || type == EAP_TYPE_NONE)
+	if (vendor != data->phase2_type.vendor ||
+	    type != data->phase2_type.method ||
+	    (vendor == EAP_VENDOR_IETF && type == EAP_TYPE_NONE))
 		return -1;
 
 	return 0;
+}
+
+
+static void eap_teap_deinit_inner_eap(struct eap_sm *sm,
+				      struct eap_teap_data *data)
+{
+	if (!data->phase2_priv || !data->phase2_method)
+		return;
+
+	wpa_printf(MSG_DEBUG,
+		   "EAP-TEAP: Phase 2 EAP sequence - deinitialize previous method");
+	data->phase2_method->deinit(sm, data->phase2_priv);
+	data->phase2_method = NULL;
+	data->phase2_priv = NULL;
+	data->phase2_type.vendor = EAP_VENDOR_IETF;
+	data->phase2_type.method = EAP_TYPE_NONE;
 }
 
 
@@ -382,6 +405,8 @@ static int eap_teap_phase2_request(struct eap_sm *sm,
 	struct eap_method_ret iret;
 	struct eap_peer_config *config = eap_get_config(sm);
 	struct wpabuf msg;
+	int vendor = EAP_VENDOR_IETF;
+	enum eap_type method;
 
 	if (len <= sizeof(struct eap_hdr)) {
 		wpa_printf(MSG_INFO,
@@ -390,26 +415,33 @@ static int eap_teap_phase2_request(struct eap_sm *sm,
 		return -1;
 	}
 	pos = (u8 *) (hdr + 1);
-	wpa_printf(MSG_DEBUG, "EAP-TEAP: Phase 2 Request: type=%d", *pos);
-	if (*pos == EAP_TYPE_IDENTITY) {
+	method = *pos;
+	if (method == EAP_TYPE_EXPANDED) {
+		if (len < sizeof(struct eap_hdr) + 8) {
+			wpa_printf(MSG_INFO,
+				   "EAP-TEAP: Too short Phase 2 request (expanded header) (len=%lu)",
+				   (unsigned long) len);
+			return -1;
+		}
+		vendor = WPA_GET_BE24(pos + 1);
+		method = WPA_GET_BE32(pos + 4);
+	}
+	wpa_printf(MSG_DEBUG, "EAP-TEAP: Phase 2 Request: type=%u:%u",
+		   vendor, method);
+	if (vendor == EAP_VENDOR_IETF && method == EAP_TYPE_IDENTITY) {
+		eap_teap_deinit_inner_eap(sm, data);
 		*resp = eap_sm_buildIdentity(sm, hdr->identifier, 1);
 		return 0;
 	}
 
 	if (data->phase2_priv && data->phase2_method &&
-	    *pos != data->phase2_type.method) {
-		wpa_printf(MSG_DEBUG,
-			   "EAP-TEAP: Phase 2 EAP sequence - deinitialize previous method");
-		data->phase2_method->deinit(sm, data->phase2_priv);
-		data->phase2_method = NULL;
-		data->phase2_priv = NULL;
-		data->phase2_type.vendor = EAP_VENDOR_IETF;
-		data->phase2_type.method = EAP_TYPE_NONE;
-	}
+	    (vendor != data->phase2_type.vendor ||
+	     method != data->phase2_type.method))
+		eap_teap_deinit_inner_eap(sm, data);
 
 	if (data->phase2_type.vendor == EAP_VENDOR_IETF &&
 	    data->phase2_type.method == EAP_TYPE_NONE &&
-	    eap_teap_select_phase2_method(data, *pos) < 0) {
+	    eap_teap_select_phase2_method(data, vendor, method) < 0) {
 		if (eap_peer_tls_phase2_nak(data->phase2_types,
 					    data->num_phase2_types,
 					    hdr, resp))
@@ -420,8 +452,8 @@ static int eap_teap_phase2_request(struct eap_sm *sm,
 	if ((!data->phase2_priv && eap_teap_init_phase2_method(sm, data) < 0) ||
 	    !data->phase2_method) {
 		wpa_printf(MSG_INFO,
-			   "EAP-TEAP: Failed to initialize Phase 2 EAP method %d",
-			   *pos);
+			   "EAP-TEAP: Failed to initialize Phase 2 EAP method %u:%u",
+			   vendor, method);
 		ret->methodState = METHOD_DONE;
 		ret->decision = DECISION_FAIL;
 		return -1;
@@ -436,7 +468,8 @@ static int eap_teap_phase2_request(struct eap_sm *sm,
 	if (!(*resp) ||
 	    (iret.methodState == METHOD_DONE &&
 	     iret.decision == DECISION_FAIL)) {
-		ret->methodState = METHOD_DONE;
+		/* Wait for protected indication of failure */
+		ret->methodState = METHOD_MAY_CONT;
 		ret->decision = DECISION_FAIL;
 	} else if ((iret.methodState == METHOD_DONE ||
 		    iret.methodState == METHOD_MAY_CONT) &&
@@ -500,10 +533,23 @@ static struct wpabuf * eap_teap_tlv_pac_ack(void)
 }
 
 
+static struct wpabuf * eap_teap_add_identity_type(struct eap_sm *sm,
+						  struct wpabuf *msg)
+{
+	struct wpabuf *tlv;
+
+	tlv = eap_teap_tlv_identity_type(sm->use_machine_cred ?
+					 TEAP_IDENTITY_TYPE_MACHINE :
+					 TEAP_IDENTITY_TYPE_USER);
+	return wpabuf_concat(msg, tlv);
+}
+
+
 static struct wpabuf * eap_teap_process_eap_payload_tlv(
 	struct eap_sm *sm, struct eap_teap_data *data,
 	struct eap_method_ret *ret,
-	u8 *eap_payload_tlv, size_t eap_payload_tlv_len)
+	u8 *eap_payload_tlv, size_t eap_payload_tlv_len,
+	enum teap_identity_types req_id_type)
 {
 	struct eap_hdr *hdr;
 	struct wpabuf *resp = NULL;
@@ -535,13 +581,18 @@ static struct wpabuf * eap_teap_process_eap_payload_tlv(
 		return NULL;
 	}
 
-	return eap_teap_tlv_eap_payload(resp);
+	resp = eap_teap_tlv_eap_payload(resp);
+	if (req_id_type)
+		resp = eap_teap_add_identity_type(sm, resp);
+
+	return resp;
 }
 
 
 static struct wpabuf * eap_teap_process_basic_auth_req(
 	struct eap_sm *sm, struct eap_teap_data *data,
-	u8 *basic_auth_req, size_t basic_auth_req_len)
+	u8 *basic_auth_req, size_t basic_auth_req_len,
+	enum teap_identity_types req_id_type)
 {
 	const u8 *identity, *password;
 	size_t identity_len, password_len, plen;
@@ -571,6 +622,8 @@ static struct wpabuf * eap_teap_process_basic_auth_req(
 	wpabuf_put_data(resp, password, password_len);
 	wpa_hexdump_buf_key(MSG_DEBUG, "EAP-TEAP: Basic-Password-Auth-Resp",
 			    resp);
+	if (req_id_type)
+		resp = eap_teap_add_identity_type(sm, resp);
 
 	/* Assume this succeeds so that Result TLV(Success) from the server can
 	 * be used to terminate TEAP. */
@@ -680,7 +733,8 @@ static int eap_teap_get_cmk(struct eap_sm *sm, struct eap_teap_data *data,
 		   data->simck_idx + 1);
 
 	if (!data->phase2_method)
-		return eap_teap_derive_cmk_basic_pw_auth(data->simck_msk,
+		return eap_teap_derive_cmk_basic_pw_auth(data->tls_cs,
+							 data->simck_msk,
 							 cmk_msk);
 
 	if (!data->phase2_method || !data->phase2_priv) {
@@ -712,7 +766,8 @@ static int eap_teap_get_cmk(struct eap_sm *sm, struct eap_teap_data *data,
 						     &emsk_len);
 	}
 
-	res = eap_teap_derive_imck(data->simck_msk, data->simck_emsk,
+	res = eap_teap_derive_imck(data->tls_cs,
+				   data->simck_msk, data->simck_emsk,
 				   msk, msk_len, emsk, emsk_len,
 				   data->simck_msk, cmk_msk,
 				   data->simck_emsk, cmk_emsk);
@@ -1189,6 +1244,7 @@ static int eap_teap_process_decrypted(struct eap_sm *sm,
 	struct eap_teap_tlv_parse tlv;
 	int failed = 0;
 	enum teap_error_codes error = 0;
+	int iresult_added = 0;
 
 	if (eap_teap_parse_decrypted(decrypted, &tlv, &resp) < 0) {
 		/* Parsing failed - no response available */
@@ -1212,14 +1268,21 @@ static int eap_teap_process_decrypted(struct eap_sm *sm,
 		goto send_resp;
 	}
 
-	if ((tlv.iresult == TEAP_STATUS_SUCCESS ||
-	     (!data->result_success_done &&
-	      tlv.result == TEAP_STATUS_SUCCESS)) &&
-	    !tlv.crypto_binding) {
-		/* Result TLV or Intermediate-Result TLV indicating success,
-		 * but no Crypto-Binding TLV */
+	if (tlv.iresult == TEAP_STATUS_SUCCESS && !tlv.crypto_binding) {
+		/* Intermediate-Result TLV indicating success, but no
+		 * Crypto-Binding TLV */
 		wpa_printf(MSG_DEBUG,
-			   "EAP-TEAP: Result TLV or Intermediate-Result TLV indicating success, but no Crypto-Binding TLV");
+			   "EAP-TEAP: Intermediate-Result TLV indicating success, but no Crypto-Binding TLV");
+		failed = 1;
+		error = TEAP_ERROR_TUNNEL_COMPROMISE_ERROR;
+		goto done;
+	}
+
+	if (!data->iresult_verified && !data->result_success_done &&
+	    tlv.result == TEAP_STATUS_SUCCESS && !tlv.crypto_binding) {
+		/* Result TLV indicating success, but no Crypto-Binding TLV */
+		wpa_printf(MSG_DEBUG,
+			   "EAP-TEAP: Result TLV indicating success, but no Crypto-Binding TLV");
 		failed = 1;
 		error = TEAP_ERROR_TUNNEL_COMPROMISE_ERROR;
 		goto done;
@@ -1235,17 +1298,45 @@ static int eap_teap_process_decrypted(struct eap_sm *sm,
 		goto done;
 	}
 
+	if (tlv.identity_type == TEAP_IDENTITY_TYPE_MACHINE) {
+		struct eap_peer_config *config = eap_get_config(sm);
+
+		sm->use_machine_cred = config && config->machine_identity &&
+			config->machine_identity_len;
+	} else if (tlv.identity_type) {
+		sm->use_machine_cred = 0;
+	}
+	if (tlv.identity_type) {
+		struct eap_peer_config *config = eap_get_config(sm);
+
+		os_free(data->phase2_types);
+		data->phase2_types = NULL;
+		data->num_phase2_types = 0;
+		if (config &&
+		    eap_peer_select_phase2_methods(config, "auth=",
+						   &data->phase2_types,
+						   &data->num_phase2_types,
+						   sm->use_machine_cred) < 0) {
+			wpa_printf(MSG_INFO,
+				   "EAP-TEAP: Failed to update Phase 2 EAP types");
+			failed = 1;
+			goto done;
+		}
+	}
+
 	if (tlv.basic_auth_req) {
 		tmp = eap_teap_process_basic_auth_req(sm, data,
 						      tlv.basic_auth_req,
-						      tlv.basic_auth_req_len);
+						      tlv.basic_auth_req_len,
+						      tlv.identity_type);
 		if (!tmp)
 			failed = 1;
 		resp = wpabuf_concat(resp, tmp);
 	} else if (tlv.eap_payload_tlv) {
 		tmp = eap_teap_process_eap_payload_tlv(sm, data, ret,
 						       tlv.eap_payload_tlv,
-						       tlv.eap_payload_tlv_len);
+						       tlv.eap_payload_tlv_len,
+						       tlv.identity_type);
 		if (!tmp)
 			failed = 1;
 		resp = wpabuf_concat(resp, tmp);
@@ -1258,6 +1349,7 @@ static int eap_teap_process_decrypted(struct eap_sm *sm,
 			resp = wpabuf_concat(resp, tmp);
 			if (tlv.iresult == TEAP_STATUS_FAILURE)
 				failed = 1;
+			iresult_added = 1;
 		}
 	}
 
@@ -1281,8 +1373,10 @@ static int eap_teap_process_decrypted(struct eap_sm *sm,
 			resp = wpabuf_concat(resp, tmp);
 			if (tlv.result == TEAP_STATUS_SUCCESS && !failed)
 				data->result_success_done = 1;
-			if (tlv.iresult == TEAP_STATUS_SUCCESS && !failed)
+			if (tlv.iresult == TEAP_STATUS_SUCCESS && !failed) {
 				data->inner_method_done = 0;
+				data->iresult_verified = 1;
+			}
 		}
 	}
 
@@ -1292,6 +1386,15 @@ static int eap_teap_process_decrypted(struct eap_sm *sm,
 		 * through inner authentication. */
 		wpa_printf(MSG_DEBUG,
 			   "EAP-TEAP: PAC used - server may decide to skip inner authentication");
+		ret->methodState = METHOD_MAY_CONT;
+		ret->decision = DECISION_COND_SUCC;
+	} else if (data->result_success_done &&
+		   tls_connection_get_own_cert_used(data->ssl.conn) &&
+		   eap_teap_derive_msk(data) == 0) {
+		/* Assume the server might accept authentication without going
+		 * through inner authentication. */
+		wpa_printf(MSG_DEBUG,
+			   "EAP-TEAP: Client certificate used - server may decide to skip inner authentication");
 		ret->methodState = METHOD_MAY_CONT;
 		ret->decision = DECISION_COND_SUCC;
 	}
@@ -1316,6 +1419,7 @@ static int eap_teap_process_decrypted(struct eap_sm *sm,
 	      data->phase2_method->vendor == 0 &&
 	      eap_teap_allowed_anon_prov_cipher_suite(data->tls_cs) &&
 	      eap_teap_allowed_anon_prov_phase2_method(
+		      data->phase2_method->vendor,
 		      data->phase2_method->method))) &&
 	    (tlv.iresult == TEAP_STATUS_SUCCESS ||
 	     tlv.result == TEAP_STATUS_SUCCESS)) {
@@ -1344,9 +1448,17 @@ done:
 		tmp = eap_teap_tlv_result(TEAP_STATUS_SUCCESS, 0);
 		resp = wpabuf_concat(tmp, resp);
 	}
+	if ((tlv.iresult == TEAP_STATUS_SUCCESS ||
+	     tlv.iresult == TEAP_STATUS_FAILURE) && !iresult_added) {
+		tmp = eap_teap_tlv_result((!failed && data->phase2_success) ?
+					  TEAP_STATUS_SUCCESS :
+					  TEAP_STATUS_FAILURE, 1);
+		resp = wpabuf_concat(tmp, resp);
+	}
 
 	if (resp && tlv.result == TEAP_STATUS_SUCCESS && !failed &&
-	    tlv.crypto_binding && data->phase2_success) {
+	    (tlv.crypto_binding || data->iresult_verified) &&
+	    data->phase2_success) {
 		/* Successfully completed Phase 2 */
 		wpa_printf(MSG_DEBUG,
 			   "EAP-TEAP: Authentication completed successfully");
@@ -1882,7 +1994,7 @@ static struct wpabuf * eap_teap_process(struct eap_sm *sm, void *priv,
 
 
 #if 0 /* TODO */
-static Boolean eap_teap_has_reauth_data(struct eap_sm *sm, void *priv)
+static bool eap_teap_has_reauth_data(struct eap_sm *sm, void *priv)
 {
 	struct eap_teap_data *data = priv;
 
@@ -1915,6 +2027,7 @@ static void * eap_teap_init_for_reauth(struct eap_sm *sm, void *priv)
 	data->phase2_success = 0;
 	data->inner_method_done = 0;
 	data->result_success_done = 0;
+	data->iresult_verified = 0;
 	data->done_on_tx_completion = 0;
 	data->resuming = 1;
 	data->provisioning = 0;
@@ -1944,7 +2057,7 @@ static int eap_teap_get_status(struct eap_sm *sm, void *priv, char *buf,
 }
 
 
-static Boolean eap_teap_isKeyAvailable(struct eap_sm *sm, void *priv)
+static bool eap_teap_isKeyAvailable(struct eap_sm *sm, void *priv)
 {
 	struct eap_teap_data *data = priv;
 

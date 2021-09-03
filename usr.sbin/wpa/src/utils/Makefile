@@ -11,7 +11,9 @@ INTERNALLIB=
 
 SRCS=	base64.c \
 	bitfield.c \
+	crc32.c \
 	common.c \
+	config.c \
 	edit.c \
 	eloop.c \
 	ip_addr.c \

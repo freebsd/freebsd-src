@@ -40,6 +40,14 @@ static int wpas_dbus_validate_dbus_ipaddr(struct wpa_dbus_dict_entry entry)
 }
 
 
+static dbus_bool_t no_p2p_mgmt_interface(DBusError *error)
+{
+	dbus_set_error_const(error, WPAS_DBUS_ERROR_IFACE_UNKNOWN,
+			     "Could not find P2P mgmt interface");
+	return FALSE;
+}
+
+
 /**
  * Parses out the mac address from the peer object path.
  * @peer_path - object path of the form
@@ -75,6 +83,22 @@ wpas_dbus_error_persistent_group_unknown(DBusMessage *message)
 	return dbus_message_new_error(
 		message, WPAS_DBUS_ERROR_NETWORK_UNKNOWN,
 		"There is no such persistent group in this P2P device.");
+}
+
+
+/**
+ * wpas_dbus_error_no_p2p_mgmt_iface - Return a new InterfaceUnknown error
+ * message
+ * @message: Pointer to incoming dbus message this error refers to
+ * Returns: a dbus error message
+ *
+ * Convenience function to create and return an unknown interface error.
+ */
+static DBusMessage * wpas_dbus_error_no_p2p_mgmt_iface(DBusMessage *message)
+{
+	wpa_printf(MSG_DEBUG, "dbus: Could not find P2P mgmt interface");
+	return dbus_message_new_error(message, WPAS_DBUS_ERROR_IFACE_UNKNOWN,
+				      "Could not find P2P mgmt interface");
 }
 
 
@@ -145,9 +169,13 @@ DBusMessage * wpas_dbus_handler_p2p_find(DBusMessage *message,
 	}
 
 	wpa_s = wpa_s->global->p2p_init_wpa_s;
+	if (!wpa_s) {
+		reply = wpas_dbus_error_no_p2p_mgmt_iface(message);
+		goto error_nop2p;
+	}
 
 	if (wpas_p2p_find(wpa_s, timeout, type, num_req_dev_types,
-			  req_dev_types, NULL, 0, 0, NULL, freq))
+			  req_dev_types, NULL, 0, 0, NULL, freq, false))
 		reply = wpas_dbus_error_unknown_error(
 			message, "Could not start P2P find");
 
@@ -157,8 +185,9 @@ DBusMessage * wpas_dbus_handler_p2p_find(DBusMessage *message,
 error_clear:
 	wpa_dbus_dict_entry_clear(&entry);
 error:
-	os_free(req_dev_types);
 	reply = wpas_dbus_error_invalid_args(message, entry.key);
+error_nop2p:
+	os_free(req_dev_types);
 	return reply;
 }
 
@@ -166,7 +195,9 @@ error:
 DBusMessage * wpas_dbus_handler_p2p_stop_find(DBusMessage *message,
 					      struct wpa_supplicant *wpa_s)
 {
-	wpas_p2p_stop_find(wpa_s->global->p2p_init_wpa_s);
+	wpa_s = wpa_s->global->p2p_init_wpa_s;
+	if (wpa_s)
+		wpas_p2p_stop_find(wpa_s);
 	return NULL;
 }
 
@@ -185,6 +216,8 @@ DBusMessage * wpas_dbus_handler_p2p_rejectpeer(DBusMessage *message,
 		return wpas_dbus_error_invalid_args(message, NULL);
 
 	wpa_s = wpa_s->global->p2p_init_wpa_s;
+	if (!wpa_s)
+		return wpas_dbus_error_no_p2p_mgmt_iface(message);
 
 	if (wpas_p2p_reject(wpa_s, peer_addr) < 0)
 		return wpas_dbus_error_unknown_error(message,
@@ -204,6 +237,8 @@ DBusMessage * wpas_dbus_handler_p2p_listen(DBusMessage *message,
 		return wpas_dbus_error_no_memory(message);
 
 	wpa_s = wpa_s->global->p2p_init_wpa_s;
+	if (!wpa_s)
+		return wpas_dbus_error_no_p2p_mgmt_iface(message);
 
 	if (wpas_p2p_listen(wpa_s, (unsigned int) timeout)) {
 		return dbus_message_new_error(message,
@@ -245,6 +280,8 @@ DBusMessage * wpas_dbus_handler_p2p_extendedlisten(
 	}
 
 	wpa_s = wpa_s->global->p2p_init_wpa_s;
+	if (!wpa_s)
+		return wpas_dbus_error_no_p2p_mgmt_iface(message);
 
 	if (wpas_p2p_ext_listen(wpa_s, period, interval))
 		return wpas_dbus_error_unknown_error(
@@ -350,6 +387,10 @@ DBusMessage * wpas_dbus_handler_p2p_group_add(DBusMessage *message,
 	}
 
 	wpa_s = wpa_s->global->p2p_init_wpa_s;
+	if (!wpa_s) {
+		reply = wpas_dbus_error_no_p2p_mgmt_iface(message);
+		goto out;
+	}
 
 	if (pg_object_path != NULL) {
 		char *net_id_str;
@@ -384,14 +425,15 @@ DBusMessage * wpas_dbus_handler_p2p_group_add(DBusMessage *message,
 			goto inv_args;
 
 		if (wpas_p2p_group_add_persistent(wpa_s, ssid, 0, freq, 0, 0, 0,
-						  0, 0, 0, NULL, 0, 0)) {
+						  0, 0, 0, 0, NULL, 0, 0,
+						  false)) {
 			reply = wpas_dbus_error_unknown_error(
 				message,
 				"Failed to reinvoke a persistent group");
 			goto out;
 		}
 	} else if (wpas_p2p_group_add(wpa_s, persistent_group, freq, 0, 0, 0,
-				      0, 0))
+				      0, 0, 0, false))
 		goto inv_args;
 
 out:
@@ -432,6 +474,12 @@ static dbus_bool_t wpa_dbus_p2p_check_enabled(struct wpa_supplicant *wpa_s,
 		dbus_set_error_const(error, DBUS_ERROR_FAILED,
 				     "P2P is not available for this interface");
 		return FALSE;
+	}
+	if (!wpa_s->global->p2p_init_wpa_s) {
+		if (out_reply)
+			*out_reply = wpas_dbus_error_no_p2p_mgmt_iface(
+				message);
+		return no_p2p_mgmt_interface(error);
 	}
 	return TRUE;
 }
@@ -605,8 +653,8 @@ DBusMessage * wpas_dbus_handler_p2p_connect(DBusMessage *message,
 
 	new_pin = wpas_p2p_connect(wpa_s, addr, pin, wps_method,
 				   persistent_group, 0, join, authorize_only,
-				   go_intent, freq, 0, -1, 0, 0, 0, 0, 0,
-				   NULL, 0);
+				   go_intent, freq, 0, -1, 0, 0, 0, 0, 0, 0,
+				   NULL, 0, false);
 
 	if (new_pin >= 0) {
 		char npin[9];
@@ -763,7 +811,7 @@ DBusMessage * wpas_dbus_handler_p2p_invite(DBusMessage *message,
 			goto err;
 
 		if (wpas_p2p_invite(wpa_s, peer_addr, ssid, NULL, 0, 0, 0, 0, 0,
-				    0, 0) < 0) {
+				    0, 0, 0, false) < 0) {
 			reply = wpas_dbus_error_unknown_error(
 				message,
 				"Failed to reinvoke a persistent group");
@@ -774,7 +822,7 @@ DBusMessage * wpas_dbus_handler_p2p_invite(DBusMessage *message,
 		 * No group ID means propose to a peer to join my active group
 		 */
 		if (wpas_p2p_invite_group(wpa_s, wpa_s->ifname,
-					  peer_addr, NULL)) {
+					  peer_addr, NULL, false)) {
 			reply = wpas_dbus_error_unknown_error(
 				message, "Failed to join to an active group");
 			goto out;
@@ -822,6 +870,8 @@ DBusMessage * wpas_dbus_handler_p2p_prov_disc_req(DBusMessage *message,
 		return wpas_dbus_error_invalid_args(message, NULL);
 
 	wpa_s = wpa_s->global->p2p_init_wpa_s;
+	if (!wpa_s)
+		return wpas_dbus_error_no_p2p_mgmt_iface(message);
 
 	if (wpas_p2p_prov_disc(wpa_s, peer_addr, config_method,
 			       WPAS_P2P_PD_FOR_GO_NEG, NULL) < 0)
@@ -1882,6 +1932,8 @@ dbus_bool_t wpas_dbus_getter_p2p_peer_groups(
 
 	wpa_s = peer_args->wpa_s;
 	wpa_s = wpa_s->global->p2p_init_wpa_s;
+	if (!wpa_s)
+		return no_p2p_mgmt_interface(error);
 
 	wpa_s_go = wpas_get_p2p_client_iface(wpa_s, info->p2p_device_addr);
 	if (wpa_s_go) {
@@ -1963,6 +2015,9 @@ dbus_bool_t wpas_dbus_getter_persistent_groups(
 	dbus_bool_t success = FALSE;
 
 	wpa_s = wpa_s->global->p2p_init_wpa_s;
+	if (!wpa_s)
+		return no_p2p_mgmt_interface(error);
+
 	if (!wpa_s->parent->dbus_new_path)
 		return FALSE;
 
@@ -2077,6 +2132,11 @@ DBusMessage * wpas_dbus_handler_add_persistent_group(
 	dbus_message_iter_init(message, &iter);
 
 	wpa_s = wpa_s->global->p2p_init_wpa_s;
+	if (!wpa_s) {
+		reply = wpas_dbus_error_no_p2p_mgmt_iface(message);
+		goto err;
+	}
+
 	if (wpa_s->parent->dbus_new_path)
 		ssid = wpa_config_add_network(wpa_s->conf);
 	if (ssid == NULL) {
@@ -2159,6 +2219,10 @@ DBusMessage * wpas_dbus_handler_remove_persistent_group(
 			      DBUS_TYPE_INVALID);
 
 	wpa_s = wpa_s->global->p2p_init_wpa_s;
+	if (!wpa_s) {
+		reply = wpas_dbus_error_no_p2p_mgmt_iface(message);
+		goto out;
+	}
 
 	/*
 	 * Extract the network ID and ensure the network is actually a child of
@@ -2235,6 +2299,8 @@ DBusMessage * wpas_dbus_handler_remove_all_persistent_groups(
 	struct wpa_config *config;
 
 	wpa_s = wpa_s->global->p2p_init_wpa_s;
+	if (!wpa_s)
+		return wpas_dbus_error_no_p2p_mgmt_iface(message);
 
 	config = wpa_s->conf;
 	ssid = config->ssid;

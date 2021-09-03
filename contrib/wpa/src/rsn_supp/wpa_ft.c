@@ -15,12 +15,23 @@
 #include "common/ieee802_11_defs.h"
 #include "common/ieee802_11_common.h"
 #include "common/ocv.h"
+#include "common/wpa_ctrl.h"
 #include "drivers/driver.h"
 #include "wpa.h"
 #include "wpa_i.h"
+#include "wpa_ie.h"
 #include "pmksa_cache.h"
 
 #ifdef CONFIG_IEEE80211R
+
+#ifdef CONFIG_PASN
+static void wpa_ft_pasn_store_r1kh(struct wpa_sm *sm, const u8 *bssid);
+#else /* CONFIG_PASN */
+static void wpa_ft_pasn_store_r1kh(struct wpa_sm *sm, const u8 *bssid)
+{
+}
+#endif /* CONFIG_PASN */
+
 
 int wpa_derive_ptk_ft(struct wpa_sm *sm, const unsigned char *src_addr,
 		      const struct wpa_eapol_key *key, struct wpa_ptk *ptk)
@@ -29,7 +40,7 @@ int wpa_derive_ptk_ft(struct wpa_sm *sm, const unsigned char *src_addr,
 	const u8 *anonce = key->key_nonce;
 	int use_sha384 = wpa_key_mgmt_sha384(sm->key_mgmt);
 	const u8 *mpmk;
-	size_t mpmk_len;
+	size_t mpmk_len, kdk_len;
 
 	if (sm->xxkey_len > 0) {
 		mpmk = sm->xxkey;
@@ -49,20 +60,25 @@ int wpa_derive_ptk_ft(struct wpa_sm *sm, const unsigned char *src_addr,
 			      sm->r0kh_id, sm->r0kh_id_len, sm->own_addr,
 			      sm->pmk_r0, sm->pmk_r0_name, use_sha384) < 0)
 		return -1;
-	wpa_hexdump_key(MSG_DEBUG, "FT: PMK-R0", sm->pmk_r0, sm->pmk_r0_len);
-	wpa_hexdump(MSG_DEBUG, "FT: PMKR0Name",
-		    sm->pmk_r0_name, WPA_PMK_NAME_LEN);
 	sm->pmk_r1_len = sm->pmk_r0_len;
 	if (wpa_derive_pmk_r1(sm->pmk_r0, sm->pmk_r0_len, sm->pmk_r0_name,
 			      sm->r1kh_id, sm->own_addr, sm->pmk_r1,
 			      sm->pmk_r1_name) < 0)
 		return -1;
-	wpa_hexdump_key(MSG_DEBUG, "FT: PMK-R1", sm->pmk_r1, sm->pmk_r1_len);
-	wpa_hexdump(MSG_DEBUG, "FT: PMKR1Name", sm->pmk_r1_name,
-		    WPA_PMK_NAME_LEN);
+
+	wpa_ft_pasn_store_r1kh(sm, src_addr);
+
+	if (sm->force_kdk_derivation ||
+	    (sm->secure_ltf &&
+	     ieee802_11_rsnx_capab(sm->ap_rsnxe, WLAN_RSNX_CAPAB_SECURE_LTF)))
+		kdk_len = WPA_KDK_MAX_LEN;
+	else
+		kdk_len = 0;
+
 	return wpa_pmk_r1_to_ptk(sm->pmk_r1, sm->pmk_r1_len, sm->snonce, anonce,
 				 sm->own_addr, sm->bssid, sm->pmk_r1_name, ptk,
-				 ptk_name, sm->key_mgmt, sm->pairwise_cipher);
+				 ptk_name, sm->key_mgmt, sm->pairwise_cipher,
+				 kdk_len);
 }
 
 
@@ -81,23 +97,30 @@ int wpa_sm_set_ft_params(struct wpa_sm *sm, const u8 *ies, size_t ies_len)
 	if (sm == NULL)
 		return 0;
 
+	if (!get_ie(ies, ies_len, WLAN_EID_MOBILITY_DOMAIN)) {
+		os_free(sm->assoc_resp_ies);
+		sm->assoc_resp_ies = NULL;
+		sm->assoc_resp_ies_len = 0;
+		os_memset(sm->mobility_domain, 0, MOBILITY_DOMAIN_ID_LEN);
+		os_memset(sm->r0kh_id, 0, FT_R0KH_ID_MAX_LEN);
+		sm->r0kh_id_len = 0;
+		os_memset(sm->r1kh_id, 0, FT_R1KH_ID_LEN);
+		return 0;
+	}
+
 	use_sha384 = wpa_key_mgmt_sha384(sm->key_mgmt);
 	if (wpa_ft_parse_ies(ies, ies_len, &ft, use_sha384) < 0)
 		return -1;
 
-	if (ft.mdie && ft.mdie_len < MOBILITY_DOMAIN_ID_LEN + 1)
+	if (ft.mdie_len < MOBILITY_DOMAIN_ID_LEN + 1)
 		return -1;
 
-	if (ft.mdie) {
-		wpa_hexdump(MSG_DEBUG, "FT: Mobility domain",
-			    ft.mdie, MOBILITY_DOMAIN_ID_LEN);
-		os_memcpy(sm->mobility_domain, ft.mdie,
-			  MOBILITY_DOMAIN_ID_LEN);
-		sm->mdie_ft_capab = ft.mdie[MOBILITY_DOMAIN_ID_LEN];
-		wpa_printf(MSG_DEBUG, "FT: Capability and Policy: 0x%02x",
-			   sm->mdie_ft_capab);
-	} else
-		os_memset(sm->mobility_domain, 0, MOBILITY_DOMAIN_ID_LEN);
+	wpa_hexdump(MSG_DEBUG, "FT: Mobility domain",
+		    ft.mdie, MOBILITY_DOMAIN_ID_LEN);
+	os_memcpy(sm->mobility_domain, ft.mdie, MOBILITY_DOMAIN_ID_LEN);
+	sm->mdie_ft_capab = ft.mdie[MOBILITY_DOMAIN_ID_LEN];
+	wpa_printf(MSG_DEBUG, "FT: Capability and Policy: 0x%02x",
+		   sm->mdie_ft_capab);
 
 	if (ft.r0kh_id) {
 		wpa_hexdump(MSG_DEBUG, "FT: R0KH-ID",
@@ -124,10 +147,10 @@ int wpa_sm_set_ft_params(struct wpa_sm *sm, const u8 *ies, size_t ies_len)
 	sm->assoc_resp_ies = os_malloc(ft.mdie_len + 2 + ft.ftie_len + 2);
 	if (sm->assoc_resp_ies) {
 		u8 *pos = sm->assoc_resp_ies;
-		if (ft.mdie) {
-			os_memcpy(pos, ft.mdie - 2, ft.mdie_len + 2);
-			pos += ft.mdie_len + 2;
-		}
+
+		os_memcpy(pos, ft.mdie - 2, ft.mdie_len + 2);
+		pos += ft.mdie_len + 2;
+
 		if (ft.ftie) {
 			os_memcpy(pos, ft.ftie - 2, ft.ftie_len + 2);
 			pos += ft.ftie_len + 2;
@@ -154,6 +177,7 @@ int wpa_sm_set_ft_params(struct wpa_sm *sm, const u8 *ies, size_t ies_len)
  * @ric_ies: Optional IE(s), e.g., WMM TSPEC(s), for RIC-Request or %NULL
  * @ric_ies_len: Length of ric_ies buffer in octets
  * @ap_mdie: Mobility Domain IE from the target AP
+ * @omit_rsnxe: Whether RSNXE is omitted from Reassociation Request frame
  * Returns: Pointer to buffer with IEs or %NULL on failure
  *
  * Caller is responsible for freeing the returned buffer with os_free();
@@ -163,14 +187,17 @@ static u8 * wpa_ft_gen_req_ies(struct wpa_sm *sm, size_t *len,
 			       const u8 *kck, size_t kck_len,
 			       const u8 *target_ap,
 			       const u8 *ric_ies, size_t ric_ies_len,
-			       const u8 *ap_mdie)
+			       const u8 *ap_mdie, int omit_rsnxe)
 {
 	size_t buf_len;
 	u8 *buf, *pos, *ftie_len, *ftie_pos, *fte_mic, *elem_count;
 	struct rsn_mdie *mdie;
 	struct rsn_ie_hdr *rsnie;
-	u16 capab;
 	int mdie_len;
+	u8 rsnxe[10];
+	size_t rsnxe_len;
+	int rsnxe_used;
+	int res;
 
 	sm->ft_completed = 0;
 	sm->ft_reassoc_completed = 0;
@@ -245,17 +272,7 @@ static u8 * wpa_ft_gen_req_ies(struct wpa_sm *sm, size_t *len,
 	pos += RSN_SELECTOR_LEN;
 
 	/* RSN Capabilities */
-	capab = 0;
-#ifdef CONFIG_IEEE80211W
-	if (sm->mgmt_group_cipher == WPA_CIPHER_AES_128_CMAC ||
-	    sm->mgmt_group_cipher == WPA_CIPHER_BIP_GMAC_128 ||
-	    sm->mgmt_group_cipher == WPA_CIPHER_BIP_GMAC_256 ||
-	    sm->mgmt_group_cipher == WPA_CIPHER_BIP_CMAC_256)
-		capab |= WPA_CAPABILITY_MFPC;
-#endif /* CONFIG_IEEE80211W */
-	if (sm->ocv)
-		capab |= WPA_CAPABILITY_OCVC;
-	WPA_PUT_LE16(pos, capab);
+	WPA_PUT_LE16(pos, rsn_supp_capab(sm));
 	pos += 2;
 
 	/* PMKID Count */
@@ -266,7 +283,6 @@ static u8 * wpa_ft_gen_req_ies(struct wpa_sm *sm, size_t *len,
 	os_memcpy(pos, pmk_name, WPA_PMK_NAME_LEN);
 	pos += WPA_PMK_NAME_LEN;
 
-#ifdef CONFIG_IEEE80211W
 	/* Management Group Cipher Suite */
 	switch (sm->mgmt_group_cipher) {
 	case WPA_CIPHER_AES_128_CMAC:
@@ -286,7 +302,6 @@ static u8 * wpa_ft_gen_req_ies(struct wpa_sm *sm, size_t *len,
 		pos += RSN_SELECTOR_LEN;
 		break;
 	}
-#endif /* CONFIG_IEEE80211W */
 
 	rsnie->len = (pos - (u8 *) rsnie) - 2;
 
@@ -303,10 +318,20 @@ static u8 * wpa_ft_gen_req_ies(struct wpa_sm *sm, size_t *len,
 	ftie_pos = pos;
 	*pos++ = WLAN_EID_FAST_BSS_TRANSITION;
 	ftie_len = pos++;
+	rsnxe_used = wpa_key_mgmt_sae(sm->key_mgmt) && anonce &&
+		(sm->sae_pwe == 1 || sm->sae_pwe == 2);
+#ifdef CONFIG_TESTING_OPTIONS
+	if (anonce && sm->ft_rsnxe_used) {
+		rsnxe_used = sm->ft_rsnxe_used == 1;
+		wpa_printf(MSG_DEBUG, "TESTING: FT: Force RSNXE Used %d",
+			   rsnxe_used);
+	}
+#endif /* CONFIG_TESTING_OPTIONS */
 	if (wpa_key_mgmt_sha384(sm->key_mgmt)) {
 		struct rsn_ftie_sha384 *ftie;
 
 		ftie = (struct rsn_ftie_sha384 *) pos;
+		ftie->mic_control[0] = !!rsnxe_used;
 		fte_mic = ftie->mic;
 		elem_count = &ftie->mic_control[1];
 		pos += sizeof(*ftie);
@@ -317,6 +342,7 @@ static u8 * wpa_ft_gen_req_ies(struct wpa_sm *sm, size_t *len,
 		struct rsn_ftie *ftie;
 
 		ftie = (struct rsn_ftie *) pos;
+		ftie->mic_control[0] = !!rsnxe_used;
 		fte_mic = ftie->mic;
 		elem_count = &ftie->mic_control[1];
 		pos += sizeof(*ftie);
@@ -347,6 +373,14 @@ static u8 * wpa_ft_gen_req_ies(struct wpa_sm *sm, size_t *len,
 			os_free(buf);
 			return NULL;
 		}
+#ifdef CONFIG_TESTING_OPTIONS
+		if (sm->oci_freq_override_ft_assoc) {
+			wpa_printf(MSG_INFO,
+				   "TEST: Override OCI KDE frequency %d -> %d MHz",
+				   ci.frequency, sm->oci_freq_override_ft_assoc);
+			ci.frequency = sm->oci_freq_override_ft_assoc;
+		}
+#endif /* CONFIG_TESTING_OPTIONS */
 
 		*pos++ = FTIE_SUBELEM_OCI;
 		*pos++ = OCV_OCI_LEN;
@@ -364,6 +398,17 @@ static u8 * wpa_ft_gen_req_ies(struct wpa_sm *sm, size_t *len,
 		pos += ric_ies_len;
 	}
 
+	if (omit_rsnxe) {
+		rsnxe_len = 0;
+	} else {
+		res = wpa_gen_rsnxe(sm, rsnxe, sizeof(rsnxe));
+		if (res < 0) {
+			os_free(buf);
+			return NULL;
+		}
+		rsnxe_len = res;
+	}
+
 	if (kck) {
 		/*
 		 * IEEE Std 802.11r-2008, 11A.8.4
@@ -375,14 +420,18 @@ static u8 * wpa_ft_gen_req_ies(struct wpa_sm *sm, size_t *len,
 		 * MDIE
 		 * FTIE (with MIC field set to 0)
 		 * RIC-Request (if present)
+		 * RSNXE (if present)
 		 */
 		/* Information element count */
 		*elem_count = 3 + ieee802_11_ie_count(ric_ies, ric_ies_len);
+		if (rsnxe_len)
+			*elem_count += 1;
 		if (wpa_ft_mic(kck, kck_len, sm->own_addr, target_ap, 5,
 			       ((u8 *) mdie) - 2, 2 + sizeof(*mdie),
 			       ftie_pos, 2 + *ftie_len,
 			       (u8 *) rsnie, 2 + rsnie->len, ric_ies,
-			       ric_ies_len, fte_mic) < 0) {
+			       ric_ies_len, rsnxe_len ? rsnxe : NULL, rsnxe_len,
+			       fte_mic) < 0) {
 			wpa_printf(MSG_INFO, "FT: Failed to calculate MIC");
 			os_free(buf);
 			return NULL;
@@ -412,12 +461,15 @@ static int wpa_ft_install_ptk(struct wpa_sm *sm, const u8 *bssid)
 	alg = wpa_cipher_to_alg(sm->pairwise_cipher);
 	keylen = wpa_cipher_key_len(sm->pairwise_cipher);
 
-	if (wpa_sm_set_key(sm, alg, bssid, 0, 1, null_rsc,
-			   sizeof(null_rsc), (u8 *) sm->ptk.tk, keylen) < 0) {
+	if (wpa_sm_set_key(sm, alg, bssid, 0, 1, null_rsc, sizeof(null_rsc),
+			   (u8 *) sm->ptk.tk, keylen,
+			   KEY_FLAG_PAIRWISE_RX_TX) < 0) {
 		wpa_printf(MSG_WARNING, "FT: Failed to set PTK to the driver");
 		return -1;
 	}
 
+	wpa_sm_store_ptk(sm, sm->bssid, sm->pairwise_cipher,
+			 sm->dot11RSNAConfigPMKLifetime, &sm->ptk);
 	return 0;
 }
 
@@ -440,7 +492,7 @@ int wpa_ft_prepare_auth_request(struct wpa_sm *sm, const u8 *mdie)
 	}
 
 	ft_ies = wpa_ft_gen_req_ies(sm, &ft_ies_len, NULL, sm->pmk_r0_name,
-				    NULL, 0, sm->bssid, NULL, 0, mdie);
+				    NULL, 0, sm->bssid, NULL, 0, mdie, 0);
 	if (ft_ies) {
 		wpa_sm_update_ft_ies(sm, sm->mobility_domain,
 				     ft_ies, ft_ies_len);
@@ -494,7 +546,7 @@ int wpa_ft_process_response(struct wpa_sm *sm, const u8 *ies, size_t ies_len,
 	int ret;
 	const u8 *bssid;
 	const u8 *kck;
-	size_t kck_len;
+	size_t kck_len, kdk_len;
 	int use_sha384 = wpa_key_mgmt_sha384(sm->key_mgmt);
 	const u8 *anonce, *snonce;
 
@@ -598,6 +650,12 @@ int wpa_ft_process_response(struct wpa_sm *sm, const u8 *ies, size_t ies_len,
 		return -1;
 	}
 
+	if (sm->mfp == 2 && !(parse.rsn_capab & WPA_CAPABILITY_MFPC)) {
+		wpa_printf(MSG_INFO,
+			   "FT: Target AP does not support PMF, but local configuration requires that");
+		return -1;
+	}
+
 	os_memcpy(sm->r1kh_id, parse.r1kh_id, FT_R1KH_ID_LEN);
 	wpa_hexdump(MSG_DEBUG, "FT: R1KH-ID", sm->r1kh_id, FT_R1KH_ID_LEN);
 	wpa_hexdump(MSG_DEBUG, "FT: SNonce", sm->snonce, WPA_NONCE_LEN);
@@ -608,15 +666,23 @@ int wpa_ft_process_response(struct wpa_sm *sm, const u8 *ies, size_t ies_len,
 			      sm->pmk_r1_name) < 0)
 		return -1;
 	sm->pmk_r1_len = sm->pmk_r0_len;
-	wpa_hexdump_key(MSG_DEBUG, "FT: PMK-R1", sm->pmk_r1, sm->pmk_r1_len);
-	wpa_hexdump(MSG_DEBUG, "FT: PMKR1Name",
-		    sm->pmk_r1_name, WPA_PMK_NAME_LEN);
 
 	bssid = target_ap;
+
+	wpa_ft_pasn_store_r1kh(sm, bssid);
+
+	if (sm->force_kdk_derivation ||
+	    (sm->secure_ltf &&
+	     ieee802_11_rsnx_capab(sm->ap_rsnxe, WLAN_RSNX_CAPAB_SECURE_LTF)))
+		kdk_len = WPA_KDK_MAX_LEN;
+	else
+		kdk_len = 0;
+
 	if (wpa_pmk_r1_to_ptk(sm->pmk_r1, sm->pmk_r1_len, sm->snonce,
 			      anonce, sm->own_addr, bssid,
 			      sm->pmk_r1_name, &sm->ptk, ptk_name, sm->key_mgmt,
-			      sm->pairwise_cipher) < 0)
+			      sm->pairwise_cipher,
+			      kdk_len) < 0)
 		return -1;
 
 	if (wpa_key_mgmt_fils(sm->key_mgmt)) {
@@ -630,7 +696,8 @@ int wpa_ft_process_response(struct wpa_sm *sm, const u8 *ies, size_t ies_len,
 				    sm->pmk_r1_name,
 				    kck, kck_len, bssid,
 				    ric_ies, ric_ies_len,
-				    parse.mdie ? parse.mdie - 2 : NULL);
+				    parse.mdie ? parse.mdie - 2 : NULL,
+				    !sm->ap_rsnxe);
 	if (ft_ies) {
 		wpa_sm_update_ft_ies(sm, sm->mobility_domain,
 				     ft_ies, ft_ies_len);
@@ -757,7 +824,8 @@ static int wpa_ft_process_gtk_subelem(struct wpa_sm *sm, const u8 *gtk_elem,
 		os_memcpy(gtk + 24, tmp, 8);
 	}
 	if (wpa_sm_set_key(sm, alg, broadcast_ether_addr, keyidx, 0,
-			   gtk_elem + 3, rsc_len, gtk, keylen) < 0) {
+			   gtk_elem + 3, rsc_len, gtk, keylen,
+			   KEY_FLAG_GROUP_RX) < 0) {
 		wpa_printf(MSG_WARNING, "WPA: Failed to set GTK to the "
 			   "driver.");
 		return -1;
@@ -767,7 +835,6 @@ static int wpa_ft_process_gtk_subelem(struct wpa_sm *sm, const u8 *gtk_elem,
 }
 
 
-#ifdef CONFIG_IEEE80211W
 static int wpa_ft_process_igtk_subelem(struct wpa_sm *sm, const u8 *igtk_elem,
 				       size_t igtk_elem_len)
 {
@@ -825,7 +892,8 @@ static int wpa_ft_process_igtk_subelem(struct wpa_sm *sm, const u8 *igtk_elem,
 			igtk_len);
 	if (wpa_sm_set_key(sm, wpa_cipher_to_alg(sm->mgmt_group_cipher),
 			   broadcast_ether_addr, keyidx, 0,
-			   igtk_elem + 2, 6, igtk, igtk_len) < 0) {
+			   igtk_elem + 2, 6, igtk, igtk_len,
+			   KEY_FLAG_GROUP_RX) < 0) {
 		wpa_printf(MSG_WARNING, "WPA: Failed to set IGTK to the "
 			   "driver.");
 		forced_memzero(igtk, sizeof(igtk));
@@ -835,7 +903,74 @@ static int wpa_ft_process_igtk_subelem(struct wpa_sm *sm, const u8 *igtk_elem,
 
 	return 0;
 }
-#endif /* CONFIG_IEEE80211W */
+
+
+static int wpa_ft_process_bigtk_subelem(struct wpa_sm *sm, const u8 *bigtk_elem,
+				       size_t bigtk_elem_len)
+{
+	u8 bigtk[WPA_BIGTK_MAX_LEN];
+	size_t bigtk_len;
+	u16 keyidx;
+	const u8 *kek;
+	size_t kek_len;
+
+	if (!sm->beacon_prot || !bigtk_elem ||
+	    (sm->mgmt_group_cipher != WPA_CIPHER_AES_128_CMAC &&
+	     sm->mgmt_group_cipher != WPA_CIPHER_BIP_GMAC_128 &&
+	     sm->mgmt_group_cipher != WPA_CIPHER_BIP_GMAC_256 &&
+	     sm->mgmt_group_cipher != WPA_CIPHER_BIP_CMAC_256))
+		return 0;
+
+	if (wpa_key_mgmt_fils(sm->key_mgmt)) {
+		kek = sm->ptk.kek2;
+		kek_len = sm->ptk.kek2_len;
+	} else {
+		kek = sm->ptk.kek;
+		kek_len = sm->ptk.kek_len;
+	}
+
+	wpa_hexdump_key(MSG_DEBUG, "FT: Received BIGTK in Reassoc Resp",
+			bigtk_elem, bigtk_elem_len);
+
+	bigtk_len = wpa_cipher_key_len(sm->mgmt_group_cipher);
+	if (bigtk_elem_len != 2 + 6 + 1 + bigtk_len + 8) {
+		wpa_printf(MSG_DEBUG,
+			   "FT: Invalid BIGTK sub-elem length %lu",
+			   (unsigned long) bigtk_elem_len);
+		return -1;
+	}
+	if (bigtk_elem[8] != bigtk_len) {
+		wpa_printf(MSG_DEBUG,
+			   "FT: Invalid BIGTK sub-elem Key Length %d",
+			   bigtk_elem[8]);
+		return -1;
+	}
+
+	if (aes_unwrap(kek, kek_len, bigtk_len / 8, bigtk_elem + 9, bigtk)) {
+		wpa_printf(MSG_WARNING,
+			   "FT: AES unwrap failed - could not decrypt BIGTK");
+		return -1;
+	}
+
+	/* KeyID[2] | IPN[6] | Key Length[1] | Key[16+8] */
+
+	keyidx = WPA_GET_LE16(bigtk_elem);
+
+	wpa_hexdump_key(MSG_DEBUG, "FT: BIGTK from Reassoc Resp", bigtk,
+			bigtk_len);
+	if (wpa_sm_set_key(sm, wpa_cipher_to_alg(sm->mgmt_group_cipher),
+			   broadcast_ether_addr, keyidx, 0,
+			   bigtk_elem + 2, 6, bigtk, bigtk_len,
+			   KEY_FLAG_GROUP_RX) < 0) {
+		wpa_printf(MSG_WARNING,
+			   "WPA: Failed to set BIGTK to the driver");
+		forced_memzero(bigtk, sizeof(bigtk));
+		return -1;
+	}
+	forced_memzero(bigtk, sizeof(bigtk));
+
+	return 0;
+}
 
 
 int wpa_ft_validate_reassoc_resp(struct wpa_sm *sm, const u8 *ies,
@@ -850,6 +985,7 @@ int wpa_ft_validate_reassoc_resp(struct wpa_sm *sm, const u8 *ies,
 	int use_sha384 = wpa_key_mgmt_sha384(sm->key_mgmt);
 	const u8 *anonce, *snonce, *fte_mic;
 	u8 fte_elem_count;
+	int own_rsnxe_used, rsnxe_used;
 
 	wpa_hexdump(MSG_DEBUG, "FT: Response IEs", ies, ies_len);
 
@@ -888,6 +1024,7 @@ int wpa_ft_validate_reassoc_resp(struct wpa_sm *sm, const u8 *ies,
 
 		anonce = ftie->anonce;
 		snonce = ftie->snonce;
+		rsnxe_used = ftie->mic_control[0] & 0x01;
 		fte_elem_count = ftie->mic_control[1];
 		fte_mic = ftie->mic;
 	} else {
@@ -901,6 +1038,7 @@ int wpa_ft_validate_reassoc_resp(struct wpa_sm *sm, const u8 *ies,
 
 		anonce = ftie->anonce;
 		snonce = ftie->snonce;
+		rsnxe_used = ftie->mic_control[0] & 0x01;
 		fte_elem_count = ftie->mic_control[1];
 		fte_mic = ftie->mic;
 	}
@@ -962,6 +1100,8 @@ int wpa_ft_validate_reassoc_resp(struct wpa_sm *sm, const u8 *ies,
 	count = 3;
 	if (parse.ric)
 		count += ieee802_11_ie_count(parse.ric, parse.ric_len);
+	if (parse.rsnxe)
+		count++;
 	if (fte_elem_count != count) {
 		wpa_printf(MSG_DEBUG, "FT: Unexpected IE count in MIC "
 			   "Control: received %u expected %u",
@@ -982,6 +1122,8 @@ int wpa_ft_validate_reassoc_resp(struct wpa_sm *sm, const u8 *ies,
 		       parse.ftie - 2, parse.ftie_len + 2,
 		       parse.rsn - 2, parse.rsn_len + 2,
 		       parse.ric, parse.ric_len,
+		       parse.rsnxe ? parse.rsnxe - 2 : NULL,
+		       parse.rsnxe ? parse.rsnxe_len + 2 : 0,
 		       mic) < 0) {
 		wpa_printf(MSG_DEBUG, "FT: Failed to calculate MIC");
 		return -1;
@@ -991,6 +1133,58 @@ int wpa_ft_validate_reassoc_resp(struct wpa_sm *sm, const u8 *ies,
 		wpa_printf(MSG_DEBUG, "FT: Invalid MIC in FTIE");
 		wpa_hexdump(MSG_MSGDUMP, "FT: Received MIC", fte_mic, 16);
 		wpa_hexdump(MSG_MSGDUMP, "FT: Calculated MIC", mic, 16);
+		return -1;
+	}
+
+	if (rsnxe_used && !sm->ap_rsnxe) {
+		wpa_printf(MSG_INFO,
+			   "FT: FTE indicated that AP uses RSNXE, but RSNXE was not included in Beacon/Probe Response frames");
+		return -1;
+	}
+
+	if (!sm->ap_rsn_ie) {
+		wpa_dbg(sm->ctx->msg_ctx, MSG_DEBUG,
+			"FT: No RSNE for this AP known - trying to get from scan results");
+		if (wpa_sm_get_beacon_ie(sm) < 0) {
+			wpa_msg(sm->ctx->msg_ctx, MSG_WARNING,
+				"FT: Could not find AP from the scan results");
+			return -1;
+		}
+		wpa_msg(sm->ctx->msg_ctx, MSG_DEBUG,
+			"FT: Found the current AP from updated scan results");
+	}
+
+	if (sm->ap_rsn_ie &&
+	    wpa_compare_rsn_ie(wpa_key_mgmt_ft(sm->key_mgmt),
+			       sm->ap_rsn_ie, sm->ap_rsn_ie_len,
+			       parse.rsn - 2, parse.rsn_len + 2)) {
+		wpa_msg(sm->ctx->msg_ctx, MSG_INFO,
+			"FT: RSNE mismatch between Beacon/ProbeResp and FT protocol Reassociation Response frame");
+		wpa_hexdump(MSG_INFO, "RSNE in Beacon/ProbeResp",
+			    sm->ap_rsn_ie, sm->ap_rsn_ie_len);
+		wpa_hexdump(MSG_INFO,
+			    "RSNE in FT protocol Reassociation Response frame",
+			    parse.rsn ? parse.rsn - 2 : NULL,
+			    parse.rsn ? parse.rsn_len + 2 : 0);
+		return -1;
+	}
+
+	own_rsnxe_used = wpa_key_mgmt_sae(sm->key_mgmt) &&
+		(sm->sae_pwe == 1 || sm->sae_pwe == 2);
+	if ((sm->ap_rsnxe && !parse.rsnxe && own_rsnxe_used) ||
+	    (!sm->ap_rsnxe && parse.rsnxe) ||
+	    (sm->ap_rsnxe && parse.rsnxe &&
+	     (sm->ap_rsnxe_len != 2 + parse.rsnxe_len ||
+	      os_memcmp(sm->ap_rsnxe, parse.rsnxe - 2,
+			sm->ap_rsnxe_len) != 0))) {
+		wpa_msg(sm->ctx->msg_ctx, MSG_INFO,
+			"FT: RSNXE mismatch between Beacon/ProbeResp and FT protocol Reassociation Response frame");
+		wpa_hexdump(MSG_INFO, "RSNXE in Beacon/ProbeResp",
+			    sm->ap_rsnxe, sm->ap_rsnxe_len);
+		wpa_hexdump(MSG_INFO,
+			    "RSNXE in FT protocol Reassociation Response frame",
+			    parse.rsnxe ? parse.rsnxe - 2 : NULL,
+			    parse.rsnxe ? parse.rsnxe_len + 2 : 0);
 		return -1;
 	}
 
@@ -1006,8 +1200,10 @@ int wpa_ft_validate_reassoc_resp(struct wpa_sm *sm, const u8 *ies,
 
 		if (ocv_verify_tx_params(parse.oci, parse.oci_len, &ci,
 					 channel_width_to_int(ci.chanwidth),
-					 ci.seg1_idx) != 0) {
-			wpa_printf(MSG_WARNING, "%s", ocv_errorstr);
+					 ci.seg1_idx) != OCI_SUCCESS) {
+			wpa_msg(sm->ctx->msg_ctx, MSG_INFO, OCV_FAILURE
+				"addr=" MACSTR " frame=ft-assoc error=%s",
+				MAC2STR(src_addr), ocv_errorstr);
 			return -1;
 		}
 	}
@@ -1015,13 +1211,10 @@ int wpa_ft_validate_reassoc_resp(struct wpa_sm *sm, const u8 *ies,
 
 	sm->ft_reassoc_completed = 1;
 
-	if (wpa_ft_process_gtk_subelem(sm, parse.gtk, parse.gtk_len) < 0)
+	if (wpa_ft_process_gtk_subelem(sm, parse.gtk, parse.gtk_len) < 0 ||
+	    wpa_ft_process_igtk_subelem(sm, parse.igtk, parse.igtk_len) < 0 ||
+	    wpa_ft_process_bigtk_subelem(sm, parse.bigtk, parse.bigtk_len) < 0)
 		return -1;
-
-#ifdef CONFIG_IEEE80211W
-	if (wpa_ft_process_igtk_subelem(sm, parse.igtk, parse.igtk_len) < 0)
-		return -1;
-#endif /* CONFIG_IEEE80211W */
 
 	if (sm->set_ptk_after_assoc) {
 		wpa_printf(MSG_DEBUG, "FT: Try to set PTK again now that we "
@@ -1067,7 +1260,7 @@ int wpa_ft_start_over_ds(struct wpa_sm *sm, const u8 *target_ap,
 	}
 
 	ft_ies = wpa_ft_gen_req_ies(sm, &ft_ies_len, NULL, sm->pmk_r0_name,
-				    NULL, 0, target_ap, NULL, 0, mdie);
+				    NULL, 0, target_ap, NULL, 0, mdie, 0);
 	if (ft_ies) {
 		sm->over_the_ds_in_progress = 1;
 		os_memcpy(sm->target_ap, target_ap, ETH_ALEN);
@@ -1077,5 +1270,89 @@ int wpa_ft_start_over_ds(struct wpa_sm *sm, const u8 *target_ap,
 
 	return 0;
 }
+
+
+#ifdef CONFIG_PASN
+
+static struct pasn_ft_r1kh * wpa_ft_pasn_get_r1kh(struct wpa_sm *sm,
+						  const u8 *bssid)
+{
+	size_t i;
+
+	for (i = 0; i < sm->n_pasn_r1kh; i++)
+		if (os_memcmp(sm->pasn_r1kh[i].bssid, bssid, ETH_ALEN) == 0)
+			return &sm->pasn_r1kh[i];
+
+	return NULL;
+}
+
+
+static void wpa_ft_pasn_store_r1kh(struct wpa_sm *sm, const u8 *bssid)
+{
+	struct pasn_ft_r1kh *tmp = wpa_ft_pasn_get_r1kh(sm, bssid);
+
+	if (tmp)
+		return;
+
+	tmp = os_realloc_array(sm->pasn_r1kh, sm->n_pasn_r1kh + 1,
+			       sizeof(*tmp));
+	if (!tmp) {
+		wpa_printf(MSG_DEBUG, "PASN: FT: Failed to store R1KH");
+		return;
+	}
+
+	sm->pasn_r1kh = tmp;
+	tmp = &sm->pasn_r1kh[sm->n_pasn_r1kh];
+
+	wpa_printf(MSG_DEBUG, "PASN: FT: Store R1KH for " MACSTR,
+		   MAC2STR(bssid));
+
+	os_memcpy(tmp->bssid, bssid, ETH_ALEN);
+	os_memcpy(tmp->r1kh_id, sm->r1kh_id, FT_R1KH_ID_LEN);
+
+	sm->n_pasn_r1kh++;
+}
+
+
+int wpa_pasn_ft_derive_pmk_r1(struct wpa_sm *sm, int akmp, const u8 *bssid,
+			      u8 *pmk_r1, size_t *pmk_r1_len, u8 *pmk_r1_name)
+{
+	struct pasn_ft_r1kh *r1kh_entry;
+
+	if (sm->key_mgmt != (unsigned int) akmp) {
+		wpa_printf(MSG_DEBUG,
+			   "PASN: FT: Key management mismatch: %u != %u",
+			   sm->key_mgmt, akmp);
+		return -1;
+	}
+
+	r1kh_entry = wpa_ft_pasn_get_r1kh(sm, bssid);
+	if (!r1kh_entry) {
+		wpa_printf(MSG_DEBUG,
+			   "PASN: FT: Cannot find R1KH-ID for " MACSTR,
+			   MAC2STR(bssid));
+		return -1;
+	}
+
+	/*
+	 * Note: PMK R0 etc. were already derived and are maintained by the
+	 * state machine, and as the same key hierarchy is used, there is no
+	 * need to derive them again, so only derive PMK R1 etc.
+	 */
+	if (wpa_derive_pmk_r1(sm->pmk_r0, sm->pmk_r0_len, sm->pmk_r0_name,
+			      r1kh_entry->r1kh_id, sm->own_addr, pmk_r1,
+			      pmk_r1_name) < 0)
+		return -1;
+
+	*pmk_r1_len = sm->pmk_r0_len;
+
+	wpa_hexdump_key(MSG_DEBUG, "PASN: FT: PMK-R1", pmk_r1, sm->pmk_r0_len);
+	wpa_hexdump(MSG_DEBUG, "PASN: FT: PMKR1Name", pmk_r1_name,
+		    WPA_PMK_NAME_LEN);
+
+	return 0;
+}
+
+#endif /* CONFIG_PASN */
 
 #endif /* CONFIG_IEEE80211R */

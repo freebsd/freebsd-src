@@ -407,7 +407,7 @@ static int oma_dm_exec_browser(struct hs20_osu_client *ctx, xml_node_t *exec)
 	wpa_printf(MSG_INFO, "Data: %s", data);
 	wpa_printf(MSG_INFO, "Launch browser to URI '%s'", data);
 	write_summary(ctx, "Launch browser to URI '%s'", data);
-	res = hs20_web_browser(data);
+	res = hs20_web_browser(data, 1);
 	xml_node_get_text_free(ctx->xml, data);
 	if (res > 0) {
 		wpa_printf(MSG_INFO, "User response in browser completed successfully");

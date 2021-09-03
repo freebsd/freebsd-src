@@ -44,7 +44,7 @@ struct eap_sim_data {
 	u8 *last_eap_identity;
 	size_t last_eap_identity_len;
 	enum {
-		CONTINUE, RESULT_SUCCESS, SUCCESS, FAILURE
+		CONTINUE, START_DONE, RESULT_SUCCESS, SUCCESS, FAILURE
 	} state;
 	int result_ind, use_result_ind;
 	int use_pseudonym;
@@ -58,6 +58,8 @@ static const char * eap_sim_state_txt(int state)
 	switch (state) {
 	case CONTINUE:
 		return "CONTINUE";
+	case START_DONE:
+		return "START_DONE";
 	case RESULT_SUCCESS:
 		return "RESULT_SUCCESS";
 	case SUCCESS:
@@ -486,6 +488,7 @@ static struct wpabuf * eap_sim_response_start(struct eap_sm *sm,
 	const u8 *identity = NULL;
 	size_t identity_len = 0;
 	struct eap_sim_msg *msg;
+	struct wpabuf *resp;
 
 	data->reauth = 0;
 	if (id_req == ANY_ID && data->reauth_id) {
@@ -517,6 +520,12 @@ static struct wpabuf * eap_sim_response_start(struct eap_sm *sm,
 	wpa_printf(MSG_DEBUG, "Generating EAP-SIM Start (id=%d)", id);
 	msg = eap_sim_msg_init(EAP_CODE_RESPONSE, id,
 			       EAP_TYPE_SIM, EAP_SIM_SUBTYPE_START);
+	if (identity) {
+		wpa_hexdump_ascii(MSG_DEBUG, "   AT_IDENTITY",
+				  identity, identity_len);
+		eap_sim_msg_add(msg, EAP_SIM_AT_IDENTITY, identity_len,
+				identity, identity_len);
+	}
 	if (!data->reauth) {
 		wpa_hexdump(MSG_DEBUG, "   AT_NONCE_MT",
 			    data->nonce_mt, EAP_SIM_NONCE_MT_LEN);
@@ -528,14 +537,10 @@ static struct wpabuf * eap_sim_response_start(struct eap_sm *sm,
 				data->selected_version, NULL, 0);
 	}
 
-	if (identity) {
-		wpa_hexdump_ascii(MSG_DEBUG, "   AT_IDENTITY",
-				  identity, identity_len);
-		eap_sim_msg_add(msg, EAP_SIM_AT_IDENTITY, identity_len,
-				identity, identity_len);
-	}
-
-	return eap_sim_msg_finish(msg, EAP_TYPE_SIM, NULL, NULL, 0);
+	resp = eap_sim_msg_finish(msg, EAP_TYPE_SIM, NULL, NULL, 0);
+	if (resp)
+		eap_sim_state(data, START_DONE);
+	return resp;
 }
 
 
@@ -721,6 +726,13 @@ static struct wpabuf * eap_sim_process_challenge(struct eap_sm *sm,
 	int res;
 
 	wpa_printf(MSG_DEBUG, "EAP-SIM: subtype Challenge");
+	if (data->state != START_DONE) {
+		wpa_printf(MSG_DEBUG,
+			   "EAP-SIM: Unexpected Challenge in state %s",
+			   eap_sim_state_txt(data->state));
+		return eap_sim_client_error(data, id,
+					    EAP_SIM_UNABLE_TO_PROCESS_PACKET);
+	}
 	data->reauth = 0;
 	if (!attr->mac || !attr->rand) {
 		wpa_printf(MSG_WARNING, "EAP-SIM: Challenge message "
@@ -1091,23 +1103,23 @@ static struct wpabuf * eap_sim_process(struct eap_sm *sm, void *priv,
 	if (eap_get_config_identity(sm, &len) == NULL) {
 		wpa_printf(MSG_INFO, "EAP-SIM: Identity not configured");
 		eap_sm_request_identity(sm);
-		ret->ignore = TRUE;
+		ret->ignore = true;
 		return NULL;
 	}
 
 	pos = eap_hdr_validate(EAP_VENDOR_IETF, EAP_TYPE_SIM, reqData, &len);
 	if (pos == NULL || len < 3) {
-		ret->ignore = TRUE;
+		ret->ignore = true;
 		return NULL;
 	}
 	req = wpabuf_head(reqData);
 	id = req->identifier;
 	len = be_to_host16(req->length);
 
-	ret->ignore = FALSE;
+	ret->ignore = false;
 	ret->methodState = METHOD_MAY_CONT;
 	ret->decision = DECISION_FAIL;
-	ret->allowNotifications = TRUE;
+	ret->allowNotifications = true;
 
 	subtype = *pos++;
 	wpa_printf(MSG_DEBUG, "EAP-SIM: Subtype=%d", subtype);
@@ -1160,14 +1172,14 @@ done:
 		ret->methodState = METHOD_CONT;
 
 	if (ret->methodState == METHOD_DONE) {
-		ret->allowNotifications = FALSE;
+		ret->allowNotifications = false;
 	}
 
 	return res;
 }
 
 
-static Boolean eap_sim_has_reauth_data(struct eap_sm *sm, void *priv)
+static bool eap_sim_has_reauth_data(struct eap_sm *sm, void *priv)
 {
 	struct eap_sim_data *data = priv;
 	return data->pseudonym || data->reauth_id;
@@ -1218,7 +1230,7 @@ static const u8 * eap_sim_get_identity(struct eap_sm *sm, void *priv,
 }
 
 
-static Boolean eap_sim_isKeyAvailable(struct eap_sm *sm, void *priv)
+static bool eap_sim_isKeyAvailable(struct eap_sm *sm, void *priv)
 {
 	struct eap_sim_data *data = priv;
 	return data->state == SUCCESS;

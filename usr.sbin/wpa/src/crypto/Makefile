@@ -15,6 +15,8 @@ SRCS=	crypto_openssl.c \
 	sha1-prf.c \
 	sha256-prf.c \
 	sha256-tlsprf.c \
+	sha384-prf.c \
+	sha384-tlsprf.c \
 	sha512.c
 .else
 SRCS=	crypto_internal.c \
@@ -109,7 +111,8 @@ SRCS+=	sha256-internal.c \
 SRCS+=	sha384.c
 .if defined(CONFIG_INTERNAL_SHA384)
 SRCS+=	sha384-internal.c \
-	sha384-prf.c
+	sha384-prf.c \
+	sha384-tlsprf.c
 .endif
 .endif
 

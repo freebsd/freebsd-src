@@ -182,9 +182,7 @@ int wpa_driver_set_ap_wps_p2p_ie(void *priv, const struct wpabuf *beacon,
 #endif /* ANDROID_P2P */
 
 
-int android_nl_socket_set_nonblocking(struct nl_handle *handle)
+int android_nl_socket_set_nonblocking(struct nl_sock *handle)
 {
 	return fcntl(nl_socket_get_fd(handle), F_SETFL, O_NONBLOCK);
 }
-
-

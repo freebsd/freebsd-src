@@ -39,7 +39,7 @@ static struct dl_list alloc_list = DL_LIST_HEAD_INIT(alloc_list);
 
 struct os_alloc_trace {
 	unsigned int magic;
-	struct dl_list list;
+	struct dl_list list __attribute__((aligned(16)));
 	size_t len;
 	WPA_TRACE_INFO
 } __attribute__((aligned(16)));
@@ -49,10 +49,16 @@ struct os_alloc_trace {
 
 void os_sleep(os_time_t sec, os_time_t usec)
 {
+#if defined(_POSIX_C_SOURCE) && (_POSIX_C_SOURCE >= 200809L)
+	const struct timespec req = { sec, usec * 1000 };
+
+	nanosleep(&req, NULL);
+#else
 	if (sec)
 		sleep(sec);
 	if (usec)
 		usleep(usec);
+#endif
 }
 
 
@@ -218,40 +224,16 @@ static int os_daemon(int nochdir, int noclose)
 #endif /* __APPLE__ */
 
 
-#ifdef __FreeBSD__
-#include <err.h>
-#include <libutil.h>
-#include <stdint.h>
-#endif /* __FreeBSD__ */
-
 int os_daemonize(const char *pid_file)
 {
 #if defined(__uClinux__) || defined(__sun__)
 	return -1;
 #else /* defined(__uClinux__) || defined(__sun__) */
-#ifdef __FreeBSD__
-	pid_t otherpid;
-	struct pidfh *pfh;
-
-	pfh = pidfile_open(pid_file, 0600, &otherpid);
-	if (pfh == NULL) {
-		if (errno == EEXIST) {
-			errx(1, "Daemon already running, pid: %jd.",
-			    (intmax_t)otherpid);
-		}
-		warn("Cannot open or create pidfile.");
-	}
-#endif /* __FreeBSD__ */
-
 	if (os_daemon(0, 0)) {
 		perror("daemon");
-#ifdef __FreeBSD__
-		pidfile_remove(pfh);
-#endif /* __FreeBSD__ */
 		return -1;
 	}
 
-#ifndef __FreeBSD__
 	if (pid_file) {
 		FILE *f = fopen(pid_file, "w");
 		if (f) {
@@ -259,9 +241,6 @@ int os_daemonize(const char *pid_file)
 			fclose(f);
 		}
 	}
-#else /* __FreeBSD__ */
-	pidfile_write(pfh);
-#endif /* __FreeBSD__ */
 
 	return -0;
 #endif /* defined(__uClinux__) || defined(__sun__) */
@@ -358,6 +337,8 @@ char * os_rel2abs_path(const char *rel_path)
 
 int os_program_init(void)
 {
+	unsigned int seed;
+
 #ifdef ANDROID
 	/*
 	 * We ignore errors here since errors are normal if we
@@ -385,6 +366,9 @@ int os_program_init(void)
 	cap.inheritable = 0;
 	capset(&header, &cap);
 #endif /* ANDROID */
+
+	if (os_get_random((unsigned char *) &seed, sizeof(seed)) == 0)
+		srandom(seed);
 
 	return 0;
 }
@@ -477,12 +461,13 @@ int os_file_exists(const char *fname)
 }
 
 
+#if !defined __DragonFly__
 int os_fdatasync(FILE *stream)
 {
 	if (!fflush(stream)) {
-#ifdef __linux__
+#if defined __FreeBSD__ || defined __linux__
 		return fdatasync(fileno(stream));
-#else /* !__linux__ */
+#else /* !__linux__ && !__FreeBSD__ */
 #ifdef F_FULLFSYNC
 		/* OS X does not implement fdatasync(). */
 		return fcntl(fileno(stream), F_FULLFSYNC);
@@ -494,6 +479,7 @@ int os_fdatasync(FILE *stream)
 
 	return -1;
 }
+#endif
 
 
 #ifndef WPA_TRACE
