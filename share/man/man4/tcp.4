@@ -148,6 +148,54 @@ connection.
 See
 .Xr mod_cc 4
 for details.
+.It Dv TCP_FASTOPEN
+Enable or disable TCP Fast Open (TFO).
+To use this option, the kernel must be built with the
+.Dv TCP_RFC7413
+option.
+.Pp
+This option can be set on the socket either before or after the
+.Xr listen 2
+is invoked.
+Clearing this option on a listen socket after it has been set has no effect on
+existing TFO connections or TFO connections in progress; it only prevents new
+TFO connections from being established.
+.Pp
+For passively-created sockets, the
+.Dv TCP_FASTOPEN
+socket option can be queried to determine whether the connection was established
+using TFO.
+Note that connections that are established via a TFO
+.Tn SYN ,
+but that fall back to using a non-TFO
+.Tn SYN|ACK
+will have the
+.Dv TCP_FASTOPEN
+socket option set.
+.Pp
+In addition to the facilities defined in RFC7413, this implementation supports a
+pre-shared key (PSK) mode of operation in which the TFO server requires the
+client to be in posession of a shared secret in order for the client to be able
+to successfully open TFO connections with the server.
+This is useful, for example, in environments where TFO servers are exposed to
+both internal and external clients and only wish to allow TFO connections from
+internal clients.
+.Pp
+In the PSK mode of operation, the server generates and sends TFO cookies to
+requesting clients as usual.
+However, when validating cookies received in TFO SYNs from clients, the server
+requires the client-supplied cookie to equal
+.Bd -literal -offset left
+SipHash24(key=\fI16-byte-psk\fP, msg=\fIcookie-sent-to-client\fP)
+.Ed
+.Pp
+Multiple concurrent valid pre-shared keys are supported so that time-based
+rolling PSK invalidation policies can be implemented in the system.
+The default number of concurrent pre-shared keys is 2.
+.Pp
+This can be adjusted with the
+.Dv TCP_RFC7413_MAX_PSKS
+kernel option.
 .It Dv TCP_FUNCTION_BLK
 Select or query the set of functions that TCP will use for this connection.
 This allows a user to select an alternate TCP stack.
@@ -689,6 +737,92 @@ Enable path MTU blackhole detection only for IPv6.
 MSS to try for IPv4 if PMTU blackhole detection is turned on.
 .It Va v6pmtud_blackhole_mss
 MSS to try for IPv6 if PMTU blackhole detection is turned on.
+.It Va fastopen.acceptany
+When non-zero, all client-supplied TFO cookies will be considered to be valid.
+The default is 0.
+.It Va fastopen.autokey
+When this and
+.Va net.inet.tcp.fastopen.server_enable
+are non-zero, a new key will be automatically generated after this specified
+seconds.
+The default is 120.
+.It Va fastopen.ccache_bucket_limit
+The maximum number of entries in a client cookie cache bucket.
+The default value can be tuned with the
+.Dv TCP_FASTOPEN_CCACHE_BUCKET_LIMIT_DEFAULT
+kernel option or by setting
+.Va net.inet.tcp.fastopen_ccache_bucket_limit
+in the
+.Xr loader 8 .
+.It Va fastopen.ccache_buckets
+The number of client cookie cache buckets.
+Read-only.
+The value can be tuned with the
+.Dv TCP_FASTOPEN_CCACHE_BUCKETS_DEFAULT
+kernel option or by setting
+.Va fastopen.ccache_buckets
+in the
+.Xr loader 8 .
+.It Va fastopen.ccache_list
+Print the client cookie cache.
+Read-only.
+.It Va fastopen.client_enable
+When zero, no new active (i.e., client) TFO connections can be created.
+On the transition from enabled to disabled, the client cookie cache is cleared
+and disabled.
+The transition from enabled to disabled does not affect any active TFO
+connections in progress; it only prevents new ones from being established.
+The default is 0.
+.It Va fastopen.keylen
+The key length in bytes.
+Read-only.
+.It Va fastopen.maxkeys
+The maximum number of keys supported.
+Read-only,
+.It Va fastopen.maxpsks
+The maximum number of pre-shared keys supported.
+Read-only.
+.It Va fastopen.numkeys
+The current number of keys installed.
+Read-only.
+.It Va fastopen.numpsks
+The current number of pre-shared keys installed.
+Read-only.
+.It Va fastopen.path_disable_time
+When a failure occurs while trying to create a new active (i.e., client) TFO
+connection, new active connections on the same path, as determined by the tuple
+.Brq client_ip, server_ip, server_port ,
+will be forced to be non-TFO for this many seconds.
+Note that the path disable mechanism relies on state stored in client cookie
+cache entries, so it is possible for the disable time for a given path to be
+reduced if the corresponding client cookie cache entry is reused due to resource
+pressure before the disable period has elapsed.
+The default is
+.Dv TCP_FASTOPEN_PATH_DISABLE_TIME_DEFAULT .
+.It Va fastopen.psk_enable
+When non-zero, pre-shared key (PSK) mode is enabled for all TFO servers.
+On the transition from enabled to disabled, all installed pre-shared keys are
+removed.
+The default is 0.
+.It Va fastopen.server_enable
+When zero, no new passive (i.e., server) TFO connections can be created.
+On the transition from enabled to disabled, all installed keys and pre-shared
+keys are removed.
+On the transition from disabled to enabled, if
+.Va fastopen.autokey
+is non-zero and there are no keys installed, a new key will be generated
+immediately.
+The transition from enabled to disabled does not affect any passive TFO
+connections in progress; it only prevents new ones from being established.
+The default is 0.
+.It Va fastopen.setkey
+Install a new key by writing
+.Va net.inet.tcp.fastopen.keylen
+bytes to this sysctl.
+.It Va fastopen.setpsk
+Install a new pre-shared key by writing
+.Va net.inet.tcp.fastopen.keylen
+bytes to this sysctl.
 .It Va hostcache.enable
 The TCP host cache is used to cache connection details and metrics to
 improve future performance of connections between the same hosts.
