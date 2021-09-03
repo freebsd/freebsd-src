@@ -35,8 +35,7 @@
 #ifndef __PCIB_PRIVATE_H__
 #define	__PCIB_PRIVATE_H__
 
-#include <sys/_callout.h>
-#include <sys/_task.h>
+#include <sys/taskqueue.h>
 
 #ifdef NEW_PCIB
 /*
@@ -138,9 +137,9 @@ struct pcib_softc
     struct resource *pcie_irq;
     void	*pcie_ihand;
     struct task	pcie_hp_task;
-    struct callout pcie_ab_timer;
-    struct callout pcie_cc_timer;
-    struct callout pcie_dll_timer;
+    struct timeout_task pcie_ab_task;
+    struct timeout_task pcie_cc_task;
+    struct timeout_task pcie_dll_task;
     struct mtx	*pcie_hp_lock;
 };
 
