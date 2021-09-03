@@ -1555,11 +1555,14 @@ void gas_serv_req_dpp_processing(struct hostapd_data *hapd,
 			di->prot = prot;
 			di->sd_resp = buf;
 			di->sd_resp_pos = 0;
+			di->dpp = 1;
 			tx_buf = gas_build_initial_resp(
 				dialog_token, WLAN_STATUS_SUCCESS,
-				comeback_delay, 10);
-			if (tx_buf)
+				comeback_delay, 10 + 2);
+			if (tx_buf) {
 				gas_serv_write_dpp_adv_proto(tx_buf);
+				wpabuf_put_le16(tx_buf, 0);
+			}
 		}
 	} else {
 		wpa_printf(MSG_DEBUG,
@@ -1782,9 +1785,10 @@ static void gas_serv_rx_gas_comeback_req(struct hostapd_data *hapd,
 		tx_buf = gas_build_comeback_resp(dialog_token,
 						 WLAN_STATUS_SUCCESS,
 						 dialog->sd_frag_id, more, 0,
-						 10 + frag_len);
+						 10 + 2 + frag_len);
 		if (tx_buf) {
 			gas_serv_write_dpp_adv_proto(tx_buf);
+			wpabuf_put_le16(tx_buf, frag_len);
 			wpabuf_put_buf(tx_buf, buf);
 		}
 	} else

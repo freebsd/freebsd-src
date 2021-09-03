@@ -312,6 +312,14 @@ static void tls_peer_cert_event(struct tlsv1_client *conn, int depth,
 	x509_name_string(&cert->subject, subject, sizeof(subject));
 	ev.peer_cert.subject = subject;
 
+	if (cert->extensions_present & X509_EXT_CERTIFICATE_POLICY) {
+		if (cert->certificate_policy & X509_EXT_CERT_POLICY_TOD_STRICT)
+			ev.peer_cert.tod = 1;
+		else if (cert->certificate_policy &
+			 X509_EXT_CERT_POLICY_TOD_TOFU)
+			ev.peer_cert.tod = 2;
+	}
+
 	conn->event_cb(conn->cb_ctx, TLS_PEER_CERTIFICATE, &ev);
 	wpabuf_free(cert_buf);
 }
@@ -532,7 +540,7 @@ static int tls_process_certificate(struct tlsv1_client *conn, u8 ct,
 		}
 	} else if (conn->cred && conn->cred->cert_probe) {
 		wpa_printf(MSG_DEBUG,
-			   "TLSv1: Reject server certificate on probe-only rune");
+			   "TLSv1: Reject server certificate on probe-only run");
 		if (conn->event_cb) {
 			union tls_event_data ev;
 			char buf[128];

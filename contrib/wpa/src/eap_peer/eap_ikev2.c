@@ -138,9 +138,9 @@ static struct wpabuf * eap_ikev2_build_msg(struct eap_ikev2_data *data,
 	u8 flags;
 	size_t send_len, plen, icv_len = 0;
 
-	ret->ignore = FALSE;
+	ret->ignore = false;
 	wpa_printf(MSG_DEBUG, "EAP-IKEV2: Generating Response");
-	ret->allowNotifications = TRUE;
+	ret->allowNotifications = true;
 
 	flags = 0;
 	send_len = wpabuf_len(data->out_buf) - data->out_used;
@@ -293,7 +293,7 @@ static struct wpabuf * eap_ikev2_process_fragment(struct eap_ikev2_data *data,
 	if (data->in_buf == NULL && !(flags & IKEV2_FLAGS_LENGTH_INCLUDED)) {
 		wpa_printf(MSG_DEBUG, "EAP-IKEV2: No Message Length field in "
 			   "a fragmented packet");
-		ret->ignore = TRUE;
+		ret->ignore = true;
 		return NULL;
 	}
 
@@ -303,14 +303,14 @@ static struct wpabuf * eap_ikev2_process_fragment(struct eap_ikev2_data *data,
 			/* Limit maximum memory allocation */
 			wpa_printf(MSG_DEBUG,
 				   "EAP-IKEV2: Ignore too long message");
-			ret->ignore = TRUE;
+			ret->ignore = true;
 			return NULL;
 		}
 		data->in_buf = wpabuf_alloc(message_length);
 		if (data->in_buf == NULL) {
 			wpa_printf(MSG_DEBUG, "EAP-IKEV2: No memory for "
 				   "message");
-			ret->ignore = TRUE;
+			ret->ignore = true;
 			return NULL;
 		}
 		wpabuf_put_data(data->in_buf, buf, len);
@@ -320,7 +320,7 @@ static struct wpabuf * eap_ikev2_process_fragment(struct eap_ikev2_data *data,
 			   (unsigned long) wpabuf_tailroom(data->in_buf));
 	}
 
-	ret->ignore = FALSE;
+	ret->ignore = false;
 	return eap_ikev2_build_frag_ack(id, EAP_CODE_RESPONSE);
 }
 
@@ -338,7 +338,7 @@ static struct wpabuf * eap_ikev2_process(struct eap_sm *sm, void *priv,
 
 	pos = eap_hdr_validate(EAP_VENDOR_IETF, EAP_TYPE_IKEV2, reqData, &len);
 	if (pos == NULL) {
-		ret->ignore = TRUE;
+		ret->ignore = true;
 		return NULL;
 	}
 
@@ -355,14 +355,14 @@ static struct wpabuf * eap_ikev2_process(struct eap_sm *sm, void *priv,
 	if (eap_ikev2_process_icv(data, reqData, flags, pos, &end,
 				  data->state == WAIT_FRAG_ACK && len == 0) < 0)
 	{
-		ret->ignore = TRUE;
+		ret->ignore = true;
 		return NULL;
 	}
 
 	if (flags & IKEV2_FLAGS_LENGTH_INCLUDED) {
 		if (end - pos < 4) {
 			wpa_printf(MSG_DEBUG, "EAP-IKEV2: Message underflow");
-			ret->ignore = TRUE;
+			ret->ignore = true;
 			return NULL;
 		}
 		message_length = WPA_GET_BE32(pos);
@@ -372,7 +372,7 @@ static struct wpabuf * eap_ikev2_process(struct eap_sm *sm, void *priv,
 			wpa_printf(MSG_DEBUG, "EAP-IKEV2: Invalid Message "
 				   "Length (%d; %ld remaining in this msg)",
 				   message_length, (long) (end - pos));
-			ret->ignore = TRUE;
+			ret->ignore = true;
 			return NULL;
 		}
 	}
@@ -384,7 +384,7 @@ static struct wpabuf * eap_ikev2_process(struct eap_sm *sm, void *priv,
 		if (len != 0) {
 			wpa_printf(MSG_DEBUG, "EAP-IKEV2: Unexpected payload "
 				   "in WAIT_FRAG_ACK state");
-			ret->ignore = TRUE;
+			ret->ignore = true;
 			return NULL;
 		}
 		wpa_printf(MSG_DEBUG, "EAP-IKEV2: Fragment acknowledged");
@@ -393,10 +393,10 @@ static struct wpabuf * eap_ikev2_process(struct eap_sm *sm, void *priv,
 	}
 
 	if (data->in_buf && eap_ikev2_process_cont(data, pos, end - pos) < 0) {
-		ret->ignore = TRUE;
+		ret->ignore = true;
 		return NULL;
 	}
-		
+
 	if (flags & IKEV2_FLAGS_MORE_FRAGMENTS) {
 		return eap_ikev2_process_fragment(data, ret, id, flags,
 						  message_length, pos,
@@ -435,7 +435,7 @@ static struct wpabuf * eap_ikev2_process(struct eap_sm *sm, void *priv,
 }
 
 
-static Boolean eap_ikev2_isKeyAvailable(struct eap_sm *sm, void *priv)
+static bool eap_ikev2_isKeyAvailable(struct eap_sm *sm, void *priv)
 {
 	struct eap_ikev2_data *data = priv;
 	return data->state == DONE && data->keymat_ok;

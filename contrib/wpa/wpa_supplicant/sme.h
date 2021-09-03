@@ -29,7 +29,7 @@ void sme_event_disassoc(struct wpa_supplicant *wpa_s,
 void sme_event_unprot_disconnect(struct wpa_supplicant *wpa_s, const u8 *sa,
 				 const u8 *da, u16 reason_code);
 void sme_event_ch_switch(struct wpa_supplicant *wpa_s);
-void sme_sa_query_rx(struct wpa_supplicant *wpa_s, const u8 *sa,
+void sme_sa_query_rx(struct wpa_supplicant *wpa_s, const u8 *da, const u8 *sa,
 		     const u8 *data, size_t len);
 void sme_state_changed(struct wpa_supplicant *wpa_s);
 void sme_disassoc_while_authenticating(struct wpa_supplicant *wpa_s,
@@ -37,7 +37,8 @@ void sme_disassoc_while_authenticating(struct wpa_supplicant *wpa_s,
 void sme_clear_on_disassoc(struct wpa_supplicant *wpa_s);
 void sme_deinit(struct wpa_supplicant *wpa_s);
 
-int sme_proc_obss_scan(struct wpa_supplicant *wpa_s);
+int sme_proc_obss_scan(struct wpa_supplicant *wpa_s,
+		       struct wpa_scan_results *scan_res);
 void sme_sched_obss_scan(struct wpa_supplicant *wpa_s, int enable);
 void sme_external_auth_trigger(struct wpa_supplicant *wpa_s,
 			       union wpa_event_data *data);
@@ -112,7 +113,8 @@ static inline void sme_deinit(struct wpa_supplicant *wpa_s)
 {
 }
 
-static inline int sme_proc_obss_scan(struct wpa_supplicant *wpa_s)
+static inline int sme_proc_obss_scan(struct wpa_supplicant *wpa_s,
+				     struct wpa_scan_results *scan_res)
 {
 	return 0;
 }

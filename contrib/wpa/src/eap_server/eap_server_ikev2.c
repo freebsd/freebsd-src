@@ -87,8 +87,8 @@ static void * eap_ikev2_init(struct eap_sm *sm)
 	if (data == NULL)
 		return NULL;
 	data->state = MSG;
-	data->fragment_size = sm->fragment_size > 0 ? sm->fragment_size :
-		IKEV2_FRAGMENT_SIZE;
+	data->fragment_size = sm->cfg->fragment_size > 0 ?
+		sm->cfg->fragment_size : IKEV2_FRAGMENT_SIZE;
 	data->ikev2.state = SA_INIT;
 	data->ikev2.peer_auth = PEER_AUTH_SECRET;
 	data->ikev2.key_pad = (u8 *) os_strdup("Key Pad for EAP-IKEv2");
@@ -103,10 +103,10 @@ static void * eap_ikev2_init(struct eap_sm *sm)
 	data->ikev2.proposal.encr = ENCR_AES_CBC;
 	data->ikev2.proposal.dh = DH_GROUP2_1024BIT_MODP;
 
-	data->ikev2.IDi = os_memdup(sm->server_id, sm->server_id_len);
+	data->ikev2.IDi = os_memdup(sm->cfg->server_id, sm->cfg->server_id_len);
 	if (data->ikev2.IDi == NULL)
 		goto failed;
-	data->ikev2.IDi_len = sm->server_id_len;
+	data->ikev2.IDi_len = sm->cfg->server_id_len;
 
 	data->ikev2.get_shared_secret = eap_ikev2_get_shared_secret;
 	data->ikev2.cb_ctx = sm;
@@ -236,8 +236,8 @@ static struct wpabuf * eap_ikev2_buildReq(struct eap_sm *sm, void *priv, u8 id)
 }
 
 
-static Boolean eap_ikev2_check(struct eap_sm *sm, void *priv,
-			       struct wpabuf *respData)
+static bool eap_ikev2_check(struct eap_sm *sm, void *priv,
+			    struct wpabuf *respData)
 {
 	const u8 *pos;
 	size_t len;
@@ -246,10 +246,10 @@ static Boolean eap_ikev2_check(struct eap_sm *sm, void *priv,
 			       &len);
 	if (pos == NULL) {
 		wpa_printf(MSG_INFO, "EAP-IKEV2: Invalid frame");
-		return TRUE;
+		return true;
 	}
 
-	return FALSE;
+	return false;
 }
 
 
@@ -414,7 +414,7 @@ static void eap_ikev2_process(struct eap_sm *sm, void *priv,
 		eap_ikev2_state(data, FAIL);
 		return;
 	}
-		
+
 	if (flags & IKEV2_FLAGS_MORE_FRAGMENTS) {
 		if (eap_ikev2_process_fragment(data, flags, message_length,
 					       pos, end - pos) < 0)
@@ -465,14 +465,14 @@ static void eap_ikev2_process(struct eap_sm *sm, void *priv,
 }
 
 
-static Boolean eap_ikev2_isDone(struct eap_sm *sm, void *priv)
+static bool eap_ikev2_isDone(struct eap_sm *sm, void *priv)
 {
 	struct eap_ikev2_data *data = priv;
 	return data->state == DONE || data->state == FAIL;
 }
 
 
-static Boolean eap_ikev2_isSuccess(struct eap_sm *sm, void *priv)
+static bool eap_ikev2_isSuccess(struct eap_sm *sm, void *priv)
 {
 	struct eap_ikev2_data *data = priv;
 	return data->state == DONE && data->ikev2.state == IKEV2_DONE &&

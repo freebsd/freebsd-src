@@ -107,22 +107,18 @@ static int pkcs5_get_params_pbes2(struct pkcs5_params *params, const u8 *pos,
 	 */
 
 	if (asn1_get_next(pos, enc_alg_end - pos, &hdr) < 0 ||
-	    hdr.class != ASN1_CLASS_UNIVERSAL ||
-	    hdr.tag != ASN1_TAG_SEQUENCE) {
-		wpa_printf(MSG_DEBUG,
-			   "PKCS #5: Expected SEQUENCE (PBES2-params) - found class %d tag 0x%x",
-			   hdr.class, hdr.tag);
+	    !asn1_is_sequence(&hdr)) {
+		asn1_unexpected(&hdr,
+				"PKCS #5: Expected SEQUENCE (PBES2-params)");
 		return -1;
 	}
 	pos = hdr.payload;
 	end = hdr.payload + hdr.length;
 
 	if (asn1_get_next(pos, end - pos, &hdr) < 0 ||
-	    hdr.class != ASN1_CLASS_UNIVERSAL ||
-	    hdr.tag != ASN1_TAG_SEQUENCE) {
-		wpa_printf(MSG_DEBUG,
-			   "PKCS #5: Expected SEQUENCE (keyDerivationFunc) - found class %d tag 0x%x",
-			   hdr.class, hdr.tag);
+	    !asn1_is_sequence(&hdr)) {
+		asn1_unexpected(&hdr,
+				"PKCS #5: Expected SEQUENCE (keyDerivationFunc)");
 		return -1;
 	}
 
@@ -161,11 +157,9 @@ static int pkcs5_get_params_pbes2(struct pkcs5_params *params, const u8 *pos,
 	 */
 
 	if (asn1_get_next(pos, end - pos, &hdr) < 0 ||
-	    hdr.class != ASN1_CLASS_UNIVERSAL ||
-	    hdr.tag != ASN1_TAG_SEQUENCE) {
-		wpa_printf(MSG_DEBUG,
-			   "PKCS #5: Expected SEQUENCE (PBKDF2-params) - found class %d tag 0x%x",
-			   hdr.class, hdr.tag);
+	    !asn1_is_sequence(&hdr)) {
+		asn1_unexpected(&hdr,
+				"PKCS #5: Expected SEQUENCE (PBKDF2-params)");
 		return -1;
 	}
 
@@ -174,12 +168,10 @@ static int pkcs5_get_params_pbes2(struct pkcs5_params *params, const u8 *pos,
 
 	/* For now, only support the salt CHOICE specified (OCTET STRING) */
 	if (asn1_get_next(pos, end - pos, &hdr) < 0 ||
-	    hdr.class != ASN1_CLASS_UNIVERSAL ||
-	    hdr.tag != ASN1_TAG_OCTETSTRING ||
+	    !asn1_is_octetstring(&hdr) ||
 	    hdr.length > sizeof(params->salt)) {
-		wpa_printf(MSG_DEBUG,
-			   "PKCS #5: Expected OCTET STRING (salt.specified) - found class %d tag 0x%x size %d",
-			   hdr.class, hdr.tag, hdr.length);
+		asn1_unexpected(&hdr,
+				"PKCS #5: Expected OCTET STRING (salt.specified)");
 		return -1;
 	}
 	pos = hdr.payload + hdr.length;
@@ -188,11 +180,8 @@ static int pkcs5_get_params_pbes2(struct pkcs5_params *params, const u8 *pos,
 	wpa_hexdump(MSG_DEBUG, "PKCS #5: salt", params->salt, params->salt_len);
 
 	/* iterationCount INTEGER */
-	if (asn1_get_next(pos, end - pos, &hdr) < 0 ||
-	    hdr.class != ASN1_CLASS_UNIVERSAL || hdr.tag != ASN1_TAG_INTEGER) {
-		wpa_printf(MSG_DEBUG,
-			   "PKCS #5: Expected INTEGER - found class %d tag 0x%x",
-			   hdr.class, hdr.tag);
+	if (asn1_get_next(pos, end - pos, &hdr) < 0 || !asn1_is_integer(&hdr)) {
+		asn1_unexpected(&hdr, "PKCS #5: Expected INTEGER");
 		return -1;
 	}
 	if (hdr.length == 1) {
@@ -222,11 +211,9 @@ static int pkcs5_get_params_pbes2(struct pkcs5_params *params, const u8 *pos,
 	/* encryptionScheme AlgorithmIdentifier {{PBES2-Encs}} */
 
 	if (asn1_get_next(pos, enc_alg_end - pos, &hdr) < 0 ||
-	    hdr.class != ASN1_CLASS_UNIVERSAL ||
-	    hdr.tag != ASN1_TAG_SEQUENCE) {
-		wpa_printf(MSG_DEBUG,
-			   "PKCS #5: Expected SEQUENCE (encryptionScheme) - found class %d tag 0x%x",
-			   hdr.class, hdr.tag);
+	    !asn1_is_sequence(&hdr)) {
+		asn1_unexpected(&hdr,
+				"PKCS #5: Expected SEQUENCE (encryptionScheme)");
 		return -1;
 	}
 
@@ -258,12 +245,9 @@ static int pkcs5_get_params_pbes2(struct pkcs5_params *params, const u8 *pos,
 	 * specifying the initialization vector for CBC mode.
 	 */
 	if (asn1_get_next(pos, end - pos, &hdr) < 0 ||
-	    hdr.class != ASN1_CLASS_UNIVERSAL ||
-	    hdr.tag != ASN1_TAG_OCTETSTRING ||
-	    hdr.length != 8) {
-		wpa_printf(MSG_DEBUG,
-			   "PKCS #5: Expected OCTET STRING (SIZE(8)) (IV) - found class %d tag 0x%x size %d",
-			   hdr.class, hdr.tag, hdr.length);
+	    !asn1_is_octetstring(&hdr) || hdr.length != 8) {
+		asn1_unexpected(&hdr,
+				"PKCS #5: Expected OCTET STRING (SIZE(8)) (IV)");
 		return -1;
 	}
 	os_memcpy(params->iv, hdr.payload, hdr.length);
@@ -323,11 +307,9 @@ static int pkcs5_get_params(const u8 *enc_alg, size_t enc_alg_len,
 	 */
 
 	if (asn1_get_next(pos, enc_alg_end - pos, &hdr) < 0 ||
-	    hdr.class != ASN1_CLASS_UNIVERSAL ||
-	    hdr.tag != ASN1_TAG_SEQUENCE) {
-		wpa_printf(MSG_DEBUG, "PKCS #5: Expected SEQUENCE "
-			   "(PBEParameter) - found class %d tag 0x%x",
-			   hdr.class, hdr.tag);
+	    !asn1_is_sequence(&hdr)) {
+		asn1_unexpected(&hdr,
+				"PKCS #5: Expected SEQUENCE (PBEParameter)");
 		return -1;
 	}
 	pos = hdr.payload;
@@ -335,12 +317,9 @@ static int pkcs5_get_params(const u8 *enc_alg, size_t enc_alg_len,
 
 	/* salt OCTET STRING SIZE(8) (PKCS #5) or OCTET STRING (PKCS #12) */
 	if (asn1_get_next(pos, end - pos, &hdr) < 0 ||
-	    hdr.class != ASN1_CLASS_UNIVERSAL ||
-	    hdr.tag != ASN1_TAG_OCTETSTRING ||
-	    hdr.length > sizeof(params->salt)) {
-		wpa_printf(MSG_DEBUG, "PKCS #5: Expected OCTETSTRING SIZE(8) "
-			   "(salt) - found class %d tag 0x%x size %d",
-			   hdr.class, hdr.tag, hdr.length);
+	    !asn1_is_octetstring(&hdr) || hdr.length > sizeof(params->salt)) {
+		asn1_unexpected(&hdr,
+				"PKCS #5: Expected OCTETSTRING SIZE(8) (salt)");
 		return -1;
 	}
 	pos = hdr.payload + hdr.length;
@@ -351,9 +330,8 @@ static int pkcs5_get_params(const u8 *enc_alg, size_t enc_alg_len,
 
 	/* iterationCount INTEGER */
 	if (asn1_get_next(pos, end - pos, &hdr) < 0 ||
-	    hdr.class != ASN1_CLASS_UNIVERSAL || hdr.tag != ASN1_TAG_INTEGER) {
-		wpa_printf(MSG_DEBUG, "PKCS #5: Expected INTEGER - found "
-			   "class %d tag 0x%x", hdr.class, hdr.tag);
+	    !asn1_is_integer(&hdr)) {
+		asn1_unexpected(&hdr, "PKCS #5: Expected INTEGER");
 		return -1;
 	}
 	if (hdr.length == 1)

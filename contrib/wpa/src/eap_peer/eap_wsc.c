@@ -304,9 +304,9 @@ static struct wpabuf * eap_wsc_build_msg(struct eap_wsc_data *data,
 	u8 flags;
 	size_t send_len, plen;
 
-	ret->ignore = FALSE;
+	ret->ignore = false;
 	wpa_printf(MSG_DEBUG, "EAP-WSC: Generating Response");
-	ret->allowNotifications = TRUE;
+	ret->allowNotifications = true;
 
 	flags = 0;
 	send_len = wpabuf_len(data->out_buf) - data->out_used;
@@ -400,7 +400,7 @@ static struct wpabuf * eap_wsc_process_fragment(struct eap_wsc_data *data,
 	if (data->in_buf == NULL && !(flags & WSC_FLAGS_LF)) {
 		wpa_printf(MSG_DEBUG, "EAP-WSC: No Message Length field in a "
 			   "fragmented packet");
-		ret->ignore = TRUE;
+		ret->ignore = true;
 		return NULL;
 	}
 
@@ -410,7 +410,7 @@ static struct wpabuf * eap_wsc_process_fragment(struct eap_wsc_data *data,
 		if (data->in_buf == NULL) {
 			wpa_printf(MSG_DEBUG, "EAP-WSC: No memory for "
 				   "message");
-			ret->ignore = TRUE;
+			ret->ignore = true;
 			return NULL;
 		}
 		data->in_op_code = op_code;
@@ -441,7 +441,7 @@ static struct wpabuf * eap_wsc_process(struct eap_sm *sm, void *priv,
 	pos = eap_hdr_validate(EAP_VENDOR_WFA, EAP_VENDOR_TYPE_WSC, reqData,
 			       &len);
 	if (pos == NULL || len < 2) {
-		ret->ignore = TRUE;
+		ret->ignore = true;
 		return NULL;
 	}
 
@@ -455,7 +455,7 @@ static struct wpabuf * eap_wsc_process(struct eap_sm *sm, void *priv,
 	if (flags & WSC_FLAGS_LF) {
 		if (end - pos < 2) {
 			wpa_printf(MSG_DEBUG, "EAP-WSC: Message underflow");
-			ret->ignore = TRUE;
+			ret->ignore = true;
 			return NULL;
 		}
 		message_length = WPA_GET_BE16(pos);
@@ -464,7 +464,7 @@ static struct wpabuf * eap_wsc_process(struct eap_sm *sm, void *priv,
 		if (message_length < end - pos || message_length > 50000) {
 			wpa_printf(MSG_DEBUG, "EAP-WSC: Invalid Message "
 				   "Length");
-			ret->ignore = TRUE;
+			ret->ignore = true;
 			return NULL;
 		}
 	}
@@ -477,7 +477,7 @@ static struct wpabuf * eap_wsc_process(struct eap_sm *sm, void *priv,
 		if (op_code != WSC_FRAG_ACK) {
 			wpa_printf(MSG_DEBUG, "EAP-WSC: Unexpected Op-Code %d "
 				   "in WAIT_FRAG_ACK state", op_code);
-			ret->ignore = TRUE;
+			ret->ignore = true;
 			return NULL;
 		}
 		wpa_printf(MSG_DEBUG, "EAP-WSC: Fragment acknowledged");
@@ -489,7 +489,7 @@ static struct wpabuf * eap_wsc_process(struct eap_sm *sm, void *priv,
 	    op_code != WSC_Done && op_code != WSC_Start) {
 		wpa_printf(MSG_DEBUG, "EAP-WSC: Unexpected Op-Code %d",
 			   op_code);
-		ret->ignore = TRUE;
+		ret->ignore = true;
 		return NULL;
 	}
 
@@ -497,7 +497,7 @@ static struct wpabuf * eap_wsc_process(struct eap_sm *sm, void *priv,
 		if (op_code != WSC_Start) {
 			wpa_printf(MSG_DEBUG, "EAP-WSC: Unexpected Op-Code %d "
 				   "in WAIT_START state", op_code);
-			ret->ignore = TRUE;
+			ret->ignore = true;
 			return NULL;
 		}
 		wpa_printf(MSG_DEBUG, "EAP-WSC: Received start");
@@ -507,13 +507,13 @@ static struct wpabuf * eap_wsc_process(struct eap_sm *sm, void *priv,
 	} else if (op_code == WSC_Start) {
 		wpa_printf(MSG_DEBUG, "EAP-WSC: Unexpected Op-Code %d",
 			   op_code);
-		ret->ignore = TRUE;
+		ret->ignore = true;
 		return NULL;
 	}
 
 	if (data->in_buf &&
 	    eap_wsc_process_cont(data, pos, end - pos, op_code) < 0) {
-		ret->ignore = TRUE;
+		ret->ignore = true;
 		return NULL;
 	}
 

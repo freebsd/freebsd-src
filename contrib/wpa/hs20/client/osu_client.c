@@ -310,7 +310,7 @@ static int download_cert(struct hs20_osu_client *ctx, xml_node_t *params,
 	size_t len;
 	u8 digest1[SHA256_MAC_LEN], digest2[SHA256_MAC_LEN];
 	int res;
-	unsigned char *b64;
+	char *b64;
 	FILE *f;
 
 	url_node = get_node(ctx->xml, params, "CertURL");
@@ -364,7 +364,7 @@ static int download_cert(struct hs20_osu_client *ctx, xml_node_t *params,
 		return -1;
 	}
 
-	b64 = base64_encode((unsigned char *) cert, len, NULL);
+	b64 = base64_encode(cert, len, NULL);
 	os_free(cert);
 	if (b64 == NULL)
 		return -1;
@@ -2233,7 +2233,7 @@ static int osu_connect(struct hs20_osu_client *ctx, const char *bssid,
 	wpa_ctrl_close(mon);
 
 	if (res < 0) {
-		wpa_printf(MSG_INFO, "Could not connect");
+		wpa_printf(MSG_INFO, "Could not connect to OSU network");
 		write_summary(ctx, "Could not connect to OSU network");
 		wpa_printf(MSG_INFO, "Remove OSU network connection");
 		snprintf(buf, sizeof(buf), "REMOVE_NETWORK %d", id);
@@ -2406,7 +2406,7 @@ static int cmd_osu_select(struct hs20_osu_client *ctx, const char *dir,
 
 	snprintf(fname, sizeof(fname), "file://%s/osu-providers.html", dir);
 	write_summary(ctx, "Start web browser with OSU provider selection page");
-	ret = hs20_web_browser(fname);
+	ret = hs20_web_browser(fname, 0);
 
 selected:
 	if (ret > 0 && (size_t) ret <= osu_count) {
@@ -2907,7 +2907,7 @@ static char * get_hostname(const char *url)
 static int osu_cert_cb(void *_ctx, struct http_cert *cert)
 {
 	struct hs20_osu_client *ctx = _ctx;
-	unsigned int i, j;
+	size_t i, j;
 	int found;
 	char *host = NULL;
 
@@ -3002,7 +3002,7 @@ static int osu_cert_cb(void *_ctx, struct http_cert *cert)
 		size_t name_len = os_strlen(name);
 
 		wpa_printf(MSG_INFO,
-			   "[%i] Looking for icon file name '%s' match",
+			   "[%zu] Looking for icon file name '%s' match",
 			   j, name);
 		for (i = 0; i < cert->num_logo; i++) {
 			struct http_logo *logo = &cert->logo[i];
@@ -3010,7 +3010,7 @@ static int osu_cert_cb(void *_ctx, struct http_cert *cert)
 			char *pos;
 
 			wpa_printf(MSG_INFO,
-				   "[%i] Comparing to '%s' uri_len=%d name_len=%d",
+				   "[%zu] Comparing to '%s' uri_len=%d name_len=%d",
 				   i, logo->uri, (int) uri_len, (int) name_len);
 			if (uri_len < 1 + name_len) {
 				wpa_printf(MSG_INFO, "URI Length is too short");
@@ -3044,7 +3044,7 @@ static int osu_cert_cb(void *_ctx, struct http_cert *cert)
 
 			if (logo->hash_len != 32) {
 				wpa_printf(MSG_INFO,
-					   "[%i][%i] Icon hash length invalid (should be 32): %d",
+					   "[%zu][%zu] Icon hash length invalid (should be 32): %d",
 					   j, i, (int) logo->hash_len);
 				continue;
 			}
@@ -3054,7 +3054,7 @@ static int osu_cert_cb(void *_ctx, struct http_cert *cert)
 			}
 
 			wpa_printf(MSG_DEBUG,
-				   "[%u][%u] Icon hash did not match", j, i);
+				   "[%zu][%zu] Icon hash did not match", j, i);
 			wpa_hexdump_ascii(MSG_DEBUG, "logo->hash",
 					  logo->hash, 32);
 			wpa_hexdump_ascii(MSG_DEBUG, "ctx->icon_hash[j]",
@@ -3152,7 +3152,7 @@ static void check_workarounds(struct hs20_osu_client *ctx)
 
 static void usage(void)
 {
-	printf("usage: hs20-osu-client [-dddqqKt] [-S<station ifname>] \\\n"
+	printf("usage: hs20-osu-client [-dddqqKtT] [-S<station ifname>] \\\n"
 	       "    [-w<wpa_supplicant ctrl_iface dir>] "
 	       "[-r<result file>] [-f<debug file>] \\\n"
 	       "    [-s<summary file>] \\\n"
@@ -3198,7 +3198,7 @@ int main(int argc, char *argv[])
 		return -1;
 
 	for (;;) {
-		c = getopt(argc, argv, "df:hKNo:O:qr:s:S:tw:x:");
+		c = getopt(argc, argv, "df:hKNo:O:qr:s:S:tTw:x:");
 		if (c < 0)
 			break;
 		switch (c) {
@@ -3235,6 +3235,9 @@ int main(int argc, char *argv[])
 			break;
 		case 't':
 			wpa_debug_timestamp++;
+			break;
+		case 'T':
+			ctx.ignore_tls = 1;
 			break;
 		case 'w':
 			wpas_ctrl_path = optarg;
@@ -3403,7 +3406,7 @@ int main(int argc, char *argv[])
 
 		wpa_printf(MSG_INFO, "Launch web browser to URL %s",
 			   argv[optind + 1]);
-		ret = hs20_web_browser(argv[optind + 1]);
+		ret = hs20_web_browser(argv[optind + 1], ctx.ignore_tls);
 		wpa_printf(MSG_INFO, "Web browser result: %d", ret);
 	} else if (strcmp(argv[optind], "parse_cert") == 0) {
 		if (argc - optind < 2) {
