@@ -201,8 +201,7 @@ device		nvme			# base NVMe driver
 device		nvd			# expose NVMe namespaces as disks, depends on nvme
 
 # Intel Volume Management Device (VMD) support
-device		vmd			# base VMD device
-device		vmd_bus			# bus for VMD children
+device		vmd
 
 # atkbdc0 controls both the keyboard and the PS/2 mouse
 device		atkbdc			# AT keyboard controller

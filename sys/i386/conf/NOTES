@@ -679,6 +679,10 @@ device         nvme    # base NVMe driver
 device         nvd     # expose NVMe namespaces as disks, depends on nvme
 
 #
+# Intel Volume Management Device (VMD) support
+device		vmd
+
+#
 # PMC-Sierra SAS/SATA controller
 device		pmspcv
 #
