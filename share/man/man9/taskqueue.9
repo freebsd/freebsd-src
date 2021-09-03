@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 6, 2020
+.Dd September 1, 2021
 .Dt TASKQUEUE 9
 .Os
 .Sh NAME
@@ -237,9 +237,6 @@ and
 .Va flags ,
 as detailed in
 .Xr callout 9 .
-Only non-fast task queues can be used for
-.Va timeout_task
-scheduling.
 If the
 .Va ticks
 argument is negative, the already scheduled enqueueing is not re-scheduled.

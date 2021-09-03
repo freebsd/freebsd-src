@@ -309,7 +309,6 @@ taskqueue_enqueue_timeout_sbt(struct taskqueue *queue,
 	TQ_LOCK(queue);
 	KASSERT(timeout_task->q == NULL || timeout_task->q == queue,
 	    ("Migrated queue"));
-	KASSERT(!queue->tq_spin, ("Timeout for spin-queue"));
 	timeout_task->q = queue;
 	res = timeout_task->t.ta_pending;
 	if (timeout_task->f & DT_DRAIN_IN_PROGRESS) {
@@ -329,6 +328,8 @@ taskqueue_enqueue_timeout_sbt(struct taskqueue *queue,
 				sbt = -sbt; /* Ignore overflow. */
 		}
 		if (sbt > 0) {
+			if (queue->tq_spin)
+				flags |= C_DIRECT_EXEC;
 			callout_reset_sbt(&timeout_task->c, sbt, pr,
 			    taskqueue_timeout_func, timeout_task, flags);
 		}
