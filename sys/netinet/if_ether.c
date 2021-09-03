@@ -849,7 +849,7 @@ in_arpinput(struct mbuf *m)
 	IN_IFADDR_RLOCK(&in_ifa_tracker);
 	LIST_FOREACH(ia, INADDR_HASH(itaddr.s_addr), ia_hash) {
 		if (((bridged && ia->ia_ifp->if_bridge == ifp->if_bridge) ||
-		    ia->ia_ifp == ifp) &&
+		   !bridged /*ia->ia_ifp == ifp*/) &&
 		    itaddr.s_addr == ia->ia_addr.sin_addr.s_addr &&
 		    (ia->ia_ifa.ifa_carp == NULL ||
 		    (*carp_iamatch_p)(&ia->ia_ifa, &enaddr))) {
