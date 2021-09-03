@@ -670,4 +670,18 @@ int tls_get_tls_unique(struct tls_connection *conn, u8 *buf, size_t max_len);
  */
 u16 tls_connection_get_cipher_suite(struct tls_connection *conn);
 
+/**
+ * tls_connection_get_peer_subject - Get peer subject
+ * @conn: Connection context data from tls_connection_init()
+ * Returns: Peer subject or %NULL if not authenticated or not available
+ */
+const char * tls_connection_get_peer_subject(struct tls_connection *conn);
+
+/**
+ * tls_connection_get_own_cert_used - Was own certificate used
+ * @conn: Connection context data from tls_connection_init()
+ * Returns: true if own certificate was used during authentication
+ */
+bool tls_connection_get_own_cert_used(struct tls_connection *conn);
+
 #endif /* TLS_H */

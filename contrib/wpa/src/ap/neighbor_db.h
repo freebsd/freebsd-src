@@ -13,6 +13,7 @@
 struct hostapd_neighbor_entry *
 hostapd_neighbor_get(struct hostapd_data *hapd, const u8 *bssid,
 		     const struct wpa_ssid_value *ssid);
+int hostapd_neighbor_show(struct hostapd_data *hapd, char *buf, size_t buflen);
 int hostapd_neighbor_set(struct hostapd_data *hapd, const u8 *bssid,
 			 const struct wpa_ssid_value *ssid,
 			 const struct wpabuf *nr, const struct wpabuf *lci,

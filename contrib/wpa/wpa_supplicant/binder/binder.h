@@ -17,7 +17,7 @@ extern "C" {
 /**
  * This is the binder RPC interface entry point to the wpa_supplicant core.
  * This initializes the binder driver & BinderManager instance and then forwards
- * all the notifcations from the supplicant core to the BinderManager.
+ * all the notifications from the supplicant core to the BinderManager.
  */
 struct wpas_binder_priv;
 struct wpa_global;

@@ -44,14 +44,8 @@ CONFIG_LIBNL32=y
 # Driver interface for no driver (e.g., RADIUS server only)
 #CONFIG_DRIVER_NONE=y
 
-# IEEE 802.11F/IAPP
-CONFIG_IAPP=y
-
 # WPA2/IEEE 802.11i RSN pre-authentication
 CONFIG_RSN_PREAUTH=y
-
-# IEEE 802.11w (management frame protection)
-CONFIG_IEEE80211W=y
 
 # Support Operating Channel Validation
 #CONFIG_OCV=y
@@ -153,9 +147,6 @@ CONFIG_IPV6=y
 # Use the hostapd's IEEE 802.11 authentication (ACL), but without
 # the IEEE 802.11 Management capability (e.g., FreeBSD/net80211)
 #CONFIG_DRIVER_RADIUS_ACL=y
-
-# IEEE 802.11n (High Throughput) support
-#CONFIG_IEEE80211N=y
 
 # Wireless Network Management (IEEE Std 802.11v-2011)
 # Note: This is experimental and not complete implementation.
@@ -355,12 +346,12 @@ CONFIG_IPV6=y
 # * ath10k
 #
 # For more details refer to:
-# http://wireless.kernel.org/en/users/Documentation/acs
+# https://wireless.wiki.kernel.org/en/users/documentation/acs
 #
 #CONFIG_ACS=y
 
 # Multiband Operation support
-# These extentions facilitate efficient use of multiple frequency bands
+# These extensions facilitate efficient use of multiple frequency bands
 # available to the AP and the devices that may associate with it.
 #CONFIG_MBO=y
 
@@ -389,3 +380,25 @@ CONFIG_IPV6=y
 # Override default value for the wpa_disable_eapol_key_retries configuration
 # parameter. See that parameter in hostapd.conf for more details.
 #CFLAGS += -DDEFAULT_WPA_DISABLE_EAPOL_KEY_RETRIES=1
+
+# Wired equivalent privacy (WEP)
+# WEP is an obsolete cryptographic data confidentiality algorithm that is not
+# considered secure. It should not be used for anything anymore. The
+# functionality needed to use WEP is available in the current hostapd
+# release under this optional build parameter. This functionality is subject to
+# be completely removed in a future release.
+#CONFIG_WEP=y
+
+# Remove all TKIP functionality
+# TKIP is an old cryptographic data confidentiality algorithm that is not
+# considered secure. It should not be used anymore. For now, the default hostapd
+# build includes this to allow mixed mode WPA+WPA2 networks to be enabled, but
+# that functionality is subject to be removed in the future.
+#CONFIG_NO_TKIP=y
+
+# Pre-Association Security Negotiation (PASN)
+# Experimental implementation based on IEEE P802.11z/D2.6 and the protocol
+# design is still subject to change. As such, this should not yet be enabled in
+# production use.
+# This requires CONFIG_IEEE80211W=y to be enabled, too.
+#CONFIG_PASN=y

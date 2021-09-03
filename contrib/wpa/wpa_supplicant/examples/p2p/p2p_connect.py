@@ -71,7 +71,7 @@ class P2P_Connect():
 	global wpas_dbus_interfaces_interface
 	global wpas_dbus_interfaces_p2pdevice
 
-	# Dictionary of Arguements
+	# Dictionary of Arguments
 	global p2p_connect_arguements
 
 	# Constructor
@@ -108,7 +108,7 @@ class P2P_Connect():
 		self.path = None
 		try:
 			self.path = self.wpas.GetInterface(ifname)
-		except:
+		except dbus.DBusException as exc:
 			if not str(exc).startswith(
 				self.wpas_dbus_interface + \
 				".InterfaceUnknown:"):
@@ -146,9 +146,9 @@ class P2P_Connect():
 			signal_name="WpsFailed")
 
 
-	#Constructing all the arguements needed to connect
+	#Constructing all the arguments needed to connect
 	def constructArguements(self):
-		# Adding required arguements
+		# Adding required arguments
 		self.p2p_connect_arguements = {'wps_method':self.wps_method,
 			'peer':dbus.ObjectPath(self.path+'/Peers/'+self.addr)}
 
@@ -198,7 +198,7 @@ class P2P_Connect():
 			usage()
 			quit()
 
-		# Go_intent is optional for all arguements
+		# Go_intent is optional for all arguments
 		if (self.go_intent != None):
 			self.p2p_connect_arguements.update(
 				{'go_intent':dbus.Int32(self.go_intent)})
@@ -239,7 +239,7 @@ if __name__ == "__main__":
 		usage()
 		quit()
 
-	# If theres a switch, override default option
+	# If there's a switch, override default option
 	for key, value in options:
 		# Help
 		if (key == "-h"):
@@ -266,9 +266,9 @@ if __name__ == "__main__":
 		else:
 			assert False, "unhandled option"
 
-	# Required Arguements check
+	# Required Arguments check
 	if (interface_name == None or wps_method == None or addr == None):
-		print("Error:\n  Required arguements not specified")
+		print("Error:\n  Required arguments not specified")
 		usage()
 		quit()
 
@@ -289,7 +289,7 @@ if __name__ == "__main__":
 			addr,pin,wps_method,go_intent)
 
 	except:
-		print("Error:\n  Invalid Arguements")
+		print("Error:\n  Invalid Arguments")
 		usage()
 		quit()
 

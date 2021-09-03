@@ -1,6 +1,6 @@
 /*
  * EAP peer method: EAP-TLS (RFC 2716)
- * Copyright (c) 2004-2008, 2012-2015, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2004-2008, 2012-2019, Jouni Malinen <j@w1.fi>
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -33,10 +33,17 @@ static void * eap_tls_init(struct eap_sm *sm)
 {
 	struct eap_tls_data *data;
 	struct eap_peer_config *config = eap_get_config(sm);
-	if (config == NULL ||
-	    ((sm->init_phase2 ? config->private_key2 : config->private_key)
-	     == NULL &&
-	     (sm->init_phase2 ? config->engine2 : config->engine) == 0)) {
+	struct eap_peer_cert_config *cert;
+
+	if (!config)
+		return NULL;
+	if (!sm->init_phase2)
+		cert = &config->cert;
+	else if (sm->use_machine_cred)
+		cert = &config->machine_cert;
+	else
+		cert = &config->phase2_cert;
+	if (!cert->private_key && cert->engine == 0) {
 		wpa_printf(MSG_INFO, "EAP-TLS: Private key not configured");
 		return NULL;
 	}
@@ -51,17 +58,16 @@ static void * eap_tls_init(struct eap_sm *sm)
 	if (eap_peer_tls_ssl_init(sm, &data->ssl, config, EAP_TYPE_TLS)) {
 		wpa_printf(MSG_INFO, "EAP-TLS: Failed to initialize SSL.");
 		eap_tls_deinit(sm, data);
-		if (config->engine) {
+		if (cert->engine) {
 			wpa_printf(MSG_DEBUG, "EAP-TLS: Requesting Smartcard "
 				   "PIN");
 			eap_sm_request_pin(sm);
-			sm->ignore = TRUE;
-		} else if (config->private_key && !config->private_key_passwd)
-		{
+			sm->ignore = true;
+		} else if (cert->private_key && !cert->private_key_passwd) {
 			wpa_printf(MSG_DEBUG, "EAP-TLS: Requesting private "
 				   "key passphrase");
 			eap_sm_request_passphrase(sm);
-			sm->ignore = TRUE;
+			sm->ignore = true;
 		}
 		return NULL;
 	}
@@ -296,15 +302,11 @@ static struct wpabuf * eap_tls_process(struct eap_sm *sm, void *priv,
 		return NULL;
 	}
 
-	if (res == 2) {
-		/* Application data included in the handshake message (used by
-		 * EAP-TLS 1.3 to indicate conclusion of the exchange). */
-		wpa_hexdump_buf(MSG_DEBUG, "EAP-TLS: Received Application Data",
-				resp);
-		wpa_hexdump_buf(MSG_DEBUG, "EAP-TLS: Remaining tls_out data",
-				data->ssl.tls_out);
+	/* draft-ietf-emu-eap-tls13-13 Section 2.5 */
+	if (res == 2 && data->ssl.tls_v13 && wpabuf_len(resp) == 1 &&
+	    *wpabuf_head_u8(resp) == 0) {
+		wpa_printf(MSG_DEBUG, "EAP-TLS: ACKing Commitment Message");
 		eap_peer_tls_reset_output(&data->ssl);
-		/* Send an ACK to allow the server to complete exchange */
 		res = 1;
 	}
 
@@ -320,7 +322,7 @@ static struct wpabuf * eap_tls_process(struct eap_sm *sm, void *priv,
 }
 
 
-static Boolean eap_tls_has_reauth_data(struct eap_sm *sm, void *priv)
+static bool eap_tls_has_reauth_data(struct eap_sm *sm, void *priv)
 {
 	struct eap_tls_data *data = priv;
 	return tls_connection_established(data->ssl_ctx, data->ssl.conn);
@@ -358,7 +360,7 @@ static int eap_tls_get_status(struct eap_sm *sm, void *priv, char *buf,
 }
 
 
-static Boolean eap_tls_isKeyAvailable(struct eap_sm *sm, void *priv)
+static bool eap_tls_isKeyAvailable(struct eap_sm *sm, void *priv)
 {
 	struct eap_tls_data *data = priv;
 	return data->key_data != NULL;

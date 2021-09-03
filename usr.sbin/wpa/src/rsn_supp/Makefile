@@ -16,10 +16,6 @@ SRCS=	pmksa_cache.c \
 	wpa.c \
 	wpa_ie.c
 
-CFLAGS+=-DCONFIG_TDLS \
-	-DCONFIG_WNM \
-	-DIEEE8021X_EAPOL
-
 # We are only interested in includes at this point. Not libraries.
 LIBADD=
 

@@ -80,15 +80,15 @@ u8 * hostapd_eid_osen(struct hostapd_data *hapd, u8 *eid)
 		/* 4 PTKSA replay counters when using WMM */
 		capab |= (RSN_NUM_REPLAY_COUNTERS_16 << 2);
 	}
-#ifdef CONFIG_IEEE80211W
 	if (hapd->conf->ieee80211w != NO_MGMT_FRAME_PROTECTION) {
 		capab |= WPA_CAPABILITY_MFPC;
 		if (hapd->conf->ieee80211w == MGMT_FRAME_PROTECTION_REQUIRED)
 			capab |= WPA_CAPABILITY_MFPR;
 	}
-#endif /* CONFIG_IEEE80211W */
 #ifdef CONFIG_OCV
-	if (hapd->conf->ocv)
+	if (hapd->conf->ocv &&
+	    (hapd->iface->drv_flags2 &
+	     (WPA_DRIVER_FLAGS2_AP_SME | WPA_DRIVER_FLAGS2_OCV)))
 		capab |= WPA_CAPABILITY_OCVC;
 #endif /* CONFIG_OCV */
 	WPA_PUT_LE16(eid, capab);

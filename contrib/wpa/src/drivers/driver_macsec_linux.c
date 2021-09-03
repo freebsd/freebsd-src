@@ -54,31 +54,29 @@ struct macsec_drv_data {
 	struct nl_sock *sk;
 	struct macsec_genl_ctx ctx;
 
-	struct netlink_data *netlink;
-	struct nl_handle *nl;
 	char ifname[IFNAMSIZ + 1];
 	int ifi;
 	int parent_ifi;
 	int use_pae_group_addr;
 
-	Boolean created_link;
+	bool created_link;
 
-	Boolean controlled_port_enabled;
-	Boolean controlled_port_enabled_set;
+	bool controlled_port_enabled;
+	bool controlled_port_enabled_set;
 
-	Boolean protect_frames;
-	Boolean protect_frames_set;
+	bool protect_frames;
+	bool protect_frames_set;
 
-	Boolean encrypt;
-	Boolean encrypt_set;
+	bool encrypt;
+	bool encrypt_set;
 
-	Boolean replay_protect;
-	Boolean replay_protect_set;
+	bool replay_protect;
+	bool replay_protect_set;
 
 	u32 replay_window;
 
 	u8 encoding_sa;
-	Boolean encoding_sa_set;
+	bool encoding_sa_set;
 };
 
 
@@ -199,7 +197,7 @@ static int try_commit(struct macsec_drv_data *drv)
 
 		rtnl_link_put(change);
 
-		drv->controlled_port_enabled_set = FALSE;
+		drv->controlled_port_enabled_set = false;
 	}
 
 	if (drv->protect_frames_set) {
@@ -238,9 +236,9 @@ static int try_commit(struct macsec_drv_data *drv)
 	if (err < 0)
 		return err;
 
-	drv->protect_frames_set = FALSE;
-	drv->encrypt_set = FALSE;
-	drv->replay_protect_set = FALSE;
+	drv->protect_frames_set = false;
+	drv->encrypt_set = false;
+	drv->replay_protect_set = false;
 
 	return 0;
 }
@@ -321,14 +319,14 @@ static int macsec_drv_macsec_init(void *priv, struct macsec_init_params *params)
 	if (err < 0) {
 		wpa_printf(MSG_ERROR, DRV_PREFIX
 			   "Unable to connect NETLINK_ROUTE socket: %s",
-			   strerror(errno));
+			   nl_geterror(err));
 		goto sock;
 	}
 
 	err = rtnl_link_alloc_cache(drv->sk, AF_UNSPEC, &drv->link_cache);
 	if (err < 0) {
 		wpa_printf(MSG_ERROR, DRV_PREFIX "Unable to get link cache: %s",
-			   strerror(errno));
+			   nl_geterror(err));
 		goto sock;
 	}
 
@@ -392,17 +390,17 @@ static int macsec_drv_get_capability(void *priv, enum macsec_cap *cap)
 /**
  * macsec_drv_enable_protect_frames - Set protect frames status
  * @priv: Private driver interface data
- * @enabled: TRUE = protect frames enabled
- *           FALSE = protect frames disabled
+ * @enabled: true = protect frames enabled
+ *           false = protect frames disabled
  * Returns: 0 on success, -1 on failure (or if not supported)
  */
-static int macsec_drv_enable_protect_frames(void *priv, Boolean enabled)
+static int macsec_drv_enable_protect_frames(void *priv, bool enabled)
 {
 	struct macsec_drv_data *drv = priv;
 
 	wpa_printf(MSG_DEBUG, "%s -> %s", __func__, enabled ? "TRUE" : "FALSE");
 
-	drv->protect_frames_set = TRUE;
+	drv->protect_frames_set = true;
 	drv->protect_frames = enabled;
 
 	return try_commit(drv);
@@ -412,17 +410,17 @@ static int macsec_drv_enable_protect_frames(void *priv, Boolean enabled)
 /**
  * macsec_drv_enable_encrypt - Set protect frames status
  * @priv: Private driver interface data
- * @enabled: TRUE = protect frames enabled
- *           FALSE = protect frames disabled
+ * @enabled: true = protect frames enabled
+ *           false = protect frames disabled
  * Returns: 0 on success, -1 on failure (or if not supported)
  */
-static int macsec_drv_enable_encrypt(void *priv, Boolean enabled)
+static int macsec_drv_enable_encrypt(void *priv, bool enabled)
 {
 	struct macsec_drv_data *drv = priv;
 
 	wpa_printf(MSG_DEBUG, "%s -> %s", __func__, enabled ? "TRUE" : "FALSE");
 
-	drv->encrypt_set = TRUE;
+	drv->encrypt_set = true;
 	drv->encrypt = enabled;
 
 	return try_commit(drv);
@@ -432,12 +430,12 @@ static int macsec_drv_enable_encrypt(void *priv, Boolean enabled)
 /**
  * macsec_drv_set_replay_protect - Set replay protect status and window size
  * @priv: Private driver interface data
- * @enabled: TRUE = replay protect enabled
- *           FALSE = replay protect disabled
+ * @enabled: true = replay protect enabled
+ *           false = replay protect disabled
  * @window: replay window size, valid only when replay protect enabled
  * Returns: 0 on success, -1 on failure (or if not supported)
  */
-static int macsec_drv_set_replay_protect(void *priv, Boolean enabled,
+static int macsec_drv_set_replay_protect(void *priv, bool enabled,
 					 u32 window)
 {
 	struct macsec_drv_data *drv = priv;
@@ -445,7 +443,7 @@ static int macsec_drv_set_replay_protect(void *priv, Boolean enabled,
 	wpa_printf(MSG_DEBUG, "%s -> %s, %u", __func__,
 		   enabled ? "TRUE" : "FALSE", window);
 
-	drv->replay_protect_set = TRUE;
+	drv->replay_protect_set = true;
 	drv->replay_protect = enabled;
 	if (enabled)
 		drv->replay_window = window;
@@ -470,18 +468,18 @@ static int macsec_drv_set_current_cipher_suite(void *priv, u64 cs)
 /**
  * macsec_drv_enable_controlled_port - Set controlled port status
  * @priv: Private driver interface data
- * @enabled: TRUE = controlled port enabled
- *           FALSE = controlled port disabled
+ * @enabled: true = controlled port enabled
+ *           false = controlled port disabled
  * Returns: 0 on success, -1 on failure (or if not supported)
  */
-static int macsec_drv_enable_controlled_port(void *priv, Boolean enabled)
+static int macsec_drv_enable_controlled_port(void *priv, bool enabled)
 {
 	struct macsec_drv_data *drv = priv;
 
 	wpa_printf(MSG_DEBUG, "%s -> %s", __func__, enabled ? "TRUE" : "FALSE");
 
 	drv->controlled_port_enabled = enabled;
-	drv->controlled_port_enabled_set = TRUE;
+	drv->controlled_port_enabled_set = true;
 
 	return try_commit(drv);
 }
@@ -713,6 +711,9 @@ static int macsec_drv_set_receive_lowest_pn(void *priv, struct receive_sa *sa)
 	msg = msg_prepare(MACSEC_CMD_UPD_RXSA, ctx, drv->ifi);
 	if (!msg)
 		return ret;
+
+	if (nla_put_rxsc_config(msg, mka_sci_u64(&sa->sc->sci)))
+		goto nla_put_failure;
 
 	nest = nla_nest_start(msg, MACSEC_ATTR_SA_CONFIG);
 	if (!nest)
@@ -988,7 +989,7 @@ nla_put_failure:
 
 
 static int set_active_rx_sa(const struct macsec_genl_ctx *ctx, int ifindex,
-			    u64 sci, unsigned char an, Boolean state)
+			    u64 sci, unsigned char an, bool state)
 {
 	struct nl_msg *msg;
 	struct nlattr *nest;
@@ -1038,7 +1039,7 @@ static int macsec_drv_enable_receive_sa(void *priv, struct receive_sa *sa)
 		   SCI2STR(sa->sc->sci.addr, sa->sc->sci.port));
 
 	return set_active_rx_sa(ctx, drv->ifi, mka_sci_u64(&sa->sc->sci),
-				sa->an, TRUE);
+				sa->an, true);
 }
 
 
@@ -1058,7 +1059,7 @@ static int macsec_drv_disable_receive_sa(void *priv, struct receive_sa *sa)
 		   SCI2STR(sa->sc->sci.addr, sa->sc->sci.port));
 
 	return set_active_rx_sa(ctx, drv->ifi, mka_sci_u64(&sa->sc->sci),
-				sa->an, FALSE);
+				sa->an, false);
 }
 
 
@@ -1119,13 +1120,13 @@ static int macsec_drv_create_transmit_sc(
 	sci = mka_sci_u64(&sc->sci);
 	rtnl_link_macsec_set_sci(link, sci);
 
-	drv->created_link = TRUE;
+	drv->created_link = true;
 
 	err = rtnl_link_add(drv->sk, link, NLM_F_CREATE);
 	if (err == -NLE_BUSY) {
 		wpa_printf(MSG_INFO,
 			   DRV_PREFIX "link already exists, using it");
-		drv->created_link = FALSE;
+		drv->created_link = false;
 	} else if (err < 0) {
 		rtnl_link_put(link);
 		wpa_printf(MSG_ERROR, DRV_PREFIX "couldn't create link: err %d",
@@ -1298,7 +1299,7 @@ nla_put_failure:
 
 
 static int set_active_tx_sa(const struct macsec_genl_ctx *ctx, int ifindex,
-			    unsigned char an, Boolean state)
+			    unsigned char an, bool state)
 {
 	struct nl_msg *msg;
 	struct nlattr *nest;
@@ -1346,13 +1347,13 @@ static int macsec_drv_enable_transmit_sa(void *priv, struct transmit_sa *sa)
 		   SCISTR, drv->ifname, sa->an,
 		   SCI2STR(sa->sc->sci.addr, sa->sc->sci.port));
 
-	ret = set_active_tx_sa(ctx, drv->ifi, sa->an, TRUE);
+	ret = set_active_tx_sa(ctx, drv->ifi, sa->an, true);
 	if (ret < 0) {
 		wpa_printf(MSG_ERROR, DRV_PREFIX "failed to enable txsa");
 		return ret;
 	}
 
-	drv->encoding_sa_set = TRUE;
+	drv->encoding_sa_set = true;
 	drv->encoding_sa = sa->an;
 
 	return try_commit(drv);
@@ -1374,7 +1375,7 @@ static int macsec_drv_disable_transmit_sa(void *priv, struct transmit_sa *sa)
 		   SCISTR, drv->ifname, sa->an,
 		   SCI2STR(sa->sc->sci.addr, sa->sc->sci.port));
 
-	return set_active_tx_sa(ctx, drv->ifi, sa->an, FALSE);
+	return set_active_tx_sa(ctx, drv->ifi, sa->an, false);
 }
 
 

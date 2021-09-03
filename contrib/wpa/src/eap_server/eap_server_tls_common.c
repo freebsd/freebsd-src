@@ -18,7 +18,7 @@
 static void eap_server_tls_free_in_buf(struct eap_ssl_data *data);
 
 
-struct wpabuf * eap_tls_msg_alloc(EapType type, size_t payload_len,
+struct wpabuf * eap_tls_msg_alloc(enum eap_type type, size_t payload_len,
 				  u8 code, u8 identifier)
 {
 	if (type == EAP_UNAUTH_TLS_TYPE)
@@ -47,9 +47,9 @@ int eap_server_tls_ssl_init(struct eap_sm *sm, struct eap_ssl_data *data,
 			    int verify_peer, int eap_type)
 {
 	u8 session_ctx[8];
-	unsigned int flags = sm->tls_flags;
+	unsigned int flags = sm->cfg->tls_flags;
 
-	if (sm->ssl_ctx == NULL) {
+	if (!sm->cfg->ssl_ctx) {
 		wpa_printf(MSG_ERROR, "TLS context not initialized - cannot use TLS-based EAP method");
 		return -1;
 	}
@@ -57,7 +57,7 @@ int eap_server_tls_ssl_init(struct eap_sm *sm, struct eap_ssl_data *data,
 	data->eap = sm;
 	data->phase2 = sm->init_phase2;
 
-	data->conn = tls_connection_init(sm->ssl_ctx);
+	data->conn = tls_connection_init(sm->cfg->ssl_ctx);
 	if (data->conn == NULL) {
 		wpa_printf(MSG_INFO, "SSL: Failed to initialize new TLS "
 			   "connection");
@@ -75,17 +75,18 @@ int eap_server_tls_ssl_init(struct eap_sm *sm, struct eap_ssl_data *data,
 		flags |= TLS_CONN_DISABLE_SESSION_TICKET;
 	os_memcpy(session_ctx, "hostapd", 7);
 	session_ctx[7] = (u8) eap_type;
-	if (tls_connection_set_verify(sm->ssl_ctx, data->conn, verify_peer,
+	if (tls_connection_set_verify(sm->cfg->ssl_ctx, data->conn, verify_peer,
 				      flags, session_ctx,
 				      sizeof(session_ctx))) {
 		wpa_printf(MSG_INFO, "SSL: Failed to configure verification "
 			   "of TLS peer certificate");
-		tls_connection_deinit(sm->ssl_ctx, data->conn);
+		tls_connection_deinit(sm->cfg->ssl_ctx, data->conn);
 		data->conn = NULL;
 		return -1;
 	}
 
-	data->tls_out_limit = sm->fragment_size > 0 ? sm->fragment_size : 1398;
+	data->tls_out_limit = sm->cfg->fragment_size > 0 ?
+		sm->cfg->fragment_size : 1398;
 	if (data->phase2) {
 		/* Limit the fragment size in the inner TLS authentication
 		 * since the outer authentication with EAP-PEAP does not yet
@@ -99,7 +100,7 @@ int eap_server_tls_ssl_init(struct eap_sm *sm, struct eap_ssl_data *data,
 
 void eap_server_tls_ssl_deinit(struct eap_sm *sm, struct eap_ssl_data *data)
 {
-	tls_connection_deinit(sm->ssl_ctx, data->conn);
+	tls_connection_deinit(sm->cfg->ssl_ctx, data->conn);
 	eap_server_tls_free_in_buf(data);
 	wpabuf_free(data->tls_out);
 	data->tls_out = NULL;
@@ -116,7 +117,7 @@ u8 * eap_server_tls_derive_key(struct eap_sm *sm, struct eap_ssl_data *data,
 	if (out == NULL)
 		return NULL;
 
-	if (tls_connection_export_key(sm->ssl_ctx, data->conn, label,
+	if (tls_connection_export_key(sm->cfg->ssl_ctx, data->conn, label,
 				      context, context_len, out, len)) {
 		os_free(out);
 		return NULL;
@@ -145,10 +146,10 @@ u8 * eap_server_tls_derive_session_id(struct eap_sm *sm,
 {
 	struct tls_random keys;
 	u8 *out;
-	const u8 context[] = { EAP_TYPE_TLS };
 
-	if (eap_type == EAP_TYPE_TLS && data->tls_v13) {
+	if (data->tls_v13) {
 		u8 *id, *method_id;
+		const u8 context[] = { eap_type };
 
 		/* Session-Id = <EAP-Type> || Method-Id
 		 * Method-Id = TLS-Exporter("EXPORTER_EAP_TLS_Method-Id",
@@ -170,7 +171,7 @@ u8 * eap_server_tls_derive_session_id(struct eap_sm *sm,
 		return id;
 	}
 
-	if (tls_connection_get_random(sm->ssl_ctx, data->conn, &keys))
+	if (tls_connection_get_random(sm->cfg->ssl_ctx, data->conn, &keys))
 		return NULL;
 
 	if (keys.client_random == NULL || keys.server_random == NULL)
@@ -340,29 +341,80 @@ int eap_server_tls_phase1(struct eap_sm *sm, struct eap_ssl_data *data)
 		WPA_ASSERT(data->tls_out == NULL);
 	}
 
-	data->tls_out = tls_connection_server_handshake(sm->ssl_ctx,
+	data->tls_out = tls_connection_server_handshake(sm->cfg->ssl_ctx,
 							data->conn,
 							data->tls_in, NULL);
 	if (data->tls_out == NULL) {
 		wpa_printf(MSG_INFO, "SSL: TLS processing failed");
 		return -1;
 	}
-	if (tls_connection_get_failed(sm->ssl_ctx, data->conn)) {
+	if (tls_connection_get_failed(sm->cfg->ssl_ctx, data->conn)) {
 		/* TLS processing has failed - return error */
 		wpa_printf(MSG_DEBUG, "SSL: Failed - tls_out available to "
 			   "report error");
 		return -1;
 	}
 
-	if (tls_get_version(sm->ssl_ctx, data->conn, buf, sizeof(buf)) == 0) {
+	if (tls_get_version(sm->cfg->ssl_ctx, data->conn,
+			    buf, sizeof(buf)) == 0) {
 		wpa_printf(MSG_DEBUG, "SSL: Using TLS version %s", buf);
 		data->tls_v13 = os_strcmp(buf, "TLSv1.3") == 0;
 	}
 
 	if (!sm->serial_num &&
-	    tls_connection_established(sm->ssl_ctx, data->conn))
-		sm->serial_num = tls_connection_peer_serial_num(sm->ssl_ctx,
-								data->conn);
+	    tls_connection_established(sm->cfg->ssl_ctx, data->conn))
+		sm->serial_num = tls_connection_peer_serial_num(
+			sm->cfg->ssl_ctx, data->conn);
+
+	/*
+	 * https://tools.ietf.org/html/draft-ietf-emu-eap-tls13#section-2.5
+	 *
+	 * We need to signal the other end that TLS negotiation is done. We
+	 * can't send a zero-length application data message, so we send
+	 * application data which is one byte of zero.
+	 *
+	 * Note this is only done for when there is no application data to be
+	 * sent. So this is done always for EAP-TLS but notibly not for PEAP
+	 * even on resumption.
+	 */
+	if (data->tls_v13 &&
+	    tls_connection_established(sm->cfg->ssl_ctx, data->conn)) {
+		struct wpabuf *plain, *encr;
+
+		switch (sm->currentMethod) {
+		case EAP_TYPE_PEAP:
+			break;
+		default:
+			if (!tls_connection_resumed(sm->cfg->ssl_ctx,
+						    data->conn))
+				break;
+			/* fallthrough */
+		case EAP_TYPE_TLS:
+			wpa_printf(MSG_DEBUG,
+				   "EAP-TLS: Send Commitment Message");
+
+			plain = wpabuf_alloc(1);
+			if (!plain)
+				return -1;
+			wpabuf_put_u8(plain, 0);
+			encr = eap_server_tls_encrypt(sm, data, plain);
+			wpabuf_free(plain);
+			if (!encr)
+				return -1;
+			if (wpabuf_resize(&data->tls_out, wpabuf_len(encr)) < 0)
+			{
+				wpa_printf(MSG_INFO,
+					   "EAP-TLS: Failed to resize output buffer");
+				wpabuf_free(encr);
+				return -1;
+			}
+			wpabuf_put_buf(data->tls_out, encr);
+			wpa_hexdump_buf(MSG_DEBUG,
+					"EAP-TLS: Data appended to the message",
+					encr);
+			wpabuf_free(encr);
+		}
+	}
 
 	return 0;
 }
@@ -451,8 +503,7 @@ struct wpabuf * eap_server_tls_encrypt(struct eap_sm *sm,
 {
 	struct wpabuf *buf;
 
-	buf = tls_connection_encrypt(sm->ssl_ctx, data->conn,
-				     plain);
+	buf = tls_connection_encrypt(sm->cfg->ssl_ctx, data->conn, plain);
 	if (buf == NULL) {
 		wpa_printf(MSG_INFO, "SSL: Failed to encrypt Phase 2 data");
 		return NULL;
@@ -506,7 +557,7 @@ int eap_server_tls_process(struct eap_sm *sm, struct eap_ssl_data *data,
 	if (proc_msg)
 		proc_msg(sm, priv, respData);
 
-	if (tls_connection_get_write_alerts(sm->ssl_ctx, data->conn) > 1) {
+	if (tls_connection_get_write_alerts(sm->cfg->ssl_ctx, data->conn) > 1) {
 		wpa_printf(MSG_INFO, "SSL: Locally detected fatal error in "
 			   "TLS processing");
 		res = -1;

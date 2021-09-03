@@ -216,7 +216,8 @@ struct l2_packet_data * l2_packet_init(
 	}
 	os_memcpy(l2->own_addr, reply, ETH_ALEN);
 
-	eloop_register_read_sock(l2->fd, l2_packet_receive, l2, NULL);
+	if (rx_callback)
+		eloop_register_read_sock(l2->fd, l2_packet_receive, l2, NULL);
 
 	return l2;
 

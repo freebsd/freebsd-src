@@ -400,7 +400,7 @@ static int wmm_ac_ts_req_is_valid(struct wpa_supplicant *wpa_s,
 
 	req_ac = up_to_ac[params->user_priority];
 
-	/* Requested accesss category must have acm */
+	/* Requested access category must have acm */
 	if (!wpa_s->wmm_ac_assoc_info->ac_params[req_ac].acm) {
 		wpa_printf(MSG_DEBUG, "WMM AC: AC %d is not ACM", req_ac);
 		return 0;

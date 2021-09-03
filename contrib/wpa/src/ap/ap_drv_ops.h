@@ -43,6 +43,7 @@ int hostapd_sta_add(struct hostapd_data *hapd,
 		    const struct ieee80211_vht_capabilities *vht_capab,
 		    const struct ieee80211_he_capabilities *he_capab,
 		    size_t he_capab_len,
+		    const struct ieee80211_he_6ghz_band_cap *he_6ghz_capab,
 		    u32 flags, u8 qosinfo, u8 vht_opmode, int supp_p2p_ps,
 		    int set);
 int hostapd_set_privacy(struct hostapd_data *hapd, int enabled);
@@ -62,7 +63,8 @@ int hostapd_get_seqnum(const char *ifname, struct hostapd_data *hapd,
 		       const u8 *addr, int idx, u8 *seq);
 int hostapd_flush(struct hostapd_data *hapd);
 int hostapd_set_freq(struct hostapd_data *hapd, enum hostapd_hw_mode mode,
-		     int freq, int channel, int ht_enabled, int vht_enabled,
+		     int freq, int channel, int edmg, u8 edmg_channel,
+		     int ht_enabled, int vht_enabled,
 		     int he_enabled, int sec_channel_offset, int oper_chwidth,
 		     int center_segment0, int center_segment1);
 int hostapd_set_rts(struct hostapd_data *hapd, int rts);
@@ -79,6 +81,7 @@ hostapd_get_hw_feature_data(struct hostapd_data *hapd, u16 *num_modes,
 			    u16 *flags, u8 *dfs_domain);
 int hostapd_driver_commit(struct hostapd_data *hapd);
 int hostapd_drv_none(struct hostapd_data *hapd);
+bool hostapd_drv_nl80211(struct hostapd_data *hapd);
 int hostapd_driver_scan(struct hostapd_data *hapd,
 			struct wpa_driver_scan_params *params);
 struct wpa_scan_results * hostapd_driver_get_scan_results(
@@ -88,14 +91,13 @@ int hostapd_driver_set_noa(struct hostapd_data *hapd, u8 count, int start,
 int hostapd_drv_set_key(const char *ifname,
 			struct hostapd_data *hapd,
 			enum wpa_alg alg, const u8 *addr,
-			int key_idx, int set_tx,
+			int key_idx, int vlan_id, int set_tx,
 			const u8 *seq, size_t seq_len,
-			const u8 *key, size_t key_len);
+			const u8 *key, size_t key_len, enum key_flag key_flag);
 int hostapd_drv_send_mlme(struct hostapd_data *hapd,
-			  const void *msg, size_t len, int noack);
-int hostapd_drv_send_mlme_csa(struct hostapd_data *hapd,
-			      const void *msg, size_t len, int noack,
-			      const u16 *csa_offs, size_t csa_offs_len);
+			  const void *msg, size_t len, int noack,
+			  const u16 *csa_offs, size_t csa_offs_len,
+			  int no_encrypt);
 int hostapd_drv_sta_deauth(struct hostapd_data *hapd,
 			   const u8 *addr, int reason);
 int hostapd_drv_sta_disassoc(struct hostapd_data *hapd,
@@ -132,6 +134,7 @@ int hostapd_start_dfs_cac(struct hostapd_iface *iface,
 int hostapd_drv_do_acs(struct hostapd_data *hapd);
 int hostapd_drv_update_dh_ie(struct hostapd_data *hapd, const u8 *peer,
 			     u16 reason_code, const u8 *ie, size_t ielen);
+int hostapd_drv_dpp_listen(struct hostapd_data *hapd, bool enable);
 
 
 #include "drivers/driver.h"
@@ -348,12 +351,13 @@ static inline int hostapd_drv_br_set_net_param(struct hostapd_data *hapd,
 static inline int hostapd_drv_vendor_cmd(struct hostapd_data *hapd,
 					 int vendor_id, int subcmd,
 					 const u8 *data, size_t data_len,
+					 enum nested_attr nested_attr_flag,
 					 struct wpabuf *buf)
 {
 	if (hapd->driver == NULL || hapd->driver->vendor_cmd == NULL)
 		return -1;
 	return hapd->driver->vendor_cmd(hapd->drv_priv, vendor_id, subcmd, data,
-					data_len, buf);
+					data_len, nested_attr_flag, buf);
 }
 
 static inline int hostapd_drv_stop_ap(struct hostapd_data *hapd)
@@ -380,5 +384,36 @@ hostapd_drv_send_external_auth_status(struct hostapd_data *hapd,
 		return -1;
 	return hapd->driver->send_external_auth_status(hapd->drv_priv, params);
 }
+
+static inline int
+hostapd_drv_set_band(struct hostapd_data *hapd, u32 band_mask)
+{
+	if (!hapd->driver || !hapd->drv_priv || !hapd->driver->set_band)
+		return -1;
+	return hapd->driver->set_band(hapd->drv_priv, band_mask);
+}
+
+#ifdef ANDROID
+static inline int hostapd_drv_driver_cmd(struct hostapd_data *hapd,
+					 char *cmd, char *buf, size_t buf_len)
+{
+	if (!hapd->driver->driver_cmd)
+		return -1;
+	return hapd->driver->driver_cmd(hapd->drv_priv, cmd, buf, buf_len);
+}
+#endif /* ANDROID */
+
+#ifdef CONFIG_TESTING_OPTIONS
+static inline int
+hostapd_drv_register_frame(struct hostapd_data *hapd, u16 type,
+			   const u8 *match, size_t match_len,
+			   bool multicast)
+{
+	if (!hapd->driver || !hapd->drv_priv || !hapd->driver->register_frame)
+		return -1;
+	return hapd->driver->register_frame(hapd->drv_priv, type, match,
+					    match_len, multicast);
+}
+#endif /* CONFIG_TESTING_OPTIONS */
 
 #endif /* AP_DRV_OPS */

@@ -81,9 +81,6 @@ static void hostapd_logger_cb(void *ctx, const u8 *addr, unsigned int module,
 	case HOSTAPD_MODULE_DRIVER:
 		module_str = "DRIVER";
 		break;
-	case HOSTAPD_MODULE_IAPP:
-		module_str = "IAPP";
-		break;
 	case HOSTAPD_MODULE_MLME:
 		module_str = "MLME";
 		break;
@@ -221,7 +218,7 @@ static int hostapd_driver_init(struct hostapd_iface *iface)
 		struct wowlan_triggers *triggs;
 
 		iface->drv_flags = capa.flags;
-		iface->smps_modes = capa.smps_modes;
+		iface->drv_flags2 = capa.flags2;
 		iface->probe_resp_offloads = capa.probe_resp_offloads;
 		/*
 		 * Use default extended capa values from per-radio information
@@ -263,7 +260,7 @@ hostapd_interface_init(struct hapd_interfaces *interfaces, const char *if_name,
 	struct hostapd_iface *iface;
 	int k;
 
-	wpa_printf(MSG_ERROR, "Configuration file: %s", config_fname);
+	wpa_printf(MSG_DEBUG, "Configuration file: %s", config_fname);
 	iface = hostapd_init(interfaces, config_fname);
 	if (!iface)
 		return NULL;
@@ -454,11 +451,12 @@ static int hostapd_global_run(struct hapd_interfaces *ifaces, int daemonize,
 static void show_version(void)
 {
 	fprintf(stderr,
-		"hostapd v" VERSION_STR "\n"
+		"hostapd v%s\n"
 		"User space daemon for IEEE 802.11 AP management,\n"
 		"IEEE 802.1X/WPA/WPA2/EAP/RADIUS Authenticator\n"
 		"Copyright (c) 2002-2019, Jouni Malinen <j@w1.fi> "
-		"and contributors\n");
+		"and contributors\n",
+		VERSION_STR);
 }
 
 
@@ -676,7 +674,10 @@ int main(int argc, char *argv[])
 #endif /* CONFIG_ETH_P_OUI */
 #ifdef CONFIG_DPP
 	os_memset(&dpp_conf, 0, sizeof(dpp_conf));
-	/* TODO: dpp_conf.msg_ctx? */
+	dpp_conf.cb_ctx = &interfaces;
+#ifdef CONFIG_DPP2
+	dpp_conf.remove_bi = hostapd_dpp_remove_bi;
+#endif /* CONFIG_DPP2 */
 	interfaces.dpp = dpp_global_init(&dpp_conf);
 	if (!interfaces.dpp)
 		return -1;
@@ -771,7 +772,7 @@ int main(int argc, char *argv[])
 
 	if (log_file)
 		wpa_debug_open_file(log_file);
-	else
+	if (!log_file && !wpa_debug_syslog)
 		wpa_debug_setup_stdout();
 #ifdef CONFIG_DEBUG_SYSLOG
 	if (wpa_debug_syslog)
@@ -905,8 +906,11 @@ int main(int argc, char *argv[])
 			!!(interfaces.iface[i]->drv_flags &
 			   WPA_DRIVER_FLAGS_AP_TEARDOWN_SUPPORT);
 		hostapd_interface_deinit_free(interfaces.iface[i]);
+		interfaces.iface[i] = NULL;
 	}
 	os_free(interfaces.iface);
+	interfaces.iface = NULL;
+	interfaces.count = 0;
 
 #ifdef CONFIG_DPP
 	dpp_global_deinit(interfaces.dpp);

@@ -82,7 +82,8 @@ static int nl80211_get_noise_for_scan_results(
 
 	os_memset(info, 0, sizeof(*info));
 	msg = nl80211_drv_msg(drv, NLM_F_DUMP, NL80211_CMD_GET_SURVEY);
-	return send_and_recv_msgs(drv, msg, get_noise_for_scan_results, info);
+	return send_and_recv_msgs(drv, msg, get_noise_for_scan_results, info,
+				  NULL, NULL);
 }
 
 
@@ -94,7 +95,7 @@ static int nl80211_abort_scan(struct i802_bss *bss)
 
 	wpa_printf(MSG_DEBUG, "nl80211: Abort scan");
 	msg = nl80211_cmd_msg(bss, 0, NL80211_CMD_ABORT_SCAN);
-	ret = send_and_recv_msgs(drv, msg, NULL, NULL);
+	ret = send_and_recv_msgs(drv, msg, NULL, NULL, NULL, NULL);
 	if (ret) {
 		wpa_printf(MSG_DEBUG, "nl80211: Abort scan failed: ret=%d (%s)",
 			   ret, strerror(-ret));
@@ -125,7 +126,7 @@ static int nl80211_abort_vendor_scan(struct wpa_driver_nl80211_data *drv,
 
 	nla_nest_end(msg, params);
 
-	ret = send_and_recv_msgs(drv, msg, NULL, NULL);
+	ret = send_and_recv_msgs(drv, msg, NULL, NULL, NULL, NULL);
 	msg = NULL;
 	if (ret) {
 		wpa_printf(MSG_INFO,
@@ -166,11 +167,8 @@ void wpa_driver_nl80211_scan_timeout(void *eloop_ctx, void *timeout_ctx)
 
 	wpa_printf(MSG_DEBUG, "nl80211: Failed to abort scan");
 
-	if (drv->ap_scan_as_station != NL80211_IFTYPE_UNSPECIFIED) {
-		wpa_driver_nl80211_set_mode(drv->first_bss,
-					    drv->ap_scan_as_station);
-		drv->ap_scan_as_station = NL80211_IFTYPE_UNSPECIFIED;
-	}
+	if (drv->ap_scan_as_station != NL80211_IFTYPE_UNSPECIFIED)
+		nl80211_restore_ap_mode(drv->first_bss);
 
 	wpa_printf(MSG_DEBUG, "nl80211: Try to get scan results");
 	wpa_supplicant_event(timeout_ctx, EVENT_SCAN_RESULTS, NULL);
@@ -235,6 +233,11 @@ nl80211_scan_common(struct i802_bss *bss, u8 cmd,
 	drv->filter_ssids = params->filter_ssids;
 	params->filter_ssids = NULL;
 	drv->num_filter_ssids = params->num_filter_ssids;
+
+	if (!drv->hostapd && is_ap_interface(drv->nlmode)) {
+		wpa_printf(MSG_DEBUG, "nl80211: Add NL80211_SCAN_FLAG_AP");
+		scan_flags |= NL80211_SCAN_FLAG_AP;
+	}
 
 	if (params->only_new_results) {
 		wpa_printf(MSG_DEBUG, "nl80211: Add NL80211_SCAN_FLAG_FLUSH");
@@ -363,7 +366,7 @@ int wpa_driver_nl80211_scan(struct i802_bss *bss,
 			goto fail;
 	}
 
-	ret = send_and_recv_msgs(drv, msg, NULL, NULL);
+	ret = send_and_recv_msgs(drv, msg, NULL, NULL, NULL, NULL);
 	msg = NULL;
 	if (ret) {
 		wpa_printf(MSG_DEBUG, "nl80211: Scan trigger failed: ret=%d "
@@ -616,7 +619,7 @@ int wpa_driver_nl80211_sched_scan(void *priv,
 			params->sched_scan_start_delay))
 		goto fail;
 
-	ret = send_and_recv_msgs(drv, msg, NULL, NULL);
+	ret = send_and_recv_msgs(drv, msg, NULL, NULL, NULL, NULL);
 
 	/* TODO: if we get an error here, we should fall back to normal scan */
 
@@ -653,7 +656,7 @@ int wpa_driver_nl80211_stop_sched_scan(void *priv)
 #endif /* ANDROID */
 
 	msg = nl80211_drv_msg(drv, 0, NL80211_CMD_STOP_SCHED_SCAN);
-	ret = send_and_recv_msgs(drv, msg, NULL, NULL);
+	ret = send_and_recv_msgs(drv, msg, NULL, NULL, NULL, NULL);
 	if (ret) {
 		wpa_printf(MSG_DEBUG,
 			   "nl80211: Sched scan stop failed: ret=%d (%s)",
@@ -867,7 +870,7 @@ static void clear_state_mismatch(struct wpa_driver_nl80211_data *drv,
 		wpa_driver_nl80211_mlme(drv, addr,
 					NL80211_CMD_DEAUTHENTICATE,
 					WLAN_REASON_PREV_AUTH_NOT_VALID, 1,
-					NULL);
+					drv->first_bss);
 	}
 }
 
@@ -928,7 +931,9 @@ nl80211_get_scan_results(struct wpa_driver_nl80211_data *drv)
 	struct wpa_scan_results *res;
 	int ret;
 	struct nl80211_bss_info_arg arg;
+	int count = 0;
 
+try_again:
 	res = os_zalloc(sizeof(*res));
 	if (res == NULL)
 		return NULL;
@@ -940,7 +945,19 @@ nl80211_get_scan_results(struct wpa_driver_nl80211_data *drv)
 
 	arg.drv = drv;
 	arg.res = res;
-	ret = send_and_recv_msgs(drv, msg, bss_info_handler, &arg);
+	ret = send_and_recv_msgs(drv, msg, bss_info_handler, &arg, NULL, NULL);
+	if (ret == -EAGAIN) {
+		count++;
+		if (count >= 10) {
+			wpa_printf(MSG_INFO,
+				   "nl80211: Failed to receive consistent scan result dump");
+		} else {
+			wpa_printf(MSG_DEBUG,
+				   "nl80211: Failed to receive consistent scan result dump - try again");
+			wpa_scan_results_free(res);
+			goto try_again;
+		}
+	}
 	if (ret == 0) {
 		struct nl80211_noise_info info;
 
@@ -1012,7 +1029,8 @@ void nl80211_dump_scan(struct wpa_driver_nl80211_data *drv)
 	ctx.idx = 0;
 	msg = nl80211_cmd_msg(drv->first_bss, NLM_F_DUMP, NL80211_CMD_GET_SCAN);
 	if (msg)
-		send_and_recv_msgs(drv, msg, nl80211_dump_scan_handler, &ctx);
+		send_and_recv_msgs(drv, msg, nl80211_dump_scan_handler, &ctx,
+				   NULL, NULL);
 }
 
 
@@ -1205,7 +1223,8 @@ int wpa_driver_nl80211_vendor_scan(struct i802_bss *bss,
 
 	nla_nest_end(msg, attr);
 
-	ret = send_and_recv_msgs(drv, msg, scan_cookie_handler, &cookie);
+	ret = send_and_recv_msgs(drv, msg, scan_cookie_handler, &cookie,
+				 NULL, NULL);
 	msg = NULL;
 	if (ret) {
 		wpa_printf(MSG_DEBUG,
@@ -1268,7 +1287,7 @@ int nl80211_set_default_scan_ies(void *priv, const u8 *ies, size_t ies_len)
 
 	nla_nest_end(msg, attr);
 
-	ret = send_and_recv_msgs(drv, msg, NULL, NULL);
+	ret = send_and_recv_msgs(drv, msg, NULL, NULL, NULL, NULL);
 	msg = NULL;
 	if (ret) {
 		wpa_printf(MSG_ERROR,

@@ -1,6 +1,6 @@
 /*
  * WPA Supplicant / UDP socket -based control interface
- * Copyright (c) 2004-2016, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2004-2020, Jouni Malinen <j@w1.fi>
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -219,7 +219,7 @@ static void wpa_supplicant_ctrl_iface_receive(int sock, void *eloop_ctx,
 {
 	struct wpa_supplicant *wpa_s = eloop_ctx;
 	struct ctrl_iface_priv *priv = sock_ctx;
-	char buf[4096], *pos;
+	char *buf, *pos;
 	int res;
 #ifdef CONFIG_CTRL_IFACE_UDP_IPV6
 	struct sockaddr_in6 from;
@@ -235,11 +235,15 @@ static void wpa_supplicant_ctrl_iface_receive(int sock, void *eloop_ctx,
 	int new_attached = 0;
 	u8 cookie[COOKIE_LEN];
 
-	res = recvfrom(sock, buf, sizeof(buf) - 1, 0,
+	buf = os_malloc(CTRL_IFACE_MAX_LEN + 1);
+	if (!buf)
+		return;
+	res = recvfrom(sock, buf, CTRL_IFACE_MAX_LEN, 0,
 		       (struct sockaddr *) &from, &fromlen);
 	if (res < 0) {
 		wpa_printf(MSG_ERROR, "recvfrom(ctrl_iface): %s",
 			   strerror(errno));
+		os_free(buf);
 		return;
 	}
 
@@ -249,6 +253,8 @@ static void wpa_supplicant_ctrl_iface_receive(int sock, void *eloop_ctx,
 	if (os_strcmp(addr, "::1")) {
 		wpa_printf(MSG_DEBUG, "CTRL: Drop packet from unexpected source %s",
 			   addr);
+		os_free(buf);
+		return;
 	}
 #else /* CONFIG_CTRL_IFACE_UDP_IPV6 */
 	if (from.sin_addr.s_addr != htonl((127 << 24) | 1)) {
@@ -260,11 +266,17 @@ static void wpa_supplicant_ctrl_iface_receive(int sock, void *eloop_ctx,
 		 */
 		wpa_printf(MSG_DEBUG, "CTRL: Drop packet from unexpected "
 			   "source %s", inet_ntoa(from.sin_addr));
+		os_free(buf);
 		return;
 	}
 #endif /* CONFIG_CTRL_IFACE_UDP_IPV6 */
 #endif /* CONFIG_CTRL_IFACE_UDP_REMOTE */
 
+	if ((size_t) res > CTRL_IFACE_MAX_LEN) {
+		wpa_printf(MSG_ERROR, "recvform(ctrl_iface): input truncated");
+		os_free(buf);
+		return;
+	}
 	buf[res] = '\0';
 
 	if (os_strcmp(buf, "GET_COOKIE") == 0) {
@@ -282,18 +294,21 @@ static void wpa_supplicant_ctrl_iface_receive(int sock, void *eloop_ctx,
 	if (os_strncmp(buf, "COOKIE=", 7) != 0) {
 		wpa_printf(MSG_DEBUG, "CTLR: No cookie in the request - "
 			   "drop request");
+		os_free(buf);
 		return;
 	}
 
 	if (hexstr2bin(buf + 7, cookie, COOKIE_LEN) < 0) {
 		wpa_printf(MSG_DEBUG, "CTLR: Invalid cookie format in the "
 			   "request - drop request");
+		os_free(buf);
 		return;
 	}
 
 	if (os_memcmp(cookie, priv->cookie, COOKIE_LEN) != 0) {
 		wpa_printf(MSG_DEBUG, "CTLR: Invalid cookie in the request - "
 			   "drop request");
+		os_free(buf);
 		return;
 	}
 
@@ -338,6 +353,8 @@ static void wpa_supplicant_ctrl_iface_receive(int sock, void *eloop_ctx,
 		sendto(sock, "OK\n", 3, 0, (struct sockaddr *) &from,
 		       fromlen);
 	}
+
+	os_free(buf);
 
 	if (new_attached)
 		eapol_sm_notify_ctrl_attached(wpa_s->eapol);
@@ -473,8 +490,12 @@ fail:
 }
 
 
-void wpa_supplicant_ctrl_iface_deinit(struct ctrl_iface_priv *priv)
+void wpa_supplicant_ctrl_iface_deinit(struct wpa_supplicant *wpa_s,
+				      struct ctrl_iface_priv *priv)
 {
+	if (!priv)
+		return;
+
 	if (priv->sock > -1) {
 		eloop_unregister_read_sock(priv->sock);
 		if (priv->ctrl_dst) {
@@ -516,7 +537,7 @@ static void wpa_supplicant_ctrl_iface_send(struct wpa_supplicant *wpa_s,
 		return;
 
 	if (ifname)
-		os_snprintf(levelstr, sizeof(levelstr), "IFACE=%s <%d>",
+		os_snprintf(levelstr, sizeof(levelstr), "IFNAME=%s <%d>",
 			    ifname, level);
 	else
 		os_snprintf(levelstr, sizeof(levelstr), "<%d>", level);
@@ -600,10 +621,13 @@ static void wpa_supplicant_global_ctrl_iface_receive(int sock, void *eloop_ctx,
 {
 	struct wpa_global *global = eloop_ctx;
 	struct ctrl_iface_global_priv *priv = sock_ctx;
-	char buf[4096], *pos;
+	char *buf, *pos;
 	int res;
 #ifdef CONFIG_CTRL_IFACE_UDP_IPV6
 	struct sockaddr_in6 from;
+#ifndef CONFIG_CTRL_IFACE_UDP_REMOTE
+	char addr[INET6_ADDRSTRLEN];
+#endif /* CONFIG_CTRL_IFACE_UDP_REMOTE */
 #else /* CONFIG_CTRL_IFACE_UDP_IPV6 */
 	struct sockaddr_in from;
 #endif /* CONFIG_CTRL_IFACE_UDP_IPV6 */
@@ -612,16 +636,28 @@ static void wpa_supplicant_global_ctrl_iface_receive(int sock, void *eloop_ctx,
 	size_t reply_len;
 	u8 cookie[COOKIE_LEN];
 
-	res = recvfrom(sock, buf, sizeof(buf) - 1, 0,
+	buf = os_malloc(CTRL_IFACE_MAX_LEN + 1);
+	if (!buf)
+		return;
+	res = recvfrom(sock, buf, CTRL_IFACE_MAX_LEN, 0,
 		       (struct sockaddr *) &from, &fromlen);
 	if (res < 0) {
 		wpa_printf(MSG_ERROR, "recvfrom(ctrl_iface): %s",
 			   strerror(errno));
+		os_free(buf);
 		return;
 	}
 
 #ifndef CONFIG_CTRL_IFACE_UDP_REMOTE
-#ifndef CONFIG_CTRL_IFACE_UDP_IPV6
+#ifdef CONFIG_CTRL_IFACE_UDP_IPV6
+	inet_ntop(AF_INET6, &from.sin6_addr, addr, sizeof(from));
+	if (os_strcmp(addr, "::1")) {
+		wpa_printf(MSG_DEBUG, "CTRL: Drop packet from unexpected source %s",
+			   addr);
+		os_free(buf);
+		return;
+	}
+#else /* CONFIG_CTRL_IFACE_UDP_IPV6 */
 	if (from.sin_addr.s_addr != htonl((127 << 24) | 1)) {
 		/*
 		 * The OS networking stack is expected to drop this kind of
@@ -631,11 +667,17 @@ static void wpa_supplicant_global_ctrl_iface_receive(int sock, void *eloop_ctx,
 		 */
 		wpa_printf(MSG_DEBUG, "CTRL: Drop packet from unexpected "
 			   "source %s", inet_ntoa(from.sin_addr));
+		os_free(buf);
 		return;
 	}
 #endif /* CONFIG_CTRL_IFACE_UDP_IPV6 */
 #endif /* CONFIG_CTRL_IFACE_UDP_REMOTE */
 
+	if ((size_t) res > CTRL_IFACE_MAX_LEN) {
+		wpa_printf(MSG_ERROR, "recvform(ctrl_iface): input truncated");
+		os_free(buf);
+		return;
+	}
 	buf[res] = '\0';
 
 	if (os_strcmp(buf, "GET_COOKIE") == 0) {
@@ -646,18 +688,21 @@ static void wpa_supplicant_global_ctrl_iface_receive(int sock, void *eloop_ctx,
 	if (os_strncmp(buf, "COOKIE=", 7) != 0) {
 		wpa_printf(MSG_DEBUG, "CTLR: No cookie in the request - "
 			   "drop request");
+		os_free(buf);
 		return;
 	}
 
 	if (hexstr2bin(buf + 7, cookie, COOKIE_LEN) < 0) {
 		wpa_printf(MSG_DEBUG, "CTLR: Invalid cookie format in the "
 			   "request - drop request");
+		os_free(buf);
 		return;
 	}
 
 	if (os_memcmp(cookie, priv->cookie, COOKIE_LEN) != 0) {
 		wpa_printf(MSG_DEBUG, "CTLR: Invalid cookie in the request - "
 			   "drop request");
+		os_free(buf);
 		return;
 	}
 
@@ -694,6 +739,8 @@ static void wpa_supplicant_global_ctrl_iface_receive(int sock, void *eloop_ctx,
 		sendto(sock, "OK\n", 3, 0, (struct sockaddr *) &from,
 		       fromlen);
 	}
+
+	os_free(buf);
 }
 
 

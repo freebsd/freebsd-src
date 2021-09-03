@@ -158,7 +158,7 @@ static void fils_dhcp_handler(int sd, void *eloop_ctx, void *sock_ctx)
 	ssize_t res;
 	u8 msgtype = 0;
 	int rapid_commit = 0;
-	struct iphdr *iph;
+	struct ip *iph;
 	struct udphdr *udph;
 	struct wpabuf *resp;
 	const u8 *rpos;
@@ -259,14 +259,14 @@ static void fils_dhcp_handler(int sd, void *eloop_ctx, void *sock_ctx)
 	wpabuf_put_data(resp, "\xaa\xaa\x03\x00\x00\x00", 6);
 	wpabuf_put_be16(resp, ETH_P_IP);
 	iph = wpabuf_put(resp, sizeof(*iph));
-	iph->version = 4;
-	iph->ihl = sizeof(*iph) / 4;
-	iph->tot_len = htons(sizeof(*iph) + sizeof(*udph) + (end - pos));
-	iph->ttl = 1;
-	iph->protocol = 17; /* UDP */
-	iph->saddr = hapd->conf->dhcp_server.u.v4.s_addr;
-	iph->daddr = dhcp->client_ip;
-	iph->check = ip_checksum(iph, sizeof(*iph));
+	iph->ip_v = 4;
+	iph->ip_hl = sizeof(*iph) / 4;
+	iph->ip_len = htons(sizeof(*iph) + sizeof(*udph) + (end - pos));
+	iph->ip_ttl = 1;
+	iph->ip_p = 17; /* UDP */
+	iph->ip_src.s_addr = hapd->conf->dhcp_server.u.v4.s_addr;
+	iph->ip_dst.s_addr = dhcp->client_ip;
+	iph->ip_sum = ip_checksum(iph, sizeof(*iph));
 	udph = wpabuf_put(resp, sizeof(*udph));
 	udph->uh_sport = htons(DHCP_SERVER_PORT);
 	udph->uh_dport = htons(DHCP_CLIENT_PORT);
@@ -479,13 +479,13 @@ static int fils_process_hlp_udp(struct hostapd_data *hapd,
 				struct sta_info *sta, const u8 *dst,
 				const u8 *pos, size_t len)
 {
-	const struct iphdr *iph;
+	const struct ip *iph;
 	const struct udphdr *udph;
 	u16 sport, dport, ulen;
 
 	if (len < sizeof(*iph) + sizeof(*udph))
 		return 0;
-	iph = (const struct iphdr *) pos;
+	iph = (const struct ip *) pos;
 	udph = (const struct udphdr *) (iph + 1);
 	sport = ntohs(udph->uh_sport);
 	dport = ntohs(udph->uh_dport);
@@ -510,24 +510,24 @@ static int fils_process_hlp_ip(struct hostapd_data *hapd,
 			       struct sta_info *sta, const u8 *dst,
 			       const u8 *pos, size_t len)
 {
-	const struct iphdr *iph;
-	u16 tot_len;
+	const struct ip *iph;
+	uint16_t ip_len;
 
 	if (len < sizeof(*iph))
 		return 0;
-	iph = (const struct iphdr *) pos;
+	iph = (const struct ip *) pos;
 	if (ip_checksum(iph, sizeof(*iph)) != 0) {
 		wpa_printf(MSG_DEBUG,
 			   "FILS: HLP request IPv4 packet had invalid header checksum - dropped");
 		return 0;
 	}
-	tot_len = ntohs(iph->tot_len);
-	if (tot_len > len)
+	ip_len = ntohs(iph->ip_len);
+	if (ip_len > len)
 		return 0;
 	wpa_printf(MSG_DEBUG,
 		   "FILS: HLP request IPv4: saddr=%08x daddr=%08x protocol=%u",
-		   iph->saddr, iph->daddr, iph->protocol);
-	switch (iph->protocol) {
+		   iph->ip_src.s_addr, iph->ip_dst.s_addr, iph->ip_p);
+	switch (iph->ip_p) {
 	case 17:
 		return fils_process_hlp_udp(hapd, sta, dst, pos, len);
 	}

@@ -21,7 +21,7 @@
 #include "config.h"
 #include "scan.h"
 #include "bss.h"
-#include "blacklist.h"
+#include "bssid_ignore.h"
 #include "gas_query.h"
 #include "interworking.h"
 #include "hs20_supplicant.h"
@@ -288,7 +288,8 @@ int hs20_anqp_send_req(struct wpa_supplicant *wpa_s, const u8 *dst, u32 stypes,
 	if (buf == NULL)
 		return -1;
 
-	res = gas_query_req(wpa_s->gas, dst, freq, 0, buf, anqp_resp_cb, wpa_s);
+	res = gas_query_req(wpa_s->gas, dst, freq, 0, 0, buf, anqp_resp_cb,
+			    wpa_s);
 	if (res < 0) {
 		wpa_printf(MSG_DEBUG, "ANQP: Failed to send Query Request");
 		wpabuf_free(buf);
@@ -340,7 +341,7 @@ int hs20_get_icon(struct wpa_supplicant *wpa_s, const u8 *bssid,
 {
 	struct icon_entry *icon;
 	size_t out_size;
-	unsigned char *b64;
+	char *b64;
 	size_t b64_size;
 	int reply_size;
 
@@ -900,14 +901,25 @@ static void hs20_osu_add_prov(struct wpa_supplicant *wpa_s, struct wpa_bss *bss,
 	/* OSU Friendly Name Duples */
 	while (pos - pos2 >= 4 && prov->friendly_name_count < OSU_MAX_ITEMS) {
 		struct osu_lang_string *f;
-		if (1 + pos2[0] > pos - pos2 || pos2[0] < 3) {
+		u8 slen;
+
+		slen = pos2[0];
+		if (1 + slen > pos - pos2) {
 			wpa_printf(MSG_DEBUG, "Invalid OSU Friendly Name");
 			break;
 		}
+		if (slen < 3) {
+			wpa_printf(MSG_DEBUG,
+				   "Invalid OSU Friendly Name (no room for language)");
+			break;
+		}
 		f = &prov->friendly_name[prov->friendly_name_count++];
-		os_memcpy(f->lang, pos2 + 1, 3);
-		os_memcpy(f->text, pos2 + 1 + 3, pos2[0] - 3);
-		pos2 += 1 + pos2[0];
+		pos2++;
+		os_memcpy(f->lang, pos2, 3);
+		pos2 += 3;
+		slen -= 3;
+		os_memcpy(f->text, pos2, slen);
+		pos2 += slen;
 	}
 
 	/* OSU Server URI */
@@ -1287,8 +1299,8 @@ void hs20_rx_deauth_imminent_notice(struct wpa_supplicant *wpa_s, u8 code,
 		code, reauth_delay, url);
 
 	if (code == HS20_DEAUTH_REASON_CODE_BSS) {
-		wpa_printf(MSG_DEBUG, "HS 2.0: Add BSS to blacklist");
-		wpa_blacklist_add(wpa_s, wpa_s->bssid);
+		wpa_printf(MSG_DEBUG, "HS 2.0: Add BSS to ignore list");
+		wpa_bssid_ignore_add(wpa_s, wpa_s->bssid);
 		/* TODO: For now, disable full ESS since some drivers may not
 		 * support disabling per BSS. */
 		if (wpa_s->current_ssid) {

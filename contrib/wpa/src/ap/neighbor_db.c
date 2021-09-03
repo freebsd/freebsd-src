@@ -34,6 +34,60 @@ hostapd_neighbor_get(struct hostapd_data *hapd, const u8 *bssid,
 }
 
 
+int hostapd_neighbor_show(struct hostapd_data *hapd, char *buf, size_t buflen)
+{
+	struct hostapd_neighbor_entry *nr;
+	char *pos, *end;
+
+	pos = buf;
+	end = buf + buflen;
+
+	dl_list_for_each(nr, &hapd->nr_db, struct hostapd_neighbor_entry,
+			 list) {
+		int ret;
+		char nrie[2 * 255 + 1];
+		char lci[2 * 255 + 1];
+		char civic[2 * 255 + 1];
+		char ssid[SSID_MAX_LEN * 2 + 1];
+
+		ssid[0] = '\0';
+		wpa_snprintf_hex(ssid, sizeof(ssid), nr->ssid.ssid,
+				 nr->ssid.ssid_len);
+
+		nrie[0] = '\0';
+		if (nr->nr)
+			wpa_snprintf_hex(nrie, sizeof(nrie),
+					 wpabuf_head(nr->nr),
+					 wpabuf_len(nr->nr));
+
+		lci[0] = '\0';
+		if (nr->lci)
+			wpa_snprintf_hex(lci, sizeof(lci),
+					 wpabuf_head(nr->lci),
+					 wpabuf_len(nr->lci));
+
+		civic[0] = '\0';
+		if (nr->civic)
+			wpa_snprintf_hex(civic, sizeof(civic),
+					 wpabuf_head(nr->civic),
+					 wpabuf_len(nr->civic));
+
+		ret = os_snprintf(pos, end - pos, MACSTR
+				  " ssid=%s%s%s%s%s%s%s%s\n",
+				  MAC2STR(nr->bssid), ssid,
+				  nr->nr ? " nr=" : "", nrie,
+				  nr->lci ? " lci=" : "", lci,
+				  nr->civic ? " civic=" : "", civic,
+				  nr->stationary ? " stat" : "");
+		if (os_snprintf_error(end - pos, ret))
+			break;
+		pos += ret;
+	}
+
+	return pos - buf;
+}
+
+
 static void hostapd_neighbor_clear_entry(struct hostapd_neighbor_entry *nr)
 {
 	wpabuf_free(nr->nr);
@@ -166,7 +220,7 @@ void hostapd_neighbor_set_own_report(struct hostapd_data *hapd)
 	u16 capab = hostapd_own_capab_info(hapd);
 	int ht = hapd->iconf->ieee80211n && !hapd->conf->disable_11n;
 	int vht = hapd->iconf->ieee80211ac && !hapd->conf->disable_11ac;
-	int he = hapd->iconf->ieee80211ax;
+	int he = hapd->iconf->ieee80211ax && !hapd->conf->disable_11ax;
 	struct wpa_ssid_value ssid;
 	u8 channel, op_class;
 	u8 center_freq1_idx = 0, center_freq2_idx = 0;
@@ -202,6 +256,8 @@ void hostapd_neighbor_set_own_report(struct hostapd_data *hapd)
 		/* VHT bit added in IEEE P802.11-REVmc/D4.3 */
 		if (vht)
 			bssid_info |= NEI_REP_BSSID_INFO_VHT;
+		if (he)
+			bssid_info |= NEI_REP_BSSID_INFO_HE;
 	}
 
 	/* TODO: Set NEI_REP_BSSID_INFO_MOBILITY_DOMAIN if MDE is set */

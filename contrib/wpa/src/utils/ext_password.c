@@ -20,6 +20,9 @@ static const struct ext_password_backend *backends[] = {
 #ifdef CONFIG_EXT_PASSWORD_TEST
 	&ext_password_test,
 #endif /* CONFIG_EXT_PASSWORD_TEST */
+#ifdef CONFIG_EXT_PASSWORD_FILE
+	&ext_password_file,
+#endif /* CONFIG_EXT_PASSWORD_FILE */
 	NULL
 };
 

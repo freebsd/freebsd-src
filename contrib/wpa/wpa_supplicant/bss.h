@@ -18,10 +18,22 @@ struct wpa_scan_res;
 #define WPA_BSS_AUTHENTICATED		BIT(4)
 #define WPA_BSS_ASSOCIATED		BIT(5)
 #define WPA_BSS_ANQP_FETCH_TRIED	BIT(6)
+#define WPA_BSS_OWE_TRANSITION		BIT(7)
+
+#define WPA_BSS_FREQ_CHANGED_FLAG	BIT(0)
+#define WPA_BSS_SIGNAL_CHANGED_FLAG	BIT(1)
+#define WPA_BSS_PRIVACY_CHANGED_FLAG	BIT(2)
+#define WPA_BSS_MODE_CHANGED_FLAG	BIT(3)
+#define WPA_BSS_WPAIE_CHANGED_FLAG	BIT(4)
+#define WPA_BSS_RSNIE_CHANGED_FLAG	BIT(5)
+#define WPA_BSS_WPS_CHANGED_FLAG	BIT(6)
+#define WPA_BSS_RATES_CHANGED_FLAG	BIT(7)
+#define WPA_BSS_IES_CHANGED_FLAG	BIT(8)
 
 struct wpa_bss_anqp_elem {
 	struct dl_list list;
 	u16 infoid;
+	bool protected_response; /* received in a protected GAS response */
 	struct wpabuf *payload;
 };
 
@@ -110,8 +122,16 @@ struct wpa_bss {
 	size_t beacon_ie_len;
 	/* followed by ie_len octets of IEs */
 	/* followed by beacon_ie_len octets of IEs */
+	u8 ies[];
 };
 
+static inline const u8 * wpa_bss_ie_ptr(const struct wpa_bss *bss)
+{
+	return bss->ies;
+}
+
+void notify_bss_changes(struct wpa_supplicant *wpa_s, u32 changes,
+			const struct wpa_bss *bss);
 void wpa_bss_update_start(struct wpa_supplicant *wpa_s);
 void wpa_bss_update_scan_res(struct wpa_supplicant *wpa_s,
 			     struct wpa_scan_res *res,
@@ -136,6 +156,7 @@ struct wpa_bss * wpa_bss_get_id(struct wpa_supplicant *wpa_s, unsigned int id);
 struct wpa_bss * wpa_bss_get_id_range(struct wpa_supplicant *wpa_s,
 				      unsigned int idf, unsigned int idl);
 const u8 * wpa_bss_get_ie(const struct wpa_bss *bss, u8 ie);
+const u8 * wpa_bss_get_ie_ext(const struct wpa_bss *bss, u8 ext);
 const u8 * wpa_bss_get_vendor_ie(const struct wpa_bss *bss, u32 vendor_type);
 const u8 * wpa_bss_get_vendor_ie_beacon(const struct wpa_bss *bss,
 					u32 vendor_type);
@@ -147,7 +168,7 @@ int wpa_bss_get_max_rate(const struct wpa_bss *bss);
 int wpa_bss_get_bit_rates(const struct wpa_bss *bss, u8 **rates);
 struct wpa_bss_anqp * wpa_bss_anqp_alloc(void);
 int wpa_bss_anqp_unshare_alloc(struct wpa_bss *bss);
-const u8 * wpa_bss_get_fils_cache_id(struct wpa_bss *bss);
+const u8 * wpa_bss_get_fils_cache_id(const struct wpa_bss *bss);
 int wpa_bss_ext_capab(const struct wpa_bss *bss, unsigned int capab);
 
 static inline int bss_is_dmg(const struct wpa_bss *bss)
@@ -168,7 +189,7 @@ static inline int bss_is_pbss(struct wpa_bss *bss)
 
 static inline void wpa_bss_update_level(struct wpa_bss *bss, int new_level)
 {
-	if (bss != NULL && new_level < 0)
+	if (bss != NULL && new_level > -WPA_INVALID_NOISE && new_level < 0)
 		bss->level = new_level;
 }
 

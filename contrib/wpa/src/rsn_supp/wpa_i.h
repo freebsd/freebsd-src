@@ -14,6 +14,11 @@
 struct wpa_tdls_peer;
 struct wpa_eapol_key;
 
+struct pasn_ft_r1kh {
+	u8 bssid[ETH_ALEN];
+	u8 r1kh_id[FT_R1KH_ID_LEN];
+};
+
 /**
  * struct wpa_sm - Internal WPA state machine data
  */
@@ -31,10 +36,10 @@ struct wpa_sm {
 	u8 request_counter[WPA_REPLAY_COUNTER_LEN];
 	struct wpa_gtk gtk;
 	struct wpa_gtk gtk_wnm_sleep;
-#ifdef CONFIG_IEEE80211W
 	struct wpa_igtk igtk;
 	struct wpa_igtk igtk_wnm_sleep;
-#endif /* CONFIG_IEEE80211W */
+	struct wpa_bigtk bigtk;
+	struct wpa_bigtk bigtk_wnm_sleep;
 
 	struct eapol_sm *eapol; /* EAPOL state machine from upper level code */
 
@@ -63,8 +68,21 @@ struct wpa_sm {
 	u8 ssid[32];
 	size_t ssid_len;
 	int wpa_ptk_rekey;
+	int wpa_deny_ptk0_rekey:1;
 	int p2p;
 	int wpa_rsc_relaxation;
+	int owe_ptk_workaround;
+	int beacon_prot;
+	int ext_key_id; /* whether Extended Key ID is enabled */
+	int use_ext_key_id; /* whether Extended Key ID has been detected
+			     * to be used */
+	int keyidx_active; /* Key ID for the active TK */
+
+	/*
+	 * If set Key Derivation Key should be derived as part of PMK to
+	 * PTK derivation regardless of advertised capabilities.
+	 */
+	bool force_kdk_derivation;
 
 	u8 own_addr[ETH_ALEN];
 	const char *ifname;
@@ -87,11 +105,19 @@ struct wpa_sm {
 	int rsn_enabled; /* Whether RSN is enabled in configuration */
 	int mfp; /* 0 = disabled, 1 = optional, 2 = mandatory */
 	int ocv; /* Operating Channel Validation */
+	int sae_pwe; /* SAE PWE generation options */
+
+	unsigned int sae_pk:1; /* whether SAE-PK is used */
+	unsigned int secure_ltf:1;
+	unsigned int secure_rtt:1;
+	unsigned int prot_range_neg:1;
 
 	u8 *assoc_wpa_ie; /* Own WPA/RSN IE from (Re)AssocReq */
 	size_t assoc_wpa_ie_len;
-	u8 *ap_wpa_ie, *ap_rsn_ie;
-	size_t ap_wpa_ie_len, ap_rsn_ie_len;
+	u8 *assoc_rsnxe; /* Own RSNXE from (Re)AssocReq */
+	size_t assoc_rsnxe_len;
+	u8 *ap_wpa_ie, *ap_rsn_ie, *ap_rsnxe;
+	size_t ap_wpa_ie_len, ap_rsn_ie_len, ap_rsnxe_len;
 
 #ifdef CONFIG_TDLS
 	struct wpa_tdls_peer *tdls;
@@ -135,6 +161,17 @@ struct wpa_sm {
 	u8 mdie_ft_capab; /* FT Capability and Policy from target AP MDIE */
 	u8 *assoc_resp_ies; /* MDIE and FTIE from (Re)Association Response */
 	size_t assoc_resp_ies_len;
+#ifdef CONFIG_PASN
+	/*
+	 * Currently, the WPA state machine stores the PMK-R1, PMK-R1-Name and
+	 * R1KH-ID only for the current association. As PMK-R1 is required to
+	 * perform PASN authentication with FT, store the R1KH-ID for previous
+	 * associations, which would later be used to derive the PMK-R1 as part
+	 * of the PASN authentication flow.
+	 */
+	struct pasn_ft_r1kh *pasn_r1kh;
+	unsigned int n_pasn_r1kh;
+#endif /* CONFIG_PASN */
 #endif /* CONFIG_IEEE80211R */
 
 #ifdef CONFIG_P2P
@@ -143,6 +180,11 @@ struct wpa_sm {
 
 #ifdef CONFIG_TESTING_OPTIONS
 	struct wpabuf *test_assoc_ie;
+	int ft_rsnxe_used;
+	unsigned int oci_freq_override_eapol;
+	unsigned int oci_freq_override_eapol_g2;
+	unsigned int oci_freq_override_ft_assoc;
+	unsigned int oci_freq_override_fils_assoc;
 #endif /* CONFIG_TESTING_OPTIONS */
 
 #ifdef CONFIG_FILS
@@ -172,6 +214,7 @@ struct wpa_sm {
 
 #ifdef CONFIG_DPP2
 	struct wpabuf *dpp_z;
+	int dpp_pfs;
 #endif /* CONFIG_DPP2 */
 };
 
@@ -197,11 +240,18 @@ static inline void wpa_sm_deauthenticate(struct wpa_sm *sm, u16 reason_code)
 static inline int wpa_sm_set_key(struct wpa_sm *sm, enum wpa_alg alg,
 				 const u8 *addr, int key_idx, int set_tx,
 				 const u8 *seq, size_t seq_len,
-				 const u8 *key, size_t key_len)
+				 const u8 *key, size_t key_len,
+				 enum key_flag key_flag)
 {
 	WPA_ASSERT(sm->ctx->set_key);
 	return sm->ctx->set_key(sm->ctx->ctx, alg, addr, key_idx, set_tx,
-				seq, seq_len, key, key_len);
+				seq, seq_len, key, key_len, key_flag);
+}
+
+static inline void wpa_sm_reconnect(struct wpa_sm *sm)
+{
+	WPA_ASSERT(sm->ctx->reconnect);
+	sm->ctx->reconnect(sm->ctx->ctx);
 }
 
 static inline void * wpa_sm_get_network_ctx(struct wpa_sm *sm)
@@ -247,11 +297,13 @@ static inline u8 * wpa_sm_alloc_eapol(struct wpa_sm *sm, u8 type,
 static inline int wpa_sm_add_pmkid(struct wpa_sm *sm, void *network_ctx,
 				   const u8 *bssid, const u8 *pmkid,
 				   const u8 *cache_id, const u8 *pmk,
-				   size_t pmk_len)
+				   size_t pmk_len, u32 pmk_lifetime,
+				   u8 pmk_reauth_threshold, int akmp)
 {
 	WPA_ASSERT(sm->ctx->add_pmkid);
 	return sm->ctx->add_pmkid(sm->ctx->ctx, network_ctx, bssid, pmkid,
-				  cache_id, pmk, pmk_len);
+				  cache_id, pmk, pmk_len, pmk_lifetime,
+				  pmk_reauth_threshold, akmp);
 }
 
 static inline int wpa_sm_remove_pmkid(struct wpa_sm *sm, void *network_ctx,
@@ -346,6 +398,8 @@ wpa_sm_tdls_peer_addset(struct wpa_sm *sm, const u8 *addr, int add,
 			size_t supp_rates_len,
 			const struct ieee80211_ht_capabilities *ht_capab,
 			const struct ieee80211_vht_capabilities *vht_capab,
+			const struct ieee80211_he_capabilities *he_capab,
+			size_t he_capab_len,
 			u8 qosinfo, int wmm, const u8 *ext_capab,
 			size_t ext_capab_len, const u8 *supp_channels,
 			size_t supp_channels_len, const u8 *supp_oper_classes,
@@ -355,7 +409,9 @@ wpa_sm_tdls_peer_addset(struct wpa_sm *sm, const u8 *addr, int add,
 		return sm->ctx->tdls_peer_addset(sm->ctx->ctx, addr, add,
 						 aid, capability, supp_rates,
 						 supp_rates_len, ht_capab,
-						 vht_capab, qosinfo, wmm,
+						 vht_capab,
+						 he_capab, he_capab_len,
+						 qosinfo, wmm,
 						 ext_capab, ext_capab_len,
 						 supp_channels,
 						 supp_channels_len,
@@ -409,6 +465,20 @@ static inline int wpa_sm_channel_info(struct wpa_sm *sm,
 	return sm->ctx->channel_info(sm->ctx->ctx, ci);
 }
 
+static inline void wpa_sm_transition_disable(struct wpa_sm *sm, u8 bitmap)
+{
+	if (sm->ctx->transition_disable)
+		sm->ctx->transition_disable(sm->ctx->ctx, bitmap);
+}
+
+static inline void wpa_sm_store_ptk(struct wpa_sm *sm,
+				    u8 *addr, int cipher,
+				    u32 life_time, struct wpa_ptk *ptk)
+{
+	if (sm->ctx->store_ptk)
+		sm->ctx->store_ptk(sm->ctx->ctx, addr, cipher, life_time,
+				   ptk);
+}
 
 int wpa_eapol_key_send(struct wpa_sm *sm, struct wpa_ptk *ptk,
 		       int ver, const u8 *dest, u16 proto,

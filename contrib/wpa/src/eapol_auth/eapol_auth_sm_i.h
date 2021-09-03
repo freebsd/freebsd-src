@@ -43,23 +43,23 @@ struct eapol_state_machine {
 	int reAuthWhen;
 
 	/* global variables */
-	Boolean authAbort;
-	Boolean authFail;
+	bool authAbort;
+	bool authFail;
 	PortState authPortStatus;
-	Boolean authStart;
-	Boolean authTimeout;
-	Boolean authSuccess;
-	Boolean eapolEap;
-	Boolean initialize;
-	Boolean keyDone;
-	Boolean keyRun;
-	Boolean keyTxEnabled;
+	bool authStart;
+	bool authTimeout;
+	bool authSuccess;
+	bool eapolEap;
+	bool initialize;
+	bool keyDone;
+	bool keyRun;
+	bool keyTxEnabled;
 	PortTypes portControl;
-	Boolean portValid;
-	Boolean reAuthenticate;
+	bool portValid;
+	bool reAuthenticate;
 
 	/* Port Timers state machine */
-	/* 'Boolean tick' implicitly handled as registered timeout */
+	/* 'bool tick' implicitly handled as registered timeout */
 
 	/* Authenticator PAE state machine */
 	enum { AUTH_PAE_INITIALIZE, AUTH_PAE_DISCONNECTED, AUTH_PAE_CONNECTING,
@@ -67,8 +67,8 @@ struct eapol_state_machine {
 	       AUTH_PAE_ABORTING, AUTH_PAE_HELD, AUTH_PAE_FORCE_AUTH,
 	       AUTH_PAE_FORCE_UNAUTH, AUTH_PAE_RESTART } auth_pae_state;
 	/* variables */
-	Boolean eapolLogoff;
-	Boolean eapolStart;
+	bool eapolLogoff;
+	bool eapolStart;
 	PortTypes portMode;
 	unsigned int reAuthCount;
 	/* constants */
@@ -109,7 +109,7 @@ struct eapol_state_machine {
 	} reauth_timer_state;
 	/* constants */
 	unsigned int reAuthPeriod; /* default 3600 s */
-	Boolean reAuthEnabled;
+	bool reAuthEnabled;
 
 	/* Authenticator Key Transmit state machine */
 	enum { AUTH_KEY_TX_NO_KEY_TRANSMIT, AUTH_KEY_TX_KEY_TRANSMIT
@@ -118,14 +118,14 @@ struct eapol_state_machine {
 	/* Key Receive state machine */
 	enum { KEY_RX_NO_KEY_RECEIVE, KEY_RX_KEY_RECEIVE } key_rx_state;
 	/* variables */
-	Boolean rxKey;
+	bool rxKey;
 
 	/* Controlled Directions state machine */
 	enum { CTRL_DIR_FORCE_BOTH, CTRL_DIR_IN_OR_BOTH } ctrl_dir_state;
 	/* variables */
 	ControlledDirection adminControlledDirections;
 	ControlledDirection operControlledDirections;
-	Boolean operEdge;
+	bool operEdge;
 
 	/* Authenticator Statistics Table */
 	Counter dot1xAuthEapolFramesRx;
@@ -161,8 +161,8 @@ struct eapol_state_machine {
 
 	struct eap_sm *eap;
 
-	Boolean initializing; /* in process of initializing state machines */
-	Boolean changed;
+	bool initializing; /* in process of initializing state machines */
+	bool changed;
 
 	struct eapol_authenticator *eapol;
 

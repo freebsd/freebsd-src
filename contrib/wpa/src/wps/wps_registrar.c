@@ -17,6 +17,7 @@
 #include "crypto/sha256.h"
 #include "crypto/random.h"
 #include "common/ieee802_11_defs.h"
+#include "common/wpa_common.h"
 #include "wps_i.h"
 #include "wps_dev_attr.h"
 #include "wps_upnp.h"
@@ -159,6 +160,7 @@ struct wps_registrar {
 				 const u8 *pri_dev_type, u16 config_methods,
 				 u16 dev_password_id, u8 request_type,
 				 const char *dev_name);
+	int (*lookup_pskfile_cb)(void *ctx, const u8 *mac_addr, const u8 **psk);
 	void *cb_ctx;
 
 	struct dl_list pins;
@@ -171,7 +173,6 @@ struct wps_registrar {
 	int sel_reg_union;
 	int sel_reg_dev_password_id_override;
 	int sel_reg_config_methods_override;
-	int static_wep_only;
 	int dualband;
 	int force_per_enrollee_psk;
 
@@ -681,6 +682,7 @@ wps_registrar_init(struct wps_context *wps,
 	reg->reg_success_cb = cfg->reg_success_cb;
 	reg->set_sel_reg_cb = cfg->set_sel_reg_cb;
 	reg->enrollee_seen_cb = cfg->enrollee_seen_cb;
+	reg->lookup_pskfile_cb = cfg->lookup_pskfile_cb;
 	reg->cb_ctx = cfg->cb_ctx;
 	reg->skip_cred_build = cfg->skip_cred_build;
 	if (cfg->extra_cred) {
@@ -694,7 +696,6 @@ wps_registrar_init(struct wps_context *wps,
 	reg->disable_auto_conf = cfg->disable_auto_conf;
 	reg->sel_reg_dev_password_id_override = -1;
 	reg->sel_reg_config_methods_override = -1;
-	reg->static_wep_only = cfg->static_wep_only;
 	reg->dualband = cfg->dualband;
 	reg->force_per_enrollee_psk = cfg->force_per_enrollee_psk;
 
@@ -1290,6 +1291,15 @@ static void wps_cb_set_sel_reg(struct wps_registrar *reg)
 }
 
 
+static int wps_cp_lookup_pskfile(struct wps_registrar *reg, const u8 *mac_addr,
+				 const u8 **psk)
+{
+	if (!reg->lookup_pskfile_cb)
+		return 0;
+	return reg->lookup_pskfile_cb(reg->cb_ctx, mac_addr, psk);
+}
+
+
 static int wps_set_ie(struct wps_registrar *reg)
 {
 	struct wpabuf *beacon;
@@ -1310,13 +1320,9 @@ static int wps_set_ie(struct wps_registrar *reg)
 	}
 
 	beacon = wpabuf_alloc(400 + vendor_len);
-	if (beacon == NULL)
-		return -1;
 	probe = wpabuf_alloc(500 + vendor_len);
-	if (probe == NULL) {
-		wpabuf_free(beacon);
-		return -1;
-	}
+	if (!beacon || !probe)
+		goto fail;
 
 	auth_macs = wps_authorized_macs(reg, &count);
 
@@ -1331,19 +1337,14 @@ static int wps_set_ie(struct wps_registrar *reg)
 	    wps_build_sel_pbc_reg_uuid_e(reg, beacon) ||
 	    (reg->dualband && wps_build_rf_bands(&reg->wps->dev, beacon, 0)) ||
 	    wps_build_wfa_ext(beacon, 0, auth_macs, count, 0) ||
-	    wps_build_vendor_ext(&reg->wps->dev, beacon)) {
-		wpabuf_free(beacon);
-		wpabuf_free(probe);
-		return -1;
-	}
+	    wps_build_vendor_ext(&reg->wps->dev, beacon) ||
+	    wps_build_application_ext(&reg->wps->dev, beacon))
+		goto fail;
 
 #ifdef CONFIG_P2P
 	if (wps_build_dev_name(&reg->wps->dev, beacon) ||
-	    wps_build_primary_dev_type(&reg->wps->dev, beacon)) {
-		wpabuf_free(beacon);
-		wpabuf_free(probe);
-		return -1;
-	}
+	    wps_build_primary_dev_type(&reg->wps->dev, beacon))
+		goto fail;
 #endif /* CONFIG_P2P */
 
 	wpa_printf(MSG_DEBUG, "WPS: Build Probe Response IEs");
@@ -1361,44 +1362,21 @@ static int wps_set_ie(struct wps_registrar *reg)
 	    wps_build_probe_config_methods(reg, probe) ||
 	    (reg->dualband && wps_build_rf_bands(&reg->wps->dev, probe, 0)) ||
 	    wps_build_wfa_ext(probe, 0, auth_macs, count, 0) ||
-	    wps_build_vendor_ext(&reg->wps->dev, probe)) {
-		wpabuf_free(beacon);
-		wpabuf_free(probe);
-		return -1;
-	}
+	    wps_build_vendor_ext(&reg->wps->dev, probe) ||
+	    wps_build_application_ext(&reg->wps->dev, probe))
+		goto fail;
 
 	beacon = wps_ie_encapsulate(beacon);
 	probe = wps_ie_encapsulate(probe);
 
-	if (!beacon || !probe) {
-		wpabuf_free(beacon);
-		wpabuf_free(probe);
-		return -1;
-	}
-
-	if (reg->static_wep_only) {
-		/*
-		 * Windows XP and Vista clients can get confused about
-		 * EAP-Identity/Request when they probe the network with
-		 * EAPOL-Start. In such a case, they may assume the network is
-		 * using IEEE 802.1X and prompt user for a certificate while
-		 * the correct (non-WPS) behavior would be to ask for the
-		 * static WEP key. As a workaround, use Microsoft Provisioning
-		 * IE to advertise that legacy 802.1X is not supported.
-		 */
-		const u8 ms_wps[7] = {
-			WLAN_EID_VENDOR_SPECIFIC, 5,
-			/* Microsoft Provisioning IE (00:50:f2:5) */
-			0x00, 0x50, 0xf2, 5,
-			0x00 /* no legacy 802.1X or MS WPS */
-		};
-		wpa_printf(MSG_DEBUG, "WPS: Add Microsoft Provisioning IE "
-			   "into Beacon/Probe Response frames");
-		wpabuf_put_data(beacon, ms_wps, sizeof(ms_wps));
-		wpabuf_put_data(probe, ms_wps, sizeof(ms_wps));
-	}
+	if (!beacon || !probe)
+		goto fail;
 
 	return wps_cb_set_ie(reg, beacon, probe);
+fail:
+	wpabuf_free(beacon);
+	wpabuf_free(probe);
+	return -1;
 }
 
 
@@ -1642,6 +1620,8 @@ int wps_build_cred(struct wps_data *wps, struct wpabuf *msg)
 {
 	struct wpabuf *cred;
 	struct wps_registrar *reg = wps->wps->registrar;
+	const u8 *pskfile_psk;
+	char hex[65];
 
 	if (wps->wps->registrar->skip_cred_build)
 		goto skip_cred_build;
@@ -1685,8 +1665,10 @@ int wps_build_cred(struct wps_data *wps, struct wpabuf *msg)
 		   wps->wps->auth_types, wps->auth_type);
 	if (wps->auth_type & WPS_AUTH_WPA2PSK)
 		wps->auth_type = WPS_AUTH_WPA2PSK;
+#ifndef CONFIG_NO_TKIP
 	else if (wps->auth_type & WPS_AUTH_WPAPSK)
 		wps->auth_type = WPS_AUTH_WPAPSK;
+#endif /* CONFIG_NO_TKIP */
 	else if (wps->auth_type & WPS_AUTH_OPEN)
 		wps->auth_type = WPS_AUTH_OPEN;
 	else {
@@ -1708,8 +1690,10 @@ int wps_build_cred(struct wps_data *wps, struct wpabuf *msg)
 	    wps->auth_type == WPS_AUTH_WPAPSK) {
 		if (wps->encr_type & WPS_ENCR_AES)
 			wps->encr_type = WPS_ENCR_AES;
+#ifndef CONFIG_NO_TKIP
 		else if (wps->encr_type & WPS_ENCR_TKIP)
 			wps->encr_type = WPS_ENCR_TKIP;
+#endif /* CONFIG_NO_TKIP */
 		else {
 			wpa_printf(MSG_DEBUG, "WPS: No suitable encryption "
 				   "type for WPA/WPA2");
@@ -1745,7 +1729,8 @@ int wps_build_cred(struct wps_data *wps, struct wpabuf *msg)
 			return -1;
 		}
 		os_free(wps->new_psk);
-		wps->new_psk = base64_encode(r, sizeof(r), &wps->new_psk_len);
+		wps->new_psk = (u8 *) base64_encode(r, sizeof(r),
+						    &wps->new_psk_len);
 		if (wps->new_psk == NULL)
 			return -1;
 		wps->new_psk_len--; /* remove newline */
@@ -1756,23 +1741,29 @@ int wps_build_cred(struct wps_data *wps, struct wpabuf *msg)
 				      wps->new_psk, wps->new_psk_len);
 		os_memcpy(wps->cred.key, wps->new_psk, wps->new_psk_len);
 		wps->cred.key_len = wps->new_psk_len;
+	} else if (wps_cp_lookup_pskfile(reg, wps->mac_addr_e, &pskfile_psk)) {
+		wpa_hexdump_key(MSG_DEBUG, "WPS: Use PSK from wpa_psk_file",
+				pskfile_psk, PMK_LEN);
+		wpa_snprintf_hex(hex, sizeof(hex), pskfile_psk, PMK_LEN);
+		os_memcpy(wps->cred.key, hex, PMK_LEN * 2);
+		wps->cred.key_len = PMK_LEN * 2;
 	} else if (!wps->wps->registrar->force_per_enrollee_psk &&
 		   wps->use_psk_key && wps->wps->psk_set) {
-		char hex[65];
 		wpa_printf(MSG_DEBUG, "WPS: Use PSK format for Network Key");
-		wpa_snprintf_hex(hex, sizeof(hex), wps->wps->psk, 32);
-		os_memcpy(wps->cred.key, hex, 32 * 2);
-		wps->cred.key_len = 32 * 2;
-	} else if (!wps->wps->registrar->force_per_enrollee_psk &&
-		   wps->wps->network_key) {
+		wpa_snprintf_hex(hex, sizeof(hex), wps->wps->psk, PMK_LEN);
+		os_memcpy(wps->cred.key, hex, PMK_LEN * 2);
+		wps->cred.key_len = PMK_LEN * 2;
+	} else if ((!wps->wps->registrar->force_per_enrollee_psk ||
+		    wps->wps->use_passphrase) && wps->wps->network_key) {
+		wpa_printf(MSG_DEBUG,
+			   "WPS: Use passphrase format for Network key");
 		os_memcpy(wps->cred.key, wps->wps->network_key,
 			  wps->wps->network_key_len);
 		wps->cred.key_len = wps->wps->network_key_len;
 	} else if (wps->auth_type & (WPS_AUTH_WPAPSK | WPS_AUTH_WPA2PSK)) {
-		char hex[65];
 		/* Generate a random per-device PSK */
 		os_free(wps->new_psk);
-		wps->new_psk_len = 32;
+		wps->new_psk_len = PMK_LEN;
 		wps->new_psk = os_malloc(wps->new_psk_len);
 		if (wps->new_psk == NULL)
 			return -1;
@@ -3481,6 +3472,7 @@ static void wps_registrar_set_selected_timeout(void *eloop_ctx,
 		   "unselect internal Registrar");
 	reg->selected_registrar = 0;
 	reg->pbc = 0;
+	wps_registrar_expire_pins(reg);
 	wps_registrar_selected_registrar_changed(reg, 0);
 }
 
@@ -3664,6 +3656,35 @@ int wps_registrar_config_ap(struct wps_registrar *reg,
 		return reg->wps->cred_cb(reg->wps->cb_ctx, cred);
 
 	return -1;
+}
+
+
+int wps_registrar_update_multi_ap(struct wps_registrar *reg,
+				  const u8 *multi_ap_backhaul_ssid,
+				  size_t multi_ap_backhaul_ssid_len,
+				  const u8 *multi_ap_backhaul_network_key,
+				  size_t multi_ap_backhaul_network_key_len)
+{
+	if (multi_ap_backhaul_ssid) {
+		os_memcpy(reg->multi_ap_backhaul_ssid,
+			  multi_ap_backhaul_ssid, multi_ap_backhaul_ssid_len);
+		reg->multi_ap_backhaul_ssid_len = multi_ap_backhaul_ssid_len;
+	}
+
+	os_free(reg->multi_ap_backhaul_network_key);
+	reg->multi_ap_backhaul_network_key = NULL;
+	reg->multi_ap_backhaul_network_key_len = 0;
+	if (multi_ap_backhaul_network_key) {
+		reg->multi_ap_backhaul_network_key =
+			os_memdup(multi_ap_backhaul_network_key,
+				  multi_ap_backhaul_network_key_len);
+		if (!reg->multi_ap_backhaul_network_key)
+			return -1;
+		reg->multi_ap_backhaul_network_key_len =
+			multi_ap_backhaul_network_key_len;
+	}
+
+	return 0;
 }
 
 

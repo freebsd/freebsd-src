@@ -20,6 +20,9 @@ int sha384_prf(const u8 *key, size_t key_len, const char *label,
 int sha384_prf_bits(const u8 *key, size_t key_len, const char *label,
 		    const u8 *data, size_t data_len, u8 *buf,
 		    size_t buf_len_bits);
+int tls_prf_sha384(const u8 *secret, size_t secret_len,
+		   const char *label, const u8 *seed, size_t seed_len,
+		   u8 *out, size_t outlen);
 int hmac_sha384_kdf(const u8 *secret, size_t secret_len,
 		    const char *label, const u8 *seed, size_t seed_len,
 		    u8 *out, size_t outlen);

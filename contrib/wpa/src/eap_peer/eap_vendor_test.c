@@ -75,28 +75,28 @@ static struct wpabuf * eap_vendor_test_process(struct eap_sm *sm, void *priv,
 
 	pos = eap_hdr_validate(EAP_VENDOR_ID, EAP_VENDOR_TYPE, reqData, &len);
 	if (pos == NULL || len < 1) {
-		ret->ignore = TRUE;
+		ret->ignore = true;
 		return NULL;
 	}
 
 	if (data->state == INIT && *pos != 1) {
 		wpa_printf(MSG_DEBUG, "EAP-VENDOR-TEST: Unexpected message "
 			   "%d in INIT state", *pos);
-		ret->ignore = TRUE;
+		ret->ignore = true;
 		return NULL;
 	}
 
 	if (data->state == CONFIRM && *pos != 3) {
 		wpa_printf(MSG_DEBUG, "EAP-VENDOR-TEST: Unexpected message "
 			   "%d in CONFIRM state", *pos);
-		ret->ignore = TRUE;
+		ret->ignore = true;
 		return NULL;
 	}
 
 	if (data->state == SUCCESS) {
 		wpa_printf(MSG_DEBUG, "EAP-VENDOR-TEST: Unexpected message "
 			   "in SUCCESS state");
-		ret->ignore = TRUE;
+		ret->ignore = true;
 		return NULL;
 	}
 
@@ -105,17 +105,17 @@ static struct wpabuf * eap_vendor_test_process(struct eap_sm *sm, void *priv,
 			data->first_try = 0;
 			wpa_printf(MSG_DEBUG, "EAP-VENDOR-TEST: Testing "
 				   "pending request");
-			ret->ignore = TRUE;
+			ret->ignore = true;
 			eloop_register_timeout(1, 0, eap_vendor_ready, sm,
 					       NULL);
 			return NULL;
 		}
 	}
 
-	ret->ignore = FALSE;
+	ret->ignore = false;
 
 	wpa_printf(MSG_DEBUG, "EAP-VENDOR-TEST: Generating Response");
-	ret->allowNotifications = TRUE;
+	ret->allowNotifications = true;
 
 	resp = eap_msg_alloc(EAP_VENDOR_ID, EAP_VENDOR_TYPE, 1,
 			     EAP_CODE_RESPONSE, eap_get_id(reqData));
@@ -138,7 +138,7 @@ static struct wpabuf * eap_vendor_test_process(struct eap_sm *sm, void *priv,
 }
 
 
-static Boolean eap_vendor_test_isKeyAvailable(struct eap_sm *sm, void *priv)
+static bool eap_vendor_test_isKeyAvailable(struct eap_sm *sm, void *priv)
 {
 	struct eap_vendor_test_data *data = priv;
 	return data->state == SUCCESS;

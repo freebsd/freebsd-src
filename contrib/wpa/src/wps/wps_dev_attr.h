@@ -33,6 +33,7 @@ void wps_process_vendor_ext_m1(struct wps_device_data *dev, const u8 ext);
 int wps_process_rf_bands(struct wps_device_data *dev, const u8 *bands);
 void wps_device_data_free(struct wps_device_data *dev);
 int wps_build_vendor_ext(struct wps_device_data *dev, struct wpabuf *msg);
+int wps_build_application_ext(struct wps_device_data *dev, struct wpabuf *msg);
 int wps_build_req_dev_type(struct wps_device_data *dev, struct wpabuf *msg,
 			   unsigned int num_req_dev_types,
 			   const u8 *req_dev_types);

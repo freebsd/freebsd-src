@@ -7,6 +7,7 @@
  */
 
 #include "includes.h"
+#include <limits.h>
 
 #include "common/ieee802_11_defs.h"
 #include "common.h"
@@ -790,6 +791,10 @@ int freq_range_list_parse(struct wpa_freq_range_list *res, const char *value)
 	 */
 	pos = value;
 	while (pos && pos[0]) {
+		if (count == UINT_MAX) {
+			os_free(freq);
+			return -1;
+		}
 		n = os_realloc_array(freq, count + 1,
 				     sizeof(struct wpa_freq_range));
 		if (n == NULL) {
@@ -874,9 +879,10 @@ char * freq_range_list_str(const struct wpa_freq_range_list *list)
 }
 
 
-int int_array_len(const int *a)
+size_t int_array_len(const int *a)
 {
-	int i;
+	size_t i;
+
 	for (i = 0; a && a[i]; i++)
 		;
 	return i;
@@ -885,12 +891,21 @@ int int_array_len(const int *a)
 
 void int_array_concat(int **res, const int *a)
 {
-	int reslen, alen, i;
+	size_t reslen, alen, i, max_size;
 	int *n;
 
 	reslen = int_array_len(*res);
 	alen = int_array_len(a);
-
+	max_size = (size_t) -1;
+	if (alen >= max_size - reslen) {
+		/* This should not really happen, but if it did, something
+		 * would overflow. Do not try to merge the arrays; instead, make
+		 * this behave like memory allocation failure to avoid messing
+		 * up memory. */
+		os_free(*res);
+		*res = NULL;
+		return;
+	}
 	n = os_realloc_array(*res, reslen + alen + 1, sizeof(int));
 	if (n == NULL) {
 		os_free(*res);
@@ -918,8 +933,7 @@ static int freq_cmp(const void *a, const void *b)
 
 void int_array_sort_unique(int *a)
 {
-	int alen;
-	int i, j;
+	size_t alen, i, j;
 
 	if (a == NULL)
 		return;
@@ -944,7 +958,7 @@ void int_array_sort_unique(int *a)
 
 void int_array_add_unique(int **res, int a)
 {
-	int reslen;
+	size_t reslen, max_size;
 	int *n;
 
 	for (reslen = 0; *res && (*res)[reslen]; reslen++) {
@@ -952,6 +966,16 @@ void int_array_add_unique(int **res, int a)
 			return; /* already in the list */
 	}
 
+	max_size = (size_t) -1;
+	if (reslen > max_size - 2) {
+		/* This should not really happen in practice, but if it did,
+		 * something would overflow. Do not try to add the new value;
+		 * instead, make this behave like memory allocation failure to
+		 * avoid messing up memory. */
+		os_free(*res);
+		*res = NULL;
+		return;
+	}
 	n = os_realloc_array(*res, reslen + 2, sizeof(int));
 	if (n == NULL) {
 		os_free(*res);

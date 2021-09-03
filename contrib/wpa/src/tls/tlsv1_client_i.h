@@ -78,7 +78,9 @@ struct tlsv1_client {
 
 void tls_alert(struct tlsv1_client *conn, u8 level, u8 description);
 void tlsv1_client_free_dh(struct tlsv1_client *conn);
-int tls_derive_pre_master_secret(u8 *pre_master_secret);
+u16 tls_client_highest_ver(struct tlsv1_client *conn);
+int tls_derive_pre_master_secret(struct tlsv1_client *conn,
+				 u8 *pre_master_secret);
 int tls_derive_keys(struct tlsv1_client *conn,
 		    const u8 *pre_master_secret, size_t pre_master_secret_len);
 u8 * tls_send_client_hello(struct tlsv1_client *conn, size_t *out_len);

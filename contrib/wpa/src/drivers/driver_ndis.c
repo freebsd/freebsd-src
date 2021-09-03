@@ -58,7 +58,6 @@ static const u8 pae_group_addr[ETH_ALEN] =
 /* FIX: to be removed once this can be compiled with the complete NDIS
  * header files */
 #ifndef OID_802_11_BSSID
-#define OID_802_3_MULTICAST_LIST                0x01010103
 #define OID_802_11_BSSID 			0x0d010101
 #define OID_802_11_SSID 			0x0d010102
 #define OID_802_11_INFRASTRUCTURE_MODE		0x0d010108
@@ -505,13 +504,13 @@ static int ndis_get_oid(struct wpa_driver_ndis_data *drv, unsigned int oid,
 	o->Length = len;
 
 	if (!PacketRequest(drv->adapter, FALSE, o)) {
-		wpa_printf(MSG_DEBUG, "%s: oid=0x%x len (%d) failed",
+		wpa_printf(MSG_DEBUG, "%s: oid=0x%x len (%lu) failed",
 			   __func__, oid, len);
 		os_free(buf);
 		return -1;
 	}
 	if (o->Length > len) {
-		wpa_printf(MSG_DEBUG, "%s: oid=0x%x Length (%d) > len (%d)",
+		wpa_printf(MSG_DEBUG, "%s: oid=0x%x Length (%d) > len (%lu)",
 			   __func__, oid, (unsigned int) o->Length, len);
 		os_free(buf);
 		return -1;
@@ -574,7 +573,7 @@ static int ndis_set_oid(struct wpa_driver_ndis_data *drv, unsigned int oid,
 		os_memcpy(o->Data, data, len);
 
 	if (!PacketRequest(drv->adapter, TRUE, o)) {
-		wpa_printf(MSG_DEBUG, "%s: oid=0x%x len (%d) failed",
+		wpa_printf(MSG_DEBUG, "%s: oid=0x%x len (%lu) failed",
 			   __func__, oid, len);
 		os_free(buf);
 		return -1;
@@ -1031,6 +1030,18 @@ static int wpa_driver_ndis_set_key(const char *ifname, void *priv,
 	os_free(nkey);
 
 	return res;
+}
+
+
+static int
+wpa_driver_ndis_set_key_wrapper(void *priv,
+				struct wpa_driver_set_key_params *params)
+{
+	return wpa_driver_ndis_set_key(params->ifname, priv,
+				       params->alg, params->addr,
+				       params->key_idx, params->set_tx,
+				       params->seq, params->seq_len,
+				       params->key, params->key_len);
 }
 
 
@@ -1532,7 +1543,7 @@ static void wpa_driver_ndis_event_auth(struct wpa_driver_ndis_data *drv,
 
 	if (data_len < sizeof(*req)) {
 		wpa_printf(MSG_DEBUG, "NDIS: Too short Authentication Request "
-			   "Event (len=%d)", data_len);
+			   "Event (len=%lu)", data_len);
 		return;
 	}
 	req = (NDIS_802_11_AUTHENTICATION_REQUEST *) data;
@@ -1566,7 +1577,7 @@ static void wpa_driver_ndis_event_pmkid(struct wpa_driver_ndis_data *drv,
 
 	if (data_len < 8) {
 		wpa_printf(MSG_DEBUG, "NDIS: Too short PMKID Candidate List "
-			   "Event (len=%d)", data_len);
+			   "Event (len=%lu)", data_len);
 		return;
 	}
 	pmkid = (NDIS_802_11_PMKID_CANDIDATE_LIST *) data;
@@ -1588,7 +1599,7 @@ static void wpa_driver_ndis_event_pmkid(struct wpa_driver_ndis_data *drv,
 	os_memset(&event, 0, sizeof(event));
 	for (i = 0; i < pmkid->NumCandidates; i++) {
 		PMKID_CANDIDATE *p = &pmkid->CandidateList[i];
-		wpa_printf(MSG_DEBUG, "NDIS: %d: " MACSTR " Flags 0x%x",
+		wpa_printf(MSG_DEBUG, "NDIS: %lu: " MACSTR " Flags 0x%x",
 			   i, MAC2STR(p->BSSID), (int) p->Flags);
 		os_memcpy(event.pmkid_candidate.bssid, p->BSSID, ETH_ALEN);
 		event.pmkid_candidate.index = i;
@@ -1779,7 +1790,7 @@ static void wpa_driver_ndis_get_capability(struct wpa_driver_ndis_data *drv)
 				   "overflow");
 			break;
 		}
-		wpa_printf(MSG_MSGDUMP, "NDIS: %d - auth %d encr %d",
+		wpa_printf(MSG_MSGDUMP, "NDIS: %lu - auth %d encr %d",
 			   i, (int) ae->AuthModeSupported,
 			   (int) ae->EncryptStatusSupported);
 		switch (ae->AuthModeSupported) {
@@ -2107,7 +2118,11 @@ static int wpa_driver_ndis_get_names(struct wpa_driver_ndis_data *drv)
 		dlen = dpos - desc;
 	else
 		dlen = os_strlen(desc);
-	drv->adapter_desc = dup_binstr(desc, dlen);
+	drv->adapter_desc = os_malloc(dlen + 1);
+	if (drv->adapter_desc) {
+		os_memcpy(drv->adapter_desc, desc, dlen);
+		drv->adapter_desc[dlen] = '\0';
+	}
 	os_free(b);
 	if (drv->adapter_desc == NULL)
 		return -1;
@@ -2275,7 +2290,11 @@ static int wpa_driver_ndis_get_names(struct wpa_driver_ndis_data *drv)
 	} else {
 		dlen = os_strlen(desc[i]);
 	}
-	drv->adapter_desc = dup_binstr(desc[i], dlen);
+	drv->adapter_desc = os_malloc(dlen + 1);
+	if (drv->adapter_desc) {
+		os_memcpy(drv->adapter_desc, desc[i], dlen);
+		drv->adapter_desc[dlen] = '\0';
+	}
 	os_free(names);
 	if (drv->adapter_desc == NULL)
 		return -1;
@@ -2798,6 +2817,7 @@ static void * wpa_driver_ndis_init(void *ctx, const char *ifname)
 {
 	struct wpa_driver_ndis_data *drv;
 	u32 mode;
+	int i;
 
 	drv = os_zalloc(sizeof(*drv));
 	if (drv == NULL)
@@ -2843,6 +2863,11 @@ static void * wpa_driver_ndis_init(void *ctx, const char *ifname)
 		return NULL;
 	}
 	wpa_driver_ndis_get_capability(drv);
+
+	/* Update per interface supported AKMs */
+	for (i = 0; i < WPA_IF_MAX; i++)
+		drv->capa.key_mgmt_iftype[i] = drv->capa.key_mgmt;
+
 
 	/* Make sure that the driver does not have any obsolete PMKID entries.
 	 */
@@ -3196,7 +3221,7 @@ void driver_ndis_init_ops(void)
 	wpa_driver_ndis_ops.desc = ndis_drv_desc;
 	wpa_driver_ndis_ops.get_bssid = wpa_driver_ndis_get_bssid;
 	wpa_driver_ndis_ops.get_ssid = wpa_driver_ndis_get_ssid;
-	wpa_driver_ndis_ops.set_key = wpa_driver_ndis_set_key;
+	wpa_driver_ndis_ops.set_key = wpa_driver_ndis_set_key_wrapper;
 	wpa_driver_ndis_ops.init = wpa_driver_ndis_init;
 	wpa_driver_ndis_ops.deinit = wpa_driver_ndis_deinit;
 	wpa_driver_ndis_ops.deauthenticate = wpa_driver_ndis_deauthenticate;

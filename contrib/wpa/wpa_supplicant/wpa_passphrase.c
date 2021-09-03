@@ -31,9 +31,9 @@ int main(int argc, char *argv[])
 	if (argc > 2) {
 		passphrase = argv[2];
 	} else {
-		printf("# reading passphrase from stdin\n");
+		fprintf(stderr, "# reading passphrase from stdin\n");
 		if (fgets(buf, sizeof(buf), stdin) == NULL) {
-			printf("Failed to read passphrase\n");
+			fprintf(stderr, "Failed to read passphrase\n");
 			return 1;
 		}
 		buf[sizeof(buf) - 1] = '\0';
@@ -50,11 +50,11 @@ int main(int argc, char *argv[])
 
 	len = os_strlen(passphrase);
 	if (len < 8 || len > 63) {
-		printf("Passphrase must be 8..63 characters\n");
+		fprintf(stderr, "Passphrase must be 8..63 characters\n");
 		return 1;
 	}
 	if (has_ctrl_char((u8 *) passphrase, len)) {
-		printf("Invalid passphrase character\n");
+		fprintf(stderr, "Invalid passphrase character\n");
 		return 1;
 	}
 

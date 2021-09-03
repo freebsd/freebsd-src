@@ -390,6 +390,7 @@ void p2p_reselect_channel(struct p2p_data *p2p,
 	const int op_classes_5ghz[] = { 124, 125, 115, 0 };
 	const int op_classes_ht40[] = { 126, 127, 116, 117, 0 };
 	const int op_classes_vht[] = { 128, 129, 130, 0 };
+	const int op_classes_edmg[] = { 181, 182, 183, 0 };
 
 	if (p2p->own_freq_preference > 0 &&
 	    p2p_freq_to_channel(p2p->own_freq_preference,
@@ -452,6 +453,14 @@ void p2p_reselect_channel(struct p2p_data *p2p,
 				p2p->op_reg_class, p2p->op_channel);
 			return;
 		}
+	}
+
+	/* Try a channel where we might be able to use EDMG */
+	if (p2p_channel_select(intersection, op_classes_edmg,
+			       &p2p->op_reg_class, &p2p->op_channel) == 0) {
+		p2p_dbg(p2p, "Pick possible EDMG channel (op_class %u channel %u) from intersection",
+			p2p->op_reg_class, p2p->op_channel);
+		return;
 	}
 
 	/* Try a channel where we might be able to use VHT */

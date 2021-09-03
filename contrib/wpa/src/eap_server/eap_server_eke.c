@@ -84,11 +84,11 @@ static void * eap_eke_init(struct eap_sm *sm)
 	eap_eke_state(data, IDENTITY);
 
 	data->serverid_type = EAP_EKE_ID_OPAQUE;
-	for (i = 0; i < sm->server_id_len; i++) {
-		if (sm->server_id[i] == '.' &&
+	for (i = 0; i < sm->cfg->server_id_len; i++) {
+		if (sm->cfg->server_id[i] == '.' &&
 		    data->serverid_type == EAP_EKE_ID_OPAQUE)
 			data->serverid_type = EAP_EKE_ID_FQDN;
-		if (sm->server_id[i] == '@')
+		if (sm->cfg->server_id[i] == '@')
 			data->serverid_type = EAP_EKE_ID_NAI;
 	}
 
@@ -186,7 +186,7 @@ static struct wpabuf * eap_eke_build_identity(struct eap_sm *sm,
 
 	wpa_printf(MSG_DEBUG, "EAP-EKE: Request/Identity");
 
-	plen = 2 + 4 * 4 + 1 + sm->server_id_len;
+	plen = 2 + 4 * 4 + 1 + sm->cfg->server_id_len;
 	msg = eap_eke_build_msg(data, id, plen, EAP_EKE_ID);
 	if (msg == NULL)
 		return NULL;
@@ -223,7 +223,7 @@ static struct wpabuf * eap_eke_build_identity(struct eap_sm *sm,
 
 	/* Server IDType + Identity */
 	wpabuf_put_u8(msg, data->serverid_type);
-	wpabuf_put_data(msg, sm->server_id, sm->server_id_len);
+	wpabuf_put_data(msg, sm->cfg->server_id, sm->cfg->server_id_len);
 
 	wpabuf_free(data->msgs);
 	data->msgs = wpabuf_dup(msg);
@@ -252,7 +252,7 @@ static struct wpabuf * eap_eke_build_commit(struct eap_sm *sm,
 
 	if (eap_eke_derive_key(&data->sess, sm->user->password,
 			       sm->user->password_len,
-			       sm->server_id, sm->server_id_len,
+			       sm->cfg->server_id, sm->cfg->server_id_len,
 			       data->peerid, data->peerid_len, data->key) < 0) {
 		wpa_printf(MSG_INFO, "EAP-EKE: Failed to derive key");
 		eap_eke_fail(data, EAP_EKE_FAIL_PRIVATE_INTERNAL_ERROR);
@@ -338,7 +338,7 @@ static struct wpabuf * eap_eke_build_confirm(struct eap_sm *sm,
 	wpabuf_put(msg, prot_len);
 
 	if (eap_eke_derive_ka(&data->sess,
-			      sm->server_id, sm->server_id_len,
+			      sm->cfg->server_id, sm->cfg->server_id_len,
 			      data->peerid, data->peerid_len,
 			      data->nonce_p, data->nonce_s) < 0) {
 		wpabuf_free(msg);
@@ -380,8 +380,8 @@ static struct wpabuf * eap_eke_buildReq(struct eap_sm *sm, void *priv, u8 id)
 }
 
 
-static Boolean eap_eke_check(struct eap_sm *sm, void *priv,
-			     struct wpabuf *respData)
+static bool eap_eke_check(struct eap_sm *sm, void *priv,
+			  struct wpabuf *respData)
 {
 	struct eap_eke_data *data = priv;
 	size_t len;
@@ -391,28 +391,28 @@ static Boolean eap_eke_check(struct eap_sm *sm, void *priv,
 	pos = eap_hdr_validate(EAP_VENDOR_IETF, EAP_TYPE_EKE, respData, &len);
 	if (pos == NULL || len < 1) {
 		wpa_printf(MSG_INFO, "EAP-EKE: Invalid frame");
-		return TRUE;
+		return true;
 	}
 
 	eke_exch = *pos;
 	wpa_printf(MSG_DEBUG, "EAP-EKE: Received frame: EKE-Exch=%d", eke_exch);
 
 	if (data->state == IDENTITY && eke_exch == EAP_EKE_ID)
-		return FALSE;
+		return false;
 
 	if (data->state == COMMIT && eke_exch == EAP_EKE_COMMIT)
-		return FALSE;
+		return false;
 
 	if (data->state == CONFIRM && eke_exch == EAP_EKE_CONFIRM)
-		return FALSE;
+		return false;
 
 	if (eke_exch == EAP_EKE_FAILURE)
-		return FALSE;
+		return false;
 
 	wpa_printf(MSG_INFO, "EAP-EKE: Unexpected EKE-Exch=%d in state=%d",
 		   eke_exch, data->state);
 
-	return TRUE;
+	return true;
 }
 
 
@@ -552,7 +552,7 @@ static void eap_eke_process_commit(struct eap_sm *sm,
 	}
 
 	if (eap_eke_derive_ke_ki(&data->sess,
-				 sm->server_id, sm->server_id_len,
+				 sm->cfg->server_id, sm->cfg->server_id_len,
 				 data->peerid, data->peerid_len) < 0) {
 		wpa_printf(MSG_INFO, "EAP-EKE: Failed to derive Ke/Ki");
 		eap_eke_fail(data, EAP_EKE_FAIL_PRIVATE_INTERNAL_ERROR);
@@ -641,7 +641,8 @@ static void eap_eke_process_confirm(struct eap_sm *sm,
 		return;
 	}
 
-	if (eap_eke_derive_msk(&data->sess, sm->server_id, sm->server_id_len,
+	if (eap_eke_derive_msk(&data->sess, sm->cfg->server_id,
+			       sm->cfg->server_id_len,
 			       data->peerid, data->peerid_len,
 			       data->nonce_s, data->nonce_p,
 			       data->msk, data->emsk) < 0) {
@@ -715,7 +716,7 @@ static void eap_eke_process(struct eap_sm *sm, void *priv,
 }
 
 
-static Boolean eap_eke_isDone(struct eap_sm *sm, void *priv)
+static bool eap_eke_isDone(struct eap_sm *sm, void *priv)
 {
 	struct eap_eke_data *data = priv;
 	return data->state == SUCCESS || data->state == FAILURE;
@@ -756,7 +757,7 @@ static u8 * eap_eke_get_emsk(struct eap_sm *sm, void *priv, size_t *len)
 }
 
 
-static Boolean eap_eke_isSuccess(struct eap_sm *sm, void *priv)
+static bool eap_eke_isSuccess(struct eap_sm *sm, void *priv)
 {
 	struct eap_eke_data *data = priv;
 	return data->state == SUCCESS;

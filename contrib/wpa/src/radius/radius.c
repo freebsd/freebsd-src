@@ -609,7 +609,7 @@ static int radius_msg_add_attr_to_array(struct radius_msg *msg,
 {
 	if (msg->attr_used >= msg->attr_size) {
 		size_t *nattr_pos;
-		int nlen = msg->attr_size * 2;
+		size_t nlen = msg->attr_size * 2;
 
 		nattr_pos = os_realloc_array(msg->attr_pos, nlen,
 					     sizeof(*msg->attr_pos));

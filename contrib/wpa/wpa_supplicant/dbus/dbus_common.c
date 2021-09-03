@@ -108,17 +108,18 @@ static dbus_bool_t add_watch(DBusWatch *watch, void *data)
 	flags = dbus_watch_get_flags(watch);
 	fd = dbus_watch_get_unix_fd(watch);
 
-	eloop_register_sock(fd, EVENT_TYPE_EXCEPTION, process_watch_exception,
-			    priv, watch);
+	if (eloop_register_sock(fd, EVENT_TYPE_EXCEPTION,
+				process_watch_exception, priv, watch) < 0)
+		return FALSE;
 
-	if (flags & DBUS_WATCH_READABLE) {
-		eloop_register_sock(fd, EVENT_TYPE_READ, process_watch_read,
-				    priv, watch);
-	}
-	if (flags & DBUS_WATCH_WRITABLE) {
-		eloop_register_sock(fd, EVENT_TYPE_WRITE, process_watch_write,
-				    priv, watch);
-	}
+	if ((flags & DBUS_WATCH_READABLE) &&
+	    eloop_register_sock(fd, EVENT_TYPE_READ, process_watch_read,
+				priv, watch) < 0)
+		return FALSE;
+	if ((flags & DBUS_WATCH_WRITABLE) &&
+	    eloop_register_sock(fd, EVENT_TYPE_WRITE, process_watch_write,
+				priv, watch) < 0)
+		return FALSE;
 
 	dbus_watch_set_data(watch, priv, NULL);
 

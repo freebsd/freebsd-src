@@ -235,7 +235,7 @@ struct wpabuf * xml_get_base64_item(const char *data, const char *name,
 		return NULL;
 	}
 
-	decoded = base64_decode((unsigned char *) msg, os_strlen(msg), &len);
+	decoded = base64_decode(msg, os_strlen(msg), &len);
 	os_free(msg);
 	if (decoded == NULL) {
 		*ret = UPNP_OUT_OF_MEMORY;

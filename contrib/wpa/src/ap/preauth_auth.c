@@ -82,7 +82,7 @@ static void rsn_preauth_receive(void *ctx, const u8 *src_addr,
 			sta = NULL;
 		} else {
 			sta->eapol_sm->radius_identifier = -1;
-			sta->eapol_sm->portValid = TRUE;
+			sta->eapol_sm->portValid = true;
 			sta->eapol_sm->flags |= EAPOL_SM_PREAUTH;
 		}
 	}

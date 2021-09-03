@@ -58,7 +58,7 @@ static void eap_tls_valid_session(struct eap_sm *sm, struct eap_tls_data *data)
 {
 	struct wpabuf *buf;
 
-	if (!sm->tls_session_lifetime)
+	if (!sm->cfg->tls_session_lifetime)
 		return;
 
 	buf = wpabuf_alloc(1);
@@ -187,7 +187,8 @@ static struct wpabuf * eap_tls_buildReq(struct eap_sm *sm, void *priv, u8 id)
 	case START:
 		return eap_tls_build_start(sm, data, id);
 	case CONTINUE:
-		if (tls_connection_established(sm->ssl_ctx, data->ssl.conn))
+		if (tls_connection_established(sm->cfg->ssl_ctx,
+					       data->ssl.conn))
 			data->established = 1;
 		break;
 	default:
@@ -225,8 +226,8 @@ check_established:
 }
 
 
-static Boolean eap_tls_check(struct eap_sm *sm, void *priv,
-			     struct wpabuf *respData)
+static bool eap_tls_check(struct eap_sm *sm, void *priv,
+			  struct wpabuf *respData)
 {
 	struct eap_tls_data *data = priv;
 	const u8 *pos;
@@ -245,10 +246,10 @@ static Boolean eap_tls_check(struct eap_sm *sm, void *priv,
 				       respData, &len);
 	if (pos == NULL || len < 1) {
 		wpa_printf(MSG_INFO, "EAP-TLS: Invalid frame");
-		return TRUE;
+		return true;
 	}
 
-	return FALSE;
+	return false;
 }
 
 
@@ -264,39 +265,6 @@ static void eap_tls_process_msg(struct eap_sm *sm, void *priv,
 	if (eap_server_tls_phase1(sm, &data->ssl) < 0) {
 		eap_tls_state(data, FAILURE);
 		return;
-	}
-
-	if (data->ssl.tls_v13 &&
-	    tls_connection_established(sm->ssl_ctx, data->ssl.conn)) {
-		struct wpabuf *plain, *encr;
-
-		wpa_printf(MSG_DEBUG,
-			   "EAP-TLS: Send empty application data to indicate end of exchange");
-		/* FIX: This should be an empty application data based on
-		 * draft-ietf-emu-eap-tls13-05, but OpenSSL does not allow zero
-		 * length payload (SSL_write() documentation explicitly
-		 * describes this as not allowed), so work around that for now
-		 * by sending out a payload of one octet. Hopefully the draft
-		 * specification will change to allow this so that no crypto
-		 * library changes are needed. */
-		plain = wpabuf_alloc(1);
-		if (!plain)
-			return;
-		wpabuf_put_u8(plain, 0);
-		encr = eap_server_tls_encrypt(sm, &data->ssl, plain);
-		wpabuf_free(plain);
-		if (!encr)
-			return;
-		if (wpabuf_resize(&data->ssl.tls_out, wpabuf_len(encr)) < 0) {
-			wpa_printf(MSG_INFO,
-				   "EAP-TLS: Failed to resize output buffer");
-			wpabuf_free(encr);
-			return;
-		}
-		wpabuf_put_buf(data->ssl.tls_out, encr);
-		wpa_hexdump_buf(MSG_DEBUG,
-				"EAP-TLS: Data appended to the message", encr);
-		wpabuf_free(encr);
 	}
 }
 
@@ -315,8 +283,8 @@ static void eap_tls_process(struct eap_sm *sm, void *priv,
 		return;
 	}
 
-	if (!tls_connection_established(sm->ssl_ctx, data->ssl.conn) ||
-	    !tls_connection_resumed(sm->ssl_ctx, data->ssl.conn))
+	if (!tls_connection_established(sm->cfg->ssl_ctx, data->ssl.conn) ||
+	    !tls_connection_resumed(sm->cfg->ssl_ctx, data->ssl.conn))
 		return;
 
 	buf = tls_connection_get_success_data(data->ssl.conn);
@@ -345,7 +313,7 @@ static void eap_tls_process(struct eap_sm *sm, void *priv,
 }
 
 
-static Boolean eap_tls_isDone(struct eap_sm *sm, void *priv)
+static bool eap_tls_isDone(struct eap_sm *sm, void *priv)
 {
 	struct eap_tls_data *data = priv;
 	return data->state == SUCCESS || data->state == FAILURE;
@@ -430,7 +398,7 @@ static u8 * eap_tls_get_emsk(struct eap_sm *sm, void *priv, size_t *len)
 }
 
 
-static Boolean eap_tls_isSuccess(struct eap_sm *sm, void *priv)
+static bool eap_tls_isSuccess(struct eap_sm *sm, void *priv)
 {
 	struct eap_tls_data *data = priv;
 	return data->state == SUCCESS;

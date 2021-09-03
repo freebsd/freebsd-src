@@ -50,7 +50,7 @@ fi
 if [ "$CMD" = "P2P-CROSS-CONNECT-ENABLE" ]; then
     GIFNAME=$3
     UPLINK=$4
-    # enable NAT/masquarade $GIFNAME -> $UPLINK
+    # enable NAT/masquerade $GIFNAME -> $UPLINK
     iptables -P FORWARD DROP
     iptables -t nat -A POSTROUTING -o $UPLINK -j MASQUERADE
     iptables -A FORWARD -i $UPLINK -o $GIFNAME -m state --state RELATED,ESTABLISHED -j ACCEPT
@@ -61,7 +61,7 @@ fi
 if [ "$CMD" = "P2P-CROSS-CONNECT-DISABLE" ]; then
     GIFNAME=$3
     UPLINK=$4
-    # disable NAT/masquarade $GIFNAME -> $UPLINK
+    # disable NAT/masquerade $GIFNAME -> $UPLINK
     sysctl net.ipv4.ip_forward=0
     iptables -t nat -D POSTROUTING -o $UPLINK -j MASQUERADE
     iptables -D FORWARD -i $UPLINK -o $GIFNAME -m state --state RELATED,ESTABLISHED -j ACCEPT

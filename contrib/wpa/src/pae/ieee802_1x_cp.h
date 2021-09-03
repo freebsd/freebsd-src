@@ -24,16 +24,16 @@ void ieee802_1x_cp_connect_unauthenticated(void *cp_ctx);
 void ieee802_1x_cp_connect_authenticated(void *cp_ctx);
 void ieee802_1x_cp_connect_secure(void *cp_ctx);
 void ieee802_1x_cp_signal_chgdserver(void *cp_ctx);
-void ieee802_1x_cp_set_electedself(void *cp_ctx, Boolean status);
+void ieee802_1x_cp_set_electedself(void *cp_ctx, bool status);
 void ieee802_1x_cp_set_ciphersuite(void *cp_ctx, u64 cs);
 void ieee802_1x_cp_set_offset(void *cp_ctx, enum confidentiality_offset offset);
 void ieee802_1x_cp_signal_newsak(void *cp_ctx);
 void ieee802_1x_cp_set_distributedki(void *cp_ctx,
 				     const struct ieee802_1x_mka_ki *dki);
 void ieee802_1x_cp_set_distributedan(void *cp_ctx, u8 an);
-void ieee802_1x_cp_set_usingreceivesas(void *cp_ctx, Boolean status);
-void ieee802_1x_cp_set_allreceiving(void *cp_ctx, Boolean status);
-void ieee802_1x_cp_set_servertransmitting(void *cp_ctx, Boolean status);
-void ieee802_1x_cp_set_usingtransmitas(void *cp_ctx, Boolean status);
+void ieee802_1x_cp_set_usingreceivesas(void *cp_ctx, bool status);
+void ieee802_1x_cp_set_allreceiving(void *cp_ctx, bool status);
+void ieee802_1x_cp_set_servertransmitting(void *cp_ctx, bool status);
+void ieee802_1x_cp_set_usingtransmitas(void *cp_ctx, bool status);
 
 #endif /* IEEE802_1X_CP_H */

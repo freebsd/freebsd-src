@@ -78,7 +78,7 @@ hs20=1
 
 # Parameters for controlling scanning
 
-# Homogenous ESS identifier
+# Homogeneous ESS identifier
 # If this is set, scans will be used to request response only from BSSes
 # belonging to the specified Homogeneous ESS. This is used only if interworking
 # is enabled.
