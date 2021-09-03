@@ -139,7 +139,6 @@ static void	rt_stop_locked(void *priv);
 static void	rt_stop(void *priv);
 static void	rt_start(struct ifnet *ifp);
 static int	rt_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data);
-static void	rt_periodic(void *arg);
 static void	rt_tx_watchdog(void *arg);
 static void	rt_intr(void *arg);
 static void	rt_rt5350_intr(void *arg);
@@ -288,7 +287,7 @@ generate_mac(uint8_t *mac)
 static int
 ether_request_mac(device_t dev, uint8_t *mac)
 {
-	char *var;
+	const char *var;
 
 	/*
 	 * "ethaddr" is passed via envp on RedBoot platforms
@@ -312,7 +311,7 @@ ether_request_mac(device_t dev, uint8_t *mac)
 	 * hint.[dev].[unit].macaddr
 	 */
 	if (!resource_string_value(device_get_name(dev),
-	    device_get_unit(dev), "macaddr", (const char **)&var)) {
+	    device_get_unit(dev), "macaddr", &var)) {
 		if(!macaddr_atoi(var, mac)) {
 			printf("%s: use %s macaddr from hints\n",
 			    device_get_nameunit(dev), var);
@@ -518,7 +517,6 @@ rt_attach(device_t dev)
 		}
 	}
 
-	callout_init(&sc->periodic_ch, 0);
 	callout_init_mtx(&sc->tx_watchdog_ch, &sc->lock, 0);
 
 	ifp = sc->ifp = if_alloc(IFT_ETHER);
@@ -571,7 +569,6 @@ rt_attach(device_t dev)
 	/* init task queue */
 	NET_TASK_INIT(&sc->rx_done_task, 0, rt_rx_done_task, sc);
 	TASK_INIT(&sc->tx_done_task, 0, rt_tx_done_task, sc);
-	TASK_INIT(&sc->periodic_task, 0, rt_periodic_task, sc);
 
 	sc->rx_process_limit = 100;
 
@@ -580,6 +577,9 @@ rt_attach(device_t dev)
 
 	taskqueue_start_threads(&sc->taskqueue, 1, PI_NET, "%s taskq",
 	    device_get_nameunit(sc->dev));
+
+	TIMEOUT_TASK_INIT(sc->taskqueue, &sc->periodic_task, 0,
+	    rt_periodic_task, sc);
 
 	rt_sysctl_attach(sc);
 
@@ -709,22 +709,20 @@ rt_detach(device_t dev)
 	RT_DPRINTF(sc, RT_DEBUG_ANY, "detaching\n");
 
 	RT_SOFTC_LOCK(sc);
-
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
-
-	callout_stop(&sc->periodic_ch);
 	callout_stop(&sc->tx_watchdog_ch);
+	RT_SOFTC_UNLOCK(sc);
 
 	taskqueue_drain(sc->taskqueue, &sc->rx_done_task);
 	taskqueue_drain(sc->taskqueue, &sc->tx_done_task);
-	taskqueue_drain(sc->taskqueue, &sc->periodic_task);
+	taskqueue_drain_timeout(sc->taskqueue, &sc->periodic_task);
 
 	/* free Tx and Rx rings */
+	RT_SOFTC_LOCK(sc);
 	for (i = 0; i < RT_SOFTC_TX_RING_COUNT; i++)
 		rt_free_tx_ring(sc, &sc->tx_ring[i]);
 	for (i = 0; i < sc->rx_ring_count; i++)
 		rt_free_rx_ring(sc, &sc->rx_ring[i]);
-
 	RT_SOFTC_UNLOCK(sc);
 
 #ifdef IF_RT_PHY_SUPPORT
@@ -942,7 +940,7 @@ rt_init_locked(void *priv)
 
 	sc->periodic_round = 0;
 
-	callout_reset(&sc->periodic_ch, hz / 10, rt_periodic, sc);
+	taskqueue_enqueue_timeout(sc->taskqueue, &sc->periodic_task, hz / 10);
 
 	return;
 
@@ -981,7 +979,6 @@ rt_stop_locked(void *priv)
 	RT_SOFTC_ASSERT_LOCKED(sc);
 	sc->tx_timer = 0;
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
-	callout_stop(&sc->periodic_ch);
 	callout_stop(&sc->tx_watchdog_ch);
 	RT_SOFTC_UNLOCK(sc);
 	taskqueue_block(sc->taskqueue);
@@ -993,7 +990,9 @@ rt_stop_locked(void *priv)
 #ifdef notyet
 	taskqueue_drain(sc->taskqueue, &sc->rx_done_task);
 	taskqueue_drain(sc->taskqueue, &sc->tx_done_task);
-	taskqueue_drain(sc->taskqueue, &sc->periodic_task);
+	taskqueue_drain_timeout(sc->taskqueue, &sc->periodic_task);
+#else
+	taskqueue_cancel_timeout(sc->taskqueue, &sc->periodic_task, NULL);
 #endif
 	RT_SOFTC_LOCK(sc);
 
@@ -1306,19 +1305,6 @@ rt_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		break;
 	}
 	return (error);
-}
-
-/*
- * rt_periodic - Handler of PERIODIC interrupt
- */
-static void
-rt_periodic(void *arg)
-{
-	struct rt_softc *sc;
-
-	sc = arg;
-	RT_DPRINTF(sc, RT_DEBUG_PERIODIC, "periodic\n");
-	taskqueue_enqueue(sc->taskqueue, &sc->periodic_task);
 }
 
 /*
@@ -1836,7 +1822,7 @@ rt_periodic_task(void *context, int pending)
 	}
 
 	RT_SOFTC_UNLOCK(sc);
-	callout_reset(&sc->periodic_ch, hz / 10, rt_periodic, sc);
+	taskqueue_enqueue_timeout(sc->taskqueue, &sc->periodic_task, hz / 10);
 }
 
 /*
