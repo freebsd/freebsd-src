@@ -63,6 +63,7 @@ struct vmd_softc {
 	int				vmd_msix_count;
 	uint8_t				vmd_bus_start;
 	uint8_t				vmd_bus_end;
+	bus_dma_tag_t			vmd_dma_tag;
 };
 
 #endif
