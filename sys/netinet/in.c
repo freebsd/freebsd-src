@@ -64,6 +64,7 @@ __FBSDID("$FreeBSD$");
 
 #include <netinet/if_ether.h>
 #include <netinet/in.h>
+#include <netinet/in_fib.h>
 #include <netinet/in_var.h>
 #include <netinet/in_pcb.h>
 #include <netinet/ip_var.h>
@@ -1358,30 +1359,17 @@ in_lltable_free_entry(struct lltable *llt, struct llentry *lle)
 static int
 in_lltable_rtcheck(struct ifnet *ifp, u_int flags, const struct sockaddr *l3addr)
 {
-	struct rt_addrinfo info;
-	struct sockaddr_in rt_key, rt_mask;
-	struct sockaddr rt_gateway;
-	int rt_flags;
+	struct nhop_object *nh;
+	struct in_addr addr;
 
 	KASSERT(l3addr->sa_family == AF_INET,
 	    ("sin_family %d", l3addr->sa_family));
 
-	bzero(&rt_key, sizeof(rt_key));
-	rt_key.sin_len = sizeof(rt_key);
-	bzero(&rt_mask, sizeof(rt_mask));
-	rt_mask.sin_len = sizeof(rt_mask);
-	bzero(&rt_gateway, sizeof(rt_gateway));
-	rt_gateway.sa_len = sizeof(rt_gateway);
+	addr = ((const struct sockaddr_in *)l3addr)->sin_addr;
 
-	bzero(&info, sizeof(info));
-	info.rti_info[RTAX_DST] = (struct sockaddr *)&rt_key;
-	info.rti_info[RTAX_NETMASK] = (struct sockaddr *)&rt_mask;
-	info.rti_info[RTAX_GATEWAY] = (struct sockaddr *)&rt_gateway;
-
-	if (rib_lookup_info(ifp->if_fib, l3addr, NHR_REF, 0, &info) != 0)
+	nh = fib4_lookup(ifp->if_fib, addr, 0, NHR_NONE, 0);
+	if (nh == NULL)
 		return (EINVAL);
-
-	rt_flags = info.rti_flags;
 
 	/*
 	 * If the gateway for an existing host route matches the target L3
@@ -1389,17 +1377,14 @@ in_lltable_rtcheck(struct ifnet *ifp, u_int flags, const struct sockaddr *l3addr
 	 * such as MANET, and the interface is of the correct type, then
 	 * allow for ARP to proceed.
 	 */
-	if (rt_flags & RTF_GATEWAY) {
-		if (!(rt_flags & RTF_HOST) || !info.rti_ifp ||
-		    info.rti_ifp->if_type != IFT_ETHER ||
-		    (info.rti_ifp->if_flags & (IFF_NOARP | IFF_STATICARP)) != 0 ||
-		    memcmp(rt_gateway.sa_data, l3addr->sa_data,
+	if (nh->nh_flags & NHF_GATEWAY) {
+		if (!(nh->nh_flags & NHF_HOST) || nh->nh_ifp->if_type != IFT_ETHER ||
+		    (nh->nh_ifp->if_flags & (IFF_NOARP | IFF_STATICARP)) != 0 ||
+		    memcmp(nh->gw_sa.sa_data, l3addr->sa_data,
 		    sizeof(in_addr_t)) != 0) {
-			rib_free_info(&info);
 			return (EINVAL);
 		}
 	}
-	rib_free_info(&info);
 
 	/*
 	 * Make sure that at least the destination address is covered
@@ -1408,35 +1393,23 @@ in_lltable_rtcheck(struct ifnet *ifp, u_int flags, const struct sockaddr *l3addr
 	 * on one interface and the corresponding outgoing packet leaves
 	 * another interface.
 	 */
-	if (!(rt_flags & RTF_HOST) && info.rti_ifp != ifp) {
-		const char *sa, *mask, *addr, *lim;
-		const struct sockaddr_in *l3sin;
+	if ((nh->nh_ifp != ifp) && (nh->nh_flags & NHF_HOST) == 0) {
+		struct in_ifaddr *ia = (struct in_ifaddr *)ifaof_ifpforaddr(l3addr, ifp);
+		struct in_addr dst_addr, mask_addr;
 
-		mask = (const char *)&rt_mask;
-		/*
-		 * Just being extra cautious to avoid some custom
-		 * code getting into trouble.
-		 */
-		if ((info.rti_addrs & RTA_NETMASK) == 0)
+		if (ia == NULL)
 			return (EINVAL);
 
-		sa = (const char *)&rt_key;
-		addr = (const char *)l3addr;
-		l3sin = (const struct sockaddr_in *)l3addr;
-		lim = addr + l3sin->sin_len;
+		/*
+		 * ifaof_ifpforaddr() returns _best matching_ IFA.
+		 * It is possible that ifa prefix does not cover our address.
+		 * Explicitly verify and fail if that's the case.
+		 */
+		dst_addr = IA_SIN(ia)->sin_addr;
+		mask_addr.s_addr = htonl(ia->ia_subnetmask);
 
-		for ( ; addr < lim; sa++, mask++, addr++) {
-			if ((*sa ^ *addr) & *mask) {
-#ifdef DIAGNOSTIC
-				char addrbuf[INET_ADDRSTRLEN];
-
-				log(LOG_INFO, "IPv4 address: \"%s\" "
-				    "is not on the network\n",
-				    inet_ntoa_r(l3sin->sin_addr, addrbuf));
-#endif
-				return (EINVAL);
-			}
-		}
+		if (!IN_ARE_MASKED_ADDR_EQUAL(dst_addr, addr, mask_addr))
+			return (EINVAL);
 	}
 
 	return (0);
