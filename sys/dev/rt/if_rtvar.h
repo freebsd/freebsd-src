@@ -226,8 +226,7 @@ struct rt_softc
 	struct task	 rx_done_task;
 	int		 rx_process_limit;
 	struct task	 tx_done_task;
-	struct task	 periodic_task;
-	struct callout	 periodic_ch;
+	struct timeout_task periodic_task;
 	unsigned long	 periodic_round;
 	struct taskqueue *taskqueue;
 
