@@ -842,6 +842,7 @@ _tpm.4=		tpm.4
 _urtw.4=	urtw.4
 _viawd.4=	viawd.4
 _vmci.4=	vmci.4
+_vmd.4=		vmd.4
 _vmx.4=		vmx.4
 _wbwd.4=	wbwd.4
 _wpi.4=		wpi.4
@@ -860,7 +861,6 @@ _qlnxe.4=	qlnxe.4
 _sfxge.4=	sfxge.4
 _smartpqi.4=	smartpqi.4
 _sume.4=	sume.4
-_vmd.4=		vmd.4
 
 MLINKS+=qlxge.4 if_qlxge.4
 MLINKS+=qlxgb.4 if_qlxgb.4

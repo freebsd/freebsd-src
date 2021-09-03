@@ -1,6 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
+ * Copyright (c) 2021 Alexander Motin <mav@FreeBSD.org>
  * Copyright 2019 Cisco Systems, Inc.
  * All rights reserved.
  *
@@ -32,59 +33,36 @@
 #ifndef __VMD_PRIVATE_H__
 #define	__VMD_PRIVATE_H__
 
-struct vmd_irq_handler {
-	TAILQ_ENTRY(vmd_irq_handler)	vmd_link;
-	device_t			vmd_child;
-	driver_intr_t			*vmd_intr;
-	void				*vmd_arg;
-	int				vmd_rid;
+#include <dev/pci/pcib_private.h>
+
+struct vmd_irq_user {
+	LIST_ENTRY(vmd_irq_user)	viu_link;
+	device_t			viu_child;
+	int				viu_vector;
 };
 
 struct vmd_irq {
-	struct resource			*vmd_res;
-	int				vmd_rid;
-	void 				*vmd_handle;
-	struct vmd_softc		*vmd_sc;
-	int				vmd_instance;
-	TAILQ_HEAD(,vmd_irq_handler)	vmd_list;
+	struct resource			*vi_res;
+	int				vi_rid;
+	int				vi_irq;
+	void				*vi_handle;
+	int				vi_nusers;
 };
 
-/*
- * VMD specific data.
- */
-struct vmd_softc
-{
-	device_t		vmd_dev;
-	device_t		vmd_child;
-	uint32_t		vmd_flags;	/* flags */
-#define	PCIB_SUBTRACTIVE	0x1
-#define	PCIB_DISABLE_MSI	0x2
-#define	PCIB_DISABLE_MSIX	0x4
-#define	PCIB_ENABLE_ARI		0x8
-#define	PCIB_HOTPLUG		0x10
-#define	PCIB_HOTPLUG_CMD_PENDING 0x20
-#define	PCIB_DETACH_PENDING	0x40
-#define	PCIB_DETACHING		0x80
-	u_int			vmd_domain;	/* domain number */
-	struct pcib_secbus	vmd_bus;	/* secondary bus numbers */
+struct vmd_softc {
+	struct pcib_softc		psc;
 
-#define VMD_MAX_BAR         3
-	struct resource         *vmd_regs_resource[VMD_MAX_BAR];
-	int                     vmd_regs_rid[VMD_MAX_BAR];
-	bus_space_handle_t      vmd_bhandle;
-	bus_space_tag_t         vmd_btag;
-	int                     vmd_io_rid;
-	struct resource         *vmd_io_resource;
-	void                    *vmd_intr;
-	struct vmd_irq          *vmd_irq;
-	int			vmd_msix_count;
-	uint8_t			vmd_bus_start;
-#ifdef TASK_QUEUE_INTR
-	struct taskqueue	*vmd_irq_tq;
-	struct task		vmd_irq_task;
-#else
-	struct mtx		vmd_irq_lock;
-#endif
+#define VMD_MAX_BAR		3
+	int				vmd_regs_rid[VMD_MAX_BAR];
+	struct resource			*vmd_regs_res[VMD_MAX_BAR];
+	bus_space_handle_t		vmd_bhandle;
+	bus_space_tag_t			vmd_btag;
+	struct vmd_irq			*vmd_irq;
+	LIST_HEAD(,vmd_irq_user)	vmd_users;
+	int				vmd_fist_vector;
+	int				vmd_msix_count;
+	uint8_t				vmd_bus_start;
+	uint8_t				vmd_bus_end;
 };
 
 #endif
