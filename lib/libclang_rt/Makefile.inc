@@ -32,7 +32,7 @@ CFLAGS+=	${PICFLAG}
 CFLAGS+=	-fno-builtin
 CFLAGS+=	-fno-exceptions
 CXXFLAGS+=	-fno-rtti
-.if ${COMPILER_TYPE} == clang
+.if ${COMPILER_TYPE} == clang && ${COMPILER_VERSION} >= 30700
 CFLAGS+=	-fno-sanitize=safe-stack
 .endif
 CFLAGS+=	-fno-stack-protector

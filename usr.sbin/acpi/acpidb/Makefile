@@ -87,6 +87,6 @@ LIBADD=	pthread
 # integer to pointer, which is a GNU extension.
 #
 # Turn off the warning, because this is in contributed code.
-.if ${COMPILER_TYPE} == "clang"
+.if ${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} >= 60000
 CWARNFLAGS+=	-Wno-null-pointer-arithmetic
 .endif

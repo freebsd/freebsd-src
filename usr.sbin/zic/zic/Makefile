@@ -15,7 +15,7 @@ CFLAGS+= -I${.CURDIR:H} -I${SRCTOP}/contrib/tzcode/stdtime
 
 WARNS?=	2
 
-.if ${COMPILER_TYPE} == "gcc"
+.if ${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} >= 50300
 CWARNFLAGS+=	-Wno-error=strict-overflow
 .endif
 
