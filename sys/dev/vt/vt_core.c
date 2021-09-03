@@ -2889,7 +2889,7 @@ vt_allocate_window(struct vt_device *vd, unsigned int window)
 
 	terminal_set_winsize(tm, &wsz);
 	vd->vd_windows[window] = vw;
-	callout_init(&vw->vw_proc_dead_timer, 0);
+	callout_init(&vw->vw_proc_dead_timer, 1);
 
 	return (vw);
 }
@@ -2913,7 +2913,7 @@ vt_upgrade(struct vt_device *vd)
 			vw = vt_allocate_window(vd, i);
 		}
 		if (!(vw->vw_flags & VWF_READY)) {
-			callout_init(&vw->vw_proc_dead_timer, 0);
+			callout_init(&vw->vw_proc_dead_timer, 1);
 			terminal_maketty(vw->vw_terminal, "v%r", VT_UNIT(vw));
 			vw->vw_flags |= VWF_READY;
 			if (vw->vw_flags & VWF_CONSOLE) {
