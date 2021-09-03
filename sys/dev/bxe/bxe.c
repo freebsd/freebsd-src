@@ -16088,19 +16088,19 @@ bxe_add_sysctls(struct bxe_softc *sc)
                     "rx processing budget");
 
     SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "pause_param",
-        CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, sc, 0,
+        CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_MPSAFE, sc, 0,
         bxe_sysctl_pauseparam, "IU",
         "need pause frames- DEF:0/TX:1/RX:2/BOTH:3/AUTO:4/AUTOTX:5/AUTORX:6/AUTORXTX:7/NONE:8");
 
 
     SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "state",
-        CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, sc, 0,
+        CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_MPSAFE, sc, 0,
         bxe_sysctl_state, "IU", "dump driver state");
 
     for (i = 0; i < BXE_NUM_ETH_STATS; i++) {
         SYSCTL_ADD_PROC(ctx, children, OID_AUTO,
             bxe_eth_stats_arr[i].string,
-            CTLTYPE_U64 | CTLFLAG_RD | CTLFLAG_NEEDGIANT, sc, i,
+            CTLTYPE_U64 | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, i,
             bxe_sysctl_eth_stat, "LU", bxe_eth_stats_arr[i].string);
     }
 
@@ -16120,7 +16120,7 @@ bxe_add_sysctls(struct bxe_softc *sc)
             q_stat = ((i << 16) | j);
             SYSCTL_ADD_PROC(ctx, queue_children, OID_AUTO,
                  bxe_eth_q_stats_arr[j].string,
-                 CTLTYPE_U64 | CTLFLAG_RD | CTLFLAG_NEEDGIANT, sc, q_stat,
+                 CTLTYPE_U64 | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, q_stat,
                  bxe_sysctl_eth_q_stat, "LU", bxe_eth_q_stats_arr[j].string);
         }
     }
@@ -16245,7 +16245,7 @@ bxe_attach(device_t dev)
     bxe_init_mutexes(sc);
 
     /* prepare the periodic callout */
-    callout_init(&sc->periodic_callout, 0);
+    callout_init(&sc->periodic_callout, 1);
 
     /* prepare the chip taskqueue */
     sc->chip_tq_flags = CHIP_TQ_NONE;
