@@ -188,6 +188,8 @@ _sleep(const void *ident, struct lock_object *lock, int priority,
 	DROP_GIANT();
 	if (lock != NULL && lock != &Giant.lock_object &&
 	    !(class->lc_flags & LC_SLEEPABLE)) {
+		KASSERT(!(class->lc_flags & LC_SPINLOCK),
+		    ("spin locks can only use msleep_spin"));
 		WITNESS_SAVE(lock, lock_witness);
 		lock_state = class->lc_unlock(lock);
 	} else

@@ -919,8 +919,9 @@ callout_reset_sbt_on(struct callout *c, sbintime_t sbt, sbintime_t prec,
 	} else {
 		direct = 0;
 	}
-	KASSERT(!direct || c->c_lock == NULL,
-	    ("%s: direct callout %p has lock", __func__, c));
+	KASSERT(!direct || c->c_lock == NULL ||
+	    (LOCK_CLASS(c->c_lock)->lc_flags & LC_SPINLOCK),
+	    ("%s: direct callout %p has non-spin lock", __func__, c));
 	cc = callout_lock(c);
 	/*
 	 * Don't allow migration if the user does not care.
@@ -1332,9 +1333,8 @@ _callout_init_lock(struct callout *c, struct lock_object *lock, int flags)
 	    ("callout_init_lock: bad flags %d", flags));
 	KASSERT(lock != NULL || (flags & CALLOUT_RETURNUNLOCKED) == 0,
 	    ("callout_init_lock: CALLOUT_RETURNUNLOCKED with no lock"));
-	KASSERT(lock == NULL || !(LOCK_CLASS(lock)->lc_flags &
-	    (LC_SPINLOCK | LC_SLEEPABLE)), ("%s: invalid lock class",
-	    __func__));
+	KASSERT(lock == NULL || !(LOCK_CLASS(lock)->lc_flags & LC_SLEEPABLE),
+	    ("%s: callout %p has sleepable lock", __func__, c));
 	c->c_iflags = flags & (CALLOUT_RETURNUNLOCKED | CALLOUT_SHAREDLOCK);
 	c->c_cpu = cc_default_cpu;
 }
