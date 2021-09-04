@@ -1776,11 +1776,6 @@ agg_attach(device_t dev)
 
 	mtx_init(&ess->lock, device_get_desc(dev), "snd_maestro softc",
 		 MTX_DEF | MTX_RECURSE);
-	if (!mtx_initialized(&ess->lock)) {
-		device_printf(dev, "failed to create a mutex.\n");
-		ret = ENOMEM;
-		goto bad;
-	}
 
 	if (resource_int_value(device_get_name(dev), device_get_unit(dev),
 	    "dac", &dacn) == 0) {
@@ -1929,8 +1924,7 @@ agg_attach(device_t dev)
 			bus_dma_tag_destroy(ess->stat_dmat);
 		if (ess->buf_dmat != NULL)
 			bus_dma_tag_destroy(ess->buf_dmat);
-		if (mtx_initialized(&ess->lock))
-			mtx_destroy(&ess->lock);
+		mtx_destroy(&ess->lock);
 		free(ess, M_DEVBUF);
 	}
 
