@@ -486,23 +486,6 @@ opentemp(const char *f)
 	return (fdopen(ofd, "r"));
 }
 
-char *
-splice(char *dir, char *path)
-{
-	char *tail, *buf;
-	size_t dirlen;
-
-	dirlen = strlen(dir);
-	while (dirlen != 0 && dir[dirlen - 1] == '/')
-	    dirlen--;
-	if ((tail = strrchr(path, '/')) == NULL)
-		tail = path;
-	else
-		tail++;
-	xasprintf(&buf, "%.*s/%s", (int)dirlen, dir, tail);
-	return (buf);
-}
-
 static bool
 prepare(int i, FILE *fd, size_t filesize, int flags)
 {
