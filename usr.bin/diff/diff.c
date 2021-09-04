@@ -38,8 +38,9 @@ __FBSDID("$FreeBSD$");
 #include "diff.h"
 #include "xmalloc.h"
 
-int	 lflag, Nflag, Pflag, rflag, sflag, Tflag, cflag, Wflag;
-int	 diff_format, diff_context, status, ignore_file_case, suppress_common;
+bool	 lflag, Nflag, Pflag, rflag, sflag, Tflag, cflag;
+bool	 ignore_file_case, suppress_common;
+int	 diff_format, diff_context, status;
 int	 tabsize = 8, width = 130;
 char	*start, *ifdefname, *diffargs, *label[2], *ignore_pats;
 char	*group_format = NULL;
@@ -147,7 +148,6 @@ main(int argc, char **argv)
 		case 'c':
 			if (FORMAT_MISMATCHED(D_CONTEXT))
 				conflicting_format();
-			cflag = 1;
 			diff_format = D_CONTEXT;
 			if (optarg != NULL) {
 				l = strtol(optarg, &ep, 10);
@@ -199,10 +199,10 @@ main(int argc, char **argv)
 				usage();
 			break;
 		case 'l':
-			lflag = 1;
+			lflag = true;
 			break;
 		case 'N':
-			Nflag = 1;
+			Nflag = true;
 			break;
 		case 'n':
 			if (FORMAT_MISMATCHED(D_NREVERSE))
@@ -213,10 +213,10 @@ main(int argc, char **argv)
 			dflags |= D_PROTOTYPE;
 			break;
 		case 'P':
-			Pflag = 1;
+			Pflag = true;
 			break;
 		case 'r':
-			rflag = 1;
+			rflag = true;
 			break;
 		case 'q':
 			if (FORMAT_MISMATCHED(D_BRIEF))
@@ -227,10 +227,10 @@ main(int argc, char **argv)
 			start = optarg;
 			break;
 		case 's':
-			sflag = 1;
+			sflag = true;
 			break;
 		case 'T':
-			Tflag = 1;
+			Tflag = true;
 			break;
 		case 't':
 			dflags |= D_EXPANDTABS;
@@ -251,7 +251,6 @@ main(int argc, char **argv)
 			dflags |= D_IGNOREBLANKS;
 			break;
 		case 'W':
-			Wflag = 1;
 			width = (int) strtonum(optarg, 1, INT_MAX, &errstr);
 			if (errstr) {
 				warnx("Invalid argument for width");
@@ -278,10 +277,10 @@ main(int argc, char **argv)
 		case OPT_HORIZON_LINES:
 			break; /* XXX TODO for compatibility with GNU diff3 */
 		case OPT_IGN_FN_CASE:
-			ignore_file_case = 1;
+			ignore_file_case = true;
 			break;
 		case OPT_NO_IGN_FN_CASE:
-			ignore_file_case = 0;
+			ignore_file_case = false;
 			break;
 		case OPT_NORMAL:
 			if (FORMAT_MISMATCHED(D_NORMAL))
