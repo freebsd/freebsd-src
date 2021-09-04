@@ -2590,7 +2590,7 @@ ieee80211_send_probereq(struct ieee80211_node *ni,
 	ret = ieee80211_probereq_ie(vap, ic, &frm, &frmlen, ssid, ssidlen,
 	    false);
 	KASSERT(ret == 0,
-	    ("%s: ieee80211_probereq_ie railed: %d\n", __func__, ret));
+	    ("%s: ieee80211_probereq_ie failed: %d\n", __func__, ret));
 
 	m->m_pkthdr.len = m->m_len = frm - mtod(m, uint8_t *);
 	KASSERT(M_LEADINGSPACE(m) >= sizeof(struct ieee80211_frame),
@@ -2725,8 +2725,7 @@ ieee80211_send_mgmt(struct ieee80211_node *ni, int type, int arg)
 			  ic->ic_headroom + sizeof(struct ieee80211_frame),
 			  3 * sizeof(uint16_t)
 			+ (has_challenge && status == IEEE80211_STATUS_SUCCESS ?
-				sizeof(uint16_t)+IEEE80211_CHALLENGE_LEN : 0)
-		);
+				sizeof(uint16_t)+IEEE80211_CHALLENGE_LEN : 0));
 		if (m == NULL)
 			senderr(ENOMEM, is_tx_nobuf);
 
