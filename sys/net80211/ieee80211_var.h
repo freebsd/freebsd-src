@@ -1067,15 +1067,18 @@ void	ieee80211_note_frame(const struct ieee80211vap *,
  */
 #define	IEEE80211_DISCARD(_vap, _m, _wh, _type, _fmt, ...) do {		\
 	if ((_vap)->iv_debug & (_m))					\
-		ieee80211_discard_frame(_vap, _wh, _type, _fmt, __VA_ARGS__);\
+		ieee80211_discard_frame(_vap, _wh, _type,		\
+		   "%s:%d: " _fmt, __func__, __LINE__, __VA_ARGS__);	\
 } while (0)
 #define	IEEE80211_DISCARD_IE(_vap, _m, _wh, _type, _fmt, ...) do {	\
 	if ((_vap)->iv_debug & (_m))					\
-		ieee80211_discard_ie(_vap, _wh, _type, _fmt, __VA_ARGS__);\
+		ieee80211_discard_ie(_vap, _wh, _type,			\
+		    "%s:%d: " _fmt, __func__, __LINE__, __VA_ARGS__);	\
 } while (0)
 #define	IEEE80211_DISCARD_MAC(_vap, _m, _mac, _type, _fmt, ...) do {	\
 	if ((_vap)->iv_debug & (_m))					\
-		ieee80211_discard_mac(_vap, _mac, _type, _fmt, __VA_ARGS__);\
+		ieee80211_discard_mac(_vap, _mac, _type,		\
+		    "%s:%d: " _fmt, __func__, __LINE__, __VA_ARGS__);	\
 } while (0)
 
 void ieee80211_discard_frame(const struct ieee80211vap *,
