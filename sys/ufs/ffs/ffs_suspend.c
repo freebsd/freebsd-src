@@ -265,7 +265,7 @@ ffs_susp_dtor(void *data)
 	KASSERT((mp->mnt_kern_flag & MNTK_SUSPEND) != 0,
 	    ("MNTK_SUSPEND not set"));
 
-	error = ffs_reload(mp, curthread, FFSR_FORCE | FFSR_UNSUSPEND);
+	error = ffs_reload(mp, FFSR_FORCE | FFSR_UNSUSPEND);
 	if (error != 0)
 		panic("failed to unsuspend writes on %s", fs->fs_fsmnt);
 

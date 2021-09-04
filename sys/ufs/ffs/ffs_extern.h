@@ -89,7 +89,7 @@ int	ffs_own_mount(const struct mount *mp);
 int	ffs_reallocblks(struct vop_reallocblks_args *);
 int	ffs_realloccg(struct inode *, ufs2_daddr_t, ufs2_daddr_t,
 	    ufs2_daddr_t, int, int, int, struct ucred *, struct buf **);
-int	ffs_reload(struct mount *, struct thread *, int);
+int	ffs_reload(struct mount *, int);
 int	ffs_sbget(void *, struct fs **, off_t, struct malloc_type *,
 	    int (*)(void *, off_t, void **, int));
 int	ffs_sbput(void *, struct fs *, off_t, int (*)(void *, off_t, void *,
