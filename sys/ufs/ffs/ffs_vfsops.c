@@ -538,7 +538,7 @@ ffs_mount(struct mount *mp)
 			vfs_write_resume(mp, 0);
 		}
 		if ((mp->mnt_flag & MNT_RELOAD) &&
-		    (error = ffs_reload(mp, td, 0)) != 0)
+		    (error = ffs_reload(mp, 0)) != 0)
 			return (error);
 		if (fs->fs_ronly &&
 		    !vfs_flagopt(mp->mnt_optnew, "ro", NULL, 0)) {
@@ -849,7 +849,7 @@ ffs_cmount(struct mntarg *ma, void *data, uint64_t flags)
  *	7) re-read inode data for all active vnodes.
  */
 int
-ffs_reload(struct mount *mp, struct thread *td, int flags)
+ffs_reload(struct mount *mp, int flags)
 {
 	struct vnode *vp, *mvp, *devvp;
 	struct inode *ip;
