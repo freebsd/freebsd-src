@@ -70,6 +70,7 @@ __FBSDID("$FreeBSD$");
 #define	BUS_SPACE_MAXADDR_46BIT	MIN(BUS_SPACE_MAXADDR, 0x3FFFFFFFFFFFULL)
 #endif
 
+static int ioat_modevent(module_t mod, int type, void *data);
 static int ioat_probe(device_t device);
 static int ioat_attach(device_t device);
 static int ioat_detach(device_t device);
@@ -147,7 +148,7 @@ static driver_t ioat_pci_driver = {
 };
 
 static devclass_t ioat_devclass;
-DRIVER_MODULE(ioat, pci, ioat_pci_driver, ioat_devclass, 0, 0);
+DRIVER_MODULE(ioat, pci, ioat_pci_driver, ioat_devclass, ioat_modevent, NULL);
 MODULE_VERSION(ioat, 1);
 
 /*
@@ -248,6 +249,27 @@ MODULE_PNP_INFO("W32:vendor/device;D:#", pci, ioat, pci_ids,
 /*
  * OS <-> Driver linkage functions
  */
+static int
+ioat_modevent(module_t mod __unused, int type, void *data __unused)
+{
+	switch(type) {
+	case MOD_LOAD:
+		break;
+
+	case MOD_UNLOAD:
+		ioat_test_detach();
+		break;
+
+	case MOD_SHUTDOWN:
+		break;
+
+	default:
+		return (EOPNOTSUPP);
+	}
+
+	return (0);
+}
+
 static int
 ioat_probe(device_t device)
 {
@@ -362,7 +384,6 @@ ioat_detach(device_t device)
 		ioat_channel_index--;
 	mtx_unlock(&ioat_list_mtx);
 
-	ioat_test_detach();
 	taskqueue_drain(taskqueue_thread, &ioat->reset_task);
 
 	mtx_lock(&ioat->submit_lock);
