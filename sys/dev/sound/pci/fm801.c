@@ -632,8 +632,8 @@ fm801_pci_attach(device_t dev)
 		/*highaddr*/BUS_SPACE_MAXADDR,
 		/*filter*/NULL, /*filterarg*/NULL,
 		/*maxsize*/fm801->bufsz, /*nsegments*/1, /*maxsegz*/0x3ffff,
-		/*flags*/0, /*lockfunc*/busdma_lock_mutex,
-		/*lockarg*/&Giant, &fm801->parent_dmat) != 0) {
+		/*flags*/0, /*lockfunc*/NULL, /*lockarg*/NULL,
+		&fm801->parent_dmat) != 0) {
 		device_printf(dev, "unable to create dma tag\n");
 		goto oops;
 	}

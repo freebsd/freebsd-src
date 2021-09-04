@@ -2700,8 +2700,8 @@ emu_init(struct emu_sc_info *sc)
 	     /* highaddr */ BUS_SPACE_MAXADDR,
 	     /* filter */ NULL, /* filterarg */ NULL,
 	     /* maxsize */ EMU_MAX_BUFSZ, /* nsegments */ 1, /* maxsegz */ 0x3ffff,
-	     /* flags */ 0, /* lockfunc */ busdma_lock_mutex,
-	     /* lockarg */ &Giant, &(sc->mem.dmat)) != 0) {
+	     /* flags */ 0, /* lockfunc */NULL, /* lockarg */NULL,
+	     &sc->mem.dmat) != 0) {
 		device_printf(sc->dev, "unable to create dma tag\n");
 		bus_dma_tag_destroy(sc->mem.dmat);
 		return (ENOMEM);

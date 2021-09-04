@@ -620,8 +620,8 @@ ad1816_attach(device_t dev)
 			/*filter*/NULL, /*filterarg*/NULL,
 			/*maxsize*/ad1816->bufsize, /*nsegments*/1,
 			/*maxsegz*/0x3ffff,
-			/*flags*/0, /*lockfunc*/busdma_lock_mutex,
-			/*lockarg*/ &Giant, &ad1816->parent_dmat) != 0) {
+			/*flags*/0, /*lockfunc*/NULL, /*lockarg*/NULL,
+			&ad1816->parent_dmat) != 0) {
 		device_printf(dev, "unable to create dma tag\n");
 		goto no;
     	}

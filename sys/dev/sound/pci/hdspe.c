@@ -172,8 +172,8 @@ hdspe_alloc_resources(struct sc_info *sc)
 		/*nsegments*/2,
 		/*maxsegsz*/HDSPE_DMASEGSIZE,
 		/*flags*/0,
-		/*lockfunc*/busdma_lock_mutex,
-		/*lockarg*/&Giant,
+		/*lockfunc*/NULL,
+		/*lockarg*/NULL,
 		/*dmatag*/&sc->dmat) != 0) {
 		device_printf(sc->dev, "Unable to create dma tag.\n");
 		return (ENXIO);
@@ -182,27 +182,27 @@ hdspe_alloc_resources(struct sc_info *sc)
 	sc->bufsize = HDSPE_DMASEGSIZE;
 
 	/* pbuf (play buffer). */
-	if (bus_dmamem_alloc(sc->dmat, (void **)&sc->pbuf,
-		BUS_DMA_NOWAIT, &sc->pmap)) {
+	if (bus_dmamem_alloc(sc->dmat, (void **)&sc->pbuf, BUS_DMA_WAITOK,
+	    &sc->pmap)) {
 		device_printf(sc->dev, "Can't alloc pbuf.\n");
 		return (ENXIO);
 	}
 
 	if (bus_dmamap_load(sc->dmat, sc->pmap, sc->pbuf, sc->bufsize,
-		hdspe_dmapsetmap, sc, 0)) {
+	    hdspe_dmapsetmap, sc, BUS_DMA_NOWAIT)) {
 		device_printf(sc->dev, "Can't load pbuf.\n");
 		return (ENXIO);
 	}
 
 	/* rbuf (rec buffer). */
-	if (bus_dmamem_alloc(sc->dmat, (void **)&sc->rbuf,
-		BUS_DMA_NOWAIT, &sc->rmap)) {
+	if (bus_dmamem_alloc(sc->dmat, (void **)&sc->rbuf, BUS_DMA_WAITOK,
+	    &sc->rmap)) {
 		device_printf(sc->dev, "Can't alloc rbuf.\n");
 		return (ENXIO);
 	}
 
 	if (bus_dmamap_load(sc->dmat, sc->rmap, sc->rbuf, sc->bufsize,
-		hdspe_dmapsetmap, sc, 0)) {
+	    hdspe_dmapsetmap, sc, BUS_DMA_NOWAIT)) {
 		device_printf(sc->dev, "Can't load rbuf.\n");
 		return (ENXIO);
 	}
