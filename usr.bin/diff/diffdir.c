@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 
 static int selectfile(const struct dirent *);
 static void diffit(struct dirent *, char *, size_t, char *, size_t, int);
+static void print_only(const char *, size_t, const char *);
 
 #define d_status	d_type		/* we need to store status for -l */
 
@@ -236,4 +237,12 @@ selectfile(const struct dirent *dp)
 			return (0);
 
 	return (1);
+}
+
+void
+print_only(const char *path, size_t dirlen, const char *entry)
+{
+	if (dirlen > 1)
+		dirlen--;
+	printf("Only in %.*s: %s\n", (int)dirlen, path, entry);
 }

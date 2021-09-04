@@ -101,12 +101,13 @@ static struct option longopts[] = {
 	{ NULL,				0,			0,	'\0'}
 };
 
-void usage(void) __dead2;
-void conflicting_format(void) __dead2;
-void push_excludes(char *);
-void push_ignore_pats(char *);
-void read_excludes_file(char *file);
-void set_argstr(char **, char **);
+static void usage(void) __dead2;
+static void conflicting_format(void) __dead2;
+static void push_excludes(char *);
+static void push_ignore_pats(char *);
+static void read_excludes_file(char *file);
+static void set_argstr(char **, char **);
+static char *splice(char *, char *);
 
 int
 main(int argc, char **argv)
@@ -393,7 +394,7 @@ main(int argc, char **argv)
 	exit(status);
 }
 
-void
+static void
 set_argstr(char **av, char **ave)
 {
 	size_t argsize;
@@ -413,7 +414,7 @@ set_argstr(char **av, char **ave)
 /*
  * Read in an excludes file and push each line.
  */
-void
+static void
 read_excludes_file(char *file)
 {
 	FILE *fp;
@@ -438,7 +439,7 @@ read_excludes_file(char *file)
 /*
  * Push a pattern onto the excludes list.
  */
-void
+static void
 push_excludes(char *pattern)
 {
 	struct excludes *entry;
@@ -449,7 +450,7 @@ push_excludes(char *pattern)
 	excludes_list = entry;
 }
 
-void
+static void
 push_ignore_pats(char *pattern)
 {
 	size_t len;
@@ -463,14 +464,6 @@ push_ignore_pats(char *pattern)
 		strlcat(ignore_pats, "|", len);
 		strlcat(ignore_pats, pattern, len);
 	}
-}
-
-void
-print_only(const char *path, size_t dirlen, const char *entry)
-{
-	if (dirlen > 1)
-		dirlen--;
-	printf("Only in %.*s: %s\n", (int)dirlen, path, entry);
 }
 
 void
@@ -517,7 +510,7 @@ print_status(int val, char *path1, char *path2, const char *entry)
 	}
 }
 
-void
+static void
 usage(void)
 {
 	(void)fprintf(stderr,
@@ -544,10 +537,27 @@ usage(void)
 	exit(2);
 }
 
-void
+static void
 conflicting_format(void)
 {
 
 	fprintf(stderr, "error: conflicting output format options.\n");
 	usage();
+}
+
+static char *
+splice(char *dir, char *path)
+{
+	char *tail, *buf;
+	size_t dirlen;
+
+	dirlen = strlen(dir);
+	while (dirlen != 0 && dir[dirlen - 1] == '/')
+	    dirlen--;
+	if ((tail = strrchr(path, '/')) == NULL)
+		tail = path;
+	else
+		tail++;
+	xasprintf(&buf, "%.*s/%s", (int)dirlen, dir, tail);
+	return (buf);
 }
