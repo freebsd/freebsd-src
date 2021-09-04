@@ -550,17 +550,21 @@ static struct cdevsw ioat_cdevsw = {
 static int
 enable_ioat_test(bool enable)
 {
-
-	mtx_assert(&Giant, MA_OWNED);
+	struct make_dev_args devargs;
+	int error = 0;
 
 	if (enable && g_ioat_cdev == NULL) {
-		g_ioat_cdev = make_dev(&ioat_cdevsw, 0, UID_ROOT, GID_WHEEL,
-		    0600, "ioat_test");
+		make_dev_args_init(&devargs);
+		devargs.mda_devsw = &ioat_cdevsw;
+		devargs.mda_uid = UID_ROOT;
+		devargs.mda_gid = GID_WHEEL;
+		devargs.mda_mode = 0600;
+		error = make_dev_s(&devargs, &g_ioat_cdev, "ioat_test");
 	} else if (!enable && g_ioat_cdev != NULL) {
 		destroy_dev(g_ioat_cdev);
 		g_ioat_cdev = NULL;
 	}
-	return (0);
+	return (error);
 }
 
 static int
@@ -573,11 +577,10 @@ sysctl_enable_ioat_test(SYSCTL_HANDLER_ARGS)
 	if (error != 0 || req->newptr == NULL)
 		return (error);
 
-	enable_ioat_test(enabled);
-	return (0);
+	return (enable_ioat_test(enabled));
 }
 SYSCTL_PROC(_hw_ioat, OID_AUTO, enable_ioat_test,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, 0, 0,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, 0, 0,
     sysctl_enable_ioat_test, "I",
     "Non-zero: Enable the /dev/ioat_test device");
 
@@ -587,11 +590,8 @@ ioat_test_attach(void)
 	char *val;
 
 	val = kern_getenv("hw.ioat.enable_ioat_test");
-	if (val != NULL && strcmp(val, "0") != 0) {
-		mtx_lock(&Giant);
+	if (val != NULL && strcmp(val, "0") != 0)
 		enable_ioat_test(true);
-		mtx_unlock(&Giant);
-	}
 	freeenv(val);
 }
 
@@ -599,9 +599,7 @@ void
 ioat_test_detach(void)
 {
 
-	mtx_lock(&Giant);
 	enable_ioat_test(false);
-	mtx_unlock(&Giant);
 }
 
 static void
