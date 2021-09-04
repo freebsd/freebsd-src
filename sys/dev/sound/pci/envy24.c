@@ -2264,12 +2264,14 @@ envy24_dmainit(struct sc_info *sc)
 #if(0)
 	device_printf(sc->dev, "envy24_dmainit(): bus_dmamem_load(): sc->pmap\n");
 #endif
-	if (bus_dmamap_load(sc->dmat, sc->pmap, sc->pbuf, sc->psize, envy24_dmapsetmap, sc, 0))
+	if (bus_dmamap_load(sc->dmat, sc->pmap, sc->pbuf, sc->psize,
+	    envy24_dmapsetmap, sc, BUS_DMA_NOWAIT))
 		goto bad;
 #if(0)
 	device_printf(sc->dev, "envy24_dmainit(): bus_dmamem_load(): sc->rmap\n");
 #endif
-	if (bus_dmamap_load(sc->dmat, sc->rmap, sc->rbuf, sc->rsize, envy24_dmarsetmap, sc, 0))
+	if (bus_dmamap_load(sc->dmat, sc->rmap, sc->rbuf, sc->rsize,
+	    envy24_dmarsetmap, sc, BUS_DMA_NOWAIT))
 		goto bad;
 	bzero(sc->pbuf, sc->psize);
 	bzero(sc->rbuf, sc->rsize);
@@ -2534,8 +2536,8 @@ envy24_alloc_resource(struct sc_info *sc)
 	    /*filter*/NULL, /*filterarg*/NULL,
 	    /*maxsize*/BUS_SPACE_MAXSIZE_ENVY24,
 	    /*nsegments*/1, /*maxsegsz*/0x3ffff,
-	    /*flags*/0, /*lockfunc*/busdma_lock_mutex,
-	    /*lockarg*/&Giant, &sc->dmat) != 0) {
+	    /*flags*/0, /*lockfunc*/NULL, /*lockarg*/NULL,
+	    &sc->dmat) != 0) {
 		device_printf(sc->dev, "unable to create dma tag\n");
 		return ENXIO;
 	}

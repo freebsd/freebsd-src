@@ -1732,7 +1732,7 @@ mss_doattach(device_t dev, struct mss_info *mss)
 			/*filter*/NULL, /*filterarg*/NULL,
 			/*maxsize*/mss->bufsize, /*nsegments*/1,
 			/*maxsegz*/0x3ffff, /*flags*/0,
-			/*lockfunc*/busdma_lock_mutex, /*lockarg*/&Giant,
+			/*lockfunc*/NULL, /*lockarg*/NULL,
 			&mss->parent_dmat) != 0) {
 		device_printf(dev, "unable to create dma tag\n");
 		goto no;

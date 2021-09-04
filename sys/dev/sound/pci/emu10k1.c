@@ -1328,8 +1328,8 @@ emu_malloc(struct sc_info *sc, u_int32_t sz, bus_addr_t *addr,
 	*addr = 0;
 	if (bus_dmamem_alloc(sc->parent_dmat, &buf, BUS_DMA_NOWAIT, map))
 		return NULL;
-	if (bus_dmamap_load(sc->parent_dmat, *map, buf, sz, emu_setmap, addr, 0)
-	    || !*addr) {
+	if (bus_dmamap_load(sc->parent_dmat, *map, buf, sz, emu_setmap, addr,
+	    BUS_DMA_NOWAIT) || !*addr) {
 		bus_dmamem_free(sc->parent_dmat, buf, *map);
 		return NULL;
 	}
@@ -2107,8 +2107,8 @@ emu_pci_attach(device_t dev)
 		/*highaddr*/BUS_SPACE_MAXADDR,
 		/*filter*/NULL, /*filterarg*/NULL,
 		/*maxsize*/sc->bufsz, /*nsegments*/1, /*maxsegz*/0x3ffff,
-		/*flags*/0, /*lockfunc*/busdma_lock_mutex,
-		/*lockarg*/&Giant, &sc->parent_dmat) != 0) {
+		/*flags*/0, /*lockfunc*/NULL, /*lockarg*/NULL,
+		&sc->parent_dmat) != 0) {
 		device_printf(dev, "unable to create dma tag\n");
 		goto bad;
 	}

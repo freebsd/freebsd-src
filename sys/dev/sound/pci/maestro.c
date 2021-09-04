@@ -1716,8 +1716,8 @@ dma_malloc(bus_dma_tag_t dmat, u_int32_t sz, bus_addr_t *phys,
 
 	if (bus_dmamem_alloc(dmat, &buf, BUS_DMA_NOWAIT, map))
 		return NULL;
-	if (bus_dmamap_load(dmat, *map, buf, sz, setmap, phys, 0) != 0 ||
-	    *phys == 0) {
+	if (bus_dmamap_load(dmat, *map, buf, sz, setmap, phys,
+	    BUS_DMA_NOWAIT) != 0 || *phys == 0) {
 		bus_dmamem_free(dmat, buf, *map);
 		return NULL;
 	}
@@ -1793,7 +1793,7 @@ agg_attach(device_t dev)
 			       /*filter*/ NULL, NULL,
 			       /*size  */ ess->bufsz, 1, 0x3ffff,
 			       /*flags */ 0,
-			       /*lock  */ busdma_lock_mutex, &Giant,
+			       /*lock  */ NULL, NULL,
 			       &ess->buf_dmat) != 0) {
 		device_printf(dev, "unable to create dma tag\n");
 		ret = ENOMEM;
@@ -1807,7 +1807,7 @@ agg_attach(device_t dev)
 			       /*filter*/ NULL, NULL,
 			       /*size  */ 3*ess->bufsz, 1, 0x3ffff,
 			       /*flags */ 0,
-			       /*lock  */ busdma_lock_mutex, &Giant,
+			       /*lock  */ NULL, NULL,
 			       &ess->stat_dmat) != 0) {
 		device_printf(dev, "unable to create dma tag\n");
 		ret = ENOMEM;

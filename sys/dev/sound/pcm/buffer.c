@@ -107,7 +107,7 @@ sndbuf_alloc(struct snd_dbuf *b, bus_dma_tag_t dmatag, int dmaflags,
 		return (ENOMEM);
 	}
 	if (bus_dmamap_load(b->dmatag, b->dmamap, b->buf, b->maxsize,
-	    sndbuf_setmap, b, 0) != 0 || b->buf_addr == 0) {
+	    sndbuf_setmap, b, BUS_DMA_NOWAIT) != 0 || b->buf_addr == 0) {
 		sndbuf_free(b);
 		return (ENOMEM);
 	}
