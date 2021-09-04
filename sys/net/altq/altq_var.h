@@ -164,16 +164,9 @@ typedef u_long ioctlcmd_t;
 /* use callout */
 #include <sys/callout.h>
 
-#if (__FreeBSD_version > 500000)
-#define	CALLOUT_INIT(c)		callout_init((c), 0)
-#else
-#define	CALLOUT_INIT(c)		callout_init((c))
-#endif
+#define	CALLOUT_INIT(c)		callout_init((c), 1)
 #define	CALLOUT_RESET(c,t,f,a)	callout_reset((c),(t),(f),(a))
 #define	CALLOUT_STOP(c)		callout_stop((c))
-#if !defined(CALLOUT_INITIALIZER) && (__FreeBSD_version < 600000)
-#define	CALLOUT_INITIALIZER	{ { { NULL } }, 0, NULL, NULL, 0 }
-#endif
 
 #define	m_pktlen(m)		((m)->m_pkthdr.len)
 

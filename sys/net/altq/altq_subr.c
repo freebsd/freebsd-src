@@ -908,9 +908,7 @@ EVENTHANDLER_DEFINE(cpufreq_post_change, tsc_freq_changed, NULL,
 static void
 init_machclk_setup(void)
 {
-#if (__FreeBSD_version >= 600000)
-	callout_init(&tbr_callout, 0);
-#endif
+	callout_init(&tbr_callout, 1);
 
 	machclk_usepcc = 1;
 
