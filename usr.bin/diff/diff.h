@@ -33,6 +33,8 @@
  */
 
 #include <sys/types.h>
+
+#include <stdbool.h>
 #include <regex.h>
 
 /*
@@ -90,9 +92,9 @@ struct excludes {
 	struct excludes *next;
 };
 
-extern int	lflag, Nflag, Pflag, rflag, sflag, Tflag, cflag, Wflag;
-extern int	diff_format, diff_context, status, ignore_file_case;
-extern int	suppress_common;
+extern bool	lflag, Nflag, Pflag, rflag, sflag, Tflag, cflag;
+extern bool	ignore_file_case, suppress_common;
+extern int	diff_format, diff_context, status;
 extern int	tabsize, width;
 extern char	*start, *ifdefname, *diffargs, *label[2], *ignore_pats;
 extern char	*group_format;
