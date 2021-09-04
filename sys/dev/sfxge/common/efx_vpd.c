@@ -901,7 +901,7 @@ efx_vpd_hunk_set(
 
 				/*
 				 * The keyword doesn't already exist. If the
-				 * user deleting a non-existant keyword then
+				 * user deleting a non-existent keyword then
 				 * this is a no-op.
 				 */
 				if (evvp->evv_length == 0)
