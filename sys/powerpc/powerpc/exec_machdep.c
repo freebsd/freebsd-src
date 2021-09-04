@@ -1097,7 +1097,7 @@ cpu_copy_thread(struct thread *td, struct thread *td0)
 	struct callframe *cf;
 
 	/* Ensure td0 pcb is up to date. */
-	if (td == curthread)
+	if (td0 == curthread)
 		cpu_save_thread_regs(td0);
 
 	pcb2 = td->td_pcb;
