@@ -139,8 +139,8 @@ void	cnputc(int);
 void	cnputs(const char *);
 void	cnputsn(const char *, size_t);
 int	cnunavailable(void);
-void	constty_set(struct tty *tp);
-void	constty_clear(void);
+int	constty_set(struct tty *tp);
+int	constty_clear(struct tty *tp);
 
 /* sc(4) / vt(4) coexistence shim */
 #define	VTY_SC 0x01

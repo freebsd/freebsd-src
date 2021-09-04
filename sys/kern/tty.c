@@ -241,8 +241,7 @@ ttydev_leave(struct tty *tp)
 	tp->t_flags |= TF_OPENCLOSE;
 
 	/* Remove console TTY. */
-	if (constty == tp)
-		constty_clear();
+	constty_clear(tp);
 
 	/* Drain any output. */
 	if (!tty_gone(tp))
@@ -1920,24 +1919,11 @@ tty_generic_ioctl(struct tty *tp, u_long cmd, void *data, int fflag,
 			error = priv_check(td, PRIV_TTY_CONSOLE);
 			if (error)
 				return (error);
-
-			/*
-			 * XXX: constty should really need to be locked!
-			 * XXX: allow disconnected constty's to be stolen!
-			 */
-
-			if (constty == tp)
-				return (0);
-			if (constty != NULL)
-				return (EBUSY);
-
-			tty_unlock(tp);
-			constty_set(tp);
-			tty_lock(tp);
-		} else if (constty == tp) {
-			constty_clear();
+			error = constty_set(tp);
+		} else {
+			error = constty_clear(tp);
 		}
-		return (0);
+		return (error);
 	case TIOCGWINSZ:
 		/* Obtain window size. */
 		*(struct winsize*)data = tp->t_winsize;
