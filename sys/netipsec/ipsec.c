@@ -1013,7 +1013,7 @@ ipsec_check_history(const struct mbuf *m, struct secpolicy *sp, u_int idx)
 /*
  * Check security policy requirements against the actual
  * packet contents.  Return one if the packet should be
- * reject as "invalid"; otherwiser return zero to have the
+ * rejected as "invalid"; otherwise return zero to have the
  * packet treated as "valid".
  *
  * OUT:
