@@ -118,6 +118,7 @@ extern	int log_open;
 
 static void  msglogchar(int c, int pri);
 static void  msglogstr(char *str, int pri, int filter_cr);
+static void  prf_putbuf(char *bufr, int flags, int pri);
 static void  putchar(int ch, void *arg);
 static char *ksprintn(char *nbuf, uintmax_t num, int base, int *len, int upper);
 static void  snprintf_func(int ch, void *arg);
@@ -296,13 +297,8 @@ _vprintf(int level, int flags, const char *fmt, va_list ap)
 
 #ifdef PRINTF_BUFR_SIZE
 	/* Write any buffered console/log output: */
-	if (*pca.p_bufr != '\0') {
-		if (pca.flags & TOLOG)
-			msglogstr(pca.p_bufr, level, /*filter_cr*/1);
-
-		if (pca.flags & TOCONS)
-			cnputs(pca.p_bufr);
-	}
+	if (*pca.p_bufr != '\0')
+		prf_putbuf(pca.p_bufr, flags, level);
 #endif
 
 	TSEXIT();
@@ -424,6 +420,22 @@ vprintf(const char *fmt, va_list ap)
 }
 
 static void
+prf_putchar(int c, int flags, int pri)
+{
+
+	if (flags & TOLOG)
+		msglogchar(c, pri);
+
+	if (flags & TOCONS) {
+		if ((!KERNEL_PANICKED()) && (constty != NULL))
+			msgbuf_addchar(&consmsgbuf, c);
+
+		if ((constty == NULL) || always_console_output)
+			cnputc(c);
+	}
+}
+
+static void
 prf_putbuf(char *bufr, int flags, int pri)
 {
 
@@ -435,7 +447,7 @@ prf_putbuf(char *bufr, int flags, int pri)
 			msgbuf_addstr(&consmsgbuf, -1,
 			    bufr, /*filter_cr*/ 0);
 
-		if ((constty == NULL) ||(always_console_output))
+		if ((constty == NULL) || always_console_output)
 			cnputs(bufr);
 	}
 }
@@ -445,12 +457,7 @@ putbuf(int c, struct putchar_arg *ap)
 {
 	/* Check if no console output buffer was provided. */
 	if (ap->p_bufr == NULL) {
-		/* Output direct to the console. */
-		if (ap->flags & TOCONS)
-			cnputc(c);
-
-		if (ap->flags & TOLOG)
-			msglogchar(c, ap->pri);
+		prf_putchar(c, ap->flags, ap->pri);
 	} else {
 		/* Buffer the character: */
 		*ap->p_next++ = c;
