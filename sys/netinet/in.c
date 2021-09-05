@@ -88,6 +88,12 @@ SYSCTL_INT(_net_inet_ip, OID_AUTO, no_same_prefix, CTLFLAG_VNET | CTLFLAG_RW,
 	&VNET_NAME(nosameprefix), 0,
 	"Refuse to create same prefixes on different interfaces");
 
+VNET_DEFINE_STATIC(bool, broadcast_lowest);
+#define	V_broadcast_lowest		VNET(broadcast_lowest)
+SYSCTL_BOOL(_net_inet_ip, OID_AUTO, broadcast_lowest, CTLFLAG_VNET | CTLFLAG_RW,
+	&VNET_NAME(broadcast_lowest), 0,
+	"Treat lowest address on a subnet (host 0) as broadcast");
+
 VNET_DECLARE(struct inpcbinfo, ripcbinfo);
 #define	V_ripcbinfo			VNET(ripcbinfo)
 
@@ -1170,10 +1176,10 @@ in_ifaddr_broadcast(struct in_addr in, struct in_ifaddr *ia)
 
 	return ((in.s_addr == ia->ia_broadaddr.sin_addr.s_addr ||
 	     /*
-	      * Check for old-style (host 0) broadcast, but
+	      * Optionally check for old-style (host 0) broadcast, but
 	      * taking into account that RFC 3021 obsoletes it.
 	      */
-	    (ia->ia_subnetmask != IN_RFC3021_MASK &&
+	    (V_broadcast_lowest && ia->ia_subnetmask != IN_RFC3021_MASK &&
 	    ntohl(in.s_addr) == ia->ia_subnet)) &&
 	     /*
 	      * Check for an all one subnetmask. These
