@@ -1378,35 +1378,34 @@ match_function(const long *f, int pos, FILE *fp)
 	const char *state = NULL;
 
 	lastline = pos;
-	while (pos > last) {
+	for (; pos > last; pos--) {
 		fseek(fp, f[pos - 1], SEEK_SET);
 		nc = f[pos] - f[pos - 1];
 		if (nc >= sizeof(buf))
 			nc = sizeof(buf) - 1;
 		nc = fread(buf, 1, nc, fp);
-		if (nc > 0) {
-			buf[nc] = '\0';
-			buf[strcspn(buf, "\n")] = '\0';
-			if (isalpha(buf[0]) || buf[0] == '_' || buf[0] == '$') {
-				if (begins_with(buf, "private:")) {
-					if (!state)
-						state = " (private)";
-				} else if (begins_with(buf, "protected:")) {
-					if (!state)
-						state = " (protected)";
-				} else if (begins_with(buf, "public:")) {
-					if (!state)
-						state = " (public)";
-				} else {
-					strlcpy(lastbuf, buf, sizeof(lastbuf));
-					if (state)
-						strlcat(lastbuf, state, sizeof(lastbuf));
-					lastmatchline = pos;
-					return (lastbuf);
-				}
+		if (nc == 0)
+			continue;
+		buf[nc] = '\0';
+		buf[strcspn(buf, "\n")] = '\0';
+		if (isalpha(buf[0]) || buf[0] == '_' || buf[0] == '$') {
+			if (begins_with(buf, "private:")) {
+				if (!state)
+					state = " (private)";
+			} else if (begins_with(buf, "protected:")) {
+				if (!state)
+					state = " (protected)";
+			} else if (begins_with(buf, "public:")) {
+				if (!state)
+					state = " (public)";
+			} else {
+				strlcpy(lastbuf, buf, sizeof(lastbuf));
+				if (state)
+					strlcat(lastbuf, state, sizeof(lastbuf));
+				lastmatchline = pos;
+				return (lastbuf);
 			}
 		}
-		pos--;
 	}
 	return (lastmatchline > 0 ? lastbuf : NULL);
 }
