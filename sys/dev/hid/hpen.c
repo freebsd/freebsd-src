@@ -59,7 +59,6 @@ static const uint8_t	hpen_graphire3_4x5_report_descr[] =
 			   { HID_GRAPHIRE3_4X5_REPORT_DESCR() };
 
 static hidmap_cb_t	hpen_battery_strenght_cb;
-static hidmap_cb_t	hpen_final_digi_cb;
 static hidmap_cb_t	hpen_final_pen_cb;
 
 #define HPEN_MAP_BUT(usage, code)	\
