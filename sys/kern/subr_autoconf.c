@@ -121,6 +121,7 @@ run_interrupt_driven_config_hooks()
 	static int running;
 	struct intr_config_hook *hook_entry;
 
+	TSENTER();
 	mtx_lock(&intr_config_hook_lock);
 
 	/*
@@ -146,6 +147,7 @@ run_interrupt_driven_config_hooks()
 
 	running = 0;
 	mtx_unlock(&intr_config_hook_lock);
+	TSEXIT();
 }
 
 static void
