@@ -87,17 +87,25 @@
 #define	D_SKIPPED2	6	/* path2 was a special file */
 #define	D_ERROR		7	/* A file access error occurred */
 
+/*
+ * Color options
+ */
+#define COLORFLAG_NEVER		0
+#define COLORFLAG_AUTO		1
+#define COLORFLAG_ALWAYS	2
+
 struct excludes {
 	char *pattern;
 	struct excludes *next;
 };
 
 extern bool	lflag, Nflag, Pflag, rflag, sflag, Tflag, cflag;
-extern bool	ignore_file_case, suppress_common;
+extern bool	ignore_file_case, suppress_common, color;
 extern int	diff_format, diff_context, status;
 extern int	tabsize, width;
 extern char	*start, *ifdefname, *diffargs, *label[2], *ignore_pats;
 extern char	*group_format;
+extern const char	*add_code, *del_code;
 extern struct	stat stb1, stb2;
 extern struct	excludes *excludes_list;
 extern regex_t	ignore_re;
