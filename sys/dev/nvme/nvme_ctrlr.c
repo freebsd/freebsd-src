@@ -407,6 +407,7 @@ nvme_ctrlr_hw_reset(struct nvme_controller *ctrlr)
 {
 	int err;
 
+	TSENTER();
 	nvme_ctrlr_disable_qpairs(ctrlr);
 
 	pause("nvmehwreset", hz / 10);
@@ -414,7 +415,9 @@ nvme_ctrlr_hw_reset(struct nvme_controller *ctrlr)
 	err = nvme_ctrlr_disable(ctrlr);
 	if (err != 0)
 		return err;
-	return (nvme_ctrlr_enable(ctrlr));
+	err = nvme_ctrlr_enable(ctrlr);
+	TSEXIT();
+	return (err);
 }
 
 void
@@ -1045,6 +1048,8 @@ nvme_ctrlr_start(void *ctrlr_arg, bool resetting)
 	uint32_t old_num_io_queues;
 	int i;
 
+	TSENTER();
+
 	/*
 	 * Only reset adminq here when we are restarting the
 	 *  controller after a reset.  During initialization,
@@ -1117,12 +1122,15 @@ nvme_ctrlr_start(void *ctrlr_arg, bool resetting)
 
 	for (i = 0; i < ctrlr->num_io_queues; i++)
 		nvme_io_qpair_enable(&ctrlr->ioq[i]);
+	TSEXIT();
 }
 
 void
 nvme_ctrlr_start_config_hook(void *arg)
 {
 	struct nvme_controller *ctrlr = arg;
+
+	TSENTER();
 
 	/*
 	 * Reset controller twice to ensure we do a transition from cc.en==1 to
@@ -1155,6 +1163,7 @@ fail:
 
 	ctrlr->is_initialized = 1;
 	nvme_notify_new_controller(ctrlr);
+	TSEXIT();
 }
 
 static void
