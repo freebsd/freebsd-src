@@ -255,7 +255,6 @@ diffreg(char *file1, char *file2, int flags, int capsicum)
 	anychange = 0;
 	lastline = 0;
 	lastmatchline = 0;
-	context_vec_ptr = context_vec_start - 1;
 
 	 /*
 	  * hw excludes padding and make sure when -t is not used,
@@ -1050,8 +1049,12 @@ proceed:
 		/*
 		 * Allocate change records as needed.
 		 */
-		if (context_vec_ptr == context_vec_end - 1) {
-			ptrdiff_t offset = context_vec_ptr - context_vec_start;
+		if (context_vec_start == NULL ||
+		    context_vec_ptr == context_vec_end - 1) {
+			ptrdiff_t offset = -1;
+
+			if (context_vec_start != NULL)
+				offset = context_vec_ptr - context_vec_start;
 			max_context <<= 1;
 			context_vec_start = xreallocarray(context_vec_start,
 			    max_context, sizeof(*context_vec_start));
