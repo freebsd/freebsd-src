@@ -77,6 +77,7 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <math.h>
 #include <paths.h>
 #include <regex.h>
 #include <stdbool.h>
@@ -194,7 +195,6 @@ static int	 fetch(long *, int, int, FILE *, int, int, int);
 static int	 newcand(int, int, int);
 static int	 search(int *, int, int);
 static int	 skipline(FILE *);
-static int	 isqrt(int);
 static int	 stone(int *, int, int *, int *, int);
 static enum readhash readhash(FILE *, int, unsigned *);
 static int	 files_differ(FILE *, FILE *, int);
@@ -569,25 +569,6 @@ equiv(struct line *a, int n, struct line *b, int m, int *c)
 	c[j] = -1;
 }
 
-/* Code taken from ping.c */
-static int
-isqrt(int n)
-{
-	int y, x = 1;
-
-	if (n == 0)
-		return (0);
-
-	do { /* newton was a stinker */
-		y = x;
-		x = n / x;
-		x += y;
-		x /= 2;
-	} while ((x - y) > 1 || (x - y) < -1);
-
-	return (x);
-}
-
 static int
 stone(int *a, int n, int *b, int *c, int flags)
 {
@@ -598,7 +579,7 @@ stone(int *a, int n, int *b, int *c, int flags)
 	if (flags & D_MINIMAL)
 		bound = UINT_MAX;
 	else {
-		sq = isqrt(n);
+		sq = sqrt(n);
 		bound = MAX(256, sq);
 	}
 
