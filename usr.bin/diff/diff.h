@@ -74,6 +74,7 @@
 #define D_IGNOREBLANKS		0x200	/* Ignore white space changes */
 #define D_STRIPCR		0x400	/* Strip trailing cr */
 #define D_SKIPBLANKLINES	0x800	/* Skip blank lines */
+#define D_MATCHLAST		0x1000	/* Display last line matching provided regex */
 
 /*
  * Status values for print_status() and diffreg() return values
@@ -103,12 +104,13 @@ extern bool	lflag, Nflag, Pflag, rflag, sflag, Tflag, cflag;
 extern bool	ignore_file_case, suppress_common, color;
 extern int	diff_format, diff_context, status;
 extern int	tabsize, width;
-extern char	*start, *ifdefname, *diffargs, *label[2], *ignore_pats;
+extern char	*start, *ifdefname, *diffargs, *label[2];
+extern char	*ignore_pats, *most_recent_pat;
 extern char	*group_format;
 extern const char	*add_code, *del_code;
 extern struct	stat stb1, stb2;
 extern struct	excludes *excludes_list;
-extern regex_t	ignore_re;
+extern regex_t	ignore_re, most_recent_re;
 
 int	diffreg(char *, char *, int, int);
 void	diffdir(char *, char *, int);

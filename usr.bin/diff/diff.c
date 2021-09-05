@@ -43,14 +43,15 @@ bool	 ignore_file_case, suppress_common, color;
 int	 diff_format, diff_context, status;
 int	 tabsize = 8, width = 130;
 static int	colorflag = COLORFLAG_NEVER;
-char	*start, *ifdefname, *diffargs, *label[2], *ignore_pats;
+char	*start, *ifdefname, *diffargs, *label[2];
+char	*ignore_pats, *most_recent_pat;
 char	*group_format = NULL;
 const char	*add_code, *del_code;
 struct stat stb1, stb2;
 struct excludes *excludes_list;
-regex_t	 ignore_re;
+regex_t	 ignore_re, most_recent_re;
 
-#define	OPTIONS	"0123456789aBbC:cdD:efHhI:iL:lnNPpqrS:sTtU:uwW:X:x:y"
+#define	OPTIONS	"0123456789aBbC:cdD:efF:HhI:iL:lnNPpqrS:sTtU:uwW:X:x:y"
 enum {
 	OPT_TSIZE = CHAR_MAX + 1,
 	OPT_STRIPCR,
@@ -71,6 +72,7 @@ static struct option longopts[] = {
 	{ "minimal",			no_argument,		0,	'd' },
 	{ "ed",				no_argument,		0,	'e' },
 	{ "forward-ed",			no_argument,		0,	'f' },
+	{ "show-function-line",		required_argument,	0,	'F' },
 	{ "speed-large-files",		no_argument,		NULL,	'H' },
 	{ "ignore-blank-lines",		no_argument,		0,	'B' },
 	{ "ignore-matching-lines",	required_argument,	0,	'I' },
@@ -105,6 +107,7 @@ static struct option longopts[] = {
 	{ NULL,				0,			0,	'\0'}
 };
 
+static void checked_regcomp(char const *, regex_t *);
 static void usage(void) __dead2;
 static void conflicting_format(void) __dead2;
 static void push_excludes(char *);
@@ -190,6 +193,12 @@ main(int argc, char **argv)
 		case 'B':
 			dflags |= D_SKIPBLANKLINES;
 			break;
+		case 'F':
+			if (dflags & D_PROTOTYPE)
+				conflicting_format();
+			dflags |= D_MATCHLAST;
+			most_recent_pat = xstrdup(optarg);
+			break;
 		case 'I':
 			push_ignore_pats(optarg);
 			break;
@@ -216,6 +225,8 @@ main(int argc, char **argv)
 			diff_format = D_NREVERSE;
 			break;
 		case 'p':
+			if (dflags & D_MATCHLAST)
+				conflicting_format();
 			dflags |= D_PROTOTYPE;
 			break;
 		case 'P':
@@ -359,19 +370,8 @@ main(int argc, char **argv)
 	 */
 	if (argc != 2)
 		usage();
-	if (ignore_pats != NULL) {
-		char buf[BUFSIZ];
-		int error;
-
-		if ((error = regcomp(&ignore_re, ignore_pats,
-				     REG_NEWLINE | REG_EXTENDED)) != 0) {
-			regerror(error, &ignore_re, buf, sizeof(buf));
-			if (*ignore_pats != '\0')
-				errx(2, "%s: %s", ignore_pats, buf);
-			else
-				errx(2, "%s", buf);
-		}
-	}
+	checked_regcomp(ignore_pats, &ignore_re);
+	checked_regcomp(most_recent_pat, &most_recent_re);
 	if (strcmp(argv[0], "-") == 0) {
 		fstat(STDIN_FILENO, &stb1);
 		gotstdin = 1;
@@ -424,6 +424,25 @@ main(int argc, char **argv)
 		    argv[1], "");
 	}
 	exit(status);
+}
+
+static void
+checked_regcomp(char const *pattern, regex_t *comp)
+{
+	char buf[BUFSIZ];
+	int error;
+
+	if (pattern == NULL)
+		return;
+
+	error = regcomp(comp, pattern, REG_NEWLINE | REG_EXTENDED);
+	if (error != 0) {
+		regerror(error, comp, buf, sizeof(buf));
+		if (*pattern != '\0')
+			errx(2, "%s: %s", pattern, buf);
+		else
+			errx(2, "%s", buf);
+	}
 }
 
 static void
@@ -548,18 +567,18 @@ usage(void)
 	(void)fprintf(stderr,
 	    "usage: diff [-aBbdilpTtw] [-c | -e | -f | -n | -q | -u] [--ignore-case]\n"
 	    "            [--no-ignore-case] [--normal] [--strip-trailing-cr] [--tabsize]\n"
-	    "            [-I pattern] [-L label] file1 file2\n"
+	    "            [-I pattern] [-F pattern] [-L label] file1 file2\n"
 	    "       diff [-aBbdilpTtw] [-I pattern] [-L label] [--ignore-case]\n"
 	    "            [--no-ignore-case] [--normal] [--strip-trailing-cr] [--tabsize]\n"
-	    "            -C number file1 file2\n"
+	    "            [-F pattern] -C number file1 file2\n"
 	    "       diff [-aBbdiltw] [-I pattern] [--ignore-case] [--no-ignore-case]\n"
 	    "            [--normal] [--strip-trailing-cr] [--tabsize] -D string file1 file2\n"
 	    "       diff [-aBbdilpTtw] [-I pattern] [-L label] [--ignore-case]\n"
 	    "            [--no-ignore-case] [--normal] [--tabsize] [--strip-trailing-cr]\n"
-	    "            -U number file1 file2\n"
+	    "            [-F pattern] -U number file1 file2\n"
 	    "       diff [-aBbdilNPprsTtw] [-c | -e | -f | -n | -q | -u] [--ignore-case]\n"
 	    "            [--no-ignore-case] [--normal] [--tabsize] [-I pattern] [-L label]\n"
-	    "            [-S name] [-X file] [-x pattern] dir1 dir2\n"
+	    "            [-F pattern] [-S name] [-X file] [-x pattern] dir1 dir2\n"
 	    "       diff [-aBbditwW] [--expand-tabs] [--ignore-all-blanks]\n"
 	    "            [--ignore-blank-lines] [--ignore-case] [--minimal]\n"
 	    "            [--no-ignore-file-name-case] [--strip-trailing-cr]\n"
