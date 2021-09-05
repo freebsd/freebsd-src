@@ -40,6 +40,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20210929: Remove ng_h4
+OLD_FILES+=usr/share/man/man4/ng_h4.4.gz
+
 # 20210923: rename boot(9) to kern_reboot(9)
 OLD_FILES+=usr/share/man/man9/boot.9.gz
 
