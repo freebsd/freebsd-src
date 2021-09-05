@@ -81,6 +81,8 @@ main(void)
 	if (kevent(0, &changes, -1, &events, 1, 0) == -1)
 		if (errno != EBADF)
 			err(1, "kevent");
+	if (ktrace(fn, KTROP_CLEARFILE, KTRFAC_GENIO, 0) == -1)
+		err(1, "ktrace clear");
 
 	return (0);
 }
