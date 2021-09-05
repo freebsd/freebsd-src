@@ -65,11 +65,13 @@
 .Op Fl -text
 .Op Fl -unified
 .Op Fl I Ar pattern | Fl -ignore-matching-lines Ar pattern
+.Op Fl F Ar pattern | Fl -show-function-line Ar pattern
 .Op Fl L Ar label | Fl -label Ar label
 .Ar file1 file2
 .Nm diff
 .Op Fl aBbdilpTtw
 .Op Fl I Ar pattern | Fl -ignore-matching-lines Ar pattern
+.Op Fl F Ar pattern | Fl -show-function-line Ar pattern
 .Op Fl L Ar label | Fl -label Ar label
 .Op Fl -brief
 .Op Fl -color Ns = Ns Ar when
@@ -123,6 +125,7 @@
 .Nm diff
 .Op Fl aBbdilpTtw
 .Op Fl I Ar pattern | Fl -ignore-matching-lines Ar pattern
+.Op Fl F Ar pattern | Fl -show-function-line Ar pattern
 .Op Fl L Ar label | Fl -label Ar label
 .Op Fl -brief
 .Op Fl -color Ns = Ns Ar when
@@ -180,6 +183,7 @@
 .Op Fl -unidirectional-new-file
 .Op Fl -unified
 .Op Fl I Ar pattern | Fl -ignore-matching-lines Ar pattern
+.Op Fl F Ar pattern | Fl -show-function-line Ar pattern
 .Bk -words
 .Op Fl L Ar label | Fl -label Ar label
 .Op Fl S Ar name | Fl -starting-file Ar name
@@ -357,6 +361,10 @@ environment variable is set to a non-empty string.
 Try very hard to produce a diff as small as possible.
 This may consume a lot of processing power and memory when processing
 large files with many changes.
+.It Fl F Ar pattern, Fl -show-function-line Ar pattern
+Like
+.Fl p,
+but display the last line that matches provided pattern.
 .It Fl I Ar pattern Fl -ignore-matching-lines Ar pattern
 Ignores changes, insertions, and deletions whose lines match the
 extended regular expression
