@@ -44,6 +44,7 @@
 .Fl n | q | u | y
 .Oc
 .Op Fl -brief
+.Op Fl -color Ns = Ns Ar when
 .Op Fl -changed-group-format Ar GFMT
 .Op Fl -ed
 .Op Fl -expand-tabs
@@ -71,6 +72,7 @@
 .Op Fl I Ar pattern | Fl -ignore-matching-lines Ar pattern
 .Op Fl L Ar label | Fl -label Ar label
 .Op Fl -brief
+.Op Fl -color Ns = Ns Ar when
 .Op Fl -changed-group-format Ar GFMT
 .Op Fl -ed
 .Op Fl -expand-tabs
@@ -96,6 +98,7 @@
 .Op Fl aBbdiltw
 .Op Fl I Ar pattern | Fl -ignore-matching-lines Ar pattern
 .Op Fl -brief
+.Op Fl -color Ns = Ns Ar when
 .Op Fl -changed-group-format Ar GFMT
 .Op Fl -ed
 .Op Fl -expand-tabs
@@ -122,6 +125,7 @@
 .Op Fl I Ar pattern | Fl -ignore-matching-lines Ar pattern
 .Op Fl L Ar label | Fl -label Ar label
 .Op Fl -brief
+.Op Fl -color Ns = Ns Ar when
 .Op Fl -changed-group-format Ar GFMT
 .Op Fl -ed
 .Op Fl -expand-tabs
@@ -150,6 +154,7 @@
 .Fl n | q | u
 .Oc
 .Op Fl -brief
+.Op Fl -color Ns = Ns Ar when
 .Op Fl -changed-group-format Ar GFMT
 .Op Fl -context
 .Op Fl -ed
@@ -184,6 +189,7 @@
 .Ar dir1 dir2
 .Nm diff
 .Op Fl aBbditwW
+.Op Fl -color Ns = Ns Ar when
 .Op Fl -expand-tabs
 .Op Fl -ignore-all-blanks
 .Op Fl -ignore-blank-lines
@@ -332,6 +338,21 @@ Causes chunks that include only blank lines to be ignored.
 .It Fl b -ignore-space-change
 Causes trailing blanks (spaces and tabs) to be ignored, and other
 strings of blanks to compare equal.
+.It Fl -color= Ns Oo Ar when Oc
+Color the additions green, and removals red, or the value in the
+.Ev DIFFCOLORS
+environment variable.
+The possible values of
+.Ar when
+are
+.Dq Cm never ,
+.Dq Cm always
+and
+.Dq Cm auto .
+.Cm auto
+will use color if the output is a tty and the
+.Ev COLORTERM
+environment variable is set to a non-empty string.
 .It Fl d -minimal
 Try very hard to produce a diff as small as possible.
 This may consume a lot of processing power and memory when processing
@@ -592,6 +613,20 @@ As in
 identical
 pairs (where num1 = num2) are abbreviated as a single
 number.
+.Sh ENVIRONMENT
+.Bl -tag -width DIFFCOLORS
+.It Ev DIFFCOLORS
+The value of this variable is the form
+.Ar add Ns : Ns Ar rm ,
+where
+.Ar add
+is the ASCII escape sequence for additions and
+.Ar rm
+is the ASCII escape sequence for deletions.
+If this is unset,
+.Nm
+uses green for additions and red for removals.
+.El
 .Sh FILES
 .Bl -tag -width /tmp/diff.XXXXXXXX -compact
 .It Pa /tmp/diff.XXXXXXXX

@@ -39,11 +39,13 @@ __FBSDID("$FreeBSD$");
 #include "xmalloc.h"
 
 bool	 lflag, Nflag, Pflag, rflag, sflag, Tflag, cflag;
-bool	 ignore_file_case, suppress_common;
+bool	 ignore_file_case, suppress_common, color;
 int	 diff_format, diff_context, status;
 int	 tabsize = 8, width = 130;
+static int	colorflag = COLORFLAG_NEVER;
 char	*start, *ifdefname, *diffargs, *label[2], *ignore_pats;
 char	*group_format = NULL;
+const char	*add_code, *del_code;
 struct stat stb1, stb2;
 struct excludes *excludes_list;
 regex_t	 ignore_re;
@@ -58,6 +60,7 @@ enum {
 	OPT_HORIZON_LINES,
 	OPT_CHANGED_GROUP_FORMAT,
 	OPT_SUPPRESS_COMMON,
+	OPT_COLOR,
 };
 
 static struct option longopts[] = {
@@ -98,6 +101,7 @@ static struct option longopts[] = {
 	{ "tabsize",			required_argument,	NULL,	OPT_TSIZE },
 	{ "changed-group-format",	required_argument,	NULL,	OPT_CHANGED_GROUP_FORMAT},
 	{ "suppress-common-lines",	no_argument,		NULL,	OPT_SUPPRESS_COMMON },
+	{ "color",			optional_argument,	NULL,	OPT_COLOR },
 	{ NULL,				0,			0,	'\0'}
 };
 
@@ -108,6 +112,7 @@ static void push_ignore_pats(char *);
 static void read_excludes_file(char *file);
 static void set_argstr(char **, char **);
 static char *splice(char *, char *);
+static bool do_color(void);
 
 int
 main(int argc, char **argv)
@@ -301,6 +306,17 @@ main(int argc, char **argv)
 		case OPT_SUPPRESS_COMMON:
 			suppress_common = 1;
 			break;
+		case OPT_COLOR:
+			if (optarg == NULL || strncmp(optarg, "auto", 4) == 0)
+				colorflag = COLORFLAG_AUTO;
+			else if (strncmp(optarg, "always", 6) == 0)
+				colorflag = COLORFLAG_ALWAYS;
+			else if (strncmp(optarg, "never", 5) == 0)
+				colorflag = COLORFLAG_NEVER;
+			else
+				errx(2, "unsupported --color value '%s' (must be always, auto, or never)",
+					optarg);
+			break;
 		default:
 			usage();
 			break;
@@ -315,6 +331,22 @@ main(int argc, char **argv)
 		diff_format = D_NORMAL;
 	argc -= optind;
 	argv += optind;
+
+	if (do_color()) {
+		char *p;
+		const char *env;
+
+		color = true;
+		add_code = "32";
+		del_code = "31";
+		env = getenv("DIFFCOLORS");
+		if (env != NULL && *env != '\0' && (p = strdup(env))) {
+			add_code = p;
+			strsep(&p, ":");
+			if (p != NULL)
+				del_code = p;
+		}
+	}
 
 #ifdef __OpenBSD__
 	if (pledge("stdio rpath tmppath", NULL) == -1)
@@ -543,6 +575,27 @@ conflicting_format(void)
 
 	fprintf(stderr, "error: conflicting output format options.\n");
 	usage();
+}
+
+static bool
+do_color(void)
+{
+	const char *p, *p2;
+
+	switch (colorflag) {
+	case COLORFLAG_AUTO:
+		p = getenv("CLICOLOR");
+		p2 = getenv("COLORTERM");
+		if ((p != NULL && *p != '\0') || (p2 != NULL && *p2 != '\0'))
+			return isatty(STDOUT_FILENO);
+		break;
+	case COLORFLAG_ALWAYS:
+		return (true);
+	case COLORFLAG_NEVER:
+		return (false);
+	}
+
+	return (false);
 }
 
 static char *
