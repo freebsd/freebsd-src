@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/capsicum.h>
+#include <sys/event.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/msan.h>
@@ -241,7 +242,8 @@ ast(struct trapframe *framep)
 	thread_lock(td);
 	flags = td->td_flags;
 	td->td_flags &= ~(TDF_ASTPENDING | TDF_NEEDSIGCHK | TDF_NEEDSUSPCHK |
-	    TDF_NEEDRESCHED | TDF_ALRMPEND | TDF_PROFPEND | TDF_MACPEND);
+	    TDF_NEEDRESCHED | TDF_ALRMPEND | TDF_PROFPEND | TDF_MACPEND |
+	    TDF_KQTICKLED);
 	thread_unlock(td);
 	VM_CNT_INC(v_trap);
 
@@ -342,6 +344,9 @@ ast(struct trapframe *framep)
 	} else {
 		resched_sigs = false;
 	}
+
+	if ((flags & TDF_KQTICKLED) != 0)
+		kqueue_drain_schedtask();
 
 	/*
 	 * Handle deferred update of the fast sigblock value, after
