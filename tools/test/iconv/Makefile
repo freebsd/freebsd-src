@@ -39,9 +39,9 @@ make-ref: refgen
 	mkdir -p ref
 .for enc in ${ENCODING}
 	@echo "Generating ${enc} --> UTF-32 ..."
-	-@${REF_FWD} ${enc} >ref/${enc}
+	-@${REF_FWD} ${enc} >${.CURDIR}/ref/${enc}
 	@echo "Generating UTF-32 --> ${enc} ..."
-	-@${REF_REV} ${enc} >ref/${enc}-rev
+	-@${REF_REV} ${enc} >${.CURDIR}/ref/${enc}-rev
 .endfor
 
 check: tablegen
