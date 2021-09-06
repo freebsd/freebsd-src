@@ -38,6 +38,11 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20211222: stop installing {llvm,clang,lldb}-tblgen
+OLD_FILES+=usr/bin/llvm-tblgen
+OLD_FILES+=usr/bin/clang-tblgen
+OLD_FILES+=usr/bin/lldb-tblgen
+
 # 20211222: new clang import which bumps version from 12.0.0 to 12.0.1.
 OLD_FILES+=usr/lib/clang/12.0.0/include/cuda_wrappers/algorithm
 OLD_FILES+=usr/lib/clang/12.0.0/include/cuda_wrappers/complex
