@@ -200,7 +200,7 @@ main (int argc, char *argv[])
 	struct iconv_fallbacks fbs;
 	iconv_t cd;
 	char *tocode;
-	char c;
+	int c;
 
 	while (((c = getopt_long(argc, argv, optstr, long_options, NULL)) != -1)) {
 		switch (c) {
