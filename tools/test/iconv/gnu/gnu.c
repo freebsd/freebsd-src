@@ -243,8 +243,8 @@ ctl_uc_hook(void)
 	struct iconv_hooks hooks;
 	iconv_t cd;
 	size_t inbytesleft = 15, outbytesleft = 40;
-	const char **inptr;
-	const char *s = "Hello World!";
+	char **inptr;
+	char *s = "Hello World!";
 	char **outptr;
 	char *outbuf;
 
@@ -273,8 +273,8 @@ ctl_wc_hook(void)
 	struct iconv_hooks hooks;
 	iconv_t cd;
 	size_t inbytesleft, outbytesleft = 40;
-	const char **inptr;
-	const char *s = "Hello World!";
+	char **inptr;
+	char *s = "Hello World!";
 	char **outptr;
 	char *outbuf;
 
@@ -350,7 +350,7 @@ ctl_mb_to_uc_fb(void)
 	size_t inbytesleft, outbytesleft;
 	uint16_t inbuf[1] = { 0xF187 };
 	uint8_t outbuf[4] = { 0x00, 0x00, 0x00, 0x00 };
-	const char *inptr;
+	char *inptr;
 	char *outptr;
 	int ret;
 
@@ -366,7 +366,7 @@ ctl_mb_to_uc_fb(void)
 	if (iconvctl(cd, ICONV_SET_FALLBACKS, (void *)&fb) != 0)
 		return (1);
 
-	inptr = (const char *)inbuf;
+	inptr = (char *)inbuf;
 	outptr = (char *)outbuf;
 	inbytesleft = 2;
 	outbytesleft = 4;
@@ -389,7 +389,7 @@ gnu_openinto(void)
 {
 	iconv_allocation_t *myspace;
 	size_t inbytesleft, outbytesleft;
-	const char *inptr;
+	char *inptr;
 	char *inbuf = "works!", *outptr;
 	char outbuf[6];
 
@@ -398,7 +398,7 @@ gnu_openinto(void)
 	if (iconv_open_into("ASCII", "ASCII", myspace) == -1)
 		return (1);
 
-	inptr = (const char *)inbuf;
+	inptr = (char *)inbuf;
 	outptr = (char *)outbuf;
 	inbytesleft = 6;
 	outbytesleft = 6;
