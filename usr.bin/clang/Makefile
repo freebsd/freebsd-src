@@ -2,12 +2,8 @@
 
 .include <src.opts.mk>
 
+.if ${MK_CLANG} != "no"
 SUBDIR+=	clang
-SUBDIR+=	clang-tblgen
-SUBDIR+=	llvm-tblgen
-
-.if ${MK_LLDB} != "no"
-SUBDIR+=	lldb-tblgen
 .endif
 
 .if !defined(TOOLS_PREFIX)
