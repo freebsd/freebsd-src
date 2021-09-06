@@ -29,10 +29,10 @@ ENCODING+= ATARIST BIG5-2003 C99 CP1046 CP1124 CP1125 CP1129 CP1131 CP1133 \
 #	MACHEBREW
 .endif
 
-GEN_FWD?= ${.CURDIR}/tablegen/tablegen -t
-GEN_REV?= ${.CURDIR}/tablegen/tablegen -tr
-REF_FWD?= ${.CURDIR}/refgen/refgen -t
-REF_REV?= ${.CURDIR}/refgen/refgen -tr
+GEN_FWD?= ${.OBJDIR}/tablegen/tablegen -t
+GEN_REV?= ${.OBJDIR}/tablegen/tablegen -tr
+REF_FWD?= ${.OBJDIR}/refgen/refgen -t
+REF_REV?= ${.OBJDIR}/refgen/refgen -tr
 CMP?=	${.CURDIR}/tablegen/cmp.sh
 
 make-ref: refgen
@@ -49,10 +49,10 @@ check: tablegen
 .for enc in ${ENCODING}
 	@echo "Checking ${enc} --> UTF-32 ..."
 	-@${GEN_FWD} ${enc} >output/${enc}
-	@${CMP} ref/${enc} output/${enc}
+	@${CMP} ${.CURDIR}/ref/${enc} ${.OBJDIR}/output/${enc}
 	@echo "Checking UTF-32 --> ${enc} ..."
 	-@${GEN_REV} ${enc} >output/${enc}-rev
-	@${CMP} ref/${enc}-rev output/${enc}-rev
+	@${CMP} ${.CURDIR}/ref/${enc}-rev ${.OBJDIR}/output/${enc}-rev
 .endfor
 
 perftest: refgen tablegen
@@ -70,10 +70,10 @@ perftest: refgen tablegen
 .endfor
 
 posixtest: posix
-	@${.CURDIR}/posix/posix
+	@${.OBJDIR}/posix/posix
 
 gnutest: gnu
-	@${.CURDIR}/gnu/gnu
+	@${.OBJDIR}/gnu/gnu
 
 test-everything: check perftest posixtest gnutest
 
