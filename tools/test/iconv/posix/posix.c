@@ -108,7 +108,7 @@ conv_ret(void)
 {
 	iconv_t cd;
 	size_t inbytesleft, outbytesleft;
-	const char *inptr;
+	char *inptr;
 	char *outptr;
 	uint32_t outbuf[4];
 	uint32_t inbuf[2] = { 0x00000151, 0x00000171 };
@@ -116,7 +116,7 @@ conv_ret(void)
 	if ((cd = iconv_open("ASCII", "UTF-32LE")) == (iconv_t)-1)
 		return (1);
 
-	inptr = (const char *)inbuf;
+	inptr = (char *)inbuf;
 	outptr = (char *)outbuf;
 	inbytesleft = 8;
 	outbytesleft = 16;
@@ -129,7 +129,7 @@ conv_2big(void)
 {
 	iconv_t cd;
 	size_t inbytesleft, outbytesleft;
-	const char *inptr;
+	char *inptr;
 	char *outptr;
 	uint32_t inbuf[4];
 	uint32_t outbuf[2];
@@ -138,7 +138,7 @@ conv_2big(void)
 	if ((cd = iconv_open("ASCII", "ASCII")) == (iconv_t)-1)
 		return (1);
 
-	inptr = (const char *)inbuf;
+	inptr = (char *)inbuf;
 	outptr = (char *)outbuf;
 	inbytesleft = 16;
 	outbytesleft = 8;
@@ -168,7 +168,7 @@ conv_einval(void)
 {
 	iconv_t	 cd;
 	size_t inbytesleft, outbytesleft;
-	const char *inptr;
+	char *inptr;
 	char *outptr;
 	uint32_t outbuf[4];
         uint16_t inbuf[1] = { 0xEA42 };
@@ -177,7 +177,7 @@ conv_einval(void)
 	if ((cd = iconv_open("UTF-32", "BIG5")) == (iconv_t)-1)
 		return (1);
 
-	inptr = (const char *)inbuf;
+	inptr = (char *)inbuf;
 	outptr = (char *)outbuf;
 	inbytesleft = 2;
 	outbytesleft = 16;
@@ -207,7 +207,7 @@ conv_eilseq(void)
 {
 	iconv_t cd;
 	size_t inbytesleft, outbytesleft;
-	const char *inptr;
+	char *inptr;
 	char *outptr;
 	uint32_t outbuf[4];
 	uint16_t inbuf[1] = { 0x8AC0 };
@@ -216,7 +216,7 @@ conv_eilseq(void)
 	if ((cd = iconv_open("Latin2", "UTF-16LE")) == (iconv_t)-1)
 		return (1);
 
-	inptr = (const char *)inbuf;
+	inptr = (char *)inbuf;
 	outptr = (char *)outbuf;
 	inbytesleft = 4;
 	outbytesleft = 16;
