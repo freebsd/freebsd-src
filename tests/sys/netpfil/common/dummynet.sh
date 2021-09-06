@@ -53,7 +53,9 @@ pipe_body()
 
 	firewall_config alcatraz ${fw} \
 		"ipfw"	\
-			"ipfw add 1000 pipe 1 ip from any to any"
+			"ipfw add 1000 pipe 1 ip from any to any" \
+		"pf"	\
+			"pass dnpipe 1"
 
 	# single ping succeeds just fine
 	atf_check -s exit:0 -o ignore ping -c 1 192.0.2.2
@@ -95,7 +97,9 @@ pipe_v6_body()
 
 	firewall_config alcatraz ${fw} \
 		"ipfw"	\
-			"ipfw add 1000 pipe 1 ip6 from any to any"
+			"ipfw add 1000 pipe 1 ip6 from any to any" \
+		"pf"	\
+			"pass dnpipe 1"
 
 	# Single ping succeeds
 	atf_check -s exit:0 -o ignore ping6 -c 1 2001:db8:42::2
@@ -149,7 +153,10 @@ queue_body()
 		"ipfw"	\
 			"ipfw add 1000 queue 100 tcp from 192.0.2.2 to any out" \
 			"ipfw add 1001 queue 200 icmp from 192.0.2.2 to any out" \
-			"ipfw add 1002 allow ip from any to any"
+			"ipfw add 1002 allow ip from any to any" \
+		"pf"	\
+			"pass in proto tcp dnqueue (0, 100)" \
+			"pass in proto icmp dnqueue (0, 200)"
 
 	# Single ping succeeds
 	atf_check -s exit:0 -o ignore ping -c 1 192.0.2.2
@@ -188,7 +195,10 @@ queue_body()
 		"ipfw"	\
 			"ipfw add 1000 queue 200 tcp from 192.0.2.2 to any out" \
 			"ipfw add 1001 queue 100 icmp from 192.0.2.2 to any out" \
-			"ipfw add 1002 allow ip from any to any"
+			"ipfw add 1002 allow ip from any to any" \
+		"pf"	\
+			"pass in proto tcp dnqueue (0, 200)" \
+			"pass in proto icmp dnqueue (0, 100)"
 
 	jexec alcatraz ping -f -s 1300 192.0.2.1 &
 	sleep 1
@@ -253,8 +263,8 @@ queue_v6_body()
 			"ipfw add 1000 queue 200 ipv6-icmp from 2001:db8:42::2 to any out" \
 			"ipfw add 1002 allow ip6 from any to any" \
 		"pf" \
-			"pass out proto tcp dnqueue 100"	\
-			"pass out proto icmp6 dnqueue 200"
+			"pass in proto tcp dnqueue (0, 100)"	\
+			"pass in proto icmp6 dnqueue (0, 200)"
 
 	# Single ping succeeds
 	atf_check -s exit:0 -o ignore ping6 -c 1 2001:db8:42::2
@@ -295,8 +305,8 @@ queue_v6_body()
 			"ipfw add 1000 queue 100 ipv6-icmp from 2001:db8:42::2 to any out" \
 			"ipfw add 1002 allow ip6 from any to any" \
 		"pf" \
-			"pass out proto tcp dnqueue 200"	\
-			"pass out proto icmp6 dnqueue 100"
+			"pass in proto tcp dnqueue (0, 200)"	\
+			"pass in proto icmp6 dnqueue (0, 100)"
 
 	fails=0
 	for i in `seq 1 3`
@@ -322,9 +332,13 @@ queue_v6_cleanup()
 setup_tests		\
 	pipe		\
 		ipfw	\
+		pf	\
 	pipe_v6		\
 		ipfw	\
+		pf	\
 	queue		\
 		ipfw	\
+		pf	\
 	queue_v6	\
-		ipfw
+		ipfw	\
+		pf
