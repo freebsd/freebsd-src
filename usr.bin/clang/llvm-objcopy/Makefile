@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <src.opts.mk>
+
 PROG_CXX=	llvm-objcopy
 
 SRCDIR=		llvm/tools/llvm-objcopy
@@ -41,5 +43,10 @@ DPSRCS+=	${TGHDRS}
 CLEANFILES+=	${TGHDRS} ${TGHDRS:C/$/.d/}
 
 LIBADD+=	z
+
+.if ${MK_LLVM_BINUTILS} != "no"
+LINKS=		${BINDIR}/llvm-objcopy ${BINDIR}/objcopy
+MLINKS=		llvm-objcopy.1 objcopy.1
+.endif
 
 .include "../llvm.prog.mk"

@@ -210,6 +210,7 @@ __DEFAULT_NO_OPTIONS = \
     LOADER_FIREWIRE \
     LOADER_FORCE_LE \
     LOADER_VERIEXEC_PASS_MANIFEST \
+    LLVM_BINUTILS \
     NAND \
     OFED_EXTRA \
     OPENLDAP \
@@ -562,6 +563,7 @@ MK_GDB:=	no
 MK_INCLUDES:=	no
 MK_LLD:=	no
 MK_LLDB:=	no
+MK_LLVM_BINUTILS:=	no
 .endif
 
 .if ${MK_CLANG} == "no"
@@ -569,6 +571,12 @@ MK_CLANG_EXTRAS:= no
 MK_CLANG_FORMAT:= no
 MK_CLANG_FULL:= no
 MK_LLVM_COV:= no
+.endif
+
+.if ${MK_LLVM_BINUTILS} == "yes"
+# MK_LLVM_CXXFILT is a subset of MK_LLVM_BINUTILS and should therefore be
+# enabled if MK_LLVM_BINUTILS is set.
+MK_LLVM_CXXFILT:=	yes
 .endif
 
 .if ${MK_LOADER_VERIEXEC} == "no"

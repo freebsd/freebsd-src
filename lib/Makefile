@@ -145,7 +145,10 @@ SUBDIR.${MK_BLUETOOTH}+=libbluetooth libsdp
 SUBDIR.${MK_BSNMP}+=	libbsnmp
 
 .if !defined(COMPAT_32BIT) && !defined(COMPAT_SOFTFP)
-SUBDIR.${MK_CLANG}+=	clang
+.if ${MK_CLANG} != "no" || ${MK_LLD} != "no" || \
+    ${MK_LLDB} != "no" || ${MK_LLVM_BINUTILS} != "no"
+SUBDIR+=	clang
+.endif
 .endif
 
 SUBDIR.${MK_CUSE}+= 	libcuse
