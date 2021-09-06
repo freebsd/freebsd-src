@@ -535,6 +535,41 @@ info_get_ifp(struct rt_addrinfo *info)
 }
 
 /*
+ * Calculates proper ifa/ifp for the cases when gateway AF is different
+ * from dst AF.
+ *
+ * Returns 0 on success.
+ */
+__noinline static int
+rt_getifa_family(struct rt_addrinfo *info, uint32_t fibnum)
+{
+	if (info->rti_ifp == NULL) {
+		struct ifaddr *ifa = NULL;
+		/*
+		 * No transmit interface specified. Guess it by checking gw sa.
+		 */
+		const struct sockaddr *gw = info->rti_info[RTAX_GATEWAY];
+		ifa = ifa_ifwithroute(RTF_GATEWAY, gw, gw, fibnum);
+		if (ifa == NULL)
+			return (ENETUNREACH);
+		info->rti_ifp = ifa->ifa_ifp;
+	}
+
+	/* Prefer address from outgoing interface */
+	info->rti_ifa = ifaof_ifpforaddr(info->rti_info[RTAX_DST], info->rti_ifp);
+#ifdef INET
+	if (info->rti_ifa == NULL) {
+		/* Use first found IPv4 address */
+		bool loopback_ok = info->rti_ifp->if_flags & IFF_LOOPBACK;
+		info->rti_ifa = (struct ifaddr *)in_findlocal(fibnum, loopback_ok);
+	}
+#endif
+	if (info->rti_ifa == NULL)
+		return (ENETUNREACH);
+	return (0);
+}
+
+/*
  * Look up rt_addrinfo for a specific fib.
  *
  * Assume basic consistency checks are executed by callers:
@@ -566,6 +601,9 @@ rt_getifa_fib(struct rt_addrinfo *info, u_int fibnum)
 	 */
 	if (info->rti_ifa == NULL && ifaaddr != NULL)
 		info->rti_ifa = ifa_ifwithaddr(ifaaddr);
+	if ((info->rti_ifa == NULL) && ((info->rti_flags & RTF_GATEWAY) != 0) &&
+	    (gateway->sa_family != dst->sa_family))
+		return (rt_getifa_family(info, fibnum));
 	if (info->rti_ifa == NULL) {
 		const struct sockaddr *sa;
 
