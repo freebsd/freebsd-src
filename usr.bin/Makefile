@@ -198,7 +198,10 @@ SUBDIR.${MK_ATM}+=	atm
 SUBDIR.${MK_BLUETOOTH}+=	bluetooth
 SUBDIR.${MK_BSD_CPIO}+=	cpio
 SUBDIR.${MK_CALENDAR}+=	calendar
-SUBDIR.${MK_CLANG}+=	clang
+.if ${MK_CLANG} != "no" || ${MK_LLVM_BINUTILS} != "no" || \
+    ${MK_LLD} != "no" || ${MK_LLDB} != "no"
+SUBDIR+=	clang
+.endif
 SUBDIR.${MK_DIALOG}+=	dpv
 SUBDIR.${MK_EE}+=	ee
 SUBDIR.${MK_FILE}+=	file
@@ -254,25 +257,28 @@ SUBDIR.${MK_TESTS_SUPPORT}.${MK_CXX}+=	kyua
 SUBDIR.${MK_TESTS}+=	tests
 SUBDIR.${MK_TEXTPROC}+=	ul
 SUBDIR.${MK_TFTP}+=	tftp
+.if ${MK_LLVM_BINUTILS} == "no"
+# Only build the elftoolchain tools if we aren't using the LLVM ones.
 SUBDIR.${MK_TOOLCHAIN}+=	addr2line
 SUBDIR.${MK_TOOLCHAIN}+=	ar
+SUBDIR.${MK_TOOLCHAIN}+=	nm
+SUBDIR.${MK_TOOLCHAIN}+=	objcopy
+SUBDIR.${MK_TOOLCHAIN}+=	readelf
+SUBDIR.${MK_TOOLCHAIN}+=	size
+.endif
 SUBDIR.${MK_TOOLCHAIN}+=	c89
 SUBDIR.${MK_TOOLCHAIN}+=	c99
 SUBDIR.${MK_TOOLCHAIN}+=	ctags
 .if ${MK_LLVM_CXXFILT} == "no"
 SUBDIR.${MK_TOOLCHAIN}+=	cxxfilt
 .endif
-SUBDIR.${MK_TOOLCHAIN}+=	objcopy
 SUBDIR.${MK_TOOLCHAIN}+=	file2c
 SUBDIR.${MK_TOOLCHAIN}+=	gprof
 SUBDIR.${MK_TOOLCHAIN}+=	indent
 SUBDIR.${MK_TOOLCHAIN}+=	lex
 SUBDIR.${MK_TOOLCHAIN}+=	mkstr
-SUBDIR.${MK_TOOLCHAIN}+=	nm
-SUBDIR.${MK_TOOLCHAIN}+=	readelf
 SUBDIR.${MK_TOOLCHAIN}+=	rpcgen
 SUBDIR.${MK_TOOLCHAIN}+=	unifdef
-SUBDIR.${MK_TOOLCHAIN}+=	size
 SUBDIR.${MK_TOOLCHAIN}+=	xstr
 SUBDIR.${MK_TOOLCHAIN}+=	yacc
 SUBDIR.${MK_VI}+=	vi

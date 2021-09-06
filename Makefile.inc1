@@ -765,6 +765,7 @@ XMAKE=		${BMAKE} \
 		TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
 		MK_CLANG_IS_CC=${MK_CLANG_BOOTSTRAP} \
 		MK_LLDB=no \
+		MK_LLVM_BINUTILS=no \
 		MK_TESTS=no
 
 # kernel-tools stage
@@ -2331,9 +2332,10 @@ _gensnmptree=	usr.sbin/bsnmpd/gensnmptree
 
 # We need to build tblgen when we're building clang or lld, either as
 # bootstrap tools, or as the part of the normal build.
+# llvm-tblgen is also needed for various llvm binutils (e.g. objcopy).
 .if ${MK_CLANG_BOOTSTRAP} != "no" || ${MK_CLANG} != "no" || \
     ${MK_LLD_BOOTSTRAP} != "no" || ${MK_LLD} != "no" || \
-    ${MK_LLDB} != "no"
+    ${MK_LLDB} != "no" || ${MK_LLVM_BINUTILS} != "no"
 _clang_tblgen= \
 	lib/clang/libllvmminimal \
 	usr.bin/clang/llvm-tblgen
