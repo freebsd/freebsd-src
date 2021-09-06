@@ -189,6 +189,40 @@ in_localip_more(struct in_ifaddr *original_ia)
 }
 
 /*
+ * Tries to find first IPv4 address in the provided fib.
+ * Prefers non-loopback addresses and return loopback IFF
+ * @loopback_ok is set.
+ *
+ * Returns ifa or NULL.
+ */
+struct in_ifaddr *
+in_findlocal(uint32_t fibnum, bool loopback_ok)
+{
+	struct rm_priotracker in_ifa_tracker;
+	struct in_ifaddr *ia = NULL, *ia_lo = NULL;
+
+	NET_EPOCH_ASSERT();
+
+	IN_IFADDR_RLOCK(&in_ifa_tracker);
+	CK_STAILQ_FOREACH(ia, &V_in_ifaddrhead, ia_link) {
+		uint32_t ia_fib = ia->ia_ifa.ifa_ifp->if_fib;
+		if (!V_rt_add_addr_allfibs && (fibnum != ia_fib))
+			continue;
+
+		if (!IN_LOOPBACK(ntohl(IA_SIN(ia)->sin_addr.s_addr)))
+			break;
+		if (loopback_ok)
+			ia_lo = ia;
+	}
+	IN_IFADDR_RUNLOCK(&in_ifa_tracker);
+
+	if (ia == NULL)
+		ia = ia_lo;
+
+	return (ia);
+}
+
+/*
  * Determine whether an IP address is in a reserved set of addresses
  * that may not be forwarded, or whether datagrams to that destination
  * may be forwarded.
