@@ -146,8 +146,9 @@ SRCF+=		floatundisf
 SRCF+=		floatundixf
 .endif
 
-# __cpu_model support, only used on x86
-.if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
+# __cpu_model support, only used on aarch64 and x86
+.if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "amd64" || \
+    ${MACHINE_CPUARCH} == "i386"
 SRCF+=		cpu_model
 .endif
 
