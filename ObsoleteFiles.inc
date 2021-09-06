@@ -40,6 +40,11 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20210906: stop installing {llvm,clang,lldb}-tblgen
+OLD_FILES+=usr/bin/llvm-tblgen
+OLD_FILES+=usr/bin/clang-tblgen
+OLD_FILES+=usr/bin/lldb-tblgen
+
 # 20210810: remove Pentium-related man pages and references
 OLD_FILES+=usr/share/man/man3/pmc.p4.3.gz
 OLD_FILES+=usr/share/man/man3/pmc.p5.3.gz
