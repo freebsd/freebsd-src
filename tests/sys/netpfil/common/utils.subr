@@ -111,11 +111,14 @@ dummynet_init()
 		atf_skip "This test requires dummynet"
 	fi
 
-	if [ ${firewall} == "ipfw" ]; then
+	case $firewall in
+	ipfw|pf)
 		# Nothing. This is okay.
-	else
+		;;
+	*)
 		atf_skip "${firewall} does not support dummynet"
-	fi
+		;;
+	esac
 }
 
 nat_init()
