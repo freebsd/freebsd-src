@@ -79,7 +79,7 @@ static int	acpi_timer_sysctl_freq(SYSCTL_HANDLER_ARGS);
 static void	acpi_timer_boot_test(void);
 
 static int	acpi_timer_test(void);
-static int	acpi_timer_test_enabled = 1;
+static int	acpi_timer_test_enabled = 0;
 TUNABLE_INT("hw.acpi.timer_test_enabled", &acpi_timer_test_enabled);
 
 static device_method_t acpi_timer_methods[] = {
