@@ -12,6 +12,7 @@
 
 name="wpa_supplicant"
 desc="WPA/802.11i Supplicant for wireless network devices"
+start_postcmd="wpa_poststart"
 rcvar=
 
 ifn="$2"
@@ -25,6 +26,10 @@ is_ndis_interface()
 		ndis*) true ;;
 		*) false ;;
 	esac
+}
+
+wpa_poststart() {
+	ifconfig ${ifn} up
 }
 
 if is_wired_interface ${ifn} ; then
