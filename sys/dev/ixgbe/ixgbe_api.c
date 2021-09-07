@@ -72,16 +72,16 @@ void ixgbe_dcb_get_rtrup2tc(struct ixgbe_hw *hw, u8 *map)
 }
 
 /**
- *  ixgbe_init_shared_code - Initialize the shared code
- *  @hw: pointer to hardware structure
+ * ixgbe_init_shared_code - Initialize the shared code
+ * @hw: pointer to hardware structure
  *
- *  This will assign function pointers and assign the MAC type and PHY code.
- *  Does not touch the hardware. This function must be called prior to any
- *  other function in the shared code. The ixgbe_hw structure should be
- *  memset to 0 prior to calling this function.  The following fields in
- *  hw structure should be filled in prior to calling this function:
- *  hw_addr, back, device_id, vendor_id, subsystem_device_id,
- *  subsystem_vendor_id, and revision_id
+ * This will assign function pointers and assign the MAC type and PHY code.
+ * Does not touch the hardware. This function must be called prior to any
+ * other function in the shared code. The ixgbe_hw structure should be
+ * memset to 0 prior to calling this function.  The following fields in
+ * hw structure should be filled in prior to calling this function:
+ * hw_addr, back, device_id, vendor_id, subsystem_device_id,
+ * subsystem_vendor_id, and revision_id
  **/
 s32 ixgbe_init_shared_code(struct ixgbe_hw *hw)
 {
@@ -123,11 +123,11 @@ s32 ixgbe_init_shared_code(struct ixgbe_hw *hw)
 }
 
 /**
- *  ixgbe_set_mac_type - Sets MAC type
- *  @hw: pointer to the HW structure
+ * ixgbe_set_mac_type - Sets MAC type
+ * @hw: pointer to the HW structure
  *
- *  This function sets the mac type of the adapter based on the
- *  vendor ID and device ID stored in the hw structure.
+ * This function sets the mac type of the adapter based on the
+ * vendor ID and device ID stored in the hw structure.
  **/
 s32 ixgbe_set_mac_type(struct ixgbe_hw *hw)
 {
@@ -224,10 +224,10 @@ s32 ixgbe_set_mac_type(struct ixgbe_hw *hw)
 }
 
 /**
- *  ixgbe_init_hw - Initialize the hardware
- *  @hw: pointer to hardware structure
+ * ixgbe_init_hw - Initialize the hardware
+ * @hw: pointer to hardware structure
  *
- *  Initialize the hardware by resetting and then starting the hardware
+ * Initialize the hardware by resetting and then starting the hardware
  **/
 s32 ixgbe_init_hw(struct ixgbe_hw *hw)
 {
@@ -236,11 +236,11 @@ s32 ixgbe_init_hw(struct ixgbe_hw *hw)
 }
 
 /**
- *  ixgbe_reset_hw - Performs a hardware reset
- *  @hw: pointer to hardware structure
+ * ixgbe_reset_hw - Performs a hardware reset
+ * @hw: pointer to hardware structure
  *
- *  Resets the hardware by resetting the transmit and receive units, masks and
- *  clears all interrupts, performs a PHY reset, and performs a MAC reset
+ * Resets the hardware by resetting the transmit and receive units, masks and
+ * clears all interrupts, performs a PHY reset, and performs a MAC reset
  **/
 s32 ixgbe_reset_hw(struct ixgbe_hw *hw)
 {
@@ -249,14 +249,14 @@ s32 ixgbe_reset_hw(struct ixgbe_hw *hw)
 }
 
 /**
- *  ixgbe_start_hw - Prepares hardware for Rx/Tx
- *  @hw: pointer to hardware structure
+ * ixgbe_start_hw - Prepares hardware for Rx/Tx
+ * @hw: pointer to hardware structure
  *
- *  Starts the hardware by filling the bus info structure and media type,
- *  clears all on chip counters, initializes receive address registers,
- *  multicast table, VLAN filter table, calls routine to setup link and
- *  flow control settings, and leaves transmit and receive units disabled
- *  and uninitialized.
+ * Starts the hardware by filling the bus info structure and media type,
+ * clears all on chip counters, initializes receive address registers,
+ * multicast table, VLAN filter table, calls routine to setup link and
+ * flow control settings, and leaves transmit and receive units disabled
+ * and uninitialized.
  **/
 s32 ixgbe_start_hw(struct ixgbe_hw *hw)
 {
@@ -265,12 +265,12 @@ s32 ixgbe_start_hw(struct ixgbe_hw *hw)
 }
 
 /**
- *  ixgbe_enable_relaxed_ordering - Enables tx relaxed ordering,
- *  which is disabled by default in ixgbe_start_hw();
+ * ixgbe_enable_relaxed_ordering - Enables tx relaxed ordering,
+ * which is disabled by default in ixgbe_start_hw();
  *
- *  @hw: pointer to hardware structure
+ * @hw: pointer to hardware structure
  *
- *   Enable relaxed ordering;
+ *  Enable relaxed ordering;
  **/
 void ixgbe_enable_relaxed_ordering(struct ixgbe_hw *hw)
 {
@@ -279,11 +279,11 @@ void ixgbe_enable_relaxed_ordering(struct ixgbe_hw *hw)
 }
 
 /**
- *  ixgbe_clear_hw_cntrs - Clear hardware counters
- *  @hw: pointer to hardware structure
+ * ixgbe_clear_hw_cntrs - Clear hardware counters
+ * @hw: pointer to hardware structure
  *
- *  Clears all hardware statistics counters by reading them from the hardware
- *  Statistics counters are clear on read.
+ * Clears all hardware statistics counters by reading them from the hardware
+ * Statistics counters are clear on read.
  **/
 s32 ixgbe_clear_hw_cntrs(struct ixgbe_hw *hw)
 {
@@ -292,10 +292,10 @@ s32 ixgbe_clear_hw_cntrs(struct ixgbe_hw *hw)
 }
 
 /**
- *  ixgbe_get_media_type - Get media type
- *  @hw: pointer to hardware structure
+ * ixgbe_get_media_type - Get media type
+ * @hw: pointer to hardware structure
  *
- *  Returns the media type (fiber, copper, backplane)
+ * Returns the media type (fiber, copper, backplane)
  **/
 enum ixgbe_media_type ixgbe_get_media_type(struct ixgbe_hw *hw)
 {
@@ -304,14 +304,14 @@ enum ixgbe_media_type ixgbe_get_media_type(struct ixgbe_hw *hw)
 }
 
 /**
- *  ixgbe_get_mac_addr - Get MAC address
- *  @hw: pointer to hardware structure
- *  @mac_addr: Adapter MAC address
+ * ixgbe_get_mac_addr - Get MAC address
+ * @hw: pointer to hardware structure
+ * @mac_addr: Adapter MAC address
  *
- *  Reads the adapter's MAC address from the first Receive Address Register
- *  (RAR0) A reset of the adapter must have been performed prior to calling
- *  this function in order for the MAC address to have been loaded from the
- *  EEPROM into RAR0
+ * Reads the adapter's MAC address from the first Receive Address Register
+ * (RAR0) A reset of the adapter must have been performed prior to calling
+ * this function in order for the MAC address to have been loaded from the
+ * EEPROM into RAR0
  **/
 s32 ixgbe_get_mac_addr(struct ixgbe_hw *hw, u8 *mac_addr)
 {
@@ -320,12 +320,12 @@ s32 ixgbe_get_mac_addr(struct ixgbe_hw *hw, u8 *mac_addr)
 }
 
 /**
- *  ixgbe_get_san_mac_addr - Get SAN MAC address
- *  @hw: pointer to hardware structure
- *  @san_mac_addr: SAN MAC address
+ * ixgbe_get_san_mac_addr - Get SAN MAC address
+ * @hw: pointer to hardware structure
+ * @san_mac_addr: SAN MAC address
  *
- *  Reads the SAN MAC address from the EEPROM, if it's available.  This is
- *  per-port, so set_lan_id() must be called before reading the addresses.
+ * Reads the SAN MAC address from the EEPROM, if it's available.  This is
+ * per-port, so set_lan_id() must be called before reading the addresses.
  **/
 s32 ixgbe_get_san_mac_addr(struct ixgbe_hw *hw, u8 *san_mac_addr)
 {
@@ -334,11 +334,11 @@ s32 ixgbe_get_san_mac_addr(struct ixgbe_hw *hw, u8 *san_mac_addr)
 }
 
 /**
- *  ixgbe_set_san_mac_addr - Write a SAN MAC address
- *  @hw: pointer to hardware structure
- *  @san_mac_addr: SAN MAC address
+ * ixgbe_set_san_mac_addr - Write a SAN MAC address
+ * @hw: pointer to hardware structure
+ * @san_mac_addr: SAN MAC address
  *
- *  Writes A SAN MAC address to the EEPROM.
+ * Writes A SAN MAC address to the EEPROM.
  **/
 s32 ixgbe_set_san_mac_addr(struct ixgbe_hw *hw, u8 *san_mac_addr)
 {
@@ -347,11 +347,11 @@ s32 ixgbe_set_san_mac_addr(struct ixgbe_hw *hw, u8 *san_mac_addr)
 }
 
 /**
- *  ixgbe_get_device_caps - Get additional device capabilities
- *  @hw: pointer to hardware structure
- *  @device_caps: the EEPROM word for device capabilities
+ * ixgbe_get_device_caps - Get additional device capabilities
+ * @hw: pointer to hardware structure
+ * @device_caps: the EEPROM word for device capabilities
  *
- *  Reads the extra device capabilities from the EEPROM
+ * Reads the extra device capabilities from the EEPROM
  **/
 s32 ixgbe_get_device_caps(struct ixgbe_hw *hw, u16 *device_caps)
 {
@@ -360,13 +360,13 @@ s32 ixgbe_get_device_caps(struct ixgbe_hw *hw, u16 *device_caps)
 }
 
 /**
- *  ixgbe_get_wwn_prefix - Get alternative WWNN/WWPN prefix from the EEPROM
- *  @hw: pointer to hardware structure
- *  @wwnn_prefix: the alternative WWNN prefix
- *  @wwpn_prefix: the alternative WWPN prefix
+ * ixgbe_get_wwn_prefix - Get alternative WWNN/WWPN prefix from the EEPROM
+ * @hw: pointer to hardware structure
+ * @wwnn_prefix: the alternative WWNN prefix
+ * @wwpn_prefix: the alternative WWPN prefix
  *
- *  This function will read the EEPROM from the alternative SAN MAC address
- *  block to check the support for the alternative WWNN/WWPN prefix support.
+ * This function will read the EEPROM from the alternative SAN MAC address
+ * block to check the support for the alternative WWNN/WWPN prefix support.
  **/
 s32 ixgbe_get_wwn_prefix(struct ixgbe_hw *hw, u16 *wwnn_prefix,
 			 u16 *wwpn_prefix)
@@ -377,11 +377,11 @@ s32 ixgbe_get_wwn_prefix(struct ixgbe_hw *hw, u16 *wwnn_prefix,
 }
 
 /**
- *  ixgbe_get_fcoe_boot_status -  Get FCOE boot status from EEPROM
- *  @hw: pointer to hardware structure
- *  @bs: the fcoe boot status
+ * ixgbe_get_fcoe_boot_status -  Get FCOE boot status from EEPROM
+ * @hw: pointer to hardware structure
+ * @bs: the fcoe boot status
  *
- *  This function will read the FCOE boot status from the iSCSI FCOE block
+ * This function will read the FCOE boot status from the iSCSI FCOE block
  **/
 s32 ixgbe_get_fcoe_boot_status(struct ixgbe_hw *hw, u16 *bs)
 {
@@ -391,10 +391,10 @@ s32 ixgbe_get_fcoe_boot_status(struct ixgbe_hw *hw, u16 *bs)
 }
 
 /**
- *  ixgbe_get_bus_info - Set PCI bus info
- *  @hw: pointer to hardware structure
+ * ixgbe_get_bus_info - Set PCI bus info
+ * @hw: pointer to hardware structure
  *
- *  Sets the PCI bus info (speed, width, type) within the ixgbe_hw structure
+ * Sets the PCI bus info (speed, width, type) within the ixgbe_hw structure
  **/
 s32 ixgbe_get_bus_info(struct ixgbe_hw *hw)
 {
@@ -403,10 +403,10 @@ s32 ixgbe_get_bus_info(struct ixgbe_hw *hw)
 }
 
 /**
- *  ixgbe_get_num_of_tx_queues - Get Tx queues
- *  @hw: pointer to hardware structure
+ * ixgbe_get_num_of_tx_queues - Get Tx queues
+ * @hw: pointer to hardware structure
  *
- *  Returns the number of transmit queues for the given adapter.
+ * Returns the number of transmit queues for the given adapter.
  **/
 u32 ixgbe_get_num_of_tx_queues(struct ixgbe_hw *hw)
 {
@@ -414,10 +414,10 @@ u32 ixgbe_get_num_of_tx_queues(struct ixgbe_hw *hw)
 }
 
 /**
- *  ixgbe_get_num_of_rx_queues - Get Rx queues
- *  @hw: pointer to hardware structure
+ * ixgbe_get_num_of_rx_queues - Get Rx queues
+ * @hw: pointer to hardware structure
  *
- *  Returns the number of receive queues for the given adapter.
+ * Returns the number of receive queues for the given adapter.
  **/
 u32 ixgbe_get_num_of_rx_queues(struct ixgbe_hw *hw)
 {
@@ -425,13 +425,13 @@ u32 ixgbe_get_num_of_rx_queues(struct ixgbe_hw *hw)
 }
 
 /**
- *  ixgbe_stop_adapter - Disable Rx/Tx units
- *  @hw: pointer to hardware structure
+ * ixgbe_stop_adapter - Disable Rx/Tx units
+ * @hw: pointer to hardware structure
  *
- *  Sets the adapter_stopped flag within ixgbe_hw struct. Clears interrupts,
- *  disables transmit and receive units. The adapter_stopped flag is used by
- *  the shared code and drivers to determine if the adapter is in a stopped
- *  state and should not touch the hardware.
+ * Sets the adapter_stopped flag within ixgbe_hw struct. Clears interrupts,
+ * disables transmit and receive units. The adapter_stopped flag is used by
+ * the shared code and drivers to determine if the adapter is in a stopped
+ * state and should not touch the hardware.
  **/
 s32 ixgbe_stop_adapter(struct ixgbe_hw *hw)
 {
@@ -440,12 +440,12 @@ s32 ixgbe_stop_adapter(struct ixgbe_hw *hw)
 }
 
 /**
- *  ixgbe_read_pba_string - Reads part number string from EEPROM
- *  @hw: pointer to hardware structure
- *  @pba_num: stores the part number string from the EEPROM
- *  @pba_num_size: part number string buffer length
+ * ixgbe_read_pba_string - Reads part number string from EEPROM
+ * @hw: pointer to hardware structure
+ * @pba_num: stores the part number string from the EEPROM
+ * @pba_num_size: part number string buffer length
  *
- *  Reads the part number string from the EEPROM.
+ * Reads the part number string from the EEPROM.
  **/
 s32 ixgbe_read_pba_string(struct ixgbe_hw *hw, u8 *pba_num, u32 pba_num_size)
 {
@@ -453,11 +453,11 @@ s32 ixgbe_read_pba_string(struct ixgbe_hw *hw, u8 *pba_num, u32 pba_num_size)
 }
 
 /**
- *  ixgbe_read_pba_num - Reads part number from EEPROM
- *  @hw: pointer to hardware structure
- *  @pba_num: stores the part number from the EEPROM
+ * ixgbe_read_pba_num - Reads part number from EEPROM
+ * @hw: pointer to hardware structure
+ * @pba_num: stores the part number from the EEPROM
  *
- *  Reads the part number from the EEPROM.
+ * Reads the part number from the EEPROM.
  **/
 s32 ixgbe_read_pba_num(struct ixgbe_hw *hw, u32 *pba_num)
 {
@@ -465,10 +465,10 @@ s32 ixgbe_read_pba_num(struct ixgbe_hw *hw, u32 *pba_num)
 }
 
 /**
- *  ixgbe_identify_phy - Get PHY type
- *  @hw: pointer to hardware structure
+ * ixgbe_identify_phy - Get PHY type
+ * @hw: pointer to hardware structure
  *
- *  Determines the physical layer module found on the current adapter.
+ * Determines the physical layer module found on the current adapter.
  **/
 s32 ixgbe_identify_phy(struct ixgbe_hw *hw)
 {
@@ -483,8 +483,8 @@ s32 ixgbe_identify_phy(struct ixgbe_hw *hw)
 }
 
 /**
- *  ixgbe_reset_phy - Perform a PHY reset
- *  @hw: pointer to hardware structure
+ * ixgbe_reset_phy - Perform a PHY reset
+ * @hw: pointer to hardware structure
  **/
 s32 ixgbe_reset_phy(struct ixgbe_hw *hw)
 {
@@ -503,9 +503,9 @@ s32 ixgbe_reset_phy(struct ixgbe_hw *hw)
 }
 
 /**
- *  ixgbe_get_phy_firmware_version -
- *  @hw: pointer to hardware structure
- *  @firmware_version: pointer to firmware version
+ * ixgbe_get_phy_firmware_version -
+ * @hw: pointer to hardware structure
+ * @firmware_version: pointer to firmware version
  **/
 s32 ixgbe_get_phy_firmware_version(struct ixgbe_hw *hw, u16 *firmware_version)
 {
@@ -518,13 +518,13 @@ s32 ixgbe_get_phy_firmware_version(struct ixgbe_hw *hw, u16 *firmware_version)
 }
 
 /**
- *  ixgbe_read_phy_reg - Read PHY register
- *  @hw: pointer to hardware structure
- *  @reg_addr: 32 bit address of PHY register to read
- *  @device_type: type of device you want to communicate with
- *  @phy_data: Pointer to read data from PHY register
+ * ixgbe_read_phy_reg - Read PHY register
+ * @hw: pointer to hardware structure
+ * @reg_addr: 32 bit address of PHY register to read
+ * @device_type: type of device you want to communicate with
+ * @phy_data: Pointer to read data from PHY register
  *
- *  Reads a value from a specified PHY register
+ * Reads a value from a specified PHY register
  **/
 s32 ixgbe_read_phy_reg(struct ixgbe_hw *hw, u32 reg_addr, u32 device_type,
 		       u16 *phy_data)
@@ -537,13 +537,13 @@ s32 ixgbe_read_phy_reg(struct ixgbe_hw *hw, u32 reg_addr, u32 device_type,
 }
 
 /**
- *  ixgbe_write_phy_reg - Write PHY register
- *  @hw: pointer to hardware structure
- *  @reg_addr: 32 bit PHY register to write
- *  @device_type: type of device you want to communicate with
- *  @phy_data: Data to write to the PHY register
+ * ixgbe_write_phy_reg - Write PHY register
+ * @hw: pointer to hardware structure
+ * @reg_addr: 32 bit PHY register to write
+ * @device_type: type of device you want to communicate with
+ * @phy_data: Data to write to the PHY register
  *
- *  Writes a value to specified PHY register
+ * Writes a value to specified PHY register
  **/
 s32 ixgbe_write_phy_reg(struct ixgbe_hw *hw, u32 reg_addr, u32 device_type,
 			u16 phy_data)
@@ -556,10 +556,10 @@ s32 ixgbe_write_phy_reg(struct ixgbe_hw *hw, u32 reg_addr, u32 device_type,
 }
 
 /**
- *  ixgbe_setup_phy_link - Restart PHY autoneg
- *  @hw: pointer to hardware structure
+ * ixgbe_setup_phy_link - Restart PHY autoneg
+ * @hw: pointer to hardware structure
  *
- *  Restart autonegotiation and PHY and waits for completion.
+ * Restart autonegotiation and PHY and waits for completion.
  **/
 s32 ixgbe_setup_phy_link(struct ixgbe_hw *hw)
 {
@@ -582,13 +582,13 @@ s32 ixgbe_setup_internal_phy(struct ixgbe_hw *hw)
 }
 
 /**
- *  ixgbe_check_phy_link - Determine link and speed status
- *  @hw: pointer to hardware structure
- *  @speed: link speed
- *  @link_up: true when link is up
+ * ixgbe_check_phy_link - Determine link and speed status
+ * @hw: pointer to hardware structure
+ * @speed: link speed
+ * @link_up: true when link is up
  *
- *  Reads a PHY register to determine if link is up and the current speed for
- *  the PHY.
+ * Reads a PHY register to determine if link is up and the current speed for
+ * the PHY.
  **/
 s32 ixgbe_check_phy_link(struct ixgbe_hw *hw, ixgbe_link_speed *speed,
 			 bool *link_up)
@@ -598,12 +598,12 @@ s32 ixgbe_check_phy_link(struct ixgbe_hw *hw, ixgbe_link_speed *speed,
 }
 
 /**
- *  ixgbe_setup_phy_link_speed - Set auto advertise
- *  @hw: pointer to hardware structure
- *  @speed: new link speed
- *  @autoneg_wait_to_complete: true when waiting for completion is needed
+ * ixgbe_setup_phy_link_speed - Set auto advertise
+ * @hw: pointer to hardware structure
+ * @speed: new link speed
+ * @autoneg_wait_to_complete: true when waiting for completion is needed
  *
- *  Sets the auto advertised capabilities
+ * Sets the auto advertised capabilities
  **/
 s32 ixgbe_setup_phy_link_speed(struct ixgbe_hw *hw, ixgbe_link_speed speed,
 			       bool autoneg_wait_to_complete)
@@ -625,13 +625,13 @@ s32 ixgbe_set_phy_power(struct ixgbe_hw *hw, bool on)
 }
 
 /**
- *  ixgbe_check_link - Get link and speed status
- *  @hw: pointer to hardware structure
- *  @speed: pointer to link speed
- *  @link_up: true when link is up
- *  @link_up_wait_to_complete: bool used to wait for link up or not
+ * ixgbe_check_link - Get link and speed status
+ * @hw: pointer to hardware structure
+ * @speed: pointer to link speed
+ * @link_up: true when link is up
+ * @link_up_wait_to_complete: bool used to wait for link up or not
  *
- *  Reads the links register to determine if link is up and the current speed
+ * Reads the links register to determine if link is up and the current speed
  **/
 s32 ixgbe_check_link(struct ixgbe_hw *hw, ixgbe_link_speed *speed,
 		     bool *link_up, bool link_up_wait_to_complete)
@@ -642,10 +642,10 @@ s32 ixgbe_check_link(struct ixgbe_hw *hw, ixgbe_link_speed *speed,
 }
 
 /**
- *  ixgbe_disable_tx_laser - Disable Tx laser
- *  @hw: pointer to hardware structure
+ * ixgbe_disable_tx_laser - Disable Tx laser
+ * @hw: pointer to hardware structure
  *
- *  If the driver needs to disable the laser on SFI optics.
+ * If the driver needs to disable the laser on SFI optics.
  **/
 void ixgbe_disable_tx_laser(struct ixgbe_hw *hw)
 {
@@ -654,10 +654,10 @@ void ixgbe_disable_tx_laser(struct ixgbe_hw *hw)
 }
 
 /**
- *  ixgbe_enable_tx_laser - Enable Tx laser
- *  @hw: pointer to hardware structure
+ * ixgbe_enable_tx_laser - Enable Tx laser
+ * @hw: pointer to hardware structure
  *
- *  If the driver needs to enable the laser on SFI optics.
+ * If the driver needs to enable the laser on SFI optics.
  **/
 void ixgbe_enable_tx_laser(struct ixgbe_hw *hw)
 {
@@ -666,12 +666,12 @@ void ixgbe_enable_tx_laser(struct ixgbe_hw *hw)
 }
 
 /**
- *  ixgbe_flap_tx_laser - flap Tx laser to start autotry process
- *  @hw: pointer to hardware structure
+ * ixgbe_flap_tx_laser - flap Tx laser to start autotry process
+ * @hw: pointer to hardware structure
  *
- *  When the driver changes the link speeds that it can support then
- *  flap the tx laser to alert the link partner to start autotry
- *  process on its end.
+ * When the driver changes the link speeds that it can support then
+ * flap the tx laser to alert the link partner to start autotry
+ * process on its end.
  **/
 void ixgbe_flap_tx_laser(struct ixgbe_hw *hw)
 {
@@ -680,13 +680,13 @@ void ixgbe_flap_tx_laser(struct ixgbe_hw *hw)
 }
 
 /**
- *  ixgbe_setup_link - Set link speed
- *  @hw: pointer to hardware structure
- *  @speed: new link speed
- *  @autoneg_wait_to_complete: true when waiting for completion is needed
+ * ixgbe_setup_link - Set link speed
+ * @hw: pointer to hardware structure
+ * @speed: new link speed
+ * @autoneg_wait_to_complete: true when waiting for completion is needed
  *
- *  Configures link settings.  Restarts the link.
- *  Performs autonegotiation if needed.
+ * Configures link settings.  Restarts the link.
+ * Performs autonegotiation if needed.
  **/
 s32 ixgbe_setup_link(struct ixgbe_hw *hw, ixgbe_link_speed speed,
 		     bool autoneg_wait_to_complete)
@@ -697,13 +697,13 @@ s32 ixgbe_setup_link(struct ixgbe_hw *hw, ixgbe_link_speed speed,
 }
 
 /**
- *  ixgbe_setup_mac_link - Set link speed
- *  @hw: pointer to hardware structure
- *  @speed: new link speed
- *  @autoneg_wait_to_complete: true when waiting for completion is needed
+ * ixgbe_setup_mac_link - Set link speed
+ * @hw: pointer to hardware structure
+ * @speed: new link speed
+ * @autoneg_wait_to_complete: true when waiting for completion is needed
  *
- *  Configures link settings.  Restarts the link.
- *  Performs autonegotiation if needed.
+ * Configures link settings.  Restarts the link.
+ * Performs autonegotiation if needed.
  **/
 s32 ixgbe_setup_mac_link(struct ixgbe_hw *hw, ixgbe_link_speed speed,
 			 bool autoneg_wait_to_complete)
@@ -714,12 +714,12 @@ s32 ixgbe_setup_mac_link(struct ixgbe_hw *hw, ixgbe_link_speed speed,
 }
 
 /**
- *  ixgbe_get_link_capabilities - Returns link capabilities
- *  @hw: pointer to hardware structure
- *  @speed: link speed capabilities
- *  @autoneg: true when autoneg or autotry is enabled
+ * ixgbe_get_link_capabilities - Returns link capabilities
+ * @hw: pointer to hardware structure
+ * @speed: link speed capabilities
+ * @autoneg: true when autoneg or autotry is enabled
  *
- *  Determines the link capabilities of the current configuration.
+ * Determines the link capabilities of the current configuration.
  **/
 s32 ixgbe_get_link_capabilities(struct ixgbe_hw *hw, ixgbe_link_speed *speed,
 				bool *autoneg)
@@ -729,11 +729,11 @@ s32 ixgbe_get_link_capabilities(struct ixgbe_hw *hw, ixgbe_link_speed *speed,
 }
 
 /**
- *  ixgbe_led_on - Turn on LEDs
- *  @hw: pointer to hardware structure
- *  @index: led number to turn on
+ * ixgbe_led_on - Turn on LEDs
+ * @hw: pointer to hardware structure
+ * @index: led number to turn on
  *
- *  Turns on the software controllable LEDs.
+ * Turns on the software controllable LEDs.
  **/
 s32 ixgbe_led_on(struct ixgbe_hw *hw, u32 index)
 {
@@ -742,11 +742,11 @@ s32 ixgbe_led_on(struct ixgbe_hw *hw, u32 index)
 }
 
 /**
- *  ixgbe_led_off - Turn off LEDs
- *  @hw: pointer to hardware structure
- *  @index: led number to turn off
+ * ixgbe_led_off - Turn off LEDs
+ * @hw: pointer to hardware structure
+ * @index: led number to turn off
  *
- *  Turns off the software controllable LEDs.
+ * Turns off the software controllable LEDs.
  **/
 s32 ixgbe_led_off(struct ixgbe_hw *hw, u32 index)
 {
@@ -755,11 +755,11 @@ s32 ixgbe_led_off(struct ixgbe_hw *hw, u32 index)
 }
 
 /**
- *  ixgbe_blink_led_start - Blink LEDs
- *  @hw: pointer to hardware structure
- *  @index: led number to blink
+ * ixgbe_blink_led_start - Blink LEDs
+ * @hw: pointer to hardware structure
+ * @index: led number to blink
  *
- *  Blink LED based on index.
+ * Blink LED based on index.
  **/
 s32 ixgbe_blink_led_start(struct ixgbe_hw *hw, u32 index)
 {
@@ -768,11 +768,11 @@ s32 ixgbe_blink_led_start(struct ixgbe_hw *hw, u32 index)
 }
 
 /**
- *  ixgbe_blink_led_stop - Stop blinking LEDs
- *  @hw: pointer to hardware structure
- *  @index: led number to stop
+ * ixgbe_blink_led_stop - Stop blinking LEDs
+ * @hw: pointer to hardware structure
+ * @index: led number to stop
  *
- *  Stop blinking LED based on index.
+ * Stop blinking LED based on index.
  **/
 s32 ixgbe_blink_led_stop(struct ixgbe_hw *hw, u32 index)
 {
@@ -781,11 +781,11 @@ s32 ixgbe_blink_led_stop(struct ixgbe_hw *hw, u32 index)
 }
 
 /**
- *  ixgbe_init_eeprom_params - Initialize EEPROM parameters
- *  @hw: pointer to hardware structure
+ * ixgbe_init_eeprom_params - Initialize EEPROM parameters
+ * @hw: pointer to hardware structure
  *
- *  Initializes the EEPROM parameters ixgbe_eeprom_info within the
- *  ixgbe_hw struct in order to set up EEPROM access.
+ * Initializes the EEPROM parameters ixgbe_eeprom_info within the
+ * ixgbe_hw struct in order to set up EEPROM access.
  **/
 s32 ixgbe_init_eeprom_params(struct ixgbe_hw *hw)
 {
@@ -795,14 +795,14 @@ s32 ixgbe_init_eeprom_params(struct ixgbe_hw *hw)
 
 
 /**
- *  ixgbe_write_eeprom - Write word to EEPROM
- *  @hw: pointer to hardware structure
- *  @offset: offset within the EEPROM to be written to
- *  @data: 16 bit word to be written to the EEPROM
+ * ixgbe_write_eeprom - Write word to EEPROM
+ * @hw: pointer to hardware structure
+ * @offset: offset within the EEPROM to be written to
+ * @data: 16 bit word to be written to the EEPROM
  *
- *  Writes 16 bit value to EEPROM. If ixgbe_eeprom_update_checksum is not
- *  called after this function, the EEPROM will most likely contain an
- *  invalid checksum.
+ * Writes 16 bit value to EEPROM. If ixgbe_eeprom_update_checksum is not
+ * called after this function, the EEPROM will most likely contain an
+ * invalid checksum.
  **/
 s32 ixgbe_write_eeprom(struct ixgbe_hw *hw, u16 offset, u16 data)
 {
@@ -811,15 +811,15 @@ s32 ixgbe_write_eeprom(struct ixgbe_hw *hw, u16 offset, u16 data)
 }
 
 /**
- *  ixgbe_write_eeprom_buffer - Write word(s) to EEPROM
- *  @hw: pointer to hardware structure
- *  @offset: offset within the EEPROM to be written to
- *  @data: 16 bit word(s) to be written to the EEPROM
- *  @words: number of words
+ * ixgbe_write_eeprom_buffer - Write word(s) to EEPROM
+ * @hw: pointer to hardware structure
+ * @offset: offset within the EEPROM to be written to
+ * @data: 16 bit word(s) to be written to the EEPROM
+ * @words: number of words
  *
- *  Writes 16 bit word(s) to EEPROM. If ixgbe_eeprom_update_checksum is not
- *  called after this function, the EEPROM will most likely contain an
- *  invalid checksum.
+ * Writes 16 bit word(s) to EEPROM. If ixgbe_eeprom_update_checksum is not
+ * called after this function, the EEPROM will most likely contain an
+ * invalid checksum.
  **/
 s32 ixgbe_write_eeprom_buffer(struct ixgbe_hw *hw, u16 offset, u16 words,
 			      u16 *data)
@@ -830,12 +830,12 @@ s32 ixgbe_write_eeprom_buffer(struct ixgbe_hw *hw, u16 offset, u16 words,
 }
 
 /**
- *  ixgbe_read_eeprom - Read word from EEPROM
- *  @hw: pointer to hardware structure
- *  @offset: offset within the EEPROM to be read
- *  @data: read 16 bit value from EEPROM
+ * ixgbe_read_eeprom - Read word from EEPROM
+ * @hw: pointer to hardware structure
+ * @offset: offset within the EEPROM to be read
+ * @data: read 16 bit value from EEPROM
  *
- *  Reads 16 bit value from EEPROM
+ * Reads 16 bit value from EEPROM
  **/
 s32 ixgbe_read_eeprom(struct ixgbe_hw *hw, u16 offset, u16 *data)
 {
@@ -844,13 +844,13 @@ s32 ixgbe_read_eeprom(struct ixgbe_hw *hw, u16 offset, u16 *data)
 }
 
 /**
- *  ixgbe_read_eeprom_buffer - Read word(s) from EEPROM
- *  @hw: pointer to hardware structure
- *  @offset: offset within the EEPROM to be read
- *  @data: read 16 bit word(s) from EEPROM
- *  @words: number of words
+ * ixgbe_read_eeprom_buffer - Read word(s) from EEPROM
+ * @hw: pointer to hardware structure
+ * @offset: offset within the EEPROM to be read
+ * @data: read 16 bit word(s) from EEPROM
+ * @words: number of words
  *
- *  Reads 16 bit word(s) from EEPROM
+ * Reads 16 bit word(s) from EEPROM
  **/
 s32 ixgbe_read_eeprom_buffer(struct ixgbe_hw *hw, u16 offset,
 			     u16 words, u16 *data)
@@ -861,11 +861,11 @@ s32 ixgbe_read_eeprom_buffer(struct ixgbe_hw *hw, u16 offset,
 }
 
 /**
- *  ixgbe_validate_eeprom_checksum - Validate EEPROM checksum
- *  @hw: pointer to hardware structure
- *  @checksum_val: calculated checksum
+ * ixgbe_validate_eeprom_checksum - Validate EEPROM checksum
+ * @hw: pointer to hardware structure
+ * @checksum_val: calculated checksum
  *
- *  Performs checksum calculation and validates the EEPROM checksum
+ * Performs checksum calculation and validates the EEPROM checksum
  **/
 s32 ixgbe_validate_eeprom_checksum(struct ixgbe_hw *hw, u16 *checksum_val)
 {
@@ -874,8 +874,8 @@ s32 ixgbe_validate_eeprom_checksum(struct ixgbe_hw *hw, u16 *checksum_val)
 }
 
 /**
- *  ixgbe_eeprom_update_checksum - Updates the EEPROM checksum
- *  @hw: pointer to hardware structure
+ * ixgbe_eeprom_update_checksum - Updates the EEPROM checksum
+ * @hw: pointer to hardware structure
  **/
 s32 ixgbe_update_eeprom_checksum(struct ixgbe_hw *hw)
 {
@@ -884,13 +884,13 @@ s32 ixgbe_update_eeprom_checksum(struct ixgbe_hw *hw)
 }
 
 /**
- *  ixgbe_insert_mac_addr - Find a RAR for this mac address
- *  @hw: pointer to hardware structure
- *  @addr: Address to put into receive address register
- *  @vmdq: VMDq pool to assign
+ * ixgbe_insert_mac_addr - Find a RAR for this mac address
+ * @hw: pointer to hardware structure
+ * @addr: Address to put into receive address register
+ * @vmdq: VMDq pool to assign
  *
- *  Puts an ethernet address into a receive address register, or
- *  finds the rar that it is already in; adds to the pool list
+ * Puts an ethernet address into a receive address register, or
+ * finds the rar that it is already in; adds to the pool list
  **/
 s32 ixgbe_insert_mac_addr(struct ixgbe_hw *hw, u8 *addr, u32 vmdq)
 {
@@ -900,14 +900,14 @@ s32 ixgbe_insert_mac_addr(struct ixgbe_hw *hw, u8 *addr, u32 vmdq)
 }
 
 /**
- *  ixgbe_set_rar - Set Rx address register
- *  @hw: pointer to hardware structure
- *  @index: Receive address register to write
- *  @addr: Address to put into receive address register
- *  @vmdq: VMDq "set"
- *  @enable_addr: set flag that address is active
+ * ixgbe_set_rar - Set Rx address register
+ * @hw: pointer to hardware structure
+ * @index: Receive address register to write
+ * @addr: Address to put into receive address register
+ * @vmdq: VMDq "set"
+ * @enable_addr: set flag that address is active
  *
- *  Puts an ethernet address into a receive address register.
+ * Puts an ethernet address into a receive address register.
  **/
 s32 ixgbe_set_rar(struct ixgbe_hw *hw, u32 index, u8 *addr, u32 vmdq,
 		  u32 enable_addr)
@@ -917,11 +917,11 @@ s32 ixgbe_set_rar(struct ixgbe_hw *hw, u32 index, u8 *addr, u32 vmdq,
 }
 
 /**
- *  ixgbe_clear_rar - Clear Rx address register
- *  @hw: pointer to hardware structure
- *  @index: Receive address register to write
+ * ixgbe_clear_rar - Clear Rx address register
+ * @hw: pointer to hardware structure
+ * @index: Receive address register to write
  *
- *  Puts an ethernet address into a receive address register.
+ * Puts an ethernet address into a receive address register.
  **/
 s32 ixgbe_clear_rar(struct ixgbe_hw *hw, u32 index)
 {
@@ -930,10 +930,10 @@ s32 ixgbe_clear_rar(struct ixgbe_hw *hw, u32 index)
 }
 
 /**
- *  ixgbe_set_vmdq - Associate a VMDq index with a receive address
- *  @hw: pointer to hardware structure
- *  @rar: receive address register index to associate with VMDq index
- *  @vmdq: VMDq set or pool index
+ * ixgbe_set_vmdq - Associate a VMDq index with a receive address
+ * @hw: pointer to hardware structure
+ * @rar: receive address register index to associate with VMDq index
+ * @vmdq: VMDq set or pool index
  **/
 s32 ixgbe_set_vmdq(struct ixgbe_hw *hw, u32 rar, u32 vmdq)
 {
@@ -943,9 +943,9 @@ s32 ixgbe_set_vmdq(struct ixgbe_hw *hw, u32 rar, u32 vmdq)
 }
 
 /**
- *  ixgbe_set_vmdq_san_mac - Associate VMDq index 127 with a receive address
- *  @hw: pointer to hardware structure
- *  @vmdq: VMDq default pool index
+ * ixgbe_set_vmdq_san_mac - Associate VMDq index 127 with a receive address
+ * @hw: pointer to hardware structure
+ * @vmdq: VMDq default pool index
  **/
 s32 ixgbe_set_vmdq_san_mac(struct ixgbe_hw *hw, u32 vmdq)
 {
@@ -954,10 +954,10 @@ s32 ixgbe_set_vmdq_san_mac(struct ixgbe_hw *hw, u32 vmdq)
 }
 
 /**
- *  ixgbe_clear_vmdq - Disassociate a VMDq index from a receive address
- *  @hw: pointer to hardware structure
- *  @rar: receive address register index to disassociate with VMDq index
- *  @vmdq: VMDq set or pool index
+ * ixgbe_clear_vmdq - Disassociate a VMDq index from a receive address
+ * @hw: pointer to hardware structure
+ * @rar: receive address register index to disassociate with VMDq index
+ * @vmdq: VMDq set or pool index
  **/
 s32 ixgbe_clear_vmdq(struct ixgbe_hw *hw, u32 rar, u32 vmdq)
 {
@@ -966,12 +966,12 @@ s32 ixgbe_clear_vmdq(struct ixgbe_hw *hw, u32 rar, u32 vmdq)
 }
 
 /**
- *  ixgbe_init_rx_addrs - Initializes receive address filters.
- *  @hw: pointer to hardware structure
+ * ixgbe_init_rx_addrs - Initializes receive address filters.
+ * @hw: pointer to hardware structure
  *
- *  Places the MAC address in receive address register 0 and clears the rest
- *  of the receive address registers. Clears the multicast table. Assumes
- *  the receiver is in reset when the routine is called.
+ * Places the MAC address in receive address register 0 and clears the rest
+ * of the receive address registers. Clears the multicast table. Assumes
+ * the receiver is in reset when the routine is called.
  **/
 s32 ixgbe_init_rx_addrs(struct ixgbe_hw *hw)
 {
@@ -980,8 +980,8 @@ s32 ixgbe_init_rx_addrs(struct ixgbe_hw *hw)
 }
 
 /**
- *  ixgbe_get_num_rx_addrs - Returns the number of RAR entries.
- *  @hw: pointer to hardware structure
+ * ixgbe_get_num_rx_addrs - Returns the number of RAR entries.
+ * @hw: pointer to hardware structure
  **/
 u32 ixgbe_get_num_rx_addrs(struct ixgbe_hw *hw)
 {
@@ -989,15 +989,15 @@ u32 ixgbe_get_num_rx_addrs(struct ixgbe_hw *hw)
 }
 
 /**
- *  ixgbe_update_uc_addr_list - Updates the MAC's list of secondary addresses
- *  @hw: pointer to hardware structure
- *  @addr_list: the list of new multicast addresses
- *  @addr_count: number of addresses
- *  @func: iterator function to walk the multicast address list
+ * ixgbe_update_uc_addr_list - Updates the MAC's list of secondary addresses
+ * @hw: pointer to hardware structure
+ * @addr_list: the list of new multicast addresses
+ * @addr_count: number of addresses
+ * @func: iterator function to walk the multicast address list
  *
- *  The given list replaces any existing list. Clears the secondary addrs from
- *  receive address registers. Uses unused receive address registers for the
- *  first secondary addresses, and falls back to promiscuous mode as needed.
+ * The given list replaces any existing list. Clears the secondary addrs from
+ * receive address registers. Uses unused receive address registers for the
+ * first secondary addresses, and falls back to promiscuous mode as needed.
  **/
 s32 ixgbe_update_uc_addr_list(struct ixgbe_hw *hw, u8 *addr_list,
 			      u32 addr_count, ixgbe_mc_addr_itr func)
@@ -1008,17 +1008,17 @@ s32 ixgbe_update_uc_addr_list(struct ixgbe_hw *hw, u8 *addr_list,
 }
 
 /**
- *  ixgbe_update_mc_addr_list - Updates the MAC's list of multicast addresses
- *  @hw: pointer to hardware structure
- *  @mc_addr_list: the list of new multicast addresses
- *  @mc_addr_count: number of addresses
- *  @func: iterator function to walk the multicast address list
- *  @clear: flag, when set clears the table beforehand
+ * ixgbe_update_mc_addr_list - Updates the MAC's list of multicast addresses
+ * @hw: pointer to hardware structure
+ * @mc_addr_list: the list of new multicast addresses
+ * @mc_addr_count: number of addresses
+ * @func: iterator function to walk the multicast address list
+ * @clear: flag, when set clears the table beforehand
  *
- *  The given list replaces any existing list. Clears the MC addrs from receive
- *  address registers and the multicast table. Uses unused receive address
- *  registers for the first multicast addresses, and hashes the rest into the
- *  multicast table.
+ * The given list replaces any existing list. Clears the MC addrs from receive
+ * address registers and the multicast table. Uses unused receive address
+ * registers for the first multicast addresses, and hashes the rest into the
+ * multicast table.
  **/
 s32 ixgbe_update_mc_addr_list(struct ixgbe_hw *hw, u8 *mc_addr_list,
 			      u32 mc_addr_count, ixgbe_mc_addr_itr func,
@@ -1030,10 +1030,10 @@ s32 ixgbe_update_mc_addr_list(struct ixgbe_hw *hw, u8 *mc_addr_list,
 }
 
 /**
- *  ixgbe_enable_mc - Enable multicast address in RAR
- *  @hw: pointer to hardware structure
+ * ixgbe_enable_mc - Enable multicast address in RAR
+ * @hw: pointer to hardware structure
  *
- *  Enables multicast address in RAR and the use of the multicast hash table.
+ * Enables multicast address in RAR and the use of the multicast hash table.
  **/
 s32 ixgbe_enable_mc(struct ixgbe_hw *hw)
 {
@@ -1042,10 +1042,10 @@ s32 ixgbe_enable_mc(struct ixgbe_hw *hw)
 }
 
 /**
- *  ixgbe_disable_mc - Disable multicast address in RAR
- *  @hw: pointer to hardware structure
+ * ixgbe_disable_mc - Disable multicast address in RAR
+ * @hw: pointer to hardware structure
  *
- *  Disables multicast address in RAR and the use of the multicast hash table.
+ * Disables multicast address in RAR and the use of the multicast hash table.
  **/
 s32 ixgbe_disable_mc(struct ixgbe_hw *hw)
 {
@@ -1054,10 +1054,10 @@ s32 ixgbe_disable_mc(struct ixgbe_hw *hw)
 }
 
 /**
- *  ixgbe_clear_vfta - Clear VLAN filter table
- *  @hw: pointer to hardware structure
+ * ixgbe_clear_vfta - Clear VLAN filter table
+ * @hw: pointer to hardware structure
  *
- *  Clears the VLAN filer table, and the VMDq index associated with the filter
+ * Clears the VLAN filer table, and the VMDq index associated with the filter
  **/
 s32 ixgbe_clear_vfta(struct ixgbe_hw *hw)
 {
@@ -1066,14 +1066,14 @@ s32 ixgbe_clear_vfta(struct ixgbe_hw *hw)
 }
 
 /**
- *  ixgbe_set_vfta - Set VLAN filter table
- *  @hw: pointer to hardware structure
- *  @vlan: VLAN id to write to VLAN filter
- *  @vind: VMDq output index that maps queue to VLAN id in VLVFB
- *  @vlan_on: boolean flag to turn on/off VLAN
- *  @vlvf_bypass: boolean flag indicating updating the default pool is okay
+ * ixgbe_set_vfta - Set VLAN filter table
+ * @hw: pointer to hardware structure
+ * @vlan: VLAN id to write to VLAN filter
+ * @vind: VMDq output index that maps queue to VLAN id in VLVFB
+ * @vlan_on: boolean flag to turn on/off VLAN
+ * @vlvf_bypass: boolean flag indicating updating the default pool is okay
  *
- *  Turn on/off specified VLAN in the VLAN filter table.
+ * Turn on/off specified VLAN in the VLAN filter table.
  **/
 s32 ixgbe_set_vfta(struct ixgbe_hw *hw, u32 vlan, u32 vind, bool vlan_on,
 		   bool vlvf_bypass)
@@ -1083,17 +1083,17 @@ s32 ixgbe_set_vfta(struct ixgbe_hw *hw, u32 vlan, u32 vind, bool vlan_on,
 }
 
 /**
- *  ixgbe_set_vlvf - Set VLAN Pool Filter
- *  @hw: pointer to hardware structure
- *  @vlan: VLAN id to write to VLAN filter
- *  @vind: VMDq output index that maps queue to VLAN id in VLVFB
- *  @vlan_on: boolean flag to turn on/off VLAN in VLVF
- *  @vfta_delta: pointer to the difference between the current value of VFTA
+ * ixgbe_set_vlvf - Set VLAN Pool Filter
+ * @hw: pointer to hardware structure
+ * @vlan: VLAN id to write to VLAN filter
+ * @vind: VMDq output index that maps queue to VLAN id in VLVFB
+ * @vlan_on: boolean flag to turn on/off VLAN in VLVF
+ * @vfta_delta: pointer to the difference between the current value of VFTA
  *		 and the desired value
- *  @vfta: the desired value of the VFTA
- *  @vlvf_bypass: boolean flag indicating updating the default pool is okay
+ * @vfta: the desired value of the VFTA
+ * @vlvf_bypass: boolean flag indicating updating the default pool is okay
  *
- *  Turn on/off specified bit in VLVF table.
+ * Turn on/off specified bit in VLVF table.
  **/
 s32 ixgbe_set_vlvf(struct ixgbe_hw *hw, u32 vlan, u32 vind, bool vlan_on,
 		   u32 *vfta_delta, u32 vfta, bool vlvf_bypass)
@@ -1104,10 +1104,10 @@ s32 ixgbe_set_vlvf(struct ixgbe_hw *hw, u32 vlan, u32 vind, bool vlan_on,
 }
 
 /**
- *  ixgbe_fc_enable - Enable flow control
- *  @hw: pointer to hardware structure
+ * ixgbe_fc_enable - Enable flow control
+ * @hw: pointer to hardware structure
  *
- *  Configures the flow control settings based on SW configuration.
+ * Configures the flow control settings based on SW configuration.
  **/
 s32 ixgbe_fc_enable(struct ixgbe_hw *hw)
 {
@@ -1116,10 +1116,10 @@ s32 ixgbe_fc_enable(struct ixgbe_hw *hw)
 }
 
 /**
- *  ixgbe_setup_fc - Set up flow control
- *  @hw: pointer to hardware structure
+ * ixgbe_setup_fc - Set up flow control
+ * @hw: pointer to hardware structure
  *
- *  Called at init time to set up flow control.
+ * Called at init time to set up flow control.
  **/
 s32 ixgbe_setup_fc(struct ixgbe_hw *hw)
 {
@@ -1148,11 +1148,11 @@ s32 ixgbe_set_fw_drv_ver(struct ixgbe_hw *hw, u8 maj, u8 min, u8 build,
 
 
 /**
- *  ixgbe_dmac_config - Configure DMA Coalescing registers.
- *  @hw: pointer to hardware structure
+ * ixgbe_dmac_config - Configure DMA Coalescing registers.
+ * @hw: pointer to hardware structure
  *
- *  Configure DMA coalescing. If enabling dmac, dmac is activated.
- *  When disabling dmac, dmac enable dmac bit is cleared.
+ * Configure DMA coalescing. If enabling dmac, dmac is activated.
+ * When disabling dmac, dmac enable dmac bit is cleared.
  **/
 s32 ixgbe_dmac_config(struct ixgbe_hw *hw)
 {
@@ -1161,10 +1161,10 @@ s32 ixgbe_dmac_config(struct ixgbe_hw *hw)
 }
 
 /**
- *  ixgbe_dmac_update_tcs - Configure DMA Coalescing registers.
- *  @hw: pointer to hardware structure
+ * ixgbe_dmac_update_tcs - Configure DMA Coalescing registers.
+ * @hw: pointer to hardware structure
  *
- *  Disables dmac, updates per TC settings, and then enable dmac.
+ * Disables dmac, updates per TC settings, and then enable dmac.
  **/
 s32 ixgbe_dmac_update_tcs(struct ixgbe_hw *hw)
 {
@@ -1173,11 +1173,11 @@ s32 ixgbe_dmac_update_tcs(struct ixgbe_hw *hw)
 }
 
 /**
- *  ixgbe_dmac_config_tcs - Configure DMA Coalescing registers.
- *  @hw: pointer to hardware structure
+ * ixgbe_dmac_config_tcs - Configure DMA Coalescing registers.
+ * @hw: pointer to hardware structure
  *
- *  Configure DMA coalescing threshold per TC and set high priority bit for
- *  FCOE TC. The dmac enable bit must be cleared before configuring.
+ * Configure DMA coalescing threshold per TC and set high priority bit for
+ * FCOE TC. The dmac enable bit must be cleared before configuring.
  **/
 s32 ixgbe_dmac_config_tcs(struct ixgbe_hw *hw)
 {
@@ -1186,13 +1186,13 @@ s32 ixgbe_dmac_config_tcs(struct ixgbe_hw *hw)
 }
 
 /**
- *  ixgbe_setup_eee - Enable/disable EEE support
- *  @hw: pointer to the HW structure
- *  @enable_eee: boolean flag to enable EEE
+ * ixgbe_setup_eee - Enable/disable EEE support
+ * @hw: pointer to the HW structure
+ * @enable_eee: boolean flag to enable EEE
  *
- *  Enable/disable EEE based on enable_ee flag.
- *  Auto-negotiation must be started after BASE-T EEE bits in PHY register 7.3C
- *  are modified.
+ * Enable/disable EEE based on enable_ee flag.
+ * Auto-negotiation must be started after BASE-T EEE bits in PHY register 7.3C
+ * are modified.
  *
  **/
 s32 ixgbe_setup_eee(struct ixgbe_hw *hw, bool enable_eee)
@@ -1215,10 +1215,10 @@ void ixgbe_set_source_address_pruning(struct ixgbe_hw *hw, bool enable,
 }
 
 /**
- *  ixgbe_set_ethertype_anti_spoofing - Enable/Disable Ethertype anti-spoofing
- *  @hw: pointer to hardware structure
- *  @enable: enable or disable switch for Ethertype anti-spoofing
- *  @vf: Virtual Function pool - VF Pool to set for Ethertype anti-spoofing
+ * ixgbe_set_ethertype_anti_spoofing - Enable/Disable Ethertype anti-spoofing
+ * @hw: pointer to hardware structure
+ * @enable: enable or disable switch for Ethertype anti-spoofing
+ * @vf: Virtual Function pool - VF Pool to set for Ethertype anti-spoofing
  *
  **/
 void ixgbe_set_ethertype_anti_spoofing(struct ixgbe_hw *hw, bool enable, int vf)
@@ -1228,13 +1228,13 @@ void ixgbe_set_ethertype_anti_spoofing(struct ixgbe_hw *hw, bool enable, int vf)
 }
 
 /**
- *  ixgbe_read_iosf_sb_reg - Read 32 bit PHY register
- *  @hw: pointer to hardware structure
- *  @reg_addr: 32 bit address of PHY register to read
- *  @device_type: type of device you want to communicate with
- *  @phy_data: Pointer to read data from PHY register
+ * ixgbe_read_iosf_sb_reg - Read 32 bit PHY register
+ * @hw: pointer to hardware structure
+ * @reg_addr: 32 bit address of PHY register to read
+ * @device_type: type of device you want to communicate with
+ * @phy_data: Pointer to read data from PHY register
  *
- *  Reads a value from a specified PHY register
+ * Reads a value from a specified PHY register
  **/
 s32 ixgbe_read_iosf_sb_reg(struct ixgbe_hw *hw, u32 reg_addr,
 			   u32 device_type, u32 *phy_data)
@@ -1244,13 +1244,13 @@ s32 ixgbe_read_iosf_sb_reg(struct ixgbe_hw *hw, u32 reg_addr,
 }
 
 /**
- *  ixgbe_write_iosf_sb_reg - Write 32 bit register through IOSF Sideband
- *  @hw: pointer to hardware structure
- *  @reg_addr: 32 bit PHY register to write
- *  @device_type: type of device you want to communicate with
- *  @phy_data: Data to write to the PHY register
+ * ixgbe_write_iosf_sb_reg - Write 32 bit register through IOSF Sideband
+ * @hw: pointer to hardware structure
+ * @reg_addr: 32 bit PHY register to write
+ * @device_type: type of device you want to communicate with
+ * @phy_data: Data to write to the PHY register
  *
- *  Writes a value to specified PHY register
+ * Writes a value to specified PHY register
  **/
 s32 ixgbe_write_iosf_sb_reg(struct ixgbe_hw *hw, u32 reg_addr,
 			    u32 device_type, u32 phy_data)
@@ -1260,8 +1260,8 @@ s32 ixgbe_write_iosf_sb_reg(struct ixgbe_hw *hw, u32 reg_addr,
 }
 
 /**
- *  ixgbe_disable_mdd - Disable malicious driver detection
- *  @hw: pointer to hardware structure
+ * ixgbe_disable_mdd - Disable malicious driver detection
+ * @hw: pointer to hardware structure
  *
  **/
 void ixgbe_disable_mdd(struct ixgbe_hw *hw)
@@ -1271,8 +1271,8 @@ void ixgbe_disable_mdd(struct ixgbe_hw *hw)
 }
 
 /**
- *  ixgbe_enable_mdd - Enable malicious driver detection
- *  @hw: pointer to hardware structure
+ * ixgbe_enable_mdd - Enable malicious driver detection
+ * @hw: pointer to hardware structure
  *
  **/
 void ixgbe_enable_mdd(struct ixgbe_hw *hw)
@@ -1282,9 +1282,9 @@ void ixgbe_enable_mdd(struct ixgbe_hw *hw)
 }
 
 /**
- *  ixgbe_mdd_event - Handle malicious driver detection event
- *  @hw: pointer to hardware structure
- *  @vf_bitmap: vf bitmap of malicious vfs
+ * ixgbe_mdd_event - Handle malicious driver detection event
+ * @hw: pointer to hardware structure
+ * @vf_bitmap: vf bitmap of malicious vfs
  *
  **/
 void ixgbe_mdd_event(struct ixgbe_hw *hw, u32 *vf_bitmap)
@@ -1294,10 +1294,10 @@ void ixgbe_mdd_event(struct ixgbe_hw *hw, u32 *vf_bitmap)
 }
 
 /**
- *  ixgbe_restore_mdd_vf - Restore VF that was disabled during malicious driver
- *  detection event
- *  @hw: pointer to hardware structure
- *  @vf: vf index
+ * ixgbe_restore_mdd_vf - Restore VF that was disabled during malicious driver
+ * detection event
+ * @hw: pointer to hardware structure
+ * @vf: vf index
  *
  **/
 void ixgbe_restore_mdd_vf(struct ixgbe_hw *hw, u32 vf)
@@ -1307,8 +1307,8 @@ void ixgbe_restore_mdd_vf(struct ixgbe_hw *hw, u32 vf)
 }
 
 /**
- *  ixgbe_fw_recovery_mode - Check if in FW NVM recovery mode
- *  @hw: pointer to hardware structure
+ * ixgbe_fw_recovery_mode - Check if in FW NVM recovery mode
+ * @hw: pointer to hardware structure
  *
  **/
 bool ixgbe_fw_recovery_mode(struct ixgbe_hw *hw)
@@ -1319,8 +1319,8 @@ bool ixgbe_fw_recovery_mode(struct ixgbe_hw *hw)
 }
 
 /**
- *  ixgbe_enter_lplu - Transition to low power states
- *  @hw: pointer to hardware structure
+ * ixgbe_enter_lplu - Transition to low power states
+ * @hw: pointer to hardware structure
  *
  * Configures Low Power Link Up on transition to low power states
  * (from D0 to non-D0).
@@ -1349,12 +1349,12 @@ s32 ixgbe_handle_lasi(struct ixgbe_hw *hw)
 }
 
 /**
- *  ixgbe_bypass_rw - Bit bang data into by_pass FW
- *  @hw: pointer to hardware structure
- *  @cmd: Command we send to the FW
- *  @status: The reply from the FW
+ * ixgbe_bypass_rw - Bit bang data into by_pass FW
+ * @hw: pointer to hardware structure
+ * @cmd: Command we send to the FW
+ * @status: The reply from the FW
  *
- *  Bit-bangs the cmd to the by_pass FW status points to what is returned.
+ * Bit-bangs the cmd to the by_pass FW status points to what is returned.
  **/
 s32 ixgbe_bypass_rw(struct ixgbe_hw *hw, u32 cmd, u32 *status)
 {
@@ -1381,16 +1381,16 @@ bool ixgbe_bypass_valid_rd(struct ixgbe_hw *hw, u32 in_reg, u32 out_reg)
 }
 
 /**
- *  ixgbe_bypass_set - Set a bypass field in the FW CTRL Regiter.
- *  @hw: pointer to hardware structure
- *  @cmd: The control word we are setting.
- *  @event: The event we are setting in the FW.  This also happens to
- *          be the mask for the event we are setting (handy)
- *  @action: The action we set the event to in the FW. This is in a
- *           bit field that happens to be what we want to put in
- *           the event spot (also handy)
+ * ixgbe_bypass_set - Set a bypass field in the FW CTRL Regiter.
+ * @hw: pointer to hardware structure
+ * @cmd: The control word we are setting.
+ * @event: The event we are setting in the FW.  This also happens to
+ *         be the mask for the event we are setting (handy)
+ * @action: The action we set the event to in the FW. This is in a
+ *          bit field that happens to be what we want to put in
+ *          the event spot (also handy)
  *
- *  Writes to the cmd control the bits in actions.
+ * Writes to the cmd control the bits in actions.
  **/
 s32 ixgbe_bypass_set(struct ixgbe_hw *hw, u32 cmd, u32 event, u32 action)
 {
@@ -1400,10 +1400,10 @@ s32 ixgbe_bypass_set(struct ixgbe_hw *hw, u32 cmd, u32 event, u32 action)
 }
 
 /**
- *  ixgbe_bypass_rd_eep - Read the bypass FW eeprom address
- *  @hw: pointer to hardware structure
- *  @addr: The bypass eeprom address to read.
- *  @value: The 8b of data at the address above.
+ * ixgbe_bypass_rd_eep - Read the bypass FW eeprom address
+ * @hw: pointer to hardware structure
+ * @addr: The bypass eeprom address to read.
+ * @value: The 8b of data at the address above.
  **/
 s32 ixgbe_bypass_rd_eep(struct ixgbe_hw *hw, u32 addr, u8 *value)
 {
@@ -1412,12 +1412,12 @@ s32 ixgbe_bypass_rd_eep(struct ixgbe_hw *hw, u32 addr, u8 *value)
 }
 
 /**
- *  ixgbe_read_analog_reg8 - Reads 8 bit analog register
- *  @hw: pointer to hardware structure
- *  @reg: analog register to read
- *  @val: read value
+ * ixgbe_read_analog_reg8 - Reads 8 bit analog register
+ * @hw: pointer to hardware structure
+ * @reg: analog register to read
+ * @val: read value
  *
- *  Performs write operation to analog register specified.
+ * Performs write operation to analog register specified.
  **/
 s32 ixgbe_read_analog_reg8(struct ixgbe_hw *hw, u32 reg, u8 *val)
 {
@@ -1426,12 +1426,12 @@ s32 ixgbe_read_analog_reg8(struct ixgbe_hw *hw, u32 reg, u8 *val)
 }
 
 /**
- *  ixgbe_write_analog_reg8 - Writes 8 bit analog register
- *  @hw: pointer to hardware structure
- *  @reg: analog register to write
- *  @val: value to write
+ * ixgbe_write_analog_reg8 - Writes 8 bit analog register
+ * @hw: pointer to hardware structure
+ * @reg: analog register to write
+ * @val: value to write
  *
- *  Performs write operation to Atlas analog register specified.
+ * Performs write operation to Atlas analog register specified.
  **/
 s32 ixgbe_write_analog_reg8(struct ixgbe_hw *hw, u32 reg, u8 val)
 {
@@ -1440,11 +1440,11 @@ s32 ixgbe_write_analog_reg8(struct ixgbe_hw *hw, u32 reg, u8 val)
 }
 
 /**
- *  ixgbe_init_uta_tables - Initializes Unicast Table Arrays.
- *  @hw: pointer to hardware structure
+ * ixgbe_init_uta_tables - Initializes Unicast Table Arrays.
+ * @hw: pointer to hardware structure
  *
- *  Initializes the Unicast Table Arrays to zero on device load.  This
- *  is part of the Rx init addr execution path.
+ * Initializes the Unicast Table Arrays to zero on device load.  This
+ * is part of the Rx init addr execution path.
  **/
 s32 ixgbe_init_uta_tables(struct ixgbe_hw *hw)
 {
@@ -1453,13 +1453,13 @@ s32 ixgbe_init_uta_tables(struct ixgbe_hw *hw)
 }
 
 /**
- *  ixgbe_read_i2c_byte - Reads 8 bit word over I2C at specified device address
- *  @hw: pointer to hardware structure
- *  @byte_offset: byte offset to read
- *  @dev_addr: I2C bus address to read from
- *  @data: value read
+ * ixgbe_read_i2c_byte - Reads 8 bit word over I2C at specified device address
+ * @hw: pointer to hardware structure
+ * @byte_offset: byte offset to read
+ * @dev_addr: I2C bus address to read from
+ * @data: value read
  *
- *  Performs byte read operation to SFP module's EEPROM over I2C interface.
+ * Performs byte read operation to SFP module's EEPROM over I2C interface.
  **/
 s32 ixgbe_read_i2c_byte(struct ixgbe_hw *hw, u8 byte_offset, u8 dev_addr,
 			u8 *data)
@@ -1469,13 +1469,13 @@ s32 ixgbe_read_i2c_byte(struct ixgbe_hw *hw, u8 byte_offset, u8 dev_addr,
 }
 
 /**
- *  ixgbe_read_i2c_byte_unlocked - Reads 8 bit word via I2C from device address
- *  @hw: pointer to hardware structure
- *  @byte_offset: byte offset to read
- *  @dev_addr: I2C bus address to read from
- *  @data: value read
+ * ixgbe_read_i2c_byte_unlocked - Reads 8 bit word via I2C from device address
+ * @hw: pointer to hardware structure
+ * @byte_offset: byte offset to read
+ * @dev_addr: I2C bus address to read from
+ * @data: value read
  *
- *  Performs byte read operation to SFP module's EEPROM over I2C interface.
+ * Performs byte read operation to SFP module's EEPROM over I2C interface.
  **/
 s32 ixgbe_read_i2c_byte_unlocked(struct ixgbe_hw *hw, u8 byte_offset,
 				 u8 dev_addr, u8 *data)
@@ -1516,14 +1516,14 @@ s32 ixgbe_read_link_unlocked(struct ixgbe_hw *hw, u8 addr, u16 reg, u16 *val)
 }
 
 /**
- *  ixgbe_write_i2c_byte - Writes 8 bit word over I2C
- *  @hw: pointer to hardware structure
- *  @byte_offset: byte offset to write
- *  @dev_addr: I2C bus address to write to
- *  @data: value to write
+ * ixgbe_write_i2c_byte - Writes 8 bit word over I2C
+ * @hw: pointer to hardware structure
+ * @byte_offset: byte offset to write
+ * @dev_addr: I2C bus address to write to
+ * @data: value to write
  *
- *  Performs byte write operation to SFP module's EEPROM over I2C interface
- *  at a specified device address.
+ * Performs byte write operation to SFP module's EEPROM over I2C interface
+ * at a specified device address.
  **/
 s32 ixgbe_write_i2c_byte(struct ixgbe_hw *hw, u8 byte_offset, u8 dev_addr,
 			 u8 data)
@@ -1533,14 +1533,14 @@ s32 ixgbe_write_i2c_byte(struct ixgbe_hw *hw, u8 byte_offset, u8 dev_addr,
 }
 
 /**
- *  ixgbe_write_i2c_byte_unlocked - Writes 8 bit word over I2C
- *  @hw: pointer to hardware structure
- *  @byte_offset: byte offset to write
- *  @dev_addr: I2C bus address to write to
- *  @data: value to write
+ * ixgbe_write_i2c_byte_unlocked - Writes 8 bit word over I2C
+ * @hw: pointer to hardware structure
+ * @byte_offset: byte offset to write
+ * @dev_addr: I2C bus address to write to
+ * @data: value to write
  *
- *  Performs byte write operation to SFP module's EEPROM over I2C interface
- *  at a specified device address.
+ * Performs byte write operation to SFP module's EEPROM over I2C interface
+ * at a specified device address.
  **/
 s32 ixgbe_write_i2c_byte_unlocked(struct ixgbe_hw *hw, u8 byte_offset,
 				  u8 dev_addr, u8 data)
@@ -1581,12 +1581,12 @@ s32 ixgbe_write_link_unlocked(struct ixgbe_hw *hw, u8 addr, u16 reg, u16 val)
 }
 
 /**
- *  ixgbe_write_i2c_eeprom - Writes 8 bit EEPROM word over I2C interface
- *  @hw: pointer to hardware structure
- *  @byte_offset: EEPROM byte offset to write
- *  @eeprom_data: value to write
+ * ixgbe_write_i2c_eeprom - Writes 8 bit EEPROM word over I2C interface
+ * @hw: pointer to hardware structure
+ * @byte_offset: EEPROM byte offset to write
+ * @eeprom_data: value to write
  *
- *  Performs byte write operation to SFP module's EEPROM over I2C interface.
+ * Performs byte write operation to SFP module's EEPROM over I2C interface.
  **/
 s32 ixgbe_write_i2c_eeprom(struct ixgbe_hw *hw,
 			   u8 byte_offset, u8 eeprom_data)
@@ -1597,12 +1597,12 @@ s32 ixgbe_write_i2c_eeprom(struct ixgbe_hw *hw,
 }
 
 /**
- *  ixgbe_read_i2c_eeprom - Reads 8 bit EEPROM word over I2C interface
- *  @hw: pointer to hardware structure
- *  @byte_offset: EEPROM byte offset to read
- *  @eeprom_data: value read
+ * ixgbe_read_i2c_eeprom - Reads 8 bit EEPROM word over I2C interface
+ * @hw: pointer to hardware structure
+ * @byte_offset: EEPROM byte offset to read
+ * @eeprom_data: value read
  *
- *  Performs byte read operation to SFP module's EEPROM over I2C interface.
+ * Performs byte read operation to SFP module's EEPROM over I2C interface.
  **/
 s32 ixgbe_read_i2c_eeprom(struct ixgbe_hw *hw, u8 byte_offset, u8 *eeprom_data)
 {
@@ -1612,10 +1612,10 @@ s32 ixgbe_read_i2c_eeprom(struct ixgbe_hw *hw, u8 byte_offset, u8 *eeprom_data)
 }
 
 /**
- *  ixgbe_get_supported_physical_layer - Returns physical layer type
- *  @hw: pointer to hardware structure
+ * ixgbe_get_supported_physical_layer - Returns physical layer type
+ * @hw: pointer to hardware structure
  *
- *  Determines physical layer capabilities of the current configuration.
+ * Determines physical layer capabilities of the current configuration.
  **/
 u64 ixgbe_get_supported_physical_layer(struct ixgbe_hw *hw)
 {
@@ -1624,11 +1624,11 @@ u64 ixgbe_get_supported_physical_layer(struct ixgbe_hw *hw)
 }
 
 /**
- *  ixgbe_enable_rx_dma - Enables Rx DMA unit, dependent on device specifics
- *  @hw: pointer to hardware structure
- *  @regval: bitfield to write to the Rx DMA register
+ * ixgbe_enable_rx_dma - Enables Rx DMA unit, dependent on device specifics
+ * @hw: pointer to hardware structure
+ * @regval: bitfield to write to the Rx DMA register
  *
- *  Enables the Rx DMA unit of the device.
+ * Enables the Rx DMA unit of the device.
  **/
 s32 ixgbe_enable_rx_dma(struct ixgbe_hw *hw, u32 regval)
 {
@@ -1637,10 +1637,10 @@ s32 ixgbe_enable_rx_dma(struct ixgbe_hw *hw, u32 regval)
 }
 
 /**
- *  ixgbe_disable_sec_rx_path - Stops the receive data path
- *  @hw: pointer to hardware structure
+ * ixgbe_disable_sec_rx_path - Stops the receive data path
+ * @hw: pointer to hardware structure
  *
- *  Stops the receive data path.
+ * Stops the receive data path.
  **/
 s32 ixgbe_disable_sec_rx_path(struct ixgbe_hw *hw)
 {
@@ -1649,10 +1649,10 @@ s32 ixgbe_disable_sec_rx_path(struct ixgbe_hw *hw)
 }
 
 /**
- *  ixgbe_enable_sec_rx_path - Enables the receive data path
- *  @hw: pointer to hardware structure
+ * ixgbe_enable_sec_rx_path - Enables the receive data path
+ * @hw: pointer to hardware structure
  *
- *  Enables the receive data path.
+ * Enables the receive data path.
  **/
 s32 ixgbe_enable_sec_rx_path(struct ixgbe_hw *hw)
 {
@@ -1661,12 +1661,12 @@ s32 ixgbe_enable_sec_rx_path(struct ixgbe_hw *hw)
 }
 
 /**
- *  ixgbe_acquire_swfw_semaphore - Acquire SWFW semaphore
- *  @hw: pointer to hardware structure
- *  @mask: Mask to specify which semaphore to acquire
+ * ixgbe_acquire_swfw_semaphore - Acquire SWFW semaphore
+ * @hw: pointer to hardware structure
+ * @mask: Mask to specify which semaphore to acquire
  *
- *  Acquires the SWFW semaphore through SW_FW_SYNC register for the specified
- *  function (CSR, PHY0, PHY1, EEPROM, Flash)
+ * Acquires the SWFW semaphore through SW_FW_SYNC register for the specified
+ * function (CSR, PHY0, PHY1, EEPROM, Flash)
  **/
 s32 ixgbe_acquire_swfw_semaphore(struct ixgbe_hw *hw, u32 mask)
 {
@@ -1675,12 +1675,12 @@ s32 ixgbe_acquire_swfw_semaphore(struct ixgbe_hw *hw, u32 mask)
 }
 
 /**
- *  ixgbe_release_swfw_semaphore - Release SWFW semaphore
- *  @hw: pointer to hardware structure
- *  @mask: Mask to specify which semaphore to release
+ * ixgbe_release_swfw_semaphore - Release SWFW semaphore
+ * @hw: pointer to hardware structure
+ * @mask: Mask to specify which semaphore to release
  *
- *  Releases the SWFW semaphore through SW_FW_SYNC register for the specified
- *  function (CSR, PHY0, PHY1, EEPROM, Flash)
+ * Releases the SWFW semaphore through SW_FW_SYNC register for the specified
+ * function (CSR, PHY0, PHY1, EEPROM, Flash)
  **/
 void ixgbe_release_swfw_semaphore(struct ixgbe_hw *hw, u32 mask)
 {
@@ -1689,13 +1689,13 @@ void ixgbe_release_swfw_semaphore(struct ixgbe_hw *hw, u32 mask)
 }
 
 /**
- *  ixgbe_init_swfw_semaphore - Clean up SWFW semaphore
- *  @hw: pointer to hardware structure
+ * ixgbe_init_swfw_semaphore - Clean up SWFW semaphore
+ * @hw: pointer to hardware structure
  *
- *  Attempts to acquire the SWFW semaphore through SW_FW_SYNC register.
- *  Regardless of whether is succeeds or not it then release the semaphore.
- *  This is function is called to recover from catastrophic failures that
- *  may have left the semaphore locked.
+ * Attempts to acquire the SWFW semaphore through SW_FW_SYNC register.
+ * Regardless of whether is succeeds or not it then release the semaphore.
+ * This is function is called to recover from catastrophic failures that
+ * may have left the semaphore locked.
  **/
 void ixgbe_init_swfw_semaphore(struct ixgbe_hw *hw)
 {
@@ -1717,11 +1717,11 @@ void ixgbe_enable_rx(struct ixgbe_hw *hw)
 }
 
 /**
- *  ixgbe_set_rate_select_speed - Set module link speed
- *  @hw: pointer to hardware structure
- *  @speed: link speed to set
+ * ixgbe_set_rate_select_speed - Set module link speed
+ * @hw: pointer to hardware structure
+ * @speed: link speed to set
  *
- *  Set module link speed via the rate select.
+ * Set module link speed via the rate select.
  */
 void ixgbe_set_rate_select_speed(struct ixgbe_hw *hw, ixgbe_link_speed speed)
 {
