@@ -49,7 +49,7 @@ enum {
 	T5_REGMAP_SIZE = (332 * 1024),
 };
 
-enum { MEM_EDC0, MEM_EDC1, MEM_MC, MEM_MC0 = MEM_MC, MEM_MC1 };
+enum { MEM_EDC0, MEM_EDC1, MEM_MC, MEM_MC0 = MEM_MC, MEM_MC1, MEM_HMA };
 
 enum dev_master { MASTER_CANT, MASTER_MAY, MASTER_MUST };
 
