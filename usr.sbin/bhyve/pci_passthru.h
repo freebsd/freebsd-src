@@ -20,5 +20,9 @@ typedef int (*cfgwrite_handler)(struct passthru_softc *sc,
 
 uint32_t read_config(const struct pcisel *sel, long reg, int width);
 void write_config(const struct pcisel *sel, long reg, int width, uint32_t data);
+int passthru_cfgread_emulate(struct passthru_softc *sc, struct pci_devinst *pi,
+    int coff, int bytes, uint32_t *rv);
+int passthru_cfgwrite_emulate(struct passthru_softc *sc, struct pci_devinst *pi,
+    int coff, int bytes, uint32_t val);
 int set_pcir_handler(struct passthru_softc *sc, int reg, int len,
     cfgread_handler rhandler, cfgwrite_handler whandler);
