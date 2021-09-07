@@ -121,6 +121,17 @@ struct socket {
 
 	int so_ts_clock;	/* type of the clock used for timestamps */
 	uint32_t so_max_pacing_rate;	/* (f) TX rate limit in bytes/s */
+
+	/*
+	 * Mutexes to prevent interleaving of socket I/O.  These have to be
+	 * outside of the socket buffers in order to interlock with listen(2).
+	 */
+	struct sx so_snd_sx __aligned(CACHE_LINE_SIZE);
+	struct mtx so_snd_mtx;
+
+	struct sx so_rcv_sx __aligned(CACHE_LINE_SIZE);
+	struct mtx so_rcv_mtx;
+
 	union {
 		/* Regular (data flow) socket. */
 		struct {
@@ -256,13 +267,13 @@ struct socket {
 #define	SBL_VALID	(SBL_WAIT | SBL_NOINTR)
 
 #define	SOCK_IO_SEND_LOCK(so, flags)					\
-	soiolock((so), &(so)->so_snd.sb_sx, (flags))
+	soiolock((so), &(so)->so_snd_sx, (flags))
 #define	SOCK_IO_SEND_UNLOCK(so)						\
-	soiounlock(&(so)->so_snd.sb_sx)
+	soiounlock(&(so)->so_snd_sx)
 #define	SOCK_IO_RECV_LOCK(so, flags)					\
-	soiolock((so), &(so)->so_rcv.sb_sx, (flags))
+	soiolock((so), &(so)->so_rcv_sx, (flags))
 #define	SOCK_IO_RECV_UNLOCK(so)						\
-	soiounlock(&(so)->so_rcv.sb_sx)
+	soiounlock(&(so)->so_rcv_sx)
 
 /*
  * Do we need to notify the other side when I/O is possible?
