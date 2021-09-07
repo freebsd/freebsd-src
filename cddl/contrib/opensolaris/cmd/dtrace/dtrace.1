@@ -577,6 +577,17 @@ Must be specified in number-per-second with the
 suffix.
 .It Sy cpu Ns = Ns Ar scalar
 Specifies the CPU on which to enable tracing.
+.It Sy cpp
+Run a C preprocessor over input files.
+Same as the
+.Fl C
+flag.
+.It Sy cpppath Ns = Ns Ar path
+Use the specified path for the C preprocessor rather than
+searching for
+.Dq cpp
+in
+.Ev PATH .
 .It Sy defaultargs
 Allow references to unspecified macro arguments.
 .It Sy destructive
