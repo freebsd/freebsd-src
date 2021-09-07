@@ -20,7 +20,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 2, 2021
+.Dd September 7, 2021
 .Dt DTRACE 1
 .Os
 .Sh NAME
@@ -602,6 +602,14 @@ Number of default stack frames for
 .It Sy jstackstrsize Ns = Ns Ar scalar
 Default string space size for
 .Fn jstack .
+.It Sy ldpath Ns = Ns Ar path
+When
+.Fl G
+is specified, use the specified path for a static linker
+rather than searching for
+.Dq "ld"
+in
+.Ev PATH .
 .It Sy libdir Ns = Ns Ar path
 Add a directory to the system library path.
 .It Sy nspec Ns = Ns Ar scalar
