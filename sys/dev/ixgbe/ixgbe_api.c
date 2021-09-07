@@ -585,7 +585,7 @@ s32 ixgbe_setup_internal_phy(struct ixgbe_hw *hw)
  *  ixgbe_check_phy_link - Determine link and speed status
  *  @hw: pointer to hardware structure
  *  @speed: link speed
- *  @link_up: TRUE when link is up
+ *  @link_up: true when link is up
  *
  *  Reads a PHY register to determine if link is up and the current speed for
  *  the PHY.
@@ -601,7 +601,7 @@ s32 ixgbe_check_phy_link(struct ixgbe_hw *hw, ixgbe_link_speed *speed,
  *  ixgbe_setup_phy_link_speed - Set auto advertise
  *  @hw: pointer to hardware structure
  *  @speed: new link speed
- *  @autoneg_wait_to_complete: TRUE when waiting for completion is needed
+ *  @autoneg_wait_to_complete: true when waiting for completion is needed
  *
  *  Sets the auto advertised capabilities
  **/
@@ -616,7 +616,7 @@ s32 ixgbe_setup_phy_link_speed(struct ixgbe_hw *hw, ixgbe_link_speed speed,
 /**
  * ixgbe_set_phy_power - Control the phy power state
  * @hw: pointer to hardware structure
- * @on: TRUE for on, FALSE for off
+ * @on: true for on, false for off
  */
 s32 ixgbe_set_phy_power(struct ixgbe_hw *hw, bool on)
 {
@@ -628,7 +628,7 @@ s32 ixgbe_set_phy_power(struct ixgbe_hw *hw, bool on)
  *  ixgbe_check_link - Get link and speed status
  *  @hw: pointer to hardware structure
  *  @speed: pointer to link speed
- *  @link_up: TRUE when link is up
+ *  @link_up: true when link is up
  *  @link_up_wait_to_complete: bool used to wait for link up or not
  *
  *  Reads the links register to determine if link is up and the current speed
@@ -683,7 +683,7 @@ void ixgbe_flap_tx_laser(struct ixgbe_hw *hw)
  *  ixgbe_setup_link - Set link speed
  *  @hw: pointer to hardware structure
  *  @speed: new link speed
- *  @autoneg_wait_to_complete: TRUE when waiting for completion is needed
+ *  @autoneg_wait_to_complete: true when waiting for completion is needed
  *
  *  Configures link settings.  Restarts the link.
  *  Performs autonegotiation if needed.
@@ -700,7 +700,7 @@ s32 ixgbe_setup_link(struct ixgbe_hw *hw, ixgbe_link_speed speed,
  *  ixgbe_setup_mac_link - Set link speed
  *  @hw: pointer to hardware structure
  *  @speed: new link speed
- *  @autoneg_wait_to_complete: TRUE when waiting for completion is needed
+ *  @autoneg_wait_to_complete: true when waiting for completion is needed
  *
  *  Configures link settings.  Restarts the link.
  *  Performs autonegotiation if needed.
@@ -717,7 +717,7 @@ s32 ixgbe_setup_mac_link(struct ixgbe_hw *hw, ixgbe_link_speed speed,
  *  ixgbe_get_link_capabilities - Returns link capabilities
  *  @hw: pointer to hardware structure
  *  @speed: link speed capabilities
- *  @autoneg: TRUE when autoneg or autotry is enabled
+ *  @autoneg: true when autoneg or autotry is enabled
  *
  *  Determines the link capabilities of the current configuration.
  **/

@@ -195,7 +195,7 @@ TUNABLE_INT("hw.ixv.flow_control", &ixv_flow_control);
  * it can be a performance win in some workloads, but
  * in others it actually hurts, its off by default.
  */
-static int ixv_header_split = FALSE;
+static int ixv_header_split = false;
 TUNABLE_INT("hw.ixv.hdr_split", &ixv_header_split);
 
 /*
@@ -602,7 +602,7 @@ ixv_if_init(if_ctx_t ctx)
 	int             error = 0;
 
 	INIT_DEBUGOUT("ixv_if_init: begin");
-	hw->adapter_stopped = FALSE;
+	hw->adapter_stopped = false;
 	hw->mac.ops.stop_adapter(hw);
 
 	/* reprogram the RAR[0] in case user changed it. */
@@ -649,7 +649,7 @@ ixv_if_init(if_ctx_t ctx)
 
 	/* Config/Enable Link */
 	hw->mac.ops.check_link(hw, &adapter->link_speed, &adapter->link_up,
-	    FALSE);
+	    false);
 
 	/* And now turn on interrupts */
 	ixv_if_enable_intr(ctx);
@@ -849,7 +849,7 @@ ixv_if_multi_set(if_ctx_t ctx)
 	update_ptr = mta;
 
 	adapter->hw.mac.ops.update_mc_addr_list(&adapter->hw, update_ptr, mcnt,
-	    ixv_mc_array_itr, TRUE);
+	    ixv_mc_array_itr, true);
 } /* ixv_if_multi_set */
 
 /************************************************************************
@@ -903,33 +903,33 @@ ixv_if_update_admin_status(if_ctx_t ctx)
 	device_t       dev = iflib_get_dev(ctx);
 	s32            status;
 
-	adapter->hw.mac.get_link_status = TRUE;
+	adapter->hw.mac.get_link_status = true;
 
 	status = ixgbe_check_link(&adapter->hw, &adapter->link_speed,
-	    &adapter->link_up, FALSE);
+	    &adapter->link_up, false);
 
-	if (status != IXGBE_SUCCESS && adapter->hw.adapter_stopped == FALSE) {
+	if (status != IXGBE_SUCCESS && adapter->hw.adapter_stopped == false) {
 		/* Mailbox's Clear To Send status is lost or timeout occurred.
 		 * We need reinitialization. */
 		iflib_get_ifp(ctx)->if_init(ctx);
 	}
 
 	if (adapter->link_up) {
-		if (adapter->link_active == FALSE) {
+		if (adapter->link_active == false) {
 			if (bootverbose)
 				device_printf(dev, "Link is up %d Gbps %s \n",
 				    ((adapter->link_speed == 128) ? 10 : 1),
 				    "Full Duplex");
-			adapter->link_active = TRUE;
+			adapter->link_active = true;
 			iflib_link_state_change(ctx, LINK_STATE_UP,
 			    IF_Gbps(10));
 		}
 	} else { /* Link down */
-		if (adapter->link_active == TRUE) {
+		if (adapter->link_active == true) {
 			if (bootverbose)
 				device_printf(dev, "Link is Down\n");
 			iflib_link_state_change(ctx, LINK_STATE_DOWN,  0);
-			adapter->link_active = FALSE;
+			adapter->link_active = false;
 		}
 	}
 
@@ -955,11 +955,11 @@ ixv_if_stop(if_ctx_t ctx)
 	ixv_if_disable_intr(ctx);
 
 	hw->mac.ops.reset_hw(hw);
-	adapter->hw.adapter_stopped = FALSE;
+	adapter->hw.adapter_stopped = false;
 	hw->mac.ops.stop_adapter(hw);
 
 	/* Update the stack */
-	adapter->link_up = FALSE;
+	adapter->link_up = false;
 	ixv_if_update_admin_status(ctx);
 
 	/* reprogram the RAR[0] in case user changed it. */
@@ -1510,7 +1510,7 @@ ixv_setup_vlan_support(if_ctx_t ctx)
 			 * Let Rx path know that it needs to store VLAN tag
 			 * as part of extra mbuf info.
 			 */
-			adapter->rx_queues[i].rxr.vtag_strip = TRUE;
+			adapter->rx_queues[i].rxr.vtag_strip = true;
 		}
 	}
 
@@ -1540,7 +1540,7 @@ ixv_setup_vlan_support(if_ctx_t ctx)
 				continue;
 			vid = (i * 32) + j;
 			/* Call the shared code mailbox routine */
-			while (hw->mac.ops.set_vfta(hw, vid, 0, TRUE, FALSE)) {
+			while (hw->mac.ops.set_vfta(hw, vid, 0, true, false)) {
 				if (++retry > 5)
 					break;
 			}

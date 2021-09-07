@@ -115,10 +115,6 @@ enum {
 	#define ERROR_REPORT3(S,A,B,C)
 #endif
 
-#define FALSE               0
-#define false               0 /* shared code requires this */
-#define TRUE                1
-#define true                1
 #define CMD_MEM_WRT_INVALIDATE          0x0010  /* BIT_4 */
 #define PCI_COMMAND_REGISTER            PCIR_COMMAND
 
