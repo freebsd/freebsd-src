@@ -910,7 +910,7 @@ restart:
 
 			    case CMD_grep: /* grep command name */
 				new_message(MT_standout,
-				    "Grep command name: ");
+				    "Grep command name (+ for all): ");
 				if (readline(tempbuf1, sizeof(tempbuf1), false) > 0) {
 					free(ps.command);
 					if (tempbuf1[0] == '+' && tempbuf1[1] == '\0') {
