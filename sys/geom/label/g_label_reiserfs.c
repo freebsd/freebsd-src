@@ -61,8 +61,10 @@ g_label_reiserfs_read_super(struct g_consumer *cp, off_t offset)
 
 	if ((offset % secsize) != 0)
 		return (NULL);
+	if (secsize < sizeof(*fs))
+		return (NULL);
 
-	fs = (reiserfs_sb_t *)g_read_data(cp, offset, secsize, NULL);
+	fs = g_read_data(cp, offset, secsize, NULL);
 	if (fs == NULL)
 		return (NULL);
 

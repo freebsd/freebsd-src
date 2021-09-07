@@ -310,6 +310,8 @@ g_label_read_metadata(struct g_consumer *cp, struct g_label_metadata *md)
 	int error;
 
 	pp = cp->provider;
+	if (pp->sectorsize < sizeof(*md))
+		return (EINVAL);
 	buf = g_read_data(cp, pp->mediasize - pp->sectorsize, pp->sectorsize,
 	    &error);
 	if (buf == NULL)

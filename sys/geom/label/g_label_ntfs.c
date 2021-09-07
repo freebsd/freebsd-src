@@ -108,9 +108,13 @@ g_label_ntfs_taste(struct g_consumer *cp, char *label, size_t size)
 
 	label[0] = '\0';
 	pp = cp->provider;
+	bf = NULL;
 	filerecp = NULL;
 
-	bf = (struct ntfs_bootfile *)g_read_data(cp, 0, pp->sectorsize, NULL);
+	if (pp->sectorsize < sizeof(*bf))
+		goto done;
+
+	bf = g_read_data(cp, 0, pp->sectorsize, NULL);
 	if (bf == NULL || strncmp(bf->bf_sysid, "NTFS    ", 8) != 0)
 		goto done;
 
