@@ -88,7 +88,7 @@ ixgbe_tx_ctx_setup(struct ixgbe_adv_tx_context_desc *TXD, if_pkt_info_t pi)
 	uint32_t olinfo_status, mss_l4len_idx, pktlen, offload;
 	u8  ehdrlen;
 
-	offload = TRUE;
+	offload = true;
 	olinfo_status = mss_l4len_idx = vlan_macip_lens = type_tucmd_mlhl = 0;
 	/* VLAN MACLEN IPLEN */
 	vlan_macip_lens |= (htole16(pi->ipi_vtag) << IXGBE_ADVTXD_VLAN_SHIFT);
@@ -126,7 +126,7 @@ ixgbe_tx_ctx_setup(struct ixgbe_adv_tx_context_desc *TXD, if_pkt_info_t pi)
 	} else if (pi->ipi_flags & IPI_TX_IPV6)
 		type_tucmd_mlhl |= IXGBE_ADVTXD_TUCMD_IPV6;
 	else
-		offload = FALSE;
+		offload = false;
 
 	vlan_macip_lens |= pi->ipi_ip_hlen;
 
@@ -135,22 +135,22 @@ ixgbe_tx_ctx_setup(struct ixgbe_adv_tx_context_desc *TXD, if_pkt_info_t pi)
 		if (pi->ipi_csum_flags & (CSUM_IP_TCP | CSUM_IP6_TCP | CSUM_TSO))
 			type_tucmd_mlhl |= IXGBE_ADVTXD_TUCMD_L4T_TCP;
 		else
-			offload = FALSE;
+			offload = false;
 		break;
 	case IPPROTO_UDP:
 		if (pi->ipi_csum_flags & (CSUM_IP_UDP | CSUM_IP6_UDP))
 			type_tucmd_mlhl |= IXGBE_ADVTXD_TUCMD_L4T_UDP;
 		else
-			offload = FALSE;
+			offload = false;
 		break;
 	case IPPROTO_SCTP:
 		if (pi->ipi_csum_flags & (CSUM_IP_SCTP | CSUM_IP6_SCTP))
 			type_tucmd_mlhl |= IXGBE_ADVTXD_TUCMD_L4T_SCTP;
 		else
-			offload = FALSE;
+			offload = false;
 		break;
 	default:
-		offload = FALSE;
+		offload = false;
 		break;
 	}
 	/* Insert L4 checksum into data descriptors */

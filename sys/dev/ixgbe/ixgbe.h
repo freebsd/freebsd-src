@@ -569,11 +569,11 @@ drbr_needs_enqueue(struct ifnet *ifp, struct buf_ring *br)
 static inline bool
 ixv_check_ether_addr(u8 *addr)
 {
-	bool status = TRUE;
+	bool status = true;
 
 	if ((addr[0] == 0 && addr[1]== 0 && addr[2] == 0 &&
 	    addr[3] == 0 && addr[4]== 0 && addr[5] == 0))
-		status = FALSE;
+		status = false;
 
 	return (status);
 }

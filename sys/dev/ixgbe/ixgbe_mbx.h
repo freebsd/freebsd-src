@@ -68,7 +68,7 @@
 
 
 /* If it's a IXGBE_VF_* msg then it originates in the VF and is sent to the
- * PF.  The reverse is TRUE if it is IXGBE_PF_*.
+ * PF.  The reverse is true if it is IXGBE_PF_*.
  * Message ACK's are the value or'd with 0xF0000000
  */
 #define IXGBE_VT_MSGTYPE_ACK	0x80000000 /* Messages below or'd with
