@@ -741,7 +741,9 @@ vn_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
 	 * XXXRW: Historically this has assumed non-interruptibility, so now
 	 * we implement that, but possibly shouldn't.
 	 */
-	(void)sblock(&so->so_snd, SBL_WAIT | SBL_NOINTR);
+	error = SOCK_IO_SEND_LOCK(so, SBL_WAIT | SBL_NOINTR);
+	if (error != 0)
+		goto out;
 #ifdef KERN_TLS
 	tls = ktls_hold(so->so_snd.sb_tls_info);
 #endif
@@ -1211,7 +1213,7 @@ prepend_header:
 	 * Send trailers. Wimp out and use writev(2).
 	 */
 	if (trl_uio != NULL) {
-		sbunlock(&so->so_snd);
+		SOCK_IO_SEND_UNLOCK(so);
 		error = kern_writev(td, sockfd, trl_uio);
 		if (error == 0)
 			sbytes += td->td_retval[0];
@@ -1219,7 +1221,7 @@ prepend_header:
 	}
 
 done:
-	sbunlock(&so->so_snd);
+	SOCK_IO_SEND_UNLOCK(so);
 out:
 	/*
 	 * If there was no error we have to clear td->td_retval[0]

@@ -475,34 +475,6 @@ sbwait(struct sockbuf *sb)
 	    sb->sb_timeo, 0, 0));
 }
 
-int
-sblock(struct sockbuf *sb, int flags)
-{
-
-	KASSERT((flags & SBL_VALID) == flags,
-	    ("sblock: flags invalid (0x%x)", flags));
-
-	if (flags & SBL_WAIT) {
-		if ((sb->sb_flags & SB_NOINTR) ||
-		    (flags & SBL_NOINTR)) {
-			sx_xlock(&sb->sb_sx);
-			return (0);
-		}
-		return (sx_xlock_sig(&sb->sb_sx));
-	} else {
-		if (sx_try_xlock(&sb->sb_sx) == 0)
-			return (EWOULDBLOCK);
-		return (0);
-	}
-}
-
-void
-sbunlock(struct sockbuf *sb)
-{
-
-	sx_xunlock(&sb->sb_sx);
-}
-
 /*
  * Wakeup processes waiting on a socket buffer.  Do asynchronous notification
  * via SIGIO if the socket has the SS_ASYNC flag set.
