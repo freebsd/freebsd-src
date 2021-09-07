@@ -42,7 +42,7 @@ work()
     echo "#define _OFFSET_INC_"
     echo "#if !defined(GENOFFSET) && (!defined(KLD_MODULE) || defined(KLD_TIED))"
     last=
-    temp=$(mktemp -d genoffset.XXXXX)
+    temp=$(mktemp -d genoffset.XXXXXXXXXX)
     trap "rm -rf ${temp}" EXIT
     # Note: we need to print symbol values in decimal so the numeric sort works
     ${NM:='nm'} ${NMFLAGS} -t d "$1" | grep __assym_offset__ | sed -e 's/__/ /g' | sort -k 4 -k 1 -n |
