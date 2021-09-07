@@ -9728,23 +9728,24 @@ sysctl_meminfo(SYSCTL_HANDLER_ARGS)
 #undef ulp_region
 
 	md->base = 0;
-	md->idx = nitems(region);
-	if (!is_t4(sc)) {
+	if (is_t4(sc))
+		md->idx = nitems(region);
+	else {
 		uint32_t size = 0;
 		uint32_t sge_ctrl = t4_read_reg(sc, A_SGE_CONTROL2);
 		uint32_t fifo_size = t4_read_reg(sc, A_SGE_DBVFIFO_SIZE);
 
 		if (is_t5(sc)) {
 			if (sge_ctrl & F_VFIFO_ENABLE)
-				size = G_DBVFIFO_SIZE(fifo_size);
+				size = fifo_size << 2;
 		} else
-			size = G_T6_DBVFIFO_SIZE(fifo_size);
+			size = G_T6_DBVFIFO_SIZE(fifo_size) << 6;
 
 		if (size) {
-			md->base = G_BASEADDR(t4_read_reg(sc,
-			    A_SGE_DBVFIFO_BADDR));
-			md->limit = md->base + (size << 2) - 1;
-		}
+			md->base = t4_read_reg(sc, A_SGE_DBVFIFO_BADDR);
+			md->limit = md->base + size - 1;
+		} else
+			md->idx = nitems(region);
 	}
 	md++;
 
