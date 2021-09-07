@@ -453,6 +453,7 @@ void	sofree(struct socket *so);
 void	sohasoutofband(struct socket *so);
 int	solisten(struct socket *so, int backlog, struct thread *td);
 void	solisten_proto(struct socket *so, int backlog);
+void	solisten_proto_abort(struct socket *so);
 int	solisten_proto_check(struct socket *so);
 int	solisten_dequeue(struct socket *, struct socket **, int);
 struct socket *

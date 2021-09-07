@@ -7201,7 +7201,8 @@ sctp_listen(struct socket *so, int backlog, struct thread *p)
 			}
 		}
 	}
-	SCTP_INP_RLOCK(inp);
+	SCTP_INP_INFO_WLOCK();
+	SCTP_INP_WLOCK(inp);
 #ifdef SCTP_LOCK_LOGGING
 	if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_LOCK_LOGGING_ENABLE) {
 		sctp_log_lock(inp, (struct sctp_tcb *)NULL, SCTP_LOG_LOCK_SOCK);
@@ -7209,10 +7210,9 @@ sctp_listen(struct socket *so, int backlog, struct thread *p)
 #endif
 	SOCK_LOCK(so);
 	error = solisten_proto_check(so);
-	SOCK_UNLOCK(so);
 	if (error) {
-		SCTP_INP_RUNLOCK(inp);
-		return (error);
+		SOCK_UNLOCK(so);
+		goto out;
 	}
 	if ((sctp_is_feature_on(inp, SCTP_PCB_FLAGS_PORTREUSE)) &&
 	    (inp->sctp_flags & SCTP_PCB_FLAGS_IN_TCPPOOL)) {
@@ -7223,39 +7223,44 @@ sctp_listen(struct socket *so, int backlog, struct thread *p)
 		 * move the guy that was listener to the TCP Pool.
 		 */
 		if (sctp_swap_inpcb_for_listen(inp)) {
-			SCTP_INP_RUNLOCK(inp);
-			SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EADDRINUSE);
-			return (EADDRINUSE);
+			SOCK_UNLOCK(so);
+			solisten_proto_abort(so);
+			error = EADDRINUSE;
+			SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, error);
+			goto out;
 		}
 	}
 
 	if ((inp->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) &&
 	    (inp->sctp_flags & SCTP_PCB_FLAGS_CONNECTED)) {
-		/* We are already connected AND the TCP model */
-		SCTP_INP_RUNLOCK(inp);
-		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EADDRINUSE);
-		return (EADDRINUSE);
+		SOCK_UNLOCK(so);
+		solisten_proto_abort(so);
+		error = EADDRINUSE;
+		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, error);
+		goto out;
 	}
-	SCTP_INP_RUNLOCK(inp);
 	if (inp->sctp_flags & SCTP_PCB_FLAGS_UNBOUND) {
-		/* We must do a bind. */
-		if ((error = sctp_inpcb_bind(so, NULL, NULL, p))) {
+		if ((error = sctp_inpcb_bind_locked(inp, NULL, NULL, p))) {
+			SOCK_UNLOCK(so);
+			solisten_proto_abort(so);
 			/* bind error, probably perm */
-			return (error);
+			goto out;
 		}
 	}
-	SCTP_INP_WLOCK(inp);
 	if ((inp->sctp_flags & SCTP_PCB_FLAGS_UDPTYPE) == 0) {
-		SOCK_LOCK(so);
 		solisten_proto(so, backlog);
-		SOCK_UNLOCK(so);
+	} else {
+		solisten_proto_abort(so);
 	}
+	SOCK_UNLOCK(so);
 	if (backlog > 0) {
 		inp->sctp_flags |= SCTP_PCB_FLAGS_ACCEPTING;
 	} else {
 		inp->sctp_flags &= ~SCTP_PCB_FLAGS_ACCEPTING;
 	}
+out:
 	SCTP_INP_WUNLOCK(inp);
+	SCTP_INP_INFO_WUNLOCK();
 	return (error);
 }
 

@@ -894,6 +894,7 @@ ng_btsocket_rfcomm_listen(struct socket *so, int backlog, struct thread *td)
 		 * from socreate()
 		 */
 		if (l2so == NULL) {
+			solisten_proto_abort(so);
 			error = socreate_error;
 			goto out;
 		}
@@ -907,8 +908,10 @@ ng_btsocket_rfcomm_listen(struct socket *so, int backlog, struct thread *td)
 		 */
 		error = ng_btsocket_rfcomm_session_create(&s, l2so,
 					NG_HCI_BDADDR_ANY, NULL, td);
-		if (error != 0)
+		if (error != 0) {
+			solisten_proto_abort(so);
 			goto out;
+		}
 		l2so = NULL;
 	}
 	SOCK_LOCK(so);
