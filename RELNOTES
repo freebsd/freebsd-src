@@ -10,6 +10,9 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+various:
+	Add support for the HiFive Unmatched RISC-V board.
+
 9fb6e613373c:
 	Add a sysctl called vfs.nfsd.srvmaxio that can be used to
 	increase the NFS server's maximum I/O size from 128Kbytes
