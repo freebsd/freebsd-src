@@ -395,7 +395,6 @@ struct sctp_inpcb {
 #ifdef SCTP_TRACK_FREED_ASOCS
 	struct sctpasochead sctp_asoc_free_list;
 #endif
-	struct sctp_iterator *inp_starting_point_for_iterator;
 	uint32_t sctp_frag_point;
 	uint32_t partial_delivery_point;
 	uint32_t sctp_context;
