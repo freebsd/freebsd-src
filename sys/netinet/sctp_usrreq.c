@@ -7249,14 +7249,16 @@ sctp_listen(struct socket *so, int backlog, struct thread *p)
 	}
 	if ((inp->sctp_flags & SCTP_PCB_FLAGS_UDPTYPE) == 0) {
 		solisten_proto(so, backlog);
-	} else {
-		solisten_proto_abort(so);
-	}
-	SOCK_UNLOCK(so);
-	if (backlog > 0) {
+		SOCK_UNLOCK(so);
 		inp->sctp_flags |= SCTP_PCB_FLAGS_ACCEPTING;
 	} else {
-		inp->sctp_flags &= ~SCTP_PCB_FLAGS_ACCEPTING;
+		solisten_proto_abort(so);
+		SOCK_UNLOCK(so);
+		if (backlog > 0) {
+			inp->sctp_flags |= SCTP_PCB_FLAGS_ACCEPTING;
+		} else {
+			inp->sctp_flags &= ~SCTP_PCB_FLAGS_ACCEPTING;
+		}
 	}
 out:
 	SCTP_INP_WUNLOCK(inp);
