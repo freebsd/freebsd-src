@@ -79,9 +79,8 @@ struct selinfo;
  * Locking key to struct sockbuf:
  * (a) locked by SOCKBUF_LOCK().
  */
-struct	sockbuf {
-	struct	mtx sb_mtx;		/* sockbuf lock */
-	struct	sx sb_sx;		/* prevent I/O interlacing */
+struct sockbuf {
+	struct	mtx *sb_mtx;		/* sockbuf lock */
 	struct	selinfo *sb_sel;	/* process selecting read/write */
 	short	sb_state;	/* (a) socket state on sockbuf */
 #define	sb_startzero	sb_flags
@@ -122,7 +121,7 @@ struct	sockbuf {
  * Per-socket buffer mutex used to protect most fields in the socket
  * buffer.
  */
-#define	SOCKBUF_MTX(_sb)		(&(_sb)->sb_mtx)
+#define	SOCKBUF_MTX(_sb)		((_sb)->sb_mtx)
 #define	SOCKBUF_LOCK_INIT(_sb, _name) \
 	mtx_init(SOCKBUF_MTX(_sb), _name, NULL, MTX_DEF)
 #define	SOCKBUF_LOCK_DESTROY(_sb)	mtx_destroy(SOCKBUF_MTX(_sb))
