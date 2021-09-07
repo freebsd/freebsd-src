@@ -2082,7 +2082,6 @@ int		 pf_match_tag(struct mbuf *, struct pf_krule *, int *, int);
 int		 pf_tag_packet(struct mbuf *, struct pf_pdesc *, int);
 int		 pf_addr_cmp(struct pf_addr *, struct pf_addr *,
 		    sa_family_t);
-void		 pf_qid2qname(u_int32_t, char *);
 
 u_int16_t	 pf_get_mss(struct mbuf *, int, u_int16_t, sa_family_t);
 u_int8_t	 pf_get_wscale(struct mbuf *, int, u_int16_t, sa_family_t);
