@@ -54,8 +54,9 @@ g_label_iso9660_taste(struct g_consumer *cp, char *label, size_t size)
 
 	if ((ISO9660_OFFSET % pp->sectorsize) != 0)
 		return;
-	sector = (char *)g_read_data(cp, ISO9660_OFFSET, pp->sectorsize,
-	    NULL);
+	if (pp->sectorsize < 0x28 + VOLUME_LEN)
+		return;
+	sector = g_read_data(cp, ISO9660_OFFSET, pp->sectorsize, NULL);
 	if (sector == NULL)
 		return;
 	if (bcmp(sector, ISO9660_MAGIC, sizeof(ISO9660_MAGIC) - 1) != 0) {
