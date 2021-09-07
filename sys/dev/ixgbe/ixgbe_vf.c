@@ -44,13 +44,13 @@
 #endif
 
 /**
- *  ixgbe_init_ops_vf - Initialize the pointers for vf
- *  @hw: pointer to hardware structure
+ * ixgbe_init_ops_vf - Initialize the pointers for vf
+ * @hw: pointer to hardware structure
  *
- *  This will assign function pointers, adapter-specific functions can
- *  override the assignment of generic function pointers by assigning
- *  their own adapter-specific function pointers.
- *  Does not touch the hardware.
+ * This will assign function pointers, adapter-specific functions can
+ * override the assignment of generic function pointers by assigning
+ * their own adapter-specific function pointers.
+ * Does not touch the hardware.
  **/
 s32 ixgbe_init_ops_vf(struct ixgbe_hw *hw)
 {
@@ -92,7 +92,7 @@ s32 ixgbe_init_ops_vf(struct ixgbe_hw *hw)
 }
 
 /* ixgbe_virt_clr_reg - Set register to default (power on) state.
- *  @hw: pointer to hardware structure
+ * @hw: pointer to hardware structure
  */
 static void ixgbe_virt_clr_reg(struct ixgbe_hw *hw)
 {
@@ -135,13 +135,13 @@ static void ixgbe_virt_clr_reg(struct ixgbe_hw *hw)
 }
 
 /**
- *  ixgbe_start_hw_vf - Prepare hardware for Tx/Rx
- *  @hw: pointer to hardware structure
+ * ixgbe_start_hw_vf - Prepare hardware for Tx/Rx
+ * @hw: pointer to hardware structure
  *
- *  Starts the hardware by filling the bus info structure and media type, clears
- *  all on chip counters, initializes receive address registers, multicast
- *  table, VLAN filter table, calls routine to set up link and flow control
- *  settings, and leaves transmit and receive units disabled and uninitialized
+ * Starts the hardware by filling the bus info structure and media type, clears
+ * all on chip counters, initializes receive address registers, multicast
+ * table, VLAN filter table, calls routine to set up link and flow control
+ * settings, and leaves transmit and receive units disabled and uninitialized
  **/
 s32 ixgbe_start_hw_vf(struct ixgbe_hw *hw)
 {
@@ -152,11 +152,11 @@ s32 ixgbe_start_hw_vf(struct ixgbe_hw *hw)
 }
 
 /**
- *  ixgbe_init_hw_vf - virtual function hardware initialization
- *  @hw: pointer to hardware structure
+ * ixgbe_init_hw_vf - virtual function hardware initialization
+ * @hw: pointer to hardware structure
  *
- *  Initialize the hardware by resetting the hardware and then starting
- *  the hardware
+ * Initialize the hardware by resetting the hardware and then starting
+ * the hardware
  **/
 s32 ixgbe_init_hw_vf(struct ixgbe_hw *hw)
 {
@@ -168,11 +168,11 @@ s32 ixgbe_init_hw_vf(struct ixgbe_hw *hw)
 }
 
 /**
- *  ixgbe_reset_hw_vf - Performs hardware reset
- *  @hw: pointer to hardware structure
+ * ixgbe_reset_hw_vf - Performs hardware reset
+ * @hw: pointer to hardware structure
  *
- *  Resets the hardware by reseting the transmit and receive units, masks and
- *  clears all interrupts.
+ * Resets the hardware by reseting the transmit and receive units, masks and
+ * clears all interrupts.
  **/
 s32 ixgbe_reset_hw_vf(struct ixgbe_hw *hw)
 {
@@ -240,13 +240,13 @@ s32 ixgbe_reset_hw_vf(struct ixgbe_hw *hw)
 }
 
 /**
- *  ixgbe_stop_adapter_vf - Generic stop Tx/Rx units
- *  @hw: pointer to hardware structure
+ * ixgbe_stop_adapter_vf - Generic stop Tx/Rx units
+ * @hw: pointer to hardware structure
  *
- *  Sets the adapter_stopped flag within ixgbe_hw struct. Clears interrupts,
- *  disables transmit and receive units. The adapter_stopped flag is used by
- *  the shared code and drivers to determine if the adapter is in a stopped
- *  state and should not touch the hardware.
+ * Sets the adapter_stopped flag within ixgbe_hw struct. Clears interrupts,
+ * disables transmit and receive units. The adapter_stopped flag is used by
+ * the shared code and drivers to determine if the adapter is in a stopped
+ * state and should not touch the hardware.
  **/
 s32 ixgbe_stop_adapter_vf(struct ixgbe_hw *hw)
 {
@@ -286,16 +286,16 @@ s32 ixgbe_stop_adapter_vf(struct ixgbe_hw *hw)
 }
 
 /**
- *  ixgbe_mta_vector - Determines bit-vector in multicast table to set
- *  @hw: pointer to hardware structure
- *  @mc_addr: the multicast address
+ * ixgbe_mta_vector - Determines bit-vector in multicast table to set
+ * @hw: pointer to hardware structure
+ * @mc_addr: the multicast address
  *
- *  Extracts the 12 bits, from a multicast address, to determine which
- *  bit-vector to set in the multicast table. The hardware uses 12 bits, from
- *  incoming rx multicast addresses, to determine the bit-vector to check in
- *  the MTA. Which of the 4 combination, of 12-bits, the hardware uses is set
- *  by the MO field of the MCSTCTRL. The MO field is set during initialization
- *  to mc_filter_type.
+ * Extracts the 12 bits, from a multicast address, to determine which
+ * bit-vector to set in the multicast table. The hardware uses 12 bits, from
+ * incoming rx multicast addresses, to determine the bit-vector to check in
+ * the MTA. Which of the 4 combination, of 12-bits, the hardware uses is set
+ * by the MO field of the MCSTCTRL. The MO field is set during initialization
+ * to mc_filter_type.
  **/
 static s32 ixgbe_mta_vector(struct ixgbe_hw *hw, u8 *mc_addr)
 {
@@ -338,12 +338,12 @@ static s32 ixgbevf_write_msg_read_ack(struct ixgbe_hw *hw, u32 *msg,
 }
 
 /**
- *  ixgbe_set_rar_vf - set device MAC address
- *  @hw: pointer to hardware structure
- *  @index: Receive address register to write
- *  @addr: Address to put into receive address register
- *  @vmdq: VMDq "set" or "pool" index
- *  @enable_addr: set flag that address is active
+ * ixgbe_set_rar_vf - set device MAC address
+ * @hw: pointer to hardware structure
+ * @index: Receive address register to write
+ * @addr: Address to put into receive address register
+ * @vmdq: VMDq "set" or "pool" index
+ * @enable_addr: set flag that address is active
  **/
 s32 ixgbe_set_rar_vf(struct ixgbe_hw *hw, u32 index, u8 *addr, u32 vmdq,
 		     u32 enable_addr)
@@ -371,14 +371,14 @@ s32 ixgbe_set_rar_vf(struct ixgbe_hw *hw, u32 index, u8 *addr, u32 vmdq,
 }
 
 /**
- *  ixgbe_update_mc_addr_list_vf - Update Multicast addresses
- *  @hw: pointer to the HW structure
- *  @mc_addr_list: array of multicast addresses to program
- *  @mc_addr_count: number of multicast addresses to program
- *  @next: caller supplied function to return next address in list
- *  @clear: unused
+ * ixgbe_update_mc_addr_list_vf - Update Multicast addresses
+ * @hw: pointer to the HW structure
+ * @mc_addr_list: array of multicast addresses to program
+ * @mc_addr_count: number of multicast addresses to program
+ * @next: caller supplied function to return next address in list
+ * @clear: unused
  *
- *  Updates the Multicast Table Array.
+ * Updates the Multicast Table Array.
  **/
 s32 ixgbe_update_mc_addr_list_vf(struct ixgbe_hw *hw, u8 *mc_addr_list,
 				 u32 mc_addr_count, ixgbe_mc_addr_itr next,
@@ -420,11 +420,11 @@ s32 ixgbe_update_mc_addr_list_vf(struct ixgbe_hw *hw, u8 *mc_addr_list,
 }
 
 /**
- *  ixgbevf_update_xcast_mode - Update Multicast mode
- *  @hw: pointer to the HW structure
- *  @xcast_mode: new multicast mode
+ * ixgbevf_update_xcast_mode - Update Multicast mode
+ * @hw: pointer to the HW structure
+ * @xcast_mode: new multicast mode
  *
- *  Updates the Multicast Mode of VF.
+ * Updates the Multicast Mode of VF.
  **/
 s32 ixgbevf_update_xcast_mode(struct ixgbe_hw *hw, int xcast_mode)
 {
@@ -457,14 +457,14 @@ s32 ixgbevf_update_xcast_mode(struct ixgbe_hw *hw, int xcast_mode)
 }
 
 /**
- *  ixgbe_set_vfta_vf - Set/Unset vlan filter table address
- *  @hw: pointer to the HW structure
- *  @vlan: 12 bit VLAN ID
- *  @vind: unused by VF drivers
- *  @vlan_on: if true then set bit, else clear bit
- *  @vlvf_bypass: boolean flag indicating updating default pool is okay
+ * ixgbe_set_vfta_vf - Set/Unset vlan filter table address
+ * @hw: pointer to the HW structure
+ * @vlan: 12 bit VLAN ID
+ * @vind: unused by VF drivers
+ * @vlan_on: if true then set bit, else clear bit
+ * @vlvf_bypass: boolean flag indicating updating default pool is okay
  *
- *  Turn on/off specified VLAN in the VLAN filter table.
+ * Turn on/off specified VLAN in the VLAN filter table.
  **/
 s32 ixgbe_set_vfta_vf(struct ixgbe_hw *hw, u32 vlan, u32 vind,
 		      bool vlan_on, bool vlvf_bypass)
@@ -486,10 +486,10 @@ s32 ixgbe_set_vfta_vf(struct ixgbe_hw *hw, u32 vlan, u32 vind,
 }
 
 /**
- *  ixgbe_get_num_of_tx_queues_vf - Get number of TX queues
- *  @hw: pointer to hardware structure
+ * ixgbe_get_num_of_tx_queues_vf - Get number of TX queues
+ * @hw: pointer to hardware structure
  *
- *  Returns the number of transmit queues for the given adapter.
+ * Returns the number of transmit queues for the given adapter.
  **/
 u32 ixgbe_get_num_of_tx_queues_vf(struct ixgbe_hw *hw)
 {
@@ -498,10 +498,10 @@ u32 ixgbe_get_num_of_tx_queues_vf(struct ixgbe_hw *hw)
 }
 
 /**
- *  ixgbe_get_num_of_rx_queues_vf - Get number of RX queues
- *  @hw: pointer to hardware structure
+ * ixgbe_get_num_of_rx_queues_vf - Get number of RX queues
+ * @hw: pointer to hardware structure
  *
- *  Returns the number of receive queues for the given adapter.
+ * Returns the number of receive queues for the given adapter.
  **/
 u32 ixgbe_get_num_of_rx_queues_vf(struct ixgbe_hw *hw)
 {
@@ -555,12 +555,12 @@ s32 ixgbevf_set_uc_addr_vf(struct ixgbe_hw *hw, u32 index, u8 *addr)
 }
 
 /**
- *  ixgbe_setup_mac_link_vf - Setup MAC link settings
- *  @hw: pointer to hardware structure
- *  @speed: new link speed
- *  @autoneg_wait_to_complete: true when waiting for completion is needed
+ * ixgbe_setup_mac_link_vf - Setup MAC link settings
+ * @hw: pointer to hardware structure
+ * @speed: new link speed
+ * @autoneg_wait_to_complete: true when waiting for completion is needed
  *
- *  Set the link speed in the AUTOC register and restarts link.
+ * Set the link speed in the AUTOC register and restarts link.
  **/
 s32 ixgbe_setup_mac_link_vf(struct ixgbe_hw *hw, ixgbe_link_speed speed,
 			    bool autoneg_wait_to_complete)
@@ -570,13 +570,13 @@ s32 ixgbe_setup_mac_link_vf(struct ixgbe_hw *hw, ixgbe_link_speed speed,
 }
 
 /**
- *  ixgbe_check_mac_link_vf - Get link/speed status
- *  @hw: pointer to hardware structure
- *  @speed: pointer to link speed
- *  @link_up: true is link is up, false otherwise
- *  @autoneg_wait_to_complete: true when waiting for completion is needed
+ * ixgbe_check_mac_link_vf - Get link/speed status
+ * @hw: pointer to hardware structure
+ * @speed: pointer to link speed
+ * @link_up: true is link is up, false otherwise
+ * @autoneg_wait_to_complete: true when waiting for completion is needed
  *
- *  Reads the links register to determine if link is up and the current speed
+ * Reads the links register to determine if link is up and the current speed
  **/
 s32 ixgbe_check_mac_link_vf(struct ixgbe_hw *hw, ixgbe_link_speed *speed,
 			    bool *link_up, bool autoneg_wait_to_complete)
@@ -673,9 +673,9 @@ out:
 }
 
 /**
- *  ixgbevf_rlpml_set_vf - Set the maximum receive packet length
- *  @hw: pointer to the HW structure
- *  @max_size: value to assign to max frame size
+ * ixgbevf_rlpml_set_vf - Set the maximum receive packet length
+ * @hw: pointer to the HW structure
+ * @max_size: value to assign to max frame size
  **/
 s32 ixgbevf_rlpml_set_vf(struct ixgbe_hw *hw, u16 max_size)
 {
@@ -696,9 +696,9 @@ s32 ixgbevf_rlpml_set_vf(struct ixgbe_hw *hw, u16 max_size)
 }
 
 /**
- *  ixgbevf_negotiate_api_version - Negotiate supported API version
- *  @hw: pointer to the HW structure
- *  @api: integer containing requested API version
+ * ixgbevf_negotiate_api_version - Negotiate supported API version
+ * @hw: pointer to the HW structure
+ * @api: integer containing requested API version
  **/
 int ixgbevf_negotiate_api_version(struct ixgbe_hw *hw, int api)
 {

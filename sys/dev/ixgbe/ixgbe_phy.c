@@ -245,10 +245,10 @@ fail:
 }
 
 /**
- *  ixgbe_init_phy_ops_generic - Inits PHY function ptrs
- *  @hw: pointer to the hardware structure
+ * ixgbe_init_phy_ops_generic - Inits PHY function ptrs
+ * @hw: pointer to the hardware structure
  *
- *  Initialize the function pointers.
+ * Initialize the function pointers.
  **/
 s32 ixgbe_init_phy_ops_generic(struct ixgbe_hw *hw)
 {
@@ -319,10 +319,10 @@ static bool ixgbe_probe_phy(struct ixgbe_hw *hw, u16 phy_addr)
 }
 
 /**
- *  ixgbe_identify_phy_generic - Get physical layer module
- *  @hw: pointer to hardware structure
+ * ixgbe_identify_phy_generic - Get physical layer module
+ * @hw: pointer to hardware structure
  *
- *  Determines the physical layer module found on the current adapter.
+ * Determines the physical layer module found on the current adapter.
  **/
 s32 ixgbe_identify_phy_generic(struct ixgbe_hw *hw)
 {
@@ -398,9 +398,9 @@ s32 ixgbe_check_reset_blocked(struct ixgbe_hw *hw)
 }
 
 /**
- *  ixgbe_validate_phy_addr - Determines phy address is valid
- *  @hw: pointer to hardware structure
- *  @phy_addr: PHY address
+ * ixgbe_validate_phy_addr - Determines phy address is valid
+ * @hw: pointer to hardware structure
+ * @phy_addr: PHY address
  *
  **/
 bool ixgbe_validate_phy_addr(struct ixgbe_hw *hw, u32 phy_addr)
@@ -423,8 +423,8 @@ bool ixgbe_validate_phy_addr(struct ixgbe_hw *hw, u32 phy_addr)
 }
 
 /**
- *  ixgbe_get_phy_id - Get the phy type
- *  @hw: pointer to hardware structure
+ * ixgbe_get_phy_id - Get the phy type
+ * @hw: pointer to hardware structure
  *
  **/
 s32 ixgbe_get_phy_id(struct ixgbe_hw *hw)
@@ -454,8 +454,8 @@ s32 ixgbe_get_phy_id(struct ixgbe_hw *hw)
 }
 
 /**
- *  ixgbe_get_phy_type_from_id - Get the phy type
- *  @phy_id: PHY ID information
+ * ixgbe_get_phy_type_from_id - Get the phy type
+ * @phy_id: PHY ID information
  *
  **/
 enum ixgbe_phy_type ixgbe_get_phy_type_from_id(u32 phy_id)
@@ -495,8 +495,8 @@ enum ixgbe_phy_type ixgbe_get_phy_type_from_id(u32 phy_id)
 }
 
 /**
- *  ixgbe_reset_phy_generic - Performs a PHY reset
- *  @hw: pointer to hardware structure
+ * ixgbe_reset_phy_generic - Performs a PHY reset
+ * @hw: pointer to hardware structure
  **/
 s32 ixgbe_reset_phy_generic(struct ixgbe_hw *hw)
 {
@@ -574,12 +574,12 @@ out:
 }
 
 /**
- *  ixgbe_read_phy_mdi - Reads a value from a specified PHY register without
- *  the SWFW lock
- *  @hw: pointer to hardware structure
- *  @reg_addr: 32 bit address of PHY register to read
- *  @device_type: 5 bit device type
- *  @phy_data: Pointer to read data from PHY register
+ * ixgbe_read_phy_mdi - Reads a value from a specified PHY register without
+ * the SWFW lock
+ * @hw: pointer to hardware structure
+ * @reg_addr: 32 bit address of PHY register to read
+ * @device_type: 5 bit device type
+ * @phy_data: Pointer to read data from PHY register
  **/
 s32 ixgbe_read_phy_reg_mdi(struct ixgbe_hw *hw, u32 reg_addr, u32 device_type,
 			   u16 *phy_data)
@@ -656,12 +656,12 @@ s32 ixgbe_read_phy_reg_mdi(struct ixgbe_hw *hw, u32 reg_addr, u32 device_type,
 }
 
 /**
- *  ixgbe_read_phy_reg_generic - Reads a value from a specified PHY register
- *  using the SWFW lock - this function is needed in most cases
- *  @hw: pointer to hardware structure
- *  @reg_addr: 32 bit address of PHY register to read
- *  @device_type: 5 bit device type
- *  @phy_data: Pointer to read data from PHY register
+ * ixgbe_read_phy_reg_generic - Reads a value from a specified PHY register
+ * using the SWFW lock - this function is needed in most cases
+ * @hw: pointer to hardware structure
+ * @reg_addr: 32 bit address of PHY register to read
+ * @device_type: 5 bit device type
+ * @phy_data: Pointer to read data from PHY register
  **/
 s32 ixgbe_read_phy_reg_generic(struct ixgbe_hw *hw, u32 reg_addr,
 			       u32 device_type, u16 *phy_data)
@@ -682,12 +682,12 @@ s32 ixgbe_read_phy_reg_generic(struct ixgbe_hw *hw, u32 reg_addr,
 }
 
 /**
- *  ixgbe_write_phy_reg_mdi - Writes a value to specified PHY register
- *  without SWFW lock
- *  @hw: pointer to hardware structure
- *  @reg_addr: 32 bit PHY register to write
- *  @device_type: 5 bit device type
- *  @phy_data: Data to write to the PHY register
+ * ixgbe_write_phy_reg_mdi - Writes a value to specified PHY register
+ * without SWFW lock
+ * @hw: pointer to hardware structure
+ * @reg_addr: 32 bit PHY register to write
+ * @device_type: 5 bit device type
+ * @phy_data: Data to write to the PHY register
  **/
 s32 ixgbe_write_phy_reg_mdi(struct ixgbe_hw *hw, u32 reg_addr,
 				u32 device_type, u16 phy_data)
@@ -756,12 +756,12 @@ s32 ixgbe_write_phy_reg_mdi(struct ixgbe_hw *hw, u32 reg_addr,
 }
 
 /**
- *  ixgbe_write_phy_reg_generic - Writes a value to specified PHY register
- *  using SWFW lock- this function is needed in most cases
- *  @hw: pointer to hardware structure
- *  @reg_addr: 32 bit PHY register to write
- *  @device_type: 5 bit device type
- *  @phy_data: Data to write to the PHY register
+ * ixgbe_write_phy_reg_generic - Writes a value to specified PHY register
+ * using SWFW lock- this function is needed in most cases
+ * @hw: pointer to hardware structure
+ * @reg_addr: 32 bit PHY register to write
+ * @device_type: 5 bit device type
+ * @phy_data: Data to write to the PHY register
  **/
 s32 ixgbe_write_phy_reg_generic(struct ixgbe_hw *hw, u32 reg_addr,
 				u32 device_type, u16 phy_data)
@@ -783,10 +783,10 @@ s32 ixgbe_write_phy_reg_generic(struct ixgbe_hw *hw, u32 reg_addr,
 }
 
 /**
- *  ixgbe_setup_phy_link_generic - Set and restart auto-neg
- *  @hw: pointer to hardware structure
+ * ixgbe_setup_phy_link_generic - Set and restart auto-neg
+ * @hw: pointer to hardware structure
  *
- *  Restart auto-negotiation and PHY and waits for completion.
+ * Restart auto-negotiation and PHY and waits for completion.
  **/
 s32 ixgbe_setup_phy_link_generic(struct ixgbe_hw *hw)
 {
@@ -874,10 +874,10 @@ s32 ixgbe_setup_phy_link_generic(struct ixgbe_hw *hw)
 }
 
 /**
- *  ixgbe_setup_phy_link_speed_generic - Sets the auto advertised capabilities
- *  @hw: pointer to hardware structure
- *  @speed: new link speed
- *  @autoneg_wait_to_complete: unused
+ * ixgbe_setup_phy_link_speed_generic - Sets the auto advertised capabilities
+ * @hw: pointer to hardware structure
+ * @speed: new link speed
+ * @autoneg_wait_to_complete: unused
  **/
 s32 ixgbe_setup_phy_link_speed_generic(struct ixgbe_hw *hw,
 				       ixgbe_link_speed speed,
@@ -959,10 +959,10 @@ static s32 ixgbe_get_copper_speeds_supported(struct ixgbe_hw *hw)
 }
 
 /**
- *  ixgbe_get_copper_link_capabilities_generic - Determines link capabilities
- *  @hw: pointer to hardware structure
- *  @speed: pointer to link speed
- *  @autoneg: boolean auto-negotiation value
+ * ixgbe_get_copper_link_capabilities_generic - Determines link capabilities
+ * @hw: pointer to hardware structure
+ * @speed: pointer to link speed
+ * @autoneg: boolean auto-negotiation value
  **/
 s32 ixgbe_get_copper_link_capabilities_generic(struct ixgbe_hw *hw,
 					       ixgbe_link_speed *speed,
@@ -981,13 +981,13 @@ s32 ixgbe_get_copper_link_capabilities_generic(struct ixgbe_hw *hw,
 }
 
 /**
- *  ixgbe_check_phy_link_tnx - Determine link and speed status
- *  @hw: pointer to hardware structure
- *  @speed: current link speed
- *  @link_up: true is link is up, false otherwise
+ * ixgbe_check_phy_link_tnx - Determine link and speed status
+ * @hw: pointer to hardware structure
+ * @speed: current link speed
+ * @link_up: true is link is up, false otherwise
  *
- *  Reads the VS1 register to determine if link is up and the current speed for
- *  the PHY.
+ * Reads the VS1 register to determine if link is up and the current speed for
+ * the PHY.
  **/
 s32 ixgbe_check_phy_link_tnx(struct ixgbe_hw *hw, ixgbe_link_speed *speed,
 			     bool *link_up)
@@ -1110,9 +1110,9 @@ s32 ixgbe_setup_phy_link_tnx(struct ixgbe_hw *hw)
 }
 
 /**
- *  ixgbe_get_phy_firmware_version_tnx - Gets the PHY Firmware Version
- *  @hw: pointer to hardware structure
- *  @firmware_version: pointer to the PHY Firmware Version
+ * ixgbe_get_phy_firmware_version_tnx - Gets the PHY Firmware Version
+ * @hw: pointer to hardware structure
+ * @firmware_version: pointer to the PHY Firmware Version
  **/
 s32 ixgbe_get_phy_firmware_version_tnx(struct ixgbe_hw *hw,
 				       u16 *firmware_version)
@@ -1129,9 +1129,9 @@ s32 ixgbe_get_phy_firmware_version_tnx(struct ixgbe_hw *hw,
 }
 
 /**
- *  ixgbe_get_phy_firmware_version_generic - Gets the PHY Firmware Version
- *  @hw: pointer to hardware structure
- *  @firmware_version: pointer to the PHY Firmware Version
+ * ixgbe_get_phy_firmware_version_generic - Gets the PHY Firmware Version
+ * @hw: pointer to hardware structure
+ * @firmware_version: pointer to the PHY Firmware Version
  **/
 s32 ixgbe_get_phy_firmware_version_generic(struct ixgbe_hw *hw,
 					   u16 *firmware_version)
@@ -1148,8 +1148,8 @@ s32 ixgbe_get_phy_firmware_version_generic(struct ixgbe_hw *hw,
 }
 
 /**
- *  ixgbe_reset_phy_nl - Performs a PHY reset
- *  @hw: pointer to hardware structure
+ * ixgbe_reset_phy_nl - Performs a PHY reset
+ * @hw: pointer to hardware structure
  **/
 s32 ixgbe_reset_phy_nl(struct ixgbe_hw *hw)
 {
@@ -1264,10 +1264,10 @@ err_eeprom:
 }
 
 /**
- *  ixgbe_identify_module_generic - Identifies module type
- *  @hw: pointer to hardware structure
+ * ixgbe_identify_module_generic - Identifies module type
+ * @hw: pointer to hardware structure
  *
- *  Determines HW type and calls appropriate function.
+ * Determines HW type and calls appropriate function.
  **/
 s32 ixgbe_identify_module_generic(struct ixgbe_hw *hw)
 {
@@ -1294,10 +1294,10 @@ s32 ixgbe_identify_module_generic(struct ixgbe_hw *hw)
 }
 
 /**
- *  ixgbe_identify_sfp_module_generic - Identifies SFP modules
- *  @hw: pointer to hardware structure
+ * ixgbe_identify_sfp_module_generic - Identifies SFP modules
+ * @hw: pointer to hardware structure
  *
- *  Searches for and identifies the SFP module and assigns appropriate PHY type.
+ * Searches for and identifies the SFP module and assigns appropriate PHY type.
  **/
 s32 ixgbe_identify_sfp_module_generic(struct ixgbe_hw *hw)
 {
@@ -1572,10 +1572,10 @@ err_read_i2c_eeprom:
 }
 
 /**
- *  ixgbe_get_supported_phy_sfp_layer_generic - Returns physical layer type
- *  @hw: pointer to hardware structure
+ * ixgbe_get_supported_phy_sfp_layer_generic - Returns physical layer type
+ * @hw: pointer to hardware structure
  *
- *  Determines physical layer capabilities of the current SFP.
+ * Determines physical layer capabilities of the current SFP.
  */
 u64 ixgbe_get_supported_phy_sfp_layer_generic(struct ixgbe_hw *hw)
 {
@@ -1634,10 +1634,10 @@ u64 ixgbe_get_supported_phy_sfp_layer_generic(struct ixgbe_hw *hw)
 }
 
 /**
- *  ixgbe_identify_qsfp_module_generic - Identifies QSFP modules
- *  @hw: pointer to hardware structure
+ * ixgbe_identify_qsfp_module_generic - Identifies QSFP modules
+ * @hw: pointer to hardware structure
  *
- *  Searches for and identifies the QSFP module and assigns appropriate PHY type
+ * Searches for and identifies the QSFP module and assigns appropriate PHY type
  **/
 s32 ixgbe_identify_qsfp_module_generic(struct ixgbe_hw *hw)
 {
@@ -1824,13 +1824,13 @@ err_read_i2c_eeprom:
 }
 
 /**
- *  ixgbe_get_sfp_init_sequence_offsets - Provides offset of PHY init sequence
- *  @hw: pointer to hardware structure
- *  @list_offset: offset to the SFP ID list
- *  @data_offset: offset to the SFP data block
+ * ixgbe_get_sfp_init_sequence_offsets - Provides offset of PHY init sequence
+ * @hw: pointer to hardware structure
+ * @list_offset: offset to the SFP ID list
+ * @data_offset: offset to the SFP data block
  *
- *  Checks the MAC's EEPROM to see if it supports a given SFP+ module type, if
- *  so it returns the offsets to the phy init sequence block.
+ * Checks the MAC's EEPROM to see if it supports a given SFP+ module type, if
+ * so it returns the offsets to the phy init sequence block.
  **/
 s32 ixgbe_get_sfp_init_sequence_offsets(struct ixgbe_hw *hw,
 					u16 *list_offset,
@@ -1919,12 +1919,12 @@ err_phy:
 }
 
 /**
- *  ixgbe_read_i2c_eeprom_generic - Reads 8 bit EEPROM word over I2C interface
- *  @hw: pointer to hardware structure
- *  @byte_offset: EEPROM byte offset to read
- *  @eeprom_data: value read
+ * ixgbe_read_i2c_eeprom_generic - Reads 8 bit EEPROM word over I2C interface
+ * @hw: pointer to hardware structure
+ * @byte_offset: EEPROM byte offset to read
+ * @eeprom_data: value read
  *
- *  Performs byte read operation to SFP module's EEPROM over I2C interface.
+ * Performs byte read operation to SFP module's EEPROM over I2C interface.
  **/
 s32 ixgbe_read_i2c_eeprom_generic(struct ixgbe_hw *hw, u8 byte_offset,
 				  u8 *eeprom_data)
@@ -1937,12 +1937,12 @@ s32 ixgbe_read_i2c_eeprom_generic(struct ixgbe_hw *hw, u8 byte_offset,
 }
 
 /**
- *  ixgbe_read_i2c_sff8472_generic - Reads 8 bit word over I2C interface
- *  @hw: pointer to hardware structure
- *  @byte_offset: byte offset at address 0xA2
- *  @sff8472_data: value read
+ * ixgbe_read_i2c_sff8472_generic - Reads 8 bit word over I2C interface
+ * @hw: pointer to hardware structure
+ * @byte_offset: byte offset at address 0xA2
+ * @sff8472_data: value read
  *
- *  Performs byte read operation to SFP module's SFF-8472 data over I2C
+ * Performs byte read operation to SFP module's SFF-8472 data over I2C
  **/
 static s32 ixgbe_read_i2c_sff8472_generic(struct ixgbe_hw *hw, u8 byte_offset,
 					  u8 *sff8472_data)
@@ -1953,12 +1953,12 @@ static s32 ixgbe_read_i2c_sff8472_generic(struct ixgbe_hw *hw, u8 byte_offset,
 }
 
 /**
- *  ixgbe_write_i2c_eeprom_generic - Writes 8 bit EEPROM word over I2C interface
- *  @hw: pointer to hardware structure
- *  @byte_offset: EEPROM byte offset to write
- *  @eeprom_data: value to write
+ * ixgbe_write_i2c_eeprom_generic - Writes 8 bit EEPROM word over I2C interface
+ * @hw: pointer to hardware structure
+ * @byte_offset: EEPROM byte offset to write
+ * @eeprom_data: value to write
  *
- *  Performs byte write operation to SFP module's EEPROM over I2C interface.
+ * Performs byte write operation to SFP module's EEPROM over I2C interface.
  **/
 s32 ixgbe_write_i2c_eeprom_generic(struct ixgbe_hw *hw, u8 byte_offset,
 				   u8 eeprom_data)
@@ -1986,15 +1986,15 @@ static bool ixgbe_is_sfp_probe(struct ixgbe_hw *hw, u8 offset, u8 addr)
 }
 
 /**
- *  ixgbe_read_i2c_byte_generic_int - Reads 8 bit word over I2C
- *  @hw: pointer to hardware structure
- *  @byte_offset: byte offset to read
- *  @dev_addr: address to read from
- *  @data: value read
- *  @lock: true if to take and release semaphore
+ * ixgbe_read_i2c_byte_generic_int - Reads 8 bit word over I2C
+ * @hw: pointer to hardware structure
+ * @byte_offset: byte offset to read
+ * @dev_addr: address to read from
+ * @data: value read
+ * @lock: true if to take and release semaphore
  *
- *  Performs byte read operation to SFP module's EEPROM over I2C interface at
- *  a specified device address.
+ * Performs byte read operation to SFP module's EEPROM over I2C interface at
+ * a specified device address.
  **/
 static s32 ixgbe_read_i2c_byte_generic_int(struct ixgbe_hw *hw, u8 byte_offset,
 					   u8 dev_addr, u8 *data, bool lock)
@@ -2078,14 +2078,14 @@ fail:
 }
 
 /**
- *  ixgbe_read_i2c_byte_generic - Reads 8 bit word over I2C
- *  @hw: pointer to hardware structure
- *  @byte_offset: byte offset to read
- *  @dev_addr: address to read from
- *  @data: value read
+ * ixgbe_read_i2c_byte_generic - Reads 8 bit word over I2C
+ * @hw: pointer to hardware structure
+ * @byte_offset: byte offset to read
+ * @dev_addr: address to read from
+ * @data: value read
  *
- *  Performs byte read operation to SFP module's EEPROM over I2C interface at
- *  a specified device address.
+ * Performs byte read operation to SFP module's EEPROM over I2C interface at
+ * a specified device address.
  **/
 s32 ixgbe_read_i2c_byte_generic(struct ixgbe_hw *hw, u8 byte_offset,
 				u8 dev_addr, u8 *data)
@@ -2095,14 +2095,14 @@ s32 ixgbe_read_i2c_byte_generic(struct ixgbe_hw *hw, u8 byte_offset,
 }
 
 /**
- *  ixgbe_read_i2c_byte_generic_unlocked - Reads 8 bit word over I2C
- *  @hw: pointer to hardware structure
- *  @byte_offset: byte offset to read
- *  @dev_addr: address to read from
- *  @data: value read
+ * ixgbe_read_i2c_byte_generic_unlocked - Reads 8 bit word over I2C
+ * @hw: pointer to hardware structure
+ * @byte_offset: byte offset to read
+ * @dev_addr: address to read from
+ * @data: value read
  *
- *  Performs byte read operation to SFP module's EEPROM over I2C interface at
- *  a specified device address.
+ * Performs byte read operation to SFP module's EEPROM over I2C interface at
+ * a specified device address.
  **/
 s32 ixgbe_read_i2c_byte_generic_unlocked(struct ixgbe_hw *hw, u8 byte_offset,
 					 u8 dev_addr, u8 *data)
@@ -2112,15 +2112,15 @@ s32 ixgbe_read_i2c_byte_generic_unlocked(struct ixgbe_hw *hw, u8 byte_offset,
 }
 
 /**
- *  ixgbe_write_i2c_byte_generic_int - Writes 8 bit word over I2C
- *  @hw: pointer to hardware structure
- *  @byte_offset: byte offset to write
- *  @dev_addr: address to write to
- *  @data: value to write
- *  @lock: true if to take and release semaphore
+ * ixgbe_write_i2c_byte_generic_int - Writes 8 bit word over I2C
+ * @hw: pointer to hardware structure
+ * @byte_offset: byte offset to write
+ * @dev_addr: address to write to
+ * @data: value to write
+ * @lock: true if to take and release semaphore
  *
- *  Performs byte write operation to SFP module's EEPROM over I2C interface at
- *  a specified device address.
+ * Performs byte write operation to SFP module's EEPROM over I2C interface at
+ * a specified device address.
  **/
 static s32 ixgbe_write_i2c_byte_generic_int(struct ixgbe_hw *hw, u8 byte_offset,
 					    u8 dev_addr, u8 data, bool lock)
@@ -2184,14 +2184,14 @@ fail:
 }
 
 /**
- *  ixgbe_write_i2c_byte_generic - Writes 8 bit word over I2C
- *  @hw: pointer to hardware structure
- *  @byte_offset: byte offset to write
- *  @dev_addr: address to write to
- *  @data: value to write
+ * ixgbe_write_i2c_byte_generic - Writes 8 bit word over I2C
+ * @hw: pointer to hardware structure
+ * @byte_offset: byte offset to write
+ * @dev_addr: address to write to
+ * @data: value to write
  *
- *  Performs byte write operation to SFP module's EEPROM over I2C interface at
- *  a specified device address.
+ * Performs byte write operation to SFP module's EEPROM over I2C interface at
+ * a specified device address.
  **/
 s32 ixgbe_write_i2c_byte_generic(struct ixgbe_hw *hw, u8 byte_offset,
 				 u8 dev_addr, u8 data)
@@ -2201,14 +2201,14 @@ s32 ixgbe_write_i2c_byte_generic(struct ixgbe_hw *hw, u8 byte_offset,
 }
 
 /**
- *  ixgbe_write_i2c_byte_generic_unlocked - Writes 8 bit word over I2C
- *  @hw: pointer to hardware structure
- *  @byte_offset: byte offset to write
- *  @dev_addr: address to write to
- *  @data: value to write
+ * ixgbe_write_i2c_byte_generic_unlocked - Writes 8 bit word over I2C
+ * @hw: pointer to hardware structure
+ * @byte_offset: byte offset to write
+ * @dev_addr: address to write to
+ * @data: value to write
  *
- *  Performs byte write operation to SFP module's EEPROM over I2C interface at
- *  a specified device address.
+ * Performs byte write operation to SFP module's EEPROM over I2C interface at
+ * a specified device address.
  **/
 s32 ixgbe_write_i2c_byte_generic_unlocked(struct ixgbe_hw *hw, u8 byte_offset,
 					  u8 dev_addr, u8 data)
@@ -2218,11 +2218,11 @@ s32 ixgbe_write_i2c_byte_generic_unlocked(struct ixgbe_hw *hw, u8 byte_offset,
 }
 
 /**
- *  ixgbe_i2c_start - Sets I2C start condition
- *  @hw: pointer to hardware structure
+ * ixgbe_i2c_start - Sets I2C start condition
+ * @hw: pointer to hardware structure
  *
- *  Sets I2C start condition (High -> Low on SDA while SCL is High)
- *  Set bit-bang mode on X550 hardware.
+ * Sets I2C start condition (High -> Low on SDA while SCL is High)
+ * Set bit-bang mode on X550 hardware.
  **/
 static void ixgbe_i2c_start(struct ixgbe_hw *hw)
 {
@@ -2252,12 +2252,12 @@ static void ixgbe_i2c_start(struct ixgbe_hw *hw)
 }
 
 /**
- *  ixgbe_i2c_stop - Sets I2C stop condition
- *  @hw: pointer to hardware structure
+ * ixgbe_i2c_stop - Sets I2C stop condition
+ * @hw: pointer to hardware structure
  *
- *  Sets I2C stop condition (Low -> High on SDA while SCL is High)
- *  Disables bit-bang mode and negates data output enable on X550
- *  hardware.
+ * Sets I2C stop condition (Low -> High on SDA while SCL is High)
+ * Disables bit-bang mode and negates data output enable on X550
+ * hardware.
  **/
 static void ixgbe_i2c_stop(struct ixgbe_hw *hw)
 {
@@ -2289,11 +2289,11 @@ static void ixgbe_i2c_stop(struct ixgbe_hw *hw)
 }
 
 /**
- *  ixgbe_clock_in_i2c_byte - Clocks in one byte via I2C
- *  @hw: pointer to hardware structure
- *  @data: data byte to clock in
+ * ixgbe_clock_in_i2c_byte - Clocks in one byte via I2C
+ * @hw: pointer to hardware structure
+ * @data: data byte to clock in
  *
- *  Clocks in one byte data via I2C data/clock
+ * Clocks in one byte data via I2C data/clock
  **/
 static s32 ixgbe_clock_in_i2c_byte(struct ixgbe_hw *hw, u8 *data)
 {
@@ -2312,11 +2312,11 @@ static s32 ixgbe_clock_in_i2c_byte(struct ixgbe_hw *hw, u8 *data)
 }
 
 /**
- *  ixgbe_clock_out_i2c_byte - Clocks out one byte via I2C
- *  @hw: pointer to hardware structure
- *  @data: data byte clocked out
+ * ixgbe_clock_out_i2c_byte - Clocks out one byte via I2C
+ * @hw: pointer to hardware structure
+ * @data: data byte clocked out
  *
- *  Clocks out one byte data via I2C data/clock
+ * Clocks out one byte data via I2C data/clock
  **/
 static s32 ixgbe_clock_out_i2c_byte(struct ixgbe_hw *hw, u8 data)
 {
@@ -2346,10 +2346,10 @@ static s32 ixgbe_clock_out_i2c_byte(struct ixgbe_hw *hw, u8 data)
 }
 
 /**
- *  ixgbe_get_i2c_ack - Polls for I2C ACK
- *  @hw: pointer to hardware structure
+ * ixgbe_get_i2c_ack - Polls for I2C ACK
+ * @hw: pointer to hardware structure
  *
- *  Clocks in/out one bit via I2C data/clock
+ * Clocks in/out one bit via I2C data/clock
  **/
 static s32 ixgbe_get_i2c_ack(struct ixgbe_hw *hw)
 {
@@ -2398,11 +2398,11 @@ static s32 ixgbe_get_i2c_ack(struct ixgbe_hw *hw)
 }
 
 /**
- *  ixgbe_clock_in_i2c_bit - Clocks in one bit via I2C data/clock
- *  @hw: pointer to hardware structure
- *  @data: read data value
+ * ixgbe_clock_in_i2c_bit - Clocks in one bit via I2C data/clock
+ * @hw: pointer to hardware structure
+ * @data: read data value
  *
- *  Clocks in one bit via I2C data/clock
+ * Clocks in one bit via I2C data/clock
  **/
 static s32 ixgbe_clock_in_i2c_bit(struct ixgbe_hw *hw, bool *data)
 {
@@ -2434,11 +2434,11 @@ static s32 ixgbe_clock_in_i2c_bit(struct ixgbe_hw *hw, bool *data)
 }
 
 /**
- *  ixgbe_clock_out_i2c_bit - Clocks in/out one bit via I2C data/clock
- *  @hw: pointer to hardware structure
- *  @data: data value to write
+ * ixgbe_clock_out_i2c_bit - Clocks in/out one bit via I2C data/clock
+ * @hw: pointer to hardware structure
+ * @data: data value to write
  *
- *  Clocks out one bit via I2C data/clock
+ * Clocks out one bit via I2C data/clock
  **/
 static s32 ixgbe_clock_out_i2c_bit(struct ixgbe_hw *hw, bool data)
 {
@@ -2470,12 +2470,12 @@ static s32 ixgbe_clock_out_i2c_bit(struct ixgbe_hw *hw, bool data)
 }
 
 /**
- *  ixgbe_raise_i2c_clk - Raises the I2C SCL clock
- *  @hw: pointer to hardware structure
- *  @i2cctl: Current value of I2CCTL register
+ * ixgbe_raise_i2c_clk - Raises the I2C SCL clock
+ * @hw: pointer to hardware structure
+ * @i2cctl: Current value of I2CCTL register
  *
- *  Raises the I2C clock line '0'->'1'
- *  Negates the I2C clock output enable on X550 hardware.
+ * Raises the I2C clock line '0'->'1'
+ * Negates the I2C clock output enable on X550 hardware.
  **/
 static void ixgbe_raise_i2c_clk(struct ixgbe_hw *hw, u32 *i2cctl)
 {
@@ -2506,12 +2506,12 @@ static void ixgbe_raise_i2c_clk(struct ixgbe_hw *hw, u32 *i2cctl)
 }
 
 /**
- *  ixgbe_lower_i2c_clk - Lowers the I2C SCL clock
- *  @hw: pointer to hardware structure
- *  @i2cctl: Current value of I2CCTL register
+ * ixgbe_lower_i2c_clk - Lowers the I2C SCL clock
+ * @hw: pointer to hardware structure
+ * @i2cctl: Current value of I2CCTL register
  *
- *  Lowers the I2C clock line '1'->'0'
- *  Asserts the I2C clock output enable on X550 hardware.
+ * Lowers the I2C clock line '1'->'0'
+ * Asserts the I2C clock output enable on X550 hardware.
  **/
 static void ixgbe_lower_i2c_clk(struct ixgbe_hw *hw, u32 *i2cctl)
 {
@@ -2528,13 +2528,13 @@ static void ixgbe_lower_i2c_clk(struct ixgbe_hw *hw, u32 *i2cctl)
 }
 
 /**
- *  ixgbe_set_i2c_data - Sets the I2C data bit
- *  @hw: pointer to hardware structure
- *  @i2cctl: Current value of I2CCTL register
- *  @data: I2C data value (0 or 1) to set
+ * ixgbe_set_i2c_data - Sets the I2C data bit
+ * @hw: pointer to hardware structure
+ * @i2cctl: Current value of I2CCTL register
+ * @data: I2C data value (0 or 1) to set
  *
- *  Sets the I2C data bit
- *  Asserts the I2C data output enable on X550 hardware.
+ * Sets the I2C data bit
+ * Asserts the I2C data output enable on X550 hardware.
  **/
 static s32 ixgbe_set_i2c_data(struct ixgbe_hw *hw, u32 *i2cctl, bool data)
 {
@@ -2576,12 +2576,12 @@ static s32 ixgbe_set_i2c_data(struct ixgbe_hw *hw, u32 *i2cctl, bool data)
 }
 
 /**
- *  ixgbe_get_i2c_data - Reads the I2C SDA data bit
- *  @hw: pointer to hardware structure
- *  @i2cctl: Current value of I2CCTL register
+ * ixgbe_get_i2c_data - Reads the I2C SDA data bit
+ * @hw: pointer to hardware structure
+ * @i2cctl: Current value of I2CCTL register
  *
- *  Returns the I2C data bit value
- *  Negates the I2C data output enable on X550 hardware.
+ * Returns the I2C data bit value
+ * Negates the I2C data output enable on X550 hardware.
  **/
 static bool ixgbe_get_i2c_data(struct ixgbe_hw *hw, u32 *i2cctl)
 {
@@ -2607,11 +2607,11 @@ static bool ixgbe_get_i2c_data(struct ixgbe_hw *hw, u32 *i2cctl)
 }
 
 /**
- *  ixgbe_i2c_bus_clear - Clears the I2C bus
- *  @hw: pointer to hardware structure
+ * ixgbe_i2c_bus_clear - Clears the I2C bus
+ * @hw: pointer to hardware structure
  *
- *  Clears the I2C bus by sending nine clock pulses.
- *  Used when data line is stuck low.
+ * Clears the I2C bus by sending nine clock pulses.
+ * Used when data line is stuck low.
  **/
 void ixgbe_i2c_bus_clear(struct ixgbe_hw *hw)
 {
@@ -2644,10 +2644,10 @@ void ixgbe_i2c_bus_clear(struct ixgbe_hw *hw)
 }
 
 /**
- *  ixgbe_tn_check_overtemp - Checks if an overtemp occurred.
- *  @hw: pointer to hardware structure
+ * ixgbe_tn_check_overtemp - Checks if an overtemp occurred.
+ * @hw: pointer to hardware structure
  *
- *  Checks if the LASI temp alarm status was triggered due to overtemp
+ * Checks if the LASI temp alarm status was triggered due to overtemp
  **/
 s32 ixgbe_tn_check_overtemp(struct ixgbe_hw *hw)
 {

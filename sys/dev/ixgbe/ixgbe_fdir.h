@@ -40,7 +40,7 @@
 /*
  * Flow Director actually 'steals' part of the packet buffer
  * as its filter pool, this variable controls how much it uses:
- *  0 = 64K, 1 = 128K, 2 = 256K
+ * 0 = 64K, 1 = 128K, 2 = 256K
  */
 int fdir_pballoc = 1;
 
