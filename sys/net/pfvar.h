@@ -561,8 +561,8 @@ struct pf_kpool {
 };
 
 struct pf_rule_actions {
-	u_int32_t       qid;
-	u_int32_t       pqid;
+	uint16_t	 qid;
+	uint16_t	 pqid;
 };
 
 union pf_krule_ptr {
@@ -606,8 +606,8 @@ struct pf_krule {
 		u_int32_t		limit;
 		u_int32_t		seconds;
 	}			 max_src_conn_rate;
-	u_int32_t		 qid;
-	u_int32_t		 pqid;
+	u_int16_t		 qid;
+	u_int16_t		 pqid;
 	u_int32_t		 nr;
 	u_int32_t		 prob;
 	uid_t			 cuid;
@@ -856,8 +856,8 @@ struct pf_kstate {
 	u_int32_t		 creation;
 	u_int32_t	 	 expire;
 	u_int32_t		 pfsync_time;
-	u_int32_t                qid;
-	u_int32_t                pqid;
+	u_int16_t                qid;
+	u_int16_t                pqid;
 	u_int16_t		 tag;
 	u_int8_t		 log;
 };

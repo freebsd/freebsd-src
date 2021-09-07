@@ -220,7 +220,7 @@ struct pf_kaltq {
 		struct fairq_opts        fairq_opts;
 	} pq_u;
 
-	uint32_t		 qid;		/* return value */
+	uint16_t		 qid;		/* return value */
 };
 #endif /* _KERNEL */
 

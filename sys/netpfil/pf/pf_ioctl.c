@@ -112,8 +112,8 @@ static int		 pf_rollback_altq(u_int32_t);
 static int		 pf_commit_altq(u_int32_t);
 static int		 pf_enable_altq(struct pf_altq *);
 static int		 pf_disable_altq(struct pf_altq *);
-static u_int32_t	 pf_qname2qid(const char *);
-static void		 pf_qid_unref(u_int32_t);
+static uint16_t		 pf_qname2qid(const char *);
+static void		 pf_qid_unref(uint16_t);
 #endif /* ALTQ */
 static int		 pf_begin_rules(u_int32_t *, int, const char *);
 static int		 pf_rollback_rules(u_int32_t, int, char *);
@@ -653,23 +653,23 @@ tag_unref(struct pf_tagset *ts, u_int16_t tag)
 		}
 }
 
-static u_int16_t
+static uint16_t
 pf_tagname2tag(const char *tagname)
 {
 	return (tagname2tag(&V_pf_tags, tagname));
 }
 
 #ifdef ALTQ
-static u_int32_t
+static uint16_t
 pf_qname2qid(const char *qname)
 {
-	return ((u_int32_t)tagname2tag(&V_pf_qids, qname));
+	return (tagname2tag(&V_pf_qids, qname));
 }
 
 static void
-pf_qid_unref(u_int32_t qid)
+pf_qid_unref(uint16_t qid)
 {
-	tag_unref(&V_pf_qids, (u_int16_t)qid);
+	tag_unref(&V_pf_qids, qid);
 }
 
 static int

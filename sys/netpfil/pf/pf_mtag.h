@@ -47,7 +47,7 @@
 
 struct pf_mtag {
 	void		*hdr;		/* saved hdr pos in mbuf, for ECN */
-	u_int32_t	 qid;		/* queue id */
+	u_int16_t	 qid;		/* queue id */
 	u_int32_t	 qid_hash;	/* queue hashid used by WFQ like algos */
 	u_int16_t	 tag;		/* tag id */
 	u_int8_t	 flags;
