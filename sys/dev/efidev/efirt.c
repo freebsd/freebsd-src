@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
+#include <sys/msan.h>
 #include <sys/mutex.h>
 #include <sys/clock.h>
 #include <sys/proc.h>
@@ -533,6 +534,7 @@ static int
 efi_get_time_locked(struct efi_tm *tm, struct efi_tmcap *tmcap)
 {
 	struct efirt_callinfo ec;
+	int error;
 
 	EFI_TIME_OWNED();
 	if (efi_runtime == NULL)
@@ -543,7 +545,10 @@ efi_get_time_locked(struct efi_tm *tm, struct efi_tmcap *tmcap)
 	ec.ec_arg1 = (uintptr_t)tm;
 	ec.ec_arg2 = (uintptr_t)tmcap;
 	ec.ec_fptr = EFI_RT_METHOD_PA(rt_gettime);
-	return (efi_call(&ec));
+	error = efi_call(&ec);
+	if (error == 0)
+		kmsan_mark(tm, sizeof(*tm), KMSAN_STATE_INITED);
+	return (error);
 }
 
 static int
@@ -640,6 +645,7 @@ var_get(efi_char *name, struct uuid *vendor, uint32_t *attrib,
     size_t *datasize, void *data)
 {
 	struct efirt_callinfo ec;
+	int error;
 
 	if (efi_runtime == NULL)
 		return (ENXIO);
@@ -652,13 +658,17 @@ var_get(efi_char *name, struct uuid *vendor, uint32_t *attrib,
 	ec.ec_arg4 = (uintptr_t)datasize;
 	ec.ec_arg5 = (uintptr_t)data;
 	ec.ec_fptr = EFI_RT_METHOD_PA(rt_getvar);
-	return (efi_call(&ec));
+	error = efi_call(&ec);
+	if (error == 0)
+		kmsan_mark(data, *datasize, KMSAN_STATE_INITED);
+	return (error);
 }
 
 static int
 var_nextname(size_t *namesize, efi_char *name, struct uuid *vendor)
 {
 	struct efirt_callinfo ec;
+	int error;
 
 	if (efi_runtime == NULL)
 		return (ENXIO);
@@ -669,7 +679,10 @@ var_nextname(size_t *namesize, efi_char *name, struct uuid *vendor)
 	ec.ec_arg2 = (uintptr_t)name;
 	ec.ec_arg3 = (uintptr_t)vendor;
 	ec.ec_fptr = EFI_RT_METHOD_PA(rt_scanvar);
-	return (efi_call(&ec));
+	error = efi_call(&ec);
+	if (error == 0)
+		kmsan_mark(name, *namesize, KMSAN_STATE_INITED);
+	return (error);
 }
 
 static int
