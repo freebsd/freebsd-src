@@ -85,7 +85,8 @@ struct	sockbuf {
 	struct	sx sb_sx;		/* prevent I/O interlacing */
 	struct	selinfo *sb_sel;	/* process selecting read/write */
 	short	sb_state;	/* (a) socket state on sockbuf */
-#define	sb_startzero	sb_mb
+#define	sb_startzero	sb_flags
+	short	sb_flags;	/* (a) flags, see above */
 	struct	mbuf *sb_mb;	/* (a) the mbuf chain */
 	struct	mbuf *sb_mbtail; /* (a) the last mbuf in the chain */
 	struct	mbuf *sb_lastrecord;	/* (a) first mbuf of last
@@ -109,7 +110,6 @@ struct	sockbuf {
 	struct	ktls_session *sb_tls_info; /* (a + b) TLS state */
 	struct	mbuf *sb_mtls;	/* (a) TLS mbuf chain */
 	struct	mbuf *sb_mtlstail; /* (a) last mbuf in TLS chain */
-	short	sb_flags;	/* (a) flags, see above */
 	int	(*sb_upcall)(struct socket *, void *, int); /* (a) */
 	void	*sb_upcallarg;	/* (a) */
 	TAILQ_HEAD(, kaiocb) sb_aiojobq; /* (a) pending AIO ops */
