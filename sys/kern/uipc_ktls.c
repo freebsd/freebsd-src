@@ -1171,7 +1171,7 @@ ktls_enable_tx(struct socket *so, struct tls_enable *en)
 		return (error);
 	}
 
-	error = sblock(&so->so_snd, SBL_WAIT);
+	error = SOCK_IO_SEND_LOCK(so, SBL_WAIT);
 	if (error) {
 		ktls_cleanup(tls);
 		return (error);
@@ -1191,7 +1191,7 @@ ktls_enable_tx(struct socket *so, struct tls_enable *en)
 		so->so_snd.sb_flags |= SB_TLS_IFNET;
 	SOCKBUF_UNLOCK(&so->so_snd);
 	INP_WUNLOCK(inp);
-	sbunlock(&so->so_snd);
+	SOCK_IO_SEND_UNLOCK(so);
 
 	counter_u64_add(ktls_offload_total, 1);
 
@@ -1292,7 +1292,7 @@ ktls_set_tx_mode(struct socket *so, int mode)
 		return (error);
 	}
 
-	error = sblock(&so->so_snd, SBL_WAIT);
+	error = SOCK_IO_SEND_LOCK(so, SBL_WAIT);
 	if (error) {
 		counter_u64_add(ktls_switch_failed, 1);
 		ktls_free(tls_new);
@@ -1307,7 +1307,7 @@ ktls_set_tx_mode(struct socket *so, int mode)
 	 */
 	if (tls != so->so_snd.sb_tls_info) {
 		counter_u64_add(ktls_switch_failed, 1);
-		sbunlock(&so->so_snd);
+		SOCK_IO_SEND_UNLOCK(so);
 		ktls_free(tls_new);
 		ktls_free(tls);
 		INP_WLOCK(inp);
@@ -1319,7 +1319,7 @@ ktls_set_tx_mode(struct socket *so, int mode)
 	if (tls_new->mode != TCP_TLS_MODE_SW)
 		so->so_snd.sb_flags |= SB_TLS_IFNET;
 	SOCKBUF_UNLOCK(&so->so_snd);
-	sbunlock(&so->so_snd);
+	SOCK_IO_SEND_UNLOCK(so);
 
 	/*
 	 * Drop two references on 'tls'.  The first is for the

@@ -2203,14 +2203,14 @@ t4_aiotx_process_job(struct toepcb *toep, struct socket *so, struct kaiocb *job)
 
 	/* Inline sosend_generic(). */
 
-	error = sblock(sb, SBL_WAIT);
+	error = SOCK_IO_SEND_LOCK(so, SBL_WAIT);
 	MPASS(error == 0);
 
 sendanother:
 	SOCKBUF_LOCK(sb);
 	if (so->so_snd.sb_state & SBS_CANTSENDMORE) {
 		SOCKBUF_UNLOCK(sb);
-		sbunlock(sb);
+		SOCK_IO_SEND_UNLOCK(so);
 		if ((so->so_options & SO_NOSIGPIPE) == 0) {
 			PROC_LOCK(job->userproc);
 			kern_psignal(job->userproc, SIGPIPE);
@@ -2223,12 +2223,12 @@ sendanother:
 		error = so->so_error;
 		so->so_error = 0;
 		SOCKBUF_UNLOCK(sb);
-		sbunlock(sb);
+		SOCK_IO_SEND_UNLOCK(so);
 		goto out;
 	}
 	if ((so->so_state & SS_ISCONNECTED) == 0) {
 		SOCKBUF_UNLOCK(sb);
-		sbunlock(sb);
+		SOCK_IO_SEND_UNLOCK(so);
 		error = ENOTCONN;
 		goto out;
 	}
@@ -2241,13 +2241,13 @@ sendanother:
 		 */
 		if (!aio_set_cancel_function(job, t4_aiotx_cancel)) {
 			SOCKBUF_UNLOCK(sb);
-			sbunlock(sb);
+			SOCK_IO_SEND_UNLOCK(so);
 			error = ECANCELED;
 			goto out;
 		}
 		TAILQ_INSERT_HEAD(&toep->aiotx_jobq, job, list);
 		SOCKBUF_UNLOCK(sb);
-		sbunlock(sb);
+		SOCK_IO_SEND_UNLOCK(so);
 		goto out;
 	}
 
@@ -2274,7 +2274,7 @@ sendanother:
 
 	m = alloc_aiotx_mbuf(job, len);
 	if (m == NULL) {
-		sbunlock(sb);
+		SOCK_IO_SEND_UNLOCK(so);
 		error = EFAULT;
 		goto out;
 	}
@@ -2285,7 +2285,7 @@ sendanother:
 	INP_WLOCK(inp);
 	if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
 		INP_WUNLOCK(inp);
-		sbunlock(sb);
+		SOCK_IO_SEND_UNLOCK(so);
 		error = ECONNRESET;
 		goto out;
 	}
@@ -2307,7 +2307,7 @@ sendanother:
 	INP_WUNLOCK(inp);
 	if (sendmore)
 		goto sendanother;
-	sbunlock(sb);
+	SOCK_IO_SEND_UNLOCK(so);
 
 	if (error)
 		goto out;

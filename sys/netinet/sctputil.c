@@ -4796,10 +4796,10 @@ sctp_pull_off_control_to_new_inp(struct sctp_inpcb *old_inp,
 	old_so = old_inp->sctp_socket;
 	new_so = new_inp->sctp_socket;
 	TAILQ_INIT(&tmp_queue);
-	error = sblock(&old_so->so_rcv, waitflags);
+	error = SOCK_IO_RECV_LOCK(old_so, waitflags);
 	if (error) {
 		/*
-		 * Gak, can't get sblock, we have a problem. data will be
+		 * Gak, can't get I/O lock, we have a problem. data will be
 		 * left stranded.. and we don't dare look at it since the
 		 * other thread may be reading something. Oh well, its a
 		 * screwed up app that does a peeloff OR a accept while
@@ -4831,9 +4831,8 @@ sctp_pull_off_control_to_new_inp(struct sctp_inpcb *old_inp,
 		}
 	}
 	SCTP_INP_READ_UNLOCK(old_inp);
-	/* Remove the sb-lock on the old socket */
-
-	sbunlock(&old_so->so_rcv);
+	/* Remove the recv-lock on the old socket */
+	SOCK_IO_RECV_UNLOCK(old_so);
 	/* Now we move them over to the new socket buffer */
 	SCTP_INP_READ_LOCK(new_inp);
 	TAILQ_FOREACH_SAFE(control, &tmp_queue, next, nctl) {
@@ -5586,7 +5585,7 @@ sctp_sorecvmsg(struct socket *so,
 		    rwnd_req, block_allowed, so->so_rcv.sb_cc, (uint32_t)uio->uio_resid);
 	}
 
-	error = sblock(&so->so_rcv, (block_allowed ? SBL_WAIT : 0));
+	error = SOCK_IO_RECV_LOCK(so, (block_allowed ? SBL_WAIT : 0));
 	if (error) {
 		goto release_unlocked;
 	}
@@ -6234,8 +6233,8 @@ get_more_data:
 		}
 		/*
 		 * We need to wait for more data a few things: - We don't
-		 * sbunlock() so we don't get someone else reading. - We
-		 * must be sure to account for the case where what is added
+		 * release the I/O lock so we don't get someone else reading.
+		 * - We must be sure to account for the case where what is added
 		 * is NOT to our control when we wakeup.
 		 */
 
@@ -6383,7 +6382,7 @@ release:
 		hold_sblock = 0;
 	}
 
-	sbunlock(&so->so_rcv);
+	SOCK_IO_RECV_UNLOCK(so);
 	sockbuf_lock = 0;
 
 release_unlocked:
@@ -6418,7 +6417,7 @@ out:
 		SOCKBUF_UNLOCK(&so->so_rcv);
 	}
 	if (sockbuf_lock) {
-		sbunlock(&so->so_rcv);
+		SOCK_IO_RECV_UNLOCK(so);
 	}
 
 	if (freecnt_applied) {

@@ -78,7 +78,6 @@ struct selinfo;
  *
  * Locking key to struct sockbuf:
  * (a) locked by SOCKBUF_LOCK().
- * (b) locked by sblock()
  */
 struct	sockbuf {
 	struct	mtx sb_mtx;		/* sockbuf lock */
@@ -183,8 +182,6 @@ struct mbuf *
 struct mbuf *
 	sbsndmbuf(struct sockbuf *sb, u_int off, u_int *moff);
 int	sbwait(struct sockbuf *sb);
-int	sblock(struct sockbuf *sb, int flags);
-void	sbunlock(struct sockbuf *sb);
 void	sballoc(struct sockbuf *, struct mbuf *);
 void	sbfree(struct sockbuf *, struct mbuf *);
 void	sballoc_ktls_rx(struct sockbuf *sb, struct mbuf *m);

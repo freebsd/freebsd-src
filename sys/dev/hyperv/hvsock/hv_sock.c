@@ -664,18 +664,17 @@ hvs_trans_soreceive(struct socket *so, struct sockaddr **paddr,
 	if (uio->uio_resid == 0 || uio->uio_rw != UIO_READ)
 		return (EINVAL);
 
-	sb = &so->so_rcv;
-
 	orig_resid = uio->uio_resid;
 
 	/* Prevent other readers from entering the socket. */
-	error = sblock(sb, SBLOCKWAIT(flags));
+	error = SOCK_IO_RECV_LOCK(so, SBLOCKWAIT(flags));
 	if (error) {
 		HVSOCK_DBG(HVSOCK_DBG_ERR,
-		    "%s: sblock returned error = %d\n", __func__, error);
+		    "%s: soiolock returned error = %d\n", __func__, error);
 		return (error);
 	}
 
+	sb = &so->so_rcv;
 	SOCKBUF_LOCK(sb);
 
 	cbarg.uio = uio;
@@ -779,8 +778,7 @@ hvs_trans_soreceive(struct socket *so, struct sockaddr **paddr,
 
 out:
 	SOCKBUF_UNLOCK(sb);
-
-	sbunlock(sb);
+	SOCK_IO_RECV_UNLOCK(so);
 
 	/* We recieved a FIN in this call */
 	if (so->so_error == ESHUTDOWN) {
@@ -823,18 +821,17 @@ hvs_trans_sosend(struct socket *so, struct sockaddr *addr, struct uio *uio,
 	if (uio->uio_resid == 0 || uio->uio_rw != UIO_WRITE)
 		return (EINVAL);
 
-	sb = &so->so_snd;
-
 	orig_resid = uio->uio_resid;
 
 	/* Prevent other writers from entering the socket. */
-	error = sblock(sb, SBLOCKWAIT(flags));
+	error = SOCK_IO_SEND_LOCK(so, SBLOCKWAIT(flags));
 	if (error) {
 		HVSOCK_DBG(HVSOCK_DBG_ERR,
-		    "%s: sblock returned error = %d\n", __func__, error);
+		    "%s: soiolocak returned error = %d\n", __func__, error);
 		return (error);
 	}
 
+	sb = &so->so_snd;
 	SOCKBUF_LOCK(sb);
 
 	if ((sb->sb_state & SBS_CANTSENDMORE) ||
@@ -893,7 +890,7 @@ hvs_trans_sosend(struct socket *so, struct sockaddr *addr, struct uio *uio,
 
 out:
 	SOCKBUF_UNLOCK(sb);
-	sbunlock(sb);
+	SOCK_IO_SEND_UNLOCK(so);
 
 	return (error);
 }
@@ -1674,7 +1671,7 @@ hvsock_detach(device_t dev)
 {
 	struct hvsock_sc *sc = (struct hvsock_sc *)device_get_softc(dev);
 	struct socket *so;
-	int error, retry;
+	int retry;
 
 	if (bootverbose)
 		device_printf(dev, "hvsock_detach called.\n");
@@ -1703,8 +1700,7 @@ hvsock_detach(device_t dev)
 		 */
 		if (so) {
 			retry = 0;
-			while ((error = sblock(&so->so_rcv, 0)) ==
-			    EWOULDBLOCK) {
+			while (SOCK_IO_RECV_LOCK(so, 0) == EWOULDBLOCK) {
 				/*
 				 * Someone is reading, rx br is busy
 				 */
@@ -1715,8 +1711,7 @@ hvsock_detach(device_t dev)
 				    "retry = %d\n", retry++);
 			}
 			retry = 0;
-			while ((error = sblock(&so->so_snd, 0)) ==
-			    EWOULDBLOCK) {
+			while (SOCK_IO_SEND_LOCK(so, 0) == EWOULDBLOCK) {
 				/*
 				 * Someone is sending, tx br is busy
 				 */
@@ -1734,8 +1729,8 @@ hvsock_detach(device_t dev)
 		sc->pcb = NULL;
 
 		if (so) {
-			sbunlock(&so->so_rcv);
-			sbunlock(&so->so_snd);
+			SOCK_IO_RECV_UNLOCK(so);
+			SOCK_IO_SEND_UNLOCK(so);
 			so->so_pcb = NULL;
 		}
 
