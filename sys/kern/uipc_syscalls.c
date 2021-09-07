@@ -484,7 +484,7 @@ kern_connectat(struct thread *td, int dirfd, int fd, struct sockaddr *sa)
 {
 	struct socket *so;
 	struct file *fp;
-	int error, interrupted = 0;
+	int error;
 
 #ifdef CAPABILITY_MODE
 	if (IN_CAPABILITY_MODE(td) && (dirfd == AT_FDCWD))
@@ -522,11 +522,8 @@ kern_connectat(struct thread *td, int dirfd, int fd, struct sockaddr *sa)
 	while ((so->so_state & SS_ISCONNECTING) && so->so_error == 0) {
 		error = msleep(&so->so_timeo, &so->so_lock, PSOCK | PCATCH,
 		    "connec", 0);
-		if (error != 0) {
-			if (error == EINTR || error == ERESTART)
-				interrupted = 1;
+		if (error != 0)
 			break;
-		}
 	}
 	if (error == 0) {
 		error = so->so_error;
@@ -534,8 +531,6 @@ kern_connectat(struct thread *td, int dirfd, int fd, struct sockaddr *sa)
 	}
 	SOCK_UNLOCK(so);
 bad:
-	if (!interrupted)
-		so->so_state &= ~SS_ISCONNECTING;
 	if (error == ERESTART)
 		error = EINTR;
 done1:
