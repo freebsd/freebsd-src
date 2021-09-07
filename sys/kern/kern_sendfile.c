@@ -668,8 +668,6 @@ sendfile_getsock(struct thread *td, int s, struct file **sock_fp,
 	 */
 	if ((*so)->so_proto->pr_protocol == IPPROTO_SCTP)
 		return (EINVAL);
-	if (SOLISTENING(*so))
-		return (ENOTCONN);
 	return (0);
 }
 
