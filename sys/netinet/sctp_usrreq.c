@@ -416,24 +416,23 @@ sctp_abort(struct socket *so)
 {
 	struct epoch_tracker et;
 	struct sctp_inpcb *inp;
-	uint32_t flags;
 
 	inp = (struct sctp_inpcb *)so->so_pcb;
 	if (inp == NULL) {
 		return;
 	}
 
+	SCTP_INP_WLOCK(inp);
 	NET_EPOCH_ENTER(et);
-sctp_must_try_again:
-	flags = inp->sctp_flags;
 #ifdef SCTP_LOG_CLOSING
 	sctp_log_closing(inp, NULL, 17);
 #endif
-	if (((flags & SCTP_PCB_FLAGS_SOCKET_GONE) == 0) &&
-	    (atomic_cmpset_int(&inp->sctp_flags, flags, (flags | SCTP_PCB_FLAGS_SOCKET_GONE | SCTP_PCB_FLAGS_CLOSE_IP)))) {
+	if (((inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_GONE) == 0)) {
+		inp->sctp_flags |= SCTP_PCB_FLAGS_SOCKET_GONE | SCTP_PCB_FLAGS_CLOSE_IP;
 #ifdef SCTP_LOG_CLOSING
 		sctp_log_closing(inp, NULL, 16);
 #endif
+		SCTP_INP_WUNLOCK(inp);
 		sctp_inpcb_free(inp, SCTP_FREE_SHOULD_USE_ABORT,
 		    SCTP_CALLED_AFTER_CMPSET_OFCLOSE);
 		SOCK_LOCK(so);
@@ -448,13 +447,9 @@ sctp_must_try_again:
 		so->so_pcb = NULL;
 		SOCK_UNLOCK(so);
 	} else {
-		flags = inp->sctp_flags;
-		if ((flags & SCTP_PCB_FLAGS_SOCKET_GONE) == 0) {
-			goto sctp_must_try_again;
-		}
+		SCTP_INP_WUNLOCK(inp);
 	}
 	NET_EPOCH_EXIT(et);
-	return;
 }
 
 static int
@@ -516,7 +511,6 @@ sctp_close(struct socket *so)
 {
 	struct epoch_tracker et;
 	struct sctp_inpcb *inp;
-	uint32_t flags;
 
 	inp = (struct sctp_inpcb *)so->so_pcb;
 	if (inp == NULL)
@@ -525,25 +519,26 @@ sctp_close(struct socket *so)
 	/*
 	 * Inform all the lower layer assoc that we are done.
 	 */
+	SCTP_INP_WLOCK(inp);
 	NET_EPOCH_ENTER(et);
-sctp_must_try_again:
-	flags = inp->sctp_flags;
 #ifdef SCTP_LOG_CLOSING
 	sctp_log_closing(inp, NULL, 17);
 #endif
-	if (((flags & SCTP_PCB_FLAGS_SOCKET_GONE) == 0) &&
-	    (atomic_cmpset_int(&inp->sctp_flags, flags, (flags | SCTP_PCB_FLAGS_SOCKET_GONE | SCTP_PCB_FLAGS_CLOSE_IP)))) {
+	if ((inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_GONE) == 0) {
+		inp->sctp_flags |= SCTP_PCB_FLAGS_SOCKET_GONE | SCTP_PCB_FLAGS_CLOSE_IP;
 		if (((so->so_options & SO_LINGER) && (so->so_linger == 0)) ||
 		    (so->so_rcv.sb_cc > 0)) {
 #ifdef SCTP_LOG_CLOSING
 			sctp_log_closing(inp, NULL, 13);
 #endif
+			SCTP_INP_WUNLOCK(inp);
 			sctp_inpcb_free(inp, SCTP_FREE_SHOULD_USE_ABORT,
 			    SCTP_CALLED_AFTER_CMPSET_OFCLOSE);
 		} else {
 #ifdef SCTP_LOG_CLOSING
 			sctp_log_closing(inp, NULL, 14);
 #endif
+			SCTP_INP_WUNLOCK(inp);
 			sctp_inpcb_free(inp, SCTP_FREE_SHOULD_USE_GRACEFUL_CLOSE,
 			    SCTP_CALLED_AFTER_CMPSET_OFCLOSE);
 		}
@@ -563,13 +558,9 @@ sctp_must_try_again:
 		so->so_pcb = NULL;
 		SOCK_UNLOCK(so);
 	} else {
-		flags = inp->sctp_flags;
-		if ((flags & SCTP_PCB_FLAGS_SOCKET_GONE) == 0) {
-			goto sctp_must_try_again;
-		}
+		SCTP_INP_WUNLOCK(inp);
 	}
 	NET_EPOCH_EXIT(et);
-	return;
 }
 
 int
