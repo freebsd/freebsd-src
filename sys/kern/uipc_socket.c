@@ -1581,7 +1581,7 @@ sosend_generic(struct socket *so, struct sockaddr *addr, struct uio *uio,
 	if (control != NULL)
 		clen = control->m_len;
 
-	error = sblock(&so->so_snd, SBLOCKWAIT(flags));
+	error = SOCK_IO_SEND_LOCK(so, SBLOCKWAIT(flags));
 	if (error)
 		goto out;
 
@@ -1779,7 +1779,7 @@ restart:
 	} while (resid);
 
 release:
-	sbunlock(&so->so_snd);
+	SOCK_IO_SEND_UNLOCK(so);
 out:
 #ifdef KERN_TLS
 	if (tls != NULL)
@@ -1926,7 +1926,7 @@ soreceive_generic(struct socket *so, struct sockaddr **psa, struct uio *uio,
 		(*pr->pr_usrreqs->pru_rcvd)(so, 0);
 	}
 
-	error = sblock(&so->so_rcv, SBLOCKWAIT(flags));
+	error = SOCK_IO_RECV_LOCK(so, SBLOCKWAIT(flags));
 	if (error)
 		return (error);
 
@@ -2380,7 +2380,7 @@ dontblock:
 	if (flagsp != NULL)
 		*flagsp |= flags;
 release:
-	sbunlock(&so->so_rcv);
+	SOCK_IO_RECV_UNLOCK(so);
 	return (error);
 }
 
@@ -2427,7 +2427,7 @@ soreceive_stream(struct socket *so, struct sockaddr **psa, struct uio *uio,
 #endif
 
 	/* Prevent other readers from entering the socket. */
-	error = sblock(sb, SBLOCKWAIT(flags));
+	error = SOCK_IO_RECV_LOCK(so, SBLOCKWAIT(flags));
 	if (error)
 		return (error);
 	SOCKBUF_LOCK(sb);
@@ -2435,7 +2435,7 @@ soreceive_stream(struct socket *so, struct sockaddr **psa, struct uio *uio,
 #ifdef KERN_TLS
 	if (sb->sb_tls_info != NULL) {
 		SOCKBUF_UNLOCK(sb);
-		sbunlock(sb);
+		SOCK_IO_RECV_UNLOCK(so);
 		return (soreceive_generic(so, psa, uio, mp0, controlp,
 		    flagsp));
 	}
@@ -2598,11 +2598,10 @@ deliver:
 	if ((flags & MSG_WAITALL) && uio->uio_resid > 0)
 		goto restart;
 out:
-	SOCKBUF_LOCK_ASSERT(sb);
 	SBLASTRECORDCHK(sb);
 	SBLASTMBUFCHK(sb);
 	SOCKBUF_UNLOCK(sb);
-	sbunlock(sb);
+	SOCK_IO_RECV_UNLOCK(so);
 	return (error);
 }
 
@@ -2869,6 +2868,7 @@ sorflush(struct socket *so)
 	struct sockbuf *sb = &so->so_rcv;
 	struct protosw *pr = so->so_proto;
 	struct socket aso;
+	int error;
 
 	VNET_SO_ASSERT(so);
 
@@ -2886,7 +2886,9 @@ sorflush(struct socket *so)
 	 * despite any existing socket disposition on interruptable waiting.
 	 */
 	socantrcvmore(so);
-	(void) sblock(sb, SBL_WAIT | SBL_NOINTR);
+	error = SOCK_IO_RECV_LOCK(so, SBL_WAIT | SBL_NOINTR);
+	KASSERT(error == 0, ("%s: cannot lock sock %p recv buffer",
+	    __func__, so));
 
 	/*
 	 * Invalidate/clear most of the sockbuf structure, but leave selinfo
@@ -2900,7 +2902,7 @@ sorflush(struct socket *so)
 	bzero(&sb->sb_startzero,
 	    sizeof(*sb) - offsetof(struct sockbuf, sb_startzero));
 	SOCKBUF_UNLOCK(sb);
-	sbunlock(sb);
+	SOCK_IO_RECV_UNLOCK(so);
 
 	/*
 	 * Dispose of special rights and flush the copied socket.  Don't call
@@ -4091,6 +4093,39 @@ soisdisconnected(struct socket *so)
 	} else
 		SOCK_UNLOCK(so);
 	wakeup(&so->so_timeo);
+}
+
+int
+soiolock(struct socket *so, struct sx *sx, int flags)
+{
+	int error;
+
+	KASSERT((flags & SBL_VALID) == flags,
+	    ("soiolock: invalid flags %#x", flags));
+
+	if ((flags & SBL_WAIT) != 0) {
+		if ((flags & SBL_NOINTR) != 0) {
+			sx_xlock(sx);
+		} else {
+			error = sx_xlock_sig(sx);
+			if (error != 0)
+				return (error);
+		}
+	} else if (!sx_try_xlock(sx)) {
+		return (EWOULDBLOCK);
+	}
+
+	if (__predict_false(SOLISTENING(so))) {
+		sx_xunlock(sx);
+		return (ENOTCONN);
+	}
+	return (0);
+}
+
+void
+soiounlock(struct sx *sx)
+{
+	sx_xunlock(sx);
 }
 
 /*
