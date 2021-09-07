@@ -78,7 +78,7 @@ void swap_pager_copy(vm_object_t, vm_object_t, vm_pindex_t, int);
 vm_pindex_t swap_pager_find_least(vm_object_t object, vm_pindex_t pindex);
 void swap_pager_swap_init(void);
 int swap_pager_nswapdev(void);
-int swap_pager_reserve(vm_object_t, vm_pindex_t, vm_size_t);
+int swap_pager_reserve(vm_object_t, vm_pindex_t, vm_pindex_t);
 void swap_pager_status(int *total, int *used);
 u_long swap_pager_swapped_pages(vm_object_t object);
 void swapoff_all(void);
