@@ -82,6 +82,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/disklabel.h>
 #include <sys/eventhandler.h>
 #include <sys/fcntl.h>
+#include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/kernel.h>
 #include <sys/mount.h>
@@ -977,15 +978,16 @@ swap_pager_freespace(vm_object_t object, vm_pindex_t start, vm_size_t size)
  *	Returns 0 on success, -1 on failure.
  */
 int
-swap_pager_reserve(vm_object_t object, vm_pindex_t start, vm_size_t size)
+swap_pager_reserve(vm_object_t object, vm_pindex_t start, vm_pindex_t size)
 {
 	daddr_t addr, blk, n_free, s_free;
-	int i, j, n;
+	vm_pindex_t i, j;
+	int n;
 
 	swp_pager_init_freerange(&s_free, &n_free);
 	VM_OBJECT_WLOCK(object);
 	for (i = 0; i < size; i += n) {
-		n = size - i;
+		n = MIN(size - i, INT_MAX);
 		blk = swp_pager_getswapspace(&n);
 		if (blk == SWAPBLK_NONE) {
 			swp_pager_meta_free(object, start, i);
