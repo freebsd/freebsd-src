@@ -83,7 +83,7 @@ static s32 ixgbe_in_i2c_byte_ack(struct ixgbe_hw *hw, u8 *byte)
 	if (status)
 		return status;
 	/* ACK */
-	return ixgbe_clock_out_i2c_bit(hw, FALSE);
+	return ixgbe_clock_out_i2c_bit(hw, false);
 }
 
 /**
@@ -107,7 +107,7 @@ static u8 ixgbe_ones_comp_byte_add(u8 add1, u8 add2)
  * @addr: I2C bus address to read from
  * @reg: I2C device register to read from
  * @val: pointer to location to receive read value
- * @lock: TRUE if to take and release semaphore
+ * @lock: true if to take and release semaphore
  *
  * Returns an error code on error.
  */
@@ -157,7 +157,7 @@ s32 ixgbe_read_i2c_combined_generic_int(struct ixgbe_hw *hw, u8 addr, u16 reg,
 		if (ixgbe_clock_in_i2c_byte(hw, &csum_byte))
 			goto fail;
 		/* NACK */
-		if (ixgbe_clock_out_i2c_bit(hw, FALSE))
+		if (ixgbe_clock_out_i2c_bit(hw, false))
 			goto fail;
 		ixgbe_i2c_stop(hw);
 		if (lock)
@@ -185,7 +185,7 @@ fail:
  * @addr: I2C bus address to write to
  * @reg: I2C device register to write to
  * @val: value to write
- * @lock: TRUE if to take and release semaphore
+ * @lock: true if to take and release semaphore
  *
  * Returns an error code on error.
  */
@@ -287,7 +287,7 @@ s32 ixgbe_init_phy_ops_generic(struct ixgbe_hw *hw)
  * @hw: pointer to hardware structure
  * @phy_addr: PHY address to probe
  *
- * Returns TRUE if PHY found
+ * Returns true if PHY found
  */
 static bool ixgbe_probe_phy(struct ixgbe_hw *hw, u16 phy_addr)
 {
@@ -296,11 +296,11 @@ static bool ixgbe_probe_phy(struct ixgbe_hw *hw, u16 phy_addr)
 	if (!ixgbe_validate_phy_addr(hw, phy_addr)) {
 		DEBUGOUT1("Unable to validate PHY address 0x%04X\n",
 			phy_addr);
-		return FALSE;
+		return false;
 	}
 
 	if (ixgbe_get_phy_id(hw))
-		return FALSE;
+		return false;
 
 	hw->phy.type = ixgbe_get_phy_type_from_id(hw->phy.id);
 
@@ -315,7 +315,7 @@ static bool ixgbe_probe_phy(struct ixgbe_hw *hw, u16 phy_addr)
 			hw->phy.type = ixgbe_phy_generic;
 	}
 
-	return TRUE;
+	return true;
 }
 
 /**
@@ -385,16 +385,16 @@ s32 ixgbe_check_reset_blocked(struct ixgbe_hw *hw)
 
 	/* If we don't have this bit, it can't be blocking */
 	if (hw->mac.type == ixgbe_mac_82598EB)
-		return FALSE;
+		return false;
 
 	mmngc = IXGBE_READ_REG(hw, IXGBE_MMNGC);
 	if (mmngc & IXGBE_MMNGC_MNG_VETO) {
 		ERROR_REPORT1(IXGBE_ERROR_SOFTWARE,
 			      "MNG_VETO bit detected.\n");
-		return TRUE;
+		return true;
 	}
 
-	return FALSE;
+	return false;
 }
 
 /**
@@ -406,7 +406,7 @@ s32 ixgbe_check_reset_blocked(struct ixgbe_hw *hw)
 bool ixgbe_validate_phy_addr(struct ixgbe_hw *hw, u32 phy_addr)
 {
 	u16 phy_id = 0;
-	bool valid = FALSE;
+	bool valid = false;
 
 	DEBUGFUNC("ixgbe_validate_phy_addr");
 
@@ -415,7 +415,7 @@ bool ixgbe_validate_phy_addr(struct ixgbe_hw *hw, u32 phy_addr)
 			     IXGBE_MDIO_PMA_PMD_DEV_TYPE, &phy_id);
 
 	if (phy_id != 0xFFFF && phy_id != 0x0)
-		valid = TRUE;
+		valid = true;
 
 	DEBUGOUT1("PHY ID HIGH is 0x%04X\n", phy_id);
 
@@ -792,7 +792,7 @@ s32 ixgbe_setup_phy_link_generic(struct ixgbe_hw *hw)
 {
 	s32 status = IXGBE_SUCCESS;
 	u16 autoneg_reg = IXGBE_MII_AUTONEG_REG;
-	bool autoneg = FALSE;
+	bool autoneg = false;
 	ixgbe_link_speed speed;
 
 	DEBUGFUNC("ixgbe_setup_phy_link_generic");
@@ -972,7 +972,7 @@ s32 ixgbe_get_copper_link_capabilities_generic(struct ixgbe_hw *hw,
 
 	DEBUGFUNC("ixgbe_get_copper_link_capabilities_generic");
 
-	*autoneg = TRUE;
+	*autoneg = true;
 	if (!hw->phy.speeds_supported)
 		status = ixgbe_get_copper_speeds_supported(hw);
 
@@ -984,7 +984,7 @@ s32 ixgbe_get_copper_link_capabilities_generic(struct ixgbe_hw *hw,
  *  ixgbe_check_phy_link_tnx - Determine link and speed status
  *  @hw: pointer to hardware structure
  *  @speed: current link speed
- *  @link_up: TRUE is link is up, FALSE otherwise
+ *  @link_up: true is link is up, false otherwise
  *
  *  Reads the VS1 register to determine if link is up and the current speed for
  *  the PHY.
@@ -1002,7 +1002,7 @@ s32 ixgbe_check_phy_link_tnx(struct ixgbe_hw *hw, ixgbe_link_speed *speed,
 	DEBUGFUNC("ixgbe_check_phy_link_tnx");
 
 	/* Initialize speed and link to default case */
-	*link_up = FALSE;
+	*link_up = false;
 	*speed = IXGBE_LINK_SPEED_10GB_FULL;
 
 	/*
@@ -1020,7 +1020,7 @@ s32 ixgbe_check_phy_link_tnx(struct ixgbe_hw *hw, ixgbe_link_speed *speed,
 		phy_speed = phy_data &
 				 IXGBE_MDIO_VENDOR_SPECIFIC_1_SPEED_STATUS;
 		if (phy_link == IXGBE_MDIO_VENDOR_SPECIFIC_1_LINK_STATUS) {
-			*link_up = TRUE;
+			*link_up = true;
 			if (phy_speed ==
 			    IXGBE_MDIO_VENDOR_SPECIFIC_1_SPEED_STATUS)
 				*speed = IXGBE_LINK_SPEED_1GB_FULL;
@@ -1041,7 +1041,7 @@ s32 ixgbe_setup_phy_link_tnx(struct ixgbe_hw *hw)
 {
 	s32 status = IXGBE_SUCCESS;
 	u16 autoneg_reg = IXGBE_MII_AUTONEG_REG;
-	bool autoneg = FALSE;
+	bool autoneg = false;
 	ixgbe_link_speed speed;
 
 	DEBUGFUNC("ixgbe_setup_phy_link_tnx");
@@ -1154,7 +1154,7 @@ s32 ixgbe_get_phy_firmware_version_generic(struct ixgbe_hw *hw,
 s32 ixgbe_reset_phy_nl(struct ixgbe_hw *hw)
 {
 	u16 phy_offset, control, eword, edata, block_crc;
-	bool end_data = FALSE;
+	bool end_data = false;
 	u16 list_offset, data_offset;
 	u16 phy_data = 0;
 	s32 ret_val = IXGBE_SUCCESS;
@@ -1238,7 +1238,7 @@ s32 ixgbe_reset_phy_nl(struct ixgbe_hw *hw)
 			DEBUGOUT("CONTROL:\n");
 			if (edata == IXGBE_CONTROL_EOL_NL) {
 				DEBUGOUT("EOL\n");
-				end_data = TRUE;
+				end_data = true;
 			} else if (edata == IXGBE_CONTROL_SOL_NL) {
 				DEBUGOUT("SOL\n");
 			} else {
@@ -1439,15 +1439,15 @@ s32 ixgbe_identify_sfp_module_generic(struct ixgbe_hw *hw)
 		}
 
 		if (hw->phy.sfp_type != stored_sfp_type)
-			hw->phy.sfp_setup_needed = TRUE;
+			hw->phy.sfp_setup_needed = true;
 
 		/* Determine if the SFP+ PHY is dual speed or not. */
-		hw->phy.multispeed_fiber = FALSE;
+		hw->phy.multispeed_fiber = false;
 		if (((comp_codes_1g & IXGBE_SFF_1GBASESX_CAPABLE) &&
 		   (comp_codes_10g & IXGBE_SFF_10GBASESR_CAPABLE)) ||
 		   ((comp_codes_1g & IXGBE_SFF_1GBASELX_CAPABLE) &&
 		   (comp_codes_10g & IXGBE_SFF_10GBASELR_CAPABLE)))
-			hw->phy.multispeed_fiber = TRUE;
+			hw->phy.multispeed_fiber = true;
 
 		/* Determine PHY vendor */
 		if (hw->phy.type != ixgbe_phy_nl) {
@@ -1544,7 +1544,7 @@ s32 ixgbe_identify_sfp_module_generic(struct ixgbe_hw *hw)
 			if (hw->phy.type == ixgbe_phy_sfp_intel) {
 				status = IXGBE_SUCCESS;
 			} else {
-				if (hw->allow_unsupported_sfp == TRUE) {
+				if (hw->allow_unsupported_sfp == true) {
 					EWARN(hw, "WARNING: Intel (R) Network Connections are quality tested using Intel (R) Ethernet Optics. Using untested modules is not supported and may cause unstable operation or damage to the module or the adapter. Intel Corporation is not responsible for any harm caused by using untested modules.\n");
 					status = IXGBE_SUCCESS;
 				} else {
@@ -1652,7 +1652,7 @@ s32 ixgbe_identify_qsfp_module_generic(struct ixgbe_hw *hw)
 	u8 connector = 0;
 	u8 cable_length = 0;
 	u8 device_tech = 0;
-	bool active_cable = FALSE;
+	bool active_cable = false;
 
 	DEBUGFUNC("ixgbe_identify_qsfp_module_generic");
 
@@ -1705,7 +1705,7 @@ s32 ixgbe_identify_qsfp_module_generic(struct ixgbe_hw *hw)
 			hw->phy.sfp_type = ixgbe_sfp_type_srlr_core1;
 	} else {
 		if (comp_codes_10g & IXGBE_SFF_QSFP_DA_ACTIVE_CABLE)
-			active_cable = TRUE;
+			active_cable = true;
 
 		if (!active_cable) {
 			/* check for active DA cables that pre-date
@@ -1727,7 +1727,7 @@ s32 ixgbe_identify_qsfp_module_generic(struct ixgbe_hw *hw)
 			    (cable_length > 0) &&
 			    ((device_tech >> 4) ==
 				     IXGBE_SFF_QSFP_TRANSMITER_850NM_VCSEL))
-				active_cable = TRUE;
+				active_cable = true;
 		}
 
 		if (active_cable) {
@@ -1747,15 +1747,15 @@ s32 ixgbe_identify_qsfp_module_generic(struct ixgbe_hw *hw)
 	}
 
 	if (hw->phy.sfp_type != stored_sfp_type)
-		hw->phy.sfp_setup_needed = TRUE;
+		hw->phy.sfp_setup_needed = true;
 
 	/* Determine if the QSFP+ PHY is dual speed or not. */
-	hw->phy.multispeed_fiber = FALSE;
+	hw->phy.multispeed_fiber = false;
 	if (((comp_codes_1g & IXGBE_SFF_1GBASESX_CAPABLE) &&
 	   (comp_codes_10g & IXGBE_SFF_10GBASESR_CAPABLE)) ||
 	   ((comp_codes_1g & IXGBE_SFF_1GBASELX_CAPABLE) &&
 	   (comp_codes_10g & IXGBE_SFF_10GBASELR_CAPABLE)))
-		hw->phy.multispeed_fiber = TRUE;
+		hw->phy.multispeed_fiber = true;
 
 	/* Determine PHY vendor for optical modules */
 	if (comp_codes_10g & (IXGBE_SFF_10GBASESR_CAPABLE |
@@ -1797,7 +1797,7 @@ s32 ixgbe_identify_qsfp_module_generic(struct ixgbe_hw *hw)
 			if (hw->phy.type == ixgbe_phy_qsfp_intel) {
 				status = IXGBE_SUCCESS;
 			} else {
-				if (hw->allow_unsupported_sfp == TRUE) {
+				if (hw->allow_unsupported_sfp == true) {
 					EWARN(hw, "WARNING: Intel (R) Network Connections are quality tested using Intel (R) Ethernet Optics. Using untested modules is not supported and may cause unstable operation or damage to the module or the adapter. Intel Corporation is not responsible for any harm caused by using untested modules.\n");
 					status = IXGBE_SUCCESS;
 				} else {
@@ -1971,7 +1971,7 @@ s32 ixgbe_write_i2c_eeprom_generic(struct ixgbe_hw *hw, u8 byte_offset,
 }
 
 /**
- * ixgbe_is_sfp_probe - Returns TRUE if SFP is being detected
+ * ixgbe_is_sfp_probe - Returns true if SFP is being detected
  * @hw: pointer to hardware structure
  * @offset: eeprom offset to be read
  * @addr: I2C address to be read
@@ -1981,8 +1981,8 @@ static bool ixgbe_is_sfp_probe(struct ixgbe_hw *hw, u8 offset, u8 addr)
 	if (addr == IXGBE_I2C_EEPROM_DEV_ADDR &&
 	    offset == IXGBE_SFF_IDENTIFIER &&
 	    hw->phy.sfp_type == ixgbe_sfp_type_not_present)
-		return TRUE;
-	return FALSE;
+		return true;
+	return false;
 }
 
 /**
@@ -1991,7 +1991,7 @@ static bool ixgbe_is_sfp_probe(struct ixgbe_hw *hw, u8 offset, u8 addr)
  *  @byte_offset: byte offset to read
  *  @dev_addr: address to read from
  *  @data: value read
- *  @lock: TRUE if to take and release semaphore
+ *  @lock: true if to take and release semaphore
  *
  *  Performs byte read operation to SFP module's EEPROM over I2C interface at
  *  a specified device address.
@@ -2091,7 +2091,7 @@ s32 ixgbe_read_i2c_byte_generic(struct ixgbe_hw *hw, u8 byte_offset,
 				u8 dev_addr, u8 *data)
 {
 	return ixgbe_read_i2c_byte_generic_int(hw, byte_offset, dev_addr,
-					       data, TRUE);
+					       data, true);
 }
 
 /**
@@ -2108,7 +2108,7 @@ s32 ixgbe_read_i2c_byte_generic_unlocked(struct ixgbe_hw *hw, u8 byte_offset,
 					 u8 dev_addr, u8 *data)
 {
 	return ixgbe_read_i2c_byte_generic_int(hw, byte_offset, dev_addr,
-					       data, FALSE);
+					       data, false);
 }
 
 /**
@@ -2117,7 +2117,7 @@ s32 ixgbe_read_i2c_byte_generic_unlocked(struct ixgbe_hw *hw, u8 byte_offset,
  *  @byte_offset: byte offset to write
  *  @dev_addr: address to write to
  *  @data: value to write
- *  @lock: TRUE if to take and release semaphore
+ *  @lock: true if to take and release semaphore
  *
  *  Performs byte write operation to SFP module's EEPROM over I2C interface at
  *  a specified device address.
@@ -2197,7 +2197,7 @@ s32 ixgbe_write_i2c_byte_generic(struct ixgbe_hw *hw, u8 byte_offset,
 				 u8 dev_addr, u8 data)
 {
 	return ixgbe_write_i2c_byte_generic_int(hw, byte_offset, dev_addr,
-						data, TRUE);
+						data, true);
 }
 
 /**
@@ -2214,7 +2214,7 @@ s32 ixgbe_write_i2c_byte_generic_unlocked(struct ixgbe_hw *hw, u8 byte_offset,
 					  u8 dev_addr, u8 data)
 {
 	return ixgbe_write_i2c_byte_generic_int(hw, byte_offset, dev_addr,
-						data, FALSE);
+						data, false);
 }
 
 /**
@@ -2675,7 +2675,7 @@ out:
 /**
  * ixgbe_set_copper_phy_power - Control power for copper phy
  * @hw: pointer to hardware structure
- * @on: TRUE for on, FALSE for off
+ * @on: true for on, false for off
  */
 s32 ixgbe_set_copper_phy_power(struct ixgbe_hw *hw, bool on)
 {

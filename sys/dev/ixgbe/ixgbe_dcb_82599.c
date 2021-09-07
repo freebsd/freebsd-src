@@ -385,17 +385,17 @@ s32 ixgbe_dcb_config_tc_stats_82599(struct ixgbe_hw *hw,
 	u32 reg = 0;
 	u8  i   = 0;
 	u8 tc_count = 8;
-	bool vt_mode = FALSE;
+	bool vt_mode = false;
 
 	if (dcb_config != NULL) {
 		tc_count = dcb_config->num_tcs.pg_tcs;
 		vt_mode = dcb_config->vt_mode;
 	}
 
-	if (!((tc_count == 8 && vt_mode == FALSE) || tc_count == 4))
+	if (!((tc_count == 8 && vt_mode == false) || tc_count == 4))
 		return IXGBE_ERR_PARAM;
 
-	if (tc_count == 8 && vt_mode == FALSE) {
+	if (tc_count == 8 && vt_mode == false) {
 		/*
 		 * Receive Queues stats setting
 		 * 32 RQSMR registers, each configuring 4 queues.
@@ -435,7 +435,7 @@ s32 ixgbe_dcb_config_tc_stats_82599(struct ixgbe_hw *hw,
 				reg = 0x07070707;
 			IXGBE_WRITE_REG(hw, IXGBE_TQSM(i), reg);
 		}
-	} else if (tc_count == 4 && vt_mode == FALSE) {
+	} else if (tc_count == 4 && vt_mode == false) {
 		/*
 		 * Receive Queues stats setting
 		 * 32 RQSMR registers, each configuring 4 queues.
@@ -472,7 +472,7 @@ s32 ixgbe_dcb_config_tc_stats_82599(struct ixgbe_hw *hw,
 				reg = 0x03030303;
 			IXGBE_WRITE_REG(hw, IXGBE_TQSM(i), reg);
 		}
-	} else if (tc_count == 4 && vt_mode == TRUE) {
+	} else if (tc_count == 4 && vt_mode == true) {
 		/*
 		 * Receive Queues stats setting
 		 * 32 RQSMR registers, each configuring 4 queues.

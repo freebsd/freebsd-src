@@ -156,13 +156,13 @@ s32 ixgbe_init_ops_generic(struct ixgbe_hw *hw)
  * of flow control
  * @hw: pointer to hardware structure
  *
- * This function returns TRUE if the device supports flow control
- * autonegotiation, and FALSE if it does not.
+ * This function returns true if the device supports flow control
+ * autonegotiation, and false if it does not.
  *
  **/
 bool ixgbe_device_supports_autoneg_fc(struct ixgbe_hw *hw)
 {
-	bool supported = FALSE;
+	bool supported = false;
 	ixgbe_link_speed speed;
 	bool link_up;
 
@@ -178,24 +178,24 @@ bool ixgbe_device_supports_autoneg_fc(struct ixgbe_hw *hw)
 		case IXGBE_DEV_ID_X550EM_A_SFP_N:
 		case IXGBE_DEV_ID_X550EM_A_QSFP:
 		case IXGBE_DEV_ID_X550EM_A_QSFP_N:
-			supported = FALSE;
+			supported = false;
 			break;
 		default:
-			hw->mac.ops.check_link(hw, &speed, &link_up, FALSE);
+			hw->mac.ops.check_link(hw, &speed, &link_up, false);
 			/* if link is down, assume supported */
 			if (link_up)
 				supported = speed == IXGBE_LINK_SPEED_1GB_FULL ?
-				TRUE : FALSE;
+				true : false;
 			else
-				supported = TRUE;
+				supported = true;
 		}
 
 		break;
 	case ixgbe_media_type_backplane:
 		if (hw->device_id == IXGBE_DEV_ID_X550EM_X_XFI)
-			supported = FALSE;
+			supported = false;
 		else
-			supported = TRUE;
+			supported = true;
 		break;
 	case ixgbe_media_type_copper:
 		/* only some copper devices support flow control autoneg */
@@ -210,10 +210,10 @@ bool ixgbe_device_supports_autoneg_fc(struct ixgbe_hw *hw)
 		case IXGBE_DEV_ID_X550EM_A_10G_T:
 		case IXGBE_DEV_ID_X550EM_A_1G_T:
 		case IXGBE_DEV_ID_X550EM_A_1G_T_L:
-			supported = TRUE;
+			supported = true;
 			break;
 		default:
-			supported = FALSE;
+			supported = false;
 		}
 	default:
 		break;
@@ -238,7 +238,7 @@ s32 ixgbe_setup_fc_generic(struct ixgbe_hw *hw)
 	s32 ret_val = IXGBE_SUCCESS;
 	u32 reg = 0, reg_bp = 0;
 	u16 reg_cu = 0;
-	bool locked = FALSE;
+	bool locked = false;
 
 	DEBUGFUNC("ixgbe_setup_fc_generic");
 
@@ -432,17 +432,17 @@ s32 ixgbe_start_hw_generic(struct ixgbe_hw *hw)
 	case ixgbe_mac_X550EM_a:
 		hw->mac.ops.get_device_caps(hw, &device_caps);
 		if (device_caps & IXGBE_DEVICE_CAPS_NO_CROSSTALK_WR)
-			hw->need_crosstalk_fix = FALSE;
+			hw->need_crosstalk_fix = false;
 		else
-			hw->need_crosstalk_fix = TRUE;
+			hw->need_crosstalk_fix = true;
 		break;
 	default:
-		hw->need_crosstalk_fix = FALSE;
+		hw->need_crosstalk_fix = false;
 		break;
 	}
 
 	/* Clear adapter stopped flag */
-	hw->adapter_stopped = FALSE;
+	hw->adapter_stopped = false;
 
 	return IXGBE_SUCCESS;
 }
@@ -1121,7 +1121,7 @@ s32 ixgbe_stop_adapter_generic(struct ixgbe_hw *hw)
 	 * Set the adapter_stopped flag so other driver functions stop touching
 	 * the hardware
 	 */
-	hw->adapter_stopped = TRUE;
+	hw->adapter_stopped = true;
 
 	/* Disable the receive unit */
 	ixgbe_disable_rx(hw);
@@ -3124,7 +3124,7 @@ void ixgbe_fc_autoneg(struct ixgbe_hw *hw)
 		goto out;
 	}
 
-	hw->mac.ops.check_link(hw, &speed, &link_up, FALSE);
+	hw->mac.ops.check_link(hw, &speed, &link_up, false);
 	if (!link_up) {
 		ERROR_REPORT1(IXGBE_ERROR_SOFTWARE, "The link is down");
 		goto out;
@@ -3156,9 +3156,9 @@ void ixgbe_fc_autoneg(struct ixgbe_hw *hw)
 
 out:
 	if (ret_val == IXGBE_SUCCESS) {
-		hw->fc.fc_was_autonegged = TRUE;
+		hw->fc.fc_was_autonegged = true;
 	} else {
-		hw->fc.fc_was_autonegged = FALSE;
+		hw->fc.fc_was_autonegged = false;
 		hw->fc.current_mode = hw->fc.requested_mode;
 	}
 }
@@ -3396,7 +3396,7 @@ s32 ixgbe_disable_sec_rx_path_generic(struct ixgbe_hw *hw)
  */
 s32 prot_autoc_read_generic(struct ixgbe_hw *hw, bool *locked, u32 *reg_val)
 {
-	*locked = FALSE;
+	*locked = false;
 	*reg_val = IXGBE_READ_REG(hw, IXGBE_AUTOC);
 	return IXGBE_SUCCESS;
 }
@@ -3469,7 +3469,7 @@ s32 ixgbe_blink_led_start_generic(struct ixgbe_hw *hw, u32 index)
 	u32 autoc_reg = 0;
 	u32 led_reg = IXGBE_READ_REG(hw, IXGBE_LEDCTL);
 	s32 ret_val = IXGBE_SUCCESS;
-	bool locked = FALSE;
+	bool locked = false;
 
 	DEBUGFUNC("ixgbe_blink_led_start_generic");
 
@@ -3480,7 +3480,7 @@ s32 ixgbe_blink_led_start_generic(struct ixgbe_hw *hw, u32 index)
 	 * Link must be up to auto-blink the LEDs;
 	 * Force it if link is down.
 	 */
-	hw->mac.ops.check_link(hw, &speed, &link_up, FALSE);
+	hw->mac.ops.check_link(hw, &speed, &link_up, false);
 
 	if (!link_up) {
 		ret_val = hw->mac.ops.prot_autoc_read(hw, &locked, &autoc_reg);
@@ -3517,7 +3517,7 @@ s32 ixgbe_blink_led_stop_generic(struct ixgbe_hw *hw, u32 index)
 	u32 autoc_reg = 0;
 	u32 led_reg = IXGBE_READ_REG(hw, IXGBE_LEDCTL);
 	s32 ret_val = IXGBE_SUCCESS;
-	bool locked = FALSE;
+	bool locked = false;
 
 	DEBUGFUNC("ixgbe_blink_led_stop_generic");
 
@@ -3916,7 +3916,7 @@ s32 ixgbe_init_uta_tables_generic(struct ixgbe_hw *hw)
  *  ixgbe_find_vlvf_slot - find the vlanid or the first empty slot
  *  @hw: pointer to hardware structure
  *  @vlan: VLAN id to write to VLAN filter
- *  @vlvf_bypass: TRUE to find vlanid only, FALSE returns first empty slot if
+ *  @vlvf_bypass: true to find vlanid only, false returns first empty slot if
  *		  vlanid not found
  *
  *
@@ -4152,7 +4152,7 @@ static bool ixgbe_need_crosstalk_fix(struct ixgbe_hw *hw)
 
 	/* Does FW say we need the fix */
 	if (!hw->need_crosstalk_fix)
-		return FALSE;
+		return false;
 
 	/* Only consider SFP+ PHYs i.e. media type fiber */
 	switch (hw->mac.ops.get_media_type(hw)) {
@@ -4160,17 +4160,17 @@ static bool ixgbe_need_crosstalk_fix(struct ixgbe_hw *hw)
 	case ixgbe_media_type_fiber_qsfp:
 		break;
 	default:
-		return FALSE;
+		return false;
 	}
 
-	return TRUE;
+	return true;
 }
 
 /**
  *  ixgbe_check_mac_link_generic - Determine link and speed status
  *  @hw: pointer to hardware structure
  *  @speed: pointer to link speed
- *  @link_up: TRUE when link is up
+ *  @link_up: true when link is up
  *  @link_up_wait_to_complete: bool used to wait for link up or not
  *
  *  Reads the links register to determine if link is up and the current speed
@@ -4201,12 +4201,12 @@ s32 ixgbe_check_mac_link_generic(struct ixgbe_hw *hw, ixgbe_link_speed *speed,
 			break;
 		default:
 			/* sanity check - No SFP+ devices here */
-			sfp_cage_full = FALSE;
+			sfp_cage_full = false;
 			break;
 		}
 
 		if (!sfp_cage_full) {
-			*link_up = FALSE;
+			*link_up = false;
 			*speed = IXGBE_LINK_SPEED_UNKNOWN;
 			return IXGBE_SUCCESS;
 		}
@@ -4225,19 +4225,19 @@ s32 ixgbe_check_mac_link_generic(struct ixgbe_hw *hw, ixgbe_link_speed *speed,
 	if (link_up_wait_to_complete) {
 		for (i = 0; i < hw->mac.max_link_up_time; i++) {
 			if (links_reg & IXGBE_LINKS_UP) {
-				*link_up = TRUE;
+				*link_up = true;
 				break;
 			} else {
-				*link_up = FALSE;
+				*link_up = false;
 			}
 			msec_delay(100);
 			links_reg = IXGBE_READ_REG(hw, IXGBE_LINKS);
 		}
 	} else {
 		if (links_reg & IXGBE_LINKS_UP)
-			*link_up = TRUE;
+			*link_up = true;
 		else
-			*link_up = FALSE;
+			*link_up = false;
 	}
 
 	switch (links_reg & IXGBE_LINKS_SPEED_82599) {
@@ -4582,7 +4582,7 @@ s32 ixgbe_hic_unlocked(struct ixgbe_hw *hw, u32 *buffer, u32 length,
  *   be placed
  *  @length: length of buffer, must be multiple of 4 bytes
  *  @timeout: time in ms to wait for command completion
- *  @return_data: read and return data from the buffer (TRUE) or not (FALSE)
+ *  @return_data: read and return data from the buffer (true) or not (false)
  *   Needed because FW structures are big endian and decoding of
  *   these fields can be 8 bit or 16 bit based on command. Decoding
  *   is not easily understood without making a table of commands.
@@ -4717,7 +4717,7 @@ s32 ixgbe_set_fw_drv_ver_generic(struct ixgbe_hw *hw, u8 maj, u8 min,
 		ret_val = ixgbe_host_interface_command(hw, (u32 *)&fw_cmd,
 						       sizeof(fw_cmd),
 						       IXGBE_HI_COMMAND_TIMEOUT,
-						       TRUE);
+						       true);
 		if (ret_val != IXGBE_SUCCESS)
 			continue;
 
@@ -4984,7 +4984,7 @@ bool ixgbe_bypass_valid_rd_generic(u32 in_reg, u32 out_reg)
 
 	/* Page must match for all control pages */
 	if ((in_reg & BYPASS_PAGE_M) != (out_reg & BYPASS_PAGE_M))
-		return FALSE;
+		return false;
 
 	switch (in_reg & BYPASS_PAGE_M) {
 	case BYPASS_PAGE_CTL0:
@@ -4997,11 +4997,11 @@ bool ixgbe_bypass_valid_rd_generic(u32 in_reg, u32 out_reg)
 		       BYPASS_WDTIMEOUT_M |
 		       BYPASS_WDT_VALUE_M;
 		if ((out_reg & mask) != (in_reg & mask))
-			return FALSE;
+			return false;
 
 		/* 0x0 is never a valid value for bypass status */
 		if (!(out_reg & BYPASS_STATUS_OFF_M))
-			return FALSE;
+			return false;
 		break;
 	case BYPASS_PAGE_CTL1:
 		/* All the following can't change since the last write
@@ -5010,7 +5010,7 @@ bool ixgbe_bypass_valid_rd_generic(u32 in_reg, u32 out_reg)
 		 */
 		mask = BYPASS_CTL1_VALID_M | BYPASS_CTL1_TIME_M;
 		if ((out_reg & mask) != (in_reg & mask))
-			return FALSE;
+			return false;
 		break;
 	case BYPASS_PAGE_CTL2:
 		/* All we can check in this page is control number
@@ -5019,8 +5019,8 @@ bool ixgbe_bypass_valid_rd_generic(u32 in_reg, u32 out_reg)
 		break;
 	}
 
-	/* We are as sure as we can be return TRUE */
-	return TRUE;
+	/* We are as sure as we can be return true */
+	return true;
 }
 
 /**
@@ -5107,15 +5107,15 @@ s32 ixgbe_bypass_rd_eep_generic(struct ixgbe_hw *hw, u32 addr, u8 *value)
  *  @hw: pointer to hardware structure
  *  @nvm_ver: pointer to output structure
  *
- *  if valid option ROM version, nvm_ver->or_valid set to TRUE
- *  else nvm_ver->or_valid is FALSE.
+ *  if valid option ROM version, nvm_ver->or_valid set to true
+ *  else nvm_ver->or_valid is false.
  **/
 void ixgbe_get_orom_version(struct ixgbe_hw *hw,
 			    struct ixgbe_nvm_version *nvm_ver)
 {
 	u16 offset, eeprom_cfg_blkh, eeprom_cfg_blkl;
 
-	nvm_ver->or_valid = FALSE;
+	nvm_ver->or_valid = false;
 	/* Option Rom may or may not be present.  Start with pointer */
 	hw->eeprom.ops.read(hw, NVM_OROM_OFFSET, &offset);
 
@@ -5132,7 +5132,7 @@ void ixgbe_get_orom_version(struct ixgbe_hw *hw,
 	    eeprom_cfg_blkh == NVM_VER_INVALID)
 		return;
 
-	nvm_ver->or_valid = TRUE;
+	nvm_ver->or_valid = true;
 	nvm_ver->or_major = eeprom_cfg_blkl >> NVM_OROM_SHIFT;
 	nvm_ver->or_build = (eeprom_cfg_blkl << NVM_OROM_SHIFT) |
 			    (eeprom_cfg_blkh >> NVM_OROM_SHIFT);
@@ -5145,15 +5145,15 @@ void ixgbe_get_orom_version(struct ixgbe_hw *hw,
  *  @hw: pointer to hardware structure
  *  @nvm_ver: pointer to output structure
  *
- *  if valid OEM product version, nvm_ver->oem_valid set to TRUE
- *  else nvm_ver->oem_valid is FALSE.
+ *  if valid OEM product version, nvm_ver->oem_valid set to true
+ *  else nvm_ver->oem_valid is false.
  **/
 void ixgbe_get_oem_prod_version(struct ixgbe_hw *hw,
 				struct ixgbe_nvm_version *nvm_ver)
 {
 	u16 rel_num, prod_ver, mod_len, cap, offset;
 
-	nvm_ver->oem_valid = FALSE;
+	nvm_ver->oem_valid = false;
 	hw->eeprom.ops.read(hw, NVM_OEM_PROD_VER_PTR, &offset);
 
 	/* Return is offset to OEM Product Version block is invalid */
@@ -5180,7 +5180,7 @@ void ixgbe_get_oem_prod_version(struct ixgbe_hw *hw,
 	nvm_ver->oem_major = prod_ver >> NVM_VER_SHIFT;
 	nvm_ver->oem_minor = prod_ver & NVM_VER_MASK;
 	nvm_ver->oem_release = rel_num;
-	nvm_ver->oem_valid = TRUE;
+	nvm_ver->oem_valid = true;
 }
 
 /**
@@ -5243,9 +5243,9 @@ void ixgbe_disable_rx_generic(struct ixgbe_hw *hw)
 			if (pfdtxgswc & IXGBE_PFDTXGSWC_VT_LBEN) {
 				pfdtxgswc &= ~IXGBE_PFDTXGSWC_VT_LBEN;
 				IXGBE_WRITE_REG(hw, IXGBE_PFDTXGSWC, pfdtxgswc);
-				hw->mac.set_lben = TRUE;
+				hw->mac.set_lben = true;
 			} else {
-				hw->mac.set_lben = FALSE;
+				hw->mac.set_lben = false;
 			}
 		}
 		rxctrl &= ~IXGBE_RXCTRL_RXEN;
@@ -5266,13 +5266,13 @@ void ixgbe_enable_rx_generic(struct ixgbe_hw *hw)
 			pfdtxgswc = IXGBE_READ_REG(hw, IXGBE_PFDTXGSWC);
 			pfdtxgswc |= IXGBE_PFDTXGSWC_VT_LBEN;
 			IXGBE_WRITE_REG(hw, IXGBE_PFDTXGSWC, pfdtxgswc);
-			hw->mac.set_lben = FALSE;
+			hw->mac.set_lben = false;
 		}
 	}
 }
 
 /**
- * ixgbe_mng_present - returns TRUE when management capability is present
+ * ixgbe_mng_present - returns true when management capability is present
  * @hw: pointer to hardware structure
  */
 bool ixgbe_mng_present(struct ixgbe_hw *hw)
@@ -5280,7 +5280,7 @@ bool ixgbe_mng_present(struct ixgbe_hw *hw)
 	u32 fwsm;
 
 	if (hw->mac.type < ixgbe_mac_82599EB)
-		return FALSE;
+		return false;
 
 	fwsm = IXGBE_READ_REG(hw, IXGBE_FWSM_BY_MAC(hw));
 
@@ -5291,7 +5291,7 @@ bool ixgbe_mng_present(struct ixgbe_hw *hw)
  * ixgbe_mng_enabled - Is the manageability engine enabled?
  * @hw: pointer to hardware structure
  *
- * Returns TRUE if the manageability engine is enabled.
+ * Returns true if the manageability engine is enabled.
  **/
 bool ixgbe_mng_enabled(struct ixgbe_hw *hw)
 {
@@ -5299,26 +5299,26 @@ bool ixgbe_mng_enabled(struct ixgbe_hw *hw)
 
 	fwsm = IXGBE_READ_REG(hw, IXGBE_FWSM_BY_MAC(hw));
 	if ((fwsm & IXGBE_FWSM_MODE_MASK) != IXGBE_FWSM_FW_MODE_PT)
-		return FALSE;
+		return false;
 
 	manc = IXGBE_READ_REG(hw, IXGBE_MANC);
 	if (!(manc & IXGBE_MANC_RCV_TCO_EN))
-		return FALSE;
+		return false;
 
 	if (hw->mac.type <= ixgbe_mac_X540) {
 		factps = IXGBE_READ_REG(hw, IXGBE_FACTPS_BY_MAC(hw));
 		if (factps & IXGBE_FACTPS_MNGCG)
-			return FALSE;
+			return false;
 	}
 
-	return TRUE;
+	return true;
 }
 
 /**
  *  ixgbe_setup_mac_link_multispeed_fiber - Set MAC link speed
  *  @hw: pointer to hardware structure
  *  @speed: new link speed
- *  @autoneg_wait_to_complete: TRUE when waiting for completion is needed
+ *  @autoneg_wait_to_complete: true when waiting for completion is needed
  *
  *  Set the link speed in the MAC and/or PHY register and restarts link.
  **/
@@ -5331,7 +5331,7 @@ s32 ixgbe_setup_mac_link_multispeed_fiber(struct ixgbe_hw *hw,
 	s32 status = IXGBE_SUCCESS;
 	u32 speedcnt = 0;
 	u32 i = 0;
-	bool autoneg, link_up = FALSE;
+	bool autoneg, link_up = false;
 
 	DEBUGFUNC("ixgbe_setup_mac_link_multispeed_fiber");
 
@@ -5386,7 +5386,7 @@ s32 ixgbe_setup_mac_link_multispeed_fiber(struct ixgbe_hw *hw,
 
 			/* If we have link, just jump out */
 			status = ixgbe_check_link(hw, &link_speed,
-						  &link_up, FALSE);
+						  &link_up, false);
 			if (status != IXGBE_SUCCESS)
 				return status;
 
@@ -5431,7 +5431,7 @@ s32 ixgbe_setup_mac_link_multispeed_fiber(struct ixgbe_hw *hw,
 		msec_delay(100);
 
 		/* If we have link, just jump out */
-		status = ixgbe_check_link(hw, &link_speed, &link_up, FALSE);
+		status = ixgbe_check_link(hw, &link_speed, &link_up, false);
 		if (status != IXGBE_SUCCESS)
 			return status;
 

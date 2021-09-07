@@ -422,7 +422,7 @@ s32 ixgbe_fw_phy_activity(struct ixgbe_hw *hw, u16 activity,
 		rc = ixgbe_host_interface_command(hw, (u32 *)&hic.cmd,
 						  sizeof(hic.cmd),
 						  IXGBE_HI_COMMAND_TIMEOUT,
-						  TRUE);
+						  true);
 		if (rc != IXGBE_SUCCESS)
 			return rc;
 		if (hic.rsp.hdr.cmd_or_resp.ret_status ==
@@ -545,7 +545,7 @@ static s32 ixgbe_write_phy_reg_x550em(struct ixgbe_hw *hw, u32 reg_addr,
 static s32 ixgbe_read_i2c_combined_generic(struct ixgbe_hw *hw, u8 addr,
 					   u16 reg, u16 *val)
 {
-	return ixgbe_read_i2c_combined_generic_int(hw, addr, reg, val, TRUE);
+	return ixgbe_read_i2c_combined_generic_int(hw, addr, reg, val, true);
 }
 
 /**
@@ -561,7 +561,7 @@ static s32
 ixgbe_read_i2c_combined_generic_unlocked(struct ixgbe_hw *hw, u8 addr,
 					 u16 reg, u16 *val)
 {
-	return ixgbe_read_i2c_combined_generic_int(hw, addr, reg, val, FALSE);
+	return ixgbe_read_i2c_combined_generic_int(hw, addr, reg, val, false);
 }
 
 /**
@@ -576,7 +576,7 @@ ixgbe_read_i2c_combined_generic_unlocked(struct ixgbe_hw *hw, u8 addr,
 static s32 ixgbe_write_i2c_combined_generic(struct ixgbe_hw *hw,
 					    u8 addr, u16 reg, u16 val)
 {
-	return ixgbe_write_i2c_combined_generic_int(hw, addr, reg, val, TRUE);
+	return ixgbe_write_i2c_combined_generic_int(hw, addr, reg, val, true);
 }
 
 /**
@@ -592,7 +592,7 @@ static s32
 ixgbe_write_i2c_combined_generic_unlocked(struct ixgbe_hw *hw,
 					  u8 addr, u16 reg, u16 val)
 {
-	return ixgbe_write_i2c_combined_generic_int(hw, addr, reg, val, FALSE);
+	return ixgbe_write_i2c_combined_generic_int(hw, addr, reg, val, false);
 }
 
 /**
@@ -1236,7 +1236,7 @@ s32 ixgbe_get_phy_token(struct ixgbe_hw *hw)
 	status = ixgbe_host_interface_command(hw, (u32 *)&token_cmd,
 					      sizeof(token_cmd),
 					      IXGBE_HI_COMMAND_TIMEOUT,
-					      TRUE);
+					      true);
 	if (status) {
 		DEBUGOUT1("Issuing host interface command failed with Status = %d\n",
 			  status);
@@ -1274,7 +1274,7 @@ s32 ixgbe_put_phy_token(struct ixgbe_hw *hw)
 	status = ixgbe_host_interface_command(hw, (u32 *)&token_cmd,
 					      sizeof(token_cmd),
 					      IXGBE_HI_COMMAND_TIMEOUT,
-					      TRUE);
+					      true);
 	if (status)
 		return status;
 	if (token_cmd.hdr.cmd_or_resp.ret_status == FW_PHY_TOKEN_OK)
@@ -1310,7 +1310,7 @@ s32 ixgbe_write_iosf_sb_reg_x550a(struct ixgbe_hw *hw, u32 reg_addr,
 
 	status = ixgbe_host_interface_command(hw, (u32 *)&write_cmd,
 					      sizeof(write_cmd),
-					      IXGBE_HI_COMMAND_TIMEOUT, FALSE);
+					      IXGBE_HI_COMMAND_TIMEOUT, false);
 
 	return status;
 }
@@ -1342,7 +1342,7 @@ s32 ixgbe_read_iosf_sb_reg_x550a(struct ixgbe_hw *hw, u32 reg_addr,
 
 	status = ixgbe_host_interface_command(hw, (u32 *)&hic.cmd,
 					      sizeof(hic.cmd),
-					      IXGBE_HI_COMMAND_TIMEOUT, TRUE);
+					      IXGBE_HI_COMMAND_TIMEOUT, true);
 
 	/* Extract the register value from the response. */
 	*data = IXGBE_BE32_TO_CPU(hic.rsp.read_data);
@@ -1545,7 +1545,7 @@ enum ixgbe_media_type ixgbe_get_media_type_X550em(struct ixgbe_hw *hw)
 /**
  *  ixgbe_supported_sfp_modules_X550em - Check if SFP module type is supported
  *  @hw: pointer to hardware structure
- *  @linear: TRUE if SFP module is linear
+ *  @linear: true if SFP module is linear
  */
 static s32 ixgbe_supported_sfp_modules_X550em(struct ixgbe_hw *hw, bool *linear)
 {
@@ -1556,7 +1556,7 @@ static s32 ixgbe_supported_sfp_modules_X550em(struct ixgbe_hw *hw, bool *linear)
 		return IXGBE_ERR_SFP_NOT_PRESENT;
 	case ixgbe_sfp_type_da_cu_core0:
 	case ixgbe_sfp_type_da_cu_core1:
-		*linear = TRUE;
+		*linear = true;
 		break;
 	case ixgbe_sfp_type_srlr_core0:
 	case ixgbe_sfp_type_srlr_core1:
@@ -1566,7 +1566,7 @@ static s32 ixgbe_supported_sfp_modules_X550em(struct ixgbe_hw *hw, bool *linear)
 	case ixgbe_sfp_type_1g_sx_core1:
 	case ixgbe_sfp_type_1g_lx_core0:
 	case ixgbe_sfp_type_1g_lx_core1:
-		*linear = FALSE;
+		*linear = false;
 		break;
 	case ixgbe_sfp_type_unknown:
 	case ixgbe_sfp_type_1g_cu_core0:
@@ -1676,7 +1676,7 @@ static s32 ixgbe_restart_an_internal_phy_x550em(struct ixgbe_hw *hw)
  * ixgbe_setup_sgmii - Set up link for sgmii
  * @hw: pointer to hardware structure
  * @speed: new link speed
- * @autoneg_wait: TRUE when waiting for completion is needed
+ * @autoneg_wait: true when waiting for completion is needed
  */
 static s32 ixgbe_setup_sgmii(struct ixgbe_hw *hw, ixgbe_link_speed speed,
 			     bool autoneg_wait)
@@ -1745,7 +1745,7 @@ static s32 ixgbe_setup_sgmii(struct ixgbe_hw *hw, ixgbe_link_speed speed,
  * ixgbe_setup_sgmii_fw - Set up link for internal PHY SGMII auto-negotiation
  * @hw: pointer to hardware structure
  * @speed: new link speed
- * @autoneg_wait: TRUE when waiting for completion is needed
+ * @autoneg_wait: true when waiting for completion is needed
  */
 static s32 ixgbe_setup_sgmii_fw(struct ixgbe_hw *hw, ixgbe_link_speed speed,
 				bool autoneg_wait)
@@ -1876,7 +1876,7 @@ void ixgbe_init_mac_link_ops_X550em(struct ixgbe_hw *hw)
  *  ixgbe_get_link_capabilities_x550em - Determines link capabilities
  *  @hw: pointer to hardware structure
  *  @speed: pointer to link speed
- *  @autoneg: TRUE when autoneg or autotry is enabled
+ *  @autoneg: true when autoneg or autotry is enabled
  */
 s32 ixgbe_get_link_capabilities_X550em(struct ixgbe_hw *hw,
 				       ixgbe_link_speed *speed,
@@ -1886,7 +1886,7 @@ s32 ixgbe_get_link_capabilities_X550em(struct ixgbe_hw *hw,
 
 
 	if (hw->phy.type == ixgbe_phy_fw) {
-		*autoneg = TRUE;
+		*autoneg = true;
 		*speed = hw->phy.speeds_supported;
 		return 0;
 	}
@@ -1895,7 +1895,7 @@ s32 ixgbe_get_link_capabilities_X550em(struct ixgbe_hw *hw,
 	if (hw->phy.media_type == ixgbe_media_type_fiber) {
 
 		/* CS4227 SFP must not enable auto-negotiation */
-		*autoneg = FALSE;
+		*autoneg = false;
 
 		/* Check if 1G SFP module. */
 		if (hw->phy.sfp_type == ixgbe_sfp_type_1g_sx_core0 ||
@@ -1966,7 +1966,7 @@ static s32 ixgbe_get_lasi_ext_t_x550em(struct ixgbe_hw *hw, bool *lsc)
 	u32 status;
 	u16 reg;
 
-	*lsc = FALSE;
+	*lsc = false;
 
 	/* Vendor alarm triggered */
 	status = hw->phy.ops.read_reg(hw, IXGBE_MDIO_GLOBAL_CHIP_STD_INT_FLAG,
@@ -1998,7 +1998,7 @@ static s32 ixgbe_get_lasi_ext_t_x550em(struct ixgbe_hw *hw, bool *lsc)
 	/* If high temperature failure, then return over temp error and exit */
 	if (reg & IXGBE_MDIO_GLOBAL_ALM_1_HI_TMP_FAIL) {
 		/* power down the PHY in case the PHY FW didn't already */
-		ixgbe_set_copper_phy_power(hw, FALSE);
+		ixgbe_set_copper_phy_power(hw, false);
 		return IXGBE_ERR_OVERTEMP;
 	} else if (reg & IXGBE_MDIO_GLOBAL_ALM_1_DEV_FAULT) {
 		/*  device fault alarm triggered */
@@ -2012,7 +2012,7 @@ static s32 ixgbe_get_lasi_ext_t_x550em(struct ixgbe_hw *hw, bool *lsc)
 		/* if device fault was due to high temp alarm handle and exit */
 		if (reg == IXGBE_MDIO_GLOBAL_FAULT_MSG_HI_TMP) {
 			/* power down the PHY in case the PHY FW didn't */
-			ixgbe_set_copper_phy_power(hw, FALSE);
+			ixgbe_set_copper_phy_power(hw, false);
 			return IXGBE_ERR_OVERTEMP;
 		}
 	}
@@ -2034,7 +2034,7 @@ static s32 ixgbe_get_lasi_ext_t_x550em(struct ixgbe_hw *hw, bool *lsc)
 
 	/* Indicate LSC */
 	if (reg & IXGBE_MDIO_AUTO_NEG_VEN_LSC)
-		*lsc = TRUE;
+		*lsc = true;
 
 	return IXGBE_SUCCESS;
 }
@@ -2434,7 +2434,7 @@ s32 ixgbe_reset_hw_X550em(struct ixgbe_hw *hw)
 	s32 status;
 	u32 ctrl = 0;
 	u32 i;
-	bool link_up = FALSE;
+	bool link_up = false;
 	u32 swfw_mask = hw->phy.phy_semaphore_mask;
 
 	DEBUGFUNC("ixgbe_reset_hw_X550em");
@@ -2476,7 +2476,7 @@ s32 ixgbe_reset_hw_X550em(struct ixgbe_hw *hw)
 	/* Setup SFP module if there is one present. */
 	if (hw->phy.sfp_setup_needed) {
 		status = hw->mac.ops.setup_sfp(hw);
-		hw->phy.sfp_setup_needed = FALSE;
+		hw->phy.sfp_setup_needed = false;
 	}
 
 	if (status == IXGBE_ERR_SFP_NOT_SUPPORTED)
@@ -2496,7 +2496,7 @@ mac_reset_top:
 	 */
 	ctrl = IXGBE_CTRL_LNK_RST;
 	if (!hw->force_full_reset) {
-		hw->mac.ops.check_link(hw, &link_speed, &link_up, FALSE);
+		hw->mac.ops.check_link(hw, &link_speed, &link_up, false);
 		if (link_up)
 			ctrl = IXGBE_CTRL_RST;
 	}
@@ -2630,7 +2630,7 @@ s32 ixgbe_setup_mac_link_sfp_x550em(struct ixgbe_hw *hw,
 {
 	s32 ret_val;
 	u16 reg_slice, reg_val;
-	bool setup_linear = FALSE;
+	bool setup_linear = false;
 	UNREFERENCED_1PARAMETER(autoneg_wait_to_complete);
 
 	/* Check if SFP module is supported and linear */
@@ -2724,7 +2724,7 @@ s32 ixgbe_setup_mac_link_sfp_x550a(struct ixgbe_hw *hw,
 {
 	s32 ret_val;
 	u16 reg_phy_ext;
-	bool setup_linear = FALSE;
+	bool setup_linear = false;
 	u32 reg_slice, reg_phy_int, slice_offset;
 
 	UNREFERENCED_1PARAMETER(autoneg_wait_to_complete);
@@ -2956,7 +2956,7 @@ static s32 ixgbe_ext_phy_t_x550em_get_link(struct ixgbe_hw *hw, bool *link_up)
 	u32 ret;
 	u16 autoneg_status;
 
-	*link_up = FALSE;
+	*link_up = false;
 
 	/* read this twice back to back to indicate current status */
 	ret = hw->phy.ops.read_reg(hw, IXGBE_MDIO_AUTO_NEG_STATUS,
@@ -3260,7 +3260,7 @@ s32 ixgbe_write_ee_hostif_data_X550(struct ixgbe_hw *hw, u16 offset,
 
 	status = ixgbe_host_interface_command(hw, (u32 *)&buffer,
 					      sizeof(buffer),
-					      IXGBE_HI_COMMAND_TIMEOUT, TRUE);
+					      IXGBE_HI_COMMAND_TIMEOUT, true);
 	if (status != IXGBE_SUCCESS) {
 		DEBUGOUT2("for offset %04x failed with status %d\n",
 				  offset, status);
@@ -3623,7 +3623,7 @@ s32 ixgbe_update_flash_X550(struct ixgbe_hw *hw)
 
 	status = ixgbe_host_interface_command(hw, (u32 *)&buffer,
 					      sizeof(buffer),
-					      IXGBE_HI_COMMAND_TIMEOUT, FALSE);
+					      IXGBE_HI_COMMAND_TIMEOUT, false);
 
 	return status;
 }
@@ -3740,9 +3740,9 @@ void ixgbe_disable_rx_x550(struct ixgbe_hw *hw)
 		if (pfdtxgswc & IXGBE_PFDTXGSWC_VT_LBEN) {
 			pfdtxgswc &= ~IXGBE_PFDTXGSWC_VT_LBEN;
 			IXGBE_WRITE_REG(hw, IXGBE_PFDTXGSWC, pfdtxgswc);
-			hw->mac.set_lben = TRUE;
+			hw->mac.set_lben = true;
 		} else {
-			hw->mac.set_lben = FALSE;
+			hw->mac.set_lben = false;
 		}
 
 		fw_cmd.hdr.cmd = FW_DISABLE_RXEN_CMD;
@@ -3752,7 +3752,7 @@ void ixgbe_disable_rx_x550(struct ixgbe_hw *hw)
 
 		status = ixgbe_host_interface_command(hw, (u32 *)&fw_cmd,
 					sizeof(struct ixgbe_hic_disable_rxen),
-					IXGBE_HI_COMMAND_TIMEOUT, TRUE);
+					IXGBE_HI_COMMAND_TIMEOUT, true);
 
 		/* If we fail - disable RX using register write */
 		if (status) {
@@ -3805,7 +3805,7 @@ s32 ixgbe_enter_lplu_t_x550em(struct ixgbe_hw *hw)
 	 */
 	if (!link_up || !(hw->eeprom.ctrl_word_3 & NVM_INIT_CTRL_3_LPLU) ||
 	    !(hw->wol_enabled || ixgbe_mng_present(hw)))
-		return ixgbe_set_copper_phy_power(hw, FALSE);
+		return ixgbe_set_copper_phy_power(hw, false);
 
 	/* Determine LCD */
 	status = ixgbe_get_lcd_t_x550em(hw, &lcd_speed);
@@ -3815,7 +3815,7 @@ s32 ixgbe_enter_lplu_t_x550em(struct ixgbe_hw *hw)
 
 	/* If no valid LCD link speed, then force link down and exit. */
 	if (lcd_speed == IXGBE_LINK_SPEED_UNKNOWN)
-		return ixgbe_set_copper_phy_power(hw, FALSE);
+		return ixgbe_set_copper_phy_power(hw, false);
 
 	status = hw->phy.ops.read_reg(hw, IXGBE_MDIO_AUTO_NEG_VENDOR_STAT,
 				      IXGBE_MDIO_AUTO_NEG_DEV_TYPE,
@@ -3827,7 +3827,7 @@ s32 ixgbe_enter_lplu_t_x550em(struct ixgbe_hw *hw)
 	/* If no link now, speed is invalid so take link down */
 	status = ixgbe_ext_phy_t_x550em_get_link(hw, &link_up);
 	if (status != IXGBE_SUCCESS)
-		return ixgbe_set_copper_phy_power(hw, FALSE);
+		return ixgbe_set_copper_phy_power(hw, false);
 
 	/* clear everything but the speed bits */
 	speed &= IXGBE_MDIO_AUTO_NEG_VEN_STAT_SPEED_MASK;
@@ -3865,7 +3865,7 @@ s32 ixgbe_enter_lplu_t_x550em(struct ixgbe_hw *hw)
 	save_autoneg = hw->phy.autoneg_advertised;
 
 	/* Setup link at least common link speed */
-	status = hw->mac.ops.setup_link(hw, lcd_speed, FALSE);
+	status = hw->mac.ops.setup_link(hw, lcd_speed, false);
 
 	/* restore autoneg from before setting lplu speed */
 	hw->phy.autoneg_advertised = save_autoneg;
@@ -3988,10 +3988,10 @@ s32 ixgbe_setup_fc_X550em(struct ixgbe_hw *hw)
 					IXGBE_SB_IOSF_TARGET_KR_PHY, reg_val);
 
 		/* This device does not fully support AN. */
-		hw->fc.disable_fc_autoneg = TRUE;
+		hw->fc.disable_fc_autoneg = true;
 		break;
 	case IXGBE_DEV_ID_X550EM_X_XFI:
-		hw->fc.disable_fc_autoneg = TRUE;
+		hw->fc.disable_fc_autoneg = true;
 		break;
 	default:
 		break;
@@ -4025,7 +4025,7 @@ void ixgbe_fc_autoneg_backplane_x550em_a(struct ixgbe_hw *hw)
 		goto out;
 	}
 
-	hw->mac.ops.check_link(hw, &speed, &link_up, FALSE);
+	hw->mac.ops.check_link(hw, &speed, &link_up, false);
 	if (!link_up) {
 		ERROR_REPORT1(IXGBE_ERROR_SOFTWARE, "The link is down");
 		goto out;
@@ -4072,9 +4072,9 @@ void ixgbe_fc_autoneg_backplane_x550em_a(struct ixgbe_hw *hw)
 
 out:
 	if (status == IXGBE_SUCCESS) {
-		hw->fc.fc_was_autonegged = TRUE;
+		hw->fc.fc_was_autonegged = true;
 	} else {
-		hw->fc.fc_was_autonegged = FALSE;
+		hw->fc.fc_was_autonegged = false;
 		hw->fc.current_mode = hw->fc.requested_mode;
 	}
 }
@@ -4086,7 +4086,7 @@ out:
  **/
 void ixgbe_fc_autoneg_fiber_x550em_a(struct ixgbe_hw *hw)
 {
-	hw->fc.fc_was_autonegged = FALSE;
+	hw->fc.fc_was_autonegged = false;
 	hw->fc.current_mode = hw->fc.requested_mode;
 }
 
@@ -4114,7 +4114,7 @@ void ixgbe_fc_autoneg_sgmii_x550em_a(struct ixgbe_hw *hw)
 		goto out;
 	}
 
-	hw->mac.ops.check_link(hw, &speed, &link_up, FALSE);
+	hw->mac.ops.check_link(hw, &speed, &link_up, false);
 	if (!link_up) {
 		ERROR_REPORT1(IXGBE_ERROR_SOFTWARE, "The link is down");
 		goto out;
@@ -4138,9 +4138,9 @@ void ixgbe_fc_autoneg_sgmii_x550em_a(struct ixgbe_hw *hw)
 
 out:
 	if (status == IXGBE_SUCCESS) {
-		hw->fc.fc_was_autonegged = TRUE;
+		hw->fc.fc_was_autonegged = true;
 	} else {
-		hw->fc.fc_was_autonegged = FALSE;
+		hw->fc.fc_was_autonegged = false;
 		hw->fc.current_mode = hw->fc.requested_mode;
 	}
 }
@@ -4452,7 +4452,7 @@ s32 ixgbe_handle_lasi_ext_t_x550em(struct ixgbe_hw *hw)
  * ixgbe_setup_mac_link_t_X550em - Sets the auto advertised link speed
  * @hw: pointer to hardware structure
  * @speed: new link speed
- * @autoneg_wait_to_complete: TRUE when waiting for completion is needed
+ * @autoneg_wait_to_complete: true when waiting for completion is needed
  *
  * Setup internal/external PHY link speed based on link speed, then set
  * external PHY auto advertised link speed.
@@ -4508,7 +4508,7 @@ s32 ixgbe_setup_mac_link_t_X550em(struct ixgbe_hw *hw,
  * ixgbe_check_link_t_X550em - Determine link and speed status
  * @hw: pointer to hardware structure
  * @speed: pointer to link speed
- * @link_up: TRUE when link is up
+ * @link_up: true when link is up
  * @link_up_wait_to_complete: bool used to wait for link up or not
  *
  * Check that both the MAC and X557 external PHY have link.
@@ -4545,7 +4545,7 @@ s32 ixgbe_check_link_t_X550em(struct ixgbe_hw *hw, ixgbe_link_speed *speed,
 
 	/* If external PHY link is not up, then indicate link not up */
 	if (!(autoneg_status & IXGBE_MDIO_AUTO_NEG_LINK_STATUS))
-		*link_up = FALSE;
+		*link_up = false;
 
 	return IXGBE_SUCCESS;
 }
@@ -4662,7 +4662,7 @@ s32 ixgbe_set_fw_drv_ver_x550(struct ixgbe_hw *hw, u8 maj, u8 min,
 		ret_val = ixgbe_host_interface_command(hw, (u32 *)&fw_cmd,
 						       sizeof(fw_cmd),
 						       IXGBE_HI_COMMAND_TIMEOUT,
-						       TRUE);
+						       true);
 		if (ret_val != IXGBE_SUCCESS)
 			continue;
 

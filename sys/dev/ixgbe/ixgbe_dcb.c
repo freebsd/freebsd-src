@@ -332,7 +332,7 @@ s32 ixgbe_dcb_check_config_cee(struct ixgbe_dcb_config *dcb_config)
 				goto err_config;
 			}
 			if (p->tsa == ixgbe_dcb_tsa_strict) {
-				link_strict[i][bw_id] = TRUE;
+				link_strict[i][bw_id] = true;
 				/* Link strict should have zero bandwidth */
 				if (bw) {
 					ret_val = IXGBE_ERR_CONFIG;
