@@ -62,11 +62,11 @@ ixgbe_define_iov_schemas(device_t dev, int *error)
 	vf_schema = pci_iov_schema_alloc_node();
 	pci_iov_schema_add_unicast_mac(vf_schema, "mac-addr", 0, NULL);
 	pci_iov_schema_add_bool(vf_schema, "mac-anti-spoof",
-	    IOV_SCHEMA_HASDEFAULT, TRUE);
+	    IOV_SCHEMA_HASDEFAULT, true);
 	pci_iov_schema_add_bool(vf_schema, "allow-set-mac",
-	    IOV_SCHEMA_HASDEFAULT, FALSE);
+	    IOV_SCHEMA_HASDEFAULT, false);
 	pci_iov_schema_add_bool(vf_schema, "allow-promisc",
-	    IOV_SCHEMA_HASDEFAULT, FALSE);
+	    IOV_SCHEMA_HASDEFAULT, false);
 	*error = pci_iov_attach(dev, pf_schema, vf_schema);
 	if (*error != 0) {
 		device_printf(dev,
@@ -266,7 +266,7 @@ ixgbe_vf_frame_size_compatible(struct adapter *adapter, struct ixgbe_vf *vf)
 	 * frames on PFs and VFs.
 	 */
 	if (adapter->hw.mac.type != ixgbe_mac_82599EB)
-		return (TRUE);
+		return (true);
 
 	switch (vf->api_ver) {
 	case IXGBE_API_VER_1_0:
@@ -277,9 +277,9 @@ ixgbe_vf_frame_size_compatible(struct adapter *adapter, struct ixgbe_vf *vf)
 		 */
 		if (adapter->max_frame_size > ETHER_MAX_LEN ||
 		    vf->maximum_frame_size > ETHER_MAX_LEN)
-			return (FALSE);
+			return (false);
 
-		return (TRUE);
+		return (true);
 
 		break;
 	case IXGBE_API_VER_1_1:
@@ -289,16 +289,16 @@ ixgbe_vf_frame_size_compatible(struct adapter *adapter, struct ixgbe_vf *vf)
 		 * jumbo frames.
 		 */
 		if (vf->maximum_frame_size <= ETHER_MAX_LEN)
-			return (TRUE);
+			return (true);
 
 		/*
 		 * Jumbo frames only work with VFs if the PF is also using jumbo
 		 * frames.
 		 */
 		if (adapter->max_frame_size <= ETHER_MAX_LEN)
-			return (TRUE);
+			return (true);
 
-		return (FALSE);
+		return (false);
 	}
 } /* ixgbe_vf_frame_size_compatible */
 
@@ -362,7 +362,7 @@ ixgbe_vf_reset_msg(struct adapter *adapter, struct ixgbe_vf *vf, uint32_t *msg)
 
 	if (ixgbe_validate_mac_addr(vf->ether_addr) == 0) {
 		ixgbe_set_rar(&adapter->hw, vf->rar_index, vf->ether_addr,
-		    vf->pool, TRUE);
+		    vf->pool, true);
 		ack = IXGBE_VT_MSGTYPE_ACK;
 	} else
 		ack = IXGBE_VT_MSGTYPE_NACK;
@@ -400,7 +400,7 @@ ixgbe_vf_set_mac(struct adapter *adapter, struct ixgbe_vf *vf, uint32_t *msg)
 	bcopy(mac, vf->ether_addr, ETHER_ADDR_LEN);
 
 	ixgbe_set_rar(&adapter->hw, vf->rar_index, vf->ether_addr, vf->pool,
-	    TRUE);
+	    true);
 
 	ixgbe_send_vf_ack(adapter, vf, msg[0]);
 } /* ixgbe_vf_set_mac */
@@ -764,7 +764,7 @@ ixgbe_init_vf(struct adapter *adapter, struct ixgbe_vf *vf)
 
 	if (ixgbe_validate_mac_addr(vf->ether_addr) == 0) {
 		ixgbe_set_rar(&adapter->hw, vf->rar_index,
-		    vf->ether_addr, vf->pool, TRUE);
+		    vf->ether_addr, vf->pool, true);
 	}
 
 	ixgbe_vf_enable_transmit(adapter, vf);

@@ -332,7 +332,7 @@ SYSCTL_INT(_hw_ix, OID_AUTO, enable_msix, CTLFLAG_RDTUN, &ixgbe_enable_msix, 0,
  * of unsupported SFP+ modules, note that
  * doing so you are on your own :)
  */
-static int allow_unsupported_sfp = FALSE;
+static int allow_unsupported_sfp = false;
 SYSCTL_INT(_hw_ix, OID_AUTO, unsupported_sfp, CTLFLAG_RDTUN,
     &allow_unsupported_sfp, 0,
     "Allow unsupported SFP modules...use at your own risk");
@@ -356,7 +356,7 @@ SYSCTL_INT(_hw_ix, OID_AUTO, enable_rss, CTLFLAG_RDTUN, &ixgbe_enable_rss, 0,
  * is varied over time based on the
  * traffic for that interrupt vector
  */
-static int ixgbe_enable_aim = FALSE;
+static int ixgbe_enable_aim = false;
 SYSCTL_INT(_hw_ix, OID_AUTO, enable_aim, CTLFLAG_RWTUN, &ixgbe_enable_aim, 0,
     "Enable adaptive interrupt moderation");
 
@@ -943,7 +943,7 @@ ixgbe_if_attach_pre(if_ctx_t ctx)
 	/* Verify adapter fan is still functional (if applicable) */
 	if (adapter->feat_en & IXGBE_FEATURE_FAN_FAIL) {
 		u32 esdp = IXGBE_READ_REG(hw, IXGBE_ESDP);
-		ixgbe_check_fan_failure(adapter, esdp, FALSE);
+		ixgbe_check_fan_failure(adapter, esdp, false);
 	}
 
 	/* Ensure SW/FW semaphore is free */
@@ -952,16 +952,16 @@ ixgbe_if_attach_pre(if_ctx_t ctx)
 	/* Set an initial default flow control value */
 	hw->fc.requested_mode = ixgbe_flow_control;
 
-	hw->phy.reset_if_overtemp = TRUE;
+	hw->phy.reset_if_overtemp = true;
 	error = ixgbe_reset_hw(hw);
-	hw->phy.reset_if_overtemp = FALSE;
+	hw->phy.reset_if_overtemp = false;
 	if (error == IXGBE_ERR_SFP_NOT_PRESENT) {
 		/*
 		 * No optics in this port, set up
 		 * so the timer routine will probe
 		 * for later insertion.
 		 */
-		adapter->sfp_probe = TRUE;
+		adapter->sfp_probe = true;
 		error = 0;
 	} else if (error == IXGBE_ERR_SFP_NOT_SUPPORTED) {
 		device_printf(dev, "Unsupported SFP+ module detected!\n");
@@ -1097,7 +1097,7 @@ ixgbe_if_attach_post(if_ctx_t ctx)
 	ixgbe_enable_tx_laser(hw);
 
 	/* Enable power to the phy. */
-	ixgbe_set_phy_power(hw, TRUE);
+	ixgbe_set_phy_power(hw, true);
 
 	ixgbe_initialize_iov(adapter);
 
@@ -1366,23 +1366,23 @@ ixgbe_is_sfp(struct ixgbe_hw *hw)
 	switch (hw->mac.type) {
 	case ixgbe_mac_82598EB:
 		if (hw->phy.type == ixgbe_phy_nl)
-			return (TRUE);
-		return (FALSE);
+			return (true);
+		return (false);
 	case ixgbe_mac_82599EB:
 		switch (hw->mac.ops.get_media_type(hw)) {
 		case ixgbe_media_type_fiber:
 		case ixgbe_media_type_fiber_qsfp:
-			return (TRUE);
+			return (true);
 		default:
-			return (FALSE);
+			return (false);
 		}
 	case ixgbe_mac_X550EM_x:
 	case ixgbe_mac_X550EM_a:
 		if (hw->mac.ops.get_media_type(hw) == ixgbe_media_type_fiber)
-			return (TRUE);
-		return (FALSE);
+			return (true);
+		return (false);
 	default:
-		return (FALSE);
+		return (false);
 	}
 } /* ixgbe_is_sfp */
 
@@ -1405,7 +1405,7 @@ ixgbe_config_link(if_ctx_t ctx)
 	} else {
 		if (hw->mac.ops.check_link)
 			err = ixgbe_check_link(hw, &adapter->link_speed,
-			    &adapter->link_up, FALSE);
+			    &adapter->link_up, false);
 		if (err)
 			return;
 		autoneg = hw->phy.autoneg_advertised;
@@ -1911,7 +1911,7 @@ ixgbe_setup_vlan_hw_support(if_ctx_t ctx)
 				ctrl |= IXGBE_RXDCTL_VME;
 				IXGBE_WRITE_REG(hw, IXGBE_RXDCTL(rxr->me), ctrl);
 			}
-			rxr->vtag_strip = TRUE;
+			rxr->vtag_strip = true;
 		}
 	}
 
@@ -1948,7 +1948,7 @@ ixgbe_get_slot_info(struct adapter *adapter)
 {
 	device_t        dev = iflib_get_dev(adapter->ctx);
 	struct ixgbe_hw *hw = &adapter->hw;
-	int             bus_info_valid = TRUE;
+	int             bus_info_valid = true;
 	u32             offset;
 	u16             link;
 
@@ -1997,7 +1997,7 @@ get_parent_info:
 		 * Hmm...can't get PCI-Express capabilities.
 		 * Falling back to default method.
 		 */
-		bus_info_valid = FALSE;
+		bus_info_valid = false;
 		ixgbe_get_bus_info(hw);
 		goto display;
 	}
@@ -2423,8 +2423,8 @@ ixgbe_if_media_change(if_ctx_t ctx)
 		goto invalid;
 	}
 
-	hw->mac.autotry_restart = TRUE;
-	hw->mac.ops.setup_link(hw, speed, TRUE);
+	hw->mac.autotry_restart = true;
+	hw->mac.ops.setup_link(hw, speed, true);
 	adapter->advertise =
 	    ((speed & IXGBE_LINK_SPEED_10GB_FULL) ? 4 : 0) |
 	    ((speed & IXGBE_LINK_SPEED_1GB_FULL)  ? 2 : 0) |
@@ -2578,7 +2578,7 @@ ixgbe_msix_link(void *arg)
 
 	/* Check for fan failure */
 	if (adapter->feat_en & IXGBE_FEATURE_FAN_FAIL) {
-		ixgbe_check_fan_failure(adapter, eicr, TRUE);
+		ixgbe_check_fan_failure(adapter, eicr, true);
 		IXGBE_WRITE_REG(hw, IXGBE_EICR, IXGBE_EICR_GPI_SDP1_BY_MAC(hw));
 	}
 
@@ -2795,7 +2795,7 @@ ixgbe_setup_low_power_mode(if_ctx_t ctx)
 	s32             error = 0;
 
 	if (!hw->wol_enabled)
-		ixgbe_set_phy_power(hw, FALSE);
+		ixgbe_set_phy_power(hw, false);
 
 	/* Limit power management flow to X550EM baseT */
 	if (hw->device_id == IXGBE_DEV_ID_X550EM_X_10G_T &&
@@ -2821,12 +2821,12 @@ ixgbe_setup_low_power_mode(if_ctx_t ctx)
 		    IXGBE_WUC_WKEN | IXGBE_WUC_PME_EN);
 
 		/* X550EM baseT adapters need a special LPLU flow */
-		hw->phy.reset_disable = TRUE;
+		hw->phy.reset_disable = true;
 		ixgbe_if_stop(ctx);
 		error = hw->phy.ops.enter_lplu(hw);
 		if (error)
 			device_printf(dev, "Error entering LPLU: %d\n", error);
-		hw->phy.reset_disable = FALSE;
+		hw->phy.reset_disable = false;
 	} else {
 		/* Just stop for other adapters */
 		ixgbe_if_stop(ctx);
@@ -3127,7 +3127,7 @@ ixgbe_if_init(if_ctx_t ctx)
 	IXGBE_WRITE_REG(hw, IXGBE_EITR(adapter->vector), IXGBE_LINK_ITR);
 
 	/* Enable power to the phy. */
-	ixgbe_set_phy_power(hw, TRUE);
+	ixgbe_set_phy_power(hw, true);
 
 	/* Config/Enable Link */
 	ixgbe_config_link(ctx);
@@ -3336,7 +3336,7 @@ ixgbe_config_delay_values(struct adapter *adapter)
 	hw->fc.low_water[0] = IXGBE_BT2KB(tmp);
 
 	hw->fc.pause_time = IXGBE_FC_PAUSE;
-	hw->fc.send_xon = TRUE;
+	hw->fc.send_xon = true;
 } /* ixgbe_config_delay_values */
 
 /************************************************************************
@@ -3392,7 +3392,7 @@ ixgbe_if_multi_set(if_ctx_t ctx)
 	if (mcnt < MAX_NUM_MULTICAST_ADDRESSES) {
 		update_ptr = (u8 *)mta;
 		ixgbe_update_mc_addr_list(&adapter->hw, update_ptr, mcnt,
-		    ixgbe_mc_array_itr, TRUE);
+		    ixgbe_mc_array_itr, true);
 	}
 
 } /* ixgbe_if_multi_set */
@@ -3455,7 +3455,7 @@ ixgbe_sfp_probe(if_ctx_t ctx)
 	struct adapter  *adapter = iflib_get_softc(ctx);
 	struct ixgbe_hw *hw = &adapter->hw;
 	device_t        dev = iflib_get_dev(ctx);
-	bool            result = FALSE;
+	bool            result = false;
 
 	if ((hw->phy.type == ixgbe_phy_nl) &&
 	    (hw->phy.sfp_type == ixgbe_sfp_type_not_present)) {
@@ -3463,7 +3463,7 @@ ixgbe_sfp_probe(if_ctx_t ctx)
 		if (ret)
 			goto out;
 		ret = hw->phy.ops.reset(hw);
-		adapter->sfp_probe = FALSE;
+		adapter->sfp_probe = false;
 		if (ret == IXGBE_ERR_SFP_NOT_SUPPORTED) {
 			device_printf(dev, "Unsupported SFP+ module detected!");
 			device_printf(dev,
@@ -3472,7 +3472,7 @@ ixgbe_sfp_probe(if_ctx_t ctx)
 		} else
 			device_printf(dev, "SFP+ module detected!\n");
 		/* We now have supported optics */
-		result = TRUE;
+		result = true;
 	}
 out:
 
@@ -3554,7 +3554,7 @@ ixgbe_handle_msf(void *context)
 	if ((!autoneg) && (hw->mac.ops.get_link_capabilities))
 		hw->mac.ops.get_link_capabilities(hw, &autoneg, &negotiate);
 	if (hw->mac.ops.setup_link)
-		hw->mac.ops.setup_link(hw, autoneg, TRUE);
+		hw->mac.ops.setup_link(hw, autoneg, true);
 
 	/* Adjust media types shown in ifconfig */
 	ifmedia_removeall(adapter->media);
@@ -3596,7 +3596,7 @@ ixgbe_if_stop(if_ctx_t ctx)
 	INIT_DEBUGOUT("ixgbe_if_stop: begin\n");
 
 	ixgbe_reset_hw(hw);
-	hw->adapter_stopped = FALSE;
+	hw->adapter_stopped = false;
 	ixgbe_stop_adapter(hw);
 	if (hw->mac.type == ixgbe_mac_82599EB)
 		ixgbe_stop_mac_link_on_d3_82599(hw);
@@ -3604,7 +3604,7 @@ ixgbe_if_stop(if_ctx_t ctx)
 	ixgbe_disable_tx_laser(hw);
 
 	/* Update the stack */
-	adapter->link_up = FALSE;
+	adapter->link_up = false;
 	ixgbe_if_update_admin_status(ctx);
 
 	/* reprogram the RAR[0] in case user changed it. */
@@ -3627,12 +3627,12 @@ ixgbe_if_update_admin_status(if_ctx_t ctx)
 	device_t       dev = iflib_get_dev(ctx);
 
 	if (adapter->link_up) {
-		if (adapter->link_active == FALSE) {
+		if (adapter->link_active == false) {
 			if (bootverbose)
 				device_printf(dev, "Link is up %d Gbps %s \n",
 				    ((adapter->link_speed == 128) ? 10 : 1),
 				    "Full Duplex");
-			adapter->link_active = TRUE;
+			adapter->link_active = true;
 			/* Update any Flow Control changes */
 			ixgbe_fc_enable(&adapter->hw);
 			/* Update DMA coalescing config */
@@ -3644,11 +3644,11 @@ ixgbe_if_update_admin_status(if_ctx_t ctx)
 				ixgbe_ping_all_vfs(adapter);
 		}
 	} else { /* Link down */
-		if (adapter->link_active == TRUE) {
+		if (adapter->link_active == true) {
 			if (bootverbose)
 				device_printf(dev, "Link is Down\n");
 			iflib_link_state_change(ctx, LINK_STATE_DOWN, 0);
-			adapter->link_active = FALSE;
+			adapter->link_active = false;
 			if (adapter->feat_en & IXGBE_FEATURE_SRIOV)
 				ixgbe_ping_all_vfs(adapter);
 		}
@@ -3685,7 +3685,7 @@ ixgbe_config_dmac(struct adapter *adapter)
 	if (dcfg->watchdog_timer ^ adapter->dmac ||
 	    dcfg->link_speed ^ adapter->link_speed) {
 		dcfg->watchdog_timer = adapter->dmac;
-		dcfg->fcoe_en = FALSE;
+		dcfg->fcoe_en = false;
 		dcfg->link_speed = adapter->link_speed;
 		dcfg->num_tcs = 1;
 
@@ -4016,7 +4016,7 @@ ixgbe_set_flowcntl(struct adapter *adapter, int fc)
 	}
 
 	/* Don't autoneg if forcing a value */
-	adapter->hw.fc.disable_fc_autoneg = TRUE;
+	adapter->hw.fc.disable_fc_autoneg = true;
 	ixgbe_fc_enable(&adapter->hw);
 
 	return (0);
@@ -4115,7 +4115,7 @@ ixgbe_set_advertise(struct adapter *adapter, int advertise)
 	ixgbe_link_speed speed = 0;
 	ixgbe_link_speed link_caps = 0;
 	s32              err = IXGBE_NOT_IMPLEMENTED;
-	bool             negotiate = FALSE;
+	bool             negotiate = false;
 
 	/* Checks to validate new value */
 	if (adapter->advertise == advertise) /* no change */
@@ -4177,8 +4177,8 @@ ixgbe_set_advertise(struct adapter *adapter, int advertise)
 		speed |= IXGBE_LINK_SPEED_10_FULL;
 	}
 
-	hw->mac.autotry_restart = TRUE;
-	hw->mac.ops.setup_link(hw, speed, TRUE);
+	hw->mac.autotry_restart = true;
+	hw->mac.ops.setup_link(hw, speed, true);
 	adapter->advertise = advertise;
 
 	return (0);
@@ -4201,7 +4201,7 @@ ixgbe_get_advertise(struct adapter *adapter)
 	int              speed;
 	ixgbe_link_speed link_caps = 0;
 	s32              err;
-	bool             negotiate = FALSE;
+	bool             negotiate = false;
 
 	/*
 	 * Advertised speed means nothing unless it's copper or

@@ -263,7 +263,7 @@ static s32 ixgbe_check_for_ack_vf(struct ixgbe_hw *hw, u16 mbx_id)
  *  @hw: pointer to the HW structure
  *  @mbx_id: id of mailbox to check
  *
- *  returns TRUE if the PF has set the reset done bit or else FALSE
+ *  returns true if the PF has set the reset done bit or else false
  **/
 static s32 ixgbe_check_for_rst_vf(struct ixgbe_hw *hw, u16 mbx_id)
 {

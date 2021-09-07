@@ -164,7 +164,7 @@ s32 ixgbe_init_ops_X540(struct ixgbe_hw *hw)
  *  ixgbe_get_link_capabilities_X540 - Determines link capabilities
  *  @hw: pointer to hardware structure
  *  @speed: pointer to link speed
- *  @autoneg: TRUE when autoneg or autotry is enabled
+ *  @autoneg: true when autoneg or autotry is enabled
  *
  *  Determines the link capabilities by reading the AUTOC register.
  **/
@@ -193,7 +193,7 @@ enum ixgbe_media_type ixgbe_get_media_type_X540(struct ixgbe_hw *hw)
  *  ixgbe_setup_mac_link_X540 - Sets the auto advertised capabilities
  *  @hw: pointer to hardware structure
  *  @speed: new link speed
- *  @autoneg_wait_to_complete: TRUE when waiting for completion is needed
+ *  @autoneg_wait_to_complete: true when waiting for completion is needed
  **/
 s32 ixgbe_setup_mac_link_X540(struct ixgbe_hw *hw,
 			      ixgbe_link_speed speed,
@@ -1018,8 +1018,8 @@ s32 ixgbe_blink_led_start_X540(struct ixgbe_hw *hw, u32 index)
 	 * register to work. Force link and speed in the MAC if link is down.
 	 * This will be reversed when we stop the blinking.
 	 */
-	hw->mac.ops.check_link(hw, &speed, &link_up, FALSE);
-	if (link_up == FALSE) {
+	hw->mac.ops.check_link(hw, &speed, &link_up, false);
+	if (link_up == false) {
 		macc_reg = IXGBE_READ_REG(hw, IXGBE_MACC);
 		macc_reg |= IXGBE_MACC_FLU | IXGBE_MACC_FSV_10G | IXGBE_MACC_FS;
 		IXGBE_WRITE_REG(hw, IXGBE_MACC, macc_reg);

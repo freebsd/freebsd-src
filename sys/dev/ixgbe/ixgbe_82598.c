@@ -316,17 +316,17 @@ static s32 ixgbe_get_link_capabilities_82598(struct ixgbe_hw *hw,
 	switch (autoc & IXGBE_AUTOC_LMS_MASK) {
 	case IXGBE_AUTOC_LMS_1G_LINK_NO_AN:
 		*speed = IXGBE_LINK_SPEED_1GB_FULL;
-		*autoneg = FALSE;
+		*autoneg = false;
 		break;
 
 	case IXGBE_AUTOC_LMS_10G_LINK_NO_AN:
 		*speed = IXGBE_LINK_SPEED_10GB_FULL;
-		*autoneg = FALSE;
+		*autoneg = false;
 		break;
 
 	case IXGBE_AUTOC_LMS_1G_AN:
 		*speed = IXGBE_LINK_SPEED_1GB_FULL;
-		*autoneg = TRUE;
+		*autoneg = true;
 		break;
 
 	case IXGBE_AUTOC_LMS_KX4_AN:
@@ -336,7 +336,7 @@ static s32 ixgbe_get_link_capabilities_82598(struct ixgbe_hw *hw,
 			*speed |= IXGBE_LINK_SPEED_10GB_FULL;
 		if (autoc & IXGBE_AUTOC_KX_SUPP)
 			*speed |= IXGBE_LINK_SPEED_1GB_FULL;
-		*autoneg = TRUE;
+		*autoneg = true;
 		break;
 
 	default:
@@ -443,7 +443,7 @@ s32 ixgbe_fc_enable_82598(struct ixgbe_hw *hw)
 	 * so if it's on turn it off once we know link_speed. For
 	 * more details see 82598 Specification update.
 	 */
-	hw->mac.ops.check_link(hw, &link_speed, &link_up, FALSE);
+	hw->mac.ops.check_link(hw, &link_speed, &link_up, false);
 	if (link_up && link_speed == IXGBE_LINK_SPEED_1GB_FULL) {
 		switch (hw->fc.requested_mode) {
 		case ixgbe_fc_full:
@@ -550,7 +550,7 @@ out:
 /**
  *  ixgbe_start_mac_link_82598 - Configures MAC link settings
  *  @hw: pointer to hardware structure
- *  @autoneg_wait_to_complete: TRUE when waiting for completion is needed
+ *  @autoneg_wait_to_complete: true when waiting for completion is needed
  *
  *  Configures link settings based on values in the ixgbe_hw struct.
  *  Restarts the link.  Performs autonegotiation if needed.
@@ -635,7 +635,7 @@ static s32 ixgbe_validate_link_ready(struct ixgbe_hw *hw)
  *  ixgbe_check_mac_link_82598 - Get link/speed status
  *  @hw: pointer to hardware structure
  *  @speed: pointer to link speed
- *  @link_up: TRUE is link is up, FALSE otherwise
+ *  @link_up: true is link is up, false otherwise
  *  @link_up_wait_to_complete: bool used to wait for link up or not
  *
  *  Reads the links register to determine if link is up and the current speed
@@ -665,10 +665,10 @@ static s32 ixgbe_check_mac_link_82598(struct ixgbe_hw *hw,
 			for (i = 0; i < hw->mac.max_link_up_time; i++) {
 				if ((link_reg & 1) &&
 				    ((adapt_comp_reg & 1) == 0)) {
-					*link_up = TRUE;
+					*link_up = true;
 					break;
 				} else {
-					*link_up = FALSE;
+					*link_up = false;
 				}
 				msec_delay(100);
 				hw->phy.ops.read_reg(hw, 0xC79F,
@@ -680,12 +680,12 @@ static s32 ixgbe_check_mac_link_82598(struct ixgbe_hw *hw,
 			}
 		} else {
 			if ((link_reg & 1) && ((adapt_comp_reg & 1) == 0))
-				*link_up = TRUE;
+				*link_up = true;
 			else
-				*link_up = FALSE;
+				*link_up = false;
 		}
 
-		if (*link_up == FALSE)
+		if (*link_up == false)
 			goto out;
 	}
 
@@ -693,19 +693,19 @@ static s32 ixgbe_check_mac_link_82598(struct ixgbe_hw *hw,
 	if (link_up_wait_to_complete) {
 		for (i = 0; i < hw->mac.max_link_up_time; i++) {
 			if (links_reg & IXGBE_LINKS_UP) {
-				*link_up = TRUE;
+				*link_up = true;
 				break;
 			} else {
-				*link_up = FALSE;
+				*link_up = false;
 			}
 			msec_delay(100);
 			links_reg = IXGBE_READ_REG(hw, IXGBE_LINKS);
 		}
 	} else {
 		if (links_reg & IXGBE_LINKS_UP)
-			*link_up = TRUE;
+			*link_up = true;
 		else
-			*link_up = FALSE;
+			*link_up = false;
 	}
 
 	if (links_reg & IXGBE_LINKS_SPEED)
@@ -713,9 +713,9 @@ static s32 ixgbe_check_mac_link_82598(struct ixgbe_hw *hw,
 	else
 		*speed = IXGBE_LINK_SPEED_1GB_FULL;
 
-	if ((hw->device_id == IXGBE_DEV_ID_82598AT2) && (*link_up == TRUE) &&
+	if ((hw->device_id == IXGBE_DEV_ID_82598AT2) && (*link_up == true) &&
 	    (ixgbe_validate_link_ready(hw) != IXGBE_SUCCESS))
-		*link_up = FALSE;
+		*link_up = false;
 
 out:
 	return IXGBE_SUCCESS;
@@ -725,7 +725,7 @@ out:
  *  ixgbe_setup_mac_link_82598 - Set MAC link speed
  *  @hw: pointer to hardware structure
  *  @speed: new link speed
- *  @autoneg_wait_to_complete: TRUE when waiting for completion is needed
+ *  @autoneg_wait_to_complete: true when waiting for completion is needed
  *
  *  Set the link speed in the AUTOC register and restarts link.
  **/
@@ -733,7 +733,7 @@ static s32 ixgbe_setup_mac_link_82598(struct ixgbe_hw *hw,
 				      ixgbe_link_speed speed,
 				      bool autoneg_wait_to_complete)
 {
-	bool autoneg = FALSE;
+	bool autoneg = false;
 	s32 status = IXGBE_SUCCESS;
 	ixgbe_link_speed link_capabilities = IXGBE_LINK_SPEED_UNKNOWN;
 	u32 curr_autoc = IXGBE_READ_REG(hw, IXGBE_AUTOC);
@@ -779,7 +779,7 @@ static s32 ixgbe_setup_mac_link_82598(struct ixgbe_hw *hw,
  *  ixgbe_setup_copper_link_82598 - Set the PHY autoneg advertised field
  *  @hw: pointer to hardware structure
  *  @speed: new link speed
- *  @autoneg_wait_to_complete: TRUE if waiting is needed to complete
+ *  @autoneg_wait_to_complete: true if waiting is needed to complete
  *
  *  Sets the link speed in the AUTOC register in the MAC and restarts link.
  **/
@@ -859,7 +859,7 @@ static s32 ixgbe_reset_hw_82598(struct ixgbe_hw *hw)
 	}
 
 	/* Reset PHY */
-	if (hw->phy.reset_disable == FALSE) {
+	if (hw->phy.reset_disable == false) {
 		/* PHY ops must be identified and initialized prior to reset */
 
 		/* Init PHY and function pointers, perform SFP setup */
@@ -915,9 +915,9 @@ mac_reset_top:
 	 * AUTOC value since the reset operation sets back to deaults.
 	 */
 	autoc = IXGBE_READ_REG(hw, IXGBE_AUTOC);
-	if (hw->mac.orig_link_settings_stored == FALSE) {
+	if (hw->mac.orig_link_settings_stored == false) {
 		hw->mac.orig_autoc = autoc;
-		hw->mac.orig_link_settings_stored = TRUE;
+		hw->mac.orig_link_settings_stored = true;
 	} else if (autoc != hw->mac.orig_autoc) {
 		IXGBE_WRITE_REG(hw, IXGBE_AUTOC, hw->mac.orig_autoc);
 	}

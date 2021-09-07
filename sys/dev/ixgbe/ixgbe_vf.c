@@ -146,7 +146,7 @@ static void ixgbe_virt_clr_reg(struct ixgbe_hw *hw)
 s32 ixgbe_start_hw_vf(struct ixgbe_hw *hw)
 {
 	/* Clear adapter stopped flag */
-	hw->adapter_stopped = FALSE;
+	hw->adapter_stopped = false;
 
 	return IXGBE_SUCCESS;
 }
@@ -257,7 +257,7 @@ s32 ixgbe_stop_adapter_vf(struct ixgbe_hw *hw)
 	 * Set the adapter_stopped flag so other driver functions stop touching
 	 * the hardware
 	 */
-	hw->adapter_stopped = TRUE;
+	hw->adapter_stopped = true;
 
 	/* Clear interrupt mask to stop from interrupts being generated */
 	IXGBE_VFWRITE_REG(hw, IXGBE_VTEIMC, IXGBE_VF_IRQ_CLEAR_MASK);
@@ -461,7 +461,7 @@ s32 ixgbevf_update_xcast_mode(struct ixgbe_hw *hw, int xcast_mode)
  *  @hw: pointer to the HW structure
  *  @vlan: 12 bit VLAN ID
  *  @vind: unused by VF drivers
- *  @vlan_on: if TRUE then set bit, else clear bit
+ *  @vlan_on: if true then set bit, else clear bit
  *  @vlvf_bypass: boolean flag indicating updating default pool is okay
  *
  *  Turn on/off specified VLAN in the VLAN filter table.
@@ -475,7 +475,7 @@ s32 ixgbe_set_vfta_vf(struct ixgbe_hw *hw, u32 vlan, u32 vind,
 
 	msgbuf[0] = IXGBE_VF_SET_VLAN;
 	msgbuf[1] = vlan;
-	/* Setting the 8 bit field MSG INFO to TRUE indicates "add" */
+	/* Setting the 8 bit field MSG INFO to true indicates "add" */
 	msgbuf[0] |= vlan_on << IXGBE_VT_MSGINFO_SHIFT;
 
 	ret_val = ixgbevf_write_msg_read_ack(hw, msgbuf, msgbuf, 2);
@@ -558,7 +558,7 @@ s32 ixgbevf_set_uc_addr_vf(struct ixgbe_hw *hw, u32 index, u8 *addr)
  *  ixgbe_setup_mac_link_vf - Setup MAC link settings
  *  @hw: pointer to hardware structure
  *  @speed: new link speed
- *  @autoneg_wait_to_complete: TRUE when waiting for completion is needed
+ *  @autoneg_wait_to_complete: true when waiting for completion is needed
  *
  *  Set the link speed in the AUTOC register and restarts link.
  **/
@@ -573,8 +573,8 @@ s32 ixgbe_setup_mac_link_vf(struct ixgbe_hw *hw, ixgbe_link_speed speed,
  *  ixgbe_check_mac_link_vf - Get link/speed status
  *  @hw: pointer to hardware structure
  *  @speed: pointer to link speed
- *  @link_up: TRUE is link is up, FALSE otherwise
- *  @autoneg_wait_to_complete: TRUE when waiting for completion is needed
+ *  @link_up: true is link is up, false otherwise
+ *  @autoneg_wait_to_complete: true when waiting for completion is needed
  *
  *  Reads the links register to determine if link is up and the current speed
  **/
@@ -590,7 +590,7 @@ s32 ixgbe_check_mac_link_vf(struct ixgbe_hw *hw, ixgbe_link_speed *speed,
 
 	/* If we were hit with a reset drop the link */
 	if (!mbx->ops.check_for_rst(hw, 0) || !mbx->timeout)
-		mac->get_link_status = TRUE;
+		mac->get_link_status = true;
 
 	if (!mac->get_link_status)
 		goto out;
@@ -665,7 +665,7 @@ s32 ixgbe_check_mac_link_vf(struct ixgbe_hw *hw, ixgbe_link_speed *speed,
 	/* if we passed all the tests above then the link is up and we no
 	 * longer need to check for link
 	 */
-	mac->get_link_status = FALSE;
+	mac->get_link_status = false;
 
 out:
 	*link_up = !mac->get_link_status;
