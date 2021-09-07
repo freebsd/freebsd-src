@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 26, 2021
+.Dd September 7, 2021
 .Dt KQUEUE 2
 .Os
 .Sh NAME
@@ -346,6 +346,10 @@ Returns when the counter is greater than 0;
 .Va data
 contains the counter value, which must be cast to
 .Vt uint64_t .
+.It Kqueues
+Returns when pending events are present on the queue;
+.Va data
+contains the number of events available.
 .El
 .It Dv EVFILT_WRITE
 Takes a descriptor as the identifier, and returns whenever
