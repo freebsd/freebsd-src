@@ -56,6 +56,8 @@
         ..
         gss
         ..
+        jail.conf.d
+        ..
         kyua             tags=package=tests
         ..
         mail
