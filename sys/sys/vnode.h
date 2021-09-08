@@ -616,6 +616,10 @@ typedef void vop_getpages_iodone_t(void *, vm_page_t *, int, int);
 #define	VN_OPEN_NAMECACHE	0x00000004
 #define	VN_OPEN_INVFS		0x00000008
 
+/* copy_file_range kernel flags */
+#define	COPY_FILE_RANGE_KFLAGS		0xff000000
+#define	COPY_FILE_RANGE_TIMEO1SEC	0x01000000	/* Return after 1sec. */
+
 /*
  * Public vnode manipulation functions.
  */
