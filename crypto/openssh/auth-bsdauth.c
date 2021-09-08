@@ -29,8 +29,6 @@
 #include <stdarg.h>
 #include <stdio.h>
 
-#include <stdarg.h>
-
 #ifdef BSD_AUTH
 #include "xmalloc.h"
 #include "sshkey.h"

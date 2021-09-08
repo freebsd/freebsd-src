@@ -1,6 +1,6 @@
 # Public Domain
 # Zev Weiss, 2016
-# $OpenBSD: allow-deny-users.sh,v 1.5 2018/07/13 02:13:50 djm Exp $
+# $OpenBSD: allow-deny-users.sh,v 1.6 2021/06/07 00:00:50 djm Exp $
 
 tid="AllowUsers/DenyUsers"
 
@@ -20,10 +20,8 @@ test_auth()
 	failmsg="$4"
 
 	cp $OBJ/sshd_proxy.orig $OBJ/sshd_proxy
-	echo DenyUsers="$deny" >> $OBJ/sshd_proxy
-	echo AllowUsers="$allow" >> $OBJ/sshd_proxy
-
-	start_sshd -oDenyUsers="$deny" -oAllowUsers="$allow"
+	test -z "$deny" || echo DenyUsers="$deny" >> $OBJ/sshd_proxy
+	test -z "$allow" || echo AllowUsers="$allow" >> $OBJ/sshd_proxy
 
 	${SSH} -F $OBJ/ssh_proxy "$me@somehost" true
 	status=$?

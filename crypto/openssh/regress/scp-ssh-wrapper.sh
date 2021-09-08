@@ -1,5 +1,5 @@
 #!/bin/sh
-#       $OpenBSD: scp-ssh-wrapper.sh,v 1.3 2014/01/26 10:49:17 djm Exp $
+#       $OpenBSD: scp-ssh-wrapper.sh,v 1.4 2019/07/19 03:45:44 djm Exp $
 #       Placed in the Public Domain.
 
 printname () {
@@ -49,6 +49,18 @@ badserver_4)
 	printname $BAD
 	echo "D0755 0 .."
 	echo "C755 2 file"
+	echo "X"
+	;;
+badserver_5)
+	echo "D0555 0 "
+	echo "X"
+	;;
+badserver_6)
+	echo "D0555 0 ."
+	echo "X"
+	;;
+badserver_7)
+	echo "C0755 2 extrafile"
 	echo "X"
 	;;
 *)

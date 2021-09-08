@@ -12,7 +12,7 @@ Public domain.
 #include <stdlib.h>
 #include <string.h>
 #ifdef HAVE_STDINT_H
-#include <stdint.h>
+# include <stdint.h>
 #endif
 
 #include "xmss_fast.h"

@@ -1,4 +1,4 @@
-/* $OpenBSD: hostfile.h,v 1.24 2015/02/16 22:08:57 djm Exp $ */
+/* $OpenBSD: hostfile.h,v 1.29 2021/01/26 00:51:30 djm Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -28,17 +28,25 @@ struct hostkey_entry {
 	u_long line;
 	struct sshkey *key;
 	HostkeyMarker marker;
+	u_int note; /* caller-specific note/flag */
 };
-struct hostkeys;
+struct hostkeys {
+	struct hostkey_entry *entries;
+	u_int num_entries;
+};
 
 struct hostkeys *init_hostkeys(void);
-void	 load_hostkeys(struct hostkeys *, const char *, const char *);
+void	 load_hostkeys(struct hostkeys *, const char *,
+    const char *, u_int);
+void	 load_hostkeys_file(struct hostkeys *, const char *,
+    const char *, FILE *, u_int note);
 void	 free_hostkeys(struct hostkeys *);
 
 HostStatus check_key_in_hostkeys(struct hostkeys *, struct sshkey *,
     const struct hostkey_entry **);
-int	 lookup_key_in_hostkeys_by_type(struct hostkeys *, int,
+int	 lookup_key_in_hostkeys_by_type(struct hostkeys *, int, int,
     const struct hostkey_entry **);
+int	 lookup_marker_in_hostkeys(struct hostkeys *, int);
 
 int	 hostfile_read_key(char **, u_int *, struct sshkey *);
 int	 add_host_to_hostfile(const char *, const char *,
@@ -92,6 +100,7 @@ struct hostkey_foreach_line {
 	int keytype;	/* Type of key; KEY_UNSPEC for invalid/comment lines */
 	struct sshkey *key; /* Key, if parsed ok and HKF_WANT_MATCH_HOST set */
 	const char *comment; /* Any comment following the key */
+	u_int note;	/* caller-specified note copied from arguments */
 };
 
 /*
@@ -102,7 +111,13 @@ struct hostkey_foreach_line {
 typedef int hostkeys_foreach_fn(struct hostkey_foreach_line *l, void *ctx);
 
 /* Iterate over a hostkeys file */
-int hostkeys_foreach(const char *path, hostkeys_foreach_fn *callback, void *ctx,
-    const char *host, const char *ip, u_int options);
+int hostkeys_foreach(const char *path,
+    hostkeys_foreach_fn *callback, void *ctx,
+    const char *host, const char *ip, u_int options, u_int note);
+int hostkeys_foreach_file(const char *path, FILE *f,
+    hostkeys_foreach_fn *callback, void *ctx,
+    const char *host, const char *ip, u_int options, u_int note);
+
+void hostfile_create_user_ssh_dir(const char *, int);
 
 #endif

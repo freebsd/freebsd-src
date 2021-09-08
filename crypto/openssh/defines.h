@@ -96,6 +96,18 @@ enum
 #ifndef IPTOS_DSCP_EF
 # define	IPTOS_DSCP_EF		0xb8
 #endif /* IPTOS_DSCP_EF */
+#ifndef IPTOS_DSCP_LE
+# define	IPTOS_DSCP_LE		0x01
+#endif /* IPTOS_DSCP_LE */
+#ifndef IPTOS_PREC_CRITIC_ECP
+# define IPTOS_PREC_CRITIC_ECP		0xa0
+#endif
+#ifndef IPTOS_PREC_INTERNETCONTROL
+# define IPTOS_PREC_INTERNETCONTROL	0xc0
+#endif
+#ifndef IPTOS_PREC_NETCONTROL
+# define IPTOS_PREC_NETCONTROL		0xe0
+#endif
 
 #ifndef PATH_MAX
 # ifdef _POSIX_PATH_MAX
@@ -108,10 +120,6 @@ enum
 #  define MAXPATHLEN PATH_MAX
 # else /* PATH_MAX */
 #  define MAXPATHLEN 64
-/* realpath uses a fixed buffer of size MAXPATHLEN, so force use of ours */
-#  ifndef BROKEN_REALPATH
-#   define BROKEN_REALPATH 1
-#  endif /* BROKEN_REALPATH */
 # endif /* PATH_MAX */
 #endif /* MAXPATHLEN */
 
@@ -246,6 +254,21 @@ typedef unsigned int u_int32_t;
 #define __BIT_TYPES_DEFINED__
 #endif
 
+#if !defined(LLONG_MIN) && defined(LONG_LONG_MIN)
+#define LLONG_MIN LONG_LONG_MIN
+#endif
+#if !defined(LLONG_MAX) && defined(LONG_LONG_MAX)
+#define LLONG_MAX LONG_LONG_MAX
+#endif
+
+#ifndef UINT32_MAX
+# if defined(HAVE_DECL_UINT32_MAX) && (HAVE_DECL_UINT32_MAX == 0)
+#  if (SIZEOF_INT == 4)
+#    define UINT32_MAX	UINT_MAX
+#  endif
+# endif
+#endif
+
 /* 64-bit types */
 #ifndef HAVE_INT64_T
 # if (SIZEOF_LONG_INT == 8)
@@ -279,6 +302,12 @@ typedef long long intmax_t;
 
 #ifndef HAVE_UINTMAX_T
 typedef unsigned long long uintmax_t;
+#endif
+
+#if SIZEOF_TIME_T == SIZEOF_LONG_LONG_INT
+# define SSH_TIME_T_MAX LLONG_MAX
+#else
+# define SSH_TIME_T_MAX INT_MAX
 #endif
 
 #ifndef HAVE_U_CHAR
@@ -328,6 +357,7 @@ typedef unsigned int size_t;
 
 #ifndef HAVE_SSIZE_T
 typedef int ssize_t;
+#define SSIZE_MAX INT_MAX
 # define HAVE_SSIZE_T
 #endif /* HAVE_SSIZE_T */
 
@@ -805,10 +835,6 @@ struct winsize {
 # define getgroups(a,b) ((a)==0 && (b)==NULL ? NGROUPS_MAX : getgroups((a),(b)))
 #endif
 
-#if defined(HAVE_MMAP) && defined(BROKEN_MMAP)
-# undef HAVE_MMAP
-#endif
-
 #ifndef IOV_MAX
 # if defined(_XOPEN_IOV_MAX)
 #  define	IOV_MAX		_XOPEN_IOV_MAX
@@ -834,9 +860,10 @@ struct winsize {
 /*
  * We want functions in openbsd-compat, if enabled, to override system ones.
  * We no-op out the weak symbol definition rather than remove it to reduce
- * future sync problems.
+ * future sync problems.  Some compilers (eg Unixware) do not allow an
+ * empty statement, so we use a bogus function declaration.
  */
-#define DEF_WEAK(x)
+#define DEF_WEAK(x)	void __ssh_compat_weak_##x(void)
 
 /*
  * Platforms that have arc4random_uniform() and not arc4random_stir()
@@ -873,4 +900,11 @@ struct winsize {
 # define USE_SYSTEM_GLOB
 #endif
 
+/*
+ * sntrup761 uses variable length arrays and c99-style declarations after code,
+ * so only enable if the compiler supports them.
+ */
+#if defined(VARIABLE_LENGTH_ARRAYS) && defined(VARIABLE_DECLARATION_AFTER_CODE)
+# define USE_SNTRUP761X25519 1
+#endif
 #endif /* _DEFINES_H */

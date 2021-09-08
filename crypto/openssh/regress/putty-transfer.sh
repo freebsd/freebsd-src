@@ -1,4 +1,4 @@
-#	$OpenBSD: putty-transfer.sh,v 1.6 2018/02/23 03:03:00 djm Exp $
+#	$OpenBSD: putty-transfer.sh,v 1.7 2020/01/23 11:19:12 dtucker Exp $
 #	Placed in the Public Domain.
 
 tid="putty transfer data"
@@ -8,7 +8,13 @@ if test "x$REGRESS_INTEROP_PUTTY" != "xyes" ; then
 	exit 0
 fi
 
-for c in 0 1 ; do 
+if [ "`${SSH} -Q compression`" = "none" ]; then
+	comp="0"
+else
+	comp="0 1"
+fi
+
+for c in $comp; do 
 	verbose "$tid: compression $c"
 	rm -f ${COPY}
 	cp ${OBJ}/.putty/sessions/localhost_proxy \

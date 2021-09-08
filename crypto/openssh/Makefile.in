@@ -16,6 +16,7 @@ sysconfdir=@sysconfdir@
 piddir=@piddir@
 srcdir=@srcdir@
 top_srcdir=@top_srcdir@
+abs_top_srcdir=@abs_top_srcdir@
 
 DESTDIR=
 VPATH=@srcdir@
@@ -24,6 +25,7 @@ ASKPASS_PROGRAM=$(libexecdir)/ssh-askpass
 SFTP_SERVER=$(libexecdir)/sftp-server
 SSH_KEYSIGN=$(libexecdir)/ssh-keysign
 SSH_PKCS11_HELPER=$(libexecdir)/ssh-pkcs11-helper
+SSH_SK_HELPER=$(libexecdir)/ssh-sk-helper
 PRIVSEP_PATH=@PRIVSEP_PATH@
 SSH_PRIVSEP_USER=@SSH_PRIVSEP_USER@
 STRIP_OPT=@STRIP_OPT@
@@ -35,32 +37,37 @@ PATHS= -DSSHDIR=\"$(sysconfdir)\" \
 	-D_PATH_SFTP_SERVER=\"$(SFTP_SERVER)\" \
 	-D_PATH_SSH_KEY_SIGN=\"$(SSH_KEYSIGN)\" \
 	-D_PATH_SSH_PKCS11_HELPER=\"$(SSH_PKCS11_HELPER)\" \
+	-D_PATH_SSH_SK_HELPER=\"$(SSH_SK_HELPER)\" \
 	-D_PATH_SSH_PIDDIR=\"$(piddir)\" \
 	-D_PATH_PRIVSEP_CHROOT_DIR=\"$(PRIVSEP_PATH)\"
 
 CC=@CC@
 LD=@LD@
 CFLAGS=@CFLAGS@
+CFLAGS_NOPIE=@CFLAGS_NOPIE@
 CPPFLAGS=-I. -I$(srcdir) @CPPFLAGS@ $(PATHS) @DEFS@
+PICFLAG=@PICFLAG@
 LIBS=@LIBS@
 K5LIBS=@K5LIBS@
 GSSLIBS=@GSSLIBS@
-SSHLIBS=@SSHLIBS@
 SSHDLIBS=@SSHDLIBS@
 LIBEDIT=@LIBEDIT@
+LIBFIDO2=@LIBFIDO2@
 AR=@AR@
 AWK=@AWK@
 RANLIB=@RANLIB@
 INSTALL=@INSTALL@
 SED=@SED@
-ENT=@ENT@
 XAUTH_PATH=@XAUTH_PATH@
 LDFLAGS=-L. -Lopenbsd-compat/ @LDFLAGS@
+LDFLAGS_NOPIE=-L. -Lopenbsd-compat/ @LDFLAGS_NOPIE@
 EXEEXT=@EXEEXT@
 MANFMT=@MANFMT@
 MKDIR_P=@MKDIR_P@
 
-TARGETS=ssh$(EXEEXT) sshd$(EXEEXT) ssh-add$(EXEEXT) ssh-keygen$(EXEEXT) ssh-keyscan${EXEEXT} ssh-keysign${EXEEXT} ssh-pkcs11-helper$(EXEEXT) ssh-agent$(EXEEXT) scp$(EXEEXT) sftp-server$(EXEEXT) sftp$(EXEEXT)
+.SUFFIXES: .lo
+
+TARGETS=ssh$(EXEEXT) sshd$(EXEEXT) ssh-add$(EXEEXT) ssh-keygen$(EXEEXT) ssh-keyscan${EXEEXT} ssh-keysign${EXEEXT} ssh-pkcs11-helper$(EXEEXT) ssh-agent$(EXEEXT) scp$(EXEEXT) sftp-server$(EXEEXT) sftp$(EXEEXT) ssh-sk-helper$(EXEEXT)
 
 XMSS_OBJS=\
 	ssh-xmss.o \
@@ -87,23 +94,27 @@ LIBSSH_OBJS=${LIBOPENSSH_OBJS} \
 	authfd.o authfile.o \
 	canohost.o channels.o cipher.o cipher-aes.o cipher-aesctr.o \
 	cipher-ctr.o cleanup.o \
-	compat.o crc32.o fatal.o hostfile.o \
-	log.o match.o moduli.o nchan.o packet.o opacket.o \
-	readpass.o ttymodes.o xmalloc.o addrmatch.o \
-	atomicio.o dispatch.o mac.o uuencode.o misc.o utf8.o \
-	monitor_fdpass.o rijndael.o ssh-dss.o ssh-ecdsa.o ssh-rsa.o dh.o \
+	compat.o fatal.o hostfile.o \
+	log.o match.o moduli.o nchan.o packet.o \
+	readpass.o ttymodes.o xmalloc.o addr.o addrmatch.o \
+	atomicio.o dispatch.o mac.o misc.o utf8.o \
+	monitor_fdpass.o rijndael.o ssh-dss.o ssh-ecdsa.o ssh-ecdsa-sk.o \
+	ssh-ed25519-sk.o ssh-rsa.o dh.o \
 	msg.o progressmeter.o dns.o entropy.o gss-genr.o umac.o umac128.o \
 	ssh-pkcs11.o smult_curve25519_ref.o \
-	poly1305.o chacha.o cipher-chachapoly.o \
-	ssh-ed25519.o digest-openssl.o digest-libc.o hmac.o \
-	sc25519.o ge25519.o fe25519.o ed25519.o verify.o hash.o \
+	poly1305.o chacha.o cipher-chachapoly.o cipher-chachapoly-libcrypto.o \
+	ssh-ed25519.o digest-openssl.o digest-libc.o \
+	hmac.o sc25519.o ge25519.o fe25519.o ed25519.o verify.o hash.o \
 	kex.o kexdh.o kexgex.o kexecdh.o kexc25519.o \
-	kexdhc.o kexgexc.o kexecdhc.o kexc25519c.o \
-	kexdhs.o kexgexs.o kexecdhs.o kexc25519s.o \
-	platform-pledge.o platform-tracing.o platform-misc.o
+	kexgexc.o kexgexs.o \
+	kexsntrup761x25519.o sntrup761.o kexgen.o \
+	sftp-realpath.o platform-pledge.o platform-tracing.o platform-misc.o \
+	sshbuf-io.o
+
+SKOBJS=	ssh-sk-client.o
 
 SSHOBJS= ssh.o readconf.o clientloop.o sshtty.o \
-	sshconnect.o sshconnect2.o mux.o
+	sshconnect.o sshconnect2.o mux.o $(SKOBJS)
 
 SSHDOBJS=sshd.o auth-rhosts.o auth-passwd.o \
 	audit.o audit-bsm.o audit-linux.o platform.o \
@@ -115,13 +126,35 @@ SSHDOBJS=sshd.o auth-rhosts.o auth-passwd.o \
 	monitor.o monitor_wrap.o auth-krb5.o \
 	auth2-gss.o gss-serv.o gss-serv-krb5.o \
 	loginrec.o auth-pam.o auth-shadow.o auth-sia.o md5crypt.o \
-	sftp-server.o sftp-common.o \
+	srclimit.o sftp-server.o sftp-common.o \
 	sandbox-null.o sandbox-rlimit.o sandbox-systrace.o sandbox-darwin.o \
 	sandbox-seccomp-filter.o sandbox-capsicum.o sandbox-pledge.o \
-	sandbox-solaris.o uidswap.o
+	sandbox-solaris.o uidswap.o $(SKOBJS)
 
-MANPAGES	= moduli.5.out scp.1.out ssh-add.1.out ssh-agent.1.out ssh-keygen.1.out ssh-keyscan.1.out ssh.1.out sshd.8.out sftp-server.8.out sftp.1.out ssh-keysign.8.out ssh-pkcs11-helper.8.out sshd_config.5.out ssh_config.5.out
-MANPAGES_IN	= moduli.5 scp.1 ssh-add.1 ssh-agent.1 ssh-keygen.1 ssh-keyscan.1 ssh.1 sshd.8 sftp-server.8 sftp.1 ssh-keysign.8 ssh-pkcs11-helper.8 sshd_config.5 ssh_config.5
+SFTP_CLIENT_OBJS=sftp-common.o sftp-client.o sftp-glob.o
+
+SCP_OBJS=	scp.o progressmeter.o $(SFTP_CLIENT_OBJS)
+
+SSHADD_OBJS=	ssh-add.o $(SKOBJS)
+
+SSHAGENT_OBJS=	ssh-agent.o ssh-pkcs11-client.o $(SKOBJS)
+
+SSHKEYGEN_OBJS=	ssh-keygen.o sshsig.o $(SKOBJS)
+
+SSHKEYSIGN_OBJS=ssh-keysign.o readconf.o uidswap.o $(SKOBJS)
+
+P11HELPER_OBJS=	ssh-pkcs11-helper.o ssh-pkcs11.o $(SKOBJS)
+
+SKHELPER_OBJS=	ssh-sk-helper.o ssh-sk.o sk-usbhid.o
+
+SSHKEYSCAN_OBJS=ssh-keyscan.o $(SKOBJS)
+
+SFTPSERVER_OBJS=sftp-common.o sftp-server.o sftp-server-main.o
+
+SFTP_OBJS=	sftp.o progressmeter.o $(SFTP_CLIENT_OBJS)
+
+MANPAGES	= moduli.5.out scp.1.out ssh-add.1.out ssh-agent.1.out ssh-keygen.1.out ssh-keyscan.1.out ssh.1.out sshd.8.out sftp-server.8.out sftp.1.out ssh-keysign.8.out ssh-pkcs11-helper.8.out ssh-sk-helper.8.out sshd_config.5.out ssh_config.5.out
+MANPAGES_IN	= moduli.5 scp.1 ssh-add.1 ssh-agent.1 ssh-keygen.1 ssh-keyscan.1 ssh.1 sshd.8 sftp-server.8 sftp.1 ssh-keysign.8 ssh-pkcs11-helper.8 ssh-sk-helper.8 sshd_config.5 ssh_config.5
 MANTYPE		= @MANTYPE@
 
 CONFIGFILES=sshd_config.out ssh_config.out moduli.out
@@ -150,11 +183,16 @@ FIXPATHSCMD	= $(SED) $(PATHSUBS)
 FIXALGORITHMSCMD= $(SHELL) $(srcdir)/fixalgorithms $(SED) \
 		     @UNSUPPORTED_ALGORITHMS@
 
-all: $(CONFIGFILES) $(MANPAGES) $(TARGETS)
+all: configure-check $(CONFIGFILES) $(MANPAGES) $(TARGETS)
 
 $(LIBSSH_OBJS): Makefile.in config.h
 $(SSHOBJS): Makefile.in config.h
 $(SSHDOBJS): Makefile.in config.h
+configure-check: $(srcdir)/configure
+
+$(srcdir)/configure: configure.ac $(srcdir)/m4/*.m4
+	@echo "ERROR: configure is out of date; please run ${AUTORECONF} (and configure)" 1>&2
+	@exit 1
 
 .c.o:
 	$(CC) $(CFLAGS) $(CPPFLAGS) -c $< -o $@
@@ -169,37 +207,40 @@ libssh.a: $(LIBSSH_OBJS)
 	$(RANLIB) $@
 
 ssh$(EXEEXT): $(LIBCOMPAT) libssh.a $(SSHOBJS)
-	$(LD) -o $@ $(SSHOBJS) $(LDFLAGS) -lssh -lopenbsd-compat $(SSHLIBS) $(LIBS) $(GSSLIBS)
+	$(LD) -o $@ $(SSHOBJS) $(LDFLAGS) -lssh -lopenbsd-compat $(LIBS) $(GSSLIBS)
 
 sshd$(EXEEXT): libssh.a	$(LIBCOMPAT) $(SSHDOBJS)
 	$(LD) -o $@ $(SSHDOBJS) $(LDFLAGS) -lssh -lopenbsd-compat $(SSHDLIBS) $(LIBS) $(GSSLIBS) $(K5LIBS)
 
-scp$(EXEEXT): $(LIBCOMPAT) libssh.a scp.o progressmeter.o
-	$(LD) -o $@ scp.o progressmeter.o $(LDFLAGS) -lssh -lopenbsd-compat $(LIBS)
+scp$(EXEEXT): $(LIBCOMPAT) libssh.a $(SCP_OBJS)
+	$(LD) -o $@ $(SCP_OBJS) $(LDFLAGS) -lssh -lopenbsd-compat $(LIBS)
 
-ssh-add$(EXEEXT): $(LIBCOMPAT) libssh.a ssh-add.o
-	$(LD) -o $@ ssh-add.o $(LDFLAGS) -lssh -lopenbsd-compat $(LIBS)
+ssh-add$(EXEEXT): $(LIBCOMPAT) libssh.a $(SSHADD_OBJS)
+	$(LD) -o $@ $(SSHADD_OBJS) $(LDFLAGS) -lssh -lopenbsd-compat $(LIBS)
 
-ssh-agent$(EXEEXT): $(LIBCOMPAT) libssh.a ssh-agent.o ssh-pkcs11-client.o
-	$(LD) -o $@ ssh-agent.o ssh-pkcs11-client.o $(LDFLAGS) -lssh -lopenbsd-compat $(LIBS)
+ssh-agent$(EXEEXT): $(LIBCOMPAT) libssh.a $(SSHAGENT_OBJS)
+	$(LD) -o $@ $(SSHAGENT_OBJS) $(LDFLAGS) -lssh -lopenbsd-compat $(LIBS)
 
-ssh-keygen$(EXEEXT): $(LIBCOMPAT) libssh.a ssh-keygen.o
-	$(LD) -o $@ ssh-keygen.o $(LDFLAGS) -lssh -lopenbsd-compat $(LIBS)
+ssh-keygen$(EXEEXT): $(LIBCOMPAT) libssh.a $(SSHKEYGEN_OBJS)
+	$(LD) -o $@ $(SSHKEYGEN_OBJS) $(LDFLAGS) -lssh -lopenbsd-compat $(LIBS)
 
-ssh-keysign$(EXEEXT): $(LIBCOMPAT) libssh.a ssh-keysign.o readconf.o uidswap.o
-	$(LD) -o $@ ssh-keysign.o readconf.o uidswap.o $(LDFLAGS) -lssh -lopenbsd-compat $(LIBS)
+ssh-keysign$(EXEEXT): $(LIBCOMPAT) libssh.a $(SSHKEYSIGN_OBJS)
+	$(LD) -o $@ $(SSHKEYSIGN_OBJS) $(LDFLAGS) -lssh -lopenbsd-compat $(LIBS)
 
-ssh-pkcs11-helper$(EXEEXT): $(LIBCOMPAT) libssh.a ssh-pkcs11-helper.o ssh-pkcs11.o
-	$(LD) -o $@ ssh-pkcs11-helper.o ssh-pkcs11.o $(LDFLAGS) -lssh -lopenbsd-compat -lssh -lopenbsd-compat $(LIBS)
+ssh-pkcs11-helper$(EXEEXT): $(LIBCOMPAT) libssh.a $(P11HELPER_OBJS)
+	$(LD) -o $@ $(P11HELPER_OBJS) $(LDFLAGS) -lssh -lopenbsd-compat -lssh -lopenbsd-compat $(LIBS)
 
-ssh-keyscan$(EXEEXT): $(LIBCOMPAT) libssh.a ssh-keyscan.o
-	$(LD) -o $@ ssh-keyscan.o $(LDFLAGS) -lssh -lopenbsd-compat -lssh $(LIBS)
+ssh-sk-helper$(EXEEXT): $(LIBCOMPAT) libssh.a $(SKHELPER_OBJS)
+	$(LD) -o $@ $(SKHELPER_OBJS) $(LDFLAGS) -lssh -lopenbsd-compat -lssh -lopenbsd-compat $(LIBS) $(LIBFIDO2)
 
-sftp-server$(EXEEXT): $(LIBCOMPAT) libssh.a sftp.o sftp-common.o sftp-server.o sftp-server-main.o
-	$(LD) -o $@ sftp-server.o sftp-common.o sftp-server-main.o $(LDFLAGS) -lssh -lopenbsd-compat $(LIBS)
+ssh-keyscan$(EXEEXT): $(LIBCOMPAT) libssh.a $(SSHKEYSCAN_OBJS)
+	$(LD) -o $@ $(SSHKEYSCAN_OBJS) $(LDFLAGS) -lssh -lopenbsd-compat -lssh $(LIBS)
 
-sftp$(EXEEXT): $(LIBCOMPAT) libssh.a sftp.o sftp-client.o sftp-common.o sftp-glob.o progressmeter.o
-	$(LD) -o $@ progressmeter.o sftp.o sftp-client.o sftp-common.o sftp-glob.o $(LDFLAGS) -lssh -lopenbsd-compat $(LIBS) $(LIBEDIT)
+sftp-server$(EXEEXT): $(LIBCOMPAT) libssh.a $(SFTPSERVER_OBJS)
+	$(LD) -o $@ $(SFTPSERVER_OBJS) $(LDFLAGS) -lssh -lopenbsd-compat -lssh $(LIBS)
+
+sftp$(EXEEXT): $(LIBCOMPAT) libssh.a $(SFTP_OBJS)
+	$(LD) -o $@ $(SFTP_OBJS) $(LDFLAGS) -lssh -lopenbsd-compat $(LIBS) $(LIBEDIT)
 
 # test driver for the loginrec code - not built by default
 logintest: logintest.o $(LIBCOMPAT) libssh.a loginrec.o
@@ -227,16 +268,14 @@ moduli:
 	echo
 
 clean:	regressclean
-	rm -f *.o *.a $(TARGETS) logintest config.cache config.log
+	rm -f *.o *.lo *.a $(TARGETS) logintest config.cache config.log
 	rm -f *.out core survey
 	rm -f regress/check-perm$(EXEEXT)
 	rm -f regress/mkdtemp$(EXEEXT)
 	rm -f regress/unittests/test_helper/*.a
 	rm -f regress/unittests/test_helper/*.o
-	rm -f regress/unittests/sshbuf/*.o
-	rm -f regress/unittests/sshbuf/test_sshbuf$(EXEEXT)
-	rm -f regress/unittests/sshkey/*.o
-	rm -f regress/unittests/sshkey/test_sshkey$(EXEEXT)
+	rm -f regress/unittests/authopt/*.o
+	rm -f regress/unittests/authopt/test_authopt$(EXEEXT)
 	rm -f regress/unittests/bitmap/*.o
 	rm -f regress/unittests/bitmap/test_bitmap$(EXEEXT)
 	rm -f regress/unittests/conversion/*.o
@@ -247,10 +286,19 @@ clean:	regressclean
 	rm -f regress/unittests/kex/test_kex$(EXEEXT)
 	rm -f regress/unittests/match/*.o
 	rm -f regress/unittests/match/test_match$(EXEEXT)
+	rm -f regress/unittests/misc/*.o
+	rm -f regress/unittests/misc/test_misc$(EXEEXT)
+	rm -f regress/unittests/sshbuf/*.o
+	rm -f regress/unittests/sshbuf/test_sshbuf$(EXEEXT)
+	rm -f regress/unittests/sshkey/*.o
+	rm -f regress/unittests/sshkey/test_sshkey$(EXEEXT)
+	rm -f regress/unittests/sshsig/*.o
+	rm -f regress/unittests/sshsig/test_sshsig$(EXEEXT)
 	rm -f regress/unittests/utf8/*.o
 	rm -f regress/unittests/utf8/test_utf8$(EXEEXT)
-	rm -f regress/misc/kexfuzz/*.o
-	rm -f regress/misc/kexfuzz/kexfuzz$(EXEEXT)
+	rm -f regress/misc/sk-dummy/*.o
+	rm -f regress/misc/sk-dummy/*.lo
+	rm -f regress/misc/sk-dummy/sk-dummy.so
 	(cd openbsd-compat && $(MAKE) clean)
 
 distclean:	regressclean
@@ -263,10 +311,8 @@ distclean:	regressclean
 	rm -f regress/mkdtemp
 	rm -f regress/unittests/test_helper/*.a
 	rm -f regress/unittests/test_helper/*.o
-	rm -f regress/unittests/sshbuf/*.o
-	rm -f regress/unittests/sshbuf/test_sshbuf
-	rm -f regress/unittests/sshkey/*.o
-	rm -f regress/unittests/sshkey/test_sshkey
+	rm -f regress/unittests/authopt/*.o
+	rm -f regress/unittests/authopt/test_authopt
 	rm -f regress/unittests/bitmap/*.o
 	rm -f regress/unittests/bitmap/test_bitmap
 	rm -f regress/unittests/conversion/*.o
@@ -277,10 +323,16 @@ distclean:	regressclean
 	rm -f regress/unittests/kex/test_kex
 	rm -f regress/unittests/match/*.o
 	rm -f regress/unittests/match/test_match
+	rm -f regress/unittests/misc/*.o
+	rm -f regress/unittests/misc/test_misc
+	rm -f regress/unittests/sshbuf/*.o
+	rm -f regress/unittests/sshbuf/test_sshbuf
+	rm -f regress/unittests/sshkey/*.o
+	rm -f regress/unittests/sshkey/test_sshkey
+	rm -f regress/unittests/sshsig/*.o
+	rm -f regress/unittests/sshsig/test_sshsig
 	rm -f regress/unittests/utf8/*.o
 	rm -f regress/unittests/utf8/test_utf8
-	rm -f regress/misc/kexfuzz/*.o
-	rm -f regress/misc/kexfuzz/kexfuzz$(EXEEXT)
 	(cd openbsd-compat && $(MAKE) distclean)
 	if test -d pkg ; then \
 		rm -fr pkg ; \
@@ -307,9 +359,15 @@ depend: depend-rebuild
 	rm -f .depend.bak
 
 depend-rebuild:
-	rm -f config.h
-	touch config.h
+	mv .depend .depend.old
+	rm -f config.h .depend
+	touch config.h .depend
 	makedepend -w1000 -Y. -f .depend *.c 2>/dev/null
+	(echo '# Automatically generated by makedepend.'; \
+	 echo '# Run "make depend" to rebuild.'; sort .depend ) >.depend.tmp
+	mv .depend.tmp .depend
+	rm -f .depend.bak
+	mv .depend.old .depend.bak
 	rm -f config.h
 
 depend-check: depend-rebuild
@@ -343,6 +401,7 @@ install-files:
 	$(INSTALL) -m 0755 $(STRIP_OPT) sshd$(EXEEXT) $(DESTDIR)$(sbindir)/sshd$(EXEEXT)
 	$(INSTALL) -m 4711 $(STRIP_OPT) ssh-keysign$(EXEEXT) $(DESTDIR)$(SSH_KEYSIGN)$(EXEEXT)
 	$(INSTALL) -m 0755 $(STRIP_OPT) ssh-pkcs11-helper$(EXEEXT) $(DESTDIR)$(SSH_PKCS11_HELPER)$(EXEEXT)
+	$(INSTALL) -m 0755 $(STRIP_OPT) ssh-sk-helper$(EXEEXT) $(DESTDIR)$(SSH_SK_HELPER)$(EXEEXT)
 	$(INSTALL) -m 0755 $(STRIP_OPT) sftp$(EXEEXT) $(DESTDIR)$(bindir)/sftp$(EXEEXT)
 	$(INSTALL) -m 0755 $(STRIP_OPT) sftp-server$(EXEEXT) $(DESTDIR)$(SFTP_SERVER)$(EXEEXT)
 	$(INSTALL) -m 644 ssh.1.out $(DESTDIR)$(mandir)/$(mansubdir)1/ssh.1
@@ -359,6 +418,7 @@ install-files:
 	$(INSTALL) -m 644 sftp-server.8.out $(DESTDIR)$(mandir)/$(mansubdir)8/sftp-server.8
 	$(INSTALL) -m 644 ssh-keysign.8.out $(DESTDIR)$(mandir)/$(mansubdir)8/ssh-keysign.8
 	$(INSTALL) -m 644 ssh-pkcs11-helper.8.out $(DESTDIR)$(mandir)/$(mansubdir)8/ssh-pkcs11-helper.8
+	$(INSTALL) -m 644 ssh-sk-helper.8.out $(DESTDIR)$(mandir)/$(mansubdir)8/ssh-sk-helper.8
 
 install-sysconf:
 	$(MKDIR_P) $(DESTDIR)$(sysconfdir)
@@ -419,6 +479,7 @@ uninstall:
 	-rm -r $(DESTDIR)$(SFTP_SERVER)$(EXEEXT)
 	-rm -f $(DESTDIR)$(SSH_KEYSIGN)$(EXEEXT)
 	-rm -f $(DESTDIR)$(SSH_PKCS11_HELPER)$(EXEEXT)
+	-rm -f $(DESTDIR)$(SSH_SK_HELPER)$(EXEEXT)
 	-rm -f $(DESTDIR)$(mandir)/$(mansubdir)1/ssh.1
 	-rm -f $(DESTDIR)$(mandir)/$(mansubdir)1/scp.1
 	-rm -f $(DESTDIR)$(mandir)/$(mansubdir)1/ssh-add.1
@@ -430,18 +491,22 @@ uninstall:
 	-rm -f $(DESTDIR)$(mandir)/$(mansubdir)8/sftp-server.8
 	-rm -f $(DESTDIR)$(mandir)/$(mansubdir)8/ssh-keysign.8
 	-rm -f $(DESTDIR)$(mandir)/$(mansubdir)8/ssh-pkcs11-helper.8
+	-rm -f $(DESTDIR)$(mandir)/$(mansubdir)8/ssh-sk-helper.8
 
 regress-prep:
 	$(MKDIR_P) `pwd`/regress/unittests/test_helper
-	$(MKDIR_P) `pwd`/regress/unittests/sshbuf
-	$(MKDIR_P) `pwd`/regress/unittests/sshkey
+	$(MKDIR_P) `pwd`/regress/unittests/authopt
 	$(MKDIR_P) `pwd`/regress/unittests/bitmap
 	$(MKDIR_P) `pwd`/regress/unittests/conversion
 	$(MKDIR_P) `pwd`/regress/unittests/hostkeys
 	$(MKDIR_P) `pwd`/regress/unittests/kex
 	$(MKDIR_P) `pwd`/regress/unittests/match
+	$(MKDIR_P) `pwd`/regress/unittests/misc
+	$(MKDIR_P) `pwd`/regress/unittests/sshbuf
+	$(MKDIR_P) `pwd`/regress/unittests/sshkey
+	$(MKDIR_P) `pwd`/regress/unittests/sshsig
 	$(MKDIR_P) `pwd`/regress/unittests/utf8
-	$(MKDIR_P) `pwd`/regress/misc/kexfuzz
+	$(MKDIR_P) `pwd`/regress/misc/sk-dummy
 	[ -f `pwd`/regress/Makefile ] || \
 	    ln -s `cd $(srcdir) && pwd`/regress/Makefile `pwd`/regress/Makefile
 
@@ -496,11 +561,23 @@ UNITTESTS_TEST_SSHKEY_OBJS=\
 	regress/unittests/sshkey/tests.o \
 	regress/unittests/sshkey/common.o \
 	regress/unittests/sshkey/test_file.o \
-	regress/unittests/sshkey/test_sshkey.o
+	regress/unittests/sshkey/test_sshkey.o \
+	$(SKOBJS)
 
 regress/unittests/sshkey/test_sshkey$(EXEEXT): ${UNITTESTS_TEST_SSHKEY_OBJS} \
     regress/unittests/test_helper/libtest_helper.a libssh.a
 	$(LD) -o $@ $(LDFLAGS) $(UNITTESTS_TEST_SSHKEY_OBJS) \
+	    regress/unittests/test_helper/libtest_helper.a \
+	    -lssh -lopenbsd-compat -lssh -lopenbsd-compat $(LIBS)
+
+UNITTESTS_TEST_SSHSIG_OBJS=\
+	sshsig.o \
+	regress/unittests/sshsig/tests.o \
+	$(SKOBJS)
+
+regress/unittests/sshsig/test_sshsig$(EXEEXT): ${UNITTESTS_TEST_SSHSIG_OBJS} \
+    regress/unittests/test_helper/libtest_helper.a libssh.a
+	$(LD) -o $@ $(LDFLAGS) $(UNITTESTS_TEST_SSHSIG_OBJS) \
 	    regress/unittests/test_helper/libtest_helper.a \
 	    -lssh -lopenbsd-compat -lssh -lopenbsd-compat $(LIBS)
 
@@ -510,6 +587,18 @@ UNITTESTS_TEST_BITMAP_OBJS=\
 regress/unittests/bitmap/test_bitmap$(EXEEXT): ${UNITTESTS_TEST_BITMAP_OBJS} \
     regress/unittests/test_helper/libtest_helper.a libssh.a
 	$(LD) -o $@ $(LDFLAGS) $(UNITTESTS_TEST_BITMAP_OBJS) \
+	    regress/unittests/test_helper/libtest_helper.a \
+	    -lssh -lopenbsd-compat -lssh -lopenbsd-compat $(LIBS)
+
+UNITTESTS_TEST_AUTHOPT_OBJS=\
+	regress/unittests/authopt/tests.o \
+	auth-options.o \
+	$(SKOBJS)
+
+regress/unittests/authopt/test_authopt$(EXEEXT): \
+    ${UNITTESTS_TEST_AUTHOPT_OBJS} \
+    regress/unittests/test_helper/libtest_helper.a libssh.a
+	$(LD) -o $@ $(LDFLAGS) $(UNITTESTS_TEST_AUTHOPT_OBJS) \
 	    regress/unittests/test_helper/libtest_helper.a \
 	    -lssh -lopenbsd-compat -lssh -lopenbsd-compat $(LIBS)
 
@@ -525,7 +614,8 @@ regress/unittests/conversion/test_conversion$(EXEEXT): \
 
 UNITTESTS_TEST_KEX_OBJS=\
 	regress/unittests/kex/tests.o \
-	regress/unittests/kex/test_kex.o
+	regress/unittests/kex/test_kex.o \
+	$(SKOBJS)
 
 regress/unittests/kex/test_kex$(EXEEXT): ${UNITTESTS_TEST_KEX_OBJS} \
     regress/unittests/test_helper/libtest_helper.a libssh.a
@@ -535,7 +625,8 @@ regress/unittests/kex/test_kex$(EXEEXT): ${UNITTESTS_TEST_KEX_OBJS} \
 
 UNITTESTS_TEST_HOSTKEYS_OBJS=\
 	regress/unittests/hostkeys/tests.o \
-	regress/unittests/hostkeys/test_iterate.o
+	regress/unittests/hostkeys/test_iterate.o \
+	$(SKOBJS)
 
 regress/unittests/hostkeys/test_hostkeys$(EXEEXT): \
     ${UNITTESTS_TEST_HOSTKEYS_OBJS} \
@@ -554,6 +645,21 @@ regress/unittests/match/test_match$(EXEEXT): \
 	    regress/unittests/test_helper/libtest_helper.a \
 	    -lssh -lopenbsd-compat -lssh -lopenbsd-compat $(LIBS)
 
+UNITTESTS_TEST_MISC_OBJS=\
+	regress/unittests/misc/tests.o \
+	regress/unittests/misc/test_parse.o \
+	regress/unittests/misc/test_expand.o \
+	regress/unittests/misc/test_convtime.o \
+	regress/unittests/misc/test_argv.o \
+	regress/unittests/misc/test_strdelim.o
+
+regress/unittests/misc/test_misc$(EXEEXT): \
+    ${UNITTESTS_TEST_MISC_OBJS} \
+    regress/unittests/test_helper/libtest_helper.a libssh.a
+	$(LD) -o $@ $(LDFLAGS) $(UNITTESTS_TEST_MISC_OBJS) \
+	    regress/unittests/test_helper/libtest_helper.a \
+	    -lssh -lopenbsd-compat -lssh -lopenbsd-compat $(LIBS)
+
 UNITTESTS_TEST_UTF8_OBJS=\
 	regress/unittests/utf8/tests.o
 
@@ -564,47 +670,58 @@ regress/unittests/utf8/test_utf8$(EXEEXT): \
 	    regress/unittests/test_helper/libtest_helper.a \
 	    -lssh -lopenbsd-compat -lssh -lopenbsd-compat $(LIBS)
 
-MISC_KEX_FUZZ_OBJS=\
-	regress/misc/kexfuzz/kexfuzz.o
+# These all need to be compiled -fPIC, so they are treated differently.
+SK_DUMMY_OBJS=\
+	regress/misc/sk-dummy/sk-dummy.lo \
+	regress/misc/sk-dummy/fatal.lo \
+	ed25519.lo hash.lo ge25519.lo fe25519.lo sc25519.lo verify.lo
 
-regress/misc/kexfuzz/kexfuzz$(EXEEXT): ${MISC_KEX_FUZZ_OBJS} libssh.a
-	$(LD) -o $@ $(LDFLAGS) $(MISC_KEX_FUZZ_OBJS) \
-	    -lssh -lopenbsd-compat -lssh -lopenbsd-compat $(LIBS)
+SK_DUMMY_LIBRARY=@SK_DUMMY_LIBRARY@
 
-regress-binaries: regress/modpipe$(EXEEXT) \
+.c.lo: Makefile.in config.h
+	$(CC) $(CFLAGS_NOPIE) $(PICFLAG) $(CPPFLAGS) -c $< -o $@
+
+regress/misc/sk-dummy/sk-dummy.so: $(SK_DUMMY_OBJS)
+	$(CC) $(CFLAGS) $(CPPFLAGS) -fPIC -shared -o $@ $(SK_DUMMY_OBJS) \
+	    -L. -Lopenbsd-compat -lopenbsd-compat $(LDFLAGS_NOPIE) $(LIBS)
+
+regress-binaries: regress-prep $(LIBCOMPAT) \
+	regress/modpipe$(EXEEXT) \
 	regress/setuid-allowed$(EXEEXT) \
 	regress/netcat$(EXEEXT) \
 	regress/check-perm$(EXEEXT) \
 	regress/mkdtemp$(EXEEXT) \
-	regress/unittests/sshbuf/test_sshbuf$(EXEEXT) \
-	regress/unittests/sshkey/test_sshkey$(EXEEXT) \
+	$(SK_DUMMY_LIBRARY)
+
+regress-unit-binaries: regress-prep $(REGRESSLIBS) \
+	regress/unittests/authopt/test_authopt$(EXEEXT) \
 	regress/unittests/bitmap/test_bitmap$(EXEEXT) \
 	regress/unittests/conversion/test_conversion$(EXEEXT) \
 	regress/unittests/hostkeys/test_hostkeys$(EXEEXT) \
 	regress/unittests/kex/test_kex$(EXEEXT) \
 	regress/unittests/match/test_match$(EXEEXT) \
-	regress/unittests/utf8/test_utf8$(EXEEXT) \
-	regress/misc/kexfuzz/kexfuzz$(EXEEXT)
+	regress/unittests/misc/test_misc$(EXEEXT) \
+	regress/unittests/sshbuf/test_sshbuf$(EXEEXT) \
+	regress/unittests/sshkey/test_sshkey$(EXEEXT) \
+	regress/unittests/sshsig/test_sshsig$(EXEEXT) \
+	regress/unittests/utf8/test_utf8$(EXEEXT)
 
-tests interop-tests t-exec unit: regress-prep regress-binaries $(TARGETS)
+tests:	file-tests t-exec interop-tests unit
+	echo all tests passed
+
+unit: regress-unit-binaries
 	BUILDDIR=`pwd`; \
-	TEST_SSH_SCP="$${BUILDDIR}/scp"; \
-	TEST_SSH_SSH="$${BUILDDIR}/ssh"; \
-	TEST_SSH_SSHD="$${BUILDDIR}/sshd"; \
-	TEST_SSH_SSHAGENT="$${BUILDDIR}/ssh-agent"; \
-	TEST_SSH_SSHADD="$${BUILDDIR}/ssh-add"; \
-	TEST_SSH_SSHKEYGEN="$${BUILDDIR}/ssh-keygen"; \
-	TEST_SSH_SSHPKCS11HELPER="$${BUILDDIR}/ssh-pkcs11-helper"; \
-	TEST_SSH_SSHKEYSCAN="$${BUILDDIR}/ssh-keyscan"; \
-	TEST_SSH_SFTP="$${BUILDDIR}/sftp"; \
-	TEST_SSH_SFTPSERVER="$${BUILDDIR}/sftp-server"; \
-	TEST_SSH_PLINK="plink"; \
-	TEST_SSH_PUTTYGEN="puttygen"; \
-	TEST_SSH_CONCH="conch"; \
-	TEST_SSH_IPV6="@TEST_SSH_IPV6@" ; \
-	TEST_SSH_UTF8="@TEST_SSH_UTF8@" ; \
-	TEST_SSH_ECC="@TEST_SSH_ECC@" ; \
 	cd $(srcdir)/regress || exit $$?; \
+	$(MAKE) \
+		.OBJDIR="$${BUILDDIR}/regress" \
+		.CURDIR="`pwd`" \
+		OBJ="$${BUILDDIR}/regress" \
+		$@ && echo $@ tests passed
+
+interop-tests t-exec file-tests: regress-prep regress-binaries $(TARGETS)
+	BUILDDIR=`pwd`; \
+	cd $(srcdir)/regress || exit $$?; \
+	EGREP='@EGREP@' \
 	$(MAKE) \
 		.OBJDIR="$${BUILDDIR}/regress" \
 		.CURDIR="`pwd`" \
@@ -613,25 +730,28 @@ tests interop-tests t-exec unit: regress-prep regress-binaries $(TARGETS)
 		PATH="$${BUILDDIR}:$${PATH}" \
 		TEST_ENV=MALLOC_OPTIONS="@TEST_MALLOC_OPTIONS@" \
 		TEST_MALLOC_OPTIONS="@TEST_MALLOC_OPTIONS@" \
-		TEST_SSH_SCP="$${TEST_SSH_SCP}" \
-		TEST_SSH_SSH="$${TEST_SSH_SSH}" \
-		TEST_SSH_SSHD="$${TEST_SSH_SSHD}" \
-		TEST_SSH_SSHAGENT="$${TEST_SSH_SSHAGENT}" \
-		TEST_SSH_SSHADD="$${TEST_SSH_SSHADD}" \
-		TEST_SSH_SSHKEYGEN="$${TEST_SSH_SSHKEYGEN}" \
-		TEST_SSH_SSHPKCS11HELPER="$${TEST_SSH_SSHPKCS11HELPER}" \
-		TEST_SSH_SSHKEYSCAN="$${TEST_SSH_SSHKEYSCAN}" \
-		TEST_SSH_SFTP="$${TEST_SSH_SFTP}" \
-		TEST_SSH_SFTPSERVER="$${TEST_SSH_SFTPSERVER}" \
-		TEST_SSH_PLINK="$${TEST_SSH_PLINK}" \
-		TEST_SSH_PUTTYGEN="$${TEST_SSH_PUTTYGEN}" \
-		TEST_SSH_CONCH="$${TEST_SSH_CONCH}" \
-		TEST_SSH_IPV6="$${TEST_SSH_IPV6}" \
-		TEST_SSH_UTF8="$${TEST_SSH_UTF8}" \
-		TEST_SSH_ECC="$${TEST_SSH_ECC}" \
+		TEST_SSH_SCP="$${BUILDDIR}/scp" \
+		TEST_SSH_SSH="$${BUILDDIR}/ssh" \
+		TEST_SSH_SSHD="$${BUILDDIR}/sshd" \
+		TEST_SSH_SSHAGENT="$${BUILDDIR}/ssh-agent" \
+		TEST_SSH_SSHADD="$${BUILDDIR}/ssh-add" \
+		TEST_SSH_SSHKEYGEN="$${BUILDDIR}/ssh-keygen" \
+		TEST_SSH_SSHPKCS11HELPER="$${BUILDDIR}/ssh-pkcs11-helper" \
+		TEST_SSH_SSHKEYSCAN="$${BUILDDIR}/ssh-keyscan" \
+		TEST_SSH_SFTP="$${BUILDDIR}/sftp" \
+		TEST_SSH_PKCS11_HELPER="$${BUILDDIR}/ssh-pkcs11-helper" \
+		TEST_SSH_SK_HELPER="$${BUILDDIR}/ssh-sk-helper" \
+		TEST_SSH_SFTPSERVER="$${BUILDDIR}/sftp-server" \
+		TEST_SSH_MODULI_FILE="$(abs_top_srcdir)/moduli" \
+		TEST_SSH_PLINK="plink" \
+		TEST_SSH_PUTTYGEN="puttygen" \
+		TEST_SSH_CONCH="conch" \
+		TEST_SSH_IPV6="@TEST_SSH_IPV6@" \
+		TEST_SSH_UTF8="@TEST_SSH_UTF8@" \
+		TEST_SSH_ECC="@TEST_SSH_ECC@" \
 		TEST_SHELL="${TEST_SHELL}" \
 		EXEEXT="$(EXEEXT)" \
-		$@ && echo all tests passed
+		$@ && echo all $@ passed
 
 compat-tests: $(LIBCOMPAT)
 	(cd openbsd-compat/regress && $(MAKE))

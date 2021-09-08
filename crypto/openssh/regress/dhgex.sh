@@ -1,4 +1,4 @@
-#	$OpenBSD: dhgex.sh,v 1.4 2017/05/08 01:52:49 djm Exp $
+#	$OpenBSD: dhgex.sh,v 1.7 2020/12/21 22:48:41 dtucker Exp $
 #	Placed in the Public Domain.
 
 tid="dhgex"
@@ -34,9 +34,11 @@ ssh_test_dhgex()
 		got=`egrep "SSH2_MSG_KEX_DH_GEX_REQUEST(.*) sent" ${LOG}`
 		fail "$tid unexpected GEX sizes, expected $groupsz, got $got"
 	fi
-	# check what we got (depends on contents of system moduli file)
-	gotbits="`awk '/bits set:/{print $4}' ${LOG} | head -1 | cut -f2 -d/`"
-	if [ "$gotbits" -lt "$bits" ]; then
+	# check what we got.
+	gotbits="`awk 'BEGIN{FS="/"}/bits set:/{print $2}' ${LOG} |
+	    head -1 | tr -d '\r\n'`"
+	trace "expected '$bits' got '$gotbits'"
+	if [ -z "$gotbits" ] || [ "$gotbits" -lt "$bits" ]; then
 		fatal "$tid expected $bits bit group, got $gotbits"
 	fi
 }
@@ -52,8 +54,8 @@ check()
 	done
 }
 
-#check 2048 3des-cbc
+check 3072 3des-cbc  # 112 bits.
 check 3072 `${SSH} -Q cipher | grep 128`
 check 7680 `${SSH} -Q cipher | grep 192`
 check 8192 `${SSH} -Q cipher | grep 256`
-check 8192 rijndael-cbc@lysator.liu.se chacha20-poly1305@openssh.com
+check 8192 chacha20-poly1305@openssh.com

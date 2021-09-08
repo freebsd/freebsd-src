@@ -62,21 +62,21 @@ dump_logininfo(struct logininfo *li, char *descname)
 {
 	/* yes I know how nasty this is */
 	printf("struct logininfo %s = {\n\t"
-	       "progname\t'%s'\n\ttype\t\t%d\n\t"
-	       "pid\t\t%d\n\tuid\t\t%d\n\t"
-	       "line\t\t'%s'\n\tusername\t'%s'\n\t"
-	       "hostname\t'%s'\n\texit\t\t%d\n\ttermination\t%d\n\t"
-	       "tv_sec\t%d\n\ttv_usec\t%d\n\t"
-	       "struct login_netinfo hostaddr {\n\t\t"
-	       "struct sockaddr sa {\n"
-	       "\t\t\tfamily\t%d\n\t\t}\n"
-	       "\t}\n"
-	       "}\n",
-	       descname, li->progname, li->type,
-	       li->pid, li->uid, li->line,
-	       li->username, li->hostname, li->exit,
-	       li->termination, li->tv_sec, li->tv_usec,
-	       li->hostaddr.sa.sa_family);
+	    "progname\t'%s'\n\ttype\t\t%d\n\t"
+	    "pid\t\t%d\n\tuid\t\t%d\n\t"
+	    "line\t\t'%s'\n\tusername\t'%s'\n\t"
+	    "hostname\t'%s'\n\texit\t\t%d\n\ttermination\t%d\n\t"
+	    "tv_sec\t%d\n\ttv_usec\t%d\n\t"
+	    "struct login_netinfo hostaddr {\n\t\t"
+	    "struct sockaddr sa {\n"
+	    "\t\t\tfamily\t%d\n\t\t}\n"
+	    "\t}\n"
+	    "}\n",
+	    descname, li->progname, li->type,
+	    li->pid, li->uid, li->line,
+	    li->username, li->hostname, li->exit,
+	    li->termination, li->tv_sec, li->tv_usec,
+	    li->hostaddr.sa.sa_family);
 }
 
 
@@ -118,7 +118,7 @@ testAPI()
 		/* NOTE: this is messy, but typically a program wouldn't have to set
 		 *  any of this, a sockaddr_in* would be already prepared */
 		memcpy((void *)&(sa_in4.sin_addr), (void *)&(he->h_addr_list[0][0]),
-		       sizeof(struct in_addr));
+		    sizeof(struct in_addr));
 		login_set_addr(li1, (struct sockaddr *) &sa_in4, sizeof(sa_in4));
 		strlcpy(li1->hostname, "localhost", sizeof(li1->hostname));
 	}
@@ -145,8 +145,8 @@ testAPI()
 	t1 = login_get_lastlog_time(getuid());
 	strlcpy(s_t1, ctime(&t1), sizeof(s_t1));
 	printf("Before logging in:\n\tcurrent time is %d - %s\t"
-	       "lastlog time is %d - %s\n",
-	       (int)t0, s_t0, (int)t1, s_t1);
+	    "lastlog time is %d - %s\n",
+	    (int)t0, s_t0, (int)t1, s_t1);
 #endif
 
 	printf("Performing a login on line %s ", stripline);
@@ -172,10 +172,10 @@ testAPI()
 	printf("at %d - %s", (int)logouttime, s_logouttime);
 #endif
 	printf("\nThe root login shown above should be gone.\n"
-	       "If the root login hasn't gone, but another user on the same\n"
-	       "pty has, this is OK - we're hacking it here, and there\n"
-	       "shouldn't be two users on one pty in reality...\n"
-	       "-- ('who' output follows)\n");
+	    "If the root login hasn't gone, but another user on the same\n"
+	    "pty has, this is OK - we're hacking it here, and there\n"
+	    "shouldn't be two users on one pty in reality...\n"
+	    "-- ('who' output follows)\n");
 	login_logout(li1);
 
 	system(cmdstring);
@@ -187,24 +187,24 @@ testAPI()
 	printf("After logging in, lastlog time is %d - %s\n", (int)t2, s_t2);
 	if (t1 == t2)
 		printf("The lastlog times before and after logging in are the "
-		       "same.\nThis indicates that lastlog is ** NOT WORKING "
-		       "CORRECTLY **\n");
+		    "same.\nThis indicates that lastlog is ** NOT WORKING "
+		    "CORRECTLY **\n");
 	else if (t0 != t2)
 		/* We can be off by a second or so, even when recording works fine.
 		 * I'm not 100% sure why, but it's true. */
 		printf("** The login time and the lastlog time differ.\n"
-		       "** This indicates that lastlog is either recording the "
-		       "wrong time,\n** or retrieving the wrong entry.\n"
-		       "If it's off by less than %d second(s) "
-		       "run the test again.\n", PAUSE_BEFORE_LOGOUT);
+		    "** This indicates that lastlog is either recording the "
+		    "wrong time,\n** or retrieving the wrong entry.\n"
+		    "If it's off by less than %d second(s) "
+		    "run the test again.\n", PAUSE_BEFORE_LOGOUT);
 	else
 		printf("lastlog agrees with the login time. This is a good thing.\n");
 
 #endif
 
 	printf("--\nThe output of 'last' shown next should have "
-	       "an entry for root \n  on %s for the time shown above:\n--\n",
-	       stripline);
+	    "an entry for root \n  on %s for the time shown above:\n--\n",
+	    stripline);
 	snprintf(cmdstring, sizeof(cmdstring), "last | grep '%s ' | head -3",
 		 stripline);
 	system(cmdstring);

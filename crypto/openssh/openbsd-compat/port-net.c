@@ -26,6 +26,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <stdarg.h>
+#include <stdio.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -67,7 +68,7 @@ sys_set_rdomain(int fd, const char *name)
 	if (setsockopt(fd, SOL_SOCKET, SO_BINDTODEVICE,
 	    name, strlen(name)) == -1) {
 		error("%s: setsockopt(%d, SO_BINDTODEVICE, %s): %s",
-		      __func__, fd, name, strerror(errno));
+		    __func__, fd, name, strerror(errno));
 		return -1;
 	}
 	return 0;
@@ -137,6 +138,7 @@ sys_set_process_rdomain(const char *name)
 
 #if defined(SSH_TUN_LINUX)
 #include <linux/if_tun.h>
+#define TUN_CTRL_DEV "/dev/net/tun"
 
 int
 sys_tun_open(int tun, int mode, char **ifname)
@@ -147,10 +149,9 @@ sys_tun_open(int tun, int mode, char **ifname)
 
 	if (ifname != NULL)
 		*ifname = NULL;
-
-	if ((fd = open("/dev/net/tun", O_RDWR)) == -1) {
-		debug("%s: failed to open tunnel control interface: %s",
-		    __func__, strerror(errno));
+	if ((fd = open(TUN_CTRL_DEV, O_RDWR)) == -1) {
+		debug("%s: failed to open tunnel control device \"%s\": %s",
+		    __func__, TUN_CTRL_DEV, strerror(errno));
 		return (-1);
 	}
 
@@ -209,8 +210,11 @@ sys_tun_open(int tun, int mode, char **ifname)
 {
 	struct ifreq ifr;
 	char name[100];
-	int fd = -1, sock, flag;
+	int fd = -1, sock;
 	const char *tunbase = "tun";
+#if defined(TUNSIFHEAD) && !defined(SSH_TUN_PREPEND_AF)
+	int flag;
+#endif
 
 	if (ifname != NULL)
 		*ifname = NULL;
@@ -247,8 +251,8 @@ sys_tun_open(int tun, int mode, char **ifname)
 	}
 
 	/* Turn on tunnel headers */
-	flag = 1;
 #if defined(TUNSIFHEAD) && !defined(SSH_TUN_PREPEND_AF)
+	flag = 1;
 	if (mode != SSH_TUNMODE_ETHERNET &&
 	    ioctl(fd, TUNSIFHEAD, &flag) == -1) {
 		debug("%s: ioctl(%d, TUNSIFHEAD, 1): %s", __func__, fd,

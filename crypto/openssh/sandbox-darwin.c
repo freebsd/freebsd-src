@@ -30,7 +30,7 @@
 #include <unistd.h>
 
 #include "log.h"
-#include "sandbox.h"
+#include "ssh-sandbox.h"
 #include "monitor.h"
 #include "xmalloc.h"
 

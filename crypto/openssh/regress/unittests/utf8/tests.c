@@ -9,7 +9,9 @@
 #include "includes.h"
 
 #include <locale.h>
+#include <stdarg.h>
 #include <string.h>
+#include <stdio.h>
 
 #include "../test_helper/test_helper.h"
 

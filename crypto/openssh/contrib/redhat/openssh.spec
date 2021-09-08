@@ -1,78 +1,78 @@
-%define ver 7.9p1
-%define rel 1%{?dist}
+%global ver 8.7p1
+%global rel 1%{?dist}
 
 # OpenSSH privilege separation requires a user & group ID
-%define sshd_uid    74
-%define sshd_gid    74
+%global sshd_uid    74
+%global sshd_gid    74
 
 # Version of ssh-askpass
-%define aversion 1.2.4.1
+%global aversion 1.2.4.1
 
 # Do we want to disable building of x11-askpass? (1=yes 0=no)
-%define no_x11_askpass 0
+%global no_x11_askpass 0
 
 # Do we want to disable building of gnome-askpass? (1=yes 0=no)
-%define no_gnome_askpass 0
+%global no_gnome_askpass 0
 
 # Do we want to link against a static libcrypto? (1=yes 0=no)
-%define static_libcrypto 0
+%global static_libcrypto 0
 
 # Do we want smartcard support (1=yes 0=no)
-%define scard 0
+%global scard 0
 
 # Use GTK2 instead of GNOME in gnome-ssh-askpass
-%define gtk2 1
+%global gtk2 1
 
 # Use build6x options for older RHEL builds
 # RHEL 7 not yet supported
 %if 0%{?rhel} > 6
-%define build6x 0
+%global build6x 0
 %else
-%define build6x 1
+%global build6x 1
 %endif
 
 %if 0%{?fedora} >= 26
-%define compat_openssl 1
+%global compat_openssl 1
 %else
-%define compat_openssl 0
+%global compat_openssl 0
 %endif
 
 # Do we want kerberos5 support (1=yes 0=no)
-%define kerberos5 1
+%global kerberos5 1
 
 # Reserve options to override askpass settings with:
 # rpm -ba|--rebuild --define 'skip_xxx 1'
-%{?skip_x11_askpass:%define no_x11_askpass 1}
-%{?skip_gnome_askpass:%define no_gnome_askpass 1}
+%{?skip_x11_askpass:%global no_x11_askpass 1}
+%{?skip_gnome_askpass:%global no_gnome_askpass 1}
 
 # Add option to build without GTK2 for older platforms with only GTK+.
 # RedHat <= 7.2 and Red Hat Advanced Server 2.1 are examples.
 # rpm -ba|--rebuild --define 'no_gtk2 1'
-%{?no_gtk2:%define gtk2 0}
+%{?no_gtk2:%global gtk2 0}
 
 # Is this a build for RHL 6.x or earlier?
-%{?build_6x:%define build6x 1}
+%{?build_6x:%global build6x 1}
 
 # If this is RHL 6.x, the default configuration has sysconfdir in /usr/etc.
 %if %{build6x}
-%define _sysconfdir /etc
+%global _sysconfdir /etc
 %endif
 
 # Options for static OpenSSL link:
 # rpm -ba|--rebuild --define "static_openssl 1"
-%{?static_openssl:%define static_libcrypto 1}
+%{?static_openssl:%global static_libcrypto 1}
 
 # Options for Smartcard support: (needs libsectok and openssl-engine)
 # rpm -ba|--rebuild --define "smartcard 1"
-%{?smartcard:%define scard 1}
+%{?smartcard:%global scard 1}
 
 # Is this a build for the rescue CD (without PAM, with MD5)? (1=yes 0=no)
-%define rescue 0
-%{?build_rescue:%define rescue 1}
+%global rescue 0
+%{?build_rescue:%global rescue 1}
 
 # Turn off some stuff for resuce builds
 %if %{rescue}
-%define kerberos5 0
+%global kerberos5 0
 %endif
 
 Summary: The OpenSSH implementation of SSH protocol version 2.
@@ -363,8 +363,10 @@ fi
 %attr(0755,root,root) %dir %{_libexecdir}/openssh
 %attr(4711,root,root) %{_libexecdir}/openssh/ssh-keysign
 %attr(0755,root,root) %{_libexecdir}/openssh/ssh-pkcs11-helper
+%attr(0755,root,root) %{_libexecdir}/openssh/ssh-sk-helper
 %attr(0644,root,root) %{_mandir}/man8/ssh-keysign.8*
 %attr(0644,root,root) %{_mandir}/man8/ssh-pkcs11-helper.8*
+%attr(0644,root,root) %{_mandir}/man8/ssh-sk-helper.8*
 %endif
 %if %{scard}
 %attr(0755,root,root) %dir %{_datadir}/openssh
@@ -422,6 +424,9 @@ fi
 %endif
 
 %changelog
+* Mon Jul 20 2020 Damien Miller <djm@mindrto.org>
+- Add ssh-sk-helper and corresponding manual page.
+
 * Sat Feb 10 2018 Darren Tucker <dtucker@dtucker.net>
 - Update openssl-devel dependency to match current requirements.
 - Handle Fedora >=6 openssl 1.0 compat libs.

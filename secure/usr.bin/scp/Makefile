@@ -3,7 +3,7 @@
 .include <src.opts.mk>
 
 PROG=	scp
-SRCS=	scp.c
+SRCS=	scp.c sftp-common.c sftp-client.c sftp-glob.c progressmeter.c
 PACKAGE=	ssh
 CFLAGS+=-I${SSHDIR} -include ssh_namespace.h
 SRCS+=	ssh_namespace.h

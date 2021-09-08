@@ -140,7 +140,7 @@ window space and may be sent even if no window space is available.
 NB. due to certain broken SSH implementations aborting upon receipt
 of this message (in contravention of RFC4254 section 5.4), this
 message is only sent to OpenSSH peers (identified by banner).
-Other SSH implementations may be whitelisted to receive this message
+Other SSH implementations may be listed to receive this message
 upon request.
 
 2.2. connection: disallow additional sessions extension
@@ -169,7 +169,7 @@ Note that this is not a general defence against compromised clients
 NB. due to certain broken SSH implementations aborting upon receipt
 of this message, the no-more-sessions request is only sent to OpenSSH
 servers (identified by banner). Other SSH implementations may be
-whitelisted to receive this message upon request.
+listed to receive this message upon request.
 
 2.3. connection: Tunnel forward extension "tun@openssh.com"
 
@@ -194,7 +194,7 @@ layer 2 frames or layer 3 packets. It may take one of the following values:
 	SSH_TUNMODE_ETHERNET     2		/* layer 2 frames */
 
 The "tunnel unit number" specifies the remote interface number, or may
-be 0x7fffffff to allow the server to automatically chose an interface. A
+be 0x7fffffff to allow the server to automatically choose an interface. A
 server that is not willing to open a client-specified unit should refuse
 the request with a SSH_MSG_CHANNEL_OPEN_FAILURE error. On successful
 open, the server should reply with SSH_MSG_CHANNEL_OPEN_SUCCESS.
@@ -292,13 +292,14 @@ has completed.
 
 	byte		SSH_MSG_GLOBAL_REQUEST
 	string		"hostkeys-00@openssh.com"
+	char		0 /* want-reply */
 	string[]	hostkeys
 
 Upon receiving this message, a client should check which of the
 supplied host keys are present in known_hosts.
 
 Note that the server may send key types that the client does not
-support. The client should disgregard such keys if they are received.
+support. The client should disregard such keys if they are received.
 
 If the client identifies any keys that are not present for the host,
 it should send a "hostkeys-prove@openssh.com" message to request the
@@ -465,6 +466,84 @@ respond with a SSH_FXP_STATUS message.
 This extension is advertised in the SSH_FXP_VERSION hello with version
 "1".
 
+3.7. sftp: Extension request "lsetstat@openssh.com"
+
+This request is like the "setstat" command, but sets file attributes on
+symlinks.  It is implemented as a SSH_FXP_EXTENDED request with the
+following format:
+
+	uint32		id
+	string		"lsetstat@openssh.com"
+	string		path
+	ATTRS		attrs
+
+See the "setstat" command for more details.
+
+This extension is advertised in the SSH_FXP_VERSION hello with version
+"1".
+
+3.8. sftp: Extension request "limits@openssh.com"
+
+This request is used to determine various limits the server might impose.
+Clients should not attempt to exceed these limits as the server might sever
+the connection immediately.
+
+	uint32		id
+	string		"limits@openssh.com"
+
+The server will respond with a SSH_FXP_EXTENDED_REPLY reply:
+
+	uint32		id
+	uint64		max-packet-length
+	uint64		max-read-length
+	uint64		max-write-length
+	uint64		max-open-handles
+
+The 'max-packet-length' applies to the total number of bytes in a
+single SFTP packet.  Servers SHOULD set this at least to 34000.
+
+The 'max-read-length' is the largest length in a SSH_FXP_READ packet.
+Even if the client requests a larger size, servers will usually respond
+with a shorter SSH_FXP_DATA packet.  Servers SHOULD set this at least to
+32768.
+
+The 'max-write-length' is the largest length in a SSH_FXP_WRITE packet
+the server will accept.  Servers SHOULD set this at least to 32768.
+
+The 'max-open-handles' is the maximum number of active handles that the
+server allows (e.g. handles created by SSH_FXP_OPEN and SSH_FXP_OPENDIR
+packets).  Servers MAY count internal file handles against this limit
+(e.g. system logging or stdout/stderr), so clients SHOULD NOT expect to
+open this many handles in practice.
+
+If the server doesn't enforce a specific limit, then the field may be
+set to 0.  This implies the server relies on the OS to enforce limits
+(e.g. available memory or file handles), and such limits might be
+dynamic.  The client SHOULD take care to not try to exceed reasonable
+limits.
+
+This extension is advertised in the SSH_FXP_VERSION hello with version
+"1".
+
+3.9. sftp: Extension request "expand-path@openssh.com"
+
+This request supports canonicalisation of relative paths and
+those that need tilde-expansion, i.e. "~", "~/..." and "~user/..."
+These paths are expanded using shell-like rules and the resultant
+path is canonicalised similarly to SSH2_FXP_REALPATH.
+
+It is implemented as a SSH_FXP_EXTENDED request with the following
+format:
+
+	uint32		id
+	string		"expand-path@openssh.com"
+	string		path
+
+Its reply is the same format as that of SSH2_FXP_REALPATH.
+
+This extension is advertised in the SSH_FXP_VERSION hello with version
+"1".
+
 4. Miscellaneous changes
 
 4.1 Public key format
@@ -496,4 +575,4 @@ OpenSSH's connection multiplexing uses messages as described in
 PROTOCOL.mux over a Unix domain socket for communications between a
 master instance and later clients.
 
-$OpenBSD: PROTOCOL,v 1.36 2018/10/02 12:51:58 djm Exp $
+$OpenBSD: PROTOCOL,v 1.42 2021/08/09 23:47:44 djm Exp $

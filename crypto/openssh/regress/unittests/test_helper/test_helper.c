@@ -1,4 +1,4 @@
-/*	$OpenBSD: test_helper.c,v 1.8 2018/02/08 08:46:20 djm Exp $	*/
+/*	$OpenBSD: test_helper.c,v 1.12 2019/08/02 01:41:24 djm Exp $	*/
 /*
  * Copyright (c) 2011 Damien Miller <djm@mindrot.org>
  *
@@ -23,6 +23,7 @@
 #include <sys/param.h>
 #include <sys/uio.h>
 
+#include <stdarg.h>
 #include <fcntl.h>
 #include <stdio.h>
 #ifdef HAVE_STDINT_H
@@ -34,12 +35,16 @@
 #include <unistd.h>
 #include <signal.h>
 
+#ifdef WITH_OPENSSL
 #include <openssl/bn.h>
+#include <openssl/err.h>
+#endif
 
 #if defined(HAVE_STRNVIS) && defined(HAVE_VIS_H) && !defined(BROKEN_STRNVIS)
 # include <vis.h>
 #endif
 
+#include "entropy.h"
 #include "test_helper.h"
 #include "atomicio.h"
 
@@ -115,11 +120,18 @@ static test_onerror_func_t *test_onerror = NULL;
 static void *onerror_ctx = NULL;
 static const char *data_dir = NULL;
 static char subtest_info[512];
+static int fast = 0;
+static int slow = 0;
 
 int
 main(int argc, char **argv)
 {
 	int ch;
+
+	seed_rng();
+#ifdef WITH_OPENSSL
+	ERR_load_CRYPTO_strings();
+#endif
 
 	/* Handle systems without __progname */
 	if (__progname == NULL) {
@@ -134,8 +146,14 @@ main(int argc, char **argv)
 		}
 	}
 
-	while ((ch = getopt(argc, argv, "vqd:")) != -1) {
+	while ((ch = getopt(argc, argv, "Ffvqd:")) != -1) {
 		switch (ch) {
+		case 'F':
+			slow = 1;
+			break;
+		case 'f':
+			fast = 1;
+			break;
 		case 'd':
 			data_dir = optarg;
 			break;
@@ -167,15 +185,27 @@ main(int argc, char **argv)
 }
 
 int
-test_is_verbose()
+test_is_verbose(void)
 {
 	return verbose_mode;
 }
 
 int
-test_is_quiet()
+test_is_quiet(void)
 {
 	return quiet_mode;
+}
+
+int
+test_is_fast(void)
+{
+	return fast;
+}
+
+int
+test_is_slow(void)
+{
+	return slow;
 }
 
 const char *
@@ -262,6 +292,7 @@ test_subtest_info(const char *fmt, ...)
 void
 ssl_err_check(const char *file, int line)
 {
+#ifdef WITH_OPENSSL
 	long openssl_error = ERR_get_error();
 
 	if (openssl_error == 0)
@@ -269,6 +300,10 @@ ssl_err_check(const char *file, int line)
 
 	fprintf(stderr, "\n%s:%d: uncaught OpenSSL error: %s",
 	    file, line, ERR_error_string(openssl_error, NULL));
+#else /* WITH_OPENSSL */
+	fprintf(stderr, "\n%s:%d: uncaught OpenSSL error ",
+	    file, line);
+#endif /* WITH_OPENSSL */
 	abort();
 }
 
@@ -313,6 +348,7 @@ test_header(const char *file, int line, const char *a1, const char *a2,
 	    a2 != NULL ? ", " : "", a2 != NULL ? a2 : "");
 }
 
+#ifdef WITH_OPENSSL
 void
 assert_bignum(const char *file, int line, const char *a1, const char *a2,
     const BIGNUM *aa1, const BIGNUM *aa2, enum test_predicate pred)
@@ -325,6 +361,7 @@ assert_bignum(const char *file, int line, const char *a1, const char *a2,
 	fprintf(stderr, "%12s = 0x%s\n", a2, BN_bn2hex(aa2));
 	test_die();
 }
+#endif
 
 void
 assert_string(const char *file, int line, const char *a1, const char *a2,
@@ -366,6 +403,8 @@ assert_mem(const char *file, int line, const char *a1, const char *a2,
     const void *aa1, const void *aa2, size_t l, enum test_predicate pred)
 {
 	int r;
+	char *aa1_tohex = NULL;
+	char *aa2_tohex = NULL;
 
 	if (l == 0)
 		return;
@@ -376,8 +415,12 @@ assert_mem(const char *file, int line, const char *a1, const char *a2,
 	r = memcmp(aa1, aa2, l);
 	TEST_CHECK_INT(r, pred);
 	test_header(file, line, a1, a2, "STRING", pred);
-	fprintf(stderr, "%12s = %s (len %zu)\n", a1, tohex(aa1, MIN(l, 256)), l);
-	fprintf(stderr, "%12s = %s (len %zu)\n", a2, tohex(aa2, MIN(l, 256)), l);
+	aa1_tohex = tohex(aa1, MIN(l, 256));
+	aa2_tohex = tohex(aa2, MIN(l, 256));
+	fprintf(stderr, "%12s = %s (len %zu)\n", a1, aa1_tohex, l);
+	fprintf(stderr, "%12s = %s (len %zu)\n", a2, aa2_tohex, l);
+	free(aa1_tohex);
+	free(aa2_tohex);
 	test_die();
 }
 
@@ -402,6 +445,7 @@ assert_mem_filled(const char *file, int line, const char *a1,
 	size_t where = -1;
 	int r;
 	char tmp[64];
+	char *aa1_tohex = NULL;
 
 	if (l == 0)
 		return;
@@ -411,8 +455,10 @@ assert_mem_filled(const char *file, int line, const char *a1,
 	r = memvalcmp(aa1, v, l, &where);
 	TEST_CHECK_INT(r, pred);
 	test_header(file, line, a1, NULL, "MEM_ZERO", pred);
+	aa1_tohex = tohex(aa1, MIN(l, 20));
 	fprintf(stderr, "%20s = %s%s (len %zu)\n", a1,
-	    tohex(aa1, MIN(l, 20)), l > 20 ? "..." : "", l);
+	    aa1_tohex, l > 20 ? "..." : "", l);
+	free(aa1_tohex);
 	snprintf(tmp, sizeof(tmp), "(%s)[%zu]", a1, where);
 	fprintf(stderr, "%20s = 0x%02x (expected 0x%02x)\n", tmp,
 	    ((u_char *)aa1)[where], v);

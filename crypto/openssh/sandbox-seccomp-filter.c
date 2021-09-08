@@ -42,6 +42,8 @@
 #include <sys/types.h>
 #include <sys/resource.h>
 #include <sys/prctl.h>
+#include <sys/mman.h>
+#include <sys/syscall.h>
 
 #include <linux/net.h>
 #include <linux/audit.h>
@@ -95,16 +97,34 @@
 	BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_ALLOW)
 #define SC_ALLOW_ARG(_nr, _arg_nr, _arg_val) \
 	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, (_nr), 0, 6), \
-	/* load and test first syscall argument, low word */ \
+	/* load and test syscall argument, low word */ \
 	BPF_STMT(BPF_LD+BPF_W+BPF_ABS, \
 	    offsetof(struct seccomp_data, args[(_arg_nr)]) + ARG_LO_OFFSET), \
 	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, \
 	    ((_arg_val) & 0xFFFFFFFF), 0, 3), \
-	/* load and test first syscall argument, high word */ \
+	/* load and test syscall argument, high word */ \
 	BPF_STMT(BPF_LD+BPF_W+BPF_ABS, \
 	    offsetof(struct seccomp_data, args[(_arg_nr)]) + ARG_HI_OFFSET), \
 	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, \
 	    (((uint32_t)((uint64_t)(_arg_val) >> 32)) & 0xFFFFFFFF), 0, 1), \
+	BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_ALLOW), \
+	/* reload syscall number; all rules expect it in accumulator */ \
+	BPF_STMT(BPF_LD+BPF_W+BPF_ABS, \
+		offsetof(struct seccomp_data, nr))
+/* Allow if syscall argument contains only values in mask */
+#define SC_ALLOW_ARG_MASK(_nr, _arg_nr, _arg_mask) \
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, (_nr), 0, 8), \
+	/* load, mask and test syscall argument, low word */ \
+	BPF_STMT(BPF_LD+BPF_W+BPF_ABS, \
+	    offsetof(struct seccomp_data, args[(_arg_nr)]) + ARG_LO_OFFSET), \
+	BPF_STMT(BPF_ALU+BPF_AND+BPF_K, ~((_arg_mask) & 0xFFFFFFFF)), \
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, 0, 0, 4), \
+	/* load, mask and test syscall argument, high word */ \
+	BPF_STMT(BPF_LD+BPF_W+BPF_ABS, \
+	    offsetof(struct seccomp_data, args[(_arg_nr)]) + ARG_HI_OFFSET), \
+	BPF_STMT(BPF_ALU+BPF_AND+BPF_K, \
+	    ~(((uint32_t)((uint64_t)(_arg_mask) >> 32)) & 0xFFFFFFFF)), \
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, 0, 0, 1), \
 	BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_ALLOW), \
 	/* reload syscall number; all rules expect it in accumulator */ \
 	BPF_STMT(BPF_LD+BPF_W+BPF_ABS, \
@@ -134,6 +154,9 @@ static const struct sock_filter preauth_insns[] = {
 #ifdef __NR_fstat64
 	SC_DENY(__NR_fstat64, EACCES),
 #endif
+#ifdef __NR_fstatat64
+	SC_DENY(__NR_fstatat64, EACCES),
+#endif
 #ifdef __NR_open
 	SC_DENY(__NR_open, EACCES),
 #endif
@@ -149,6 +172,21 @@ static const struct sock_filter preauth_insns[] = {
 #ifdef __NR_stat64
 	SC_DENY(__NR_stat64, EACCES),
 #endif
+#ifdef __NR_shmget
+	SC_DENY(__NR_shmget, EACCES),
+#endif
+#ifdef __NR_shmat
+	SC_DENY(__NR_shmat, EACCES),
+#endif
+#ifdef __NR_shmdt
+	SC_DENY(__NR_shmdt, EACCES),
+#endif
+#ifdef __NR_ipc
+	SC_DENY(__NR_ipc, EACCES),
+#endif
+#ifdef __NR_statx
+	SC_DENY(__NR_statx, EACCES),
+#endif
 
 	/* Syscalls to permit */
 #ifdef __NR_brk
@@ -156,6 +194,9 @@ static const struct sock_filter preauth_insns[] = {
 #endif
 #ifdef __NR_clock_gettime
 	SC_ALLOW(__NR_clock_gettime),
+#endif
+#ifdef __NR_clock_gettime64
+	SC_ALLOW(__NR_clock_gettime64),
 #endif
 #ifdef __NR_close
 	SC_ALLOW(__NR_close),
@@ -168,6 +209,9 @@ static const struct sock_filter preauth_insns[] = {
 #endif
 #ifdef __NR_futex
 	SC_ALLOW(__NR_futex),
+#endif
+#ifdef __NR_futex_time64
+	SC_ALLOW(__NR_futex_time64),
 #endif
 #ifdef __NR_geteuid
 	SC_ALLOW(__NR_geteuid),
@@ -197,10 +241,13 @@ static const struct sock_filter preauth_insns[] = {
 	SC_ALLOW(__NR_madvise),
 #endif
 #ifdef __NR_mmap
-	SC_ALLOW(__NR_mmap),
+	SC_ALLOW_ARG_MASK(__NR_mmap, 2, PROT_READ|PROT_WRITE|PROT_NONE),
 #endif
 #ifdef __NR_mmap2
-	SC_ALLOW(__NR_mmap2),
+	SC_ALLOW_ARG_MASK(__NR_mmap2, 2, PROT_READ|PROT_WRITE|PROT_NONE),
+#endif
+#ifdef __NR_mprotect
+	SC_ALLOW_ARG_MASK(__NR_mprotect, 2, PROT_READ|PROT_WRITE|PROT_NONE),
 #endif
 #ifdef __NR_mremap
 	SC_ALLOW(__NR_mremap),
@@ -211,6 +258,15 @@ static const struct sock_filter preauth_insns[] = {
 #ifdef __NR_nanosleep
 	SC_ALLOW(__NR_nanosleep),
 #endif
+#ifdef __NR_clock_nanosleep
+	SC_ALLOW(__NR_clock_nanosleep),
+#endif
+#ifdef __NR_clock_nanosleep_time64
+	SC_ALLOW(__NR_clock_nanosleep_time64),
+#endif
+#ifdef __NR_clock_gettime64
+	SC_ALLOW(__NR_clock_gettime64),
+#endif
 #ifdef __NR__newselect
 	SC_ALLOW(__NR__newselect),
 #endif
@@ -219,6 +275,9 @@ static const struct sock_filter preauth_insns[] = {
 #endif
 #ifdef __NR_pselect6
 	SC_ALLOW(__NR_pselect6),
+#endif
+#ifdef __NR_pselect6_time64
+	SC_ALLOW(__NR_pselect6_time64),
 #endif
 #ifdef __NR_read
 	SC_ALLOW(__NR_read),
@@ -250,6 +309,9 @@ static const struct sock_filter preauth_insns[] = {
 	SC_ALLOW_ARG(__NR_ioctl, 1, Z90STAT_STATUS_MASK),
 	SC_ALLOW_ARG(__NR_ioctl, 1, ICARSAMODEXPO),
 	SC_ALLOW_ARG(__NR_ioctl, 1, ICARSACRT),
+	SC_ALLOW_ARG(__NR_ioctl, 1, ZSECSENDCPRB),
+	/* Allow ioctls for EP11 crypto card on s390 */
+	SC_ALLOW_ARG(__NR_ioctl, 1, ZSENDEP11CPRB),
 #endif
 #if defined(__x86_64__) && defined(__ILP32__) && defined(__X32_SYSCALL_BIT)
 	/*
@@ -322,7 +384,7 @@ ssh_sandbox_child_debugging(void)
 		fatal("%s: sigaction(SIGSYS): %s", __func__, strerror(errno));
 	if (sigprocmask(SIG_UNBLOCK, &mask, NULL) == -1)
 		fatal("%s: sigprocmask(SIGSYS): %s",
-		      __func__, strerror(errno));
+		    __func__, strerror(errno));
 }
 #endif /* SANDBOX_SECCOMP_FILTER_DEBUG */
 
@@ -351,13 +413,13 @@ ssh_sandbox_child(struct ssh_sandbox *box)
 	debug3("%s: setting PR_SET_NO_NEW_PRIVS", __func__);
 	if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) == -1) {
 		debug("%s: prctl(PR_SET_NO_NEW_PRIVS): %s",
-		      __func__, strerror(errno));
+		    __func__, strerror(errno));
 		nnp_failed = 1;
 	}
 	debug3("%s: attaching seccomp filter program", __func__);
 	if (prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &preauth_program) == -1)
 		debug("%s: prctl(PR_SET_SECCOMP): %s",
-		      __func__, strerror(errno));
+		    __func__, strerror(errno));
 	else if (nnp_failed)
 		fatal("%s: SECCOMP_MODE_FILTER activated but "
 		    "PR_SET_NO_NEW_PRIVS failed", __func__);

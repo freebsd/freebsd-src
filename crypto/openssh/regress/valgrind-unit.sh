@@ -19,4 +19,6 @@ if [ "x$VALGRIND_PATH" != "x" ]; then
 	VG_PATH="$VALGRIND_PATH"
 fi
 
+mkdir -p "$OBJ/valgrind-out"
+
 exec $VG_PATH $VG_OPTS $UNIT_BINARY $UNIT_ARGS

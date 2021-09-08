@@ -32,7 +32,7 @@
 #define	_COMPAT_POLL_H_
 
 typedef struct pollfd {
-	int 	fd;
+	int	fd;
 	short	events;
 	short	revents;
 } pollfd_t;

@@ -9,7 +9,7 @@ Public domain.
 #ifdef WITH_XMSS
 
 #ifdef HAVE_STDINT_H
-#include <stdint.h>
+# include <stdint.h>
 #endif
 #include "xmss_hash_address.h"	/* prototypes */
 

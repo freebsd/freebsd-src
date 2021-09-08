@@ -37,20 +37,20 @@ setresgid(gid_t rgid, gid_t egid, gid_t sgid)
 #if defined(HAVE_SETREGID) && !defined(BROKEN_SETREGID)
 	if (setregid(rgid, egid) < 0) {
 		saved_errno = errno;
-		error("setregid %u: %.100s", rgid, strerror(errno));
+		error("setregid %lu: %.100s", (u_long)rgid, strerror(errno));
 		errno = saved_errno;
 		ret = -1;
 	}
 #else
 	if (setegid(egid) < 0) {
 		saved_errno = errno;
-		error("setegid %u: %.100s", (u_int)egid, strerror(errno));
+		error("setegid %lu: %.100s", (u_long)egid, strerror(errno));
 		errno = saved_errno;
 		ret = -1;
 	}
 	if (setgid(rgid) < 0) {
 		saved_errno = errno;
-		error("setgid %u: %.100s", rgid, strerror(errno));
+		error("setgid %lu: %.100s", (u_long)rgid, strerror(errno));
 		errno = saved_errno;
 		ret = -1;
 	}
@@ -72,7 +72,7 @@ setresuid(uid_t ruid, uid_t euid, uid_t suid)
 #if defined(HAVE_SETREUID) && !defined(BROKEN_SETREUID)
 	if (setreuid(ruid, euid) < 0) {
 		saved_errno = errno;
-		error("setreuid %u: %.100s", ruid, strerror(errno));
+		error("setreuid %lu: %.100s", (u_long)ruid, strerror(errno));
 		errno = saved_errno;
 		ret = -1;
 	}
@@ -81,14 +81,14 @@ setresuid(uid_t ruid, uid_t euid, uid_t suid)
 # ifndef SETEUID_BREAKS_SETUID
 	if (seteuid(euid) < 0) {
 		saved_errno = errno;
-		error("seteuid %u: %.100s", euid, strerror(errno));
+		error("seteuid %lu: %.100s", (u_long)euid, strerror(errno));
 		errno = saved_errno;
 		ret = -1;
 	}
 # endif
 	if (setuid(ruid) < 0) {
 		saved_errno = errno;
-		error("setuid %u: %.100s", ruid, strerror(errno));
+		error("setuid %lu: %.100s", (u_long)ruid, strerror(errno));
 		errno = saved_errno;
 		ret = -1;
 	}
