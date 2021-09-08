@@ -65,7 +65,6 @@ extern int nfsd_debuglevel;
 extern u_long sb_max_adj;
 extern int nfsrv_pnfsatime;
 extern int nfsrv_maxpnfsmirror;
-extern int nfs_maxcopyrange;
 extern uint32_t nfs_srvmaxio;
 
 static int	nfs_async = 0;
@@ -5506,7 +5505,6 @@ nfsrvd_copy_file_range(struct nfsrv_descript *nd, __unused int isdgram,
 	int cnt, error = 0, ret;
 	off_t inoff, outoff;
 	uint64_t len;
-	size_t xfer;
 	struct nfsstate inst, outst, *instp = &inst, *outstp = &outst;
 	struct nfslock inlo, outlo, *inlop = &inlo, *outlop = &outlo;
 	nfsquad_t clientid;
@@ -5681,21 +5679,10 @@ nfsrvd_copy_file_range(struct nfsrv_descript *nd, __unused int isdgram,
 			nd->nd_repstat = error;
 	}
 
-	/*
-	 * Do the actual copy to an upper limit of vfs.nfs.maxcopyrange.
-	 * This limit is applied to ensure that the RPC replies in a
-	 * reasonable time.
-	 */
-	if (len > nfs_maxcopyrange)
-		xfer = nfs_maxcopyrange;
-	else
-		xfer = len;
-	if (nd->nd_repstat == 0) {
+	if (nd->nd_repstat == 0)
 		nd->nd_repstat = vn_copy_file_range(vp, &inoff, tovp, &outoff,
-		    &xfer, 0, nd->nd_cred, nd->nd_cred, NULL);
-		if (nd->nd_repstat == 0)
-			len = xfer;
-	}
+		    &len, COPY_FILE_RANGE_TIMEO1SEC, nd->nd_cred, nd->nd_cred,
+		    NULL);
 
 	/* Unlock the ranges. */
 	if (rl_rcookie != NULL)
