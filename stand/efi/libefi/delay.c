@@ -33,5 +33,6 @@ __FBSDID("$FreeBSD$");
 void
 delay(int usecs)
 {
-	BS->Stall(usecs);
+	if (boot_services_active)
+		BS->Stall(usecs);
 }

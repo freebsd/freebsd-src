@@ -40,8 +40,12 @@ void
 efi_exit(EFI_STATUS exit_code)
 {
 
-	BS->FreePages(heap, EFI_SIZE_TO_PAGES(heapsize));
-	BS->Exit(IH, exit_code, 0, NULL);
+	if (boot_services_active) {
+		BS->FreePages(heap, EFI_SIZE_TO_PAGES(heapsize));
+		BS->Exit(IH, exit_code, 0, NULL);
+	} else {
+		RS->ResetSystem(EfiResetCold, EFI_SUCCESS, 0, NULL);
+	}
 }
 
 void
