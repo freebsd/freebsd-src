@@ -61,6 +61,12 @@ ORG=		0x0
 
 CFLAGS+=	-Wall
 LDFLAGS+=	-static ${LDFLAGS_ORG} -Wl,--gc-sections
+.if ${LINKER_TYPE} == "lld" && ${LINKER_VERSION} >= 130000
+# lld 13 and higher default to garbage collecting start/stop symbols,
+# completely ruining our linker sets. For now, work around it by
+# disabling this un-feature.
+LDFLAGS+=	-Wl,-z,nostart-stop-gc
+.endif
 
 # i386 standalone support library
 LIBI386=	${BOOTOBJ}/i386/libi386/libi386.a
