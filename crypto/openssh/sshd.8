@@ -33,14 +33,14 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: sshd.8,v 1.304 2018/07/22 12:16:59 dtucker Exp $
+.\" $OpenBSD: sshd.8,v 1.316 2021/07/30 14:28:13 jmc Exp $
 .\" $FreeBSD$
-.Dd $Mdocdate: July 22 2018 $
+.Dd $Mdocdate: July 30 2021 $
 .Dt SSHD 8
 .Os
 .Sh NAME
 .Nm sshd
-.Nd OpenSSH SSH daemon
+.Nd OpenSSH daemon
 .Sh SYNOPSIS
 .Nm sshd
 .Bk -words
@@ -59,8 +59,7 @@
 .Nm
 (OpenSSH Daemon) is the daemon program for
 .Xr ssh 1 .
-Together these programs replace rlogin and rsh,
-and provide secure encrypted communications between two untrusted hosts
+It provides secure encrypted communications between two untrusted hosts
 over an insecure network.
 .Pp
 .Nm
@@ -108,7 +107,7 @@ supplied in any order, either with multiple
 .Fl C
 options or as a comma-separated list.
 The keywords are
-.Dq addr,
+.Dq addr ,
 .Dq user ,
 .Dq host ,
 .Dq laddr ,
@@ -136,7 +135,9 @@ This allows easy monitoring of
 Debug mode.
 The server sends verbose debug output to standard error,
 and does not put itself in the background.
-The server also will not fork and will only process one connection.
+The server also will not
+.Xr fork 2
+and will only process one connection.
 This option is only intended for debugging for the server.
 Multiple
 .Fl d
@@ -254,16 +255,13 @@ Whenever a client connects, the daemon responds with its public
 host key.
 The client compares the
 host key against its own database to verify that it has not changed.
-Forward security is provided through a Diffie-Hellman key agreement.
+Forward secrecy is provided through a Diffie-Hellman key agreement.
 This key agreement results in a shared session key.
-The rest of the session is encrypted using a symmetric cipher, currently
-128-bit AES, Blowfish, 3DES, CAST128, Arcfour, 192-bit AES, or 256-bit AES.
+The rest of the session is encrypted using a symmetric cipher.
 The client selects the encryption algorithm
 to use from those offered by the server.
 Additionally, session integrity is provided
-through a cryptographic message authentication code
-(hmac-md5, hmac-sha1, umac-64, umac-128,
-hmac-sha2-256 or hmac-sha2-512).
+through a cryptographic message authentication code (MAC).
 .Pp
 Finally, the server and the client enter an authentication dialog.
 The client tries to authenticate itself using
@@ -432,25 +430,39 @@ comments).
 Public keys consist of the following space-separated fields:
 options, keytype, base64-encoded key, comment.
 The options field is optional.
-The keytype is
-.Dq ecdsa-sha2-nistp256 ,
-.Dq ecdsa-sha2-nistp384 ,
-.Dq ecdsa-sha2-nistp521 ,
-.Dq ssh-ed25519 ,
-.Dq ssh-dss
-or
-.Dq ssh-rsa ;
-the comment field is not used for anything (but may be convenient for the
+The supported key types are:
+.Pp
+.Bl -item -compact -offset indent
+.It
+sk-ecdsa-sha2-nistp256@openssh.com
+.It
+ecdsa-sha2-nistp256
+.It
+ecdsa-sha2-nistp384
+.It
+ecdsa-sha2-nistp521
+.It
+sk-ssh-ed25519@openssh.com
+.It
+ssh-ed25519
+.It
+ssh-dss
+.It
+ssh-rsa
+.El
+.Pp
+The comment field is not used for anything (but may be convenient for the
 user to identify the key).
 .Pp
 Note that lines in this file can be several hundred bytes long
 (because of the size of the public key encoding) up to a limit of
-8 kilobytes, which permits DSA keys up to 8 kilobits and RSA
-keys up to 16 kilobits.
+8 kilobytes, which permits RSA keys up to 16 kilobits.
 You don't want to type them in; instead, copy the
 .Pa id_dsa.pub ,
 .Pa id_ecdsa.pub ,
+.Pa id_ecdsa_sk.pub ,
 .Pa id_ed25519.pub ,
+.Pa id_ed25519_sk.pub ,
 or the
 .Pa id_rsa.pub
 file and edit it.
@@ -592,8 +604,8 @@ IPv6 addresses can be specified by enclosing the address in square brackets.
 Multiple
 .Cm permitopen
 options may be applied separated by commas.
-No pattern matching is performed on the specified hostnames,
-they must be literal domains or addresses.
+No pattern matching or name lookup is performed on the
+specified hostnames, they must be literal host names and/or addresses.
 A port specification of
 .Cm *
 matches any port.
@@ -616,6 +628,20 @@ option.
 Permits tty allocation previously disabled by the
 .Cm restrict
 option.
+.It Cm no-touch-required
+Do not require demonstration of user presence
+for signatures made using this key.
+This option only makes sense for the FIDO authenticator algorithms
+.Cm ecdsa-sk
+and
+.Cm ed25519-sk .
+.It Cm verify-required
+Require that signatures made using this key attest that they verified
+the user, e.g. via a PIN.
+This option only makes sense for the FIDO authenticator algorithms
+.Cm ecdsa-sk
+and
+.Cm ed25519-sk .
 .It Cm restrict
 Enable all restrictions, i.e. disable port, agent and X11 forwarding,
 as well as disabling PTY allocation
@@ -643,22 +669,25 @@ option.
 .Pp
 An example authorized_keys file:
 .Bd -literal -offset 3n
-# Comments allowed at start of line
-ssh-rsa AAAAB3Nza...LiPk== user@example.net
-from="*.sales.example.net,!pc.sales.example.net" ssh-rsa
-AAAAB2...19Q== john@example.net
-command="dump /home",no-pty,no-port-forwarding ssh-rsa
-AAAAC3...51R== example.net
-permitopen="192.0.2.1:80",permitopen="192.0.2.2:25" ssh-rsa
-AAAAB5...21S==
-permitlisten="localhost:8080",permitopen="localhost:22000" ssh-rsa
-AAAAB5...21S==
-tunnel="0",command="sh /etc/netstart tun0" ssh-rsa AAAA...==
-jane@example.net
-restrict,command="uptime" ssh-rsa AAAA1C8...32Tv==
-user@example.net
-restrict,pty,command="nethack" ssh-rsa AAAA1f8...IrrC5==
-user@example.net
+# Comments are allowed at start of line. Blank lines are allowed.
+# Plain key, no restrictions
+ssh-rsa ...
+# Forced command, disable PTY and all forwarding
+restrict,command="dump /home" ssh-rsa ...
+# Restriction of ssh -L forwarding destinations
+permitopen="192.0.2.1:80",permitopen="192.0.2.2:25" ssh-rsa ...
+# Restriction of ssh -R forwarding listeners
+permitlisten="localhost:8080",permitlisten="[::1]:22000" ssh-rsa ...
+# Configuration for tunnel forwarding
+tunnel="0",command="sh /etc/netstart tun0" ssh-rsa ...
+# Override of restriction to allow PTY allocation
+restrict,pty,command="nethack" ssh-rsa ...
+# Allow FIDO key without requiring touch
+no-touch-required sk-ecdsa-sha2-nistp256@openssh.com ...
+# Require user-verification (e.g. PIN or biometric) for FIDO key
+verify-required sk-ecdsa-sha2-nistp256@openssh.com ...
+# Trust CA key, allow touch-less FIDO if requested in certificate
+cert-authority,no-touch-required,principals="user_a" ssh-rsa ...
 .Ed
 .Sh SSH_KNOWN_HOSTS FILE FORMAT
 The
@@ -671,7 +700,7 @@ be prepared by the administrator (optional), and the per-user file is
 maintained automatically: whenever the user connects to an unknown host,
 its key is added to the per-user file.
 .Pp
-Each line in these files contains the following fields: markers (optional),
+Each line in these files contains the following fields: marker (optional),
 hostnames, keytype, base64-encoded key, comment.
 The fields are separated by spaces.
 .Pp

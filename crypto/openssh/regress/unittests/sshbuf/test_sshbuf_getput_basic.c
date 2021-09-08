@@ -1,4 +1,4 @@
-/* 	$OpenBSD: test_sshbuf_getput_basic.c,v 1.1 2014/04/30 05:32:00 djm Exp $ */
+/* 	$OpenBSD: test_sshbuf_getput_basic.c,v 1.2 2019/07/14 23:33:19 djm Exp $ */
 /*
  * Regress test for sshbuf.h buffer API
  *
@@ -479,6 +479,235 @@ sshbuf_getput_basic_tests(void)
 	ASSERT_INT_EQ(sshbuf_put_bignum2_bytes(p1, bn3, sizeof(bn3)), 0);
 	ASSERT_SIZE_T_EQ(sshbuf_len(p1), sizeof(bn_exp3));
 	ASSERT_MEM_EQ(sshbuf_ptr(p1), bn_exp3, sizeof(bn_exp3));
+	sshbuf_free(p1);
+	TEST_DONE();
+
+	TEST_START("sshbuf_peek_u64");
+	p1 = sshbuf_new();
+	ASSERT_PTR_NE(p1, NULL);
+	ASSERT_INT_EQ(sshbuf_put(p1, x, sizeof(x)), 0);
+	ASSERT_INT_EQ(sshbuf_peek_u64(p1, 0, &v64), 0);
+	ASSERT_U64_EQ(v64, 0x1122334455667788ULL);
+	ASSERT_INT_EQ(sshbuf_peek_u64(p1, 2, &v64), 0);
+	ASSERT_U64_EQ(v64, 0x3344556677880099ULL);
+	ASSERT_INT_EQ(sshbuf_peek_u64(p1, 3, &v64), SSH_ERR_MESSAGE_INCOMPLETE);
+	ASSERT_INT_EQ(sshbuf_peek_u64(p1, sizeof(x), &v64),
+	    SSH_ERR_MESSAGE_INCOMPLETE);
+	ASSERT_INT_EQ(sshbuf_peek_u64(p1, 1000, &v64),
+	    SSH_ERR_MESSAGE_INCOMPLETE);
+	sshbuf_free(p1);
+	TEST_DONE();
+
+	TEST_START("sshbuf_peek_u32");
+	p1 = sshbuf_new();
+	ASSERT_PTR_NE(p1, NULL);
+	ASSERT_INT_EQ(sshbuf_put(p1, x, sizeof(x)), 0);
+	ASSERT_INT_EQ(sshbuf_peek_u32(p1, 0, &v32), 0);
+	ASSERT_U32_EQ(v32, 0x11223344);
+	ASSERT_INT_EQ(sshbuf_peek_u32(p1, 6, &v32), 0);
+	ASSERT_U32_EQ(v32, 0x77880099);
+	ASSERT_INT_EQ(sshbuf_peek_u32(p1, 7, &v32), SSH_ERR_MESSAGE_INCOMPLETE);
+	ASSERT_INT_EQ(sshbuf_peek_u32(p1, sizeof(x), &v32),
+	    SSH_ERR_MESSAGE_INCOMPLETE);
+	ASSERT_INT_EQ(sshbuf_peek_u32(p1, 1000, &v32),
+	    SSH_ERR_MESSAGE_INCOMPLETE);
+	sshbuf_free(p1);
+	TEST_DONE();
+
+	TEST_START("sshbuf_peek_u16");
+	p1 = sshbuf_new();
+	ASSERT_PTR_NE(p1, NULL);
+	ASSERT_INT_EQ(sshbuf_put(p1, x, sizeof(x)), 0);
+	ASSERT_INT_EQ(sshbuf_peek_u16(p1, 0, &v16), 0);
+	ASSERT_U16_EQ(v16, 0x1122);
+	ASSERT_INT_EQ(sshbuf_peek_u16(p1, 8, &v16), 0);
+	ASSERT_U16_EQ(v16, 0x99);
+	ASSERT_INT_EQ(sshbuf_peek_u16(p1, 9, &v16), SSH_ERR_MESSAGE_INCOMPLETE);
+	ASSERT_INT_EQ(sshbuf_peek_u16(p1, sizeof(x), &v16),
+	    SSH_ERR_MESSAGE_INCOMPLETE);
+	ASSERT_INT_EQ(sshbuf_peek_u16(p1, 1000, &v16),
+	    SSH_ERR_MESSAGE_INCOMPLETE);
+	sshbuf_free(p1);
+	TEST_DONE();
+
+	TEST_START("sshbuf_peek_u8");
+	p1 = sshbuf_new();
+	ASSERT_PTR_NE(p1, NULL);
+	ASSERT_INT_EQ(sshbuf_put(p1, x, sizeof(x)), 0);
+	ASSERT_INT_EQ(sshbuf_peek_u8(p1, 0, &v8), 0);
+	ASSERT_U8_EQ(v8, 0x11);
+	ASSERT_INT_EQ(sshbuf_peek_u8(p1, 9, &v8), 0);
+	ASSERT_U8_EQ(v8, 0x99);
+	ASSERT_INT_EQ(sshbuf_peek_u8(p1, sizeof(x), &v8),
+	    SSH_ERR_MESSAGE_INCOMPLETE);
+	ASSERT_INT_EQ(sshbuf_peek_u8(p1, 1000, &v8),
+	    SSH_ERR_MESSAGE_INCOMPLETE);
+	sshbuf_free(p1);
+	TEST_DONE();
+
+	TEST_START("sshbuf_poke_u64");
+	p1 = sshbuf_new();
+	ASSERT_PTR_NE(p1, NULL);
+	ASSERT_INT_EQ(sshbuf_reserve(p1, 10, NULL), 0);
+	/* poke at start of buffer */
+	ASSERT_INT_EQ(sshbuf_poke_u64(p1, 0, 0xa1b2c3d4e5f60718ULL), 0);
+	s2 = sshbuf_dtob16(p1);
+	ASSERT_PTR_NE(s2, NULL);
+	ASSERT_STRING_EQ(s2, "a1b2c3d4e5f607180000");
+	free(s2);
+	sshbuf_reset(p1);
+	ASSERT_INT_EQ(sshbuf_reserve(p1, 10, NULL), 0);
+	/* poke aligned with end of buffer */
+	ASSERT_INT_EQ(sshbuf_poke_u64(p1, 2, 0xa1b2c3d4e5f60718ULL), 0);
+	s2 = sshbuf_dtob16(p1);
+	ASSERT_PTR_NE(s2, NULL);
+	ASSERT_STRING_EQ(s2, "0000a1b2c3d4e5f60718");
+	free(s2);
+	sshbuf_reset(p1);
+	ASSERT_INT_EQ(sshbuf_reserve(p1, 10, NULL), 0);
+	/* poke past end of buffer */
+	ASSERT_INT_EQ(sshbuf_poke_u64(p1, 3, 0xa1b2c3d4e5f60718ULL),
+	    SSH_ERR_NO_BUFFER_SPACE);
+	ASSERT_INT_EQ(sshbuf_poke_u64(p1, 10, 0xa1b2c3d4e5f60718ULL),
+	    SSH_ERR_NO_BUFFER_SPACE);
+	ASSERT_INT_EQ(sshbuf_poke_u64(p1, 1000, 0xa1b2c3d4e5f60718ULL),
+	    SSH_ERR_NO_BUFFER_SPACE);
+	/* ensure failed pokes do not modify buffer */
+	s2 = sshbuf_dtob16(p1);
+	ASSERT_PTR_NE(s2, NULL);
+	ASSERT_STRING_EQ(s2, "00000000000000000000");
+	sshbuf_free(p1);
+	TEST_DONE();
+
+	TEST_START("sshbuf_poke_u32");
+	p1 = sshbuf_new();
+	ASSERT_PTR_NE(p1, NULL);
+	ASSERT_INT_EQ(sshbuf_reserve(p1, 10, NULL), 0);
+	/* poke at start of buffer */
+	ASSERT_INT_EQ(sshbuf_poke_u32(p1, 0, 0xa1b2c3d4), 0);
+	s2 = sshbuf_dtob16(p1);
+	ASSERT_PTR_NE(s2, NULL);
+	ASSERT_STRING_EQ(s2, "a1b2c3d4000000000000");
+	free(s2);
+	sshbuf_reset(p1);
+	ASSERT_INT_EQ(sshbuf_reserve(p1, 10, NULL), 0);
+	/* poke aligned with end of buffer */
+	ASSERT_INT_EQ(sshbuf_poke_u32(p1, 6, 0xa1b2c3d4), 0);
+	s2 = sshbuf_dtob16(p1);
+	ASSERT_PTR_NE(s2, NULL);
+	ASSERT_STRING_EQ(s2, "000000000000a1b2c3d4");
+	free(s2);
+	sshbuf_reset(p1);
+	ASSERT_INT_EQ(sshbuf_reserve(p1, 10, NULL), 0);
+	/* poke past end of buffer */
+	ASSERT_INT_EQ(sshbuf_poke_u32(p1, 7, 0xa1b2c3d4),
+	    SSH_ERR_NO_BUFFER_SPACE);
+	ASSERT_INT_EQ(sshbuf_poke_u32(p1, 10, 0xa1b2c3d4),
+	    SSH_ERR_NO_BUFFER_SPACE);
+	ASSERT_INT_EQ(sshbuf_poke_u32(p1, 1000, 0xa1b2c3d4),
+	    SSH_ERR_NO_BUFFER_SPACE);
+	/* ensure failed pokes do not modify buffer */
+	s2 = sshbuf_dtob16(p1);
+	ASSERT_PTR_NE(s2, NULL);
+	ASSERT_STRING_EQ(s2, "00000000000000000000");
+	sshbuf_free(p1);
+	TEST_DONE();
+
+	TEST_START("sshbuf_poke_u16");
+	p1 = sshbuf_new();
+	ASSERT_PTR_NE(p1, NULL);
+	ASSERT_INT_EQ(sshbuf_reserve(p1, 10, NULL), 0);
+	/* poke at start of buffer */
+	ASSERT_INT_EQ(sshbuf_poke_u16(p1, 0, 0xa1b2), 0);
+	s2 = sshbuf_dtob16(p1);
+	ASSERT_PTR_NE(s2, NULL);
+	ASSERT_STRING_EQ(s2, "a1b20000000000000000");
+	free(s2);
+	sshbuf_reset(p1);
+	ASSERT_INT_EQ(sshbuf_reserve(p1, 10, NULL), 0);
+	/* poke aligned with end of buffer */
+	ASSERT_INT_EQ(sshbuf_poke_u16(p1, 8, 0xa1b2), 0);
+	s2 = sshbuf_dtob16(p1);
+	ASSERT_PTR_NE(s2, NULL);
+	ASSERT_STRING_EQ(s2, "0000000000000000a1b2");
+	free(s2);
+	sshbuf_reset(p1);
+	ASSERT_INT_EQ(sshbuf_reserve(p1, 10, NULL), 0);
+	/* poke past end of buffer */
+	ASSERT_INT_EQ(sshbuf_poke_u16(p1, 9, 0xa1b2),
+	    SSH_ERR_NO_BUFFER_SPACE);
+	ASSERT_INT_EQ(sshbuf_poke_u16(p1, 10, 0xa1b2),
+	    SSH_ERR_NO_BUFFER_SPACE);
+	ASSERT_INT_EQ(sshbuf_poke_u16(p1, 1000, 0xa1b2),
+	    SSH_ERR_NO_BUFFER_SPACE);
+	/* ensure failed pokes do not modify buffer */
+	s2 = sshbuf_dtob16(p1);
+	ASSERT_PTR_NE(s2, NULL);
+	ASSERT_STRING_EQ(s2, "00000000000000000000");
+	sshbuf_free(p1);
+	TEST_DONE();
+
+	TEST_START("sshbuf_poke_u8");
+	p1 = sshbuf_new();
+	ASSERT_PTR_NE(p1, NULL);
+	ASSERT_INT_EQ(sshbuf_reserve(p1, 10, NULL), 0);
+	/* poke at start of buffer */
+	ASSERT_INT_EQ(sshbuf_poke_u8(p1, 0, 0xa1), 0);
+	s2 = sshbuf_dtob16(p1);
+	ASSERT_PTR_NE(s2, NULL);
+	ASSERT_STRING_EQ(s2, "a1000000000000000000");
+	free(s2);
+	sshbuf_reset(p1);
+	ASSERT_INT_EQ(sshbuf_reserve(p1, 10, NULL), 0);
+	/* poke aligned with end of buffer */
+	ASSERT_INT_EQ(sshbuf_poke_u8(p1, 9, 0xa1), 0);
+	s2 = sshbuf_dtob16(p1);
+	ASSERT_PTR_NE(s2, NULL);
+	ASSERT_STRING_EQ(s2, "000000000000000000a1");
+	free(s2);
+	sshbuf_reset(p1);
+	ASSERT_INT_EQ(sshbuf_reserve(p1, 10, NULL), 0);
+	/* poke past end of buffer */
+	ASSERT_INT_EQ(sshbuf_poke_u8(p1, 10, 0xa1), SSH_ERR_NO_BUFFER_SPACE);
+	ASSERT_INT_EQ(sshbuf_poke_u8(p1, 1000, 0xa1), SSH_ERR_NO_BUFFER_SPACE);
+	/* ensure failed pokes do not modify buffer */
+	s2 = sshbuf_dtob16(p1);
+	ASSERT_PTR_NE(s2, NULL);
+	ASSERT_STRING_EQ(s2, "00000000000000000000");
+	sshbuf_free(p1);
+	TEST_DONE();
+
+	TEST_START("sshbuf_poke");
+	p1 = sshbuf_new();
+	ASSERT_PTR_NE(p1, NULL);
+	ASSERT_INT_EQ(sshbuf_reserve(p1, 10, NULL), 0);
+	/* poke at start of buffer */
+	ASSERT_INT_EQ(sshbuf_poke(p1, 0, "hello!", 6), 0);
+	s2 = sshbuf_dtob16(p1);
+	ASSERT_PTR_NE(s2, NULL);
+	ASSERT_STRING_EQ(s2, "68656c6c6f2100000000");
+	free(s2);
+	sshbuf_reset(p1);
+	ASSERT_INT_EQ(sshbuf_reserve(p1, 10, NULL), 0);
+	/* poke aligned with end of buffer */
+	ASSERT_INT_EQ(sshbuf_poke(p1, 4, "hello!", 6), 0);
+	s2 = sshbuf_dtob16(p1);
+	ASSERT_PTR_NE(s2, NULL);
+	ASSERT_STRING_EQ(s2, "0000000068656c6c6f21");
+	free(s2);
+	sshbuf_reset(p1);
+	ASSERT_INT_EQ(sshbuf_reserve(p1, 10, NULL), 0);
+	/* poke past end of buffer */
+	ASSERT_INT_EQ(sshbuf_poke(p1, 7, "hello!", 6),
+	    SSH_ERR_NO_BUFFER_SPACE);
+	ASSERT_INT_EQ(sshbuf_poke(p1, 10, "hello!", 6),
+	    SSH_ERR_NO_BUFFER_SPACE);
+	ASSERT_INT_EQ(sshbuf_poke(p1, 1000, "hello!", 6),
+	    SSH_ERR_NO_BUFFER_SPACE);
+	/* ensure failed pokes do not modify buffer */
+	s2 = sshbuf_dtob16(p1);
+	ASSERT_PTR_NE(s2, NULL);
+	ASSERT_STRING_EQ(s2, "00000000000000000000");
 	sshbuf_free(p1);
 	TEST_DONE();
 }

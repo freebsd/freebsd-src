@@ -13,7 +13,7 @@ Public domain.
 #include <stdlib.h>
 #include <stdio.h>
 #ifdef HAVE_STDINT_H
-#include <stdint.h>
+# include <stdint.h>
 #endif
 
 void to_byte(unsigned char *out, unsigned long long in, uint32_t bytes)

@@ -1,4 +1,4 @@
-/* $OpenBSD: sftp-client.h,v 1.27 2015/05/08 06:45:13 djm Exp $ */
+/* $OpenBSD: sftp-client.h,v 1.34 2021/08/09 23:47:44 djm Exp $ */
 
 /*
  * Copyright (c) 2001-2004 Damien Miller <djm@openbsd.org>
@@ -53,6 +53,19 @@ struct sftp_statvfs {
 	u_int64_t f_namemax;
 };
 
+/* Used for limits response on the wire from the server */
+struct sftp_limits {
+	u_int64_t packet_length;
+	u_int64_t read_length;
+	u_int64_t write_length;
+	u_int64_t open_handles;
+};
+
+/* print flag values */
+#define SFTP_QUIET		0	/* be quiet during transfers */
+#define SFTP_PRINT		1	/* list files and show progress bar */
+#define SFTP_PROGRESS_ONLY	2	/* progress bar only */
+
 /*
  * Initialise a SSH filexfer connection. Returns NULL on error or
  * a pointer to a initialized sftp_conn struct on success.
@@ -60,6 +73,9 @@ struct sftp_statvfs {
 struct sftp_conn *do_init(int, int, u_int, u_int, u_int64_t);
 
 u_int sftp_proto_version(struct sftp_conn *);
+
+/* Query server limits */
+int do_limits(struct sftp_conn *, struct sftp_limits *);
 
 /* Close file referred to by 'handle' */
 int do_close(struct sftp_conn *, const u_char *, u_int);
@@ -91,14 +107,23 @@ int do_setstat(struct sftp_conn *, const char *, Attrib *);
 /* Set file attributes of open file 'handle' */
 int do_fsetstat(struct sftp_conn *, const u_char *, u_int, Attrib *);
 
+/* Set file attributes of 'path', not following symlinks */
+int do_lsetstat(struct sftp_conn *conn, const char *path, Attrib *a);
+
 /* Canonicalise 'path' - caller must free result */
 char *do_realpath(struct sftp_conn *, const char *);
+
+/* Canonicalisation with tilde expansion (requires server extension) */
+char *do_expand_path(struct sftp_conn *, const char *);
+
+/* Returns non-zero if server can tilde-expand paths */
+int can_expand_path(struct sftp_conn *);
 
 /* Get statistics for filesystem hosting file at "path" */
 int do_statvfs(struct sftp_conn *, const char *, struct sftp_statvfs *, int);
 
 /* Rename 'oldpath' to 'newpath' */
-int do_rename(struct sftp_conn *, const char *, const char *, int force_legacy);
+int do_rename(struct sftp_conn *, const char *, const char *, int);
 
 /* Link 'oldpath' to 'newpath' */
 int do_hardlink(struct sftp_conn *, const char *, const char *);
@@ -121,7 +146,7 @@ int do_download(struct sftp_conn *, const char *, const char *,
  * times if 'pflag' is set
  */
 int download_dir(struct sftp_conn *, const char *, const char *,
-    Attrib *, int, int, int, int);
+    Attrib *, int, int, int, int, int);
 
 /*
  * Upload 'local_path' to 'remote_path'. Preserve permissions and times
@@ -134,9 +159,40 @@ int do_upload(struct sftp_conn *, const char *, const char *, int, int, int);
  * times if 'pflag' is set
  */
 int upload_dir(struct sftp_conn *, const char *, const char *, int, int, int,
-    int);
+    int, int);
+
+/*
+ * Download a 'from_path' from the 'from' connection and upload it to
+ * to 'to' connection at 'to_path'.
+ */
+int
+do_crossload(struct sftp_conn *from, struct sftp_conn *to,
+    const char *from_path, const char *to_path,
+    Attrib *a, int preserve_flag);
+
+/*
+ * Recursively download a directory from 'from_path' from the 'from'
+ * connection and upload it to 'to' connection at 'to_path'.
+ */
+int crossload_dir(struct sftp_conn *from, struct sftp_conn *to,
+    const char *from_path, const char *to_path,
+    Attrib *dirattrib, int preserve_flag, int print_flag,
+    int follow_link_flag);
 
 /* Concatenate paths, taking care of slashes. Caller must free result. */
 char *path_append(const char *, const char *);
+
+/* Make absolute path if relative path and CWD is given. Does not modify
+ * original if the the path is already absolute. */
+char *make_absolute(char *, const char *);
+
+/* Check if remote path is directory */
+int remote_is_dir(struct sftp_conn *conn, const char *path);
+
+/* Check if local path is directory */
+int local_is_dir(const char *path);
+
+/* Check whether path returned from glob(..., GLOB_MARK, ...) is a directory */
+int globpath_is_dir(const char *pathname);
 
 #endif

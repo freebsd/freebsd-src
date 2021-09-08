@@ -1,4 +1,4 @@
-/*	$OpenBSD: sha1.c,v 1.23 2014/01/08 06:14:57 tedu Exp $	*/
+/*	$OpenBSD: sha1.c,v 1.27 2019/06/07 22:56:36 dtucker Exp $	*/
 
 /*
  * SHA-1 in C
@@ -18,7 +18,7 @@
 
 #ifndef WITH_OPENSSL
 
-#include <sys/param.h>
+#include <sys/types.h>
 #include <string.h>
 
 #define rol(value, bits) (((value) << (bits)) | ((value) >> (32 - (bits))))
@@ -101,6 +101,7 @@ SHA1Transform(u_int32_t state[5], const u_int8_t buffer[SHA1_BLOCK_LENGTH])
 	/* Wipe variables */
 	a = b = c = d = e = 0;
 }
+DEF_WEAK(SHA1Transform);
 
 
 /*
@@ -118,6 +119,7 @@ SHA1Init(SHA1_CTX *context)
 	context->state[3] = 0x10325476;
 	context->state[4] = 0xC3D2E1F0;
 }
+DEF_WEAK(SHA1Init);
 
 
 /*
@@ -129,7 +131,7 @@ SHA1Update(SHA1_CTX *context, const u_int8_t *data, size_t len)
 	size_t i, j;
 
 	j = (size_t)((context->count >> 3) & 63);
-	context->count += (len << 3);
+	context->count += ((u_int64_t)len << 3);
 	if ((j + len) > 63) {
 		(void)memcpy(&context->buffer[j], data, (i = 64-j));
 		SHA1Transform(context->state, context->buffer);
@@ -141,6 +143,7 @@ SHA1Update(SHA1_CTX *context, const u_int8_t *data, size_t len)
 	}
 	(void)memcpy(&context->buffer[j], &data[i], len - i);
 }
+DEF_WEAK(SHA1Update);
 
 
 /*
@@ -161,6 +164,7 @@ SHA1Pad(SHA1_CTX *context)
 		SHA1Update(context, (u_int8_t *)"\0", 1);
 	SHA1Update(context, finalcount, 8); /* Should cause a SHA1Transform() */
 }
+DEF_WEAK(SHA1Pad);
 
 void
 SHA1Final(u_int8_t digest[SHA1_DIGEST_LENGTH], SHA1_CTX *context)
@@ -172,6 +176,7 @@ SHA1Final(u_int8_t digest[SHA1_DIGEST_LENGTH], SHA1_CTX *context)
 		digest[i] = (u_int8_t)
 		   ((context->state[i>>2] >> ((3-(i & 3)) * 8) ) & 255);
 	}
-	memset(context, 0, sizeof(*context));
+	explicit_bzero(context, sizeof(*context));
 }
+DEF_WEAK(SHA1Final);
 #endif /* !WITH_OPENSSL */

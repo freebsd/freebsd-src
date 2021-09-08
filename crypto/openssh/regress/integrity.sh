@@ -1,4 +1,4 @@
-#	$OpenBSD: integrity.sh,v 1.23 2017/04/30 23:34:55 djm Exp $
+#	$OpenBSD: integrity.sh,v 1.24 2020/01/21 08:06:27 djm Exp $
 #	Placed in the Public Domain.
 
 tid="integrity"
@@ -14,11 +14,11 @@ macs="$macs `${SSH} -Q cipher-auth`"
 
 # avoid DH group exchange as the extra traffic makes it harder to get the
 # offset into the stream right.
-echo "KexAlgorithms diffie-hellman-group14-sha1,diffie-hellman-group1-sha1" \
-	>> $OBJ/ssh_proxy
+#echo "KexAlgorithms -diffie-hellman-group*" \
+#	>> $OBJ/ssh_proxy
 
 # sshd-command for proxy (see test-exec.sh)
-cmd="$SUDO sh ${SRC}/sshd-log-wrapper.sh ${TEST_SSHD_LOGFILE} ${SSHD} -i -f $OBJ/sshd_proxy"
+cmd="$SUDO env SSH_SK_HELPER="$SSH_SK_HELPER" sh ${SRC}/sshd-log-wrapper.sh ${TEST_SSHD_LOGFILE} ${SSHD} -i -f $OBJ/sshd_proxy"
 
 for m in $macs; do
 	trace "test $tid: mac $m"

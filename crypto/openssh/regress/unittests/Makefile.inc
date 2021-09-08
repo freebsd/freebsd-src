@@ -1,7 +1,24 @@
-#	$OpenBSD: Makefile.inc,v 1.12 2017/12/21 00:41:22 djm Exp $
+#	$OpenBSD: Makefile.inc,v 1.14 2019/11/25 10:32:35 djm Exp $
+
+REGRESS_FAIL_EARLY?=	yes
 
 .include <bsd.own.mk>
 .include <bsd.obj.mk>
+
+# User-settable options
+UNITTEST_FAST?= no	# Skip slow tests (e.g. less intensive fuzzing).
+UNITTEST_SLOW?= no	# Include slower tests (e.g. more intensive fuzzing).
+UNITTEST_VERBOSE?= no	# Verbose test output (inc. per-test names).
+
+MALLOC_OPTIONS?=	CFGJRSUX
+TEST_ENV?=		MALLOC_OPTIONS=${MALLOC_OPTIONS}
+
+# XXX detect from ssh binary?
+OPENSSL?=	yes
+
+.if (${OPENSSL:L} == "yes")
+CFLAGS+=	-DWITH_OPENSSL
+.endif
 
 # enable warnings
 WARNINGS=Yes
@@ -49,5 +66,24 @@ DPADD+=${.CURDIR}/../test_helper/libtest_helper.a
 
 .PATH: ${.CURDIR}/${SSHREL}
 
+LDADD+= -lutil
+DPADD+= ${LIBUTIL}
+
+.if (${OPENSSL:L} == "yes")
 LDADD+= -lcrypto
 DPADD+= ${LIBCRYPTO}
+.endif
+
+LDADD+= -lfido2 -lcbor -lusbhid
+DPADD+= ${LIBFIDO2} ${LIBCBOR} ${LIBUSBHID}
+
+UNITTEST_ARGS?=
+
+.if (${UNITTEST_VERBOSE:L} != "no")
+UNITTEST_ARGS+= -v
+.endif
+.if (${UNITTEST_FAST:L} != "no")
+UNITTEST_ARGS+= -f
+.elif (${UNITTEST_SLOW:L} != "no")
+UNITTEST_ARGS+= -F
+.endif

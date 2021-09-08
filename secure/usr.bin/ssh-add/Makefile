@@ -3,7 +3,7 @@
 .include <src.opts.mk>
 
 PROG=	ssh-add
-SRCS+=	ssh-add.c
+SRCS+=	ssh-add.c ssh-sk-client.c
 PACKAGE=	ssh
 CFLAGS+=-I${SSHDIR} -include ssh_namespace.h
 SRCS+=	ssh_namespace.h

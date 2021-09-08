@@ -1,4 +1,4 @@
-/* $OpenBSD: atomicio.c,v 1.28 2016/07/27 23:18:12 djm Exp $ */
+/* $OpenBSD: atomicio.c,v 1.30 2019/01/24 02:42:23 dtucker Exp $ */
 /*
  * Copyright (c) 2006 Damien Miller. All rights reserved.
  * Copyright (c) 2005 Anil Madhavapeddy. All rights reserved.
@@ -57,20 +57,25 @@ atomicio6(ssize_t (*f) (int, void *, size_t), int fd, void *_s, size_t n,
 	ssize_t res;
 	struct pollfd pfd;
 
-#ifndef BROKEN_READ_COMPARISON
 	pfd.fd = fd;
+#ifndef BROKEN_READ_COMPARISON
 	pfd.events = f == read ? POLLIN : POLLOUT;
+#else
+	pfd.events = POLLIN|POLLOUT;
 #endif
 	while (n > pos) {
 		res = (f) (fd, s + pos, n - pos);
 		switch (res) {
 		case -1:
-			if (errno == EINTR)
+			if (errno == EINTR) {
+				/* possible SIGALARM, update callback */
+				if (cb != NULL && cb(cb_arg, 0) == -1) {
+					errno = EINTR;
+					return pos;
+				}
 				continue;
-			if (errno == EAGAIN || errno == EWOULDBLOCK) {
-#ifndef BROKEN_READ_COMPARISON
+			} else if (errno == EAGAIN || errno == EWOULDBLOCK) {
 				(void)poll(&pfd, 1, -1);
-#endif
 				continue;
 			}
 			return 0;
@@ -114,20 +119,25 @@ atomiciov6(ssize_t (*f) (int, const struct iovec *, int), int fd,
 	/* Make a copy of the iov array because we may modify it below */
 	memcpy(iov, _iov, (size_t)iovcnt * sizeof(*_iov));
 
-#ifndef BROKEN_READV_COMPARISON
 	pfd.fd = fd;
+#ifndef BROKEN_READV_COMPARISON
 	pfd.events = f == readv ? POLLIN : POLLOUT;
+#else
+	pfd.events = POLLIN|POLLOUT;
 #endif
 	for (; iovcnt > 0 && iov[0].iov_len > 0;) {
 		res = (f) (fd, iov, iovcnt);
 		switch (res) {
 		case -1:
-			if (errno == EINTR)
+			if (errno == EINTR) {
+				/* possible SIGALARM, update callback */
+				if (cb != NULL && cb(cb_arg, 0) == -1) {
+					errno = EINTR;
+					return pos;
+				}
 				continue;
-			if (errno == EAGAIN || errno == EWOULDBLOCK) {
-#ifndef BROKEN_READV_COMPARISON
+			} else if (errno == EAGAIN || errno == EWOULDBLOCK) {
 				(void)poll(&pfd, 1, -1);
-#endif
 				continue;
 			}
 			return 0;

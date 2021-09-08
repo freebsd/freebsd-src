@@ -15,7 +15,7 @@ SRCS=	sshd.c auth-rhosts.c auth-passwd.c \
 	monitor.c monitor_wrap.c auth-krb5.c \
 	auth2-gss.c gss-serv.c gss-serv-krb5.c \
 	loginrec.c auth-pam.c auth-shadow.c auth-sia.c md5crypt.c \
-	sftp-server.c sftp-common.c \
+	srclimit.c sftp-server.c sftp-common.c \
 	sandbox-null.c sandbox-rlimit.c sandbox-systrace.c sandbox-darwin.c \
 	sandbox-seccomp-filter.c sandbox-capsicum.c sandbox-pledge.c \
 	sandbox-solaris.c uidswap.c

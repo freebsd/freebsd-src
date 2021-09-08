@@ -1,4 +1,4 @@
-/* 	$OpenBSD: tests.c,v 1.1 2018/03/03 03:16:17 djm Exp $ */
+/* 	$OpenBSD: tests.c,v 1.2 2021/07/24 01:54:23 djm Exp $ */
 
 /*
  * Regress test for keys options functions.
@@ -6,14 +6,18 @@
  * Placed in the public domain
  */
 
+#include "includes.h"
+
 #include <sys/types.h>
 #include <sys/param.h>
 #include <stdio.h>
+#ifdef HAVE_STDINT_H
 #include <stdint.h>
+#endif
 #include <stdlib.h>
 #include <string.h>
 
-#include "test_helper.h"
+#include "../test_helper/test_helper.h"
 
 #include "sshkey.h"
 #include "authfile.h"
@@ -268,6 +272,8 @@ test_authkeys_parse(void)
 	} while (0)
 	ARRAY_TEST("environment", "environment=\"foo=1\",environment=\"bar=2\"",
 	    env, nenv, "foo=1,bar=2");
+	ARRAY_TEST("environment", "environment=\"foo=1\",environment=\"foo=2\"",
+	    env, nenv, "foo=1");
 	ARRAY_TEST("permitopen", "permitopen=\"foo:123\",permitopen=\"bar:*\"",
 	    permitopen, npermitopen, "foo:123,bar:*");
 #undef ARRAY_TEST

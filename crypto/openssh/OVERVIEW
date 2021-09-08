@@ -34,11 +34,12 @@ these programs.
 
     - Ssh contains several encryption algorithms.  These are all
       accessed through the cipher.h interface.  The interface code is
-      in cipher.c, and the implementations are in libc.
+      in cipher.c, and the implementations are either in libc or
+      LibreSSL.
 
   Multiple Precision Integer Library
 
-    - Uses the SSLeay BIGNUM sublibrary.
+    - Uses the LibreSSL BIGNUM sublibrary.
 
   Random Numbers
 
@@ -158,4 +159,4 @@ these programs.
 	uidswap.c    uid-swapping
 	xmalloc.c    "safe" malloc routines
 
-$OpenBSD: OVERVIEW,v 1.14 2018/07/27 03:55:22 dtucker Exp $
+$OpenBSD: OVERVIEW,v 1.15 2018/10/23 05:56:35 djm Exp $

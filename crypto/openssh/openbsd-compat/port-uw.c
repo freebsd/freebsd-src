@@ -143,7 +143,7 @@ get_iaf_password(struct passwd *pw)
 		if (pw_password == NULL)
 			fatal("ia_get_logpwd: Unable to get the shadow passwd");
 		ia_closeinfo(uinfo);
-	 	return pw_password;
+		return pw_password;
 	}
 	else
 		fatal("ia_openinfo: Unable to open the shadow passwd file");

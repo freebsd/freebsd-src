@@ -1,4 +1,4 @@
-/* $OpenBSD: atomicio.h,v 1.11 2010/09/22 22:58:51 djm Exp $ */
+/* $OpenBSD: atomicio.h,v 1.12 2018/12/27 03:25:25 djm Exp $ */
 
 /*
  * Copyright (c) 2006 Damien Miller.  All rights reserved.
@@ -28,6 +28,8 @@
 
 #ifndef _ATOMICIO_H
 #define _ATOMICIO_H
+
+struct iovec;
 
 /*
  * Ensure all of data on socket comes through. f==read || f==vwrite

@@ -268,7 +268,7 @@ then
 	touch space
 else
 	cat > space << _EOF
-# extra space required by start/stop links added by installf 
+# extra space required by start/stop links added by installf
 # in postinstall
 $TEST_DIR/etc/rc0.d/${SYSVINITSTOPT}${SYSVINIT_NAME} 0 1
 $TEST_DIR/etc/rc2.d/${SYSVINITSTART}${SYSVINIT_NAME} 0 1
@@ -293,7 +293,7 @@ cat >> preinstall << _EOF
 #
 if [ "\${PRE_INS_STOP}" = "yes" ]
 then
-	if [ $DO_SMF -eq 1 ] 
+	if [ $DO_SMF -eq 1 ]
 	then
 		svcadm disable $OPENSSH_FMRI
 	else
@@ -326,7 +326,7 @@ cat > postinstall << _EOF
 
 if [ $DO_SMF -eq 1 ]
 then
-	# Delete the existing service, if it exists, then import the 
+	# Delete the existing service, if it exists, then import the
 	# new one.
 	if svcs $OPENSSH_FMRI > /dev/null 2>&1
 	then
@@ -438,7 +438,7 @@ echo "Building preremove file..."
 cat > preremove << _EOF
 #! ${SCRIPT_SHELL}
 #
-if [ $DO_SMF -eq 1 ] 
+if [ $DO_SMF -eq 1 ]
 then
 	svcadm disable $OPENSSH_FMRI
 else

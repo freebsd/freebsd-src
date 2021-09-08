@@ -1,4 +1,4 @@
-/* $OpenBSD: compat.h,v 1.54 2018/08/13 02:41:05 djm Exp $ */
+/* $OpenBSD: compat.h,v 1.57 2021/06/06 03:40:39 djm Exp $ */
 
 /*
  * Copyright (c) 1999, 2000, 2001 Markus Friedl.  All rights reserved.
@@ -27,14 +27,9 @@
 #ifndef COMPAT_H
 #define COMPAT_H
 
-#define	SSH_PROTO_UNKNOWN	0x00
-#define	SSH_PROTO_1		0x01
-#define	SSH_PROTO_1_PREFERRED	0x02
-#define	SSH_PROTO_2		0x04
-
 #define SSH_BUG_UTF8TTYMODE	0x00000001
 #define SSH_BUG_SIGTYPE		0x00000002
-/* #define unused		0x00000004 */
+#define SSH_BUG_SIGTYPE74	0x00000004
 /* #define unused		0x00000008 */
 #define SSH_OLD_SESSIONID	0x00000010
 /* #define unused		0x00000020 */
@@ -63,11 +58,10 @@
 #define SSH_BUG_HOSTKEYS	0x20000000
 #define SSH_BUG_DHGEX_LARGE	0x40000000
 
-u_int    compat_datafellows(const char *);
-int	 proto_spec(const char *);
-char	*compat_cipher_proposal(char *);
-char	*compat_pkalg_proposal(char *);
-char	*compat_kex_proposal(char *);
+struct ssh;
 
-extern int datafellows;
+void    compat_banner(struct ssh *, const char *);
+char	*compat_cipher_proposal(struct ssh *, char *);
+char	*compat_pkalg_proposal(struct ssh *, char *);
+char	*compat_kex_proposal(struct ssh *, char *);
 #endif

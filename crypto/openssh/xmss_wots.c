@@ -11,7 +11,7 @@ Public domain.
 
 #include <stdlib.h>
 #ifdef HAVE_STDINT_H
-#include <stdint.h>
+# include <stdint.h>
 #endif
 #include <limits.h>
 #include "xmss_commons.h"

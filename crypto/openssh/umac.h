@@ -1,4 +1,4 @@
-/* $OpenBSD: umac.h,v 1.3 2013/07/22 12:20:02 djm Exp $ */
+/* $OpenBSD: umac.h,v 1.4 2019/06/07 14:18:48 dtucker Exp $ */
 /* -----------------------------------------------------------------------
  * 
  * umac.h -- C Implementation UMAC Message Authentication
@@ -39,7 +39,7 @@
   * at http://www.esat.kuleuven.ac.be/~rijmen/rijndael/ (search for
   * "Barreto"). The only two files needed are rijndael-alg-fst.c and
   * rijndael-alg-fst.h.
-  * Brian Gladman's version is distributed with GNU Public lisence
+  * Brian Gladman's version is distributed with GNU Public license
   * and can be found at http://fp.gladman.plus.com/AES/index.htm. It
   * includes a fast IA-32 assembly version.
   *
@@ -107,7 +107,7 @@ int uhash_update(uhash_ctx_t ctx,
                long        len);
 
 int uhash_final(uhash_ctx_t ctx,
-              u_char        ouput[]);
+              u_char        output[]);
 
 int uhash(uhash_ctx_t ctx,
         u_char       *input,

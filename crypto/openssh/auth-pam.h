@@ -27,7 +27,7 @@
 
 struct ssh;
 
-void start_pam(Authctxt *);
+void start_pam(struct ssh *);
 void finish_pam(void);
 u_int do_pam_account(void);
 void do_pam_session(struct ssh *);

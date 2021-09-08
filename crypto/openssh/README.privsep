@@ -5,13 +5,10 @@ escalation by containing corruption to an unprivileged process.
 More information is available at:
 	http://www.citi.umich.edu/u/provos/ssh/privsep.html
 
-Privilege separation is now enabled by default; see the
-UsePrivilegeSeparation option in sshd_config(5).
-
-When privsep is enabled, during the pre-authentication phase sshd will
-chroot(2) to "/var/empty" and change its privileges to the "sshd" user
-and its primary group.  sshd is a pseudo-account that should not be
-used by other daemons, and must be locked and should contain a
+Privilege separation is now mandatory.  During the pre-authentication
+phase sshd will chroot(2) to "/var/empty" and change its privileges to the
+"sshd" user and its primary group.  sshd is a pseudo-account that should
+not be used by other daemons, and must be locked and should contain a
 "nologin" or invalid shell.
 
 You should do something like the following to prepare the privsep

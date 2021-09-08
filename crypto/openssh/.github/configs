@@ -1,0 +1,170 @@
+#!/bin/sh
+#
+# usage: configs vmname test_config (or '' for default)
+#
+# Sets the following variables:
+# CONFIGFLAGS           options to ./configure
+# SSHD_CONFOPTS         sshd_config options
+# TEST_TARGET           make target used when testing.  defaults to "tests".
+# LTESTS
+
+config=$1
+
+TEST_TARGET="tests"
+LTESTS=""
+SKIP_LTESTS=""
+SUDO=sudo	# run with sudo by default
+TEST_SSH_UNSAFE_PERMISSIONS=1
+
+CONFIGFLAGS=""
+LIBCRYPTOFLAGS=""
+
+case "$config" in
+    default|sol64)
+	;;
+    c89)
+	CC="gcc"
+	CFLAGS="-Wall -std=c89 -pedantic -Werror=vla"
+	CONFIGFLAGS="--without-openssl --without-zlib"
+	TEST_TARGET=t-exec
+	;;
+    kitchensink)
+	CONFIGFLAGS="--with-kerberos5 --with-libedit --with-pam"
+	CONFIGFLAGS="${CONFIGFLAGS} --with-security-key-builtin --with-selinux"
+	CONFIGFLAGS="${CONFIGFLAGS} --with-cflags=-DSK_DEBUG"
+	;;
+    hardenedmalloc)
+	CONFIGFLAGS="--with-ldflags=-lhardened_malloc"
+	;;
+    kerberos5)
+	CONFIGFLAGS="--with-kerberos5"
+	;;
+    libedit)
+	CONFIGFLAGS="--with-libedit"
+	;;
+    pam-krb5)
+	CONFIGFLAGS="--with-pam --with-kerberos5"
+	SSHD_CONFOPTS="UsePam yes"
+	;;
+    *pam)
+	CONFIGFLAGS="--with-pam"
+	SSHD_CONFOPTS="UsePam yes"
+	;;
+    libressl-*)
+	LIBCRYPTOFLAGS="--with-ssl-dir=/opt/libressl --with-rpath=-Wl,-rpath,"
+	;;
+    openssl-*)
+	LIBCRYPTOFLAGS="--with-ssl-dir=/opt/openssl --with-rpath=-Wl,-rpath,"
+	;;
+    selinux)
+	CONFIGFLAGS="--with-selinux"
+	;;
+    sk)
+	CONFIGFLAGS="--with-security-key-builtin"
+        ;;
+    without-openssl)
+	LIBCRYPTOFLAGS="--without-openssl"
+	TEST_TARGET=t-exec
+	;;
+    valgrind-[1-4]|valgrind-unit)
+	# rlimit sandbox and FORTIFY_SOURCE confuse Valgrind.
+	CONFIGFLAGS="--without-sandbox --without-hardening"
+	CONFIGFLAGS="$CONFIGFLAGS --with-cppflags=-D_FORTIFY_SOURCE=0"
+	TEST_TARGET="t-exec USE_VALGRIND=1"
+	TEST_SSH_ELAPSED_TIMES=1
+	export TEST_SSH_ELAPSED_TIMES
+	# Valgrind slows things down enough that the agent timeout test
+	# won't reliably pass, and the unit tests run longer than allowed
+	# by github so split into three separate tests.
+	tests2="rekey integrity"
+	tests3="krl forward-control sshsig"
+	tests4="cert-userkey cert-hostkey kextype sftp-perm keygen-comment"
+	case "$config" in
+	    valgrind-1)
+		# All tests except agent-timeout (which is flaky under valgrind)
+		#) and slow ones that run separately to increase parallelism.
+		SKIP_LTESTS="agent-timeout ${tests2} ${tests3} ${tests4}"
+		;;
+	    valgrind-2)
+		LTESTS="${tests2}"
+		;;
+	    valgrind-3)
+		LTESTS="${tests3}"
+		;;
+	    valgrind-4)
+		LTESTS="${tests4}"
+		;;
+	    valgrind-unit)
+		TEST_TARGET="unit USE_VALGRIND=1"
+		;;
+	esac
+	;;
+    *)
+	echo "Unknown configuration $config"
+	exit 1
+	;;
+esac
+
+# The Solaris 64bit targets are special since they need a non-flag arg.
+case "$config" in
+    sol64*)
+	CONFIGFLAGS="x86_64 --with-cflags=-m64 --with-ldflags=-m64 ${CONFIGFLAGS}"
+	LIBCRYPTOFLAGS="--with-ssl-dir=/usr/local/ssl64"
+	;;
+esac
+
+case "${TARGET_HOST}" in
+    dfly58*|dfly60*)
+	# scp 3-way connection hangs on these so skip until sorted.
+	SKIP_LTESTS=scp3
+	;;
+    hurd)
+	SKIP_LTESTS="forwarding multiplex proxy-connect hostkey-agent agent-ptrace"
+	;;
+    minix3)
+	CC="clang"
+	LIBCRYPTOFLAGS="--without-openssl"
+	# Minix does not have a loopback interface so we have to skip any
+	# test that relies on it.
+	TEST_TARGET=t-exec
+	SKIP_LTESTS="addrmatch cfgparse key-options reexec agent connect"
+	SKIP_LTESTS="$SKIP_LTESTS keyscan rekey allow-deny-users connect-uri"
+	SKIP_LTESTS="$SKIP_LTESTS knownhosts-command sftp-uri brokenkeys"
+	SKIP_LTESTS="$SKIP_LTESTS exit-status login-timeout stderr-data"
+	SKIP_LTESTS="$SKIP_LTESTS cfgmatch forward-control multiplex transfer"
+	SKIP_LTESTS="$SKIP_LTESTS cfgmatchlisten forwarding reconfigure"
+	SUDO=""
+	;;
+    nbsd4)
+	# System compiler will ICE on some files with fstack-protector
+	CONFIGFLAGS="${CONFIGFLAGS} --without-hardening"
+	;;
+    sol10|sol11)
+	# sol10 VM is 32bit and the unit tests are slow.
+	# sol11 has 4 test configs so skip unit tests to speed up.
+	TEST_TARGET="tests SKIP_UNIT=1"
+	;;
+    win10)
+	# No sudo on Windows.
+	SUDO=""
+	;;
+esac
+
+# If we have a local openssl/libressl, use that.
+if [ -z "${LIBCRYPTOFLAGS}" ]; then
+	# last-match
+	for i in /usr/local /usr/local/ssl /usr/local/opt/openssl; do
+		if [ -x ${i}/bin/openssl ]; then
+			LIBCRYPTOFLAGS="--with-ssl-dir=${i}"
+		fi
+	done
+fi
+
+CONFIGFLAGS="${CONFIGFLAGS} ${LIBCRYPTOFLAGS}"
+
+if [ -x "$(which plink 2>/dev/null)" ]; then
+	REGRESS_INTEROP_PUTTY=yes
+	export REGRESS_INTEROP_PUTTY
+fi
+
+export CC CFLAGS LTESTS SUDO TEST_TARGET TEST_SSH_UNSAFE_PERMISSIONS

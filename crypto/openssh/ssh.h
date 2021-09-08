@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh.h,v 1.88 2018/06/06 18:29:18 markus Exp $ */
+/* $OpenBSD: ssh.h,v 1.90 2020/07/14 23:57:01 djm Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -68,6 +68,11 @@
 #define SSH_ASKPASS_ENV		"SSH_ASKPASS"
 
 /*
+ * Environment variable to control whether or not askpass is used.
+ */
+#define SSH_ASKPASS_REQUIRE_ENV		"SSH_ASKPASS_REQUIRE"
+
+/*
  * Force host key length and server key length to differ by at least this
  * many bits.  This is to make double encryption with rsaref work.
  */
@@ -93,3 +98,7 @@
 
 /* Listen backlog for sshd, ssh-agent and forwarding sockets */
 #define SSH_LISTEN_BACKLOG		128
+
+/* Limits for banner exchange */
+#define SSH_MAX_BANNER_LEN		8192
+#define SSH_MAX_PRE_BANNER_LINES	1024

@@ -1,4 +1,4 @@
-/* 	$OpenBSD: common.c,v 1.3 2018/09/13 09:03:20 djm Exp $ */
+/* 	$OpenBSD: common.c,v 1.4 2020/01/26 00:09:50 djm Exp $ */
 /*
  * Helpers for key API tests
  *
@@ -19,13 +19,15 @@
 #include <string.h>
 #include <unistd.h>
 
+#ifdef WITH_OPENSSL
 #include <openssl/bn.h>
 #include <openssl/rsa.h>
 #include <openssl/dsa.h>
 #include <openssl/objects.h>
 #ifdef OPENSSL_HAS_NISTP256
 # include <openssl/ec.h>
-#endif
+#endif /* OPENSSL_HAS_NISTP256 */
+#endif /* WITH_OPENSSL */
 
 #include "openbsd-compat/openssl-compat.h"
 
@@ -41,13 +43,10 @@
 struct sshbuf *
 load_file(const char *name)
 {
-	int fd;
-	struct sshbuf *ret;
+	struct sshbuf *ret = NULL;
 
-	ASSERT_PTR_NE(ret = sshbuf_new(), NULL);
-	ASSERT_INT_NE(fd = open(test_data_file(name), O_RDONLY), -1);
-	ASSERT_INT_EQ(sshkey_load_file(fd, ret), 0);
-	close(fd);
+	ASSERT_INT_EQ(sshbuf_load_file(test_data_file(name), &ret), 0);
+	ASSERT_PTR_NE(ret, NULL);
 	return ret;
 }
 
@@ -72,6 +71,7 @@ load_text_file(const char *name)
 	return ret;
 }
 
+#ifdef WITH_OPENSSL
 BIGNUM *
 load_bignum(const char *name)
 {
@@ -160,4 +160,5 @@ dsa_priv_key(struct sshkey *k)
 	DSA_get0_key(k->dsa, NULL, &priv_key);
 	return priv_key;
 }
+#endif /* WITH_OPENSSL */
 

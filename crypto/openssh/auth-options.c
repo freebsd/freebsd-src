@@ -1,4 +1,4 @@
-/* $OpenBSD: auth-options.c,v 1.84 2018/10/03 06:38:35 djm Exp $ */
+/* $OpenBSD: auth-options.c,v 1.97 2021/07/24 01:55:19 djm Exp $ */
 /*
  * Copyright (c) 2018 Damien Miller <djm@mindrot.org>
  *
@@ -19,6 +19,7 @@
 
 #include <sys/types.h>
 
+#include <stdlib.h>
 #include <netdb.h>
 #include <pwd.h>
 #include <string.h>
@@ -38,75 +39,6 @@
 #include "match.h"
 #include "ssh2.h"
 #include "auth-options.h"
-
-/*
- * Match flag 'opt' in *optsp, and if allow_negate is set then also match
- * 'no-opt'. Returns -1 if option not matched, 1 if option matches or 0
- * if negated option matches.
- * If the option or negated option matches, then *optsp is updated to
- * point to the first character after the option.
- */
-static int
-opt_flag(const char *opt, int allow_negate, const char **optsp)
-{
-	size_t opt_len = strlen(opt);
-	const char *opts = *optsp;
-	int negate = 0;
-
-	if (allow_negate && strncasecmp(opts, "no-", 3) == 0) {
-		opts += 3;
-		negate = 1;
-	}
-	if (strncasecmp(opts, opt, opt_len) == 0) {
-		*optsp = opts + opt_len;
-		return negate ? 0 : 1;
-	}
-	return -1;
-}
-
-static char *
-opt_dequote(const char **sp, const char **errstrp)
-{
-	const char *s = *sp;
-	char *ret;
-	size_t i;
-
-	*errstrp = NULL;
-	if (*s != '"') {
-		*errstrp = "missing start quote";
-		return NULL;
-	}
-	s++;
-	if ((ret = malloc(strlen((s)) + 1)) == NULL) {
-		*errstrp = "memory allocation failed";
-		return NULL;
-	}
-	for (i = 0; *s != '\0' && *s != '"';) {
-		if (s[0] == '\\' && s[1] == '"')
-			s++;
-		ret[i++] = *s++;
-	}
-	if (*s == '\0') {
-		*errstrp = "missing end quote";
-		free(ret);
-		return NULL;
-	}
-	ret[i] = '\0';
-	s++;
-	*sp = s;
-	return ret;
-}
-
-static int
-opt_match(const char **opts, const char *term)
-{
-	if (strncasecmp((*opts), term, strlen(term)) == 0 &&
-	    (*opts)[strlen(term)] == '=') {
-		*opts += strlen(term) + 1;
-		return 1;
-	}
-	return 0;
-}
 
 static int
 dup_strings(char ***dstp, size_t *ndstp, char **src, size_t nsrc)
@@ -147,7 +79,7 @@ cert_option_list(struct sshauthopt *opts, struct sshbuf *oblob,
 	int r, ret = -1, found;
 
 	if ((c = sshbuf_fromb(oblob)) == NULL) {
-		error("%s: sshbuf_fromb failed", __func__);
+		error_f("sshbuf_fromb failed");
 		goto out;
 	}
 
@@ -156,15 +88,17 @@ cert_option_list(struct sshauthopt *opts, struct sshbuf *oblob,
 		data = NULL;
 		if ((r = sshbuf_get_cstring(c, &name, NULL)) != 0 ||
 		    (r = sshbuf_froms(c, &data)) != 0) {
-			error("Unable to parse certificate options: %s",
-			    ssh_err(r));
+			error_r(r, "Unable to parse certificate options");
 			goto out;
 		}
 		debug3("found certificate option \"%.100s\" len %zu",
 		    name, sshbuf_len(data));
 		found = 0;
 		if ((which & OPTIONS_EXTENSIONS) != 0) {
-			if (strcmp(name, "permit-X11-forwarding") == 0) {
+			if (strcmp(name, "no-touch-required") == 0) {
+				opts->no_require_user_presence = 1;
+				found = 1;
+			} else if (strcmp(name, "permit-X11-forwarding") == 0) {
 				opts->permit_x11_forwarding_flag = 1;
 				found = 1;
 			} else if (strcmp(name,
@@ -184,11 +118,14 @@ cert_option_list(struct sshauthopt *opts, struct sshbuf *oblob,
 			}
 		}
 		if (!found && (which & OPTIONS_CRITICAL) != 0) {
-			if (strcmp(name, "force-command") == 0) {
+			if (strcmp(name, "verify-required") == 0) {
+				opts->require_verify = 1;
+				found = 1;
+			} else if (strcmp(name, "force-command") == 0) {
 				if ((r = sshbuf_get_cstring(data, &command,
 				    NULL)) != 0) {
-					error("Unable to parse \"%s\" "
-					    "section: %s", name, ssh_err(r));
+					error_r(r, "Unable to parse \"%s\" "
+					    "section", name);
 					goto out;
 				}
 				if (opts->force_command != NULL) {
@@ -199,12 +136,11 @@ cert_option_list(struct sshauthopt *opts, struct sshbuf *oblob,
 				}
 				opts->force_command = command;
 				found = 1;
-			}
-			if (strcmp(name, "source-address") == 0) {
+			} else if (strcmp(name, "source-address") == 0) {
 				if ((r = sshbuf_get_cstring(data, &allowed,
 				    NULL)) != 0) {
-					error("Unable to parse \"%s\" "
-					    "section: %s", name, ssh_err(r));
+					error_r(r, "Unable to parse \"%s\" "
+					    "section", name);
 					goto out;
 				}
 				if (opts->required_from_host_cert != NULL) {
@@ -287,8 +223,7 @@ sshauthopt_free(struct sshauthopt *opts)
 		free(opts->permitlisten[i]);
 	free(opts->permitlisten);
 
-	explicit_bzero(opts, sizeof(*opts));
-	free(opts);
+	freezero(opts, sizeof(*opts));
 }
 
 struct sshauthopt *
@@ -320,7 +255,7 @@ handle_permit(const char **optsp, int allow_bare_port,
 	size_t npermits = *npermitsp;
 	const char *errstr = "unknown error";
 
-	if (npermits > INT_MAX) {
+	if (npermits > SSH_AUTHOPT_PERMIT_MAX) {
 		*errstrp = "too many permission directives";
 		return -1;
 	}
@@ -332,7 +267,8 @@ handle_permit(const char **optsp, int allow_bare_port,
 		 * Allow a bare port number in permitlisten to indicate a
 		 * listen_host wildcard.
 		 */
-		if (asprintf(&tmp, "*:%s", opt) < 0) {
+		if (asprintf(&tmp, "*:%s", opt) == -1) {
+			free(opt);
 			*errstrp = "memory allocation failed";
 			return -1;
 		}
@@ -388,6 +324,7 @@ sshauthopt_parse(const char *opts, const char **errstrp)
 	struct sshauthopt *ret = NULL;
 	const char *errstr = "unknown error";
 	uint64_t valid_before;
+	size_t i, l;
 
 	if (errstrp != NULL)
 		*errstrp = NULL;
@@ -414,6 +351,10 @@ sshauthopt_parse(const char *opts, const char **errstrp)
 			ret->permit_agent_forwarding_flag = r == 1;
 		} else if ((r = opt_flag("x11-forwarding", 1, &opts)) != -1) {
 			ret->permit_x11_forwarding_flag = r == 1;
+		} else if ((r = opt_flag("touch-required", 1, &opts)) != -1) {
+			ret->no_require_user_presence = r != 1; /* NB. flip */
+		} else if ((r = opt_flag("verify-required", 1, &opts)) != -1) {
+			ret->require_verify = r == 1;
 		} else if ((r = opt_flag("pty", 1, &opts)) != -1) {
 			ret->permit_pty_flag = r == 1;
 		} else if ((r = opt_flag("user-rc", 1, &opts)) != -1) {
@@ -457,7 +398,7 @@ sshauthopt_parse(const char *opts, const char **errstrp)
 			    valid_before < ret->valid_before)
 				ret->valid_before = valid_before;
 		} else if (opt_match(&opts, "environment")) {
-			if (ret->nenv > INT_MAX) {
+			if (ret->nenv > SSH_AUTHOPT_ENV_MAX) {
 				errstr = "too many environment strings";
 				goto fail;
 			}
@@ -469,25 +410,41 @@ sshauthopt_parse(const char *opts, const char **errstrp)
 				errstr = "invalid environment string";
 				goto fail;
 			}
-			if ((cp = strdup(opt)) == NULL)
+			if ((cp = strdup(opt)) == NULL) {
+				free(opt);
 				goto alloc_fail;
-			cp[tmp - opt] = '\0'; /* truncate at '=' */
+			}
+			l = (size_t)(tmp - opt);
+			cp[l] = '\0'; /* truncate at '=' */
 			if (!valid_env_name(cp)) {
 				free(cp);
 				free(opt);
 				errstr = "invalid environment string";
 				goto fail;
 			}
-			free(cp);
-			/* Append it. */
-			oarray = ret->env;
-			if ((ret->env = recallocarray(ret->env, ret->nenv,
-			    ret->nenv + 1, sizeof(*ret->env))) == NULL) {
-				free(opt);
-				ret->env = oarray; /* put it back for cleanup */
-				goto alloc_fail;
+			/* Check for duplicates; XXX O(n*log(n)) */
+			for (i = 0; i < ret->nenv; i++) {
+				if (strncmp(ret->env[i], cp, l) == 0 &&
+				    ret->env[i][l] == '=')
+					break;
 			}
-			ret->env[ret->nenv++] = opt;
+			free(cp);
+			/* First match wins */
+			if (i >= ret->nenv) {
+				/* Append it. */
+				oarray = ret->env;
+				if ((ret->env = recallocarray(ret->env,
+				    ret->nenv, ret->nenv + 1,
+				    sizeof(*ret->env))) == NULL) {
+					free(opt);
+					/* put it back for cleanup */
+					ret->env = oarray;
+					goto alloc_fail;
+				}
+				ret->env[ret->nenv++] = opt;
+				opt = NULL; /* transferred */
+			}
+			free(opt);
 		} else if (opt_match(&opts, "permitopen")) {
 			if (handle_permit(&opts, 0, &ret->permitopen,
 			    &ret->npermitopen, &errstr) != 0)
@@ -634,14 +591,18 @@ sshauthopt_merge(const struct sshauthopt *primary,
 			goto alloc_fail;
 	}
 
-	/* Flags are logical-AND (i.e. must be set in both for permission) */
-#define OPTFLAG(x) ret->x = (primary->x == 1) && (additional->x == 1)
-	OPTFLAG(permit_port_forwarding_flag);
-	OPTFLAG(permit_agent_forwarding_flag);
-	OPTFLAG(permit_x11_forwarding_flag);
-	OPTFLAG(permit_pty_flag);
-	OPTFLAG(permit_user_rc);
-#undef OPTFLAG
+#define OPTFLAG_AND(x) ret->x = (primary->x == 1) && (additional->x == 1)
+#define OPTFLAG_OR(x) ret->x = (primary->x == 1) || (additional->x == 1)
+	/* Permissive flags are logical-AND (i.e. must be set in both) */
+	OPTFLAG_AND(permit_port_forwarding_flag);
+	OPTFLAG_AND(permit_agent_forwarding_flag);
+	OPTFLAG_AND(permit_x11_forwarding_flag);
+	OPTFLAG_AND(permit_pty_flag);
+	OPTFLAG_AND(permit_user_rc);
+	OPTFLAG_AND(no_require_user_presence);
+	/* Restrictive flags are logical-OR (i.e. must be set in either) */
+	OPTFLAG_OR(require_verify);
+#undef OPTFLAG_AND
 
 	/* Earliest expiry time should win */
 	if (primary->valid_before != 0)
@@ -710,6 +671,8 @@ sshauthopt_copy(const struct sshauthopt *orig)
 	OPTSCALAR(cert_authority);
 	OPTSCALAR(force_tun_device);
 	OPTSCALAR(valid_before);
+	OPTSCALAR(no_require_user_presence);
+	OPTSCALAR(require_verify);
 #undef OPTSCALAR
 #define OPTSTRING(x) \
 	do { \
@@ -795,9 +758,11 @@ deserialise_array(struct sshbuf *m, char ***ap, size_t *np)
 	*np = n;
 	n = 0;
  out:
-	for (i = 0; i < n; i++)
-		free(a[i]);
-	free(a);
+	if (a != NULL) {
+		for (i = 0; i < n; i++)
+			free(a[i]);
+		free(a);
+	}
 	sshbuf_free(b);
 	return r;
 }
@@ -832,7 +797,7 @@ sshauthopt_serialise(const struct sshauthopt *opts, struct sshbuf *m,
 {
 	int r = SSH_ERR_INTERNAL_ERROR;
 
-	/* Flag and simple integer options */
+	/* Flag options */
 	if ((r = sshbuf_put_u8(m, opts->permit_port_forwarding_flag)) != 0 ||
 	    (r = sshbuf_put_u8(m, opts->permit_agent_forwarding_flag)) != 0 ||
 	    (r = sshbuf_put_u8(m, opts->permit_x11_forwarding_flag)) != 0 ||
@@ -840,7 +805,12 @@ sshauthopt_serialise(const struct sshauthopt *opts, struct sshbuf *m,
 	    (r = sshbuf_put_u8(m, opts->permit_user_rc)) != 0 ||
 	    (r = sshbuf_put_u8(m, opts->restricted)) != 0 ||
 	    (r = sshbuf_put_u8(m, opts->cert_authority)) != 0 ||
-	    (r = sshbuf_put_u64(m, opts->valid_before)) != 0)
+	    (r = sshbuf_put_u8(m, opts->no_require_user_presence)) != 0 ||
+	    (r = sshbuf_put_u8(m, opts->require_verify)) != 0)
+		return r;
+
+	/* Simple integer options */
+	if ((r = sshbuf_put_u64(m, opts->valid_before)) != 0)
 		return r;
 
 	/* tunnel number can be negative to indicate "unset" */
@@ -857,7 +827,7 @@ sshauthopt_serialise(const struct sshauthopt *opts, struct sshbuf *m,
 	    (r = serialise_nullable_string(m,
 	    untrusted ? NULL : opts->required_from_host_cert)) != 0 ||
 	    (r = serialise_nullable_string(m,
-	     untrusted ? NULL : opts->required_from_host_keys)) != 0)
+	    untrusted ? NULL : opts->required_from_host_keys)) != 0)
 		return r;
 
 	/* Array options */
@@ -884,6 +854,7 @@ sshauthopt_deserialise(struct sshbuf *m, struct sshauthopt **optsp)
 	if ((opts = calloc(1, sizeof(*opts))) == NULL)
 		return SSH_ERR_ALLOC_FAIL;
 
+	/* Flag options */
 #define OPT_FLAG(x) \
 	do { \
 		if ((r = sshbuf_get_u8(m, &f)) != 0) \
@@ -897,8 +868,11 @@ sshauthopt_deserialise(struct sshbuf *m, struct sshauthopt **optsp)
 	OPT_FLAG(permit_user_rc);
 	OPT_FLAG(restricted);
 	OPT_FLAG(cert_authority);
+	OPT_FLAG(no_require_user_presence);
+	OPT_FLAG(require_verify);
 #undef OPT_FLAG
 
+	/* Simple integer options */
 	if ((r = sshbuf_get_u64(m, &opts->valid_before)) != 0)
 		goto out;
 
