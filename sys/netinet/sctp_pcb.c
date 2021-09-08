@@ -2576,7 +2576,7 @@ sctp_inpcb_alloc(struct socket *so, uint32_t vrf_id)
 
 	/* Setup the initial secret */
 	(void)SCTP_GETTIME_TIMEVAL(&time);
-	m->time_of_secret_change = time.tv_sec;
+	m->time_of_secret_change = (unsigned int)time.tv_sec;
 
 	for (i = 0; i < SCTP_NUMBER_OF_SECRETS; i++) {
 		m->secret_key[0][i] = sctp_select_initial_TSN(m);

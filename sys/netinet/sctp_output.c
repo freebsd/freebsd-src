@@ -11328,7 +11328,7 @@ sctp_send_hb(struct sctp_tcb *stcb, struct sctp_nets *net, int so_locked)
 	/* Fill out hb parameter */
 	hb->heartbeat.hb_info.ph.param_type = htons(SCTP_HEARTBEAT_INFO);
 	hb->heartbeat.hb_info.ph.param_length = htons(sizeof(struct sctp_heartbeat_info_param));
-	hb->heartbeat.hb_info.time_value_1 = now.tv_sec;
+	hb->heartbeat.hb_info.time_value_1 = (uint32_t)now.tv_sec;
 	hb->heartbeat.hb_info.time_value_2 = now.tv_usec;
 	/* Did our user request this one, put it in */
 	hb->heartbeat.hb_info.addr_family = (uint8_t)net->ro._l_addr.sa.sa_family;
@@ -12847,7 +12847,7 @@ sctp_lower_sosend(struct socket *so,
 		SCTP_TCB_UNLOCK(stcb);
 		hold_tcblock = 0;
 	} else {
-		atomic_add_int(&stcb->asoc.sb_send_resv, sndlen);
+		atomic_add_int(&stcb->asoc.sb_send_resv, (int)sndlen);
 	}
 	local_soresv = sndlen;
 	if (stcb->asoc.state & SCTP_STATE_ABOUT_TO_BE_FREED) {
@@ -13684,7 +13684,7 @@ out:
 out_unlocked:
 
 	if (local_soresv && stcb) {
-		atomic_subtract_int(&stcb->asoc.sb_send_resv, sndlen);
+		atomic_subtract_int(&stcb->asoc.sb_send_resv, (int)sndlen);
 	}
 	if (create_lock_applied) {
 		SCTP_ASOC_CREATE_UNLOCK(inp);
