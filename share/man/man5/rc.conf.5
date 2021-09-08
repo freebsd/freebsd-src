@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 3, 2022
+.Dd March 9, 2022
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -3899,6 +3899,13 @@ The configuration filename used by
 utility.
 The default value is
 .Pa /etc/jail.conf .
+.Pa /etc/jail.  Ns Ao Ar jname Ac Ns Va .conf
+and
+.Pa /etc/jail.conf.d/ Ns Ao Ar jname Ac Ns Va .conf
+will also be used if
+.Va Ao Ar jname Ac Va
+is set in
+.Va jail_list .
 .It Va jail_parallel_start
 .Pq Vt bool
 If set to
