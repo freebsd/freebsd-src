@@ -3162,6 +3162,7 @@ vn_generic_copy_file_range(struct vnode *invp, off_t *inoffp,
 	size_t copylen, len, rem, savlen;
 	char *dat;
 	long holein, holeout;
+	struct timespec curts, endts;
 
 	holein = holeout = 0;
 	savlen = len = *lenp;
@@ -3258,7 +3259,15 @@ vn_generic_copy_file_range(struct vnode *invp, off_t *inoffp,
 	 * in the inner loop where the data copying is done.
 	 * Note that some file systems such as NFSv3, NFSv4.0 and NFSv4.1 may
 	 * support holes on the server, but do not support FIOSEEKHOLE.
+	 * The kernel flag COPY_FILE_RANGE_TIMEO1SEC is used to indicate
+	 * that this function should return after 1second with a partial
+	 * completion.
 	 */
+	if ((flags & COPY_FILE_RANGE_TIMEO1SEC) != 0) {
+		getnanouptime(&endts);
+		endts.tv_sec++;
+	} else
+		timespecclear(&endts);
 	holetoeof = eof = false;
 	while (len > 0 && error == 0 && !eof && interrupted == 0) {
 		endoff = 0;			/* To shut up compilers. */
@@ -3327,8 +3336,17 @@ vn_generic_copy_file_range(struct vnode *invp, off_t *inoffp,
 					*inoffp += xfer;
 					*outoffp += xfer;
 					len -= xfer;
-					if (len < savlen)
+					if (len < savlen) {
 						interrupted = sig_intr();
+						if (timespecisset(&endts) &&
+						    interrupted == 0) {
+							getnanouptime(&curts);
+							if (timespeccmp(&curts,
+							    &endts, >=))
+								interrupted =
+								    EINTR;
+						}
+					}
 				}
 			}
 			copylen = MIN(len, endoff - startoff);
@@ -3391,8 +3409,17 @@ vn_generic_copy_file_range(struct vnode *invp, off_t *inoffp,
 					*outoffp += xfer;
 					copylen -= xfer;
 					len -= xfer;
-					if (len < savlen)
+					if (len < savlen) {
 						interrupted = sig_intr();
+						if (timespecisset(&endts) &&
+						    interrupted == 0) {
+							getnanouptime(&curts);
+							if (timespeccmp(&curts,
+							    &endts, >=))
+								interrupted =
+								    EINTR;
+						}
+					}
 				}
 			}
 			xfer = blksize;
