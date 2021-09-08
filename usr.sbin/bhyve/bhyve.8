@@ -45,6 +45,15 @@
 .Op Cm ,threads= Ar n
 .Oc
 .Sm on
+.Oo Fl f
+.Sm off
+.Ar name Cm \&,
+.Oo
+.Cm string No | Cm file
+.Oc
+.Cm \&= Ar data
+.Sm on
+.Oc
 .Oo
 .Sm off
 .Fl G\~
@@ -145,6 +154,16 @@ Force
 .Nm
 to exit when a guest issues an access to an I/O port that is not emulated.
 This is intended for debug purposes.
+.It Fl f Ar name Ns Cm \&, Ns Oo Cm string Ns No | Ns Cm file Ns Oc Ns Cm \&= Ns Ar data
+Add a fw_cfg file
+.Ar name
+to the fw_cfg interface.
+If a
+.Cm string
+is specified, the fw_cfg file contains the string as data.
+If a
+.Cm file
+is specified, bhyve reads the file and adds the file content as fw_cfg data.
 .It Fl G Xo
 .Sm off
 .Oo Ar w Oc
