@@ -657,10 +657,10 @@ extern void bs_remap_earlyboot(void);
 #define PARTTAB_HR		(1UL << 63) /* host uses radix */
 #define PARTTAB_GR		(1UL << 63) /* guest uses radix must match host */
 
-/* TLB flush actions. Used as argument to tlbiel_all() */
+/* TLB flush actions. Used as argument to tlbiel_flush() */
 enum {
-	TLB_INVAL_SCOPE_LPID = 0,	/* invalidate TLBs for current LPID */
-	TLB_INVAL_SCOPE_GLOBAL = 1,	/* invalidate all TLBs */
+	TLB_INVAL_SCOPE_LPID = 2,	/* invalidate TLBs for current LPID */
+	TLB_INVAL_SCOPE_GLOBAL = 3,	/* invalidate all TLBs */
 };
 
 #define	NPV_LIST_LOCKS	MAXCPU
@@ -758,9 +758,11 @@ tlbiel_flush_isa3(uint32_t num_sets, uint32_t is)
 	 * and partition table entries. Then flush the remaining sets of the
 	 * TLB.
 	 */
-	tlbiel_radix_set_isa300(0, is, 0, RIC_FLUSH_ALL, 0);
-	for (set = 1; set < num_sets; set++)
-		tlbiel_radix_set_isa300(set, is, 0, RIC_FLUSH_TLB, 0);
+	if (is == TLB_INVAL_SCOPE_GLOBAL) {
+		tlbiel_radix_set_isa300(0, is, 0, RIC_FLUSH_ALL, 0);
+		for (set = 1; set < num_sets; set++)
+			tlbiel_radix_set_isa300(set, is, 0, RIC_FLUSH_TLB, 0);
+	}
 
 	/* Do the same for process scoped entries. */
 	tlbiel_radix_set_isa300(0, is, 0, RIC_FLUSH_ALL, 1);
@@ -773,13 +775,10 @@ tlbiel_flush_isa3(uint32_t num_sets, uint32_t is)
 static void
 mmu_radix_tlbiel_flush(int scope)
 {
-	int is;
-
 	MPASS(scope == TLB_INVAL_SCOPE_LPID ||
 		  scope == TLB_INVAL_SCOPE_GLOBAL);
-	is = scope + 2;
 
-	tlbiel_flush_isa3(POWER9_TLB_SETS_RADIX, is);
+	tlbiel_flush_isa3(POWER9_TLB_SETS_RADIX, scope);
 	__asm __volatile(PPC_INVALIDATE_ERAT "; isync" : : :"memory");
 }
 
@@ -2200,9 +2199,15 @@ mmu_radix_proctab_init(void)
 		__asm __volatile("eieio; tlbsync; ptesync" : : : "memory");
 #ifdef PSERIES
 	} else {
-		phyp_hcall(H_REGISTER_PROC_TBL,
+		int64_t rc;
+
+		rc = phyp_hcall(H_REGISTER_PROC_TBL,
 		    PROC_TABLE_NEW | PROC_TABLE_RADIX | PROC_TABLE_GTSE,
 		    proctab0pa, 0, PROCTAB_SIZE_SHIFT - 12);
+		if (rc != H_SUCCESS)
+			panic("mmu_radix_proctab_init: "
+				"failed to register process table: rc=%jd",
+				(intmax_t)rc);
 #endif
 	}
 
