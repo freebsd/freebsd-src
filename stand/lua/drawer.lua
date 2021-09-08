@@ -290,6 +290,11 @@ local function drawbrand()
 
 	x = x + shift.x
 	y = y + shift.y
+	if branddef.shift ~= nil then
+		x = x +	branddef.shift.x
+		y = y + branddef.shift.y
+	end
+
 	draw(x, y, graphic)
 end
 
