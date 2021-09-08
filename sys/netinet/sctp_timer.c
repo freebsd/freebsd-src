@@ -542,8 +542,8 @@ sctp_mark_all_for_resend(struct sctp_tcb *stcb,
 		min_wait.tv_sec = min_wait.tv_usec = 0;
 	}
 	if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_FR_LOGGING_ENABLE) {
-		sctp_log_fr(cur_rto, now.tv_sec, now.tv_usec, SCTP_FR_T3_MARK_TIME);
-		sctp_log_fr(0, min_wait.tv_sec, min_wait.tv_usec, SCTP_FR_T3_MARK_TIME);
+		sctp_log_fr(cur_rto, (uint32_t)now.tv_sec, now.tv_usec, SCTP_FR_T3_MARK_TIME);
+		sctp_log_fr(0, (uint32_t)min_wait.tv_sec, min_wait.tv_usec, SCTP_FR_T3_MARK_TIME);
 	}
 	/*
 	 * Our rwnd will be incorrect here since we are not adding back the
@@ -590,7 +590,7 @@ start_again:
 			/* validate its been outstanding long enough */
 			if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_FR_LOGGING_ENABLE) {
 				sctp_log_fr(chk->rec.data.tsn,
-				    chk->sent_rcv_time.tv_sec,
+				    (uint32_t)chk->sent_rcv_time.tv_sec,
 				    chk->sent_rcv_time.tv_usec,
 				    SCTP_FR_T3_MARK_TIME);
 			}
@@ -602,7 +602,7 @@ start_again:
 				 */
 				if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_FR_LOGGING_ENABLE) {
 					sctp_log_fr(0,
-					    chk->sent_rcv_time.tv_sec,
+					    (uint32_t)chk->sent_rcv_time.tv_sec,
 					    chk->sent_rcv_time.tv_usec,
 					    SCTP_FR_T3_STOPPED);
 				}
@@ -853,11 +853,11 @@ sctp_t3rxt_timer(struct sctp_inpcb *inp,
 			if (net != stcb->asoc.primary_destination) {
 				/* send a immediate HB if our RTO is stale */
 				struct timeval now;
-				unsigned int ms_goneby;
+				uint32_t ms_goneby;
 
 				(void)SCTP_GETTIME_TIMEVAL(&now);
 				if (net->last_sent_time.tv_sec) {
-					ms_goneby = (now.tv_sec - net->last_sent_time.tv_sec) * 1000;
+					ms_goneby = (uint32_t)(now.tv_sec - net->last_sent_time.tv_sec) * 1000;
 				} else {
 					ms_goneby = 0;
 				}
