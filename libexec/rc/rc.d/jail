@@ -120,11 +120,15 @@ parse_options()
 	fi
 	eval _jconf=\"\${jail_${_jv}_conf:-/etc/jail.${_j}.conf}\"
 	eval _rootdir=\"\$jail_${_jv}_rootdir\"
+	eval _jconfdir=\"/etc/jail.conf.d/${_j}.conf\"
 	eval _hostname=\"\$jail_${_jv}_hostname\"
 	if [ -z "$_rootdir" -o \
 	     -z "$_hostname" ]; then
 		if [ -r "$_jconf" ]; then
 			_conf="$_jconf"
+			return 0
+		elif [ -r "$_jconfdir" ]; then
+			_conf="$_jconfdir"
 			return 0
 		elif [ -r "$jail_conf" ]; then
 			_conf="$jail_conf"
