@@ -4497,99 +4497,70 @@ sctp_del_remote_addr(struct sctp_tcb *stcb, struct sockaddr *remaddr)
 	return (-2);
 }
 
-void
-sctp_delete_from_timewait(uint32_t tag, uint16_t lport, uint16_t rport)
+static bool
+sctp_is_in_timewait(uint32_t tag, uint16_t lport, uint16_t rport, uint32_t now)
 {
 	struct sctpvtaghead *chain;
 	struct sctp_tagblock *twait_block;
-	int found = 0;
 	int i;
 
+	SCTP_INP_INFO_RLOCK_ASSERT();
 	chain = &SCTP_BASE_INFO(vtag_timewait)[(tag % SCTP_STACK_VTAG_HASH_SIZE)];
 	LIST_FOREACH(twait_block, chain, sctp_nxt_tagblock) {
 		for (i = 0; i < SCTP_NUMBER_IN_VTAG_BLOCK; i++) {
-			if ((twait_block->vtag_block[i].v_tag == tag) &&
+			if ((twait_block->vtag_block[i].tv_sec_at_expire >= now) &&
+			    (twait_block->vtag_block[i].v_tag == tag) &&
 			    (twait_block->vtag_block[i].lport == lport) &&
 			    (twait_block->vtag_block[i].rport == rport)) {
-				twait_block->vtag_block[i].tv_sec_at_expire = 0;
-				twait_block->vtag_block[i].v_tag = 0;
-				twait_block->vtag_block[i].lport = 0;
-				twait_block->vtag_block[i].rport = 0;
-				found = 1;
-				break;
+				return (true);
 			}
 		}
-		if (found)
-			break;
 	}
+	return (false);
 }
 
-int
-sctp_is_in_timewait(uint32_t tag, uint16_t lport, uint16_t rport)
+static void
+sctp_set_vtag_block(struct sctp_timewait *vtag_block, uint32_t time,
+    uint32_t tag, uint16_t lport, uint16_t rport)
 {
-	struct sctpvtaghead *chain;
-	struct sctp_tagblock *twait_block;
-	int found = 0;
-	int i;
-
-	SCTP_INP_INFO_WLOCK();
-	chain = &SCTP_BASE_INFO(vtag_timewait)[(tag % SCTP_STACK_VTAG_HASH_SIZE)];
-	LIST_FOREACH(twait_block, chain, sctp_nxt_tagblock) {
-		for (i = 0; i < SCTP_NUMBER_IN_VTAG_BLOCK; i++) {
-			if ((twait_block->vtag_block[i].v_tag == tag) &&
-			    (twait_block->vtag_block[i].lport == lport) &&
-			    (twait_block->vtag_block[i].rport == rport)) {
-				found = 1;
-				break;
-			}
-		}
-		if (found)
-			break;
-	}
-	SCTP_INP_INFO_WUNLOCK();
-	return (found);
+	vtag_block->tv_sec_at_expire = time;
+	vtag_block->v_tag = tag;
+	vtag_block->lport = lport;
+	vtag_block->rport = rport;
 }
 
-void
-sctp_add_vtag_to_timewait(uint32_t tag, uint32_t time, uint16_t lport, uint16_t rport)
+static void
+sctp_add_vtag_to_timewait(uint32_t tag, uint16_t lport, uint16_t rport)
 {
 	struct sctpvtaghead *chain;
 	struct sctp_tagblock *twait_block;
 	struct timeval now;
-	int set, i;
+	uint32_t time;
+	int i;
+	bool set;
 
-	if (time == 0) {
-		/* Its disabled */
-		return;
-	}
+	SCTP_INP_INFO_WLOCK_ASSERT();
 	(void)SCTP_GETTIME_TIMEVAL(&now);
+	time = now.tv_sec + SCTP_BASE_SYSCTL(sctp_vtag_time_wait);
 	chain = &SCTP_BASE_INFO(vtag_timewait)[(tag % SCTP_STACK_VTAG_HASH_SIZE)];
-	set = 0;
+	set = false;
 	LIST_FOREACH(twait_block, chain, sctp_nxt_tagblock) {
 		/* Block(s) present, lets find space, and expire on the fly */
 		for (i = 0; i < SCTP_NUMBER_IN_VTAG_BLOCK; i++) {
-			if ((twait_block->vtag_block[i].v_tag == 0) &&
-			    !set) {
-				twait_block->vtag_block[i].tv_sec_at_expire =
-				    now.tv_sec + time;
-				twait_block->vtag_block[i].v_tag = tag;
-				twait_block->vtag_block[i].lport = lport;
-				twait_block->vtag_block[i].rport = rport;
-				set = 1;
-			} else if ((twait_block->vtag_block[i].v_tag) &&
-			    ((long)twait_block->vtag_block[i].tv_sec_at_expire < now.tv_sec)) {
-				/* Audit expires this guy */
-				twait_block->vtag_block[i].tv_sec_at_expire = 0;
-				twait_block->vtag_block[i].v_tag = 0;
-				twait_block->vtag_block[i].lport = 0;
-				twait_block->vtag_block[i].rport = 0;
-				if (set == 0) {
-					/* Reuse it for my new tag */
-					twait_block->vtag_block[i].tv_sec_at_expire = now.tv_sec + time;
-					twait_block->vtag_block[i].v_tag = tag;
-					twait_block->vtag_block[i].lport = lport;
-					twait_block->vtag_block[i].rport = rport;
-					set = 1;
+			if ((twait_block->vtag_block[i].v_tag == 0) && !set) {
+				sctp_set_vtag_block(twait_block->vtag_block + i, time, tag, lport, rport);
+				set = true;
+				continue;
+			}
+			if ((twait_block->vtag_block[i].v_tag != 0) &&
+			    (twait_block->vtag_block[i].tv_sec_at_expire < (uint32_t)now.tv_sec)) {
+				if (set) {
+					/* Audit expires this guy */
+					sctp_set_vtag_block(twait_block->vtag_block + i, 0, 0, 0, 0);
+				} else {
+					/* Reuse it for the new tag */
+					sctp_set_vtag_block(twait_block->vtag_block + i, time, tag, lport, rport);
+					set = true;
 				}
 			}
 		}
@@ -4610,10 +4581,7 @@ sctp_add_vtag_to_timewait(uint32_t tag, uint32_t time, uint16_t lport, uint16_t 
 		}
 		memset(twait_block, 0, sizeof(struct sctp_tagblock));
 		LIST_INSERT_HEAD(chain, twait_block, sctp_nxt_tagblock);
-		twait_block->vtag_block[0].tv_sec_at_expire = now.tv_sec + time;
-		twait_block->vtag_block[0].v_tag = tag;
-		twait_block->vtag_block[0].lport = lport;
-		twait_block->vtag_block[0].rport = rport;
+		sctp_set_vtag_block(twait_block->vtag_block, time, tag, lport, rport);
 	}
 }
 
@@ -4906,8 +4874,7 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 	}
 	/* pull from vtag hash */
 	LIST_REMOVE(stcb, sctp_asocs);
-	sctp_add_vtag_to_timewait(asoc->my_vtag, SCTP_BASE_SYSCTL(sctp_vtag_time_wait),
-	    inp->sctp_lport, stcb->rport);
+	sctp_add_vtag_to_timewait(asoc->my_vtag, inp->sctp_lport, stcb->rport);
 
 	/*
 	 * Now restop the timers to be sure this is paranoia at is finest!
@@ -6697,24 +6664,15 @@ sctp_set_primary_addr(struct sctp_tcb *stcb, struct sockaddr *sa,
 	}
 }
 
-int
+bool
 sctp_is_vtag_good(uint32_t tag, uint16_t lport, uint16_t rport, struct timeval *now)
 {
-	/*
-	 * This function serves two purposes. It will see if a TAG can be
-	 * re-used and return 1 for yes it is ok and 0 for don't use that
-	 * tag. A secondary function it will do is purge out old tags that
-	 * can be removed.
-	 */
-	struct sctpvtaghead *chain;
-	struct sctp_tagblock *twait_block;
 	struct sctpasochead *head;
 	struct sctp_tcb *stcb;
-	int i;
+	bool result;
 
 	SCTP_INP_INFO_RLOCK();
-	head = &SCTP_BASE_INFO(sctp_asochash)[SCTP_PCBHASH_ASOC(tag,
-	    SCTP_BASE_INFO(hashasocmark))];
+	head = &SCTP_BASE_INFO(sctp_asochash)[SCTP_PCBHASH_ASOC(tag, SCTP_BASE_INFO(hashasocmark))];
 	LIST_FOREACH(stcb, head, sctp_asocs) {
 		/*
 		 * We choose not to lock anything here. TCB's can't be
@@ -6733,40 +6691,15 @@ sctp_is_vtag_good(uint32_t tag, uint16_t lport, uint16_t rport, struct timeval *
 			if (stcb->sctp_ep->sctp_lport != lport) {
 				continue;
 			}
-			/* Its a used tag set */
-			SCTP_INP_INFO_RUNLOCK();
-			return (0);
+			/* The tag is currently used, so don't use it. */
+			result = false;
+			goto out;
 		}
 	}
-	chain = &SCTP_BASE_INFO(vtag_timewait)[(tag % SCTP_STACK_VTAG_HASH_SIZE)];
-	/* Now what about timed wait ? */
-	LIST_FOREACH(twait_block, chain, sctp_nxt_tagblock) {
-		/*
-		 * Block(s) are present, lets see if we have this tag in the
-		 * list
-		 */
-		for (i = 0; i < SCTP_NUMBER_IN_VTAG_BLOCK; i++) {
-			if (twait_block->vtag_block[i].v_tag == 0) {
-				/* not used */
-				continue;
-			} else if ((long)twait_block->vtag_block[i].tv_sec_at_expire <
-			    now->tv_sec) {
-				/* Audit expires this guy */
-				twait_block->vtag_block[i].tv_sec_at_expire = 0;
-				twait_block->vtag_block[i].v_tag = 0;
-				twait_block->vtag_block[i].lport = 0;
-				twait_block->vtag_block[i].rport = 0;
-			} else if ((twait_block->vtag_block[i].v_tag == tag) &&
-				    (twait_block->vtag_block[i].lport == lport) &&
-			    (twait_block->vtag_block[i].rport == rport)) {
-				/* Bad tag, sorry :< */
-				SCTP_INP_INFO_RUNLOCK();
-				return (0);
-			}
-		}
-	}
+	result = !sctp_is_in_timewait(tag, lport, rport, (uint32_t)now->tv_sec);
+out:
 	SCTP_INP_INFO_RUNLOCK();
-	return (1);
+	return (result);
 }
 
 static void
