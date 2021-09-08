@@ -76,7 +76,7 @@ im_log(int priority, const char *message, va_list args)
 	default:
 		imlevel = SYSLOG_LEVEL_DEBUG2;
 	}
-	do_log(imlevel, message, args);
+	do_log2(imlevel, message, args);
 }
 
 void
@@ -88,10 +88,10 @@ blacklist_init(void)
 }
 
 void
-blacklist_notify(int action, const char *msg)
+blacklist_notify(struct ssh *ssh, int action, const char *msg)
 {
 
-	if (blstate != NULL && packet_connection_is_on_socket())
+	if (blstate != NULL && ssh_packet_connection_is_on_socket(ssh))
 		(void)blacklist_r(blstate, action,
-		packet_get_connection_in(), msg);
+		ssh_packet_get_connection_in(ssh), msg);
 }

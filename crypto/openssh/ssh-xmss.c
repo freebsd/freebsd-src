@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-xmss.c,v 1.1 2018/02/23 15:58:38 markus Exp $*/
+/* $OpenBSD: ssh-xmss.c,v 1.4 2020/10/19 22:49:23 dtucker Exp $*/
 /*
  * Copyright (c) 2017 Stefan-Lukas Gazdag.
  * Copyright (c) 2017 Markus Friedl.
@@ -62,7 +62,7 @@ ssh_xmss_sign(const struct sshkey *key, u_char **sigp, size_t *lenp,
 	smlen = slen = datalen + required_siglen;
 	if ((sig = malloc(slen)) == NULL)
 		return SSH_ERR_ALLOC_FAIL;
-	if ((r = sshkey_xmss_get_state(key, error)) != 0)
+	if ((r = sshkey_xmss_get_state(key, 1)) != 0)
 		goto out;
 	if ((ret = xmss_sign(key->xmss_sk, sshkey_xmss_bds_state(key), sig, &smlen,
 	    data, datalen, sshkey_xmss_params(key))) != 0 || smlen <= datalen) {
@@ -90,7 +90,7 @@ ssh_xmss_sign(const struct sshkey *key, u_char **sigp, size_t *lenp,
 	/* success */
 	r = 0;
  out:
-	if ((ret = sshkey_xmss_update_state(key, error)) != 0) {
+	if ((ret = sshkey_xmss_update_state(key, 1)) != 0) {
 		/* discard signature since we cannot update the state */
 		if (r == 0 && sigp != NULL && *sigp != NULL) {
 			explicit_bzero(*sigp, len);
@@ -103,10 +103,8 @@ ssh_xmss_sign(const struct sshkey *key, u_char **sigp, size_t *lenp,
 		r = ret;
 	}
 	sshbuf_free(b);
-	if (sig != NULL) {
-		explicit_bzero(sig, slen);
-		free(sig);
-	}
+	if (sig != NULL)
+		freezero(sig, slen);
 
 	return r;
 }
@@ -166,8 +164,7 @@ ssh_xmss_verify(const struct sshkey *key,
 	memcpy(sm+len, data, datalen);
 	if ((ret = xmss_sign_open(m, &mlen, sm, smlen,
 	    key->xmss_pk, sshkey_xmss_params(key))) != 0) {
-		debug2("%s: crypto_sign_xmss_open failed: %d",
-		    __func__, ret);
+		debug2_f("xmss_sign_open failed: %d", ret);
 	}
 	if (ret != 0 || mlen != datalen) {
 		r = SSH_ERR_SIGNATURE_INVALID;
@@ -177,14 +174,10 @@ ssh_xmss_verify(const struct sshkey *key,
 	/* success */
 	r = 0;
  out:
-	if (sm != NULL) {
-		explicit_bzero(sm, smlen);
-		free(sm);
-	}
-	if (m != NULL) {
-		explicit_bzero(m, smlen); /* NB mlen may be invalid if r != 0 */
-		free(m);
-	}
+	if (sm != NULL)
+		freezero(sm, smlen);
+	if (m != NULL)
+		freezero(m, smlen);
 	sshbuf_free(b);
 	free(ktype);
 	return r;

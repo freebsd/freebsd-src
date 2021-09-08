@@ -61,7 +61,7 @@ LOCALSTATEDIR=/var
 
 sshd_config_configured=no
 port_number=22
-service_name=sshd
+service_name=cygsshd
 strictmodes=yes
 cygwin_value=""
 user_account=
@@ -307,7 +307,7 @@ check_service_files_ownership() {
 
   if [ -z "${run_service_as}" ]
   then
-    accnt_name=$(/usr/bin/cygrunsrv -VQ sshd |
+    accnt_name=$(/usr/bin/cygrunsrv -VQ "${service_name}" |
     		 /usr/bin/sed -ne 's/^Account *: *//gp')
     if [ "${accnt_name}" = "LocalSystem" ]
     then
@@ -329,9 +329,9 @@ check_service_files_ownership() {
     fi
     if [ -z "${run_service_as}" ]
     then
-      csih_warning "Couldn't determine name of user running sshd service from account database!"
+      csih_warning "Couldn't determine name of user running ${service_name} service from account database!"
       csih_warning "As a result, this script cannot make sure that the files used"
-      csih_warning "by the sshd service belong to the user running the service."
+      csih_warning "by the ${service_name} service belong to the user running the service."
       return 1
     fi
   fi
@@ -367,8 +367,8 @@ check_service_files_ownership() {
   if [ $ret -ne 0 ]
   then
     csih_warning "Couldn't change owner of important files to ${run_service_as}!"
-    csih_warning "This may cause the sshd service to fail!  Please make sure that"
-    csih_warning "you have suufficient permissions to change the ownership of files"
+    csih_warning "This may cause the ${service_name} service to fail!  Please make sure that"
+    csih_warning "you have sufficient permissions to change the ownership of files"
     csih_warning "and try to run the ssh-host-config script again."
   fi
   return $ret
@@ -394,14 +394,24 @@ install_service() {
     then
       csih_get_cygenv "${cygwin_value}"
 
-      if ( csih_is_nt2003 || [ "$csih_FORCE_PRIVILEGED_USER" = "yes" ] )
+      if ( [ "$csih_FORCE_PRIVILEGED_USER" != "yes" ] )
       then
-	csih_inform "On Windows Server 2003, Windows Vista, and above, the"
-	csih_inform "SYSTEM account cannot setuid to other users -- a capability"
-	csih_inform "sshd requires.  You need to have or to create a privileged"
-	csih_inform "account.  This script will help you do so."
-	echo
+	# Enforce using privileged user on 64 bit Vista or W7 under WOW64
+	is_wow64=$(/usr/bin/uname | /usr/bin/grep -q 'WOW' && echo 1 || echo 0)
 
+	if ( csih_is_nt2003 && ! csih_is_windows8 && [ "${is_wow64}" = "1" ] )
+	then
+	  csih_inform "Running 32 bit Cygwin on 64 bit Windows Vista or Windows 7"
+	  csih_inform "the SYSTEM account is not sufficient to setuid to a local"
+	  csih_inform "user account.  You need to have or to create a privileged"
+	  csih_inform "account.  This script will help you do so."
+	  echo
+	  csih_FORCE_PRIVILEGED_USER=yes
+	fi
+      fi
+
+      if ( [ "$csih_FORCE_PRIVILEGED_USER" = "yes" ] )
+      then
 	[ "${opt_force}" = "yes" ] && opt_f=-f
 	[ -n "${user_account}" ] && opt_u="-u ""${user_account}"""
 	csih_select_privileged_username ${opt_f} ${opt_u} sshd
@@ -412,10 +422,11 @@ install_service() {
 	  csih_request "Do you want to proceed anyway?" || exit 1
 	  let ++ret
 	fi
+	# Never returns empty if NT or above
+	run_service_as=$(csih_service_should_run_as)
+      else
+	run_service_as="SYSTEM"
       fi
-
-      # Never returns empty if NT or above
-      run_service_as=$(csih_service_should_run_as)
 
       if [ "${run_service_as}" = "${csih_PRIVILEGED_USERNAME}" ]
       then
@@ -446,7 +457,7 @@ install_service() {
 	  echo
 	  csih_inform "The sshd service has been installed under the LocalSystem"
 	  csih_inform "account (also known as SYSTEM). To start the service now, call"
-	  csih_inform "\`net start sshd' or \`cygrunsrv -S sshd'.  Otherwise, it"
+	  csih_inform "\`net start ${service_name}' or \`cygrunsrv -S ${service_name}'.  Otherwise, it"
 	  csih_inform "will start automatically after the next reboot."
 	fi
       else
@@ -669,14 +680,24 @@ then
 fi
 
 # handle sshd_config
+# make sure not to change the existing file
+mod_before=""
+if [ -e "${SYSCONFDIR}/sshd_config" ]
+then
+  mod_before=$(stat "${SYSCONFDIR}/sshd_config" | grep '^Modify:')
+fi
 csih_install_config "${SYSCONFDIR}/sshd_config" "${SYSCONFDIR}/defaults" || let ++warning_cnt
+mod_now=$(stat "${SYSCONFDIR}/sshd_config" | grep '^Modify:')
 if ! /usr/bin/cmp "${SYSCONFDIR}/sshd_config" "${SYSCONFDIR}/defaults/${SYSCONFDIR}/sshd_config" >/dev/null 2>&1
 then
   sshd_config_configured=yes
 fi
-sshd_strictmodes || let warning_cnt+=$?
-sshd_privsep || let warning_cnt+=$?
-sshd_config_tweak || let warning_cnt+=$?
+if [ "${mod_before}" != "${mod_now}" ]
+then
+  sshd_strictmodes || let warning_cnt+=$?
+  sshd_config_tweak || let warning_cnt+=$?
+fi
+#sshd_privsep || let warning_cnt+=$?
 update_services_file || let warning_cnt+=$?
 update_inetd_conf || let warning_cnt+=$?
 install_service || let warning_cnt+=$?

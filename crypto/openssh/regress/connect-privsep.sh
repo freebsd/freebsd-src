@@ -16,13 +16,12 @@ echo 'UsePrivilegeSeparation sandbox' >> $OBJ/sshd_proxy
 
 ${SSH} -F $OBJ/ssh_proxy 999.999.999.999 true
 if [ $? -ne 0 ]; then
-	# XXX replace this with fail once sandbox has stabilised
-	warn "ssh privsep/sandbox+proxyconnect failed"
+	fail "ssh privsep/sandbox+proxyconnect failed"
 fi
 
 # Because sandbox is sensitive to changes in libc, especially malloc, retest
 # with every malloc.conf option (and none).
-if [ -z "TEST_MALLOC_OPTIONS" ]; then
+if [ -z "$TEST_MALLOC_OPTIONS" ]; then
 	mopts="C F G J R S U X < >"
 else
 	mopts=`echo $TEST_MALLOC_OPTIONS | sed 's/./& /g'`

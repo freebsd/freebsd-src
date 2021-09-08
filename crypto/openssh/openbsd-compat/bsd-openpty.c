@@ -65,6 +65,8 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "misc.h"
+
 #ifndef O_NOCTTY
 #define O_NOCTTY 0
 #endif
@@ -97,16 +99,16 @@ openpty(int *amaster, int *aslave, char *name, struct termios *termp,
 	 */
 	int ptm;
 	char *pts;
-	mysig_t old_signal;
+	sshsig_t old_signal;
 
 	if ((ptm = open("/dev/ptmx", O_RDWR | O_NOCTTY)) == -1)
 		return (-1);
 
 	/* XXX: need to close ptm on error? */
-	old_signal = signal(SIGCHLD, SIG_DFL);
+	old_signal = ssh_signal(SIGCHLD, SIG_DFL);
 	if (grantpt(ptm) < 0)
 		return (-1);
-	signal(SIGCHLD, old_signal);
+	ssh_signal(SIGCHLD, old_signal);
 
 	if (unlockpt(ptm) < 0)
 		return (-1);
@@ -120,6 +122,15 @@ openpty(int *amaster, int *aslave, char *name, struct termios *termp,
 		close(*amaster);
 		return (-1);
 	}
+
+# if defined(I_FIND) && defined(__SVR4)
+	/*
+	 * If the streams modules have already been pushed then there
+	 * is no more work to do here.
+	 */
+	if (ioctl(*aslave, I_FIND, "ptem") != 0)
+		return 0;
+# endif
 
 	/*
 	 * Try to push the appropriate streams modules, as described

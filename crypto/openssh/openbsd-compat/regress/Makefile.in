@@ -7,14 +7,14 @@ VPATH=@srcdir@
 CC=@CC@
 LD=@LD@
 CFLAGS=@CFLAGS@
-CPPFLAGS=-I. -I.. -I$(srcdir) -I$(srcdir)/.. @CPPFLAGS@ @DEFS@
+CPPFLAGS=-I. -I.. -I../.. -I$(srcdir) -I$(srcdir)/.. -I$(srcdir)/../.. @CPPFLAGS@ @DEFS@
 EXEEXT=@EXEEXT@
 LIBCOMPAT=../libopenbsd-compat.a
 LIBS=@LIBS@
 LDFLAGS=@LDFLAGS@ $(LIBCOMPAT)
 
 TESTPROGS=closefromtest$(EXEEXT) snprintftest$(EXEEXT) strduptest$(EXEEXT) \
-	strtonumtest$(EXEEXT) opensslvertest$(EXEEXT)
+	strtonumtest$(EXEEXT) opensslvertest$(EXEEXT) utimensattest$(EXEEXT)
 
 all:	t-exec ${OTHERTESTS}
 

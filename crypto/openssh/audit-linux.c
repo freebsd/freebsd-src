@@ -97,10 +97,8 @@ audit_session_close(struct logininfo *li)
 }
 
 void
-audit_event(ssh_audit_event_t event)
+audit_event(struct ssh *ssh, ssh_audit_event_t event)
 {
-	struct ssh *ssh = active_state; /* XXX */
-
 	switch(event) {
 	case SSH_AUTH_SUCCESS:
 	case SSH_CONNECTION_CLOSE:

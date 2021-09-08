@@ -1,4 +1,4 @@
-/* $OpenBSD: sftp-server-main.c,v 1.5 2016/02/15 09:47:49 dtucker Exp $ */
+/* $OpenBSD: sftp-server-main.c,v 1.6 2019/06/06 05:13:13 otto Exp $ */
 /*
  * Copyright (c) 2008 Markus Friedl.  All rights reserved.
  *
@@ -39,9 +39,10 @@ main(int argc, char **argv)
 {
 	struct passwd *user_pw;
 
-	ssh_malloc_init();	/* must be called before any mallocs */
 	/* Ensure that fds 0, 1 and 2 are open or directed to /dev/null */
 	sanitise_stdfd();
+
+	seed_rng();
 
 	if ((user_pw = getpwuid(getuid())) == NULL) {
 		fprintf(stderr, "No user found for uid %lu\n",

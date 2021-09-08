@@ -25,6 +25,7 @@ SUDO: path to sudo/doas command, if desired. Note that some systems
 	(notably systems using PAM) require sudo to execute some tests.
 LTESTS: Whitespace separated list of tests (filenames without the .sh
 	extension) to run.
+SKIP_LTESTS: Whitespace separated list of tests to skip.
 OBJ: used by test scripts to access build dir.
 TEST_SHELL: shell used for running the test scripts.
 TEST_SSH_FAIL_FATAL: set to "yes" to make any failure abort the test
@@ -63,28 +64,79 @@ test-exec.sh: the main test driver. Sets environment, creates config files
 and keys and runs the specified test.
 
 At the time of writing, the individual tests are:
-agent-timeout.sh:	agent timeout test
-agent.sh:		simple agent test
-broken-pipe.sh:		broken pipe test
-connect-privsep.sh:	proxy connect with privsep
 connect.sh:		simple connect
-exit-status.sh:		remote exit status
-forwarding.sh:		local and remote forwarding
-keygen-change.sh:	change passphrase for key
-keyscan.sh:		keyscan
-proto-mismatch.sh:	protocol version mismatch
-proto-version.sh:	sshd version with different protocol combinations
 proxy-connect.sh:	proxy connect
+connect-privsep.sh:	proxy connect with privsep
+connect-uri.sh:		uri connect
+proto-version.sh:	sshd version with different protocol combinations
+proto-mismatch.sh:	protocol version mismatch
+exit-status.sh:		remote exit status
+envpass.sh:		environment passing
+transfer.sh:		transfer data
+banner.sh:		banner
+rekey.sh:		rekey
+stderr-data.sh:		stderr data transfer
+stderr-after-eof.sh:	stderr data after eof
+broken-pipe.sh:		broken pipe test
+try-ciphers.sh:		try ciphers
+yes-head.sh:		yes pipe head
+login-timeout.sh:	connect after login grace timeout
+agent.sh:		simple connect via agent
+agent-getpeereid.sh:	disallow agent attach from other uid
+agent-timeout.sh:	agent timeout test
+agent-ptrace.sh:	disallow agent ptrace attach
+keyscan.sh:		keyscan
+keygen-change.sh:	change passphrase for key
+keygen-convert.sh:	convert keys
+keygen-moduli.sh:	keygen moduli
+key-options.sh:		key options
+scp.sh:			scp
+scp-uri.sh:		scp-uri
 sftp.sh:		basic sftp put/get
+sftp-chroot.sh:		sftp in chroot
+sftp-cmds.sh:		sftp command
+sftp-badcmds.sh:	sftp invalid commands
+sftp-batch.sh:		sftp batchfile
+sftp-glob.sh:		sftp glob
+sftp-perm.sh:		sftp permissions
+sftp-uri.sh:		sftp-uri
 ssh-com-client.sh:	connect with ssh.com client
 ssh-com-keygen.sh:	ssh.com key import
 ssh-com-sftp.sh:	basic sftp put/get with ssh.com server
 ssh-com.sh:		connect to ssh.com server
-stderr-after-eof.sh:	stderr data after eof
-stderr-data.sh:		stderr data transfer
-transfer.sh:		transfer data
-try-ciphers.sh:		try ciphers
-yes-head.sh:		yes pipe head
+reconfigure.sh:		simple connect after reconfigure
+dynamic-forward.sh:	dynamic forwarding
+forwarding.sh:		local and remote forwarding
+multiplex.sh:		connection multiplexing
+reexec.sh:		reexec tests
+brokenkeys.sh:		broken keys
+sshcfgparse.sh:		ssh config parse
+cfgparse.sh:		sshd config parse
+cfgmatch.sh:		sshd_config match
+cfgmatchlisten.sh:	sshd_config matchlisten
+addrmatch.sh:		address match
+localcommand.sh:	localcommand
+forcecommand.sh:	forced command
+portnum.sh:		port number parsing
+keytype.sh:		login with different key types
+kextype.sh:		login with different key exchange algorithms
+cert-hostkey.sh		certified host keys
+cert-userkey.sh:	certified user keys
+host-expand.sh:		expand %h and %n
+keys-command.sh:	authorized keys from command
+forward-control.sh:	sshd control of local and remote forwarding
+integrity.sh:		integrity
+krl.sh:			key revocation lists
+multipubkey.sh:		multiple pubkey
+limit-keytype.sh:	restrict pubkey type
+hostkey-agent.sh:	hostkey agent
+keygen-knownhosts.sh:	ssh-keygen known_hosts
+hostkey-rotate.sh:	hostkey rotate
+principals-command.sh:	authorized principals command
+cert-file.sh:		ssh with certificates
+cfginclude.sh:		config include
+allow-deny-users.sh:	AllowUsers/DenyUsers
+authinfo.sh:		authinfo
 
 
 Problems?

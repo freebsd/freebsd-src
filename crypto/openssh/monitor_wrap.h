@@ -1,4 +1,4 @@
-/* $OpenBSD: monitor_wrap.h,v 1.38 2018/07/11 18:53:29 markus Exp $ */
+/* $OpenBSD: monitor_wrap.h,v 1.47 2021/04/15 16:24:31 markus Exp $ */
 
 /*
  * Copyright 2002 Niels Provos <provos@citi.umich.edu>
@@ -33,28 +33,33 @@ extern int use_privsep;
 
 enum mm_keytype { MM_NOKEY, MM_HOSTKEY, MM_USERKEY };
 
+struct ssh;
 struct monitor;
 struct Authctxt;
 struct sshkey;
 struct sshauthopt;
+struct sshkey_sig_details;
 
-void mm_log_handler(LogLevel, const char *, void *);
+void mm_log_handler(LogLevel, int, const char *, void *);
 int mm_is_monitor(void);
+#ifdef WITH_OPENSSL
 DH *mm_choose_dh(int, int, int);
-int mm_sshkey_sign(struct sshkey *, u_char **, size_t *, const u_char *, size_t,
+#endif
+int mm_sshkey_sign(struct ssh *, struct sshkey *, u_char **, size_t *,
+    const u_char *, size_t, const char *, const char *,
     const char *, u_int compat);
 void mm_inform_authserv(char *, char *);
-struct passwd *mm_getpwnamallow(const char *);
+struct passwd *mm_getpwnamallow(struct ssh *, const char *);
 char *mm_auth2_read_banner(void);
 int mm_auth_password(struct ssh *, char *);
 int mm_key_allowed(enum mm_keytype, const char *, const char *, struct sshkey *,
     int, struct sshauthopt **);
 int mm_user_key_allowed(struct ssh *, struct passwd *, struct sshkey *, int,
     struct sshauthopt **);
-int mm_hostbased_key_allowed(struct passwd *, const char *,
+int mm_hostbased_key_allowed(struct ssh *, struct passwd *, const char *,
     const char *, struct sshkey *);
 int mm_sshkey_verify(const struct sshkey *, const u_char *, size_t,
-    const u_char *, size_t, const char *, u_int);
+    const u_char *, size_t, const char *, u_int, struct sshkey_sig_details **);
 
 #ifdef GSSAPI
 OM_uint32 mm_ssh_gssapi_server_ctx(Gssctxt **, gss_OID);
@@ -65,7 +70,7 @@ OM_uint32 mm_ssh_gssapi_checkmic(Gssctxt *, gss_buffer_t, gss_buffer_t);
 #endif
 
 #ifdef USE_PAM
-void mm_start_pam(struct Authctxt *);
+void mm_start_pam(struct ssh *ssh);
 u_int mm_do_pam_account(void);
 void *mm_sshpam_init_ctx(struct Authctxt *);
 int mm_sshpam_query(void *, char **, char **, u_int *, char ***, u_int **);
@@ -75,7 +80,7 @@ void mm_sshpam_free_ctx(void *);
 
 #ifdef SSH_AUDIT_EVENTS
 #include "audit.h"
-void mm_audit_event(ssh_audit_event_t);
+void mm_audit_event(struct ssh *, ssh_audit_event_t);
 void mm_audit_run_command(const char *);
 #endif
 
@@ -88,10 +93,7 @@ void mm_session_pty_cleanup2(struct Session *);
 struct newkeys *mm_newkeys_from_blob(u_char *, int);
 int mm_newkeys_to_blob(int, u_char **, u_int *);
 
-void monitor_clear_keystate(struct monitor *);
-void monitor_apply_keystate(struct monitor *);
-void mm_get_keystate(struct monitor *);
-void mm_send_keystate(struct monitor*);
+void mm_send_keystate(struct ssh *, struct monitor*);
 
 /* bsdauth */
 int mm_bsdauth_query(void *, char **, char **, u_int *, char ***, u_int **);

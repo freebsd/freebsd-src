@@ -33,14 +33,14 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh.1,v 1.399 2018/09/20 06:58:48 jmc Exp $
+.\" $OpenBSD: ssh.1,v 1.425 2021/07/28 05:57:42 jmc Exp $
 .\" $FreeBSD$
-.Dd $Mdocdate: September 20 2018 $
+.Dd $Mdocdate: July 28 2021 $
 .Dt SSH 1
 .Os
 .Sh NAME
 .Nm ssh
-.Nd OpenSSH SSH client (remote login program)
+.Nd OpenSSH remote login client
 .Sh SYNOPSIS
 .Nm ssh
 .Op Fl 46AaCfGgKkMNnqsTtVvXxYy
@@ -89,7 +89,7 @@ or a URI of the form
 .No ssh:// Oo user @ Oc hostname Op : port .
 .Sm on
 The user must prove
-his/her identity to the remote machine using one of several methods
+their identity to the remote machine using one of several methods
 (see below).
 .Pp
 If a
@@ -111,7 +111,8 @@ Forces
 to use IPv6 addresses only.
 .Pp
 .It Fl A
-Enables forwarding of the authentication agent connection.
+Enables forwarding of connections from an authentication agent such as
+.Xr ssh-agent 1 .
 This can also be specified on a per-host basis in a configuration file.
 .Pp
 Agent forwarding should be enabled with caution.
@@ -122,6 +123,9 @@ socket) can access the local agent through the forwarded connection.
 An attacker cannot obtain key material from the agent,
 however they can perform operations on the keys that enable them to
 authenticate using the identities loaded into the agent.
+A safer alternative may be to use a jump host
+(see
+.Fl J ) .
 .Pp
 .It Fl a
 Disables forwarding of the authentication agent connection.
@@ -230,6 +234,9 @@ the system-wide configuration file
 will be ignored.
 The default for the per-user configuration file is
 .Pa ~/.ssh/config .
+If set to
+.Dq none ,
+no configuration files will be read.
 .Pp
 .It Fl f
 Requests
@@ -253,6 +260,11 @@ then a client started with
 .Fl f
 will wait for all remote port forwards to be successfully established
 before placing itself in the background.
+Refer to the description of
+.Cm ForkAfterAuthentication
+in
+.Xr ssh_config 5
+for details.
 .Pp
 .It Fl G
 Causes
@@ -271,8 +283,8 @@ on the master process.
 .It Fl I Ar pkcs11
 Specify the PKCS#11 shared library
 .Nm
-should use to communicate with a PKCS#11 token providing the user's
-private RSA key.
+should use to communicate with a PKCS#11 token providing keys for user
+authentication.
 .Pp
 .It Fl i Ar identity_file
 Selects a file from which the identity (private key) for
@@ -280,7 +292,9 @@ public key authentication is read.
 The default is
 .Pa ~/.ssh/id_dsa ,
 .Pa ~/.ssh/id_ecdsa ,
-.Pa ~/.ssh/id_ed25519
+.Pa ~/.ssh/id_ecdsa_sk ,
+.Pa ~/.ssh/id_ed25519 ,
+.Pa ~/.ssh/id_ed25519_sk
 and
 .Pa ~/.ssh/id_rsa .
 Identity files may also be specified on
@@ -309,6 +323,11 @@ Multiple jump hops may be specified separated by comma characters.
 This is a shortcut to specify a
 .Cm ProxyJump
 configuration directive.
+Note that configuration directives supplied on the command-line generally
+apply to the destination host and not any specified jump hosts.
+Use
+.Pa ~/.ssh/config
+to specify configuration for jump hosts.
 .Pp
 .It Fl K
 Enables GSSAPI-based authentication and forwarding (delegation) of GSSAPI
@@ -412,6 +431,11 @@ keyword for more information.
 .It Fl N
 Do not execute a remote command.
 This is useful for just forwarding ports.
+Refer to the description of
+.Cm SessionType
+in
+.Xr ssh_config 5
+for details.
 .Pp
 .It Fl n
 Redirects stdin from
@@ -433,6 +457,11 @@ program will be put in the background.
 needs to ask for a password or passphrase; see also the
 .Fl f
 option.)
+Refer to the description of
+.Cm StdinNull
+in
+.Xr ssh_config 5
+for details.
 .Pp
 .It Fl O Ar ctl_cmd
 Control an active connection multiplexing master process.
@@ -472,7 +501,6 @@ For full details of the options listed below, and their possible values, see
 .It CanonicalizePermittedCNAMEs
 .It CASignatureAlgorithms
 .It CertificateFile
-.It ChallengeResponseAuthentication
 .It CheckHostIP
 .It Ciphers
 .It ClearAllForwardings
@@ -486,6 +514,7 @@ For full details of the options listed below, and their possible values, see
 .It EscapeChar
 .It ExitOnForwardFailure
 .It FingerprintHash
+.It ForkAfterAuthentication
 .It ForwardAgent
 .It ForwardX11
 .It ForwardX11Timeout
@@ -496,11 +525,11 @@ For full details of the options listed below, and their possible values, see
 .It GSSAPIDelegateCredentials
 .It HashKnownHosts
 .It Host
+.It HostbasedAcceptedAlgorithms
 .It HostbasedAuthentication
-.It HostbasedKeyTypes
 .It HostKeyAlgorithms
 .It HostKeyAlias
-.It HostName
+.It Hostname
 .It IdentitiesOnly
 .It IdentityAgent
 .It IdentityFile
@@ -508,6 +537,7 @@ For full details of the options listed below, and their possible values, see
 .It KbdInteractiveAuthentication
 .It KbdInteractiveDevices
 .It KexAlgorithms
+.It KnownHostsCommand
 .It LocalCommand
 .It LocalForward
 .It LogLevel
@@ -517,13 +547,14 @@ For full details of the options listed below, and their possible values, see
 .It NumberOfPasswordPrompts
 .It PasswordAuthentication
 .It PermitLocalCommand
+.It PermitRemoteOpen
 .It PKCS11Provider
 .It Port
 .It PreferredAuthentications
 .It ProxyCommand
 .It ProxyJump
 .It ProxyUseFdpass
-.It PubkeyAcceptedKeyTypes
+.It PubkeyAcceptedAlgorithms
 .It PubkeyAuthentication
 .It RekeyLimit
 .It RemoteCommand
@@ -532,7 +563,9 @@ For full details of the options listed below, and their possible values, see
 .It SendEnv
 .It ServerAliveInterval
 .It ServerAliveCountMax
+.It SessionType
 .It SetEnv
+.It StdinNull
 .It StreamLocalBindMask
 .It StreamLocalBindUnlink
 .It StrictHostKeyChecking
@@ -554,10 +587,7 @@ This can be specified on a
 per-host basis in the configuration file.
 .Pp
 .It Fl Q Ar query_option
-Queries
-.Nm
-for the algorithms supported for the specified version 2.
-The available features are:
+Queries for the algorithms supported by one of the following features:
 .Ar cipher
 (supported symmetric ciphers),
 .Ar cipher-auth
@@ -576,10 +606,18 @@ flag),
 (certificate key types),
 .Ar key-plain
 (non-certificate key types),
+.Ar key-sig
+(all key types and signature algorithms),
 .Ar protocol-version
 (supported SSH protocol versions), and
 .Ar sig
 (supported signature algorithms).
+Alternatively, any keyword from
+.Xr ssh_config 5
+or
+.Xr sshd_config 5
+that takes an algorithm list may be used as an alias for the corresponding
+query_option.
 .Pp
 .It Fl q
 Quiet mode.
@@ -682,6 +720,11 @@ Subsystems facilitate the use of SSH
 as a secure transport for other applications (e.g.\&
 .Xr sftp 1 ) .
 The subsystem is specified as the remote command.
+Refer to the description of
+.Cm SessionType
+in
+.Xr ssh_config 5
+for details.
 .Pp
 .It Fl T
 Disable pseudo-terminal allocation.
@@ -811,7 +854,7 @@ The methods available for authentication are:
 GSSAPI-based authentication,
 host-based authentication,
 public key authentication,
-challenge-response authentication,
+keyboard-interactive authentication,
 and password authentication.
 Authentication methods are tried in the order specified above,
 though
@@ -823,7 +866,7 @@ If the machine the user logs in from is listed in
 .Pa /etc/hosts.equiv
 or
 .Pa /etc/shosts.equiv
-on the remote machine, and the user names are
+on the remote machine, the user is non-root and the user names are
 the same on both sides, or if the files
 .Pa ~/.rhosts
 or
@@ -886,15 +929,19 @@ or higher (e.g. by using the
 .Fl v
 flag).
 .Pp
-The user creates his/her key pair by running
+The user creates their key pair by running
 .Xr ssh-keygen 1 .
 This stores the private key in
 .Pa ~/.ssh/id_dsa
 (DSA),
 .Pa ~/.ssh/id_ecdsa
 (ECDSA),
+.Pa ~/.ssh/id_ecdsa_sk
+(authenticator-hosted ECDSA),
 .Pa ~/.ssh/id_ed25519
 (Ed25519),
+.Pa ~/.ssh/id_ed25519_sk
+(authenticator-hosted Ed25519),
 or
 .Pa ~/.ssh/id_rsa
 (RSA)
@@ -903,8 +950,12 @@ and stores the public key in
 (DSA),
 .Pa ~/.ssh/id_ecdsa.pub
 (ECDSA),
+.Pa ~/.ssh/id_ecdsa_sk.pub
+(authenticator-hosted ECDSA),
 .Pa ~/.ssh/id_ed25519.pub
 (Ed25519),
+.Pa ~/.ssh/id_ed25519_sk.pub
+(authenticator-hosted Ed25519),
 or
 .Pa ~/.ssh/id_rsa.pub
 (RSA)
@@ -912,7 +963,7 @@ in the user's home directory.
 The user should then copy the public key
 to
 .Pa ~/.ssh/authorized_keys
-in his/her home directory on the remote machine.
+in their home directory on the remote machine.
 The
 .Pa authorized_keys
 file corresponds to the conventional
@@ -941,11 +992,11 @@ directive in
 .Xr ssh_config 5
 for more information.
 .Pp
-Challenge-response authentication works as follows:
+Keyboard-interactive authentication works as follows:
 The server sends an arbitrary
 .Qq challenge
-text, and prompts for a response.
-Examples of challenge-response authentication include
+text and prompts for a response, possibly multiple times.
+Examples of keyboard-interactive authentication include
 .Bx
 Authentication (see
 .Xr login.conf 5 )
@@ -1087,49 +1138,35 @@ Increase the verbosity
 when errors are being written to stderr.
 .El
 .Sh TCP FORWARDING
-Forwarding of arbitrary TCP connections over the secure channel can
-be specified either on the command line or in a configuration file.
+Forwarding of arbitrary TCP connections over a secure channel
+can be specified either on the command line or in a configuration file.
 One possible application of TCP forwarding is a secure connection to a
 mail server; another is going through firewalls.
 .Pp
-In the example below, we look at encrypting communication between
-an IRC client and server, even though the IRC server does not directly
-support encrypted communications.
+In the example below, we look at encrypting communication for an IRC client,
+even though the IRC server it connects to does not directly
+support encrypted communication.
 This works as follows:
 the user connects to the remote host using
 .Nm ,
-specifying a port to be used to forward connections
-to the remote server.
-After that it is possible to start the service which is to be encrypted
-on the client machine,
-connecting to the same local port,
+specifying the ports to be used to forward the connection.
+After that it is possible to start the program locally,
 and
 .Nm
-will encrypt and forward the connection.
+will encrypt and forward the connection to the remote server.
 .Pp
-The following example tunnels an IRC session from client machine
-.Dq 127.0.0.1
-(localhost)
-to remote server
-.Dq server.example.com :
-.Bd -literal -offset 4n
-$ ssh -f -L 1234:localhost:6667 server.example.com sleep 10
-$ irc -c '#users' -p 1234 pinky 127.0.0.1
-.Ed
-.Pp
-This tunnels a connection to IRC server
+The following example tunnels an IRC session from the client
+to an IRC server at
 .Dq server.example.com ,
 joining channel
 .Dq #users ,
 nickname
 .Dq pinky ,
-using port 1234.
-It doesn't matter which port is used,
-as long as it's greater than 1023
-(remember, only root can open sockets on privileged ports)
-and doesn't conflict with any ports already in use.
-The connection is forwarded to port 6667 on the remote server,
-since that's the standard port for IRC services.
+using the standard IRC port, 6667:
+.Bd -literal -offset 4n
+$ ssh -f -L 6667:localhost:6667 server.example.com sleep 10
+$ irc -c '#users' pinky IRC/127.0.0.1
+.Ed
 .Pp
 The
 .Fl f
@@ -1139,7 +1176,7 @@ and the remote command
 .Dq sleep 10
 is specified to allow an amount of time
 (10 seconds, in the example)
-to start the service which is to be tunnelled.
+to start the program which is going to use the tunnel.
 If no connections are made within the time specified,
 .Nm
 will exit.
@@ -1395,6 +1432,25 @@ or related script.
 may be necessary to redirect the input from
 .Pa /dev/null
 to make this work.)
+.It Ev SSH_ASKPASS_REQUIRE
+Allows further control over the use of an askpass program.
+If this variable is set to
+.Dq never
+then
+.Nm
+will never attempt to use one.
+If it is set to
+.Dq prefer ,
+then
+.Nm
+will prefer to use the askpass program instead of the TTY when requesting
+passwords.
+Finally, if the variable is set to
+.Dq force ,
+then the askpass program will be used for all passphrase input regardless
+of whether
+.Ev DISPLAY
+is set.
 .It Ev SSH_AUTH_SOCK
 Identifies the path of a
 .Ux Ns -domain
@@ -1495,7 +1551,9 @@ above.
 .Pp
 .It Pa ~/.ssh/id_dsa
 .It Pa ~/.ssh/id_ecdsa
+.It Pa ~/.ssh/id_ecdsa_sk
 .It Pa ~/.ssh/id_ed25519
+.It Pa ~/.ssh/id_ed25519_sk
 .It Pa ~/.ssh/id_rsa
 Contains the private key for authentication.
 These files
@@ -1509,7 +1567,9 @@ sensitive part of this file using AES-128.
 .Pp
 .It Pa ~/.ssh/id_dsa.pub
 .It Pa ~/.ssh/id_ecdsa.pub
+.It Pa ~/.ssh/id_ecdsa_sk.pub
 .It Pa ~/.ssh/id_ed25519.pub
+.It Pa ~/.ssh/id_ed25519_sk.pub
 .It Pa ~/.ssh/id_rsa.pub
 Contains the public key for authentication.
 These files are not

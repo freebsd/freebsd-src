@@ -1,19 +1,19 @@
 This file contains notes about OpenSSH on specific platforms.
 
 AIX
----
-As of OpenSSH 3.8p1, sshd will now honour an accounts password expiry
-settings, where previously it did not.  Because of this, it's possible for
-sites that have used OpenSSH's sshd exclusively to have accounts which
-have passwords expired longer than the inactive time (ie the "Weeks between
-password EXPIRATION and LOCKOUT" setting in SMIT or the maxexpired
-chuser attribute).
+
+Beginning with OpenSSH 3.8p1, sshd will honour an account's password
+expiry settings, where prior to that it did not.  Because of this,
+it's possible for sites that have used OpenSSH's sshd exclusively to
+have accounts which have passwords expired longer than the inactive time
+(ie the "Weeks between password EXPIRATION and LOCKOUT" setting in SMIT
+or the maxexpired chuser attribute).
 
 Accounts in this state must have their passwords reset manually by the
 administrator.  As a precaution, it is recommended that the administrative
 passwords be reset before upgrading from OpenSSH <3.8.
 
-As of OpenSSH 4.0, configure will attempt to detect if your version
+As of OpenSSH 4.0p1, configure will attempt to detect if your version
 and maintenance level of AIX has a working getaddrinfo, and will use it
 if found.  This will enable IPv6 support.  If for some reason configure
 gets it wrong, or if you want to build binaries to work on earlier MLs

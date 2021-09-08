@@ -1,4 +1,4 @@
-/* $OpenBSD: misc.h,v 1.75 2018/10/03 06:38:35 djm Exp $ */
+/* $OpenBSD: misc.h,v 1.98 2021/08/09 23:47:44 djm Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -17,6 +17,8 @@
 
 #include <sys/time.h>
 #include <sys/types.h>
+#include <sys/socket.h>
+#include <stdio.h>
 
 /* Data structure for representing a forwarding request. */
 struct Forward {
@@ -43,6 +45,8 @@ struct ForwardOptions {
 /* misc.c */
 
 char	*chop(char *);
+void	 rtrim(char *);
+void	skip_space(char **);
 char	*strdelim(char **);
 char	*strdelimw(char **);
 int	 set_nonblock(int);
@@ -51,19 +55,31 @@ void	 set_nodelay(int);
 int	 set_reuseaddr(int);
 char	*get_rdomain(int);
 int	 set_rdomain(int, const char *);
+int	 get_sock_af(int);
+void	 set_sock_tos(int, int);
+int	 waitrfd(int, int *);
+int	 timeout_connect(int, const struct sockaddr *, socklen_t, int *);
 int	 a2port(const char *);
 int	 a2tun(const char *, int *);
 char	*put_host_port(const char *, u_short);
+char	*hpdelim2(char **, char *);
 char	*hpdelim(char **);
 char	*cleanhostname(char *);
 char	*colon(char *);
 int	 parse_user_host_path(const char *, char **, char **, char **);
 int	 parse_user_host_port(const char *, char **, char **, int *);
 int	 parse_uri(const char *, const char *, char **, char **, int *, char **);
-long	 convtime(const char *);
+int	 convtime(const char *);
+const char *fmt_timeframe(time_t t);
+int	 tilde_expand(const char *, uid_t, char **);
 char	*tilde_expand_filename(const char *, uid_t);
+
+char	*dollar_expand(int *, const char *string, ...);
 char	*percent_expand(const char *, ...) __attribute__((__sentinel__));
+char	*percent_dollar_expand(const char *, ...) __attribute__((__sentinel__));
 char	*tohex(const void *, size_t);
+void	 xextendf(char **s, const char *sep, const char *fmt, ...)
+    __attribute__((__format__ (printf, 3, 4))) __attribute__((__nonnull__ (3)));
 void	 sanitise_stdfd(void);
 void	 ms_subtract_diff(struct timeval *, int *);
 void	 ms_to_timeval(struct timeval *, int);
@@ -78,11 +94,23 @@ int	 valid_env_name(const char *);
 const char *atoi_err(const char *, int *);
 int	 parse_absolute_time(const char *, uint64_t *);
 void	 format_absolute_time(uint64_t, char *, size_t);
+int	 path_absolute(const char *);
+int	 stdfd_devnull(int, int, int);
 
 void	 sock_set_v6only(int);
 
 struct passwd *pwcopy(struct passwd *);
 const char *ssh_gai_strerror(int);
+
+typedef void privdrop_fn(struct passwd *);
+typedef void privrestore_fn(void);
+#define	SSH_SUBPROCESS_STDOUT_DISCARD	(1)     /* Discard stdout */
+#define	SSH_SUBPROCESS_STDOUT_CAPTURE	(1<<1)  /* Redirect stdout */
+#define	SSH_SUBPROCESS_STDERR_DISCARD	(1<<2)  /* Discard stderr */
+#define	SSH_SUBPROCESS_UNSAFE_PATH	(1<<3)	/* Don't check for safe cmd */
+#define	SSH_SUBPROCESS_PRESERVE_ENV	(1<<4)	/* Keep parent environment */
+pid_t subprocess(const char *, const char *, int, char **, FILE **, u_int,
+    struct passwd *, privdrop_fn *, privrestore_fn *);
 
 typedef struct arglist arglist;
 struct arglist {
@@ -91,9 +119,9 @@ struct arglist {
 	u_int   nalloc;
 };
 void	 addargs(arglist *, char *, ...)
-	     __attribute__((format(printf, 2, 3)));
+	    __attribute__((format(printf, 2, 3)));
 void	 replacearg(arglist *, u_int, char *, ...)
-	     __attribute__((format(printf, 3, 4)));
+	    __attribute__((format(printf, 3, 4)));
 void	 freeargs(arglist *);
 
 int	 tun_open(int, int, char **);
@@ -134,7 +162,9 @@ void		put_u32_le(void *, u_int32_t)
 
 struct bwlimit {
 	size_t buflen;
-	u_int64_t rate, thresh, lamt;
+	u_int64_t rate;		/* desired rate in kbit/s */
+	u_int64_t thresh;	/* threshold after which we'll check timers */
+	u_int64_t lamt;		/* amount written in last timer interval */
 	struct timeval bwstart, bwend;
 };
 
@@ -146,17 +176,35 @@ const char *iptos2str(int);
 void mktemp_proto(char *, size_t);
 
 void	 child_set_env(char ***envp, u_int *envsizep, const char *name,
-	     const char *value);
+	    const char *value);
+const char *lookup_env_in_list(const char *env,
+	    char * const *envs, size_t nenvs);
 
-int	 argv_split(const char *, int *, char ***);
+int	 argv_split(const char *, int *, char ***, int);
 char	*argv_assemble(int, char **argv);
+char	*argv_next(int *, char ***);
+void	 argv_consume(int *);
+void	 argv_free(char **, int);
+
 int	 exited_cleanly(pid_t, const char *, const char *, int);
 
 struct stat;
 int	 safe_path(const char *, struct stat *, const char *, uid_t,
-	     char *, size_t);
+	    char *, size_t);
 int	 safe_path_fd(int, const char *, struct passwd *,
-	     char *err, size_t errlen);
+	    char *err, size_t errlen);
+
+/* authorized_key-style options parsing helpers */
+int	opt_flag(const char *opt, int allow_negate, const char **optsp);
+char	*opt_dequote(const char **sp, const char **errstrp);
+int	opt_match(const char **opts, const char *term);
+
+/* readconf/servconf option lists */
+void	opt_array_append(const char *file, const int line,
+	    const char *directive, char ***array, u_int *lp, const char *s);
+void	opt_array_append2(const char *file, const int line,
+	    const char *directive, char ***array, int **iarray, u_int *lp,
+	    const char *s, int i);
 
 /* readpass.c */
 
@@ -165,11 +213,20 @@ int	 safe_path_fd(int, const char *, struct passwd *,
 #define RP_ALLOW_EOF		0x0004
 #define RP_USE_ASKPASS		0x0008
 
+struct notifier_ctx;
+
 char	*read_passphrase(const char *, int);
 int	 ask_permission(const char *, ...) __attribute__((format(printf, 1, 2)));
+struct notifier_ctx *notify_start(int, const char *, ...)
+	__attribute__((format(printf, 2, 3)));
+void	notify_complete(struct notifier_ctx *, const char *, ...)
+	__attribute__((format(printf, 2, 3)));
 
 #define MINIMUM(a, b)	(((a) < (b)) ? (a) : (b))
 #define MAXIMUM(a, b)	(((a) > (b)) ? (a) : (b))
 #define ROUNDUP(x, y)   ((((x)+((y)-1))/(y))*(y))
+
+typedef void (*sshsig_t)(int);
+sshsig_t ssh_signal(int, sshsig_t);
 
 #endif /* _MISC_H */

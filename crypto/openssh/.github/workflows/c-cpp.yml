@@ -1,0 +1,76 @@
+name: C/C++ CI
+
+on:
+  push:
+    branches: [ master, ci ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  ci:
+    if: github.repository != 'openssh/openssh-portable-selfhosted'
+    strategy:
+      fail-fast: false
+      matrix:
+        # First we test all OSes in the default configuration.
+        os: [ubuntu-20.04, ubuntu-18.04, macos-10.15, macos-11.0]
+        configs: [default]
+        # Then we include any extra configs we want to test for specific VMs.
+        # Valgrind slows things down quite a bit, so start them first.
+        include:
+          - { os: ubuntu-20.04, configs: valgrind-1 }
+          - { os: ubuntu-20.04, configs: valgrind-2 }
+          - { os: ubuntu-20.04, configs: valgrind-3 }
+          - { os: ubuntu-20.04, configs: valgrind-4 }
+          - { os: ubuntu-20.04, configs: valgrind-unit }
+          - { os: ubuntu-20.04, configs: c89 }
+          - { os: ubuntu-20.04, configs: pam }
+          - { os: ubuntu-20.04, configs: kitchensink }
+          - { os: ubuntu-20.04, configs: hardenedmalloc }
+          - { os: ubuntu-latest, configs: libressl-master }
+          - { os: ubuntu-latest, configs: libressl-2.2.9 }
+          - { os: ubuntu-latest, configs: libressl-2.8.3 }
+          - { os: ubuntu-latest, configs: libressl-3.0.2 }
+          - { os: ubuntu-latest, configs: libressl-3.2.5 }
+          - { os: ubuntu-latest, configs: openssl-master }
+          - { os: ubuntu-latest, configs: openssl-noec }
+          - { os: ubuntu-latest, configs: openssl-1.0.1 }
+          - { os: ubuntu-latest, configs: openssl-1.0.1u }
+          - { os: ubuntu-latest, configs: openssl-1.0.2u }
+          - { os: ubuntu-latest, configs: openssl-1.1.0h }
+          - { os: ubuntu-latest, configs: openssl-1.1.1 }
+          - { os: ubuntu-latest, configs: openssl-1.1.1k }
+          - { os: ubuntu-18.04, configs: pam }
+          - { os: ubuntu-18.04, configs: kerberos5 }
+          - { os: ubuntu-18.04, configs: libedit }
+          - { os: ubuntu-18.04, configs: sk }
+          - { os: ubuntu-18.04, configs: selinux }
+          - { os: ubuntu-18.04, configs: kitchensink }
+          - { os: ubuntu-18.04, configs: without-openssl }
+          - { os: macos-10.15,  configs: pam }
+          - { os: macos-11.0,   configs: pam }
+    runs-on: ${{ matrix.os }}
+    steps:
+    - uses: actions/checkout@v2
+    - name: setup CI system
+      run: ./.github/setup_ci.sh ${{ matrix.configs }}
+    - name: autoreconf
+      run: autoreconf
+    - name: configure
+      run: ./.github/configure.sh ${{ matrix.configs }}
+    - name: make
+      run: make -j2
+    - name: make tests
+      run: ./.github/run_test.sh ${{ matrix.configs }}
+      env:
+        TEST_SSH_UNSAFE_PERMISSIONS: 1
+    - name: save logs
+      if: failure()
+      uses: actions/upload-artifact@v2
+      with:
+        name: ${{ matrix.os }}-${{ matrix.configs }}-logs
+        path: |
+          config.h
+          config.log
+          regress/*.log
+          regress/valgrind-out/

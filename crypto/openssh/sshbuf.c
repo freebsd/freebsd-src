@@ -1,4 +1,4 @@
-/*	$OpenBSD: sshbuf.c,v 1.12 2018/07/09 21:56:06 markus Exp $	*/
+/*	$OpenBSD: sshbuf.c,v 1.15 2020/02/26 13:40:09 jsg Exp $	*/
 /*
  * Copyright (c) 2011 Damien Miller
  *
@@ -42,7 +42,7 @@ sshbuf_check_sanity(const struct sshbuf *buf)
 	    buf->off > buf->size)) {
 		/* Do not try to recover from corrupted buffer internals */
 		SSHBUF_DBG(("SSH_ERR_INTERNAL_ERROR"));
-		signal(SIGSEGV, SIG_DFL);
+		ssh_signal(SIGSEGV, SIG_DFL);
 		raise(SIGSEGV);
 		return SSH_ERR_INTERNAL_ERROR;
 	}
@@ -143,12 +143,7 @@ sshbuf_free(struct sshbuf *buf)
 	 */
 	if (sshbuf_check_sanity(buf) != 0)
 		return;
-	/*
-	 * If we are a child, the free our parent to decrement its reference
-	 * count and possibly free it.
-	 */
-	sshbuf_free(buf->parent);
-	buf->parent = NULL;
+
 	/*
 	 * If we are a parent with still-extant children, then don't free just
 	 * yet. The last child's call to sshbuf_free should decrement our
@@ -157,12 +152,19 @@ sshbuf_free(struct sshbuf *buf)
 	buf->refcount--;
 	if (buf->refcount > 0)
 		return;
+
+	/*
+	 * If we are a child, the free our parent to decrement its reference
+	 * count and possibly free it.
+	 */
+	sshbuf_free(buf->parent);
+	buf->parent = NULL;
+
 	if (!buf->readonly) {
 		explicit_bzero(buf->d, buf->alloc);
 		free(buf->d);
 	}
-	explicit_bzero(buf, sizeof(*buf));
-	free(buf);
+	freezero(buf, sizeof(*buf));
 }
 
 void

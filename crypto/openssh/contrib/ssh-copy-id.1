@@ -1,5 +1,5 @@
 .ig \"  -*- nroff -*-
-Copyright (c) 1999-2013 hands.com Ltd. <http://hands.com/>
+Copyright (c) 1999-2020 hands.com Ltd. <http://hands.com/>
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions
@@ -31,6 +31,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .Nm
 .Op Fl f
 .Op Fl n
+.Op Fl s
 .Op Fl i Op Ar identity_file
 .Op Fl p Ar port
 .Op Fl o Ar ssh_option
@@ -84,6 +85,12 @@ in more than one copy of the key being installed on the remote system.
 .It Fl n
 do a dry-run.  Instead of installing keys on the remote system simply
 prints the key(s) that would have been installed.
+.It Fl s
+SFTP mode: usually the public keys are installed by executing commands on the remote side.
+With this option the user's
+.Pa ~/.ssh/authorized_keys
+file will be downloaded, modified locally and uploaded with sftp.
+This option is useful if the server has restrictions on commands which can be used on the remote side.
 .It Fl h , Fl ?
 Print Usage summary
 .It Fl p Ar port , Fl o Ar ssh_option
@@ -158,7 +165,7 @@ asked for confirmation, which is your cue to log back out and run
 The reason you might want to specify the -i option in this case is to
 ensure that the comment on the installed key is the one from the
 .Pa .pub
-file, rather than just the filename that was loaded into you agent.
+file, rather than just the filename that was loaded into your agent.
 It also ensures that only the id you intended is installed, rather than
 all the keys that you have in your
 .Xr ssh-agent 1 .

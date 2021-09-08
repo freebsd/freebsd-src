@@ -1,7 +1,14 @@
-#	$OpenBSD: sshcfgparse.sh,v 1.4 2018/07/04 13:51:12 djm Exp $
+#	$OpenBSD: sshcfgparse.sh,v 1.9 2021/06/08 07:05:27 dtucker Exp $
 #	Placed in the Public Domain.
 
 tid="ssh config parse"
+
+dsa=0
+for t in $SSH_KEYTYPES; do
+	case "$t" in
+		ssh-dss)	dsa=1 ;;
+	esac
+done
 
 expect_result_present() {
 	_str="$1" ; shift
@@ -25,7 +32,7 @@ expect_result_absent() {
 verbose "reparse minimal config"
 (${SSH} -G -F $OBJ/ssh_config somehost >$OBJ/ssh_config.1 &&
  ${SSH} -G -F $OBJ/ssh_config.1 somehost >$OBJ/ssh_config.2 &&
- diff $OBJ/ssh_config.1 $OBJ/ssh_config.2) || fail "reparse minimal config"
+ diff $OBJ/ssh_config.1 $OBJ/ssh_config.2) || fail "failed to reparse minimal"
 
 verbose "ssh -W opts"
 f=`${SSH} -GF $OBJ/ssh_config host | awk '/exitonforwardfailure/{print $2}'`
@@ -55,35 +62,58 @@ test "$f" = "bar" || fail "user first match -l, expected 'bar' got '$f'"
 f=`${SSH} -GF $OBJ/ssh_config baz@host -o user=foo -l bar baz@host | awk '/^user /{print $2}'`
 test "$f" = "baz" || fail "user first match user@host, expected 'baz' got '$f'"
 
-verbose "pubkeyacceptedkeytypes"
+verbose "pubkeyacceptedalgorithms"
 # Default set
-f=`${SSH} -GF none host | awk '/^pubkeyacceptedkeytypes /{print $2}'`
+f=`${SSH} -GF none host | awk '/^pubkeyacceptedalgorithms /{print $2}'`
 expect_result_present "$f" "ssh-ed25519" "ssh-ed25519-cert-v01.*"
 expect_result_absent "$f" "ssh-dss"
 # Explicit override
-f=`${SSH} -GF none -opubkeyacceptedkeytypes=ssh-ed25519 host | \
-    awk '/^pubkeyacceptedkeytypes /{print $2}'`
+f=`${SSH} -GF none -opubkeyacceptedalgorithms=ssh-ed25519 host | \
+    awk '/^pubkeyacceptedalgorithms /{print $2}'`
 expect_result_present "$f" "ssh-ed25519"
 expect_result_absent "$f" "ssh-ed25519-cert-v01.*" "ssh-dss"
 # Removal from default set
-f=`${SSH} -GF none -opubkeyacceptedkeytypes=-ssh-ed25519-cert* host | \
-    awk '/^pubkeyacceptedkeytypes /{print $2}'`
+f=`${SSH} -GF none -opubkeyacceptedalgorithms=-ssh-ed25519-cert* host | \
+    awk '/^pubkeyacceptedalgorithms /{print $2}'`
 expect_result_present "$f" "ssh-ed25519"
 expect_result_absent "$f" "ssh-ed25519-cert-v01.*" "ssh-dss"
-f=`${SSH} -GF none -opubkeyacceptedkeytypes=-ssh-ed25519 host | \
-    awk '/^pubkeyacceptedkeytypes /{print $2}'`
+f=`${SSH} -GF none -opubkeyacceptedalgorithms=-ssh-ed25519 host | \
+    awk '/^pubkeyacceptedalgorithms /{print $2}'`
 expect_result_present "$f" "ssh-ed25519-cert-v01.*"
 expect_result_absent "$f" "ssh-ed25519" "ssh-dss"
 # Append to default set.
-# XXX this will break for !WITH_OPENSSL
-f=`${SSH} -GF none -opubkeyacceptedkeytypes=+ssh-dss-cert* host | \
-    awk '/^pubkeyacceptedkeytypes /{print $2}'`
-expect_result_present "$f" "ssh-ed25519" "ssh-dss-cert-v01.*"
-expect_result_absent "$f" "ssh-dss"
-f=`${SSH} -GF none -opubkeyacceptedkeytypes=+ssh-dss host | \
-    awk '/^pubkeyacceptedkeytypes /{print $2}'`
-expect_result_present "$f" "ssh-ed25519" "ssh-ed25519-cert-v01.*" "ssh-dss"
-expect_result_absent "$f" "ssh-dss-cert-v01.*"
+# This is not tested when built !WITH_OPENSSL
+if [ "$dsa" = "1" ]; then
+	f=`${SSH} -GF none -opubkeyacceptedalgorithms=+ssh-dss-cert* host | \
+	    awk '/^pubkeyacceptedalgorithms /{print $2}'`
+	expect_result_present "$f" "ssh-ed25519" "ssh-dss-cert-v01.*"
+	expect_result_absent "$f" "ssh-dss"
+	f=`${SSH} -GF none -opubkeyacceptedalgorithms=+ssh-dss host | \
+	    awk '/^pubkeyacceptedalgorithms /{print $2}'`
+	expect_result_present "$f" "ssh-ed25519" "ssh-ed25519-cert-v01.*" "ssh-dss"
+	expect_result_absent "$f" "ssh-dss-cert-v01.*"
+fi
+
+verbose "agentforwarding"
+f=`${SSH} -GF none host | awk '/^forwardagent /{print$2}'`
+expect_result_present "$f" "no"
+f=`${SSH} -GF none -oforwardagent=no host | awk '/^forwardagent /{print$2}'`
+expect_result_present "$f" "no"
+f=`${SSH} -GF none -oforwardagent=yes host | awk '/^forwardagent /{print$2}'`
+expect_result_present "$f" "yes"
+f=`${SSH} -GF none '-oforwardagent=SSH_AUTH_SOCK.forward' host | awk '/^forwardagent /{print$2}'`
+expect_result_present "$f" "SSH_AUTH_SOCK.forward"
+
+verbose "command line override"
+cat >$OBJ/ssh_config.0 <<EOD
+Host *
+    IPQoS af21 cs1
+    TunnelDevice 1:2
+EOD
+f=`${SSH} -GF $OBJ/ssh_config.0 -oipqos=cs1 host | awk '/^ipqos /{print$2}'`
+expect_result_present "$f" "cs1"
+f=`${SSH} -GF $OBJ/ssh_config.0 -otunneldevice=3:4 host | awk '/^tunneldevice /{print$2}'`
+expect_result_present "$f" "3:4"
 
 # cleanup
 rm -f $OBJ/ssh_config.[012]
