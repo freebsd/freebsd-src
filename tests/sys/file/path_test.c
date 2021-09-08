@@ -865,7 +865,7 @@ ATF_TC_BODY(path_unix, tc)
 	ATF_REQUIRE_MSG(bind(sd, (struct sockaddr *)&sun, SUN_LEN(&sun)) == 0,
 	    FMT_ERR("bind"));
 
-	pathfd = open(path, O_RDONLY);
+	pathfd = open(path, O_PATH);
 	ATF_REQUIRE_ERRNO(EOPNOTSUPP, pathfd < 0);
 
 	CHECKED_CLOSE(sd);
