@@ -17,8 +17,6 @@
 #include "config.h"
 #include "includes.h"
 
-#ifdef USE_SOLARIS_PROCESS_CONTRACTS
-
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/param.h>
@@ -31,11 +29,13 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "log.h"
+
+#ifdef USE_SOLARIS_PROCESS_CONTRACTS
+
 #include <libcontract.h>
 #include <sys/contract/process.h>
 #include <sys/ctfs.h>
-
-#include "log.h"
 
 #define CT_TEMPLATE	CTFS_ROOT "/process/template"
 #define CT_LATEST	CTFS_ROOT "/process/latest"
@@ -284,11 +284,10 @@ solaris_drop_privs_pinfo_net_fork_exec(void)
 	    priv_addset(npset, PRIV_FILE_OWNER) != 0)
 		fatal("priv_addset: %s", strerror(errno));
 
-	if (priv_delset(npset, PRIV_FILE_LINK_ANY) != 0 ||
+	if (priv_delset(npset, PRIV_PROC_EXEC) != 0 ||
 #ifdef PRIV_NET_ACCESS
 	    priv_delset(npset, PRIV_NET_ACCESS) != 0 ||
 #endif
-	    priv_delset(npset, PRIV_PROC_EXEC) != 0 ||
 	    priv_delset(npset, PRIV_PROC_FORK) != 0 ||
 	    priv_delset(npset, PRIV_PROC_INFO) != 0 ||
 	    priv_delset(npset, PRIV_PROC_SESSION) != 0)
@@ -348,8 +347,7 @@ solaris_drop_privs_root_pinfo_net_exec(void)
 	    priv_delset(pset, PRIV_NET_ACCESS) != 0 ||
 #endif
 	    priv_delset(pset, PRIV_PROC_EXEC) != 0 ||
-	    priv_delset(pset, PRIV_PROC_INFO) != 0 ||
-	    priv_delset(pset, PRIV_PROC_SESSION) != 0)
+	    priv_delset(pset, PRIV_PROC_INFO) != 0)
 		fatal("priv_delset: %s", strerror(errno));
 
 	if (setppriv(PRIV_SET, PRIV_PERMITTED, pset) != 0 ||

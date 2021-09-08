@@ -1,0 +1,4 @@
+This is preparatory data for fuzzing testing including scripts and test keys,
+corresponding to ../fixed-keys that are used in the fuzz tests and consequent
+fuzzing seed corpora. They should not be changed unless the affected seed
+corpora are also regenerated.

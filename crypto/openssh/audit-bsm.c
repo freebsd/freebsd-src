@@ -129,7 +129,7 @@ static AuditInfoTermID ssh_bsm_tid;
  * getaudit_addr() is only present on IPv6 capable machines.
  */
 #if defined(HAVE_AUG_GET_MACHINE) || !defined(HAVE_GETAUDIT_ADDR)
-extern int 	aug_get_machine(char *, u_int32_t *, u_int32_t *);
+extern int aug_get_machine(char *, u_int32_t *, u_int32_t *);
 #else
 static int
 aug_get_machine(char *host, u_int32_t *addr, u_int32_t *type)
@@ -183,41 +183,41 @@ getacna(char *auditstring, int len)
 	scf_value_t *value = NULL;
 	int ret = 0;
 
+	/*
+	 * The man page for getacna on Solaris 10 states we should return -2
+	 * in case of error and set errno to indicate the error. We don't
+	 * bother with errno here, though, since the only use of this function
+	 * below doesn't check for errors anyway.
+	*/
 	handle = scf_handle_create(SCF_VERSION);
 	if (handle == NULL) 
-	        return -2; /* The man page for getacna on Solaris 10 states
-			      we should return -2 in case of error and set
-			      errno to indicate the error. We don't bother
-			      with errno here, though, since the only use
-			      of this function below doesn't check for errors
-			      anyway. 
-			   */
+		return -2;
 
 	ret = scf_handle_bind(handle);
 	if (ret == -1) 
-	        return -2;
+		return -2;
 
 	property = scf_property_create(handle);
 	if (property == NULL) 
-	        return -2;
+		return -2;
 
 	ret = scf_handle_decode_fmri(handle, 
-	     "svc:/system/auditd:default/:properties/preselection/naflags",
-				     NULL, NULL, NULL, NULL, property, 0);
+	    "svc:/system/auditd:default/:properties/preselection/naflags",
+	    NULL, NULL, NULL, NULL, property, 0);
 	if (ret == -1) 
-	        return -2;
+		return -2;
 
 	value = scf_value_create(handle);
 	if (value == NULL) 
-	        return -2;
+		return -2;
 
 	ret = scf_property_get_value(property, value);
 	if (ret == -1) 
-	        return -2;
+		return -2;
 
 	ret = scf_value_get_astring(value, auditstring, len);
 	if (ret == -1) 
-	        return -2;
+		return -2;
 
 	scf_value_destroy(value);
 	scf_property_destroy(property);
@@ -280,9 +280,10 @@ bsm_audit_record(int typ, char *string, au_event_t event_no)
 	(void) au_write(ad, AUToReturnFunc(typ, rc));
 
 #ifdef BROKEN_BSM_API
-	/* The last argument is the event modifier flags. For
-	   some seemingly undocumented reason it was added in
-	   Solaris 11. */
+	/*
+	 * The last argument is the event modifier flags. For some seemingly
+	 * undocumented reason it was added in Solaris 11.
+	 */
 	rc = au_close(ad, AU_TO_WRITE, event_no, 0);
 #else
 	rc = au_close(ad, AU_TO_WRITE, event_no);
@@ -391,7 +392,7 @@ audit_session_close(struct logininfo *li)
 }
 
 void
-audit_event(ssh_audit_event_t event)
+audit_event(struct ssh *ssh, ssh_audit_event_t event)
 {
 	char    textbuf[BSM_TEXTBUFSZ];
 	static int logged_in = 0;

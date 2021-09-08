@@ -1,4 +1,4 @@
-/* $OpenBSD: moduli.c,v 1.32 2017/12/08 03:45:52 deraadt Exp $ */
+/* $OpenBSD: moduli.c,v 1.37 2019/11/15 06:00:20 djm Exp $ */
 /*
  * Copyright 1994 Phil Karn <karn@qualcomm.com>
  * Copyright 1996-1998, 2003 William Allen Simpson <wsimpson@greendragon.com>
@@ -159,6 +159,8 @@ qfileout(FILE * ofile, u_int32_t otype, u_int32_t otests, u_int32_t otries,
 
 	time(&time_now);
 	gtm = gmtime(&time_now);
+	if (gtm == NULL)
+		return -1;
 
 	res = fprintf(ofile, "%04d%02d%02d%02d%02d%02d %u %u %u %u %x ",
 	    gtm->tm_year + 1900, gtm->tm_mon + 1, gtm->tm_mday,
@@ -453,7 +455,7 @@ write_checkpoint(char *cpfile, u_int32_t lineno)
 	int r;
 
 	r = snprintf(tmp, sizeof(tmp), "%s.XXXXXXXXXX", cpfile);
-	if (r == -1 || r >= PATH_MAX) {
+	if (r < 0 || r >= PATH_MAX) {
 		logit("write_checkpoint: temp pathname too long");
 		return;
 	}
@@ -576,13 +578,12 @@ prime_test(FILE *in, FILE *out, u_int32_t trials, u_int32_t generator_wanted,
     char *checkpoint_file, unsigned long start_lineno, unsigned long num_lines)
 {
 	BIGNUM *q, *p, *a;
-	BN_CTX *ctx;
 	char *cp, *lp;
 	u_int32_t count_in = 0, count_out = 0, count_possible = 0;
 	u_int32_t generator_known, in_tests, in_tries, in_type, in_size;
 	unsigned long last_processed = 0, end_lineno;
 	time_t time_start, time_stop;
-	int res;
+	int res, is_prime;
 
 	if (trials < TRIAL_MINIMUM) {
 		error("Minimum primality trials is %d", TRIAL_MINIMUM);
@@ -600,8 +601,6 @@ prime_test(FILE *in, FILE *out, u_int32_t trials, u_int32_t generator_wanted,
 		fatal("BN_new failed");
 	if ((q = BN_new()) == NULL)
 		fatal("BN_new failed");
-	if ((ctx = BN_CTX_new()) == NULL)
-		fatal("BN_CTX_new failed");
 
 	debug2("%.24s Final %u Miller-Rabin trials (%x generator)",
 	    ctime(&time_start), trials, generator_wanted);
@@ -716,8 +715,6 @@ prime_test(FILE *in, FILE *out, u_int32_t trials, u_int32_t generator_wanted,
 		if (generator_known == 0) {
 			if (BN_mod_word(p, 24) == 11)
 				generator_known = 2;
-			else if (BN_mod_word(p, 12) == 5)
-				generator_known = 3;
 			else {
 				u_int32_t r = BN_mod_word(p, 10);
 
@@ -753,7 +750,10 @@ prime_test(FILE *in, FILE *out, u_int32_t trials, u_int32_t generator_wanted,
 		 * that p is also prime. A single pass will weed out the
 		 * vast majority of composite q's.
 		 */
-		if (BN_is_prime_ex(q, 1, ctx, NULL) <= 0) {
+		is_prime = BN_is_prime_ex(q, 1, NULL, NULL);
+		if (is_prime < 0)
+			fatal("BN_is_prime_ex failed");
+		if (is_prime == 0) {
 			debug("%10u: q failed first possible prime test",
 			    count_in);
 			continue;
@@ -766,14 +766,20 @@ prime_test(FILE *in, FILE *out, u_int32_t trials, u_int32_t generator_wanted,
 		 * will show up on the first Rabin-Miller iteration so it
 		 * doesn't hurt to specify a high iteration count.
 		 */
-		if (!BN_is_prime_ex(p, trials, ctx, NULL)) {
+		is_prime = BN_is_prime_ex(p, trials, NULL, NULL);
+		if (is_prime < 0)
+			fatal("BN_is_prime_ex failed");
+		if (is_prime == 0) {
 			debug("%10u: p is not prime", count_in);
 			continue;
 		}
 		debug("%10u: p is almost certainly prime", count_in);
 
 		/* recheck q more rigorously */
-		if (!BN_is_prime_ex(q, trials - 1, ctx, NULL)) {
+		is_prime = BN_is_prime_ex(q, trials - 1, NULL, NULL);
+		if (is_prime < 0)
+			fatal("BN_is_prime_ex failed");
+		if (is_prime == 0) {
 			debug("%10u: q is not prime", count_in);
 			continue;
 		}
@@ -793,7 +799,6 @@ prime_test(FILE *in, FILE *out, u_int32_t trials, u_int32_t generator_wanted,
 	free(lp);
 	BN_free(p);
 	BN_free(q);
-	BN_CTX_free(ctx);
 
 	if (checkpoint_file != NULL)
 		unlink(checkpoint_file);

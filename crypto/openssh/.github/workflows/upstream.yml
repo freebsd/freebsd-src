@@ -1,0 +1,43 @@
+name: Upstream self-hosted
+
+on:
+  push:
+    branches: [ master, ci ]
+
+jobs:
+  selfhosted:
+    if: github.repository == 'openssh/openssh-portable-selfhosted'
+    runs-on: ${{ matrix.os }}
+    env:
+      TARGET_HOST: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ obsdsnap, obsdsnap-i386, obsd69, obsd68 ]
+        configs: [ default, without-openssl ]
+    steps:
+    - uses: actions/checkout@v2
+    - name: shutdown VM if running
+      run: vmshutdown
+    - name: startup VM
+      run: vmstartup
+    - name: update source
+      run: vmrun "cd /usr/src && cvs up -dPA usr.bin/ssh regress/usr.bin/ssh"
+    - name: make clean
+      run: vmrun "cd /usr/src/usr.bin/ssh && make obj && make clean"
+    - name: make
+      run: vmrun "cd /usr/src/usr.bin/ssh && if test '${{ matrix.configs }}' = 'without-openssl'; then make OPENSSL=no; else make; fi"
+    - name: make install
+      run: vmrun "cd /usr/src/usr.bin/ssh && sudo make install"
+    - name: make tests
+      run: vmrun "cd /usr/src/regress/usr.bin/ssh && make obj && make clean && if test '${{ matrix.configs }}' = 'without-openssl'; then make SUDO=sudo OPENSSL=no; else make SUDO=sudo; fi"
+    - name: save logs
+      if: failure()
+      uses: actions/upload-artifact@v2
+      with:
+        name: ${{ matrix.os }}-${{ matrix.configs }}-logs
+        path: |
+          /usr/obj/regress/usr.bin/ssh/*.log
+    - name: shutdown VM
+      if: always()
+      run: vmshutdown

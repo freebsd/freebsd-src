@@ -152,7 +152,9 @@
 #include <openssl/dsa.h>
 #include <openssl/rsa.h>
 #include <openssl/evp.h>
+#ifdef OPENSSL_HAS_ECC
 #include <openssl/ecdsa.h>
+#endif
 #include <openssl/dh.h>
 
 #ifndef HAVE_DSA_GET0_PQG
@@ -282,7 +284,7 @@ RSA_set0_crt_params(RSA *r, BIGNUM *dmp1, BIGNUM *dmq1, BIGNUM *iqmp)
 	if ((r->dmp1 == NULL && dmp1 == NULL) ||
 	    (r->dmq1 == NULL && dmq1 == NULL) ||
 	    (r->iqmp == NULL && iqmp == NULL))
-	       	return 0;
+		return 0;
 
 	if (dmp1 != NULL) {
 		BN_free(r->dmp1);
@@ -417,6 +419,7 @@ DSA_SIG_set0(DSA_SIG *sig, BIGNUM *r, BIGNUM *s)
 }
 #endif /* HAVE_DSA_SIG_SET0 */
 
+#ifdef OPENSSL_HAS_ECC
 #ifndef HAVE_ECDSA_SIG_GET0
 void
 ECDSA_SIG_get0(const ECDSA_SIG *sig, const BIGNUM **pr, const BIGNUM **ps)
@@ -442,6 +445,7 @@ ECDSA_SIG_set0(ECDSA_SIG *sig, BIGNUM *r, BIGNUM *s)
 	return 1;
 }
 #endif /* HAVE_ECDSA_SIG_SET0 */
+#endif /* OPENSSL_HAS_ECC */
 
 #ifndef HAVE_DH_GET0_PQG
 void

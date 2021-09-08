@@ -67,7 +67,7 @@ user_from_uid(uid_t uid, int nouser)
 		if ((pw = getpwuid(uid)) == NULL) {
 			if (nouser)
 				return (NULL);
-			(void)snprintf(nbuf, sizeof(nbuf), "%u", uid);
+			(void)snprintf(nbuf, sizeof(nbuf), "%lu", (u_long)uid);
 		}
 		cp->uid = uid;
 		if (cp->name != NULL)
@@ -102,7 +102,7 @@ group_from_gid(gid_t gid, int nogroup)
 		if ((gr = getgrgid(gid)) == NULL) {
 			if (nogroup)
 				return (NULL);
-			(void)snprintf(nbuf, sizeof(nbuf), "%u", gid);
+			(void)snprintf(nbuf, sizeof(nbuf), "%lu", (u_long)gid);
 		}
 		cp->gid = gid;
 		if (cp->name != NULL)

@@ -1,4 +1,4 @@
-#	$OpenBSD: hostkey-agent.sh,v 1.7 2017/04/30 23:34:55 djm Exp $
+#	$OpenBSD: hostkey-agent.sh,v 1.11 2019/12/16 02:39:05 djm Exp $
 #	Placed in the Public Domain.
 
 tid="hostkey agent"
@@ -6,7 +6,7 @@ tid="hostkey agent"
 rm -f $OBJ/agent-key.* $OBJ/ssh_proxy.orig $OBJ/known_hosts.orig
 
 trace "start agent"
-eval `${SSHAGENT} -s` > /dev/null
+eval `${SSHAGENT} ${EXTRA_AGENT_ARGS} -s` > /dev/null
 r=$?
 [ $r -ne 0 ] && fatal "could not start ssh-agent: exit code $r"
 
@@ -14,7 +14,7 @@ grep -vi 'hostkey' $OBJ/sshd_proxy > $OBJ/sshd_proxy.orig
 echo "HostKeyAgent $SSH_AUTH_SOCK" >> $OBJ/sshd_proxy.orig
 
 trace "load hostkeys"
-for k in `${SSH} -Q key-plain` ; do
+for k in $SSH_KEYTYPES ; do
 	${SSHKEYGEN} -qt $k -f $OBJ/agent-key.$k -N '' || fatal "ssh-keygen $k"
 	(
 		printf 'localhost-with-alias,127.0.0.1,::1 '
@@ -30,8 +30,8 @@ cp $OBJ/known_hosts.orig $OBJ/known_hosts
 
 unset SSH_AUTH_SOCK
 
-for ps in no yes; do
-	for k in `${SSH} -Q key-plain` ; do
+for ps in yes; do
+	for k in $SSH_KEYTYPES ; do
 		verbose "key type $k privsep=$ps"
 		cp $OBJ/sshd_proxy.orig $OBJ/sshd_proxy
 		echo "UsePrivilegeSeparation $ps" >> $OBJ/sshd_proxy

@@ -1,7 +1,7 @@
 PKG_CONFIG = pkg-config
 
 all:
-	@echo "Valid targets: gnome-ssh-askpass1 gnome-ssh-askpass2"
+	@echo "Valid targets: gnome-ssh-askpass1 gnome-ssh-askpass2 gnome-ssk-askpass3"
 
 gnome-ssh-askpass1: gnome-ssh-askpass1.c
 	$(CC) $(CFLAGS) `gnome-config --cflags gnome gnomeui` \
@@ -13,9 +13,9 @@ gnome-ssh-askpass2: gnome-ssh-askpass2.c
 		gnome-ssh-askpass2.c -o gnome-ssh-askpass2 \
 		`$(PKG_CONFIG) --libs gtk+-2.0 x11`
 
-gnome-ssh-askpass3: gnome-ssh-askpass2.c
+gnome-ssh-askpass3: gnome-ssh-askpass3.c
 	$(CC) $(CFLAGS) `$(PKG_CONFIG) --cflags gtk+-3.0` \
-		gnome-ssh-askpass2.c -o gnome-ssh-askpass3 \
+		gnome-ssh-askpass3.c -o gnome-ssh-askpass3 \
 		`$(PKG_CONFIG) --libs gtk+-3.0 x11`
 
 clean:

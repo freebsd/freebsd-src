@@ -156,6 +156,7 @@
 
 #include <netinet/in.h>
 
+#include <stdlib.h>
 #include <errno.h>
 #include <fcntl.h>
 #ifdef HAVE_PATHS_H
@@ -163,6 +164,7 @@
 #endif
 #include <pwd.h>
 #include <stdarg.h>
+#include <stdio.h>
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
@@ -467,7 +469,7 @@ login_write(struct logininfo *li)
 #ifdef CUSTOM_SYS_AUTH_RECORD_LOGIN
 	if (li->type == LTYPE_LOGIN &&
 	    !sys_auth_record_login(li->username,li->hostname,li->line,
-	    &loginmsg))
+	    loginmsg))
 		logit("Writing login record failed for %s", li->username);
 #endif
 #ifdef SSH_AUDIT_EVENTS
@@ -775,6 +777,9 @@ construct_utmpx(struct logininfo *li, struct utmpx *utx)
 # ifdef HAVE_HOST_IN_UTMPX
 	strncpy(utx->ut_host, li->hostname,
 	    MIN_SIZEOF(utx->ut_host, li->hostname));
+# endif
+# ifdef HAVE_SS_IN_UTMPX
+	utx->ut_ss = li->hostaddr.sa_storage;
 # endif
 # ifdef HAVE_ADDR_IN_UTMPX
 	/* this is just a 32-bit IP address */
@@ -1653,7 +1658,7 @@ utmpx_get_entry(struct logininfo *li)
    */
 
 void
-record_failed_login(const char *username, const char *hostname,
+record_failed_login(struct ssh *ssh, const char *username, const char *hostname,
     const char *ttyn)
 {
 	int fd;
@@ -1696,8 +1701,8 @@ record_failed_login(const char *username, const char *hostname,
 	/* strncpy because we don't necessarily want nul termination */
 	strncpy(ut.ut_host, hostname, sizeof(ut.ut_host));
 
-	if (packet_connection_is_on_socket() &&
-	    getpeername(packet_get_connection_in(),
+	if (ssh_packet_connection_is_on_socket(ssh) &&
+	    getpeername(ssh_packet_get_connection_in(ssh),
 	    (struct sockaddr *)&from, &fromlen) == 0) {
 		ipv64_normalise_mapped(&from, &fromlen);
 		if (from.ss_family == AF_INET) {

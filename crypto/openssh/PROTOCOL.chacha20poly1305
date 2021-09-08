@@ -34,7 +34,7 @@ Detailed Construction
 The chacha20-poly1305@openssh.com cipher requires 512 bits of key
 material as output from the SSH key exchange. This forms two 256 bit
 keys (K_1 and K_2), used by two separate instances of chacha20.
-The first 256 bits consitute K_2 and the second 256 bits become
+The first 256 bits constitute K_2 and the second 256 bits become
 K_1.
 
 The instance keyed by K_1 is a stream cipher that is used only
@@ -103,5 +103,5 @@ References
 [3] "ChaCha20 and Poly1305 based Cipher Suites for TLS", Adam Langley
     http://tools.ietf.org/html/draft-agl-tls-chacha20poly1305-03
 
-$OpenBSD: PROTOCOL.chacha20poly1305,v 1.4 2018/04/10 00:10:49 djm Exp $
+$OpenBSD: PROTOCOL.chacha20poly1305,v 1.5 2020/02/21 00:04:43 dtucker Exp $
 

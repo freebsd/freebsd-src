@@ -1,4 +1,4 @@
-/* $OpenBSD: cipher-chachapoly.h,v 1.4 2014/06/24 01:13:21 djm Exp $ */
+/* $OpenBSD: cipher-chachapoly.h,v 1.5 2020/04/03 04:27:03 djm Exp $ */
 
 /*
  * Copyright (c) Damien Miller 2013 <djm@mindrot.org>
@@ -24,13 +24,12 @@
 
 #define CHACHA_KEYLEN	32 /* Only 256 bit keys used here */
 
-struct chachapoly_ctx {
-	struct chacha_ctx main_ctx, header_ctx;
-};
+struct chachapoly_ctx;
 
-int	chachapoly_init(struct chachapoly_ctx *cpctx,
-    const u_char *key, u_int keylen)
-    __attribute__((__bounded__(__buffer__, 2, 3)));
+struct chachapoly_ctx *chachapoly_new(const u_char *key, u_int keylen)
+    __attribute__((__bounded__(__buffer__, 1, 2)));
+void chachapoly_free(struct chachapoly_ctx *cpctx);
+
 int	chachapoly_crypt(struct chachapoly_ctx *cpctx, u_int seqnr,
     u_char *dest, const u_char *src, u_int len, u_int aadlen, u_int authlen,
     int do_encrypt);

@@ -40,7 +40,7 @@
 #define WEXITSTATUS(w)	(int)(WIFEXITED(w) ? ((_W_INT(w) >> 8) & 0377) : -1)
 #define WTERMSIG(w)	(int)(WIFSIGNALED(w) ? (_W_INT(w) & 0177) : -1)
 #define WCOREFLAG	0x80
-#define WCOREDUMP(w) 	((_W_INT(w)) & WCOREFLAG)
+#define WCOREDUMP(w)	((_W_INT(w)) & WCOREFLAG)
 
 /* Prototype */
 pid_t waitpid(int, int *, int);

@@ -1,4 +1,4 @@
-/* $OpenBSD: sshlogin.c,v 1.33 2018/07/09 21:26:02 markus Exp $ */
+/* $OpenBSD: sshlogin.c,v 1.35 2020/10/18 11:32:02 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -90,8 +90,11 @@ static void
 store_lastlog_message(const char *user, uid_t uid)
 {
 #ifndef NO_SSH_LASTLOG
-	char *time_string, hostname[HOST_NAME_MAX+1] = "";
+# ifndef CUSTOM_SYS_AUTH_GET_LASTLOGIN_MSG
+	char hostname[HOST_NAME_MAX+1] = "";
 	time_t last_login_time;
+# endif
+	char *time_string;
 	int r;
 
 	if (!options.print_lastlog)
@@ -119,7 +122,7 @@ store_lastlog_message(const char *user, uid_t uid)
 			r = sshbuf_putf(loginmsg, "Last login: %s from %s\r\n",
 			    time_string, hostname);
 		if (r != 0)
-			fatal("%s: buffer error: %s", __func__, ssh_err(r));
+			fatal_fr(r, "sshbuf_putf");
 	}
 # endif /* CUSTOM_SYS_AUTH_GET_LASTLOGIN_MSG */
 #endif /* NO_SSH_LASTLOG */

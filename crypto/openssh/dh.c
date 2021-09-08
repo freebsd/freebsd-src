@@ -1,4 +1,4 @@
-/* $OpenBSD: dh.c,v 1.68 2018/09/17 15:40:14 millert Exp $ */
+/* $OpenBSD: dh.c,v 1.74 2021/04/03 06:18:40 djm Exp $ */
 /*
  * Copyright (c) 2000 Niels Provos.  All rights reserved.
  *
@@ -27,15 +27,15 @@
 
 #ifdef WITH_OPENSSL
 
-#include <openssl/bn.h>
-#include <openssl/dh.h>
-
 #include <errno.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <limits.h>
+
+#include <openssl/bn.h>
+#include <openssl/dh.h>
 
 #include "dh.h"
 #include "pathnames.h"
@@ -44,6 +44,18 @@
 #include "ssherr.h"
 
 #include "openbsd-compat/openssl-compat.h"
+
+static const char *moduli_filename;
+
+void dh_set_moduli_file(const char *filename)
+{
+	moduli_filename = filename;
+}
+
+static const char * get_moduli_filename(void)
+{
+	return moduli_filename ? moduli_filename : _PATH_DH_MODULI;
+}
 
 static int
 parse_prime(int linenum, char *line, struct dhgroup *dhg)
@@ -152,9 +164,9 @@ choose_dh(int min, int wantbits, int max)
 	int best, bestcount, which, linenum;
 	struct dhgroup dhg;
 
-	if ((f = fopen(_PATH_DH_MODULI, "r")) == NULL) {
+	if ((f = fopen(get_moduli_filename(), "r")) == NULL) {
 		logit("WARNING: could not open %s (%s), using fixed modulus",
-		    _PATH_DH_MODULI, strerror(errno));
+		    get_moduli_filename(), strerror(errno));
 		return (dh_new_group_fallback(max));
 	}
 
@@ -185,7 +197,8 @@ choose_dh(int min, int wantbits, int max)
 
 	if (bestcount == 0) {
 		fclose(f);
-		logit("WARNING: no suitable primes in %s", _PATH_DH_MODULI);
+		logit("WARNING: no suitable primes in %s",
+		    get_moduli_filename());
 		return (dh_new_group_fallback(max));
 	}
 	which = arc4random_uniform(bestcount);
@@ -210,7 +223,7 @@ choose_dh(int min, int wantbits, int max)
 	fclose(f);
 	if (bestcount != which + 1) {
 		logit("WARNING: selected prime disappeared in %s, giving up",
-		    _PATH_DH_MODULI);
+		    get_moduli_filename());
 		return (dh_new_group_fallback(max));
 	}
 
@@ -240,7 +253,7 @@ dh_pub_is_valid(const DH *dh, const BIGNUM *dh_pub)
 	}
 
 	if ((tmp = BN_new()) == NULL) {
-		error("%s: BN_new failed", __func__);
+		error_f("BN_new failed");
 		return 0;
 	}
 	if (!BN_sub(tmp, dh_p, BN_value_one()) ||
@@ -261,7 +274,7 @@ dh_pub_is_valid(const DH *dh, const BIGNUM *dh_pub)
 	 */
 	if (bits_set < 4) {
 		logit("invalid public DH value (%d/%d)",
-		   bits_set, BN_num_bits(dh_p));
+		    bits_set, BN_num_bits(dh_p));
 		return 0;
 	}
 	return 1;
@@ -406,7 +419,7 @@ dh_new_group16(void)
 DH *
 dh_new_group18(void)
 {
-	static char *gen = "2", *group16 =
+	static char *gen = "2", *group18 =
 	    "FFFFFFFF" "FFFFFFFF" "C90FDAA2" "2168C234" "C4C6628B" "80DC1CD1"
 	    "29024E08" "8A67CC74" "020BBEA6" "3B139B22" "514A0879" "8E3404DD"
 	    "EF9519B3" "CD3A431B" "302B0A6D" "F25F1437" "4FE1356D" "6D51C245"
@@ -451,14 +464,14 @@ dh_new_group18(void)
 	    "9558E447" "5677E9AA" "9E3050E2" "765694DF" "C81F56E8" "80B96E71"
 	    "60C980DD" "98EDD3DF" "FFFFFFFF" "FFFFFFFF";
 
-	return (dh_new_group_asc(gen, group16));
+	return (dh_new_group_asc(gen, group18));
 }
 
 /* Select fallback group used by DH-GEX if moduli file cannot be read. */
 DH *
 dh_new_group_fallback(int max)
 {
-	debug3("%s: requested max size %d", __func__, max);
+	debug3_f("requested max size %d", max);
 	if (max < 3072) {
 		debug3("using 2k bit group 14");
 		return dh_new_group14();

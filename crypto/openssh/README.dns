@@ -1,10 +1,10 @@
 How to verify host keys using OpenSSH and DNS
 ---------------------------------------------
 
-OpenSSH contains support for verifying host keys using DNS as described in
-draft-ietf-secsh-dns-05.txt. The document contains very brief instructions
-on how to use this feature. Configuring DNS is out of the scope of this
-document.
+OpenSSH contains support for verifying host keys using DNS as described
+in https://tools.ietf.org/html/rfc4255. The document contains very brief
+instructions on how to use this feature. Configuring DNS is out of the
+scope of this document.
 
 
 (1) Server: Generate and publish the DNS RR

@@ -1,4 +1,4 @@
-.\" $OpenBSD: sftp-server.8,v 1.27 2014/12/11 04:16:14 djm Exp $
+.\" $OpenBSD: sftp-server.8,v 1.31 2021/07/27 14:14:25 jmc Exp $
 .\"
 .\" Copyright (c) 2000 Markus Friedl.  All rights reserved.
 .\"
@@ -22,12 +22,12 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd $Mdocdate: December 11 2014 $
+.Dd $Mdocdate: July 27 2021 $
 .Dt SFTP-SERVER 8
 .Os
 .Sh NAME
 .Nm sftp-server
-.Nd SFTP server subsystem
+.Nd OpenSSH SFTP server subsystem
 .Sh SYNOPSIS
 .Nm sftp-server
 .Bk -words
@@ -35,8 +35,8 @@
 .Op Fl d Ar start_directory
 .Op Fl f Ar log_facility
 .Op Fl l Ar log_level
-.Op Fl P Ar blacklisted_requests
-.Op Fl p Ar whitelisted_requests
+.Op Fl P Ar denied_requests
+.Op Fl p Ar allowed_requests
 .Op Fl u Ar umask
 .Ek
 .Nm
@@ -64,7 +64,7 @@ for more information.
 Valid options are:
 .Bl -tag -width Ds
 .It Fl d Ar start_directory
-specifies an alternate starting directory for users.
+Specifies an alternate starting directory for users.
 The pathname may contain the following tokens that are expanded at runtime:
 %% is replaced by a literal '%',
 %d is replaced by the home directory of the user being authenticated,
@@ -99,30 +99,30 @@ performs on behalf of the client.
 DEBUG and DEBUG1 are equivalent.
 DEBUG2 and DEBUG3 each specify higher levels of debugging output.
 The default is ERROR.
-.It Fl P Ar blacklisted_requests
-Specify a comma-separated list of SFTP protocol requests that are banned by
+.It Fl P Ar denied_requests
+Specifies a comma-separated list of SFTP protocol requests that are banned by
 the server.
 .Nm
-will reply to any blacklisted request with a failure.
+will reply to any denied request with a failure.
 The
 .Fl Q
 flag can be used to determine the supported request types.
-If both a blacklist and a whitelist are specified, then the blacklist is
-applied before the whitelist.
-.It Fl p Ar whitelisted_requests
-Specify a comma-separated list of SFTP protocol requests that are permitted
+If both denied and allowed lists are specified, then the denied list is
+applied before the allowed list.
+.It Fl p Ar allowed_requests
+Specifies a comma-separated list of SFTP protocol requests that are permitted
 by the server.
-All request types that are not on the whitelist will be logged and replied
+All request types that are not on the allowed list will be logged and replied
 to with a failure message.
 .Pp
 Care must be taken when using this feature to ensure that requests made
 implicitly by SFTP clients are permitted.
 .It Fl Q Ar protocol_feature
-Query protocol features supported by
+Queries protocol features supported by
 .Nm .
 At present the only feature that may be queried is
 .Dq requests ,
-which may be used for black or whitelisting (flags
+which may be used to deny or allow specific requests (flags
 .Fl P
 and
 .Fl p

@@ -137,9 +137,10 @@ passphrase_dialog(char *message)
 	gnome_dialog_close(GNOME_DIALOG(dialog));
 	return (result == 0 ? 0 : -1);
 
-	/* At least one grab failed - ungrab what we got, and report
-	   the failure to the user.  Note that XGrabServer() cannot
-	   fail.  */
+	/*
+	 * At least one grab failed - ungrab what we got, and report the
+	 * failure to the user. Note that XGrabServer() cannot fail.
+	 */
  nograbkb:
 	gdk_pointer_ungrab(GDK_CURRENT_TIME);
  nograb:

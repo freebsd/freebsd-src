@@ -1,4 +1,4 @@
-/*	$OpenBSD: sshbuf-getput-basic.c,v 1.7 2017/06/01 04:51:58 djm Exp $	*/
+/*	$OpenBSD: sshbuf-getput-basic.c,v 1.11 2020/06/05 03:25:35 djm Exp $	*/
 /*
  * Copyright (c) 2011 Damien Miller
  *
@@ -24,6 +24,9 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#ifdef HAVE_STDINT_H
+# include <stdint.h>
+#endif
 
 #include "ssherr.h"
 #include "sshbuf.h"
@@ -90,6 +93,93 @@ sshbuf_get_u8(struct sshbuf *buf, u_char *valp)
 		return r;
 	if (valp != NULL)
 		*valp = (u_int8_t)*p;
+	return 0;
+}
+
+static int
+check_offset(const struct sshbuf *buf, int wr, size_t offset, size_t len)
+{
+	if (sshbuf_ptr(buf) == NULL) /* calls sshbuf_check_sanity() */
+		return SSH_ERR_INTERNAL_ERROR;
+	if (offset >= SIZE_MAX - len)
+		return SSH_ERR_INVALID_ARGUMENT;
+	if (offset + len > sshbuf_len(buf)) {
+		return wr ?
+		    SSH_ERR_NO_BUFFER_SPACE : SSH_ERR_MESSAGE_INCOMPLETE;
+	}
+	return 0;
+}
+
+static int
+check_roffset(const struct sshbuf *buf, size_t offset, size_t len,
+    const u_char **p)
+{
+	int r;
+
+	*p = NULL;
+	if ((r = check_offset(buf, 0, offset, len)) != 0)
+		return r;
+	*p = sshbuf_ptr(buf) + offset;
+	return 0;
+}
+
+int
+sshbuf_peek_u64(const struct sshbuf *buf, size_t offset, u_int64_t *valp)
+{
+	const u_char *p = NULL;
+	int r;
+
+	if (valp != NULL)
+		*valp = 0;
+	if ((r = check_roffset(buf, offset, 8, &p)) != 0)
+		return r;
+	if (valp != NULL)
+		*valp = PEEK_U64(p);
+	return 0;
+}
+
+int
+sshbuf_peek_u32(const struct sshbuf *buf, size_t offset, u_int32_t *valp)
+{
+	const u_char *p = NULL;
+	int r;
+
+	if (valp != NULL)
+		*valp = 0;
+	if ((r = check_roffset(buf, offset, 4, &p)) != 0)
+		return r;
+	if (valp != NULL)
+		*valp = PEEK_U32(p);
+	return 0;
+}
+
+int
+sshbuf_peek_u16(const struct sshbuf *buf, size_t offset, u_int16_t *valp)
+{
+	const u_char *p = NULL;
+	int r;
+
+	if (valp != NULL)
+		*valp = 0;
+	if ((r = check_roffset(buf, offset, 2, &p)) != 0)
+		return r;
+	if (valp != NULL)
+		*valp = PEEK_U16(p);
+	return 0;
+}
+
+int
+sshbuf_peek_u8(const struct sshbuf *buf, size_t offset, u_char *valp)
+{
+	const u_char *p = NULL;
+	int r;
+
+	if (valp != NULL)
+		*valp = 0;
+	if ((r = check_roffset(buf, offset, 1, &p)) != 0)
+		return r;
+	if (valp != NULL)
+		*valp = *p;
 	return 0;
 }
 
@@ -248,6 +338,8 @@ sshbuf_put(struct sshbuf *buf, const void *v, size_t len)
 int
 sshbuf_putb(struct sshbuf *buf, const struct sshbuf *v)
 {
+	if (v == NULL)
+		return 0;
 	return sshbuf_put(buf, sshbuf_ptr(v), sshbuf_len(v));
 }
 
@@ -344,6 +436,80 @@ sshbuf_put_u8(struct sshbuf *buf, u_char val)
 	return 0;
 }
 
+static int
+check_woffset(struct sshbuf *buf, size_t offset, size_t len, u_char **p)
+{
+	int r;
+
+	*p = NULL;
+	if ((r = check_offset(buf, 1, offset, len)) != 0)
+		return r;
+	if (sshbuf_mutable_ptr(buf) == NULL)
+		return SSH_ERR_BUFFER_READ_ONLY;
+	*p = sshbuf_mutable_ptr(buf) + offset;
+	return 0;
+}
+
+int
+sshbuf_poke_u64(struct sshbuf *buf, size_t offset, u_int64_t val)
+{
+	u_char *p = NULL;
+	int r;
+
+	if ((r = check_woffset(buf, offset, 8, &p)) != 0)
+		return r;
+	POKE_U64(p, val);
+	return 0;
+}
+
+int
+sshbuf_poke_u32(struct sshbuf *buf, size_t offset, u_int32_t val)
+{
+	u_char *p = NULL;
+	int r;
+
+	if ((r = check_woffset(buf, offset, 4, &p)) != 0)
+		return r;
+	POKE_U32(p, val);
+	return 0;
+}
+
+int
+sshbuf_poke_u16(struct sshbuf *buf, size_t offset, u_int16_t val)
+{
+	u_char *p = NULL;
+	int r;
+
+	if ((r = check_woffset(buf, offset, 2, &p)) != 0)
+		return r;
+	POKE_U16(p, val);
+	return 0;
+}
+
+int
+sshbuf_poke_u8(struct sshbuf *buf, size_t offset, u_char val)
+{
+	u_char *p = NULL;
+	int r;
+
+	if ((r = check_woffset(buf, offset, 1, &p)) != 0)
+		return r;
+	*p = val;
+	return 0;
+}
+
+int
+sshbuf_poke(struct sshbuf *buf, size_t offset, void *v, size_t len)
+{
+	u_char *p = NULL;
+	int r;
+
+	if ((r = check_woffset(buf, offset, len, &p)) != 0)
+		return r;
+	memcpy(p, v, len);
+	return 0;
+}
+
 int
 sshbuf_put_string(struct sshbuf *buf, const void *v, size_t len)
 {
@@ -371,6 +537,9 @@ sshbuf_put_cstring(struct sshbuf *buf, const char *v)
 int
 sshbuf_put_stringb(struct sshbuf *buf, const struct sshbuf *v)
 {
+	if (v == NULL)
+		return sshbuf_put_string(buf, NULL, 0);
+
 	return sshbuf_put_string(buf, sshbuf_ptr(v), sshbuf_len(v));
 }
 

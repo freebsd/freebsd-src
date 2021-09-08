@@ -45,15 +45,15 @@ enum {
 
 #ifdef USE_BLACKLIST
 void blacklist_init(void);
-void blacklist_notify(int, const char *);
+void blacklist_notify(struct ssh *, int, const char *);
 
 #define BLACKLIST_INIT() blacklist_init()
-#define BLACKLIST_NOTIFY(x,msg) blacklist_notify(x,msg)
+#define BLACKLIST_NOTIFY(ssh,x,msg) blacklist_notify(ssh,x,msg)
 
 #else
 
 #define BLACKLIST_INIT()
-#define BLACKLIST_NOTIFY(x,msg)
+#define BLACKLIST_NOTIFY(ssh,x,msg)
 
 #endif
 

@@ -1,4 +1,4 @@
-/* 	$OpenBSD: test_sshbuf_getput_crypto.c,v 1.1 2014/04/30 05:32:00 djm Exp $ */
+/* 	$OpenBSD: test_sshbuf_getput_crypto.c,v 1.2 2019/01/21 12:29:35 djm Exp $ */
 /*
  * Regress test for sshbuf.h buffer API
  *
@@ -6,6 +6,8 @@
  */
 
 #include "includes.h"
+
+#ifdef WITH_OPENSSL
 
 #include <sys/types.h>
 #include <sys/param.h>
@@ -33,7 +35,6 @@ sshbuf_getput_crypto_tests(void)
 {
 	struct sshbuf *p1;
 	BIGNUM *bn, *bn2;
-	/* This one has num_bits != num_bytes * 8 to test bignum1 encoding */
 	const char *hexbn1 = "0102030405060708090a0b0c0d0e0f10";
 	/* This one has MSB set to test bignum2 encoding negative-avoidance */
 	const char *hexbn2 = "f0e0d0c0b0a0908070605040302010007fff11";
@@ -76,54 +77,6 @@ sshbuf_getput_crypto_tests(void)
 		bnn = NULL; \
 		ASSERT_INT_GT(BN_hex2bn(&bnn, b), 0); \
 	} while (0)
-
-	TEST_START("sshbuf_put_bignum1");
-	MKBN(hexbn1, bn);
-	p1 = sshbuf_new();
-	ASSERT_PTR_NE(p1, NULL);
-	ASSERT_INT_EQ(sshbuf_put_bignum1(p1, bn), 0);
-	ASSERT_SIZE_T_EQ(sshbuf_len(p1), sizeof(expbn1) + 2);
-	ASSERT_U16_EQ(PEEK_U16(sshbuf_ptr(p1)), (u_int16_t)BN_num_bits(bn));
-	ASSERT_MEM_EQ(sshbuf_ptr(p1) + 2, expbn1, sizeof(expbn1));
-	BN_free(bn);
-	sshbuf_free(p1);
-	TEST_DONE();
-
-	TEST_START("sshbuf_put_bignum1 limited");
-	MKBN(hexbn1, bn);
-	p1 = sshbuf_new();
-	ASSERT_PTR_NE(p1, NULL);
-	ASSERT_INT_EQ(sshbuf_set_max_size(p1, sizeof(expbn1) + 1), 0);
-	r = sshbuf_put_bignum1(p1, bn);
-	ASSERT_INT_EQ(r, SSH_ERR_NO_BUFFER_SPACE);
-	ASSERT_SIZE_T_EQ(sshbuf_len(p1), 0);
-	BN_free(bn);
-	sshbuf_free(p1);
-	TEST_DONE();
-
-	TEST_START("sshbuf_put_bignum1 bn2");
-	MKBN(hexbn2, bn);
-	p1 = sshbuf_new();
-	ASSERT_PTR_NE(p1, NULL);
-	ASSERT_INT_EQ(sshbuf_put_bignum1(p1, bn), 0);
-	ASSERT_SIZE_T_EQ(sshbuf_len(p1), sizeof(expbn2) + 2);
-	ASSERT_U16_EQ(PEEK_U16(sshbuf_ptr(p1)), (u_int16_t)BN_num_bits(bn));
-	ASSERT_MEM_EQ(sshbuf_ptr(p1) + 2, expbn2, sizeof(expbn2));
-	BN_free(bn);
-	sshbuf_free(p1);
-	TEST_DONE();
-
-	TEST_START("sshbuf_put_bignum1 bn2 limited");
-	MKBN(hexbn2, bn);
-	p1 = sshbuf_new();
-	ASSERT_PTR_NE(p1, NULL);
-	ASSERT_INT_EQ(sshbuf_set_max_size(p1, sizeof(expbn1) + 1), 0);
-	r = sshbuf_put_bignum1(p1, bn);
-	ASSERT_INT_EQ(r, SSH_ERR_NO_BUFFER_SPACE);
-	ASSERT_SIZE_T_EQ(sshbuf_len(p1), 0);
-	BN_free(bn);
-	sshbuf_free(p1);
-	TEST_DONE();
 
 	TEST_START("sshbuf_put_bignum2");
 	MKBN(hexbn1, bn);
@@ -174,88 +127,6 @@ sshbuf_getput_crypto_tests(void)
 	sshbuf_free(p1);
 	TEST_DONE();
 
-	TEST_START("sshbuf_get_bignum1");
-	MKBN(hexbn1, bn);
-	p1 = sshbuf_new();
-	ASSERT_PTR_NE(p1, NULL);
-	ASSERT_INT_EQ(sshbuf_put_u16(p1, BN_num_bits(bn)), 0);
-	ASSERT_INT_EQ(sshbuf_put(p1, expbn1, sizeof(expbn1)), 0);
-	ASSERT_SIZE_T_EQ(sshbuf_len(p1), 2 + sizeof(expbn1));
-	ASSERT_INT_EQ(sshbuf_put_u16(p1, 0xd00f), 0);
-	bn2 = BN_new();
-	ASSERT_INT_EQ(sshbuf_get_bignum1(p1, bn2), 0);
-	ASSERT_BIGNUM_EQ(bn, bn2);
-	ASSERT_SIZE_T_EQ(sshbuf_len(p1), 2);
-	BN_free(bn);
-	BN_free(bn2);
-	sshbuf_free(p1);
-	TEST_DONE();
-
-	TEST_START("sshbuf_get_bignum1 truncated");
-	MKBN(hexbn1, bn);
-	p1 = sshbuf_new();
-	ASSERT_PTR_NE(p1, NULL);
-	ASSERT_INT_EQ(sshbuf_put_u16(p1, BN_num_bits(bn)), 0);
-	ASSERT_INT_EQ(sshbuf_put(p1, expbn1, sizeof(expbn1) - 1), 0);
-	ASSERT_SIZE_T_EQ(sshbuf_len(p1), 2 + sizeof(expbn1) - 1);
-	bn2 = BN_new();
-	r = sshbuf_get_bignum1(p1, bn2);
-	ASSERT_INT_EQ(r, SSH_ERR_MESSAGE_INCOMPLETE);
-	ASSERT_SIZE_T_EQ(sshbuf_len(p1), 2 + sizeof(expbn1) - 1);
-	BN_free(bn);
-	BN_free(bn2);
-	sshbuf_free(p1);
-	TEST_DONE();
-
-	TEST_START("sshbuf_get_bignum1 giant");
-	MKBN(hexbn1, bn);
-	p1 = sshbuf_new();
-	ASSERT_PTR_NE(p1, NULL);
-	ASSERT_INT_EQ(sshbuf_put_u16(p1, 0xffff), 0);
-	ASSERT_INT_EQ(sshbuf_reserve(p1, (0xffff + 7) / 8, NULL), 0);
-	ASSERT_SIZE_T_EQ(sshbuf_len(p1), 2 + ((0xffff + 7) / 8));
-	bn2 = BN_new();
-	r = sshbuf_get_bignum1(p1, bn2);
-	ASSERT_INT_EQ(r, SSH_ERR_BIGNUM_TOO_LARGE);
-	ASSERT_SIZE_T_EQ(sshbuf_len(p1), 2 + ((0xffff + 7) / 8));
-	BN_free(bn);
-	BN_free(bn2);
-	sshbuf_free(p1);
-	TEST_DONE();
-
-	TEST_START("sshbuf_get_bignum1 bn2");
-	MKBN(hexbn2, bn);
-	p1 = sshbuf_new();
-	ASSERT_PTR_NE(p1, NULL);
-	ASSERT_INT_EQ(sshbuf_put_u16(p1, BN_num_bits(bn)), 0);
-	ASSERT_INT_EQ(sshbuf_put(p1, expbn2, sizeof(expbn2)), 0);
-	ASSERT_SIZE_T_EQ(sshbuf_len(p1), 2 + sizeof(expbn2));
-	ASSERT_INT_EQ(sshbuf_put_u16(p1, 0xd00f), 0);
-	bn2 = BN_new();
-	ASSERT_INT_EQ(sshbuf_get_bignum1(p1, bn2), 0);
-	ASSERT_BIGNUM_EQ(bn, bn2);
-	ASSERT_SIZE_T_EQ(sshbuf_len(p1), 2);
-	BN_free(bn);
-	BN_free(bn2);
-	sshbuf_free(p1);
-	TEST_DONE();
-
-	TEST_START("sshbuf_get_bignum1 bn2 truncated");
-	MKBN(hexbn2, bn);
-	p1 = sshbuf_new();
-	ASSERT_PTR_NE(p1, NULL);
-	ASSERT_INT_EQ(sshbuf_put_u16(p1, BN_num_bits(bn)), 0);
-	ASSERT_INT_EQ(sshbuf_put(p1, expbn2, sizeof(expbn2) - 1), 0);
-	ASSERT_SIZE_T_EQ(sshbuf_len(p1), 2 + sizeof(expbn2) - 1);
-	bn2 = BN_new();
-	r = sshbuf_get_bignum1(p1, bn2);
-	ASSERT_INT_EQ(r, SSH_ERR_MESSAGE_INCOMPLETE);
-	ASSERT_SIZE_T_EQ(sshbuf_len(p1), 2 + sizeof(expbn2) - 1);
-	BN_free(bn);
-	BN_free(bn2);
-	sshbuf_free(p1);
-	TEST_DONE();
-
 	TEST_START("sshbuf_get_bignum2");
 	MKBN(hexbn1, bn);
 	p1 = sshbuf_new();
@@ -264,8 +135,8 @@ sshbuf_getput_crypto_tests(void)
 	ASSERT_INT_EQ(sshbuf_put(p1, expbn1, sizeof(expbn1)), 0);
 	ASSERT_SIZE_T_EQ(sshbuf_len(p1), 4 + sizeof(expbn1));
 	ASSERT_INT_EQ(sshbuf_put_u16(p1, 0xd00f), 0);
-	bn2 = BN_new();
-	ASSERT_INT_EQ(sshbuf_get_bignum2(p1, bn2), 0);
+	bn2 = NULL;
+	ASSERT_INT_EQ(sshbuf_get_bignum2(p1, &bn2), 0);
 	ASSERT_BIGNUM_EQ(bn, bn2);
 	ASSERT_SIZE_T_EQ(sshbuf_len(p1), 2);
 	BN_free(bn);
@@ -279,8 +150,8 @@ sshbuf_getput_crypto_tests(void)
 	ASSERT_PTR_NE(p1, NULL);
 	ASSERT_INT_EQ(sshbuf_put_u32(p1, BN_num_bytes(bn)), 0);
 	ASSERT_INT_EQ(sshbuf_put(p1, expbn1, sizeof(expbn1) - 1), 0);
-	bn2 = BN_new();
-	r = sshbuf_get_bignum2(p1, bn2);
+	bn2 = NULL;
+	r = sshbuf_get_bignum2(p1, &bn2);
 	ASSERT_INT_EQ(r, SSH_ERR_MESSAGE_INCOMPLETE);
 	ASSERT_SIZE_T_EQ(sshbuf_len(p1), sizeof(expbn1) + 3);
 	BN_free(bn);
@@ -294,8 +165,8 @@ sshbuf_getput_crypto_tests(void)
 	ASSERT_PTR_NE(p1, NULL);
 	ASSERT_INT_EQ(sshbuf_put_u32(p1, 65536), 0);
 	ASSERT_INT_EQ(sshbuf_reserve(p1, 65536, NULL), 0);
-	bn2 = BN_new();
-	r = sshbuf_get_bignum2(p1, bn2);
+	bn2 = NULL;
+	r = sshbuf_get_bignum2(p1, &bn2);
 	ASSERT_INT_EQ(r, SSH_ERR_BIGNUM_TOO_LARGE);
 	ASSERT_SIZE_T_EQ(sshbuf_len(p1), 65536 + 4);
 	BN_free(bn);
@@ -312,8 +183,8 @@ sshbuf_getput_crypto_tests(void)
 	ASSERT_INT_EQ(sshbuf_put(p1, expbn2, sizeof(expbn2)), 0);
 	ASSERT_SIZE_T_EQ(sshbuf_len(p1), 4 + 1 + sizeof(expbn2));
 	ASSERT_INT_EQ(sshbuf_put_u16(p1, 0xd00f), 0);
-	bn2 = BN_new();
-	ASSERT_INT_EQ(sshbuf_get_bignum2(p1, bn2), 0);
+	bn2 = NULL;
+	ASSERT_INT_EQ(sshbuf_get_bignum2(p1, &bn2), 0);
 	ASSERT_BIGNUM_EQ(bn, bn2);
 	ASSERT_SIZE_T_EQ(sshbuf_len(p1), 2);
 	BN_free(bn);
@@ -328,8 +199,8 @@ sshbuf_getput_crypto_tests(void)
 	ASSERT_INT_EQ(sshbuf_put_u32(p1, BN_num_bytes(bn) + 1), 0);
 	ASSERT_INT_EQ(sshbuf_put_u8(p1, 0x00), 0);
 	ASSERT_INT_EQ(sshbuf_put(p1, expbn2, sizeof(expbn2) - 1), 0);
-	bn2 = BN_new();
-	r = sshbuf_get_bignum2(p1, bn2);
+	bn2 = NULL;
+	r = sshbuf_get_bignum2(p1, &bn2);
 	ASSERT_INT_EQ(r, SSH_ERR_MESSAGE_INCOMPLETE);
 	ASSERT_SIZE_T_EQ(sshbuf_len(p1), sizeof(expbn2) + 1 + 4 - 1);
 	BN_free(bn);
@@ -343,8 +214,8 @@ sshbuf_getput_crypto_tests(void)
 	ASSERT_PTR_NE(p1, NULL);
 	ASSERT_INT_EQ(sshbuf_put_u32(p1, BN_num_bytes(bn)), 0);
 	ASSERT_INT_EQ(sshbuf_put(p1, expbn2, sizeof(expbn2)), 0);
-	bn2 = BN_new();
-	r = sshbuf_get_bignum2(p1, bn2);
+	bn2 = NULL;
+	r = sshbuf_get_bignum2(p1, &bn2);
 	ASSERT_INT_EQ(r, SSH_ERR_BIGNUM_IS_NEGATIVE);
 	ASSERT_SIZE_T_EQ(sshbuf_len(p1), sizeof(expbn2) + 4);
 	BN_free(bn);
@@ -407,3 +278,4 @@ sshbuf_getput_crypto_tests(void)
 #endif
 }
 
+#endif /* WITH_OPENSSL */

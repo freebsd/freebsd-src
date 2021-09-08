@@ -88,7 +88,7 @@ _rs_init(u_char *buf, size_t n)
 static void
 getrnd(u_char *s, size_t len)
 {
-	int fd;
+	int fd, save_errno;
 	ssize_t r;
 	size_t o = 0;
 
@@ -97,8 +97,14 @@ getrnd(u_char *s, size_t len)
 		return;
 #endif /* HAVE_GETRANDOM */
 
-	if ((fd = open(SSH_RANDOM_DEV, O_RDONLY)) == -1)
-		fatal("Couldn't open %s: %s", SSH_RANDOM_DEV, strerror(errno));
+	if ((fd = open(SSH_RANDOM_DEV, O_RDONLY)) == -1) {
+		save_errno = errno;
+		/* Try egd/prngd before giving up. */
+		if (seed_from_prngd(s, len) == 0)
+			return;
+		fatal("Couldn't open %s: %s", SSH_RANDOM_DEV,
+		    strerror(save_errno));
+	}
 	while (o < len) {
 		r = read(fd, s + o, len - o);
 		if (r < 0) {

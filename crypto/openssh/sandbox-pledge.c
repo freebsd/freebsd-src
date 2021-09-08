@@ -1,4 +1,4 @@
-/* $OpenBSD: sandbox-pledge.c,v 1.1 2015/10/09 01:37:08 deraadt Exp $ */
+/* $OpenBSD: sandbox-pledge.c,v 1.2 2020/10/18 11:32:01 djm Exp $ */
 /*
  * Copyright (c) 2015 Theo de Raadt <deraadt@openbsd.org>
  *
@@ -46,7 +46,7 @@ ssh_sandbox_init(struct monitor *m)
 {
 	struct ssh_sandbox *box;
 
-	debug3("%s: preparing pledge sandbox", __func__);
+	debug3_f("preparing pledge sandbox");
 	box = xcalloc(1, sizeof(*box));
 	box->child_pid = 0;
 
@@ -57,14 +57,14 @@ void
 ssh_sandbox_child(struct ssh_sandbox *box)
 {
 	if (pledge("stdio", NULL) == -1)
-		fatal("%s: pledge()", __func__);
+		fatal_f("pledge()");
 }
 
 void
 ssh_sandbox_parent_finish(struct ssh_sandbox *box)
 {
 	free(box);
-	debug3("%s: finished", __func__);
+	debug3_f("finished");
 }
 
 void

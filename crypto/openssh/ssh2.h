@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh2.h,v 1.18 2016/05/04 14:22:33 markus Exp $ */
+/* $OpenBSD: ssh2.h,v 1.19 2020/11/19 23:05:05 dtucker Exp $ */
 
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
@@ -25,7 +25,7 @@
  */
 
 /*
- * draft-ietf-secsh-architecture-05.txt
+ * RFC4251:
  *
  *   Transport layer protocol:
  *

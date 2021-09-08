@@ -34,7 +34,7 @@
 #include <ctype.h>
 #include <unistd.h>
 
-#if !defined(HAVE_MKDTEMP) || defined(HAVE_STRICT_MKSTEMP)
+#if !defined(HAVE_MKDTEMP)
 
 #define MKTEMP_NAME	0
 #define MKTEMP_FILE	1
@@ -138,4 +138,4 @@ mkdtemp(char *path)
 	return(error ? NULL : path);
 }
 
-#endif /* !defined(HAVE_MKDTEMP) || defined(HAVE_STRICT_MKSTEMP) */
+#endif /* !defined(HAVE_MKDTEMP) */

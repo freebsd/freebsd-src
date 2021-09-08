@@ -1,4 +1,4 @@
-/* $OpenBSD: channels.h,v 1.132 2018/10/04 00:10:11 djm Exp $ */
+/* $OpenBSD: channels.h,v 1.138 2021/05/19 01:24:05 djm Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -52,16 +52,26 @@
 #define SSH_CHANNEL_DYNAMIC		13
 #define SSH_CHANNEL_ZOMBIE		14	/* Almost dead. */
 #define SSH_CHANNEL_MUX_LISTENER	15	/* Listener for mux conn. */
-#define SSH_CHANNEL_MUX_CLIENT		16	/* Conn. to mux slave */
+#define SSH_CHANNEL_MUX_CLIENT		16	/* Conn. to mux client */
 #define SSH_CHANNEL_ABANDONED		17	/* Abandoned session, eg mux */
 #define SSH_CHANNEL_UNIX_LISTENER	18	/* Listening on a domain socket. */
 #define SSH_CHANNEL_RUNIX_LISTENER	19	/* Listening to a R-style domain socket. */
-#define SSH_CHANNEL_MUX_PROXY		20	/* proxy channel for mux-slave */
+#define SSH_CHANNEL_MUX_PROXY		20	/* proxy channel for mux-client */
 #define SSH_CHANNEL_RDYNAMIC_OPEN	21	/* reverse SOCKS, parsing request */
 #define SSH_CHANNEL_RDYNAMIC_FINISH	22	/* reverse SOCKS, finishing connect */
 #define SSH_CHANNEL_MAX_TYPE		23
 
 #define CHANNEL_CANCEL_PORT_STATIC	-1
+
+/* nonblocking flags for channel_new */
+#define CHANNEL_NONBLOCK_LEAVE	0 /* don't modify non-blocking state */
+#define CHANNEL_NONBLOCK_SET	1 /* set non-blocking state */
+#define CHANNEL_NONBLOCK_STDIO	2 /* set non-blocking and restore on close */
+
+/* c->restore_block mask flags */
+#define CHANNEL_RESTORE_RFD	0x01
+#define CHANNEL_RESTORE_WFD	0x02
+#define CHANNEL_RESTORE_EFD	0x04
 
 /* TCP forwarding */
 #define FORWARD_DENY		0
@@ -105,8 +115,16 @@ struct channel_connect {
 /* Callbacks for mux channels back into client-specific code */
 typedef int mux_callback_fn(struct ssh *, struct Channel *);
 
+/*
+ * NB. channel IDs on the wire and in c->remote_id are uint32, but local
+ * channel IDs (e.g. c->self) only ever use the int32 subset of this range,
+ * because we use local channel ID -1 for housekeeping. Remote channels have
+ * a dedicated "have_remote_id" flag to indicate their validity.
+ */
+
 struct Channel {
 	int     type;		/* channel type/state */
+
 	int     self;		/* my own channel identifier */
 	uint32_t remote_id;	/* channel identifier for remote peer */
 	int	have_remote_id;	/* non-zero if remote_id is valid */
@@ -131,6 +149,7 @@ struct Channel {
 				 * to a matching pre-select handler.
 				 * this way post-select handlers are not
 				 * accidentally called if a FD gets reused */
+	int	restore_block;	/* fd mask to restore blocking status */
 	struct sshbuf *input;	/* data read from socket, to be sent over
 				 * encrypted connection */
 	struct sshbuf *output;	/* data received over encrypted connection for
@@ -169,7 +188,7 @@ struct Channel {
 	channel_filter_cleanup_fn *filter_cleanup;
 
 	/* keep boundaries */
-	int     		datagram;
+	int			datagram;
 
 	/* non-blocking connect */
 	/* XXX make this a pointer so the structure can be opaque */
@@ -179,7 +198,7 @@ struct Channel {
 	mux_callback_fn		*mux_rcb;
 	void			*mux_ctx;
 	int			mux_pause;
-	int     		mux_downstream_id;
+	int			mux_downstream_id;
 };
 
 #define CHAN_EXTENDED_IGNORE		0
@@ -214,6 +233,9 @@ struct Channel {
 
 /* Read buffer size */
 #define CHAN_RBUF	(16*1024)
+
+/* Maximum channel input buffer size */
+#define CHAN_INPUT_MAX	(16*1024*1024)
 
 /* Hard limit on number of channels */
 #define CHANNELS_MAX_CHANNELS	(16*1024)
@@ -255,7 +277,7 @@ void	 channel_register_filter(struct ssh *, int, channel_infilter_fn *,
 void	 channel_register_status_confirm(struct ssh *, int,
 	    channel_confirm_cb *, channel_confirm_abandon_cb *, void *);
 void	 channel_cancel_cleanup(struct ssh *, int);
-int	 channel_close_fd(struct ssh *, int *);
+int	 channel_close_fd(struct ssh *, Channel *, int *);
 void	 channel_send_window_changes(struct ssh *);
 
 /* mux proxy support */
@@ -278,7 +300,7 @@ int	 channel_input_status_confirm(int, u_int32_t, struct ssh *);
 /* file descriptor handling (read/write) */
 
 void	 channel_prepare_select(struct ssh *, fd_set **, fd_set **, int *,
-	     u_int*, time_t*);
+	    u_int*, time_t*);
 void     channel_after_select(struct ssh *, fd_set *, fd_set *);
 void     channel_output_poll(struct ssh *);
 
@@ -302,7 +324,7 @@ Channel	*channel_connect_to_port(struct ssh *, const char *, u_short,
 	    char *, char *, int *, const char **);
 Channel *channel_connect_to_path(struct ssh *, const char *, char *, char *);
 Channel	*channel_connect_stdio_fwd(struct ssh *, const char*,
-	    u_short, int, int);
+	    u_short, int, int, int);
 Channel	*channel_connect_by_listen_address(struct ssh *, const char *,
 	    u_short, char *, char *);
 Channel	*channel_connect_by_listen_path(struct ssh *, const char *,

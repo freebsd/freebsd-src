@@ -1,4 +1,4 @@
-/* 	$OpenBSD: test_sshbuf_getput_fuzz.c,v 1.2 2014/05/02 02:54:00 djm Exp $ */
+/* 	$OpenBSD: test_sshbuf_getput_fuzz.c,v 1.4 2019/01/21 12:29:35 djm Exp $ */
 /*
  * Regress test for sshbuf.h buffer API
  *
@@ -32,10 +32,12 @@ static void
 attempt_parse_blob(u_char *blob, size_t len)
 {
 	struct sshbuf *p1;
+#ifdef WITH_OPENSSL
 	BIGNUM *bn;
 #if defined(OPENSSL_HAS_ECC) && defined(OPENSSL_HAS_NISTP256)
 	EC_KEY *eck;
-#endif
+#endif /* defined(OPENSSL_HAS_ECC) && defined(OPENSSL_HAS_NISTP256) */
+#endif /* WITH_OPENSSL */
 	u_char *s;
 	size_t l;
 	u_int8_t u8;
@@ -54,18 +56,17 @@ attempt_parse_blob(u_char *blob, size_t len)
 		bzero(s, l);
 		free(s);
 	}
-	bn = BN_new();
-	sshbuf_get_bignum1(p1, bn);
-	BN_clear_free(bn);
-	bn = BN_new();
-	sshbuf_get_bignum2(p1, bn);
+#ifdef WITH_OPENSSL
+	bn = NULL;
+	sshbuf_get_bignum2(p1, &bn);
 	BN_clear_free(bn);
 #if defined(OPENSSL_HAS_ECC) && defined(OPENSSL_HAS_NISTP256)
 	eck = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
 	ASSERT_PTR_NE(eck, NULL);
 	sshbuf_get_eckey(p1, eck);
 	EC_KEY_free(eck);
-#endif
+#endif /* defined(OPENSSL_HAS_ECC) && defined(OPENSSL_HAS_NISTP256) */
+#endif /* WITH_OPENSSL */
 	sshbuf_free(p1);
 }
 
@@ -92,10 +93,6 @@ sshbuf_getput_fuzz_tests(void)
 		/* string */
 		0x00, 0x00, 0x00, 0x09,
 		'O', ' ', 'G', 'o', 'r', 'g', 'o', 'n', '!',
-		/* bignum1 */
-		0x79,
-		0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
-		0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10,
 		/* bignum2 */
 		0x00, 0x00, 0x00, 0x14,
 		0x00,
@@ -115,11 +112,15 @@ sshbuf_getput_fuzz_tests(void)
 		0x55, 0x0f, 0x69, 0xd8, 0x0e, 0xc2, 0x3c, 0xd4,
 	};
 	struct fuzz *fuzz;
+	u_int fuzzers = FUZZ_1_BIT_FLIP | FUZZ_2_BIT_FLIP |
+	    FUZZ_1_BYTE_FLIP | FUZZ_2_BYTE_FLIP |
+	    FUZZ_TRUNCATE_START | FUZZ_TRUNCATE_END;
+
+	if (test_is_fast())
+		fuzzers &= ~(FUZZ_2_BYTE_FLIP|FUZZ_2_BIT_FLIP);
 
 	TEST_START("fuzz blob parsing");
-	fuzz = fuzz_begin(FUZZ_1_BIT_FLIP | FUZZ_2_BIT_FLIP |
-	    FUZZ_1_BYTE_FLIP | FUZZ_2_BYTE_FLIP |
-	    FUZZ_TRUNCATE_START | FUZZ_TRUNCATE_END, blob, sizeof(blob));
+	fuzz = fuzz_begin(fuzzers, blob, sizeof(blob));
 	TEST_ONERROR(onerror, fuzz);
 	for(; !fuzz_done(fuzz); fuzz_next(fuzz))
 		attempt_parse_blob(blob, sizeof(blob));

@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-ecdsa.c,v 1.14 2018/02/07 02:06:51 jsing Exp $ */
+/* $OpenBSD: ssh-ecdsa.c,v 1.16 2019/01/21 09:54:11 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  * Copyright (c) 2010 Damien Miller.  All rights reserved.
@@ -151,15 +151,13 @@ ssh_ecdsa_verify(const struct sshkey *key,
 	}
 
 	/* parse signature */
-	if ((sig = ECDSA_SIG_new()) == NULL ||
-	    (sig_r = BN_new()) == NULL ||
-	    (sig_s = BN_new()) == NULL) {
-		ret = SSH_ERR_ALLOC_FAIL;
+	if (sshbuf_get_bignum2(sigbuf, &sig_r) != 0 ||
+	    sshbuf_get_bignum2(sigbuf, &sig_s) != 0) {
+		ret = SSH_ERR_INVALID_FORMAT;
 		goto out;
 	}
-	if (sshbuf_get_bignum2(sigbuf, sig_r) != 0 ||
-	    sshbuf_get_bignum2(sigbuf, sig_s) != 0) {
-		ret = SSH_ERR_INVALID_FORMAT;
+	if ((sig = ECDSA_SIG_new()) == NULL) {
+		ret = SSH_ERR_ALLOC_FAIL;
 		goto out;
 	}
 	if (!ECDSA_SIG_set0(sig, sig_r, sig_s)) {

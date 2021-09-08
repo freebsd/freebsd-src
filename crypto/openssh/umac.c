@@ -1,4 +1,4 @@
-/* $OpenBSD: umac.c,v 1.17 2018/04/10 00:10:49 djm Exp $ */
+/* $OpenBSD: umac.c,v 1.21 2021/04/03 06:58:30 djm Exp $ */
 /* -----------------------------------------------------------------------
  *
  * umac.c -- C Implementation UMAC Message Authentication
@@ -39,7 +39,7 @@
   * at http://www.esat.kuleuven.ac.be/~rijmen/rijndael/ (search for
   * "Barreto"). The only two files needed are rijndael-alg-fst.c and
   * rijndael-alg-fst.h. Brian Gladman's version is distributed with the GNU
-  * Public lisence at http://fp.gladman.plus.com/AES/index.htm. It
+  * Public license at http://fp.gladman.plus.com/AES/index.htm. It
   * includes a fast IA-32 assembly version. The OpenSSL crypo library is
   * the third.
   *
@@ -74,6 +74,7 @@
 #include "includes.h"
 #include <sys/types.h>
 #include <string.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stddef.h>
@@ -289,7 +290,7 @@ static void pdf_gen_xor(pdf_ctx *pc, const UINT8 nonce[8], UINT8 buf[8])
  * versions, one expects the entire message being hashed to be passed
  * in a single buffer and returns the hash result immediately. The second
  * allows the message to be passed in a sequence of buffers. In the
- * muliple-buffer interface, the client calls the routine nh_update() as
+ * multiple-buffer interface, the client calls the routine nh_update() as
  * many times as necessary. When there is no more data to be fed to the
  * hash, the client calls nh_final() which calculates the hash output.
  * Before beginning another hash calculation the nh_reset() routine
@@ -1204,8 +1205,7 @@ int umac_delete(struct umac_ctx *ctx)
     if (ctx) {
         if (ALLOC_BOUNDARY)
             ctx = (struct umac_ctx *)ctx->free_ptr;
-        explicit_bzero(ctx, sizeof(*ctx) + ALLOC_BOUNDARY);
-        free(ctx);
+        freezero(ctx, sizeof(*ctx) + ALLOC_BOUNDARY);
     }
     return (1);
 }

@@ -31,6 +31,8 @@
 
 #include "includes.h"
 
+struct ssh;
+
 /**
  ** you should use the login_* calls to work around platform dependencies
  **/
@@ -92,7 +94,7 @@ struct logininfo *login_alloc_entry(pid_t pid, const char *username,
 void login_free_entry(struct logininfo *li);
 /* fill out a pre-allocated structure with useful information */
 int login_init_entry(struct logininfo *li, pid_t pid, const char *username,
-		     const char *hostname, const char *line);
+    const char *hostname, const char *line);
 /* place the current time in a logininfo struct */
 void login_set_current_time(struct logininfo *li);
 
@@ -126,6 +128,7 @@ char *line_fullname(char *dst, const char *src, u_int dstsize);
 char *line_stripname(char *dst, const char *src, int dstsize);
 char *line_abbrevname(char *dst, const char *src, int dstsize);
 
-void record_failed_login(const char *, const char *, const char *);
+void record_failed_login(struct ssh *, const char *, const char *,
+    const char *);
 
 #endif /* _HAVE_LOGINREC_H_ */
