@@ -377,7 +377,6 @@ end
 
 local function drawitem(func)
 	local console = loader.getenv("console")
-	local c
 
 	for c in string.gmatch(console, "%w+") do
 		loader.setenv("console", c)
