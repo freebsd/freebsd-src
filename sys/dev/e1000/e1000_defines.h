@@ -1,32 +1,32 @@
 /******************************************************************************
   SPDX-License-Identifier: BSD-3-Clause
 
-  Copyright (c) 2001-2020, Intel Corporation
+  Copyright (c) 2001-2015, Intel Corporation 
   All rights reserved.
-
-  Redistribution and use in source and binary forms, with or without
+  
+  Redistribution and use in source and binary forms, with or without 
   modification, are permitted provided that the following conditions are met:
-
-   1. Redistributions of source code must retain the above copyright notice,
+  
+   1. Redistributions of source code must retain the above copyright notice, 
       this list of conditions and the following disclaimer.
-
-   2. Redistributions in binary form must reproduce the above copyright
-      notice, this list of conditions and the following disclaimer in the
+  
+   2. Redistributions in binary form must reproduce the above copyright 
+      notice, this list of conditions and the following disclaimer in the 
       documentation and/or other materials provided with the distribution.
-
-   3. Neither the name of the Intel Corporation nor the names of its
-      contributors may be used to endorse or promote products derived from
+  
+   3. Neither the name of the Intel Corporation nor the names of its 
+      contributors may be used to endorse or promote products derived from 
       this software without specific prior written permission.
-
+  
   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
-  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
-  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
-  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
+  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
+  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE 
+  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
+  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
+  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
+  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
+  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
   POSSIBILITY OF SUCH DAMAGE.
 
@@ -1070,44 +1070,11 @@
 /* NVM Word Offsets */
 #define NVM_COMPAT			0x0003
 #define NVM_ID_LED_SETTINGS		0x0004
-#define NVM_VERSION			0x0005
 #define NVM_SERDES_AMPLITUDE		0x0006 /* SERDES output amplitude */
 #define NVM_PHY_CLASS_WORD		0x0007
 #define E1000_I210_NVM_FW_MODULE_PTR	0x0010
 #define E1000_I350_NVM_FW_MODULE_PTR	0x0051
 #define NVM_FUTURE_INIT_WORD1		0x0019
-#define NVM_ETRACK_WORD			0x0042
-#define NVM_ETRACK_HIWORD		0x0043
-#define NVM_COMB_VER_OFF		0x0083
-#define NVM_COMB_VER_PTR		0x003D
-
-/* NVM version defines */
-#define NVM_MAJOR_MASK			0xF000
-#define NVM_MINOR_MASK			0x0FF0
-#define NVM_IMAGE_ID_MASK		0x000F
-#define NVM_COMB_VER_MASK		0x00FF
-#define NVM_MAJOR_SHIFT			12
-#define NVM_MINOR_SHIFT			4
-#define NVM_COMB_VER_SHFT		8
-#define NVM_VER_INVALID			0xFFFF
-#define NVM_ETRACK_SHIFT		16
-#define NVM_ETRACK_VALID		0x8000
-#define NVM_NEW_DEC_MASK		0x0F00
-#define NVM_HEX_CONV			16
-#define NVM_HEX_TENS			10
-
-/* FW version defines */
-/* Offset of "Loader patch ptr" in Firmware Header */
-#define E1000_I350_NVM_FW_LOADER_PATCH_PTR_OFFSET	0x01
-/* Patch generation hour & minutes */
-#define E1000_I350_NVM_FW_VER_WORD1_OFFSET		0x04
-/* Patch generation month & day */
-#define E1000_I350_NVM_FW_VER_WORD2_OFFSET		0x05
-/* Patch generation year */
-#define E1000_I350_NVM_FW_VER_WORD3_OFFSET		0x06
-/* Patch major & minor numbers */
-#define E1000_I350_NVM_FW_VER_WORD4_OFFSET		0x07
-
 #define NVM_MAC_ADDR			0x0000
 #define NVM_SUB_DEV_ID			0x000B
 #define NVM_SUB_VEN_ID			0x000C
