@@ -18,11 +18,27 @@ enum e820_memory_type {
 	E820_TYPE_NVS = 4
 };
 
+enum e820_allocation_strategy {
+	/* allocate any address */
+	E820_ALLOCATE_ANY,
+	/* allocate lowest address larger than address */
+	E820_ALLOCATE_LOWEST,
+	/* allocate highest address lower than address */
+	E820_ALLOCATE_HIGHEST,
+	/* allocate a specific address */
+	E820_ALLOCATE_SPECIFIC
+};
+
 struct e820_entry {
 	uint64_t base;
 	uint64_t length;
 	uint32_t type;
 } __packed;
 
+#define E820_ALIGNMENT_NONE 1
+
+uint64_t e820_alloc(const uint64_t address, const uint64_t length,
+    const uint64_t alignment, const enum e820_memory_type type,
+    const enum e820_allocation_strategy strategy);
 struct qemu_fwcfg_item *e820_get_fwcfg_item(void);
 int e820_init(struct vmctx *const ctx);
