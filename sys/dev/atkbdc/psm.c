@@ -3134,8 +3134,12 @@ next:
 		/*
 		 * If we've filled the queue then call the softintr ourselves,
 		 * otherwise schedule the interrupt for later.
+		 * Do not postpone interrupts for absolute devices as it
+		 * affects tap detection timings.
 		 */
-		if (!timeelapsed(&sc->lastsoftintr, psmsecs, psmusecs, &now) ||
+		if (sc->hw.model == MOUSE_MODEL_SYNAPTICS ||
+		    sc->hw.model == MOUSE_MODEL_ELANTECH ||
+		    !timeelapsed(&sc->lastsoftintr, psmsecs, psmusecs, &now) ||
 		    (sc->pqueue_end == sc->pqueue_start)) {
 			if ((sc->state & PSM_SOFTARMED) != 0) {
 				sc->state &= ~PSM_SOFTARMED;
