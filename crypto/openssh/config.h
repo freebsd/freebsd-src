@@ -857,7 +857,7 @@
 /* #undef HAVE_LIBCRYPT */
 
 /* Define to 1 if you have the `dl' library (-ldl). */
-/* #undef HAVE_LIBDL */
+#define HAVE_LIBDL 1
 
 /* Define to 1 if you have the <libgen.h> header file. */
 #define HAVE_LIBGEN_H 1
@@ -869,7 +869,7 @@
 /* #undef HAVE_LIBNETWORK */
 
 /* Define to 1 if you have the `pam' library (-lpam). */
-/* #undef HAVE_LIBPAM */
+#define HAVE_LIBPAM 1
 
 /* Define to 1 if you have the <libproc.h> header file. */
 /* #undef HAVE_LIBPROC_H */
@@ -1033,13 +1033,13 @@
 /* #undef HAVE_OSF_SIA */
 
 /* Define to 1 if you have the `pam_getenvlist' function. */
-/* #undef HAVE_PAM_GETENVLIST */
+#define HAVE_PAM_GETENVLIST 1
 
 /* Define to 1 if you have the <pam/pam_appl.h> header file. */
 /* #undef HAVE_PAM_PAM_APPL_H */
 
 /* Define to 1 if you have the `pam_putenv' function. */
-/* #undef HAVE_PAM_PUTENV */
+#define HAVE_PAM_PUTENV 1
 
 /* Define to 1 if you have the <paths.h> header file. */
 #define HAVE_PATHS_H 1
@@ -1970,16 +1970,16 @@
 /* #undef USE_BTMP */
 
 /* Use libedit for sftp */
-/* #undef USE_LIBEDIT */
+#define USE_LIBEDIT 1
 
 /* Use Linux audit module */
 /* #undef USE_LINUX_AUDIT */
 
 /* Enable OpenSSL engine support */
-/* #undef USE_OPENSSL_ENGINE */
+#define USE_OPENSSL_ENGINE 1
 
 /* Define if you want to enable PAM support */
-/* #undef USE_PAM */
+#define USE_PAM 1
 
 /* Use PIPES instead of a socketpair() */
 /* #undef USE_PIPES */
