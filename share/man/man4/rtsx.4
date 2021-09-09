@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 24, 2020
+.Dd April 25, 2021
 .Dt RTSX 4
 .Os
 .Sh NAME
@@ -108,11 +108,18 @@ with modifications found in Linux and
 .It
 The timeouts experienced during card insert and during I/O are solved in version 1.0g.
 .It
-RTS522A on Lenovo P50s and Lenovo T470p, card detection and read-only switch are reversed.
-This is sovled by adding in
+RTS522A on Lenovo T470p, card detection and read-only switch are reversed.
+This is solved by adding in
 .Em loader.conf(5) :
 .Bd -ragged
 .Cd dev.rtsx.0.inversion=1
+.Ed
+.Pp
+The driver tries to automate those exceptions.
+If this automation is wrong, it can be avoided by adding in
+.Em loader.conf(5) :
+.Bd -ragged
+.Cd dev.rtsx.0.inversion=0
 .Ed
 .It
 Mounting a filesystem with write access on a card write protected may involve a kernel crash.
