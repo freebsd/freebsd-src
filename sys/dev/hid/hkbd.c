@@ -657,7 +657,6 @@ hkbd_intr_callback(void *context, void *data, hid_size_t len)
 	uint32_t i;
 	uint8_t id = 0;
 	uint8_t modifiers;
-	int offset;
 
 	HKBD_LOCK_ASSERT(sc);
 
@@ -709,13 +708,15 @@ hkbd_intr_callback(void *context, void *data, hid_size_t len)
 		} else if (id != sc->sc_id_loc_key[i]) {
 			continue;	/* invalid HID ID */
 		} else if (i == 0) {
-			offset = sc->sc_loc_key[0].count;
-			if (offset < 0 || offset > len)
-				offset = len;
-			while (offset--) {
+			struct hid_location tmp_loc = sc->sc_loc_key[0];
+			/* range check array size */
+			if (tmp_loc.count > HKBD_NKEYCODE)
+				tmp_loc.count = HKBD_NKEYCODE;
+			while (tmp_loc.count--) {
 				uint32_t key =
-				    hid_get_data(buf + offset, len - offset,
-				    &sc->sc_loc_key[i]);
+				    hid_get_udata(buf, len, &tmp_loc);
+				/* advance to next location */
+				tmp_loc.pos += tmp_loc.size;
 				if (key == KEY_ERROR) {
 					DPRINTF("KEY_ERROR\n");
 					sc->sc_ndata = sc->sc_odata;
