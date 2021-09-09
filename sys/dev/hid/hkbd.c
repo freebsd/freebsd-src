@@ -301,8 +301,8 @@ static void	hkbd_timeout(void *);
 static int	hkbd_set_leds(struct hkbd_softc *, uint8_t);
 static int	hkbd_set_typematic(keyboard_t *, int);
 #ifdef HKBD_EMULATE_ATSCANCODE
-static uint32_t	hkbd_atkeycode(int, const uint64_t *);
-static int	hkbd_key2scan(struct hkbd_softc *, int, const uint64_t *, int);
+static uint32_t	hkbd_atkeycode(int, const bitstr_t *);
+static int	hkbd_key2scan(struct hkbd_softc *, int, const bitstr_t *, int);
 #endif
 static uint32_t	hkbd_read_char(keyboard_t *, int);
 static void	hkbd_clear_state(keyboard_t *);
