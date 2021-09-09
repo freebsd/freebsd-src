@@ -592,11 +592,17 @@ intptr_t INSTR_PROF_PROFILE_COUNTER_BIAS_DEFAULT_VAR = 0;
 
 /* This variable is a weak external reference which could be used to detect
  * whether or not the compiler defined this symbol. */
-#if defined(_WIN32)
+#if defined(_MSC_VER)
 COMPILER_RT_VISIBILITY extern intptr_t INSTR_PROF_PROFILE_COUNTER_BIAS_VAR;
-#pragma comment(linker, "/alternatename:"                                      \
-      INSTR_PROF_QUOTE(INSTR_PROF_PROFILE_COUNTER_BIAS_VAR) "="                \
-      INSTR_PROF_QUOTE(INSTR_PROF_PROFILE_COUNTER_BIAS_DEFAULT_VAR))
+#if defined(_M_IX86) || defined(__i386__)
+#define WIN_SYM_PREFIX "_"
+#else
+#define WIN_SYM_PREFIX
+#endif
+#pragma comment(                                                               \
+    linker, "/alternatename:" WIN_SYM_PREFIX INSTR_PROF_QUOTE(                 \
+                INSTR_PROF_PROFILE_COUNTER_BIAS_VAR) "=" WIN_SYM_PREFIX        \
+                INSTR_PROF_QUOTE(INSTR_PROF_PROFILE_COUNTER_BIAS_DEFAULT_VAR))
 #else
 COMPILER_RT_VISIBILITY extern intptr_t INSTR_PROF_PROFILE_COUNTER_BIAS_VAR
     __attribute__((weak, alias(INSTR_PROF_QUOTE(
@@ -651,8 +657,9 @@ static void initializeProfileForContinuousMode(void) {
   const uint64_t *CountersBegin = __llvm_profile_begin_counters();
   const uint64_t *CountersEnd = __llvm_profile_end_counters();
   uint64_t DataSize = __llvm_profile_get_data_size(DataBegin, DataEnd);
-  const uint64_t CountersOffset =
-      sizeof(__llvm_profile_header) + (DataSize * sizeof(__llvm_profile_data));
+  const uint64_t CountersOffset = sizeof(__llvm_profile_header) +
+                                  __llvm_write_binary_ids(NULL) +
+                                  (DataSize * sizeof(__llvm_profile_data));
 
   int Length = getCurFilenameLength();
   char *FilenameBuf = (char *)COMPILER_RT_ALLOCA(Length + 1);
