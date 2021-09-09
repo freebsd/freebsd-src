@@ -168,7 +168,6 @@ bool HardwareLoopInfo::isHardwareLoopCandidate(ScalarEvolution &SE,
     // has a latch block.
     ExitBlock = BB;
     ExitCount = EC;
-
     break;
   }
 

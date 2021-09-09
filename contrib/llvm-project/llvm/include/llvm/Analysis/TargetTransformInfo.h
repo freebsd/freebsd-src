@@ -98,7 +98,6 @@ struct HardwareLoopInfo {
   BasicBlock *ExitBlock = nullptr;
   BranchInst *ExitBranch = nullptr;
   const SCEV *ExitCount = nullptr;
-  const SCEV *TripCount = nullptr;
   IntegerType *CountType = nullptr;
   Value *LoopDecrement = nullptr; // Decrement the loop counter by this
                                   // value in every iteration.

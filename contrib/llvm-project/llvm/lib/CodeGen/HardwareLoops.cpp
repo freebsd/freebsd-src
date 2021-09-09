@@ -381,9 +381,8 @@ Value *HardwareLoop::InitLoopCount() {
   // loop counter and tests that is not zero?
 
   SCEVExpander SCEVE(SE, DL, "loopcnt");
-
   if (!ExitCount->getType()->isPointerTy() &&
-       ExitCount->getType() != CountType)
+      ExitCount->getType() != CountType)
     ExitCount = SE.getZeroExtendExpr(ExitCount, CountType);
 
   ExitCount = SE.getAddExpr(ExitCount, SE.getOne(CountType));
@@ -393,7 +392,7 @@ Value *HardwareLoop::InitLoopCount() {
   // is likely (guaranteed?) that the preheader has an unconditional branch to
   // the loop header, so also check if it has a single predecessor.
   if (SE.isLoopEntryGuardedByCond(L, ICmpInst::ICMP_NE, ExitCount,
-			          SE.getZero(ExitCount->getType()))) {
+                                  SE.getZero(ExitCount->getType()))) {
     LLVM_DEBUG(dbgs() << " - Attempting to use test.set counter.\n");
     UseLoopGuard |= ForceGuardLoopEntry;
   } else
