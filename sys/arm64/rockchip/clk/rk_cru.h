@@ -186,6 +186,23 @@
 	},								\
 }
 
+/* Complex clock without divider (multiplexer only in GRF). */
+#define MUXGRF(_id, _name, _pn, _f,  _mo, _ms, _mw)			\
+{									\
+	.type = RK_CLK_MUX,						\
+	.clk.mux = &(struct rk_clk_mux_def) {				\
+		.clkdef.id = _id,					\
+		.clkdef.name = _name,					\
+		.clkdef.parent_names = _pn,				\
+		.clkdef.parent_cnt = nitems(_pn),			\
+		.clkdef.flags = CLK_NODE_STATIC_STRINGS,		\
+		.offset = _mo,						\
+		.shift = _ms,						\
+		.width = _mw,						\
+		.mux_flags = RK_CLK_MUX_GRF | _f,			\
+	},								\
+}
+
 struct rk_cru_gate {
 	const char	*name;
 	const char	*parent_name;
