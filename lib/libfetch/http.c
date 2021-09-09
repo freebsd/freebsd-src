@@ -1526,12 +1526,13 @@ http_get_proxy(struct url * url, const char *flags)
 static void
 http_print_html(FILE *out, FILE *in)
 {
-	size_t len = 0;
+	ssize_t len = 0;
+	size_t cap;
 	char *line = NULL, *p, *q;
 	int comment, tag;
 
 	comment = tag = 0;
-	while (getline(&line, &len, in) >= 0) {
+	while ((len = getline(&line, &cap, in)) >= 0) {
 		while (len && isspace((unsigned char)line[len - 1]))
 			--len;
 		for (p = q = line; q < line + len; ++q) {
