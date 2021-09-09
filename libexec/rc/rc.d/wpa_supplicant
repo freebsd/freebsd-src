@@ -29,6 +29,8 @@ is_ndis_interface()
 }
 
 wpa_poststart() {
+	ifconfig ${ifn} down
+	sleep 2
 	ifconfig ${ifn} up
 }
 
