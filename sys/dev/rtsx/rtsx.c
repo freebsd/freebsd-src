@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/endian.h>
 #include <machine/bus.h>
 #include <sys/mutex.h>
+#include <sys/malloc.h>
 #include <sys/rman.h>
 #include <sys/queue.h>
 #include <sys/taskqueue.h>
@@ -83,11 +84,13 @@ struct rtsx_softc {
 	struct resource *rtsx_irq_res;		/* bus IRQ resource */
 	void		*rtsx_irq_cookie;	/* bus IRQ resource cookie */
 	struct callout	rtsx_timeout_callout;	/* callout for timeout */
-	int		rtsx_timeout;		/* interrupt timeout value */
+	int		rtsx_timeout_cmd;	/* interrupt timeout for setup commands */
+	int		rtsx_timeout_io;	/* interrupt timeout for I/O commands */
 	void		(*rtsx_intr_trans_ok)(struct rtsx_softc *sc);
 						/* function to call if transfer succeed */
 	void		(*rtsx_intr_trans_ko)(struct rtsx_softc *sc);
 						/* function to call if transfer fail */
+
 	struct timeout_task
 			rtsx_card_insert_task;	/* card insert delayed task */
 	struct task	rtsx_card_remove_task;	/* card remove task */
@@ -166,23 +169,33 @@ struct rtsx_softc {
 #define	RTSX_RTL8411		0x5289
 #define	RTSX_RTL8411B		0x5287
 
-#define	RTSX_VERSION		"2.0c"
+#define	RTSX_VERSION		"2.0i"
 
 static const struct rtsx_device {
 	uint16_t	vendor_id;
 	uint16_t	device_id;
 	const char	*desc;
 } rtsx_devices[] = {
-	{ RTSX_REALTEK,	RTSX_RTS5209,	RTSX_VERSION " Realtek RTS5209 PCI MMC/SD Card Reader"},
-	{ RTSX_REALTEK,	RTSX_RTS5227,	RTSX_VERSION " Realtek RTS5227 PCI MMC/SD Card Reader"},
-	{ RTSX_REALTEK,	RTSX_RTS5229,	RTSX_VERSION " Realtek RTS5229 PCI MMC/SD Card Reader"},
-	{ RTSX_REALTEK,	RTSX_RTS522A,	RTSX_VERSION " Realtek RTS522A PCI MMC/SD Card Reader"},
-	{ RTSX_REALTEK,	RTSX_RTS525A,	RTSX_VERSION " Realtek RTS525A PCI MMC/SD Card Reader"},
-	{ RTSX_REALTEK,	RTSX_RTS5249,	RTSX_VERSION " Realtek RTS5249 PCI MMC/SD Card Reader"},
-	{ RTSX_REALTEK,	RTSX_RTL8402,	RTSX_VERSION " Realtek RTL8402 PCI MMC/SD Card Reader"},
-	{ RTSX_REALTEK,	RTSX_RTL8411,	RTSX_VERSION " Realtek RTL8411 PCI MMC/SD Card Reader"},
-	{ RTSX_REALTEK,	RTSX_RTL8411B,	RTSX_VERSION " Realtek RTL8411B PCI MMC/SD Card Reader"},
+	{ RTSX_REALTEK,	RTSX_RTS5209,	RTSX_VERSION " Realtek RTS5209 PCIe MMC/SD Card Reader"},
+	{ RTSX_REALTEK,	RTSX_RTS5227,	RTSX_VERSION " Realtek RTS5227 PCIe MMC/SD Card Reader"},
+	{ RTSX_REALTEK,	RTSX_RTS5229,	RTSX_VERSION " Realtek RTS5229 PCIe MMC/SD Card Reader"},
+	{ RTSX_REALTEK,	RTSX_RTS522A,	RTSX_VERSION " Realtek RTS522A PCIe MMC/SD Card Reader"},
+	{ RTSX_REALTEK,	RTSX_RTS525A,	RTSX_VERSION " Realtek RTS525A PCIe MMC/SD Card Reader"},
+	{ RTSX_REALTEK,	RTSX_RTS5249,	RTSX_VERSION " Realtek RTS5249 PCIe MMC/SD Card Reader"},
+	{ RTSX_REALTEK,	RTSX_RTL8402,	RTSX_VERSION " Realtek RTL8402 PCIe MMC/SD Card Reader"},
+	{ RTSX_REALTEK,	RTSX_RTL8411,	RTSX_VERSION " Realtek RTL8411 PCIe MMC/SD Card Reader"},
+	{ RTSX_REALTEK,	RTSX_RTL8411B,	RTSX_VERSION " Realtek RTL8411B PCIe MMC/SD Card Reader"},
 	{ 0, 		0,		NULL}
+};
+
+/* See `kenv | grep smbios.system` */
+static const struct rtsx_inversion_model {
+	char	*maker;
+	char	*family;
+	char	*product;
+} rtsx_inversion_models[] = {
+	{ "LENOVO",		"ThinkPad T470p",	"20J7S0PM00"},
+	{ NULL,			NULL,			NULL}
 };
 
 static int	rtsx_dma_alloc(struct rtsx_softc *sc);
@@ -601,7 +614,7 @@ rtsx_handle_card_present(struct rtsx_softc *sc)
 
 #ifdef MMCCAM
 	was_present = sc->rtsx_cam_status;
-#else
+#else  /* !MMCCAM */
 	was_present = sc->rtsx_mmc_dev != NULL;
 #endif /* MMCCAM */
 	is_present = rtsx_is_card_present(sc);
@@ -640,7 +653,7 @@ rtsx_card_task(void *arg, int pending __unused)
 		if (sc->rtsx_cam_status == 0) {
 			union ccb	*ccb;
 			uint32_t	pathid;
-#else
+#else  /* !MMCCAM */
 		if (sc->rtsx_mmc_dev == NULL) {
 #endif /* MMCCAM */
 			if (bootverbose)
@@ -669,7 +682,7 @@ rtsx_card_task(void *arg, int pending __unused)
 			}
 			RTSX_UNLOCK(sc);
 			xpt_rescan(ccb);
-#else
+#else  /* !MMCCAM */
 			sc->rtsx_mmc_dev = device_add_child(sc->rtsx_dev, "mmc", -1);
 			RTSX_UNLOCK(sc);
 			if (sc->rtsx_mmc_dev == NULL) {
@@ -688,7 +701,7 @@ rtsx_card_task(void *arg, int pending __unused)
 		if (sc->rtsx_cam_status != 0) {
 			union ccb	*ccb;
 			uint32_t	pathid;
-#else
+#else  /* !MMCCAM */
 		if (sc->rtsx_mmc_dev != NULL) {
 #endif /* MMCCAM */
 			if (bootverbose)
@@ -719,7 +732,7 @@ rtsx_card_task(void *arg, int pending __unused)
 			}
 			RTSX_UNLOCK(sc);
 			xpt_rescan(ccb);
-#else
+#else  /* !MMCCAM */
 			RTSX_UNLOCK(sc);
 			if (device_delete_child(sc->rtsx_dev, sc->rtsx_mmc_dev))
 				device_printf(sc->rtsx_dev, "Detaching MMC bus failed\n");
@@ -984,7 +997,7 @@ rtsx_init(struct rtsx_softc *sc)
 					    RTSX_PHY_REV_CLKREQ_DT_1_0 | RTSX_PHY_REV_STOP_CLKRD |
 					    RTSX_PHY_REV_STOP_CLKWR)))
 			return (error);
-		DELAY(10);
+		DELAY(1000);
 		if ((error = rtsx_write_phy(sc, RTSX_PHY_BPCR,
 					    RTSX_PHY_BPCR_IBRXSEL | RTSX_PHY_BPCR_IBTXSEL |
 					    RTSX_PHY_BPCR_IB_FILTER | RTSX_PHY_BPCR_CMIRROR_EN)))
@@ -1604,7 +1617,7 @@ rtsx_bus_power_on(struct rtsx_softc *sc)
 		RTSX_BITOP(sc, RTSX_CARD_PWR_CTL, RTSX_SD_PWR_MASK, RTSX_SD_PARTIAL_PWR_ON);
 		RTSX_BITOP(sc, RTSX_PWR_GATE_CTRL, RTSX_LDO3318_PWR_MASK, RTSX_LDO3318_VCC1);
 
-		DELAY(200);
+		DELAY(20000);
 
 		/* Full power. */
 		RTSX_BITOP(sc, RTSX_CARD_PWR_CTL, RTSX_SD_PWR_MASK, RTSX_SD_PWR_ON);
@@ -1632,7 +1645,7 @@ rtsx_bus_power_on(struct rtsx_softc *sc)
 		RTSX_BITOP(sc, RTSX_CARD_PWR_CTL, RTSX_SD_PWR_MASK, RTSX_SD_PARTIAL_PWR_ON);
 		RTSX_BITOP(sc, RTSX_PWR_GATE_CTRL, RTSX_LDO3318_PWR_MASK, RTSX_LDO3318_VCC1);
 
-		DELAY(200);
+		DELAY(5000);
 
 		/* Full power. */
 		RTSX_BITOP(sc, RTSX_CARD_PWR_CTL, RTSX_SD_PWR_MASK, RTSX_SD_PWR_ON);
@@ -1983,7 +1996,7 @@ rtsx_sd_tuning_rx_cmd_wait(struct rtsx_softc *sc, struct mmc_command *cmd)
 
 	status = sc->rtsx_intr_status & mask;
 	while (status == 0) {
-		if (msleep(&sc->rtsx_intr_status, &sc->rtsx_mtx, 0, "rtsxintr", sc->rtsx_timeout) == EWOULDBLOCK) {
+		if (msleep(&sc->rtsx_intr_status, &sc->rtsx_mtx, 0, "rtsxintr", sc->rtsx_timeout_cmd) == EWOULDBLOCK) {
 			cmd->error = MMC_ERR_TIMEOUT;
 			return (MMC_ERR_TIMEOUT);
 		}
@@ -2254,7 +2267,7 @@ rtsx_req_done(struct rtsx_softc *sc)
 	sc->rtsx_ccb = NULL;
 	ccb->ccb_h.status = (req->cmd->error == 0 ? CAM_REQ_CMP : CAM_REQ_CMP_ERR);
 	xpt_done(ccb);
-#else
+#else  /* !MMCCAM */
 	req->done(req);
 #endif /* MMCCAM */
 }
@@ -2899,6 +2912,7 @@ rtsx_cam_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->ccb_h.status = CAM_REQ_CMP;
 		break;
 	}
+	case XPT_MMC_GET_TRAN_SETTINGS:
 	case XPT_GET_TRAN_SETTINGS:
 	{
 		struct ccb_trans_settings *cts = &ccb->cts;
@@ -2923,6 +2937,7 @@ rtsx_cam_action(struct cam_sim *sim, union ccb *ccb)
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		break;
 	}
+	case XPT_MMC_SET_TRAN_SETTINGS:
 	case XPT_SET_TRAN_SETTINGS:
 		if (bootverbose || sc->rtsx_debug)
 			device_printf(sc->rtsx_dev, "rtsx_cam_action() - got XPT_SET_TRAN_SETTINGS\n");
@@ -3022,7 +3037,7 @@ rtsx_cam_set_tran_settings(struct rtsx_softc *sc, union ccb *ccb)
 		if (bootverbose || sc->rtsx_debug)
 			device_printf(sc->rtsx_dev, "rtsx_cam_set_tran_settings() - vccq: %d\n", ios->vccq);
 	}
-#endif
+#endif /* __FreeBSD__ > 12 */
 	if (rtsx_mmcbr_update_ios(sc->rtsx_dev, NULL) == 0)
 		ccb->ccb_h.status = CAM_REQ_CMP;
 	else
@@ -3426,6 +3441,7 @@ rtsx_mmcbr_request(device_t bus, device_t child __unused, struct mmc_request *re
 {
 	struct rtsx_softc  *sc;
 	struct mmc_command *cmd;
+	int	timeout;
 	int	error;
 
 	sc = device_get_softc(bus);
@@ -3473,15 +3489,18 @@ rtsx_mmcbr_request(device_t bus, device_t child __unused, struct mmc_request *re
 
 	if (cmd->data == NULL) {
 		DELAY(200);
+		timeout = sc->rtsx_timeout_cmd;
 		error = rtsx_send_req(sc, cmd);
 	} else if (cmd->data->len <= 512) {
+		timeout = sc->rtsx_timeout_io;
 		error = rtsx_xfer_short(sc, cmd);
 	} else {
+		timeout = sc->rtsx_timeout_io;
 		error = rtsx_xfer(sc, cmd);
 	}
  end:
 	if (error == MMC_ERR_NONE) {
-		callout_reset(&sc->rtsx_timeout_callout, sc->rtsx_timeout * hz, rtsx_timeout, sc);
+		callout_reset(&sc->rtsx_timeout_callout, timeout * hz, rtsx_timeout, sc);
 	} else {
 		rtsx_req_done(sc);
 	}
@@ -3587,6 +3606,10 @@ rtsx_attach(device_t dev)
 	int			msi_count = 1;
 	uint32_t		sdio_cfg;
 	int			error;
+	char			*maker;
+	char			*family;
+	char			*product;
+	int			i;
 
 	if (bootverbose)
 		device_printf(dev, "Attach - Vendor ID: 0x%x - Device ID: 0x%x\n",
@@ -3594,31 +3617,52 @@ rtsx_attach(device_t dev)
 
 	sc->rtsx_dev = dev;
 	sc->rtsx_req = NULL;
-	sc->rtsx_timeout = 10;
+	sc->rtsx_timeout_cmd = 1;
+	sc->rtsx_timeout_io = 10;
 	sc->rtsx_read_only = 0;
+	sc->rtsx_inversion = 0;
 	sc->rtsx_force_timing = 0;
 	sc->rtsx_debug = 0;
 	sc->rtsx_read_count = 0;
 	sc->rtsx_write_count = 0;
 
+	maker = kern_getenv("smbios.system.maker");
+	family = kern_getenv("smbios.system.family");
+	product = kern_getenv("smbios.system.product");
+	for (i = 0; rtsx_inversion_models[i].maker != NULL; i++) {
+		if (strcmp(rtsx_inversion_models[i].maker, maker) == 0 &&
+		    strcmp(rtsx_inversion_models[i].family, family) == 0 &&
+		    strcmp(rtsx_inversion_models[i].product, product) == 0) {
+			device_printf(dev, "Inversion activated for %s/%s/%s, see BUG in rtsx(4)\n", maker, family, product);
+			device_printf(dev, "If a card is detected without an SD card present,"
+				      " add dev.rtsx.0.inversion=0 in loader.conf(5)\n");
+			sc->rtsx_inversion = 1;
+		}
+	}
+
 	RTSX_LOCK_INIT(sc);
 
 	ctx = device_get_sysctl_ctx(dev);
 	tree = SYSCTL_CHILDREN(device_get_sysctl_tree(dev));
-	SYSCTL_ADD_INT(ctx, tree, OID_AUTO, "req_timeout", CTLFLAG_RW,
-		       &sc->rtsx_timeout, 0, "Request timeout in seconds");
+	SYSCTL_ADD_INT(ctx, tree, OID_AUTO, "timeout_io", CTLFLAG_RW,
+		       &sc->rtsx_timeout_io, 0, "Request timeout for I/O commands in seconds");
+	SYSCTL_ADD_INT(ctx, tree, OID_AUTO, "timeout_cmd", CTLFLAG_RW,
+		       &sc->rtsx_timeout_cmd, 0, "Request timeout for setup commands in seconds");
 	SYSCTL_ADD_U8(ctx, tree, OID_AUTO, "read_only", CTLFLAG_RD,
 		      &sc->rtsx_read_only, 0, "Card is write protected");
 	SYSCTL_ADD_U8(ctx, tree, OID_AUTO, "inversion", CTLFLAG_RWTUN,
 		      &sc->rtsx_inversion, 0, "Inversion of card detection and read only status");
 	SYSCTL_ADD_U8(ctx, tree, OID_AUTO, "force_timing", CTLFLAG_RW,
 		      &sc->rtsx_force_timing, 0, "Force bus_timing_uhs_sdr50");
-	SYSCTL_ADD_U8(ctx, tree, OID_AUTO, "debug", CTLFLAG_RW,
+	SYSCTL_ADD_U8(ctx, tree, OID_AUTO, "debug", CTLFLAG_RWTUN,
 		      &sc->rtsx_debug, 0, "Debugging flag");
 	SYSCTL_ADD_U64(ctx, tree, OID_AUTO, "read_count", CTLFLAG_RD,
 		       &sc->rtsx_read_count, 0, "Count of read operations");
 	SYSCTL_ADD_U64(ctx, tree, OID_AUTO, "write_count", CTLFLAG_RD,
 		       &sc->rtsx_write_count, 0, "Count of write operations");
+
+	if (bootverbose || sc->rtsx_debug)
+		device_printf(dev, "We are running with inversion: %d\n", sc->rtsx_inversion);
 
 	/* Allocate IRQ. */
 	sc->rtsx_irq_res_id = 0;
@@ -3652,6 +3696,15 @@ rtsx_attach(device_t dev)
 	sc->rtsx_btag = rman_get_bustag(sc->rtsx_res);
 	sc->rtsx_bhandle = rman_get_bushandle(sc->rtsx_res);
 
+	TIMEOUT_TASK_INIT(taskqueue_swi_giant, &sc->rtsx_card_insert_task, 0,
+			  rtsx_card_task, sc);
+	TASK_INIT(&sc->rtsx_card_remove_task, 0, rtsx_card_task, sc);
+
+	/* Allocate two DMA buffers: a command buffer and a data buffer. */
+	error = rtsx_dma_alloc(sc);
+	if (error)
+		goto destroy_rtsx_irq_res;
+
 	/* Activate the interrupt. */
 	error = bus_setup_intr(dev, sc->rtsx_irq_res, INTR_TYPE_MISC | INTR_MPSAFE,
 			       NULL, rtsx_intr, sc, &sc->rtsx_irq_cookie);
@@ -3666,17 +3719,6 @@ rtsx_attach(device_t dev)
 		    (sdio_cfg & RTSX_SDIOCFG_HAVE_SDIO))
 			sc->rtsx_flags |= RTSX_F_SDIO_SUPPORT;
 	}
-
-	/* Allocate two DMA buffers: a command buffer and a data buffer. */
-	error = rtsx_dma_alloc(sc);
-	if (error) {
-		goto destroy_rtsx_irq;
-	}
-
-	/* From dwmmc.c. */
-	TIMEOUT_TASK_INIT(taskqueue_swi_giant, &sc->rtsx_card_insert_task, 0,
-			  rtsx_card_task, sc);
-	TASK_INIT(&sc->rtsx_card_remove_task, 0, rtsx_card_task, sc);
 
 #ifdef MMCCAM
 	sc->rtsx_ccb = NULL;
@@ -3713,13 +3755,16 @@ rtsx_attach(device_t dev)
 
 	/*
 	 * Schedule a card detection as we won't get an interrupt
-	 * if the card is inserted when we attach
+	 * if the card is inserted when we attach. We wait a quarter
+	 * of a second to allow for a "spontaneous" interrupt which may
+	 * change the card presence state. This delay avoid a panic
+	 * on some configuration (e.g. Lenovo T540p).
 	 */
-	DELAY(500);
+	DELAY(250000);
 	if (rtsx_is_card_present(sc))
-		device_printf(sc->rtsx_dev, "Card present\n");
+		device_printf(sc->rtsx_dev, "A card is detected\n");
 	else
-		device_printf(sc->rtsx_dev, "Card absent\n");
+		device_printf(sc->rtsx_dev, "No card is detected\n");
 	rtsx_card_task(sc, 0);
 
 	if (bootverbose)
@@ -3732,6 +3777,7 @@ rtsx_attach(device_t dev)
  destroy_rtsx_res:
 	bus_release_resource(dev, SYS_RES_MEMORY, sc->rtsx_res_id,
 			     sc->rtsx_res);
+	rtsx_dma_free(sc);
  destroy_rtsx_irq_res:
 	callout_drain(&sc->rtsx_timeout_callout);
 	bus_release_resource(dev, SYS_RES_IRQ, sc->rtsx_irq_res_id,
@@ -3833,7 +3879,7 @@ rtsx_suspend(device_t dev)
 		device_printf(dev, "Request in progress: CMD%u, rtsr_intr_status: 0x%08x\n",
 			      sc->rtsx_ccb->mmcio.cmd.opcode, sc->rtsx_intr_status);
 	}
-#else
+#else  /* !MMCCAM */
 	if (sc->rtsx_req != NULL) {
 		device_printf(dev, "Request in progress: CMD%u, rtsr_intr_status: 0x%08x\n",
 			      sc->rtsx_req->cmd->opcode, sc->rtsx_intr_status);
