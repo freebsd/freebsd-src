@@ -5505,6 +5505,7 @@ nfsrvd_copy_file_range(struct nfsrv_descript *nd, __unused int isdgram,
 	int cnt, error = 0, ret;
 	off_t inoff, outoff;
 	uint64_t len;
+	size_t xfer;
 	struct nfsstate inst, outst, *instp = &inst, *outstp = &outst;
 	struct nfslock inlo, outlo, *inlop = &inlo, *outlop = &outlo;
 	nfsquad_t clientid;
@@ -5679,10 +5680,14 @@ nfsrvd_copy_file_range(struct nfsrv_descript *nd, __unused int isdgram,
 			nd->nd_repstat = error;
 	}
 
-	if (nd->nd_repstat == 0)
+	xfer = len;
+	if (nd->nd_repstat == 0) {
 		nd->nd_repstat = vn_copy_file_range(vp, &inoff, tovp, &outoff,
-		    &len, COPY_FILE_RANGE_TIMEO1SEC, nd->nd_cred, nd->nd_cred,
+		    &xfer, COPY_FILE_RANGE_TIMEO1SEC, nd->nd_cred, nd->nd_cred,
 		    NULL);
+		if (nd->nd_repstat == 0)
+			len = xfer;
+	}
 
 	/* Unlock the ranges. */
 	if (rl_rcookie != NULL)
