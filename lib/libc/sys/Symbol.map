@@ -765,6 +765,8 @@ FBSDprivate_1.0 {
 	__sys_mlock;
 	_mlockall;
 	__sys_mlockall;
+	_mmap;
+	__sys_mmap;
 	_modfind;
 	__sys_modfind;
 	_modfnext;
