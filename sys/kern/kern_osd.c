@@ -156,10 +156,11 @@ osd_deregister(u_int type, u_int slot)
 
 	KASSERT(type >= OSD_FIRST && type <= OSD_LAST, ("Invalid type."));
 	KASSERT(slot > 0, ("Invalid slot."));
-	KASSERT(osdm[type].osd_destructors[slot - 1] != NULL, ("Unused slot."));
 
 	sx_xlock(&osdm[type].osd_module_lock);
 	rm_wlock(&osdm[type].osd_object_lock);
+	KASSERT(osdm[type].osd_destructors[slot - 1] != NULL, ("Unused slot."));
+
 	/*
 	 * Free all OSD for the given slot.
 	 */
@@ -222,9 +223,10 @@ osd_set_reserved(u_int type, struct osd *osd, u_int slot, void **rsv,
 
 	KASSERT(type >= OSD_FIRST && type <= OSD_LAST, ("Invalid type."));
 	KASSERT(slot > 0, ("Invalid slot."));
-	KASSERT(osdm[type].osd_destructors[slot - 1] != NULL, ("Unused slot."));
 
 	rm_rlock(&osdm[type].osd_object_lock, &tracker);
+	KASSERT(osdm[type].osd_destructors[slot - 1] != NULL, ("Unused slot."));
+
 	if (slot > osd->osd_nslots) {
 		void **newptr;
 
@@ -300,9 +302,10 @@ osd_get(u_int type, struct osd *osd, u_int slot)
 
 	KASSERT(type >= OSD_FIRST && type <= OSD_LAST, ("Invalid type."));
 	KASSERT(slot > 0, ("Invalid slot."));
-	KASSERT(osdm[type].osd_destructors[slot - 1] != NULL, ("Unused slot."));
 
 	rm_rlock(&osdm[type].osd_object_lock, &tracker);
+	KASSERT(osdm[type].osd_destructors[slot - 1] != NULL, ("Unused slot."));
+
 	if (slot > osd->osd_nslots) {
 		value = NULL;
 		OSD_DEBUG("Slot doesn't exist (type=%u, slot=%u).", type, slot);
