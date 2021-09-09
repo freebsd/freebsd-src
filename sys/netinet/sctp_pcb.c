@@ -3358,6 +3358,7 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 		LIST_FOREACH_SAFE(asoc, &inp->sctp_asoc_list, sctp_tcblist, nasoc) {
 			SCTP_TCB_LOCK(asoc);
 			if (asoc->asoc.state & SCTP_STATE_ABOUT_TO_BE_FREED) {
+				asoc->sctp_socket = NULL;
 				/* Skip guys being freed */
 				cnt_in_sd++;
 				if (asoc->asoc.state & SCTP_STATE_IN_ACCEPT_QUEUE) {
