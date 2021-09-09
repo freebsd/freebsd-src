@@ -70,6 +70,41 @@ e820_element_alloc(uint64_t base, uint64_t end, enum e820_memory_type type)
 	return (element);
 }
 
+static const char *
+e820_get_type_name(const enum e820_memory_type type)
+{
+	switch (type) {
+	case E820_TYPE_MEMORY:
+		return ("RAM");
+	case E820_TYPE_RESERVED:
+		return ("Reserved");
+	case E820_TYPE_ACPI:
+		return ("ACPI");
+	case E820_TYPE_NVS:
+		return ("NVS");
+	default:
+		return ("Unknown");
+	}
+}
+
+void
+e820_dump_table(void)
+{
+	struct e820_element *element;
+	uint64_t i;
+
+	fprintf(stderr, "E820 map:\n");
+	
+	i = 0;
+	TAILQ_FOREACH(element, &e820_table, chain) {
+		fprintf(stderr, "  (%4lu) [%16lx, %16lx] %s\n", i,
+		    element->base, element->end,
+		    e820_get_type_name(element->type));
+
+		++i;
+	}
+}
+
 struct qemu_fwcfg_item *
 e820_get_fwcfg_item(void)
 {
