@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/conf.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -761,6 +762,13 @@ bcm_sdhci_will_handle_transfer(device_t dev, struct sdhci_slot *slot)
 #ifdef INVARIANTS
 	struct bcm_sdhci_softc *sc = device_get_softc(slot->bus);
 #endif
+
+	/*
+	 * We don't want to perform DMA in this context -- interrupts are
+	 * disabled, and a transaction may already be in progress.
+	 */
+	if (dumping)
+		return (0);
 
 	/*
 	 * This indicates that we somehow let a data interrupt slip by into the
