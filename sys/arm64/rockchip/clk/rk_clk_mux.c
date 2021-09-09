@@ -38,11 +38,13 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 
 #include <dev/extres/clk/clk.h>
+#include <dev/extres/syscon/syscon.h>
 
 #include <arm64/rockchip/clk/rk_cru.h>
 #include <arm64/rockchip/clk/rk_clk_mux.h>
 
 #include "clkdev_if.h"
+#include "syscon_if.h"
 
 #define	WR4(_clk, off, val)						\
 	CLKDEV_WRITE_4(clknode_get_device(_clk), off, val)
@@ -72,6 +74,7 @@ struct rk_clk_mux_sc {
 	uint32_t	shift;
 	uint32_t	mask;
 	int		mux_flags;
+	struct syscon	*grf;
 };
 
 static clknode_method_t rk_clk_mux_methods[] = {
@@ -84,6 +87,25 @@ static clknode_method_t rk_clk_mux_methods[] = {
 DEFINE_CLASS_1(rk_clk_mux, rk_clk_mux_class, rk_clk_mux_methods,
    sizeof(struct rk_clk_mux_sc), clknode_class);
 
+static struct syscon *
+rk_clk_mux_get_grf(struct clknode *clk)
+{
+	device_t dev;
+	phandle_t node;
+	struct syscon *grf;
+
+	grf = NULL;
+	dev = clknode_get_device(clk);
+	node = ofw_bus_get_node(dev);
+	if (OF_hasprop(node, "rockchip,grf") &&
+	    syscon_get_by_ofw_property(dev, node,
+	    "rockchip,grf", &grf) != 0) {
+		return (NULL);
+	}
+
+	return (grf);
+}
+
 static int
 rk_clk_mux_init(struct clknode *clk, device_t dev)
 {
@@ -93,8 +115,19 @@ rk_clk_mux_init(struct clknode *clk, device_t dev)
 
 	sc = clknode_get_softc(clk);
 
+	if ((sc->mux_flags & RK_CLK_MUX_GRF) != 0) {
+		sc->grf = rk_clk_mux_get_grf(clk);
+		if (sc->grf == NULL)
+			panic("clock %s has GRF flag set but no syscon is available",
+			    clknode_get_name(clk));
+	}
+
 	DEVICE_LOCK(clk);
-	rv = RD4(clk, sc->offset, &reg);
+	if (sc->grf) {
+		reg = SYSCON_READ_4(sc->grf, sc->offset);
+		rv = 0;
+	} else
+		rv = RD4(clk, sc->offset, &reg);
 	DEVICE_UNLOCK(clk);
 	if (rv != 0) {
 		return (rv);
@@ -114,13 +147,18 @@ rk_clk_mux_set_mux(struct clknode *clk, int idx)
 	sc = clknode_get_softc(clk);
 
 	DEVICE_LOCK(clk);
-	rv = MD4(clk, sc->offset, sc->mask << sc->shift,
-	    ((idx & sc->mask) << sc->shift) | RK_CLK_MUX_MASK);
+	if (sc->grf)
+		rv = SYSCON_MODIFY_4(sc->grf, sc->offset, sc->mask << sc->shift,
+		  ((idx & sc->mask) << sc->shift) | RK_CLK_MUX_MASK);
+	else
+		rv = MD4(clk, sc->offset, sc->mask << sc->shift,
+		  ((idx & sc->mask) << sc->shift) | RK_CLK_MUX_MASK);
 	if (rv != 0) {
 		DEVICE_UNLOCK(clk);
 		return (rv);
 	}
-	RD4(clk, sc->offset, &reg);
+	if (sc->grf == NULL)
+		RD4(clk, sc->offset, &reg);
 	DEVICE_UNLOCK(clk);
 
 	return(0);
@@ -138,6 +176,10 @@ rk_clk_mux_set_freq(struct clknode *clk, uint64_t fparent, uint64_t *fout,
 
 	sc = clknode_get_softc(clk);
 
+	if ((sc->mux_flags & RK_CLK_MUX_GRF) != 0) {
+		*stop = 1;
+		return (ENOTSUP);
+	}
 	if ((sc->mux_flags & RK_CLK_MUX_REPARENT) == 0) {
 		*stop = 0;
 		return (0);
