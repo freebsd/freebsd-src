@@ -110,14 +110,6 @@
 	  An overview of FreeBSD changes to OpenSSH-portable
 	  ==================================================
 
-* don't free string returned by login_getcapstr(3)
-
-  Committed upstream as f060c2bc85d59d111fa18a12eb3872ee4b9f7e97
-
-* Use login_getpwclass() instead of login_getclass()
-
-  Committed upstream as 3d05e5881ceb2e48e1948ba14292216b56ed792e
-
 0) VersionAddendum
 
    The SSH protocol allows for a human-readable version string of up
