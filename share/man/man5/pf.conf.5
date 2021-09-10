@@ -28,7 +28,7 @@
 .\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd April 19, 2021
+.Dd September 10, 2021
 .Dt PF.CONF 5
 .Os
 .Sh NAME
@@ -772,7 +772,7 @@ much in the same way as
 works in the packet filter (see below).
 This mechanism should be used when it is necessary to exclude specific packets
 from broader scrub rules.
-.Sh QUEUEING
+.Sh QUEUEING with ALTQ
 The ALTQ system is currently not available in the GENERIC kernel nor as
 loadable modules.
 In order to use the herein after called queueing options one has to use a
@@ -1104,6 +1104,33 @@ pass out on dc0 inet proto tcp from any to any port 22 \e
 pass out on dc0 inet proto tcp from any to any port 25 \e
       queue mail
 .Ed
+.Sh QUEUEING with dummynet
+Queueing can also be done with
+.Xr dummynet 4 .
+Queues and pipes can be created with
+.Xr dnctl 8 .
+.Pp
+Packets can be assigned to queues and pipes using
+.Ar dnqueue
+and
+.Ar dnpipe
+respectively.
+.Pp
+Both
+.Ar dnqueue
+and
+.Ar dnpipe
+take either a single pipe or queue number or two numbers as arguments.
+The first pipe or queue number will be used to shape the traffic in the rule
+direction, the second will be used to shape the traffic in the reverse
+direction.
+If the rule does not specify a direction the first packet to create state will
+be shaped according to the first number, and the response traffic according to
+the second.
+.Pp
+If the
+.Xr dummynet 4
+module is not loaded any traffic sent into a queue or pipe will be dropped.
 .Sh TRANSLATION
 Translation rules modify either the source or destination address of the
 packets associated with a stateful connection.
@@ -1324,7 +1351,9 @@ rules in that parameters are set every time a packet matches the rule, not only
 on the last matching rule.
 For the following parameters, this means that the parameter effectively becomes
 "sticky" until explicitly overridden:
-.Ar queue
+.Ar queue ,
+.Ar dnpipe ,
+.Ar dnqueue
 .
 .It Ar pass
 The packet is passed;
@@ -2941,7 +2970,9 @@ filteropt      = user | group | flags | icmp-type | icmp6-type | "tos" tos |
                  "label" string | "tag" string | [ ! ] "tagged" string |
                  "set prio" ( number | "(" number [ [ "," ] number ] ")" ) |
                  "queue" ( string | "(" string [ [ "," ] string ] ")" ) |
-                 "rtable" number | "probability" number"%" | "prio" number
+                 "rtable" number | "probability" number"%" | "prio" number |
+                 "dnpipe" ( number | "(" number "," number ")" ) |
+                 "dnqueue" ( number | "(" number "," number ")" )
 
 nat-rule       = [ "no" ] "nat" [ "pass" [ "log" [ "(" logopts ")" ] ] ]
                  [ "on" ifspec ] [ af ]
