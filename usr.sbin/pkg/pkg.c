@@ -1063,8 +1063,12 @@ cleanup:
 static bool
 pkg_is_pkg_pkg(const char *pkg)
 {
-	char *vstart;
+	char *vstart, *basename;
 	size_t namelen;
+
+	/* Strip path. */
+	if ((basename = strrchr(pkg, '/')) != NULL)
+		pkg = basename + 1;
 
 	/*
 	 * Chop off the final "-" (version delimiter) and check the name that
