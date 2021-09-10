@@ -1486,6 +1486,7 @@ static bool
 pf_isforlocal(struct mbuf *m, int af)
 {
 	switch (af) {
+#ifdef INET
 	case AF_INET: {
 		struct rm_priotracker in_ifa_tracker;
 		struct ip *ip;
@@ -1502,6 +1503,8 @@ pf_isforlocal(struct mbuf *m, int af)
 		IN_IFADDR_RUNLOCK(&in_ifa_tracker);
 		break;
 	}
+#endif
+#ifdef INET6
 	case AF_INET6: {
 		struct ip6_hdr *ip6;
 		struct in6_ifaddr *ia;
@@ -1511,6 +1514,7 @@ pf_isforlocal(struct mbuf *m, int af)
 			return (false);
 		return (! (ia->ia6_flags & IN6_IFF_NOTREADY));
 	}
+#endif
 	default:
 		panic("Unsupported af %d", af);
 	}
