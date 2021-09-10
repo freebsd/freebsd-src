@@ -70,6 +70,7 @@ __FBSDID("$FreeBSD$");
 #define	SDHCI_FSL_PROT_CTRL_BYTE_NATIVE	(2 << 4)
 #define	SDHCI_FSL_PROT_CTRL_BYTE_MASK	(3 << 4)
 #define	SDHCI_FSL_PROT_CTRL_DMA_MASK	(3 << 8)
+#define	SDHCI_FSL_PROT_CTRL_VOLT_SEL	(1 << 10)
 
 #define	SDHCI_FSL_SYS_CTRL		0x2c
 #define	SDHCI_FSL_CLK_IPGEN		(1 << 0)
@@ -102,6 +103,8 @@ __FBSDID("$FreeBSD$");
 
 /* Some platforms do not detect pulse width correctly. */
 #define SDHCI_FSL_UNRELIABLE_PULSE_DET	(1 << 0)
+/* On some platforms switching voltage to 1.8V is not supported */
+#define SDHCI_FSL_UNSUPP_1_8V		(1 << 1)
 
 struct sdhci_fsl_fdt_softc {
 	device_t				dev;
@@ -132,7 +135,7 @@ struct sdhci_fsl_fdt_soc_data {
 static const struct sdhci_fsl_fdt_soc_data sdhci_fsl_fdt_ls1012a_soc_data = {
 	.quirks = 0,
 	.baseclk_div = 1,
-	.errata = 0
+	.errata = SDHCI_FSL_UNSUPP_1_8V,
 };
 
 static const struct sdhci_fsl_fdt_soc_data sdhci_fsl_fdt_ls1028a_soc_data = {
@@ -145,6 +148,7 @@ static const struct sdhci_fsl_fdt_soc_data sdhci_fsl_fdt_ls1028a_soc_data = {
 static const struct sdhci_fsl_fdt_soc_data sdhci_fsl_fdt_ls1046a_soc_data = {
 	.quirks = SDHCI_QUIRK_DONT_SET_HISPD_BIT | SDHCI_QUIRK_BROKEN_AUTO_STOP,
 	.baseclk_div = 2,
+	.errata = SDHCI_FSL_UNSUPP_1_8V,
 };
 
 static const struct sdhci_fsl_fdt_soc_data sdhci_fsl_fdt_gen_data = {
@@ -517,34 +521,46 @@ sdhci_fsl_fdt_switch_vccq(device_t brdev, device_t reqdev)
 {
 	struct sdhci_fsl_fdt_softc *sc;
 	struct sdhci_slot *slot;
+	regulator_t vqmmc_supply;
+	uint32_t val_old, val;
 	int uvolt, err;
 
 	sc = device_get_softc(brdev);
-
-	if (sc->fdt_helper.vqmmc_supply == NULL)
-		return EOPNOTSUPP;
-
-	err = sdhci_generic_switch_vccq(brdev, reqdev);
-	if (err != 0)
-		return (err);
-
 	slot = device_get_ivars(reqdev);
+
+	val_old = val = RD4(sc, SDHCI_FSL_PROT_CTRL);
+
 	switch (slot->host.ios.vccq) {
 	case vccq_180:
+		if (sc->soc_data->errata & SDHCI_FSL_UNSUPP_1_8V)
+			return (EOPNOTSUPP);
+
+		val |= SDHCI_FSL_PROT_CTRL_VOLT_SEL;
 		uvolt = 1800000;
 		break;
 	case vccq_330:
+		val &= ~SDHCI_FSL_PROT_CTRL_VOLT_SEL;
 		uvolt = 3300000;
 		break;
 	default:
-		return EINVAL;
+		return (EOPNOTSUPP);
 	}
 
-	err = regulator_set_voltage(sc->fdt_helper.vqmmc_supply, uvolt, uvolt);
-	if (err != 0) {
-		device_printf(sc->dev,
-		    "Cannot set vqmmc to %d<->%d\n", uvolt, uvolt);
-		return (err);
+	WR4(sc, SDHCI_FSL_PROT_CTRL, val);
+
+	vqmmc_supply = sc->fdt_helper.vqmmc_supply;
+	/*
+	 * Even though we expect to find a fixed regulator in this controller
+	 * family, let's play safe.
+	 */
+	if (vqmmc_supply != NULL) {
+		err = regulator_set_voltage(vqmmc_supply, uvolt, uvolt);
+		if (err != 0) {
+			device_printf(sc->dev,
+			    "Cannot set vqmmc to %d<->%d\n", uvolt, uvolt);
+			WR4(sc, SDHCI_FSL_PROT_CTRL, val_old);
+			return (err);
+		}
 	}
 
 	return (0);
