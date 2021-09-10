@@ -77,8 +77,8 @@ enum socket_qstate {
  * Locking key to struct socket:
  * (a) constant after allocation, no locking required.
  * (b) locked by SOCK_LOCK(so).
- * (cr) locked by SOCKBUF_LOCK(&so->so_rcv).
- * (cs) locked by SOCKBUF_LOCK(&so->so_snd).
+ * (cr) locked by SOCK_RECVBUF_LOCK(so)/SOCKBUF_LOCK(&so->so_rcv).
+ * (cs) locked by SOCK_SENDBUF_LOCK(so)/SOCKBUF_LOCK(&so->so_snd).
  * (e) locked by SOLISTEN_LOCK() of corresponding listening socket.
  * (f) not locked since integer reads/writes are atomic.
  * (g) used only as a sleep/wakeup address, no value.
@@ -254,6 +254,32 @@ struct socket {
 	KASSERT(SOLISTENING(sol),					\
 	    ("%s: %p not listening", __func__, (sol)));			\
 } while (0)
+
+/*
+ * Socket buffer locks.  These manipulate the same mutexes as SOCKBUF_LOCK()
+ * and related macros.
+ */
+#define	SOCK_RECVBUF_MTX(so)						\
+	(&(so)->so_rcv_mtx)
+#define	SOCK_RECVBUF_LOCK(so)						\
+	mtx_lock(SOCK_RECVBUF_MTX(so))
+#define	SOCK_RECVBUF_UNLOCK(so)						\
+	mtx_unlock(SOCK_RECVBUF_MTX(so))
+#define	SOCK_RECVBUF_LOCK_ASSERT(so)					\
+	mtx_assert(SOCK_RECVBUF_MTX(so), MA_OWNED)
+#define	SOCK_RECVBUF_UNLOCK_ASSERT(so)					\
+	mtx_assert(SOCK_RECVBUF_MTX(so), MA_NOTOWNED)
+
+#define	SOCK_SENDBUF_MTX(so)						\
+	(&(so)->so_snd_mtx)
+#define	SOCK_SENDBUF_LOCK(so)						\
+	mtx_lock(SOCK_SENDBUF_MTX(so))
+#define	SOCK_SENDBUF_UNLOCK(so)						\
+	mtx_unlock(SOCK_SENDBUF_MTX(so))
+#define	SOCK_SENDBUF_LOCK_ASSERT(so)					\
+	mtx_assert(SOCK_SENDBUF_MTX(so), MA_OWNED)
+#define	SOCK_SENDBUF_UNLOCK_ASSERT(so)					\
+	mtx_assert(SOCK_SENDBUF_MTX(so), MA_NOTOWNED)
 
 /*
  * Macros for sockets and socket buffering.

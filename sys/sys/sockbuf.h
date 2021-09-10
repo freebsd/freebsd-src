@@ -118,8 +118,11 @@ struct sockbuf {
 #ifdef _KERNEL
 
 /*
- * Per-socket buffer mutex used to protect most fields in the socket
- * buffer.
+ * Per-socket buffer mutex used to protect most fields in the socket buffer.
+ * These make use of the mutex pointer embedded in struct sockbuf, which
+ * currently just references mutexes in the containing socket.  The
+ * SOCK_SENDBUF_LOCK() etc. macros can be used instead of or in combination with
+ * these locking macros.
  */
 #define	SOCKBUF_MTX(_sb)		((_sb)->sb_mtx)
 #define	SOCKBUF_LOCK_INIT(_sb, _name) \
