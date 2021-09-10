@@ -808,18 +808,28 @@ soo_aio_queue(struct file *fp, struct kaiocb *job)
 	if (error == 0)
 		return (0);
 
+	/* Lock through the socket, since this may be a listening socket. */
 	switch (job->uaiocb.aio_lio_opcode & (LIO_WRITE | LIO_READ)) {
 	case LIO_READ:
 		sb = &so->so_rcv;
+		SOCK_RECVBUF_LOCK(so);
 		break;
 	case LIO_WRITE:
 		sb = &so->so_snd;
+		SOCK_SENDBUF_LOCK(so);
 		break;
 	default:
 		return (EINVAL);
 	}
 
-	SOCKBUF_LOCK(sb);
+	if (SOLISTENING(so)) {
+		if (sb == &so->so_rcv)
+			SOCK_RECVBUF_UNLOCK(so);
+		else
+			SOCK_SENDBUF_UNLOCK(so);
+		return (EINVAL);
+	}
+
 	if (!aio_set_cancel_function(job, soo_aio_cancel))
 		panic("new job was cancelled");
 	TAILQ_INSERT_TAIL(&sb->sb_aiojobq, job, list);
