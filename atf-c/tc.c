@@ -381,15 +381,9 @@ pass(struct context *ctx)
 static void
 skip(struct context *ctx, atf_dynstr_t *reason)
 {
-    if (ctx->expect == EXPECT_PASS) {
-        create_resfile(ctx, "skipped", -1, reason);
-        context_close_resfile(ctx);
-        exit(EXIT_SUCCESS);
-    } else {
-        error_in_expect(ctx, "Can only skip a test case when running in "
-            "expect pass mode");
-    }
-    UNREACHABLE;
+    create_resfile(ctx, "skipped", -1, reason);
+    context_close_resfile(ctx);
+    exit(EXIT_SUCCESS);
 }
 
 /** Formats a failure/skip reason message.
