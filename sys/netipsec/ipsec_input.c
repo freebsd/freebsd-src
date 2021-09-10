@@ -276,6 +276,7 @@ ipsec4_ctlinput(int code, struct sockaddr *sa, void *v)
 	struct icmp *icp;
 	struct ip *ip = v;
 	uint32_t pmtu, spi;
+	uint8_t proto;
 
 	if (code != PRC_MSGSIZE || ip == NULL)
 		return (EINVAL);
@@ -289,8 +290,13 @@ ipsec4_ctlinput(int code, struct sockaddr *sa, void *v)
 	if (pmtu < V_ip4_ipsec_min_pmtu)
 		return (EINVAL);
 
+	proto = ip->ip_p;
+	if (proto != IPPROTO_ESP && proto != IPPROTO_AH &&
+	    proto != IPPROTO_IPCOMP)
+		return (EINVAL);
+
 	memcpy(&spi, (caddr_t)ip + (ip->ip_hl << 2), sizeof(spi));
-	sav = key_allocsa((union sockaddr_union *)sa, ip->ip_p, spi);
+	sav = key_allocsa((union sockaddr_union *)sa, proto, spi);
 	if (sav == NULL)
 		return (ENOENT);
 
