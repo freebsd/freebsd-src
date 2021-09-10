@@ -61,6 +61,7 @@ main(int argc, char *argv[])
 	if (pthread_mutex_isowned_np(&mtx) == 0) {
 		printf("pthread_mutex_isowned_np() returned zero\n"
 		    "for a mutex we hold ourselves\n");
+		pthread_mutex_unlock(&mtx);
 		exit(1);
 	}
 	pthread_create(&thr, NULL, thread, &mtx);
