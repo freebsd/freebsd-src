@@ -31,8 +31,9 @@ operation:
 .Pp
 .Bl -tag -width ".Dv IPFIREWALL_VERBOSE_LIMIT" -offset indent -compact
 .It Dv IPFIREWALL
-enable ipfirewall (required for
-.Nm )
+enable ipfirewall (if
+.Nm
+is to be used with ipfw)
 .It Dv IPFIREWALL_VERBOSE
 enable firewall output
 .It Dv IPFIREWALL_VERBOSE_LIMIT
@@ -62,6 +63,7 @@ pipes.
 .Xr ip 4 ,
 .Xr ipfw 8 ,
 .Xr dnctl 8 ,
+.Xr pf.conf 5 ,
 .Xr sysctl 8
 .Sh HISTORY
 The
