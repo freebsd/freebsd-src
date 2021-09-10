@@ -4163,6 +4163,15 @@ add_ofld_rxq_sysctls(struct sysctl_ctx_list *ctx, struct sysctl_oid *oid,
 	SYSCTL_ADD_U64(ctx, children, OID_AUTO, "fl_pdus",
 	    CTLFLAG_RD, &ofld_rxq->rx_iscsi_fl_pdus, 0,
 	    "# of PDUs with data delivered in freelist");
+	SYSCTL_ADD_U64(ctx, children, OID_AUTO, "padding_errors",
+	    CTLFLAG_RD, &ofld_rxq->rx_iscsi_padding_errors, 0,
+	    "# of PDUs with invalid padding");
+	SYSCTL_ADD_U64(ctx, children, OID_AUTO, "header_digest_errors",
+	    CTLFLAG_RD, &ofld_rxq->rx_iscsi_header_digest_errors, 0,
+	    "# of PDUs with invalid header digests");
+	SYSCTL_ADD_U64(ctx, children, OID_AUTO, "data_digest_errors",
+	    CTLFLAG_RD, &ofld_rxq->rx_iscsi_data_digest_errors, 0,
+	    "# of PDUs with invalid data digests");
 }
 #endif
 

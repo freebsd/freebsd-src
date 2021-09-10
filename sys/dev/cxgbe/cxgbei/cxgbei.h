@@ -96,9 +96,6 @@ enum {
 	ICPF_RX_FLBUF	= 1 << 1, /* PDU payload received in a freelist. */
 	ICPF_RX_DDP	= 1 << 2, /* PDU payload DDP'd. */
 	ICPF_RX_STATUS	= 1 << 3, /* Rx status received. */
-	ICPF_HCRC_ERR	= 1 << 4, /* Header digest error. */
-	ICPF_DCRC_ERR	= 1 << 5, /* Data digest error. */
-	ICPF_PAD_ERR	= 1 << 6, /* Padding error. */
 
 	CXGBEI_PDU_SIGNATURE = 0x12344321
 };
