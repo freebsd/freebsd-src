@@ -1499,6 +1499,7 @@ e82545_tx_thread(void *param)
 		/* Process some tx descriptors.  Lock dropped inside. */
 		e82545_tx_run(sc);
 	}
+	pthread_mutex_unlock(&sc->esc_mtx);
 }
 
 static void
