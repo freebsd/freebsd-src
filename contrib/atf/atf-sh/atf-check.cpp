@@ -501,7 +501,7 @@ compare_files(const atf::fs::path& p1, const atf::fs::path& p2)
 
     std::ifstream f2(p2.c_str());
     if (!f2)
-        throw std::runtime_error("Failed to open " + p1.str());
+        throw std::runtime_error("Failed to open " + p2.str());
 
     for (;;) {
         char buf1[512], buf2[512];
@@ -512,7 +512,7 @@ compare_files(const atf::fs::path& p1, const atf::fs::path& p2)
 
         f2.read(buf2, sizeof(buf2));
         if (f2.bad())
-            throw std::runtime_error("Failed to read from " + p1.str());
+            throw std::runtime_error("Failed to read from " + p2.str());
 
         if ((f1.gcount() == 0) && (f2.gcount() == 0)) {
             equal = true;

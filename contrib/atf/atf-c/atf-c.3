@@ -22,7 +22,7 @@
 .\" IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
 .\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 .\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-.Dd April 5, 2017
+.Dd February 23, 2021
 .Dt ATF-C 3
 .Os
 .Sh NAME
@@ -35,6 +35,8 @@
 .Nm ATF_CHECK_MATCH_MSG ,
 .Nm ATF_CHECK_STREQ ,
 .Nm ATF_CHECK_STREQ_MSG ,
+.Nm ATF_CHECK_INTEQ ,
+.Nm ATF_CHECK_INTEQ_MSG ,
 .Nm ATF_CHECK_ERRNO ,
 .Nm ATF_REQUIRE ,
 .Nm ATF_REQUIRE_MSG ,
@@ -44,6 +46,8 @@
 .Nm ATF_REQUIRE_MATCH_MSG ,
 .Nm ATF_REQUIRE_STREQ ,
 .Nm ATF_REQUIRE_STREQ_MSG ,
+.Nm ATF_REQUIRE_INTEQ ,
+.Nm ATF_REQUIRE_INTEQ_MSG ,
 .Nm ATF_REQUIRE_ERRNO ,
 .Nm ATF_TC ,
 .Nm ATF_TC_BODY ,
@@ -96,8 +100,10 @@
 .Fn ATF_CHECK_EQ_MSG "expected_expression" "actual_expression" "fail_msg_fmt" ...
 .Fn ATF_CHECK_MATCH "regexp" "string"
 .Fn ATF_CHECK_MATCH_MSG "regexp" "string" "fail_msg_fmt" ...
-.Fn ATF_CHECK_STREQ "string_1" "string_2"
-.Fn ATF_CHECK_STREQ_MSG "string_1" "string_2" "fail_msg_fmt" ...
+.Fn ATF_CHECK_STREQ "expected_string" "actual_string"
+.Fn ATF_CHECK_STREQ_MSG "expected_string" "actual_string" "fail_msg_fmt" ...
+.Fn ATF_CHECK_INTEQ "expected_int" "actual_int"
+.Fn ATF_CHECK_INTEQ_MSG "expected_int" "actual_int" "fail_msg_fmt" ...
 .Fn ATF_CHECK_ERRNO "expected_errno" "bool_expression"
 .Fn ATF_REQUIRE "expression"
 .Fn ATF_REQUIRE_MSG "expression" "fail_msg_fmt" ...
@@ -107,6 +113,8 @@
 .Fn ATF_REQUIRE_MATCH_MSG "regexp" "string" "fail_msg_fmt" ...
 .Fn ATF_REQUIRE_STREQ "expected_string" "actual_string"
 .Fn ATF_REQUIRE_STREQ_MSG "expected_string" "actual_string" "fail_msg_fmt" ...
+.Fn ATF_REQUIRE_INTEQ "expected_int" "actual_int"
+.Fn ATF_REQUIRE_INTEQ_MSG "expected_int" "actual_int" "fail_msg_fmt" ...
 .Fn ATF_REQUIRE_ERRNO "expected_errno" "bool_expression"
 .\" NO_CHECK_STYLE_END
 .Fn ATF_TC "name"
@@ -494,7 +502,7 @@ and
 .Fn ATF_REQUIRE_EQ_MSG
 take two expressions and fail if the two evaluated values are not equal.
 The common style is to put the expected value in the first parameter and the
-actual value in the second parameter.
+observed value in the second parameter.
 .Pp
 .Fn ATF_CHECK_MATCH ,
 .Fn ATF_CHECK_MATCH_MSG ,
@@ -513,7 +521,16 @@ and
 .Fn ATF_REQUIRE_STREQ_MSG
 take two strings and fail if the two are not equal character by character.
 The common style is to put the expected string in the first parameter and the
-actual string in the second parameter.
+observed string in the second parameter.
+.Pp
+.Fn ATF_CHECK_INTEQ ,
+.Fn ATF_CHECK_INTEQ_MSG ,
+.Fn ATF_REQUIRE_INTEQ
+and
+.Fn ATF_REQUIRE_INTQ_MSG
+take two integers and fail if the two are not equal.
+The common style is to put the expected integer in the first parameter and the
+observed integer in the second parameter.
 .Pp
 .Fn ATF_CHECK_ERRNO
 and
