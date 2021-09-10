@@ -928,6 +928,13 @@ solisten_proto_check(struct socket *so)
 	}
 	mtx_lock(&so->so_snd_mtx);
 	mtx_lock(&so->so_rcv_mtx);
+
+	/* Interlock with soo_aio_queue(). */
+	if ((so->so_snd.sb_flags & (SB_AIO | SB_AIO_RUNNING)) != 0 ||
+	   (so->so_rcv.sb_flags & (SB_AIO | SB_AIO_RUNNING)) != 0) {
+		solisten_proto_abort(so);
+		return (EINVAL);
+	}
 	return (0);
 }
 

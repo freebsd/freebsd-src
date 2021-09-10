@@ -40,11 +40,12 @@
  */
 
 #include <sys/param.h>
+#include <sys/mdioctl.h>
 #include <sys/module.h>
 #include <sys/resource.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
-#include <sys/mdioctl.h>
+#include <sys/un.h>
 
 #include <aio.h>
 #include <err.h>
@@ -1178,6 +1179,79 @@ ATF_TC_BODY(aio_socket_blocking_short_write_vectored, tc)
 }
 
 /*
+ * Verify that AIO requests fail when applied to a listening socket.
+ */
+ATF_TC_WITHOUT_HEAD(aio_socket_listen_fail);
+ATF_TC_BODY(aio_socket_listen_fail, tc)
+{
+	struct aiocb iocb;
+	struct sockaddr_un sun;
+	char buf[16];
+	int s;
+
+	s = socket(AF_LOCAL, SOCK_STREAM, 0);
+	ATF_REQUIRE(s != -1);
+
+	memset(&sun, 0, sizeof(sun));
+	snprintf(sun.sun_path, sizeof(sun.sun_path), "%s", "listen.XXXXXX");
+	mktemp(sun.sun_path);
+	sun.sun_family = AF_LOCAL;
+	sun.sun_len = SUN_LEN(&sun);
+
+	ATF_REQUIRE(bind(s, (struct sockaddr *)&sun, SUN_LEN(&sun)) == 0);
+	ATF_REQUIRE(listen(s, 5) == 0);
+
+	memset(buf, 0, sizeof(buf));
+	memset(&iocb, 0, sizeof(iocb));
+	iocb.aio_fildes = s;
+	iocb.aio_buf = buf;
+	iocb.aio_nbytes = sizeof(buf);
+
+	ATF_REQUIRE_ERRNO(EINVAL, aio_read(&iocb) == -1);
+	ATF_REQUIRE_ERRNO(EINVAL, aio_write(&iocb) == -1);
+
+	ATF_REQUIRE(unlink(sun.sun_path) == 0);
+	close(s);
+}
+
+/*
+ * Verify that listen(2) fails if a socket has pending AIO requests.
+ */
+ATF_TC_WITHOUT_HEAD(aio_socket_listen_pending);
+ATF_TC_BODY(aio_socket_listen_pending, tc)
+{
+	struct aiocb iocb;
+	struct sockaddr_un sun;
+	char buf[16];
+	int s;
+
+	s = socket(AF_LOCAL, SOCK_STREAM, 0);
+	ATF_REQUIRE(s != -1);
+
+	memset(&sun, 0, sizeof(sun));
+	snprintf(sun.sun_path, sizeof(sun.sun_path), "%s", "listen.XXXXXX");
+	mktemp(sun.sun_path);
+	sun.sun_family = AF_LOCAL;
+	sun.sun_len = SUN_LEN(&sun);
+
+	ATF_REQUIRE(bind(s, (struct sockaddr *)&sun, SUN_LEN(&sun)) == 0);
+
+	memset(buf, 0, sizeof(buf));
+	memset(&iocb, 0, sizeof(iocb));
+	iocb.aio_fildes = s;
+	iocb.aio_buf = buf;
+	iocb.aio_nbytes = sizeof(buf);
+	ATF_REQUIRE(aio_read(&iocb) == 0);
+
+	ATF_REQUIRE_ERRNO(EINVAL, listen(s, 5) == -1);
+
+	ATF_REQUIRE(aio_cancel(s, &iocb) != -1);
+
+	ATF_REQUIRE(unlink(sun.sun_path) == 0);
+	close(s);
+}
+
+/*
  * This test verifies that cancelling a partially completed socket write
  * returns a short write rather than ECANCELED.
  */
@@ -1808,6 +1882,8 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, aio_socket_two_reads);
 	ATF_TP_ADD_TC(tp, aio_socket_blocking_short_write);
 	ATF_TP_ADD_TC(tp, aio_socket_blocking_short_write_vectored);
+	ATF_TP_ADD_TC(tp, aio_socket_listen_fail);
+	ATF_TP_ADD_TC(tp, aio_socket_listen_pending);
 	ATF_TP_ADD_TC(tp, aio_socket_short_write_cancel);
 	ATF_TP_ADD_TC(tp, aio_writev_dos_iov_len);
 	ATF_TP_ADD_TC(tp, aio_writev_dos_iovcnt);
