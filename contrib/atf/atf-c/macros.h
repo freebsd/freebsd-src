@@ -185,6 +185,25 @@
                   "%s != %s (%s != %s): " fmt, \
                   #expected, #actual, expected, actual, ##__VA_ARGS__)
 
+#define ATF_REQUIRE_INTEQ(expected, actual) \
+    ATF_REQUIRE_MSG((expected) == (actual), "%s != %s (%jd != %jd)", \
+                    #expected, #actual, (intmax_t)(expected),        \
+                    (intmax_t)(actual))
+
+#define ATF_CHECK_INTEQ(expected, actual) \
+    ATF_CHECK_MSG((expected) == (actual), "%s != %s (%jd != %jd)", #expected, \
+                  #actual, (intmax_t)(expected), (intmax_t)(actual))
+
+#define ATF_REQUIRE_INTEQ_MSG(expected, actual, fmt, ...) \
+    ATF_REQUIRE_MSG((expected) == (actual), "%s != %s (%jd != %jd): " fmt, \
+                    #expected, #actual, (intmax_t)(expected), \
+                    (intmax_t)(actual), ##__VA_ARGS__)
+
+#define ATF_CHECK_INTEQ_MSG(expected, actual, fmt, ...) \
+    ATF_CHECK_MSG((expected) == (actual), "%s != %s (%jd != %jd): " fmt, \
+                  #expected, #actual, (intmax_t)(expected), \
+                  (intmax_t)(actual), ##__VA_ARGS__)
+
 #define ATF_REQUIRE_MATCH(regexp, string) \
     ATF_REQUIRE_MSG(atf_utils_grep_string("%s", string, regexp), \
                     "'%s' not matched in '%s'", regexp, string);
