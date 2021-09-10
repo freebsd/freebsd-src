@@ -674,6 +674,9 @@ struct sge_ofld_rxq {
 	uint64_t rx_iscsi_ddp_octets;
 	uint64_t rx_iscsi_fl_pdus;
 	uint64_t rx_iscsi_fl_octets;
+	uint64_t rx_iscsi_padding_errors;
+	uint64_t rx_iscsi_header_digest_errors;
+	uint64_t rx_iscsi_data_digest_errors;
 	u_long	rx_toe_tls_records;
 	u_long	rx_toe_tls_octets;
 } __aligned(CACHE_LINE_SIZE);

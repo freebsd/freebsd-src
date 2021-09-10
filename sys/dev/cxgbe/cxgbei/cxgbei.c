@@ -335,12 +335,21 @@ do_rx_iscsi_ddp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 
 	icp->icp_flags |= ICPF_RX_STATUS;
 	ip = &icp->ip;
-	if (val & F_DDP_PADDING_ERR)
-		icp->icp_flags |= ICPF_PAD_ERR;
-	if (val & F_DDP_HDRCRC_ERR)
-		icp->icp_flags |= ICPF_HCRC_ERR;
-	if (val & F_DDP_DATACRC_ERR)
-		icp->icp_flags |= ICPF_DCRC_ERR;
+	if (val & F_DDP_PADDING_ERR) {
+		ICL_WARN("received PDU 0x%02x with invalid padding",
+		    ip->ip_bhs->bhs_opcode);
+		toep->ofld_rxq->rx_iscsi_padding_errors++;
+	}
+	if (val & F_DDP_HDRCRC_ERR) {
+		ICL_WARN("received PDU 0x%02x with invalid header digest",
+		    ip->ip_bhs->bhs_opcode);
+		toep->ofld_rxq->rx_iscsi_header_digest_errors++;
+	}
+	if (val & F_DDP_DATACRC_ERR) {
+		ICL_WARN("received PDU 0x%02x with invalid data digest",
+		    ip->ip_bhs->bhs_opcode);
+		toep->ofld_rxq->rx_iscsi_data_digest_errors++;
+	}
 	if (val & F_DDP_PDU && ip->ip_data_mbuf == NULL) {
 		MPASS((icp->icp_flags & ICPF_RX_FLBUF) == 0);
 		MPASS(ip->ip_data_len > 0);
@@ -400,6 +409,16 @@ do_rx_iscsi_ddp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	}
 	MPASS(icc->icc_signature == CXGBEI_CONN_SIGNATURE);
 	ic = &icc->ic;
+	if ((val & (F_DDP_PADDING_ERR | F_DDP_HDRCRC_ERR |
+	    F_DDP_DATACRC_ERR)) != 0) {
+		SOCKBUF_UNLOCK(sb);
+		INP_WUNLOCK(inp);
+
+		icl_cxgbei_conn_pdu_free(NULL, ip);
+		toep->ulpcb2 = NULL;
+		ic->ic_error(ic);
+		return (0);
+	}
 	icl_cxgbei_new_pdu_set_conn(ip, ic);
 
 	MPASS(m == NULL); /* was unused, we'll use it now. */
@@ -514,12 +533,21 @@ do_rx_iscsi_cmp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	icp->icp_flags |= ICPF_RX_HDR;
 	icp->icp_flags |= ICPF_RX_STATUS;
 
-	if (val & F_DDP_PADDING_ERR)
-		icp->icp_flags |= ICPF_PAD_ERR;
-	if (val & F_DDP_HDRCRC_ERR)
-		icp->icp_flags |= ICPF_HCRC_ERR;
-	if (val & F_DDP_DATACRC_ERR)
-		icp->icp_flags |= ICPF_DCRC_ERR;
+	if (val & F_DDP_PADDING_ERR) {
+		ICL_WARN("received PDU 0x%02x with invalid padding",
+		    ip->ip_bhs->bhs_opcode);
+		toep->ofld_rxq->rx_iscsi_padding_errors++;
+	}
+	if (val & F_DDP_HDRCRC_ERR) {
+		ICL_WARN("received PDU 0x%02x with invalid header digest",
+		    ip->ip_bhs->bhs_opcode);
+		toep->ofld_rxq->rx_iscsi_header_digest_errors++;
+	}
+	if (val & F_DDP_DATACRC_ERR) {
+		ICL_WARN("received PDU 0x%02x with invalid data digest",
+		    ip->ip_bhs->bhs_opcode);
+		toep->ofld_rxq->rx_iscsi_data_digest_errors++;
+	}
 
 	INP_WLOCK(inp);
 	if (__predict_false(inp->inp_flags & (INP_DROPPED | INP_TIMEWAIT))) {
@@ -554,6 +582,19 @@ do_rx_iscsi_cmp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 		icl_cxgbei_conn_pdu_free(NULL, ip);
 		toep->ulpcb2 = NULL;
 		m_freem(m);
+		return (0);
+	}
+
+	MPASS(icc->icc_signature == CXGBEI_CONN_SIGNATURE);
+	ic = &icc->ic;
+	if ((val & (F_DDP_PADDING_ERR | F_DDP_HDRCRC_ERR |
+	    F_DDP_DATACRC_ERR)) != 0) {
+		INP_WUNLOCK(inp);
+
+		icl_cxgbei_conn_pdu_free(NULL, ip);
+		toep->ulpcb2 = NULL;
+		m_freem(m);
+		ic->ic_error(ic);
 		return (0);
 	}
 
@@ -658,8 +699,6 @@ do_rx_iscsi_cmp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 		m_freem(m);
 		return (0);
 	}
-	MPASS(icc->icc_signature == CXGBEI_CONN_SIGNATURE);
-	ic = &icc->ic;
 	icl_cxgbei_new_pdu_set_conn(ip, ic);
 
 	/* Enqueue the PDU to the received pdus queue. */
