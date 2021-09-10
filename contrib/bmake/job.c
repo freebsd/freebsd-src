@@ -261,7 +261,7 @@ typedef struct ShellWriter {
  * pass jobs queue to sub-makes.
  * Use .MAKE.ALWAYS_PASS_JOB_QUEUE=no to disable.
  */
-#define MAKE_ALWAYS_PASS_JOB_QUEUE ".MAKE.ALWAYS_PASS_JOB_QUEUE"
+#define MAKE_ALWAYS_PASS_JOB_QUEUE "${.MAKE.ALWAYS_PASS_JOB_QUEUE:U}"
 static bool Always_pass_job_queue = true;
 /*
  * FreeBSD: aborting entire parallel make isn't always
@@ -269,7 +269,7 @@ static bool Always_pass_job_queue = true;
  * one architecture should not stop all.
  * We still want to bail on interrupt though.
  */
-#define MAKE_JOB_ERROR_TOKEN "MAKE_JOB_ERROR_TOKEN"
+#define MAKE_JOB_ERROR_TOKEN "${MAKE_JOB_ERROR_TOKEN:U}"
 static bool Job_error_token = true;
 
 /*
