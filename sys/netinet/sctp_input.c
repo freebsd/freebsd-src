@@ -679,7 +679,9 @@ sctp_handle_nat_colliding_state(struct sctp_tcb *stcb)
 
 	if ((SCTP_GET_STATE(stcb) == SCTP_STATE_COOKIE_WAIT) ||
 	    (SCTP_GET_STATE(stcb) == SCTP_STATE_COOKIE_ECHOED)) {
+		SCTP_INP_INFO_RLOCK();
 		new_vtag = sctp_select_a_tag(stcb->sctp_ep, stcb->sctp_ep->sctp_lport, stcb->rport, 1);
+		SCTP_INP_INFO_RLOCK();
 		atomic_add_int(&stcb->asoc.refcnt, 1);
 		SCTP_TCB_UNLOCK(stcb);
 		SCTP_INP_INFO_WLOCK();
@@ -2183,6 +2185,8 @@ sctp_process_cookie_new(struct mbuf *m, int iphlen, int offset,
 		 * INIT/INIT-ACK/COOKIE arrived. But of course then it
 		 * should have went to the other code.. not here.. oh well..
 		 * a bit of protection is worth having..
+		 *
+		 * XXXMJ unlocked
 		 */
 		stcb->sctp_ep->sctp_flags |= SCTP_PCB_FLAGS_CONNECTED;
 		soisconnected(stcb->sctp_socket);
