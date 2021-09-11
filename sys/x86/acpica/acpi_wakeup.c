@@ -164,16 +164,22 @@ acpi_wakeup_cpus(struct acpi_softc *sc)
 	int		cpu;
 	u_char		mpbiosreason;
 
-	/* save the current value of the warm-start vector */
-	mpbioswarmvec = *((uint32_t *)WARMBOOT_OFF);
-	outb(CMOS_REG, BIOS_RESET);
-	mpbiosreason = inb(CMOS_DATA);
+#ifdef __amd64__
+	if (!efi_boot) {
+#endif
+		/* save the current value of the warm-start vector */
+		mpbioswarmvec = *((uint32_t *)WARMBOOT_OFF);
+		outb(CMOS_REG, BIOS_RESET);
+		mpbiosreason = inb(CMOS_DATA);
 
-	/* setup a vector to our boot code */
-	*((volatile u_short *)WARMBOOT_OFF) = WARMBOOT_TARGET;
-	*((volatile u_short *)WARMBOOT_SEG) = sc->acpi_wakephys >> 4;
-	outb(CMOS_REG, BIOS_RESET);
-	outb(CMOS_DATA, BIOS_WARM);	/* 'warm-start' */
+		/* setup a vector to our boot code */
+		*((volatile u_short *)WARMBOOT_OFF) = WARMBOOT_TARGET;
+		*((volatile u_short *)WARMBOOT_SEG) = sc->acpi_wakephys >> 4;
+		outb(CMOS_REG, BIOS_RESET);
+		outb(CMOS_DATA, BIOS_WARM);	/* 'warm-start' */
+#ifdef __amd64__
+	}
+#endif
 
 	/* Wake up each AP. */
 	for (cpu = 1; cpu < mp_ncpus; cpu++) {
@@ -197,11 +203,17 @@ acpi_wakeup_cpus(struct acpi_softc *sc)
 	pmap_remap_lowptdi(false);
 #endif
 
-	/* restore the warmstart vector */
-	*(uint32_t *)WARMBOOT_OFF = mpbioswarmvec;
+#ifdef __amd64__
+	if (!efi_boot) {
+#endif
+		/* restore the warmstart vector */
+		*(uint32_t *)WARMBOOT_OFF = mpbioswarmvec;
 
-	outb(CMOS_REG, BIOS_RESET);
-	outb(CMOS_DATA, mpbiosreason);
+		outb(CMOS_REG, BIOS_RESET);
+		outb(CMOS_DATA, mpbiosreason);
+#ifdef __amd64__
+	}
+#endif
 }
 #endif
 
