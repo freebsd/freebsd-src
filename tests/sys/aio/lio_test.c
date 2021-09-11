@@ -223,7 +223,7 @@ ATF_TC_BODY(lio_listio_opcodes, tc)
 	char buffer[6];
 	int fd;
 
-	fd = open("testfile", O_CREAT | O_RDWR);
+	fd = open("testfile", O_CREAT | O_RDWR, 0666);
 	ATF_REQUIRE_MSG(fd >= 0, "open: %s", strerror(errno));
 
 	/* We start with numbers in a file and letters in memory... */
@@ -302,7 +302,7 @@ ATF_TC_BODY(lio_listio_invalid_opcode, tc)
 	struct aiocb *list[] = {&sync_cb, &mlock_cb};
 	int fd;
 
-	fd = open("testfile", O_CREAT | O_RDWR);
+	fd = open("testfile", O_CREAT | O_RDWR, 0666);
 	ATF_REQUIRE_MSG(fd >= 0, "open: %s", strerror(errno));
 
 	bzero(&sync_cb, sizeof(sync_cb));
