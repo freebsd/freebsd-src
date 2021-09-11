@@ -1219,7 +1219,7 @@ BUILDENV_DIR?=	${.CURDIR}
 # Note: make will report any errors the shell reports. This can
 # be odd if the last command in an interactive shell generates an
 # error or is terminated by SIGINT. These reported errors look bad,
-# but are harmless. Allowing them also allows BUIDLENV_SHELL to
+# but are harmless. Allowing them also allows BUILDENV_SHELL to
 # be a complex command whose status will be returned to the caller.
 # Some scripts in tools rely on this behavior to report build errors.
 #
