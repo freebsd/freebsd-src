@@ -99,7 +99,7 @@ static void		acpi_wakeup_cpus(struct acpi_softc *);
 #endif
 
 #ifdef __amd64__
-#define	ACPI_WAKEPAGES	5
+#define	ACPI_WAKEPAGES	8
 #else
 #define	ACPI_WAKEPAGES	1
 #endif
@@ -426,8 +426,8 @@ acpi_install_wakeup_handler(struct acpi_softc *sc)
 	static void *wakeaddr;
 	void *wakepages[ACPI_WAKEPAGES];
 #ifdef __amd64__
-	uint64_t *pt5, *pt4, *pt3, *pt2;
-	vm_paddr_t pt5pa, pt4pa, pt3pa, pt2pa;
+	uint64_t *pt5, *pt4, *pt3, *pt2_0, *pt2_1, *pt2_2, *pt2_3;
+	vm_paddr_t pt5pa, pt4pa, pt3pa, pt2_0pa, pt2_1pa, pt2_2pa, pt2_3pa;
 	int i;
 #endif
 
@@ -443,15 +443,21 @@ acpi_install_wakeup_handler(struct acpi_softc *sc)
 
 #ifdef __amd64__
 	if (la57) {
-		pt5 = wakepages[4];
+		pt5 = wakepages[7];
 		pt5pa = vtophys(pt5);
 	}
 	pt4 = wakepages[1];
 	pt3 = wakepages[2];
-	pt2 = wakepages[3];
+	pt2_0 = wakepages[3];
+	pt2_1 = wakepages[4];
+	pt2_2 = wakepages[5];
+	pt2_3 = wakepages[6];
 	pt4pa = vtophys(pt4);
 	pt3pa = vtophys(pt3);
-	pt2pa = vtophys(pt2);
+	pt2_0pa = vtophys(pt2_0);
+	pt2_1pa = vtophys(pt2_1);
+	pt2_2pa = vtophys(pt2_2);
+	pt2_3pa = vtophys(pt2_3);
 #endif
 
 	bcopy(wakecode, (void *)sc->acpi_wakeaddr, sizeof(wakecode));
@@ -473,31 +479,44 @@ acpi_install_wakeup_handler(struct acpi_softc *sc)
 #ifndef __amd64__
 	WAKECODE_FIXUP(wakeup_cr3, register_t, pmap_get_kcr3());
 #else /* __amd64__ */
-	/* Create the initial 1GB replicated page tables */
-	for (i = 0; i < NPTEPG; i++) {
-		if (la57) {
-			pt5[i] = (uint64_t)pt4pa;
-			pt5[i] |= PG_V | PG_RW | PG_U;
-		}
-
-		/*
-		 * Each slot of the level 4 pages points
-		 * to the same level 3 page
-		 */
-		pt4[i] = (uint64_t)pt3pa;
-		pt4[i] |= PG_V | PG_RW | PG_U;
-
-		/*
-		 * Each slot of the level 3 pages points
-		 * to the same level 2 page
-		 */
-		pt3[i] = (uint64_t)pt2pa;
-		pt3[i] |= PG_V | PG_RW | PG_U;
-
-		/* The level 2 page slots are mapped with 2MB pages for 1GB. */
-		pt2[i] = i * NBPDR;
-		pt2[i] |= PG_V | PG_RW | PG_PS | PG_U;
+	/* Create 1:1 mapping for the low 4G */
+	if (la57) {
+		bcopy(kernel_pmap->pm_pmltop, pt5, PAGE_SIZE);
+		pt5[0] = (uint64_t)pt4pa;
+		pt5[0] |= PG_V | PG_RW | PG_U;
+	} else {
+		bcopy(kernel_pmap->pm_pmltop, pt4, PAGE_SIZE);
 	}
+
+	pt4[0] = (uint64_t)pt3pa;
+	pt4[0] |= PG_V | PG_RW | PG_U;
+
+	pt3[0] = (uint64_t)pt2_0pa;
+	pt3[0] |= PG_V | PG_RW | PG_U;
+	pt3[1] = (uint64_t)pt2_1pa;
+	pt3[1] |= PG_V | PG_RW | PG_U;
+	pt3[2] = (uint64_t)pt2_2pa;
+	pt3[2] |= PG_V | PG_RW | PG_U;
+	pt3[3] = (uint64_t)pt2_3pa;
+	pt3[3] |= PG_V | PG_RW | PG_U;
+
+	for (i = 0; i < NPDEPG; i++) {
+		pt2_0[i] = (pd_entry_t)i * NBPDR;
+		pt2_0[i] |= PG_V | PG_RW | PG_PS | PG_U;
+	}
+	for (i = 0; i < NPDEPG; i++) {
+		pt2_1[i] = (pd_entry_t)NBPDP + i * NBPDR;
+		pt2_1[i] |= PG_V | PG_RW | PG_PS | PG_U;
+	}
+	for (i = 0; i < NPDEPG; i++) {
+		pt2_2[i] = (pd_entry_t)2 * NBPDP + i * NBPDR;
+		pt2_2[i] |= PG_V | PG_RW | PG_PS | PG_U;
+	}
+	for (i = 0; i < NPDEPG; i++) {
+		pt2_3[i] = (pd_entry_t)3 * NBPDP + i * NBPDR;
+		pt2_3[i] |= PG_V | PG_RW | PG_PS | PG_U;
+	}
+
 #endif /* !__amd64__ */
 
 	if (bootverbose)
