@@ -95,10 +95,6 @@ int nfsrv_maxpnfsmirror = 1;
 SYSCTL_INT(_vfs_nfs, OID_AUTO, pnfsmirror, CTLFLAG_RD,
     &nfsrv_maxpnfsmirror, 0, "Mirror level for pNFS service");
 
-int nfs_maxcopyrange = 10 * 1024 * 1024;
-SYSCTL_INT(_vfs_nfs, OID_AUTO, maxcopyrange, CTLFLAG_RW,
-    &nfs_maxcopyrange, 0, "Max size of a Copy so RPC times reasonable");
-
 /*
  * This array of structures indicates, for V4:
  * retfh - which of 3 types of calling args are used
