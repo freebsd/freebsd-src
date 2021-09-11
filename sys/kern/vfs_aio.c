@@ -2826,6 +2826,8 @@ aiocb32_copyin(struct aiocb *ujob, struct kaiocb *kjob, int type)
 	CP(job32, *kcb, aio_fildes);
 	CP(job32, *kcb, aio_offset);
 	CP(job32, *kcb, aio_lio_opcode);
+	if (type == LIO_NOP)
+		type = kcb->aio_lio_opcode;
 	if (type & LIO_VECTORED) {
 		iov32 = PTRIN(job32.aio_iov);
 		CP(job32, *kcb, aio_iovcnt);
