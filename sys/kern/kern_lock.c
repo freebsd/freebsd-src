@@ -623,6 +623,9 @@ lockmgr_slock_hard(struct lock *lk, u_int flags, struct lock_object *ilk,
 		if (lockmgr_slock_try(lk, &x, flags, false))
 			break;
 
+		lock_profile_obtain_lock_failed(&lk->lock_object, false,
+		    &contested, &waittime);
+
 		if ((flags & (LK_ADAPTIVE | LK_INTERLOCK)) == LK_ADAPTIVE) {
 			if (lockmgr_slock_adaptive(&lda, lk, &x, flags))
 				continue;
@@ -631,8 +634,6 @@ lockmgr_slock_hard(struct lock *lk, u_int flags, struct lock_object *ilk,
 #ifdef HWPMC_HOOKS
 		PMC_SOFT_CALL( , , lock, failed);
 #endif
-		lock_profile_obtain_lock_failed(&lk->lock_object, false,
-		    &contested, &waittime);
 
 		/*
 		 * If the lock is expected to not sleep just give up
@@ -837,6 +838,10 @@ lockmgr_xlock_hard(struct lock *lk, u_int flags, struct lock_object *ilk,
 				break;
 			continue;
 		}
+
+		lock_profile_obtain_lock_failed(&lk->lock_object, false,
+		    &contested, &waittime);
+
 		if ((flags & (LK_ADAPTIVE | LK_INTERLOCK)) == LK_ADAPTIVE) {
 			if (lockmgr_xlock_adaptive(&lda, lk, &x))
 				continue;
@@ -844,8 +849,6 @@ lockmgr_xlock_hard(struct lock *lk, u_int flags, struct lock_object *ilk,
 #ifdef HWPMC_HOOKS
 		PMC_SOFT_CALL( , , lock, failed);
 #endif
-		lock_profile_obtain_lock_failed(&lk->lock_object, false,
-		    &contested, &waittime);
 
 		/*
 		 * If the lock is expected to not sleep just give up
