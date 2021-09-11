@@ -37,7 +37,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 6, 2020
+.Dd August 27, 2021
 .Dt MDCONFIG 8
 .Os
 .Sh NAME
@@ -246,6 +246,34 @@ This can be used with the
 flag to forcibly destroy an
 .Xr md 4
 disk that is still in use.
+.It Oo Cm no Oc Ns Cm mustdealloc
+For
+.Cm vnode
+backed devices: detect whether hole-punching is supported by the underlying file
+system.
+If the file system supports hole-punching, then to handle a
+.Dv BIO_DELETE
+request, some or all of the request's operation range may be turned into a hole
+in the file used for backing store.
+Any parts which are not turned into holes are zero-filled in
+the file.
+If the file system does not support
+hole-punching,
+.Dv BIO_DELETE
+requests to the device are not handled and will fail with
+.Er EOPNOTSUPP .
+.Pp
+When
+.Cm mustdealloc
+is not specified or
+.Oo Cm no Oc Ns Cm mustdealloc
+is specified, for a
+.Dv BIO_DELETE
+request, if the file system supports hole-punching, some or all of the request's
+operation range may be turned into a hole in the file used for backing store.
+Any parts which are not turned into holes are zero-filled in the file.
+If the file system of the vnode type memory disk does not support hole-punching,
+the request's operation range is zero-filled in the file.
 .It Oo Cm no Oc Ns Cm readonly
 Enable/disable readonly mode.
 .It Oo Cm no Oc Ns Cm verify
@@ -339,12 +367,15 @@ gnop create -o 512K md1
 mount /dev/md1.nop /mnt
 .Ed
 .Sh SEE ALSO
+.Xr fpathconf 2 ,
+.Xr fspacectl 2 ,
 .Xr open 2 ,
 .Xr md 4 ,
 .Xr ffs 7 ,
 .Xr gpart 8 ,
 .Xr mdmfs 8 ,
-.Xr malloc 9
+.Xr malloc 9 ,
+.Xr vn_deallocate 9
 .Sh HISTORY
 The
 .Nm
