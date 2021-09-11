@@ -423,12 +423,12 @@ freepages:
 void
 acpi_install_wakeup_handler(struct acpi_softc *sc)
 {
-	static void	*wakeaddr;
-	void		*wakepages[ACPI_WAKEPAGES];
+	static void *wakeaddr;
+	void *wakepages[ACPI_WAKEPAGES];
 #ifdef __amd64__
-	uint64_t	*pt5, *pt4, *pt3, *pt2;
-	vm_paddr_t	pt5pa, pt4pa, pt3pa, pt2pa;
-	int		i;
+	uint64_t *pt5, *pt4, *pt3, *pt2;
+	vm_paddr_t pt5pa, pt4pa, pt3pa, pt2pa;
+	int i;
 #endif
 
 	if (wakeaddr != NULL)
