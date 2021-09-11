@@ -329,6 +329,8 @@ options 	SLEEPQUEUE_PROFILING
 options 	TURNSTILE_PROFILING
 options 	UMTX_PROFILING
 
+# Debugging traces for epoch(9) misuse
+options 	EPOCH_TRACE
 
 #####################################################################
 # COMPATIBILITY OPTIONS
