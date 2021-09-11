@@ -27,6 +27,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 14.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20210911:
+	As of commit 55089ef4f8bb, the global variable nfs_maxcopyrange has
+	been deleted from the nfscommon.ko.  As such, nfsd.ko must be built
+	from up to date sources to avoid an undefined reference when
+	being loaded.
+
 20210817:
 	As of commit 62ca9fc1ad56 OpenSSL no longer enables kernel TLS
 	by default.  Users can enable kernel TLS via the "KTLS" SSL
