@@ -577,6 +577,10 @@ struct sctp_tcb *
 sctp_aloc_assoc(struct sctp_inpcb *, struct sockaddr *,
     int *, uint32_t, uint32_t, uint32_t, uint16_t, uint16_t,
     struct thread *, int);
+struct sctp_tcb *
+sctp_aloc_assoc_connected(struct sctp_inpcb *, struct sockaddr *,
+    int *, uint32_t, uint32_t, uint32_t, uint16_t, uint16_t,
+    struct thread *, int);
 
 int sctp_free_assoc(struct sctp_inpcb *, struct sctp_tcb *, int, int);
 
