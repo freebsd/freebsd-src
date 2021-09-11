@@ -62,6 +62,10 @@ static int	nfscl_dssameconn = 0;
 SYSCTL_INT(_vfs_nfs, OID_AUTO, dssameconn, CTLFLAG_RW,
     &nfscl_dssameconn, 0, "Use same TCP connection to multiple DSs");
 
+static uint64_t nfs_maxcopyrange = SSIZE_MAX;
+SYSCTL_U64(_vfs_nfs, OID_AUTO, maxcopyrange, CTLFLAG_RW,
+    &nfs_maxcopyrange, 0, "Max size of a Copy so RPC times reasonable");
+
 /*
  * Global variables
  */
@@ -75,7 +79,6 @@ extern char nfsv4_callbackaddr[INET6_ADDRSTRLEN];
 extern int nfscl_debuglevel;
 extern int nfs_pnfsiothreads;
 extern u_long sb_max_adj;
-extern int nfs_maxcopyrange;
 NFSCLSTATEMUTEX;
 int nfstest_outofseq = 0;
 int nfscl_assumeposixlocks = 1;
