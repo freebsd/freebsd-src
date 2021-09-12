@@ -6698,7 +6698,6 @@ sctp_is_vtag_good(uint32_t tag, uint16_t lport, uint16_t rport, struct timeval *
 {
 	struct sctpasochead *head;
 	struct sctp_tcb *stcb;
-	bool result;
 
 	SCTP_INP_INFO_LOCK_ASSERT();
 
@@ -6722,13 +6721,10 @@ sctp_is_vtag_good(uint32_t tag, uint16_t lport, uint16_t rport, struct timeval *
 				continue;
 			}
 			/* The tag is currently used, so don't use it. */
-			result = false;
-			goto out;
+			return (false);
 		}
 	}
-	result = !sctp_is_in_timewait(tag, lport, rport, (uint32_t)now->tv_sec);
-out:
-	return (result);
+	return (!sctp_is_in_timewait(tag, lport, rport, (uint32_t)now->tv_sec));
 }
 
 static void
