@@ -727,8 +727,7 @@ local function handle_noncompat(sysnum, thr_flag, flags, sysflags, rettype,
 	if flags & protoflags == 0 then
 		if funcname == "nosys" or funcname == "lkmnosys" or
 		    funcname == "sysarch" or funcname:find("^freebsd") or
-		    funcname:find("^linux") or
-		    funcname:find("^cloudabi") then
+		    funcname:find("^linux") then
 			write_line("sysdcl", string.format(
 			    "%s\t%s(struct thread *, struct %s *)",
 			    rettype, funcname, argalias))
@@ -755,8 +754,7 @@ local function handle_noncompat(sysnum, thr_flag, flags, sysflags, rettype,
 	else
 		if funcname == "nosys" or funcname == "lkmnosys" or
 		    funcname == "sysarch" or funcname:find("^freebsd") or
-		    funcname:find("^linux") or
-		    funcname:find("^cloudabi") then
+		    funcname:find("^linux") then
 			write_line("sysent", string.format(
 			    "%s, .sy_auevent = %s, .sy_flags = %s, .sy_thrcnt = %s },",
 			    funcname, auditev, sysflags, thr_flag))

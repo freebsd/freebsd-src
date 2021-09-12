@@ -73,22 +73,6 @@ static void	enter_syscall(struct trussinfo *, struct threadinfo *,
 static void	new_proc(struct trussinfo *, pid_t, lwpid_t);
 
 
-static struct procabi cloudabi32 = {
-	.type = "CloudABI32",
-	.abi = SYSDECODE_ABI_CLOUDABI32,
-	.pointer_size = sizeof(uint32_t),
-	.extra_syscalls = STAILQ_HEAD_INITIALIZER(cloudabi32.extra_syscalls),
-	.syscalls = { NULL }
-};
-
-static struct procabi cloudabi64 = {
-	.type = "CloudABI64",
-	.abi = SYSDECODE_ABI_CLOUDABI64,
-	.pointer_size = sizeof(uint64_t),
-	.extra_syscalls = STAILQ_HEAD_INITIALIZER(cloudabi64.extra_syscalls),
-	.syscalls = { NULL }
-};
-
 static struct procabi freebsd = {
 	.type = "FreeBSD",
 	.abi = SYSDECODE_ABI_FREEBSD,
@@ -131,8 +115,6 @@ static struct procabi linux32 = {
 #endif
 
 static struct procabi_table abis[] = {
-	{ "CloudABI ELF32", &cloudabi32 },
-	{ "CloudABI ELF64", &cloudabi64 },
 #if __SIZEOF_POINTER__ == 4
 	{ "FreeBSD ELF32", &freebsd },
 #elif __SIZEOF_POINTER__ == 8

@@ -877,9 +877,6 @@ options 	IICHID_SAMPLING	# Workaround missing GPIO INTR support
 # Enable (32-bit) a.out binary support
 options 	COMPAT_AOUT
 
-# Enable 32-bit runtime support for CloudABI binaries.
-options 	COMPAT_CLOUDABI32
-
 #####################################################################
 # VM OPTIONS
 

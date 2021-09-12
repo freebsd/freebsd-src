@@ -75,7 +75,6 @@ arm/arm/undefined.c		standard
 arm/arm/unwind.c		optional	ddb | kdtrace_hooks | stack
 arm/arm/vm_machdep.c		standard
 arm/arm/vfp.c			standard
-arm/cloudabi32/cloudabi32_sysvec.c	optional compat_cloudabi32
 cddl/compat/opensolaris/kern/opensolaris_atomic.c	optional !armv7 !armv6 zfs | !armv7 !armv6 dtrace compile-with "${CDDL_C}"
 cddl/dev/dtrace/arm/dtrace_asm.S			optional dtrace compile-with "${DTRACE_S}"
 cddl/dev/dtrace/arm/dtrace_subr.c			optional dtrace compile-with "${DTRACE_C}"
@@ -129,20 +128,6 @@ libkern/strlen.c		standard
 libkern/ucmpdi2.c		standard
 libkern/udivdi3.c		standard
 libkern/umoddi3.c		standard
-
-# CloudABI support
-cloudabi32_vdso.o		optional	compat_cloudabi32	\
-	dependency	"$S/contrib/cloudabi/cloudabi_vdso_armv6.S" \
-	compile-with	"${CC} -x assembler-with-cpp -shared -nostdinc -nostdlib -Wl,-T$S/compat/cloudabi/cloudabi_vdso.lds $S/contrib/cloudabi/cloudabi_vdso_armv6.S -o ${.TARGET}" \
-	no-obj no-implicit-rule						\
-	clean		"cloudabi32_vdso.o"
-#
-cloudabi32_vdso_blob.o		optional	compat_cloudabi32	\
-	dependency 	"cloudabi32_vdso.o"				\
-	compile-with	"${OBJCOPY} --input-target binary --output-target elf32-littlearm --binary-architecture arm cloudabi32_vdso.o ${.TARGET}" \
-	no-implicit-rule						\
-	clean		"cloudabi32_vdso_blob.o"
-#
 
 # Annapurna support
 arm/annapurna/alpine/alpine_ccu.c		optional al_ccu fdt
