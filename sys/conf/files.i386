@@ -83,6 +83,7 @@ dev/vmd/vmd.c			optional vmd
 dev/acpi_support/acpi_wmi_if.m	standard
 dev/wbwd/wbwd.c			optional wbwd
 i386/acpica/acpi_machdep.c	optional acpi
+i386/acpica/acpi_wakeup.c	optional acpi
 acpi_wakecode.o			optional acpi				\
 	dependency	"$S/i386/acpica/acpi_wakecode.S assym.inc"	\
 	compile-with	"${NORMAL_S}"					\
