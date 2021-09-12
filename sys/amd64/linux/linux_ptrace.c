@@ -93,6 +93,12 @@ __FBSDID("$FreeBSD$");
     LINUX_PTRACE_O_TRACESECCOMP | LINUX_PTRACE_O_EXITKILL |	\
     LINUX_PTRACE_O_SUSPEND_SECCOMP)
 
+#define	LINUX_PTRACE_SYSCALL_INFO_NONE	0
+#define	LINUX_PTRACE_SYSCALL_INFO_ENTRY	1
+#define	LINUX_PTRACE_SYSCALL_INFO_EXIT	2
+
+#define	LINUX_ARCH_AMD64		0xc000003e
+
 static int
 map_signum(int lsig, int *bsigp)
 {
@@ -170,6 +176,28 @@ struct linux_pt_reg {
 	l_ulong	eflags;
 	l_ulong	rsp;
 	l_ulong	ss;
+};
+
+struct syscall_info {
+	uint8_t op;
+	uint32_t arch;
+	uint64_t instruction_pointer;
+	uint64_t stack_pointer;
+	union {
+		struct {
+			uint64_t nr;
+			uint64_t args[6];
+		} entry;
+		struct {
+			int64_t rval;
+			uint8_t is_error;
+		} exit;
+		struct {
+			uint64_t nr;
+			uint64_t args[6];
+			uint32_t ret_data;
+		} seccomp;
+	};
 };
 
 /*
@@ -495,11 +523,75 @@ linux_ptrace_seize(struct thread *td, pid_t pid, l_ulong addr, l_ulong data)
 }
 
 static int
-linux_ptrace_get_syscall_info(struct thread *td, pid_t pid, l_ulong addr, l_ulong data)
+linux_ptrace_get_syscall_info(struct thread *td, pid_t pid,
+    l_ulong addr, l_ulong data)
 {
+	struct ptrace_lwpinfo lwpinfo;
+	struct ptrace_sc_ret sr;
+	struct reg b_reg;
+	struct syscall_info si;
+	int error;
 
-	linux_msg(td, "PTRACE_GET_SYSCALL_INFO not implemented; returning EINVAL");
-	return (EINVAL);
+	error = kern_ptrace(td, PT_LWPINFO, pid, &lwpinfo, sizeof(lwpinfo));
+	if (error != 0) {
+		linux_msg(td, "PT_LWPINFO failed with error %d", error);
+		return (error);
+	}
+
+	memset(&si, 0, sizeof(si));
+
+	if (lwpinfo.pl_flags & PL_FLAG_SCE) {
+		si.op = LINUX_PTRACE_SYSCALL_INFO_ENTRY;
+		si.entry.nr = lwpinfo.pl_syscall_code;
+		/*
+		 * The reason for using PT_GET_SC_ARGS_ALL instead
+		 * of PT_GET_SC_ARGS is to emulate Linux bug which strace(1)
+		 * depends on: at initialization it tests whether ptrace works
+		 * by calling close(2), or some other single-argument syscall,
+		 * _with six arguments_, and then verifies whether it can
+		 * fetch them all using this API; otherwise it bails out.
+		 */
+		error = kern_ptrace(td, PT_GET_SC_ARGS_ALL, pid,
+		    &si.entry.args, sizeof(si.entry.args));
+		if (error != 0) {
+			linux_msg(td, "PT_GET_SC_ARGS_ALL failed with error %d",
+			    error);
+			return (error);
+		}
+	} else if (lwpinfo.pl_flags & PL_FLAG_SCX) {
+		si.op = LINUX_PTRACE_SYSCALL_INFO_EXIT;
+		error = kern_ptrace(td, PT_GET_SC_RET, pid, &sr, sizeof(sr));
+
+		if (error != 0) {
+			linux_msg(td, "PT_GET_SC_RET failed with error %d",
+			    error);
+			return (error);
+		}
+
+		if (sr.sr_error == 0) {
+			si.exit.rval = sr.sr_retval[0];
+			si.exit.is_error = 0;
+		} else {
+			si.exit.rval = bsd_to_linux_errno(sr.sr_error);
+			si.exit.is_error = 1;
+		}
+	} else {
+		si.op = LINUX_PTRACE_SYSCALL_INFO_NONE;
+	}
+
+	error = kern_ptrace(td, PT_GETREGS, pid, &b_reg, 0);
+	if (error != 0)
+		return (error);
+
+	si.arch = LINUX_ARCH_AMD64;
+	si.instruction_pointer = b_reg.r_rip;
+	si.stack_pointer = b_reg.r_rsp;
+
+	error = copyout(&si, (void *)data, sizeof(si));
+	if (error == 0)
+		td->td_retval[0] = sizeof(si);
+
+	return (error);
 }
 
 int
