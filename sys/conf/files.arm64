@@ -558,28 +558,3 @@ arm64/rockchip/clk/rk3399_pmucru.c		optional fdt soc_rockchip_rk3399
 
 # Xilinx
 arm/xilinx/uart_dev_cdnc.c			optional uart soc_xilinx_zynq
-
-# Cloudabi
-arm64/cloudabi32/cloudabi32_sysvec.c		optional compat_cloudabi32
-arm64/cloudabi64/cloudabi64_sysvec.c		optional compat_cloudabi64
-
-cloudabi32_vdso.o				optional compat_cloudabi32	\
-	dependency	"$S/contrib/cloudabi/cloudabi_vdso_armv6_on_64bit.S"	\
-	compile-with	"${CC} -x assembler-with-cpp -m32 -shared -nostdinc -nostdlib -Wl,-T$S/compat/cloudabi/cloudabi_vdso.lds $S/contrib/cloudabi/cloudabi_vdso_armv6_on_64bit.S -o ${.TARGET}" \
-	no-obj no-implicit-rule						\
-	clean		"cloudabi32_vdso.o"
-cloudabi32_vdso_blob.o				optional compat_cloudabi32	\
-	dependency 	"cloudabi32_vdso.o"			\
-	compile-with	"${OBJCOPY} --input-target binary --output-target elf64-littleaarch64 --binary-architecture aarch64 cloudabi32_vdso.o ${.TARGET}" \
-	no-implicit-rule						\
-	clean		"cloudabi32_vdso_blob.o"
-cloudabi64_vdso.o				optional compat_cloudabi64	\
-	dependency	"$S/contrib/cloudabi/cloudabi_vdso_aarch64.S"	\
-	compile-with	"${CC} -x assembler-with-cpp -shared -nostdinc -nostdlib -Wl,-T$S/compat/cloudabi/cloudabi_vdso.lds $S/contrib/cloudabi/cloudabi_vdso_aarch64.S -o ${.TARGET}" \
-	no-obj no-implicit-rule						\
-	clean		"cloudabi64_vdso.o"
-cloudabi64_vdso_blob.o				optional compat_cloudabi64	\
-	dependency 	"cloudabi64_vdso.o"			\
-	compile-with	"${OBJCOPY} --input-target binary --output-target elf64-littleaarch64 --binary-architecture aarch64 cloudabi64_vdso.o ${.TARGET}" \
-	no-implicit-rule						\
-	clean		"cloudabi64_vdso_blob.o"

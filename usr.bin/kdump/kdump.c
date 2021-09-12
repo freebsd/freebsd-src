@@ -711,9 +711,6 @@ dumpheader(struct ktr_header *kth, u_int sv_flags)
 		case SV_ABI_FREEBSD:
 			abi = "F";
 			break;
-		case SV_ABI_CLOUDABI:
-			abi = "C";
-			break;
 		default:
 			abi = "U";
 			break;
@@ -761,8 +758,6 @@ syscallabi(u_int sv_flags)
 			return (SYSDECODE_ABI_LINUX32);
 #endif
 		return (SYSDECODE_ABI_LINUX);
-	case SV_ABI_CLOUDABI:
-		return (SYSDECODE_ABI_CLOUDABI64);
 	default:
 		return (SYSDECODE_ABI_UNKNOWN);
 	}

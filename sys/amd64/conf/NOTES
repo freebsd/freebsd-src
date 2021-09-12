@@ -626,12 +626,6 @@ options 	COMPAT_FREEBSD32
 # Enable (32-bit) a.out binary support
 options 	COMPAT_AOUT
 
-# Enable 32-bit runtime support for CloudABI binaries.
-options 	COMPAT_CLOUDABI32
-
-# Enable 64-bit runtime support for CloudABI binaries.
-options 	COMPAT_CLOUDABI64
-
 #####################################################################
 # ZFS support
 
