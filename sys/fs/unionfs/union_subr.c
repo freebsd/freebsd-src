@@ -244,6 +244,49 @@ unionfs_rem_cached_vnode(struct unionfs_node *unp, struct vnode *dvp)
 }
 
 /*
+ * Common cleanup handling for unionfs_nodeget
+ * Upper, lower, and parent directory vnodes are expected to be referenced by
+ * the caller.  Upper and lower vnodes, if non-NULL, are also expected to be
+ * exclusively locked by the caller.
+ * This function will return with the caller's locks and references undone.
+ */
+static void
+unionfs_nodeget_cleanup(struct vnode *vp, void *arg)
+{
+	struct unionfs_node *unp;
+
+	/*
+	 * Lock and reset the default vnode lock; vgone() expects a locked
+	 * vnode, and we're going to reset the vnode ops.
+	 */
+	lockmgr(&vp->v_lock, LK_EXCLUSIVE, NULL);
+
+	/*
+	 * Clear out private data and reset the vnode ops to avoid use of
+	 * unionfs vnode ops on a partially constructed vnode.
+	 */
+	VI_LOCK(vp);
+	vp->v_data = NULL;
+	vp->v_vnlock = &vp->v_lock;
+	vp->v_op = &dead_vnodeops;
+	VI_UNLOCK(vp);
+	vgone(vp);
+	vput(vp);
+
+	unp = arg;
+	if (unp->un_dvp != NULLVP)
+		vrele(unp->un_dvp);
+	if (unp->un_uppervp != NULLVP)
+		vput(unp->un_uppervp);
+	if (unp->un_lowervp != NULLVP)
+		vput(unp->un_lowervp);
+	if (unp->un_hashtbl != NULL)
+		hashdestroy(unp->un_hashtbl, M_UNIONFSHASH, unp->un_hashmask);
+	free(unp->un_path, M_UNIONFSPATH);
+	free(unp, M_UNIONFSNODE);
+}
+
+/*
  * Make a new or get existing unionfs node.
  * 
  * uppervp and lowervp should be unlocked. Because if new unionfs vnode is
@@ -263,6 +306,7 @@ unionfs_nodeget(struct mount *mp, struct vnode *uppervp,
 	int		lkflags;
 	enum vtype	vt;
 
+	error = 0;
 	ump = MOUNTTOUNIONFSMOUNT(mp);
 	lkflags = (cnp ? cnp->cn_lkflags : 0);
 	path = (cnp ? cnp->cn_nameptr : NULL);
@@ -301,11 +345,6 @@ unionfs_nodeget(struct mount *mp, struct vnode *uppervp,
 		free(unp, M_UNIONFSNODE);
 		return (error);
 	}
-	error = insmntque(vp, mp);	/* XXX: Too early for mpsafe fs */
-	if (error != 0) {
-		free(unp, M_UNIONFSNODE);
-		return (error);
-	}
 	if (dvp != NULLVP)
 		vref(dvp);
 	if (uppervp != NULLVP)
@@ -340,24 +379,35 @@ unionfs_nodeget(struct mount *mp, struct vnode *uppervp,
 	    (lowervp != NULLVP && ump->um_lowervp == lowervp))
 		vp->v_vflag |= VV_ROOT;
 
+	vn_lock_pair(lowervp, false, uppervp, false); 
+	error = insmntque1(vp, mp, unionfs_nodeget_cleanup, unp);
+	if (error != 0)
+		return (error);
+	if (lowervp != NULL && VN_IS_DOOMED(lowervp)) {
+		vput(lowervp);
+		unp->un_lowervp = NULL;
+	}
+	if (uppervp != NULL && VN_IS_DOOMED(uppervp)) {
+		vput(uppervp);
+		unp->un_uppervp = NULL;
+	}
+	if (unp->un_lowervp == NULL && unp->un_uppervp == NULL) {
+		unionfs_nodeget_cleanup(vp, unp);
+		return (ENOENT);
+	}
 	if (path != NULL && dvp != NULLVP && vt == VDIR)
 		*vpp = unionfs_ins_cached_vnode(unp, dvp, path);
-	if ((*vpp) != NULLVP) {
-		if (dvp != NULLVP)
-			vrele(dvp);
-		if (uppervp != NULLVP)
-			vrele(uppervp);
-		if (lowervp != NULLVP)
-			vrele(lowervp);
-
-		unp->un_uppervp = NULLVP;
-		unp->un_lowervp = NULLVP;
-		unp->un_dvp = NULLVP;
-		vrele(vp);
+	if (*vpp != NULLVP) {
+		unionfs_nodeget_cleanup(vp, unp);
 		vp = *vpp;
 		vref(vp);
-	} else
+	} else {
+		if (uppervp != NULL)
+			VOP_UNLOCK(uppervp);
+		if (lowervp != NULL)
+			VOP_UNLOCK(lowervp);
 		*vpp = vp;
+	}
 
 unionfs_nodeget_out:
 	if (lkflags & LK_TYPE_MASK)
