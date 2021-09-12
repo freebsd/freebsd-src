@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
+#include <vm/vm_page.h>
 
 #include <machine/clock.h>
 #include <machine/cpu.h>
@@ -82,7 +83,6 @@ static cpuset_t		suspcpus;
 static struct susppcb	**susppcbs;
 #endif
 
-static void		*acpi_alloc_wakeup_handler(void **);
 static void		acpi_stop_beep(void *);
 
 #ifdef SMP
@@ -90,7 +90,7 @@ static int		acpi_wakeup_ap(struct acpi_softc *, int);
 static void		acpi_wakeup_cpus(struct acpi_softc *);
 #endif
 
-#define	ACPI_WAKEPAGES	8
+#define	ACPI_WAKEPT_PAGES	7
 
 #define	WAKECODE_FIXUP(offset, type, val)	do {	\
 	type	*addr;					\
@@ -304,27 +304,35 @@ acpi_wakeup_machdep(struct acpi_softc *sc, int state, int sleep_result,
 	return (sleep_result);
 }
 
-static void *
-acpi_alloc_wakeup_handler(void *wakepages[ACPI_WAKEPAGES])
+static void
+acpi_alloc_wakeup_handler(void **wakeaddr,
+    void *wakept_pages[ACPI_WAKEPT_PAGES])
 {
-	int		i;
+	vm_page_t wakept_m[ACPI_WAKEPT_PAGES];
+	int i;
 
-	memset(wakepages, 0, ACPI_WAKEPAGES * sizeof(*wakepages));
+	*wakeaddr = NULL;
+	memset(wakept_pages, 0, ACPI_WAKEPT_PAGES * sizeof(*wakept_pages));
+	memset(wakept_m, 0, ACPI_WAKEPT_PAGES * sizeof(*wakept_m));
 
 	/*
-	 * Specify the region for our wakeup code.  We want it in the low 1 MB
-	 * region, excluding real mode IVT (0-0x3ff), BDA (0x400-0x4ff), EBDA
-	 * (less than 128KB, below 0xa0000, must be excluded by SMAP and DSDT),
-	 * and ROM area (0xa0000 and above).  The temporary page tables must be
-	 * page-aligned.
+	 * Specify the region for our wakeup code.  We want it in the
+	 * low 1 MB region, excluding real mode IVT (0-0x3ff), BDA
+	 * (0x400-0x4ff), EBDA (less than 128KB, below 0xa0000, must
+	 * be excluded by SMAP and DSDT), and ROM area (0xa0000 and
+	 * above).
 	 */
-	for (i = 0; i < ACPI_WAKEPAGES; i++) {
-		wakepages[i] = contigmalloc(PAGE_SIZE, M_DEVBUF,
-		    M_NOWAIT, 0x500, 0xa0000, PAGE_SIZE, 0ul);
-		if (wakepages[i] == NULL) {
-			printf("%s: can't alloc wake memory\n", __func__);
-			goto freepages;
-		}
+	*wakeaddr = contigmalloc(PAGE_SIZE, M_DEVBUF,
+	    M_NOWAIT, 0x500, 0xa0000, PAGE_SIZE, 0ul);
+	if (*wakeaddr == NULL) {
+		printf("%s: can't alloc wake memory\n", __func__);
+		goto freepages;
+	}
+
+	for (i = 0; i < ACPI_WAKEPT_PAGES - (la57 ? 0 : 1); i++) {
+		wakept_m[i] = pmap_page_alloc_below_4g(true);
+		wakept_pages[i] = (void *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(
+		    wakept_m[i]));
 	}
 	if (EVENTHANDLER_REGISTER(power_resume, acpi_stop_beep, NULL,
 	    EVENTHANDLER_PRI_LAST) == NULL) {
@@ -336,45 +344,46 @@ acpi_alloc_wakeup_handler(void *wakepages[ACPI_WAKEPAGES])
 		susppcbs[i] = malloc(sizeof(**susppcbs), M_DEVBUF, M_WAITOK);
 		susppcbs[i]->sp_fpususpend = alloc_fpusave(M_WAITOK);
 	}
-
-	return (wakepages);
+	return;
 
 freepages:
-	for (i = 0; i < ACPI_WAKEPAGES; i++)
-		if (wakepages[i] != NULL)
-			contigfree(wakepages[i], PAGE_SIZE, M_DEVBUF);
-	return (NULL);
+	if (*wakeaddr != NULL)
+		contigfree(*wakeaddr, PAGE_SIZE, M_DEVBUF);
+	for (i = 0; i < ACPI_WAKEPT_PAGES; i++) {
+		if (wakept_m[i] != NULL)
+			vm_page_free(wakept_m[i]);
+	}
+	*wakeaddr = NULL;
 }
 
 void
 acpi_install_wakeup_handler(struct acpi_softc *sc)
 {
 	static void *wakeaddr;
-	void *wakepages[ACPI_WAKEPAGES];
+	void *wakept_pages[ACPI_WAKEPT_PAGES];
 	uint64_t *pt5, *pt4, *pt3, *pt2_0, *pt2_1, *pt2_2, *pt2_3;
 	vm_paddr_t pt5pa, pt4pa, pt3pa, pt2_0pa, pt2_1pa, pt2_2pa, pt2_3pa;
 	int i;
 
 	if (wakeaddr != NULL)
 		return;
-
-	if (acpi_alloc_wakeup_handler(wakepages) == NULL)
+	acpi_alloc_wakeup_handler(&wakeaddr, wakept_pages);
+	if (wakeaddr == NULL)
 		return;
 
-	wakeaddr = wakepages[0];
 	sc->acpi_wakeaddr = (vm_offset_t)wakeaddr;
 	sc->acpi_wakephys = vtophys(wakeaddr);
 
 	if (la57) {
-		pt5 = wakepages[7];
+		pt5 = wakept_pages[6];
 		pt5pa = vtophys(pt5);
 	}
-	pt4 = wakepages[1];
-	pt3 = wakepages[2];
-	pt2_0 = wakepages[3];
-	pt2_1 = wakepages[4];
-	pt2_2 = wakepages[5];
-	pt2_3 = wakepages[6];
+	pt4 = wakept_pages[0];
+	pt3 = wakept_pages[1];
+	pt2_0 = wakept_pages[2];
+	pt2_1 = wakept_pages[3];
+	pt2_2 = wakept_pages[4];
+	pt2_3 = wakept_pages[5];
 	pt4pa = vtophys(pt4);
 	pt3pa = vtophys(pt3);
 	pt2_0pa = vtophys(pt2_0);
