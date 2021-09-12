@@ -1025,6 +1025,9 @@ freebsd32_ptrace(struct thread *td, struct freebsd32_ptrace_args *uap)
 		r.pc.pc_limit = PAIR32TO64(off_t, r32.pc.pc_limit);
 		data = sizeof(r.pc);
 		break;
+	case PT_GET_SC_ARGS_ALL:
+		error = EINVAL;
+		break;
 	default:
 		addr = uap->addr;
 		break;

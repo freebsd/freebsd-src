@@ -532,6 +532,9 @@ sys_ptrace(struct thread *td, struct ptrace_args *uap)
 		else
 			error = copyin(uap->addr, &r.pc, uap->data);
 		break;
+	case PT_GET_SC_ARGS_ALL:
+		error = EINVAL;
+		break;
 	default:
 		addr = uap->addr;
 		break;
@@ -713,6 +716,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 	case PT_SET_EVENT_MASK:
 	case PT_DETACH:
 	case PT_GET_SC_ARGS:
+	case PT_GET_SC_ARGS_ALL:
 		sx_xlock(&proctree_lock);
 		proctree_locked = true;
 		break;
@@ -1014,6 +1018,19 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		bzero(addr, sizeof(td2->td_sa.args));
 		bcopy(td2->td_sa.args, addr, td2->td_sa.callp->sy_narg *
 		    sizeof(register_t));
+		break;
+
+	case PT_GET_SC_ARGS_ALL:
+		CTR1(KTR_PTRACE, "PT_GET_SC_ARGS_ALL: pid %d", p->p_pid);
+		if ((td2->td_dbgflags & (TDB_SCE | TDB_SCX)) == 0
+#ifdef COMPAT_FREEBSD32
+		    || (wrap32 && !safe)
+#endif
+		    ) {
+			error = EINVAL;
+			break;
+		}
+		bcopy(td2->td_sa.args, addr, sizeof(td2->td_sa.args));
 		break;
 
 	case PT_GET_SC_RET:
