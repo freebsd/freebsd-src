@@ -285,7 +285,6 @@ libkern/x86/crc32_sse42.c	standard
 #
 x86/acpica/OsdEnvironment.c	optional	acpi
 x86/acpica/acpi_apm.c		optional	acpi
-x86/acpica/acpi_wakeup.c	optional	acpi
 x86/acpica/srat.c		optional	acpi
 x86/bios/vpd.c			optional	vpd
 x86/cpufreq/est.c		optional	cpufreq

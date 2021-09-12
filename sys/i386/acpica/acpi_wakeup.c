@@ -32,11 +32,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#if defined(__amd64__)
-#define DEV_APIC
-#else
 #include "opt_apic.h"
-#endif
 
 #include <sys/param.h>
 #include <sys/bus.h>
@@ -98,11 +94,7 @@ static int		acpi_wakeup_ap(struct acpi_softc *, int);
 static void		acpi_wakeup_cpus(struct acpi_softc *);
 #endif
 
-#ifdef __amd64__
-#define	ACPI_WAKEPAGES	8
-#else
 #define	ACPI_WAKEPAGES	1
-#endif
 
 #define	WAKECODE_FIXUP(offset, type, val)	do {	\
 	type	*addr;					\
@@ -144,13 +136,8 @@ acpi_wakeup_ap(struct acpi_softc *sc, int cpu)
 }
 
 #define	WARMBOOT_TARGET		0
-#ifdef __amd64__
-#define	WARMBOOT_OFF		(KERNBASE + 0x0467)
-#define	WARMBOOT_SEG		(KERNBASE + 0x0469)
-#else /* __i386__ */
 #define	WARMBOOT_OFF		(PMAP_MAP_LOW + 0x0467)
 #define	WARMBOOT_SEG		(PMAP_MAP_LOW + 0x0469)
-#endif
 
 #define	CMOS_REG		(0x70)
 #define	CMOS_DATA		(0x71)
@@ -164,22 +151,16 @@ acpi_wakeup_cpus(struct acpi_softc *sc)
 	int		cpu;
 	u_char		mpbiosreason;
 
-#ifdef __amd64__
-	if (!efi_boot) {
-#endif
-		/* save the current value of the warm-start vector */
-		mpbioswarmvec = *((uint32_t *)WARMBOOT_OFF);
-		outb(CMOS_REG, BIOS_RESET);
-		mpbiosreason = inb(CMOS_DATA);
+	/* save the current value of the warm-start vector */
+	mpbioswarmvec = *((uint32_t *)WARMBOOT_OFF);
+	outb(CMOS_REG, BIOS_RESET);
+	mpbiosreason = inb(CMOS_DATA);
 
-		/* setup a vector to our boot code */
-		*((volatile u_short *)WARMBOOT_OFF) = WARMBOOT_TARGET;
-		*((volatile u_short *)WARMBOOT_SEG) = sc->acpi_wakephys >> 4;
-		outb(CMOS_REG, BIOS_RESET);
-		outb(CMOS_DATA, BIOS_WARM);	/* 'warm-start' */
-#ifdef __amd64__
-	}
-#endif
+	/* setup a vector to our boot code */
+	*((volatile u_short *)WARMBOOT_OFF) = WARMBOOT_TARGET;
+	*((volatile u_short *)WARMBOOT_SEG) = sc->acpi_wakephys >> 4;
+	outb(CMOS_REG, BIOS_RESET);
+	outb(CMOS_DATA, BIOS_WARM);	/* 'warm-start' */
 
 	/* Wake up each AP. */
 	for (cpu = 1; cpu < mp_ncpus; cpu++) {
@@ -193,7 +174,6 @@ acpi_wakeup_cpus(struct acpi_softc *sc)
 		}
 	}
 
-#ifdef __i386__
 	/*
 	 * Remove the identity mapping of low memory for all CPUs and sync
 	 * the TLB for the BSP.  The APs are now spinning in
@@ -201,19 +181,12 @@ acpi_wakeup_cpus(struct acpi_softc *sc)
 	 * will invalidate its TLB.
 	 */
 	pmap_remap_lowptdi(false);
-#endif
 
-#ifdef __amd64__
-	if (!efi_boot) {
-#endif
-		/* restore the warmstart vector */
-		*(uint32_t *)WARMBOOT_OFF = mpbioswarmvec;
+	/* restore the warmstart vector */
+	*(uint32_t *)WARMBOOT_OFF = mpbioswarmvec;
 
-		outb(CMOS_REG, BIOS_RESET);
-		outb(CMOS_DATA, mpbiosreason);
-#ifdef __amd64__
-	}
-#endif
+	outb(CMOS_REG, BIOS_RESET);
+	outb(CMOS_DATA, mpbiosreason);
 }
 #endif
 
@@ -222,10 +195,6 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 {
 	ACPI_STATUS	status;
 	struct pcb	*pcb;
-#ifdef __amd64__
-	struct pcpu *pc;
-	int i;
-#endif
 
 	if (sc->acpi_wakeaddr == 0ul)
 		return (-1);	/* couldn't alloc wake memory */
@@ -244,43 +213,24 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 
 	pcb = &susppcbs[0]->sp_pcb;
 	if (savectx(pcb)) {
-#ifdef __amd64__
-		fpususpend(susppcbs[0]->sp_fpususpend);
-#else
 		npxsuspend(susppcbs[0]->sp_fpususpend);
-#endif
 #ifdef SMP
 		if (!CPU_EMPTY(&suspcpus) && suspend_cpus(suspcpus) == 0) {
 			device_printf(sc->acpi_dev, "Failed to suspend APs\n");
 			return (0);	/* couldn't sleep */
 		}
 #endif
-#ifdef __amd64__
-		hw_ibrs_ibpb_active = 0;
-		hw_ssb_active = 0;
-		cpu_stdext_feature3 = 0;
-		CPU_FOREACH(i) {
-			pc = pcpu_find(i);
-			pc->pc_ibpb_set = 0;
-		}
-#endif
 
 		WAKECODE_FIXUP(resume_beep, uint8_t, (acpi_resume_beep != 0));
 		WAKECODE_FIXUP(reset_video, uint8_t, (acpi_reset_video != 0));
 
-#ifdef __amd64__
-		WAKECODE_FIXUP(wakeup_efer, uint64_t, rdmsr(MSR_EFER) &
-		    ~(EFER_LMA));
-#else
 		if ((amd_feature & AMDID_NX) != 0)
 			WAKECODE_FIXUP(wakeup_efer, uint64_t, rdmsr(MSR_EFER));
 		WAKECODE_FIXUP(wakeup_cr4, register_t, pcb->pcb_cr4);
-#endif
 		WAKECODE_FIXUP(wakeup_pcb, struct pcb *, pcb);
 		WAKECODE_FIXUP(wakeup_gdt, uint16_t, pcb->pcb_gdt.rd_limit);
 		WAKECODE_FIXUP(wakeup_gdt + 2, uint64_t, pcb->pcb_gdt.rd_base);
 
-#ifdef __i386__
 		/*
 		 * Map some low memory with virt == phys for ACPI wakecode
 		 * to use to jump to high memory after enabling paging. This
@@ -291,7 +241,6 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 		 * which may be a user thread in deprecated APIs).
 		 */
 		pmap_remap_lowptdi(true);
-#endif
 
 		/* Call ACPICA to enter the desired sleep state */
 		if (state == ACPI_STATE_S4 && sc->acpi_s4bios)
@@ -317,11 +266,7 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 		 * this point.
 		 */
 		cnresume();
-#ifdef __amd64__
-		fpuresume(susppcbs[0]->sp_fpususpend);
-#else
 		npxresume(susppcbs[0]->sp_fpususpend);
-#endif
 	}
 
 	return (1);	/* wakeup successfully */
@@ -357,10 +302,6 @@ acpi_wakeup_machdep(struct acpi_softc *sc, int state, int sleep_result,
 			resume_cpus(suspcpus);
 #endif
 		mca_resume();
-#ifdef __amd64__
-		if (vmm_resume_p != NULL)
-			vmm_resume_p();
-#endif
 		intr_resume(/*suspend_cancelled*/false);
 
 		AcpiSetFirmwareWakingVector(0, 0);
@@ -390,11 +331,7 @@ acpi_alloc_wakeup_handler(void *wakepages[ACPI_WAKEPAGES])
 	 */
 	for (i = 0; i < ACPI_WAKEPAGES; i++) {
 		wakepages[i] = contigmalloc(PAGE_SIZE, M_DEVBUF,
-		    M_NOWAIT
-#ifdef __i386__
-			     | M_EXEC
-#endif
-		    , 0x500, 0xa0000, PAGE_SIZE, 0ul);
+		    M_NOWAIT | M_EXEC, 0x500, 0xa0000, PAGE_SIZE, 0ul);
 		if (wakepages[i] == NULL) {
 			printf("%s: can't alloc wake memory\n", __func__);
 			goto freepages;
@@ -425,11 +362,6 @@ acpi_install_wakeup_handler(struct acpi_softc *sc)
 {
 	static void *wakeaddr;
 	void *wakepages[ACPI_WAKEPAGES];
-#ifdef __amd64__
-	uint64_t *pt5, *pt4, *pt3, *pt2_0, *pt2_1, *pt2_2, *pt2_3;
-	vm_paddr_t pt5pa, pt4pa, pt3pa, pt2_0pa, pt2_1pa, pt2_2pa, pt2_3pa;
-	int i;
-#endif
 
 	if (wakeaddr != NULL)
 		return;
@@ -441,25 +373,6 @@ acpi_install_wakeup_handler(struct acpi_softc *sc)
 	sc->acpi_wakeaddr = (vm_offset_t)wakeaddr;
 	sc->acpi_wakephys = vtophys(wakeaddr);
 
-#ifdef __amd64__
-	if (la57) {
-		pt5 = wakepages[7];
-		pt5pa = vtophys(pt5);
-	}
-	pt4 = wakepages[1];
-	pt3 = wakepages[2];
-	pt2_0 = wakepages[3];
-	pt2_1 = wakepages[4];
-	pt2_2 = wakepages[5];
-	pt2_3 = wakepages[6];
-	pt4pa = vtophys(pt4);
-	pt3pa = vtophys(pt3);
-	pt2_0pa = vtophys(pt2_0);
-	pt2_1pa = vtophys(pt2_1);
-	pt2_2pa = vtophys(pt2_2);
-	pt2_3pa = vtophys(pt2_3);
-#endif
-
 	bcopy(wakecode, (void *)sc->acpi_wakeaddr, sizeof(wakecode));
 
 	/* Patch GDT base address, ljmp targets. */
@@ -467,57 +380,10 @@ acpi_install_wakeup_handler(struct acpi_softc *sc)
 	    sc->acpi_wakephys + bootgdt);
 	WAKECODE_FIXUP((wakeup_sw32 + 2), uint32_t,
 	    sc->acpi_wakephys + wakeup_32);
-#ifdef __amd64__
-	WAKECODE_FIXUP((wakeup_sw64 + 1), uint32_t,
-	    sc->acpi_wakephys + wakeup_64);
-	WAKECODE_FIXUP(wakeup_pagetables, uint32_t, la57 ? (pt5pa | 0x1) :
-	    pt4pa);
-#endif
 
 	/* Save pointers to some global data. */
 	WAKECODE_FIXUP(wakeup_ret, void *, resumectx);
-#ifndef __amd64__
 	WAKECODE_FIXUP(wakeup_cr3, register_t, pmap_get_kcr3());
-#else /* __amd64__ */
-	/* Create 1:1 mapping for the low 4G */
-	if (la57) {
-		bcopy(kernel_pmap->pm_pmltop, pt5, PAGE_SIZE);
-		pt5[0] = (uint64_t)pt4pa;
-		pt5[0] |= PG_V | PG_RW | PG_U;
-	} else {
-		bcopy(kernel_pmap->pm_pmltop, pt4, PAGE_SIZE);
-	}
-
-	pt4[0] = (uint64_t)pt3pa;
-	pt4[0] |= PG_V | PG_RW | PG_U;
-
-	pt3[0] = (uint64_t)pt2_0pa;
-	pt3[0] |= PG_V | PG_RW | PG_U;
-	pt3[1] = (uint64_t)pt2_1pa;
-	pt3[1] |= PG_V | PG_RW | PG_U;
-	pt3[2] = (uint64_t)pt2_2pa;
-	pt3[2] |= PG_V | PG_RW | PG_U;
-	pt3[3] = (uint64_t)pt2_3pa;
-	pt3[3] |= PG_V | PG_RW | PG_U;
-
-	for (i = 0; i < NPDEPG; i++) {
-		pt2_0[i] = (pd_entry_t)i * NBPDR;
-		pt2_0[i] |= PG_V | PG_RW | PG_PS | PG_U;
-	}
-	for (i = 0; i < NPDEPG; i++) {
-		pt2_1[i] = (pd_entry_t)NBPDP + i * NBPDR;
-		pt2_1[i] |= PG_V | PG_RW | PG_PS | PG_U;
-	}
-	for (i = 0; i < NPDEPG; i++) {
-		pt2_2[i] = (pd_entry_t)2 * NBPDP + i * NBPDR;
-		pt2_2[i] |= PG_V | PG_RW | PG_PS | PG_U;
-	}
-	for (i = 0; i < NPDEPG; i++) {
-		pt2_3[i] = (pd_entry_t)3 * NBPDP + i * NBPDR;
-		pt2_3[i] |= PG_V | PG_RW | PG_PS | PG_U;
-	}
-
-#endif /* !__amd64__ */
 
 	if (bootverbose)
 		device_printf(sc->acpi_dev, "wakeup code va %#jx pa %#jx\n",

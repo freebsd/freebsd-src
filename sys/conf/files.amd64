@@ -49,6 +49,7 @@ ia32_assym.h			standard				\
 	clean		"ia32_assym.h"
 #
 amd64/acpica/acpi_machdep.c	optional	acpi
+amd64/acpica/acpi_wakeup.c	optional	acpi
 acpi_wakecode.o			optional	acpi			\
 	dependency	"$S/amd64/acpica/acpi_wakecode.S assym.inc"	\
 	compile-with	"${NORMAL_S}"					\
