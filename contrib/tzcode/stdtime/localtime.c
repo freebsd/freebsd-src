@@ -354,6 +354,45 @@ settzname(void)
 	}
 }
 
+#ifdef DETECT_TZ_CHANGES
+/*
+ * Determine if there's a change in the timezone since the last time we checked.
+ * Returns: -1 on error
+ * 	     0 if the timezone has not changed
+ *	     1 if the timezone has changed
+ */
+static int
+change_in_tz(const char *name)
+{
+	static char old_name[PATH_MAX];
+	static struct stat old_sb;
+	struct stat sb;
+	int error;
+
+	error = stat(name, &sb);
+	if (error != 0)
+		return -1;
+
+	if (strcmp(name, old_name) != 0) {
+		strlcpy(old_name, name, sizeof(old_name));
+		old_sb = sb;
+		return 1;
+	}
+
+	if (sb.st_dev != old_sb.st_dev ||
+	    sb.st_ino != old_sb.st_ino ||
+	    sb.st_ctime != old_sb.st_ctime ||
+	    sb.st_mtime != old_sb.st_mtime) {
+		old_sb = sb;
+		return 1;
+	}
+
+	return 0;
+}
+#else /* !DETECT_TZ_CHANGES */
+#define	change_in_tz(X)	0
+#endif /* !DETECT_TZ_CHANGES */
+
 static int
 differ_by_repeat(const time_t t1, const time_t t0)
 {
@@ -379,6 +418,7 @@ register const int	doextend;
 	int		stored;
 	int		nread;
 	int		res;
+	int		ret;
 	union {
 		struct tzhead	tzhead;
 		char		buf[2 * sizeof(struct tzhead) +
@@ -426,6 +466,22 @@ register const int	doextend;
 			(void) strcat(fullname, "/");
 			(void) strcat(fullname, name);
 			name = fullname;
+		}
+		if (doextend == TRUE) {
+			/*
+			 * Detect if the timezone file has changed.  Check
+			 * 'doextend' to ignore TZDEFRULES; the change_in_tz()
+			 * function can only keep state for a single file.
+			 */
+			ret = change_in_tz(name);
+			if (ret <= 0) {
+				/*
+				 * Returns -1 if there was an error,
+				 * and 0 if the timezone had not changed.
+				 */
+				free(fullname);
+				return ret;
+			}
 		}
 		if ((fid = _open(name, OPEN_MODE)) == -1) {
 			free(fullname);
@@ -1209,12 +1265,43 @@ gmtload(struct state *const sp)
 		(void) tzparse(gmt, sp, TRUE);
 }
 
+#ifdef DETECT_TZ_CHANGES
+static int
+recheck_tzdata()
+{
+	static time_t last_checked;
+	struct timespec now;
+	time_t current_time;
+	int error;
+
+	/*
+	 * We want to recheck the timezone file every 61 sec.
+	 */
+	error = clock_gettime(CLOCK_MONOTONIC, &now);
+	if (error <= 0) {
+		/* XXX: Can we somehow report this? */
+		return 0;
+	}
+
+	current_time = now.tv_sec;
+	if ((current_time - last_checked > 61) ||
+	    (last_checked > current_time)) {
+		last_checked = current_time;
+		return 1;
+	}
+
+	return 0;
+}
+#else /* !DETECT_TZ_CHANGES */
+#define	recheck_tzdata()	0
+#endif /* !DETECT_TZ_CHANGES */
+
 static void
 tzsetwall_basic(int rdlocked)
 {
 	if (!rdlocked)
 		_RWLOCK_RDLOCK(&lcl_rwlock);
-	if (lcl_is_set < 0) {
+	if (lcl_is_set < 0 && recheck_tzdata() == 0) {
 		if (!rdlocked)
 			_RWLOCK_UNLOCK(&lcl_rwlock);
 		return;

@@ -12,6 +12,10 @@ CFLAGS+= -I${SRCTOP}/contrib/tzcode/stdtime -I${LIBC_SRCTOP}/stdtime
 
 CFLAGS.localtime.c= -fwrapv
 
+.if ${MK_DETECT_TZ_CHANGES} != "no"
+CFLAGS+= -DDETECT_TZ_CHANGES
+.endif
+
 MAN+=	ctime.3 strftime.3 strptime.3 time2posix.3
 MAN+=	tzfile.5
 
