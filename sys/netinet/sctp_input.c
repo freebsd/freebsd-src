@@ -679,9 +679,6 @@ sctp_handle_nat_colliding_state(struct sctp_tcb *stcb)
 
 	if ((SCTP_GET_STATE(stcb) == SCTP_STATE_COOKIE_WAIT) ||
 	    (SCTP_GET_STATE(stcb) == SCTP_STATE_COOKIE_ECHOED)) {
-		SCTP_INP_INFO_RLOCK();
-		new_vtag = sctp_select_a_tag(stcb->sctp_ep, stcb->sctp_ep->sctp_lport, stcb->rport, 1);
-		SCTP_INP_INFO_RLOCK();
 		atomic_add_int(&stcb->asoc.refcnt, 1);
 		SCTP_TCB_UNLOCK(stcb);
 		SCTP_INP_INFO_WLOCK();
@@ -690,6 +687,7 @@ sctp_handle_nat_colliding_state(struct sctp_tcb *stcb)
 	} else {
 		return (0);
 	}
+	new_vtag = sctp_select_a_tag(stcb->sctp_ep, stcb->sctp_ep->sctp_lport, stcb->rport, 1);
 	if (SCTP_GET_STATE(stcb) == SCTP_STATE_COOKIE_WAIT) {
 		/* generate a new vtag and send init */
 		LIST_REMOVE(stcb, sctp_asocs);
