@@ -206,12 +206,13 @@ soo_ioctl(struct file *fp, u_long cmd, void *data, struct ucred *active_cred,
 		break;
 
 	case FIONREAD:
-		/* Unlocked read. */
+		SOCK_RECVBUF_LOCK(so);
 		if (SOLISTENING(so)) {
 			error = EINVAL;
 		} else {
-			*(int *)data = sbavail(&so->so_rcv);
+			*(int *)data = sbavail(&so->so_rcv) - so->so_rcv.sb_ctl;
 		}
+		SOCK_RECVBUF_UNLOCK(so);
 		break;
 
 	case FIONWRITE:
