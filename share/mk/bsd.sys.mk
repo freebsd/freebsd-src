@@ -199,6 +199,13 @@ CWARNFLAGS+=	-Wno-error=aggressive-loop-optimizations	\
 		-Wno-error=stringop-truncation
 .endif
 
+# GCC 9.2.0
+.if ${COMPILER_VERSION} >= 90200
+.if ${MACHINE_ARCH} == "i386"
+CWARNFLAGS+=	-Wno-error=overflow
+.endif
+.endif
+
 # GCC's own arm_neon.h triggers various warnings
 .if ${MACHINE_CPUARCH} == "aarch64"
 CWARNFLAGS+=	-Wno-system-headers
