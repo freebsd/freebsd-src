@@ -85,7 +85,11 @@ struct generic_pcie_core_softc {
 	device_t		dev;
 	bus_space_handle_t	ioh;
 	bus_dma_tag_t		dmat;
+	uint32_t		quirks;
 };
+
+/* Quirks */
+#define PCIE_ECAM_DESIGNWARE_QUIRK	(1 << 0)
 
 DECLARE_CLASS(generic_pcie_core_driver);
 
