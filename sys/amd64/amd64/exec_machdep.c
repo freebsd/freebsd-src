@@ -97,7 +97,7 @@ __FBSDID("$FreeBSD$");
 
 static void get_fpcontext(struct thread *td, mcontext_t *mcp,
     char *xfpusave, size_t xfpusave_len);
-static int  set_fpcontext(struct thread *td, mcontext_t *mcp,
+static int set_fpcontext(struct thread *td, mcontext_t *mcp,
     char *xfpustate, size_t xfpustate_len);
 
 /*
@@ -236,11 +236,7 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
  * state to gain improper privileges.
  */
 int
-sys_sigreturn(td, uap)
-	struct thread *td;
-	struct sigreturn_args /* {
-		const struct __ucontext *sigcntxp;
-	} */ *uap;
+sys_sigreturn(struct thread *td, struct sigreturn_args *uap)
 {
 	ucontext_t uc;
 	struct pcb *pcb;
@@ -938,7 +934,7 @@ user_dbreg_trap(register_t dr6)
                  * None of the breakpoint bits are set meaning this
                  * trap was not caused by any of the debug registers
                  */
-                return 0;
+                return (0);
         }
 
         dr7 = rdr7();
@@ -948,7 +944,7 @@ user_dbreg_trap(register_t dr6)
                  * thus the trap couldn't have been caused by the
                  * hardware debug registers
                  */
-                return 0;
+		return (0);
         }
 
         nbp = 0;
@@ -976,12 +972,12 @@ user_dbreg_trap(register_t dr6)
                         /*
                          * addr[i] is in user space
                          */
-                        return nbp;
+                        return (nbp);
                 }
         }
 
         /*
          * None of the breakpoints are in user space.
          */
-        return 0;
+        return (0);
 }
