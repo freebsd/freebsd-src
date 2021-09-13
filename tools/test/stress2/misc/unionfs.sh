@@ -45,8 +45,10 @@ mount -t unionfs -o noatime $mntpoint /tmp
 export RUNDIR=/tmp/stressX
 export runRUNTIME=10m            # Run tests for 10 minutes
 (cd ..; ./run.sh disk.cfg)
+umount /tmp
 while mount | grep $mntpoint | grep -q /dev/md; do
 	umount $mntpoint || sleep 1
 done
 mdconfig -d -u $mdstart
 rm -f $diskimage
+exit 0
