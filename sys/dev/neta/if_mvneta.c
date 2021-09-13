@@ -222,6 +222,11 @@ static device_method_t mvneta_methods[] = {
 	DEVMETHOD_END
 };
 
+static struct ofw_compat_data compat_data[] = {
+	{ "marvell,armada-3700-neta",		true },
+	{ NULL,					false }
+};
+
 DEFINE_CLASS_0(mvneta, mvneta_driver, mvneta_methods, sizeof(struct mvneta_softc));
 
 DRIVER_MODULE(miibus, mvneta, miibus_driver, miibus_devclass, 0, 0);
@@ -229,7 +234,7 @@ DRIVER_MODULE(mdio, mvneta, mdio_driver, mdio_devclass, 0, 0);
 MODULE_DEPEND(mvneta, mdio, 1, 1, 1);
 MODULE_DEPEND(mvneta, ether, 1, 1, 1);
 MODULE_DEPEND(mvneta, miibus, 1, 1, 1);
-MODULE_DEPEND(mvneta, mvxpbm, 1, 1, 1);
+SIMPLEBUS_PNP_INFO(compat_data);
 
 /*
  * List of MIB register and names
@@ -609,6 +614,16 @@ mvneta_attach(device_t self)
 	}
 #endif
 
+	error = bus_setup_intr(self, sc->res[1],
+	    INTR_TYPE_NET | INTR_MPSAFE, NULL, mvneta_intrs[0].handler, sc,
+	    &sc->ih_cookie[0]);
+	if (error) {
+		device_printf(self, "could not setup %s\n",
+		    mvneta_intrs[0].description);
+		mvneta_detach(self);
+		return (error);
+	}
+
 	/*
 	 * MAC address
 	 */
@@ -703,8 +718,6 @@ mvneta_attach(device_t self)
 			return (error);
 		}
 	}
-
-	ether_ifattach(ifp, sc->enaddr);
 
 	/*
 	 * Enable DMA engines and Initialize Device Registers.
@@ -835,20 +848,11 @@ mvneta_attach(device_t self)
 		mvneta_update_media(sc, ifm_target);
 	}
 
-	sysctl_mvneta_init(sc);
+	ether_ifattach(ifp, sc->enaddr);
 
 	callout_reset(&sc->tick_ch, 0, mvneta_tick, sc);
 
-	error = bus_setup_intr(self, sc->res[1],
-	    INTR_TYPE_NET | INTR_MPSAFE, NULL, mvneta_intrs[0].handler, sc,
-	    &sc->ih_cookie[0]);
-	if (error) {
-		device_printf(self, "could not setup %s\n",
-		    mvneta_intrs[0].description);
-		ether_ifdetach(sc->ifp);
-		mvneta_detach(self);
-		return (error);
-	}
+	sysctl_mvneta_init(sc);
 
 	return (0);
 }
@@ -857,19 +861,27 @@ STATIC int
 mvneta_detach(device_t dev)
 {
 	struct mvneta_softc *sc;
+	struct ifnet *ifp;
 	int q;
 
 	sc = device_get_softc(dev);
+	ifp = sc->ifp;
 
-	mvneta_stop(sc);
-	/* Detach network interface */
-	if (sc->ifp)
-		if_free(sc->ifp);
+	if (device_is_attached(dev)) {
+		mvneta_stop(sc);
+		callout_drain(&sc->tick_ch);
+		ether_ifdetach(sc->ifp);
+	}
 
 	for (q = 0; q < MVNETA_RX_QNUM_MAX; q++)
 		mvneta_ring_dealloc_rx_queue(sc, q);
 	for (q = 0; q < MVNETA_TX_QNUM_MAX; q++)
 		mvneta_ring_dealloc_tx_queue(sc, q);
+
+	device_delete_children(dev);
+
+	if (sc->ih_cookie[0] != NULL)
+		bus_teardown_intr(dev, sc->res[1], sc->ih_cookie[0]);
 
 	if (sc->tx_dtag != NULL)
 		bus_dma_tag_destroy(sc->tx_dtag);
@@ -881,6 +893,13 @@ mvneta_detach(device_t dev)
 		bus_dma_tag_destroy(sc->rxbuf_dtag);
 
 	bus_release_resources(dev, res_spec, sc->res);
+
+	if (sc->ifp)
+		if_free(sc->ifp);
+
+	if (mtx_initialized(&sc->mtx))
+		mtx_destroy(&sc->mtx);
+
 	return (0);
 }
 
@@ -1254,6 +1273,9 @@ mvneta_ring_alloc_rx_queue(struct mvneta_softc *sc, int q)
 
 	return (0);
 fail:
+	mvneta_rx_lockq(sc, q);
+	mvneta_ring_flush_rx_queue(sc, q);
+	mvneta_rx_unlockq(sc, q);
 	mvneta_ring_dealloc_rx_queue(sc, q);
 	device_printf(sc->dev, "DMA Ring buffer allocation failure.\n");
 	return (error);
@@ -1295,6 +1317,9 @@ mvneta_ring_alloc_tx_queue(struct mvneta_softc *sc, int q)
 
 	return (0);
 fail:
+	mvneta_tx_lockq(sc, q);
+	mvneta_ring_flush_tx_queue(sc, q);
+	mvneta_tx_unlockq(sc, q);
 	mvneta_ring_dealloc_tx_queue(sc, q);
 	device_printf(sc->dev, "DMA Ring buffer allocation failure.\n");
 	return (error);
@@ -1324,16 +1349,6 @@ mvneta_ring_dealloc_tx_queue(struct mvneta_softc *sc, int q)
 #endif
 
 	if (sc->txmbuf_dtag != NULL) {
-		if (mtx_name(&tx->ring_mtx) != NULL) {
-			/*
-			 * It is assumed that maps are being loaded after mutex
-			 * is initialized. Therefore we can skip unloading maps
-			 * when mutex is empty.
-			 */
-			mvneta_tx_lockq(sc, q);
-			mvneta_ring_flush_tx_queue(sc, q);
-			mvneta_tx_unlockq(sc, q);
-		}
 		for (i = 0; i < MVNETA_TX_RING_CNT; i++) {
 			txbuf = &tx->txbuf[i];
 			if (txbuf->dmap != NULL) {
@@ -1371,8 +1386,6 @@ mvneta_ring_dealloc_rx_queue(struct mvneta_softc *sc, int q)
 		return;
 
 	rx = MVNETA_RX_RING(sc, q);
-
-	mvneta_ring_flush_rx_queue(sc, q);
 
 	if (rx->desc_pa != 0)
 		bus_dmamap_unload(sc->rx_dtag, rx->desc_map);
@@ -2574,8 +2587,8 @@ mvneta_link_isr(struct mvneta_softc *sc)
 		mvneta_linkdown(sc);
 
 #ifdef DEBUG
-	log(LOG_DEBUG,
-	    "%s: link %s\n", device_xname(sc->dev), linkup ? "up" : "down");
+	device_printf(sc->dev,
+	    "%s: link %s\n", sc->ifp->if_xname, linkup ? "up" : "down");
 #endif
 }
 
@@ -2591,8 +2604,8 @@ mvneta_linkupdate(struct mvneta_softc *sc, boolean_t linkup)
 		mvneta_linkdown(sc);
 
 #ifdef DEBUG
-	log(LOG_DEBUG,
-	    "%s: link %s\n", device_xname(sc->dev), linkup ? "up" : "down");
+	device_printf(sc->dev,
+	    "%s: link %s\n", sc->ifp->if_xname, linkup ? "up" : "down");
 #endif
 }
 
