@@ -95,6 +95,7 @@ __FBSDID("$FreeBSD$");
 #include <cam/scsi/scsi_message.h>
 
 #include "common/common.h"
+#include "common/t4_regs.h"
 #include "common/t4_tcb.h"
 #include "tom/t4_tom.h"
 #include "cxgbei.h"
@@ -707,6 +708,19 @@ find_offload_adapter(struct adapter *sc, void *arg)
 	INP_WUNLOCK(inp);
 }
 
+static bool
+is_memfree(struct adapter *sc)
+{
+	uint32_t em;
+
+	em = t4_read_reg(sc, A_MA_TARGET_MEM_ENABLE);
+	if ((em & F_EXT_MEM_ENABLE) != 0)
+		return (false);
+	if (is_t5(sc) && (em & F_EXT_MEM1_ENABLE) != 0)
+		return (false);
+	return (true);
+}
+
 /* XXXNP: move this to t4_tom. */
 static void
 send_iscsi_flowc_wr(struct adapter *sc, struct toepcb *toep, int maxlen)
@@ -863,7 +877,8 @@ icl_cxgbei_conn_handoff(struct icl_conn *ic, int fd)
 		if (ic->ic_data_crc32c)
 			icc->ulp_submode |= ULP_CRC_DATA;
 
-		if (icc->sc->tt.iso && chip_id(icc->sc) >= CHELSIO_T5) {
+		if (icc->sc->tt.iso && chip_id(icc->sc) >= CHELSIO_T5 &&
+		    !is_memfree(icc->sc)) {
 			max_iso_pdus = CXGBEI_MAX_ISO_PAYLOAD /
 			    max_tx_pdu_len;
 			ic->ic_hw_isomax = max_iso_pdus *
