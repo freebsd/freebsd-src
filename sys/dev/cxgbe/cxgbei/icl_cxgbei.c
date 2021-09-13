@@ -857,52 +857,46 @@ icl_cxgbei_conn_handoff(struct icl_conn *ic, int fd)
 	inp = sotoinpcb(so);
 	INP_WLOCK(inp);
 	tp = intotcpcb(inp);
-	if (inp->inp_flags & (INP_DROPPED | INP_TIMEWAIT))
-		error = EBUSY;
-	else {
-		/*
-		 * socket could not have been "unoffloaded" if here.
-		 */
-		MPASS(tp->t_flags & TF_TOE);
-		MPASS(tp->tod != NULL);
-		MPASS(tp->t_toe != NULL);
-		toep = tp->t_toe;
-		MPASS(toep->vi->adapter == icc->sc);
-		icc->toep = toep;
-		icc->cwt = cxgbei_select_worker_thread(icc);
-
-		icc->ulp_submode = 0;
-		if (ic->ic_header_crc32c)
-			icc->ulp_submode |= ULP_CRC_HEADER;
-		if (ic->ic_data_crc32c)
-			icc->ulp_submode |= ULP_CRC_DATA;
-
-		if (icc->sc->tt.iso && chip_id(icc->sc) >= CHELSIO_T5 &&
-		    !is_memfree(icc->sc)) {
-			max_iso_pdus = CXGBEI_MAX_ISO_PAYLOAD /
-			    max_tx_pdu_len;
-			ic->ic_hw_isomax = max_iso_pdus *
-			    ic->ic_max_send_data_segment_length;
-		} else
-			max_iso_pdus = 1;
-
-		so->so_options |= SO_NO_DDP;
-		toep->params.ulp_mode = ULP_MODE_ISCSI;
-		toep->ulpcb = icc;
-
-		send_iscsi_flowc_wr(icc->sc, toep,
-		    roundup(max_iso_pdus * max_tx_pdu_len, tp->t_maxseg));
-		set_ulp_mode_iscsi(icc->sc, toep, icc->ulp_submode);
-		error = 0;
+	if (inp->inp_flags & (INP_DROPPED | INP_TIMEWAIT)) {
+		INP_WUNLOCK(inp);
+		return (EBUSY);
 	}
+
+	/*
+	 * socket could not have been "unoffloaded" if here.
+	 */
+	MPASS(tp->t_flags & TF_TOE);
+	MPASS(tp->tod != NULL);
+	MPASS(tp->t_toe != NULL);
+	toep = tp->t_toe;
+	MPASS(toep->vi->adapter == icc->sc);
+	icc->toep = toep;
+	icc->cwt = cxgbei_select_worker_thread(icc);
+
+	icc->ulp_submode = 0;
+	if (ic->ic_header_crc32c)
+		icc->ulp_submode |= ULP_CRC_HEADER;
+	if (ic->ic_data_crc32c)
+		icc->ulp_submode |= ULP_CRC_DATA;
+
+	if (icc->sc->tt.iso && chip_id(icc->sc) >= CHELSIO_T5 &&
+	    !is_memfree(icc->sc)) {
+		max_iso_pdus = CXGBEI_MAX_ISO_PAYLOAD / max_tx_pdu_len;
+		ic->ic_hw_isomax = max_iso_pdus *
+		    ic->ic_max_send_data_segment_length;
+	} else
+		max_iso_pdus = 1;
+
+	so->so_options |= SO_NO_DDP;
+	toep->params.ulp_mode = ULP_MODE_ISCSI;
+	toep->ulpcb = icc;
+
+	send_iscsi_flowc_wr(icc->sc, toep,
+	    roundup(max_iso_pdus * max_tx_pdu_len, tp->t_maxseg));
+	set_ulp_mode_iscsi(icc->sc, toep, icc->ulp_submode);
 	INP_WUNLOCK(inp);
 
-	if (error == 0) {
-		error = icl_cxgbei_setsockopt(ic, so, max_tx_pdu_len,
-		    max_rx_pdu_len);
-	}
-
-	return (error);
+	return (icl_cxgbei_setsockopt(ic, so, max_tx_pdu_len, max_rx_pdu_len));
 }
 
 void
