@@ -448,6 +448,8 @@ fpuinitstate(void *arg __unused)
 		    xsave_area_elm_descr), M_DEVBUF, M_WAITOK | M_ZERO);
 	}
 
+	cpu_thread_alloc(&thread0);
+
 	saveintr = intr_disable();
 	stop_emulating();
 

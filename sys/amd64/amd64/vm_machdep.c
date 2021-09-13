@@ -90,19 +90,17 @@ void
 set_top_of_stack_td(struct thread *td)
 {
 	td->td_md.md_stack_base = td->td_kstack +
-	    td->td_kstack_pages * PAGE_SIZE -
-	    roundup2(cpu_max_ext_state_size, XSAVE_AREA_ALIGN);
+	    td->td_kstack_pages * PAGE_SIZE;
 }
 
 struct savefpu *
 get_pcb_user_save_td(struct thread *td)
 {
-	vm_offset_t p;
-
-	p = td->td_md.md_stack_base;
-	KASSERT((p % XSAVE_AREA_ALIGN) == 0,
-	    ("Unaligned pcb_user_save area ptr %#lx td %p", p, td));
-	return ((struct savefpu *)p);
+	KASSERT(((vm_offset_t)td->td_md.md_usr_fpu_save %
+	    XSAVE_AREA_ALIGN) == 0,
+	    ("Unaligned pcb_user_save area ptr %p td %p",
+	    td->td_md.md_usr_fpu_save, td));
+	return (td->td_md.md_usr_fpu_save);
 }
 
 struct pcb *
@@ -393,6 +391,8 @@ cpu_thread_alloc(struct thread *td)
 	set_top_of_stack_td(td);
 	td->td_pcb = pcb = get_pcb_td(td);
 	td->td_frame = (struct trapframe *)td->td_md.md_stack_base - 1;
+	td->td_md.md_usr_fpu_save = fpu_save_area_alloc();
+	td->td_md.md_fpu_scratch = fpu_save_area_alloc();
 	pcb->pcb_save = get_pcb_user_save_pcb(pcb);
 	if (use_xsave) {
 		xhdr = (struct xstate_hdr *)(pcb->pcb_save + 1);
@@ -404,8 +404,12 @@ cpu_thread_alloc(struct thread *td)
 void
 cpu_thread_free(struct thread *td)
 {
-
 	cpu_thread_clean(td);
+
+	fpu_save_area_free(td->td_md.md_usr_fpu_save);
+	td->td_md.md_usr_fpu_save = NULL;
+	fpu_save_area_free(td->td_md.md_fpu_scratch);
+	td->td_md.md_fpu_scratch = NULL;
 }
 
 bool

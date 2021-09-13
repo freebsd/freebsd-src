@@ -210,7 +210,7 @@ ia32_set_mcontext(struct thread *td, struct ia32_mcontext *mcp)
 		if (mcp->mc_xfpustate_len > cpu_max_ext_state_size -
 		    sizeof(struct savefpu))
 			return (EINVAL);
-		xfpustate = __builtin_alloca(mcp->mc_xfpustate_len);
+		xfpustate = (char *)td->td_md.md_fpu_scratch;
 		ret = copyin(PTRIN(mcp->mc_xfpustate), xfpustate,
 		    mcp->mc_xfpustate_len);
 		if (ret != 0)
@@ -579,7 +579,7 @@ ia32_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 
 	if (cpu_max_ext_state_size > sizeof(struct savefpu) && use_xsave) {
 		xfpusave_len = cpu_max_ext_state_size - sizeof(struct savefpu);
-		xfpusave = __builtin_alloca(xfpusave_len);
+		xfpusave = (char *)td->td_md.md_fpu_scratch;
 	} else {
 		xfpusave_len = 0;
 		xfpusave = NULL;
@@ -882,7 +882,7 @@ freebsd32_sigreturn(td, uap)
 			    td->td_proc->p_pid, td->td_name, xfpustate_len);
 			return (EINVAL);
 		}
-		xfpustate = __builtin_alloca(xfpustate_len);
+		xfpustate = (char *)td->td_md.md_fpu_scratch;
 		error = copyin(PTRIN(ucp->uc_mcontext.mc_xfpustate),
 		    xfpustate, xfpustate_len);
 		if (error != 0) {
