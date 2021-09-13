@@ -681,10 +681,6 @@ interpret:
 		goto exec_fail_dealloc;
 	}
 
-	/* ABI enforces the use of Capsicum. Switch into capabilities mode. */
-	if (SV_PROC_FLAG(p, SV_CAPSICUM))
-		sys_cap_enter(td, NULL);
-
 	/*
 	 * Copy out strings (args and env) and initialize stack base.
 	 */
