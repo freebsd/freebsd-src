@@ -42,7 +42,6 @@ device		neta			# Marvell Armada 370/38x/XP/3700 NIC
 # Etherswitch devices
 device		etherswitch		# Enable etherswitch support
 device		miiproxy		# Required for etherswitch
-device		e6000sw			# Marvell mv88e6085 based switches
 
 # USB support
 device		ehci_mv			# Marvell EHCI USB interface

@@ -108,6 +108,7 @@ SUBDIR=	\
 	${_dpms} \
 	dummynet \
 	${_dwwdt} \
+	${_e6000sw} \
 	${_efirt} \
 	${_em} \
 	${_ena} \
@@ -624,6 +625,7 @@ _rockchip=	rockchip
 
 .if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "arm"
 _sdhci_fdt=	sdhci_fdt
+_e6000sw=	e6000sw
 .endif
 
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
