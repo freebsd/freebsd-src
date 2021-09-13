@@ -870,6 +870,12 @@ icl_cxgbei_conn_handoff(struct icl_conn *ic, int fd)
 	MPASS(tp->t_toe != NULL);
 	toep = tp->t_toe;
 	MPASS(toep->vi->adapter == icc->sc);
+
+	if (ulp_mode(toep) != ULP_MODE_NONE) {
+		INP_WUNLOCK(inp);
+		return (EINVAL);
+	}
+
 	icc->toep = toep;
 	icc->cwt = cxgbei_select_worker_thread(icc);
 
@@ -887,7 +893,6 @@ icl_cxgbei_conn_handoff(struct icl_conn *ic, int fd)
 	} else
 		max_iso_pdus = 1;
 
-	so->so_options |= SO_NO_DDP;
 	toep->params.ulp_mode = ULP_MODE_ISCSI;
 	toep->ulpcb = icc;
 
