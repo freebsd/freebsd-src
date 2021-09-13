@@ -185,6 +185,8 @@ generic_pcie_read_config(device_t dev, u_int bus, u_int slot,
 	if ((slot > PCI_SLOTMAX) || (func > PCI_FUNCMAX) ||
 	    (reg > PCIE_REGMAX))
 		return (~0U);
+	if ((sc->quirks & PCIE_ECAM_DESIGNWARE_QUIRK) && bus == 0 && slot > 0)
+		return (~0U);
 
 	offset = PCIE_ADDR_OFFSET(bus - sc->bus_start, slot, func, reg);
 	t = sc->bst;
