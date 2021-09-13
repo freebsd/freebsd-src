@@ -37,9 +37,11 @@
  */
 
 /* No #pragam once since glibc can include this multiple times */
-#include <sys/cdefs.h>
-
 #include_next <stdio.h>
+
+#ifndef _BOOTSTRAP_LINUX_STDIO_H
+#define _BOOTSTRAP_LINUX_STDIO_H
+#include <sys/cdefs.h>
 
 __BEGIN_DECLS
 char *fgetln(FILE *, __SIZE_TYPE__ *);
@@ -47,3 +49,5 @@ char *fgetln(FILE *, __SIZE_TYPE__ *);
 __WCHAR_TYPE__ *fgetwln(FILE *__restrict, __SIZE_TYPE__ *__restrict);
 #endif
 __END_DECLS
+
+#endif
