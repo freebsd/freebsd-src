@@ -2178,6 +2178,10 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 			    &sockbuf, sizeof(sockbuf)) == -1)
 				log_warn("setsockopt(SO_SNDBUF) failed "
 				    "for %s", newp->p_listen);
+			if (setsockopt(newp->p_socket, SOL_SOCKET, SO_NO_DDP,
+			    &one, sizeof(one)) == -1)
+				log_warn("setsockopt(SO_NO_DDP) failed "
+				    "for %s", newp->p_listen);
 			error = setsockopt(newp->p_socket, SOL_SOCKET,
 			    SO_REUSEADDR, &one, sizeof(one));
 			if (error != 0) {
