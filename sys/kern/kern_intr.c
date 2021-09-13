@@ -30,6 +30,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
+#include "opt_hwpmc_hooks.h"
 #include "opt_kstack_usage_prof.h"
 
 #include <sys/param.h>
@@ -75,6 +76,7 @@ struct intr_thread {
 	struct thread *it_thread;	/* Kernel thread. */
 	int	it_flags;		/* (j) IT_* flags. */
 	int	it_need;		/* Needs service. */
+	int	it_waiting;		/* Waiting in the runq. */
 };
 
 /* Interrupt thread flags kept in it_flags */
@@ -100,13 +102,19 @@ SYSCTL_INT(_hw, OID_AUTO, intr_storm_threshold, CTLFLAG_RWTUN,
 static int intr_epoch_batch = 1000;
 SYSCTL_INT(_hw, OID_AUTO, intr_epoch_batch, CTLFLAG_RWTUN, &intr_epoch_batch,
     0, "Maximum interrupt handler executions without re-entering epoch(9)");
+#ifdef HWPMC_HOOKS
+static int intr_hwpmc_waiting_report_threshold = 1;
+SYSCTL_INT(_hw, OID_AUTO, intr_hwpmc_waiting_report_threshold, CTLFLAG_RWTUN,
+    &intr_hwpmc_waiting_report_threshold, 1,
+    "Threshold for reporting number of events in a workq");
+#endif
 static TAILQ_HEAD(, intr_event) event_list =
     TAILQ_HEAD_INITIALIZER(event_list);
 static struct mtx event_lock;
 MTX_SYSINIT(intr_event_list, &event_lock, "intr event list", MTX_DEF);
 
 static void	intr_event_update(struct intr_event *ie);
-static int	intr_event_schedule_thread(struct intr_event *ie);
+static int	intr_event_schedule_thread(struct intr_event *ie, struct trapframe *frame);
 static struct intr_thread *ithread_create(const char *name);
 static void	ithread_destroy(struct intr_thread *ithread);
 static void	ithread_execute_handlers(struct proc *p, 
@@ -114,6 +122,16 @@ static void	ithread_execute_handlers(struct proc *p,
 static void	ithread_loop(void *);
 static void	ithread_update(struct intr_thread *ithd);
 static void	start_softintr(void *);
+
+#ifdef HWPMC_HOOKS
+#include <sys/pmckern.h>
+PMC_SOFT_DEFINE( , , intr, all);
+PMC_SOFT_DEFINE( , , intr, ithread);
+PMC_SOFT_DEFINE( , , intr, filter);
+PMC_SOFT_DEFINE( , , intr, stray);
+PMC_SOFT_DEFINE( , , intr, schedule);
+PMC_SOFT_DEFINE( , , intr, waiting);
+#endif
 
 /* Map an interrupt type to an ithread priority. */
 u_char
@@ -773,7 +791,7 @@ intr_handler_barrier(struct intr_handler *handler)
 	}
 	if ((handler->ih_flags & IH_CHANGED) == 0) {
 		handler->ih_flags |= IH_CHANGED;
-		intr_event_schedule_thread(ie);
+		intr_event_schedule_thread(ie, NULL);
 	}
 	while ((handler->ih_flags & IH_CHANGED) != 0)
 		msleep(handler, &ie->ie_lock, 0, "ih_barr", 0);
@@ -872,7 +890,7 @@ intr_event_remove_handler(void *cookie)
 	KASSERT((handler->ih_flags & IH_DEAD) == 0,
 	    ("duplicate handle remove"));
 	handler->ih_flags |= IH_DEAD;
-	intr_event_schedule_thread(ie);
+	intr_event_schedule_thread(ie, NULL);
 	while (handler->ih_flags & IH_DEAD)
 		msleep(handler, &ie->ie_lock, 0, "iev_rmh", 0);
 	intr_event_update(ie);
@@ -944,7 +962,7 @@ intr_event_resume_handler(void *cookie)
 }
 
 static int
-intr_event_schedule_thread(struct intr_event *ie)
+intr_event_schedule_thread(struct intr_event *ie, struct trapframe *frame)
 {
 	struct intr_entropy entropy;
 	struct intr_thread *it;
@@ -986,11 +1004,28 @@ intr_event_schedule_thread(struct intr_event *ie)
 	atomic_store_rel_int(&it->it_need, 1);
 	thread_lock(td);
 	if (TD_AWAITING_INTR(td)) {
+#ifdef HWPMC_HOOKS
+		atomic_set_int(&it->it_waiting, 0);
+		if (frame != NULL)
+			PMC_SOFT_CALL_TF( , , intr, schedule, frame);
+		else
+			PMC_SOFT_CALL( , , intr, schedule);
+#endif
 		CTR3(KTR_INTR, "%s: schedule pid %d (%s)", __func__, td->td_proc->p_pid,
 		    td->td_name);
 		TD_CLR_IWAIT(td);
 		sched_add(td, SRQ_INTR);
 	} else {
+#ifdef HWPMC_HOOKS
+		atomic_add_int(&it->it_waiting, 1);
+
+		if (atomic_load_int(&it->it_waiting) >= intr_hwpmc_waiting_report_threshold) {
+			if (frame != NULL)
+				PMC_SOFT_CALL_TF( , , intr, waiting, frame);
+			else
+				PMC_SOFT_CALL( , , intr, waiting);
+		}
+#endif
 		CTR5(KTR_INTR, "%s: pid %d (%s): it_need %d, state %d",
 		    __func__, td->td_proc->p_pid, td->td_name, it->it_need, TD_GET_STATE(td));
 		thread_unlock(td);
@@ -1083,7 +1118,7 @@ swi_sched(void *cookie, int flags)
 #endif
 	} else {
 		VM_CNT_INC(v_soft);
-		error = intr_event_schedule_thread(ie);
+		error = intr_event_schedule_thread(ie, NULL);
 		KASSERT(error == 0, ("stray software interrupt"));
 	}
 }
@@ -1374,12 +1409,23 @@ intr_event_handle(struct intr_event *ie, struct trapframe *frame)
 			ret = ih->ih_filter(frame);
 		else
 			ret = ih->ih_filter(ih->ih_argument);
+#ifdef HWPMC_HOOKS
+		PMC_SOFT_CALL_TF( , , intr, all, frame);
+#endif
 		KASSERT(ret == FILTER_STRAY ||
 		    ((ret & (FILTER_SCHEDULE_THREAD | FILTER_HANDLED)) != 0 &&
 		    (ret & ~(FILTER_SCHEDULE_THREAD | FILTER_HANDLED)) == 0),
 		    ("%s: incorrect return value %#x from %s", __func__, ret,
 		    ih->ih_name));
 		filter = filter || ret == FILTER_HANDLED;
+#ifdef HWPMC_HOOKS
+		if (ret & FILTER_SCHEDULE_THREAD)
+			PMC_SOFT_CALL_TF( , , intr, ithread, frame);
+		else if (ret & FILTER_HANDLED)
+			PMC_SOFT_CALL_TF( , , intr, filter, frame);
+		else if (ret == FILTER_STRAY)
+			PMC_SOFT_CALL_TF( , , intr, stray, frame);
+#endif
 
 		/*
 		 * Wrapper handler special handling:
@@ -1416,7 +1462,7 @@ intr_event_handle(struct intr_event *ie, struct trapframe *frame)
 	if (thread) {
 		int error __unused;
 
-		error =  intr_event_schedule_thread(ie);
+		error =  intr_event_schedule_thread(ie, frame);
 		KASSERT(error == 0, ("bad stray interrupt"));
 	}
 	critical_exit();
