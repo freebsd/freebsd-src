@@ -264,7 +264,6 @@ SUBDIR=	\
 	mxge \
 	my \
 	${_nctgpio} \
-	${_neta} \
 	${_netgraph} \
 	${_nfe} \
 	nfscl \
@@ -627,7 +626,6 @@ _rockchip=	rockchip
 .if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "arm"
 _sdhci_fdt=	sdhci_fdt
 _e6000sw=	e6000sw
-_neta=		neta
 .endif
 
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
