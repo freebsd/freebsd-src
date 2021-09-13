@@ -135,7 +135,7 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 
 	if (cpu_max_ext_state_size > sizeof(struct savefpu) && use_xsave) {
 		xfpusave_len = cpu_max_ext_state_size - sizeof(struct savefpu);
-		xfpusave = __builtin_alloca(xfpusave_len);
+		xfpusave = (char *)td->td_md.md_fpu_scratch;
 	} else {
 		xfpusave_len = 0;
 		xfpusave = NULL;
@@ -674,7 +674,7 @@ set_mcontext(struct thread *td, mcontext_t *mcp)
 		if (mcp->mc_xfpustate_len > cpu_max_ext_state_size -
 		    sizeof(struct savefpu))
 			return (EINVAL);
-		xfpustate = __builtin_alloca(mcp->mc_xfpustate_len);
+		xfpustate = (char *)td->td_md.md_fpu_scratch;
 		ret = copyin((void *)mcp->mc_xfpustate, xfpustate,
 		    mcp->mc_xfpustate_len);
 		if (ret != 0)
