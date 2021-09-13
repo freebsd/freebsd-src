@@ -646,8 +646,10 @@ enum i40e_status_code i40e_init_adminq(struct i40e_hw *hw)
 {
 	struct i40e_adminq_info *aq = &hw->aq;
 	enum i40e_status_code ret_code;
-	u16 cfg_ptr, oem_hi, oem_lo;
-	u16 eetrack_lo, eetrack_hi;
+	u16 oem_hi = 0, oem_lo = 0;
+	u16 eetrack_hi = 0;
+	u16 eetrack_lo = 0;
+	u16 cfg_ptr = 0;
 	int retry = 0;
 
 	/* verify input for valid configuration */
