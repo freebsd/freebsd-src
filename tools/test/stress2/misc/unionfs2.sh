@@ -28,19 +28,15 @@
 
 [ `id -u ` -ne 0 ] && echo "Must be root!" && exit 1
 
-saved=`sysctl vfs.lookup_shared | awk '{print $NF}'`
-for i in 1 0; do
-   sysctl vfs.lookup_shared=$i
-   [ -d /var/tmp/unionfs ] || mkdir -p /var/tmp/unionfs
-   mount_unionfs /var/tmp/unionfs /tmp/stressX
+[ -d /var/tmp/unionfs ] || mkdir -p /var/tmp/unionfs
+mount_unionfs /var/tmp/unionfs /tmp/stressX
 
-   export RUNDIR=/var/tmp/unionfs/stressX
-   export runRUNTIME=10m            # Run tests for 10 minutes
-   (cd ..; ./run.sh disk.cfg)
-   false
-   while mount | grep -q /unionfs; do
-      umount /tmp/stressX > /dev/null 2>&1
-   done
-   rm -rf /var/tmp/unionfs
+export RUNDIR=/var/tmp/unionfs/stressX
+export runRUNTIME=10m            # Run tests for 10 minutes
+(cd ..; ./run.sh disk.cfg)
+false
+while mount | grep -q /unionfs; do
+	umount /tmp/stressX > /dev/null 2>&1
 done
-sysctl vfs.lookup_shared=$saved
+rm -rf /var/tmp/unionfs
+exit 0
