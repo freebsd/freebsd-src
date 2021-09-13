@@ -151,6 +151,13 @@ pci_host_generic_setup_fdt(device_t dev)
 	if (error != 0)
 		return (error);
 
+	if (ofw_bus_is_compatible(dev, "marvell,armada8k-pcie-ecam") ||
+	    ofw_bus_is_compatible(dev, "socionext,synquacer-pcie-ecam") ||
+	    ofw_bus_is_compatible(dev, "snps,dw-pcie-ecam")) {
+		device_set_desc(dev, "Synopsys DesignWare PCIe Controller");
+		sc->base.quirks |= PCIE_ECAM_DESIGNWARE_QUIRK;
+	}
+
 	ofw_bus_setup_iinfo(node, &sc->pci_iinfo, sizeof(cell_t));
 
 	return (0);
