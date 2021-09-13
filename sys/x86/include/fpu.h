@@ -123,10 +123,12 @@ struct savexmm {
 } __aligned(16);
 
 #ifdef __i386__
+#ifndef __M32_BROKEN_MODULE_HACK__
 union savefpu {
 	struct save87	sv_87;
 	struct savexmm	sv_xmm;
 };
+#endif /* __M32_BROKEN_MODULE_HACK__ */
 #else
 /* Floating point context. (amd64 fxsave/fxrstor) */
 struct savefpu {
