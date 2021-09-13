@@ -1258,7 +1258,6 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	caddr_t kmdp;
 	int gsel_tss, x;
 	struct pcpu *pc;
-	struct xstate_hdr *xhdr;
 	uint64_t cr3, rsp0;
 	pml4_entry_t *pml4e;
 	pdp_entry_t *pdpe;
@@ -1564,19 +1563,6 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	msgbufinit(msgbufp, msgbufsize);
 	fpuinit();
 
-	/*
-	 * Reinitialize thread0's stack base now that the xsave area size is
-	 * known.  Set up thread0's pcb save area after fpuinit calculated fpu
-	 * save area size.  Zero out the extended state header in fpu save area.
-	 */
-	set_top_of_stack_td(&thread0);
-	thread0.td_pcb->pcb_save = get_pcb_user_save_td(&thread0);
-	bzero(thread0.td_pcb->pcb_save, cpu_max_ext_state_size);
-	if (use_xsave) {
-		xhdr = (struct xstate_hdr *)(get_pcb_user_save_td(&thread0) +
-		    1);
-		xhdr->xstate_bv = xsave_mask;
-	}
 	/* make an initial tss so cpu can get interrupt stack on syscall! */
 	rsp0 = thread0.td_md.md_stack_base;
 	/* Ensure the stack is aligned to 16 bytes */
