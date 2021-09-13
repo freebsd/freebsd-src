@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/kthread.h>
 #include <sys/module.h>
+#include <sys/taskqueue.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
 
@@ -79,7 +80,8 @@ typedef struct e6000sw_softc {
 	struct ifnet		*ifp[E6000SW_MAX_PORTS];
 	char			*ifname[E6000SW_MAX_PORTS];
 	device_t		miibus[E6000SW_MAX_PORTS];
-	struct proc		*kproc;
+	struct taskqueue	*sc_tq;
+	struct timeout_task	sc_tt;
 
 	int			vlans[E6000SW_NUM_VLANS];
 	uint32_t		swid;
@@ -127,7 +129,7 @@ static int e6000sw_setvgroup_wrapper(device_t, etherswitch_vlangroup_t *);
 static int e6000sw_setvgroup(device_t, etherswitch_vlangroup_t *);
 static int e6000sw_getvgroup(device_t, etherswitch_vlangroup_t *);
 static void e6000sw_setup(device_t, e6000sw_softc_t *);
-static void e6000sw_tick(void *);
+static void e6000sw_tick(void *, int);
 static void e6000sw_set_atustat(device_t, e6000sw_softc_t *, int, int);
 static int e6000sw_atu_flush(device_t, e6000sw_softc_t *, int);
 static int e6000sw_vtu_flush(e6000sw_softc_t *);
@@ -450,8 +452,13 @@ e6000sw_attach(device_t dev)
 
 	E6000SW_LOCK(sc);
 	e6000sw_setup(dev, sc);
-
 	ports = ofw_bus_find_child(sc->node, "ports");
+	sc->sc_tq = taskqueue_create("e6000sw_taskq", M_NOWAIT,
+	    taskqueue_thread_enqueue, &sc->sc_tq);
+
+	TIMEOUT_TASK_INIT(sc->sc_tq, &sc->sc_tt, 0, e6000sw_tick, sc);
+	taskqueue_start_threads(&sc->sc_tq, 1, PI_NET, "%s taskq",
+	    device_get_nameunit(dev));
 
 	if (ports == 0) {
 		device_printf(dev, "failed to parse DTS: no ports found for "
@@ -544,7 +551,7 @@ e6000sw_attach(device_t dev)
 	bus_generic_probe(dev);
 	bus_generic_attach(dev);
 
-	kproc_create(e6000sw_tick, sc, &sc->kproc, 0, 0, "e6000sw tick kproc");
+	taskqueue_enqueue_timeout(sc->sc_tq, &sc->sc_tt, hz);
 
 	return (0);
 
@@ -711,6 +718,13 @@ e6000sw_detach(device_t dev)
 	e6000sw_softc_t *sc;
 
 	sc = device_get_softc(dev);
+
+	if (device_is_attached(dev))
+		taskqueue_drain_timeout(sc->sc_tq, &sc->sc_tt);
+
+	if (sc->sc_tq != NULL)
+		taskqueue_free(sc->sc_tq);
+
 	bus_generic_detach(dev);
 	sx_destroy(&sc->sx);
 	for (phy = 0; phy < sc->num_ports; phy++) {
@@ -1460,7 +1474,7 @@ e6000sw_update_ifmedia(uint16_t portstatus, u_int *media_status, u_int *media_ac
 }
 
 static void
-e6000sw_tick(void *arg)
+e6000sw_tick(void *arg, int p __unused)
 {
 	e6000sw_softc_t *sc;
 	struct mii_data *mii;
@@ -1472,34 +1486,31 @@ e6000sw_tick(void *arg)
 
 	E6000SW_LOCK_ASSERT(sc, SA_UNLOCKED);
 
-	for (;;) {
-		E6000SW_LOCK(sc);
-		for (port = 0; port < sc->num_ports; port++) {
-			/* Tick only on PHY ports */
-			if (!e6000sw_is_portenabled(sc, port) ||
-			    !e6000sw_is_phyport(sc, port))
+	E6000SW_LOCK(sc);
+	for (port = 0; port < sc->num_ports; port++) {
+		/* Tick only on PHY ports */
+		if (!e6000sw_is_portenabled(sc, port) ||
+		    !e6000sw_is_phyport(sc, port))
+			continue;
+
+		mii = e6000sw_miiforphy(sc, port);
+		if (mii == NULL)
+			continue;
+
+		portstatus = e6000sw_readreg(sc, REG_PORT(sc, port),
+		    PORT_STATUS);
+
+		e6000sw_update_ifmedia(portstatus,
+		    &mii->mii_media_status, &mii->mii_media_active);
+
+		LIST_FOREACH(miisc, &mii->mii_phys, mii_list) {
+			if (IFM_INST(mii->mii_media.ifm_cur->ifm_media)
+			    != miisc->mii_inst)
 				continue;
-
-			mii = e6000sw_miiforphy(sc, port);
-			if (mii == NULL)
-				continue;
-
-			portstatus = e6000sw_readreg(sc, REG_PORT(sc, port),
-			    PORT_STATUS);
-
-			e6000sw_update_ifmedia(portstatus,
-			    &mii->mii_media_status, &mii->mii_media_active);
-
-			LIST_FOREACH(miisc, &mii->mii_phys, mii_list) {
-				if (IFM_INST(mii->mii_media.ifm_cur->ifm_media)
-				    != miisc->mii_inst)
-					continue;
-				mii_phy_update(miisc, MII_POLLSTAT);
-			}
+			mii_phy_update(miisc, MII_POLLSTAT);
 		}
-		E6000SW_UNLOCK(sc);
-		pause("e6000sw tick", 1000);
 	}
+	E6000SW_UNLOCK(sc);
 }
 
 static void
