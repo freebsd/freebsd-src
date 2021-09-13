@@ -42,4 +42,6 @@ CLEANFILES+=	${TGHDRS} ${TGHDRS:C/$/.d/}
 
 LIBADD+=	z
 
+LINKS=		${BINDIR}/llvm-objcopy ${BINDIR}/llvm-strip
+
 .include "../llvm.prog.mk"
