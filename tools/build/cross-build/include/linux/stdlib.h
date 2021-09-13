@@ -60,8 +60,6 @@ int cgetustr(char *, const char *, char **);
 const char *getprogname(void);
 void setprogname(const char *progname);
 
-void *reallocarray(void *, size_t, size_t) __result_use_check
-    __alloc_size2(2, 3);
 void *reallocf(void *, size_t) __result_use_check __alloc_size(2);
 
 unsigned arc4random(void);

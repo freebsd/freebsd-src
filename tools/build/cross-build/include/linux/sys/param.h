@@ -47,6 +47,3 @@
  * let's use 32 since that will work across all systems
  */
 #define MAXLOGNAME 33 /* max login name length (incl. NUL) */
-
-/* For elftoolchain (seems like on ubuntu it's in errno.h) */
-extern char *program_invocation_short_name;
