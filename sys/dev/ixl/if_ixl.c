@@ -1514,11 +1514,11 @@ ixl_if_media_status(if_ctx_t ctx, struct ifmediareq *ifmr)
 			ifmr->ifm_active |= IFM_1000_T;
 			break;
 		/* 2.5 G */
-		case I40E_PHY_TYPE_2_5GBASE_T:
+		case I40E_PHY_TYPE_2_5GBASE_T_LINK_STATUS:
 			ifmr->ifm_active |= IFM_2500_T;
 			break;
 		/* 5 G */
-		case I40E_PHY_TYPE_5GBASE_T:
+		case I40E_PHY_TYPE_5GBASE_T_LINK_STATUS:
 			ifmr->ifm_active |= IFM_5000_T;
 			break;
 		/* 10 G */

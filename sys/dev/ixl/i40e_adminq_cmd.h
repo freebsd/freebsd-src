@@ -43,8 +43,8 @@
 
 
 #define I40E_FW_API_VERSION_MAJOR	0x0001
-#define I40E_FW_API_VERSION_MINOR_X722	0x000A
-#define I40E_FW_API_VERSION_MINOR_X710	0x000A
+#define I40E_FW_API_VERSION_MINOR_X722	0x000C
+#define I40E_FW_API_VERSION_MINOR_X710	0x000E
 
 #define I40E_FW_MINOR_VERSION(_h) ((_h)->mac.type == I40E_MAC_XL710 ? \
 					I40E_FW_API_VERSION_MINOR_X710 : \
@@ -267,7 +267,8 @@ enum i40e_admin_queue_opc {
 	i40e_aqc_opc_nvm_update			= 0x0703,
 	i40e_aqc_opc_nvm_config_read		= 0x0704,
 	i40e_aqc_opc_nvm_config_write		= 0x0705,
-	i40e_aqc_opc_nvm_progress		= 0x0706,
+	i40e_aqc_opc_nvm_update_in_process	= 0x0706,
+	i40e_aqc_opc_rollback_revision_update	= 0x0707,
 	i40e_aqc_opc_oem_post_update		= 0x0720,
 	i40e_aqc_opc_thermal_sensor		= 0x0721,
 
@@ -467,6 +468,7 @@ struct i40e_aqc_list_capabilities_element_resp {
 #define I40E_AQ_CAP_ID_SDP		0x0062
 #define I40E_AQ_CAP_ID_MDIO		0x0063
 #define I40E_AQ_CAP_ID_WSR_PROT		0x0064
+#define I40E_AQ_CAP_ID_DIS_UNUSED_PORTS	0x0067
 #define I40E_AQ_CAP_ID_NVM_MGMT		0x0080
 #define I40E_AQ_CAP_ID_FLEX10		0x00F1
 #define I40E_AQ_CAP_ID_CEM		0x00F2
@@ -793,6 +795,7 @@ struct i40e_aqc_set_switch_config {
 #define I40E_AQ_SET_SWITCH_CFG_PROMISC		0x0001
 #define I40E_AQ_SET_SWITCH_CFG_L2_FILTER	0x0002
 #define I40E_AQ_SET_SWITCH_CFG_HW_ATR_EVICT	0x0004
+#define I40E_AQ_SET_SWITCH_CFG_OUTER_VLAN	0x0008
 	__le16	valid_flags;
 	/* The ethertype in switch_tag is dropped on ingress and used
 	 * internally by the switch. Set this to zero for the default
@@ -929,7 +932,7 @@ struct i40e_aqc_vsi_properties_data {
 	u8	sec_reserved;
 	/* VLAN section */
 	__le16	pvid; /* VLANS include priority bits */
-	__le16	fcoe_pvid;
+	__le16	outer_vlan;
 	u8	port_vlan_flags;
 #define I40E_AQ_VSI_PVLAN_MODE_SHIFT	0x00
 #define I40E_AQ_VSI_PVLAN_MODE_MASK	(0x03 << \
@@ -945,7 +948,24 @@ struct i40e_aqc_vsi_properties_data {
 #define I40E_AQ_VSI_PVLAN_EMOD_STR_UP	0x08
 #define I40E_AQ_VSI_PVLAN_EMOD_STR	0x10
 #define I40E_AQ_VSI_PVLAN_EMOD_NOTHING	0x18
-	u8	pvlan_reserved[3];
+	u8	outer_vlan_flags;
+#define I40E_AQ_VSI_OVLAN_MODE_SHIFT	0x00
+#define I40E_AQ_VSI_OVLAN_MODE_MASK	(0x03 << \
+					 I40E_AQ_VSI_OVLAN_MODE_SHIFT)
+#define I40E_AQ_VSI_OVLAN_MODE_UNTAGGED	0x01
+#define I40E_AQ_VSI_OVLAN_MODE_TAGGED	0x02
+#define I40E_AQ_VSI_OVLAN_MODE_ALL	0x03
+#define I40E_AQ_VSI_OVLAN_INSERT_PVID	0x04
+#define I40E_AQ_VSI_OVLAN_EMOD_SHIFT	0x03
+#define I40E_AQ_VSI_OVLAN_EMOD_MASK	(0x03 <<\
+					 I40E_AQ_VSI_OVLAN_EMOD_SHIFT)
+#define I40E_AQ_VSI_OVLAN_EMOD_SHOW_ALL	0x00
+#define I40E_AQ_VSI_OVLAN_EMOD_SHOW_UP	0x01
+#define I40E_AQ_VSI_OVLAN_EMOD_HIDE_ALL	0x02
+#define I40E_AQ_VSI_OVLAN_EMOD_NOTHING	0x03
+#define I40E_AQ_VSI_OVLAN_CTRL_ENA	0x04
+
+	u8	pvlan_reserved[2];
 	/* ingress egress up sections */
 	__le32	ingress_table; /* bitmap, 3 bits per up */
 #define I40E_AQ_VSI_UP_TABLE_UP0_SHIFT	0
@@ -1247,7 +1267,7 @@ struct i40e_aqc_set_vsi_promiscuous_modes {
 #define I40E_AQC_SET_VSI_PROMISC_BROADCAST	0x04
 #define I40E_AQC_SET_VSI_DEFAULT		0x08
 #define I40E_AQC_SET_VSI_PROMISC_VLAN		0x10
-#define I40E_AQC_SET_VSI_PROMISC_TX		0x8000
+#define I40E_AQC_SET_VSI_PROMISC_RX_ONLY	0x8000
 	__le16	seid;
 #define I40E_AQC_VSI_PROM_CMD_SEID_MASK		0x3FF
 	__le16	vlan_tag;
@@ -1433,6 +1453,8 @@ struct i40e_aqc_cloud_filters_element_data {
 #define I40E_AQC_ADD_CLOUD_FILTER_IMAC			0x000A
 #define I40E_AQC_ADD_CLOUD_FILTER_OMAC_TEN_ID_IMAC	0x000B
 #define I40E_AQC_ADD_CLOUD_FILTER_IIP			0x000C
+#define I40E_AQC_ADD_CLOUD_FILTER_OIP1			0x0010
+#define I40E_AQC_ADD_CLOUD_FILTER_OIP2			0x0012
 /* 0x000D reserved */
 /* 0x000E reserved */
 /* 0x000F reserved */
@@ -1940,8 +1962,10 @@ enum i40e_aq_phy_type {
 	I40E_PHY_TYPE_25GBASE_LR		= 0x22,
 	I40E_PHY_TYPE_25GBASE_AOC		= 0x23,
 	I40E_PHY_TYPE_25GBASE_ACC		= 0x24,
-	I40E_PHY_TYPE_2_5GBASE_T		= 0x30,
-	I40E_PHY_TYPE_5GBASE_T			= 0x31,
+	I40E_PHY_TYPE_2_5GBASE_T		= 0x26,
+	I40E_PHY_TYPE_5GBASE_T			= 0x27,
+	I40E_PHY_TYPE_2_5GBASE_T_LINK_STATUS	= 0x30,
+	I40E_PHY_TYPE_5GBASE_T_LINK_STATUS	= 0x31,
 	I40E_PHY_TYPE_MAX,
 	I40E_PHY_TYPE_NOT_SUPPORTED_HIGH_TEMP	= 0xFD,
 	I40E_PHY_TYPE_EMPTY			= 0xFE,
@@ -2411,6 +2435,16 @@ struct i40e_aqc_nvm_config_data_feature {
 
 I40E_CHECK_STRUCT_LEN(0x6, i40e_aqc_nvm_config_data_feature);
 
+/* NVM Update in Process (direct 0x0706) */
+struct i40e_aqc_nvm_update_in_process {
+	u8	command;
+#define I40E_AQ_UPDATE_FLOW_END			0x0
+#define I40E_AQ_UPDATE_FLOW_START		0x1
+	u8	reserved[15];
+};
+
+I40E_CHECK_CMD_LENGTH(i40e_aqc_nvm_update_in_process);
+
 struct i40e_aqc_nvm_config_data_immediate_field {
 	__le32 field_id;
 	__le32 field_value;
@@ -2419,6 +2453,27 @@ struct i40e_aqc_nvm_config_data_immediate_field {
 };
 
 I40E_CHECK_STRUCT_LEN(0xc, i40e_aqc_nvm_config_data_immediate_field);
+
+/* Minimal Rollback Revision Update (direct 0x0707) */
+struct i40e_aqc_rollback_revision_update {
+	u8	optin_mode; /* bool */
+#define I40E_AQ_RREV_OPTIN_MODE			0x01
+	u8	module_selected;
+#define I40E_AQ_RREV_MODULE_PCIE_ANALOG			0
+#define I40E_AQ_RREV_MODULE_PHY_ANALOG			1
+#define I40E_AQ_RREV_MODULE_OPTION_ROM			2
+#define I40E_AQ_RREV_MODULE_EMP_IMAGE			3
+#define I40E_AQ_RREV_MODULE_PE_IMAGE			4
+#define I40E_AQ_RREV_MODULE_PHY_PLL_O_CONFIGURATION	5
+#define I40E_AQ_RREV_MODULE_PHY_0_CONFIGURATION		6
+#define I40E_AQ_RREV_MODULE_PHY_PLL_1_CONFIGURATION	7
+#define I40E_AQ_RREV_MODULE_PHY_1_CONFIGURATION		8
+	u8	reserved1[2];
+	u32	min_rrev;
+	u8	reserved2[8];
+};
+
+I40E_CHECK_CMD_LENGTH(i40e_aqc_rollback_revision_update);
 
 /* OEM Post Update (indirect 0x0720)
  * no command data struct used

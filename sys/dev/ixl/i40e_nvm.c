@@ -35,7 +35,7 @@
 #include "i40e_prototype.h"
 
 /**
- * i40e_init_nvm_ops - Initialize NVM function pointers
+ * i40e_init_nvm - Initialize NVM function pointers
  * @hw: pointer to the HW structure
  *
  * Setup the function pointers and the NVM info structure. Should be called
@@ -108,7 +108,8 @@ enum i40e_status_code i40e_acquire_nvm(struct i40e_hw *hw,
 	if (ret_code)
 		i40e_debug(hw, I40E_DEBUG_NVM,
 			   "NVM acquire type %d failed time_left=%llu ret=%d aq_err=%d\n",
-			   access, time_left, ret_code, hw->aq.asq_last_status);
+			   access, (unsigned long long)time_left, ret_code,
+			   hw->aq.asq_last_status);
 
 	if (ret_code && time_left) {
 		/* Poll until the current NVM owner timeouts */
@@ -130,7 +131,8 @@ enum i40e_status_code i40e_acquire_nvm(struct i40e_hw *hw,
 			hw->nvm.hw_semaphore_timeout = 0;
 			i40e_debug(hw, I40E_DEBUG_NVM,
 				   "NVM acquire timed out, wait %llu ms before trying again. status=%d aq_err=%d\n",
-				   time_left, ret_code, hw->aq.asq_last_status);
+				   (unsigned long long)time_left, ret_code,
+				   hw->aq.asq_last_status);
 		}
 	}
 
@@ -782,10 +784,11 @@ enum i40e_status_code i40e_update_nvm_checksum(struct i40e_hw *hw)
 	DEBUGFUNC("i40e_update_nvm_checksum");
 
 	ret_code = i40e_calc_nvm_checksum(hw, &checksum);
-	le_sum = CPU_TO_LE16(checksum);
-	if (ret_code == I40E_SUCCESS)
+	if (ret_code == I40E_SUCCESS) {
+		le_sum = CPU_TO_LE16(checksum);
 		ret_code = i40e_write_nvm_aq(hw, 0x00, I40E_SR_SW_CHECKSUM_WORD,
 					     1, &le_sum, TRUE);
+	}
 
 	return ret_code;
 }
