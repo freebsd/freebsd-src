@@ -285,8 +285,16 @@ xen_intr_find_unused_isrc(enum evtchn_type type)
 
 		vector = first_evtchn_irq + isrc_idx;
 		isrc = (struct xenisrc *)intr_lookup_source(vector);
-		if (isrc != NULL
-		 && isrc->xi_type == EVTCHN_TYPE_UNBOUND) {
+		/*
+		 * Since intr_register_source() must be called while unlocked,
+		 * isrc == NULL *will* occur, though very infrequently.
+		 *
+		 * This also allows a very small gap where a foreign intrusion
+		 * into Xen's interrupt range could be examined by this test.
+		 */
+		if (__predict_true(isrc != NULL) &&
+		    __predict_true(isrc->xi_intsrc.is_pic == &xen_intr_pic) &&
+		    isrc->xi_type == EVTCHN_TYPE_UNBOUND) {
 			KASSERT(isrc->xi_intsrc.is_handlers == 0,
 			    ("Free evtchn still has handlers"));
 			isrc->xi_type = type;
@@ -310,6 +318,7 @@ xen_intr_alloc_isrc(enum evtchn_type type)
 	static int warned;
 	struct xenisrc *isrc;
 	unsigned int vector;
+	int error;
 
 	KASSERT(mtx_owned(&xen_intr_isrc_lock), ("Evtchn alloc lock not held"));
 
@@ -332,7 +341,10 @@ xen_intr_alloc_isrc(enum evtchn_type type)
 	isrc->xi_intsrc.is_pic = &xen_intr_pic;
 	isrc->xi_vector = vector;
 	isrc->xi_type = type;
-	intr_register_source(&isrc->xi_intsrc);
+	error = intr_register_source(&isrc->xi_intsrc);
+	if (error != 0)
+		panic("%s(): failed registering interrupt %u, error=%d\n",
+		    __func__, vector, error);
 	mtx_lock(&xen_intr_isrc_lock);
 
 	return (isrc);
