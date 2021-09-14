@@ -292,6 +292,8 @@ struct socket {
 #define	SBL_NOINTR	0x00000002	/* Force non-interruptible sleep. */
 #define	SBL_VALID	(SBL_WAIT | SBL_NOINTR)
 
+#define	SBLOCKWAIT(f)	(((f) & MSG_DONTWAIT) ? 0 : SBL_WAIT)
+
 #define	SOCK_IO_SEND_LOCK(so, flags)					\
 	soiolock((so), &(so)->so_snd_sx, (flags))
 #define	SOCK_IO_SEND_UNLOCK(so)						\

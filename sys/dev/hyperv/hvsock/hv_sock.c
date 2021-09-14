@@ -627,7 +627,6 @@ hvs_trans_disconnect(struct socket *so)
 	return (0);
 }
 
-#define SBLOCKWAIT(f)	(((f) & MSG_DONTWAIT) ? 0 : SBL_WAIT)
 struct hvs_callback_arg {
 	struct uio *uio;
 	struct sockbuf *sb;
