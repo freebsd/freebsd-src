@@ -32,11 +32,11 @@
 [ `id -u ` -ne 0 ] && echo "Must be root!" && exit 1
 
 [ -z "`type mkntfs 2>/dev/null`" ] && exit 0
-[ -c /dev/fuse ] || kldload fuse.ko
+[ -c /dev/fuse ] || kldload fusefs.ko
 
 . ../default.cfg
 
-[ -c /dev/fuse ] || kldload fuse.ko
+[ -c /dev/fuse ] || kldload fusefs.ko
 MOUNT=/usr/local/bin/ntfs-3g
 mounts=15		# Number of parallel scripts
 mdstart=$mdstart	# Use md unit numbers from this point

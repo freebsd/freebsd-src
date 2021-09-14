@@ -36,7 +36,7 @@
 sleep 10
 
 while pgrep -q swap; do
-	kldload fuse.ko
-	kldunload fuse.ko
+	kldload fusefs.ko
+	kldunload fusefs.ko
 done
 wait
