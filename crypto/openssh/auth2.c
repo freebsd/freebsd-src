@@ -425,7 +425,7 @@ userauth_finish(struct ssh *ssh, int authenticated, const char *method,
 		if (!partial && !authctxt->server_caused_failure &&
 		    (authctxt->attempt > 1 || strcmp(method, "none") != 0)) {
 			authctxt->failures++;
-			BLACKLIST_NOTIFY(BLACKLIST_AUTH_FAIL, "ssh");
+			BLACKLIST_NOTIFY(ssh, BLACKLIST_AUTH_FAIL, "ssh");
 		}
 		if (authctxt->failures >= options.max_authtries) {
 #ifdef SSH_AUDIT_EVENTS

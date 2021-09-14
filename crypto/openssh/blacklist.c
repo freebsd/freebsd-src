@@ -88,10 +88,10 @@ blacklist_init(void)
 }
 
 void
-blacklist_notify(int action, const char *msg)
+blacklist_notify(struct ssh *ssh, int action, const char *msg)
 {
 
-	if (blstate != NULL && ssh_packet_connection_is_on_socket(NULL))
+	if (blstate != NULL && ssh_packet_connection_is_on_socket(ssh))
 		(void)blacklist_r(blstate, action,
-		ssh_packet_get_connection_in(NULL), msg);
+		ssh_packet_get_connection_in(ssh), msg);
 }

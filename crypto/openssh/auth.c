@@ -336,7 +336,7 @@ auth_log(struct ssh *ssh, int authenticated, int partial,
 	else {
 		authmsg = authenticated ? "Accepted" : "Failed";
 		if (authenticated)
-			BLACKLIST_NOTIFY(BLACKLIST_AUTH_OK, "ssh");
+			BLACKLIST_NOTIFY(ssh, BLACKLIST_AUTH_OK, "ssh");
 	}
 
 	if ((extra = format_method_key(authctxt)) == NULL) {
@@ -600,7 +600,7 @@ getpwnamallow(struct ssh *ssh, const char *user)
 	aix_restoreauthdb();
 #endif
 	if (pw == NULL) {
-		BLACKLIST_NOTIFY(BLACKLIST_BAD_USER, user);
+		BLACKLIST_NOTIFY(ssh, BLACKLIST_BAD_USER, user);
 		logit("Invalid user %.100s from %.100s port %d",
 		    user, ssh_remote_ipaddr(ssh), ssh_remote_port(ssh));
 #ifdef CUSTOM_FAILED_LOGIN
