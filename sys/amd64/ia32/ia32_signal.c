@@ -85,9 +85,6 @@ __FBSDID("$FreeBSD$");
 static void freebsd4_ia32_sendsig(sig_t, ksiginfo_t *, sigset_t *);
 #endif
 
-#define	CS_SECURE(cs)		(ISPL(cs) == SEL_UPL)
-#define	EFL_SECURE(ef, oef)	((((ef) ^ (oef)) & ~PSL_USERCHANGE) == 0)
-
 static void
 ia32_get_fpcontext(struct thread *td, struct ia32_mcontext *mcp,
     char *xfpusave, size_t xfpusave_len)
