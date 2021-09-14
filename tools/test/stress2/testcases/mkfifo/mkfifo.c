@@ -58,7 +58,7 @@ reader(void) {
 
 	setproctitle("reader");
 	signal(SIGALRM, handler2);
-	alarm(2);
+	alarm(60);
 	if ((fd = open(path, O_RDWR, 0600)) < 0) {
 		unlink(path);
 		err(1, "open(%s)", path);
@@ -81,7 +81,7 @@ writer(void) {
 	int fd;
 
 	signal(SIGALRM, handler2);
-	alarm(2);
+	alarm(60);
 
 	setproctitle("writer");
 	if ((fd = open(path, O_RDWR, 0600)) < 0) {
