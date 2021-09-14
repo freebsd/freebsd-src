@@ -3293,21 +3293,16 @@ in_pcbmodify_txrtlmt(struct inpcb *inp, uint32_t max_pacing_rate)
 		.rate_limit.flags = M_NOWAIT,
 	};
 	struct m_snd_tag *mst;
-	struct ifnet *ifp;
 	int error;
 
 	mst = inp->inp_snd_tag;
 	if (mst == NULL)
 		return (EINVAL);
 
-	ifp = mst->ifp;
-	if (ifp == NULL)
-		return (EINVAL);
-
-	if (ifp->if_snd_tag_modify == NULL) {
+	if (mst->sw->snd_tag_modify == NULL) {
 		error = EOPNOTSUPP;
 	} else {
-		error = ifp->if_snd_tag_modify(mst, &params);
+		error = mst->sw->snd_tag_modify(mst, &params);
 	}
 	return (error);
 }
@@ -3321,22 +3316,17 @@ in_pcbquery_txrtlmt(struct inpcb *inp, uint32_t *p_max_pacing_rate)
 {
 	union if_snd_tag_query_params params = { };
 	struct m_snd_tag *mst;
-	struct ifnet *ifp;
 	int error;
 
 	mst = inp->inp_snd_tag;
 	if (mst == NULL)
 		return (EINVAL);
 
-	ifp = mst->ifp;
-	if (ifp == NULL)
-		return (EINVAL);
-
-	if (ifp->if_snd_tag_query == NULL) {
+	if (mst->sw->snd_tag_query == NULL) {
 		error = EOPNOTSUPP;
 	} else {
-		error = ifp->if_snd_tag_query(mst, &params);
-		if (error == 0 &&  p_max_pacing_rate != NULL)
+		error = mst->sw->snd_tag_query(mst, &params);
+		if (error == 0 && p_max_pacing_rate != NULL)
 			*p_max_pacing_rate = params.rate_limit.max_rate;
 	}
 	return (error);
@@ -3351,22 +3341,17 @@ in_pcbquery_txrlevel(struct inpcb *inp, uint32_t *p_txqueue_level)
 {
 	union if_snd_tag_query_params params = { };
 	struct m_snd_tag *mst;
-	struct ifnet *ifp;
 	int error;
 
 	mst = inp->inp_snd_tag;
 	if (mst == NULL)
 		return (EINVAL);
 
-	ifp = mst->ifp;
-	if (ifp == NULL)
-		return (EINVAL);
-
-	if (ifp->if_snd_tag_query == NULL)
+	if (mst->sw->snd_tag_query == NULL)
 		return (EOPNOTSUPP);
 
-	error = ifp->if_snd_tag_query(mst, &params);
-	if (error == 0 &&  p_txqueue_level != NULL)
+	error = mst->sw->snd_tag_query(mst, &params);
+	if (error == 0 && p_txqueue_level != NULL)
 		*p_txqueue_level = params.rate_limit.queue_level;
 	return (error);
 }

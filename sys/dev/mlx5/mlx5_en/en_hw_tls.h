@@ -97,8 +97,5 @@ void mlx5e_tls_cleanup(struct mlx5e_priv *);
 int mlx5e_sq_tls_xmit(struct mlx5e_sq *, struct mlx5e_xmit_args *, struct mbuf **);
 
 if_snd_tag_alloc_t mlx5e_tls_snd_tag_alloc;
-if_snd_tag_modify_t mlx5e_tls_snd_tag_modify;
-if_snd_tag_query_t mlx5e_tls_snd_tag_query;
-if_snd_tag_free_t mlx5e_tls_snd_tag_free;
 
 #endif					/* _MLX5_TLS_H_ */

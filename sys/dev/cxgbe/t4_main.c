@@ -253,11 +253,6 @@ static void cxgbe_qflush(struct ifnet *);
 #if defined(KERN_TLS) || defined(RATELIMIT)
 static int cxgbe_snd_tag_alloc(struct ifnet *, union if_snd_tag_alloc_params *,
     struct m_snd_tag **);
-static int cxgbe_snd_tag_modify(struct m_snd_tag *,
-    union if_snd_tag_modify_params *);
-static int cxgbe_snd_tag_query(struct m_snd_tag *,
-    union if_snd_tag_query_params *);
-static void cxgbe_snd_tag_free(struct m_snd_tag *);
 #endif
 
 MALLOC_DEFINE(M_CXGBE, "cxgbe", "Chelsio T4/T5 Ethernet driver and services");
@@ -2453,9 +2448,6 @@ cxgbe_vi_attach(device_t dev, struct vi_info *vi)
 		ifp->if_get_counter = cxgbe_get_counter;
 #if defined(KERN_TLS) || defined(RATELIMIT)
 	ifp->if_snd_tag_alloc = cxgbe_snd_tag_alloc;
-	ifp->if_snd_tag_modify = cxgbe_snd_tag_modify;
-	ifp->if_snd_tag_query = cxgbe_snd_tag_query;
-	ifp->if_snd_tag_free = cxgbe_snd_tag_free;
 #endif
 #ifdef RATELIMIT
 	ifp->if_ratelimit_query = cxgbe_ratelimit_query;
@@ -2926,7 +2918,7 @@ cxgbe_transmit(struct ifnet *ifp, struct mbuf *m)
 	}
 #ifdef RATELIMIT
 	if (m->m_pkthdr.csum_flags & CSUM_SND_TAG) {
-		if (m->m_pkthdr.snd_tag->type == IF_SND_TAG_TYPE_RATE_LIMIT)
+		if (m->m_pkthdr.snd_tag->sw->type == IF_SND_TAG_TYPE_RATE_LIMIT)
 			return (ethofld_transmit(ifp, m));
 	}
 #endif
@@ -3108,56 +3100,6 @@ cxgbe_snd_tag_alloc(struct ifnet *ifp, union if_snd_tag_alloc_params *params,
 		error = EOPNOTSUPP;
 	}
 	return (error);
-}
-
-static int
-cxgbe_snd_tag_modify(struct m_snd_tag *mst,
-    union if_snd_tag_modify_params *params)
-{
-
-	switch (mst->type) {
-#ifdef RATELIMIT
-	case IF_SND_TAG_TYPE_RATE_LIMIT:
-		return (cxgbe_rate_tag_modify(mst, params));
-#endif
-	default:
-		return (EOPNOTSUPP);
-	}
-}
-
-static int
-cxgbe_snd_tag_query(struct m_snd_tag *mst,
-    union if_snd_tag_query_params *params)
-{
-
-	switch (mst->type) {
-#ifdef RATELIMIT
-	case IF_SND_TAG_TYPE_RATE_LIMIT:
-		return (cxgbe_rate_tag_query(mst, params));
-#endif
-	default:
-		return (EOPNOTSUPP);
-	}
-}
-
-static void
-cxgbe_snd_tag_free(struct m_snd_tag *mst)
-{
-
-	switch (mst->type) {
-#ifdef RATELIMIT
-	case IF_SND_TAG_TYPE_RATE_LIMIT:
-		cxgbe_rate_tag_free(mst);
-		return;
-#endif
-#ifdef KERN_TLS
-	case IF_SND_TAG_TYPE_TLS:
-		cxgbe_tls_tag_free(mst);
-		return;
-#endif
-	default:
-		panic("shouldn't get here");
-	}
 }
 #endif
 

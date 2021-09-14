@@ -1459,7 +1459,6 @@ ktls_modify_txrtlmt(struct ktls_session *tls, uint64_t max_pacing_rate)
 		.rate_limit.flags = M_NOWAIT,
 	};
 	struct m_snd_tag *mst;
-	struct ifnet *ifp;
 
 	/* Can't get to the inp, but it should be locked. */
 	/* INP_LOCK_ASSERT(inp); */
@@ -1477,11 +1476,10 @@ ktls_modify_txrtlmt(struct ktls_session *tls, uint64_t max_pacing_rate)
 	}
 
 	MPASS(tls->snd_tag != NULL);
-	MPASS(tls->snd_tag->type == IF_SND_TAG_TYPE_TLS_RATE_LIMIT);
+	MPASS(tls->snd_tag->sw->type == IF_SND_TAG_TYPE_TLS_RATE_LIMIT);
 
 	mst = tls->snd_tag;
-	ifp = mst->ifp;
-	return (ifp->if_snd_tag_modify(mst, &params));
+	return (mst->sw->snd_tag_modify(mst, &params));
 }
 #endif
 #endif

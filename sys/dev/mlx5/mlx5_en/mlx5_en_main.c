@@ -36,6 +36,8 @@
 #include <net/debugnet.h>
 
 static int mlx5e_get_wqe_sz(struct mlx5e_priv *priv, u32 *wqe_sz, u32 *nsegs);
+static if_snd_tag_query_t mlx5e_ul_snd_tag_query;
+static if_snd_tag_free_t mlx5e_ul_snd_tag_free;
 
 struct mlx5e_channel_param {
 	struct mlx5e_rq_param rq;
@@ -344,6 +346,12 @@ static const struct media mlx5e_ext_mode_table[MLX5E_EXT_LINK_SPEEDS_NUMBER][MLX
 		.subtype = IFM_400G_LR8,	/* XXX */
 		.baudrate = IF_Gbps(400ULL),
 	},
+};
+
+static const struct if_snd_tag_sw mlx5e_ul_snd_tag_sw = {
+	.snd_tag_query = mlx5e_ul_snd_tag_query,
+	.snd_tag_free = mlx5e_ul_snd_tag_free,
+	.type = IF_SND_TAG_TYPE_UNLIMITED
 };
 
 DEBUGNET_DEFINE(mlx5_en);
@@ -2113,7 +2121,7 @@ mlx5e_chan_static_init(struct mlx5e_priv *priv, struct mlx5e_channel *c, int ix)
 	c->ix = ix;
 
 	/* setup send tag */
-	m_snd_tag_init(&c->tag, c->priv->ifp, IF_SND_TAG_TYPE_UNLIMITED);
+	m_snd_tag_init(&c->tag, c->priv->ifp, &mlx5e_ul_snd_tag_sw);
 
 	init_completion(&c->completion);
 
@@ -4174,7 +4182,7 @@ mlx5e_setup_pauseframes(struct mlx5e_priv *priv)
 	PRIV_UNLOCK(priv);
 }
 
-int
+static int
 mlx5e_ul_snd_tag_alloc(struct ifnet *ifp,
     union if_snd_tag_alloc_params *params,
     struct m_snd_tag **ppmt)
@@ -4216,7 +4224,7 @@ mlx5e_ul_snd_tag_alloc(struct ifnet *ifp,
 	}
 }
 
-int
+static int
 mlx5e_ul_snd_tag_query(struct m_snd_tag *pmt, union if_snd_tag_query_params *params)
 {
 	struct mlx5e_channel *pch =
@@ -4227,7 +4235,7 @@ mlx5e_ul_snd_tag_query(struct m_snd_tag *pmt, union if_snd_tag_query_params *par
 	return (0);
 }
 
-void
+static void
 mlx5e_ul_snd_tag_free(struct m_snd_tag *pmt)
 {
 	struct mlx5e_channel *pch =
@@ -4256,52 +4264,6 @@ mlx5e_snd_tag_alloc(struct ifnet *ifp,
 #ifdef KERN_TLS
 	case IF_SND_TAG_TYPE_TLS:
 		return (mlx5e_tls_snd_tag_alloc(ifp, params, ppmt));
-#endif
-	default:
-		return (EOPNOTSUPP);
-	}
-}
-
-static int
-mlx5e_snd_tag_modify(struct m_snd_tag *pmt, union if_snd_tag_modify_params *params)
-{
-
-	switch (pmt->type) {
-#ifdef RATELIMIT
-	case IF_SND_TAG_TYPE_RATE_LIMIT:
-		return (mlx5e_rl_snd_tag_modify(pmt, params));
-#ifdef KERN_TLS
-	case IF_SND_TAG_TYPE_TLS_RATE_LIMIT:
-		return (mlx5e_tls_snd_tag_modify(pmt, params));
-#endif
-#endif
-	case IF_SND_TAG_TYPE_UNLIMITED:
-#ifdef KERN_TLS
-	case IF_SND_TAG_TYPE_TLS:
-#endif
-	default:
-		return (EOPNOTSUPP);
-	}
-}
-
-static int
-mlx5e_snd_tag_query(struct m_snd_tag *pmt, union if_snd_tag_query_params *params)
-{
-
-	switch (pmt->type) {
-#ifdef RATELIMIT
-	case IF_SND_TAG_TYPE_RATE_LIMIT:
-		return (mlx5e_rl_snd_tag_query(pmt, params));
-#ifdef KERN_TLS
-	case IF_SND_TAG_TYPE_TLS_RATE_LIMIT:
-		return (mlx5e_tls_snd_tag_query(pmt, params));
-#endif
-#endif
-	case IF_SND_TAG_TYPE_UNLIMITED:
-		return (mlx5e_ul_snd_tag_query(pmt, params));
-#ifdef KERN_TLS
-	case IF_SND_TAG_TYPE_TLS:
-		return (mlx5e_tls_snd_tag_query(pmt, params));
 #endif
 	default:
 		return (EOPNOTSUPP);
@@ -4351,34 +4313,6 @@ mlx5e_ratelimit_query(struct ifnet *ifp __unused, struct if_ratelimit_query_resu
 	q->min_segment_burst = 1;
 }
 #endif
-
-static void
-mlx5e_snd_tag_free(struct m_snd_tag *pmt)
-{
-
-	switch (pmt->type) {
-#ifdef RATELIMIT
-	case IF_SND_TAG_TYPE_RATE_LIMIT:
-		mlx5e_rl_snd_tag_free(pmt);
-		break;
-#ifdef KERN_TLS
-	case IF_SND_TAG_TYPE_TLS_RATE_LIMIT:
-		mlx5e_tls_snd_tag_free(pmt);
-		break;
-#endif
-#endif
-	case IF_SND_TAG_TYPE_UNLIMITED:
-		mlx5e_ul_snd_tag_free(pmt);
-		break;
-#ifdef KERN_TLS
-	case IF_SND_TAG_TYPE_TLS:
-		mlx5e_tls_snd_tag_free(pmt);
-		break;
-#endif
-	default:
-		break;
-	}
-}
 
 static void
 mlx5e_ifm_add(struct mlx5e_priv *priv, int type)
@@ -4467,9 +4401,6 @@ mlx5e_create_ifp(struct mlx5_core_dev *mdev)
 #endif
 	ifp->if_capabilities |= IFCAP_VXLAN_HWCSUM | IFCAP_VXLAN_HWTSO;
 	ifp->if_snd_tag_alloc = mlx5e_snd_tag_alloc;
-	ifp->if_snd_tag_free = mlx5e_snd_tag_free;
-	ifp->if_snd_tag_modify = mlx5e_snd_tag_modify;
-	ifp->if_snd_tag_query = mlx5e_snd_tag_query;
 #ifdef RATELIMIT
 	ifp->if_ratelimit_query = mlx5e_ratelimit_query;
 #endif

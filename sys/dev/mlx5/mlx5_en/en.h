@@ -1216,9 +1216,4 @@ int	mlx5e_update_buf_lossy(struct mlx5e_priv *priv);
 int	mlx5e_fec_update(struct mlx5e_priv *priv);
 int	mlx5e_hw_temperature_update(struct mlx5e_priv *priv);
 
-if_snd_tag_alloc_t mlx5e_ul_snd_tag_alloc;
-if_snd_tag_modify_t mlx5e_ul_snd_tag_modify;
-if_snd_tag_query_t mlx5e_ul_snd_tag_query;
-if_snd_tag_free_t mlx5e_ul_snd_tag_free;
-
 #endif					/* _MLX5_EN_H_ */

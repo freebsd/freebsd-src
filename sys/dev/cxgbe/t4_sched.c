@@ -44,7 +44,6 @@ __FBSDID("$FreeBSD$");
 #include "common/t4_regs_values.h"
 #include "common/t4_msg.h"
 
-
 static int
 in_range(int val, int lo, int hi)
 {
@@ -785,6 +784,19 @@ free_etid(struct adapter *sc, int etid)
 	mtx_unlock(&t->etid_lock);
 }
 
+static int cxgbe_rate_tag_modify(struct m_snd_tag *,
+    union if_snd_tag_modify_params *);
+static int cxgbe_rate_tag_query(struct m_snd_tag *,
+    union if_snd_tag_query_params *);
+static void cxgbe_rate_tag_free(struct m_snd_tag *);
+
+static const struct if_snd_tag_sw cxgbe_rate_tag_sw = {
+	.snd_tag_modify = cxgbe_rate_tag_modify,
+	.snd_tag_query = cxgbe_rate_tag_query,
+	.snd_tag_free = cxgbe_rate_tag_free,
+	.type = IF_SND_TAG_TYPE_RATE_LIMIT
+};
+
 int
 cxgbe_rate_tag_alloc(struct ifnet *ifp, union if_snd_tag_alloc_params *params,
     struct m_snd_tag **pt)
@@ -819,7 +831,7 @@ failed:
 	mtx_init(&cst->lock, "cst_lock", NULL, MTX_DEF);
 	mbufq_init(&cst->pending_tx, INT_MAX);
 	mbufq_init(&cst->pending_fwack, INT_MAX);
-	m_snd_tag_init(&cst->com, ifp, IF_SND_TAG_TYPE_RATE_LIMIT);
+	m_snd_tag_init(&cst->com, ifp, &cxgbe_rate_tag_sw);
 	cst->flags |= EO_FLOWC_PENDING | EO_SND_TAG_REF;
 	cst->adapter = sc;
 	cst->port_id = pi->port_id;
@@ -843,7 +855,7 @@ failed:
 /*
  * Change in parameters, no change in ifp.
  */
-int
+static int
 cxgbe_rate_tag_modify(struct m_snd_tag *mst,
     union if_snd_tag_modify_params *params)
 {
@@ -869,7 +881,7 @@ cxgbe_rate_tag_modify(struct m_snd_tag *mst,
 	return (0);
 }
 
-int
+static int
 cxgbe_rate_tag_query(struct m_snd_tag *mst,
     union if_snd_tag_query_params *params)
 {
@@ -908,7 +920,7 @@ cxgbe_rate_tag_free_locked(struct cxgbe_rate_tag *cst)
 	free(cst, M_CXGBE);
 }
 
-void
+static void
 cxgbe_rate_tag_free(struct m_snd_tag *mst)
 {
 	struct cxgbe_rate_tag *cst = mst_to_crt(mst);
