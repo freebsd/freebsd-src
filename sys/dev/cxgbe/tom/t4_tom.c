@@ -1989,6 +1989,13 @@ t4_aio_queue_tom(struct socket *so, struct kaiocb *job)
 	struct toepcb *toep = tp->t_toe;
 	int error;
 
+	/*
+	 * No lock is needed as TOE sockets never change between
+	 * active and passive.
+	 */
+	if (SOLISTENING(so))
+		return (EINVAL);
+
 	if (ulp_mode(toep) == ULP_MODE_TCPDDP) {
 		error = t4_aio_queue_ddp(so, job);
 		if (error != EOPNOTSUPP)
