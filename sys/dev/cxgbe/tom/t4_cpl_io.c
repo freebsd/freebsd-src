@@ -2353,9 +2353,11 @@ t4_aiotx_task(void *context, int pending)
 	struct toepcb *toep = context;
 	struct socket *so;
 	struct kaiocb *job;
+	struct epoch_tracker et;
 
 	so = toep->aiotx_so;
 	CURVNET_SET(toep->vnet);
+	NET_EPOCH_ENTER(et);
 	SOCKBUF_LOCK(&so->so_snd);
 	while (!TAILQ_EMPTY(&toep->aiotx_jobq) && sowriteable(so)) {
 		job = TAILQ_FIRST(&toep->aiotx_jobq);
@@ -2367,11 +2369,12 @@ t4_aiotx_task(void *context, int pending)
 	}
 	toep->aiotx_so = NULL;
 	SOCKBUF_UNLOCK(&so->so_snd);
-	CURVNET_RESTORE();
+	NET_EPOCH_EXIT(et);
 
 	free_toepcb(toep);
 	SOCK_LOCK(so);
 	sorele(so);
+	CURVNET_RESTORE();
 }
 
 static void
