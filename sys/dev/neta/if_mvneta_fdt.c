@@ -58,6 +58,12 @@ __FBSDID("$FreeBSD$");
 #include "if_mvnetareg.h"
 #include "if_mvnetavar.h"
 
+#ifdef MVNETA_DEBUG
+#define	STATIC /* nothing */
+#else
+#define	STATIC static
+#endif
+
 #define	PHY_MODE_MAXLEN	10
 #define	INBAND_STATUS_MAXLEN 16
 
@@ -88,6 +94,8 @@ static struct ofw_compat_data compat_data[] = {
 	{"marvell,armada-3700-neta",	true},
 	{NULL,				false}
 };
+
+SIMPLEBUS_PNP_INFO(compat_data);
 
 static int
 mvneta_fdt_probe(device_t dev)
@@ -249,4 +257,40 @@ mvneta_fdt_mac_address(struct mvneta_softc *sc, uint8_t *addr)
 	memcpy(addr, lmac, ETHER_ADDR_LEN);
 
 	return (0);
+}
+
+STATIC boolean_t
+mvneta_find_ethernet_prop_switch(phandle_t ethernet, phandle_t node)
+{
+	boolean_t ret;
+	phandle_t child, switch_eth_handle, switch_eth;
+
+	for (child = OF_child(node); child != 0; child = OF_peer(child)) {
+		if (OF_getencprop(child, "ethernet", (void*)&switch_eth_handle,
+		    sizeof(switch_eth_handle)) > 0) {
+			if (switch_eth_handle > 0) {
+				switch_eth = OF_node_from_xref(
+				    switch_eth_handle);
+
+				if (switch_eth == ethernet)
+					return (true);
+			}
+		}
+
+		ret = mvneta_find_ethernet_prop_switch(ethernet, child);
+		if (ret != 0)
+			return (ret);
+	}
+
+	return (false);
+}
+
+boolean_t
+mvneta_has_switch_fdt(device_t self)
+{
+	phandle_t node;
+
+	node = ofw_bus_get_node(self);
+
+	return mvneta_find_ethernet_prop_switch(node, OF_finddevice("/"));
 }

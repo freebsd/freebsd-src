@@ -321,6 +321,7 @@ struct mvneta_softc {
 int mvneta_attach(device_t);
 
 #ifdef FDT
+boolean_t mvneta_has_switch_fdt(device_t);
 int mvneta_fdt_mac_address(struct mvneta_softc *, uint8_t *);
 #endif
 
