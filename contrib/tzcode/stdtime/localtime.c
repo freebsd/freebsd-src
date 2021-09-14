@@ -390,7 +390,7 @@ change_in_tz(const char *name)
 	return 0;
 }
 #else /* !DETECT_TZ_CHANGES */
-#define	change_in_tz(X)	0
+#define	change_in_tz(X)	1
 #endif /* !DETECT_TZ_CHANGES */
 
 static int
