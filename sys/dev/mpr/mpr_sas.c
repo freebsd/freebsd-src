@@ -821,6 +821,8 @@ mpr_attach_sas(struct mpr_softc *sc)
 
 	callout_init(&sassc->discovery_callout, 1 /*mpsafe*/);
 
+	mpr_unlock(sc);
+
 	/*
 	 * Register for async events so we can determine the EEDP
 	 * capabilities of devices.
@@ -835,7 +837,7 @@ mpr_attach_sas(struct mpr_softc *sc)
 	} else {
 		int event;
 
-		event = AC_ADVINFO_CHANGED | AC_FOUND_DEVICE;
+		event = AC_ADVINFO_CHANGED;
 		status = xpt_register_async(event, mprsas_async, sc,
 					    sassc->path);
 
@@ -854,8 +856,6 @@ mpr_attach_sas(struct mpr_softc *sc)
 		 */
 		mpr_printf(sc, "EEDP capabilities disabled.\n");
 	}
-
-	mpr_unlock(sc);
 
 	mprsas_register_events(sc);
 out:
@@ -890,18 +890,18 @@ mpr_detach_sas(struct mpr_softc *sc)
 	if (sassc->ev_tq != NULL)
 		taskqueue_free(sassc->ev_tq);
 
-	/* Make sure CAM doesn't wedge if we had to bail out early. */
-	mpr_lock(sc);
-
-	while (sassc->startup_refcount != 0)
-		mprsas_startup_decrement(sassc);
-
 	/* Deregister our async handler */
 	if (sassc->path != NULL) {
 		xpt_register_async(0, mprsas_async, sc, sassc->path);
 		xpt_free_path(sassc->path);
 		sassc->path = NULL;
 	}
+
+	/* Make sure CAM doesn't wedge if we had to bail out early. */
+	mpr_lock(sc);
+
+	while (sassc->startup_refcount != 0)
+		mprsas_startup_decrement(sassc);
 
 	if (sassc->flags & MPRSAS_IN_STARTUP)
 		xpt_release_simq(sassc->sim, 1);
@@ -3326,6 +3326,7 @@ mprsas_async(void *callback_arg, uint32_t code, struct cam_path *path,
 
 	sc = (struct mpr_softc *)callback_arg;
 
+	mpr_lock(sc);
 	switch (code) {
 	case AC_ADVINFO_CHANGED: {
 		struct mprsas_target *target;
@@ -3413,10 +3414,10 @@ mprsas_async(void *callback_arg, uint32_t code, struct cam_path *path,
 		}
 		break;
 	}
-	case AC_FOUND_DEVICE:
 	default:
 		break;
 	}
+	mpr_unlock(sc);
 }
 
 /*
