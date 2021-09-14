@@ -506,8 +506,6 @@ gic_v3_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
 	case GIC_IVAR_MBI_COUNT:
 		MPASS(sc->gic_mbi_start != 0);
 		MPASS(sc->gic_mbi_end == 0);
-		MPASS(value >= sc->gic_mbi_start);
-		MPASS(value >= GIC_FIRST_SPI);
 
 		sc->gic_mbi_end = value - sc->gic_mbi_start;
 

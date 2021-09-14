@@ -538,8 +538,6 @@ arm_gic_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
 	case GIC_IVAR_MBI_COUNT:
 		MPASS(sc->sc_spi_start != 0);
 		MPASS(sc->sc_spi_count == 0);
-		MPASS(value >= sc->sc_spi_start);
-		MPASS(value >= GIC_FIRST_SPI);
 
 		sc->sc_spi_count = value;
 		sc->sc_spi_end = sc->sc_spi_start + sc->sc_spi_count;
