@@ -32,20 +32,21 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <sys/mman.h>
 
 
-int prepareFile(char* filename,int* fdp);
+int prepareFile(const char* filename,int* fdp);
 int mapBuffer(char** bufferp,int fd1,int fd2);
 int startIO(int fd,char *buffer);
 
-int pagesize;
+static int pagesize;
 
 #define FILESIZE (32*1024)
-char wbuffer[FILESIZE];
+static char wbuffer[FILESIZE];
 
 /* Create a FILESIZE sized file - then remove file data from the cache*/
-int prepareFile(char* filename,int* fdp)
+int prepareFile(const char* filename,int* fdp)
 {
   int fd;
   int len;
@@ -134,7 +135,7 @@ int startIO(int fd,char *buffer)
 }
 
 
-int main(int argc,char *argv[],char *envp[])
+int main(int argc __unused, char *argv[] __unused)
 {
 
   int fdA,fdB,fdDelayA,fdDelayB;
