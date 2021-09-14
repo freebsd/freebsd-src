@@ -385,7 +385,7 @@ grace_alarm_handler(int sig)
 		kill(0, SIGTERM);
 	}
 
-	BLACKLIST_NOTIFY(BLACKLIST_AUTH_FAIL, "ssh");
+	BLACKLIST_NOTIFY(NULL, BLACKLIST_AUTH_FAIL, "ssh");
 
 	/* Log error and exit. */
 	if (use_privsep && pmonitor != NULL && pmonitor->m_pid <= 0)
