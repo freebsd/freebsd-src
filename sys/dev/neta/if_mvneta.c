@@ -68,10 +68,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
 
-#include <dev/ofw/openfirm.h>
-#include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/ofw_bus_subr.h>
-
 #include <dev/mdio/mdio.h>
 
 #include <arm/mv/mvvar.h>
@@ -222,11 +218,6 @@ static device_method_t mvneta_methods[] = {
 	DEVMETHOD_END
 };
 
-static struct ofw_compat_data compat_data[] = {
-	{ "marvell,armada-3700-neta",		true },
-	{ NULL,					false }
-};
-
 DEFINE_CLASS_0(mvneta, mvneta_driver, mvneta_methods, sizeof(struct mvneta_softc));
 
 DRIVER_MODULE(miibus, mvneta, miibus_driver, miibus_devclass, 0, 0);
@@ -234,7 +225,7 @@ DRIVER_MODULE(mdio, mvneta, mdio_driver, mdio_devclass, 0, 0);
 MODULE_DEPEND(mvneta, mdio, 1, 1, 1);
 MODULE_DEPEND(mvneta, ether, 1, 1, 1);
 MODULE_DEPEND(mvneta, miibus, 1, 1, 1);
-SIMPLEBUS_PNP_INFO(compat_data);
+MODULE_DEPEND(mvneta, mvxpbm, 1, 1, 1);
 
 /*
  * List of MIB register and names
@@ -419,39 +410,13 @@ mvneta_get_mac_address(struct mvneta_softc *sc, uint8_t *addr)
 }
 
 STATIC boolean_t
-mvneta_find_ethernet_prop_switch(phandle_t ethernet, phandle_t node)
-{
-	boolean_t ret;
-	phandle_t child, switch_eth_handle, switch_eth;
-
-	for (child = OF_child(node); child != 0; child = OF_peer(child)) {
-		if (OF_getencprop(child, "ethernet", (void*)&switch_eth_handle,
-		    sizeof(switch_eth_handle)) > 0) {
-			if (switch_eth_handle > 0) {
-				switch_eth = OF_node_from_xref(
-				    switch_eth_handle);
-
-				if (switch_eth == ethernet)
-					return (true);
-			}
-		}
-
-		ret = mvneta_find_ethernet_prop_switch(ethernet, child);
-		if (ret != 0)
-			return (ret);
-	}
-
-	return (false);
-}
-
-STATIC boolean_t
 mvneta_has_switch(device_t self)
 {
-	phandle_t node;
+#ifdef FDT
+	return (mvneta_has_switch_fdt(self));
+#endif
 
-	node = ofw_bus_get_node(self);
-
-	return mvneta_find_ethernet_prop_switch(node, OF_finddevice("/"));
+	return (false);
 }
 
 STATIC int
