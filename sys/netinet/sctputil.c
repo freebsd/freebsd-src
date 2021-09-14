@@ -5585,7 +5585,7 @@ sctp_sorecvmsg(struct socket *so,
 		    rwnd_req, block_allowed, so->so_rcv.sb_cc, (uint32_t)uio->uio_resid);
 	}
 
-	error = SOCK_IO_RECV_LOCK(so, (block_allowed ? SBL_WAIT : 0));
+	error = SOCK_IO_RECV_LOCK(so, SBLOCKWAIT(in_flags));
 	if (error) {
 		goto release_unlocked;
 	}
