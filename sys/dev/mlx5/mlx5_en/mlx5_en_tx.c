@@ -98,7 +98,7 @@ mlx5e_select_queue_by_send_tag(struct ifnet *ifp, struct mbuf *mb)
 top:
 #endif
 	/* get pointer to sendqueue */
-	switch (mb_tag->type) {
+	switch (mb_tag->sw->type) {
 #ifdef RATELIMIT
 	case IF_SND_TAG_TYPE_RATE_LIMIT:
 		sq = container_of(mb_tag,

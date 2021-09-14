@@ -336,6 +336,44 @@ VNET_DEFINE_STATIC(struct if_clone *, vlan_cloner);
 #define	V_vlan_cloner	VNET(vlan_cloner)
 #endif
 
+#ifdef RATELIMIT
+static const struct if_snd_tag_sw vlan_snd_tag_ul_sw = {
+	.snd_tag_modify = vlan_snd_tag_modify,
+	.snd_tag_query = vlan_snd_tag_query,
+	.snd_tag_free = vlan_snd_tag_free,
+	.next_snd_tag = vlan_next_snd_tag,
+	.type = IF_SND_TAG_TYPE_UNLIMITED
+};
+
+static const struct if_snd_tag_sw vlan_snd_tag_rl_sw = {
+	.snd_tag_modify = vlan_snd_tag_modify,
+	.snd_tag_query = vlan_snd_tag_query,
+	.snd_tag_free = vlan_snd_tag_free,
+	.next_snd_tag = vlan_next_snd_tag,
+	.type = IF_SND_TAG_TYPE_RATE_LIMIT
+};
+#endif
+
+#ifdef KERN_TLS
+static const struct if_snd_tag_sw vlan_snd_tag_tls_sw = {
+	.snd_tag_modify = vlan_snd_tag_modify,
+	.snd_tag_query = vlan_snd_tag_query,
+	.snd_tag_free = vlan_snd_tag_free,
+	.next_snd_tag = vlan_next_snd_tag,
+	.type = IF_SND_TAG_TYPE_TLS
+};
+
+#ifdef RATELIMIT
+static const struct if_snd_tag_sw vlan_snd_tag_tls_rl_sw = {
+	.snd_tag_modify = vlan_snd_tag_modify,
+	.snd_tag_query = vlan_snd_tag_query,
+	.snd_tag_free = vlan_snd_tag_free,
+	.next_snd_tag = vlan_next_snd_tag,
+	.type = IF_SND_TAG_TYPE_TLS_RATE_LIMIT
+};
+#endif
+#endif
+
 static void
 vlan_mc_free(struct epoch_context *ctx)
 {
@@ -1114,10 +1152,6 @@ vlan_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 	ifp->if_ioctl = vlan_ioctl;
 #if defined(KERN_TLS) || defined(RATELIMIT)
 	ifp->if_snd_tag_alloc = vlan_snd_tag_alloc;
-	ifp->if_snd_tag_modify = vlan_snd_tag_modify;
-	ifp->if_snd_tag_query = vlan_snd_tag_query;
-	ifp->if_snd_tag_free = vlan_snd_tag_free;
-	ifp->if_next_snd_tag = vlan_next_snd_tag;
 	ifp->if_ratelimit_query = vlan_ratelimit_query;
 #endif
 	ifp->if_flags = VLAN_IFFLAGS;
@@ -2126,10 +2160,34 @@ vlan_snd_tag_alloc(struct ifnet *ifp,
     struct m_snd_tag **ppmt)
 {
 	struct epoch_tracker et;
+	const struct if_snd_tag_sw *sw;
 	struct vlan_snd_tag *vst;
 	struct ifvlan *ifv;
 	struct ifnet *parent;
 	int error;
+
+	switch (params->hdr.type) {
+#ifdef RATELIMIT
+	case IF_SND_TAG_TYPE_UNLIMITED:
+		sw = &vlan_snd_tag_ul_sw;
+		break;
+	case IF_SND_TAG_TYPE_RATE_LIMIT:
+		sw = &vlan_snd_tag_rl_sw;
+		break;
+#endif
+#ifdef KERN_TLS
+	case IF_SND_TAG_TYPE_TLS:
+		sw = &vlan_snd_tag_tls_sw;
+		break;
+#ifdef RATELIMIT
+	case IF_SND_TAG_TYPE_TLS_RATE_LIMIT:
+		sw = &vlan_snd_tag_tls_rl_sw;
+		break;
+#endif
+#endif
+	default:
+		return (EOPNOTSUPP);
+	}
 
 	NET_EPOCH_ENTER(et);
 	ifv = ifp->if_softc;
@@ -2157,7 +2215,7 @@ vlan_snd_tag_alloc(struct ifnet *ifp,
 		return (error);
 	}
 
-	m_snd_tag_init(&vst->com, ifp, vst->tag->type);
+	m_snd_tag_init(&vst->com, ifp, sw);
 
 	*ppmt = &vst->com;
 	return (0);
@@ -2179,7 +2237,7 @@ vlan_snd_tag_modify(struct m_snd_tag *mst,
 	struct vlan_snd_tag *vst;
 
 	vst = mst_to_vst(mst);
-	return (vst->tag->ifp->if_snd_tag_modify(vst->tag, params));
+	return (vst->tag->sw->snd_tag_modify(vst->tag, params));
 }
 
 static int
@@ -2189,7 +2247,7 @@ vlan_snd_tag_query(struct m_snd_tag *mst,
 	struct vlan_snd_tag *vst;
 
 	vst = mst_to_vst(mst);
-	return (vst->tag->ifp->if_snd_tag_query(vst->tag, params));
+	return (vst->tag->sw->snd_tag_query(vst->tag, params));
 }
 
 static void

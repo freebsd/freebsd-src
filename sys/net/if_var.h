@@ -249,6 +249,21 @@ union if_snd_tag_query_params {
 	struct if_snd_tag_rate_limit_params tls_rate_limit;
 };
 
+typedef int (if_snd_tag_alloc_t)(struct ifnet *, union if_snd_tag_alloc_params *,
+    struct m_snd_tag **);
+typedef int (if_snd_tag_modify_t)(struct m_snd_tag *, union if_snd_tag_modify_params *);
+typedef int (if_snd_tag_query_t)(struct m_snd_tag *, union if_snd_tag_query_params *);
+typedef void (if_snd_tag_free_t)(struct m_snd_tag *);
+typedef struct m_snd_tag *(if_next_send_tag_t)(struct m_snd_tag *);
+
+struct if_snd_tag_sw {
+	if_snd_tag_modify_t *snd_tag_modify;
+	if_snd_tag_query_t *snd_tag_query;
+	if_snd_tag_free_t *snd_tag_free;
+	if_next_send_tag_t *next_snd_tag;
+	u_int	type;			/* One of IF_SND_TAG_TYPE_*. */
+};
+
 /* Query return flags */
 #define RT_NOSUPPORT	  0x00000000	/* Not supported */
 #define RT_IS_INDIRECT    0x00000001	/*
@@ -273,12 +288,6 @@ struct if_ratelimit_query_results {
 	uint32_t min_segment_burst;	/* The amount the adapter bursts at each send */
 };
 
-typedef int (if_snd_tag_alloc_t)(struct ifnet *, union if_snd_tag_alloc_params *,
-    struct m_snd_tag **);
-typedef int (if_snd_tag_modify_t)(struct m_snd_tag *, union if_snd_tag_modify_params *);
-typedef int (if_snd_tag_query_t)(struct m_snd_tag *, union if_snd_tag_query_params *);
-typedef void (if_snd_tag_free_t)(struct m_snd_tag *);
-typedef struct m_snd_tag *(if_next_send_tag_t)(struct m_snd_tag *);
 typedef void (if_ratelimit_query_t)(struct ifnet *,
     struct if_ratelimit_query_results *);
 typedef int (if_ratelimit_setup_t)(struct ifnet *, uint64_t, uint32_t);
@@ -420,10 +429,8 @@ struct ifnet {
 	 * Network adapter send tag support:
 	 */
 	if_snd_tag_alloc_t *if_snd_tag_alloc;
-	if_snd_tag_modify_t *if_snd_tag_modify;
-	if_snd_tag_query_t *if_snd_tag_query;
-	if_snd_tag_free_t *if_snd_tag_free;
-	if_next_send_tag_t *if_next_snd_tag;
+
+	/* Ratelimit (packet pacing) */
 	if_ratelimit_query_t *if_ratelimit_query;
 	if_ratelimit_setup_t *if_ratelimit_setup;
 

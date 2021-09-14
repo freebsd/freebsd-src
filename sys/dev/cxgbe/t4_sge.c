@@ -2369,7 +2369,7 @@ static inline int
 needs_eo(struct m_snd_tag *mst)
 {
 
-	return (mst != NULL && mst->type == IF_SND_TAG_TYPE_RATE_LIMIT);
+	return (mst != NULL && mst->sw->type == IF_SND_TAG_TYPE_RATE_LIMIT);
 }
 #endif
 
@@ -2712,7 +2712,7 @@ restart:
 		mst = NULL;
 #endif
 #ifdef KERN_TLS
-	if (mst != NULL && mst->type == IF_SND_TAG_TYPE_TLS) {
+	if (mst != NULL && mst->sw->type == IF_SND_TAG_TYPE_TLS) {
 		int len16;
 
 		cflags |= MC_TLS;

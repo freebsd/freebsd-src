@@ -140,10 +140,12 @@ struct m_tag {
  * Static network interface owned tag.
  * Allocated through ifp->if_snd_tag_alloc().
  */
+struct if_snd_tag_sw;
+
 struct m_snd_tag {
 	struct ifnet *ifp;		/* network interface tag belongs to */
+	const struct if_snd_tag_sw *sw;
 	volatile u_int refcount;
-	u_int	type;			/* One of IF_SND_TAG_TYPE_*. */
 };
 
 /*
@@ -849,7 +851,8 @@ int		 m_unmapped_uiomove(const struct mbuf *, int, struct uio *,
 struct mbuf	*m_unshare(struct mbuf *, int);
 int		 m_snd_tag_alloc(struct ifnet *,
 		    union if_snd_tag_alloc_params *, struct m_snd_tag **);
-void		 m_snd_tag_init(struct m_snd_tag *, struct ifnet *, u_int);
+void		 m_snd_tag_init(struct m_snd_tag *, struct ifnet *,
+		    const struct if_snd_tag_sw *);
 void		 m_snd_tag_destroy(struct m_snd_tag *);
 
 static __inline int

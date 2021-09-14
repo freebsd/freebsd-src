@@ -1065,8 +1065,8 @@ rt_find_real_interface(struct ifnet *ifp, struct inpcb *inp, int *error)
 		return (NULL);
 	}
 	ntag = tag;
-	while(ntag->ifp->if_next_snd_tag != NULL) {
-		ntag = ntag->ifp->if_next_snd_tag(ntag);
+	while (ntag->sw->next_snd_tag != NULL) {
+		ntag = ntag->sw->next_snd_tag(ntag);
 	}
 	tifp = ntag->ifp;
 	m_snd_tag_rele(tag);
@@ -1360,7 +1360,7 @@ tcp_set_pacing_rate(struct tcpcb *tp, struct ifnet *ifp,
 			 * send tag.  This will convert the existing
 			 * tag to a TLS ratelimit tag.
 			 */
-			MPASS(tls->snd_tag->type == IF_SND_TAG_TYPE_TLS);
+			MPASS(tls->snd_tag->sw->type == IF_SND_TAG_TYPE_TLS);
 			ktls_output_eagain(tp->t_inpcb, tls);
 		}
 #endif
@@ -1405,7 +1405,7 @@ tcp_chg_pacing_rate(const struct tcp_hwrate_limit_table *crte,
 		tls = tp->t_inpcb->inp_socket->so_snd.sb_tls_info;
 		MPASS(tls->mode == TCP_TLS_MODE_IFNET);
 		if (tls->snd_tag != NULL &&
-		    tls->snd_tag->type != IF_SND_TAG_TYPE_TLS_RATE_LIMIT) {
+		    tls->snd_tag->sw->type != IF_SND_TAG_TYPE_TLS_RATE_LIMIT) {
 			/*
 			 * NIC probably doesn't support ratelimit TLS
 			 * tags if it didn't allocate one when an

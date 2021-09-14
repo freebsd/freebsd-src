@@ -102,8 +102,14 @@ struct tlspcb {
 	bool open_pending;
 };
 
+static void cxgbe_tls_tag_free(struct m_snd_tag *mst);
 static int ktls_setup_keys(struct tlspcb *tlsp,
     const struct ktls_session *tls, struct sge_txq *txq);
+
+static const struct if_snd_tag_sw cxgbe_tls_tag_sw = {
+	.snd_tag_free = cxgbe_tls_tag_free,
+	.type = IF_SND_TAG_TYPE_TLS
+};
 
 static inline struct tlspcb *
 mst_to_tls(struct m_snd_tag *t)
@@ -122,7 +128,7 @@ alloc_tlspcb(struct ifnet *ifp, struct vi_info *vi, int flags)
 	if (tlsp == NULL)
 		return (NULL);
 
-	m_snd_tag_init(&tlsp->com, ifp, IF_SND_TAG_TYPE_TLS);
+	m_snd_tag_init(&tlsp->com, ifp, &cxgbe_tls_tag_sw);
 	tlsp->vi = vi;
 	tlsp->sc = sc;
 	tlsp->ctrlq = &sc->sge.ctrlq[pi->port_id];
@@ -2071,7 +2077,7 @@ t6_ktls_write_wr(struct sge_txq *txq, void *dst, struct mbuf *m, u_int nsegs,
 	return (totdesc);
 }
 
-void
+static void
 cxgbe_tls_tag_free(struct m_snd_tag *mst)
 {
 	struct adapter *sc;

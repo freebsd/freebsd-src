@@ -1292,7 +1292,6 @@ void t4_os_dump_devlog(struct adapter *);
 /* t4_kern_tls.c */
 int cxgbe_tls_tag_alloc(struct ifnet *, union if_snd_tag_alloc_params *,
     struct m_snd_tag **);
-void cxgbe_tls_tag_free(struct m_snd_tag *);
 void t6_ktls_modload(void);
 void t6_ktls_modunload(void);
 int t6_ktls_try(struct ifnet *, struct socket *, struct ktls_session *);
@@ -1409,9 +1408,6 @@ void t4_free_etid_table(struct adapter *);
 struct cxgbe_rate_tag *lookup_etid(struct adapter *, int);
 int cxgbe_rate_tag_alloc(struct ifnet *, union if_snd_tag_alloc_params *,
     struct m_snd_tag **);
-int cxgbe_rate_tag_modify(struct m_snd_tag *, union if_snd_tag_modify_params *);
-int cxgbe_rate_tag_query(struct m_snd_tag *, union if_snd_tag_query_params *);
-void cxgbe_rate_tag_free(struct m_snd_tag *);
 void cxgbe_rate_tag_free_locked(struct cxgbe_rate_tag *);
 void cxgbe_ratelimit_query(struct ifnet *, struct if_ratelimit_query_results *);
 #endif

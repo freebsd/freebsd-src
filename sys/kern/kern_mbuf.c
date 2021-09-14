@@ -1585,13 +1585,14 @@ m_snd_tag_alloc(struct ifnet *ifp, union if_snd_tag_alloc_params *params,
 }
 
 void
-m_snd_tag_init(struct m_snd_tag *mst, struct ifnet *ifp, u_int type)
+m_snd_tag_init(struct m_snd_tag *mst, struct ifnet *ifp,
+    const struct if_snd_tag_sw *sw)
 {
 
 	if_ref(ifp);
 	mst->ifp = ifp;
 	refcount_init(&mst->refcount, 1);
-	mst->type = type;
+	mst->sw = sw;
 	counter_u64_add(snd_tag_count, 1);
 }
 
@@ -1601,7 +1602,7 @@ m_snd_tag_destroy(struct m_snd_tag *mst)
 	struct ifnet *ifp;
 
 	ifp = mst->ifp;
-	ifp->if_snd_tag_free(mst);
+	mst->sw->snd_tag_free(mst);
 	if_rele(ifp);
 	counter_u64_add(snd_tag_count, -1);
 }
