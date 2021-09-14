@@ -33,7 +33,7 @@
 . ../default.cfg
 
 [ -z "`type mkntfs 2>/dev/null`" ] && exit 0
-[ -c /dev/fuse ] || kldload fuse.ko
+[ -c /dev/fuse ] || kldload fusefs.ko
 
 MOUNT=/usr/local/bin/ntfs-3g
 
