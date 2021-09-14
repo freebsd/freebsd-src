@@ -552,11 +552,12 @@ vm_offset_t
 vm_page_startup(vm_offset_t vaddr)
 {
 	struct vm_phys_seg *seg;
+	struct vm_domain *vmd;
 	vm_page_t m;
 	char *list, *listend;
 	vm_paddr_t end, high_avail, low_avail, new_end, size;
 	vm_paddr_t page_range __unused;
-	vm_paddr_t last_pa, pa;
+	vm_paddr_t last_pa, pa, startp, endp;
 	u_long pagecount;
 #if MINIDUMP_PAGE_TRACKING
 	u_long vm_page_dump_size;
@@ -770,21 +771,20 @@ vm_page_startup(vm_offset_t vaddr)
 			vm_page_init_page(m, pa, segind);
 
 		/*
-		 * Add the segment to the free lists only if it is covered by
-		 * one of the ranges in phys_avail.  Because we've added the
-		 * ranges to the vm_phys_segs array, we can assume that each
-		 * segment is either entirely contained in one of the ranges,
-		 * or doesn't overlap any of them.
+		 * Add the segment's pages that are covered by one of
+		 * phys_avail's ranges to the free lists.
 		 */
 		for (i = 0; phys_avail[i + 1] != 0; i += 2) {
-			struct vm_domain *vmd;
-
-			if (seg->start < phys_avail[i] ||
-			    seg->end > phys_avail[i + 1])
+			if (seg->end < phys_avail[i] ||
+			    seg->start >= phys_avail[i + 1])
 				continue;
 
-			m = seg->first_page;
-			pagecount = (u_long)atop(seg->end - seg->start);
+			startp = MAX(seg->start, phys_avail[i]);
+			m = seg->first_page + atop(seg->start - startp);
+			endp = MIN(seg->end, phys_avail[i + 1]);
+			pagecount = (u_long)atop(endp - startp);
+			if (pagecount == 0)
+				continue;
 
 			vmd = VM_DOMAIN(seg->domain);
 			vm_domain_free_lock(vmd);
@@ -796,7 +796,6 @@ vm_page_startup(vm_offset_t vaddr)
 			vmd = VM_DOMAIN(seg->domain);
 			vmd->vmd_page_count += (u_int)pagecount;
 			vmd->vmd_segs |= 1UL << m->segind;
-			break;
 		}
 	}
 
