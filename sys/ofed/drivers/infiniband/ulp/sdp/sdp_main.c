@@ -1047,8 +1047,6 @@ out:
 	return (error);
 }
 
-#define	SBLOCKWAIT(f)	(((f) & MSG_DONTWAIT) ? 0 : SBL_WAIT)
-
 /*
  * Send on a socket.  If send must go all at once and message is larger than
  * send buffering, then hard error.  Lock against other senders.  If must go
