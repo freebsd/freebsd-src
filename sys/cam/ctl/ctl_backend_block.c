@@ -3,11 +3,14 @@
  *
  * Copyright (c) 2003 Silicon Graphics International Corp.
  * Copyright (c) 2009-2011 Spectra Logic Corporation
- * Copyright (c) 2012 The FreeBSD Foundation
+ * Copyright (c) 2012,2021 The FreeBSD Foundation
  * Copyright (c) 2014-2015 Alexander Motin <mav@FreeBSD.org>
  * All rights reserved.
  *
  * Portions of this software were developed by Edward Tomasz Napierala
+ * under sponsorship from the FreeBSD Foundation.
+ *
+ * Portions of this software were developed by Ka Ho Ng <khng@FreeBSD.org>
  * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -81,6 +84,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/nv.h>
 #include <sys/dnv.h>
 #include <sys/sx.h>
+#include <sys/unistd.h>
 
 #include <geom/geom.h>
 
@@ -245,6 +249,8 @@ static void ctl_be_block_gls_file(struct ctl_be_block_lun *be_lun,
 				  struct ctl_be_block_io *beio);
 static uint64_t ctl_be_block_getattr_file(struct ctl_be_block_lun *be_lun,
 					 const char *attrname);
+static void ctl_be_block_unmap_file(struct ctl_be_block_lun *be_lun,
+				    struct ctl_be_block_io *beio);
 static void ctl_be_block_flush_dev(struct ctl_be_block_lun *be_lun,
 				   struct ctl_be_block_io *beio);
 static void ctl_be_block_unmap_dev(struct ctl_be_block_lun *be_lun,
@@ -852,6 +858,84 @@ ctl_be_block_getattr_file(struct ctl_be_block_lun *be_lun, const char *attrname)
 	}
 	VOP_UNLOCK(be_lun->vn);
 	return (val);
+}
+
+static void
+ctl_be_block_unmap_file(struct ctl_be_block_lun *be_lun,
+		        struct ctl_be_block_io *beio)
+{
+	struct ctl_be_block_filedata *file_data;
+	union ctl_io *io;
+	struct ctl_ptr_len_flags *ptrlen;
+	struct scsi_unmap_desc *buf, *end;
+	struct mount *mp;
+	off_t off, len;
+	int error;
+
+	io = beio->io;
+	file_data = &be_lun->backend.file;
+	mp = NULL;
+	error = 0;
+
+	binuptime(&beio->ds_t0);
+	devstat_start_transaction(be_lun->disk_stats, &beio->ds_t0);
+
+	(void)vn_start_write(be_lun->vn, &mp, V_WAIT);
+	vn_lock(be_lun->vn, vn_lktype_write(mp, be_lun->vn) | LK_RETRY);
+	if (beio->io_offset == -1) {
+		beio->io_len = 0;
+		ptrlen = (struct ctl_ptr_len_flags *)
+		    &io->io_hdr.ctl_private[CTL_PRIV_LBA_LEN];
+		buf = (struct scsi_unmap_desc *)ptrlen->ptr;
+		end = buf + ptrlen->len / sizeof(*buf);
+		for (; buf < end; buf++) {
+			off = (off_t)scsi_8btou64(buf->lba) *
+			    be_lun->cbe_lun.blocksize;
+			len = (off_t)scsi_4btoul(buf->length) *
+			    be_lun->cbe_lun.blocksize;
+			beio->io_len += len;
+			error = vn_deallocate(be_lun->vn, &off, &len,
+			    0, IO_NOMACCHECK | IO_NODELOCKED, file_data->cred,
+			    NOCRED);
+			if (error != 0)
+				break;
+		}
+	} else {
+		/* WRITE_SAME */
+		off = beio->io_offset;
+		len = beio->io_len;
+		error = vn_deallocate(be_lun->vn, &off, &len, 0,
+		    IO_NOMACCHECK | IO_NODELOCKED, file_data->cred, NOCRED);
+	}
+	VOP_UNLOCK(be_lun->vn);
+	vn_finished_write(mp);
+
+	mtx_lock(&be_lun->io_lock);
+	devstat_end_transaction(beio->lun->disk_stats, beio->io_len,
+	    beio->ds_tag_type, beio->ds_trans_type,
+	    /*now*/ NULL, /*then*/&beio->ds_t0);
+	mtx_unlock(&be_lun->io_lock);
+
+	/*
+	 * If we got an error, set the sense data to "MEDIUM ERROR" and
+	 * return the I/O to the user.
+	 */
+	switch (error) {
+	case 0:
+		ctl_set_success(&io->scsiio);
+		break;
+	case ENOSPC:
+	case EDQUOT:
+		ctl_set_space_alloc_fail(&io->scsiio);
+		break;
+	case EROFS:
+	case EACCES:
+		ctl_set_hw_write_protected(&io->scsiio);
+		break;
+	default:
+		ctl_set_medium_error(&io->scsiio, false);
+	}
+	ctl_complete_beio(beio);
 }
 
 static void
@@ -1804,6 +1888,7 @@ ctl_be_block_open_file(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 	struct vattr		      vattr;
 	off_t			      ps, pss, po, pos, us, uss, uo, uos;
 	int			      error;
+	long			      pconf;
 
 	cbe_lun = &be_lun->cbe_lun;
 	file_data = &be_lun->backend.file;
@@ -1814,7 +1899,7 @@ ctl_be_block_open_file(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 	be_lun->lun_flush = ctl_be_block_flush_file;
 	be_lun->get_lba_status = ctl_be_block_gls_file;
 	be_lun->getattr = ctl_be_block_getattr_file;
-	be_lun->unmap = NULL;
+	be_lun->unmap = ctl_be_block_unmap_file;
 	cbe_lun->flags &= ~CTL_LUN_FLAG_UNMAP;
 
 	error = VOP_GETATTR(be_lun->vn, &vattr, curthread->td_ucred);
@@ -1824,6 +1909,16 @@ ctl_be_block_open_file(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 			 be_lun->dev_path);
 		return (error);
 	}
+
+	error = VOP_PATHCONF(be_lun->vn, _PC_DEALLOC_PRESENT, &pconf);
+	if (error != 0) {
+		snprintf(req->error_str, sizeof(req->error_str),
+		    "error calling VOP_PATHCONF() for file %s",
+		    be_lun->dev_path);
+		return (error);
+	}
+	if (pconf == 1)
+		cbe_lun->flags |= CTL_LUN_FLAG_UNMAP;
 
 	file_data->cred = crhold(curthread->td_ucred);
 	if (params->lun_size_bytes != 0)
