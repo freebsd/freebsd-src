@@ -255,6 +255,8 @@ struct socket {
 #define	SBL_NOINTR	0x00000002	/* Force non-interruptible sleep. */
 #define	SBL_VALID	(SBL_WAIT | SBL_NOINTR)
 
+#define	SBLOCKWAIT(f)	(((f) & MSG_DONTWAIT) ? 0 : SBL_WAIT)
+
 /*
  * Do we need to notify the other side when I/O is possible?
  */
