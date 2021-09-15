@@ -96,7 +96,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/trap.h>
 
 static void get_fpcontext(struct thread *td, mcontext_t *mcp,
-    char *xfpusave, size_t xfpusave_len);
+    char **xfpusave, size_t *xfpusave_len);
 static int set_fpcontext(struct thread *td, mcontext_t *mcp,
     char *xfpustate, size_t xfpustate_len);
 
@@ -133,14 +133,6 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	regs = td->td_frame;
 	oonstack = sigonstack(regs->tf_rsp);
 
-	if (cpu_max_ext_state_size > sizeof(struct savefpu) && use_xsave) {
-		xfpusave_len = cpu_max_ext_state_size - sizeof(struct savefpu);
-		xfpusave = (char *)td->td_md.md_fpu_scratch;
-	} else {
-		xfpusave_len = 0;
-		xfpusave = NULL;
-	}
-
 	/* Save user context. */
 	bzero(&sf, sizeof(sf));
 	sf.sf_uc.uc_sigmask = *mask;
@@ -150,7 +142,7 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	sf.sf_uc.uc_mcontext.mc_onstack = (oonstack) ? 1 : 0;
 	bcopy(regs, &sf.sf_uc.uc_mcontext.mc_rdi, sizeof(*regs));
 	sf.sf_uc.uc_mcontext.mc_len = sizeof(sf.sf_uc.uc_mcontext); /* magic */
-	get_fpcontext(td, &sf.sf_uc.uc_mcontext, xfpusave, xfpusave_len);
+	get_fpcontext(td, &sf.sf_uc.uc_mcontext, &xfpusave, &xfpusave_len);
 	fpstate_drop(td);
 	update_pcb_bases(pcb);
 	sf.sf_uc.uc_mcontext.mc_fsbase = pcb->pcb_fsbase;
@@ -301,10 +293,11 @@ sys_sigreturn(struct thread *td, struct sigreturn_args *uap)
 			    p->p_pid, td->td_name, xfpustate_len);
 			return (EINVAL);
 		}
-		xfpustate = __builtin_alloca(xfpustate_len);
+		xfpustate = (char *)fpu_save_area_alloc();
 		error = copyin((const void *)uc.uc_mcontext.mc_xfpustate,
 		    xfpustate, xfpustate_len);
 		if (error != 0) {
+			fpu_save_area_free((struct savefpu *)xfpustate);
 			uprintf(
 	"pid %d (%s): sigreturn copying xfpustate failed\n",
 			    p->p_pid, td->td_name);
@@ -315,6 +308,7 @@ sys_sigreturn(struct thread *td, struct sigreturn_args *uap)
 		xfpustate_len = 0;
 	}
 	ret = set_fpcontext(td, &ucp->uc_mcontext, xfpustate, xfpustate_len);
+	fpu_save_area_free((struct savefpu *)xfpustate);
 	if (ret != 0) {
 		uprintf("pid %d (%s): sigreturn set_fpcontext err %d\n",
 		    p->p_pid, td->td_name, ret);
@@ -674,14 +668,17 @@ set_mcontext(struct thread *td, mcontext_t *mcp)
 		if (mcp->mc_xfpustate_len > cpu_max_ext_state_size -
 		    sizeof(struct savefpu))
 			return (EINVAL);
-		xfpustate = (char *)td->td_md.md_fpu_scratch;
+		xfpustate = (char *)fpu_save_area_alloc();
 		ret = copyin((void *)mcp->mc_xfpustate, xfpustate,
 		    mcp->mc_xfpustate_len);
-		if (ret != 0)
+		if (ret != 0) {
+			fpu_save_area_free((struct savefpu *)xfpustate);
 			return (ret);
+		}
 	} else
 		xfpustate = NULL;
 	ret = set_fpcontext(td, mcp, xfpustate, mcp->mc_xfpustate_len);
+	fpu_save_area_free((struct savefpu *)xfpustate);
 	if (ret != 0)
 		return (ret);
 	tp->tf_r15 = mcp->mc_r15;
@@ -719,26 +716,24 @@ set_mcontext(struct thread *td, mcontext_t *mcp)
 }
 
 static void
-get_fpcontext(struct thread *td, mcontext_t *mcp, char *xfpusave,
-    size_t xfpusave_len)
+get_fpcontext(struct thread *td, mcontext_t *mcp, char **xfpusave,
+    size_t *xfpusave_len)
 {
-	size_t max_len, len;
-
 	mcp->mc_ownedfp = fpugetregs(td);
 	bcopy(get_pcb_user_save_td(td), &mcp->mc_fpstate[0],
 	    sizeof(mcp->mc_fpstate));
 	mcp->mc_fpformat = fpuformat();
-	if (!use_xsave || xfpusave_len == 0)
+	if (xfpusave == NULL)
 		return;
-	max_len = cpu_max_ext_state_size - sizeof(struct savefpu);
-	len = xfpusave_len;
-	if (len > max_len) {
-		len = max_len;
-		bzero(xfpusave + max_len, len - max_len);
+	if (!use_xsave || cpu_max_ext_state_size <= sizeof(struct savefpu)) {
+		*xfpusave_len = 0;
+		*xfpusave = NULL;
+	} else {
+		mcp->mc_flags |= _MC_HASFPXSTATE;
+		*xfpusave_len = mcp->mc_xfpustate_len =
+		    cpu_max_ext_state_size - sizeof(struct savefpu);
+		*xfpusave = (char *)(get_pcb_user_save_td(td) + 1);
 	}
-	mcp->mc_flags |= _MC_HASFPXSTATE;
-	mcp->mc_xfpustate_len = len;
-	bcopy(get_pcb_user_save_td(td) + 1, xfpusave, len);
 }
 
 static int
