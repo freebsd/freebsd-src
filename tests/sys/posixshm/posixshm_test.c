@@ -1105,7 +1105,7 @@ ATF_TC_BODY(fspacectl, tc)
 	ATF_CHECK_MSG(fspacectl(fd, SPACECTL_DEALLOC, &range, 0, &range) == 0,
 	    "Aligned fspacectl failed; errno=%d", errno);
 	ATF_CHECK_MSG(check_content_dealloc(fd, offset, length, shm_sz) == 0,
-	    "Aligned fspacectl content checking failed", errno);
+	    "Aligned fspacectl content checking failed");
 
 	/* Unaligned fspacectl(fd, SPACECTL_DEALLOC, ...) */
 	ATF_REQUIRE(shm_fill(fd, 0, shm_sz) == 0);
@@ -1115,7 +1115,7 @@ ATF_TC_BODY(fspacectl, tc)
 	ATF_CHECK_MSG(fspacectl(fd, SPACECTL_DEALLOC, &range, 0, &range) == 0,
 	    "Unaligned fspacectl failed; errno=%d", errno);
 	ATF_CHECK_MSG(check_content_dealloc(fd, offset, length, shm_sz) == 0,
-	    "Unaligned fspacectl content checking failed", errno);
+	    "Unaligned fspacectl content checking failed");
 
 	/* Aligned fspacectl(fd, SPACECTL_DEALLOC, ...) to OFF_MAX */
 	ATF_REQUIRE(shm_fill(fd, 0, shm_sz) == 0);
@@ -1124,7 +1124,7 @@ ATF_TC_BODY(fspacectl, tc)
 	ATF_CHECK_MSG(fspacectl(fd, SPACECTL_DEALLOC, &range, 0, &range) == 0,
 	    "Aligned fspacectl to OFF_MAX failed; errno=%d", errno);
 	ATF_CHECK_MSG(check_content_dealloc(fd, offset, length, shm_sz) == 0,
-	    "Aligned fspacectl to OFF_MAX content checking failed", errno);
+	    "Aligned fspacectl to OFF_MAX content checking failed");
 
 	/* Unaligned fspacectl(fd, SPACECTL_DEALLOC, ...) to OFF_MAX */
 	ATF_REQUIRE(shm_fill(fd, 0, shm_sz) == 0);
@@ -1133,7 +1133,7 @@ ATF_TC_BODY(fspacectl, tc)
 	ATF_CHECK_MSG(fspacectl(fd, SPACECTL_DEALLOC, &range, 0, &range) == 0,
 	    "Unaligned fspacectl to OFF_MAX failed; errno=%d", errno);
 	ATF_CHECK_MSG(check_content_dealloc(fd, offset, length, shm_sz) == 0,
-	    "Unaligned fspacectl to OFF_MAX content checking failed", errno);
+	    "Unaligned fspacectl to OFF_MAX content checking failed");
 
 	/* Aligned fspacectl(fd, SPACECTL_DEALLOC, ...) past shm_sz */
 	ATF_REQUIRE(shm_fill(fd, 0, shm_sz) == 0);
@@ -1142,7 +1142,7 @@ ATF_TC_BODY(fspacectl, tc)
 	ATF_CHECK_MSG(fspacectl(fd, SPACECTL_DEALLOC, &range, 0, &range) == 0,
 	    "Aligned fspacectl past shm_sz failed; errno=%d", errno);
 	ATF_CHECK_MSG(check_content_dealloc(fd, offset, length, shm_sz) == 0,
-	    "Aligned fspacectl past shm_sz content checking failed", errno);
+	    "Aligned fspacectl past shm_sz content checking failed");
 
 	/* Unaligned fspacectl(fd, SPACECTL_DEALLOC, ...) past shm_sz */
 	ATF_REQUIRE(shm_fill(fd, 0, shm_sz) == 0);
@@ -1151,7 +1151,7 @@ ATF_TC_BODY(fspacectl, tc)
 	ATF_CHECK_MSG(fspacectl(fd, SPACECTL_DEALLOC, &range, 0, &range) == 0,
 	    "Unaligned fspacectl past shm_sz failed; errno=%d", errno);
 	ATF_CHECK_MSG(check_content_dealloc(fd, offset, length, shm_sz) == 0,
-	    "Unaligned fspacectl past shm_sz content checking failed", errno);
+	    "Unaligned fspacectl past shm_sz content checking failed");
 
 	ATF_REQUIRE(close(fd) == 0);
 }
@@ -1251,9 +1251,7 @@ ATF_TC_BODY(largepage_config, tc)
 	struct shm_largepage_conf lpc;
 	char *addr, *buf;
 	size_t ps[MAXPAGESIZES + 1]; /* silence warnings if MAXPAGESIZES == 1 */
-	int error, fd, pscnt;
-
-	pscnt = pagesizes(ps);
+	int error, fd;
 
 	fd = shm_open(SHM_ANON, O_CREAT | O_RDWR, 0);
 	ATF_REQUIRE_MSG(fd >= 0, "shm_open failed; error=%d", errno);
