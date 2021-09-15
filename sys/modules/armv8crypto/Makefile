@@ -20,7 +20,6 @@ armv8_crypto_wrap.o: armv8_crypto_wrap.c
 aesv8-armx.o: aesv8-armx.S
 	${CC} -c ${CFLAGS:C/^-O2$/-O3/:N-nostdinc:N-mgeneral-regs-only} \
 	    -I${SRCTOP}/sys/crypto/armv8 \
-	    -I${SRCTOP}/sys/crypto/openssl/crypto \
 	    ${WERROR} ${PROF} \
 	    -march=armv8-a+crypto ${.IMPSRC}
 	${CTFCONVERT_CMD}
@@ -28,7 +27,6 @@ aesv8-armx.o: aesv8-armx.S
 ghashv8-armx.o: ghashv8-armx.S
 	${CC} -c ${CFLAGS:C/^-O2$/-O3/:N-nostdinc:N-mgeneral-regs-only} \
 	    -I${SRCTOP}/sys/crypto/armv8 \
-	    -I${SRCTOP}/sys/crypto/openssl/crypto \
 	    ${WERROR} ${PROF} \
 	    -march=armv8-a+crypto ${.IMPSRC}
 	${CTFCONVERT_CMD}
