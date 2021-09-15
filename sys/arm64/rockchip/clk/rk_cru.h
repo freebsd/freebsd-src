@@ -170,7 +170,7 @@
 }
 
 /* Complex clock without divider (multiplexer only). */
-#define MUX(_id, _name, _pn, _f,  _mo, _ms, _mw)			\
+#define MUXRAW(_id, _name, _pn, _f,  _mo, _ms, _mw)			\
 {									\
 	.type = RK_CLK_MUX,						\
 	.clk.mux = &(struct rk_clk_mux_def) {				\
@@ -179,12 +179,15 @@
 		.clkdef.parent_names = _pn,				\
 		.clkdef.parent_cnt = nitems(_pn),			\
 		.clkdef.flags = CLK_NODE_STATIC_STRINGS,		\
-		.offset = CRU_CLKSEL_CON(_mo),				\
+		.offset = _mo,						\
 		.shift = _ms,						\
 		.width = _mw,						\
-		.mux_flags = _f, 			\
+		.mux_flags = _f,					\
 	},								\
 }
+
+#define MUX(_id, _name, _pn, _f,  _mo, _ms, _mw)			\
+	MUXRAW(_id, _name, _pn, _f, CRU_CLKSEL_CON(_mo), _ms, _mw)
 
 /* Complex clock without divider (multiplexer only in GRF). */
 #define MUXGRF(_id, _name, _pn, _f,  _mo, _ms, _mw)			\
