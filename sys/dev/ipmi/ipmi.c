@@ -668,7 +668,8 @@ ipmi_set_watchdog(struct ipmi_softc *sc, unsigned int sec)
 		req->ir_request[0] = IPMI_SET_WD_TIMER_DONT_STOP
 		    | IPMI_SET_WD_TIMER_SMS_OS;
 		req->ir_request[1] = (wd_timer_actions & 0xff);
-		req->ir_request[2] = (wd_pretimeout_countdown & 0xff);
+		req->ir_request[2] = min(0xff,
+		    min(wd_pretimeout_countdown, (sec + 2) / 4));
 		req->ir_request[3] = 0;	/* Timer use */
 		req->ir_request[4] = (sec * 10) & 0xff;
 		req->ir_request[5] = (sec * 10) >> 8;
