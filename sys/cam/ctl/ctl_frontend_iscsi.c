@@ -1109,10 +1109,29 @@ cfiscsi_data_wait_free(struct cfiscsi_session *cs,
 }
 
 static void
+cfiscsi_data_wait_abort(struct cfiscsi_session *cs,
+    struct cfiscsi_data_wait *cdw, int status)
+{
+	union ctl_io *cdw_io;
+
+	/*
+	 * Set nonzero port status; this prevents backends from
+	 * assuming that the data transfer actually succeeded
+	 * and writing uninitialized data to disk.
+	 */
+	MPASS(status != 0);
+	cdw_io = cdw->cdw_ctl_io;
+	cdw_io->io_hdr.flags &= ~CTL_FLAG_DMA_INPROG;
+	cdw_io->scsiio.io_hdr.port_status = status;
+	cfiscsi_data_wait_free(cs, cdw);
+	ctl_datamove_done(cdw_io, false);
+}
+
+static void
 cfiscsi_session_terminate_tasks(struct cfiscsi_session *cs)
 {
 	struct cfiscsi_data_wait *cdw;
-	union ctl_io *io, *cdw_io;
+	union ctl_io *io;
 	int error, last, wait;
 
 	if (cs->cs_target == NULL)
@@ -1139,16 +1158,7 @@ cfiscsi_session_terminate_tasks(struct cfiscsi_session *cs)
 	while ((cdw = TAILQ_FIRST(&cs->cs_waiting_for_data_out)) != NULL) {
 		TAILQ_REMOVE(&cs->cs_waiting_for_data_out, cdw, cdw_next);
 		CFISCSI_SESSION_UNLOCK(cs);
-		/*
-		 * Set nonzero port status; this prevents backends from
-		 * assuming that the data transfer actually succeeded
-		 * and writing uninitialized data to disk.
-		 */
-		cdw_io = cdw->cdw_ctl_io;
-		cdw_io->io_hdr.flags &= ~CTL_FLAG_DMA_INPROG;
-		cdw_io->scsiio.io_hdr.port_status = 42;
-		cfiscsi_data_wait_free(cs, cdw);
-		ctl_datamove_done(cdw_io, false);
+		cfiscsi_data_wait_abort(cs, cdw, 42);
 		CFISCSI_SESSION_LOCK(cs);
 	}
 	CFISCSI_SESSION_UNLOCK(cs);
@@ -2931,7 +2941,6 @@ cfiscsi_task_management_done(union ctl_io *io)
 	struct cfiscsi_data_wait *cdw, *tmpcdw;
 	struct cfiscsi_session *cs, *tcs;
 	struct cfiscsi_softc *softc;
-	union ctl_io *cdw_io;
 	int cold_reset = 0;
 
 	request = PRIV_REQUEST(io);
@@ -2965,11 +2974,7 @@ cfiscsi_task_management_done(union ctl_io *io)
 #endif
 			TAILQ_REMOVE(&cs->cs_waiting_for_data_out,
 			    cdw, cdw_next);
-			cdw_io = cdw->cdw_ctl_io;
-			cdw_io->io_hdr.flags &= ~CTL_FLAG_DMA_INPROG;
-			cdw_io->scsiio.io_hdr.port_status = 43;
-			cfiscsi_data_wait_free(cs, cdw);
-			ctl_datamove_done(cdw_io, false);
+			cfiscsi_data_wait_abort(cs, cdw, 43);
 		}
 		CFISCSI_SESSION_UNLOCK(cs);
 	}
