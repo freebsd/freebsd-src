@@ -1150,7 +1150,10 @@ dxr_change_rib_batch(struct rib_head *rnh, struct fib_change_queue *q,
 #endif
 		plen = q->entries[ui].plen;
 		ip = ntohl(q->entries[ui].addr4.s_addr);
-		hmask = 0xffffffffU >> plen;
+		if (plen < 32)
+			hmask = 0xffffffffU >> plen;
+		else
+			hmask = 0;
 		start = (ip & ~hmask) >> DXR_RANGE_SHIFT;
 		end = (ip | hmask) >> DXR_RANGE_SHIFT;
 
