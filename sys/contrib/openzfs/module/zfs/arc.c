@@ -5911,17 +5911,24 @@ arc_read(zio_t *pio, spa_t *spa, const blkptr_t *bp,
 	 */
 	fstrans_cookie_t cookie = spl_fstrans_mark();
 top:
+	/*
+	 * Verify the block pointer contents are reasonable.  This should
+	 * always be the case since the blkptr is protected by a checksum.
+	 * However, if there is damage it's desirable to detect this early
+	 * and treat it as a checksum error.  This allows an alternate blkptr
+	 * to be tried when one is available (e.g. ditto blocks).
+	 */
+	if (!zfs_blkptr_verify(spa, bp, zio_flags & ZIO_FLAG_CONFIG_WRITER,
+	    BLK_VERIFY_LOG)) {
+		rc = SET_ERROR(ECKSUM);
+		goto out;
+	}
+
 	if (!embedded_bp) {
 		/*
 		 * Embedded BP's have no DVA and require no I/O to "read".
 		 * Create an anonymous arc buf to back it.
 		 */
-		if (!zfs_blkptr_verify(spa, bp, zio_flags &
-		    ZIO_FLAG_CONFIG_WRITER, BLK_VERIFY_LOG)) {
-			rc = SET_ERROR(ECKSUM);
-			goto out;
-		}
-
 		hdr = buf_hash_find(guid, bp, &hash_lock);
 	}
 
@@ -6535,7 +6542,6 @@ arc_release(arc_buf_t *buf, void *tag)
 		ASSERT(!HDR_IO_IN_PROGRESS(hdr));
 		ASSERT(!HDR_IN_HASH_TABLE(hdr));
 		ASSERT(!HDR_HAS_L2HDR(hdr));
-		ASSERT(HDR_EMPTY(hdr));
 
 		ASSERT3U(hdr->b_l1hdr.b_bufcnt, ==, 1);
 		ASSERT3S(zfs_refcount_count(&hdr->b_l1hdr.b_refcnt), ==, 1);
