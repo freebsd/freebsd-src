@@ -1975,7 +1975,6 @@ sctp_process_cookie_new(struct mbuf *m, int iphlen, int offset,
 	union sctp_sockstore store;
 	struct sctp_association *asoc;
 	int init_offset, initack_offset, initack_limit;
-	int retval;
 	int error = 0;
 	uint8_t auth_chunk_buf[SCTP_CHUNK_BUFFER_SIZE];
 
@@ -2088,9 +2087,9 @@ sctp_process_cookie_new(struct mbuf *m, int iphlen, int offset,
 		return (NULL);
 	}
 	/* load all addresses */
-	if ((retval = sctp_load_addresses_from_init(stcb, m,
+	if (sctp_load_addresses_from_init(stcb, m,
 	    init_offset + sizeof(struct sctp_init_chunk),
-	    initack_offset, src, dst, init_src, port)) < 0) {
+	    initack_offset, src, dst, init_src, port) < 0) {
 		(void)sctp_free_assoc(inp, stcb, SCTP_NORMAL_PROC,
 		    SCTP_FROM_SCTP_INPUT + SCTP_LOC_20);
 		return (NULL);
