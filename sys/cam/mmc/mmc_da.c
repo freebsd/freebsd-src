@@ -1178,6 +1178,8 @@ static inline const char
 		return ("4-bit");
 	case bus_width_8:
 		return ("8-bit");
+	default:
+		__assert_unreachable();
 	}
 }
 
