@@ -273,8 +273,6 @@ pfsync_detach_ifnet_t *pfsync_detach_ifnet_ptr;
 /* pflog */
 pflog_packet_t			*pflog_packet_ptr = NULL;
 
-extern u_long	pf_ioctl_maxcount;
-
 /*
  * Copy a user-provided string, returning an error if truncation would occur.
  * Avoid scanning past "sz" bytes in the source string since there's no
