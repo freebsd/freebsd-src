@@ -100,7 +100,7 @@ static void	evdev_mt_replay_events(struct evdev_dev *);
 static inline int
 ffc_slot(struct evdev_dev *evdev, slotset_t slots)
 {
-	return (ffs(~slots & (2U << MAXIMAL_MT_SLOT(evdev)) - 1) - 1);
+	return (ffs(~slots & ((2U << MAXIMAL_MT_SLOT(evdev)) - 1)) - 1);
 }
 
 void
