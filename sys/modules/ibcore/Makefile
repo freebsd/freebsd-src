@@ -42,3 +42,5 @@ CFLAGS+= -DINET6 -DINET -DCONFIG_INFINIBAND_USER_MEM
 EXPORT_SYMS=	YES
 
 .include <bsd.kmod.mk>
+
+CWARNFLAGS+= -Wno-cast-qual -Wno-pointer-arith -Wno-redundant-decls
