@@ -3323,7 +3323,7 @@ em_initialize_receive_unit(if_ctx_t ctx)
 				psize += VLAN_TAG_SIZE;
 
 			if (adapter->vf_ifp)
-				e1000_rlpml_set_vf(hw, pszie);
+				e1000_rlpml_set_vf(hw, psize);
 			else
 				E1000_WRITE_REG(hw, E1000_RLPML, psize);
 		}
