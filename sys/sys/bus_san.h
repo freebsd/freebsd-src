@@ -93,7 +93,7 @@
 	int sp##_bus_space_poke_##width(bus_space_tag_t, 		\
 	    bus_space_handle_t, bus_size_t, type);
 
-#define	BUS_SAN_MISC(sp)						\
+#define	_BUS_SAN_MISC(sp)						\
 	int sp##_bus_space_map(bus_space_tag_t, bus_addr_t, bus_size_t,	\
 	    int, bus_space_handle_t *);					\
 	void sp##_bus_space_unmap(bus_space_tag_t, bus_space_handle_t,	\
@@ -108,14 +108,16 @@
 	void sp##_bus_space_barrier(bus_space_tag_t, bus_space_handle_t,\
 	    bus_size_t, bus_size_t, int);
 
+#define	BUS_SAN_MISC(sp)						\
+	_BUS_SAN_MISC(sp)
+
 #define	_BUS_SAN_FUNCS(sp, width, type)					\
 	BUS_SAN_READ(sp, width, type);					\
 	BUS_SAN_WRITE(sp, width, type);					\
 	BUS_SAN_SET(sp, width, type);					\
 	BUS_SAN_COPY(sp, width, type)					\
 	BUS_SAN_PEEK(sp, width, type);					\
-	BUS_SAN_POKE(sp, width, type);					\
-	BUS_SAN_MISC(sp);
+	BUS_SAN_POKE(sp, width, type)
 
 #define	BUS_SAN_FUNCS(width, type)					\
 	_BUS_SAN_FUNCS(SAN_INTERCEPTOR_PREFIX, width, type)
@@ -124,6 +126,7 @@ BUS_SAN_FUNCS(1, uint8_t);
 BUS_SAN_FUNCS(2, uint16_t);
 BUS_SAN_FUNCS(4, uint32_t);
 BUS_SAN_FUNCS(8, uint64_t);
+BUS_SAN_MISC(SAN_INTERCEPTOR_PREFIX);
 
 #ifndef SAN_RUNTIME
 
