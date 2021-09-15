@@ -53,3 +53,5 @@ CFLAGS+= -I${SRCTOP}/sys/compat/linuxkpi/common/include
 CFLAGS+= -DINET6 -DINET -DCONFIG_INFINIBAND_USER_MEM
 
 .include <bsd.kmod.mk>
+
+CWARNFLAGS+= -Wno-cast-qual -Wno-pointer-arith -Wno-redundant-decls
