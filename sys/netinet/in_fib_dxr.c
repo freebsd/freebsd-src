@@ -915,7 +915,14 @@ dxr2_try_squeeze:
 
 	for (i = da->updates_low >> dxr_x; i <= da->updates_high >> dxr_x;
 	    i++) {
-		trie_unref(da, i);
+		if (!trie_rebuild) {
+			m = 0;
+			for (int j = 0; j < (1 << dxr_x); j += 32)
+				m |= da->updates_mask[((i << dxr_x) + j) >> 5];
+			if (m == 0)
+				continue;
+			trie_unref(da, i);
+		}
 		ti = trie_ref(da, i);
 		if (ti < 0)
 			return;
