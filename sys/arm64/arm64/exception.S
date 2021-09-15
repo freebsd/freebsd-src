@@ -225,7 +225,7 @@ ENTRY(handle_empty_exception)
 	mov	x0, sp
 1:	bl	unhandled_exception
 	b	1b
-END(handle_unhandled_exception)
+END(handle_empty_exception)
 
 .macro	vempty
 	.align 7
