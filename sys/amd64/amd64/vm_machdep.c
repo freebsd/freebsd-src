@@ -392,7 +392,6 @@ cpu_thread_alloc(struct thread *td)
 	td->td_pcb = pcb = get_pcb_td(td);
 	td->td_frame = (struct trapframe *)td->td_md.md_stack_base - 1;
 	td->td_md.md_usr_fpu_save = fpu_save_area_alloc();
-	td->td_md.md_fpu_scratch = fpu_save_area_alloc();
 	pcb->pcb_save = get_pcb_user_save_pcb(pcb);
 	if (use_xsave) {
 		xhdr = (struct xstate_hdr *)(pcb->pcb_save + 1);
@@ -408,8 +407,6 @@ cpu_thread_free(struct thread *td)
 
 	fpu_save_area_free(td->td_md.md_usr_fpu_save);
 	td->td_md.md_usr_fpu_save = NULL;
-	fpu_save_area_free(td->td_md.md_fpu_scratch);
-	td->td_md.md_fpu_scratch = NULL;
 }
 
 bool
