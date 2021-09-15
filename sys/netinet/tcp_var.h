@@ -1155,7 +1155,7 @@ tcp_account_for_send(struct tcpcb *tp, uint32_t len, uint8_t is_rxt,
 		tp->t_sndbytes += len;
 
 #ifdef KERN_TLS
-	if (hw_tls && is_rxt) {
+	if (hw_tls && is_rxt && len != 0) {
 		uint64_t rexmit_percent = (1000ULL * tp->t_snd_rxt_bytes) / (10ULL * (tp->t_snd_rxt_bytes + tp->t_sndbytes));
 		if (rexmit_percent > ktls_ifnet_max_rexmit_pct)
 			ktls_disable_ifnet(tp);
