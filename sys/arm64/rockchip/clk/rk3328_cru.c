@@ -1064,6 +1064,11 @@ static struct rk_clk rk3328_clks[] = {
 
 	/* GRF_MAC_CON2 */
 	MUXGRF(SCLK_MAC2PHY, "clk_mac2phy", mux_mac2phy_p, 0, RK3328_GRF_MAC_CON2, 10, 1),
+
+	/*
+	 * This clock is controlled in the secure world
+	 */
+	FFACT(PCLK_WDT, "pclk_wdt", "pclk_bus", 1, 1),
 };
 
 static int
