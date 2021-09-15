@@ -297,6 +297,11 @@ static void	em_if_debug(if_ctx_t ctx);
 static void	em_update_stats_counters(struct adapter *);
 static void	em_add_hw_stats(struct adapter *adapter);
 static int	em_if_set_promisc(if_ctx_t ctx, int flags);
+static bool	em_if_vlan_filter_capable(struct adapter *);
+static bool	em_if_vlan_filter_used(struct adapter *);
+static void	em_if_vlan_filter_enable(struct adapter *);
+static void	em_if_vlan_filter_disable(struct adapter *);
+static void	em_if_vlan_filter_write(struct adapter *);
 static void	em_setup_vlan_hw_support(struct adapter *);
 static int	em_sysctl_nvm_info(SYSCTL_HANDLER_ARGS);
 static void	em_print_nvm_info(struct adapter *);
@@ -906,6 +911,9 @@ em_if_attach_pre(if_ctx_t ctx)
 		scctx->isc_capabilities = scctx->isc_capenable = LEM_CAPS;
 		if (hw->mac.type < e1000_82543)
 			scctx->isc_capenable &= ~(IFCAP_HWCSUM|IFCAP_VLAN_HWCSUM);
+		/* 82541ER doesn't do HW tagging */
+		if (hw->device_id == E1000_DEV_ID_82541ER || hw->device_id == E1000_DEV_ID_82541ER_LOM)
+			scctx->isc_capenable &= ~IFCAP_VLAN_HWTAGGING;
 		/* INTx only */
 		scctx->isc_msix_bar = 0;
 	}
@@ -1335,23 +1343,8 @@ em_if_init(if_ctx_t ctx)
 	adapter->rx_mbuf_sz = iflib_get_rx_mbuf_sz(ctx);
 	em_initialize_receive_unit(ctx);
 
-	/* Use real VLAN Filter support? */
-	if (if_getcapenable(ifp) & IFCAP_VLAN_HWTAGGING) {
-		if (if_getcapenable(ifp) & IFCAP_VLAN_HWFILTER)
-			/* Use real VLAN Filter support */
-			em_setup_vlan_hw_support(adapter);
-		else {
-			u32 ctrl;
-			ctrl = E1000_READ_REG(&adapter->hw, E1000_CTRL);
-			ctrl |= E1000_CTRL_VME;
-			E1000_WRITE_REG(&adapter->hw, E1000_CTRL, ctrl);
-		}
-	} else {
-		u32 ctrl;
-		ctrl = E1000_READ_REG(&adapter->hw, E1000_CTRL);
-		ctrl &= ~E1000_CTRL_VME;
-		E1000_WRITE_REG(&adapter->hw, E1000_CTRL, ctrl);
-	}
+	/* Set up VLAN support and filter */
+	em_setup_vlan_hw_support(adapter);
 
 	/* Don't lose promiscuous settings */
 	em_if_set_promisc(ctx, if_getflags(ifp));
@@ -1670,14 +1663,19 @@ em_if_set_promisc(if_ctx_t ctx, int flags)
 
 	if (flags & IFF_PROMISC) {
 		reg_rctl |= (E1000_RCTL_UPE | E1000_RCTL_MPE);
+		em_if_vlan_filter_disable(adapter);
 		/* Turn this on if you want to see bad packets */
 		if (em_debug_sbp)
 			reg_rctl |= E1000_RCTL_SBP;
 		E1000_WRITE_REG(&adapter->hw, E1000_RCTL, reg_rctl);
-	} else if (flags & IFF_ALLMULTI) {
-		reg_rctl |= E1000_RCTL_MPE;
-		reg_rctl &= ~E1000_RCTL_UPE;
-		E1000_WRITE_REG(&adapter->hw, E1000_RCTL, reg_rctl);
+	} else {
+		if (flags & IFF_ALLMULTI) {
+			reg_rctl |= E1000_RCTL_MPE;
+			reg_rctl &= ~E1000_RCTL_UPE;
+			E1000_WRITE_REG(&adapter->hw, E1000_RCTL, reg_rctl);
+		}
+		if (em_if_vlan_filter_used(adapter))
+			em_if_vlan_filter_enable(adapter);
 	}
 	return (0);
 }
@@ -3323,7 +3321,11 @@ em_initialize_receive_unit(if_ctx_t ctx)
 			/* are we on a vlan? */
 			if (ifp->if_vlantrunk != NULL)
 				psize += VLAN_TAG_SIZE;
-			E1000_WRITE_REG(hw, E1000_RLPML, psize);
+
+			if (adapter->vf_ifp)
+				e1000_rlpml_set_vf(hw, pszie);
+			else
+				E1000_WRITE_REG(hw, E1000_RLPML, psize);
 		}
 
 		/* Set maximum packet buffer len */
@@ -3420,6 +3422,7 @@ em_if_vlan_register(if_ctx_t ctx, u16 vtag)
 	bit = vtag & 0x1F;
 	adapter->shadow_vfta[index] |= (1 << bit);
 	++adapter->num_vlans;
+	em_if_vlan_filter_write(adapter);
 }
 
 static void
@@ -3432,41 +3435,121 @@ em_if_vlan_unregister(if_ctx_t ctx, u16 vtag)
 	bit = vtag & 0x1F;
 	adapter->shadow_vfta[index] &= ~(1 << bit);
 	--adapter->num_vlans;
+	em_if_vlan_filter_write(adapter);
+}
+
+static bool
+em_if_vlan_filter_capable(struct adapter *adapter)
+{
+	if_softc_ctx_t scctx = adapter->shared;
+
+	if ((scctx->isc_capenable & IFCAP_VLAN_HWFILTER) &&
+	    !em_disable_crc_stripping)
+		return (true);
+
+	return (false);
+}
+
+static bool
+em_if_vlan_filter_used(struct adapter *adapter)
+{
+	if (!em_if_vlan_filter_capable(adapter))
+		return (false);
+
+	for (int i = 0; i < EM_VFTA_SIZE; i++)
+		if (adapter->shadow_vfta[i] != 0)
+			return (true);
+
+	return (false);
+}
+
+static void
+em_if_vlan_filter_enable(struct adapter *adapter)
+{
+	struct e1000_hw *hw = &adapter->hw;
+	u32 reg;
+
+	reg = E1000_READ_REG(hw, E1000_RCTL);
+	reg &= ~E1000_RCTL_CFIEN;
+	reg |= E1000_RCTL_VFE;
+	E1000_WRITE_REG(hw, E1000_RCTL, reg);
+}
+
+static void
+em_if_vlan_filter_disable(struct adapter *adapter)
+{
+	struct e1000_hw *hw = &adapter->hw;
+	u32 reg;
+
+	reg = E1000_READ_REG(hw, E1000_RCTL);
+	reg &= ~(E1000_RCTL_VFE | E1000_RCTL_CFIEN);
+	E1000_WRITE_REG(hw, E1000_RCTL, reg);
+}
+
+static void
+em_if_vlan_filter_write(struct adapter *adapter)
+{
+	struct e1000_hw *hw = &adapter->hw;
+
+	if (adapter->vf_ifp)
+		return;
+
+	/* Disable interrupts for lem-class devices during the filter change */
+	if (hw->mac.type < em_mac_min)
+		em_if_intr_disable(adapter->ctx);
+
+	for (int i = 0; i < EM_VFTA_SIZE; i++)
+		if (adapter->shadow_vfta[i] != 0) {
+			/* XXXKB: incomplete VF support, we return early above */
+			if (adapter->vf_ifp)
+				e1000_vfta_set_vf(hw, adapter->shadow_vfta[i], TRUE);
+			else
+				e1000_write_vfta(hw, i, adapter->shadow_vfta[i]);
+		}
+
+	/* Re-enable interrupts for lem-class devices */
+	if (hw->mac.type < em_mac_min)
+		em_if_intr_enable(adapter->ctx);
 }
 
 static void
 em_setup_vlan_hw_support(struct adapter *adapter)
 {
+	if_softc_ctx_t scctx = adapter->shared;
 	struct e1000_hw *hw = &adapter->hw;
 	u32 reg;
 
-	/*
-	 * We get here thru init_locked, meaning
-	 * a soft reset, this has already cleared
-	 * the VFTA and other state, so if there
-	 * have been no vlan's registered do nothing.
+	/* XXXKB: Return early if we are a VF until VF decap and filter management
+	 * is ready and tested.
 	 */
-	if (adapter->num_vlans == 0)
+	if (adapter->vf_ifp)
 		return;
+
+	if (scctx->isc_capenable & IFCAP_VLAN_HWTAGGING &&
+	    !em_disable_crc_stripping) {
+		reg = E1000_READ_REG(hw, E1000_CTRL);
+		reg |= E1000_CTRL_VME;
+		E1000_WRITE_REG(hw, E1000_CTRL, reg);
+	} else {
+		reg = E1000_READ_REG(hw, E1000_CTRL);
+		reg &= ~E1000_CTRL_VME;
+		E1000_WRITE_REG(hw, E1000_CTRL, reg);
+	}
+
+	/* If we aren't doing HW filtering, we're done */
+	if (!em_if_vlan_filter_capable(adapter))  {
+		em_if_vlan_filter_disable(adapter);
+		return;
+	}
 
 	/*
 	 * A soft reset zero's out the VFTA, so
 	 * we need to repopulate it now.
 	 */
-	for (int i = 0; i < EM_VFTA_SIZE; i++)
-		if (adapter->shadow_vfta[i] != 0)
-			E1000_WRITE_REG_ARRAY(hw, E1000_VFTA,
-			    i, adapter->shadow_vfta[i]);
-
-	reg = E1000_READ_REG(hw, E1000_CTRL);
-	reg |= E1000_CTRL_VME;
-	E1000_WRITE_REG(hw, E1000_CTRL, reg);
+	em_if_vlan_filter_write(adapter);
 
 	/* Enable the Filter Table */
-	reg = E1000_READ_REG(hw, E1000_RCTL);
-	reg &= ~E1000_RCTL_CFIEN;
-	reg |= E1000_RCTL_VFE;
-	E1000_WRITE_REG(hw, E1000_RCTL, reg);
+	em_if_vlan_filter_enable(adapter);
 }
 
 static void
@@ -3481,6 +3564,7 @@ em_if_intr_enable(if_ctx_t ctx)
 		ims_mask |= adapter->ims;
 	}
 	E1000_WRITE_REG(hw, E1000_IMS, ims_mask);
+	E1000_WRITE_FLUSH(hw);
 }
 
 static void
@@ -3492,6 +3576,7 @@ em_if_intr_disable(if_ctx_t ctx)
 	if (adapter->intr_type == IFLIB_INTR_MSIX)
 		E1000_WRITE_REG(hw, EM_EIAC, 0);
 	E1000_WRITE_REG(hw, E1000_IMC, 0xffffffff);
+	E1000_WRITE_FLUSH(hw);
 }
 
 static void
@@ -4101,6 +4186,7 @@ em_if_needs_restart(if_ctx_t ctx __unused, enum iflib_restart_event event)
 {
 	switch (event) {
 	case IFLIB_RESTART_VLAN_CONFIG:
+		return (false);
 	default:
 		return (true);
 	}
