@@ -895,7 +895,6 @@ get_process_info(struct system_info *si, struct process_select *sel,
 static int
 cmd_matches(struct kinfo_proc *proc, const char *term)
 {
-	extern int show_args;
 	char **args = NULL;
 
 	if (!term) {
