@@ -486,7 +486,7 @@ vm_rev_map_gpa(struct vmctx *ctx, void *addr)
 	offaddr = (char *)addr - ctx->baseaddr;
 
 	if (ctx->lowmem > 0)
-		if (offaddr >= 0 && offaddr <= ctx->lowmem)
+		if (offaddr <= ctx->lowmem)
 			return (offaddr);
 
 	if (ctx->highmem > 0)
