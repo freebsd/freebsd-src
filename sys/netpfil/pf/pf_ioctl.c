@@ -274,8 +274,6 @@ pfsync_detach_ifnet_t *pfsync_detach_ifnet_ptr;
 /* pflog */
 pflog_packet_t			*pflog_packet_ptr = NULL;
 
-extern u_long	pf_ioctl_maxcount;
-
 #define	ERROUT_FUNCTION(target, x)					\
 	do {								\
 		error = (x);						\
