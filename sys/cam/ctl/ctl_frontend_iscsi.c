@@ -2783,6 +2783,11 @@ cfiscsi_datamove_out(union ctl_io *io)
 	cdw->cdw_r2t_end = io->scsiio.ext_data_filled + r2t_len;
 
 	CFISCSI_SESSION_LOCK(cs);
+	if (cs->cs_terminating) {
+		CFISCSI_SESSION_UNLOCK(cs);
+		cfiscsi_data_wait_abort(cs, cdw, 44);
+		return;
+	}
 	TAILQ_INSERT_TAIL(&cs->cs_waiting_for_data_out, cdw, cdw_next);
 	CFISCSI_SESSION_UNLOCK(cs);
 
