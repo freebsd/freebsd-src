@@ -29,6 +29,13 @@ __FBSDID("$FreeBSD$");
 #include <openfirm.h>
 #include <stand.h>
 
+/* #define CAS_DEBUG */
+#ifdef CAS_DEBUG
+#define DPRINTF(fmt, ...)	printf(fmt, ## __VA_ARGS__)
+#else
+#define DPRINTF(fmt, ...)	do { ; } while (0)
+#endif
+
 /* PVR */
 #define PVR_CPU_P8E		0x004b0000
 #define PVR_CPU_P8NVL		0x004c0000
@@ -83,13 +90,19 @@ __FBSDID("$FreeBSD$");
 #define OV5_INTC_XICS		0
 
 /* byte 24: MMU */
+#define OV5_MMU_INDEX		24
 #define OV5_MMU_HPT		0
+#define OV5_MMU_RADIX		0x40
+#define OV5_MMU_EITHER		0x80
+#define OV5_MMU_DYNAMIC		0xc0
 
 /* byte 25: HPT MMU Extensions */
-#define OV5_HPT_EXT_NONE	0
+#define OV5_HPT_EXT_INDEX	25
+#define OV5_HPT_GTSE		0x40
 
 /* byte 26: Radix MMU Extensions */
-#define OV5_RPT_EXT_NONE	0
+#define OV5_RADIX_EXT_INDEX	26
+#define OV5_RADIX_GTSE		0x40
 
 
 struct pvr {
@@ -163,69 +176,84 @@ static struct ibm_arch_vec {
 		0,	/* DRMEM_V2 */
 		OV5_INTC_XICS,
 		OV5_MMU_HPT,
-		OV5_HPT_EXT_NONE,
-		OV5_RPT_EXT_NONE
+		0,
+		0
 	}
 };
-
-static __inline register_t
-mfpvr(void)
-{
-	register_t value;
-
-	__asm __volatile ("mfpvr %0" : "=r"(value));
-
-	return (value);
-}
-
-static __inline int
-ppc64_hv(void)
-{
-	int hv;
-
-	/* PSL_HV is bit 3 of 64-bit MSR */
-	__asm __volatile ("mfmsr %0\n\t"
-		"rldicl %0,%0,4,63" : "=r"(hv));
-
-	return (hv);
-}
 
 int
 ppc64_cas(void)
 {
-	int rc;
-	ihandle_t ihandle;
+	phandle_t pkg;
+	ihandle_t inst;
 	cell_t err;
+	uint8_t buf[16], idx, val;
+	int i, len, rc, radix_mmu;
+	const char *var;
+	char *ov5;
 
-	/* Perform CAS only for POWER8 and later cores */
-	switch (mfpvr() & PVR_CPU_MASK) {
-		case PVR_CPU_P8:
-		case PVR_CPU_P8E:
-		case PVR_CPU_P8NVL:
-		case PVR_CPU_P9:
-			break;
-		default:
-			return (0);
+	pkg = OF_finddevice("/chosen");
+	if (pkg == -1) {
+		printf("cas: couldn't find /chosen\n");
+		return (-1);
 	}
 
-	/* Skip CAS when running on PowerNV */
-	if (ppc64_hv())
+	len = OF_getprop(pkg, "ibm,arch-vec-5-platform-support", buf,
+	    sizeof(buf));
+	if (len == -1)
+		/* CAS not supported */
 		return (0);
 
-	ihandle = OF_open("/");
-	if (ihandle == -1) {
+	radix_mmu = 0;
+	ov5 = ibm_arch_vec.vec5.data;
+	for (i = 0; i < len; i += 2) {
+		idx = buf[i];
+		val = buf[i + 1];
+		DPRINTF("idx 0x%02x val 0x%02x\n", idx, val);
+
+		switch (idx) {
+		case OV5_MMU_INDEX:
+			/*
+			 * Note that testing for OV5_MMU_RADIX/OV5_MMU_EITHER
+			 * also covers OV5_MMU_DYNAMIC.
+			 */
+			if ((val & OV5_MMU_RADIX) || (val & OV5_MMU_EITHER))
+				radix_mmu = 1;
+			break;
+
+		case OV5_RADIX_EXT_INDEX:
+			if (val & OV5_RADIX_GTSE)
+				ov5[idx] = OV5_RADIX_GTSE;
+			break;
+
+		case OV5_HPT_EXT_INDEX:
+		default:
+			break;
+		}
+	}
+
+	if (radix_mmu && (var = getenv("radix_mmu")) != NULL && var[0] != '0')
+		ov5[OV5_MMU_INDEX] = OV5_MMU_RADIX;
+	else
+		radix_mmu = 0;
+
+	inst = OF_open("/");
+	if (inst == -1) {
 		printf("cas: failed to open / node\n");
 		return (-1);
 	}
 
-	if (rc = OF_call_method("ibm,client-architecture-support",
-	    ihandle, 1, 1, &ibm_arch_vec, &err))
-		printf("cas: failed to call CAS method\n");
-	else if (err) {
-		printf("cas: error: 0x%08lX\n", err);
+	DPRINTF("MMU 0x%02x RADIX_EXT 0x%02x\n",
+	    ov5[OV5_MMU_INDEX], ov5[OV5_RADIX_EXT_INDEX]);
+	rc = OF_call_method("ibm,client-architecture-support",
+	    inst, 1, 1, &ibm_arch_vec, &err);
+	if (rc != 0 || err) {
+		printf("cas: CAS method returned an error: rc %d err %jd\n",
+		    rc, (intmax_t)err);
 		rc = -1;
 	}
 
-	OF_close(ihandle);
+	OF_close(inst);
+	printf("cas: selected %s MMU\n", radix_mmu ? "radix" : "hash");
 	return (rc);
 }
