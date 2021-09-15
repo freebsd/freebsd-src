@@ -151,6 +151,9 @@ static	struct mtx crypto_q_mtx;
 #define	CRYPTO_Q_LOCK()		mtx_lock(&crypto_q_mtx)
 #define	CRYPTO_Q_UNLOCK()	mtx_unlock(&crypto_q_mtx)
 
+SYSCTL_NODE(_kern, OID_AUTO, crypto, CTLFLAG_RW, 0,
+    "In-kernel cryptography");
+
 /*
  * Taskqueue used to dispatch the crypto requests
  * that have the CRYPTO_F_ASYNC flag
