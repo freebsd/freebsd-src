@@ -146,13 +146,13 @@ main(int argc, char **argv)
 
 	table.uuid = efi_table_ops[efi_idx].uuid;
 	if (ioctl(efi_fd, EFIIOC_GET_TABLE, &table) == -1)
-		xo_err(EX_OSERR, NULL);
+		xo_err(EX_OSERR, "EFIIOC_GET_TABLE (len == 0)");
 
 	table.buf = malloc(table.table_len);
 	table.buf_len = table.table_len;
 
 	if (ioctl(efi_fd, EFIIOC_GET_TABLE, &table) == -1)
-		xo_err(EX_OSERR, NULL);
+		xo_err(EX_OSERR, "EFIIOC_GET_TABLE");
 
 	efi_table_ops[efi_idx].parse(table.buf);
 	close(efi_fd);
