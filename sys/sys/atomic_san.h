@@ -76,12 +76,15 @@
 	int sp##_atomic_##op##_##name(volatile type *, u_int);		\
 	int sp##_atomic_##op##_acq_##name(volatile type *, u_int)
 
-#define	ATOMIC_SAN_THREAD_FENCE(sp)					\
+#define	_ATOMIC_SAN_THREAD_FENCE(sp)					\
 	void sp##_atomic_thread_fence_acq(void);			\
 	void sp##_atomic_thread_fence_rel(void);			\
 	void sp##_atomic_thread_fence_acq_rel(void);			\
 	void sp##_atomic_thread_fence_seq_cst(void);			\
 	void sp##_atomic_interrupt_fence(void)
+
+#define	ATOMIC_SAN_THREAD_FENCE(sp)					\
+	_ATOMIC_SAN_THREAD_FENCE(sp)
 
 #define	_ATOMIC_SAN_FUNCS(sp, name, type)				\
 	ATOMIC_SAN_FUNC_1(sp, add, name, type);				\
@@ -96,8 +99,7 @@
 	ATOMIC_SAN_STORE(sp, name, type);				\
 	ATOMIC_SAN_READ(sp, swap, name, type);				\
 	ATOMIC_SAN_TEST(sp, testandclear, name, type);			\
-	ATOMIC_SAN_TEST(sp, testandset, name, type);			\
-	ATOMIC_SAN_THREAD_FENCE(sp);
+	ATOMIC_SAN_TEST(sp, testandset, name, type)
 
 #define	ATOMIC_SAN_FUNCS(name, type)					\
 	_ATOMIC_SAN_FUNCS(SAN_INTERCEPTOR_PREFIX, name, type)
@@ -111,6 +113,7 @@ ATOMIC_SAN_FUNCS(8, uint8_t);
 ATOMIC_SAN_FUNCS(16, uint16_t);
 ATOMIC_SAN_FUNCS(32, uint32_t);
 ATOMIC_SAN_FUNCS(64, uint64_t);
+ATOMIC_SAN_THREAD_FENCE(SAN_INTERCEPTOR_PREFIX);
 
 #ifndef SAN_RUNTIME
 
