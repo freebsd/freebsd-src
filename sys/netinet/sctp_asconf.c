@@ -2195,7 +2195,6 @@ sctp_asconf_iterator_stcb(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 				return;
 			else
 				continue;
-			break;
 		}
 
 		if (type == SCTP_ADD_IP_ADDRESS) {

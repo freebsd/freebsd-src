@@ -330,7 +330,7 @@ sctp_find_alternate_net(struct sctp_tcb *stcb,
 	}
 	/* Look for an alternate net, which is active. */
 	if ((net != NULL) && ((net->dest_state & SCTP_ADDR_BEING_DELETED) == 0)) {
-		alt = TAILQ_NEXT(net, sctp_next);;
+		alt = TAILQ_NEXT(net, sctp_next);
 	} else {
 		alt = TAILQ_FIRST(&stcb->asoc.nets);
 	}
@@ -369,7 +369,7 @@ sctp_find_alternate_net(struct sctp_tcb *stcb,
 		 * an alternate net, which is confirmed.
 		 */
 		if ((net != NULL) && ((net->dest_state & SCTP_ADDR_BEING_DELETED) == 0)) {
-			alt = TAILQ_NEXT(net, sctp_next);;
+			alt = TAILQ_NEXT(net, sctp_next);
 		} else {
 			alt = TAILQ_FIRST(&stcb->asoc.nets);
 		}
