@@ -761,6 +761,7 @@ thread_alloc(int pages)
 		return (NULL);
 	}
 	td->td_tid = tid;
+	bzero(&td->td_sa.args, sizeof(td->td_sa.args));
 	cpu_thread_alloc(td);
 	EVENTHANDLER_DIRECT_INVOKE(thread_ctor, td);
 	return (td);
