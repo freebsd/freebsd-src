@@ -1695,6 +1695,8 @@ dev/ena/ena_datapath.c		optional ena \
 	compile-with "${NORMAL_C} -I$S/contrib"
 dev/ena/ena_netmap.c		optional ena \
 	compile-with "${NORMAL_C} -I$S/contrib"
+dev/ena/ena_rss.c		optional ena \
+	compile-with "${NORMAL_C} -I$S/contrib"
 dev/ena/ena_sysctl.c 		optional ena \
 	compile-with "${NORMAL_C} -I$S/contrib"
 contrib/ena-com/ena_com.c	optional ena
