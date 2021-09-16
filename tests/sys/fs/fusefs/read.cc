@@ -40,6 +40,8 @@ extern "C" {
 #include <aio.h>
 #include <fcntl.h>
 #include <semaphore.h>
+#include <setjmp.h>
+#include <signal.h>
 #include <unistd.h>
 }
 
@@ -102,6 +104,33 @@ class ReadAhead: public Read,
 		Read::SetUp();
 	}
 };
+
+class ReadSigbus: public Read
+{
+public:
+static jmp_buf s_jmpbuf;
+static sig_atomic_t s_si_addr;
+
+void TearDown() {
+	struct sigaction sa;
+
+	bzero(&sa, sizeof(sa));
+	sa.sa_handler = SIG_DFL;
+	sigaction(SIGBUS, &sa, NULL);
+
+	FuseTest::TearDown();
+}
+
+};
+
+static void
+handle_sigbus(int signo __unused, siginfo_t *info, void *uap __unused) {
+	ReadSigbus::s_si_addr = (sig_atomic_t)info->si_addr;
+	longjmp(ReadSigbus::s_jmpbuf, 1);
+}
+
+jmp_buf ReadSigbus::s_jmpbuf;
+sig_atomic_t ReadSigbus::s_si_addr;
 
 /* AIO reads need to set the header's pid field correctly */
 /* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236379 */
@@ -584,6 +613,56 @@ TEST_F(Read, mmap)
 	leak(fd);
 }
 
+/* Read of an mmap()ed file fails */
+TEST_F(ReadSigbus, mmap_eio)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	const char *CONTENTS = "abcdefgh";
+	struct sigaction sa;
+	uint64_t ino = 42;
+	int fd;
+	ssize_t len;
+	size_t bufsize = strlen(CONTENTS);
+	void *p;
+
+	len = getpagesize();
+
+	expect_lookup(RELPATH, ino, bufsize);
+	expect_open(ino, 0, 1);
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in.header.opcode == FUSE_READ &&
+				in.header.nodeid == ino &&
+				in.body.read.fh == Read::FH);
+		}, Eq(true)),
+		_)
+	).WillRepeatedly(Invoke(ReturnErrno(EIO)));
+
+	fd = open(FULLPATH, O_RDONLY);
+	ASSERT_LE(0, fd) << strerror(errno);
+
+	p = mmap(NULL, len, PROT_READ, MAP_SHARED, fd, 0);
+	ASSERT_NE(MAP_FAILED, p) << strerror(errno);
+
+	/* Accessing the mapped page should return SIGBUS.  */
+
+	bzero(&sa, sizeof(sa));
+	sa.sa_handler = SIG_DFL;
+	sa.sa_sigaction = handle_sigbus;
+	sa.sa_flags = SA_RESETHAND | SA_SIGINFO;
+	ASSERT_EQ(0, sigaction(SIGBUS, &sa, NULL)) << strerror(errno);
+	if (setjmp(ReadSigbus::s_jmpbuf) == 0) {
+		atomic_signal_fence(std::memory_order::memory_order_seq_cst);
+		volatile char x __unused = *(volatile char*)p;
+		FAIL() << "shouldn't get here";
+	}
+
+	ASSERT_EQ(p, (void*)ReadSigbus::s_si_addr);
+	ASSERT_EQ(0, munmap(p, len)) << strerror(errno);
+	leak(fd);
+}
+
 /* 
  * A read via mmap comes up short, indicating that the file was truncated
  * server-side.
@@ -630,6 +709,83 @@ TEST_F(Read, mmap_eof)
 	ASSERT_EQ(0, fstat(fd, &sb)) << strerror(errno);
 	EXPECT_EQ((off_t)bufsize, sb.st_size);
 
+	ASSERT_EQ(0, munmap(p, len)) << strerror(errno);
+	leak(fd);
+}
+
+/*
+ * During VOP_GETPAGES, the FUSE server fails a FUSE_GETATTR operation.  This
+ * almost certainly indicates a buggy FUSE server, and our goal should be not
+ * to panic.  Instead, generate SIGBUS.
+ */
+TEST_F(ReadSigbus, mmap_getblksz_fail)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	const char *CONTENTS = "abcdefgh";
+	struct sigaction sa;
+	Sequence seq;
+	uint64_t ino = 42;
+	int fd;
+	ssize_t len;
+	size_t bufsize = strlen(CONTENTS);
+	mode_t mode = S_IFREG | 0644;
+	void *p;
+
+	len = getpagesize();
+
+	FuseTest::expect_lookup(RELPATH, ino, mode, bufsize, 1, 0);
+	/* Expect two GETATTR calls that succeed, followed by one that fail. */
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in.header.opcode == FUSE_GETATTR &&
+				in.header.nodeid == ino);
+		}, Eq(true)),
+		_)
+	).Times(2)
+	.InSequence(seq)
+	.WillRepeatedly(Invoke(ReturnImmediate([=](auto i __unused, auto& out) {
+		SET_OUT_HEADER_LEN(out, attr);
+		out.body.attr.attr.ino = ino;
+		out.body.attr.attr.mode = mode;
+		out.body.attr.attr.size = bufsize;
+		out.body.attr.attr_valid = 0;
+	})));
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in.header.opcode == FUSE_GETATTR &&
+				in.header.nodeid == ino);
+		}, Eq(true)),
+		_)
+	).InSequence(seq)
+	.WillRepeatedly(Invoke(ReturnErrno(EIO)));
+	expect_open(ino, 0, 1);
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in.header.opcode == FUSE_READ);
+		}, Eq(true)),
+		_)
+	).Times(0);
+
+	fd = open(FULLPATH, O_RDONLY);
+	ASSERT_LE(0, fd) << strerror(errno);
+
+	p = mmap(NULL, len, PROT_READ, MAP_SHARED, fd, 0);
+	ASSERT_NE(MAP_FAILED, p) << strerror(errno);
+
+	/* Accessing the mapped page should return SIGBUS.  */
+	bzero(&sa, sizeof(sa));
+	sa.sa_handler = SIG_DFL;
+	sa.sa_sigaction = handle_sigbus;
+	sa.sa_flags = SA_RESETHAND | SA_SIGINFO;
+	ASSERT_EQ(0, sigaction(SIGBUS, &sa, NULL)) << strerror(errno);
+	if (setjmp(ReadSigbus::s_jmpbuf) == 0) {
+		atomic_signal_fence(std::memory_order::memory_order_seq_cst);
+		volatile char x __unused = *(volatile char*)p;
+		FAIL() << "shouldn't get here";
+	}
+
+	ASSERT_EQ(p, (void*)ReadSigbus::s_si_addr);
 	ASSERT_EQ(0, munmap(p, len)) << strerror(errno);
 	leak(fd);
 }

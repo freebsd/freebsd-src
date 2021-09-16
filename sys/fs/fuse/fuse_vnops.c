@@ -2199,25 +2199,23 @@ fuse_gbp_getblkno(struct vnode *vp, vm_ooffset_t off)
 }
 
 static int
-fuse_gbp_getblksz(struct vnode *vp, daddr_t lbn, long *sz)
+fuse_gbp_getblksz(struct vnode *vp, daddr_t lbn, long *blksz)
 {
 	off_t filesize;
-	int blksz, err;
+	int err;
 	const int biosize = fuse_iosize(vp);
 
 	err = fuse_vnode_size(vp, &filesize, NULL, NULL);
-	KASSERT(err == 0, ("vfs_bio_getpages can't handle errors here"));
-	if (err)
-		return biosize;
-
-	if ((off_t)lbn * biosize >= filesize) {
-		blksz = 0;
+	if (err) {
+		/* This will turn into a SIGBUS */
+		return (EIO);
+	} else if ((off_t)lbn * biosize >= filesize) {
+		*blksz = 0;
 	} else if ((off_t)(lbn + 1) * biosize > filesize) {
-		blksz = filesize - (off_t)lbn *biosize;
+		*blksz = filesize - (off_t)lbn *biosize;
 	} else {
-		blksz = biosize;
+		*blksz = biosize;
 	}
-	*sz = blksz;
 	return (0);
 }
 
