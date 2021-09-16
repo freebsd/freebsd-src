@@ -1935,10 +1935,11 @@ ffs_gbp_getblkno(struct vnode *vp, vm_ooffset_t off)
 }
 
 static int
-ffs_gbp_getblksz(struct vnode *vp, daddr_t lbn)
+ffs_gbp_getblksz(struct vnode *vp, daddr_t lbn, long *sz)
 {
 
-	return (blksize(VFSTOUFS(vp->v_mount)->um_fs, VTOI(vp), lbn));
+	*sz = blksize(VFSTOUFS(vp->v_mount)->um_fs, VTOI(vp), lbn);
+	return (0);
 }
 
 static int

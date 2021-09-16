@@ -610,7 +610,7 @@ void	bwait(struct buf *, u_char, const char *);
 void	bdone(struct buf *);
 
 typedef daddr_t (vbg_get_lblkno_t)(struct vnode *, vm_ooffset_t);
-typedef int (vbg_get_blksize_t)(struct vnode *, daddr_t);
+typedef int (vbg_get_blksize_t)(struct vnode *, daddr_t, long *);
 int	vfs_bio_getpages(struct vnode *vp, struct vm_page **ma, int count,
 	    int *rbehind, int *rahead, vbg_get_lblkno_t get_lblkno,
 	    vbg_get_blksize_t get_blksize);
