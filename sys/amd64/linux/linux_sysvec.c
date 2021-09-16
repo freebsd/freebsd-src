@@ -556,7 +556,8 @@ linux_rt_sigreturn(struct thread *td, struct linux_rt_sigreturn_args *args)
 	 * one less debugger trap, so allowing it is fairly harmless.
 	 */
 	if (!EFL_SECURE(rflags & ~PSL_RF, regs->tf_rflags & ~PSL_RF)) {
-		printf("linux_rt_sigreturn: rflags = 0x%lx\n", rflags);
+		uprintf("pid %d comm %s linux mangled rflags %#lx\n",
+		    p->p_pid, p->p_comm, rflags);
 		return (EINVAL);
 	}
 
@@ -566,7 +567,8 @@ linux_rt_sigreturn(struct thread *td, struct linux_rt_sigreturn_args *args)
 	 * other selectors, invalid %eip's and invalid %esp's.
 	 */
 	if (!CS_SECURE(context->sc_cs)) {
-		printf("linux_rt_sigreturn: cs = 0x%x\n", context->sc_cs);
+		uprintf("pid %d comm %s linux mangled cs %#x\n",
+		    p->p_pid, p->p_comm, context->sc_cs);
 		ksiginfo_init_trap(&ksi);
 		ksi.ksi_signo = SIGBUS;
 		ksi.ksi_code = BUS_OBJERR;
