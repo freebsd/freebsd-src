@@ -982,7 +982,9 @@ dxr2_try_squeeze:
 	FIB_PRINTF(LOG_INFO, da->fd, "D%dR, %d prefixes, %d nhops (max)",
 	    DXR_D, rinfo.num_prefixes, rinfo.num_nhops);
 #endif
-	i = dxr_tot_size * 100 / rinfo.num_prefixes;
+	i = dxr_tot_size * 100;
+	if (rinfo.num_prefixes)
+		i /= rinfo.num_prefixes;
 	FIB_PRINTF(LOG_INFO, da->fd, "%d.%02d KBytes, %d.%02d Bytes/prefix",
 	    dxr_tot_size / 1024, dxr_tot_size * 100 / 1024 % 100,
 	    i / 100, i % 100);
