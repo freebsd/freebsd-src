@@ -197,9 +197,8 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	    (xfpusave != NULL && copyout(xfpusave,
 	    (void *)sf.sf_uc.uc_mcontext.mc_xfpustate, xfpusave_len)
 	    != 0)) {
-#ifdef DEBUG
-		printf("process %ld has trashed its stack\n", (long)p->p_pid);
-#endif
+		uprintf("pid %d comm %s has trashed its stack, killing\n",
+		    p->p_pid, p->p_comm);
 		PROC_LOCK(p);
 		sigexit(td, SIGILL);
 	}
