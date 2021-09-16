@@ -242,6 +242,8 @@ pci_host_acpi_get_ecam_resource(device_t dev)
 			return (ENXIO);
 		}
 		pci_host_acpi_get_oem_quirks(sc, hdr);
+		if (sc->base.quirks & PCIE_ECAM_DESIGNWARE_QUIRK)
+			device_set_desc(dev, "Synopsys DesignWare PCIe Controller");
 	} else {
 		status = acpi_GetInteger(handle, "_CBA", &val);
 		if (ACPI_SUCCESS(status))
