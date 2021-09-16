@@ -456,7 +456,7 @@ ena_sysctl_add_rss(struct ena_adapter *adapter)
 
 	/* RSS indirection table size */
 	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "indir_table_size",
-	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE, &ena_rss_table_size, 0,
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, &ena_rss_table_size, 0,
 	    "RSS indirection table size.");
 }
 #endif /* RSS */
