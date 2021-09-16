@@ -2199,7 +2199,7 @@ fuse_gbp_getblkno(struct vnode *vp, vm_ooffset_t off)
 }
 
 static int
-fuse_gbp_getblksz(struct vnode *vp, daddr_t lbn)
+fuse_gbp_getblksz(struct vnode *vp, daddr_t lbn, long *sz)
 {
 	off_t filesize;
 	int blksz, err;
@@ -2217,7 +2217,8 @@ fuse_gbp_getblksz(struct vnode *vp, daddr_t lbn)
 	} else {
 		blksz = biosize;
 	}
-	return (blksz);
+	*sz = blksz;
+	return (0);
 }
 
 /*
