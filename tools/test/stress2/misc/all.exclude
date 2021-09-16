@@ -73,6 +73,8 @@ truss3.sh		WiP								20200915
 unionfs.sh		insmntque: non-locked vp: xx is not exclusive locked...		20130909
 unionfs2.sh		insmntque: mp-safe fs and non-locked vp is not ...		20111219
 unionfs3.sh		insmntque: mp-safe fs and non-locked vp is not ...		20111216
+unionfs4.sh		WiP								20210916
+unionfs5.sh		WiP								20210916
 
 # Test not to run for other reasons:
 
