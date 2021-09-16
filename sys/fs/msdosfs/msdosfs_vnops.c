@@ -1861,10 +1861,11 @@ msdosfs_gbp_getblkno(struct vnode *vp, vm_ooffset_t off)
 }
 
 static int
-msdosfs_gbp_getblksz(struct vnode *vp, daddr_t lbn)
+msdosfs_gbp_getblksz(struct vnode *vp, daddr_t lbn, long *sz)
 {
 
-	return (VTODE(vp)->de_pmp->pm_bpcluster);
+	*sz = VTODE(vp)->de_pmp->pm_bpcluster;
+	return (0);
 }
 
 static int
