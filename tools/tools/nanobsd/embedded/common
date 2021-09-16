@@ -647,6 +647,14 @@ esac
 
 NANO_SLICE_DATA=		# Not included
 
+# These don't make any sense to this strategy, so stub them out.
+calculate_partitioning ( ) (
+)
+
+# These don't make any sense to this strategy, so stub them out.
+create_code_slice ( ) (
+)
+
 # Each major disk scheme has its own routine. Generally
 # this is for mbr, gpt, etc. These are generally are widely
 # shared, but some specialized formats won't be shared.
