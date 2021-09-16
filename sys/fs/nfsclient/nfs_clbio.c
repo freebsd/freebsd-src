@@ -94,7 +94,7 @@ ncl_gbp_getblkno(struct vnode *vp, vm_ooffset_t off)
 }
 
 static int
-ncl_gbp_getblksz(struct vnode *vp, daddr_t lbn)
+ncl_gbp_getblksz(struct vnode *vp, daddr_t lbn, long *sz)
 {
 	struct nfsnode *np;
 	u_quad_t nsize;
@@ -111,7 +111,8 @@ ncl_gbp_getblksz(struct vnode *vp, daddr_t lbn)
 		bcount = 0;
 	else if ((off_t)(lbn + 1) * biosize > nsize)
 		bcount = nsize - (off_t)lbn * biosize;
-	return (bcount);
+	*sz = bcount;
+	return (0);
 }
 
 int
