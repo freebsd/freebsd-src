@@ -301,6 +301,10 @@ int newnfs_directio_allow_mmap = 1;
 SYSCTL_INT(_vfs_nfs, OID_AUTO, nfs_directio_allow_mmap, CTLFLAG_RW,
 	   &newnfs_directio_allow_mmap, 0, "Enable mmaped IO on file with O_DIRECT opens");
 
+static uint64_t	nfs_maxalloclen = 64 * 1024 * 1024;
+SYSCTL_U64(_vfs_nfs, OID_AUTO, maxalloclen, CTLFLAG_RW,
+	   &nfs_maxalloclen, 0, "NFS max allocate/deallocate length");
+
 #define	NFSACCESS_ALL (NFSACCESS_READ | NFSACCESS_MODIFY		\
 			 | NFSACCESS_EXTEND | NFSACCESS_EXECUTE	\
 			 | NFSACCESS_DELETE | NFSACCESS_LOOKUP)
@@ -3639,6 +3643,7 @@ nfs_allocate(struct vop_allocate_args *ap)
 	struct thread *td = curthread;
 	struct nfsvattr nfsva;
 	struct nfsmount *nmp;
+	off_t alen;
 	int attrflag, error, ret;
 
 	attrflag = 0;
@@ -3652,12 +3657,16 @@ nfs_allocate(struct vop_allocate_args *ap)
 		 * file's allocation on the server.
 		 */
 		error = ncl_flush(vp, MNT_WAIT, td, 1, 0);
-		if (error == 0)
-			error = nfsrpc_allocate(vp, *ap->a_offset, *ap->a_len,
-			    &nfsva, &attrflag, td->td_ucred, td, NULL);
 		if (error == 0) {
-			*ap->a_offset += *ap->a_len;
-			*ap->a_len = 0;
+			alen = *ap->a_len;
+			if ((uint64_t)alen > nfs_maxalloclen)
+				alen = nfs_maxalloclen;
+			error = nfsrpc_allocate(vp, *ap->a_offset, alen,
+			    &nfsva, &attrflag, td->td_ucred, td, NULL);
+		}
+		if (error == 0) {
+			*ap->a_offset += alen;
+			*ap->a_len -= alen;
 		} else if (error == NFSERR_NOTSUPP) {
 			mtx_lock(&nmp->nm_mtx);
 			nmp->nm_privflag |= NFSMNTP_NOALLOCATE;
