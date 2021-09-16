@@ -25,11 +25,7 @@ SSMOPTS=	--ssm-name ${SSMPREFIX}/${TARGET_ARCH:S/aarch64/arm64/}/base/ufs/${REVI
 EC2ARCH=	--${TARGET_ARCH:S/aarch64/arm64/}
 .endif
 .if !defined(AMIBOOTMETHOD)
-.if ${TARGET_ARCH} == "amd64"
-AMIBOOTMETHOD=	BIOS
-.else
 AMIBOOTMETHOD=	UEFI
-.endif
 .endif
 .if ${AMIBOOTMETHOD} == "UEFI" && ${TARGET_ARCH} == "amd64"
 BOOTMODEOPT=	--uefi
