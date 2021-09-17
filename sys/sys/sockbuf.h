@@ -104,12 +104,13 @@ struct sockbuf {
 	u_int	sb_tlsdcc;	/* (a) TLS characters being decrypted */
 	int	sb_lowat;	/* (a) low water mark */
 	sbintime_t	sb_timeo;	/* (a) timeout for read/write */
-	uint64_t sb_tls_seqno;	/* (a) TLS seqno */
-	struct	ktls_session *sb_tls_info; /* (a + b) TLS state */
 	struct	mbuf *sb_mtls;	/* (a) TLS mbuf chain */
 	struct	mbuf *sb_mtlstail; /* (a) last mbuf in TLS chain */
 	int	(*sb_upcall)(struct socket *, void *, int); /* (a) */
 	void	*sb_upcallarg;	/* (a) */
+#define	sb_endzero	sb_tls_seqno
+	uint64_t sb_tls_seqno;	/* (a) TLS seqno */
+	struct	ktls_session *sb_tls_info; /* (a + b) TLS state */
 	TAILQ_HEAD(, kaiocb) sb_aiojobq; /* (a) pending AIO ops */
 	struct	task sb_aiotask; /* AIO task */
 };

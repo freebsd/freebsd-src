@@ -2847,13 +2847,14 @@ soreceive(struct socket *so, struct sockaddr **psa, struct uio *uio,
 int
 soshutdown(struct socket *so, int how)
 {
-	struct protosw *pr = so->so_proto;
+	struct protosw *pr;
 	int error, soerror_enotconn;
 
 	if (!(how == SHUT_RD || how == SHUT_WR || how == SHUT_RDWR))
 		return (EINVAL);
 
 	soerror_enotconn = 0;
+	SOCK_LOCK(so);
 	if ((so->so_state &
 	    (SS_ISCONNECTED | SS_ISCONNECTING | SS_ISDISCONNECTING)) == 0) {
 		/*
@@ -2865,21 +2866,26 @@ soshutdown(struct socket *so, int how)
 		 * both backward-compatibility and POSIX requirements by forcing
 		 * ENOTCONN but still asking protocol to perform pru_shutdown().
 		 */
-		if (so->so_type != SOCK_DGRAM && !SOLISTENING(so))
+		if (so->so_type != SOCK_DGRAM && !SOLISTENING(so)) {
+			SOCK_UNLOCK(so);
 			return (ENOTCONN);
+		}
 		soerror_enotconn = 1;
 	}
 
 	if (SOLISTENING(so)) {
 		if (how != SHUT_WR) {
-			SOLISTEN_LOCK(so);
 			so->so_error = ECONNABORTED;
 			solisten_wakeup(so);	/* unlocks so */
+		} else {
+			SOCK_UNLOCK(so);
 		}
 		goto done;
 	}
+	SOCK_UNLOCK(so);
 
 	CURVNET_SET(so->so_vnet);
+	pr = so->so_proto;
 	if (pr->pr_usrreqs->pru_flush != NULL)
 		(*pr->pr_usrreqs->pru_flush)(so, how);
 	if (how != SHUT_WR)
@@ -2900,20 +2906,21 @@ done:
 void
 sorflush(struct socket *so)
 {
-	struct sockbuf *sb = &so->so_rcv;
-	struct protosw *pr = so->so_proto;
 	struct socket aso;
+	struct protosw *pr;
 	int error;
 
 	VNET_SO_ASSERT(so);
 
 	/*
 	 * In order to avoid calling dom_dispose with the socket buffer mutex
-	 * held, and in order to generally avoid holding the lock for a long
-	 * time, we make a copy of the socket buffer and clear the original
-	 * (except locks, state).  The new socket buffer copy won't have
-	 * initialized locks so we can only call routines that won't use or
-	 * assert those locks.
+	 * held, we make a partial copy of the socket buffer and clear the
+	 * original.  The new socket buffer copy won't have initialized locks so
+	 * we can only call routines that won't use or assert those locks.
+	 * Ideally calling socantrcvmore() would prevent data from being added
+	 * to the buffer, but currently it merely prevents buffered data from
+	 * being read by userspace.  We make this effort to free buffered data
+	 * nonetheless.
 	 *
 	 * Dislodge threads currently blocked in receive and wait to acquire
 	 * a lock against other simultaneous readers before clearing the
@@ -2921,28 +2928,31 @@ sorflush(struct socket *so)
 	 * despite any existing socket disposition on interruptable waiting.
 	 */
 	socantrcvmore(so);
-	error = SOCK_IO_RECV_LOCK(so, SBL_WAIT | SBL_NOINTR);
-	KASSERT(error == 0, ("%s: cannot lock sock %p recv buffer",
-	    __func__, so));
 
-	/*
-	 * Invalidate/clear most of the sockbuf structure, but leave selinfo
-	 * and mutex data unchanged.
-	 */
-	SOCKBUF_LOCK(sb);
+	error = SOCK_IO_RECV_LOCK(so, SBL_WAIT | SBL_NOINTR);
+	if (error != 0) {
+		KASSERT(SOLISTENING(so),
+		    ("%s: soiolock(%p) failed", __func__, so));
+		return;
+	}
+
+	SOCK_RECVBUF_LOCK(so);
 	bzero(&aso, sizeof(aso));
 	aso.so_pcb = so->so_pcb;
-	bcopy(&sb->sb_startzero, &aso.so_rcv.sb_startzero,
-	    sizeof(*sb) - offsetof(struct sockbuf, sb_startzero));
-	bzero(&sb->sb_startzero,
-	    sizeof(*sb) - offsetof(struct sockbuf, sb_startzero));
-	SOCKBUF_UNLOCK(sb);
+	bcopy(&so->so_rcv.sb_startzero, &aso.so_rcv.sb_startzero,
+	    offsetof(struct sockbuf, sb_endzero) -
+	    offsetof(struct sockbuf, sb_startzero));
+	bzero(&so->so_rcv.sb_startzero,
+	    offsetof(struct sockbuf, sb_endzero) -
+	    offsetof(struct sockbuf, sb_startzero));
+	SOCK_RECVBUF_UNLOCK(so);
 	SOCK_IO_RECV_UNLOCK(so);
 
 	/*
 	 * Dispose of special rights and flush the copied socket.  Don't call
 	 * any unsafe routines (that rely on locks being initialized) on aso.
 	 */
+	pr = so->so_proto;
 	if (pr->pr_flags & PR_RIGHTS && pr->pr_domain->dom_dispose != NULL)
 		(*pr->pr_domain->dom_dispose)(&aso);
 	sbrelease_internal(&aso.so_rcv, so);
