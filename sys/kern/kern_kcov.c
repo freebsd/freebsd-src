@@ -165,7 +165,7 @@ SYSCTL_UINT(_kern_kcov, OID_AUTO, max_entries, CTLFLAG_RW,
 static struct mtx kcov_lock;
 static int active_count;
 
-static struct kcov_info *
+static struct kcov_info * __nosanitizeaddress __nosanitizememory
 get_kinfo(struct thread *td)
 {
 	struct kcov_info *info;
