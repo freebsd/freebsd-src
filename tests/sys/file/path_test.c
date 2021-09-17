@@ -845,13 +845,15 @@ ATF_TC_BODY(path_rights, tc)
 	CHECKED_CLOSE(sd[1]);
 }
 
-/* Verify that a local socket can't be opened with O_PATH. */
+/* Verify that a local socket can be opened with O_PATH. */
 ATF_TC_WITHOUT_HEAD(path_unix);
 ATF_TC_BODY(path_unix, tc)
 {
-	char path[PATH_MAX];
+	char buf[BUFSIZ], path[PATH_MAX];
+	struct kevent ev;
 	struct sockaddr_un sun;
-	int pathfd, sd;
+	struct stat sb;
+	int kq, pathfd, sd;
 
 	snprintf(path, sizeof(path), "path_unix.XXXXXX");
 	ATF_REQUIRE_MSG(mktemp(path) == path, FMT_ERR("mktemp"));
@@ -866,9 +868,31 @@ ATF_TC_BODY(path_unix, tc)
 	    FMT_ERR("bind"));
 
 	pathfd = open(path, O_PATH);
-	ATF_REQUIRE_ERRNO(EOPNOTSUPP, pathfd < 0);
+	ATF_REQUIRE_MSG(pathfd >= 0, FMT_ERR("open"));
+
+	ATF_REQUIRE_MSG(fstatat(pathfd, "", &sb, AT_EMPTY_PATH) == 0,
+	    FMT_ERR("fstatat"));
+	ATF_REQUIRE_MSG(sb.st_mode & S_IFSOCK, "socket mode %#x", sb.st_mode);
+	ATF_REQUIRE_MSG(sb.st_ino != 0, "socket has inode number 0");
+
+	memset(buf, 0, sizeof(buf));
+	ATF_REQUIRE_ERRNO(EBADF, write(pathfd, buf, sizeof(buf)));
+	ATF_REQUIRE_ERRNO(EBADF, read(pathfd, buf, sizeof(buf)));
+
+	/* kevent() is disallowed with sockets. */
+	kq = kqueue();
+	ATF_REQUIRE_MSG(kq >= 0, FMT_ERR("kqueue"));
+	EV_SET(&ev, pathfd, EVFILT_READ, EV_ADD | EV_ENABLE, 0, 0, 0);
+	ATF_REQUIRE_ERRNO(EBADF, kevent(kq, &ev, 1, NULL, 0, NULL) == -1);
+
+	/* Should not be able to open a socket without O_PATH. */
+	ATF_REQUIRE_ERRNO(EOPNOTSUPP, openat(pathfd, "", O_EMPTY_PATH) == -1);
+
+	ATF_REQUIRE_MSG(funlinkat(AT_FDCWD, path, pathfd, 0) == 0,
+	    FMT_ERR("funlinkat"));
 
 	CHECKED_CLOSE(sd);
+	CHECKED_CLOSE(pathfd);
 }
 
 ATF_TP_ADD_TCS(tp)
