@@ -54,6 +54,7 @@
 #include <libutil.h>
 #include <limits.h>
 #include <semaphore.h>
+#include <signal.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -1319,6 +1320,72 @@ ATF_TC_BODY(aio_socket_short_write_cancel, tc)
 	close(s[0]);
 }
 
+/*
+ * Test handling of aio_read() and aio_write() on shut-down sockets.
+ */
+ATF_TC_WITHOUT_HEAD(aio_socket_shutdown);
+ATF_TC_BODY(aio_socket_shutdown, tc)
+{
+	struct aiocb iocb;
+	sigset_t set;
+	char *buffer;
+	ssize_t len;
+	size_t bsz;
+	int error, s[2];
+
+	ATF_REQUIRE_KERNEL_MODULE("aio");
+
+	ATF_REQUIRE(socketpair(PF_UNIX, SOCK_STREAM, 0, s) != -1);
+
+	bsz = 1024;
+	buffer = malloc(bsz);
+	memset(buffer, 0, bsz);
+
+	/* Put some data in s[0]'s recv buffer. */
+	ATF_REQUIRE(send(s[1], buffer, bsz, 0) == (ssize_t)bsz);
+
+	/* No more reading from s[0]. */
+	ATF_REQUIRE(shutdown(s[0], SHUT_RD) != -1);
+
+	ATF_REQUIRE(buffer != NULL);
+
+	memset(&iocb, 0, sizeof(iocb));
+	iocb.aio_fildes = s[0];
+	iocb.aio_buf = buffer;
+	iocb.aio_nbytes = bsz;
+	ATF_REQUIRE(aio_read(&iocb) == 0);
+
+	/* Expect to see zero bytes, analogous to recv(2). */
+	while ((error = aio_error(&iocb)) == EINPROGRESS)
+		usleep(25000);
+	ATF_REQUIRE_MSG(error == 0, "aio_error() returned %d", error);
+	len = aio_return(&iocb);
+	ATF_REQUIRE_MSG(len == 0, "read job returned %zd bytes", len);
+
+	/* No more writing to s[1]. */
+	ATF_REQUIRE(shutdown(s[1], SHUT_WR) != -1);
+
+	/* Block SIGPIPE so that we can detect the error in-band. */
+	sigemptyset(&set);
+	sigaddset(&set, SIGPIPE);
+	ATF_REQUIRE(sigprocmask(SIG_BLOCK, &set, NULL) == 0);
+
+	memset(&iocb, 0, sizeof(iocb));
+	iocb.aio_fildes = s[1];
+	iocb.aio_buf = buffer;
+	iocb.aio_nbytes = bsz;
+	ATF_REQUIRE(aio_write(&iocb) == 0);
+
+	/* Expect an error, analogous to send(2). */
+	while ((error = aio_error(&iocb)) == EINPROGRESS)
+		usleep(25000);
+	ATF_REQUIRE_MSG(error == EPIPE, "aio_error() returned %d", error);
+
+	ATF_REQUIRE(close(s[0]) != -1);
+	ATF_REQUIRE(close(s[1]) != -1);
+	free(buffer);
+}
+
 /* 
  * test aio_fsync's behavior with bad inputs 
  */
@@ -1885,6 +1952,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, aio_socket_listen_fail);
 	ATF_TP_ADD_TC(tp, aio_socket_listen_pending);
 	ATF_TP_ADD_TC(tp, aio_socket_short_write_cancel);
+	ATF_TP_ADD_TC(tp, aio_socket_shutdown);
 	ATF_TP_ADD_TC(tp, aio_writev_dos_iov_len);
 	ATF_TP_ADD_TC(tp, aio_writev_dos_iovcnt);
 	ATF_TP_ADD_TC(tp, aio_writev_efault);
