@@ -366,6 +366,13 @@
 .Ic devtype
 .Op device id
 .Nm
+.Ic depop
+.Op device id
+.Op generic args
+.Ao Fl l | Fl d | Fl r Ac
+.Op Fl e Ar elem
+.Op Fl c Ar capacity
+.Nm
 .Ic help
 .Sh DESCRIPTION
 The
@@ -2593,6 +2600,60 @@ No device type reported
 Device type is unknown
 .It illegal
 A programming error occurred
+.El
+.It Ic depop
+Commands necessary to support the depopulation (depop) of defective elements of a device
+(typically heads for hard drives) or setting capacity point (typically used on
+flash drives).
+Issues either GET PHYSICAL ELEMENT STATUS, REMOVE ELEMENT AND TRUNCATE, or RESTORE
+ELEMENT AND REBUILD command to manage storage elements of a drive.
+Removal or restoration of elements may take up to a day to complete.
+One of the
+.Fl d ,
+.Fl l ,
+or
+.Fl r
+options must be specified.
+These options are mutually exclusive.
+Only SCSI drives are supported.
+Changing the storage elements of a storage drive may result in the loss of all
+data on that storage drive.
+The drive may need to reinitialize after
+.Fl d
+or
+.Fl r
+commands.
+The data on the drive is inaccessible until one of these commands complete.
+Once one of these commands start, the drive is format corrupt until the
+operation successfully completes.
+While format corrupt, no read or write I/O is possible to the drive.
+If the drive power cycles, it will remain format corrupt and the operation
+must be restarted.
+TEST UNIT READY or
+.Dq camcontrol tur
+can monitor an in-progress depop operation.
+.Bl -tag -width 6n
+.It Fl c Ar capacity
+Specify the desired capacity point for the drive.
+Valid only for the
+.Fl d
+flag.
+.It Fl d
+Remove the physical element from service or set the capacity point specified by the
+.Fl e
+or
+.Fl c
+flags.
+The drive's capacity may be reduced by this operation.
+.It Fl e Ar element
+Specify the physical element to remove from service.
+Valid only for the
+.Fl d
+flag.
+.It Fl l
+Report the current status of the physical elements of a drive.
+.It Fl r
+Restore all the eligible physical elements to service.
 .El
 .It Ic help
 Print out verbose usage information.

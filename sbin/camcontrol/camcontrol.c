@@ -111,6 +111,7 @@ typedef enum {
 	CAM_CMD_POWER_MODE,
 	CAM_CMD_DEVTYPE,
 	CAM_CMD_AMA,
+	CAM_CMD_DEPOP,
 } cam_cmd;
 
 typedef enum {
@@ -228,6 +229,7 @@ static struct camcontrol_opts option_table[] = {
 	{"zone", CAM_CMD_ZONE, CAM_ARG_NONE, "ac:l:No:P:"},
 	{"epc", CAM_CMD_EPC, CAM_ARG_NONE, "c:dDeHp:Pr:sS:T:"},
 	{"timestamp", CAM_CMD_TIMESTAMP, CAM_ARG_NONE, "f:mrsUT:"},
+	{"depop", CAM_CMD_DEPOP, CAM_ARG_NONE, "ac:de:ls"},
 	{"help", CAM_CMD_USAGE, CAM_ARG_NONE, NULL},
 	{"-?", CAM_CMD_USAGE, CAM_ARG_NONE, NULL},
 	{"-h", CAM_CMD_USAGE, CAM_ARG_NONE, NULL},
@@ -9946,6 +9948,7 @@ usage(int printlong)
 "        camcontrol timestamp  [dev_id][generic_args] <-r [-f format|-m|-U]>|\n"
 "                              <-s <-f format -T time | -U >>\n"
 "        camcontrol devtype    [dev_id]\n"
+"        camcontrol depop      [dev_id] [-d | -l | -r] [-e element] [-c capacity]\n"
 "        camcontrol mmcsdcmd   [dev_id] [[-c mmc_opcode] [-a mmc_arg]\n"
 "                                  [-f mmc_flags] [-l data_len]\n"
 "                                  [-W [-b data_byte]]] |\n"
@@ -9999,6 +10002,7 @@ usage(int printlong)
 "epc         send ATA Extended Power Conditions commands\n"
 "timestamp   report or set the device's timestamp\n"
 "devtype     report the type of device\n"
+"depop       manage drive storage elements\n"
 "mmcsdcmd    send the given MMC command, needs -c and -a as well\n"
 "help        this message\n"
 "Device Identifiers:\n"
@@ -10208,6 +10212,12 @@ usage(int printlong)
 "-f format         the format of the time string passed into strptime(3)\n"
 "-T time           the time value passed into strptime(3)\n"
 "-U                set the timestamp of the device to UTC time\n"
+"depop arguments:\n"
+"-d                remove an element from service\n"
+"-l                list status of all elements of drive\n"
+"-r                restore all elements to service\n"
+"-e elm            element to remove\n"
+"-c capacity       requested new capacity\n"
 "mmcsdcmd arguments:\n"
 "-c mmc_cmd        MMC command to send to the card\n"
 "-a mmc_arg        Argument for the MMC command\n"
@@ -10628,6 +10638,11 @@ main(int argc, char **argv)
 		break;
 	case CAM_CMD_TIMESTAMP:
 		error = timestamp(cam_dev, argc, argv, combinedopt,
+		    task_attr, retry_count, timeout,
+		    arglist & CAM_ARG_VERBOSE);
+		break;
+	case CAM_CMD_DEPOP:
+		error = depop(cam_dev, argc, argv, combinedopt,
 		    task_attr, retry_count, timeout,
 		    arglist & CAM_ARG_VERBOSE);
 		break;
