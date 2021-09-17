@@ -305,7 +305,7 @@ ipsec4_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip,
 			    buf, sizeof(buf)), (u_long) ntohl(sav->spi)));
 			IPSEC_ISTAT(sproto, hdrops);
 			error = ENOBUFS;
-			goto bad;
+			goto bad_noepoch;
 		}
 
 		ip = mtod(m, struct ip *);
@@ -324,6 +324,11 @@ ipsec4_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip,
 	if (sav->natt != NULL &&
 	    (prot == IPPROTO_UDP || prot == IPPROTO_TCP))
 		udp_ipsec_adjust_cksum(m, sav, prot, skip);
+
+	/*
+	 * Needed for ipsec_run_hooks and netisr_queue_src
+	 */
+	NET_EPOCH_ENTER(et);
 
 	IPSEC_INIT_CTX(&ctx, &m, NULL, sav, AF_INET, IPSEC_ENC_BEFORE);
 	if ((error = ipsec_run_hhooks(&ctx, HHOOK_TYPE_IPSEC_IN)) != 0)
@@ -424,18 +429,19 @@ ipsec4_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip,
 	if (saidx->mode == IPSEC_MODE_TUNNEL)
 		error = ipsec_if_input(m, sav, af);
 	if (error == 0) {
-		NET_EPOCH_ENTER(et);
 		error = netisr_queue_src(isr_prot, (uintptr_t)sav->spi, m);
-		NET_EPOCH_EXIT(et);
 		if (error) {
 			IPSEC_ISTAT(sproto, qfull);
 			DPRINTF(("%s: queue full; proto %u packet dropped\n",
 			    __func__, sproto));
 		}
 	}
+	NET_EPOCH_EXIT(et);
 	key_freesav(&sav);
 	return (error);
 bad:
+	NET_EPOCH_EXIT(et);
+bad_noepoch:
 	key_freesav(&sav);
 	if (m != NULL)
 		m_freem(m);
@@ -511,6 +517,8 @@ ipsec6_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip,
 	IPSEC_ASSERT(sproto == IPPROTO_ESP || sproto == IPPROTO_AH ||
 		sproto == IPPROTO_IPCOMP,
 		("unexpected security protocol %u", sproto));
+
+	NET_EPOCH_ENTER(et);
 
 	/* Fix IPv6 header */
 	if (m->m_len < sizeof(struct ip6_hdr) &&
@@ -623,16 +631,15 @@ ipsec6_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip,
 		if (saidx->mode == IPSEC_MODE_TUNNEL)
 			error = ipsec_if_input(m, sav, af);
 		if (error == 0) {
-			NET_EPOCH_ENTER(et);
 			error = netisr_queue_src(isr_prot,
 			    (uintptr_t)sav->spi, m);
-			NET_EPOCH_EXIT(et);
 			if (error) {
 				IPSEC_ISTAT(sproto, qfull);
 				DPRINTF(("%s: queue full; proto %u packet"
 				    " dropped\n", __func__, sproto));
 			}
 		}
+		NET_EPOCH_EXIT(et);
 		key_freesav(&sav);
 		return (error);
 	}
@@ -642,12 +649,11 @@ ipsec6_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip,
 	 */
 	nest = 0;
 	nxt = nxt8;
-	NET_EPOCH_ENTER(et);
 	while (nxt != IPPROTO_DONE) {
 		if (V_ip6_hdrnestlimit && (++nest > V_ip6_hdrnestlimit)) {
 			IP6STAT_INC(ip6s_toomanyhdr);
 			error = EINVAL;
-			goto bad_epoch;
+			goto bad;
 		}
 
 		/*
@@ -658,7 +664,7 @@ ipsec6_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip,
 			IP6STAT_INC(ip6s_tooshort);
 			in6_ifstat_inc(m->m_pkthdr.rcvif, ifs6_in_truncated);
 			error = EINVAL;
-			goto bad_epoch;
+			goto bad;
 		}
 		/*
 		 * Enforce IPsec policy checking if we are seeing last header.
@@ -668,16 +674,15 @@ ipsec6_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip,
 		if ((inet6sw[ip6_protox[nxt]].pr_flags & PR_LASTHDR) != 0 &&
 		    ipsec6_in_reject(m, NULL)) {
 			error = EINVAL;
-			goto bad_epoch;
+			goto bad;
 		}
 		nxt = (*inet6sw[ip6_protox[nxt]].pr_input)(&m, &skip, nxt);
 	}
 	NET_EPOCH_EXIT(et);
 	key_freesav(&sav);
 	return (0);
-bad_epoch:
-	NET_EPOCH_EXIT(et);
 bad:
+	NET_EPOCH_EXIT(et);
 	key_freesav(&sav);
 	if (m)
 		m_freem(m);
