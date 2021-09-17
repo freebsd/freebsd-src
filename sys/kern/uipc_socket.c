@@ -1223,6 +1223,7 @@ int
 soclose(struct socket *so)
 {
 	struct accept_queue lqueue;
+	struct socket *sp, *tsp;
 	int error = 0;
 
 	KASSERT(!(so->so_state & SS_NOFDREF), ("soclose: SS_NOFDREF on enter"));
@@ -1257,11 +1258,9 @@ drop:
 	if (so->so_proto->pr_usrreqs->pru_close != NULL)
 		(*so->so_proto->pr_usrreqs->pru_close)(so);
 
+	TAILQ_INIT(&lqueue);
 	SOCK_LOCK(so);
 	if (SOLISTENING(so)) {
-		struct socket *sp;
-
-		TAILQ_INIT(&lqueue);
 		TAILQ_SWAP(&lqueue, &so->sol_incomp, socket, so_list);
 		TAILQ_CONCAT(&lqueue, &so->sol_comp, so_list);
 
@@ -1279,17 +1278,14 @@ drop:
 	KASSERT((so->so_state & SS_NOFDREF) == 0, ("soclose: NOFDREF"));
 	so->so_state |= SS_NOFDREF;
 	sorele(so);
-	if (SOLISTENING(so)) {
-		struct socket *sp, *tsp;
-
-		TAILQ_FOREACH_SAFE(sp, &lqueue, so_list, tsp) {
-			SOCK_LOCK(sp);
-			if (sp->so_count == 0) {
-				SOCK_UNLOCK(sp);
-				soabort(sp);
-			} else
-				/* sp is now in sofree() */
-				SOCK_UNLOCK(sp);
+	TAILQ_FOREACH_SAFE(sp, &lqueue, so_list, tsp) {
+		SOCK_LOCK(sp);
+		if (refcount_load(&sp->so_count) == 0) {
+			SOCK_UNLOCK(sp);
+			soabort(sp);
+		} else {
+			/* sp is now in sofree() */
+			SOCK_UNLOCK(sp);
 		}
 	}
 	CURVNET_RESTORE();
