@@ -73,8 +73,6 @@ numeric_load_locale(struct xlocale_numeric *loc, int *using_locale, int *changed
 		&loc->buffer, "LC_NUMERIC",
 		LCNUMERIC_SIZE, LCNUMERIC_SIZE,
 		(const char**)l);
-	if (ret != _LDP_ERROR)
-		*changed= 1;
 	if (ret == _LDP_LOADED) {
 		/* Can't be empty according to C99 */
 		if (*l->decimal_point == '\0')
@@ -83,6 +81,8 @@ numeric_load_locale(struct xlocale_numeric *loc, int *using_locale, int *changed
 		l->grouping =
 		    __fix_locale_grouping_str(l->grouping);
 	}
+	if (ret != _LDP_ERROR)
+		atomic_store_rel_int(changed, 1);
 	return (ret);
 }
 

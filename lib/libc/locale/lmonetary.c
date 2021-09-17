@@ -107,8 +107,6 @@ monetary_load_locale_l(struct xlocale_monetary *loc, int *using_locale,
 		&loc->buffer, "LC_MONETARY",
 		LCMONETARY_SIZE_FULL, LCMONETARY_SIZE_MIN,
 		(const char **)l);
-	if (ret != _LDP_ERROR)
-		*changed = 1;
 	if (ret == _LDP_LOADED) {
 		l->mon_grouping =
 		     __fix_locale_grouping_str(l->mon_grouping);
@@ -146,6 +144,8 @@ monetary_load_locale_l(struct xlocale_monetary *loc, int *using_locale,
 		M_ASSIGN_ICHAR(p_sign_posn);
 		M_ASSIGN_ICHAR(n_sign_posn);
 	}
+	if (ret != _LDP_ERROR)
+		atomic_store_rel_int(changed, 1);
 	return (ret);
 }
 int

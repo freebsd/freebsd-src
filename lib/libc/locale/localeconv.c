@@ -65,7 +65,7 @@ localeconv_l(locale_t loc)
 	FIX_LOCALE(loc);
     struct lconv *ret = &loc->lconv;
 
-    if (loc->monetary_locale_changed) {
+    if (atomic_load_acq_int(&loc->monetary_locale_changed) != 0) {
 	/* LC_MONETARY part */
         struct lc_monetary_T * mptr; 
 
@@ -94,10 +94,10 @@ localeconv_l(locale_t loc)
 	M_ASSIGN_CHAR(int_n_sep_by_space);
 	M_ASSIGN_CHAR(int_p_sign_posn);
 	M_ASSIGN_CHAR(int_n_sign_posn);
-	loc->monetary_locale_changed = 0;
+	atomic_store_int(&loc->monetary_locale_changed, 0);
     }
 
-    if (loc->numeric_locale_changed) {
+    if (atomic_load_acq_int(&loc->numeric_locale_changed) != 0) {
 	/* LC_NUMERIC part */
         struct lc_numeric_T * nptr; 
 
@@ -107,7 +107,7 @@ localeconv_l(locale_t loc)
 	N_ASSIGN_STR(decimal_point);
 	N_ASSIGN_STR(thousands_sep);
 	N_ASSIGN_STR(grouping);
-	loc->numeric_locale_changed = 0;
+	atomic_store_int(&loc->numeric_locale_changed, 0);
     }
 
     return ret;
