@@ -399,13 +399,13 @@ vn_open_vnode(struct vnode *vp, int fmode, struct ucred *cred,
 		if ((fmode & O_PATH) == 0 || (fmode & FEXEC) != 0)
 			return (EMLINK);
 	}
-	if (vp->v_type == VSOCK)
-		return (EOPNOTSUPP);
 	if (vp->v_type != VDIR && fmode & O_DIRECTORY)
 		return (ENOTDIR);
 
 	accmode = 0;
 	if ((fmode & O_PATH) == 0) {
+		if (vp->v_type == VSOCK)
+			return (EOPNOTSUPP);
 		if ((fmode & (FWRITE | O_TRUNC)) != 0) {
 			if (vp->v_type == VDIR)
 				return (EISDIR);
@@ -437,11 +437,8 @@ vn_open_vnode(struct vnode *vp, int fmode, struct ucred *cred,
 			return (error);
 	}
 	if ((fmode & O_PATH) != 0) {
-		if (vp->v_type == VFIFO)
-			error = EPIPE;
-		else
-			error = VOP_ACCESS(vp, VREAD, cred, td);
-		if (error == 0)
+		if (vp->v_type != VFIFO && vp->v_type != VSOCK &&
+		    VOP_ACCESS(vp, VREAD, cred, td) == 0)
 			fp->f_flag |= FKQALLOWED;
 		return (0);
 	}
