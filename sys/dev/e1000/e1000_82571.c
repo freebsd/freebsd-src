@@ -515,7 +515,7 @@ e1000_get_hw_semaphore_82574(struct e1000_hw *hw)
 	u32 extcnf_ctrl;
 	s32 i = 0;
 	/* XXX assert that mutex is held */
-	DEBUGFUNC("e1000_get_hw_semaphore_82573");
+	DEBUGFUNC("e1000_get_hw_semaphore_82574");
 
 	ASSERT_CTX_LOCK_HELD(hw);
 	extcnf_ctrl = E1000_READ_REG(hw, E1000_EXTCNF_CTRL);
