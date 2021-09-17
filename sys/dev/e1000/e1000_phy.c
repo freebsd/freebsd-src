@@ -776,7 +776,7 @@ static s32 __e1000_read_phy_reg_igp(struct e1000_hw *hw, u32 offset, u16 *data,
  **/
 s32 e1000_read_phy_reg_igp(struct e1000_hw *hw, u32 offset, u16 *data)
 {
-	return __e1000_read_phy_reg_igp(hw, offset, data, FALSE);
+	return __e1000_read_phy_reg_igp(hw, offset, data, false);
 }
 
 /**
@@ -790,7 +790,7 @@ s32 e1000_read_phy_reg_igp(struct e1000_hw *hw, u32 offset, u16 *data)
  **/
 s32 e1000_read_phy_reg_igp_locked(struct e1000_hw *hw, u32 offset, u16 *data)
 {
-	return __e1000_read_phy_reg_igp(hw, offset, data, TRUE);
+	return __e1000_read_phy_reg_igp(hw, offset, data, true);
 }
 
 /**
@@ -844,7 +844,7 @@ static s32 __e1000_write_phy_reg_igp(struct e1000_hw *hw, u32 offset, u16 data,
  **/
 s32 e1000_write_phy_reg_igp(struct e1000_hw *hw, u32 offset, u16 data)
 {
-	return __e1000_write_phy_reg_igp(hw, offset, data, FALSE);
+	return __e1000_write_phy_reg_igp(hw, offset, data, false);
 }
 
 /**
@@ -858,7 +858,7 @@ s32 e1000_write_phy_reg_igp(struct e1000_hw *hw, u32 offset, u16 data)
  **/
 s32 e1000_write_phy_reg_igp_locked(struct e1000_hw *hw, u32 offset, u16 data)
 {
-	return __e1000_write_phy_reg_igp(hw, offset, data, TRUE);
+	return __e1000_write_phy_reg_igp(hw, offset, data, true);
 }
 
 /**
@@ -918,7 +918,7 @@ static s32 __e1000_read_kmrn_reg(struct e1000_hw *hw, u32 offset, u16 *data,
  **/
 s32 e1000_read_kmrn_reg_generic(struct e1000_hw *hw, u32 offset, u16 *data)
 {
-	return __e1000_read_kmrn_reg(hw, offset, data, FALSE);
+	return __e1000_read_kmrn_reg(hw, offset, data, false);
 }
 
 /**
@@ -933,7 +933,7 @@ s32 e1000_read_kmrn_reg_generic(struct e1000_hw *hw, u32 offset, u16 *data)
  **/
 s32 e1000_read_kmrn_reg_locked(struct e1000_hw *hw, u32 offset, u16 *data)
 {
-	return __e1000_read_kmrn_reg(hw, offset, data, TRUE);
+	return __e1000_read_kmrn_reg(hw, offset, data, true);
 }
 
 /**
@@ -989,7 +989,7 @@ static s32 __e1000_write_kmrn_reg(struct e1000_hw *hw, u32 offset, u16 data,
  **/
 s32 e1000_write_kmrn_reg_generic(struct e1000_hw *hw, u32 offset, u16 data)
 {
-	return __e1000_write_kmrn_reg(hw, offset, data, FALSE);
+	return __e1000_write_kmrn_reg(hw, offset, data, false);
 }
 
 /**
@@ -1003,7 +1003,7 @@ s32 e1000_write_kmrn_reg_generic(struct e1000_hw *hw, u32 offset, u16 data)
  **/
 s32 e1000_write_kmrn_reg_locked(struct e1000_hw *hw, u32 offset, u16 data)
 {
-	return __e1000_write_kmrn_reg(hw, offset, data, TRUE);
+	return __e1000_write_kmrn_reg(hw, offset, data, true);
 }
 
 /**
@@ -1390,7 +1390,7 @@ s32 e1000_copper_link_setup_igp(struct e1000_hw *hw)
 	 */
 	if (phy->type == e1000_phy_igp) {
 		/* disable lplu d3 during driver init */
-		ret_val = hw->phy.ops.set_d3_lplu_state(hw, FALSE);
+		ret_val = hw->phy.ops.set_d3_lplu_state(hw, false);
 		if (ret_val) {
 			DEBUGOUT("Error Disabling LPLU D3\n");
 			return ret_val;
@@ -1399,7 +1399,7 @@ s32 e1000_copper_link_setup_igp(struct e1000_hw *hw)
 
 	/* disable lplu d0 during driver init */
 	if (hw->phy.ops.set_d0_lplu_state) {
-		ret_val = hw->phy.ops.set_d0_lplu_state(hw, FALSE);
+		ret_val = hw->phy.ops.set_d0_lplu_state(hw, false);
 		if (ret_val) {
 			DEBUGOUT("Error Disabling LPLU D0\n");
 			return ret_val;
@@ -1678,7 +1678,7 @@ s32 e1000_copper_link_autoneg(struct e1000_hw *hw)
 		}
 	}
 
-	hw->mac.get_link_status = TRUE;
+	hw->mac.get_link_status = true;
 
 	return ret_val;
 }
@@ -1863,7 +1863,7 @@ s32 e1000_phy_force_speed_duplex_m88(struct e1000_hw *hw)
 			return ret_val;
 
 		if (!link) {
-			bool reset_dsp = TRUE;
+			bool reset_dsp = true;
 
 			switch (hw->phy.id) {
 			case I347AT4_E_PHY_ID:
@@ -1872,11 +1872,11 @@ s32 e1000_phy_force_speed_duplex_m88(struct e1000_hw *hw)
 			case M88E1543_E_PHY_ID:
 			case M88E1512_E_PHY_ID:
 			case I210_I_PHY_ID:
-				reset_dsp = FALSE;
+				reset_dsp = false;
 				break;
 			default:
 				if (hw->phy.type != e1000_phy_m88)
-					reset_dsp = FALSE;
+					reset_dsp = false;
 				break;
 			}
 
@@ -2075,7 +2075,7 @@ void e1000_phy_force_speed_duplex_setup(struct e1000_hw *hw, u16 *phy_ctrl)
  *  Success returns 0, Failure returns 1
  *
  *  The low power link up (lplu) state is set to the power management level D3
- *  and SmartSpeed is disabled when active is TRUE, else clear lplu for D3
+ *  and SmartSpeed is disabled when active is true, else clear lplu for D3
  *  and enable Smartspeed.  LPLU and Smartspeed are mutually exclusive.  LPLU
  *  is used during Dx states where the power conservation is most important.
  *  During driver activity, SmartSpeed should be enabled so performance is
@@ -2190,7 +2190,7 @@ s32 e1000_check_downshift_generic(struct e1000_hw *hw)
 		break;
 	default:
 		/* speed downshift not supported */
-		phy->speed_downgraded = FALSE;
+		phy->speed_downgraded = false;
 		return E1000_SUCCESS;
 	}
 
@@ -2723,7 +2723,7 @@ s32 e1000_get_phy_info_igp(struct e1000_hw *hw)
 		return -E1000_ERR_CONFIG;
 	}
 
-	phy->polarity_correction = TRUE;
+	phy->polarity_correction = true;
 
 	ret_val = e1000_check_polarity_igp(hw);
 	if (ret_val)
@@ -3131,7 +3131,7 @@ s32 e1000_write_phy_reg_bm(struct e1000_hw *hw, u32 offset, u16 data)
 	/* Page 800 works differently than the rest so it has its own func */
 	if (page == BM_WUC_PAGE) {
 		ret_val = e1000_access_phy_wakeup_reg_bm(hw, offset, &data,
-							 FALSE, false);
+							 false, false);
 		goto release;
 	}
 
@@ -3191,7 +3191,7 @@ s32 e1000_read_phy_reg_bm(struct e1000_hw *hw, u32 offset, u16 *data)
 	/* Page 800 works differently than the rest so it has its own func */
 	if (page == BM_WUC_PAGE) {
 		ret_val = e1000_access_phy_wakeup_reg_bm(hw, offset, data,
-							 TRUE, FALSE);
+							 true, false);
 		goto release;
 	}
 
@@ -3250,7 +3250,7 @@ s32 e1000_read_phy_reg_bm2(struct e1000_hw *hw, u32 offset, u16 *data)
 	/* Page 800 works differently than the rest so it has its own func */
 	if (page == BM_WUC_PAGE) {
 		ret_val = e1000_access_phy_wakeup_reg_bm(hw, offset, data,
-							 TRUE, FALSE);
+							 true, false);
 		goto release;
 	}
 
@@ -3295,7 +3295,7 @@ s32 e1000_write_phy_reg_bm2(struct e1000_hw *hw, u32 offset, u16 data)
 	/* Page 800 works differently than the rest so it has its own func */
 	if (page == BM_WUC_PAGE) {
 		ret_val = e1000_access_phy_wakeup_reg_bm(hw, offset, &data,
-							 FALSE, false);
+							 false, false);
 		goto release;
 	}
 
@@ -3430,7 +3430,7 @@ s32 e1000_disable_phy_wakeup_reg_access_bm(struct e1000_hw *hw, u16 *phy_reg)
  *  Steps 1 and 2 are done by e1000_enable_phy_wakeup_reg_access_bm() and
  *  step 5 is done by e1000_disable_phy_wakeup_reg_access_bm().
  *
- *  Assumes semaphore is already acquired.  When page_set==TRUE, assumes
+ *  Assumes semaphore is already acquired.  When page_set==true, assumes
  *  the PHY page is set to BM_WUC_PAGE (i.e. a function in the call stack
  *  is responsible for calls to e1000_[enable|disable]_phy_wakeup_reg_bm()).
  **/
@@ -3556,13 +3556,13 @@ static s32 __e1000_read_phy_reg_hv(struct e1000_hw *hw, u32 offset, u16 *data,
 	/* Page 800 works differently than the rest so it has its own func */
 	if (page == BM_WUC_PAGE) {
 		ret_val = e1000_access_phy_wakeup_reg_bm(hw, offset, data,
-							 TRUE, page_set);
+							 true, page_set);
 		goto out;
 	}
 
 	if (page > 0 && page < HV_INTC_FC_PAGE_START) {
 		ret_val = e1000_access_phy_debug_regs_hv(hw, offset,
-							 data, TRUE);
+							 data, true);
 		goto out;
 	}
 
@@ -3606,7 +3606,7 @@ out:
  **/
 s32 e1000_read_phy_reg_hv(struct e1000_hw *hw, u32 offset, u16 *data)
 {
-	return __e1000_read_phy_reg_hv(hw, offset, data, FALSE, false);
+	return __e1000_read_phy_reg_hv(hw, offset, data, false, false);
 }
 
 /**
@@ -3620,7 +3620,7 @@ s32 e1000_read_phy_reg_hv(struct e1000_hw *hw, u32 offset, u16 *data)
  **/
 s32 e1000_read_phy_reg_hv_locked(struct e1000_hw *hw, u32 offset, u16 *data)
 {
-	return __e1000_read_phy_reg_hv(hw, offset, data, TRUE, FALSE);
+	return __e1000_read_phy_reg_hv(hw, offset, data, true, false);
 }
 
 /**
@@ -3634,7 +3634,7 @@ s32 e1000_read_phy_reg_hv_locked(struct e1000_hw *hw, u32 offset, u16 *data)
  **/
 s32 e1000_read_phy_reg_page_hv(struct e1000_hw *hw, u32 offset, u16 *data)
 {
-	return __e1000_read_phy_reg_hv(hw, offset, data, TRUE, true);
+	return __e1000_read_phy_reg_hv(hw, offset, data, true, true);
 }
 
 /**
@@ -3666,13 +3666,13 @@ static s32 __e1000_write_phy_reg_hv(struct e1000_hw *hw, u32 offset, u16 data,
 	/* Page 800 works differently than the rest so it has its own func */
 	if (page == BM_WUC_PAGE) {
 		ret_val = e1000_access_phy_wakeup_reg_bm(hw, offset, &data,
-							 FALSE, page_set);
+							 false, page_set);
 		goto out;
 	}
 
 	if (page > 0 && page < HV_INTC_FC_PAGE_START) {
 		ret_val = e1000_access_phy_debug_regs_hv(hw, offset,
-							 &data, FALSE);
+							 &data, false);
 		goto out;
 	}
 
@@ -3691,7 +3691,7 @@ static s32 __e1000_write_phy_reg_hv(struct e1000_hw *hw, u32 offset, u16 data,
 			u16 data2 = 0x7EFF;
 			ret_val = e1000_access_phy_debug_regs_hv(hw,
 								 (1 << 6) | 0x3,
-								 &data2, FALSE);
+								 &data2, false);
 			if (ret_val)
 				goto out;
 		}
@@ -3732,7 +3732,7 @@ out:
  **/
 s32 e1000_write_phy_reg_hv(struct e1000_hw *hw, u32 offset, u16 data)
 {
-	return __e1000_write_phy_reg_hv(hw, offset, data, FALSE, false);
+	return __e1000_write_phy_reg_hv(hw, offset, data, false, false);
 }
 
 /**
@@ -3746,7 +3746,7 @@ s32 e1000_write_phy_reg_hv(struct e1000_hw *hw, u32 offset, u16 data)
  **/
 s32 e1000_write_phy_reg_hv_locked(struct e1000_hw *hw, u32 offset, u16 data)
 {
-	return __e1000_write_phy_reg_hv(hw, offset, data, TRUE, FALSE);
+	return __e1000_write_phy_reg_hv(hw, offset, data, true, false);
 }
 
 /**
@@ -3760,7 +3760,7 @@ s32 e1000_write_phy_reg_hv_locked(struct e1000_hw *hw, u32 offset, u16 data)
  **/
 s32 e1000_write_phy_reg_page_hv(struct e1000_hw *hw, u32 offset, u16 data)
 {
-	return __e1000_write_phy_reg_hv(hw, offset, data, TRUE, true);
+	return __e1000_write_phy_reg_hv(hw, offset, data, true, true);
 }
 
 /**
@@ -3975,7 +3975,7 @@ s32 e1000_get_phy_info_82577(struct e1000_hw *hw)
 		return -E1000_ERR_CONFIG;
 	}
 
-	phy->polarity_correction = TRUE;
+	phy->polarity_correction = true;
 
 	ret_val = e1000_check_polarity_82577(hw);
 	if (ret_val)
@@ -4118,7 +4118,7 @@ release:
 s32 e1000_read_phy_reg_mphy(struct e1000_hw *hw, u32 address, u32 *data)
 {
 	u32 mphy_ctrl = 0;
-	bool locked = FALSE;
+	bool locked = false;
 	bool ready;
 
 	DEBUGFUNC("e1000_read_phy_reg_mphy");
@@ -4131,7 +4131,7 @@ s32 e1000_read_phy_reg_mphy(struct e1000_hw *hw, u32 address, u32 *data)
 	/* Check if mPHY access is disabled and enable it if so */
 	mphy_ctrl = E1000_READ_REG(hw, E1000_MPHY_ADDR_CTRL);
 	if (mphy_ctrl & E1000_MPHY_DIS_ACCESS) {
-		locked = TRUE;
+		locked = true;
 		ready = e1000_is_mphy_ready(hw);
 		if (!ready)
 			return -E1000_ERR_PHY;
@@ -4180,7 +4180,7 @@ s32 e1000_write_phy_reg_mphy(struct e1000_hw *hw, u32 address, u32 data,
 			     bool line_override)
 {
 	u32 mphy_ctrl = 0;
-	bool locked = FALSE;
+	bool locked = false;
 	bool ready;
 
 	DEBUGFUNC("e1000_write_phy_reg_mphy");
@@ -4193,7 +4193,7 @@ s32 e1000_write_phy_reg_mphy(struct e1000_hw *hw, u32 address, u32 data,
 	/* Check if mPHY access is disabled and enable it if so */
 	mphy_ctrl = E1000_READ_REG(hw, E1000_MPHY_ADDR_CTRL);
 	if (mphy_ctrl & E1000_MPHY_DIS_ACCESS) {
-		locked = TRUE;
+		locked = true;
 		ready = e1000_is_mphy_ready(hw);
 		if (!ready)
 			return -E1000_ERR_PHY;
@@ -4242,7 +4242,7 @@ bool e1000_is_mphy_ready(struct e1000_hw *hw)
 {
 	u16 retry_count = 0;
 	u32 mphy_ctrl = 0;
-	bool ready = FALSE;
+	bool ready = false;
 
 	while (retry_count < 2) {
 		mphy_ctrl = E1000_READ_REG(hw, E1000_MPHY_ADDR_CTRL);
@@ -4251,7 +4251,7 @@ bool e1000_is_mphy_ready(struct e1000_hw *hw)
 			retry_count++;
 			continue;
 		}
-		ready = TRUE;
+		ready = true;
 		break;
 	}
 

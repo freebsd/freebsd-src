@@ -184,7 +184,7 @@ em_tso_setup(struct adapter *adapter, if_pkt_info_t pi, u32 *txd_upper, u32 *txd
 				E1000_TXD_CMD_IP |	/* Do IP csum */
 				E1000_TXD_CMD_TCP |	/* Do TCP checksum */
 				      (pi->ipi_len - hdr_len)); /* Total len */
-	txr->tx_tso = TRUE;
+	txr->tx_tso = true;
 
 	if (++cur == scctx->isc_ntxd[0]) {
 		cur = 0;
@@ -318,7 +318,7 @@ em_isc_txd_encap(void *arg, if_pkt_info_t pi)
 	txd_flags = pi->ipi_flags & IPI_TX_INTR ? E1000_TXD_CMD_RS : 0;
 	i = first = pi->ipi_pidx;
 	do_tso = (csum_flags & CSUM_TSO);
-	tso_desc = FALSE;
+	tso_desc = false;
 	ntxd = scctx->isc_ntxd[0];
 	/*
 	 * TSO Hardware workaround, if this packet is not
@@ -326,16 +326,16 @@ em_isc_txd_encap(void *arg, if_pkt_info_t pi)
 	 * it follows a TSO burst, then we need to add a
 	 * sentinel descriptor to prevent premature writeback.
 	 */
-	if ((!do_tso) && (txr->tx_tso == TRUE)) {
+	if ((!do_tso) && (txr->tx_tso == true)) {
 		if (nsegs == 1)
-			tso_desc = TRUE;
-		txr->tx_tso = FALSE;
+			tso_desc = true;
+		txr->tx_tso = false;
 	}
 
 	/* Do hardware assists */
 	if (do_tso) {
 		i = em_tso_setup(sc, pi, &txd_upper, &txd_lower);
-		tso_desc = TRUE;
+		tso_desc = true;
 	} else if (csum_flags & EM_CSUM_OFFLOAD) {
 		i = em_transmit_checksum_setup(sc, pi, &txd_upper, &txd_lower);
 	}

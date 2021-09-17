@@ -404,7 +404,7 @@ static s32 e1000_check_for_ack_vf(struct e1000_hw *hw,
  *  @hw: pointer to the HW structure
  *  @mbx_id: id of mailbox to check
  *
- *  returns TRUE if the PF has set the reset done bit or else FALSE
+ *  returns true if the PF has set the reset done bit or else false
  **/
 static s32 e1000_check_for_rst_vf(struct e1000_hw *hw,
 				  u16 E1000_UNUSEDARG mbx_id)

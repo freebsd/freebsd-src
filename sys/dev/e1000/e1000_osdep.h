@@ -115,8 +115,6 @@ safe_pause_ms(int x) {
 #define DEBUGFUNC(F)			DEBUGOUT(F "\n")
 
 #define STATIC			static
-#define FALSE			0
-#define TRUE			1
 #define CMD_MEM_WRT_INVALIDATE	0x0010  /* BIT_4 */
 #define PCI_COMMAND_REGISTER	PCIR_COMMAND
 

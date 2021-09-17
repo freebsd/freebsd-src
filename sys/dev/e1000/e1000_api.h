@@ -140,11 +140,11 @@ u32  e1000_translate_register_82542(u32 reg);
  * Typical use:
  *  ...
  *  if (TBI_ACCEPT) {
- *      accept_frame = TRUE;
+ *      accept_frame = true;
  *      e1000_tbi_adjust_stats(adapter, MacAddress);
  *      frame_length--;
  *  } else {
- *      accept_frame = FALSE;
+ *      accept_frame = false;
  *  }
  *  ...
  */
