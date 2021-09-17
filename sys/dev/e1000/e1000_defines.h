@@ -1083,11 +1083,44 @@
 /* NVM Word Offsets */
 #define NVM_COMPAT			0x0003
 #define NVM_ID_LED_SETTINGS		0x0004
+#define NVM_VERSION			0x0005
 #define NVM_SERDES_AMPLITUDE		0x0006 /* SERDES output amplitude */
 #define NVM_PHY_CLASS_WORD		0x0007
 #define E1000_I210_NVM_FW_MODULE_PTR	0x0010
 #define E1000_I350_NVM_FW_MODULE_PTR	0x0051
 #define NVM_FUTURE_INIT_WORD1		0x0019
+#define NVM_ETRACK_WORD			0x0042
+#define NVM_ETRACK_HIWORD		0x0043
+#define NVM_COMB_VER_OFF		0x0083
+#define NVM_COMB_VER_PTR		0x003d
+
+/* NVM version defines */
+#define NVM_MAJOR_MASK			0xF000
+#define NVM_MINOR_MASK			0x0FF0
+#define NVM_IMAGE_ID_MASK		0x000F
+#define NVM_COMB_VER_MASK		0x00FF
+#define NVM_MAJOR_SHIFT			12
+#define NVM_MINOR_SHIFT			4
+#define NVM_COMB_VER_SHFT		8
+#define NVM_VER_INVALID			0xFFFF
+#define NVM_ETRACK_SHIFT		16
+#define NVM_ETRACK_VALID		0x8000
+#define NVM_NEW_DEC_MASK		0x0F00
+#define NVM_HEX_CONV			16
+#define NVM_HEX_TENS			10
+
+/* FW version defines */
+/* Offset of "Loader patch ptr" in Firmware Header */
+#define E1000_I350_NVM_FW_LOADER_PATCH_PTR_OFFSET	0x01
+/* Patch generation hour & minutes */
+#define E1000_I350_NVM_FW_VER_WORD1_OFFSET		0x04
+/* Patch generation month & day */
+#define E1000_I350_NVM_FW_VER_WORD2_OFFSET		0x05
+/* Patch generation year */
+#define E1000_I350_NVM_FW_VER_WORD3_OFFSET		0x06
+/* Patch major & minor numbers */
+#define E1000_I350_NVM_FW_VER_WORD4_OFFSET		0x07
+
 #define NVM_MAC_ADDR			0x0000
 #define NVM_SUB_DEV_ID			0x000B
 #define NVM_SUB_VEN_ID			0x000C

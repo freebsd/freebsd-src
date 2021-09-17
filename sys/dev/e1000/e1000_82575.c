@@ -1360,7 +1360,7 @@ static s32 e1000_reset_hw_82575(struct e1000_hw *hw)
  *
  * This inits the hardware readying it for operation.
  **/
-STATIC s32 e1000_init_hw_82575(struct e1000_hw *hw)
+static s32 e1000_init_hw_82575(struct e1000_hw *hw)
 {
 	struct e1000_mac_info *mac = &hw->mac;
 	s32 ret_val;

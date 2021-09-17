@@ -998,7 +998,7 @@ struct e1000_dev_spec_ich8lan {
 	enum e1000_ulp_state ulp_state;
 	bool ulp_capability_disabled;
 	bool during_suspend_flow;
-	bool during_dpg_exit;
+	bool smbus_disable;
 };
 
 struct e1000_dev_spec_82575 {

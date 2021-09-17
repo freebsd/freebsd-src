@@ -1270,6 +1270,21 @@ s32 e1000_read_pba_length(struct e1000_hw *hw, u32 *pba_num_size)
 }
 
 /**
+ *  e1000_read_pba_num - Read device part number
+ *  @hw: pointer to the HW structure
+ *  @pba_num: pointer to device part number
+ *
+ *  Reads the product board assembly (PBA) number from the EEPROM and stores
+ *  the value in pba_num.
+ *  Currently no func pointer exists and all implementations are handled in the
+ *  generic version of this function.
+ **/
+s32 e1000_read_pba_num(struct e1000_hw *hw, u32 *pba_num)
+{
+	return e1000_read_pba_num_generic(hw, pba_num);
+}
+
+/**
  *  e1000_validate_nvm_checksum - Verifies NVM (EEPROM) checksum
  *  @hw: pointer to the HW structure
  *
