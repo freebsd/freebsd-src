@@ -7788,7 +7788,7 @@ main(int argc, char **argv)
 			break;
 		case 'a':
 			re->options |= RE_AA | RE_D | RE_G | RE_H | RE_II |
-			    RE_L | RE_R | RE_SS | RE_S | RE_VV;
+			    RE_L | RE_N | RE_R | RE_SS | RE_S | RE_U | RE_VV;
 			break;
 		case 'c':
 			re->options |= RE_C;
