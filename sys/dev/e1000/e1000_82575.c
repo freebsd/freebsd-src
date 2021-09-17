@@ -128,7 +128,7 @@ static const u16 e1000_82580_rxpbs_table[] = {
 static bool e1000_sgmii_uses_mdio_82575(struct e1000_hw *hw)
 {
 	u32 reg = 0;
-	bool ext_mdio = FALSE;
+	bool ext_mdio = false;
 
 	DEBUGFUNC("e1000_sgmii_uses_mdio_82575");
 
@@ -348,16 +348,16 @@ static s32 e1000_init_mac_params_82575(struct e1000_hw *hw)
 
 	/* Enable EEE default settings for EEE supported devices */
 	if (mac->type >= e1000_i350)
-		dev_spec->eee_disable = FALSE;
+		dev_spec->eee_disable = false;
 
 	/* Allow a single clear of the SW semaphore on I210 and newer */
 	if (mac->type >= e1000_i210)
-		dev_spec->clear_semaphore_once = TRUE;
+		dev_spec->clear_semaphore_once = true;
 
 	/* Set if part includes ASF firmware */
-	mac->asf_firmware_present = TRUE;
+	mac->asf_firmware_present = true;
 	/* FWSM register */
-	mac->has_fwsm = TRUE;
+	mac->has_fwsm = true;
 	/* ARC supported; valid only if manageability features are enabled. */
 	mac->arc_subsystem_valid =
 		!!(E1000_READ_REG(hw, E1000_FWSM) & E1000_FWSM_MODE_MASK);
@@ -716,7 +716,7 @@ static s32 e1000_phy_hw_reset_sgmii_82575(struct e1000_hw *hw)
 	DEBUGFUNC("e1000_phy_hw_reset_sgmii_82575");
 
 	/*
-	 * This isn't a TRUE "hard" reset, but is the only reset
+	 * This isn't a true "hard" reset, but is the only reset
 	 * available to us at this time.
 	 */
 
@@ -746,7 +746,7 @@ out:
 /**
  *  e1000_set_d0_lplu_state_82575 - Set Low Power Linkup D0 state
  *  @hw: pointer to the HW structure
- *  @active: TRUE to enable LPLU, FALSE to disable
+ *  @active: true to enable LPLU, false to disable
  *
  *  Sets the LPLU D0 state according to the active flag.  When
  *  activating LPLU this function also disables smart speed
@@ -832,7 +832,7 @@ out:
 /**
  *  e1000_set_d0_lplu_state_82580 - Set Low Power Linkup D0 state
  *  @hw: pointer to the HW structure
- *  @active: TRUE to enable LPLU, FALSE to disable
+ *  @active: true to enable LPLU, false to disable
  *
  *  Sets the LPLU D0 state according to the active flag.  When
  *  activating LPLU this function also disables smart speed
@@ -883,7 +883,7 @@ static s32 e1000_set_d0_lplu_state_82580(struct e1000_hw *hw, bool active)
  *  Success returns 0, Failure returns 1
  *
  *  The low power link up (lplu) state is set to the power management level D3
- *  and SmartSpeed is disabled when active is TRUE, else clear lplu for D3
+ *  and SmartSpeed is disabled when active is true, else clear lplu for D3
  *  and enable Smartspeed.  LPLU and Smartspeed are mutually exclusive.  LPLU
  *  is used during Dx states where the power conservation is most important.
  *  During driver activity, SmartSpeed should be enabled so performance is
@@ -1139,7 +1139,7 @@ static s32 e1000_check_for_link_media_swap(struct e1000_hw *hw)
 	/* Determine if a swap needs to happen. */
 	if (port && (hw->dev_spec._82575.media_port != port)) {
 		hw->dev_spec._82575.media_port = port;
-		hw->dev_spec._82575.media_changed = TRUE;
+		hw->dev_spec._82575.media_changed = true;
 	}
 
 	if (port == E1000_MEDIA_PORT_COPPER) {
@@ -1217,7 +1217,7 @@ static s32 e1000_get_pcs_speed_and_duplex_82575(struct e1000_hw *hw,
 	 * The link up bit determines when link is up on autoneg.
 	 */
 	if (pcs & E1000_PCS_LSTS_LINK_OK) {
-		mac->serdes_has_link = TRUE;
+		mac->serdes_has_link = true;
 
 		/* Detect and store PCS speed */
 		if (pcs & E1000_PCS_LSTS_SPEED_1000)
@@ -1246,7 +1246,7 @@ static s32 e1000_get_pcs_speed_and_duplex_82575(struct e1000_hw *hw,
 		}
 
 	} else {
-		mac->serdes_has_link = FALSE;
+		mac->serdes_has_link = false;
 		*speed = 0;
 		*duplex = 0;
 	}
@@ -1527,13 +1527,13 @@ static s32 e1000_setup_serdes_link_82575(struct e1000_hw *hw)
 	switch (ctrl_ext & E1000_CTRL_EXT_LINK_MODE_MASK) {
 	case E1000_CTRL_EXT_LINK_MODE_SGMII:
 		/* sgmii mode lets the phy handle forcing speed/duplex */
-		pcs_autoneg = TRUE;
+		pcs_autoneg = true;
 		/* autoneg time out should be disabled for SGMII mode */
 		reg &= ~(E1000_PCS_LCTL_AN_TIMEOUT);
 		break;
 	case E1000_CTRL_EXT_LINK_MODE_1000BASE_KX:
 		/* disable PCS autoneg and support parallel detect only */
-		pcs_autoneg = FALSE;
+		pcs_autoneg = false;
 		/* FALLTHROUGH */
 	default:
 		if (hw->mac.type == e1000_82575 ||
@@ -1545,7 +1545,7 @@ static s32 e1000_setup_serdes_link_82575(struct e1000_hw *hw)
 			}
 
 			if (data & E1000_EEPROM_PCS_AUTONEG_DISABLE_BIT)
-				pcs_autoneg = FALSE;
+				pcs_autoneg = false;
 		}
 
 		/*
@@ -1637,8 +1637,8 @@ static s32 e1000_get_media_type_82575(struct e1000_hw *hw)
 	u32 link_mode = 0;
 
 	/* Set internal phy as default */
-	dev_spec->sgmii_active = FALSE;
-	dev_spec->module_plugged = FALSE;
+	dev_spec->sgmii_active = false;
+	dev_spec->module_plugged = false;
 
 	/* Get CSR setting */
 	ctrl_ext = E1000_READ_REG(hw, E1000_CTRL_EXT);
@@ -1657,7 +1657,7 @@ static s32 e1000_get_media_type_82575(struct e1000_hw *hw)
 		/* Get phy control interface type set (MDIO vs. I2C)*/
 		if (e1000_sgmii_uses_mdio_82575(hw)) {
 			hw->phy.media_type = e1000_media_type_copper;
-			dev_spec->sgmii_active = TRUE;
+			dev_spec->sgmii_active = true;
 			break;
 		}
 		/* fall through for I2C based SGMII */
@@ -1675,7 +1675,7 @@ static s32 e1000_get_media_type_82575(struct e1000_hw *hw)
 
 			if (link_mode == E1000_CTRL_EXT_LINK_MODE_SGMII) {
 				hw->phy.media_type = e1000_media_type_copper;
-				dev_spec->sgmii_active = TRUE;
+				dev_spec->sgmii_active = true;
 			}
 
 			break;
@@ -1746,14 +1746,14 @@ static s32 e1000_set_sfp_media_type_82575(struct e1000_hw *hw)
 	/* Check if there is some SFP module plugged and powered */
 	if ((tranceiver_type == E1000_SFF_IDENTIFIER_SFP) ||
 	    (tranceiver_type == E1000_SFF_IDENTIFIER_SFF)) {
-		dev_spec->module_plugged = TRUE;
+		dev_spec->module_plugged = true;
 		if (eth_flags->e1000_base_lx || eth_flags->e1000_base_sx) {
 			hw->phy.media_type = e1000_media_type_internal_serdes;
 		} else if (eth_flags->e100_base_fx) {
-			dev_spec->sgmii_active = TRUE;
+			dev_spec->sgmii_active = true;
 			hw->phy.media_type = e1000_media_type_internal_serdes;
 		} else if (eth_flags->e1000_base_t) {
-			dev_spec->sgmii_active = TRUE;
+			dev_spec->sgmii_active = true;
 			hw->phy.media_type = e1000_media_type_copper;
 		} else {
 			hw->phy.media_type = e1000_media_type_unknown;
@@ -2224,11 +2224,11 @@ static s32 e1000_reset_hw_82580(struct e1000_hw *hw)
 
 	DEBUGFUNC("e1000_reset_hw_82580");
 
-	hw->dev_spec._82575.global_device_reset = FALSE;
+	hw->dev_spec._82575.global_device_reset = false;
 
 	/* 82580 does not reliably do global_device_reset due to hw errata */
 	if (hw->mac.type == e1000_82580)
-		global_device_reset = FALSE;
+		global_device_reset = false;
 
 	/* Get current control state. */
 	ctrl = E1000_READ_REG(hw, E1000_CTRL);
@@ -2252,7 +2252,7 @@ static s32 e1000_reset_hw_82580(struct e1000_hw *hw)
 	/* Determine whether or not a global dev reset is requested */
 	if (global_device_reset && hw->mac.ops.acquire_swfw_sync(hw,
 	    swmbsw_mask))
-			global_device_reset = FALSE;
+			global_device_reset = false;
 
 	if (global_device_reset && !(E1000_READ_REG(hw, E1000_STATUS) &
 	    E1000_STAT_DEV_RST_SET))
@@ -2572,7 +2572,7 @@ s32 e1000_read_emi_reg(struct e1000_hw *hw, u16 addr, u16 *data)
 {
 	DEBUGFUNC("e1000_read_emi_reg");
 
-	return __e1000_access_emi_reg(hw, addr, data, TRUE);
+	return __e1000_access_emi_reg(hw, addr, data, true);
 }
 
 /**
@@ -2930,7 +2930,7 @@ s32 e1000_get_eee_status_i354(struct e1000_hw *hw, bool *status)
 		goto out;
 
 	*status = phy_data & (E1000_PCS_STATUS_TX_LPI_RCVD |
-			      E1000_PCS_STATUS_RX_LPI_RCVD) ? TRUE : FALSE;
+			      E1000_PCS_STATUS_RX_LPI_RCVD) ? true : false;
 
 out:
 	return ret_val;
@@ -3032,7 +3032,7 @@ s32 e1000_read_i2c_byte_generic(struct e1000_hw *hw, u8 byte_offset,
 	u32 retry = 1;
 	u16 swfw_mask = 0;
 
-	bool nack = TRUE;
+	bool nack = true;
 
 	DEBUGFUNC("e1000_read_i2c_byte_generic");
 
@@ -3299,7 +3299,7 @@ static s32 e1000_get_i2c_ack(struct e1000_hw *hw)
 	u32 i = 0;
 	u32 i2cctl = E1000_READ_REG(hw, E1000_I2CPARAMS);
 	u32 timeout = 10;
-	bool ack = TRUE;
+	bool ack = true;
 
 	DEBUGFUNC("e1000_get_i2c_ack");
 

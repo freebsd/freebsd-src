@@ -160,7 +160,7 @@ enum e1000_mac_type {
 	e1000_undefined = 0,
 	e1000_vfadapt,
 	e1000_vfadapt_i350,
-	e1000_num_macs  /* List is 1-based, so subtract 1 for TRUE count. */
+	e1000_num_macs  /* List is 1-based, so subtract 1 for true count. */
 };
 
 struct e1000_vf_stats {

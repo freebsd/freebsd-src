@@ -482,7 +482,7 @@ igb_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 		if (++cidx == scctx->isc_nrxd[0])
 			cidx = 0;
 #ifdef notyet
-		if (rxr->hdr_split == TRUE) {
+		if (rxr->hdr_split == true) {
 			ri->iri_frags[i].irf_flid = 1;
 			ri->iri_frags[i].irf_idx = cidx;
 			if (++cidx == scctx->isc_nrxd[0])

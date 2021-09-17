@@ -552,14 +552,14 @@ out:
 bool e1000_get_flash_presence_i210(struct e1000_hw *hw)
 {
 	u32 eec = 0;
-	bool ret_val = FALSE;
+	bool ret_val = false;
 
 	DEBUGFUNC("e1000_get_flash_presence_i210");
 
 	eec = E1000_READ_REG(hw, E1000_EECD);
 
 	if (eec & E1000_EECD_FLASH_DETECTED_I210)
-		ret_val = TRUE;
+		ret_val = true;
 
 	return ret_val;
 }
