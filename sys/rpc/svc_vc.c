@@ -328,11 +328,9 @@ svc_vc_accept(struct socket *head, struct socket **sop)
 	int error = 0;
 	short nbio;
 
-	/* XXXGL: shouldn't that be an assertion? */
-	if (!SOLISTENING(head)) {
-		error = EINVAL;
-		goto done;
-	}
+	KASSERT(SOLISTENING(head),
+	    ("%s: socket %p is not listening", __func__, head));
+
 #ifdef MAC
 	error = mac_socket_check_accept(curthread->td_ucred, head);
 	if (error != 0)
