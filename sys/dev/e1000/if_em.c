@@ -509,12 +509,12 @@ SYSCTL_INT(_hw_em, OID_AUTO, rx_abs_int_delay, CTLFLAG_RDTUN,
     &em_rx_abs_int_delay_dflt, 0,
     "Default receive interrupt delay limit in usecs");
 
-static int em_smart_pwr_down = FALSE;
+static int em_smart_pwr_down = false;
 SYSCTL_INT(_hw_em, OID_AUTO, smart_pwr_down, CTLFLAG_RDTUN, &em_smart_pwr_down,
     0, "Set to true to leave smart power down enabled on newer adapters");
 
 /* Controls whether promiscuous also shows bad packets */
-static int em_debug_sbp = FALSE;
+static int em_debug_sbp = false;
 SYSCTL_INT(_hw_em, OID_AUTO, sbp, CTLFLAG_RDTUN, &em_debug_sbp, 0,
     "Show bad packets in promiscuous mode");
 
@@ -967,7 +967,7 @@ em_if_attach_pre(if_ctx_t ctx)
 	}
 
 	/* Do Shared Code initialization */
-	error = e1000_setup_init_funcs(hw, TRUE);
+	error = e1000_setup_init_funcs(hw, true);
 	if (error) {
 		device_printf(dev, "Setup of Shared code failed, error %d\n",
 		    error);
@@ -1002,17 +1002,17 @@ em_if_attach_pre(if_ctx_t ctx)
 	    DEFAULT_ITR);
 
 	hw->mac.autoneg = DO_AUTO_NEG;
-	hw->phy.autoneg_wait_to_complete = FALSE;
+	hw->phy.autoneg_wait_to_complete = false;
 	hw->phy.autoneg_advertised = AUTONEG_ADV_DEFAULT;
 
 	if (hw->mac.type < em_mac_min) {
-		e1000_init_script_state_82541(hw, TRUE);
-		e1000_set_tbi_compatibility_82543(hw, TRUE);
+		e1000_init_script_state_82541(hw, true);
+		e1000_set_tbi_compatibility_82543(hw, true);
 	}
 	/* Copper options */
 	if (hw->phy.media_type == e1000_media_type_copper) {
 		hw->phy.mdix = AUTO_ALL_MODES;
-		hw->phy.disable_polarity_correction = FALSE;
+		hw->phy.disable_polarity_correction = false;
 		hw->phy.ms_type = EM_MASTER_SLAVE;
 	}
 
@@ -1094,7 +1094,7 @@ em_if_attach_pre(if_ctx_t ctx)
 	}
 
 	/* Disable ULP support */
-	e1000_disable_ulp_lpt_lp(hw, TRUE);
+	e1000_disable_ulp_lpt_lp(hw, true);
 
 	/*
 	 * Get Wake-on-Lan and Management info for later use
@@ -1304,7 +1304,7 @@ em_if_init(if_ctx_t ctx)
 	 * the interface continues to function.
 	 */
 	if (adapter->hw.mac.type == e1000_82571) {
-		e1000_set_laa_state_82571(&adapter->hw, TRUE);
+		e1000_set_laa_state_82571(&adapter->hw, true);
 		e1000_rar_set(&adapter->hw, adapter->hw.mac.addr,
 		    E1000_RAR_ENTRIES - 1);
 	}
@@ -1376,9 +1376,9 @@ em_if_init(if_ctx_t ctx)
 	if (adapter->hw.mac.type >= igb_mac_min &&
 	    adapter->hw.phy.media_type == e1000_media_type_copper) {
 		if (adapter->hw.mac.type == e1000_i354)
-			e1000_set_eee_i354(&adapter->hw, TRUE, TRUE);
+			e1000_set_eee_i354(&adapter->hw, true, true);
 		else
-			e1000_set_eee_i350(&adapter->hw, TRUE, TRUE);
+			e1000_set_eee_i350(&adapter->hw, true, true);
 	}
 }
 
@@ -1621,7 +1621,7 @@ em_if_media_change(if_ctx_t ctx)
 		adapter->hw.phy.autoneg_advertised = ADVERTISE_1000_FULL;
 		break;
 	case IFM_100_TX:
-		adapter->hw.mac.autoneg = FALSE;
+		adapter->hw.mac.autoneg = false;
 		adapter->hw.phy.autoneg_advertised = 0;
 		if ((ifm->ifm_media & IFM_GMASK) == IFM_FDX)
 			adapter->hw.mac.forced_speed_duplex = ADVERTISE_100_FULL;
@@ -1629,7 +1629,7 @@ em_if_media_change(if_ctx_t ctx)
 			adapter->hw.mac.forced_speed_duplex = ADVERTISE_100_HALF;
 		break;
 	case IFM_10_T:
-		adapter->hw.mac.autoneg = FALSE;
+		adapter->hw.mac.autoneg = false;
 		adapter->hw.phy.autoneg_advertised = 0;
 		if ((ifm->ifm_media & IFM_GMASK) == IFM_FDX)
 			adapter->hw.mac.forced_speed_duplex = ADVERTISE_10_FULL;
@@ -1794,7 +1794,7 @@ em_if_update_admin_status(if_ctx_t ctx)
 			if (link_check) /* ESB2 fix */
 				e1000_cfg_on_link_up(hw);
 		} else {
-			link_check = TRUE;
+			link_check = true;
 		}
 		break;
 	case e1000_media_type_fiber:
@@ -2629,7 +2629,7 @@ em_reset(if_ctx_t ctx)
 	else
 		hw->fc.pause_time = EM_FC_PAUSE_TIME;
 
-	hw->fc.send_xon = TRUE;
+	hw->fc.send_xon = true;
 
 	/* Device specific overrides/settings */
 	switch (hw->mac.type) {
@@ -2701,7 +2701,7 @@ em_reset(if_ctx_t ctx)
 		em_disable_aspm(adapter);
 	}
 	if (adapter->flags & IGB_MEDIA_RESET) {
-		e1000_setup_init_funcs(hw, TRUE);
+		e1000_setup_init_funcs(hw, true);
 		e1000_get_bus_info(hw);
 		adapter->flags &= ~IGB_MEDIA_RESET;
 	}
@@ -3377,9 +3377,9 @@ em_initialize_receive_unit(if_ctx_t ctx)
 		}		
 	} else if (hw->mac.type >= e1000_pch2lan) {
 		if (if_getmtu(ifp) > ETHERMTU)
-			e1000_lv_jumbo_workaround_ich8lan(hw, TRUE);
+			e1000_lv_jumbo_workaround_ich8lan(hw, true);
 		else
-			e1000_lv_jumbo_workaround_ich8lan(hw, FALSE);
+			e1000_lv_jumbo_workaround_ich8lan(hw, false);
 	}
 
 	/* Make sure VLAN Filters are off */
@@ -3505,7 +3505,7 @@ em_if_vlan_filter_write(struct adapter *adapter)
 		if (adapter->shadow_vfta[i] != 0) {
 			/* XXXKB: incomplete VF support, we return early above */
 			if (adapter->vf_ifp)
-				e1000_vfta_set_vf(hw, adapter->shadow_vfta[i], TRUE);
+				e1000_vfta_set_vf(hw, adapter->shadow_vfta[i], true);
 			else
 				e1000_write_vfta(hw, i, adapter->shadow_vfta[i]);
 		}
@@ -3719,10 +3719,10 @@ em_is_valid_ether_addr(u8 *addr)
 	char zero_addr[6] = { 0, 0, 0, 0, 0, 0 };
 
 	if ((addr[0] & 1) || (!bcmp(addr, zero_addr, ETHER_ADDR_LEN))) {
-		return (FALSE);
+		return (false);
 	}
 
-	return (TRUE);
+	return (true);
 }
 
 /*
@@ -3761,7 +3761,7 @@ em_get_wakeup(if_ctx_t ctx)
 		break;
 	case e1000_82573:
 	case e1000_82583:
-		adapter->has_amt = TRUE;
+		adapter->has_amt = true;
 		/* FALLTHROUGH */
 	case e1000_82571:
 	case e1000_82572:
@@ -3791,7 +3791,7 @@ em_get_wakeup(if_ctx_t ctx)
 	case e1000_vfadapt:
 	case e1000_vfadapt_i350:
 		apme_mask = E1000_WUC_APME;
-		adapter->has_amt = TRUE;
+		adapter->has_amt = true;
 		eeprom_data = E1000_READ_REG(&adapter->hw, E1000_WUC);
 		break;
 	default:
