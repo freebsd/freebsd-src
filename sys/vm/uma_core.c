@@ -2690,7 +2690,10 @@ zone_alloc_sysctl(uma_zone_t zone, void *unused)
 			    "Total pages currently allocated from VM");
 			SYSCTL_ADD_U32(NULL, SYSCTL_CHILDREN(oid), OID_AUTO,
 			    "free_items", CTLFLAG_RD, &dom->ud_free_items, 0,
-			    "items free in the slab layer");
+			    "Items free in the slab layer");
+			SYSCTL_ADD_U32(NULL, SYSCTL_CHILDREN(oid), OID_AUTO,
+			    "free_slabs", CTLFLAG_RD, &dom->ud_free_slabs, 0,
+			    "Unused slabs");
 		}
 	} else
 		SYSCTL_ADD_CONST_STRING(NULL, SYSCTL_CHILDREN(oid), OID_AUTO,
