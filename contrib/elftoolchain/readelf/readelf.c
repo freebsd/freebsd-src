@@ -229,6 +229,12 @@ struct flag_desc {
 	const char *desc;
 };
 
+struct flag_desc_list {
+	uint32_t type;
+	const char *desc_str;
+	struct flag_desc *desc;
+};
+
 struct mips_option {
 	uint64_t flag;
 	const char *desc;
@@ -3539,15 +3545,50 @@ dump_gnu_hash(struct readelf *re, struct section *s)
 	free(bl);
 }
 
+static struct flag_desc gnu_property_aarch64_feature_1_and_bits[] = {
+	{ GNU_PROPERTY_AARCH64_FEATURE_1_BTI,	"BTI" },
+	{ GNU_PROPERTY_AARCH64_FEATURE_1_PAC,	"PAC" },
+	{ 0, NULL }
+};
+
+static struct flag_desc_list gnu_property_aarch64[] = {
+	{
+	    GNU_PROPERTY_AARCH64_FEATURE_1_AND,
+	    "AArch64 features",
+	    gnu_property_aarch64_feature_1_and_bits
+	},
+	{ 0, NULL, NULL }
+};
+
 static struct flag_desc gnu_property_x86_feature_1_and_bits[] = {
 	{ GNU_PROPERTY_X86_FEATURE_1_IBT,	"IBT" },
 	{ GNU_PROPERTY_X86_FEATURE_1_SHSTK,	"SHSTK" },
 	{ 0, NULL }
 };
 
+static struct flag_desc_list gnu_property_x86[] = {
+	{
+	    GNU_PROPERTY_X86_FEATURE_1_AND,
+	    "x64 features",
+	    gnu_property_x86_feature_1_and_bits
+	},
+	{ 0, NULL, NULL }
+};
+
+static struct {
+	unsigned int emachine;
+	struct flag_desc_list *flag_list;
+} gnu_property_archs[] = {
+	{ EM_AARCH64, gnu_property_aarch64 },
+	{ EM_X86_64, gnu_property_x86 },
+	{ 0, NULL }
+};
+
 static void
 dump_gnu_property_type_0(struct readelf *re, const char *buf, size_t sz)
 {
+	struct flag_desc_list *desc_list;
+	struct flag_desc *desc;
 	size_t i;
 	uint32_t type, prop_sz;
 
@@ -3566,19 +3607,35 @@ dump_gnu_property_type_0(struct readelf *re, const char *buf, size_t sz)
 
 		if (type >= GNU_PROPERTY_LOPROC &&
 		    type <= GNU_PROPERTY_HIPROC) {
-			if (re->ehdr.e_machine != EM_X86_64) {
+			desc_list = NULL;
+			for (i = 0; gnu_property_archs[i].flag_list != NULL;
+			    i++) {
+				if (gnu_property_archs[i].emachine ==
+				    re->ehdr.e_machine) {
+					desc_list =
+					    gnu_property_archs[i].flag_list;
+					break;
+				}
+			}
+			if (desc_list == NULL) {
 				printf("machine type %x unknown\n",
 				    re->ehdr.e_machine);
 				goto unknown;
 			}
-			switch (type) {
-			case GNU_PROPERTY_X86_FEATURE_1_AND:
-				printf("x86 features:");
+
+			desc = NULL;
+			for (i = 0; desc_list[i].desc != NULL; i++) {
+				if (desc_list[i].type == type) {
+					desc = desc_list[i].desc;
+					break;
+				}
+			}
+			if (desc != NULL) {
+				printf("%s:", desc_list[i].desc_str);
 				if (prop_sz != 4)
 					goto bad;
-				dump_flags(gnu_property_x86_feature_1_and_bits,
+				dump_flags(desc,
 				    *(const uint32_t *)(const void *)buf);
-				break;
 			}
 		}
 
