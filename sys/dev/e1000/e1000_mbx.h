@@ -63,7 +63,7 @@
 #define E1000_VFMAILBOX_SIZE	16 /* 16 32 bit words - 64 bytes */
 
 /* If it's a E1000_VF_* msg then it originates in the VF and is sent to the
- * PF.  The reverse is TRUE if it is E1000_PF_*.
+ * PF.  The reverse is true if it is E1000_PF_*.
  * Message ACK's are the value or'd with 0xF0000000
  */
 /* Msgs below or'd with this are the ACK */
