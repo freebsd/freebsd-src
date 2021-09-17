@@ -88,6 +88,9 @@ int epc(struct cam_device *device, int argc, char **argv, char *combinedopt,
 int timestamp(struct cam_device *device, int argc, char **argv,
 	      char *combinedopt, int task_attr, int retry_count, int timeout,
 	      int verbosemode);
+int depop(struct cam_device *device, int argc, char **argv,
+	  char *combinedopt, int task_attr, int retry_count, int timeout,
+	  int verbosemode);
 void mode_sense(struct cam_device *device, int *cdb_len, int dbd, int llbaa,
 		int pc, int page, int subpage, int task_attr, int retry_count,
 		int timeout, uint8_t *data, int datalen);
