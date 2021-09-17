@@ -453,7 +453,7 @@ pci_vtblk_init(struct vmctx *ctx, struct pci_devinst *pi, nvlist_t *nvl)
 {
 	char bident[sizeof("XX:X:X")];
 	struct blockif_ctxt *bctxt;
-	const char *path;
+	const char *path, *serial;
 	MD5_CTX mdctx;
 	u_char digest[16];
 	struct pci_vtblk_softc *sc;
@@ -498,16 +498,23 @@ pci_vtblk_init(struct vmctx *ctx, struct pci_devinst *pi, nvlist_t *nvl)
 	/* sc->vbsc_vq.vq_notify = we have no per-queue notify */
 
 	/*
-	 * Create an identifier for the backing file. Use parts of the
-	 * md5 sum of the filename
+	 * If an explicit identifier is not given, create an
+	 * identifier using parts of the md5 sum of the filename.
 	 */
-	path = get_config_value_node(nvl, "path");
-	MD5Init(&mdctx);
-	MD5Update(&mdctx, path, strlen(path));
-	MD5Final(digest, &mdctx);
-	snprintf(sc->vbsc_ident, VTBLK_BLK_ID_BYTES,
-	    "BHYVE-%02X%02X-%02X%02X-%02X%02X",
-	    digest[0], digest[1], digest[2], digest[3], digest[4], digest[5]);
+	bzero(sc->vbsc_ident, VTBLK_BLK_ID_BYTES);
+	if ((serial = get_config_value_node(nvl, "serial")) != NULL ||
+	    (serial = get_config_value_node(nvl, "ser")) != NULL) {
+		strlcpy(sc->vbsc_ident, serial, VTBLK_BLK_ID_BYTES);
+	} else {
+		path = get_config_value_node(nvl, "path");
+		MD5Init(&mdctx);
+		MD5Update(&mdctx, path, strlen(path));
+		MD5Final(digest, &mdctx);
+		snprintf(sc->vbsc_ident, VTBLK_BLK_ID_BYTES,
+		    "BHYVE-%02X%02X-%02X%02X-%02X%02X",
+		    digest[0], digest[1], digest[2], digest[3], digest[4],
+		    digest[5]);
+	}
 
 	/* setup virtio block config space */
 	sc->vbsc_cfg.vbc_capacity = size / VTBLK_BSIZE; /* 512-byte units */
