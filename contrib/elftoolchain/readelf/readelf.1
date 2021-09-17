@@ -43,6 +43,7 @@
 .Op Fl p Ar section | Fl -string-dump Ns = Ns Ar section
 .Op Fl r | Fl -relocs
 .Op Fl t | Fl -section-details
+.Op Fl u | Fl -unwind
 .Op Fl v | Fl -version
 .Oo
 .Fl w Ns Oo Ns Ar afilmoprsFLR Ns Oc |
@@ -118,6 +119,8 @@ Print additional information about sections, such as the flags
 fields in section headers.
 Implies
 .Fl S .
+.It Fl u | Fl -unwind
+Not yet implemented (option accepted but ignored).
 .It Fl v | Fl -version
 Prints a version identifier for
 .Nm
