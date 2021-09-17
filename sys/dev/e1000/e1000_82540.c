@@ -100,7 +100,7 @@ static s32 e1000_init_phy_params_82540(struct e1000_hw *hw)
 	case e1000_82546_rev_3:
 		if (phy->id == M88E1011_I_PHY_ID)
 			break;
-		/* Fall Through */
+		/* FALLTHROUGH */
 	default:
 		ret_val = -E1000_ERR_PHY;
 		goto out;

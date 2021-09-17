@@ -1321,7 +1321,7 @@ void e1000_get_fw_version(struct e1000_hw *hw, struct e1000_fw_version *fw_vers)
 			e1000_read_invm_version(hw, fw_vers);
 			return;
 		}
-		/* fall through */
+		/* FALLTHROUGH */
 	case e1000_i350:
 		hw->nvm.ops.read(hw, NVM_ETRACK_HIWORD, 1, &etrack_test);
 		/* find combo image version */
