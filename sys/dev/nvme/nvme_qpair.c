@@ -1078,12 +1078,10 @@ _nvme_qpair_submit_request(struct nvme_qpair *qpair, struct nvme_request *req)
 
 		if (qpair->ctrlr->is_failed) {
 			/*
-			 * The controller has failed.  Post the request to a
-			 *  task where it will be aborted, so that we do not
-			 *  invoke the request's callback in the context
-			 *  of the submission.
+			 * The controller has failed, so fail the request.
 			 */
-			nvme_ctrlr_post_failed_request(qpair->ctrlr, req);
+			nvme_qpair_manual_complete_request(qpair, req,
+			    NVME_SCT_GENERIC, NVME_SC_ABORTED_BY_REQUEST);
 		} else {
 			/*
 			 * Put the request on the qpair's request queue to be
