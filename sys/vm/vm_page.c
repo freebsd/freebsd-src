@@ -775,27 +775,25 @@ vm_page_startup(vm_offset_t vaddr)
 		 * phys_avail's ranges to the free lists.
 		 */
 		for (i = 0; phys_avail[i + 1] != 0; i += 2) {
-			if (seg->end < phys_avail[i] ||
+			if (seg->end <= phys_avail[i] ||
 			    seg->start >= phys_avail[i + 1])
 				continue;
 
 			startp = MAX(seg->start, phys_avail[i]);
-			m = seg->first_page + atop(seg->start - startp);
 			endp = MIN(seg->end, phys_avail[i + 1]);
 			pagecount = (u_long)atop(endp - startp);
 			if (pagecount == 0)
 				continue;
 
+			m = seg->first_page + atop(startp - seg->start);
 			vmd = VM_DOMAIN(seg->domain);
 			vm_domain_free_lock(vmd);
 			vm_phys_enqueue_contig(m, pagecount);
 			vm_domain_free_unlock(vmd);
 			vm_domain_freecnt_inc(vmd, pagecount);
 			vm_cnt.v_page_count += (u_int)pagecount;
-
-			vmd = VM_DOMAIN(seg->domain);
 			vmd->vmd_page_count += (u_int)pagecount;
-			vmd->vmd_segs |= 1UL << m->segind;
+			vmd->vmd_segs |= 1UL << segind;
 		}
 	}
 
