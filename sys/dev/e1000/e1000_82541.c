@@ -230,7 +230,7 @@ static s32 e1000_init_mac_params_82541(struct e1000_hw *hw)
 	/* Set rar entry count */
 	mac->rar_entry_count = E1000_RAR_ENTRIES;
 	/* Set if part includes ASF firmware */
-	mac->asf_firmware_present = TRUE;
+	mac->asf_firmware_present = true;
 
 	/* Function Pointers */
 
@@ -611,11 +611,11 @@ static s32 e1000_check_for_link_82541(struct e1000_hw *hw)
 		goto out;
 
 	if (!link) {
-		ret_val = e1000_config_dsp_after_link_change_82541(hw, FALSE);
+		ret_val = e1000_config_dsp_after_link_change_82541(hw, false);
 		goto out; /* No link detected */
 	}
 
-	mac->get_link_status = FALSE;
+	mac->get_link_status = false;
 
 	/*
 	 * Check if there was DownShift, must be checked
@@ -632,7 +632,7 @@ static s32 e1000_check_for_link_82541(struct e1000_hw *hw)
 		goto out;
 	}
 
-	ret_val = e1000_config_dsp_after_link_change_82541(hw, TRUE);
+	ret_val = e1000_config_dsp_after_link_change_82541(hw, true);
 
 	/*
 	 * Auto-Neg is enabled.  Auto Speed Detection takes care
@@ -937,7 +937,7 @@ out:
  *  Success returns 0, Failure returns 1
  *
  *  The low power link up (lplu) state is set to the power management level D3
- *  and SmartSpeed is disabled when active is TRUE, else clear lplu for D3
+ *  and SmartSpeed is disabled when active is true, else clear lplu for D3
  *  and enable Smartspeed.  LPLU and Smartspeed are mutually exclusive.  LPLU
  *  is used during Dx states where the power conservation is most important.
  *  During driver activity, SmartSpeed should be enabled so performance is

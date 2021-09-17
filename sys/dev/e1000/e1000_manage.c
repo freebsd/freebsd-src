@@ -108,8 +108,8 @@ s32 e1000_mng_enable_host_if_generic(struct e1000_hw *hw)
  *  e1000_check_mng_mode_generic - Generic check management mode
  *  @hw: pointer to the HW structure
  *
- *  Reads the firmware semaphore register and returns TRUE (>0) if
- *  manageability is enabled, else FALSE (0).
+ *  Reads the firmware semaphore register and returns true (>0) if
+ *  manageability is enabled, else false (0).
  **/
 bool e1000_check_mng_mode_generic(struct e1000_hw *hw)
 {
@@ -139,11 +139,11 @@ bool e1000_enable_tx_pkt_filtering_generic(struct e1000_hw *hw)
 
 	DEBUGFUNC("e1000_enable_tx_pkt_filtering_generic");
 
-	hw->mac.tx_pkt_filtering = TRUE;
+	hw->mac.tx_pkt_filtering = true;
 
 	/* No manageability, no filtering */
 	if (!hw->mac.ops.check_mng_mode(hw)) {
-		hw->mac.tx_pkt_filtering = FALSE;
+		hw->mac.tx_pkt_filtering = false;
 		return hw->mac.tx_pkt_filtering;
 	}
 
@@ -152,7 +152,7 @@ bool e1000_enable_tx_pkt_filtering_generic(struct e1000_hw *hw)
 	 */
 	ret_val = e1000_mng_enable_host_if_generic(hw);
 	if (ret_val != E1000_SUCCESS) {
-		hw->mac.tx_pkt_filtering = FALSE;
+		hw->mac.tx_pkt_filtering = false;
 		return hw->mac.tx_pkt_filtering;
 	}
 
@@ -171,13 +171,13 @@ bool e1000_enable_tx_pkt_filtering_generic(struct e1000_hw *hw)
 	 * take the safe route of assuming Tx filtering is enabled.
 	 */
 	if ((hdr_csum != csum) || (hdr->signature != E1000_IAMT_SIGNATURE)) {
-		hw->mac.tx_pkt_filtering = TRUE;
+		hw->mac.tx_pkt_filtering = true;
 		return hw->mac.tx_pkt_filtering;
 	}
 
 	/* Cookie area is valid, make the final check for filtering. */
 	if (!(hdr->status & E1000_MNG_DHCP_COOKIE_STATUS_PARSING))
-		hw->mac.tx_pkt_filtering = FALSE;
+		hw->mac.tx_pkt_filtering = false;
 
 	return hw->mac.tx_pkt_filtering;
 }
@@ -348,12 +348,12 @@ bool e1000_enable_mng_pass_thru(struct e1000_hw *hw)
 	DEBUGFUNC("e1000_enable_mng_pass_thru");
 
 	if (!hw->mac.asf_firmware_present)
-		return FALSE;
+		return false;
 
 	manc = E1000_READ_REG(hw, E1000_MANC);
 
 	if (!(manc & E1000_MANC_RCV_TCO_EN))
-		return FALSE;
+		return false;
 
 	if (hw->mac.has_fwsm) {
 		fwsm = E1000_READ_REG(hw, E1000_FWSM);
@@ -362,7 +362,7 @@ bool e1000_enable_mng_pass_thru(struct e1000_hw *hw)
 		if (!(factps & E1000_FACTPS_MNGCG) &&
 		    ((fwsm & E1000_FWSM_MODE_MASK) ==
 		     (e1000_mng_mode_pt << E1000_FWSM_MODE_SHIFT)))
-			return TRUE;
+			return true;
 	} else if ((hw->mac.type == e1000_82574) ||
 		   (hw->mac.type == e1000_82583)) {
 		u16 data;
@@ -371,18 +371,18 @@ bool e1000_enable_mng_pass_thru(struct e1000_hw *hw)
 		factps = E1000_READ_REG(hw, E1000_FACTPS);
 		ret_val = e1000_read_nvm(hw, NVM_INIT_CONTROL2_REG, 1, &data);
 		if (ret_val)
-			return FALSE;
+			return false;
 
 		if (!(factps & E1000_FACTPS_MNGCG) &&
 		    ((data & E1000_NVM_INIT_CTRL2_MNGM) ==
 		     (e1000_mng_mode_pt << 13)))
-			return TRUE;
+			return true;
 	} else if ((manc & E1000_MANC_SMBUS_EN) &&
 		   !(manc & E1000_MANC_ASF_EN)) {
-		return TRUE;
+		return true;
 	}
 
-	return FALSE;
+	return false;
 }
 
 /**

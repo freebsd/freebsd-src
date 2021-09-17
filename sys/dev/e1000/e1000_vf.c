@@ -104,11 +104,11 @@ static s32 e1000_init_mac_params_vf(struct e1000_hw *hw)
 	hw->phy.media_type = e1000_media_type_unknown;
 
 	/* No ASF features for the VF driver */
-	mac->asf_firmware_present = FALSE;
+	mac->asf_firmware_present = false;
 	/* ARC subsystem not supported */
-	mac->arc_subsystem_valid = FALSE;
+	mac->arc_subsystem_valid = false;
 	/* Disable adaptive IFS mode so the generic funcs don't do anything */
-	mac->adaptive_ifs = FALSE;
+	mac->adaptive_ifs = false;
 	/* VF's have no MTA Registers - PF feature only */
 	mac->mta_reg_count = 128;
 	/* VF's have no access to RAR entries  */
@@ -442,7 +442,7 @@ void e1000_update_mc_addr_list_vf(struct e1000_hw *hw,
  *  e1000_vfta_set_vf - Set/Unset vlan filter table address
  *  @hw: pointer to the HW structure
  *  @vid: determines the vfta register and bit to set/unset
- *  @set: if TRUE then set bit, else clear bit
+ *  @set: if true then set bit, else clear bit
  **/
 void e1000_vfta_set_vf(struct e1000_hw *hw, u16 vid, bool set)
 {
@@ -450,7 +450,7 @@ void e1000_vfta_set_vf(struct e1000_hw *hw, u16 vid, bool set)
 
 	msgbuf[0] = E1000_VF_SET_VLAN;
 	msgbuf[1] = vid;
-	/* Setting the 8 bit field MSG INFO to TRUE indicates "add" */
+	/* Setting the 8 bit field MSG INFO to true indicates "add" */
 	if (set)
 		msgbuf[0] |= E1000_VF_SET_VLAN_ADD;
 
@@ -549,7 +549,7 @@ static s32 e1000_check_for_link_vf(struct e1000_hw *hw)
 
 	/* If we were hit with a reset or timeout drop the link */
 	if (!mbx->ops.check_for_rst(hw, 0) || !mbx->timeout)
-		mac->get_link_status = TRUE;
+		mac->get_link_status = true;
 
 	if (!mac->get_link_status)
 		goto out;
@@ -581,7 +581,7 @@ static s32 e1000_check_for_link_vf(struct e1000_hw *hw)
 
 	/* if we passed all the tests above then the link is up and we no
 	 * longer need to check for link */
-	mac->get_link_status = FALSE;
+	mac->get_link_status = false;
 
 out:
 	return ret_val;

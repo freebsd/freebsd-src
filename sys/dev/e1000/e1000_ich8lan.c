@@ -242,7 +242,7 @@ static bool e1000_phy_is_accessible_pchlan(struct e1000_hw *hw)
 	}
 
 	if (ret_val)
-		return FALSE;
+		return false;
 out:
 	if (hw->mac.type >= e1000_pch_lpt) {
 		/* Only unforce SMBus if ME is not active */
@@ -260,7 +260,7 @@ out:
 		}
 	}
 
-	return TRUE;
+	return true;
 }
 
 /**
@@ -324,7 +324,7 @@ static s32 e1000_init_phy_workarounds_pchlan(struct e1000_hw *hw)
 	/* Gate automatic PHY configuration by hardware on managed and
 	 * non-managed 82579 and newer adapters.
 	 */
-	e1000_gate_hw_phy_config_ich8lan(hw, TRUE);
+	e1000_gate_hw_phy_config_ich8lan(hw, true);
 
 	/* It is not possible to be certain of the current state of ULP
 	 * so forcibly disable it.
@@ -439,7 +439,7 @@ out:
 	if ((hw->mac.type == e1000_pch2lan) &&
 	    !(fwsm & E1000_ICH_FWSM_FW_VALID)) {
 		msec_delay(10);
-		e1000_gate_hw_phy_config_ich8lan(hw, FALSE);
+		e1000_gate_hw_phy_config_ich8lan(hw, false);
 	}
 
 	return ret_val;
@@ -699,7 +699,7 @@ static s32 e1000_init_nvm_params_ich8lan(struct e1000_hw *hw)
 
 	/* Clear shadow ram */
 	for (i = 0; i < nvm->word_size; i++) {
-		dev_spec->shadow_ram[i].modified = FALSE;
+		dev_spec->shadow_ram[i].modified = false;
 		dev_spec->shadow_ram[i].value    = 0xFFFF;
 	}
 
@@ -743,13 +743,13 @@ static s32 e1000_init_mac_params_ich8lan(struct e1000_hw *hw)
 	if (mac->type == e1000_ich8lan)
 		mac->rar_entry_count--;
 	/* Set if part includes ASF firmware */
-	mac->asf_firmware_present = TRUE;
+	mac->asf_firmware_present = true;
 	/* FWSM register */
-	mac->has_fwsm = TRUE;
+	mac->has_fwsm = true;
 	/* ARC subsystem not supported */
-	mac->arc_subsystem_valid = FALSE;
+	mac->arc_subsystem_valid = false;
 	/* Adaptive IFS supported */
-	mac->adaptive_ifs = TRUE;
+	mac->adaptive_ifs = true;
 
 	/* Function pointers */
 
@@ -833,7 +833,7 @@ static s32 e1000_init_mac_params_ich8lan(struct e1000_hw *hw)
 
 	/* Enable PCS Lock-loss workaround for ICH8 */
 	if (mac->type == e1000_ich8lan)
-		e1000_set_kmrn_lock_loss_workaround_ich8lan(hw, TRUE);
+		e1000_set_kmrn_lock_loss_workaround_ich8lan(hw, true);
 
 	return E1000_SUCCESS;
 }
@@ -880,7 +880,7 @@ s32 e1000_read_emi_reg_locked(struct e1000_hw *hw, u16 addr, u16 *data)
 {
 	DEBUGFUNC("e1000_read_emi_reg_locked");
 
-	return __e1000_access_emi_reg_locked(hw, addr, data, TRUE);
+	return __e1000_access_emi_reg_locked(hw, addr, data, true);
 }
 
 /**
@@ -895,7 +895,7 @@ s32 e1000_write_emi_reg_locked(struct e1000_hw *hw, u16 addr, u16 data)
 {
 	DEBUGFUNC("e1000_read_emi_reg_locked");
 
-	return __e1000_access_emi_reg_locked(hw, addr, &data, FALSE);
+	return __e1000_access_emi_reg_locked(hw, addr, &data, false);
 }
 
 /**
@@ -1112,7 +1112,7 @@ static u64 e1000_ltr2ns(u16 ltr)
  *  GbE MAC in the Lynx Point PCH based on Rx buffer size and link speed
  *  when link is up (which must not exceed the maximum latency supported
  *  by the platform), otherwise specify there is no LTR requirement.
- *  Unlike TRUE-PCIe devices which set the LTR maximum snoop/no-snoop
+ *  Unlike true-PCIe devices which set the LTR maximum snoop/no-snoop
  *  latencies in the LTR Extended Capability Structure in the PCIe Extended
  *  Capability register set, on this device LTR is set by writing the
  *  equivalent snoop/no-snoop latencies in the LTRV register in the MAC and
@@ -1410,8 +1410,8 @@ out:
  *  If not on an ME enabled system, un-configure the ULP mode by software.
  *
  *  During nominal operation, this function is called when link is acquired
- *  to disable ULP mode (force=FALSE); otherwise, for example when unloading
- *  the driver or during Sx->S0 transitions, this is called with force=TRUE
+ *  to disable ULP mode (force=false); otherwise, for example when unloading
+ *  the driver or during Sx->S0 transitions, this is called with force=true
  *  to forcibly disable ULP.
  */
 s32 e1000_disable_ulp_lpt_lp(struct e1000_hw *hw, bool force)
@@ -1745,7 +1745,7 @@ static s32 e1000_check_for_copper_link_ich8lan(struct e1000_hw *hw)
 				fextnvm6 &= ~E1000_FEXTNVM6_K1_OFF_ENABLE;
 		}
 
-		if (hw->dev_spec.ich8lan.disable_k1_off == TRUE)
+		if (hw->dev_spec.ich8lan.disable_k1_off == true)
 			fextnvm6 &= ~E1000_FEXTNVM6_K1_OFF_ENABLE;
 
 		E1000_WRITE_REG(hw, E1000_FEXTNVM6, fextnvm6);
@@ -1754,7 +1754,7 @@ static s32 e1000_check_for_copper_link_ich8lan(struct e1000_hw *hw)
 	if (!link)
 		return E1000_SUCCESS; /* No link detected */
 
-	mac->get_link_status = FALSE;
+	mac->get_link_status = false;
 
 	switch (hw->mac.type) {
 	case e1000_pch2lan:
@@ -2209,7 +2209,7 @@ release:
 static s32 e1000_check_reset_block_ich8lan(struct e1000_hw *hw)
 {
 	u32 fwsm;
-	bool blocked = FALSE;
+	bool blocked = false;
 	int i = 0;
 
 	DEBUGFUNC("e1000_check_reset_block_ich8lan");
@@ -2217,11 +2217,11 @@ static s32 e1000_check_reset_block_ich8lan(struct e1000_hw *hw)
 	do {
 		fwsm = E1000_READ_REG(hw, E1000_FWSM);
 		if (!(fwsm & E1000_ICH_FWSM_RSPCIPHY)) {
-			blocked = TRUE;
+			blocked = true;
 			msec_delay(10);
 			continue;
 		}
-		blocked = FALSE;
+		blocked = false;
 	} while (blocked && (i++ < 30));
 	return blocked ? E1000_BLK_PHY_RESET : E1000_SUCCESS;
 }
@@ -2435,7 +2435,7 @@ static s32 e1000_k1_gig_workaround_hv(struct e1000_hw *hw, bool link)
 			if (status_reg == (BM_CS_STATUS_LINK_UP |
 					   BM_CS_STATUS_RESOLVED |
 					   BM_CS_STATUS_SPEED_1000))
-				k1_enable = FALSE;
+				k1_enable = false;
 		}
 
 		if (hw->phy.type == e1000_phy_82577) {
@@ -2451,7 +2451,7 @@ static s32 e1000_k1_gig_workaround_hv(struct e1000_hw *hw, bool link)
 			if (status_reg == (HV_M_STATUS_LINK_UP |
 					   HV_M_STATUS_AUTONEG_COMPLETE |
 					   HV_M_STATUS_SPEED_1000))
-				k1_enable = FALSE;
+				k1_enable = false;
 		}
 
 		/* Link stall fix for link up */
@@ -2688,7 +2688,7 @@ static s32 e1000_hv_phy_workarounds_ich8lan(struct e1000_hw *hw)
 	/* Configure the K1 Si workaround during phy reset assuming there is
 	 * link so that it disables K1 if link is in 1Gbps.
 	 */
-	ret_val = e1000_k1_gig_workaround_hv(hw, TRUE);
+	ret_val = e1000_k1_gig_workaround_hv(hw, true);
 	if (ret_val)
 		return ret_val;
 
@@ -3033,7 +3033,7 @@ static s32 e1000_k1_workaround_lv(struct e1000_hw *hw)
 /**
  *  e1000_gate_hw_phy_config_ich8lan - disable PHY config via hardware
  *  @hw:   pointer to the HW structure
- *  @gate: boolean set to TRUE to gate, FALSE to ungate
+ *  @gate: boolean set to true to gate, false to ungate
  *
  *  Gate/ungate the automatic PHY configuration via hardware; perform
  *  the configuration via software instead.
@@ -3136,14 +3136,14 @@ static s32 e1000_post_phy_reset_ich8lan(struct e1000_hw *hw)
 		return ret_val;
 
 	/* Configure the LCD with the OEM bits in NVM */
-	ret_val = e1000_oem_bits_config_ich8lan(hw, TRUE);
+	ret_val = e1000_oem_bits_config_ich8lan(hw, true);
 
 	if (hw->mac.type == e1000_pch2lan) {
 		/* Ungate automatic PHY configuration on non-managed 82579 */
 		if (!(E1000_READ_REG(hw, E1000_FWSM) &
 		    E1000_ICH_FWSM_FW_VALID)) {
 			msec_delay(10);
-			e1000_gate_hw_phy_config_ich8lan(hw, FALSE);
+			e1000_gate_hw_phy_config_ich8lan(hw, false);
 		}
 
 		/* Set EEE LPI Update Timer to 200usec */
@@ -3176,7 +3176,7 @@ static s32 e1000_phy_hw_reset_ich8lan(struct e1000_hw *hw)
 	/* Gate automatic PHY configuration by hardware on non-managed 82579 */
 	if ((hw->mac.type == e1000_pch2lan) &&
 	    !(E1000_READ_REG(hw, E1000_FWSM) & E1000_ICH_FWSM_FW_VALID))
-		e1000_gate_hw_phy_config_ich8lan(hw, TRUE);
+		e1000_gate_hw_phy_config_ich8lan(hw, true);
 
 	ret_val = e1000_phy_hw_reset_generic(hw);
 	if (ret_val)
@@ -3188,7 +3188,7 @@ static s32 e1000_phy_hw_reset_ich8lan(struct e1000_hw *hw)
 /**
  *  e1000_set_lplu_state_pchlan - Set Low Power Link Up state
  *  @hw: pointer to the HW structure
- *  @active: TRUE to enable LPLU, FALSE to disable
+ *  @active: true to enable LPLU, false to disable
  *
  *  Sets the LPLU state according to the active flag.  For PCH, if OEM write
  *  bit are disabled in the NVM, writing the LPLU bits in the MAC will not set
@@ -3220,7 +3220,7 @@ static s32 e1000_set_lplu_state_pchlan(struct e1000_hw *hw, bool active)
 /**
  *  e1000_set_d0_lplu_state_ich8lan - Set Low Power Linkup D0 state
  *  @hw: pointer to the HW structure
- *  @active: TRUE to enable LPLU, FALSE to disable
+ *  @active: true to enable LPLU, false to disable
  *
  *  Sets the LPLU D0 state according to the active flag.  When
  *  activating LPLU this function also disables smart speed
@@ -3316,7 +3316,7 @@ static s32 e1000_set_d0_lplu_state_ich8lan(struct e1000_hw *hw, bool active)
 /**
  *  e1000_set_d3_lplu_state_ich8lan - Set Low Power Linkup D3 state
  *  @hw: pointer to the HW structure
- *  @active: TRUE to enable LPLU, FALSE to disable
+ *  @active: true to enable LPLU, false to disable
  *
  *  Sets the LPLU D3 state according to the active flag.  When
  *  activating LPLU this function also disables smart speed
@@ -4054,7 +4054,7 @@ static s32 e1000_write_nvm_ich8lan(struct e1000_hw *hw, u16 offset, u16 words,
 	nvm->ops.acquire(hw);
 
 	for (i = 0; i < words; i++) {
-		dev_spec->shadow_ram[offset + i].modified = TRUE;
+		dev_spec->shadow_ram[offset + i].modified = true;
 		dev_spec->shadow_ram[offset + i].value = data[i];
 	}
 
@@ -4203,7 +4203,7 @@ static s32 e1000_update_nvm_checksum_spt(struct e1000_hw *hw)
 
 	/* Great!  Everything worked, we can now clear the cached entries. */
 	for (i = 0; i < E1000_SHADOW_RAM_WORDS; i++) {
-		dev_spec->shadow_ram[i].modified = FALSE;
+		dev_spec->shadow_ram[i].modified = false;
 		dev_spec->shadow_ram[i].value = 0xFFFF;
 	}
 
@@ -4356,7 +4356,7 @@ static s32 e1000_update_nvm_checksum_ich8lan(struct e1000_hw *hw)
 
 	/* Great!  Everything worked, we can now clear the cached entries. */
 	for (i = 0; i < E1000_SHADOW_RAM_WORDS; i++) {
-		dev_spec->shadow_ram[i].modified = FALSE;
+		dev_spec->shadow_ram[i].modified = false;
 		dev_spec->shadow_ram[i].value = 0xFFFF;
 	}
 
@@ -5009,9 +5009,9 @@ static s32 e1000_reset_hw_ich8lan(struct e1000_hw *hw)
 			return ret_val;
 
 		if (kum_cfg & E1000_NVM_K1_ENABLE)
-			dev_spec->nvm_k1_enabled = TRUE;
+			dev_spec->nvm_k1_enabled = true;
 		else
-			dev_spec->nvm_k1_enabled = FALSE;
+			dev_spec->nvm_k1_enabled = false;
 	}
 
 	ctrl = E1000_READ_REG(hw, E1000_CTRL);
@@ -5028,7 +5028,7 @@ static s32 e1000_reset_hw_ich8lan(struct e1000_hw *hw)
 		 */
 		if ((hw->mac.type == e1000_pch2lan) &&
 		    !(E1000_READ_REG(hw, E1000_FWSM) & E1000_ICH_FWSM_FW_VALID))
-			e1000_gate_hw_phy_config_ich8lan(hw, TRUE);
+			e1000_gate_hw_phy_config_ich8lan(hw, true);
 	}
 	ret_val = e1000_acquire_swflag_ich8lan(hw);
 
@@ -5537,8 +5537,8 @@ static s32 e1000_kmrn_lock_loss_workaround_ich8lan(struct e1000_hw *hw)
  *  @hw: pointer to the HW structure
  *  @state: boolean value used to set the current Kumeran workaround state
  *
- *  If ICH8, set the current Kumeran workaround state (enabled - TRUE
- *  /disabled - FALSE).
+ *  If ICH8, set the current Kumeran workaround state (enabled - true
+ *  /disabled - false).
  **/
 void e1000_set_kmrn_lock_loss_workaround_ich8lan(struct e1000_hw *hw,
 						 bool state)
@@ -5769,7 +5769,7 @@ out:
 		e1000_gig_downshift_workaround_ich8lan(hw);
 
 	if (hw->mac.type >= e1000_pchlan) {
-		e1000_oem_bits_config_ich8lan(hw, FALSE);
+		e1000_oem_bits_config_ich8lan(hw, false);
 
 		/* Reset PHY to activate OEM bits on 82577/8 */
 		if (hw->mac.type == e1000_pchlan)
