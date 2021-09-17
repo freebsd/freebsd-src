@@ -1199,45 +1199,43 @@ ktls_enable_tx(struct socket *so, struct tls_enable *en)
 }
 
 int
-ktls_get_rx_mode(struct socket *so)
+ktls_get_rx_mode(struct socket *so, int *modep)
 {
 	struct ktls_session *tls;
 	struct inpcb *inp;
-	int mode;
 
 	if (SOLISTENING(so))
 		return (EINVAL);
 	inp = so->so_pcb;
 	INP_WLOCK_ASSERT(inp);
-	SOCKBUF_LOCK(&so->so_rcv);
+	SOCK_RECVBUF_LOCK(so);
 	tls = so->so_rcv.sb_tls_info;
 	if (tls == NULL)
-		mode = TCP_TLS_MODE_NONE;
+		*modep = TCP_TLS_MODE_NONE;
 	else
-		mode = tls->mode;
-	SOCKBUF_UNLOCK(&so->so_rcv);
-	return (mode);
+		*modep = tls->mode;
+	SOCK_RECVBUF_UNLOCK(so);
+	return (0);
 }
 
 int
-ktls_get_tx_mode(struct socket *so)
+ktls_get_tx_mode(struct socket *so, int *modep)
 {
 	struct ktls_session *tls;
 	struct inpcb *inp;
-	int mode;
 
 	if (SOLISTENING(so))
 		return (EINVAL);
 	inp = so->so_pcb;
 	INP_WLOCK_ASSERT(inp);
-	SOCKBUF_LOCK(&so->so_snd);
+	SOCK_SENDBUF_LOCK(so);
 	tls = so->so_snd.sb_tls_info;
 	if (tls == NULL)
-		mode = TCP_TLS_MODE_NONE;
+		*modep = TCP_TLS_MODE_NONE;
 	else
-		mode = tls->mode;
-	SOCKBUF_UNLOCK(&so->so_snd);
-	return (mode);
+		*modep = tls->mode;
+	SOCK_SENDBUF_UNLOCK(so);
+	return (0);
 }
 
 /*
