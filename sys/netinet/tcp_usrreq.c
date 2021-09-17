@@ -2563,14 +2563,18 @@ unhold:
 #endif
 #ifdef KERN_TLS
 		case TCP_TXTLS_MODE:
-			optval = ktls_get_tx_mode(so);
+			error = ktls_get_tx_mode(so, &optval);
 			INP_WUNLOCK(inp);
-			error = sooptcopyout(sopt, &optval, sizeof(optval));
+			if (error == 0)
+				error = sooptcopyout(sopt, &optval,
+				    sizeof(optval));
 			break;
 		case TCP_RXTLS_MODE:
-			optval = ktls_get_rx_mode(so);
+			error = ktls_get_rx_mode(so, &optval);
 			INP_WUNLOCK(inp);
-			error = sooptcopyout(sopt, &optval, sizeof(optval));
+			if (error == 0)
+				error = sooptcopyout(sopt, &optval,
+				    sizeof(optval));
 			break;
 #endif
 		case TCP_LRD:
