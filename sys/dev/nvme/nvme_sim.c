@@ -258,6 +258,10 @@ nvme_sim_action(struct cam_sim *sim, union ccb *ccb)
 		break;
 	case XPT_NVME_IO:		/* Execute the requested I/O operation */
 	case XPT_NVME_ADMIN:		/* or Admin operation */
+		if (ctrlr->is_failed) {
+			ccb->ccb_h.status = CAM_DEV_NOT_THERE;
+			break;
+		}
 		nvme_sim_nvmeio(sim, ccb);
 		return;			/* no done */
 	default:
