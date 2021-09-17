@@ -1443,13 +1443,19 @@ static s32 e1000_setup_copper_link_82575(struct e1000_hw *hw)
 	}
 	switch (hw->phy.type) {
 	case e1000_phy_i210:
+		/* FALLTHROUGH */
 	case e1000_phy_m88:
 		switch (hw->phy.id) {
 		case I347AT4_E_PHY_ID:
+			/* FALLTHROUGH */
 		case M88E1112_E_PHY_ID:
+			/* FALLTHROUGH */
 		case M88E1340M_E_PHY_ID:
+			/* FALLTHROUGH */
 		case M88E1543_E_PHY_ID:
+			/* FALLTHROUGH */
 		case M88E1512_E_PHY_ID:
+			/* FALLTHROUGH */
 		case I210_I_PHY_ID:
 			ret_val = e1000_copper_link_setup_m88_gen2(hw);
 			break;

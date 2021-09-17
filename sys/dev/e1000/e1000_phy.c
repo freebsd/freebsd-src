@@ -1038,7 +1038,7 @@ static s32 e1000_set_master_slave_mode(struct e1000_hw *hw)
 		break;
 	case e1000_ms_auto:
 		phy_data &= ~CR_1000T_MS_ENABLE;
-		/* fall-through */
+		/* FALLTHROUGH */
 	default:
 		break;
 	}
@@ -1098,6 +1098,7 @@ s32 e1000_copper_link_setup_82577(struct e1000_hw *hw)
 		phy_data |= I82577_PHY_CTRL2_MANUAL_MDIX;
 		break;
 	case 0:
+		/* FALLTHROUGH */
 	default:
 		phy_data |= I82577_PHY_CTRL2_AUTO_MDI_MDIX;
 		break;
@@ -1154,6 +1155,7 @@ s32 e1000_copper_link_setup_m88(struct e1000_hw *hw)
 		phy_data |= M88E1000_PSCR_AUTO_X_1000T;
 		break;
 	case 0:
+		/* FALLTHROUGH */
 	default:
 		phy_data |= M88E1000_PSCR_AUTO_X_MODE;
 		break;
@@ -1306,6 +1308,7 @@ s32 e1000_copper_link_setup_m88_gen2(struct e1000_hw *hw)
 		}
 		/* FALLTHROUGH */
 	case 0:
+		/* FALLTHROUGH */
 	default:
 		phy_data |= M88E1000_PSCR_AUTO_X_MODE;
 		break;
@@ -1420,6 +1423,7 @@ s32 e1000_copper_link_setup_igp(struct e1000_hw *hw)
 		data |= IGP01E1000_PSCR_FORCE_MDI_MDIX;
 		break;
 	case 0:
+		/* FALLTHROUGH */
 	default:
 		data |= IGP01E1000_PSCR_AUTO_MDIX;
 		break;
