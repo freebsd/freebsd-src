@@ -8752,6 +8752,88 @@ scsi_send_diagnostic(struct ccb_scsiio *csio, u_int32_t retries,
 }
 
 void
+scsi_get_physical_element_status(struct ccb_scsiio *csio, u_int32_t retries,
+				 void (*cbfcnp)(struct cam_periph *, union ccb *),
+				 uint8_t tag_action, uint8_t *data_ptr,
+				 uint16_t allocation_length, uint8_t report_type,
+				 uint32_t starting_element,
+				 uint8_t sense_len, uint32_t timeout)
+{
+	struct scsi_get_physical_element_status *scsi_cmd;
+
+	scsi_cmd = (struct scsi_get_physical_element_status *)&csio->cdb_io.cdb_bytes;
+	memset(scsi_cmd, 0, sizeof(*scsi_cmd));
+	scsi_cmd->opcode = SERVICE_ACTION_IN;
+	scsi_cmd->service_action = GET_PHYSICAL_ELEMENT_STATUS;
+	scsi_ulto4b(starting_element, scsi_cmd->starting_element);
+	scsi_ulto4b(allocation_length, scsi_cmd->allocation_length);
+
+	cam_fill_csio(csio,
+		      retries,
+		      cbfcnp,
+		      /*flags*/ CAM_DIR_IN,
+		      tag_action,
+		      data_ptr,
+		      allocation_length,
+		      sense_len,
+		      sizeof(*scsi_cmd),
+		      timeout);
+}
+
+void
+scsi_remove_element_and_truncate(struct ccb_scsiio *csio, u_int32_t retries,
+				 void (*cbfcnp)(struct cam_periph *, union ccb *),
+				 uint8_t tag_action,
+				 uint64_t requested_capacity, uint32_t element_id,
+				 uint8_t sense_len, uint32_t timeout)
+{
+	struct scsi_remove_element_and_truncate *scsi_cmd;
+
+	scsi_cmd = (struct scsi_remove_element_and_truncate *)&csio->cdb_io.cdb_bytes;
+	memset(scsi_cmd, 0, sizeof(*scsi_cmd));
+	scsi_cmd->opcode = SERVICE_ACTION_IN;
+	scsi_cmd->service_action = REMOVE_ELEMENT_AND_TRUNCATE;
+	scsi_u64to8b(requested_capacity, scsi_cmd->requested_capacity);
+	scsi_ulto4b(element_id, scsi_cmd->element_identifier);
+
+	cam_fill_csio(csio,
+		      retries,
+		      cbfcnp,
+		      /*flags*/ CAM_DIR_OUT,
+		      tag_action,
+		      NULL,
+		      0,
+		      sense_len,
+		      sizeof(*scsi_cmd),
+		      timeout);
+}
+
+void
+scsi_restore_elements_and_rebuild(struct ccb_scsiio *csio, u_int32_t retries,
+				  void (*cbfcnp)(struct cam_periph *, union ccb *),
+				  uint8_t tag_action,
+				  uint8_t sense_len, uint32_t timeout)
+{
+	struct scsi_service_action_in *scsi_cmd;
+
+	scsi_cmd = (struct scsi_service_action_in *)&csio->cdb_io.cdb_bytes;
+	memset(scsi_cmd, 0, sizeof(*scsi_cmd));
+	scsi_cmd->opcode = SERVICE_ACTION_IN;
+	scsi_cmd->service_action = RESTORE_ELEMENTS_AND_REBUILD;
+
+	cam_fill_csio(csio,
+		      retries,
+		      cbfcnp,
+		      /*flags*/ CAM_DIR_OUT,
+		      tag_action,
+		      NULL,
+		      0,
+		      sense_len,
+		      sizeof(*scsi_cmd),
+		      timeout);
+}
+
+void
 scsi_read_buffer(struct ccb_scsiio *csio, u_int32_t retries,
 			void (*cbfcnp)(struct cam_periph *, union ccb*),
 			uint8_t tag_action, int mode,

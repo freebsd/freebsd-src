@@ -5,8 +5,8 @@ PACKAGE=	runtime
 LIB=		cam
 SHLIBDIR?=	/lib
 SRCS=		camlib.c scsi_cmdparse.c scsi_all.c scsi_da.c scsi_sa.c cam.c \
-		ata_all.c nvme_all.c smp_all.c
-INCS=		camlib.h
+		ata_all.c nvme_all.c smp_all.c scsi_wrap.c
+INCS=		camlib.h scsi_wrap.h
 
 LIBADD=		sbuf
 

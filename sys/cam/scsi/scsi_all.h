@@ -2158,6 +2158,9 @@ struct ata_pass_32 {
 #define	REPORT_PRIORITY				0x0E
 #define	REPORT_TIMESTAMP			0x0F
 #define	MANAGEMENT_PROTOCOL_IN			0x10
+#define GET_PHYSICAL_ELEMENT_STATUS		0x17
+#define REMOVE_ELEMENT_AND_TRUNCATE		0x18
+#define RESTORE_ELEMENTS_AND_REBUILD		0x19
 /* Maintenance Out Service Action Codes */
 #define	SET_IDENTIFY_INFORMATION		0x06
 #define	SET_TARGET_PORT_GROUPS			0x0A
@@ -2847,6 +2850,8 @@ struct scsi_vpd_block_device_characteristics
 	uint8_t depopulation_time[4];
 	uint8_t reserved2[48];
 };
+_Static_assert(sizeof(struct scsi_vpd_block_device_characteristics) == 64,
+    "scsi_vpd_block_characteristics wrong size");
 
 #define SBDC_IS_PRESENT(bdc, length, field)				   \
 	((length >= offsetof(struct scsi_vpd_block_device_characteristics, \
@@ -3063,6 +3068,70 @@ struct scsi_report_luns_data {
 	 */
 	struct scsi_report_luns_lundata luns[0];
 };
+
+/*
+ * GET PHYSICAL ELEMENT STATUS (GPES) from SBC-4 (r21 or later)
+ * REMOVE ELEMENT AND TRUNCATE (RET) from SBC-4 (r21 or later)
+ * RESTORE ELEMENT AND REBUILD (RER) from SBC-4 (r21 or later)
+ *
+ * Queries drives that support it for the status of feach of their physical
+ * storage elements (which typically map to heads, but aren't required to).
+ * These elements can be selective removed (at a reduced capacity) or restored
+ * to service.
+ */
+struct scsi_get_physical_element_status
+{
+	uint8_t	opcode;
+	uint8_t service_action;
+	uint8_t rsvd[4];
+	uint8_t starting_element[4];
+	uint8_t allocation_length[4];
+	uint8_t report_type;
+#define SCSI_GPES_FILTER_ALL		0x00
+#define SCSI_GPES_FILTER_EXEPTION	0x40
+#define	SCSI_GPES_REPORT_TYPE_PHYS	0x00
+#define	SCSI_GEPS_REPORT_TYPE_STORAGE	0x01
+	uint8_t control;
+};
+_Static_assert(sizeof(struct scsi_get_physical_element_status) == 16,
+    "scsi_get_physical_element_status wrong size");
+
+struct scsi_get_physical_element_hdr
+{
+	uint8_t	num_descriptors[4];
+	uint8_t	num_returned[4];
+	uint8_t id_depop[4];
+	uint8_t	rsvd[20];
+};
+_Static_assert(sizeof(struct scsi_get_physical_element_hdr) == 32,
+    "scsi_get_physical_element_hdr wrong size");
+
+struct scsi_get_physical_element_descriptor
+{
+	uint8_t	rsvd1[4];
+	uint8_t element_identifier[4];
+	uint8_t rsvd2[5];
+	uint8_t ralwd;
+	uint8_t physical_element_type;
+#define GPED_TYPE_STORAGE 0x1
+	uint8_t physical_element_health;
+	uint8_t capacity[8];
+	uint8_t rsvd3[8];
+};
+_Static_assert(sizeof(struct scsi_get_physical_element_descriptor) == 32,
+    "scsi_get_physical_element_descriptor wrong size");
+
+struct scsi_remove_element_and_truncate
+{
+	uint8_t	opcode;
+	uint8_t service_action;
+	uint8_t requested_capacity[8];
+	uint8_t element_identifier[4];
+	uint8_t rsvd;
+	uint8_t control;
+};
+_Static_assert(sizeof(struct scsi_remove_element_and_truncate) == 16,
+    "scsi_remove_element_and_truncate wrong size");
 
 struct scsi_target_group
 {
@@ -4159,6 +4228,24 @@ void scsi_send_diagnostic(struct ccb_scsiio *csio, u_int32_t retries,
 			  int self_test_code, uint8_t *data_ptr,
 			  uint16_t param_list_length, uint8_t sense_len,
 			  uint32_t timeout);
+
+void scsi_get_physical_element_status(struct ccb_scsiio *csio, u_int32_t retries,
+				      void (*cbfcnp)(struct cam_periph *, union ccb *),
+				      uint8_t tag_action, uint8_t *data_ptr,
+				      uint16_t allocation_length, uint8_t report_type,
+				      uint32_t starting_element,
+				      uint8_t sense_len, uint32_t timeout);
+
+void scsi_remove_element_and_truncate(struct ccb_scsiio *csio, u_int32_t retries,
+				      void (*cbfcnp)(struct cam_periph *, union ccb *),
+				      uint8_t tag_action,
+				      uint64_t requested_capacity, uint32_t element_id,
+				      uint8_t sense_len, uint32_t timeout);
+
+void scsi_restore_elements_and_rebuild(struct ccb_scsiio *csio, u_int32_t retries,
+				       void (*cbfcnp)(struct cam_periph *, union ccb *),
+				       uint8_t tag_action,
+				       uint8_t sense_len, uint32_t timeout);
 
 void scsi_read_buffer(struct ccb_scsiio *csio, u_int32_t retries,
 			void (*cbfcnp)(struct cam_periph *, union ccb*),
