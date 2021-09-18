@@ -756,9 +756,7 @@ compute_cn_lkflags(struct mount *mp, int lkflags, int cnflags)
 {
 
 	if (mp == NULL || ((lkflags & LK_SHARED) &&
-	    (!(mp->mnt_kern_flag & MNTK_LOOKUP_SHARED) ||
-	    ((cnflags & ISDOTDOT) &&
-	    (mp->mnt_kern_flag & MNTK_LOOKUP_EXCL_DOTDOT))))) {
+	    !(mp->mnt_kern_flag & MNTK_LOOKUP_SHARED))) {
 		lkflags &= ~LK_SHARED;
 		lkflags |= LK_EXCLUSIVE;
 	}
