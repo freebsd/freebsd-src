@@ -420,7 +420,7 @@ zvol_geom_destroy(zvol_state_t *zv)
 	g_topology_assert();
 
 	mutex_enter(&zv->zv_state_lock);
-	VERIFY(zsg->zsg_state == ZVOL_GEOM_RUNNING);
+	VERIFY3S(zsg->zsg_state, ==, ZVOL_GEOM_RUNNING);
 	mutex_exit(&zv->zv_state_lock);
 	zsg->zsg_provider = NULL;
 	g_wither_geom(pp->geom, ENXIO);
@@ -1170,8 +1170,8 @@ zvol_ensure_zilog(zvol_state_t *zv)
 			    zvol_get_data);
 			zv->zv_flags |= ZVOL_WRITTEN_TO;
 			/* replay / destroy done in zvol_create_minor_impl() */
-			VERIFY0((zv->zv_zilog->zl_header->zh_flags &
-			    ZIL_REPLAY_NEEDED));
+			VERIFY0(zv->zv_zilog->zl_header->zh_flags &
+			    ZIL_REPLAY_NEEDED);
 		}
 		rw_downgrade(&zv->zv_suspend_lock);
 	}
@@ -1241,7 +1241,11 @@ zvol_rename_minor(zvol_state_t *zv, const char *newname)
 		args.mda_si_drv2 = zv;
 		if (make_dev_s(&args, &dev, "%s/%s", ZVOL_DRIVER, newname)
 		    == 0) {
+#if __FreeBSD_version > 1300130
 			dev->si_iosize_max = maxphys;
+#else
+			dev->si_iosize_max = MAXPHYS;
+#endif
 			zsd->zsd_cdev = dev;
 		}
 	}
@@ -1277,9 +1281,10 @@ zvol_free(zvol_state_t *zv)
 		struct zvol_state_dev *zsd = &zv->zv_zso->zso_dev;
 		struct cdev *dev = zsd->zsd_cdev;
 
-		ASSERT3P(dev->si_drv2, ==, NULL);
-
-		destroy_dev(dev);
+		if (dev != NULL) {
+			ASSERT3P(dev->si_drv2, ==, NULL);
+			destroy_dev(dev);
+		}
 	}
 
 	mutex_destroy(&zv->zv_state_lock);
@@ -1374,16 +1379,15 @@ zvol_create_minor_impl(const char *name)
 		args.mda_gid = GID_OPERATOR;
 		args.mda_mode = 0640;
 		args.mda_si_drv2 = zv;
-		error = make_dev_s(&args, &dev, "%s/%s", ZVOL_DRIVER, name);
-		if (error) {
-			kmem_free(zv->zv_zso, sizeof (struct zvol_state_os));
-			mutex_destroy(&zv->zv_state_lock);
-			kmem_free(zv, sizeof (*zv));
-			dmu_objset_disown(os, B_TRUE, FTAG);
-			goto out_doi;
+		if (make_dev_s(&args, &dev, "%s/%s", ZVOL_DRIVER, name)
+		    == 0) {
+#if __FreeBSD_version > 1300130
+			dev->si_iosize_max = maxphys;
+#else
+			dev->si_iosize_max = MAXPHYS;
+#endif
+			zsd->zsd_cdev = dev;
 		}
-		dev->si_iosize_max = maxphys;
-		zsd->zsd_cdev = dev;
 	}
 	(void) strlcpy(zv->zv_name, name, MAXPATHLEN);
 	rw_init(&zv->zv_suspend_lock, NULL, RW_DEFAULT, NULL);
@@ -1456,7 +1460,8 @@ zvol_clear_private(zvol_state_t *zv)
 		struct zvol_state_dev *zsd = &zv->zv_zso->zso_dev;
 		struct cdev *dev = zsd->zsd_cdev;
 
-		dev->si_drv2 = NULL;
+		if (dev != NULL)
+			dev->si_drv2 = NULL;
 	}
 }
 

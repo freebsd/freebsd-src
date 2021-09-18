@@ -277,7 +277,8 @@ SRCS+=	abd.c \
 	zvol.c
 
 SRCS+=	zfs_zstd.c \
-	zstd.c
+	zstd.c \
+	zstd_sparc.c
 
 .include <bsd.kmod.mk>
 

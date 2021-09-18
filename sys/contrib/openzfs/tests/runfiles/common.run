@@ -574,6 +574,10 @@ tags = ['functional', 'compression']
 tests = ['cp_files_001_pos']
 tags = ['functional', 'cp_files']
 
+[tests/functional/crtime]
+tests = ['crtime_001_pos' ]
+tags = ['functional', 'crtime']
+
 [tests/functional/ctime]
 tests = ['ctime_001_pos' ]
 tags = ['functional', 'ctime']
@@ -934,8 +938,7 @@ tags = ['functional', 'log_spacemap']
 [tests/functional/l2arc]
 tests = ['l2arc_arcstats_pos', 'l2arc_mfuonly_pos', 'l2arc_l2miss_pos',
     'persist_l2arc_001_pos', 'persist_l2arc_002_pos',
-    'persist_l2arc_003_neg', 'persist_l2arc_004_pos', 'persist_l2arc_005_pos',
-    'persist_l2arc_006_pos', 'persist_l2arc_007_pos', 'persist_l2arc_008_pos']
+    'persist_l2arc_003_neg', 'persist_l2arc_004_pos', 'persist_l2arc_005_pos']
 tags = ['functional', 'l2arc']
 
 [tests/functional/zpool_influxdb]
