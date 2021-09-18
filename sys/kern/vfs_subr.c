@@ -122,22 +122,6 @@ static int	v_inval_buf_range_locked(struct vnode *vp, struct bufobj *bo,
 static void	vnlru_recalc(void);
 
 /*
- * These fences are intended for cases where some synchronization is
- * needed between access of v_iflags and lockless vnode refcount (v_holdcnt
- * and v_usecount) updates.  Access to v_iflags is generally synchronized
- * by the interlock, but we have some internal assertions that check vnode
- * flags without acquiring the lock.  Thus, these fences are INVARIANTS-only
- * for now.
- */
-#ifdef INVARIANTS
-#define	VNODE_REFCOUNT_FENCE_ACQ()	atomic_thread_fence_acq()
-#define	VNODE_REFCOUNT_FENCE_REL()	atomic_thread_fence_rel()
-#else
-#define	VNODE_REFCOUNT_FENCE_ACQ()
-#define	VNODE_REFCOUNT_FENCE_REL()
-#endif
-
-/*
  * Number of vnodes in existence.  Increased whenever getnewvnode()
  * allocates a new vnode, decreased in vdropl() for VIRF_DOOMED vnode.
  */
