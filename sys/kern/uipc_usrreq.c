@@ -1962,7 +1962,7 @@ unp_shutdown(struct unpcb *unp)
 static void
 unp_drop(struct unpcb *unp)
 {
-	struct socket *so = unp->unp_socket;
+	struct socket *so;
 	struct unpcb *unp2;
 
 	/*
@@ -1972,6 +1972,7 @@ unp_drop(struct unpcb *unp)
 	 */
 
 	UNP_PCB_LOCK(unp);
+	so = unp->unp_socket;
 	if (so)
 		so->so_error = ECONNRESET;
 	if ((unp2 = unp_pcb_lock_peer(unp)) != NULL) {
