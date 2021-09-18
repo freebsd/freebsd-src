@@ -367,10 +367,12 @@ vfs_mountroot_shuffle(struct thread *td, struct mount *mpdevfs)
 				error = vinvalbuf(vp, V_SAVE, 0, 0);
 			if (!error) {
 				cache_purge(vp);
+				VI_LOCK(vp);
 				mporoot->mnt_vnodecovered = vp;
 				vp->v_mountedhere = mporoot;
 				strlcpy(mporoot->mnt_stat.f_mntonname,
 				    fspath, MNAMELEN);
+				VI_UNLOCK(vp);
 				VOP_UNLOCK(vp);
 			} else
 				vput(vp);
