@@ -237,7 +237,7 @@ SDT_PROBE_DEFINE2(vfs, namecache, removecnp, hit, "struct vnode *",
     "struct componentname *");
 SDT_PROBE_DEFINE2(vfs, namecache, removecnp, miss, "struct vnode *",
     "struct componentname *");
-SDT_PROBE_DEFINE1(vfs, namecache, purge, done, "struct vnode *");
+SDT_PROBE_DEFINE3(vfs, namecache, purge, done, "struct vnode *", "size_t", "size_t");
 SDT_PROBE_DEFINE1(vfs, namecache, purge, batch, "int");
 SDT_PROBE_DEFINE1(vfs, namecache, purge_negative, done, "struct vnode *");
 SDT_PROBE_DEFINE1(vfs, namecache, purgevfs, done, "struct mount *");
@@ -3012,13 +3012,15 @@ void
 cache_purgevfs(struct mount *mp)
 {
 	struct vnode *vp, *mvp;
+	size_t visited, purged;
 
-	SDT_PROBE1(vfs, namecache, purgevfs, done, mp);
+	visited = purged = 0;
 	/*
 	 * Somewhat wasteful iteration over all vnodes. Would be better to
 	 * support filtering and avoid the interlock to begin with.
 	 */
 	MNT_VNODE_FOREACH_ALL(vp, mp, mvp) {
+		visited++;
 		if (!cache_has_entries(vp)) {
 			VI_UNLOCK(vp);
 			continue;
@@ -3026,8 +3028,11 @@ cache_purgevfs(struct mount *mp)
 		vholdl(vp);
 		VI_UNLOCK(vp);
 		cache_purge(vp);
+		purged++;
 		vdrop(vp);
 	}
+
+	SDT_PROBE3(vfs, namecache, purgevfs, done, mp, visited, purged);
 }
 
 /*
