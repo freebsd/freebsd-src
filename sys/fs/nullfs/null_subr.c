@@ -71,8 +71,7 @@ static struct vnode * null_hashins(struct mount *, struct null_node *);
  * Initialise cache headers
  */
 int
-nullfs_init(vfsp)
-	struct vfsconf *vfsp;
+nullfs_init(struct vfsconf *vfsp)
 {
 
 	null_node_hashtbl = hashinit(desiredvnodes, M_NULLFSHASH,
@@ -82,8 +81,7 @@ nullfs_init(vfsp)
 }
 
 int
-nullfs_uninit(vfsp)
-	struct vfsconf *vfsp;
+nullfs_uninit(struct vfsconf *vfsp)
 {
 
 	rw_destroy(&null_hash_lock);
@@ -96,9 +94,7 @@ nullfs_uninit(vfsp)
  * Lower vnode should be locked on entry and will be left locked on exit.
  */
 struct vnode *
-null_hashget(mp, lowervp)
-	struct mount *mp;
-	struct vnode *lowervp;
+null_hashget(struct mount *mp, struct vnode *lowervp)
 {
 	struct null_node_hashhead *hd;
 	struct null_node *a;
@@ -139,9 +135,7 @@ null_hashget(mp, lowervp)
  * node found.
  */
 static struct vnode *
-null_hashins(mp, xp)
-	struct mount *mp;
-	struct null_node *xp;
+null_hashins(struct mount *mp, struct null_node *xp)
 {
 	struct null_node_hashhead *hd;
 	struct null_node *oxp;
@@ -191,10 +185,7 @@ null_destroy_proto(struct vnode *vp, void *xp)
  * the caller's "spare" reference to created nullfs vnode.
  */
 int
-null_nodeget(mp, lowervp, vpp)
-	struct mount *mp;
-	struct vnode *lowervp;
-	struct vnode **vpp;
+null_nodeget(struct mount *mp, struct vnode *lowervp, struct vnode **vpp)
 {
 	struct null_node *xp;
 	struct vnode *vp;
@@ -291,8 +282,7 @@ null_nodeget(mp, lowervp, vpp)
  * Remove node from hash.
  */
 void
-null_hashrem(xp)
-	struct null_node *xp;
+null_hashrem(struct null_node *xp)
 {
 
 	rw_wlock(&null_hash_lock);
@@ -303,10 +293,7 @@ null_hashrem(xp)
 #ifdef DIAGNOSTIC
 
 struct vnode *
-null_checkvp(vp, fil, lno)
-	struct vnode *vp;
-	char *fil;
-	int lno;
+null_checkvp(struct vnode *vp, char *fil, int lno)
 {
 	struct null_node *a = VTONULL(vp);
 
