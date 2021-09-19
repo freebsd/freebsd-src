@@ -559,6 +559,13 @@ bindcmd(int argc, char **argv)
 
 	fclose(out);
 
+	if (argc > 1 && argv[1][0] == '-' &&
+	    memchr("ve", argv[1][1], 2) != NULL) {
+		Vflag = argv[1][1] == 'v';
+		Eflag = !Vflag;
+		histedit();
+	}
+
 	INTON;
 
 	return ret;
