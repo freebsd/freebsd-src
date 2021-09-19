@@ -41,6 +41,11 @@ except ImportError:
 script = sys.argv[0]
 testdir = os.path.dirname(script)
 
+if "BC_TEST_OUTPUT_DIR" in os.environ:
+	outputdir = os.environ["BC_TEST_OUTPUT_DIR"]
+else:
+	outputdir = testdir
+
 prompt = ">>> "
 
 # This array is for escaping characters that are necessary to escape when
@@ -65,16 +70,6 @@ utf8_stress_strs = [
 	utf8_stress3,
 	utf8_stress4,
 ]
-
-
-def spawn(exe, args, env, encoding=None, codec_errors='strict'):
-	if do_test:
-		f = open(testdir + "/" + exedir + "_outputs/history_test.txt", "wb")
-		return pexpect.popen_spawn.PopenSpawn([ exe ] + args, env=env,
-				encoding=encoding, codec_errors=codec_errors, stderr=f)
-	else:
-		return pexpect.spawn(exe, args, env=env, encoding=encoding,
-				codec_errors=codec_errors)
 
 
 # Check that the child output the expected line. If history is false, then

@@ -35,6 +35,8 @@ testdir=$(dirname "${script}")
 
 . "$testdir/../scripts/functions.sh"
 
+outputdir=${BC_TEST_OUTPUT_DIR:-$testdir}
+
 # Command-line processing.
 if [ "$#" -lt 2 ]; then
 	printf 'usage: %s dir script [run_extra_tests] [run_stack_tests] [generate_tests] [time_tests] [exec args...]\n' "$script"
@@ -126,7 +128,7 @@ if [ "$run_stack_tests" -eq 0 ]; then
 
 fi
 
-out="$testdir/${d}_outputs/${name}_script_results.txt"
+out="$outputdir/${d}_outputs/${name}_script_results.txt"
 outdir=$(dirname "$out")
 
 # Make sure the directory exists.
