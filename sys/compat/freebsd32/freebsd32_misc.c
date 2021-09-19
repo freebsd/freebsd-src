@@ -1411,13 +1411,7 @@ exit:
 }
 
 int
-freebsd32_recvmsg(td, uap)
-	struct thread *td;
-	struct freebsd32_recvmsg_args /* {
-		int	s;
-		struct	msghdr32 *msg;
-		int	flags;
-	} */ *uap;
+freebsd32_recvmsg(struct thread *td, struct freebsd32_recvmsg_args *uap)
 {
 	struct msghdr msg;
 	struct msghdr32 m32;
@@ -1562,8 +1556,7 @@ out:
 }
 
 int
-freebsd32_sendmsg(struct thread *td,
-		  struct freebsd32_sendmsg_args *uap)
+freebsd32_sendmsg(struct thread *td, struct freebsd32_sendmsg_args *uap)
 {
 	struct msghdr msg;
 	struct msghdr32 m32;
