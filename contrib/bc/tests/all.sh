@@ -129,6 +129,9 @@ sh "$testdir/errors.sh" "$d" "$exe" "$@"
 # Other tests.
 sh "$testdir/other.sh" "$d" "$extra" "$exe" "$@"
 
+# History tests.
+sh "$testdir/history.sh" "$d" -a
+
 printf '\nAll %s tests passed.\n' "$d"
 
 printf '\n%s\n' "$stars"

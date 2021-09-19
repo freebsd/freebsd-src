@@ -53,6 +53,10 @@
 #define DC_ENABLED (1)
 #endif // DC_ENABLED
 
+#ifndef BC_ENABLE_LIBRARY
+#define BC_ENABLE_LIBRARY (0)
+#endif // BC_ENABLE_LIBRARY
+
 // This is error checking for fuzz builds.
 #if BC_ENABLE_AFL
 #ifndef __AFL_HAVE_MANUAL_CONTROL

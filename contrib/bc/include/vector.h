@@ -441,7 +441,7 @@ void bc_slabvec_print(BcVec *v, const char *func);
  *           contain @a s.
  * @param s  The source string.
  */
-#define strcpy(d, l, s) strcpy(d, s)
+#define bc_strcpy(d, l, s) strcpy(d, s)
 
 #else // _WIN32
 
@@ -452,7 +452,7 @@ void bc_slabvec_print(BcVec *v, const char *func);
  *           contain @a s.
  * @param s  The source string.
  */
-#define strcpy(d, l, s) strcpy_s(d, l, s)
+#define bc_strcpy(d, l, s) strcpy_s(d, l, s)
 
 #endif // _WIN32
 

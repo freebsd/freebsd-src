@@ -461,7 +461,7 @@ static char* bc_slab_add(BcSlab *s, const char *str, size_t len) {
 
 	ptr = (char*) (s->s + s->len);
 
-	strcpy(ptr, len, str);
+	bc_strcpy(ptr, len, str);
 
 	s->len += len;
 
