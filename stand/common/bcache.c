@@ -246,12 +246,12 @@ read_strategy(void *devdata, int rw, daddr_t blk, size_t size,
 	}
     }
 
-   if (complete) {	/* whole set was in cache, return it */
+    if (complete) {	/* whole set was in cache, return it */
 	if (bc->ra < BCACHE_READAHEAD)
 		bc->ra <<= 1;	/* increase read ahead */
 	bcopy(bc->bcache_data + (bcache_blksize * BHASH(bc, blk)), buf, size);
 	goto done;
-   }
+    }
 
     /*
      * Fill in any misses. From check we have i pointing to first missing
@@ -351,7 +351,7 @@ read_strategy(void *devdata, int rw, daddr_t blk, size_t size,
 	result = 0;
     }
 
- done:
+done:
     if (result == 0) {
         if (rsize != NULL)
 	    *rsize = size;
