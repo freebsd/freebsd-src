@@ -1,5 +1,35 @@
 # News
 
+## 5.0.2
+
+This is a production release with one fix for a flaky test. If you have not
+experienced problems with the test suite, you do ***NOT*** need to upgrade.
+
+The test was one that tested whether `bc` fails gracefully when it can't
+allocate memory. Unfortunately, there are cases when Linux and FreeBSD lie and
+pretend to allocate the memory.
+
+The reason they do this is because a lot of programs don't use all of the memory
+they allocate, so those OS's usually get away with it.
+
+However, this `bc` uses all of the memory it allocates (at least at page
+granularity), so when it tries to use the memory, FreeBSD and Linux kill it.
+
+This only happens sometimes, however. Other times (on my machine), they do, in
+fact, refuse the request.
+
+So I changed the test to not test for that because I think the graceful failure
+code won't really change much.
+
+## 5.0.1
+
+This is a production release with two fixes:
+
+* Fix for the build on Mac OSX.
+* Fix for the build on Android.
+
+Users that do not use those platforms do ***NOT*** need to update.
+
 ## 5.0.0
 
 This is a major production release with several changes:

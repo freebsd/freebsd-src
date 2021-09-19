@@ -34,6 +34,8 @@ testdir=$(dirname "$script")
 
 . "$testdir/../scripts/functions.sh"
 
+outputdir=${BC_TEST_OUTPUT_DIR:-$testdir}
+
 # Command-line processing.
 if [ "$#" -ge 2 ]; then
 
@@ -135,8 +137,8 @@ if [ "$d" = "bc" ]; then
 
 	unset BC_ENV_ARGS
 
-	redefine_res="$testdir/bc_outputs/redefine.txt"
-	redefine_out="$testdir/bc_outputs/redefine_results.txt"
+	redefine_res="$outputdir/bc_outputs/redefine.txt"
+	redefine_out="$outputdir/bc_outputs/redefine_results.txt"
 
 	outdir=$(dirname "$easter_out")
 
@@ -201,8 +203,8 @@ else
 
 		printf 'Running dc Easter script...'
 
-		easter_res="$testdir/dc_outputs/easter.txt"
-		easter_out="$testdir/dc_outputs/easter_results.txt"
+		easter_res="$outputdir/dc_outputs/easter.txt"
+		easter_out="$outputdir/dc_outputs/easter_results.txt"
 
 		outdir=$(dirname "$easter_out")
 
@@ -222,8 +224,8 @@ else
 
 fi
 
-out1="$testdir/../.log_$d.txt"
-out2="$testdir/../.log_${d}_test.txt"
+out1="$outputdir/${d}_outputs/${d}_other.txt"
+out2="$outputdir/${d}_outputs/${d}_other_test.txt"
 
 printf 'Running %s line length tests...' "$d"
 
