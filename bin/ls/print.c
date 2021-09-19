@@ -106,7 +106,8 @@ static const char *defcolors = "exfxcxdxbxegedabagacad";
 /* colors for file types */
 static struct {
 	int	num[2];
-	int	bold;
+	bool	bold;
+	bool	underline;
 } colors[C_NUMCOLORS];
 #endif
 
@@ -548,6 +549,8 @@ printcolor_termcap(Colors c)
 
 	if (colors[c].bold)
 		tputs(enter_bold, 1, putch);
+	if (colors[c].underline)
+		tputs(enter_underline, 1, putch);
 
 	if (colors[c].num[0] != -1) {
 		ansiseq = tgoto(ansi_fgcol, 0, colors[c].num[0]);
@@ -569,6 +572,8 @@ printcolor_ansi(Colors c)
 
 	if (colors[c].bold)
 		printf("1");
+	if (colors[c].underline)
+		printf(";4");
 	if (colors[c].num[0] != -1)
 		printf(";3%d", colors[c].num[0]);
 	if (colors[c].num[1] != -1)
@@ -666,7 +671,8 @@ parsecolors(const char *cs)
 		cs = "";	/* LSCOLORS not set */
 	len = strlen(cs);
 	for (i = 0; i < (int)C_NUMCOLORS; i++) {
-		colors[i].bold = 0;
+		colors[i].bold = false;
+		colors[i].underline = false;
 
 		if (len <= 2 * (size_t)i) {
 			c[0] = defcolors[2 * i];
@@ -689,10 +695,15 @@ parsecolors(const char *cs)
 				colors[i].num[j] = c[j] - 'a';
 			else if (c[j] >= 'A' && c[j] <= 'H') {
 				colors[i].num[j] = c[j] - 'A';
-				colors[i].bold = 1;
-			} else if (tolower((unsigned char)c[j]) == 'x')
+				if (j == 1)
+					colors[i].underline = true;
+				else
+					colors[i].bold = true;
+			} else if (tolower((unsigned char)c[j]) == 'x') {
+				if (j == 1 && c[j] == 'X')
+					colors[i].underline = true;
 				colors[i].num[j] = -1;
-			else {
+			} else {
 				warnx("invalid character '%c' in LSCOLORS"
 				    " env var", c[j]);
 				colors[i].num[j] = -1;

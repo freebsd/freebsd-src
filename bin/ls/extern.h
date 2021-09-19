@@ -66,6 +66,7 @@ extern	char	*ansi_bgcol;
 extern	char	*ansi_coloff;
 extern	char	*attrs_off;
 extern	char	*enter_bold;
+extern	char	*enter_underline;
 
 extern int	 colorflag;
 extern bool	 explicitansi;
