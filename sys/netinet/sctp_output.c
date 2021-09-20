@@ -6337,7 +6337,6 @@ sctp_msg_append(struct sctp_tcb *stcb,
 		error = EINVAL;
 		goto out_now;
 	}
-	strm = &stcb->asoc.strmout[srcv->sinfo_stream];
 	/* Now can we send this? */
 	if ((SCTP_GET_STATE(stcb) == SCTP_STATE_SHUTDOWN_SENT) ||
 	    (SCTP_GET_STATE(stcb) == SCTP_STATE_SHUTDOWN_ACK_SENT) ||
@@ -6396,6 +6395,7 @@ sctp_msg_append(struct sctp_tcb *stcb,
 	if (hold_stcb_lock == 0) {
 		SCTP_TCB_SEND_LOCK(stcb);
 	}
+	strm = &stcb->asoc.strmout[srcv->sinfo_stream];
 	sctp_snd_sb_alloc(stcb, sp->length);
 	atomic_add_int(&stcb->asoc.stream_queue_cnt, 1);
 	TAILQ_INSERT_TAIL(&strm->outqueue, sp, next);
@@ -13137,6 +13137,8 @@ skip_preblock:
 				goto out;
 			}
 			SCTP_TCB_SEND_LOCK(stcb);
+			/* The out streams might be reallocated. */
+			strm = &stcb->asoc.strmout[srcv->sinfo_stream];
 			if (sp->msg_is_complete) {
 				strm->last_msg_incomplete = 0;
 				asoc->stream_locked = 0;
