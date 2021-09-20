@@ -745,7 +745,8 @@ aio_fsync_vnode(struct thread *td, struct vnode *vp, int op)
 
 		VOP_UNLOCK(vp);
 		vn_finished_write(mp);
-		break;
+		if (error != ERELOOKUP)
+			break;
 	}
 	return (error);
 }
