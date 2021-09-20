@@ -7207,13 +7207,13 @@ one_more_time:
 				    sp->put_last_out,
 				    send_lock_up);
 			}
-			if ((TAILQ_NEXT(sp, next) == NULL) && (send_lock_up == 0)) {
+			if (send_lock_up == 0) {
 				SCTP_TCB_SEND_LOCK(stcb);
 				send_lock_up = 1;
 			}
 			atomic_subtract_int(&asoc->stream_queue_cnt, 1);
 			TAILQ_REMOVE(&strq->outqueue, sp, next);
-			stcb->asoc.ss_functions.sctp_ss_remove_from_stream(stcb, asoc, strq, sp, send_lock_up);
+			stcb->asoc.ss_functions.sctp_ss_remove_from_stream(stcb, asoc, strq, sp, 1);
 			if ((strq->state == SCTP_STREAM_RESET_PENDING) &&
 			    (strq->chunks_on_queues == 0) &&
 			    TAILQ_EMPTY(&strq->outqueue)) {
@@ -7638,13 +7638,13 @@ dont_do_it:
 			    sp->put_last_out,
 			    send_lock_up);
 		}
-		if ((send_lock_up == 0) && (TAILQ_NEXT(sp, next) == NULL)) {
+		if (send_lock_up == 0) {
 			SCTP_TCB_SEND_LOCK(stcb);
 			send_lock_up = 1;
 		}
 		atomic_subtract_int(&asoc->stream_queue_cnt, 1);
 		TAILQ_REMOVE(&strq->outqueue, sp, next);
-		stcb->asoc.ss_functions.sctp_ss_remove_from_stream(stcb, asoc, strq, sp, send_lock_up);
+		stcb->asoc.ss_functions.sctp_ss_remove_from_stream(stcb, asoc, strq, sp, 1);
 		if ((strq->state == SCTP_STREAM_RESET_PENDING) &&
 		    (strq->chunks_on_queues == 0) &&
 		    TAILQ_EMPTY(&strq->outqueue)) {
