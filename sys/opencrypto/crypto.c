@@ -189,11 +189,11 @@ SYSCTL_INT(_kern, OID_AUTO, crypto_workers_num, CTLFLAG_RDTUN,
 static	uma_zone_t cryptop_zone;
 
 int	crypto_devallowsoft = 0;
-SYSCTL_INT(_kern_crypto, OID_AUTO, allow_soft, CTLFLAG_RW,
+SYSCTL_INT(_kern_crypto, OID_AUTO, allow_soft, CTLFLAG_RWTUN,
 	   &crypto_devallowsoft, 0,
 	   "Enable use of software crypto by /dev/crypto");
 #ifdef COMPAT_FREEBSD12
-SYSCTL_INT(_kern, OID_AUTO, cryptodevallowsoft, CTLFLAG_RW,
+SYSCTL_INT(_kern, OID_AUTO, cryptodevallowsoft, CTLFLAG_RWTUN,
 	   &crypto_devallowsoft, 0,
 	   "Enable/disable use of software crypto by /dev/crypto");
 #endif
