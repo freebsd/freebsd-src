@@ -382,7 +382,8 @@ static pv_entry_t pmap_pvh_remove(struct md_page *pvh, pmap_t pmap,
 static void pmap_abort_ptp(pmap_t pmap, vm_offset_t va, vm_page_t mpte);
 static bool pmap_activate_int(pmap_t pmap);
 static void pmap_alloc_asid(pmap_t pmap);
-static int pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode);
+static int pmap_change_props_locked(vm_offset_t va, vm_size_t size,
+    vm_prot_t prot, int mode);
 static pt_entry_t *pmap_demote_l1(pmap_t pmap, pt_entry_t *l1, vm_offset_t va);
 static pt_entry_t *pmap_demote_l2_locked(pmap_t pmap, pt_entry_t *l2,
     vm_offset_t va, struct rwlock **lockp);
@@ -6127,17 +6128,41 @@ pmap_change_attr(vm_offset_t va, vm_size_t size, int mode)
 	int error;
 
 	PMAP_LOCK(kernel_pmap);
-	error = pmap_change_attr_locked(va, size, mode);
+	error = pmap_change_props_locked(va, size, PROT_NONE, mode);
+	PMAP_UNLOCK(kernel_pmap);
+	return (error);
+}
+
+/*
+ * Changes the specified virtual address range's protections to those
+ * specified by "prot".  Like pmap_change_attr(), protections for aliases
+ * in the direct map are updated as well.  Protections on aliasing mappings may
+ * be a subset of the requested protections; for example, mappings in the direct
+ * map are never executable.
+ */
+int
+pmap_change_prot(vm_offset_t va, vm_size_t size, vm_prot_t prot)
+{
+	int error;
+
+	/* Only supported within the kernel map. */
+	if (va < VM_MIN_KERNEL_ADDRESS)
+		return (EINVAL);
+
+	PMAP_LOCK(kernel_pmap);
+	error = pmap_change_props_locked(va, size, prot, -1);
 	PMAP_UNLOCK(kernel_pmap);
 	return (error);
 }
 
 static int
-pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode)
+pmap_change_props_locked(vm_offset_t va, vm_size_t size, vm_prot_t prot,
+    int mode)
 {
 	vm_offset_t base, offset, tmpva;
 	pt_entry_t l3, *pte, *newpte;
-	int lvl;
+	pt_entry_t bits, mask;
+	int lvl, rv;
 
 	PMAP_LOCK_ASSERT(kernel_pmap, MA_OWNED);
 	base = trunc_page(va);
@@ -6148,12 +6173,44 @@ pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode)
 	    !(base >= VM_MIN_KERNEL_ADDRESS && base < VM_MAX_KERNEL_ADDRESS))
 		return (EINVAL);
 
+	bits = 0;
+	mask = 0;
+	if (mode != -1) {
+		bits = ATTR_S1_IDX(mode);
+		mask = ATTR_S1_IDX_MASK;
+		if (mode == VM_MEMATTR_DEVICE) {
+			mask |= ATTR_S1_XN;
+			bits |= ATTR_S1_XN;
+		}
+	}
+	if (prot != VM_PROT_NONE) {
+		/* Don't mark the DMAP as executable. It never is on arm64. */
+		if (VIRT_IN_DMAP(base)) {
+			prot &= ~VM_PROT_EXECUTE;
+			/*
+			 * XXX Mark the DMAP as writable for now. We rely
+			 * on this in ddb & dtrace to insert breakpoint
+			 * instructions.
+			 */
+			prot |= VM_PROT_WRITE;
+		}
+
+		if ((prot & VM_PROT_WRITE) == 0) {
+			bits |= ATTR_S1_AP(ATTR_S1_AP_RO);
+		}
+		if ((prot & VM_PROT_EXECUTE) == 0) {
+			bits |= ATTR_S1_PXN;
+		}
+		bits |= ATTR_S1_UXN;
+		mask |= ATTR_S1_AP_MASK | ATTR_S1_XN;
+	}
+
 	for (tmpva = base; tmpva < base + size; ) {
 		pte = pmap_pte(kernel_pmap, tmpva, &lvl);
 		if (pte == NULL)
 			return (EINVAL);
 
-		if ((pmap_load(pte) & ATTR_S1_IDX_MASK) == ATTR_S1_IDX(mode)) {
+		if ((pmap_load(pte) & mask) == bits) {
 			/*
 			 * We already have the correct attribute,
 			 * ignore this entry.
@@ -6194,13 +6251,22 @@ pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode)
 			case 3:
 				/* Update the entry */
 				l3 = pmap_load(pte);
-				l3 &= ~ATTR_S1_IDX_MASK;
-				l3 |= ATTR_S1_IDX(mode);
-				if (mode == VM_MEMATTR_DEVICE)
-					l3 |= ATTR_S1_XN;
+				l3 &= ~mask;
+				l3 |= bits;
 
 				pmap_update_entry(kernel_pmap, pte, l3, tmpva,
 				    PAGE_SIZE);
+
+				if (!VIRT_IN_DMAP(tmpva)) {
+					/*
+					 * Keep the DMAP memory in sync.
+					 */
+					rv = pmap_change_props_locked(
+					    PHYS_TO_DMAP(l3 & ~ATTR_MASK),
+					    L3_SIZE, prot, mode);
+					if (rv != 0)
+						return (rv);
+				}
 
 				/*
 				 * If moving to a non-cacheable entry flush
@@ -6363,12 +6429,14 @@ pmap_demote_l2_locked(pmap_t pmap, pt_entry_t *l2, vm_offset_t va,
 		/*
 		 * If the page table page is missing and the mapping
 		 * is for a kernel address, the mapping must belong to
-		 * the direct map.  Page table pages are preallocated
-		 * for every other part of the kernel address space,
-		 * so the direct map region is the only part of the
+		 * either the direct map or the early kernel memory.
+		 * Page table pages are preallocated for every other
+		 * part of the kernel address space, so the direct map
+		 * region and early kernel memory are the only parts of the
 		 * kernel address space that must be handled here.
 		 */
-		KASSERT(!ADDR_IS_KERNEL(va) || VIRT_IN_DMAP(va),
+		KASSERT(!ADDR_IS_KERNEL(va) || VIRT_IN_DMAP(va) ||
+		    (va >= VM_MIN_KERNEL_ADDRESS && va < kernel_vm_end),
 		    ("pmap_demote_l2: No saved mpte for va %#lx", va));
 
 		/*
