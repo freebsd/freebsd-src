@@ -724,24 +724,29 @@ static int
 aio_fsync_vnode(struct thread *td, struct vnode *vp, int op)
 {
 	struct mount *mp;
+	vm_object_t obj;
 	int error;
 
-	if ((error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0)
-		goto drop;
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
-	if (vp->v_object != NULL) {
-		VM_OBJECT_WLOCK(vp->v_object);
-		vm_object_page_clean(vp->v_object, 0, 0, 0);
-		VM_OBJECT_WUNLOCK(vp->v_object);
-	}
-	if (op == LIO_DSYNC)
-		error = VOP_FDATASYNC(vp, td);
-	else
-		error = VOP_FSYNC(vp, MNT_WAIT, td);
+	for (;;) {
+		error = vn_start_write(vp, &mp, V_WAIT | PCATCH);
+		if (error != 0)
+			break;
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+		obj = vp->v_object;
+		if (obj != NULL) {
+			VM_OBJECT_WLOCK(obj);
+			vm_object_page_clean(obj, 0, 0, 0);
+			VM_OBJECT_WUNLOCK(obj);
+		}
+		if (op == LIO_DSYNC)
+			error = VOP_FDATASYNC(vp, td);
+		else
+			error = VOP_FSYNC(vp, MNT_WAIT, td);
 
-	VOP_UNLOCK(vp);
-	vn_finished_write(mp);
-drop:
+		VOP_UNLOCK(vp);
+		vn_finished_write(mp);
+		break;
+	}
 	return (error);
 }
 
