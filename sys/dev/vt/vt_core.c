@@ -87,7 +87,7 @@ static tc_opened_t	vtterm_opened;
 static tc_ioctl_t	vtterm_ioctl;
 static tc_mmap_t	vtterm_mmap;
 
-const struct terminal_class vt_termclass = {
+static const struct terminal_class vt_termclass = {
 	.tc_bell	= vtterm_bell,
 	.tc_cursor	= vtterm_cursor,
 	.tc_putchar	= vtterm_putchar,
@@ -202,7 +202,7 @@ SET_DECLARE(vt_drv_set, struct vt_driver);
 #define	_VTDEFH	MAX(100, PIXEL_HEIGHT(VT_FB_MAX_HEIGHT))
 #define	_VTDEFW	MAX(200, PIXEL_WIDTH(VT_FB_MAX_WIDTH))
 
-struct terminal	vt_consterm;
+static struct terminal	vt_consterm;
 static struct vt_window	vt_conswindow;
 #ifndef SC_NO_CONSDRAWN
 static term_char_t vt_consdrawn[PIXEL_HEIGHT(VT_FB_MAX_HEIGHT) * PIXEL_WIDTH(VT_FB_MAX_WIDTH)];
@@ -262,19 +262,9 @@ static struct vt_window	vt_conswindow = {
 	.vw_bell_pitch = VT_BELLPITCH,
 	.vw_bell_duration = VT_BELLDURATION,
 };
-struct terminal vt_consterm = {
-	.tm_class = &vt_termclass,
-	.tm_softc = &vt_conswindow,
-	.tm_flags = TF_CONS,
-};
-static struct consdev vt_consterm_consdev = {
-	.cn_ops = &termcn_cnops,
-	.cn_arg = &vt_consterm,
-	.cn_name = "ttyv0",
-};
 
 /* Add to set of consoles. */
-DATA_SET(cons_set, vt_consterm_consdev);
+TERMINAL_DECLARE_EARLY(vt_consterm, vt_termclass, &vt_conswindow);
 
 /*
  * Right after kmem is done to allow early drivers to use locking and allocate

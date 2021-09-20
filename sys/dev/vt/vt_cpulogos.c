@@ -221,12 +221,14 @@ vt_init_logos(void *dummy)
 	if (!vt_splash_cpu)
 		return;
 
-	tm = &vt_consterm;
-	vw = tm->tm_softc;
+	vd = &vt_consdev;
+	if (vd == NULL)
+		return;
+	vw = vd->vd_curwindow;
 	if (vw == NULL)
 		return;
-	vd = vw->vw_device;
-	if (vd == NULL)
+	tm = vw->vw_terminal;
+	if (tm == NULL)
 		return;
 	vf = vw->vw_font;
 	if (vf == NULL)
