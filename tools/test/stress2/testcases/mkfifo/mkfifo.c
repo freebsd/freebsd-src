@@ -26,82 +26,63 @@
  */
 
 #include <sys/param.h>
-#include <sys/types.h>
 #include <sys/stat.h>
-#include <stdio.h>
-#include <fcntl.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <signal.h>
 #include <sys/wait.h>
-#include <string.h>
+
 #include <err.h>
+#include <fcntl.h>
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 #include "stress.h"
 
 static char path[MAXPATHLEN+1];
-#define NB (1 * 1024 * 1024)
-
-static int bufsize;
-static int freespace;
-
-static void
-handler2(int i __unused)
-{
-	_exit(0);
-}
+static int bufsize, freespace;
 
 static void
 reader(void) {
-	int fd;
-	int i, n, *buf;
+	fd_set set;
+	struct timeval tv;
+	int *buf, fd, n;
 
 	setproctitle("reader");
-	signal(SIGALRM, handler2);
-	alarm(60);
-	if ((fd = open(path, O_RDWR, 0600)) < 0) {
-		unlink(path);
+	if ((fd = open(path, O_RDONLY | O_NONBLOCK)) < 0)
 		err(1, "open(%s)", path);
-	}
 	if ((buf = malloc(bufsize)) == NULL)
 			err(1, "malloc(%d), %s:%d", bufsize, __FILE__, __LINE__);
-	for (i = 0; i < NB; i+= bufsize) {
+	n = 0;
+	FD_ZERO(&set);
+	FD_SET(fd, &set);
+	tv.tv_sec = 10;
+	tv.tv_usec = 0;
+	if (select(fd + 1, &set, NULL, NULL, &tv) == 1) {
 		if ((n = read(fd, buf, bufsize)) < 0)
 			err(1, "read(), %s:%d", __FILE__, __LINE__);
-		if (n == 0) break;
 	}
 	close(fd);
 	free(buf);
-	return;
 }
 
 static void
 writer(void) {
-	int i, *buf;
-	int fd;
-
-	signal(SIGALRM, handler2);
-	alarm(60);
+	int *buf, fd;
 
 	setproctitle("writer");
-	if ((fd = open(path, O_RDWR, 0600)) < 0) {
+	if ((fd = open(path, O_WRONLY)) < 0) {
 		unlink(path);
 		err(1, "open(%s)", path);
 	}
 	if ((buf = malloc(bufsize)) == NULL)
 			err(1, "malloc(%d), %s:%d", bufsize, __FILE__, __LINE__);
-	for (i = 0; i < bufsize / (int)sizeof(int); i++)
-		buf[i] = i;
+	memset(buf, 0, bufsize);
 
-	for (i = 0; i < NB; i+= bufsize) {
-		if (write(fd, buf, bufsize) < 0) {
-			err(1, "write(%d), %s:%d", fd,
-					__FILE__, __LINE__);
-		}
-	}
+	if (write(fd, buf, bufsize) < 0)
+		err(1, "write(%d), %s:%d", fd, __FILE__, __LINE__);
 	close(fd);
 	free(buf);
-	return;
 }
 
 int
@@ -134,6 +115,7 @@ setup(int nb)
 	if (!freespace)
 		_exit(0);
 	bufsize = 2 << random_int(2, 12);
+
 	return (0);
 }
 
@@ -179,5 +161,6 @@ test(void)
 		err(1, "fork(), %s:%d",  __FILE__, __LINE__);
 
 	unlink(path);
+
 	return (0);
 }
