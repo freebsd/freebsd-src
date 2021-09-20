@@ -386,8 +386,6 @@ struct vt_driver {
  */
 
 extern struct vt_device vt_consdev;
-extern struct terminal vt_consterm;
-extern const struct terminal_class vt_termclass;
 void vt_upgrade(struct vt_device *vd);
 
 #define	PIXEL_WIDTH(w)	((w) / 8)
