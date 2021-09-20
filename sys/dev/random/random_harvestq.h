@@ -42,8 +42,6 @@ struct harvest_event {
 	uint8_t		he_source;		/* origin of the entropy */
 };
 
-void read_rate_increment(u_int);
-
 #define	RANDOM_HARVEST_INIT_LOCK(x)	mtx_init(&harvest_context.hc_mtx, "entropy harvest mutex", NULL, MTX_SPIN)
 #define	RANDOM_HARVEST_LOCK(x)		mtx_lock_spin(&harvest_context.hc_mtx)
 #define	RANDOM_HARVEST_UNLOCK(x)	mtx_unlock_spin(&harvest_context.hc_mtx)

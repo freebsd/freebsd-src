@@ -187,7 +187,6 @@ int
 	if (error != 0)
 		return (error);
 
-	read_rate_increment(howmany(uio->uio_resid + 1, sizeof(uint32_t)));
 	total_read = 0;
 
 	/* Easy to deal with the trivial 0 byte case. */
@@ -286,7 +285,6 @@ void
 
 		(void)randomdev_wait_until_seeded(SEEDWAIT_UNINTERRUPTIBLE);
 	}
-	read_rate_increment(roundup2(len, sizeof(uint32_t)));
 	p_random_alg_context->ra_read(random_buf, len);
 }
 
