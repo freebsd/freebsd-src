@@ -769,7 +769,7 @@ parse_vnet(elf_file_t ef)
 static int
 preload_protect(elf_file_t ef, vm_prot_t prot)
 {
-#ifdef __amd64__
+#if defined(__aarch64__) || defined(__amd64__)
 	Elf_Ehdr *hdr;
 	Elf_Phdr *phdr, *phlimit;
 	vm_prot_t nprot;
