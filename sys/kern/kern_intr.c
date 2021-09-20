@@ -107,6 +107,7 @@ static int intr_hwpmc_waiting_report_threshold = 1;
 SYSCTL_INT(_hw, OID_AUTO, intr_hwpmc_waiting_report_threshold, CTLFLAG_RWTUN,
     &intr_hwpmc_waiting_report_threshold, 1,
     "Threshold for reporting number of events in a workq");
+#define	PMC_HOOK_INSTALLED_ANY() __predict_false(pmc_hook != NULL)
 #endif
 static TAILQ_HEAD(, intr_event) event_list =
     TAILQ_HEAD_INITIALIZER(event_list);
@@ -131,6 +132,14 @@ PMC_SOFT_DEFINE( , , intr, filter);
 PMC_SOFT_DEFINE( , , intr, stray);
 PMC_SOFT_DEFINE( , , intr, schedule);
 PMC_SOFT_DEFINE( , , intr, waiting);
+
+#define PMC_SOFT_CALL_INTR_HLPR(event, frame)			\
+do {					\
+	if (frame != NULL)					\
+		PMC_SOFT_CALL_TF( , , intr, event, frame);	\
+	else							\
+		PMC_SOFT_CALL( , , intr, event);		\
+} while (0)
 #endif
 
 /* Map an interrupt type to an ithread priority. */
@@ -1005,11 +1014,9 @@ intr_event_schedule_thread(struct intr_event *ie, struct trapframe *frame)
 	thread_lock(td);
 	if (TD_AWAITING_INTR(td)) {
 #ifdef HWPMC_HOOKS
-		atomic_set_int(&it->it_waiting, 0);
-		if (frame != NULL)
-			PMC_SOFT_CALL_TF( , , intr, schedule, frame);
-		else
-			PMC_SOFT_CALL( , , intr, schedule);
+		it->it_waiting = 0;
+		if (PMC_HOOK_INSTALLED_ANY())
+			PMC_SOFT_CALL_INTR_HLPR(schedule, frame);
 #endif
 		CTR3(KTR_INTR, "%s: schedule pid %d (%s)", __func__, td->td_proc->p_pid,
 		    td->td_name);
@@ -1017,14 +1024,10 @@ intr_event_schedule_thread(struct intr_event *ie, struct trapframe *frame)
 		sched_add(td, SRQ_INTR);
 	} else {
 #ifdef HWPMC_HOOKS
-		atomic_add_int(&it->it_waiting, 1);
-
-		if (atomic_load_int(&it->it_waiting) >= intr_hwpmc_waiting_report_threshold) {
-			if (frame != NULL)
-				PMC_SOFT_CALL_TF( , , intr, waiting, frame);
-			else
-				PMC_SOFT_CALL( , , intr, waiting);
-		}
+		it->it_waiting++;
+		if (PMC_HOOK_INSTALLED_ANY() &&
+		    (it->it_waiting >= intr_hwpmc_waiting_report_threshold))
+			PMC_SOFT_CALL_INTR_HLPR(waiting, frame);
 #endif
 		CTR5(KTR_INTR, "%s: pid %d (%s): it_need %d, state %d",
 		    __func__, td->td_proc->p_pid, td->td_name, it->it_need, TD_GET_STATE(td));
