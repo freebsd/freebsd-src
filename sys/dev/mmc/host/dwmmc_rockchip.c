@@ -94,8 +94,6 @@ rockchip_dwmmc_attach(device_t dev)
 		break;
 	}
 
-	sc->pwren_inverted = 1;
-
 #ifdef EXT_RESOURCES
 	sc->update_ios = &dwmmc_rockchip_update_ios;
 #endif
