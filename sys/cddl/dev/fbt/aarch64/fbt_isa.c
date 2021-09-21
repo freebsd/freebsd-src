@@ -79,8 +79,12 @@ fbt_invop(uintptr_t addr, struct trapframe *frame, uintptr_t rval)
 void
 fbt_patch_tracepoint(fbt_probe_t *fbt, fbt_patchval_t val)
 {
+	vm_offset_t addr;
 
-	*fbt->fbtp_patchpoint = val;
+	if (!arm64_get_writable_addr((vm_offset_t)fbt->fbtp_patchpoint, &addr))
+		panic("%s: Unable to write new instruction", __func__);
+
+	*(fbt_patchval_t *)addr = val;
 	cpu_icache_sync_range((vm_offset_t)fbt->fbtp_patchpoint, 4);
 }
 

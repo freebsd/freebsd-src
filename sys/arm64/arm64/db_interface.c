@@ -154,39 +154,24 @@ db_write_bytes(vm_offset_t addr, size_t size, char *data)
 	jmp_buf jb;
 	void *prev_jb;
 	char *dst;
+	size_t i;
 	int ret;
-	uint64_t tmp64;
-	uint32_t tmp32;
-	uint16_t tmp16;
 
 	prev_jb = kdb_jmpbuf(jb);
 	ret = setjmp(jb);
 	if (ret == 0) {
-		if (size == 8 && (addr & 7) == 0) {
-			dst = (char *)&tmp64;
-			while (size-- > 0)
-				*dst++ = *data++;
-			*((uint64_t *)addr) = tmp64;
-		} else if (size == 4 && (addr & 3) == 0) {
-			dst = (char *)&tmp32;
-			while (size-- > 0)
-				*dst++ = *data++;
-			*((uint32_t *)addr) = tmp32;
-		} else if (size == 2 && (addr & 1) == 0) {
-			dst = (char *)&tmp16;
-			while (size-- > 0)
-				*dst++ = *data++;
-			*((uint32_t *)addr) = tmp16;
+		if (!arm64_get_writable_addr(addr, &addr)) {
+			ret = 1;
 		} else {
 			dst = (char *)addr;
-			while (size-- > 0)
+			for (i = 0; i < size; i++)
 				*dst++ = *data++;
-		}
-		dsb(ish);
+			dsb(ish);
 
-		/* Clean D-cache and invalidate I-cache */
-		cpu_dcache_wb_range(addr, (vm_size_t)size);
-		cpu_icache_sync_range(addr, (vm_size_t)size);
+			/* Clean D-cache and invalidate I-cache */
+			cpu_dcache_wb_range(addr, (vm_size_t)size);
+			cpu_icache_sync_range(addr, (vm_size_t)size);
+		}
 	}
 	(void)kdb_jmpbuf(prev_jb);
 
