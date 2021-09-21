@@ -354,6 +354,11 @@ __FBSDID("$FreeBSD$");
 	mtx_unlock(&(_tcb)->tcb_send_mtx);				\
 } while (0)
 
+#define SCTP_TCB_SEND_LOCK_ASSERT(_tcb) do {				\
+	KASSERT(mtx_owned(&(_tcb)->tcb_send_mtx),			\
+	        ("Don't own TCB send lock"));				\
+} while (0)
+
 /*
  * For the majority of things (once we have found the association) we will
  * lock the actual association mutex. This will protect all the assoiciation
