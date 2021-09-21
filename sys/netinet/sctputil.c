@@ -1316,7 +1316,7 @@ sctp_init_asoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		asoc->strmout[i].last_msg_incomplete = 0;
 		asoc->strmout[i].state = SCTP_STREAM_OPENING;
 	}
-	asoc->ss_functions.sctp_ss_init(stcb, asoc, 1);
+	asoc->ss_functions.sctp_ss_init(stcb, asoc);
 	SCTP_TCB_SEND_UNLOCK(stcb);
 
 	/* Now the mapping array */
@@ -4325,7 +4325,7 @@ sctp_report_all_outbound(struct sctp_tcb *stcb, uint16_t error, int so_locked)
 		TAILQ_FOREACH_SAFE(sp, &outs->outqueue, next, nsp) {
 			atomic_subtract_int(&asoc->stream_queue_cnt, 1);
 			TAILQ_REMOVE(&outs->outqueue, sp, next);
-			stcb->asoc.ss_functions.sctp_ss_remove_from_stream(stcb, asoc, outs, sp, 1);
+			stcb->asoc.ss_functions.sctp_ss_remove_from_stream(stcb, asoc, outs, sp);
 			sctp_free_spbufspace(stcb, asoc, sp);
 			if (sp->data) {
 				sctp_ulp_notify(SCTP_NOTIFY_SPECIAL_SP_FAIL, stcb,
