@@ -1109,9 +1109,6 @@ dwmmc_start_cmd(struct dwmmc_softc *sc, struct mmc_command *cmd)
 	sc->curcmd = cmd;
 	data = cmd->data;
 
-	if ((sc->hwtype & HWTYPE_MASK) == HWTYPE_ROCKCHIP)
-		dwmmc_setup_bus(sc, sc->host.ios.clock);
-
 #ifndef MMCCAM
 	/* XXX Upper layers don't always set this */
 	cmd->mrq = sc->req;
