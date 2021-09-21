@@ -269,7 +269,7 @@ elf64_exec(struct preloaded_file *fp)
 		}
 	}
 
-	printf("staging %#lx (%scoping) tramp %p PT4 %p\n",
+	printf("staging %#lx (%scopying) tramp %p PT4 %p\n",
 	    staging, copy_staging == COPY_STAGING_ENABLE ? "" : "not ",
 	    trampoline, PT4);
 	printf("Start @ 0x%lx ...\n", ehdr->e_entry);
