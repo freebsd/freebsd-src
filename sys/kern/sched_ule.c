@@ -196,6 +196,7 @@ _Static_assert(sizeof(struct thread) + sizeof(struct td_sched) <=
 #define	SCHED_SLICE_MIN_DIVISOR		6	/* DEFAULT/MIN = ~16 ms. */
 
 /* Flags kept in td_flags. */
+#define	TDF_PICKCPU	TDF_SCHED0	/* Thread should pick new CPU. */
 #define	TDF_SLICEEND	TDF_SCHED2	/* Thread time slice is over. */
 
 /*
@@ -633,15 +634,16 @@ sched_random(void)
 }
 
 struct cpu_search {
-	cpuset_t *cs_mask;
-	u_int	cs_prefer;
+	cpuset_t *cs_mask;	/* The mask of allowed CPUs to choose from. */
+	int	cs_prefer;	/* Prefer this CPU and groups including it. */
+	int	cs_running;	/* The thread is now running at cs_prefer. */
 	int	cs_pri;		/* Min priority for low. */
 	int	cs_limit;	/* Max load for low, min load for high. */
 };
 
 struct cpu_search_res {
-	int	cs_cpu;
-	int	cs_load;
+	int	cs_cpu;		/* The best CPU found. */
+	int	cs_load;	/* The load of cs_cpu. */
 };
 
 /*
@@ -657,7 +659,7 @@ cpu_search_lowest(const struct cpu_group *cg, const struct cpu_search *s,
 {
 	struct cpu_search_res lr;
 	struct tdq *tdq;
-	int c, bload, l, load, total;
+	int c, bload, l, load, p, total;
 
 	total = 0;
 	bload = INT_MAX;
@@ -668,6 +670,17 @@ cpu_search_lowest(const struct cpu_group *cg, const struct cpu_search *s,
 		for (c = cg->cg_children - 1; c >= 0; c--) {
 			load = cpu_search_lowest(&cg->cg_child[c], s, &lr);
 			total += load;
+
+			/*
+			 * When balancing do not prefer SMT groups with load >1.
+			 * It allows round-robin between SMT groups with equal
+			 * load within parent group for more fair scheduling.
+			 */
+			if (__predict_false(s->cs_running) &&
+			    (cg->cg_child[c].cg_flags & CG_FLAG_THREAD) &&
+			    load >= 128 && (load & 128) != 0)
+				load += 128;
+
 			if (lr.cs_cpu >= 0 && (load < bload ||
 			    (load == bload && lr.cs_load < r->cs_load))) {
 				bload = load;
@@ -684,20 +697,40 @@ cpu_search_lowest(const struct cpu_group *cg, const struct cpu_search *s,
 			continue;
 		tdq = TDQ_CPU(c);
 		l = tdq->tdq_load;
+		if (c == s->cs_prefer) {
+			if (__predict_false(s->cs_running))
+				l--;
+			p = 128;
+		} else
+			p = 0;
 		load = l * 256;
-		if (c == s->cs_prefer)
-			load -= 128;
-		total += load;
-		if (l > s->cs_limit || tdq->tdq_lowpri <= s->cs_pri ||
+		total += load - p;
+
+		/*
+		 * Check this CPU is acceptable.
+		 * If the threads is already on the CPU, don't look on the TDQ
+		 * priority, since it can be the priority of the thread itself.
+		 */
+		if (l > s->cs_limit || (tdq->tdq_lowpri <= s->cs_pri &&
+		     (!s->cs_running || c != s->cs_prefer)) ||
 		    !CPU_ISSET(c, s->cs_mask))
 			continue;
+
+		/*
+		 * When balancing do not prefer CPUs with load > 1.
+		 * It allows round-robin between CPUs with equal load
+		 * within the CPU group for more fair scheduling.
+		 */
+		if (__predict_false(s->cs_running) && l > 0)
+			p = 0;
+
 		load -= sched_random() % 128;
-		if (load < bload) {
-			bload = load;
+		if (bload > load - p) {
+			bload = load - p;
 			r->cs_cpu = c;
+			r->cs_load = load;
 		}
 	}
-	r->cs_load = bload;
 	return (total);
 }
 
@@ -736,9 +769,17 @@ cpu_search_highest(const struct cpu_group *cg, const struct cpu_search *s,
 		l = tdq->tdq_load;
 		load = l * 256;
 		total += load;
-		if (l < s->cs_limit || !tdq->tdq_transferable ||
+
+		/*
+		 * Check this CPU is acceptable.
+		 * If requested minimum load is 1, then caller must know how
+		 * to handle running threads, not counted in tdq_transferable.
+		 */
+		if (l < s->cs_limit || (tdq->tdq_transferable == 0 &&
+		    (s->cs_limit > 1 || l > 1)) ||
 		    !CPU_ISSET(c, s->cs_mask))
 			continue;
+
 		load -= sched_random() % 256;
 		if (load > bload) {
 			bload = load;
@@ -756,12 +797,13 @@ cpu_search_highest(const struct cpu_group *cg, const struct cpu_search *s,
  */
 static inline int
 sched_lowest(const struct cpu_group *cg, cpuset_t *mask, int pri, int maxload,
-    int prefer)
+    int prefer, int running)
 {
 	struct cpu_search s;
 	struct cpu_search_res r;
 
 	s.cs_prefer = prefer;
+	s.cs_running = running;
 	s.cs_mask = mask;
 	s.cs_pri = pri;
 	s.cs_limit = maxload;
@@ -788,12 +830,13 @@ static void
 sched_balance_group(struct cpu_group *cg)
 {
 	struct tdq *tdq;
+	struct thread *td;
 	cpuset_t hmask, lmask;
 	int high, low, anylow;
 
 	CPU_FILL(&hmask);
 	for (;;) {
-		high = sched_highest(cg, &hmask, 2);
+		high = sched_highest(cg, &hmask, 1);
 		/* Stop if there is no more CPU with transferrable threads. */
 		if (high == -1)
 			break;
@@ -802,10 +845,28 @@ sched_balance_group(struct cpu_group *cg)
 		/* Stop if there is no more CPU left for low. */
 		if (CPU_EMPTY(&lmask))
 			break;
-		anylow = 1;
 		tdq = TDQ_CPU(high);
+		if (tdq->tdq_load == 1) {
+			/*
+			 * There is only one running thread.  We can't move
+			 * it from here, so tell it to pick new CPU by itself.
+			 */
+			TDQ_LOCK(tdq);
+			td = pcpu_find(high)->pc_curthread;
+			if ((td->td_flags & TDF_IDLETD) == 0 &&
+			    THREAD_CAN_MIGRATE(td)) {
+				td->td_flags |= TDF_NEEDRESCHED | TDF_PICKCPU;
+				if (high != curcpu)
+					ipi_cpu(high, IPI_AST);
+			}
+			TDQ_UNLOCK(tdq);
+			break;
+		}
+		anylow = 1;
 nextlow:
-		low = sched_lowest(cg, &lmask, -1, tdq->tdq_load - 1, high);
+		if (tdq->tdq_transferable == 0)
+			continue;
+		low = sched_lowest(cg, &lmask, -1, tdq->tdq_load - 1, high, 1);
 		/* Stop if we looked well and found no less loaded CPU. */
 		if (anylow && low == -1)
 			break;
@@ -1227,7 +1288,7 @@ sched_pickcpu(struct thread *td, int flags)
 	struct td_sched *ts;
 	struct tdq *tdq;
 	cpuset_t *mask;
-	int cpu, pri, self, intr;
+	int cpu, pri, r, self, intr;
 
 	self = PCPU_GET(cpuid);
 	ts = td_get_sched(td);
@@ -1305,32 +1366,33 @@ llc:
 	cpu = -1;
 	mask = &td->td_cpuset->cs_mask;
 	pri = td->td_priority;
+	r = TD_IS_RUNNING(td);
 	/*
 	 * Try hard to keep interrupts within found LLC.  Search the LLC for
 	 * the least loaded CPU we can run now.  For NUMA systems it should
 	 * be within target domain, and it also reduces scheduling overhead.
 	 */
 	if (ccg != NULL && intr) {
-		cpu = sched_lowest(ccg, mask, pri, INT_MAX, ts->ts_cpu);
+		cpu = sched_lowest(ccg, mask, pri, INT_MAX, ts->ts_cpu, r);
 		if (cpu >= 0)
 			SCHED_STAT_INC(pickcpu_intrbind);
 	} else
 	/* Search the LLC for the least loaded idle CPU we can run now. */
 	if (ccg != NULL) {
 		cpu = sched_lowest(ccg, mask, max(pri, PRI_MAX_TIMESHARE),
-		    INT_MAX, ts->ts_cpu);
+		    INT_MAX, ts->ts_cpu, r);
 		if (cpu >= 0)
 			SCHED_STAT_INC(pickcpu_affinity);
 	}
 	/* Search globally for the least loaded CPU we can run now. */
 	if (cpu < 0) {
-		cpu = sched_lowest(cpu_top, mask, pri, INT_MAX, ts->ts_cpu);
+		cpu = sched_lowest(cpu_top, mask, pri, INT_MAX, ts->ts_cpu, r);
 		if (cpu >= 0)
 			SCHED_STAT_INC(pickcpu_lowest);
 	}
 	/* Search globally for the least loaded CPU. */
 	if (cpu < 0) {
-		cpu = sched_lowest(cpu_top, mask, -1, INT_MAX, ts->ts_cpu);
+		cpu = sched_lowest(cpu_top, mask, -1, INT_MAX, ts->ts_cpu, r);
 		if (cpu >= 0)
 			SCHED_STAT_INC(pickcpu_lowest);
 	}
@@ -2056,7 +2118,7 @@ sched_switch(struct thread *td, int flags)
 	struct td_sched *ts;
 	struct mtx *mtx;
 	int srqflag;
-	int cpuid, preempted;
+	int cpuid, pickcpu, preempted;
 
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 
@@ -2064,11 +2126,15 @@ sched_switch(struct thread *td, int flags)
 	tdq = TDQ_SELF();
 	ts = td_get_sched(td);
 	sched_pctcpu_update(ts, 1);
-	ts->ts_rltick = ticks;
+	pickcpu = (td->td_flags & TDF_PICKCPU) != 0;
+	if (pickcpu)
+		ts->ts_rltick = ticks - affinity * MAX_CACHE_LEVELS;
+	else
+		ts->ts_rltick = ticks;
 	td->td_lastcpu = td->td_oncpu;
 	preempted = (td->td_flags & TDF_SLICEEND) == 0 &&
 	    (flags & SW_PREEMPT) != 0;
-	td->td_flags &= ~(TDF_NEEDRESCHED | TDF_SLICEEND);
+	td->td_flags &= ~(TDF_NEEDRESCHED | TDF_PICKCPU | TDF_SLICEEND);
 	td->td_owepreempt = 0;
 	tdq->tdq_owepreempt = 0;
 	if (!TD_IS_IDLETHREAD(td))
@@ -2088,7 +2154,8 @@ sched_switch(struct thread *td, int flags)
 		    SRQ_OURSELF|SRQ_YIELDING|SRQ_PREEMPTED :
 		    SRQ_OURSELF|SRQ_YIELDING;
 #ifdef SMP
-		if (THREAD_CAN_MIGRATE(td) && !THREAD_CAN_SCHED(td, ts->ts_cpu))
+		if (THREAD_CAN_MIGRATE(td) && (!THREAD_CAN_SCHED(td, ts->ts_cpu)
+		    || pickcpu))
 			ts->ts_cpu = sched_pickcpu(td, 0);
 #endif
 		if (ts->ts_cpu == cpuid)
