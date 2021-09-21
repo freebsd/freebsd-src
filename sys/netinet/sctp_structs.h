@@ -729,16 +729,15 @@ struct sctp_cc_functions {
  * for stream scheduling.
  */
 struct sctp_ss_functions {
-	void (*sctp_ss_init) (struct sctp_tcb *stcb, struct sctp_association *asoc,
-	    int holds_lock);
+	void (*sctp_ss_init) (struct sctp_tcb *stcb, struct sctp_association *asoc);
 	void (*sctp_ss_clear) (struct sctp_tcb *stcb, struct sctp_association *asoc,
-	    int clear_values, int holds_lock);
+	    int clear_values);
 	void (*sctp_ss_init_stream) (struct sctp_tcb *stcb, struct sctp_stream_out *strq, struct sctp_stream_out *with_strq);
 	void (*sctp_ss_add_to_stream) (struct sctp_tcb *stcb, struct sctp_association *asoc,
-	    struct sctp_stream_out *strq, struct sctp_stream_queue_pending *sp, int holds_lock);
+	    struct sctp_stream_out *strq, struct sctp_stream_queue_pending *sp);
 	int (*sctp_ss_is_empty) (struct sctp_tcb *stcb, struct sctp_association *asoc);
 	void (*sctp_ss_remove_from_stream) (struct sctp_tcb *stcb, struct sctp_association *asoc,
-	    struct sctp_stream_out *strq, struct sctp_stream_queue_pending *sp, int holds_lock);
+	    struct sctp_stream_out *strq, struct sctp_stream_queue_pending *sp);
 struct sctp_stream_out *(*sctp_ss_select_stream) (struct sctp_tcb *stcb,
 	    struct sctp_nets *net, struct sctp_association *asoc);
 	void (*sctp_ss_scheduled) (struct sctp_tcb *stcb, struct sctp_nets *net,
