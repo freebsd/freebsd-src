@@ -238,6 +238,7 @@
 #define	 EXCP_SOFTSTP_EL1	0x33	/* Software Step, from same EL */
 #define	 EXCP_WATCHPT_EL0	0x34	/* Watchpoint, from lower EL */
 #define	 EXCP_WATCHPT_EL1	0x35	/* Watchpoint, from same EL */
+#define	 EXCP_BRKPT_32		0x38    /* 32bits breakpoint */
 #define	 EXCP_BRK		0x3c	/* Breakpoint */
 
 /* ICC_CTLR_EL1 */
