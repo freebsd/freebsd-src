@@ -1110,10 +1110,12 @@ again:
 				continue;
 			rqh = &rq->rq_queues[bit + (i << RQB_L2BPW)];
 			TAILQ_FOREACH(td, rqh, td_runq) {
-				if (first && THREAD_CAN_MIGRATE(td) &&
-				    THREAD_CAN_SCHED(td, cpu))
-					return (td);
-				first = td;
+				if (first) {
+					if (THREAD_CAN_MIGRATE(td) &&
+					    THREAD_CAN_SCHED(td, cpu))
+						return (td);
+				} else
+					first = td;
 			}
 		}
 	}
