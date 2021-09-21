@@ -137,6 +137,17 @@ main(int (*openfirm)(void *))
          */
 	cons_probe();
 
+	archsw.arch_getdev = ofw_getdev;
+	archsw.arch_copyin = ofw_copyin;
+	archsw.arch_copyout = ofw_copyout;
+	archsw.arch_readin = ofw_readin;
+#ifdef CAS
+	setenv("cas", "1", 0);
+	archsw.arch_autoload = ppc64_autoload;
+#else
+	archsw.arch_autoload = ofw_autoload;
+#endif
+
 	/* Set up currdev variable to have hooks in place. */
 	env_setenv("currdev", EV_VOLATILE, "", ofw_setcurrdev, env_nounset);
 
@@ -182,17 +193,6 @@ main(int (*openfirm)(void *))
 	 */
 	if (!(mfmsr() & PSL_DR))
 		setenv("usefdt", "1", 1);
-
-	archsw.arch_getdev = ofw_getdev;
-	archsw.arch_copyin = ofw_copyin;
-	archsw.arch_copyout = ofw_copyout;
-	archsw.arch_readin = ofw_readin;
-#ifdef CAS
-	setenv("cas", "1", 0);
-	archsw.arch_autoload = ppc64_autoload;
-#else
-	archsw.arch_autoload = ofw_autoload;
-#endif
 
 	interact();				/* doesn't return */
 
