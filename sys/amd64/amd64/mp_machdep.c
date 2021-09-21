@@ -618,7 +618,7 @@ static void
 smp_targeted_tlb_shootdown(cpuset_t mask, pmap_t pmap, vm_offset_t addr1,
     vm_offset_t addr2, smp_invl_cb_t curcpu_cb, enum invl_op_codes op)
 {
-	cpuset_t other_cpus, mask1;
+	cpuset_t other_cpus;
 	uint32_t generation, *p_cpudone;
 	int cpu;
 	bool is_all;
@@ -662,10 +662,7 @@ smp_targeted_tlb_shootdown(cpuset_t mask, pmap_t pmap, vm_offset_t addr1,
 	/* Fence between filling smp_tlb fields and clearing scoreboard. */
 	atomic_thread_fence_rel();
 
-	mask1 = mask;
-	while ((cpu = CPU_FFS(&mask1)) != 0) {
-		cpu--;
-		CPU_CLR(cpu, &mask1);
+	CPU_FOREACH_ISSET(cpu, &mask) {
 		KASSERT(*invl_scoreboard_slot(cpu) != 0,
 		    ("IPI scoreboard is zero, initiator %d target %d",
 		    PCPU_GET(cpuid), cpu));
@@ -686,9 +683,7 @@ smp_targeted_tlb_shootdown(cpuset_t mask, pmap_t pmap, vm_offset_t addr1,
 		ipi_selected(mask, IPI_INVLOP);
 	}
 	curcpu_cb(pmap, addr1, addr2);
-	while ((cpu = CPU_FFS(&other_cpus)) != 0) {
-		cpu--;
-		CPU_CLR(cpu, &other_cpus);
+	CPU_FOREACH_ISSET(cpu, &other_cpus) {
 		p_cpudone = invl_scoreboard_slot(cpu);
 		while (atomic_load_int(p_cpudone) != generation)
 			ia32_pause();
