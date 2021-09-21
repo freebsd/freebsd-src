@@ -598,9 +598,7 @@ smp_targeted_tlb_shootdown(cpuset_t mask, u_int vector, pmap_t pmap,
 		ipi_selected(mask, vector);
 	}
 	curcpu_cb(pmap, addr1, addr2);
-	while ((cpu = CPU_FFS(&other_cpus)) != 0) {
-		cpu--;
-		CPU_CLR(cpu, &other_cpus);
+	CPU_FOREACH_ISSET(cpu, &other_cpus) {
 		p_cpudone = &cpuid_to_pcpu[cpu]->pc_smp_tlb_done;
 		while (*p_cpudone != generation)
 			ia32_pause();
