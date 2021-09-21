@@ -860,10 +860,7 @@ vlapic_calcdest(struct vm *vm, cpuset_t *dmask, uint32_t dest, bool phys,
 		 */
 		CPU_ZERO(dmask);
 		amask = vm_active_cpus(vm);
-		while ((vcpuid = CPU_FFS(&amask)) != 0) {
-			vcpuid--;
-			CPU_CLR(vcpuid, &amask);
-
+		CPU_FOREACH_ISSET(vcpuid, &amask) {
 			vlapic = vm_lapic(vm, vcpuid);
 			dfr = vlapic->apic_page->dfr;
 			ldr = vlapic->apic_page->ldr;
@@ -1003,9 +1000,7 @@ vlapic_icrlo_write_handler(struct vlapic *vlapic, bool *retu)
 			break;
 		}
 
-		while ((i = CPU_FFS(&dmask)) != 0) {
-			i--;
-			CPU_CLR(i, &dmask);
+		CPU_FOREACH_ISSET(i, &dmask) {
 			if (mode == APIC_DELMODE_FIXED) {
 				lapic_intr_edge(vlapic->vm, i, vec);
 				vmm_stat_array_incr(vlapic->vm, vlapic->vcpuid,
@@ -1554,9 +1549,7 @@ vlapic_deliver_intr(struct vm *vm, bool level, uint32_t dest, bool phys,
 	 */
 	vlapic_calcdest(vm, &dmask, dest, phys, lowprio, false);
 
-	while ((vcpuid = CPU_FFS(&dmask)) != 0) {
-		vcpuid--;
-		CPU_CLR(vcpuid, &dmask);
+	CPU_FOREACH_ISSET(vcpuid, &dmask) {
 		if (delmode == IOART_DELEXINT) {
 			vm_inject_extint(vm, vcpuid);
 		} else {
