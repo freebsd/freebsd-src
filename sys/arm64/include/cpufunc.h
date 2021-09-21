@@ -246,6 +246,7 @@ int arm64_icache_sync_range_checked(vm_offset_t, vm_size_t);
 void arm64_dcache_wbinv_range(vm_offset_t, vm_size_t);
 void arm64_dcache_inv_range(vm_offset_t, vm_size_t);
 void arm64_dcache_wb_range(vm_offset_t, vm_size_t);
+bool arm64_get_writable_addr(vm_offset_t, vm_offset_t *);
 
 #endif	/* _KERNEL */
 #endif	/* _MACHINE_CPUFUNC_H_ */

@@ -942,6 +942,42 @@ init_proc0(vm_offset_t kstack)
 	serror_enable();
 }
 
+/*
+ * Get an address to be used to write to kernel data that may be mapped
+ * read-only, e.g. to patch kernel code.
+ */
+bool
+arm64_get_writable_addr(vm_offset_t addr, vm_offset_t *out)
+{
+	vm_paddr_t pa;
+
+	/* Check if the page is writable */
+	if (PAR_SUCCESS(arm64_address_translate_s1e1w(addr))) {
+		*out = addr;
+		return (true);
+	}
+
+	/*
+	 * Find the physical address of the given page.
+	 */
+	if (!pmap_klookup(addr, &pa)) {
+		return (false);
+	}
+
+	/*
+	 * If it is within the DMAP region and is writable use that.
+	 */
+	if (PHYS_IN_DMAP(pa)) {
+		addr = PHYS_TO_DMAP(pa);
+		if (PAR_SUCCESS(arm64_address_translate_s1e1w(addr))) {
+			*out = addr;
+			return (true);
+		}
+	}
+
+	return (false);
+}
+
 typedef struct {
 	uint32_t type;
 	uint64_t phys_start;
