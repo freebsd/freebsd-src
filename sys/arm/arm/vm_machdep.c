@@ -235,6 +235,8 @@ cpu_set_upcall(struct thread *td, void (*entry)(void *), void *arg,
 	tf->tf_pc = (int)entry;
 	tf->tf_r0 = (int)arg;
 	tf->tf_spsr = PSR_USR32_MODE;
+	if ((register_t)entry & 1)
+		tf->tf_spsr |= PSR_T;
 }
 
 int
