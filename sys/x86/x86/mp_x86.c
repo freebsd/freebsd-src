@@ -1346,9 +1346,7 @@ ipi_selected(cpuset_t cpus, u_int ipi)
 	if (ipi == IPI_STOP_HARD)
 		CPU_OR_ATOMIC(&ipi_stop_nmi_pending, &cpus);
 
-	while ((cpu = CPU_FFS(&cpus)) != 0) {
-		cpu--;
-		CPU_CLR(cpu, &cpus);
+	CPU_FOREACH_ISSET(cpu, &cpus) {
 		CTR3(KTR_SMP, "%s: cpu: %d ipi: %x", __func__, cpu, ipi);
 		ipi_send_cpu(cpu, ipi);
 	}
