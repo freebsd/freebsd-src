@@ -99,6 +99,8 @@ ia32_get_fpcontext(struct thread *td, struct ia32_mcontext *mcp,
 	bcopy(get_pcb_user_save_td(td), &mcp->mc_fpstate[0],
 	    sizeof(mcp->mc_fpstate));
 	mcp->mc_fpformat = fpuformat();
+	if (xfpusave == NULL)
+		return;
 	if (!use_xsave || cpu_max_ext_state_size <= sizeof(struct savefpu)) {
 		*xfpusave_len = 0;
 		*xfpusave = NULL;
