@@ -623,6 +623,8 @@ MLINKS+=bitset.9 BITSET_DEFINE.9 \
 	bitset.9 BIT_FFS.9 \
 	bitset.9 BIT_FFS_AT.9 \
 	bitset.9 BIT_FLS.9 \
+	bitset.9 BIT_FOREACH_ISSET.9 \
+	bitset.9 BIT_FOREACH_ISCLR.9 \
 	bitset.9 BIT_COUNT.9 \
 	bitset.9 BIT_SUBSET.9 \
 	bitset.9 BIT_OVERLAP.9 \
