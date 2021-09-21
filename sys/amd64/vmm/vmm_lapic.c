@@ -87,7 +87,9 @@ lapic_set_local_intr(struct vm *vm, int cpu, int vector)
 	else
 		CPU_SETOF(cpu, &dmask);
 	error = 0;
-	CPU_FOREACH_ISSET(cpu, &dmask) {
+	while ((cpu = CPU_FFS(&dmask)) != 0) {
+		cpu--;
+		CPU_CLR(cpu, &dmask);
 		vlapic = vm_lapic(vm, cpu);
 		error = vlapic_trigger_lvt(vlapic, vector);
 		if (error)
