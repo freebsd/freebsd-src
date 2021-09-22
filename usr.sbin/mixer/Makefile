@@ -2,10 +2,9 @@
 
 .include <src.opts.mk>
 
-PROG=	mixer
-MAN=	mixer.8
-
-HAS_TESTS=
-SUBDIR.${MK_TESTS}+= tests
+PROG=		mixer
+SRCS=		${PROG}.c
+MAN=		${PROG}.8
+LDFLAGS+=	-lmixer
 
 .include <bsd.prog.mk>

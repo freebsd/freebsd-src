@@ -1,341 +1,484 @@
-/*
- *	This is an example of a mixer program for Linux
+/*-
+ * Copyright (c) 2021 Christos Margiolis <christos@FreeBSD.org>
  *
- *	updated 1/1/93 to add stereo, level query, broken
- *      	devmask kludge - cmetz@thor.tjhsst.edu
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * (C) Craig Metz and Hannu Savolainen 1993.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
- * You may do anything you wish with this program.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
  *
- * ditto for my modifications (John-Mark Gurney, 1997)
+ * $FreeBSD$
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <err.h>
-#include <fcntl.h>
-#include <libgen.h>
-#include <limits.h>
+#include <errno.h>
 #include <stdio.h>
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
-#include <sys/soundcard.h>
 
-static const char *names[SOUND_MIXER_NRDEVICES] = SOUND_DEVICE_NAMES;
+#include <mixer.h>
 
-static void	usage(int devmask, int recmask) __dead2;
-static int	res_name(const char *name, int mask);
-static void	print_recsrc(int recsrc, int recmask, int sflag);
+static void usage(void) __dead2;
+static void initctls(struct mixer *);
+static void printall(struct mixer *, int);
+static void printminfo(struct mixer *, int);
+static void printdev(struct mixer *, int);
+static void printrecsrc(struct mixer *, int); /* XXX: change name */
+/* Control handlers */
+static int mod_dunit(struct mix_dev *, void *);
+static int mod_volume(struct mix_dev *, void *);
+static int mod_mute(struct mix_dev *, void *);
+static int mod_recsrc(struct mix_dev *, void *);
+static int print_volume(struct mix_dev *, void *);
+static int print_mute(struct mix_dev *, void *);
+static int print_recsrc(struct mix_dev *, void *);
 
-static void __dead2
-usage(int devmask, int recmask)
-{
-	int	i, n;
-
-	printf("usage: mixer [-f device] [-s | -S] [dev [+|-][voll[:[+|-]volr]] ...\n"
-	    "       mixer [-f device] [-s | -S] recsrc ...\n"
-	    "       mixer [-f device] [-s | -S] {^|+|-|=}rec rdev ...\n");
-	if (devmask != 0) {
-		printf(" devices: ");
-		for (i = 0, n = 0; i < SOUND_MIXER_NRDEVICES; i++)
-			if ((1 << i) & devmask)  {
-				if (n)
-					printf(", ");
-				printf("%s", names[i]);
-				n++;
-			}
-	}
-	if (recmask != 0) {
-		printf("\n rec devices: ");
-		for (i = 0, n = 0; i < SOUND_MIXER_NRDEVICES; i++)
-			if ((1 << i) & recmask)  {
-				if (n)
-					printf(", ");
-				printf("%s", names[i]);
-				n++;
-			}
-	}
-	printf("\n");
-	exit(1);
-}
-
-static int
-res_name(const char *name, int mask)
-{
-	int	foo;
-
-	for (foo = 0; foo < SOUND_MIXER_NRDEVICES; foo++)
-		if ((1 << foo) & mask && strcmp(names[foo], name) == 0)
-			break;
-
-	return (foo == SOUND_MIXER_NRDEVICES ? -1 : foo);
-}
-
-static void
-print_recsrc(int recsrc, int recmask, int sflag)
-{
-	int	i, n;
-
-	if (recmask == 0)
-		return;
-
-	if (!sflag)
-		printf("Recording source: ");
-
-	for (i = 0, n = 0; i < SOUND_MIXER_NRDEVICES; i++)
-		if ((1 << i) & recsrc) {
-			if (sflag)
-				printf("%srec ", n ? " +" : "=");
-			else if (n)
-				printf(", ");
-			printf("%s", names[i]);
-			n++;
-		}
-	if (!sflag)
-		printf("\n");
-}
+static const mix_ctl_t ctl_dunit = {
+	.parent_dev	= NULL,
+	.id		= -1,
+	.name		= "default_unit",
+	.mod		= mod_dunit,
+	.print		= NULL
+};
 
 int
 main(int argc, char *argv[])
 {
-	char	mixer[PATH_MAX] = "/dev/mixer";
-	char	lstr[8], rstr[8];
-	char	*name, *eptr;
-	int	devmask = 0, recmask = 0, recsrc = 0, orecsrc;
-	int	dusage = 0, drecsrc = 0, sflag = 0, Sflag = 0;
-	int	l, r, lrel, rrel;
-	int	ch, foo, bar, baz, dev, m, n, t;
+	struct mixer *m;
+	mix_ctl_t *cp;
+	char *name = NULL, buf[NAME_MAX];
+	char *p, *bufp, *devstr, *ctlstr, *valstr = NULL;
+	int dunit, i, n, pall = 1;
+	int aflag = 0, dflag = 0, oflag = 0, sflag = 0;
+	char ch;
 
-	if ((name = strdup(basename(argv[0]))) == NULL)
-		err(1, "strdup()");
-	if (strncmp(name, "mixer", 5) == 0 && name[5] != '\0') {
-		n = strtol(name + 5, &eptr, 10) - 1;
-		if (n > 0 && *eptr == '\0')
-			snprintf(mixer, PATH_MAX - 1, "/dev/mixer%d", n);
-	}
-	free(name);
-	name = mixer;
-
-	n = 1;
-	for (;;) {
-		if (n >= argc || *argv[n] != '-')
+	while ((ch = getopt(argc, argv, "ad:f:os")) != -1) {
+		switch (ch) {
+		case 'a':
+			aflag = 1;
 			break;
-		if (strlen(argv[n]) != 2) {
-			if (strcmp(argv[n] + 1, "rec") != 0)
-				dusage = 1;
+		case 'd':
+			dunit = strtol(optarg, NULL, 10);
+			if (errno == EINVAL || errno == ERANGE)
+				err(1, "strtol");
+			dflag = 1;
 			break;
-		}
-		ch = *(argv[n] + 1);
-		if (ch == 'f' && n < argc - 1) {
-			name = argv[n + 1];
-			n += 2;
-		} else if (ch == 's') {
+		case 'f':
+			name = optarg;
+			break;
+		case 'o':
+			oflag = 1;
+			break;
+		case 's':
 			sflag = 1;
-			n++;
-		} else if (ch == 'S') {
-			Sflag = 1;
-			n++;
-		} else {
-			dusage = 1;
 			break;
+		case '?':
+		default:
+			usage();
 		}
 	}
-	if (sflag && Sflag)
-		dusage = 1;
+	argc -= optind;
+	argv += optind;
 
-	argc -= n - 1;
-	argv += n - 1;
-
-	if ((baz = open(name, O_RDWR)) < 0)
-		err(1, "%s", name);
-	if (ioctl(baz, SOUND_MIXER_READ_DEVMASK, &devmask) == -1)
-		err(1, "SOUND_MIXER_READ_DEVMASK");
-	if (ioctl(baz, SOUND_MIXER_READ_RECMASK, &recmask) == -1)
-		err(1, "SOUND_MIXER_READ_RECMASK");
-	if (ioctl(baz, SOUND_MIXER_READ_RECSRC, &recsrc) == -1)
-		err(1, "SOUND_MIXER_READ_RECSRC");
-	orecsrc = recsrc;
-
-	if (argc == 1 && dusage == 0) {
-		for (foo = 0, n = 0; foo < SOUND_MIXER_NRDEVICES; foo++) {
-			if (!((1 << foo) & devmask))
-				continue;
-			if (ioctl(baz, MIXER_READ(foo),&bar) == -1) {
-			   	warn("MIXER_READ");
-				continue;
+	/* Print all mixers and exit. */
+	if (aflag) {
+		if ((n = mixer_get_nmixers()) < 0)
+			err(1, "mixer_get_nmixers");
+		for (i = 0; i < n; i++) {
+			(void)snprintf(buf, sizeof(buf), "/dev/mixer%d", i);
+			if ((m = mixer_open(buf)) == NULL)
+				err(1, "mixer_open: %s", buf);
+			initctls(m);
+			if (sflag)
+				printrecsrc(m, oflag);
+			else {
+				printall(m, oflag);
+				if (oflag)
+					printf("\n");
 			}
-			if (Sflag || sflag) {
-				printf("%s%s%c%d:%d", n ? " " : "",
-				    names[foo], Sflag ? ':' : ' ',
-				    bar & 0x7f, (bar >> 8) & 0x7f);
-				n++;
-			} else
-				printf("Mixer %-8s is currently set to "
-				    "%3d:%d\n", names[foo], bar & 0x7f,
-				    (bar >> 8) & 0x7f);
+			(void)mixer_close(m);
 		}
-		if (n && recmask)
-			printf(" ");
-		print_recsrc(recsrc, recmask, Sflag || sflag);
 		return (0);
 	}
 
-	argc--;
-	argv++;
+	if ((m = mixer_open(name)) == NULL)
+		err(1, "mixer_open: %s", name);
 
-	n = 0;
-	while (argc > 0 && dusage == 0) {
-		if (strcmp("recsrc", *argv) == 0) {
-			drecsrc = 1;
-			argc--;
-			argv++;
-			continue;
-		} else if (strcmp("rec", *argv + 1) == 0) {
-			if (**argv != '+' && **argv != '-' &&
-			    **argv != '=' && **argv != '^') {
-				warnx("unknown modifier: %c", **argv);
-				dusage = 1;
-				break;
-			}
-			if (argc <= 1) {
-				warnx("no recording device specified");
-				dusage = 1;
-				break;
-			}
-			if ((dev = res_name(argv[1], recmask)) == -1) {
-				warnx("unknown recording device: %s", argv[1]);
-				dusage = 1;
-				break;
-			}
-			switch (**argv) {
-			case '+':
-				recsrc |= (1 << dev);
-				break;
-			case '-':
-				recsrc &= ~(1 << dev);
-				break;
-			case '=':
-				recsrc = (1 << dev);
-				break;
-			case '^':
-				recsrc ^= (1 << dev);
-				break;
-			}
-			drecsrc = 1;
-			argc -= 2;
-			argv += 2;
-			continue;
-		}
+	initctls(m);
 
-		if ((t = sscanf(*argv, "%d:%d", &l, &r)) > 0)
-			dev = 0;
-		else if ((dev = res_name(*argv, devmask)) == -1) {
-			warnx("unknown device: %s", *argv);
-			dusage = 1;
-			break;
-		}
-
-		lrel = rrel = 0;
-		if (argc > 1) {
-			m = sscanf(argv[1], "%7[^:]:%7s", lstr, rstr);
-			if (m == EOF) {
-				warnx("invalid value: %s", argv[1]);
-				dusage = 1;
-				break;
-			}
-			if (m > 0) {
-				if (*lstr == '+' || *lstr == '-')
-					lrel = rrel = 1;
-				l = strtol(lstr, NULL, 10);
-			}
-			if (m > 1) {
-				if (*rstr == '+' || *rstr == '-')
-					rrel = 1;
-				r = strtol(rstr, NULL, 10);
-			}
-		}
-
-		switch (argc > 1 ? m : t) {
-		case 0:
-			if (ioctl(baz, MIXER_READ(dev), &bar) == -1) {
-				warn("MIXER_READ");
-				argc--;
-				argv++;
-				continue;
-			}
-			if (Sflag || sflag) {
-				printf("%s%s%c%d:%d", n ? " " : "",
-				    names[dev], Sflag ? ':' : ' ',
-				    bar & 0x7f, (bar >> 8) & 0x7f);
-				n++;
-			} else
-				printf("Mixer %-8s is currently set to "
-				    "%3d:%d\n", names[dev], bar & 0x7f,
-				    (bar >> 8) & 0x7f);
-
-			argc--;
-			argv++;
-			break;
-		case 1:
-			r = l;
-			/* FALLTHROUGH */
-		case 2:
-			if (ioctl(baz, MIXER_READ(dev), &bar) == -1) {
-				warn("MIXER_READ");
-				argc--;
-				argv++;
-				continue;
-			}
-
-			if (lrel)
-				l = (bar & 0x7f) + l;
-			if (rrel)
-				r = ((bar >> 8) & 0x7f) + r;
-
-			if (l < 0)
-				l = 0;
-			else if (l > 100)
-				l = 100;
-			if (r < 0)
-				r = 0;
-			else if (r > 100)
-				r = 100;
-
-			if (!Sflag)
-				printf("Setting the mixer %s from %d:%d to "
-				    "%d:%d.\n", names[dev], bar & 0x7f,
-				    (bar >> 8) & 0x7f, l, r);
-
-			l |= r << 8;
-			if (ioctl(baz, MIXER_WRITE(dev), &l) == -1)
-				warn("WRITE_MIXER");
-
-			argc -= 2;
-			argv += 2;
- 			break;
-		}
+	if (dflag && ctl_dunit.mod(m->dev, &dunit) < 0)
+		goto parse;
+	if (sflag) {
+		printrecsrc(m, oflag);
+		(void)mixer_close(m);
+		return (0);
 	}
 
-	if (dusage) {
-		close(baz);
-		usage(devmask, recmask);
-		/* NOTREACHED */
+parse:
+	while (argc > 0) {
+		if ((p = bufp = strdup(*argv)) == NULL)
+			err(1, "strdup(%s)", *argv);
+		/* Split the string into device, control and value. */
+		devstr = strsep(&p, ".");
+		if ((m->dev = mixer_get_dev_byname(m, devstr)) == NULL) {
+			warnx("%s: no such device", devstr);
+			goto next;
+		}
+		/* Input: `dev`. */
+		if (p == NULL) {
+			printdev(m, 1);
+			pall = 0;
+			goto next;
+		}
+		ctlstr = strsep(&p, "=");
+		if ((cp = mixer_get_ctl_byname(m->dev, ctlstr)) == NULL) {
+			warnx("%s.%s: no such control", devstr, ctlstr);
+			goto next;
+		}
+
+		/* Input: `dev.control`. */
+		if (p == NULL) {
+			(void)cp->print(cp->parent_dev, cp->name);
+			pall = 0;
+			goto next;
+		}
+		valstr = p;
+		/* Input: `dev.control=val`. */
+		cp->mod(cp->parent_dev, valstr);
+next:
+		free(p);
+		argc--;
+		argv++;
 	}
 
-	if (orecsrc != recsrc) {
-		if (ioctl(baz, SOUND_MIXER_WRITE_RECSRC, &recsrc) == -1)
-			err(1, "SOUND_MIXER_WRITE_RECSRC");
-		if (ioctl(baz, SOUND_MIXER_READ_RECSRC, &recsrc) == -1)
-			err(1, "SOUND_MIXER_READ_RECSRC");
+	if (pall)
+		printall(m, oflag);
+	(void)mixer_close(m);
+
+	return (0);
+}
+
+static void __dead2
+usage(void)
+{
+	printf("usage: %1$s [-f device] [-d unit] [-os] [dev[.control[=value]]] ...\n"
+	    "       %1$s [-d unit] [-os] -a\n",
+	    getprogname());
+	exit(1);
+}
+
+static void
+initctls(struct mixer *m)
+{
+	struct mix_dev *dp;
+	int rc = 0;
+
+#define C_VOL 0
+#define C_MUT 1
+#define C_SRC 2
+	TAILQ_FOREACH(dp, &m->devs, devs) {
+		rc += mixer_add_ctl(dp, C_VOL, "volume", mod_volume, print_volume);
+		rc += mixer_add_ctl(dp, C_MUT, "mute", mod_mute, print_mute);
+		rc += mixer_add_ctl(dp, C_SRC, "recsrc", mod_recsrc, print_recsrc);
+	}
+	if (rc) {
+		(void)mixer_close(m);
+		err(1, "cannot make controls");
+	}
+}
+
+static void
+printall(struct mixer *m, int oflag)
+{
+	struct mix_dev *dp;
+
+	printminfo(m, oflag);
+	TAILQ_FOREACH(dp, &m->devs, devs) {
+		m->dev = dp;
+		printdev(m, oflag);
+	}
+}
+
+static void
+printminfo(struct mixer *m, int oflag)
+{
+	int playrec = MIX_MODE_PLAY | MIX_MODE_REC;
+
+	if (oflag)
+		return;
+	printf("%s: <%s> %s", m->mi.name, m->ci.longname, m->ci.hw_info);
+	printf(" (");
+	if (m->mode & MIX_MODE_PLAY)
+		printf("play");
+	if ((m->mode & playrec) == playrec)
+		printf("/");
+	if (m->mode & MIX_MODE_REC)
+		printf("rec");
+	printf(")");
+	if (m->f_default)
+		printf(" (default)");
+	printf("\n");
+}
+
+static void
+printdev(struct mixer *m, int oflag)
+{
+	struct mix_dev *d = m->dev;
+	mix_ctl_t *cp;
+
+	if (!oflag) {
+		char buffer[32];
+		(void)snprintf(buffer, sizeof(buffer),
+		    "%s.%s", d->name, "volume");
+
+		printf("    %-16s= %.2f:%.2f\t",
+		    buffer, d->vol.left, d->vol.right);
+		if (!MIX_ISREC(m, d->devno))
+			printf(" pbk");
+		if (MIX_ISREC(m, d->devno))
+			printf(" rec");
+		if (MIX_ISRECSRC(m, d->devno))
+			printf(" src");
+		if (MIX_ISMUTE(m, d->devno))
+			printf(" mute");
+		printf("\n");
+	} else {
+		TAILQ_FOREACH(cp, &d->ctls, ctls) {
+			(void)cp->print(cp->parent_dev, cp->name);
+		}
+	}
+}
+
+static void
+printrecsrc(struct mixer *m, int oflag)
+{
+	struct mix_dev *dp;
+	int n = 0;
+
+	if (!m->recmask)
+		return;
+	if (!oflag)
+		printf("%s: ", m->mi.name);
+	TAILQ_FOREACH(dp, &m->devs, devs) {
+		if (MIX_ISRECSRC(m, dp->devno)) {
+			if (n++ && !oflag)
+				printf(", ");
+			printf("%s", dp->name);
+			if (oflag)
+				printf(".%s=+%s",
+				    mixer_get_ctl(dp, C_SRC)->name,
+				    n ? " " : "");
+		}
+	}
+	printf("\n");
+}
+
+static int
+mod_dunit(struct mix_dev *d, void *p)
+{
+	int dunit = *((int *)p);
+	int n;
+
+	if ((n = mixer_get_dunit()) < 0) {
+		warn("cannot get default unit");
+		return (-1);
+	}
+	if (mixer_set_dunit(d->parent_mixer, dunit) < 0) {
+		warn("cannot set default unit to: %d", dunit);
+		return (-1);
+	}
+	printf("%s: %d -> %d\n", ctl_dunit.name, n, dunit);
+
+	return (0);
+}
+
+static int
+mod_volume(struct mix_dev *d, void *p)
+{
+	struct mixer *m;
+	mix_ctl_t *cp;
+	mix_volume_t v;
+	const char *val;
+	char lstr[8], rstr[8];
+	float lprev, rprev, lrel, rrel;
+	int n;
+
+	m = d->parent_mixer;
+	cp = mixer_get_ctl(m->dev, C_VOL);
+	val = p;
+	n = sscanf(val, "%7[^:]:%7s", lstr, rstr);
+	if (n == EOF) {
+		warnx("invalid volume value: %s", val);
+		return (-1);
+	}
+	lrel = rrel = 0;
+	if (n > 0) {
+		if (*lstr == '+' || *lstr == '-')
+			lrel = rrel = 1;
+		v.left = strtof(lstr, NULL);
+
+		/* be backwards compatible */
+		if (strstr(lstr, ".") == NULL)
+			v.left /= 100.0f;
+	}
+	if (n > 1) {
+		if (*rstr == '+' || *rstr == '-')
+			rrel = 1;
+		v.right = strtof(rstr, NULL);
+
+		/* be backwards compatible */
+		if (strstr(rstr, ".") == NULL)
+			v.right /= 100.0f;
+	}
+	switch (n) {
+	case 1:
+		v.right = v.left; /* FALLTHROUGH */
+	case 2:
+		if (lrel)
+			v.left += m->dev->vol.left;
+		if (rrel)
+			v.right += m->dev->vol.right;
+
+		if (v.left < MIX_VOLMIN)
+			v.left = MIX_VOLMIN;
+		else if (v.left > MIX_VOLMAX)
+			v.left = MIX_VOLMAX;
+		if (v.right < MIX_VOLMIN)
+			v.right = MIX_VOLMIN;
+		else if (v.right > MIX_VOLMAX)
+			v.right = MIX_VOLMAX;
+
+		lprev = m->dev->vol.left;
+		rprev = m->dev->vol.right;
+		if (mixer_set_vol(m, v) < 0)
+			warn("%s.%s=%.2f:%.2f",
+			    m->dev->name, cp->name, v.left, v.right);
+		else
+			printf("%s.%s: %.2f:%.2f -> %.2f:%.2f\n",
+			   m->dev->name, cp->name, lprev, rprev, v.left, v.right);
 	}
 
-	if (drecsrc)
-		print_recsrc(recsrc, recmask, Sflag || sflag);
+	return (0);
+}
 
-	close(baz);
+static int
+mod_mute(struct mix_dev *d, void *p)
+{
+	struct mixer *m;
+	mix_ctl_t *cp;
+	const char *val;
+	int n, opt = -1;
+
+	m = d->parent_mixer;
+	cp = mixer_get_ctl(m->dev, C_MUT);
+	val = p;
+	switch (*val) {
+	case '0':
+		opt = MIX_UNMUTE;
+		break;
+	case '1':
+		opt = MIX_MUTE;
+		break;
+	case '^':
+		opt = MIX_TOGGLEMUTE;
+		break;
+	default:
+		warnx("%c: no such modifier", *val);
+		return (-1);
+	}
+	n = MIX_ISMUTE(m, m->dev->devno);
+	if (mixer_set_mute(m, opt) < 0)
+		warn("%s.%s=%c", m->dev->name, cp->name, *val);
+	else
+		printf("%s.%s: %d -> %d\n",
+		    m->dev->name, cp->name, n, MIX_ISMUTE(m, m->dev->devno));
+
+	return (0);
+}
+
+static int
+mod_recsrc(struct mix_dev *d, void *p)
+{
+	struct mixer *m;
+	mix_ctl_t *cp;
+	const char *val;
+	int n, opt = -1;
+
+	m = d->parent_mixer;
+	cp = mixer_get_ctl(m->dev, C_SRC);
+	val = p;
+	switch (*val) {
+	case '+':
+		opt = MIX_ADDRECSRC;
+		break;
+	case '-':
+		opt = MIX_REMOVERECSRC;
+		break;
+	case '=':
+		opt = MIX_SETRECSRC;
+		break;
+	case '^':
+		opt = MIX_TOGGLERECSRC;
+		break;
+	default:
+		warnx("%c: no such modifier", *val);
+		return (-1);
+	}
+	n = MIX_ISRECSRC(m, m->dev->devno);
+	if (mixer_mod_recsrc(m, opt) < 0)
+		warn("%s.%s=%c", m->dev->name, cp->name, *val);
+	else
+		printf("%s.%s: %d -> %d\n",
+		    m->dev->name, cp->name, n, MIX_ISRECSRC(m, m->dev->devno));
+
+	return (0);
+}
+
+static int
+print_volume(struct mix_dev *d, void *p)
+{
+	struct mixer *m = d->parent_mixer;
+	const char *ctl_name = p;
+
+	printf("%s.%s=%.2f:%.2f\n",
+	    m->dev->name, ctl_name, m->dev->vol.left, m->dev->vol.right);
+
+	return (0);
+}
+
+static int
+print_mute(struct mix_dev *d, void *p)
+{
+	struct mixer *m = d->parent_mixer;
+	const char *ctl_name = p;
+
+	printf("%s.%s=%d\n", m->dev->name, ctl_name, MIX_ISMUTE(m, m->dev->devno));
+
+	return (0);
+}
+
+static int
+print_recsrc(struct mix_dev *d, void *p)
+{
+	struct mixer *m = d->parent_mixer;
+	const char *ctl_name = p;
+
+	if (!MIX_ISRECSRC(m, m->dev->devno))
+		return (-1);
+	printf("%s.%s=+\n", m->dev->name, ctl_name);
 
 	return (0);
 }
