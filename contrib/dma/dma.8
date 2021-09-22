@@ -89,8 +89,11 @@ Useful for debugging.
 .It Fl f Ar sender
 Set sender address (envelope-from) to
 .Ar sender .
-This overrides the value of the environment variable
-.Ev EMAIL .
+This overrides the value of the
+.Ev EMAIL
+environment variable, but is overridden by the
+.Sq MASQUERADE
+config file setting.
 .It Fl i
 Ignore dots alone on lines by themselves in incoming messages.
 This should be set if you are reading data from a file.
@@ -223,6 +226,11 @@ Uncomment if you want TLS/SSL secured transfer.
 Uncomment if you want to use STARTTLS.
 Only useful together with
 .Sq SECURETRANSFER .
+.It Ic FINGERPRINT Xo
+(string, default=empty)
+.Xc
+Pin the server certificate by specifying its SHA256 fingerprint.
+Only makes sense if you use a smarthost.
 .It Ic OPPORTUNISTIC_TLS Xo
 (boolean, default=commented)
 .Xc
@@ -283,7 +291,7 @@ as the hostname.
 Masquerade the envelope-from addresses with this address/hostname.
 Use this setting if mails are not accepted by destination mail servers
 because your sender domain is invalid.
-This setting is overridden by the
+This setting overrides the
 .Fl f
 flag and the
 .Ev EMAIL
@@ -309,6 +317,7 @@ will send all mails as
 .Ql Va username @percolator .
 .Sm on
 .It Ic NULLCLIENT Xo
+(boolean, default=commented)
 .Xc
 Bypass aliases and local delivery, and instead forward all mails to
 the defined
@@ -329,6 +338,8 @@ Used to set the sender address (envelope-from).
 Use a plain address, in the form of
 .Li user@example.com .
 This value will be overridden when the
+.Sq MASQUERADE
+config file setting or the
 .Fl f
 flag is used.
 .El
