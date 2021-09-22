@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 26, 2013
+.Dd September 23, 2021
 .Dt PMC.SOFT 3
 .Os
 .Sh NAME
@@ -63,6 +63,18 @@ Hard clock ticks.
 Stat clock ticks.
 .It Li CLOCK.PROF
 Profiling clock ticks.
+.It Li INTR.ALL
+Interrupt filter executed
+.It Li INTR.FILTER
+Interrupt filter returned FILTER_HANDLED.
+.It Li INTR.ITHREAD
+Interrupt filter returned FILTER_SCHEDULE_ITHREAD.
+.It Li INTR.SCHEDULE
+Ithread scheduled.
+.It Li INTR.STRAY
+Interrupt filter returned FILTER_STRAY.
+.It Li INTR.WAITING
+Ithread not scheduled, already active.
 .It Li LOCK.FAILED
 Lock acquisition failed.
 .It Li PAGE_FAULT.ALL
