@@ -96,7 +96,7 @@ linux_kmem_ctor(void *mem, int size, void *arg, int flags)
 	return (0);
 }
 
-static void
+void
 linux_kmem_cache_free_rcu_callback(struct rcu_head *head)
 {
 	struct linux_kmem_rcu *rcu =
@@ -145,8 +145,8 @@ linux_kmem_cache_create(const char *name, size_t size, size_t align,
 	return (c);
 }
 
-static inline void
-lkpi_kmem_cache_free_rcu(struct linux_kmem_cache *c, void *m)
+void
+linux_kmem_cache_free_rcu(struct linux_kmem_cache *c, void *m)
 {
 	struct linux_kmem_rcu *rcu = LINUX_KMEM_TO_RCU(c, m);
 
@@ -183,7 +183,7 @@ void
 lkpi_kmem_cache_free(struct linux_kmem_cache *c, void *m)
 {
 	if (unlikely(c->cache_flags & SLAB_TYPESAFE_BY_RCU))
-		lkpi_kmem_cache_free_rcu(c, m);
+		linux_kmem_cache_free_rcu(c, m);
 	else if (unlikely(curthread->td_critnest != 0))
 		lkpi_kmem_cache_free_async(c, m);
 	else

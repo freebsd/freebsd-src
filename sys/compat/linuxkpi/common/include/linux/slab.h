@@ -210,5 +210,7 @@ extern void *lkpi_kmem_cache_zalloc(struct linux_kmem_cache *, gfp_t);
 extern void lkpi_kmem_cache_free(struct linux_kmem_cache *, void *);
 extern void linux_kmem_cache_destroy(struct linux_kmem_cache *);
 void linux_kfree_async(void *);
+void linux_kmem_cache_free_rcu_callback(struct rcu_head *head);
+void linux_kmem_cache_free_rcu(struct linux_kmem_cache *, void *);
 
 #endif					/* _LINUX_SLAB_H_ */

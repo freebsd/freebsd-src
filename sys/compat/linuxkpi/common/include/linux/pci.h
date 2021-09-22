@@ -237,7 +237,6 @@ struct pci_dev {
 	struct list_head	links;
 	struct pci_driver	*pdrv;
 	struct pci_bus		*bus;
-	struct pci_dev		*root;
 	uint16_t		device;
 	uint16_t		vendor;
 	uint16_t		subsystem_vendor;
@@ -246,15 +245,20 @@ struct pci_dev {
 	unsigned int		devfn;
 	uint32_t		class;
 	uint8_t			revision;
-	bool			managed;	/* devres "pcim_*(). */
-	bool			want_iomap_res;
 	bool			msi_enabled;
-	bool			msix_enabled;
-	phys_addr_t		rom;
-	size_t			romlen;
 
 	TAILQ_HEAD(, pci_mmio_region)	mmio;
+
+	/* Add all new items at the end of the list in 13 */
+	struct pci_dev		*root;
+	phys_addr_t		rom;
+	size_t			romlen;
+	bool			managed;	/* devres "pcim_*(). */
+	bool			want_iomap_res;
+	bool			msix_enabled;
 };
+
+/* XXX add kassert here on the mmio offset */
 
 /* We need some meta-struct to keep track of these for devres. */
 struct pci_devres {
