@@ -2118,7 +2118,10 @@ sched_switch(struct thread *td, int flags)
 	struct td_sched *ts;
 	struct mtx *mtx;
 	int srqflag;
-	int cpuid, pickcpu, preempted;
+	int cpuid, preempted;
+#ifdef SMP
+	int pickcpu;
+#endif
 
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 
@@ -2126,11 +2129,13 @@ sched_switch(struct thread *td, int flags)
 	tdq = TDQ_SELF();
 	ts = td_get_sched(td);
 	sched_pctcpu_update(ts, 1);
+#ifdef SMP
 	pickcpu = (td->td_flags & TDF_PICKCPU) != 0;
 	if (pickcpu)
 		ts->ts_rltick = ticks - affinity * MAX_CACHE_LEVELS;
 	else
 		ts->ts_rltick = ticks;
+#endif
 	td->td_lastcpu = td->td_oncpu;
 	preempted = (td->td_flags & TDF_SLICEEND) == 0 &&
 	    (flags & SW_PREEMPT) != 0;
