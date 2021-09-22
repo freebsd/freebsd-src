@@ -1,4 +1,4 @@
-/*	$NetBSD: vi.c,v 1.63 2019/07/23 10:18:52 christos Exp $	*/
+/*	$NetBSD: vi.c,v 1.64 2021/08/28 17:17:47 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -37,7 +37,7 @@
 #if 0
 static char sccsid[] = "@(#)vi.c	8.1 (Berkeley) 6/4/93";
 #else
-__RCSID("$NetBSD: vi.c,v 1.63 2019/07/23 10:18:52 christos Exp $");
+__RCSID("$NetBSD: vi.c,v 1.64 2021/08/28 17:17:47 christos Exp $");
 #endif
 #endif /* not lint && not SCCSID */
 
@@ -1008,12 +1008,15 @@ vi_histedit(EditLine *el, wint_t c __attribute__((__unused__)))
 	char *cp = NULL;
 	size_t len;
 	wchar_t *line = NULL;
+	const char *editor;
 
 	if (el->el_state.doingarg) {
 		if (vi_to_history_line(el, 0) == CC_ERROR)
 			return CC_ERROR;
 	}
 
+	if ((editor = getenv("EDITOR")) == NULL)
+		editor = "vi";
 	fd = mkstemp(tempfile);
 	if (fd < 0)
 		return CC_ERROR;
@@ -1038,7 +1041,7 @@ vi_histedit(EditLine *el, wint_t c __attribute__((__unused__)))
 		goto error;
 	case 0:
 		close(fd);
-		execlp("vi", "vi", tempfile, (char *)NULL);
+		execlp(editor, editor, tempfile, (char *)NULL);
 		exit(0);
 		/*NOTREACHED*/
 	default:
