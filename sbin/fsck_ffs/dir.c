@@ -132,7 +132,6 @@ dirscan(struct inodesc *idesc)
 			    (size_t)dsize);
 			dirty(bp);
 			sbdirty();
-			rerun = 1;
 		}
 		if (n & STOP)
 			return (n);
