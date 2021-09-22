@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <dirent.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
 #include <paths.h>
@@ -70,6 +71,7 @@ __FBSDID("$FreeBSD$");
 History *hist;	/* history cookie */
 EditLine *el;	/* editline cookie */
 int displayhist;
+static int savehist;
 static FILE *el_in, *el_out;
 
 static char *fc_replace(const char *, char *, char *);
@@ -103,7 +105,7 @@ histsave(void)
 	int fd;
 	FILE *f;
 
-	if ((histfile = get_histfile()) == NULL)
+	if (!savehist || (histfile = get_histfile()) == NULL)
 		return;
 	INTOFF;
 	asprintf(&histtmpname, "%s.XXXXXXXXXX", histfile);
@@ -134,7 +136,9 @@ histload(void)
 
 	if ((histfile = get_histfile()) == NULL)
 		return;
-	history(hist, &he, H_LOAD, histfile);
+	errno = 0;
+	if (history(hist, &he, H_LOAD, histfile) != -1 || errno == ENOENT)
+		savehist = 1;
 }
 
 /*
