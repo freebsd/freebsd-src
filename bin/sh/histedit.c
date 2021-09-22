@@ -596,7 +596,7 @@ static char
 	const char *dirname;
 	char **matches = NULL;
 	size_t i = 0, size = 16, uniq;
-	size_t curpos = end - start;
+	size_t curpos = end - start, lcstring = -1;
 
 	if (start > 0 || memchr("/.~", text[0], 3) != NULL)
 		return (NULL);
@@ -652,11 +652,20 @@ out:
 	if (i > 1) {
 		qsort_s(matches + 1, i, sizeof(matches[0]), comparator,
 			(void *)(intptr_t)curpos);
-		for (size_t k = 2; k <= i; k++)
-			if (strcmp(matches[uniq] + curpos, matches[k] + curpos) == 0)
+		for (size_t k = 2; k <= i; k++) {
+			const char *l = matches[uniq] + curpos;
+			const char *r = matches[k] + curpos;
+			size_t common = 0;
+
+			while (*l != '\0' && *r != '\0' && *l == *r)
+				(void)l++, r++, common++;
+			if (common < lcstring)
+				lcstring = common;
+			if (*l == *r)
 				free(matches[k]);
 			else
 				matches[++uniq] = matches[k];
+		}
 	}
 	matches[uniq + 1] = NULL;
 	/*
@@ -668,7 +677,12 @@ out:
 	 * string in matches[0] which is the reason to copy the full name of the
 	 * only match.
 	 */
-	matches[0] = strdup(uniq == 1 ? matches[1] : text);
+	if (uniq == 1)
+		matches[0] = strdup(matches[1]);
+	else if (lcstring != (size_t)-1)
+		matches[0] = strndup(matches[1], curpos + lcstring);
+	else
+		matches[0] = strdup(text);
 	if (matches[0] == NULL) {
 		for (size_t k = 1; k <= uniq; k++)
 			free(matches[k]);
