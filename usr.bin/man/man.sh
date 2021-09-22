@@ -243,6 +243,7 @@ is_newer() {
 manpath_parse_args() {
 	local cmd_arg
 
+	OPTIND=1
 	while getopts 'Ldq' cmd_arg; do
 		case "${cmd_arg}" in
 		L)	Lflag=Lflag ;;
@@ -426,6 +427,7 @@ man_display_page_groff() {
 
 	if [ -n "$MANROFFSEQ" ]; then
 		set -- -$MANROFFSEQ
+		OPTIND=1
 		while getopts 'egprtv' preproc_arg; do
 			case "${preproc_arg}" in
 			e)	pipeline="$pipeline | $EQN" ;;
@@ -545,6 +547,7 @@ man_find_and_display() {
 man_parse_args() {
 	local IFS cmd_arg
 
+	OPTIND=1
 	while getopts 'M:P:S:adfhkm:op:tw' cmd_arg; do
 		case "${cmd_arg}" in
 		M)	MANPATH=$OPTARG ;;
@@ -933,6 +936,7 @@ trim() {
 # Parse commandline args for whatis and apropos.
 whatis_parse_args() {
 	local cmd_arg
+	OPTIND=1
 	while getopts 'd' cmd_arg; do
 		case "${cmd_arg}" in
 		d)	debug=$(( $debug + 1 )) ;;
