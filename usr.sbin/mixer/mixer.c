@@ -63,7 +63,7 @@ main(int argc, char *argv[])
 	char *p, *bufp, *devstr, *ctlstr, *valstr = NULL;
 	int dunit, i, n, pall = 1;
 	int aflag = 0, dflag = 0, oflag = 0, sflag = 0;
-	char ch;
+	int ch;
 
 	while ((ch = getopt(argc, argv, "ad:f:os")) != -1) {
 		switch (ch) {
