@@ -7595,6 +7595,9 @@ OLD_FILES+=tests/sys/geom/class/eli/onetime_d_test.sh
 OLD_DIRS+=etc/skel
 # 20171208: Remove basename_r(3)
 OLD_FILES+=usr/share/man/man3/basename_r.3.gz
+# 20171206: Remove sponge(1)
+OLD_FILES+=usr/bin/sponge
+OLD_FILES+=usr/share/man/man1/sponge.1.gz
 # 20171204: Move fdformat man page from volume 1 to volume 8.
 OLD_FILES+=usr/share/man/man1/fdformat.1.gz
 # 20171203: libproc version bump
