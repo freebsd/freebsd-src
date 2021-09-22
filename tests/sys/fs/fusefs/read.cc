@@ -109,7 +109,7 @@ class ReadSigbus: public Read
 {
 public:
 static jmp_buf s_jmpbuf;
-static sig_atomic_t s_si_addr;
+static void *s_si_addr;
 
 void TearDown() {
 	struct sigaction sa;
@@ -125,12 +125,12 @@ void TearDown() {
 
 static void
 handle_sigbus(int signo __unused, siginfo_t *info, void *uap __unused) {
-	ReadSigbus::s_si_addr = (sig_atomic_t)info->si_addr;
+	ReadSigbus::s_si_addr = info->si_addr;
 	longjmp(ReadSigbus::s_jmpbuf, 1);
 }
 
 jmp_buf ReadSigbus::s_jmpbuf;
-sig_atomic_t ReadSigbus::s_si_addr;
+void *ReadSigbus::s_si_addr;
 
 /* AIO reads need to set the header's pid field correctly */
 /* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236379 */
@@ -658,7 +658,7 @@ TEST_F(ReadSigbus, mmap_eio)
 		FAIL() << "shouldn't get here";
 	}
 
-	ASSERT_EQ(p, (void*)ReadSigbus::s_si_addr);
+	ASSERT_EQ(p, ReadSigbus::s_si_addr);
 	ASSERT_EQ(0, munmap(p, len)) << strerror(errno);
 	leak(fd);
 }
@@ -785,7 +785,7 @@ TEST_F(ReadSigbus, mmap_getblksz_fail)
 		FAIL() << "shouldn't get here";
 	}
 
-	ASSERT_EQ(p, (void*)ReadSigbus::s_si_addr);
+	ASSERT_EQ(p, ReadSigbus::s_si_addr);
 	ASSERT_EQ(0, munmap(p, len)) << strerror(errno);
 	leak(fd);
 }
