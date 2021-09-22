@@ -3145,6 +3145,8 @@ device_set_unit(device_t dev, int unit)
 	devclass_t dc;
 	int err;
 
+	if (unit == dev->unit)
+		return (0);
 	dc = device_get_devclass(dev);
 	if (unit < dc->maxunit && dc->devices[unit])
 		return (EBUSY);
