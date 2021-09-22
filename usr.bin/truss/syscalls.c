@@ -792,14 +792,11 @@ print_mask_arg32(bool (*decoder)(FILE *, uint32_t, uint32_t *), FILE *fp,
  * decoding arguments.
  */
 static void
-quad_fixup(struct procabi *abi, struct syscall_decode *sc)
+quad_fixup(struct syscall_decode *sc)
 {
 	int offset, prev;
 	u_int i;
 
-#ifndef __aarch64__
-	(void)abi;
-#endif
 	offset = 0;
 	prev = -1;
 	for (i = 0; i < sc->nargs; i++) {
@@ -820,13 +817,10 @@ quad_fixup(struct procabi *abi, struct syscall_decode *sc)
 			 * not aligned, the calling convention inserts
 			 * a 32-bit pad argument that should be skipped.
 			 */
-#ifdef __aarch64__
-			if (abi->pointer_size == sizeof(uint32_t))
-#endif
-				if (sc->args[i].offset % 2 == 1) {
-					sc->args[i].offset++;
-					offset++;
-				}
+			if (sc->args[i].offset % 2 == 1) {
+				sc->args[i].offset++;
+				offset++;
+			}
 #endif
 			offset++;
 		default:
@@ -860,7 +854,7 @@ add_syscall(struct procabi *abi, u_int number, struct syscall *sc)
 	 *  procabi instead.
 	 */
 	if (abi->pointer_size == 4)
-		quad_fixup(abi, &sc->decode);
+		quad_fixup(&sc->decode);
 
 	if (number < nitems(abi->syscalls)) {
 		assert(abi->syscalls[number] == NULL);
