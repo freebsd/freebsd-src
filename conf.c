@@ -218,10 +218,26 @@ parse_conf(const char *config_path)
 			config.masquerade_user = user;
 		} else if (strcmp(word, "STARTTLS") == 0 && data == NULL)
 			config.features |= STARTTLS;
-		else if (strcmp(word, "OPPORTUNISTIC_TLS") == 0 && data == NULL)
+		else if (strcmp(word, "FINGERPRINT") == 0) {
+			if (strlen(data) != SHA256_DIGEST_LENGTH * 2) {
+				errlogx(EX_CONFIG, "invalid sha256 fingerprint length");
+			}
+			unsigned char *fingerprint = malloc(SHA256_DIGEST_LENGTH);
+			if (fingerprint == NULL) {
+				errlogx(EX_CONFIG, "fingerprint allocation failed");
+			}
+			unsigned int i;
+			for (i = 0; i < SHA256_DIGEST_LENGTH; i++) {
+				if(sscanf(data + 2 * i, "%02hhx", &fingerprint[i]) != 1) {
+					errlogx(EX_CONFIG, "failed to read fingerprint");
+				}
+			}
+			free(data);
+			config.fingerprint = fingerprint;
+		} else if (strcmp(word, "OPPORTUNISTIC_TLS") == 0 && data == NULL)
 			config.features |= TLS_OPP;
 		else if (strcmp(word, "SECURETRANSFER") == 0 && data == NULL)
-			config.features |= SECURETRANS;
+			config.features |= SECURETRANSFER;
 		else if (strcmp(word, "DEFER") == 0 && data == NULL)
 			config.features |= DEFER;
 		else if (strcmp(word, "INSECURE") == 0 && data == NULL)

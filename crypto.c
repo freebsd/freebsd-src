@@ -40,6 +40,8 @@
 #include <openssl/pem.h>
 #include <openssl/rand.h>
 
+#include <strings.h>
+#include <string.h>
 #include <syslog.h>
 
 #include "dma.h"
@@ -76,8 +78,31 @@ init_cert_file(SSL_CTX *ctx, const char *path)
 	return (0);
 }
 
+static int
+verify_server_fingerprint(const X509 *cert)
+{
+	unsigned char fingerprint[EVP_MAX_MD_SIZE] = {0};
+	unsigned int fingerprint_len = 0;
+	if(!X509_digest(cert, EVP_sha256(), fingerprint, &fingerprint_len)) {
+		syslog(LOG_WARNING, "failed to load fingerprint of server certicate: %s",
+			   ssl_errstr());
+		return (1);
+	}
+	if(fingerprint_len != SHA256_DIGEST_LENGTH) {
+		syslog(LOG_WARNING, "sha256 fingerprint has unexpected length of %d bytes",
+		       fingerprint_len);
+		return (1);
+	}
+	if(memcmp(fingerprint, config.fingerprint, SHA256_DIGEST_LENGTH) != 0) {
+		syslog(LOG_WARNING, "fingerprints do not match");
+		return (1);
+	}
+	syslog(LOG_DEBUG, "successfully verified server certificate fingerprint");
+	return (0);
+}
+
 int
-smtp_init_crypto(int fd, int feature)
+smtp_init_crypto(int fd, int feature, struct smtp_features* features)
 {
 	SSL_CTX *ctx = NULL;
 #if (OPENSSL_VERSION_NUMBER >= 0x00909000L)
@@ -93,7 +118,12 @@ smtp_init_crypto(int fd, int feature)
 	SSL_library_init();
 	SSL_load_error_strings();
 
-	meth = TLSv1_client_method();
+	// Allow any possible version
+#if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
+	meth = TLS_client_method();
+#else
+	meth = SSLv23_client_method();
+#endif
 
 	ctx = SSL_CTX_new(meth);
 	if (ctx == NULL) {
@@ -113,13 +143,12 @@ smtp_init_crypto(int fd, int feature)
 	/*
 	 * If the user wants STARTTLS, we have to send EHLO here
 	 */
-	if (((feature & SECURETRANS) != 0) &&
+	if (((feature & SECURETRANSFER) != 0) &&
 	     (feature & STARTTLS) != 0) {
 		/* TLS init phase, disable SSL_write */
 		config.features |= NOSSL;
 
-		send_remote_command(fd, "EHLO %s", hostname());
-		if (read_remote(fd, 0, NULL) == 2) {
+		if (perform_server_greeting(fd, features) == 0) {
 			send_remote_command(fd, "STARTTLS");
 			if (read_remote(fd, 0, NULL) != 2) {
 				if ((feature & TLS_OPP) == 0) {
@@ -130,7 +159,12 @@ smtp_init_crypto(int fd, int feature)
 					return (0);
 				}
 			}
+		} else {
+			syslog(LOG_ERR, "remote delivery deferred: could not perform server greeting: %s",
+				neterr);
+			return (1);
 		}
+
 		/* End of TLS init phase, enable SSL_write/read */
 		config.features &= ~NOSSL;
 	}
@@ -155,7 +189,7 @@ smtp_init_crypto(int fd, int feature)
 
 	/* Open SSL connection */
 	error = SSL_connect(config.ssl);
-	if (error < 0) {
+	if (error != 1) {
 		syslog(LOG_ERR, "remote delivery deferred: SSL handshake failed fatally: %s",
 		       ssl_errstr());
 		return (1);
@@ -166,6 +200,11 @@ smtp_init_crypto(int fd, int feature)
 	if (cert == NULL) {
 		syslog(LOG_WARNING, "remote delivery deferred: Peer did not provide certificate: %s",
 		       ssl_errstr());
+		return (1);
+	}
+	if(config.fingerprint != NULL && verify_server_fingerprint(cert)) {
+		X509_free(cert);
+		return (1);
 	}
 	X509_free(cert);
 
