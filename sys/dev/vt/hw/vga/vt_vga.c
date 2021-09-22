@@ -888,6 +888,9 @@ vga_bitblt_text_txtmode(struct vt_device *vd, const struct vt_window *vw,
 			    &fg, &bg);
 
 			z = row * PIXEL_WIDTH(VT_FB_MAX_WIDTH) + col;
+			if (z >= PIXEL_HEIGHT(VT_FB_MAX_HEIGHT) *
+			    PIXEL_WIDTH(VT_FB_MAX_WIDTH))
+				continue;
 			if (vd->vd_drawn && (vd->vd_drawn[z] == c) &&
 			    vd->vd_drawnfg && (vd->vd_drawnfg[z] == fg) &&
 			    vd->vd_drawnbg && (vd->vd_drawnbg[z] == bg))
@@ -941,6 +944,9 @@ vga_invalidate_text(struct vt_device *vd, const term_rect_t *area)
 		    col < area->tr_end.tp_col;
 		    ++col) {
 			z = row * PIXEL_WIDTH(VT_FB_MAX_WIDTH) + col;
+			if (z >= PIXEL_HEIGHT(VT_FB_MAX_HEIGHT) *
+			    PIXEL_WIDTH(VT_FB_MAX_WIDTH))
+				continue;
 			if (vd->vd_drawn)
 				vd->vd_drawn[z] = 0;
 			if (vd->vd_drawnfg)
