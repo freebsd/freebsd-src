@@ -17,7 +17,7 @@ CC?=		gcc
 CFLAGS?=	-O -pipe
 LDADD?=		-lssl -lcrypto -lresolv
 
-CFLAGS+=	-Wall -DDMA_VERSION='"${version}"' -DLIBEXEC_PATH='"${LIBEXEC}"' -DCONF_PATH='"${CONFDIR}"'
+CFLAGS+=	-Wall -Wno-format-truncation -DDMA_VERSION='"${version}"' -DLIBEXEC_PATH='"${LIBEXEC}"' -DCONF_PATH='"${CONFDIR}"'
 
 INSTALL?=	install -p
 CHGRP?=		chgrp
