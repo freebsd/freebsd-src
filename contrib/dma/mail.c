@@ -36,6 +36,7 @@
 #include <errno.h>
 #include <inttypes.h>
 #include <signal.h>
+#include <strings.h>
 #include <string.h>
 #include <syslog.h>
 #include <unistd.h>
@@ -73,7 +74,7 @@ bounce(struct qitem *it, const char *reason)
 	error = fprintf(bounceq.mailf,
 		"Received: from MAILER-DAEMON\n"
 		"\tid %s\n"
-		"\tby %s (%s);\n"
+		"\tby %s (%s on %s);\n"
 		"\t%s\n"
 		"X-Original-To: <%s>\n"
 		"From: MAILER-DAEMON <>\n"
@@ -91,7 +92,7 @@ bounce(struct qitem *it, const char *reason)
 		"%s\n"
 		"\n",
 		bounceq.id,
-		hostname(), VERSION,
+		hostname(), VERSION, systemhostname(),
 		rfc822date(),
 		it->addr,
 		it->sender,
@@ -191,8 +192,7 @@ again:
 		switch (*s) {
 		case ' ':
 		case '\t':
-			s++;
-			/* continue */
+			ps->state = MAIN;
 			break;
 
 		default:
@@ -201,6 +201,7 @@ again:
 				goto newaddr;
 			return (0);
 		}
+		break;
 
 	case QUIT:
 		return (0);
@@ -383,6 +384,8 @@ readmail(struct queue *queue, int nodot, int recp_from_header)
 	int had_from = 0;
 	int had_messagid = 0;
 	int had_date = 0;
+	int had_first_line = 0;
+	int had_last_line = 0;
 	int nocopy = 0;
 	int ret = -1;
 
@@ -392,12 +395,12 @@ readmail(struct queue *queue, int nodot, int recp_from_header)
 		"Received: from %s (uid %d)\n"
 		"\t(envelope-from %s)\n"
 		"\tid %s\n"
-		"\tby %s (%s);\n"
+		"\tby %s (%s on %s);\n"
 		"\t%s\n",
 		username, useruid,
 		queue->sender,
 		queue->id,
-		hostname(), VERSION,
+		hostname(), VERSION, systemhostname(),
 		rfc822date());
 	if ((ssize_t)error < 0)
 		return (-1);
@@ -406,7 +409,30 @@ readmail(struct queue *queue, int nodot, int recp_from_header)
 		newline[0] = '\0';
 		if ((linelen = getline(&line, &linecap, stdin)) <= 0)
 			break;
-
+		if (had_last_line)
+			errlogx(EX_DATAERR, "bad mail input format:"
+				" from %s (uid %d) (envelope-from %s)",
+				username, useruid, queue->sender);
+		linelen = strlen(line);
+		if (linelen == 0 || line[linelen - 1] != '\n') {
+			/*
+			 * This line did not end with a newline character.
+			 * If we fix it, it better be the last line of
+			 * the file.
+			 */
+			line[linelen] = '\n';
+			line[linelen + 1] = 0;
+			had_last_line = 1;
+		}
+		if (!had_first_line) {
+			/*
+			 * Ignore a leading RFC-976 From_ or >From_ line mistakenly
+			 * inserted by some programs.
+			 */
+			if (strprefixcmp(line, "From ") == 0 || strprefixcmp(line, ">From ") == 0)
+				continue;
+			had_first_line = 1;
+		}
 		if (!had_headers) {
 			if (linelen > MAX_LINE_RFC822) {
 				/* XXX also split headers */

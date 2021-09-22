@@ -37,6 +37,7 @@
 
 #include <sys/file.h>
 #include <sys/stat.h>
+#include <sys/time.h>
 
 #include <ctype.h>
 #include <dirent.h>
@@ -45,6 +46,7 @@
 #include <fcntl.h>
 #include <inttypes.h>
 #include <unistd.h>
+#include <strings.h>
 #include <string.h>
 #include <syslog.h>
 
