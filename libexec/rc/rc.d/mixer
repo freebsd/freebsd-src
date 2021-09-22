@@ -58,7 +58,7 @@ mixer_save()
 
 	dev="/dev/${1}"
 	if [ -r ${dev} ]; then
-		/usr/sbin/mixer -f ${dev} -s > /var/db/${1}-state 2>/dev/null
+		/usr/sbin/mixer -f ${dev} -o > /var/db/${1}-state 2>/dev/null
 	fi
 }
 
