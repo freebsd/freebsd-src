@@ -1,4 +1,4 @@
-/*	$NetBSD: filecomplete.c,v 1.67 2021/03/28 13:39:39 christos Exp $	*/
+/*	$NetBSD: filecomplete.c,v 1.68 2021/05/05 14:49:59 christos Exp $	*/
 
 /*-
  * Copyright (c) 1997 The NetBSD Foundation, Inc.
@@ -31,7 +31,7 @@
 
 #include "config.h"
 #if !defined(lint) && !defined(SCCSID)
-__RCSID("$NetBSD: filecomplete.c,v 1.67 2021/03/28 13:39:39 christos Exp $");
+__RCSID("$NetBSD: filecomplete.c,v 1.68 2021/05/05 14:49:59 christos Exp $");
 #endif /* not lint && not SCCSID */
 
 #include <sys/types.h>
@@ -727,7 +727,7 @@ fn_complete2(EditLine *el,
 		else
 			completion = strdup(matches[0]);
 		if (completion == NULL)
-			goto out;
+			goto out2;
 
 		/*
 		 * Replace the completed string with the common part of
@@ -810,6 +810,7 @@ fn_complete2(EditLine *el,
 	}
 
 	/* free elements of array and the array itself */
+out2:
 	for (i = 0; matches[i]; i++)
 		el_free(matches[i]);
 	el_free(matches);

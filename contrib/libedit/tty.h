@@ -1,4 +1,4 @@
-/*	$NetBSD: tty.h,v 1.23 2018/12/02 16:58:13 christos Exp $	*/
+/*	$NetBSD: tty.h,v 1.24 2021/07/31 20:51:32 andvar Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -432,7 +432,7 @@
 #define	C_SH(A)		((unsigned int)(1 << (A)))
 
 /*
- * Terminal dependend data structures
+ * Terminal dependent data structures
  */
 #define	EX_IO	0	/* while we are executing	*/
 #define	ED_IO	1	/* while we are editing		*/

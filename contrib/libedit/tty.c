@@ -1,4 +1,4 @@
-/*	$NetBSD: tty.c,v 1.69 2020/05/31 23:24:23 christos Exp $	*/
+/*	$NetBSD: tty.c,v 1.70 2021/07/14 07:47:23 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -37,7 +37,7 @@
 #if 0
 static char sccsid[] = "@(#)tty.c	8.1 (Berkeley) 6/4/93";
 #else
-__RCSID("$NetBSD: tty.c,v 1.69 2020/05/31 23:24:23 christos Exp $");
+__RCSID("$NetBSD: tty.c,v 1.70 2021/07/14 07:47:23 christos Exp $");
 #endif
 #endif /* not lint && not SCCSID */
 
@@ -1350,19 +1350,19 @@ tty_get_signal_character(EditLine *el, int sig)
 		return -1;
 #endif
 	switch (sig) {
-#ifdef SIGINT
+#if defined(SIGINT) && defined(VINTR)
 	case SIGINT:
 		return el->el_tty.t_c[ED_IO][VINTR];
 #endif
-#ifdef SIGQUIT
+#if defined(SIGQUIT) && defined(VQUIT)
 	case SIGQUIT:
 		return el->el_tty.t_c[ED_IO][VQUIT];
 #endif
-#ifdef SIGINFO
+#if defined(SIGINFO) && defined(VSTATUS)
 	case SIGINFO:
 		return el->el_tty.t_c[ED_IO][VSTATUS];
 #endif
-#ifdef SIGTSTP
+#if defined(SIGTSTP) && defined(VSUSP)
 	case SIGTSTP:
 		return el->el_tty.t_c[ED_IO][VSUSP];
 #endif

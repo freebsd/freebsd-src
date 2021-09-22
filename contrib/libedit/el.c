@@ -1,4 +1,4 @@
-/*	$NetBSD: el.c,v 1.99 2019/07/23 10:18:52 christos Exp $	*/
+/*	$NetBSD: el.c,v 1.100 2021/08/15 10:08:41 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -37,7 +37,7 @@
 #if 0
 static char sccsid[] = "@(#)el.c	8.2 (Berkeley) 1/3/94";
 #else
-__RCSID("$NetBSD: el.c,v 1.99 2019/07/23 10:18:52 christos Exp $");
+__RCSID("$NetBSD: el.c,v 1.100 2021/08/15 10:08:41 christos Exp $");
 #endif
 #endif /* not lint && not SCCSID */
 
@@ -300,6 +300,14 @@ el_wset(EditLine *el, int op, ...)
 		break;
 	}
 
+	case EL_SAFEREAD:
+		if (va_arg(ap, int))
+			el->el_flags |= FIXIO;
+		else
+			el->el_flags &= ~FIXIO;
+		rv = 0;
+		break;
+
 	case EL_EDITMODE:
 		if (va_arg(ap, int))
 			el->el_flags &= ~EDIT_DISABLED;
@@ -426,6 +434,11 @@ el_wget(EditLine *el, int op, ...)
 
 	case EL_EDITMODE:
 		*va_arg(ap, int *) = !(el->el_flags & EDIT_DISABLED);
+		rv = 0;
+		break;
+
+	case EL_SAFEREAD:
+		*va_arg(ap, int *) = (el->el_flags & FIXIO);
 		rv = 0;
 		break;
 

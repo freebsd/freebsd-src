@@ -1,4 +1,4 @@
-/*	$NetBSD: terminal.c,v 1.43 2020/07/10 20:34:24 christos Exp $	*/
+/*	$NetBSD: terminal.c,v 1.44 2021/09/09 20:24:07 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -37,7 +37,7 @@
 #if 0
 static char sccsid[] = "@(#)term.c	8.2 (Berkeley) 4/30/95";
 #else
-__RCSID("$NetBSD: terminal.c,v 1.43 2020/07/10 20:34:24 christos Exp $");
+__RCSID("$NetBSD: terminal.c,v 1.44 2021/09/09 20:24:07 christos Exp $");
 #endif
 #endif /* not lint && not SCCSID */
 
@@ -588,7 +588,8 @@ mc_again:
 				 * NOTE THAT terminal_overwrite() WILL CHANGE
 				 * el->el_cursor.h!!!
 				 */
-				terminal_overwrite(el, &el->el_display[
+				terminal_overwrite(el,
+				    (wchar_t *)&el->el_display[
 				    el->el_cursor.v][el->el_cursor.h],
 				    (size_t)(where - el->el_cursor.h));
 
