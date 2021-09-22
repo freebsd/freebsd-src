@@ -1354,8 +1354,8 @@ ipf_proxy_rule_rev(nat)
 		if (ipn->in_v[0] == 4) {
 			ipn->in_snip = ntohl(nat->nat_odstaddr);
 			ipn->in_dnip = ntohl(nat->nat_nsrcaddr);
-		} else {
 #ifdef USE_INET6
+		} else {
 			ipn->in_snip6 = nat->nat_odst6;
 			ipn->in_dnip6 = nat->nat_nsrc6;
 #endif

@@ -510,11 +510,10 @@ ipf_p_ftp_addport(softf, fin, ip, nat, ftp, dlen, nport, inc)
 	fi.fin_src6 = nat->nat_ndst6;
 	fi.fin_dst6 = nat->nat_nsrc6;
 
-	if (nat->nat_v[0] == 6) {
 #ifndef USE_INET6
+	if (nat->nat_v[0] == 6)
 		return APR_INC(inc);
 #endif
-	}
 
 	/*
 	 * Add skeleton NAT entry for connection which will come back the
@@ -582,15 +581,14 @@ ipf_p_ftp_addport(softf, fin, ip, nat, ftp, dlen, nport, inc)
 	flags = SI_W_SPORT|NAT_SLAVE|IPN_TCP;
 
 	MUTEX_ENTER(&softn->ipf_nat_new);
-	if (nat->nat_v[0] == 6) {
 #ifdef USE_INET6
+	if (nat->nat_v[0] == 6)
 		nat2 = ipf_nat6_add(&fi, ipn, &ftp->ftp_pendnat, flags,
 				    direction);
+	else
 #endif
-	} else {
 		nat2 = ipf_nat_add(&fi, ipn, &ftp->ftp_pendnat, flags,
 				   direction);
-	}
 	MUTEX_EXIT(&softn->ipf_nat_new);
 
 	if (nat2 == NULL) {
@@ -950,13 +948,12 @@ ipf_p_ftp_pasvreply(softf, fin, ip, nat, ftp, port, newmsg, s)
 	MUTEX_EXIT(&nat2->nat_lock);
 	fi.fin_ifp = NULL;
 	if (nat->nat_dir == NAT_INBOUND) {
-		if (nat->nat_v[0] == 6) {
 #ifdef USE_INET6
+		if (nat->nat_v[0] == 6)
 			fi.fin_dst6 = nat->nat_ndst6;
+		else
 #endif
-		} else {
 			fi.fin_daddr = nat->nat_ndstaddr;
-		}
 	}
 	if (ipf_state_add(softc, &fi, (ipstate_t **)&ftp->ftp_pendstate,
 			  SI_W_SPORT) != 0)
@@ -979,15 +976,14 @@ ipf_p_ftp_pasvreply(softf, fin, ip, nat, ftp, port, newmsg, s)
 	if (inc != 0) {
 		fin->fin_plen += inc;
 		fin->fin_dlen += inc;
-		if (nat->nat_v[0] == 6) {
 #ifdef USE_INET6
+		if (nat->nat_v[0] == 6) {
 			ip6 = (ip6_t *)fin->fin_ip;
 			u_short len = ntohs(ip6->ip6_plen) + inc;
 			ip6->ip6_plen = htons(len);
+		} else
 #endif
-		} else {
 			ip->ip_len = htons(fin->fin_plen);
-		}
 	}
 
 	return APR_INC(inc);
