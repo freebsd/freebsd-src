@@ -1,4 +1,4 @@
-/*	$NetBSD: read.c,v 1.106 2019/07/23 10:18:52 christos Exp $	*/
+/*	$NetBSD: read.c,v 1.107 2021/08/15 10:08:41 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -37,7 +37,7 @@
 #if 0
 static char sccsid[] = "@(#)read.c	8.1 (Berkeley) 6/4/93";
 #else
-__RCSID("$NetBSD: read.c,v 1.106 2019/07/23 10:18:52 christos Exp $");
+__RCSID("$NetBSD: read.c,v 1.107 2021/08/15 10:08:41 christos Exp $");
 #endif
 #endif /* not lint && not SCCSID */
 
@@ -277,7 +277,7 @@ static int
 read_char(EditLine *el, wchar_t *cp)
 {
 	ssize_t num_read;
-	int tried = 0;
+	int tried = (el->el_flags & FIXIO) == 0;
 	char cbuf[MB_LEN_MAX];
 	size_t cbp = 0;
 	int save_errno = errno;

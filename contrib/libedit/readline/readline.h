@@ -1,4 +1,4 @@
-/*	$NetBSD: readline.h,v 1.46 2019/06/07 15:19:29 christos Exp $	*/
+/*	$NetBSD: readline.h,v 1.47 2021/08/21 12:34:59 christos Exp $	*/
 
 /*-
  * Copyright (c) 1997 The NetBSD Foundation, Inc.
@@ -45,6 +45,7 @@ typedef char	**rl_completion_func_t(const char *, int, int);
 typedef char     *rl_compentry_func_t(const char *, int);
 typedef int	  rl_command_func_t(int, int);
 typedef int	  rl_hook_func_t(void);
+typedef int       rl_icppfunc_t(char **);
 
 /* only supports length */
 typedef struct {
@@ -106,6 +107,7 @@ extern char		*rl_line_buffer;
 extern int		 rl_point, rl_end;
 extern int		 history_base, history_length;
 extern int		 max_input_history;
+extern const char	*rl_basic_quote_characters;
 extern const char	*rl_basic_word_break_characters;
 extern char		*rl_completer_word_break_characters;
 extern const char	*rl_completer_quote_characters;
@@ -127,6 +129,7 @@ extern int		rl_done;
 /*
  * The following is not implemented
  */
+extern unsigned long	rl_readline_state;
 extern int		rl_catch_signals;
 extern int		rl_catch_sigwinch;
 extern KEYMAP_ENTRY_ARRAY emacs_standard_keymap,
@@ -142,6 +145,14 @@ extern VFunction	*rl_deprep_term_function;
 extern rl_hook_func_t	*rl_event_hook;
 extern int		readline_echoing_p;
 extern int		_rl_print_completions_horizontally;
+extern int		_rl_complete_mark_directories;
+extern rl_icppfunc_t	*rl_directory_completion_hook;
+extern int		rl_completion_suppress_append;
+extern int		rl_sort_completion_matches;
+extern int		_rl_completion_prefix_display_length;
+extern int		_rl_echoing_p;
+extern int		history_max_entries;
+extern char		*rl_display_prompt;
 
 /* supported functions */
 char		*readline(const char *);
@@ -213,6 +224,8 @@ int		 rl_set_prompt(const char *);
 int		 rl_on_new_line(void);
 void		 rl_reset_after_signal(void);
 void		 rl_echo_signal_char(int);
+int		 rl_crlf(void);
+int		 rl_ding(void);
 
 /*
  * The following are not implemented
@@ -226,6 +239,10 @@ int		 rl_bind_key_in_map(int, rl_command_func_t *, Keymap);
 void		 rl_cleanup_after_signal(void);
 void		 rl_free_line_state(void);
 int		 rl_set_keyboard_input_timeout(int);
+int		 rl_abort(int, int);
+int	         rl_set_keymap_name(const char *, Keymap);
+histdata_t	 free_history_entry(HIST_ENTRY *);
+void		 _rl_erase_entire_line(void);
 
 #ifdef __cplusplus
 }
