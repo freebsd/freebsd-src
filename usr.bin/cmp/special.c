@@ -88,10 +88,15 @@ c_special(int fd1, const char *file1, off_t skip1,
 				    (long long)byte - 1, ch1, ch2);
 			} else if (lflag) {
 				dfound = 1;
-				(void)printf("%6lld %3o %3o\n",
-				    (long long)byte, ch1, ch2);
+				if (bflag)
+					(void)printf("%6lld %3o %c %3o %c\n",
+					    (long long)byte, ch1, ch1, ch2,
+					    ch2);
+				else
+					(void)printf("%6lld %3o %3o\n",
+					    (long long)byte, ch1, ch2);
 			} else {
-				diffmsg(file1, file2, byte, line);
+				diffmsg(file1, file2, byte, line, ch1, ch2);
 				/* NOTREACHED */
 			}
 		}
