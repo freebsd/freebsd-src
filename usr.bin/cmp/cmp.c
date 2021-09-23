@@ -66,6 +66,7 @@ bool	lflag, sflag, xflag, zflag;
 
 static const struct option long_opts[] =
 {
+	{"ignore-initial", required_argument,	NULL, 'i'},
 	{"verbose",	no_argument,		NULL, 'l'},
 	{"bytes",	required_argument,	NULL, 'n'},
 	{"silent",	no_argument,		NULL, 's'},
@@ -74,6 +75,25 @@ static const struct option long_opts[] =
 };
 
 static void usage(void);
+
+static bool
+parse_iskipspec(char *spec, off_t *skip1, off_t *skip2)
+{
+	char *colon;
+
+	colon = strchr(spec, ':');
+	if (colon != NULL)
+		*colon++ = '\0';
+
+	if (expand_number(spec, skip1) < 0)
+		return (false);
+
+	if (colon != NULL)
+		return (expand_number(colon, skip2) == 0);
+
+	*skip2 = *skip1;
+	return (true);
+}
 
 int
 main(int argc, char *argv[])
@@ -86,10 +106,18 @@ main(int argc, char *argv[])
 
 	skip1 = skip2 = 0;
 	oflag = O_RDONLY;
-	while ((ch = getopt_long(argc, argv, "+hln:sxz", long_opts, NULL)) != -1)
+	while ((ch = getopt_long(argc, argv, "+hi:ln:sxz", long_opts, NULL)) != -1)
 		switch (ch) {
 		case 'h':		/* Don't follow symlinks */
 			oflag |= O_NOFOLLOW;
+			break;
+		case 'i':
+			if (!parse_iskipspec(optarg, &skip1, &skip2)) {
+				fprintf(stderr,
+				    "Invalid --ignore-initial: %s\n",
+				    optarg);
+				usage();
+			}
 			break;
 		case 'l':		/* print all differences */
 			lflag = true;
