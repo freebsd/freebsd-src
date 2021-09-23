@@ -1031,14 +1031,16 @@ typedef struct ocs_pci_reg_s {
 #define PCI_MAX_BAR				6
 #define PCI_64BIT_BAR0				0
 
-#define PCI_VENDOR_EMULEX       		0x10df		/* Emulex */
+#define PCI_VENDOR_EMULEX			0x10df	/* Emulex */
 
-#define PCI_PRODUCT_EMULEX_OCE16001		0xe200		/* OneCore 16Gb FC (lancer) */
-#define PCI_PRODUCT_EMULEX_OCE16002		0xe200		/* OneCore 16Gb FC (lancer) */
+#define PCI_PRODUCT_EMULEX_OCE16001		0xe200	/* OneCore 16Gb FC (lancer) */
+#define PCI_PRODUCT_EMULEX_OCE16002		0xe200	/* OneCore 16Gb FC (lancer) */
 #define PCI_PRODUCT_EMULEX_LPE31004		0xe300  /* LightPulse 16Gb x 4 FC (lancer-g6) */
 #define PCI_PRODUCT_EMULEX_LPE32002		0xe300  /* LightPulse 32Gb x 2 FC (lancer-g6) */
+#define PCI_PRODUCT_EMULEX_LANCER_G7		0xf400	/* LightPulse 32Gb x 4 FC (lancer-g7) */
+ 
 #define PCI_PRODUCT_EMULEX_OCE1600_VF		0xe208
-#define PCI_PRODUCT_EMULEX_OCE50102		0xe260		/* OneCore FCoE (lancer) */
+#define PCI_PRODUCT_EMULEX_OCE50102		0xe260	/* OneCore FCoE (lancer) */
 #define PCI_PRODUCT_EMULEX_OCE50102_VF		0xe268
 
 /**
