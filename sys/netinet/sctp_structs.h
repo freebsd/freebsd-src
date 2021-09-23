@@ -505,6 +505,7 @@ struct sctp_queued_to_read {	/* sinfo structure Pluse more */
  * the user is in the explict MSG_EOR mode
  * and wrote some data, but has not completed
  * sending.
+ * ss_next and scheduled are only used by the FCFS stream scheduler.
  */
 struct sctp_stream_queue_pending {
 	struct mbuf *data;
@@ -529,6 +530,7 @@ struct sctp_stream_queue_pending {
 	uint8_t put_last_out;
 	uint8_t discard_rest;
 	uint8_t processing;
+	bool scheduled;
 };
 
 /*
@@ -588,10 +590,13 @@ struct ss_fb {
  * This union holds all parameters per stream
  * necessary for different stream schedulers.
  */
-union scheduling_parameters {
-	struct ss_rr rr;
-	struct ss_prio prio;
-	struct ss_fb fb;
+struct scheduling_parameters {
+	union {
+		struct ss_rr rr;
+		struct ss_prio prio;
+		struct ss_fb fb;
+	}     ss;
+	bool scheduled;
 };
 
 /* States for outgoing streams */
@@ -604,7 +609,7 @@ union scheduling_parameters {
 /* This struct is used to track the traffic on outbound streams */
 struct sctp_stream_out {
 	struct sctp_streamhead outqueue;
-	union scheduling_parameters ss_params;
+	struct scheduling_parameters ss_params;
 	uint32_t chunks_on_queues;	/* send queue and sent queue */
 #if defined(SCTP_DETAILED_STR_STATS)
 	uint32_t abandoned_unsent[SCTP_PR_SCTP_MAX + 1];
@@ -731,11 +736,11 @@ struct sctp_cc_functions {
 struct sctp_ss_functions {
 	void (*sctp_ss_init) (struct sctp_tcb *stcb, struct sctp_association *asoc);
 	void (*sctp_ss_clear) (struct sctp_tcb *stcb, struct sctp_association *asoc,
-	    int clear_values);
+	    bool clear_values);
 	void (*sctp_ss_init_stream) (struct sctp_tcb *stcb, struct sctp_stream_out *strq, struct sctp_stream_out *with_strq);
 	void (*sctp_ss_add_to_stream) (struct sctp_tcb *stcb, struct sctp_association *asoc,
 	    struct sctp_stream_out *strq, struct sctp_stream_queue_pending *sp);
-	int (*sctp_ss_is_empty) (struct sctp_tcb *stcb, struct sctp_association *asoc);
+	bool (*sctp_ss_is_empty) (struct sctp_tcb *stcb, struct sctp_association *asoc);
 	void (*sctp_ss_remove_from_stream) (struct sctp_tcb *stcb, struct sctp_association *asoc,
 	    struct sctp_stream_out *strq, struct sctp_stream_queue_pending *sp);
 struct sctp_stream_out *(*sctp_ss_select_stream) (struct sctp_tcb *stcb,
@@ -748,7 +753,7 @@ struct sctp_stream_out *(*sctp_ss_select_stream) (struct sctp_tcb *stcb,
 	    struct sctp_stream_out *strq, uint16_t *value);
 	int (*sctp_ss_set_value) (struct sctp_tcb *stcb, struct sctp_association *asoc,
 	    struct sctp_stream_out *strq, uint16_t value);
-	int (*sctp_ss_is_user_msgs_incomplete) (struct sctp_tcb *stcb, struct sctp_association *asoc);
+	bool (*sctp_ss_is_user_msgs_incomplete) (struct sctp_tcb *stcb, struct sctp_association *asoc);
 };
 
 /* used to save ASCONF chunks for retransmission */
