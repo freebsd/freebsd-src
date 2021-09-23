@@ -75,9 +75,26 @@ pr252542_body()
 	atf_check -s exit:1 -o ignore cmp -z a b 4 3
 }
 
+atf_test_case skipsuff
+skipsuff_head()
+{
+	atf_set "descr" "Test cmp(1) accepting SI suffixes on skips"
+}
+skipsuff_body()
+{
+
+	jot -nb a -s '' 1028 > a
+	jot -nb b -s '' 1024 > b
+	jot -nb a -s '' 4 >> b
+
+	atf_check -s exit:1 -o ignore cmp -s a b
+	atf_check -s exit:0 cmp -s a b 1k 1k
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case special
 	atf_add_test_case symlink
 	atf_add_test_case pr252542
+	atf_add_test_case skipsuff
 }
