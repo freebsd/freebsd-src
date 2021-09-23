@@ -58,6 +58,8 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
+#include <libutil.h>
+
 #include "extern.h"
 
 bool	lflag, sflag, xflag, zflag;
@@ -81,6 +83,7 @@ main(int argc, char *argv[])
 	bool special;
 	const char *file1, *file2;
 
+	skip1 = skip2 = 0;
 	oflag = O_RDONLY;
 	while ((ch = getopt_long(argc, argv, "+hlsxz", long_opts, NULL)) != -1)
 		switch (ch) {
@@ -145,8 +148,15 @@ main(int argc, char *argv[])
 			exit(ERR_EXIT);
 	}
 
-	skip1 = argc > 2 ? strtol(argv[2], NULL, 0) : 0;
-	skip2 = argc == 4 ? strtol(argv[3], NULL, 0) : 0;
+	if (argc > 2 && expand_number(argv[2], &skip1) < 0) {
+		fprintf(stderr, "Invalid skip1: %s\n", argv[2]);
+		usage();
+	}
+
+	if (argc == 4 && expand_number(argv[3], &skip2) < 0) {
+		fprintf(stderr, "Invalid skip2: %s\n", argv[3]);
+		usage();
+	}
 
 	if (sflag && skip1 == 0 && skip2 == 0)
 		zflag = true;
