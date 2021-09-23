@@ -29,7 +29,7 @@ CFLAGS+=	-DINET6
 CFLAGS+=	-I${TELNETDIR}
 CFLAGS+=	-I${TELNETDIR}/telnet
 
-LIBADD=		telnet util ncursesw
+LIBADD=		telnet util tinfow
 
 .if ${MK_OPENSSL} != "no"
 SRCS+=		authenc.c

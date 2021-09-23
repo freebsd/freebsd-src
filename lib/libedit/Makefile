@@ -13,7 +13,7 @@ SHLIBDIR?= /lib
 WARNS?=	3
 LIB=	edit
 
-LIBADD=	ncursesw
+LIBADD=	tinfow
 
 SRCS=	chared.c chartype.c common.c el.c eln.c emacs.c filecomplete.c \
 	hist.c history.c historyn.c keymacro.c literal.c map.c \

@@ -104,7 +104,7 @@ CLEANFILES+=	${TGHDRS} ${TGHDRS:C/$/.d/}
 
 .if ${.MAKE.OS} == "FreeBSD" || !defined(BOOTSTRAPPING)
 LIBADD+=	execinfo
-LIBADD+=	ncursesw
+LIBADD+=	tinfow
 .endif
 LIBADD+=	pthread
 LIBADD+=	z

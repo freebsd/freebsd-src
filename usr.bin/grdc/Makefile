@@ -2,6 +2,6 @@
 
 PROG=	grdc
 MAN=	grdc.6
-LIBADD=	ncursesw
+LIBADD=	tinfow ncursesw
 
 .include <bsd.prog.mk>

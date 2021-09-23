@@ -2576,7 +2576,7 @@ _bt_clean=	${CLEANDIR}
     bin/sh \
     ${LOCAL_TOOL_DIRS} \
     ${_jevents} \
-    lib/ncurses/ncurses \
+    lib/ncurses/tinfo \
     ${_rescue} \
     ${_share} \
     usr.bin/awk \
@@ -2933,6 +2933,7 @@ _prebuild_libs=	${_kerberos5_lib_libasn1} \
 		lib/libkiconv lib/libkvm lib/liblzma lib/libmd lib/libnv \
 		lib/libzstd \
 		${_lib_casper} \
+		lib/ncurses/tinfo \
 		lib/ncurses/ncurses \
 		lib/libopie lib/libpam/libpam lib/libthr \
 		${_lib_libradius} lib/libsbuf lib/libtacplus \
@@ -2954,7 +2955,7 @@ _prebuild_libs=	${_kerberos5_lib_libasn1} \
 
 .if ${MK_DIALOG} != "no"
 _prebuild_libs+= gnu/lib/libdialog
-gnu/lib/libdialog__L: lib/msun__L lib/ncurses/ncurses__L
+gnu/lib/libdialog__L: lib/msun__L lib/ncurses/tinfo__L lib/ncurses/ncurses__L
 .endif
 
 .if ${MK_GOOGLETEST} != "no"

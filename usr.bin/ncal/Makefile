@@ -4,7 +4,7 @@
 
 PROG=	ncal
 
-LIBADD=	calendar ncursesw
+LIBADD=	calendar tinfow
 
 LINKS=	${BINDIR}/ncal ${BINDIR}/cal
 MLINKS=	ncal.1 cal.1

@@ -21,7 +21,7 @@ CFLAGS+=	-DINET6
 
 WARNS?=		2
 
-LIBADD=		telnet ncursesw
+LIBADD=		telnet tinfow
 
 CFLAGS+=	-DIPSEC
 LIBADD+=	ipsec

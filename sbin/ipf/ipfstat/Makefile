@@ -6,6 +6,6 @@ PACKAGE=	ipf
 PROG=		ipfstat
 SRCS=		ipfstat.c
 MAN=		ipfstat.8
-LIBADD+=	ncursesw
+LIBADD+=	tinfow ncursesw
 
 .include <bsd.prog.mk>

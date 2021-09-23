@@ -5,6 +5,6 @@ MAN=	watch.8
 
 WARNS?=	2
 
-LIBADD=	ncursesw
+LIBADD=	tinfow
 
 .include <bsd.prog.mk>

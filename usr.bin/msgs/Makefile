@@ -3,6 +3,6 @@
 
 PROG=	msgs
 
-LIBADD=	ncursesw
+LIBADD=	tinfow
 
 .include <bsd.prog.mk>

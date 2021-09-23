@@ -14,7 +14,7 @@ CFLAGS+= -I${SRCTOP}/lib/libpmcstat
 # Does not link when built position-independent.
 MK_PIE=no
 
-LIBADD=	kvm pmc m ncursesw pmcstat elf
+LIBADD=	pmc m pmcstat elf
 
 SRCS=	pmc.c pmc_util.c cmd_pmc_stat.c \
 	cmd_pmc_list.c cmd_pmc_filter.cc \

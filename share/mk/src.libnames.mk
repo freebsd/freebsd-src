@@ -274,7 +274,7 @@ _DP_ssh=	crypto crypt z
 .if ${MK_LDNS} != "no"
 _DP_ssh+=	ldns
 .endif
-_DP_edit=	ncursesw
+_DP_edit=	tinfow
 .if ${MK_OPENSSL} != "no"
 _DP_bsnmp=	crypto
 .endif
@@ -324,8 +324,8 @@ _DP_fetch=	md
 .endif
 _DP_execinfo=	elf
 _DP_dwarf=	elf
-_DP_dpv=	dialog figpar util ncursesw
-_DP_dialog=	ncursesw m
+_DP_dpv=	dialog figpar util tinfow ncursesw
+_DP_dialog=	tinfow ncursesw m
 _DP_cuse=	pthread
 _DP_atf_cxx=	atf_c
 _DP_gtest=	pthread regex
