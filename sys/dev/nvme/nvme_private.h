@@ -151,7 +151,7 @@ struct nvme_tracker {
 	TAILQ_ENTRY(nvme_tracker)	tailq;
 	struct nvme_request		*req;
 	struct nvme_qpair		*qpair;
-	struct callout			timer;
+	sbintime_t			deadline;
 	bus_dmamap_t			payload_dma_map;
 	uint16_t			cid;
 
@@ -159,6 +159,12 @@ struct nvme_tracker {
 	bus_addr_t			prp_bus_addr;
 };
 
+enum nvme_recovery {
+	RECOVERY_NONE = 0,		/* Normal operations */
+	RECOVERY_START,			/* Deadline has passed, start recovering */
+	RECOVERY_RESET,			/* This pass, initiate reset of controller */
+	RECOVERY_WAITING,		/* waiting for the reset to complete */
+};
 struct nvme_qpair {
 	struct nvme_controller	*ctrlr;
 	uint32_t		id;
@@ -169,6 +175,11 @@ struct nvme_qpair {
 	int			rid;
 	struct resource		*res;
 	void 			*tag;
+
+	struct callout		timer;
+	sbintime_t		deadline;
+	bool			timer_armed;
+	enum nvme_recovery	recovery_state;
 
 	uint32_t		num_entries;
 	uint32_t		num_trackers;
@@ -200,8 +211,6 @@ struct nvme_qpair {
 	STAILQ_HEAD(, nvme_request)	queued_req;
 
 	struct nvme_tracker	**act_tr;
-
-	bool			is_enabled;
 
 	struct mtx		lock __aligned(CACHE_LINE_SIZE);
 
@@ -305,6 +314,7 @@ struct nvme_controller {
 	uint32_t			notification_sent;
 
 	bool				is_failed;
+	bool				is_dying;
 	STAILQ_HEAD(, nvme_request)	fail_req;
 
 	/* Host Memory Buffer */

@@ -232,7 +232,8 @@ nvme_ctrlr_post_failed_request(struct nvme_controller *ctrlr,
 	mtx_lock(&ctrlr->lock);
 	STAILQ_INSERT_TAIL(&ctrlr->fail_req, req, stailq);
 	mtx_unlock(&ctrlr->lock);
-	taskqueue_enqueue(ctrlr->taskqueue, &ctrlr->fail_req_task);
+	if (!ctrlr->is_dying)
+		taskqueue_enqueue(ctrlr->taskqueue, &ctrlr->fail_req_task);
 }
 
 static void
@@ -435,7 +436,8 @@ nvme_ctrlr_reset(struct nvme_controller *ctrlr)
 		 */
 		return;
 
-	taskqueue_enqueue(ctrlr->taskqueue, &ctrlr->reset_task);
+	if (!ctrlr->is_dying)
+		taskqueue_enqueue(ctrlr->taskqueue, &ctrlr->reset_task);
 }
 
 static int
@@ -1480,6 +1482,8 @@ void
 nvme_ctrlr_destruct(struct nvme_controller *ctrlr, device_t dev)
 {
 	int	gone, i;
+
+	ctrlr->is_dying = true;
 
 	if (ctrlr->resource == NULL)
 		goto nores;
