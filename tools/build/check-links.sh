@@ -49,7 +49,7 @@ fi
 mime=$(file -L --mime-type $1)
 isbin=0
 case $mime in
-*application/x-executable) isbin=1 ;;
+*application/x-executable|*application/x-pie-executable) isbin=1 ;;
 *application/x-sharedlib);;
 *) echo "Not an elf file" >&2 ; exit 1;;
 esac
