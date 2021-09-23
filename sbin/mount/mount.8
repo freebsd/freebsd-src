@@ -28,7 +28,7 @@
 .\"     @(#)mount.8	8.8 (Berkeley) 6/16/94
 .\" $FreeBSD$
 .\"
-.Dd August 28, 2019
+.Dd May 18, 2021
 .Dt MOUNT 8
 .Os
 .Sh NAME
@@ -36,14 +36,17 @@
 .Nd mount file systems
 .Sh SYNOPSIS
 .Nm
+.Op Fl -libxo
 .Op Fl adflpruvw
 .Op Fl F Ar fstab
 .Op Fl o Ar options
 .Op Fl t Oo Cm no Oc Ns Cm Ar type Ns Op Cm , Ns Ar type ...
 .Nm
+.Op Fl -libxo
 .Op Fl dfpruvw
 .Ar special | node
 .Nm
+.Op Fl -libxo
 .Op Fl dfpruvw
 .Op Fl o Ar options
 .Op Fl t Oo Cm no Oc Ns Cm Ar type Ns Op Cm , Ns Ar type ...
@@ -72,6 +75,13 @@ this list is printed.
 .Pp
 The options are as follows:
 .Bl -tag -width indent
+.It Fl -libxo
+Generate output via
+.Xr libxo 3
+in a selection of different human and machine readable formats.
+See
+.Xr xo_parse_args 3
+for details on command line arguments.
 .It Fl a
 All the file systems described in
 .Xr fstab 5
@@ -552,6 +562,8 @@ support for a particular file system might be provided either on a static
 .Xr setfacl 1 ,
 .Xr nmount 2 ,
 .Xr acl 3 ,
+.Xr libxo 3 ,
+.Xr xo_parse_args 3 ,
 .Xr mac 4 ,
 .Xr cd9660 5 ,
 .Xr devfs 5 ,
