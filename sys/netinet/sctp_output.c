@@ -12176,7 +12176,7 @@ sctp_send_str_reset_req(struct sctp_tcb *stcb,
 		 * initializing the new stuff.
 		 */
 		SCTP_TCB_SEND_LOCK(stcb);
-		stcb->asoc.ss_functions.sctp_ss_clear(stcb, &stcb->asoc, 0);
+		stcb->asoc.ss_functions.sctp_ss_clear(stcb, &stcb->asoc, false);
 		for (i = 0; i < stcb->asoc.streamoutcnt; i++) {
 			TAILQ_INIT(&stcb->asoc.strmout[i].outqueue);
 			/* FIX ME FIX ME */
