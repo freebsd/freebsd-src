@@ -102,6 +102,9 @@ ocs_pci_probe(device_t dev)
 	case PCI_PRODUCT_EMULEX_OCE50102:
 		desc = "Emulex LightPulse 10GbE FCoE/NIC Adapter";
 		break;
+	case PCI_PRODUCT_EMULEX_LANCER_G7:
+		desc = "Emulex LightPulse G7 FC Adapter";
+		break;
 	default:
 		return ENXIO;
 	}
@@ -112,9 +115,50 @@ ocs_pci_probe(device_t dev)
 }
 
 static int
+ocs_map_g7_bars(device_t dev, struct ocs_softc *ocs)
+{
+	int i, r;
+	uint32_t  val = 0;
+
+	for (i = 0, r = 0; i < PCI_MAX_BAR; i++) {
+		val = pci_read_config(dev, PCIR_BAR(i), 4);
+		if (!PCI_BAR_MEM(val)) {
+			continue;
+                }
+                if (!(val & PCIM_BAR_MEM_BASE)) {
+			/* no address */
+			continue;
+		}
+		ocs->reg[r].rid = PCIR_BAR(i);
+		ocs->reg[r].res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
+				&ocs->reg[r].rid, RF_ACTIVE);
+		if (ocs->reg[r].res) {
+			ocs->reg[r].btag = rman_get_bustag(ocs->reg[r].res);
+			ocs->reg[r].bhandle = rman_get_bushandle(ocs->reg[r].res);
+			r++;
+		} else {
+			device_printf(dev, "bus_alloc_resource failed rid=%#x\n",
+			ocs->reg[r].rid);
+			ocs_release_bus(ocs);
+			return ENXIO;
+		}
+
+		/*
+		 * If the 64-bit attribute is set, both this BAR and the
+		 * next form the complete address. Skip processing the
+		 * next BAR.
+		 */
+		if (val & PCIM_BAR_MEM_64) {
+			i++;
+		}
+	}
+
+	return 0;
+}
+
+static int
 ocs_map_bars(device_t dev, struct ocs_softc *ocs)
 {
-
 	/*
 	 * Map PCI BAR0 register into the CPU's space.
 	 */
@@ -404,7 +448,7 @@ ocs_device_attach(ocs_t *ocs)
 		goto fail_intr_setup;
 	}
 
-	if(ocs_cam_attach(ocs)) {
+	if (ocs_cam_attach(ocs)) {
 		device_printf(ocs->dev, "cam attach failed \n");
 		goto fail_intr_setup;
 	}
@@ -492,11 +536,18 @@ ocs_pci_attach(device_t dev)
 		pci_get_bus(dev), pci_get_slot(dev), pci_get_function(dev));
 
 	/* Map all memory BARs */
-        if (ocs_map_bars(dev, ocs)) {
-		device_printf(dev, "Failed to map pci bars\n");
-		goto release_bus;
-        }
-	
+	if (ocs->pci_device == PCI_PRODUCT_EMULEX_LANCER_G7) {
+		if(ocs_map_g7_bars(dev,ocs)) {
+			device_printf(dev, "Failed to map pci bars\n");
+			goto release_bus;
+		}
+	} else {
+		if (ocs_map_bars(dev, ocs)) {
+			device_printf(dev, "Failed to map pci bars\n");
+			goto release_bus;
+		}
+	}
+
 	/* create a root DMA tag for the device */
 	if (bus_dma_tag_create(bus_get_dma_tag(dev),
 				1,		/* byte alignment */

@@ -114,7 +114,8 @@ sli_page_count(size_t bytes, uint32_t page_size)
 #define SLI4_IF_TYPE_BE3_SKH_VF		1
 #define SLI4_IF_TYPE_LANCER_FC_ETH	2
 #define SLI4_IF_TYPE_LANCER_RDMA	3
-#define SLI4_MAX_IF_TYPES		4
+#define SLI4_IF_TYPE_LANCER_G7		6
+#define SLI4_MAX_IF_TYPES		7
 
 /**
  * @brief ASIC_ID - SLI ASIC Type and Revision Register
@@ -152,7 +153,7 @@ sli_page_count(size_t bytes, uint32_t page_size)
 /**
  * @brief EQCQ_DOORBELL - EQ and CQ Doorbell Register
  */
-#define SLI4_EQCQ_DOORBELL_REG		0x120
+#define SLI4_EQCQ_DOORBELL_REG			0x120
 #define SLI4_EQCQ_DOORBELL_CI			BIT(9)
 #define SLI4_EQCQ_DOORBELL_QT			BIT(10)
 #define SLI4_EQCQ_DOORBELL_ARM			BIT(29)
@@ -164,6 +165,8 @@ sli_page_count(size_t bytes, uint32_t page_size)
 #define SLI4_EQCQ_EQ_ID_MASK_LO			0x01ff
 #define SLI4_EQCQ_CQ_ID_MASK_LO			0x03ff
 #define SLI4_EQCQ_EQCQ_ID_MASK_HI		0xf800
+#define SLI4_IF6_EQ_DOORBELL_REG		0x120
+#define SLI4_IF6_CQ_DOORBELL_REG		0xC0
 
 /**
  * @brief SLIPORT_CONTROL - SLI Port Control Register
@@ -259,10 +262,56 @@ static inline uint32_t sli_cq_doorbell(uint16_t n_popped, uint16_t id, uint8_t a
 	return reg;
 }
 
+static inline uint32_t sli_iftype6_eq_doorbell(uint16_t n_popped, uint16_t id, uint8_t arm)
+{
+	uint32_t	reg = 0;
+#if BYTE_ORDER == LITTLE_ENDIAN
+	struct {
+		uint32_t	eq_id:12,
+				:4,			/* clear interrupt */
+				number_popped:13,
+				arm:1,
+				:1,
+				io:1;
+	} * eq_doorbell = (void *)&reg;
+#else
+#error big endian version not defined
+#endif
+
+	eq_doorbell->eq_id = id;
+	eq_doorbell->number_popped = n_popped;
+	eq_doorbell->arm = arm;
+
+	return reg;
+}
+
+static inline uint32_t sli_iftype6_cq_doorbell(uint16_t n_popped, uint16_t id, uint8_t arm)
+{
+	uint32_t	reg = 0;
+#if BYTE_ORDER == LITTLE_ENDIAN
+	struct {
+		uint32_t	cq_id:16,
+				number_popped:13,
+				arm:1,
+				:1,
+				se:1;
+	} * cq_doorbell = (void *)&reg;
+#else
+#error big endian version not defined
+#endif
+
+	cq_doorbell->cq_id = id;
+	cq_doorbell->number_popped = n_popped;
+	cq_doorbell->arm = arm;
+
+	return reg;
+}
+
 /**
  * @brief MQ_DOORBELL - MQ Doorbell Register
  */
-#define SLI4_MQ_DOORBELL_REG		0x0140	/* register offset */
+#define SLI4_MQ_DOORBELL_REG			0x0140	/* register offset */
+#define SLI4_IF6_MQ_DOORBELL_REG		0x0160	/* register offset if_type = 6 */
 #define SLI4_MQ_DOORBELL_NUM_SHIFT		16
 #define SLI4_MQ_DOORBELL_NUM_MASK		0x3fff
 #define SLI4_MQ_DOORBELL_ID_MASK		0xffff
@@ -272,7 +321,8 @@ static inline uint32_t sli_cq_doorbell(uint16_t n_popped, uint16_t id, uint8_t a
 /**
  * @brief RQ_DOORBELL - RQ Doorbell Register
  */
-#define SLI4_RQ_DOORBELL_REG		0x0a0	/* register offset */
+#define SLI4_RQ_DOORBELL_REG			0x0a0	/* register offset */
+#define SLI4_IF6_RQ_DOORBELL_REG	0x0080	/* register offset of if_type = 6 */
 #define SLI4_RQ_DOORBELL_NUM_SHIFT		16
 #define SLI4_RQ_DOORBELL_NUM_MASK		0x3fff
 #define SLI4_RQ_DOORBELL_ID_MASK		0xffff
@@ -282,7 +332,8 @@ static inline uint32_t sli_cq_doorbell(uint16_t n_popped, uint16_t id, uint8_t a
 /**
  * @brief WQ_DOORBELL - WQ Doorbell Register
  */
-#define SLI4_IO_WQ_DOORBELL_REG		0x040	/* register offset */
+#define SLI4_IO_WQ_DOORBELL_REG			0x040	/* register offset */
+#define SLI4_IF6_WQ_DOORBELL_REG		0x040	/* register offset for if_type = 6 */
 #define SLI4_WQ_DOORBELL_IDX_SHIFT		16
 #define SLI4_WQ_DOORBELL_IDX_MASK		0x00ff
 #define SLI4_WQ_DOORBELL_NUM_SHIFT		24
@@ -297,7 +348,7 @@ static inline uint32_t sli_cq_doorbell(uint16_t n_popped, uint16_t id, uint8_t a
  */
 #define SLI4_PORT_SEMAPHORE_REG_0	0x00ac	/** register offset Interface Type 0 + 1 */
 #define SLI4_PORT_SEMAPHORE_REG_1	0x0180	/** register offset Interface Type 0 + 1 */
-#define SLI4_PORT_SEMAPHORE_REG_23	0x0400	/** register offset Interface Type 2 + 3 */
+#define SLI4_PORT_SEMAPHORE_REG_236	0x0400	/** register offset Interface Type 2 + 3 + 6*/
 #define SLI4_PORT_SEMAPHORE_PORT_MASK		0x0000ffff
 #define SLI4_PORT_SEMAPHORE_PORT(r)		((r) & SLI4_PORT_SEMAPHORE_PORT_MASK)
 #define SLI4_PORT_SEMAPHORE_HOST_MASK		0x00ff0000
@@ -321,7 +372,7 @@ static inline uint32_t sli_cq_doorbell(uint16_t n_popped, uint16_t id, uint8_t a
  * @brief SLIPORT_STATUS - SLI Port Status Register
  */
 
-#define SLI4_PORT_STATUS_REG_23		0x0404	/** register offset Interface Type 2 + 3 */
+#define SLI4_PORT_STATUS_REG_236	0x0404	/** register offset Interface Type 2 + 3 + 6*/
 #define SLI4_PORT_STATUS_FDP			BIT(21)	/** function specific dump present */
 #define SLI4_PORT_STATUS_RDY			BIT(23)	/** ready */
 #define SLI4_PORT_STATUS_RN			BIT(24)	/** reset needed */
@@ -334,8 +385,7 @@ static inline uint32_t sli_cq_doorbell(uint16_t n_popped, uint16_t id, uint8_t a
 #define SLI4_PORT_STATUS_DUMP_PRESENT(r)	((r) & SLI4_PORT_STATUS_DIP)
 #define SLI4_PORT_STATUS_FDP_PRESENT(r)		((r) & SLI4_PORT_STATUS_FDP)
 
-
-#define SLI4_PHSDEV_CONTROL_REG_23		0x0414	/** register offset Interface Type 2 + 3 */
+#define SLI4_PHSDEV_CONTROL_REG_236		0x0414	/** register offset Interface Type 2 + 3 + 6*/
 #define SLI4_PHYDEV_CONTROL_DRST		BIT(0)	/** physical device reset */
 #define SLI4_PHYDEV_CONTROL_FRST		BIT(1)	/** firmware reset */
 #define SLI4_PHYDEV_CONTROL_DD			BIT(2)	/** diagnostic dump */
@@ -1565,7 +1615,8 @@ typedef struct sli4_req_common_create_cq_v2_s {
 			clswm:2,
 			nodelay:1,
 			autovalid:1,
-			:11,
+			:9,
+			cqe_size:2,
 			cqecnt:2,
 			valid:1,
 			:1,
@@ -1703,7 +1754,8 @@ typedef struct sli4_req_common_create_eq_s {
 #if BYTE_ORDER == LITTLE_ENDIAN
 	uint32_t	num_pages:16,
 			:16;
-	uint32_t	:29,
+	uint32_t	:28,
+			autovalid:1,
 			valid:1,
 			:1,
 			eqesz:1;
@@ -2979,7 +3031,8 @@ typedef struct sli4_acqe_s {
  */
 typedef enum {
 	SLI4_REG_BMBX,
-	SLI4_REG_EQCQ_DOORBELL,
+	SLI4_REG_EQ_DOORBELL,
+	SLI4_REG_CQ_DOORBELL,
 	SLI4_REG_FCOE_RQ_DOORBELL,
 	SLI4_REG_IO_WQ_DOORBELL,
 	SLI4_REG_MQ_DOORBELL,
@@ -3046,6 +3099,9 @@ typedef struct sli4_queue_s {
 	uint32_t	max_num_processed;
 	time_t		max_process_time;
 
+	uint16_t 	phase;		/** For if_type = 6, this value toggle for each iteration
+					    of the queue, a queue entry is valid when a cqe valid
+					    bit matches this value */
 	/* Type specific gunk */
 	union {
 		uint32_t	r_idx;	/** "read" index (MQ only) */
@@ -3151,6 +3207,7 @@ typedef enum {
 	SLI4_ASIC_TYPE_LANCER,
 	SLI4_ASIC_TYPE_CORSAIR,
 	SLI4_ASIC_TYPE_LANCERG6,
+	SLI4_ASIC_TYPE_LANCERG7
 } sli4_asic_type_e;
 
 typedef enum {
