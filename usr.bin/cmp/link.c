@@ -82,10 +82,14 @@ c_link(const char *file1, off_t skip1, const char *file2, off_t skip2,
 				    (long long)byte - 1, ch, *p2);
 			} else if (lflag) {
 				dfound = 1;
-				(void)printf("%6lld %3o %3o\n",
-				    (long long)byte, ch, *p2);
+				if (bflag)
+					(void)printf("%6lld %3o %c %3o %c\n",
+					    (long long)byte, ch, ch, *p2, *p2);
+				else
+					(void)printf("%6lld %3o %3o\n",
+					    (long long)byte, ch, *p2);
 			} else
-				diffmsg(file1, file2, byte, 1);
+				diffmsg(file1, file2, byte, 1, ch, *p2);
 				/* NOTREACHED */
 		}
 		byte++;
