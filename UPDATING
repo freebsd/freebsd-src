@@ -29,7 +29,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 14.x IS SLOW:
 
 202010922:
 	As of commit 903873ce1560, the mixer(8) utility has got a slightly
-	new syntax. Please confirm to the mixer(8) manual page for more
+	new syntax. Please refer to the mixer(8) manual page for more
 	information.
 
 20210911:
