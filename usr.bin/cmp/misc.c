@@ -56,10 +56,20 @@ eofmsg(const char *file)
 }
 
 void
-diffmsg(const char *file1, const char *file2, off_t byte, off_t line)
+diffmsg(const char *file1, const char *file2, off_t byte, off_t line,
+    int b1, int b2)
 {
-	if (!sflag)
+	if (sflag)
+		goto out;
+
+	if (bflag) {
+		(void)printf("%s %s differ: char %lld, line %lld is %3o %c %3o %c\n",
+		    file1, file2, (long long)byte, (long long)line, b1, b1,
+		    b2, b2);
+	} else {
 		(void)printf("%s %s differ: char %lld, line %lld\n",
 		    file1, file2, (long long)byte, (long long)line);
+	}
+out:
 	exit(DIFF_EXIT);
 }
