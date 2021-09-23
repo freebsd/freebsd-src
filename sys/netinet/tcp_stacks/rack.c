@@ -13116,10 +13116,28 @@ rack_timer_audit(struct tcpcb *tp, struct tcp_rack *rack, struct sockbuf *sb)
 static void
 rack_do_win_updates(struct tcpcb *tp, struct tcp_rack *rack, uint32_t tiwin, uint32_t seq, uint32_t ack, uint32_t cts, uint32_t high_seq)
 {
-	tp->snd_wnd = tiwin;
-	rack_validate_fo_sendwin_up(tp, rack);
-	tp->snd_wl1 = seq;
-	tp->snd_wl2 = ack;
+	if ((SEQ_LT(tp->snd_wl1, seq) ||
+	    (tp->snd_wl1 == seq && (SEQ_LT(tp->snd_wl2, ack) ||
+	    (tp->snd_wl2 == ack && tiwin > tp->snd_wnd))))) {
+		/* keep track of pure window updates */
+		if ((tp->snd_wl2 == ack) && (tiwin > tp->snd_wnd))
+			KMOD_TCPSTAT_INC(tcps_rcvwinupd);
+		tp->snd_wnd = tiwin;
+		rack_validate_fo_sendwin_up(tp, rack);
+		tp->snd_wl1 = seq;
+		tp->snd_wl2 = ack;
+		if (tp->snd_wnd > tp->max_sndwnd)
+			tp->max_sndwnd = tp->snd_wnd;
+	    rack->r_wanted_output = 1;
+	} else if ((tp->snd_wl2 == ack) && (tiwin < tp->snd_wnd)) {
+		tp->snd_wnd = tiwin;
+		rack_validate_fo_sendwin_up(tp, rack);
+		tp->snd_wl1 = seq;
+		tp->snd_wl2 = ack;
+	} else {
+		/* Not a valid win update */
+		return;
+	}
 	if (tp->snd_wnd > tp->max_sndwnd)
 		tp->max_sndwnd = tp->snd_wnd;
 	if (tp->snd_wnd < (tp->snd_max - high_seq)) {
@@ -13324,8 +13342,8 @@ rack_do_compressed_ack_processing(struct tcpcb *tp, struct socket *so, struct mb
 	struct tcp_ackent *ae;
 	uint32_t tiwin, ms_cts, cts, acked, acked_amount, high_seq, win_seq, the_win, win_upd_ack;
 	int cnt, i, did_out, ourfinisacked = 0;
-	int win_up_req = 0;
 	struct tcpopt to_holder, *to = NULL;
+	int win_up_req = 0;
 	int nsegs = 0;
 	int under_pacing = 1;
 	int recovery = 0;
@@ -13519,11 +13537,11 @@ rack_do_compressed_ack_processing(struct tcpcb *tp, struct socket *so, struct mb
 			rack_strike_dupack(rack);
 		} else if (ae->ack_val_set == ACK_RWND) {
 			/* Case C */
-
 			win_up_req = 1;
 			win_upd_ack = ae->ack;
 			win_seq = ae->seq;
 			the_win = tiwin;
+			rack_do_win_updates(tp, rack, the_win, win_seq, win_upd_ack, cts, high_seq);
 		} else {
 			/* Case A */
 			if (SEQ_GT(ae->ack, tp->snd_max)) {
@@ -13540,10 +13558,10 @@ rack_do_compressed_ack_processing(struct tcpcb *tp, struct socket *so, struct mb
 				nsegs++;
 				/* If the window changed setup to update */
 				if (tiwin != tp->snd_wnd) {
-					win_up_req = 1;
 					win_upd_ack = ae->ack;
 					win_seq = ae->seq;
 					the_win = tiwin;
+					rack_do_win_updates(tp, rack, the_win, win_seq, win_upd_ack, cts, high_seq);
 				}
 #ifdef TCP_ACCOUNTING
 				/* Account for the acks */
@@ -13592,9 +13610,6 @@ rack_do_compressed_ack_processing(struct tcpcb *tp, struct socket *so, struct mb
 	ts_val = get_cyclecount();
 #endif
 	acked_amount = acked = (high_seq - tp->snd_una);
-	if (win_up_req) {
-		rack_do_win_updates(tp, rack, the_win, win_seq, win_upd_ack, cts, high_seq);
-	}
 	if (acked) {
 		if (rack->sack_attack_disable == 0)
 			rack_do_decay(rack);
