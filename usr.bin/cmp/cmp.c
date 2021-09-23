@@ -67,6 +67,7 @@ bool	lflag, sflag, xflag, zflag;
 static const struct option long_opts[] =
 {
 	{"verbose",	no_argument,		NULL, 'l'},
+	{"bytes",	required_argument,	NULL, 'n'},
 	{"silent",	no_argument,		NULL, 's'},
 	{"quiet",	no_argument,		NULL, 's'},
 	{NULL,		no_argument,		NULL, 0}
@@ -78,20 +79,27 @@ int
 main(int argc, char *argv[])
 {
 	struct stat sb1, sb2;
-	off_t skip1, skip2;
+	off_t skip1, skip2, limit;
 	int ch, fd1, fd2, oflag;
 	bool special;
 	const char *file1, *file2;
 
 	skip1 = skip2 = 0;
 	oflag = O_RDONLY;
-	while ((ch = getopt_long(argc, argv, "+hlsxz", long_opts, NULL)) != -1)
+	while ((ch = getopt_long(argc, argv, "+hln:sxz", long_opts, NULL)) != -1)
 		switch (ch) {
 		case 'h':		/* Don't follow symlinks */
 			oflag |= O_NOFOLLOW;
 			break;
 		case 'l':		/* print all differences */
 			lflag = true;
+			break;
+		case 'n':		/* Limit */
+			if (expand_number(optarg, &limit) < 0 || limit < 0) {
+				fprintf(stderr, "Invalid --bytes: %s\n",
+				    optarg);
+				usage();
+			}
 			break;
 		case 's':		/* silent run */
 			sflag = true;
@@ -163,7 +171,7 @@ main(int argc, char *argv[])
 
 	if (fd1 == -1) {
 		if (fd2 == -1) {
-			c_link(file1, skip1, file2, skip2);
+			c_link(file1, skip1, file2, skip2, limit);
 			exit(0);
 		} else if (!sflag)
 			errx(ERR_EXIT, "%s: Not a symbolic link", file2);
@@ -201,7 +209,7 @@ main(int argc, char *argv[])
 	}
 
 	if (special)
-		c_special(fd1, file1, skip1, fd2, file2, skip2);
+		c_special(fd1, file1, skip1, fd2, file2, skip2, limit);
 	else {
 		if (zflag && sb1.st_size != sb2.st_size) {
 			if (!sflag)
@@ -210,7 +218,7 @@ main(int argc, char *argv[])
 			exit(DIFF_EXIT);
 		}
 		c_regular(fd1, file1, skip1, sb1.st_size,
-		    fd2, file2, skip2, sb2.st_size);
+		    fd2, file2, skip2, sb2.st_size, limit);
 	}
 	exit(0);
 }
