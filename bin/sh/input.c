@@ -352,17 +352,25 @@ popstring(void)
 /*
  * Set the input to take input from a file.  If push is set, push the
  * old input onto the stack first.
+ * About verify:
+ *   -1: Obey verifyflag
+ *    0: Do not verify
+ *    1: Do verify
  */
 
 void
-setinputfile(const char *fname, int push)
+setinputfile(const char *fname, int push, int verify)
 {
 	int e;
 	int fd;
 	int fd2;
+	int oflags = O_RDONLY | O_CLOEXEC;
+
+	if (verify == 1 || (verify == -1 && verifyflag))
+		oflags |= O_VERIFY;
 
 	INTOFF;
-	if ((fd = open(fname, O_RDONLY | O_CLOEXEC)) < 0) {
+	if ((fd = open(fname, oflags)) < 0) {
 		e = errno;
 		errorwithstatus(e == ENOENT || e == ENOTDIR ? 127 : 126,
 		    "cannot open %s: %s", fname, strerror(e));

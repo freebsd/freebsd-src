@@ -447,7 +447,7 @@ histcmd(int argc, char **argv __unused)
 		editcmd = stalloc(strlen(editor) + strlen(editfile) + 2);
 		sprintf(editcmd, "%s %s", editor, editfile);
 		evalstring(editcmd, 0);	/* XXX - should use no JC command */
-		readcmdfile(editfile);	/* XXX - should read back - quick tst */
+		readcmdfile(editfile, 0 /* verify */);	/* XXX - should read back - quick tst */
 		unlink(editfile);
 	}
 
