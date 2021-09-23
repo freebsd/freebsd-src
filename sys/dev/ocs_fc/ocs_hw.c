@@ -272,7 +272,8 @@ ocs_hw_read_max_dump_size(ocs_hw_t *hw)
 	int 	rc;
 
 	/* lancer only */
-	if (SLI4_IF_TYPE_LANCER_FC_ETH != sli_get_if_type(&hw->sli)) {
+	if ((SLI4_IF_TYPE_LANCER_FC_ETH != sli_get_if_type(&hw->sli)) &&
+	    (SLI4_IF_TYPE_LANCER_G7 != sli_get_if_type(&hw->sli))) {
 		ocs_log_debug(hw->os, "Function only supported for I/F type 2\n");
 		return OCS_HW_RTN_ERROR;
 	}
@@ -414,7 +415,9 @@ ocs_hw_setup(ocs_hw_t *hw, ocs_os_handle_t os, sli4_port_type_e port_type)
 	}
 
 	/* Must be done after the workaround setup */
-	if (SLI4_IF_TYPE_LANCER_FC_ETH == sli_get_if_type(&hw->sli)) {
+	if ((SLI4_IF_TYPE_LANCER_FC_ETH == sli_get_if_type(&hw->sli)) ||
+	    (SLI4_IF_TYPE_LANCER_G7 == sli_get_if_type(&hw->sli))) {
+
 		(void)ocs_hw_read_max_dump_size(hw);
 	}
 
@@ -6001,7 +6004,8 @@ ocs_hw_get_linkcfg(ocs_hw_t *hw, uint32_t opts, ocs_hw_port_control_cb_t cb, voi
 		return OCS_HW_RTN_ERROR;
 	}
 
-	if (SLI4_IF_TYPE_LANCER_FC_ETH == sli_get_if_type(&hw->sli)) {
+	if ((SLI4_IF_TYPE_LANCER_FC_ETH == sli_get_if_type(&hw->sli)) ||
+	    (SLI4_IF_TYPE_LANCER_G7 == sli_get_if_type(&hw->sli))){
 		return ocs_hw_get_linkcfg_lancer(hw, opts, cb, arg);
 	} else if ((SLI4_IF_TYPE_BE3_SKH_PF == sli_get_if_type(&hw->sli)) ||
 		   (SLI4_IF_TYPE_BE3_SKH_VF == sli_get_if_type(&hw->sli))) {
