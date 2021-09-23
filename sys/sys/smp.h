@@ -107,6 +107,7 @@ typedef struct cpu_group *cpu_group_t;
 #define	CG_FLAG_HTT	0x01		/* Schedule the alternate core last. */
 #define	CG_FLAG_SMT	0x02		/* New age htt, less crippled. */
 #define	CG_FLAG_THREAD	(CG_FLAG_HTT | CG_FLAG_SMT)	/* Any threading. */
+#define	CG_FLAG_NODE	0x04		/* NUMA node. */
 
 /*
  * Convenience routines for building and traversing topologies.

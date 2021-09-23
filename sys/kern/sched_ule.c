@@ -3098,6 +3098,8 @@ sysctl_kern_sched_topology_spec_internal(struct sbuf *sb, struct cpu_group *cg,
 			sbuf_printf(sb, "<flag name=\"THREAD\">THREAD group</flag>");
 		if ((cg->cg_flags & CG_FLAG_SMT) != 0)
 			sbuf_printf(sb, "<flag name=\"SMT\">SMT group</flag>");
+		if ((cg->cg_flags & CG_FLAG_NODE) != 0)
+			sbuf_printf(sb, "<flag name=\"NODE\">NUMA node</flag>");
 		sbuf_printf(sb, "</flags>\n");
 	}
 
