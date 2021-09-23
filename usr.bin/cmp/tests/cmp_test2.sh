@@ -118,6 +118,22 @@ limit_body()
 	atf_check -s exit:1 -o ignore -x "cat a | cmp -sn 5 b -"
 }
 
+atf_test_case bflag
+bflag_head()
+{
+	atf_set "descr" "Test cmp(1) -b (print bytes)"
+}
+bflag_body()
+{
+	echo -n "abcd" > a
+	echo -n "abdd" > b
+
+	atf_check -s exit:1 -o file:$(atf_get_srcdir)/b_flag.out \
+	    cmp -b a b
+	atf_check -s exit:1 -o file:$(atf_get_srcdir)/bl_flag.out \
+	    cmp -bl a b
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case special
@@ -125,4 +141,5 @@ atf_init_test_cases()
 	atf_add_test_case pr252542
 	atf_add_test_case skipsuff
 	atf_add_test_case limit
+	atf_add_test_case bflag
 }

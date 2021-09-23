@@ -42,7 +42,7 @@ void	c_link(const char *, off_t, const char *, off_t, off_t);
 void	c_regular(int, const char *, off_t, off_t, int, const char *, off_t,
 	    off_t, off_t);
 void	c_special(int, const char *, off_t, int, const char *, off_t, off_t);
-void	diffmsg(const char *, const char *, off_t, off_t);
+void	diffmsg(const char *, const char *, off_t, off_t, int, int);
 void	eofmsg(const char *);
 
-extern bool lflag, sflag, xflag, zflag;
+extern bool bflag, lflag, sflag, xflag, zflag;

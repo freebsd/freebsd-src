@@ -40,7 +40,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl l | s | x
-.Op Fl hz
+.Op Fl bhz
 .Op Fl -ignore-initial Ns Cm = Ns Ar num1 Ns Op :num2
 .Op Fl -bytes Ns Cm = Ns Ar num
 .Ar file1 file2
@@ -59,6 +59,8 @@ Bytes and lines are numbered beginning with one.
 .Pp
 The following options are available:
 .Bl -tag -width indent
+.It Fl b , Fl -print-bytes
+Print each byte when a difference is found.
 .It Fl h
 Do not follow symbolic links.
 .It Fl i Ar num1 Ns Oo :num2 Oc , Fl -ignore-initial= Ns Ar num1 Ns Op :num2
@@ -187,6 +189,7 @@ utility is expected to be
 .St -p1003.2
 compatible.
 The
+.Fl b ,
 .Fl h ,
 .Fl i ,
 .Fl n ,

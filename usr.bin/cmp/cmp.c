@@ -62,10 +62,11 @@ __FBSDID("$FreeBSD$");
 
 #include "extern.h"
 
-bool	lflag, sflag, xflag, zflag;
+bool	bflag, lflag, sflag, xflag, zflag;
 
 static const struct option long_opts[] =
 {
+	{"print-bytes",	no_argument,		NULL, 'b'},
 	{"ignore-initial", required_argument,	NULL, 'i'},
 	{"verbose",	no_argument,		NULL, 'l'},
 	{"bytes",	required_argument,	NULL, 'n'},
@@ -106,8 +107,11 @@ main(int argc, char *argv[])
 
 	skip1 = skip2 = 0;
 	oflag = O_RDONLY;
-	while ((ch = getopt_long(argc, argv, "+hi:ln:sxz", long_opts, NULL)) != -1)
+	while ((ch = getopt_long(argc, argv, "+bhi:ln:sxz", long_opts, NULL)) != -1)
 		switch (ch) {
+		case 'b':		/* Print bytes */
+			bflag = true;
+			break;
 		case 'h':		/* Don't follow symlinks */
 			oflag |= O_NOFOLLOW;
 			break;
