@@ -789,7 +789,8 @@ pmap_bootstrap_dmap(vm_offset_t kern_l1, vm_paddr_t min_pa,
 				freemempos += PAGE_SIZE;
 
 				pmap_store(&pagetable_dmap[l1_slot],
-				    (l2_pa & ~Ln_TABLE_MASK) | L1_TABLE);
+				    (l2_pa & ~Ln_TABLE_MASK) |
+				    TATTR_PXN_TABLE | L1_TABLE);
 
 				memset(l2, 0, PAGE_SIZE);
 			}
@@ -1873,14 +1874,26 @@ _pmap_alloc_l3(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp)
 	 */
 
 	if (ptepindex >= (NUL2E + NUL1E)) {
-		pd_entry_t *l0;
+		pd_entry_t *l0p, l0e;
 		vm_pindex_t l0index;
 
 		l0index = ptepindex - (NUL2E + NUL1E);
-		l0 = &pmap->pm_l0[l0index];
-		KASSERT((pmap_load(l0) & ATTR_DESCR_VALID) == 0,
-		    ("%s: L0 entry %#lx is valid", __func__, pmap_load(l0)));
-		pmap_store(l0, VM_PAGE_TO_PHYS(m) | L0_TABLE);
+		l0p = &pmap->pm_l0[l0index];
+		KASSERT((pmap_load(l0p) & ATTR_DESCR_VALID) == 0,
+		    ("%s: L0 entry %#lx is valid", __func__, pmap_load(l0p)));
+		l0e = VM_PAGE_TO_PHYS(m) | L0_TABLE;
+
+		/*
+		 * Mark all kernel memory as not accessible from userspace
+		 * and userspace memory as not executable from the kernel.
+		 * This has been done for the bootstrap L0 entries in
+		 * locore.S.
+		 */
+		if (pmap == kernel_pmap)
+			l0e |= TATTR_UXN_TABLE | TATTR_AP_TABLE_NO_EL0;
+		else
+			l0e |= TATTR_PXN_TABLE;
+		pmap_store(l0p, l0e);
 	} else if (ptepindex >= NUL2E) {
 		vm_pindex_t l0index, l1index;
 		pd_entry_t *l0, *l1;

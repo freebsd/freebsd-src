@@ -38,6 +38,15 @@ typedef	uint64_t	pd_entry_t;		/* page directory entry */
 typedef	uint64_t	pt_entry_t;		/* page table entry */
 #endif
 
+/* Table attributes */
+#define	TATTR_MASK		UINT64_C(0xfff8000000000000)
+#define	TATTR_AP_TABLE_MASK	(3UL << 61)
+#define	TATTR_AP_TABLE_RO	(2UL << 61)
+#define	TATTR_AP_TABLE_NO_EL0	(1UL << 61)
+#define	TATTR_UXN_TABLE		(1UL << 60)
+#define	TATTR_PXN_TABLE		(1UL << 59)
+/* Bits 58:51 are ignored */
+
 /* Block and Page attributes */
 #define	ATTR_MASK_H		UINT64_C(0xfffc000000000000)
 #define	ATTR_MASK_L		UINT64_C(0x0000000000000fff)
