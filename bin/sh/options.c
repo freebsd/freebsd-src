@@ -112,7 +112,7 @@ procargs(int argc, char **argv)
 	arg0 = argv[0];
 	if (sflag == 0 && minusc == NULL) {
 		scriptname = *argptr++;
-		setinputfile(scriptname, 0);
+		setinputfile(scriptname, 0, -1 /* verify */);
 		commandname = arg0 = scriptname;
 	}
 	/* POSIX 1003.2: first arg after -c cmd is $0, remainder $1... */

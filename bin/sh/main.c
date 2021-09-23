@@ -253,12 +253,16 @@ read_profile(const char *name)
 {
 	int fd;
 	const char *expandedname;
+	int oflags = O_RDONLY | O_CLOEXEC;
+
+	if (verifyflag)
+		oflags |= O_VERIFY;
 
 	expandedname = expandstr(name);
 	if (expandedname == NULL)
 		return;
 	INTOFF;
-	if ((fd = open(expandedname, O_RDONLY | O_CLOEXEC)) >= 0)
+	if ((fd = open(expandedname, oflags)) >= 0)
 		setinputfd(fd, 1);
 	INTON;
 	if (fd < 0)
@@ -274,9 +278,9 @@ read_profile(const char *name)
  */
 
 void
-readcmdfile(const char *name)
+readcmdfile(const char *name, int verify)
 {
-	setinputfile(name, 1);
+	setinputfile(name, 1, verify);
 	cmdloop(0);
 	popfile();
 }
@@ -331,7 +335,7 @@ dotcmd(int argc, char **argv)
 	filename = argc > 2 && strcmp(argv[1], "--") == 0 ? argv[2] : argv[1];
 
 	fullname = find_dot_file(filename);
-	setinputfile(fullname, 1);
+	setinputfile(fullname, 1, -1 /* verify */);
 	commandname = fullname;
 	cmdloop(0);
 	popfile();
