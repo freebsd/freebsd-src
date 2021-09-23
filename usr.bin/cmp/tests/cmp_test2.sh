@@ -71,8 +71,13 @@ pr252542_body()
 {
 	echo -n '1234567890' > a
 	echo -n 'abc567890' > b
+	echo -n 'xbc567890' > c
 	atf_check -s exit:0 cmp -s a b 4 3
+	atf_check -s exit:0 cmp -i 4:3 -s a b
+	atf_check -s exit:0 cmp -i 1 -s b c
 	atf_check -s exit:1 -o ignore cmp -z a b 4 3
+	atf_check -s exit:1 -o ignore cmp -i 4:3 -z a b
+	atf_check -s exit:1 -o ignore cmp -i 1 -z a b
 }
 
 atf_test_case skipsuff

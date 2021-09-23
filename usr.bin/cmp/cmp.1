@@ -41,6 +41,7 @@
 .Nm
 .Op Fl l | s | x
 .Op Fl hz
+.Op Fl -ignore-initial Ns Cm = Ns Ar num1 Ns Op :num2
 .Op Fl -bytes Ns Cm = Ns Ar num
 .Ar file1 file2
 .Op Ar skip1 Op Ar skip2
@@ -60,6 +61,23 @@ The following options are available:
 .Bl -tag -width indent
 .It Fl h
 Do not follow symbolic links.
+.It Fl i Ar num1 Ns Oo :num2 Oc , Fl -ignore-initial= Ns Ar num1 Ns Op :num2
+Skip
+.Ar num1
+bytes from
+.Ar file1 ,
+and optionally skip
+.Ar num2
+bytes from
+.Ar file2 .
+If
+.Ar num2
+is not specified, then
+.Ar num1
+is applied for both
+.Ar file1
+and
+.Ar file2 .
 .It Fl l , Fl -verbose
 Print the byte number (decimal) and the differing
 byte values (octal) for each difference.
@@ -170,6 +188,7 @@ utility is expected to be
 compatible.
 The
 .Fl h ,
+.Fl i ,
 .Fl n ,
 .Fl x ,
 and
