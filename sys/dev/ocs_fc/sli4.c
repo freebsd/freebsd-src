@@ -91,7 +91,8 @@ sli4_asic_entry_t sli4_asic_table[] = {
 	{	0x0,	0x0c,	SLI4_ASIC_TYPE_LANCERG6,SLI4_ASIC_REV_A0},
 	{	0x1,	0x0c,	SLI4_ASIC_TYPE_LANCERG6,SLI4_ASIC_REV_A1},
 	{	0x3,	0x0c,	SLI4_ASIC_TYPE_LANCERG6,SLI4_ASIC_REV_A3},
-
+	{	0x1,	0x0d,   SLI4_ASIC_TYPE_LANCERG7,SLI4_ASIC_REV_A1}, 
+	{	0x10,   0x0d,   SLI4_ASIC_TYPE_LANCERG7,SLI4_ASIC_REV_B0}, 
 	{	0x00,	0x05,	SLI4_ASIC_TYPE_CORSAIR,	SLI4_ASIC_REV_A0},
 };
 
@@ -124,74 +125,126 @@ const sli4_reg_t regmap[SLI4_REG_MAX][SLI4_MAX_IF_TYPES] = {
 	/* SLI4_REG_BMBX */
 	{
 		{ 2, SLI4_BMBX_REG }, { 0, SLI4_BMBX_REG }, { 0, SLI4_BMBX_REG }, { 0, SLI4_BMBX_REG },
+		{ UINT32_MAX, UINT32_MAX }, { UINT32_MAX, UINT32_MAX } , { 0, SLI4_BMBX_REG },
 	},
 	/* SLI4_REG_EQCQ_DOORBELL */
 	{
 		{ 2, SLI4_EQCQ_DOORBELL_REG }, { 0, SLI4_EQCQ_DOORBELL_REG },
 		{ 0, SLI4_EQCQ_DOORBELL_REG }, { 0, SLI4_EQCQ_DOORBELL_REG },
+		{ UINT32_MAX, UINT32_MAX }, { UINT32_MAX, UINT32_MAX },
+		{ 1, SLI4_IF6_EQ_DOORBELL_REG }
+	},
+	// SLI4_REG_CQ_DOORBELL
+	{
+		{ 2, SLI4_EQCQ_DOORBELL_REG }, { 0, SLI4_EQCQ_DOORBELL_REG },
+		{ 0, SLI4_EQCQ_DOORBELL_REG }, { 0, SLI4_EQCQ_DOORBELL_REG },
+		{ UINT32_MAX, UINT32_MAX }, { UINT32_MAX, UINT32_MAX },
+		{ 1, SLI4_IF6_CQ_DOORBELL_REG }
 	},
 	/* SLI4_REG_FCOE_RQ_DOORBELL */
 	{
 		{ 2, SLI4_RQ_DOORBELL_REG }, { 0, SLI4_RQ_DOORBELL_REG },
 		{ 0, SLI4_RQ_DOORBELL_REG }, { UINT32_MAX, UINT32_MAX },
+		{ UINT32_MAX, UINT32_MAX }, { UINT32_MAX, UINT32_MAX },
+		{ 1, SLI4_IF6_RQ_DOORBELL_REG }
 	},
 	/* SLI4_REG_IO_WQ_DOORBELL */
 	{
-		{ 2, SLI4_IO_WQ_DOORBELL_REG }, { 0, SLI4_IO_WQ_DOORBELL_REG }, { 0, SLI4_IO_WQ_DOORBELL_REG }, { UINT32_MAX, UINT32_MAX },
-	},
+		{ 2, SLI4_IO_WQ_DOORBELL_REG }, { 0, SLI4_IO_WQ_DOORBELL_REG },
+		{ 0, SLI4_IO_WQ_DOORBELL_REG }, { UINT32_MAX, UINT32_MAX },
+		{ UINT32_MAX, UINT32_MAX }, { UINT32_MAX, UINT32_MAX },
+		{ 1, SLI4_IF6_WQ_DOORBELL_REG }
+ 	},
 	/* SLI4_REG_MQ_DOORBELL */
 	{
 		{ 2, SLI4_MQ_DOORBELL_REG }, { 0, SLI4_MQ_DOORBELL_REG },
 		{ 0, SLI4_MQ_DOORBELL_REG }, { 0, SLI4_MQ_DOORBELL_REG },
+		{ UINT32_MAX, UINT32_MAX }, { UINT32_MAX, UINT32_MAX },
+		{ 1, SLI4_IF6_MQ_DOORBELL_REG }
 	},
 	/* SLI4_REG_PHYSDEV_CONTROL */
 	{
-		{ UINT32_MAX, UINT32_MAX }, { UINT32_MAX, UINT32_MAX }, { 0, SLI4_PHSDEV_CONTROL_REG_23 }, { 0, SLI4_PHSDEV_CONTROL_REG_23 },
+		{ UINT32_MAX, UINT32_MAX }, { UINT32_MAX, UINT32_MAX },
+		{ 0, SLI4_PHSDEV_CONTROL_REG_236 }, { 0, SLI4_PHSDEV_CONTROL_REG_236 },
+		{ UINT32_MAX, UINT32_MAX }, { UINT32_MAX, UINT32_MAX },
+		{ 0, SLI4_PHSDEV_CONTROL_REG_236 }
 	},
 	/* SLI4_REG_SLIPORT_CONTROL */
 	{
-		{ UINT32_MAX, UINT32_MAX }, { UINT32_MAX, UINT32_MAX }, { 0, SLI4_SLIPORT_CONTROL_REG }, { UINT32_MAX, UINT32_MAX },
+		{ UINT32_MAX, UINT32_MAX }, { UINT32_MAX, UINT32_MAX },
+		{ 0, SLI4_SLIPORT_CONTROL_REG }, { UINT32_MAX, UINT32_MAX },
+		{ UINT32_MAX, UINT32_MAX }, { UINT32_MAX, UINT32_MAX },
+		{ 0, SLI4_SLIPORT_CONTROL_REG },
 	},
 	/* SLI4_REG_SLIPORT_ERROR1 */
 	{
-		{ UINT32_MAX, UINT32_MAX }, { UINT32_MAX, UINT32_MAX }, { 0, SLI4_SLIPORT_ERROR1 }, { UINT32_MAX, UINT32_MAX },
+		{ UINT32_MAX, UINT32_MAX }, { UINT32_MAX, UINT32_MAX },
+		{ 0, SLI4_SLIPORT_ERROR1 }, { UINT32_MAX, UINT32_MAX },
+		{ UINT32_MAX, UINT32_MAX }, { UINT32_MAX, UINT32_MAX },
+		{ 0, SLI4_SLIPORT_ERROR1 },
 	},
 	/* SLI4_REG_SLIPORT_ERROR2 */
 	{
-		{ UINT32_MAX, UINT32_MAX }, { UINT32_MAX, UINT32_MAX }, { 0, SLI4_SLIPORT_ERROR2 }, { UINT32_MAX, UINT32_MAX },
+		{ UINT32_MAX, UINT32_MAX }, { UINT32_MAX, UINT32_MAX },
+		{ 0, SLI4_SLIPORT_ERROR2 }, { UINT32_MAX, UINT32_MAX },
+		{ UINT32_MAX, UINT32_MAX }, { UINT32_MAX, UINT32_MAX },
+		{ 0, SLI4_SLIPORT_ERROR2 },
 	},
 	/* SLI4_REG_SLIPORT_SEMAPHORE */
 	{
 		{ 1, SLI4_PORT_SEMAPHORE_REG_0 },  { 0, SLI4_PORT_SEMAPHORE_REG_1 },
-		{ 0, SLI4_PORT_SEMAPHORE_REG_23 }, { 0, SLI4_PORT_SEMAPHORE_REG_23 },
+		{ 0, SLI4_PORT_SEMAPHORE_REG_236 }, { 0, SLI4_PORT_SEMAPHORE_REG_236 },
+		{ UINT32_MAX, UINT32_MAX }, { UINT32_MAX, UINT32_MAX }, 
+		{ 0, SLI4_PORT_SEMAPHORE_REG_236 },
 	},
 	/* SLI4_REG_SLIPORT_STATUS */
 	{
-		{ UINT32_MAX, UINT32_MAX }, { UINT32_MAX, UINT32_MAX }, { 0, SLI4_PORT_STATUS_REG_23 }, { 0, SLI4_PORT_STATUS_REG_23 },
+		{ UINT32_MAX, UINT32_MAX }, { UINT32_MAX, UINT32_MAX },
+		{ 0, SLI4_PORT_STATUS_REG_236 }, { 0, SLI4_PORT_STATUS_REG_236 },
+		{ UINT32_MAX, UINT32_MAX }, { UINT32_MAX, UINT32_MAX },
+		{ 0, SLI4_PORT_STATUS_REG_236 },
 	},
 	/* SLI4_REG_UERR_MASK_HI */
 	{
-		{ 0, SLI4_UERR_MASK_HIGH_REG }, { UINT32_MAX, UINT32_MAX }, { UINT32_MAX, UINT32_MAX }, { UINT32_MAX, UINT32_MAX },
+		{ 0, SLI4_UERR_MASK_HIGH_REG }, { UINT32_MAX, UINT32_MAX },
+		{ UINT32_MAX, UINT32_MAX }, { UINT32_MAX, UINT32_MAX },
+		{ UINT32_MAX, UINT32_MAX }, { UINT32_MAX, UINT32_MAX },
+		{ UINT32_MAX, UINT32_MAX }
 	},
 	/* SLI4_REG_UERR_MASK_LO */
 	{
-		{ 0, SLI4_UERR_MASK_LOW_REG }, { UINT32_MAX, UINT32_MAX }, { UINT32_MAX, UINT32_MAX }, { UINT32_MAX, UINT32_MAX },
+		{ 0, SLI4_UERR_MASK_LOW_REG }, { UINT32_MAX, UINT32_MAX },
+		{ UINT32_MAX, UINT32_MAX }, { UINT32_MAX, UINT32_MAX },
+		{ UINT32_MAX, UINT32_MAX }, { UINT32_MAX, UINT32_MAX },
+		{ UINT32_MAX, UINT32_MAX }
 	},
 	/* SLI4_REG_UERR_STATUS_HI */
 	{
-		{ 0, SLI4_UERR_STATUS_HIGH_REG }, { UINT32_MAX, UINT32_MAX }, { UINT32_MAX, UINT32_MAX }, { UINT32_MAX, UINT32_MAX },
+		{ 0, SLI4_UERR_STATUS_HIGH_REG }, { UINT32_MAX, UINT32_MAX },
+		{ UINT32_MAX, UINT32_MAX }, { UINT32_MAX, UINT32_MAX },
+		{ UINT32_MAX, UINT32_MAX }, { UINT32_MAX, UINT32_MAX },
+		{ UINT32_MAX, UINT32_MAX }
 	},
 	/* SLI4_REG_UERR_STATUS_LO */
 	{
-		{ 0, SLI4_UERR_STATUS_LOW_REG }, { UINT32_MAX, UINT32_MAX }, { UINT32_MAX, UINT32_MAX }, { UINT32_MAX, UINT32_MAX },
+		{ 0, SLI4_UERR_STATUS_LOW_REG }, { UINT32_MAX, UINT32_MAX },
+		{ UINT32_MAX, UINT32_MAX }, { UINT32_MAX, UINT32_MAX },
+		{ UINT32_MAX, UINT32_MAX }, { UINT32_MAX, UINT32_MAX },
+		{ UINT32_MAX, UINT32_MAX }
 	},
 	/* SLI4_REG_SW_UE_CSR1 */
 	{
-		{ 1, SLI4_SW_UE_CSR1}, { UINT32_MAX, UINT32_MAX }, { UINT32_MAX, UINT32_MAX }, { UINT32_MAX, UINT32_MAX },
+		{ 1, SLI4_SW_UE_CSR1}, { UINT32_MAX, UINT32_MAX },
+		{ UINT32_MAX, UINT32_MAX }, { UINT32_MAX, UINT32_MAX },
+		{ UINT32_MAX, UINT32_MAX }, { UINT32_MAX, UINT32_MAX },
+		{ UINT32_MAX, UINT32_MAX }
 	},
 	/* SLI4_REG_SW_UE_CSR2 */
 	{
-		{ 1, SLI4_SW_UE_CSR2}, { UINT32_MAX, UINT32_MAX }, { UINT32_MAX, UINT32_MAX }, { UINT32_MAX, UINT32_MAX },
+		{ 1, SLI4_SW_UE_CSR2}, { UINT32_MAX, UINT32_MAX },
+		{ UINT32_MAX, UINT32_MAX }, { UINT32_MAX, UINT32_MAX },
+		{ UINT32_MAX, UINT32_MAX }, { UINT32_MAX, UINT32_MAX },
+		{ UINT32_MAX, UINT32_MAX }
 	},
 };
 
@@ -1739,6 +1792,7 @@ sli_cmd_common_create_cq(sli4_t *sli4, void *buf, size_t size,
 		cmd_size = sizeof(sli4_req_common_create_cq_v0_t) + (8 * num_pages);
 		break;
 	case SLI4_IF_TYPE_LANCER_FC_ETH:
+	case SLI4_IF_TYPE_LANCER_G7:
 		n_cqe = qmem->size / SLI4_CQE_BYTES;
 		switch (n_cqe) {
 		case 256:
@@ -1814,12 +1868,16 @@ sli_cmd_common_create_cq(sli4_t *sli4, void *buf, size_t size,
 
 		break;
 	case SLI4_IF_TYPE_LANCER_FC_ETH:
+	case SLI4_IF_TYPE_LANCER_G7:
 	{
 		cqv2 = (sli4_req_common_create_cq_v2_t *)((uint8_t *)buf + sli_config_off);
 		cqv2->hdr.opcode = SLI4_OPC_COMMON_CREATE_CQ;
 		cqv2->hdr.subsystem = SLI4_SUBSYSTEM_COMMON;
 		cqv2->hdr.version = 2;
 		cqv2->hdr.request_length = cmd_size - sizeof(sli4_req_hdr_t);
+
+		if (if_type == SLI4_IF_TYPE_LANCER_G7)
+			cqv2->autovalid = TRUE;
 
 		cqv2->page_size = page_size;
 
@@ -1993,6 +2051,10 @@ sli_cmd_common_create_eq(sli4_t *sli4, void *buf, size_t size, ocs_dma_t *qmem,
 	eq->hdr.subsystem = SLI4_SUBSYSTEM_COMMON;
 	eq->hdr.request_length = sizeof(sli4_req_common_create_eq_t) -
 					sizeof(sli4_req_hdr_t);
+	if (sli4->if_type == SLI4_IF_TYPE_LANCER_G7) {
+		eq->hdr.version = 2;
+		eq->autovalid = TRUE;
+	}
 	/* valid values for number of pages: 1, 2, 4 (sec 4.4.3) */
 	eq->num_pages = qmem->size / SLI_PAGE_SIZE;
 	switch (eq->num_pages) {
@@ -2445,6 +2507,7 @@ sli_cmd_common_get_port_name(sli4_t *sli4, void *buf, size_t size)
 		break;
 	case SLI4_IF_TYPE_LANCER_FC_ETH:
 	case SLI4_IF_TYPE_LANCER_RDMA:
+	case SLI4_IF_TYPE_LANCER_G7:
 		version = 1;
 		break;
 	default:
@@ -3309,6 +3372,7 @@ sli_fw_init(sli4_t *sli4)
 		}
 		break;
 	case SLI4_IF_TYPE_LANCER_FC_ETH:
+	case SLI4_IF_TYPE_LANCER_G7:
 #if BYTE_ORDER == LITTLE_ENDIAN
 		endian = SLI4_SLIPORT_CONTROL_LITTLE_ENDIAN;
 #else
@@ -3387,11 +3451,17 @@ sli_queue_doorbell(sli4_t *sli4, sli4_queue_t *q)
 
 	switch (q->type) {
 	case SLI_QTYPE_EQ:
-		val = sli_eq_doorbell(q->n_posted, q->id, FALSE);
+		if (sli4->if_type == SLI4_IF_TYPE_LANCER_G7)
+			val = sli_iftype6_eq_doorbell(q->n_posted, q->id, FALSE);
+		else
+			val = sli_eq_doorbell(q->n_posted, q->id, FALSE);
 		ocs_reg_write32(sli4->os, q->doorbell_rset, q->doorbell_offset, val);
 		break;
 	case SLI_QTYPE_CQ:
-		val = sli_cq_doorbell(q->n_posted, q->id, FALSE);
+		if (sli4->if_type == SLI4_IF_TYPE_LANCER_G7)
+			val = sli_iftype6_cq_doorbell(q->n_posted, q->id, FALSE);
+		else
+			val = sli_cq_doorbell(q->n_posted, q->id, FALSE);
 		ocs_reg_write32(sli4->os, q->doorbell_rset, q->doorbell_offset, val);
 		break;
 	case SLI_QTYPE_MQ:
@@ -3435,7 +3505,13 @@ sli_queue_doorbell(sli4_t *sli4, sli4_queue_t *q)
 		break;
 	}
 	case SLI_QTYPE_WQ:
-		val = SLI4_WQ_DOORBELL(q->n_posted, q->index, q->id);
+		if (sli4->if_type == SLI4_IF_TYPE_LANCER_G7) {
+			val = SLI4_WQ_DOORBELL(q->n_posted, 0, q->id);
+		} else {
+			/* For iftype = 2 and 3, q->index value is ignored */
+			val = SLI4_WQ_DOORBELL(q->n_posted, q->index, q->id);
+		}
+
 		ocs_reg_write32(sli4->os, q->doorbell_rset, q->doorbell_offset, val);
 		break;
 	default:
@@ -3627,7 +3703,7 @@ sli_get_config(sli4_t *sli4)
 			sli4->config.extent[SLI_RSRC_FCOE_RPI].size = read_config->rpi_count;
 
 			sli4->config.extent[SLI_RSRC_FCOE_XRI].base[0] = read_config->xri_base;
-			sli4->config.extent[SLI_RSRC_FCOE_XRI].size = read_config->xri_count;
+			sli4->config.extent[SLI_RSRC_FCOE_XRI].size = OCS_MIN(255,read_config->xri_count);
 
 			sli4->config.extent[SLI_RSRC_FCOE_FCFI].base[0] = 0;
 			sli4->config.extent[SLI_RSRC_FCOE_FCFI].size = read_config->fcfi_count;
@@ -3988,7 +4064,8 @@ sli_setup(sli4_t *sli4, ocs_os_handle_t os, sli4_port_type_e port_type)
 
 	sli4->if_type = sli_intf_if_type(sli_intf);
 
-	if (SLI4_IF_TYPE_LANCER_FC_ETH == sli4->if_type) {
+	if ((SLI4_IF_TYPE_LANCER_FC_ETH == sli4->if_type) ||
+	   (SLI4_IF_TYPE_LANCER_G7 == sli4->if_type)) {
 		ocs_log_debug(os, "status=%#x error1=%#x error2=%#x\n",
 				sli_reg_read(sli4, SLI4_REG_SLIPORT_STATUS),
 				sli_reg_read(sli4, SLI4_REG_SLIPORT_ERROR1),
@@ -4320,6 +4397,11 @@ __sli_queue_init(sli4_t *sli4, sli4_queue_t *q, uint32_t qtype,
 		/* Limit to hwf the queue size per interrupt */
 		q->proc_limit = n_entries / 2;
 
+		if ( (q->type == SLI_QTYPE_EQ) || (q->type == SLI_QTYPE_CQ) ) {
+		/* For prism, phase will be flipped after a sweep through eq and cq */
+			q->phase = 1;
+		}
+
 		switch(q->type) {
 		case SLI_QTYPE_EQ:
 			q->posted_limit = q->length / 2;
@@ -4381,13 +4463,13 @@ __sli_create_queue(sli4_t *sli4, sli4_queue_t *q)
 		switch (q->type) {
 		case SLI_QTYPE_EQ:
 			/* No doorbell information in response for EQs */
-			q->doorbell_offset = regmap[SLI4_REG_EQCQ_DOORBELL][sli4->if_type].off;
-			q->doorbell_rset = regmap[SLI4_REG_EQCQ_DOORBELL][sli4->if_type].rset;
+			q->doorbell_offset = regmap[SLI4_REG_EQ_DOORBELL][sli4->if_type].off;
+			q->doorbell_rset   = regmap[SLI4_REG_EQ_DOORBELL][sli4->if_type].rset;
 			break;
 		case SLI_QTYPE_CQ:
 			/* No doorbell information in response for CQs */
-			q->doorbell_offset = regmap[SLI4_REG_EQCQ_DOORBELL][sli4->if_type].off;
-			q->doorbell_rset = regmap[SLI4_REG_EQCQ_DOORBELL][sli4->if_type].rset;
+			q->doorbell_offset = regmap[SLI4_REG_CQ_DOORBELL][sli4->if_type].off;
+			q->doorbell_rset = regmap[SLI4_REG_CQ_DOORBELL][sli4->if_type].rset;
 			break;
 		case SLI_QTYPE_MQ:
 			/* No doorbell information in response for MQs */
@@ -4694,6 +4776,9 @@ sli_cq_alloc_set(sli4_t *sli4, sli4_queue_t *qs[], uint32_t num_cqs,
 	req->arm = FALSE;
 	req->num_cq_req = num_cqs;
 
+	if (sli4->if_type == SLI4_IF_TYPE_LANCER_G7)
+		req->autovalid = TRUE;
+
 	/* Fill page addresses of all the CQs. */
 	for (i = 0; i < num_cqs; i++) {
 		req->eq_id[i] = eqs[i]->id;
@@ -4724,8 +4809,8 @@ sli_cq_alloc_set(sli4_t *sli4, sli4_queue_t *qs[], uint32_t num_cqs,
 		/* Fill the resp cq ids. */
 		for (i = 0; i < num_cqs; i++) {
 			qs[i]->id = res->q_id + i;
-			qs[i]->doorbell_offset = regmap[SLI4_REG_EQCQ_DOORBELL][sli4->if_type].off;
-			qs[i]->doorbell_rset   = regmap[SLI4_REG_EQCQ_DOORBELL][sli4->if_type].rset;
+			qs[i]->doorbell_offset = regmap[SLI4_REG_CQ_DOORBELL][sli4->if_type].off;
+			qs[i]->doorbell_rset   = regmap[SLI4_REG_CQ_DOORBELL][sli4->if_type].rset;
 		}
 	}
 
@@ -4922,9 +5007,13 @@ sli_queue_eq_arm(sli4_t *sli4, sli4_queue_t *q, uint8_t arm)
 	uint32_t	val = 0;
 
 	ocs_lock(&q->lock);
+	if (sli4->if_type == SLI4_IF_TYPE_LANCER_G7)
+		val = sli_iftype6_eq_doorbell(q->n_posted, q->id, arm);
+	else
 		val = sli_eq_doorbell(q->n_posted, q->id, arm);
-		ocs_reg_write32(sli4->os, q->doorbell_rset, q->doorbell_offset, val);
-		q->n_posted = 0;
+
+	ocs_reg_write32(sli4->os, q->doorbell_rset, q->doorbell_offset, val);
+	q->n_posted = 0;
 	ocs_unlock(&q->lock);
 
 	return 0;
@@ -4949,12 +5038,18 @@ sli_queue_arm(sli4_t *sli4, sli4_queue_t *q, uint8_t arm)
 
 	switch (q->type) {
 	case SLI_QTYPE_EQ:
-		val = sli_eq_doorbell(q->n_posted, q->id, arm);
+		if (sli4->if_type == SLI4_IF_TYPE_LANCER_G7)
+			val = sli_iftype6_eq_doorbell(q->n_posted, q->id, arm);
+		else
+			val = sli_eq_doorbell(q->n_posted, q->id, arm);
 		ocs_reg_write32(sli4->os, q->doorbell_rset, q->doorbell_offset, val);
 		q->n_posted = 0;
 		break;
 	case SLI_QTYPE_CQ:
-		val = sli_cq_doorbell(q->n_posted, q->id, arm);
+		if (sli4->if_type == SLI4_IF_TYPE_LANCER_G7)
+			val = sli_iftype6_cq_doorbell(q->n_posted, q->id, arm);
+		else
+			val = sli_cq_doorbell(q->n_posted, q->id, arm);
 		ocs_reg_write32(sli4->os, q->doorbell_rset, q->doorbell_offset, val);
 		q->n_posted = 0;
 		break;
@@ -5069,10 +5164,11 @@ static uint8_t
 sli_queue_entry_is_valid(sli4_queue_t *q, uint8_t *qe, uint8_t clear)
 {
 	uint8_t		valid = FALSE;
+	uint8_t		valid_bit_set = 0;
 
 	switch (q->type) {
 	case SLI_QTYPE_EQ:
-		valid = ((sli4_eqe_t *)qe)->vld;
+		valid = (((sli4_eqe_t *)qe)->vld == q->phase) ? 1 : 0;
 		if (valid && clear) {
 			((sli4_eqe_t *)qe)->vld = 0;
 		}
@@ -5082,7 +5178,10 @@ sli_queue_entry_is_valid(sli4_queue_t *q, uint8_t *qe, uint8_t clear)
 		 * For both MCQE and WCQE/RCQE, the valid bit
 		 * is bit 31 of dword 3 (0 based)
 		 */
-		valid = (qe[15] & 0x80) != 0;
+		valid_bit_set = (qe[15] & 0x80) != 0;
+		if (valid_bit_set == q->phase)
+			valid = 1;
+
 		if (valid & clear) {
 			qe[15] &= ~0x80;
 		}
@@ -5099,6 +5198,7 @@ sli_queue_entry_is_valid(sli4_queue_t *q, uint8_t *qe, uint8_t clear)
 	}
 
 	if (clear) {
+
 		ocs_dma_sync(&q->dma, OCS_DMASYNC_PREWRITE);
 	}
 
@@ -5122,6 +5222,7 @@ sli_queue_read(sli4_t *sli4, sli4_queue_t *q, uint8_t *entry)
 	uint8_t		*qe = q->dma.virt;
 	uint32_t	*qindex = NULL;
 
+	uint8_t 	clear = (SLI4_IF_TYPE_LANCER_G7 == sli_get_if_type(sli4)) ?  FALSE : TRUE;
 	if (SLI_QTYPE_MQ == q->type) {
 		qindex = &q->u.r_idx;
 	} else {
@@ -5134,7 +5235,7 @@ sli_queue_read(sli4_t *sli4, sli4_queue_t *q, uint8_t *entry)
 
 	qe += *qindex * q->size;
 
-	if (!sli_queue_entry_is_valid(q, qe, TRUE)) {
+	if (!sli_queue_entry_is_valid(q, qe, clear)) {
 		ocs_unlock(&q->lock);
 		return -1;
 	}
@@ -5165,6 +5266,13 @@ sli_queue_read(sli4_t *sli4, sli4_queue_t *q, uint8_t *entry)
 			*qindex = (*qindex + 1) & (q->length - 1);
 			if (SLI_QTYPE_MQ != q->type) {
 				q->n_posted++;
+				/*
+				 * For prism, the phase value will be used to check the validity of eq/cq entries.
+				 * The value toggles after a complete sweep through the queue.
+				 */
+				if ((SLI4_IF_TYPE_LANCER_G7 == sli_get_if_type(sli4)) && (*qindex == 0)) {
+					q->phase ^= (uint16_t) 0x1;
+				}
 			}
 			break;
 		default:
@@ -5487,8 +5595,9 @@ int32_t sli_raise_ue(sli4_t *sli4, uint8_t dump)
 			ocs_log_test(sli4->os, "invalid asic type %d\n", sli_get_asic_type(sli4));
 			return -1;
 		}
-	} else if (SLI4_IF_TYPE_LANCER_FC_ETH == sli_get_if_type(sli4)) {	
-		if (dump == FDD) {
+	} else if ((SLI4_IF_TYPE_LANCER_FC_ETH == sli_get_if_type(sli4)) ||
+		   (SLI4_IF_TYPE_LANCER_G7 == sli_get_if_type(sli4))) {
+		if (FDD == dump) {
 			sli_reg_write(sli4, SLI4_REG_SLIPORT_CONTROL, SLI4_SLIPORT_CONTROL_FDD | SLI4_SLIPORT_CONTROL_IP);
 		} else {
 			uint32_t value = SLI4_PHYDEV_CONTROL_FRST;
@@ -5532,7 +5641,8 @@ int32_t sli_dump_is_ready(sli4_t *sli4)
 			rc = 1;
 		}
 
-	} else if (SLI4_IF_TYPE_LANCER_FC_ETH == sli_get_if_type(sli4)) {
+	} else if ((SLI4_IF_TYPE_LANCER_FC_ETH == sli_get_if_type(sli4)) ||
+		   (SLI4_IF_TYPE_LANCER_G7 == sli_get_if_type(sli4))) {
 		/*
 		 * Ensure that the port is ready AND the mailbox is
 		 * ready before signaling that the dump is ready to go.
@@ -5542,7 +5652,7 @@ int32_t sli_dump_is_ready(sli4_t *sli4)
 
 		if ((bmbx_val & SLI4_BMBX_RDY) &&
 		    SLI4_PORT_STATUS_READY(port_val)) { 
-		    	if(SLI4_PORT_STATUS_DUMP_PRESENT(port_val)) {
+			if(SLI4_PORT_STATUS_DUMP_PRESENT(port_val)) {
 				rc = 1;
 			}else if( SLI4_PORT_STATUS_FDP_PRESENT(port_val)) {
 				rc = 2;
@@ -5571,7 +5681,8 @@ int32_t sli_dump_is_present(sli4_t *sli4)
 	uint32_t val;
 	uint32_t ready;
 
-	if (SLI4_IF_TYPE_LANCER_FC_ETH != sli_get_if_type(sli4)) {
+	if ((SLI4_IF_TYPE_LANCER_FC_ETH != sli_get_if_type(sli4)) &&
+	    (SLI4_IF_TYPE_LANCER_G7 != sli_get_if_type(sli4))) {
 		ocs_log_test(sli4->os, "Function only supported for I/F type 2");
 		return -1;
 	}
@@ -5658,7 +5769,8 @@ int32_t sli_fw_error_status(sli4_t *sli4)
 			    (uerr_mask_hi & uerr_status_hi) != 0) {
 				rc = 1;
 			}
-		} else if ((SLI4_IF_TYPE_LANCER_FC_ETH == sli4->if_type)) {
+		} else if (SLI4_IF_TYPE_LANCER_FC_ETH == sli4->if_type ||
+	           SLI4_IF_TYPE_LANCER_G7 == sli4->if_type) {
 			uint32_t sliport_status;
 
 			sliport_status = sli_reg_read(sli4, SLI4_REG_SLIPORT_STATUS);
@@ -5692,9 +5804,10 @@ sli_fw_ready(sli4_t *sli4)
 	    SLI4_IF_TYPE_BE3_SKH_VF == sli4->if_type) {
 		val = sli_reg_read(sli4, SLI4_REG_SLIPORT_SEMAPHORE);
 		rc = ((SLI4_PORT_SEMAPHORE_STATUS_POST_READY ==
-		       SLI4_PORT_SEMAPHORE_PORT(val)) &&
-		      (!SLI4_PORT_SEMAPHORE_IN_ERR(val)) ? 1 : 0);
-	} else if (SLI4_IF_TYPE_LANCER_FC_ETH == sli4->if_type) {
+		    SLI4_PORT_SEMAPHORE_PORT(val)) &&
+		    (!SLI4_PORT_SEMAPHORE_IN_ERR(val)) ? 1 : 0);
+	} else if (SLI4_IF_TYPE_LANCER_FC_ETH == sli4->if_type ||
+		   SLI4_IF_TYPE_LANCER_G7 == sli4->if_type) {
 		val = sli_reg_read(sli4, SLI4_REG_SLIPORT_STATUS);
 		rc = (SLI4_PORT_STATUS_READY(val) ? 1 : 0);
 	}
@@ -5726,6 +5839,7 @@ int32_t sli_link_is_configurable(sli4_t *sli)
 		rc = 1;
 		break;
 	case SLI4_ASIC_TYPE_LANCERG6:
+	case SLI4_ASIC_TYPE_LANCERG7:
 	case SLI4_ASIC_TYPE_BE3:
 	default:
 		rc = 0;
@@ -5755,7 +5869,7 @@ int32_t sli_link_is_configurable(sli4_t *sli)
  */
 int32_t
 sli_cmd_fcoe_wq_create(sli4_t *sli4, void *buf, size_t size,
-		       ocs_dma_t *qmem, uint16_t cq_id, uint16_t ulp)
+			ocs_dma_t *qmem, uint16_t cq_id, uint16_t ulp)
 {
 	sli4_req_fcoe_wq_create_t	*wq = NULL;
 	uint32_t	sli_config_off = 0;
