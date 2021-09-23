@@ -91,7 +91,7 @@ main(int argc, char *argv[])
 				ctl = VERIEXEC_STATE_ENFORCE;
 				break;
 			case 'l':	/* loaded/locked */
-				ctl = (strncmp(optarg, "lock", 4)) ?
+				ctl = (strncmp(optarg, "lock", 4) == 0) ?
 				    VERIEXEC_STATE_LOCKED :
 				    VERIEXEC_STATE_LOADED;
 				break;
