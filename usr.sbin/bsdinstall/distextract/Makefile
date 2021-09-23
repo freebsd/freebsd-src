@@ -2,7 +2,7 @@
 
 BINDIR= ${LIBEXECDIR}/bsdinstall
 PROG=	distextract
-LIBADD=	archive dpv figpar ncursesw dialog m
+LIBADD=	archive dpv dialog m
 
 MAN=
 
