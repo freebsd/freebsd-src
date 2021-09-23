@@ -41,6 +41,7 @@
 .Nm
 .Op Fl l | s | x
 .Op Fl hz
+.Op Fl -bytes Ns Cm = Ns Ar num
 .Ar file1 file2
 .Op Ar skip1 Op Ar skip2
 .Sh DESCRIPTION
@@ -62,6 +63,10 @@ Do not follow symbolic links.
 .It Fl l , Fl -verbose
 Print the byte number (decimal) and the differing
 byte values (octal) for each difference.
+.It Fl n Ar num , Fl -bytes= Ns num
+Only compare up to
+.Ar num
+bytes.
 .It Fl s , Fl -silent , Fl -quiet
 Print nothing for differing files; return exit
 status only.
@@ -165,6 +170,7 @@ utility is expected to be
 compatible.
 The
 .Fl h ,
+.Fl n ,
 .Fl x ,
 and
 .Fl z

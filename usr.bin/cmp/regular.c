@@ -60,7 +60,7 @@ static void segv_handler(int);
 
 void
 c_regular(int fd1, const char *file1, off_t skip1, off_t len1,
-    int fd2, const char *file2, off_t skip2, off_t len2)
+    int fd2, const char *file2, off_t skip2, off_t len2, off_t limit)
 {
 	struct sigaction act, oact;
 	cap_rights_t rights;
@@ -86,15 +86,17 @@ c_regular(int fd1, const char *file1, off_t skip1, off_t len1,
 	off2 = ROUNDPAGE(skip2);
 
 	length = MIN(len1, len2);
+	if (limit > 0)
+		length = MIN(length, limit);
 
 	if ((m1 = remmap(NULL, fd1, off1)) == NULL) {
-		c_special(fd1, file1, skip1, fd2, file2, skip2);
+		c_special(fd1, file1, skip1, fd2, file2, skip2, limit);
 		return;
 	}
 
 	if ((m2 = remmap(NULL, fd2, off2)) == NULL) {
 		munmap(m1, MMAP_CHUNK);
-		c_special(fd1, file1, skip1, fd2, file2, skip2);
+		c_special(fd1, file1, skip1, fd2, file2, skip2, limit);
 		return;
 	}
 

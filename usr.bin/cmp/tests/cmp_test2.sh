@@ -91,10 +91,33 @@ skipsuff_body()
 	atf_check -s exit:0 cmp -s a b 1k 1k
 }
 
+atf_test_case limit
+limit_head()
+{
+	atf_set "descr" "Test cmp(1) -n (limit)"
+}
+limit_body()
+{
+	echo -n "aaaabbbb" > a
+	echo -n "aaaaxxxx" > b
+
+	atf_check -s exit:1 -o ignore cmp -s a b
+	atf_check -s exit:0 cmp -sn 4 a b
+	atf_check -s exit:0 cmp -sn 3 a b
+	atf_check -s exit:1 -o ignore cmp -sn 5 a b
+
+	# Test special, too.  The implementation for link is effectively
+	# identical.
+	atf_check -s exit:0 -e empty -x "cat a | cmp -sn 4 b -"
+	atf_check -s exit:0 -e empty -x "cat a | cmp -sn 3 b -"
+	atf_check -s exit:1 -o ignore -x "cat a | cmp -sn 5 b -"
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case special
 	atf_add_test_case symlink
 	atf_add_test_case pr252542
 	atf_add_test_case skipsuff
+	atf_add_test_case limit
 }
