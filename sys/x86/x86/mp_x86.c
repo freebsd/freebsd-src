@@ -27,6 +27,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_acpi.h"
 #ifdef __i386__
 #include "opt_apic.h"
 #endif
@@ -82,6 +83,11 @@ __FBSDID("$FreeBSD$");
 #include <machine/specialreg.h>
 #include <machine/stack.h>
 #include <x86/ucode.h>
+
+#ifdef DEV_ACPI
+#include <contrib/dev/acpica/include/acpi.h>
+#include <dev/acpica/acpivar.h>
+#endif
 
 static MALLOC_DEFINE(M_CPUS, "cpus", "CPU items");
 
@@ -502,13 +508,16 @@ topo_probe(void)
 		int type;
 		int subtype;
 		int id_shift;
-	} topo_layers[MAX_CACHE_LEVELS + 4];
+	} topo_layers[MAX_CACHE_LEVELS + 5];
 	struct topo_node *parent;
 	struct topo_node *node;
 	int layer;
 	int nlayers;
 	int node_id;
 	int i;
+#if defined(DEV_ACPI) && MAXMEMDOM > 1
+	int d, domain;
+#endif
 
 	if (cpu_topo_probed)
 		return;
@@ -583,6 +592,31 @@ topo_probe(void)
 	topo_layers[nlayers].id_shift = 0;
 	nlayers++;
 
+#if defined(DEV_ACPI) && MAXMEMDOM > 1
+	if (vm_ndomains > 1) {
+		for (layer = 0; layer < nlayers; ++layer) {
+			for (i = 0; i <= max_apic_id; ++i) {
+				if ((i & ((1 << topo_layers[layer].id_shift) - 1)) == 0)
+					domain = -1;
+				if (!cpu_info[i].cpu_present)
+					continue;
+				d = acpi_pxm_get_cpu_locality(i);
+				if (domain >= 0 && domain != d)
+					break;
+				domain = d;
+			}
+			if (i > max_apic_id)
+				break;
+		}
+		KASSERT(layer < nlayers, ("NUMA domain smaller than PU"));
+		memmove(&topo_layers[layer+1], &topo_layers[layer],
+		    sizeof(*topo_layers) * (nlayers - layer));
+		topo_layers[layer].type = TOPO_TYPE_NODE;
+		topo_layers[layer].subtype = CG_SHARE_NONE;
+		nlayers++;
+	}
+#endif
+
 	topo_init_root(&topo_root);
 	for (i = 0; i <= max_apic_id; ++i) {
 		if (!cpu_info[i].cpu_present)
@@ -590,7 +624,12 @@ topo_probe(void)
 
 		parent = &topo_root;
 		for (layer = 0; layer < nlayers; ++layer) {
-			node_id = i >> topo_layers[layer].id_shift;
+#if defined(DEV_ACPI) && MAXMEMDOM > 1
+			if (topo_layers[layer].type == TOPO_TYPE_NODE) {
+				node_id = acpi_pxm_get_cpu_locality(i);
+			} else
+#endif
+				node_id = i >> topo_layers[layer].id_shift;
 			parent = topo_add_node_by_hwid(parent, node_id,
 			    topo_layers[layer].type,
 			    topo_layers[layer].subtype);
@@ -599,7 +638,12 @@ topo_probe(void)
 
 	parent = &topo_root;
 	for (layer = 0; layer < nlayers; ++layer) {
-		node_id = boot_cpu_id >> topo_layers[layer].id_shift;
+#if defined(DEV_ACPI) && MAXMEMDOM > 1
+		if (topo_layers[layer].type == TOPO_TYPE_NODE)
+			node_id = acpi_pxm_get_cpu_locality(boot_cpu_id);
+		else
+#endif
+			node_id = boot_cpu_id >> topo_layers[layer].id_shift;
 		node = topo_find_node_by_hwid(parent, node_id,
 		    topo_layers[layer].type,
 		    topo_layers[layer].subtype);
@@ -774,14 +818,18 @@ x86topo_add_sched_group(struct topo_node *root, struct cpu_group *cg_root)
 	int i;
 
 	KASSERT(root->type == TOPO_TYPE_SYSTEM || root->type == TOPO_TYPE_CACHE ||
-	    root->type == TOPO_TYPE_GROUP,
+	    root->type == TOPO_TYPE_NODE || root->type == TOPO_TYPE_GROUP,
 	    ("x86topo_add_sched_group: bad type: %u", root->type));
 	CPU_COPY(&root->cpuset, &cg_root->cg_mask);
 	cg_root->cg_count = root->cpu_count;
-	if (root->type == TOPO_TYPE_SYSTEM)
-		cg_root->cg_level = CG_SHARE_NONE;
-	else
+	if (root->type == TOPO_TYPE_CACHE)
 		cg_root->cg_level = root->subtype;
+	else
+		cg_root->cg_level = CG_SHARE_NONE;
+	if (root->type == TOPO_TYPE_NODE)
+		cg_root->cg_flags = CG_FLAG_NODE;
+	else
+		cg_root->cg_flags = 0;
 
 	/*
 	 * Check how many core nodes we have under the given root node.
@@ -802,7 +850,7 @@ x86topo_add_sched_group(struct topo_node *root, struct cpu_group *cg_root)
 
 	if (cg_root->cg_level != CG_SHARE_NONE &&
 	    root->cpu_count > 1 && ncores < 2)
-		cg_root->cg_flags = CG_FLAG_SMT;
+		cg_root->cg_flags |= CG_FLAG_SMT;
 
 	/*
 	 * Find out how many cache nodes we have under the given root node.
@@ -814,10 +862,18 @@ x86topo_add_sched_group(struct topo_node *root, struct cpu_group *cg_root)
 	nchildren = 0;
 	node = root;
 	while (node != NULL) {
-		if ((node->type != TOPO_TYPE_GROUP &&
-		    node->type != TOPO_TYPE_CACHE) ||
-		    (root->type != TOPO_TYPE_SYSTEM &&
-		    CPU_CMP(&node->cpuset, &root->cpuset) == 0)) {
+		if (CPU_CMP(&node->cpuset, &root->cpuset) == 0) {
+			if (node->type == TOPO_TYPE_CACHE &&
+			    cg_root->cg_level < node->subtype)
+				cg_root->cg_level = node->subtype;
+			if (node->type == TOPO_TYPE_NODE)
+				cg_root->cg_flags |= CG_FLAG_NODE;
+			node = topo_next_node(root, node);
+			continue;
+		}
+		if (node->type != TOPO_TYPE_GROUP &&
+		    node->type != TOPO_TYPE_NODE &&
+		    node->type != TOPO_TYPE_CACHE) {
 			node = topo_next_node(root, node);
 			continue;
 		}
@@ -842,9 +898,9 @@ x86topo_add_sched_group(struct topo_node *root, struct cpu_group *cg_root)
 	i = 0;
 	while (node != NULL) {
 		if ((node->type != TOPO_TYPE_GROUP &&
+		    node->type != TOPO_TYPE_NODE &&
 		    node->type != TOPO_TYPE_CACHE) ||
-		    (root->type != TOPO_TYPE_SYSTEM &&
-		    CPU_CMP(&node->cpuset, &root->cpuset) == 0)) {
+		    CPU_CMP(&node->cpuset, &root->cpuset) == 0) {
 			node = topo_next_node(root, node);
 			continue;
 		}
