@@ -40,7 +40,8 @@ __FBSDID("$FreeBSD$");
 #include "extern.h"
 
 void
-c_link(const char *file1, off_t skip1, const char *file2, off_t skip2)
+c_link(const char *file1, off_t skip1, const char *file2, off_t skip2,
+    off_t limit)
 {
 	char buf1[PATH_MAX], *p1;
 	char buf2[PATH_MAX], *p2;
@@ -72,7 +73,8 @@ c_link(const char *file1, off_t skip1, const char *file2, off_t skip2)
 
 	dfound = 0;
 	byte = 1;
-	for (p1 = buf1 + skip1, p2 = buf2 + skip2; *p1 && *p2; p1++, p2++) {
+	for (p1 = buf1 + skip1, p2 = buf2 + skip2;
+	    *p1 && *p2 && (limit == 0 || byte <= limit); p1++, p2++) {
 		if ((ch = *p1) != *p2) {
 			if (xflag) {
 				dfound = 1;
