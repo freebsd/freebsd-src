@@ -5006,11 +5006,14 @@ pf_getstatus(struct pfioc_nv *nv)
 	else if (nv->size < nv->len)
 		ERROUT(ENOSPC);
 
+	PF_RULES_RUNLOCK();
 	error = copyout(nvlpacked, nv->data, nv->len);
+	goto done;
 
 #undef ERROUT
 errout:
 	PF_RULES_RUNLOCK();
+done:
 	free(nvlpacked, M_NVLIST);
 	nvlist_destroy(nvc);
 	nvlist_destroy(nvl);
