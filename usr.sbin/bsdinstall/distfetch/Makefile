@@ -2,7 +2,7 @@
 
 BINDIR= ${LIBEXECDIR}/bsdinstall
 PROG=	distfetch
-LIBADD=	fetch ncursesw dialog m
+LIBADD=	fetch dialog m
 
 MAN=
 
