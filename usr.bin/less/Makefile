@@ -9,7 +9,7 @@ SRCS=	main.c screen.c brac.c ch.c charset.c cmdbuf.c command.c cvt.c \
 	signal.c tags.c ttyin.c version.c xbuf.c
 SCRIPTS=lesspipe.sh zless.sh
 SCRIPTSNAME_lesspipe.sh=lesspipe.sh
-LIBADD=	ncursesw
+LIBADD=	tinfow
 LINKS=	${BINDIR}/less ${BINDIR}/more \
 	${BINDIR}/zless ${BINDIR}/bzless \
 	${BINDIR}/zless ${BINDIR}/xzless \

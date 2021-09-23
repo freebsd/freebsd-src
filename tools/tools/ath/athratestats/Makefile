@@ -7,7 +7,7 @@ PROG=	athratestats
 
 SRCS=	main.c opt_ah.h ah_osdep.h
 
-LIBADD+=	ncursesw
+LIBADD+=	tinfow ncursesw
 
 CLEANFILES+=	opt_ah.h ah_osdep.h
 

@@ -2,6 +2,6 @@
 
 PROG=	tabs
 
-LIBADD=	ncursesw
+LIBADD=	tinfow
 
 .include <bsd.prog.mk>

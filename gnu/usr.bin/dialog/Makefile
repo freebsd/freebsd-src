@@ -3,7 +3,7 @@
 DIALOG=	${SRCTOP}/contrib/dialog
 PROG=   dialog
 
-LIBADD=	dialog ncursesw m
+LIBADD=	dialog tinfow ncursesw m
 CFLAGS+= -I${.CURDIR} -I${DIALOG}
 .PATH:	${DIALOG}
 

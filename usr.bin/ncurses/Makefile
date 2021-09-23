@@ -15,10 +15,10 @@ SRCS.clear=	clear.c clear_cmd.c tty_settings.c
 SRCS.tset=	tset.c tty_settings.c transform.c reset_cmd.c
 CFLAGS+=	-I${NCURSES_DIR}/progs \
 		-I${NCURSES_DIR}/include \
-		-I${SRCTOP}/lib/ncurses/ncurses \
-		-I${OBJTOP}/lib/ncurses/ncurses \
+		-I${SRCTOP}/lib/ncurses/tinfo \
+		-I${OBJTOP}/lib/ncurses/tinfo \
 		-I${.CURDIR}
-LIBADD=	ncursesw
+LIBADD=	tinfow
 CLEANFILES=	termsort.c
 
 termsort.c: MKtermsort.sh

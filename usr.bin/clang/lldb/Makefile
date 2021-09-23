@@ -34,12 +34,13 @@ TGHDRS+=	${INCFILE}
 DPSRCS+=	${TGHDRS}
 CLEANFILES+=	${TGHDRS} ${TGHDRS:C/$/.d/}
 
+LIBADD=		tinfow
 LIBADD+=	edit
 LIBADD+=	execinfo
 LIBADD+=	lua
 LIBADD+=	lzma
 LIBADD+=	ncursesw
-LIBADD+=	panel
+LIBADD+=	panelw
 LIBADD+=	pthread
 LIBADD+=	z
 

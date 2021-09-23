@@ -2,7 +2,7 @@
 
 PROG=	stumbler
 BINDIR=	/usr/local/bin
-LIBADD=	pcap ncursesw
+LIBADD=	pcap tinfow ncursesw
 CFLAGS=-g
 MAN=
 

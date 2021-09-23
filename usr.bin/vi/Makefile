@@ -35,7 +35,7 @@ MLINKS+=vi.1 nex.1 vi.1 nview.1 vi.1 nvi.1
 CFLAGS+=-I${.CURDIR} -I${SRCDIR} -I${SRCDIR}/regex \
 	-I${.CURDIR}/ex
 
-LIBADD=	util ncursesw
+LIBADD=	util tinfow ncursesw
 
 .if ${MK_ICONV} == "yes" && !defined(RESCUE)
 CFLAGS+=	-DUSE_ICONV -DICONV_TRADITIONAL
