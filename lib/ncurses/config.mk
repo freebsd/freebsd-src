@@ -11,14 +11,14 @@ CFLAGS+=	-D_XOPEN_SOURCE_EXTENDED
 NCURSES_CFG_H=	${.CURDIR}/ncurses_cfg.h
 
 CFLAGS+=	-I.
-CFLAGS+=	-I${.CURDIR:H}/ncurses
+CFLAGS+=	-I${.CURDIR:H}/tinfo
 
 # for ${NCURSES_CFG_H}
 CFLAGS+=	-I${.CURDIR:H}/ncurses
 
 CFLAGS+=	-I${NCURSES_DIR}/include
 CFLAGS+=	-I${NCURSES_DIR}/ncurses
-CFLAGS+=	-I${.OBJDIR:H}/ncurses/
+CFLAGS+=	-I${.OBJDIR:H}/tinfo/
 
 CFLAGS+=	-Wall
 
@@ -28,6 +28,7 @@ CFLAGS+=	-DHAVE_CONFIG_H
 
 # everyone needs this
 .PATH:		${NCURSES_DIR}/include
+.PATH:		${.OBJDIR:H}/tinfo/
 
 # tools and directories
 AWK?=		awk

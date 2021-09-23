@@ -1,11 +1,11 @@
 # $FreeBSD$
 
-SUBDIR=	ncurses form menu panel
+SUBDIR=	tinfo ncurses form menu panel
 
 SUBDIR_PARALLEL=
 
-.for subdir in ${SUBDIR:Nncurses*}
-SUBDIR_DEPEND_${subdir}=	ncurses
+.for subdir in ${SUBDIR:Ntinfo*}
+SUBDIR_DEPEND_${subdir}=	tinfo
 .endfor
 
 .include <bsd.subdir.mk>

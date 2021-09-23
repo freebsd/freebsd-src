@@ -193,6 +193,7 @@ _LIBRARIES=	\
 		sysdecode \
 		tacplus \
 		termcapw \
+		tinfow \
 		tpool \
 		ufs \
 		ugidfw \
@@ -375,6 +376,7 @@ _DP_c+=		ssp_nonshared
 _DP_stats=	sbuf pthread
 _DP_stdthreads=	pthread
 _DP_tacplus=	md
+_DP_ncursesw=	tinfow
 _DP_panelw=	ncursesw
 _DP_rpcsec_gss=	gssapi
 _DP_smb=	kiconv
@@ -692,6 +694,7 @@ LIBMDIR=	${OBJTOP}/lib/msun
 LIBFORMWDIR=	${OBJTOP}/lib/ncurses/form
 LIBMENUWDIR=	${OBJTOP}/lib/ncurses/menu
 LIBNCURSESWDIR=	${OBJTOP}/lib/ncurses/ncurses
+LIBTINFOWDIR=	${OBJTOP}/lib/ncurses/tinfo
 LIBPANELWDIR=	${OBJTOP}/lib/ncurses/panel
 LIBCRYPTODIR=	${OBJTOP}/secure/lib/libcrypto
 LIBSPLDIR=	${OBJTOP}/cddl/lib/libspl
@@ -701,7 +704,7 @@ LIBTEKENDIR=	${OBJTOP}/sys/teken/libteken
 LIBEGACYDIR=	${OBJTOP}/tools/build
 LIBLNDIR=	${OBJTOP}/usr.bin/lex/lib
 
-LIBTERMCAPWDIR=	${LIBNCURSESWDIR}
+LIBTERMCAPWDIR=	${LIBTINFOWDIR}
 
 # Default other library directories to lib/libNAME.
 .for lib in ${_LIBRARIES}
