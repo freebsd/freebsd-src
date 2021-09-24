@@ -545,7 +545,7 @@ rk_i2s_dai_setup_intr(device_t dev, driver_intr_t intr_handler, void *intr_arg)
 	struct rk_i2s_softc 	*sc = device_get_softc(dev);
 
 	if (bus_setup_intr(dev, sc->res[1],
-	    INTR_TYPE_MISC | INTR_MPSAFE, NULL, intr_handler, intr_arg,
+	    INTR_TYPE_AV | INTR_MPSAFE, NULL, intr_handler, intr_arg,
 	    &sc->intrhand)) {
 		device_printf(dev, "cannot setup interrupt handler\n");
 		return (ENXIO);
