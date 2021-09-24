@@ -61,6 +61,32 @@ event_wait(void)
 }
 
 static void
+event_wait_keepudata(void)
+{
+    const char *test_id = "kevent(EVFILT_USER, wait w/ EV_KEEPUDATA)";
+    struct kevent kev;
+
+    test_begin(test_id);
+
+    test_no_kevents();
+
+    kevent_add(kqfd, &kev, 1, EVFILT_USER, EV_ADD | EV_CLEAR, 0, 0, &kev);
+    kevent_add(kqfd, &kev, 1, EVFILT_USER, EV_KEEPUDATA, NOTE_TRIGGER, 0,
+        NULL);
+
+    kev.fflags &= ~NOTE_FFCTRLMASK;
+    kev.fflags &= ~NOTE_TRIGGER;
+    kev.flags = EV_CLEAR;
+    kev.udata = &kev;
+    kevent_cmp(&kev, kevent_get(kqfd));
+
+    test_no_kevents();
+
+    success();
+}
+
+
+static void
 disable_and_enable(void)
 {
     const char *test_id = "kevent(EVFILT_USER, EV_DISABLE and EV_ENABLE)";
@@ -83,6 +109,38 @@ disable_and_enable(void)
     kev.flags = EV_CLEAR;
     kev.fflags &= ~NOTE_FFCTRLMASK;
     kev.fflags &= ~NOTE_TRIGGER;
+    kevent_cmp(&kev, kevent_get(kqfd));
+
+    success();
+}
+
+static void
+disable_and_enable_keepudata(void)
+{
+    const char *test_id =
+        "kevent(EVFILT_USER, EV_DISABLE and EV_ENABLE w/ EV_KEEPUDATA)";
+    struct kevent kev;
+
+    test_begin(test_id);
+
+    test_no_kevents();
+
+    kevent_add(kqfd, &kev, 1, EVFILT_USER, EV_ADD, 0, 0, &kev);
+    kevent_add(kqfd, &kev, 1, EVFILT_USER, EV_DISABLE | EV_KEEPUDATA, 0, 0,
+        NULL);
+
+    /* Trigger the event, but since it is disabled, nothing will happen. */
+    kevent_add(kqfd, &kev, 1, EVFILT_USER, EV_KEEPUDATA, NOTE_TRIGGER, 0, NULL);
+    test_no_kevents();
+
+    kevent_add(kqfd, &kev, 1, EVFILT_USER, EV_ENABLE | EV_KEEPUDATA, 0, 0,
+        NULL);
+    kevent_add(kqfd, &kev, 1, EVFILT_USER, EV_KEEPUDATA, NOTE_TRIGGER, 0, NULL);
+
+    kev.flags = EV_CLEAR;
+    kev.fflags &= ~NOTE_FFCTRLMASK;
+    kev.fflags &= ~NOTE_TRIGGER;
+    kev.udata = &kev;
     kevent_cmp(&kev, kevent_get(kqfd));
 
     success();
@@ -120,7 +178,9 @@ test_evfilt_user(void)
 
     add_and_delete();
     event_wait();
+    event_wait_keepudata();
     disable_and_enable();
+    disable_and_enable_keepudata();
     oneshot();
     /* TODO: try different fflags operations */
 

@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 7, 2021
+.Dd September 23, 2021
 .Dt KQUEUE 2
 .Os
 .Sh NAME
@@ -262,6 +262,21 @@ Filters may set this flag to indicate filter-specific EOF condition.
 See
 .Sx RETURN VALUES
 below.
+.It Dv EV_KEEPUDATA
+Causes
+.Fn kevent
+to leave unchanged any
+.Fa udata
+associated with an existing event.  This allows other aspects of the
+event to be modified without requiring the caller to know the
+.Fa udata
+value presently associated.
+This is especially useful with
+.Dv NOTE_TRIGGER
+or flags like
+.Dv EV_ENABLE.
+This flag may not be used with
+.Dv EV_ADD.
 .El
 .Pp
 The predefined system filters are listed below.
