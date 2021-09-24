@@ -67,7 +67,7 @@ mmc_fdt_parse(device_t dev, phandle_t node, struct mmc_helper *helper,
 			device_printf(dev, "vmmc-supply regulator found\n");
 	}
 	if (regulator_get_by_ofw_property(dev, 0, "vqmmc-supply",
-	    &helper->vqmmc_supply) == 0 && bootverbose) {
+	    &helper->vqmmc_supply) == 0) {
 		if (bootverbose)
 			device_printf(dev, "vqmmc-supply regulator found\n");
 	}
