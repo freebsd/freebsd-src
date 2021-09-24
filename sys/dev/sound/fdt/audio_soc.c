@@ -408,8 +408,6 @@ audio_soc_init(void *arg)
 		return;
 	}
 
-	pcm_getbuffersize(sc->dev, AUDIO_BUFFER_SIZE, AUDIO_BUFFER_SIZE,
-	    AUDIO_BUFFER_SIZE);
 	sc->play_channel.sc = sc;
 	sc->rec_channel.sc = sc;
 
