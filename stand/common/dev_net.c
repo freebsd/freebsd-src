@@ -141,13 +141,14 @@ net_open(struct open_file *f, ...)
 		if (netdev_sock < 0) {
 			netdev_sock = netif_open(dev);
 			if (netdev_sock < 0) {
-				printf("net_open: netif_open() failed\n");
+				printf("%s: netif_open() failed\n", __func__);
 				return (ENXIO);
 			}
 			netdev_name = strdup(devname);
 #ifdef	NETIF_DEBUG
 			if (debug)
-				printf("net_open: netif_open() succeeded\n");
+				printf("%s: netif_open() succeeded\n",
+				    __func__);
 #endif
 		}
 		/*
@@ -202,7 +203,7 @@ net_close(struct open_file *f)
 
 #ifdef	NETIF_DEBUG
 	if (debug)
-		printf("net_close: opens=%d\n", netdev_opens);
+		printf("%s: opens=%d\n", __func__, netdev_opens);
 #endif
 
 	f->f_devdata = NULL;
@@ -217,7 +218,7 @@ net_cleanup(void)
 	if (netdev_sock >= 0) {
 #ifdef	NETIF_DEBUG
 		if (debug)
-			printf("net_cleanup: calling netif_close()\n");
+			printf("%s: calling netif_close()\n", __func__);
 #endif
 		rootip.s_addr = 0;
 		free(netdev_name);
@@ -272,7 +273,7 @@ net_getparams(int sock)
 		goto exit;
 #ifdef	NETIF_DEBUG
 	if (debug)
-		printf("net_open: BOOTP failed, trying RARP/RPC...\n");
+		printf("%s: BOOTP failed, trying RARP/RPC...\n", __func__);
 #endif
 #endif
 
@@ -281,19 +282,19 @@ net_getparams(int sock)
 	 * netmask to the "natural" default for our address.
 	 */
 	if (rarp_getipaddress(sock)) {
-		printf("net_open: RARP failed\n");
+		printf("%s: RARP failed\n", __func__);
 		return (EIO);
 	}
-	printf("net_open: client addr: %s\n", inet_ntoa(myip));
+	printf("%s: client addr: %s\n", __func__, inet_ntoa(myip));
 
 	/* Get our hostname, server IP address, gateway. */
 	if (bp_whoami(sock)) {
-		printf("net_open: bootparam/whoami RPC failed\n");
+		printf("%s: bootparam/whoami RPC failed\n", __func__);
 		return (EIO);
 	}
 #ifdef	NETIF_DEBUG
 	if (debug)
-		printf("net_open: client name: %s\n", hostname);
+		printf("%s: client name: %s\n", __func__, hostname);
 #endif
 
 	/*
@@ -310,17 +311,18 @@ net_getparams(int sock)
 		netmask = smask;
 #ifdef	NETIF_DEBUG
 		if (debug)
-			printf("net_open: subnet mask: %s\n", intoa(netmask));
+			printf("%s: subnet mask: %s\n", __func__,
+			    intoa(netmask));
 #endif
 	}
 #ifdef	NETIF_DEBUG
 	if (gateip.s_addr && debug)
-		printf("net_open: net gateway: %s\n", inet_ntoa(gateip));
+		printf("%s: net gateway: %s\n", __func__, inet_ntoa(gateip));
 #endif
 
 	/* Get the root server and pathname. */
 	if (bp_getfile(sock, "root", &rootip, rootpath)) {
-		printf("net_open: bootparam/getfile RPC failed\n");
+		printf("%s: bootparam/getfile RPC failed\n", __func__);
 		return (EIO);
 	}
 exit:
@@ -329,8 +331,8 @@ exit:
 
 #ifdef	NETIF_DEBUG
 	if (debug) {
-		printf("net_open: server addr: %s\n", inet_ntoa(rootip));
-		printf("net_open: server path: %s\n", rootpath);
+		printf("%s: server addr: %s\n", __func__, inet_ntoa(rootip));
+		printf("%s: server path: %s\n", __func__, rootpath);
 	}
 #endif
 
