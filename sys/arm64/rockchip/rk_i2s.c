@@ -51,8 +51,6 @@
 #include <dev/sound/fdt/audio_dai.h>
 #include "audio_dai_if.h"
 
-#define	AUDIO_BUFFER_SIZE	48000 * 4
-
 #define	I2S_TXCR	0x0000
 #define		I2S_CSR_2		(0 << 15)
 #define		I2S_CSR_4		(1 << 15)
