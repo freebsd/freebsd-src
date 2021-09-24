@@ -147,7 +147,7 @@ gen_table "socktype"        "SOCK_[A-Z]+[[:space:]]+[1-9]+[0-9]*"          "sys/
 gen_table "thrcreateflags"  "THR_[A-Z]+[[:space:]]+0x[0-9]+"               "sys/thr.h"
 gen_table "umtxop"          "UMTX_OP_[[:alnum:]][[:alnum:]_]*[[:space:]]+[0-9]+"      "sys/umtx.h"
 gen_table "umtxopflags"     "UMTX_OP__[[:alnum:]_]+[[:space:]]+[0-9]+"                "sys/umtx.h"
-gen_table "vmprot"          "VM_PROT_[A-Z]+[[:space:]]+\(\(vm_prot_t\)[[:space:]]+0x[0-9]+\)"  "vm/vm.h"
+gen_table "vmprot"          "VM_PROT_[A-Z_]+[[:space:]]+\(\(vm_prot_t\)[[:space:]]+0x[0-9]+\)"  "vm/vm.h"
 gen_table "vmresult"        "KERN_[A-Z_]+[[:space:]]+[0-9]+"               "vm/vm_param.h"
 gen_table "wait6opt"        "W[A-Z]+[[:space:]]+[0-9]+"                    "sys/wait.h"
 gen_table "seekwhence"      "SEEK_[A-Z]+[[:space:]]+[0-9]+"                "sys/unistd.h"
