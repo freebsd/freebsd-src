@@ -286,7 +286,8 @@ test_pidfile_relative(void)
 	fd = open(path, O_RDONLY);
 	if (fd < 0)
 		return (strerror(errno));
-	if (read(fd, pid, sizeof(pid)) < 0)
+	memset(pid, 0, sizeof(pid));
+	if (read(fd, pid, sizeof(pid) - 1) < 0)
 		return (strerror(errno));
 	if (atoi(pid) != getpid())
 		return ("pid mismatch");
