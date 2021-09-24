@@ -1496,6 +1496,13 @@ kqueue_register(struct kqueue *kq, struct kevent *kev, struct thread *td,
 		return EINVAL;
 
 	if (kev->flags & EV_ADD) {
+		/* Reject an invalid flag pair early */
+		if (kev->flags & EV_KEEPUDATA) {
+			tkn = NULL;
+			error = EINVAL;
+			goto done;
+		}
+
 		/*
 		 * Prevent waiting with locks.  Non-sleepable
 		 * allocation failures are handled in the loop, only
@@ -1684,7 +1691,8 @@ findkn:
 	kn_enter_flux(kn);
 	KQ_UNLOCK(kq);
 	knl = kn_list_lock(kn);
-	kn->kn_kevent.udata = kev->udata;
+	if ((kev->flags & EV_KEEPUDATA) == 0)
+		kn->kn_kevent.udata = kev->udata;
 	if (!fops->f_isfd && fops->f_touch != NULL) {
 		fops->f_touch(kn, kev, EVENT_REGISTER);
 	} else {
