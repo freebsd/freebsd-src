@@ -303,6 +303,7 @@ arm/allwinner/sunxi_dma_if.m			optional a31_dmac
 arm/allwinner/aw_cir.c				optional evdev aw_cir fdt
 arm/allwinner/aw_dwc3.c				optional aw_dwc3 fdt
 arm/allwinner/aw_gpio.c				optional gpio aw_gpio fdt
+arm/allwinner/aw_i2s.c				optional fdt sound aw_i2s
 arm/allwinner/aw_mmc.c				optional mmc aw_mmc fdt | mmccam aw_mmc fdt
 arm/allwinner/aw_nmi.c				optional aw_nmi fdt \
 	compile-with "${NORMAL_C} -I$S/contrib/device-tree/include"
