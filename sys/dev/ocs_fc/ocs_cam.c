@@ -1118,10 +1118,7 @@ ocs_ldt_task(void *arg, int pending)
 			continue;
 		}
 
-		if (tgt->is_target) {
-			tgt->is_target = 0;
-			ocs_delete_target(ocs, fcp, i);
-		}
+		ocs_delete_target(ocs, fcp, i);
 
 		tgt->state = OCS_TGT_STATE_NONE;
 	}
