@@ -106,6 +106,7 @@
 } while (0)
 
 static int ipsec_encap(struct mbuf **mp, struct secasindex *saidx);
+static size_t ipsec_get_pmtu(struct secasvar *sav);
 
 #ifdef INET
 static struct secasvar *
@@ -297,8 +298,6 @@ ipsec4_process_packet(struct mbuf *m, struct secpolicy *sp,
 int
 ipsec4_check_pmtu(struct mbuf *m, struct secpolicy *sp, int forwarding)
 {
-	union sockaddr_union *dst;
-	struct in_conninfo inc;
 	struct secasvar *sav;
 	struct ip *ip;
 	size_t hlen, pmtu;
@@ -333,44 +332,15 @@ setdf:
 		return (error);
 	}
 
-	dst = &sav->sah->saidx.dst;
-	memset(&inc, 0, sizeof(inc));
-	switch (dst->sa.sa_family) {
-	case AF_INET:
-		inc.inc_faddr = satosin(&dst->sa)->sin_addr;
-		break;
-#ifdef INET6
-	case AF_INET6:
-		inc.inc6_faddr = satosin6(&dst->sa)->sin6_addr;
-		inc.inc_flags |= INC_ISIPV6;
-		break;
-#endif
-	default:
+	pmtu = ipsec_get_pmtu(sav);
+	if (pmtu == 0) {
 		key_freesav(&sav);
 		return (0);
 	}
 
-	key_freesav(&sav);
-	pmtu = tcp_hc_getmtu(&inc);
-	/* No entry in hostcache. Use link MTU instead. */
-	if (pmtu == 0) {
-		switch (dst->sa.sa_family) {
-		case AF_INET:
-			pmtu = tcp_maxmtu(&inc, NULL);
-			break;
-#ifdef INET6
-		case AF_INET6:
-			pmtu = tcp_maxmtu6(&inc, NULL);
-			break;
-#endif
-		}
-		if (pmtu == 0)
-			return (0);
-
-		tcp_hc_updatemtu(&inc, pmtu);
-	}
-
 	hlen = ipsec_hdrsiz_internal(sp);
+	key_freesav(&sav);
+
 	if (m_length(m, NULL) + hlen > pmtu) {
 		/*
 		 * If we're forwarding generate ICMP message here,
@@ -720,6 +690,72 @@ ipsec6_process_packet(struct mbuf *m, struct secpolicy *sp,
 	return (ipsec6_perform_request(m, sp, inp, 0));
 }
 
+/*
+ * IPv6 implementation is based on IPv4 implementation.
+ */
+int
+ipsec6_check_pmtu(struct mbuf *m, struct secpolicy *sp, int forwarding)
+{
+	struct secasvar *sav;
+	size_t hlen, pmtu;
+	uint32_t idx;
+	int error;
+
+	/*
+	 * According to RFC8200 L3 fragmentation is supposed to be done only on
+	 * locally generated packets. During L3 forwarding packets that are too
+	 * big are always supposed to be dropped, with an ICMPv6 packet being
+	 * sent back.
+	 */
+	if (!forwarding)
+		return (0);
+
+	idx = sp->tcount - 1;
+	sav = ipsec6_allocsa(m, sp, &idx, &error);
+	if (sav == NULL) {
+		key_freesp(&sp);
+		/*
+		 * No matching SA was found and SADB_ACQUIRE message was generated.
+		 * Since we have matched a SP to this packet drop it silently.
+		 */
+		if (error == 0)
+			error = EINPROGRESS;
+		if (error != EJUSTRETURN)
+			m_freem(m);
+
+		return (error);
+	}
+
+	pmtu = ipsec_get_pmtu(sav);
+	if (pmtu == 0) {
+		key_freesav(&sav);
+		return (0);
+	}
+
+	hlen = ipsec_hdrsiz_internal(sp);
+	key_freesav(&sav);
+
+	if (m_length(m, NULL) + hlen > pmtu) {
+		/*
+		 * If we're forwarding generate ICMPv6 message here,
+		 * so that it contains pmtu substracted by header size.
+		 * Set error to EINPROGRESS, in order for the frame
+		 * to be dropped silently.
+		 */
+		if (forwarding) {
+			if (pmtu > hlen)
+				icmp6_error(m, ICMP6_PACKET_TOO_BIG, 0, pmtu - hlen);
+			else
+				m_freem(m);
+
+			key_freesp(&sp);
+			return (EINPROGRESS); /* Pretend that we consumed it. */
+		}
+	}
+
+	return (0);
+}
+
 static int
 ipsec6_common_output(struct mbuf *m, struct inpcb *inp, int forwarding)
 {
@@ -766,6 +802,15 @@ ipsec6_common_output(struct mbuf *m, struct inpcb *inp, int forwarding)
 		}
 #endif
 	}
+
+	error = ipsec6_check_pmtu(m, sp, forwarding);
+	if (error != 0) {
+		if (error == EJUSTRETURN)
+			return (0);
+
+		return (error);
+	}
+
 	/* NB: callee frees mbuf and releases reference to SP */
 	error = ipsec6_process_packet(m, sp, inp);
 	if (error == EJUSTRETURN) {
@@ -999,6 +1044,59 @@ ipsec_prepend(struct mbuf *m, int len, int how)
 	n->m_len = len;
 	n->m_pkthdr.len += len;
 	return (n);
+}
+
+static size_t
+ipsec_get_pmtu(struct secasvar *sav)
+{
+	union sockaddr_union *dst;
+	struct in_conninfo inc;
+	size_t pmtu;
+
+	dst = &sav->sah->saidx.dst;
+	memset(&inc, 0, sizeof(inc));
+
+	switch (dst->sa.sa_family) {
+#ifdef INET
+	case AF_INET:
+		inc.inc_faddr = satosin(&dst->sa)->sin_addr;
+		break;
+#endif
+#ifdef INET6
+	case AF_INET6:
+		inc.inc6_faddr = satosin6(&dst->sa)->sin6_addr;
+		inc.inc_flags |= INC_ISIPV6;
+		break;
+#endif
+	default:
+		return (0);
+	}
+
+	pmtu = tcp_hc_getmtu(&inc);
+	if (pmtu != 0)
+		return (pmtu);
+
+	/* No entry in hostcache. Assume that PMTU is equal to link's MTU */
+	switch (dst->sa.sa_family) {
+#ifdef INET
+	case AF_INET:
+		pmtu = tcp_maxmtu(&inc, NULL);
+		break;
+#endif
+#ifdef INET6
+	case AF_INET6:
+		pmtu = tcp_maxmtu6(&inc, NULL);
+		break;
+#endif
+	default:
+		return (0);
+	}
+	if (pmtu == 0)
+		return (0);
+
+	tcp_hc_updatemtu(&inc, pmtu);
+
+	return (pmtu);
 }
 
 static int

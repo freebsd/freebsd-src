@@ -74,6 +74,7 @@ int ipsec6_output(struct mbuf *, struct inpcb *);
 int ipsec6_capability(struct mbuf *, u_int);
 int ipsec6_common_input_cb(struct mbuf *, struct secasvar *, int, int);
 int ipsec6_ctlinput(int, struct sockaddr *, void *);
+int ipsec6_check_pmtu(struct mbuf *, struct secpolicy *, int);
 int ipsec6_process_packet(struct mbuf *, struct secpolicy *, struct inpcb *);
 
 int ip6_ipsec_filtertunnel(struct mbuf *);
