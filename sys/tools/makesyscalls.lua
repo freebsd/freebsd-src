@@ -195,19 +195,6 @@ local function trim(s, char)
 	return s:gsub("^" .. char .. "+", ""):gsub(char .. "+$", "")
 end
 
--- We have to io.popen it, making sure it's properly escaped, and grab the
--- output from the handle returned.
-local function exec(cmd)
-	cmd = cmd:gsub('"', '\\"')
-
-	local shcmd = "/bin/sh -c \"" .. cmd .. "\""
-	local fh = io.popen(shcmd)
-	local output = fh:read("a")
-
-	fh:close()
-	return output
-end
-
 -- config looks like a shell script; in fact, the previous makesyscalls.sh
 -- script actually sourced it in.  It had a pretty common format, so we should
 -- be fine to make various assumptions
@@ -240,8 +227,9 @@ local function process_config(file)
 			key = trim(key)
 			value = trim(value)
 			local delim = value:sub(1,1)
-			if delim == '`' or delim == '"' then
+			if delim == '"' then
 				local trailing_context
+
 				-- Strip off the key/value part
 				trailing_context = nextline:sub(kvp:len() + 1)
 				-- Strip off any trailing comment
@@ -253,26 +241,7 @@ local function process_config(file)
 					print(trailing_context)
 					abort(1, "Malformed line: " .. nextline)
 				end
-			end
-			if delim == '`' then
-				-- Command substition may use $1 and $2 to mean
-				-- the syscall definition file and itself
-				-- respectively.  We'll go ahead and replace
-				-- $[0-9] with respective arg in case we want to
-				-- expand this in the future easily...
-				value = trim(value, delim)
-				for capture in value:gmatch("$([0-9]+)") do
-					capture = tonumber(capture)
-					if capture > #arg then
-						abort(1, "Not enough args: " ..
-						    value)
-					end
-					value = value:gsub("$" .. capture,
-					    arg[capture])
-				end
 
-				value = exec(value)
-			elseif delim == '"' then
 				value = trim(value, delim)
 			else
 				-- Strip off potential comments
