@@ -1698,7 +1698,7 @@ no_kqueue:
 	else
 		error = fo_aio_queue(fp, job);
 	if (error)
-		goto err3;
+		goto err4;
 
 	AIO_LOCK(ki);
 	job->jobflags &= ~KAIOCB_QUEUEING;
@@ -1719,6 +1719,8 @@ no_kqueue:
 	AIO_UNLOCK(ki);
 	return (0);
 
+err4:
+	crfree(job->cred);
 err3:
 	if (fp)
 		fdrop(fp, td);
