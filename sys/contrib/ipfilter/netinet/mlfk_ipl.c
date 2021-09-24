@@ -349,7 +349,6 @@ sysctl_ipf_int ( SYSCTL_HANDLER_ARGS )
 {
 	int error = 0;
 
-	WRITE_ENTER(&V_ipfmain.ipf_mutex);
 	if (arg1)
 		error = SYSCTL_OUT(req, arg1, sizeof(int));
 	else
@@ -368,7 +367,6 @@ sysctl_ipf_int ( SYSCTL_HANDLER_ARGS )
 	}
 
 sysctl_error:
-	RWLOCK_EXIT(&V_ipfmain.ipf_mutex);
 	return (error);
 }
 
