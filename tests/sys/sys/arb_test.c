@@ -41,7 +41,7 @@ struct node {
 	int key;
 };
 
-ARB32_HEAD(tree, node) *root;
+static ARB32_HEAD(tree, node) *root;
 
 static int
 compare(const struct node *a, const struct node *b)

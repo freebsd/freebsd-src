@@ -39,7 +39,7 @@ struct node {
 	int key;
 };
 
-RB_HEAD(tree, node) root;
+static RB_HEAD(tree, node) root;
 
 static int
 compare(struct node *a, struct node *b)
