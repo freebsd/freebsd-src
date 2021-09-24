@@ -39,7 +39,7 @@ struct node {
 	int key;
 };
 
-SPLAY_HEAD(tree, node) root;
+static SPLAY_HEAD(tree, node) root;
 
 static int
 compare(struct node *a, struct node *b)
