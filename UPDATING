@@ -27,7 +27,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 14.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
-202010922:
+20210923:
+	As of commit 8160a0f62be6, the dummynet module no longer depends on the
+	ipfw module. Dummynet can now be used by pf as well as ipfw. As such
+	users who relied on this dependency may need to include ipfw in the
+	list of modules to load on their systems.
+
+20210922:
 	As of commit 903873ce1560, the mixer(8) utility has got a slightly
 	new syntax. Please refer to the mixer(8) manual page for more
 	information.
