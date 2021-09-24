@@ -114,7 +114,7 @@ net_init(void)
 
 /*
  * Called by devopen after it sets f->f_dev to our devsw entry.
- * This opens the low-level device and sets f->f_devdata.
+ * This opens the low-level device and sets dev->d_opendata.
  * This is declared with variable arguments...
  */
 static int
@@ -193,20 +193,22 @@ net_open(struct open_file *f, ...)
 
 	}
 	netdev_opens++;
-	f->f_devdata = &netdev_sock;
+	dev->d_opendata = &netdev_sock;
 	return (error);
 }
 
 static int
 net_close(struct open_file *f)
 {
+	struct devdesc *dev;
 
 #ifdef	NETIF_DEBUG
 	if (debug)
 		printf("%s: opens=%d\n", __func__, netdev_opens);
 #endif
 
-	f->f_devdata = NULL;
+	dev = f->f_devdata;
+	dev->d_opendata = NULL;
 
 	return (0);
 }
