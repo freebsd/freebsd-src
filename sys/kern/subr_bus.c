@@ -5291,7 +5291,7 @@ print_device_short(device_t dev, int indent)
 	if (!dev)
 		return;
 
-	indentprintf(("device %d: <%s> %sparent,%schildren,%s%s%s%s%s%s,%sivars,%ssoftc,busy=%d\n",
+	indentprintf(("device %d: <%s> %sparent,%schildren,%s%s%s%s%s,%sivars,%ssoftc,busy=%d\n",
 	    dev->unit, dev->desc,
 	    (dev->parent? "":"no "),
 	    (TAILQ_EMPTY(&dev->children)? "no ":""),
