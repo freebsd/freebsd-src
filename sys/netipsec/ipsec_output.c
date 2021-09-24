@@ -305,7 +305,6 @@ ipsec4_check_pmtu(struct mbuf *m, struct secpolicy *sp, int forwarding)
 	uint32_t idx;
 	int error;
 
-
 	/* Don't check PMTU if the frame won't have DF bit set. */
 	if (!V_ip4_ipsec_dfbit)
 		return (0);
@@ -335,15 +334,22 @@ setdf:
 	}
 
 	dst = &sav->sah->saidx.dst;
-
-	/* Final header is not ipv4. */
-	if (dst->sa.sa_family != AF_INET) {
+	memset(&inc, 0, sizeof(inc));
+	switch (dst->sa.sa_family) {
+	case AF_INET:
+		inc.inc_faddr = satosin(&dst->sa)->sin_addr;
+		break;
+#ifdef INET6
+	case AF_INET6:
+		inc.inc6_faddr = satosin6(&dst->sa)->sin6_addr;
+		inc.inc_flags |= INC_ISIPV6;
+		break;
+#endif
+	default:
 		key_freesav(&sav);
 		return (0);
 	}
 
-	memset(&inc, 0, sizeof(inc));
-	inc.inc_faddr = satosin(&dst->sa)->sin_addr;
 	key_freesav(&sav);
 	pmtu = tcp_hc_getmtu(&inc);
 	/* No entry in hostcache. */
