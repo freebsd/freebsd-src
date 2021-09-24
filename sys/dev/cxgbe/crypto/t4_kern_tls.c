@@ -2139,12 +2139,6 @@ t6_ktls_write_wr(struct sge_txq *txq, void *dst, struct mbuf *m, u_int nsegs,
 }
 
 void
-cxgbe_tls_tag_free(struct m_snd_tag *mst)
-{
-	panic("can't happen");
-}
-
-void
 t6_ktls_modload(void)
 {
 }
