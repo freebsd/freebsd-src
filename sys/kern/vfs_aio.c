@@ -1616,7 +1616,7 @@ no_kqueue:
 	else
 		error = fo_aio_queue(fp, job);
 	if (error)
-		goto aqueue_fail;
+		goto err4;
 
 	AIO_LOCK(ki);
 	job->jobflags &= ~KAIOCB_QUEUEING;
@@ -1637,6 +1637,8 @@ no_kqueue:
 	AIO_UNLOCK(ki);
 	return (0);
 
+err4:
+	crfree(job->cred);
 aqueue_fail:
 	knlist_delete(&job->klist, curthread, 0);
 	if (fp)
