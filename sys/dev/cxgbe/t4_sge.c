@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/ktls.h>
 #include <sys/malloc.h>
+#include <sys/msan.h>
 #include <sys/queue.h>
 #include <sys/sbuf.h>
 #include <sys/taskqueue.h>
@@ -1754,6 +1755,7 @@ get_scatter_segment(struct adapter *sc, struct sge_fl *fl, int fr_offset,
 			return (NULL);
 	}
 	m->m_len = len;
+	kmsan_mark(payload, len, KMSAN_STATE_INITED);
 
 	if (sc->sc_do_rxcopy && len < RX_COPY_THRESHOLD) {
 		/* copy data to mbuf */
