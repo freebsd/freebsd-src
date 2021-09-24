@@ -1520,10 +1520,6 @@ static int32_t ocs_scsi_initiator_io_cb(ocs_io_t *io,
 		}
 	} else if (scsi_status != OCS_SCSI_STATUS_GOOD) {
 		ccb_status = CAM_REQ_CMP_ERR;
-		ocs_set_ccb_status(ccb, ccb_status);
-		csio->ccb_h.status |= CAM_DEV_QFRZN;
-		xpt_freeze_devq(csio->ccb_h.path, 1);
-
 	} else {
 		ccb_status = CAM_REQ_CMP;
 	}
@@ -1534,7 +1530,14 @@ static int32_t ocs_scsi_initiator_io_cb(ocs_io_t *io,
 
 	csio->ccb_h.ccb_io_ptr = NULL;
 	csio->ccb_h.ccb_ocs_ptr = NULL;
+
 	ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
+
+	if ((ccb_status != CAM_REQ_CMP) &&
+	    ((ccb->ccb_h.status & CAM_DEV_QFRZN) == 0)) {
+		ccb->ccb_h.status |= CAM_DEV_QFRZN;
+		xpt_freeze_devq(ccb->ccb_h.path, 1);
+	}
 
 	xpt_done(ccb);
 
