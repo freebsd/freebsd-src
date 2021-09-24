@@ -55,7 +55,7 @@
  * @brief Defines the number of SGLs allocated on each IO object
  */
 #ifndef OCS_FC_MAX_SGL
-#define OCS_FC_MAX_SGL		128
+#define OCS_FC_MAX_SGL		256
 #endif
 
 /***************************************************************************
