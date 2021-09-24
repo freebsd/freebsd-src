@@ -352,15 +352,29 @@ setdf:
 
 	key_freesav(&sav);
 	pmtu = tcp_hc_getmtu(&inc);
-	/* No entry in hostcache. */
-	if (pmtu == 0)
-		return (0);
+	/* No entry in hostcache. Use link MTU instead. */
+	if (pmtu == 0) {
+		switch (dst->sa.sa_family) {
+		case AF_INET:
+			pmtu = tcp_maxmtu(&inc, NULL);
+			break;
+#ifdef INET6
+		case AF_INET6:
+			pmtu = tcp_maxmtu6(&inc, NULL);
+			break;
+#endif
+		}
+		if (pmtu == 0)
+			return (0);
+
+		tcp_hc_updatemtu(&inc, pmtu);
+	}
 
 	hlen = ipsec_hdrsiz_internal(sp);
 	if (m_length(m, NULL) + hlen > pmtu) {
 		/*
 		 * If we're forwarding generate ICMP message here,
-		 * so that it contains pmtu and not link mtu.
+		 * so that it contains pmtu substraced by header size.
 		 * Set error to EINPROGRESS, in order for the frame
 		 * to be dropped silently.
 		 */
