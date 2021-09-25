@@ -271,6 +271,7 @@ kvprintf(char const *fmt, kvprintf_fn_t *func, void *arg, int radix, va_list ap)
 	char padc;
 	int stop = 0, retval = 0;
 
+	TSENTER();
 	num = 0;
 	if (!func)
 		d = (char *) arg;
@@ -287,8 +288,10 @@ kvprintf(char const *fmt, kvprintf_fn_t *func, void *arg, int radix, va_list ap)
 		padc = ' ';
 		width = 0;
 		while ((ch = (u_char)*fmt++) != '%' || stop) {
-			if (ch == '\0')
+			if (ch == '\0') {
+				TSEXIT();
 				return (retval);
+			}
 			PCHAR(ch);
 		}
 		percent = fmt - 1;
