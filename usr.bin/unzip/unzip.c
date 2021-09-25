@@ -51,6 +51,7 @@
 
 #include <archive.h>
 #include <archive_entry.h>
+#include <readpassphrase.h>
 
 /* command-line options */
 static int		 a_opt;		/* convert EOL */
@@ -63,6 +64,7 @@ static int		 L_opt;		/* lowercase names */
 static int		 n_opt;		/* never overwrite */
 static int		 o_opt;		/* always overwrite */
 static int		 p_opt;		/* extract to stdout, quiet */
+static char		*P_arg;		/* passphrase */
 static int		 q_opt;		/* quiet */
 static int		 t_opt;		/* test */
 static int		 u_opt;		/* update */
@@ -95,6 +97,9 @@ static int		 tty;
  */
 static int noeol;
 
+/* for an interactive passphrase input */
+static char *passphrase_buf;
+
 /* fatal error message + errno */
 static void
 error(const char *fmt, ...)
@@ -109,7 +114,7 @@ error(const char *fmt, ...)
 	vfprintf(stderr, fmt, ap);
 	va_end(ap);
 	fprintf(stderr, ": %s\n", strerror(errno));
-	exit(1);
+	exit(EXIT_FAILURE);
 }
 
 /* fatal error message, no errno */
@@ -126,7 +131,7 @@ errorx(const char *fmt, ...)
 	vfprintf(stderr, fmt, ap);
 	va_end(ap);
 	fprintf(stderr, "\n");
-	exit(1);
+	exit(EXIT_FAILURE);
 }
 
 /* non-fatal error message + errno */
@@ -855,6 +860,36 @@ test(struct archive *a, struct archive_entry *e)
 }
 
 /*
+ * Callback function for reading passphrase.
+ * Originally from cpio.c and passphrase.c, libarchive.
+ */
+#define PPBUFF_SIZE 1024
+static const char *
+passphrase_callback(struct archive *a, void *_client_data)
+{
+	char *p;
+
+	(void)a; /* UNUSED */
+	(void)_client_data; /* UNUSED */
+
+	if (passphrase_buf == NULL) {
+		passphrase_buf = malloc(PPBUFF_SIZE);
+		if (passphrase_buf == NULL) {
+			errno = ENOMEM;
+			error("malloc()");
+		}
+	}
+
+	p = readpassphrase("\nEnter password: ", passphrase_buf,
+		PPBUFF_SIZE, RPP_ECHO_OFF);
+
+	if (p == NULL && errno != EINTR)
+		error("Error reading password");
+
+	return p;
+}
+
+/*
  * Main loop: open the zipfile, iterate over its contents and decide what
  * to do with each entry.
  */
@@ -870,6 +905,13 @@ unzip(const char *fn)
 		error("archive_read_new failed");
 
 	ac(archive_read_support_format_zip(a));
+
+	if (P_arg)
+		archive_read_add_passphrase(a, P_arg);
+	else
+		archive_read_set_passphrase_callback(a, NULL,
+			&passphrase_callback);
+
 	ac(archive_read_open_filename(a, fn, 8192));
 
 	if (!zipinfo_mode) {
@@ -925,6 +967,11 @@ unzip(const char *fn)
 
 	ac(archive_read_free(a));
 
+	if (passphrase_buf != NULL) {
+		memset_s(passphrase_buf, PPBUFF_SIZE, 0, PPBUFF_SIZE);
+		free(passphrase_buf);
+	}
+
 	if (t_opt) {
 		if (error_count > 0) {
 			errorx("%ju checksum error(s) found.", error_count);
@@ -940,9 +987,9 @@ static void
 usage(void)
 {
 
-	fprintf(stderr, "Usage: unzip [-aCcfjLlnopqtuvyZ1] [-d dir] [-x pattern] "
-		"zipfile\n");
-	exit(1);
+	fprintf(stderr, "Usage: unzip [-aCcfjLlnopqtuvyZ1] [-d dir] "
+		"[-x pattern] [-P password] zipfile\n");
+	exit(EXIT_FAILURE);
 }
 
 static int
@@ -951,7 +998,7 @@ getopts(int argc, char *argv[])
 	int opt;
 
 	optreset = optind = 1;
-	while ((opt = getopt(argc, argv, "aCcd:fjLlnopqtuvx:yZ1")) != -1)
+	while ((opt = getopt(argc, argv, "aCcd:fjLlnopP:qtuvx:yZ1")) != -1)
 		switch (opt) {
 		case '1':
 			Z1_opt = 1;
@@ -990,6 +1037,9 @@ getopts(int argc, char *argv[])
 			break;
 		case 'p':
 			p_opt = 1;
+			break;
+		case 'P':
+			P_arg = optarg;
 			break;
 		case 'q':
 			q_opt = 1;
@@ -1047,7 +1097,7 @@ main(int argc, char *argv[])
 	 */
 	if (zipinfo_mode && !Z1_opt) {
 		printf("Zipinfo mode needs additional options\n");
-		exit(1);
+		exit(EXIT_FAILURE);
 	}
 
 	if (argc <= nopts)
@@ -1068,5 +1118,5 @@ main(int argc, char *argv[])
 
 	unzip(zipfile);
 
-	exit(0);
+	exit(EXIT_SUCCESS);
 }
