@@ -69,7 +69,8 @@ CWARNEXTRA+=	-Wno-error=memset-elt-size
 CWARNEXTRA+=	-Wno-error=packed-not-aligned
 .endif
 .if ${COMPILER_VERSION} >= 90100
-CWARNEXTRA+=	-Wno-address-of-packed-member
+CWARNEXTRA+=	-Wno-address-of-packed-member			\
+		-Wno-error=alloca-larger-than=
 .endif
 .endif	# gcc
 
