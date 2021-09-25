@@ -4627,7 +4627,7 @@ xpt_done(union ccb *done_ccb)
 	STAILQ_INSERT_TAIL(&queue->cam_doneq, &done_ccb->ccb_h, sim_links.stqe);
 	done_ccb->ccb_h.pinfo.index = CAM_DONEQ_INDEX;
 	mtx_unlock(&queue->cam_doneq_mtx);
-	if (run)
+	if (run && !dumping)
 		wakeup(&queue->cam_doneq);
 }
 
