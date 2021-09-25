@@ -115,6 +115,8 @@ CTASSERT(DXR_TRIE_BITS >= 16 && DXR_TRIE_BITS <= 24);
 
 #define	XTBL_SIZE_INCR		(DIRECT_TBL_SIZE / 16)
 
+#define	UNUSED_BUCKETS		8
+
 /* Lookup structure elements */
 
 struct direct_entry {
@@ -181,7 +183,7 @@ struct dxr_aux {
 	struct trie_desc	*trietbl[D_TBL_SIZE];
 	LIST_HEAD(, chunk_desc)	chunk_hashtbl[CHUNK_HASH_SIZE];
 	LIST_HEAD(, chunk_desc)	all_chunks;
-	LIST_HEAD(, chunk_desc) unused_chunks; /* abuses hash link entry */
+	LIST_HEAD(, chunk_desc) unused_chunks[UNUSED_BUCKETS];
 	LIST_HEAD(, trie_desc)	trie_hashtbl[TRIE_HASH_SIZE];
 	LIST_HEAD(, trie_desc)	all_trie;
 	LIST_HEAD(, trie_desc)	unused_trie; /* abuses hash link entry */
@@ -387,6 +389,7 @@ chunk_ref(struct dxr_aux *da, uint32_t chunk)
 	uint32_t base = fdesc->base;
 	uint32_t size = chunk_size(da, fdesc);
 	uint32_t hash = chunk_hash(da, fdesc);
+	int i;
 
 	/* Find an existing descriptor */
 	LIST_FOREACH(cdp, &da->chunk_hashtbl[hash & CHUNK_HASH_MASK],
@@ -401,15 +404,18 @@ chunk_ref(struct dxr_aux *da, uint32_t chunk)
 		return (0);
 	}
 
-	/* No matching chunks found. Recycle an empty or allocate a new one */
-	cdp = NULL;
-	LIST_FOREACH(empty_cdp, &da->unused_chunks, cd_hash_le)
-		if (empty_cdp->cd_max_size >= size && (cdp == NULL ||
-		    empty_cdp->cd_max_size < cdp->cd_max_size)) {
-			cdp = empty_cdp;
-			if (empty_cdp->cd_max_size == size)
-				break;
-		}
+	/* No matching chunks found. Find an empty one to recycle. */
+	for (cdp = NULL, i = size; cdp == NULL && i < UNUSED_BUCKETS; i++)
+		cdp = LIST_FIRST(&da->unused_chunks[i]);
+
+	if (cdp == NULL)
+		LIST_FOREACH(empty_cdp, &da->unused_chunks[0], cd_hash_le)
+			if (empty_cdp->cd_max_size >= size && (cdp == NULL ||
+			    empty_cdp->cd_max_size < cdp->cd_max_size)) {
+				cdp = empty_cdp;
+				if (empty_cdp->cd_max_size == size)
+					break;
+			}
 
 	if (cdp != NULL) {
 		/* Copy from heap into the recycled chunk */
@@ -423,11 +429,17 @@ chunk_ref(struct dxr_aux *da, uint32_t chunk)
 			empty_cdp = uma_zalloc(chunk_zone, M_NOWAIT);
 			if (empty_cdp == NULL)
 				return (1);
+			LIST_INSERT_BEFORE(cdp, empty_cdp, cd_all_le);
+			empty_cdp->cd_base = cdp->cd_base + size;
 			empty_cdp->cd_cur_size = 0;
 			empty_cdp->cd_max_size = cdp->cd_max_size - size;
-			empty_cdp->cd_base = cdp->cd_base + size;
-			LIST_INSERT_BEFORE(cdp, empty_cdp, cd_all_le);
-			LIST_INSERT_AFTER(cdp, empty_cdp, cd_hash_le);
+
+			i = empty_cdp->cd_max_size;
+			if (i >= UNUSED_BUCKETS)
+				i = 0;
+			LIST_INSERT_HEAD(&da->unused_chunks[i], empty_cdp,
+			    cd_hash_le);
+
 			da->all_chunks_cnt++;
 			da->unused_chunks_cnt++;
 			cdp->cd_max_size = size;
@@ -480,6 +492,7 @@ chunk_unref(struct dxr_aux *da, uint32_t chunk)
 	uint32_t base = fdesc->base;
 	uint32_t size = chunk_size(da, fdesc);
 	uint32_t hash = chunk_hash(da, fdesc);
+	int i;
 
 	/* Find the corresponding descriptor */
 	LIST_FOREACH(cdp, &da->chunk_hashtbl[hash & CHUNK_HASH_MASK],
@@ -538,7 +551,10 @@ chunk_unref(struct dxr_aux *da, uint32_t chunk)
 		return;
 	}
 
-	LIST_INSERT_HEAD(&da->unused_chunks, cdp, cd_hash_le);
+	i = cdp->cd_max_size;
+	if (i >= UNUSED_BUCKETS)
+		i = 0;
+	LIST_INSERT_HEAD(&da->unused_chunks[i], cdp, cd_hash_le);
 }
 
 #ifdef DXR2
@@ -891,7 +907,8 @@ dxr_build(struct dxr *dxr)
 			LIST_REMOVE(cdp, cd_all_le);
 			uma_zfree(chunk_zone, cdp);
 		}
-		LIST_INIT(&da->unused_chunks);
+		for (i = 0; i < UNUSED_BUCKETS; i++)
+			LIST_INIT(&da->unused_chunks[i]);
 		da->all_chunks_cnt = da->unused_chunks_cnt = 0;
 		da->rtbl_top = 0;
 		da->updates_low = 0;
