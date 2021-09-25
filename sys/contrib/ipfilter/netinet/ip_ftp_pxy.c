@@ -1415,7 +1415,7 @@ ipf_p_ftp_process(softf, fin, nat, ftp, rv)
 				printf("%s:seq[0](%u) + (%d) != (%u)\n",
 				       "ipf_p_ftp_process", t->ftps_seq[0],
 				       ackoff, thack);
-				printf("%s:seq[0](%u) + (%d) != (%u)\n",
+				printf("%s:seq[1](%u) + (%d) != (%u)\n",
 				       "ipf_p_ftp_process", t->ftps_seq[1],
 				       ackoff, thack);
 			}
