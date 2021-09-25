@@ -42,9 +42,9 @@
 /*********************************************************************
  *  Local Function prototypes
  *********************************************************************/
-static int em_tso_setup(struct adapter *adapter, if_pkt_info_t pi, u32 *txd_upper,
+static int em_tso_setup(struct e1000_softc *sc, if_pkt_info_t pi, u32 *txd_upper,
     u32 *txd_lower);
-static int em_transmit_checksum_setup(struct adapter *adapter, if_pkt_info_t pi,
+static int em_transmit_checksum_setup(struct e1000_softc *sc, if_pkt_info_t pi,
     u32 *txd_upper, u32 *txd_lower);
 static int em_isc_txd_encap(void *arg, if_pkt_info_t pi);
 static void em_isc_txd_flush(void *arg, uint16_t txqid, qidx_t pidx);
@@ -91,9 +91,9 @@ struct if_txrx lem_txrx = {
 extern if_shared_ctx_t em_sctx;
 
 void
-em_dump_rs(struct adapter *adapter)
+em_dump_rs(struct e1000_softc *sc)
 {
-	if_softc_ctx_t scctx = adapter->shared;
+	if_softc_ctx_t scctx = sc->shared;
 	struct em_tx_queue *que;
 	struct tx_ring *txr;
 	qidx_t i, ntxd, qid, cur;
@@ -102,8 +102,8 @@ em_dump_rs(struct adapter *adapter)
 
 	printf("\n");
 	ntxd = scctx->isc_ntxd[0];
-	for (qid = 0; qid < adapter->tx_num_queues; qid++) {
-		que = &adapter->tx_queues[qid];
+	for (qid = 0; qid < sc->tx_num_queues; qid++) {
+		que = &sc->tx_queues[qid];
 		txr =  &que->txr;
 		rs_cidx = txr->tx_rs_cidx;
 		if (rs_cidx != txr->tx_rs_pidx) {
@@ -132,10 +132,10 @@ em_dump_rs(struct adapter *adapter)
  *
  **********************************************************************/
 static int
-em_tso_setup(struct adapter *adapter, if_pkt_info_t pi, u32 *txd_upper, u32 *txd_lower)
+em_tso_setup(struct e1000_softc *sc, if_pkt_info_t pi, u32 *txd_upper, u32 *txd_lower)
 {
-	if_softc_ctx_t scctx = adapter->shared;
-	struct em_tx_queue *que = &adapter->tx_queues[pi->ipi_qsidx];
+	if_softc_ctx_t scctx = sc->shared;
+	struct em_tx_queue *que = &sc->tx_queues[pi->ipi_qsidx];
 	struct tx_ring *txr = &que->txr;
 	struct e1000_context_desc *TXD;
 	int cur, hdr_len;
@@ -178,7 +178,7 @@ em_tso_setup(struct adapter *adapter, if_pkt_info_t pi, u32 *txd_upper, u32 *txd
 	TXD->tcp_seg_setup.fields.mss = htole16(pi->ipi_tso_segsz);
 	TXD->tcp_seg_setup.fields.hdr_len = hdr_len;
 
-	TXD->cmd_and_length = htole32(adapter->txd_cmd |
+	TXD->cmd_and_length = htole32(sc->txd_cmd |
 				E1000_TXD_CMD_DEXT |	/* Extended descr */
 				E1000_TXD_CMD_TSE |	/* TSE context */
 				E1000_TXD_CMD_IP |	/* Do IP csum */
@@ -189,7 +189,7 @@ em_tso_setup(struct adapter *adapter, if_pkt_info_t pi, u32 *txd_upper, u32 *txd
 	if (++cur == scctx->isc_ntxd[0]) {
 		cur = 0;
 	}
-	DPRINTF(iflib_get_dev(adapter->ctx), "%s: pidx: %d cur: %d\n", __FUNCTION__, pi->ipi_pidx, cur);
+	DPRINTF(iflib_get_dev(sc->ctx), "%s: pidx: %d cur: %d\n", __FUNCTION__, pi->ipi_pidx, cur);
 	return (cur);
 }
 
@@ -215,11 +215,11 @@ em_tso_setup(struct adapter *adapter, if_pkt_info_t pi, u32 *txd_upper, u32 *txd
  **********************************************************************/
 
 static int
-em_transmit_checksum_setup(struct adapter *adapter, if_pkt_info_t pi, u32 *txd_upper, u32 *txd_lower)
+em_transmit_checksum_setup(struct e1000_softc *sc, if_pkt_info_t pi, u32 *txd_upper, u32 *txd_lower)
 {
 	 struct e1000_context_desc *TXD = NULL;
-	if_softc_ctx_t scctx = adapter->shared;
-	struct em_tx_queue *que = &adapter->tx_queues[pi->ipi_qsidx];
+	if_softc_ctx_t scctx = sc->shared;
+	struct em_tx_queue *que = &sc->tx_queues[pi->ipi_qsidx];
 	struct tx_ring *txr = &que->txr;
 	int csum_flags = pi->ipi_csum_flags;
 	int cur, hdr_len;
@@ -227,7 +227,7 @@ em_transmit_checksum_setup(struct adapter *adapter, if_pkt_info_t pi, u32 *txd_u
 
 	cur = pi->ipi_pidx;
 	hdr_len = pi->ipi_ehdrlen + pi->ipi_ip_hlen;
-	cmd = adapter->txd_cmd;
+	cmd = sc->txd_cmd;
 
 	/*
 	 * The 82574L can only remember the *last* context used
@@ -237,7 +237,7 @@ em_transmit_checksum_setup(struct adapter *adapter, if_pkt_info_t pi, u32 *txd_u
 	 * second note.
 	 */
 	if (DONT_FORCE_CTX &&
-	    adapter->tx_num_queues == 1 &&
+	    sc->tx_num_queues == 1 &&
 	    txr->csum_lhlen == pi->ipi_ehdrlen &&
 	    txr->csum_iphlen == pi->ipi_ip_hlen &&
 	    txr->csum_flags == csum_flags) {
@@ -293,7 +293,7 @@ em_transmit_checksum_setup(struct adapter *adapter, if_pkt_info_t pi, u32 *txd_u
 	if (++cur == scctx->isc_ntxd[0]) {
 		cur = 0;
 	}
-	DPRINTF(iflib_get_dev(adapter->ctx), "checksum_setup csum_flags=%x txd_upper=%x txd_lower=%x hdr_len=%d cmd=%x\n",
+	DPRINTF(iflib_get_dev(sc->ctx), "checksum_setup csum_flags=%x txd_upper=%x txd_lower=%x hdr_len=%d cmd=%x\n",
 		      csum_flags, *txd_upper, *txd_lower, hdr_len, cmd);
 	return (cur);
 }
@@ -301,7 +301,7 @@ em_transmit_checksum_setup(struct adapter *adapter, if_pkt_info_t pi, u32 *txd_u
 static int
 em_isc_txd_encap(void *arg, if_pkt_info_t pi)
 {
-	struct adapter *sc = arg;
+	struct e1000_softc *sc = arg;
 	if_softc_ctx_t scctx = sc->shared;
 	struct em_tx_queue *que = &sc->tx_queues[pi->ipi_qsidx];
 	struct tx_ring *txr = &que->txr;
@@ -348,7 +348,7 @@ em_isc_txd_encap(void *arg, if_pkt_info_t pi)
 	}
 
 	DPRINTF(iflib_get_dev(sc->ctx), "encap: set up tx: nsegs=%d first=%d i=%d\n", nsegs, first, i);
-	/* XXX adapter->pcix_82544 -- lem_fill_descriptors */
+	/* XXX sc->pcix_82544 -- lem_fill_descriptors */
 
 	/* Set up our transmit descriptors */
 	for (j = 0; j < nsegs; j++) {
@@ -416,19 +416,19 @@ em_isc_txd_encap(void *arg, if_pkt_info_t pi)
 static void
 em_isc_txd_flush(void *arg, uint16_t txqid, qidx_t pidx)
 {
-	struct adapter *adapter = arg;
-	struct em_tx_queue *que = &adapter->tx_queues[txqid];
+	struct e1000_softc *sc = arg;
+	struct em_tx_queue *que = &sc->tx_queues[txqid];
 	struct tx_ring *txr = &que->txr;
 
-	E1000_WRITE_REG(&adapter->hw, E1000_TDT(txr->me), pidx);
+	E1000_WRITE_REG(&sc->hw, E1000_TDT(txr->me), pidx);
 }
 
 static int
 em_isc_txd_credits_update(void *arg, uint16_t txqid, bool clear)
 {
-	struct adapter *adapter = arg;
-	if_softc_ctx_t scctx = adapter->shared;
-	struct em_tx_queue *que = &adapter->tx_queues[txqid];
+	struct e1000_softc *sc = arg;
+	if_softc_ctx_t scctx = sc->shared;
+	struct em_tx_queue *que = &sc->tx_queues[txqid];
 	struct tx_ring *txr = &que->txr;
 
 	qidx_t processed = 0;
@@ -461,7 +461,7 @@ em_isc_txd_credits_update(void *arg, uint16_t txqid, bool clear)
 		if (delta < 0)
 			delta += ntxd;
 		MPASS(delta > 0);
-		DPRINTF(iflib_get_dev(adapter->ctx),
+		DPRINTF(iflib_get_dev(sc->ctx),
 			      "%s: cidx_processed=%u cur=%u clear=%d delta=%d\n",
 			      __FUNCTION__, prev, cur, clear, delta);
 
@@ -483,7 +483,7 @@ em_isc_txd_credits_update(void *arg, uint16_t txqid, bool clear)
 static void
 lem_isc_rxd_refill(void *arg, if_rxd_update_t iru)
 {
-	struct adapter *sc = arg;
+	struct e1000_softc *sc = arg;
 	if_softc_ctx_t scctx = sc->shared;
 	struct em_rx_queue *que = &sc->rx_queues[iru->iru_qsidx];
 	struct rx_ring *rxr = &que->rxr;
@@ -511,7 +511,7 @@ lem_isc_rxd_refill(void *arg, if_rxd_update_t iru)
 static void
 em_isc_rxd_refill(void *arg, if_rxd_update_t iru)
 {
-	struct adapter *sc = arg;
+	struct e1000_softc *sc = arg;
 	if_softc_ctx_t scctx = sc->shared;
 	uint16_t rxqid = iru->iru_qsidx;
 	struct em_rx_queue *que = &sc->rx_queues[rxqid];
@@ -540,7 +540,7 @@ em_isc_rxd_refill(void *arg, if_rxd_update_t iru)
 static void
 em_isc_rxd_flush(void *arg, uint16_t rxqid, uint8_t flid __unused, qidx_t pidx)
 {
-	struct adapter *sc = arg;
+	struct e1000_softc *sc = arg;
 	struct em_rx_queue *que = &sc->rx_queues[rxqid];
 	struct rx_ring *rxr = &que->rxr;
 
@@ -550,7 +550,7 @@ em_isc_rxd_flush(void *arg, uint16_t rxqid, uint8_t flid __unused, qidx_t pidx)
 static int
 lem_isc_rxd_available(void *arg, uint16_t rxqid, qidx_t idx, qidx_t budget)
 {
-	struct adapter *sc = arg;
+	struct e1000_softc *sc = arg;
 	if_softc_ctx_t scctx = sc->shared;
 	struct em_rx_queue *que = &sc->rx_queues[rxqid];
 	struct rx_ring *rxr = &que->rxr;
@@ -575,7 +575,7 @@ lem_isc_rxd_available(void *arg, uint16_t rxqid, qidx_t idx, qidx_t budget)
 static int
 em_isc_rxd_available(void *arg, uint16_t rxqid, qidx_t idx, qidx_t budget)
 {
-	struct adapter *sc = arg;
+	struct e1000_softc *sc = arg;
 	if_softc_ctx_t scctx = sc->shared;
 	struct em_rx_queue *que = &sc->rx_queues[rxqid];
 	struct rx_ring *rxr = &que->rxr;
@@ -600,9 +600,9 @@ em_isc_rxd_available(void *arg, uint16_t rxqid, qidx_t idx, qidx_t budget)
 static int
 lem_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 {
-	struct adapter *adapter = arg;
-	if_softc_ctx_t scctx = adapter->shared;
-	struct em_rx_queue *que = &adapter->rx_queues[ri->iri_qsidx];
+	struct e1000_softc *sc = arg;
+	if_softc_ctx_t scctx = sc->shared;
+	struct em_rx_queue *que = &sc->rx_queues[ri->iri_qsidx];
 	struct rx_ring *rxr = &que->rxr;
 	struct e1000_rx_desc *rxd;
 	u16 len;
@@ -628,7 +628,7 @@ lem_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 
 		/* Make sure bad packets are discarded */
 		if (errors & E1000_RXD_ERR_FRAME_ERR_MASK) {
-			adapter->dropped_pkts++;
+			sc->dropped_pkts++;
 			/* XXX fixup if common */
 			return (EBADMSG);
 		}
@@ -645,7 +645,7 @@ lem_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 	} while (!eop);
 
 	/* XXX add a faster way to look this up */
-	if (adapter->hw.mac.type >= e1000_82543)
+	if (sc->hw.mac.type >= e1000_82543)
 		em_receive_checksum(status, errors, ri);
 
 	if (status & E1000_RXD_STAT_VP) {
@@ -661,9 +661,9 @@ lem_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 static int
 em_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 {
-	struct adapter *adapter = arg;
-	if_softc_ctx_t scctx = adapter->shared;
-	struct em_rx_queue *que = &adapter->rx_queues[ri->iri_qsidx];
+	struct e1000_softc *sc = arg;
+	if_softc_ctx_t scctx = sc->shared;
+	struct em_rx_queue *que = &sc->rx_queues[ri->iri_qsidx];
 	struct rx_ring *rxr = &que->rxr;
 	union e1000_rx_desc_extended *rxd;
 
@@ -691,7 +691,7 @@ em_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 
 		/* Make sure bad packets are discarded */
 		if (staterr & E1000_RXDEXT_ERR_FRAME_ERR_MASK) {
-			adapter->dropped_pkts++;
+			sc->dropped_pkts++;
 			return EBADMSG;
 		}
 
