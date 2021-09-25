@@ -45,7 +45,13 @@
 .Op Cm ,threads= Ar n
 .Oc
 .Sm on
-.Op Fl G Ar port
+.Oo Fl G
+.Sm off
+.Oo Ar w Oc
+.Oo Ar bind_address: Oc
+.Ar port
+.Sm on
+.Oc
 .Op Fl k Ar file
 .Oo Fl l
 .Sm off
