@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 9, 2015
+.Dd September 24, 2021
 .Dt ACPI 4
 .Os
 .Sh NAME
@@ -210,11 +210,6 @@ entry for access after boot.
 Enables loading of a custom ACPI DSDT.
 .It Va acpi_dsdt_name
 Name of the DSDT table to load, if loading is enabled.
-.It Va debug.acpi.cpu_unordered
-Do not use the MADT to match ACPI Processor objects to CPUs.
-This is needed on a few systems with a buggy BIOS that does not use
-consistent processor IDs.
-Default is 0 (disabled).
 .It Va debug.acpi.disabled
 Selectively disables portions of ACPI for debugging purposes.
 .It Va debug.acpi.interpreter_slack
