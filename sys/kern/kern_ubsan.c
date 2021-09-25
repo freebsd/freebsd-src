@@ -717,7 +717,7 @@ HandleAlignmentAssumption(bool isFatal, struct CAlignmentAssumptionData *pData, 
 	if (pData->mAssumptionLocation.mFilename != NULL) {
 		DeserializeLocation(szAssumptionLocation, LOCATION_MAXLEN,
 		    &pData->mAssumptionLocation);
-		Report(isFatal, "UBSan: Undefined Behavior in %s, alignment assumption of %#lx for pointer %#lx (offset %#lx), asumption made in %s\n",
+		Report(isFatal, "UBSan: Undefined Behavior in %s, alignment assumption of %#lx for pointer %#lx (offset %#lx), assumption made in %s\n",
 		    szLocation, ulAlignment, ulRealPointer, ulOffset,
 		    szAssumptionLocation);
 	} else {
