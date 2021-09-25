@@ -310,7 +310,8 @@ smist_identify(driver_t *driver, device_t parent)
 
 	if (device_find_child(parent, "smist", -1) != NULL)
 		return;
-	if (BUS_ADD_CHILD(parent, 30, "smist", -1) == NULL)
+	if (BUS_ADD_CHILD(parent, 30, "smist", device_get_unit(parent))
+	    == NULL)
 		device_printf(parent, "smist: add child failed\n");
 }
 

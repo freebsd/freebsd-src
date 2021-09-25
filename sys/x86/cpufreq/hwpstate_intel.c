@@ -352,11 +352,9 @@ intel_hwpstate_identify(driver_t *driver, device_t parent)
 	if ((cpu_power_eax & CPUTPM1_HWP) == 0)
 		return;
 
-	if (BUS_ADD_CHILD(parent, 10, "hwpstate_intel", -1) == NULL)
-		return;
-
-	if (bootverbose)
-		device_printf(parent, "hwpstate registered\n");
+	if (BUS_ADD_CHILD(parent, 10, "hwpstate_intel", device_get_unit(parent))
+	    == NULL)
+		device_printf(parent, "hwpstate_intel: add child failed\n");
 }
 
 static int

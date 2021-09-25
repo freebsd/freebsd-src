@@ -133,7 +133,7 @@ coretemp_identify(driver_t *driver, device_t parent)
 	 * We add a child for each CPU since settings must be performed
 	 * on each CPU in the SMP case.
 	 */
-	child = device_add_child(parent, "coretemp", -1);
+	child = device_add_child(parent, "coretemp", device_get_unit(parent));
 	if (child == NULL)
 		device_printf(parent, "add coretemp child failed\n");
 }
