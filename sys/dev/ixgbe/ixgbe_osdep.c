@@ -37,42 +37,42 @@
 inline u16
 ixgbe_read_pci_cfg(struct ixgbe_hw *hw, u32 reg)
 {
-	return pci_read_config(((struct adapter *)hw->back)->dev, reg, 2);
+	return pci_read_config(((struct ixgbe_softc *)hw->back)->dev, reg, 2);
 }
 
 inline void
 ixgbe_write_pci_cfg(struct ixgbe_hw *hw, u32 reg, u16 value)
 {
-	pci_write_config(((struct adapter *)hw->back)->dev, reg, value, 2);
+	pci_write_config(((struct ixgbe_softc *)hw->back)->dev, reg, value, 2);
 }
 
 inline u32
 ixgbe_read_reg(struct ixgbe_hw *hw, u32 reg)
 {
-	return bus_space_read_4(((struct adapter *)hw->back)->osdep.mem_bus_space_tag,
-	    ((struct adapter *)hw->back)->osdep.mem_bus_space_handle, reg);
+	return bus_space_read_4(((struct ixgbe_softc *)hw->back)->osdep.mem_bus_space_tag,
+	    ((struct ixgbe_softc *)hw->back)->osdep.mem_bus_space_handle, reg);
 }
 
 inline void
 ixgbe_write_reg(struct ixgbe_hw *hw, u32 reg, u32 val)
 {
-	bus_space_write_4(((struct adapter *)hw->back)->osdep.mem_bus_space_tag,
-	    ((struct adapter *)hw->back)->osdep.mem_bus_space_handle,
+	bus_space_write_4(((struct ixgbe_softc *)hw->back)->osdep.mem_bus_space_tag,
+	    ((struct ixgbe_softc *)hw->back)->osdep.mem_bus_space_handle,
 	    reg, val);
 }
 
 inline u32
 ixgbe_read_reg_array(struct ixgbe_hw *hw, u32 reg, u32 offset)
 {
-	return bus_space_read_4(((struct adapter *)hw->back)->osdep.mem_bus_space_tag,
-	    ((struct adapter *)hw->back)->osdep.mem_bus_space_handle,
+	return bus_space_read_4(((struct ixgbe_softc *)hw->back)->osdep.mem_bus_space_tag,
+	    ((struct ixgbe_softc *)hw->back)->osdep.mem_bus_space_handle,
 	    reg + (offset << 2));
 }
 
 inline void
 ixgbe_write_reg_array(struct ixgbe_hw *hw, u32 reg, u32 offset, u32 val)
 {
-	bus_space_write_4(((struct adapter *)hw->back)->osdep.mem_bus_space_tag,
-	    ((struct adapter *)hw->back)->osdep.mem_bus_space_handle,
+	bus_space_write_4(((struct ixgbe_softc *)hw->back)->osdep.mem_bus_space_tag,
+	    ((struct ixgbe_softc *)hw->back)->osdep.mem_bus_space_handle,
 	    reg + (offset << 2), val);
 }

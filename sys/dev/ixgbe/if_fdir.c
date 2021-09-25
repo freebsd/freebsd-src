@@ -37,33 +37,33 @@
 #ifdef IXGBE_FDIR
 
 void
-ixgbe_init_fdir(struct adapter *adapter)
+ixgbe_init_fdir(struct ixgbe_softc *sc)
 {
 	u32 hdrm = 32 << fdir_pballoc;
 
-	if (!(adapter->feat_en & IXGBE_FEATURE_FDIR))
+	if (!(sc->feat_en & IXGBE_FEATURE_FDIR))
 		return;
 
-	adapter->hw.mac.ops.setup_rxpba(&adapter->hw, 0, hdrm,
+	sc->hw.mac.ops.setup_rxpba(&sc->hw, 0, hdrm,
 	    PBA_STRATEGY_EQUAL);
-	ixgbe_init_fdir_signature_82599(&adapter->hw, fdir_pballoc);
+	ixgbe_init_fdir_signature_82599(&sc->hw, fdir_pballoc);
 } /* ixgbe_init_fdir */
 
 void
 ixgbe_reinit_fdir(void *context)
 {
 	if_ctx_t       ctx = context;
-	struct adapter *adapter = iflib_get_softc(ctx);
+	struct ixgbe_softc *sc = iflib_get_softc(ctx);
 	struct ifnet   *ifp = iflib_get_ifp(ctx);
 
-	if (!(adapter->feat_en & IXGBE_FEATURE_FDIR))
+	if (!(sc->feat_en & IXGBE_FEATURE_FDIR))
 		return;
-	if (adapter->fdir_reinit != 1) /* Shouldn't happen */
+	if (sc->fdir_reinit != 1) /* Shouldn't happen */
 		return;
-	ixgbe_reinit_fdir_tables_82599(&adapter->hw);
-	adapter->fdir_reinit = 0;
+	ixgbe_reinit_fdir_tables_82599(&sc->hw);
+	sc->fdir_reinit = 0;
 	/* re-enable flow director interrupts */
-	IXGBE_WRITE_REG(&adapter->hw, IXGBE_EIMS, IXGBE_EIMS_FLOW_DIR);
+	IXGBE_WRITE_REG(&sc->hw, IXGBE_EIMS, IXGBE_EIMS_FLOW_DIR);
 	/* Restart the interface */
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 } /* ixgbe_reinit_fdir */
@@ -80,7 +80,7 @@ ixgbe_reinit_fdir(void *context)
 void
 ixgbe_atr(struct tx_ring *txr, struct mbuf *mp)
 {
-	struct adapter             *adapter = txr->adapter;
+	struct ixgbe_softc             *sc = txr->sc;
 	struct ix_queue            *que;
 	struct ip                  *ip;
 	struct tcphdr              *th;
@@ -134,12 +134,12 @@ ixgbe_atr(struct tx_ring *txr, struct mbuf *mp)
 		common.flex_bytes ^= etype;
 	common.ip ^= ip->ip_src.s_addr ^ ip->ip_dst.s_addr;
 
-	que = &adapter->queues[txr->me];
+	que = &sc->queues[txr->me];
 	/*
 	 * This assumes the Rx queue and Tx
 	 * queue are bound to the same CPU
 	 */
-	ixgbe_fdir_add_signature_filter_82599(&adapter->hw,
+	ixgbe_fdir_add_signature_filter_82599(&sc->hw,
 	    input, common, que->msix);
 } /* ixgbe_atr */
 
