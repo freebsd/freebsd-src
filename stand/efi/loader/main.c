@@ -924,8 +924,6 @@ main(int argc, CHAR16 *argv[])
 	char buf[32];
 	bool uefi_boot_mgr;
 
-	tslog_init();
-
 	archsw.arch_autoload = efi_autoload;
 	archsw.arch_getdev = efi_getdev;
 	archsw.arch_copyin = efi_copyin;
