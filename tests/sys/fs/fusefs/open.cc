@@ -73,6 +73,13 @@ void test_ok(int os_flags, int fuse_flags) {
 };
 
 
+class OpenNoOpenSupport: public FuseTest {
+	virtual void SetUp() {
+		m_init_flags = FUSE_NO_OPEN_SUPPORT;
+		FuseTest::SetUp();
+	}
+};
+
 /* 
  * fusefs(5) does not support I/O on device nodes (neither does UFS).  But it
  * shouldn't crash
@@ -274,3 +281,62 @@ TEST_F(Open, o_rdwr)
 	test_ok(O_RDWR, O_RDWR);
 }
 
+/*
+ * Without FUSE_NO_OPEN_SUPPORT, returning ENOSYS is an error
+ */
+TEST_F(Open, enosys)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	uint64_t ino = 42;
+	int fd;
+
+	FuseTest::expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 1);
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in.header.opcode == FUSE_OPEN &&
+				in.body.open.flags == (uint32_t)O_RDONLY &&
+				in.header.nodeid == ino);
+		}, Eq(true)),
+		_)
+	).Times(1)
+	.WillOnce(Invoke(ReturnErrno(ENOSYS)));
+
+	fd = open(FULLPATH, O_RDONLY);
+	ASSERT_EQ(-1, fd) << strerror(errno);
+	EXPECT_EQ(ENOSYS, errno);
+}
+
+/*
+ * If a fuse server sets FUSE_NO_OPEN_SUPPORT and returns ENOSYS to a
+ * FUSE_OPEN, then it and subsequent FUSE_OPEN and FUSE_RELEASE operations will
+ * also succeed automatically without being sent to the server.
+ */
+TEST_F(OpenNoOpenSupport, enosys)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	uint64_t ino = 42;
+	int fd;
+
+	FuseTest::expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 2);
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in.header.opcode == FUSE_OPEN &&
+				in.body.open.flags == (uint32_t)O_RDONLY &&
+				in.header.nodeid == ino);
+		}, Eq(true)),
+		_)
+	).Times(1)
+	.WillOnce(Invoke(ReturnErrno(ENOSYS)));
+	expect_flush(ino, 1, ReturnErrno(ENOSYS));
+
+	fd = open(FULLPATH, O_RDONLY);
+	ASSERT_LE(0, fd) << strerror(errno);
+	close(fd);
+
+	fd = open(FULLPATH, O_RDONLY);
+	ASSERT_LE(0, fd) << strerror(errno);
+
+	leak(fd);
+}

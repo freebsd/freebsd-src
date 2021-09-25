@@ -73,6 +73,13 @@ void expect_opendir(uint64_t ino, uint32_t flags, ProcessMockerT r)
 
 };
 
+class OpendirNoOpendirSupport: public Opendir {
+	virtual void SetUp() {
+		m_init_flags = FUSE_NO_OPENDIR_SUPPORT;
+		FuseTest::SetUp();
+	}
+};
+
 
 /* 
  * The fuse daemon fails the request with enoent.  This usually indicates a
@@ -171,4 +178,45 @@ TEST_F(Opendir, opendir)
 
 	errno = 0;
 	EXPECT_NE(nullptr, opendir(FULLPATH)) << strerror(errno);
+}
+
+/*
+ * Without FUSE_NO_OPENDIR_SUPPORT, returning ENOSYS is an error
+ */
+TEST_F(Opendir, enosys)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	uint64_t ino = 42;
+
+	expect_lookup(RELPATH, ino);
+	expect_opendir(ino, O_RDONLY, ReturnErrno(ENOSYS));
+
+	EXPECT_EQ(-1, open(FULLPATH, O_DIRECTORY));
+	EXPECT_EQ(ENOSYS, errno);
+}
+
+/*
+ * If a fuse server sets FUSE_NO_OPENDIR_SUPPORT and returns ENOSYS to a
+ * FUSE_OPENDIR, then it and subsequent FUSE_OPENDIR and FUSE_RELEASEDIR
+ * operations will also succeed automatically without being sent to the server.
+ */
+TEST_F(OpendirNoOpendirSupport, enosys)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	uint64_t ino = 42;
+	int fd;
+
+	FuseTest::expect_lookup(RELPATH, ino, S_IFDIR | 0755, 0, 2);
+	expect_opendir(ino, O_RDONLY, ReturnErrno(ENOSYS));
+
+	fd = open(FULLPATH, O_DIRECTORY);
+	ASSERT_LE(0, fd) << strerror(errno);
+	close(fd);
+
+	fd = open(FULLPATH, O_DIRECTORY);
+	ASSERT_LE(0, fd) << strerror(errno);
+
+	leak(fd);
 }
