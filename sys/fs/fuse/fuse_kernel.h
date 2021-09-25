@@ -41,22 +41,61 @@
  *
  * Protocol changelog:
  *
+ * 7.1:
+ *  - add the following messages:
+ *      FUSE_SETATTR, FUSE_SYMLINK, FUSE_MKNOD, FUSE_MKDIR, FUSE_UNLINK,
+ *      FUSE_RMDIR, FUSE_RENAME, FUSE_LINK, FUSE_OPEN, FUSE_READ, FUSE_WRITE,
+ *      FUSE_RELEASE, FUSE_FSYNC, FUSE_FLUSH, FUSE_SETXATTR, FUSE_GETXATTR,
+ *      FUSE_LISTXATTR, FUSE_REMOVEXATTR, FUSE_OPENDIR, FUSE_READDIR,
+ *      FUSE_RELEASEDIR
+ *  - add padding to messages to accommodate 32-bit servers on 64-bit kernels
+ *
+ * 7.2:
+ *  - add FOPEN_DIRECT_IO and FOPEN_KEEP_CACHE flags
+ *  - add FUSE_FSYNCDIR message
+ *
+ * 7.3:
+ *  - add FUSE_ACCESS message
+ *  - add FUSE_CREATE message
+ *  - add filehandle to fuse_setattr_in
+ *
+ * 7.4:
+ *  - add frsize to fuse_kstatfs
+ *  - clean up request size limit checking
+ *
+ * 7.5:
+ *  - add flags and max_write to fuse_init_out
+ *
+ * 7.6:
+ *  - add max_readahead to fuse_init_in and fuse_init_out
+ *
+ * 7.7:
+ *  - add FUSE_INTERRUPT message
+ *  - add POSIX file lock support
+ *
+ * 7.8:
+ *  - add lock_owner and flags fields to fuse_release_in
+ *  - add FUSE_BMAP message
+ *  - add FUSE_DESTROY message
+ *
  * 7.9:
  *  - new fuse_getattr_in input argument of GETATTR
  *  - add lk_flags in fuse_lk_in
  *  - add lock_owner field to fuse_setattr_in, fuse_read_in and fuse_write_in
  *  - add blksize field to fuse_attr
  *  - add file flags field to fuse_read_in and fuse_write_in
+ *  - Add ATIME_NOW and MTIME_NOW flags to fuse_setattr_in
  *
  * 7.10
  *  - add nonseekable open flag
  *
- *  7.11
+ * 7.11
  *  - add IOCTL message
  *  - add unsolicited notification support
+ *  - add POLL message and NOTIFY_POLL notification
  *
- *  7.12
- *  - add umask flag to input argument of open, mknod and mkdir
+ * 7.12
+ *  - add umask flag to input argument of create, mknod and mkdir
  *  - add notification messages for invalidation of inodes and
  *    directory entries
  *
@@ -89,6 +128,7 @@
  *
  * 7.20
  *  - add FUSE_AUTO_INVAL_DATA
+ *
  * 7.21
  *  - add FUSE_READDIRPLUS
  *  - send the requested events in POLL request
@@ -105,7 +145,7 @@
  *  - add FUSE_RENAME2 request
  *  - add FUSE_NO_OPEN_SUPPORT flag
  *
- * 7.24
+ *  7.24
  *  - add FUSE_LSEEK for SEEK_HOLE and SEEK_DATA support
  *
  *  7.25
@@ -133,6 +173,26 @@
 #else
 #include <sys/types.h>
 #endif
+
+/*
+ * Version negotiation:
+ *
+ * Both the kernel and userspace send the version they support in the
+ * INIT request and reply respectively.
+ *
+ * If the major versions match then both shall use the smallest
+ * of the two minor versions for communication.
+ *
+ * If the kernel supports a larger major version, then userspace shall
+ * reply with the major version it supports, ignore the rest of the
+ * INIT message and expect a new INIT message from the kernel with a
+ * matching major version.
+ *
+ * If the library supports a larger major version, then it shall fall
+ * back to the major protocol version sent by the kernel for
+ * communication and reply with that major version (and an arbitrary
+ * supported minor version).
+ */
 
 /** Version number of this interface */
 #define FUSE_KERNEL_VERSION 7
@@ -330,6 +390,13 @@ struct fuse_file_lock {
  * FUSE_POLL_SCHEDULE_NOTIFY: request poll notify
  */
 #define FUSE_POLL_SCHEDULE_NOTIFY (1 << 0)
+
+/**
+ * Fsync flags
+ *
+ * FUSE_FSYNC_FDATASYNC: Sync data only, not metadata
+ */
+#define FUSE_FSYNC_FDATASYNC	(1 << 0)
 
 enum fuse_opcode {
 	FUSE_LOOKUP		= 1,
@@ -791,14 +858,14 @@ struct fuse_notify_retrieve_in {
 };
 
 struct fuse_lseek_in {
-       uint64_t        fh;
-       uint64_t        offset;
-       uint32_t        whence;
-       uint32_t        padding;
+	uint64_t	fh;
+	uint64_t	offset;
+	uint32_t	whence;
+	uint32_t	padding;
 };
 
 struct fuse_lseek_out {
-       uint64_t        offset;
+	uint64_t	offset;
 };
 
 struct fuse_copy_file_range_in {

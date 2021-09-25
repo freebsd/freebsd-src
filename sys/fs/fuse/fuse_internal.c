@@ -363,7 +363,7 @@ fuse_internal_fsync(struct vnode *vp,
 		ffsi->fsync_flags = 0;
 
 		if (datasync)
-			ffsi->fsync_flags = 1;
+			ffsi->fsync_flags = FUSE_FSYNC_FDATASYNC;
 
 		if (waitfor == MNT_WAIT) {
 			err = fdisp_wait_answ(&fdi);
