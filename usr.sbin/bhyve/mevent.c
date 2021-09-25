@@ -190,6 +190,11 @@ mevent_kq_fflags(struct mevent *mevp)
 		if ((mevp->me_fflags & EVFF_ATTRIB) != 0)
 			retval |= NOTE_ATTRIB;
 		break;
+	case EVF_READ:
+	case EVF_WRITE:
+	case EVF_TIMER:
+	case EVF_SIGNAL:
+		break;
 	}
 
 	return (retval);
