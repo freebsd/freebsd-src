@@ -161,7 +161,8 @@ acpi_perf_identify(driver_t *driver, device_t parent)
 	 * We probe this child now so that other devices that depend
 	 * on it (i.e., for info about supported states) will see it.
 	 */
-	if ((dev = BUS_ADD_CHILD(parent, 0, "acpi_perf", -1)) != NULL)
+	if ((dev = BUS_ADD_CHILD(parent, 0, "acpi_perf",
+	    device_get_unit(parent))) != NULL)
 		device_probe_and_attach(dev);
 	else
 		device_printf(parent, "add acpi_perf child failed\n");

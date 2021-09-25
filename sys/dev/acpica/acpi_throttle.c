@@ -157,7 +157,8 @@ acpi_throttle_identify(driver_t *driver, device_t parent)
 	obj = (ACPI_OBJECT *)buf.Pointer;
 	if ((obj->Processor.PblkAddress && obj->Processor.PblkLength >= 4) ||
 	    ACPI_SUCCESS(AcpiEvaluateObject(handle, "_PTC", NULL, NULL))) {
-		if (BUS_ADD_CHILD(parent, 0, "acpi_throttle", -1) == NULL)
+		if (BUS_ADD_CHILD(parent, 0, "acpi_throttle",
+		    device_get_unit(parent)) == NULL)
 			device_printf(parent, "add throttle child failed\n");
 	}
 	AcpiOsFree(obj);

@@ -309,7 +309,8 @@ cpufreq_dt_identify(driver_t *driver, device_t parent)
 	if (device_find_child(parent, "cpufreq_dt", -1) != NULL)
 		return;
 
-	if (BUS_ADD_CHILD(parent, 0, "cpufreq_dt", -1) == NULL)
+	if (BUS_ADD_CHILD(parent, 0, "cpufreq_dt", device_get_unit(parent))
+	    == NULL)
 		device_printf(parent, "add cpufreq_dt child failed\n");
 }
 
