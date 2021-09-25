@@ -1103,7 +1103,7 @@ cpufreq_register(device_t dev)
 	}
 
 	/* Add the child device and possibly sysctls. */
-	cf_dev = BUS_ADD_CHILD(cpu_dev, 0, "cpufreq", -1);
+	cf_dev = BUS_ADD_CHILD(cpu_dev, 0, "cpufreq", device_get_unit(cpu_dev));
 	if (cf_dev == NULL)
 		return (ENOMEM);
 	device_quiet(cf_dev);
