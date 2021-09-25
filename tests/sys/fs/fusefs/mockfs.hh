@@ -284,7 +284,7 @@ class MockFS {
 	pthread_t m_daemon_id;
 
 	/* file descriptor of /dev/fuse control device */
-	int m_fuse_fd;
+	volatile int m_fuse_fd;
 	
 	/* The minor version of the kernel API that this mock daemon targets */
 	uint32_t m_kernel_minor_version;
