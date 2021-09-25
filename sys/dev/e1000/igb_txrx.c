@@ -89,7 +89,7 @@ igb_tso_setup(struct tx_ring *txr, if_pkt_info_t pi, uint32_t *cmd_type_len,
     uint32_t *olinfo_status)
 {
 	struct e1000_adv_tx_context_desc *TXD;
-	struct adapter *adapter = txr->adapter;
+	struct e1000_softc *sc = txr->sc;
 	uint32_t type_tucmd_mlhl = 0, vlan_macip_lens = 0;
 	uint32_t mss_l4len_idx = 0;
 	uint32_t paylen;
@@ -132,7 +132,7 @@ igb_tso_setup(struct tx_ring *txr, if_pkt_info_t pi, uint32_t *cmd_type_len,
 	mss_l4len_idx |= (pi->ipi_tso_segsz << E1000_ADVTXD_MSS_SHIFT);
 	mss_l4len_idx |= (pi->ipi_tcp_hlen << E1000_ADVTXD_L4LEN_SHIFT);
 	/* 82575 needs the queue index added */
-	if (adapter->hw.mac.type == e1000_82575)
+	if (sc->hw.mac.type == e1000_82575)
 		mss_l4len_idx |= txr->me << 4;
 	TXD->mss_l4len_idx = htole32(mss_l4len_idx);
 
@@ -154,7 +154,7 @@ igb_tx_ctx_setup(struct tx_ring *txr, if_pkt_info_t pi, uint32_t *cmd_type_len,
     uint32_t *olinfo_status)
 {
 	struct e1000_adv_tx_context_desc *TXD;
-	struct adapter *adapter = txr->adapter;
+	struct e1000_softc *sc = txr->sc;
 	uint32_t vlan_macip_lens, type_tucmd_mlhl;
 	uint32_t mss_l4len_idx;
 	mss_l4len_idx = vlan_macip_lens = type_tucmd_mlhl = 0;
@@ -221,7 +221,7 @@ igb_tx_ctx_setup(struct tx_ring *txr, if_pkt_info_t pi, uint32_t *cmd_type_len,
 	}
 
 	/* 82575 needs the queue index added */
-	if (adapter->hw.mac.type == e1000_82575)
+	if (sc->hw.mac.type == e1000_82575)
 		mss_l4len_idx = txr->me << 4;
 
 	/* Now copy bits into descriptor */
@@ -236,7 +236,7 @@ igb_tx_ctx_setup(struct tx_ring *txr, if_pkt_info_t pi, uint32_t *cmd_type_len,
 static int
 igb_isc_txd_encap(void *arg, if_pkt_info_t pi)
 {
-	struct adapter *sc = arg;
+	struct e1000_softc *sc = arg;
 	if_softc_ctx_t scctx = sc->shared;
 	struct em_tx_queue *que = &sc->tx_queues[pi->ipi_qsidx];
 	struct tx_ring *txr = &que->txr;
@@ -299,19 +299,19 @@ igb_isc_txd_encap(void *arg, if_pkt_info_t pi)
 static void
 igb_isc_txd_flush(void *arg, uint16_t txqid, qidx_t pidx)
 {
-	struct adapter *adapter	= arg;
-	struct em_tx_queue *que	= &adapter->tx_queues[txqid];
+	struct e1000_softc *sc	= arg;
+	struct em_tx_queue *que	= &sc->tx_queues[txqid];
 	struct tx_ring *txr	= &que->txr;
 
-	E1000_WRITE_REG(&adapter->hw, E1000_TDT(txr->me), pidx);
+	E1000_WRITE_REG(&sc->hw, E1000_TDT(txr->me), pidx);
 }
 
 static int
 igb_isc_txd_credits_update(void *arg, uint16_t txqid, bool clear)
 {
-	struct adapter *adapter = arg;
-	if_softc_ctx_t scctx = adapter->shared;
-	struct em_tx_queue *que = &adapter->tx_queues[txqid];
+	struct e1000_softc *sc = arg;
+	if_softc_ctx_t scctx = sc->shared;
+	struct em_tx_queue *que = &sc->tx_queues[txqid];
 	struct tx_ring *txr = &que->txr;
 
 	qidx_t processed = 0;
@@ -361,7 +361,7 @@ igb_isc_txd_credits_update(void *arg, uint16_t txqid, bool clear)
 static void
 igb_isc_rxd_refill(void *arg, if_rxd_update_t iru)
 {
-	struct adapter *sc = arg;
+	struct e1000_softc *sc = arg;
 	if_softc_ctx_t scctx = sc->shared;
 	uint16_t rxqid = iru->iru_qsidx;
 	struct em_rx_queue *que = &sc->rx_queues[rxqid];
@@ -388,7 +388,7 @@ igb_isc_rxd_refill(void *arg, if_rxd_update_t iru)
 static void
 igb_isc_rxd_flush(void *arg, uint16_t rxqid, uint8_t flid __unused, qidx_t pidx)
 {
-	struct adapter *sc = arg;
+	struct e1000_softc *sc = arg;
 	struct em_rx_queue *que = &sc->rx_queues[rxqid];
 	struct rx_ring *rxr = &que->rxr;
 
@@ -398,7 +398,7 @@ igb_isc_rxd_flush(void *arg, uint16_t rxqid, uint8_t flid __unused, qidx_t pidx)
 static int
 igb_isc_rxd_available(void *arg, uint16_t rxqid, qidx_t idx, qidx_t budget)
 {
-	struct adapter *sc = arg;
+	struct e1000_softc *sc = arg;
 	if_softc_ctx_t scctx = sc->shared;
 	struct em_rx_queue *que = &sc->rx_queues[rxqid];
 	struct rx_ring *rxr = &que->rxr;
@@ -430,9 +430,9 @@ igb_isc_rxd_available(void *arg, uint16_t rxqid, qidx_t idx, qidx_t budget)
 static int
 igb_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 {
-	struct adapter *adapter = arg;
-	if_softc_ctx_t scctx = adapter->shared;
-	struct em_rx_queue *que = &adapter->rx_queues[ri->iri_qsidx];
+	struct e1000_softc *sc = arg;
+	if_softc_ctx_t scctx = sc->shared;
+	struct em_rx_queue *que = &sc->rx_queues[ri->iri_qsidx];
 	struct rx_ring *rxr = &que->rxr;
 	union e1000_adv_rx_desc *rxd;
 
@@ -460,8 +460,8 @@ igb_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 		rxd->wb.upper.status_error = 0;
 		eop = ((staterr & E1000_RXD_STAT_EOP) == E1000_RXD_STAT_EOP);
 
-		if (((adapter->hw.mac.type == e1000_i350) ||
-		    (adapter->hw.mac.type == e1000_i354)) &&
+		if (((sc->hw.mac.type == e1000_i350) ||
+		    (sc->hw.mac.type == e1000_i354)) &&
 		    (staterr & E1000_RXDEXT_STATERR_LB))
 			vtag = be16toh(rxd->wb.upper.vlan);
 		else
@@ -469,7 +469,7 @@ igb_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 
 		/* Make sure bad packets are discarded */
 		if (eop && ((staterr & E1000_RXDEXT_ERR_FRAME_ERR_MASK) != 0)) {
-			adapter->dropped_pkts++;
+			sc->dropped_pkts++;
 			++rxr->rx_discarded;
 			return (EBADMSG);
 		}
