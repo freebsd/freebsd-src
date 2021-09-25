@@ -2076,6 +2076,7 @@ device_probe_child(device_t dev, device_t child)
 	driverlink_t best = NULL;
 	driverlink_t dl;
 	int result, pri = 0;
+	/* We should preserve the devclass (or lack of) set by the bus. */
 	int hasclass = (child->devclass != NULL);
 
 	GIANT_REQUIRED;
@@ -2127,11 +2128,6 @@ device_probe_child(device_t dev, device_t child)
 
 			result = DEVICE_PROBE(child);
 
-			/* Reset flags and devclass before the next probe. */
-			child->devflags = 0;
-			if (!hasclass)
-				(void)device_set_devclass(child, NULL);
-
 			/*
 			 * If the driver returns SUCCESS, there can be
 			 * no higher match for this device.
@@ -2141,6 +2137,11 @@ device_probe_child(device_t dev, device_t child)
 				pri = 0;
 				break;
 			}
+
+			/* Reset flags and devclass before the next probe. */
+			child->devflags = 0;
+			if (!hasclass)
+				(void)device_set_devclass(child, NULL);
 
 			/*
 			 * Reset DF_QUIET in case this driver doesn't
@@ -2186,36 +2187,43 @@ device_probe_child(device_t dev, device_t child)
 			break;
 	}
 
+	if (best == NULL)
+		return (ENXIO);
+
 	/*
 	 * If we found a driver, change state and initialise the devclass.
 	 */
-	if (best) {
+	if (pri < 0) {
 		/* Set the winning driver, devclass, and flags. */
-		if (!child->devclass) {
-			result = device_set_devclass(child, best->driver->name);
-			if (result != 0)
-				return (result);
-		}
 		result = device_set_driver(child, best->driver);
 		if (result != 0)
 			return (result);
+		if (!child->devclass) {
+			result = device_set_devclass(child, best->driver->name);
+			if (result != 0) {
+				(void)device_set_driver(child, NULL);
+				return (result);
+			}
+		}
 		resource_int_value(best->driver->name, child->unit,
 		    "flags", &child->devflags);
 
-		if (pri < 0) {
-			/*
-			 * A bit bogus. Call the probe method again to make
-			 * sure that we have the right description.
-			 */
-			DEVICE_PROBE(child);
+		/*
+		 * A bit bogus. Call the probe method again to make sure
+		 * that we have the right description.
+		 */
+		result = DEVICE_PROBE(child);
+		if (result > 0) {
+			if (!hasclass)
+				(void)device_set_devclass(child, NULL);
+			(void)device_set_driver(child, NULL);
+			return (result);
 		}
-		child->state = DS_ALIVE;
-
-		bus_data_generation_update();
-		return (0);
 	}
 
-	return (ENXIO);
+	child->state = DS_ALIVE;
+	bus_data_generation_update();
+	return (0);
 }
 
 /**
