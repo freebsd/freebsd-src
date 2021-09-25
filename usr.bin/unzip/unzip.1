@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 12, 2015
+.Dd September 25, 2021
 .Dt UNZIP 1
 .Os
 .Sh NAME
@@ -35,6 +35,8 @@
 .Nm
 .Op Fl aCcfjLlnopqtuvy
 .Op Fl d Ar dir
+.Op Fl x Ar pattern
+.Op Fl P Ar password
 .Ar zipfile
 .Sh DESCRIPTION
 .\" ...
@@ -81,6 +83,10 @@ When extracting files from the zipfile, they are written to stdout.
 The normal output is suppressed as if
 .Fl q
 was specified.
+.It Fl P Ar password
+Extract encrypted files using a password.
+Putting a password on the command line using this option can be
+insecure.
 .It Fl q
 Quiet: print less information while extracting.
 .It Fl t
@@ -172,7 +178,7 @@ utility is only able to process ZIP archives handled by
 .Xr libarchive 3 .
 Depending on the installed version of
 .Xr libarchive 3 ,
-this may or may not include self-extracting archives.
+this may or may not include self-extracting or ZIPX archives.
 .Sh SEE ALSO
 .Xr libarchive 3
 .Sh HISTORY
