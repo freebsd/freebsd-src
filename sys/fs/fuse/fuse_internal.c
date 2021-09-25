@@ -1009,6 +1009,10 @@ fuse_internal_init_callback(struct fuse_ticket *tick, struct uio *uio)
 				data->dataflags |= FSESS_POSIX_LOCKS;
 			if (fiio->flags & FUSE_EXPORT_SUPPORT)
 				data->dataflags |= FSESS_EXPORT_SUPPORT;
+			if (fiio->flags & FUSE_NO_OPEN_SUPPORT)
+				data->dataflags |= FSESS_NO_OPEN_SUPPORT;
+			if (fiio->flags & FUSE_NO_OPENDIR_SUPPORT)
+				data->dataflags |= FSESS_NO_OPENDIR_SUPPORT;
 			/* 
 			 * Don't bother to check FUSE_BIG_WRITES, because it's
 			 * redundant with max_write
@@ -1098,7 +1102,6 @@ fuse_internal_send_init(struct fuse_data *data, struct thread *td)
 	 * FUSE_DO_READDIRPLUS: not yet implemented
 	 * FUSE_READDIRPLUS_AUTO: not yet implemented
 	 * FUSE_ASYNC_DIO: not yet implemented
-	 * FUSE_NO_OPEN_SUPPORT: not yet implemented
 	 * FUSE_PARALLEL_DIROPS: not yet implemented
 	 * FUSE_HANDLE_KILLPRIV: not yet implemented
 	 * FUSE_POSIX_ACL: not yet implemented
@@ -1107,7 +1110,8 @@ fuse_internal_send_init(struct fuse_data *data, struct thread *td)
 	 * FUSE_MAX_PAGES: not yet implemented
 	 */
 	fiii->flags = FUSE_ASYNC_READ | FUSE_POSIX_LOCKS | FUSE_EXPORT_SUPPORT
-		| FUSE_BIG_WRITES | FUSE_WRITEBACK_CACHE;
+		| FUSE_BIG_WRITES | FUSE_WRITEBACK_CACHE
+		| FUSE_NO_OPEN_SUPPORT | FUSE_NO_OPENDIR_SUPPORT;
 
 	fuse_insert_callback(fdi.tick, fuse_internal_init_callback);
 	fuse_insert_message(fdi.tick, false);
