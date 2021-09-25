@@ -45,19 +45,16 @@
 /************************************************************************
  * Local Function prototypes
  ************************************************************************/
-static int ixgbe_isc_txd_encap(void *arg, if_pkt_info_t pi);
-static void ixgbe_isc_txd_flush(void *arg, uint16_t txqid, qidx_t pidx);
-static int ixgbe_isc_txd_credits_update(void *arg, uint16_t txqid, bool clear);
+static int ixgbe_isc_txd_encap(void *, if_pkt_info_t);
+static void ixgbe_isc_txd_flush(void *, uint16_t, qidx_t);
+static int ixgbe_isc_txd_credits_update(void *, uint16_t, bool);
 
-static void ixgbe_isc_rxd_refill(void *arg, if_rxd_update_t iru);
-static void ixgbe_isc_rxd_flush(void *arg, uint16_t qsidx,
-    uint8_t flidx __unused, qidx_t pidx);
-static int ixgbe_isc_rxd_available(void *arg, uint16_t qsidx, qidx_t pidx,
-    qidx_t budget);
-static int ixgbe_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri);
+static void ixgbe_isc_rxd_refill(void *, if_rxd_update_t);
+static void ixgbe_isc_rxd_flush(void *, uint16_t, uint8_t, qidx_t);
+static int ixgbe_isc_rxd_available(void *, uint16_t, qidx_t, qidx_t);
+static int ixgbe_isc_rxd_pkt_get(void *, if_rxd_info_t);
 
-static void ixgbe_rx_checksum(uint32_t staterr, if_rxd_info_t ri,
-    uint32_t ptype);
+static void ixgbe_rx_checksum(uint32_t, if_rxd_info_t, uint32_t);
 static int ixgbe_tx_ctx_setup(struct ixgbe_adv_tx_context_desc *,
     if_pkt_info_t);
 
@@ -176,7 +173,7 @@ ixgbe_tx_ctx_setup(struct ixgbe_adv_tx_context_desc *TXD, if_pkt_info_t pi)
 static int
 ixgbe_isc_txd_encap(void *arg, if_pkt_info_t pi)
 {
-	struct adapter                   *sc = arg;
+	struct ixgbe_softc               *sc = arg;
 	if_softc_ctx_t                   scctx = sc->shared;
 	struct ix_tx_queue               *que = &sc->tx_queues[pi->ipi_qsidx];
 	struct tx_ring                   *txr = &que->txr;
@@ -257,7 +254,7 @@ ixgbe_isc_txd_encap(void *arg, if_pkt_info_t pi)
 static void
 ixgbe_isc_txd_flush(void *arg, uint16_t txqid, qidx_t pidx)
 {
-	struct adapter     *sc = arg;
+	struct ixgbe_softc     *sc = arg;
 	struct ix_tx_queue *que = &sc->tx_queues[txqid];
 	struct tx_ring     *txr = &que->txr;
 
@@ -270,7 +267,7 @@ ixgbe_isc_txd_flush(void *arg, uint16_t txqid, qidx_t pidx)
 static int
 ixgbe_isc_txd_credits_update(void *arg, uint16_t txqid, bool clear)
 {
-	struct adapter     *sc = arg;
+	struct ixgbe_softc *sc = arg;
 	if_softc_ctx_t     scctx = sc->shared;
 	struct ix_tx_queue *que = &sc->tx_queues[txqid];
 	struct tx_ring     *txr = &que->txr;
@@ -327,7 +324,7 @@ ixgbe_isc_txd_credits_update(void *arg, uint16_t txqid, bool clear)
 static void
 ixgbe_isc_rxd_refill(void *arg, if_rxd_update_t iru)
 {
-	struct adapter *sc       = arg;
+	struct ixgbe_softc *sc   = arg;
 	struct ix_rx_queue *que  = &sc->rx_queues[iru->iru_qsidx];
 	struct rx_ring *rxr      = &que->rxr;
 	uint64_t *paddrs;
@@ -352,7 +349,7 @@ ixgbe_isc_rxd_refill(void *arg, if_rxd_update_t iru)
 static void
 ixgbe_isc_rxd_flush(void *arg, uint16_t qsidx, uint8_t flidx __unused, qidx_t pidx)
 {
-	struct adapter     *sc  = arg;
+	struct ixgbe_softc *sc  = arg;
 	struct ix_rx_queue *que = &sc->rx_queues[qsidx];
 	struct rx_ring     *rxr = &que->rxr;
 
@@ -365,7 +362,7 @@ ixgbe_isc_rxd_flush(void *arg, uint16_t qsidx, uint8_t flidx __unused, qidx_t pi
 static int
 ixgbe_isc_rxd_available(void *arg, uint16_t qsidx, qidx_t pidx, qidx_t budget)
 {
-	struct adapter          *sc = arg;
+	struct ixgbe_softc      *sc = arg;
 	struct ix_rx_queue      *que = &sc->rx_queues[qsidx];
 	struct rx_ring          *rxr = &que->rxr;
 	union ixgbe_adv_rx_desc *rxd;
@@ -399,10 +396,10 @@ ixgbe_isc_rxd_available(void *arg, uint16_t qsidx, qidx_t pidx, qidx_t budget)
 static int
 ixgbe_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 {
-	struct adapter           *adapter = arg;
-	struct ix_rx_queue       *que = &adapter->rx_queues[ri->iri_qsidx];
+	struct ixgbe_softc       *sc = arg;
+	struct ix_rx_queue       *que = &sc->rx_queues[ri->iri_qsidx];
 	struct rx_ring           *rxr = &que->rxr;
-	struct ifnet             *ifp = iflib_get_ifp(adapter->ctx);
+	struct ifnet             *ifp = iflib_get_ifp(sc->ctx);
 	union ixgbe_adv_rx_desc  *rxd;
 
 	uint16_t                  pkt_info, len, cidx, i;
@@ -439,7 +436,7 @@ ixgbe_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 
 		/* Make sure bad packets are discarded */
 		if (eop && (staterr & IXGBE_RXDADV_ERR_FRAME_ERR_MASK) != 0) {
-			if (adapter->feat_en & IXGBE_FEATURE_VF)
+			if (sc->feat_en & IXGBE_FEATURE_VF)
 				if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 
 			rxr->rx_discarded++;
@@ -448,7 +445,7 @@ ixgbe_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 		ri->iri_frags[i].irf_flid = 0;
 		ri->iri_frags[i].irf_idx = cidx;
 		ri->iri_frags[i].irf_len = len;
-		if (++cidx == adapter->shared->isc_nrxd[0])
+		if (++cidx == sc->shared->isc_nrxd[0])
 			cidx = 0;
 		i++;
 		/* even a 16K packet shouldn't consume more than 8 clusters */
@@ -464,7 +461,7 @@ ixgbe_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 
 	ri->iri_flowid = le32toh(rxd->wb.lower.hi_dword.rss);
 	ri->iri_rsstype = ixgbe_determine_rsstype(pkt_info);
-	if ((adapter->feat_en & IXGBE_FEATURE_RSS) == 0) {
+	if ((sc->feat_en & IXGBE_FEATURE_RSS) == 0) {
 		if (ri->iri_rsstype == M_HASHTYPE_OPAQUE)
 			ri->iri_rsstype = M_HASHTYPE_NONE;
 		else

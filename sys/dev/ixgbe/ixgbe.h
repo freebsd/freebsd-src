@@ -279,7 +279,7 @@ struct ixgbe_mc_addr {
  * The transmit ring, one per queue
  */
 struct tx_ring {
-	struct adapter          *adapter;
+	struct ixgbe_softc      *sc;
 	union ixgbe_adv_tx_desc *tx_base;
 	uint64_t                tx_paddr;
 	u32                     tail;
@@ -306,7 +306,7 @@ struct tx_ring {
  */
 struct rx_ring {
 	struct ix_rx_queue      *que;
-	struct adapter          *adapter;
+	struct ixgbe_softc      *sc;
 	u32                     me;
 	u32                     tail;
 	union ixgbe_adv_rx_desc *rx_base;
@@ -335,7 +335,7 @@ struct rx_ring {
  *  for the associated tx and rx ring.
  */
 struct ix_rx_queue {
-	struct adapter		*adapter;
+	struct ixgbe_softc	*sc;
 	u32			msix;           /* This queue's MSIX vector */
 	u32			eims;           /* This queue's EIMS bit */
 	u32			eitr_setting;
@@ -348,7 +348,7 @@ struct ix_rx_queue {
 };
 
 struct ix_tx_queue {
-	struct adapter		*adapter;
+	struct ixgbe_softc	*sc;
 	u32			msix;           /* This queue's MSIX vector */
 	struct tx_ring		txr;
 };
@@ -368,8 +368,8 @@ struct ixgbe_vf {
 	uint16_t api_ver;
 };
 
-/* Our adapter structure */
-struct adapter {
+/* Our softc structure */
+struct ixgbe_softc {
 	struct ixgbe_hw         hw;
 	struct ixgbe_osdep      osdep;
 	if_ctx_t                ctx;
@@ -581,11 +581,11 @@ ixv_check_ether_addr(u8 *addr)
 
 /* Shared Prototypes */
 
-int  ixgbe_allocate_queues(struct adapter *);
-int  ixgbe_setup_transmit_structures(struct adapter *);
-void ixgbe_free_transmit_structures(struct adapter *);
-int  ixgbe_setup_receive_structures(struct adapter *);
-void ixgbe_free_receive_structures(struct adapter *);
+int  ixgbe_allocate_queues(struct ixgbe_softc *);
+int  ixgbe_setup_transmit_structures(struct ixgbe_softc *);
+void ixgbe_free_transmit_structures(struct ixgbe_softc *);
+int  ixgbe_setup_receive_structures(struct ixgbe_softc *);
+void ixgbe_free_receive_structures(struct ixgbe_softc *);
 int  ixgbe_get_regs(SYSCTL_HANDLER_ARGS);
 
 #include "ixgbe_bypass.h"
