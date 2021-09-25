@@ -124,6 +124,8 @@ Wire guest memory.
 Generate ACPI tables.
 .It Va destroy_on_poweroff Ta bool Ta false Ta
 Destroy the VM on guest-initiated power-off.
+.It Va gdb.address Ta string Ta localhost Ta
+Hostname, IP address, or IPv6 address for the debug server.
 .It Va gdb.port Ta integer Ta 0 Ta
 TCP port number for the debug server.
 If this is set to a non-zero value, a debug server
