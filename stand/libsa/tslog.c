@@ -42,6 +42,24 @@ static char * tslog_buf = NULL;
 static size_t tslog_buflen = 0;
 static size_t tslog_bufpos = 0;
 
+static size_t
+tsccat(char * buf, uint64_t tsc)
+{
+	size_t len;
+
+	/* Handle upper digits. */
+	if (tsc >= 10)
+		len = tsccat(buf, tsc / 10);
+	else
+		len = 0;
+
+	/* Write the last digit. */
+	buf[len] = "0123456789"[tsc % 10];
+
+	/* Return the length written. */
+	return (len + 1);
+}
+
 void
 tslog_setbuf(void * buf, size_t len)
 {
@@ -69,16 +87,34 @@ tslog(const char * type, const char * f, const char * s)
 #else
 	uint64_t tsc = 0;
 #endif
-	int len;
 
 	/* If we have no buffer, do nothing. */
 	if (tslog_buf == NULL)
 		return;
 
-	/* Append to existing buffer, if we have enough space. */
-	len = snprintf(&tslog_buf[tslog_bufpos],
-	    tslog_buflen - tslog_bufpos, "0x0 %llu %s %s%s%s\n",
-	    (unsigned long long)tsc, type, f, s ? " " : "", s ? s : "");
-	if ((len > 0) && (tslog_bufpos + len <= tslog_buflen))
-		tslog_bufpos += len;
+	/* Check that we have enough space. */
+	if (tslog_buflen - tslog_bufpos < 32 + strlen(type) + strlen(f) +
+	    (s ? strlen(s) : 0))
+		return;
+
+	/* Append to existing buffer. */
+	strcpy(&tslog_buf[tslog_bufpos], "0x0 ");
+	tslog_bufpos += 4;
+	tslog_bufpos += tsccat(&tslog_buf[tslog_bufpos], tsc);
+	strcpy(&tslog_buf[tslog_bufpos], " ");
+	tslog_bufpos += 1;
+	strcpy(&tslog_buf[tslog_bufpos], type);
+	tslog_bufpos += strlen(type);
+	strcpy(&tslog_buf[tslog_bufpos], " ");
+	tslog_bufpos += 1;
+	strcpy(&tslog_buf[tslog_bufpos], f);
+	tslog_bufpos += strlen(f);
+	if (s != NULL) {
+		strcpy(&tslog_buf[tslog_bufpos], " ");
+		tslog_bufpos += 1;
+		strcpy(&tslog_buf[tslog_bufpos], s);
+		tslog_bufpos += strlen(s);
+	}
+	strcpy(&tslog_buf[tslog_bufpos], "\n");
+	tslog_bufpos += 1;
 }
