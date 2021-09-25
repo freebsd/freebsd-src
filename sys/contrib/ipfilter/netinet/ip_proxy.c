@@ -1060,7 +1060,7 @@ ipf_proxy_check(fin, nat)
 /*              pr(I)   - protocol number for proxy                         */
 /*              name(I) - proxy name                                        */
 /*                                                                          */
-/* Search for an proxy by the protocol it is being used with and its name.  */
+/* Search for a proxy by the protocol being used and by its name.           */
 /* ------------------------------------------------------------------------ */
 aproxy_t *
 ipf_proxy_lookup(arg, pr, name)
