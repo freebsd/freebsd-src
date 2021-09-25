@@ -576,7 +576,7 @@ mana_xmit(struct mana_txq *txq)
 		next_to_use =
 		    (next_to_use + 1) % MAX_SEND_BUFFERS_PER_QUEUE;
 
-		atomic_inc_return(&txq->pending_sends);
+		(void)atomic_inc_return(&txq->pending_sends);
 
 		drbr_advance(ndev, txq->txq_br);
 
