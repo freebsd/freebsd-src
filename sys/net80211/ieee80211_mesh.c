@@ -2959,7 +2959,7 @@ mesh_send_action_meshgate(struct ieee80211_node *ni,
 		 * mesh link metric
 		 *   [1] category
 		 *   [1] action
-		 *   [tlv] mesh gate annoucement
+		 *   [tlv] mesh gate announcement
 		 */
 		*frm++ = category;
 		*frm++ = action;

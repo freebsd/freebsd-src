@@ -149,7 +149,7 @@ ieee80211_node_vattach(struct ieee80211vap *vap)
 	/* NB: driver can override */
 	vap->iv_max_aid = IEEE80211_AID_DEF;
 
-	/* default station inactivity timer setings */
+	/* default station inactivity timer settings */
 	vap->iv_inact_init = IEEE80211_INACT_INIT;
 	vap->iv_inact_auth = IEEE80211_INACT_AUTH;
 	vap->iv_inact_run = IEEE80211_INACT_RUN;
