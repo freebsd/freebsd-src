@@ -193,6 +193,24 @@ copy_thread(struct thread *td1, struct thread *td2)
 	td2->td_md.md_spinlock_count = 1;
 	td2->td_md.md_saved_flags = PSL_KERNEL | PSL_I;
 	pmap_thread_init_invl_gen(td2);
+
+	/*
+	 * Copy the trap frame for the return to user mode as if from a syscall.
+	 * This copies most of the user mode register values.  Some of these
+	 * registers are rewritten by cpu_set_upcall() and linux_set_upcall().
+	 */
+	if ((td1->td_proc->p_flag & P_KPROC) == 0) {
+		bcopy(td1->td_frame, td2->td_frame, sizeof(struct trapframe));
+
+		/*
+		 * If the current thread has the trap bit set (i.e. a debugger
+		 * had single stepped the process to the system call), we need
+		 * to clear the trap flag from the new frame. Otherwise, the new
+		 * thread will receive a (likely unexpected) SIGTRAP when it
+		 * executes the first instruction after returning to userland.
+		 */
+		td2->td_frame->tf_rflags &= ~PSL_T;
+	}
 }
 
 /*
@@ -236,22 +254,8 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 	mdp2 = &p2->p_md;
 	bcopy(&p1->p_md, mdp2, sizeof(*mdp2));
 
-	/*
-	 * Copy the trap frame for the return to user mode as if from a
-	 * syscall.  This copies most of the user mode register values.
-	 */
-	td2->td_frame = (struct trapframe *)td2->td_md.md_stack_base - 1;
-	bcopy(td1->td_frame, td2->td_frame, sizeof(struct trapframe));
-
 	/* Set child return values. */
 	p2->p_sysent->sv_set_fork_retval(td2);
-
-	/*
-	 * If the parent process has the trap bit set (i.e. a debugger
-	 * had single stepped the process to the system call), we need
-	 * to clear the trap flag from the new frame.
-	 */
-	td2->td_frame->tf_rflags &= ~PSL_T;
 
 	/* As on i386, do not copy io permission bitmap. */
 	pcb2->pcb_tssp = NULL;
@@ -601,22 +605,6 @@ void
 cpu_copy_thread(struct thread *td, struct thread *td0)
 {
 	copy_thread(td0, td);
-
-	/*
-	 * Copy user general-purpose registers.
-	 *
-	 * Some of these registers are rewritten by cpu_set_upcall()
-	 * and linux_set_upcall().
-	 */
-	bcopy(td0->td_frame, td->td_frame, sizeof(struct trapframe));
-
-	/* If the current thread has the trap bit set (i.e. a debugger had
-	 * single stepped the process to the system call), we need to clear
-	 * the trap flag from the new frame. Otherwise, the new thread will
-	 * receive a (likely unexpected) SIGTRAP when it executes the first
-	 * instruction after returning to userland.
-	 */
-	td->td_frame->tf_rflags &= ~PSL_T;
 
 	set_pcb_flags_raw(td->td_pcb, PCB_FULL_IRET);
 }
