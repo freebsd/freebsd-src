@@ -376,5 +376,7 @@ fifo_advlock(ap)
 	} */ *ap;
 {
 
-	return (ap->a_flags & F_FLOCK ? EOPNOTSUPP : EINVAL);
+	if ((ap->a_flags & F_FLOCK) == 0)
+		return (EINVAL);
+	return (vop_stdadvlock(ap));
 }

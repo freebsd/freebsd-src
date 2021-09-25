@@ -3560,11 +3560,15 @@ sys_flock(struct thread *td, struct flock_args *uap)
 	error = fget(td, uap->fd, &cap_flock_rights, &fp);
 	if (error != 0)
 		return (error);
-	if (fp->f_type != DTYPE_VNODE || fp->f_ops == &path_fileops) {
-		fdrop(fp, td);
-		return (EOPNOTSUPP);
+	error = EOPNOTSUPP;
+	if (fp->f_type != DTYPE_VNODE && fp->f_type != DTYPE_FIFO) {
+		goto done;
+	}
+	if (fp->f_ops == &path_fileops) {
+		goto done;
 	}
 
+	error = 0;
 	vp = fp->f_vnode;
 	lf.l_whence = SEEK_SET;
 	lf.l_start = 0;
@@ -3573,7 +3577,7 @@ sys_flock(struct thread *td, struct flock_args *uap)
 		lf.l_type = F_UNLCK;
 		atomic_clear_int(&fp->f_flag, FHASLOCK);
 		error = VOP_ADVLOCK(vp, (caddr_t)fp, F_UNLCK, &lf, F_FLOCK);
-		goto done2;
+		goto done;
 	}
 	if (uap->how & LOCK_EX)
 		lf.l_type = F_WRLCK;
@@ -3581,12 +3585,12 @@ sys_flock(struct thread *td, struct flock_args *uap)
 		lf.l_type = F_RDLCK;
 	else {
 		error = EBADF;
-		goto done2;
+		goto done;
 	}
 	atomic_set_int(&fp->f_flag, FHASLOCK);
 	error = VOP_ADVLOCK(vp, (caddr_t)fp, F_SETLK, &lf,
 	    (uap->how & LOCK_NB) ? F_FLOCK : F_FLOCK | F_WAIT);
-done2:
+done:
 	fdrop(fp, td);
 	return (error);
 }
