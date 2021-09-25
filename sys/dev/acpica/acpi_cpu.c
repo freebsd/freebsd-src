@@ -140,12 +140,6 @@ struct acpi_cpu_device {
 
 #define	CPUDEV_DEVICE_ID	"ACPI0007"
 
-/* Allow users to ignore processor orders in MADT. */
-static int cpu_unordered;
-SYSCTL_INT(_debug_acpi, OID_AUTO, cpu_unordered, CTLFLAG_RDTUN,
-    &cpu_unordered, 0,
-    "Do not use the MADT to match ACPI Processor objects to CPUs.");
-
 /* Knob to disable acpi_cpu devices */
 bool acpi_cpu_disabled = false;
 
@@ -169,8 +163,8 @@ static int	acpi_cpu_probe(device_t dev);
 static int	acpi_cpu_attach(device_t dev);
 static int	acpi_cpu_suspend(device_t dev);
 static int	acpi_cpu_resume(device_t dev);
-static int	acpi_pcpu_get_id(device_t dev, uint32_t *acpi_id,
-		    uint32_t *cpu_id);
+static int	acpi_pcpu_get_id(device_t dev, uint32_t acpi_id,
+		    u_int *cpu_id);
 static struct resource_list *acpi_cpu_get_rlist(device_t dev, device_t child);
 static device_t	acpi_cpu_add_child(device_t dev, u_int order, const char *name,
 		    int unit);
@@ -291,19 +285,16 @@ acpi_cpu_probe(device_t dev)
 	    return (ENXIO);
 	}
     }
-    if (acpi_pcpu_get_id(dev, &acpi_id, &cpu_id) != 0)
+    if (acpi_pcpu_get_id(dev, acpi_id, &cpu_id) != 0) {
+	if (bootverbose && (type != ACPI_TYPE_PROCESSOR || acpi_id != 255))
+	    printf("ACPI: Processor %s (ACPI ID %u) ignored\n",
+		acpi_name(acpi_get_handle(dev)), acpi_id);
+	return (ENXIO);
+    }
+
+    if (device_set_unit(dev, cpu_id) != 0)
 	return (ENXIO);
 
-    /*
-     * Check if we already probed this processor.  We scan the bus twice
-     * so it's possible we've already seen this one.
-     */
-    if (cpu_softc[cpu_id] != NULL)
-	return (ENXIO);
-
-    /* Mark this processor as in-use and save our derived id for attach. */
-    cpu_softc[cpu_id] = (void *)1;
-    acpi_set_private(dev, (void*)(intptr_t)cpu_id);
     device_set_desc(dev, "ACPI CPU");
 
     if (!bootverbose && device_get_unit(dev) != 0) {
@@ -339,7 +330,7 @@ acpi_cpu_attach(device_t dev)
     sc = device_get_softc(dev);
     sc->cpu_dev = dev;
     sc->cpu_handle = acpi_get_handle(dev);
-    cpu_id = (int)(intptr_t)acpi_get_private(dev);
+    cpu_id = device_get_unit(dev);
     cpu_softc[cpu_id] = sc;
     pcpu_data = pcpu_find(cpu_id);
     pcpu_data->pc_device = dev;
@@ -546,65 +537,33 @@ acpi_cpu_resume(device_t dev)
 }
 
 /*
- * Find the processor associated with a given ACPI ID.  By default,
- * use the MADT to map ACPI IDs to APIC IDs and use that to locate a
- * processor.  Some systems have inconsistent ASL and MADT however.
- * For these systems the cpu_unordered tunable can be set in which
- * case we assume that Processor objects are listed in the same order
- * in both the MADT and ASL.
+ * Find the processor associated with a given ACPI ID.
  */
 static int
-acpi_pcpu_get_id(device_t dev, uint32_t *acpi_id, uint32_t *cpu_id)
+acpi_pcpu_get_id(device_t dev, uint32_t acpi_id, u_int *cpu_id)
 {
     struct pcpu	*pc;
-    uint32_t	 i, idx;
+    u_int	 i;
 
-    KASSERT(acpi_id != NULL, ("Null acpi_id"));
-    KASSERT(cpu_id != NULL, ("Null cpu_id"));
-    idx = device_get_unit(dev);
+    CPU_FOREACH(i) {
+	pc = pcpu_find(i);
+	if (pc->pc_acpi_id == acpi_id) {
+	    *cpu_id = pc->pc_cpuid;
+	    return (0);
+	}
+    }
 
     /*
      * If pc_acpi_id for CPU 0 is not initialized (e.g. a non-APIC
      * UP box) use the ACPI ID from the first processor we find.
      */
-    if (idx == 0 && mp_ncpus == 1) {
+    if (mp_ncpus == 1) {
 	pc = pcpu_find(0);
 	if (pc->pc_acpi_id == 0xffffffff)
-	    pc->pc_acpi_id = *acpi_id;
+	    pc->pc_acpi_id = acpi_id;
 	*cpu_id = 0;
 	return (0);
     }
-
-    CPU_FOREACH(i) {
-	pc = pcpu_find(i);
-	KASSERT(pc != NULL, ("no pcpu data for %d", i));
-	if (cpu_unordered) {
-	    if (idx-- == 0) {
-		/*
-		 * If pc_acpi_id doesn't match the ACPI ID from the
-		 * ASL, prefer the MADT-derived value.
-		 */
-		if (pc->pc_acpi_id != *acpi_id)
-		    *acpi_id = pc->pc_acpi_id;
-		*cpu_id = pc->pc_cpuid;
-		return (0);
-	    }
-	} else {
-	    if (pc->pc_acpi_id == *acpi_id) {
-		if (bootverbose)
-		    device_printf(dev,
-			"Processor %s (ACPI ID %u) -> APIC ID %d\n",
-			acpi_name(acpi_get_handle(dev)), *acpi_id,
-			pc->pc_cpuid);
-		*cpu_id = pc->pc_cpuid;
-		return (0);
-	    }
-	}
-    }
-
-    if (bootverbose)
-	printf("ACPI: Processor %s (ACPI ID %u) ignored\n",
-	    acpi_name(acpi_get_handle(dev)), *acpi_id);
 
     return (ESRCH);
 }
