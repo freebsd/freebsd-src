@@ -154,8 +154,6 @@ static struct sysctl_oid *cpu_sysctl_tree;
 static int		 cpu_cx_generic;
 static int		 cpu_cx_lowest_lim;
 
-static device_t		*cpu_devices;
-static int		 cpu_ndevices;
 static struct acpi_cpu_softc **cpu_softc;
 ACPI_SERIAL_DECL(cpu, "ACPI CPU");
 
@@ -443,26 +441,21 @@ acpi_cpu_attach(device_t dev)
 static void
 acpi_cpu_postattach(void *unused __unused)
 {
-    device_t *devices;
-    int err;
-    int i, n;
-    int attached;
+    struct acpi_cpu_softc *sc;
+    int attached = 0, i;
 
-    err = devclass_get_devices(acpi_cpu_devclass, &devices, &n);
-    if (err != 0) {
-	printf("devclass_get_devices(acpi_cpu_devclass) failed\n");
-	return;
+    mtx_lock(&Giant);
+    CPU_FOREACH(i) {
+	if ((sc = cpu_softc[i]) != NULL)
+		bus_generic_probe(sc->cpu_dev);
     }
-    attached = 0;
-    for (i = 0; i < n; i++)
-	if (device_is_attached(devices[i]) &&
-	    device_get_driver(devices[i]) == &acpi_cpu_driver)
-	    attached = 1;
-    for (i = 0; i < n; i++)
-	bus_generic_probe(devices[i]);
-    for (i = 0; i < n; i++)
-	bus_generic_attach(devices[i]);
-    free(devices, M_TEMP);
+    CPU_FOREACH(i) {
+	if ((sc = cpu_softc[i]) != NULL) {
+		bus_generic_attach(sc->cpu_dev);
+		attached = 1;
+	}
+    }
+    mtx_unlock(&Giant);
 
     if (attached) {
 #ifdef EARLY_AP_STARTUP
@@ -937,9 +930,6 @@ acpi_cpu_startup(void *arg)
     struct acpi_cpu_softc *sc;
     int i;
 
-    /* Get set of CPU devices */
-    devclass_get_devices(acpi_cpu_devclass, &cpu_devices, &cpu_ndevices);
-
     /*
      * Setup any quirks that might necessary now that we have probed
      * all the CPUs
@@ -951,9 +941,9 @@ acpi_cpu_startup(void *arg)
 	 * We are using generic Cx mode, probe for available Cx states
 	 * for all processors.
 	 */
-	for (i = 0; i < cpu_ndevices; i++) {
-	    sc = device_get_softc(cpu_devices[i]);
-	    acpi_cpu_generic_cx_probe(sc);
+	CPU_FOREACH(i) {
+	    if ((sc = cpu_softc[i]) != NULL)
+		acpi_cpu_generic_cx_probe(sc);
 	}
     } else {
 	/*
@@ -961,8 +951,9 @@ acpi_cpu_startup(void *arg)
 	 * As we now know for sure that we will be using _CST mode
 	 * install our notify handler.
 	 */
-	for (i = 0; i < cpu_ndevices; i++) {
-	    sc = device_get_softc(cpu_devices[i]);
+	CPU_FOREACH(i) {
+	    if ((sc = cpu_softc[i]) == NULL)
+		continue;
 	    if (cpu_quirks & CPU_QUIRK_NO_C3) {
 		sc->cpu_cx_count = min(sc->cpu_cx_count, sc->cpu_non_c3 + 1);
 	    }
@@ -972,9 +963,9 @@ acpi_cpu_startup(void *arg)
     }
 
     /* Perform Cx final initialization. */
-    for (i = 0; i < cpu_ndevices; i++) {
-	sc = device_get_softc(cpu_devices[i]);
-	acpi_cpu_startup_cx(sc);
+    CPU_FOREACH(i) {
+	if ((sc = cpu_softc[i]) != NULL)
+	    acpi_cpu_startup_cx(sc);
     }
 
     /* Add a sysctl handler to handle global Cx lowest setting */
@@ -985,9 +976,9 @@ acpi_cpu_startup(void *arg)
 
     /* Take over idling from cpu_idle_default(). */
     cpu_cx_lowest_lim = 0;
-    for (i = 0; i < cpu_ndevices; i++) {
-	sc = device_get_softc(cpu_devices[i]);
-	enable_idle(sc);
+    CPU_FOREACH(i) {
+	if ((sc = cpu_softc[i]) != NULL)
+	    enable_idle(sc);
     }
 #if defined(__i386__) || defined(__amd64__)
     cpu_idle_hook = acpi_cpu_idle;
@@ -1517,8 +1508,9 @@ acpi_cpu_global_cx_lowest_sysctl(SYSCTL_HANDLER_ARGS)
     /* Update the new lowest useable Cx state for all CPUs. */
     ACPI_SERIAL_BEGIN(cpu);
     cpu_cx_lowest_lim = val - 1;
-    for (i = 0; i < cpu_ndevices; i++) {
-	sc = device_get_softc(cpu_devices[i]);
+    CPU_FOREACH(i) {
+	if ((sc = cpu_softc[i]) == NULL)
+	    continue;
 	sc->cpu_cx_lowest_lim = cpu_cx_lowest_lim;
 	acpi_cpu_set_cx_lowest(sc);
     }
