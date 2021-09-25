@@ -192,7 +192,7 @@ specified_ro(const char *arg)
 
 	optbuf = strdup(arg);
 	if (optbuf == NULL)
-		 xo_err(1, NULL);
+		 xo_err(1, "strdup failed");
 
 	for (opt = optbuf; (opt = strtok(opt, ",")) != NULL; opt = NULL) {
 		if (strcmp(opt, "ro") == 0) {
