@@ -32,7 +32,6 @@
 ******************************************************************************/
 /*$FreeBSD$*/
 
-
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_rss.h"
@@ -48,7 +47,6 @@
  * Driver version
  ************************************************************************/
 char ixgbe_driver_version[] = "4.0.1-k";
-
 
 /************************************************************************
  * PCI Device ID Table
@@ -394,7 +392,7 @@ static struct if_shared_ctx ixgbe_sctx_init = {
  ************************************************************************/
 static int
 ixgbe_if_tx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs, uint64_t *paddrs,
-                         int ntxqs, int ntxqsets)
+    int ntxqs, int ntxqsets)
 {
 	struct ixgbe_softc *sc = iflib_get_softc(ctx);
 	if_softc_ctx_t     scctx = sc->shared;
@@ -462,7 +460,7 @@ fail:
  ************************************************************************/
 static int
 ixgbe_if_rx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs, uint64_t *paddrs,
-                         int nrxqs, int nrxqsets)
+    int nrxqs, int nrxqsets)
 {
 	struct ixgbe_softc     *sc = iflib_get_softc(ctx);
 	struct ix_rx_queue *que;
