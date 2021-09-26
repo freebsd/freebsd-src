@@ -40,7 +40,7 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
-# 20210921: remove couldabi
+# 20210921: remove cloudabi
 OLD_FILES+=usr/share/man/man4/cloudabi.4.gz
 
 # 20210906: stop installing {llvm,clang,lldb}-tblgen
