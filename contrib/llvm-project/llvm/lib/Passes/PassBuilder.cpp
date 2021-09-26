@@ -1572,9 +1572,6 @@ PassBuilder::buildThinLTOPreLinkDefaultPipeline(OptimizationLevel Level) {
   for (auto &C : OptimizerLastEPCallbacks)
     C(MPM, Level);
 
-  if (PGOOpt && PGOOpt->PseudoProbeForProfiling)
-    MPM.addPass(PseudoProbeUpdatePass());
-
   // Emit annotation remarks.
   addAnnotationRemarksPass(MPM);
 
