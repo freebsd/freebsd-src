@@ -2903,7 +2903,7 @@ fgetvp_lookup_smr(int fd, struct nameidata *ndp, struct vnode **vpp, bool *fsear
 		return (EAGAIN);
 	*fsearch = ((fp->f_flag & FSEARCH) != 0);
 	vp = fp->f_vnode;
-	if (__predict_false(vp == NULL || vp->v_type != VDIR)) {
+	if (__predict_false(vp == NULL)) {
 		return (EAGAIN);
 	}
 	if (!filecaps_copy(&fde->fde_caps, &ndp->ni_filecaps, false)) {
