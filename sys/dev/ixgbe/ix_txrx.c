@@ -32,7 +32,6 @@
 ******************************************************************************/
 /*$FreeBSD$*/
 
-
 #ifndef IXGBE_STANDALONE_BUILD
 #include "opt_inet.h"
 #include "opt_inet6.h"
@@ -40,7 +39,6 @@
 #endif
 
 #include "ixgbe.h"
-
 
 /************************************************************************
  * Local Function prototypes
