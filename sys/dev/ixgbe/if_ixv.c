@@ -244,7 +244,7 @@ ixv_register(device_t dev)
  ************************************************************************/
 static int
 ixv_if_tx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs, uint64_t *paddrs,
-                       int ntxqs, int ntxqsets)
+    int ntxqs, int ntxqsets)
 {
 	struct ixgbe_softc *sc = iflib_get_softc(ctx);
 	if_softc_ctx_t     scctx = sc->shared;
@@ -303,7 +303,7 @@ ixv_if_tx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs, uint64_t *paddrs,
  ************************************************************************/
 static int
 ixv_if_rx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs, uint64_t *paddrs,
-                       int nrxqs, int nrxqsets)
+    int nrxqs, int nrxqsets)
 {
 	struct ixgbe_softc *sc = iflib_get_softc(ctx);
 	struct ix_rx_queue *que;
@@ -1014,7 +1014,7 @@ ixv_identify_hardware(if_ctx_t ctx)
 static int
 ixv_if_msix_intr_assign(if_ctx_t ctx, int msix)
 {
-	struct ixgbe_softc     *sc = iflib_get_softc(ctx);
+	struct ixgbe_softc *sc = iflib_get_softc(ctx);
 	device_t           dev = iflib_get_dev(ctx);
 	struct ix_rx_queue *rx_que = sc->rx_queues;
 	struct ix_tx_queue *tx_que;
