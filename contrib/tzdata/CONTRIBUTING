@@ -26,8 +26,11 @@ to work well.  Additions to data should contain commentary citing
 reliable sources as justification.  Citations should use https: URLs
 if available.
 
+For changes that fix sensitive security-related bugs, please see the
+file SECURITY.
+
 Please submit changes against either the latest release in
-<https://www.iana.org/time-zones> or the master branch of the development
+<https://www.iana.org/time-zones> or the main branch of the development
 repository.  The latter is preferred.  If you use Git the following
 workflow may be helpful:
 
@@ -36,9 +39,9 @@ workflow may be helpful:
       git clone https://github.com/eggert/tz.git
       cd tz
 
-  * Get current with the master branch.
+  * Get current with the main branch.
 
-      git checkout master
+      git checkout main
       git pull
 
   * Switch to a new branch for the changes.  Choose a different
@@ -70,17 +73,17 @@ workflow may be helpful:
 
   * Create patch files 0001-*, 0002-*, ...
 
-      git format-patch master
+      git format-patch main
 
   * After reviewing the patch files, send the patches to tz@iana.org
     for others to review.
 
-      git send-email master
+      git send-email main
 
     For an archived example of such an email, see
     <https://mm.icann.org/pipermail/tz/2018-February/026122.html>.
 
-  * Start anew by getting current with the master branch again
+  * Start anew by getting current with the main branch again
     (the second step above).
 
 Please do not create issues or pull requests on GitHub, as the
