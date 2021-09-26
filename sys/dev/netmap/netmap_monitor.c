@@ -737,8 +737,7 @@ netmap_monitor_parent_sync(struct netmap_kring *kring, u_int first_new, int new_
 		int free_slots, busy, sent = 0, m;
 		u_int lim = kring->nkr_num_slots - 1;
 		struct netmap_ring *ring = kring->ring, *mring = mkring->ring;
-		u_int max_len = NETMAP_BUF_SIZE(mkring->na);
-
+		u_int max_len;
 		mlim = mkring->nkr_num_slots - 1;
 
 		/* we need to lock the monitor receive ring, since it
@@ -770,9 +769,10 @@ netmap_monitor_parent_sync(struct netmap_kring *kring, u_int first_new, int new_
 			struct netmap_slot *s = &ring->slot[beg];
 			struct netmap_slot *ms = &mring->slot[i];
 			u_int copy_len = s->len;
-			char *src = NMB(kring->na, s),
-			     *dst = NMB(mkring->na, ms);
+			char *src = NMB_O(kring, s),
+			     *dst = NMB_O(mkring, ms);
 
+			max_len = NETMAP_BUF_SIZE(mkring->na) - nm_get_offset(mkring, ms);
 			if (unlikely(copy_len > max_len)) {
 				nm_prlim(5, "%s->%s: truncating %d to %d", kring->name,
 						mkring->name, copy_len, max_len);
@@ -966,7 +966,9 @@ netmap_get_monitor_na(struct nmreq_header *hdr, struct netmap_adapter **na,
 			pna->monitor_id++);
 
 	/* the monitor supports the host rings iff the parent does */
-	mna->up.na_flags |= (pna->na_flags & NAF_HOST_RINGS);
+	mna->up.na_flags |= (pna->na_flags & NAF_HOST_RINGS) & ~NAF_OFFSETS;
+	if (!zcopy)
+		mna->up.na_flags |= NAF_OFFSETS;
 	/* a do-nothing txsync: monitors cannot be used to inject packets */
 	mna->up.nm_txsync = netmap_monitor_txsync;
 	mna->up.nm_rxsync = netmap_monitor_rxsync;
