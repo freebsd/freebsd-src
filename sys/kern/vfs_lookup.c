@@ -465,13 +465,6 @@ namei_getpath(struct nameidata *ndp)
 	if (__predict_false(error != 0))
 		return (error);
 
-	/*
-	 * Don't allow empty pathnames unless EMPTYPATH is specified.
-	 * Caller checks for ENOENT as an indication for the empty path.
-	 */
-	if (__predict_false(*cnp->cn_pnbuf == '\0'))
-		return (ENOENT);
-
 	cnp->cn_nameptr = cnp->cn_pnbuf;
 	return (0);
 }
@@ -602,8 +595,6 @@ namei(struct nameidata *ndp)
 
 	error = namei_getpath(ndp);
 	if (__predict_false(error != 0)) {
-		if (error == ENOENT && (cnp->cn_flags & EMPTYPATH) != 0) 
-			return (namei_emptypath(ndp));
 		namei_cleanup_cnp(cnp);
 		SDT_PROBE4(vfs, namei, lookup, return, error, NULL,
 		    false, ndp);
@@ -646,6 +637,15 @@ namei(struct nameidata *ndp)
 	case CACHE_FPL_STATUS_ABORTED:
 		TAILQ_INIT(&ndp->ni_cap_tracker);
 		MPASS(ndp->ni_lcf == 0);
+		if (*cnp->cn_pnbuf == '\0') {
+			if ((cnp->cn_flags & EMPTYPATH) != 0) {
+				return (namei_emptypath(ndp));
+			}
+			namei_cleanup_cnp(cnp);
+			SDT_PROBE4(vfs, namei, lookup, return, ENOENT, NULL,
+			    false, ndp);
+			return (ENOENT);
+		}
 		error = namei_setup(ndp, &dp, &pwd);
 		if (error != 0) {
 			namei_cleanup_cnp(cnp);
