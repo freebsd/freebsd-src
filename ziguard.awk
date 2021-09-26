@@ -114,14 +114,15 @@ DATAFORM != "main" {
   }
 }
 
-# If a Link line is followed by a Zone line for the same data, comment
+# If a Link line is followed by a Link or Zone line for the same data, comment
 # out the Link line.  This can happen if backzone overrides a Link
-# with a Zone.
-/^Link/ {
-  linkline[$3] = NR
-}
+# with a Zone or a different Link.
 /^Zone/ {
   sub(/^Link/, "#Link", line[linkline[$2]])
+}
+/^Link/ {
+  sub(/^Link/, "#Link", line[linkline[$3]])
+  linkline[$3] = NR
 }
 
 { line[NR] = $0 }
