@@ -671,7 +671,7 @@ prmount(struct statfs *sfp)
 	struct passwd *pw;
 	char *fsidbuf;
 
-	xo_emit("{:special}{L: on }{:node}{L: (}{:fstype}", sfp->f_mntfromname,
+	xo_emit("{:special/%hs}{L: on }{:node/%hs}{L: (}{:fstype}", sfp->f_mntfromname,
 	    sfp->f_mntonname, sfp->f_fstypename);
 
 	flags = sfp->f_flags & MNT_VISFLAGMASK;
@@ -687,9 +687,9 @@ prmount(struct statfs *sfp)
 	if ((flags & MNT_USER) != 0 || sfp->f_owner != 0) {
 		xo_emit("{D:, }{L:mounted by }");
 		if ((pw = getpwuid(sfp->f_owner)) != NULL)
-			xo_emit("{:mounter}", pw->pw_name);
+			xo_emit("{:mounter/%hs}", pw->pw_name);
 		else
-			xo_emit("{:mounter}", sfp->f_owner);
+			xo_emit("{:mounter/%hs}", sfp->f_owner);
 	}
 	if (verbose) {
 		if (sfp->f_syncwrites != 0 || sfp->f_asyncwrites != 0) {
