@@ -678,6 +678,8 @@ unionfs_relookup_for_create(struct vnode *dvp, struct componentname *cnp,
 	udvp = UNIONFSVPTOUPPERVP(dvp);
 	vp = NULLVP;
 
+	KASSERT((cnp->cn_flags & HASBUF) != 0,
+	    ("%s called without HASBUF", __func__));
 	error = unionfs_relookup(udvp, &vp, cnp, &cn, td, cnp->cn_nameptr,
 	    cnp->cn_namelen, CREATE);
 	if (error)
@@ -712,6 +714,8 @@ unionfs_relookup_for_delete(struct vnode *dvp, struct componentname *cnp,
 	udvp = UNIONFSVPTOUPPERVP(dvp);
 	vp = NULLVP;
 
+	KASSERT((cnp->cn_flags & HASBUF) != 0,
+	    ("%s called without HASBUF", __func__));
 	error = unionfs_relookup(udvp, &vp, cnp, &cn, td, cnp->cn_nameptr,
 	    cnp->cn_namelen, DELETE);
 	if (error)
@@ -746,6 +750,8 @@ unionfs_relookup_for_rename(struct vnode *dvp, struct componentname *cnp,
 	udvp = UNIONFSVPTOUPPERVP(dvp);
 	vp = NULLVP;
 
+	KASSERT((cnp->cn_flags & HASBUF) != 0,
+	    ("%s called without HASBUF", __func__));
 	error = unionfs_relookup(udvp, &vp, cnp, &cn, td, cnp->cn_nameptr,
 	    cnp->cn_namelen, RENAME);
 	if (error)
