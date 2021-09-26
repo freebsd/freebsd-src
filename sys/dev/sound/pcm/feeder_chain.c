@@ -52,7 +52,7 @@ struct feeder_chain_desc {
 	struct feeder_chain_state current;	/* current state */
 	struct feeder_chain_state target;	/* target state */
 	struct pcm_feederdesc desc;		/* feeder descriptor */
-	uint32_t afmt_ne;			/* prefered native endian */
+	uint32_t afmt_ne;			/* preferred native endian */
 	int mode;				/* chain mode */
 	int use_eq;				/* need EQ? */
 	int use_matrix;				/* need channel matrixing? */
@@ -77,7 +77,7 @@ struct feeder_chain_desc {
 #endif
 
 /*
- * List of prefered formats that might be required during
+ * List of preferred formats that might be required during
  * processing. It will be decided through snd_fmtbest().
  */
 
