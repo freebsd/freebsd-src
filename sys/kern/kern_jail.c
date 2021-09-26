@@ -1304,7 +1304,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 #endif
 		/*
 		 * Allocate a dedicated cpuset for each jail.
-		 * Unlike other initial settings, this may return an erorr.
+		 * Unlike other initial settings, this may return an error.
 		 */
 		error = cpuset_create_root(ppr, &pr->pr_cpuset);
 		if (error)
