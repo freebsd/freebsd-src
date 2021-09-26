@@ -476,7 +476,7 @@ nfscl_lockunlock(struct nfsv4lock *lckp)
 }
 
 /*
- * Called to derefernce a lock on a stateid (delegation or open owner).
+ * Called to dereference a lock on a stateid (delegation or open owner).
  */
 void
 nfscl_lockderef(struct nfsv4lock *lckp)
