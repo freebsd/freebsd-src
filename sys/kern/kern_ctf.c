@@ -244,7 +244,7 @@ link_elf_ctf_get(linker_file_t lf, linker_ctf_t *lc)
 
 	/* Check if decompression is required. */
 	if (raw != NULL) {
-		z_stream zs;
+		uLongf destlen;
 		int ret;
 
 		/*
@@ -253,22 +253,12 @@ link_elf_ctf_get(linker_file_t lf, linker_ctf_t *lc)
 		 */
 		bcopy(ctf_hdr, ctftab, sizeof(ctf_hdr));
 
-		/* Initialise the zlib structure. */
-		bzero(&zs, sizeof(zs));
-
-		if (inflateInit(&zs) != Z_OK) {
-			error = EIO;
-			goto out;
-		}
-
-		zs.avail_in = shdr[i].sh_size - sizeof(ctf_hdr);
-		zs.next_in = ((uint8_t *) raw) + sizeof(ctf_hdr);
-		zs.avail_out = sz - sizeof(ctf_hdr);
-		zs.next_out = ((uint8_t *) ctftab) + sizeof(ctf_hdr);
-		ret = inflate(&zs, Z_FINISH);
-		inflateEnd(&zs);
-		if (ret != Z_STREAM_END) {
-			printf("%s(%d): zlib inflate returned %d\n", __func__, __LINE__, ret);
+		destlen = sz - sizeof(ctf_hdr);
+		ret = uncompress(((uint8_t *) ctftab) + sizeof(ctf_hdr),
+		    &destlen, ((uint8_t *) raw) + sizeof(ctf_hdr),
+		    shdr[i].sh_size - sizeof(ctf_hdr));
+		if (ret != Z_OK) {
+			printf("%s(%d): zlib uncompress returned %d\n", __func__, __LINE__, ret);
 			error = EIO;
 			goto out;
 		}
