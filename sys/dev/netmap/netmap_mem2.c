@@ -1702,7 +1702,7 @@ _netmap_mem_private_new(size_t size, struct netmap_obj_params *p, int grp_id,
 				nm_blueprint.pools[i].name,
 				d->name);
 		if (checksz) {
-			uint64_t poolsz = p[i].num * p[i].size;
+			uint64_t poolsz = (uint64_t)p[i].num * p[i].size;
 			if (memtotal < poolsz) {
 				nm_prerr("%s: request too large", d->pools[i].name);
 				err = ENOMEM;
