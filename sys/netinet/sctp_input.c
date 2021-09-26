@@ -510,7 +510,7 @@ sctp_process_init_ack(struct mbuf *m, int iphlen, int offset,
 
 	/*
 	 * Cancel the INIT timer, We do this first before queueing the
-	 * cookie. We always cancel at the primary to assue that we are
+	 * cookie. We always cancel at the primary to assume that we are
 	 * canceling the timer started by the INIT which always goes to the
 	 * primary.
 	 */
