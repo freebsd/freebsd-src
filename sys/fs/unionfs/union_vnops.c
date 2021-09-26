@@ -167,9 +167,7 @@ unionfs_lookup(struct vop_cachedlookup_args *ap)
 		} else if (error == ENOENT && (cnflags & MAKEENTRY) != 0)
 			cache_enter(dvp, NULLVP, cnp);
 
-		UNIONFS_INTERNAL_DEBUG("unionfs_lookup: leave (%d)\n", error);
-
-		return (error);
+		goto unionfs_lookup_return;
 	}
 
 	/*
@@ -184,10 +182,8 @@ unionfs_lookup(struct vop_cachedlookup_args *ap)
 				*(ap->a_vpp) = dvp;
 				vref(dvp);
 
-				UNIONFS_INTERNAL_DEBUG(
-				    "unionfs_lookup: leave (%d)\n", uerror);
-
-				return (uerror);
+				error = uerror;
+				goto unionfs_lookup_return;
 			}
 			if (nameiop == DELETE || nameiop == RENAME ||
 			    (cnp->cn_lkflags & LK_TYPE_MASK))
@@ -246,9 +242,8 @@ unionfs_lookup(struct vop_cachedlookup_args *ap)
 	 * check lookup result
 	 */
 	if (uvp == NULLVP && lvp == NULLVP) {
-		UNIONFS_INTERNAL_DEBUG("unionfs_lookup: leave (%d)\n",
-		    (udvp != NULLVP ? uerror : lerror));
-		return (udvp != NULLVP ? uerror : lerror);
+		error = (udvp != NULLVP ? uerror : lerror);
+		goto unionfs_lookup_return;
 	}
 
 	/*
@@ -270,7 +265,7 @@ unionfs_lookup(struct vop_cachedlookup_args *ap)
 		error = unionfs_nodeget(dvp->v_mount, NULLVP, lvp, dvp, &vp,
 		    cnp, td);
 		if (error != 0)
-			goto unionfs_lookup_out;
+			goto unionfs_lookup_cleanup;
 
 		if (LK_SHARED == (cnp->cn_lkflags & LK_TYPE_MASK))
 			VOP_UNLOCK(vp);
@@ -289,7 +284,7 @@ unionfs_lookup(struct vop_cachedlookup_args *ap)
 				vput(vp);
 			else
 				vrele(vp);
-			goto unionfs_lookup_out;
+			goto unionfs_lookup_cleanup;
 		}
 		if ((cnp->cn_lkflags & LK_TYPE_MASK) == LK_SHARED)
 			vn_lock(vp, LK_SHARED | LK_RETRY);
@@ -303,7 +298,7 @@ unionfs_lookup(struct vop_cachedlookup_args *ap)
 		else
 			error = lerror;
 		if (error != 0)
-			goto unionfs_lookup_out;
+			goto unionfs_lookup_cleanup;
 		/*
 		 * get socket vnode.
 		 */
@@ -328,7 +323,7 @@ unionfs_lookup(struct vop_cachedlookup_args *ap)
 		if (error != 0) {
 			UNIONFSDEBUG(
 			    "unionfs_lookup: Unable to create unionfs vnode.");
-			goto unionfs_lookup_out;
+			goto unionfs_lookup_cleanup;
 		}
 		if ((nameiop == DELETE || nameiop == RENAME) &&
 		    (cnp->cn_lkflags & LK_TYPE_MASK) == 0)
@@ -340,7 +335,7 @@ unionfs_lookup(struct vop_cachedlookup_args *ap)
 	if ((cnflags & MAKEENTRY) && vp->v_type != VSOCK)
 		cache_enter(dvp, vp, cnp);
 
-unionfs_lookup_out:
+unionfs_lookup_cleanup:
 	if (uvp != NULLVP)
 		vrele(uvp);
 	if (lvp != NULLVP)
@@ -348,6 +343,12 @@ unionfs_lookup_out:
 
 	if (error == ENOENT && (cnflags & MAKEENTRY) != 0)
 		cache_enter(dvp, NULLVP, cnp);
+
+unionfs_lookup_return:
+
+	/* Ensure subsequent vnops will get a valid pathname buffer. */
+	if (nameiop != LOOKUP && (error == 0 || error == EJUSTRETURN))
+		cnp->cn_flags |= SAVENAME;
 
 	UNIONFS_INTERNAL_DEBUG("unionfs_lookup: leave (%d)\n", error);
 
@@ -1372,7 +1373,7 @@ unionfs_mkdir(struct vop_mkdir_args *ap)
 			error = VOP_GETATTR(udvp, &va, cnp->cn_cred);
 			if (error != 0)
 				return (error);
-			if (va.va_flags & OPAQUE) 
+			if ((va.va_flags & OPAQUE) != 0)
 				cnp->cn_flags |= ISWHITEOUT;
 		}
 
@@ -1434,7 +1435,7 @@ unionfs_rmdir(struct vop_rmdir_args *ap)
 		if (ump->um_whitemode == UNIONFS_WHITE_ALWAYS || lvp != NULLVP)
 			cnp->cn_flags |= DOWHITEOUT;
 		error = unionfs_relookup_for_delete(ap->a_dvp, cnp, td);
-		if (!error)
+		if (error == 0)
 			error = VOP_RMDIR(udvp, uvp, cnp);
 	}
 	else if (lvp != NULLVP)
