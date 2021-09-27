@@ -191,7 +191,7 @@ CONFS+=		ftpd
 .endif
 
 .if ${MK_GSSAPI} != "no"
-CONFGROUPS+=	gssd
+CONFGROUPS+=	GSSD
 GSSD=		gssd
 GSSDPACKAGE=	kerberos
 .endif
