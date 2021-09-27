@@ -143,7 +143,6 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	bcopy(regs, &sf.sf_uc.uc_mcontext.mc_rdi, sizeof(*regs));
 	sf.sf_uc.uc_mcontext.mc_len = sizeof(sf.sf_uc.uc_mcontext); /* magic */
 	get_fpcontext(td, &sf.sf_uc.uc_mcontext, &xfpusave, &xfpusave_len);
-	fpstate_drop(td);
 	update_pcb_bases(pcb);
 	sf.sf_uc.uc_mcontext.mc_fsbase = pcb->pcb_fsbase;
 	sf.sf_uc.uc_mcontext.mc_gsbase = pcb->pcb_gsbase;
@@ -203,6 +202,7 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 		sigexit(td, SIGILL);
 	}
 
+	fpstate_drop(td);
 	regs->tf_rsp = (long)sfp;
 	regs->tf_rip = p->p_sysent->sv_sigcode_base;
 	regs->tf_rflags &= ~(PSL_T | PSL_D);

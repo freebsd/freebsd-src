@@ -607,7 +607,6 @@ ia32_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	sf.sf_uc.uc_mcontext.mc_gs = regs->tf_gs;
 	sf.sf_uc.uc_mcontext.mc_len = sizeof(sf.sf_uc.uc_mcontext); /* magic */
 	ia32_get_fpcontext(td, &sf.sf_uc.uc_mcontext, &xfpusave, &xfpusave_len);
-	fpstate_drop(td);
 	sf.sf_uc.uc_mcontext.mc_fsbase = td->td_pcb->pcb_fsbase;
 	sf.sf_uc.uc_mcontext.mc_gsbase = td->td_pcb->pcb_gsbase;
 
@@ -661,6 +660,7 @@ ia32_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 		sigexit(td, SIGILL);
 	}
 
+	fpstate_drop(td);
 	regs->tf_rsp = (uintptr_t)sfp;
 	regs->tf_rip = p->p_sysent->sv_sigcode_base;
 	regs->tf_rflags &= ~(PSL_T | PSL_D);
