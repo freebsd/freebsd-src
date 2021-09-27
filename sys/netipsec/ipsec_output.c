@@ -344,7 +344,7 @@ setdf:
 	if (m_length(m, NULL) + hlen > pmtu) {
 		/*
 		 * If we're forwarding generate ICMP message here,
-		 * so that it contains pmtu subtraced by header size.
+		 * so that it contains pmtu subtracted by header size.
 		 * Set error to EINPROGRESS, in order for the frame
 		 * to be dropped silently.
 		 */
