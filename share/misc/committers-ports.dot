@@ -292,6 +292,7 @@ woodsb02 [label="Ben Woods\nwoodsb02@FreeBSD.org\n2016/05/09"]
 wxs [label="Wesley Shields\nwxs@FreeBSD.org\n2008/01/03"]
 xmj [label="Johannes Jost Meixner\nxmj@FreeBSD.org\n2014/04/07"]
 xride [label="Soeren Straarup\nxride@FreeBSD.org\n2006/09/27"]
+yasu [label="Yasuhiro Kimura\nyasu@FreeBSD.org\n2021/08/27"]
 ygy [label="Guangyuan Yang\nygy@FreeBSD.org\n2021/05/17"]
 yuri [label="Yuri Victorovich\nyuri@FreeBSD.org\n2017/10/30"]
 yzlin [label="Yi-Jheng Lin\nyzlin@FreeBSD.org\n2009/07/19"]
@@ -607,6 +608,8 @@ matthew -> leres
 matthew -> lifanov
 matthew -> ultima
 
+meta -> yasu
+
 mezz -> tmclaugh
 
 miwi -> amdmi3
@@ -815,5 +818,7 @@ wxs -> sahil
 wxs -> skreuzer
 wxs -> swills
 wxs -> zi
+
+ygy -> yasu
 
 }
