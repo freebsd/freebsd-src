@@ -2163,15 +2163,21 @@ xeon_gen3_setup_b2b_mw(struct ntb_softc *ntb)
 	intel_ntb_reg_write(8, XEON_GEN3_REG_IMBAR2XBASE, 0);
 
 	/*
-	 * If the value in EMBAR1LIMIT is set equal to the value in EMBAR1,
-	 * the memory window for EMBAR1 is disabled.
-	 * Note: It is needed to avoid malacious access.
+	 * If the value in IMBAR1XLIMIT is set equal to the value in IMBAR1XBASE,
+	 * the local memory window exposure from EMBAR1 is disabled.
+	 * Note: It is needed to avoid malicious access.
 	 */
-	reg = pci_read_config(ntb->device, XEON_GEN3_EXT_REG_BAR1BASE, 8);
-	intel_ntb_reg_write(8, XEON_GEN3_REG_IMBAR1XLIMIT, reg);
+	intel_ntb_reg_write(8, XEON_GEN3_REG_IMBAR1XLIMIT, 0);
+	intel_ntb_reg_write(8, XEON_GEN3_REG_IMBAR2XLIMIT, 0);
 
-	reg = pci_read_config(ntb->device, XEON_GEN3_EXT_REG_BAR2BASE, 8);
-	intel_ntb_reg_write(8, XEON_GEN3_REG_IMBAR2XLIMIT, reg);
+	/* Config outgoing translation limits (whole bar size windows) */
+	reg = intel_ntb_reg_read(8, XEON_GEN3_REG_EMBAR1XBASE);
+	reg += ntb->bar_info[NTB_B2B_BAR_1].size;
+	intel_ntb_reg_write(8, XEON_GEN3_REG_EMBAR1XLIMIT, reg);
+
+	reg = intel_ntb_reg_read(8, XEON_GEN3_REG_EMBAR2XBASE);
+	reg += ntb->bar_info[NTB_B2B_BAR_2].size;
+	intel_ntb_reg_write(8, XEON_GEN3_REG_EMBAR2XLIMIT, reg);
 
 	return (0);
 }
@@ -3226,7 +3232,10 @@ intel_ntb_mw_set_trans(device_t dev, unsigned idx, bus_addr_t addr, size_t size)
 
 	limit = 0;
 	if (bar_is_64bit(ntb, bar_num)) {
-		base = intel_ntb_reg_read(8, base_reg) & BAR_HIGH_MASK;
+		if (ntb->type == NTB_XEON_GEN3)
+			base = addr;
+		else
+			base = intel_ntb_reg_read(8, base_reg) & BAR_HIGH_MASK;
 
 		if (limit_reg != 0 && size != mw_size)
 			limit = base + size;
@@ -3248,18 +3257,6 @@ intel_ntb_mw_set_trans(device_t dev, unsigned idx, bus_addr_t addr, size_t size)
 			intel_ntb_reg_write(8, limit_reg, base);
 			intel_ntb_reg_write(8, xlat_reg, 0);
 			return (EIO);
-		}
-
-		if (ntb->type == NTB_XEON_GEN3) {
-			limit = base + size;
-
-			/* set EMBAR1/2XLIMIT */
-			if (!idx)
-				intel_ntb_reg_write(8,
-				    XEON_GEN3_REG_EMBAR1XLIMIT, limit);
-			else
-				intel_ntb_reg_write(8,
-				    XEON_GEN3_REG_EMBAR2XLIMIT, limit);
 		}
 	} else {
 		/* Configure 32-bit (split) BAR MW */
