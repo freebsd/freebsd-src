@@ -1200,6 +1200,8 @@ etherrule	: ETHER action dir quick interface etherproto etherfromto etherfilter_
 				memcpy(&r.tagname, $8.tag, sizeof(r.tagname));
 			if ($8.queues.qname != NULL)
 				memcpy(&r.qname, $8.queues.qname, sizeof(r.qname));
+			r.dnpipe = $8.dnpipe;
+			r.dnflags = $8.free_flags;
 
 			expand_eth_rule(&r, $5, $6);
 		}
@@ -1228,6 +1230,14 @@ etherfilter_opt	: etherqname	{
 		}
 		| TAG string				{
 			filter_opts.tag = $2;
+		}
+		| DNPIPE number {
+			filter_opts.dnpipe = $2;
+			filter_opts.free_flags |= PFRULE_DN_IS_PIPE;
+		}
+		| DNQUEUE number {
+			filter_opts.dnpipe = $2;
+			filter_opts.free_flags |= PFRULE_DN_IS_QUEUE;
 		}
 		;
 

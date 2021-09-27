@@ -1081,6 +1081,9 @@ pf_keth_rule_to_nveth_rule(const struct pf_keth_rule *krule)
 	nvlist_add_string(nvl, "qname", krule->qname);
 	nvlist_add_string(nvl, "tagname", krule->tagname);
 
+	nvlist_add_number(nvl, "dnpipe", krule->dnpipe);
+	nvlist_add_number(nvl, "dnflags", krule->dnflags);
+
 	nvlist_add_number(nvl, "action", krule->action);
 
 	return (nvl);
@@ -1090,7 +1093,7 @@ int
 pf_nveth_rule_to_keth_rule(const nvlist_t *nvl,
     struct pf_keth_rule *krule)
 {
-	int error;
+	int error = 0;
 
 	bzero(krule, sizeof(*krule));
 
@@ -1118,6 +1121,9 @@ pf_nveth_rule_to_keth_rule(const nvlist_t *nvl,
 	PFNV_CHK(pf_nvstring(nvl, "qname", krule->qname, sizeof(krule->qname)));
 	PFNV_CHK(pf_nvstring(nvl, "tagname", krule->tagname,
 	    sizeof(krule->tagname)));
+
+	PFNV_CHK(pf_nvuint16_opt(nvl, "dnpipe", &krule->dnpipe, 0));
+	PFNV_CHK(pf_nvuint32_opt(nvl, "dnflags", &krule->dnflags, 0));
 
 	PFNV_CHK(pf_nvuint8(nvl, "action", &krule->action));
 

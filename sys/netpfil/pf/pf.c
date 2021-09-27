@@ -3813,6 +3813,22 @@ pf_test_eth_rule(int dir, struct pfi_kkif *kif, struct mbuf *m)
 		mtag->qid = r->qid;
 	}
 
+	/* Dummynet */
+	if (r->dnpipe) {
+		/** While dummynet supports handling Ethernet packets directly
+		 * it still wants some L3/L4 information, and we're not set up
+		 * to provide that here. Instead we'll do what we do for ALTQ
+		 * and merely mark the packet with the dummynet queue/pipe number.
+		 **/
+		mtag = pf_get_mtag(m);
+		if (mtag == NULL) {
+			counter_u64_add(V_pf_status.counters[PFRES_MEMORY], 1);
+			return (PF_DROP);
+		}
+		mtag->dnpipe = r->dnpipe;
+		mtag->dnflags = r->dnflags;
+	}
+
 	action = r->action;
 
 	return (action);
@@ -6515,8 +6531,13 @@ pf_pdesc_to_dnflow(int dir, const struct pf_pdesc *pd,
 {
 	int dndir = r->direction;
 
-	if (s && dndir == PF_INOUT)
+	if (s && dndir == PF_INOUT) {
 		dndir = s->direction;
+	} else if (dndir == PF_INOUT) {
+		/* Assume primary direction. Happens when we've set dnpipe in
+		 * the ethernet level code. */
+		dndir = dir;
+	}
 
 	memset(dnflow, 0, sizeof(*dnflow));
 
@@ -6541,7 +6562,7 @@ pf_pdesc_to_dnflow(int dir, const struct pf_pdesc *pd,
 	}
 
 	dnflow->rule.info |= IPFW_IS_DUMMYNET;
-	if (r->free_flags & PFRULE_DN_IS_PIPE)
+	if (r->free_flags & PFRULE_DN_IS_PIPE || pd->act.flags & PFRULE_DN_IS_PIPE)
 		dnflow->rule.info |= IPFW_IS_PIPE;
 
 	dnflow->f_id.proto = pd->proto;
@@ -6634,6 +6655,11 @@ pf_test(int dir, int pflags, struct ifnet *ifp, struct mbuf **m0, struct inpcb *
 
 	memset(&pd, 0, sizeof(pd));
 	pd.pf_mtag = pf_find_mtag(m);
+
+	if (pd.pf_mtag && pd.pf_mtag->dnpipe) {
+		pd.act.dnpipe = pd.pf_mtag->dnpipe;
+		pd.act.flags = pd.pf_mtag->dnflags;
+	}
 
 	if (ip_dn_io_ptr != NULL && pd.pf_mtag != NULL &&
 	    pd.pf_mtag->flags & PF_TAG_DUMMYNET) {
@@ -7133,6 +7159,11 @@ pf_test6(int dir, int pflags, struct ifnet *ifp, struct mbuf **m0, struct inpcb 
 
 	memset(&pd, 0, sizeof(pd));
 	pd.pf_mtag = pf_find_mtag(m);
+
+	if (pd.pf_mtag && pd.pf_mtag->dnpipe) {
+		pd.act.dnpipe = pd.pf_mtag->dnpipe;
+		pd.act.flags = pd.pf_mtag->dnflags;
+	}
 
 	if (ip_dn_io_ptr != NULL && pd.pf_mtag != NULL &&
 	    pd.pf_mtag->flags & PF_TAG_DUMMYNET) {

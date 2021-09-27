@@ -96,6 +96,8 @@ struct pfctl_eth_rule {
 	/* Action */
 	char			 qname[PF_QNAME_SIZE];
 	char			 tagname[PF_TAG_NAME_SIZE];
+	uint16_t		 dnpipe;
+	uint32_t		 dnflags;
 	uint8_t			 action;
 
 	TAILQ_ENTRY(pfctl_eth_rule)	 entries;
