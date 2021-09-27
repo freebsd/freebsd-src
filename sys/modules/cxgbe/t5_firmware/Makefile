@@ -17,7 +17,7 @@ FIRMWS+=	${F}:${F:C/.txt//}:1.0.0.0
 .endif
 .endfor
 
-T5FW_VER=	1.26.0.0
+T5FW_VER=	1.26.2.0
 FIRMWS+=	t5fw-${T5FW_VER}.bin:t5fw:${T5FW_VER}
 
 .include <bsd.kmod.mk>
