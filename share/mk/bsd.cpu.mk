@@ -116,10 +116,12 @@ _CPUCFLAGS = -march=${CPUTYPE}
 # arm: (any arm v4 or v5 processor you are targeting)
 #	arm920t, arm926ej-s, marvell-pj4, fa526, fa626,
 #	fa606te, fa626te, fa726te
-# armv6: (any arm v7 or v8 processor you are targeting and the arm1176jzf-s)
-# 	arm1176jzf-s, generic-armv7-a, cortex-a5, cortex-a7, cortex-a8,
-#	cortex-a9, cortex-a12, cortex-a15, cortex-a17, cortex-a53, cortex-a57,
-#	cortex-a72, exynos-m1
+# armv6:
+# 	arm1176jzf-s
+# armv7: generic-armv7-a, cortex-a5, cortex-a7, cortex-a8, cortex-a9,
+#       cortex-a12, cortex-a15, cortex-a17
+#       cortex-a53, cortex-a57, cortex-a72,
+#       exynos-m1
 _CPUCFLAGS = -mcpu=${CPUTYPE}
 . endif
 . elif ${MACHINE_ARCH} == "powerpc"
