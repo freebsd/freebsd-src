@@ -110,35 +110,14 @@ static device_method_t pci_methods[] = {
 
 struct linux_dma_priv {
 	uint64_t	dma_mask;
-	struct mtx	lock;
 	bus_dma_tag_t	dmat;
+	uint64_t	dma_coherent_mask;
+	bus_dma_tag_t	dmat_coherent;
+	struct mtx	lock;
 	struct pctrie	ptree;
 };
 #define	DMA_PRIV_LOCK(priv) mtx_lock(&(priv)->lock)
 #define	DMA_PRIV_UNLOCK(priv) mtx_unlock(&(priv)->lock)
-
-static int
-linux_pdev_dma_init(struct pci_dev *pdev)
-{
-	struct linux_dma_priv *priv;
-	int error;
-
-	priv = malloc(sizeof(*priv), M_DEVBUF, M_WAITOK | M_ZERO);
-	pdev->dev.dma_priv = priv;
-
-	mtx_init(&priv->lock, "lkpi-priv-dma", NULL, MTX_DEF);
-
-	pctrie_init(&priv->ptree);
-
-	/* create a default DMA tag */
-	error = linux_dma_tag_init(&pdev->dev, DMA_BIT_MASK(64));
-	if (error) {
-		mtx_destroy(&priv->lock);
-		free(priv, M_DEVBUF);
-		pdev->dev.dma_priv = NULL;
-	}
-	return (error);
-}
 
 static int
 linux_pdev_dma_uninit(struct pci_dev *pdev)
@@ -148,10 +127,41 @@ linux_pdev_dma_uninit(struct pci_dev *pdev)
 	priv = pdev->dev.dma_priv;
 	if (priv->dmat)
 		bus_dma_tag_destroy(priv->dmat);
+	if (priv->dmat_coherent)
+		bus_dma_tag_destroy(priv->dmat_coherent);
 	mtx_destroy(&priv->lock);
-	free(priv, M_DEVBUF);
 	pdev->dev.dma_priv = NULL;
+	free(priv, M_DEVBUF);
 	return (0);
+}
+
+static int
+linux_pdev_dma_init(struct pci_dev *pdev)
+{
+	struct linux_dma_priv *priv;
+	int error;
+
+	priv = malloc(sizeof(*priv), M_DEVBUF, M_WAITOK | M_ZERO);
+
+	mtx_init(&priv->lock, "lkpi-priv-dma", NULL, MTX_DEF);
+	pctrie_init(&priv->ptree);
+
+	pdev->dev.dma_priv = priv;
+
+	/* Create a default DMA tags. */
+	error = linux_dma_tag_init(&pdev->dev, DMA_BIT_MASK(64));
+	if (error != 0)
+		goto err;
+	/* Coherent is lower 32bit only by default in Linux. */
+	error = linux_dma_tag_init_coherent(&pdev->dev, DMA_BIT_MASK(32));
+	if (error != 0)
+		goto err;
+
+	return (error);
+
+err:
+	linux_pdev_dma_uninit(pdev);
+	return (error);
 }
 
 int
@@ -182,6 +192,37 @@ linux_dma_tag_init(struct device *dev, u64 dma_mask)
 	    0,				/* flags */
 	    NULL, NULL,			/* lockfunc, lockfuncarg */
 	    &priv->dmat);
+	return (-error);
+}
+
+int
+linux_dma_tag_init_coherent(struct device *dev, u64 dma_mask)
+{
+	struct linux_dma_priv *priv;
+	int error;
+
+	priv = dev->dma_priv;
+
+	if (priv->dmat_coherent) {
+		if (priv->dma_coherent_mask == dma_mask)
+			return (0);
+
+		bus_dma_tag_destroy(priv->dmat_coherent);
+	}
+
+	priv->dma_coherent_mask = dma_mask;
+
+	error = bus_dma_tag_create(bus_get_dma_tag(dev->bsddev),
+	    1, 0,			/* alignment, boundary */
+	    dma_mask,			/* lowaddr */
+	    BUS_SPACE_MAXADDR,		/* highaddr */
+	    NULL, NULL,			/* filtfunc, filtfuncarg */
+	    BUS_SPACE_MAXSIZE,		/* maxsize */
+	    1,				/* nsegments */
+	    BUS_SPACE_MAXSIZE,		/* maxsegsz */
+	    0,				/* flags */
+	    NULL, NULL,			/* lockfunc, lockfuncarg */
+	    &priv->dmat_coherent);
 	return (-error);
 }
 
@@ -723,6 +764,7 @@ struct linux_dma_obj {
 	void		*vaddr;
 	uint64_t	dma_addr;
 	bus_dmamap_t	dmamap;
+	bus_dma_tag_t	dmat;
 };
 
 static uma_zone_t linux_dma_trie_zone;
@@ -768,44 +810,10 @@ linux_dma_trie_free(struct pctrie *ptree, void *node)
 PCTRIE_DEFINE(LINUX_DMA, linux_dma_obj, dma_addr, linux_dma_trie_alloc,
     linux_dma_trie_free);
 
-void *
-linux_dma_alloc_coherent(struct device *dev, size_t size,
-    dma_addr_t *dma_handle, gfp_t flag)
-{
-	struct linux_dma_priv *priv;
-	vm_paddr_t high;
-	size_t align;
-	void *mem;
-
-	if (dev == NULL || dev->dma_priv == NULL) {
-		*dma_handle = 0;
-		return (NULL);
-	}
-	priv = dev->dma_priv;
-	if (priv->dma_mask)
-		high = priv->dma_mask;
-	else if (flag & GFP_DMA32)
-		high = BUS_SPACE_MAXADDR_32BIT;
-	else
-		high = BUS_SPACE_MAXADDR;
-	align = PAGE_SIZE << get_order(size);
-	mem = (void *)kmem_alloc_contig(size, flag & GFP_NATIVE_MASK, 0, high,
-	    align, 0, VM_MEMATTR_DEFAULT);
-	if (mem != NULL) {
-		*dma_handle = linux_dma_map_phys(dev, vtophys(mem), size);
-		if (*dma_handle == 0) {
-			kmem_free((vm_offset_t)mem, size);
-			mem = NULL;
-		}
-	} else {
-		*dma_handle = 0;
-	}
-	return (mem);
-}
-
 #if defined(__i386__) || defined(__amd64__) || defined(__aarch64__)
-dma_addr_t
-linux_dma_map_phys(struct device *dev, vm_paddr_t phys, size_t len)
+static dma_addr_t
+linux_dma_map_phys_common(struct device *dev, vm_paddr_t phys, size_t len,
+    bus_dma_tag_t dmat)
 {
 	struct linux_dma_priv *priv;
 	struct linux_dma_obj *obj;
@@ -820,25 +828,26 @@ linux_dma_map_phys(struct device *dev, vm_paddr_t phys, size_t len)
 	 * bus_dma API.  This avoids tracking collisions in the pctrie
 	 * with the additional benefit of reducing overhead.
 	 */
-	if (bus_dma_id_mapped(priv->dmat, phys, len))
+	if (bus_dma_id_mapped(dmat, phys, len))
 		return (phys);
 
 	obj = uma_zalloc(linux_dma_obj_zone, M_NOWAIT);
 	if (obj == NULL) {
 		return (0);
 	}
+	obj->dmat = dmat;
 
 	DMA_PRIV_LOCK(priv);
-	if (bus_dmamap_create(priv->dmat, 0, &obj->dmamap) != 0) {
+	if (bus_dmamap_create(obj->dmat, 0, &obj->dmamap) != 0) {
 		DMA_PRIV_UNLOCK(priv);
 		uma_zfree(linux_dma_obj_zone, obj);
 		return (0);
 	}
 
 	nseg = -1;
-	if (_bus_dmamap_load_phys(priv->dmat, obj->dmamap, phys, len,
+	if (_bus_dmamap_load_phys(obj->dmat, obj->dmamap, phys, len,
 	    BUS_DMA_NOWAIT, &seg, &nseg) != 0) {
-		bus_dmamap_destroy(priv->dmat, obj->dmamap);
+		bus_dmamap_destroy(obj->dmat, obj->dmamap);
 		DMA_PRIV_UNLOCK(priv);
 		uma_zfree(linux_dma_obj_zone, obj);
 		return (0);
@@ -849,8 +858,8 @@ linux_dma_map_phys(struct device *dev, vm_paddr_t phys, size_t len)
 
 	error = LINUX_DMA_PCTRIE_INSERT(&priv->ptree, obj);
 	if (error != 0) {
-		bus_dmamap_unload(priv->dmat, obj->dmamap);
-		bus_dmamap_destroy(priv->dmat, obj->dmamap);
+		bus_dmamap_unload(obj->dmat, obj->dmamap);
+		bus_dmamap_destroy(obj->dmat, obj->dmamap);
 		DMA_PRIV_UNLOCK(priv);
 		uma_zfree(linux_dma_obj_zone, obj);
 		return (0);
@@ -859,12 +868,22 @@ linux_dma_map_phys(struct device *dev, vm_paddr_t phys, size_t len)
 	return (obj->dma_addr);
 }
 #else
-dma_addr_t
-linux_dma_map_phys(struct device *dev, vm_paddr_t phys, size_t len)
+static dma_addr_t
+linux_dma_map_phys_common(struct device *dev __unused, vm_paddr_t phys,
+    size_t len __unused, bus_dma_tag_t dmat __unused)
 {
 	return (phys);
 }
 #endif
+
+dma_addr_t
+linux_dma_map_phys(struct device *dev, vm_paddr_t phys, size_t len)
+{
+	struct linux_dma_priv *priv;
+
+	priv = dev->dma_priv;
+	return (linux_dma_map_phys_common(dev, phys, len, priv->dmat));
+}
 
 #if defined(__i386__) || defined(__amd64__) || defined(__aarch64__)
 void
@@ -885,8 +904,8 @@ linux_dma_unmap(struct device *dev, dma_addr_t dma_addr, size_t len)
 		return;
 	}
 	LINUX_DMA_PCTRIE_REMOVE(&priv->ptree, dma_addr);
-	bus_dmamap_unload(priv->dmat, obj->dmamap);
-	bus_dmamap_destroy(priv->dmat, obj->dmamap);
+	bus_dmamap_unload(obj->dmat, obj->dmamap);
+	bus_dmamap_destroy(obj->dmat, obj->dmamap);
 	DMA_PRIV_UNLOCK(priv);
 
 	uma_zfree(linux_dma_obj_zone, obj);
@@ -897,6 +916,43 @@ linux_dma_unmap(struct device *dev, dma_addr_t dma_addr, size_t len)
 {
 }
 #endif
+
+void *
+linux_dma_alloc_coherent(struct device *dev, size_t size,
+    dma_addr_t *dma_handle, gfp_t flag)
+{
+	struct linux_dma_priv *priv;
+	vm_paddr_t high;
+	size_t align;
+	void *mem;
+
+	if (dev == NULL || dev->dma_priv == NULL) {
+		*dma_handle = 0;
+		return (NULL);
+	}
+	priv = dev->dma_priv;
+	if (priv->dma_coherent_mask)
+		high = priv->dma_coherent_mask;
+	else
+		/* Coherent is lower 32bit only by default in Linux. */
+		high = BUS_SPACE_MAXADDR_32BIT;
+	align = PAGE_SIZE << get_order(size);
+	/* Always zero the allocation. */
+	flag |= M_ZERO;
+	mem = (void *)kmem_alloc_contig(size, flag & GFP_NATIVE_MASK, 0, high,
+	    align, 0, VM_MEMATTR_DEFAULT);
+	if (mem != NULL) {
+		*dma_handle = linux_dma_map_phys_common(dev, vtophys(mem), size,
+		    priv->dmat_coherent);
+		if (*dma_handle == 0) {
+			kmem_free((vm_offset_t)mem, size);
+			mem = NULL;
+		}
+	} else {
+		*dma_handle = 0;
+	}
+	return (mem);
+}
 
 int
 linux_dma_map_sg_attrs(struct device *dev, struct scatterlist *sgl, int nents,
