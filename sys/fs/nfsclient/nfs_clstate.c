@@ -4604,6 +4604,12 @@ nfscl_removedeleg(vnode_t vp, NFSPROC_T *p, nfsv4stateid_t *stp)
 	int igotlock = 0, triedrecall = 0, needsrecall, retcnt = 0, islept;
 
 	nmp = VFSTONFS(vp->v_mount);
+	NFSLOCKMNT(nmp);
+	if ((nmp->nm_privflag & NFSMNTP_DELEGISSUED) == 0) {
+		NFSUNLOCKMNT(nmp);
+		return (retcnt);
+	}
+	NFSUNLOCKMNT(nmp);
 	np = VTONFS(vp);
 	NFSLOCKCLSTATE();
 	/*
