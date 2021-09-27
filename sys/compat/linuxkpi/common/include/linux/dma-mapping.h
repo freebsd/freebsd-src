@@ -91,7 +91,7 @@ struct dma_map_ops {
 
 #define	DMA_BIT_MASK(n)	((2ULL << ((n) - 1)) - 1ULL)
 
-int linux_dma_tag_init(struct device *dev, u64 mask);
+int linux_dma_tag_init(struct device *, u64);
 void *linux_dma_alloc_coherent(struct device *dev, size_t size,
     dma_addr_t *dma_handle, gfp_t flag);
 dma_addr_t linux_dma_map_phys(struct device *dev, vm_paddr_t phys, size_t len);
@@ -104,7 +104,7 @@ void linux_dma_unmap_sg_attrs(struct device *dev, struct scatterlist *sg,
     unsigned long attrs __unused);
 
 static inline int
-dma_supported(struct device *dev, u64 mask)
+dma_supported(struct device *dev, u64 dma_mask)
 {
 
 	/* XXX busdma takes care of this elsewhere. */
@@ -122,23 +122,23 @@ dma_set_mask(struct device *dev, u64 dma_mask)
 }
 
 static inline int
-dma_set_coherent_mask(struct device *dev, u64 mask)
+dma_set_coherent_mask(struct device *dev, u64 dma_mask)
 {
 
-	if (!dma_supported(dev, mask))
+	if (!dma_supported(dev, dma_mask))
 		return -EIO;
 	/* XXX Currently we don't support a separate coherent mask. */
 	return 0;
 }
 
 static inline int
-dma_set_mask_and_coherent(struct device *dev, u64 mask)
+dma_set_mask_and_coherent(struct device *dev, u64 dma_mask)
 {
 	int r;
 
-	r = dma_set_mask(dev, mask);
+	r = dma_set_mask(dev, dma_mask);
 	if (r == 0)
-		dma_set_coherent_mask(dev, mask);
+		dma_set_coherent_mask(dev, dma_mask);
 	return (r);
 }
 
