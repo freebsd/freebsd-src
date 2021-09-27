@@ -444,6 +444,9 @@ acpi_cpu_postattach(void *unused __unused)
     struct acpi_cpu_softc *sc;
     int attached = 0, i;
 
+    if (cpu_softc == NULL)
+	return;
+
     mtx_lock(&Giant);
     CPU_FOREACH(i) {
 	if ((sc = cpu_softc[i]) != NULL)
