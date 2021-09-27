@@ -617,6 +617,8 @@ struct pf_keth_rule {
 	char			 tagname[PF_TAG_NAME_SIZE];
 	uint16_t		 tag;
 	uint8_t			 action;
+	uint16_t		 dnpipe;
+	uint32_t		 dnflags;
 };
 
 TAILQ_HEAD(pf_keth_rules, pf_keth_rule);
