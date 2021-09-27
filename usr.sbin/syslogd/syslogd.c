@@ -1357,31 +1357,25 @@ parsemsg(const char *from, char *msg)
 	size_t i;
 	int pri;
 
+	i = -1;
+	pri = DEFUPRI;
+
 	/* Parse PRI. */
-	if (msg[0] != '<' || !isdigit(msg[1])) {
-		dprintf("Invalid PRI from %s\n", from);
-		return;
-	}
-	for (i = 2; i <= 4; i++) {
-		if (msg[i] == '>')
-			break;
-		if (!isdigit(msg[i])) {
-			dprintf("Invalid PRI header from %s\n", from);
-			return;
+	if (msg[0] == '<' && isdigit(msg[1])) {
+	    for (i = 2; i <= 4; i++) {
+	        if (msg[i] == '>') {
+		    errno = 0;
+		    n = strtol(msg + 1, &q, 10);
+		    if (errno == 0 && *q == msg[i] && n >= 0 && n <= INT_MAX) {
+		        pri = n;
+		        msg += i + 1;
+		        i = 0;
+		    }
+		    break;
 		}
+    	    }
 	}
-	if (msg[i] != '>') {
-		dprintf("Invalid PRI header from %s\n", from);
-		return;
-	}
-	errno = 0;
-	n = strtol(msg + 1, &q, 10);
-	if (errno != 0 || *q != msg[i] || n < 0 || n >= INT_MAX) {
-		dprintf("Invalid PRI %ld from %s: %s\n",
-		    n, from, strerror(errno));
-		return;
-	}
-	pri = n;
+
 	if (pri &~ (LOG_FACMASK|LOG_PRIMASK))
 		pri = DEFUPRI;
 
@@ -1394,8 +1388,7 @@ parsemsg(const char *from, char *msg)
 		pri = LOG_MAKEPRI(LOG_USER, LOG_PRI(pri));
 
 	/* Parse VERSION. */
-	msg += i + 1;
-	if (msg[0] == '1' && msg[1] == ' ')
+	if (i == 0 && msg[0] == '1' && msg[1] == ' ')
 		parsemsg_rfc5424(from, pri, msg + 2);
 	else
 		parsemsg_rfc3164(from, pri, msg);
