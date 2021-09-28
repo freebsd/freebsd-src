@@ -206,7 +206,7 @@ static driver_t mgb_driver = {
 	"mgb", mgb_methods, sizeof(struct mgb_softc)
 };
 
-devclass_t mgb_devclass;
+static devclass_t mgb_devclass;
 DRIVER_MODULE(mgb, pci, mgb_driver, mgb_devclass, NULL, NULL);
 IFLIB_PNP_INFO(pci, mgb, mgb_vendor_info_array);
 MODULE_VERSION(mgb, 1);
@@ -270,7 +270,7 @@ static driver_t mgb_iflib_driver = {
 	"mgb", mgb_iflib_methods, sizeof(struct mgb_softc)
 };
 
-struct if_txrx mgb_txrx  = {
+static struct if_txrx mgb_txrx  = {
 	.ift_txd_encap = mgb_isc_txd_encap,
 	.ift_txd_flush = mgb_isc_txd_flush,
 	.ift_txd_credits_update = mgb_isc_txd_credits_update,
@@ -282,7 +282,7 @@ struct if_txrx mgb_txrx  = {
 	.ift_legacy_intr = mgb_legacy_intr
 };
 
-struct if_shared_ctx mgb_sctx_init = {
+static struct if_shared_ctx mgb_sctx_init = {
 	.isc_magic = IFLIB_MAGIC,
 
 	.isc_q_align = PAGE_SIZE,
