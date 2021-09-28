@@ -1387,6 +1387,7 @@ sctp_audit_stream_queues_for_size(struct sctp_inpcb *inp, struct sctp_tcb *stcb)
 		SCTP_PRINTF("Hmm, stream queue cnt at %d I counted %d in stream out wheel\n",
 		    stcb->asoc.stream_queue_cnt, chks_in_queue);
 	}
+	SCTP_TCB_SEND_UNLOCK(stcb);
 	if (chks_in_queue) {
 		/* call the output queue function */
 		sctp_chunk_output(inp, stcb, SCTP_OUTPUT_FROM_T3, SCTP_SO_NOT_LOCKED);
@@ -1406,7 +1407,6 @@ sctp_audit_stream_queues_for_size(struct sctp_inpcb *inp, struct sctp_tcb *stcb)
 		    (u_long)stcb->asoc.total_output_queue_size);
 		stcb->asoc.total_output_queue_size = 0;
 	}
-	SCTP_TCB_SEND_UNLOCK(stcb);
 }
 
 int
