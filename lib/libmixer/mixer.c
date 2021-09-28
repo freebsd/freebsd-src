@@ -77,13 +77,13 @@ mixer_open(const char *name)
 	if (name != NULL) {
 		/* `name` does not start with "/dev/mixer". */
 		if (strncmp(name, BASEPATH, strlen(BASEPATH)) != 0) {
-			errno = EINVAL;
-			goto fail;
+			m->unit = -1;
+		} else {
+			/* `name` is "/dev/mixer" so, we'll use the default unit. */
+			if (strncmp(name, BASEPATH, strlen(name)) == 0)
+				goto dunit;
+			m->unit = strtol(name + strlen(BASEPATH), NULL, 10);
 		}
-		/* `name` is "/dev/mixer" so, we'll use the default unit. */
-		if (strncmp(name, BASEPATH, strlen(name)) == 0)
-			goto dunit;
-		m->unit = strtol(name + strlen(BASEPATH), NULL, 10);
 		(void)strlcpy(m->name, name, sizeof(m->name));
 	} else {
 dunit:
@@ -101,9 +101,13 @@ dunit:
 	/* The unit number _must_ be set before the ioctl. */
 	m->mi.dev = m->unit;
 	m->ci.card = m->unit;
-	if (ioctl(m->fd, SNDCTL_MIXERINFO, &m->mi) < 0 ||
-	    ioctl(m->fd, SNDCTL_CARDINFO, &m->ci) < 0 ||
-	    ioctl(m->fd, SOUND_MIXER_READ_DEVMASK, &m->devmask) < 0 ||
+	if (ioctl(m->fd, SNDCTL_MIXERINFO, &m->mi) < 0) {
+		memset(&m->mi, 0, sizeof(m->mi));
+		strlcpy(m->mi.name, m->name, sizeof(m->mi.name));
+	}
+	if (ioctl(m->fd, SNDCTL_CARDINFO, &m->ci) < 0)
+		memset(&m->ci, 0, sizeof(m->ci));
+	if (ioctl(m->fd, SOUND_MIXER_READ_DEVMASK, &m->devmask) < 0 ||
 	    ioctl(m->fd, SOUND_MIXER_READ_MUTE, &m->mutemask) < 0 ||
 	    ioctl(m->fd, SOUND_MIXER_READ_RECMASK, &m->recmask) < 0 ||
 	    ioctl(m->fd, SOUND_MIXER_READ_RECSRC, &m->recsrc) < 0)
@@ -463,7 +467,7 @@ mixer_get_mode(int unit)
 	(void)snprintf(buf, sizeof(buf), "dev.pcm.%d.mode", unit);
 	size = sizeof(unsigned int);
 	if (sysctlbyname(buf, &mode, &size, NULL, 0) < 0)
-		return (-1);
+		return (0);
 
 	return (mode);
 }
