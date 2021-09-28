@@ -677,7 +677,8 @@ main(int argc, char *argv[])
 			break;
 		case 'N':
 			NoBind = 1;
-			SecureMode = 1;
+			if (!SecureMode)
+				SecureMode = 1;
 			break;
 		case 'n':
 			resolve = 0;
