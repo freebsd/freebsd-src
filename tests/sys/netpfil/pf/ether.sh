@@ -280,10 +280,55 @@ captive_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "dummynet" "cleanup"
+dummynet_head()
+{
+	atf_set descr 'Test dummynet for L2 traffic'
+	atf_set require.user root
+}
+
+dummynet_body()
+{
+	pft_init
+
+	if ! kldstat -q -m dummynet; then
+		atf_skip "This test requires dummynet"
+	fi
+
+	epair=$(vnet_mkepair)
+	vnet_mkjail alcatraz ${epair}b
+
+	ifconfig ${epair}a 192.0.2.1/24 up
+	jexec alcatraz ifconfig ${epair}b 192.0.2.2/24 up
+
+	# Sanity check
+	atf_check -s exit:0 -o ignore ping -i .1 -c 3 -s 1200 192.0.2.2
+
+	jexec alcatraz dnctl pipe 1 config bw 30Byte/s
+	jexec alcatraz pfctl -e
+	pft_set_rules alcatraz \
+		"ether pass in dnpipe 1"
+
+	# single ping succeeds just fine
+	atf_check -s exit:0 -o ignore ping -c 1 192.0.2.2
+
+	# Saturate the link
+	ping -i .1 -c 5 -s 1200 192.0.2.2
+
+	# We should now be hitting the limits and get this packet dropped.
+	atf_check -s exit:2 -o ignore ping -c 1 -s 1200 192.0.2.2
+}
+
+dummynet_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "mac"
 	atf_add_test_case "proto"
 	atf_add_test_case "direction"
 	atf_add_test_case "captive"
+	atf_add_test_case "dummynet"
 }
