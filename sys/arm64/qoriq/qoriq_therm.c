@@ -190,7 +190,6 @@ qoriq_therm_init_sysctl(struct qoriq_therm_softc *sc)
 	int i;
 	struct sysctl_oid *oid, *tmp;
 
-	sysctl_ctx_init(&qoriq_therm_sysctl_ctx);
 	/* create node for hw.temp */
 	oid = SYSCTL_ADD_NODE(&qoriq_therm_sysctl_ctx,
 	    SYSCTL_STATIC_CHILDREN(_hw), OID_AUTO, "temperature",
@@ -268,6 +267,8 @@ qoriq_therm_attach(device_t dev)
 	sc->dev = dev;
 	node = ofw_bus_get_node(sc->dev);
 	sc->little_endian = OF_hasprop(node, "little-endian");
+
+	sysctl_ctx_init(&qoriq_therm_sysctl_ctx);
 
 	rid = 0;
 	sc->mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
