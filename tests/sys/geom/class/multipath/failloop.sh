@@ -60,12 +60,12 @@ failloop_body()
 		-i 'geom:multipath:config:restore {@restore = count()}' \
 		-c "dd if=/dev/zero of=/dev/multipath/"$name" bs=4096 count=1" \
 		2>&1 | awk '/exited with status/ {print $NF}'`
-	# The dd command should've failed ...
-	atf_check_equal 1 $dd_status
-	# and triggered 1 or 2 path restores
 	if [ ! -f restore_count ]; then
 		atf_fail "dtrace didn't execute successfully"
 	fi
+	# The dd command should've failed ...
+	atf_check_equal 1 $dd_status
+	# and triggered 1 or 2 path restores
 	if [ `cat restore_count` -gt 2 ]; then
 		atf_fail "gmultipath restored paths too many times"
 	fi
