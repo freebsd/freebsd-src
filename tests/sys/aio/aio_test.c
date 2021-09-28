@@ -1813,6 +1813,9 @@ ATF_TC_BODY(vectored_unaligned, tc)
 	ssize_t len, total_len;
 	int fd;
 
+	if (atf_tc_get_config_var_as_bool_wd(tc, "ci", false))
+		atf_tc_skip("https://bugs.freebsd.org/258766");
+
 	ATF_REQUIRE_KERNEL_MODULE("aio");
 	ATF_REQUIRE_UNSAFE_AIO();
 
@@ -1902,6 +1905,8 @@ ATF_TC_HEAD(vectored_zvol_poll, tc)
 }
 ATF_TC_BODY(vectored_zvol_poll, tc)
 {
+	if (atf_tc_get_config_var_as_bool_wd(tc, "ci", false))
+		atf_tc_skip("https://bugs.freebsd.org/258766");
 	aio_zvol_test(poll, NULL, true);
 }
 ATF_TC_CLEANUP(vectored_zvol_poll, tc)
