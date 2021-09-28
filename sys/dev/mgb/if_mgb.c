@@ -615,7 +615,10 @@ mgb_init(if_ctx_t ctx)
 	    MGB_RFE_ALLOW_UNICAST);
 
 	error = mii_mediachg(miid);
-	KASSERT(!error, ("mii_mediachg returned: %d", error));
+	/* Not much we can do if this fails. */
+	if (error)
+		device_printf(sc->dev, "%s: mii_mediachg returned %d", __func__,
+		    error);
 }
 
 #ifdef DEBUG
