@@ -15,6 +15,9 @@ device		uart_imx		# iMX8 UART
 # MMC/SD/SDIO Card slot support
 device		sdhci
 
+# Ethernet
+device		ffec
+
 options 	FDT
 
 # DTBs
