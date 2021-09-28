@@ -237,10 +237,13 @@ static int
 feed_volume_feed(struct pcm_feeder *f, struct pcm_channel *c, uint8_t *b,
     uint32_t count, void *source)
 {
+	int temp_vol[SND_CHN_T_VOL_MAX];
 	struct feed_volume_info *info;
 	uint32_t j, align;
-	int i, *vol, *matrix;
+	int i, *matrix;
 	uint8_t *dst;
+	const int16_t *vol;
+	const int8_t *muted;
 
 	/*
 	 * Fetch filter data operation.
@@ -251,6 +254,7 @@ feed_volume_feed(struct pcm_feeder *f, struct pcm_channel *c, uint8_t *b,
 		return (FEEDER_FEED(f->source, c, b, count, source));
 
 	vol = c->volume[SND_VOL_C_VAL(info->volume_class)];
+	muted = c->muted[SND_VOL_C_VAL(info->volume_class)];
 	matrix = info->matrix;
 
 	/*
@@ -258,16 +262,21 @@ feed_volume_feed(struct pcm_feeder *f, struct pcm_channel *c, uint8_t *b,
 	 */
 	j = 0;
 	i = info->channels;
-	do {
-		if (vol[matrix[--i]] != SND_VOL_FLAT) {
+	while (i--) {
+		if (vol[matrix[i]] != SND_VOL_FLAT ||
+		    muted[matrix[i]] != 0) {
 			j = 1;
 			break;
 		}
-	} while (i != 0);
+	}
 
 	/* Nope, just bypass entirely. */
 	if (j == 0)
 		return (FEEDER_FEED(f->source, c, b, count, source));
+
+	/* Check if any controls are muted. */
+	for (j = 0; j != SND_CHN_T_VOL_MAX; j++)
+		temp_vol[j] = muted[j] ? 0 : vol[j];
 
 	dst = b;
 	align = info->bps * info->channels;
@@ -281,7 +290,7 @@ feed_volume_feed(struct pcm_feeder *f, struct pcm_channel *c, uint8_t *b,
 		if (j == 0)
 			break;
 
-		info->apply(vol, matrix, info->channels, dst, j);
+		info->apply(temp_vol, matrix, info->channels, dst, j);
 
 		j *= align;
 		dst += j;

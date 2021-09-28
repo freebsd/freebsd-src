@@ -166,7 +166,8 @@ struct pcm_channel {
 	struct pcmchan_matrix matrix;
   	struct pcmchan_matrix matrix_scratch;
 
-	int volume[SND_VOL_C_MAX][SND_CHN_T_VOL_MAX];
+	int16_t volume[SND_VOL_C_MAX][SND_CHN_T_VOL_MAX];
+  	int8_t muted[SND_VOL_C_MAX][SND_CHN_T_VOL_MAX];
 
 	void *data1, *data2;
 };
@@ -271,6 +272,9 @@ int chn_setvolume_multi(struct pcm_channel *c, int vc, int left, int right,
     int center);
 int chn_setvolume_matrix(struct pcm_channel *c, int vc, int vt, int val);
 int chn_getvolume_matrix(struct pcm_channel *c, int vc, int vt);
+int chn_setmute_multi(struct pcm_channel *c, int vc, int mute);
+int chn_setmute_matrix(struct pcm_channel *c, int vc, int vt, int mute);
+int chn_getmute_matrix(struct pcm_channel *c, int vc, int vt);
 void chn_vpc_reset(struct pcm_channel *c, int vc, int force);
 int chn_setparam(struct pcm_channel *c, uint32_t format, uint32_t speed);
 int chn_setspeed(struct pcm_channel *c, uint32_t speed);
@@ -306,6 +310,8 @@ int chn_syncdestroy(struct pcm_channel *c);
 #else
 #define CHN_GETVOLUME(x, y, z)		((x)->volume[y][z])
 #endif
+
+#define CHN_GETMUTE(x, y, z)		((x)->muted[y][z])
 
 #ifdef OSSV4_EXPERIMENT
 int chn_getpeaks(struct pcm_channel *c, int *lpeak, int *rpeak);
