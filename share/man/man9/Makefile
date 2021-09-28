@@ -16,7 +16,6 @@ MAN=	accept_filter.9 \
 	bhnd_erom.9 \
 	bios.9 \
 	bitset.9 \
-	boot.9 \
 	bpf.9 \
 	buf.9 \
 	buf_ring.9 \
@@ -178,6 +177,7 @@ MAN=	accept_filter.9 \
 	intro.9 \
 	ithread.9 \
 	KASSERT.9 \
+	kern_reboot.9 \
 	kern_testfrwk.9 \
 	kernacc.9 \
 	kernel_mount.9 \
