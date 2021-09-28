@@ -304,6 +304,7 @@ MAN=	aac.4 \
 	mem.4 \
 	meteor.4 \
 	mfi.4 \
+	${_mgb.4} \
 	miibus.4 \
 	mld.4 \
 	mlx.4 \
@@ -836,6 +837,7 @@ _ipmi.4=	ipmi.4
 _io.4=		io.4
 _itwd.4=	itwd.4
 _linux.4=	linux.4
+_mgb.4=		mgb.4
 _nda.4=		nda.4
 _ndis.4=	ndis.4
 _nfe.4=		nfe.4
