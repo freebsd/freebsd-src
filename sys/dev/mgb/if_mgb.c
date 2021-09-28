@@ -397,8 +397,7 @@ mgb_attach_pre(if_ctx_t ctx)
 		goto fail;
 	}
 
-	switch (pci_get_device(sc->dev))
-	{
+	switch (pci_get_device(sc->dev)) {
 	case MGB_LAN7430_DEVICE_ID:
 		phyaddr = 1;
 		break;
@@ -556,7 +555,7 @@ mgb_tx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs, uint64_t *paddrs, int ntxqs,
 		rdata->head_wb = (uint32_t *) vaddrs[q * ntxqs + 1];
 		rdata->head_wb_bus_addr = paddrs[q * ntxqs + 1];
 	}
-	return 0;
+	return (0);
 }
 
 static int
@@ -580,7 +579,7 @@ mgb_rx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs, uint64_t *paddrs, int nrxqs,
 		rdata->head_wb = (uint32_t *) vaddrs[q * nrxqs + 1];
 		rdata->head_wb_bus_addr = paddrs[q * nrxqs + 1];
 	}
-	return 0;
+	return (0);
 }
 
 static void
@@ -787,19 +786,16 @@ mgb_admin_intr(void *xsc)
 	 */
 
 	/* TODO: shouldn't continue if suspended */
-	if ((intr_sts & MGB_INTR_STS_ANY) == 0)
-	{
+	if ((intr_sts & MGB_INTR_STS_ANY) == 0) {
 		device_printf(sc->dev, "non-mgb interrupt triggered.\n");
 		return (FILTER_SCHEDULE_THREAD);
 	}
-	if ((intr_sts &  MGB_INTR_STS_TEST) != 0)
-	{
+	if ((intr_sts &  MGB_INTR_STS_TEST) != 0) {
 		sc->isr_test_flag = true;
 		CSR_WRITE_REG(sc, MGB_INTR_STS, MGB_INTR_STS_TEST);
 		return (FILTER_HANDLED);
 	}
-	if ((intr_sts & MGB_INTR_STS_RX_ANY) != 0)
-	{
+	if ((intr_sts & MGB_INTR_STS_RX_ANY) != 0) {
 		for (qidx = 0; qidx < scctx->isc_nrxqsets; qidx++) {
 			if ((intr_sts & MGB_INTR_STS_RX(qidx))){
 				iflib_rx_intr_deferred(sc->ctx, qidx);
@@ -808,8 +804,7 @@ mgb_admin_intr(void *xsc)
 		return (FILTER_HANDLED);
 	}
 	/* XXX: TX interrupts should not occur */
-	if ((intr_sts & MGB_INTR_STS_TX_ANY) != 0)
-	{
+	if ((intr_sts & MGB_INTR_STS_TX_ANY) != 0) {
 		for (qidx = 0; qidx < scctx->isc_ntxqsets; qidx++) {
 			if ((intr_sts & MGB_INTR_STS_RX(qidx))) {
 				/* clear the interrupt sts and run handler */
@@ -960,7 +955,7 @@ mgb_intr_test(struct mgb_softc *sc)
 	    MGB_INTR_STS_ANY | MGB_INTR_STS_TEST);
 	CSR_WRITE_REG(sc, MGB_INTR_SET, MGB_INTR_STS_TEST);
 	if (sc->isr_test_flag)
-		return true;
+		return (true);
 	for (i = 0; i < MGB_TIMEOUT; i++) {
 		DELAY(10);
 		if (sc->isr_test_flag)
@@ -968,7 +963,7 @@ mgb_intr_test(struct mgb_softc *sc)
 	}
 	CSR_WRITE_REG(sc, MGB_INTR_ENBL_CLR, MGB_INTR_STS_TEST);
 	CSR_WRITE_REG(sc, MGB_INTR_STS, MGB_INTR_STS_TEST);
-	return sc->isr_test_flag;
+	return (sc->isr_test_flag);
 }
 
 static int
@@ -1055,7 +1050,7 @@ mgb_isc_txd_credits_update(void *xsc, uint16_t txqid, bool clear)
 
 	while (*(rdata->head_wb) != rdata->last_head) {
 		if (!clear)
-			return 1;
+			return (1);
 
 		txd = &rdata->ring[rdata->last_head];
 		memset(txd, 0, sizeof(struct mgb_ring_desc));
@@ -1080,8 +1075,7 @@ mgb_isc_rxd_available(void *xsc, uint16_t rxqid, qidx_t idx, qidx_t budget)
 
 	rdata = &sc->rx_ring_data;
 	scctx = iflib_get_softc_ctx(sc->ctx);
-	for (; idx != *(rdata->head_wb);
-	    idx = MGB_NEXT_RING_IDX(idx)) {
+	for (; idx != *(rdata->head_wb); idx = MGB_NEXT_RING_IDX(idx)) {
 		avail++;
 		/* XXX: Could verify desc is device owned here */
 		if (avail == budget)
@@ -1116,21 +1110,21 @@ mgb_isc_rxd_pkt_get(void *xsc, if_rxd_info_t ri)
 			device_printf(sc->dev,
 			    "Tried to read descriptor ... "
 			    "found that it's owned by the driver\n");
-			return EINVAL;
+			return (EINVAL);
 		}
 		if ((rxd.ctl & MGB_RX_DESC_CTL_FS) == 0) {
 			device_printf(sc->dev,
 			    "Tried to read descriptor ... "
 			    "found that FS is not set.\n");
 			device_printf(sc->dev, "Tried to read descriptor ... that it FS is not set.\n");
-			return EINVAL;
+			return (EINVAL);
 		}
 		/* XXX: Multi-packet support */
 		if ((rxd.ctl & MGB_RX_DESC_CTL_LS) == 0) {
 			device_printf(sc->dev,
 			    "Tried to read descriptor ... "
 			    "found that LS is not set. (Multi-buffer packets not yet supported)\n");
-			return EINVAL;
+			return (EINVAL);
 		}
 		ri->iri_frags[0].irf_flid = 0;
 		ri->iri_frags[0].irf_idx = rdata->last_head;
@@ -1212,10 +1206,10 @@ mgb_test_bar(struct mgb_softc *sc)
 	rev = id_rev & 0xFFFF;
 	if (dev_id == MGB_LAN7430_DEVICE_ID ||
 	    dev_id == MGB_LAN7431_DEVICE_ID) {
-		return 0;
+		return (0);
 	} else {
 		device_printf(sc->dev, "ID check failed.\n");
-		return ENXIO;
+		return (ENXIO);
 	}
 }
 
@@ -1229,7 +1223,7 @@ mgb_alloc_regs(struct mgb_softc *sc)
 	sc->regs = bus_alloc_resource_any(sc->dev, SYS_RES_MEMORY,
 	    &rid, RF_ACTIVE);
 	if (sc->regs == NULL)
-		 return ENXIO;
+		 return (ENXIO);
 
 	return (0);
 }
@@ -1244,7 +1238,7 @@ mgb_release_regs(struct mgb_softc *sc)
 		    rman_get_rid(sc->regs), sc->regs);
 	sc->regs = NULL;
 	pci_disable_busmaster(sc->dev);
-	return error;
+	return (error);
 }
 
 static int
@@ -1264,7 +1258,7 @@ mgb_dma_init(struct mgb_softc *sc)
 			goto fail;
 
 fail:
-	return error;
+	return (error);
 }
 
 static int
@@ -1394,7 +1388,7 @@ mgb_dma_tx_ring_init(struct mgb_softc *sc, int channel)
 	    DMAC_START)))
 		device_printf(sc->dev, "Failed to start TX DMAC.\n");
 fail:
-	return error;
+	return (error);
 }
 
 static int
@@ -1418,7 +1412,7 @@ mgb_dmac_control(struct mgb_softc *sc, int start, int channel,
 		 */
 		error = mgb_dmac_control(sc, start, channel, DMAC_STOP);
 		if (error != 0)
-			return error;
+			return (error);
 		CSR_WRITE_REG(sc, MGB_DMAC_CMD,
 		    MGB_DMAC_CMD_START(start, channel));
 		break;
@@ -1431,7 +1425,7 @@ mgb_dmac_control(struct mgb_softc *sc, int start, int channel,
 		    MGB_DMAC_CMD_START(start, channel));
 		break;
 	}
-	return error;
+	return (error);
 }
 
 static int
@@ -1442,13 +1436,13 @@ mgb_fct_control(struct mgb_softc *sc, int reg, int channel,
 	switch (cmd) {
 	case FCT_RESET:
 		CSR_WRITE_REG(sc, reg, MGB_FCT_RESET(channel));
-		return mgb_wait_for_bits(sc, reg, 0, MGB_FCT_RESET(channel));
+		return (mgb_wait_for_bits(sc, reg, 0, MGB_FCT_RESET(channel)));
 	case FCT_ENABLE:
 		CSR_WRITE_REG(sc, reg, MGB_FCT_ENBL(channel));
 		return (0);
 	case FCT_DISABLE:
 		CSR_WRITE_REG(sc, reg, MGB_FCT_DSBL(channel));
-		return mgb_wait_for_bits(sc, reg, 0, MGB_FCT_ENBL(channel));
+		return (mgb_wait_for_bits(sc, reg, 0, MGB_FCT_ENBL(channel)));
 	}
 }
 
@@ -1487,7 +1481,7 @@ mgb_hw_init(struct mgb_softc *sc)
 		goto fail;
 
 fail:
-	return error;
+	return (error);
 }
 
 static int
@@ -1510,7 +1504,7 @@ mgb_mac_init(struct mgb_softc *sc)
 	CSR_UPDATE_REG(sc, MGB_MAC_TX, MGB_MAC_ENBL);
 	CSR_UPDATE_REG(sc, MGB_MAC_RX, MGB_MAC_ENBL);
 
-	return MGB_STS_OK;
+	return (MGB_STS_OK);
 }
 
 static int
@@ -1520,7 +1514,7 @@ mgb_phy_reset(struct mgb_softc *sc)
 	CSR_UPDATE_BYTE(sc, MGB_PMT_CTL, MGB_PHY_RESET);
 	if (mgb_wait_for_bits(sc, MGB_PMT_CTL, 0, MGB_PHY_RESET) ==
 	    MGB_STS_TIMEOUT)
-		return MGB_STS_TIMEOUT;
+		return (MGB_STS_TIMEOUT);
 	return (mgb_wait_for_bits(sc, MGB_PMT_CTL, MGB_PHY_READY, 0));
 }
 
@@ -1545,12 +1539,11 @@ mgb_wait_for_bits(struct mgb_softc *sc, int reg, int set_bits, int clear_bits)
 		 */
 		DELAY(100);
 		val = CSR_READ_REG(sc, reg);
-		if ((val & set_bits) == set_bits &&
-		    (val & clear_bits) == 0)
-			return MGB_STS_OK;
+		if ((val & set_bits) == set_bits && (val & clear_bits) == 0)
+			return (MGB_STS_OK);
 	} while (i++ < MGB_TIMEOUT);
 
-	return MGB_STS_TIMEOUT;
+	return (MGB_STS_TIMEOUT);
 }
 
 static void
@@ -1571,14 +1564,14 @@ mgb_miibus_readreg(device_t dev, int phy, int reg)
 
 	if (mgb_wait_for_bits(sc, MGB_MII_ACCESS, 0, MGB_MII_BUSY) ==
 	    MGB_STS_TIMEOUT)
-		return EIO;
+		return (EIO);
 	mii_access = (phy & MGB_MII_PHY_ADDR_MASK) << MGB_MII_PHY_ADDR_SHIFT;
 	mii_access |= (reg & MGB_MII_REG_ADDR_MASK) << MGB_MII_REG_ADDR_SHIFT;
 	mii_access |= MGB_MII_BUSY | MGB_MII_READ;
 	CSR_WRITE_REG(sc, MGB_MII_ACCESS, mii_access);
 	if (mgb_wait_for_bits(sc, MGB_MII_ACCESS, 0, MGB_MII_BUSY) ==
 	    MGB_STS_TIMEOUT)
-		return EIO;
+		return (EIO);
 	return (CSR_READ_2_BYTES(sc, MGB_MII_DATA));
 }
 
@@ -1590,9 +1583,9 @@ mgb_miibus_writereg(device_t dev, int phy, int reg, int data)
 
 	sc = iflib_get_softc(device_get_softc(dev));
 
-	if (mgb_wait_for_bits(sc, MGB_MII_ACCESS,
-	    0, MGB_MII_BUSY) == MGB_STS_TIMEOUT)
-		return EIO;
+	if (mgb_wait_for_bits(sc, MGB_MII_ACCESS, 0, MGB_MII_BUSY) ==
+	    MGB_STS_TIMEOUT)
+		return (EIO);
 	mii_access = (phy & MGB_MII_PHY_ADDR_MASK) << MGB_MII_PHY_ADDR_SHIFT;
 	mii_access |= (reg & MGB_MII_REG_ADDR_MASK) << MGB_MII_REG_ADDR_SHIFT;
 	mii_access |= MGB_MII_BUSY | MGB_MII_WRITE;
@@ -1600,8 +1593,8 @@ mgb_miibus_writereg(device_t dev, int phy, int reg, int data)
 	CSR_WRITE_REG(sc, MGB_MII_ACCESS, mii_access);
 	if (mgb_wait_for_bits(sc, MGB_MII_ACCESS, 0, MGB_MII_BUSY) ==
 	    MGB_STS_TIMEOUT)
-		return EIO;
-	return 0;
+		return (EIO);
+	return (0);
 }
 
 /* XXX: May need to lock these up */
