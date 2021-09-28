@@ -64,7 +64,7 @@ failloop_body()
 	atf_check_equal 1 $dd_status
 	# and triggered 1 or 2 path restores
 	if [ ! -f restore_count ]; then
-		atf_fail "dtrace didn't execute succfully"
+		atf_fail "dtrace didn't execute successfully"
 	fi
 	if [ `cat restore_count` -gt 2 ]; then
 		atf_fail "gmultipath restored paths too many times"
