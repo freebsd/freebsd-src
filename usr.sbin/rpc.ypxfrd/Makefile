@@ -2,6 +2,7 @@
 
 .PATH: ${SRCTOP}/usr.sbin/ypserv
 
+PACKAGE=yp
 PROG=	rpc.ypxfrd
 MAN=	rpc.ypxfrd.8
 SRCS=	ypxfrd_svc.c ypxfrd.h ypxfrd_server.c yp_error.c \

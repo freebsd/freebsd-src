@@ -2,6 +2,7 @@
 
 .PATH: ${SRCTOP}/libexec/ypxfr ${SRCTOP}/usr.sbin/ypserv
 
+PACKAGE=	yp
 PROG=	yp_mkdb
 MAN=	yp_mkdb.8
 SRCS=	yp_mkdb.c yp_dblookup.c yp_dbwrite.c

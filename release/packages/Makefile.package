@@ -118,3 +118,5 @@ vt_COMMENT=		VT fonts and keyboard files
 vt_DESC=		VT fonts and keyboard files
 wpa_COMMENT=		802.11 Supplicant
 wpa_DESC=		802.11 Supplicant
+yp_COMMENT=		Yellow Pages programs
+yp_DESC=		Yellow Pages programs

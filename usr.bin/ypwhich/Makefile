@@ -4,6 +4,7 @@
 YPSERV=${SRCTOP}/usr.sbin/ypserv/common
 .PATH: ${YPSERV}
 
+PACKAGE=	yp
 PROG=	ypwhich
 SRCS=	yplib_host.c ypwhich.c
 
