@@ -421,7 +421,8 @@ doadump(boolean_t textdump)
 }
 
 /*
- * Shutdown the system cleanly to prepare for reboot, halt, or power off.
+ * kern_reboot(9): Shut down the system cleanly to prepare for reboot, halt, or
+ * power off.
  */
 void
 kern_reboot(int howto)
@@ -450,7 +451,7 @@ kern_reboot(int howto)
 		sched_bind(curthread, CPU_FIRST());
 		thread_unlock(curthread);
 		KASSERT(PCPU_GET(cpuid) == CPU_FIRST(),
-		    ("boot: not running on cpu 0"));
+		    ("%s: not running on cpu 0", __func__));
 	}
 #endif
 	/* We're in the process of rebooting. */
