@@ -3521,15 +3521,12 @@ ipf_nat_hashtab_add(softc, softn, nat)
 	u_int hv0;
 	u_int hv1;
 
-	hv0 = nat->nat_hv[0] % softn->ipf_nat_table_sz;
-	hv1 = nat->nat_hv[1] % softn->ipf_nat_table_sz;
-
 	if (nat->nat_dir == NAT_INBOUND || nat->nat_dir == NAT_DIVERTIN) {
-		u_int swap;
-
-		swap = hv0;
-		hv0 = hv1;
-		hv1 = swap;
+		hv1 = nat->nat_hv[0] % softn->ipf_nat_table_sz;
+		hv0 = nat->nat_hv[1] % softn->ipf_nat_table_sz;
+	} else {
+		hv0 = nat->nat_hv[0] % softn->ipf_nat_table_sz;
+		hv1 = nat->nat_hv[1] % softn->ipf_nat_table_sz;
 	}
 
 	if (softn->ipf_nat_stats.ns_side[0].ns_bucketlen[hv0] >=
