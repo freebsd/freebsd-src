@@ -38,7 +38,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/bio.h>
 #include <sys/sysctl.h>
-#include <sys/malloc.h>
 #include <sys/kthread.h>
 #include <sys/proc.h>
 #include <sys/sched.h>
@@ -103,8 +102,6 @@ __FBSDID("$FreeBSD$");
  * BIO_WRITE:
  *	g_eli_start -> g_eli_auth_run -> g_eli_auth_write_done -> g_io_request -> g_eli_write_done -> g_io_deliver
  */
-
-MALLOC_DECLARE(M_ELI);
 
 /*
  * Here we generate key for HMAC. Every sector has its own HMAC key, so it is
@@ -268,8 +265,7 @@ g_eli_auth_read_done(struct cryptop *crp)
 			    sc->sc_name, (intmax_t)corsize, (intmax_t)coroff);
 		}
 	}
-	free(bp->bio_driver2, M_ELI);
-	bp->bio_driver2 = NULL;
+	g_eli_free_data(bp);
 	if (bp->bio_error != 0) {
 		if (bp->bio_error != EINTEGRITY) {
 			G_ELI_LOGREQ(0, bp,
@@ -326,8 +322,7 @@ g_eli_auth_write_done(struct cryptop *crp)
 	if (bp->bio_error != 0) {
 		G_ELI_LOGREQ(0, bp, "Crypto WRITE request failed (error=%d).",
 		    bp->bio_error);
-		free(bp->bio_driver2, M_ELI);
-		bp->bio_driver2 = NULL;
+		g_eli_free_data(bp);
 		cbp = bp->bio_driver1;
 		bp->bio_driver1 = NULL;
 		g_destroy_bio(cbp);
@@ -386,7 +381,7 @@ g_eli_auth_read(struct g_eli_softc *sc, struct bio *bp)
 	size_t size;
 	off_t nsec;
 
-	bp->bio_pflags = 0;
+	G_ELI_SETWORKER(bp->bio_pflags, 0);
 
 	cp = LIST_FIRST(&sc->sc_geom->consumer);
 	cbp = bp->bio_driver1;
@@ -404,7 +399,14 @@ g_eli_auth_read(struct g_eli_softc *sc, struct bio *bp)
 	size += sizeof(int) * nsec;
 	size += G_ELI_AUTH_SECKEYLEN * nsec;
 	cbp->bio_offset = (bp->bio_offset / bp->bio_to->sectorsize) * sc->sc_bytes_per_sector;
-	bp->bio_driver2 = malloc(size, M_ELI, M_WAITOK);
+	if (!g_eli_alloc_data(bp, size)) {
+		G_ELI_LOGREQ(0, bp, "Crypto auth read request failed (ENOMEM)");
+		g_destroy_bio(cbp);
+		bp->bio_error = ENOMEM;
+		g_io_deliver(bp, bp->bio_error);
+		atomic_subtract_int(&sc->sc_inflight, 1);
+		return;
+	}
 	cbp->bio_data = bp->bio_driver2;
 
 	/* Clear the error array. */
@@ -459,7 +461,7 @@ g_eli_auth_run(struct g_eli_worker *wr, struct bio *bp)
 
 	G_ELI_LOGREQ(3, bp, "%s", __func__);
 
-	bp->bio_pflags = wr->w_number;
+	G_ELI_SETWORKER(bp->bio_pflags, wr->w_number);
 	sc = wr->w_softc;
 	/* Sectorsize of decrypted provider eg. 4096. */
 	decr_secsize = bp->bio_to->sectorsize;
@@ -487,8 +489,19 @@ g_eli_auth_run(struct g_eli_worker *wr, struct bio *bp)
 		size = encr_secsize * nsec;
 		size += G_ELI_AUTH_SECKEYLEN * nsec;
 		size += sizeof(uintptr_t);	/* Space for alignment. */
-		data = malloc(size, M_ELI, M_WAITOK);
-		bp->bio_driver2 = data;
+		if (!g_eli_alloc_data(bp, size)) {
+			G_ELI_LOGREQ(0, bp, "Crypto request failed (ENOMEM)");
+			if (bp->bio_driver1 != NULL) {
+				g_destroy_bio(bp->bio_driver1);
+				bp->bio_driver1 = NULL;
+			}
+			bp->bio_error = ENOMEM;
+			g_io_deliver(bp, bp->bio_error);
+			if (sc != NULL)
+				atomic_subtract_int(&sc->sc_inflight, 1);
+			return;
+		}
+		data = bp->bio_driver2;
 		p = data + encr_secsize * nsec;
 	}
 	bp->bio_inbed = 0;
