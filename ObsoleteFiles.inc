@@ -36,6 +36,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20210923: rename boot(9) to kern_reboot(9)
+OLD_FILES+=usr/share/man/man9/boot.9.gz
+
 # 20210810: remove Pentium-related man pages and references
 OLD_FILES+=usr/share/man/man3/pmc.p4.3.gz
 OLD_FILES+=usr/share/man/man3/pmc.p5.3.gz
