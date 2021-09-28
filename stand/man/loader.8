@@ -644,7 +644,8 @@ Throttles the output of the
 I/O progress indicator displayed while loading the kernel and modules.
 This is useful on slow serial consoles where the time spent waiting for
 these characters to be written can add up to many seconds.
-The default is 1 (full speed); a value of 2 spins half as fast, and so on.
+The default is 16; a value of 32 spins half as fast,
+while a value of 8 spins twice as fast.
 .It Va vm.kmem_size
 Sets the size of kernel memory (bytes).
 This overrides the value determined when the kernel was compiled.
