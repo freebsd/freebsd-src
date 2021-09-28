@@ -2160,19 +2160,24 @@ ipf_nat6_tabmove(softn, nat)
 	/*
 	 * Add into the NAT table in the new position
 	 */
-	hv0 = NAT_HASH_FN6(&nat->nat_osrc6, nat->nat_osport, 0xffffffff);
-	hv0 = NAT_HASH_FN6(&nat->nat_odst6, hv0 + nat->nat_odport,
-			   softn->ipf_nat_table_sz);
-	hv1 = NAT_HASH_FN6(&nat->nat_nsrc6, nat->nat_nsport, 0xffffffff);
-	hv1 = NAT_HASH_FN6(&nat->nat_ndst6, hv1 + nat->nat_ndport,
-			   softn->ipf_nat_table_sz);
-
 	if (nat->nat_dir == NAT_INBOUND || nat->nat_dir == NAT_DIVERTIN) {
-		u_int swap;
-
-		swap = hv0;
-		hv0 = hv1;
-		hv1 = swap;
+		hv1 = NAT_HASH_FN6(&nat->nat_osrc6,
+			nat->nat_osport, 0xffffffff);
+		hv1 = NAT_HASH_FN6(&nat->nat_odst6, hv1 + nat->nat_odport,
+			softn->ipf_nat_table_sz);
+		hv0 = NAT_HASH_FN6(&nat->nat_nsrc6,
+			nat->nat_nsport, 0xffffffff);
+		hv0 = NAT_HASH_FN6(&nat->nat_ndst6, hv0 + nat->nat_ndport,
+			softn->ipf_nat_table_sz);
+	} else {
+		hv0 = NAT_HASH_FN6(&nat->nat_osrc6,
+			nat->nat_osport, 0xffffffff);
+		hv0 = NAT_HASH_FN6(&nat->nat_odst6, hv0 + nat->nat_odport,
+			softn->ipf_nat_table_sz);
+		hv1 = NAT_HASH_FN6(&nat->nat_nsrc6,
+			nat->nat_nsport, 0xffffffff);
+		hv1 = NAT_HASH_FN6(&nat->nat_ndst6, hv1 + nat->nat_ndport,
+			softn->ipf_nat_table_sz);
 	}
 
 	/* TRACE nat_osrc6, nat_osport, nat_odst6, nat_odport, hv0 */
