@@ -101,6 +101,7 @@ struct usb_page_cache {
 					 * from the memory. Else write. */
 	uint8_t	ismultiseg:1;		/* set if we can have multiple
 					 * segments */
+	uint8_t isloaded:1;		/* Set if map is currently loaded. */
 #endif
 };
 
