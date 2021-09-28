@@ -34,21 +34,25 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 14, 1997
-.Dt BOOT 9
+.Dd Sept 23, 2021
+.Dt KERN_REBOOT 9
 .Os
 .Sh NAME
-.Nm boot
+.Nm kern_reboot
 .Nd halt or reboot the system
 .Sh SYNOPSIS
 .In sys/types.h
 .In sys/systm.h
 .In sys/reboot.h
 .Ft void
-.Fn boot "int howto"
+.Fn kern_reboot "int howto"
+.In sys/eventhandler.h
+.Fn EVENTHANDLER_REGISTER "shutdown_pre_sync" "shutdown_fn" "private" "priority"
+.Fn EVENTHANDLER_REGISTER "shutdown_post_sync" "shutdown_fn" "private" "priority"
+.Fn EVENTHANDLER_REGISTER "shutdown_final" "shutdown_fn" "private" "priority"
 .Sh DESCRIPTION
 The
-.Fn boot
+.Fn kern_reboot
 function handles final system shutdown, and either halts or reboots
 the system.
 The exact action to be taken is determined by the flags passed in
@@ -56,12 +60,12 @@ The exact action to be taken is determined by the flags passed in
 and by whether or not the system has finished autoconfiguration.
 .Pp
 If the system has finished autoconfiguration,
-.Fn boot
+.Fn kern_reboot
 does the following:
 .Bl -enum -offset indent
 .It
 If this is the first invocation of
-.Fn boot
+.Fn kern_reboot
 and the
 .Dv RB_NOSYNC
 flag is not set in
@@ -93,8 +97,14 @@ Otherwise, reboots the system.
 .El
 .Pp
 If the system has not finished autoconfiguration,
-.Fn boot
+.Fn kern_reboot
 runs any shutdown hooks previously registered,
 prints a message, and halts the system.
+.Sh RETURN VALUES
+The
+.Fn kern_reboot
+function does not return.
 .Sh SEE ALSO
+.Xr reboot 2
+.Xr EVENTHANDLER 9
 .Xr vfs_unmountall 9

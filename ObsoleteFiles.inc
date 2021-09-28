@@ -40,6 +40,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20210923: rename boot(9) to kern_reboot(9)
+OLD_FILES+=usr/share/man/man9/boot.9.gz
+
 # 20210921: remove cloudabi
 OLD_FILES+=usr/share/man/man4/cloudabi.4.gz
 
