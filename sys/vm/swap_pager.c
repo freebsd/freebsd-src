@@ -2893,6 +2893,7 @@ swapgeom_strategy(struct buf *bp, struct swdevt *sp)
 	bio->bio_offset = (bp->b_blkno - sp->sw_first) * PAGE_SIZE;
 	bio->bio_length = bp->b_bcount;
 	bio->bio_done = swapgeom_done;
+	bio->bio_flags |= BIO_SWAP;
 	if (!buf_mapped(bp)) {
 		bio->bio_ma = bp->b_pages;
 		bio->bio_data = unmapped_buf;
