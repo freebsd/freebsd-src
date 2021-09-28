@@ -123,7 +123,15 @@
 /* Provider uses IV-Key for encryption key generation. */
 #define	G_ELI_FLAG_ENC_IVKEY		0x00400000
 
-#define	G_ELI_NEW_BIO	255
+/* BIO pflag values. */
+#define	G_ELI_WORKER(pflags)	((pflags) & 0xff)
+#define	G_ELI_MAX_WORKERS	255
+#define	G_ELI_NEW_BIO		G_ELI_MAX_WORKERS
+#define	G_ELI_SETWORKER(pflags, w)	\
+    (pflags) = ((pflags) & 0xff00) | ((w) & 0xff)
+#define	G_ELI_SET_NEW_BIO(pflags)	G_ELI_SETWORKER((pflags), G_ELI_NEW_BIO)
+#define	G_ELI_IS_NEW_BIO(pflags)	(G_ELI_WORKER(pflags) == G_ELI_NEW_BIO)
+#define	G_ELI_UMA_ALLOC		0x100	/* bio_driver2 alloc came from UMA */
 
 #define	SHA512_MDLEN		64
 #define	G_ELI_AUTH_SECKEYLEN	SHA256_DIGEST_LENGTH
@@ -691,6 +699,9 @@ void g_eli_config(struct gctl_req *req, struct g_class *mp, const char *verb);
 void g_eli_read_done(struct bio *bp);
 void g_eli_write_done(struct bio *bp);
 int g_eli_crypto_rerun(struct cryptop *crp);
+
+bool g_eli_alloc_data(struct bio *bp, int sz);
+void g_eli_free_data(struct bio *bp);
 
 void g_eli_crypto_read(struct g_eli_softc *sc, struct bio *bp, boolean_t fromworker);
 void g_eli_crypto_run(struct g_eli_worker *wr, struct bio *bp);

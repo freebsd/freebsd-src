@@ -53,6 +53,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/vmparam.h>
 
 #include <vm/uma.h>
+#include <vm/vm.h>
+#include <vm/swap_pager.h>
 
 #include <geom/geom.h>
 #include <geom/geom_dbg.h>
@@ -90,6 +92,48 @@ SYSCTL_UINT(_kern_geom_eli, OID_AUTO, threads, CTLFLAG_RWTUN, &g_eli_threads, 0,
 u_int g_eli_batch = 0;
 SYSCTL_UINT(_kern_geom_eli, OID_AUTO, batch, CTLFLAG_RWTUN, &g_eli_batch, 0,
     "Use crypto operations batching");
+static u_int g_eli_minbufs = 16;
+static int sysctl_g_eli_minbufs(SYSCTL_HANDLER_ARGS);
+SYSCTL_PROC(_kern_geom_eli, OID_AUTO, minbufs, CTLTYPE_UINT | CTLFLAG_RW |
+    CTLFLAG_MPSAFE, NULL, 0, sysctl_g_eli_minbufs, "IU",
+    "Number of GELI bufs reserved for swap transactions");
+static struct sx g_eli_umalock;	/* Controls changes to UMA zone. */
+SX_SYSINIT(g_eli_umalock, &g_eli_umalock, "GELI UMA");
+static uma_zone_t g_eli_uma = NULL;
+static int g_eli_alloc_sz;
+static volatile int g_eli_umaoutstanding;
+static volatile int g_eli_devs;
+static bool g_eli_blocking_malloc = false;
+SYSCTL_BOOL(_kern_geom_eli, OID_AUTO, blocking_malloc, CTLFLAG_RWTUN,
+    &g_eli_blocking_malloc, 0, "Use blocking malloc calls for GELI buffers");
+
+/*
+ * Control the number of reserved entries in the GELI zone.
+ * If the GELI zone has already been allocated, update the zone. Otherwise,
+ * simply update the variable for use the next time the zone is created.
+ */
+static int
+sysctl_g_eli_minbufs(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+	u_int new;
+
+	new = g_eli_minbufs;
+	error = sysctl_handle_int(oidp, &new, 0, req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+	sx_xlock(&g_eli_umalock);
+	if (g_eli_uma != NULL) {
+		if (new != g_eli_minbufs)
+			uma_zone_reserve(g_eli_uma, new);
+		if (new > g_eli_minbufs)
+			uma_prealloc(g_eli_uma, new - g_eli_minbufs);
+	}
+	if (new != g_eli_minbufs)
+		g_eli_minbufs = new;
+	sx_xunlock(&g_eli_umalock);
+	return (0);
+}
 
 /*
  * Passphrase cached during boot, in order to be more user-friendly if
@@ -201,10 +245,11 @@ g_eli_crypto_rerun(struct cryptop *crp)
 	bp = (struct bio *)crp->crp_opaque;
 	sc = bp->bio_to->geom->softc;
 	LIST_FOREACH(wr, &sc->sc_workers, w_next) {
-		if (wr->w_number == bp->bio_pflags)
+		if (wr->w_number == G_ELI_WORKER(bp->bio_pflags))
 			break;
 	}
-	KASSERT(wr != NULL, ("Invalid worker (%u).", bp->bio_pflags));
+	KASSERT(wr != NULL, ("Invalid worker (%u).",
+	    G_ELI_WORKER(bp->bio_pflags)));
 	G_ELI_DEBUG(1, "Rerunning crypto %s request (sid: %p -> %p).",
 	    bp->bio_cmd == BIO_READ ? "READ" : "WRITE", wr->w_sid,
 	    crp->crp_session);
@@ -255,10 +300,7 @@ g_eli_read_done(struct bio *bp)
 		G_ELI_LOGREQ(0, pbp, "%s() failed (error=%d)", __func__,
 		    pbp->bio_error);
 		pbp->bio_completed = 0;
-		if (pbp->bio_driver2 != NULL) {
-			free(pbp->bio_driver2, M_ELI);
-			pbp->bio_driver2 = NULL;
-		}
+		g_eli_free_data(pbp);
 		g_io_deliver(pbp, pbp->bio_error);
 		if (sc != NULL)
 			atomic_subtract_int(&sc->sc_inflight, 1);
@@ -292,8 +334,8 @@ g_eli_write_done(struct bio *bp)
 	pbp->bio_inbed++;
 	if (pbp->bio_inbed < pbp->bio_children)
 		return;
-	free(pbp->bio_driver2, M_ELI);
-	pbp->bio_driver2 = NULL;
+	sc = pbp->bio_to->geom->softc;
+	g_eli_free_data(pbp);
 	if (pbp->bio_error != 0) {
 		G_ELI_LOGREQ(0, pbp, "%s() failed (error=%d)", __func__,
 		    pbp->bio_error);
@@ -304,7 +346,6 @@ g_eli_write_done(struct bio *bp)
 	/*
 	 * Write is finished, send it up.
 	 */
-	sc = pbp->bio_to->geom->softc;
 	g_io_deliver(pbp, pbp->bio_error);
 	if (sc != NULL)
 		atomic_subtract_int(&sc->sc_inflight, 1);
@@ -451,7 +492,8 @@ g_eli_start(struct bio *bp)
 		return;
 	}
 	bp->bio_driver1 = cbp;
-	bp->bio_pflags = G_ELI_NEW_BIO;
+	bp->bio_pflags = 0;
+	G_ELI_SET_NEW_BIO(bp->bio_pflags);
 	switch (bp->bio_cmd) {
 	case BIO_READ:
 		if (!(sc->sc_flags & G_ELI_FLAG_AUTH)) {
@@ -576,7 +618,7 @@ g_eli_cancel(struct g_eli_softc *sc)
 	mtx_assert(&sc->sc_queue_mtx, MA_OWNED);
 
 	while ((bp = bioq_takefirst(&sc->sc_queue)) != NULL) {
-		KASSERT(bp->bio_pflags == G_ELI_NEW_BIO,
+		KASSERT(G_ELI_IS_NEW_BIO(bp->bio_pflags),
 		    ("Not new bio when canceling (bp=%p).", bp));
 		g_io_deliver(bp, ENXIO);
 	}
@@ -595,7 +637,7 @@ g_eli_takefirst(struct g_eli_softc *sc)
 	 * Device suspended, so we skip new I/O requests.
 	 */
 	TAILQ_FOREACH(bp, &sc->sc_queue.queue, bio_queue) {
-		if (bp->bio_pflags != G_ELI_NEW_BIO)
+		if (!G_ELI_IS_NEW_BIO(bp->bio_pflags))
 			break;
 	}
 	if (bp != NULL)
@@ -688,11 +730,11 @@ again:
 			msleep(sc, &sc->sc_queue_mtx, PDROP, "geli:w", 0);
 			continue;
 		}
-		if (bp->bio_pflags == G_ELI_NEW_BIO)
+		if (G_ELI_IS_NEW_BIO(bp->bio_pflags))
 			atomic_add_int(&sc->sc_inflight, 1);
 		mtx_unlock(&sc->sc_queue_mtx);
-		if (bp->bio_pflags == G_ELI_NEW_BIO) {
-			bp->bio_pflags = 0;
+		if (G_ELI_IS_NEW_BIO(bp->bio_pflags)) {
+			G_ELI_SETWORKER(bp->bio_pflags, 0);
 			if (sc->sc_flags & G_ELI_FLAG_AUTH) {
 				if (bp->bio_cmd == BIO_READ)
 					g_eli_auth_read(sc, bp);
@@ -835,6 +877,132 @@ g_eli_cpu_is_disabled(int cpu)
 #endif
 }
 
+static void
+g_eli_init_uma(void)
+{
+
+	atomic_add_int(&g_eli_devs, 1);
+	sx_xlock(&g_eli_umalock);
+	if (g_eli_uma == NULL) {
+		/*
+		 * Calculate the maximum-sized swap buffer we are
+		 * likely to see.
+		 */
+		g_eli_alloc_sz = roundup2((PAGE_SIZE + sizeof(int) +
+                    G_ELI_AUTH_SECKEYLEN) * nsw_cluster_max +
+                    sizeof(uintptr_t), PAGE_SIZE);
+
+		/*
+		 * Create the zone, setting UMA_ZONE_NOFREE so we won't
+		 * drain the zone in a memory shortage.
+		 */
+		g_eli_uma = uma_zcreate("GELI buffers", g_eli_alloc_sz,
+		    NULL, NULL, NULL, NULL,
+		    UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
+
+		/* Reserve and pre-allocate pages, as appropriate. */
+		uma_zone_reserve(g_eli_uma, g_eli_minbufs);
+		uma_prealloc(g_eli_uma, g_eli_minbufs);
+	}
+	sx_xunlock(&g_eli_umalock);
+}
+
+/*
+ * Try to destroy the UMA pool. This will do nothing if there are existing
+ * GELI devices or existing UMA allocations.
+ */
+static void
+g_eli_destroy_uma(void)
+{
+	uma_zone_t oldzone;
+
+	sx_xlock(&g_eli_umalock);
+	/* Ensure we really should be destroying this. */
+	if (atomic_load_int(&g_eli_devs) == 0 &&
+	    atomic_load_int(&g_eli_umaoutstanding) == 0) {
+		oldzone = g_eli_uma;
+		g_eli_uma = NULL;
+	} else
+		oldzone = NULL;
+	sx_xunlock(&g_eli_umalock);
+
+	if (oldzone != NULL)
+		uma_zdestroy(oldzone);
+}
+
+static void
+g_eli_fini_uma(void)
+{
+
+	/*
+	 * If this is the last outstanding GELI device, try to
+	 * destroy the UMA pool.
+	 */
+	if (atomic_fetchadd_int(&g_eli_devs, -1) == 1)
+		g_eli_destroy_uma();
+}
+
+/*
+ * Allocate a data buffer. If the size fits within our swap-sized buffers,
+ * try to allocate a swap-sized buffer from the UMA pool. Otherwise, fall
+ * back to using malloc.
+ *
+ * Swap-related requests are special: they can only use the UMA pool, they
+ * use M_USE_RESERVE to let them dip farther into system resources, and
+ * they always use M_NOWAIT to prevent swap operations from deadlocking.
+ */
+bool
+g_eli_alloc_data(struct bio *bp, int sz)
+{
+
+	KASSERT(sz <= g_eli_alloc_sz || (bp->bio_flags & BIO_SWAP) == 0,
+	    ("BIO_SWAP request for %d bytes exceeds the precalculated buffer"
+	    " size (%d)", sz, g_eli_alloc_sz));
+	if (sz <= g_eli_alloc_sz) {
+		bp->bio_driver2 = uma_zalloc(g_eli_uma, M_NOWAIT |
+		    ((bp->bio_flags & BIO_SWAP) != 0 ? M_USE_RESERVE : 0));
+		if (bp->bio_driver2 != NULL) {
+			bp->bio_pflags |= G_ELI_UMA_ALLOC;
+			atomic_add_int(&g_eli_umaoutstanding, 1);
+		}
+		if (bp->bio_driver2 != NULL || (bp->bio_flags & BIO_SWAP) != 0)
+			return (bp->bio_driver2 != NULL);
+	}
+	bp->bio_pflags &= ~(G_ELI_UMA_ALLOC);
+	bp->bio_driver2 = malloc(sz, M_ELI, g_eli_blocking_malloc ? M_WAITOK :
+	    M_NOWAIT);
+	return (bp->bio_driver2 != NULL);
+}
+
+/*
+ * Free a buffer from bp->bio_driver2 which was allocated with
+ * g_eli_alloc_data(). This function makes sure that the memory is freed
+ * to the correct place.
+ *
+ * Additionally, if this function frees the last outstanding UMA request
+ * and there are no open GELI devices, this will destroy the UMA pool.
+ */
+void
+g_eli_free_data(struct bio *bp)
+{
+
+	/*
+	 * Mimic the free(9) behavior of allowing a NULL pointer to be
+	 * freed.
+	 */
+	if (bp->bio_driver2 == NULL)
+		return;
+
+	if ((bp->bio_pflags & G_ELI_UMA_ALLOC) != 0) {
+		uma_zfree(g_eli_uma, bp->bio_driver2);
+		if (atomic_fetchadd_int(&g_eli_umaoutstanding, -1) == 1 &&
+		    atomic_load_int(&g_eli_devs) == 0)
+			g_eli_destroy_uma();
+	} else
+		free(bp->bio_driver2, M_ELI);
+	bp->bio_driver2 = NULL;
+}
+
 struct g_geom *
 g_eli_create(struct gctl_req *req, struct g_class *mp, struct g_provider *bpp,
     const struct g_eli_metadata *md, const u_char *mkey, int nkey)
@@ -927,6 +1095,7 @@ g_eli_create(struct gctl_req *req, struct g_class *mp, struct g_provider *bpp,
 	if (threads == 0)
 		threads = mp_ncpus;
 	sc->sc_cpubind = (mp_ncpus > 1 && threads == mp_ncpus);
+	g_eli_init_uma();
 	for (i = 0; i < threads; i++) {
 		if (g_eli_cpu_is_disabled(i)) {
 			G_ELI_DEBUG(1, "%s: CPU %u disabled, skipping.",
@@ -1018,6 +1187,7 @@ failed:
 	g_destroy_consumer(cp);
 	g_destroy_geom(gp);
 	g_eli_key_destroy(sc);
+	g_eli_fini_uma();
 	zfree(sc, M_ELI);
 	return (NULL);
 }
@@ -1061,6 +1231,7 @@ g_eli_destroy(struct g_eli_softc *sc, boolean_t force)
 	mtx_destroy(&sc->sc_queue_mtx);
 	gp->softc = NULL;
 	g_eli_key_destroy(sc);
+	g_eli_fini_uma();
 	zfree(sc, M_ELI);
 
 	G_ELI_DEBUG(0, "Device %s destroyed.", gp->name);
