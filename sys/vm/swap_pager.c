@@ -383,7 +383,7 @@ static int swap_pager_almost_full = 1; /* swap space exhaustion (w/hysteresis)*/
 static struct mtx swbuf_mtx;	/* to sync nsw_wcount_async */
 static int nsw_wcount_async;	/* limit async write buffers */
 static int nsw_wcount_async_max;/* assigned maximum			*/
-static int nsw_cluster_max;	/* maximum VOP I/O allowed		*/
+int nsw_cluster_max; 		/* maximum VOP I/O allowed		*/
 
 static int sysctl_swap_async_max(SYSCTL_HANDLER_ARGS);
 SYSCTL_PROC(_vm, OID_AUTO, swap_async_max, CTLTYPE_INT | CTLFLAG_RW |
@@ -572,6 +572,16 @@ swap_pager_init(void)
 	mtx_init(&sw_dev_mtx, "swapdev", NULL, MTX_DEF);
 	sx_init(&sw_alloc_sx, "swspsx");
 	sx_init(&swdev_syscall_lock, "swsysc");
+
+	/*
+	 * The nsw_cluster_max is constrained by the bp->b_pages[]
+	 * array, which has maxphys / PAGE_SIZE entries, and our locally
+	 * defined MAX_PAGEOUT_CLUSTER.   Also be aware that swap ops are
+	 * constrained by the swap device interleave stripe size.
+	 *
+	 * Initialized early so that GEOM_ELI can see it.
+	 */
+	nsw_cluster_max = min(maxphys / PAGE_SIZE, MAX_PAGEOUT_CLUSTER);
 }
 
 /*
@@ -591,11 +601,6 @@ swap_pager_swap_init(void)
 	 * initialize workable values (0 will work for hysteresis
 	 * but it isn't very efficient).
 	 *
-	 * The nsw_cluster_max is constrained by the bp->b_pages[]
-	 * array, which has maxphys / PAGE_SIZE entries, and our locally
-	 * defined MAX_PAGEOUT_CLUSTER.   Also be aware that swap ops are
-	 * constrained by the swap device interleave stripe size.
-	 *
 	 * Currently we hardwire nsw_wcount_async to 4.  This limit is
 	 * designed to prevent other I/O from having high latencies due to
 	 * our pageout I/O.  The value 4 works well for one or two active swap
@@ -606,8 +611,9 @@ swap_pager_swap_init(void)
 	 * at least 2 per swap devices, and 4 is a pretty good value if you
 	 * have one NFS swap device due to the command/ack latency over NFS.
 	 * So it all works out pretty well.
+	 *
+	 * nsw_cluster_max is initialized in swap_pager_init().
 	 */
-	nsw_cluster_max = min(maxphys / PAGE_SIZE, MAX_PAGEOUT_CLUSTER);
 
 	nsw_wcount_async = 4;
 	nsw_wcount_async_max = nsw_wcount_async;
