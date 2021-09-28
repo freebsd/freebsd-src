@@ -1,5 +1,6 @@
 # $FreeBSD$
 
+PACKAGE=	yp
 PROG=	ypxfr
 SRCS=	yp_dblookup.c yp_dbwrite.c yp_error.c \
 	ypxfr_getmap.c ypxfr_main.c ypxfr_misc.c \

@@ -2,6 +2,7 @@
 
 .PATH: ${SRCTOP}/usr.sbin/ypserv ${SRCTOP}/libexec/ypxfr
 
+PACKAGE=yp
 PROG=	rpc.ypupdated
 MAN=
 SRCS=	ypupdate_prot_svc.c ypupdate_prot.h ypupdated_main.c \
