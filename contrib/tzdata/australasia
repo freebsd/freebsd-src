@@ -742,13 +742,17 @@ Link Pacific/Pago_Pago Pacific/Midway # in US minor outlying islands
 # From Paul Eggert (2014-07-08):
 # That web page currently lists transitions for 2012/3 and 2013/4.
 # Assume the pattern instituted in 2012 will continue indefinitely.
+#
+# From Geoffrey D. Bennett (2021-09-20):
+# https://www.mcil.gov.ws/storage/2021/09/MCIL-Scan_20210920_120553.pdf
+# DST has been cancelled for this year.
 
 # Rule	NAME	FROM	TO	-	IN	ON	AT	SAVE	LETTER/S
 Rule	WS	2010	only	-	Sep	lastSun	0:00	1	-
 Rule	WS	2011	only	-	Apr	Sat>=1	4:00	0	-
 Rule	WS	2011	only	-	Sep	lastSat	3:00	1	-
-Rule	WS	2012	max	-	Apr	Sun>=1	4:00	0	-
-Rule	WS	2012	max	-	Sep	lastSun	3:00	1	-
+Rule	WS	2012	2021	-	Apr	Sun>=1	4:00	0	-
+Rule	WS	2012	2020	-	Sep	lastSun	3:00	1	-
 # Zone	NAME		STDOFF	RULES	FORMAT	[UNTIL]
 Zone Pacific/Apia	 12:33:04 -	LMT	1892 Jul  5
 			-11:26:56 -	LMT	1911
