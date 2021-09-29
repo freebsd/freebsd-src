@@ -105,9 +105,9 @@ mmc_parse(device_t dev, struct mmc_helper *helper, struct mmc_host *host)
 	 * if it's not present based on the clock that the mmc controller
 	 * operates on
 	 */
-	max_freq = 0;
-	device_get_property(dev, "max-frequency", &max_freq, sizeof(uint64_t));
-	host->f_max = max_freq;
+	if (device_get_property(dev, "max-frequency", &max_freq,
+	    sizeof(uint64_t)) > 0)
+		host->f_max = max_freq;
 
 	if (device_has_property(dev, "broken-cd"))
 		helper->props |= MMC_PROP_BROKEN_CD;
