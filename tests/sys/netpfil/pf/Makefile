@@ -17,6 +17,7 @@ ATF_TESTS_SH+=	altq \
 		killstate \
 		macro \
 		map_e \
+		match \
 		names \
 		nat \
 		pass_block \
