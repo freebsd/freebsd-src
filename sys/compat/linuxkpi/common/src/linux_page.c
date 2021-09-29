@@ -334,3 +334,37 @@ retry:
 
 	return (VM_FAULT_NOPAGE);
 }
+
+/*
+ * Although FreeBSD version of unmap_mapping_range has semantics and types of
+ * parameters compatible with Linux version, the values passed in are different
+ * @obj should match to vm_private_data field of vm_area_struct returned by
+ *      mmap file operation handler, see linux_file_mmap_single() sources
+ * @holelen should match to size of area to be munmapped.
+ */
+void
+lkpi_unmap_mapping_range(void *obj, loff_t const holebegin __unused,
+    loff_t const holelen, int even_cows __unused)
+{
+	vm_object_t devobj;
+	vm_page_t page;
+	int i, page_count;
+
+	devobj = cdev_pager_lookup(obj);
+	if (devobj != NULL) {
+		page_count = OFF_TO_IDX(holelen);
+
+		VM_OBJECT_WLOCK(devobj);
+retry:
+		for (i = 0; i < page_count; i++) {
+			page = vm_page_lookup(devobj, i);
+			if (page == NULL)
+				continue;
+			if (!vm_page_busy_acquire(page, VM_ALLOC_WAITFAIL))
+				goto retry;
+			cdev_pager_free_page(devobj, page);
+		}
+		VM_OBJECT_WUNLOCK(devobj);
+		vm_object_deallocate(devobj);
+	}
+}
