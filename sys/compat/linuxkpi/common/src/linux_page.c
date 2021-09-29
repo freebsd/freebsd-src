@@ -281,6 +281,7 @@ lkpi_vmf_insert_pfn_prot_locked(struct vm_area_struct *vma, unsigned long addr,
     unsigned long pfn, pgprot_t prot)
 {
 	vm_object_t vm_obj = vma->vm_obj;
+	vm_object_t tmp_obj;
 	vm_page_t page;
 	vm_pindex_t pindex;
 
@@ -296,6 +297,32 @@ retry:
 		page = PHYS_TO_VM_PAGE(IDX_TO_OFF(pfn));
 		if (!vm_page_busy_acquire(page, VM_ALLOC_WAITFAIL))
 			goto retry;
+		if (page->object != NULL) {
+			tmp_obj = page->object;
+			vm_page_xunbusy(page);
+			VM_OBJECT_WUNLOCK(vm_obj);
+			VM_OBJECT_WLOCK(tmp_obj);
+			if (page->object == tmp_obj &&
+			    vm_page_busy_acquire(page, VM_ALLOC_WAITFAIL)) {
+				KASSERT(page->object == tmp_obj,
+				    ("page has changed identity"));
+				KASSERT((page->oflags & VPO_UNMANAGED) == 0,
+				    ("page does not belong to shmem"));
+				vm_pager_page_unswapped(page);
+				if (pmap_page_is_mapped(page)) {
+					vm_page_xunbusy(page);
+					VM_OBJECT_WUNLOCK(tmp_obj);
+					printf("%s: page rename failed: page "
+					    "is mapped\n", __func__);
+					VM_OBJECT_WLOCK(vm_obj);
+					return (VM_FAULT_NOPAGE);
+				}
+				vm_page_remove(page);
+			}
+			VM_OBJECT_WUNLOCK(tmp_obj);
+			VM_OBJECT_WLOCK(vm_obj);
+			goto retry;
+		}
 		if (vm_page_insert(page, vm_obj, pindex)) {
 			vm_page_xunbusy(page);
 			return (VM_FAULT_OOM);
