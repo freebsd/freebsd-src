@@ -151,6 +151,9 @@ void dumpsys_gen_wbinv_all(void);
 void dumpsys_gen_unmap_chunk(vm_paddr_t, size_t, void *);
 int dumpsys_gen_write_aux_headers(struct dumperinfo *);
 
+void dumpsys_pb_init(uint64_t);
+void dumpsys_pb_progress(size_t);
+
 extern int do_minidump;
 
 #endif

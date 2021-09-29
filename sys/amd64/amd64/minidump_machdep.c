@@ -60,13 +60,11 @@ static struct kerneldumpheader kdh;
 /* Handle chunked writes. */
 static size_t fragsz;
 static void *dump_va;
-static size_t counter, progress, dumpsize, wdog_next;
+static size_t progress, dumpsize, wdog_next;
 
 static int dump_retry_count = 5;
 SYSCTL_INT(_machdep, OID_AUTO, dump_retry_count, CTLFLAG_RWTUN,
     &dump_retry_count, 0, "Number of times dump has to retry before bailing out");
-
-#define PG2MB(pgs) (((pgs) + (1 << 8) - 1) >> 8)
 
 static int
 blk_flush(struct dumperinfo *di)
@@ -79,41 +77,6 @@ blk_flush(struct dumperinfo *di)
 	error = dump_append(di, dump_va, 0, fragsz);
 	fragsz = 0;
 	return (error);
-}
-
-static struct {
-	int min_per;
-	int max_per;
-	int visited;
-} progress_track[10] = {
-	{  0,  10, 0},
-	{ 10,  20, 0},
-	{ 20,  30, 0},
-	{ 30,  40, 0},
-	{ 40,  50, 0},
-	{ 50,  60, 0},
-	{ 60,  70, 0},
-	{ 70,  80, 0},
-	{ 80,  90, 0},
-	{ 90, 100, 0}
-};
-
-static void
-report_progress(size_t progress, size_t dumpsize)
-{
-	int sofar, i;
-
-	sofar = 100 - ((progress * 100) / dumpsize);
-	for (i = 0; i < nitems(progress_track); i++) {
-		if (sofar < progress_track[i].min_per ||
-		    sofar > progress_track[i].max_per)
-			continue;
-		if (progress_track[i].visited)
-			return;
-		progress_track[i].visited = 1;
-		printf("..%d%%", sofar);
-		return;
-	}
 }
 
 /* Pat the watchdog approximately every 128MB of the dump. */
@@ -152,12 +115,9 @@ blk_write(struct dumperinfo *di, char *ptr, vm_paddr_t pa, size_t sz)
 		len = maxdumpsz - fragsz;
 		if (len > sz)
 			len = sz;
-		counter += len;
 		progress -= len;
-		if (counter >> 24) {
-			report_progress(progress, dumpsize);
-			counter &= (1<<24) - 1;
-		}
+
+		dumpsys_pb_progress(len);
 		if (progress <= wdog_next) {
 			wdog_kern_pat(WD_LASTVAL);
 			if (wdog_next > WDOG_DUMP_INTERVAL)
@@ -213,9 +173,7 @@ minidumpsys(struct dumperinfo *di)
 	retry_count = 0;
  retry:
 	retry_count++;
-	counter = 0;
-	for (i = 0; i < nitems(progress_track); i++)
-		progress_track[i].visited = 0;
+
 	/* Walk page table pages, set bits in vm_page_dump */
 	pmapsize = 0;
 	for (va = VM_MIN_KERNEL_ADDRESS; va < MAX(KERNBASE + nkpt * NBPDR,
@@ -298,6 +256,7 @@ minidumpsys(struct dumperinfo *di)
 	dumpsize += PAGE_SIZE;
 
 	wdog_next = progress = dumpsize;
+	dumpsys_pb_init(dumpsize);
 
 	/* Initialize mdhdr */
 	bzero(&mdhdr, sizeof(mdhdr));
