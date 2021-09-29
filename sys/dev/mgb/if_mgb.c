@@ -693,7 +693,6 @@ mgb_dump_some_stats(struct mgb_softc *sc)
 		    i, sc->tx_ring_data.ring[i].addr.high,
 		    i, sc->tx_ring_data.ring[i].sts);
 	device_printf(sc->dev, "==== DUMP_TX_DMA_RAM ====\n");
-	int i;
 	CSR_WRITE_REG(sc, 0x24, 0xF); // DP_SEL & TX_RAM_0
 	for (i = 0; i < 128; i++) {
 		CSR_WRITE_REG(sc, 0x2C, i); // DP_ADDR
