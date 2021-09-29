@@ -779,16 +779,9 @@ mgb_admin_intr(void *xsc)
 	intr_en = CSR_READ_REG(sc, MGB_INTR_ENBL_SET);
 	intr_sts &= intr_en;
 
-	/*
-	 * NOTE: Debugging printfs here
-	 * will likely cause interrupt test failure.
-	 */
-
 	/* TODO: shouldn't continue if suspended */
-	if ((intr_sts & MGB_INTR_STS_ANY) == 0) {
-		device_printf(sc->dev, "non-mgb interrupt triggered.\n");
-		return (FILTER_SCHEDULE_THREAD);
-	}
+	if ((intr_sts & MGB_INTR_STS_ANY) == 0)
+		return (FILTER_STRAY);
 	if ((intr_sts &  MGB_INTR_STS_TEST) != 0) {
 		sc->isr_test_flag = true;
 		CSR_WRITE_REG(sc, MGB_INTR_STS, MGB_INTR_STS_TEST);
