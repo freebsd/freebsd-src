@@ -1758,7 +1758,7 @@ sdhci_start_command(struct sdhci_slot *slot, struct mmc_command *cmd)
 	    slot->power == 0 ||
 	    slot->clock == 0) {
 		slot_printf(slot,
-			    "Cannot issue a command (power=%d clock=%d)",
+			    "Cannot issue a command (power=%d clock=%d)\n",
 			    slot->power, slot->clock);
 		cmd->error = MMC_ERR_FAILED;
 		sdhci_req_done(slot);
