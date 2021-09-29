@@ -385,3 +385,72 @@ dumpsys_generic(struct dumperinfo *di)
 		printf("\n** DUMP FAILED (ERROR %d) **\n", error);
 	return (error);
 }
+
+/* Minidump progress bar */
+static struct {
+	const int min_per;
+	const int max_per;
+	bool visited;
+} progress_track[10] = {
+	{  0,  10, false},
+	{ 10,  20, false},
+	{ 20,  30, false},
+	{ 30,  40, false},
+	{ 40,  50, false},
+	{ 50,  60, false},
+	{ 60,  70, false},
+	{ 70,  80, false},
+	{ 80,  90, false},
+	{ 90, 100, false}
+};
+
+static uint64_t dumpsys_pb_size;
+static uint64_t dumpsys_pb_remaining;
+static uint64_t dumpsys_pb_check;
+
+/* Reset the progress bar for a dump of dumpsize. */
+void
+dumpsys_pb_init(uint64_t dumpsize)
+{
+	int i;
+
+	dumpsys_pb_size = dumpsys_pb_remaining = dumpsize;
+	dumpsys_pb_check = 0;
+
+	for (i = 0; i < nitems(progress_track); i++)
+		progress_track[i].visited = false;
+}
+
+/*
+ * Update the progress according to the delta bytes that were written out.
+ * Check and print the progress percentage.
+ */
+void
+dumpsys_pb_progress(size_t delta)
+{
+	int sofar, i;
+
+	dumpsys_pb_remaining -= delta;
+	dumpsys_pb_check += delta;
+
+	/*
+	 * To save time while dumping, only loop through progress_track
+	 * occasionally.
+	 */
+	if ((dumpsys_pb_check >> DUMPSYS_PB_CHECK_BITS) == 0)
+		return;
+	else
+		dumpsys_pb_check &= (1 << DUMPSYS_PB_CHECK_BITS) - 1;
+
+	sofar = 100 - ((dumpsys_pb_remaining * 100) / dumpsys_pb_size);
+	for (i = 0; i < nitems(progress_track); i++) {
+		if (sofar < progress_track[i].min_per ||
+		    sofar > progress_track[i].max_per)
+			continue;
+		if (!progress_track[i].visited) {
+			progress_track[i].visited = true;
+			printf("..%d%%", sofar);
+		}
+		break;
+	}
+}
