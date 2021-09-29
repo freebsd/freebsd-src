@@ -1215,6 +1215,8 @@ linux_backlight_update_status(device_t dev, struct backlight_props *props)
 
 	pdev->dev.bd->props.brightness = pdev->dev.bd->props.max_brightness *
 		props->brightness / 100;
+	pdev->dev.bd->props.power = props->brightness == 0 ?
+		4/* FB_BLANK_POWERDOWN */ : 0/* FB_BLANK_UNBLANK */;
 	return (pdev->dev.bd->ops->update_status(pdev->dev.bd));
 }
 
