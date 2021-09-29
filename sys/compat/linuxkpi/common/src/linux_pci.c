@@ -849,7 +849,7 @@ linux_dma_map_phys_common(struct device *dev, vm_paddr_t phys, size_t len,
 	return (obj->dma_addr);
 }
 #else
-dma_addr_t
+static dma_addr_t
 linux_dma_map_phys_common(struct device *dev __unused, vm_paddr_t phys,
     size_t len __unused, bus_dma_tag_t dmat __unused)
 {
