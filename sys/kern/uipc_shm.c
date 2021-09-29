@@ -2045,8 +2045,10 @@ sysctl_posix_shm_list(SYSCTL_HANDLER_ARGS)
 		LIST_FOREACH(shmm, &shm_dictionary[i], sm_link) {
 			error = shm_fill_kinfo_locked(shmm->sm_shmfd,
 			    &kif, true);
-			if (error == EPERM)
+			if (error == EPERM) {
+				error = 0;
 				continue;
+			}
 			if (error != 0)
 				break;
 			pack_kinfo(&kif);
