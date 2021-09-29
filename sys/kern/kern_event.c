@@ -798,13 +798,13 @@ filt_timervalidate(struct knote *kn, sbintime_t *to)
 		return (EINVAL);
 
 	*to = timer2sbintime(kn->kn_sdata, kn->kn_sfflags);
+	if (*to < 0)
+		return (EINVAL);
 	if ((kn->kn_sfflags & NOTE_ABSTIME) != 0) {
 		getboottimebin(&bt);
 		sbt = bttosbt(bt);
-		*to -= sbt;
+		*to = MAX(0, *to - sbt);
 	}
-	if (*to < 0)
-		return (EINVAL);
 	return (0);
 }
 
@@ -815,9 +815,14 @@ filt_timerattach(struct knote *kn)
 	sbintime_t to;
 	int error;
 
+	to = -1;
 	error = filt_timervalidate(kn, &to);
 	if (error != 0)
 		return (error);
+	KASSERT((kn->kn_flags & EV_ONESHOT) != 0 || to > 0,
+	    ("%s: periodic timer has a calculated zero timeout", __func__));
+	KASSERT(to >= 0,
+	    ("%s: timer has a calculated negative timeout", __func__));
 
 	if (atomic_fetchadd_int(&kq_ncallouts, 1) + 1 > kq_calloutmax) {
 		atomic_subtract_int(&kq_ncallouts, 1);

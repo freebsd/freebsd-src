@@ -248,6 +248,88 @@ test_abstime(void)
 }
 
 static void
+test_abstime_preboot(void)
+{
+    const char *test_id = "kevent(EVFILT_TIMER (PREBOOT), EV_ONESHOT, NOTE_ABSTIME)";
+    struct kevent kev;
+    struct timespec btp;
+    uint64_t end, start, stop;
+
+    test_begin(test_id);
+
+    test_no_kevents();
+
+    /*
+     * We'll expire it at just before system boot (roughly) with the hope that
+     * we'll get an ~immediate expiration, just as we do for any value specified
+     * between system boot and now.
+     */
+    start = now();
+    if (clock_gettime(CLOCK_BOOTTIME, &btp) != 0)
+      err(1, "%s", test_id);
+
+    end = start - SEC_TO_US(btp.tv_sec + 1);
+    EV_SET(&kev, vnode_fd, EVFILT_TIMER, EV_ADD | EV_ONESHOT,
+      NOTE_ABSTIME | NOTE_USECONDS, end, NULL);
+    if (kevent(kqfd, &kev, 1, NULL, 0, NULL) < 0)
+        err(1, "%s", test_id);
+
+    /* Retrieve the event */
+    kev.flags = EV_ADD | EV_ONESHOT;
+    kev.data = 1;
+    kev.fflags = 0;
+    kevent_cmp(&kev, kevent_get(kqfd));
+
+    stop = now();
+    if (stop < end)
+        err(1, "too early %jd %jd", (intmax_t)stop, (intmax_t)end);
+    /* Check if the event occurs again */
+    sleep(3);
+    test_no_kevents();
+
+    success();
+}
+
+static void
+test_abstime_postboot(void)
+{
+    const char *test_id = "kevent(EVFILT_TIMER (POSTBOOT), EV_ONESHOT, NOTE_ABSTIME)";
+    struct kevent kev;
+    uint64_t end, start, stop;
+    const int timeout_sec = 1;
+
+    test_begin(test_id);
+
+    test_no_kevents();
+
+    /*
+     * Set a timer for 1 second ago, it should fire immediately rather than
+     * being rejected.
+     */
+    start = now();
+    end = start - SEC_TO_US(timeout_sec);
+    EV_SET(&kev, vnode_fd, EVFILT_TIMER, EV_ADD | EV_ONESHOT,
+      NOTE_ABSTIME | NOTE_USECONDS, end, NULL);
+    if (kevent(kqfd, &kev, 1, NULL, 0, NULL) < 0)
+        err(1, "%s", test_id);
+
+    /* Retrieve the event */
+    kev.flags = EV_ADD | EV_ONESHOT;
+    kev.data = 1;
+    kev.fflags = 0;
+    kevent_cmp(&kev, kevent_get(kqfd));
+
+    stop = now();
+    if (stop < end)
+        err(1, "too early %jd %jd", (intmax_t)stop, (intmax_t)end);
+    /* Check if the event occurs again */
+    sleep(3);
+    test_no_kevents();
+
+    success();
+}
+
+static void
 test_update(void)
 {
     const char *test_id = "kevent(EVFILT_TIMER (UPDATE), EV_ADD | EV_ONESHOT)";
@@ -517,6 +599,8 @@ test_evfilt_timer(void)
     test_oneshot();
     test_periodic();
     test_abstime();
+    test_abstime_preboot();
+    test_abstime_postboot();
     test_update();
     test_update_equal();
     test_update_expired();
