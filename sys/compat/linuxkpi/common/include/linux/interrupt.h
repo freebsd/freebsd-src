@@ -44,11 +44,6 @@ typedef	irqreturn_t	(*irq_handler_t)(int, void *);
 
 #define	IRQF_SHARED	RF_SHAREABLE
 
-struct irq_ent;
-
-void linux_irq_handler(void *);
-void lkpi_devm_irq_release(struct device *, void *);
-void lkpi_irq_release(struct device *, struct irq_ent *);
 int  lkpi_request_irq(struct device *, unsigned int, irq_handler_t,
 	irq_handler_t, unsigned long, const char *, void *);
 int  lkpi_enable_irq(unsigned int);
