@@ -71,8 +71,8 @@ lkpi_irq_ent(struct device *dev, unsigned int irq)
 	return (NULL);
 }
 
-void
-linux_irq_handler(void *ent)
+static void
+lkpi_irq_handler(void *ent)
 {
 	struct irq_ent *irqe;
 
@@ -88,7 +88,7 @@ linux_irq_handler(void *ent)
 	}
 }
 
-void
+static inline void
 lkpi_irq_release(struct device *dev, struct irq_ent *irqe)
 {
 	if (irqe->tag != NULL)
@@ -99,7 +99,7 @@ lkpi_irq_release(struct device *dev, struct irq_ent *irqe)
 	list_del(&irqe->links);
 }
 
-void
+static void
 lkpi_devm_irq_release(struct device *dev, void *p)
 {
 	struct irq_ent *irqe;
@@ -145,7 +145,7 @@ lkpi_request_irq(struct device *xdev, unsigned int irq,
 	irqe->irq = irq;
 
 	error = bus_setup_intr(dev->bsddev, res, INTR_TYPE_NET | INTR_MPSAFE,
-	    NULL, linux_irq_handler, irqe, &irqe->tag);
+	    NULL, lkpi_irq_handler, irqe, &irqe->tag);
 	if (error)
 		goto errout;
 	list_add(&irqe->links, &dev->irqents);
@@ -176,7 +176,7 @@ lkpi_enable_irq(unsigned int irq)
 	if (irqe == NULL || irqe->tag != NULL)
 		return -EINVAL;
 	return -bus_setup_intr(dev->bsddev, irqe->res, INTR_TYPE_NET | INTR_MPSAFE,
-	    NULL, linux_irq_handler, irqe, &irqe->tag);
+	    NULL, lkpi_irq_handler, irqe, &irqe->tag);
 }
 
 void
