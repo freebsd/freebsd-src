@@ -89,6 +89,7 @@ __FBSDID("$FreeBSD$");
 #include <linux/poll.h>
 #include <linux/smp.h>
 #include <linux/wait_bit.h>
+#include <linux/rcupdate.h>
 
 #if defined(__i386__) || defined(__amd64__)
 #include <asm/smp.h>
@@ -471,7 +472,7 @@ linux_file_free(struct linux_file *filp)
 	if (filp->_file == NULL) {
 		if (filp->f_shmem != NULL)
 			vm_object_deallocate(filp->f_shmem);
-		kfree(filp);
+		kfree_rcu(filp, rcu);
 	} else {
 		/*
 		 * The close method of the character device or file
@@ -1537,6 +1538,7 @@ linux_file_close(struct file *file, struct thread *td)
 	ldev = filp->f_cdev;
 	if (ldev != NULL)
 		linux_cdev_deref(ldev);
+	linux_synchronize_rcu(RCU_TYPE_REGULAR);
 	kfree(filp);
 
 	return (error);
