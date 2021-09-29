@@ -186,7 +186,6 @@ STATIC uint64_t mvneta_read_mib(struct mvneta_softc *, int);
 STATIC void mvneta_update_mib(struct mvneta_softc *);
 
 /* Switch */
-STATIC boolean_t mvneta_find_ethernet_prop_switch(phandle_t, phandle_t);
 STATIC boolean_t mvneta_has_switch(device_t);
 
 #define	mvneta_sc_lock(sc) mtx_lock(&sc->mtx)

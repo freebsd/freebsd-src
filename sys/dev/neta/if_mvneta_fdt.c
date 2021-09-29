@@ -69,6 +69,7 @@ __FBSDID("$FreeBSD$");
 
 static int mvneta_fdt_probe(device_t);
 static int mvneta_fdt_attach(device_t);
+STATIC boolean_t mvneta_find_ethernet_prop_switch(phandle_t, phandle_t);
 
 static device_method_t mvneta_fdt_methods[] = {
 	/* Device interface */
