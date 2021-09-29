@@ -33,6 +33,8 @@
 
 #include <sys/ioccom.h>
 
-#define	_IOC_SIZE(cmd) IOCPARM_LEN(cmd)
+#define	_IOC_SIZE(cmd)	IOCPARM_LEN(cmd)
+#define	_IOC_TYPE(cmd)	IOCGROUP(cmd)
+#define	_IOC_NR(cmd)	((cmd) & 0xff)
 
 #endif	/* _LINUX_IOCTL_H_ */
