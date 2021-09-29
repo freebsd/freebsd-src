@@ -536,15 +536,30 @@ nvme_qpair_process_completions(struct nvme_qpair *qpair)
 	int done = 0;
 	bool in_panic = dumping || SCHEDULER_STOPPED();
 
-	qpair->num_intr_handler_calls++;
-
 	/*
 	 * qpair is not enabled, likely because a controller reset is is in
 	 * progress.  Ignore the interrupt - any I/O that was associated with
-	 * this interrupt will get retried when the reset is complete.
+	 * this interrupt will get retried when the reset is complete. Any
+	 * pending completions for when we're in startup will be completed
+	 * as soon as initialization is complete and we start sending commands
+	 * to the device.
 	 */
 	if (qpair->recovery_state != RECOVERY_NONE)
 		return (false);
+
+	/*
+	 * Sanity check initialization. After we reset the hardware, the phase
+	 * is defined to be 1. So if we get here with zero prior calls and the
+	 * phase is 0, it means that we've lost a race between the
+	 * initialization and the ISR running. With the phase wrong, we'll
+	 * process a bunch of completions that aren't really completions leading
+	 * to a KASSERT below.
+	 */
+	KASSERT(!(qpair->num_intr_handler_calls == 0 && qpair->phase == 0),
+	    ("%s: Phase wrong for first interrupt call.",
+		device_get_nameunit(qpair->ctrlr->dev)));
+
+	qpair->num_intr_handler_calls++;
 
 	bus_dmamap_sync(qpair->dma_tag, qpair->queuemem_map,
 	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
