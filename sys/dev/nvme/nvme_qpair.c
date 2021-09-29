@@ -624,7 +624,10 @@ nvme_qpair_process_completions(struct nvme_qpair *qpair)
 		    NVME_STATUS_GET_P(status) == NVME_STATUS_GET_P(cpl.status),
 		    ("Phase unexpectedly inconsistent"));
 
-		tr = qpair->act_tr[cpl.cid];
+		if (cpl.cid < qpair->num_trackers)
+			tr = qpair->act_tr[cpl.cid];
+		else
+			tr = NULL;
 
 		if (tr != NULL) {
 			nvme_qpair_complete_tracker(tr, &cpl, ERROR_PRINT_ALL);
@@ -644,7 +647,8 @@ nvme_qpair_process_completions(struct nvme_qpair *qpair)
 			 * ignore this condition because it's not unexpected.
 			 */
 			nvme_printf(qpair->ctrlr,
-			    "cpl does not map to outstanding cmd\n");
+			    "cpl (cid = %u) does not map to outstanding cmd\n",
+				cpl.cid);
 			/* nvme_dump_completion expects device endianess */
 			nvme_dump_completion(&qpair->cpl[qpair->cq_head]);
 			KASSERT(0, ("received completion for unknown cmd"));
