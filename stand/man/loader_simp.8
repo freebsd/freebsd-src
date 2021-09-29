@@ -24,11 +24,11 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 14, 2021
-.Dt LOADER 8
+.Dd September 29, 2021
+.Dt LOADER_SIMP 8
 .Os
 .Sh NAME
-.Nm loader
+.Nm loader_simp
 .Nd kernel bootstrapping final stage
 .Sh DESCRIPTION
 The program called
@@ -53,10 +53,6 @@ The smaller one is a set of commands
 designed for direct use by the casual user, called "builtin
 commands" for historical reasons.
 The main drive behind these commands is user-friendliness.
-The bigger component is an
-.Tn ANS
-Forth compatible Forth interpreter based on FICL, by
-.An John Sadler .
 .Pp
 During initialization,
 .Nm
@@ -119,12 +115,7 @@ Presently,
 the only way to call them from a script is by using
 .Pa evaluate
 on a string.
-If an error condition occurs, an exception will be generated,
-which can be intercepted using
-.Tn ANS
-Forth exception handling
-words.
-If not intercepted, an error message will be displayed and
+In the case of an error, an error message will be displayed and
 the interpreter's state will be reset, emptying the stack and restoring
 interpreting mode.
 .Pp
@@ -296,17 +287,6 @@ from the environment.
 Lists available commands.
 .El
 .Ss BUILTIN ENVIRONMENT VARIABLES
-The
-.Nm
-has actually two different kinds of
-.Sq environment
-variables.
-There are ANS Forth's
-.Em environmental queries ,
-and a separate space of environment variables used by builtins, which
-are not directly available to Forth words.
-It is the latter type that this section covers.
-.Pp
 Environment variables can be set and unset through the
 .Ic set
 and
