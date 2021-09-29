@@ -35,6 +35,9 @@
 #define	DUMPSYS_MD_PA_NPAIRS	(PHYS_AVAIL_SZ + 1)
 #define	DUMPSYS_NUM_AUX_HDRS	0
 
+/* How often to check the dump progress bar? */
+#define	DUMPSYS_PB_CHECK_BITS	20	/* Every 1MB */
+
 void dumpsys_pa_init(void);
 void dumpsys_unmap_chunk(vm_paddr_t, size_t, void *);
 size_t dumpsys_scan_pmap(void);

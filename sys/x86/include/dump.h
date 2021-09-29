@@ -42,6 +42,9 @@
 #define	DUMPSYS_MD_PA_NPAIRS	10
 #define	DUMPSYS_NUM_AUX_HDRS	0
 
+/* How often to check the dump progress bar? */
+#define	DUMPSYS_PB_CHECK_BITS	24	/* Every 16MB */
+
 static inline void
 dumpsys_pa_init(void)
 {

@@ -63,9 +63,6 @@ static struct kerneldumpheader kdh;
 /* Handle chunked writes. */
 static size_t fragsz;
 static void *dump_va;
-static uint64_t counter, progress;
-
-#define PG2MB(pgs) (((pgs) + (1 << 8) - 1) >> 8)
 
 static int
 blk_flush(struct dumperinfo *di)
@@ -115,13 +112,8 @@ blk_write(struct dumperinfo *di, char *ptr, vm_paddr_t pa, size_t sz)
 		len = maxdumpsz - fragsz;
 		if (len > sz)
 			len = sz;
-		counter += len;
-		progress -= len;
-		if (counter >> 22) {
-			printf(" %lld", PG2MB(progress >> PAGE_SHIFT));
-			counter &= (1<<22) - 1;
-		}
 
+		dumpsys_pb_progress(len);
 #ifdef SW_WATCHDOG
 		wdog_kern_pat(WD_LASTVAL);
 #endif
@@ -182,7 +174,6 @@ minidumpsys(struct dumperinfo *di)
 	 */
 	dcache_wbinv_poc_all();
 
-	counter = 0;
 	/* Walk page table pages, set bits in vm_page_dump */
 	ptesize = 0;
 	for (va = KERNBASE; va < kernel_vm_end; va += PAGE_SIZE) {
@@ -206,7 +197,7 @@ minidumpsys(struct dumperinfo *di)
 	}
 	dumpsize += PAGE_SIZE;
 
-	progress = dumpsize;
+	dumpsys_pb_init(dumpsize);
 
 	/* Initialize mdhdr */
 	bzero(&mdhdr, sizeof(mdhdr));

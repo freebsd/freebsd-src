@@ -58,46 +58,11 @@ CTASSERT(sizeof(struct kerneldumpheader) == 512);
 static struct kerneldumpheader kdh;
 
 /* Handle chunked writes. */
-static uint64_t counter, progress, dumpsize;
+static uint64_t dumpsize;
 /* Just auxiliary bufffer */
 static char tmpbuffer[PAGE_SIZE] __aligned(sizeof(uint64_t));
 
 extern pd_entry_t *kernel_segmap;
-
-static struct {
-	int min_per;
-	int max_per;
-	int visited;
-} progress_track[10] = {
-	{  0,  10, 0},
-	{ 10,  20, 0},
-	{ 20,  30, 0},
-	{ 30,  40, 0},
-	{ 40,  50, 0},
-	{ 50,  60, 0},
-	{ 60,  70, 0},
-	{ 70,  80, 0},
-	{ 80,  90, 0},
-	{ 90, 100, 0}
-};
-
-static void
-report_progress(uint64_t progress, uint64_t dumpsize)
-{
-	int sofar, i;
-
-	sofar = 100 - ((progress * 100) / dumpsize);
-	for (i = 0; i < nitems(progress_track); i++) {
-		if (sofar < progress_track[i].min_per ||
-		    sofar > progress_track[i].max_per)
-			continue;
-		if (progress_track[i].visited)
-			return;
-		progress_track[i].visited = 1;
-		printf("..%d%%", sofar);
-		return;
-	}
-}
 
 static int
 write_buffer(struct dumperinfo *di, char *ptr, size_t sz)
@@ -115,14 +80,8 @@ write_buffer(struct dumperinfo *di, char *ptr, size_t sz)
 
 	while (sz) {
 		len = min(maxdumpsz, sz);
-		counter += len;
-		progress -= len;
 
-		if (counter >> 22) {
-			report_progress(progress, dumpsize);
-			counter &= (1<<22) - 1;
-		}
-
+		dumpsys_pb_progress(len);
 		wdog_kern_pat(WD_LASTVAL);
 
 		if (ptr) {
@@ -163,7 +122,6 @@ minidumpsys(struct dumperinfo *di)
 	/* Flush cache */
 	mips_dcache_wbinv_all();
 
-	counter = 0;
 	/* Walk page table pages, set bits in vm_page_dump */
 	ptesize = 0;
 
@@ -203,7 +161,7 @@ minidumpsys(struct dumperinfo *di)
 	}
 	dumpsize += PAGE_SIZE;
 
-	progress = dumpsize;
+	dumpsys_pb_init(dumpsize);
 
 	/* Initialize mdhdr */
 	bzero(&mdhdr, sizeof(mdhdr));

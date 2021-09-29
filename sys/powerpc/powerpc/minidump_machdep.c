@@ -69,24 +69,7 @@ SYSCTL_INT(_machdep, OID_AUTO, dump_retry_count, CTLFLAG_RWTUN,
 static struct kerneldumpheader kdh;
 static char pgbuf[PAGE_SIZE];
 
-static struct {
-	int min_per;
-	int max_per;
-	int visited;
-} progress_track[10] = {
-	{  0,  10, 0},
-	{ 10,  20, 0},
-	{ 20,  30, 0},
-	{ 30,  40, 0},
-	{ 40,  50, 0},
-	{ 50,  60, 0},
-	{ 60,  70, 0},
-	{ 70,  80, 0},
-	{ 80,  90, 0},
-	{ 90, 100, 0}
-};
-
-static size_t counter, dumpsize, progress;
+static size_t dumpsize;
 
 /* Handle chunked writes. */
 static size_t fragsz;
@@ -96,24 +79,6 @@ pmap_kenter_temporary(vm_offset_t va, vm_paddr_t pa)
 {
 	pmap_kremove(va);
 	pmap_kenter(va, pa);
-}
-
-static void
-report_progress(void)
-{
-	int sofar, i;
-
-	sofar = 100 - ((progress * 100) / dumpsize);
-	for (i = 0; i < nitems(progress_track); i++) {
-		if (sofar < progress_track[i].min_per ||
-		    sofar > progress_track[i].max_per)
-			continue;
-		if (progress_track[i].visited)
-			return;
-		progress_track[i].visited = 1;
-		printf("..%d%%", sofar);
-		return;
-	}
 }
 
 static int
@@ -165,12 +130,8 @@ blk_write(struct dumperinfo *di, char *ptr, vm_paddr_t pa, size_t sz)
 		len = maxdumpsz - fragsz;
 		if (len > sz)
 			len = sz;
-		counter += len;
-		progress -= len;
-		if (counter >> 20) {
-			report_progress();
-			counter &= (1<<20) - 1;
-		}
+
+		dumpsys_pb_progress(len);
 
 		if (ptr) {
 			error = dump_append(di, ptr, 0, len);
@@ -231,7 +192,7 @@ int
 minidumpsys(struct dumperinfo *di)
 {
 	vm_paddr_t pa;
-	int error, i, retry_count;
+	int error, retry_count;
 	uint32_t pmapsize;
 	struct minidumphdr mdhdr;
 
@@ -240,11 +201,6 @@ retry:
 	retry_count++;
 	fragsz = 0;
 	DBG(total = dumptotal = 0;)
-
-	/* Reset progress */
-	counter = 0;
-	for (i = 0; i < nitems(progress_track); i++)
-		progress_track[i].visited = 0;
 
 	/* Build set of dumpable pages from kernel pmap */
 	pmapsize = dumpsys_scan_pmap();
@@ -266,7 +222,7 @@ retry:
 		else
 			dump_drop_page(pa);
 	}
-	progress = dumpsize;
+	dumpsys_pb_init(dumpsize);
 
 	/* Initialize mdhdr */
 	bzero(&mdhdr, sizeof(mdhdr));
