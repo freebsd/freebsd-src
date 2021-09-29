@@ -471,6 +471,8 @@ void
 linux_file_free(struct linux_file *filp)
 {
 	if (filp->_file == NULL) {
+		if (filp->f_op != NULL && filp->f_op->release != NULL)
+			filp->f_op->release(filp->f_vnode, filp);
 		if (filp->f_shmem != NULL)
 			vm_object_deallocate(filp->f_shmem);
 		kfree_rcu(filp, rcu);
