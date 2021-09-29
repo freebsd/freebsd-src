@@ -164,6 +164,7 @@ nvme_qpair_reset_stats(struct nvme_qpair *qpair)
 	qpair->num_intr_handler_calls = 1;
 	qpair->num_retries = 0;
 	qpair->num_failures = 0;
+	qpair->num_ignored = 0;
 }
 
 static int
@@ -227,6 +228,21 @@ nvme_sysctl_num_failures(SYSCTL_HANDLER_ARGS)
 }
 
 static int
+nvme_sysctl_num_ignored(SYSCTL_HANDLER_ARGS)
+{
+	struct nvme_controller 	*ctrlr = arg1;
+	int64_t			num_ignored = 0;
+	int			i;
+
+	num_ignored = ctrlr->adminq.num_ignored;
+
+	for (i = 0; i < ctrlr->num_io_queues; i++)
+		num_ignored += ctrlr->ioq[i].num_ignored;
+
+	return (sysctl_handle_64(oidp, &num_ignored, 0, req));
+}
+
+static int
 nvme_sysctl_reset_stats(SYSCTL_HANDLER_ARGS)
 {
 	struct nvme_controller 	*ctrlr = arg1;
@@ -281,6 +297,9 @@ nvme_sysctl_initialize_queue(struct nvme_qpair *qpair,
 	SYSCTL_ADD_QUAD(ctrlr_ctx, que_list, OID_AUTO, "num_failures",
 	    CTLFLAG_RD, &qpair->num_failures,
 	    "Number of commands ending in failure after all retries");
+	SYSCTL_ADD_QUAD(ctrlr_ctx, que_list, OID_AUTO, "num_ignored",
+	    CTLFLAG_RD, &qpair->num_ignored,
+	    "Number of interrupts posted, but were administratively ignored");
 
 	SYSCTL_ADD_PROC(ctrlr_ctx, que_list, OID_AUTO,
 	    "dump_debug", CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_MPSAFE,
@@ -343,6 +362,11 @@ nvme_sysctl_initialize_ctrlr(struct nvme_controller *ctrlr)
 	    "num_failures", CTLTYPE_S64 | CTLFLAG_RD | CTLFLAG_MPSAFE,
 	    ctrlr, 0, nvme_sysctl_num_failures, "IU",
 	    "Number of commands ending in failure after all retries");
+
+	SYSCTL_ADD_PROC(ctrlr_ctx, ctrlr_list, OID_AUTO,
+	    "num_ignored", CTLTYPE_S64 | CTLFLAG_RD | CTLFLAG_MPSAFE,
+	    ctrlr, 0, nvme_sysctl_num_ignored, "IU",
+	    "Number of interrupts ignored administratively");
 
 	SYSCTL_ADD_PROC(ctrlr_ctx, ctrlr_list, OID_AUTO,
 	    "reset_stats", CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_MPSAFE, ctrlr,

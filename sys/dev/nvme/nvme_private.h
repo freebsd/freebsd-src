@@ -195,6 +195,7 @@ struct nvme_qpair {
 	int64_t			num_intr_handler_calls;
 	int64_t			num_retries;
 	int64_t			num_failures;
+	int64_t			num_ignored;
 
 	struct nvme_command	*cmd;
 	struct nvme_completion	*cpl;
