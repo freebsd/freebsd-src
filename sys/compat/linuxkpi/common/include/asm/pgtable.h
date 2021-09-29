@@ -40,4 +40,6 @@ typedef unsigned long	pgdval_t;
 typedef unsigned long	pgprotval_t;
 typedef struct page *pgtable_t;
 
+#define	pgprot_decrypted(prot)	(prot)
+
 #endif	/* _ASM_PGTABLE_H_ */
