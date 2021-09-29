@@ -108,6 +108,8 @@ struct linux_file {
 
 	/* pointer to associated character device, if any */
 	struct linux_cdev *f_cdev;
+
+	struct rcu_head	rcu;
 };
 
 #define	file		linux_file
@@ -252,6 +254,13 @@ get_file(struct linux_file *f)
 
 	refcount_acquire(f->_file == NULL ? &f->f_count : &f->_file->f_count);
 	return (f);
+}
+
+static inline bool
+get_file_rcu(struct linux_file *f)
+{
+	return (refcount_acquire_if_not_zero(
+	    f->_file == NULL ? &f->f_count : &f->_file->f_count));
 }
 
 static inline struct inode *
