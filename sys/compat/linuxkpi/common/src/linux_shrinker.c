@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/eventhandler.h>
 #include <sys/mutex.h>
 
+#include <linux/compat.h>
 #include <linux/shrinker.h>
 
 TAILQ_HEAD(, shrinker) lkpi_shrinkers = TAILQ_HEAD_INITIALIZER(lkpi_shrinkers);
@@ -93,6 +94,7 @@ linuxkpi_vm_lowmem(void *arg __unused)
 {
 	struct shrinker *s;
 
+	linux_set_current(curthread);
 	mtx_lock(&mtx_shrinker);
 	TAILQ_FOREACH(s, &lkpi_shrinkers, next) {
 		shrinker_shrink(s);
