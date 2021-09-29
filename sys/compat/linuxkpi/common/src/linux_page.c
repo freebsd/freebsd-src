@@ -275,3 +275,35 @@ is_vmalloc_addr(const void *addr)
 {
 	return (vtoslab((vm_offset_t)addr & ~UMA_SLAB_MASK) != NULL);
 }
+
+vm_fault_t
+lkpi_vmf_insert_pfn_prot_locked(struct vm_area_struct *vma, unsigned long addr,
+    unsigned long pfn, pgprot_t prot)
+{
+	vm_object_t vm_obj = vma->vm_obj;
+	vm_page_t page;
+	vm_pindex_t pindex;
+
+	VM_OBJECT_ASSERT_WLOCKED(vm_obj);
+	pindex = OFF_TO_IDX(addr - vma->vm_start);
+	if (vma->vm_pfn_count == 0)
+		vma->vm_pfn_first = pindex;
+	MPASS(pindex <= OFF_TO_IDX(vma->vm_end));
+
+retry:
+	page = vm_page_grab(vm_obj, pindex, VM_ALLOC_NOCREAT);
+	if (page == NULL) {
+		page = PHYS_TO_VM_PAGE(IDX_TO_OFF(pfn));
+		if (!vm_page_busy_acquire(page, VM_ALLOC_WAITFAIL))
+			goto retry;
+		if (vm_page_insert(page, vm_obj, pindex)) {
+			vm_page_xunbusy(page);
+			return (VM_FAULT_OOM);
+		}
+		vm_page_valid(page);
+	}
+	pmap_page_set_memattr(page, pgprot2cachemode(prot));
+	vma->vm_pfn_count++;
+
+	return (VM_FAULT_NOPAGE);
+}
