@@ -863,6 +863,30 @@ default_again:
 	return (strq);
 }
 
+static void
+sctp_ss_fcfs_scheduled(struct sctp_tcb *stcb,
+    struct sctp_nets *net SCTP_UNUSED,
+    struct sctp_association *asoc,
+    struct sctp_stream_out *strq,
+    int moved_how_much SCTP_UNUSED)
+{
+	struct sctp_stream_queue_pending *sp;
+
+	KASSERT(strq != NULL, ("strq is NULL"));
+	asoc->ss_data.last_out_stream = strq;
+	if (asoc->idata_supported == 0) {
+		sp = TAILQ_FIRST(&strq->outqueue);
+		if ((sp != NULL) && (sp->some_taken == 1)) {
+			asoc->ss_data.locked_on_sending = strq;
+		} else {
+			asoc->ss_data.locked_on_sending = NULL;
+		}
+	} else {
+		asoc->ss_data.locked_on_sending = NULL;
+	}
+	return;
+}
+
 const struct sctp_ss_functions sctp_ss_functions[] = {
 /* SCTP_SS_DEFAULT */
 	{
@@ -948,7 +972,7 @@ const struct sctp_ss_functions sctp_ss_functions[] = {
 		.sctp_ss_is_empty = sctp_ss_fcfs_is_empty,
 		.sctp_ss_remove_from_stream = sctp_ss_fcfs_remove,
 		.sctp_ss_select_stream = sctp_ss_fcfs_select,
-		.sctp_ss_scheduled = sctp_ss_default_scheduled,
+		.sctp_ss_scheduled = sctp_ss_fcfs_scheduled,
 		.sctp_ss_packet_done = sctp_ss_default_packet_done,
 		.sctp_ss_get_value = sctp_ss_default_get_value,
 		.sctp_ss_set_value = sctp_ss_default_set_value,
