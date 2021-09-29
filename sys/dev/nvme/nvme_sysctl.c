@@ -155,8 +155,13 @@ static void
 nvme_qpair_reset_stats(struct nvme_qpair *qpair)
 {
 
+	/*
+	 * Reset the values. Due to sanity checks in
+	 * nvme_qpair_process_completions, we reset the number of interrupt
+	 * calls to 1.
+	 */
 	qpair->num_cmds = 0;
-	qpair->num_intr_handler_calls = 0;
+	qpair->num_intr_handler_calls = 1;
 	qpair->num_retries = 0;
 	qpair->num_failures = 0;
 }
