@@ -2719,8 +2719,6 @@ f00f_hack(void *unused)
 	if (!has_f00f_bug)
 		return;
 
-	GIANT_REQUIRED;
-
 	printf("Intel Pentium detected, installing workaround for F00F bug\n");
 
 	tmp = (vm_offset_t)pmap_trm_alloc(PAGE_SIZE * 3, M_NOWAIT | M_ZERO);
