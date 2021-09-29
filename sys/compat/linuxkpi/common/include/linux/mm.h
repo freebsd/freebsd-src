@@ -82,6 +82,9 @@ CTASSERT((VM_PROT_ALL & -(1 << 8)) == 0);
 #define	VM_FAULT_RETRY		(1 << 9)
 #define	VM_FAULT_FALLBACK	(1 << 10)
 
+#define	VM_FAULT_ERROR (VM_FAULT_OOM | VM_FAULT_SIGBUS | VM_FAULT_SIGSEGV | \
+	VM_FAULT_HWPOISON |VM_FAULT_HWPOISON_LARGE | VM_FAULT_FALLBACK)
+
 #define	FAULT_FLAG_WRITE	(1 << 0)
 #define	FAULT_FLAG_MKWRITE	(1 << 1)
 #define	FAULT_FLAG_ALLOW_RETRY	(1 << 2)
@@ -182,6 +185,26 @@ io_remap_pfn_range(struct vm_area_struct *vma,
 
 	return (0);
 }
+
+vm_fault_t
+lkpi_vmf_insert_pfn_prot_locked(struct vm_area_struct *vma, unsigned long addr,
+    unsigned long pfn, pgprot_t prot);
+
+static inline vm_fault_t
+vmf_insert_pfn_prot(struct vm_area_struct *vma, unsigned long addr,
+    unsigned long pfn, pgprot_t prot)
+{
+	vm_fault_t ret;
+
+	VM_OBJECT_WLOCK(vma->vm_obj);
+	ret = lkpi_vmf_insert_pfn_prot_locked(vma, addr, pfn, prot);
+	VM_OBJECT_WUNLOCK(vma->vm_obj);
+
+	return (ret);
+}
+#define	vmf_insert_pfn_prot(...)	\
+	_Static_assert(false,		\
+"This function is always called in a loop. Consider using the locked version")
 
 static inline int
 apply_to_page_range(struct mm_struct *mm, unsigned long address,
