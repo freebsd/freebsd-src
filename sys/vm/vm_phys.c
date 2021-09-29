@@ -1593,6 +1593,25 @@ vm_phys_avail_split(vm_paddr_t pa, int i)
 	return (0);
 }
 
+/*
+ * Check if a given physical address can be included as part of a crash dump.
+ */
+bool
+vm_phys_is_dumpable(vm_paddr_t pa)
+{
+	vm_page_t m;
+	int i;
+
+	if ((m = vm_phys_paddr_to_vm_page(pa)) != NULL)
+		return ((m->flags & PG_NODUMP) == 0);
+
+	for (i = 0; dump_avail[i] != 0 || dump_avail[i + 1] != 0; i += 2) {
+		if (pa >= dump_avail[i] && pa < dump_avail[i + 1])
+			return (true);
+	}
+	return (false);
+}
+
 void
 vm_phys_early_add_seg(vm_paddr_t start, vm_paddr_t end)
 {

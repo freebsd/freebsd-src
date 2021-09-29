@@ -99,22 +99,6 @@ report_progress(size_t progress, size_t dumpsize)
 	}
 }
 
-static bool
-is_dumpable(vm_paddr_t pa)
-{
-	vm_page_t m;
-	int i;
-
-	if ((m = vm_phys_paddr_to_vm_page(pa)) != NULL)
-		return ((m->flags & PG_NODUMP) == 0);
-
-	for (i = 0; dump_avail[i] != 0 || dump_avail[i + 1] != 0; i += 2) {
-		if (pa >= dump_avail[i] && pa < dump_avail[i + 1])
-			return (true);
-	}
-	return (false);
-}
-
 static int
 blk_flush(struct dumperinfo *di)
 {
@@ -241,7 +225,7 @@ retry:
 		if ((*l2 & PTE_RWX) != 0) {
 			pa = (*l2 >> PTE_PPN1_S) << L2_SHIFT;
 			for (i = 0; i < Ln_ENTRIES; i++, pa += PAGE_SIZE) {
-				if (is_dumpable(pa))
+				if (vm_phys_is_dumpable(pa))
 					dump_add_page(pa);
 			}
 		} else {
@@ -249,7 +233,7 @@ retry:
 				if ((l3[i] & PTE_V) == 0)
 					continue;
 				pa = (l3[i] >> PTE_PPN0_S) * PAGE_SIZE;
-				if (is_dumpable(pa))
+				if (vm_phys_is_dumpable(pa))
 					dump_add_page(pa);
 			}
 		}
@@ -262,7 +246,7 @@ retry:
 	dumpsize += round_page(BITSET_SIZE(vm_page_dump_pages));
 	VM_PAGE_DUMP_FOREACH(pa) {
 		/* Clear out undumpable pages now if needed */
-		if (is_dumpable(pa))
+		if (vm_phys_is_dumpable(pa))
 			dumpsize += PAGE_SIZE;
 		else
 			dump_drop_page(pa);

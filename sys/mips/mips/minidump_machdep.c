@@ -64,21 +64,6 @@ static char tmpbuffer[PAGE_SIZE] __aligned(sizeof(uint64_t));
 
 extern pd_entry_t *kernel_segmap;
 
-static int
-is_dumpable(vm_paddr_t pa)
-{
-	vm_page_t m;
-	int i;
-
-	if ((m = vm_phys_paddr_to_vm_page(pa)) != NULL)
-		return ((m->flags & PG_NODUMP) == 0);
-	for (i = 0; dump_avail[i] != 0 || dump_avail[i + 1] != 0; i += 2) {
-		if (pa >= dump_avail[i] && pa < dump_avail[i + 1])
-			return (1);
-	}
-	return (0);
-}
-
 static struct {
 	int min_per;
 	int max_per;
@@ -189,7 +174,7 @@ minidumpsys(struct dumperinfo *di)
 		for (i = 0; i < NPTEPG; i++) {
 			if (pte_test(&pte[i], PTE_V)) {
 				pa = TLBLO_PTE_TO_PA(pte[i]);
-				if (is_dumpable(pa))
+				if (vm_phys_is_dumpable(pa))
 					dump_add_page(pa);
 			}
 		}
@@ -200,7 +185,7 @@ minidumpsys(struct dumperinfo *di)
 	 * and pages allocated by pmap_steal reside
 	 */
 	for (pa = 0; pa < phys_avail[0]; pa += PAGE_SIZE) {
-		if (is_dumpable(pa))
+		if (vm_phys_is_dumpable(pa))
 			dump_add_page(pa);
 	}
 
@@ -211,7 +196,7 @@ minidumpsys(struct dumperinfo *di)
 	dumpsize += round_page(BITSET_SIZE(vm_page_dump_pages));
 	VM_PAGE_DUMP_FOREACH(pa) {
 		/* Clear out undumpable pages now if needed */
-		if (is_dumpable(pa))
+		if (vm_phys_is_dumpable(pa))
 			dumpsize += PAGE_SIZE;
 		else
 			dump_drop_page(pa);

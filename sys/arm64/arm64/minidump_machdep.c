@@ -67,21 +67,6 @@ static size_t counter, progress, dumpsize;
 static uint64_t tmpbuffer[Ln_ENTRIES];
 
 static int
-is_dumpable(vm_paddr_t pa)
-{
-	vm_page_t m;
-	int i;
-
-	if ((m = vm_phys_paddr_to_vm_page(pa)) != NULL)
-		return ((m->flags & PG_NODUMP) == 0);
-	for (i = 0; dump_avail[i] != 0 || dump_avail[i + 1] != 0; i += 2) {
-		if (pa >= dump_avail[i] && pa < dump_avail[i + 1])
-			return (1);
-	}
-	return (0);
-}
-
-static int
 blk_flush(struct dumperinfo *di)
 {
 	int error;
@@ -226,14 +211,14 @@ minidumpsys(struct dumperinfo *di)
 			pa = *l1 & ~ATTR_MASK;
 			for (i = 0; i < Ln_ENTRIES * Ln_ENTRIES;
 			    i++, pa += PAGE_SIZE)
-				if (is_dumpable(pa))
+				if (vm_phys_is_dumpable(pa))
 					dump_add_page(pa);
 			pmapsize += (Ln_ENTRIES - 1) * PAGE_SIZE;
 			va += L1_SIZE - L2_SIZE;
 		} else if ((*l2 & ATTR_DESCR_MASK) == L2_BLOCK) {
 			pa = *l2 & ~ATTR_MASK;
 			for (i = 0; i < Ln_ENTRIES; i++, pa += PAGE_SIZE) {
-				if (is_dumpable(pa))
+				if (vm_phys_is_dumpable(pa))
 					dump_add_page(pa);
 			}
 		} else if ((*l2 & ATTR_DESCR_MASK) == L2_TABLE) {
@@ -241,7 +226,7 @@ minidumpsys(struct dumperinfo *di)
 				if ((l3[i] & ATTR_DESCR_MASK) != L3_PAGE)
 					continue;
 				pa = l3[i] & ~ATTR_MASK;
-				if (is_dumpable(pa))
+				if (vm_phys_is_dumpable(pa))
 					dump_add_page(pa);
 			}
 		}
@@ -253,7 +238,7 @@ minidumpsys(struct dumperinfo *di)
 	dumpsize += round_page(sizeof(dump_avail));
 	dumpsize += round_page(BITSET_SIZE(vm_page_dump_pages));
 	VM_PAGE_DUMP_FOREACH(pa) {
-		if (is_dumpable(pa))
+		if (vm_phys_is_dumpable(pa))
 			dumpsize += PAGE_SIZE;
 		else
 			dump_drop_page(pa);
