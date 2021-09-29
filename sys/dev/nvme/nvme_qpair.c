@@ -544,8 +544,10 @@ nvme_qpair_process_completions(struct nvme_qpair *qpair)
 	 * as soon as initialization is complete and we start sending commands
 	 * to the device.
 	 */
-	if (qpair->recovery_state != RECOVERY_NONE)
+	if (qpair->recovery_state != RECOVERY_NONE) {
+		qpair->num_ignored++;
 		return (false);
+	}
 
 	/*
 	 * Sanity check initialization. After we reset the hardware, the phase
@@ -746,6 +748,7 @@ nvme_qpair_construct(struct nvme_qpair *qpair,
 	qpair->num_intr_handler_calls = 0;
 	qpair->num_retries = 0;
 	qpair->num_failures = 0;
+	qpair->num_ignored = 0;
 	qpair->cmd = (struct nvme_command *)queuemem;
 	qpair->cpl = (struct nvme_completion *)(queuemem + cmdsz);
 	prpmem = (uint8_t *)(queuemem + cmdsz + cplsz);
