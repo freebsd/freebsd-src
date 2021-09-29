@@ -1,0 +1,277 @@
+.\" Copyright (c) 1999 Daniel C. Sobral
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 29, 2021
+.Dt LOADER_LUA 8
+.Os
+.Sh NAME
+.Nm loader_lua
+.Nd kernel bootstrapping final stage
+.Sh DESCRIPTION
+The program called
+.Nm
+is the final stage of
+.Fx Ns 's
+kernel bootstrapping process.
+On IA32 (i386) architectures, it is a
+.Pa BTX
+client.
+It is linked statically to
+.Xr libstand 3
+and usually located in the directory
+.Pa /boot .
+.Pp
+It provides a scripting language that can be used to
+automate tasks, do pre-configuration or assist in recovery
+procedures.
+This scripting language is roughly divided in
+two main components.
+The smaller one is a set of commands
+designed for direct use by the casual user, called "builtin
+commands" for historical reasons.
+The main drive behind these commands is user-friendliness.
+The bigger component is the Lua interpter.
+.Pp
+During initialization,
+.Nm
+will probe for a console and set the
+.Va console
+variable, or set it to serial console
+.Pq Dq Li comconsole
+if the previous boot stage used that.
+If multiple consoles are selected, they will be listed separated by spaces.
+Then, devices are probed,
+.Va currdev
+and
+.Va loaddev
+are set, and
+.Va LINES
+is set to 24.
+Next, Lua is initialized, and
+.Pa /boot/lua/loader.lua
+is processed if it exists.
+After that,
+.Pa /boot/loader.conf
+is processed if available.
+.Pp
+At this point, if an
+.Ic autoboot
+has not been tried, and if
+.Va autoboot_delay
+is not set to
+.Dq Li NO
+(not case sensitive), then an
+.Ic autoboot
+will be tried.
+If the system gets past this point,
+.Va prompt
+will be set and
+.Nm
+will engage interactive mode.
+Please note that historically even when
+.Va autoboot_delay
+is set to
+.Dq Li 0
+user will be able to interrupt autoboot process by pressing some key
+on the console while kernel and modules are being loaded.
+In some
+cases such behaviour may be undesirable, to prevent it set
+.Va autoboot_delay
+to
+.Dq Li -1 ,
+in this case
+.Nm
+will engage interactive mode only if
+.Ic autoboot
+has failed.
+.Sh BUILTIN COMMANDS
+In
+.Nm ,
+builtin commands take parameters from the command line.
+Presently,
+the only way to call them from a script is by using
+.Pa evaluate
+on a string.
+If an error condition occurs, an exception will be generated,
+which can be intercepted using Lua exception handling.
+If not intercepted, an error message will be displayed and
+the interpreter's state will be reset, emptying the stack and restoring
+interpreting mode.
+.Pp
+The commands are described in the
+.Xr loader_simp 8
+.Dq BUILTIN COMMANDS
+section.
+.Ss BUILTIN ENVIRONMENT VARIABLES
+The environment variables common to all interpreters are described in the
+.Xr loader_simp 8
+.Dq BUILTIN ENVIRONMENT VARIABLES
+section.
+.Ss BUILTIN PARSER
+When a builtin command is executed, the rest of the line is taken
+by it as arguments, and it is processed by a special parser which
+is not used for regular Lua commands.
+.Sh SECURITY
+Access to the
+.Nm
+command line provides several ways of compromising system security,
+including, but not limited to:
+.Pp
+.Bl -bullet
+.It
+Booting from removable storage, by setting the
+.Va currdev
+or
+.Va loaddev
+variables
+.It
+Executing binary of choice, by setting the
+.Va init_path
+or
+.Va init_script
+variables
+.It
+Overriding ACPI DSDT to inject arbitrary code into the ACPI subsystem
+.El
+.Pp
+One can prevent unauthorized access
+to the
+.Nm
+command line by setting the
+.Va password ,
+or setting
+.Va autoboot_delay
+to -1.
+See
+.Xr loader.conf 5
+for details.
+In order for this to be effective, one should also configure the firmware
+(BIOS or UEFI) to prevent booting from unauthorized devices.
+.Sh MD
+Memory disk (MD) can be used when the
+.Nm
+was compiled with
+.Va MD_IMAGE_SIZE .
+The size of the memory disk is determined by
+.Va MD_IMAGE_SIZE .
+If MD available, a file system can be embedded into the
+.Nm
+with
+.Pa /sys/tools/embed_mfs.sh .
+Then, MD will be probed and be set to
+.Va currdev
+during initialization.
+.Pp
+Currently, MD is only supported in
+.Xr loader.efi 8 .
+.Sh FILES
+.Bl -tag -width /usr/share/examples/bootforth/ -compact
+.It Pa /boot/loader
+.Nm
+itself.
+.It Pa /boot/defaults/loader.conf
+.It Pa /boot/lua/loader.lua
+Loader init
+.It Pa /boot/loader.conf
+.It Pa /boot/loader.conf.local
+.Nm
+configuration files, as described in
+.Xr loader.conf 5 .
+.Sh EXAMPLES
+Boot in single user mode:
+.Pp
+.Dl boot -s
+.Pp
+Load the kernel, a splash screen, and then autoboot in five seconds.
+Notice that a kernel must be loaded before any other
+.Ic load
+command is attempted.
+.Bd -literal -offset indent
+load kernel
+load splash_bmp
+load -t splash_image_data /boot/chuckrulez.bmp
+autoboot 5
+.Ed
+.Pp
+Set the disk unit of the root device to 2, and then boot.
+This would be needed in a system with two IDE disks,
+with the second IDE disk hardwired to ada2 instead of ada1.
+.Bd -literal -offset indent
+set root_disk_unit=2
+boot /boot/kernel/kernel
+.Ed
+.Pp
+Set the default device used for loading a kernel from a ZFS filesystem:
+.Bd -literal -offset indent
+set currdev=zfs:tank/ROOT/knowngood:
+.Ed
+.Pp
+.Sh ERRORS
+The following values are thrown by
+.Nm :
+.Bl -tag -width XXXXX -offset indent
+.It 100
+Any type of error in the processing of a builtin.
+.It -1
+.Ic Abort
+executed.
+.It -2
+.Ic Abort"
+executed.
+.It -56
+.Ic Quit
+executed.
+.It -256
+Out of interpreting text.
+.It -257
+Need more text to succeed -- will finish on next run.
+.It -258
+.Ic Bye
+executed.
+.It -259
+Unspecified error.
+.El
+.Sh SEE ALSO
+.Xr libstand 3 ,
+.Xr loader.conf 5 ,
+.Xr tuning 7 ,
+.Xr boot 8 ,
+.Xr btxld 8
+.Sh HISTORY
+The
+.Nm
+first appeared in
+.Fx 3.1 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+was written by
+.An Michael Smith Aq msmith@FreeBSD.org .
+.Pp
+.Tn FICL
+was written by
+.An John Sadler Aq john_sadler@alum.mit.edu .

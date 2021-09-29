@@ -1,0 +1,585 @@
+.\" Copyright (c) 1999 Daniel C. Sobral
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 29, 2021
+.Dt LOADER_4TH 8
+.Os
+.Sh NAME
+.Nm loader_4th
+.Nd kernel bootstrapping final stage
+.Sh DESCRIPTION
+The program called
+.Nm
+is the final stage of
+.Fx Ns 's
+kernel bootstrapping process.
+On IA32 (i386) architectures, it is a
+.Pa BTX
+client.
+It is linked statically to
+.Xr libstand 3
+and usually located in the directory
+.Pa /boot .
+.Pp
+It provides a scripting language that can be used to
+automate tasks, do pre-configuration or assist in recovery
+procedures.
+This scripting language is roughly divided in
+two main components.
+The smaller one is a set of commands
+designed for direct use by the casual user, called "builtin
+commands" for historical reasons.
+The main drive behind these commands is user-friendliness.
+The bigger component is an
+.Tn ANS
+Forth compatible Forth interpreter based on FICL, by
+.An John Sadler .
+.Pp
+During initialization,
+.Nm
+will probe for a console and set the
+.Va console
+variable, or set it to serial console
+.Pq Dq Li comconsole
+if the previous boot stage used that.
+If multiple consoles are selected, they will be listed separated by spaces.
+Then, devices are probed,
+.Va currdev
+and
+.Va loaddev
+are set, and
+.Va LINES
+is set to 24.
+Next,
+.Tn FICL
+is initialized, the builtin words are added to its vocabulary, and
+.Pa /boot/boot.4th
+is processed if it exists.
+No disk switching is possible while that file is being read.
+The inner interpreter
+.Nm
+will use with
+.Tn FICL
+is then set to
+.Ic interpret ,
+which is
+.Tn FICL Ns 's
+default.
+After that,
+.Pa /boot/loader.rc
+is processed if available.
+These files are processed through the
+.Ic include
+command, which reads all of them into memory before processing them,
+making disk changes possible.
+.Pp
+At this point, if an
+.Ic autoboot
+has not been tried, and if
+.Va autoboot_delay
+is not set to
+.Dq Li NO
+(not case sensitive), then an
+.Ic autoboot
+will be tried.
+If the system gets past this point,
+.Va prompt
+will be set and
+.Nm
+will engage interactive mode.
+Please note that historically even when
+.Va autoboot_delay
+is set to
+.Dq Li 0
+user will be able to interrupt autoboot process by pressing some key
+on the console while kernel and modules are being loaded.
+In some
+cases such behaviour may be undesirable, to prevent it set
+.Va autoboot_delay
+to
+.Dq Li -1 ,
+in this case
+.Nm
+will engage interactive mode only if
+.Ic autoboot
+has failed.
+.Sh BUILTIN COMMANDS
+In
+.Nm ,
+builtin commands take parameters from the command line.
+Presently,
+the only way to call them from a script is by using
+.Pa evaluate
+on a string.
+If an error condition occurs, an exception will be generated,
+which can be intercepted using
+.Tn ANS
+Forth exception handling
+words.
+If not intercepted, an error message will be displayed and
+the interpreter's state will be reset, emptying the stack and restoring
+interpreting mode.
+The commands are described in the
+.Xr loader_simp 8
+.Dq BUILTIN COMMANDS
+section.
+.Ss BUILTIN ENVIRONMENT VARIABLES
+The environment variables common to all interpreters are described in the
+.Xr loader_simp 8
+.Dq BUILTIN ENVIRONMENT VARIABLES
+section.
+.Ss BUILTIN PARSER
+When a builtin command is executed, the rest of the line is taken
+by it as arguments, and it is processed by a special parser which
+is not used for regular Forth commands.
+.Pp
+This special parser applies the following rules to the parsed text:
+.Bl -enum
+.It
+All backslash characters are preprocessed.
+.Bl -bullet
+.It
+\eb , \ef , \er , \en and \et are processed as in C.
+.It
+\es is converted to a space.
+.It
+\ev is converted to
+.Tn ASCII
+11.
+.It
+\ez is just skipped.
+Useful for things like
+.Dq \e0xf\ez\e0xf .
+.It
+\e0xN and \e0xNN are replaced by the hex N or NN.
+.It
+\eNNN is replaced by the octal NNN
+.Tn ASCII
+character.
+.It
+\e" , \e' and \e$ will escape these characters, preventing them from
+receiving special treatment in Step 2, described below.
+.It
+\e\e will be replaced with a single \e .
+.It
+In any other occurrence, backslash will just be removed.
+.El
+.It
+Every string between non-escaped quotes or double-quotes will be treated
+as a single word for the purposes of the remaining steps.
+.It
+Replace any
+.Li $VARIABLE
+or
+.Li ${VARIABLE}
+with the value of the environment variable
+.Va VARIABLE .
+.It
+Space-delimited arguments are passed to the called builtin command.
+Spaces can also be escaped through the use of \e\e .
+.El
+.Pp
+An exception to this parsing rule exists, and is described in
+.Sx BUILTINS AND FORTH .
+.Ss BUILTINS AND FORTH
+All builtin words are state-smart, immediate words.
+If interpreted, they behave exactly as described previously.
+If they are compiled, though,
+they extract their arguments from the stack instead of the command line.
+.Pp
+If compiled, the builtin words expect to find, at execution time, the
+following parameters on the stack:
+.D1 Ar addrN lenN ... addr2 len2 addr1 len1 N
+where
+.Ar addrX lenX
+are strings which will compose the command line that will be parsed
+into the builtin's arguments.
+Internally, these strings are concatenated in from 1 to N,
+with a space put between each one.
+.Pp
+If no arguments are passed, a 0
+.Em must
+be passed, even if the builtin accepts no arguments.
+.Pp
+While this behavior has benefits, it has its trade-offs.
+If the execution token of a builtin is acquired (through
+.Ic '
+or
+.Ic ['] ) ,
+and then passed to
+.Ic catch
+or
+.Ic execute ,
+the builtin behavior will depend on the system state
+.Bf Em
+at the time
+.Ic catch
+or
+.Ic execute
+is processed!
+.Ef
+This is particularly annoying for programs that want or need to
+handle exceptions.
+In this case, the use of a proxy is recommended.
+For example:
+.Dl : (boot) boot ;
+.Sh FICL
+.Tn FICL
+is a Forth interpreter written in C, in the form of a forth
+virtual machine library that can be called by C functions and vice
+versa.
+.Pp
+In
+.Nm ,
+each line read interactively is then fed to
+.Tn FICL ,
+which may call
+.Nm
+back to execute the builtin words.
+The builtin
+.Ic include
+will also feed
+.Tn FICL ,
+one line at a time.
+.Pp
+The words available to
+.Tn FICL
+can be classified into four groups.
+The
+.Tn ANS
+Forth standard words, extra
+.Tn FICL
+words, extra
+.Fx
+words, and the builtin commands;
+the latter were already described.
+The
+.Tn ANS
+Forth standard words are listed in the
+.Sx STANDARDS
+section.
+The words falling in the two other groups are described in the
+following subsections.
+.Ss FICL EXTRA WORDS
+.Bl -tag -width wid-set-super
+.It Ic .env
+.It Ic .ver
+.It Ic -roll
+.It Ic 2constant
+.It Ic >name
+.It Ic body>
+.It Ic compare
+This is the STRING word set's
+.Ic compare .
+.It Ic compile-only
+.It Ic endif
+.It Ic forget-wid
+.It Ic parse-word
+.It Ic sliteral
+This is the STRING word set's
+.Ic sliteral .
+.It Ic wid-set-super
+.It Ic w@
+.It Ic w!
+.It Ic x.
+.It Ic empty
+.It Ic cell-
+.It Ic -rot
+.El
+.Ss FREEBSD EXTRA WORDS
+.Bl -tag -width XXXXXXXX
+.It Ic \&$ Pq --
+Evaluates the remainder of the input buffer, after having printed it first.
+.It Ic \&% Pq --
+Evaluates the remainder of the input buffer under a
+.Ic catch
+exception guard.
+.It Ic .#
+Works like
+.Ic "."
+but without outputting a trailing space.
+.It Ic fclose Pq Ar fd --
+Closes a file.
+.It Ic fkey Pq Ar fd -- char
+Reads a single character from a file.
+.It Ic fload Pq Ar fd --
+Processes a file
+.Em fd .
+.It Ic fopen Pq Ar addr len mode Li -- Ar fd
+Opens a file.
+Returns a file descriptor, or \-1 in case of failure.
+The
+.Ar mode
+parameter selects whether the file is to be opened for read access, write
+access, or both.
+The constants
+.Dv O_RDONLY , O_WRONLY ,
+and
+.Dv O_RDWR
+are defined in
+.Pa /boot/support.4th ,
+indicating read only, write only, and read-write access, respectively.
+.It Xo
+.Ic fread
+.Pq Ar fd addr len -- len'
+.Xc
+Tries to read
+.Em len
+bytes from file
+.Em fd
+into buffer
+.Em addr .
+Returns the actual number of bytes read, or -1 in case of error or end of
+file.
+.It Ic heap? Pq -- Ar cells
+Return the space remaining in the dictionary heap, in cells.
+This is not related to the heap used by dynamic memory allocation words.
+.It Ic inb Pq Ar port -- char
+Reads a byte from a port.
+.It Ic key Pq -- Ar char
+Reads a single character from the console.
+.It Ic key? Pq -- Ar flag
+Returns
+.Ic true
+if there is a character available to be read from the console.
+.It Ic ms Pq Ar u --
+Waits
+.Em u
+microseconds.
+.It Ic outb Pq Ar port char --
+Writes a byte to a port.
+.It Ic seconds Pq -- Ar u
+Returns the number of seconds since midnight.
+.It Ic tib> Pq -- Ar addr len
+Returns the remainder of the input buffer as a string on the stack.
+.It Ic trace! Pq Ar flag --
+Activates or deactivates tracing.
+Does not work with
+.Ic catch .
+.El
+.Ss FREEBSD DEFINED ENVIRONMENTAL QUERIES
+.Bl -tag -width Ds
+.It arch-i386
+.Ic TRUE
+if the architecture is IA32.
+.It FreeBSD_version
+.Fx
+version at compile time.
+.It loader_version
+.Nm
+version.
+.El
+.Sh SECURITY
+Access to the
+.Nm
+command line provides several ways of compromising system security,
+including, but not limited to:
+.Pp
+.Bl -bullet
+.It
+Booting from removable storage, by setting the
+.Va currdev
+or
+.Va loaddev
+variables
+.It
+Executing binary of choice, by setting the
+.Va init_path
+or
+.Va init_script
+variables
+.It
+Overriding ACPI DSDT to inject arbitrary code into the ACPI subsystem
+.El
+.Pp
+One can prevent unauthorized access
+to the
+.Nm
+command line by setting the
+.Va password ,
+or setting
+.Va autoboot_delay
+to -1.
+See
+.Xr loader.conf 5
+for details.
+In order for this to be effective, one should also configure the firmware
+(BIOS or UEFI) to prevent booting from unauthorized devices.
+.Sh MD
+Memory disk (MD) can be used when the
+.Nm
+was compiled with
+.Va MD_IMAGE_SIZE .
+The size of the memory disk is determined by
+.Va MD_IMAGE_SIZE .
+If MD available, a file system can be embedded into the
+.Nm
+with
+.Pa /sys/tools/embed_mfs.sh .
+Then, MD will be probed and be set to
+.Va currdev
+during initialization.
+.Pp
+Currently, MD is only supported in
+.Xr loader.efi 8 .
+.Sh FILES
+.Bl -tag -width /usr/share/examples/bootforth/ -compact
+.It Pa /boot/loader
+.Nm
+itself.
+.It Pa /boot/boot.4th
+Additional
+.Tn FICL
+initialization.
+.It Pa /boot/defaults/loader.conf
+.It Pa /boot/loader.4th
+Extra builtin-like words.
+.It Pa /boot/loader.conf
+.It Pa /boot/loader.conf.local
+.Nm
+configuration files, as described in
+.Xr loader.conf 5 .
+.It Pa /boot/loader.rc
+.Nm
+bootstrapping script.
+.It Pa /boot/loader.help
+Loaded by
+.Ic help .
+Contains the help messages.
+.It Pa /boot/support.4th
+.Pa loader.conf
+processing words.
+.It Pa /usr/share/examples/bootforth/
+Assorted examples.
+.El
+.Sh EXAMPLES
+Boot in single user mode:
+.Pp
+.Dl boot -s
+.Pp
+Load the kernel, a splash screen, and then autoboot in five seconds.
+Notice that a kernel must be loaded before any other
+.Ic load
+command is attempted.
+.Bd -literal -offset indent
+load kernel
+load splash_bmp
+load -t splash_image_data /boot/chuckrulez.bmp
+autoboot 5
+.Ed
+.Pp
+Set the disk unit of the root device to 2, and then boot.
+This would be needed in a system with two IDE disks,
+with the second IDE disk hardwired to ada2 instead of ada1.
+.Bd -literal -offset indent
+set root_disk_unit=2
+boot /boot/kernel/kernel
+.Ed
+.Pp
+Set the default device used for loading a kernel from a ZFS filesystem:
+.Bd -literal -offset indent
+set currdev=zfs:tank/ROOT/knowngood:
+.Ed
+.Pp
+.Sh ERRORS
+The following values are thrown by
+.Nm :
+.Bl -tag -width XXXXX -offset indent
+.It 100
+Any type of error in the processing of a builtin.
+.It -1
+.Ic Abort
+executed.
+.It -2
+.Ic Abort"
+executed.
+.It -56
+.Ic Quit
+executed.
+.It -256
+Out of interpreting text.
+.It -257
+Need more text to succeed -- will finish on next run.
+.It -258
+.Ic Bye
+executed.
+.It -259
+Unspecified error.
+.El
+.Sh SEE ALSO
+.Xr libstand 3 ,
+.Xr loader.conf 5 ,
+.Xr tuning 7 ,
+.Xr boot 8 ,
+.Xr btxld 8
+.Sh STANDARDS
+For the purposes of ANS Forth compliance, loader is an
+.Bf Em
+ANS Forth System with Environmental Restrictions, Providing
+.Ef
+.Bf Li
+.No .( ,
+.No :noname ,
+.No ?do ,
+parse, pick, roll, refill, to, value, \e, false, true,
+.No <> ,
+.No 0<> ,
+compile\&, , erase, nip, tuck
+.Ef
+.Em and
+.Li marker
+.Bf Em
+from the Core Extensions word set, Providing the Exception Extensions
+word set, Providing the Locals Extensions word set, Providing the
+Memory-Allocation Extensions word set, Providing
+.Ef
+.Bf Li
+\&.s,
+bye, forget, see, words,
+\&[if],
+\&[else]
+.Ef
+.Em and
+.Li [then]
+.Bf Em
+from the Programming-Tools extension word set, Providing the
+Search-Order extensions word set.
+.Ef
+.Sh HISTORY
+The
+.Nm
+first appeared in
+.Fx 3.1 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+was written by
+.An Michael Smith Aq msmith@FreeBSD.org .
+.Pp
+.Tn FICL
+was written by
+.An John Sadler Aq john_sadler@alum.mit.edu .
