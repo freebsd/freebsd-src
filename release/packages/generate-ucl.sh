@@ -44,7 +44,6 @@ main() {
 			;;
 		utilities)
 			uclfile="${uclfile}"
-			vital="true"
 			;;
 		runtime)
 			outname="runtime"
