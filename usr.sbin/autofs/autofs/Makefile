@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+PACKAGE=	autofs
+
 CONFS=		include_ldap \
 		include_nis \
 		include_nis_nullfs \
