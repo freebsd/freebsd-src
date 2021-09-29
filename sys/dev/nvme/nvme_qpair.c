@@ -740,7 +740,7 @@ nvme_qpair_construct(struct nvme_qpair *qpair,
 
 	callout_init(&qpair->timer, 1);
 	qpair->timer_armed = false;
-	qpair->recovery_state = RECOVERY_NONE;
+	qpair->recovery_state = RECOVERY_WAITING;
 
 	/*
 	 * Calcuate the stride of the doorbell register. Many emulators set this
