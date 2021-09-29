@@ -290,4 +290,8 @@ vmalloc_to_page(const void *addr)
 extern int is_vmalloc_addr(const void *addr);
 void si_meminfo(struct sysinfo *si);
 
+#define	unmap_mapping_range(...)	lkpi_unmap_mapping_range(__VA_ARGS__)
+void lkpi_unmap_mapping_range(void *obj, loff_t const holebegin __unused,
+    loff_t const holelen, int even_cows __unused);
+
 #endif					/* _LINUX_MM_H_ */

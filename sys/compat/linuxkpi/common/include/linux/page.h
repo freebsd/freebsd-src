@@ -41,6 +41,10 @@
 #include <vm/vm_page.h>
 #include <vm/pmap.h>
 
+#if defined(__i386__) || defined(__amd64__)
+#include <machine/md_var.h>
+#endif
+
 typedef unsigned long linux_pte_t;
 typedef unsigned long linux_pmd_t;
 typedef unsigned long linux_pgd_t;
@@ -52,6 +56,8 @@ typedef unsigned long pgprot_t;
 #define	LINUXKPI_CACHE_MODE_SHIFT 4
 
 CTASSERT((VM_PROT_ALL & -LINUXKPI_PROT_VALID) == 0);
+
+#define	PAGE_KERNEL_IO	0x0000
 
 static inline pgprot_t
 cachemode2protval(vm_memattr_t attr)
@@ -72,6 +78,7 @@ pgprot2cachemode(pgprot_t prot)
 #define	page_to_pfn(pp)		(VM_PAGE_TO_PHYS(pp) >> PAGE_SHIFT)
 #define	pfn_to_page(pfn)	(PHYS_TO_VM_PAGE((pfn) << PAGE_SHIFT))
 #define	nth_page(page,n)	pfn_to_page(page_to_pfn(page) + (n))
+#define	page_to_phys(page)	VM_PAGE_TO_PHYS(page)
 
 #define	clear_page(page)		memset(page, 0, PAGE_SIZE)
 #define	pgprot_noncached(prot)		\
@@ -92,5 +99,20 @@ pgprot2cachemode(pgprot_t prot)
 #define	round_page(x)	((((uintptr_t)(x)) + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1))
 #undef	trunc_page
 #define	trunc_page(x)	((uintptr_t)(x) & ~(PAGE_SIZE - 1))
+
+#if defined(__i386__) || defined(__amd64__)
+#undef clflushopt
+static inline void
+lkpi_clflushopt(unsigned long addr)
+{
+	if (cpu_stdext_feature & CPUID_STDEXT_CLFLUSHOPT)
+		clflushopt(addr);
+	else if (cpu_feature & CPUID_CLFSH)
+		clflush(addr);
+	else
+		pmap_invalidate_cache();
+}
+#define	clflushopt(x)	lkpi_clflushopt((unsigned long)(x))
+#endif
 
 #endif	/* _LINUX_PAGE_H_ */
