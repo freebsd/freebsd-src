@@ -3362,11 +3362,11 @@ moea64_scan_pmap()
 		if (va & PVO_LARGE) {
 			pa_end = pa + lpsize;
 			for (; pa < pa_end; pa += PAGE_SIZE) {
-				if (is_dumpable(pa))
+				if (vm_phys_is_dumpable(pa))
 					dump_add_page(pa);
 			}
 		} else {
-			if (is_dumpable(pa))
+			if (vm_phys_is_dumpable(pa))
 				dump_add_page(pa);
 		}
 	}

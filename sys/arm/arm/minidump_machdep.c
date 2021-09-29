@@ -65,21 +65,6 @@ static size_t fragsz;
 static void *dump_va;
 static uint64_t counter, progress;
 
-static int
-is_dumpable(vm_paddr_t pa)
-{
-	vm_page_t m;
-	int i;
-
-	if ((m = vm_phys_paddr_to_vm_page(pa)) != NULL)
-		return ((m->flags & PG_NODUMP) == 0);
-	for (i = 0; dump_avail[i] != 0 || dump_avail[i + 1] != 0; i += 2) {
-		if (pa >= dump_avail[i] && pa < dump_avail[i + 1])
-			return (1);
-	}
-	return (0);
-}
-
 #define PG2MB(pgs) (((pgs) + (1 << 8) - 1) >> 8)
 
 static int
@@ -202,7 +187,7 @@ minidumpsys(struct dumperinfo *di)
 	ptesize = 0;
 	for (va = KERNBASE; va < kernel_vm_end; va += PAGE_SIZE) {
 		pa = pmap_dump_kextract(va, NULL);
-		if (pa != 0 && is_dumpable(pa))
+		if (pa != 0 && vm_phys_is_dumpable(pa))
 			dump_add_page(pa);
 		ptesize += sizeof(pt2_entry_t);
 	}
@@ -214,7 +199,7 @@ minidumpsys(struct dumperinfo *di)
 	dumpsize += round_page(BITSET_SIZE(vm_page_dump_pages));
 	VM_PAGE_DUMP_FOREACH(pa) {
 		/* Clear out undumpable pages now if needed */
-		if (is_dumpable(pa))
+		if (vm_phys_is_dumpable(pa))
 			dumpsize += PAGE_SIZE;
 		else
 			dump_drop_page(pa);
