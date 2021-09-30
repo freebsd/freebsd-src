@@ -36,7 +36,6 @@
 
 #include <netgraph/ng_message.h>
 #include <netgraph.h>
-#include <netgraph/bluetooth/include/ng_h4.h>
 
 #include <errno.h>
 #include <fcntl.h>
