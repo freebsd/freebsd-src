@@ -19,8 +19,6 @@ static char sccsic[] = "@(#) misc.c 1.2 96/02/11 17:01:29";
 
 #include "tcpd.h"
 
-extern char *fgets();
-
 #ifndef	INADDR_NONE
 #define	INADDR_NONE	(-1)		/* XXX should be 0xffffffff */
 #endif
