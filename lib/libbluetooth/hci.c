@@ -762,7 +762,6 @@ static char *
 bt_dev2node(char const *devname, char *nodename, int nnlen)
 {
 	static char const *	 bt_dev_prefix[] = {
-		"h4",		/* UART/serial Bluetooth devices */
 		"ubt",		/* Bluetooth USB devices */
 		NULL		/* should be last */
 	};
