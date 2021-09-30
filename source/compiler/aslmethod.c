@@ -559,74 +559,56 @@ MtMethodAnalysisWalkBegin (
          *
          * Under the Device Object:
          *
-         * 1) If _DIS is present, must have a _CRS, _PRS, and _SRS
-         * 2) If _PRS is present, must have a _CRS and _SRS
-         * 3) If _SRS is present, must have a _CRS and _PRS
+         * 1) If _PRS present, must have _CRS and _SRS
+         * 2) If _SRS present, must have _PRS (_PRS requires _CRS and _SRS)
+         * 3) If _DIS present, must have _SRS (_SRS requires _PRS, _PRS requires _CRS and _SRS)
+         * 4) If _SRS present, probably should have a _DIS (Remark only)
          */
         CrsExists = ApFindNameInDeviceTree (METHOD_NAME__CRS, Op);
         DisExists = ApFindNameInDeviceTree (METHOD_NAME__DIS, Op);
         PrsExists = ApFindNameInDeviceTree (METHOD_NAME__PRS, Op);
         SrsExists = ApFindNameInDeviceTree (METHOD_NAME__SRS, Op);
 
-        /* 1) If _DIS is present, must have a _CRS, _PRS, and _SRS */
-
-        if (DisExists)
-        {
-            if (!CrsExists)
-            {
-                AslError (ASL_WARNING, ASL_MSG_MISSING_DEPENDENCY, Op,
-                    "_DIS is missing a _CRS, requires a _CRS, _PRS, and a _SRS");
-            }
-
-            if (!PrsExists)
-            {
-                AslError (ASL_WARNING, ASL_MSG_MISSING_DEPENDENCY, Op,
-                    "_DIS is missing a _PRS, requires a _CRS, _PRS, and a _SRS");
-            }
-
-            if (!SrsExists)
-            {
-                AslError (ASL_WARNING, ASL_MSG_MISSING_DEPENDENCY, Op,
-                    "_DIS is missing a _SRS, requires a _CRS, _PRS, and a _SRS");
-            }
-        }
-
-        /* 2) If _PRS is present, must have a _CRS and _SRS */
+        /* 1) If _PRS is present, must have a _CRS and _SRS */
 
         if (PrsExists)
         {
             if (!CrsExists)
             {
                 AslError (ASL_WARNING, ASL_MSG_MISSING_DEPENDENCY, Op,
-                    "_PRS is missing a _CRS, requires a _CRS and a _SRS");
+                    "Device has a _PRS, missing a _CRS, required");
             }
-
             if (!SrsExists)
             {
                 AslError (ASL_WARNING, ASL_MSG_MISSING_DEPENDENCY, Op,
-                    "_PRS is missing a _SRS, requires a _CRS and a _SRS");
+                    "Device has a _PRS, missing a _SRS, required");
             }
         }
 
-        /* 3) If _SRS is present, must have a _CRS and _PRS */
+        /* 2) If _SRS is present, must have _PRS (_PRS requires _CRS and _SRS) */
 
-        if (SrsExists)
+        if ((SrsExists) && (!PrsExists))
         {
-            if (!CrsExists)
-            {
-                AslError (ASL_WARNING, ASL_MSG_MISSING_DEPENDENCY, Op,
-                    "_SRS is missing a _CRS, requires a _CRS and a _PRS");
-            }
-            if (!PrsExists)
-            {
-                AslError (ASL_WARNING, ASL_MSG_MISSING_DEPENDENCY, Op,
-                    "_SRS is missing a _PRS, requires a _CRS and a _PRS");
-            }
-            if (!DisExists)
-            {
-                AslError (ASL_REMARK, ASL_MSG_MISSING_DEPENDENCY, Op,
-                    "_SRS is missing a _DIS");
-            }
+            AslError (ASL_WARNING, ASL_MSG_MISSING_DEPENDENCY, Op,
+                "Device has a _SRS, missing a _PRS, required");
+        }
+
+        /* 3) If _DIS is present, must have a _SRS */
+
+        if ((DisExists) && (!SrsExists))
+        {
+            AslError (ASL_WARNING, ASL_MSG_MISSING_DEPENDENCY, Op,
+                "Device has a _DIS, missing a _SRS, required");
+        }
+
+        /*
+         * 4) If _SRS is present, should have a _DIS (_PRS requires _CRS
+         * and _SRS)  Remark only.
+         */
+        if ((SrsExists) && (!DisExists))
+        {
+            AslError (ASL_REMARK, ASL_MSG_MISSING_DEPENDENCY, Op,
+                "Device has a _SRS, no corresponding _DIS");
         }
         break;
 
