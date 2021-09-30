@@ -55,14 +55,6 @@ SOFTWARE.
 #include <ctype.h>
 #include <syslog.h>
 
-#ifndef	USE_BFUNCS
-#include <memory.h>
-/* Yes, memcpy is OK here (no overlapped copies). */
-#define bcopy(a,b,c)    memcpy(b,a,c)
-#define bzero(p,l)      memset(p,0,l)
-#define bcmp(a,b,c)     memcmp(a,b,c)
-#endif
-
 #include "bootp.h"
 #include "hash.h"
 #include "hwaddr.h"
