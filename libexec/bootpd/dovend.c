@@ -15,15 +15,6 @@
 #include <errno.h>
 #include <syslog.h>
 
-#ifndef USE_BFUNCS
-# include <memory.h>
-/* Yes, memcpy is OK here (no overlapped copies). */
-# define bcopy(a,b,c)    memcpy(b,a,c)
-# define bzero(p,l)      memset(p,0,l)
-# define bcmp(a,b,c)     memcmp(a,b,c)
-# define index           strchr
-#endif
-
 #include "bootp.h"
 #include "bootpd.h"
 #include "report.h"

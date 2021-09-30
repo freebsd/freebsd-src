@@ -17,13 +17,8 @@ extern int ether_hostton();
 #endif
 
 #include <netdb.h>
+#include <strings.h>
 #include <syslog.h>
-
-#ifndef USE_BFUNCS
-#include <memory.h>
-/* Yes, memcpy is OK here (no overlapped copies). */
-#define bcopy(a,b,c)    memcpy(b,a,c)
-#endif
 
 #include "bootp.h"
 #include "lookup.h"
