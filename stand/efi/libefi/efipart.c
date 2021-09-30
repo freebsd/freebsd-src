@@ -949,8 +949,10 @@ efipart_close(struct open_file *f)
 	pd->pd_open--;
 	if (pd->pd_open == 0) {
 		pd->pd_blkio = NULL;
-		bcache_free(pd->pd_bcache);
-		pd->pd_bcache = NULL;
+		if (dev->dd.d_dev->dv_type != DEVT_DISK) {
+			bcache_free(pd->pd_bcache);
+			pd->pd_bcache = NULL;
+		}
 	}
 	if (dev->dd.d_dev->dv_type == DEVT_DISK)
 		return (disk_close(dev));
