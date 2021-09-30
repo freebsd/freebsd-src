@@ -63,8 +63,6 @@ __FBSDID("$FreeBSD$");
 int bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp,
     bool exit_bs);
 
-extern EFI_SYSTEM_TABLE	*ST;
-
 int boot_services_gone;
 
 static int
