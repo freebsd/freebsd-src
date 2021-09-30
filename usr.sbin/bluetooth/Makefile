@@ -8,7 +8,6 @@ SUBDIR= \
 	btpand \
 	hccontrol \
 	hcsecd \
-	hcseriald \
 	l2control \
 	l2ping \
 	rfcomm_pppd \

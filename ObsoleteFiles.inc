@@ -40,6 +40,10 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20210929:
+OLD_FILES+=usr/sbin/hcseriald
+OLD_FILES+=usr/share/man/man8/hcseriald.8.gz
+
 # 20210929: Remove ng_h4
 OLD_FILES+=usr/share/man/man4/ng_h4.4.gz
 
