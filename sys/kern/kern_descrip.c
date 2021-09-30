@@ -3791,6 +3791,26 @@ pwd_hold(struct thread *td)
 	return (pwd);
 }
 
+struct pwd *
+pwd_hold_proc(struct proc *p)
+{
+	struct pwddesc *pdp;
+	struct pwd *pwd;
+
+	PROC_ASSERT_HELD(p);
+	PROC_LOCK(p);
+	pdp = pdhold(p);
+	MPASS(pdp != NULL);
+	PROC_UNLOCK(p);
+
+	PWDDESC_XLOCK(pdp);
+	pwd = pwd_hold_pwddesc(pdp);
+	MPASS(pwd != NULL);
+	PWDDESC_XUNLOCK(pdp);
+	pddrop(pdp);
+	return (pwd);
+}
+
 static struct pwd *
 pwd_alloc(void)
 {
