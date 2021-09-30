@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 1, 2020
+.Dd October 6, 2021
 .Dt KQUEUE 2
 .Os
 .Sh NAME
@@ -562,6 +562,12 @@ is not set, the default is milliseconds.
 On return,
 .Va fflags
 contains the events which triggered the filter.
+.Pp
+Periodic timers with a specified timeout of 0 will be silently adjusted to
+timeout after 1 of the time units specified by the requested precision in
+.Va fflags .
+If an absolute time is specified that has already passed, then it is treated as
+if the current time were specified and the event will fire as soon as possible.
 .Pp
 If an existing timer is re-added, the existing timer will be
 effectively canceled (throwing away any undelivered record of previous
