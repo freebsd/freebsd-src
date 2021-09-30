@@ -75,6 +75,9 @@ struct pci_id {
 	int		regshft;
 };
 
+#define PCI_NO_MSI	0x40000000
+#define PCI_RID_MASK	0x0000ffff
+
 static const struct pci_id pci_ns8250_ids[] = {
 { 0x1028, 0x0008, 0xffff, 0, "Dell Remote Access Card III", 0x14,
 	128 * DEFAULT_RCLK },
@@ -171,7 +174,8 @@ static const struct pci_id pci_ns8250_ids[] = {
 { 0x8086, 0x8cbd, 0xffff, 0, "Intel Wildcat Point KT Controller", 0x10 },
 { 0x8086, 0x9c3d, 0xffff, 0, "Intel Lynx Point-LP HECI KT", 0x10 },
 { 0x8086, 0xa13d, 0xffff, 0,
-	"100 Series/C230 Series Chipset Family KT Redirection", 0x10 },
+	"100 Series/C230 Series Chipset Family KT Redirection",
+	0x10 | PCI_NO_MSI },
 { 0x9710, 0x9820, 0x1000, 1, "NetMos NM9820 Serial Port", 0x10 },
 { 0x9710, 0x9835, 0x1000, 1, "NetMos NM9835 Serial Port", 0x10 },
 { 0x9710, 0x9865, 0xa000, 0x1000, "NetMos NM9865 Serial Port", 0x10 },
@@ -227,7 +231,8 @@ uart_pci_probe(device_t dev)
 	return (ENXIO);
 
  match:
-	result = uart_bus_probe(dev, id->regshft, 0, id->rclk, id->rid, 0, 0);
+	result = uart_bus_probe(dev, id->regshft, 0, id->rclk,
+	    id->rid & PCI_RID_MASK, 0, 0);
 	/* Bail out on error. */
 	if (result > 0)
 		return (result);
@@ -241,6 +246,7 @@ static int
 uart_pci_attach(device_t dev)
 {
 	struct uart_softc *sc;
+	const struct pci_id *id;
 	int count;
 
 	sc = device_get_softc(dev);
@@ -249,7 +255,9 @@ uart_pci_attach(device_t dev)
 	 * Use MSI in preference to legacy IRQ if available. However, experience
 	 * suggests this is only reliable when one MSI vector is advertised.
 	 */
-	if (pci_msi_count(dev) == 1) {
+	id = uart_pci_match(dev, pci_ns8250_ids);
+	if ((id == NULL || (id->rid & PCI_NO_MSI) == 0) &&
+	    pci_msi_count(dev) == 1) {
 		count = 1;
 		if (pci_alloc_msi(dev, &count) == 0) {
 			sc->sc_irid = 1;
