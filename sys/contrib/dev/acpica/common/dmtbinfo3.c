@@ -368,21 +368,33 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoSrat4[] =
     ACPI_DMT_TERMINATOR
 };
 
+/* Common SRAT structure for Generic Affinity Subtables */
+
+#define ACPI_DM_SRAT_GENERIC_AFFINITY \
+    {ACPI_DMT_UINT8,    ACPI_SRAT5_OFFSET (Reserved),               "Reserved1", 0}, \
+    {ACPI_DMT_UINT8,    ACPI_SRAT5_OFFSET (DeviceHandleType),       "Device Handle Type", 0}, \
+    {ACPI_DMT_UINT32,   ACPI_SRAT5_OFFSET (ProximityDomain),        "Proximity Domain", 0}, \
+    {ACPI_DMT_BUF16,    ACPI_SRAT5_OFFSET (DeviceHandle),           "Device Handle", 0}, \
+    {ACPI_DMT_UINT32,   ACPI_SRAT5_OFFSET (Flags),                  "Flags (decoded below)", DT_FLAG}, \
+    {ACPI_DMT_FLAG0,    ACPI_SRAT5_FLAG_OFFSET (Flags,0),           "Enabled", 0}, \
+    {ACPI_DMT_FLAG1,    ACPI_SRAT5_FLAG_OFFSET (Flags,0),           "Architectural Transactions", 0}, \
+    {ACPI_DMT_UINT32,   ACPI_SRAT5_OFFSET (Reserved1),              "Reserved2", 0}
+
 /* 5: Generic Initiator Affinity Structure (ACPI 6.3) */
 
 ACPI_DMTABLE_INFO           AcpiDmTableInfoSrat5[] =
 {
-    {ACPI_DMT_UINT8,    ACPI_SRAT5_OFFSET (Reserved),               "Reserved1", 0},
-    {ACPI_DMT_UINT8,    ACPI_SRAT5_OFFSET (DeviceHandleType),       "Device Handle Type", 0},
-    {ACPI_DMT_UINT32,   ACPI_SRAT5_OFFSET (ProximityDomain),        "Proximity Domain", 0},
-    {ACPI_DMT_BUF16,    ACPI_SRAT5_OFFSET (DeviceHandle),           "Device Handle", 0},
-    {ACPI_DMT_UINT32,   ACPI_SRAT5_OFFSET (Flags),                  "Flags (decoded below)", DT_FLAG},
-    {ACPI_DMT_FLAG0,    ACPI_SRAT5_FLAG_OFFSET (Flags,0),           "Enabled", 0},
-    {ACPI_DMT_FLAG1,    ACPI_SRAT5_FLAG_OFFSET (Flags,0),           "Architectural Transactions", 0},
-    {ACPI_DMT_UINT32,   ACPI_SRAT5_OFFSET (Reserved1),              "Reserved2", 0},
+    ACPI_DM_SRAT_GENERIC_AFFINITY,
     ACPI_DMT_TERMINATOR
 };
 
+/* 6: Generic Port Affinity Structure (ACPI 6.4) */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoSrat6[] =
+{
+    ACPI_DM_SRAT_GENERIC_AFFINITY,
+    ACPI_DMT_TERMINATOR
+};
 
 /*******************************************************************************
  *

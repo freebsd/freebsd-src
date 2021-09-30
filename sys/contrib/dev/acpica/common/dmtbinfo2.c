@@ -1196,6 +1196,189 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoNfit7[] =
 
 /*******************************************************************************
  *
+ * NHLT - Non HD Audio Link Table. Conforms to Intel Smart Sound Technology
+ * NHLT Specification, January 2020 Revision 0.8.1
+ *
+ ******************************************************************************/
+
+/* Main table */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoNhlt[] =
+{
+    {ACPI_DMT_UINT8,    ACPI_NHLT_OFFSET (EndpointCount),           "Endpoint Count", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+/* Endpoint config */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoNhlt0[] =
+{
+    {ACPI_DMT_UINT32,   ACPI_NHLT0_OFFSET (DescriptorLength),       "Descriptor Length", DT_LENGTH},
+    {ACPI_DMT_NHLT1,    ACPI_NHLT0_OFFSET (LinkType),               "Link Type", 0},
+    {ACPI_DMT_UINT8,    ACPI_NHLT0_OFFSET (InstanceId),             "Instance Id", 0},
+    {ACPI_DMT_UINT16,   ACPI_NHLT0_OFFSET (VendorId),               "Vendor Id", 0},
+    {ACPI_DMT_UINT16,   ACPI_NHLT0_OFFSET (DeviceId),               "Device Id", 0},
+    {ACPI_DMT_UINT16,   ACPI_NHLT0_OFFSET (RevisionId),             "Revision Id", 0},
+    {ACPI_DMT_UINT32,   ACPI_NHLT0_OFFSET (SubsystemId),            "Subsystem Id", 0},
+    {ACPI_DMT_UINT8,    ACPI_NHLT0_OFFSET (DeviceType),             "Device Type", 0},
+    {ACPI_DMT_NHLT1a,   ACPI_NHLT0_OFFSET (Direction),              "Direction", 0},
+    {ACPI_DMT_UINT8,    ACPI_NHLT0_OFFSET (VirtualBusId),           "Virtual Bus Id", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+/* Device_Specific config */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoNhlt1[] =
+{
+    {ACPI_DMT_UINT32,   ACPI_NHLT1_OFFSET (CapabilitiesSize),       "Capabilities Size", DT_LENGTH},
+    {ACPI_DMT_UINT8,    ACPI_NHLT1_OFFSET (VirtualSlot),            "Virtual Slot", 0},
+    {ACPI_DMT_UINT8,    ACPI_NHLT1_OFFSET (ConfigType),             "Config Type", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+/* Wave Format Extensible */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoNhlt2[] =
+{
+    {ACPI_DMT_UINT16,   ACPI_NHLT2_OFFSET (FormatTag),              "Format Tag", 0},
+    {ACPI_DMT_UINT16,   ACPI_NHLT2_OFFSET (ChannelCount),           "Channel Count", 0},
+    {ACPI_DMT_UINT32,   ACPI_NHLT2_OFFSET (SamplesPerSec),          "Samples Per Second", 0},
+    {ACPI_DMT_UINT32,   ACPI_NHLT2_OFFSET (AvgBytesPerSec),         "Average Bytes Per Second", 0},
+    {ACPI_DMT_UINT16,   ACPI_NHLT2_OFFSET (BlockAlign),             "Block Alignment", 0},
+    {ACPI_DMT_UINT16,   ACPI_NHLT2_OFFSET (BitsPerSample),          "Bits Per Sample", 0},
+    {ACPI_DMT_UINT16,   ACPI_NHLT2_OFFSET (ExtraFormatSize),        "Extra Format Size", 0},
+    {ACPI_DMT_UINT16,   ACPI_NHLT2_OFFSET (ValidBitsPerSample),     "Valid Bits Per Sample", 0},
+    {ACPI_DMT_UINT32,   ACPI_NHLT2_OFFSET (ChannelMask),            "Channel Mask", 0},
+    {ACPI_DMT_UUID,     ACPI_NHLT2_OFFSET (SubFormatGuid),          "SubFormat GUID", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+/* Format Config */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoNhlt3[] =
+{
+    {ACPI_DMT_UINT16,   ACPI_NHLT3_OFFSET (Format.FormatTag),               "Format Tag", 0},
+    {ACPI_DMT_UINT16,   ACPI_NHLT3_OFFSET (Format.ChannelCount),            "Channel Count", 0},
+    {ACPI_DMT_UINT32,   ACPI_NHLT3_OFFSET (Format.SamplesPerSec),           "Samples Per Second", 0},
+    {ACPI_DMT_UINT32,   ACPI_NHLT3_OFFSET (Format.AvgBytesPerSec),          "Average Bytes Per Second", 0},
+    {ACPI_DMT_UINT16,   ACPI_NHLT3_OFFSET (Format.BlockAlign),              "Block Alignment", 0},
+    {ACPI_DMT_UINT16,   ACPI_NHLT3_OFFSET (Format.BitsPerSample),           "Bits Per Sample", 0},
+    {ACPI_DMT_UINT16,   ACPI_NHLT3_OFFSET (Format.ExtraFormatSize),         "Extra Format Size", 0},
+    {ACPI_DMT_UINT16,   ACPI_NHLT3_OFFSET (Format.ValidBitsPerSample),      "Valid Bits Per Sample", 0},
+    {ACPI_DMT_UINT32,   ACPI_NHLT3_OFFSET (Format.ChannelMask),             "Channel Mask", 0},
+    {ACPI_DMT_UUID,     ACPI_NHLT3_OFFSET (Format.SubFormatGuid),           "SubFormat GUID", 0},
+    {ACPI_DMT_UINT32,   ACPI_NHLT3_OFFSET (CapabilitySize),                 "Capabilities Length", DT_LENGTH},
+    ACPI_DMT_TERMINATOR
+};
+
+/*
+ * We treat the binary Capabilities field as its own subtable (to make
+ * ACPI_DMT_RAW_BUFFER work properly).
+ */
+ACPI_DMTABLE_INFO           AcpiDmTableInfoNhlt3a[] =
+{
+    {ACPI_DMT_RAW_BUFFER, 0,                                        "Capabilities", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+
+/* Formats Config */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoNhlt4[] =
+{
+    {ACPI_DMT_UINT8,    ACPI_NHLT4_OFFSET (FormatsCount),           "Formats Count", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+/* Specific Config, CapabilitiesSize == 2 */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoNhlt5[] =
+{
+    {ACPI_DMT_UINT32,   ACPI_NHLT5_OFFSET (CapabilitiesSize),       "Capabilities Size", DT_LENGTH},
+    {ACPI_DMT_UINT8,    ACPI_NHLT5_OFFSET (VirtualSlot),            "Virtual Slot", 0},
+    {ACPI_DMT_UINT8,    ACPI_NHLT5_OFFSET (ConfigType),             "Config Type", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+/* Specific Config, CapabilitiesSize == 3 */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoNhlt5a[] =
+{
+    {ACPI_DMT_UINT32,   ACPI_NHLT5A_OFFSET (CapabilitiesSize),      "Capabilities Size", DT_LENGTH},
+    {ACPI_DMT_UINT8,    ACPI_NHLT5A_OFFSET (VirtualSlot),           "Virtual Slot", 0},
+    {ACPI_DMT_UINT8,    ACPI_NHLT5A_OFFSET (ConfigType),            "Config Type", 0},
+    {ACPI_DMT_UINT8,    ACPI_NHLT5A_OFFSET (ArrayType),             "Array Type", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+/* Specific Config, CapabilitiesSize == 0 */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoNhlt5b[] =
+{
+    {ACPI_DMT_UINT32,   ACPI_NHLT5B_OFFSET (CapabilitiesSize),      "Capabilities Size", DT_LENGTH},
+    ACPI_DMT_TERMINATOR
+};
+
+/* Specific Config, CapabilitiesSize == 1 */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoNhlt5c[] =
+{
+    {ACPI_DMT_UINT32,   ACPI_NHLT5C_OFFSET (CapabilitiesSize),      "Capabilities Size", DT_LENGTH},
+    {ACPI_DMT_UINT8,    ACPI_NHLT5C_OFFSET (VirtualSlot),           "Virtual Slot", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+/* Microphone array Config */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoNhlt6[] =
+{
+    {ACPI_DMT_UINT8,    ACPI_NHLT6_OFFSET (Type),                   "Type", 0},
+    {ACPI_DMT_UINT8,    ACPI_NHLT6_OFFSET (Panel),                  "Panel", 0},
+    {ACPI_DMT_UINT16,   ACPI_NHLT6_OFFSET (SpeakerPositionDistance), "Speaker Position Distance", 0},
+    {ACPI_DMT_UINT16,   ACPI_NHLT6_OFFSET (HorizontalOffset),       "Horizontal Offset", 0},
+    {ACPI_DMT_UINT16,   ACPI_NHLT6_OFFSET (VerticalOffset),         "Vertical Offset", 0},
+    {ACPI_DMT_UINT8,    ACPI_NHLT6_OFFSET (FrequencyLowBand),       "Frequency Low Band", 0},
+    {ACPI_DMT_UINT8,    ACPI_NHLT6_OFFSET (FrequencyHighBand),      "Frequency High Band", 0},
+    {ACPI_DMT_UINT16,   ACPI_NHLT6_OFFSET (DirectionAngle),         "Direction Angle", 0},
+    {ACPI_DMT_UINT16,   ACPI_NHLT6_OFFSET (ElevationAngle),         "Elevation Angle", 0},
+    {ACPI_DMT_UINT16,   ACPI_NHLT6_OFFSET (WorkVerticalAngleBegin), "Work Vertical Angle Begin", 0},
+    {ACPI_DMT_UINT16,   ACPI_NHLT6_OFFSET (WorkVerticalAngleEnd),   "Work Vertical Angle End", 0},
+    {ACPI_DMT_UINT16,   ACPI_NHLT6_OFFSET (WorkHorizontalAngleBegin), "Work Horizontal Angle Begin", 0},
+    {ACPI_DMT_UINT16,   ACPI_NHLT6_OFFSET (WorkHorizontalAngleEnd), "Work Horizontal Angle End", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+/* Number of Linux-specific structures */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoNhlt7[] =
+{
+    {ACPI_DMT_UINT8,    ACPI_NHLT7_OFFSET (StructureCount),         "Linux-specific struct count", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+/* The Linux-specific structure */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoNhlt7a[] =
+{
+    {ACPI_DMT_BUF16,    ACPI_NHLT7A_OFFSET (DeviceId),              "Device ID", 0},
+    {ACPI_DMT_UINT8,    ACPI_NHLT7A_OFFSET (DeviceInstanceId),      "Device Instance ID", 0},
+    {ACPI_DMT_UINT8,    ACPI_NHLT7A_OFFSET (DevicePortId),          "Device Port ID", 0},
+    {ACPI_DMT_BUF18,    ACPI_NHLT7A_OFFSET (Filler),                "Specific Data", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+/* Table terminator (may or may not be present) */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoNhlt8[] =
+{
+    {ACPI_DMT_UINT32,   ACPI_NHLT8_OFFSET (TerminatorValue),        "Terminator Value", 0},
+    {ACPI_DMT_UINT32,   ACPI_NHLT8_OFFSET (TerminatorSignature),    "Terminator Signature", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+
+/*******************************************************************************
+ *
  * PCCT - Platform Communications Channel Table (ACPI 5.0)
  *
  ******************************************************************************/

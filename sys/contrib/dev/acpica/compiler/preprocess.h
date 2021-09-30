@@ -355,7 +355,7 @@ PrEvaluateExpression (
 
 
 /*
- * prutils - Preprocesor utilities
+ * prutils - Preprocessor utilities
  */
 char *
 PrGetNextToken (

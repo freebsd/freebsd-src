@@ -658,6 +658,10 @@ DtCompileNfit (
     void                    **PFieldList);
 
 ACPI_STATUS
+DtCompileNhlt (
+    void                    **PFieldList);
+
+ACPI_STATUS
 DtCompilePcct (
     void                    **PFieldList);
 

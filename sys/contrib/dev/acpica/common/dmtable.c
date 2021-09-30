@@ -417,6 +417,26 @@ static const char           *AcpiDmNfitSubnames[] =
     "Unknown Subtable Type"             /* Reserved */
 };
 
+static const char           *AcpiDmNhltLinkTypeNames[] =
+{
+    "Reserved for HD-Audio",            /* ACPI_NHLT_RESERVED_HD_AUDIO */
+    "Reserved for DSP",                 /* ACPI_NHLT_RESERVED_DSP */
+    "Type PDM",                         /* ACPI_NHLT_PDM */
+    "Type SSP",                         /* ACPI_NHLT_SSP */
+    "Reserved for SlimBus",             /* ACPI_NHLT_RESERVED_SLIMBUS */
+    "Reserved for SoundWire",           /* ACPI_NHLT_RESERVED_SOUNDWIRE */
+    "Unknown Link Type"                 /* Reserved */
+};
+
+static const char           *AcpiDmNhltDirectionNames[] =
+{
+    "Render",                           /* ACPI_NHLT_DIR_RENDER */
+    "Capture",                          /* ACPI_NHLT_DIR_CAPTURE */
+    "Render with Loopback",             /* ACPI_NHLT_DIR_RENDER_LOOPBACK */
+    "Feedback for Render",              /* ACPI_NHLT_DIR_RENDER_FEEDBACK */
+    "Unknown Direction"                 /* Reserved */
+};
+
 static const char           *AcpiDmPcctSubnames[] =
 {
     "Generic Communications Subspace",  /* ACPI_PCCT_TYPE_GENERIC_SUBSPACE */
@@ -473,6 +493,7 @@ static const char           *AcpiDmSratSubnames[] =
     "GICC Affinity",
     "GIC ITS Affinity",             /* Acpi 6.2 */
     "Generic Initiator Affinity",   /* Acpi 6.3 */
+    "Generic Port Affinity",        /* Acpi 6.4 */
     "Unknown Subtable Type"         /* Reserved */
 };
 
@@ -614,6 +635,7 @@ const ACPI_DMTABLE_DATA     AcpiDmTableData[] =
     {ACPI_SIG_MSCT, NULL,                   AcpiDmDumpMsct, DtCompileMsct,  TemplateMsct},
     {ACPI_SIG_MSDM, NULL,                   AcpiDmDumpSlic, DtCompileSlic,  TemplateMsdm},
     {ACPI_SIG_NFIT, AcpiDmTableInfoNfit,    AcpiDmDumpNfit, DtCompileNfit,  TemplateNfit},
+    {ACPI_SIG_NHLT, AcpiDmTableInfoNhlt,    AcpiDmDumpNhlt, NULL,           NULL},
     {ACPI_SIG_PCCT, AcpiDmTableInfoPcct,    AcpiDmDumpPcct, DtCompilePcct,  TemplatePcct},
     {ACPI_SIG_PDTT, AcpiDmTableInfoPdtt,    AcpiDmDumpPdtt, DtCompilePdtt,  TemplatePdtt},
     {ACPI_SIG_PHAT, NULL,                   AcpiDmDumpPhat, DtCompilePhat,  TemplatePhat},
@@ -1050,6 +1072,8 @@ AcpiDmDumpTable (
         case ACPI_DMT_IVRS_DE:
         case ACPI_DMT_GTDT:
         case ACPI_DMT_MADT:
+        case ACPI_DMT_NHLT1:
+        case ACPI_DMT_NHLT1a:
         case ACPI_DMT_PCCT:
         case ACPI_DMT_PMTT:
         case ACPI_DMT_PPTT:
@@ -1136,6 +1160,11 @@ AcpiDmDumpTable (
         case ACPI_DMT_UUID:
 
             ByteLength = 16;
+            break;
+
+        case ACPI_DMT_BUF18:
+
+            ByteLength = 18;
             break;
 
         case ACPI_DMT_BUF128:
@@ -1343,6 +1372,7 @@ AcpiDmDumpTable (
         case ACPI_DMT_BUF10:
         case ACPI_DMT_BUF12:
         case ACPI_DMT_BUF16:
+        case ACPI_DMT_BUF18:
         case ACPI_DMT_BUF128:
             /*
              * Buffer: Size depends on the opcode and was set above.
@@ -1788,6 +1818,34 @@ AcpiDmDumpTable (
 
             AcpiOsPrintf (UINT16_FORMAT, ACPI_GET16 (Target),
                 AcpiDmNfitSubnames[Temp16]);
+            break;
+
+        case ACPI_DMT_NHLT1:
+
+            /* NHLT link types */
+
+            Temp8 = *Target;
+            if (Temp8 > ACPI_NHLT_TYPE_RESERVED)
+            {
+                Temp8 = ACPI_NHLT_TYPE_RESERVED;
+            }
+
+            AcpiOsPrintf (UINT8_FORMAT, *Target,
+                AcpiDmNhltLinkTypeNames[Temp8]);
+            break;
+
+        case ACPI_DMT_NHLT1a:
+
+            /* NHLT direction */
+
+            Temp8 = *Target;
+            if (Temp8 > ACPI_NHLT_DIR_RESERVED)
+            {
+                Temp8 = ACPI_NHLT_DIR_RESERVED;
+            }
+
+            AcpiOsPrintf (UINT8_FORMAT, *Target,
+                AcpiDmNhltDirectionNames[Temp8]);
             break;
 
         case ACPI_DMT_PCCT:

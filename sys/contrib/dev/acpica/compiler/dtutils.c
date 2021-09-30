@@ -581,6 +581,8 @@ DtGetFieldLength (
     case ACPI_DMT_IVRS_DE:
     case ACPI_DMT_GTDT:
     case ACPI_DMT_MADT:
+    case ACPI_DMT_NHLT1:
+    case ACPI_DMT_NHLT1a:
     case ACPI_DMT_PCCT:
     case ACPI_DMT_PMTT:
     case ACPI_DMT_PPTT:
