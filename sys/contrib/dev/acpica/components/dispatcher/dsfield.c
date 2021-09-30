@@ -797,7 +797,7 @@ AcpiDsInitFieldObjects (
     }
 
 #ifdef ACPI_EXEC_APP
-        Flags |= ACPI_NS_OVERRIDE_IF_FOUND;
+    Flags |= ACPI_NS_OVERRIDE_IF_FOUND;
 #endif
     /*
      * Walk the list of entries in the FieldList
