@@ -62,8 +62,6 @@ __FBSDID("$FreeBSD$");
 
 int bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp);
 
-extern EFI_SYSTEM_TABLE	*ST;
-
 static int
 bi_getboothowto(char *kargs)
 {
