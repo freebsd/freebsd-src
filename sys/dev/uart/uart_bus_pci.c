@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 
 #include <dev/pci/pcivar.h>
+#include <dev/pci/pcireg.h>
 
 #include <dev/uart/uart.h>
 #include <dev/uart/uart_bus.h>
@@ -218,12 +219,26 @@ uart_pci_probe(device_t dev)
 {
 	struct uart_softc *sc;
 	const struct pci_id *id;
+	struct pci_id cid = {
+		.regshft = 0,
+		.rclk = 0,
+		.rid = 0x10 | PCI_NO_MSI,
+		.desc = "Generic SimpleComm PCI device",
+	};
 	int result;
 
 	sc = device_get_softc(dev);
 
 	id = uart_pci_match(dev, pci_ns8250_ids);
 	if (id != NULL) {
+		sc->sc_class = &uart_ns8250_class;
+		goto match;
+	}
+	if (pci_get_class(dev) == PCIC_SIMPLECOMM &&
+	    pci_get_subclass(dev) == PCIS_SIMPLECOMM_UART &&
+	    pci_get_progif(dev) < PCIP_SIMPLECOMM_UART_16550A) {
+		/* XXX rclk what to do */
+		id = &cid;
 		sc->sc_class = &uart_ns8250_class;
 		goto match;
 	}
