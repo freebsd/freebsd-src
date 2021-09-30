@@ -86,6 +86,19 @@ static struct pmu_alias pmu_intel_alias_table[] = {
 static struct pmu_alias pmu_amd_alias_table[] = {
 	{"UNHALTED_CORE_CYCLES", "ls_not_halted_cyc"},
 	{"UNHALTED-CORE-CYCLES", "ls_not_halted_cyc"},
+	{"LLC_MISSES", "l3_comb_clstr_state.request_miss"},
+	{"LLC-MISSES", "l3_comb_clstr_state.request_miss"},
+	{"LLC_REFERENCE", "l3_request_g1.caching_l3_cache_accesses"},
+	{"LLC-REFERENCE", "l3_request_g1.caching_l3_cache_accesses"},
+	{"BRANCH_INSTRUCTION_RETIRED", "ex_ret_brn"},
+	{"BRANCH-INSTRUCTION-RETIRED", "ex_ret_brn"},
+	{"BRANCH_MISSES_RETIRED", "ex_ret_brn_misp"},
+	{"BRANCH-MISSES-RETIRED", "ex_ret_brn_misp"},
+	{"unhalted-cycles", "ls_not_halted_cyc"},
+	{"instructions", "ex_ret_instr",},
+	{"branch-mispredicts", "ex_ret_brn_misp"},
+	{"branches", "ex_ret_brn"},
+	{"interrupts", "ls_int_taken"}, /* Not on amdzen1 */
 	{NULL, NULL},
 };
 
