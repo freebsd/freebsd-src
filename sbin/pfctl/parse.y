@@ -858,7 +858,6 @@ pfa_anchor	: '{'
 			/* steping into a brace anchor */
 			pf->asd++;
 			pf->bn++;
-			pf->brace = 1;
 
 			/* create a holding ruleset in the root */
 			snprintf(ta, PF_ANCHOR_NAME_SIZE, "_%d", pf->bn);
