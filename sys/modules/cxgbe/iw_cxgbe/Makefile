@@ -14,7 +14,7 @@ SRCS+=	provider.c
 SRCS+=	qp.c
 SRCS+=	resource.c
 SRCS+=	${LINUXKPI_GENSRCS}
-SRCS+=	opt_inet.h opt_inet6.h opt_ktr.h opt_ofed.h
+SRCS+=	opt_inet.h opt_inet6.h opt_kern_tls.h opt_ktr.h opt_ofed.h
 
 CFLAGS+= -I${CXGBE} -I${SRCTOP}/sys/ofed/include -DLINUX_TYPES_DEFINED
 CFLAGS+= -I${SRCTOP}/sys/ofed/include/uapi

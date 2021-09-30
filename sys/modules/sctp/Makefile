@@ -25,6 +25,7 @@ SRCS=	sctp_asconf.c \
 	sctputil.c
 
 SRCS+=	device_if.h bus_if.h vnode_if.h
-SRCS+=	opt_capsicum.h opt_ktrace.h opt_inet.h opt_inet6.h opt_sctp.h
+SRCS+=	opt_capsicum.h opt_ktrace.h opt_inet.h opt_inet6.h opt_kern_tls.h \
+	opt_sctp.h
 
 .include <bsd.kmod.mk>
