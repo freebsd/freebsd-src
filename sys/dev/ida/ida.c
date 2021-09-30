@@ -248,7 +248,7 @@ ida_setup(struct ida_softc *ida)
 		/* maxsegsz	*/ BUS_SPACE_MAXSIZE_32BIT,
 		/* flags	*/ 0,
 		/* lockfunc	*/ busdma_lock_mutex,
-		/* lockarg	*/ &Giant,
+		/* lockarg	*/ &ida->lock,
 		&ida->buffer_dmat);
 	if (error)
 		return (ENOMEM);
