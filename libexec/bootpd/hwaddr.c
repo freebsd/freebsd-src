@@ -38,14 +38,6 @@
 #endif
 #include <syslog.h>
 
-#ifndef USE_BFUNCS
-/* Yes, memcpy is OK here (no overlapped copies). */
-#include <memory.h>
-#define bcopy(a,b,c)    memcpy(b,a,c)
-#define bzero(p,l)      memset(p,0,l)
-#define bcmp(a,b,c)     memcmp(a,b,c)
-#endif
-
 #ifndef	ATF_INUSE	/* Not defined on some systems (i.e. Linux) */
 #define	ATF_INUSE 0
 #endif
