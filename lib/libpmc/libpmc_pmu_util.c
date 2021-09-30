@@ -74,7 +74,6 @@ static struct pmu_alias pmu_intel_alias_table[] = {
 	{"BRANCH-INSTRUCTION-RETIRED", "BR_INST_RETIRED.ALL_BRANCHES"},
 	{"BRANCH_MISSES_RETIRED", "BR_MISP_RETIRED.ALL_BRANCHES"},
 	{"BRANCH-MISSES-RETIRED", "BR_MISP_RETIRED.ALL_BRANCHES"},
-	{"cycles", "tsc-tsc"},
 	{"unhalted-cycles", "CPU_CLK_UNHALTED.THREAD_P_ANY"},
 	{"instructions", "inst_retired.any_p"},
 	{"branch-mispredicts", "br_misp_retired.all_branches"},
