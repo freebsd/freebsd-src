@@ -66,6 +66,11 @@ mac_body()
 		"ether block to 00:01:02:03:04:05"
 	atf_check -s exit:0 -o ignore ping -c 1 -t 1 192.0.2.2
 
+	# Should still fail for 'to', even if it's in a list
+	pft_set_rules alcatraz \
+		"ether block to { ${epair_a_mac}, 00:01:02:0:04:05 }"
+	atf_check -s exit:2 -o ignore ping -c 1 -t 1 192.0.2.2
+
 	# Now try this with an interface specified
 	pft_set_rules alcatraz \
 		"ether block on ${epair}b from ${epair_a_mac}"
@@ -84,6 +89,16 @@ mac_body()
 	pft_set_rules alcatraz \
 		"ether block out on ${epair}b to ! ${epair_a_mac}"
 	atf_check -s exit:0 -o ignore ping -c 1 -t 1 192.0.2.2
+
+	# Block everything not us
+	pft_set_rules alcatraz \
+		"ether block out on ${epair}b to { ! ${epair_a_mac} }"
+	atf_check -s exit:0 -o ignore ping -c 1 -t 1 192.0.2.2
+
+	# Block us now
+	pft_set_rules alcatraz \
+		"ether block out on ${epair}b to { ! 00:01:02:03:04:05 }"
+	atf_check -s exit:2 -o ignore ping -c 1 -t 1 192.0.2.2
 }
 
 mac_cleanup()

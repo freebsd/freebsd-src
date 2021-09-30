@@ -135,6 +135,13 @@ struct node_host {
 	struct node_host	*tail;
 };
 
+struct node_mac {
+	u_int8_t	 mac[ETHER_ADDR_LEN];
+	bool		 neg;
+	struct node_mac	*next;
+	struct node_mac	*tail;
+};
+
 struct node_os {
 	char			*os;
 	pf_osfp_t		 fingerprint;
