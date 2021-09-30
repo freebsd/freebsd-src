@@ -349,7 +349,8 @@ void		 expand_label_proto(const char *, char *, size_t, u_int8_t);
 void		 expand_label_nr(const char *, char *, size_t,
 		    struct pfctl_rule *);
 void		 expand_eth_rule(struct pfctl_eth_rule *,
-		    struct node_if *, struct node_etherproto *);
+		    struct node_if *, struct node_etherproto *,
+		    struct node_mac *, struct node_mac *);
 void		 expand_rule(struct pfctl_rule *, struct node_if *,
 		    struct node_host *, struct node_proto *, struct node_os *,
 		    struct node_host *, struct node_port *, struct node_host *,
@@ -419,15 +420,12 @@ typedef struct {
 			struct node_os	*src_os;
 		}			 fromto;
 		struct {
-			u_int8_t	 src[ETHER_ADDR_LEN];
-			u_int8_t	 srcneg;
-			u_int8_t	 dst[ETHER_ADDR_LEN];
-			u_int8_t	 dstneg;
+			struct node_mac	*src;
+			struct node_mac	*dst;
 		}			 etherfromto;
-		u_int8_t		 mac[ETHER_ADDR_LEN];
+		struct node_mac		*mac;
 		struct {
-			uint8_t		 mac[ETHER_ADDR_LEN];
-			u_int8_t	 neg;
+			struct node_mac	*mac;
 		} etheraddr;
 		struct {
 			struct node_host	*host;
@@ -560,7 +558,7 @@ int	parseport(char *, struct range *r, int);
 %type	<v.etherproto>		etherproto etherproto_list etherproto_item
 %type	<v.etherfromto>		etherfromto
 %type	<v.etheraddr>		etherfrom etherto
-%type	<v.mac>			mac
+%type	<v.mac>			xmac mac mac_list macspec
 %%
 
 ruleset		: /* empty */
@@ -1191,11 +1189,6 @@ etherrule	: ETHER action dir quick interface etherproto etherfromto etherfilter_
 			r.action = $2.b1;
 			r.direction = $3;
 			r.quick = $4.quick;
-			/* XXX TODO: ! support */
-			memcpy(&r.src.addr, $7.src, sizeof(r.src.addr));
-			r.src.neg = $7.srcneg;
-			memcpy(&r.dst.addr, $7.dst, sizeof(r.dst.addr));
-			r.dst.neg = $7.dstneg;
 			if ($8.tag != NULL)
 				memcpy(&r.tagname, $8.tag, sizeof(r.tagname));
 			if ($8.queues.qname != NULL)
@@ -1203,7 +1196,7 @@ etherrule	: ETHER action dir quick interface etherproto etherfromto etherfilter_
 			r.dnpipe = $8.dnpipe;
 			r.dnflags = $8.free_flags;
 
-			expand_eth_rule(&r, $5, $6);
+			expand_eth_rule(&r, $5, $6, $7.src, $7.dst);
 		}
 		;
 
@@ -3169,48 +3162,78 @@ protoval	: STRING			{
 		;
 
 etherfromto	: ALL				{
-			bzero($$.src, sizeof($$.src));
-			$$.srcneg = 0;
-			bzero($$.dst, sizeof($$.dst));
-			$$.dstneg = 0;
+			$$.src = NULL;
+			$$.dst = NULL;
 		}
 		| etherfrom etherto		{
-			memcpy(&$$.src, $1.mac, sizeof($$.src));
-			$$.srcneg = $1.neg;
-			memcpy(&$$.dst, $2.mac, sizeof($$.dst));
-			$$.dstneg = $2.neg;
+			$$.src = $1.mac;
+			$$.dst = $2.mac;
 		}
 		;
 
 etherfrom	: /* emtpy */			{
 			bzero(&$$, sizeof($$));
 		}
-		| FROM not mac			{
-			memcpy(&$$.mac, $3, sizeof($$));
-			$$.neg = $2;
+		| FROM macspec			{
+			$$.mac = $2;
 		}
 		;
 
 etherto		: /* empty */			{
 			bzero(&$$, sizeof($$));
 		}
-		| TO not mac			{
-			memcpy(&$$.mac, $3, sizeof($$));
-			$$.neg = $2;
+		| TO macspec			{
+			$$.mac = $2;
 		}
 		;
 
 mac		: string			{
+			$$ = calloc(1, sizeof(struct node_mac));
+			if ($$ == NULL)
+				err(1, "mac: calloc");
+
 			if (sscanf($1, "%02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx",
-			    &$$[0], &$$[1], &$$[2], &$$[3], &$$[4],
-			    &$$[5]) != 6) {
+			    &$$->mac[0], &$$->mac[1], &$$->mac[2], &$$->mac[3], &$$->mac[4],
+			    &$$->mac[5]) != 6) {
 				free($$);
 				free($1);
 				yyerror("invalid MAC address");
 				YYERROR;
 			}
+			free($1);
+			$$->next = NULL;
+			$$->tail = $$;
+		}
+xmac		: not mac {
+			struct node_mac	*n;
+
+			for (n = $2; n != NULL; n = n->next)
+				n->neg = $1;
+			$$ = $2;
 		}
 		;
+macspec		: xmac {
+			$$ = $1;
+		}
+		| '{' optnl mac_list '}'
+		{
+			$$ = $3;
+		}
+		;
+mac_list	: xmac optnl {
+			$$ = $1;
+		}
+		| mac_list comma xmac {
+			if ($3 == NULL)
+				$$ = $1;
+			else if ($1 == NULL)
+				$$ = $3;
+			else {
+				$1->tail->next = $3;
+				$1->tail = $3->tail;
+				$$ = $1;
+			}
+		}
 
 fromto		: ALL				{
 			$$.src.host = NULL;
@@ -5616,27 +5639,36 @@ expand_queue(struct pf_altq *a, struct node_if *interfaces,
 
 void
 expand_eth_rule(struct pfctl_eth_rule *r,
-    struct node_if *interfaces, struct node_etherproto *protos)
+    struct node_if *interfaces, struct node_etherproto *protos,
+    struct node_mac *srcs, struct node_mac *dsts)
 {
 	struct pfctl_eth_rule *rule;
 
 	LOOP_THROUGH(struct node_if, interface, interfaces,
 	LOOP_THROUGH(struct node_etherproto, proto, protos,
+	LOOP_THROUGH(struct node_mac, src, srcs,
+	LOOP_THROUGH(struct node_mac, dst, dsts,
 		r->nr = pf->eth_nr++;
 		strlcpy(r->ifname, interface->ifname,
 		    sizeof(r->ifname));
 		r->ifnot = interface->not;
 		r->proto = proto->proto;
+		bcopy(src->mac, r->src.addr, ETHER_ADDR_LEN);
+		r->src.neg = src->neg;
+		bcopy(dst->mac, r->dst.addr, ETHER_ADDR_LEN);
+		r->dst.neg = dst->neg;
 
 		if ((rule = calloc(1, sizeof(*rule))) == NULL)
 			err(1, "calloc");
 		bcopy(r, rule, sizeof(*rule));
 
 		TAILQ_INSERT_TAIL(&pf->eth_rules, rule, entries);
-	));
+	))));
 
 	FREE_LIST(struct node_if, interfaces);
 	FREE_LIST(struct node_etherproto, protos);
+	FREE_LIST(struct node_mac, srcs);
+	FREE_LIST(struct node_mac, dsts);
 }
 
 void
