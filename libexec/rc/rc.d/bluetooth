@@ -235,26 +235,6 @@ bluetooth_start()
 
 	# Try to figure out device type by looking at device name
 	case "${dev}" in
-	# uartX - serial/UART Bluetooth device
-	uart*)
-		load_kld ng_h4 || return 1
-
-		hook="hook"
-
-		# Obtain unit number from device.
-		unit=`expr ${dev} : 'uart\([0-9]\{1,\}\)'`
-		if [ -z "${unit}" ]; then
-			err 1 "Unable to get uart unit number: ${dev}"
-		fi
-
-		${hcseriald} -f /dev/cuau${unit} -n ${dev}
-		sleep 1 # wait a little bit
-
-		if [ ! -f "/var/run/hcseriald.${dev}.pid" ]; then
-			err 1 "Unable to start hcseriald on ${dev}"
-		fi
-		;;
-
 	# USB Bluetooth adapters
 	ubt*)
 		hook="hook"
@@ -316,14 +296,6 @@ bluetooth_stop()
 
 	# Try to figure out device type by looking at device name
 	case "${dev}" in
-	# uartX - serial/UART Bluetooth device
-	uart*)
-		if [ -f "/var/run/hcseriald.${dev}.pid" ]; then
-			kill `cat /var/run/hcseriald.${dev}.pid`
-			sleep 1 # wait a little bit
-		fi
-		;;
-
 	# 3Com Bluetooth Adapter 3CRWB60-A
 	btccc*)
 		;;
@@ -349,7 +321,6 @@ bluetooth_stop()
 
 load_rc_config $name
 hccontrol="${bluetooth_hccontrol:-/usr/sbin/hccontrol}"
-hcseriald="${bluetooth_hcseriald:-/usr/sbin/hcseriald}"
 
 run_rc_command $*
 
