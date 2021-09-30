@@ -19,6 +19,9 @@ device		dwc3			# Synopsys DWC controller
 # MMC/SD/SDIO Card slot support
 device		sdhci
 
+# Ethernet NICs
+device		enetc			# QorIQ LS1028A NIC
+
 options 	FDT
 device		acpi
 
