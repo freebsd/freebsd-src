@@ -29,7 +29,7 @@
 .PATH:	${SRCTOP}/sys/dev/etherswitch/felix
 
 KMOD	= felix
-SRCS	= felix.c etherswitch_if.c etherswitch_if.h
-SRCS	+= bus_if.h device_if.h miibus_if.h ofw_bus_if.h pci_if.h
+SRCS	= felix.c
+SRCS	+= bus_if.h device_if.h etherswitch_if.h miibus_if.h ofw_bus_if.h pci_if.h
 
 .include <bsd.kmod.mk>
