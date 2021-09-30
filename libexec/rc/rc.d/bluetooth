@@ -296,10 +296,6 @@ bluetooth_stop()
 
 	# Try to figure out device type by looking at device name
 	case "${dev}" in
-	# 3Com Bluetooth Adapter 3CRWB60-A
-	btccc*)
-		;;
-
 	# USB Bluetooth adapters
 	ubt*)
 		;;
