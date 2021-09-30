@@ -1169,7 +1169,7 @@ linprocfs_doproccwd(PFS_FILL_ARGS)
 	char *fullpath = "unknown";
 	char *freepath = NULL;
 
-	pwd = pwd_hold(td);
+	pwd = pwd_hold_proc(p);
 	vn_fullpath(pwd->pwd_cdir, &fullpath, &freepath);
 	sbuf_printf(sb, "%s", fullpath);
 	if (freepath)
@@ -1189,7 +1189,7 @@ linprocfs_doprocroot(PFS_FILL_ARGS)
 	char *fullpath = "unknown";
 	char *freepath = NULL;
 
-	pwd = pwd_hold(td);
+	pwd = pwd_hold_proc(p);
 	vp = jailed(p->p_ucred) ? pwd->pwd_jdir : pwd->pwd_rdir;
 	vn_fullpath(vp, &fullpath, &freepath);
 	sbuf_printf(sb, "%s", fullpath);
