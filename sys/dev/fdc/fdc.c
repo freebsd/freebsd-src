@@ -261,6 +261,7 @@ struct fd_data {
 	struct g_provider *fd_provider;
 	device_t dev;
 	struct bio_queue_head fd_bq;
+	bool	gone;
 };
 
 #define FD_NOT_VALID -2
@@ -1398,6 +1399,7 @@ fdautoselect(struct fd_data *fd)
 static g_access_t	fd_access;
 static g_start_t	fd_start;
 static g_ioctl_t	fd_ioctl;
+static g_provgone_t	fd_providergone;
 
 struct g_class g_fd_class = {
 	.name =		"FD",
@@ -1405,6 +1407,7 @@ struct g_class g_fd_class = {
 	.start =	fd_start,
 	.access =	fd_access,
 	.ioctl =	fd_ioctl,
+	.providergone = fd_providergone,
 };
 
 static int
@@ -1413,7 +1416,6 @@ fd_access(struct g_provider *pp, int r, int w, int e)
 	struct fd_data *fd;
 	struct fdc_data *fdc;
 	int ar, aw, ae;
-	int busy;
 
 	fd = pp->geom->softc;
 	fdc = fd->fdc;
@@ -1431,11 +1433,9 @@ fd_access(struct g_provider *pp, int r, int w, int e)
 
 	if (ar == 0 && aw == 0 && ae == 0) {
 		fd->options &= ~(FDOPT_NORETRY | FDOPT_NOERRLOG | FDOPT_NOERROR);
-		device_unbusy(fd->dev);
 		return (0);
 	}
 
-	busy = 0;
 	if (pp->acr == 0 && pp->acw == 0 && pp->ace == 0) {
 		if (fdmisccmd(fd, BIO_PROBE, NULL))
 			return (ENXIO);
@@ -1453,13 +1453,9 @@ fd_access(struct g_provider *pp, int r, int w, int e)
 			fd->flags &= ~FD_NEWDISK;
 			mtx_unlock(&fdc->fdc_mtx);
 		}
-		device_busy(fd->dev);
-		busy = 1;
 	}
 
 	if (w > 0 && (fd->flags & FD_WP)) {
-		if (busy)
-			device_unbusy(fd->dev);
 		return (EROFS);
 	}
 
@@ -1587,8 +1583,6 @@ fd_ioctl(struct g_provider *pp, u_long cmd, void *data, int fflag, struct thread
 	}
 	return (error);
 };
-
-
 
 /*
  * Configuration/initialization stuff, per controller.
@@ -2056,6 +2050,16 @@ fd_attach(device_t dev)
 }
 
 static void
+fd_providergone(struct g_provider *pp)
+{
+	struct fd_data *fd;
+
+	fd = pp->geom->softc;
+	fd->gone = true;
+	wakeup(fd);
+}
+
+static void
 fd_detach_geom(void *arg, int flag)
 {
 	struct	fd_data *fd = arg;
@@ -2070,9 +2074,17 @@ fd_detach(device_t dev)
 	struct	fd_data *fd;
 
 	fd = device_get_softc(dev);
+
 	g_waitfor_event(fd_detach_geom, fd, M_WAITOK, NULL);
-	while (device_get_state(dev) == DS_BUSY)
-		tsleep(fd, PZERO, "fdd", hz/10);
+	while (!fd->gone) {
+		tsleep(fd, PZERO, "fdgone", hz/10);
+	}
+
+	/*
+	 * There may be accesses to the floppy while we're waitng, so drain the
+	 * motor callback here. fdc_detach turns off motor if it's still on when
+	 * we get to this point.
+	 */
 	callout_drain(&fd->toffhandle);
 
 	return (0);
