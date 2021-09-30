@@ -54,6 +54,9 @@
 #define        PMC_EV_TSC_FIRST        PMC_EV_TSC_TSC
 #define        PMC_EV_TSC_LAST         PMC_EV_TSC_TSC
 
+#define	__PMC_EV_ALIAS_TSC()			\
+__PMC_EV_ALIAS("cycles",	TSC_TSC)
+
 /*
  * Software events are dynamically defined.
  */
