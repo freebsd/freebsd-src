@@ -178,7 +178,7 @@ static const struct pmc_event_descr cortex_a76_event_table[] =
 
 static const struct pmc_event_descr tsc_event_table[] =
 {
-	__PMC_EV_TSC()
+	__PMC_EV_ALIAS_TSC()
 };
 
 #undef	PMC_CLASS_TABLE_DESC
