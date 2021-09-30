@@ -82,7 +82,6 @@ struct pfctl {
 	int loadopt;
 	int asd;			/* anchor stack depth */
 	int bn;				/* brace number */
-	int brace;
 	int tdirty;			/* kernel dirty */
 #define PFCTL_ANCHOR_STACK_DEPTH 64
 	struct pfctl_anchor *astack[PFCTL_ANCHOR_STACK_DEPTH];
