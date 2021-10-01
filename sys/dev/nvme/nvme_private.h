@@ -455,25 +455,32 @@ int	nvme_shutdown(device_t dev);
 int	nvme_detach(device_t dev);
 
 /*
- * Wait for a command to complete using the nvme_completion_poll_cb.
- * Used in limited contexts where the caller knows it's OK to block
- * briefly while the command runs. The ISR will run the callback which
- * will set status->done to true, usually within microseconds. If not,
- * then after one second timeout handler should reset the controller
- * and abort all outstanding requests including this polled one. If
- * still not after ten seconds, then something is wrong with the driver,
- * and panic is the only way to recover.
+ * Wait for a command to complete using the nvme_completion_poll_cb.  Used in
+ * limited contexts where the caller knows it's OK to block briefly while the
+ * command runs. The ISR will run the callback which will set status->done to
+ * true, usually within microseconds. If not, then after one second timeout
+ * handler should reset the controller and abort all outstanding requests
+ * including this polled one. If still not after ten seconds, then something is
+ * wrong with the driver, and panic is the only way to recover.
+ *
+ * Most commands using this interface aren't actual I/O to the drive's media so
+ * complete within a few microseconds. Adaptively spin for one tick to catch the
+ * vast majority of these without waiting for a tick plus scheduling delays. Since
+ * these are on startup, this drastically reduces startup time.
  */
 static __inline
 void
 nvme_completion_poll(struct nvme_completion_poll_status *status)
 {
-	int sanity = hz * 10;
+	int timeout = ticks + 10 * hz;
+	sbintime_t delta_t = SBT_1US;
 
-	while (!atomic_load_acq_int(&status->done) && --sanity > 0)
-		pause("nvme", 1);
-	if (sanity <= 0)
-		panic("NVME polled command failed to complete within 10s.");
+	while (!atomic_load_acq_int(&status->done)) {
+		if (timeout - ticks < 0)
+			panic("NVME polled command failed to complete within 10s.");
+		pause_sbt("nvme", delta_t, 0, C_PREL(1));
+		delta_t = min(SBT_1MS, delta_t * 3 / 2);
+	}
 }
 
 static __inline void
