@@ -250,7 +250,7 @@ autofs_lookup(struct vop_lookup_args *ap)
 	}
 
 	if (autofs_cached(anp, cnp->cn_nameptr, cnp->cn_namelen) == false &&
-	    autofs_ignore_thread(cnp->cn_thread) == false) {
+	    autofs_ignore_thread(curthread) == false) {
 		error = autofs_trigger_vn(dvp,
 		    cnp->cn_nameptr, cnp->cn_namelen, &newvp);
 		if (error != 0)

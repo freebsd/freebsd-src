@@ -492,7 +492,7 @@ notfound:
 		 * Access for write is interpreted as allowing
 		 * creation of files in the directory.
 		 */
-		if ((error = VOP_ACCESS(vdp, VWRITE, cred, cnp->cn_thread)) != 0)
+		if ((error = VOP_ACCESS(vdp, VWRITE, cred, curthread)) != 0)
 			return (error);
 		/*
 		 * Return an indication of where the new directory
@@ -571,7 +571,7 @@ found:
 		/*
 		 * Write access to directory required to delete files.
 		 */
-		if ((error = VOP_ACCESS(vdp, VWRITE, cred, cnp->cn_thread)) != 0)
+		if ((error = VOP_ACCESS(vdp, VWRITE, cred, curthread)) != 0)
 			return (error);
 		/*
 		 * Return pointer to current entry in dp->i_offset,
@@ -623,7 +623,7 @@ found:
 	 * regular file, or empty directory.
 	 */
 	if (nameiop == RENAME && (flags & ISLASTCN)) {
-		if ((error = VOP_ACCESS(vdp, VWRITE, cred, cnp->cn_thread)) != 0)
+		if ((error = VOP_ACCESS(vdp, VWRITE, cred, curthread)) != 0)
 			return (error);
 		/*
 		 * Careful about locking second inode.
@@ -992,7 +992,7 @@ ext2_direnter(struct inode *ip, struct vnode *dvp, struct componentname *cnp)
 	error = ext2_add_entry(dvp, &newdir);
 	if (!error && dp->i_endoff && dp->i_endoff < dp->i_size)
 		error = ext2_truncate(dvp, (off_t)dp->i_endoff, IO_SYNC,
-		    cnp->cn_cred, cnp->cn_thread);
+		    cnp->cn_cred, curthread);
 	return (error);
 }
 

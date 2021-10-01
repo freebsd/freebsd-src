@@ -136,7 +136,7 @@ tmpfs_lookup1(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp)
 			    cnp->cn_flags & DOWHITEOUT &&
 			    cnp->cn_flags & ISWHITEOUT))) {
 				error = VOP_ACCESS(dvp, VWRITE, cnp->cn_cred,
-				    cnp->cn_thread);
+				    curthread);
 				if (error != 0)
 					goto out;
 
@@ -180,7 +180,7 @@ tmpfs_lookup1(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp)
 			    (cnp->cn_nameiop == DELETE ||
 			    cnp->cn_nameiop == RENAME)) {
 				error = VOP_ACCESS(dvp, VWRITE, cnp->cn_cred,
-				    cnp->cn_thread);
+				    curthread);
 				if (error != 0)
 					goto out;
 
@@ -192,8 +192,8 @@ tmpfs_lookup1(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp)
 
 				if ((dnode->tn_mode & S_ISTXT) &&
 				  VOP_ACCESS(dvp, VADMIN, cnp->cn_cred,
-				  cnp->cn_thread) && VOP_ACCESS(*vpp, VADMIN,
-				  cnp->cn_cred, cnp->cn_thread)) {
+				  curthread) && VOP_ACCESS(*vpp, VADMIN,
+				  cnp->cn_cred, curthread)) {
 					error = EPERM;
 					vput(*vpp);
 					*vpp = NULL;

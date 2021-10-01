@@ -661,7 +661,6 @@ nfsvno_namei(struct nfsrv_descript *nd, struct nameidata *ndp,
 	 * because lookup() will dereference ni_startdir.
 	 */
 
-	cnp->cn_thread = curthread;
 	ndp->ni_startdir = dp;
 	ndp->ni_rootdir = rootvnode;
 	ndp->ni_topdir = NULL;
@@ -2526,7 +2525,6 @@ again:
 			cn.cn_nameiop = LOOKUP;
 			cn.cn_lkflags = LK_SHARED | LK_RETRY;
 			cn.cn_cred = nd->nd_cred;
-			cn.cn_thread = p;
 		} else if (r == 0)
 			vput(nvp);
 	}
@@ -2626,7 +2624,6 @@ again:
 							    LK_RETRY;
 							cn.cn_cred =
 							    nd->nd_cred;
-							cn.cn_thread = p;
 						}
 						cn.cn_nameptr = dp->d_name;
 						cn.cn_namelen = nlen;
@@ -4183,7 +4180,6 @@ nfsrv_dscreate(struct vnode *dvp, struct vattr *vap, struct vattr *nvap,
 	    LOCKPARENT | LOCKLEAF | SAVESTART | NOCACHE);
 	nfsvno_setpathbuf(&named, &bufp, &hashp);
 	named.ni_cnd.cn_lkflags = LK_EXCLUSIVE;
-	named.ni_cnd.cn_thread = p;
 	named.ni_cnd.cn_nameptr = bufp;
 	if (fnamep != NULL) {
 		strlcpy(bufp, fnamep, PNFS_FILENAME_LEN + 1);
@@ -4567,7 +4563,6 @@ nfsrv_dsremove(struct vnode *dvp, char *fname, struct ucred *tcred,
 	named.ni_cnd.cn_nameiop = DELETE;
 	named.ni_cnd.cn_lkflags = LK_EXCLUSIVE | LK_RETRY;
 	named.ni_cnd.cn_cred = tcred;
-	named.ni_cnd.cn_thread = p;
 	named.ni_cnd.cn_flags = ISLASTCN | LOCKPARENT | LOCKLEAF | SAVENAME;
 	nfsvno_setpathbuf(&named, &bufp, &hashp);
 	named.ni_cnd.cn_nameptr = bufp;
@@ -6341,7 +6336,6 @@ nfsrv_pnfslookupds(struct vnode *vp, struct vnode *dvp, struct pnfsdsfile *pf,
 	named.ni_cnd.cn_nameiop = LOOKUP;
 	named.ni_cnd.cn_lkflags = LK_SHARED | LK_RETRY;
 	named.ni_cnd.cn_cred = tcred;
-	named.ni_cnd.cn_thread = p;
 	named.ni_cnd.cn_flags = ISLASTCN | LOCKPARENT | LOCKLEAF | SAVENAME;
 	nfsvno_setpathbuf(&named, &bufp, &hashp);
 	named.ni_cnd.cn_nameptr = bufp;

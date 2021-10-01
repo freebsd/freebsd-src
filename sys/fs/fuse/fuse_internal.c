@@ -477,7 +477,6 @@ fuse_internal_invalidate_entry(struct mount *mp, struct uio *uio)
 
 	cn.cn_nameiop = LOOKUP;
 	cn.cn_flags = 0;	/* !MAKEENTRY means free cached entry */
-	cn.cn_thread = curthread;
 	cn.cn_cred = curthread->td_ucred;
 	cn.cn_lkflags = LK_SHARED;
 	cn.cn_pnbuf = NULL;
@@ -729,7 +728,7 @@ fuse_internal_remove(struct vnode *dvp,
 	int err = 0;
 
 	fdisp_init(&fdi, cnp->cn_namelen + 1);
-	fdisp_make_vp(&fdi, op, dvp, cnp->cn_thread, cnp->cn_cred);
+	fdisp_make_vp(&fdi, op, dvp, curthread, cnp->cn_cred);
 
 	memcpy(fdi.indata, cnp->cn_nameptr, cnp->cn_namelen);
 	((char *)fdi.indata)[cnp->cn_namelen] = '\0';
@@ -781,7 +780,7 @@ fuse_internal_rename(struct vnode *fdvp,
 	int err = 0;
 
 	fdisp_init(&fdi, sizeof(*fri) + fcnp->cn_namelen + tcnp->cn_namelen + 2);
-	fdisp_make_vp(&fdi, FUSE_RENAME, fdvp, tcnp->cn_thread, tcnp->cn_cred);
+	fdisp_make_vp(&fdi, FUSE_RENAME, fdvp, curthread, tcnp->cn_cred);
 
 	fri = fdi.indata;
 	fri->newdir = VTOI(tdvp);
@@ -813,7 +812,7 @@ fuse_internal_newentry_makerequest(struct mount *mp,
 {
 	fdip->iosize = bufsize + cnp->cn_namelen + 1;
 
-	fdisp_make(fdip, op, mp, dnid, cnp->cn_thread, cnp->cn_cred);
+	fdisp_make(fdip, op, mp, dnid, curthread, cnp->cn_cred);
 	memcpy(fdip->indata, buf, bufsize);
 	memcpy((char *)fdip->indata + bufsize, cnp->cn_nameptr, cnp->cn_namelen);
 	((char *)fdip->indata)[bufsize + cnp->cn_namelen] = '\0';
@@ -840,7 +839,7 @@ fuse_internal_newentry_core(struct vnode *dvp,
 	}
 	err = fuse_vnode_get(mp, feo, feo->nodeid, dvp, vpp, cnp, vtyp);
 	if (err) {
-		fuse_internal_forget_send(mp, cnp->cn_thread, cnp->cn_cred,
+		fuse_internal_forget_send(mp, curthread, cnp->cn_cred,
 		    feo->nodeid, 1);
 		return err;
 	}

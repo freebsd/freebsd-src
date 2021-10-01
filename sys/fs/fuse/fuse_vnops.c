@@ -788,7 +788,7 @@ fuse_vnop_create(struct vop_create_args *ap)
 	struct vnode **vpp = ap->a_vpp;
 	struct componentname *cnp = ap->a_cnp;
 	struct vattr *vap = ap->a_vap;
-	struct thread *td = cnp->cn_thread;
+	struct thread *td = curthread;
 	struct ucred *cred = cnp->cn_cred;
 
 	struct fuse_data *data;
@@ -1203,7 +1203,7 @@ fuse_vnop_lookup(struct vop_lookup_args *ap)
 	struct vnode *dvp = ap->a_dvp;
 	struct vnode **vpp = ap->a_vpp;
 	struct componentname *cnp = ap->a_cnp;
-	struct thread *td = cnp->cn_thread;
+	struct thread *td = curthread;
 	struct ucred *cred = cnp->cn_cred;
 
 	int nameiop = cnp->cn_nameiop;
@@ -1849,7 +1849,7 @@ fuse_vnop_rename(struct vop_rename_args *ap)
 	data = fuse_get_mpdata(vnode_mount(tdvp));
 	if (data->dataflags & FSESS_DEFAULT_PERMISSIONS && isdir && newparent) {
 		err = fuse_internal_access(fvp, VWRITE,
-			tcnp->cn_thread, tcnp->cn_cred);
+			curthread, tcnp->cn_cred);
 		if (err)
 			goto out;
 	}

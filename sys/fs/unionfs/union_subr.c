@@ -630,7 +630,6 @@ unionfs_relookup(struct vnode *dvp, struct vnode **vpp,
 	cn->cn_nameiop = nameiop;
 	cn->cn_flags = (LOCKPARENT | LOCKLEAF | HASBUF | SAVENAME | ISLASTCN);
 	cn->cn_lkflags = LK_EXCLUSIVE;
-	cn->cn_thread = td;
 	cn->cn_cred = cnp->cn_cred;
 	cn->cn_nameptr = cn->cn_pnbuf;
 
@@ -975,7 +974,6 @@ unionfs_vn_create_on_upper(struct vnode **vpp, struct vnode *udvp,
 	nd.ni_cnd.cn_flags = LOCKPARENT | LOCKLEAF | HASBUF | SAVENAME |
 	    ISLASTCN;
 	nd.ni_cnd.cn_lkflags = LK_EXCLUSIVE;
-	nd.ni_cnd.cn_thread = td;
 	nd.ni_cnd.cn_cred = cred;
 	nd.ni_cnd.cn_nameptr = nd.ni_cnd.cn_pnbuf;
 	NDPREINIT(&nd);
@@ -1250,7 +1248,6 @@ unionfs_check_rmdir(struct vnode *vp, struct ucred *cred, struct thread *td)
 			cn.cn_flags = LOCKPARENT | LOCKLEAF | SAVENAME |
 			    RDONLY | ISLASTCN;
 			cn.cn_lkflags = LK_EXCLUSIVE;
-			cn.cn_thread = td;
 			cn.cn_cred = cred;
 
 			/*

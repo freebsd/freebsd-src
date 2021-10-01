@@ -6821,7 +6821,7 @@ vn_dir_check_exec(struct vnode *vp, struct componentname *cnp)
 		return (0);
 	}
 
-	return (VOP_ACCESS(vp, VEXEC, cnp->cn_cred, cnp->cn_thread));
+	return (VOP_ACCESS(vp, VEXEC, cnp->cn_cred, curthread));
 }
 
 /*

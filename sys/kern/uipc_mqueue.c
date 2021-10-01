@@ -853,12 +853,12 @@ mqfs_lookupx(struct vop_cachedlookup_args *ap)
 	char *pname;
 	struct thread *td;
 
+	td = curthread;
 	cnp = ap->a_cnp;
 	vpp = ap->a_vpp;
 	dvp = ap->a_dvp;
 	pname = cnp->cn_nameptr;
 	namelen = cnp->cn_namelen;
-	td = cnp->cn_thread;
 	flags = cnp->cn_flags;
 	nameiop = cnp->cn_nameiop;
 	pd = VTON(dvp);
@@ -869,7 +869,7 @@ mqfs_lookupx(struct vop_cachedlookup_args *ap)
 	if (dvp->v_type != VDIR)
 		return (ENOTDIR);
 
-	error = VOP_ACCESS(dvp, VEXEC, cnp->cn_cred, cnp->cn_thread);
+	error = VOP_ACCESS(dvp, VEXEC, cnp->cn_cred, td);
 	if (error)
 		return (error);
 
