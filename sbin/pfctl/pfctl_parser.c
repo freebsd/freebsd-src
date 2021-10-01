@@ -710,14 +710,23 @@ print_eth_addr(const struct pfctl_eth_addr *a)
 }
 
 void
-print_eth_rule(struct pfctl_eth_rule *r, int rule_numbers)
+print_eth_rule(struct pfctl_eth_rule *r, const char *anchor_call,
+    int rule_numbers)
 {
 	static const char *actiontypes[] = { "pass", "block" };
 
 	if (rule_numbers)
 		printf("@%u ", r->nr);
 
-	printf("ether %s", actiontypes[r->action]);
+	printf("ether ");
+	if (anchor_call[0]) {
+		if (anchor_call[0] == '_') {
+			printf("anchor");
+		} else
+			printf("anchor \"%s\"", anchor_call);
+	} else {
+		printf("%s", actiontypes[r->action]);
+	}
 	if (r->direction == PF_IN)
 		printf(" in");
 	else if (r->direction == PF_OUT)

@@ -37,6 +37,7 @@
 #include <netpfil/pf/pf.h>
 
 struct pfctl_anchor;
+struct pfctl_eth_anchor;
 
 struct pfctl_status_counter {
 	uint64_t	 id;
@@ -100,10 +101,27 @@ struct pfctl_eth_rule {
 	uint32_t		 dnflags;
 	uint8_t			 action;
 
+	struct pfctl_eth_anchor	*anchor;
+	uint8_t			 anchor_relative;
+	uint8_t			 anchor_wildcard;
+
 	TAILQ_ENTRY(pfctl_eth_rule)	 entries;
 };
-
 TAILQ_HEAD(pfctl_eth_rules, pfctl_eth_rule);
+
+struct pfctl_eth_ruleset {
+	struct pfctl_eth_rules	 rules;
+	struct pfctl_eth_anchor	*anchor;
+};
+
+struct pfctl_eth_anchor {
+	struct pfctl_eth_anchor		*parent;
+	char				 name[PF_ANCHOR_NAME_SIZE];
+	char				 path[MAXPATHLEN];
+	struct pfctl_eth_ruleset	 ruleset;
+	int				 refcnt;	/* anchor rules */
+	int				 match;	/* XXX: used for pfctl black magic */
+};
 
 struct pfctl_pool {
 	struct pf_palist	 list;
@@ -331,11 +349,13 @@ struct pfctl_syncookies {
 struct pfctl_status* pfctl_get_status(int dev);
 void	pfctl_free_status(struct pfctl_status *status);
 
-int	pfctl_get_eth_rules_info(int dev, struct pfctl_eth_rules_info *rules);
+int	pfctl_get_eth_rules_info(int dev, struct pfctl_eth_rules_info *rules,
+	    const char *path);
 int	pfctl_get_eth_rule(int dev, uint32_t nr, uint32_t ticket,
-	    struct pfctl_eth_rule *rule, bool clear);
+	    const char *path, struct pfctl_eth_rule *rule, bool clear,
+	    char *anchor_call);
 int	pfctl_add_eth_rule(int dev, const struct pfctl_eth_rule *r,
-	    uint32_t ticket);
+	    const char *anchor, const char *anchor_call, uint32_t ticket);
 int	pfctl_get_rule(int dev, uint32_t nr, uint32_t ticket,
 	    const char *anchor, uint32_t ruleset, struct pfctl_rule *rule,
 	    char *anchor_call);

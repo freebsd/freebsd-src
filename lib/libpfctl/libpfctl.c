@@ -606,20 +606,34 @@ pfctl_nveth_rule_to_eth_rule(const nvlist_t *nvl, struct pfctl_eth_rule *rule)
 	rule->dnpipe = nvlist_get_number(nvl, "dnpipe");
 	rule->dnflags = nvlist_get_number(nvl, "dnflags");
 
+	rule->anchor_relative = nvlist_get_number(nvl, "anchor_relative");
+	rule->anchor_wildcard = nvlist_get_number(nvl, "anchor_wildcard");
+
 	rule->action = nvlist_get_number(nvl, "action");
 }
 
 int
-pfctl_get_eth_rules_info(int dev, struct pfctl_eth_rules_info *rules)
+pfctl_get_eth_rules_info(int dev, struct pfctl_eth_rules_info *rules,
+    const char *path)
 {
 	uint8_t buf[1024];
 	struct pfioc_nv nv;
 	nvlist_t *nvl;
+	void *packed;
+	size_t len;
 
 	bzero(rules, sizeof(*rules));
 
+	nvl = nvlist_create(0);
+	nvlist_add_string(nvl, "anchor", path);
+	packed = nvlist_pack(nvl, &len);
+	memcpy(buf, packed, len);
+	free(packed);
+	nvlist_destroy(nvl);
+
 	nv.data = buf;
-	nv.len = nv.size = sizeof(buf);
+	nv.len = len;
+	nv.size = sizeof(buf);
 
 	if (ioctl(dev, DIOCGETETHRULES, &nv) != 0)
 		return (errno);
@@ -637,7 +651,8 @@ pfctl_get_eth_rules_info(int dev, struct pfctl_eth_rules_info *rules)
 
 int
 pfctl_get_eth_rule(int dev, uint32_t nr, uint32_t ticket,
-    struct pfctl_eth_rule *rule, bool clear)
+    const char *path, struct pfctl_eth_rule *rule, bool clear,
+    char *anchor_call)
 {
 	uint8_t buf[1024];
 	struct pfioc_nv nv;
@@ -647,6 +662,7 @@ pfctl_get_eth_rule(int dev, uint32_t nr, uint32_t ticket,
 
 	nvl = nvlist_create(0);
 
+	nvlist_add_string(nvl, "anchor", path);
 	nvlist_add_number(nvl, "ticket", ticket);
 	nvlist_add_number(nvl, "nr", nr);
 	nvlist_add_bool(nvl, "clear", clear);
@@ -670,12 +686,17 @@ pfctl_get_eth_rule(int dev, uint32_t nr, uint32_t ticket,
 
 	pfctl_nveth_rule_to_eth_rule(nvl, rule);
 
+	if (anchor_call)
+		strlcpy(anchor_call, nvlist_get_string(nvl, "anchor_call"),
+		    MAXPATHLEN);
+
 	nvlist_destroy(nvl);
 	return (0);
 }
 
 int
-pfctl_add_eth_rule(int dev, const struct pfctl_eth_rule *r, uint32_t ticket)
+pfctl_add_eth_rule(int dev, const struct pfctl_eth_rule *r, const char *anchor,
+    const char *anchor_call, uint32_t ticket)
 {
 	struct pfioc_nv nv;
 	nvlist_t *nvl, *addr;
@@ -686,6 +707,8 @@ pfctl_add_eth_rule(int dev, const struct pfctl_eth_rule *r, uint32_t ticket)
 	nvl = nvlist_create(0);
 
 	nvlist_add_number(nvl, "ticket", ticket);
+	nvlist_add_string(nvl, "anchor", anchor);
+	nvlist_add_string(nvl, "anchor_call", anchor_call);
 
 	nvlist_add_number(nvl, "nr", r->nr);
 	nvlist_add_bool(nvl, "quick", r->quick);

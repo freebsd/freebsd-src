@@ -3404,6 +3404,110 @@ pf_step_out_of_anchor(struct pf_kanchor_stackframe *stack, int *depth,
 	return (quick);
 }
 
+struct pf_keth_anchor_stackframe {
+	struct pf_keth_ruleset	*rs;
+	struct pf_keth_rule	*r;	/* XXX: + match bit */
+	struct pf_keth_anchor	*child;
+};
+
+#define	PF_ETH_ANCHOR_MATCH(f)	((uintptr_t)(f)->r & PF_ANCHORSTACK_MATCH)
+#define	PF_ETH_ANCHOR_RULE(f)	(struct pf_keth_rule *)			\
+				((uintptr_t)(f)->r & ~PF_ANCHORSTACK_MASK)
+#define	PF_ETH_ANCHOR_SET_MATCH(f)	do { (f)->r = (void *) 		\
+				((uintptr_t)(f)->r | PF_ANCHORSTACK_MATCH);  \
+} while (0)
+
+void
+pf_step_into_keth_anchor(struct pf_keth_anchor_stackframe *stack, int *depth,
+    struct pf_keth_ruleset **rs, struct pf_keth_rule **r,
+    struct pf_keth_rule **a, int *match)
+{
+	struct pf_keth_anchor_stackframe	*f;
+
+	NET_EPOCH_ASSERT();
+
+	if (match)
+		*match = 0;
+	if (*depth >= PF_ANCHOR_STACKSIZE) {
+		printf("%s: anchor stack overflow on %s\n",
+		    __func__, (*r)->anchor->name);
+		*r = TAILQ_NEXT(*r, entries);
+		return;
+	} else if (*depth == 0 && a != NULL)
+		*a = *r;
+	f = stack + (*depth)++;
+	f->rs = *rs;
+	f->r = *r;
+	if ((*r)->anchor_wildcard) {
+		struct pf_keth_anchor_node *parent = &(*r)->anchor->children;
+
+		if ((f->child = RB_MIN(pf_keth_anchor_node, parent)) == NULL) {
+			*r = NULL;
+			return;
+		}
+		*rs = &f->child->ruleset;
+	} else {
+		f->child = NULL;
+		*rs = &(*r)->anchor->ruleset;
+	}
+	*r = TAILQ_FIRST((*rs)->active.rules);
+}
+
+int
+pf_step_out_of_keth_anchor(struct pf_keth_anchor_stackframe *stack, int *depth,
+    struct pf_keth_ruleset **rs, struct pf_keth_rule **r,
+    struct pf_keth_rule **a, int *match)
+{
+	struct pf_keth_anchor_stackframe	*f;
+	struct pf_keth_rule *fr;
+	int quick = 0;
+
+	NET_EPOCH_ASSERT();
+
+	do {
+		if (*depth <= 0)
+			break;
+		f = stack + *depth - 1;
+		fr = PF_ETH_ANCHOR_RULE(f);
+		if (f->child != NULL) {
+			struct pf_keth_anchor_node *parent;
+			/*
+			 * This block traverses through
+			 * a wildcard anchor.
+			 */
+			parent = &fr->anchor->children;
+			if (match != NULL && *match) {
+				/*
+				 * If any of "*" matched, then
+				 * "foo/ *" matched, mark frame
+				 * appropriately.
+				 */
+				PF_ETH_ANCHOR_SET_MATCH(f);
+				*match = 0;
+			}
+			f->child = RB_NEXT(pf_keth_anchor_node, parent,
+			    f->child);
+			if (f->child != NULL) {
+				*rs = &f->child->ruleset;
+				*r = TAILQ_FIRST((*rs)->active.rules);
+				if (*r == NULL)
+					continue;
+				else
+					break;
+			}
+		}
+		(*depth)--;
+		if (*depth == 0 && a != NULL)
+			*a = NULL;
+		*rs = f->rs;
+		if (PF_ETH_ANCHOR_MATCH(f) || (match != NULL && *match))
+			quick = fr->quick;
+		*r = TAILQ_NEXT(fr, entries);
+	} while (*r == NULL);
+
+	return (quick);
+}
+
 #ifdef INET6
 void
 pf_poolmask(struct pf_addr *naddr, struct pf_addr *raddr,
@@ -3719,10 +3823,13 @@ static int
 pf_test_eth_rule(int dir, struct pfi_kkif *kif, struct mbuf *m)
 {
 	struct ether_header *e;
-	struct pf_keth_rule *r, *rm;
+	struct pf_keth_rule *r, *rm, *a = NULL;
+	struct pf_keth_ruleset *ruleset = NULL;
 	struct pf_mtag *mtag;
-	struct pf_keth_settings *settings;
+	struct pf_keth_ruleq *rules;
+	int asd = 0, match = 0;
 	uint8_t action;
+	struct pf_keth_anchor_stackframe	anchor_stack[PF_ANCHOR_STACKSIZE];
 
 	NET_EPOCH_ASSERT();
 
@@ -3733,8 +3840,9 @@ pf_test_eth_rule(int dir, struct pfi_kkif *kif, struct mbuf *m)
 
 	e = mtod(m, struct ether_header *);
 
-	settings = ck_pr_load_ptr(&V_pf_keth);
-	r = TAILQ_FIRST(&settings->rules);
+	ruleset = V_pf_keth;
+	rules = ck_pr_load_ptr(&ruleset->active.rules);
+	r = TAILQ_FIRST(rules);
 	rm = NULL;
 
 	while (r != NULL) {
@@ -3767,16 +3875,24 @@ pf_test_eth_rule(int dir, struct pfi_kkif *kif, struct mbuf *m)
 			r = TAILQ_NEXT(r, entries);
 		}
 		else {
-			/* Rule matches */
-			rm = r;
+			if (r->anchor == NULL) {
+				/* Rule matches */
+				rm = r;
 
-			SDT_PROBE2(pf, eth, test_rule, match, r->nr, r);
+				SDT_PROBE2(pf, eth, test_rule, match, r->nr, r);
 
-			if (r->quick)
-				break;
+				if (r->quick)
+					break;
 
-			r = TAILQ_NEXT(r, entries);
+				r = TAILQ_NEXT(r, entries);
+			} else {
+				pf_step_into_keth_anchor(anchor_stack, &asd,
+				    &ruleset, &r, &a, &match);
+			}
 		}
+		if (r == NULL && pf_step_out_of_keth_anchor(anchor_stack, &asd,
+		    &ruleset, &r, &a, &match))
+			break;
 	}
 
 	r = rm;
