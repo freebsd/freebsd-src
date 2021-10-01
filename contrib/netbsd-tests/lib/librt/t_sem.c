@@ -366,8 +366,9 @@ ATF_TC_BODY(clockwait_absolute_intr_remaining, tc)
 	ATF_REQUIRE_MSG(clock_gettime(CLOCK_MONOTONIC, &ts) == 0,
 	    "%s", strerror(errno));
         timespec_add_ms(&ts, 100);
-	ATF_REQUIRE_ERRNO(EINTR, sem_clockwait_np(&sem, CLOCK_MONOTONIC,
+	ATF_REQUIRE_EQ(-1, sem_clockwait_np(&sem, CLOCK_MONOTONIC,
 	    TIMER_ABSTIME, &ts, &remain));
+	ATF_REQUIRE_ERRNO(EINTR, 1);
 	ATF_REQUIRE_MSG(got_sigalrm, "did not get SIGALRM");
 	ATF_REQUIRE_MSG(remain.tv_sec == 42 && remain.tv_nsec == 1000*1000*1000,
 	    "an absolute clockwait modified the remaining time on EINTR");
@@ -397,8 +398,9 @@ ATF_TC_BODY(clockwait_relative_intr_remaining, tc)
 	    "%s", strerror(errno));
 	ts.tv_sec = 0;
 	ts.tv_nsec = 100*1000*1000;
-	ATF_REQUIRE_ERRNO(EINTR, sem_clockwait_np(&sem, CLOCK_MONOTONIC, 0, &ts,
+	ATF_REQUIRE_EQ(-1, sem_clockwait_np(&sem, CLOCK_MONOTONIC, 0, &ts,
 	    &remain));
+	ATF_REQUIRE_ERRNO(EINTR, 1);
 	ATF_REQUIRE_MSG(got_sigalrm, "did not get SIGALRM");
 	ATF_REQUIRE_MSG(remain.tv_sec == 0 &&
 	    (remain.tv_nsec >= 25*1000*1000 || machine_is_virtual()) &&
