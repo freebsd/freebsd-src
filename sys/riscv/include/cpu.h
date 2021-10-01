@@ -41,7 +41,7 @@
 #include <machine/cpufunc.h>
 #include <machine/frame.h>
 
-#define	TRAPF_PC(tfp)		((tfp)->tf_ra)
+#define	TRAPF_PC(tfp)		((tfp)->tf_sepc)
 #define	TRAPF_USERMODE(tfp)	(((tfp)->tf_sstatus & SSTATUS_SPP) == 0)
 
 #define	cpu_getstack(td)	((td)->td_frame->tf_sp)

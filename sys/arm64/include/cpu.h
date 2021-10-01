@@ -45,7 +45,7 @@
 #include <machine/frame.h>
 #include <machine/armreg.h>
 
-#define	TRAPF_PC(tfp)		((tfp)->tf_lr)
+#define	TRAPF_PC(tfp)		((tfp)->tf_elr)
 #define	TRAPF_USERMODE(tfp)	(((tfp)->tf_spsr & PSR_M_MASK) == PSR_M_EL0t)
 
 #define	cpu_getstack(td)	((td)->td_frame->tf_sp)
