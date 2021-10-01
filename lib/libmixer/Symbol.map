@@ -15,8 +15,8 @@ FBSD_1.7 {
 	mixer_set_vol;
 	mixer_set_mute;
 	mixer_mod_recsrc;
-	mixer_get_default_unit;
-	mixer_set_default_unit;
+	mixer_get_dunit;
+	mixer_set_dunit;
 	mixer_get_mode;
 	mixer_get_nmixers;
 };
