@@ -53,6 +53,12 @@ static void nvme_ctrlr_construct_and_submit_aer(struct nvme_controller *ctrlr,
 						struct nvme_async_event_request *aer);
 
 static void
+nvme_ctrlr_barrier(struct nvme_controller *ctrlr, int flags)
+{
+	bus_barrier(ctrlr->resource, 0, rman_get_size(ctrlr->resource), flags);
+}
+
+static void
 nvme_ctrlr_devctl_log(struct nvme_controller *ctrlr, const char *type, const char *msg, ...)
 {
 	struct sbuf sb;
@@ -356,9 +362,7 @@ nvme_ctrlr_enable(struct nvme_controller *ctrlr)
 	}
 
 	nvme_mmio_write_8(ctrlr, asq, ctrlr->adminq.cmd_bus_addr);
-	DELAY(5000);
 	nvme_mmio_write_8(ctrlr, acq, ctrlr->adminq.cpl_bus_addr);
-	DELAY(5000);
 
 	/* acqs and asqs are 0-based. */
 	qsize = ctrlr->adminq.num_entries - 1;
@@ -367,7 +371,6 @@ nvme_ctrlr_enable(struct nvme_controller *ctrlr)
 	aqa = (qsize & NVME_AQA_REG_ACQS_MASK) << NVME_AQA_REG_ACQS_SHIFT;
 	aqa |= (qsize & NVME_AQA_REG_ASQS_MASK) << NVME_AQA_REG_ASQS_SHIFT;
 	nvme_mmio_write_4(ctrlr, aqa, aqa);
-	DELAY(5000);
 
 	/* Initialization values for CC */
 	cc = 0;
@@ -381,6 +384,7 @@ nvme_ctrlr_enable(struct nvme_controller *ctrlr)
 	/* This evaluates to 0, which is according to spec. */
 	cc |= (PAGE_SIZE >> 13) << NVME_CC_REG_MPS_SHIFT;
 
+	nvme_ctrlr_barrier(ctrlr, BUS_SPACE_BARRIER_WRITE);
 	nvme_mmio_write_4(ctrlr, cc, cc);
 
 	return (nvme_ctrlr_wait_for_ready(ctrlr, 1));
