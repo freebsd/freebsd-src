@@ -38,11 +38,15 @@
 .Ft int
 .Fn pthread_barrierattr_destroy "pthread_barrierattr_t *attr"
 .Ft int
-.Fn pthread_barrierattr_getpshared "const pthread_barrierattr_t *restrict attr" "int *restrict pshared"
+.Fo pthread_barrierattr_getpshared
+.Fa "const pthread_barrierattr_t *restrict attr" "int *restrict pshared"
+.Fc
 .Ft int
 .Fn pthread_barrierattr_init "pthread_barrierattr_t *attr"
 .Ft int
-.Fn pthread_barrierattr_setpshared "pthread_barrierattr_t *attr" "int pshared"
+.Fo pthread_barrierattr_setpshared
+.Fa "pthread_barrierattr_t *attr" "int pshared"
+.Fc
 .Sh DESCRIPTION
 The
 .Fn pthread_barrierattr_init
