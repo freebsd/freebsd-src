@@ -11,8 +11,8 @@ AZURE_UPLOAD_TGTS=	azure-check-depends \
 CLEANFILES+=		${AZURE_UPLOAD_TGTS}
 
 .if defined(AZURE_UPLOAD_CONF) && !empty(AZURE_UPLOAD_CONF)
-. for VAR in _STORAGE _ACCOUNT _KEY
-AZURE${VAR}!=	grep -E ^AZURE${VAR} ${AZURE_UPLOAD_CONF} | awk -F'	' '{print $$2}'
+. for VAR in _STORAGE _ACCOUNT _RESOURCEGROUP _KEY _LOCATION
+AZURE${VAR}!=	grep -E ^AZURE${VAR}= ${AZURE_UPLOAD_CONF} | awk '{print $$2}'
 . endfor
 .endif
 
@@ -20,34 +20,53 @@ AZURE${VAR}!=	grep -E ^AZURE${VAR} ${AZURE_UPLOAD_CONF} | awk -F'	' '{print $$2}
 SNAPSHOT_DATE!=		date +-${BUILDDATE}
 .endif
 
-AZURE_TARGET:=		${OSRELEASE}${SNAPSHOT_DATE}.vhd
+AZURE_TARGET:=		${OSRELEASE}${SNAPSHOT_DATE}
+
+START_DATE!=	date -v-1d -I -u
+EXPIRY_DATE!=	date -v+1m -I -u
 
 azure-upload:		${AZURE_UPLOAD_TGTS}
 
 azure-check-depends:
-.for VAR in _STORAGE _ACCOUNT _KEY
+.for VAR in _STORAGE _ACCOUNT _RESOURCEGROUP _KEY
 . if !defined(AZURE${VAR}) || empty(AZURE${VAR})
 	@echo "Variable AZURE${VAR} cannot be empty."
 	@false
 . endif
 .endfor
-.if !exists(/usr/local/bin/azure)
-. if !exists(/usr/local/bin/npm)
-.  if !exists(${PORTSDIR}/www/npm/Makefile)
-.   if !exists(/usr/local/sbin/pkg-static)
+.if !exists(/usr/local/bin/az)
+. if !exists(${PORTSDIR}/sysutils/py-azure-cli/Makefile)
+.  if !exists(/usr/local/sbin/pkg-static)
 	env ASSUME_ALWAYS_YES=yes pkg bootstrap -yf
-.   endif
-	env ASSUME_ALWAYS_YES=yes pkg install -y www/npm
-.  else
-	env UNAME_r=${UNAME_r} make -C ${PORTSDIR}/www/npm BATCH=1 all install clean
 .  endif
+	env ASSUME_ALWAYS_YES=yes pkg install -y py38-azure-cli
+. else
+	env UNAME_r=${UNAME_r} make -C ${PORTSDIR}/sysutils/py-azure-cli BATCH=1 all install clean
 . endif
-	npm install -g azure-cli
 .endif
 
 azure-do-upload:
-	/usr/local/bin/azure storage blob upload \
-		${AZURE_IMG} ${AZURE_STORAGE} ${AZURE_TARGET} \
-		-t page -a ${AZURE_ACCOUNT} -k "${AZURE_KEY}"
-	touch ${.OBJDIR}/${.TARGET}
-
+	/usr/local/bin/az storage blob upload \
+		--account-name ${AZURE_ACCOUNT} --account-key ${AZURE_KEY} \
+		--container-name ${AZURE_STORAGE} --type page \
+		--file ${AZURE_IMG} --name ${AZURE_TARGET}.vhd
+	@echo "The disk access URL with shared access signature is:"
+	@echo
+	@echo -n https://${AZURE_ACCOUNT}.blob.core.windows.net/${AZURE_STORAGE}/${AZURE_TARGET}.vhd?
+	@/usr/local/bin/az storage container generate-sas \
+		--account-name ${AZURE_ACCOUNT} --account-key ${AZURE_KEY} \
+		--name ${AZURE_STORAGE} \
+		--permissions lr \
+		--start ${START_DATE} \
+		--expiry ${EXPIRY_DATE} | cut -d '"' -f 2
+	@echo
+	@echo "Please go to Microsoft Partner Center to create a new offer and publish it:"
+	@echo
+	@echo "https://partner.microsoft.com/dashboard/commercial-marketplace/overview"
+	@echo
+	@echo "After the new offer status is live, you can delete the disk file with:"
+	@echo
+	@echo /usr/local/bin/az storage blob delete \
+		--account-name ${AZURE_ACCOUNT} --account-key ${AZURE_KEY} \
+		--container-name ${AZURE_STORAGE} --name ${AZURE_TARGET}.vhd
+	@echo
