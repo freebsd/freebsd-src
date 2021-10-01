@@ -350,7 +350,7 @@ void		 expand_label_nr(const char *, char *, size_t,
 		    struct pfctl_rule *);
 void		 expand_eth_rule(struct pfctl_eth_rule *,
 		    struct node_if *, struct node_etherproto *,
-		    struct node_mac *, struct node_mac *);
+		    struct node_mac *, struct node_mac *, const char *);
 void		 expand_rule(struct pfctl_rule *, struct node_if *,
 		    struct node_host *, struct node_proto *, struct node_os *,
 		    struct node_host *, struct node_port *, struct node_host *,
@@ -370,6 +370,7 @@ int	 rule_label(struct pfctl_rule *, char *s[PF_RULE_MAX_LABEL_COUNT]);
 int	 rt_tableid_max(void);
 
 void	 mv_rules(struct pfctl_ruleset *, struct pfctl_ruleset *);
+void	 mv_eth_rules(struct pfctl_eth_ruleset *, struct pfctl_eth_ruleset *);
 void	 decide_address_family(struct node_host *, sa_family_t *);
 void	 remove_invalid_hosts(struct node_host **, sa_family_t *);
 int	 invalid_redirect(struct node_host *, sa_family_t);
@@ -566,6 +567,7 @@ ruleset		: /* empty */
 		| ruleset '\n'
 		| ruleset option '\n'
 		| ruleset etherrule '\n'
+		| ruleset etheranchorrule '\n'
 		| ruleset scrubrule '\n'
 		| ruleset natrule '\n'
 		| ruleset binatrule '\n'
@@ -1196,7 +1198,95 @@ etherrule	: ETHER action dir quick interface etherproto etherfromto etherfilter_
 			r.dnpipe = $8.dnpipe;
 			r.dnflags = $8.free_flags;
 
-			expand_eth_rule(&r, $5, $6, $7.src, $7.dst);
+			expand_eth_rule(&r, $5, $6, $7.src, $7.dst, "");
+		}
+		;
+
+etherpfa_anchorlist	: /* empty */
+		| etherpfa_anchorlist '\n'
+		| etherpfa_anchorlist etherrule '\n'
+		| etherpfa_anchorlist etheranchorrule '\n'
+		;
+
+etherpfa_anchor	: '{'
+		{
+			char ta[PF_ANCHOR_NAME_SIZE];
+			struct pfctl_eth_ruleset *rs;
+
+			/* steping into a brace anchor */
+			pf->asd++;
+			pf->bn++;
+
+			/* create a holding ruleset in the root */
+			snprintf(ta, PF_ANCHOR_NAME_SIZE, "_%d", pf->bn);
+			rs = pf_find_or_create_eth_ruleset(ta);
+			if (rs == NULL)
+				err(1, "etherpfa_anchor: pf_find_or_create_eth_ruleset");
+			pf->eastack[pf->asd] = rs->anchor;
+			pf->eanchor = rs->anchor;
+		} '\n' etherpfa_anchorlist '}'
+		{
+			pf->ealast = pf->eanchor;
+			pf->asd--;
+			pf->eanchor = pf->eastack[pf->asd];
+		}
+		| /* empty */
+		;
+
+etheranchorrule	: ETHER ANCHOR anchorname dir quick interface etherproto etherfromto etherpfa_anchor
+		{
+			struct pfctl_eth_rule	r;
+
+			if (check_rulestate(PFCTL_STATE_ETHER)) {
+				free($3);
+				YYERROR;
+			}
+
+			if ($3 && ($3[0] == '_' || strstr($3, "/_") != NULL)) {
+				free($3);
+				yyerror("anchor names beginning with '_' "
+				    "are reserved for internal use");
+				YYERROR;
+			}
+
+			memset(&r, 0, sizeof(r));
+			if (pf->eastack[pf->asd + 1]) {
+				/* move inline rules into relative location */
+				pfctl_eth_anchor_setup(pf, &r,
+				    &pf->eastack[pf->asd]->ruleset,
+				    $3 ? $3 : pf->ealast->name);
+				if (r.anchor == NULL)
+					err(1, "etheranchorrule: unable to "
+					    "create ruleset");
+
+				if (pf->ealast != r.anchor) {
+					if (r.anchor->match) {
+						yyerror("inline anchor '%s' "
+						    "already exists",
+						    r.anchor->name);
+						YYERROR;
+					}
+					mv_eth_rules(&pf->ealast->ruleset,
+					    &r.anchor->ruleset);
+				}
+				pf_remove_if_empty_eth_ruleset(&pf->ealast->ruleset);
+				pf->ealast = r.anchor;
+			} else {
+				if (!$3) {
+					yyerror("anchors without explicit "
+					    "rules must specify a name");
+					YYERROR;
+				}
+			}
+
+			r.direction = $4;
+			r.quick = $5.quick;
+
+			expand_eth_rule(&r, $6, $7, $8.src, $8.dst,
+			    pf->eastack[pf->asd + 1] ? pf->ealast->name : $3);
+
+			free($3);
+			pf->eastack[pf->asd + 1] = NULL;
 		}
 		;
 
@@ -5640,15 +5730,12 @@ expand_queue(struct pf_altq *a, struct node_if *interfaces,
 void
 expand_eth_rule(struct pfctl_eth_rule *r,
     struct node_if *interfaces, struct node_etherproto *protos,
-    struct node_mac *srcs, struct node_mac *dsts)
+    struct node_mac *srcs, struct node_mac *dsts, const char *anchor_call)
 {
-	struct pfctl_eth_rule *rule;
-
 	LOOP_THROUGH(struct node_if, interface, interfaces,
 	LOOP_THROUGH(struct node_etherproto, proto, protos,
 	LOOP_THROUGH(struct node_mac, src, srcs,
 	LOOP_THROUGH(struct node_mac, dst, dsts,
-		r->nr = pf->eth_nr++;
 		strlcpy(r->ifname, interface->ifname,
 		    sizeof(r->ifname));
 		r->ifnot = interface->not;
@@ -5657,12 +5744,9 @@ expand_eth_rule(struct pfctl_eth_rule *r,
 		r->src.neg = src->neg;
 		bcopy(dst->mac, r->dst.addr, ETHER_ADDR_LEN);
 		r->dst.neg = dst->neg;
+		r->nr = pf->eastack[pf->asd]->match++;
 
-		if ((rule = calloc(1, sizeof(*rule))) == NULL)
-			err(1, "calloc");
-		bcopy(r, rule, sizeof(*rule));
-
-		TAILQ_INSERT_TAIL(&pf->eth_rules, rule, entries);
+		pfctl_append_eth_rule(pf, r, anchor_call);
 	))));
 
 	FREE_LIST(struct node_if, interfaces);
@@ -6523,6 +6607,19 @@ mv_rules(struct pfctl_ruleset *src, struct pfctl_ruleset *dst)
 				r, entries);
 		}
 	}
+}
+
+void
+mv_eth_rules(struct pfctl_eth_ruleset *src, struct pfctl_eth_ruleset *dst)
+{
+	struct pfctl_eth_rule *r;
+
+	while ((r = TAILQ_FIRST(&src->rules)) != NULL) {
+		TAILQ_REMOVE(&src->rules, r, entries);
+		TAILQ_INSERT_TAIL(&dst->rules, r, entries);
+		dst->anchor->match++;
+	}
+	src->anchor->match = 0;
 }
 
 void

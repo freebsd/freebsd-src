@@ -106,10 +106,10 @@ static void		 pf_mv_kpool(struct pf_kpalist *, struct pf_kpalist *);
 static void		 pf_empty_kpool(struct pf_kpalist *);
 static int		 pfioctl(struct cdev *, u_long, caddr_t, int,
 			    struct thread *);
-static int		 pf_begin_eth(uint32_t *);
+static int		 pf_begin_eth(uint32_t *, const char *);
 static void		 pf_rollback_eth_cb(struct epoch_context *);
-static int		 pf_rollback_eth(uint32_t);
-static int		 pf_commit_eth(uint32_t);
+static int		 pf_rollback_eth(uint32_t, const char *);
+static int		 pf_commit_eth(uint32_t, const char *);
 static void		 pf_free_eth_rule(struct pf_keth_rule *);
 #ifdef ALTQ
 static int		 pf_begin_altq(u_int32_t *);
@@ -318,7 +318,6 @@ pfattach_vnet(void)
 	pf_init_kruleset(&pf_main_ruleset);
 
 	pf_init_keth(V_pf_keth);
-	pf_init_keth(V_pf_keth_inactive);
 
 	/* default rule should never be garbage collected */
 	V_pf_default_rule.entries.tqe_prev = &V_pf_default_rule.entries.tqe_next;
@@ -510,6 +509,7 @@ pf_free_eth_rule(struct pf_keth_rule *rule)
 		counter_u64_free(rule->packets[i]);
 		counter_u64_free(rule->bytes[i]);
 	}
+	pf_keth_anchor_remove(rule);
 
 	free(rule, M_PFRULE);
 }
@@ -701,26 +701,32 @@ pf_tagname2tag(const char *tagname)
 }
 
 static int
-pf_begin_eth(uint32_t *ticket)
+pf_begin_eth(uint32_t *ticket, const char *anchor)
 {
 	struct pf_keth_rule *rule, *tmp;
+	struct pf_keth_ruleset *rs;
 
 	PF_RULES_WASSERT();
 
-	if (V_pf_keth_inactive->open) {
+	rs = pf_find_or_create_keth_ruleset(anchor);
+	if (rs == NULL)
+		return (EINVAL);
+
+	if (rs->inactive.open)
 		/* We may be waiting for NET_EPOCH_CALL(pf_rollback_eth_cb) to
 		 * finish. */
 		return (EBUSY);
-	}
 
 	/* Purge old inactive rules. */
-	TAILQ_FOREACH_SAFE(rule, &V_pf_keth_inactive->rules, entries, tmp) {
-		TAILQ_REMOVE(&V_pf_keth_inactive->rules, rule, entries);
+	TAILQ_FOREACH_SAFE(rule, rs->inactive.rules, entries,
+	    tmp) {
+		TAILQ_REMOVE(rs->inactive.rules, rule,
+		    entries);
 		pf_free_eth_rule(rule);
 	}
 
-	*ticket = ++V_pf_keth_inactive->ticket;
-	V_pf_keth_inactive->open = 1;
+	*ticket = ++rs->inactive.ticket;
+	rs->inactive.open = 1;
 
 	return (0);
 }
@@ -728,38 +734,46 @@ pf_begin_eth(uint32_t *ticket)
 static void
 pf_rollback_eth_cb(struct epoch_context *ctx)
 {
-	struct pf_keth_settings *settings;
+	struct pf_keth_ruleset *rs;
 
-	settings = __containerof(ctx, struct pf_keth_settings, epoch_ctx);
+	rs = __containerof(ctx, struct pf_keth_ruleset, epoch_ctx);
 
-	CURVNET_SET(settings->vnet);
-
-	MPASS(settings == V_pf_keth_inactive);
+	CURVNET_SET(rs->vnet);
 
 	PF_RULES_WLOCK();
-	pf_rollback_eth(V_pf_keth_inactive->ticket);
+	pf_rollback_eth(rs->inactive.ticket,
+	    rs->anchor ? rs->anchor->path : "");
 	PF_RULES_WUNLOCK();
 
 	CURVNET_RESTORE();
 }
 
 static int
-pf_rollback_eth(uint32_t ticket)
+pf_rollback_eth(uint32_t ticket, const char *anchor)
 {
 	struct pf_keth_rule *rule, *tmp;
+	struct pf_keth_ruleset *rs;
 
 	PF_RULES_WASSERT();
 
-	if (!V_pf_keth_inactive->open || ticket != V_pf_keth_inactive->ticket)
+	rs = pf_find_keth_ruleset(anchor);
+	if (rs == NULL)
+		return (EINVAL);
+
+	if (!rs->inactive.open ||
+	    ticket != rs->inactive.ticket)
 		return (0);
 
 	/* Purge old inactive rules. */
-	TAILQ_FOREACH_SAFE(rule, &V_pf_keth_inactive->rules, entries, tmp) {
-		TAILQ_REMOVE(&V_pf_keth_inactive->rules, rule, entries);
+	TAILQ_FOREACH_SAFE(rule, rs->inactive.rules, entries,
+	    tmp) {
+		TAILQ_REMOVE(rs->inactive.rules, rule, entries);
 		pf_free_eth_rule(rule);
 	}
 
-	V_pf_keth_inactive->open = 0;
+	rs->inactive.open = 0;
+
+	pf_remove_if_empty_keth_ruleset(rs);
 
 	return (0);
 }
@@ -773,7 +787,7 @@ pf_rollback_eth(uint32_t ticket)
 	} while (0)
 
 static void
-pf_eth_calc_skip_steps(struct pf_keth_rules *rules)
+pf_eth_calc_skip_steps(struct pf_keth_ruleq *rules)
 {
 	struct pf_keth_rule *cur, *prev, *head[PFE_SKIP_COUNT];
 	int i;
@@ -802,26 +816,32 @@ pf_eth_calc_skip_steps(struct pf_keth_rules *rules)
 }
 
 static int
-pf_commit_eth(uint32_t ticket)
+pf_commit_eth(uint32_t ticket, const char *anchor)
 {
-	struct pf_keth_settings *settings;
+	struct pf_keth_ruleq *rules;
+	struct pf_keth_ruleset *rs;
 
-	if (!V_pf_keth_inactive->open ||
-	    ticket != V_pf_keth_inactive->ticket)
+	rs = pf_find_keth_ruleset(anchor);
+	if (rs == NULL) {
+		return (EINVAL);
+	}
+
+	if (!rs->inactive.open ||
+	    ticket != rs->inactive.ticket)
 		return (EBUSY);
 
 	PF_RULES_WASSERT();
 
-	pf_eth_calc_skip_steps(&V_pf_keth_inactive->rules);
+	pf_eth_calc_skip_steps(rs->inactive.rules);
 
-	settings = V_pf_keth;
-	ck_pr_store_ptr(&V_pf_keth, V_pf_keth_inactive);
-	V_pf_keth_inactive = settings;
-	V_pf_keth_inactive->ticket = V_pf_keth->ticket;
+	rules = rs->active.rules;
+	ck_pr_store_ptr(&rs->active.rules, rs->inactive.rules);
+	rs->inactive.rules = rules;
+	rs->inactive.ticket = rs->active.ticket;
 
 	/* Clean up inactive rules (i.e. previously active rules), only when
 	 * we're sure they're no longer used. */
-	NET_EPOCH_CALL(pf_rollback_eth_cb, &V_pf_keth_inactive->epoch_ctx);
+	NET_EPOCH_CALL(pf_rollback_eth_cb, &rs->epoch_ctx);
 
 	return (0);
 }
@@ -2475,7 +2495,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 			int cpu;
 
 			hook_pf();
-			if (! TAILQ_EMPTY(&V_pf_keth->rules))
+			if (! TAILQ_EMPTY(V_pf_keth->active.rules))
 				hook_pf_eth();
 			V_pf_status.running = 1;
 			V_pf_status.since = time_second;
@@ -2505,21 +2525,55 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		nvlist_t		*nvl;
 		void			*packed;
 		struct pf_keth_rule	*tail;
+		struct pf_keth_ruleset	*rs;
 		u_int32_t		 ticket, nr;
+		const char		*anchor = "";
 
 		nvl = NULL;
 		packed = NULL;
 
 #define	ERROUT(x)	do { error = (x); goto DIOCGETETHRULES_error; } while (0)
 
+		if (nv->len > pf_ioctl_maxcount)
+			ERROUT(ENOMEM);
+
+		/* Copy the request in */
+		packed = malloc(nv->len, M_NVLIST, M_WAITOK);
+		if (packed == NULL)
+			ERROUT(ENOMEM);
+
+		error = copyin(nv->data, packed, nv->len);
+		if (error)
+			ERROUT(error);
+
+		nvl = nvlist_unpack(packed, nv->len, 0);
+		if (nvl == NULL)
+			ERROUT(EBADMSG);
+
+		if (! nvlist_exists_string(nvl, "anchor"))
+			ERROUT(EBADMSG);
+
+		anchor = nvlist_get_string(nvl, "anchor");
+
+		rs = pf_find_keth_ruleset(anchor);
+
+		nvlist_destroy(nvl);
+		nvl = NULL;
+		free(packed, M_NVLIST);
+		packed = NULL;
+
+		if (rs == NULL)
+			ERROUT(ENOENT);
+
+		/* Reply */
 		nvl = nvlist_create(0);
 		if (nvl == NULL)
 			ERROUT(ENOMEM);
 
 		PF_RULES_RLOCK();
 
-		ticket = V_pf_keth->ticket;
-		tail = TAILQ_LAST(&V_pf_keth->rules, pf_keth_rules);
+		ticket = rs->active.ticket;
+		tail = TAILQ_LAST(rs->active.rules, pf_keth_ruleq);
 		if (tail)
 			nr = tail->nr + 1;
 		else
@@ -2543,7 +2597,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 
 #undef ERROUT
 DIOCGETETHRULES_error:
-		free(packed, M_TEMP);
+		free(packed, M_NVLIST);
 		nvlist_destroy(nvl);
 		break;
 	}
@@ -2554,8 +2608,10 @@ DIOCGETETHRULES_error:
 		nvlist_t		*nvl = NULL;
 		void			*nvlpacked = NULL;
 		struct pf_keth_rule	*rule = NULL;
+		struct pf_keth_ruleset	*rs;
 		u_int32_t		 ticket, nr;
 		bool			 clear = false;
+		const char		*anchor;
 
 #define ERROUT(x)	do { error = (x); goto DIOCGETETHRULE_error; } while (0)
 
@@ -2571,6 +2627,9 @@ DIOCGETETHRULES_error:
 		if (! nvlist_exists_number(nvl, "ticket"))
 			ERROUT(EBADMSG);
 		ticket = nvlist_get_number(nvl, "ticket");
+		if (! nvlist_exists_string(nvl, "anchor"))
+			ERROUT(EBADMSG);
+		anchor = nvlist_get_string(nvl, "anchor");
 
 		if (nvlist_exists_bool(nvl, "clear"))
 			clear = nvlist_get_bool(nvl, "clear");
@@ -2582,6 +2641,17 @@ DIOCGETETHRULES_error:
 			ERROUT(EBADMSG);
 		nr = nvlist_get_number(nvl, "nr");
 
+		PF_RULES_RLOCK();
+		rs = pf_find_keth_ruleset(anchor);
+		if (rs == NULL) {
+			PF_RULES_RUNLOCK();
+			ERROUT(ENOENT);
+		}
+		if (ticket != rs->active.ticket) {
+			PF_RULES_RUNLOCK();
+			ERROUT(EBUSY);
+		}
+
 		nvlist_destroy(nvl);
 		nvl = NULL;
 		free(nvlpacked, M_TEMP);
@@ -2589,12 +2659,7 @@ DIOCGETETHRULES_error:
 
 		nvl = nvlist_create(0);
 
-		PF_RULES_RLOCK();
-		if (ticket != V_pf_keth->ticket) {
-			PF_RULES_RUNLOCK();
-			ERROUT(EBUSY);
-		}
-		rule = TAILQ_FIRST(&V_pf_keth->rules);
+		rule = TAILQ_FIRST(rs->active.rules);
 		while ((rule != NULL) && (rule->nr != nr))
 			rule = TAILQ_NEXT(rule, entries);
 		if (rule == NULL) {
@@ -2605,6 +2670,8 @@ DIOCGETETHRULES_error:
 		NET_EPOCH_ENTER(et);
 		PF_RULES_RUNLOCK();
 		nvl = pf_keth_rule_to_nveth_rule(rule);
+		if (pf_keth_anchor_nvcopyout(rs, rule, nvl))
+			ERROUT(EBUSY);
 		NET_EPOCH_EXIT(et);
 		if (nvl == NULL)
 			ERROUT(ENOMEM);
@@ -2638,8 +2705,10 @@ DIOCGETETHRULE_error:
 		struct pfioc_nv		*nv = (struct pfioc_nv *)addr;
 		nvlist_t		*nvl = NULL;
 		void			*nvlpacked = NULL;
-		struct pf_keth_rule	*rule = NULL;
+		struct pf_keth_rule	*rule = NULL, *tail = NULL;
+		struct pf_keth_ruleset	*ruleset = NULL;
 		struct pfi_kkif		*kif = NULL;
+		const char		*anchor = "", *anchor_call = "";
 
 #define ERROUT(x)	do { error = (x); goto DIOCADDETHRULE_error; } while (0)
 
@@ -2658,12 +2727,21 @@ DIOCGETETHRULE_error:
 		if (! nvlist_exists_number(nvl, "ticket"))
 			ERROUT(EBADMSG);
 
+		if (nvlist_exists_string(nvl, "anchor"))
+			anchor = nvlist_get_string(nvl, "anchor");
+		if (nvlist_exists_string(nvl, "anchor_call"))
+			anchor_call = nvlist_get_string(nvl, "anchor_call");
+
+		ruleset = pf_find_keth_ruleset(anchor);
+		if (ruleset == NULL)
+			ERROUT(EINVAL);
+
 		if (nvlist_get_number(nvl, "ticket") !=
-		    V_pf_keth_inactive->ticket) {
+		    ruleset->inactive.ticket) {
 			DPFPRINTF(PF_DEBUG_MISC,
 			    ("ticket: %d != %d\n",
 			    (u_int32_t)nvlist_get_number(nvl, "ticket"),
-			    V_pf_keth_inactive->ticket));
+			    ruleset->inactive.ticket));
 			ERROUT(EBUSY);
 		}
 
@@ -2710,7 +2788,19 @@ DIOCGETETHRULE_error:
 			ERROUT(error);
 		}
 
-		TAILQ_INSERT_TAIL(&V_pf_keth_inactive->rules, rule, entries);
+		if (pf_keth_anchor_setup(rule, ruleset, anchor_call)) {
+			pf_free_eth_rule(rule);
+			PF_RULES_WUNLOCK();
+			ERROUT(EINVAL);
+		}
+
+		tail = TAILQ_LAST(ruleset->inactive.rules, pf_keth_ruleq);
+		if (tail)
+			rule->nr = tail->nr + 1;
+		else
+			rule->nr = 0;
+
+		TAILQ_INSERT_TAIL(ruleset->inactive.rules, rule, entries);
 
 		PF_RULES_WUNLOCK();
 
@@ -4765,13 +4855,7 @@ DIOCCHANGEADDR_error:
 			ioe->anchor[sizeof(ioe->anchor) - 1] = '\0';
 			switch (ioe->rs_num) {
 			case PF_RULESET_ETH:
-				if (ioe->anchor[0]) {
-					PF_RULES_WUNLOCK();
-					free(ioes, M_TEMP);
-					error = EINVAL;
-					goto fail;
-				}
-				if ((error = pf_begin_eth(&ioe->ticket))) {
+				if ((error = pf_begin_eth(&ioe->ticket, ioe->anchor))) {
 					PF_RULES_WUNLOCK();
 					free(ioes, M_TEMP);
 					goto fail;
@@ -4852,13 +4936,8 @@ DIOCCHANGEADDR_error:
 			ioe->anchor[sizeof(ioe->anchor) - 1] = '\0';
 			switch (ioe->rs_num) {
 			case PF_RULESET_ETH:
-				if (ioe->anchor[0]) {
-					PF_RULES_WUNLOCK();
-					free(ioes, M_TEMP);
-					error = EINVAL;
-					goto fail;
-				}
-				if ((error = pf_rollback_eth(ioe->ticket))) {
+				if ((error = pf_rollback_eth(ioe->ticket,
+				    ioe->anchor))) {
 					PF_RULES_WUNLOCK();
 					free(ioes, M_TEMP);
 					goto fail; /* really bad */
@@ -4913,6 +4992,7 @@ DIOCCHANGEADDR_error:
 		struct pfioc_trans	*io = (struct pfioc_trans *)addr;
 		struct pfioc_trans_e	*ioe, *ioes;
 		struct pf_kruleset	*rs;
+		struct pf_keth_ruleset	*ers;
 		size_t			 totlen;
 		int			 i;
 
@@ -4942,17 +5022,12 @@ DIOCCHANGEADDR_error:
 			ioe->anchor[sizeof(ioe->anchor) - 1] = 0;
 			switch (ioe->rs_num) {
 			case PF_RULESET_ETH:
-				if (ioe->anchor[0]) {
+				ers = pf_find_keth_ruleset(ioe->anchor);
+				if (ers == NULL || ioe->ticket == 0 ||
+				    ioe->ticket != ers->inactive.ticket) {
 					PF_RULES_WUNLOCK();
 					free(ioes, M_TEMP);
 					error = EINVAL;
-					goto fail;
-				}
-				if (!V_pf_keth_inactive->ticket ||
-				    ioe->ticket != V_pf_keth_inactive->ticket) {
-					PF_RULES_WUNLOCK();
-					free(ioes, M_TEMP);
-					error = EBUSY;
 					goto fail;
 				}
 				break;
@@ -5008,7 +5083,7 @@ DIOCCHANGEADDR_error:
 		for (i = 0, ioe = ioes; i < io->size; i++, ioe++) {
 			switch (ioe->rs_num) {
 			case PF_RULESET_ETH:
-				if ((error = pf_commit_eth(ioe->ticket))) {
+				if ((error = pf_commit_eth(ioe->ticket, ioe->anchor))) {
 					PF_RULES_WUNLOCK();
 					free(ioes, M_TEMP);
 					goto fail; /* really bad */
@@ -5051,7 +5126,7 @@ DIOCCHANGEADDR_error:
 		PF_RULES_WUNLOCK();
 
 		/* Only hook into EtherNet taffic if we've got rules for it. */
-		if (! TAILQ_EMPTY(&V_pf_keth->rules))
+		if (! TAILQ_EMPTY(V_pf_keth->active.rules))
 			hook_pf_eth();
 		else
 			dehook_pf_eth();
@@ -5962,11 +6037,11 @@ shutdown_pf(void)
 		if ((error = pf_clear_tables()) != 0)
 			break;
 
-		if ((error = pf_begin_eth(&t[0])) != 0) {
+		if ((error = pf_begin_eth(&t[0], &nn)) != 0) {
 			DPFPRINTF(PF_DEBUG_MISC, ("shutdown_pf: eth\n"));
 			break;
 		}
-		pf_commit_eth(t[0]);
+		pf_commit_eth(t[0], &nn);
 
 #ifdef ALTQ
 		if ((error = pf_begin_altq(&t[0])) != 0) {
@@ -6250,9 +6325,7 @@ pf_load_vnet(void)
 	    PF_QUEUE_TAG_HASH_SIZE_DEFAULT);
 #endif
 
-	V_pf_keth = malloc(sizeof(*V_pf_keth), M_PFRULE, M_WAITOK);
-	V_pf_keth_inactive = malloc(sizeof(*V_pf_keth_inactive),
-	    M_PFRULE, M_WAITOK);
+	V_pf_keth = &V_pf_main_keth_anchor.ruleset;
 
 	pfattach_vnet();
 	V_pf_vnet_active = 1;
@@ -6364,9 +6437,6 @@ pf_unload_vnet(void)
 		pf_counter_u64_deinit(&V_pf_status.fcounters[i]);
 	for (int i = 0; i < SCNT_MAX; i++)
 		counter_u64_free(V_pf_status.scounters[i]);
-
-	free(V_pf_keth, M_PFRULE);
-	free(V_pf_keth_inactive, M_PFRULE);
 }
 
 static void

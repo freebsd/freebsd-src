@@ -1084,6 +1084,9 @@ pf_keth_rule_to_nveth_rule(const struct pf_keth_rule *krule)
 	nvlist_add_number(nvl, "dnpipe", krule->dnpipe);
 	nvlist_add_number(nvl, "dnflags", krule->dnflags);
 
+	nvlist_add_number(nvl, "anchor_relative", krule->anchor_relative);
+	nvlist_add_number(nvl, "anchor_wildcard", krule->anchor_wildcard);
+
 	nvlist_add_number(nvl, "action", krule->action);
 
 	return (nvl);
