@@ -410,13 +410,13 @@ nvme_ctrlr_hw_reset(struct nvme_controller *ctrlr)
 	int err;
 
 	TSENTER();
-	nvme_ctrlr_disable_qpairs(ctrlr);
 
-	pause("nvmehwreset", hz / 10);
+	nvme_ctrlr_disable_qpairs(ctrlr);
 
 	err = nvme_ctrlr_disable(ctrlr);
 	if (err != 0)
 		return err;
+
 	err = nvme_ctrlr_enable(ctrlr);
 	TSEXIT();
 	return (err);
@@ -1653,13 +1653,10 @@ nvme_ctrlr_suspend(struct nvme_controller *ctrlr)
 	 * flushes any metadata the drive may have stored so it can survive
 	 * having its power removed and prevents the unsafe shutdown count from
 	 * incriminating. Once we delete the qpairs, we have to disable them
-	 * before shutting down. The delay is out of paranoia in
-	 * nvme_ctrlr_hw_reset, and is repeated here (though we should have no
-	 * pending I/O that the delay copes with).
+	 * before shutting down.
 	 */
 	nvme_ctrlr_delete_qpairs(ctrlr);
 	nvme_ctrlr_disable_qpairs(ctrlr);
-	pause("nvmesusp", hz / 10);
 	nvme_ctrlr_shutdown(ctrlr);
 
 	return (0);
