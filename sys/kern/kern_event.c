@@ -819,7 +819,8 @@ filt_timerattach(struct knote *kn)
 	error = filt_timervalidate(kn, &to);
 	if (error != 0)
 		return (error);
-	KASSERT((kn->kn_flags & EV_ONESHOT) != 0 || to > 0,
+	KASSERT(to > 0 || (kn->kn_flags & EV_ONESHOT) != 0 ||
+	    (kn->kn_sfflags & NOTE_ABSTIME) != 0,
 	    ("%s: periodic timer has a calculated zero timeout", __func__));
 	KASSERT(to >= 0,
 	    ("%s: timer has a calculated negative timeout", __func__));

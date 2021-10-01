@@ -248,6 +248,35 @@ test_abstime(void)
 }
 
 static void
+test_abstime_epoch(void)
+{
+    const char *test_id = "kevent(EVFILT_TIMER (EPOCH), NOTE_ABSTIME)";
+    struct kevent kev;
+
+    test_begin(test_id);
+
+    test_no_kevents();
+
+    EV_SET(&kev, vnode_fd, EVFILT_TIMER, EV_ADD, NOTE_ABSTIME, 0,
+        NULL);
+    if (kevent(kqfd, &kev, 1, NULL, 0, NULL) < 0)
+        err(1, "%s", test_id);
+
+    /* Retrieve the event */
+    kev.flags = EV_ADD;
+    kev.data = 1;
+    kev.fflags = 0;
+    kevent_cmp(&kev, kevent_get(kqfd));
+
+    /* Delete the event */
+    kev.flags = EV_DELETE;
+    if (kevent(kqfd, &kev, 1, NULL, 0, NULL) < 0)
+        err(1, "%s", test_id);
+
+    success();
+}
+
+static void
 test_abstime_preboot(void)
 {
     const char *test_id = "kevent(EVFILT_TIMER (PREBOOT), EV_ONESHOT, NOTE_ABSTIME)";
@@ -599,6 +628,7 @@ test_evfilt_timer(void)
     test_oneshot();
     test_periodic();
     test_abstime();
+    test_abstime_epoch();
     test_abstime_preboot();
     test_abstime_postboot();
     test_update();
