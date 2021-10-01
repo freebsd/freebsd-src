@@ -303,19 +303,17 @@ nvme_ctrlr_disable(struct nvme_controller *ctrlr)
 	 * CSTS.RDY is 0 "has undefined results" So make sure that CSTS.RDY
 	 * isn't the desired value. Short circuit if we're already disabled.
 	 */
-	if (en == 1) {
-		if (rdy == 0) {
-			/* EN == 1, wait for  RDY == 1 or fail */
-			err = nvme_ctrlr_wait_for_ready(ctrlr, 1);
-			if (err != 0)
-				return (err);
-		}
-	} else {
-		/* EN == 0 already wait for RDY == 0 */
+	if (en == 0) {
+		/* Wait for RDY == 0 or timeout & fail */
 		if (rdy == 0)
 			return (0);
-		else
-			return (nvme_ctrlr_wait_for_ready(ctrlr, 0));
+		return (nvme_ctrlr_wait_for_ready(ctrlr, 0));
+	}
+	if (rdy == 0) {
+		/* EN == 1, wait for  RDY == 1 or timeout & fail */
+		err = nvme_ctrlr_wait_for_ready(ctrlr, 1);
+		if (err != 0)
+			return (err);
 	}
 
 	cc &= ~NVME_CC_REG_EN_MASK;
@@ -352,14 +350,13 @@ nvme_ctrlr_enable(struct nvme_controller *ctrlr)
 	if (en == 1) {
 		if (rdy == 1)
 			return (0);
-		else
-			return (nvme_ctrlr_wait_for_ready(ctrlr, 1));
-	} else {
-		/* EN == 0 already wait for RDY == 0 or fail */
-		err = nvme_ctrlr_wait_for_ready(ctrlr, 0);
-		if (err != 0)
-			return (err);
+		return (nvme_ctrlr_wait_for_ready(ctrlr, 1));
 	}
+
+	/* EN == 0 already wait for RDY == 0 or timeout & fail */
+	err = nvme_ctrlr_wait_for_ready(ctrlr, 0);
+	if (err != 0)
+		return (err);
 
 	nvme_mmio_write_8(ctrlr, asq, ctrlr->adminq.cmd_bus_addr);
 	nvme_mmio_write_8(ctrlr, acq, ctrlr->adminq.cpl_bus_addr);
