@@ -1698,8 +1698,7 @@ out:
 }
 
 static int
-linux_file_stat(struct file *fp, struct stat *sb, struct ucred *active_cred,
-    struct thread *td)
+linux_file_stat(struct file *fp, struct stat *sb, struct ucred *active_cred)
 {
 	struct linux_file *filp;
 	struct vnode *vp;
@@ -1712,7 +1711,7 @@ linux_file_stat(struct file *fp, struct stat *sb, struct ucred *active_cred,
 	vp = filp->f_vnode;
 
 	vn_lock(vp, LK_SHARED | LK_RETRY);
-	error = VOP_STAT(vp, sb, td->td_ucred, NOCRED, td);
+	error = VOP_STAT(vp, sb, curthread->td_ucred, NOCRED);
 	VOP_UNLOCK(vp);
 
 	return (error);

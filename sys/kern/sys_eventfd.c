@@ -325,8 +325,7 @@ eventfd_ioctl(struct file *fp, u_long cmd, void *data,
 }
 
 static int
-eventfd_stat(struct file *fp, struct stat *st, struct ucred *active_cred,
-    struct thread *td)
+eventfd_stat(struct file *fp, struct stat *st, struct ucred *active_cred)
 {
 	bzero((void *)st, sizeof *st);
 	st->st_mode = S_IFIFO;

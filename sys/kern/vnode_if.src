@@ -193,7 +193,6 @@ vop_stat {
 	OUT struct stat *sb;
 	IN struct ucred *active_cred;
 	IN struct ucred *file_cred;
-	IN struct thread *td;
 };
 
 

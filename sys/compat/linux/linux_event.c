@@ -801,8 +801,7 @@ timerfd_ioctl(struct file *fp, u_long cmd, void *data,
 }
 
 static int
-timerfd_stat(struct file *fp, struct stat *st, struct ucred *active_cred,
-    struct thread *td)
+timerfd_stat(struct file *fp, struct stat *st, struct ucred *active_cred)
 {
 
 	return (ENXIO);

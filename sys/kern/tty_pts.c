@@ -535,8 +535,7 @@ ptsdev_kqfilter(struct file *fp, struct knote *kn)
 }
 
 static int
-ptsdev_stat(struct file *fp, struct stat *sb, struct ucred *active_cred,
-    struct thread *td)
+ptsdev_stat(struct file *fp, struct stat *sb, struct ucred *active_cred)
 {
 	struct tty *tp = fp->f_data;
 #ifdef PTS_EXTERNAL

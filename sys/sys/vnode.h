@@ -962,7 +962,7 @@ void	vop_rename_fail(struct vop_rename_args *ap);
 
 #define	vop_stat_helper_post(ap, error)	({					\
 	int _error = (error);							\
-	if (priv_check_cred_vfs_generation(ap->a_td->td_ucred))			\
+	if (priv_check_cred_vfs_generation(ap->a_active_cred))			\
 		ap->a_sb->st_gen = 0;						\
 	_error;									\
 })

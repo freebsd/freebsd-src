@@ -2187,8 +2187,7 @@ kqueue_poll(struct file *fp, int events, struct ucred *active_cred,
 
 /*ARGSUSED*/
 static int
-kqueue_stat(struct file *fp, struct stat *st, struct ucred *active_cred,
-	struct thread *td)
+kqueue_stat(struct file *fp, struct stat *st, struct ucred *active_cred)
 {
 
 	bzero((void *)st, sizeof *st);

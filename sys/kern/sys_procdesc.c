@@ -508,8 +508,7 @@ procdesc_kqfilter(struct file *fp, struct knote *kn)
 }
 
 static int
-procdesc_stat(struct file *fp, struct stat *sb, struct ucred *active_cred,
-    struct thread *td)
+procdesc_stat(struct file *fp, struct stat *sb, struct ucred *active_cred)
 {
 	struct procdesc *pd;
 	struct timeval pstart, boottime;
