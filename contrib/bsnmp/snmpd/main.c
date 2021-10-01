@@ -641,7 +641,7 @@ decoded:
 			pdu->engine.engine_boots = snmpd_engine.engine_boots;
 			pdu->engine.engine_time = snmpd_engine.engine_time;
 		}
-	} else if (usm_user->suser.auth_proto != SNMP_AUTH_NOAUTH &&
+	} else if (pdu->user.auth_proto != SNMP_AUTH_NOAUTH &&
 	     (pdu->engine.engine_boots == 0 || pdu->engine.engine_time == 0)) {
 		snmpd_usmstats.not_in_time_windows++;
 		ret = SNMPD_INPUT_FAILED;
