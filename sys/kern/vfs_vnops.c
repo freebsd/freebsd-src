@@ -1670,14 +1670,13 @@ vn_truncate_locked(struct vnode *vp, off_t length, bool sync,
  * File table vnode stat routine.
  */
 int
-vn_statfile(struct file *fp, struct stat *sb, struct ucred *active_cred,
-    struct thread *td)
+vn_statfile(struct file *fp, struct stat *sb, struct ucred *active_cred)
 {
 	struct vnode *vp = fp->f_vnode;
 	int error;
 
 	vn_lock(vp, LK_SHARED | LK_RETRY);
-	error = VOP_STAT(vp, sb, active_cred, fp->f_cred, td);
+	error = VOP_STAT(vp, sb, active_cred, fp->f_cred);
 	VOP_UNLOCK(vp);
 
 	return (error);

@@ -1527,7 +1527,7 @@ kern_fstat(struct thread *td, int fd, struct stat *sbp)
 
 	AUDIT_ARG_FILE(td->td_proc, fp);
 
-	error = fo_stat(fp, sbp, td->td_ucred, td);
+	error = fo_stat(fp, sbp, td->td_ucred);
 	fdrop(fp, td);
 #ifdef __STAT_TIME_T_EXT
 	sbp->st_atim_ext = 0;
@@ -4871,8 +4871,7 @@ badfo_kqfilter(struct file *fp, struct knote *kn)
 }
 
 static int
-badfo_stat(struct file *fp, struct stat *sb, struct ucred *active_cred,
-    struct thread *td)
+badfo_stat(struct file *fp, struct stat *sb, struct ucred *active_cred)
 {
 
 	return (EBADF);

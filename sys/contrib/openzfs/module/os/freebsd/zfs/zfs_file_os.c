@@ -207,7 +207,7 @@ zfs_file_getattr(zfs_file_t *fp, zfs_file_attr_t *zfattr)
 
 	td = curthread;
 
-	rc = fo_stat(fp, &sb, td->td_ucred, td);
+	rc = fo_stat(fp, &sb, td->td_ucred);
 	if (rc)
 		return (SET_ERROR(rc));
 	zfattr->zfa_size = sb.st_size;

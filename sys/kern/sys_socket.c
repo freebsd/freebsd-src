@@ -301,8 +301,7 @@ soo_poll(struct file *fp, int events, struct ucred *active_cred,
 }
 
 static int
-soo_stat(struct file *fp, struct stat *ub, struct ucred *active_cred,
-    struct thread *td)
+soo_stat(struct file *fp, struct stat *ub, struct ucred *active_cred)
 {
 	struct socket *so = fp->f_data;
 	int error;

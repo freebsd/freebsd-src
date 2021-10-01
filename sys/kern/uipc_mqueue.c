@@ -2537,8 +2537,7 @@ mqf_close(struct file *fp, struct thread *td)
 }
 
 static int
-mqf_stat(struct file *fp, struct stat *st, struct ucred *active_cred,
-	struct thread *td)
+mqf_stat(struct file *fp, struct stat *st, struct ucred *active_cred)
 {
 	struct mqfs_node *pn = fp->f_data;
 

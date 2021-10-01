@@ -161,8 +161,7 @@ static struct fileops ksem_ops = {
 FEATURE(posix_sem, "POSIX semaphores");
 
 static int
-ksem_stat(struct file *fp, struct stat *sb, struct ucred *active_cred,
-    struct thread *td)
+ksem_stat(struct file *fp, struct stat *sb, struct ucred *active_cred)
 {
 	struct ksem *ks;
 #ifdef MAC

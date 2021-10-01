@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 8, 2020
+.Dd October 2, 2021
 .Dt VOP_ATTRIB 9
 .Os
 .Sh NAME
@@ -44,7 +44,7 @@
 .Fn VOP_SETATTR "struct vnode *vp" "struct vattr *vap" "struct ucred *cred"
 .Ft int
 .Fn VOP_STAT "struct vnode *vp" "struct stat *sb" "struct ucred *active_cred" \
-"struct ucred *file_cred" "struct thread *td"
+"struct ucred *file_cred"
 .Sh DESCRIPTION
 These entry points manipulate various attributes of a file or directory,
 including file permissions, owner, group, size,
@@ -83,8 +83,6 @@ The attributes of the file.
 The user credentials of the calling thread.
 .It Fa file_cred
 The credentials installed on the file description pointing to the vnode or NOCRED.
-.It Fa td
-The calling thread.
 .El
 .Pp
 Attributes which are not being modified by

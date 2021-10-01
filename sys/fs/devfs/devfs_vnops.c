@@ -1838,10 +1838,10 @@ devfs_setlabel(struct vop_setlabel_args *ap)
 #endif
 
 static int
-devfs_stat_f(struct file *fp, struct stat *sb, struct ucred *cred, struct thread *td)
+devfs_stat_f(struct file *fp, struct stat *sb, struct ucred *cred)
 {
 
-	return (vnops.fo_stat(fp, sb, cred, td));
+	return (vnops.fo_stat(fp, sb, cred));
 }
 
 static int

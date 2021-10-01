@@ -538,8 +538,7 @@ shm_ioctl(struct file *fp, u_long com, void *data, struct ucred *active_cred,
 }
 
 static int
-shm_stat(struct file *fp, struct stat *sb, struct ucred *active_cred,
-    struct thread *td)
+shm_stat(struct file *fp, struct stat *sb, struct ucred *active_cred)
 {
 	struct shmfd *shmfd;
 #ifdef MAC
