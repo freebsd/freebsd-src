@@ -481,11 +481,13 @@ PTHREAD_MLINKS+=pthread_multi_np.3 pthread_single_np.3
 PTHREAD_MLINKS+=pthread_mutexattr.3 pthread_mutexattr_destroy.3 \
 		pthread_mutexattr.3 pthread_mutexattr_getprioceiling.3 \
 		pthread_mutexattr.3 pthread_mutexattr_getprotocol.3 \
+		pthread_mutexattr.3 pthread_mutexattr_getpshared.3 \
 		pthread_mutexattr.3 pthread_mutexattr_getrobust.3 \
 		pthread_mutexattr.3 pthread_mutexattr_gettype.3 \
 		pthread_mutexattr.3 pthread_mutexattr_init.3 \
 		pthread_mutexattr.3 pthread_mutexattr_setprioceiling.3 \
 		pthread_mutexattr.3 pthread_mutexattr_setprotocol.3 \
+		pthread_mutexattr.3 pthread_mutexattr_setpshared.3 \
 		pthread_mutexattr.3 pthread_mutexattr_setrobust.3 \
 		pthread_mutexattr.3 pthread_mutexattr_settype.3
 PTHREAD_MLINKS+=pthread_mutexattr_getkind_np.3 pthread_mutexattr_setkind_np.3
