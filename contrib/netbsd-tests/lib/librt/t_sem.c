@@ -406,7 +406,7 @@ ATF_TC_BODY(clockwait_relative_intr_remaining, tc)
 	    (remain.tv_nsec >= 25*1000*1000 || machine_is_virtual()) &&
 	    remain.tv_nsec <= 75*1000*1000,
 	    "the remaining time was not as expected when a relative clockwait"
-	    " got EINTR: %ld.%09ld", remain.tv_sec, remain.tv_nsec);
+	    " got EINTR: %jd.%09ld", (uintmax_t)remain.tv_sec, remain.tv_nsec);
 }
 
 #endif	/* __FreeBSD__ */
