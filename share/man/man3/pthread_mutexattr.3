@@ -1,5 +1,10 @@
 .\" Copyright (C) 2000 Jason Evans <jasone@FreeBSD.org>.
+.\" Copyright (c) 2021 The FreeBSD Foundation, Inc.
 .\" All rights reserved.
+.\"
+.\" Part of this documentation was written by
+.\" Konstantin Belousov <kib@FreeBSD.org> under sponsorship
+.\" from the FreeBSD Foundation.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -102,8 +107,89 @@ function destroys
 .Fa attr .
 .Pp
 The
-.Fn pthread_mutexattr_set*
-functions set the attribute that corresponds to each function name.
+.Fn pthread_mutexattr_setprioceiling
+function sets the priority ceiling for the mutex, used
+by threads executed under the
+.Dv PTHREAD_PRIO_PROTECT
+protocol.
+.Pp
+The
+.Fn pthread_mutexattr_setprotocol
+function specifies the protocol to be followed in utilizing mutexes.
+The
+.Fa protocol
+argument can take one of the following values:
+.Bl -tag -width PTHREAD_PRIO_PROTECT
+.It PTHREAD_PRIO_NONE
+Priority and scheduling of the thread owning this mutex is not
+affected by its mutex ownership.
+.It PTHREAD_PRIO_INHERIT
+Request priority-inheritance protocol, where the thread owning the mutex
+is executed at the highest priority among priorities of all threads waiting
+on any mutex owned by this thread.
+.It PTHREAD_PRIO_PROTECT
+Request priority-inheritance protocol, where the thread owning the mutex
+is executed at highest priority among priorities or priority ceilings of
+all threads waiting on any mutex owned by this thread.
+.El
+.Pp
+The
+.Fn pthread_mutexattr_setrobust
+function specifies robustness attribute of the mutex.
+Possible values for the
+.Fa robust
+argument are
+.Bl -tag -width PTHREAD_MUTEX_STALLED
+.It PTHREAD_MUTEX_STALLED
+No special actions are taken if the thread owning the mutex is terminated
+without unlocking the mutex lock.
+This can lead to deadlocks if no other thread can unlock the mutex.
+This is the default value.
+.It PTHREAD_MUTEX_ROBUST
+If the process containing the owning thread of a robust mutex, or owning
+thread, terminates while holding the mutex lock, the next thread that
+acquires the mutex is notified about the termination
+by the return value
+.Ev EOWNERDEAD
+from the locking function.
+Then, either
+.Xr pthread_mutex_consistent 3
+can be used to repair the mutex lock state, or
+.Xr pthread_mutex_unlock 3
+can unlock the mutex lock but also put it an unusable state,
+where all further attempts to acquire it result in the
+.Ev ENOTRECOVERABLE
+error.
+.El
+.Pp
+The
+.Fn pthread_mutexattr_settype
+function sets the type of the mutex.
+The type affects the behavior of calls which lock and unlock the mutex.
+The possible values for the
+.Fa type
+argument are
+.Bl -tag -width PTHREAD_MUTEX_ERRORCHECK
+.It PTHREAD_MUTEX_NORMAL
+Both recursive locking, and unlocking when the lock is not owned by the current
+thread, cause an error to be returned from the corresponding functions.
+This matches
+.Dv PTHREAD_MUTEX_ERRORCHECK
+but somewhat contradicts the behavior mandated by POSIX.
+.It PTHREAD_MUTEX_ERRORCHECK
+Both recursive locking, and unlocking when the lock is not owned by the current
+thread, cause an error returned from the corresponding functions.
+.It PTHREAD_MUTEX_RECURSIVE
+Recursive locking is allowed.
+Attempt to unlock when current thread is not an owner of the lock causes
+an error to be returned.
+.It PTHREAD_MUTEX_DEFAULT
+The
+.Fx
+implementation maps this type to
+.Dv PTHREAD_MUTEX_ERRORCHECK
+type.
+.El
 .Pp
 The
 .Fn pthread_mutexattr_get*
