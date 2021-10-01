@@ -686,7 +686,7 @@ int nfsvno_getfh(vnode_t, fhandle_t *, NFSPROC_T *);
 int nfsvno_accchk(vnode_t, accmode_t, struct ucred *,
     struct nfsexstuff *, NFSPROC_T *, int, int, u_int32_t *);
 int nfsvno_namei(struct nfsrv_descript *, struct nameidata *,
-    vnode_t, int, struct nfsexstuff *, NFSPROC_T *, vnode_t *);
+    vnode_t, int, struct nfsexstuff *, vnode_t *);
 void nfsvno_setpathbuf(struct nameidata *, char **, u_long **);
 void nfsvno_relpathbuf(struct nameidata *);
 int nfsvno_readlink(vnode_t, struct ucred *, int, NFSPROC_T *, struct mbuf **,
