@@ -892,13 +892,8 @@ g_eli_init_uma(void)
                     G_ELI_AUTH_SECKEYLEN) * nsw_cluster_max +
                     sizeof(uintptr_t), PAGE_SIZE);
 
-		/*
-		 * Create the zone, setting UMA_ZONE_NOFREE so we won't
-		 * drain the zone in a memory shortage.
-		 */
 		g_eli_uma = uma_zcreate("GELI buffers", g_eli_alloc_sz,
-		    NULL, NULL, NULL, NULL,
-		    UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
+		    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 
 		/* Reserve and pre-allocate pages, as appropriate. */
 		uma_zone_reserve(g_eli_uma, g_eli_minbufs);
