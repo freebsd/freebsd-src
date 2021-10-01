@@ -103,6 +103,7 @@ int linux_dma_map_sg_attrs(struct device *dev, struct scatterlist *sgl,
 void linux_dma_unmap_sg_attrs(struct device *dev, struct scatterlist *sg,
     int nents __unused, enum dma_data_direction dir __unused,
     unsigned long attrs __unused);
+void linuxkpi_dma_sync(struct device *, dma_addr_t, size_t, bus_dmasync_op_t);
 
 static inline int
 dma_supported(struct device *dev, u64 dma_mask)
@@ -167,12 +168,6 @@ dma_free_coherent(struct device *dev, size_t size, void *cpu_addr,
 	kmem_free((vm_offset_t)cpu_addr, size);
 }
 
-#define	dma_map_single_attrs(dev, ptr, size, dir, attrs)	\
-	linux_dma_map_phys(dev, vtophys(ptr), size)
-
-#define	dma_unmap_single_attrs(dev, dma_addr, size, dir, attrs)	\
-	linux_dma_unmap(dev, dma_addr, size)
-
 static inline dma_addr_t
 dma_map_page_attrs(struct device *dev, struct page *page, size_t offset,
     size_t size, enum dma_data_direction dir, unsigned long attrs)
@@ -205,9 +200,28 @@ dma_unmap_page(struct device *dev, dma_addr_t dma_address, size_t size,
 }
 
 static inline void
-dma_sync_single_for_cpu(struct device *dev, dma_addr_t dma_handle, size_t size,
+dma_sync_single_for_cpu(struct device *dev, dma_addr_t dma, size_t size,
     enum dma_data_direction direction)
 {
+	bus_dmasync_op_t op;
+
+	switch (direction) {
+	case DMA_BIDIRECTIONAL:
+		op = BUS_DMASYNC_POSTREAD;
+		linuxkpi_dma_sync(dev, dma, size, op);
+		op = BUS_DMASYNC_PREREAD;
+		break;
+	case DMA_TO_DEVICE:
+		op = BUS_DMASYNC_POSTWRITE;
+		break;
+	case DMA_FROM_DEVICE:
+		op = BUS_DMASYNC_POSTREAD;
+		break;
+	default:
+		return;
+	}
+
+	linuxkpi_dma_sync(dev, dma, size, op);
 }
 
 static inline void
@@ -218,9 +232,26 @@ dma_sync_single(struct device *dev, dma_addr_t addr, size_t size,
 }
 
 static inline void
-dma_sync_single_for_device(struct device *dev, dma_addr_t dma_handle,
+dma_sync_single_for_device(struct device *dev, dma_addr_t dma,
     size_t size, enum dma_data_direction direction)
 {
+	bus_dmasync_op_t op;
+
+	switch (direction) {
+	case DMA_BIDIRECTIONAL:
+		op = BUS_DMASYNC_PREWRITE;
+		break;
+	case DMA_TO_DEVICE:
+		op = BUS_DMASYNC_PREREAD;
+		break;
+	case DMA_FROM_DEVICE:
+		op = BUS_DMASYNC_PREWRITE;
+		break;
+	default:
+		return;
+	}
+
+	linuxkpi_dma_sync(dev, dma, size, op);
 }
 
 static inline void
@@ -259,6 +290,34 @@ static inline unsigned int dma_set_max_seg_size(struct device *dev,
 {
 	return (0);
 }
+
+static inline dma_addr_t
+_dma_map_single_attrs(struct device *dev, void *ptr, size_t size,
+    enum dma_data_direction direction, unsigned long attrs __unused)
+{
+	dma_addr_t dma;
+
+	dma = linux_dma_map_phys(dev, vtophys(ptr), size);
+	if (!dma_mapping_error(dev, dma))
+		dma_sync_single_for_device(dev, dma, size, direction);
+
+	return (dma);
+}
+
+static inline void
+_dma_unmap_single_attrs(struct device *dev, dma_addr_t dma, size_t size,
+    enum dma_data_direction direction, unsigned long attrs __unused)
+{
+
+	dma_sync_single_for_cpu(dev, dma, size, direction);
+	linux_dma_unmap(dev, dma, size);
+}
+
+#define	dma_map_single_attrs(dev, ptr, size, dir, attrs)	\
+	_dma_map_single_attrs(dev, ptr, size, dir, 0)
+
+#define	dma_unmap_single_attrs(dev, dma_addr, size, dir, attrs)	\
+	_dma_unmap_single_attrs(dev, dma_addr, size, dir, 0)
 
 #define dma_map_single(d, a, s, r) dma_map_single_attrs(d, a, s, r, 0)
 #define dma_unmap_single(d, a, s, r) dma_unmap_single_attrs(d, a, s, r, 0)
