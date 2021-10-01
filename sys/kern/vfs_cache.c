@@ -4219,7 +4219,7 @@ cache_can_fplookup(struct cache_fpl *fpl)
 
 	ndp = fpl->ndp;
 	cnp = fpl->cnp;
-	td = cnp->cn_thread;
+	td = curthread;
 
 	if (!atomic_load_char(&cache_fast_lookup_enabled)) {
 		cache_fpl_aborted_early(fpl);
@@ -5984,7 +5984,6 @@ cache_fplookup(struct nameidata *ndp, enum cache_fpl_status *status,
 	fpl.ndp = ndp;
 	fpl.cnp = cnp = &ndp->ni_cnd;
 	MPASS(ndp->ni_lcf == 0);
-	MPASS(curthread == cnp->cn_thread);
 	KASSERT ((cnp->cn_flags & CACHE_FPL_INTERNAL_CN_FLAGS) == 0,
 	    ("%s: internal flags found in cn_flags %" PRIx64, __func__,
 	    cnp->cn_flags));

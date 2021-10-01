@@ -906,7 +906,7 @@ abortit:
 	 * to namei, as the parent directory is unlocked by the
 	 * call to checkpath().
 	 */
-	error = VOP_ACCESS(fvp, VWRITE, tcnp->cn_cred, tcnp->cn_thread);
+	error = VOP_ACCESS(fvp, VWRITE, tcnp->cn_cred, curthread);
 	VOP_UNLOCK(fvp);
 	if (oldparent != dp->i_number)
 		newparent = dp->i_number;
@@ -1031,7 +1031,7 @@ abortit:
 			if (xp->i_nlink > 2)
 				panic("ext2_rename: linked directory");
 			error = ext2_truncate(tvp, (off_t)0, IO_SYNC,
-			    tcnp->cn_cred, tcnp->cn_thread);
+			    tcnp->cn_cred, curthread);
 			xp->i_nlink = 0;
 		}
 		xp->i_flag |= IN_CHANGE;
@@ -1424,7 +1424,7 @@ ext2_mkdir(struct vop_mkdir_args *ap)
 #ifdef UFS_ACL
 	if (dvp->v_mount->mnt_flag & MNT_ACLS) {
 		error = ext2_do_posix1e_acl_inheritance_dir(dvp, tvp, dmode,
-		    cnp->cn_cred, cnp->cn_thread);
+		    cnp->cn_cred, curthread);
 		if (error)
 			goto bad;
 	}
@@ -1504,7 +1504,7 @@ ext2_rmdir(struct vop_rmdir_args *ap)
 	 */
 	ip->i_nlink = 0;
 	error = ext2_truncate(vp, (off_t)0, IO_SYNC, cnp->cn_cred,
-	    cnp->cn_thread);
+	    curthread);
 	cache_purge(ITOV(ip));
 	if (vn_lock(dvp, LK_EXCLUSIVE | LK_NOWAIT) != 0) {
 		VOP_UNLOCK(vp);
@@ -2004,7 +2004,7 @@ ext2_makeinode(int mode, struct vnode *dvp, struct vnode **vpp,
 #ifdef UFS_ACL
 	if (dvp->v_mount->mnt_flag & MNT_ACLS) {
 		error = ext2_do_posix1e_acl_inheritance_file(dvp, tvp, mode,
-		    cnp->cn_cred, cnp->cn_thread);
+		    cnp->cn_cred, curthread);
 		if (error)
 			goto bad;
 	}

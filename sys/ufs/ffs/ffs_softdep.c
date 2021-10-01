@@ -2975,7 +2975,6 @@ softdep_journal_lookup(mp, vpp)
 	bzero(&cnp, sizeof(cnp));
 	cnp.cn_nameiop = LOOKUP;
 	cnp.cn_flags = ISLASTCN;
-	cnp.cn_thread = curthread;
 	cnp.cn_cred = curthread->td_ucred;
 	cnp.cn_pnbuf = SUJ_FILE;
 	cnp.cn_nameptr = SUJ_FILE;

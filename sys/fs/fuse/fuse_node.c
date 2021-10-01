@@ -286,7 +286,7 @@ fuse_vnode_get(struct mount *mp,
     struct componentname *cnp,
     enum vtype vtyp)
 {
-	struct thread *td = (cnp != NULL ? cnp->cn_thread : curthread);
+	struct thread *td = curthread;
 	/* 
 	 * feo should only be NULL for the root directory, which (when libfuse
 	 * is used) always has generation 0

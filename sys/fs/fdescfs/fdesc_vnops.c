@@ -293,7 +293,7 @@ fdesc_lookup(struct vop_lookup_args *ap)
 	struct vnode *dvp = ap->a_dvp;
 	struct componentname *cnp = ap->a_cnp;
 	char *pname = cnp->cn_nameptr;
-	struct thread *td = cnp->cn_thread;
+	struct thread *td = curthread;
 	struct file *fp;
 	struct fdesc_get_ino_args arg;
 	int nlen = cnp->cn_namelen;

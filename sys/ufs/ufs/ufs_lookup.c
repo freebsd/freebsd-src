@@ -230,7 +230,7 @@ ufs_lookup_ino(struct vnode *vdp, struct vnode **vpp, struct componentname *cnp,
 	 * in VFS_VGET but we could end up creating objects
 	 * that are never used.
 	 */
-	vnode_create_vobject(vdp, DIP(dp, i_size), cnp->cn_thread);
+	vnode_create_vobject(vdp, DIP(dp, i_size), curthread);
 
 	bmask = VFSTOUFS(vdp->v_mount)->um_mountp->mnt_stat.f_iosize - 1;
 
@@ -486,9 +486,9 @@ notfound:
 		 * XXX: Fix the comment above.
 		 */
 		if (flags & WILLBEDIR)
-			error = VOP_ACCESSX(vdp, VWRITE | VAPPEND, cred, cnp->cn_thread);
+			error = VOP_ACCESSX(vdp, VWRITE | VAPPEND, cred, curthread);
 		else
-			error = VOP_ACCESS(vdp, VWRITE, cred, cnp->cn_thread);
+			error = VOP_ACCESS(vdp, VWRITE, cred, curthread);
 		if (error)
 			return (error);
 		/*
@@ -601,7 +601,7 @@ found:
 		if ((error = VFS_VGET(vdp->v_mount, ino,
 		    LK_EXCLUSIVE, &tdp)) != 0)
 			return (error);
-		error = ufs_delete_denied(vdp, tdp, cred, cnp->cn_thread);
+		error = ufs_delete_denied(vdp, tdp, cred, curthread);
 		if (error) {
 			vput(tdp);
 			return (error);
@@ -625,9 +625,9 @@ found:
 	 */
 	if (nameiop == RENAME && (flags & ISLASTCN)) {
 		if (flags & WILLBEDIR)
-			error = VOP_ACCESSX(vdp, VWRITE | VAPPEND, cred, cnp->cn_thread);
+			error = VOP_ACCESSX(vdp, VWRITE | VAPPEND, cred, curthread);
 		else
-			error = VOP_ACCESS(vdp, VWRITE, cred, cnp->cn_thread);
+			error = VOP_ACCESS(vdp, VWRITE, cred, curthread);
 		if (error)
 			return (error);
 		/*
@@ -643,7 +643,7 @@ found:
 		    LK_EXCLUSIVE, &tdp)) != 0)
 			return (error);
 
-		error = ufs_delete_denied(vdp, tdp, cred, cnp->cn_thread);
+		error = ufs_delete_denied(vdp, tdp, cred, curthread);
 		if (error) {
 			vput(tdp);
 			return (error);
@@ -660,9 +660,9 @@ found:
 		 * of EACCESS.
 		 */
 		if (tdp->v_type == VDIR)
-			error = VOP_ACCESSX(vdp, VWRITE | VAPPEND, cred, cnp->cn_thread);
+			error = VOP_ACCESSX(vdp, VWRITE | VAPPEND, cred, curthread);
 		else
-			error = VOP_ACCESS(vdp, VWRITE, cred, cnp->cn_thread);
+			error = VOP_ACCESS(vdp, VWRITE, cred, curthread);
 		if (error) {
 			vput(tdp);
 			return (error);

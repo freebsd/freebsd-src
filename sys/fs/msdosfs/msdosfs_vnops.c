@@ -1109,7 +1109,7 @@ relock:
 	 * to namei, as the parent directory is unlocked by the
 	 * call to doscheckpath().
 	 */
-	error = VOP_ACCESS(fvp, VWRITE, tcnp->cn_cred, tcnp->cn_thread);
+	error = VOP_ACCESS(fvp, VWRITE, tcnp->cn_cred, curthread);
 	if (fdip->de_StartCluster != tdip->de_StartCluster)
 		newparent = true;
 	if (doingdirectory && newparent) {
