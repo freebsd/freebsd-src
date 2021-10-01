@@ -262,7 +262,7 @@ nvme_ctrlr_fail_req_task(void *arg, int pending)
 static int
 nvme_ctrlr_wait_for_ready(struct nvme_controller *ctrlr, int desired_val)
 {
-	int timeout = ticks + (uint64_t)ctrlr->ready_timeout_in_ms * hz / 1000;
+	int timeout = ticks + MSEC_2_TICKS(ctrlr->ready_timeout_in_ms);
 	uint32_t csts;
 
 	while (1) {
@@ -326,7 +326,7 @@ nvme_ctrlr_disable(struct nvme_controller *ctrlr)
 	 * cope with these issues.
 	 */
 	if (ctrlr->quirks & QUIRK_DELAY_B4_CHK_RDY)
-		pause("nvmeR", B4_CHK_RDY_DELAY_MS * hz / 1000);
+		pause("nvmeR", MSEC_2_TICKS(B4_CHK_RDY_DELAY_MS));
 	return (nvme_ctrlr_wait_for_ready(ctrlr, 0));
 }
 
