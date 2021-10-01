@@ -195,6 +195,11 @@ vm_create_disk() {
 		SWAPOPT="-p freebsd-swap/swapfs::${SWAPSIZE}"
 	fi
 
+	if [ -n "${VM_BOOTPARTSOFFSET}" ]; then
+		BOOTPARTSOFFSET=":${VM_BOOTPARTSOFFSET}"
+	fi
+
+
 	BOOTFILES="$(env TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
 		WITH_UNIFIED_OBJDIR=yes \
 		make -C ${WORLDDIR}/stand -V .OBJDIR)"
@@ -204,7 +209,7 @@ vm_create_disk() {
 		amd64:amd64 | i386:i386)
 			ESP=yes
 			BOOTPARTS="-b ${BOOTFILES}/i386/pmbr/pmbr \
-				   -p freebsd-boot/bootfs:=${BOOTFILES}/i386/gptboot/gptboot"
+				   -p freebsd-boot/bootfs:=${BOOTFILES}/i386/gptboot/gptboot${BOOTPARTSOFFSET}"
 			ROOTFSPART="-p freebsd-ufs/rootfs:=${VMBASE}"
 			MAKEFSARGS="-B little"
 			;;
