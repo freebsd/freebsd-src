@@ -60,6 +60,11 @@ __COPYRIGHT("@(#) Copyright (c) 2008, 2010\
  The NetBSD Foundation, inc. All rights reserved.");
 __RCSID("$NetBSD: t_sem.c,v 1.3 2017/01/14 20:58:20 christos Exp $");
 
+#ifdef __FreeBSD__
+#include <sys/types.h>
+#include <sys/sysctl.h>
+#endif
+
 #include <sys/time.h>
 #include <sys/wait.h>
 
@@ -77,6 +82,24 @@ __RCSID("$NetBSD: t_sem.c,v 1.3 2017/01/14 20:58:20 christos Exp $");
 
 #define SEM_REQUIRE(x) \
 	ATF_REQUIRE_EQ_MSG(x, 0, "%s", strerror(errno))
+
+#ifdef __FreeBSD__
+static bool
+machine_is_virtual(void)
+{
+	char vm_guest[32];
+	int error;
+
+	error = sysctlbyname("kern.vm_guest", vm_guest,
+	    &(size_t){sizeof(vm_guest)}, NULL, 0);
+	ATF_CHECK_EQ_MSG(0, error, "sysctlbyname(kern.vm_guest): %s",
+	    strerror(errno));
+	if (error != 0) {
+		return (false);
+	}
+	return (strcmp(vm_guest, "none") != 0);
+}
+#endif
 
 ATF_TC_WITH_CLEANUP(basic);
 ATF_TC_HEAD(basic, tc)
@@ -306,15 +329,11 @@ ATF_TC_BODY(timedwait, tc)
 	ATF_REQUIRE_ERRNO(EINTR, sem_clockwait_np(&sem, CLOCK_MONOTONIC, 0, &ts,
 	    &remain));
 	ATF_REQUIRE_MSG(got_sigalrm, "did not get SIGALRM");
-	/*
-	 * If this nsec comparison turns out to be unreliable due to timing,
-	 * it could simply check that nsec < 100 ms.
-	 */
 	ATF_REQUIRE_MSG(remain.tv_sec == 0 &&
-	    remain.tv_nsec >= 25*1000*1000 &&
+	    (remain.tv_nsec >= 25*1000*1000 || machine_is_virtual()) &&
 	    remain.tv_nsec <= 75*1000*1000,
 	    "the remaining time was not as expected when a relative clockwait"
-	    " got EINTR" );
+	    " got EINTR: %ld.%09ld", remain.tv_sec, remain.tv_nsec);
 #endif
 }
 
