@@ -594,7 +594,7 @@ nfsvno_setattr(struct vnode *vp, struct nfsvattr *nvap, struct ucred *cred,
  */
 int
 nfsvno_namei(struct nfsrv_descript *nd, struct nameidata *ndp,
-    struct vnode *dp, int islocked, struct nfsexstuff *exp, struct thread *p,
+    struct vnode *dp, int islocked, struct nfsexstuff *exp,
     struct vnode **retdirp)
 {
 	struct componentname *cnp = &ndp->ni_cnd;
@@ -661,7 +661,7 @@ nfsvno_namei(struct nfsrv_descript *nd, struct nameidata *ndp,
 	 * because lookup() will dereference ni_startdir.
 	 */
 
-	cnp->cn_thread = p;
+	cnp->cn_thread = curthread;
 	ndp->ni_startdir = dp;
 	ndp->ni_rootdir = rootvnode;
 	ndp->ni_topdir = NULL;

@@ -612,7 +612,7 @@ nfsrvd_lookup(struct nfsrv_descript *nd, __unused int isdgram,
 		goto out;
 	}
 	if (!nd->nd_repstat) {
-		nd->nd_repstat = nfsvno_namei(nd, &named, dp, 0, exp, p, &dirp);
+		nd->nd_repstat = nfsvno_namei(nd, &named, dp, 0, exp, &dirp);
 	} else {
 		vrele(dp);
 		nfsvno_relpathbuf(&named);
@@ -1214,7 +1214,7 @@ nfsrvd_create(struct nfsrv_descript *nd, __unused int isdgram,
 		goto out;
 	}
 
-	nd->nd_repstat = nfsvno_namei(nd, &named, dp, 1, exp, p, &dirp);
+	nd->nd_repstat = nfsvno_namei(nd, &named, dp, 1, exp, &dirp);
 	if (dirp) {
 		if (nd->nd_flag & ND_NFSV2) {
 			vrele(dirp);
@@ -1420,7 +1420,7 @@ nfsrvd_mknod(struct nfsrv_descript *nd, __unused int isdgram,
 
 	if (vtyp == VDIR)
 		named.ni_cnd.cn_flags |= WILLBEDIR;
-	nd->nd_repstat = nfsvno_namei(nd, &named, dp, 0, exp, p, &dirp);
+	nd->nd_repstat = nfsvno_namei(nd, &named, dp, 0, exp, &dirp);
 	if (nd->nd_repstat) {
 		if (dirp) {
 			if (nd->nd_flag & ND_NFSV3)
@@ -1543,7 +1543,7 @@ nfsrvd_remove(struct nfsrv_descript *nd, __unused int isdgram,
 		goto out;
 	}
 	if (!nd->nd_repstat) {
-		nd->nd_repstat = nfsvno_namei(nd, &named, dp, 1, exp, p, &dirp);
+		nd->nd_repstat = nfsvno_namei(nd, &named, dp, 1, exp, &dirp);
 	} else {
 		vput(dp);
 		nfsvno_relpathbuf(&named);
@@ -1717,7 +1717,7 @@ nfsrvd_rename(struct nfsrv_descript *nd, int isdgram,
 	/*
 	 * Done parsing, now down to business.
 	 */
-	nd->nd_repstat = nfsvno_namei(nd, &fromnd, dp, 0, exp, p, &fdirp);
+	nd->nd_repstat = nfsvno_namei(nd, &fromnd, dp, 0, exp, &fdirp);
 	if (nd->nd_repstat) {
 		if (nd->nd_flag & ND_NFSV3) {
 			nfsrv_wcc(nd, fdirfor_ret, &fdirfor, fdiraft_ret,
@@ -1734,7 +1734,7 @@ nfsrvd_rename(struct nfsrv_descript *nd, int isdgram,
 	}
 	if (vnode_vtype(fromnd.ni_vp) == VDIR)
 		tond.ni_cnd.cn_flags |= WILLBEDIR;
-	nd->nd_repstat = nfsvno_namei(nd, &tond, tdp, 0, &tnes, p, &tdirp);
+	nd->nd_repstat = nfsvno_namei(nd, &tond, tdp, 0, &tnes, &tdirp);
 	nd->nd_repstat = nfsvno_rename(&fromnd, &tond, nd->nd_repstat,
 	    nd->nd_flag, nd->nd_cred, p);
 	if (fdirp)
@@ -1829,7 +1829,7 @@ nfsrvd_link(struct nfsrv_descript *nd, int isdgram,
 		}
 		if (!nd->nd_repstat) {
 			nd->nd_repstat = nfsvno_namei(nd, &named, dp, 0, &tnes,
-			    p, &dirp);
+			    &dirp);
 		} else {
 			if (dp)
 				vrele(dp);
@@ -1904,7 +1904,7 @@ nfsrvd_symlink(struct nfsrv_descript *nd, __unused int isdgram,
 		goto out;
 	}
 	if (!nd->nd_repstat) {
-		nd->nd_repstat = nfsvno_namei(nd, &named, dp, 0, exp, p, &dirp);
+		nd->nd_repstat = nfsvno_namei(nd, &named, dp, 0, exp, &dirp);
 	} else {
 		vrele(dp);
 		nfsvno_relpathbuf(&named);
@@ -2028,7 +2028,7 @@ nfsrvd_mkdir(struct nfsrv_descript *nd, __unused int isdgram,
 		}
 	}
 	if (!nd->nd_repstat) {
-		nd->nd_repstat = nfsvno_namei(nd, &named, dp, 0, exp, p, &dirp);
+		nd->nd_repstat = nfsvno_namei(nd, &named, dp, 0, exp, &dirp);
 	} else {
 		vrele(dp);
 		nfsvno_relpathbuf(&named);
@@ -3030,7 +3030,7 @@ nfsrvd_open(struct nfsrv_descript *nd, __unused int isdgram,
 		}
 		if (!nd->nd_repstat) {
 			nd->nd_repstat = nfsvno_namei(nd, &named, dp, 0, exp,
-			    p, &dirp);
+			    &dirp);
 		} else {
 			vrele(dp);
 			nfsvno_relpathbuf(&named);
@@ -3688,7 +3688,7 @@ nfsrvd_secinfo(struct nfsrv_descript *nd, int isdgram,
 		goto out;
 	}
 	if (!nd->nd_repstat) {
-		nd->nd_repstat = nfsvno_namei(nd, &named, dp, 1, exp, p, &dirp);
+		nd->nd_repstat = nfsvno_namei(nd, &named, dp, 1, exp, &dirp);
 	} else {
 		vput(dp);
 		nfsvno_relpathbuf(&named);
@@ -3822,7 +3822,7 @@ nfsrvd_secinfononame(struct nfsrv_descript *nd, int isdgram,
 			goto nfsmout;
 		}
 		if (nd->nd_repstat == 0)
-			nd->nd_repstat = nfsvno_namei(nd, &named, dp, 1, exp, p, &dirp);
+			nd->nd_repstat = nfsvno_namei(nd, &named, dp, 1, exp, &dirp);
 		else
 			vput(dp);
 		if (dirp != NULL)
