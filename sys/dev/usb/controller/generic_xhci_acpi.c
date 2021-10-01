@@ -64,7 +64,7 @@ generic_xhci_acpi_probe(device_t dev)
 
 	device_set_desc(dev, XHCI_HC_DEVSTR);
 
-	return (BUS_PROBE_DEFAULT);
+	return (BUS_PROBE_GENERIC);
 }
 
 static device_method_t xhci_acpi_methods[] = {
