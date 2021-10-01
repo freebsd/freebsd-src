@@ -390,6 +390,30 @@ static int tcp_fb_cnt = 0;
 struct tcp_funchead t_functions;
 static struct tcp_function_block *tcp_func_set_ptr = &tcp_def_funcblk;
 
+void
+tcp_record_dsack(struct tcpcb *tp, tcp_seq start, tcp_seq end, int tlp)
+{
+	TCPSTAT_INC(tcps_dsack_count);
+	tp->t_dsack_pack++;
+	if (tlp == 0) {
+		if (SEQ_GT(end, start)) {
+			tp->t_dsack_bytes += (end - start);
+			TCPSTAT_ADD(tcps_dsack_bytes, (end - start));
+		} else {
+			tp->t_dsack_tlp_bytes += (start - end);
+			TCPSTAT_ADD(tcps_dsack_bytes, (start - end));
+		}
+	} else {
+		if (SEQ_GT(end, start)) {
+			tp->t_dsack_bytes += (end - start);
+			TCPSTAT_ADD(tcps_dsack_tlp_bytes, (end - start));
+		} else {
+			tp->t_dsack_tlp_bytes += (start - end);
+			TCPSTAT_ADD(tcps_dsack_tlp_bytes, (start - end));
+		}
+	}
+}
+
 static struct tcp_function_block *
 find_tcp_functions_locked(struct tcp_function_set *fs)
 {
@@ -4003,6 +4027,9 @@ tcp_inptoxtp(const struct inpcb *inp, struct xtcpcb *xt)
 		xt->t_snd_wnd = tp->snd_wnd;
 		xt->t_snd_cwnd = tp->snd_cwnd;
 		xt->t_snd_ssthresh = tp->snd_ssthresh;
+		xt->t_dsack_bytes = tp->t_dsack_bytes;
+		xt->t_dsack_tlp_bytes = tp->t_dsack_tlp_bytes;
+		xt->t_dsack_pack = tp->t_dsack_pack;
 		xt->t_maxseg = tp->t_maxseg;
 		xt->xt_ecn = (tp->t_flags2 & TF2_ECN_PERMIT) ? 1 : 0 +
 			     (tp->t_flags2 & TF2_ACE_PERMIT) ? 2 : 0;

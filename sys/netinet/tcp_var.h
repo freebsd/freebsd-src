@@ -265,6 +265,9 @@ struct tcpcb {
 	uint64_t t_sndtlpbyte;		/* total tail loss probe bytes sent */
 	uint64_t t_sndbytes;		/* total bytes sent */
 	uint64_t t_snd_rxt_bytes;	/* total bytes retransmitted */
+	uint32_t t_dsack_bytes;		/* Total number of dsack bytes we have received */
+	uint32_t t_dsack_tlp_bytes;	/* Total number of dsack bytes we have received for TLPs sent */
+	uint32_t t_dsack_pack;		/* Total dsack packets we have recieved */
 
 	uint8_t t_tfo_client_cookie_len; /* TCP Fast Open client cookie length */
 	uint32_t t_end_info_status;	/* Status flag of end info */
@@ -703,7 +706,12 @@ struct	tcpstat {
 	uint64_t tcps_tunneled_pkts;	/* Packets encap's in UDP received */
 	uint64_t tcps_tunneled_errs;	/* Packets that had errors that were UDP encaped */
 
-	uint64_t _pad[9];		/* 6 UTO, 3 TBD */
+	/* Dsack related stats */
+	uint64_t tcps_dsack_count;	/* Number of ACKs arriving with DSACKs */
+	uint64_t tcps_dsack_bytes;	/* Number of bytes DSACK'ed no TLP */
+	uint64_t tcps_dsack_tlp_bytes;	/* Number of bytes DSACK'ed due to TLPs */
+
+	uint64_t _pad[6];		/* 3 UTO, 3 TBD */
 };
 
 #define	tcps_rcvmemdrop	tcps_rcvreassfull	/* compat */
@@ -801,9 +809,12 @@ struct xtcpcb {
 	uint32_t	t_rcv_wnd;		/* (s) */
 	uint32_t	t_snd_wnd;		/* (s) */
 	uint32_t	xt_ecn;			/* (s) */
+	uint32_t	t_dsack_bytes;		/* (n) */
+	uint32_t	t_dsack_tlp_bytes;	/* (n) */
+	uint32_t	t_dsack_pack;		/* (n) */
 	uint16_t	xt_encaps_port;		/* (s) */
 	int16_t		spare16;
-	int32_t		spare32[25];
+	int32_t		spare32[22];
 } __aligned(8);
 
 #ifdef _KERNEL
@@ -1064,6 +1075,7 @@ int	 tcp_twcheck(struct inpcb *, struct tcpopt *, struct tcphdr *,
 	    struct mbuf *, int);
 void	 tcp_setpersist(struct tcpcb *);
 void	 tcp_slowtimo(void);
+void	 tcp_record_dsack(struct tcpcb *tp, tcp_seq start, tcp_seq end, int tlp);
 struct tcptemp *
 	 tcpip_maketemplate(struct inpcb *);
 void	 tcpip_fillheaders(struct inpcb *, uint16_t, void *, void *);

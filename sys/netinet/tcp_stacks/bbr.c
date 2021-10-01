@@ -7593,14 +7593,12 @@ proc_sack:
 			}
 			sack_blocks[num_sack_blks] = sack;
 			num_sack_blks++;
-#ifdef NETFLIX_STATS
 		} else if (SEQ_LEQ(sack.start, th_ack) &&
 		    SEQ_LEQ(sack.end, th_ack)) {
 			/*
 			 * Its a D-SACK block.
 			 */
-			tcp_record_dsack(sack.start, sack.end);
-#endif
+			tcp_record_dsack(tp, sack.start, sack.end, 0);
 		}
 	}
 	if (num_sack_blks == 0)
