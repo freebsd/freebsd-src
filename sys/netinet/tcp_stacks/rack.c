@@ -9402,11 +9402,12 @@ rack_do_detection(struct tcpcb *tp, struct tcp_rack *rack,  uint32_t bytes_this_
 }
 #endif
 
-static void
+static int
 rack_note_dsack(struct tcp_rack *rack, tcp_seq start, tcp_seq end)
 {
 
 	uint32_t am, l_end;
+	int was_tlp = 0;
 
 	if (SEQ_GT(end, start))
 		am = end - start;
@@ -9422,6 +9423,7 @@ rack_note_dsack(struct tcp_rack *rack, tcp_seq start, tcp_seq end)
 		 * our previous retransmit TLP.
 		 */
 		rack_log_dsack_event(rack, 7, __LINE__, start, end);
+		was_tlp = 1;
 		goto skip_dsack_round;
 	}
 	if (rack->rc_last_sent_tlp_seq_valid) {
@@ -9433,6 +9435,7 @@ rack_note_dsack(struct tcp_rack *rack, tcp_seq start, tcp_seq end)
 			 * for reordering purposes.
 			 */
 			rack_log_dsack_event(rack, 7, __LINE__, start, end);
+			was_tlp = 1;
 			goto skip_dsack_round;
 		}
 	}
@@ -9462,6 +9465,7 @@ skip_dsack_round:
 		rack->r_ctl.retran_during_recovery = 0;
 		rack->r_ctl.dsack_byte_cnt = 0;
 	}
+	return (was_tlp);
 }
 
 static void
@@ -9614,13 +9618,13 @@ rack_log_ack(struct tcpcb *tp, struct tcpopt *to, struct tcphdr *th, int entered
 			num_sack_blks++;
 		} else if (SEQ_LEQ(sack.start, th_ack) &&
 			   SEQ_LEQ(sack.end, th_ack)) {
-#ifdef NETFLIX_STATS
+			int was_tlp;
+
+			was_tlp = rack_note_dsack(rack, sack.start, sack.end);
 			/*
 			 * Its a D-SACK block.
 			 */
-			tcp_record_dsack(sack.start, sack.end);
-#endif
-			rack_note_dsack(rack, sack.start, sack.end);
+			tcp_record_dsack(tp, sack.start, sack.end, was_tlp);
 		}
 	}
 	if (rack->rc_dsack_round_seen) {

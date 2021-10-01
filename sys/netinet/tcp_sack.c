@@ -604,6 +604,12 @@ tcp_sack_doack(struct tcpcb *tp, struct tcpopt *to, tcp_seq th_ack)
 			    SEQ_GT(sack.end, tp->snd_una) &&
 			    SEQ_LEQ(sack.end, tp->snd_max)) {
 				sack_blocks[num_sack_blks++] = sack;
+			} else if (SEQ_LEQ(sack.start, th_ack) &&
+			    SEQ_LEQ(sack.end, th_ack)) {
+				/*
+				 * Its a D-SACK block.
+				 */
+				tcp_record_dsack(tp, sack.start, sack.end, 0);
 			}
 		}
 	}
