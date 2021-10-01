@@ -260,10 +260,17 @@ nvme_ctrlr_fail_req_task(void *arg, int pending)
 	mtx_unlock(&ctrlr->lock);
 }
 
+/*
+ * Wait for RDY to change.
+ *
+ * Starts sleeping for 1us and geometrically increases it the longer we wait,
+ * capped at 1ms.
+ */
 static int
 nvme_ctrlr_wait_for_ready(struct nvme_controller *ctrlr, int desired_val)
 {
 	int timeout = ticks + MSEC_2_TICKS(ctrlr->ready_timeout_in_ms);
+	sbintime_t delta_t = SBT_1US;
 	uint32_t csts;
 
 	while (1) {
@@ -278,7 +285,9 @@ nvme_ctrlr_wait_for_ready(struct nvme_controller *ctrlr, int desired_val)
 			    "within %d ms\n", desired_val, ctrlr->ready_timeout_in_ms);
 			return (ENXIO);
 		}
-		pause("nvmerdy", 1);
+
+		pause_sbt("nvmerdy", delta_t, 0, C_PREL(1));
+		delta_t = min(SBT_1MS, delta_t * 3 / 2);
 	}
 
 	return (0);
