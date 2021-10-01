@@ -2214,17 +2214,20 @@ tdsendsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 			return (ret);
 		} else {
 			action = SIG_CATCH;
+			intrval = 0;
 		}
-	} else if (SIGISMEMBER(td->td_sigmask, sig))
-		action = SIG_HOLD;
-	else if (SIGISMEMBER(ps->ps_sigcatch, sig))
-		action = SIG_CATCH;
-	else
-		action = SIG_DFL;
-	if (SIGISMEMBER(ps->ps_sigintr, sig))
-		intrval = EINTR;
-	else
-		intrval = ERESTART;
+	} else {
+		if (SIGISMEMBER(td->td_sigmask, sig))
+			action = SIG_HOLD;
+		else if (SIGISMEMBER(ps->ps_sigcatch, sig))
+			action = SIG_CATCH;
+		else
+			action = SIG_DFL;
+		if (SIGISMEMBER(ps->ps_sigintr, sig))
+			intrval = EINTR;
+		else
+			intrval = ERESTART;
+	}
 	mtx_unlock(&ps->ps_mtx);
 
 	if (prop & SIGPROP_CONT)
