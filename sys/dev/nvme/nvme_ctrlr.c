@@ -30,6 +30,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_cam.h"
+#include "opt_nvme.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -1135,12 +1136,6 @@ nvme_ctrlr_start_config_hook(void *arg)
 
 	TSENTER();
 
-	/*
-	 * Reset controller twice to ensure we do a transition from cc.en==1 to
-	 * cc.en==0.  This is because we don't really know what status the
-	 * controller was left in when boot handed off to OS.  Linux doesn't do
-	 * this, however. If we adopt that policy, see also nvme_ctrlr_resume().
-	 */
 	if (nvme_ctrlr_hw_reset(ctrlr) != 0) {
 fail:
 		nvme_ctrlr_fail(ctrlr);
@@ -1148,8 +1143,17 @@ fail:
 		return;
 	}
 
+#ifdef NVME_2X_RESET
+	/*
+	 * Reset controller twice to ensure we do a transition from cc.en==1 to
+	 * cc.en==0.  This is because we don't really know what status the
+	 * controller was left in when boot handed off to OS.  Linux doesn't do
+	 * this, however, and when the controller is in state cc.en == 0, no
+	 * I/O can happen.
+	 */
 	if (nvme_ctrlr_hw_reset(ctrlr) != 0)
 		goto fail;
+#endif
 
 	nvme_qpair_reset(&ctrlr->adminq);
 	nvme_admin_qpair_enable(&ctrlr->adminq);
@@ -1672,14 +1676,17 @@ nvme_ctrlr_resume(struct nvme_controller *ctrlr)
 	if (ctrlr->is_failed)
 		return (0);
 
+	if (nvme_ctrlr_hw_reset(ctrlr) != 0)
+		goto fail;
+#ifdef NVME_2X_RESET
 	/*
-	 * Have to reset the hardware twice, just like we do on attach. See
-	 * nmve_attach() for why.
+	 * Prior to FreeBSD 13.1, FreeBSD's nvme driver reset the hardware twice
+	 * to get it into a known good state. However, the hardware's state is
+	 * good and we don't need to do this for proper functioning.
 	 */
 	if (nvme_ctrlr_hw_reset(ctrlr) != 0)
 		goto fail;
-	if (nvme_ctrlr_hw_reset(ctrlr) != 0)
-		goto fail;
+#endif
 
 	/*
 	 * Now that we've reset the hardware, we can restart the controller. Any
