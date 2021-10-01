@@ -1,5 +1,5 @@
 .\" Copyright (c) 2005 Robert N. M. Watson
-.\" Copyright (c) 2014,2015 The FreeBSD Foundation, Inc.
+.\" Copyright (c) 2014,2015,2021 The FreeBSD Foundation, Inc.
 .\" All rights reserved.
 .\"
 .\" Part of this documentation was written by
@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 5, 2020
+.Dd October 1, 2021
 .Dt LIBTHR 3
 .Os
 .Sh NAME
@@ -259,6 +259,65 @@ the critical section.
 This should be taken into account when interpreting
 .Xr ktrace 1
 logs.
+.Sh PROCESS-SHARED SYNCHRONIZATION OBJECTS
+In the
+.Li libthr
+implementation,
+user-visible types for all synchronization objects (e.g. pthread_mutex_t)
+are pointers to internal structures, allocated either by the corresponding
+.Fn pthread_<objtype>_init
+method call, or implicitly on first use when a static initializer
+was specified.
+The initial implementation of process-private locking object used this
+model with internal allocation, and the addition of process-shared objects
+was done in a way that did not break the application binary interface.
+.Pp
+For process-private objects, the internal structure is allocated using
+either
+.Xr malloc 3
+or, for
+.Xr pthread_mutex_init 3 ,
+an internal memory allocator implemented in
+.Nm .
+The internal allocator for mutexes is used to avoid bootstrap issues
+with many
+.Xr malloc 3
+implementations which need working mutexes to function.
+The same allocator is used for thread-specific data, see
+.Xr pthread_setspecific 3 ,
+for the same reason.
+.Pp
+For process-shared objects, the internal structure is created by first
+allocating a shared memory segment using
+.Xr _umtx_op 2
+operation
+.Dv UMTX_OP_SHM ,
+and then mapping it into process address space with
+.Xr mmap 2
+with the
+.Dv MAP_SHARED
+flag.
+The POSIX standard requires that:
+.Bd -literal
+only the process-shared synchronization object itself can be used for
+performing synchronization.  It need not be referenced at the address
+used to initialize it (that is, another mapping of the same object can
+be used).
+.Ed
+.Pp
+With the
+.Fx
+implementation, process-shared objects require initialization
+in each process that use them.
+In particular, if you map the shared memory containing the user portion of
+a process-shared object already initialized in different process, locking
+functions do not work on it.
+.Pp
+Another broken case is a forked child creating the object in memory shared
+with the parent, which cannot be used from parent.
+Note that processes should not use non-async-signal safe functions after
+.Xr fork 2
+anyway.
 .Sh SEE ALSO
 .Xr ktrace 1 ,
 .Xr ld-elf.so.1 1 ,
