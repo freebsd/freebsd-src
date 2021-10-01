@@ -318,10 +318,10 @@ nvme_ctrlr_disable(struct nvme_controller *ctrlr)
 
 	cc &= ~NVME_CC_REG_EN_MASK;
 	nvme_mmio_write_4(ctrlr, cc, cc);
+
 	/*
-	 * Some drives have issues with accessing the mmio after we
-	 * disable, so delay for a bit after we write the bit to
-	 * cope with these issues.
+	 * A few drives have firmware bugs that freeze the drive if we access
+	 * the mmio too soon after we disable.
 	 */
 	if (ctrlr->quirks & QUIRK_DELAY_B4_CHK_RDY)
 		pause("nvmeR", MSEC_2_TICKS(B4_CHK_RDY_DELAY_MS));
