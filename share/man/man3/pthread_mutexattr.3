@@ -26,7 +26,7 @@
 .\" EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd August 17, 2018
+.Dd October 1, 2021
 .Dt PTHREAD_MUTEXATTR 3
 .Os
 .Sh NAME
@@ -36,6 +36,8 @@
 .Nm pthread_mutexattr_getprioceiling ,
 .Nm pthread_mutexattr_setprotocol ,
 .Nm pthread_mutexattr_getprotocol ,
+.Nm pthread_mutexattr_setpshared ,
+.Nm pthread_mutexattr_getpshared ,
 .Nm pthread_mutexattr_setrobust ,
 .Nm pthread_mutexattr_getrobust ,
 .Nm pthread_mutexattr_settype ,
@@ -62,6 +64,14 @@
 .Ft int
 .Fo pthread_mutexattr_getprotocol
 .Fa "const pthread_mutexattr_t *restrict attr" "int *restrict protocol"
+.Fc
+.Ft int
+.Fo pthread_mutexattr_setpshared
+.Fa "pthread_mutexattr_t *attr" "int shared"
+.Fc
+.Ft int
+.Fo pthread_mutexattr_getpshared
+.Fa "const pthread_mutexattr_t *attr" "int *shared"
 .Fc
 .Ft int
 .Fn pthread_mutexattr_setrobust "pthread_mutexattr_t *attr" "int robust"
@@ -161,6 +171,26 @@ Invalid value for
 .El
 .Pp
 The
+.Fn pthread_mutexattr_setpshared
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+Invalid value for
+.Fa attr ,
+or invalid value for
+.Fa shared .
+.El
+.Pp
+The
+.Fn pthread_mutexattr_getpshared
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+Invalid value for
+.Fa attr .
+.El
+.Pp
+The
 .Fn pthread_mutexattr_settype
 function will fail if:
 .Bl -tag -width Er
@@ -214,6 +244,8 @@ The
 .Fn pthread_mutexattr_getprioceiling ,
 .Fn pthread_mutexattr_setprotocol ,
 .Fn pthread_mutexattr_getprotocol ,
+.Fn pthread_mutexattr_setpshared ,
+.Fn pthread_mutexattr_getpshared ,
 .Fn pthread_mutexattr_settype ,
 and
 .Fn pthread_mutexattr_gettype
