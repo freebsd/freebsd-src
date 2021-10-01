@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 14, 2020
+.Dd October 1, 2021
 .Dt FREEBSD-UPDATE 8
 .Os
 .Sh NAME
@@ -37,6 +37,7 @@
 .Op Fl d Ar workdir
 .Op Fl f Ar conffile
 .Op Fl F
+.Op Fl j Ar jail
 .Op Fl k Ar KEY
 .Op Fl r Ar newrelease
 .Op Fl s Ar server
@@ -90,6 +91,14 @@ Read configuration options from
 Force
 .Nm Cm fetch
 to proceed in the case of an unfinished upgrade.
+.It Fl j Ar jail
+Operate on the given jail specified by
+.Va jid
+or
+.Va name .
+(The version of the installed userland is detected and the
+.Fl -currently-running
+option is no more required.)
 .It Fl k Ar KEY
 Trust an RSA key with SHA256 of
 .Ar KEY .

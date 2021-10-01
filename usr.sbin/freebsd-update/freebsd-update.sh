@@ -36,7 +36,7 @@
 # --no-stats	-- don't show progress statistics while fetching files
 usage () {
 	cat <<EOF
-usage: `basename $0` [options] command ... [path]
+usage: `basename $0` [options] command ...
 
 Options:
   -b basedir   -- Operate on a system mounted at basedir
@@ -47,6 +47,7 @@ Options:
                   (default: /etc/freebsd-update.conf)
   -F           -- Force a fetch operation to proceed in the
                   case of an unfinished upgrade
+  -j jail      -- Operate on the given jail specified by jid or name
   -k KEY       -- Trust an RSA key with SHA256 hash of KEY
   -r release   -- Target for upgrade (e.g., 11.1-RELEASE)
   -s server    -- Server from which to fetch updates
@@ -324,6 +325,19 @@ config_SourceRelease () {
 	export UNAME_r
 }
 
+# Get the Jail's path and the version of its installed userland
+config_TargetJail () {
+	JAIL=$1
+	UNAME_r=$(freebsd-version -j ${JAIL})
+	BASEDIR=$(jls -j ${JAIL} -h path | awk 'NR == 2 {print}')
+	if [ -z ${BASEDIR} ] || [ -z ${UNAME_r} ]; then
+		echo "The specified jail either doesn't exist or" \
+		      "does not have freebsd-version."
+		exit 1
+	fi
+	export UNAME_r
+}
+
 # Define what happens to output of utilities
 config_VerboseLevel () {
 	if [ -z ${VERBOSELEVEL} ]; then
@@ -491,6 +505,10 @@ parse_cmdline () {
 		-d)
 			if [ $# -eq 1 ]; then usage; fi; shift
 			config_WorkDir $1 || usage
+			;;
+		-j)
+			if [ $# -eq 1 ]; then usage; fi; shift
+			config_TargetJail $1 || usage
 			;;
 		-k)
 			if [ $# -eq 1 ]; then usage; fi; shift
