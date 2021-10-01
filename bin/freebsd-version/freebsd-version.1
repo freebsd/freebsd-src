@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 14, 2017
+.Dd October 1, 2021
 .Dt FREEBSD-VERSION 1
 .Os
 .Sh NAME
@@ -34,6 +34,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl kru
+.Op Fl j Ar jail
 .Sh DESCRIPTION
 The
 .Nm
@@ -60,12 +61,20 @@ Print the version and patch level of the installed userland.
 These are hardcoded into
 .Nm
 during the build.
+.It Fl j Ar jail
+Print the version and patch level of the installed userland in the
+given jail specified by
+.Va jid
+or
+.Va name .
+This option can be specified multiple times.
 .El
 .Pp
 If several of the above options are specified,
 .Nm
 will print the installed kernel version first, then the running kernel
-version, and finally the userland version, on separate lines.
+version, next the userland version, and finally the userland version
+of the specified jails, on separate lines.
 If neither is specified, it will print the userland version only.
 .Sh IMPLEMENTATION NOTES
 The

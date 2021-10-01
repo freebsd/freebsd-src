@@ -85,10 +85,19 @@ userland_version() {
 }
 
 #
+# Print the hardcoded userland version of a jail.
+#
+jail_version() {
+	for i in $jail; do
+		jexec -- $i freebsd-version
+	done
+}
+
+#
 # Print a usage string and exit.
 #
 usage() {
-	echo "usage: $progname [-kru]" >&2
+	echo "usage: $progname [-kru] [-j jail]" >&2
 	exit 1
 }
 
@@ -97,7 +106,8 @@ usage() {
 #
 main() {
 	# parse command-line arguments
-	while getopts "kru" option ; do
+	local OPTIND=1 OPTARG option
+	while getopts "kruj:" option ; do
 		case $option in
 		k)
 			opt_k=1
@@ -107,6 +117,14 @@ main() {
 			;;
 		u)
 			opt_u=1
+			;;
+		j)
+			if [ $opt_j ] ; then
+				jail="$jail $OPTARG"
+			else
+				opt_j=1
+				jail="$OPTARG"
+			fi
 			;;
 		*)
 			usage
@@ -118,7 +136,7 @@ main() {
 	fi
 
 	# default is -u
-	if [ $((opt_k + opt_r + opt_u)) -eq 0 ] ; then
+	if [ $((opt_k + opt_r + opt_u + opt_j)) -eq 0 ] ; then
 		opt_u=1
 	fi
 
@@ -135,6 +153,11 @@ main() {
 	# print userland version
 	if [ $opt_u ] ; then
 		userland_version
+	fi
+
+	# print jail version
+	if [ $opt_j ] ; then
+		jail_version
 	fi
 }
 
