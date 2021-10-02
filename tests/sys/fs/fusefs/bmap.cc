@@ -75,6 +75,8 @@ void expect_lookup(const char *relpath, uint64_t ino, off_t size)
 }
 };
 
+class BmapEof: public Bmap, public WithParamInterface<int> {};
+
 /*
  * Test FUSE_BMAP
  * XXX The FUSE protocol does not include the runp and runb variables, so those
@@ -165,3 +167,87 @@ TEST_F(Bmap, default_)
 
 	leak(fd);
 }
+
+/*
+ * VOP_BMAP should not query the server for the file's size, even if its cached
+ * attributes have expired.
+ * Regression test for https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=256937
+ */
+TEST_P(BmapEof, eof)
+{
+	/*
+	 * Outline:
+	 * 1) lookup the file, setting attr_valid=0
+	 * 2) Read more than one block, causing the kernel to issue VOP_BMAP to
+	 *    plan readahead.
+	 * 3) Nothing should panic
+	 * 4) Repeat the tests, truncating the file after different numbers of
+	 *    GETATTR operations.
+	 */
+	Sequence seq;
+	const off_t filesize = 2 * m_maxbcachebuf;
+	const ino_t ino = 42;
+	mode_t mode = S_IFREG | 0644;
+	void *contents, *buf;
+	int fd;
+	int ngetattrs;
+
+	ngetattrs = GetParam();
+	contents = calloc(1, filesize);
+	FuseTest::expect_lookup(RELPATH, ino, mode, filesize, 1, 0);
+	expect_open(ino, 0, 1);
+	// Depending on ngetattrs, FUSE_READ could be called with either
+	// filesize or filesize / 2 .
+	EXPECT_CALL(*m_mock, process(
+	ResultOf([=](auto in) {
+		return (in.header.opcode == FUSE_READ &&
+			in.header.nodeid == ino &&
+			in.body.read.offset == 0 &&
+			( in.body.read.size == filesize ||
+			  in.body.read.size == filesize / 2));
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto& out) {
+		size_t osize = in.body.read.size;
+		out.header.len = sizeof(struct fuse_out_header) + osize;
+		bzero(out.body.bytes, osize);
+	})));
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([](auto in) {
+			return (in.header.opcode == FUSE_GETATTR &&
+				in.header.nodeid == ino);
+		}, Eq(true)),
+		_)
+	).Times(Between(ngetattrs - 1, ngetattrs))
+	.InSequence(seq)
+	.WillRepeatedly(Invoke(ReturnImmediate([=](auto i __unused, auto& out) {
+		SET_OUT_HEADER_LEN(out, attr);
+		out.body.attr.attr_valid = 0;
+		out.body.attr.attr.ino = ino;
+		out.body.attr.attr.mode = S_IFREG | 0644;
+		out.body.attr.attr.size = filesize;
+	})));
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([](auto in) {
+			return (in.header.opcode == FUSE_GETATTR &&
+				in.header.nodeid == ino);
+		}, Eq(true)),
+		_)
+	).InSequence(seq)
+	.WillRepeatedly(Invoke(ReturnImmediate([=](auto i __unused, auto& out) {
+		SET_OUT_HEADER_LEN(out, attr);
+		out.body.attr.attr_valid = 0;
+		out.body.attr.attr.ino = ino;
+		out.body.attr.attr.mode = S_IFREG | 0644;
+		out.body.attr.attr.size = filesize / 2;
+	})));
+
+	buf = calloc(1, filesize);
+	fd = open(FULLPATH, O_RDWR);
+	ASSERT_LE(0, fd) << strerror(errno);
+	read(fd, buf, filesize);
+}
+
+INSTANTIATE_TEST_CASE_P(BE, BmapEof,
+	Values(1, 2, 3)
+);
