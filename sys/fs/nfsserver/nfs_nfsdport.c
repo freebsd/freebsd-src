@@ -5732,8 +5732,14 @@ nfsrv_deallocatedsdorpc(struct nfsmount *nmp, fhandle_t *fhp, off_t off,
 	txdr_hyper(len, tl); tl += 2;
 	NFSD_DEBUG(4, "nfsrv_deallocatedsdorpc: len=%jd\n", (intmax_t)len);
 
+	/* Do a Getattr for the attributes that change upon writing. */
+	NFSZERO_ATTRBIT(&attrbits);
+	NFSSETBIT_ATTRBIT(&attrbits, NFSATTRBIT_SIZE);
+	NFSSETBIT_ATTRBIT(&attrbits, NFSATTRBIT_CHANGE);
+	NFSSETBIT_ATTRBIT(&attrbits, NFSATTRBIT_TIMEACCESS);
+	NFSSETBIT_ATTRBIT(&attrbits, NFSATTRBIT_TIMEMODIFY);
+	NFSSETBIT_ATTRBIT(&attrbits, NFSATTRBIT_SPACEUSED);
 	*tl = txdr_unsigned(NFSV4OP_GETATTR);
-	NFSGETATTR_ATTRBIT(&attrbits);
 	nfsrv_putattrbit(nd, &attrbits);
 	error = newnfs_request(nd, nmp, NULL, &nmp->nm_sockreq, NULL, p,
 	    cred, NFS_PROG, NFS_VER4, NULL, 1, NULL, NULL);
@@ -5741,8 +5747,23 @@ nfsrv_deallocatedsdorpc(struct nfsmount *nmp, fhandle_t *fhp, off_t off,
 		free(nd, M_TEMP);
 		return (error);
 	}
-	NFSD_DEBUG(4, "nfsrv_deallocatedsdorpc: aft allocaterpc=%d\n",
+	NFSD_DEBUG(4, "nfsrv_deallocatedsdorpc: aft deallocaterpc=%d\n",
 	    nd->nd_repstat);
+	/* Get rid of weak cache consistency data for now. */
+	if ((nd->nd_flag & (ND_NOMOREDATA | ND_NFSV4 | ND_V4WCCATTR)) ==
+	    (ND_NFSV4 | ND_V4WCCATTR)) {
+		error = nfsv4_loadattr(nd, NULL, nap, NULL, NULL, 0, NULL, NULL,
+		    NULL, NULL, NULL, 0, NULL, NULL, NULL, NULL, NULL);
+		NFSD_DEBUG(4, "nfsrv_deallocatedsdorpc: wcc attr=%d\n", error);
+		if (error != 0)
+			goto nfsmout;
+		/*
+		 * Get rid of Op# and status for next op.
+		 */
+		NFSM_DISSECT(tl, uint32_t *, 2 * NFSX_UNSIGNED);
+		if (*++tl != 0)
+			nd->nd_flag |= ND_NOMOREDATA;
+	}
 	if (nd->nd_repstat == 0) {
 		NFSM_DISSECT(tl, uint32_t *, 2 * NFSX_UNSIGNED);
 		error = nfsv4_loadattr(nd, NULL, nap, NULL, NULL, 0, NULL, NULL,
