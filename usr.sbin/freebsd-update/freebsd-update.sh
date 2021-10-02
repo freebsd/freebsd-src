@@ -1215,6 +1215,18 @@ workdir_init () {
 	touch tINDEX.present
 }
 
+#Fetch compare new metadata version to freebsd-version
+fetch_compare_new_tag_to_freebsd_version () {
+        RUNNINGVERSION=`/bin/freebsd-version`
+        NEWTAGVERSION=`cut -f3,4 -d\| tag.new | sed -e 's/|/\-p/'`
+        if [ "${RUNNINGVERSION}" = "${NEWTAGVERSION}" ]; then
+                echo "Fetched metadata matches with running version."
+                return 0
+        else
+                return 1
+        fi
+}
+
 # Check that we have a public key with an appropriate hash, or
 # fetch the key if it doesn't exist.  Returns 1 if the key has
 # not yet been fetched.
@@ -2636,6 +2648,14 @@ upgrade_run () {
 		fetch_pick_server || return 1
 	done
 	fetch_tagsanity || return 1
+	
+	# If there are no updates upstream there is no need for
+        # further processing.  However, if forced fetch is used
+        # all processing will be performed.
+        if [ "$FORCEFETCH" -eq "0" ]; then
+                fetch_compare_new_tag_to_freebsd_version && \
+                  echo "No update required." && return 0
+        fi
 
 	# Fetch the INDEX-OLD and INDEX-ALL.
 	fetch_metadata INDEX-OLD INDEX-ALL || return 1
