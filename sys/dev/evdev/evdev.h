@@ -49,7 +49,7 @@ typedef void (evdev_keycode_t)(struct evdev_dev *,
  * Keyboard and mouse events recipient mask.
  * evdev_rcpt_mask variable should be respected by keyboard and mouse drivers
  * that are able to send events through both evdev and sysmouse/kbdmux
- * interfaces so user can choose prefered one to not receive one event twice.
+ * interfaces so user can choose preferred one to not receive one event twice.
  */
 #define	EVDEV_RCPT_SYSMOUSE	(1<<0)
 #define	EVDEV_RCPT_KBDMUX	(1<<1)
