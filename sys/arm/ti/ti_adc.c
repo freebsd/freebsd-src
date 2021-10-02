@@ -809,7 +809,7 @@ ti_adc_attach(device_t dev)
 
 	/* Sanity check FDT data */
 	if (sc->sc_tsc_wires + sc->sc_adc_nchannels > TI_ADC_NPINS) {
-		device_printf(dev, "total number of chanels (%d) is larger than %d\n",
+		device_printf(dev, "total number of channels (%d) is larger than %d\n",
 		    sc->sc_tsc_wires + sc->sc_adc_nchannels, TI_ADC_NPINS);
 		return (ENXIO);
 	}
