@@ -207,7 +207,7 @@ _Static_assert(sizeof(struct thread) + sizeof(struct td_sched) <=
  * sched_slice:		Runtime of each thread before rescheduling.
  * preempt_thresh:	Priority threshold for preemption and remote IPIs.
  */
-static int __read_mostly sched_interact = SCHED_INTERACT_THRESH;
+static u_int __read_mostly sched_interact = SCHED_INTERACT_THRESH;
 static int __read_mostly tickincr = 8 << SCHED_TICK_SHIFT;
 static int __read_mostly realstathz = 127;	/* reset during boot. */
 static int __read_mostly sched_slice = 10;	/* reset during boot. */
@@ -1616,8 +1616,7 @@ sched_interact_score(struct thread *td)
 static void
 sched_priority(struct thread *td)
 {
-	int score;
-	int pri;
+	u_int pri, score;
 
 	if (PRI_BASE(td->td_pri_class) != PRI_TIMESHARE)
 		return;
@@ -1637,10 +1636,10 @@ sched_priority(struct thread *td)
 	score = imax(0, sched_interact_score(td) + td->td_proc->p_nice);
 	if (score < sched_interact) {
 		pri = PRI_MIN_INTERACT;
-		pri += ((PRI_MAX_INTERACT - PRI_MIN_INTERACT + 1) /
-		    sched_interact) * score;
+		pri += (PRI_MAX_INTERACT - PRI_MIN_INTERACT + 1) * score /
+		    sched_interact;
 		KASSERT(pri >= PRI_MIN_INTERACT && pri <= PRI_MAX_INTERACT,
-		    ("sched_priority: invalid interactive priority %d score %d",
+		    ("sched_priority: invalid interactive priority %u score %u",
 		    pri, score));
 	} else {
 		pri = SCHED_PRI_MIN;
@@ -1649,7 +1648,7 @@ sched_priority(struct thread *td)
 			    SCHED_PRI_RANGE - 1);
 		pri += SCHED_PRI_NICE(td->td_proc->p_nice);
 		KASSERT(pri >= PRI_MIN_BATCH && pri <= PRI_MAX_BATCH,
-		    ("sched_priority: invalid priority %d: nice %d, " 
+		    ("sched_priority: invalid priority %u: nice %d, "
 		    "ticks %d ftick %d ltick %d tick pri %d",
 		    pri, td->td_proc->p_nice, td_get_sched(td)->ts_ticks,
 		    td_get_sched(td)->ts_ftick, td_get_sched(td)->ts_ltick,
@@ -3174,7 +3173,7 @@ SYSCTL_PROC(_kern_sched, OID_AUTO, quantum,
     "Quantum for timeshare threads in microseconds");
 SYSCTL_INT(_kern_sched, OID_AUTO, slice, CTLFLAG_RW, &sched_slice, 0,
     "Quantum for timeshare threads in stathz ticks");
-SYSCTL_INT(_kern_sched, OID_AUTO, interact, CTLFLAG_RW, &sched_interact, 0,
+SYSCTL_UINT(_kern_sched, OID_AUTO, interact, CTLFLAG_RW, &sched_interact, 0,
     "Interactivity score threshold");
 SYSCTL_INT(_kern_sched, OID_AUTO, preempt_thresh, CTLFLAG_RW,
     &preempt_thresh, 0,
