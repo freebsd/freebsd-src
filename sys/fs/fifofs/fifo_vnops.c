@@ -83,7 +83,6 @@ struct vop_vector fifo_specops = {
 	.vop_create =		VOP_PANIC,
 	.vop_getattr =		VOP_EBADF,
 	.vop_ioctl =		VOP_PANIC,
-	.vop_kqfilter =		VOP_PANIC,
 	.vop_link =		VOP_PANIC,
 	.vop_mkdir =		VOP_PANIC,
 	.vop_mknod =		VOP_PANIC,

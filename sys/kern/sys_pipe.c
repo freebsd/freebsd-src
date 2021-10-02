@@ -1751,6 +1751,10 @@ pipe_kqfilter(struct file *fp, struct knote *kn)
 		cpipe = PIPE_PEER(cpipe);
 		break;
 	default:
+		if ((cpipe->pipe_type & PIPE_TYPE_NAMED) != 0) {
+			PIPE_UNLOCK(cpipe);
+			return (vnops.fo_kqfilter(fp, kn));
+		}
 		PIPE_UNLOCK(cpipe);
 		return (EINVAL);
 	}
