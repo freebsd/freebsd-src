@@ -516,8 +516,9 @@ fuse_vnop_bmap(struct vop_bmap_args *ap)
 	struct fuse_bmap_in *fbi;
 	struct fuse_bmap_out *fbo;
 	struct fuse_data *data;
+	struct fuse_vnode_data *fvdat = VTOFUD(vp);
 	uint64_t biosize;
-	off_t filesize;
+	off_t fsize;
 	daddr_t lbn = ap->a_bn;
 	daddr_t *pbn = ap->a_bnp;
 	int *runp = ap->a_runp;
@@ -550,10 +551,21 @@ fuse_vnop_bmap(struct vop_bmap_args *ap)
 	 */
 	if (runb != NULL)
 		*runb = MIN(lbn, maxrun);
-	if (runp != NULL) {
-		error = fuse_vnode_size(vp, &filesize, td->td_ucred, td);
+	if (runp != NULL && maxrun == 0)
+		*runp = 0;
+	else if (runp != NULL) {
+		/*
+		 * If the file's size is cached, use that value to calculate
+		 * runp, even if the cache is expired.  runp is only advisory,
+		 * and the risk of getting it wrong is not worth the cost of
+		 * another upcall.
+		 */
+		if (fvdat->cached_attrs.va_size != VNOVAL)
+			fsize = fvdat->cached_attrs.va_size;
+		else
+			error = fuse_vnode_size(vp, &fsize, td->td_ucred, td);
 		if (error == 0)
-			*runp = MIN(MAX(0, filesize / (off_t)biosize - lbn - 1),
+			*runp = MIN(MAX(0, fsize / (off_t)biosize - lbn - 1),
 				    maxrun);
 		else
 			*runp = 0;
