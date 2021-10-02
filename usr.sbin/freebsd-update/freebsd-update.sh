@@ -2200,6 +2200,18 @@ fetch_run () {
 	done
 	fetch_tagsanity || return 1
 
+	# By comparing files tag and tag.new fetch_run can detect that
+	# there are no updates upstream and that there is no need for
+	# further processing, expediting fetch_run.  fetch_run can only
+	# be expedited subsequent to an uninterrupted fetch_run.
+	if [ ! -f fetch_run.pending ] && [ -f tag.new -a -f tag ] &&
+	    cmp -s tag.new tag; then
+		echo "No updates are available to fetch."
+		rm -f tag.new
+		return 0
+	fi
+	touch fetch_run.pending || return 1
+
 	# Fetch the latest INDEX-NEW and INDEX-OLD files.
 	fetch_metadata INDEX-NEW INDEX-OLD || return 1
 
@@ -2258,6 +2270,8 @@ fetch_run () {
 
 	# Warn about any upcoming EoL
 	fetch_warn_eol || return 1
+
+	rm -f fetch_run.pending
 }
 
 # If StrictComponents is not "yes", generate a new components list
@@ -3395,7 +3409,7 @@ cmd_cron () {
 	TMPFILE=`mktemp /tmp/freebsd-update.XXXXXX` || exit 1
 	finalize_components_config ${COMPONENTS} >> ${TMPFILE}
 	if ! fetch_run >> ${TMPFILE} ||
-	    ! grep -q "No updates needed" ${TMPFILE} ||
+	    ! grep -q -E "(^No updates are available to fetch\.$|No updates needed)" ${TMPFILE} ||
 	    [ ${VERBOSELEVEL} = "debug" ]; then
 		mail -s "`hostname` security updates" ${MAILTO} < ${TMPFILE}
 	fi
