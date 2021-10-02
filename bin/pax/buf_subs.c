@@ -540,7 +540,7 @@ rd_wrbuf(char *in, int cpcnt)
 		}
 
 		/*
-		 * calculate how much data to copy based on whats left and
+		 * calculate how much data to copy based on what's left and
 		 * state of buffer
 		 */
 		cnt = MIN(cnt, incnt);
