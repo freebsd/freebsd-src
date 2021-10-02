@@ -147,7 +147,7 @@ static struct buf_ops ffs_ops = {
  */
 static const char *ffs_opts[] = { "acls", "async", "noatime", "noclusterr",
     "noclusterw", "noexec", "export", "force", "from", "groupquota",
-    "multilabel", "nfsv4acls", "fsckpid", "snapshot", "nosuid", "suiddir",
+    "multilabel", "nfsv4acls", "snapshot", "nosuid", "suiddir",
     "nosymfollow", "sync", "union", "userquota", "untrusted", NULL };
 
 static int ffs_enxio_enable = 1;
@@ -347,7 +347,6 @@ ffs_mount(struct mount *mp)
 	struct thread *td;
 	struct ufsmount *ump = NULL;
 	struct fs *fs;
-	pid_t fsckpid = 0;
 	int error, error1, flags;
 	uint64_t mntorflags, saved_mnt_flag;
 	accmode_t accmode;
@@ -395,31 +394,6 @@ ffs_mount(struct mount *mp)
 		vfs_deleteopt(mp->mnt_opt, "snapshot");
 	}
 
-	if (vfs_getopt(mp->mnt_optnew, "fsckpid", NULL, NULL) == 0 &&
-	    vfs_scanopt(mp->mnt_optnew, "fsckpid", "%d", &fsckpid) == 1) {
-		/*
-		 * Once we have set the restricted PID, do not
-		 * persist "fsckpid" in the options list.
-		 */
-		vfs_deleteopt(mp->mnt_optnew, "fsckpid");
-		vfs_deleteopt(mp->mnt_opt, "fsckpid");
-		if (mp->mnt_flag & MNT_UPDATE) {
-			if (VFSTOUFS(mp)->um_fs->fs_ronly == 0 &&
-			     vfs_flagopt(mp->mnt_optnew, "ro", NULL, 0) == 0) {
-				vfs_mount_error(mp,
-				    "Checker enable: Must be read-only");
-				return (EINVAL);
-			}
-		} else if (vfs_flagopt(mp->mnt_optnew, "ro", NULL, 0) == 0) {
-			vfs_mount_error(mp,
-			    "Checker enable: Must be read-only");
-			return (EINVAL);
-		}
-		/* Set to -1 if we are done */
-		if (fsckpid == 0)
-			fsckpid = -1;
-	}
-
 	if (vfs_getopt(mp->mnt_optnew, "nfsv4acls", NULL, NULL) == 0) {
 		if (mntorflags & MNT_ACLS) {
 			vfs_mount_error(mp,
@@ -443,18 +417,6 @@ ffs_mount(struct mount *mp)
 		fs = ump->um_fs;
 		odevvp = ump->um_odevvp;
 		devvp = ump->um_devvp;
-		if (fsckpid == -1 && ump->um_fsckpid > 0) {
-			if ((error = ffs_flushfiles(mp, WRITECLOSE, td)) != 0 ||
-			    (error = ffs_sbupdate(ump, MNT_WAIT, 0)) != 0)
-				return (error);
-			g_topology_lock();
-			/*
-			 * Return to normal read-only mode.
-			 */
-			error = g_access(ump->um_cp, 0, -1, 0);
-			g_topology_unlock();
-			ump->um_fsckpid = 0;
-		}
 		if (fs->fs_ronly == 0 &&
 		    vfs_flagopt(mp->mnt_optnew, "ro", NULL, 0)) {
 			/*
@@ -542,14 +504,6 @@ ffs_mount(struct mount *mp)
 			return (error);
 		if (fs->fs_ronly &&
 		    !vfs_flagopt(mp->mnt_optnew, "ro", NULL, 0)) {
-			/*
-			 * If we are running a checker, do not allow upgrade.
-			 */
-			if (ump->um_fsckpid > 0) {
-				vfs_mount_error(mp,
-				    "Active checker, cannot upgrade to write");
-				return (EINVAL);
-			}
 			/*
 			 * If upgrade to read-write by non-root, then verify
 			 * that user has necessary permissions on the device.
@@ -659,39 +613,6 @@ ffs_mount(struct mount *mp)
 			mp->mnt_flag |= MNT_NFS4ACLS;
 			MNT_IUNLOCK(mp);
 		}
-		/*
-		 * If this is a request from fsck to clean up the filesystem,
-		 * then allow the specified pid to proceed.
-		 */
-		if (fsckpid > 0) {
-			if (ump->um_fsckpid != 0) {
-				vfs_mount_error(mp,
-				    "Active checker already running on %s",
-				    fs->fs_fsmnt);
-				return (EINVAL);
-			}
-			KASSERT(MOUNTEDSOFTDEP(mp) == 0,
-			    ("soft updates enabled on read-only file system"));
-			g_topology_lock();
-			/*
-			 * Request write access.
-			 */
-			error = g_access(ump->um_cp, 0, 1, 0);
-			g_topology_unlock();
-			if (error) {
-				vfs_mount_error(mp,
-				    "Checker activation failed on %s",
-				    fs->fs_fsmnt);
-				return (error);
-			}
-			ump->um_fsckpid = fsckpid;
-			if (fs->fs_snapinum[0] != 0)
-				ffs_snapshot_mount(mp);
-			fs->fs_mtime = time_second;
-			fs->fs_fmod = 1;
-			fs->fs_clean = 0;
-			(void) ffs_sbupdate(ump, MNT_WAIT, 0);
-		}
 
 		/*
 		 * If this is a snapshot request, take the snapshot.
@@ -770,29 +691,6 @@ ffs_mount(struct mount *mp)
 		if ((error = ffs_mountfs(devvp, mp, td)) != 0) {
 			vrele(devvp);
 			return (error);
-		}
-		if (fsckpid > 0) {
-			KASSERT(MOUNTEDSOFTDEP(mp) == 0,
-			    ("soft updates enabled on read-only file system"));
-			ump = VFSTOUFS(mp);
-			fs = ump->um_fs;
-			g_topology_lock();
-			/*
-			 * Request write access.
-			 */
-			error = g_access(ump->um_cp, 0, 1, 0);
-			g_topology_unlock();
-			if (error) {
-				printf("WARNING: %s: Checker activation "
-				    "failed\n", fs->fs_fsmnt);
-			} else { 
-				ump->um_fsckpid = fsckpid;
-				if (fs->fs_snapinum[0] != 0)
-					ffs_snapshot_mount(mp);
-				fs->fs_mtime = time_second;
-				fs->fs_clean = 0;
-				(void) ffs_sbupdate(ump, MNT_WAIT, 0);
-			}
 		}
 	}
 
@@ -1510,7 +1408,7 @@ ffs_unmount(mp, mntflags)
 	if (MOUNTEDSOFTDEP(mp))
 		softdep_unmount(mp);
 	MPASS(ump->um_softdep == NULL);
-	if (fs->fs_ronly == 0 || ump->um_fsckpid > 0) {
+	if (fs->fs_ronly == 0) {
 		fs->fs_clean = fs->fs_flags & (FS_UNCLEAN|FS_NEEDSFSCK) ? 0 : 1;
 		error = ffs_sbupdate(ump, MNT_WAIT, 0);
 		if (ffs_fsfail_cleanup(ump, error))
@@ -1530,13 +1428,6 @@ ffs_unmount(mp, mntflags)
 		free (ump->um_trimhash, M_TRIM);
 	}
 	g_topology_lock();
-	if (ump->um_fsckpid > 0) {
-		/*
-		 * Return to normal read-only mode.
-		 */
-		error = g_access(ump->um_cp, 0, -1, 0);
-		ump->um_fsckpid = 0;
-	}
 	g_vfs_close(ump->um_cp);
 	g_topology_unlock();
 	BO_LOCK(&ump->um_odevvp->v_bufobj);
@@ -1800,7 +1691,7 @@ ffs_sync(mp, waitfor)
 	suspended = 0;
 	td = curthread;
 	fs = ump->um_fs;
-	if (fs->fs_fmod != 0 && fs->fs_ronly != 0 && ump->um_fsckpid == 0)
+	if (fs->fs_fmod != 0 && fs->fs_ronly != 0)
 		panic("%s: ffs_sync: modification on read-only filesystem",
 		    fs->fs_fsmnt);
 	if (waitfor == MNT_LAZY) {
@@ -2272,7 +2163,7 @@ ffs_sbupdate(ump, waitfor, suspended)
 	fs = ump->um_fs;
 	if (fs->fs_ronly == 1 &&
 	    (ump->um_mountp->mnt_flag & (MNT_RDONLY | MNT_UPDATE)) !=
-	    (MNT_RDONLY | MNT_UPDATE) && ump->um_fsckpid == 0)
+	    (MNT_RDONLY | MNT_UPDATE))
 		panic("ffs_sbupdate: write read-only filesystem");
 	/*
 	 * We use the superblock's buf to serialize calls to ffs_sbupdate().

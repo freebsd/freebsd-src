@@ -82,7 +82,6 @@ LIST_HEAD(trimlist_hashhead, ffs_blkfree_trim_params);
  *	i - ufsmount interlock (UFS_LOCK / UFS_UNLOCK)
  *	q - associated quota file is locked
  *	r - ref to parent mount structure is held (vfs_busy / vfs_unbusy)
- *	u - managed by user process fsck_ufs
  */
 struct ufsmount {
 	struct	mount *um_mountp;		/* (r) filesystem vfs struct */
@@ -102,7 +101,6 @@ struct ufsmount {
 	struct	mtx um_lock;			/* (c) Protects ufsmount & fs */
 	struct	sx um_checkpath_lock;		/* (c) Protects ufs_checkpath()
 						       result */
-	pid_t	um_fsckpid;			/* (u) PID can do fsck sysctl */
 	struct	mount_softdeps *um_softdep;	/* (c) softdep mgmt structure */
 	struct	vnode *um_quotas[MAXQUOTAS];	/* (q) pointer to quota files */
 	struct	ucred *um_cred[MAXQUOTAS];	/* (q) quota file access cred */

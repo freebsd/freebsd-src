@@ -3236,8 +3236,7 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 		return (EINVAL);
 	}
 	ump = VFSTOUFS(mp);
-	if ((mp->mnt_flag & MNT_RDONLY) &&
-	    ump->um_fsckpid != td->td_proc->p_pid) {
+	if (mp->mnt_flag & MNT_RDONLY) {
 		vn_finished_write(mp);
 		fdrop(fp, td);
 		return (EROFS);
