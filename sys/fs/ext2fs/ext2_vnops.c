@@ -135,7 +135,6 @@ static vop_listextattr_t	ext2_listextattr;
 static vop_setextattr_t	ext2_setextattr;
 static vop_vptofh_t	ext2_vptofh;
 static vop_close_t	ext2fifo_close;
-static vop_kqfilter_t	ext2fifo_kqfilter;
 
 /* Global vfs data structures for ext2. */
 struct vop_vector ext2_vnodeops = {
@@ -191,7 +190,6 @@ struct vop_vector ext2_fifoops = {
 	.vop_fsync =		ext2_fsync,
 	.vop_getattr =		ext2_getattr,
 	.vop_inactive =		ext2_inactive,
-	.vop_kqfilter =		ext2fifo_kqfilter,
 	.vop_pathconf =		ext2_pathconf,
 	.vop_print =		ext2_print,
 	.vop_read =		VOP_PANIC,
@@ -1640,22 +1638,6 @@ ext2fifo_close(struct vop_close_args *ap)
 		ext2_itimes_locked(vp);
 	VI_UNLOCK(vp);
 	return (fifo_specops.vop_close(ap));
-}
-
-/*
- * Kqfilter wrapper for fifos.
- *
- * Fall through to ext2 kqfilter routines if needed
- */
-static int
-ext2fifo_kqfilter(struct vop_kqfilter_args *ap)
-{
-	int error;
-
-	error = fifo_specops.vop_kqfilter(ap);
-	if (error)
-		error = vfs_kqfilter(ap);
-	return (error);
 }
 
 /*
