@@ -1411,7 +1411,7 @@ smsc_chip_init(struct smsc_softc *sc)
 	reg_val &= ~SMSC_HW_CFG_RXDOFF;
 	reg_val |= (ETHER_ALIGN << 9) & SMSC_HW_CFG_RXDOFF;
 
-	/* The following setings are used for 'turbo mode', a.k.a multiple frames
+	/* The following settings are used for 'turbo mode', a.k.a multiple frames
 	 * per Rx transaction (again info taken form Linux driver).
 	 */
 	if (smsc_rx_packet_batching)
