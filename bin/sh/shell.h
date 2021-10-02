@@ -55,7 +55,7 @@
 /* #define DEBUG 1 */
 
 /*
- * Type of used arithmetics. SUSv3 requires us to have at least signed long.
+ * Type of used arithmetic. SUSv3 requires us to have at least signed long.
  */
 typedef intmax_t arith_t;
 #define	ARITH_FORMAT_STR  "%" PRIdMAX

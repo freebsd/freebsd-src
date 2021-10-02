@@ -236,7 +236,7 @@ state(KINFO *k, VARENT *ve __unused)
 		break;
 
 	case SSLEEP:
-		if (tdflags & TDF_SINTR)	/* interruptable (long) */
+		if (tdflags & TDF_SINTR)	/* interruptible (long) */
 			*cp = k->ki_p->ki_slptime >= MAXSLP ? 'I' : 'S';
 		else
 			*cp = 'D';
