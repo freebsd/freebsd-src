@@ -64,7 +64,7 @@ NPIPE npipe			# a pipeline
 	backgnd	  int			# set to run pipeline in background
 	cmdlist	  nodelist		# the commands in the pipeline
 
-NREDIR nredir			# redirection (of a compex command)
+NREDIR nredir			# redirection (of a complex command)
 	type	  int
 	n	  nodeptr		# the command
 	redirect  nodeptr		# list of file redirections
