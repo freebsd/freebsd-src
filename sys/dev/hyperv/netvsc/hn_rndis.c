@@ -493,7 +493,7 @@ hn_rndis_query_rsscaps(struct hn_softc *sc, int *rxr_cnt0)
 
 	/*
 	 * NOTE:
-	 * Toeplitz is at the lowest bit, and it is prefered; so ffs(),
+	 * Toeplitz is at the lowest bit, and it is preferred; so ffs(),
 	 * instead of fls(), is used here.
 	 */
 	hash_fnidx = ffs(caps.ndis_caps & NDIS_RSS_CAP_HASHFUNC_MASK);
