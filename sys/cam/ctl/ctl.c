@@ -8552,7 +8552,7 @@ done:
 /*
  * This routine is for handling a message from the other SC pertaining to
  * persistent reserve out. All the error checking will have been done
- * so only perorming the action need be done here to keep the two
+ * so only performing the action need be done here to keep the two
  * in sync.
  */
 static void
