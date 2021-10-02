@@ -130,7 +130,6 @@ static vop_strategy_t	ufs_strategy;
 static vop_symlink_t	ufs_symlink;
 static vop_whiteout_t	ufs_whiteout;
 static vop_close_t	ufsfifo_close;
-static vop_kqfilter_t	ufsfifo_kqfilter;
 
 SYSCTL_NODE(_vfs, OID_AUTO, ufs, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "UFS filesystem");
@@ -2579,23 +2578,6 @@ ufsfifo_close(ap)
 }
 
 /*
- * Kqfilter wrapper for fifos.
- *
- * Fall through to ufs kqfilter routines if needed 
- */
-static int
-ufsfifo_kqfilter(ap)
-	struct vop_kqfilter_args *ap;
-{
-	int error;
-
-	error = fifo_specops.vop_kqfilter(ap);
-	if (error)
-		error = vfs_kqfilter(ap);
-	return (error);
-}
-
-/*
  * Return POSIX pathconf information applicable to ufs filesystems.
  */
 static int
@@ -3013,7 +2995,6 @@ struct vop_vector ufs_fifoops = {
 	.vop_close =		ufsfifo_close,
 	.vop_getattr =		ufs_getattr,
 	.vop_inactive =		ufs_inactive,
-	.vop_kqfilter =		ufsfifo_kqfilter,
 	.vop_pathconf = 	ufs_pathconf,
 	.vop_print =		ufs_print,
 	.vop_read =		VOP_PANIC,
