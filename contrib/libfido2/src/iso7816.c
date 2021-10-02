@@ -59,6 +59,6 @@ iso7816_ptr(const iso7816_apdu_t *apdu)
 size_t
 iso7816_len(const iso7816_apdu_t *apdu)
 {
-	return apdu->alloc_len - sizeof(apdu->alloc_len) -
-	    sizeof(apdu->payload_len) - sizeof(apdu->payload_ptr);
+	return apdu->alloc_len - offsetof(iso7816_apdu_t, header) -
+	    (sizeof(iso7816_apdu_t) - offsetof(iso7816_apdu_t, payload));
 }
