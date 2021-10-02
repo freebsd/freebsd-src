@@ -364,7 +364,7 @@ enum _ecore_status_t ecore_pglueb_rbc_attn_handler(struct ecore_hwfn *p_hwfn,
 
 	tmp = ecore_rd(p_hwfn, p_ptt, PGLUE_B_REG_TX_ERR_WR_DETAILS_ICPL);
 	if (tmp & ECORE_PGLUE_ATTENTION_ICPL_VALID)
-		DP_NOTICE(p_hwfn, false, "ICPL eror - %08x\n", tmp);
+		DP_NOTICE(p_hwfn, false, "ICPL error - %08x\n", tmp);
 
 	tmp = ecore_rd(p_hwfn, p_ptt, PGLUE_B_REG_MASTER_ZLR_ERR_DETAILS);
 	if (tmp & ECORE_PGLUE_ATTENTION_ZLR_VALID) {
@@ -376,7 +376,7 @@ enum _ecore_status_t ecore_pglueb_rbc_attn_handler(struct ecore_hwfn *p_hwfn,
 				   PGLUE_B_REG_MASTER_ZLR_ERR_ADD_63_32);
 
 		DP_NOTICE(p_hwfn, false,
-			  "ICPL eror - %08x [Address %08x:%08x]\n",
+			  "ICPL error - %08x [Address %08x:%08x]\n",
 			  tmp, addr_hi, addr_lo);
 	}
 
