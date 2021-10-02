@@ -504,7 +504,7 @@ MANTXTS=	newctime.3.txt newstrftime.3.txt newtzset.3.txt \
 			tzfile.5.txt tzselect.8.txt zic.8.txt zdump.8.txt \
 			date.1.txt
 COMMON=		calendars CONTRIBUTING LICENSE Makefile \
-			NEWS README theory.html version
+			NEWS README SECURITY theory.html version
 WEB_PAGES=	tz-art.html tz-how-to.html tz-link.html
 CHECK_WEB_PAGES=check_theory.html check_tz-art.html \
 			check_tz-how-to.html check_tz-link.html
@@ -539,7 +539,7 @@ ENCHILADA = $(EIGHT_YARDS) $(TZS)
 # This list is not the same as the output of 'git ls-files', since
 # .gitignore is not distributed.
 VERSION_DEPS= \
-		calendars CONTRIBUTING LICENSE Makefile NEWS README \
+		calendars CONTRIBUTING LICENSE Makefile NEWS README SECURITY \
 		africa antarctica asctime.c asia australasia \
 		backward backzone \
 		checklinks.awk checktab.awk \
@@ -763,7 +763,7 @@ check_character_set: $(ENCHILADA)
 		sharp='#' && \
 		! grep -Env $(SAFE_LINE) $(MANS) date.1 $(MANTXTS) \
 			$(MISC) $(SOURCES) $(WEB_PAGES) \
-			CONTRIBUTING LICENSE README \
+			CONTRIBUTING LICENSE README SECURITY \
 			version tzdata.zi && \
 		! grep -Env $(SAFE_LINE)'|^UNUSUAL_OK_'$(OK_CHAR)'*$$' \
 			Makefile && \

@@ -780,6 +780,7 @@ Zone America/St_Lucia	-4:04:00 -	LMT	1890 # Castries
 # US Virgin Is
 Zone America/St_Thomas	-4:19:44 -	LMT	1911 Jul # Charlotte Amalie
 			-4:00	-	AST
+Link America/St_Thomas America/Virgin
 
 # St Vincent and the Grenadines
 Zone America/St_Vincent	-4:04:56 -	LMT	1890 # Kingstown

@@ -1,5 +1,41 @@
 News for the tz database
 
+Release 2021c - 2021-10-01 14:21:49 -0700
+
+  Briefly:
+    Revert most 2021b changes to 'backward'.
+    Fix 'zic -b fat' bug in pre-1970 32-bit data.
+    Fix two Link line typos.
+    Distribute SECURITY file.
+
+    This release is intended as a bugfix release, to fix compatibility
+    problems and typos reported since 2021b was released.
+
+  Changes to Link directives
+
+    Revert almost all of 2021b's changes to the 'backward' file,
+    by moving Link directives back to where they were in 2021a.
+    Although 'zic' doesn't care which source file contains a Link
+    directive, some downstream uses ran into trouble with the move.
+    (Problem reported by Stephen Colebourne for Joda-Time.)
+
+    Fix typo that linked Atlantic/Jan_Mayen to the wrong location
+    (problem reported by Chris Walton).
+
+    Fix 'backzone' typo that linked America/Virgin to the wrong
+    location (problem reported by Michael Deckers).
+
+  Changes to code
+
+    Fix a bug in 'zic -b fat' that caused old timestamps to be
+    mishandled in 32-bit-only readers (problem reported by Daniel
+    Fischer).
+
+  Changes to documentation
+
+    Distribute the SECURITY file (problem reported by Andreas Radke).
+
+
 Release 2021b - 2021-09-24 16:23:00 -0700
 
   Briefly:
@@ -18,13 +54,13 @@ Release 2021b - 2021-09-24 16:23:00 -0700
     tzfile.5 better matches a draft successor to RFC 8536.
     A new file SECURITY.
 
-  This release is prompted by recent announcements by Jordan and Samoa.
-  It incorporates many other changes that had accumulated since 2021a.
-  However, it omits most proposed changes that merged all Zones
-  agreeing since 1970, as concerns were raised about doing too many of
-  these changes at once.  It does keeps some of these changes in the
-  interest of making tzdb more equitable one step at a time; see
-  "Merge more location-based Zones" below.
+    This release is prompted by recent announcements by Jordan and Samoa.
+    It incorporates many other changes that had accumulated since 2021a.
+    However, it omits most proposed changes that merged all Zones
+    agreeing since 1970, as concerns were raised about doing too many of
+    these changes at once.  It does keeps some of these changes in the
+    interest of making tzdb more equitable one step at a time; see
+    "Merge more location-based Zones" below.
 
   Changes to future timestamps
 
