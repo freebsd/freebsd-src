@@ -132,7 +132,7 @@ ffs_update(vp, waitfor)
 	if (waitfor)
 		ip->i_flag &= ~(IN_SIZEMOD | IN_IBLKDATA);
 	fs = ITOFS(ip);
-	if (fs->fs_ronly && ITOUMP(ip)->um_fsckpid == 0)
+	if (fs->fs_ronly)
 		return (0);
 	/*
 	 * If we are updating a snapshot and another process is currently
