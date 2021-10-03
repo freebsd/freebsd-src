@@ -67,6 +67,7 @@ struct bcache {
     size_t		bcache_nblks;
     size_t		ra;
     daddr_t		bcache_nextblkno;
+    size_t		ralen;
 };
 
 static u_int bcache_total_nblks;	/* set by bcache_init */
@@ -250,12 +251,21 @@ read_strategy(void *devdata, int rw, daddr_t blk, size_t size,
      * increase it when we notice that readahead was useful and decrease
      * it when we notice that readahead was not useful.
      */
-    if (complete) {
+    if (complete || (i == bc->ralen && bc->ralen > 0)) {
 	if (bc->ra < BCACHE_READAHEAD)
 	    bc->ra <<= 1;	/* increase read ahead */
     } else {
-	if (nblk - i > BCACHE_MINREADAHEAD && bc->ra > BCACHE_MINREADAHEAD)
+	if (nblk - i > BCACHE_MINREADAHEAD && bc->ralen > 0 &&
+	  bc->ra > BCACHE_MINREADAHEAD)
 	    bc->ra >>= 1;	/* reduce read ahead */
+    }
+
+    /* Adjust our "unconsumed readahead" value. */
+    if (blk == bc->bcache_nextblkno) {
+	if (nblk > bc->ralen)
+	    bc->ralen = 0;
+	else
+	    bc->ralen -= nblk;
     }
 
     if (complete) {	/* whole set was in cache, return it */
@@ -314,7 +324,10 @@ read_strategy(void *devdata, int rw, daddr_t blk, size_t size,
     if (ra != 0 && ra != bc->bcache_nblks) { /* do we have RA space? */
 	ra = MIN(bc->ra, ra - 1);
 	ra = rounddown(ra, 16);		/* multiple of 16 blocks */
+	bc->ralen = ra;
 	p_size += ra;
+    } else {
+	bc->ralen = 0;
     }
 
     /* invalidate bcache */
