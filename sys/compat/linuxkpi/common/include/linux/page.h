@@ -83,8 +83,12 @@ pgprot2cachemode(pgprot_t prot)
 #define	clear_page(page)		memset(page, 0, PAGE_SIZE)
 #define	pgprot_noncached(prot)		\
 	(((prot) & VM_PROT_ALL) | cachemode2protval(VM_MEMATTR_UNCACHEABLE))
+#ifdef VM_MEMATTR_WRITE_COMBINING
 #define	pgprot_writecombine(prot)	\
 	(((prot) & VM_PROT_ALL) | cachemode2protval(VM_MEMATTR_WRITE_COMBINING))
+#else
+#define	pgprot_writecombine(prot)	pgprot_noncached(prot)
+#endif
 
 #undef	PAGE_MASK
 #define	PAGE_MASK	(~(PAGE_SIZE-1))
