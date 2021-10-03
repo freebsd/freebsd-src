@@ -310,6 +310,8 @@ static void _pmap_unwire_ptp(pmap_t pmap, vm_offset_t va, vm_page_t m,
     struct spglist *free);
 static int pmap_unuse_pt(pmap_t, vm_offset_t, pd_entry_t, struct spglist *);
 
+static int pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode);
+
 #define	pmap_clear(pte)			pmap_store(pte, 0)
 #define	pmap_clear_bits(pte, bits)	atomic_clear_64(pte, bits)
 #define	pmap_load_store(pte, entry)	atomic_swap_64(pte, entry)
@@ -4252,6 +4254,98 @@ pmap_page_set_memattr(vm_page_t m, vm_memattr_t ma)
 {
 
 	m->md.pv_memattr = ma;
+
+	/*
+	 * If "m" is a normal page, update its direct mapping.  This update
+	 * can be relied upon to perform any cache operations that are
+	 * required for data coherence.
+	 */
+	if ((m->flags & PG_FICTITIOUS) == 0 &&
+	    pmap_change_attr(PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m)), PAGE_SIZE,
+	    m->md.pv_memattr) != 0)
+		panic("memory attribute change on the direct map failed");
+}
+
+/*
+ * Changes the specified virtual address range's memory type to that given by
+ * the parameter "mode".  The specified virtual address range must be
+ * completely contained within either the direct map or the kernel map.
+ *
+ * Returns zero if the change completed successfully, and either EINVAL or
+ * ENOMEM if the change failed.  Specifically, EINVAL is returned if some part
+ * of the virtual address range was not mapped, and ENOMEM is returned if
+ * there was insufficient memory available to complete the change.  In the
+ * latter case, the memory type may have been changed on some part of the
+ * virtual address range.
+ */
+int
+pmap_change_attr(vm_offset_t va, vm_size_t size, int mode)
+{
+	int error;
+
+	PMAP_LOCK(kernel_pmap);
+	error = pmap_change_attr_locked(va, size, mode);
+	PMAP_UNLOCK(kernel_pmap);
+	return (error);
+}
+
+static int
+pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode)
+{
+	vm_offset_t base, offset, tmpva;
+	pd_entry_t *l1, l1e;
+	pd_entry_t *l2, l2e;
+	pt_entry_t *l3, l3e;
+
+	PMAP_LOCK_ASSERT(kernel_pmap, MA_OWNED);
+	base = trunc_page(va);
+	offset = va & PAGE_MASK;
+	size = round_page(offset + size);
+
+	if (!VIRT_IN_DMAP(base) &&
+	    !(base >= VM_MIN_KERNEL_ADDRESS && base < VM_MAX_KERNEL_ADDRESS))
+		return (EINVAL);
+
+	for (tmpva = base; tmpva < base + size; ) {
+		l1 = pmap_l1(kernel_pmap, tmpva);
+		if (l1 == NULL || ((l1e = pmap_load(l1)) & PTE_V) == 0)
+			return (EINVAL);
+		if ((l1e & PTE_RWX) != 0) {
+			/*
+			 * TODO: Demote if attributes don't match and there
+			 * isn't an L1 page left in the range, and update the
+			 * L1 entry if the attributes don't match but there is
+			 * an L1 page left in the range, once we support the
+			 * upcoming Svpbmt extension.
+			 */
+			tmpva = (tmpva & ~L1_OFFSET) + L1_SIZE;
+			continue;
+		}
+		l2 = pmap_l1_to_l2(l1, tmpva);
+		if (l2 == NULL || ((l2e = pmap_load(l2)) & PTE_V) == 0)
+			return (EINVAL);
+		if ((l2e & PTE_RWX) != 0) {
+			/*
+			 * TODO: Demote if attributes don't match and there
+			 * isn't an L2 page left in the range, and update the
+			 * L2 entry if the attributes don't match but there is
+			 * an L2 page left in the range, once we support the
+			 * upcoming Svpbmt extension.
+			 */
+			tmpva = (tmpva & ~L2_OFFSET) + L2_SIZE;
+			continue;
+		}
+		l3 = pmap_l2_to_l3(l2, tmpva);
+		if (l3 == NULL || ((l3e = pmap_load(l3)) & PTE_V) == 0)
+			return (EINVAL);
+		/*
+		 * TODO: Update the L3 entry if the attributes don't match once
+		 * we support the upcoming Svpbmt extension.
+		 */
+		tmpva += PAGE_SIZE;
+	}
+
+	return (0);
 }
 
 /*
