@@ -388,11 +388,14 @@ fuse_vnode_savesize(struct vnode *vp, struct ucred *cred, pid_t pid)
 }
 
 /*
- * Adjust the vnode's size to a new value, such as that provided by
- * FUSE_GETATTR.
+ * Adjust the vnode's size to a new value.
+ *
+ * If the new value came from the server, such as from a FUSE_GETATTR
+ * operation, set `from_server` true.  But if it came from a local operation,
+ * such as write(2) or truncate(2), set `from_server` false.
  */
 int
-fuse_vnode_setsize(struct vnode *vp, off_t newsize)
+fuse_vnode_setsize(struct vnode *vp, off_t newsize, bool from_server)
 {
 	struct fuse_vnode_data *fvdat = VTOFUD(vp);
 	struct vattr *attrs;
@@ -433,6 +436,16 @@ fuse_vnode_setsize(struct vnode *vp, off_t newsize)
 		MPASS(bp->b_flags & B_VMIO);
 		vfs_bio_clrbuf(bp);
 		bp->b_dirtyend = MIN(bp->b_dirtyend, newsize - lbn * iosize);
+	} else if (from_server && newsize > oldsize && oldsize != VNOVAL) {
+		/*
+		 * The FUSE server changed the file size behind our back.  We
+		 * should invalidate the entire cache.
+		 */
+		daddr_t left_lbn, end_lbn;
+
+		left_lbn = oldsize / iosize;
+		end_lbn = howmany(newsize, iosize);
+		v_inval_buf_range(vp, 0, end_lbn, iosize);
 	}
 out:
 	if (bp)

@@ -255,7 +255,8 @@ fuse_internal_access(struct vnode *vp,
  */
 void
 fuse_internal_cache_attrs(struct vnode *vp, struct fuse_attr *attr,
-	uint64_t attr_valid, uint32_t attr_valid_nsec, struct vattr *vap)
+	uint64_t attr_valid, uint32_t attr_valid_nsec, struct vattr *vap,
+	bool from_server)
 {
 	struct mount *mp;
 	struct fuse_vnode_data *fvdat;
@@ -271,9 +272,54 @@ fuse_internal_cache_attrs(struct vnode *vp, struct fuse_attr *attr,
 	fuse_validity_2_bintime(attr_valid, attr_valid_nsec,
 		&fvdat->attr_cache_timeout);
 
+	if (vnode_isreg(vp) &&
+	    fvdat->cached_attrs.va_size != VNOVAL &&
+	    attr->size != fvdat->cached_attrs.va_size)
+	{
+		if ( data->cache_mode == FUSE_CACHE_WB &&
+		    fvdat->flag & FN_SIZECHANGE)
+		{
+			const char *msg;
+
+			/*
+			 * The server changed the file's size even though we're
+			 * using writeback cacheing and and we have outstanding
+			 * dirty writes!  That's a server bug.
+			 */
+			if (fuse_libabi_geq(data, 7, 23)) {
+				msg = "writeback cache incoherent!."
+				    "To prevent data corruption, disable "
+				    "the writeback cache according to your "
+				    "FUSE server's documentation.";
+			} else {
+				msg = "writeback cache incoherent!."
+				    "To prevent data corruption, disable "
+				    "the writeback cache by setting "
+				    "vfs.fusefs.data_cache_mode to 0 or 1.";
+			}
+			fuse_warn(data, FSESS_WARN_WB_CACHE_INCOHERENT, msg);
+		}
+		if (fuse_vnode_attr_cache_valid(vp) &&
+		    data->cache_mode != FUSE_CACHE_UC)
+		{
+			/*
+			 * The server changed the file's size even though we
+			 * have it cached and our cache has not yet expired.
+			 * That's a bug.
+			 */
+			fuse_warn(data, FSESS_WARN_CACHE_INCOHERENT,
+			    "cache incoherent!  "
+			    "To prevent "
+			    "data corruption, disable the data cache "
+			    "by mounting with -o direct_io, or as "
+			    "directed otherwise by your FUSE server's "
+			    "documentation.");
+		}
+	}
+
 	/* Fix our buffers if the filesize changed without us knowing */
 	if (vnode_isreg(vp) && attr->size != fvdat->cached_attrs.va_size) {
-		(void)fuse_vnode_setsize(vp, attr->size);
+		(void)fuse_vnode_setsize(vp, attr->size, from_server);
 		fvdat->cached_attrs.va_size = attr->size;
 	}
 
@@ -806,7 +852,7 @@ fuse_internal_newentry_core(struct vnode *dvp,
 	fuse_vnode_clear_attr_cache(dvp);
 
 	fuse_internal_cache_attrs(*vpp, &feo->attr, feo->attr_valid,
-		feo->attr_valid_nsec, NULL);
+		feo->attr_valid_nsec, NULL, true);
 
 	return err;
 }
@@ -912,26 +958,8 @@ fuse_internal_do_getattr(struct vnode *vp, struct vattr *vap,
 		fao->attr.mtime = old_mtime.tv_sec;
 		fao->attr.mtimensec = old_mtime.tv_nsec;
 	}
-	if (vnode_isreg(vp) &&
-	    fvdat->cached_attrs.va_size != VNOVAL &&
-	    fao->attr.size != fvdat->cached_attrs.va_size) {
-		/*
-		 * The server changed the file's size even though we had it
-		 * cached!  That's a server bug.
-		 */
-		struct mount *mp = vnode_mount(vp);
-		struct fuse_data *data = fuse_get_mpdata(mp);
-
-		fuse_warn(data, FSESS_WARN_CACHE_INCOHERENT,
-		    "cache incoherent!  "
-		    "To prevent data corruption, disable the data cache "
-		    "by mounting with -o direct_io, or as directed "
-		    "otherwise by your FUSE server's documentation.");
-		int iosize = fuse_iosize(vp);
-		v_inval_buf_range(vp, 0, INT64_MAX, iosize);
-	}
 	fuse_internal_cache_attrs(vp, &fao->attr, fao->attr_valid,
-		fao->attr_valid_nsec, vap);
+		fao->attr_valid_nsec, vap, true);
 	if (vtyp != vnode_vtype(vp)) {
 		fuse_internal_vnode_disappear(vp);
 		err = ENOENT;
@@ -1231,7 +1259,7 @@ int fuse_internal_setattr(struct vnode *vp, struct vattr *vap,
 		struct fuse_attr_out *fao = (struct fuse_attr_out*)fdi.answ;
 		fuse_vnode_undirty_cached_timestamps(vp);
 		fuse_internal_cache_attrs(vp, &fao->attr, fao->attr_valid,
-			fao->attr_valid_nsec, NULL);
+			fao->attr_valid_nsec, NULL, false);
 	}
 
 out:
