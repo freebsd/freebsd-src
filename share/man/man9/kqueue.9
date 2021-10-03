@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 26, 2012
+.Dd October 12, 2021
 .Dt KQUEUE 9
 .Os
 .Sh NAME
@@ -145,7 +145,7 @@ such as when the object is being destroyed, or does not exist.
 During
 .Va f_attach ,
 it is valid to change the
-.Va kn_fops
+.Va kn_fop
 pointer to a different pointer.
 This will change the
 .Va f_event
