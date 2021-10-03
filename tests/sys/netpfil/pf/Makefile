@@ -14,6 +14,7 @@ ATF_TESTS_SH+=	altq \
 		get_state \
 		icmp \
 		killstate \
+		macro \
 		map_e \
 		names \
 		nat \
