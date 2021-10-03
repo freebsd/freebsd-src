@@ -238,17 +238,27 @@ read_strategy(void *devdata, int rw, daddr_t blk, size_t size,
 	if (BCACHE_LOOKUP(bc, (daddr_t)(blk + i))) {
 	    bcache_misses += (nblk - i);
 	    complete = 0;
-	    if (nblk - i > BCACHE_MINREADAHEAD && bc->ra > BCACHE_MINREADAHEAD)
-		bc->ra >>= 1;	/* reduce read ahead */
 	    break;
 	} else {
 	    bcache_hits++;
 	}
     }
 
-    if (complete) {	/* whole set was in cache, return it */
+    /*
+     * Adjust read-ahead size if appropriate.  Subject to the requirement
+     * that bc->ra must stay in between MINREADAHEAD and READAHEAD, we
+     * increase it when we notice that readahead was useful and decrease
+     * it when we notice that readahead was not useful.
+     */
+    if (complete) {
 	if (bc->ra < BCACHE_READAHEAD)
-		bc->ra <<= 1;	/* increase read ahead */
+	    bc->ra <<= 1;	/* increase read ahead */
+    } else {
+	if (nblk - i > BCACHE_MINREADAHEAD && bc->ra > BCACHE_MINREADAHEAD)
+	    bc->ra >>= 1;	/* reduce read ahead */
+    }
+
+    if (complete) {	/* whole set was in cache, return it */
 	bcopy(bc->bcache_data + (bcache_blksize * BHASH(bc, blk)), buf, size);
 	goto done;
     }
