@@ -134,6 +134,10 @@ device		uart		# Generic UART driver
 device		uart_lowrisc	# lowRISC UART driver
 device		uart_ns8250	# ns8250-type UART driver
 
+# Console
+device		vt
+device		kbdmux
+
 # RTC
 device		goldfish_rtc	# QEMU RTC
 
