@@ -86,8 +86,9 @@ static u_int bcache_rablks;
 #define	BHASH(bc, blkno)	((blkno) & ((bc)->bcache_nblks - 1))
 #define	BCACHE_LOOKUP(bc, blkno)	\
 	((bc)->bcache_ctl[BHASH((bc), (blkno))].bc_blkno != (blkno))
-#define	BCACHE_READAHEAD	256
+#define	BCACHE_READAHEAD	512
 #define	BCACHE_MINREADAHEAD	32
+#define	BCACHE_MAXIOWRA		512
 
 static void	bcache_invalidate(struct bcache *bc, daddr_t blkno);
 static void	bcache_insert(struct bcache *bc, daddr_t blkno);
@@ -324,6 +325,8 @@ read_strategy(void *devdata, int rw, daddr_t blk, size_t size,
     if (ra != 0 && ra != bc->bcache_nblks) { /* do we have RA space? */
 	ra = MIN(bc->ra, ra - 1);
 	ra = rounddown(ra, 16);		/* multiple of 16 blocks */
+	if (ra + p_size > BCACHE_MAXIOWRA)
+	    ra = BCACHE_MAXIOWRA - p_size;
 	bc->ralen = ra;
 	p_size += ra;
     } else {
