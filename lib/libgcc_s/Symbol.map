@@ -162,8 +162,10 @@ GCC_4.6.0 {
 	__fixunstfdi;
 	__fixunstfsi;
 	__fixunstfti;
+	__floatditf;
 	__floatsitf;
 	__floattitf;
+	__floatunditf;
 	__floatunsitf;
 	__floatuntitf;
 	__getf2;
