@@ -208,6 +208,9 @@ virtual void SetUp() {
 }
 };
 
+class WriteEofDuringVnopStrategy: public Write, public WithParamInterface<int>
+{};
+
 void sigxfsz_handler(int __unused sig) {
 	Write::s_sigxfsz = 1;
 }
@@ -525,6 +528,84 @@ TEST_F(Write, eof_during_rmw)
 		<< strerror(errno);
 	leak(fd);
 }
+
+/*
+ * VOP_STRATEGY should not query the server for the file's size, even if its
+ * cached attributes have expired.
+ * Regression test for https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=256937
+ */
+TEST_P(WriteEofDuringVnopStrategy, eof_during_vop_strategy)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	Sequence seq;
+	const off_t filesize = 2 * m_maxbcachebuf;
+	void *contents;
+	uint64_t ino = 42;
+	uint64_t attr_valid = 0;
+	uint64_t attr_valid_nsec = 0;
+	mode_t mode = S_IFREG | 0644;
+	int fd;
+	int ngetattrs;
+
+	ngetattrs = GetParam();
+	contents = calloc(1, filesize);
+
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELPATH)
+	.WillRepeatedly(Invoke(
+		ReturnImmediate([=](auto in __unused, auto& out) {
+		SET_OUT_HEADER_LEN(out, entry);
+		out.body.entry.attr.mode = mode;
+		out.body.entry.nodeid = ino;
+		out.body.entry.attr.nlink = 1;
+		out.body.entry.attr.size = filesize;
+		out.body.entry.attr_valid = attr_valid;
+		out.body.entry.attr_valid_nsec = attr_valid_nsec;
+	})));
+	expect_open(ino, 0, 1);
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in.header.opcode == FUSE_GETATTR &&
+				in.header.nodeid == ino);
+		}, Eq(true)),
+		_)
+	).Times(Between(ngetattrs - 1, ngetattrs))
+	.InSequence(seq)
+	.WillRepeatedly(Invoke(ReturnImmediate([=](auto i __unused, auto& out) {
+		SET_OUT_HEADER_LEN(out, attr);
+		out.body.attr.attr.ino = ino;
+		out.body.attr.attr.mode = mode;
+		out.body.attr.attr_valid = attr_valid;
+		out.body.attr.attr_valid_nsec = attr_valid_nsec;
+		out.body.attr.attr.size = filesize;
+	})));
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in.header.opcode == FUSE_GETATTR &&
+				in.header.nodeid == ino);
+		}, Eq(true)),
+		_)
+	).InSequence(seq)
+	.WillRepeatedly(Invoke(ReturnImmediate([=](auto i __unused, auto& out) {
+		SET_OUT_HEADER_LEN(out, attr);
+		out.body.attr.attr.ino = ino;
+		out.body.attr.attr.mode = mode;
+		out.body.attr.attr_valid = attr_valid;
+		out.body.attr.attr_valid_nsec = attr_valid_nsec;
+		out.body.attr.attr.size = filesize / 2;
+	})));
+	expect_write(ino, 0, filesize / 2, filesize / 2, contents);
+
+	fd = open(FULLPATH, O_RDWR);
+	ASSERT_LE(0, fd) << strerror(errno);
+	ASSERT_EQ(filesize / 2, write(fd, contents, filesize / 2))
+		<< strerror(errno);
+
+}
+
+INSTANTIATE_TEST_CASE_P(W, WriteEofDuringVnopStrategy,
+	Values(1, 2, 3)
+);
 
 /*
  * If the kernel cannot be sure which uid, gid, or pid was responsible for a
