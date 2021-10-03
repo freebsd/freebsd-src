@@ -2156,6 +2156,18 @@ tdksignal(struct thread *td, int sig, ksiginfo_t *ksi)
 	(void) tdsendsignal(td->td_proc, td, sig, ksi);
 }
 
+static int
+sig_sleepq_abort(struct thread *td, int intrval)
+{
+	THREAD_LOCK_ASSERT(td, MA_OWNED);
+
+	if (intrval == 0 && (td->td_flags & TDF_SIGWAIT) == 0) {
+		thread_unlock(td);
+		return (0);
+	}
+	return (sleepq_abort(td, intrval));
+}
+
 int
 tdsendsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 {
@@ -2374,7 +2386,7 @@ tdsendsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 		PROC_SLOCK(p);
 		thread_lock(td);
 		if (TD_CAN_ABORT(td))
-			wakeup_swapper = sleepq_abort(td, intrval);
+			wakeup_swapper = sig_sleepq_abort(td, intrval);
 		else
 			thread_unlock(td);
 		PROC_SUNLOCK(p);
@@ -2505,7 +2517,7 @@ tdsigwakeup(struct thread *td, int sig, sig_t action, int intrval)
 		if (td->td_priority > PUSER && !TD_IS_IDLETHREAD(td))
 			sched_prio(td, PUSER);
 
-		wakeup_swapper = sleepq_abort(td, intrval);
+		wakeup_swapper = sig_sleepq_abort(td, intrval);
 		PROC_SUNLOCK(p);
 		if (wakeup_swapper)
 			kick_proc0();

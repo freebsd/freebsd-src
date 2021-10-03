@@ -1126,7 +1126,8 @@ sleepq_abort(struct thread *td, int intrval)
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	MPASS(TD_ON_SLEEPQ(td));
 	MPASS(td->td_flags & TDF_SINTR);
-	MPASS(intrval == 0 || intrval == EINTR || intrval == ERESTART);
+	MPASS((intrval == 0 && (td->td_flags & TDF_SIGWAIT) != 0) ||
+	    intrval == EINTR || intrval == ERESTART);
 
 	/*
 	 * If the TDF_TIMEOUT flag is set, just leave. A
