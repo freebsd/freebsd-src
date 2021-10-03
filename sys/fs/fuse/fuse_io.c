@@ -611,7 +611,7 @@ retry:
 		as_written_offset = uio->uio_offset - diff;
 
 		if (as_written_offset - diff > filesize)
-			fuse_vnode_setsize(vp, as_written_offset);
+			fuse_vnode_setsize(vp, as_written_offset, false);
 		if (as_written_offset - diff >= filesize)
 			fvdat->flag &= ~FN_SIZECHANGE;
 
@@ -755,7 +755,7 @@ again:
 			 * Extend file _after_ locking buffer so we won't race
 			 * with other readers
 			 */
-			err = fuse_vnode_setsize(vp, uio->uio_offset + n);
+			err = fuse_vnode_setsize(vp, uio->uio_offset + n, false);
 			filesize = uio->uio_offset + n;
 			fvdat->flag |= FN_SIZECHANGE;
 			if (err) {
