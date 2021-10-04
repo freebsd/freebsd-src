@@ -45,6 +45,7 @@ riscv/riscv/db_trace.c		optional	ddb
 riscv/riscv/dump_machdep.c	standard
 riscv/riscv/elf_machdep.c	standard
 riscv/riscv/exception.S		standard
+riscv/riscv/exec_machdep.c	standard
 riscv/riscv/intr_machdep.c	standard
 riscv/riscv/in_cksum.c		optional	inet | inet6
 riscv/riscv/identcpu.c		standard
@@ -57,6 +58,7 @@ riscv/riscv/nexus.c		standard
 riscv/riscv/ofw_machdep.c	optional	fdt
 riscv/riscv/plic.c		standard
 riscv/riscv/pmap.c		standard
+riscv/riscv/ptrace_machdep.c	standard
 riscv/riscv/riscv_console.c	optional	rcons
 riscv/riscv/riscv_syscon.c	optional	ext_resources syscon riscv_syscon fdt
 riscv/riscv/sbi.c		standard
