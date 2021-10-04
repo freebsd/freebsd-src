@@ -67,8 +67,8 @@ MAN_SRC_DC=	dc/A.1
 CFLAGS+=	-flto
 .endif
 
-HAS_TESTS=
-SUBDIR.${MK_TESTS}+= tests
+#HAS_TESTS=
+#SUBDIR.${MK_TESTS}+= tests
 
 .for catalog in ${CATALOGS}
 NLS+=           ${catalog:C/.*://}
