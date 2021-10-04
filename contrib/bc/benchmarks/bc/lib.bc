@@ -1,7 +1,0 @@
-#! /usr/bin/bc -lq
-
-print "for (i = 100; i < 1000; ++i) {\n"
-print "    v = pi(i)\n"
-print "    v = e(v)\n"
-print "    v = l(v)\n"
-print "}\n"
