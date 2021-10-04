@@ -141,6 +141,8 @@ const BcOptLong bc_args_lopt[] = {
 	{ "file", BC_OPT_REQUIRED, 'f' },
 	{ "help", BC_OPT_NONE, 'h' },
 	{ "interactive", BC_OPT_NONE, 'i' },
+	{ "leading-zeroes", BC_OPT_NONE, 'z' },
+	{ "no-line-length", BC_OPT_NONE, 'L' },
 	{ "no-prompt", BC_OPT_NONE, 'P' },
 	{ "no-read-prompt", BC_OPT_NONE, 'R' },
 #if BC_ENABLED
@@ -873,6 +875,9 @@ const BcLexKeyword bc_lex_kws[] = {
 #if BC_ENABLE_EXTRA_MATH
 	BC_LEX_KW_ENTRY("maxrand", 7, false),
 #endif // BC_ENABLE_EXTRA_MATH
+	BC_LEX_KW_ENTRY("line_length", 11, false),
+	BC_LEX_KW_ENTRY("global_stacks", 13, false),
+	BC_LEX_KW_ENTRY("leading_zero", 12, false),
 	BC_LEX_KW_ENTRY("stream", 6, false),
 	BC_LEX_KW_ENTRY("else", 4, false),
 };
@@ -928,7 +933,10 @@ const uint8_t bc_parse_exprs[] = {
 	BC_PARSE_EXPR_ENTRY(true, true, true, true, true, true, false, true),
 
 	// Starts with BC_LEX_KW_MAXIBASE.
-	BC_PARSE_EXPR_ENTRY(true, true, true, true, true, false, false, 0)
+	BC_PARSE_EXPR_ENTRY(true, true, true, true, true, true, true, true),
+
+	// Starts with BC_LEX_KW_STREAM.
+	BC_PARSE_EXPR_ENTRY(false, false, 0, 0, 0, 0, 0, 0)
 
 #else // BC_ENABLE_EXTRA_MATH
 
@@ -948,7 +956,7 @@ const uint8_t bc_parse_exprs[] = {
 	BC_PARSE_EXPR_ENTRY(true, true, true, true, true, false, true, true),
 
 	// Starts with BC_LEX_KW_MAXSCALE,
-	BC_PARSE_EXPR_ENTRY(true, true, false, false, 0, 0, 0, 0)
+	BC_PARSE_EXPR_ENTRY(true, true, true, true, true, false, false, 0)
 
 #endif // BC_ENABLE_EXTRA_MATH
 };
@@ -1170,7 +1178,11 @@ const uchar dc_parse_insts[] = {
 #if BC_ENABLE_EXTRA_MATH
 	BC_INST_MAXRAND,
 #endif // BC_ENABLE_EXTRA_MATH
-	BC_INST_PRINT_STREAM, BC_INST_INVALID,
+	BC_INST_LINE_LENGTH,
+#if BC_ENABLED
+	BC_INST_INVALID,
+#endif // BC_ENABLED
+	BC_INST_LEADING_ZERO, BC_INST_PRINT_STREAM, BC_INST_INVALID,
 	BC_INST_REL_EQ, BC_INST_INVALID,
 	BC_INST_EXECUTE, BC_INST_PRINT_STACK, BC_INST_CLEAR_STACK,
 	BC_INST_INVALID, BC_INST_STACK_LEN, BC_INST_DUPLICATE, BC_INST_SWAP,

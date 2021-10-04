@@ -49,3 +49,4 @@ recursive_arrays
 divmod
 modexp
 bitfuncs
+leadingzero

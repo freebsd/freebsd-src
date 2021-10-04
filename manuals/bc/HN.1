@@ -176,6 +176,16 @@ Forces interactive mode.
 This is a \f[B]non-portable extension\f[R].
 .RE
 .TP
+\f[B]-L\f[R], \f[B]--no-line-length\f[R]
+Disables line length checking and prints numbers without backslashes and
+newlines.
+In other words, this option sets \f[B]BC_LINE_LENGTH\f[R] to \f[B]0\f[R]
+(see the \f[B]ENVIRONMENT VARIABLES\f[R] section).
+.RS
+.PP
+This is a \f[B]non-portable extension\f[R].
+.RE
+.TP
 \f[B]-l\f[R], \f[B]--mathlib\f[R]
 Sets \f[B]scale\f[R] (see the \f[B]SYNTAX\f[R] section) to \f[B]20\f[R]
 and loads the included math library and the extended math library before
@@ -314,6 +324,18 @@ Like \f[B]-s\f[R] and \f[B]--standard\f[R], except that warnings (and
 not errors) are printed for non-standard extensions and execution
 continues normally.
 .RS
+.PP
+This is a \f[B]non-portable extension\f[R].
+.RE
+.TP
+\f[B]-z\f[R], \f[B]--leading-zeroes\f[R]
+Makes bc(1) print all numbers greater than \f[B]-1\f[R] and less than
+\f[B]1\f[R], and not equal to \f[B]0\f[R], with a leading zero.
+.RS
+.PP
+This can be set for individual numbers with the \f[B]plz(x)\f[R],
+plznl(x)**, \f[B]pnlz(x)\f[R], and \f[B]pnlznl(x)\f[R] functions in the
+extended math library (see the \f[B]LIBRARY\f[R] section).
 .PP
 This is a \f[B]non-portable extension\f[R].
 .RE
@@ -636,11 +658,28 @@ This is a \f[B]non-portable extension\f[R].
 \f[B]maxscale()\f[R]: The max allowable \f[B]scale\f[R].
 This is a \f[B]non-portable extension\f[R].
 .IP "17." 4
+\f[B]line_length()\f[R]: The line length set with
+\f[B]BC_LINE_LENGTH\f[R] (see the \f[B]ENVIRONMENT VARIABLES\f[R]
+section).
+This is a \f[B]non-portable extension\f[R].
+.IP "18." 4
+\f[B]global_stacks()\f[R]: \f[B]0\f[R] if global stacks are not enabled
+with the \f[B]-g\f[R] or \f[B]--global-stacks\f[R] options, non-zero
+otherwise.
+See the \f[B]OPTIONS\f[R] section.
+This is a \f[B]non-portable extension\f[R].
+.IP "19." 4
+\f[B]leading_zero()\f[R]: \f[B]0\f[R] if leading zeroes are not enabled
+with the \f[B]-z\f[R] or \f[B]\[en]leading-zeroes\f[R] options, non-zero
+otherwise.
+See the \f[B]OPTIONS\f[R] section.
+This is a \f[B]non-portable extension\f[R].
+.IP "20." 4
 \f[B]rand()\f[R]: A pseudo-random integer between \f[B]0\f[R]
 (inclusive) and \f[B]BC_RAND_MAX\f[R] (inclusive).
 Using this operand will change the value of \f[B]seed\f[R].
 This is a \f[B]non-portable extension\f[R].
-.IP "18." 4
+.IP "21." 4
 \f[B]irand(E)\f[R]: A pseudo-random integer between \f[B]0\f[R]
 (inclusive) and the value of \f[B]E\f[R] (exclusive).
 If \f[B]E\f[R] is negative or is a non-integer (\f[B]E\f[R]\[cq]s
@@ -658,7 +697,7 @@ value of \f[B]E\f[R] is \f[B]0\f[R] or \f[B]1\f[R].
 In that case, \f[B]0\f[R] is returned, and \f[B]seed\f[R] is
 \f[I]not\f[R] changed.
 This is a \f[B]non-portable extension\f[R].
-.IP "19." 4
+.IP "22." 4
 \f[B]maxrand()\f[R]: The max integer returned by \f[B]rand()\f[R].
 This is a \f[B]non-portable extension\f[R].
 .PP
@@ -1937,6 +1976,46 @@ This function is used to implement other bitwise functions; it is not
 meant to be used by users, but it can be.
 .RE
 .TP
+\f[B]plz(x)\f[R]
+If \f[B]x\f[R] is not equal to \f[B]0\f[R] and greater that \f[B]-1\f[R]
+and less than \f[B]1\f[R], it is printed with a leading zero, regardless
+of the use of the \f[B]-z\f[R] option (see the \f[B]OPTIONS\f[R]
+section) and without a trailing newline.
+.RS
+.PP
+Otherwise, \f[B]x\f[R] is printed normally, without a trailing newline.
+.RE
+.TP
+\f[B]plznl(x)\f[R]
+If \f[B]x\f[R] is not equal to \f[B]0\f[R] and greater that \f[B]-1\f[R]
+and less than \f[B]1\f[R], it is printed with a leading zero, regardless
+of the use of the \f[B]-z\f[R] option (see the \f[B]OPTIONS\f[R]
+section) and with a trailing newline.
+.RS
+.PP
+Otherwise, \f[B]x\f[R] is printed normally, with a trailing newline.
+.RE
+.TP
+\f[B]pnlz(x)\f[R]
+If \f[B]x\f[R] is not equal to \f[B]0\f[R] and greater that \f[B]-1\f[R]
+and less than \f[B]1\f[R], it is printed without a leading zero,
+regardless of the use of the \f[B]-z\f[R] option (see the
+\f[B]OPTIONS\f[R] section) and without a trailing newline.
+.RS
+.PP
+Otherwise, \f[B]x\f[R] is printed normally, without a trailing newline.
+.RE
+.TP
+\f[B]pnlznl(x)\f[R]
+If \f[B]x\f[R] is not equal to \f[B]0\f[R] and greater that \f[B]-1\f[R]
+and less than \f[B]1\f[R], it is printed without a leading zero,
+regardless of the use of the \f[B]-z\f[R] option (see the
+\f[B]OPTIONS\f[R] section) and with a trailing newline.
+.RS
+.PP
+Otherwise, \f[B]x\f[R] is printed normally, with a trailing newline.
+.RE
+.TP
 \f[B]ubytes(x)\f[R]
 Returns the numbers of unsigned integer bytes required to hold the
 truncated absolute value of \f[B]x\f[R].
@@ -2407,6 +2486,12 @@ greater than \f[B]1\f[R] and is less than \f[B]UINT16_MAX\f[R]
 (\f[B]2\[ha]16-1\f[R]), bc(1) will output lines to that length,
 including the backslash (\f[B]\[rs]\f[R]).
 The default line length is \f[B]70\f[R].
+.RS
+.PP
+The special value of \f[B]0\f[R] will disable line length checking and
+print numbers without regard to line length and without backslashes and
+newlines.
+.RE
 .TP
 \f[B]BC_BANNER\f[R]
 If this environment variable exists and contains an integer, then a

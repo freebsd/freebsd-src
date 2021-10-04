@@ -147,28 +147,3 @@ for testfile in $testdir/$d/*errors.txt; do
 	printf 'pass\n'
 
 done
-
-# Test all the files in the errors directory. While the loop above does one test
-# for every line, this does one test per file, but it runs the file through
-# stdin and as a file on the command-line.
-for testfile in $testdir/$d/errors/*.txt; do
-
-	printf 'Running %s error file %s...' "$d" "$testfile"
-
-	printf '%s\n' "$halt" | "$exe" "$@" $opts "$testfile" 2> "$out" > /dev/null
-	err="$?"
-
-	checkerrtest "$d" "$err" "$testfile" "$out" "$exebase"
-
-	printf 'pass\n'
-
-	printf 'Running %s error file %s through cat...' "$d" "$testfile"
-
-	cat "$testfile" | "$exe" "$@" $opts 2> "$out" > /dev/null
-	err="$?"
-
-	checkcrash "$d" "$err" "$testfile"
-
-	printf 'pass\n'
-
-done

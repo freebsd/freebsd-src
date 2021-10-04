@@ -171,6 +171,18 @@ void bc_args(int argc, char *argv[], bool exit_exprs) {
 				break;
 			}
 
+			case 'z':
+			{
+				vm.flags |= BC_FLAG_Z;
+				break;
+			}
+
+			case 'L':
+			{
+				vm.line_len = 0;
+				break;
+			}
+
 			case 'P':
 			{
 				vm.flags &= ~(BC_FLAG_P);
@@ -201,7 +213,7 @@ void bc_args(int argc, char *argv[], bool exit_exprs) {
 			case 'q':
 			{
 				assert(BC_IS_BC);
-				// Do nothing.
+				vm.flags &= ~(BC_FLAG_Q);
 				break;
 			}
 

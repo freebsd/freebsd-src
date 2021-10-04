@@ -244,7 +244,11 @@ typedef struct BcHistory {
 	/// The original terminal state.
 	struct termios orig_termios;
 #else // _WIN32
-	DWORD orig_console_mode;
+	///  The original input console mode.
+	DWORD orig_in;
+
+	///  The original output console mode.
+	DWORD orig_out;
 #endif // _WIN32
 
 	/// These next two are here because pahole found a 4 byte hole here.

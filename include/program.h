@@ -513,6 +513,9 @@ extern const char bc_program_esc_seqs[];
 	&&lbl_BC_INST_MAXOBASE,                                              \
 	&&lbl_BC_INST_MAXSCALE,                                              \
 	&&lbl_BC_INST_MAXRAND,                                               \
+	&&lbl_BC_INST_LINE_LENGTH,                                           \
+	&&lbl_BC_INST_GLOBAL_STACKS,                                         \
+	&&lbl_BC_INST_LEADING_ZERO,                                          \
 	&&lbl_BC_INST_PRINT,                                                 \
 	&&lbl_BC_INST_PRINT_POP,                                             \
 	&&lbl_BC_INST_STR,                                                   \
@@ -600,6 +603,9 @@ extern const char bc_program_esc_seqs[];
 	&&lbl_BC_INST_MAXIBASE,                                              \
 	&&lbl_BC_INST_MAXOBASE,                                              \
 	&&lbl_BC_INST_MAXSCALE,                                              \
+	&&lbl_BC_INST_LINE_LENGTH,                                           \
+	&&lbl_BC_INST_GLOBAL_STACKS,                                         \
+	&&lbl_BC_INST_LEADING_ZERO,                                          \
 	&&lbl_BC_INST_PRINT,                                                 \
 	&&lbl_BC_INST_PRINT_POP,                                             \
 	&&lbl_BC_INST_STR,                                                   \
@@ -705,6 +711,9 @@ extern const char bc_program_esc_seqs[];
 	&&lbl_BC_INST_MAXOBASE,                                              \
 	&&lbl_BC_INST_MAXSCALE,                                              \
 	&&lbl_BC_INST_MAXRAND,                                               \
+	&&lbl_BC_INST_LINE_LENGTH,                                           \
+	&&lbl_BC_INST_GLOBAL_STACKS,                                         \
+	&&lbl_BC_INST_LEADING_ZERO,                                          \
 	&&lbl_BC_INST_PRINT,                                                 \
 	&&lbl_BC_INST_PRINT_POP,                                             \
 	&&lbl_BC_INST_STR,                                                   \
@@ -778,6 +787,9 @@ extern const char bc_program_esc_seqs[];
 	&&lbl_BC_INST_MAXIBASE,                                              \
 	&&lbl_BC_INST_MAXOBASE,                                              \
 	&&lbl_BC_INST_MAXSCALE,                                              \
+	&&lbl_BC_INST_LINE_LENGTH,                                           \
+	&&lbl_BC_INST_GLOBAL_STACKS,                                         \
+	&&lbl_BC_INST_LEADING_ZERO,                                          \
 	&&lbl_BC_INST_PRINT,                                                 \
 	&&lbl_BC_INST_PRINT_POP,                                             \
 	&&lbl_BC_INST_STR,                                                   \
@@ -849,6 +861,8 @@ extern const char bc_program_esc_seqs[];
 	&&lbl_BC_INST_MAXOBASE,                                              \
 	&&lbl_BC_INST_MAXSCALE,                                              \
 	&&lbl_BC_INST_MAXRAND,                                               \
+	&&lbl_BC_INST_LINE_LENGTH,                                           \
+	&&lbl_BC_INST_LEADING_ZERO,                                          \
 	&&lbl_BC_INST_PRINT,                                                 \
 	&&lbl_BC_INST_PRINT_POP,                                             \
 	&&lbl_BC_INST_STR,                                                   \
@@ -912,6 +926,8 @@ extern const char bc_program_esc_seqs[];
 	&&lbl_BC_INST_MAXIBASE,                                              \
 	&&lbl_BC_INST_MAXOBASE,                                              \
 	&&lbl_BC_INST_MAXSCALE,                                              \
+	&&lbl_BC_INST_LINE_LENGTH,                                           \
+	&&lbl_BC_INST_LEADING_ZERO,                                          \
 	&&lbl_BC_INST_PRINT,                                                 \
 	&&lbl_BC_INST_PRINT_POP,                                             \
 	&&lbl_BC_INST_STR,                                                   \

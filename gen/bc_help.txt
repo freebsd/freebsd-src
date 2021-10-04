@@ -86,6 +86,10 @@ Options:
 
       Force interactive mode.
 
+  -L  --no-line-length
+
+      Disable line length checking.
+
   -l  --mathlib
 
       Use predefined math routines:
@@ -135,6 +139,10 @@ Options:
 
       Print version information and copyright and exit.
 
+  -z  --leading-zeroes
+
+      Enable leading zeroes on numbers greater than -1 and less than 1.
+
 Environment variables:
 
   POSIXLY_CORRECT
@@ -148,7 +156,7 @@ Environment variables:
   BC_LINE_LENGTH
 
       If an integer, the number of characters to print on a line before
-      wrapping.
+      wrapping. Using 0 will disable line length checking.
 
   BC_BANNER
 
