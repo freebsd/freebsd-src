@@ -1258,15 +1258,13 @@ ipf_p_ftp_valid(softf, ftp, side, buf, len)
 	size_t len;
 {
 	ftpside_t *ftps;
-	int ret;
 
 	ftps = &ftp->ftp_side[side];
 
 	if (side == 0)
-		ret = ipf_p_ftp_client_valid(softf, ftps, buf, len);
+		return(ipf_p_ftp_client_valid(softf, ftps, buf, len));
 	else
-		ret = ipf_p_ftp_server_valid(softf, ftps, buf, len);
-	return ret;
+		return(ipf_p_ftp_server_valid(softf, ftps, buf, len));
 }
 
 
