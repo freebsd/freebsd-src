@@ -125,7 +125,8 @@ struct faultstate {
 	vm_prot_t	fault_type;
 	vm_prot_t	prot;
 	int		fault_flags;
-	int		oom;
+	struct timeval	oom_start_time;
+	bool		oom_started;
 	boolean_t	wired;
 
 	/* Page reference for cow. */
@@ -1074,6 +1075,38 @@ vm_fault_zerofill(struct faultstate *fs)
 }
 
 /*
+ * Initiate page fault after timeout.  Returns true if caller should
+ * do vm_waitpfault() after the call.
+ */
+static bool
+vm_fault_allocate_oom(struct faultstate *fs)
+{
+	struct timeval now;
+
+	unlock_and_deallocate(fs);
+	if (vm_pfault_oom_attempts < 0)
+		return (true);
+	if (!fs->oom_started) {
+		fs->oom_started = true;
+		getmicrotime(&fs->oom_start_time);
+		return (true);
+	}
+
+	getmicrotime(&now);
+	timevalsub(&now, &fs->oom_start_time);
+	if (now.tv_sec < vm_pfault_oom_attempts * vm_pfault_oom_wait)
+		return (true);
+
+	if (bootverbose)
+		printf(
+	    "proc %d (%s) failed to alloc page on fault, starting OOM\n",
+		    curproc->p_pid, curproc->p_comm);
+	vm_pageout_oom(VM_OOM_MEM_PF);
+	fs->oom_started = false;
+	return (false);
+}
+
+/*
  * Allocate a page directly or via the object populate method.
  */
 static int
@@ -1136,22 +1169,11 @@ vm_fault_allocate(struct faultstate *fs)
 		fs->m = vm_page_alloc(fs->object, fs->pindex, alloc_req);
 	}
 	if (fs->m == NULL) {
-		unlock_and_deallocate(fs);
-		if (vm_pfault_oom_attempts < 0 ||
-		    fs->oom < vm_pfault_oom_attempts) {
-			fs->oom++;
+		if (vm_fault_allocate_oom(fs))
 			vm_waitpfault(dset, vm_pfault_oom_wait * hz);
-		} else 	{
-			if (bootverbose)
-				printf(
-		"proc %d (%s) failed to alloc page on fault, starting OOM\n",
-				    curproc->p_pid, curproc->p_comm);
-			vm_pageout_oom(VM_OOM_MEM_PF);
-			fs->oom = 0;
-		}
 		return (KERN_RESOURCE_SHORTAGE);
 	}
-	fs->oom = 0;
+	fs->oom_started = false;
 
 	return (KERN_NOT_RECEIVER);
 }
@@ -1300,7 +1322,7 @@ vm_fault(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
 	fs.fault_flags = fault_flags;
 	fs.map = map;
 	fs.lookup_still_valid = false;
-	fs.oom = 0;
+	fs.oom_started = false;
 	faultcount = 0;
 	nera = -1;
 	hardfault = false;
