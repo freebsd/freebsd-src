@@ -1,9 +1,0 @@
-#! /usr/bin/bc -lq
-
-start = 2^256
-end = start + 10000000
-
-for (i = start; i < end; ++i) {
-	print "irand(", i, ")\n"
-}
-
