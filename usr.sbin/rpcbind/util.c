@@ -229,17 +229,19 @@ addrmerge(struct netbuf *caller, const char *serv_uaddr, const char *clnt_uaddr,
 			 * a link-local address then use the scope id to see
 			 * which one.
 			 */
-			if (IN6_IS_ADDR_LINKLOCAL(&SA2SIN6ADDR(ifsa)) &&
-			    IN6_IS_ADDR_LINKLOCAL(&SA2SIN6ADDR(caller_sa)) &&
-			    IN6_IS_ADDR_LINKLOCAL(&SA2SIN6ADDR(hint_sa))) {
-				if (SA2SIN6(ifsa)->sin6_scope_id ==
-				    SA2SIN6(caller_sa)->sin6_scope_id) {
+			if (IN6_IS_ADDR_LINKLOCAL(&SA2SIN6ADDR(ifsa))) {
+				if (IN6_IS_ADDR_LINKLOCAL(&SA2SIN6ADDR(caller_sa)) &&
+				    IN6_IS_ADDR_LINKLOCAL(&SA2SIN6ADDR(hint_sa)) &&
+				    (SA2SIN6(ifsa)->sin6_scope_id ==
+				     SA2SIN6(caller_sa)->sin6_scope_id)) {
 					const int goodness = 3;
 
 					if (bestif_goodness < goodness) {
 						bestif = ifap;
 						bestif_goodness = goodness;
 					}
+				} else {
+					continue;
 				}
 			}
 		}
