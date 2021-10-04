@@ -180,7 +180,7 @@ virstor_label(struct gctl_req *req)
 	 * Initialize constant parts of metadata: magic signature, version,
 	 * name.
 	 */
-	bzero(&md, sizeof(md));
+	memset(&md, 0, sizeof(md));
 	strlcpy(md.md_magic, G_VIRSTOR_MAGIC, sizeof(md.md_magic));
 	md.md_version = G_VIRSTOR_VERSION;
 	name = gctl_get_ascii(req, "arg0");
@@ -397,7 +397,7 @@ virstor_label(struct gctl_req *req)
 		}
 
 		if (!hardcode)
-			bzero(md.provider, sizeof(md.provider));
+			memset(md.provider, 0, sizeof(md.provider));
 		else {
 			/* convert "/dev/something" to "something" */
 			if (strncmp(name, _PATH_DEV, sizeof(_PATH_DEV) - 1) == 0) {
