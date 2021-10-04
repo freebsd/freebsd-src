@@ -232,10 +232,11 @@ BcStatus bc_read_line(BcVec *vec, const char *prompt) {
 char* bc_read_file(const char *path) {
 
 	BcErr e = BC_ERR_FATAL_IO_ERR;
-	size_t size, r;
+	size_t size, to_read;
 	struct stat pstat;
 	int fd;
 	char* buf;
+	char* buf2;
 
 	BC_SIG_ASSERT_LOCKED;
 
@@ -264,11 +265,18 @@ char* bc_read_file(const char *path) {
 	// Get the size of the file and allocate that much.
 	size = (size_t) pstat.st_size;
 	buf = bc_vm_malloc(size + 1);
+	buf2 = buf;
+	to_read = size;
 
-	// Read the file. We just bail if a signal interrupts. This is so that users
-	// can interrupt the reading of big files if they want.
-	r = (size_t) read(fd, buf, size);
-	if (BC_ERR(r != size)) goto read_err;
+	do {
+
+		// Read the file. We just bail if a signal interrupts. This is so that
+		// users can interrupt the reading of big files if they want.
+		ssize_t r = read(fd, buf2, to_read);
+		if (BC_ERR(r < 0)) goto read_err;
+		to_read -= (size_t) r;
+		buf2 += (size_t) r;
+	} while (to_read);
 
 	// Got to have a nul byte.
 	buf[size] = '\0';

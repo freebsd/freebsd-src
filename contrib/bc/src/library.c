@@ -185,6 +185,14 @@ void bcl_setAbortOnFatalError(bool abrt) {
 	vm.abrt = abrt;
 }
 
+bool bcl_leadingZeroes(void) {
+	return vm.leading_zeroes;
+}
+
+void bcl_setLeadingZeroes(bool leadingZeroes) {
+	vm.leading_zeroes = leadingZeroes;
+}
+
 BclContext bcl_ctxt_create(void) {
 
 	BclContext ctxt = NULL;

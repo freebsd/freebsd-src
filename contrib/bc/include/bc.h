@@ -73,7 +73,7 @@ typedef struct BcLexKeyword {
 	uchar data;
 
 	/// The keyword text.
-	const char name[9];
+	const char name[14];
 } BcLexKeyword;
 
 /// Sets the most significant bit. Used for setting the POSIX bit in
@@ -94,13 +94,13 @@ typedef struct BcLexKeyword {
 
 /// A macro for the number of keywords bc has. This has to be updated if any are
 /// added. This is for the redefined_kws field of the BcVm struct.
-#define BC_LEX_NKWS (32)
+#define BC_LEX_NKWS (35)
 
 #else // BC_ENABLE_EXTRA_MATH
 
 /// A macro for the number of keywords bc has. This has to be updated if any are
 /// added. This is for the redefined_kws field of the BcVm struct.
-#define BC_LEX_NKWS (28)
+#define BC_LEX_NKWS (31)
 
 #endif // BC_ENABLE_EXTRA_MATH
 

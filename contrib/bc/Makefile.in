@@ -280,16 +280,24 @@ help:
 	@printf '    valgrind_dc     runs the dc test suite, if dc has been built,\n'
 	@printf '                    through valgrind\n'
 
-run_all_tests: bc_all_tests timeconst_all_tests dc_all_tests history_all_tests
+run_all_tests: bc_all_tests timeconst_all_tests dc_all_tests
+
+run_all_tests_np: bc_all_tests_np timeconst_all_tests dc_all_tests_np
 
 bc_all_tests:
 	%%BC_ALL_TESTS%%
+
+bc_all_tests_np:
+	%%BC_ALL_TESTS_NP%%
 
 timeconst_all_tests:
 	%%TIMECONST_ALL_TESTS%%
 
 dc_all_tests:
 	%%DC_ALL_TESTS%%
+
+dc_all_tests_np:
+	%%DC_ALL_TESTS_NP%%
 
 history_all_tests:
 	%%HISTORY_TESTS%%
@@ -311,7 +319,9 @@ test_bc_stdin:
 test_bc_read:
 	@sh tests/read.sh bc %%BC_TEST_EXEC%%
 
-test_bc_errors:
+test_bc_errors: test_bc_error_lines%%BC_ERROR_TESTS%%
+
+test_bc_error_lines:
 	@sh tests/errors.sh bc %%BC_TEST_EXEC%%
 
 test_bc_other:
@@ -333,7 +343,9 @@ test_dc_stdin:
 test_dc_read:
 	@sh tests/read.sh dc %%DC_TEST_EXEC%%
 
-test_dc_errors:
+test_dc_errors: test_dc_error_lines%%DC_ERROR_TESTS%%
+
+test_dc_error_lines:
 	@sh tests/errors.sh dc %%DC_TEST_EXEC%%
 
 test_dc_other:

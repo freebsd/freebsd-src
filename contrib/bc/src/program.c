@@ -287,6 +287,14 @@ static BcNum* bc_program_num(BcProgram *p, BcResult *r) {
 
 	BcNum *n;
 
+#ifdef _WIN32
+	// Windows made it an error to not initialize this, so shut it up.
+	// I don't want to do this on other platforms because this procedure
+	// is one of the most heavily-used, and eliminating the initialization
+	// is a performance win.
+	n = NULL;
+#endif // _WIN32
+
 	switch (r->t) {
 
 		case BC_RESULT_STR:
@@ -2389,6 +2397,28 @@ static void bc_program_pushGlobal(BcProgram *p, uchar inst) {
 	bc_program_pushBigdig(p, p->globals[inst - BC_INST_IBASE], t);
 }
 
+/**
+ * Pushes the value of a global setting onto the stack.
+ * @param p     The program.
+ * @param inst  Which global setting to push, as an instruction.
+ */
+static void bc_program_globalSetting(BcProgram *p, uchar inst) {
+
+	BcBigDig val;
+
+	// Make sure the instruction is valid.
+	assert(inst >= BC_INST_LINE_LENGTH && inst <= BC_INST_LEADING_ZERO);
+
+	if (inst == BC_INST_LINE_LENGTH) val = (BcBigDig) vm.line_len;
+#if BC_ENABLED
+	else if (inst == BC_INST_GLOBAL_STACKS) val = (BC_G != 0);
+#endif // BC_ENABLED
+	else val = (BC_Z != 0);
+
+	// Push the global.
+	bc_program_pushBigdig(p, val, BC_RESULT_TEMP);
+}
+
 #if BC_ENABLE_EXTRA_MATH
 
 /**
@@ -2819,6 +2849,16 @@ void bc_program_exec(BcProgram *p) {
 			{
 				BcBigDig dig = vm.maxes[inst - BC_INST_MAXIBASE];
 				bc_program_pushBigdig(p, dig, BC_RESULT_TEMP);
+				BC_PROG_JUMP(inst, code, ip);
+			}
+
+			BC_PROG_LBL(BC_INST_LINE_LENGTH):
+#if BC_ENABLED
+			BC_PROG_LBL(BC_INST_GLOBAL_STACKS):
+#endif // BC_ENABLED
+			BC_PROG_LBL(BC_INST_LEADING_ZERO):
+			{
+				bc_program_globalSetting(p, inst);
 				BC_PROG_JUMP(inst, code, ip);
 			}
 

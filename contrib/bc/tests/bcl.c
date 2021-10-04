@@ -234,6 +234,104 @@ int main(void) {
 	// Clean up.
 	bcl_num_free(n);
 
+	// Test leading zeroes.
+	if (bcl_leadingZeroes())
+		err(BCL_ERROR_FATAL_UNKNOWN_ERR);
+
+	n = bcl_parse("0.01");
+	err(bcl_err(n));
+
+	n2 = bcl_parse("-0.01");
+	err(bcl_err(n2));
+
+	n3 = bcl_parse("1.01");
+	err(bcl_err(n3));
+
+	n4 = bcl_parse("-1.01");
+	err(bcl_err(n4));
+
+	res = bcl_string(bcl_dup(n));
+	if (strcmp(res, ".01"))
+		err(BCL_ERROR_FATAL_UNKNOWN_ERR);
+
+	free(res);
+
+	res = bcl_string(bcl_dup(n2));
+	if (strcmp(res, "-.01"))
+		err(BCL_ERROR_FATAL_UNKNOWN_ERR);
+
+	free(res);
+
+	res = bcl_string(bcl_dup(n3));
+	if (strcmp(res, "1.01"))
+		err(BCL_ERROR_FATAL_UNKNOWN_ERR);
+
+	free(res);
+
+	res = bcl_string(bcl_dup(n4));
+	if (strcmp(res, "-1.01"))
+		err(BCL_ERROR_FATAL_UNKNOWN_ERR);
+
+	free(res);
+
+	bcl_setLeadingZeroes(true);
+
+	if (!bcl_leadingZeroes())
+		err(BCL_ERROR_FATAL_UNKNOWN_ERR);
+
+	res = bcl_string(bcl_dup(n));
+	if (strcmp(res, "0.01"))
+		err(BCL_ERROR_FATAL_UNKNOWN_ERR);
+
+	free(res);
+
+	res = bcl_string(bcl_dup(n2));
+	if (strcmp(res, "-0.01"))
+		err(BCL_ERROR_FATAL_UNKNOWN_ERR);
+
+	free(res);
+
+	res = bcl_string(bcl_dup(n3));
+	if (strcmp(res, "1.01"))
+		err(BCL_ERROR_FATAL_UNKNOWN_ERR);
+
+	free(res);
+
+	res = bcl_string(bcl_dup(n4));
+	if (strcmp(res, "-1.01"))
+		err(BCL_ERROR_FATAL_UNKNOWN_ERR);
+
+	free(res);
+
+	bcl_setLeadingZeroes(false);
+
+	if (bcl_leadingZeroes())
+		err(BCL_ERROR_FATAL_UNKNOWN_ERR);
+
+	res = bcl_string(n);
+	if (strcmp(res, ".01"))
+		err(BCL_ERROR_FATAL_UNKNOWN_ERR);
+
+	free(res);
+
+	res = bcl_string(n2);
+	if (strcmp(res, "-.01"))
+		err(BCL_ERROR_FATAL_UNKNOWN_ERR);
+
+	free(res);
+
+	res = bcl_string(n3);
+	if (strcmp(res, "1.01"))
+		err(BCL_ERROR_FATAL_UNKNOWN_ERR);
+
+	free(res);
+
+	res = bcl_string(n4);
+	if (strcmp(res, "-1.01"))
+		err(BCL_ERROR_FATAL_UNKNOWN_ERR);
+
+	free(res);
+
 	bcl_ctxt_freeNums(ctxt);
 
 	bcl_gc();

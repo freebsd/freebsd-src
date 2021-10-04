@@ -1648,7 +1648,44 @@ void bc_history_string_free(void *str) {
 
 void bc_history_init(BcHistory *h) {
 
+#ifdef _WIN32
+	HANDLE out, in;
+#endif // _WIN32
+
 	BC_SIG_ASSERT_LOCKED;
+
+	h->rawMode = false;
+	h->badTerm = bc_history_isBadTerm();
+
+#ifdef _WIN32
+
+	h->orig_in = 0;
+	h->orig_out = 0;
+
+	in = GetStdHandle(STD_INPUT_HANDLE);
+	out = GetStdHandle(STD_OUTPUT_HANDLE);
+
+	if (!h->badTerm) {
+		SetConsoleCP(CP_UTF8);
+		SetConsoleOutputCP(CP_UTF8);
+		if (!GetConsoleMode(in, &h->orig_in) ||
+			!GetConsoleMode(out, &h->orig_out))
+		{
+			h->badTerm = true;
+			return;
+		}
+		else {
+			DWORD reqOut = ENABLE_VIRTUAL_TERMINAL_PROCESSING |
+				DISABLE_NEWLINE_AUTO_RETURN;
+			DWORD reqIn = ENABLE_VIRTUAL_TERMINAL_INPUT;
+			if (!SetConsoleMode(in, h->orig_in | reqIn) ||
+				!SetConsoleMode(out, h->orig_out | reqOut))
+			{
+				h->badTerm = true;
+			}
+		}
+	}
+#endif // _WIN32
 
 	bc_vec_init(&h->buf, sizeof(char), BC_DTOR_NONE);
 	bc_vec_init(&h->history, sizeof(char*), BC_DTOR_HISTORY_STRING);
@@ -1663,19 +1700,6 @@ void bc_history_init(BcHistory *h) {
 	sigemptyset(&h->sigmask);
 	sigaddset(&h->sigmask, SIGINT);
 #endif // _WIN32
-
-	h->rawMode = false;
-	h->badTerm = bc_history_isBadTerm();
-
-#ifdef _WIN32
-	if (!h->badTerm) {
-		SetConsoleCP(CP_UTF8);
-		SetConsoleOutputCP(CP_UTF8);
-		GetConsoleMode(GetStdHandle(STD_INPUT_HANDLE), &h->orig_console_mode);
-		SetConsoleMode(GetStdHandle(STD_INPUT_HANDLE),
-		               ENABLE_VIRTUAL_TERMINAL_INPUT);
-	}
-#endif // _WIN32
 }
 
 void bc_history_free(BcHistory *h) {
@@ -1683,7 +1707,8 @@ void bc_history_free(BcHistory *h) {
 #ifndef _WIN32
 	bc_history_disableRaw(h);
 #else // _WIN32
-	SetConsoleMode(GetStdHandle(STD_INPUT_HANDLE), h->orig_console_mode);
+	SetConsoleMode(GetStdHandle(STD_INPUT_HANDLE), h->orig_in);
+	SetConsoleMode(GetStdHandle(STD_OUTPUT_HANDLE), h->orig_out);
 #endif // _WIN32
 #ifndef NDEBUG
 	bc_vec_free(&h->buf);

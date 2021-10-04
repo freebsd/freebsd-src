@@ -61,6 +61,10 @@ These items allow clients to set up bcl(3).
 
 **void bcl_setAbortOnFatalError(bool** _abrt_**);**
 
+**bool bcl_leadingZeroes(**_void_**);**
+
+**void bcl_setLeadingZeroes(bool** _leadingZeroes_**);**
+
 **void bcl_gc(**_void_**);**
 
 ## Contexts
@@ -216,8 +220,8 @@ bcl(3) is a library that implements arbitrary-precision decimal math, as
 bcl(3) is async-signal-safe if **bcl_handleSignal(**_void_**)** is used
 properly. (See the **SIGNAL HANDLING** section.)
 
-bcl(3) assumes that it is allowed to use the **bcl_** and **bc_** prefixes for
-symbol names without collision.
+bcl(3) assumes that it is allowed to use the **bcl**, **Bcl**, **bc**, and
+**Bc** prefixes for symbol names without collision.
 
 All of the items in its interface are described below. See the documentation for
 each function for what each function can return.
@@ -280,6 +284,8 @@ each function for what each function can return.
 
     If activated, clients do not need to check for fatal errors.
 
+    The default is **false**.
+
 **void bcl_setAbortOnFatalError(bool** _abrt_**)**
 
 :   Sets the state of calling **abort()** on fatal errors. If *abrt* is
@@ -288,6 +294,22 @@ each function for what each function can return.
     after the call.
 
     If activated, clients do not need to check for fatal errors.
+
+**bool bcl_leadingZeroes(**_void_**)**
+
+:   Queries and returns the state of whether leading zeroes are added to strings
+    returned by **bcl_string()** when numbers are greater than **-1**, less than
+    **1**, and not equal to **0**. If **true** is returned, then leading zeroes
+    will be added.
+
+    The default is **false**.
+
+**void bcl_setLeadingZeroes(bool** _leadingZeroes_**)**
+
+:   Sets the state of whether leading zeroes are added to strings returned by
+    **bcl_string()** when numbers are greater than **-1**, less than **1**, and
+    not equal to **0**. If *leadingZeroes* is **true**, leading zeroes will be
+    added to strings returned by **bcl_string()**.
 
 **void bcl_gc(**_void_**)**
 

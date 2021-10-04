@@ -274,6 +274,42 @@ define s2un(x,n){
 	return x
 }
 define s2u(x){return s2un(x,sbytes(x))}
+define void plz(x){
+	if(leading_zero())print x
+	else{
+		if(x>-1&&x<1&&x!=0){
+			if(x<0)print"-"
+			print 0,abs(x)
+		}
+		else print x
+	}
+}
+define void plznl(x){
+	plz(x)
+	print"\n"
+}
+define void pnlz(x){
+	auto s,i
+	if(leading_zero()){
+		if(x>-1&&x<1&&x!=0){
+			s=scale(x)
+			if(x<0)print"-"
+			print"."
+			x=abs(x)
+			for(i=0;i<s;++i){
+				x<<=1
+				print x$
+				x-=x$
+			}
+			return
+		}
+	}
+	print x
+}
+define void pnlznl(x){
+	pnlz(x)
+	print"\n"
+}
 define void output_byte(x,i){
 	auto j,p,y,b
 	j=ibase

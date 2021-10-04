@@ -2366,7 +2366,7 @@ int_err:
  */
 static inline void bc_num_printNewline(void) {
 #if !BC_ENABLE_LIBRARY
-	if (vm.nchars >= vm.line_len - 1) {
+	if (vm.nchars >= vm.line_len - 1 && vm.line_len) {
 		bc_vm_putchar('\\', bc_flush_none);
 		bc_vm_putchar('\n', bc_flush_err);
 	}
@@ -2474,9 +2474,6 @@ static void bc_num_printDecimal(const BcNum *restrict n, bool newline) {
 	size_t i, j, rdx = BC_NUM_RDX_VAL(n);
 	bool zero = true;
 	size_t buffer[BC_BASE_DIGS];
-
-	// Print the sign.
-	if (BC_NUM_NEG(n)) bc_num_putchar('-', true);
 
 	// Print loop.
 	for (i = n->len - 1; i < n->len; --i) {
@@ -2975,9 +2972,6 @@ static void bc_num_printBase(BcNum *restrict n, BcBigDig base, bool newline) {
 	BcNumDigitOp print;
 	bool neg = BC_NUM_NEG(n);
 
-	// Just take care of the sign right here.
-	if (neg) bc_num_putchar('-', true);
-
 	// Clear the sign because it makes the actual printing easier when we have
 	// to do math.
 	BC_NUM_NEG_CLR(n);
@@ -3144,6 +3138,16 @@ void bc_num_print(BcNum *restrict n, BcBigDig base, bool newline) {
 
 	// We may need a newline, just to start.
 	bc_num_printNewline();
+
+	if (BC_NUM_NONZERO(n)) {
+
+		// Print the sign.
+		if (BC_NUM_NEG(n)) bc_num_putchar('-', true);
+
+		// Print the leading zero if necessary.
+		if (BC_Z && BC_NUM_RDX_VAL(n) == n->len)
+			bc_num_printHex(0, 1, false, !newline);
+	}
 
 	// Short-circuit 0.
 	if (BC_NUM_ZERO(n)) bc_num_printHex(0, 1, false, !newline);

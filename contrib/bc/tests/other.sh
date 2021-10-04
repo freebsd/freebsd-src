@@ -64,6 +64,7 @@ fi
 
 # For tests later.
 num=100000000000000000000000000000000000000000000000000000000000000000000000000000
+num2="$num"
 numres="$num"
 num70="10000000000000000000000000000000000000000000000000000000000000000000\\
 0000000000"
@@ -74,12 +75,14 @@ if [ "$d" = "bc" ]; then
 	opt="x"
 	lopt="extended-register"
 	line_var="BC_LINE_LENGTH"
+	lltest="line_length()"
 else
 	halt="q"
 	opt="l"
 	lopt="mathlib"
 	line_var="DC_LINE_LENGTH"
 	num="$num pR"
+	lltest="glpR"
 fi
 
 # I use these, so unset them to make the tests work.
@@ -234,16 +237,31 @@ printf '%s\n' "$numres" > "$out1"
 export "$line_var"=80
 printf '%s\n' "$num" | "$exe" "$@" > "$out2"
 
-checktest "$d" "$?" "environment var" "$out1" "$out2"
+checktest "$d" "$?" "line length" "$out1" "$out2"
 
 printf '%s\n' "$num70" > "$out1"
 
 export "$line_var"=2147483647
 printf '%s\n' "$num" | "$exe" "$@" > "$out2"
 
-checktest "$d" "$?" "environment var" "$out1" "$out2"
+checktest "$d" "$?" "line length 2" "$out1" "$out2"
+
+printf '%s\n' "$num2" > "$out1"
+
+export "$line_var"=62
+printf '%s\n' "$num" | "$exe" "$@" -L > "$out2"
+
+checktest "$d" "$?" "line length 3" "$out1" "$out2"
+
+printf '0\n' > "$out1"
+printf '%s\n' "$lltest" | "$exe" "$@" -L > "$out2"
+
+checktest "$d" "$?" "line length 3" "$out1" "$out2"
 
 printf 'pass\n'
+
+printf '%s\n' "$numres" > "$out1"
+export "$line_var"=2147483647
 
 printf 'Running %s arg tests...' "$d"
 
@@ -275,6 +293,26 @@ printf '%s\n' "$halt" | "$exe" "$@" -v > /dev/null
 checktest_retcode "$d" "$?" "arg"
 printf '%s\n' "$halt" | "$exe" "$@" -V > /dev/null
 checktest_retcode "$d" "$?" "arg"
+
+out=$(printf '0.1\n-0.1\n1.1\n-1.1\n0.1\n-0.1\n')
+printf '%s\n' "$out" > "$out1"
+
+if [ "$d" = "bc" ]; then
+	data=$(printf '0.1\n-0.1\n1.1\n-1.1\n.1\n-.1\n')
+else
+	data=$(printf '0.1pR\n_0.1pR\n1.1pR\n_1.1pR\n.1pR\n_.1pR\n')
+fi
+
+printf '%s\n' "$data" | "$exe" "$@" -z > "$out2"
+checktest "$d" "$?" "leading zero" "$out1" "$out2"
+
+if [ "$d" = "bc" ] && [ "$extra_math" -ne 0 ]; then
+
+	printf '%s\n' "$halt" | "$exe" "$@" -lz "$testdir/bc/leadingzero.txt" > "$out2"
+
+	checktest "$d" "$?" "leading zero script" "$testdir/bc/leadingzero_results.txt" "$out2"
+
+fi
 
 "$exe" "$@" -f "saotehasotnehasthistohntnsahxstnhalcrgxgrlpyasxtsaosysxsatnhoy.txt" > /dev/null 2> "$out2"
 err="$?"

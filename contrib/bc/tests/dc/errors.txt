@@ -24,6 +24,9 @@ zp198202389.289374pzp[He World!]xSzpzXfrfxzpfR
 3 0~
 0 _251^pR
 .
+ga
+gb
+gd
 @
 0 0< $
 0 0> s e %

@@ -30,6 +30,7 @@
 import os, sys
 import time
 import signal
+import traceback
 
 try:
 	import pexpect
@@ -72,23 +73,54 @@ utf8_stress_strs = [
 ]
 
 
+def expect(child, data):
+	child.expect(data)
+
+
+# Eats all of the child's data.
+# @param child  The child whose data should be eaten.
+def eat(child):
+	while child.buffer is not None and len(child.buffer) > 0:
+		expect(child, ".+")
+
+
+# Send data to a child. This makes sure the buffers are empty first.
+# @param child  The child to send data to.
+# @param data   The data to send.
+def send(child, data):
+	eat(child)
+	child.send(data)
+
+
+def wait(child):
+	if child.isalive():
+		child.sendeof()
+		time.sleep(1)
+		if child.isalive():
+			child.kill(signal.SIGTERM)
+			time.sleep(1)
+			if child.isalive():
+				child.kill(signal.SIGKILL)
+	child.wait()
+
+
 # Check that the child output the expected line. If history is false, then
 # the output should change.
 def check_line(child, expected, prompt=">>> ", history=True):
-	child.send("\n")
+	send(child, "\n")
 	prefix = "\r\n" if history else ""
-	child.expect(prefix + expected + "\r\n" + prompt)
+	expect(child, prefix + expected + "\r\n" + prompt)
 
 
 # Write a string to output, checking all of the characters are output,
 # one-by-one.
 def write_str(child, s):
 	for c in s:
-		child.send(c)
+		send(child, c)
 		if c in escapes:
-			child.expect("\\{}".format(c))
+			expect(child, "\\{}".format(c))
 		else:
-			child.expect(c)
+			expect(child, c)
 
 
 # Check the bc banner.
@@ -98,11 +130,11 @@ def bc_banner(child):
 	bc_banner2 = "Copyright \(c\) 2018-[2-9][0-9][0-9][0-9] Gavin D. Howard and contributors\r\n"
 	bc_banner3 = "Report bugs at: https://git.yzena.com/gavin/bc\r\n\r\n"
 	bc_banner4 = "This is free software with ABSOLUTELY NO WARRANTY.\r\n\r\n"
-	child.expect(bc_banner1)
-	child.expect(bc_banner2)
-	child.expect(bc_banner3)
-	child.expect(bc_banner4)
-	child.expect(prompt)
+	expect(child, bc_banner1)
+	expect(child, bc_banner2)
+	expect(child, bc_banner3)
+	expect(child, bc_banner4)
+	expect(child, prompt)
 
 
 # Common UTF-8 testing function. The index is the index into utf8_stress_strs
@@ -121,20 +153,20 @@ def test_utf8(exe, args, env, idx, bc=True):
 	try:
 
 		# Write the stress string.
-		child.send(utf8_stress_strs[idx])
-		child.send("\n")
-		child.expect("Parse error: bad character")
+		send(child, utf8_stress_strs[idx])
+		send(child, "\n")
 
 		if bc:
-			child.send("quit")
+			send(child, "quit")
 		else:
-			child.send("q")
+			send(child, "q")
 
-		child.send("\n")
+		send(child, "\n")
 
-		child.wait()
+		wait(child)
 
 	except pexpect.TIMEOUT:
+		traceback.print_tb(sys.exc_info()[2])
 		print("timed out")
 		print(str(child))
 		sys.exit(2)
@@ -162,21 +194,21 @@ def test_utf8_0(exe, args, env, bc=True):
 
 		# Just random UTF-8 I generated somewhow, plus ensuring that insert works.
 		write_str(child, "ﴪáá̵̗🈐ã")
-		child.send("\x1b[D\x1b[D\x1b[D\x1b\x1b[Aℐ")
-		child.send("\n")
-
-		child.expect("Parse error: bad character")
+		send(child, "\x1b[D\x1b[D\x1b[D\x1b\x1b[Aℐ")
+		send(child, "\n")
 
 		if bc:
-			child.send("quit")
+			send(child, "quit")
 		else:
-			child.send("q")
+			send(child, "q")
 
-		child.send("\n")
+		send(child, "\n")
+		eat(child)
 
-		child.wait()
+		wait(child)
 
 	except pexpect.TIMEOUT:
+		traceback.print_tb(sys.exc_info()[2])
 		print("timed out")
 		print(str(child))
 		sys.exit(2)
@@ -212,15 +244,19 @@ def test_utf8_4(exe, args, env, bc=True):
 # @param env   The environment.
 def test_sigint_sigquit(exe, args, env):
 
+	# Because both bc and dc use this, make sure the banner doesn't pop.
+	env["BC_BANNER"] = "0"
+
 	child = pexpect.spawn(exe, args=args, env=env)
 
 	try:
-		child.send("\t")
-		child.expect("        ")
-		child.send("\x03")
-		child.send("\x1c")
-		child.wait()
+		send(child, "\t")
+		expect(child, "        ")
+		send(child, "\x03")
+		send(child, "\x1c")
+		wait(child)
 	except pexpect.TIMEOUT:
+		traceback.print_tb(sys.exc_info()[2])
 		print("timed out")
 		print(str(child))
 		sys.exit(2)
@@ -240,14 +276,18 @@ def test_sigint_sigquit(exe, args, env):
 # @param env   The environment.
 def test_eof(exe, args, env):
 
+	# Because both bc and dc use this, make sure the banner doesn't pop.
+	env["BC_BANNER"] = "0"
+
 	child = pexpect.spawn(exe, args=args, env=env)
 
 	try:
-		child.send("\t")
-		child.expect("        ")
-		child.send("\x04")
-		child.wait()
+		send(child, "\t")
+		expect(child, "        ")
+		send(child, "\x04")
+		wait(child)
 	except pexpect.TIMEOUT:
+		traceback.print_tb(sys.exc_info()[2])
 		print("timed out")
 		print(str(child))
 		sys.exit(2)
@@ -267,17 +307,21 @@ def test_eof(exe, args, env):
 # @param env   The environment.
 def test_sigint(exe, args, env):
 
+	# Because both bc and dc use this, make sure the banner doesn't pop.
+	env["BC_BANNER"] = "0"
+
 	env["BC_SIGINT_RESET"] = "0"
 	env["DC_SIGINT_RESET"] = "0"
 
 	child = pexpect.spawn(exe, args=args, env=env)
 
 	try:
-		child.send("\t")
-		child.expect("        ")
-		child.send("\x03")
-		child.wait()
+		send(child, "\t")
+		expect(child, "        ")
+		send(child, "\x03")
+		wait(child)
 	except pexpect.TIMEOUT:
+		traceback.print_tb(sys.exc_info()[2])
 		print("timed out")
 		print(str(child))
 		sys.exit(2)
@@ -297,12 +341,19 @@ def test_sigint(exe, args, env):
 # @param env   The environment.
 def test_sigtstp(exe, args, env):
 
+	# This test does not work on FreeBSD, so skip.
+	if sys.platform.startswith("freebsd"):
+		sys.exit(0)
+
+	# Because both bc and dc use this, make sure the banner doesn't pop.
+	env["BC_BANNER"] = "0"
+
 	child = pexpect.spawn(exe, args=args, env=env)
 
 	try:
-		child.send("\t")
-		child.expect("        ")
-		child.send("\x13")
+		send(child, "\t")
+		expect(child, "        ")
+		send(child, "\x13")
 		time.sleep(1)
 		if not child.isalive():
 			print("child exited early")
@@ -310,10 +361,11 @@ def test_sigtstp(exe, args, env):
 			print(str(child.buffer))
 			sys.exit(1)
 		child.kill(signal.SIGCONT)
-		write_str(child, "quit")
-		child.send("\n")
-		child.wait()
+		send(child, "quit")
+		send(child, "\n")
+		wait(child)
 	except pexpect.TIMEOUT:
+		traceback.print_tb(sys.exc_info()[2])
 		print("timed out")
 		print(str(child))
 		sys.exit(2)
@@ -333,19 +385,22 @@ def test_sigtstp(exe, args, env):
 # @param env   The environment.
 def test_sigstop(exe, args, env):
 
+	# Because both bc and dc use this, make sure the banner doesn't pop.
+	env["BC_BANNER"] = "0"
+
 	child = pexpect.spawn(exe, args=args, env=env)
 
 	try:
-		child.send("\t")
-		child.expect("        ")
-		child.send("\x14")
+		send(child, "\t")
+		expect(child, "        ")
+		send(child, "\x14")
 		time.sleep(1)
 		if not child.isalive():
 			print("child exited early")
 			print(str(child))
 			print(str(child.buffer))
 			sys.exit(1)
-		child.send("\x13")
+		send(child, "\x13")
 		time.sleep(1)
 		if not child.isalive():
 			print("child exited early")
@@ -353,10 +408,11 @@ def test_sigstop(exe, args, env):
 			print(str(child.buffer))
 			sys.exit(1)
 		child.kill(signal.SIGCONT)
-		child.send("quit")
-		child.send("\n")
-		child.wait()
+		send(child, "quit")
+		send(child, "\n")
+		wait(child)
 	except pexpect.TIMEOUT:
+		traceback.print_tb(sys.exc_info()[2])
 		print("timed out")
 		print(str(child))
 		sys.exit(2)
@@ -404,10 +460,11 @@ def test_bc1(exe, args, env):
 		check_line(child, "1")
 		write_str(child, "1")
 		check_line(child, "1")
-		write_str(child, "quit")
-		child.send("\n")
-		child.wait()
+		send(child, "quit")
+		send(child, "\n")
+		wait(child)
 	except pexpect.TIMEOUT:
+		traceback.print_tb(sys.exc_info()[2])
 		print("timed out")
 		print(str(child))
 		sys.exit(2)
@@ -438,8 +495,9 @@ def test_bc2(exe, args, env):
 		time.sleep(1)
 		child.sendintr()
 		child.sendline("quit")
-		child.wait()
+		wait(child)
 	except pexpect.TIMEOUT:
+		traceback.print_tb(sys.exc_info()[2])
 		print("timed out")
 		print(str(child))
 		sys.exit(2)
@@ -463,22 +521,23 @@ def test_bc3(exe, args, env):
 
 	try:
 		bc_banner(child)
-		child.send("\x1b[D\x1b[D\x1b[C\x1b[C")
-		child.send("\n")
-		child.expect(prompt)
-		child.send("12\x1b[D3\x1b[C4\x1bOD5\x1bOC6")
-		child.send("\n")
+		send(child, "\x1b[D\x1b[D\x1b[C\x1b[C")
+		send(child, "\n")
+		expect(child, prompt)
+		send(child, "12\x1b[D3\x1b[C4\x1bOD5\x1bOC6")
+		send(child, "\n")
 		check_line(child, "132546")
-		child.send("12\x023\x064")
-		child.send("\n")
+		send(child, "12\x023\x064")
+		send(child, "\n")
 		check_line(child, "1324")
-		child.send("12\x1b[H3\x1bOH\x01\x1b[H45\x1bOF6\x05\x1b[F7\x1bOH8")
-		child.send("\n")
+		send(child, "12\x1b[H3\x1bOH\x01\x1b[H45\x1bOF6\x05\x1b[F7\x1bOH8")
+		send(child, "\n")
 		check_line(child, "84531267")
-		write_str(child, "quit")
-		child.send("\n")
-		child.wait()
+		send(child, "quit")
+		send(child, "\n")
+		wait(child)
 	except pexpect.TIMEOUT:
+		traceback.print_tb(sys.exc_info()[2])
 		print("timed out")
 		print(str(child))
 		sys.exit(2)
@@ -502,25 +561,26 @@ def test_bc4(exe, args, env):
 
 	try:
 		bc_banner(child)
-		child.send("\x1b[A\x1bOA\x1b[B\x1bOB")
-		child.send("\n")
-		child.expect(prompt)
+		send(child, "\x1b[A\x1bOA\x1b[B\x1bOB")
+		send(child, "\n")
+		expect(child, prompt)
 		write_str(child, "15")
 		check_line(child, "15")
 		write_str(child, "2^16")
 		check_line(child, "65536")
-		child.send("\x1b[A\x1bOA")
-		child.send("\n")
+		send(child, "\x1b[A\x1bOA")
+		send(child, "\n")
 		check_line(child, "15")
-		child.send("\x1b[A\x1bOA\x1b[A\x1b[B")
+		send(child, "\x1b[A\x1bOA\x1b[A\x1b[B")
 		check_line(child, "65536")
-		child.send("\x1b[A\x1bOA\x0e\x1b[A\x1b[A\x1b[A\x1b[B\x10\x1b[B\x1b[B\x1bOB\x1b[B\x1bOA")
-		child.send("\n")
+		send(child, "\x1b[A\x1bOA\x0e\x1b[A\x1b[A\x1b[A\x1b[B\x10\x1b[B\x1b[B\x1bOB\x1b[B\x1bOA")
+		send(child, "\n")
 		check_line(child, "65536")
-		write_str(child, "quit")
-		child.send("\n")
-		child.wait()
+		send(child, "quit")
+		send(child, "\n")
+		wait(child)
 	except pexpect.TIMEOUT:
+		traceback.print_tb(sys.exc_info()[2])
 		print("timed out")
 		print(str(child))
 		sys.exit(2)
@@ -544,11 +604,12 @@ def test_bc5(exe, args, env):
 
 	try:
 		bc_banner(child)
-		child.send("\x0c")
-		write_str(child, "quit")
-		child.send("\n")
-		child.wait()
+		send(child, "\x0c")
+		send(child, "quit")
+		send(child, "\n")
+		wait(child)
 	except pexpect.TIMEOUT:
+		traceback.print_tb(sys.exc_info()[2])
 		print("timed out")
 		print(str(child))
 		sys.exit(2)
@@ -572,15 +633,16 @@ def test_bc6(exe, args, env):
 
 	try:
 		bc_banner(child)
-		child.send("print \"Enter number: \"")
-		child.send("\n")
-		child.expect("Enter number: ")
-		child.send("4\x1b[A\x1b[A")
-		child.send("\n")
-		write_str(child, "quit")
-		child.send("\n")
-		child.wait()
+		send(child, "print \"Enter number: \"")
+		send(child, "\n")
+		expect(child, "Enter number: ")
+		send(child, "4\x1b[A\x1b[A")
+		send(child, "\n")
+		send(child, "quit")
+		send(child, "\n")
+		wait(child)
 	except pexpect.TIMEOUT:
+		traceback.print_tb(sys.exc_info()[2])
 		print("timed out")
 		print(str(child))
 		sys.exit(2)
@@ -604,34 +666,35 @@ def test_bc7(exe, args, env):
 
 	try:
 		bc_banner(child)
-		child.send("\x1bb\x1bb\x1bf\x1bf")
-		child.send("\n")
-		child.expect(prompt)
-		child.send("\x1b[0~\x1b[3a")
-		child.send("\n")
-		child.expect(prompt)
-		child.send("\x1b[0;4\x1b[0A")
-		child.send("\n")
-		child.expect(prompt)
-		child.send("        ")
-		child.send("\x1bb\x1bb\x1bb\x1bb\x1bb\x1bb\x1bb\x1bb\x1bb\x1bb\x1bb\x1bb")
-		child.send("\x1bf\x1bf\x1bf\x1bf\x1bf\x1bf\x1bf\x1bf\x1bf\x1bf\x1bf\x1bf")
-		child.send("\n")
-		child.expect(prompt)
+		send(child, "\x1bb\x1bb\x1bf\x1bf")
+		send(child, "\n")
+		expect(child, prompt)
+		send(child, "\x1b[0~\x1b[3a")
+		send(child, "\n")
+		expect(child, prompt)
+		send(child, "\x1b[0;4\x1b[0A")
+		send(child, "\n")
+		expect(child, prompt)
+		send(child, "        ")
+		send(child, "\x1bb\x1bb\x1bb\x1bb\x1bb\x1bb\x1bb\x1bb\x1bb\x1bb\x1bb\x1bb")
+		send(child, "\x1bf\x1bf\x1bf\x1bf\x1bf\x1bf\x1bf\x1bf\x1bf\x1bf\x1bf\x1bf")
+		send(child, "\n")
+		expect(child, prompt)
 		write_str(child, "12 + 34 + 56 + 78 + 90")
 		check_line(child, "270")
-		child.send("\x1b[A")
-		child.send("\x1bb\x1bb\x1bb\x1bb\x1bb\x1bb\x1bb\x1bb\x1bb\x1bb\x1bb")
-		child.send("\x1bf\x1bf\x1bf\x1bf\x1bf\x1bf\x1bf\x1bf\x1bf\x1bf\x1bf")
+		send(child, "\x1b[A")
+		send(child, "\x1bb\x1bb\x1bb\x1bb\x1bb\x1bb\x1bb\x1bb\x1bb\x1bb\x1bb")
+		send(child, "\x1bf\x1bf\x1bf\x1bf\x1bf\x1bf\x1bf\x1bf\x1bf\x1bf\x1bf")
 		check_line(child, "270")
-		child.send("\x1b[A")
-		child.send("\x1bh\x1bh\x1bf + 14 ")
-		child.send("\n")
+		send(child, "\x1b[A")
+		send(child, "\x1bh\x1bh\x1bf + 14 ")
+		send(child, "\n")
 		check_line(child, "284")
-		write_str(child, "quit")
-		child.send("\n")
-		child.wait()
+		send(child, "quit")
+		send(child, "\n")
+		wait(child)
 	except pexpect.TIMEOUT:
+		traceback.print_tb(sys.exc_info()[2])
 		print("timed out")
 		print(str(child))
 		sys.exit(2)
@@ -655,13 +718,14 @@ def test_bc8(exe, args, env):
 
 	try:
 		bc_banner(child)
-		child.send("12\x1b[D3\x1b[C4\x08\x7f")
-		child.send("\n")
+		send(child, "12\x1b[D3\x1b[C4\x08\x7f")
+		send(child, "\n")
 		check_line(child, "13")
-		write_str(child, "quit")
-		child.send("\n")
-		child.wait()
+		send(child, "quit")
+		send(child, "\n")
+		wait(child)
 	except pexpect.TIMEOUT:
+		traceback.print_tb(sys.exc_info()[2])
 		print("timed out")
 		print(str(child))
 		sys.exit(2)
@@ -685,26 +749,27 @@ def test_bc9(exe, args, env):
 
 	try:
 		bc_banner(child)
-		child.send("\x1b[0;5D\x1b[0;5D\x1b[0;5D\x1b[0;5C\x1b[0;5D\x1bd\x1b[3~\x1b[d\x1b[d\x1b[d\x1b[d\x7f\x7f\x7f")
-		child.send("\n")
-		child.expect(prompt)
+		send(child, "\x1b[0;5D\x1b[0;5D\x1b[0;5D\x1b[0;5C\x1b[0;5D\x1bd\x1b[3~\x1b[d\x1b[d\x1b[d\x1b[d\x7f\x7f\x7f")
+		send(child, "\n")
+		expect(child, prompt)
 		write_str(child, "12 + 34 + 56 + 78 + 90")
 		check_line(child, "270")
-		child.send("\x1b[A")
-		child.send("\x1b[0;5D\x1b[0;5D\x1b[0;5D\x1b[0;5C\x1b[0;5D\x1bd\x1b[3~\x1b[d\x1b[d\x1b[d\x1b[d\x7f\x7f\x7f")
-		child.send("\n")
+		send(child, "\x1b[A")
+		send(child, "\x1b[0;5D\x1b[0;5D\x1b[0;5D\x1b[0;5C\x1b[0;5D\x1bd\x1b[3~\x1b[d\x1b[d\x1b[d\x1b[d\x7f\x7f\x7f")
+		send(child, "\n")
 		check_line(child, "102")
-		child.send("\x1b[A")
-		child.send("\x17\x17")
-		child.send("\n")
+		send(child, "\x1b[A")
+		send(child, "\x17\x17")
+		send(child, "\n")
 		check_line(child, "46")
-		child.send("\x17\x17")
-		child.send("\n")
-		child.expect(prompt)
-		write_str(child, "quit")
-		child.send("\n")
-		child.wait()
+		send(child, "\x17\x17")
+		send(child, "\n")
+		expect(child, prompt)
+		send(child, "quit")
+		send(child, "\n")
+		wait(child)
 	except pexpect.TIMEOUT:
+		traceback.print_tb(sys.exc_info()[2])
 		print("timed out")
 		print(str(child))
 		sys.exit(2)
@@ -728,26 +793,27 @@ def test_bc10(exe, args, env):
 
 	try:
 		bc_banner(child)
-		child.send("\x1b[3~\x1b[3~")
-		child.send("\n")
-		child.expect(prompt)
-		child.send("    \x1b[3~\x1b[3~")
-		child.send("\n")
-		child.expect(prompt)
+		send(child, "\x1b[3~\x1b[3~")
+		send(child, "\n")
+		expect(child, prompt)
+		send(child, "    \x1b[3~\x1b[3~")
+		send(child, "\n")
+		expect(child, prompt)
 		write_str(child, "12 + 34 + 56 + 78 + 90")
 		check_line(child, "270")
-		child.send("\x1b[A\x1b[A\x1b[A\x1b[B\x1b[B\x1b[B\x1b[A")
-		child.send("\n")
+		send(child, "\x1b[A\x1b[A\x1b[A\x1b[B\x1b[B\x1b[B\x1b[A")
+		send(child, "\n")
 		check_line(child, "270")
-		child.send("\x1b[A\x1b[0;5D\x1b[0;5D\x0b")
-		child.send("\n")
+		send(child, "\x1b[A\x1b[0;5D\x1b[0;5D\x0b")
+		send(child, "\n")
 		check_line(child, "180")
-		child.send("\x1b[A\x1521")
+		send(child, "\x1b[A\x1521")
 		check_line(child, "21")
-		write_str(child, "quit")
-		child.send("\n")
-		child.wait()
+		send(child, "quit")
+		send(child, "\n")
+		wait(child)
 	except pexpect.TIMEOUT:
+		traceback.print_tb(sys.exc_info()[2])
 		print("timed out")
 		print(str(child))
 		sys.exit(2)
@@ -771,17 +837,18 @@ def test_bc11(exe, args, env):
 
 	try:
 		bc_banner(child)
-		child.send("\x1b[A\x02\x14")
-		child.send("\n")
-		child.expect(prompt)
+		send(child, "\x1b[A\x02\x14")
+		send(child, "\n")
+		expect(child, prompt)
 		write_str(child, "12 + 34 + 56 + 78")
 		check_line(child, "180")
-		child.send("\x1b[A\x02\x14")
+		send(child, "\x1b[A\x02\x14")
 		check_line(child, "189")
-		write_str(child, "quit")
-		child.send("\n")
-		child.wait()
+		send(child, "quit")
+		send(child, "\n")
+		wait(child)
 	except pexpect.TIMEOUT:
+		traceback.print_tb(sys.exc_info()[2])
 		print("timed out")
 		print(str(child))
 		sys.exit(2)
@@ -805,18 +872,19 @@ def test_bc12(exe, args, env):
 
 	try:
 		bc_banner(child)
-		child.send("12 +")
-		child.send("\n")
+		send(child, "12 +")
+		send(child, "\n")
 		time.sleep(1)
 		if not child.isalive():
 			print("child exited early")
 			print(str(child))
 			print(str(child.buffer))
 			sys.exit(1)
-		child.send("quit")
-		child.send("\n")
-		child.wait()
+		send(child, "quit")
+		send(child, "\n")
+		wait(child)
 	except pexpect.TIMEOUT:
+		traceback.print_tb(sys.exc_info()[2])
 		print("timed out")
 		print(str(child))
 		sys.exit(2)
@@ -864,9 +932,10 @@ def test_dc1(exe, args, env):
 		write_str(child, "1pR")
 		check_line(child, "1")
 		write_str(child, "q")
-		child.send("\n")
-		child.wait()
+		send(child, "\n")
+		wait(child)
 	except pexpect.TIMEOUT:
+		traceback.print_tb(sys.exc_info()[2])
 		print("timed out")
 		print(str(child))
 		sys.exit(2)
@@ -896,8 +965,9 @@ def test_dc2(exe, args, env):
 		time.sleep(1)
 		child.sendintr()
 		child.sendline("q")
-		child.wait()
+		wait(child)
 	except pexpect.TIMEOUT:
+		traceback.print_tb(sys.exc_info()[2])
 		print("timed out")
 		print(str(child))
 		sys.exit(2)
@@ -925,9 +995,10 @@ def test_dc3(exe, args, env):
 		write_str(child, "1pR")
 		check_line(child, "1")
 		write_str(child, "q")
-		child.send("\n")
-		child.wait()
+		send(child, "\n")
+		wait(child)
 	except pexpect.TIMEOUT:
+		traceback.print_tb(sys.exc_info()[2])
 		print("timed out")
 		print(str(child))
 		sys.exit(2)
@@ -988,7 +1059,7 @@ def usage():
 	print("       The valid values for dir are: 'bc' and 'dc'.")
 	print("       The max test_idx for bc is {}.".format(len(bc_tests) - 1))
 	print("       The max test_idx for dc is {}.".format(len(dc_tests) - 1))
-	print("       If -a is given, the number of test for dir is printed.")
+	print("       If -a is given, the number of tests for dir is printed.")
 	print("       No tests are run.")
 	sys.exit(1)
 
@@ -1038,7 +1109,7 @@ exebase = os.path.basename(exe)
 # Use the correct options.
 if exebase == "bc":
 	halt = "halt\n"
-	options = "-lq"
+	options = "-l"
 	test_array = bc_tests
 else:
 	halt = "q\n"
@@ -1076,7 +1147,7 @@ child.close()
 
 exit = child.exitstatus
 
-if exit != 0:
+if exit is not None and exit != 0:
 	print("child failed; expected exit code 0, got {}".format(exit))
 	print(str(child))
 	sys.exit(1)

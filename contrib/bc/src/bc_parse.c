@@ -1589,6 +1589,9 @@ static void bc_parse_stmt(BcParse *p) {
 #if BC_ENABLE_EXTRA_MATH
 		case BC_LEX_KW_MAXRAND:
 #endif // BC_ENABLE_EXTRA_MATH
+		case BC_LEX_KW_LINE_LENGTH:
+		case BC_LEX_KW_GLOBAL_STACKS:
+		case BC_LEX_KW_LEADING_ZERO:
 		{
 			bc_parse_expr_status(p, BC_PARSE_PRINT, bc_parse_next_expr);
 			break;
@@ -1726,8 +1729,14 @@ void bc_parse_parse(BcParse *p) {
 
 	// Functions need special parsing.
 	else if (p->l.t == BC_LEX_KW_DEFINE) {
-		if (BC_ERR(BC_PARSE_NO_EXEC(p)))
-			bc_parse_err(p, BC_ERR_PARSE_TOKEN);
+		if (BC_ERR(BC_PARSE_NO_EXEC(p))) {
+			if (p->flags.len == 1 &&
+			    BC_PARSE_TOP_FLAG(p) == BC_PARSE_FLAG_IF_END)
+			{
+				bc_parse_noElse(p);
+			}
+			else bc_parse_err(p, BC_ERR_PARSE_TOKEN);
+		}
 		bc_parse_func(p);
 	}
 
@@ -2078,6 +2087,9 @@ static BcParseStatus bc_parse_expr_err(BcParse *p, uint8_t flags,
 #if BC_ENABLE_EXTRA_MATH
 			case BC_LEX_KW_MAXRAND:
 #endif // BC_ENABLE_EXTRA_MATH
+			case BC_LEX_KW_LINE_LENGTH:
+			case BC_LEX_KW_GLOBAL_STACKS:
+			case BC_LEX_KW_LEADING_ZERO:
 			{
 				// All of these are leaves and cannot come right after a leaf.
 				if (BC_ERR(BC_PARSE_LEAF(prev, bin_last, rprn)))

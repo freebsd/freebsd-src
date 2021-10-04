@@ -495,7 +495,7 @@ static size_t bc_vm_envLen(const char *var) {
 
 		// Parse it and clamp it if needed.
 		len = (size_t) atoi(lenv) - 1;
-		if (len < 2 || len >= UINT16_MAX) len = BC_NUM_PRINT_WIDTH;
+		if (len == 1 || len >= UINT16_MAX) len = BC_NUM_PRINT_WIDTH;
 	}
 	// Set the default.
 	else len = BC_NUM_PRINT_WIDTH;
@@ -1336,6 +1336,13 @@ void bc_vm_boot(int argc, char *argv[]) {
 	vm.flags |= BC_TTY ? BC_FLAG_P | BC_FLAG_R : 0;
 	vm.flags |= BC_I ? BC_FLAG_Q : 0;
 
+#if BC_ENABLED
+	if (BC_IS_BC && BC_I) {
+		// Set whether we print the banner or not.
+		bc_vm_setenvFlag("BC_BANNER", BC_DEFAULT_BANNER, BC_FLAG_Q);
+	}
+#endif // BC_ENABLED
+
 	// Are we in TTY mode?
 	if (BC_TTY) {
 
@@ -1368,11 +1375,6 @@ void bc_vm_boot(int argc, char *argv[]) {
 
 		// Set whether we reset on SIGINT or not.
 		bc_vm_setenvFlag(env_sigint, env_sigint_def, BC_FLAG_SIGINT);
-#if BC_ENABLED
-		// Set whether we print the banner or not.
-		if (BC_IS_BC)
-			bc_vm_setenvFlag("BC_BANNER", BC_DEFAULT_BANNER, BC_FLAG_Q);
-#endif // BC_ENABLED
 	}
 
 #if BC_ENABLED

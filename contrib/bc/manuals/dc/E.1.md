@@ -69,6 +69,14 @@ The following are the options that dc(1) accepts.
 
     This is a **non-portable extension**.
 
+**-L**, **-\-no-line-length**
+
+:   Disables line length checking and prints numbers without backslashes and
+    newlines. In other words, this option sets **BC_LINE_LENGTH** to **0** (see
+    the **ENVIRONMENT VARIABLES** section).
+
+    This is a **non-portable extension**.
+
 **-P**, **-\-no-prompt**
 
 :   Disables the prompt in TTY mode. (The prompt is only enabled in TTY mode.
@@ -103,6 +111,17 @@ The following are the options that dc(1) accepts.
 
 :   Enables extended register mode. See the *Extended Register Mode* subsection
     of the **REGISTERS** section for more information.
+
+    This is a **non-portable extension**.
+
+**-z**, **-\-leading-zeroes**
+
+:   Makes bc(1) print all numbers greater than **-1** and less than **1**, and
+    not equal to **0**, with a leading zero.
+
+    This can be set for individual numbers with the **plz(x)**, plznl(x)**,
+    **pnlz(x)**, and **pnlznl(x)** functions in the extended math library (see
+    the **LIBRARY** section).
 
     This is a **non-portable extension**.
 
@@ -782,6 +801,24 @@ These commands manipulate arrays.
 
     This is a **non-portable extension**.
 
+## Global Settings
+
+These commands retrieve global settings. These are the only commands that
+require multiple specific characters, and all of them begin with the letter
+**g**. Only the characters below are allowed after the character **g**; any
+other character produces a parse error (see the **ERRORS** section).
+
+**gl**
+
+:   Pushes the line length set by **DC_LINE_LENGTH** (see the **ENVIRONMENT
+    VARIABLES** section) onto the stack.
+
+**gz**
+
+:   Pushes **0** onto the stack if the leading zero setting has not been enabled
+    with the **-z** or **-\-leading-zeroes** options (see the **OPTIONS**
+    section), non-zero otherwise.
+
 # REGISTERS
 
 Registers are names that can store strings, numbers, and arrays. (Number/string
@@ -942,6 +979,9 @@ dc(1) recognizes the following environment variables:
     than **1** and is less than **UINT16_MAX** (**2\^16-1**), dc(1) will output
     lines to that length, including the backslash newline combo. The default
     line length is **70**.
+
+    The special value of **0** will disable line length checking and print
+    numbers without regard to line length and without backslashes and newlines.
 
 **DC_SIGINT_RESET**
 

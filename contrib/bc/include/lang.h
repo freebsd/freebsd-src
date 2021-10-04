@@ -200,6 +200,19 @@ typedef enum BcInst {
 	BC_INST_MAXRAND,
 #endif // BC_ENABLE_EXTRA_MATH
 
+	/// bc line_length() builtin function.
+	BC_INST_LINE_LENGTH,
+
+#if BC_ENABLED
+
+	/// bc global_stacks() builtin function.
+	BC_INST_GLOBAL_STACKS,
+
+#endif // BC_ENABLED
+
+	/// bc leading_zero() builtin function.
+	BC_INST_LEADING_ZERO,
+
 	/// This is slightly misnamed versus BC_INST_PRINT_POP. Well, it is in bc.
 	/// dc uses this instruction to print, but not pop. That's valid in dc.
 	/// However, in bc, it is *never* valid to print without popping. In bc,
