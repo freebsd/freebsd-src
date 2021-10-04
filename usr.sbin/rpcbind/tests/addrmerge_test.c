@@ -257,6 +257,22 @@ mock_tun0(void)
 	    IFF_UP | IFF_RUNNING | IFF_POINTOPOINT | IFF_MULTICAST, 0, false);
 }
 
+static void
+mock_mlxen0(void)
+{
+	mock_ifaddr4("mlxen0", "192.0.3.1", "255.255.255.128", "192.0.3.127",
+	    IFF_UP | IFF_BROADCAST | IFF_RUNNING | IFF_SIMPLEX | IFF_MULTICAST,
+	    false);
+	/* Setting link local address before ipv6 address*/
+	mock_ifaddr6("mlxen0", "fe80::4", "ffff:ffff:ffff:ffff::",
+	    "fe80::ffff:ffff:ffff:ffff",
+	    IFF_UP | IFF_BROADCAST | IFF_RUNNING | IFF_SIMPLEX | IFF_MULTICAST,
+	    3, false);
+	mock_ifaddr6("mlxen0", "2001:db8::7", "ffff:ffff:ffff:ffff::",
+	    "2001:db8::ffff:ffff:ffff:ffff",
+	    IFF_UP | IFF_BROADCAST | IFF_RUNNING | IFF_SIMPLEX | IFF_MULTICAST,
+	    0, false);
+}
 
 /* Stub rpcbind functions */
 int
@@ -835,6 +851,23 @@ ATF_TC_BODY(addrmerge_recvdstaddr6_rev, tc)
 	ATF_CHECK_STREQ("2001:db8::2.3.46", maddr);
 	free(maddr);
 }
+
+ATF_TC_WITHOUT_HEAD(addrmerge_ipv6_other_subnet);
+ATF_TC_BODY(addrmerge_ipv6_other_subnet, tc)
+{
+	char *maddr;
+
+	/* getifaddrs will return link local before normal ipv6 */
+	mock_lo0();
+	mock_mlxen0();
+	
+	maddr = do_addrmerge6("2001:db8:1::1.3.46");
+
+	/* We must return the closest ipv6 address*/
+	ATF_REQUIRE(maddr != NULL);
+	ATF_CHECK_STREQ("2001:db8::7.3.46", maddr);
+	free(maddr);
+}
 #endif /* INET6 */
 
 
@@ -864,6 +897,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, addrmerge_ipv6_linklocal_rev);
 	ATF_TP_ADD_TC(tp, addrmerge_recvdstaddr6);
 	ATF_TP_ADD_TC(tp, addrmerge_recvdstaddr6_rev);
+	ATF_TP_ADD_TC(tp, addrmerge_ipv6_other_subnet);
 #endif
 
 	return (atf_no_error());
