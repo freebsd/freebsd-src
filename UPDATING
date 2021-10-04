@@ -36,7 +36,8 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 14.x IS SLOW:
 20210922:
 	As of commit 903873ce1560, the mixer(8) utility has got a slightly
 	new syntax. Please refer to the mixer(8) manual page for more
-	information.
+	information. The old mixer utility can be installed from ports:
+	audio/freebsd-13-mixer
 
 20210911:
 	As of commit 55089ef4f8bb, the global variable nfs_maxcopyrange has
