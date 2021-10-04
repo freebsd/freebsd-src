@@ -46,7 +46,7 @@ However, if you wish to build it yourself, this `bc` can be built using Visual
 Studio or MSBuild.
 
 Unfortunately, only one build configuration (besides Debug or Release) is
-supported: extra math, and history enabled, NLS (locale support) disabled, with
+supported: extra math enabled, history and NLS (locale support) disabled, with
 both calculators built. The default [settings][11] are `BC_BANNER=1`,
 `{BC,DC}_SIGINT_RESET=0`, `{BC,DC}_TTY_MODE=1`, `{BC,DC}_PROMPT=1`.
 

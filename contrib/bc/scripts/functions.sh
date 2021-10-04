@@ -223,11 +223,9 @@ checkerrtest()
 		die "$_checkerrtest_d" "produced no error message" "$_checkerrtest_name" "$_checkerrtest_error"
 	fi
 
-	# Display the error messages if not directly running exe.
-	# This allows the script to print valgrind output.
-	if [ "$_checkerrtest_exebase" != "bc" ] && [ "$_checkerrtest_exebase" != "dc" ]; then
-		cat "$_checkerrtest_out"
-	fi
+	# To display error messages, uncomment this line. This is useful when
+	# debugging.
+	#cat "$_checkerrtest_out"
 }
 
 # Replace a substring in a string with another. This function is the *real*

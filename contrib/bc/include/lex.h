@@ -357,6 +357,19 @@ typedef enum BcLexType {
 	BC_LEX_KW_MAXRAND,
 #endif // BC_ENABLE_EXTRA_MATH
 
+	/// bc line_length keyword.
+	BC_LEX_KW_LINE_LENGTH,
+
+#if BC_ENABLED
+
+	/// bc global_stacks keyword.
+	BC_LEX_KW_GLOBAL_STACKS,
+
+#endif // BC_ENABLED
+
+	/// bc leading_zero keyword.
+	BC_LEX_KW_LEADING_ZERO,
+
 	/// bc stream keyword.
 	BC_LEX_KW_STREAM,
 

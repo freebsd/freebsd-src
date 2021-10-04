@@ -446,35 +446,35 @@ gen_file_list() {
 # @param extra_math  An integer that, if non-zero, activates extra math tests.
 # @param time_tests  An integer that, if non-zero, tells the test suite to time
 #                    the execution of each test.
-gen_tests() {
+gen_std_tests() {
 
-	_gen_tests_name="$1"
+	_gen_std_tests_name="$1"
 	shift
 
-	_gen_tests_extra_math="$1"
+	_gen_std_tests_extra_math="$1"
 	shift
 
-	_gen_tests_time_tests="$1"
+	_gen_std_tests_time_tests="$1"
 	shift
 
-	_gen_tests_extra_required=$(cat "$scriptdir/tests/extra_required.txt")
+	_gen_std_tests_extra_required=$(cat "$scriptdir/tests/extra_required.txt")
 
-	for _gen_tests_t in $(cat "$scriptdir/tests/$_gen_tests_name/all.txt"); do
+	for _gen_std_tests_t in $(cat "$scriptdir/tests/$_gen_std_tests_name/all.txt"); do
 
-		if [ "$_gen_tests_extra_math" -eq 0 ]; then
+		if [ "$_gen_std_tests_extra_math" -eq 0 ]; then
 
-			if [ -z "${_gen_tests_extra_required##*$_gen_tests_t*}" ]; then
+			if [ -z "${_gen_std_tests_extra_required##*$_gen_std_tests_t*}" ]; then
 				printf 'test_%s_%s:\n\t@printf "Skipping %s %s\\n"\n\n' \
-					"$_gen_tests_name" "$_gen_tests_t" "$_gen_tests_name" \
-					"$_gen_tests_t" >> "$scriptdir/Makefile"
+					"$_gen_std_tests_name" "$_gen_std_tests_t" "$_gen_std_tests_name" \
+					"$_gen_std_tests_t" >> "$scriptdir/Makefile"
 				continue
 			fi
 
 		fi
 
 		printf 'test_%s_%s:\n\t@sh tests/test.sh %s %s %s %s %s\n\n' \
-			"$_gen_tests_name" "$_gen_tests_t" "$_gen_tests_name" \
-			"$_gen_tests_t" "$generate_tests" "$time_tests" \
+			"$_gen_std_tests_name" "$_gen_std_tests_t" "$_gen_std_tests_name" \
+			"$_gen_std_tests_t" "$generate_tests" "$time_tests" \
 			"$*" >> "$scriptdir/Makefile"
 
 	done
@@ -484,15 +484,55 @@ gen_tests() {
 # targets.
 #
 # @param name  The name of the calculator to generate test targets for.
-gen_test_targets() {
+gen_std_test_targets() {
 
-	_gen_test_targets_name="$1"
+	_gen_std_test_targets_name="$1"
 	shift
 
-	_gen_test_targets_tests=$(cat "$scriptdir/tests/${_gen_test_targets_name}/all.txt")
+	_gen_std_test_targets_tests=$(cat "$scriptdir/tests/${_gen_std_test_targets_name}/all.txt")
 
-	for _gen_test_targets_t in $_gen_test_targets_tests; do
-		printf ' test_%s_%s' "$_gen_test_targets_name" "$_gen_test_targets_t"
+	for _gen_std_test_targets_t in $_gen_std_test_targets_tests; do
+		printf ' test_%s_%s' "$_gen_std_test_targets_name" "$_gen_std_test_targets_t"
+	done
+
+	printf '\n'
+}
+
+# Generates the proper test targets for each error test to have its own target.
+# This allows `make test_bc_errors` and `make test_dc_errors` to run in
+# parallel.
+#
+# @param name        Which calculator to generate tests for.
+gen_err_tests() {
+
+	_gen_err_tests_name="$1"
+	shift
+
+	_gen_err_tests_fs=$(ls "$scriptdir/tests/$_gen_err_tests_name/errors/")
+
+	for _gen_err_tests_t in $_gen_err_tests_fs; do
+
+		printf 'test_%s_error_%s:\n\t@sh tests/error.sh %s %s %s\n\n' \
+			"$_gen_err_tests_name" "$_gen_err_tests_t" "$_gen_err_tests_name" \
+			"$_gen_err_tests_t" "$*" >> "$scriptdir/Makefile"
+
+	done
+
+}
+
+# Generates a list of error test targets that will be used as prerequisites for
+# other targets.
+#
+# @param name  The name of the calculator to generate test targets for.
+gen_err_test_targets() {
+
+	_gen_err_test_targets_name="$1"
+	shift
+
+	_gen_err_test_targets_tests=$(ls "$scriptdir/tests/$_gen_err_test_targets_name/errors/")
+
+	for _gen_err_test_targets_t in $_gen_err_test_targets_tests; do
+		printf ' test_%s_error_%s' "$_gen_err_test_targets_name" "$_gen_err_test_targets_t"
 	done
 
 	printf '\n'
@@ -904,10 +944,12 @@ link="@printf 'No link necessary\\\\n'"
 main_exec="BC"
 executable="BC_EXEC"
 
-tests="test_bc timeconst test_dc test_history"
+tests="test_bc timeconst test_dc"
 
 bc_test="@tests/all.sh bc $extra_math 1 $generate_tests $time_tests \$(BC_EXEC)"
+bc_test_np="@tests/all.sh -n bc $extra_math 1 $generate_tests $time_tests \$(BC_EXEC)"
 dc_test="@tests/all.sh dc $extra_math 1 $generate_tests $time_tests \$(DC_EXEC)"
+dc_test_np="@tests/all.sh -n dc $extra_math 1 $generate_tests $time_tests \$(DC_EXEC)"
 
 timeconst="@tests/bc/timeconst.sh tests/bc/scripts/timeconst.bc \$(BC_EXEC)"
 
@@ -967,6 +1009,7 @@ elif [ "$bc_only" -eq 1 ]; then
 	executables="bc"
 
 	dc_test="@printf 'No dc tests to run\\\\n'"
+	dc_test_np="@printf 'No dc tests to run\\\\n'"
 	test_dc_history_prereqs=" test_dc_history_skip"
 
 	install_prereqs=" install_execs"
@@ -976,7 +1019,7 @@ elif [ "$bc_only" -eq 1 ]; then
 
 	default_target="\$(BC_EXEC)"
 	second_target="\$(DC_EXEC)"
-	tests="test_bc timeconst test_history"
+	tests="test_bc timeconst"
 
 elif [ "$dc_only" -eq 1 ]; then
 
@@ -992,6 +1035,7 @@ elif [ "$dc_only" -eq 1 ]; then
 	executable="DC_EXEC"
 
 	bc_test="@printf 'No bc tests to run\\\\n'"
+	bc_test_np="@printf 'No bc tests to run\\\\n'"
 	test_bc_history_prereqs=" test_bc_history_skip"
 
 	timeconst="@printf 'timeconst cannot be run because bc is not built\\\\n'"
@@ -1001,7 +1045,7 @@ elif [ "$dc_only" -eq 1 ]; then
 	uninstall_prereqs=" uninstall_dc"
 	uninstall_man_prereqs=" uninstall_dc_manpage"
 
-	tests="test_dc test_history"
+	tests="test_dc"
 
 else
 
@@ -1392,10 +1436,12 @@ if [ "$dc_default_prompt" = "" ]; then
 fi
 
 # Generate the test targets and prerequisites.
-bc_tests=$(gen_test_targets bc)
+bc_tests=$(gen_std_test_targets bc)
 bc_script_tests=$(gen_script_test_targets bc)
-dc_tests=$(gen_test_targets dc)
+bc_err_tests=$(gen_err_test_targets bc)
+dc_tests=$(gen_std_test_targets dc)
 dc_script_tests=$(gen_script_test_targets dc)
+dc_err_tests=$(gen_err_test_targets dc)
 
 # Print out the values; this is for debugging.
 if [ "$bc" -ne 0 ]; then
@@ -1483,14 +1529,18 @@ contents=$(replace "$contents" "BC_ENABLED" "$bc")
 contents=$(replace "$contents" "DC_ENABLED" "$dc")
 
 contents=$(replace "$contents" "BC_ALL_TESTS" "$bc_test")
+contents=$(replace "$contents" "BC_ALL_TESTS_NP" "$bc_test_np")
 contents=$(replace "$contents" "BC_TESTS" "$bc_tests")
 contents=$(replace "$contents" "BC_SCRIPT_TESTS" "$bc_script_tests")
+contents=$(replace "$contents" "BC_ERROR_TESTS" "$bc_err_tests")
 contents=$(replace "$contents" "BC_TEST_EXEC" "$bc_test_exec")
 contents=$(replace "$contents" "TIMECONST_ALL_TESTS" "$timeconst")
 
 contents=$(replace "$contents" "DC_ALL_TESTS" "$dc_test")
+contents=$(replace "$contents" "DC_ALL_TESTS_NP" "$dc_test_np")
 contents=$(replace "$contents" "DC_TESTS" "$dc_tests")
 contents=$(replace "$contents" "DC_SCRIPT_TESTS" "$dc_script_tests")
+contents=$(replace "$contents" "DC_ERROR_TESTS" "$dc_err_tests")
 contents=$(replace "$contents" "DC_TEST_EXEC" "$dc_test_exec")
 
 contents=$(replace "$contents" "BUILD_TYPE" "$manpage_args")
@@ -1551,9 +1601,7 @@ contents=$(replace "$contents" "MAIN_EXEC" "$main_exec")
 contents=$(replace "$contents" "EXEC" "$executable")
 contents=$(replace "$contents" "TESTS" "$tests")
 
-contents=$(replace "$contents" "BC_TEST" "$bc_test")
 contents=$(replace "$contents" "BC_HISTORY_TEST_PREREQS" "$test_bc_history_prereqs")
-contents=$(replace "$contents" "DC_TEST" "$dc_test")
 contents=$(replace "$contents" "DC_HISTORY_TEST_PREREQS" "$test_dc_history_prereqs")
 contents=$(replace "$contents" "HISTORY_TESTS" "$history_tests")
 
@@ -1588,13 +1636,15 @@ printf '%s\n%s\n\n' "$contents" "$SRC_TARGETS" > "$scriptdir/Makefile"
 
 # Generate the individual test targets.
 if [ "$bc" -ne 0 ]; then
-	gen_tests bc "$extra_math" "$time_tests" $bc_test_exec
+	gen_std_tests bc "$extra_math" "$time_tests" $bc_test_exec
 	gen_script_tests bc "$extra_math" "$generate_tests" "$time_tests" $bc_test_exec
+	gen_err_tests bc $bc_test_exec
 fi
 
 if [ "$dc" -ne 0 ]; then
-	gen_tests dc "$extra_math" "$time_tests" $dc_test_exec
+	gen_std_tests dc "$extra_math" "$time_tests" $dc_test_exec
 	gen_script_tests dc "$extra_math" "$generate_tests" "$time_tests" $dc_test_exec
+	gen_err_tests dc $dc_test_exec
 fi
 
 cd "$scriptdir"

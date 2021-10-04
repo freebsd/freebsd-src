@@ -63,7 +63,8 @@
 #define write(f, b, s) _write((f), (b), (unsigned int) (s))
 #define read(f, b, s) _read((f), (b), (unsigned int) (s))
 #define close _close
-#define open(f, n, m) _sopen_s(f, n, m, _SH_DENYNO, _S_IREAD | _S_IWRITE)
+#define open(f, n, m) \
+	_sopen_s((f), (n), (m) | _O_BINARY, _SH_DENYNO, _S_IREAD | _S_IWRITE)
 #define sigjmp_buf jmp_buf
 #define sigsetjmp(j, s) setjmp(j)
 #define siglongjmp longjmp
@@ -168,6 +169,8 @@ void bcl_free(void);
 
 bool bcl_abortOnFatalError(void);
 void bcl_setAbortOnFatalError(bool abrt);
+bool bcl_leadingZeroes(void);
+void bcl_setLeadingZeroes(bool leadingZeroes);
 
 void bcl_gc(void);
 

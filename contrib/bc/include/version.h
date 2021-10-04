@@ -37,6 +37,6 @@
 #define BC_VERSION_H
 
 /// The current version.
-#define VERSION 5.0.2
+#define VERSION 5.1.0
 
 #endif // BC_VERSION_H

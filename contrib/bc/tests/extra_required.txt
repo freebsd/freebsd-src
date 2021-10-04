@@ -6,3 +6,4 @@ scientific
 shift
 trunc
 bitfuncs
+leadingzero

@@ -73,6 +73,16 @@ Forces interactive mode.
 This is a \f[B]non-portable extension\f[R].
 .RE
 .TP
+\f[B]-L\f[R], \f[B]--no-line-length\f[R]
+Disables line length checking and prints numbers without backslashes and
+newlines.
+In other words, this option sets \f[B]BC_LINE_LENGTH\f[R] to \f[B]0\f[R]
+(see the \f[B]ENVIRONMENT VARIABLES\f[R] section).
+.RS
+.PP
+This is a \f[B]non-portable extension\f[R].
+.RE
+.TP
 \f[B]-P\f[R], \f[B]--no-prompt\f[R]
 Disables the prompt in TTY mode.
 (The prompt is only enabled in TTY mode.
@@ -114,6 +124,18 @@ Enables extended register mode.
 See the \f[I]Extended Register Mode\f[R] subsection of the
 \f[B]REGISTERS\f[R] section for more information.
 .RS
+.PP
+This is a \f[B]non-portable extension\f[R].
+.RE
+.TP
+\f[B]-z\f[R], \f[B]--leading-zeroes\f[R]
+Makes bc(1) print all numbers greater than \f[B]-1\f[R] and less than
+\f[B]1\f[R], and not equal to \f[B]0\f[R], with a leading zero.
+.RS
+.PP
+This can be set for individual numbers with the \f[B]plz(x)\f[R],
+plznl(x)**, \f[B]pnlz(x)\f[R], and \f[B]pnlznl(x)\f[R] functions in the
+extended math library (see the \f[B]LIBRARY\f[R] section).
 .PP
 This is a \f[B]non-portable extension\f[R].
 .RE
@@ -1072,6 +1094,23 @@ Pushes the length of the array \f[I]r\f[R] onto the stack.
 .PP
 This is a \f[B]non-portable extension\f[R].
 .RE
+.SS Global Settings
+.PP
+These commands retrieve global settings.
+These are the only commands that require multiple specific characters,
+and all of them begin with the letter \f[B]g\f[R].
+Only the characters below are allowed after the character \f[B]g\f[R];
+any other character produces a parse error (see the \f[B]ERRORS\f[R]
+section).
+.TP
+\f[B]gl\f[R]
+Pushes the line length set by \f[B]DC_LINE_LENGTH\f[R] (see the
+\f[B]ENVIRONMENT VARIABLES\f[R] section) onto the stack.
+.TP
+\f[B]gz\f[R]
+Pushes \f[B]0\f[R] onto the stack if the leading zero setting has not
+been enabled with the \f[B]-z\f[R] or \f[B]--leading-zeroes\f[R] options
+(see the \f[B]OPTIONS\f[R] section), non-zero otherwise.
 .SH REGISTERS
 .PP
 Registers are names that can store strings, numbers, and arrays.
@@ -1249,6 +1288,12 @@ greater than \f[B]1\f[R] and is less than \f[B]UINT16_MAX\f[R]
 (\f[B]2\[ha]16-1\f[R]), dc(1) will output lines to that length,
 including the backslash newline combo.
 The default line length is \f[B]70\f[R].
+.RS
+.PP
+The special value of \f[B]0\f[R] will disable line length checking and
+print numbers without regard to line length and without backslashes and
+newlines.
+.RE
 .TP
 \f[B]DC_SIGINT_RESET\f[R]
 If dc(1) is not in interactive mode (see the \f[B]INTERACTIVE MODE\f[R]

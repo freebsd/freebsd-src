@@ -1,5 +1,23 @@
 # News
 
+## 5.1.0
+
+This is a production release with some fixes and new features.
+
+* Fixed a bug where an `if` statement without an `else` before defining a
+  function caused an error.
+* Fixed a bug with the `bc` banner and `-q`.
+* Fixed a bug on Windows where files were not read correctly.
+* Added a command-line flag (`-z`) to make `bc` and `dc` print leading zeroes on
+  numbers `-1 < x < 1`.
+* Added four functions to `lib2.bc` (`plz()`, `plznl()`, `pnlz()`, and
+  `pnlznl()`) to allow printing numbers with or without leading zeros, despite
+  the use of `-z` or not.
+* Added builtin functions to query global state like line length, global stacks,
+  and leading zeroes.
+* Added a command-line flag (`-L`) to disable wrapping when printing numbers.
+* Improved builds on Windows.
+
 ## 5.0.2
 
 This is a production release with one fix for a flaky test. If you have not

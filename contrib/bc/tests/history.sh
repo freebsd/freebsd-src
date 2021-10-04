@@ -33,7 +33,7 @@ testdir=$(dirname "$script")
 
 . "$testdir/../scripts/functions.sh"
 
-# usage: history.sh dir -a|idx
+# usage: history.sh dir -a|idx [exe args...]
 
 # If Python does not exist, then just skip.
 py=$(command -v python3)
@@ -60,6 +60,24 @@ shift
 idx="$1"
 shift
 
+if [ "$#" -gt 0 ]; then
+
+	# exe is the executable to run.
+	exe="$1"
+	shift
+
+else
+	exe="$testdir/../bin/$d"
+fi
+
+if [ "$d" = "bc" ]; then
+	flip="! %s"
+	addone="%s + 1"
+else
+	flip="%s Np"
+	addone="%s 1+p"
+fi
+
 # Set the test range correctly for all tests or one test. st is the start index.
 if [ "$idx" = "-a" ]; then
 	idx=$("$py" "$testdir/history.py" "$d" -a)
@@ -72,12 +90,12 @@ fi
 # Run all of the tests.
 for i in $(seq "$st" "$idx"); do
 
+	printf 'Running %s history test %d...' "$d" "$i"
+
 	for j in $(seq 1 3); do
 
-		printf 'Running %s history test %d...' "$d" "$i"
-
-		"$py" "$testdir/history.py" "$d" "$i" "$@"
-		err=$?
+		"$py" "$testdir/history.py" "$d" "$i" "$exe" "$@"
+		err="$?"
 
 		if [ "$err" -eq 0 ]; then
 			break
@@ -85,7 +103,7 @@ for i in $(seq "$st" "$idx"); do
 
 	done
 
-	checktest_retcode "$d" "$err" "$d history tests $i"
+	checktest_retcode "$d" "$err" "$d history test $i"
 
 	printf 'pass\n'
 
