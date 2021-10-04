@@ -1196,17 +1196,6 @@ enumadd(const char *name, int value, void *arg)
 	    name, value) == CTF_ERR);
 }
 
-/*ARGSUSED*/
-static int
-membcmp(const char *name, ctf_id_t type, ulong_t offset, void *arg)
-{
-	ctf_bundle_t *ctb = arg;
-	ctf_membinfo_t ctm;
-
-	return (ctf_member_info(ctb->ctb_file, ctb->ctb_type,
-	    name, &ctm) == CTF_ERR || ctm.ctm_offset != offset);
-}
-
 static int
 membadd(const char *name, ctf_id_t type, ulong_t offset, void *arg)
 {
@@ -1237,6 +1226,71 @@ membadd(const char *name, ctf_id_t type, ulong_t offset, void *arg)
 		ctb->ctb_file->ctf_dtstrlen += strlen(s) + 1;
 
 	ctb->ctb_file->ctf_flags |= LCTF_DIRTY;
+	return (0);
+}
+
+static long
+soucmp(ctf_file_t *src_fp, ctf_id_t src_type, ctf_file_t *dst_fp,
+    ctf_id_t dst_type)
+{
+	const struct ctf_type *src_tp, *dst_tp;
+	const char *src_name, *dst_name;
+	ssize_t src_sz, dst_sz, src_inc, dst_inc;
+	uint_t kind, n;
+
+	if ((src_type = ctf_type_resolve(src_fp, src_type)) == CTF_ERR)
+		return (CTF_ERR);
+	if ((dst_type = ctf_type_resolve(dst_fp, dst_type)) == CTF_ERR)
+		return (CTF_ERR);
+
+	if ((src_tp = ctf_lookup_by_id(&src_fp, src_type)) == NULL)
+		return (CTF_ERR);
+	if ((dst_tp = ctf_lookup_by_id(&dst_fp, dst_type)) == NULL)
+		return (CTF_ERR);
+
+	if ((kind = LCTF_INFO_KIND(src_fp, src_tp->ctt_info)) !=
+	    LCTF_INFO_KIND(dst_fp, dst_tp->ctt_info))
+		return (ctf_set_errno(dst_fp, ECTF_CONFLICT));
+	if (kind != CTF_K_STRUCT && kind != CTF_K_UNION)
+		return (ctf_set_errno(dst_fp, ECTF_CONFLICT));
+	if ((n = LCTF_INFO_VLEN(src_fp, src_tp->ctt_info)) !=
+	    LCTF_INFO_VLEN(dst_fp, dst_tp->ctt_info))
+		return (ctf_set_errno(dst_fp, ECTF_CONFLICT));
+
+	(void) ctf_get_ctt_size(src_fp, src_tp, &src_sz, &src_inc);
+	(void) ctf_get_ctt_size(dst_fp, dst_tp, &dst_sz, &dst_inc);
+	if (src_sz != dst_sz || src_inc != dst_inc)
+		return (ctf_set_errno(dst_fp, ECTF_CONFLICT));
+
+	if (src_sz < CTF_LSTRUCT_THRESH) {
+		const ctf_member_t *src_mp, *dst_mp;
+
+		src_mp = (const ctf_member_t *)((uintptr_t)src_tp + src_inc);
+		dst_mp = (const ctf_member_t *)((uintptr_t)dst_tp + dst_inc);
+		for (; n != 0; n--, src_mp++, dst_mp++) {
+			if (src_mp->ctm_offset != dst_mp->ctm_offset)
+				return (ctf_set_errno(dst_fp, ECTF_CONFLICT));
+			src_name = ctf_strptr(src_fp, src_mp->ctm_name);
+			dst_name = ctf_strptr(dst_fp, dst_mp->ctm_name);
+			if (strcmp(src_name, dst_name) != 0)
+				return (ctf_set_errno(dst_fp, ECTF_CONFLICT));
+		}
+	} else {
+		const ctf_lmember_t *src_mp, *dst_mp;
+
+		src_mp = (const ctf_lmember_t *)((uintptr_t)src_tp + src_inc);
+		dst_mp = (const ctf_lmember_t *)((uintptr_t)dst_tp + dst_inc);
+		for (; n != 0; n--, src_mp++, dst_mp++) {
+			if (src_mp->ctlm_offsethi != dst_mp->ctlm_offsethi ||
+			    src_mp->ctlm_offsetlo != dst_mp->ctlm_offsetlo)
+				return (ctf_set_errno(dst_fp, ECTF_CONFLICT));
+			src_name = ctf_strptr(src_fp, src_mp->ctlm_name);
+			dst_name = ctf_strptr(dst_fp, dst_mp->ctlm_name);
+			if (strcmp(src_name, dst_name) != 0)
+				return (ctf_set_errno(dst_fp, ECTF_CONFLICT));
+		}
+	}
+
 	return (0);
 }
 
@@ -1460,23 +1514,15 @@ ctf_add_type(ctf_file_t *dst_fp, ctf_file_t *src_fp, ctf_id_t src_type)
 		ctf_dmdef_t *dmd;
 		int errs = 0;
 
-		/*
-		 * Technically to match a struct or union we need to check both
-		 * ways (src members vs. dst, dst members vs. src) but we make
-		 * this more optimal by only checking src vs. dst and comparing
-		 * the total size of the structure (which we must do anyway)
-		 * which covers the possibility of dst members not in src.
-		 * This optimization can be defeated for unions, but is so
-		 * pathological as to render it irrelevant for our purposes.
-		 */
 		if (dst_type != CTF_ERR && dst_kind != CTF_K_FORWARD) {
-			if (ctf_type_size(src_fp, src_type) !=
-			    ctf_type_size(dst_fp, dst_type))
-				return (ctf_set_errno(dst_fp, ECTF_CONFLICT));
-
-			if (ctf_member_iter(src_fp, src_type, membcmp, &dst))
-				return (ctf_set_errno(dst_fp, ECTF_CONFLICT));
-
+			/*
+			 * Compare the sizes and fields of the two types.
+			 * The field comparisons only check the names and
+			 * offsets, so this is not perfect but is good enough
+			 * for scenarios that we care about.
+			 */
+			if (soucmp(src_fp, src_type, dst_fp, dst_type) != 0)
+				return (CTF_ERR); /* errno is set for us */
 			break;
 		}
 
