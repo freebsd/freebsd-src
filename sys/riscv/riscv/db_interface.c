@@ -106,6 +106,9 @@ struct db_variable *db_eregs = db_regs + nitems(db_regs);
 void
 db_show_mdpcpu(struct pcpu *pc)
 {
+	db_printf("curpmap      = %p\n", pc->pc_curpmap);
+	db_printf("pending_ipis = %x\n", pc->pc_pending_ipis);
+	db_printf("hart         = %u\n", pc->pc_hart);
 }
 
 /*
