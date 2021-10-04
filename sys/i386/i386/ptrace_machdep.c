@@ -34,7 +34,9 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/ptrace.h>
 #include <machine/frame.h>
@@ -195,4 +197,34 @@ cpu_ptrace(struct thread *td, int req, void *addr, int data)
 	}
 
 	return (error);
+}
+
+int
+ptrace_set_pc(struct thread *td, u_long addr)
+{
+
+	td->td_frame->tf_eip = addr;
+	return (0);
+}
+
+int
+ptrace_single_step(struct thread *td)
+{
+
+	PROC_LOCK_ASSERT(td->td_proc, MA_OWNED);
+	if ((td->td_frame->tf_eflags & PSL_T) == 0) {
+		td->td_frame->tf_eflags |= PSL_T;
+		td->td_dbgflags |= TDB_STEP;
+	}
+	return (0);
+}
+
+int
+ptrace_clear_single_step(struct thread *td)
+{
+
+	PROC_LOCK_ASSERT(td->td_proc, MA_OWNED);
+	td->td_frame->tf_eflags &= ~PSL_T;
+	td->td_dbgflags &= ~TDB_STEP;
+	return (0);
 }

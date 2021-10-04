@@ -104,6 +104,7 @@ i386/i386/copyout.c		standard
 i386/i386/db_disasm.c		optional ddb
 i386/i386/db_interface.c	optional ddb
 i386/i386/db_trace.c		optional ddb
+i386/i386/exec_machdep.c	standard
 i386/i386/elan-mmcr.c		optional cpu_elan | cpu_soekris
 i386/i386/elf_machdep.c		standard
 i386/i386/exception.s		standard
