@@ -1096,8 +1096,7 @@ descendant_sort(KINFO *ki, int items)
 	 * Now populate ki_d.prefix (instead of ki_d.level) with the command
 	 * prefix used to show descendancies.
 	 */
-	path = malloc((maxlvl + 7) / 8);
-	memset(path, '\0', (maxlvl + 7) / 8);
+	path = calloc((maxlvl + 7) / 8, sizeof(unsigned char));
 	for (src = 0; src < items; src++) {
 		if ((lvl = ki[src].ki_d.level) == 0) {
 			ki[src].ki_d.prefix = NULL;
