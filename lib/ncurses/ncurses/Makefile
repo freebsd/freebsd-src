@@ -173,9 +173,9 @@ SHLIB_LDSCRIPT=	libncursesw.ldscript
 libncurses.ldscript:
 	@${ECHO} "INPUT(${SHLIB_NAME} AS NEEDED(-ltinfow))" >$@
 
-lib_gen.c: MKlib_gen.sh curses.h ncurses_dll.h
+lib_gen.c: MKlib_gen.sh ${.OBJDIR:H}/tinfo/curses.h ncurses_dll.h
 	LC_ALL=C sh ${NCURSES_DIR}/ncurses/base/MKlib_gen.sh "${CPP:N${CCACHE_BIN}} ${CFLAGS}" \
-	    "${AWK}" generated < curses.h >$@
+	       "${AWK}" generated < ${.OBJDIR:H}/tinfo/curses.h >$@
 
 expanded.c: MKexpanded.sh
 	sh ${NCURSES_DIR}/ncurses/tty/MKexpanded.sh "${CC:N${CCACHE_BIN}} -E" ${CFLAGS} >expanded.c
