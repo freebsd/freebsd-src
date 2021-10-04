@@ -44,6 +44,7 @@
 
 #define	ALT_STACK_SIZE	128
 
+/* Keep in sync with db_show_mdpcpu() */
 #define	PCPU_MD_FIELDS							\
 	struct pmap *pc_curpmap;	/* Currently active pmap */	\
 	uint32_t pc_pending_ipis;	/* IPIs pending to this CPU */	\
