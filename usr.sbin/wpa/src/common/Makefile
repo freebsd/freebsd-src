@@ -11,6 +11,7 @@ INTERNALLIB=
 
 SRCS=	cli.c \
 	ctrl_iface_common.c \
+	dragonfly.c \
 	gas.c \
 	hw_features_common.c \
 	ieee802_11_common.c \
