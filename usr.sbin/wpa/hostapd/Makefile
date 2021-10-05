@@ -26,8 +26,6 @@ FILES=	hostapd.conf hostapd.eap_user hostapd.wpa_psk
 
 CFLAGS+=-I${.CURDIR:H}/wpa_supplicant \
 	-I${WPA_DISTDIR}/src/eap_peer \
-	-DCONFIG_MBO \
-	-DCONFIG_RSN_PREAUTH \
 	-DHOSTAPD
 .if ${MK_INET6} != "no"
 CFLAGS+= -DCONFIG_IPV6
