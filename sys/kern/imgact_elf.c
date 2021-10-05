@@ -1547,6 +1547,8 @@ core_write(struct coredump_params *p, const void *base, size_t len,
 	    p->active_cred, p->file_cred, resid, p->td));
 }
 
+extern int core_dump_can_intr;
+
 static int
 core_output(char *base, size_t len, off_t offset, struct coredump_params *p,
     void *tmpbuf)
@@ -1572,6 +1574,8 @@ core_output(char *base, size_t len, off_t offset, struct coredump_params *p,
 		 * anonymous memory or truncated files, for example.
 		 */
 		for (runlen = 0; runlen < len; runlen += PAGE_SIZE) {
+			if (core_dump_can_intr && curproc_sigkilled())
+				return (EINTR);
 			error = vm_fault(map, (uintptr_t)base + runlen,
 			    VM_PROT_READ, VM_FAULT_NOFILL, NULL);
 			if (runlen == 0)

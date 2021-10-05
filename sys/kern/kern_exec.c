@@ -150,6 +150,11 @@ static int map_at_zero = 0;
 SYSCTL_INT(_security_bsd, OID_AUTO, map_at_zero, CTLFLAG_RWTUN, &map_at_zero, 0,
     "Permit processes to map an object at virtual address 0.");
 
+int core_dump_can_intr = 1;
+SYSCTL_INT(_kern, OID_AUTO, core_dump_can_intr, CTLFLAG_RWTUN,
+    &core_dump_can_intr, 0,
+    "Core dumping interruptible with SIGKILL");
+
 static int
 sysctl_kern_ps_strings(SYSCTL_HANDLER_ARGS)
 {
