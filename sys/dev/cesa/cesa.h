@@ -31,9 +31,6 @@
 #ifndef _DEV_CESA_H_
 #define _DEV_CESA_H_
 
-/* Maximum number of allocated sessions */
-#define CESA_SESSIONS			64
-
 /* Maximum number of queued requests */
 #define CESA_REQUESTS			256
 
