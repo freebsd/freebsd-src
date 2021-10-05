@@ -374,6 +374,10 @@ typedef struct ses_softc {
 	ses_control_reqlist_t	ses_pending_requests;
 } ses_softc_t;
 
+static int ses_search_globally = 0;
+SYSCTL_INT(_kern_cam_enc, OID_AUTO, search_globally, CTLFLAG_RWTUN,
+           &ses_search_globally, 0, "Search for disks on other buses");
+
 /**
  * \brief Reset a SES iterator to just before the first element
  *        in the configuration.
@@ -890,6 +894,10 @@ ses_path_iter_devid_callback(enc_softc_t *enc, enc_element_t *elem,
 	  + devid->length;
 	memcpy(device_pattern->data.devid_pat.id, devid,
 	       device_pattern->data.devid_pat.id_len);
+	if (!ses_search_globally) {
+		device_pattern->flags |= DEV_MATCH_PATH;
+		device_pattern->path_id = xpt_path_path_id(enc->periph->path);
+	}
 
 	memset(&cdm, 0, sizeof(cdm));
 	if (xpt_create_path(&cdm.ccb_h.path, /*periph*/NULL,
