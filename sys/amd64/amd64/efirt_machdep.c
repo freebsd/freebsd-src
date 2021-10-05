@@ -254,7 +254,7 @@ efi_create_1t1_map(struct efi_md *map, int ndesc, int descsz)
 				vm_page_init_page(m, va, -1);
 				m->order = VM_NFREEORDER + 1; /* invalid */
 				m->pool = VM_NFREEPOOL + 1; /* invalid */
-				pmap_page_set_memattr(m, mode);
+				pmap_page_set_memattr_noflush(m, mode);
 			}
 		}
 		VM_OBJECT_WUNLOCK(obj_1t1_pt);
