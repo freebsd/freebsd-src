@@ -264,7 +264,11 @@ sdhci_dumpregs(struct sdhci_slot *slot)
 {
 	struct sbuf s;
 
-	sbuf_new(&s, NULL, 1024, SBUF_AUTOEXTEND);
+	if (sbuf_new(&s, NULL, 1024, SBUF_NOWAIT | SBUF_AUTOEXTEND) == NULL) {
+		slot_printf(slot, "sdhci_dumpregs: Failed to allocate memory for sbuf\n");
+		return;
+	}
+
 	sbuf_set_drain(&s, &sbuf_printf_drain, NULL);
 	sdhci_dumpregs_buf(slot, &s);
 	sbuf_finish(&s);
@@ -340,7 +344,11 @@ sdhci_dumpcaps(struct sdhci_slot *slot)
 {
 	struct sbuf s;
 
-	sbuf_new(&s, NULL, 1024, SBUF_AUTOEXTEND);
+	if (sbuf_new(&s, NULL, 1024, SBUF_NOWAIT | SBUF_AUTOEXTEND) == NULL) {
+		slot_printf(slot, "sdhci_dumpcaps: Failed to allocate memory for sbuf\n");
+		return;
+	}
+
 	sbuf_set_drain(&s, &sbuf_printf_drain, NULL);
 	sdhci_dumpcaps_buf(slot, &s);
 	sbuf_finish(&s);
