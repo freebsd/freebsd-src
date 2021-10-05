@@ -154,12 +154,10 @@ static struct val2str ipsec_compnames[] = {
 	{ -1, NULL },
 };
 
-static void print_ipsecstats(const struct ipsecstat *ipsecstat);
-
 static void
-print_ipsecstats(const struct ipsecstat *ipsecstat)
+print_ipsecstats(const char *tag, const struct ipsecstat *ipsecstat)
 {
-	xo_open_container("ipsec-statistics");
+	xo_open_container(tag);
 
 #define	p(f, m) if (ipsecstat->f || sflag <= 1) \
 	xo_emit(m, (uintmax_t)ipsecstat->f, plural(ipsecstat->f))
@@ -194,27 +192,30 @@ print_ipsecstats(const struct ipsecstat *ipsecstat)
 	    "{N:/mbuf%s inserted during makespace}\n");
 #undef p2
 #undef p
-	xo_close_container("ipsec-statistics");
+	xo_close_container(tag);
 }
 
 void
 ipsec_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 {
 	struct ipsecstat ipsecstat;
+	const char *tag;
 
 	if (strcmp(name, "ipsec6") == 0) {
 		if (fetch_stats("net.inet6.ipsec6.ipsecstats", off,&ipsecstat,
 				sizeof(ipsecstat), kread_counters) != 0)
 			return;
+		tag = "ipsec6-statistics";
 	} else {
 		if (fetch_stats("net.inet.ipsec.ipsecstats", off, &ipsecstat,
 				sizeof(ipsecstat), kread_counters) != 0)
 			return;
+		tag = "ipsec-statistics";
 	}
 
 	xo_emit("{T:/%s}:\n", name);
 
-	print_ipsecstats(&ipsecstat);
+	print_ipsecstats(tag, &ipsecstat);
 }
 
 
