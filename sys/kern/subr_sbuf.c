@@ -480,7 +480,26 @@ static void
 sbuf_put_byte(struct sbuf *s, char c)
 {
 
-	sbuf_put_bytes(s, &c, 1);
+	assert_sbuf_integrity(s);
+	assert_sbuf_state(s, 0);
+
+	if (__predict_false(s->s_error != 0))
+		return;
+	if (__predict_false(SBUF_FREESPACE(s) <= 0)) {
+		/*
+		 * If there is a drain, use it, otherwise extend the
+		 * buffer.
+		 */
+		if (s->s_drain_func != NULL)
+			(void)sbuf_drain(s);
+		else if (sbuf_extend(s, 1) < 0)
+			s->s_error = ENOMEM;
+		if (s->s_error != 0)
+			return;
+	}
+	s->s_buf[s->s_len++] = c;
+	if (SBUF_ISSECTION(s))
+		s->s_sect_len++;
 }
 
 /*
@@ -623,7 +642,7 @@ static void
 sbuf_putc_func(int c, void *arg)
 {
 
-	if (c != '\0')
+	if (__predict_true(c != '\0'))
 		sbuf_put_byte(arg, c);
 }
 
