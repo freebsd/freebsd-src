@@ -195,7 +195,7 @@ static u_int32_t lapic_timer_divisors[] = {
 extern inthand_t IDTVEC(rsvd_pti), IDTVEC(rsvd);
 
 volatile char *lapic_map;
-vm_paddr_t lapic_paddr;
+vm_paddr_t lapic_paddr = DEFAULT_APIC_BASE;
 int x2apic_mode;
 int lapic_eoi_suppression;
 static int lapic_timer_tsc_deadline;
