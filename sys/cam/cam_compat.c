@@ -58,6 +58,8 @@ static int cam_compat_handle_0x17(struct cdev *dev, u_long cmd, caddr_t addr,
     int flag, struct thread *td, d_ioctl_t *cbfnp);
 static int cam_compat_handle_0x18(struct cdev *dev, u_long cmd, caddr_t addr,
     int flag, struct thread *td, d_ioctl_t *cbfnp);
+static int cam_compat_handle_0x19(struct cdev *dev, u_long cmd, caddr_t addr,
+    int flag, struct thread *td, d_ioctl_t *cbfnp);
 static int cam_compat_translate_dev_match_0x18(union ccb *ccb);
 
 int
@@ -107,6 +109,22 @@ cam_compat_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 	case CAMGETPASSTHRU_0x18:
 		cmd = CAMGETPASSTHRU;
 		error = cam_compat_handle_0x18(dev, cmd, addr, flag, td, cbfnp);
+		break;
+	case CAMIOCOMMAND_0x19:
+		cmd = CAMIOCOMMAND;
+		error = cam_compat_handle_0x19(dev, cmd, addr, flag, td, cbfnp);
+		break;
+	case CAMGETPASSTHRU_0x19:
+		cmd = CAMGETPASSTHRU;
+		error = cam_compat_handle_0x19(dev, cmd, addr, flag, td, cbfnp);
+		break;
+	case CAMIOQUEUE_0x19:
+		cmd = CAMIOQUEUE;
+		error = cam_compat_handle_0x19(dev, cmd, addr, flag, td, cbfnp);
+		break;
+	case CAMIOGET_0x19:
+		cmd = CAMIOGET;
+		error = cam_compat_handle_0x19(dev, cmd, addr, flag, td, cbfnp);
 		break;
 	default:
 		error = ENOTTY;
@@ -170,7 +188,7 @@ cam_compat_handle_0x17(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		bcopy(ccbb17, ccbb, CAM_0X17_DATA_LEN);
 	}
 
-	error = (cbfnp)(dev, cmd, (caddr_t)ccb, flag, td);
+	error = cam_compat_handle_0x19(dev, cmd, (caddr_t)ccb, flag, td, cbfnp);
 
 	hdr17->pinfo = hdr->pinfo;
 	hdr17->xpt_links = hdr->xpt_links;
@@ -310,7 +328,7 @@ cam_compat_handle_0x18(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		bcopy(ccbb18, ccbb, CAM_0X18_DATA_LEN);
 	}
 
-	error = (cbfnp)(dev, cmd, (caddr_t)ccb, flag, td);
+	error = cam_compat_handle_0x19(dev, cmd, (caddr_t)ccb, flag, td, cbfnp);
 
 	hdr18->pinfo = hdr->pinfo;
 	hdr18->xpt_links = hdr->xpt_links;
@@ -419,4 +437,32 @@ cam_compat_translate_dev_match_0x18(union ccb *ccb)
 	cam_periph_unmapmem(ccb, &mapinfo);
 
 	return (0);
+}
+
+static int
+cam_compat_handle_0x19(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
+    struct thread *td, d_ioctl_t *cbfnp)
+{
+	union ccb *ccb = (union ccb *)addr;
+	struct cam_periph_map_info	mapinfo;
+
+	if (cmd == CAMIOCOMMAND && ccb->ccb_h.func_code == XPT_DEV_MATCH) {
+		bzero(&mapinfo, sizeof(mapinfo));
+		cam_periph_mapmem(ccb, &mapinfo, maxphys);
+		for (int i = 0; i < ccb->cdm.num_patterns; i++) {
+			struct dev_match_pattern *p = &ccb->cdm.patterns[i];
+
+			if (p->type == DEV_MATCH_BUS &&
+			    p->pattern.bus_pattern.flags == 0x00f)
+				p->pattern.bus_pattern.flags = BUS_MATCH_ANY;
+			if (p->type == DEV_MATCH_DEVICE &&
+			    p->pattern.device_pattern.flags == 0x00f)
+				p->pattern.device_pattern.flags = DEV_MATCH_ANY;
+			if (p->type == DEV_MATCH_PERIPH &&
+			    p->pattern.periph_pattern.flags == 0x01f)
+				p->pattern.periph_pattern.flags = PERIPH_MATCH_ANY;
+		}
+		cam_periph_unmapmem(ccb, &mapinfo);
+	}
+	return ((cbfnp)(dev, cmd, addr, flag, td));
 }

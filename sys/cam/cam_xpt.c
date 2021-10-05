@@ -1386,6 +1386,8 @@ xptbusmatch(struct dev_match_pattern *patterns, u_int num_patterns,
 
 	for (i = 0; i < num_patterns; i++) {
 		struct bus_match_pattern *cur_pattern;
+		struct device_match_pattern *dp = &patterns[i].pattern.device_pattern;
+		struct periph_match_pattern *pp = &patterns[i].pattern.periph_pattern;
 
 		/*
 		 * If the pattern in question isn't for a bus node, we
@@ -1394,6 +1396,14 @@ xptbusmatch(struct dev_match_pattern *patterns, u_int num_patterns,
 		 * tree, since the user wants to match against lower-level
 		 * EDT elements.
 		 */
+		if (patterns[i].type == DEV_MATCH_DEVICE &&
+		    (dp->flags & DEV_MATCH_PATH) != 0 &&
+		    dp->path_id != bus->path_id)
+			continue;
+		if (patterns[i].type == DEV_MATCH_PERIPH &&
+		    (pp->flags & PERIPH_MATCH_PATH) != 0 &&
+		    pp->path_id != bus->path_id)
+			continue;
 		if (patterns[i].type != DEV_MATCH_BUS) {
 			if ((retval & DM_RET_ACTION_MASK) == DM_RET_NONE)
 				retval |= DM_RET_DESCEND;
@@ -1401,28 +1411,6 @@ xptbusmatch(struct dev_match_pattern *patterns, u_int num_patterns,
 		}
 
 		cur_pattern = &patterns[i].pattern.bus_pattern;
-
-		/*
-		 * If they want to match any bus node, we give them any
-		 * device node.
-		 */
-		if (cur_pattern->flags == BUS_MATCH_ANY) {
-			/* set the copy flag */
-			retval |= DM_RET_COPY;
-
-			/*
-			 * If we've already decided on an action, go ahead
-			 * and return.
-			 */
-			if ((retval & DM_RET_ACTION_MASK) != DM_RET_NONE)
-				return(retval);
-		}
-
-		/*
-		 * Not sure why someone would do this...
-		 */
-		if (cur_pattern->flags == BUS_MATCH_NONE)
-			continue;
 
 		if (((cur_pattern->flags & BUS_MATCH_PATH) != 0)
 		 && (cur_pattern->path_id != bus->path_id))
@@ -1499,11 +1487,20 @@ xptdevicematch(struct dev_match_pattern *patterns, u_int num_patterns,
 	for (i = 0; i < num_patterns; i++) {
 		struct device_match_pattern *cur_pattern;
 		struct scsi_vpd_device_id *device_id_page;
+		struct periph_match_pattern *pp = &patterns[i].pattern.periph_pattern;
 
 		/*
 		 * If the pattern in question isn't for a device node, we
 		 * aren't interested.
 		 */
+		if (patterns[i].type == DEV_MATCH_PERIPH &&
+		    (pp->flags & PERIPH_MATCH_TARGET) != 0 &&
+		    pp->target_id != device->target->target_id)
+			continue;
+		if (patterns[i].type == DEV_MATCH_PERIPH &&
+		    (pp->flags & PERIPH_MATCH_LUN) != 0 &&
+		    pp->target_lun != device->lun_id)
+			continue;
 		if (patterns[i].type != DEV_MATCH_DEVICE) {
 			if ((patterns[i].type == DEV_MATCH_PERIPH)
 			 && ((retval & DM_RET_ACTION_MASK) == DM_RET_NONE))
@@ -1517,19 +1514,6 @@ xptdevicematch(struct dev_match_pattern *patterns, u_int num_patterns,
 		if ((cur_pattern->flags & (DEV_MATCH_INQUIRY|DEV_MATCH_DEVID))
 		 == (DEV_MATCH_INQUIRY|DEV_MATCH_DEVID))
 			return(DM_RET_ERROR);
-
-		/*
-		 * If they want to match any device node, we give them any
-		 * device node.
-		 */
-		if (cur_pattern->flags == DEV_MATCH_ANY)
-			goto copy_dev_node;
-
-		/*
-		 * Not sure why someone would do this...
-		 */
-		if (cur_pattern->flags == DEV_MATCH_NONE)
-			continue;
 
 		if (((cur_pattern->flags & DEV_MATCH_PATH) != 0)
 		 && (cur_pattern->path_id != device->target->bus->path_id))
@@ -1560,7 +1544,6 @@ xptdevicematch(struct dev_match_pattern *patterns, u_int num_patterns,
 				      cur_pattern->data.devid_pat.id_len) != 0))
 			continue;
 
-copy_dev_node:
 		/*
 		 * If we get to this point, the user definitely wants
 		 * information on this device.  So tell the caller to copy
@@ -1634,27 +1617,6 @@ xptperiphmatch(struct dev_match_pattern *patterns, u_int num_patterns,
 			continue;
 
 		cur_pattern = &patterns[i].pattern.periph_pattern;
-
-		/*
-		 * If they want to match on anything, then we will do so.
-		 */
-		if (cur_pattern->flags == PERIPH_MATCH_ANY) {
-			/* set the copy flag */
-			retval |= DM_RET_COPY;
-
-			/*
-			 * We've already set the return action to stop,
-			 * since there are no nodes below peripherals in
-			 * the tree.
-			 */
-			return(retval);
-		}
-
-		/*
-		 * Not sure why someone would do this...
-		 */
-		if (cur_pattern->flags == PERIPH_MATCH_NONE)
-			continue;
 
 		if (((cur_pattern->flags & PERIPH_MATCH_PATH) != 0)
 		 && (cur_pattern->path_id != periph->path->bus->path_id))

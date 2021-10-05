@@ -220,5 +220,12 @@ struct dev_match_result_0x18 {
 #define	CAMIOCOMMAND_0x18	_IOC(IOC_INOUT, CAM_VERSION_0x18, 2, CAM_0X18_LEN)
 #define CAMGETPASSTHRU_0x18	_IOC(IOC_INOUT, CAM_VERSION_0x18, 3, CAM_0X18_LEN)
 
+/* Version 0x19 compatibility */
+#define CAM_VERSION_0x19	0x19
+#define CAMIOCOMMAND_0x19	_IOWR(CAM_VERSION_0x19, 2, union ccb)
+#define CAMGETPASSTHRU_0x19	_IOWR(CAM_VERSION_0x19, 3, union ccb)
+#define CAMIOQUEUE_0x19		_IO(CAM_VERSION_0x19, 4)
+#define CAMIOGET_0x19		_IO(CAM_VERSION_0x19, 5)
+
 #endif
 #endif
