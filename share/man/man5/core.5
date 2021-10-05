@@ -28,7 +28,7 @@
 .\"     @(#)core.5	8.3 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd August 2, 2020
+.Dd October 5, 2021
 .Dt CORE 5
 .Os
 .Sh NAME
@@ -56,6 +56,20 @@ The maximum size of a core file is limited by the
 .Xr setrlimit 2
 limit.
 Files which would be larger than the limit are not created.
+.Pp
+With a large limit, a process that had mapped a very large,
+and perhaps sparsely populated, virtual memory region, could take
+a very long time to create core dumps.
+The system ignores all signals sent to a process writing a core file, except
+.Dv SIGKILL
+which terminates the writing and causes immediate exit of the process.
+The behavior of
+.Dv SIGKILL
+can be disabled by setting tunable
+.Xr sysctl 8
+variable
+.Va kern.core_dump_can_intr
+to zero.
 .Pp
 The name of the file is controlled via the
 .Xr sysctl 8
