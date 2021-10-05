@@ -1523,6 +1523,8 @@ whilemore:
 			len = wptr - rptr;
 			f->ftps_junk = ipf_p_ftp_valid(softf, ftp, rv,
 						       rptr, len);
+			DT5(junk_ftp_valid, int, len, int, rv, u_long, rptr,
+			    u_long, wptr, int, f->ftps_junk);
 
 			if (softf->ipf_p_ftp_debug & DEBUG_PARSE) {
 				printf("%s=%d len %d rv %d ptr %lx/%lx ",
