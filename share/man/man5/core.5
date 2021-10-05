@@ -51,8 +51,10 @@ a system crash.
 (In this event, the decision to save the core file is arbitrary, see
 .Xr savecore 8 . )
 .Pp
-The maximum size of a core file is limited by
-.Xr setrlimit 2 .
+The maximum size of a core file is limited by the
+.Dv RLIMIT_CORE
+.Xr setrlimit 2
+limit.
 Files which would be larger than the limit are not created.
 .Pp
 The name of the file is controlled via the
