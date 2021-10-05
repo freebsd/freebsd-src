@@ -499,6 +499,7 @@ void	*pmap_mapdev_pciecfg(vm_paddr_t pa, vm_size_t size);
 bool	pmap_not_in_di(void);
 boolean_t pmap_page_is_mapped(vm_page_t m);
 void	pmap_page_set_memattr(vm_page_t m, vm_memattr_t ma);
+void	pmap_page_set_memattr_noflush(vm_page_t m, vm_memattr_t ma);
 void	pmap_pinit_pml4(vm_page_t);
 void	pmap_pinit_pml5(vm_page_t);
 bool	pmap_ps_enabled(pmap_t pmap);

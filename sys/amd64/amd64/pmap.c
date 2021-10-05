@@ -9379,6 +9379,23 @@ pmap_page_set_memattr(vm_page_t m, vm_memattr_t ma)
 		panic("memory attribute change on the direct map failed");
 }
 
+void
+pmap_page_set_memattr_noflush(vm_page_t m, vm_memattr_t ma)
+{
+	int error;
+
+	m->md.pat_mode = ma;
+
+	if ((m->flags & PG_FICTITIOUS) != 0)
+		return;
+	PMAP_LOCK(kernel_pmap);
+	error = pmap_change_props_locked(PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m)),
+	    PAGE_SIZE, PROT_NONE, m->md.pat_mode, 0);
+	PMAP_UNLOCK(kernel_pmap);
+	if (error != 0)
+		panic("memory attribute change on the direct map failed");
+}
+
 /*
  * Changes the specified virtual address range's memory type to that given by
  * the parameter "mode".  The specified virtual address range must be
