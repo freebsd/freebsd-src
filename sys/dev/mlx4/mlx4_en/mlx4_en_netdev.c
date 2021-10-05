@@ -2904,7 +2904,7 @@ mlx4_en_debugnet_init(struct ifnet *dev, int *nrxr, int *ncl, int *clsize)
 	mutex_lock(&priv->mdev->state_lock);
 	*nrxr = priv->rx_ring_num;
 	*ncl = DEBUGNET_MAX_IN_FLIGHT;
-	*clsize = priv->rx_mb_size;
+	*clsize = MCLBYTES;
 	mutex_unlock(&priv->mdev->state_lock);
 }
 
