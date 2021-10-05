@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 10, 2021
+.Dd October 5, 2021
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -2352,39 +2352,6 @@ If
 is set to
 .Dq Li YES ,
 these are the flags to pass to it.
-.It Va amd_enable
-.Pq Vt bool
-If set to
-.Dq Li YES ,
-run the
-.Xr amd 8
-daemon at boot time.
-.It Va amd_flags
-.Pq Vt str
-If
-.Va amd_enable
-is set to
-.Dq Li YES ,
-these are the flags to pass to it.
-See the
-.Xr amd 8
-manpage for more information.
-.It Va amd_map_program
-.Pq Vt str
-If set,
-the specified program is run to get the list of
-.Xr amd 8
-maps.
-For example, if the
-.Xr amd 8
-maps are stored in NIS, one can set this to
-run
-.Xr ypcat 1
-to get a list of
-.Xr amd 8
-maps from the
-.Pa amd.master
-NIS map.
 .It Va update_motd
 .Pq Vt bool
 If set to
@@ -4665,7 +4632,6 @@ it will be made permanently active.
 .Xr security 7 ,
 .Xr tuning 7 ,
 .Xr accton 8 ,
-.Xr amd 8 ,
 .Xr apm 8 ,
 .Xr bsdinstall 8 ,
 .Xr bthidd 8 ,
