@@ -1221,8 +1221,7 @@ typedef	struct	tcpiphdr	tcpiphdr_t;
 # define	DPRINT(x)
 #endif
 
-#ifdef DTRACE_PROBE
-# ifdef _KERNEL
+#if defined(DTRACE_PROBE) && defined(_KERNEL)
 #  define	DT(_n)			DTRACE_PROBE(_n)
 #  define	DT1(_n,_a,_b)		DTRACE_PROBE1(_n,_a,_b)
 #  define	DT2(_n,_a,_b,_c,_d)	DTRACE_PROBE2(_n,_a,_b,_c,_d)
@@ -1230,13 +1229,6 @@ typedef	struct	tcpiphdr	tcpiphdr_t;
 					DTRACE_PROBE3(_n,_a,_b,_c,_d,_e,_f)
 #  define	DT4(_n,_a,_b,_c,_d,_e,_f,_g,_h) \
 				DTRACE_PROBE4(_n,_a,_b,_c,_d,_e,_f,_g,_h)
-# else
-#  define	DT(_n)
-#  define	DT1(_n,_a,_b)
-#  define	DT2(_n,_a,_b,_c,_d)
-#  define	DT3(_n,_a,_b,_c,_d,_e,_f)
-#  define	DT4(_n,_a,_b,_c,_d,_e,_f,_g,_h)
-# endif
 #else
 # define	DT(_n)
 # define	DT1(_n,_a,_b)
