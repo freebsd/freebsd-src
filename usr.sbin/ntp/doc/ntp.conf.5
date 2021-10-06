@@ -843,7 +843,7 @@ The remaining files are necessary only for the
 Autokey protocol.
 .Pp
 Certificates imported from OpenSSL or public certificate
-authorities have certian limitations.
+authorities have certain limitations.
 The certificate should be in ASN.1 syntax, X.509 Version 3
 format and encoded in PEM, which is the same format
 used by OpenSSL.
@@ -1627,7 +1627,7 @@ one or more IPs or subnets via the third field of the
 .Pa ntp.keys
 file.
 This restriction is not enabled by default,
-to maintain backward compatability.
+to maintain backward compatibility.
 Expect
 .Cm noepeer
 to become the default in ntp\-4.4.
@@ -2574,7 +2574,7 @@ While this is generally a feature
 as it allows for quick recovery if a server key has changed,
 a properly forged and appropriately delivered crypto\-NAK packet
 can be used in a DoS attack.
-If you have active noticable problems with this type of DoS attack
+If you have active noticeable problems with this type of DoS attack
 then you should consider
 disabling this option.
 You can check your
@@ -2622,7 +2622,7 @@ While this is generally a feature
 as it allows for quick recovery if a server key has changed,
 a properly forged and appropriately delivered crypto\-NAK packet
 can be used in a DoS attack.
-If you have active noticable problems with this type of DoS attack
+If you have active noticeable problems with this type of DoS attack
 then you should consider
 disabling this option.
 You can check your
@@ -2642,7 +2642,7 @@ While this is generally a feature
 as it allows for quick recovery,
 if this type of packet is carefully forged and sent
 during an appropriate window it can be used for a DoS attack.
-If you have active noticable problems with this type of DoS attack
+If you have active noticeable problems with this type of DoS attack
 then you should consider
 disabling this option.
 You can check your
@@ -2848,7 +2848,7 @@ command line option.
 .Cm incalloc Ar count | Cm incmem Ar kilobytes
 .Oc
 .Xc
-Controls size limite of the monitoring facility's Most Recently Used
+Controls size limit of the monitoring facility's Most Recently Used
 (MRU) list
 of client addresses, which is also used by the
 rate control facility.
@@ -2856,7 +2856,7 @@ rate control facility.
 .It Ic maxdepth Ar count
 .It Ic maxmem Ar kilobytes
 Equivalent upper limits on the size of the MRU list, in terms of entries or kilobytes.
-The acutal limit will be up to
+The actual limit will be up to
 .Cm incalloc
 entries or
 .Cm incmem
@@ -2878,7 +2878,7 @@ The default is 600 entries.
 .It Cm maxage Ar seconds
 Once the MRU list has
 .Cm mindepth
-entries and an additional client is to ba added to the list,
+entries and an additional client is to be added to the list,
 if the oldest entry was updated more than
 .Cm maxage
 seconds ago, that entry is removed and its storage is reused.
