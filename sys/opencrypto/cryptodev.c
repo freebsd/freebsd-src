@@ -864,6 +864,13 @@ cryptodev_op(struct csession *cse, const struct crypt_op *cop)
 			goto bail;
 		}
 		break;
+	case CSP_MODE_AEAD:
+		if (cse->ivsize != 0 && cop->iv == NULL) {
+			SDT_PROBE1(opencrypto, dev, ioctl, error, __LINE__);
+			error = EINVAL;
+			goto bail;
+		}
+		/* FALLTHROUGH */
 	case CSP_MODE_ETA:
 		switch (cop->op) {
 		case COP_ENCRYPT:
