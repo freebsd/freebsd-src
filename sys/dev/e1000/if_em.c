@@ -305,6 +305,10 @@ static void	em_if_vlan_filter_write(struct e1000_softc *);
 static void	em_setup_vlan_hw_support(struct e1000_softc *);
 static int	em_sysctl_nvm_info(SYSCTL_HANDLER_ARGS);
 static void	em_print_nvm_info(struct e1000_softc *);
+static void	em_fw_version_locked(if_ctx_t);
+static void	em_sbuf_fw_version(struct e1000_fw_version *, struct sbuf *);
+static void	em_print_fw_version(struct e1000_softc *);
+static int	em_sysctl_print_fw_version(SYSCTL_HANDLER_ARGS);
 static int	em_sysctl_debug_info(SYSCTL_HANDLER_ARGS);
 static int	em_get_rs(SYSCTL_HANDLER_ARGS);
 static void	em_print_debug_info(struct e1000_softc *);
@@ -792,6 +796,8 @@ em_if_attach_pre(if_ctx_t ctx)
 	if_softc_ctx_t scctx;
 	device_t dev;
 	struct e1000_hw *hw;
+	struct sysctl_oid_list *child;
+	struct sysctl_ctx_list *ctx_list;
 	int error = 0;
 
 	INIT_DEBUGOUT("em_if_attach_pre: begin");
@@ -806,36 +812,37 @@ em_if_attach_pre(if_ctx_t ctx)
 
 	sc->tx_process_limit = scctx->isc_ntxd[0];
 
+	/* Determine hardware and mac info */
+	em_identify_hardware(ctx);
+
 	/* SYSCTL stuff */
-	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
-	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-	    OID_AUTO, "nvm", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
-	    sc, 0, em_sysctl_nvm_info, "I", "NVM Information");
+	ctx_list = device_get_sysctl_ctx(dev);
+	child = SYSCTL_CHILDREN(device_get_sysctl_tree(dev));
 
-	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
-	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-	    OID_AUTO, "debug", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
-	    sc, 0, em_sysctl_debug_info, "I", "Debug Information");
+	SYSCTL_ADD_PROC(ctx_list, child, OID_AUTO, "nvm",
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, sc, 0,
+	    em_sysctl_nvm_info, "I", "NVM Information");
 
-	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
-	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-	    OID_AUTO, "fc", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
-	    sc, 0, em_set_flowcntl, "I", "Flow Control");
+	SYSCTL_ADD_PROC(ctx_list, child, OID_AUTO, "fw_version",
+	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT, sc, 0,
+	    em_sysctl_print_fw_version, "A",
+	    "Prints FW/NVM Versions");
 
-	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
-	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-	    OID_AUTO, "reg_dump",
+	SYSCTL_ADD_PROC(ctx_list, child, OID_AUTO, "debug",
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, sc, 0,
+	    em_sysctl_debug_info, "I", "Debug Information");
+
+	SYSCTL_ADD_PROC(ctx_list, child, OID_AUTO, "fc",
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, sc, 0,
+	    em_set_flowcntl, "I", "Flow Control");
+
+	SYSCTL_ADD_PROC(ctx_list, child, OID_AUTO, "reg_dump",
 	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT, sc, 0,
 	    em_get_regs, "A", "Dump Registers");
 
-	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
-	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-	    OID_AUTO, "rs_dump",
+	SYSCTL_ADD_PROC(ctx_list, child, OID_AUTO, "rs_dump",
 	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, sc, 0,
 	    em_get_rs, "I", "Dump RS indexes");
-
-	/* Determine hardware and mac info */
-	em_identify_hardware(ctx);
 
 	scctx->isc_tx_nsegments = EM_MAX_SCATTER;
 	scctx->isc_nrxqsets_max = scctx->isc_ntxqsets_max = em_set_num_queues(ctx);
@@ -1045,12 +1052,9 @@ em_if_attach_pre(if_ctx_t ctx)
 
 	/* Sysctl for setting Energy Efficient Ethernet */
 	hw->dev_spec.ich8lan.eee_disable = eee_setting;
-	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
-	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-	    OID_AUTO, "eee_control",
-	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
-	    sc, 0, em_sysctl_eee, "I",
-	    "Disable Energy Efficient Ethernet");
+	SYSCTL_ADD_PROC(ctx_list, child, OID_AUTO, "eee_control",
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, sc, 0,
+	    em_sysctl_eee, "I", "Disable Energy Efficient Ethernet");
 
 	/*
 	** Start from a known state, this is
@@ -1092,6 +1096,11 @@ em_if_attach_pre(if_ctx_t ctx)
 			goto err_late;
 		}
 	}
+
+	/* Save the EEPROM/NVM versions, must be done under IFLIB_CTX_LOCK */
+	em_fw_version_locked(ctx);
+
+	em_print_fw_version(sc);
 
 	/* Disable ULP support */
 	e1000_disable_ulp_lpt_lp(hw, true);
@@ -4474,6 +4483,122 @@ em_add_hw_stats(struct e1000_softc *sc)
 	SYSCTL_ADD_UQUAD(ctx, int_list, OID_AUTO, "rx_overrun",
 			CTLFLAG_RD, &sc->stats.icrxoc,
 			"Interrupt Cause Receiver Overrun Count");
+}
+
+static void
+em_fw_version_locked(if_ctx_t ctx)
+{
+	struct e1000_softc *sc = iflib_get_softc(ctx);
+	struct e1000_hw *hw = &sc->hw;
+	struct e1000_fw_version *fw_ver = &sc->fw_ver;
+	uint16_t eep = 0;
+
+	/*
+	 * em_fw_version_locked() must run under the IFLIB_CTX_LOCK to meet the
+	 * NVM locking model, so we do it in em_if_attach_pre() and store the
+	 * info in the softc
+	 */
+	ASSERT_CTX_LOCK_HELD(hw);
+
+	*fw_ver = (struct e1000_fw_version){0};
+
+	if (hw->mac.type >= igb_mac_min) {
+		/*
+		 * Use the Shared Code for igb(4)
+		 */
+		e1000_get_fw_version(hw, fw_ver);
+	} else {
+		/*
+		 * Otherwise, EEPROM version should be present on (almost?) all
+		 * devices here
+		 */
+		if(e1000_read_nvm(hw, NVM_VERSION, 1, &eep)) {
+			INIT_DEBUGOUT("can't get EEPROM version");
+			return;
+		}
+
+		fw_ver->eep_major = (eep & NVM_MAJOR_MASK) >> NVM_MAJOR_SHIFT;
+		fw_ver->eep_minor = (eep & NVM_MINOR_MASK) >> NVM_MINOR_SHIFT;
+		fw_ver->eep_build = (eep & NVM_IMAGE_ID_MASK);
+	}
+}
+
+static void
+em_sbuf_fw_version(struct e1000_fw_version *fw_ver, struct sbuf *buf)
+{
+	const char *space = "";
+
+	if (fw_ver->eep_major || fw_ver->eep_minor || fw_ver->eep_build) {
+		sbuf_printf(buf, "EEPROM V%d.%d-%d", fw_ver->eep_major,
+			    fw_ver->eep_minor, fw_ver->eep_build);
+		space = " ";
+	}
+
+	if (fw_ver->invm_major || fw_ver->invm_minor || fw_ver->invm_img_type) {
+		sbuf_printf(buf, "%sNVM V%d.%d imgtype%d",
+			    space, fw_ver->invm_major, fw_ver->invm_minor,
+			    fw_ver->invm_img_type);
+		space = " ";
+	}
+
+	if (fw_ver->or_valid) {
+		sbuf_printf(buf, "%sOption ROM V%d-b%d-p%d",
+			    space, fw_ver->or_major, fw_ver->or_build,
+			    fw_ver->or_patch);
+		space = " ";
+	}
+
+	if (fw_ver->etrack_id)
+		sbuf_printf(buf, "%seTrack 0x%08x", space, fw_ver->etrack_id);
+}
+
+static void
+em_print_fw_version(struct e1000_softc *sc )
+{
+	device_t dev = sc->dev;
+	struct sbuf *buf;
+	int error = 0;
+
+	buf = sbuf_new_auto();
+	if (!buf) {
+		device_printf(dev, "Could not allocate sbuf for output.\n");
+		return;
+	}
+
+	em_sbuf_fw_version(&sc->fw_ver, buf);
+
+	error = sbuf_finish(buf);
+	if (error)
+		device_printf(dev, "Error finishing sbuf: %d\n", error);
+	else if (sbuf_len(buf))
+		device_printf(dev, "%s\n", sbuf_data(buf));
+
+	sbuf_delete(buf);
+}
+
+static int
+em_sysctl_print_fw_version(SYSCTL_HANDLER_ARGS)
+{
+	struct e1000_softc *sc = (struct e1000_softc *)arg1;
+	device_t dev = sc->dev;
+	struct sbuf *buf;
+	int error = 0;
+
+	buf = sbuf_new_for_sysctl(NULL, NULL, 128, req);
+	if (!buf) {
+		device_printf(dev, "Could not allocate sbuf for output.\n");
+		return (ENOMEM);
+	}
+
+	em_sbuf_fw_version(&sc->fw_ver, buf);
+
+	error = sbuf_finish(buf);
+	if (error)
+		device_printf(dev, "Error finishing sbuf: %d\n", error);
+
+	sbuf_delete(buf);
+
+	return (0);
 }
 
 /**********************************************************************
