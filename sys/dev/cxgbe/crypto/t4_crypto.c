@@ -1391,7 +1391,6 @@ ccr_gcm_soft(struct ccr_session *s, struct cryptop *crp)
 	void *auth_ctx, *kschedule;
 	char block[GMAC_BLOCK_LEN];
 	char digest[GMAC_DIGEST_LEN];
-	char iv[AES_BLOCK_LEN];
 	int error, i, len;
 
 	auth_ctx = NULL;
@@ -1436,10 +1435,8 @@ ccr_gcm_soft(struct ccr_session *s, struct cryptop *crp)
 		error = EINVAL;
 		goto out;
 	}
-	crypto_read_iv(crp, iv);
-	*(uint32_t *)&iv[12] = htobe32(1);
 
-	axf->Reinit(auth_ctx, iv, sizeof(iv));
+	axf->Reinit(auth_ctx, crp->crp_iv, AES_GCM_IV_LEN);
 
 	/* MAC the AAD. */
 	if (crp->crp_aad != NULL) {
@@ -1462,7 +1459,7 @@ ccr_gcm_soft(struct ccr_session *s, struct cryptop *crp)
 		}
 	}
 
-	exf->reinit(kschedule, iv, sizeof(iv));
+	exf->reinit(kschedule, crp->crp_iv, AES_GCM_IV_LEN);
 
 	/* Do encryption with MAC */
 	for (i = 0; i < crp->crp_payload_length; i += sizeof(block)) {
@@ -1522,7 +1519,6 @@ out:
 	zfree(kschedule, M_CCR);
 	zfree(auth_ctx, M_CCR);
 	explicit_bzero(block, sizeof(block));
-	explicit_bzero(iv, sizeof(iv));
 	explicit_bzero(digest, sizeof(digest));
 	crp->crp_etype = error;
 	crypto_done(crp);
@@ -1878,7 +1874,6 @@ ccr_ccm_soft(struct ccr_session *s, struct cryptop *crp)
 	void *kschedule;
 	char block[CCM_CBC_BLOCK_LEN];
 	char digest[AES_CBC_MAC_HASH_LEN];
-	char iv[AES_CCM_IV_LEN];
 	int error, i, len;
 
 	auth_ctx = NULL;
@@ -1923,11 +1918,10 @@ ccr_ccm_soft(struct ccr_session *s, struct cryptop *crp)
 		error = EINVAL;
 		goto out;
 	}
-	crypto_read_iv(crp, iv);
 
 	auth_ctx->aes_cbc_mac_ctx.authDataLength = crp->crp_aad_length;
 	auth_ctx->aes_cbc_mac_ctx.cryptDataLength = crp->crp_payload_length;
-	axf->Reinit(auth_ctx, iv, sizeof(iv));
+	axf->Reinit(auth_ctx, crp->crp_iv, AES_CCM_IV_LEN);
 
 	/* MAC the AAD. */
 	if (crp->crp_aad != NULL)
@@ -1939,7 +1933,7 @@ ccr_ccm_soft(struct ccr_session *s, struct cryptop *crp)
 	if (error)
 		goto out;
 
-	exf->reinit(kschedule, iv, sizeof(iv));
+	exf->reinit(kschedule, crp->crp_iv, AES_CCM_IV_LEN);
 
 	/* Do encryption/decryption with MAC */
 	for (i = 0; i < crp->crp_payload_length; i += sizeof(block)) {
@@ -1974,7 +1968,7 @@ ccr_ccm_soft(struct ccr_session *s, struct cryptop *crp)
 			error = 0;
 
 			/* Tag matches, decrypt data. */
-			exf->reinit(kschedule, iv, sizeof(iv));
+			exf->reinit(kschedule, crp->crp_iv, AES_CCM_IV_LEN);
 			for (i = 0; i < crp->crp_payload_length;
 			     i += sizeof(block)) {
 				len = imin(crp->crp_payload_length - i,
@@ -1995,7 +1989,6 @@ out:
 	zfree(kschedule, M_CCR);
 	zfree(auth_ctx, M_CCR);
 	explicit_bzero(block, sizeof(block));
-	explicit_bzero(iv, sizeof(iv));
 	explicit_bzero(digest, sizeof(digest));
 	crp->crp_etype = error;
 	crypto_done(crp);
