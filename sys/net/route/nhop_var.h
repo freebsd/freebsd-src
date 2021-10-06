@@ -57,7 +57,6 @@ struct nh_control {
 	struct nhops_head	nh_head;	/* hash table head */
 	struct bitmask_head	nh_idx_head;	/* nhop index head */
 	struct nhgroups_head	gr_head;	/* nhgrp hash table head */
-	struct bitmask_head	gr_idx_head;	/* nhgrp index head */
 	struct rwlock		ctl_lock;	/* overall ctl lock */
 	struct rib_head		*ctl_rh;	/* pointer back to rnh */
 	struct epoch_context	ctl_epoch_ctx;	/* epoch ctl helper */
