@@ -1893,8 +1893,60 @@ ccr_ccm_done(struct ccr_softc *sc, struct ccr_session *s,
 
 /*
  * Handle a CCM request that is not supported by the crypto engine by
- * performing the operation in software.  Derived from swcr_authenc().
+ * performing the operation in software.  Derived from swcr_ccm().
  */
+static void
+build_ccm_b0(const char *nonce, u_int nonce_length, u_int aad_length,
+    u_int data_length, u_int tag_length, uint8_t *b0)
+{
+	uint8_t *bp;
+	uint8_t flags, L;
+
+	KASSERT(nonce_length >= 7 && nonce_length <= 13,
+	    ("nonce_length must be between 7 and 13 bytes"));
+
+	/*
+	 * Need to determine the L field value.  This is the number of
+	 * bytes needed to specify the length of the message; the length
+	 * is whatever is left in the 16 bytes after specifying flags and
+	 * the nonce.
+	 */
+	L = 15 - nonce_length;
+
+	flags = ((aad_length > 0) << 6) +
+	    (((tag_length - 2) / 2) << 3) +
+	    L - 1;
+
+	/*
+	 * Now we need to set up the first block, which has flags, nonce,
+	 * and the message length.
+	 */
+	b0[0] = flags;
+	memcpy(b0 + 1, nonce, nonce_length);
+	bp = b0 + 1 + nonce_length;
+
+	/* Need to copy L' [aka L-1] bytes of data_length */
+	for (uint8_t *dst = b0 + CCM_CBC_BLOCK_LEN - 1; dst >= bp; dst--) {
+		*dst = data_length;
+		data_length >>= 8;
+	}
+}
+
+/* NB: OCF only supports AAD lengths < 2^32. */
+static int
+build_ccm_aad_length(u_int aad_length, uint8_t *blk)
+{
+	if (aad_length < ((1 << 16) - (1 << 8))) {
+		be16enc(blk, aad_length);
+		return (sizeof(uint16_t));
+	} else {
+		blk[0] = 0xff;
+		blk[1] = 0xfe;
+		be32enc(blk + 2, aad_length);
+		return (2 + sizeof(uint32_t));
+	}
+}
+
 static void
 ccr_ccm_soft(struct ccr_session *s, struct cryptop *crp)
 {
@@ -1904,11 +1956,13 @@ ccr_ccm_soft(struct ccr_session *s, struct cryptop *crp)
 	union authctx *auth_ctx;
 	void *kschedule;
 	char block[CCM_CBC_BLOCK_LEN];
-	char digest[AES_CBC_MAC_HASH_LEN];
+	char tag[AES_CBC_MAC_HASH_LEN];
+	u_int taglen;
 	int error, i, len;
 
 	auth_ctx = NULL;
 	kschedule = NULL;
+	taglen = s->ccm_mac.hash_len;
 
 	csp = crypto_get_params(crp->crp_session);
 	if (crp->crp_payload_length > ccm_max_payload_length(csp)) {
@@ -1956,19 +2010,32 @@ ccr_ccm_soft(struct ccr_session *s, struct cryptop *crp)
 		goto out;
 	}
 
-	auth_ctx->aes_cbc_mac_ctx.authDataLength = crp->crp_aad_length;
-	auth_ctx->aes_cbc_mac_ctx.cryptDataLength = crp->crp_payload_length;
 	axf->Reinit(auth_ctx, crp->crp_iv, csp->csp_ivlen);
 
+	/* Supply MAC with b0. */
+	build_ccm_b0(crp->crp_iv, csp->csp_ivlen, crp->crp_aad_length,
+	    crp->crp_payload_length, taglen, block);
+	axf->Update(auth_ctx, block, CCM_CBC_BLOCK_LEN);
+
 	/* MAC the AAD. */
-	if (crp->crp_aad != NULL)
-		error = axf->Update(auth_ctx, crp->crp_aad,
-		    crp->crp_aad_length);
-	else
-		error = crypto_apply(crp, crp->crp_aad_start,
-		    crp->crp_aad_length, axf->Update, auth_ctx);
-	if (error)
-		goto out;
+	if (crp->crp_aad_length != 0) {
+		len = build_ccm_aad_length(crp->crp_aad_length, block);
+		axf->Update(auth_ctx, block, len);
+		if (crp->crp_aad != NULL)
+			axf->Update(auth_ctx, crp->crp_aad,
+			    crp->crp_aad_length);
+		else
+			crypto_apply(crp, crp->crp_aad_start,
+			    crp->crp_aad_length, axf->Update, auth_ctx);
+
+		/* Pad the AAD (including length field) to a full block. */
+		len = (len + crp->crp_aad_length) % CCM_CBC_BLOCK_LEN;
+		if (len != 0) {
+			len = CCM_CBC_BLOCK_LEN - len;
+			memset(block, 0, CCM_CBC_BLOCK_LEN);
+			axf->Update(auth_ctx, block, len);
+		}
+	}
 
 	exf->reinit(kschedule, crp->crp_iv, csp->csp_ivlen);
 
@@ -1989,19 +2056,17 @@ ccr_ccm_soft(struct ccr_session *s, struct cryptop *crp)
 	}
 
 	/* Finalize MAC. */
-	axf->Final(digest, auth_ctx);
+	axf->Final(tag, auth_ctx);
 
 	/* Inject or validate tag. */
 	if (CRYPTO_OP_IS_ENCRYPT(crp->crp_op)) {
-		crypto_copyback(crp, crp->crp_digest_start, sizeof(digest),
-		    digest);
+		crypto_copyback(crp, crp->crp_digest_start, taglen, tag);
 		error = 0;
 	} else {
-		char digest2[AES_CBC_MAC_HASH_LEN];
+		char tag2[AES_CBC_MAC_HASH_LEN];
 
-		crypto_copydata(crp, crp->crp_digest_start, sizeof(digest2),
-		    digest2);
-		if (timingsafe_bcmp(digest, digest2, sizeof(digest)) == 0) {
+		crypto_copydata(crp, crp->crp_digest_start, taglen, tag2);
+		if (timingsafe_bcmp(tag, tag2, taglen) == 0) {
 			error = 0;
 
 			/* Tag matches, decrypt data. */
@@ -2019,14 +2084,14 @@ ccr_ccm_soft(struct ccr_session *s, struct cryptop *crp)
 			}
 		} else
 			error = EBADMSG;
-		explicit_bzero(digest2, sizeof(digest2));
+		explicit_bzero(tag2, sizeof(tag2));
 	}
 
 out:
 	zfree(kschedule, M_CCR);
 	zfree(auth_ctx, M_CCR);
 	explicit_bzero(block, sizeof(block));
-	explicit_bzero(digest, sizeof(digest));
+	explicit_bzero(tag, sizeof(tag));
 	crp->crp_etype = error;
 	crypto_done(crp);
 }
