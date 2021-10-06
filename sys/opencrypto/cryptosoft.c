@@ -463,7 +463,6 @@ swcr_gcm(struct swcr_session *ses, struct cryptop *crp)
 	uint32_t blkbuf[howmany(AES_BLOCK_LEN, sizeof(uint32_t))];
 	u_char *blk = (u_char *)blkbuf;
 	u_char tag[GMAC_DIGEST_LEN];
-	u_char iv[AES_BLOCK_LEN];
 	struct crypto_buffer_cursor cc_in, cc_out;
 	const u_char *inblk;
 	u_char *outblk;
@@ -492,12 +491,10 @@ swcr_gcm(struct swcr_session *ses, struct cryptop *crp)
 	if ((crp->crp_flags & CRYPTO_F_IV_SEPARATE) == 0)
 		return (EINVAL);
 
-	/* Initialize the IV */
 	ivlen = AES_GCM_IV_LEN;
-	bcopy(crp->crp_iv, iv, ivlen);
 
 	/* Supply MAC with IV */
-	axf->Reinit(&ctx, iv, ivlen);
+	axf->Reinit(&ctx, crp->crp_iv, ivlen);
 
 	/* Supply MAC with AAD */
 	if (crp->crp_aad != NULL) {
@@ -536,7 +533,7 @@ swcr_gcm(struct swcr_session *ses, struct cryptop *crp)
 	if (crp->crp_cipher_key != NULL)
 		exf->setkey(swe->sw_kschedule, crp->crp_cipher_key,
 		    crypto_get_params(crp->crp_session)->csp_cipher_klen);
-	exf->reinit(swe->sw_kschedule, iv, ivlen);
+	exf->reinit(swe->sw_kschedule, crp->crp_iv, ivlen);
 
 	/* Do encryption with MAC */
 	crypto_cursor_init(&cc_in, &crp->crp_buf);
@@ -635,7 +632,6 @@ swcr_gcm(struct swcr_session *ses, struct cryptop *crp)
 out:
 	explicit_bzero(blkbuf, sizeof(blkbuf));
 	explicit_bzero(tag, sizeof(tag));
-	explicit_bzero(iv, sizeof(iv));
 
 	return (error);
 }
@@ -701,7 +697,6 @@ swcr_ccm(struct swcr_session *ses, struct cryptop *crp)
 	uint32_t blkbuf[howmany(AES_BLOCK_LEN, sizeof(uint32_t))];
 	u_char *blk = (u_char *)blkbuf;
 	u_char tag[AES_CBC_MAC_HASH_LEN];
-	u_char iv[AES_BLOCK_LEN];
 	struct crypto_buffer_cursor cc_in, cc_out;
 	const u_char *inblk;
 	u_char *outblk;
@@ -729,9 +724,7 @@ swcr_ccm(struct swcr_session *ses, struct cryptop *crp)
 	if ((crp->crp_flags & CRYPTO_F_IV_SEPARATE) == 0)
 		return (EINVAL);
 
-	/* Initialize the IV */
 	ivlen = AES_CCM_IV_LEN;
-	bcopy(crp->crp_iv, iv, ivlen);
 
 	/*
 	 * AES CCM-CBC-MAC needs to know the length of both the auth
@@ -741,7 +734,7 @@ swcr_ccm(struct swcr_session *ses, struct cryptop *crp)
 	ctx.aes_cbc_mac_ctx.cryptDataLength = crp->crp_payload_length;
 
 	/* Supply MAC with IV */
-	axf->Reinit(&ctx, iv, ivlen);
+	axf->Reinit(&ctx, crp->crp_iv, ivlen);
 
 	/* Supply MAC with AAD */
 	if (crp->crp_aad != NULL)
@@ -755,7 +748,7 @@ swcr_ccm(struct swcr_session *ses, struct cryptop *crp)
 	if (crp->crp_cipher_key != NULL)
 		exf->setkey(swe->sw_kschedule, crp->crp_cipher_key,
 		    crypto_get_params(crp->crp_session)->csp_cipher_klen);
-	exf->reinit(swe->sw_kschedule, iv, ivlen);
+	exf->reinit(swe->sw_kschedule, crp->crp_iv, ivlen);
 
 	/* Do encryption/decryption with MAC */
 	crypto_cursor_init(&cc_in, &crp->crp_buf);
@@ -826,7 +819,7 @@ swcr_ccm(struct swcr_session *ses, struct cryptop *crp)
 		}
 
 		/* tag matches, decrypt data */
-		exf->reinit(swe->sw_kschedule, iv, ivlen);
+		exf->reinit(swe->sw_kschedule, crp->crp_iv, ivlen);
 		crypto_cursor_init(&cc_in, &crp->crp_buf);
 		crypto_cursor_advance(&cc_in, crp->crp_payload_start);
 		for (resid = crp->crp_payload_length; resid > blksz;
@@ -859,7 +852,6 @@ swcr_ccm(struct swcr_session *ses, struct cryptop *crp)
 out:
 	explicit_bzero(blkbuf, sizeof(blkbuf));
 	explicit_bzero(tag, sizeof(tag));
-	explicit_bzero(iv, sizeof(iv));
 	return (error);
 }
 
