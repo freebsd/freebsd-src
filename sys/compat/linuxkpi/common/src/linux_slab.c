@@ -193,6 +193,9 @@ lkpi_kmem_cache_free(struct linux_kmem_cache *c, void *m)
 void
 linux_kmem_cache_destroy(struct linux_kmem_cache *c)
 {
+	if (c == NULL)
+		return;
+
 	if (unlikely(c->cache_flags & SLAB_TYPESAFE_BY_RCU)) {
 		/* make sure all free callbacks have been called */
 		rcu_barrier();
