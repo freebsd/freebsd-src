@@ -1524,6 +1524,29 @@ out:
 	crypto_done(crp);
 }
 
+static int
+ccr_ccm_hmac_ctrl(unsigned int authsize)
+{
+	switch (authsize) {
+	case 4:
+		return (SCMD_HMAC_CTRL_PL1);
+	case 6:
+		return (SCMD_HMAC_CTRL_PL2);
+	case 8:
+		return (SCMD_HMAC_CTRL_DIV2);
+	case 10:
+		return (SCMD_HMAC_CTRL_TRUNC_RFC4366);
+	case 12:
+		return (SCMD_HMAC_CTRL_IPSEC_96BIT);
+	case 14:
+		return (SCMD_HMAC_CTRL_PL3);
+	case 16:
+		return (SCMD_HMAC_CTRL_NO_TRUNC);
+	default:
+		__assert_unreachable();
+	}
+}
+
 static void
 generate_ccm_b0(struct cryptop *crp, u_int hash_size_in_response,
     const char *iv, char *b0)
@@ -1783,7 +1806,7 @@ ccr_ccm(struct ccr_softc *sc, struct ccr_session *s, struct cryptop *crp)
 	    V_CPL_TX_SEC_PDU_AUTHINSERT(auth_insert));
 
 	/* These two flits are actually a CPL_TLS_TX_SCMD_FMT. */
-	hmac_ctrl = ccr_hmac_ctrl(AES_CBC_MAC_HASH_LEN, hash_size_in_response);
+	hmac_ctrl = ccr_ccm_hmac_ctrl(hash_size_in_response);
 	crwr->sec_cpl.seqno_numivs = htobe32(
 	    V_SCMD_SEQ_NO_CTRL(0) |
 	    V_SCMD_PROTO_VERSION(SCMD_PROTO_VERSION_GENERIC) |
@@ -2459,9 +2482,6 @@ ccr_probesession(device_t dev, const struct crypto_session_params *csp)
 				return (EINVAL);
 			break;
 		case CRYPTO_AES_CCM_16:
-			if (csp->csp_auth_mlen < 0 ||
-			    csp->csp_auth_mlen > AES_CBC_MAC_HASH_LEN)
-				return (EINVAL);
 			break;
 		default:
 			return (EINVAL);
