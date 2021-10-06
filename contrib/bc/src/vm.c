@@ -839,45 +839,14 @@ static void bc_vm_process(const char *text, bool is_stdin) {
 #if BC_ENABLED
 
 /**
- * Ends an if statement that ends a file. This is to ensure that full parses
- * happen when a file finishes. Without this, bc thinks that it cannot parse
- * any further. But if we reach the end of a file, we know we can add an empty
- * else clause.
+ * Ends a series of if statements. This is to ensure that full parses happen
+ * when a file finishes or stdin has no more data. Without this, bc thinks that
+ * it cannot parse any further. But if we reach the end of a file or stdin has
+ * no more data, we know we can add an empty else clause.
  */
 static void bc_vm_endif(void) {
-
-	size_t i;
-	bool good;
-
-	// Not a problem if this is true.
-	if (BC_NO_ERR(!BC_PARSE_NO_EXEC(&vm.prs))) return;
-
-	good = true;
-
-	// Find an instance of a body that needs closing, i.e., a statement that did
-	// not have a right brace when it should have.
-	for (i = 0; good && i < vm.prs.flags.len; ++i) {
-		uint16_t flag = *((uint16_t*) bc_vec_item(&vm.prs.flags, i));
-		good = ((flag & BC_PARSE_FLAG_BRACE) != BC_PARSE_FLAG_BRACE);
-	}
-
-	// If we did not find such an instance...
-	if (good) {
-
-		// We set this to restore it later. We don't want the parser thinking
-		// that we are on stdin for this one because it will want more.
-		bool is_stdin = vm.is_stdin;
-
-		vm.is_stdin = false;
-
-		// Cheat and keep parsing empty else clauses until all of them are
-		// satisfied.
-		while (BC_PARSE_IF_END(&vm.prs)) bc_vm_process("else {}", false);
-
-		vm.is_stdin = is_stdin;
-	}
-	// If we reach here, a block was not properly closed, and we should error.
-	else bc_parse_err(&vm.prs, BC_ERR_PARSE_BLOCK);
+	bc_parse_endif(&vm.prs);
+	bc_program_exec(&vm.prog);
 }
 #endif // BC_ENABLED
 

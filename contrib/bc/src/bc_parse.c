@@ -999,6 +999,44 @@ static void bc_parse_startBody(BcParse *p, uint16_t flags) {
 	bc_vec_push(&p->flags, &flags);
 }
 
+void bc_parse_endif(BcParse *p) {
+
+	size_t i;
+	bool good;
+
+	// Not a problem if this is true.
+	if (BC_NO_ERR(!BC_PARSE_NO_EXEC(p))) return;
+
+	good = true;
+
+	// Find an instance of a body that needs closing, i.e., a statement that did
+	// not have a right brace when it should have.
+	for (i = 0; good && i < p->flags.len; ++i) {
+		uint16_t flag = *((uint16_t*) bc_vec_item(&p->flags, i));
+		good = ((flag & BC_PARSE_FLAG_BRACE) != BC_PARSE_FLAG_BRACE);
+	}
+
+	// If we did not find such an instance...
+	if (good) {
+
+		// We set this to restore it later. We don't want the parser thinking
+		// that we are on stdin for this one because it will want more.
+		bool is_stdin = vm.is_stdin;
+
+		vm.is_stdin = false;
+
+		// End all of the if statements and loops.
+		while (p->flags.len > 1 || BC_PARSE_IF_END(p)) {
+			if (BC_PARSE_IF_END(p)) bc_parse_noElse(p);
+			if (p->flags.len > 1) bc_parse_endBody(p, false);
+		}
+
+		vm.is_stdin = is_stdin;
+	}
+	// If we reach here, a block was not properly closed, and we should error.
+	else bc_parse_err(&vm.prs, BC_ERR_PARSE_BLOCK);
+}
+
 /**
  * Parses an if statement.
  * @param p  The parser.
@@ -1730,12 +1768,9 @@ void bc_parse_parse(BcParse *p) {
 	// Functions need special parsing.
 	else if (p->l.t == BC_LEX_KW_DEFINE) {
 		if (BC_ERR(BC_PARSE_NO_EXEC(p))) {
-			if (p->flags.len == 1 &&
-			    BC_PARSE_TOP_FLAG(p) == BC_PARSE_FLAG_IF_END)
-			{
-				bc_parse_noElse(p);
-			}
-			else bc_parse_err(p, BC_ERR_PARSE_TOKEN);
+			bc_parse_endif(p);
+			if (BC_ERR(BC_PARSE_NO_EXEC(p)))
+				bc_parse_err(p, BC_ERR_PARSE_TOKEN);
 		}
 		bc_parse_func(p);
 	}

@@ -14,3 +14,5 @@ rand.bc
 references.bc
 screen.bc
 strings2.bc
+ifs.bc
+ifs2.bc

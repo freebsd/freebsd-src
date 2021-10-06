@@ -396,6 +396,15 @@ void bc_parse_expr(BcParse *p, uint8_t flags);
  */
 void bc_parse_parse(BcParse *p);
 
+/**
+ * Ends a series of if statements. This is to ensure that full parses happen
+ * when a file finishes or before defining a function. Without this, bc thinks
+ * that it cannot parse any further. But if we reach the end of a file or a
+ * function definition, we know we can add an empty else clause.
+ * @param p  The parser.
+ */
+void bc_parse_endif(BcParse *p);
+
 /// References to the signal message and its length.
 extern const char bc_sig_msg[];
 extern const uchar bc_sig_msg_len;
