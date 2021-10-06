@@ -18,9 +18,10 @@ chacha20_xform_setkey(void *ctx, const uint8_t *key, int len)
 }
 
 static void
-chacha20_xform_reinit(void *ctx, const uint8_t *iv)
+chacha20_xform_reinit(void *ctx, const uint8_t *iv, size_t ivlen)
 {
-
+	KASSERT(ivlen == CHACHA_NONCELEN + CHACHA_CTRLEN,
+	    ("%s: invalid IV length", __func__));
 	chacha_ivsetup(ctx, iv + 8, iv);
 }
 

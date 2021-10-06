@@ -9,12 +9,15 @@
  * supported the development of this code.
  *
  * Copyright (c) 2000, 2001 Angelos D. Keromytis
- * Copyright (c) 2014 The FreeBSD Foundation
+ * Copyright (c) 2014-2021 The FreeBSD Foundation
  * All rights reserved.
  *
  * Portions of this software were developed by John-Mark Gurney
  * under sponsorship of the FreeBSD Foundation and
  * Rubicon Communications, LLC (Netgate).
+ *
+ * Portions of this software were developed by Ararat River
+ * Consulting, LLC under sponsorship of the FreeBSD Foundation.
  *
  * Permission to use, copy, and modify this software with or without fee
  * is hereby granted, provided that this entire notice is included in
@@ -106,7 +109,7 @@ swcr_encdec(struct swcr_session *ses, struct cryptop *crp)
 	const struct enc_xform *exf;
 	struct swcr_encdec *sw;
 	size_t inlen, outlen;
-	int i, blks, ivlen, resid;
+	int i, blks, resid;
 	struct crypto_buffer_cursor cc_in, cc_out;
 	const unsigned char *inblk;
 	unsigned char *outblk;
@@ -117,7 +120,7 @@ swcr_encdec(struct swcr_session *ses, struct cryptop *crp)
 
 	sw = &ses->swcr_encdec;
 	exf = sw->sw_exf;
-	ivlen = exf->ivsize;
+	csp = crypto_get_params(crp->crp_session);
 
 	if (exf->native_blocksize == 0) {
 		/* Check for non-padded data */
@@ -133,7 +136,6 @@ swcr_encdec(struct swcr_session *ses, struct cryptop *crp)
 		return (EINVAL);
 
 	if (crp->crp_cipher_key != NULL) {
-		csp = crypto_get_params(crp->crp_session);
 		error = exf->setkey(sw->sw_kschedule,
 		    crp->crp_cipher_key, csp->csp_cipher_klen);
 		if (error)
@@ -147,7 +149,7 @@ swcr_encdec(struct swcr_session *ses, struct cryptop *crp)
 		 * xforms that provide a reinit method perform all IV
 		 * handling themselves.
 		 */
-		exf->reinit(sw->sw_kschedule, iv);
+		exf->reinit(sw->sw_kschedule, iv, csp->csp_ivlen);
 	}
 
 	ivp = iv;
@@ -534,7 +536,7 @@ swcr_gcm(struct swcr_session *ses, struct cryptop *crp)
 	if (crp->crp_cipher_key != NULL)
 		exf->setkey(swe->sw_kschedule, crp->crp_cipher_key,
 		    crypto_get_params(crp->crp_session)->csp_cipher_klen);
-	exf->reinit(swe->sw_kschedule, iv);
+	exf->reinit(swe->sw_kschedule, iv, ivlen);
 
 	/* Do encryption with MAC */
 	crypto_cursor_init(&cc_in, &crp->crp_buf);
@@ -753,7 +755,7 @@ swcr_ccm(struct swcr_session *ses, struct cryptop *crp)
 	if (crp->crp_cipher_key != NULL)
 		exf->setkey(swe->sw_kschedule, crp->crp_cipher_key,
 		    crypto_get_params(crp->crp_session)->csp_cipher_klen);
-	exf->reinit(swe->sw_kschedule, iv);
+	exf->reinit(swe->sw_kschedule, iv, ivlen);
 
 	/* Do encryption/decryption with MAC */
 	crypto_cursor_init(&cc_in, &crp->crp_buf);
@@ -824,7 +826,7 @@ swcr_ccm(struct swcr_session *ses, struct cryptop *crp)
 		}
 
 		/* tag matches, decrypt data */
-		exf->reinit(swe->sw_kschedule, iv);
+		exf->reinit(swe->sw_kschedule, iv, ivlen);
 		crypto_cursor_init(&cc_in, &crp->crp_buf);
 		crypto_cursor_advance(&cc_in, crp->crp_payload_start);
 		for (resid = crp->crp_payload_length; resid > blksz;
@@ -915,7 +917,7 @@ swcr_chacha20_poly1305(struct swcr_session *ses, struct cryptop *crp)
 	if (crp->crp_cipher_key != NULL)
 		exf->setkey(swe->sw_kschedule, crp->crp_cipher_key,
 		    csp->csp_cipher_klen);
-	exf->reinit(swe->sw_kschedule, crp->crp_iv);
+	exf->reinit(swe->sw_kschedule, crp->crp_iv, csp->csp_ivlen);
 
 	/* Do encryption with MAC */
 	crypto_cursor_init(&cc_in, &crp->crp_buf);

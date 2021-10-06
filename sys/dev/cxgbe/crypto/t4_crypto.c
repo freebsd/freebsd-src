@@ -1,7 +1,11 @@
 /*-
  * Copyright (c) 2017 Chelsio Communications, Inc.
+ * Copyright (c) 2021 The FreeBSD Foundation
  * All rights reserved.
  * Written by: John Baldwin <jhb@FreeBSD.org>
+ *
+ * Portions of this software were developed by Ararat River
+ * Consulting, LLC under sponsorship of the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -1458,7 +1462,7 @@ ccr_gcm_soft(struct ccr_session *s, struct cryptop *crp)
 		}
 	}
 
-	exf->reinit(kschedule, iv);
+	exf->reinit(kschedule, iv, sizeof(iv));
 
 	/* Do encryption with MAC */
 	for (i = 0; i < crp->crp_payload_length; i += sizeof(block)) {
@@ -1935,7 +1939,7 @@ ccr_ccm_soft(struct ccr_session *s, struct cryptop *crp)
 	if (error)
 		goto out;
 
-	exf->reinit(kschedule, iv);
+	exf->reinit(kschedule, iv, sizeof(iv));
 
 	/* Do encryption/decryption with MAC */
 	for (i = 0; i < crp->crp_payload_length; i += sizeof(block)) {
@@ -1970,7 +1974,7 @@ ccr_ccm_soft(struct ccr_session *s, struct cryptop *crp)
 			error = 0;
 
 			/* Tag matches, decrypt data. */
-			exf->reinit(kschedule, iv);
+			exf->reinit(kschedule, iv, sizeof(iv));
 			for (i = 0; i < crp->crp_payload_length;
 			     i += sizeof(block)) {
 				len = imin(crp->crp_payload_length - i,
