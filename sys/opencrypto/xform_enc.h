@@ -62,7 +62,7 @@ struct enc_xform {
 	void (*encrypt) (void *, const uint8_t *, uint8_t *);
 	void (*decrypt) (void *, const uint8_t *, uint8_t *);
 	int (*setkey) (void *, const uint8_t *, int len);
-	void (*reinit) (void *, const uint8_t *);
+	void (*reinit) (void *, const uint8_t *, size_t);
 
 	/*
 	 * For stream ciphers, encrypt/decrypt the final partial block

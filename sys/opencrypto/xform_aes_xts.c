@@ -56,7 +56,7 @@ __FBSDID("$FreeBSD$");
 static	int aes_xts_setkey(void *, const uint8_t *, int);
 static	void aes_xts_encrypt(void *, const uint8_t *, uint8_t *);
 static	void aes_xts_decrypt(void *, const uint8_t *, uint8_t *);
-static	void aes_xts_reinit(void *, const uint8_t *);
+static	void aes_xts_reinit(void *, const uint8_t *, size_t);
 
 /* Encryption instances */
 const struct enc_xform enc_xform_aes_xts = {
@@ -77,11 +77,14 @@ const struct enc_xform enc_xform_aes_xts = {
  * Encryption wrapper routines.
  */
 static void
-aes_xts_reinit(void *key, const uint8_t *iv)
+aes_xts_reinit(void *key, const uint8_t *iv, size_t ivlen)
 {
 	struct aes_xts_ctx *ctx = key;
 	uint64_t blocknum;
 	u_int i;
+
+	KASSERT(ivlen == sizeof(blocknum),
+	    ("%s: invalid IV length", __func__));
 
 	/*
 	 * Prepare tweak as E_k2(IV). IV is specified as LE representation
