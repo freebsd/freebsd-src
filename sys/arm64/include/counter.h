@@ -32,7 +32,7 @@
 #include <sys/pcpu.h>
 #include <machine/atomic.h>
 
-#define	EARLY_COUNTER	&__pcpu[0].pc_early_dummy_counter
+#define	EARLY_COUNTER	&pcpu0.pc_early_dummy_counter
 
 #define	counter_enter()	do {} while (0)
 #define	counter_exit()	do {} while (0)
