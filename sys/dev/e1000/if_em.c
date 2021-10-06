@@ -248,55 +248,55 @@ static pci_vendor_info_t igb_vendor_info_array[] =
 /*********************************************************************
  *  Function prototypes
  *********************************************************************/
-static void	*em_register(device_t dev);
-static void	*igb_register(device_t dev);
-static int	em_if_attach_pre(if_ctx_t ctx);
-static int	em_if_attach_post(if_ctx_t ctx);
-static int	em_if_detach(if_ctx_t ctx);
-static int	em_if_shutdown(if_ctx_t ctx);
-static int	em_if_suspend(if_ctx_t ctx);
-static int	em_if_resume(if_ctx_t ctx);
+static void	*em_register(device_t);
+static void	*igb_register(device_t);
+static int	em_if_attach_pre(if_ctx_t);
+static int	em_if_attach_post(if_ctx_t);
+static int	em_if_detach(if_ctx_t);
+static int	em_if_shutdown(if_ctx_t);
+static int	em_if_suspend(if_ctx_t);
+static int	em_if_resume(if_ctx_t);
 
-static int	em_if_tx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs, uint64_t *paddrs, int ntxqs, int ntxqsets);
-static int	em_if_rx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs, uint64_t *paddrs, int nrxqs, int nrxqsets);
-static void	em_if_queues_free(if_ctx_t ctx);
+static int	em_if_tx_queues_alloc(if_ctx_t, caddr_t *, uint64_t *, int, int);
+static int	em_if_rx_queues_alloc(if_ctx_t, caddr_t *, uint64_t *, int, int);
+static void	em_if_queues_free(if_ctx_t);
 
 static uint64_t	em_if_get_counter(if_ctx_t, ift_counter);
-static void	em_if_init(if_ctx_t ctx);
-static void	em_if_stop(if_ctx_t ctx);
+static void	em_if_init(if_ctx_t);
+static void	em_if_stop(if_ctx_t);
 static void	em_if_media_status(if_ctx_t, struct ifmediareq *);
-static int	em_if_media_change(if_ctx_t ctx);
-static int	em_if_mtu_set(if_ctx_t ctx, uint32_t mtu);
-static void	em_if_timer(if_ctx_t ctx, uint16_t qid);
-static void	em_if_vlan_register(if_ctx_t ctx, u16 vtag);
-static void	em_if_vlan_unregister(if_ctx_t ctx, u16 vtag);
-static void	em_if_watchdog_reset(if_ctx_t ctx);
-static bool	em_if_needs_restart(if_ctx_t ctx, enum iflib_restart_event event);
+static int	em_if_media_change(if_ctx_t);
+static int	em_if_mtu_set(if_ctx_t, uint32_t);
+static void	em_if_timer(if_ctx_t, uint16_t);
+static void	em_if_vlan_register(if_ctx_t, u16);
+static void	em_if_vlan_unregister(if_ctx_t, u16);
+static void	em_if_watchdog_reset(if_ctx_t);
+static bool	em_if_needs_restart(if_ctx_t, enum iflib_restart_event);
 
-static void	em_identify_hardware(if_ctx_t ctx);
-static int	em_allocate_pci_resources(if_ctx_t ctx);
-static void	em_free_pci_resources(if_ctx_t ctx);
-static void	em_reset(if_ctx_t ctx);
-static int	em_setup_interface(if_ctx_t ctx);
-static int	em_setup_msix(if_ctx_t ctx);
+static void	em_identify_hardware(if_ctx_t);
+static int	em_allocate_pci_resources(if_ctx_t);
+static void	em_free_pci_resources(if_ctx_t);
+static void	em_reset(if_ctx_t);
+static int	em_setup_interface(if_ctx_t);
+static int	em_setup_msix(if_ctx_t);
 
-static void	em_initialize_transmit_unit(if_ctx_t ctx);
-static void	em_initialize_receive_unit(if_ctx_t ctx);
+static void	em_initialize_transmit_unit(if_ctx_t);
+static void	em_initialize_receive_unit(if_ctx_t);
 
-static void	em_if_intr_enable(if_ctx_t ctx);
-static void	em_if_intr_disable(if_ctx_t ctx);
-static void	igb_if_intr_enable(if_ctx_t ctx);
-static void	igb_if_intr_disable(if_ctx_t ctx);
-static int	em_if_rx_queue_intr_enable(if_ctx_t ctx, uint16_t rxqid);
-static int	em_if_tx_queue_intr_enable(if_ctx_t ctx, uint16_t txqid);
-static int	igb_if_rx_queue_intr_enable(if_ctx_t ctx, uint16_t rxqid);
-static int	igb_if_tx_queue_intr_enable(if_ctx_t ctx, uint16_t txqid);
-static void	em_if_multi_set(if_ctx_t ctx);
-static void	em_if_update_admin_status(if_ctx_t ctx);
-static void	em_if_debug(if_ctx_t ctx);
+static void	em_if_intr_enable(if_ctx_t);
+static void	em_if_intr_disable(if_ctx_t);
+static void	igb_if_intr_enable(if_ctx_t);
+static void	igb_if_intr_disable(if_ctx_t);
+static int	em_if_rx_queue_intr_enable(if_ctx_t, uint16_t);
+static int	em_if_tx_queue_intr_enable(if_ctx_t, uint16_t);
+static int	igb_if_rx_queue_intr_enable(if_ctx_t, uint16_t);
+static int	igb_if_tx_queue_intr_enable(if_ctx_t, uint16_t);
+static void	em_if_multi_set(if_ctx_t);
+static void	em_if_update_admin_status(if_ctx_t);
+static void	em_if_debug(if_ctx_t);
 static void	em_update_stats_counters(struct e1000_softc *);
 static void	em_add_hw_stats(struct e1000_softc *);
-static int	em_if_set_promisc(if_ctx_t ctx, int flags);
+static int	em_if_set_promisc(if_ctx_t, int);
 static bool	em_if_vlan_filter_capable(struct e1000_softc *);
 static bool	em_if_vlan_filter_used(struct e1000_softc *);
 static void	em_if_vlan_filter_enable(struct e1000_softc *);
@@ -317,23 +317,23 @@ static void	em_init_manageability(struct e1000_softc *);
 static void	em_release_manageability(struct e1000_softc *);
 static void	em_get_hw_control(struct e1000_softc *);
 static void	em_release_hw_control(struct e1000_softc *);
-static void	em_get_wakeup(if_ctx_t ctx);
-static void	em_enable_wakeup(if_ctx_t ctx);
+static void	em_get_wakeup(if_ctx_t);
+static void	em_enable_wakeup(if_ctx_t);
 static int	em_enable_phy_wakeup(struct e1000_softc *);
 static void	em_disable_aspm(struct e1000_softc *);
 
-int		em_intr(void *arg);
+int		em_intr(void *);
 
 /* MSI-X handlers */
 static int	em_if_msix_intr_assign(if_ctx_t, int);
 static int	em_msix_link(void *);
-static void	em_handle_link(void *context);
+static void	em_handle_link(void *);
 
 static void	em_enable_vectors_82574(if_ctx_t);
 
 static int	em_set_flowcntl(SYSCTL_HANDLER_ARGS);
 static int	em_sysctl_eee(SYSCTL_HANDLER_ARGS);
-static void	em_if_led_func(if_ctx_t ctx, int onoff);
+static void	em_if_led_func(if_ctx_t, int);
 
 static int	em_get_regs(SYSCTL_HANDLER_ARGS);
 
