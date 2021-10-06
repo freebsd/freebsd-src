@@ -293,7 +293,11 @@ static void	 pr_rthdr(void *, size_t);
 static int	 pr_bitrange(u_int32_t, int, int);
 static void	 pr_retip(struct ip6_hdr *, u_char *);
 static void	 summary(void);
+#ifdef IPSEC
+#ifdef IPSEC_POLICY_IPSEC
 static int	 setpolicy(int, char *);
+#endif
+#endif
 static char	*nigroup(char *, int);
 
 int
@@ -345,18 +349,8 @@ ping6(int argc, char *argv[])
 	alarmtimeout = preload = 0;
 	datap = &outpack[ICMP6ECHOLEN + ICMP6ECHOTMLEN];
 	capdns = capdns_setup();
-#ifndef IPSEC
-#define ADDOPTS
-#else
-#ifdef IPSEC_POLICY_IPSEC
-#define ADDOPTS	"P:"
-#else
-#define ADDOPTS	"ZE"
-#endif /*IPSEC_POLICY_IPSEC*/
-#endif
-	while ((ch = getopt(argc, argv,
-	    "6k:b:C:c:DdfHe:m:I:i:l:unNop:qaAS:s:OvyYW:t:z:" ADDOPTS)) != -1) {
-#undef ADDOPTS
+
+	while ((ch = getopt(argc, argv, PING6OPTS)) != -1) {
 		switch (ch) {
 		case '6':
 			/* This option is processed in main(). */
@@ -2667,7 +2661,9 @@ pr_retip(struct ip6_hdr *ip6, u_char *end)
 	nh = ip6->ip6_nxt;
 	cp += hlen;
 	while (end - cp >= 8) {
+#ifdef IPSEC
 		struct ah ah;
+#endif
 
 		switch (nh) {
 		case IPPROTO_HOPOPTS:
