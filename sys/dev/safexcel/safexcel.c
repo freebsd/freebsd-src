@@ -1735,7 +1735,7 @@ safexcel_instr_ccm(struct safexcel_request *req, struct safexcel_instr *instr,
 	memset(b0, 0, blen);
 	b0[0] =
 	    (L - 1) | /* payload length size */
-	    ((CCM_CBC_MAX_DIGEST_LEN - 2) / 2) << 3 /* digest length */ |
+	    ((req->sess->digestlen - 2) / 2) << 3 /* digest length */ |
 	    (crp->crp_aad_length > 0 ? 1 : 0) << 6 /* AAD present bit */;
 	memcpy(&b0[1], req->iv, csp->csp_ivlen);
 	b0[14] = crp->crp_payload_length >> 8;
@@ -2314,9 +2314,6 @@ safexcel_probesession(device_t dev, const struct crypto_session_params *csp)
 				return (EINVAL);
 			break;
 		case CRYPTO_AES_CCM_16:
-			if (csp->csp_auth_mlen != 0 &&
-			    csp->csp_auth_mlen != AES_CBC_MAC_HASH_LEN)
-				return (EINVAL);
 			break;
 		default:
 			return (EINVAL);
