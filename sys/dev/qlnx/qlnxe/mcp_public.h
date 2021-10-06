@@ -513,7 +513,7 @@ struct public_global {
 	u32 debug_mb_offset;
 	u32 phymod_dbg_mb_offset;
 	struct couple_mode_teaming cmt;
-	s32 internal_temperature; /* Temperature in Celcius (-255C / +255C), measured every second. */
+	s32 internal_temperature; /* Temperature in Celsius (-255C / +255C), measured every second. */
 	u32 mfw_ver;
 	u32 running_bundle_id;
 	s32 external_temperature;
