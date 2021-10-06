@@ -1,13 +1,16 @@
 /*-
  * Copyright (c) 2005-2008 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * Copyright (c) 2010 Konstantin Belousov <kib@FreeBSD.org>
- * Copyright (c) 2014 The FreeBSD Foundation
+ * Copyright (c) 2014-2021 The FreeBSD Foundation
  * Copyright (c) 2017 Conrad Meyer <cem@FreeBSD.org>
  * All rights reserved.
  *
  * Portions of this software were developed by John-Mark Gurney
  * under sponsorship of the FreeBSD Foundation and
  * Rubicon Communications, LLC (Netgate).
+ *
+ * Portions of this software were developed by Ararat River
+ * Consulting, LLC under sponsorship of the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -319,8 +322,7 @@ aesni_probesession(device_t dev, const struct crypto_session_params *csp)
 			if (csp->csp_auth_mlen != 0 &&
 			    csp->csp_auth_mlen != AES_CBC_MAC_HASH_LEN)
 				return (EINVAL);
-			if (csp->csp_ivlen != AES_CCM_IV_LEN ||
-			    !sc->has_aes)
+			if (!sc->has_aes)
 				return (EINVAL);
 			break;
 		default:
@@ -639,9 +641,12 @@ aesni_cipher_process(struct aesni_session *ses, struct cryptop *crp)
 
 	csp = crypto_get_params(crp->crp_session);
 	switch (csp->csp_cipher_alg) {
+	case CRYPTO_AES_CCM_16:
+		if (crp->crp_payload_length > ccm_max_payload_length(csp))
+			return (EMSGSIZE);
+		/* FALLTHROUGH */
 	case CRYPTO_AES_ICM:
 	case CRYPTO_AES_NIST_GCM_16:
-	case CRYPTO_AES_CCM_16:
 		if ((crp->crp_flags & CRYPTO_F_IV_SEPARATE) == 0)
 			return (EINVAL);
 		break;
