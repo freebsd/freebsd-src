@@ -1,7 +1,11 @@
 /*-
  * Copyright (c) 2017 Chelsio Communications, Inc.
  * All rights reserved.
+ * Copyright (c) 2021 The FreeBSD Foundation
  * Written by: John Baldwin <jhb@FreeBSD.org>
+ *
+ * Portions of this software were developed by Ararat River
+ * Consulting, LLC under sponsorship of the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -65,7 +69,8 @@
  * operation once in software via OpenSSL and a second time via
  * OpenCrypto and compares the results.
  *
- * cryptocheck [-vz] [-A aad length] [-a algorithm] [-d dev] [size ...]
+ * cryptocheck [-vz] [-A aad length] [-a algorithm] [-d dev] [-I IV length]
+ *	       [size ...]
  *
  * Options:
  *	-v	Verbose.
@@ -153,6 +158,7 @@ static const struct alg {
 	enum { T_HASH, T_HMAC, T_GMAC, T_DIGEST, T_CIPHER, T_ETA, T_AEAD } type;
 	int key_len;
 	int tag_len;
+	u_int iv_sizes[8];
 	const EVP_CIPHER *(*evp_cipher)(void);
 	const EVP_MD *(*evp_md)(void);
 	int pkey;
@@ -208,34 +214,41 @@ static const struct alg {
 	{ .name = "chacha20", .cipher = CRYPTO_CHACHA20, .type = T_CIPHER,
 	  .evp_cipher = EVP_chacha20 },
 	{ .name = "aes-gcm", .cipher = CRYPTO_AES_NIST_GCM_16, .type = T_AEAD,
-	  .tag_len = AES_GMAC_HASH_LEN, .evp_cipher = EVP_aes_128_gcm },
+	  .tag_len = AES_GMAC_HASH_LEN, .iv_sizes = { AES_GCM_IV_LEN },
+	  .evp_cipher = EVP_aes_128_gcm },
 	{ .name = "aes-gcm192", .cipher = CRYPTO_AES_NIST_GCM_16,
 	  .type = T_AEAD, .tag_len = AES_GMAC_HASH_LEN,
-	  .evp_cipher = EVP_aes_192_gcm },
+	  .iv_sizes = { AES_GCM_IV_LEN }, .evp_cipher = EVP_aes_192_gcm },
 	{ .name = "aes-gcm256", .cipher = CRYPTO_AES_NIST_GCM_16,
 	  .type = T_AEAD, .tag_len = AES_GMAC_HASH_LEN,
-	  .evp_cipher = EVP_aes_256_gcm },
+	  .iv_sizes = { AES_GCM_IV_LEN }, .evp_cipher = EVP_aes_256_gcm },
 	{ .name = "aes-ccm", .cipher = CRYPTO_AES_CCM_16, .type = T_AEAD,
-	  .evp_cipher = EVP_aes_128_ccm, .tag_len = AES_CBC_MAC_HASH_LEN },
+	  .tag_len = AES_CBC_MAC_HASH_LEN, .iv_sizes = { 12, 7, 8, 9, 10, 11, 13 },
+	  .evp_cipher = EVP_aes_128_ccm },
 	{ .name = "aes-ccm192", .cipher = CRYPTO_AES_CCM_16, .type = T_AEAD,
-	  .evp_cipher = EVP_aes_192_ccm, .tag_len = AES_CBC_MAC_HASH_LEN },
+	  .tag_len = AES_CBC_MAC_HASH_LEN, .iv_sizes = { 12, 7, 8, 9, 10, 11, 13 },
+	  .evp_cipher = EVP_aes_192_ccm },
 	{ .name = "aes-ccm256", .cipher = CRYPTO_AES_CCM_16, .type = T_AEAD,
-	  .evp_cipher = EVP_aes_256_ccm, .tag_len = AES_CBC_MAC_HASH_LEN },
+	  .tag_len = AES_CBC_MAC_HASH_LEN, .iv_sizes = { 12, 7, 8, 9, 10, 11, 13 },
+	  .evp_cipher = EVP_aes_256_ccm },
 	{ .name = "chacha20-poly1305", .cipher = CRYPTO_CHACHA20_POLY1305,
 	  .type = T_AEAD, .tag_len = POLY1305_HASH_LEN,
+	  .iv_sizes = { CHACHA20_POLY1305_IV_LEN },
 	  .evp_cipher = EVP_chacha20_poly1305 },
 };
 
-static bool verbose;
+static bool testall, verbose;
 static int requested_crid;
 static size_t aad_sizes[48], sizes[EALG_MAX_BLOCK_LEN * 2];
 static u_int naad_sizes, nsizes;
+static u_int iv_size;
 
 static void
 usage(void)
 {
 	fprintf(stderr,
-	    "usage: cryptocheck [-z] [-a algorithm] [-d dev] [size ...]\n");
+	    "usage: cryptocheck [-vz] [-A aad size] [-a algorithm]\n"
+	    "                   [-d dev] [-I IV size] [size ...]\n");
 	exit(1);
 }
 
@@ -1218,8 +1231,8 @@ out:
 
 static void
 openssl_aead_encrypt(const struct alg *alg, const EVP_CIPHER *cipher,
-    const char *key, const char *iv, const char *aad, size_t aad_len,
-    const char *input, char *output, size_t size, char *tag)
+    const char *key, const char *iv, size_t iv_len, const char *aad,
+    size_t aad_len, const char *input, char *output, size_t size, char *tag)
 {
 	EVP_CIPHER_CTX *ctx;
 	int outl, total;
@@ -1228,7 +1241,13 @@ openssl_aead_encrypt(const struct alg *alg, const EVP_CIPHER *cipher,
 	if (ctx == NULL)
 		errx(1, "OpenSSL %s (%zu) ctx new failed: %s", alg->name,
 		    size, ERR_error_string(ERR_get_error(), NULL));
-	if (EVP_EncryptInit_ex(ctx, cipher, NULL, (const u_char *)key,
+	if (EVP_EncryptInit_ex(ctx, cipher, NULL, NULL, NULL) != 1)
+		errx(1, "OpenSSL %s (%zu) ctx init failed: %s", alg->name,
+		    size, ERR_error_string(ERR_get_error(), NULL));
+	if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_IVLEN, iv_len, NULL) != 1)
+		errx(1, "OpenSSL %s (%zu) setting iv length failed: %s", alg->name,
+		    size, ERR_error_string(ERR_get_error(), NULL));
+	if (EVP_EncryptInit_ex(ctx, NULL, NULL, (const u_char *)key,
 	    (const u_char *)iv) != 1)
 		errx(1, "OpenSSL %s (%zu) ctx init failed: %s", alg->name,
 		    size, ERR_error_string(ERR_get_error(), NULL));
@@ -1314,54 +1333,67 @@ openssl_ccm_encrypt(const struct alg *alg, const EVP_CIPHER *cipher,
 
 	ctx = EVP_CIPHER_CTX_new();
 	if (ctx == NULL)
-		errx(1, "OpenSSL %s (%zu) ctx new failed: %s", alg->name,
-		    size, ERR_error_string(ERR_get_error(), NULL));
+		errx(1, "OpenSSL %s/%zu (%zu, %zu) ctx new failed: %s",
+		    alg->name, iv_len, aad_len, size,
+		    ERR_error_string(ERR_get_error(), NULL));
 	if (EVP_EncryptInit_ex(ctx, cipher, NULL, NULL, NULL) != 1)
-		errx(1, "OpenSSL %s (%zu) ctx init failed: %s", alg->name,
-		    size, ERR_error_string(ERR_get_error(), NULL));
+		errx(1, "OpenSSL %s/%zu (%zu, %zu) ctx init failed: %s",
+		    alg->name, iv_len, aad_len, size,
+		    ERR_error_string(ERR_get_error(), NULL));
 	if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_IVLEN, iv_len, NULL) != 1)
-		errx(1, "OpenSSL %s (%zu) setting iv length failed: %s", alg->name,
-		    size, ERR_error_string(ERR_get_error(), NULL));
+		errx(1,
+		    "OpenSSL %s/%zu (%zu, %zu) setting iv length failed: %s",
+		    alg->name, iv_len, aad_len, size,
+		    ERR_error_string(ERR_get_error(), NULL));
 	if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_TAG, AES_CBC_MAC_HASH_LEN, NULL) != 1)
-		errx(1, "OpenSSL %s (%zu) setting tag length failed: %s", alg->name,
-		     size, ERR_error_string(ERR_get_error(), NULL));
+		errx(1,
+		    "OpenSSL %s/%zu (%zu, %zu) setting tag length failed: %s",
+		    alg->name, iv_len, aad_len, size,
+		    ERR_error_string(ERR_get_error(), NULL));
 	if (EVP_EncryptInit_ex(ctx, NULL, NULL, (const u_char *)key,
 	    (const u_char *)iv) != 1)
-		errx(1, "OpenSSL %s (%zu) ctx init failed: %s", alg->name,
-		    size, ERR_error_string(ERR_get_error(), NULL));
+		errx(1, "OpenSSL %s/%zu (%zu, %zu) ctx init failed: %s",
+		    alg->name, iv_len, aad_len, size,
+		    ERR_error_string(ERR_get_error(), NULL));
 	if (EVP_EncryptUpdate(ctx, NULL, &outl, NULL, size) != 1)
-		errx(1, "OpenSSL %s (%zu) unable to set data length: %s", alg->name,
-		     size, ERR_error_string(ERR_get_error(), NULL));
+		errx(1,
+		    "OpenSSL %s/%zu (%zu, %zu) unable to set data length: %s",
+		    alg->name, iv_len, aad_len, size,
+		    ERR_error_string(ERR_get_error(), NULL));
 
 	if (aad != NULL) {
 		if (EVP_EncryptUpdate(ctx, NULL, &outl, (const u_char *)aad,
 		    aad_len) != 1)
-			errx(1, "OpenSSL %s (%zu) aad update failed: %s",
-			    alg->name, size,
+			errx(1,
+			    "OpenSSL %s/%zu (%zu, %zu) aad update failed: %s",
+			    alg->name, iv_len, aad_len, size,
 			    ERR_error_string(ERR_get_error(), NULL));
 	}
 	if (EVP_EncryptUpdate(ctx, (u_char *)output, &outl,
 	    (const u_char *)input, size) != 1)
-		errx(1, "OpenSSL %s (%zu) encrypt update failed: %s", alg->name,
-		    size, ERR_error_string(ERR_get_error(), NULL));
+		errx(1, "OpenSSL %s/%zu (%zu, %zu) encrypt update failed: %s",
+		    alg->name, iv_len, aad_len, size,
+		    ERR_error_string(ERR_get_error(), NULL));
 	total = outl;
 	if (EVP_EncryptFinal_ex(ctx, (u_char *)output + outl, &outl) != 1)
-		errx(1, "OpenSSL %s (%zu) encrypt final failed: %s", alg->name,
-		    size, ERR_error_string(ERR_get_error(), NULL));
+		errx(1, "OpenSSL %s/%zu (%zu, %zu) encrypt final failed: %s",
+		    alg->name, iv_len, aad_len, size,
+		    ERR_error_string(ERR_get_error(), NULL));
 	total += outl;
 	if ((size_t)total != size)
-		errx(1, "OpenSSL %s (%zu) encrypt size mismatch: %d", alg->name,
-		    size, total);
+		errx(1, "OpenSSL %s/%zu (%zu, %zu) encrypt size mismatch: %d",
+		    alg->name, iv_len, aad_len, size, total);
 	if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_GET_TAG, AES_CBC_MAC_HASH_LEN,
 	    tag) != 1)
-		errx(1, "OpenSSL %s (%zu) get tag failed: %s", alg->name,
-		    size, ERR_error_string(ERR_get_error(), NULL));
+		errx(1, "OpenSSL %s/%zu (%zu, %zu) get tag failed: %s",
+		    alg->name, iv_len, aad_len, size,
+		    ERR_error_string(ERR_get_error(), NULL));
 	EVP_CIPHER_CTX_free(ctx);
 }
 
 static bool
 ocf_init_aead_session(const struct alg *alg, const char *key, size_t key_len,
-    struct ocf_session *ses)
+    size_t iv_len, struct ocf_session *ses)
 {
 	struct session2_op sop;
 
@@ -1369,6 +1401,7 @@ ocf_init_aead_session(const struct alg *alg, const char *key, size_t key_len,
 	sop.keylen = key_len;
 	sop.key = key;
 	sop.cipher = alg->cipher;
+	sop.ivlen = iv_len;
 	return (ocf_init_session(&sop, "AEAD", alg->name, ses));
 }
 
@@ -1398,14 +1431,43 @@ ocf_aead(const struct ocf_session *ses, const char *iv, size_t iv_len,
 #define	AEAD_MAX_TAG_LEN				\
 	MAX(MAX(AES_GMAC_HASH_LEN, AES_CBC_MAC_HASH_LEN), POLY1305_HASH_LEN)
 
+static size_t
+max_ccm_buffer_length(size_t iv_len)
+{
+	const u_int L = 15 - iv_len;
+
+	switch (L) {
+	case 2:
+		return (0xffff);
+	case 3:
+		return (0xffffff);
+#ifdef __LP64__
+	case 4:
+		return (0xffffffff);
+	case 5:
+		return (0xffffffffff);
+	case 6:
+		return (0xffffffffffff);
+	case 7:
+		return (0xffffffffffffff);
+	default:
+		return (0xffffffffffffffff);
+#else
+	default:
+		return (0xffffffff);
+#endif
+	}
+}
+
 static void
-run_aead_test(const struct alg *alg, size_t aad_len, size_t size)
+run_aead_test(const struct alg *alg, size_t aad_len, size_t size,
+    size_t iv_len)
 {
 	struct ocf_session ses;
 	const EVP_CIPHER *cipher;
 	char *aad, *buffer, *cleartext, *ciphertext;
 	char *iv, *key;
-	u_int iv_len, key_len;
+	u_int key_len;
 	int error;
 	char control_tag[AEAD_MAX_TAG_LEN], test_tag[AEAD_MAX_TAG_LEN];
 
@@ -1413,9 +1475,17 @@ run_aead_test(const struct alg *alg, size_t aad_len, size_t size)
 	if (size % EVP_CIPHER_block_size(cipher) != 0) {
 		if (verbose)
 			printf(
-		    "%s (%zu, %zu): invalid buffer size (block size %d)\n",
-			    alg->name, aad_len, size,
+		    "%s/%zu (%zu, %zu): invalid buffer size (block size %d)\n",
+			    alg->name, iv_len, aad_len, size,
 			    EVP_CIPHER_block_size(cipher));
+		return;
+	}
+
+	if (EVP_CIPHER_mode(cipher) == EVP_CIPH_CCM_MODE &&
+	    size > max_ccm_buffer_length(iv_len)) {
+		if (verbose)
+			printf("%s/%zu (%zu, %zu): invalid buffer size\n",
+			    alg->name, iv_len, aad_len, size);
 		return;
 	}
 
@@ -1423,20 +1493,6 @@ run_aead_test(const struct alg *alg, size_t aad_len, size_t size)
 	memset(test_tag, 0x3c, sizeof(test_tag));
 
 	key_len = EVP_CIPHER_key_length(cipher);
-	iv_len = EVP_CIPHER_iv_length(cipher);
-
-	/*
-	 * AES-CCM can have varying IV lengths; however, for the moment
-	 * we only support AES_CCM_IV_LEN (12).  So if the sizes are
-	 * different, we'll fail.
-	 */
-	if (EVP_CIPHER_mode(cipher) == EVP_CIPH_CCM_MODE &&
-	    iv_len != AES_CCM_IV_LEN) {
-		if (verbose)
-			printf("OpenSSL CCM IV length (%d) != AES_CCM_IV_LEN",
-			    iv_len);
-		return;
-	}
 
 	key = alloc_buffer(key_len);
 	iv = generate_iv(iv_len, alg);
@@ -1453,23 +1509,23 @@ run_aead_test(const struct alg *alg, size_t aad_len, size_t size)
 		openssl_ccm_encrypt(alg, cipher, key, iv, iv_len, aad,
 		    aad_len, cleartext, ciphertext, size, control_tag);
 	else
-		openssl_aead_encrypt(alg, cipher, key, iv, aad, aad_len,
-		    cleartext, ciphertext, size, control_tag);
+		openssl_aead_encrypt(alg, cipher, key, iv, iv_len, aad,
+		    aad_len, cleartext, ciphertext, size, control_tag);
 
-	if (!ocf_init_aead_session(alg, key, key_len, &ses))
+	if (!ocf_init_aead_session(alg, key, key_len, iv_len, &ses))
 		goto out;
 
 	/* OCF encrypt */
 	error = ocf_aead(&ses, iv, iv_len, aad, aad_len, cleartext, buffer,
 	    size, test_tag, COP_ENCRYPT);
 	if (error != 0) {
-		warnc(error, "cryptodev %s (%zu, %zu) failed for device %s",
-		    alg->name, aad_len, size, crfind(ses.crid));
+		warnc(error, "cryptodev %s/%zu (%zu, %zu) failed for device %s",
+		    alg->name, iv_len, aad_len, size, crfind(ses.crid));
 		goto out;
 	}
 	if (memcmp(ciphertext, buffer, size) != 0) {
-		printf("%s (%zu, %zu) encryption mismatch:\n", alg->name,
-		    aad_len, size);
+		printf("%s/%zu (%zu, %zu) encryption mismatch:\n", alg->name,
+		    iv_len, aad_len, size);
 		printf("control:\n");
 		hexdump(ciphertext, size, NULL, 0);
 		printf("test (cryptodev device %s):\n", crfind(ses.crid));
@@ -1477,8 +1533,8 @@ run_aead_test(const struct alg *alg, size_t aad_len, size_t size)
 		goto out;
 	}
 	if (memcmp(control_tag, test_tag, sizeof(control_tag)) != 0) {
-		printf("%s (%zu, %zu) enc tag mismatch:\n", alg->name, aad_len,
-		    size);
+		printf("%s/%zu (%zu, %zu) enc tag mismatch:\n", alg->name,
+		    iv_len, aad_len, size);
 		printf("control:\n");
 		hexdump(control_tag, sizeof(control_tag), NULL, 0);
 		printf("test (cryptodev device %s):\n", crfind(ses.crid));
@@ -1490,13 +1546,13 @@ run_aead_test(const struct alg *alg, size_t aad_len, size_t size)
 	error = ocf_aead(&ses, iv, iv_len, aad, aad_len, ciphertext,
 	    buffer, size, control_tag, COP_DECRYPT);
 	if (error != 0) {
-		warnc(error, "cryptodev %s (%zu, %zu) failed for device %s",
-		    alg->name, aad_len, size, crfind(ses.crid));
+		warnc(error, "cryptodev %s/%zu (%zu, %zu) failed for device %s",
+		    alg->name, iv_len, aad_len, size, crfind(ses.crid));
 		goto out;
 	}
 	if (memcmp(cleartext, buffer, size) != 0) {
-		printf("%s (%zu, %zu) decryption mismatch:\n", alg->name,
-		    aad_len, size);
+		printf("%s/%zu (%zu, %zu) decryption mismatch:\n", alg->name,
+		    iv_len, aad_len, size);
 		printf("control:\n");
 		hexdump(cleartext, size, NULL, 0);
 		printf("test (cryptodev device %s):\n", crfind(ses.crid));
@@ -1511,18 +1567,18 @@ run_aead_test(const struct alg *alg, size_t aad_len, size_t size)
 	if (error != EBADMSG) {
 		if (error != 0)
 			warnc(error,
-		    "cryptodev %s (%zu, %zu) corrupt tag failed for device %s",
-			    alg->name, aad_len, size, crfind(ses.crid));
+		    "cryptodev %s/%zu (%zu, %zu) corrupt tag failed for device %s",
+			    alg->name, iv_len, aad_len, size, crfind(ses.crid));
 		else
 			warnx(
-	    "cryptodev %s (%zu, %zu) corrupt tag didn't fail for device %s",
-			    alg->name, aad_len, size, crfind(ses.crid));
+	    "cryptodev %s/%zu (%zu, %zu) corrupt tag didn't fail for device %s",
+			    alg->name, iv_len, aad_len, size, crfind(ses.crid));
 		goto out;
 	}
 
 	if (verbose)
-		printf("%s (%zu, %zu) matched (cryptodev device %s)\n",
-		    alg->name, aad_len, size, crfind(ses.crid));
+		printf("%s/%zu (%zu, %zu) matched (cryptodev device %s)\n",
+		    alg->name, iv_len, aad_len, size, crfind(ses.crid));
 
 out:
 	ocf_destroy_session(&ses);
@@ -1535,7 +1591,7 @@ out:
 }
 
 static void
-run_test(const struct alg *alg, size_t aad_len, size_t size)
+run_test(const struct alg *alg, size_t aad_len, size_t size, size_t iv_len)
 {
 
 	switch (alg->type) {
@@ -1558,7 +1614,7 @@ run_test(const struct alg *alg, size_t aad_len, size_t size)
 		run_eta_test(alg, aad_len, size);
 		break;
 	case T_AEAD:
-		run_aead_test(alg, aad_len, size);
+		run_aead_test(alg, aad_len, size, iv_len);
 		break;
 	}
 }
@@ -1566,18 +1622,33 @@ run_test(const struct alg *alg, size_t aad_len, size_t size)
 static void
 run_test_sizes(const struct alg *alg)
 {
-	u_int i, j;
+	u_int i, j, k;
 
 	switch (alg->type) {
 	default:
 		for (i = 0; i < nsizes; i++)
-			run_test(alg, 0, sizes[i]);
+			run_test(alg, 0, sizes[i], 0);
 		break;
 	case T_ETA:
-	case T_AEAD:
 		for (i = 0; i < naad_sizes; i++)
 			for (j = 0; j < nsizes; j++)
-				run_test(alg, aad_sizes[i], sizes[j]);
+				run_test(alg, aad_sizes[i], sizes[j], 0);
+		break;
+	case T_AEAD:
+		for (i = 0; i < naad_sizes; i++) {
+			for (j = 0; j < nsizes; j++) {
+				if (iv_size != 0)
+					run_test(alg, aad_sizes[i], sizes[j],
+					    iv_size);
+				else if (testall) {
+					for (k = 0; alg->iv_sizes[k] != 0; k++)
+						run_test(alg, aad_sizes[i],
+						    sizes[j], alg->iv_sizes[k]);
+				} else
+					run_test(alg, aad_sizes[i], sizes[j],
+					    alg->iv_sizes[0]);
+			}
+		}
 		break;
 	}
 }
@@ -1654,14 +1725,14 @@ main(int ac, char **av)
 	char *cp;
 	size_t base_size;
 	u_int i;
-	bool testall;
 	int ch;
 
 	algname = NULL;
 	requested_crid = CRYPTO_FLAG_HARDWARE;
 	testall = false;
 	verbose = false;
-	while ((ch = getopt(ac, av, "A:a:d:vz")) != -1)
+	iv_size = 0;
+	while ((ch = getopt(ac, av, "A:a:d:I:vz")) != -1)
 		switch (ch) {
 		case 'A':
 			if (naad_sizes >= nitems(aad_sizes)) {
@@ -1678,6 +1749,11 @@ main(int ac, char **av)
 			break;
 		case 'd':
 			requested_crid = crlookup(optarg);
+			break;
+		case 'I':
+			iv_size = strtol(optarg, &cp, 0);
+			if (*cp != '\0')
+				errx(1, "Bad IV size %s", optarg);
 			break;
 		case 'v':
 			verbose = true;
