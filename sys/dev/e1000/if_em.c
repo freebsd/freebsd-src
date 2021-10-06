@@ -4510,20 +4510,27 @@ em_sysctl_nvm_info(SYSCTL_HANDLER_ARGS)
 static void
 em_print_nvm_info(struct e1000_softc *sc)
 {
+	struct e1000_hw *hw = &sc->hw;
+	struct sx *iflib_ctx_lock = iflib_ctx_lock_get(sc->ctx);
 	u16 eeprom_data;
 	int i, j, row = 0;
 
 	/* Its a bit crude, but it gets the job done */
 	printf("\nInterface EEPROM Dump:\n");
 	printf("Offset\n0x0000  ");
+
+	/* We rely on the IFLIB_CTX_LOCK as part of NVM locking model */
+	sx_xlock(iflib_ctx_lock);
+	ASSERT_CTX_LOCK_HELD(hw);
 	for (i = 0, j = 0; i < 32; i++, j++) {
 		if (j == 8) { /* Make the offset block */
 			j = 0; ++row;
 			printf("\n0x00%x0  ",row);
 		}
-		e1000_read_nvm(&sc->hw, i, 1, &eeprom_data);
+		e1000_read_nvm(hw, i, 1, &eeprom_data);
 		printf("%04x ", eeprom_data);
 	}
+	sx_xunlock(iflib_ctx_lock);
 	printf("\n");
 }
 
