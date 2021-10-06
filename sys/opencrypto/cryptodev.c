@@ -781,7 +781,7 @@ cryptodev_op(struct csession *cse, const struct crypt_op *cop)
 	}
 
 	if (cse->txform) {
-		if (cop->len == 0 || (cop->len % cse->txform->blocksize) != 0) {
+		if ((cop->len % cse->txform->blocksize) != 0) {
 			SDT_PROBE1(opencrypto, dev, ioctl, error, __LINE__);
 			return (EINVAL);
 		}
@@ -836,6 +836,12 @@ cryptodev_op(struct csession *cse, const struct crypt_op *cop)
 		}
 		break;
 	case CSP_MODE_CIPHER:
+		if (cop->len == 0 ||
+		    (cop->iv == NULL && cop->len == cse->ivsize)) {
+			SDT_PROBE1(opencrypto, dev, ioctl, error, __LINE__);
+			error = EINVAL;
+			goto bail;
+		}
 		switch (cop->op) {
 		case COP_ENCRYPT:
 			crp->crp_op = CRYPTO_OP_ENCRYPT;
@@ -919,8 +925,9 @@ cryptodev_op(struct csession *cse, const struct crypt_op *cop)
 			goto bail;
 		}
 		crp->crp_iv_start = 0;
-		crp->crp_payload_start += cse->ivsize;
 		crp->crp_payload_length -= cse->ivsize;
+		if (crp->crp_payload_length != 0)
+			crp->crp_payload_start = cse->ivsize;
 		dst += cse->ivsize;
 	}
 
