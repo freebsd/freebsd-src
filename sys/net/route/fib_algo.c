@@ -1764,12 +1764,10 @@ get_nhop_idx(struct nhop_object *nh)
 {
 #ifdef ROUTE_MPATH
 	if (NH_IS_NHGRP(nh))
-		return (nhgrp_get_idx((struct nhgrp_object *)nh) * 2 - 1);
+		return (nhgrp_get_idx((struct nhgrp_object *)nh));
 	else
-		return (nhop_get_idx(nh) * 2);
-#else
-	return (nhop_get_idx(nh));
 #endif
+		return (nhop_get_idx(nh));
 }
 
 uint32_t
