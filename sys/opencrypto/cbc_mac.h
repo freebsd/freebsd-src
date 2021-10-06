@@ -46,13 +46,11 @@
  * the encryption one is similar.
  */
 struct aes_cbc_mac_ctx {
-	uint64_t	authDataLength, authDataCount;
-	uint64_t	cryptDataLength, cryptDataCount;
-	int		blockIndex;
 	uint8_t		staging_block[CCM_CBC_BLOCK_LEN];
 	uint8_t		block[CCM_CBC_BLOCK_LEN];
-	const uint8_t	*nonce;
+	int		blockIndex;
 	int		nonceLength;	/* This one is in bytes, not bits! */
+	const uint8_t	*nonce;
 	/* AES state data */
 	int		rounds;
 	uint32_t	keysched[4*(RIJNDAEL_MAXNR+1)];
