@@ -51,7 +51,7 @@ __FBSDID("$FreeBSD$");
  * Note that temperature values throughout this code are handled in two types of
  * units.  Items with '_cnt' in the name use the hardware temperature count
  * units (higher counts are lower temperatures).  Items with '_val' in the name
- * are deci-Celcius, which are converted to/from deci-Kelvins in the sysctl
+ * are deci-Celsius, which are converted to/from deci-Kelvins in the sysctl
  * handlers (dK is the standard unit for temperature in sysctl).
  */
 
@@ -140,7 +140,7 @@ static struct oppt {
  */
 static uint32_t imx6_ocotp_mhz_tab[] = {792, 852, 996, 1200};
 
-#define	TZ_ZEROC	2731	/* deci-Kelvin <-> deci-Celcius offset. */
+#define	TZ_ZEROC	2731	/* deci-Kelvin <-> deci-Celsius offset. */
 
 uint32_t
 imx6_anatop_read_4(bus_size_t offset)

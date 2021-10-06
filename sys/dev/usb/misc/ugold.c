@@ -248,7 +248,7 @@ ugold_attach(device_t dev)
 	SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(sensor_tree),
 	    OID_AUTO, "inner", CTLFLAG_RD, &sc->sc_sensor[UGOLD_INNER], 0,
-	    "Inner temperature in microCelcius");
+	    "Inner temperature in microCelsius");
 
 	SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(sensor_tree),
@@ -258,17 +258,17 @@ ugold_attach(device_t dev)
 	SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(sensor_tree),
 	    OID_AUTO, "inner_calib", CTLFLAG_RWTUN, &sc->sc_calib[UGOLD_INNER], 0,
-	    "Inner calibration temperature in microCelcius");
-	
+	    "Inner calibration temperature in microCelsius");
+
 	SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(sensor_tree),
 	    OID_AUTO, "outer", CTLFLAG_RD, &sc->sc_sensor[UGOLD_OUTER], 0,
-	    "Outer temperature in microCelcius");
+	    "Outer temperature in microCelsius");
 
 	SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(sensor_tree),
 	    OID_AUTO, "outer_calib", CTLFLAG_RWTUN, &sc->sc_calib[UGOLD_OUTER], 0,
-	    "Outer calibration temperature in microCelcius");
+	    "Outer calibration temperature in microCelsius");
 
 	SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(sensor_tree),
