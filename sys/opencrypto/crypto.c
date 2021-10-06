@@ -1,5 +1,9 @@
 /*-
  * Copyright (c) 2002-2006 Sam Leffler.  All rights reserved.
+ * Copyright (c) 2021 The FreeBSD Foundation
+ *
+ * Portions of this software were developed by Ararat River
+ * Consulting, LLC under sponsorship of the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -713,6 +717,24 @@ alg_is_aead(int alg)
 	return (alg_type(alg) == ALG_AEAD);
 }
 
+static bool
+ccm_tag_length_valid(int len)
+{
+	/* RFC 3610 */
+	switch (len) {
+	case 4:
+	case 6:
+	case 8:
+	case 10:
+	case 12:
+	case 14:
+	case 16:
+		return (true);
+	default:
+		return (false);
+	}
+}
+
 #define SUPPORTED_SES (CSP_F_SEPARATE_OUTPUT | CSP_F_SEPARATE_AAD | CSP_F_ESN)
 
 /* Various sanity checks on crypto session parameters. */
@@ -770,8 +792,21 @@ check_csp(const struct crypto_session_params *csp)
 			return (false);
 
 		/* IV is optional for digests (e.g. GMAC). */
-		if (csp->csp_ivlen >= EALG_MAX_BLOCK_LEN)
-			return (false);
+		switch (csp->csp_auth_alg) {
+		case CRYPTO_AES_CCM_CBC_MAC:
+			if (csp->csp_ivlen < 7 || csp->csp_ivlen > 13)
+				return (false);
+			break;
+		case CRYPTO_AES_NIST_GMAC:
+			if (csp->csp_ivlen != AES_GCM_IV_LEN)
+				return (false);
+			break;
+		default:
+			if (csp->csp_ivlen != 0)
+				return (false);
+			break;
+		}
+
 		if (!alg_is_digest(csp->csp_auth_alg))
 			return (false);
 
@@ -790,6 +825,10 @@ check_csp(const struct crypto_session_params *csp)
 			axf = crypto_auth_hash(csp);
 			if (axf == NULL || csp->csp_auth_mlen > axf->hashsize)
 				return (false);
+
+			if (csp->csp_auth_alg == CRYPTO_AES_CCM_CBC_MAC &&
+			    !ccm_tag_length_valid(csp->csp_auth_mlen))
+				return (false);
 		}
 		break;
 	case CSP_MODE_AEAD:
@@ -803,13 +842,16 @@ check_csp(const struct crypto_session_params *csp)
 		if (csp->csp_auth_alg != 0 || csp->csp_auth_klen != 0)
 			return (false);
 
-		/*
-		 * XXX: Would be nice to have a better way to get this
-		 * value.
-		 */
 		switch (csp->csp_cipher_alg) {
-		case CRYPTO_AES_NIST_GCM_16:
 		case CRYPTO_AES_CCM_16:
+			if (csp->csp_auth_mlen != 0 &&
+			    !ccm_tag_length_valid(csp->csp_auth_mlen))
+				return (false);
+
+			if (csp->csp_ivlen < 7 || csp->csp_ivlen > 13)
+				return (false);
+			break;
+		case CRYPTO_AES_NIST_GCM_16:
 		case CRYPTO_CHACHA20_POLY1305:
 			if (csp->csp_auth_mlen > 16)
 				return (false);

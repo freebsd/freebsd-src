@@ -686,5 +686,34 @@ crypto_read_iv(struct cryptop *crp, void *iv)
 		crypto_copydata(crp, crp->crp_iv_start, csp->csp_ivlen, iv);
 }
 
+static __inline size_t
+ccm_max_payload_length(const struct crypto_session_params *csp)
+{
+	/* RFC 3160 */
+	const u_int L = 15 - csp->csp_ivlen;
+
+	switch (L) {
+	case 2:
+		return (0xffff);
+	case 3:
+		return (0xffffff);
+#ifdef __LP64__
+	case 4:
+		return (0xffffffff);
+	case 5:
+		return (0xffffffffff);
+	case 6:
+		return (0xffffffffffff);
+	case 7:
+		return (0xffffffffffffff);
+	default:
+		return (0xffffffffffffffff);
+#else
+	default:
+		return (0xffffffff);
+#endif
+	}
+}
+
 #endif /* _KERNEL */
 #endif /* _CRYPTO_CRYPTO_H_ */

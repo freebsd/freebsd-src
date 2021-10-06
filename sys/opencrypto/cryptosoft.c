@@ -642,17 +642,19 @@ swcr_ccm_cbc_mac(struct swcr_session *ses, struct cryptop *crp)
 	u_char tag[AES_CBC_MAC_HASH_LEN];
 	u_char iv[AES_BLOCK_LEN];
 	union authctx ctx;
+	const struct crypto_session_params *csp;
 	struct swcr_auth *swa;
 	const struct auth_hash *axf;
 	int error, ivlen;
 
+	csp = crypto_get_params(crp->crp_session);
 	swa = &ses->swcr_auth;
 	axf = swa->sw_axf;
 
 	bcopy(swa->sw_ictx, &ctx, axf->ctxsize);
 
 	/* Initialize the IV */
-	ivlen = AES_CCM_IV_LEN;
+	ivlen = csp->csp_ivlen;
 	crypto_read_iv(crp, iv);
 
 	/*
@@ -694,6 +696,7 @@ swcr_ccm_cbc_mac(struct swcr_session *ses, struct cryptop *crp)
 static int
 swcr_ccm(struct swcr_session *ses, struct cryptop *crp)
 {
+	const struct crypto_session_params *csp;
 	uint32_t blkbuf[howmany(AES_BLOCK_LEN, sizeof(uint32_t))];
 	u_char *blk = (u_char *)blkbuf;
 	u_char tag[AES_CBC_MAC_HASH_LEN];
@@ -708,6 +711,7 @@ swcr_ccm(struct swcr_session *ses, struct cryptop *crp)
 	size_t len;
 	int blksz, error, ivlen, r, resid;
 
+	csp = crypto_get_params(crp->crp_session);
 	swa = &ses->swcr_auth;
 	axf = swa->sw_axf;
 
@@ -721,10 +725,13 @@ swcr_ccm(struct swcr_session *ses, struct cryptop *crp)
 	KASSERT(axf->blocksize == exf->native_blocksize,
 	    ("%s: blocksize mismatch", __func__));
 
+	if (crp->crp_payload_length > ccm_max_payload_length(csp))
+		return (EMSGSIZE);
+
 	if ((crp->crp_flags & CRYPTO_F_IV_SEPARATE) == 0)
 		return (EINVAL);
 
-	ivlen = AES_CCM_IV_LEN;
+	ivlen = csp->csp_ivlen;
 
 	/*
 	 * AES CCM-CBC-MAC needs to know the length of both the auth
@@ -1130,7 +1137,6 @@ swcr_setup_cipher(struct swcr_session *ses,
 
 	swe = &ses->swcr_encdec;
 	txf = crypto_cipher(csp);
-	MPASS(txf->ivsize == csp->csp_ivlen);
 	if (txf->ctxsize != 0) {
 		swe->sw_kschedule = malloc(txf->ctxsize, M_CRYPTO_DATA,
 		    M_NOWAIT);
@@ -1282,9 +1288,6 @@ swcr_setup_ccm(struct swcr_session *ses,
 	struct swcr_auth *swa;
 	const struct auth_hash *axf;
 
-	if (csp->csp_ivlen != AES_CCM_IV_LEN)
-		return (EINVAL);
-
 	/* First, setup the auth side. */
 	swa = &ses->swcr_auth;
 	switch (csp->csp_cipher_klen * 8) {
@@ -1391,8 +1394,6 @@ swcr_auth_supported(const struct crypto_session_params *csp)
 			return (false);
 		}
 		if (csp->csp_auth_key == NULL)
-			return (false);
-		if (csp->csp_ivlen != AES_CCM_IV_LEN)
 			return (false);
 		break;
 	}
