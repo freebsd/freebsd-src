@@ -510,6 +510,9 @@ struct e1000_softc {
 
 	u64			que_mask;
 
+	/* We need to store this at attach due to e1000 hw/sw locking model */
+	struct e1000_fw_version	fw_ver;
+
 	struct em_int_delay_info tx_int_delay;
 	struct em_int_delay_info tx_abs_int_delay;
 	struct em_int_delay_info rx_int_delay;
