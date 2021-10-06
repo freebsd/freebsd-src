@@ -65,7 +65,7 @@ with Visual Studio*.
 To build `bc`, run the following from the root directory:
 
 ```
-msbuild -property:Configuration=<config> bc.sln
+msbuild -property:Configuration=<config> vs/bc.sln
 ```
 
 where `<config>` is either one of `Debug` or `Release`.
@@ -73,10 +73,10 @@ where `<config>` is either one of `Debug` or `Release`.
 To build the library, run the following from the root directory:
 
 ```
-msbuild -property:Configuration=<config> bcl.sln
+msbuild -property:Configuration=<config> vs/bcl.sln
 ```
 
-where `<config>` is either one of `Debug` or `Release`.
+where `<config>` is either one of `Debug`, `ReleaseMD`, or `ReleaseMT`.
 
 ## POSIX-Compatible Systems
 

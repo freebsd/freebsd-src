@@ -1,5 +1,13 @@
 # News
 
+## 5.1.1
+
+This is a production release that completes a bug fix from `5.1.0`. The bug
+exists in all versions of `bc`.
+
+The bug was that `if` statements without `else` statements would not be handled
+correctly at the end of files or right before a function definition.
+
 ## 5.1.0
 
 This is a production release with some fixes and new features.
