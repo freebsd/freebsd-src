@@ -1112,6 +1112,13 @@ malloc_usable_size(const void *addr)
 	else
 		size = malloc_large_size(slab);
 #endif
+
+	/*
+	 * Unmark the redzone to avoid reports from consumers who are
+	 * (presumably) about to use the full allocation size.
+	 */
+	kasan_mark(addr, size, size, 0);
+
 	return (size);
 }
 
