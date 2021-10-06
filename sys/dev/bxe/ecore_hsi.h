@@ -1185,12 +1185,12 @@ struct shm_dev_info {				/* size */
 
 struct extended_dev_info_shared_cfg {             /* NVRAM OFFSET */
 
-	/*  Threshold in celcius to start using the fan */
+	/*  Threshold in celsius to start using the fan */
 	uint32_t temperature_monitor1;                           /* 0x4000 */
 	#define EXTENDED_DEV_INFO_SHARED_CFG_TEMP_FAN_THRESH_MASK     0x0000007F
 	#define EXTENDED_DEV_INFO_SHARED_CFG_TEMP_FAN_THRESH_SHIFT    0
 
-	/*  Threshold in celcius to shut down the board */
+	/*  Threshold in celsius to shut down the board */
 	#define EXTENDED_DEV_INFO_SHARED_CFG_TEMP_SHUT_THRESH_MASK    0x00007F00
 	#define EXTENDED_DEV_INFO_SHARED_CFG_TEMP_SHUT_THRESH_SHIFT   8
 
@@ -1366,12 +1366,12 @@ struct extended_dev_info_shared_cfg {             /* NVRAM OFFSET */
 	#define EXTENDED_DEV_INFO_SHARED_CFG_REV_ID_CTRL_ACTUAL       0x00001000
 	#define EXTENDED_DEV_INFO_SHARED_CFG_REV_ID_CTRL_FORCE_B0     0x00002000
 	#define EXTENDED_DEV_INFO_SHARED_CFG_REV_ID_CTRL_FORCE_B1     0x00003000
-	/*  Threshold in celcius for max continuous operation */
+	/*  Threshold in celsius for max continuous operation */
 	uint32_t temperature_report;                             /* 0x4014 */
 	#define EXTENDED_DEV_INFO_SHARED_CFG_TEMP_MCOT_MASK           0x0000007F
 	#define EXTENDED_DEV_INFO_SHARED_CFG_TEMP_MCOT_SHIFT          0
 
-	/*  Threshold in celcius for sensor caution */
+	/*  Threshold in celsius for sensor caution */
 	#define EXTENDED_DEV_INFO_SHARED_CFG_TEMP_SCT_MASK            0x00007F00
 	#define EXTENDED_DEV_INFO_SHARED_CFG_TEMP_SCT_SHIFT           8
 

@@ -300,7 +300,7 @@ oid_get_value(const struct oid *o, const struct oidformat *of,
 		return (false);
 	}
 
-	/* Convert temperatures from decikelvin to degrees Celcius. */
+	/* Convert temperatures from decikelvin to degrees Celsius. */
 	if (oidformat_is_temperature(of)) {
 		double v;
 		int e;
@@ -403,7 +403,7 @@ oid_get_metric(const struct oidname *on, const struct oidformat *of,
 		label += strlen(label) + 1;
 	}
 	if (oidformat_is_temperature(of))
-		strlcat(metric, "_celcius", mlen);
+		strlcat(metric, "_celsius", mlen);
 	else if (oidformat_is_timeval(of))
 		strlcat(metric, "_seconds", mlen);
 
