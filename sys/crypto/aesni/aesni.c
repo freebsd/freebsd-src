@@ -319,9 +319,6 @@ aesni_probesession(device_t dev, const struct crypto_session_params *csp)
 				CRYPTDEB("invalid CCM key length");
 				return (EINVAL);
 			}
-			if (csp->csp_auth_mlen != 0 &&
-			    csp->csp_auth_mlen != AES_CBC_MAC_HASH_LEN)
-				return (EINVAL);
 			if (!sc->has_aes)
 				return (EINVAL);
 			break;
@@ -610,6 +607,11 @@ aesni_cipher_setup(struct aesni_session *ses,
 		error = aesni_authprepare(ses, csp->csp_auth_klen);
 		if (error != 0)
 			return (error);
+	} else if (csp->csp_cipher_alg == CRYPTO_AES_CCM_16) {
+		if (csp->csp_auth_mlen == 0)
+			ses->mlen = AES_CBC_MAC_HASH_LEN;
+		else
+			ses->mlen = csp->csp_auth_mlen;
 	}
 
 	kt = is_fpu_kern_thread(0) || (csp->csp_cipher_alg == 0);
@@ -809,15 +811,17 @@ aesni_cipher_crypt(struct aesni_session *ses, struct cryptop *crp,
 			memset(tag, 0, sizeof(tag));			
 			AES_CCM_encrypt(buf, outbuf, authbuf, iv, tag,
 			    crp->crp_payload_length, crp->crp_aad_length,
-			    csp->csp_ivlen, ses->enc_schedule, ses->rounds);
-			crypto_copyback(crp, crp->crp_digest_start, sizeof(tag),
+			    csp->csp_ivlen, ses->mlen, ses->enc_schedule,
+			    ses->rounds);
+			crypto_copyback(crp, crp->crp_digest_start, ses->mlen,
 			    tag);
 		} else {
-			crypto_copydata(crp, crp->crp_digest_start, sizeof(tag),
+			crypto_copydata(crp, crp->crp_digest_start, ses->mlen,
 			    tag);
 			if (!AES_CCM_decrypt(buf, outbuf, authbuf, iv, tag,
 			    crp->crp_payload_length, crp->crp_aad_length,
-			    csp->csp_ivlen, ses->enc_schedule, ses->rounds))
+			    csp->csp_ivlen, ses->mlen, ses->enc_schedule,
+			    ses->rounds))
 				error = EBADMSG;
 		}
 		break;

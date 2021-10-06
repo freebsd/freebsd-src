@@ -185,10 +185,6 @@ cbc_mac_start(const unsigned char *auth_data, size_t auth_len,
  * Implement AES CCM+CBC-MAC encryption and authentication.
  *
  * A couple of notes:
- * The specification allows for a different number of tag lengths;
- * however, they're always truncated from 16 bytes, and the tag
- * length isn't passed in.  (This could be fixed by changing the
- * code in aesni.c:aesni_cipher_crypt().)
  * Since abytes is limited to a 32 bit value here, the AAD is
  * limited to 4 gigabytes or less.
  */
@@ -196,9 +192,8 @@ void
 AES_CCM_encrypt(const unsigned char *in, unsigned char *out,
 		const unsigned char *addt, const unsigned char *nonce,
 		unsigned char *tag, uint32_t nbytes, uint32_t abytes, int nlen,
-		const unsigned char *key, int nr)
+		int tag_length, const unsigned char *key, int nr)
 {
-	static const int tag_length = 16;	/* 128 bits */
 	int L;
 	int counter = 1;	/* S0 has 0, S1 has 1 */
 	size_t copy_amt, total = 0;
@@ -367,9 +362,8 @@ int
 AES_CCM_decrypt(const unsigned char *in, unsigned char *out,
 		const unsigned char *addt, const unsigned char *nonce,
 		const unsigned char *tag, uint32_t nbytes, uint32_t abytes, int nlen,
-		const unsigned char *key, int nr)
+		int tag_length, const unsigned char *key, int nr)
 {
-	static const int tag_length = 16;	/* 128 bits */
 	int L;
 	__m128i s0, rolling_mac, staging_block;
 	uint8_t *byte_ptr;
