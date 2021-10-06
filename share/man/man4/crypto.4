@@ -1,12 +1,15 @@
 .\"	$NetBSD: crypto.4,v 1.24 2014/01/27 21:23:59 pgoyette Exp $
 .\"
 .\" Copyright (c) 2008 The NetBSD Foundation, Inc.
-.\" Copyright (c) 2014 The FreeBSD Foundation
+.\" Copyright (c) 2014-2021 The FreeBSD Foundation
 .\" All rights reserved.
 .\"
 .\" Portions of this documentation were written by John-Mark Gurney
 .\" under sponsorship of the FreeBSD Foundation and
 .\" Rubicon Communications, LLC (Netgate).
+.\"
+.\" Portions of this documentation were written by Ararat River
+.\" Consulting, LLC under sponsorship of the FreeBSD Foundation.
 .\"
 .\" This code is derived from software contributed to The NetBSD Foundation
 .\" by Coyote Point Systems, Inc.
@@ -60,7 +63,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 12, 2021
+.Dd October 6, 2021
 .Dt CRYPTO 4
 .Os
 .Sh NAME
@@ -251,14 +254,27 @@ struct session2_op {
 
     uint32_t ses;	/* returns: ses # */
     int	crid;		/* driver id + flags (rw) */
-    int	pad[4];		/* for future expansion */
+    int ivlen;		/* length of nonce/IV */
+    int maclen;		/* length of MAC/tag */
+    int	pad[2];		/* for future expansion */
 };
 
 .Ed
-This request is similar to CIOGSESSION except that
+This request is similar to CIOGSESSION but adds additional fields.
+.Pp
 .Fa sessp-\*[Gt]crid
 requests either a specific crypto device or a class of devices (software vs
 hardware).
+.Pp
+.Fa sessp-\*[Gt]ivlen
+specifies the length of the IV or nonce supplied with each request.
+If this field is set to zero, the default IV or nonce length is used.
+.Pp
+.Fa sessp-\*[Gt]maclen
+specifies the length of the MAC or authentication tag supplied or computed by
+each request.
+If this field is set to zero, the full MAC is used.
+.Pp
 The
 .Fa sessp-\*[Gt]pad
 field must be initialized to zero.

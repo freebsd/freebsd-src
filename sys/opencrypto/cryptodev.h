@@ -23,12 +23,15 @@
  * PURPOSE.
  *
  * Copyright (c) 2001 Theo de Raadt
- * Copyright (c) 2014 The FreeBSD Foundation
+ * Copyright (c) 2014-2021 The FreeBSD Foundation
  * All rights reserved.
  *
  * Portions of this software were developed by John-Mark Gurney
  * under sponsorship of the FreeBSD Foundation and
  * Rubicon Communications, LLC (Netgate).
+ *
+ * Portions of this software were developed by Ararat River
+ * Consulting, LLC under sponsorship of the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -241,7 +244,9 @@ struct session2_op {
 
   	uint32_t	ses;		/* returns: session # */ 
 	int		crid;		/* driver id + flags (rw) */
-	int		pad[4];		/* for future expansion */
+	int		ivlen;		/* length of nonce/IV */
+	int		maclen;		/* length of MAC/tag */
+	int		pad[2];		/* for future expansion */
 };
 
 struct crypt_op {
