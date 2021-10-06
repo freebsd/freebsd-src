@@ -19,7 +19,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 10, 2020
+.Dd October 6, 2021
 .Dt LOGIN.CONF 5
 .Os
 .Sh NAME
@@ -287,6 +287,9 @@ NIS clients using a
 NIS server should probably use "des".
 .It "passwd_prompt	string		The password prompt presented by"
 .Xr login 1
+.It "passwordtime	time		Used by"
+.Xr passwd 1
+to set next password expiry date.
 .It "times.allow 	list		List of time periods during which"
 logins are allowed.
 .It "times.deny	list		List of time periods during which logins are"
@@ -427,9 +430,6 @@ password may be.
 .Xr passwd 1
 will warn the user if an all lower case password is entered.
 .It "monthtime 	time		Maximum login time per month."
-.It "passwordtime	time		Used by"
-.Xr passwd 1
-to set next password expiry date.
 .It "refreshtime 	time		New time allowed on account refresh."
 .It "refreshperiod	str		How often account time is refreshed."
 .It "sessiontime 	time		Maximum login time per session."
