@@ -1,11 +1,15 @@
 /*-
- * Copyright (c) 2014 The FreeBSD Foundation
+ * Copyright (c) 2014-2021 The FreeBSD Foundation
  * Copyright (c) 2018 iXsystems, Inc
  * All rights reserved.
  *
- * This software was developed by John-Mark Gurney under
- * the sponsorship of the FreeBSD Foundation and
+ * Portions of this software were developed by John-Mark Gurney
+ * under the sponsorship of the FreeBSD Foundation and
  * Rubicon Communications, LLC (Netgate).
+ *
+ * Portions of this software were developed by Ararat River
+ * Consulting, LLC under sponsorship of the FreeBSD Foundation.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -185,12 +189,7 @@ cbc_mac_start(const unsigned char *auth_data, size_t auth_len,
  * however, they're always truncated from 16 bytes, and the tag
  * length isn't passed in.  (This could be fixed by changing the
  * code in aesni.c:aesni_cipher_crypt().)
- * Similarly, although the nonce length is passed in, the
- * OpenCrypto API that calls us doesn't have a way to set the nonce
- * other than by having different crypto algorithm types.  As a result,
- * this is currently always called with nlen=12; this means that we
- * also have a maximum message length of 16 megabytes.  And similarly,
- * since abytes is limited to a 32 bit value here, the AAD is
+ * Since abytes is limited to a 32 bit value here, the AAD is
  * limited to 4 gigabytes or less.
  */
 void
@@ -221,14 +220,6 @@ AES_CCM_encrypt(const unsigned char *in, unsigned char *out,
 	 * this impacts the length of the message.
 	 */
 	L = sizeof(__m128i) - 1 - nlen;
-
-	/*
-	 * Now, this shouldn't happen, but let's make sure that
-	 * the data length isn't too big.
-	 */
-	KASSERT(nbytes <= ((1 << (8 * L)) - 1),
-	    ("%s: nbytes is %u, but length field is %d bytes",
-		__FUNCTION__, nbytes, L));
 
 	/*
 	 * Clear out the blocks
@@ -399,13 +390,6 @@ AES_CCM_decrypt(const unsigned char *in, unsigned char *out,
 	 */
 	L = sizeof(__m128i) - 1 - nlen;
 
-	/*
-	 * Now, this shouldn't happen, but let's make sure that
-	 * the data length isn't too big.
-	 */
-	if (nbytes > ((1 << (8 * L)) - 1))
-		panic("%s: nbytes is %u, but length field is %d bytes",
-		      __FUNCTION__, nbytes, L);
 	/*
 	 * Clear out the blocks
 	 */
