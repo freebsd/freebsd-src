@@ -1133,7 +1133,7 @@ ieee80211_ies_expand(struct ieee80211_ies *ies)
 
 	ie = ies->data;
 	ielen = ies->len;
-	while (ielen > 0) {
+	while (ielen > 1) {
 		switch (ie[0]) {
 		case IEEE80211_ELEMID_VENDOR:
 			if (iswpaoui(ie))
