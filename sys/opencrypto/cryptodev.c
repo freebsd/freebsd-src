@@ -3,12 +3,15 @@
 /*-
  * Copyright (c) 2001 Theo de Raadt
  * Copyright (c) 2002-2006 Sam Leffler, Errno Consulting
- * Copyright (c) 2014 The FreeBSD Foundation
+ * Copyright (c) 2014-2021 The FreeBSD Foundation
  * All rights reserved.
  *
  * Portions of this software were developed by John-Mark Gurney
  * under sponsorship of the FreeBSD Foundation and
  * Rubicon Communications, LLC (Netgate).
+ *
+ * Portions of this software were developed by Ararat River
+ * Consulting, LLC under sponsorship of the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -265,7 +268,6 @@ struct csession {
 	const struct enc_xform *txform;
 	int		hashsize;
 	int		ivsize;
-	int		mode;
 
 	void		*key;
 	void		*mackey;
@@ -614,7 +616,6 @@ cse_create(struct fcrypt *fcr, struct session2_op *sop)
 	refcount_init(&cse->refs, 1);
 	cse->key = key;
 	cse->mackey = mackey;
-	cse->mode = csp.csp_mode;
 	cse->cses = cses;
 	cse->txform = txform;
 	if (thash != NULL)
@@ -743,6 +744,7 @@ cryptodev_cb(struct cryptop *crp)
 static int
 cryptodev_op(struct csession *cse, const struct crypt_op *cop)
 {
+	const struct crypto_session_params *csp;
 	struct cryptop_data *cod = NULL;
 	struct cryptop *crp = NULL;
 	char *dst;
@@ -792,7 +794,8 @@ cryptodev_op(struct csession *cse, const struct crypt_op *cop)
 	if (cse->hashsize)
 		crp->crp_digest_start = cop->len;
 
-	switch (cse->mode) {
+	csp = crypto_get_params(cse->cses);
+	switch (csp->csp_mode) {
 	case CSP_MODE_COMPRESS:
 		switch (cop->op) {
 		case COP_ENCRYPT:
@@ -958,6 +961,7 @@ bail:
 static int
 cryptodev_aead(struct csession *cse, struct crypt_aead *caead)
 {
+	const struct crypto_session_params *csp;
 	struct cryptop_data *cod = NULL;
 	struct cryptop *crp = NULL;
 	char *dst;
@@ -1020,7 +1024,8 @@ cryptodev_aead(struct csession *cse, struct crypt_aead *caead)
 	else
 		crp->crp_digest_start = crp->crp_payload_start + caead->len;
 
-	switch (cse->mode) {
+	csp = crypto_get_params(cse->cses);
+	switch (csp->csp_mode) {
 	case CSP_MODE_AEAD:
 	case CSP_MODE_ETA:
 		switch (caead->op) {
@@ -1058,9 +1063,9 @@ cryptodev_aead(struct csession *cse, struct crypt_aead *caead)
 		 * Permit a 16-byte IV for AES-XTS, but only use the
 		 * first 8 bytes as a block number.
 		 */
-		if (cse->mode == CSP_MODE_ETA &&
-		    caead->ivlen == AES_BLOCK_LEN &&
-		    cse->ivsize == AES_XTS_IV_LEN)
+		if (csp->csp_mode == CSP_MODE_ETA &&
+		    csp->csp_cipher_alg == CRYPTO_AES_XTS &&
+		    caead->ivlen == AES_BLOCK_LEN)
 			caead->ivlen = AES_XTS_IV_LEN;
 
 		if (cse->ivsize == 0) {
