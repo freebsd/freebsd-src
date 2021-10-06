@@ -700,28 +700,36 @@ aesni_cipher_crypt(struct aesni_session *ses, struct cryptop *crp,
 	int error;
 	bool encflag, allocated, authallocated, outallocated, outcopy;
 
-	buf = aesni_cipher_alloc(crp, crp->crp_payload_start,
-	    crp->crp_payload_length, &allocated);
-	if (buf == NULL)
-		return (ENOMEM);
+	if (crp->crp_payload_length == 0) {
+		buf = NULL;
+		allocated = false;
+	} else {
+		buf = aesni_cipher_alloc(crp, crp->crp_payload_start,
+		    crp->crp_payload_length, &allocated);
+		if (buf == NULL)
+			return (ENOMEM);
+	}
 
 	outallocated = false;
 	authallocated = false;
 	authbuf = NULL;
 	if (csp->csp_cipher_alg == CRYPTO_AES_NIST_GCM_16 ||
 	    csp->csp_cipher_alg == CRYPTO_AES_CCM_16) {
-		if (crp->crp_aad != NULL)
+		if (crp->crp_aad_length == 0) {
+			authbuf = NULL;
+		} else if (crp->crp_aad != NULL) {
 			authbuf = crp->crp_aad;
-		else
+		} else {
 			authbuf = aesni_cipher_alloc(crp, crp->crp_aad_start,
 			    crp->crp_aad_length, &authallocated);
-		if (authbuf == NULL) {
-			error = ENOMEM;
-			goto out;
+			if (authbuf == NULL) {
+				error = ENOMEM;
+				goto out;
+			}
 		}
 	}
 
-	if (CRYPTO_HAS_OUTPUT_BUFFER(crp)) {
+	if (CRYPTO_HAS_OUTPUT_BUFFER(crp) && crp->crp_payload_length > 0) {
 		outbuf = crypto_buffer_contiguous_subsegment(&crp->crp_obuf,
 		    crp->crp_payload_output_start, crp->crp_payload_length);
 		if (outbuf == NULL) {
