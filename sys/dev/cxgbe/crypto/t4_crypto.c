@@ -1136,26 +1136,7 @@ ccr_gcm(struct ccr_softc *sc, struct ccr_session *s, struct cryptop *crp)
 	else
 		op_type = CHCR_DECRYPT_OP;
 
-	/*
-	 * The IV handling for GCM in OCF is a bit more complicated in
-	 * that IPSec provides a full 16-byte IV (including the
-	 * counter), whereas the /dev/crypto interface sometimes
-	 * provides a full 16-byte IV (if no IV is provided in the
-	 * ioctl) and sometimes a 12-byte IV (if the IV was explicit).
-	 *
-	 * When provided a 12-byte IV, assume the IV is really 16 bytes
-	 * with a counter in the last 4 bytes initialized to 1.
-	 *
-	 * While iv_len is checked below, the value is currently
-	 * always set to 12 when creating a GCM session in this driver
-	 * due to limitations in OCF (there is no way to know what the
-	 * IV length of a given request will be).  This means that the
-	 * driver always assumes as 12-byte IV for now.
-	 */
-	if (s->blkcipher.iv_len == 12)
-		iv_len = AES_BLOCK_LEN;
-	else
-		iv_len = s->blkcipher.iv_len;
+	iv_len = AES_BLOCK_LEN;
 
 	/*
 	 * GCM requests should always provide an explicit IV.
@@ -1293,9 +1274,8 @@ ccr_gcm(struct ccr_softc *sc, struct ccr_session *s, struct cryptop *crp)
 	crwr = wrtod(wr);
 	memset(crwr, 0, wr_len);
 
-	memcpy(iv, crp->crp_iv, s->blkcipher.iv_len);
-	if (s->blkcipher.iv_len == 12)
-		*(uint32_t *)&iv[12] = htobe32(1);
+	crypto_read_iv(crp, iv);
+	*(uint32_t *)&iv[12] = htobe32(1);
 
 	ccr_populate_wreq(sc, s, crwr, kctx_len, wr_len, imm_len, sgl_len, 0,
 	    crp);
@@ -1448,15 +1428,11 @@ ccr_gcm_soft(struct ccr_session *s, struct cryptop *crp)
 	if (error)
 		goto out;
 
-	/*
-	 * This assumes a 12-byte IV from the crp.  See longer comment
-	 * above in ccr_gcm() for more details.
-	 */
 	if ((crp->crp_flags & CRYPTO_F_IV_SEPARATE) == 0) {
 		error = EINVAL;
 		goto out;
 	}
-	memcpy(iv, crp->crp_iv, 12);
+	crypto_read_iv(crp, iv);
 	*(uint32_t *)&iv[12] = htobe32(1);
 
 	axf->Reinit(auth_ctx, iv, sizeof(iv));
@@ -1770,7 +1746,7 @@ ccr_ccm(struct ccr_softc *sc, struct ccr_session *s, struct cryptop *crp)
 	 */
 	memset(iv, 0, iv_len);
 	iv[0] = (15 - AES_CCM_IV_LEN) - 1;
-	memcpy(iv + 1, crp->crp_iv, AES_CCM_IV_LEN);
+	crypto_read_iv(crp, iv + 1);
 
 	ccr_populate_wreq(sc, s, crwr, kctx_len, wr_len, imm_len, sgl_len, 0,
 	    crp);
@@ -1943,7 +1919,7 @@ ccr_ccm_soft(struct ccr_session *s, struct cryptop *crp)
 		error = EINVAL;
 		goto out;
 	}
-	memcpy(iv, crp->crp_iv, AES_CCM_IV_LEN);
+	crypto_read_iv(crp, iv);
 
 	auth_ctx->aes_cbc_mac_ctx.authDataLength = crp->crp_aad_length;
 	auth_ctx->aes_cbc_mac_ctx.cryptDataLength = crp->crp_payload_length;
