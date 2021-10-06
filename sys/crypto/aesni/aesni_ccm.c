@@ -205,9 +205,6 @@ AES_CCM_encrypt(const unsigned char *in, unsigned char *out,
 	uint8_t *byte_ptr;
 	__m128i s0, rolling_mac, s_x, staging_block;
 
-	if (nbytes == 0 && abytes == 0)
-		return;
-
 	/* NIST 800-38c section A.1 says n is [7, 13]. */
 	if (nlen < 7 || nlen > 13)
 		panic("%s: bad nonce length %d", __FUNCTION__, nlen);
@@ -377,8 +374,6 @@ AES_CCM_decrypt(const unsigned char *in, unsigned char *out,
 	__m128i s0, rolling_mac, staging_block;
 	uint8_t *byte_ptr;
 
-	if (nbytes == 0 && abytes == 0)
-		return (1);	// No message means no decryption!
 	if (nlen < 0 || nlen > 15)
 		panic("%s: bad nonce length %d", __FUNCTION__, nlen);
 
