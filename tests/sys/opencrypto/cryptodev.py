@@ -79,10 +79,10 @@ class SessionOp2(dpkt.Packet):
         ('mackey',    'P', 0),
         ('ses',       'I', 0),
         ('crid',      'i', 0),
+        ('ivlen',     'i', 0),
+        ('maclen',    'i', 0),
         ('pad0',      'i', 0),
         ('pad1',      'i', 0),
-        ('pad2',      'i', 0),
-        ('pad3',      'i', 0),
     )
 
 class CryptOp(dpkt.Packet):
@@ -159,6 +159,11 @@ def array_tobytes(array_obj):
         return array_obj.tobytes()
     return array_obj.tostring()
 
+def empty_bytes():
+    if sys.version_info[0] >= 3:
+        return b''
+    return ""
+
 class Crypto:
     @staticmethod
     def findcrid(name):
@@ -169,7 +174,8 @@ class Crypto:
         return _findop(crid, '')[1]
 
     def __init__(self, cipher=0, key=None, mac=0, mackey=None,
-        crid=CRYPTOCAP_F_SOFTWARE | CRYPTOCAP_F_HARDWARE, maclen=None):
+        crid=CRYPTOCAP_F_SOFTWARE | CRYPTOCAP_F_HARDWARE, maclen=None,
+        ivlen=None):
         self._ses = None
         self._maclen = maclen
         ses = SessionOp2()
@@ -191,6 +197,10 @@ class Crypto:
         if not cipher and not mac:
             raise ValueError('one of cipher or mac MUST be specified.')
         ses.crid = crid
+        if ivlen:
+            ses.ivlen = ivlen
+        if maclen:
+            ses.maclen = maclen
         #print(ses)
         s = array.array('B', ses.pack_hdr())
         #print(s)
@@ -209,16 +219,23 @@ class Crypto:
             pass
         self._ses = None
 
-    def _doop(self, op, src, iv):
+    def _doop(self, op, src, iv, mac=None):
         cop = CryptOp()
         cop.ses = self._ses
         cop.op = op
         cop.flags = 0
-        cop.len = len(src)
-        s = array.array('B', src)
-        cop.src = cop.dst = s.buffer_info()[0]
+        if src is not None:
+            cop.len = len(src)
+            s = array.array('B', src)
+            cop.src = cop.dst = s.buffer_info()[0]
+        if mac is not None:
+            assert len(mac) == self._maclen, \
+                '%d != %d' % (len(tag), self._maclen)
         if self._maclen is not None:
-            m = array.array('B', [0] * self._maclen)
+            if mac is None:
+                m = array.array('B', [0] * self._maclen)
+            else:
+                m = array.array('B', mac)
             cop.mac = m.buffer_info()[0]
         ivbuf = array.array('B', str_to_ascii(iv))
         cop.iv = ivbuf.buffer_info()[0]
@@ -226,7 +243,10 @@ class Crypto:
         #print('cop:', cop)
         ioctl(_cryptodev, CIOCCRYPT, bytes(cop))
 
-        s = array_tobytes(s)
+        if src is not None:
+            s = array_tobytes(s)
+        else:
+            s = empty_bytes()
         if self._maclen is not None:
             return s, array_tobytes(m)
 
@@ -238,10 +258,11 @@ class Crypto:
         caead.op = op
         caead.flags = CRD_F_IV_EXPLICIT
         caead.flags = 0
-        src = str_to_ascii(src)
-        caead.len = len(src)
-        s = array.array('B', src)
-        caead.src = caead.dst = s.buffer_info()[0]
+        if src is not None and len(src) != 0:
+            src = str_to_ascii(src)
+            caead.len = len(src)
+            s = array.array('B', src)
+            caead.src = caead.dst = s.buffer_info()[0]
         aad = str_to_ascii(aad)
         caead.aadlen = len(aad)
         saad = array.array('B', aad)
@@ -266,7 +287,10 @@ class Crypto:
 
         ioctl(_cryptodev, CIOCCRYPTAEAD, bytes(caead))
 
-        s = array_tobytes(s)
+        if src is not None:
+            s = array_tobytes(s)
+        else:
+            s = empty_bytes()
 
         return s, array_tobytes(tag)
 
@@ -320,7 +344,7 @@ class Crypto:
 
     def decrypt(self, data, iv, aad=None, tag=None):
         if aad is None:
-            return self._doop(COP_DECRYPT, data, iv)
+            return self._doop(COP_DECRYPT, data, iv, mac=tag)
         else:
             return self._doaead(COP_DECRYPT, data, aad,
                 iv, tag=tag)
