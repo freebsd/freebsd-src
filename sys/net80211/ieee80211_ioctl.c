@@ -1591,7 +1591,7 @@ setmlme_assoc_adhoc(struct ieee80211vap *vap,
 	    ("expected opmode IBSS or AHDEMO not %s",
 	    ieee80211_opmode_name[vap->iv_opmode]));
 
-	if (ssid_len == 0)
+	if (ssid_len == 0 || ssid_len > sizeof(ssid))
 		return EINVAL;
 
 	sr = IEEE80211_MALLOC(sizeof(*sr), M_TEMP,
