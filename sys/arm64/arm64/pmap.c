@@ -5982,7 +5982,8 @@ pmap_change_props_locked(vm_offset_t va, vm_size_t size, vm_prot_t prot,
     int mode)
 {
 	vm_offset_t base, offset, tmpva;
-	pt_entry_t l3, *pte, *newpte;
+	vm_size_t pte_size;
+	pt_entry_t pte, *ptep, *newpte;
 	pt_entry_t bits, mask;
 	int lvl, rv;
 
@@ -6028,11 +6029,11 @@ pmap_change_props_locked(vm_offset_t va, vm_size_t size, vm_prot_t prot,
 	}
 
 	for (tmpva = base; tmpva < base + size; ) {
-		pte = pmap_pte(kernel_pmap, tmpva, &lvl);
-		if (pte == NULL)
+		ptep = pmap_pte(kernel_pmap, tmpva, &lvl);
+		if (ptep == NULL)
 			return (EINVAL);
 
-		if ((pmap_load(pte) & mask) == bits) {
+		if ((pmap_load(ptep) & mask) == bits) {
 			/*
 			 * We already have the correct attribute,
 			 * ignore this entry.
@@ -6059,47 +6060,60 @@ pmap_change_props_locked(vm_offset_t va, vm_size_t size, vm_prot_t prot,
 			default:
 				panic("Invalid DMAP table level: %d\n", lvl);
 			case 1:
-				newpte = pmap_demote_l1(kernel_pmap, pte,
+				if ((tmpva & L1_OFFSET) == 0 &&
+				    (base + size - tmpva) >= L1_SIZE) {
+					pte_size = L1_SIZE;
+					break;
+				}
+				newpte = pmap_demote_l1(kernel_pmap, ptep,
 				    tmpva & ~L1_OFFSET);
 				if (newpte == NULL)
 					return (EINVAL);
-				pte = pmap_l1_to_l2(pte, tmpva);
+				ptep = pmap_l1_to_l2(ptep, tmpva);
+				/* FALLTHROUGH */
 			case 2:
-				newpte = pmap_demote_l2(kernel_pmap, pte,
+				if ((tmpva & L2_OFFSET) == 0 &&
+				    (base + size - tmpva) >= L2_SIZE) {
+					pte_size = L2_SIZE;
+					break;
+				}
+				newpte = pmap_demote_l2(kernel_pmap, ptep,
 				    tmpva);
 				if (newpte == NULL)
 					return (EINVAL);
-				pte = pmap_l2_to_l3(pte, tmpva);
+				ptep = pmap_l2_to_l3(ptep, tmpva);
+				/* FALLTHROUGH */
 			case 3:
-				/* Update the entry */
-				l3 = pmap_load(pte);
-				l3 &= ~mask;
-				l3 |= bits;
-
-				pmap_update_entry(kernel_pmap, pte, l3, tmpva,
-				    PAGE_SIZE);
-
-				if (!VIRT_IN_DMAP(tmpva)) {
-					/*
-					 * Keep the DMAP memory in sync.
-					 */
-					rv = pmap_change_props_locked(
-					    PHYS_TO_DMAP(l3 & ~ATTR_MASK),
-					    L3_SIZE, prot, mode);
-					if (rv != 0)
-						return (rv);
-				}
-
-				/*
-				 * If moving to a non-cacheable entry flush
-				 * the cache.
-				 */
-				if (mode == VM_MEMATTR_UNCACHEABLE)
-					cpu_dcache_wbinv_range(tmpva, L3_SIZE);
-
+				pte_size = PAGE_SIZE;
 				break;
 			}
-			tmpva += PAGE_SIZE;
+
+			/* Update the entry */
+			pte = pmap_load(ptep);
+			pte &= ~mask;
+			pte |= bits;
+
+			pmap_update_entry(kernel_pmap, ptep, pte, tmpva,
+			    pte_size);
+
+			if (!VIRT_IN_DMAP(tmpva)) {
+				/*
+				 * Keep the DMAP memory in sync.
+				 */
+				rv = pmap_change_props_locked(
+				    PHYS_TO_DMAP(pte & ~ATTR_MASK), pte_size,
+				    prot, mode);
+				if (rv != 0)
+					return (rv);
+			}
+
+			/*
+			 * If moving to a non-cacheable entry flush
+			 * the cache.
+			 */
+			if (mode == VM_MEMATTR_UNCACHEABLE)
+				cpu_dcache_wbinv_range(tmpva, pte_size);
+			tmpva += pte_size;
 		}
 	}
 
