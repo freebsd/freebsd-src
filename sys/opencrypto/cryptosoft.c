@@ -1393,9 +1393,6 @@ swcr_setup_chacha20_poly1305(struct swcr_session *ses,
 	struct swcr_auth *swa;
 	const struct auth_hash *axf;
 
-	if (csp->csp_ivlen != CHACHA20_POLY1305_IV_LEN)
-		return (EINVAL);
-
 	/* First, setup the auth side. */
 	swa = &ses->swcr_auth;
 	axf = &auth_hash_chacha20_poly1305;

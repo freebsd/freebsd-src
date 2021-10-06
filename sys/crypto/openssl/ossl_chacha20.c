@@ -161,7 +161,8 @@ ossl_chacha20_poly1305_encrypt(struct cryptop *crp,
 	for (i = 0; i < nitems(key); i++)
 		key[i] = CHACHA_U8TOU32(cipher_key + i * 4);
 
-	crypto_read_iv(crp, counter + 1);
+	memset(counter, 0, sizeof(counter));
+	crypto_read_iv(crp, counter + (CHACHA_CTR_SIZE - csp->csp_ivlen) / 4);
 	for (i = 1; i < nitems(counter); i++)
 		counter[i] = le32toh(counter[i]);
 
@@ -223,7 +224,7 @@ ossl_chacha20_poly1305_encrypt(struct cryptop *crp,
 
 		/* Truncate if the 32-bit counter would roll over. */
 		next_counter = counter[0] + todo / CHACHA_BLK_SIZE;
-		if (next_counter < counter[0]) {
+		if (csp->csp_ivlen == 8 && next_counter < counter[0]) {
 			todo -= next_counter * CHACHA_BLK_SIZE;
 			next_counter = 0;
 		}
@@ -232,7 +233,7 @@ ossl_chacha20_poly1305_encrypt(struct cryptop *crp,
 		Poly1305_Update(&auth_ctx, out, todo);
 
 		counter[0] = next_counter;
-		if (counter[0] == 0)
+		if (csp->csp_ivlen == 8 && counter[0] == 0)
 			counter[1]++;
 
 		if (out == block) {
@@ -307,7 +308,8 @@ ossl_chacha20_poly1305_decrypt(struct cryptop *crp,
 	for (i = 0; i < nitems(key); i++)
 		key[i] = CHACHA_U8TOU32(cipher_key + i * 4);
 
-	crypto_read_iv(crp, counter + 1);
+	memset(counter, 0, sizeof(counter));
+	crypto_read_iv(crp, counter + (CHACHA_CTR_SIZE - csp->csp_ivlen) / 4);
 	for (i = 1; i < nitems(counter); i++)
 		counter[i] = le32toh(counter[i]);
 
@@ -391,7 +393,7 @@ ossl_chacha20_poly1305_decrypt(struct cryptop *crp,
 
 		/* Truncate if the 32-bit counter would roll over. */
 		next_counter = counter[0] + todo / CHACHA_BLK_SIZE;
-		if (next_counter < counter[0]) {
+		if (csp->csp_ivlen == 8 && next_counter < counter[0]) {
 			todo -= next_counter * CHACHA_BLK_SIZE;
 			next_counter = 0;
 		}
@@ -399,7 +401,7 @@ ossl_chacha20_poly1305_decrypt(struct cryptop *crp,
 		ChaCha20_ctr32(out, in, todo, key, counter);
 
 		counter[0] = next_counter;
-		if (counter[0] == 0)
+		if (csp->csp_ivlen == 8 && counter[0] == 0)
 			counter[1]++;
 
 		if (out == block) {
