@@ -1528,17 +1528,18 @@ static void
 generate_ccm_b0(struct cryptop *crp, u_int hash_size_in_response,
     const char *iv, char *b0)
 {
-	u_int i, payload_len;
+	u_int i, payload_len, L;
 
 	/* NB: L is already set in the first byte of the IV. */
 	memcpy(b0, iv, CCM_B0_SIZE);
+	L = iv[0] + 1;
 
 	/* Set length of hash in bits 3 - 5. */
 	b0[0] |= (((hash_size_in_response - 2) / 2) << 3);
 
 	/* Store the payload length as a big-endian value. */
 	payload_len = crp->crp_payload_length;
-	for (i = 0; i < iv[0]; i++) {
+	for (i = 0; i < L; i++) {
 		b0[CCM_CBC_BLOCK_LEN - 1 - i] = payload_len;
 		payload_len >>= 8;
 	}
@@ -1559,6 +1560,7 @@ static int
 ccr_ccm(struct ccr_softc *sc, struct ccr_session *s, struct cryptop *crp)
 {
 	char iv[CHCR_MAX_CRYPTO_IV_LEN];
+	const struct crypto_session_params *csp;
 	struct ulptx_idata *idata;
 	struct chcr_wr *crwr;
 	struct wrqe *wr;
@@ -1571,6 +1573,8 @@ ccr_ccm(struct ccr_softc *sc, struct ccr_session *s, struct cryptop *crp)
 	int sgl_nsegs, sgl_len;
 	int error;
 
+	csp = crypto_get_params(crp->crp_session);
+
 	if (s->blkcipher.key_len == 0)
 		return (EINVAL);
 
@@ -1579,6 +1583,10 @@ ccr_ccm(struct ccr_softc *sc, struct ccr_session *s, struct cryptop *crp)
 	 * payload, so handle those in software instead.
 	 */
 	if (crp->crp_payload_length == 0)
+		return (EMSGSIZE);
+
+	/* The length has to fit within the length field in block 0. */
+	if (crp->crp_payload_length > ccm_max_payload_length(csp))
 		return (EMSGSIZE);
 
 	/*
@@ -1598,9 +1606,8 @@ ccr_ccm(struct ccr_softc *sc, struct ccr_session *s, struct cryptop *crp)
 		return (EINVAL);
 
 	/*
-	 * Always assume a 12 byte input nonce for now since that is
-	 * what OCF always generates.  The full IV in the work request
-	 * is 16 bytes.
+	 * The IV in the work request is 16 bytes and not just the
+	 * nonce.
 	 */
 	iv_len = AES_BLOCK_LEN;
 
@@ -1745,7 +1752,7 @@ ccr_ccm(struct ccr_softc *sc, struct ccr_session *s, struct cryptop *crp)
 	 * the full IV with the counter set to 0.
 	 */
 	memset(iv, 0, iv_len);
-	iv[0] = (15 - AES_CCM_IV_LEN) - 1;
+	iv[0] = (15 - csp->csp_ivlen) - 1;
 	crypto_read_iv(crp, iv + 1);
 
 	ccr_populate_wreq(sc, s, crwr, kctx_len, wr_len, imm_len, sgl_len, 0,
@@ -1868,6 +1875,7 @@ ccr_ccm_done(struct ccr_softc *sc, struct ccr_session *s,
 static void
 ccr_ccm_soft(struct ccr_session *s, struct cryptop *crp)
 {
+	const struct crypto_session_params *csp;
 	const struct auth_hash *axf;
 	const struct enc_xform *exf;
 	union authctx *auth_ctx;
@@ -1878,6 +1886,12 @@ ccr_ccm_soft(struct ccr_session *s, struct cryptop *crp)
 
 	auth_ctx = NULL;
 	kschedule = NULL;
+
+	csp = crypto_get_params(crp->crp_session);
+	if (crp->crp_payload_length > ccm_max_payload_length(csp)) {
+		error = EMSGSIZE;
+		goto out;
+	}
 
 	/* Initialize the MAC. */
 	switch (s->blkcipher.key_len) {
@@ -1921,7 +1935,7 @@ ccr_ccm_soft(struct ccr_session *s, struct cryptop *crp)
 
 	auth_ctx->aes_cbc_mac_ctx.authDataLength = crp->crp_aad_length;
 	auth_ctx->aes_cbc_mac_ctx.cryptDataLength = crp->crp_payload_length;
-	axf->Reinit(auth_ctx, crp->crp_iv, AES_CCM_IV_LEN);
+	axf->Reinit(auth_ctx, crp->crp_iv, csp->csp_ivlen);
 
 	/* MAC the AAD. */
 	if (crp->crp_aad != NULL)
@@ -1933,7 +1947,7 @@ ccr_ccm_soft(struct ccr_session *s, struct cryptop *crp)
 	if (error)
 		goto out;
 
-	exf->reinit(kschedule, crp->crp_iv, AES_CCM_IV_LEN);
+	exf->reinit(kschedule, crp->crp_iv, csp->csp_ivlen);
 
 	/* Do encryption/decryption with MAC */
 	for (i = 0; i < crp->crp_payload_length; i += sizeof(block)) {
@@ -1968,7 +1982,7 @@ ccr_ccm_soft(struct ccr_session *s, struct cryptop *crp)
 			error = 0;
 
 			/* Tag matches, decrypt data. */
-			exf->reinit(kschedule, crp->crp_iv, AES_CCM_IV_LEN);
+			exf->reinit(kschedule, crp->crp_iv, csp->csp_ivlen);
 			for (i = 0; i < crp->crp_payload_length;
 			     i += sizeof(block)) {
 				len = imin(crp->crp_payload_length - i,
@@ -2445,8 +2459,6 @@ ccr_probesession(device_t dev, const struct crypto_session_params *csp)
 				return (EINVAL);
 			break;
 		case CRYPTO_AES_CCM_16:
-			if (csp->csp_ivlen != AES_CCM_IV_LEN)
-				return (EINVAL);
 			if (csp->csp_auth_mlen < 0 ||
 			    csp->csp_auth_mlen > AES_CBC_MAC_HASH_LEN)
 				return (EINVAL);
