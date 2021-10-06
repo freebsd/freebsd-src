@@ -144,15 +144,14 @@ aes_ccm_reinit(void *key, const uint8_t *iv, size_t ivlen)
 {
 	struct aes_icm_ctx *ctx;
 
-	KASSERT(ivlen == AES_CCM_IV_LEN,
+	KASSERT(ivlen >= 7 && ivlen <= 13,
 	    ("%s: invalid IV length", __func__));
 	ctx = key;
 
 	/* CCM has flags, then the IV, then the counter, which starts at 1 */
 	bzero(ctx->ac_block, sizeof(ctx->ac_block));
-	/* 3 bytes for length field; this gives a nonce of 12 bytes */
-	ctx->ac_block[0] = (15 - AES_CCM_IV_LEN) - 1;
-	bcopy(iv, ctx->ac_block+1, AES_CCM_IV_LEN);
+	ctx->ac_block[0] = (15 - ivlen) - 1;
+	bcopy(iv, ctx->ac_block + 1, ivlen);
 	ctx->ac_block[AESICM_BLOCKSIZE - 1] = 1;
 }
 
