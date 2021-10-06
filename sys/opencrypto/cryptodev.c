@@ -103,7 +103,9 @@ struct session2_op32 {
 	uint32_t	mackey;
 	uint32_t	ses;
 	int		crid;
-	int		pad[4];
+	int		ivlen;
+	int		maclen;
+	int		pad[2];
 };
 
 struct crypt_op32 {
@@ -156,6 +158,8 @@ session2_op_from_32(const struct session2_op32 *from, struct session2_op *to)
 
 	session_op_from_32((const struct session_op32 *)from, to);
 	CP(*from, *to, crid);
+	CP(*from, *to, ivlen);
+	CP(*from, *to, maclen);
 }
 
 static void
@@ -597,6 +601,25 @@ cse_create(struct fcrypt *fcr, struct session2_op *sop)
 			csp.csp_ivlen = AES_CCM_IV_LEN;
 	}
 
+	if (sop->ivlen != 0) {
+		if (csp.csp_ivlen == 0) {
+			CRYPTDEB("does not support an IV");
+			error = EINVAL;
+			SDT_PROBE1(opencrypto, dev, ioctl, error, __LINE__);
+			goto bail;
+		}
+		csp.csp_ivlen = sop->ivlen;
+	}
+	if (sop->maclen != 0) {
+		if (!(thash != NULL || csp.csp_mode == CSP_MODE_AEAD)) {
+			CRYPTDEB("does not support a MAC");
+			error = EINVAL;
+			SDT_PROBE1(opencrypto, dev, ioctl, error, __LINE__);
+			goto bail;
+		}
+		csp.csp_auth_mlen = sop->maclen;
+	}
+
 	crid = sop->crid;
 	error = checkforsoftware(&crid);
 	if (error) {
@@ -618,7 +641,9 @@ cse_create(struct fcrypt *fcr, struct session2_op *sop)
 	cse->mackey = mackey;
 	cse->cses = cses;
 	cse->txform = txform;
-	if (thash != NULL)
+	if (sop->maclen != 0)
+		cse->hashsize = sop->maclen;
+	else if (thash != NULL)
 		cse->hashsize = thash->hashsize;
 	else if (csp.csp_cipher_alg == CRYPTO_AES_NIST_GCM_16)
 		cse->hashsize = AES_GMAC_HASH_LEN;
