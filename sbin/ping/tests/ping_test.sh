@@ -27,14 +27,23 @@
 #
 # $FreeBSD$
 
+require_ipv4() {
+    if ! getaddrinfo -f inet localhost 1>/dev/null 2>&1; then
+	atf_skip "IPv4 is not configured"
+    fi
+}
+require_ipv6() {
+    if ! getaddrinfo -f inet6 localhost 1>/dev/null 2>&1; then
+	atf_skip "IPv6 is not configured"
+    fi
+}
+
 atf_test_case ping_c1_s56_t1
 ping_c1_s56_t1_head() {
     atf_set "descr" "Stop after receiving 1 ECHO_RESPONSE packet"
 }
 ping_c1_s56_t1_body() {
-    if ! getaddrinfo -f inet localhost 1>/dev/null 2>&1; then
-	atf_skip "IPv4 is not configured"
-    fi
+    require_ipv4
     atf_check -s exit:0 -o save:std.out -e empty \
 	      ping -4 -c 1 -s 56 -t 1 localhost
     check_ping_statistics std.out $(atf_get_srcdir)/ping_c1_s56_t1.out
@@ -45,9 +54,7 @@ ping_6_c1_s8_t1_head() {
     atf_set "descr" "Stop after receiving 1 ECHO_RESPONSE packet"
 }
 ping_6_c1_s8_t1_body() {
-    if ! getaddrinfo -f inet6 localhost 1>/dev/null 2>&1; then
-	atf_skip "IPv6 is not configured"
-    fi
+    require_ipv6
     atf_check -s exit:0 -o save:std.out -e empty \
 	      ping -6 -c 1 -s 8 -t 1 localhost
     check_ping_statistics std.out $(atf_get_srcdir)/ping_6_c1_s8_t1.out
@@ -58,18 +65,51 @@ ping6_c1_s8_t1_head() {
     atf_set "descr" "Use IPv6 when invoked as ping6"
 }
 ping6_c1_s8_t1_body() {
-    if ! getaddrinfo -f inet6 localhost 1>/dev/null 2>&1; then
-	atf_skip "IPv6 is not configured"
-    fi
+    require_ipv6
     atf_check -s exit:0 -o save:std.out -e empty \
 	      ping6 -c 1 -s 8 -t 1 localhost
     check_ping_statistics std.out $(atf_get_srcdir)/ping_6_c1_s8_t1.out
 }
 
+ping_c1t6_head() {
+    atf_set "descr" "-t6 is not interpreted as -t -6 by ping"
+}
+ping_c1t6_body() {
+    require_ipv4
+    atf_check -s exit:0 -o ignore -e empty ping -c1 -t6 127.0.0.1
+}
+
+ping6_c1t4_head() {
+    atf_set "descr" "-t4 is not interpreted as -t -4 by ping6"
+}
+ping6_c1t4_body() {
+    require_ipv6
+    atf_check -s exit:0 -o ignore -e empty ping6 -c1 -t4 ::1
+}
+
+ping_46_head() {
+    atf_set "descr" "-4 and -6 may not be used together"
+}
+ping_46_body() {
+    atf_check -s exit:1 -e ignore ping -4 -6
+}
+
+ping6_46_head() {
+    atf_set "descr" "-4 and -6 may not be used together"
+}
+ping6_46_body() {
+    atf_check -s exit:1 -e ignore ping6 -4 -6
+}
+
+
 atf_init_test_cases() {
     atf_add_test_case ping_c1_s56_t1
     atf_add_test_case ping_6_c1_s8_t1
     atf_add_test_case ping6_c1_s8_t1
+    atf_add_test_case ping_c1t6
+    atf_add_test_case ping6_c1t4
+    atf_add_test_case ping_46
+    atf_add_test_case ping6_46
 }
 
 check_ping_statistics() {

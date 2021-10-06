@@ -301,15 +301,7 @@ ping(int argc, char *const *argv)
 	alarmtimeout = df = preload = tos = pcp = 0;
 
 	outpack = outpackhdr + sizeof(struct ip);
-	while ((ch = getopt(argc, argv,
-		"4AaC:c:DdfG:g:Hh:I:i:Ll:M:m:nop:QqRrS:s:T:t:vW:z:"
-#ifdef IPSEC
-#ifdef IPSEC_POLICY_IPSEC
-		"P:"
-#endif /*IPSEC_POLICY_IPSEC*/
-#endif /*IPSEC*/
-		)) != -1)
-	{
+	while ((ch = getopt(argc, argv, PING4OPTS)) != -1) {
 		switch(ch) {
 		case '4':
 			/* This option is processed in main(). */
