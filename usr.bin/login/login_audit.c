@@ -180,7 +180,7 @@ audit_logout(void)
 	int au_cond;
 
 	/* If we are not auditing, don't cut an audit record; just return. */
- 	if (auditon(A_GETCOND, &au_cond, sizeof(int)) < 0) {
+	if (auditon(A_GETCOND, &au_cond, sizeof(au_cond)) < 0) {
 		if (errno == ENOSYS)
 			return;
 		errx(1, "could not determine audit condition");
