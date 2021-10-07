@@ -30,7 +30,7 @@
 .\"     @(#)sleep.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd March 17, 2017
+.Dd October 7, 2021
 .Dt NANOSLEEP 2
 .Os
 .Sh NAME
@@ -93,6 +93,8 @@ returns immediately and the calling thread is not suspended.
 .Pp
 The suspension time may be longer than requested due to the
 scheduling of other activity by the system.
+It is also subject to the allowed time interval deviation
+specified by the sysctl kern.timecounter.alloweddeviation.
 An unmasked signal will terminate the sleep early, regardless of the
 .Dv SA_RESTART
 value on the interrupting signal.
