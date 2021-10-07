@@ -264,6 +264,8 @@ ino_blkatoff(union dinode *dp, ino_t ino, ufs_lbn_t lbn, int *frags,
 	int i;
 
 	*frags = 0;
+	if (bpp != NULL)
+		*bpp = NULL;
 	/*
 	 * Handle extattr blocks first.
 	 */
@@ -300,6 +302,8 @@ ino_blkatoff(union dinode *dp, ino_t ino, ufs_lbn_t lbn, int *frags,
 			continue;
 		if (lbn > 0 && lbn >= next)
 			continue;
+		if (DIP(dp, di_ib[i]) == 0)
+			return (0);
 		return (indir_blkatoff(DIP(dp, di_ib[i]), ino, -cur - i, lbn,
 		    bpp));
 	}
@@ -321,8 +325,6 @@ indir_blkatoff(ufs2_daddr_t blk, ino_t ino, ufs_lbn_t cur, ufs_lbn_t lbn,
 	ufs_lbn_t base;
 	int i, level;
 
-	if (blk == 0)
-		return (0);
 	level = lbn_level(cur);
 	if (level == -1)
 		pfatal("Invalid indir lbn %jd in ino %ju\n",
@@ -352,12 +354,14 @@ indir_blkatoff(ufs2_daddr_t blk, ino_t ino, ufs_lbn_t cur, ufs_lbn_t lbn,
 		return (0);
 	blk = IBLK(bp, i);
 	bp->b_index = i;
-	if (bpp != NULL)
-		*bpp = bp;
-	else
-		brelse(bp);
-	if (cur == lbn)
+	if (cur == lbn || blk == 0) {
+		if (bpp != NULL)
+			*bpp = bp;
+		else
+			brelse(bp);
 		return (blk);
+	}
+	brelse(bp);
 	if (level == 0)
 		pfatal("Invalid lbn %jd at level 0 for ino %ju\n", lbn,
 		    (uintmax_t)ino);
