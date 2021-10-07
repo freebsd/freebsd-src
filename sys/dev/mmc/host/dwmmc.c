@@ -145,6 +145,11 @@ struct idmac_desc {
  * second half of page
  */
 #define	IDMAC_MAX_SIZE	2048
+/*
+ * Busdma may bounce buffers, so we must reserve 2 descriptors
+ * (on start and on end) for bounced fragments.
+ */
+#define DWMMC_MAX_DATA	(IDMAC_MAX_SIZE * (IDMAC_DESC_SEGS - 2)) / MMC_SECTOR_SIZE
 
 static void dwmmc_next_operation(struct dwmmc_softc *);
 static int dwmmc_setup_bus(struct dwmmc_softc *, int);
@@ -1358,13 +1363,7 @@ dwmmc_read_ivar(device_t bus, device_t child, int which, uintptr_t *result)
 		*(int *)result = sc->host.caps;
 		break;
 	case MMCBR_IVAR_MAX_DATA:
-		/*
-		 * Busdma may bounce buffers, so we must reserve 2 descriptors
-		 * (on start and on end) for bounced fragments.
-		 *
-		 */
-		*(int *)result = (IDMAC_MAX_SIZE * IDMAC_DESC_SEGS) /
-		    MMC_SECTOR_SIZE - 3;
+		*(int *)result = DWMMC_MAX_DATA;
 		break;
 	case MMCBR_IVAR_TIMING:
 		*(int *)result = sc->host.ios.timing;
@@ -1444,7 +1443,7 @@ dwmmc_get_tran_settings(device_t dev, struct ccb_trans_settings_mmc *cts)
 	cts->host_f_min = sc->host.f_min;
 	cts->host_f_max = sc->host.f_max;
 	cts->host_caps = sc->host.caps;
-	cts->host_max_data = (IDMAC_MAX_SIZE * IDMAC_DESC_SEGS) / MMC_SECTOR_SIZE;
+	cts->host_max_data = DWMMC_MAX_DATA;
 	memcpy(&cts->ios, &sc->host.ios, sizeof(struct mmc_ios));
 
 	return (0);
