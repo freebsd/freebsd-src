@@ -186,6 +186,10 @@
 #define	VM_MINUSER_ADDRESS	(VM_MIN_USER_ADDRESS)
 #define	VM_MAXUSER_ADDRESS	(VM_MAX_USER_ADDRESS)
 
+/* Check if an address resides in a mappable region. */
+#define	VIRT_IS_VALID(va)						\
+    (((va) < VM_MAX_USER_ADDRESS) || ((va) >= VM_MIN_KERNEL_ADDRESS))
+
 #define	KERNBASE		(VM_MIN_KERNEL_ADDRESS)
 #define	SHAREDPAGE		(VM_MAXUSER_ADDRESS - PAGE_SIZE)
 #define	USRSTACK		SHAREDPAGE

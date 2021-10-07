@@ -200,6 +200,11 @@ page_fault_handler(struct trapframe *frame, int usermode)
 		goto fatal;
 
 	if (usermode) {
+		if (!VIRT_IS_VALID(stval)) {
+			call_trapsignal(td, SIGSEGV, SEGV_MAPERR, (void *)stval,
+			    frame->tf_scause & SCAUSE_CODE);
+			goto done;
+		}
 		map = &td->td_proc->p_vmspace->vm_map;
 	} else {
 		/*
@@ -207,6 +212,9 @@ page_fault_handler(struct trapframe *frame, int usermode)
 		 * user faults this was done already in do_trap_user().
 		 */
 		intr_enable();
+
+		if (!VIRT_IS_VALID(stval))
+			goto fatal;
 
 		if (stval >= VM_MAX_USER_ADDRESS) {
 			map = kernel_map;
