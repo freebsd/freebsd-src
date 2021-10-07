@@ -107,6 +107,30 @@ struct basl_fio {
 	if (fflush(x) != 0) goto err_exit;
 
 /*
+ * A list for additional ACPI devices like a TPM.
+ */
+struct acpi_device_list_entry {
+	SLIST_ENTRY(acpi_device_list_entry) chain;
+	const struct acpi_device *dev;
+};
+static SLIST_HEAD(acpi_device_list,
+    acpi_device_list_entry) acpi_devices = SLIST_HEAD_INITIALIZER(acpi_devices);
+
+int
+acpi_tables_add_device(const struct acpi_device *const dev)
+{
+	struct acpi_device_list_entry *const entry = calloc(1, sizeof(*entry));
+	if (entry == NULL) {
+		return (ENOMEM);
+	}
+
+	entry->dev = dev;
+	SLIST_INSERT_HEAD(&acpi_devices, entry, chain);
+
+	return (0);
+}
+
+/*
  * Helper routines for writing to the DSDT from other modules.
  */
 void
@@ -218,6 +242,11 @@ basl_fwrite_dsdt(FILE *fp)
 	dsdt_line("  }");
 
 	vmgenc_write_dsdt();
+
+	const struct acpi_device_list_entry *entry;
+	SLIST_FOREACH(entry, &acpi_devices, chain) {
+		acpi_device_write_dsdt(entry->dev);
+	}
 
 	dsdt_line("}");
 

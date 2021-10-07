@@ -31,6 +31,8 @@
 #ifndef _ACPI_H_
 #define _ACPI_H_
 
+#include "acpi_device.h"
+
 #define	SCI_INT			9
 
 #define	SMI_CMD			0xb2
@@ -55,6 +57,7 @@ struct vmctx;
 
 int	acpi_build(struct vmctx *ctx, int ncpu);
 void	acpi_raise_gpe(struct vmctx *ctx, unsigned bit);
+int 	acpi_tables_add_device(const struct acpi_device *const dev);
 void	dsdt_line(const char *fmt, ...);
 void	dsdt_fixed_ioport(uint16_t iobase, uint16_t length);
 void	dsdt_fixed_irq(uint8_t irq);

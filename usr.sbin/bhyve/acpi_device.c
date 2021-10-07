@@ -68,6 +68,12 @@ acpi_device_create(struct acpi_device **const new_dev,
 		return (ENOMEM);
 	}
 
+	const int error = acpi_tables_add_device(dev);
+	if (error) {
+		acpi_device_destroy(dev);
+		return (error);
+	}
+
 	*new_dev = dev;
 
 	return (0);
