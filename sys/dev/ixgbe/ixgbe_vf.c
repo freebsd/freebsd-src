@@ -36,12 +36,8 @@
 
 #include "ixgbe.h"
 
-#ifndef IXGBE_VFWRITE_REG
 #define IXGBE_VFWRITE_REG IXGBE_WRITE_REG
-#endif
-#ifndef IXGBE_VFREAD_REG
 #define IXGBE_VFREAD_REG IXGBE_READ_REG
-#endif
 
 /**
  * ixgbe_init_ops_vf - Initialize the pointers for vf
