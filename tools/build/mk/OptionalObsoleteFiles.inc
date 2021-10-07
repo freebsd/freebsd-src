@@ -7220,6 +7220,7 @@ OLD_FILES+=usr/lib32/libprivatessh_p.a
 OLD_FILES+=usr/libexec/sftp-server
 OLD_FILES+=usr/libexec/ssh-keysign
 OLD_FILES+=usr/libexec/ssh-pkcs11-helper
+OLD_FILES+=usr/libexec/ssh-sk-helper
 OLD_FILES+=usr/sbin/sshd
 OLD_FILES+=usr/share/man/man1/scp.1.gz
 OLD_FILES+=usr/share/man/man1/sftp.1.gz
@@ -7236,6 +7237,7 @@ OLD_FILES+=usr/share/man/man8/pam_ssh.8.gz
 OLD_FILES+=usr/share/man/man8/sftp-server.8.gz
 OLD_FILES+=usr/share/man/man8/ssh-keysign.8.gz
 OLD_FILES+=usr/share/man/man8/ssh-pkcs11-helper.8.gz
+OLD_FILES+=usr/share/man/man8/ssh-sk-helper.8.gz
 OLD_FILES+=usr/share/man/man8/sshd.8.gz
 .endif
 
