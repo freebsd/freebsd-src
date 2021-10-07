@@ -29,3 +29,8 @@ struct acpi_device;
 int acpi_device_create(struct acpi_device **const new_dev,
     struct vmctx *const vm_ctx, const char *const name, const char *const hid);
 void acpi_device_destroy(struct acpi_device *const dev);
+
+int acpi_device_add_res_fixed_ioport(struct acpi_device *const dev,
+    const UINT16 port, UINT8 length);
+int acpi_device_add_res_fixed_memory32(struct acpi_device *const dev,
+    const UINT8 write_protected, const UINT32 address, const UINT32 length);
