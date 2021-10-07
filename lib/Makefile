@@ -216,7 +216,7 @@ SUBDIR.${MK_BHYVE}+=	libvmmapi
 SUBDIR.${MK_OPENMP}+=	libomp
 .endif
 .if !defined(COMPAT_32BIT)
-SUBDIR.${MK_OPENSSH}+=	libcbor
+SUBDIR.${MK_OPENSSH}+=	libcbor libfido2
 .endif
 SUBDIR.${MK_OPENSSL}+=	libmp
 SUBDIR.${MK_PF}+=	libpfctl
