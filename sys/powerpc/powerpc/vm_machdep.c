@@ -239,3 +239,13 @@ cpu_procctl(struct thread *td __unused, int idtype __unused, id_t id __unused,
 
 	return (EINVAL);
 }
+
+void
+cpu_sync_core(void)
+{
+	/*
+	 * Linux performs "rfi" there.  Our rendezvous IPI handler on
+	 * the target cpu does "rfi" before and lwsync/sync after the
+	 * action, which is stronger than required.
+	 */
+}

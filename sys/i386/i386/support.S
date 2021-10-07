@@ -578,3 +578,11 @@ ENTRY(mds_handler_silvermont)
 	movl	%eax, %cr0
 3:	ret
 END(mds_handler_silvermont)
+
+ENTRY(cpu_sync_core)
+	popl	%eax
+	pushfl
+	pushl	%cs
+	pushl	%eax
+	iretl
+END(cpu_sync_core)

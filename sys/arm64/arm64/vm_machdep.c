@@ -310,3 +310,14 @@ cpu_procctl(struct thread *td __unused, int idtype __unused, id_t id __unused,
 
 	return (EINVAL);
 }
+
+void
+cpu_sync_core(void)
+{
+	/*
+	 * Do nothing. According to ARM ARMv8 D1.11 Exception return
+	 * If FEAT_ExS is not implemented, or if FEAT_ExS is
+	 * implemented and the SCTLR_ELx.EOS field is set, exception
+	 * return from ELx is a context synchronization event.
+	 */
+}
