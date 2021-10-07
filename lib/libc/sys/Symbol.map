@@ -419,6 +419,7 @@ FBSD_1.7 {
 	_Fork;
 	fspacectl;
 	kqueuex;
+	membarrier;
 	swapoff;
 };
 

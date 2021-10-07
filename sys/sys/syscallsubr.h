@@ -204,6 +204,8 @@ int	kern_minherit(struct thread *td, uintptr_t addr, size_t len,
 	    int inherit);
 int	kern_mkdirat(struct thread *td, int fd, const char *path,
 	    enum uio_seg segflg, int mode);
+int	kern_membarrier(struct thread *td, int cmd, unsigned flags,
+	    int cpu_id);
 int	kern_mkfifoat(struct thread *td, int fd, const char *path,
 	    enum uio_seg pathseg, int mode);
 int	kern_mknodat(struct thread *td, int fd, const char *path,
