@@ -720,21 +720,37 @@ ProtoAliasOut(struct libalias *la, struct ip *pip,
 	return (PKT_ALIAS_IGNORED);
 }
 
+#define MF_ISSET(_pip) (ntohs((_pip)->ip_off) & IP_MF)
+#define FRAG_NO_HDR(_pip) (ntohs((_pip)->ip_off) & IP_OFFMASK)
+
+static struct udphdr *
+ValidateUdpLength(struct ip *pip)
+{
+	struct udphdr *ud;
+	size_t dlen;
+
+#ifdef _KERNEL
+	KASSERT(!FRAG_NO_HDR(pip), ("header-less fragment isn't expected here"));
+#endif
+	dlen = ntohs(pip->ip_len) - (pip->ip_hl << 2);
+	if (dlen < sizeof(struct udphdr))
+		return (NULL);
+	ud = (struct udphdr *)ip_next(pip);
+	if (!MF_ISSET(pip) && dlen < ntohs(ud->uh_ulen))
+		return (NULL);
+	return (ud);
+}
+
 static int
 UdpAliasIn(struct libalias *la, struct ip *pip)
 {
 	struct udphdr *ud;
 	struct alias_link *lnk;
-	size_t dlen;
 
 	LIBALIAS_LOCK_ASSERT(la);
 
-	dlen = ntohs(pip->ip_len) - (pip->ip_hl << 2);
-	if (dlen < sizeof(struct udphdr))
-		return (PKT_ALIAS_IGNORED);
-
-	ud = (struct udphdr *)ip_next(pip);
-	if (dlen < ntohs(ud->uh_ulen))
+	ud = ValidateUdpLength(pip);
+	if (ud == NULL)
 		return (PKT_ALIAS_IGNORED);
 
 	lnk = FindUdpTcpIn(la, pip->ip_src, pip->ip_dst,
@@ -827,19 +843,14 @@ UdpAliasOut(struct libalias *la, struct ip *pip, int maxpacketsize, int create)
 	u_short proxy_server_port;
 	int proxy_type;
 	int error;
-	size_t dlen;
 
 	LIBALIAS_LOCK_ASSERT(la);
 
+	ud = ValidateUdpLength(pip);
+	if (ud == NULL)
+		return (PKT_ALIAS_IGNORED);
+
 	/* Return if proxy-only mode is enabled and not proxyrule found.*/
-	dlen = ntohs(pip->ip_len) - (pip->ip_hl << 2);
-	if (dlen < sizeof(struct udphdr))
-		return (PKT_ALIAS_IGNORED);
-
-	ud = (struct udphdr *)ip_next(pip);
-	if (dlen < ntohs(ud->uh_ulen))
-		return (PKT_ALIAS_IGNORED);
-
 	proxy_type = ProxyCheck(la, &proxy_server_address, &proxy_server_port,
 	    pip->ip_src, pip->ip_dst, ud->uh_dport, pip->ip_p);
 	if (proxy_type == 0 && (la->packetAliasMode & PKT_ALIAS_PROXY_ONLY))
@@ -1338,64 +1349,65 @@ LibAliasInLocked(struct libalias *la, struct ip *pip, int maxpacketsize)
 		goto getout;
 	}
 
-	iresult = PKT_ALIAS_IGNORED;
-	if ((ntohs(pip->ip_off) & IP_OFFMASK) == 0) {
-		switch (pip->ip_p) {
-		case IPPROTO_ICMP:
-			iresult = IcmpAliasIn(la, pip);
-			break;
-		case IPPROTO_UDP:
-			iresult = UdpAliasIn(la, pip);
-			break;
-		case IPPROTO_TCP:
-			iresult = TcpAliasIn(la, pip);
-			break;
-#ifdef _KERNEL
-		case IPPROTO_SCTP:
-			iresult = SctpAlias(la, pip, SN_TO_LOCAL);
-			break;
-#endif
-		case IPPROTO_GRE: {
-			int error;
-			struct alias_data ad = {
-				.lnk = NULL,
-				.oaddr = NULL,
-				.aaddr = NULL,
-				.aport = NULL,
-				.sport = NULL,
-				.dport = NULL,
-				.maxpktsize = 0
-			};
-
-			/* Walk out chain. */
-			error = find_handler(IN, IP, la, pip, &ad);
-			if (error == 0)
-				iresult = PKT_ALIAS_OK;
-			else
-				iresult = ProtoAliasIn(la, pip->ip_src,
-				    pip, pip->ip_p, &pip->ip_sum);
-			break;
-		}
-		default:
-			iresult = ProtoAliasIn(la, pip->ip_src, pip,
-			    pip->ip_p, &pip->ip_sum);
-			break;
-		}
-
-		if (ntohs(pip->ip_off) & IP_MF) {
-			struct alias_link *lnk;
-
-			lnk = FindFragmentIn1(la, pip->ip_src, alias_addr, pip->ip_id);
-			if (lnk != NULL) {
-				iresult = PKT_ALIAS_FOUND_HEADER_FRAGMENT;
-				SetFragmentAddr(lnk, pip->ip_dst);
-			} else {
-				iresult = PKT_ALIAS_ERROR;
-			}
-		}
-	} else {
+	if (FRAG_NO_HDR(pip)) {
 		iresult = FragmentIn(la, pip->ip_src, pip, pip->ip_id,
 		    &pip->ip_sum);
+		goto getout;
+	}
+
+	iresult = PKT_ALIAS_IGNORED;
+	switch (pip->ip_p) {
+	case IPPROTO_ICMP:
+		iresult = IcmpAliasIn(la, pip);
+		break;
+	case IPPROTO_UDP:
+		iresult = UdpAliasIn(la, pip);
+		break;
+	case IPPROTO_TCP:
+		iresult = TcpAliasIn(la, pip);
+		break;
+#ifdef _KERNEL
+	case IPPROTO_SCTP:
+		iresult = SctpAlias(la, pip, SN_TO_LOCAL);
+		break;
+#endif
+	case IPPROTO_GRE: {
+		int error;
+		struct alias_data ad = {
+			.lnk = NULL,
+			.oaddr = NULL,
+			.aaddr = NULL,
+			.aport = NULL,
+			.sport = NULL,
+			.dport = NULL,
+			.maxpktsize = 0
+		};
+
+		/* Walk out chain. */
+		error = find_handler(IN, IP, la, pip, &ad);
+		if (error == 0)
+			iresult = PKT_ALIAS_OK;
+		else
+			iresult = ProtoAliasIn(la, pip->ip_src,
+			    pip, pip->ip_p, &pip->ip_sum);
+		break;
+	}
+	default:
+		iresult = ProtoAliasIn(la, pip->ip_src, pip,
+		    pip->ip_p, &pip->ip_sum);
+		break;
+	}
+
+	if (MF_ISSET(pip)) {
+		struct alias_link *lnk;
+
+		lnk = FindFragmentIn1(la, pip->ip_src, alias_addr, pip->ip_id);
+		if (lnk != NULL) {
+			iresult = PKT_ALIAS_FOUND_HEADER_FRAGMENT;
+			SetFragmentAddr(lnk, pip->ip_dst);
+		} else {
+			iresult = PKT_ALIAS_ERROR;
+		}
 	}
 
 getout:
@@ -1491,52 +1503,55 @@ LibAliasOutLocked(struct libalias *la,
 	} else if (la->packetAliasMode & PKT_ALIAS_PROXY_ONLY) {
 		SetDefaultAliasAddress(la, pip->ip_src);
 	}
-	iresult = PKT_ALIAS_IGNORED;
-	if ((ntohs(pip->ip_off) & IP_OFFMASK) == 0) {
-		switch (pip->ip_p) {
-		case IPPROTO_ICMP:
-			iresult = IcmpAliasOut(la, pip, create);
-			break;
-		case IPPROTO_UDP:
-			iresult = UdpAliasOut(la, pip, maxpacketsize, create);
-			break;
-		case IPPROTO_TCP:
-			iresult = TcpAliasOut(la, pip, maxpacketsize, create);
-			break;
-#ifdef _KERNEL
-		case IPPROTO_SCTP:
-			iresult = SctpAlias(la, pip, SN_TO_GLOBAL);
-			break;
-#endif
-		case IPPROTO_GRE: {
-			int error;
-			struct alias_data ad = {
-				.lnk = NULL,
-				.oaddr = NULL,
-				.aaddr = NULL,
-				.aport = NULL,
-				.sport = NULL,
-				.dport = NULL,
-				.maxpktsize = 0
-			};
-			/* Walk out chain. */
-			error = find_handler(OUT, IP, la, pip, &ad);
-			if (error == 0)
-				iresult = PKT_ALIAS_OK;
-			else
-				iresult = ProtoAliasOut(la, pip,
-				    pip->ip_dst, pip->ip_p, &pip->ip_sum, create);
-			break;
-		}
-		default:
-			iresult = ProtoAliasOut(la, pip,
-			    pip->ip_dst, pip->ip_p, &pip->ip_sum, create);
-			break;
-		}
-	} else {
+
+	if (FRAG_NO_HDR(pip)) {
 		iresult = FragmentOut(la, pip, &pip->ip_sum);
+		goto getout_restore;
 	}
 
+	iresult = PKT_ALIAS_IGNORED;
+	switch (pip->ip_p) {
+	case IPPROTO_ICMP:
+		iresult = IcmpAliasOut(la, pip, create);
+		break;
+	case IPPROTO_UDP:
+		iresult = UdpAliasOut(la, pip, maxpacketsize, create);
+		break;
+	case IPPROTO_TCP:
+		iresult = TcpAliasOut(la, pip, maxpacketsize, create);
+		break;
+#ifdef _KERNEL
+	case IPPROTO_SCTP:
+		iresult = SctpAlias(la, pip, SN_TO_GLOBAL);
+		break;
+#endif
+	case IPPROTO_GRE: {
+		int error;
+		struct alias_data ad = {
+			.lnk = NULL,
+			.oaddr = NULL,
+			.aaddr = NULL,
+			.aport = NULL,
+			.sport = NULL,
+			.dport = NULL,
+			.maxpktsize = 0
+		};
+		/* Walk out chain. */
+		error = find_handler(OUT, IP, la, pip, &ad);
+		if (error == 0)
+			iresult = PKT_ALIAS_OK;
+		else
+			iresult = ProtoAliasOut(la, pip,
+			    pip->ip_dst, pip->ip_p, &pip->ip_sum, create);
+		break;
+		}
+	default:
+		iresult = ProtoAliasOut(la, pip,
+		    pip->ip_dst, pip->ip_p, &pip->ip_sum, create);
+		break;
+	}
+
+getout_restore:
 	SetDefaultAliasAddress(la, addr_save);
 getout:
 	return (iresult);
