@@ -43,12 +43,10 @@
 		IXGBE_WRITE_REG(hw, reg + 4, (u32) (value >> 32)); \
 	} while (0)
 #define IXGBE_REMOVED(a) (0)
-#if !defined(NO_READ_PBA_RAW) || !defined(NO_WRITE_PBA_RAW)
 struct ixgbe_pba {
 	u16 word[2];
 	u16 *pba_block;
 };
-#endif
 
 void ixgbe_dcb_get_rtrup2tc_generic(struct ixgbe_hw *hw, u8 *map);
 
@@ -180,6 +178,18 @@ extern void ixgbe_stop_mac_link_on_d3_82599(struct ixgbe_hw *hw);
 bool ixgbe_mng_present(struct ixgbe_hw *hw);
 bool ixgbe_mng_enabled(struct ixgbe_hw *hw);
 
+#define IXGBE_I2C_THERMAL_SENSOR_ADDR	0xF8
+#define IXGBE_EMC_INTERNAL_DATA		0x00
+#define IXGBE_EMC_INTERNAL_THERM_LIMIT	0x20
+#define IXGBE_EMC_DIODE1_DATA		0x01
+#define IXGBE_EMC_DIODE1_THERM_LIMIT	0x19
+#define IXGBE_EMC_DIODE2_DATA		0x23
+#define IXGBE_EMC_DIODE2_THERM_LIMIT	0x1A
+#define IXGBE_EMC_DIODE3_DATA		0x2A
+#define IXGBE_EMC_DIODE3_THERM_LIMIT	0x30
+
+s32 ixgbe_get_thermal_sensor_data_generic(struct ixgbe_hw *hw);
+s32 ixgbe_init_thermal_sensor_thresh_generic(struct ixgbe_hw *hw);
 
 void ixgbe_get_etk_id(struct ixgbe_hw *hw, struct ixgbe_nvm_version *nvm_ver);
 void ixgbe_get_oem_prod_version(struct ixgbe_hw *hw,

@@ -113,6 +113,13 @@ s32 ixgbe_init_shared_code(struct ixgbe_hw *hw)
 	case ixgbe_mac_X550EM_a:
 		status = ixgbe_init_ops_X550EM_a(hw);
 		break;
+	case ixgbe_mac_82599_vf:
+	case ixgbe_mac_X540_vf:
+	case ixgbe_mac_X550_vf:
+	case ixgbe_mac_X550EM_x_vf:
+	case ixgbe_mac_X550EM_a_vf:
+		status = ixgbe_init_ops_vf(hw);
+		break;
 	default:
 		status = IXGBE_ERR_DEVICE_NOT_SUPPORTED;
 		break;
@@ -176,6 +183,15 @@ s32 ixgbe_set_mac_type(struct ixgbe_hw *hw)
 	case IXGBE_DEV_ID_82599_T3_LOM:
 		hw->mac.type = ixgbe_mac_82599EB;
 		break;
+	case IXGBE_DEV_ID_82599_VF:
+	case IXGBE_DEV_ID_82599_VF_HV:
+		hw->mac.type = ixgbe_mac_82599_vf;
+		break;
+	case IXGBE_DEV_ID_X540_VF:
+	case IXGBE_DEV_ID_X540_VF_HV:
+		hw->mac.type = ixgbe_mac_X540_vf;
+		hw->mvals = ixgbe_mvals_X540;
+		break;
 	case IXGBE_DEV_ID_X540T:
 	case IXGBE_DEV_ID_X540T1:
 	case IXGBE_DEV_ID_X540_BYPASS:
@@ -208,6 +224,21 @@ s32 ixgbe_set_mac_type(struct ixgbe_hw *hw)
 	case IXGBE_DEV_ID_X550EM_A_QSFP_N:
 	case IXGBE_DEV_ID_X550EM_A_SFP:
 		hw->mac.type = ixgbe_mac_X550EM_a;
+		hw->mvals = ixgbe_mvals_X550EM_a;
+		break;
+	case IXGBE_DEV_ID_X550_VF:
+	case IXGBE_DEV_ID_X550_VF_HV:
+		hw->mac.type = ixgbe_mac_X550_vf;
+		hw->mvals = ixgbe_mvals_X550;
+		break;
+	case IXGBE_DEV_ID_X550EM_X_VF:
+	case IXGBE_DEV_ID_X550EM_X_VF_HV:
+		hw->mac.type = ixgbe_mac_X550EM_x_vf;
+		hw->mvals = ixgbe_mvals_X550EM_x;
+		break;
+	case IXGBE_DEV_ID_X550EM_A_VF:
+	case IXGBE_DEV_ID_X550EM_A_VF_HV:
+		hw->mac.type = ixgbe_mac_X550EM_a_vf;
 		hw->mvals = ixgbe_mvals_X550EM_a;
 		break;
 	default:
@@ -1146,6 +1177,29 @@ s32 ixgbe_set_fw_drv_ver(struct ixgbe_hw *hw, u8 maj, u8 min, u8 build,
 }
 
 
+/**
+ * ixgbe_get_thermal_sensor_data - Gathers thermal sensor data
+ * @hw: pointer to hardware structure
+ *
+ * Updates the temperatures in mac.thermal_sensor_data
+ **/
+s32 ixgbe_get_thermal_sensor_data(struct ixgbe_hw *hw)
+{
+	return ixgbe_call_func(hw, hw->mac.ops.get_thermal_sensor_data, (hw),
+				IXGBE_NOT_IMPLEMENTED);
+}
+
+/**
+ * ixgbe_init_thermal_sensor_thresh - Inits thermal sensor thresholds
+ * @hw: pointer to hardware structure
+ *
+ * Inits the thermal sensor thresholds according to the NVM map
+ **/
+s32 ixgbe_init_thermal_sensor_thresh(struct ixgbe_hw *hw)
+{
+	return ixgbe_call_func(hw, hw->mac.ops.init_thermal_sensor_thresh, (hw),
+				IXGBE_NOT_IMPLEMENTED);
+}
 
 /**
  * ixgbe_dmac_config - Configure DMA Coalescing registers.

@@ -48,8 +48,8 @@
  *
  * - IXGBE_ERROR_POLLING
  * This category is for errors related to polling/timeout issues and should be
- * used in any case where the timeout occurred, or a failure to obtain a lock, or
- * failure to receive data within the time limit.
+ * used in any case where the timeout occurred, or a failure to obtain a lock,
+ * or failure to receive data within the time limit.
  *
  * - IXGBE_ERROR_CAUTION
  * This category should be used for reporting issues that may be the cause of
@@ -157,7 +157,7 @@
 #define IXGBE_DEV_ID_X550EM_X_VF		0x15A8
 #define IXGBE_DEV_ID_X550EM_X_VF_HV		0x15A9
 
-#define IXGBE_CAT(r,m) IXGBE_##r##m
+#define IXGBE_CAT(r, m) IXGBE_##r##m
 
 #define IXGBE_BY_MAC(_hw, r) ((_hw)->mvals[IXGBE_CAT(r, _IDX)])
 
@@ -284,6 +284,26 @@
 #define IXGBE_I2C_CLK_OE_N_EN_BY_MAC(_hw) IXGBE_BY_MAC((_hw), I2C_CLK_OE_N_EN)
 #define IXGBE_I2C_CLOCK_STRETCHING_TIMEOUT	500
 
+#define IXGBE_I2C_THERMAL_SENSOR_ADDR	0xF8
+#define IXGBE_EMC_INTERNAL_DATA		0x00
+#define IXGBE_EMC_INTERNAL_THERM_LIMIT	0x20
+#define IXGBE_EMC_DIODE1_DATA		0x01
+#define IXGBE_EMC_DIODE1_THERM_LIMIT	0x19
+#define IXGBE_EMC_DIODE2_DATA		0x23
+#define IXGBE_EMC_DIODE2_THERM_LIMIT	0x1A
+
+#define IXGBE_MAX_SENSORS		3
+
+struct ixgbe_thermal_diode_data {
+	u8 location;
+	u8 temp;
+	u8 caution_thresh;
+	u8 max_op_thresh;
+};
+
+struct ixgbe_thermal_sensor_data {
+	struct ixgbe_thermal_diode_data sensor[IXGBE_MAX_SENSORS];
+};
 
 
 #define NVM_OROM_OFFSET		0x17
@@ -2358,6 +2378,20 @@ enum {
 #define IXGBE_ALT_MAC_ADDR_PTR		0x37
 #define IXGBE_FREE_SPACE_PTR		0X3E
 
+/* External Thermal Sensor Config */
+#define IXGBE_ETS_CFG			0x26
+#define IXGBE_ETS_LTHRES_DELTA_MASK	0x07C0
+#define IXGBE_ETS_LTHRES_DELTA_SHIFT	6
+#define IXGBE_ETS_TYPE_MASK		0x0038
+#define IXGBE_ETS_TYPE_SHIFT		3
+#define IXGBE_ETS_TYPE_EMC		0x000
+#define IXGBE_ETS_NUM_SENSORS_MASK	0x0007
+#define IXGBE_ETS_DATA_LOC_MASK		0x3C00
+#define IXGBE_ETS_DATA_LOC_SHIFT	10
+#define IXGBE_ETS_DATA_INDEX_MASK	0x0300
+#define IXGBE_ETS_DATA_INDEX_SHIFT	8
+#define IXGBE_ETS_DATA_HTHRESH_MASK	0x00FF
+
 #define IXGBE_SAN_MAC_ADDR_PTR		0x28
 #define IXGBE_DEVICE_CAPS		0x2C
 #define IXGBE_82599_SERIAL_NUMBER_MAC_ADDR	0x11
@@ -2412,9 +2446,7 @@ enum {
 #define IXGBE_EEPROM_CTRL_2		1 /* EEPROM CTRL word 2 */
 #define IXGBE_EEPROM_CCD_BIT		2
 
-#ifndef IXGBE_EEPROM_GRANT_ATTEMPTS
 #define IXGBE_EEPROM_GRANT_ATTEMPTS	1000 /* EEPROM attempts to gain grant */
-#endif
 
 /* Number of 5 microseconds we wait for EERD read and
  * EERW write to complete */
@@ -3932,7 +3964,6 @@ struct ixgbe_mac_operations {
 	s32 (*get_fcoe_boot_status)(struct ixgbe_hw *, u16 *);
 	s32 (*stop_adapter)(struct ixgbe_hw *);
 	s32 (*get_bus_info)(struct ixgbe_hw *);
-	s32 (*negotiate_api_version)(struct ixgbe_hw *, int);
 	void (*set_lan_id)(struct ixgbe_hw *);
 	s32 (*read_analog_reg8)(struct ixgbe_hw*, u32, u8*);
 	s32 (*write_analog_reg8)(struct ixgbe_hw*, u32, u8);
@@ -3945,6 +3976,7 @@ struct ixgbe_mac_operations {
 	void (*init_swfw_sync)(struct ixgbe_hw *);
 	s32 (*prot_autoc_read)(struct ixgbe_hw *, bool *, u32 *);
 	s32 (*prot_autoc_write)(struct ixgbe_hw *, u32, bool);
+	s32 (*negotiate_api_version)(struct ixgbe_hw *hw, int api);
 
 	/* Link */
 	void (*disable_tx_laser)(struct ixgbe_hw *);
@@ -3980,17 +4012,17 @@ struct ixgbe_mac_operations {
 				   ixgbe_mc_addr_itr);
 	s32 (*update_mc_addr_list)(struct ixgbe_hw *, u8 *, u32,
 				   ixgbe_mc_addr_itr, bool clear);
-	s32 (*update_xcast_mode)(struct ixgbe_hw *, int);
 	s32 (*enable_mc)(struct ixgbe_hw *);
 	s32 (*disable_mc)(struct ixgbe_hw *);
 	s32 (*clear_vfta)(struct ixgbe_hw *);
 	s32 (*set_vfta)(struct ixgbe_hw *, u32, u32, bool, bool);
 	s32 (*set_vlvf)(struct ixgbe_hw *, u32, u32, bool, u32 *, u32,
 			bool);
-	s32 (*set_rlpml)(struct ixgbe_hw *, u16);
 	s32 (*init_uta_tables)(struct ixgbe_hw *);
 	void (*set_mac_anti_spoofing)(struct ixgbe_hw *, bool, int);
 	void (*set_vlan_anti_spoofing)(struct ixgbe_hw *, bool, int);
+	s32 (*update_xcast_mode)(struct ixgbe_hw *, int);
+	s32 (*set_rlpml)(struct ixgbe_hw *, u16);
 
 	/* Flow Control */
 	s32 (*fc_enable)(struct ixgbe_hw *);
@@ -4000,6 +4032,8 @@ struct ixgbe_mac_operations {
 	/* Manageability interface */
 	s32 (*set_fw_drv_ver)(struct ixgbe_hw *, u8, u8, u8, u8, u16,
 			      const char *);
+	s32 (*get_thermal_sensor_data)(struct ixgbe_hw *);
+	s32 (*init_thermal_sensor_thresh)(struct ixgbe_hw *hw);
 	s32 (*bypass_rw) (struct ixgbe_hw *hw, u32 cmd, u32 *status);
 	bool (*bypass_valid_rd) (u32 in_reg, u32 out_reg);
 	s32 (*bypass_set) (struct ixgbe_hw *hw, u32 cmd, u32 event, u32 action);
@@ -4107,6 +4141,8 @@ struct ixgbe_mac_info {
 	bool orig_link_settings_stored;
 	bool autotry_restart;
 	u8 flags;
+	struct ixgbe_thermal_sensor_data  thermal_sensor_data;
+	bool thermal_sensor_enabled;
 	struct ixgbe_dmac_config dmac_config;
 	bool set_lben;
 	u32  max_link_up_time;
