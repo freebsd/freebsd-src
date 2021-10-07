@@ -103,6 +103,7 @@
 #ifdef BHYVE_SNAPSHOT
 #include "snapshot.h"
 #endif
+#include "tpm_device.h"
 #include "xmsr.h"
 #include "spinup_ap.h"
 #include "rtc.h"
@@ -1472,6 +1473,10 @@ main(int argc, char *argv[])
 	 */
 	if (init_pci(ctx) != 0) {
 		perror("device emulation initialization error");
+		exit(4);
+	}
+	if (init_tpm(ctx) != 0) {
+		fprintf(stderr, "Failed to init TPM device");
 		exit(4);
 	}
 

@@ -232,3 +232,25 @@ err_out:
 
 	return (error);
 }
+
+static struct tpm_device *lpc_tpm;
+
+int
+init_tpm(struct vmctx *ctx)
+{
+	nvlist_t *nvl;
+	int error;
+
+	nvl = find_config_node("tpm");
+	if (nvl == NULL)
+		return (0);
+
+	error = tpm_device_create(&lpc_tpm, ctx, nvl);
+	if (error) {
+		warnx("%s: unable to create a TPM device (%d)",
+		    __func__, error);
+		return (error);
+	}
+
+	return (0);
+}

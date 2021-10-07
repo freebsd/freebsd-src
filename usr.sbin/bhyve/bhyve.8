@@ -215,6 +215,8 @@ The only supported devices are the TTY-class devices
 .Cm com1 , com2 , com3 ,
 and
 .Cm com4 ,
+the TPM module
+.Cm tpm ,
 the boot ROM device
 .Cm bootrom ,
 the
@@ -538,6 +540,23 @@ process.
 Use the host TTY device for serial port I/O.
 .El
 .Pp
+TPM device backends:
+.Bl -tag -width 10n
+.It Ar type Ns \&, Ns Ar path Ns Op Cm \&, Ns Ar tpm-device-options
+Emulate a TPM device.
+.El
+.Pp
+The
+.Ar tpm-device-options
+are:
+.Bl -tag -width 10n
+.It Cm version= Ns Ar version
+Version of the TPM device according to the TCG specification.
+Defaults to
+.Cm 2.0
+.El
+.El
+.Pp
 Boot ROM device backends:
 .Bl -tag -width 10n
 .It Ar romfile Ns Op Cm \&, Ns Ar varfile
@@ -622,6 +641,26 @@ The host device must have been reserved at boot-time using the
 .Va pptdevs
 loader variable as described in
 .Xr vmm 4 .
+.Pp
+TPM devices:
+.Bl -tag -width 10n
+.It Ns Ar type
+Specifies the type of the TPM device.
+.Pp
+Supported types:
+.Bl -tag -width 10n
+.It Cm passthru
+.El
+.It Cm version= Ns Ar version
+The
+.Ar version
+of the emulated TPM device according to the TCG specification.
+.Pp
+Supported versions:
+.Bl -tag -width 10n
+.It Cm 2.0
+.El
+.El
 .Pp
 Virtio console device backends:
 .Bl -bullet

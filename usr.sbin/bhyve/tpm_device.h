@@ -16,3 +16,5 @@ struct tpm_device;
 int tpm_device_create(struct tpm_device **new_dev, struct vmctx *vm_ctx,
     nvlist_t *nvl);
 void tpm_device_destroy(struct tpm_device *dev);
+
+int init_tpm(struct vmctx *ctx);
