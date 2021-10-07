@@ -87,6 +87,10 @@
 #define chacha_encrypt_bytes			Fssh_chacha_encrypt_bytes
 #define chacha_ivsetup				Fssh_chacha_ivsetup
 #define chacha_keysetup				Fssh_chacha_keysetup
+#define chachapoly_crypt			Fssh_chachapoly_crypt
+#define chachapoly_free				Fssh_chachapoly_free
+#define chachapoly_get_length			Fssh_chachapoly_get_length
+#define chachapoly_new				Fssh_chachapoly_new
 #define chan_ibuf_empty				Fssh_chan_ibuf_empty
 #define chan_is_dead				Fssh_chan_is_dead
 #define chan_mark_dead				Fssh_chan_mark_dead
@@ -553,8 +557,10 @@
 #define ssh_dss_sign				Fssh_ssh_dss_sign
 #define ssh_dss_verify				Fssh_ssh_dss_verify
 #define ssh_ecdsa_sign				Fssh_ssh_ecdsa_sign
+#define ssh_ecdsa_sk_verify			Fssh_ssh_ecdsa_sk_verify
 #define ssh_ecdsa_verify			Fssh_ssh_ecdsa_verify
 #define ssh_ed25519_sign			Fssh_ssh_ed25519_sign
+#define ssh_ed25519_sk_verify			Fssh_ssh_ed25519_sk_verify
 #define ssh_ed25519_verify			Fssh_ssh_ed25519_verify
 #define ssh_err					Fssh_ssh_err
 #define ssh_fetch_identitylist			Fssh_ssh_fetch_identitylist
@@ -871,6 +877,12 @@
 #define sshpkt_start				Fssh_sshpkt_start
 #define sshpkt_vfatal				Fssh_sshpkt_vfatal
 #define sshsigdie				Fssh_sshsigdie
+#define sshsk_add_option			Fssh_sshsk_add_option
+#define sshsk_enroll				Fssh_sshsk_enroll
+#define sshsk_key_from_response			Fssh_sshsk_key_from_response
+#define sshsk_load_resident			Fssh_sshsk_load_resident
+#define sshsk_open				Fssh_sshsk_open
+#define sshsk_sign				Fssh_sshsk_sign
 #define start_progress_meter			Fssh_start_progress_meter
 #define stdfd_devnull				Fssh_stdfd_devnull
 #define stop_progress_meter			Fssh_stop_progress_meter
