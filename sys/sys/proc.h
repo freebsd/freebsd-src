@@ -883,6 +883,12 @@ struct proc {
 						   external thread_single() is
 						   permitted */
 #define	P2_REAPKILLED		0x00080000
+#define	P2_MEMBAR_PRIVE		0x00100000	/* membar private expedited
+						   registered */
+#define	P2_MEMBAR_PRIVE_SYNCORE	0x00200000	/* membar private expedited
+						   sync core registered */
+#define	P2_MEMBAR_GLOBE		0x00400000	/* membar global expedited
+						   registered */
 
 /* Flags protected by proctree_lock, kept in p_treeflags. */
 #define	P_TREE_ORPHANED		0x00000001	/* Reparented, on orphan list */
