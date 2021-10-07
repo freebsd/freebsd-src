@@ -351,6 +351,8 @@ static __inline pd_entry_t *
 pmap_l1(pmap_t pmap, vm_offset_t va)
 {
 
+	KASSERT(VIRT_IS_VALID(va),
+	    ("%s: malformed virtual address %#lx", __func__, va));
 	return (&pmap->pm_l1[pmap_l1_index(va)]);
 }
 
