@@ -619,6 +619,10 @@ s32 ixgbe_init_ops_X550EM(struct ixgbe_hw *hw)
 	 * the pointers to NULL explicitly here to overwrite
 	 * the values being set in the x540 function.
 	 */
+	/* Thermal sensor not supported in x550EM */
+	mac->ops.get_thermal_sensor_data = NULL;
+	mac->ops.init_thermal_sensor_thresh = NULL;
+	mac->thermal_sensor_enabled = false;
 
 	/* Bypass not supported in x550EM */
 	mac->ops.bypass_rw = NULL;
@@ -1135,7 +1139,7 @@ s32 ixgbe_write_iosf_sb_reg_x550(struct ixgbe_hw *hw, u32 reg_addr,
 			    u32 device_type, u32 data)
 {
 	u32 gssr = IXGBE_GSSR_PHY1_SM | IXGBE_GSSR_PHY0_SM;
-	u32 command, error __unused;
+	u32 command, error;
 	s32 ret;
 
 	ret = ixgbe_acquire_swfw_semaphore(hw, gssr);
@@ -1181,7 +1185,7 @@ s32 ixgbe_read_iosf_sb_reg_x550(struct ixgbe_hw *hw, u32 reg_addr,
 			   u32 device_type, u32 *data)
 {
 	u32 gssr = IXGBE_GSSR_PHY1_SM | IXGBE_GSSR_PHY0_SM;
-	u32 command, error __unused;
+	u32 command, error;
 	s32 ret;
 
 	ret = ixgbe_acquire_swfw_semaphore(hw, gssr);
@@ -2716,7 +2720,7 @@ static s32 ixgbe_setup_sfi_x550a(struct ixgbe_hw *hw, ixgbe_link_speed *speed)
  * @speed: new link speed
  * @autoneg_wait_to_complete: unused
  *
- * Configure the the integrated PHY for SFP support.
+ * Configure the integrated PHY for SFP support.
  **/
 s32 ixgbe_setup_mac_link_sfp_x550a(struct ixgbe_hw *hw,
 				    ixgbe_link_speed speed,
@@ -3688,7 +3692,7 @@ u64 ixgbe_get_supported_physical_layer_X550em(struct ixgbe_hw *hw)
 		physical_layer = IXGBE_PHYSICAL_LAYER_1000BASE_KX;
 		break;
 	case ixgbe_phy_ext_1g_t:
-		physical_layer = IXGBE_PHYSICAL_LAYER_1000BASE_T;
+		physical_layer |= IXGBE_PHYSICAL_LAYER_1000BASE_T;
 		break;
 	default:
 		break;

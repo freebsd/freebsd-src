@@ -37,6 +37,118 @@
 #include "ixgbe_mbx.h"
 
 /**
+ * ixgbe_read_mbx - Reads a message from the mailbox
+ * @hw: pointer to the HW structure
+ * @msg: The message buffer
+ * @size: Length of buffer
+ * @mbx_id: id of mailbox to read
+ *
+ * returns SUCCESS if it successfully read message from buffer
+ **/
+s32 ixgbe_read_mbx(struct ixgbe_hw *hw, u32 *msg, u16 size, u16 mbx_id)
+{
+	struct ixgbe_mbx_info *mbx = &hw->mbx;
+	s32 ret_val = IXGBE_ERR_MBX;
+
+	DEBUGFUNC("ixgbe_read_mbx");
+
+	/* limit read to size of mailbox */
+	if (size > mbx->size)
+		size = mbx->size;
+
+	if (mbx->ops.read)
+		ret_val = mbx->ops.read(hw, msg, size, mbx_id);
+
+	return ret_val;
+}
+
+/**
+ * ixgbe_write_mbx - Write a message to the mailbox
+ * @hw: pointer to the HW structure
+ * @msg: The message buffer
+ * @size: Length of buffer
+ * @mbx_id: id of mailbox to write
+ *
+ * returns SUCCESS if it successfully copied message into the buffer
+ **/
+s32 ixgbe_write_mbx(struct ixgbe_hw *hw, u32 *msg, u16 size, u16 mbx_id)
+{
+	struct ixgbe_mbx_info *mbx = &hw->mbx;
+	s32 ret_val = IXGBE_SUCCESS;
+
+	DEBUGFUNC("ixgbe_write_mbx");
+
+	if (size > mbx->size) {
+		ret_val = IXGBE_ERR_MBX;
+		ERROR_REPORT2(IXGBE_ERROR_ARGUMENT,
+			     "Invalid mailbox message size %d", size);
+	} else if (mbx->ops.write)
+		ret_val = mbx->ops.write(hw, msg, size, mbx_id);
+
+	return ret_val;
+}
+
+/**
+ * ixgbe_check_for_msg - checks to see if someone sent us mail
+ * @hw: pointer to the HW structure
+ * @mbx_id: id of mailbox to check
+ *
+ * returns SUCCESS if the Status bit was found or else ERR_MBX
+ **/
+s32 ixgbe_check_for_msg(struct ixgbe_hw *hw, u16 mbx_id)
+{
+	struct ixgbe_mbx_info *mbx = &hw->mbx;
+	s32 ret_val = IXGBE_ERR_MBX;
+
+	DEBUGFUNC("ixgbe_check_for_msg");
+
+	if (mbx->ops.check_for_msg)
+		ret_val = mbx->ops.check_for_msg(hw, mbx_id);
+
+	return ret_val;
+}
+
+/**
+ * ixgbe_check_for_ack - checks to see if someone sent us ACK
+ * @hw: pointer to the HW structure
+ * @mbx_id: id of mailbox to check
+ *
+ * returns SUCCESS if the Status bit was found or else ERR_MBX
+ **/
+s32 ixgbe_check_for_ack(struct ixgbe_hw *hw, u16 mbx_id)
+{
+	struct ixgbe_mbx_info *mbx = &hw->mbx;
+	s32 ret_val = IXGBE_ERR_MBX;
+
+	DEBUGFUNC("ixgbe_check_for_ack");
+
+	if (mbx->ops.check_for_ack)
+		ret_val = mbx->ops.check_for_ack(hw, mbx_id);
+
+	return ret_val;
+}
+
+/**
+ * ixgbe_check_for_rst - checks to see if other side has reset
+ * @hw: pointer to the HW structure
+ * @mbx_id: id of mailbox to check
+ *
+ * returns SUCCESS if the Status bit was found or else ERR_MBX
+ **/
+s32 ixgbe_check_for_rst(struct ixgbe_hw *hw, u16 mbx_id)
+{
+	struct ixgbe_mbx_info *mbx = &hw->mbx;
+	s32 ret_val = IXGBE_ERR_MBX;
+
+	DEBUGFUNC("ixgbe_check_for_rst");
+
+	if (mbx->ops.check_for_rst)
+		ret_val = mbx->ops.check_for_rst(hw, mbx_id);
+
+	return ret_val;
+}
+
+/**
  * ixgbe_poll_for_msg - Wait for message notification
  * @hw: pointer to the HW structure
  * @mbx_id: id of mailbox to write
@@ -110,7 +222,7 @@ out:
  * returns SUCCESS if it successfully received a message notification and
  * copied it into the receive buffer.
  **/
-static s32 ixgbe_read_posted_mbx(struct ixgbe_hw *hw, u32 *msg, u16 size,
+s32 ixgbe_read_posted_mbx(struct ixgbe_hw *hw, u32 *msg, u16 size,
 				 u16 mbx_id)
 {
 	struct ixgbe_mbx_info *mbx = &hw->mbx;
@@ -140,7 +252,7 @@ out:
  * returns SUCCESS if it successfully copied message into the buffer and
  * received an ack to that message within delay * timeout period
  **/
-static s32 ixgbe_write_posted_mbx(struct ixgbe_hw *hw, u32 *msg, u16 size,
+s32 ixgbe_write_posted_mbx(struct ixgbe_hw *hw, u32 *msg, u16 size,
 				  u16 mbx_id)
 {
 	struct ixgbe_mbx_info *mbx = &hw->mbx;
