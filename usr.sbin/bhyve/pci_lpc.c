@@ -49,6 +49,7 @@
 #include "pci_lpc.h"
 #include "pci_passthru.h"
 #include "pctestdev.h"
+#include "tpm_device.h"
 #include "uart_emul.h"
 
 #define	IO_ICU1		0x20
@@ -93,7 +94,7 @@ lpc_device_parse(const char *opts)
 {
 	int unit, error;
 	char *str, *cpy, *lpcdev, *node_name;
-	const char *romfile, *varfile;
+	const char *romfile, *varfile, *tpm_type, *tpm_path;
 
 	error = -1;
 	str = cpy = strdup(opts);
@@ -121,6 +122,27 @@ lpc_device_parse(const char *opts)
 			}
 
 			pci_parse_legacy_config(find_config_node("lpc"), str);
+			error = 0;
+			goto done;
+		}
+		if (strcasecmp(lpcdev, "tpm") == 0) {
+			nvlist_t *nvl = create_config_node("tpm");
+
+			tpm_type = strsep(&str, ",");
+			if (tpm_type == NULL) {
+				errx(4, "invalid tpm type \"%s\"", opts);
+			}
+			set_config_value_node(nvl, "type", tpm_type);
+
+			tpm_path = strsep(&str, ",");
+			if (tpm_path == NULL) {
+				errx(4, "invalid tpm path \"%s\"", opts);
+			}
+			set_config_value_node(nvl, "path", tpm_path);
+
+			pci_parse_legacy_config(find_config_node("tpm"), str);
+
+			set_config_value_node_if_unset(nvl, "version", "2.0");
 			error = 0;
 			goto done;
 		}
@@ -157,6 +179,7 @@ lpc_print_supported_devices(void)
 	printf("bootrom\n");
 	for (i = 0; i < LPC_UART_NUM; i++)
 		printf("%s\n", lpc_uart_names[i]);
+	printf("tpm\n");
 	printf("%s\n", pctestdev_getname());
 }
 
