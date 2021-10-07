@@ -211,6 +211,9 @@ SUBDIR.${MK_BHYVE}+=	libvmmapi
 .if ${MACHINE_ARCH} != "powerpc"
 SUBDIR.${MK_OPENMP}+=	libomp
 .endif
+.if !defined(COMPAT_32BIT)
+SUBDIR.${MK_OPENSSH}+=	libcbor
+.endif
 SUBDIR.${MK_OPENSSL}+=	libmp
 SUBDIR.${MK_PF}+=	libpfctl
 SUBDIR.${MK_PMC}+=	libpmc libpmcstat

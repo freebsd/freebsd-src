@@ -17,6 +17,7 @@ _PRIVATELIBS=	\
 		atf_cxx \
 		auditd \
 		bsdstat \
+		cbor \
 		devdctl \
 		event1 \
 		gmock \
@@ -704,6 +705,7 @@ LIBCAP_NETDIR=	${OBJTOP}/lib/libcasper/services/cap_net
 LIBCAP_PWDDIR=	${OBJTOP}/lib/libcasper/services/cap_pwd
 LIBCAP_SYSCTLDIR=	${OBJTOP}/lib/libcasper/services/cap_sysctl
 LIBCAP_SYSLOGDIR=	${OBJTOP}/lib/libcasper/services/cap_syslog
+LIBCBORDIR=	${OBJTOP}/lib/libcbor
 LIBBSDXMLDIR=	${OBJTOP}/lib/libexpat
 LIBKVMDIR=	${OBJTOP}/lib/libkvm
 LIBPTHREADDIR=	${OBJTOP}/lib/libthr
