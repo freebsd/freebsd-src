@@ -440,6 +440,10 @@ files_differ(FILE *f1, FILE *f2, int flags)
 	if ((flags & (D_EMPTY1|D_EMPTY2)) || stb1.st_size != stb2.st_size ||
 	    (stb1.st_mode & S_IFMT) != (stb2.st_mode & S_IFMT))
 		return (1);
+
+	if (stb1.st_dev == stb2.st_dev && stb1.st_ino == stb2.st_ino)
+		return (0);
+
 	for (;;) {
 		i = fread(buf1, 1, sizeof(buf1), f1);
 		j = fread(buf2, 1, sizeof(buf2), f2);
