@@ -2973,6 +2973,8 @@ lib/libkvm__L: lib/libelf__L
 _lib_libradius=	lib/libradius
 .endif
 
+lib/ncurses/ncurses__L:	lib/ncurses/tinfo__L
+
 .if ${MK_OFED} != "no"
 _prebuild_libs+= \
 	lib/ofed/libibverbs \
