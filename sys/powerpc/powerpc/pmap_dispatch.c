@@ -253,3 +253,9 @@ pmap_is_valid_memattr(pmap_t pmap __unused, vm_memattr_t mode)
 		return (FALSE);
 	}
 }
+
+void
+pmap_active_cpus(pmap_t pmap, cpuset_t *res)
+{
+	*res = pmap->pm_active;
+}
