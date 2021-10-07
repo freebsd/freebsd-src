@@ -10,6 +10,7 @@
 
 #include <machine/vmm.h>
 
+#include <assert.h>
 #include <err.h>
 #include <errno.h>
 #include <vmmapi.h>
@@ -134,4 +135,49 @@ acpi_device_add_res_fixed_memory32(struct acpi_device *const dev,
 	SLIST_INSERT_HEAD(&dev->crs, res, chain);
 
 	return (0);
+}
+
+static void
+acpi_device_write_dsdt_crs(const struct acpi_device *const dev)
+{
+	const struct acpi_resource_list_entry *res;
+	SLIST_FOREACH(res, &dev->crs, chain) {
+		switch (res->type) {
+		case ACPI_RESOURCE_TYPE_FIXED_IO:
+			dsdt_fixed_ioport(res->data.FixedIo.Address,
+			    res->data.FixedIo.AddressLength);
+			break;
+		case ACPI_RESOURCE_TYPE_FIXED_MEMORY32:
+			dsdt_fixed_mem32(res->data.FixedMemory32.Address,
+			    res->data.FixedMemory32.AddressLength);
+			break;
+		default:
+			assert(0);
+			break;
+		}
+	}
+}
+
+void
+acpi_device_write_dsdt(const struct acpi_device *const dev)
+{
+	if (dev == NULL) {
+		return;
+	}
+
+	dsdt_line("");
+	dsdt_line("  Scope (\\_SB)");
+	dsdt_line("  {");
+	dsdt_line("    Device (%s)", dev->name);
+	dsdt_line("    {");
+	dsdt_line("      Name (_HID, \"%s\")", dev->hid);
+	dsdt_line("      Name (_STA, 0x0F)");
+	dsdt_line("      Name (_CRS, ResourceTemplate ()");
+	dsdt_line("      {");
+	dsdt_indent(4);
+	acpi_device_write_dsdt_crs(dev);
+	dsdt_unindent(4);
+	dsdt_line("      })");
+	dsdt_line("    }");
+	dsdt_line("  }");
 }
