@@ -3287,6 +3287,14 @@
 		    u_int flags
 		);
 	}
+584	AUE_NULL	STD|CAPENABLED {
+		int membarrier(
+		    int cmd,
+		    unsigned flags,
+		    int cpu_id
+		);
+	}
+
 
 ; Please copy any additions and changes to the following compatability tables:
 ; sys/compat/freebsd32/syscalls.master
