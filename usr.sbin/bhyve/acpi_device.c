@@ -90,3 +90,48 @@ acpi_device_destroy(struct acpi_device *const dev)
 	free(__DECONST(void *, dev->name));
 	free(dev);
 }
+
+int
+acpi_device_add_res_fixed_ioport(struct acpi_device *const dev,
+    const UINT16 port, const UINT8 length)
+{
+	if (dev == NULL) {
+		return (EINVAL);
+	}
+
+	struct acpi_resource_list_entry *const res = calloc(1, sizeof(*res));
+	if (res == NULL) {
+		return (ENOMEM);
+	}
+
+	res->type = ACPI_RESOURCE_TYPE_FIXED_IO;
+	res->data.FixedIo.Address = port;
+	res->data.FixedIo.AddressLength = length;
+
+	SLIST_INSERT_HEAD(&dev->crs, res, chain);
+
+	return (0);
+}
+
+int
+acpi_device_add_res_fixed_memory32(struct acpi_device *const dev,
+    const UINT8 write_protected, const UINT32 address, const UINT32 length)
+{
+	if (dev == NULL) {
+		return (EINVAL);
+	}
+
+	struct acpi_resource_list_entry *const res = calloc(1, sizeof(*res));
+	if (res == NULL) {
+		return (ENOMEM);
+	}
+
+	res->type = ACPI_RESOURCE_TYPE_FIXED_MEMORY32;
+	res->data.FixedMemory32.WriteProtect = write_protected;
+	res->data.FixedMemory32.Address = address;
+	res->data.FixedMemory32.AddressLength = length;
+
+	SLIST_INSERT_HEAD(&dev->crs, res, chain);
+
+	return (0);
+}
