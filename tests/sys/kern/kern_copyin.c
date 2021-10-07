@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/exec.h>
 #include <sys/sysctl.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -53,6 +54,21 @@ copyin_checker(uintptr_t uaddr, size_t len)
 	ret = write(scratch_file, (const void *)uaddr, len);
 	return (ret == -1 ? errno : 0);
 }
+
+#if __SIZEOF_POINTER__ == 8
+/*
+ * A slightly more direct path to calling copyin(), but without the ability
+ * to specify a length.
+ */
+static int
+copyin_checker2(uintptr_t uaddr)
+{
+	int ret;
+
+	ret = fcntl(scratch_file, F_GETLK, (const void *)uaddr);
+	return (ret == -1 ? errno : 0);
+}
+#endif
 
 #ifdef __amd64__
 static uintptr_t
@@ -83,6 +99,10 @@ get_maxuser_address(void)
 #endif
 
 #define	FMAX	ULONG_MAX
+#if __SIZEOF_POINTER__ == 8
+/* PR 257193 */
+#define	ADDR_SIGNED	0x800000c000000000
+#endif
 
 ATF_TC_WITHOUT_HEAD(kern_copyin);
 ATF_TC_BODY(kern_copyin, tc)
@@ -122,6 +142,10 @@ ATF_TC_BODY(kern_copyin, tc)
 	ATF_CHECK(copyin_checker(FMAX - 10, 9) == EFAULT);
 	ATF_CHECK(copyin_checker(FMAX - 10, 10) == EFAULT);
 	ATF_CHECK(copyin_checker(FMAX - 10, 11) == EFAULT);
+#if __SIZEOF_POINTER__ == 8
+	ATF_CHECK(copyin_checker(ADDR_SIGNED, 1) == EFAULT);
+	ATF_CHECK(copyin_checker2(ADDR_SIGNED) == EFAULT);
+#endif
 }
 
 ATF_TP_ADD_TCS(tp)

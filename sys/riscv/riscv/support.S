@@ -56,7 +56,7 @@ END(fsu_fault)
  */
 ENTRY(casueword32)
 	li	a4, (VM_MAXUSER_ADDRESS-3)
-	bgt	a0, a4, fsu_fault_nopcb
+	bgeu	a0, a4, fsu_fault_nopcb
 	la	a6, fsu_fault		/* Load the fault handler */
 	SET_FAULT_HANDLER(a6, a4)	/* And set it */
 	ENTER_USER_ACCESS(a4)
@@ -77,7 +77,7 @@ END(casueword32)
  */
 ENTRY(casueword)
 	li	a4, (VM_MAXUSER_ADDRESS-7)
-	bgt	a0, a4, fsu_fault_nopcb
+	bgeu	a0, a4, fsu_fault_nopcb
 	la	a6, fsu_fault		/* Load the fault handler */
 	SET_FAULT_HANDLER(a6, a4)	/* And set it */
 	ENTER_USER_ACCESS(a4)
@@ -98,7 +98,7 @@ END(casueword)
  */
 ENTRY(fubyte)
 	li	a1, VM_MAXUSER_ADDRESS
-	bgt	a0, a1, fsu_fault_nopcb
+	bgeu	a0, a1, fsu_fault_nopcb
 	la	a6, fsu_fault		/* Load the fault handler */
 	SET_FAULT_HANDLER(a6, a1)	/* And set it */
 	ENTER_USER_ACCESS(a1)
@@ -113,7 +113,7 @@ END(fubyte)
  */
 ENTRY(fuword16)
 	li	a1, (VM_MAXUSER_ADDRESS-1)
-	bgt	a0, a1, fsu_fault_nopcb
+	bgeu	a0, a1, fsu_fault_nopcb
 	la	a6, fsu_fault		/* Load the fault handler */
 	SET_FAULT_HANDLER(a6, a1)	/* And set it */
 	ENTER_USER_ACCESS(a1)
@@ -128,7 +128,7 @@ END(fuword16)
  */
 ENTRY(fueword32)
 	li	a2, (VM_MAXUSER_ADDRESS-3)
-	bgt	a0, a2, fsu_fault_nopcb
+	bgeu	a0, a2, fsu_fault_nopcb
 	la	a6, fsu_fault		/* Load the fault handler */
 	SET_FAULT_HANDLER(a6, a2)	/* And set it */
 	ENTER_USER_ACCESS(a2)
@@ -147,7 +147,7 @@ END(fueword32)
 ENTRY(fueword)
 EENTRY(fueword64)
 	li	a2, (VM_MAXUSER_ADDRESS-7)
-	bgt	a0, a2, fsu_fault_nopcb
+	bgeu	a0, a2, fsu_fault_nopcb
 	la	a6, fsu_fault		/* Load the fault handler */
 	SET_FAULT_HANDLER(a6, a2)	/* And set it */
 	ENTER_USER_ACCESS(a2)
@@ -165,7 +165,7 @@ END(fueword)
  */
 ENTRY(subyte)
 	li	a2, VM_MAXUSER_ADDRESS
-	bgt	a0, a2, fsu_fault_nopcb
+	bgeu	a0, a2, fsu_fault_nopcb
 	la	a6, fsu_fault		/* Load the fault handler */
 	SET_FAULT_HANDLER(a6, a2)	/* And set it */
 	ENTER_USER_ACCESS(a2)
@@ -181,7 +181,7 @@ END(subyte)
  */
 ENTRY(suword16)
 	li	a2, (VM_MAXUSER_ADDRESS-1)
-	bgt	a0, a2, fsu_fault_nopcb
+	bgeu	a0, a2, fsu_fault_nopcb
 	la	a6, fsu_fault		/* Load the fault handler */
 	SET_FAULT_HANDLER(a6, a2)	/* And set it */
 	ENTER_USER_ACCESS(a2)
@@ -197,7 +197,7 @@ END(suword16)
  */
 ENTRY(suword32)
 	li	a2, (VM_MAXUSER_ADDRESS-3)
-	bgt	a0, a2, fsu_fault_nopcb
+	bgeu	a0, a2, fsu_fault_nopcb
 	la	a6, fsu_fault		/* Load the fault handler */
 	SET_FAULT_HANDLER(a6, a2)	/* And set it */
 	ENTER_USER_ACCESS(a2)
@@ -214,7 +214,7 @@ END(suword32)
 ENTRY(suword)
 EENTRY(suword64)
 	li	a2, (VM_MAXUSER_ADDRESS-7)
-	bgt	a0, a2, fsu_fault_nopcb
+	bgeu	a0, a2, fsu_fault_nopcb
 	la	a6, fsu_fault		/* Load the fault handler */
 	SET_FAULT_HANDLER(a6, a2)	/* And set it */
 	ENTER_USER_ACCESS(a2)
