@@ -744,7 +744,7 @@ main(int argc, char** argv)
 	struct options i2c_opt;
 	const char *dev, *err_msg;
 	int fd, error = 0, ch;
-	const char *optflags = "a:f:d:o:w:c:m:n:sbvrh";
+	const char *optflags = "a:f:d:o:iw:c:m:n:sbvrh";
 	char do_what = 0;
 
 	dev = I2C_DEV;
@@ -763,7 +763,7 @@ main(int argc, char** argv)
 
 	/* Find out what we are going to do */
 
-	while ((ch = getopt(argc, argv, "a:f:d:iw:c:m:n:sbvrh")) != -1) {
+	while ((ch = getopt(argc, argv, optflags)) != -1) {
 		switch(ch) {
 		case 'a':
 		case 'i':
