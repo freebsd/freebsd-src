@@ -6194,6 +6194,12 @@ pmap_activate(struct thread *td)
 	critical_exit();
 }
 
+void
+pmap_active_cpus(pmap_t pmap, cpuset_t *res)
+{
+	*res = pmap->pm_active;
+}
+
 /*
  * Perform the pmap work for mincore(2).  If the page is not both referenced and
  * modified by this pmap, returns its physical address so that the caller can

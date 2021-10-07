@@ -78,6 +78,7 @@
 #include <sys/msan.h>
 #include <sys/proc.h>
 #include <sys/rwlock.h>
+#include <sys/smp.h>
 #include <sys/sysctl.h>
 #include <sys/vmem.h>
 #include <sys/vmmeter.h>
@@ -906,6 +907,31 @@ kmem_bootstrap_free(vm_offset_t start, vm_size_t size)
 	(void)vmem_add(kernel_arena, start, end - start, M_WAITOK);
 #endif
 }
+
+#ifdef PMAP_WANT_ACTIVE_CPUS_NAIVE
+void
+pmap_active_cpus(pmap_t pmap, cpuset_t *res)
+{
+	struct thread *td;
+	struct proc *p;
+	struct vmspace *vm;
+	int c;
+
+	CPU_ZERO(res);
+	CPU_FOREACH(c) {
+		td = cpuid_to_pcpu[c]->pc_curthread;
+		p = td->td_proc;
+		if (p == NULL)
+			continue;
+		vm = vmspace_acquire_ref(p);
+		if (vm == NULL)
+			continue;
+		if (pmap == vmspace_pmap(vm))
+			CPU_SET(c, res);
+		vmspace_free(vm);
+	}
+}
+#endif
 
 /*
  * Allow userspace to directly trigger the VM drain routine for testing

@@ -4688,6 +4688,12 @@ pmap_activate_boot(pmap_t pmap)
 }
 
 void
+pmap_active_cpus(pmap_t pmap, cpuset_t *res)
+{
+	*res = pmap->pm_active;
+}
+
+void
 pmap_sync_icache(pmap_t pmap, vm_offset_t va, vm_size_t sz)
 {
 	cpuset_t mask;
