@@ -413,6 +413,7 @@ PTHREAD_MAN=	pthread.3 \
 		pthread_mutex_timedlock.3 \
 		pthread_mutex_trylock.3 \
 		pthread_mutex_unlock.3 \
+		pthread_np.3 \
 		pthread_once.3 \
 		pthread_resume_all_np.3 \
 		pthread_resume_np.3 \
