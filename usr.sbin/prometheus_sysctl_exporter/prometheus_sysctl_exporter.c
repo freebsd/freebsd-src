@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <errno.h>
 #include <math.h>
+#include <regex.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -43,6 +44,10 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 #include <zlib.h>
+
+/* Regular expressions for filtering output. */
+static regex_t inc_regex;
+static regex_t exc_regex;
 
 /*
  * Cursor for iterating over all of the system's sysctl OIDs.
@@ -370,25 +375,27 @@ oid_get_name(const struct oid *o, struct oidname *on)
 	on->oid = *o;
 }
 
-/* Prints the name and labels of an OID to a file stream. */
+/* Populates the name and labels of an OID to a buffer. */
 static void
-oidname_print(const struct oidname *on, const struct oidformat *of,
-    FILE *fp)
+oid_get_metric(const struct oidname *on, const struct oidformat *of,
+    char *metric, size_t mlen)
 {
 	const char *name, *label;
 	size_t i;
-	char separator;
+	char separator, buf[BUFSIZ];
 
 	/* Print the name of the metric. */
-	fprintf(fp, "sysctl");
+	snprintf(metric, mlen, "%s", "sysctl");
 	name = on->names;
 	label = on->labels;
 	for (i = 0; i < on->oid.len; ++i) {
 		if (*label == '\0') {
-			fputc('_', fp);
+			strlcat(metric, "_", mlen);
 			while (*name != '\0') {
 				/* Map unsupported characters to underscores. */
-				fputc(isalnum(*name) ? *name : '_', fp);
+				snprintf(buf, sizeof(buf), "%c",
+				    isalnum(*name) ? *name : '_');
+				strlcat(metric, buf, mlen);
 				++name;
 			}
 		}
@@ -396,9 +403,9 @@ oidname_print(const struct oidname *on, const struct oidformat *of,
 		label += strlen(label) + 1;
 	}
 	if (oidformat_is_temperature(of))
-		fprintf(fp, "_celcius");
+		strlcat(metric, "_celcius", mlen);
 	else if (oidformat_is_timeval(of))
-		fprintf(fp, "_seconds");
+		strlcat(metric, "_seconds", mlen);
 
 	/* Print the labels of the metric. */
 	name = on->names;
@@ -410,21 +417,23 @@ oidname_print(const struct oidname *on, const struct oidformat *of,
 			    "abcdefghijklmnopqrstuvwxyz"
 			    "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 			    "0123456789_")] == '\0');
-			fprintf(fp, "%c%s=\"", separator, label);
+			snprintf(buf, sizeof(buf), "%c%s=\"", separator, label);
+			strlcat(metric, buf, mlen);
 			while (*name != '\0') {
 				/* Escape backslashes and double quotes. */
 				if (*name == '\\' || *name == '"')
-					fputc('\\', fp);
-				fputc(*name++, fp);
+					strlcat(metric, "\\", mlen);
+				snprintf(buf, sizeof(buf), "%c", *name++);
+				strlcat(metric, buf, mlen);
 			}
-			fputc('"', fp);
+			strlcat(metric, "\"", mlen);
 			separator = ',';
 		}
 		name += strlen(name) + 1;
 		label += strlen(label) + 1;
 	}
 	if (separator != '{')
-		fputc('}', fp);
+		strlcat(metric, "}", mlen);
 }
 
 /* Returns whether the OID name has any labels associated to it. */
@@ -483,15 +492,24 @@ oiddescription_print(const struct oiddescription *od, FILE *fp)
 
 static void
 oid_print(const struct oid *o, struct oidname *on, bool print_description,
-    FILE *fp)
+    bool exclude, bool include, FILE *fp)
 {
 	struct oidformat of;
 	struct oidvalue ov;
 	struct oiddescription od;
+	char metric[BUFSIZ];
 
 	if (!oid_get_format(o, &of) || !oid_get_value(o, &of, &ov))
 		return;
 	oid_get_name(o, on);
+
+	oid_get_metric(on, &of, metric, sizeof(metric));
+
+	if (exclude && regexec(&exc_regex, metric, 0, NULL, 0) == 0)
+		return;
+
+	if (include && regexec(&inc_regex, metric, 0, NULL, 0) != 0)
+		return;
 
 	/*
 	 * Print the line with the description. Prometheus expects a
@@ -502,14 +520,14 @@ oid_print(const struct oid *o, struct oidname *on, bool print_description,
 	if (print_description && !oidname_has_labels(on) &&
 	    oid_get_description(o, &od)) {
 		fprintf(fp, "# HELP ");
-		oidname_print(on, &of, fp);
+		fprintf(fp, "%s", metric);
 		fputc(' ', fp);
 		oiddescription_print(&od, fp);
 		fputc('\n', fp);
 	}
 
 	/* Print the line with the value. */
-	oidname_print(on, &of, fp);
+	fprintf(fp, "%s", metric);
 	fputc(' ', fp);
 	oidvalue_print(&ov, fp);
 	fputc('\n', fp);
@@ -539,8 +557,9 @@ static void
 usage(void)
 {
 
-	fprintf(stderr,
-	    "usage: prometheus_sysctl_exporter [-dgh] [prefix ...]\n");
+	fprintf(stderr, "%s",
+	    "usage: prometheus_sysctl_exporter [-dgh] [-e pattern] [-i pattern]\n"
+	    "\t[prefix ...]\n");
 	exit(1);
 }
 
@@ -551,21 +570,40 @@ main(int argc, char *argv[])
 	char *http_buf;
 	FILE *fp;
 	size_t http_buflen;
-	int ch;
-	bool gzip_mode, http_mode, print_descriptions;
+	int ch, error;
+	bool exclude, include, gzip_mode, http_mode, print_descriptions;
+	char errbuf[BUFSIZ];
 
 	/* Parse command line flags. */
-	gzip_mode = http_mode = print_descriptions = false;
-	while ((ch = getopt(argc, argv, "dgh")) != -1) {
+	include = exclude = gzip_mode = http_mode = print_descriptions = false;
+	while ((ch = getopt(argc, argv, "de:ghi:")) != -1) {
 		switch (ch) {
 		case 'd':
 			print_descriptions = true;
+			break;
+		case 'e':
+			error = regcomp(&exc_regex, optarg, REG_EXTENDED);
+			if (error != 0) {
+				regerror(error, &exc_regex, errbuf, sizeof(errbuf));
+				errx(1, "bad regular expression '%s': %s",
+				    optarg, errbuf);
+			}
+			exclude = true;
 			break;
 		case 'g':
 			gzip_mode = true;
 			break;
 		case 'h':
 			http_mode = true;
+			break;
+		case 'i':
+			error = regcomp(&inc_regex, optarg, REG_EXTENDED);
+			if (error != 0) {
+				regerror(error, &inc_regex, errbuf, sizeof(errbuf));
+				errx(1, "bad regular expression '%s': %s",
+				    optarg, errbuf);
+			}
+			include = true;
 			break;
 		default:
 			usage();
@@ -590,7 +628,7 @@ main(int argc, char *argv[])
 		/* Print all OIDs. */
 		oid_get_root(&o);
 		do {
-			oid_print(&o, &on, print_descriptions, fp);
+			oid_print(&o, &on, print_descriptions, exclude, include, fp);
 		} while (oid_get_next(&o, &o));
 	} else {
 		int i;
@@ -602,7 +640,7 @@ main(int argc, char *argv[])
 			oid_get_by_name(&root, argv[i]);
 			o = root;
 			do {
-				oid_print(&o, &on, print_descriptions, fp);
+				oid_print(&o, &on, print_descriptions, exclude, include, fp);
 			} while (oid_get_next(&o, &o) &&
 			    oid_is_beneath(&o, &root));
 		}
