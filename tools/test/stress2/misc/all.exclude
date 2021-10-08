@@ -49,6 +49,7 @@ quota7.sh		panic: dqflush: stray dquot					20120221
 sctp3.sh		panic: Queues are not empty when handling SHUTDOWN-COMPLETE	20210211
 sendfile25.sh		WiP								20200611
 signal.sh		Timing issues. Needs fixing					20171116
+snap8.sh		https://people.freebsd.org/~pho/stress/log/log0123.txt		20211008
 swapoff2.sh		swap_pager_force_pagein: read from swap failed			20171223
 swapoff5.sh		log0005.txt, known issue					20210111
 systrace.sh		WiP								20200227
