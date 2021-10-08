@@ -69,13 +69,11 @@ extern void
 stack_capture(struct stack *st, register_t rbp);
 
 static int
-xendebug_filter(void *arg)
+xendebug_filter(void *arg __unused)
 {
 #if defined(STACK) && defined(DDB)
 	struct stack st;
-	struct trapframe *frame;
 
-	frame = arg;
 	stack_zero(&st);
 	stack_save(&st);
 
