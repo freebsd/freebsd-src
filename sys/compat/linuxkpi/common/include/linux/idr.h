@@ -140,6 +140,11 @@ ida_alloc_max(struct ida *ida, unsigned int max, gfp_t gfp)
 	return (ida_simple_get(ida, 0, max, gfp));
 }
 
+static inline int ida_alloc(struct ida *ida, gfp_t gfp)
+{
+	return (ida_alloc_max(ida, ~0u, gfp));
+}
+
 static inline bool
 ida_is_empty(struct ida *ida)
 {
