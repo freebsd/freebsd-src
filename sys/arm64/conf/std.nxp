@@ -9,6 +9,7 @@ options		SOC_NXP_LS
 device		pca9547			# NPX I2C bus multiplexer
 device		pcf8563			# NXP Real-time clock/calendar
 device		tca6408			# NXP I2C gpio expander
+device		pcf85063		# NXP Real-time clock
 
 # Serial (COM) ports
 device		uart_ns8250		# ns8250-type UART driver
