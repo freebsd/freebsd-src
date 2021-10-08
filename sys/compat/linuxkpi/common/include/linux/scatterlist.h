@@ -182,6 +182,13 @@ sg_init_table(struct scatterlist *sg, unsigned int nents)
 	sg_mark_end(&sg[nents - 1]);
 }
 
+static inline void
+sg_init_one(struct scatterlist *sg, const void *buf, unsigned int buflen)
+{
+	sg_init_table(sg, 1);
+	sg_set_buf(sg, buf, buflen);
+}
+
 static struct scatterlist *
 sg_kmalloc(unsigned int nents, gfp_t gfp_mask)
 {
