@@ -29,8 +29,8 @@ SUBDIR = \
 	smbus \
 
 .if !empty(OPT_FDT)
-SUBDIR += tca6416 \
-	  rx8803
+SUBDIR += rx8803 \
+	  tca6416
 .endif
 
 .if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "amd64" || \

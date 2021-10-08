@@ -1866,6 +1866,7 @@ dev/iicbus/ofw_iicbus.c		optional fdt iicbus
 dev/iicbus/pcf8574.c		optional pcf8574
 dev/iicbus/pcf8591.c		optional pcf8591
 dev/iicbus/rtc8583.c		optional rtc8583
+dev/iicbus/rtc/pcf85063.c	optional pcf85063 iicbus fdt
 dev/iicbus/rtc/rx8803.c		optional rx8803 iicbus fdt
 dev/iicbus/s35390a.c		optional s35390a
 dev/iicbus/sy8106a.c		optional sy8106a ext_resources fdt
