@@ -1812,8 +1812,6 @@ pf_rule_to_krule(const struct pf_rule *rule, struct pf_krule *krule)
 	krule->return_ttl = rule->return_ttl;
 	krule->tos = rule->tos;
 	krule->set_tos = rule->set_tos;
-	krule->anchor_relative = rule->anchor_relative;
-	krule->anchor_wildcard = rule->anchor_wildcard;
 
 	krule->flush = rule->flush;
 	krule->prio = rule->prio;

@@ -595,8 +595,6 @@ pf_nvrule_to_krule(const nvlist_t *nvl, struct pf_krule *rule)
 	PFNV_CHK(pf_nvuint8(nvl, "return_ttl", &rule->return_ttl));
 	PFNV_CHK(pf_nvuint8(nvl, "tos", &rule->tos));
 	PFNV_CHK(pf_nvuint8(nvl, "set_tos", &rule->set_tos));
-	PFNV_CHK(pf_nvuint8(nvl, "anchor_relative", &rule->anchor_relative));
-	PFNV_CHK(pf_nvuint8(nvl, "anchor_wildcard", &rule->anchor_wildcard));
 
 	PFNV_CHK(pf_nvuint8(nvl, "flush", &rule->flush));
 	PFNV_CHK(pf_nvuint8(nvl, "prio", &rule->prio));
