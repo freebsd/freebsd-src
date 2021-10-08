@@ -34,7 +34,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 31, 2019
+.Dd October 9, 2021
 .Dt MOUNT_FUSEFS 8
 .Os
 .Sh NAME
@@ -162,7 +162,7 @@ Limit size of read requests to
 Do not refuse unmounting if there are secondary mounts.
 .It Cm private
 Refuse shared mounting of the daemon.
-This is the default behaviour, to allow sharing, expicitly use
+This is the default behaviour, to allow sharing, explicitly use
 .Fl o Cm noprivate .
 .It Cm push_symlinks_in
 Prefix absolute symlinks with the mountpoint.
@@ -293,7 +293,7 @@ option.
 .It Ev MOUNT_FUSEFS_IGNORE_UNKNOWN
 If set,
 .Nm
-will ignore uknown mount options.
+will ignore unknown mount options.
 .It Ev MOUNT_FUSEFS_CALL_BY_LIB
 Adjust behavior to the needs of the FUSE library.
 Currently it effects help output.
