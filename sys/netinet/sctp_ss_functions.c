@@ -165,20 +165,20 @@ sctp_ss_default_select(struct sctp_tcb *stcb SCTP_UNUSED, struct sctp_nets *net,
 {
 	struct sctp_stream_out *strq, *strqt;
 
-	if (asoc->ss_data.locked_on_sending) {
+	if (asoc->ss_data.locked_on_sending != NULL) {
 		KASSERT(asoc->ss_data.locked_on_sending->ss_params.scheduled,
-		    ("strq %p not scheduled",
+		    ("locked_on_sending %p not scheduled",
 		    (void *)asoc->ss_data.locked_on_sending));
 		return (asoc->ss_data.locked_on_sending);
 	}
 	strqt = asoc->ss_data.last_out_stream;
+	KASSERT(strqt == NULL || strqt->ss_params.scheduled,
+	    ("last_out_stream %p not scheduled", (void *)strqt));
 default_again:
 	/* Find the next stream to use */
 	if (strqt == NULL) {
 		strq = TAILQ_FIRST(&asoc->ss_data.out.wheel);
 	} else {
-		KASSERT(strqt->ss_params.scheduled,
-		    ("strq %p not scheduled", (void *)strqt));
 		strq = TAILQ_NEXT(strqt, ss_params.ss.rr.next_spoke);
 		if (strq == NULL) {
 			strq = TAILQ_FIRST(&asoc->ss_data.out.wheel);
@@ -332,13 +332,13 @@ sctp_ss_rrp_packet_done(struct sctp_tcb *stcb SCTP_UNUSED, struct sctp_nets *net
 	struct sctp_stream_out *strq, *strqt;
 
 	strqt = asoc->ss_data.last_out_stream;
+	KASSERT(strqt == NULL || strqt->ss_params.scheduled,
+	    ("last_out_stream %p not scheduled", (void *)strqt));
 rrp_again:
 	/* Find the next stream to use */
 	if (strqt == NULL) {
 		strq = TAILQ_FIRST(&asoc->ss_data.out.wheel);
 	} else {
-		KASSERT(strqt->ss_params.scheduled,
-		    ("strq %p not scheduled", (void *)strqt));
 		strq = TAILQ_NEXT(strqt, ss_params.ss.rr.next_spoke);
 		if (strq == NULL) {
 			strq = TAILQ_FIRST(&asoc->ss_data.out.wheel);
@@ -484,20 +484,20 @@ sctp_ss_prio_select(struct sctp_tcb *stcb SCTP_UNUSED, struct sctp_nets *net,
 {
 	struct sctp_stream_out *strq, *strqt, *strqn;
 
-	if (asoc->ss_data.locked_on_sending) {
+	if (asoc->ss_data.locked_on_sending != NULL) {
 		KASSERT(asoc->ss_data.locked_on_sending->ss_params.scheduled,
-		    ("strq %p not scheduled",
+		    ("locked_on_sending %p not scheduled",
 		    (void *)asoc->ss_data.locked_on_sending));
 		return (asoc->ss_data.locked_on_sending);
 	}
 	strqt = asoc->ss_data.last_out_stream;
+	KASSERT(strqt == NULL || strqt->ss_params.scheduled,
+	    ("last_out_stream %p not scheduled", (void *)strqt));
 prio_again:
 	/* Find the next stream to use */
 	if (strqt == NULL) {
 		strq = TAILQ_FIRST(&asoc->ss_data.out.wheel);
 	} else {
-		KASSERT(strqt->ss_params.scheduled,
-		    ("strq %p not scheduled", (void *)strqt));
 		strqn = TAILQ_NEXT(strqt, ss_params.ss.prio.next_spoke);
 		if (strqn != NULL &&
 		    strqn->ss_params.ss.prio.priority == strqt->ss_params.ss.prio.priority) {
@@ -656,9 +656,9 @@ sctp_ss_fb_select(struct sctp_tcb *stcb SCTP_UNUSED, struct sctp_nets *net,
 {
 	struct sctp_stream_out *strq = NULL, *strqt;
 
-	if (asoc->ss_data.locked_on_sending) {
+	if (asoc->ss_data.locked_on_sending != NULL) {
 		KASSERT(asoc->ss_data.locked_on_sending->ss_params.scheduled,
-		    ("strq %p not scheduled",
+		    ("locked_on_sending %p not scheduled",
 		    (void *)asoc->ss_data.locked_on_sending));
 		return (asoc->ss_data.locked_on_sending);
 	}
