@@ -294,4 +294,6 @@ void si_meminfo(struct sysinfo *si);
 void lkpi_unmap_mapping_range(void *obj, loff_t const holebegin __unused,
     loff_t const holelen, int even_cows __unused);
 
+#define PAGE_ALIGNED(p)	__is_aligned(p, PAGE_SIZE)
+
 #endif					/* _LINUX_MM_H_ */
