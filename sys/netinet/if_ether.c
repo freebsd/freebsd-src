@@ -906,13 +906,9 @@ in_arpinput(struct mbuf *m)
 	/*
 	 * If bridging, fall back to using any inet address.
 	 */
-	IN_IFADDR_RLOCK(&in_ifa_tracker);
-	if (!bridged || (ia = CK_STAILQ_FIRST(&V_in_ifaddrhead)) == NULL) {
-		IN_IFADDR_RUNLOCK(&in_ifa_tracker);
+	if (!bridged || (ia = CK_STAILQ_FIRST(&V_in_ifaddrhead)) == NULL)
 		goto drop;
-	}
 	ifa_ref(&ia->ia_ifa);
-	IN_IFADDR_RUNLOCK(&in_ifa_tracker);
 match:
 	if (!enaddr)
 		enaddr = (u_int8_t *)IF_LLADDR(ifp);

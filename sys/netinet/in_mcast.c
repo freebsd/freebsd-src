@@ -1752,7 +1752,6 @@ inp_get_source_filters(struct inpcb *inp, struct sockopt *sopt)
 int
 inp_getmoptions(struct inpcb *inp, struct sockopt *sopt)
 {
-	struct rm_priotracker	 in_ifa_tracker;
 	struct ip_mreqn		 mreqn;
 	struct ip_moptions	*imo;
 	struct ifnet		*ifp;
@@ -1795,7 +1794,7 @@ inp_getmoptions(struct inpcb *inp, struct sockopt *sopt)
 
 				mreqn.imr_ifindex = ifp->if_index;
 				NET_EPOCH_ENTER(et);
-				IFP_TO_IA(ifp, ia, &in_ifa_tracker);
+				IFP_TO_IA(ifp, ia);
 				if (ia != NULL)
 					mreqn.imr_address =
 					    IA_SIN(ia)->sin_addr;
@@ -1887,6 +1886,7 @@ inp_lookup_mcast_ifp(const struct inpcb *inp,
 	struct ifnet *ifp;
 	struct nhop_object *nh;
 
+	NET_EPOCH_ASSERT();
 	KASSERT(inp != NULL, ("%s: inp must not be NULL", __func__));
 	KASSERT(gsin->sin_family == AF_INET, ("%s: not AF_INET", __func__));
 	KASSERT(IN_MULTICAST(ntohl(gsin->sin_addr.s_addr)),
@@ -1909,7 +1909,6 @@ inp_lookup_mcast_ifp(const struct inpcb *inp,
 			struct ifnet *mifp;
 
 			mifp = NULL;
-			IN_IFADDR_RLOCK(&in_ifa_tracker);
 			CK_STAILQ_FOREACH(ia, &V_in_ifaddrhead, ia_link) {
 				mifp = ia->ia_ifp;
 				if (!(mifp->if_flags & IFF_LOOPBACK) &&
@@ -1919,7 +1918,6 @@ inp_lookup_mcast_ifp(const struct inpcb *inp,
 					break;
 				}
 			}
-			IN_IFADDR_RUNLOCK(&in_ifa_tracker);
 		}
 	}
 
