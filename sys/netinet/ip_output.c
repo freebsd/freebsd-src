@@ -53,7 +53,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/protosw.h>
-#include <sys/rmlock.h>
 #include <sys/sdt.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
@@ -321,7 +320,6 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
     struct ip_moptions *imo, struct inpcb *inp)
 {
 	MROUTER_RLOCK_TRACKER;
-	struct rm_priotracker in_ifa_tracker;
 	struct ip *ip;
 	struct ifnet *ifp = NULL;	/* keep compiler happy */
 	struct mbuf *m0;
@@ -463,7 +461,7 @@ again:
 		 */
 		ifp = imo->imo_multicast_ifp;
 		mtu = ifp->if_mtu;
-		IFP_TO_IA(ifp, ia, &in_ifa_tracker);
+		IFP_TO_IA(ifp, ia);
 		isbroadcast = 0;	/* fool gcc */
 		/* Interface may have no addresses. */
 		if (ia != NULL)

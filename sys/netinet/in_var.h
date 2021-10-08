@@ -166,18 +166,15 @@ do { \
  * Macro for finding the internet address structure (in_ifaddr) corresponding
  * to a given interface (ifnet structure).
  */
-#define IFP_TO_IA(ifp, ia, t)						\
+#define IFP_TO_IA(ifp, ia)						\
 	/* struct ifnet *ifp; */					\
 	/* struct in_ifaddr *ia; */					\
-	/* struct rm_priotracker *t; */					\
 do {									\
 	NET_EPOCH_ASSERT();						\
-	IN_IFADDR_RLOCK((t));						\
 	for ((ia) = CK_STAILQ_FIRST(&V_in_ifaddrhead);			\
 	    (ia) != NULL && (ia)->ia_ifp != (ifp);			\
-	    (ia) = CK_STAILQ_NEXT((ia), ia_link))				\
+	    (ia) = CK_STAILQ_NEXT((ia), ia_link))			\
 		continue;						\
-	IN_IFADDR_RUNLOCK((t));						\
 } while (0)
 
 /*

@@ -530,7 +530,6 @@ isrfc1918addr(struct in_addr *in)
 static int
 stf_checkaddr4(struct stf_softc *sc, struct in_addr *in, struct ifnet *inifp)
 {
-	struct rm_priotracker in_ifa_tracker;
 	struct in_ifaddr *ia4;
 
 	/*
@@ -554,16 +553,13 @@ stf_checkaddr4(struct stf_softc *sc, struct in_addr *in, struct ifnet *inifp)
 	/*
 	 * reject packets with broadcast
 	 */
-	IN_IFADDR_RLOCK(&in_ifa_tracker);
 	CK_STAILQ_FOREACH(ia4, &V_in_ifaddrhead, ia_link) {
 		if ((ia4->ia_ifa.ifa_ifp->if_flags & IFF_BROADCAST) == 0)
 			continue;
 		if (in->s_addr == ia4->ia_broadaddr.sin_addr.s_addr) {
-			IN_IFADDR_RUNLOCK(&in_ifa_tracker);
 			return -1;
 		}
 	}
-	IN_IFADDR_RUNLOCK(&in_ifa_tracker);
 
 	/*
 	 * perform ingress filter
