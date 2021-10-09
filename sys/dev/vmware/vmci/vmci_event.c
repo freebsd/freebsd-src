@@ -594,6 +594,9 @@ vmci_event_unregister_subscription(vmci_id sub_id)
 {
 	struct vmci_subscription *s;
 
+	if (!vmci_initialized_lock(&subscriber_lock))
+		return NULL;
+
 	vmci_grab_lock_bh(&subscriber_lock);
 	s = vmci_event_find(sub_id);
 	if (s != NULL) {

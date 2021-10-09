@@ -338,6 +338,9 @@ vmci_qp_guest_endpoints_exit(void)
 {
 	struct qp_guest_endpoint *entry;
 
+	if (!vmci_mutex_initialized(&qp_guest_endpoints.mutex))
+		return;
+
 	vmci_mutex_acquire(&qp_guest_endpoints.mutex);
 
 	while ((entry =
