@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/ctype.h>
 #include <sys/epoch.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
@@ -195,6 +196,7 @@ struct dxr_aux {
 	uint32_t		updates_high;
 	uint32_t		all_chunks_cnt;
 	uint32_t		unused_chunks_cnt;
+	uint32_t		unused_chunks_size;
 	uint32_t		xtbl_size;
 	uint32_t		all_trie_cnt;
 	uint32_t		unused_trie_cnt;
@@ -232,21 +234,48 @@ static MALLOC_DEFINE(M_DXRAUX, "dxr aux", "DXR auxiliary");
 uma_zone_t chunk_zone;
 uma_zone_t trie_zone;
 
+VNET_DEFINE_STATIC(int, frag_limit) = 100;
+#define	V_frag_limit	VNET(frag_limit)
+
 SYSCTL_DECL(_net_route_algo);
 SYSCTL_NODE(_net_route_algo, OID_AUTO, dxr, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "DXR tunables");
 
-VNET_DEFINE_STATIC(int, max_trie_holes) = 8;
-#define	V_max_trie_holes	VNET(max_trie_holes)
-SYSCTL_INT(_net_route_algo_dxr, OID_AUTO, max_trie_holes,
-    CTLFLAG_RW | CTLFLAG_VNET, &VNET_NAME(max_trie_holes), 0,
-    "Trie fragmentation threshold before triggering a full rebuild");
+static int
+sysctl_dxr_frag_limit(SYSCTL_HANDLER_ARGS)
+{
+	char buf[8];
+	int error, new, i;
 
-VNET_DEFINE_STATIC(int, max_range_holes) = 16;
-#define	V_max_range_holes	VNET(max_range_holes)
-SYSCTL_INT(_net_route_algo_dxr, OID_AUTO, max_range_holes,
-    CTLFLAG_RW | CTLFLAG_VNET, &VNET_NAME(max_range_holes), 0,
-    "Range table fragmentation threshold before triggering a full rebuild");
+	snprintf(buf, sizeof(buf), "%d.%02d%%", V_frag_limit / 100,
+	    V_frag_limit % 100);
+	error = sysctl_handle_string(oidp, buf, sizeof(buf), req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+	if (!isdigit(*buf) && *buf != '.')
+		return (EINVAL);
+	for (i = 0, new = 0; isdigit(buf[i]) && i < sizeof(buf); i++)
+		new = new * 10 + buf[i] - '0';
+	new *= 100;
+	if (buf[i++] == '.') {
+		if (!isdigit(buf[i]))
+			return (EINVAL);
+		new += (buf[i++] - '0') * 10;
+		if (isdigit(buf[i]))
+			new += buf[i++] - '0';
+	}
+	if (new > 1000)
+		return (EINVAL);
+	V_frag_limit = new;
+	snprintf(buf, sizeof(buf), "%d.%02d%%", V_frag_limit / 100,
+	    V_frag_limit % 100);
+	return (0);
+}
+
+SYSCTL_PROC(_net_route_algo_dxr, OID_AUTO, frag_limit,
+    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_VNET,
+    0, 0, sysctl_dxr_frag_limit, "A",
+    "Fragmentation threshold to full rebuild");
 
 /* Binary search for a matching address range */
 #define	DXR_LOOKUP_STAGE					\
@@ -424,6 +453,7 @@ chunk_ref(struct dxr_aux *da, uint32_t chunk)
 		fdesc->base = cdp->cd_base;
 		da->rtbl_top -= size;
 		da->unused_chunks_cnt--;
+		da->unused_chunks_size -= cdp->cd_max_size;
 		if (cdp->cd_max_size > size) {
 			/* Split the range in two, need a new descriptor */
 			empty_cdp = uma_zalloc(chunk_zone, M_NOWAIT);
@@ -442,6 +472,7 @@ chunk_ref(struct dxr_aux *da, uint32_t chunk)
 
 			da->all_chunks_cnt++;
 			da->unused_chunks_cnt++;
+			da->unused_chunks_size += empty_cdp->cd_max_size;
 			cdp->cd_max_size = size;
 		}
 		LIST_REMOVE(cdp, cd_hash_le);
@@ -471,9 +502,9 @@ chunk_ref(struct dxr_aux *da, uint32_t chunk)
 			return (1);
 		}
 		da->rtbl_size += RTBL_SIZE_INCR;
-		if (da->rtbl_top >= BASE_MAX / 4)
-			FIB_PRINTF(LOG_WARNING, da->fd, "range table at %d%%",
-			    da->rtbl_top * 100 / BASE_MAX);
+		i = (BASE_MAX - da->rtbl_top) * LOG_DEBUG / BASE_MAX;
+		FIB_PRINTF(i, da->fd, "range table at %d%% structural limit",
+		    da->rtbl_top * 100 / BASE_MAX);
 		da->range_tbl = realloc(da->range_tbl,
 		    sizeof(*da->range_tbl) * da->rtbl_size + FRAGS_PREF_SHORT,
 		    M_DXRAUX, M_NOWAIT);
@@ -508,6 +539,7 @@ chunk_unref(struct dxr_aux *da, uint32_t chunk)
 
 	LIST_REMOVE(cdp, cd_hash_le);
 	da->unused_chunks_cnt++;
+	da->unused_chunks_size += cdp->cd_max_size;
 	cdp->cd_cur_size = 0;
 
 	/* Attempt to merge with the preceding chunk, if empty */
@@ -546,6 +578,7 @@ chunk_unref(struct dxr_aux *da, uint32_t chunk)
 		da->all_chunks_cnt--;
 		da->unused_chunks_cnt--;
 		da->rtbl_top -= cdp->cd_max_size;
+		da->unused_chunks_size -= cdp->cd_max_size;
 		LIST_REMOVE(cdp, cd_all_le);
 		uma_zfree(chunk_zone, cdp);
 		return;
@@ -846,10 +879,12 @@ dxr_build(struct dxr *dxr)
 	struct timeval t0, t1, t2, t3;
 	uint32_t r_size, dxr_tot_size;
 	uint32_t i, m, range_rebuild = 0;
+	uint32_t range_frag;
 #ifdef DXR2
 	struct trie_desc *tp;
 	uint32_t d_tbl_size, dxr_x, d_size, x_size;
 	uint32_t ti, trie_rebuild = 0, prev_size = 0;
+	uint32_t trie_frag;
 #endif
 
 	KASSERT(dxr->d == NULL, ("dxr: d not free"));
@@ -897,9 +932,10 @@ dxr_build(struct dxr *dxr)
 	dxr->nh_tbl = fib_get_nhop_array(da->fd);
 	fib_get_rtable_info(fib_get_rh(da->fd), &rinfo);
 
-	if (da->updates_low > da->updates_high ||
-	    da->unused_chunks_cnt > V_max_range_holes)
+	if (da->updates_low > da->updates_high)
 		range_rebuild = 1;
+
+range_build:
 	if (range_rebuild) {
 		/* Bulk cleanup */
 		bzero(da->chunk_hashtbl, sizeof(da->chunk_hashtbl));
@@ -910,6 +946,7 @@ dxr_build(struct dxr *dxr)
 		for (i = 0; i < UNUSED_BUCKETS; i++)
 			LIST_INIT(&da->unused_chunks[i]);
 		da->all_chunks_cnt = da->unused_chunks_cnt = 0;
+		da->unused_chunks_size = 0;
 		da->rtbl_top = 0;
 		da->updates_low = 0;
 		da->updates_high = DIRECT_TBL_SIZE - 1;
@@ -929,18 +966,32 @@ dxr_build(struct dxr *dxr)
 		else if (m & 1 && update_chunk(da, i) != 0)
 			return;
 	}
+
+	range_frag = 0;
+	if (da->rtbl_top)
+		range_frag = da->unused_chunks_size * 10000ULL / da->rtbl_top;
+	if (range_frag > V_frag_limit) {
+		range_rebuild = 1;
+		goto range_build;
+	}
+
 	r_size = sizeof(*da->range_tbl) * da->rtbl_top;
 	microuptime(&t1);
 
 #ifdef DXR2
-	if (range_rebuild || da->unused_trie_cnt > V_max_trie_holes ||
+	if (range_rebuild ||
 	    abs(fls(da->prefixes) - fls(da->trie_rebuilt_prefixes)) > 1)
 		trie_rebuild = 1;
+
+trie_build:
 	if (trie_rebuild) {
 		da->trie_rebuilt_prefixes = da->prefixes;
 		da->d_bits = DXR_D;
 		da->updates_low = 0;
 		da->updates_high = DIRECT_TBL_SIZE - 1;
+		if (!range_rebuild)
+			memset(da->updates_mask, 0xff,
+			    sizeof(da->updates_mask));
 	}
 
 dxr2_try_squeeze:
@@ -974,6 +1025,14 @@ dxr2_try_squeeze:
 		if (ti < 0)
 			return;
 		da->d_tbl[i] = ti;
+	}
+
+	trie_frag = 0;
+	if (da->all_trie_cnt)
+		trie_frag = da->unused_trie_cnt * 10000ULL / da->all_trie_cnt;
+	if (trie_frag > V_frag_limit) {
+		trie_rebuild = 1;
+		goto trie_build;
 	}
 
 	d_size = sizeof(*da->d_tbl) * d_tbl_size;
@@ -1035,6 +1094,15 @@ dxr2_try_squeeze:
 	FIB_PRINTF(LOG_INFO, da->fd, "%d.%02d KBytes, %d.%02d Bytes/prefix",
 	    dxr_tot_size / 1024, dxr_tot_size * 100 / 1024 % 100,
 	    i / 100, i % 100);
+#ifdef DXR2
+	FIB_PRINTF(LOG_INFO, da->fd,
+	    "%d.%02d%% trie, %d.%02d%% range fragmentation",
+	    trie_frag / 100, trie_frag % 100,
+	    range_frag / 100, range_frag % 100);
+#else
+	FIB_PRINTF(LOG_INFO, da->fd, "%d.%01d%% range fragmentation",
+	    range_frag / 100, range_frag % 100);
+#endif
 	i = (t1.tv_sec - t0.tv_sec) * 1000000 + t1.tv_usec - t0.tv_usec;
 	FIB_PRINTF(LOG_INFO, da->fd, "range table %s in %u.%03u ms",
 	    range_rebuild ? "rebuilt" : "updated", i / 1000, i % 1000);
@@ -1046,9 +1114,6 @@ dxr2_try_squeeze:
 	i = (t3.tv_sec - t2.tv_sec) * 1000000 + t3.tv_usec - t2.tv_usec;
 	FIB_PRINTF(LOG_INFO, da->fd, "snapshot forked in %u.%03u ms",
 	    i / 1000, i % 1000);
-	FIB_PRINTF(LOG_INFO, da->fd, "range table: %d%%, %d chunks, %d holes",
-	    da->rtbl_top * 100 / BASE_MAX, da->all_chunks_cnt,
-	    da->unused_chunks_cnt);
 }
 
 /*
