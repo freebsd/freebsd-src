@@ -2,8 +2,8 @@
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
  * Copyright (c) 2008 The FreeBSD Foundation
- * Copyright (c) 2009-2010 Bjoern A. Zeeb <bz@FreeBSD.org>
  * All rights reserved.
+ * Copyright (c) 2009-2021 Bjoern A. Zeeb <bz@FreeBSD.org>
  *
  * This software was developed by CK Software GmbH under sponsorship
  * from the FreeBSD Foundation.
@@ -37,17 +37,6 @@
  * This is mostly intended to be used to provide connectivity between
  * different virtual network stack instances.
  */
-/*
- * Things to re-think once we have more experience:
- * - ifp->if_reassign function once we can test with vimage. Depending on
- *   how if_vmove() is going to be improved.
- * - Real random etheraddrs that are checked to be uniquish; we would need
- *   to re-do them in case we move the interface between network stacks
- *   in a private if_reassign function.
- *   In case we bridge to a real interface/network or between indepedent
- *   epairs on multiple stacks/machines, we may need this.
- *   For now let the user handle that case.
- */
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -61,13 +50,15 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #include <sys/module.h>
 #include <sys/proc.h>
-#include <sys/refcount.h>
 #include <sys/queue.h>
 #include <sys/smp.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
 #include <sys/sysctl.h>
 #include <sys/types.h>
+#include <sys/buf_ring.h>
+#include <sys/bus.h>
+#include <sys/interrupt.h>
 
 #include <net/bpf.h>
 #include <net/ethernet.h>
@@ -80,102 +71,12 @@ __FBSDID("$FreeBSD$");
 #include <net/netisr.h>
 #include <net/vnet.h>
 
-SYSCTL_DECL(_net_link);
-static SYSCTL_NODE(_net_link, OID_AUTO, epair, CTLFLAG_RW, 0, "epair sysctl");
-
-#ifdef EPAIR_DEBUG
-static int epair_debug = 0;
-SYSCTL_INT(_net_link_epair, OID_AUTO, epair_debug, CTLFLAG_RW,
-    &epair_debug, 0, "if_epair(4) debugging.");
-#define	DPRINTF(fmt, arg...)						\
-	if (epair_debug)						\
-		printf("[%s:%d] " fmt, __func__, __LINE__, ##arg)
-#else
-#define	DPRINTF(fmt, arg...)
-#endif
-
-static void epair_nh_sintr(struct mbuf *);
-static struct mbuf *epair_nh_m2cpuid(struct mbuf *, uintptr_t, u_int *);
-static void epair_nh_drainedcpu(u_int);
-
-static void epair_start_locked(struct ifnet *);
-static int epair_media_change(struct ifnet *);
-static void epair_media_status(struct ifnet *, struct ifmediareq *);
-
 static int epair_clone_match(struct if_clone *, const char *);
 static int epair_clone_create(struct if_clone *, char *, size_t, caddr_t);
 static int epair_clone_destroy(struct if_clone *, struct ifnet *);
 
 static const char epairname[] = "epair";
-static unsigned int next_index = 0;
-
-/* Netisr related definitions and sysctl. */
-static struct netisr_handler epair_nh = {
-	.nh_name	= epairname,
-	.nh_proto	= NETISR_EPAIR,
-	.nh_policy	= NETISR_POLICY_CPU,
-	.nh_handler	= epair_nh_sintr,
-	.nh_m2cpuid	= epair_nh_m2cpuid,
-	.nh_drainedcpu	= epair_nh_drainedcpu,
-};
-
-static int
-sysctl_epair_netisr_maxqlen(SYSCTL_HANDLER_ARGS)
-{
-	int error, qlimit;
-
-	netisr_getqlimit(&epair_nh, &qlimit);
-	error = sysctl_handle_int(oidp, &qlimit, 0, req);
-	if (error || !req->newptr)
-		return (error);
-	if (qlimit < 1)
-		return (EINVAL);
-	return (netisr_setqlimit(&epair_nh, qlimit));
-}
-SYSCTL_PROC(_net_link_epair, OID_AUTO, netisr_maxqlen, CTLTYPE_INT|CTLFLAG_RW,
-    0, 0, sysctl_epair_netisr_maxqlen, "I",
-    "Maximum if_epair(4) netisr \"hw\" queue length");
-
-struct epair_softc {
-	struct ifnet	*ifp;		/* This ifp. */
-	struct ifnet	*oifp;		/* other ifp of pair. */
-	struct ifmedia	media;		/* Media config (fake). */
-	u_int		refcount;	/* # of mbufs in flight. */
-	u_int		cpuid;		/* CPU ID assigned upon creation. */
-	void		(*if_qflush)(struct ifnet *);
-					/* Original if_qflush routine. */
-};
-
-/*
- * Per-CPU list of ifps with data in the ifq that needs to be flushed
- * to the netisr ``hw'' queue before we allow any further direct queuing
- * to the ``hw'' queue.
- */
-struct epair_ifp_drain {
-	STAILQ_ENTRY(epair_ifp_drain)	ifp_next;
-	struct ifnet			*ifp;
-};
-STAILQ_HEAD(eid_list, epair_ifp_drain);
-
-#define	EPAIR_LOCK_INIT(dpcpu)		mtx_init(&(dpcpu)->if_epair_mtx, \
-					    "if_epair", NULL, MTX_DEF)
-#define	EPAIR_LOCK_DESTROY(dpcpu)	mtx_destroy(&(dpcpu)->if_epair_mtx)
-#define	EPAIR_LOCK_ASSERT(dpcpu)	mtx_assert(&(dpcpu)->if_epair_mtx, \
-					    MA_OWNED)
-#define	EPAIR_LOCK(dpcpu)		mtx_lock(&(dpcpu)->if_epair_mtx)
-#define	EPAIR_UNLOCK(dpcpu)		mtx_unlock(&(dpcpu)->if_epair_mtx)
-
-#ifdef INVARIANTS
-#define	EPAIR_REFCOUNT_INIT(r, v)	refcount_init((r), (v))
-#define	EPAIR_REFCOUNT_AQUIRE(r)	refcount_acquire((r))
-#define	EPAIR_REFCOUNT_RELEASE(r)	refcount_release((r))
-#define	EPAIR_REFCOUNT_ASSERT(a, p)	KASSERT(a, p)
-#else
-#define	EPAIR_REFCOUNT_INIT(r, v)
-#define	EPAIR_REFCOUNT_AQUIRE(r)
-#define	EPAIR_REFCOUNT_RELEASE(r)
-#define	EPAIR_REFCOUNT_ASSERT(a, p)
-#endif
+#define	RXRSIZE	4096	/* Probably overkill by 4-8x. */
 
 static MALLOC_DEFINE(M_EPAIR, epairname,
     "Pair of virtual cross-over connected Ethernet-like interfaces");
@@ -183,16 +84,27 @@ static MALLOC_DEFINE(M_EPAIR, epairname,
 VNET_DEFINE_STATIC(struct if_clone *, epair_cloner);
 #define	V_epair_cloner	VNET(epair_cloner)
 
-/*
- * DPCPU area and functions.
- */
-struct epair_dpcpu {
-	struct mtx	if_epair_mtx;		/* Per-CPU locking. */
-	int		epair_drv_flags;	/* Per-CPU ``hw'' drv flags. */
-	struct eid_list	epair_ifp_drain_list;	/* Per-CPU list of ifps with
-						 * data in the ifq. */
+static unsigned int next_index = 0;
+#define	EPAIR_LOCK_INIT()		mtx_init(&epair_n_index_mtx, "epairidx", \
+					    NULL, MTX_DEF)
+#define	EPAIR_LOCK_DESTROY()		mtx_destroy(&epair_n_index_mtx)
+#define	EPAIR_LOCK()			mtx_lock(&epair_n_index_mtx)
+#define	EPAIR_UNLOCK()			mtx_unlock(&epair_n_index_mtx)
+
+static void				*swi_cookie[MAXCPU];	/* swi(9). */
+static STAILQ_HEAD(, epair_softc)	swi_sc[MAXCPU];
+
+static struct mtx epair_n_index_mtx;
+struct epair_softc {
+	struct ifnet	*ifp;		/* This ifp. */
+	struct ifnet	*oifp;		/* other ifp of pair. */
+	void		*swi_cookie;	/* swi(9). */
+	struct buf_ring	*rxring[2];
+	volatile int	ridx;		/* 0 || 1 */
+	struct ifmedia	media;		/* Media config (fake). */
+	uint32_t	cpuidx;
+	STAILQ_ENTRY(epair_softc) entry;
 };
-DPCPU_DEFINE(struct epair_dpcpu, epair_dpcpu);
 
 static void
 epair_clear_mbuf(struct mbuf *m)
@@ -201,313 +113,180 @@ epair_clear_mbuf(struct mbuf *m)
 }
 
 static void
-epair_dpcpu_init(void)
+epair_if_input(struct epair_softc *sc, int ridx)
 {
-	struct epair_dpcpu *epair_dpcpu;
-	struct eid_list *s;
-	u_int cpuid;
+	struct epoch_tracker et;
+	struct ifnet *ifp;
+	struct mbuf *m;
 
-	CPU_FOREACH(cpuid) {
-		epair_dpcpu = DPCPU_ID_PTR(cpuid, epair_dpcpu);
+	ifp = sc->ifp;
+	NET_EPOCH_ENTER_ET(et);
+	do {
+		m = buf_ring_dequeue_sc(sc->rxring[ridx]);
+		if (m == NULL)
+			break;
 
-		/* Initialize per-cpu lock. */
-		EPAIR_LOCK_INIT(epair_dpcpu);
+		MPASS((m->m_pkthdr.csum_flags & CSUM_SND_TAG) == 0);
+		(*ifp->if_input)(ifp, m);
 
-		/* Driver flags are per-cpu as are our netisr "hw" queues. */
-		epair_dpcpu->epair_drv_flags = 0;
-
-		/*
-		 * Initialize per-cpu drain list.
-		 * Manually do what STAILQ_HEAD_INITIALIZER would do.
-		 */
-		s = &epair_dpcpu->epair_ifp_drain_list;
-		s->stqh_first = NULL;
-		s->stqh_last = &s->stqh_first;
-	} 
+	} while (1);
+	NET_EPOCH_EXIT_ET(et);
 }
 
 static void
-epair_dpcpu_detach(void)
+epair_sintr(struct epair_softc *sc)
 {
-	struct epair_dpcpu *epair_dpcpu;
-	u_int cpuid;
+	int ridx, nidx;
 
-	CPU_FOREACH(cpuid) {
-		epair_dpcpu = DPCPU_ID_PTR(cpuid, epair_dpcpu);
+	if_ref(sc->ifp);
+	do {
+		ridx = sc->ridx;
+		nidx = (ridx == 0) ? 1 : 0;
+	} while (!atomic_cmpset_int(&sc->ridx, ridx, nidx));
+	epair_if_input(sc, ridx);
 
-		/* Destroy per-cpu lock. */
-		EPAIR_LOCK_DESTROY(epair_dpcpu);
-	}
+	if_rele(sc->ifp);
 }
 
-/*
- * Helper functions.
- */
-static u_int
-cpuid_from_ifp(struct ifnet *ifp)
+static void
+epair_intr(void *arg)
 {
 	struct epair_softc *sc;
+	uint32_t cpuidx;
 
-	if (ifp == NULL)
-		return (0);
-	sc = ifp->if_softc;
-
-	return (sc->cpuid);
-}
-
-/*
- * Netisr handler functions.
- */
-static void
-epair_nh_sintr(struct mbuf *m)
-{
-	struct ifnet *ifp;
-	struct epair_softc *sc __unused;
-
-	ifp = m->m_pkthdr.rcvif;
-	(*ifp->if_input)(ifp, m);
-	sc = ifp->if_softc;
-	EPAIR_REFCOUNT_RELEASE(&sc->refcount);
-	EPAIR_REFCOUNT_ASSERT((int)sc->refcount >= 1,
-	    ("%s: ifp=%p sc->refcount not >= 1: %d",
-	    __func__, ifp, sc->refcount));
-	DPRINTF("ifp=%p refcount=%u\n", ifp, sc->refcount);
-}
-
-static struct mbuf *
-epair_nh_m2cpuid(struct mbuf *m, uintptr_t source, u_int *cpuid)
-{
-
-	*cpuid = cpuid_from_ifp(m->m_pkthdr.rcvif);
-
-	return (m);
-}
-
-static void
-epair_nh_drainedcpu(u_int cpuid)
-{
-	struct epair_dpcpu *epair_dpcpu;
-	struct epair_ifp_drain *elm, *tvar;
-	struct ifnet *ifp;
-
-	epair_dpcpu = DPCPU_ID_PTR(cpuid, epair_dpcpu);
-	EPAIR_LOCK(epair_dpcpu);
-	/*
-	 * Assume our "hw" queue and possibly ifq will be emptied
-	 * again. In case we will overflow the "hw" queue while
-	 * draining, epair_start_locked will set IFF_DRV_OACTIVE
-	 * again and we will stop and return.
-	 */
-	STAILQ_FOREACH_SAFE(elm, &epair_dpcpu->epair_ifp_drain_list,
-	    ifp_next, tvar) {
-		ifp = elm->ifp;
-		epair_dpcpu->epair_drv_flags &= ~IFF_DRV_OACTIVE;
-		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-		epair_start_locked(ifp);
-
-		IFQ_LOCK(&ifp->if_snd);
-		if (IFQ_IS_EMPTY(&ifp->if_snd)) {
-			struct epair_softc *sc __unused;
-
-			STAILQ_REMOVE(&epair_dpcpu->epair_ifp_drain_list,
-			    elm, epair_ifp_drain, ifp_next);
-			/* The cached ifp goes off the list. */
-			sc = ifp->if_softc;
-			EPAIR_REFCOUNT_RELEASE(&sc->refcount);
-			EPAIR_REFCOUNT_ASSERT((int)sc->refcount >= 1,
-			    ("%s: ifp=%p sc->refcount not >= 1: %d",
-			    __func__, ifp, sc->refcount));
-			free(elm, M_EPAIR);
-		}
-		IFQ_UNLOCK(&ifp->if_snd);
-
-		if ((ifp->if_drv_flags & IFF_DRV_OACTIVE) != 0) {
-			/* Our "hw"q overflew again. */
-			epair_dpcpu->epair_drv_flags |= IFF_DRV_OACTIVE;
-			DPRINTF("hw queue length overflow at %u\n",
-			    epair_nh.nh_qlimit);
-			break;
-		}
+	cpuidx = (uintptr_t)arg;
+	/* If this is a problem, this is a read-mostly situation. */
+	EPAIR_LOCK();
+	STAILQ_FOREACH(sc, &swi_sc[cpuidx], entry) {
+		/* Do this lockless. */
+		if (buf_ring_empty(sc->rxring[sc->ridx]))
+			continue;
+		epair_sintr(sc);
 	}
-	EPAIR_UNLOCK(epair_dpcpu);
-}
+	EPAIR_UNLOCK();
 
-/*
- * Network interface (`if') related functions.
- */
-static void
-epair_remove_ifp_from_draining(struct ifnet *ifp)
-{
-	struct epair_dpcpu *epair_dpcpu;
-	struct epair_ifp_drain *elm, *tvar;
-	u_int cpuid;
-
-	CPU_FOREACH(cpuid) {
-		epair_dpcpu = DPCPU_ID_PTR(cpuid, epair_dpcpu);
-		EPAIR_LOCK(epair_dpcpu);
-		STAILQ_FOREACH_SAFE(elm, &epair_dpcpu->epair_ifp_drain_list,
-		    ifp_next, tvar) {
-			if (ifp == elm->ifp) {
-				struct epair_softc *sc __unused;
-
-				STAILQ_REMOVE(
-				    &epair_dpcpu->epair_ifp_drain_list, elm,
-				    epair_ifp_drain, ifp_next);
-				/* The cached ifp goes off the list. */
-				sc = ifp->if_softc;
-				EPAIR_REFCOUNT_RELEASE(&sc->refcount);
-				EPAIR_REFCOUNT_ASSERT((int)sc->refcount >= 1,
-				    ("%s: ifp=%p sc->refcount not >= 1: %d",
-				    __func__, ifp, sc->refcount));
-				free(elm, M_EPAIR);
-			}
-		}
-		EPAIR_UNLOCK(epair_dpcpu);
-	}
+	return;
 }
 
 static int
-epair_add_ifp_for_draining(struct ifnet *ifp)
+epair_menq(struct mbuf *m, struct epair_softc *osc)
 {
-	struct epair_dpcpu *epair_dpcpu;
-	struct epair_softc *sc;
-	struct epair_ifp_drain *elm = NULL;
+	struct ifnet *ifp, *oifp;
+	int len, ret;
+	int ridx;
+	short mflags;
+	bool was_empty;
 
-	sc = ifp->if_softc;
-	epair_dpcpu = DPCPU_ID_PTR(sc->cpuid, epair_dpcpu);
-	EPAIR_LOCK_ASSERT(epair_dpcpu);
-	STAILQ_FOREACH(elm, &epair_dpcpu->epair_ifp_drain_list, ifp_next)
-		if (elm->ifp == ifp)
-			break;
-	/* If the ifp is there already, return success. */
-	if (elm != NULL)
+	/*
+	 * I know this looks weird. We pass the "other sc" as we need that one
+	 * and can get both ifps from it as well.
+	 */
+	oifp = osc->ifp;
+	ifp = osc->oifp;
+
+	M_ASSERTPKTHDR(m);
+	epair_clear_mbuf(m);
+	if_setrcvif(m, oifp);
+	M_SETFIB(m, oifp->if_fib);
+
+	/* Save values as once the mbuf is queued, it's not ours anymore. */
+	len = m->m_pkthdr.len;
+	mflags = m->m_flags;
+
+	MPASS(m->m_nextpkt == NULL);
+	MPASS((m->m_pkthdr.csum_flags & CSUM_SND_TAG) == 0);
+
+	ridx = atomic_load_int(&osc->ridx);
+	was_empty = buf_ring_empty(osc->rxring[ridx]);
+	ret = buf_ring_enqueue(osc->rxring[ridx], m);
+	if (ret != 0) {
+		/* Ring is full. */
+		m_freem(m);
 		return (0);
+	}
 
-	elm = malloc(sizeof(struct epair_ifp_drain), M_EPAIR, M_NOWAIT|M_ZERO);
-	if (elm == NULL)
-		return (ENOMEM);
+	if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
+	/*
+	 * IFQ_HANDOFF_ADJ/ip_handoff() update statistics,
+	 * but as we bypass all this we have to duplicate
+	 * the logic another time.
+	 */
+	if_inc_counter(ifp, IFCOUNTER_OBYTES, len);
+	if (mflags & (M_BCAST|M_MCAST))
+		if_inc_counter(ifp, IFCOUNTER_OMCASTS, 1);
+	/* Someone else received the packet. */
+	if_inc_counter(oifp, IFCOUNTER_IPACKETS, 1);
 
-	elm->ifp = ifp;
-	/* Add a reference for the ifp pointer on the list. */
-	EPAIR_REFCOUNT_AQUIRE(&sc->refcount);
-	STAILQ_INSERT_TAIL(&epair_dpcpu->epair_ifp_drain_list, elm, ifp_next);
+	/* Kick the interrupt handler for the first packet. */
+	if (was_empty && osc->swi_cookie != NULL)
+		swi_sched(osc->swi_cookie, 0);
 
 	return (0);
 }
 
 static void
-epair_start_locked(struct ifnet *ifp)
+epair_start(struct ifnet *ifp)
 {
-	struct epair_dpcpu *epair_dpcpu;
 	struct mbuf *m;
 	struct epair_softc *sc;
 	struct ifnet *oifp;
-	int error;
-
-	DPRINTF("ifp=%p\n", ifp);
-	sc = ifp->if_softc;
-	epair_dpcpu = DPCPU_ID_PTR(sc->cpuid, epair_dpcpu);
-	EPAIR_LOCK_ASSERT(epair_dpcpu);
-
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
-		return;
-	if ((ifp->if_flags & IFF_UP) == 0)
-		return;
 
 	/*
 	 * We get packets here from ether_output via if_handoff()
 	 * and need to put them into the input queue of the oifp
-	 * and call oifp->if_input() via netisr/epair_sintr().
+	 * and will put the packet into the receive-queue (rxq) of the
+	 * other interface (oifp) of our pair.
 	 */
+	sc = ifp->if_softc;
 	oifp = sc->oifp;
 	sc = oifp->if_softc;
 	for (;;) {
 		IFQ_DEQUEUE(&ifp->if_snd, m);
 		if (m == NULL)
 			break;
+		M_ASSERTPKTHDR(m);
 		BPF_MTAP(ifp, m);
 
-		/*
-		 * In case the outgoing interface is not usable,
-		 * drop the packet.
-		 */
-		if ((oifp->if_drv_flags & IFF_DRV_RUNNING) == 0 ||
-		    (oifp->if_flags & IFF_UP) ==0) {
-			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
+		/* In case either interface is not usable drop the packet. */
+		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0 ||
+		    (ifp->if_flags & IFF_UP) == 0 ||
+		    (oifp->if_drv_flags & IFF_DRV_RUNNING) == 0 ||
+		    (oifp->if_flags & IFF_UP) == 0) {
 			m_freem(m);
 			continue;
 		}
-		DPRINTF("packet %s -> %s\n", ifp->if_xname, oifp->if_xname);
 
-		epair_clear_mbuf(m);
-
-		/*
-		 * Add a reference so the interface cannot go while the
-		 * packet is in transit as we rely on rcvif to stay valid.
-		 */
-		EPAIR_REFCOUNT_AQUIRE(&sc->refcount);
-		m->m_pkthdr.rcvif = oifp;
-		CURVNET_SET_QUIET(oifp->if_vnet);
-		error = netisr_queue(NETISR_EPAIR, m);
-		CURVNET_RESTORE();
-		if (!error) {
-			if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
-			/* Someone else received the packet. */
-			if_inc_counter(oifp, IFCOUNTER_IPACKETS, 1);
-		} else {
-			/* The packet was freed already. */
-			epair_dpcpu->epair_drv_flags |= IFF_DRV_OACTIVE;
-			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-			(void) epair_add_ifp_for_draining(ifp);
-			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
-			EPAIR_REFCOUNT_RELEASE(&sc->refcount);
-			EPAIR_REFCOUNT_ASSERT((int)sc->refcount >= 1,
-			    ("%s: ifp=%p sc->refcount not >= 1: %d",
-			    __func__, oifp, sc->refcount));
-		}
+		(void) epair_menq(m, sc);
 	}
 }
 
-static void
-epair_start(struct ifnet *ifp)
-{
-	struct epair_dpcpu *epair_dpcpu;
-
-	epair_dpcpu = DPCPU_ID_PTR(cpuid_from_ifp(ifp), epair_dpcpu);
-	EPAIR_LOCK(epair_dpcpu);
-	epair_start_locked(ifp);
-	EPAIR_UNLOCK(epair_dpcpu);
-}
-
 static int
-epair_transmit_locked(struct ifnet *ifp, struct mbuf *m)
+epair_transmit(struct ifnet *ifp, struct mbuf *m)
 {
-	struct epair_dpcpu *epair_dpcpu;
 	struct epair_softc *sc;
 	struct ifnet *oifp;
 	int error, len;
 	short mflags;
 
-	DPRINTF("ifp=%p m=%p\n", ifp, m);
-	sc = ifp->if_softc;
-	epair_dpcpu = DPCPU_ID_PTR(sc->cpuid, epair_dpcpu);
-	EPAIR_LOCK_ASSERT(epair_dpcpu);
-
 	if (m == NULL)
 		return (0);
-	
+
+	M_ASSERTPKTHDR(m);
+
 	/*
 	 * We are not going to use the interface en/dequeue mechanism
 	 * on the TX side. We are called from ether_output_frame()
-	 * and will put the packet into the incoming queue of the
-	 * other interface of our pair via the netsir.
+	 * and will put the packet into the receive-queue (rxq) of the
+	 * other interface (oifp) of our pair.
 	 */
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
 		m_freem(m);
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		return (ENXIO);
 	}
 	if ((ifp->if_flags & IFF_UP) == 0) {
 		m_freem(m);
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		return (ENETDOWN);
 	}
 
@@ -517,16 +296,16 @@ epair_transmit_locked(struct ifnet *ifp, struct mbuf *m)
 	 * In case the outgoing interface is not usable,
 	 * drop the packet.
 	 */
+	sc = ifp->if_softc;
 	oifp = sc->oifp;
 	if ((oifp->if_drv_flags & IFF_DRV_RUNNING) == 0 ||
-	    (oifp->if_flags & IFF_UP) ==0) {
+	    (oifp->if_flags & IFF_UP) == 0) {
 		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		m_freem(m);
 		return (0);
 	}
 	len = m->m_pkthdr.len;
 	mflags = m->m_flags;
-	DPRINTF("packet %s -> %s\n", ifp->if_xname, oifp->if_xname);
 
 #ifdef ALTQ
 	/* Support ALTQ via the classic if_start() path. */
@@ -540,97 +319,15 @@ epair_transmit_locked(struct ifnet *ifp, struct mbuf *m)
 			if_inc_counter(ifp, IFCOUNTER_OBYTES, len);
 			if (mflags & (M_BCAST|M_MCAST))
 				if_inc_counter(ifp, IFCOUNTER_OMCASTS, 1);
-			
-			if ((ifp->if_drv_flags & IFF_DRV_OACTIVE) == 0)
-				epair_start_locked(ifp);
-			else
-				(void)epair_add_ifp_for_draining(ifp);
+			epair_start(ifp);
 		}
 		return (error);
 	}
 	IF_UNLOCK(&ifp->if_snd);
 #endif
 
-	if ((epair_dpcpu->epair_drv_flags & IFF_DRV_OACTIVE) != 0) {
-		/*
-		 * Our hardware queue is full, try to fall back
-		 * queuing to the ifq but do not call ifp->if_start.
-		 * Either we are lucky or the packet is gone.
-		 */
-		IFQ_ENQUEUE(&ifp->if_snd, m, error);
-		if (!error)
-			(void)epair_add_ifp_for_draining(ifp);
-		return (error);
-	}
-
-	epair_clear_mbuf(m);
-
-	sc = oifp->if_softc;
-	/*
-	 * Add a reference so the interface cannot go while the
-	 * packet is in transit as we rely on rcvif to stay valid.
-	 */
-	EPAIR_REFCOUNT_AQUIRE(&sc->refcount);
-	m->m_pkthdr.rcvif = oifp;
-	CURVNET_SET_QUIET(oifp->if_vnet);
-	error = netisr_queue(NETISR_EPAIR, m);
-	CURVNET_RESTORE();
-	if (!error) {
-		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
-		/*
-		 * IFQ_HANDOFF_ADJ/ip_handoff() update statistics,
-		 * but as we bypass all this we have to duplicate
-		 * the logic another time.
-		 */
-		if_inc_counter(ifp, IFCOUNTER_OBYTES, len);
-		if (mflags & (M_BCAST|M_MCAST))
-			if_inc_counter(ifp, IFCOUNTER_OMCASTS, 1);
-		/* Someone else received the packet. */
-		if_inc_counter(oifp, IFCOUNTER_IPACKETS, 1);
-	} else {
-		/* The packet was freed already. */
-		epair_dpcpu->epair_drv_flags |= IFF_DRV_OACTIVE;
-		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
-		EPAIR_REFCOUNT_RELEASE(&sc->refcount);
-		EPAIR_REFCOUNT_ASSERT((int)sc->refcount >= 1,
-		    ("%s: ifp=%p sc->refcount not >= 1: %d",
-		    __func__, oifp, sc->refcount));
-	}
-
+	error = epair_menq(m, oifp->if_softc);
 	return (error);
-}
-
-static int
-epair_transmit(struct ifnet *ifp, struct mbuf *m)
-{
-	struct epair_dpcpu *epair_dpcpu;
-	int error;
-
-	epair_dpcpu = DPCPU_ID_PTR(cpuid_from_ifp(ifp), epair_dpcpu);
-	EPAIR_LOCK(epair_dpcpu);
-	error = epair_transmit_locked(ifp, m);
-	EPAIR_UNLOCK(epair_dpcpu);
-	return (error);
-}
-
-static void
-epair_qflush(struct ifnet *ifp)
-{
-	struct epair_softc *sc;
-	
-	sc = ifp->if_softc;
-	KASSERT(sc != NULL, ("%s: ifp=%p, epair_softc gone? sc=%p\n",
-	    __func__, ifp, sc));
-	/*
-	 * Remove this ifp from all backpointer lists. The interface will not
-	 * usable for flushing anyway nor should it have anything to flush
-	 * after if_qflush().
-	 */
-	epair_remove_ifp_from_draining(ifp);
-
-	if (sc->if_qflush)
-		sc->if_qflush(ifp);
 }
 
 static int
@@ -700,8 +397,6 @@ static int
 epair_clone_match(struct if_clone *ifc, const char *name)
 {
 	const char *cp;
-
-	DPRINTF("name='%s'\n", name);
 
 	/*
 	 * Our base name is epair.
@@ -791,16 +486,16 @@ epair_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 
 	/* Allocate memory for both [ab] interfaces */
 	sca = malloc(sizeof(struct epair_softc), M_EPAIR, M_WAITOK | M_ZERO);
-	EPAIR_REFCOUNT_INIT(&sca->refcount, 1);
 	sca->ifp = if_alloc(IFT_ETHER);
 	if (sca->ifp == NULL) {
 		free(sca, M_EPAIR);
 		ifc_free_unit(ifc, unit);
 		return (ENOSPC);
 	}
+	sca->rxring[0] = buf_ring_alloc(RXRSIZE, M_EPAIR, M_WAITOK,NULL);
+	sca->rxring[1] = buf_ring_alloc(RXRSIZE, M_EPAIR, M_WAITOK, NULL);
 
 	scb = malloc(sizeof(struct epair_softc), M_EPAIR, M_WAITOK | M_ZERO);
-	EPAIR_REFCOUNT_INIT(&scb->refcount, 1);
 	scb->ifp = if_alloc(IFT_ETHER);
 	if (scb->ifp == NULL) {
 		free(scb, M_EPAIR);
@@ -809,23 +504,59 @@ epair_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 		ifc_free_unit(ifc, unit);
 		return (ENOSPC);
 	}
-	
+
+	scb->rxring[0] = buf_ring_alloc(RXRSIZE, M_EPAIR, M_WAITOK, NULL);
+	scb->rxring[1] = buf_ring_alloc(RXRSIZE, M_EPAIR, M_WAITOK, NULL);
+
 	/*
 	 * Cross-reference the interfaces so we will be able to free both.
 	 */
 	sca->oifp = scb->ifp;
 	scb->oifp = sca->ifp;
 
-	/*
-	 * Calculate the cpuid for netisr queueing based on the
-	 * ifIndex of the interfaces. As long as we cannot configure
-	 * this or use cpuset information easily we cannot guarantee
-	 * cache locality but we can at least allow parallelism.
-	 */
-	sca->cpuid =
-	    netisr_get_cpuid(sca->ifp->if_index);
-	scb->cpuid =
-	    netisr_get_cpuid(scb->ifp->if_index);
+	EPAIR_LOCK();
+#ifdef SMP
+	/* Get an approximate distribution. */
+	hash = next_index % mp_ncpus;
+#else
+	hash = 0;
+#endif
+	if (swi_cookie[hash] == NULL) {
+		void *cookie;
+
+		EPAIR_UNLOCK();
+		error = swi_add(NULL, epairname,
+		    epair_intr, (void *)(uintptr_t)hash,
+		    SWI_NET, INTR_MPSAFE, &cookie);
+		if (error) {
+			buf_ring_free(scb->rxring[0], M_EPAIR);
+			buf_ring_free(scb->rxring[1], M_EPAIR);
+			if_free(scb->ifp);
+			free(scb, M_EPAIR);
+			buf_ring_free(sca->rxring[0], M_EPAIR);
+			buf_ring_free(sca->rxring[1], M_EPAIR);
+			if_free(sca->ifp);
+			free(sca, M_EPAIR);
+			ifc_free_unit(ifc, unit);
+			return (ENOSPC);
+		}
+		EPAIR_LOCK();
+		/* Recheck under lock even though a race is very unlikely. */
+		if (swi_cookie[hash] == NULL) {
+			swi_cookie[hash] = cookie;
+		} else {
+			EPAIR_UNLOCK();
+			(void) swi_remove(cookie);
+			EPAIR_LOCK();
+		}
+	}
+	sca->cpuidx = hash;
+	STAILQ_INSERT_TAIL(&swi_sc[hash], sca, entry);
+	sca->swi_cookie = swi_cookie[hash];
+	scb->cpuidx = hash;
+	STAILQ_INSERT_TAIL(&swi_sc[hash], scb, entry);
+	scb->swi_cookie = swi_cookie[hash];
+	EPAIR_UNLOCK();
 
 	/* Initialise pseudo media types. */
 	ifmedia_init(&sca->media, 0, epair_media_change, epair_media_status);
@@ -862,12 +593,14 @@ epair_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 	if (hostid == 0) 
 		arc4rand(&hostid, sizeof(hostid), 0);
 
+	EPAIR_LOCK();
 	if (ifp->if_index > next_index)
 		next_index = ifp->if_index;
 	else
 		next_index++;
 
 	key[0] = (uint32_t)next_index;
+	EPAIR_UNLOCK();
 	key[1] = (uint32_t)(hostid & 0xffffffff);
 	key[2] = (uint32_t)((hostid >> 32) & 0xfffffffff);
 	hash = jenkins_hash32(key, 3, 0);
@@ -876,10 +609,8 @@ epair_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 	memcpy(&eaddr[1], &hash, 4);
 	eaddr[5] = 0x0a;
 	ether_ifattach(ifp, eaddr);
-	sca->if_qflush = ifp->if_qflush;
-	ifp->if_qflush = epair_qflush;
-	ifp->if_transmit = epair_transmit;
 	ifp->if_baudrate = IF_Gbps(10);	/* arbitrary maximum */
+	ifp->if_transmit = epair_transmit;
 
 	/* Swap the name and finish initialization of interface <n>b. */
 	*dp = 'b';
@@ -904,25 +635,38 @@ epair_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 	strlcpy(name, scb->ifp->if_xname, len);
 	epair_clone_add(ifc, scb);
 
-	scb->if_qflush = ifp->if_qflush;
-	ifp->if_qflush = epair_qflush;
-	ifp->if_transmit = epair_transmit;
 	ifp->if_baudrate = IF_Gbps(10);	/* arbitrary maximum */
+	ifp->if_transmit = epair_transmit;
 
 	/*
 	 * Restore name to <n>a as the ifp for this will go into the
 	 * cloner list for the initial call.
 	 */
 	strlcpy(name, sca->ifp->if_xname, len);
-	DPRINTF("name='%s/%db' created sca=%p scb=%p\n", name, unit, sca, scb);
 
 	/* Tell the world, that we are ready to rock. */
 	sca->ifp->if_drv_flags |= IFF_DRV_RUNNING;
-	scb->ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	if_link_state_change(sca->ifp, LINK_STATE_UP);
+	scb->ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	if_link_state_change(scb->ifp, LINK_STATE_UP);
 
 	return (0);
+}
+
+static void
+epair_drain_rings(struct epair_softc *sc)
+{
+	int ridx;
+	struct mbuf *m;
+
+	for (ridx = 0; ridx < 2; ridx++) {
+		do {
+			m = buf_ring_dequeue_sc(sc->rxring[ridx]);
+			if (m == NULL)
+				break;
+			m_freem(m);
+		} while (1);
+	}
 }
 
 static int
@@ -931,8 +675,6 @@ epair_clone_destroy(struct if_clone *ifc, struct ifnet *ifp)
 	struct ifnet *oifp;
 	struct epair_softc *sca, *scb;
 	int unit, error;
-
-	DPRINTF("ifp=%p\n", ifp);
 
 	/*
 	 * In case we called into if_clone_destroyif() ourselves
@@ -947,27 +689,26 @@ epair_clone_destroy(struct if_clone *ifc, struct ifnet *ifp)
 	oifp = sca->oifp;
 	scb = oifp->if_softc;
 
-	DPRINTF("ifp=%p oifp=%p\n", ifp, oifp);
+	/* Frist get the interfaces down and detached. */
 	if_link_state_change(ifp, LINK_STATE_DOWN);
-	if_link_state_change(oifp, LINK_STATE_DOWN);
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+	if_link_state_change(oifp, LINK_STATE_DOWN);
 	oifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 
-	/*
-	 * Get rid of our second half. As the other of the two
-	 * interfaces may reside in a different vnet, we need to
-	 * switch before freeing them.
-	 */
-	CURVNET_SET_QUIET(oifp->if_vnet);
+	ether_ifdetach(ifp);
 	ether_ifdetach(oifp);
-	/*
-	 * Wait for all packets to be dispatched to if_input.
-	 * The numbers can only go down as the interface is
-	 * detached so there is no need to use atomics.
-	 */
-	DPRINTF("scb refcnt=%u\n", scb->refcount);
-	EPAIR_REFCOUNT_ASSERT(scb->refcount == 1,
-	    ("%s: ifp=%p scb->refcount!=1: %d", __func__, oifp, scb->refcount));
+
+	/* Second stop interrupt handler. */
+	EPAIR_LOCK();
+	STAILQ_REMOVE(&swi_sc[sca->cpuidx], sca, epair_softc, entry);
+	STAILQ_REMOVE(&swi_sc[scb->cpuidx], scb, epair_softc, entry);
+	EPAIR_UNLOCK();
+	sca->swi_cookie = NULL;
+	scb->swi_cookie = NULL;
+
+	/* Third free any queued packets and all the resources. */
+	CURVNET_SET_QUIET(oifp->if_vnet);
+	epair_drain_rings(scb);
 	oifp->if_softc = NULL;
 	error = if_clone_destroyif(ifc, oifp);
 	if (error)
@@ -975,19 +716,19 @@ epair_clone_destroy(struct if_clone *ifc, struct ifnet *ifp)
 		    __func__, error);
 	if_free(oifp);
 	ifmedia_removeall(&scb->media);
+	buf_ring_free(scb->rxring[0], M_EPAIR);
+	buf_ring_free(scb->rxring[1], M_EPAIR);
 	free(scb, M_EPAIR);
 	CURVNET_RESTORE();
 
-	ether_ifdetach(ifp);
-	/*
-	 * Wait for all packets to be dispatched to if_input.
-	 */
-	DPRINTF("sca refcnt=%u\n", sca->refcount);
-	EPAIR_REFCOUNT_ASSERT(sca->refcount == 1,
-	    ("%s: ifp=%p sca->refcount!=1: %d", __func__, ifp, sca->refcount));
+	epair_drain_rings(sca);
 	if_free(ifp);
 	ifmedia_removeall(&sca->media);
+	buf_ring_free(sca->rxring[0], M_EPAIR);
+	buf_ring_free(sca->rxring[1], M_EPAIR);
 	free(sca, M_EPAIR);
+
+	/* Last free the cloner unit. */
 	ifc_free_unit(ifc, unit);
 
 	return (0);
@@ -999,9 +740,6 @@ vnet_epair_init(const void *unused __unused)
 
 	V_epair_cloner = if_clone_advanced(epairname, 0,
 	    epair_clone_match, epair_clone_create, epair_clone_destroy);
-#ifdef VIMAGE
-	netisr_register_vnet(&epair_nh);
-#endif
 }
 VNET_SYSINIT(vnet_epair_init, SI_SUB_PSEUDO, SI_ORDER_ANY,
     vnet_epair_init, NULL);
@@ -1010,43 +748,42 @@ static void
 vnet_epair_uninit(const void *unused __unused)
 {
 
-#ifdef VIMAGE
-	netisr_unregister_vnet(&epair_nh);
-#endif
 	if_clone_detach(V_epair_cloner);
 }
 VNET_SYSUNINIT(vnet_epair_uninit, SI_SUB_INIT_IF, SI_ORDER_ANY,
     vnet_epair_uninit, NULL);
 
-static void
-epair_uninit(const void *unused __unused)
-{
-	netisr_unregister(&epair_nh);
-	epair_dpcpu_detach();
-	if (bootverbose)
-		printf("%s unloaded.\n", epairname);
-}
-SYSUNINIT(epair_uninit, SI_SUB_INIT_IF, SI_ORDER_MIDDLE,
-    epair_uninit, NULL);
-
 static int
 epair_modevent(module_t mod, int type, void *data)
 {
-	int qlimit;
+	int i;
 
 	switch (type) {
 	case MOD_LOAD:
-		/* For now limit us to one global mutex and one inq. */
-		epair_dpcpu_init();
-		epair_nh.nh_qlimit = 42 * ifqmaxlen; /* 42 shall be the number. */
-		if (TUNABLE_INT_FETCH("net.link.epair.netisr_maxqlen", &qlimit))
-		    epair_nh.nh_qlimit = qlimit;
-		netisr_register(&epair_nh);
+		for (i = 0; i < MAXCPU; i++) {
+			swi_cookie[i] = NULL;
+			STAILQ_INIT(&swi_sc[i]);
+		}
+		EPAIR_LOCK_INIT();
 		if (bootverbose)
-			printf("%s initialized.\n", epairname);
+			printf("%s: %s initialized.\n", __func__, epairname);
 		break;
 	case MOD_UNLOAD:
-		/* Handled in epair_uninit() */
+		EPAIR_LOCK();
+		for (i = 0; i < MAXCPU; i++) {
+			if (!STAILQ_EMPTY(&swi_sc[i])) {
+				printf("%s: swi_sc[%d] active\n", __func__, i);
+				EPAIR_UNLOCK();
+				return (EBUSY);
+			}
+		}
+		EPAIR_UNLOCK();
+		for (i = 0; i < MAXCPU; i++)
+			if (swi_cookie[i] != NULL)
+				(void) swi_remove(swi_cookie[i]);
+		EPAIR_LOCK_DESTROY();
+		if (bootverbose)
+			printf("%s: %s unloaded.\n", __func__, epairname);
 		break;
 	default:
 		return (EOPNOTSUPP);
@@ -1061,4 +798,4 @@ static moduledata_t epair_mod = {
 };
 
 DECLARE_MODULE(if_epair, epair_mod, SI_SUB_PSEUDO, SI_ORDER_MIDDLE);
-MODULE_VERSION(if_epair, 1);
+MODULE_VERSION(if_epair, 3);
