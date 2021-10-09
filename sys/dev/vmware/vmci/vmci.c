@@ -242,8 +242,10 @@ vmci_detach(device_t dev)
 
 	vmci_components_cleanup();
 
-	taskqueue_drain(taskqueue_thread, &sc->vmci_delayed_work_task);
-	mtx_destroy(&sc->vmci_delayed_work_lock);
+	if mtx_initialized(&sc->vmci_spinlock) {
+		taskqueue_drain(taskqueue_thread, &sc->vmci_delayed_work_task);
+		mtx_destroy(&sc->vmci_delayed_work_lock);
+	}
 
 	if (sc->vmci_res0 != NULL)
 		bus_space_write_4(sc->vmci_iot0, sc->vmci_ioh0,
@@ -254,7 +256,8 @@ vmci_detach(device_t dev)
 
 	vmci_unmap_bars(sc);
 
-	mtx_destroy(&sc->vmci_spinlock);
+	if mtx_initialized(&sc->vmci_spinlock)
+		mtx_destroy(&sc->vmci_spinlock);
 
 	pci_disable_busmaster(dev);
 
