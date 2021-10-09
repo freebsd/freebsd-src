@@ -48,6 +48,7 @@ void	vmci_grab_lock(vmci_lock *lock);
 void	vmci_release_lock(vmci_lock *lock);
 void	vmci_grab_lock_bh(vmci_lock *lock);
 void	vmci_release_lock_bh(vmci_lock *lock);
+int	vmci_initialized_lock(vmci_lock *lock);
 
 void	*vmci_alloc_kernel_mem(size_t size, int flags);
 void	vmci_free_kernel_mem(void *ptr, size_t size);
@@ -72,6 +73,7 @@ int	vmci_mutex_init(vmci_mutex *mutex, char *name);
 void	vmci_mutex_destroy(vmci_mutex *mutex);
 void	vmci_mutex_acquire(vmci_mutex *mutex);
 void	vmci_mutex_release(vmci_mutex *mutex);
+int	vmci_mutex_initialized(vmci_mutex *mutex);
 
 void	*vmci_alloc_queue(uint64_t size, uint32_t flags);
 void	vmci_free_queue(void *q, uint64_t size);
