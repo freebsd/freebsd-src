@@ -194,8 +194,6 @@ struct dxr_aux {
 	uint32_t		prefixes;
 	uint32_t		updates_low;
 	uint32_t		updates_high;
-	uint32_t		all_chunks_cnt;
-	uint32_t		unused_chunks_cnt;
 	uint32_t		unused_chunks_size;
 	uint32_t		xtbl_size;
 	uint32_t		all_trie_cnt;
@@ -452,7 +450,6 @@ chunk_ref(struct dxr_aux *da, uint32_t chunk)
 		    size * sizeof(struct range_entry_long));
 		fdesc->base = cdp->cd_base;
 		da->rtbl_top -= size;
-		da->unused_chunks_cnt--;
 		da->unused_chunks_size -= cdp->cd_max_size;
 		if (cdp->cd_max_size > size) {
 			/* Split the range in two, need a new descriptor */
@@ -470,8 +467,6 @@ chunk_ref(struct dxr_aux *da, uint32_t chunk)
 			LIST_INSERT_HEAD(&da->unused_chunks[i], empty_cdp,
 			    cd_hash_le);
 
-			da->all_chunks_cnt++;
-			da->unused_chunks_cnt++;
 			da->unused_chunks_size += empty_cdp->cd_max_size;
 			cdp->cd_max_size = size;
 		}
@@ -484,7 +479,6 @@ chunk_ref(struct dxr_aux *da, uint32_t chunk)
 		cdp->cd_max_size = size;
 		cdp->cd_base = fdesc->base;
 		LIST_INSERT_HEAD(&da->all_chunks, cdp, cd_all_le);
-		da->all_chunks_cnt++;
 		KASSERT(cdp->cd_base + cdp->cd_max_size == da->rtbl_top,
 		    ("dxr: %s %d", __FUNCTION__, __LINE__));
 	}
@@ -538,7 +532,6 @@ chunk_unref(struct dxr_aux *da, uint32_t chunk)
 		return;
 
 	LIST_REMOVE(cdp, cd_hash_le);
-	da->unused_chunks_cnt++;
 	da->unused_chunks_size += cdp->cd_max_size;
 	cdp->cd_cur_size = 0;
 
@@ -548,9 +541,7 @@ chunk_unref(struct dxr_aux *da, uint32_t chunk)
 		KASSERT(cdp2->cd_base + cdp2->cd_max_size == cdp->cd_base,
 		    ("dxr: %s %d", __FUNCTION__, __LINE__));
 		LIST_REMOVE(cdp, cd_all_le);
-		da->all_chunks_cnt--;
 		LIST_REMOVE(cdp2, cd_hash_le);
-		da->unused_chunks_cnt--;
 		cdp2->cd_max_size += cdp->cd_max_size;
 		uma_zfree(chunk_zone, cdp);
 		cdp = cdp2;
@@ -562,9 +553,7 @@ chunk_unref(struct dxr_aux *da, uint32_t chunk)
 		KASSERT(cdp->cd_base + cdp->cd_max_size == cdp2->cd_base,
 		    ("dxr: %s %d", __FUNCTION__, __LINE__));
 		LIST_REMOVE(cdp, cd_all_le);
-		da->all_chunks_cnt--;
 		LIST_REMOVE(cdp2, cd_hash_le);
-		da->unused_chunks_cnt--;
 		cdp2->cd_max_size += cdp->cd_max_size;
 		cdp2->cd_base = cdp->cd_base;
 		uma_zfree(chunk_zone, cdp);
@@ -575,8 +564,6 @@ chunk_unref(struct dxr_aux *da, uint32_t chunk)
 		/* Free the chunk on the top of the range heap, trim the heap */
 		KASSERT(cdp == LIST_FIRST(&da->all_chunks),
 		    ("dxr: %s %d", __FUNCTION__, __LINE__));
-		da->all_chunks_cnt--;
-		da->unused_chunks_cnt--;
 		da->rtbl_top -= cdp->cd_max_size;
 		da->unused_chunks_size -= cdp->cd_max_size;
 		LIST_REMOVE(cdp, cd_all_le);
@@ -945,7 +932,6 @@ range_build:
 		}
 		for (i = 0; i < UNUSED_BUCKETS; i++)
 			LIST_INIT(&da->unused_chunks[i]);
-		da->all_chunks_cnt = da->unused_chunks_cnt = 0;
 		da->unused_chunks_size = 0;
 		da->rtbl_top = 0;
 		da->updates_low = 0;
