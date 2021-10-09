@@ -121,7 +121,7 @@ static SYSCTL_NODE(_kern_timecounter, OID_AUTO, tc,
     "");
 
 static int timestepwarnings;
-SYSCTL_INT(_kern_timecounter, OID_AUTO, stepwarnings, CTLFLAG_RW,
+SYSCTL_INT(_kern_timecounter, OID_AUTO, stepwarnings, CTLFLAG_RWTUN,
     &timestepwarnings, 0, "Log time steps");
 
 static int timehands_count = 2;
