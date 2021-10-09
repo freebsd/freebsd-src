@@ -94,7 +94,10 @@ returns immediately and the calling thread is not suspended.
 The suspension time may be longer than requested due to the
 scheduling of other activity by the system.
 It is also subject to the allowed time interval deviation
-specified by the sysctl kern.timecounter.alloweddeviation.
+specified by the
+.Va kern.timecounter.alloweddeviation
+.Xr sysctl 8
+variable.
 An unmasked signal will terminate the sleep early, regardless of the
 .Dv SA_RESTART
 value on the interrupting signal.
