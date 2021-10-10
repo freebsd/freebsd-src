@@ -47,8 +47,6 @@ int pwcache_groupdb(int (*a_setgroupent)(int), void (*a_endgrent)(void),
 
 int gid_from_group(const char *name, gid_t *gid);
 
-int gid_from_group(const char *name, gid_t *gid);
-
 const char *group_from_gid(gid_t gid, int noname);
 
 #ifdef __linux__
