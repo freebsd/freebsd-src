@@ -3671,17 +3671,12 @@ nfs_allocate(struct vop_allocate_args *ap)
 			mtx_lock(&nmp->nm_mtx);
 			nmp->nm_privflag |= NFSMNTP_NOALLOCATE;
 			mtx_unlock(&nmp->nm_mtx);
+			error = EINVAL;
 		}
 	} else {
 		mtx_unlock(&nmp->nm_mtx);
-		error = EIO;
+		error = EINVAL;
 	}
-	/*
-	 * If the NFS server cannot perform the Allocate operation, just call
-	 * vop_stdallocate() to perform it.
-	 */
-	if (error != 0)
-		error = vop_stdallocate(ap);
 	if (attrflag != 0) {
 		ret = nfscl_loadattrcache(&vp, &nfsva, NULL, NULL, 0, 1);
 		if (error == 0 && ret != 0)
