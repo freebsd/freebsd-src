@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 30, 2021
+.Dd October 12, 2021
 .Dt KQUEUE 2
 .Os
 .Sh NAME
@@ -378,7 +378,7 @@ The filter will set
 .Dv EV_EOF
 when the reader disconnects, and for the fifo case, this will be cleared
 when a new reader connects.
-Note that this filter is not supported for vnodes or BPF devices.
+Note that this filter is not supported for vnodes.
 .Pp
 For sockets, the low water mark and socket error handling is
 identical to the
@@ -389,6 +389,11 @@ For eventfds,
 .Va data
 will contain the maximum value that can be added to the counter
 without blocking.
+.Pp
+For BPF devices, the filter always indicates that it is possible to
+write and
+.Va data
+will contain the MTU size of the underlying interface.
 .It Dv EVFILT_EMPTY
 Takes a descriptor as the identifier, and returns whenever
 there is no remaining data in the write buffer.

@@ -213,6 +213,7 @@ static int	bpf_getdltlist(struct bpf_d *, struct bpf_dltlist *);
 static int	bpf_setdlt(struct bpf_d *, u_int);
 static void	filt_bpfdetach(struct knote *);
 static int	filt_bpfread(struct knote *, long);
+static int	filt_bpfwrite(struct knote *, long);
 static void	bpf_drvinit(void *);
 static int	bpf_stats_sysctl(SYSCTL_HANDLER_ARGS);
 
@@ -255,6 +256,12 @@ static struct filterops bpfread_filtops = {
 	.f_isfd = 1,
 	.f_detach = filt_bpfdetach,
 	.f_event = filt_bpfread,
+};
+
+static struct filterops bpfwrite_filtops = {
+	.f_isfd = 1,
+	.f_detach = filt_bpfdetach,
+	.f_event = filt_bpfwrite,
 };
 
 /*
@@ -2158,16 +2165,27 @@ bpfkqfilter(struct cdev *dev, struct knote *kn)
 {
 	struct bpf_d *d;
 
-	if (devfs_get_cdevpriv((void **)&d) != 0 ||
-	    kn->kn_filter != EVFILT_READ)
+	if (devfs_get_cdevpriv((void **)&d) != 0)
 		return (1);
+
+	switch (kn->kn_filter) {
+	case EVFILT_READ:
+		kn->kn_fop = &bpfread_filtops;
+		break;
+
+	case EVFILT_WRITE:
+		kn->kn_fop = &bpfwrite_filtops;
+		break;
+
+	default:
+		return (1);
+	}
 
 	/*
 	 * Refresh PID associated with this descriptor.
 	 */
 	BPFD_LOCK(d);
 	BPF_PID_REFRESH_CUR(d);
-	kn->kn_fop = &bpfread_filtops;
 	kn->kn_hook = d;
 	knlist_add(&d->bd_sel.si_note, kn, 1);
 	BPFD_UNLOCK(d);
@@ -2205,6 +2223,17 @@ filt_bpfread(struct knote *kn, long hint)
 	}
 
 	return (ready);
+}
+
+static int
+filt_bpfwrite(struct knote *kn, long hint)
+{
+	struct bpf_d *d = (struct bpf_d *)kn->kn_hook;
+	BPFD_LOCK_ASSERT(d);
+
+	kn->kn_data = d->bd_bif->bif_ifp->if_mtu;
+
+	return (1);
 }
 
 #define	BPF_TSTAMP_NONE		0
