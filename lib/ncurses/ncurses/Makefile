@@ -189,7 +189,7 @@ all: ${STATIC_LDSCRIPT}
 
 install-aldscript: ${STATIC_LDSCRIPT}
 	${INSTALL} ${TAG_ARGS:D${TAG_ARGS},dev} -S -C -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
-	    ${_INSTALLFLAGS} ${STATIC_LDSCRIPT} ${DESTDIR}${_LIBDI}/lib${LIB}.a
+	    ${_INSTALLFLAGS} ${STATIC_LDSCRIPT} ${DESTDIR}${_LIBDIR}/lib${LIB}.a
 
 realinstall: install-aldscript
 
