@@ -4316,7 +4316,7 @@ getvnode_path(struct thread *td, int fd, cap_rights_t *rightsp,
 	 * other thread to dereference it. Guard against the race by
 	 * checking f_ops.
 	 */
-	if (fp->f_vnode == NULL || fp->f_ops == &badfileops) {
+	if (__predict_false(fp->f_vnode == NULL || fp->f_ops == &badfileops)) {
 		fdrop(fp, td);
 		return (EINVAL);
 	}
@@ -4336,12 +4336,14 @@ getvnode(struct thread *td, int fd, cap_rights_t *rightsp, struct file **fpp)
 	int error;
 
 	error = getvnode_path(td, fd, rightsp, fpp);
+	if (__predict_false(error != 0))
+		return (error);
 
 	/*
 	 * Filter out O_PATH file descriptors, most getvnode() callers
 	 * do not call fo_ methods.
 	 */
-	if (error == 0 && (*fpp)->f_ops == &path_fileops) {
+	if (__predict_false((*fpp)->f_ops == &path_fileops)) {
 		fdrop(*fpp, td);
 		error = EBADF;
 	}
