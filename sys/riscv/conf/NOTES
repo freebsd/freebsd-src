@@ -20,6 +20,8 @@ options 	FPE			# Floating-point extension support
 options 	RACCT_DEFAULT_TO_DISABLED # Set kern.racct.enable=0 by default
 options 	INTRNG			# Include INTRNG framework
 
+options 	PPS_SYNC
+
 # RISC-V SBI console
 device		rcons
 
