@@ -403,6 +403,7 @@ me_srcaddr(void *arg __unused, const struct sockaddr *sa,
 static int
 me_set_tunnel(struct me_softc *sc, in_addr_t src, in_addr_t dst)
 {
+	struct epoch_tracker et;
 	struct me_softc *tmp;
 
 	sx_assert(&me_ioctl_sx, SA_XLOCKED);
@@ -429,7 +430,9 @@ me_set_tunnel(struct me_softc *sc, in_addr_t src, in_addr_t dst)
 	CK_LIST_INSERT_HEAD(&ME_HASH(src, dst), sc, chain);
 	CK_LIST_INSERT_HEAD(&ME_SRCHASH(src), sc, srchash);
 
+	NET_EPOCH_ENTER(et);
 	me_set_running(sc);
+	NET_EPOCH_EXIT(et);
 	if_link_state_change(ME2IFP(sc), LINK_STATE_UP);
 	return (0);
 }

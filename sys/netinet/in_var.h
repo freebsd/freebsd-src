@@ -79,7 +79,7 @@ struct in_ifaddr {
 					/* ia_subnet{,mask} in host order */
 	u_long	ia_subnet;		/* subnet address */
 	u_long	ia_subnetmask;		/* mask of subnet */
-	LIST_ENTRY(in_ifaddr) ia_hash;	/* entry in bucket of inet addresses */
+	CK_LIST_ENTRY(in_ifaddr) ia_hash;	/* hash of internet addresses */
 	CK_STAILQ_ENTRY(in_ifaddr) ia_link;	/* list of internet addresses */
 	struct	sockaddr_in ia_addr;	/* reserve space for interface name */
 	struct	sockaddr_in ia_dstaddr; /* reserve space for broadcast addr */
@@ -108,7 +108,7 @@ extern	u_char	inetctlerrmap[];
  * Hash table for IP addresses.
  */
 CK_STAILQ_HEAD(in_ifaddrhead, in_ifaddr);
-LIST_HEAD(in_ifaddrhashhead, in_ifaddr);
+CK_LIST_HEAD(in_ifaddrhashhead, in_ifaddr);
 
 VNET_DECLARE(struct in_ifaddrhashhead *, in_ifaddrhashtbl);
 VNET_DECLARE(struct in_ifaddrhead, in_ifaddrhead);
@@ -124,16 +124,6 @@ VNET_DECLARE(u_long, in_ifaddrhmask);		/* mask for hash table */
 #define INADDR_HASH(x) \
 	(&V_in_ifaddrhashtbl[INADDR_HASHVAL(x) & V_in_ifaddrhmask])
 
-extern	struct rmlock in_ifaddr_lock;
-
-#define	IN_IFADDR_LOCK_ASSERT()	rm_assert(&in_ifaddr_lock, RA_LOCKED)
-#define	IN_IFADDR_RLOCK(t)	rm_rlock(&in_ifaddr_lock, (t))
-#define	IN_IFADDR_RLOCK_ASSERT()	rm_assert(&in_ifaddr_lock, RA_RLOCKED)
-#define	IN_IFADDR_RUNLOCK(t)	rm_runlock(&in_ifaddr_lock, (t))
-#define	IN_IFADDR_WLOCK()	rm_wlock(&in_ifaddr_lock)
-#define	IN_IFADDR_WLOCK_ASSERT()	rm_assert(&in_ifaddr_lock, RA_WLOCKED)
-#define	IN_IFADDR_WUNLOCK()	rm_wunlock(&in_ifaddr_lock)
-
 /*
  * Macro for finding the internet address structure (in_ifaddr)
  * corresponding to one of our IP addresses (in_addr).
@@ -141,11 +131,11 @@ extern	struct rmlock in_ifaddr_lock;
 #define INADDR_TO_IFADDR(addr, ia) \
 	/* struct in_addr addr; */ \
 	/* struct in_ifaddr *ia; */ \
-do { \
-\
-	LIST_FOREACH(ia, INADDR_HASH((addr).s_addr), ia_hash) \
-		if (IA_SIN(ia)->sin_addr.s_addr == (addr).s_addr) \
-			break; \
+do {									\
+	NET_EPOCH_ASSERT();						\
+	CK_LIST_FOREACH(ia, INADDR_HASH((addr).s_addr), ia_hash)	\
+		if (IA_SIN(ia)->sin_addr.s_addr == (addr).s_addr)	\
+			break;						\
 } while (0)
 
 /*

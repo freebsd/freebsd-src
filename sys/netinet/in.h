@@ -649,7 +649,7 @@ int	 in_broadcast(struct in_addr, struct ifnet *);
 int	 in_ifaddr_broadcast(struct in_addr, struct in_ifaddr *);
 int	 in_canforward(struct in_addr);
 int	 in_localaddr(struct in_addr);
-int	 in_localip(struct in_addr);
+bool	 in_localip(struct in_addr);
 int	 in_ifhasaddr(struct ifnet *, struct in_addr);
 struct in_ifaddr *in_findlocal(uint32_t, bool);
 int	 inet_aton(const char *, struct in_addr *); /* in libkern */
