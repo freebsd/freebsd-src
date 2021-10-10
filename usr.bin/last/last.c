@@ -262,7 +262,7 @@ wtmp(void)
 	(void) strftime(ct, sizeof(ct), "%+", tm);
 	xo_emit("\n{:utxdb/%s}", (file == NULL) ? "utx.log" : file);
 	xo_attr("seconds", "%lu", (unsigned long) t);
-	xo_emit(" begins {:begins/%s}\n", ct);
+	xo_emit(" begins {:begins/%hs}\n", ct);
 	xo_close_container("last-information");
 }
 
@@ -379,7 +379,7 @@ printentry(struct utmpx *bp, struct idtab *tt)
 		break;
 	}
 	xo_attr("seconds", "%lu", (unsigned long)t);
-	xo_emit(" {:login-time/%s%c/%s}", ct, tt == NULL ? '\n' : ' ');
+	xo_emit(" {:login-time/%hs%c/%s}", ct, tt == NULL ? '\n' : ' ');
 	if (tt == NULL)
 		goto end;
 	if (!tt->logout) {
