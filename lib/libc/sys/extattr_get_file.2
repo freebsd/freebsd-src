@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 7, 2020
+.Dd October 11, 2021
 .Dt EXTATTR 2
 .Os
 .Sh NAME
@@ -149,6 +149,11 @@ functions take a file descriptor, while the
 functions take a path.
 Both arguments describe a file associated with the extended attribute
 that should be manipulated.
+The
+.Qq Li _fd
+functions can be used with file descriptors opened with the
+.Dv O_PATH
+flag.
 .Pp
 The following arguments are common to all the system calls described here:
 .Bl -tag -width attrnamespace
