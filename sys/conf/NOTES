@@ -1245,12 +1245,6 @@ options 	CAPABILITY_MODE	# sandboxes with no global namespace access
 
 options 	HZ=100
 
-# Enable support for the kernel PLL to use an external PPS signal,
-# under supervision of [x]ntpd(8)
-# More info in ntpd documentation: http://www.eecis.udel.edu/~ntp
-
-options 	PPS_SYNC
-
 # Enable support for generic feed-forward clocks in the kernel.
 # The feed-forward clock support is an alternative to the feedback oriented
 # ntpd/system clock approach, and is to be used with a feed-forward
