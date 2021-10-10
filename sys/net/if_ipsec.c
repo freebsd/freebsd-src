@@ -1014,6 +1014,7 @@ static int
 ipsec_set_tunnel(struct ipsec_softc *sc, struct sockaddr *src,
     struct sockaddr *dst, uint32_t reqid)
 {
+	struct epoch_tracker et;
 	struct secpolicy *sp[IPSEC_SPCOUNT];
 	int i;
 
@@ -1037,7 +1038,9 @@ ipsec_set_tunnel(struct ipsec_softc *sc, struct sockaddr *src,
 		sc->ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 		return (ENOMEM);
 	}
+	NET_EPOCH_ENTER(et);
 	ipsec_set_running(sc);
+	NET_EPOCH_EXIT(et);
 	return (0);
 }
 

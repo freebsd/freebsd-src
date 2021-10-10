@@ -44,7 +44,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/protosw.h>
-#include <sys/rmlock.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/protosw.h>
@@ -1378,7 +1377,6 @@ static int
 inp_block_unblock_source(struct inpcb *inp, struct sockopt *sopt)
 {
 	struct group_source_req		 gsr;
-	struct rm_priotracker		 in_ifa_tracker;
 	sockunion_t			*gsa, *ssa;
 	struct ifnet			*ifp;
 	struct in_mfilter		*imf;
@@ -1416,9 +1414,12 @@ inp_block_unblock_source(struct inpcb *inp, struct sockopt *sopt)
 		ssa->sin.sin_addr = mreqs.imr_sourceaddr;
 
 		if (!in_nullhost(mreqs.imr_interface)) {
-			IN_IFADDR_RLOCK(&in_ifa_tracker);
+			struct epoch_tracker et;
+
+			NET_EPOCH_ENTER(et);
 			INADDR_TO_IFP(mreqs.imr_interface, ifp);
-			IN_IFADDR_RUNLOCK(&in_ifa_tracker);
+			/* XXXGL: ifref? */
+			NET_EPOCH_EXIT(et);
 		}
 		if (sopt->sopt_name == IP_BLOCK_SOURCE)
 			doblock = 1;
@@ -1871,7 +1872,6 @@ static struct ifnet *
 inp_lookup_mcast_ifp(const struct inpcb *inp,
     const struct sockaddr_in *gsin, const struct in_addr ina)
 {
-	struct rm_priotracker in_ifa_tracker;
 	struct ifnet *ifp;
 	struct nhop_object *nh;
 
@@ -1883,11 +1883,9 @@ inp_lookup_mcast_ifp(const struct inpcb *inp,
 
 	ifp = NULL;
 	if (!in_nullhost(ina)) {
-		IN_IFADDR_RLOCK(&in_ifa_tracker);
 		INADDR_TO_IFP(ina, ifp);
 		if (ifp != NULL)
 			if_ref(ifp);
-		IN_IFADDR_RUNLOCK(&in_ifa_tracker);
 	} else {
 		nh = fib4_lookup(inp->inp_inc.inc_fibnum, gsin->sin_addr, 0, NHR_NONE, 0);
 		if (nh != NULL) {
@@ -2247,7 +2245,6 @@ inp_leave_group(struct inpcb *inp, struct sockopt *sopt)
 {
 	struct group_source_req		 gsr;
 	struct ip_mreq_source		 mreqs;
-	struct rm_priotracker		 in_ifa_tracker;
 	sockunion_t			*gsa, *ssa;
 	struct ifnet			*ifp;
 	struct in_mfilter		*imf;
@@ -2307,9 +2304,12 @@ inp_leave_group(struct inpcb *inp, struct sockopt *sopt)
 		 * using an IPv4 address as a key is racy.
 		 */
 		if (!in_nullhost(mreqs.imr_interface)) {
-			IN_IFADDR_RLOCK(&in_ifa_tracker);
+			struct epoch_tracker et;
+
+			NET_EPOCH_ENTER(et);
 			INADDR_TO_IFP(mreqs.imr_interface, ifp);
-			IN_IFADDR_RUNLOCK(&in_ifa_tracker);
+			/* XXXGL ifref? */
+			NET_EPOCH_EXIT(et);
 		}
 		CTR3(KTR_IGMPV3, "%s: imr_interface = 0x%08x, ifp = %p",
 		    __func__, ntohl(mreqs.imr_interface.s_addr), ifp);
@@ -2465,7 +2465,6 @@ out_inp_locked:
 static int
 inp_set_multicast_if(struct inpcb *inp, struct sockopt *sopt)
 {
-	struct rm_priotracker	 in_ifa_tracker;
 	struct in_addr		 addr;
 	struct ip_mreqn		 mreqn;
 	struct ifnet		*ifp;
@@ -2504,9 +2503,12 @@ inp_set_multicast_if(struct inpcb *inp, struct sockopt *sopt)
 		if (in_nullhost(addr)) {
 			ifp = NULL;
 		} else {
-			IN_IFADDR_RLOCK(&in_ifa_tracker);
+			struct epoch_tracker et;
+
+			NET_EPOCH_ENTER(et);
 			INADDR_TO_IFP(addr, ifp);
-			IN_IFADDR_RUNLOCK(&in_ifa_tracker);
+			/* XXXGL ifref? */
+			NET_EPOCH_EXIT(et);
 			if (ifp == NULL)
 				return (EADDRNOTAVAIL);
 		}

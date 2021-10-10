@@ -1593,20 +1593,9 @@ pf_isforlocal(struct mbuf *m, int af)
 	switch (af) {
 #ifdef INET
 	case AF_INET: {
-		struct rm_priotracker in_ifa_tracker;
-		struct ip *ip;
-		struct in_ifaddr *ia = NULL;
+		struct ip *ip = mtod(m, struct ip *);
 
-		ip = mtod(m, struct ip *);
-		IN_IFADDR_RLOCK(&in_ifa_tracker);
-		LIST_FOREACH(ia, INADDR_HASH(ip->ip_dst.s_addr), ia_hash) {
-			if (IA_SIN(ia)->sin_addr.s_addr == ip->ip_dst.s_addr) {
-				IN_IFADDR_RUNLOCK(&in_ifa_tracker);
-				return (true);
-			}
-		}
-		IN_IFADDR_RUNLOCK(&in_ifa_tracker);
-		break;
+		return (in_localip(ip->ip_dst));
 	}
 #endif
 #ifdef INET6

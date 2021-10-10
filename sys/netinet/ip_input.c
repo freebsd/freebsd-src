@@ -102,9 +102,6 @@ extern void ipreass_slowtimo(void);
 extern void ipreass_destroy(void);
 #endif
 
-struct rmlock in_ifaddr_lock;
-RM_SYSINIT(in_ifaddr_lock, &in_ifaddr_lock, "in_ifaddr_lock");
-
 VNET_DEFINE(int, rsvp_on);
 
 VNET_DEFINE(int, ipforwarding);
@@ -179,6 +176,9 @@ u_char	ip_protox[IPPROTO_MAX];
 VNET_DEFINE(struct in_ifaddrhead, in_ifaddrhead);  /* first inet address */
 VNET_DEFINE(struct in_ifaddrhashhead *, in_ifaddrhashtbl); /* inet addr hash table  */
 VNET_DEFINE(u_long, in_ifaddrhmask);		/* mask for hash table */
+
+/* Make sure it is safe to use hashinit(9) on CK_LIST. */
+CTASSERT(sizeof(struct in_ifaddrhashhead) == sizeof(LIST_HEAD(, in_addr)));
 
 #ifdef IPCTL_DEFMTU
 SYSCTL_INT(_net_inet_ip, IPCTL_DEFMTU, mtu, CTLFLAG_RW,
@@ -453,7 +453,6 @@ void
 ip_input(struct mbuf *m)
 {
 	MROUTER_RLOCK_TRACKER;
-	struct rm_priotracker in_ifa_tracker;
 	struct ip *ip = NULL;
 	struct in_ifaddr *ia = NULL;
 	struct ifaddr *ifa;
@@ -689,8 +688,7 @@ passin:
 	/*
 	 * Check for exact addresses in the hash bucket.
 	 */
-	IN_IFADDR_RLOCK(&in_ifa_tracker);
-	LIST_FOREACH(ia, INADDR_HASH(ip->ip_dst.s_addr), ia_hash) {
+	CK_LIST_FOREACH(ia, INADDR_HASH(ip->ip_dst.s_addr), ia_hash) {
 		/*
 		 * If the address matches, verify that the packet
 		 * arrived via the correct interface if checking is
@@ -701,11 +699,9 @@ passin:
 			counter_u64_add(ia->ia_ifa.ifa_ipackets, 1);
 			counter_u64_add(ia->ia_ifa.ifa_ibytes,
 			    m->m_pkthdr.len);
-			IN_IFADDR_RUNLOCK(&in_ifa_tracker);
 			goto ours;
 		}
 	}
-	IN_IFADDR_RUNLOCK(&in_ifa_tracker);
 
 	/*
 	 * Check for broadcast addresses.

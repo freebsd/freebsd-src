@@ -363,6 +363,7 @@ fail:
 static int
 in_gre_attach(struct gre_softc *sc)
 {
+	struct epoch_tracker et;
 	struct grehdr *gh;
 	int error;
 
@@ -397,7 +398,9 @@ in_gre_attach(struct gre_softc *sc)
 	    sc, srchash);
 
 	/* Set IFF_DRV_RUNNING if interface is ready */
+	NET_EPOCH_ENTER(et);
 	in_gre_set_running(sc);
+	NET_EPOCH_EXIT(et);
 	return (0);
 }
 

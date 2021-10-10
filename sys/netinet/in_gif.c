@@ -196,6 +196,7 @@ int
 in_gif_ioctl(struct gif_softc *sc, u_long cmd, caddr_t data)
 {
 	struct ifreq *ifr = (struct ifreq *)data;
+	struct epoch_tracker et;
 	struct sockaddr_in *dst, *src;
 	struct ip *ip;
 	int error;
@@ -245,7 +246,9 @@ in_gif_ioctl(struct gif_softc *sc, u_long cmd, caddr_t data)
 		sc->gif_family = AF_INET;
 		sc->gif_iphdr = ip;
 		in_gif_attach(sc);
+		NET_EPOCH_ENTER(et);
 		in_gif_set_running(sc);
+		NET_EPOCH_EXIT(et);
 		break;
 	case SIOCGIFPSRCADDR:
 	case SIOCGIFPDSTADDR:
