@@ -211,6 +211,9 @@ pathdup(const char *path)
 	char *str;
 	size_t i, len;
 
+	if (path == NULL || path[0] == '\0')
+		return (NULL);
+
 	len = strlen(path);
 	while (len && path[len - 1] == '/')
 		len--;
@@ -697,7 +700,11 @@ extract(struct archive *a, struct archive_entry *e)
 	mode_t filetype;
 	char *p, *q;
 
-	pathname = pathdup(archive_entry_pathname(e));
+	if ((pathname = pathdup(archive_entry_pathname(e))) == NULL) {
+		warningx("skipping empty or unreadable filename entry");
+		ac(archive_read_data_skip(a));
+		return;
+	}
 	filetype = archive_entry_filetype(e);
 
 	/* sanity checks */
@@ -760,7 +767,11 @@ extract_stdout(struct archive *a, struct archive_entry *e)
 	char *pathname;
 	mode_t filetype;
 
-	pathname = pathdup(archive_entry_pathname(e));
+	if ((pathname = pathdup(archive_entry_pathname(e))) == NULL) {
+		warningx("skipping empty or unreadable filename entry");
+		ac(archive_read_data_skip(a));
+		return;
+	}
 	filetype = archive_entry_filetype(e);
 
 	/* I don't think this can happen in a zipfile.. */
