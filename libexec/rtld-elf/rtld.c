@@ -140,7 +140,7 @@ static void objlist_remove(Objlist *, Obj_Entry *);
 static int open_binary_fd(const char *argv0, bool search_in_path,
     const char **binpath_res);
 static int parse_args(char* argv[], int argc, bool *use_pathp, int *fdp,
-    const char **argv0);
+    const char **argv0, bool *dir_ignore);
 static int parse_integer(const char *);
 static void *path_enumerate(const char *, path_enum_proc, const char *, void *);
 static void print_usage(const char *argv0);
@@ -503,7 +503,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 #ifdef __powerpc__
     int old_auxv_format = 1;
 #endif
-    bool dir_enable, direct_exec, explicit_fd, search_in_path;
+    bool dir_enable, dir_ignore, direct_exec, explicit_fd, search_in_path;
 
     /*
      * On entry, the dynamic linker itself has not been relocated yet.
@@ -589,7 +589,8 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 
 	    dbg("opening main program in direct exec mode");
 	    if (argc >= 2) {
-		rtld_argc = parse_args(argv, argc, &search_in_path, &fd, &argv0);
+		rtld_argc = parse_args(argv, argc, &search_in_path, &fd,
+		  &argv0, &dir_ignore);
 		explicit_fd = (fd != -1);
 		binpath = NULL;
 		if (!explicit_fd)
@@ -621,7 +622,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 		} else if ((st.st_mode & S_IXOTH) != 0) {
 		    dir_enable = true;
 		}
-		if (!dir_enable) {
+		if (!dir_enable && !dir_ignore) {
 		    _rtld_error("No execute permission for binary %s",
 		        argv0);
 		    rtld_die();
@@ -5842,7 +5843,7 @@ open_binary_fd(const char *argv0, bool search_in_path,
  */
 static int
 parse_args(char* argv[], int argc, bool *use_pathp, int *fdp,
-    const char **argv0)
+    const char **argv0, bool *dir_ignore)
 {
 	const char *arg;
 	char machine[64];
@@ -5854,6 +5855,7 @@ parse_args(char* argv[], int argc, bool *use_pathp, int *fdp,
 	dbg("Parsing command-line arguments");
 	*use_pathp = false;
 	*fdp = -1;
+	*dir_ignore = false;
 	seen_b = seen_f = false;
 
 	for (i = 1; i < argc; i++ ) {
@@ -5889,6 +5891,9 @@ parse_args(char* argv[], int argc, bool *use_pathp, int *fdp,
 				i++;
 				*argv0 = argv[i];
 				seen_b = true;
+				break;
+			} else if (opt == 'd') {
+				*dir_ignore = true;
 				break;
 			} else if (opt == 'f') {
 				if (seen_b) {
@@ -5988,11 +5993,12 @@ print_usage(const char *argv0)
 {
 
 	rtld_printf(
-	    "Usage: %s [-h] [-b <exe>] [-f <FD>] [-p] [--] <binary> [<args>]\n"
+	    "Usage: %s [-h] [-b <exe>] [-d] [-f <FD>] [-p] [--] <binary> [<args>]\n"
 	    "\n"
 	    "Options:\n"
 	    "  -h        Display this help message\n"
 	    "  -b <exe>  Execute <exe> instead of <binary>, arg0 is <binary>\n"
+	    "  -d        Ignore lack of exec permissions for the binary\n"
 	    "  -f <FD>   Execute <FD> instead of searching for <binary>\n"
 	    "  -p        Search in PATH for named binary\n"
 	    "  -u        Ignore LD_ environment variables\n"
