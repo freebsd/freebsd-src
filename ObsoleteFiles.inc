@@ -42,6 +42,7 @@
 OLD_FILES+=usr/bin/llvm-tblgen
 OLD_FILES+=usr/bin/clang-tblgen
 OLD_FILES+=usr/bin/lldb-tblgen
+OLD_FILES+=usr/share/man/man1/llvm-tblgen.1.gz
 
 # 20211222: new clang import which bumps version from 12.0.0 to 12.0.1.
 OLD_FILES+=usr/lib/clang/12.0.0/include/cuda_wrappers/algorithm
