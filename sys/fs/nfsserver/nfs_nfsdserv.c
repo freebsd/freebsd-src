@@ -91,6 +91,14 @@ SYSCTL_STRING(_vfs_nfsd, OID_AUTO, owner_major, CTLFLAG_RWTUN,
 static uint64_t nfsrv_owner_minor;
 SYSCTL_U64(_vfs_nfsd, OID_AUTO, owner_minor, CTLFLAG_RWTUN,
     &nfsrv_owner_minor, 0, "Server owner minor");
+/*
+ * Only enable this if all your exported file systems
+ * (or pNFS DSs for the pNFS case) support VOP_ALLOCATE.
+ */
+static bool	nfsrv_doallocate = false;
+SYSCTL_BOOL(_vfs_nfsd, OID_AUTO, enable_v42allocate, CTLFLAG_RW,
+    &nfsrv_doallocate, 0,
+    "Enable NFSv4.2 Allocate operation");
 
 /*
  * This list defines the GSS mechanisms supported.
@@ -5324,6 +5332,16 @@ nfsrvd_allocate(struct nfsrv_descript *nd, __unused int isdgram,
 	nfsquad_t clientid;
 	nfsattrbit_t attrbits;
 
+	if (!nfsrv_doallocate) {
+		/*
+		 * If any exported file system, such as a ZFS one, cannot
+		 * do VOP_ALLOCATE(), this operation cannot be supported
+		 * for NFSv4.2.  This cannot be done 'per filesystem', but
+		 * must be for the entire nfsd NFSv4.2 service.
+		 */
+		nd->nd_repstat = NFSERR_NOTSUPP;
+		goto nfsmout;
+	}
 	gotproxystateid = 0;
 	NFSM_DISSECT(tl, uint32_t *, NFSX_STATEID + 2 * NFSX_HYPER);
 	stp->ls_flags = (NFSLCK_CHECK | NFSLCK_WRITEACCESS);
@@ -5390,9 +5408,13 @@ nfsrvd_allocate(struct nfsrv_descript *nd, __unused int isdgram,
 		nd->nd_repstat = nfsrv_lockctrl(vp, &stp, &lop, NULL, clientid,
 		    &stateid, exp, nd, curthread);
 
+	NFSD_DEBUG(4, "nfsrvd_allocate: off=%jd len=%jd stat=%d\n",
+	    (intmax_t)off, (intmax_t)len, nd->nd_repstat);
 	if (nd->nd_repstat == 0)
 		nd->nd_repstat = nfsvno_allocate(vp, off, len, nd->nd_cred,
 		    curthread);
+	NFSD_DEBUG(4, "nfsrvd_allocate: aft nfsvno_allocate=%d\n",
+	    nd->nd_repstat);
 	vput(vp);
 	NFSEXITCODE2(0, nd);
 	return (0);
