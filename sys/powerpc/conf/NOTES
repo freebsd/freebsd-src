@@ -46,8 +46,6 @@ options 	PSIM			#GDB PSIM ppc simulator
 options 	MAMBO			#IBM Mambo Full System Simulator
 options		QEMU			#QEMU processor emulator
 
-options 	PPS_SYNC
-
 # The cpufreq(4) driver provides support for CPU frequency control
 device		cpufreq
 
