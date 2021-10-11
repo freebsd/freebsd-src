@@ -42,7 +42,6 @@
 #include <sys/queue.h>
 #endif
 
-struct thread;
 /*
  * Definitions for sysctl call.  The sysctl call uses a hierarchical name
  * for objects that can be examined or modified.  The name is expressed as
@@ -50,21 +49,15 @@ struct thread;
  * component depends on its place in the hierarchy.  The top-level and kern
  * identifiers are defined here, and other identifiers are defined in the
  * respective subsystem header files.
+ *
+ * Each subsystem defined by sysctl defines a list of variables for that
+ * subsystem. Each name is either a node with further levels defined below it,
+ * or it is a leaf of some particular type given below. Each sysctl level
+ * defines a set of name/type pairs to be used by sysctl(8) in manipulating the
+ * subsystem.
  */
 
 #define	CTL_MAXNAME	24	/* largest number of components supported */
-
-/*
- * Each subsystem defined by sysctl defines a list of variables
- * for that subsystem. Each name is either a node with further
- * levels defined below it, or it is a leaf of some particular
- * type given below. Each sysctl level defines a set of name/type
- * pairs to be used by sysctl(8) in manipulating the subsystem.
- */
-struct ctlname {
-	char	*ctl_name;	/* subsystem name */
-	int	 ctl_type;	/* type of name */
-};
 
 #define	CTLTYPE		0xf	/* mask for the type */
 #define	CTLTYPE_NODE	1	/* name is a node */
@@ -164,6 +157,7 @@ struct ctlname {
  * This describes the access space for a sysctl request.  This is needed
  * so that we can use the interface from the kernel or from user-space.
  */
+struct thread;
 struct sysctl_req {
 	struct thread	*td;		/* used for access checking */
 	int		 lock;		/* wiring state */
