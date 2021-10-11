@@ -330,6 +330,7 @@ The syntax of the direct invocation is
 .Bd -ragged -offset indent
 .Pa /libexec/ld-elf.so.1
 .Op Fl b Ar exe
+.Op Fl d
 .Op Fl f Ar fd
 .Op Fl p
 .Op Fl u
@@ -352,6 +353,8 @@ If this option is specified,
 is only used to provide the
 .Va argv[0]
 value to the program.
+.It Fl d
+Turn off the emulation of the binary execute permission.
 .It Fl f Ar fd
 File descriptor
 .Ar fd
@@ -403,6 +406,9 @@ ignores
 and is naturally prone to race conditions.
 Environments which rely on such restrictions are weak
 and breakable on their own.
+It can be turned off with the
+.Fl d
+option.
 .Sh VERSIONING
 Newer
 .Nm
