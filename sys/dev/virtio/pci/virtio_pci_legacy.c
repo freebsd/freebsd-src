@@ -97,7 +97,7 @@ static int	vtpci_legacy_reinit(device_t, uint64_t);
 static void	vtpci_legacy_reinit_complete(device_t);
 static void	vtpci_legacy_notify_vq(device_t, uint16_t, bus_size_t);
 static void	vtpci_legacy_read_dev_config(device_t, bus_size_t, void *, int);
-static void	vtpci_legacy_write_dev_config(device_t, bus_size_t, void *, int);
+static void	vtpci_legacy_write_dev_config(device_t, bus_size_t, const void *, int);
 
 static bool	vtpci_legacy_setup_msix(struct vtpci_legacy_softc *sc);
 static void	vtpci_legacy_teardown_msix(struct vtpci_legacy_softc *sc);
@@ -519,11 +519,11 @@ vtpci_legacy_read_dev_config(device_t dev, bus_size_t offset,
 
 static void
 vtpci_legacy_write_dev_config(device_t dev, bus_size_t offset,
-    void *src, int length)
+    const void *src, int length)
 {
 	struct vtpci_legacy_softc *sc;
 	bus_size_t off;
-	uint8_t *s;
+	const uint8_t *s;
 	int i;
 
 	sc = device_get_softc(dev);
