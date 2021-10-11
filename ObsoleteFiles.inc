@@ -40,6 +40,7 @@
 OLD_FILES+=usr/bin/llvm-tblgen
 OLD_FILES+=usr/bin/clang-tblgen
 OLD_FILES+=usr/bin/lldb-tblgen
+OLD_FILES+=usr/share/man/man1/llvm-tblgen.1.gz
 
 # 20211115: vm_page busy functions removed
 OLD_FILES+=share/man/man9/vm_page_sbusy.9.gz
