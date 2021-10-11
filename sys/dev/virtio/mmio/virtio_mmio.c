@@ -741,7 +741,7 @@ vtmmio_write_dev_config(device_t dev, bus_size_t offset,
 {
 	struct vtmmio_softc *sc;
 	bus_size_t off;
-	uint8_t *s;
+	const uint8_t *s;
 	int size;
 
 	sc = device_get_softc(dev);
