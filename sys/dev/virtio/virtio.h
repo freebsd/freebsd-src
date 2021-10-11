@@ -124,7 +124,7 @@ int	 virtio_child_pnpinfo_str(device_t busdev, device_t child, char *buf,
 void	 virtio_read_device_config(device_t dev, bus_size_t offset,
 	     void *dst, int length);
 void	 virtio_write_device_config(device_t dev, bus_size_t offset,
-	     void *src, int length);
+	     const void *src, int length);
 
 /* Inlined device specific read/write functions for common lengths. */
 #define VIRTIO_RDWR_DEVICE_CONFIG(size, type)				\

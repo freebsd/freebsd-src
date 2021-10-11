@@ -107,7 +107,7 @@ METHOD void read_device_config {
 METHOD void write_device_config {
 	device_t	dev;
 	bus_size_t	offset;
-	void		*src;
+	const void	*src;
 	int		len;
 };
 

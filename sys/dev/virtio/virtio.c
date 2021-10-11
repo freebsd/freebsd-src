@@ -321,7 +321,7 @@ virtio_read_device_config(device_t dev, bus_size_t offset, void *dst, int len)
 }
 
 void
-virtio_write_device_config(device_t dev, bus_size_t offset, void *dst, int len)
+virtio_write_device_config(device_t dev, bus_size_t offset, const void *dst, int len)
 {
 
 	VIRTIO_BUS_WRITE_DEVICE_CONFIG(device_get_parent(dev),
