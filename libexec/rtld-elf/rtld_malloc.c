@@ -184,7 +184,9 @@ morecore(int bucket)
 		nblks = 1;
 	}
 	if (amt > pagepool_end - pagepool_start)
-		if (morepages(amt/pagesz + NPOOLPAGES) == 0)
+		if (morepages(amt / pagesz + NPOOLPAGES) == 0 &&
+		    /* Retry with min required size */
+		    morepages(amt / pagesz) == 0)
 			return;
 	op = (union overhead *)pagepool_start;
 	pagepool_start += amt;
@@ -269,6 +271,8 @@ morepages(int n)
 		}
 	}
 
+	if (pagepool_start == MAP_FAILED)
+		pagepool_start = 0;
 	offset = (uintptr_t)pagepool_start - rounddown2(
 	    (uintptr_t)pagepool_start, pagesz);
 
