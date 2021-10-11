@@ -1180,9 +1180,14 @@ struct sbuf *sbuf_new_for_sysctl(struct sbuf *, char *, int,
 	    struct sysctl_req *);
 #else	/* !_KERNEL */
 #include <sys/cdefs.h>
+#include <sys/_types.h>
+#ifndef _SIZE_T_DECLARED
+typedef	__size_t	size_t;
+#define	_SIZE_T_DECLARED
+#endif
 
 __BEGIN_DECLS
-int	sysctl(const int *, u_int, void *, size_t *, const void *, size_t);
+int	sysctl(const int *, unsigned int, void *, size_t *, const void *, size_t);
 int	sysctlbyname(const char *, void *, size_t *, const void *, size_t);
 int	sysctlnametomib(const char *, int *, size_t *);
 __END_DECLS
