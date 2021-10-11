@@ -57,6 +57,7 @@ OLD_FILES+=usr/share/man/man4/cloudabi.4.gz
 OLD_FILES+=usr/bin/llvm-tblgen
 OLD_FILES+=usr/bin/clang-tblgen
 OLD_FILES+=usr/bin/lldb-tblgen
+OLD_FILES+=usr/share/man/man1/llvm-tblgen.1.gz
 
 # 20210810: remove Pentium-related man pages and references
 OLD_FILES+=usr/share/man/man3/pmc.p4.3.gz
