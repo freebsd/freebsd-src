@@ -1219,18 +1219,30 @@ OLD_FILES+=usr/share/man/man8/zfsloader.8.gz
 OLD_FILES+=usr/share/man/man8/zpool.8.gz
 .endif
 
+.if ${MK_CLANG} == no && ${MK_LLVM_BINUTILS} == no
+OLD_FILES+=usr/bin/llvm-addr2line
+OLD_FILES+=usr/bin/llvm-ar
+OLD_FILES+=usr/bin/llvm-nm
+OLD_FILES+=usr/bin/llvm-objcopy
+OLD_FILES+=usr/bin/llvm-objdump
+OLD_FILES+=usr/bin/llvm-ranlib
+OLD_FILES+=usr/bin/llvm-size
+OLD_FILES+=usr/bin/llvm-strings
+OLD_FILES+=usr/bin/llvm-symbolizer
+OLD_FILES+=usr/share/man/man1/llvm-addr2line.1.gz
+OLD_FILES+=usr/share/man/man1/llvm-ar.1.gz
+OLD_FILES+=usr/share/man/man1/llvm-nm.1.gz
+OLD_FILES+=usr/share/man/man1/llvm-objcopy.1.gz
+OLD_FILES+=usr/share/man/man1/llvm-ranlib.1.gz
+OLD_FILES+=usr/share/man/man1/llvm-size.1.gz
+OLD_FILES+=usr/share/man/man1/llvm-strings.1.gz
+OLD_FILES+=usr/share/man/man1/llvm-symbolizer.1.gz
+.endif
+
 .if ${MK_CLANG} == no
 OLD_FILES+=usr/bin/clang
 OLD_FILES+=usr/bin/clang++
 OLD_FILES+=usr/bin/clang-cpp
-OLD_FILES+=usr/bin/clang-tblgen
-OLD_FILES+=usr/bin/llvm-addr2line
-OLD_FILES+=usr/bin/llvm-ar
-OLD_FILES+=usr/bin/llvm-nm
-OLD_FILES+=usr/bin/llvm-objdump
-OLD_FILES+=usr/bin/llvm-ranlib
-OLD_FILES+=usr/bin/llvm-symbolizer
-OLD_FILES+=usr/bin/llvm-tblgen
 OLD_FILES+=usr/lib/clang/12.0.1/include/cuda_wrappers/algorithm
 OLD_FILES+=usr/lib/clang/12.0.1/include/cuda_wrappers/complex
 OLD_FILES+=usr/lib/clang/12.0.1/include/cuda_wrappers/new
@@ -1529,12 +1541,6 @@ OLD_DIRS+=usr/share/doc/llvm
 OLD_FILES+=usr/share/man/man1/clang.1.gz
 OLD_FILES+=usr/share/man/man1/clang++.1.gz
 OLD_FILES+=usr/share/man/man1/clang-cpp.1.gz
-OLD_FILES+=usr/share/man/man1/llvm-addr2line.1.gz
-OLD_FILES+=usr/share/man/man1/llvm-ar.1.gz
-OLD_FILES+=usr/share/man/man1/llvm-nm.1.gz
-OLD_FILES+=usr/share/man/man1/llvm-ranlib.1.gz
-OLD_FILES+=usr/share/man/man1/llvm-symbolizer.1.gz
-OLD_FILES+=usr/share/man/man1/llvm-tblgen.1.gz
 .endif
 
 .if ${MK_CLANG_EXTRAS} == no
@@ -1555,11 +1561,8 @@ OLD_FILES+=usr/bin/llvm-lto2
 OLD_FILES+=usr/bin/llvm-mc
 OLD_FILES+=usr/bin/llvm-mca
 OLD_FILES+=usr/bin/llvm-modextract
-OLD_FILES+=usr/bin/llvm-objcopy
 OLD_FILES+=usr/bin/llvm-pdbutil
 OLD_FILES+=usr/bin/llvm-rtdyld
-OLD_FILES+=usr/bin/llvm-size
-OLD_FILES+=usr/bin/llvm-strings
 OLD_FILES+=usr/bin/llvm-xray
 OLD_FILES+=usr/bin/opt
 OLD_FILES+=usr/share/man/man1/bugpoint.1.gz
@@ -1572,10 +1575,7 @@ OLD_FILES+=usr/share/man/man1/llvm-dis.1.gz
 OLD_FILES+=usr/share/man/man1/llvm-dwarfdump.1
 OLD_FILES+=usr/share/man/man1/llvm-extract.1.gz
 OLD_FILES+=usr/share/man/man1/llvm-link.1.gz
-OLD_FILES+=usr/share/man/man1/llvm-objcopy.1.gz
 OLD_FILES+=usr/share/man/man1/llvm-pdbutil.1.gz
-OLD_FILES+=usr/share/man/man1/llvm-size.1.gz
-OLD_FILES+=usr/share/man/man1/llvm-strings.1.gz
 OLD_FILES+=usr/share/man/man1/opt.1.gz
 .endif
 
