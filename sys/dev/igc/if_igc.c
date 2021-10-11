@@ -1172,12 +1172,12 @@ igc_if_multi_set(if_ctx_t ctx)
                 reg_rctl |= IGC_RCTL_MPE;
 		reg_rctl &= ~IGC_RCTL_UPE;
         } else
-		reg_rctl = ~(IGC_RCTL_UPE | IGC_RCTL_MPE);
-
-	IGC_WRITE_REG(&adapter->hw, IGC_RCTL, reg_rctl);
+		reg_rctl &= ~(IGC_RCTL_UPE | IGC_RCTL_MPE);
 
 	if (mcnt < MAX_NUM_MULTICAST_ADDRESSES)
 		igc_update_mc_addr_list(&adapter->hw, mta, mcnt);
+
+	IGC_WRITE_REG(&adapter->hw, IGC_RCTL, reg_rctl);
 }
 
 /*********************************************************************
