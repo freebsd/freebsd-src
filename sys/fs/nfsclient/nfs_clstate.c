@@ -216,7 +216,7 @@ static short *nfscl_cberrmap[] = {
 int
 nfscl_open(vnode_t vp, u_int8_t *nfhp, int fhlen, u_int32_t amode, int usedeleg,
     struct ucred *cred, NFSPROC_T *p, struct nfsclowner **owpp,
-    struct nfsclopen **opp, int *newonep, int *retp, int lockit)
+    struct nfsclopen **opp, int *newonep, int *retp, int lockit, bool firstref)
 {
 	struct nfsclclient *clp;
 	struct nfsclowner *owp, *nowp;
@@ -244,7 +244,7 @@ nfscl_open(vnode_t vp, u_int8_t *nfhp, int fhlen, u_int32_t amode, int usedeleg,
 		fhlen - 1, M_NFSCLOPEN, M_WAITOK);
 	    nop->nfso_hash.le_prev = NULL;
 	}
-	ret = nfscl_getcl(vp->v_mount, cred, p, false, &clp);
+	ret = nfscl_getcl(vp->v_mount, cred, p, false, firstref, &clp);
 	if (ret != 0) {
 		free(nowp, M_NFSCLOWNER);
 		if (nop != NULL)
@@ -863,7 +863,7 @@ nfscl_openrelease(struct nfsmount *nmp, struct nfsclopen *op, int error,
  */
 int
 nfscl_getcl(struct mount *mp, struct ucred *cred, NFSPROC_T *p,
-    bool tryminvers, struct nfsclclient **clpp)
+    bool tryminvers, bool firstref, struct nfsclclient **clpp)
 {
 	struct nfsclclient *clp;
 	struct nfsclclient *newclp = NULL;
@@ -932,14 +932,16 @@ nfscl_getcl(struct mount *mp, struct ucred *cred, NFSPROC_T *p,
 		    NFSCLSTATEMUTEXPTR, mp);
 	if (igotlock == 0) {
 		/*
-		 * Call nfsv4_lock() with "iwantlock == 0" so that it will
-		 * wait for a pending exclusive lock request.  This gives the
-		 * exclusive lock request priority over this shared lock
-		 * request.
+		 * Call nfsv4_lock() with "iwantlock == 0" on the firstref so
+		 * that it will wait for a pending exclusive lock request.
+		 * This gives the exclusive lock request priority over this
+		 * shared lock request.
 		 * An exclusive lock on nfsc_lock is used mainly for server
-		 * crash recoveries.
+		 * crash recoveries and delegation recalls.
 		 */
-		nfsv4_lock(&clp->nfsc_lock, 0, NULL, NFSCLSTATEMUTEXPTR, mp);
+		if (firstref)
+			nfsv4_lock(&clp->nfsc_lock, 0, NULL, NFSCLSTATEMUTEXPTR,
+			    mp);
 		nfsv4_getref(&clp->nfsc_lock, NULL, NFSCLSTATEMUTEXPTR, mp);
 	}
 	if (igotlock == 0 && NFSCL_FORCEDISM(mp)) {
@@ -1121,7 +1123,8 @@ nfscl_getbytelock(vnode_t vp, u_int64_t off, u_int64_t len,
 		if (recovery)
 			clp = rclp;
 		else
-			error = nfscl_getcl(vp->v_mount, cred, p, false, &clp);
+			error = nfscl_getcl(vp->v_mount, cred, p, false, true,
+			    &clp);
 	}
 	if (error) {
 		free(nlp, M_NFSCLLOCKOWNER);
@@ -1452,7 +1455,7 @@ nfscl_checkwritelocked(vnode_t vp, struct flock *fl,
 		end = NFS64BITSSET;
 	}
 
-	error = nfscl_getcl(vp->v_mount, cred, p, false, &clp);
+	error = nfscl_getcl(vp->v_mount, cred, p, false, true, &clp);
 	if (error)
 		return (1);
 	nfscl_filllockowner(id, own, flags);
@@ -3245,7 +3248,7 @@ nfscl_getclose(vnode_t vp, struct nfsclclient **clpp)
 	struct nfsfh *nfhp;
 	int error, notdecr;
 
-	error = nfscl_getcl(vp->v_mount, NULL, NULL, false, &clp);
+	error = nfscl_getcl(vp->v_mount, NULL, NULL, false, true, &clp);
 	if (error)
 		return (error);
 	*clpp = clp;
@@ -3319,7 +3322,7 @@ nfscl_doclose(vnode_t vp, struct nfsclclient **clpp, NFSPROC_T *p)
 	struct nfsclrecalllayout *recallp;
 	int error;
 
-	error = nfscl_getcl(vp->v_mount, NULL, NULL, false, &clp);
+	error = nfscl_getcl(vp->v_mount, NULL, NULL, false, true, &clp);
 	if (error)
 		return (error);
 	*clpp = clp;
