@@ -339,6 +339,65 @@ dummynet_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "anchor" "cleanup"
+anchor_head()
+{
+	atf_set descr 'Test ether anchors'
+	atf_set require.user root
+}
+
+anchor_body()
+{
+	pft_init
+
+	epair=$(vnet_mkepair)
+	epair_a_mac=$(ifconfig ${epair}a ether | awk '/ether/ { print $2; }')
+
+	vnet_mkjail alcatraz ${epair}b
+
+	ifconfig ${epair}a 192.0.2.1/24 up
+	jexec alcatraz ifconfig ${epair}b 192.0.2.2/24 up
+
+	# Sanity check
+	atf_check -s exit:0 -o ignore ping -c 1 192.0.2.2
+
+	jexec alcatraz pfctl -e
+	pft_set_rules alcatraz \
+		"ether anchor \"foo\" in on lo0 {" \
+			"ether block" \
+		"}"
+
+	# That only filters on lo0, so we should still be able to pass traffic
+	atf_check -s exit:0 -o ignore ping -c 1 192.0.2.2
+
+	pft_set_rules alcatraz \
+		"ether block in" \
+		"ether anchor \"foo\" in on ${epair}b {" \
+			"ether pass" \
+		"}"
+	atf_check -s exit:0 -o ignore ping -c 1 192.0.2.2
+
+	pft_set_rules alcatraz \
+		"ether pass" \
+		"ether anchor \"bar\" in on ${epair}b {" \
+			"ether block" \
+		"}"
+	atf_check -s exit:2 -o ignore ping -c 1 -t 2 192.0.2.2
+
+	pft_set_rules alcatraz \
+		"ether block in" \
+		"ether anchor \"baz\" on ${epair}b {" \
+			"ether pass in from 01:02:03:04:05:06" \
+		"}" \
+		"ether pass in from ${epair_a_mac}"
+	atf_check -s exit:0 -o ignore ping -c 1 192.0.2.2
+}
+
+anchor_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "mac"
@@ -346,4 +405,5 @@ atf_init_test_cases()
 	atf_add_test_case "direction"
 	atf_add_test_case "captive"
 	atf_add_test_case "dummynet"
+	atf_add_test_case "anchor"
 }
