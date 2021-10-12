@@ -15,6 +15,17 @@ rcvar="linux_enable"
 start_cmd="${name}_start"
 stop_cmd=":"
 
+linux_mount() {
+	local _fs _mount_point
+	_fs="$1"
+	_mount_point="$2"
+	shift 2
+	if ! mount | grep -q "^$_fs on $_mount_point ("; then
+		mkdir -p "$_mount_point"
+		mount "$@" -t "$_fs" "$_fs" "$_mount_point"
+	fi
+}
+
 linux_start()
 {
 	local _emul_path _tmpdir
@@ -61,12 +72,12 @@ linux_start()
 		sysctl kern.elf32.fallback_brand=3 > /dev/null
 	fi
 
-	if checkyesno linux_mounts_enable; then 
-		mount -o nocover -t linprocfs linprocfs "${_emul_path}/proc"
-		mount -o nocover -t linsysfs linsysfs "${_emul_path}/sys"
-		mount -o nocover -t devfs devfs "${_emul_path}/dev"
-		mount -o nocover,linrdlnk -t fdescfs fdescfs "${_emul_path}/dev/fd"
-		mount -o nocover,mode=1777 -t tmpfs tmpfs "${_emul_path}/dev/shm"
+	if checkyesno linux_mounts_enable; then
+		linux_mount linprocfs "${_emul_path}/proc" -o nocover
+		linux_mount linsysfs "${_emul_path}/sys" -o nocover
+		linux_mount devfs "${_emul_path}/dev" -o nocover
+		linux_mount fdescfs "${_emul_path}/dev/fd" -o nocover,linrdlnk
+		linux_mount tmpfs "${_emul_path}/dev/shm" -o nocover,mode=1777
 	fi
 }
 
