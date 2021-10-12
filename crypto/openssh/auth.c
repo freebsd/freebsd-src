@@ -39,6 +39,7 @@ __RCSID("$FreeBSD$");
 # include <paths.h>
 #endif
 #include <pwd.h>
+#include <grp.h>
 #ifdef HAVE_LOGIN_H
 #include <login.h>
 #endif
@@ -982,6 +983,13 @@ subprocess(const char *tag, struct passwd *pw, const char *command,
 			_exit(1);
 		}
 		closefrom(STDERR_FILENO + 1);
+
+		if (geteuid() == 0 &&
+		    initgroups(pw->pw_name, pw->pw_gid) == -1) {
+			error("%s: initgroups(%s, %u): %s", tag,
+			    pw->pw_name, (u_int)pw->pw_gid, strerror(errno));
+			_exit(1);
+		}
 
 		/* Don't use permanently_set_uid() here to avoid fatal() */
 		if (setresgid(pw->pw_gid, pw->pw_gid, pw->pw_gid) != 0) {
