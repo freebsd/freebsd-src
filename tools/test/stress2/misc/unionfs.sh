@@ -26,29 +26,65 @@
 # SUCH DAMAGE.
 #
 
+# unionfs test using two memory disks
+
 [ `id -u ` -ne 0 ] && echo "Must be root!" && exit 1
-
-# "insmntque: non-locked vp: 0xd2462e10 is not exclusive locked ..." seen.
-
 . ../default.cfg
 
-truncate -s 256M $diskimage
+# unionfs usage example from the man page:
+#	   mount -t cd9660 -o ro /dev/cd0 /usr/src
+#	   mount -t unionfs -o noatime /var/obj	/usr/src
 
-mount | grep $mntpoint | grep -q /dev/md && umount -f $mntpoint
-mdconfig -l | grep -q md$mdstart &&  mdconfig -d -u $mdstart
-
-mdconfig -a -t vnode -f $diskimage -u $mdstart
-bsdlabel -w md$mdstart auto
-newfs $newfs_flags md${mdstart}$part > /dev/null
-mount /dev/md${mdstart}$part $mntpoint
-mount -t unionfs -o noatime $mntpoint /tmp
-export RUNDIR=/tmp/stressX
-export runRUNTIME=10m            # Run tests for 10 minutes
-(cd ..; ./run.sh disk.cfg)
-umount /tmp
-while mount | grep $mntpoint | grep -q /dev/md; do
-	umount $mntpoint || sleep 1
+md1=$mdstart
+md2=$((md1 + 1))
+mp1=/mnt$md1
+mp2=/mnt$md2
+mkdir -p $mp1 $mp2
+set -e
+for i in $mp1 $mp2; do
+	mount | grep -q "on $i " && umount -f $i
 done
-mdconfig -d -u $mdstart
-rm -f $diskimage
-exit 0
+for i in $md1 $md2; do
+	mdconfig -l | grep -q md$i && mdconfig -d -u $i
+done
+
+mdconfig -a -t swap -s 2g -u $md1
+mdconfig -a -t swap -s 2g -u $md2
+newfs $newfs_flags -n md$md1 > /dev/null
+newfs $newfs_flags -n md$md2 > /dev/null
+mount /dev/md$md1 $mp1
+mount /dev/md$md2 $mp2
+
+mount -t unionfs -o noatime $mp1 $mp2
+mount | grep -E "$mp1|$mp2"
+set +e
+
+export RUNDIR=$mp2/stressX
+export CTRLDIR=$mp2/stressX.control
+export runRUNTIME=2m
+
+# SU work around for "disk full"
+set `df -ik $mp2 | tail -1 | awk '{print $4,$7}'`
+export KBLOCKS=$(($1 / 2))
+export INODES=$(($2 / 2))
+
+(cd ..; ./run.sh disk.cfg)
+
+find $RUNDIR -ls
+for i in `jot 5`; do
+	mount |  grep -q unionfs || break
+	umount $mp2 || sleep 2	# The unionfs mount
+done
+mount | grep unionfs && exit 1
+
+for i in `jot 5`; do
+	umount $mp2 && break
+	sleep 2
+done
+mount | grep -q "on $mp2 " && exit 1
+n=`find $mp1/stressX | wc -l`
+[ $n -eq 1 ] && s=0 || s=1
+umount $mp1
+mdconfig -d -u $md2
+mdconfig -d -u $md1
+exit $s
