@@ -134,7 +134,7 @@ int
 main(int argc, char *argv[])
 {
 	char *fmt1, *fmt2;
-	int rval, c, aflag;
+	int aflag, c, fd, rval, status, is_shlib, rv, type;
 
 	aflag = 0;
 	fmt1 = fmt2 = NULL;
@@ -167,8 +167,6 @@ main(int argc, char *argv[])
 
 	rval = 0;
 	for (; argc > 0; argc--, argv++) {
-		int fd, status, is_shlib, rv, type;
-
 		if ((fd = open(*argv, O_RDONLY, 0)) < 0) {
 			warn("%s", *argv);
 			rval |= 1;
@@ -244,7 +242,7 @@ main(int argc, char *argv[])
 		}
 	}
 
-	return rval;
+	return (rval);
 }
 
 static void
