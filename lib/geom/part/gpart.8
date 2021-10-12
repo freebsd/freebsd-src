@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 17, 2020
+.Dd January 26, 2022
 .Dt GPART 8
 .Os
 .Sh NAME
@@ -837,6 +837,16 @@ A partition that contains a FAT32 (LBA) filesystem.
 The scheme-specific type is
 .Qq Li "!12"
 for MBR.
+.It Cm hifive-fsbl
+A raw partition containing a HiFive first stage bootloader.
+The scheme-specific type is
+.Qq Li "!5b193300-fc78-40cd-8002-e86c45580b47"
+for GPT.
+.It Cm hifive-bbl
+A raw partition containing a HiFive second stage bootloader.
+The scheme-specific type is
+.Qq Li "!2e54b353-1271-4842-806f-e436d6af6985"
+for GPT.
 .It Cm linux-data
 A Linux partition that contains some filesystem with data.
 The scheme-specific types are

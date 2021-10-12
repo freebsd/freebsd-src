@@ -103,6 +103,8 @@ struct g_part_alias_list {
 	{ "freebsd-ufs", G_PART_ALIAS_FREEBSD_UFS },
 	{ "freebsd-vinum", G_PART_ALIAS_FREEBSD_VINUM },
 	{ "freebsd-zfs", G_PART_ALIAS_FREEBSD_ZFS },
+	{ "hifive-fsbl", G_PART_ALIAS_HIFIVE_FSBL },
+	{ "hifive-bbl", G_PART_ALIAS_HIFIVE_BBL },
 	{ "linux-data", G_PART_ALIAS_LINUX_DATA },
 	{ "linux-lvm", G_PART_ALIAS_LINUX_LVM },
 	{ "linux-raid", G_PART_ALIAS_LINUX_RAID },
