@@ -540,13 +540,13 @@ void nfsrpc_bindconnsess(CLIENT *, void *, struct ucred *);
 /* nfs_clstate.c */
 int nfscl_open(vnode_t, u_int8_t *, int, u_int32_t, int,
     struct ucred *, NFSPROC_T *, struct nfsclowner **, struct nfsclopen **,
-    int *, int *, int);
+    int *, int *, int, bool);
 int nfscl_getstateid(vnode_t, u_int8_t *, int, u_int32_t, int, struct ucred *,
     NFSPROC_T *, nfsv4stateid_t *, void **);
 void nfscl_ownerrelease(struct nfsmount *, struct nfsclowner *, int, int, int);
 void nfscl_openrelease(struct nfsmount *, struct nfsclopen *, int, int);
 int nfscl_getcl(struct mount *, struct ucred *, NFSPROC_T *, int,
-    struct nfsclclient **);
+    bool, struct nfsclclient **);
 struct nfsclclient *nfscl_findcl(struct nfsmount *);
 void nfscl_clientrelease(struct nfsclclient *);
 void nfscl_freelock(struct nfscllock *, int);

@@ -1524,7 +1524,7 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 	/* For NFSv4.1, get the clientid now. */
 	if (nmp->nm_minorvers > 0) {
 		NFSCL_DEBUG(3, "at getcl\n");
-		error = nfscl_getcl(mp, cred, td, 0, &clp);
+		error = nfscl_getcl(mp, cred, td, 0, true, &clp);
 		NFSCL_DEBUG(3, "aft getcl=%d\n", error);
 		if (error != 0)
 			goto bad;

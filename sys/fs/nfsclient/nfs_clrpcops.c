@@ -365,7 +365,7 @@ else printf(" fhl=0\n");
 	do {
 	    dp = NULL;
 	    error = nfscl_open(vp, nfhp->nfh_fh, nfhp->nfh_len, mode, 1,
-		cred, p, NULL, &op, &newone, &ret, 1);
+		cred, p, NULL, &op, &newone, &ret, 1, true);
 	    if (error) {
 		return (error);
 	    }
@@ -1997,7 +1997,7 @@ nfsrpc_create(vnode_t dvp, char *name, int namelen, struct vattr *vap,
 		dp = NULL;
 		error = nfscl_open(dvp, NULL, 0, (NFSV4OPEN_ACCESSWRITE |
 		    NFSV4OPEN_ACCESSREAD), 0, cred, p, &owp, NULL, &newone,
-		    NULL, 1);
+		    NULL, 1, true);
 		if (error)
 			return (error);
 		if (nmp->nm_clp != NULL)
@@ -2283,7 +2283,7 @@ nfsrpc_createv4(vnode_t dvp, char *name, int namelen, struct vattr *vap,
 		 */
 		error = nfscl_open(dvp, nfhp->nfh_fh, nfhp->nfh_len, 
 		    (NFSV4OPEN_ACCESSWRITE | NFSV4OPEN_ACCESSREAD), 0,
-		    cred, p, NULL, &op, &newone, NULL, 0);
+		    cred, p, NULL, &op, &newone, NULL, 0, false);
 		if (error)
 			goto nfsmout;
 		op->nfso_stateid = stateid;
@@ -3886,7 +3886,7 @@ nfsrpc_advlock(vnode_t vp, off_t size, int op, struct flock *fl,
 	do {
 	    nd->nd_repstat = 0;
 	    if (op == F_GETLK) {
-		error = nfscl_getcl(vnode_mount(vp), cred, p, 1, &clp);
+		error = nfscl_getcl(vnode_mount(vp), cred, p, 1, true, &clp);
 		if (error)
 			return (error);
 		error = nfscl_lockt(vp, clp, off, len, fl, p, id, flags);
@@ -3903,7 +3903,7 @@ nfsrpc_advlock(vnode_t vp, off_t size, int op, struct flock *fl,
 		 * We must loop around for all lockowner cases.
 		 */
 		callcnt = 0;
-		error = nfscl_getcl(vnode_mount(vp), cred, p, 1, &clp);
+		error = nfscl_getcl(vnode_mount(vp), cred, p, 1, true, &clp);
 		if (error)
 			return (error);
 		do {
@@ -7537,7 +7537,7 @@ nfsrpc_createlayout(vnode_t dvp, char *name, int namelen, struct vattr *vap,
 			 */
 			error = nfscl_open(dvp, nfhp->nfh_fh, nfhp->nfh_len, 
 			    (NFSV4OPEN_ACCESSWRITE | NFSV4OPEN_ACCESSREAD), 0,
-			    cred, p, NULL, &op, &newone, NULL, 0);
+			    cred, p, NULL, &op, &newone, NULL, 0, false);
 			if (error != 0)
 				goto nfsmout;
 			op->nfso_stateid = stateid;
