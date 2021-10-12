@@ -224,7 +224,7 @@ usage(int code)
         fprintf(stderr,
 		"Usage: %s [-AaCDeHhPSuWwxY]\n"
 		"       %*s [-c [[cpus=]numcpus][,sockets=n][,cores=n][,threads=n]]\n"
-		"       %*s [-G port] [-k file] [-l lpc] [-m mem] [-o var=value]\n"
+		"       %*s [-G port] [-k config_file] [-l lpc] [-m mem] [-o var=value]\n"
 		"       %*s [-p vcpu:hostcpu] [-r file] [-s pci] [-U uuid] vmname\n"
 		"       -A: create ACPI tables\n"
 		"       -a: local apic is in xAPIC mode (deprecated)\n"
