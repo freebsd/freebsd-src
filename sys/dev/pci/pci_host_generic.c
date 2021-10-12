@@ -307,6 +307,7 @@ pci_host_generic_core_release_resource(device_t dev, device_t child, int type,
 {
 	struct generic_pcie_core_softc *sc;
 	struct rman *rm;
+	int error;
 
 	sc = device_get_softc(dev);
 
@@ -319,7 +320,12 @@ pci_host_generic_core_release_resource(device_t dev, device_t child, int type,
 	rm = generic_pcie_rman(sc, type, rman_get_flags(res));
 	if (rm != NULL) {
 		KASSERT(rman_is_region_manager(res, rm), ("rman mismatch"));
-		rman_release_resource(res);
+		if (rman_get_flags(res) & RF_ACTIVE) {
+			error = bus_deactivate_resource(child, type, rid, res);
+			if (error)
+				return (error);
+		}
+		return (rman_release_resource(res));
 	}
 
 	return (bus_generic_release_resource(dev, child, type, rid, res));
