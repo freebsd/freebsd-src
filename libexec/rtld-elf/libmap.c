@@ -16,7 +16,7 @@
 #include "debug.h"
 #include "rtld.h"
 #include "libmap.h"
-#include "paths.h"
+#include "rtld_paths.h"
 #include "rtld_libc.h"
 
 TAILQ_HEAD(lm_list, lm);

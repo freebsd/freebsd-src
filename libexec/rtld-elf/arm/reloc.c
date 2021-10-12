@@ -16,7 +16,7 @@ __FBSDID("$FreeBSD$");
 
 #include "debug.h"
 #include "rtld.h"
-#include "paths.h"
+#include "rtld_paths.h"
 
 #ifdef __ARM_FP
 /*

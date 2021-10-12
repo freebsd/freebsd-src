@@ -63,7 +63,7 @@ __FBSDID("$FreeBSD$");
 #include "debug.h"
 #include "rtld.h"
 #include "libmap.h"
-#include "paths.h"
+#include "rtld_paths.h"
 #include "rtld_tls.h"
 #include "rtld_printf.h"
 #include "rtld_malloc.h"

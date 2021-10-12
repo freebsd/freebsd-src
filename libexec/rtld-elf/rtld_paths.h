@@ -26,15 +26,19 @@
  * $FreeBSD$
  */
 
-#ifndef PATHS_H
-#define PATHS_H
+#ifndef _RTLD_PATHS_H
+#define _RTLD_PATHS_H
 
 #undef _PATH_ELF_HINTS
+
+#ifndef	_COMPAT32_BASENAME_RTLD
+#define	_COMPAT32_BASENAME_RTLD		"ld-elf32.so.1"
+#endif
 
 #ifdef COMPAT_32BIT
 #define	_PATH_ELF_HINTS		"/var/run/ld-elf32.so.hints"
 #define	_PATH_LIBMAP_CONF	"/etc/libmap32.conf"
-#define	_BASENAME_RTLD		"ld-elf32.so.1"
+#define	_BASENAME_RTLD		_COMPAT32_BASENAME_RTLD
 #define	STANDARD_LIBRARY_PATH	"/lib32:/usr/lib32"
 #define	LD_			"LD_32_"
 #endif
@@ -55,6 +59,10 @@
 #define	_PATH_RTLD		"/libexec/" _BASENAME_RTLD
 #endif
 
+#ifndef _COMPAT32_PATH_RTLD
+#define	_COMPAT32_PATH_RTLD	"/libexec/" _COMPAT32_BASENAME_RTLD
+#endif
+
 #ifndef STANDARD_LIBRARY_PATH
 #define	STANDARD_LIBRARY_PATH	"/lib/casper:/lib:/usr/lib"
 #endif
@@ -69,10 +77,12 @@
 #define	SOFT_STANDARD_LIBRARY_PATH "/usr/libsoft"
 #define	LD_SOFT_		"LD_SOFT_"
 
+#ifdef IN_RTLD
 extern const char *ld_elf_hints_default;
 extern const char *ld_path_libmap_conf;
 extern const char *ld_path_rtld;
 extern const char *ld_standard_library_path;
 extern const char *ld_env_prefix;
+#endif
 
-#endif /* PATHS_H */
+#endif /* _RTLD_PATHS_H */
