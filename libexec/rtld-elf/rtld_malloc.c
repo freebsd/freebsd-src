@@ -259,7 +259,7 @@ morepages(int n)
 	int offset;
 
 	if (pagepool_end - pagepool_start > pagesz) {
-		addr = (caddr_t)roundup2((long)pagepool_start, pagesz);
+		addr = roundup2(pagepool_start, pagesz);
 		if (munmap(addr, pagepool_end - addr) != 0) {
 #ifdef IN_RTLD
 			rtld_fdprintf(STDERR_FILENO, _BASENAME_RTLD ": "
@@ -269,8 +269,8 @@ morepages(int n)
 		}
 	}
 
-	offset = (long)pagepool_start - rounddown2((long)pagepool_start,
-	    pagesz);
+	offset = (uintptr_t)pagepool_start - rounddown2(
+	    (uintptr_t)pagepool_start, pagesz);
 
 	pagepool_start = mmap(0, n * pagesz, PROT_READ | PROT_WRITE,
 	    MAP_ANON | MAP_PRIVATE, -1, 0);
