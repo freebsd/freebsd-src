@@ -45,10 +45,11 @@
 .Op Cm ,threads= Ar n
 .Oc
 .Sm on
-.Oo Fl G
+.Oo
 .Sm off
+.Fl G\~
 .Oo Ar w Oc
-.Oo Ar bind_address: Oc
+.Oo Ar bind_address Cm \&: Oc
 .Ar port
 .Sm on
 .Oc
@@ -58,8 +59,8 @@
 .Ar lpcdev Op Cm \&, Ar conf
 .Sm on
 .Oc
-.Oo Fl m
 .Sm off
+.Oo Fl m\~
 .Ar memsize
 .Oo
 .Cm K | Cm k | Cm M | Cm m | Cm G | Cm g | Cm T | Cm t
@@ -146,7 +147,7 @@ This is intended for debug purposes.
 .It Fl G Xo
 .Sm off
 .Oo Ar w Oc
-.Oo Ar bind_address: Oc
+.Oo Ar bind_address Cm \&: Oc
 .Ar port
 .Sm on
 .Xc
