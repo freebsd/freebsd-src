@@ -11,7 +11,9 @@ PACKAGE=	clibs
 MK_PIE=		no # Always position independent using local rules
 MK_SSP=		no
 
+.if !defined(NEED_COMPAT)
 CONFS=		libmap.conf
+.endif
 PROG?=		ld-elf.so.1
 .if (${PROG:M*ld-elf32*} != "")
 TAGS+=		lib32
