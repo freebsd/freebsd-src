@@ -69,6 +69,7 @@ PF_NV_DEF_UINT(uint16, uint16_t, UINT16_MAX);
 PF_NV_DEF_UINT(uint32, uint32_t, UINT32_MAX);
 PF_NV_DEF_UINT(uint64, uint64_t, UINT64_MAX);
 
+int	pf_nvbool(const nvlist_t *, const char *, bool *);
 int	pf_nvbinary(const nvlist_t *, const char *, void *, size_t);
 int	pf_nvint(const nvlist_t *, const char *, int *);
 int	pf_nvstring(const nvlist_t *, const char *, char *, size_t);
