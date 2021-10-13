@@ -208,6 +208,11 @@ struct ktls_session {
 	struct task reset_tag_task;
 	struct inpcb *inp;
 	bool reset_pending;
+	bool sequential_records;
+
+	/* Only used for TLS 1.0. */
+	uint64_t next_seqno;
+	STAILQ_HEAD(, mbuf) pending_records;
 } __aligned(CACHE_LINE_SIZE);
 
 void ktls_check_rx(struct sockbuf *sb);
