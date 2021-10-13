@@ -150,7 +150,7 @@ static int nfsrpc_locku(struct nfsrv_descript *, struct nfsmount *,
 static int nfsrpc_setaclrpc(vnode_t, struct ucred *, NFSPROC_T *,
     struct acl *, nfsv4stateid_t *, void *);
 static int nfsrpc_getlayout(struct nfsmount *, vnode_t, struct nfsfh *, int,
-    uint32_t *, nfsv4stateid_t *, uint64_t, struct nfscllayout **,
+    uint32_t, uint32_t *, nfsv4stateid_t *, uint64_t, struct nfscllayout **,
     struct ucred *, NFSPROC_T *);
 static int nfsrpc_fillsa(struct nfsmount *, struct sockaddr_in *,
     struct sockaddr_in6 *, sa_family_t, int, int, struct nfsclds **,
@@ -5684,8 +5684,8 @@ nfsmout:
  */
 static int
 nfsrpc_getlayout(struct nfsmount *nmp, vnode_t vp, struct nfsfh *nfhp,
-    int iomode, uint32_t *notifybitsp, nfsv4stateid_t *stateidp, uint64_t off,
-    struct nfscllayout **lypp, struct ucred *cred, NFSPROC_T *p)
+    int iomode, uint32_t rw, uint32_t *notifybitsp, nfsv4stateid_t *stateidp,
+    uint64_t off, struct nfscllayout **lypp, struct ucred *cred, NFSPROC_T *p)
 {
 	struct nfscllayout *lyp;
 	struct nfsclflayout *flp;
@@ -5705,7 +5705,7 @@ nfsrpc_getlayout(struct nfsmount *nmp, vnode_t vp, struct nfsfh *nfhp,
 	 * flp == NULL.
 	 */
 	lyp = nfscl_getlayout(nmp->nm_clp, nfhp->nfh_fh, nfhp->nfh_len,
-	    off, &flp, &recalled);
+	    off, rw, &flp, &recalled);
 	islocked = 0;
 	if (lyp == NULL || flp == NULL) {
 		if (recalled != 0)
@@ -6036,7 +6036,7 @@ nfscl_doiods(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 	/* Search for a layout for this file. */
 	off = uiop->uio_offset;
 	layp = nfscl_getlayout(nmp->nm_clp, np->n_fhp->nfh_fh,
-	    np->n_fhp->nfh_len, off, &rflp, &recalled);
+	    np->n_fhp->nfh_len, off, rwaccess, &rflp, &recalled);
 	if (layp == NULL || rflp == NULL) {
 		if (recalled != 0) {
 			NFSFREECRED(newcred);
@@ -6054,7 +6054,7 @@ nfscl_doiods(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 		else
 			iolaymode = NFSLAYOUTIOMODE_READ;
 		error = nfsrpc_getlayout(nmp, vp, np->n_fhp, iolaymode,
-		    NULL, &stateid, off, &layp, newcred, p);
+		    rwaccess, NULL, &stateid, off, &layp, newcred, p);
 		if (error != 0) {
 			NFSLOCKNODE(np);
 			np->n_flag |= NNOLAYOUT;
@@ -7740,7 +7740,7 @@ nfsrpc_getopenlayout(struct nfsmount *nmp, vnode_t vp, u_int8_t *nfhp,
 	 * on it, iff flp != NULL or a lock (exclusive lock) on it iff
 	 * flp == NULL.
 	 */
-	lyp = nfscl_getlayout(nmp->nm_clp, newfhp, newfhlen, 0, &flp,
+	lyp = nfscl_getlayout(nmp->nm_clp, newfhp, newfhlen, 0, mode, &flp,
 	    &recalled);
 	NFSCL_DEBUG(4, "nfsrpc_getopenlayout nfscl_getlayout lyp=%p\n", lyp);
 	if (lyp == NULL)

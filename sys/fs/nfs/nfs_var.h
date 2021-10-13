@@ -637,7 +637,7 @@ int nfscl_layout(struct nfsmount *, vnode_t, u_int8_t *, int, nfsv4stateid_t *,
     int, int, struct nfsclflayouthead *, struct nfscllayout **, struct ucred *,
     NFSPROC_T *);
 struct nfscllayout *nfscl_getlayout(struct nfsclclient *, uint8_t *, int,
-    uint64_t, struct nfsclflayout **, int *);
+    uint64_t, uint32_t, struct nfsclflayout **, int *);
 void nfscl_dserr(uint32_t, uint32_t, struct nfscldevinfo *,
     struct nfscllayout *, struct nfsclds *);
 void nfscl_cancelreqs(struct nfsclds *);
