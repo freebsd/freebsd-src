@@ -12,7 +12,7 @@ CLEANFILES+=		${AZURE_UPLOAD_TGTS}
 
 .if defined(AZURE_UPLOAD_CONF) && !empty(AZURE_UPLOAD_CONF)
 . for VAR in _STORAGE _ACCOUNT _RESOURCEGROUP _KEY _LOCATION
-AZURE${VAR}!=	grep -E ^AZURE${VAR}= ${AZURE_UPLOAD_CONF} | awk '{print $$2}'
+AZURE${VAR}!=	grep -E '^AZURE${VAR}' ${AZURE_UPLOAD_CONF} | awk -F '	' '{print $$2}'
 . endfor
 .endif
 
