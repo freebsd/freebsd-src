@@ -38,6 +38,7 @@ ATF_TESTS_SH+=	altq \
 
 ${PACKAGE}FILES+=	CVE-2019-5597.py \
 			CVE-2019-5598.py \
+			daytime_inetd.conf \
 			echo_inetd.conf \
 			fragcommon.py \
 			frag-overindex.py \

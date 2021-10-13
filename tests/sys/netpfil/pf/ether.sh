@@ -295,6 +295,86 @@ captive_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "captive_long" "cleanup"
+captive_long_head()
+{
+	atf_set descr 'More complex captive portal setup'
+	atf_set require.user root
+}
+
+captive_long_body()
+{
+	# Host is client, jail 'gw' is the captive portal gateway, jail 'srv'
+	# is a random (web)server. We use the echo protocol rather than http
+	# for the test, because that's easier.
+	pft_init
+
+	if ! kldstat -q -m dummynet; then
+		atf_skip "This test requires dummynet"
+	fi
+
+	epair_gw=$(vnet_mkepair)
+	epair_srv=$(vnet_mkepair)
+	epair_gw_a_mac=$(ifconfig ${epair_gw}a ether | awk '/ether/ { print $2; }')
+
+	vnet_mkjail gw ${epair_gw}b ${epair_srv}a
+	vnet_mkjail srv ${epair_srv}b
+
+	ifconfig ${epair_gw}a 192.0.2.2/24 up
+	route add -net 198.51.100.0/24 192.0.2.1
+	jexec gw ifconfig ${epair_gw}b 192.0.2.1/24 up
+	jexec gw ifconfig lo0 127.0.0.1/8 up
+	jexec gw sysctl net.inet.ip.forwarding=1
+
+	jexec gw ifconfig ${epair_srv}a 198.51.100.1/24 up
+	jexec srv ifconfig ${epair_srv}b 198.51.100.2/24 up
+	jexec srv route add -net 192.0.2.0/24 198.51.100.1
+
+	jexec gw dnctl pipe 1 config bw 300KByte/s
+
+	# Sanity check
+	atf_check -s exit:0 -o ignore ping -c 1 -t 1 198.51.100.2
+
+	pft_set_rules gw \
+		"ether anchor \"captiveportal\" on { ${epair_gw}b } {" \
+			"ether pass quick proto { 0x0806, 0x8035, 0x888e, 0x88c7, 0x8863, 0x8864 }" \
+			"ether pass tag \"captive\"" \
+		"}" \
+		"rdr on ${epair_gw}b proto tcp to port daytime tagged captive -> 127.0.0.1 port echo"
+	jexec gw pfctl -e
+
+	# ICMP should still work, because we don't redirect it.
+	atf_check -s exit:0 -o ignore ping -c 1 -t 1 198.51.100.2
+
+	jexec gw /usr/sbin/inetd -p gw.pid $(atf_get_srcdir)/echo_inetd.conf
+	jexec srv /usr/sbin/inetd -p srv.pid $(atf_get_srcdir)/daytime_inetd.conf
+
+	echo foo | nc -N 198.51.100.2 13
+
+	# Confirm that we're getting redirected
+	atf_check -s exit:0 -o match:"^foo$" -x "echo foo | nc -N 198.51.100.2 13"
+
+	# Now update the rules to allow our client to pass without redirect
+	pft_set_rules gw \
+		"ether anchor \"captiveportal\" on { ${epair_gw}b } {" \
+			"ether pass quick proto { 0x0806, 0x8035, 0x888e, 0x88c7, 0x8863, 0x8864 }" \
+			"ether pass quick from { ${epair_gw_a_mac} } dnpipe 1" \
+			"ether pass tag \"captive\"" \
+		"}" \
+		"rdr on ${epair_gw}b proto tcp to port daytime tagged captive -> 127.0.0.1 port echo"
+
+	# We're not being redirected and get datime information now
+	atf_check -s exit:0 -o match:"^(Mon|Tue|Wed|Thu|Fri|Sat|Sun)" -x "echo foo | nc -N 198.51.100.2 13"
+
+	jexec gw killall inetd
+	jexec srv killall inetd
+}
+
+captive_long_cleanup()
+{
+	pft_cleanup
+}
+
 atf_test_case "dummynet" "cleanup"
 dummynet_head()
 {
@@ -404,6 +484,7 @@ atf_init_test_cases()
 	atf_add_test_case "proto"
 	atf_add_test_case "direction"
 	atf_add_test_case "captive"
+	atf_add_test_case "captive_long"
 	atf_add_test_case "dummynet"
 	atf_add_test_case "anchor"
 }
