@@ -74,9 +74,6 @@ static MALLOC_DEFINE(M_XENINTR, "xen_intr", "Xen Interrupt Services");
  * Lock for x86-related structures.  Notably modifying
  * xen_intr_auto_vector_count, and allocating interrupts require this lock be
  * held.
- *
- * ->xi_type == EVTCHN_TYPE_UNBOUND indicates a xenisrc is under control of
- * this lock and operations require it be held.
  */
 static struct mtx	xen_intr_x86_lock;
 
@@ -165,6 +162,18 @@ static struct mtx	 xen_intr_isrc_lock;
 static u_int		 xen_intr_auto_vector_count;
 static struct xenisrc	*xen_intr_port_to_isrc[NR_EVENT_CHANNELS];
 
+/*
+ * list of released isrcs
+ * This is meant to overlay struct xenisrc, with only the xen_arch_isrc_t
+ * portion being preserved, everything else can be wiped.
+ */
+struct avail_list {
+	xen_arch_isrc_t preserve;
+	SLIST_ENTRY(avail_list) free;
+};
+static SLIST_HEAD(free, avail_list) avail_list =
+    SLIST_HEAD_INITIALIZER(avail_list);
+
 /*------------------------- Private Functions --------------------------------*/
 
 /**
@@ -243,48 +252,6 @@ evtchn_cpu_unmask_port(u_int cpu, evtchn_port_t port)
 }
 
 /**
- * Search for an already allocated but currently unused Xen interrupt
- * source object.
- *
- * \param type  Restrict the search to interrupt sources of the given
- *              type.
- *
- * \return  A pointer to a free Xen interrupt source object or NULL.
- */
-static struct xenisrc *
-xen_intr_find_unused_isrc(enum evtchn_type type)
-{
-	int isrc_idx;
-
-	mtx_assert(&xen_intr_x86_lock, MA_OWNED);
-
-	for (isrc_idx = 0; isrc_idx < xen_intr_auto_vector_count; isrc_idx ++) {
-		struct xenisrc *isrc;
-		u_int vector;
-
-		vector = first_evtchn_irq + isrc_idx;
-		isrc = (struct xenisrc *)intr_lookup_source(vector);
-		/*
-		 * Since intr_register_source() must be called while unlocked,
-		 * isrc == NULL *will* occur, though very infrequently.
-		 *
-		 * This also allows a very small gap where a foreign intrusion
-		 * into Xen's interrupt range could be examined by this test.
-		 */
-		if (__predict_true(isrc != NULL) &&
-		    __predict_true(isrc->xi_arch.intsrc.is_pic ==
-		    &xen_intr_pic) &&
-		    isrc->xi_type == EVTCHN_TYPE_UNBOUND) {
-			KASSERT(isrc->xi_arch.intsrc.is_handlers == 0,
-			    ("Free evtchn still has handlers"));
-			isrc->xi_type = type;
-			return (isrc);
-		}
-	}
-	return (NULL);
-}
-
-/**
  * Allocate a Xen interrupt source object.
  *
  * \param type  The type of interrupt source to create.
@@ -301,9 +268,18 @@ xen_intr_alloc_isrc(enum evtchn_type type)
 	int error;
 
 	mtx_lock(&xen_intr_x86_lock);
-	isrc = xen_intr_find_unused_isrc(type);
+	isrc = (struct xenisrc *)SLIST_FIRST(&avail_list);
 	if (isrc != NULL) {
+		SLIST_REMOVE_HEAD(&avail_list, free);
 		mtx_unlock(&xen_intr_x86_lock);
+
+		KASSERT(isrc->xi_arch.intsrc.is_pic == &xen_intr_pic,
+		    ("interrupt not owned by Xen code?"));
+
+		KASSERT(isrc->xi_arch.intsrc.is_handlers == 0,
+		    ("Free evtchn still has handlers"));
+
+		isrc->xi_type = type;
 		return (isrc);
 	}
 
@@ -369,8 +345,14 @@ xen_intr_release_isrc(struct xenisrc *isrc)
 	/* not reachable from xen_intr_port_to_isrc[], unlock */
 	mtx_unlock(&xen_intr_isrc_lock);
 
+	_Static_assert(sizeof(struct xenisrc) >= sizeof(struct avail_list),
+	    "unused structure MUST be no larger than in-use structure");
+	_Static_assert(offsetof(struct xenisrc, xi_arch) ==
+	    offsetof(struct avail_list, preserve),
+	    "unused structure does not properly overlay in-use structure");
+
 	mtx_lock(&xen_intr_x86_lock);
-	isrc->xi_type = EVTCHN_TYPE_UNBOUND;
+	SLIST_INSERT_HEAD(&avail_list, (struct avail_list *)isrc, free);
 	mtx_unlock(&xen_intr_x86_lock);
 	return (0);
 }
