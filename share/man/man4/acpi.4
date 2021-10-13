@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 24, 2021
+.Dd October 12, 2021
 .Dt ACPI 4
 .Os
 .Sh NAME
@@ -86,7 +86,7 @@ should be set to
 .Li acpi
 if it is listed in
 .Va machdep.idle_available .
-.It Va hw.acpi.cpu.cx_supported
+.It Va dev.cpu.N.cx_supported
 List of supported CPU idle states and their transition latency
 in microseconds.
 Each state has a type (e.g.,
