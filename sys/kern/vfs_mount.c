@@ -1095,14 +1095,6 @@ vfs_domount_first(
 	ASSERT_VOP_ELOCKED(vp, __func__);
 	KASSERT((fsflags & MNT_UPDATE) == 0, ("MNT_UPDATE shouldn't be here"));
 
-	if ((fsflags & MNT_EMPTYDIR) != 0) {
-		error = vfs_emptydir(vp);
-		if (error != 0) {
-			vput(vp);
-			return (error);
-		}
-	}
-
 	/*
 	 * If the jail of the calling thread lacks permission for this type of
 	 * file system, or is trying to cover its own root, deny immediately.
@@ -1124,6 +1116,8 @@ vfs_domount_first(
 		error = vinvalbuf(vp, V_SAVE, 0, 0);
 	if (error == 0 && vp->v_type != VDIR)
 		error = ENOTDIR;
+	if (error == 0 && (fsflags & MNT_EMPTYDIR) != 0)
+		error = vfs_emptydir(vp);
 	if (error == 0) {
 		VI_LOCK(vp);
 		if ((vp->v_iflag & VI_MOUNT) == 0 && vp->v_mountedhere == NULL)
