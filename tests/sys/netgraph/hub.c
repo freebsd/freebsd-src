@@ -127,6 +127,11 @@ ATF_TC_BODY(loop, dummy)
 	int		i;
 	char		msg[] = "LOOP Alert!";
 
+#if defined(__riscv)
+	if (atf_tc_get_config_var_as_bool_wd(tc, "ci", false))
+		atf_tc_skip("https://bugs.freebsd.org/259157");
+#endif
+
 	ng_errors(PASS);
 	ng_shutdown("hub1:");
 	ng_shutdown("hub2:");
