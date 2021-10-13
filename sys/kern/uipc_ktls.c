@@ -522,6 +522,10 @@ ktls_create_session(struct socket *so, struct tls_enable *en,
 		}
 		if (en->auth_key_len == 0)
 			return (EINVAL);
+		if (en->tls_vminor != TLS_MINOR_VER_ZERO &&
+		    en->tls_vminor != TLS_MINOR_VER_ONE &&
+		    en->tls_vminor != TLS_MINOR_VER_TWO)
+			return (EINVAL);
 		break;
 	case CRYPTO_CHACHA20_POLY1305:
 		if (en->auth_algorithm != 0 || en->auth_key_len != 0)
