@@ -38,11 +38,11 @@
 #define __ASSEMBLY__
 #endif
 
-#include <xen/interface/xen.h>
+#include <contrib/xen/xen.h>
 
 #ifndef __ASSEMBLY__
 #include <xen/hvm.h>
-#include <xen/interface/event_channel.h>
+#include <contrib/xen/event_channel.h>
 
 static inline vm_paddr_t
 xen_get_xenstore_mfn(void)

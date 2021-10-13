@@ -13,14 +13,14 @@
 
 #include <sys/cdefs.h>
 #include <sys/systm.h>
-#include <xen/interface/xen.h>
-#include <xen/interface/platform.h>
-#include <xen/interface/event_channel.h>
-#include <xen/interface/physdev.h>
-#include <xen/interface/sched.h>
-#include <xen/interface/callback.h>
-#include <xen/interface/memory.h>
-#include <xen/interface/hvm/dm_op.h>
+#include <contrib/xen/xen.h>
+#include <contrib/xen/platform.h>
+#include <contrib/xen/event_channel.h>
+#include <contrib/xen/physdev.h>
+#include <contrib/xen/sched.h>
+#include <contrib/xen/callback.h>
+#include <contrib/xen/memory.h>
+#include <contrib/xen/hvm/dm_op.h>
 #include <machine/xen/hypercall.h>
 
 extern uint64_t get_system_time(int ticks);

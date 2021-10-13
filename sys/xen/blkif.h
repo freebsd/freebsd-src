@@ -23,9 +23,9 @@
 #ifndef __XEN_BLKIF_H__
 #define __XEN_BLKIF_H__
 
-#include <xen/interface/io/ring.h>
-#include <xen/interface/io/blkif.h>
-#include <xen/interface/io/protocols.h>
+#include <contrib/xen/io/ring.h>
+#include <contrib/xen/io/blkif.h>
+#include <contrib/xen/io/protocols.h>
 
 /* Not a real protocol.  Used to generate ring structs which contain
  * the elements common to all protocols only.  This way we get a

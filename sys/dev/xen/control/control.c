@@ -148,8 +148,8 @@ __FBSDID("$FreeBSD$");
 
 #include <xen/hvm.h>
 
-#include <xen/interface/event_channel.h>
-#include <xen/interface/grant_table.h>
+#include <contrib/xen/event_channel.h>
+#include <contrib/xen/grant_table.h>
 
 #include <xen/xenbus/xenbusvar.h>
 

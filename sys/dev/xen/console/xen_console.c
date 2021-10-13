@@ -54,7 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <xen/xen-os.h>
 #include <xen/hypervisor.h>
 #include <xen/xen_intr.h>
-#include <xen/interface/io/console.h>
+#include <contrib/xen/io/console.h>
 
 #include "opt_ddb.h"
 #include "opt_printf.h"

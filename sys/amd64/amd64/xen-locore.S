@@ -38,7 +38,7 @@
 
 #include <xen/xen-os.h>
 #define __ASSEMBLY__
-#include <xen/interface/elfnote.h>
+#include <contrib/xen/elfnote.h>
 
 #include "assym.inc"
 

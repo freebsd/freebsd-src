@@ -53,8 +53,8 @@ __FBSDID("$FreeBSD$");
 #include <xen/hypervisor.h>
 #include <xen/xen_intr.h>
 #include <xen/gnttab.h>
-#include <xen/interface/grant_table.h>
-#include <xen/interface/io/protocols.h>
+#include <contrib/xen/grant_table.h>
+#include <contrib/xen/io/protocols.h>
 #include <xen/xenbus/xenbusvar.h>
 
 #include <machine/_inttypes.h>

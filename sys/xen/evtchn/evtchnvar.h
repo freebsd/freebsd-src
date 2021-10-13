@@ -35,7 +35,7 @@
 #define __XEN_EVTCHN_EVTCHNVAR_H__
 
 #include <xen/hypervisor.h>
-#include <xen/interface/event_channel.h>
+#include <contrib/xen/event_channel.h>
 
 enum evtchn_type {
 	EVTCHN_TYPE_UNBOUND,
