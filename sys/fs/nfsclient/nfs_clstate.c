@@ -4607,6 +4607,8 @@ nfscl_removedeleg(vnode_t vp, NFSPROC_T *p, nfsv4stateid_t *stp)
 	int igotlock = 0, triedrecall = 0, needsrecall, retcnt = 0, islept;
 
 	nmp = VFSTONFS(vp->v_mount);
+	if (NFSHASPNFS(nmp))
+		return (retcnt);
 	NFSLOCKMNT(nmp);
 	if ((nmp->nm_privflag & NFSMNTP_DELEGISSUED) == 0) {
 		NFSUNLOCKMNT(nmp);
@@ -4712,6 +4714,8 @@ nfscl_renamedeleg(vnode_t fvp, nfsv4stateid_t *fstp, int *gotfdp, vnode_t tvp,
 	nmp = VFSTONFS(fvp->v_mount);
 	*gotfdp = 0;
 	*gottdp = 0;
+	if (NFSHASPNFS(nmp))
+		return (retcnt);
 	NFSLOCKCLSTATE();
 	/*
 	 * Loop around waiting for:
