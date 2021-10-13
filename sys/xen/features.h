@@ -9,7 +9,7 @@
 #ifndef __ASM_XEN_FEATURES_H__
 #define __ASM_XEN_FEATURES_H__
 
-#include <xen/interface/version.h>
+#include <contrib/xen/version.h>
 
 extern void setup_xen_features(void);
 

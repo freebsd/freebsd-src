@@ -58,9 +58,9 @@ __FBSDID("$FreeBSD$");
 #include <xen/hvm.h>
 #include <xen/xen_intr.h>
 
-#include <xen/interface/arch-x86/cpuid.h>
-#include <xen/interface/hvm/params.h>
-#include <xen/interface/vcpu.h>
+#include <contrib/xen/arch-x86/cpuid.h>
+#include <contrib/xen/hvm/params.h>
+#include <contrib/xen/vcpu.h>
 
 /*--------------------------- Forward Declarations ---------------------------*/
 static void xen_hvm_cpu_init(void);

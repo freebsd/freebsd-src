@@ -33,7 +33,7 @@
 #ifndef _XEN_INTR_H_
 #define _XEN_INTR_H_
 
-#include <xen/interface/event_channel.h>
+#include <contrib/xen/event_channel.h>
 
 /** Registered Xen interrupt callback handle. */
 typedef void * xen_intr_handle_t;

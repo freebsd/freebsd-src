@@ -41,7 +41,7 @@
 #include <xen/hypervisor.h>
 #include <xen/features.h>
 
-#include <xen/interface/grant_table.h>
+#include <contrib/xen/grant_table.h>
 
 #define GNTTAB_LIST_END GRANT_REF_INVALID
 

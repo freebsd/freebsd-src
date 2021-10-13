@@ -41,7 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <xen/error.h>
 #include <xen/hypervisor.h>
 
-#include <xen/interface/platform.h>
+#include <contrib/xen/platform.h>
 
 extern char bootmethod[16];
 

@@ -26,12 +26,12 @@
 #include <xen/xen-os.h>
 #include <xen/hypervisor.h>
 
-#include <xen/interface/hvm/params.h>
+#include <contrib/xen/hvm/params.h>
 
 /**
  * \brief Wrapper function to obtain a HVM parameter value.
  *
- * \param index	HVM parameter index; see <xen/interface/hvm/params.h>.
+ * \param index	HVM parameter index; see <contrib/xen/hvm/params.h>.
  * 
  * \returns	0 on failure; the value of the parameter otherwise.
  */

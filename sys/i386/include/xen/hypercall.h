@@ -31,8 +31,8 @@
 #define __HYPERCALL_H__
 
 #include <sys/systm.h>
-#include <xen/interface/xen.h>
-#include <xen/interface/sched.h>
+#include <contrib/xen/xen.h>
+#include <contrib/xen/sched.h>
 
 extern char *hypercall_page;
 

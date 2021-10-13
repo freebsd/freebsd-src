@@ -45,9 +45,9 @@
 #include <machine/stdarg.h>
 
 #include <xen/xen-os.h>
-#include <xen/interface/grant_table.h>
-#include <xen/interface/io/xenbus.h>
-#include <xen/interface/io/xs_wire.h>
+#include <contrib/xen/grant_table.h>
+#include <contrib/xen/io/xenbus.h>
+#include <contrib/xen/io/xs_wire.h>
 
 #include <xen/xenstore/xenstorevar.h>
 

@@ -29,7 +29,7 @@
 #ifndef __XEN_ERROR_H__
 #define __XEN_ERROR_H__
 
-#include <xen/interface/errno.h>
+#include <contrib/xen/errno.h>
 
 /* Translation table */
 static int xen_errors[] =

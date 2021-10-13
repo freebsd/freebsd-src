@@ -82,7 +82,7 @@ __FBSDID("$FreeBSD$");
 #include <xen/xen-os.h>
 #include <xen/hypervisor.h>
 #include <xen/xen_intr.h>
-#include <xen/interface/io/netif.h>
+#include <contrib/xen/io/netif.h>
 #include <xen/xenbus/xenbusvar.h>
 
 /*--------------------------- Compile-time Tunables --------------------------*/

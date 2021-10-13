@@ -80,8 +80,8 @@ __FBSDID("$FreeBSD$");
 #include <xen/gnttab.h>
 #include <xen/xen_intr.h>
 
-#include <xen/interface/event_channel.h>
-#include <xen/interface/grant_table.h>
+#include <contrib/xen/event_channel.h>
+#include <contrib/xen/grant_table.h>
 
 #include <xen/xenbus/xenbusvar.h>
 
@@ -1280,7 +1280,7 @@ bailout_error:
  * \param xbb     Per-instance xbb configuration structure.
  * \param req     The request structure to which to respond.
  * \param status  The status code to report.  See BLKIF_RSP_*
- *                in sys/xen/interface/io/blkif.h.
+ *                in sys/contrib/xen/io/blkif.h.
  */
 static void
 xbb_queue_response(struct xbb_softc *xbb, struct xbb_xen_req *req, int status)
