@@ -100,6 +100,17 @@ __FBSDID("$FreeBSD$");
 	}
 
 int
+pf_nvbool(const nvlist_t *nvl, const char *name, bool *val)
+{
+	if (! nvlist_exists_bool(nvl, name))
+		return (EINVAL);
+
+	*val = nvlist_get_bool(nvl, name);
+
+	return (0);
+}
+
+int
 pf_nvbinary(const nvlist_t *nvl, const char *name, void *data,
     size_t expected_size)
 {
@@ -844,8 +855,7 @@ pf_nvstate_kill_to_kstate_kill(const nvlist_t *nvl,
 	    sizeof(kill->psk_ifname)));
 	PFNV_CHK(pf_nvstring(nvl, "label", kill->psk_label,
 	    sizeof(kill->psk_label)));
-	if (nvlist_exists_bool(nvl, "kill_match"))
-		kill->psk_kill_match = nvlist_get_bool(nvl, "kill_match");
+	PFNV_CHK(pf_nvbool(nvl, "kill_match", &kill->psk_kill_match));
 
 errout:
 	return (error);
