@@ -6276,6 +6276,7 @@ vfs_emptydir(struct vnode *vp)
 	eof = 0;
 
 	ASSERT_VOP_LOCKED(vp, "vfs_emptydir");
+	VNASSERT(vp->v_type == VDIR, vp, ("vp is not a directory"));
 
 	dirent = malloc(sizeof(struct dirent), M_TEMP, M_WAITOK);
 	iov.iov_base = dirent;
