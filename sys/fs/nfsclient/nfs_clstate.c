@@ -5141,7 +5141,8 @@ nfscl_layout(struct nfsmount *nmp, vnode_t vp, u_int8_t *fhp, int fhlen,
  */
 struct nfscllayout *
 nfscl_getlayout(struct nfsclclient *clp, uint8_t *fhp, int fhlen,
-    uint64_t off, struct nfsclflayout **retflpp, int *recalledp)
+    uint64_t off, uint32_t rwaccess, struct nfsclflayout **retflpp,
+    int *recalledp)
 {
 	struct nfscllayout *lyp;
 	mount_t mp;
@@ -5157,8 +5158,8 @@ nfscl_getlayout(struct nfsclclient *clp, uint8_t *fhp, int fhlen,
 			TAILQ_REMOVE(&clp->nfsc_layout, lyp, nfsly_list);
 			TAILQ_INSERT_HEAD(&clp->nfsc_layout, lyp, nfsly_list);
 			lyp->nfsly_timestamp = NFSD_MONOSEC + 120;
-			error = nfscl_findlayoutforio(lyp, off,
-			    NFSV4OPEN_ACCESSREAD, retflpp);
+			error = nfscl_findlayoutforio(lyp, off, rwaccess,
+			    retflpp);
 			if (error == 0)
 				nfsv4_getref(&lyp->nfsly_lock, NULL,
 				    NFSCLSTATEMUTEXPTR, mp);
