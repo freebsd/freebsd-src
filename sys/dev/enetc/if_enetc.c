@@ -150,6 +150,14 @@ static device_method_t enetc_methods[] = {
 	DEVMETHOD(miibus_linkchg,	enetc_miibus_linkchg),
 	DEVMETHOD(miibus_statchg,	enetc_miibus_statchg),
 
+	DEVMETHOD(bus_setup_intr,		bus_generic_setup_intr),
+	DEVMETHOD(bus_teardown_intr,		bus_generic_teardown_intr),
+	DEVMETHOD(bus_release_resource,		bus_generic_release_resource),
+	DEVMETHOD(bus_activate_resource,	bus_generic_activate_resource),
+	DEVMETHOD(bus_deactivate_resource,	bus_generic_deactivate_resource),
+	DEVMETHOD(bus_adjust_resource,		bus_generic_adjust_resource),
+	DEVMETHOD(bus_alloc_resource,		bus_generic_alloc_resource),
+
 	DEVMETHOD_END
 };
 
@@ -158,7 +166,7 @@ static driver_t enetc_driver = {
 };
 
 static devclass_t enetc_devclass;
-DRIVER_MODULE(miibus, enetc, miibus_driver, miibus_devclass, NULL, NULL);
+DRIVER_MODULE(miibus, enetc, miibus_fdt_driver, miibus_fdt_devclass, NULL, NULL);
 /* Make sure miibus gets procesed first. */
 DRIVER_MODULE_ORDERED(enetc, pci, enetc_driver, enetc_devclass, NULL, NULL,
     SI_ORDER_ANY);
