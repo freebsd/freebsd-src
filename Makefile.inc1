@@ -2544,6 +2544,10 @@ NXBMAKEARGS+= \
 	MK_WARNS=no \
 	MK_ZFS=no
 
+# This should match all of the knobs in lib/Makefile that it takes to avoid
+# descending into lib/clang!
+NXBTNOTOOLS=	MK_CLANG=no MK_LLD=no MK_LLDB=no MK_LLVM_BINUTILS=no MK_GCC=no
+
 .if make(native-xtools*) && \
     (!defined(NXB_TARGET) || !defined(NXB_TARGET_ARCH))
 .error Missing NXB_TARGET / NXB_TARGET_ARCH
@@ -2588,8 +2592,8 @@ native-xtools: .PHONY
 	# polluting the cross-compiler build.  The LLVM/GCC libs are skipped
 	# here to avoid the problem but are kept in 'toolchain' so that
 	# needed build tools are built.
-	${_+_}cd ${.CURDIR}; ${NXBTMAKE} _includes MK_CLANG=no MK_GCC=no
-	${_+_}cd ${.CURDIR}; ${NXBTMAKE} _libraries MK_CLANG=no MK_GCC=no
+	${_+_}cd ${.CURDIR}; ${NXBTMAKE} _includes ${NXBTNOTOOLS}
+	${_+_}cd ${.CURDIR}; ${NXBTMAKE} _libraries ${NXBTNOTOOLS}
 	# Clean out improper TARGET=MACHINE files
 	${_+_}cd ${.CURDIR}/gnu/usr.bin/cc/cc_tools; ${NXBTMAKE} cleandir
 .if !defined(NO_OBJWALK)
