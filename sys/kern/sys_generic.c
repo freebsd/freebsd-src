@@ -1794,10 +1794,10 @@ selsocket(struct socket *so, int events, struct timeval *tvp, struct thread *td)
 	 */
 	for (;;) {
 		selfdalloc(td, NULL);
-		error = sopoll(so, events, NULL, td);
-		/* error here is actually the ready events. */
-		if (error)
-			return (0);
+		if (sopoll(so, events, NULL, td) != 0) {
+			error = 0;
+			break;
+		}
 		error = seltdwait(td, asbt, precision);
 		if (error)
 			break;
