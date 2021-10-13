@@ -672,6 +672,9 @@ kern_proc_setrlimit(struct thread *td, struct proc *p, u_int which,
 	if (limp->rlim_max < 0)
 		limp->rlim_max = RLIM_INFINITY;
 
+	if (which == RLIMIT_STACK && limp->rlim_cur != RLIM_INFINITY)
+		limp->rlim_cur += p->p_vmspace->vm_stkgap;
+
 	oldssiz.rlim_cur = 0;
 	newlim = lim_alloc();
 	PROC_LOCK(p);

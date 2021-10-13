@@ -2892,7 +2892,7 @@ __elfN(untrans_prot)(vm_prot_t prot)
 	return (flags);
 }
 
-void
+vm_size_t
 __elfN(stackgap)(struct image_params *imgp, uintptr_t *stack_base)
 {
 	uintptr_t range, rbase, gap;
@@ -2900,7 +2900,7 @@ __elfN(stackgap)(struct image_params *imgp, uintptr_t *stack_base)
 
 	pct = __elfN(aslr_stack_gap);
 	if (pct == 0)
-		return;
+		return (0);
 	if (pct > 50)
 		pct = 50;
 	range = imgp->eff_stack_sz * pct / 100;
@@ -2908,4 +2908,5 @@ __elfN(stackgap)(struct image_params *imgp, uintptr_t *stack_base)
 	gap = rbase % range;
 	gap &= ~(sizeof(u_long) - 1);
 	*stack_base -= gap;
+	return (gap);
 }
