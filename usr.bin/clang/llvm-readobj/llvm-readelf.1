@@ -1,0 +1,272 @@
+.\" Man page generated from reStructuredText.
+.
+.
+.nr rst2man-indent-level 0
+.
+.de1 rstReportMargin
+\\$1 \\n[an-margin]
+level \\n[rst2man-indent-level]
+level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
+-
+\\n[rst2man-indent0]
+\\n[rst2man-indent1]
+\\n[rst2man-indent2]
+..
+.de1 INDENT
+.\" .rstReportMargin pre:
+. RS \\$1
+. nr rst2man-indent\\n[rst2man-indent-level] \\n[an-margin]
+. nr rst2man-indent-level +1
+.\" .rstReportMargin post:
+..
+.de UNINDENT
+. RE
+.\" indent \\n[an-margin]
+.\" old: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.nr rst2man-indent-level -1
+.\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.in \\n[rst2man-indent\\n[rst2man-indent-level]]u
+..
+.TH "LLVM-READELF" "1" "2021-09-22" "12" "LLVM"
+.SH NAME
+llvm-readelf \- GNU-style LLVM Object Reader
+.SH SYNOPSIS
+.sp
+\fBllvm\-readelf\fP [\fIoptions\fP] [\fIinput...\fP]
+.SH DESCRIPTION
+.sp
+The \fBllvm\-readelf\fP tool displays low\-level format\-specific information
+about one or more object files.
+.sp
+If \fBinput\fP is "\fB\-\fP", \fBllvm\-readelf\fP reads from standard
+input. Otherwise, it will read from the specified \fBfilenames\fP\&.
+.SH OPTIONS
+.INDENT 0.0
+.TP
+.B \-\-all
+Equivalent to specifying all the main display options.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-addrsig
+Display the address\-significance table.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-arch\-specific, \-A
+Display architecture\-specific information, e.g. the ARM attributes section on ARM.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-color
+Use colors in the output for warnings and errors.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-demangle, \-C
+Display demangled symbol names in the output.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-dyn\-relocations
+Display the dynamic relocation entries.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-dyn\-symbols, \-\-dyn\-syms
+Display the dynamic symbol table.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-dynamic\-table, \-\-dynamic, \-d
+Display the dynamic table.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-cg\-profile
+Display the callgraph profile section.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-elf\-hash\-histogram, \-\-histogram, \-I
+Display a bucket list histogram for dynamic symbol hash tables.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-elf\-linker\-options
+Display the linker options section.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-elf\-output\-style=<value>
+Format ELF information in the specified style. Valid options are \fBLLVM\fP and
+\fBGNU\fP\&. \fBLLVM\fP output is an expanded and structured format, whilst \fBGNU\fP
+(the default) output mimics the equivalent GNU \fBreadelf\fP output.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-elf\-section\-groups, \-\-section\-groups, \-g
+Display section groups.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-expand\-relocs
+When used with \fI\%\-\-relocations\fP, display each relocation in an expanded
+multi\-line format.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-file\-headers, \-h
+Display file headers.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-gnu\-hash\-table
+Display the GNU hash table for dynamic symbols.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-hash\-symbols
+Display the expanded hash table with dynamic symbol data.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-hash\-table
+Display the hash table for dynamic symbols.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-headers, \-e
+Equivalent to setting: \fI\%\-\-file\-headers\fP, \fI\%\-\-program\-headers\fP,
+and \fI\%\-\-sections\fP\&.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-help
+Display a summary of command line options.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-help\-list
+Display an uncategorized summary of command line options.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-hex\-dump=<section[,section,...]>, \-x
+Display the specified section(s) as hexadecimal bytes. \fBsection\fP may be a
+section index or section name.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-needed\-libs
+Display the needed libraries.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-notes, \-n
+Display all notes.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-program\-headers, \-\-segments, \-l
+Display the program headers.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-raw\-relr
+Do not decode relocations in RELR relocation sections when displaying them.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-relocations, \-\-relocs, \-r
+Display the relocation entries in the file.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-sections, \-\-section\-headers, \-S
+Display all sections.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-section\-data
+When used with \fI\%\-\-sections\fP, display section data for each section
+shown. This option has no effect for GNU style output.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-section\-details, \-t
+Display all section details. Used as an alternative to \fI\%\-\-sections\fP\&.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-section\-mapping
+Display the section to segment mapping.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-section\-relocations
+When used with \fI\%\-\-sections\fP, display relocations for each section
+shown. This option has no effect for GNU style output.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-section\-symbols
+When used with \fI\%\-\-sections\fP, display symbols for each section shown.
+This option has no effect for GNU style output.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-stackmap
+Display contents of the stackmap section.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-stack\-sizes
+Display the contents of the stack sizes section(s), i.e. pairs of function
+names and the size of their stack frames. Currently only implemented for GNU
+style output.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-string\-dump=<section[,section,...]>, \-p
+Display the specified section(s) as a list of strings. \fBsection\fP may be a
+section index or section name.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-symbols, \-\-syms, \-s
+Display the symbol table.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-unwind, \-u
+Display unwind information.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-version
+Display the version of the \fBllvm\-readelf\fP executable.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-version\-info, \-V
+Display version sections.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B @<FILE>
+Read command\-line options from response file \fI<FILE>\fP\&.
+.UNINDENT
+.SH EXIT STATUS
+.sp
+\fBllvm\-readelf\fP returns 0 under normal operation. It returns a non\-zero
+exit code if there were any errors.
+.SH SEE ALSO
+.sp
+\fBllvm\-nm(1)\fP, \fBllvm\-objdump(1)\fP, \fBllvm\-readobj(1)\fP
+.SH AUTHOR
+Maintained by the LLVM Team (https://llvm.org/).
+.SH COPYRIGHT
+2003-2021, LLVM Project
+.\" Generated by docutils manpage writer.
+.

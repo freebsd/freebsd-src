@@ -15,6 +15,7 @@ SUBDIR+=	llvm-ar
 SUBDIR+=	llvm-nm
 SUBDIR+=	llvm-objcopy
 SUBDIR+=	llvm-objdump
+SUBDIR+=	llvm-readobj
 SUBDIR+=	llvm-size
 SUBDIR+=	llvm-strings
 SUBDIR+=	llvm-symbolizer
