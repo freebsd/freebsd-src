@@ -419,6 +419,15 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp,
 	if (ofw_bootargs)
 		ofw_parse_bootargs();
 
+#ifdef AIM
+	/*
+	 * Early I/O map needs to be initialized before console, in order to
+	 * map frame buffers properly, and after boot args have been parsed,
+	 * to handle tunables properly.
+	 */
+	pmap_early_io_map_init();
+#endif
+
 	/*
 	 * Initialize the console before printing anything.
 	 */

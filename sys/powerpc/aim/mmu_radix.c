@@ -907,7 +907,7 @@ kvtopte(vm_offset_t va)
 	pt_entry_t *l3e;
 
 	l3e = pmap_pml3e(kernel_pmap, va);
-	if ((be64toh(*l3e) & RPTE_VALID) == 0)
+	if (l3e == NULL || (be64toh(*l3e) & RPTE_VALID) == 0)
 		return (NULL);
 	return (pmap_l3e_to_pte(l3e, va));
 }
@@ -2070,12 +2070,6 @@ mmu_radix_late_bootstrap(vm_offset_t start, vm_offset_t end)
 	Maxmem = 0;
 	for (i = 0; phys_avail[i + 2] != 0; i += 2)
 		Maxmem = MAX(Maxmem, powerpc_btop(phys_avail[i + 1]));
-
-	/*
-	 * Set the start and end of kva.
-	 */
-	virtual_avail = VM_MIN_KERNEL_ADDRESS;
-	virtual_end = VM_MAX_SAFE_KERNEL_ADDRESS;
 
 	/*
 	 * Remap any early IO mappings (console framebuffer, etc.)
