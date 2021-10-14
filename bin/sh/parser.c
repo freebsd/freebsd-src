@@ -480,9 +480,9 @@ command(void)
 		n1 = (union node *)stalloc(sizeof (struct nfor));
 		n1->type = NFOR;
 		n1->nfor.var = wordtext;
-		while (readtoken() == TNL)
-			;
-		if (lasttoken == TWORD && ! quoteflag && equal(wordtext, "in")) {
+		checkkwd = CHKNL;
+		if (readtoken() == TWORD && !quoteflag &&
+		    equal(wordtext, "in")) {
 			app = &ap;
 			while (readtoken() == TWORD) {
 				n2 = makename();
@@ -491,7 +491,9 @@ command(void)
 			}
 			*app = NULL;
 			n1->nfor.args = ap;
-			if (lasttoken != TNL && lasttoken != TSEMI)
+			if (lasttoken == TNL)
+				tokpushback++;
+			else if (lasttoken != TSEMI)
 				synexpect(-1);
 		} else {
 			static char argvars[5] = {
@@ -507,7 +509,7 @@ command(void)
 			 * Newline or semicolon here is optional (but note
 			 * that the original Bourne shell only allowed NL).
 			 */
-			if (lasttoken != TNL && lasttoken != TSEMI)
+			if (lasttoken != TSEMI)
 				tokpushback++;
 		}
 		checkkwd = CHKNL | CHKKWD | CHKALIAS;
@@ -526,8 +528,8 @@ command(void)
 		n1->type = NCASE;
 		consumetoken(TWORD);
 		n1->ncase.expr = makename();
-		while (readtoken() == TNL);
-		if (lasttoken != TWORD || ! equal(wordtext, "in"))
+		checkkwd = CHKNL;
+		if (readtoken() != TWORD || ! equal(wordtext, "in"))
 			synerror("expecting \"in\"");
 		cpp = &n1->ncase.cases;
 		checkkwd = CHKNL | CHKKWD, readtoken();
