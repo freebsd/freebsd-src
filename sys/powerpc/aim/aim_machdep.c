@@ -586,8 +586,10 @@ pmap_early_io_map_init(void)
 {
 	if ((cpu_features2 & PPC_FEATURE2_ARCH_3_00) == 0)
 		radix_mmu = 0;
-	else
+	else {
+		radix_mmu = 1;
 		TUNABLE_INT_FETCH("radix_mmu", &radix_mmu);
+	}
 
 	/*
 	 * When using Radix, set the start and end of kva early, to be able to

@@ -232,10 +232,10 @@ ppc64_cas(void)
 		}
 	}
 
-	if (radix_mmu && (var = getenv("radix_mmu")) != NULL && var[0] != '0')
-		ov5[OV5_MMU_INDEX] = OV5_MMU_RADIX;
-	else
+	if ((var = getenv("radix_mmu")) != NULL && var[0] == '0')
 		radix_mmu = 0;
+	if (radix_mmu)
+		ov5[OV5_MMU_INDEX] = OV5_MMU_RADIX;
 
 	inst = OF_open("/");
 	if (inst == -1) {
