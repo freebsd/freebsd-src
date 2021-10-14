@@ -5393,11 +5393,9 @@ ktls_tick(void *arg)
 	uint32_t tstamp;
 
 	sc = arg;
-	if (sc->flags & KERN_TLS_ON) {
-		tstamp = tcp_ts_getticks();
-		t4_write_reg(sc, A_TP_SYNC_TIME_HI, tstamp >> 1);
-		t4_write_reg(sc, A_TP_SYNC_TIME_LO, tstamp << 31);
-	}
+	tstamp = tcp_ts_getticks();
+	t4_write_reg(sc, A_TP_SYNC_TIME_HI, tstamp >> 1);
+	t4_write_reg(sc, A_TP_SYNC_TIME_LO, tstamp << 31);
 	callout_schedule_sbt(&sc->ktls_tick, SBT_1MS, 0, C_HARDCLOCK);
 }
 
@@ -5417,10 +5415,14 @@ t4_config_kern_tls(struct adapter *sc, bool enable)
 		return (rc);
 	}
 
-	if (enable)
+	if (enable) {
 		sc->flags |= KERN_TLS_ON;
-	else
+		callout_reset_sbt(&sc->ktls_tick, SBT_1MS, 0, ktls_tick, sc,
+		    C_HARDCLOCK);
+	} else {
 		sc->flags &= ~KERN_TLS_ON;
+		callout_stop(&sc->ktls_tick);
+	}
 
 	return (rc);
 }
@@ -6468,11 +6470,6 @@ adapter_full_init(struct adapter *sc)
 		write_global_rss_key(sc);
 		t4_intr_enable(sc);
 	}
-#ifdef KERN_TLS
-	if (is_ktls(sc))
-		callout_reset_sbt(&sc->ktls_tick, SBT_1MS, 0, ktls_tick, sc,
-		    C_HARDCLOCK);
-#endif
 	return (0);
 }
 
