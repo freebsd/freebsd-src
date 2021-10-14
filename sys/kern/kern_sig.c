@@ -2050,7 +2050,7 @@ trapsignal(struct thread *td, ksiginfo_t *ksi)
 			    &td->td_sigmask, code);
 #endif
 		(*p->p_sysent->sv_sendsig)(ps->ps_sigact[_SIG_IDX(sig)],
-				ksi, &td->td_sigmask);
+		    ksi, &td->td_sigmask);
 		postsig_done(sig, td, ps);
 		mtx_unlock(&ps->ps_mtx);
 	} else {
