@@ -629,10 +629,10 @@ nvme_qpair_process_completions(struct nvme_qpair *qpair)
 		else
 			tr = NULL;
 
+		done++;
 		if (tr != NULL) {
 			nvme_qpair_complete_tracker(tr, &cpl, ERROR_PRINT_ALL);
 			qpair->sq_head = cpl.sqhd;
-			done++;
 		} else if (!in_panic) {
 			/*
 			 * A missing tracker is normally an error.  However, a
@@ -664,10 +664,13 @@ nvme_qpair_process_completions(struct nvme_qpair *qpair)
 			atomic_store_rel_int(&qpair->cq_head, 0);	/* 2 */
 			qpair->phase = !qpair->phase;			/* 3 */
 		}
+	}
 
+	if (done != 0) {
 		bus_space_write_4(qpair->ctrlr->bus_tag, qpair->ctrlr->bus_handle,
 		    qpair->cq_hdbl_off, qpair->cq_head);
 	}
+
 	return (done != 0);
 }
 
