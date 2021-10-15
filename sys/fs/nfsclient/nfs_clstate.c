@@ -103,6 +103,7 @@ static int nfscl_layoutcnt = 0;
 static int nfscl_getopen(struct nfsclownerhead *, u_int8_t *, int, u_int8_t *,
     u_int8_t *, u_int32_t, struct nfscllockowner **, struct nfsclopen **);
 static void nfscl_clrelease(struct nfsclclient *);
+static void nfscl_unlinkopen(struct nfsclopen *);
 static void nfscl_cleanclient(struct nfsclclient *);
 static void nfscl_expireclient(struct nfsclclient *, struct nfsmount *,
     struct ucred *, NFSPROC_T *);
@@ -760,7 +761,7 @@ nfscl_openrelease(struct nfsmount *nmp, struct nfsclopen *op, int error,
 		nfscl_lockunlock(&owp->nfsow_rwlock);
 	clp = owp->nfsow_clp;
 	if (error && candelete && op->nfso_opencnt == 0)
-		nfscl_freeopen(op, 0);
+		nfscl_freeopen(op, 0, true);
 	nfscl_clrelease(clp);
 	NFSUNLOCKCLSTATE();
 }
@@ -1460,13 +1461,24 @@ nfscl_lockrelease(struct nfscllockowner *lp, int error, int candelete)
 }
 
 /*
- * Free up an open structure and any associated byte range lock structures.
+ * Unlink the open structure.
  */
-void
-nfscl_freeopen(struct nfsclopen *op, int local)
+static void
+nfscl_unlinkopen(struct nfsclopen *op)
 {
 
 	LIST_REMOVE(op, nfso_list);
+}
+
+/*
+ * Free up an open structure and any associated byte range lock structures.
+ */
+void
+nfscl_freeopen(struct nfsclopen *op, int local, bool unlink)
+{
+
+	if (unlink)
+		nfscl_unlinkopen(op);
 	nfscl_freealllocks(&op->nfso_lock, local);
 	free(op, M_NFSCLOPEN);
 	if (local)
@@ -1537,7 +1549,7 @@ nfscl_expireopen(struct nfsclclient *clp, struct nfsclopen *op,
 	 * If a byte range lock or Share deny or couldn't re-open, free it.
 	 */
 	if (mustdelete)
-		nfscl_freeopen(op, 0);
+		nfscl_freeopen(op, 0, true);
 	return (mustdelete);
 }
 
@@ -1604,7 +1616,7 @@ nfscl_cleandeleg(struct nfscldeleg *dp)
 		if (op != NULL) {
 			if (LIST_NEXT(op, nfso_list) != NULL)
 				panic("nfscleandel");
-			nfscl_freeopen(op, 1);
+			nfscl_freeopen(op, 1, true);
 		}
 		nfscl_freeopenowner(owp, 1);
 	}
@@ -1646,7 +1658,7 @@ nfscl_cleanclient(struct nfsclclient *clp)
 	/* Now, all the OpenOwners, etc. */
 	LIST_FOREACH_SAFE(owp, &clp->nfsc_owner, nfsow_list, nowp) {
 		LIST_FOREACH_SAFE(op, &owp->nfsow_open, nfso_list, nop) {
-			nfscl_freeopen(op, 0);
+			nfscl_freeopen(op, 0, true);
 		}
 		nfscl_freeopenowner(owp, 0);
 	}
@@ -2166,7 +2178,7 @@ nfscl_recover(struct nfsclclient *clp, struct ucred *cred, NFSPROC_T *p)
 		    }
 		}
 		if (error != 0 && error != NFSERR_BADSESSION)
-		    nfscl_freeopen(op, 0);
+		    nfscl_freeopen(op, 0, true);
 		op = nop;
 	    }
 	    owp = nowp;
@@ -3246,7 +3258,7 @@ nfscl_doclose(vnode_t vp, struct nfsclclient **clpp, NFSPROC_T *p)
 			if (op != NULL) {
 				KASSERT((op->nfso_opencnt == 0),
 				    ("nfscl: bad open cnt on deleg"));
-				nfscl_freeopen(op, 1);
+				nfscl_freeopen(op, 1, true);
 			}
 			nfscl_freeopenowner(owp, 1);
 		}
@@ -4105,7 +4117,7 @@ nfscl_recalldeleg(struct nfsclclient *clp, struct nfsmount *nmp,
 					    ret == NFSERR_BADSESSION)
 						return (ret);
 					if (ret) {
-						nfscl_freeopen(lop, 1);
+						nfscl_freeopen(lop, 1, true);
 						if (!error)
 							error = ret;
 					}
@@ -4134,7 +4146,7 @@ nfscl_recalldeleg(struct nfsclclient *clp, struct nfsmount *nmp,
 					    ret == NFSERR_BADSESSION)
 						return (ret);
 					if (ret) {
-						nfscl_freeopen(lop, 1);
+						nfscl_freeopen(lop, 1, true);
 						if (!error)
 							error = ret;
 					}
@@ -4186,7 +4198,7 @@ nfscl_moveopen(vnode_t vp, struct nfsclclient *clp, struct nfsmount *nmp,
 		    op->nfso_fhlen == lop->nfso_fhlen &&
 		    !NFSBCMP(op->nfso_fh, lop->nfso_fh, op->nfso_fhlen)) {
 			op->nfso_opencnt += lop->nfso_opencnt;
-			nfscl_freeopen(lop, 1);
+			nfscl_freeopen(lop, 1, true);
 			return (0);
 		}
 	}
@@ -4204,11 +4216,11 @@ nfscl_moveopen(vnode_t vp, struct nfsclclient *clp, struct nfsmount *nmp,
 	    NFS4NODENAME(np->n_v4), np->n_v4->n4_namelen, &ndp, 0, 0, cred, p);
 	if (error) {
 		if (newone)
-			nfscl_freeopen(op, 0);
+			nfscl_freeopen(op, 0, true);
 	} else {
 		op->nfso_mode |= lop->nfso_mode;
 		op->nfso_opencnt += lop->nfso_opencnt;
-		nfscl_freeopen(lop, 1);
+		nfscl_freeopen(lop, 1, true);
 	}
 	if (nop != NULL)
 		free(nop, M_NFSCLOPEN);
