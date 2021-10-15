@@ -656,55 +656,96 @@ wxmap_status(struct thread *td, struct proc *p, int *data)
 	return (0);
 }
 
+static int
+pdeathsig_ctl(struct thread *td, struct proc *p, int data)
+{
+	if (p != td->td_proc || (data != 0 && !_SIG_VALID(data)))
+		return (EINVAL);
+	p->p_pdeathsig = data;
+	return (0);
+}
+
+static int
+pdeathsig_status(struct thread *td, struct proc *p, int *data)
+{
+	if (p != td->td_proc)
+		return (EINVAL);
+	*(int *)data = p->p_pdeathsig;
+	return (0);
+}
+
 struct procctl_cmd_info {
 	int lock_tree;
 	bool one_proc : 1;
+	bool esrch_is_einval : 1;
 };
 static const struct procctl_cmd_info procctl_cmds_info[] = {
 	[PROC_SPROTECT] =
-	    { .lock_tree = SA_SLOCKED, .one_proc = false, },
+	    { .lock_tree = SA_SLOCKED, .one_proc = false,
+	      .esrch_is_einval = false, },
 	[PROC_REAP_ACQUIRE] =
-	    { .lock_tree = SA_XLOCKED, .one_proc = true, },
+	    { .lock_tree = SA_XLOCKED, .one_proc = true,
+	      .esrch_is_einval = false, },
 	[PROC_REAP_RELEASE] =
-	    { .lock_tree = SA_XLOCKED, .one_proc = true, },
+	    { .lock_tree = SA_XLOCKED, .one_proc = true,
+	      .esrch_is_einval = false, },
 	[PROC_REAP_STATUS] =
-	    { .lock_tree = SA_SLOCKED, .one_proc = true, },
+	    { .lock_tree = SA_SLOCKED, .one_proc = true,
+	      .esrch_is_einval = false, },
 	[PROC_REAP_GETPIDS] =
-	    { .lock_tree = SA_SLOCKED, .one_proc = true, },
+	    { .lock_tree = SA_SLOCKED, .one_proc = true,
+	      .esrch_is_einval = false, },
 	[PROC_REAP_KILL] =
-	    { .lock_tree = SA_SLOCKED, .one_proc = true, },
+	    { .lock_tree = SA_SLOCKED, .one_proc = true,
+	      .esrch_is_einval = false, },
 	[PROC_TRACE_CTL] =
-	    { .lock_tree = SA_SLOCKED, .one_proc = false, },
+	    { .lock_tree = SA_SLOCKED, .one_proc = false,
+	      .esrch_is_einval = false, },
 	[PROC_TRACE_STATUS] =
-	    { .lock_tree = SA_UNLOCKED, .one_proc = true, },
+	    { .lock_tree = SA_UNLOCKED, .one_proc = true,
+	      .esrch_is_einval = false, },
 	[PROC_TRAPCAP_CTL] =
-	    { .lock_tree = SA_SLOCKED, .one_proc = false, },
+	    { .lock_tree = SA_SLOCKED, .one_proc = false,
+	      .esrch_is_einval = false, },
 	[PROC_TRAPCAP_STATUS] =
-	    { .lock_tree = SA_UNLOCKED, .one_proc = true, },
+	    { .lock_tree = SA_UNLOCKED, .one_proc = true,
+	      .esrch_is_einval = false, },
 	[PROC_PDEATHSIG_CTL] =
-	    { .lock_tree = SA_UNLOCKED, .one_proc = true, },
+	    { .lock_tree = SA_UNLOCKED, .one_proc = true,
+	      .esrch_is_einval = true, },
 	[PROC_PDEATHSIG_STATUS] =
-	    { .lock_tree = SA_UNLOCKED, .one_proc = true, },
+	    { .lock_tree = SA_UNLOCKED, .one_proc = true,
+	      .esrch_is_einval = true, },
 	[PROC_ASLR_CTL] =
-	    { .lock_tree = SA_UNLOCKED, .one_proc = true, },
+	    { .lock_tree = SA_UNLOCKED, .one_proc = true,
+	      .esrch_is_einval = false, },
 	[PROC_ASLR_STATUS] =
-	    { .lock_tree = SA_UNLOCKED, .one_proc = true, },
+	    { .lock_tree = SA_UNLOCKED, .one_proc = true,
+	      .esrch_is_einval = false, },
 	[PROC_PROTMAX_CTL] =
-	    { .lock_tree = SA_UNLOCKED, .one_proc = true, },
+	    { .lock_tree = SA_UNLOCKED, .one_proc = true,
+	      .esrch_is_einval = false, },
 	[PROC_PROTMAX_STATUS] =
-	    { .lock_tree = SA_UNLOCKED, .one_proc = true, },
+	    { .lock_tree = SA_UNLOCKED, .one_proc = true,
+	      .esrch_is_einval = false, },
 	[PROC_STACKGAP_CTL] =
-	    { .lock_tree = SA_UNLOCKED, .one_proc = true, },
+	    { .lock_tree = SA_UNLOCKED, .one_proc = true,
+	      .esrch_is_einval = false, },
 	[PROC_STACKGAP_STATUS] =
-	    { .lock_tree = SA_UNLOCKED, .one_proc = true, },
+	    { .lock_tree = SA_UNLOCKED, .one_proc = true,
+	      .esrch_is_einval = false, },
 	[PROC_NO_NEW_PRIVS_CTL] =
-	    { .lock_tree = SA_SLOCKED, .one_proc = true, },
+	    { .lock_tree = SA_SLOCKED, .one_proc = true,
+	      .esrch_is_einval = false, },
 	[PROC_NO_NEW_PRIVS_STATUS] =
-	    { .lock_tree = SA_UNLOCKED, .one_proc = true, },
+	    { .lock_tree = SA_UNLOCKED, .one_proc = true,
+	      .esrch_is_einval = false, },
 	[PROC_WXMAP_CTL] =
-	    { .lock_tree = SA_UNLOCKED, .one_proc = true, },
+	    { .lock_tree = SA_UNLOCKED, .one_proc = true,
+	      .esrch_is_einval = false, },
 	[PROC_WXMAP_STATUS] =
-	    { .lock_tree = SA_UNLOCKED, .one_proc = true, },
+	    { .lock_tree = SA_UNLOCKED, .one_proc = true,
+	      .esrch_is_einval = false, },
 };
 
 int
@@ -845,6 +886,10 @@ kern_procctl_single(struct thread *td, struct proc *p, int com, void *data)
 		return (trapcap_ctl(td, p, *(int *)data));
 	case PROC_TRAPCAP_STATUS:
 		return (trapcap_status(td, p, data));
+	case PROC_PDEATHSIG_CTL:
+		return (pdeathsig_ctl(td, p, *(int *)data));
+	case PROC_PDEATHSIG_STATUS:
+		return (pdeathsig_status(td, p, data));
 	case PROC_NO_NEW_PRIVS_CTL:
 		return (no_new_privs_ctl(td, p, *(int *)data));
 	case PROC_NO_NEW_PRIVS_STATUS:
@@ -865,33 +910,11 @@ kern_procctl(struct thread *td, idtype_t idtype, id_t id, int com, void *data)
 	struct proc *p;
 	const struct procctl_cmd_info *cmd_info;
 	int error, first_error, ok;
-	int signum;
 
 	MPASS(com > 0 && com < nitems(procctl_cmds_info));
 	cmd_info = &procctl_cmds_info[com];
 	if (idtype != P_PID && cmd_info->one_proc)
 		return (EINVAL);
-
-	switch (com) {
-	case PROC_PDEATHSIG_CTL:
-		signum = *(int *)data;
-		p = td->td_proc;
-		if ((id != 0 && id != p->p_pid) ||
-		    (signum != 0 && !_SIG_VALID(signum)))
-			return (EINVAL);
-		PROC_LOCK(p);
-		p->p_pdeathsig = signum;
-		PROC_UNLOCK(p);
-		return (0);
-	case PROC_PDEATHSIG_STATUS:
-		p = td->td_proc;
-		if (id != 0 && id != p->p_pid)
-			return (EINVAL);
-		PROC_LOCK(p);
-		*(int *)data = p->p_pdeathsig;
-		PROC_UNLOCK(p);
-		return (0);
-	}
 
 	switch (cmd_info->lock_tree) {
 	case SA_XLOCKED:
@@ -911,7 +934,8 @@ kern_procctl(struct thread *td, idtype_t idtype, id_t id, int com, void *data)
 		} else {
 			p = pfind(id);
 			if (p == NULL) {
-				error = ESRCH;
+				error = cmd_info->esrch_is_einval ?
+				    EINVAL : ESRCH;
 				break;
 			}
 			error = p_cansee(td, p);
