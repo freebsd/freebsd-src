@@ -5,7 +5,7 @@
 LIB=	ssh
 PRIVATELIB=	true
 SHLIB_MAJOR=	5
-SRCS=	ssh_api.c ssh-sk.c ssh-ecdsa-sk.c ssh-ed25519-sk.c ssherr.c \
+SRCS=	ssh_api.c ssh-sk-client.c ssh-ecdsa-sk.c ssh-ed25519-sk.c ssherr.c \
 	sshbuf.c sshkey.c sshbuf-getput-basic.c \
 	sshbuf-misc.c sshbuf-getput-crypto.c krl.c bitmap.c
 SRCS+=	authfd.c authfile.c \
