@@ -682,11 +682,12 @@ isrc_event_create(struct intr_irqsrc *isrc)
 	struct intr_event *ie;
 	int error;
 
-	error = intr_event_create(&ie, isrc, 0, isrc->isrc_irq,
+	error = intr_event_create(&ie, isrc, 0,
 	    intr_isrc_pre_ithread, intr_isrc_post_ithread, intr_isrc_post_filter,
 	    intr_isrc_assign_cpu, "%s:", isrc->isrc_name);
 	if (error)
 		return (error);
+	ie->ie_irq = isrc->isrc_irq;
 
 	mtx_lock(&isrc_table_lock);
 	/*

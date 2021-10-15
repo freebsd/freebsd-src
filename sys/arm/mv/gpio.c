@@ -425,7 +425,7 @@ mv_gpio_setup_intrhandler(device_t dev, const char *name, driver_filter_t *filt,
 		} else if (sc->gpio_setup[pin].gp_flags & MV_GPIO_IN_IRQ_DOUBLE_EDGE)
 			mv_gpio_double_edge_init(dev, pin);
 		MV_GPIO_UNLOCK();
-		error = intr_event_create(&event, (void *)s, 0, pin,
+		error = intr_event_create(&event, (void *)s, 0,
 		    (void (*)(void *))mv_gpio_intr_mask,
 		    (void (*)(void *))mv_gpio_intr_unmask,
 		    (void (*)(void *))mv_gpio_int_ack,
@@ -433,6 +433,7 @@ mv_gpio_setup_intrhandler(device_t dev, const char *name, driver_filter_t *filt,
 		    "gpio%d:", pin);
 		if (error != 0)
 			return (error);
+		event->ie_irq = pin;
 		sc->gpio_events[pin] = event;
 	}
 
