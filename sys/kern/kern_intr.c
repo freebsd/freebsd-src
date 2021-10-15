@@ -58,6 +58,7 @@
 #include <sys/vmmeter.h>
 #include <machine/atomic.h>
 #include <machine/cpu.h>
+#include <machine/intr_machdep.h>
 #include <machine/md_var.h>
 #include <machine/smp.h>
 #include <machine/stdarg.h>
@@ -427,21 +428,6 @@ intr_event_bind_ithread_cpuset(struct intr_event *ie, cpuset_t *cs)
 	return (ENODEV);
 }
 
-static struct intr_event *
-intr_lookup(int irq)
-{
-	struct intr_event *ie;
-
-	mtx_lock(&event_lock);
-	TAILQ_FOREACH(ie, &event_list, ie_list)
-		if (ie->ie_irq == irq &&
-		    (ie->ie_flags & IE_SOFT) == 0 &&
-		    CK_SLIST_FIRST(&ie->ie_handlers) != NULL)
-			break;
-	mtx_unlock(&event_lock);
-	return (ie);
-}
-
 int
 intr_setaffinity(int irq, int mode, const void *m)
 {
@@ -464,7 +450,7 @@ intr_setaffinity(int irq, int mode, const void *m)
 			cpu = n;
 		}
 	}
-	ie = intr_lookup(irq);
+	ie = intr2event(intrtab_lookup(irq));
 	if (ie == NULL)
 		return (ESRCH);
 	switch (mode) {
@@ -490,7 +476,7 @@ intr_getaffinity(int irq, int mode, void *m)
 	int error;
 
 	mask = m;
-	ie = intr_lookup(irq);
+	ie = intr2event(intrtab_lookup(irq));
 	if (ie == NULL)
 		return (ESRCH);
 
@@ -823,7 +809,7 @@ _intr_drain(int irq)
 	struct intr_thread *ithd;
 	struct thread *td;
 
-	ie = intr_lookup(irq);
+	ie = intr2event(intrtab_lookup(irq));
 	if (ie == NULL)
 		return;
 	if (ie->ie_thread == NULL)
