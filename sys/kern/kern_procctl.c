@@ -710,195 +710,161 @@ struct procctl_cmd_info {
 	int lock_tree;
 	bool one_proc : 1;
 	bool esrch_is_einval : 1;
+	bool copyout_on_error : 1;
+	bool no_nonnull_data : 1;
+	int copyin_sz;
+	int copyout_sz;
 	int (*exec)(struct thread *, struct proc *, void *);
 };
 static const struct procctl_cmd_info procctl_cmds_info[] = {
 	[PROC_SPROTECT] =
 	    { .lock_tree = SA_SLOCKED, .one_proc = false,
-	      .esrch_is_einval = false,
-	      .exec = protect_set, },
+	      .esrch_is_einval = false, .no_nonnull_data = false,
+	      .copyin_sz = sizeof(int), .copyout_sz = 0,
+	      .exec = protect_set, .copyout_on_error = false, },
 	[PROC_REAP_ACQUIRE] =
 	    { .lock_tree = SA_XLOCKED, .one_proc = true,
-	      .esrch_is_einval = false,
-	      .exec = reap_acquire, },
+	      .esrch_is_einval = false, .no_nonnull_data = true,
+	      .copyin_sz = 0, .copyout_sz = 0,
+	      .exec = reap_acquire, .copyout_on_error = false, },
 	[PROC_REAP_RELEASE] =
 	    { .lock_tree = SA_XLOCKED, .one_proc = true,
-	      .esrch_is_einval = false,
-	      .exec = reap_release, },
+	      .esrch_is_einval = false, .no_nonnull_data = true,
+	      .copyin_sz = 0, .copyout_sz = 0,
+	      .exec = reap_release, .copyout_on_error = false, },
 	[PROC_REAP_STATUS] =
 	    { .lock_tree = SA_SLOCKED, .one_proc = true,
-	      .esrch_is_einval = false,
-	      .exec = reap_status, },
+	      .esrch_is_einval = false, .no_nonnull_data = false,
+	      .copyin_sz = 0,
+	      .copyout_sz = sizeof(struct procctl_reaper_status),
+	      .exec = reap_status, .copyout_on_error = false, },
 	[PROC_REAP_GETPIDS] =
 	    { .lock_tree = SA_SLOCKED, .one_proc = true,
-	      .esrch_is_einval = false,
-	      .exec = reap_getpids, },
+	      .esrch_is_einval = false, .no_nonnull_data = false,
+	      .copyin_sz = sizeof(struct procctl_reaper_pids),
+	      .copyout_sz = 0,
+	      .exec = reap_getpids, .copyout_on_error = false, },
 	[PROC_REAP_KILL] =
 	    { .lock_tree = SA_SLOCKED, .one_proc = true,
-	      .esrch_is_einval = false,
-	      .exec = reap_kill, },
+	      .esrch_is_einval = false, .no_nonnull_data = false,
+	      .copyin_sz = sizeof(struct procctl_reaper_kill),
+	      .copyout_sz = sizeof(struct procctl_reaper_kill),
+	      .exec = reap_kill, .copyout_on_error = true, },
 	[PROC_TRACE_CTL] =
 	    { .lock_tree = SA_SLOCKED, .one_proc = false,
-	      .esrch_is_einval = false,
-	      .exec = trace_ctl, },
+	      .esrch_is_einval = false, .no_nonnull_data = false,
+	      .copyin_sz = sizeof(int), .copyout_sz = 0,
+	      .exec = trace_ctl, .copyout_on_error = false, },
 	[PROC_TRACE_STATUS] =
 	    { .lock_tree = SA_UNLOCKED, .one_proc = true,
-	      .esrch_is_einval = false,
-	      .exec = trace_status, },
+	      .esrch_is_einval = false, .no_nonnull_data = false,
+	      .copyin_sz = 0, .copyout_sz = sizeof(int),
+	      .exec = trace_status, .copyout_on_error = false, },
 	[PROC_TRAPCAP_CTL] =
 	    { .lock_tree = SA_SLOCKED, .one_proc = false,
-	      .esrch_is_einval = false,
-	      .exec = trapcap_ctl, },
+	      .esrch_is_einval = false, .no_nonnull_data = false,
+	      .copyin_sz = sizeof(int), .copyout_sz = 0,
+	      .exec = trapcap_ctl, .copyout_on_error = false, },
 	[PROC_TRAPCAP_STATUS] =
 	    { .lock_tree = SA_UNLOCKED, .one_proc = true,
-	      .esrch_is_einval = false,
-	      .exec = trapcap_status, },
+	      .esrch_is_einval = false, .no_nonnull_data = false,
+	      .copyin_sz = 0, .copyout_sz = sizeof(int),
+	      .exec = trapcap_status, .copyout_on_error = false, },
 	[PROC_PDEATHSIG_CTL] =
 	    { .lock_tree = SA_UNLOCKED, .one_proc = true,
-	      .esrch_is_einval = true,
-	      .exec = pdeathsig_ctl, },
+	      .esrch_is_einval = true, .no_nonnull_data = false,
+	      .copyin_sz = sizeof(int), .copyout_sz = 0,
+	      .exec = pdeathsig_ctl, .copyout_on_error = false, },
 	[PROC_PDEATHSIG_STATUS] =
 	    { .lock_tree = SA_UNLOCKED, .one_proc = true,
-	      .esrch_is_einval = true,
-	      .exec = pdeathsig_status, },
+	      .esrch_is_einval = true, .no_nonnull_data = false,
+	      .copyin_sz = 0, .copyout_sz = sizeof(int),
+	      .exec = pdeathsig_status, .copyout_on_error = false, },
 	[PROC_ASLR_CTL] =
 	    { .lock_tree = SA_UNLOCKED, .one_proc = true,
-	      .esrch_is_einval = false,
-	      .exec = aslr_ctl, },
+	      .esrch_is_einval = false, .no_nonnull_data = false,
+	      .copyin_sz = sizeof(int), .copyout_sz = 0,
+	      .exec = aslr_ctl, .copyout_on_error = false, },
 	[PROC_ASLR_STATUS] =
 	    { .lock_tree = SA_UNLOCKED, .one_proc = true,
-	      .esrch_is_einval = false,
-	      .exec = aslr_status, },
+	      .esrch_is_einval = false, .no_nonnull_data = false,
+	      .copyin_sz = 0, .copyout_sz = sizeof(int),
+	      .exec = aslr_status, .copyout_on_error = false, },
 	[PROC_PROTMAX_CTL] =
 	    { .lock_tree = SA_UNLOCKED, .one_proc = true,
-	      .esrch_is_einval = false,
-	      .exec = protmax_ctl, },
+	      .esrch_is_einval = false, .no_nonnull_data = false,
+	      .copyin_sz = sizeof(int), .copyout_sz = 0,
+	      .exec = protmax_ctl, .copyout_on_error = false, },
 	[PROC_PROTMAX_STATUS] =
 	    { .lock_tree = SA_UNLOCKED, .one_proc = true,
-	      .esrch_is_einval = false,
-	      .exec = protmax_status, },
+	      .esrch_is_einval = false, .no_nonnull_data = false,
+	      .copyin_sz = 0, .copyout_sz = sizeof(int),
+	      .exec = protmax_status, .copyout_on_error = false, },
 	[PROC_STACKGAP_CTL] =
 	    { .lock_tree = SA_UNLOCKED, .one_proc = true,
-	      .esrch_is_einval = false,
-	      .exec = stackgap_ctl, },
+	      .esrch_is_einval = false, .no_nonnull_data = false,
+	      .copyin_sz = sizeof(int), .copyout_sz = 0,
+	      .exec = stackgap_ctl, .copyout_on_error = false, },
 	[PROC_STACKGAP_STATUS] =
 	    { .lock_tree = SA_UNLOCKED, .one_proc = true,
-	      .esrch_is_einval = false,
-	      .exec = stackgap_status, },
+	      .esrch_is_einval = false, .no_nonnull_data = false,
+	      .copyin_sz = 0, .copyout_sz = sizeof(int),
+	      .exec = stackgap_status, .copyout_on_error = false, },
 	[PROC_NO_NEW_PRIVS_CTL] =
 	    { .lock_tree = SA_SLOCKED, .one_proc = true,
-	      .esrch_is_einval = false,
-	      .exec = no_new_privs_ctl, },
+	      .esrch_is_einval = false, .no_nonnull_data = false,
+	      .copyin_sz = sizeof(int), .copyout_sz = 0,
+	      .exec = no_new_privs_ctl, .copyout_on_error = false, },
 	[PROC_NO_NEW_PRIVS_STATUS] =
 	    { .lock_tree = SA_UNLOCKED, .one_proc = true,
-	      .esrch_is_einval = false,
-	      .exec = no_new_privs_status, },
+	      .esrch_is_einval = false, .no_nonnull_data = false,
+	      .copyin_sz = 0, .copyout_sz = sizeof(int),
+	      .exec = no_new_privs_status, .copyout_on_error = false, },
 	[PROC_WXMAP_CTL] =
 	    { .lock_tree = SA_UNLOCKED, .one_proc = true,
-	      .esrch_is_einval = false,
-	      .exec = wxmap_ctl, },
+	      .esrch_is_einval = false, .no_nonnull_data = false,
+	      .copyin_sz = sizeof(int), .copyout_sz = 0,
+	      .exec = wxmap_ctl, .copyout_on_error = false, },
 	[PROC_WXMAP_STATUS] =
 	    { .lock_tree = SA_UNLOCKED, .one_proc = true,
-	      .esrch_is_einval = false,
-	      .exec = wxmap_status, },
+	      .esrch_is_einval = false, .no_nonnull_data = false,
+	      .copyin_sz = 0, .copyout_sz = sizeof(int),
+	      .exec = wxmap_status, .copyout_on_error = false, },
 };
 
 int
 sys_procctl(struct thread *td, struct procctl_args *uap)
 {
-	void *data;
 	union {
 		struct procctl_reaper_status rs;
 		struct procctl_reaper_pids rp;
 		struct procctl_reaper_kill rk;
+		int flags;
 	} x;
-	int error, error1, flags, signum;
+	const struct procctl_cmd_info *cmd_info;
+	int error, error1;
 
 	if (uap->com >= PROC_PROCCTL_MD_MIN)
 		return (cpu_procctl(td, uap->idtype, uap->id,
 		    uap->com, uap->data));
-
-	switch (uap->com) {
-	case PROC_ASLR_CTL:
-	case PROC_PROTMAX_CTL:
-	case PROC_SPROTECT:
-	case PROC_STACKGAP_CTL:
-	case PROC_TRACE_CTL:
-	case PROC_TRAPCAP_CTL:
-	case PROC_NO_NEW_PRIVS_CTL:
-	case PROC_WXMAP_CTL:
-		error = copyin(uap->data, &flags, sizeof(flags));
+	if (uap->com == 0 || uap->com >= nitems(procctl_cmds_info))
+		return (EINVAL);
+	cmd_info = &procctl_cmds_info[uap->com];
+	if (cmd_info->copyin_sz > 0) {
+		error = copyin(uap->data, &x, cmd_info->copyin_sz);
 		if (error != 0)
 			return (error);
-		data = &flags;
-		break;
-	case PROC_REAP_ACQUIRE:
-	case PROC_REAP_RELEASE:
-		if (uap->data != NULL)
-			return (EINVAL);
-		data = NULL;
-		break;
-	case PROC_REAP_STATUS:
-		data = &x.rs;
-		break;
-	case PROC_REAP_GETPIDS:
-		error = copyin(uap->data, &x.rp, sizeof(x.rp));
-		if (error != 0)
-			return (error);
-		data = &x.rp;
-		break;
-	case PROC_REAP_KILL:
-		error = copyin(uap->data, &x.rk, sizeof(x.rk));
-		if (error != 0)
-			return (error);
-		data = &x.rk;
-		break;
-	case PROC_ASLR_STATUS:
-	case PROC_PROTMAX_STATUS:
-	case PROC_STACKGAP_STATUS:
-	case PROC_TRACE_STATUS:
-	case PROC_TRAPCAP_STATUS:
-	case PROC_NO_NEW_PRIVS_STATUS:
-	case PROC_WXMAP_STATUS:
-		data = &flags;
-		break;
-	case PROC_PDEATHSIG_CTL:
-		error = copyin(uap->data, &signum, sizeof(signum));
-		if (error != 0)
-			return (error);
-		data = &signum;
-		break;
-	case PROC_PDEATHSIG_STATUS:
-		data = &signum;
-		break;
-	default:
+	} else if (cmd_info->no_nonnull_data && uap->data != NULL) {
 		return (EINVAL);
 	}
-	error = kern_procctl(td, uap->idtype, uap->id, uap->com, data);
-	switch (uap->com) {
-	case PROC_REAP_STATUS:
-		if (error == 0)
-			error = copyout(&x.rs, uap->data, sizeof(x.rs));
-		break;
-	case PROC_REAP_KILL:
-		error1 = copyout(&x.rk, uap->data, sizeof(x.rk));
+
+	error = kern_procctl(td, uap->idtype, uap->id, uap->com, &x);
+
+	if (cmd_info->copyout_sz > 0 && (error == 0 ||
+	    cmd_info->copyout_on_error)) {
+		error1 = copyout(&x, uap->data, cmd_info->copyout_sz);
 		if (error == 0)
 			error = error1;
-		break;
-	case PROC_ASLR_STATUS:
-	case PROC_PROTMAX_STATUS:
-	case PROC_STACKGAP_STATUS:
-	case PROC_TRACE_STATUS:
-	case PROC_TRAPCAP_STATUS:
-	case PROC_NO_NEW_PRIVS_STATUS:
-	case PROC_WXMAP_STATUS:
-		if (error == 0)
-			error = copyout(&flags, uap->data, sizeof(flags));
-		break;
-	case PROC_PDEATHSIG_STATUS:
-		if (error == 0)
-			error = copyout(&signum, uap->data, sizeof(signum));
-		break;
 	}
 	return (error);
 }
