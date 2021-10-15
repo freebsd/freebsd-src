@@ -276,7 +276,7 @@ intr_event_update(struct intr_event *ie)
 }
 
 int
-intr_event_create(struct intr_event **event, void *source, int flags, u_int irq,
+intr_event_create(struct intr_event **event, void *source, int flags,
     void (*pre_ithread)(void *), void (*post_ithread)(void *),
     void (*post_filter)(void *), int (*assign_cpu)(void *, int),
     const char *fmt, ...)
@@ -294,7 +294,7 @@ intr_event_create(struct intr_event **event, void *source, int flags, u_int irq,
 	ie->ie_post_filter = post_filter;
 	ie->ie_assign_cpu = assign_cpu;
 	ie->ie_flags = flags;
-	ie->ie_irq = irq;
+	ie->ie_irq = -1;
 	ie->ie_cpu = NOCPU;
 	CK_SLIST_INIT(&ie->ie_handlers);
 	mtx_init(&ie->ie_lock, "intr event", NULL, MTX_DEF);
@@ -1025,10 +1025,11 @@ swi_add(struct intr_event **eventp, const char *name, driver_intr_t handler,
 		if (!(ie->ie_flags & IE_SOFT))
 			return (EINVAL);
 	} else {
-		error = intr_event_create(&ie, NULL, IE_SOFT, 0,
+		error = intr_event_create(&ie, NULL, IE_SOFT,
 		    NULL, NULL, NULL, swi_assign_cpu, "swi%d:", pri);
 		if (error)
 			return (error);
+		ie->ie_irq = 0;
 		if (eventp != NULL)
 			*eventp = ie;
 	}

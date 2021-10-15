@@ -226,12 +226,13 @@ intr_register_source(struct intsrc *isrc)
 	    num_io_irqs));
 	if (interrupt_sources[vector] != NULL)
 		return (EEXIST);
-	error = intr_event_create(&isrc->is_event, isrc, 0, vector,
+	error = intr_event_create(&isrc->is_event, isrc, 0,
 	    intr_disable_src, (mask_fn)isrc->is_pic->pic_enable_source,
 	    (mask_fn)isrc->is_pic->pic_eoi_source, intr_assign_cpu, "irq%d:",
 	    vector);
 	if (error)
 		return (error);
+	isrc->is_event->ie_irq = vector;
 	sx_xlock(&intrsrc_lock);
 	if (interrupt_sources[vector] != NULL) {
 		sx_xunlock(&intrsrc_lock);
