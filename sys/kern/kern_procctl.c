@@ -740,12 +740,18 @@ kern_procctl(struct thread *td, idtype_t idtype, id_t id, int com, void *data)
 
 	switch (idtype) {
 	case P_PID:
-		p = pfind(id);
-		if (p == NULL) {
-			error = ESRCH;
-			break;
+		if (id == 0) {
+			p = td->td_proc;
+			error = 0;
+			PROC_LOCK(p);
+		} else {
+			p = pfind(id);
+			if (p == NULL) {
+				error = ESRCH;
+				break;
+			}
+			error = p_cansee(td, p);
 		}
-		error = p_cansee(td, p);
 		if (error == 0)
 			error = kern_procctl_single(td, p, com, data);
 		PROC_UNLOCK(p);
