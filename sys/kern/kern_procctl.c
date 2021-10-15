@@ -711,6 +711,7 @@ struct procctl_cmd_info {
 	bool esrch_is_einval : 1;
 	bool copyout_on_error : 1;
 	bool no_nonnull_data : 1;
+	bool need_candebug : 1;
 	int copyin_sz;
 	int copyout_sz;
 	int (*exec)(struct thread *, struct proc *, void *);
@@ -719,114 +720,136 @@ static const struct procctl_cmd_info procctl_cmds_info[] = {
 	[PROC_SPROTECT] =
 	    { .lock_tree = SA_SLOCKED, .one_proc = false,
 	      .esrch_is_einval = false, .no_nonnull_data = false,
+	      .need_candebug = false,
 	      .copyin_sz = sizeof(int), .copyout_sz = 0,
 	      .exec = protect_set, .copyout_on_error = false, },
 	[PROC_REAP_ACQUIRE] =
 	    { .lock_tree = SA_XLOCKED, .one_proc = true,
 	      .esrch_is_einval = false, .no_nonnull_data = true,
+	      .need_candebug = false,
 	      .copyin_sz = 0, .copyout_sz = 0,
 	      .exec = reap_acquire, .copyout_on_error = false, },
 	[PROC_REAP_RELEASE] =
 	    { .lock_tree = SA_XLOCKED, .one_proc = true,
 	      .esrch_is_einval = false, .no_nonnull_data = true,
+	      .need_candebug = false,
 	      .copyin_sz = 0, .copyout_sz = 0,
 	      .exec = reap_release, .copyout_on_error = false, },
 	[PROC_REAP_STATUS] =
 	    { .lock_tree = SA_SLOCKED, .one_proc = true,
 	      .esrch_is_einval = false, .no_nonnull_data = false,
+	      .need_candebug = false,
 	      .copyin_sz = 0,
 	      .copyout_sz = sizeof(struct procctl_reaper_status),
 	      .exec = reap_status, .copyout_on_error = false, },
 	[PROC_REAP_GETPIDS] =
 	    { .lock_tree = SA_SLOCKED, .one_proc = true,
 	      .esrch_is_einval = false, .no_nonnull_data = false,
+	      .need_candebug = false,
 	      .copyin_sz = sizeof(struct procctl_reaper_pids),
 	      .copyout_sz = 0,
 	      .exec = reap_getpids, .copyout_on_error = false, },
 	[PROC_REAP_KILL] =
 	    { .lock_tree = SA_SLOCKED, .one_proc = true,
 	      .esrch_is_einval = false, .no_nonnull_data = false,
+	      .need_candebug = false,
 	      .copyin_sz = sizeof(struct procctl_reaper_kill),
 	      .copyout_sz = sizeof(struct procctl_reaper_kill),
 	      .exec = reap_kill, .copyout_on_error = true, },
 	[PROC_TRACE_CTL] =
 	    { .lock_tree = SA_SLOCKED, .one_proc = false,
 	      .esrch_is_einval = false, .no_nonnull_data = false,
+	      .need_candebug = false,
 	      .copyin_sz = sizeof(int), .copyout_sz = 0,
 	      .exec = trace_ctl, .copyout_on_error = false, },
 	[PROC_TRACE_STATUS] =
 	    { .lock_tree = SA_UNLOCKED, .one_proc = true,
 	      .esrch_is_einval = false, .no_nonnull_data = false,
+	      .need_candebug = false,
 	      .copyin_sz = 0, .copyout_sz = sizeof(int),
 	      .exec = trace_status, .copyout_on_error = false, },
 	[PROC_TRAPCAP_CTL] =
 	    { .lock_tree = SA_SLOCKED, .one_proc = false,
 	      .esrch_is_einval = false, .no_nonnull_data = false,
+	      .need_candebug = false,
 	      .copyin_sz = sizeof(int), .copyout_sz = 0,
 	      .exec = trapcap_ctl, .copyout_on_error = false, },
 	[PROC_TRAPCAP_STATUS] =
 	    { .lock_tree = SA_UNLOCKED, .one_proc = true,
 	      .esrch_is_einval = false, .no_nonnull_data = false,
+	      .need_candebug = false,
 	      .copyin_sz = 0, .copyout_sz = sizeof(int),
 	      .exec = trapcap_status, .copyout_on_error = false, },
 	[PROC_PDEATHSIG_CTL] =
 	    { .lock_tree = SA_UNLOCKED, .one_proc = true,
 	      .esrch_is_einval = true, .no_nonnull_data = false,
+	      .need_candebug = false,
 	      .copyin_sz = sizeof(int), .copyout_sz = 0,
 	      .exec = pdeathsig_ctl, .copyout_on_error = false, },
 	[PROC_PDEATHSIG_STATUS] =
 	    { .lock_tree = SA_UNLOCKED, .one_proc = true,
 	      .esrch_is_einval = true, .no_nonnull_data = false,
+	      .need_candebug = false,
 	      .copyin_sz = 0, .copyout_sz = sizeof(int),
 	      .exec = pdeathsig_status, .copyout_on_error = false, },
 	[PROC_ASLR_CTL] =
 	    { .lock_tree = SA_UNLOCKED, .one_proc = true,
 	      .esrch_is_einval = false, .no_nonnull_data = false,
+	      .need_candebug = false,
 	      .copyin_sz = sizeof(int), .copyout_sz = 0,
 	      .exec = aslr_ctl, .copyout_on_error = false, },
 	[PROC_ASLR_STATUS] =
 	    { .lock_tree = SA_UNLOCKED, .one_proc = true,
 	      .esrch_is_einval = false, .no_nonnull_data = false,
+	      .need_candebug = false,
 	      .copyin_sz = 0, .copyout_sz = sizeof(int),
 	      .exec = aslr_status, .copyout_on_error = false, },
 	[PROC_PROTMAX_CTL] =
 	    { .lock_tree = SA_UNLOCKED, .one_proc = true,
 	      .esrch_is_einval = false, .no_nonnull_data = false,
+	      .need_candebug = false,
 	      .copyin_sz = sizeof(int), .copyout_sz = 0,
 	      .exec = protmax_ctl, .copyout_on_error = false, },
 	[PROC_PROTMAX_STATUS] =
 	    { .lock_tree = SA_UNLOCKED, .one_proc = true,
 	      .esrch_is_einval = false, .no_nonnull_data = false,
+	      .need_candebug = false,
 	      .copyin_sz = 0, .copyout_sz = sizeof(int),
 	      .exec = protmax_status, .copyout_on_error = false, },
 	[PROC_STACKGAP_CTL] =
 	    { .lock_tree = SA_UNLOCKED, .one_proc = true,
 	      .esrch_is_einval = false, .no_nonnull_data = false,
+	      .need_candebug = false,
 	      .copyin_sz = sizeof(int), .copyout_sz = 0,
 	      .exec = stackgap_ctl, .copyout_on_error = false, },
 	[PROC_STACKGAP_STATUS] =
 	    { .lock_tree = SA_UNLOCKED, .one_proc = true,
 	      .esrch_is_einval = false, .no_nonnull_data = false,
+	      .need_candebug = false,
 	      .copyin_sz = 0, .copyout_sz = sizeof(int),
 	      .exec = stackgap_status, .copyout_on_error = false, },
 	[PROC_NO_NEW_PRIVS_CTL] =
 	    { .lock_tree = SA_SLOCKED, .one_proc = true,
 	      .esrch_is_einval = false, .no_nonnull_data = false,
+	      .need_candebug = false,
 	      .copyin_sz = sizeof(int), .copyout_sz = 0,
 	      .exec = no_new_privs_ctl, .copyout_on_error = false, },
 	[PROC_NO_NEW_PRIVS_STATUS] =
 	    { .lock_tree = SA_UNLOCKED, .one_proc = true,
 	      .esrch_is_einval = false, .no_nonnull_data = false,
+	      .need_candebug = false,
 	      .copyin_sz = 0, .copyout_sz = sizeof(int),
 	      .exec = no_new_privs_status, .copyout_on_error = false, },
 	[PROC_WXMAP_CTL] =
 	    { .lock_tree = SA_UNLOCKED, .one_proc = true,
 	      .esrch_is_einval = false, .no_nonnull_data = false,
+	      .need_candebug = false,
 	      .copyin_sz = sizeof(int), .copyout_sz = 0,
 	      .exec = wxmap_ctl, .copyout_on_error = false, },
 	[PROC_WXMAP_STATUS] =
 	    { .lock_tree = SA_UNLOCKED, .one_proc = true,
 	      .esrch_is_einval = false, .no_nonnull_data = false,
+	      .need_candebug = false,
 	      .copyin_sz = 0, .copyout_sz = sizeof(int),
 	      .exec = wxmap_status, .copyout_on_error = false, },
 };
@@ -913,7 +936,8 @@ kern_procctl(struct thread *td, idtype_t idtype, id_t id, int com, void *data)
 				    EINVAL : ESRCH;
 				break;
 			}
-			error = p_cansee(td, p);
+			error = cmd_info->need_candebug ? p_candebug(td, p) :
+			    p_cansee(td, p);
 		}
 		if (error == 0)
 			error = kern_procctl_single(td, p, com, data);
@@ -936,7 +960,8 @@ kern_procctl(struct thread *td, idtype_t idtype, id_t id, int com, void *data)
 		first_error = 0;
 		LIST_FOREACH(p, &pg->pg_members, p_pglist) {
 			PROC_LOCK(p);
-			if (p->p_state == PRS_NEW || p_cansee(td, p) != 0) {
+			if (p->p_state == PRS_NEW || (cmd_info->need_candebug ?
+			    p_candebug(td, p) : p_cansee(td, p)) != 0) {
 				PROC_UNLOCK(p);
 				continue;
 			}
