@@ -174,9 +174,8 @@ next:
 static void __dead2
 usage(void)
 {
-	printf("usage: %1$s [-f device] [-d unit] [-os] [dev[.control[=value]]] ...\n"
-	    "       %1$s [-d unit] [-os] -a\n",
-	    getprogname());
+	fprintf(stderr, "usage: %1$s [-f device] [-d unit] [-os] [dev[.control[=value]]] ...\n"
+	    "       %1$s [-d unit] [-os] -a\n", getprogname());
 	exit(1);
 }
 
