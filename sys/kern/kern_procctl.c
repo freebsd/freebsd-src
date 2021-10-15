@@ -656,6 +656,57 @@ wxmap_status(struct thread *td, struct proc *p, int *data)
 	return (0);
 }
 
+struct procctl_cmd_info {
+	int lock_tree;
+	bool one_proc : 1;
+};
+static const struct procctl_cmd_info procctl_cmds_info[] = {
+	[PROC_SPROTECT] =
+	    { .lock_tree = SA_SLOCKED, .one_proc = false, },
+	[PROC_REAP_ACQUIRE] =
+	    { .lock_tree = SA_XLOCKED, .one_proc = true, },
+	[PROC_REAP_RELEASE] =
+	    { .lock_tree = SA_XLOCKED, .one_proc = true, },
+	[PROC_REAP_STATUS] =
+	    { .lock_tree = SA_SLOCKED, .one_proc = true, },
+	[PROC_REAP_GETPIDS] =
+	    { .lock_tree = SA_SLOCKED, .one_proc = true, },
+	[PROC_REAP_KILL] =
+	    { .lock_tree = SA_SLOCKED, .one_proc = true, },
+	[PROC_TRACE_CTL] =
+	    { .lock_tree = SA_SLOCKED, .one_proc = false, },
+	[PROC_TRACE_STATUS] =
+	    { .lock_tree = SA_UNLOCKED, .one_proc = true, },
+	[PROC_TRAPCAP_CTL] =
+	    { .lock_tree = SA_SLOCKED, .one_proc = false, },
+	[PROC_TRAPCAP_STATUS] =
+	    { .lock_tree = SA_UNLOCKED, .one_proc = true, },
+	[PROC_PDEATHSIG_CTL] =
+	    { .lock_tree = SA_UNLOCKED, .one_proc = true, },
+	[PROC_PDEATHSIG_STATUS] =
+	    { .lock_tree = SA_UNLOCKED, .one_proc = true, },
+	[PROC_ASLR_CTL] =
+	    { .lock_tree = SA_UNLOCKED, .one_proc = true, },
+	[PROC_ASLR_STATUS] =
+	    { .lock_tree = SA_UNLOCKED, .one_proc = true, },
+	[PROC_PROTMAX_CTL] =
+	    { .lock_tree = SA_UNLOCKED, .one_proc = true, },
+	[PROC_PROTMAX_STATUS] =
+	    { .lock_tree = SA_UNLOCKED, .one_proc = true, },
+	[PROC_STACKGAP_CTL] =
+	    { .lock_tree = SA_UNLOCKED, .one_proc = true, },
+	[PROC_STACKGAP_STATUS] =
+	    { .lock_tree = SA_UNLOCKED, .one_proc = true, },
+	[PROC_NO_NEW_PRIVS_CTL] =
+	    { .lock_tree = SA_SLOCKED, .one_proc = true, },
+	[PROC_NO_NEW_PRIVS_STATUS] =
+	    { .lock_tree = SA_UNLOCKED, .one_proc = true, },
+	[PROC_WXMAP_CTL] =
+	    { .lock_tree = SA_UNLOCKED, .one_proc = true, },
+	[PROC_WXMAP_STATUS] =
+	    { .lock_tree = SA_UNLOCKED, .one_proc = true, },
+};
+
 int
 sys_procctl(struct thread *td, struct procctl_args *uap)
 {
@@ -812,33 +863,14 @@ kern_procctl(struct thread *td, idtype_t idtype, id_t id, int com, void *data)
 {
 	struct pgrp *pg;
 	struct proc *p;
+	const struct procctl_cmd_info *cmd_info;
 	int error, first_error, ok;
 	int signum;
-	bool tree_locked;
 
-	switch (com) {
-	case PROC_ASLR_CTL:
-	case PROC_ASLR_STATUS:
-	case PROC_PROTMAX_CTL:
-	case PROC_PROTMAX_STATUS:
-	case PROC_REAP_ACQUIRE:
-	case PROC_REAP_RELEASE:
-	case PROC_REAP_STATUS:
-	case PROC_REAP_GETPIDS:
-	case PROC_REAP_KILL:
-	case PROC_STACKGAP_CTL:
-	case PROC_STACKGAP_STATUS:
-	case PROC_TRACE_STATUS:
-	case PROC_TRAPCAP_STATUS:
-	case PROC_PDEATHSIG_CTL:
-	case PROC_PDEATHSIG_STATUS:
-	case PROC_NO_NEW_PRIVS_CTL:
-	case PROC_NO_NEW_PRIVS_STATUS:
-	case PROC_WXMAP_CTL:
-	case PROC_WXMAP_STATUS:
-		if (idtype != P_PID)
-			return (EINVAL);
-	}
+	MPASS(com > 0 && com < nitems(procctl_cmds_info));
+	cmd_info = &procctl_cmds_info[com];
+	if (idtype != P_PID && cmd_info->one_proc)
+		return (EINVAL);
 
 	switch (com) {
 	case PROC_PDEATHSIG_CTL:
@@ -861,37 +893,13 @@ kern_procctl(struct thread *td, idtype_t idtype, id_t id, int com, void *data)
 		return (0);
 	}
 
-	switch (com) {
-	case PROC_SPROTECT:
-	case PROC_REAP_STATUS:
-	case PROC_REAP_GETPIDS:
-	case PROC_REAP_KILL:
-	case PROC_TRACE_CTL:
-	case PROC_TRAPCAP_CTL:
-	case PROC_NO_NEW_PRIVS_CTL:
-		sx_slock(&proctree_lock);
-		tree_locked = true;
-		break;
-	case PROC_REAP_ACQUIRE:
-	case PROC_REAP_RELEASE:
+	switch (cmd_info->lock_tree) {
+	case SA_XLOCKED:
 		sx_xlock(&proctree_lock);
-		tree_locked = true;
 		break;
-	case PROC_ASLR_CTL:
-	case PROC_ASLR_STATUS:
-	case PROC_PROTMAX_CTL:
-	case PROC_PROTMAX_STATUS:
-	case PROC_STACKGAP_CTL:
-	case PROC_STACKGAP_STATUS:
-	case PROC_TRACE_STATUS:
-	case PROC_TRAPCAP_STATUS:
-	case PROC_NO_NEW_PRIVS_STATUS:
-	case PROC_WXMAP_CTL:
-	case PROC_WXMAP_STATUS:
-		tree_locked = false;
+	case SA_SLOCKED:
+		sx_slock(&proctree_lock);
 		break;
-	default:
-		return (EINVAL);
 	}
 
 	switch (idtype) {
@@ -949,7 +957,14 @@ kern_procctl(struct thread *td, idtype_t idtype, id_t id, int com, void *data)
 		error = EINVAL;
 		break;
 	}
-	if (tree_locked)
-		sx_unlock(&proctree_lock);
+
+	switch (cmd_info->lock_tree) {
+	case SA_XLOCKED:
+		sx_xunlock(&proctree_lock);
+		break;
+	case SA_SLOCKED:
+		sx_sunlock(&proctree_lock);
+		break;
+	}
 	return (error);
 }
