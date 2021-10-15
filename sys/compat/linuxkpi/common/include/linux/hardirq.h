@@ -36,7 +36,9 @@
 #include <sys/bus.h>
 #include <sys/interrupt.h>
 
-#define	synchronize_irq(irq)	_intr_drain((irq))
+#include <machine/machintr.h>
+
+#define	synchronize_irq(irq)	_intr_drain(intr2event(intrtab_lookup((irq))))
 
 /*
  * FIXME: In the i915 driver's `intel_engine_cs.c` file,

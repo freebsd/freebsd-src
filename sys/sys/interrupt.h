@@ -186,10 +186,10 @@ int	intr_event_handle(struct intr_event *ie, struct trapframe *frame);
 int	intr_event_remove_handler(void *cookie);
 int	intr_event_suspend_handler(void *cookie);
 int	intr_event_resume_handler(void *cookie);
-int	intr_getaffinity(int irq, int mode, void *mask);
+int	intr_getaffinity(struct intr_event *ie, int mode, void *mask);
 void	*intr_handler_source(void *cookie);
-int	intr_setaffinity(int irq, int mode, const void *mask);
-void	_intr_drain(int irq);  /* LinuxKPI only. */
+int	intr_setaffinity(struct intr_event *ie, int mode, const void *mask);
+void	_intr_drain(struct intr_event *ie);  /* LinuxKPI only. */
 int	swi_add(struct intr_event **eventp, const char *name,
 	    driver_intr_t handler, void *arg, int pri, enum intr_type flags,
 	    void **cookiep);
