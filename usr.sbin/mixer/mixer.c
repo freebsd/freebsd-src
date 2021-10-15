@@ -219,15 +219,23 @@ printminfo(struct mixer *m, int oflag)
 
 	if (oflag)
 		return;
-	printf("%s: <%s> %s", m->mi.name, m->ci.longname, m->ci.hw_info);
-	printf(" (");
+	printf("%s:", m->mi.name);
+	if (*m->ci.longname != '\0')
+		printf(" <%s>", m->ci.longname);
+	if (*m->ci.hw_info != '\0')
+		printf(" %s", m->ci.hw_info);
+
+	if (m->mode != 0)
+		printf(" (");
 	if (m->mode & MIX_MODE_PLAY)
 		printf("play");
 	if ((m->mode & playrec) == playrec)
 		printf("/");
 	if (m->mode & MIX_MODE_REC)
 		printf("rec");
-	printf(")");
+	if (m->mode != 0)
+		printf(")");
+
 	if (m->f_default)
 		printf(" (default)");
 	printf("\n");
