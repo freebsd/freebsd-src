@@ -656,15 +656,6 @@ wxmap_status(struct thread *td, struct proc *p, int *data)
 	return (0);
 }
 
-#ifndef _SYS_SYSPROTO_H_
-struct procctl_args {
-	idtype_t idtype;
-	id_t	id;
-	int	com;
-	void	*data;
-};
-#endif
-/* ARGSUSED */
 int
 sys_procctl(struct thread *td, struct procctl_args *uap)
 {
