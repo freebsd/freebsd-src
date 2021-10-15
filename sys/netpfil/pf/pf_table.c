@@ -918,7 +918,8 @@ pfr_clstats_kentries(struct pfr_ktable *kt, struct pfr_kentryworkq *workq,
 			for (i = 0; i < PFR_NUM_COUNTERS; i++)
 				counter_u64_zero(
 				    p->pfrke_counters.pfrkc_counters + i);
-		p->pfrke_counters.pfrkc_tzero = tzero;
+		if (tzero)
+			p->pfrke_counters.pfrkc_tzero = tzero;
 	}
 }
 
@@ -1360,7 +1361,7 @@ pfr_clr_tstats(struct pfr_table *tbl, int size, int *nzero, int flags)
 	int			 i, xzero = 0;
 	long			 tzero = time_second;
 
-	ACCEPT_FLAGS(flags, PFR_FLAG_DUMMY | PFR_FLAG_ADDRSTOO);
+	ACCEPT_FLAGS(flags, PFR_FLAG_DUMMY | PFR_FLAG_ADDRSTOO | PFR_FLAG_ATOMIC);
 	SLIST_INIT(&workq);
 	for (i = 0; i < size; i++) {
 		bcopy(tbl + i, &key.pfrkt_t, sizeof(key.pfrkt_t));
@@ -1372,6 +1373,8 @@ pfr_clr_tstats(struct pfr_table *tbl, int size, int *nzero, int flags)
 			xzero++;
 		}
 	}
+	if (flags & PFR_FLAG_ATOMIC)
+		pfr_clstats_ktables(&workq, 0, 1);
 	if (!(flags & PFR_FLAG_DUMMY))
 		pfr_clstats_ktables(&workq, tzero, flags & PFR_FLAG_ADDRSTOO);
 	if (nzero != NULL)
