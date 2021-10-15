@@ -2018,7 +2018,7 @@ pci_emul_cfgaddr(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
 	} else {
 		x = *eax;
 		cfgenable = (x & CONF1_ENABLE) == CONF1_ENABLE;
-		cfgoff = x & PCI_REGMAX;
+		cfgoff = (x & PCI_REGMAX) & ~0x03;
 		cfgfunc = (x >> 8) & PCI_FUNCMAX;
 		cfgslot = (x >> 11) & PCI_SLOTMAX;
 		cfgbus = (x >> 16) & PCI_BUSMAX;
