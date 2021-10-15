@@ -285,6 +285,22 @@ intr_lookup(u_int irq)
 	return (i);
 }
 
+interrupt_t *
+intrtab_lookup(u_int intr)
+{
+
+	if (intr >= num_io_irqs)
+		return (NULL);
+	return (powerpc_intrs[intr]);
+}
+
+struct intr_event *
+_intr2event(interrupt_t *intr)
+{
+
+	return (intr->event);
+}
+
 static int
 powerpc_map_irq(struct powerpc_intr *i)
 {
