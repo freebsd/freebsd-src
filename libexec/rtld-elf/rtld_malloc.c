@@ -271,21 +271,21 @@ morepages(int n)
 		}
 	}
 
-	if (pagepool_start == MAP_FAILED)
-		pagepool_start = 0;
 	offset = (uintptr_t)pagepool_start - rounddown2(
 	    (uintptr_t)pagepool_start, pagesz);
 
-	pagepool_start = mmap(0, n * pagesz, PROT_READ | PROT_WRITE,
+	addr = mmap(0, n * pagesz, PROT_READ | PROT_WRITE,
 	    MAP_ANON | MAP_PRIVATE, -1, 0);
-	if (pagepool_start == MAP_FAILED) {
+	if (addr == MAP_FAILED) {
 #ifdef IN_RTLD
 		rtld_fdprintf(STDERR_FILENO, _BASENAME_RTLD ": morepages: "
 		    "cannot mmap anonymous memory: %s\n",
 		    rtld_strerror(errno));
 #endif
+		pagepool_start = pagepool_end = NULL;
 		return (0);
 	}
+	pagepool_start = addr;
 	pagepool_end = pagepool_start + n * pagesz;
 	pagepool_start += offset;
 
