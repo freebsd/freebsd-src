@@ -58,7 +58,6 @@
 #include <sys/vmmeter.h>
 #include <machine/atomic.h>
 #include <machine/cpu.h>
-#include <machine/intr_machdep.h>
 #include <machine/md_var.h>
 #include <machine/smp.h>
 #include <machine/stdarg.h>
@@ -429,9 +428,8 @@ intr_event_bind_ithread_cpuset(struct intr_event *ie, cpuset_t *cs)
 }
 
 int
-intr_setaffinity(int irq, int mode, const void *m)
+intr_setaffinity(struct intr_event *ie, int mode, const void *m)
 {
-	struct intr_event *ie;
 	const cpuset_t *mask;
 	int cpu, n;
 
@@ -450,7 +448,6 @@ intr_setaffinity(int irq, int mode, const void *m)
 			cpu = n;
 		}
 	}
-	ie = intr2event(intrtab_lookup(irq));
 	if (ie == NULL)
 		return (ESRCH);
 	switch (mode) {
@@ -466,9 +463,8 @@ intr_setaffinity(int irq, int mode, const void *m)
 }
 
 int
-intr_getaffinity(int irq, int mode, void *m)
+intr_getaffinity(struct intr_event *ie, int mode, void *m)
 {
-	struct intr_event *ie;
 	struct thread *td;
 	struct proc *p;
 	cpuset_t *mask;
@@ -476,7 +472,6 @@ intr_getaffinity(int irq, int mode, void *m)
 	int error;
 
 	mask = m;
-	ie = intr2event(intrtab_lookup(irq));
 	if (ie == NULL)
 		return (ESRCH);
 
@@ -803,13 +798,11 @@ intr_handler_barrier(struct intr_handler *handler)
  * Do not use in BSD code.
  */
 void
-_intr_drain(int irq)
+_intr_drain(struct intr_event *ie)
 {
-	struct intr_event *ie;
 	struct intr_thread *ithd;
 	struct thread *td;
 
-	ie = intr2event(intrtab_lookup(irq));
 	if (ie == NULL)
 		return;
 	if (ie->ie_thread == NULL)
