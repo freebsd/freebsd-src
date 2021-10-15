@@ -409,6 +409,18 @@ intr_isrc_dispatch(struct intr_irqsrc *isrc, struct trapframe *tf)
 }
 
 /*
+ *  Lookup an interrupt source by number.
+ */
+interrupt_t *
+intrtab_lookup(u_int irq)
+{
+
+	if (irq >= intr_nirq)
+		return (NULL);
+	return (irq_sources[irq]);
+}
+
+/*
  *  Alloc unique interrupt number (resource handle) for interrupt source.
  *
  *  There could be various strategies how to allocate free interrupt number

@@ -39,6 +39,11 @@
 
 typedef struct intr_irqsrc interrupt_t;
 
+extern interrupt_t *intrtab_lookup(u_int irq) __pure;
+
+#define	_intr2event(intr)	((intr)->isrc_event)
+#define	intr2event(intr)	((intr) != NULL ? _intr2event(intr) : NULL)
+
 /* FreeBSD standard interrupt controller interface */
 
 #define	INTR_IRQ_INVALID	0xFFFFFFFF
