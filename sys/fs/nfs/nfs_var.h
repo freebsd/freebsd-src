@@ -631,7 +631,7 @@ void nfscl_deleggetmodtime(vnode_t, struct timespec *);
 int nfscl_trydelegreturn(struct nfscldeleg *, struct ucred *,
     struct nfsmount *, NFSPROC_T *);
 int nfscl_tryclose(struct nfsclopen *, struct ucred *,
-    struct nfsmount *, NFSPROC_T *);
+    struct nfsmount *, NFSPROC_T *, bool);
 void nfscl_cleanup(NFSPROC_T *);
 int nfscl_layout(struct nfsmount *, vnode_t, u_int8_t *, int, nfsv4stateid_t *,
     int, int, struct nfsclflayouthead *, struct nfscllayout **, struct ucred *,

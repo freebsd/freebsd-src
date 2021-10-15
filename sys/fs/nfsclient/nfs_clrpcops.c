@@ -841,7 +841,7 @@ nfsrpc_doclose(struct nfsmount *nmp, struct nfsclopen *op, NFSPROC_T *p)
 	nfscl_lockexcl(&op->nfso_own->nfsow_rwlock, NFSCLSTATEMUTEXPTR);
 	NFSUNLOCKCLSTATE();
 	do {
-		error = nfscl_tryclose(op, tcred, nmp, p);
+		error = nfscl_tryclose(op, tcred, nmp, p, true);
 		if (error == NFSERR_GRACE)
 			(void) nfs_catnap(PZERO, error, "nfs_close");
 	} while (error == NFSERR_GRACE);
