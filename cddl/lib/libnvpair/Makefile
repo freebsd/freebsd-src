@@ -4,6 +4,7 @@
 .PATH: ${SRCTOP}/sys/contrib/openzfs/lib/libnvpair
 
 LIB=	nvpair
+LIBADD=	spl
 
 PACKAGE=	runtime
 # user

@@ -4,6 +4,7 @@
 
 PACKAGE=	runtime
 LIB=	avl
+LIBADD=	spl
 SRCS=	avl.c
 WARNS?=	3
 CFLAGS+= -DIN_BASE
