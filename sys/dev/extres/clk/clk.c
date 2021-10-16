@@ -1517,7 +1517,7 @@ clk_get_by_ofw_name(device_t dev, phandle_t cnode, const char *name, clk_t *clk)
 
 /*
  * Get "clock-output-names" and  (optional) "clock-indices" lists.
- * Both lists are alocated using M_OFWPROP specifier.
+ * Both lists are allocated using M_OFWPROP specifier.
  *
  * Returns number of items or 0.
  */
