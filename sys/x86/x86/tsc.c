@@ -42,7 +42,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 #include <sys/timetc.h>
 #include <sys/kernel.h>
-#include <sys/power.h>
 #include <sys/smp.h>
 #include <sys/vdso.h>
 #include <machine/clock.h>
@@ -586,23 +585,6 @@ init_TSC_tc(void)
 	max_freq = UINT_MAX;
 
 	/*
-	 * We can not use the TSC if we support APM.  Precise timekeeping
-	 * on an APM'ed machine is at best a fools pursuit, since 
-	 * any and all of the time spent in various SMM code can't 
-	 * be reliably accounted for.  Reading the RTC is your only
-	 * source of reliable time info.  The i8254 loses too, of course,
-	 * but we need to have some kind of time...
-	 * We don't know at this point whether APM is going to be used
-	 * or not, nor when it might be activated.  Play it safe.
-	 */
-	if (power_pm_get_type() == POWER_PM_TYPE_APM) {
-		tsc_timecounter.tc_quality = -1000;
-		if (bootverbose)
-			printf("TSC timecounter disabled: APM enabled.\n");
-		goto init;
-	}
-
-	/*
 	 * Intel CPUs without a C-state invariant TSC can stop the TSC
 	 * in either C2 or C3.  Disable use of C2 and C3 while using
 	 * the TSC as the timecounter.  The timecounter can be changed
@@ -637,7 +619,6 @@ init_TSC_tc(void)
 		tsc_timecounter.tc_quality = 1000;
 	max_freq >>= tsc_shift;
 
-init:
 	for (shift = 0; shift <= 31 && (tsc_freq >> shift) > max_freq; shift++)
 		;
 
