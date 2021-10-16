@@ -166,6 +166,8 @@ typedef struct {
 #define	ELF64_R_TYPE_INFO(data, type)	\
 				(((Elf64_Xword)(data)<<8)+(Elf64_Xword)(type))
 
+typedef Elf64_Xword Elf64_Relr;
+
 /*
  *	Note entry header
  */

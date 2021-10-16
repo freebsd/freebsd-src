@@ -71,6 +71,7 @@ __ElfType(Phdr);
 __ElfType(Dyn);
 __ElfType(Rel);
 __ElfType(Rela);
+__ElfType(Relr);
 __ElfType(Sym);
 __ElfType(Verdef);
 __ElfType(Verdaux);
