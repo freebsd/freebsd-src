@@ -1,0 +1,28 @@
+#
+# QCA SoC support (32 bit)
+#
+
+machine 	arm     armv7
+cpu 		CPU_CORTEXA
+makeoptions 	CONF_CFLAGS="-march=armv7a"
+
+files 		"../qualcomm/std.ipq4018"
+
+# Serial (COM) ports
+device 		uart
+device 		uart_msm	# Qualcomm MSM UART driver
+
+device 		gic
+
+# MMC/SD/SDIO Card slot support
+device 		mmc
+device 		sdhci
+
+# Timers
+device 		generic_timer
+device 		mpcore_timer
+
+options 	FDT
+
+# Disable CP14 work in DDB as TZ won't let us by default
+options 	ARM_FORCE_DBG_MONITOR_DISABLE
