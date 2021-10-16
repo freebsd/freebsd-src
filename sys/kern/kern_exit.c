@@ -228,6 +228,7 @@ exit1(struct thread *td, int rval, int signo)
 
 	mtx_assert(&Giant, MA_NOTOWNED);
 	KASSERT(rval == 0 || signo == 0, ("exit1 rv %d sig %d", rval, signo));
+	TSPROCEXIT(td->td_proc->p_pid);
 
 	p = td->td_proc;
 	/*
