@@ -341,7 +341,8 @@ undefinedinstruction(struct trapframe *frame)
 			return;
 		}
 		else
-			panic("Undefined instruction in kernel.\n");
+			panic("Undefined instruction in kernel (0x%08x).\n",
+			    fault_instruction);
 	}
 
 	userret(td, frame);
