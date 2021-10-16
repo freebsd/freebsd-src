@@ -271,12 +271,31 @@
 	__count;							\
 })
 
-/* Non-destructively loop over all set or clear bits in the set. */
-#define	_BIT_FOREACH(_s, i, p, op)					\
-	for (__size_t __i = 0; __i < __bitset_words(_s); __i++)		\
-		for (long __j = op((p)->__bits[__i]), __b = ffsl(__j);	\
-		    (i = (__b - 1) + __i * _BITSET_BITS), __j != 0;	\
-		    __j &= ~(1l << i), __b = ffsl(__j))
+#define	_BIT_FOREACH_ADVANCE(_s, i, p, op) __extension__ ({		\
+	int __found;							\
+	for (;;) {							\
+		if (__bits != 0) {					\
+			int __bit = ffsl(__bits) - 1;			\
+			__bits &= ~(1ul << __bit);			\
+			(i) = __i * _BITSET_BITS + __bit;		\
+			__found = 1;					\
+			break;						\
+		}							\
+		if (++__i == __bitset_words(_s)) {			\
+			__found = 0;					\
+			break;						\
+		}							\
+		__bits = op((p)->__bits[__i]);				\
+	}								\
+	__found != 0;							\
+})
+
+/*
+ * Non-destructively loop over all set or clear bits in the set.
+ */
+#define _BIT_FOREACH(_s, i, p, op)					\
+	for (long __i = -1, __bits = 0;					\
+	    _BIT_FOREACH_ADVANCE(_s, i, p, op); )
 
 #define	BIT_FOREACH_ISSET(_s, i, p)	_BIT_FOREACH(_s, i, p, )
 #define	BIT_FOREACH_ISCLR(_s, i, p)	_BIT_FOREACH(_s, i, p, ~)
