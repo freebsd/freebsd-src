@@ -174,6 +174,8 @@ typedef struct Struct_Obj_Entry {
     unsigned long relsize;	/* Size in bytes of relocation info */
     const Elf_Rela *rela;	/* Relocation entries with addend */
     unsigned long relasize;	/* Size in bytes of addend relocation info */
+    const Elf_Relr *relr;	/* RELR relocation entries */
+    unsigned long relrsize;	/* Size in bytes of RELR relocations */
     const Elf_Rel *pltrel;	/* PLT relocation entries */
     unsigned long pltrelsize;	/* Size in bytes of PLT relocation info */
     const Elf_Rela *pltrela;	/* PLT relocation entries with addend */
