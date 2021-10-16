@@ -357,6 +357,10 @@ Similarly,
 .Fn BIT_FOREACH_ISCLR
 iterates over all clear bits in
 .Fa bitset .
+In the loop body, the currently indexed bit may be set or cleared.
+However, setting or clearing bits other than the currently indexed
+bit does not guarantee that they will or will not be returned in
+subsequent iterations of the same loop.
 .Pp
 The
 .Fn BIT_COUNT
