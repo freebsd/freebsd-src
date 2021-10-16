@@ -1,0 +1,2 @@
+arm/qualcomm/ipq4018_machdep.c		standard
+arm/qualcomm/ipq4018_mp.c		optional smp
