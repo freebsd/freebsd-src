@@ -857,7 +857,7 @@ out:
 	mlx4_cq_set_ci(mcq);
 	wmb(); /* ensure HW sees CQ consumer before we post new buffers */
 	ring->cons = mcq->cons_index;
-	ring->prod += polled; /* Polled descriptors were realocated in place */
+	ring->prod += polled; /* Polled descriptors were reallocated in place */
 	mlx4_en_update_rx_prod_db(ring);
 	return polled;
 
