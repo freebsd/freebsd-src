@@ -222,7 +222,6 @@ retry:
 
 	/* Bar new entries */
 	mp->taste = NULL;
-	mp->config = NULL;
 
 	LIST_FOREACH(gp, &mp->geom, geom) {
 		error = mp->destroy_geom(NULL, mp, gp);
