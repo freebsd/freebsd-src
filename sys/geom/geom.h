@@ -96,7 +96,6 @@ struct g_class {
 	u_int			version;
 	u_int			spare0;
 	g_taste_t		*taste;
-	g_config_t		*config;
 	g_ctl_req_t		*ctlreq;
 	g_init_t		*init;
 	g_fini_t		*fini;
