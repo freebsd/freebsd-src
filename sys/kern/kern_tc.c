@@ -98,6 +98,10 @@ static struct timehands *volatile timehands = &ths[0];
 struct timecounter *timecounter = &dummy_timecounter;
 static struct timecounter *timecounters = &dummy_timecounter;
 
+/* Mutex to protect the timecounter list. */
+static struct mtx tc_lock;
+MTX_SYSINIT(tc_lock, &tc_lock, "tc", MTX_DEF);
+
 int tc_min_ticktock_freq = 1;
 
 volatile time_t time_second = 1;
@@ -1183,8 +1187,6 @@ tc_init(struct timecounter *tc)
 		    tc->tc_quality);
 	}
 
-	tc->tc_next = timecounters;
-	timecounters = tc;
 	/*
 	 * Set up sysctl tree for this counter.
 	 */
@@ -1206,6 +1208,11 @@ tc_init(struct timecounter *tc)
 	SYSCTL_ADD_INT(NULL, SYSCTL_CHILDREN(tc_root), OID_AUTO,
 	    "quality", CTLFLAG_RD, &(tc->tc_quality), 0,
 	    "goodness of time counter");
+
+	mtx_lock(&tc_lock);
+	tc->tc_next = timecounters;
+	timecounters = tc;
+
 	/*
 	 * Do not automatically switch if the current tc was specifically
 	 * chosen.  Never automatically use a timecounter with negative quality.
@@ -1213,22 +1220,24 @@ tc_init(struct timecounter *tc)
 	 * worse since this timecounter may not be monotonic.
 	 */
 	if (tc_chosen)
-		return;
+		goto unlock;
 	if (tc->tc_quality < 0)
-		return;
+		goto unlock;
 	if (tc_from_tunable[0] != '\0' &&
 	    strcmp(tc->tc_name, tc_from_tunable) == 0) {
 		tc_chosen = 1;
 		tc_from_tunable[0] = '\0';
 	} else {
 		if (tc->tc_quality < timecounter->tc_quality)
-			return;
+			goto unlock;
 		if (tc->tc_quality == timecounter->tc_quality &&
 		    tc->tc_frequency < timecounter->tc_frequency)
-			return;
+			goto unlock;
 	}
 	(void)tc->tc_get_timecount(tc);
 	timecounter = tc;
+unlock:
+	mtx_unlock(&tc_lock);
 }
 
 /* Report the frequency of the current timecounter. */
@@ -1474,16 +1483,22 @@ sysctl_kern_timecounter_hardware(SYSCTL_HANDLER_ARGS)
 	struct timecounter *newtc, *tc;
 	int error;
 
+	mtx_lock(&tc_lock);
 	tc = timecounter;
 	strlcpy(newname, tc->tc_name, sizeof(newname));
+	mtx_unlock(&tc_lock);
 
 	error = sysctl_handle_string(oidp, &newname[0], sizeof(newname), req);
 	if (error != 0 || req->newptr == NULL)
 		return (error);
+
+	mtx_lock(&tc_lock);
 	/* Record that the tc in use now was specifically chosen. */
 	tc_chosen = 1;
-	if (strcmp(newname, tc->tc_name) == 0)
+	if (strcmp(newname, tc->tc_name) == 0) {
+		mtx_unlock(&tc_lock);
 		return (0);
+	}
 	for (newtc = timecounters; newtc != NULL; newtc = newtc->tc_next) {
 		if (strcmp(newname, newtc->tc_name) != 0)
 			continue;
@@ -1501,11 +1516,11 @@ sysctl_kern_timecounter_hardware(SYSCTL_HANDLER_ARGS)
 		 * use any locking and that it can be called in hard interrupt
 		 * context via 'tc_windup()'.
 		 */
-		return (0);
+		break;
 	}
-	return (EINVAL);
+	mtx_unlock(&tc_lock);
+	return (newtc != NULL ? 0 : EINVAL);
 }
-
 SYSCTL_PROC(_kern_timecounter, OID_AUTO, hardware,
     CTLTYPE_STRING | CTLFLAG_RWTUN | CTLFLAG_NOFETCH | CTLFLAG_MPSAFE, 0, 0,
     sysctl_kern_timecounter_hardware, "A",
@@ -1519,12 +1534,17 @@ sysctl_kern_timecounter_choice(SYSCTL_HANDLER_ARGS)
 	struct timecounter *tc;
 	int error;
 
+	error = sysctl_wire_old_buffer(req, 0);
+	if (error != 0)
+		return (error);
 	sbuf_new_for_sysctl(&sb, NULL, 0, req);
+	mtx_lock(&tc_lock);
 	for (tc = timecounters; tc != NULL; tc = tc->tc_next) {
 		if (tc != timecounters)
 			sbuf_putc(&sb, ' ');
 		sbuf_printf(&sb, "%s(%d)", tc->tc_name, tc->tc_quality);
 	}
+	mtx_unlock(&tc_lock);
 	error = sbuf_finish(&sb);
 	sbuf_delete(&sb);
 	return (error);
