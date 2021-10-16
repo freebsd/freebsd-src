@@ -404,7 +404,6 @@ int	sig_ast_needsigchk(struct thread *td);
 void	sig_drop_caught(struct proc *p);
 void	sigexit(struct thread *td, int sig) __dead2;
 int	sigev_findtd(struct proc *p, struct sigevent *sigev, struct thread **);
-int	sig_ffs(sigset_t *set);
 void	sigfastblock_clear(struct thread *td);
 void	sigfastblock_fetch(struct thread *td);
 void	sigfastblock_setpend(struct thread *td, bool resched);
