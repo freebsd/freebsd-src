@@ -51,12 +51,19 @@
 #define TSUNWAIT(x) TSEVENT2("UNWAIT", x);
 #define TSHOLD(x) TSEVENT2("HOLD", x);
 #define TSRELEASE(x) TSEVENT2("RELEASE", x);
+#define TSFORK(p, pp) TSRAW_USER(p, pp, NULL, NULL)
+#define TSEXEC(p, name) TSRAW_USER(p, (pid_t)(-1), name, NULL)
+#define TSNAMEI(p, name) TSRAW_USER(p, (pid_t)(-1), NULL, name)
+#define TSPROCEXIT(p) TSRAW_USER(p, (pid_t)(-1), NULL, NULL)
 
 #ifdef TSLOG
 #define TSRAW(a, b, c, d) tslog(a, b, c, d)
 void tslog(void *, int, const char *, const char *);
+#define TSRAW_USER(a, b, c, d) tslog_user(a, b, c, d)
+void tslog_user(pid_t, pid_t, const char *, const char *);
 #else
 #define TSRAW(a, b, c, d)		/* Timestamp logging disabled */
+#define TSRAW_USER(a, b, c, d)		/* Timestamp logging disabled */
 #endif
 
 #endif /* _TSLOG_H_ */
