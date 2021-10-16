@@ -26,7 +26,7 @@ CFLAGS+= -I${SRCTOP}/cddl/usr.sbin
 # use issetugid(2)
 CFLAGS+= -D_MACHINE_FLOAT_H_ -DHAVE_ISSETUGID
 
-LIBADD+=	devdctl zfs zfs_core util geom bsdxml sbuf nvpair avl spl uutil zutil
+LIBADD+=	devdctl zfs util geom bsdxml sbuf nvpair avl uutil zutil
 
 cscope:
 	find ${.CURDIR} -type f -a \( -name "*.[ch]" -o -name "*.cc" \) \

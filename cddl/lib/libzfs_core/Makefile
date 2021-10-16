@@ -5,7 +5,7 @@
 
 
 LIB=	zfs_core
-LIBADD=	nvpair
+LIBADD=	nvpair spl zutil
 PACKAGE=	runtime
 
 INCS=	libzfs_core.h
