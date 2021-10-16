@@ -23,6 +23,6 @@ fi
 for d in ${dts}; do
     dtb="${dtb_path}/$(basename "$d" .dts).dtb"
     ${ECHO} "converting $d -> $dtb"
-    ${CPP} -P -x assembler-with-cpp -I "$S/contrib/device-tree/include" -I "$S/dts/${MACHINE}" -I "$S/contrib/device-tree/src/${MACHINE}" -I "$S/contrib/device-tree/src/" -include "$d" -include "$S/dts/freebsd-compatible.dts" /dev/null |
+    ${CPP} -P -x assembler-with-cpp -I "$S/dts/include" -I "$S/contrib/device-tree/include" -I "$S/dts/${MACHINE}" -I "$S/contrib/device-tree/src/${MACHINE}" -I "$S/contrib/device-tree/src/" -include "$d" -include "$S/dts/freebsd-compatible.dts" /dev/null |
 	${DTC} -@ -O dtb -o "$dtb" -b 0 -p 1024 -i "$S/dts/${MACHINE}" -i "$S/contrib/device-tree/src/${MACHINE}" -i "$S/contrib/device-tree/src/"
 done
