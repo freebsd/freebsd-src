@@ -3267,6 +3267,7 @@ lookformore:
 			op = LIST_NEXT(op, nfso_list);
 		}
 	}
+	nfscl_clrelease(clp);
 	NFSUNLOCKCLSTATE();
 	/*
 	 * recallp has been set NULL by nfscl_retoncloselayout() if it was

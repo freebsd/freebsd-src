@@ -716,13 +716,12 @@ nfsrpc_close(vnode_t vp, int doclose, NFSPROC_T *p)
 		return (0);
 	if (doclose)
 		error = nfscl_doclose(vp, &clp, p);
-	else
+	else {
 		error = nfscl_getclose(vp, &clp);
-	if (error)
-		return (error);
-
-	nfscl_clientrelease(clp);
-	return (0);
+		if (error == 0)
+			nfscl_clientrelease(clp);
+	}
+	return (error);
 }
 
 /*
