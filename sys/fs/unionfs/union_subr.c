@@ -64,6 +64,7 @@
 #include <fs/unionfs/union.h>
 
 #define NUNIONFSNODECACHE 16
+#define UNIONFSHASHMASK (NUNIONFSNODECACHE - 1)
 
 static MALLOC_DEFINE(M_UNIONFSHASH, "UNIONFS hash", "UNIONFS hash table");
 MALLOC_DEFINE(M_UNIONFSNODE, "UNIONFS node", "UNIONFS vnode private part");
@@ -129,31 +130,57 @@ unionfs_deferred_rele(void *arg __unused, int pending __unused)
 }
 
 static struct unionfs_node_hashhead *
-unionfs_get_hashhead(struct vnode *dvp, char *path)
+unionfs_get_hashhead(struct vnode *dvp, struct vnode *lookup)
 {
 	struct unionfs_node *unp;
-	int		count;
-	char		hash;
 
-	hash = 0;
 	unp = VTOUNIONFS(dvp);
-	if (path != NULL) {
-		for (count = 0; path[count]; count++)
-			hash += path[count];
+
+	return (&(unp->un_hashtbl[vfs_hash_index(lookup) & UNIONFSHASHMASK]));
+}
+
+/*
+ * Attempt to lookup a cached unionfs vnode by upper/lower vp
+ * from dvp, with dvp's interlock held.
+ */
+static struct vnode *
+unionfs_get_cached_vnode_locked(struct vnode *lookup, struct vnode *dvp)
+{
+	struct unionfs_node *unp;
+	struct unionfs_node_hashhead *hd;
+	struct vnode *vp;
+
+	hd = unionfs_get_hashhead(dvp, lookup);
+
+	LIST_FOREACH(unp, hd, un_hash) {
+		if ((unp->un_uppervp == lookup) ||
+		    (unp->un_lowervp == lookup)) {
+			vp = UNIONFSTOV(unp);
+			VI_LOCK_FLAGS(vp, MTX_DUPOK);
+			vp->v_iflag &= ~VI_OWEINACT;
+			if (VN_IS_DOOMED(vp) ||
+			    ((vp->v_iflag & VI_DOINGINACT) != 0)) {
+				VI_UNLOCK(vp);
+				vp = NULLVP;
+			} else {
+				vrefl(vp);
+				VI_UNLOCK(vp);
+			}
+			return (vp);
+		}
 	}
 
-	return (&(unp->un_hashtbl[hash & (unp->un_hashmask)]));
+	return (NULLVP);
 }
+
 
 /*
  * Get the cached vnode.
  */
 static struct vnode *
 unionfs_get_cached_vnode(struct vnode *uvp, struct vnode *lvp,
-    struct vnode *dvp, char *path)
+    struct vnode *dvp)
 {
-	struct unionfs_node_hashhead *hd;
-	struct unionfs_node *unp;
 	struct vnode *vp;
 
 	KASSERT((uvp == NULLVP || uvp->v_type == VDIR),
@@ -161,26 +188,15 @@ unionfs_get_cached_vnode(struct vnode *uvp, struct vnode *lvp,
 	KASSERT((lvp == NULLVP || lvp->v_type == VDIR),
 	    ("unionfs_get_cached_vnode: v_type != VDIR"));
 
+	vp = NULLVP;
 	VI_LOCK(dvp);
-	hd = unionfs_get_hashhead(dvp, path);
-	LIST_FOREACH(unp, hd, un_hash) {
-		if (!strcmp(unp->un_path, path)) {
-			vp = UNIONFSTOV(unp);
-			VI_LOCK_FLAGS(vp, MTX_DUPOK);
-			VI_UNLOCK(dvp);
-			vp->v_iflag &= ~VI_OWEINACT;
-			if (VN_IS_DOOMED(vp) ||
-			    ((vp->v_iflag & VI_DOINGINACT) != 0)) {
-				VI_UNLOCK(vp);
-				vp = NULLVP;
-			} else
-				VI_UNLOCK(vp);
-			return (vp);
-		}
-	}
+	if (uvp != NULLVP)
+		vp = unionfs_get_cached_vnode_locked(uvp, dvp);
+	else if (lvp != NULLVP)
+		vp = unionfs_get_cached_vnode_locked(lvp, dvp);
 	VI_UNLOCK(dvp);
 
-	return (NULLVP);
+	return (vp);
 }
 
 /*
@@ -188,10 +204,9 @@ unionfs_get_cached_vnode(struct vnode *uvp, struct vnode *lvp,
  */
 static struct vnode *
 unionfs_ins_cached_vnode(struct unionfs_node *uncp,
-    struct vnode *dvp, char *path)
+    struct vnode *dvp)
 {
 	struct unionfs_node_hashhead *hd;
-	struct unionfs_node *unp;
 	struct vnode *vp;
 
 	KASSERT((uncp->un_uppervp==NULLVP || uncp->un_uppervp->v_type==VDIR),
@@ -199,29 +214,20 @@ unionfs_ins_cached_vnode(struct unionfs_node *uncp,
 	KASSERT((uncp->un_lowervp==NULLVP || uncp->un_lowervp->v_type==VDIR),
 	    ("unionfs_ins_cached_vnode: v_type != VDIR"));
 
+	vp = NULLVP;
 	VI_LOCK(dvp);
-	hd = unionfs_get_hashhead(dvp, path);
-	LIST_FOREACH(unp, hd, un_hash) {
-		if (!strcmp(unp->un_path, path)) {
-			vp = UNIONFSTOV(unp);
-			VI_LOCK_FLAGS(vp, MTX_DUPOK);
-			vp->v_iflag &= ~VI_OWEINACT;
-			if (VN_IS_DOOMED(vp) ||
-			    ((vp->v_iflag & VI_DOINGINACT) != 0)) {
-				LIST_INSERT_HEAD(hd, uncp, un_hash);
-				VI_UNLOCK(vp);
-				vp = NULLVP;
-			} else
-				VI_UNLOCK(vp);
-			VI_UNLOCK(dvp);
-			return (vp);
-		}
+	if (uncp->un_uppervp != NULL)
+		vp = unionfs_get_cached_vnode_locked(uncp->un_uppervp, dvp);
+	else if (uncp->un_lowervp != NULL)
+		vp = unionfs_get_cached_vnode_locked(uncp->un_lowervp, dvp);
+	if (vp == NULLVP) {
+		hd = unionfs_get_hashhead(dvp, (uncp->un_uppervp != NULLVP ?
+		    uncp->un_uppervp : uncp->un_lowervp));
+		LIST_INSERT_HEAD(hd, uncp, un_hash);
 	}
-
-	LIST_INSERT_HEAD(hd, uncp, un_hash);
 	VI_UNLOCK(dvp);
 
-	return (NULLVP);
+	return (vp);
 }
 
 /*
@@ -233,13 +239,13 @@ unionfs_rem_cached_vnode(struct unionfs_node *unp, struct vnode *dvp)
 	KASSERT((unp != NULL), ("unionfs_rem_cached_vnode: null node"));
 	KASSERT((dvp != NULLVP),
 	    ("unionfs_rem_cached_vnode: null parent vnode"));
-	KASSERT((unp->un_hash.le_prev != NULL),
-	    ("unionfs_rem_cached_vnode: null hash"));
 
 	VI_LOCK(dvp);
-	LIST_REMOVE(unp, un_hash);
-	unp->un_hash.le_next = NULL;
-	unp->un_hash.le_prev = NULL;
+	if (unp->un_hash.le_prev != NULL) {
+		LIST_REMOVE(unp, un_hash);
+		unp->un_hash.le_next = NULL;
+		unp->un_hash.le_prev = NULL;
+	}
 	VI_UNLOCK(dvp);
 }
 
@@ -281,7 +287,7 @@ unionfs_nodeget_cleanup(struct vnode *vp, void *arg)
 	if (unp->un_lowervp != NULLVP)
 		vput(unp->un_lowervp);
 	if (unp->un_hashtbl != NULL)
-		hashdestroy(unp->un_hashtbl, M_UNIONFSHASH, unp->un_hashmask);
+		hashdestroy(unp->un_hashtbl, M_UNIONFSHASH, UNIONFSHASHMASK);
 	free(unp->un_path, M_UNIONFSPATH);
 	free(unp, M_UNIONFSNODE);
 }
@@ -302,6 +308,7 @@ unionfs_nodeget(struct mount *mp, struct vnode *uppervp,
 	struct unionfs_mount *ump;
 	struct unionfs_node *unp;
 	struct vnode   *vp;
+	u_long		hashmask;
 	int		error;
 	int		lkflags;
 	enum vtype	vt;
@@ -322,10 +329,9 @@ unionfs_nodeget(struct mount *mp, struct vnode *uppervp,
 		path = NULL;
 
 	/* check the cache */
-	if (path != NULL && dvp != NULLVP && vt == VDIR) {
-		vp = unionfs_get_cached_vnode(uppervp, lowervp, dvp, path);
+	if (dvp != NULLVP && vt == VDIR) {
+		vp = unionfs_get_cached_vnode(uppervp, lowervp, dvp);
 		if (vp != NULLVP) {
-			vref(vp);
 			*vpp = vp;
 			goto unionfs_nodeget_out;
 		}
@@ -352,9 +358,12 @@ unionfs_nodeget(struct mount *mp, struct vnode *uppervp,
 	if (lowervp != NULLVP)
 		vref(lowervp);
 
-	if (vt == VDIR)
+	if (vt == VDIR) {
 		unp->un_hashtbl = hashinit(NUNIONFSNODECACHE, M_UNIONFSHASH,
-		    &(unp->un_hashmask));
+		    &hashmask);
+		KASSERT(hashmask == UNIONFSHASHMASK,
+		    ("unexpected unionfs hash mask 0x%lx", hashmask));
+	}
 
 	unp->un_vnode = vp;
 	unp->un_uppervp = uppervp;
@@ -395,12 +404,12 @@ unionfs_nodeget(struct mount *mp, struct vnode *uppervp,
 		unionfs_nodeget_cleanup(vp, unp);
 		return (ENOENT);
 	}
-	if (path != NULL && dvp != NULLVP && vt == VDIR)
-		*vpp = unionfs_ins_cached_vnode(unp, dvp, path);
+
+	if (dvp != NULLVP && vt == VDIR)
+		*vpp = unionfs_ins_cached_vnode(unp, dvp);
 	if (*vpp != NULLVP) {
 		unionfs_nodeget_cleanup(vp, unp);
 		vp = *vpp;
-		vref(vp);
 	} else {
 		if (uppervp != NULL)
 			VOP_UNLOCK(uppervp);
@@ -457,7 +466,7 @@ unionfs_noderem(struct vnode *vp, struct thread *td)
 	if (uvp != NULLVP)
 		VOP_UNLOCK(uvp);
 
-	if (dvp != NULLVP && unp->un_hash.le_prev != NULL)
+	if (dvp != NULLVP)
 		unionfs_rem_cached_vnode(unp, dvp);
 
 	if (lockmgr(vp->v_vnlock, LK_EXCLUSIVE, VI_MTX(vp)) != 0)
@@ -474,7 +483,7 @@ unionfs_noderem(struct vnode *vp, struct thread *td)
 	}
 
 	if (unp->un_hashtbl != NULL) {
-		for (count = 0; count <= unp->un_hashmask; count++) {
+		for (count = 0; count <= UNIONFSHASHMASK; count++) {
 			hd = unp->un_hashtbl + count;
 			LIST_FOREACH_SAFE(unp_t1, hd, un_hash, unp_t2) {
 				LIST_REMOVE(unp_t1, un_hash);
@@ -482,7 +491,7 @@ unionfs_noderem(struct vnode *vp, struct thread *td)
 				unp_t1->un_hash.le_prev = NULL;
 			}
 		}
-		hashdestroy(unp->un_hashtbl, M_UNIONFSHASH, unp->un_hashmask);
+		hashdestroy(unp->un_hashtbl, M_UNIONFSHASH, UNIONFSHASHMASK);
 	}
 
 	LIST_FOREACH_SAFE(unsp, &(unp->un_unshead), uns_list, unsp_tmp) {
@@ -777,6 +786,7 @@ static void
 unionfs_node_update(struct unionfs_node *unp, struct vnode *uvp,
     struct thread *td)
 {
+	struct unionfs_node_hashhead *hd;
 	struct vnode   *vp;
 	struct vnode   *lvp;
 	struct vnode   *dvp;
@@ -799,16 +809,16 @@ unionfs_node_update(struct unionfs_node *unp, struct vnode *uvp,
 		vn_lock(uvp, LK_EXCLUSIVE | LK_CANRECURSE | LK_RETRY);
 
 	/*
-	 * cache update
+	 * Re-cache the unionfs vnode against the upper vnode
 	 */
-	if (unp->un_path != NULL && dvp != NULLVP && vp->v_type == VDIR) {
-		static struct unionfs_node_hashhead *hd;
-
+	if (dvp != NULLVP && vp->v_type == VDIR) {
 		VI_LOCK(dvp);
-		hd = unionfs_get_hashhead(dvp, unp->un_path);
-		LIST_REMOVE(unp, un_hash);
-		LIST_INSERT_HEAD(hd, unp, un_hash);
-		VI_UNLOCK(dvp);
+		if (unp->un_hash.le_prev != NULL) {
+			LIST_REMOVE(unp, un_hash);
+			hd = unionfs_get_hashhead(dvp, uvp);
+			LIST_INSERT_HEAD(hd, unp, un_hash);
+		}
+		VI_UNLOCK(unp->un_dvp);
 	}
 }
 
