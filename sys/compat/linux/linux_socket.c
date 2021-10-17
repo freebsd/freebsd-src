@@ -574,6 +574,10 @@ linux_to_bsd_tcp_sockopt(int opt)
 		return (TCP_KEEPINTVL);
 	case LINUX_TCP_KEEPCNT:
 		return (TCP_KEEPCNT);
+	case LINUX_TCP_INFO:
+		LINUX_RATELIMIT_MSG_OPT1(
+		    "unsupported TCP socket option TCP_INFO (%d)", opt);
+		return (-2);
 	case LINUX_TCP_MD5SIG:
 		return (TCP_MD5SIG);
 	}
