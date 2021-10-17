@@ -4320,14 +4320,14 @@ biodone(struct bio *bp)
  * Wait for a BIO to finish.
  */
 int
-biowait(struct bio *bp, const char *wchan)
+biowait(struct bio *bp, const char *wmesg)
 {
 	struct mtx *mtxp;
 
 	mtxp = mtx_pool_find(mtxpool_sleep, bp);
 	mtx_lock(mtxp);
 	while ((bp->bio_flags & BIO_DONE) == 0)
-		msleep(bp, mtxp, PRIBIO, wchan, 0);
+		msleep(bp, mtxp, PRIBIO, wmesg, 0);
 	mtx_unlock(mtxp);
 	if (bp->bio_error != 0)
 		return (bp->bio_error);
