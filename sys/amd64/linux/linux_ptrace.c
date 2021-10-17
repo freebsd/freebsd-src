@@ -85,7 +85,8 @@ __FBSDID("$FreeBSD$");
 #define	LINUX_PTRACE_O_EXITKILL		1048576
 #define	LINUX_PTRACE_O_SUSPEND_SECCOMP	2097152
 
-#define	LINUX_NT_PRSTATUS		1
+#define	LINUX_NT_PRSTATUS		0x1
+#define	LINUX_NT_X86_XSTATE		0x202
 
 #define	LINUX_PTRACE_O_MASK	(LINUX_PTRACE_O_TRACESYSGOOD |	\
     LINUX_PTRACE_O_TRACEFORK | LINUX_PTRACE_O_TRACEVFORK |	\
@@ -574,8 +575,12 @@ linux_ptrace_getregset(struct thread *td, pid_t pid, l_ulong addr, l_ulong data)
 	switch (addr) {
 	case LINUX_NT_PRSTATUS:
 		return (linux_ptrace_getregset_prstatus(td, pid, data));
+	case LINUX_NT_X86_XSTATE:
+		linux_msg(td, "PTRAGE_GETREGSET NT_X86_XSTATE not implemented; "
+		    "returning EINVAL");
+		return (EINVAL);
 	default:
-		linux_msg(td, "PTRACE_GETREGSET request %ld not implemented; "
+		linux_msg(td, "PTRACE_GETREGSET request %#lx not implemented; "
 		    "returning EINVAL", addr);
 		return (EINVAL);
 	}
