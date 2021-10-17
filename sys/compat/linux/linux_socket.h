@@ -314,6 +314,7 @@ int linux_accept(struct thread *td, struct linux_accept_args *args);
 #define	LINUX_TCP_KEEPIDLE	4
 #define	LINUX_TCP_KEEPINTVL	5
 #define	LINUX_TCP_KEEPCNT	6
+#define	LINUX_TCP_INFO		11
 #define	LINUX_TCP_MD5SIG	14
 
 #endif /* _LINUX_SOCKET_H_ */
