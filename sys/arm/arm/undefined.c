@@ -90,13 +90,25 @@ __FBSDID("$FreeBSD$");
 
 #define	ARM_COPROC_INSN(insn)	(((insn) & (1 << 27)) != 0)
 #define	ARM_VFP_INSN(insn)	((((insn) & 0xfe000000) == 0xf2000000) || \
-    (((insn) & 0xff100000) == 0xf4000000))
+				 (((insn) & 0xff100000) == 0xf4000000))
 #define	ARM_COPROC(insn)	(((insn) >> 8) & 0xf)
 
-#define	THUMB_32BIT_INSN(insn)	((insn) >= 0xe800)
+#define	THUMB_32BIT_INSN(insn)	((((insn) & 0xe000) == 0xe000) && \
+				 (((insn) & 0x1800) != 0))
+/*
+ * Coprocessor, Advanced SIMD, and
+ * Floating-point instructions on page A6-251
+ * OP1 == 01 OR 11
+ * OP2 == 1xxxxxx
+ */
 #define	THUMB_COPROC_INSN(insn)	(((insn) & (3 << 26)) == (3 << 26))
-#define	THUMB_COPROC_UNDEFINED(insn) (((insn) & 0x3e << 20) == 0)
-#define	THUMB_VFP_INSN(insn)	(((insn) & (3 << 24)) == (3 << 24))
+/*
+ * Advanced SIMD element or structure
+ * load/store instructions on page A7-275
+ * OP1 == 11
+ * OP2 == 001xxx0
+*/
+#define	THUMB_VFP_INSN(insn)	(((insn) & (0x1F1 << 20)) == (0x190 << 20))
 #define	THUMB_COPROC(insn)	(((insn) >> 8) & 0xf)
 
 #define	COPROC_VFP	10
@@ -278,18 +290,13 @@ undefinedinstruction(struct trapframe *frame)
 			fault_instruction <<= 16;
 			fault_instruction |= *(uint16_t *)(fault_pc + 2);
 
-			/*
-			 * Is it a Coprocessor, Advanced SIMD, or
-			 * Floating-point instruction.
-			 */
-			if (THUMB_COPROC_INSN(fault_instruction)) {
-				if (THUMB_COPROC_UNDEFINED(fault_instruction)) {
-					/* undefined insn */
-				} else if (THUMB_VFP_INSN(fault_instruction))
-					coprocessor = COPROC_VFP;
-				else
-					coprocessor =
-					    THUMB_COPROC(fault_instruction);
+			/* Coprocessor, Advanced SIMD and Floating-point */
+			if (THUMB_COPROC_INSN(fault_instruction))
+				coprocessor = THUMB_COPROC(fault_instruction);
+			else {
+				/* Advanced SIMD load/store */
+				if (THUMB_VFP_INSN(fault_instruction))
+					coprocessor = COPROC_VFP; /* SIMD */
 			}
 		}
 #else
