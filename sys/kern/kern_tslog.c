@@ -169,8 +169,9 @@ tslog_user(pid_t pid, pid_t ppid, const char * execname, const char * namei)
 
 	/* If we have an execname, record it. */
 	if (execname != NULL) {
-		if (procs[pid].execname == NULL)
-			procs[pid].execname = strdup(execname, M_TSLOGUSER);
+		if (procs[pid].execname != NULL)
+			free(procs[pid].execname, M_TSLOGUSER);
+		procs[pid].execname = strdup(execname, M_TSLOGUSER);
 		return;
 	}
 
