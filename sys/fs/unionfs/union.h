@@ -96,7 +96,6 @@ struct unionfs_node {
 		STAILQ_ENTRY(unionfs_node) un_rele; /* deferred release list */
 	};
 
-	u_long		un_hashmask;		/* bit mask */
 	char           *un_path;		/* path */
 	int		un_pathlen;		/* strlen of path */
 	int		un_flag;		/* unionfs node flag */
