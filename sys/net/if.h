@@ -236,7 +236,7 @@ struct if_data {
 #define	IFCAP_TOE4		0x04000	/* interface can offload TCP */
 #define	IFCAP_TOE6		0x08000	/* interface can offload TCP6 */
 #define	IFCAP_VLAN_HWFILTER	0x10000 /* interface hw can filter vlan tag */
-/* 	available		0x20000 */
+#define	IFCAP_NV		0x20000 /* can do SIOCGIFCAPNV/SIOCSIFCAPNV */
 #define	IFCAP_VLAN_HWTSO	0x40000 /* can do IFCAP_TSO on VLANs */
 #define	IFCAP_LINKSTATE		0x80000 /* the runtime link state is dynamic */
 #define	IFCAP_NETMAP		0x100000 /* netmap mode supported/enabled */
@@ -260,7 +260,40 @@ struct if_data {
 #define	IFCAP_TOE	(IFCAP_TOE4 | IFCAP_TOE6)
 #define	IFCAP_TXTLS	(IFCAP_TXTLS4 | IFCAP_TXTLS6)
 
-#define	IFCAP_CANTCHANGE	(IFCAP_NETMAP)
+#define	IFCAP_CANTCHANGE	(IFCAP_NETMAP | IFCAP_NV)
+#define	IFCAP_ALLCAPS		0xffffffff
+
+#define	IFCAP_RXCSUM_NAME	"RXCSUM"
+#define	IFCAP_TXCSUM_NAME	"TXCSUM"
+#define	IFCAP_NETCONS_NAME	"NETCONS"
+#define	IFCAP_VLAN_MTU_NAME	"VLAN_MTU"
+#define	IFCAP_VLAN_HWTAGGING_NAME "VLAN_HWTAGGING"
+#define	IFCAP_JUMBO_MTU_NAME	"JUMBO_MTU"
+#define	IFCAP_POLLING_NAME	"POLLING"
+#define	IFCAP_VLAN_HWCSUM_NAME	"VLAN_HWCSUM"
+#define	IFCAP_TSO4_NAME		"TSO4"
+#define	IFCAP_TSO6_NAME		"TSO6"
+#define	IFCAP_LRO_NAME		"LRO"
+#define	IFCAP_WOL_UCAST_NAME	"WOL_UCAST"
+#define	IFCAP_WOL_MCAST_NAME	"WOL_MCAST"
+#define	IFCAP_WOL_MAGIC_NAME	"WOL_MAGIC"
+#define	IFCAP_TOE4_NAME		"TOE4"
+#define	IFCAP_TOE6_NAME		"TOE6"
+#define	IFCAP_VLAN_HWFILTER_NAME "VLAN_HWFILTER"
+#define	IFCAP_VLAN_HWTSO_NAME	"VLAN_HWTSO"
+#define	IFCAP_LINKSTATE_NAME	"LINKSTATE"
+#define	IFCAP_NETMAP_NAME	"NETMAP"
+#define	IFCAP_RXCSUM_IPV6_NAME	"RXCSUM_IPV6"
+#define	IFCAP_TXCSUM_IPV6_NAME	"TXCSUM_IPV6"
+#define	IFCAP_HWSTATS_NAME	"HWSTATS"
+#define	IFCAP_TXRTLMT_NAME	"TXRTLMT"
+#define	IFCAP_HWRXTSTMP_NAME	"HWRXTSTMP"
+#define	IFCAP_MEXTPG_NAME	"MEXTPG"
+#define	IFCAP_TXTLS4_NAME	"TXTLS4"
+#define	IFCAP_TXTLS6_NAME	"TXTLS6"
+#define	IFCAP_VXLAN_HWCSUM_NAME	"VXLAN_HWCSUM"
+#define	IFCAP_VXLAN_HWTSO_NAME	"VXLAN_HWTSO"
+#define	IFCAP_TXTLS_RTLMT_NAME	"TXTLS_RTLMT"
 
 #define	IFQ_MAXLEN	50
 #define	IFNET_SLOWHZ	1		/* granularity is 1 second */
@@ -387,6 +420,15 @@ struct ifreq_buffer {
 	void	*buffer;
 };
 
+struct ifreq_nv_req {
+	u_int	buf_length;	/* Total size of buffer,
+				   u_int for ABI struct ifreq */
+	u_int	length;		/* Length of the filled part */
+	void	*buffer;	/* Buffer itself, containing packed nv */
+};
+
+#define	IFR_CAP_NV_MAXBUFSIZE	(2 * 1024 * 1024)
+
 /*
  * Interface request structure used for socket
  * ioctl's.  All interface ioctl's must have parameter
@@ -411,6 +453,7 @@ struct ifreq {
 		int	ifru_cap[2];
 		u_int	ifru_fib;
 		u_char	ifru_vlan_pcp;
+		struct	ifreq_nv_req ifru_nv;
 	} ifr_ifru;
 #define	ifr_addr	ifr_ifru.ifru_addr	/* address */
 #define	ifr_dstaddr	ifr_ifru.ifru_dstaddr	/* other end of p-to-p link */
@@ -434,6 +477,7 @@ struct ifreq {
 #define	ifr_fib		ifr_ifru.ifru_fib	/* interface fib */
 #define	ifr_vlan_pcp	ifr_ifru.ifru_vlan_pcp	/* VLAN priority */
 #define	ifr_lan_pcp	ifr_ifru.ifru_vlan_pcp	/* VLAN priority */
+#define	ifr_cap_nv	ifr_ifru.ifru_nv	/* nv-based cap interface */
 };
 
 #define	_SIZEOF_ADDR_IFREQ(ifr) \
@@ -605,6 +649,17 @@ MALLOC_DECLARE(M_IFMADDR);
 
 extern struct sx ifnet_detach_sxlock;
 
+struct nvlist;
+struct ifcap_nv_bit_name;
+int if_capnv_to_capint(const struct nvlist *nv, int *old_cap,
+    const struct ifcap_nv_bit_name *nn, bool all);
+void if_capint_to_capnv(struct nvlist *nv,
+    const struct ifcap_nv_bit_name *nn, int ifr_cap, int ifr_req);
+struct siocsifcapnv_driver_data {
+	int reqcap;
+	int reqcap2;
+	struct nvlist *nvcap;
+};
 #endif
 
 #ifndef _KERNEL
