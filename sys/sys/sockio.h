@@ -147,4 +147,7 @@
 
 #define	SIOCGIFDOWNREASON	_IOWR('i', 154, struct ifdownreason)
 
+#define	SIOCSIFCAPNV	_IOW('i', 155, struct ifreq)	/* set IF features */
+#define	SIOCGIFCAPNV	_IOWR('i', 156, struct ifreq)	/* get IF features */
+
 #endif /* !_SYS_SOCKIO_H_ */

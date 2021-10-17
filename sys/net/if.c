@@ -58,6 +58,7 @@
 #include <sys/lock.h>
 #include <sys/refcount.h>
 #include <sys/module.h>
+#include <sys/nv.h>
 #include <sys/rwlock.h>
 #include <sys/sockio.h>
 #include <sys/syslog.h>
@@ -2391,6 +2392,88 @@ ifr_data_get_ptr(void *ifrp)
 		return (ifrup->ifr.ifr_ifru.ifru_data);
 }
 
+struct ifcap_nv_bit_name {
+	int cap_bit;
+	const char *cap_name;
+};
+#define CAPNV(x) {.cap_bit = IFCAP_##x, \
+    .cap_name = __CONCAT(IFCAP_, __CONCAT(x, _NAME)) }
+const struct ifcap_nv_bit_name ifcap_nv_bit_names[] = {
+	CAPNV(RXCSUM),
+	CAPNV(TXCSUM),
+	CAPNV(NETCONS),
+	CAPNV(VLAN_MTU),
+	CAPNV(VLAN_HWTAGGING),
+	CAPNV(JUMBO_MTU),
+	CAPNV(POLLING),
+	CAPNV(VLAN_HWCSUM),
+	CAPNV(TSO4),
+	CAPNV(TSO6),
+	CAPNV(LRO),
+	CAPNV(WOL_UCAST),
+	CAPNV(WOL_MCAST),
+	CAPNV(WOL_MAGIC),
+	CAPNV(TOE4),
+	CAPNV(TOE6),
+	CAPNV(VLAN_HWFILTER),
+	CAPNV(VLAN_HWTSO),
+	CAPNV(LINKSTATE),
+	CAPNV(NETMAP),
+	CAPNV(RXCSUM_IPV6),
+	CAPNV(TXCSUM_IPV6),
+	CAPNV(HWSTATS),
+	CAPNV(TXRTLMT),
+	CAPNV(HWRXTSTMP),
+	CAPNV(MEXTPG),
+	CAPNV(TXTLS4),
+	CAPNV(TXTLS6),
+	CAPNV(VXLAN_HWCSUM),
+	CAPNV(VXLAN_HWTSO),
+	CAPNV(TXTLS_RTLMT),
+	{0, NULL}
+};
+#define CAP2NV(x) {.cap_bit = IFCAP2_##x, \
+    .cap_name = __CONCAT(IFCAP2_, __CONCAT(x, _NAME)) }
+const struct ifcap_nv_bit_name ifcap2_nv_bit_names[] = {
+	CAP2NV(RXTLS4),
+	CAP2NV(RXTLS6),
+	{0, NULL}
+};
+#undef CAPNV
+#undef CAP2NV
+
+int
+if_capnv_to_capint(const nvlist_t *nv, int *old_cap,
+    const struct ifcap_nv_bit_name *nn, bool all)
+{
+	int i, res;
+
+	res = 0;
+	for (i = 0; nn[i].cap_name != NULL; i++) {
+		if (nvlist_exists_bool(nv, nn[i].cap_name)) {
+			if (all || nvlist_get_bool(nv, nn[i].cap_name))
+				res |= nn[i].cap_bit;
+		} else {
+			res |= *old_cap & nn[i].cap_bit;
+		}
+	}
+	return (res);
+}
+
+void
+if_capint_to_capnv(nvlist_t *nv, const struct ifcap_nv_bit_name *nn,
+    int ifr_cap, int ifr_req)
+{
+	int i;
+
+	for (i = 0; nn[i].cap_name != NULL; i++) {
+		if ((nn[i].cap_bit & ifr_cap) != 0) {
+			nvlist_add_bool(nv, nn[i].cap_name,
+			    (nn[i].cap_bit & ifr_req) != 0);
+		}
+	}
+}
+
 /*
  * Hardware specific interface ioctls.
  */
@@ -2401,12 +2484,15 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 	int error = 0, do_ifup = 0;
 	int new_flags, temp_flags;
 	size_t namelen, onamelen;
-	size_t descrlen;
+	size_t descrlen, nvbuflen;
 	char *descrbuf, *odescrbuf;
 	char new_name[IFNAMSIZ];
 	char old_name[IFNAMSIZ], strbuf[IFNAMSIZ + 8];
 	struct ifaddr *ifa;
 	struct sockaddr_dl *sdl;
+	void *buf;
+	nvlist_t *nvcap;
+	struct siocsifcapnv_driver_data drv_ioctl_data;
 
 	ifr = (struct ifreq *)data;
 	switch (cmd) {
@@ -2423,6 +2509,47 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 	case SIOCGIFCAP:
 		ifr->ifr_reqcap = ifp->if_capabilities;
 		ifr->ifr_curcap = ifp->if_capenable;
+		break;
+
+	case SIOCGIFCAPNV:
+		if ((ifp->if_capabilities & IFCAP_NV) == 0) {
+			error = EINVAL;
+			break;
+		}
+		buf = NULL;
+		nvcap = nvlist_create(0);
+		for (;;) {
+			if_capint_to_capnv(nvcap, ifcap_nv_bit_names,
+			    ifp->if_capabilities, ifp->if_capenable);
+			if_capint_to_capnv(nvcap, ifcap2_nv_bit_names,
+			    ifp->if_capabilities2, ifp->if_capenable2);
+			error = (*ifp->if_ioctl)(ifp, SIOCGIFCAPNV,
+			    __DECONST(caddr_t, nvcap));
+			if (error != 0) {
+				if_printf(ifp,
+			    "SIOCGIFCAPNV driver mistake: nvlist error %d\n",
+				    error);
+				break;
+			}
+			buf = nvlist_pack(nvcap, &nvbuflen);
+			if (buf == NULL) {
+				error = nvlist_error(nvcap);
+				if (error == 0)
+					error = EDOOFUS;
+				break;
+			}
+			if (nvbuflen > ifr->ifr_cap_nv.buf_length) {
+				ifr->ifr_cap_nv.length = nvbuflen;
+				ifr->ifr_cap_nv.buffer = NULL;
+				error = EFBIG;
+				break;
+			}
+			ifr->ifr_cap_nv.length = nvbuflen;
+			error = copyout(buf, ifr->ifr_cap_nv.buffer, nvbuflen);
+			break;
+		}
+		free(buf, M_NVLIST);
+		nvlist_destroy(nvcap);
 		break;
 
 	case SIOCGIFDATA:
@@ -2563,13 +2690,60 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 
 	case SIOCSIFCAP:
 		error = priv_check(td, PRIV_NET_SETIFCAP);
-		if (error)
+		if (error != 0)
 			return (error);
 		if (ifp->if_ioctl == NULL)
 			return (EOPNOTSUPP);
 		if (ifr->ifr_reqcap & ~ifp->if_capabilities)
 			return (EINVAL);
 		error = (*ifp->if_ioctl)(ifp, cmd, data);
+		if (error == 0)
+			getmicrotime(&ifp->if_lastchange);
+		break;
+
+	case SIOCSIFCAPNV:
+		error = priv_check(td, PRIV_NET_SETIFCAP);
+		if (error != 0)
+			return (error);
+		if (ifp->if_ioctl == NULL)
+			return (EOPNOTSUPP);
+		if ((ifp->if_capabilities & IFCAP_NV) == 0)
+			return (EINVAL);
+		if (ifr->ifr_cap_nv.length > IFR_CAP_NV_MAXBUFSIZE)
+			return (EINVAL);
+		nvcap = NULL;
+		buf = malloc(ifr->ifr_cap_nv.length, M_TEMP, M_WAITOK);
+		for (;;) {
+			error = copyin(ifr->ifr_cap_nv.buffer, buf,
+			    ifr->ifr_cap_nv.length);
+			if (error != 0)
+				break;
+			nvcap = nvlist_unpack(buf, ifr->ifr_cap_nv.length, 0);
+			if (nvcap == NULL) {
+				error = EINVAL;
+				break;
+			}
+			drv_ioctl_data.reqcap = if_capnv_to_capint(nvcap,
+			    &ifp->if_capenable, ifcap_nv_bit_names, false);
+			if ((drv_ioctl_data.reqcap &
+			    ~ifp->if_capabilities) != 0) {
+				error = EINVAL;
+				break;
+			}
+			drv_ioctl_data.reqcap2 = if_capnv_to_capint(nvcap,
+			    &ifp->if_capenable2, ifcap2_nv_bit_names, false);
+			if ((drv_ioctl_data.reqcap2 &
+			    ~ifp->if_capabilities2) != 0) {
+				error = EINVAL;
+				break;
+			}
+			drv_ioctl_data.nvcap = nvcap;
+			error = (*ifp->if_ioctl)(ifp, SIOCSIFCAPNV,
+			    (caddr_t)&drv_ioctl_data);
+			break;
+		}
+		nvlist_destroy(nvcap);
+		free(buf, M_TEMP);
 		if (error == 0)
 			getmicrotime(&ifp->if_lastchange);
 		break;
