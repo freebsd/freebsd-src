@@ -2,7 +2,7 @@
 .\" Written by Garrett Wollman
 .\" This file is in the public domain.
 .\"
-.Dd March 4, 2017
+.Dd October 17, 2021
 .Dt PROCFS 5
 .Os
 .Sh NAME
@@ -13,6 +13,15 @@
 proc		/proc	procfs	rw 0 0
 .Ed
 .Sh DESCRIPTION
+.Bf -symbolic
+This functionality is deprecated.
+Users are advised to use
+.Xr libprocstat 3
+and
+.Xr kvm 3
+instead.
+.Ef
+.Pp
 The process file system, or
 .Nm ,
 implements a view of the system process table inside the file system.
