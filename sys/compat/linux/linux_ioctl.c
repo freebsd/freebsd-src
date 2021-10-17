@@ -755,7 +755,15 @@ linux_ioctl_termio(struct thread *td, struct linux_ioctl_args *args)
 		    td));
 		break;
 
-	/* LINUX_TCSBRK */
+	case LINUX_TCSBRK:
+		if (args->arg != 0) {
+			error = (fo_ioctl(fp, TIOCDRAIN, (caddr_t)&bios, td->td_ucred,
+			    td));
+		} else {
+			linux_msg(td, "ioctl TCSBRK arg 0 not implemented");
+			error = ENOIOCTL;
+		}
+		break;
 
 	case LINUX_TCXONC: {
 		switch (args->arg) {
