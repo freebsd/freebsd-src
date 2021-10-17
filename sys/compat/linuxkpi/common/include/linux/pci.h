@@ -311,19 +311,27 @@ pci_resource_type(struct pci_dev *pdev, int bar)
 		return (SYS_RES_MEMORY);
 }
 
+struct resource_list_entry *linux_pci_reserve_bar(struct pci_dev *pdev,
+		    struct resource_list *rl, int type, int rid);
+
 static inline struct resource_list_entry *
-linux_pci_get_rle(struct pci_dev *pdev, int type, int rid)
+linux_pci_get_rle(struct pci_dev *pdev, int type, int rid, bool reserve_bar)
 {
 	struct pci_devinfo *dinfo;
 	struct resource_list *rl;
+	struct resource_list_entry *rle;
 
 	dinfo = device_get_ivars(pdev->dev.bsddev);
 	rl = &dinfo->resources;
-	return resource_list_find(rl, type, rid);
+	rle = resource_list_find(rl, type, rid);
+	/* Reserve resources for this BAR if needed. */
+	if (rle == NULL && reserve_bar)
+		rle = linux_pci_reserve_bar(pdev, rl, type, rid);
+	return (rle);
 }
 
 static inline struct resource_list_entry *
-linux_pci_get_bar(struct pci_dev *pdev, int bar)
+linux_pci_get_bar(struct pci_dev *pdev, int bar, bool reserve)
 {
 	int type;
 
@@ -331,7 +339,7 @@ linux_pci_get_bar(struct pci_dev *pdev, int bar)
 	if (type < 0)
 		return (NULL);
 	bar = PCIR_BAR(bar);
-	return (linux_pci_get_rle(pdev, type, bar));
+	return (linux_pci_get_rle(pdev, type, bar, reserve));
 }
 
 static inline struct device *
@@ -521,7 +529,7 @@ pci_release_region(struct pci_dev *pdev, int bar)
 	struct pci_devres *dr;
 	struct pci_mmio_region *mmio, *p;
 
-	if ((rle = linux_pci_get_bar(pdev, bar)) == NULL)
+	if ((rle = linux_pci_get_bar(pdev, bar, false)) == NULL)
 		return;
 
 	/*
@@ -779,7 +787,7 @@ pci_enable_msix(struct pci_dev *pdev, struct msix_entry *entries, int nreq)
 		pci_release_msi(pdev->dev.bsddev);
 		return avail;
 	}
-	rle = linux_pci_get_rle(pdev, SYS_RES_IRQ, 1);
+	rle = linux_pci_get_rle(pdev, SYS_RES_IRQ, 1, false);
 	pdev->dev.irq_start = rle->start;
 	pdev->dev.irq_end = rle->start + avail;
 	for (i = 0; i < nreq; i++)
@@ -832,7 +840,7 @@ pci_enable_msi(struct pci_dev *pdev)
 	if ((error = -pci_alloc_msi(pdev->dev.bsddev, &avail)) != 0)
 		return error;
 
-	rle = linux_pci_get_rle(pdev, SYS_RES_IRQ, 1);
+	rle = linux_pci_get_rle(pdev, SYS_RES_IRQ, 1, false);
 	pdev->dev.irq_start = rle->start;
 	pdev->dev.irq_end = rle->start + avail;
 	pdev->irq = rle->start;
