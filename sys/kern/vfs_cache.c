@@ -4787,12 +4787,13 @@ cache_fplookup_emptypath(struct cache_fpl *fpl)
 	tvp_seqc = fpl->tvp_seqc;
 
 	MPASS(*cnp->cn_pnbuf == '\0');
-	MPASS((cnp->cn_flags & (LOCKPARENT | WANTPARENT)) == 0);
 
 	if (__predict_false((cnp->cn_flags & EMPTYPATH) == 0)) {
 		cache_fpl_smr_exit(fpl);
 		return (cache_fpl_handled_error(fpl, ENOENT));
 	}
+
+	MPASS((cnp->cn_flags & (LOCKPARENT | WANTPARENT)) == 0);
 
 	tvs = vget_prep_smr(tvp);
 	cache_fpl_smr_exit(fpl);
