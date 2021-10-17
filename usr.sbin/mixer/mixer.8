@@ -22,7 +22,7 @@
 .\" $FreeBSD$
 .\"
 
-.Dd September 22, 2021
+.Dd October 17, 2021
 .Dt mixer 8
 .Os
 .Sh NAME
@@ -39,6 +39,8 @@
 .Op Fl d Ar unit
 .Op Fl os
 .Fl a
+.Nm
+.Fl h
 .Sh DESCRIPTION
 The
 .Nm
@@ -58,6 +60,8 @@ at the number each mixer device has by running
 Open
 .Ar device
 as the mixer device (see FILES).
+.It Fl h
+Print a help message.
 .It Fl o
 Print mixer values in a format suitable for use inside scripts. The
 mixer's header (name, audio card name, ...) will not be printed.
