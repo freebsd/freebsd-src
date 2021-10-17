@@ -409,7 +409,7 @@ linux_pci_attach_device(device_t dev, struct pci_driver *pdrv,
 		PCI_GET_ID(parent, dev, PCI_ID_RID, &rid);
 	pdev->devfn = rid;
 	pdev->pdrv = pdrv;
-	rle = linux_pci_get_rle(pdev, SYS_RES_IRQ, 0);
+	rle = linux_pci_get_rle(pdev, SYS_RES_IRQ, 0, false);
 	if (rle != NULL)
 		pdev->dev.irq = rle->start;
 	else
@@ -665,6 +665,25 @@ linux_pci_register_driver(struct pci_driver *pdrv)
 	return (_linux_pci_register_driver(pdrv, dc));
 }
 
+struct resource_list_entry *
+linux_pci_reserve_bar(struct pci_dev *pdev, struct resource_list *rl,
+    int type, int rid)
+{
+	device_t dev;
+	struct resource *res;
+
+	KASSERT(type == SYS_RES_IOPORT || type == SYS_RES_MEMORY,
+	    ("trying to reserve non-BAR type %d", type));
+
+	dev = pdev->pdrv != NULL && pdev->pdrv->isdrm ?
+	    device_get_parent(pdev->dev.bsddev) : pdev->dev.bsddev;
+	res = pci_reserve_map(device_get_parent(dev), dev, type, &rid, 0, ~0,
+	    1, 1, 0);
+	if (res == NULL)
+		return (NULL);
+	return (resource_list_find(rl, type, rid));
+}
+
 unsigned long
 pci_resource_start(struct pci_dev *pdev, int bar)
 {
@@ -672,7 +691,7 @@ pci_resource_start(struct pci_dev *pdev, int bar)
 	rman_res_t newstart;
 	device_t dev;
 
-	if ((rle = linux_pci_get_bar(pdev, bar)) == NULL)
+	if ((rle = linux_pci_get_bar(pdev, bar, true)) == NULL)
 		return (0);
 	dev = pdev->pdrv != NULL && pdev->pdrv->isdrm ?
 	    device_get_parent(pdev->dev.bsddev) : pdev->dev.bsddev;
@@ -689,7 +708,7 @@ pci_resource_len(struct pci_dev *pdev, int bar)
 {
 	struct resource_list_entry *rle;
 
-	if ((rle = linux_pci_get_bar(pdev, bar)) == NULL)
+	if ((rle = linux_pci_get_bar(pdev, bar, true)) == NULL)
 		return (0);
 	return (rle->count);
 }

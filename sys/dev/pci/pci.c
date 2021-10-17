@@ -5365,7 +5365,7 @@ DB_SHOW_COMMAND(pciregs, db_pci_dump)
 }
 #endif /* DDB */
 
-static struct resource *
+struct resource *
 pci_reserve_map(device_t dev, device_t child, int type, int *rid,
     rman_res_t start, rman_res_t end, rman_res_t count, u_int num,
     u_int flags)
