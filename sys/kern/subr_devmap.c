@@ -290,7 +290,7 @@ pmap_mapdev(vm_offset_t pa, vm_size_t size)
 	return ((void *)(va + offset));
 }
 
-#if defined(__aarch64__)
+#if defined(__aarch64__) || defined(__riscv)
 void *
 pmap_mapdev_attr(vm_offset_t pa, vm_size_t size, vm_memattr_t ma)
 {
