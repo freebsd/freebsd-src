@@ -153,6 +153,11 @@ SYSCTL_INT(_vm, OID_AUTO, swap_idle_threshold2, CTLFLAG_RW,
     &swap_idle_threshold2, 0,
     "Time before a process will be swapped out");
 
+static int vm_daemon_timeout = 0;
+SYSCTL_INT(_vm, OID_AUTO, vmdaemon_timeout, CTLFLAG_RW,
+    &vm_daemon_timeout, 0,
+    "Time between vmdaemon runs");
+
 static int vm_pageout_req_swapout;	/* XXX */
 static int vm_daemon_needed;
 static struct mtx vm_daemon_mtx;
@@ -374,17 +379,15 @@ vm_daemon(void)
 	int breakout, swapout_flags, tryagain, attempts;
 #ifdef RACCT
 	uint64_t rsize, ravailable;
+
+	if (racct_enable && vm_daemon_timeout == 0)
+		vm_daemon_timeout = hz;
 #endif
 
 	while (TRUE) {
 		mtx_lock(&vm_daemon_mtx);
 		msleep(&vm_daemon_needed, &vm_daemon_mtx, PPAUSE, "psleep",
-#ifdef RACCT
-		    racct_enable ? hz : 0
-#else
-		    0
-#endif
-		);
+		    vm_daemon_timeout);
 		swapout_flags = vm_pageout_req_swapout;
 		vm_pageout_req_swapout = 0;
 		mtx_unlock(&vm_daemon_mtx);
