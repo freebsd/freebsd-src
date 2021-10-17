@@ -558,7 +558,7 @@ linux_ptrace_seize(struct thread *td, pid_t pid, l_ulong addr, l_ulong data)
 
 static int
 linux_ptrace_get_syscall_info(struct thread *td, pid_t pid,
-    l_ulong addr, l_ulong data)
+    l_ulong len, l_ulong data)
 {
 	struct ptrace_lwpinfo lwpinfo;
 	struct ptrace_sc_ret sr;
@@ -623,7 +623,8 @@ linux_ptrace_get_syscall_info(struct thread *td, pid_t pid,
 	si.instruction_pointer = b_reg.r_rip;
 	si.stack_pointer = b_reg.r_rsp;
 
-	error = copyout(&si, (void *)data, sizeof(si));
+	len = MIN(len, sizeof(si));
+	error = copyout(&si, (void *)data, len);
 	if (error == 0)
 		td->td_retval[0] = sizeof(si);
 
