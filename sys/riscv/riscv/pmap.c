@@ -916,7 +916,7 @@ pmap_kextract(vm_offset_t va)
  ***************************************************/
 
 void
-pmap_kenter_device(vm_offset_t sva, vm_size_t size, vm_paddr_t pa)
+pmap_kenter(vm_offset_t sva, vm_size_t size, vm_paddr_t pa, int mode __unused)
 {
 	pt_entry_t entry;
 	pt_entry_t *l3;
@@ -945,6 +945,12 @@ pmap_kenter_device(vm_offset_t sva, vm_size_t size, vm_paddr_t pa)
 		size -= PAGE_SIZE;
 	}
 	pmap_invalidate_range(kernel_pmap, sva, va);
+}
+
+void
+pmap_kenter_device(vm_offset_t sva, vm_size_t size, vm_paddr_t pa)
+{
+	pmap_kenter(sva, size, pa, VM_MEMATTR_DEVICE);
 }
 
 /*
