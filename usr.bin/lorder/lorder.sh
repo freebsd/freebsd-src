@@ -57,14 +57,14 @@ for i in $*; do
 	echo $i $i
 done
 
-# if the line has " [TDW] " it's a globally defined symbol, put it
+# if the line has " [RTDW] " it's a globally defined symbol, put it
 # into the symbol file.
 #
 # if the line has " U " it's a globally undefined symbol, put it into
 # the reference file.
 ${NM} ${NMFLAGS} -go $* | sed "
-	/ [TDW] / {
-		s/:.* [TDW] / /
+	/ [RTDW] / {
+		s/:.* [RTDW] / /
 		w $S
 		d
 	}
