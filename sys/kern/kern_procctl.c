@@ -960,8 +960,10 @@ kern_procctl(struct thread *td, idtype_t idtype, id_t id, int com, void *data)
 		first_error = 0;
 		LIST_FOREACH(p, &pg->pg_members, p_pglist) {
 			PROC_LOCK(p);
-			if (p->p_state == PRS_NEW || (cmd_info->need_candebug ?
-			    p_candebug(td, p) : p_cansee(td, p)) != 0) {
+			if (p->p_state == PRS_NEW ||
+			    p->p_state == PRS_ZOMBIE ||
+			    (cmd_info->need_candebug ? p_candebug(td, p) :
+			    p_cansee(td, p)) != 0) {
 				PROC_UNLOCK(p);
 				continue;
 			}
