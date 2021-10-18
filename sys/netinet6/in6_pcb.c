@@ -110,6 +110,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/ip6_var.h>
 #include <netinet6/nd6.h>
 #include <netinet/in_pcb.h>
+#include <netinet/in_pcb_var.h>
 #include <netinet6/in6_pcb.h>
 #include <netinet6/in6_fib.h>
 #include <netinet6/scope6_var.h>
