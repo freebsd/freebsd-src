@@ -455,7 +455,7 @@ mixer_set_dunit(struct mixer *m, int unit)
 
 /*
  * Get sound device mode (none, play, rec, play+rec). Userland programs can
- * use the MIX_STATUS_* flags to determine the mode of the device.
+ * use the MIX_MODE_* flags to determine the mode of the device.
  */
 int
 mixer_get_mode(int unit)
