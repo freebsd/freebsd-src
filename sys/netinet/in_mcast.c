@@ -1588,12 +1588,15 @@ inp_findmoptions(struct inpcb *inp)
 	return (imo);
 }
 
-static void
-inp_gcmoptions(struct ip_moptions *imo)
+void
+inp_freemoptions(struct ip_moptions *imo)
 {
 	struct in_mfilter *imf;
 	struct in_multi *inm;
 	struct ifnet *ifp;
+
+	if (imo == NULL)
+		return;
 
 	while ((imf = ip_mfilter_first(&imo->imo_head)) != NULL) {
 		ip_mfilter_remove(&imo->imo_head, imf);
@@ -1611,20 +1614,6 @@ inp_gcmoptions(struct ip_moptions *imo)
 		ip_mfilter_free(imf);
 	}
 	free(imo, M_IPMOPTS);
-}
-
-/*
- * Discard the IP multicast options (and source filters).  To minimize
- * the amount of work done while holding locks such as the INP's
- * pcbinfo lock (which is used in the receive path), the free
- * operation is deferred to the epoch callback task.
- */
-void
-inp_freemoptions(struct ip_moptions *imo)
-{
-	if (imo == NULL)
-		return;
-	inp_gcmoptions(imo);
 }
 
 /*
