@@ -2520,15 +2520,12 @@ safexcel_newsession(device_t dev, crypto_session_t cses,
 	if (csp->csp_auth_mlen != 0)
 		sess->digestlen = csp->csp_auth_mlen;
 
-	if ((csp->csp_cipher_alg == 0 || csp->csp_cipher_key != NULL) &&
-	    (csp->csp_auth_alg == 0 || csp->csp_auth_key != NULL)) {
-		sess->encctx.len = safexcel_set_context(&sess->encctx.ctx,
-		    CRYPTO_OP_ENCRYPT, csp->csp_cipher_key, csp->csp_auth_key,
-		    sess);
-		sess->decctx.len = safexcel_set_context(&sess->decctx.ctx,
-		    CRYPTO_OP_DECRYPT, csp->csp_cipher_key, csp->csp_auth_key,
-		    sess);
-	}
+	sess->encctx.len = safexcel_set_context(&sess->encctx.ctx,
+	    CRYPTO_OP_ENCRYPT, csp->csp_cipher_key, csp->csp_auth_key,
+	    sess);
+	sess->decctx.len = safexcel_set_context(&sess->decctx.ctx,
+	    CRYPTO_OP_DECRYPT, csp->csp_cipher_key, csp->csp_auth_key,
+	    sess);
 
 	return (0);
 }
