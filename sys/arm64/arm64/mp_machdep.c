@@ -570,7 +570,7 @@ madt_handler(ACPI_SUBTABLE_HEADER *entry, void *arg)
 		domain = 0;
 #ifdef NUMA
 		if (vm_ndomains > 1)
-			domain = acpi_pxm_get_cpu_locality(*cpuid);
+			domain = acpi_pxm_get_cpu_locality(intr->Uid);
 #endif
 		if (start_cpu(id, intr->ArmMpidr, domain)) {
 			MPASS(cpuid_to_pcpu[id] != NULL);
