@@ -125,6 +125,9 @@ _host_arch=${MACHINE}
 .if ${_host_arch} == "x86_64"
 # bmake on Linux/mac often prints that instead of amd64
 _host_arch=amd64
+.elif ${_host_arch} == "aarch64"
+# Linux calls arm64, aarch64, across the board
+_host_arch=arm64
 .elif ${_host_arch:Mppc*}
 _host_arch=powerpc
 .endif
