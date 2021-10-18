@@ -34,7 +34,6 @@
 #include <sys/_eventhandler.h>
 
 /* Power management system type */
-#define POWER_PM_TYPE_APM		0x00
 #define POWER_PM_TYPE_ACPI		0x01
 #define POWER_PM_TYPE_NONE		0xff
 
