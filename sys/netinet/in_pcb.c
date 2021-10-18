@@ -87,6 +87,7 @@ __FBSDID("$FreeBSD$");
 #if defined(INET) || defined(INET6)
 #include <netinet/in.h>
 #include <netinet/in_pcb.h>
+#include <netinet/in_pcb_var.h>
 #ifdef INET
 #include <netinet/in_var.h>
 #include <netinet/in_fib.h>
