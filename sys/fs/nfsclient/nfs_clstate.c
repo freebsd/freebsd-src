@@ -3231,8 +3231,10 @@ int
 nfscl_doclose(vnode_t vp, struct nfsclclient **clpp, NFSPROC_T *p)
 {
 	struct nfsclclient *clp;
+	struct nfsmount *nmp;
 	struct nfsclowner *owp, *nowp;
-	struct nfsclopen *op;
+	struct nfsclopen *op, *nop;
+	struct nfsclopenhead delayed;
 	struct nfscldeleg *dp;
 	struct nfsfh *nfhp;
 	struct nfsclrecalllayout *recallp;
@@ -3244,6 +3246,7 @@ nfscl_doclose(vnode_t vp, struct nfsclclient **clpp, NFSPROC_T *p)
 		return (error);
 	*clpp = clp;
 
+	nmp = VFSTONFS(vnode_mount(vp));
 	nfhp = VTONFS(vp)->n_fhp;
 	recallp = malloc(sizeof(*recallp), M_NFSLAYRECALL, M_WAITOK);
 	NFSLOCKCLSTATE();
@@ -3269,6 +3272,7 @@ nfscl_doclose(vnode_t vp, struct nfsclclient **clpp, NFSPROC_T *p)
 	    &lyp);
 
 	/* Now process the opens against the server. */
+	LIST_INIT(&delayed);
 lookformore:
 	LIST_FOREACH(owp, &clp->nfsc_owner, nfsow_list) {
 		op = LIST_FIRST(&owp->nfsow_open);
@@ -3280,9 +3284,19 @@ lookformore:
 				KASSERT((op->nfso_opencnt == 0),
 				    ("nfscl: bad open cnt on server"));
 				NFSUNLOCKCLSTATE();
-				nfsrpc_doclose(VFSTONFS(vnode_mount(vp)), op,
-				    p);
+				if (NFSHASNFSV4N(nmp))
+					nfsrpc_doclose(nmp, op, p, false,
+					    true);
+				else
+					nfsrpc_doclose(nmp, op, p, true,
+					    true);
 				NFSLOCKCLSTATE();
+				if (error == NFSERR_DELAY) {
+					nfscl_unlinkopen(op);
+					op->nfso_own = NULL;
+					LIST_INSERT_HEAD(&delayed, op,
+					    nfso_list);
+				}
 				goto lookformore;
 			}
 			op = LIST_NEXT(op, nfso_list);
@@ -3309,6 +3323,13 @@ lookformore:
 	 * used by the function, but calling free() with a NULL pointer is ok.
 	 */
 	free(recallp, M_NFSLAYRECALL);
+
+	/* Now, loop retrying the delayed closes. */
+	LIST_FOREACH_SAFE(op, &delayed, nfso_list, nop) {
+		nfsrpc_doclose(nmp, op, p, true, false);
+		LIST_REMOVE(op, nfso_list);
+		nfscl_freeopen(op, 0, false);
+	}
 	return (0);
 }
 

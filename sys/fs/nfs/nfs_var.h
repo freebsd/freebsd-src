@@ -571,7 +571,8 @@ void nfscl_dumpstate(struct nfsmount *, int, int, int, int);
 void nfscl_dupopen(vnode_t, int);
 int nfscl_getclose(vnode_t, struct nfsclclient **);
 int nfscl_doclose(vnode_t, struct nfsclclient **, NFSPROC_T *);
-void nfsrpc_doclose(struct nfsmount *, struct nfsclopen *, NFSPROC_T *);
+int nfsrpc_doclose(struct nfsmount *, struct nfsclopen *, NFSPROC_T *, bool,
+    bool);
 int nfscl_deleg(mount_t, struct nfsclclient *, u_int8_t *, int,
     struct ucred *, NFSPROC_T *, struct nfscldeleg **);
 void nfscl_lockinit(struct nfsv4lock *);
