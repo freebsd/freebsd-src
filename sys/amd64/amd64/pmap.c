@@ -4186,6 +4186,7 @@ pmap_pinit_pml5_pti(vm_page_t pml5pgu)
 	pml5_entry_t *pm_pml5u;
 
 	pm_pml5u = (pml5_entry_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(pml5pgu));
+	pagezero(pm_pml5u);
 
 	/*
 	 * Add pml5 entry at top of KVA pointing to existing pml4 pti
