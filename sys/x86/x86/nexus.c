@@ -216,7 +216,7 @@ nexus_init_resources(void)
 	 * resource manager.
 	 */
 	for (irq = 0; irq < num_io_irqs; irq++)
-		if (intr_lookup_source(irq) != NULL)
+		if (intrtab_lookup(irq) != NULL)
 			if (rman_manage_region(&irq_rman, irq, irq) != 0)
 				panic("nexus_init_resources irq_rman add");
 
@@ -477,7 +477,7 @@ nexus_setup_intr(device_t bus, device_t child, struct resource *irq,
 	if (bus_get_domain(child, &domain) != 0)
 		domain = 0;
 
-	isrc = intr_lookup_source(rman_get_start(irq));
+	isrc = intrtab_lookup(rman_get_start(irq));
 	if (isrc == NULL)
 		return (EINVAL);
 	error = intr_add_handler(isrc, device_get_nameunit(child),
@@ -517,7 +517,7 @@ nexus_bind_intr(device_t dev, device_t child, struct resource *irq, int cpu)
 {
 	struct intsrc *isrc;
 
-	isrc = intr_lookup_source(rman_get_start(irq));
+	isrc = intrtab_lookup(rman_get_start(irq));
 	if (isrc == NULL)
 		return (EINVAL);
 	return (intr_event_bind(isrc->is_event, cpu));
@@ -530,7 +530,7 @@ nexus_config_intr(device_t dev, int irq, enum intr_trigger trig,
 {
 	struct intsrc *isrc;
 
-	isrc = intr_lookup_source(irq);
+	isrc = intrtab_lookup(irq);
 	if (isrc == NULL)
 		return (EINVAL);
 	return (intr_config_intr(isrc, trig, pol));
@@ -542,7 +542,7 @@ nexus_describe_intr(device_t dev, device_t child, struct resource *irq,
 {
 	struct intsrc *isrc;
 
-	isrc = intr_lookup_source(rman_get_start(irq));
+	isrc = intrtab_lookup(rman_get_start(irq));
 	if (isrc == NULL)
 		return (EINVAL);
 	return (intr_describe(isrc, cookie, descr));

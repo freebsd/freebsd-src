@@ -348,7 +348,7 @@ xen_arch_intr_alloc(void)
 	vector = first_evtchn_irq + xen_intr_auto_vector_count;
 	xen_intr_auto_vector_count++;
 
-	KASSERT((intr_lookup_source(vector) == NULL),
+	KASSERT((intrtab_lookup(vector) == NULL),
 	    ("Trying to use an already allocated vector"));
 
 	mtx_unlock(&xen_intr_x86_lock);

@@ -34,6 +34,11 @@
 
 typedef struct intsrc interrupt_t;
 
+extern interrupt_t *intrtab_lookup(u_int irq) __pure;
+
+#define	_intr2event(intr)	((intr)->is_event)
+#define	intr2event(intr)	((intr) != NULL ? _intr2event(intr) : NULL)
+
 /* FreeBSD standard interrupt controller interface */
 
 /*
@@ -152,7 +157,6 @@ int	intr_config_intr(struct intsrc *isrc, enum intr_trigger trig,
 int	intr_describe(struct intsrc *isrc, void *ih, const char *descr);
 void	intr_execute_handlers(struct intsrc *isrc, struct trapframe *frame);
 u_int	intr_next_cpu(int domain);
-struct intsrc *intr_lookup_source(int vector);
 int	intr_register_pic(struct pic *pic);
 int	intr_register_source(struct intsrc *isrc);
 int	intr_remove_handler(void *cookie);

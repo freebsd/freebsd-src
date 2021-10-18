@@ -228,7 +228,7 @@ atpic_register_sources(struct pic *pic)
 	if (ap != &atpics[MASTER])
 		return;
 	for (i = 0; i < NUM_ISA_IRQS; i++)
-		if (intr_lookup_source(i) != NULL)
+		if (intrtab_lookup(i) != NULL)
 			return;
 
 	/* Loop through all interrupt sources and add them. */

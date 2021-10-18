@@ -245,11 +245,11 @@ intr_register_source(struct intsrc *isrc)
 	return (0);
 }
 
-struct intsrc *
-intr_lookup_source(int vector)
+interrupt_t *
+intrtab_lookup(u_int vector)
 {
 
-	if (vector < 0 || vector >= num_io_irqs)
+	if (vector >= num_io_irqs)
 		return (NULL);
 	return (interrupt_sources[vector]);
 }

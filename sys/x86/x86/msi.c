@@ -301,7 +301,7 @@ msi_assign_cpu(struct intsrc *isrc, u_int apic_id)
 			    msi->msi_cpu, msi->msi_vector);
 		}
 		for (i = 1; i < msi->msi_count; i++) {
-			sib = (struct msi_intsrc *)intr_lookup_source(
+			sib = (struct msi_intsrc *)intrtab_lookup(
 			    msi->msi_irqs[i]);
 			sib->msi_cpu = apic_id;
 			sib->msi_vector = vector + i;
@@ -426,7 +426,7 @@ again:
 	/* Try to find 'count' free IRQs. */
 	cnt = 0;
 	for (i = first_msi_irq; i < first_msi_irq + num_msi_irqs; i++) {
-		msi = (struct msi_intsrc *)intr_lookup_source(i);
+		msi = (struct msi_intsrc *)intrtab_lookup(i);
 
 		/* End of allocated sources, so break. */
 		if (msi == NULL)
@@ -484,15 +484,15 @@ again:
 		return (error);
 	}
 	for (i = 0; i < count; i++) {
-		msi = (struct msi_intsrc *)intr_lookup_source(irqs[i]);
+		msi = (struct msi_intsrc *)intrtab_lookup(irqs[i]);
 		msi->msi_remap_cookie = cookies[i];
 	}
 #endif
 
 	/* Assign IDT vectors and make these messages owned by 'dev'. */
-	fsrc = (struct msi_intsrc *)intr_lookup_source(irqs[0]);
+	fsrc = (struct msi_intsrc *)intrtab_lookup(irqs[0]);
 	for (i = 0; i < count; i++) {
-		msi = (struct msi_intsrc *)intr_lookup_source(irqs[i]);
+		msi = (struct msi_intsrc *)intrtab_lookup(irqs[i]);
 		msi->msi_cpu = cpu;
 		msi->msi_dev = dev;
 		msi->msi_vector = vector + i;
@@ -520,7 +520,7 @@ msi_release(int *irqs, int count)
 	int i;
 
 	mtx_lock(&msi_lock);
-	first = (struct msi_intsrc *)intr_lookup_source(irqs[0]);
+	first = (struct msi_intsrc *)intrtab_lookup(irqs[0]);
 	if (first == NULL) {
 		mtx_unlock(&msi_lock);
 		return (ENOENT);
@@ -550,7 +550,7 @@ msi_release(int *irqs, int count)
 
 	/* Clear all the extra messages in the group. */
 	for (i = 1; i < count; i++) {
-		msi = (struct msi_intsrc *)intr_lookup_source(irqs[i]);
+		msi = (struct msi_intsrc *)intrtab_lookup(irqs[i]);
 		KASSERT(msi->msi_first == first, ("message not in group"));
 		KASSERT(msi->msi_dev == first->msi_dev, ("owner mismatch"));
 #ifdef IOMMU
@@ -592,7 +592,7 @@ msi_map(int irq, uint64_t *addr, uint32_t *data)
 #endif
 
 	mtx_lock(&msi_lock);
-	msi = (struct msi_intsrc *)intr_lookup_source(irq);
+	msi = (struct msi_intsrc *)intrtab_lookup(irq);
 	if (msi == NULL) {
 		mtx_unlock(&msi_lock);
 		return (ENOENT);
@@ -623,7 +623,7 @@ msi_map(int irq, uint64_t *addr, uint32_t *data)
 		    i < first_msi_irq + num_msi_irqs; i++) {
 			if (i == msi->msi_irq)
 				continue;
-			msi1 = (struct msi_intsrc *)intr_lookup_source(i);
+			msi1 = (struct msi_intsrc *)intrtab_lookup(i);
 			if (!msi1->msi_msix && msi1->msi_first == msi) {
 				mtx_unlock(&msi_lock);
 				iommu_map_msi_intr(msi1->msi_dev,
@@ -676,7 +676,7 @@ again:
 
 	/* Find a free IRQ. */
 	for (i = first_msi_irq; i < first_msi_irq + num_msi_irqs; i++) {
-		msi = (struct msi_intsrc *)intr_lookup_source(i);
+		msi = (struct msi_intsrc *)intrtab_lookup(i);
 
 		/* End of allocated sources, so break. */
 		if (msi == NULL)
@@ -751,7 +751,7 @@ msix_release(int irq)
 	struct msi_intsrc *msi;
 
 	mtx_lock(&msi_lock);
-	msi = (struct msi_intsrc *)intr_lookup_source(irq);
+	msi = (struct msi_intsrc *)intrtab_lookup(irq);
 	if (msi == NULL) {
 		mtx_unlock(&msi_lock);
 		return (ENOENT);
