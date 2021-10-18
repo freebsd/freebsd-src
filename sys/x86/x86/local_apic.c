@@ -1282,8 +1282,7 @@ lapic_handle_intr(int vector, struct trapframe *frame)
 	kmsan_mark(frame, sizeof(*frame), KMSAN_STATE_INITED);
 	trap_check_kstack();
 
-	isrc = intr_lookup_source(apic_idt_to_irq(PCPU_GET(apic_id),
-	    vector));
+	isrc = intrtab_lookup(apic_idt_to_irq(PCPU_GET(apic_id), vector));
 	intr_execute_handlers(isrc, frame);
 }
 
@@ -1727,7 +1726,7 @@ DB_SHOW_COMMAND_FLAGS(apic, db_show_apic, DB_CMD_MEMSAFE)
 			if (irq == IRQ_TIMER)
 				db_printf("lapic timer\n");
 			else if (irq < num_io_irqs) {
-				isrc = intr_lookup_source(irq);
+				isrc = intrtab_lookup(irq);
 				if (isrc == NULL || verbose == 0)
 					db_printf("IRQ %u\n", irq);
 				else

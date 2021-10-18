@@ -569,7 +569,7 @@ attimer_attach(device_t dev)
 	if (!(sc->port_res = bus_alloc_resource(dev, SYS_RES_IOPORT,
 	    &sc->port_rid, IO_TIMER1, IO_TIMER1 + 3, 4, RF_ACTIVE)))
 		device_printf(dev,"Warning: Couldn't map I/O.\n");
-	i8254_intsrc = intr_lookup_source(0);
+	i8254_intsrc = intrtab_lookup(0);
 	if (i8254_intsrc != NULL)
 		i8254_pending = i8254_intsrc->is_pic->pic_source_pending;
 	resource_int_value(device_get_name(dev), device_get_unit(dev),
