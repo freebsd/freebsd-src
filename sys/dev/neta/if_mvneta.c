@@ -2792,6 +2792,7 @@ mvneta_tx_set_csumflag(struct ifnet *ifp,
     struct mvneta_tx_desc *t, struct mbuf *m)
 {
 	struct ether_header *eh;
+	struct ether_vlan_header *evh;
 	int csum_flags;
 	uint32_t iphl, ipoff;
 	struct ip *ip;
@@ -2806,6 +2807,9 @@ mvneta_tx_set_csumflag(struct ifnet *ifp,
 		break;
 	case ETHERTYPE_VLAN:
 		ipoff = ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN;
+		evh = mtod(m, struct ether_vlan_header *);
+		if (ntohs(evh->evl_proto) == ETHERTYPE_VLAN)
+			ipoff += ETHER_VLAN_ENCAP_LEN;
 		break;
 	default:
 		csum_flags = 0;
