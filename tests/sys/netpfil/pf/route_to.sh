@@ -27,6 +27,8 @@
 
 . $(atf_get_srcdir)/utils.subr
 
+common_dir=$(atf_get_srcdir)/../common
+
 atf_test_case "v4" "cleanup"
 v4_head()
 {
@@ -250,10 +252,67 @@ multiwanlocal_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "icmp_nat" "cleanup"
+icmp_nat_head()
+{
+	atf_set descr 'Test that ICMP packets are correct for route-to + NAT'
+	atf_set require.user root
+}
+
+icmp_nat_body()
+{
+	pft_init
+
+	epair_one=$(vnet_mkepair)
+	epair_two=$(vnet_mkepair)
+	epair_three=$(vnet_mkepair)
+
+	vnet_mkjail gw ${epair_one}b ${epair_two}a ${epair_three}a
+	vnet_mkjail srv ${epair_two}b
+	vnet_mkjail srv2 ${epair_three}b
+
+	ifconfig ${epair_one}a 192.0.2.2/24 up
+	route add -net 198.51.100.0/24 192.0.2.1
+	jexec gw sysctl net.inet.ip.forwarding=1
+	jexec gw ifconfig ${epair_one}b 192.0.2.1/24 up
+	jexec gw ifconfig ${epair_two}a 198.51.100.1/24 up
+	jexec gw ifconfig ${epair_three}a 203.0.113.1/24 up mtu 500
+	jexec srv ifconfig ${epair_two}b 198.51.100.2/24 up
+	jexec srv route add default 198.51.100.1
+	jexec srv2 ifconfig ${epair_three}b 203.0.113.2/24 up mtu 500
+	jexec srv2 route add default 203.0.113.1
+
+	# Sanity check
+	atf_check -s exit:0 -o ignore ping -c 1 198.51.100.2
+
+	jexec gw pfctl -e
+	pft_set_rules gw \
+		"nat on ${epair_two}a inet from 192.0.2.0/24 to any -> (${epair_two}a)" \
+		"nat on ${epair_three}a inet from 192.0.2.0/24 to any -> (${epair_three}a)" \
+		"pass out route-to (${epair_three}a 203.0.113.2) proto icmp icmp-type echoreq"
+
+	# Now ensure that we get an ICMP error with the correct IP addresses in it.
+	atf_check -s exit:0 ${common_dir}/pft_icmp_check.py \
+		--to 198.51.100.2 \
+		--fromaddr 192.0.2.2 \
+		--recvif ${epair_one}a \
+		--sendif ${epair_one}a
+
+	# ping reports the ICMP error, so check of that too.
+	atf_check -s exit:2 -o match:'frag needed and DF set' \
+		ping -D -c 1 -s 1000 198.51.100.2
+}
+
+icmp_nat_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "v4"
 	atf_add_test_case "v6"
 	atf_add_test_case "multiwan"
 	atf_add_test_case "multiwanlocal"
+	atf_add_test_case "icmp_nat"
 }
