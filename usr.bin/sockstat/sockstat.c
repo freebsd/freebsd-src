@@ -1352,7 +1352,7 @@ main(int argc, char *argv[])
 		case 'j':
 			opt_j = jail_getid(optarg);
 			if (opt_j < 0)
-				errx(1, "%s", jail_errmsg);
+				errx(1, "jail_getid: %s", jail_errmsg);
 			break;
 		case 'L':
 			opt_L = 1;
@@ -1403,7 +1403,7 @@ main(int argc, char *argv[])
 	if (opt_j > 0) {
 		switch (jail_getvnet(opt_j)) {
 		case -1:
-			errx(2, "%s", jail_errmsg);
+			errx(2, "jail_getvnet: %s", jail_errmsg);
 		case JAIL_SYS_NEW:
 			if (jail_attach(opt_j) < 0)
 				err(3, "jail_attach()");
