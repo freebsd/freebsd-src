@@ -27,6 +27,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 14.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20211020:
+	sh(1) is now the default shell for the root user. to force root to use
+	the csh shell, please run the following command as root:
+
+	$ chsh -s csh
+
 20211004:
 	Ncurses distribution has been split between libtinfow and libncurses
 	with libncurses.so becoming a linker (ld) script to seamlessly link
