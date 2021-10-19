@@ -2474,7 +2474,7 @@ VNET_SYSINIT(vnet_pfsync_init, SI_SUB_PROTO_FIREWALL, SI_ORDER_ANY,
 static void
 vnet_pfsync_uninit(const void *unused __unused)
 {
-	int ret;
+	int ret __diagused;
 
 	pfsync_pointers_uninit();
 
