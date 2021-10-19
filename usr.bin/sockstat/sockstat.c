@@ -1292,6 +1292,10 @@ jail_getvnet(int jid)
 {
 	struct iovec jiov[6];
 	int vnet;
+	size_t len = sizeof(vnet);
+
+	if (sysctlbyname("kern.features.vimage", &vnet, &len, NULL, 0) != 0)
+		return (0);
 
 	vnet = -1;
 	jiov[0].iov_base = __DECONST(char *, "jid");
