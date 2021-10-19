@@ -3434,6 +3434,7 @@ mlx5e_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	struct ifi2creq i2c;
 	struct ifrsskey *ifrk;
 	struct ifrsshash *ifrh;
+	struct siocsifcapnv_driver_data *drv_ioctl_data, drv_ioctl_data_d = {};
 	int error = 0;
 	int mask = 0;
 	int size_read = 0;
@@ -3512,10 +3513,22 @@ mlx5e_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		ifr = (struct ifreq *)data;
 		error = ifmedia_ioctl(ifp, ifr, &priv->media, command);
 		break;
+	case SIOCGIFCAPNV:
+		error = 0;
+		break;
 	case SIOCSIFCAP:
 		ifr = (struct ifreq *)data;
+		drv_ioctl_data = &drv_ioctl_data_d;
+		drv_ioctl_data->reqcap = ifr->ifr_reqcap;
 		PRIV_LOCK(priv);
-		mask = ifr->ifr_reqcap ^ ifp->if_capenable;
+		drv_ioctl_data->reqcap2 = ifp->if_capabilities2;
+		drv_ioctl_data->nvcap = NULL;
+		goto siocsifcap_driver;
+	case SIOCSIFCAPNV:
+		drv_ioctl_data = (struct siocsifcapnv_driver_data *)data;
+		PRIV_LOCK(priv);
+siocsifcap_driver:
+		mask = drv_ioctl_data->reqcap ^ ifp->if_capenable;
 
 		if (mask & IFCAP_TXCSUM) {
 			ifp->if_capenable ^= IFCAP_TXCSUM;
@@ -4518,6 +4531,7 @@ mlx5e_create_ifp(struct mlx5_core_dev *mdev)
 	/*
          * Set driver features
          */
+	ifp->if_capabilities |= IFCAP_NV;
 	ifp->if_capabilities |= IFCAP_HWCSUM | IFCAP_HWCSUM_IPV6;
 	ifp->if_capabilities |= IFCAP_VLAN_MTU | IFCAP_VLAN_HWTAGGING;
 	ifp->if_capabilities |= IFCAP_VLAN_HWCSUM | IFCAP_VLAN_HWFILTER;
@@ -4541,6 +4555,7 @@ mlx5e_create_ifp(struct mlx5_core_dev *mdev)
 	ifp->if_hw_tsomaxsegsize = MLX5E_MAX_TX_MBUF_SIZE;
 
 	ifp->if_capenable = ifp->if_capabilities;
+	ifp->if_capenable2 = ifp->if_capabilities2;
 	ifp->if_hwassist = 0;
 	if (ifp->if_capenable & IFCAP_TSO)
 		ifp->if_hwassist |= CSUM_TSO;
