@@ -5612,7 +5612,7 @@ hook_pf(void)
 {
 	struct pfil_hook_args pha;
 	struct pfil_link_args pla;
-	int ret;
+	int ret __diagused;
 
 	if (V_pf_pfil_hooked)
 		return;
