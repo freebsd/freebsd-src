@@ -1002,7 +1002,7 @@ pf_refragment6(struct ifnet *ifp, struct mbuf **m0, struct m_tag *mtag)
 		DPFPRINTF(("refragment error %d\n", error));
 		action = PF_DROP;
 	}
-	for (t = m; m; m = t) {
+	for (; m; m = t) {
 		t = m->m_nextpkt;
 		m->m_nextpkt = NULL;
 		m->m_flags |= M_SKIP_FIREWALL;
