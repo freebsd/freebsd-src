@@ -886,7 +886,7 @@ ipf_proxy_new(fin, nat)
 
 /* ------------------------------------------------------------------------ */
 /* Function:    ipf_proxy_check                                             */
-/* Returns:     int - -1 == error, 0 == success                             */
+/* Returns:     int - -1 == error, 1 == success                             */
 /* Parameters:  fin(I) - pointer to packet information                      */
 /*              nat(I) - pointer to current NAT session                     */
 /*                                                                          */
