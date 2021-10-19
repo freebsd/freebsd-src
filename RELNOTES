@@ -10,6 +10,12 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+396851c20ae:
+	libncursesw has been split into libtinfow and libncursesw, linker
+	scripts should make it transparent for consumers. pkg-config files
+	are also now installed to ease ports detecting the ncurses setup from
+	base.
+
 422084abbda:
 	LLVM's MemorySanitizer can now be used in amd64 kernels.  See the
 	kmsan(9) manual page for more information.
