@@ -6278,9 +6278,14 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	PG_V = pmap_valid_bit(pmap);
 
 	/*
+	 * If there are no resident pages besides the top level page
+	 * table page(s), there is nothing to do.  Kernel pmap always
+	 * accounts whole preloaded area as resident, which makes its
+	 * resident count > 2.
 	 * Perform an unsynchronized read.  This is, however, safe.
 	 */
-	if (pmap->pm_stats.resident_count == 0)
+	if (pmap->pm_stats.resident_count <= 1 + (pmap->pm_pmltopu != NULL ?
+	    1 : 0))
 		return;
 
 	anyvalid = 0;
