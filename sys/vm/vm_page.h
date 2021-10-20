@@ -549,8 +549,14 @@ vm_page_t PHYS_TO_VM_PAGE(vm_paddr_t pa);
 #define	VM_ALLOC_NODUMP		0x2000	/* (ag) don't include in dump */
 #define	VM_ALLOC_SBUSY		0x4000	/* (acgp) Shared busy the page */
 #define	VM_ALLOC_NOWAIT		0x8000	/* (acgnp) Do not sleep */
+#define	VM_ALLOC_COUNT_MAX	0xffff
 #define	VM_ALLOC_COUNT_SHIFT	16
-#define	VM_ALLOC_COUNT(count)	((count) << VM_ALLOC_COUNT_SHIFT)
+#define	VM_ALLOC_COUNT_MASK	(VM_ALLOC_COUNT(VM_ALLOC_COUNT_MAX))
+#define	VM_ALLOC_COUNT(count)	({				\
+	KASSERT((count) <= VM_ALLOC_COUNT_MAX,			\
+	    ("%s: invalid VM_ALLOC_COUNT value", __func__));	\
+	(count) << VM_ALLOC_COUNT_SHIFT;			\
+})
 
 #ifdef M_NOWAIT
 static inline int
