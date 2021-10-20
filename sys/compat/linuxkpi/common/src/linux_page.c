@@ -97,7 +97,7 @@ linux_alloc_pages(gfp_t flags, unsigned int order)
 		if ((flags & M_ZERO) != 0)
 			req |= VM_ALLOC_ZERO;
 		if (order == 0 && (flags & GFP_DMA32) == 0) {
-			page = vm_page_alloc(NULL, 0, req);
+			page = vm_page_alloc_noobj(req);
 			if (page == NULL)
 				return (NULL);
 		} else {

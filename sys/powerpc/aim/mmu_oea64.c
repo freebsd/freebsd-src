@@ -1915,8 +1915,8 @@ moea64_uma_page_alloc(uma_zone_t zone, vm_size_t bytes, int domain,
 	*flags = UMA_SLAB_PRIV;
 	needed_lock = !PMAP_LOCKED(kernel_pmap);
 
-	m = vm_page_alloc_domain(NULL, 0, domain,
-	    malloc2vm_flags(wait) | VM_ALLOC_WIRED | VM_ALLOC_NOOBJ);
+	m = vm_page_alloc_noobj_domain(domain, malloc2vm_flags(wait) |
+	    VM_ALLOC_WIRED);
 	if (m == NULL)
 		return (NULL);
 
@@ -1937,9 +1937,6 @@ moea64_uma_page_alloc(uma_zone_t zone, vm_size_t bytes, int domain,
 
 	if (needed_lock)
 		PMAP_UNLOCK(kernel_pmap);
-
-	if ((wait & M_ZERO) && (m->flags & PG_ZERO) == 0)
-                bzero((void *)va, PAGE_SIZE);
 
 	return (void *)va;
 }

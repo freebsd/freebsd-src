@@ -55,8 +55,8 @@ uma_small_alloc(uma_zone_t zone, vm_size_t bytes, int domain, u_int8_t *flags,
 
 	*flags = UMA_SLAB_PRIV;
 
-	m = vm_page_alloc_domain(NULL, 0, domain,
-	    malloc2vm_flags(wait) | VM_ALLOC_WIRED | VM_ALLOC_NOOBJ);
+	m = vm_page_alloc_noobj_domain(domain, malloc2vm_flags(wait) |
+	    VM_ALLOC_WIRED);
 	if (m == NULL) 
 		return (NULL);
 
@@ -72,9 +72,6 @@ uma_small_alloc(uma_zone_t zone, vm_size_t bytes, int domain, u_int8_t *flags,
 	} else {
 		va = (void *)(vm_offset_t)PHYS_TO_DMAP(pa);
 	}
-
-	if ((wait & M_ZERO) && (m->flags & PG_ZERO) == 0)
-		bzero(va, PAGE_SIZE);
 	atomic_add_int(&hw_uma_mdpages, 1);
 
 	return (va);

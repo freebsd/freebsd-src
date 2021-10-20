@@ -1214,8 +1214,7 @@ retry:
 			break;
 	}
 	for (reclaimed = false; avail < needed; avail += _NPCPV) {
-		m = vm_page_alloc(NULL, 0, VM_ALLOC_NORMAL | VM_ALLOC_NOOBJ |
-		    VM_ALLOC_WIRED);
+		m = vm_page_alloc_noobj(VM_ALLOC_WIRED);
 		if (m == NULL) {
 			m = reclaim_pv_chunk(pmap, lockp);
 			if (m == NULL)
@@ -1637,8 +1636,7 @@ retry:
 		}
 	}
 	/* No free items, allocate another chunk */
-	m = vm_page_alloc(NULL, 0, VM_ALLOC_NORMAL | VM_ALLOC_NOOBJ |
-	    VM_ALLOC_WIRED);
+	m = vm_page_alloc_noobj(VM_ALLOC_WIRED);
 	if (m == NULL) {
 		if (lockp == NULL) {
 			PV_STAT(pc_chunk_tryfail++);
@@ -3529,13 +3527,11 @@ mmu_radix_growkernel(vm_offset_t addr)
 		l2e = pmap_pml2e(kernel_pmap, kernel_vm_end);
 		if ((be64toh(*l2e) & PG_V) == 0) {
 			/* We need a new PDP entry */
-			nkpg = vm_page_alloc(NULL, kernel_vm_end >> L2_PAGE_SIZE_SHIFT,
-			    VM_ALLOC_INTERRUPT | VM_ALLOC_NOOBJ |
+			nkpg = vm_page_alloc_noobj(VM_ALLOC_INTERRUPT |
 			    VM_ALLOC_WIRED | VM_ALLOC_ZERO);
 			if (nkpg == NULL)
 				panic("pmap_growkernel: no memory to grow kernel");
-			if ((nkpg->flags & PG_ZERO) == 0)
-				mmu_radix_zero_page(nkpg);
+			nkpg->pindex = kernel_vm_end >> L2_PAGE_SIZE_SHIFT;
 			paddr = VM_PAGE_TO_PHYS(nkpg);
 			pde_store(l2e, paddr);
 			continue; /* try again */
@@ -3550,13 +3546,11 @@ mmu_radix_growkernel(vm_offset_t addr)
 			continue;
 		}
 
-		nkpg = vm_page_alloc(NULL, pmap_l3e_pindex(kernel_vm_end),
-		    VM_ALLOC_INTERRUPT | VM_ALLOC_NOOBJ | VM_ALLOC_WIRED |
+		nkpg = vm_page_alloc_noobj(VM_ALLOC_INTERRUPT | VM_ALLOC_WIRED |
 		    VM_ALLOC_ZERO);
 		if (nkpg == NULL)
 			panic("pmap_growkernel: no memory to grow kernel");
-		if ((nkpg->flags & PG_ZERO) == 0)
-			mmu_radix_zero_page(nkpg);
+		nkpg->pindex = pmap_l3e_pindex(kernel_vm_end);
 		paddr = VM_PAGE_TO_PHYS(nkpg);
 		pde_store(l3e, paddr);
 
@@ -4243,8 +4237,7 @@ _pmap_allocpte(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp)
 	/*
 	 * Allocate a page table page.
 	 */
-	if ((m = vm_page_alloc(NULL, ptepindex, VM_ALLOC_NOOBJ |
-	    VM_ALLOC_WIRED | VM_ALLOC_ZERO)) == NULL) {
+	if ((m = vm_page_alloc_noobj(VM_ALLOC_WIRED | VM_ALLOC_ZERO)) == NULL) {
 		if (lockp != NULL) {
 			RELEASE_PV_LIST_LOCK(lockp);
 			PMAP_UNLOCK(pmap);
@@ -4257,8 +4250,7 @@ _pmap_allocpte(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp)
 		 */
 		return (NULL);
 	}
-	if ((m->flags & PG_ZERO) == 0)
-		mmu_radix_zero_page(m);
+	m->pindex = ptepindex;
 
 	/*
 	 * Map the pagetable page into the process address space, if
@@ -4915,10 +4907,9 @@ pmap_demote_l3e_locked(pmap_t pmap, pml3_entry_t *l3e, vm_offset_t va,
 		 * is the only part of the kernel address space that must be
 		 * handled here.
 		 */
-		if ((oldpde & PG_A) == 0 || (mpte = vm_page_alloc(NULL,
-		    pmap_l3e_pindex(va), (va >= DMAP_MIN_ADDRESS && va <
-		    DMAP_MAX_ADDRESS ? VM_ALLOC_INTERRUPT : VM_ALLOC_NORMAL) |
-		    VM_ALLOC_NOOBJ | VM_ALLOC_WIRED)) == NULL) {
+		if ((oldpde & PG_A) == 0 || (mpte = vm_page_alloc_noobj(
+		    (va >= DMAP_MIN_ADDRESS && va < DMAP_MAX_ADDRESS ?
+		    VM_ALLOC_INTERRUPT : 0) | VM_ALLOC_WIRED)) == NULL) {
 			SLIST_INIT(&free);
 			sva = trunc_2mpage(va);
 			pmap_remove_l3e(pmap, l3e, sva, &free, lockp);
@@ -4928,6 +4919,7 @@ pmap_demote_l3e_locked(pmap_t pmap, pml3_entry_t *l3e, vm_offset_t va,
 			    " in pmap %p", va, pmap);
 			return (FALSE);
 		}
+		mpte->pindex = pmap_l3e_pindex(va);
 		if (va < VM_MAXUSER_ADDRESS)
 			pmap_resident_count_inc(pmap, 1);
 	}
@@ -5947,13 +5939,13 @@ pmap_demote_l2e(pmap_t pmap, pml2_entry_t *l2e, vm_offset_t va)
 	oldpdpe = be64toh(*l2e);
 	KASSERT((oldpdpe & (RPTE_LEAF | PG_V)) == (RPTE_LEAF | PG_V),
 	    ("pmap_demote_pdpe: oldpdpe is missing PG_PS and/or PG_V"));
-	pdpg = vm_page_alloc(NULL, va >> L2_PAGE_SIZE_SHIFT,
-	    VM_ALLOC_INTERRUPT | VM_ALLOC_NOOBJ | VM_ALLOC_WIRED);
+	pdpg = vm_page_alloc_noobj(VM_ALLOC_INTERRUPT | VM_ALLOC_WIRED);
 	if (pdpg == NULL) {
 		CTR2(KTR_PMAP, "pmap_demote_pdpe: failure for va %#lx"
 		    " in pmap %p", va, pmap);
 		return (FALSE);
 	}
+	pdpg->pindex = va >> L2_PAGE_SIZE_SHIFT;
 	pdpgpa = VM_PAGE_TO_PHYS(pdpg);
 	firstpde = (pml3_entry_t *)PHYS_TO_DMAP(pdpgpa);
 	KASSERT((oldpdpe & PG_A) != 0,

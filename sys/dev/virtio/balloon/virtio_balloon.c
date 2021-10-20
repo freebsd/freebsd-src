@@ -460,8 +460,7 @@ vtballoon_alloc_page(struct vtballoon_softc *sc)
 {
 	vm_page_t m;
 
-	m = vm_page_alloc(NULL, 0,
-	    VM_ALLOC_NORMAL | VM_ALLOC_NOOBJ | VM_ALLOC_NODUMP);
+	m = vm_page_alloc_noobj(VM_ALLOC_NODUMP);
 	if (m != NULL)
 		sc->vtballoon_current_npages++;
 

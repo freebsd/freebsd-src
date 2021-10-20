@@ -1609,8 +1609,7 @@ ti_newbuf_jumbo(struct ti_softc *sc, int idx, struct mbuf *m_old)
 				    "failed -- packet dropped!\n");
 				goto nobufs;
 			}
-			frame = vm_page_alloc(NULL, 0,
-			    VM_ALLOC_INTERRUPT | VM_ALLOC_NOOBJ |
+			frame = vm_page_alloc_noobj(VM_ALLOC_INTERRUPT |
 			    VM_ALLOC_WIRED);
 			if (frame == NULL) {
 				device_printf(sc->ti_dev, "buffer allocation "

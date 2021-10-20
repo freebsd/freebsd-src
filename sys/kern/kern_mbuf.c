@@ -1624,8 +1624,8 @@ mb_alloc_ext_plus_pages(int len, int how)
 	npgs = howmany(len, PAGE_SIZE);
 	for (i = 0; i < npgs; i++) {
 		do {
-			pg = vm_page_alloc(NULL, 0, VM_ALLOC_NORMAL |
-			    VM_ALLOC_NOOBJ | VM_ALLOC_NODUMP | VM_ALLOC_WIRED);
+			pg = vm_page_alloc_noobj(VM_ALLOC_NODUMP |
+			    VM_ALLOC_WIRED);
 			if (pg == NULL) {
 				if (how == M_NOWAIT) {
 					m->m_epg_npgs = i;

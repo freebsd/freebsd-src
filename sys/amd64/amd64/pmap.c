@@ -2342,10 +2342,9 @@ pmap_init_pv_table(void)
 		highest = start + (s / sizeof(*pvd)) - 1;
 
 		for (j = 0; j < s; j += PAGE_SIZE) {
-			vm_page_t m = vm_page_alloc_domain(NULL, 0,
-			    domain, VM_ALLOC_NORMAL | VM_ALLOC_NOOBJ);
+			vm_page_t m = vm_page_alloc_noobj_domain(domain, 0);
 			if (m == NULL)
-				panic("vm_page_alloc_domain failed for %lx\n", (vm_offset_t)pvd + j);
+				panic("failed to allocate PV table page");
 			pmap_qenter((vm_offset_t)pvd + j, &m, 1);
 		}
 
@@ -4312,15 +4311,11 @@ pmap_alloc_pt_page(pmap_t pmap, vm_pindex_t pindex, int flags)
 {
 	vm_page_t m;
 
-	m = vm_page_alloc(NULL, pindex, flags | VM_ALLOC_NOOBJ);
+	m = vm_page_alloc_noobj(flags);
 	if (__predict_false(m == NULL))
 		return (NULL);
-
+	m->pindex = pindex;
 	pmap_pt_page_count_adj(pmap, 1);
-
-	if ((flags & VM_ALLOC_ZERO) != 0 && (m->flags & PG_ZERO) == 0)
-		pmap_zero_page(m);
-
 	return (m);
 }
 
@@ -4358,8 +4353,8 @@ pmap_pinit_type(pmap_t pmap, enum pmap_type pm_type, int flags)
 	/*
 	 * allocate the page directory page
 	 */
-	pmltop_pg = pmap_alloc_pt_page(NULL, 0, VM_ALLOC_NORMAL |
-	    VM_ALLOC_WIRED | VM_ALLOC_ZERO | VM_ALLOC_WAITOK);
+	pmltop_pg = pmap_alloc_pt_page(NULL, 0, VM_ALLOC_WIRED | VM_ALLOC_ZERO |
+	    VM_ALLOC_WAITOK);
 
 	pmltop_phys = VM_PAGE_TO_PHYS(pmltop_pg);
 	pmap->pm_pmltop = (pml5_entry_t *)PHYS_TO_DMAP(pmltop_phys);
@@ -4389,8 +4384,7 @@ pmap_pinit_type(pmap_t pmap, enum pmap_type pm_type, int flags)
 			pmap_pinit_pml4(pmltop_pg);
 		if ((curproc->p_md.md_flags & P_MD_KPTI) != 0) {
 			pmltop_pgu = pmap_alloc_pt_page(NULL, 0,
-			    VM_ALLOC_WIRED | VM_ALLOC_NORMAL |
-			    VM_ALLOC_WAITOK);
+			    VM_ALLOC_WIRED | VM_ALLOC_WAITOK);
 			pmap->pm_pmltopu = (pml4_entry_t *)PHYS_TO_DMAP(
 			    VM_PAGE_TO_PHYS(pmltop_pgu));
 			if (pmap_is_la57(pmap))
@@ -5480,8 +5474,7 @@ retry:
 		}
 	}
 	/* No free items, allocate another chunk */
-	m = vm_page_alloc(NULL, 0, VM_ALLOC_NORMAL | VM_ALLOC_NOOBJ |
-	    VM_ALLOC_WIRED);
+	m = vm_page_alloc_noobj(VM_ALLOC_WIRED);
 	if (m == NULL) {
 		if (lockp == NULL) {
 			PV_STAT(counter_u64_add(pc_chunk_tryfail, 1));
@@ -5584,8 +5577,7 @@ retry:
 			break;
 	}
 	for (reclaimed = false; avail < needed; avail += _NPCPV) {
-		m = vm_page_alloc(NULL, 0, VM_ALLOC_NORMAL | VM_ALLOC_NOOBJ |
-		    VM_ALLOC_WIRED);
+		m = vm_page_alloc_noobj(VM_ALLOC_WIRED);
 		if (m == NULL) {
 			m = reclaim_pv_chunk(pmap, lockp);
 			if (m == NULL)
@@ -5957,8 +5949,7 @@ pmap_demote_pde_locked(pmap_t pmap, pd_entry_t *pde, vm_offset_t va,
 		 * priority is normal.
 		 */
 		mpte = pmap_alloc_pt_page(pmap, pmap_pde_pindex(va),
-		    (in_kernel ? VM_ALLOC_INTERRUPT : VM_ALLOC_NORMAL) |
-		    VM_ALLOC_WIRED);
+		    (in_kernel ? VM_ALLOC_INTERRUPT : 0) | VM_ALLOC_WIRED);
 
 		/*
 		 * If the allocation of the new page table page fails,
@@ -10355,8 +10346,7 @@ pmap_quick_remove_page(vm_offset_t addr)
 static vm_page_t
 pmap_large_map_getptp_unlocked(void)
 {
-	return (pmap_alloc_pt_page(kernel_pmap, 0,
-	    VM_ALLOC_NORMAL | VM_ALLOC_ZERO));
+	return (pmap_alloc_pt_page(kernel_pmap, 0, VM_ALLOC_ZERO));
 }
 
 static vm_page_t
@@ -11411,12 +11401,10 @@ pmap_kasan_enter_alloc_4k(void)
 {
 	vm_page_t m;
 
-	m = vm_page_alloc(NULL, 0, VM_ALLOC_INTERRUPT | VM_ALLOC_NOOBJ |
-	    VM_ALLOC_WIRED | VM_ALLOC_ZERO);
+	m = vm_page_alloc_noobj(VM_ALLOC_INTERRUPT | VM_ALLOC_WIRED |
+	    VM_ALLOC_ZERO);
 	if (m == NULL)
 		panic("%s: no memory to grow shadow map", __func__);
-	if ((m->flags & PG_ZERO) == 0)
-		pmap_zero_page(m);
 	return (m);
 }
 
@@ -11481,12 +11469,10 @@ pmap_kmsan_enter_alloc_4k(void)
 {
 	vm_page_t m;
 
-	m = vm_page_alloc(NULL, 0, VM_ALLOC_INTERRUPT | VM_ALLOC_NOOBJ |
-	    VM_ALLOC_WIRED | VM_ALLOC_ZERO);
+	m = vm_page_alloc_noobj(VM_ALLOC_INTERRUPT | VM_ALLOC_WIRED |
+	    VM_ALLOC_ZERO);
 	if (m == NULL)
 		panic("%s: no memory to grow shadow map", __func__);
-	if ((m->flags & PG_ZERO) == 0)
-		pmap_zero_page(m);
 	return (m);
 }
 
