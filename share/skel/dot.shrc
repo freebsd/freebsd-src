@@ -40,6 +40,10 @@ bind "\\e[1;5C" em-next-word
 bind "\\e[1;5D" ed-prev-word
 alias history='fc -l'
 
+# Fix home/del for mobaxterm
+bind ^[[5~ ed-move-to-beg
+bind ^[[6~ ed-move-to-end
+
 # set prompt: ``username@hostname:directory $ '' 
 PS1="\u@\h:\w \\$ "
 
