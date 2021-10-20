@@ -4202,7 +4202,7 @@ mmu_radix_pinit(pmap_t pmap)
 
 	for (int j = 0; j <  RADIX_PGD_SIZE_SHIFT; j++)
 		pagezero((vm_offset_t)pmap->pm_pml1 + j * PAGE_SIZE);
-	pmap->pm_radix.rt_root = 0;
+	vm_radix_init(&pmap->pm_radix);
 	TAILQ_INIT(&pmap->pm_pvchunk);
 	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
 	pmap->pm_flags = PMAP_PDE_SUPERPAGE;
@@ -4433,7 +4433,7 @@ mmu_radix_pinit0(pmap_t pmap)
 	pmap->pm_pml1 = kernel_pmap->pm_pml1;
 	pmap->pm_pid = kernel_pmap->pm_pid;
 
-	pmap->pm_radix.rt_root = 0;
+	vm_radix_init(&pmap->pm_radix);
 	TAILQ_INIT(&pmap->pm_pvchunk);
 	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
 	kernel_pmap->pm_flags =

@@ -4177,7 +4177,7 @@ pmap_pinit0(pmap_t pmap)
 	pmap->pm_cr3 = kernel_pmap->pm_cr3;
 	/* hack to keep pmap_pti_pcid_invalidate() alive */
 	pmap->pm_ucr3 = PMAP_NO_CR3;
-	pmap->pm_root.rt_root = 0;
+	vm_radix_init(&pmap->pm_root);
 	CPU_ZERO(&pmap->pm_active);
 	TAILQ_INIT(&pmap->pm_pvchunk);
 	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
@@ -4398,7 +4398,7 @@ pmap_pinit_type(pmap_t pmap, enum pmap_type pm_type, int flags)
 		break;
 	}
 
-	pmap->pm_root.rt_root = 0;
+	vm_radix_init(&pmap->pm_root);
 	CPU_ZERO(&pmap->pm_active);
 	TAILQ_INIT(&pmap->pm_pvchunk);
 	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
