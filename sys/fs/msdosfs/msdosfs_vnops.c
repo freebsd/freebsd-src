@@ -941,14 +941,12 @@ msdosfs_rename(struct vop_rename_args *ap)
 	struct componentname *fcnp, *tcnp;
 	struct denode *fdip, *fip, *tdip, *tip, *nip;
 	u_char toname[12], oldname[11];
-	u_long from_diroffset, to_diroffset;
+	u_long to_diroffset;
 	bool checkpath_locked, doingdirectory, newparent;
-	u_char to_count;
 	int error;
 	u_long cn, pcl, blkoff;
 	daddr_t bn, wait_scn, scn;
 	struct msdosfsmount *pmp;
-	struct mount *mp;
 	struct direntry *dotdotp;
 	struct buf *bp;
 
@@ -968,7 +966,6 @@ msdosfs_rename(struct vop_rename_args *ap)
 	/*
 	 * Check for cross-device rename.
 	 */
-	mp = fvp->v_mount;
 	if (fvp->v_mount != tdvp->v_mount ||
 	    (tvp != NULL && fvp->v_mount != tvp->v_mount)) {
 		error = EXDEV;
@@ -1031,7 +1028,6 @@ relock:
 	}
 	vrele(fvp);
 	fvp = DETOV(nip);
-	from_diroffset = fdip->de_fndoffset;
 
 	error = msdosfs_lookup_ino(tdvp, NULL, tcnp, &scn, &blkoff);
 	if (error != 0 && error != EJUSTRETURN) {
@@ -1077,7 +1073,6 @@ relock:
 	 * Remember direntry place to use for destination
 	 */
 	to_diroffset = tdip->de_fndoffset;
-	to_count = tdip->de_fndcnt;
 
 	/*
 	 * Be sure we are not renaming ".", "..", or an alias of ".". This
