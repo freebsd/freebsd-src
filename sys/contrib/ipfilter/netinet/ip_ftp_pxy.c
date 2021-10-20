@@ -516,8 +516,7 @@ ipf_p_ftp_addport(softf, fin, ip, nat, ftp, dlen, nport, inc)
 #endif
 
 	/*
-	 * Add skeleton NAT entry for connection which will come back the
-	 * other way.
+	 * If an existing entry already exists, use it instead.
 	 */
 #ifdef USE_INET6
 	if (nat->nat_v[0] == 6) {
@@ -550,6 +549,9 @@ ipf_p_ftp_addport(softf, fin, ip, nat, ftp, dlen, nport, inc)
 	if (nat2 != NULL)
 		return APR_INC(inc);
 
+	/*
+	 * An existing entry doesn't exist. Let's make one.
+	 */
 	ipn = ipf_proxy_rule_rev(nat);
 	if (ipn == NULL)
 		return APR_ERR(1);
