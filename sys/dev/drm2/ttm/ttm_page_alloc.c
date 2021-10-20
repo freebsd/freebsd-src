@@ -163,8 +163,8 @@ ttm_vm_page_alloc_dma32(int req, vm_memattr_t memattr)
 	int tries;
 
 	for (tries = 0; ; tries++) {
-		p = vm_page_alloc_contig(NULL, 0, req, 1, 0, 0xffffffff,
-		    PAGE_SIZE, 0, memattr);
+		p = vm_page_alloc_noobj_contig(req, 1, 0, 0xffffffff, PAGE_SIZE,
+		    0, memattr);
 		if (p != NULL || tries > 2)
 			return (p);
 		if (!vm_page_reclaim_contig(req, 1, 0, 0xffffffff,
@@ -191,7 +191,7 @@ ttm_vm_page_alloc(int flags, enum ttm_caching_state cstate)
 	int req;
 
 	memattr = ttm_caching_state_to_vm(cstate);
-	req = VM_ALLOC_NORMAL | VM_ALLOC_WIRED | VM_ALLOC_NOOBJ;
+	req = VM_ALLOC_WIRED;
 	if ((flags & TTM_PAGE_FLAG_ZERO_ALLOC) != 0)
 		req |= VM_ALLOC_ZERO;
 
