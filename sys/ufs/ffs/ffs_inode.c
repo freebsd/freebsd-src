@@ -244,8 +244,8 @@ ffs_truncate(vp, length, flags, cred)
 	ufs2_daddr_t bn, lbn, lastblock, lastiblock[UFS_NIADDR];
 	ufs2_daddr_t indir_lbn[UFS_NIADDR], oldblks[UFS_NDADDR + UFS_NIADDR];
 	ufs2_daddr_t newblks[UFS_NDADDR + UFS_NIADDR];
-	ufs2_daddr_t count, blocksreleased = 0, datablocks, blkno;
-	struct bufobj *bo;
+	ufs2_daddr_t count, blocksreleased = 0, blkno;
+	struct bufobj *bo __diagused;
 	struct fs *fs;
 	struct buf *bp;
 	struct ufsmount *ump;
@@ -297,10 +297,8 @@ ffs_truncate(vp, length, flags, cred)
 	if (journaltrunc == 0 && DOINGSOFTDEP(vp) && length == 0)
 		softdeptrunc = !softdep_slowdown(vp);
 	extblocks = 0;
-	datablocks = DIP(ip, i_blocks);
 	if (fs->fs_magic == FS_UFS2_MAGIC && ip->i_din2->di_extsize > 0) {
 		extblocks = btodb(fragroundup(fs, ip->i_din2->di_extsize));
-		datablocks -= extblocks;
 	}
 	if ((flags & IO_EXT) && extblocks > 0) {
 		if (length != 0)
