@@ -2509,6 +2509,49 @@ vm_page_alloc_noobj_domain(int domain, int req)
 	return (_vm_page_alloc_noobj_domain(domain, VM_NFREELIST, req));
 }
 
+vm_page_t
+vm_page_alloc_noobj_contig(int req, u_long npages, vm_paddr_t low,
+    vm_paddr_t high, u_long alignment, vm_paddr_t boundary,
+    vm_memattr_t memattr)
+{
+	struct vm_domainset_iter di;
+	vm_page_t m;
+	int domain;
+
+	vm_domainset_iter_page_init(&di, NULL, 0, &domain, &req);
+	do {
+		m = vm_page_alloc_noobj_contig_domain(domain, req, npages, low,
+		    high, alignment, boundary, memattr);
+		if (m != NULL)
+			break;
+	} while (vm_domainset_iter_page(&di, NULL, &domain) == 0);
+
+	return (m);
+}
+
+vm_page_t
+vm_page_alloc_noobj_contig_domain(int domain, int req, u_long npages,
+    vm_paddr_t low, vm_paddr_t high, u_long alignment, vm_paddr_t boundary,
+    vm_memattr_t memattr)
+{
+	vm_page_t m;
+	u_long i;
+
+	KASSERT((req & (VM_ALLOC_SBUSY | VM_ALLOC_IGN_SBUSY |
+	    VM_ALLOC_NOOBJ)) == 0,
+	    ("%s: invalid req %#x", __func__, req));
+
+	m = vm_page_alloc_contig_domain(NULL, 0, domain, req | VM_ALLOC_NOOBJ,
+	    npages, low, high, alignment, boundary, memattr);
+	if (m != NULL && (req & VM_ALLOC_ZERO) != 0) {
+		for (i = 0; i < npages; i++) {
+			if ((m[i].flags & PG_ZERO) == 0)
+				pmap_zero_page(&m[i]);
+		}
+	}
+	return (m);
+}
+
 /*
  * Check a page that has been freshly dequeued from a freelist.
  */
