@@ -2395,28 +2395,6 @@ found:
 }
 
 /*
- * Check a page that has been freshly dequeued from a freelist.
- */
-static void
-vm_page_alloc_check(vm_page_t m)
-{
-
-	KASSERT(m->object == NULL, ("page %p has object", m));
-	KASSERT(m->a.queue == PQ_NONE &&
-	    (m->a.flags & PGA_QUEUE_STATE_MASK) == 0,
-	    ("page %p has unexpected queue %d, flags %#x",
-	    m, m->a.queue, (m->a.flags & PGA_QUEUE_STATE_MASK)));
-	KASSERT(m->ref_count == 0, ("page %p has references", m));
-	KASSERT(vm_page_busy_freed(m), ("page %p is not freed", m));
-	KASSERT(m->dirty == 0, ("page %p is dirty", m));
-	KASSERT(pmap_page_get_memattr(m) == VM_MEMATTR_DEFAULT,
-	    ("page %p has unexpected memattr %d",
-	    m, pmap_page_get_memattr(m)));
-	KASSERT(m->valid == 0, ("free page %p is valid", m));
-	pmap_vm_page_alloc_check(m);
-}
-
-/*
  * 	vm_page_alloc_freelist:
  *
  *	Allocate a physical page from the specified free page list.
@@ -2492,6 +2470,27 @@ again:
 	/* Unmanaged pages don't use "act_count". */
 	m->oflags = VPO_UNMANAGED;
 	return (m);
+}
+
+/*
+ * Check a page that has been freshly dequeued from a freelist.
+ */
+static void
+vm_page_alloc_check(vm_page_t m)
+{
+	KASSERT(m->object == NULL, ("page %p has object", m));
+	KASSERT(m->ref_count == 0, ("page %p has references", m));
+	KASSERT(vm_page_busy_freed(m), ("page %p is not freed", m));
+	KASSERT(m->a.queue == PQ_NONE &&
+	    (m->a.flags & PGA_QUEUE_STATE_MASK) == 0,
+	    ("page %p has unexpected queue %d, flags %#x",
+	    m, m->a.queue, (m->a.flags & PGA_QUEUE_STATE_MASK)));
+	KASSERT(m->valid == 0, ("free page %p is valid", m));
+	KASSERT(m->dirty == 0, ("page %p is dirty", m));
+	KASSERT(pmap_page_get_memattr(m) == VM_MEMATTR_DEFAULT,
+	    ("page %p has unexpected memattr %d",
+	    m, pmap_page_get_memattr(m)));
+	pmap_vm_page_alloc_check(m);
 }
 
 static int
