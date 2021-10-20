@@ -347,7 +347,8 @@ ffs_mount(struct mount *mp)
 	struct thread *td;
 	struct ufsmount *ump = NULL;
 	struct fs *fs;
-	int error, error1, flags;
+	int error, flags;
+	int error1 __diagused;
 	uint64_t mntorflags, saved_mnt_flag;
 	accmode_t accmode;
 	struct nameidata ndp;
@@ -1613,11 +1614,9 @@ ffs_sync_lazy(mp)
 {
 	struct vnode *mvp, *vp;
 	struct inode *ip;
-	struct thread *td;
 	int allerror, error;
 
 	allerror = 0;
-	td = curthread;
 	if ((mp->mnt_flag & MNT_NOATIME) != 0) {
 #ifdef QUOTA
 		qsync(mp);
