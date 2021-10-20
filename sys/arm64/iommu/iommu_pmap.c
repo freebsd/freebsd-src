@@ -392,7 +392,7 @@ iommu_pmap_pinit_levels(pmap_t pmap, int levels)
 	pmap->pm_l0_paddr = VM_PAGE_TO_PHYS(m);
 	pmap->pm_l0 = (pd_entry_t *)PHYS_TO_DMAP(pmap->pm_l0_paddr);
 
-	pmap->pm_root.rt_root = 0;
+	vm_radix_init(&pmap->pm_root);
 	bzero(&pmap->pm_stats, sizeof(pmap->pm_stats));
 
 	MPASS(levels == 3 || levels == 4);

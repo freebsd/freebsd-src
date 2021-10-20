@@ -2043,7 +2043,7 @@ __CONCAT(PMTYPE, pinit0)(pmap_t pmap)
 #ifdef PMAP_PAE_COMP
 	pmap->pm_pdpt = IdlePDPT;
 #endif
-	pmap->pm_root.rt_root = 0;
+	vm_radix_init(&pmap->pm_root);
 	CPU_ZERO(&pmap->pm_active);
 	TAILQ_INIT(&pmap->pm_pvchunk);
 	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
@@ -2075,7 +2075,7 @@ __CONCAT(PMTYPE, pinit)(pmap_t pmap)
 		KASSERT(pmap_kextract((vm_offset_t)pmap->pm_pdpt) < (4ULL<<30),
 		    ("pmap_pinit: pdpt above 4g"));
 #endif
-		pmap->pm_root.rt_root = 0;
+		vm_radix_init(&pmap->pm_root);
 	}
 	KASSERT(vm_radix_is_empty(&pmap->pm_root),
 	    ("pmap_pinit: pmap has reserved page table page(s)"));
