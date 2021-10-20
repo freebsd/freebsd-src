@@ -36,10 +36,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/reboot.h>
 #include <sys/devmap.h>
 #include <sys/physmem.h>
+#include <sys/lock.h>
 
 #include <vm/vm.h>
 
 #include <machine/bus.h>
+#include <machine/fdt.h>
 #include <machine/intr.h>
 #include <machine/machdep.h>
 #include <machine/platformvar.h>
@@ -94,12 +96,52 @@ ipq4018_devmap_init(platform_t plat)
 	 * a call to pmap_mapdev() when the bus space code is doing its thing.
 	 */
 	devmap_add_entry(IPQ4018_MEM_UART1_START, IPQ4018_MEM_UART1_SIZE);
+
+	/*
+	 * This covers a bunch of the reset block, which includes the PS-HOLD
+	 * register for dropping power.
+	 */
+	devmap_add_entry(IPQ4018_MEM_PSHOLD_START, IPQ4018_MEM_PSHOLD_SIZE);
+
 	return (0);
+}
+
+/*
+ * This toggles the PS-HOLD register which on most IPQ devices will toggle
+ * the power control block and reset the SoC.
+ *
+ * However, there are apparently some units out there where this is not
+ * appropriate and instead the watchdog needs to be used.
+ *
+ * For now since there's only going to be one or two initial supported boards
+ * this will be fine.  But if this doesn't reboot cleanly, now you know.
+ */
+static void
+ipq4018_cpu_reset_pshold(void)
+{
+	bus_space_handle_t pshold;
+
+	printf("%s: called\n", __func__);
+
+	bus_space_map(fdtbus_bs_tag, IPQ4018_MEM_PSHOLD_START,
+	    IPQ4018_MEM_PSHOLD_SIZE, 0, &pshold);
+	bus_space_write_4(fdtbus_bs_tag, pshold, 0, 0);
+	bus_space_barrier(fdtbus_bs_tag, pshold, 0, 0x4,
+	    BUS_SPACE_BARRIER_WRITE);
 }
 
 static void
 ipq4018_cpu_reset(platform_t plat)
 {
+	spinlock_enter();
+	dsb();
+
+	ipq4018_cpu_reset_pshold();
+
+	/* Spin */
+	printf("%s: spinning\n", __func__);
+	while(1)
+		;
 }
 
 /*
