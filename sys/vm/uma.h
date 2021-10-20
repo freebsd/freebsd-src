@@ -483,7 +483,8 @@ void uma_zone_reserve(uma_zone_t zone, int nitems);
 
 /*
  * Reserves the maximum KVA space required by the zone and configures the zone
- * to use a VM_ALLOC_NOOBJ-based backend allocator.
+ * to use a backend that allocates physical memory and maps it using the
+ * reserved KVA. 
  *
  * Arguments:
  *	zone  The zone to update.

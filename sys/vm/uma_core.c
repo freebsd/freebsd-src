@@ -2014,7 +2014,7 @@ fail:
 }
 
 /*
- * Allocates a number of pages from within an object
+ * Allocates a number of pages not belonging to a VM object
  *
  * Arguments:
  *	bytes  The number of bytes requested
