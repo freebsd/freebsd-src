@@ -1496,6 +1496,15 @@ pmap_resident_count_adj(pmap_t pmap, int count)
 }
 
 static __inline void
+pmap_pt_page_count_pinit(pmap_t pmap, int count)
+{
+	KASSERT(pmap->pm_stats.resident_count + count >= 0,
+	    ("pmap %p resident count underflow %ld %d", pmap,
+	    pmap->pm_stats.resident_count, count));
+	pmap->pm_stats.resident_count += count;
+}
+
+static __inline void
 pmap_pt_page_count_adj(pmap_t pmap, int count)
 {
 	if (pmap == kernel_pmap)
@@ -4344,13 +4353,24 @@ pmap_pinit_type(pmap_t pmap, enum pmap_type pm_type, int flags)
 	vm_paddr_t pmltop_phys;
 	int i;
 
+	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
+
 	/*
-	 * Allocate the page directory page.  Pass NULL instead of a pointer to
-	 * the pmap here to avoid recording this page in the resident count, as
-	 * optimizations in pmap_remove() depend on this.
+	 * Allocate the page directory page.  Pass NULL instead of a
+	 * pointer to the pmap here to avoid calling
+	 * pmap_resident_count_adj() through pmap_pt_page_count_adj(),
+	 * since that requires pmap lock.  Instead do the accounting
+	 * manually.
+	 *
+	 * Note that final call to pmap_remove() optimization that
+	 * checks for zero resident_count is basically disabled by
+	 * accounting for top-level page.  But the optimization was
+	 * not effective since we started using non-managed mapping of
+	 * the shared page.
 	 */
 	pmltop_pg = pmap_alloc_pt_page(NULL, 0, VM_ALLOC_WIRED | VM_ALLOC_ZERO |
 	    VM_ALLOC_WAITOK);
+	pmap_pt_page_count_pinit(pmap, 1);
 
 	pmltop_phys = VM_PAGE_TO_PHYS(pmltop_pg);
 	pmap->pm_pmltop = (pml5_entry_t *)PHYS_TO_DMAP(pmltop_phys);
@@ -4380,11 +4400,13 @@ pmap_pinit_type(pmap_t pmap, enum pmap_type pm_type, int flags)
 			pmap_pinit_pml4(pmltop_pg);
 		if ((curproc->p_md.md_flags & P_MD_KPTI) != 0) {
 			/*
-			 * As with pmltop_pg, pass NULL instead of a pointer to
-			 * the pmap to ensure that the PTI page isn't counted.
+			 * As with pmltop_pg, pass NULL instead of a
+			 * pointer to the pmap to ensure that the PTI
+			 * page counted explicitly.
 			 */
 			pmltop_pgu = pmap_alloc_pt_page(NULL, 0,
 			    VM_ALLOC_WIRED | VM_ALLOC_WAITOK);
+			pmap_pt_page_count_pinit(pmap, 1);
 			pmap->pm_pmltopu = (pml4_entry_t *)PHYS_TO_DMAP(
 			    VM_PAGE_TO_PHYS(pmltop_pgu));
 			if (pmap_is_la57(pmap))
@@ -4407,7 +4429,6 @@ pmap_pinit_type(pmap_t pmap, enum pmap_type pm_type, int flags)
 	vm_radix_init(&pmap->pm_root);
 	CPU_ZERO(&pmap->pm_active);
 	TAILQ_INIT(&pmap->pm_pvchunk);
-	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
 	pmap->pm_flags = flags;
 	pmap->pm_eptgen = 0;
 
@@ -4799,9 +4820,6 @@ pmap_release(pmap_t pmap)
 	vm_page_t m;
 	int i;
 
-	KASSERT(pmap->pm_stats.resident_count == 0,
-	    ("pmap_release: pmap %p resident count %ld != 0",
-	    pmap, pmap->pm_stats.resident_count));
 	KASSERT(vm_radix_is_empty(&pmap->pm_root),
 	    ("pmap_release: pmap %p has reserved page table page(s)",
 	    pmap));
@@ -4834,15 +4852,21 @@ pmap_release(pmap_t pmap)
 	}
 
 	pmap_free_pt_page(NULL, m, true);
+	pmap_pt_page_count_pinit(pmap, -1);
 
 	if (pmap->pm_pmltopu != NULL) {
 		m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t)pmap->
 		    pm_pmltopu));
 		pmap_free_pt_page(NULL, m, false);
+		pmap_pt_page_count_pinit(pmap, -1);
 	}
 	if (pmap->pm_type == PT_X86 &&
 	    (cpu_stdext_feature2 & CPUID_STDEXT2_PKU) != 0)
 		rangeset_fini(&pmap->pm_pkru);
+
+	KASSERT(pmap->pm_stats.resident_count == 0,
+	    ("pmap_release: pmap %p resident count %ld != 0",
+	    pmap, pmap->pm_stats.resident_count));
 }
 
 static int
