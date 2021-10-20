@@ -219,16 +219,22 @@ acpi_get_fadt_revision(ACPI_TABLE_FADT *fadt)
 	if (addr_size == 8) {
 		fadt_revision = 2;
 
+#if defined(__i386__)
 		/*
 		 * A few systems (e.g., IBM T23) have an RSDP that claims
 		 * revision 2 but the 64 bit addresses are invalid.  If
 		 * revision 2 and the 32 bit address is non-zero but the
 		 * 32 and 64 bit versions don't match, prefer the 32 bit
 		 * version for all subsequent tables.
+		 *
+		 * The only known ACPI systems this affects are early
+		 * implementations on 32-bit x86. Because of this limit the
+		 * workaround to i386.
 		 */
 		if (fadt->Facs != 0 &&
 		    (fadt->XFacs & 0xffffffff) != fadt->Facs)
 			fadt_revision = 1;
+#endif
 	} else
 		fadt_revision = 1;
 	return (fadt_revision);
