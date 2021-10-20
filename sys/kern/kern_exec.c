@@ -1105,6 +1105,30 @@ exec_onexec_old(struct thread *td)
 }
 
 /*
+ * This is an optimization which removes the unmanaged shared page
+ * mapping. In combination with pmap_remove_pages(), which cleans all
+ * managed mappings in the process' vmspace pmap, no work will be left
+ * for pmap_remove(min, max).
+ */
+void
+exec_free_abi_mappings(struct proc *p)
+{
+	struct vmspace *vmspace;
+	struct sysentvec *sv;
+
+	vmspace = p->p_vmspace;
+	if (refcount_load(&vmspace->vm_refcnt) != 1)
+		return;
+
+	sv = p->p_sysent;
+	if (sv->sv_shared_page_obj == NULL)
+		return;
+
+	pmap_remove(vmspace_pmap(vmspace), sv->sv_shared_page_base,
+	    sv->sv_shared_page_base + sv->sv_shared_page_len);
+}
+
+/*
  * Destroy old address space, and allocate a new stack.
  *	The new stack is only sgrowsiz large because it is grown
  *	automatically on a page fault.
@@ -1146,6 +1170,7 @@ exec_new_vmspace(struct image_params *imgp, struct sysentvec *sv)
 	    vm_map_min(map) == sv_minuser &&
 	    vm_map_max(map) == sv->sv_maxuser &&
 	    cpu_exec_vmspace_reuse(p, map)) {
+		exec_free_abi_mappings(p);
 		shmexit(vmspace);
 		pmap_remove_pages(vmspace_pmap(vmspace));
 		vm_map_remove(map, vm_map_min(map), vm_map_max(map));
