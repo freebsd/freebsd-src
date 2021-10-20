@@ -4345,7 +4345,9 @@ pmap_pinit_type(pmap_t pmap, enum pmap_type pm_type, int flags)
 	int i;
 
 	/*
-	 * allocate the page directory page
+	 * Allocate the page directory page.  Pass NULL instead of a pointer to
+	 * the pmap here to avoid recording this page in the resident count, as
+	 * optimizations in pmap_remove() depend on this.
 	 */
 	pmltop_pg = pmap_alloc_pt_page(NULL, 0, VM_ALLOC_WIRED | VM_ALLOC_ZERO |
 	    VM_ALLOC_WAITOK);
@@ -4377,6 +4379,10 @@ pmap_pinit_type(pmap_t pmap, enum pmap_type pm_type, int flags)
 		else
 			pmap_pinit_pml4(pmltop_pg);
 		if ((curproc->p_md.md_flags & P_MD_KPTI) != 0) {
+			/*
+			 * As with pmltop_pg, pass NULL instead of a pointer to
+			 * the pmap to ensure that the PTI page isn't counted.
+			 */
 			pmltop_pgu = pmap_alloc_pt_page(NULL, 0,
 			    VM_ALLOC_WIRED | VM_ALLOC_WAITOK);
 			pmap->pm_pmltopu = (pml4_entry_t *)PHYS_TO_DMAP(
