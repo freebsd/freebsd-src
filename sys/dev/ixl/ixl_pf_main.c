@@ -530,7 +530,7 @@ ixl_add_maddr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
 void
 ixl_add_multi(struct ixl_vsi *vsi)
 {
-	struct ifnet		*ifp = vsi->ifp;
+	if_t			ifp = vsi->ifp;
 	struct i40e_hw		*hw = vsi->hw;
 	int			mcnt = 0;
 	struct ixl_add_maddr_arg cb_arg;
@@ -571,7 +571,7 @@ void
 ixl_del_multi(struct ixl_vsi *vsi, bool all)
 {
 	struct ixl_ftl_head	to_del;
-	struct ifnet		*ifp = vsi->ifp;
+	if_t			ifp = vsi->ifp;
 	struct ixl_mac_filter	*f, *fn;
 	int			mcnt = 0;
 
@@ -597,7 +597,7 @@ void
 ixl_link_up_msg(struct ixl_pf *pf)
 {
 	struct i40e_hw *hw = &pf->hw;
-	struct ifnet *ifp = pf->vsi.ifp;
+	if_t ifp = pf->vsi.ifp;
 	char *req_fec_string, *neg_fec_string;
 	u8 fec_abilities;
 
@@ -618,7 +618,7 @@ ixl_link_up_msg(struct ixl_pf *pf)
 		neg_fec_string = ixl_fec_string[2];
 
 	log(LOG_NOTICE, "%s: Link is up, %s Full Duplex, Requested FEC: %s, Negotiated FEC: %s, Autoneg: %s, Flow Control: %s\n",
-	    ifp->if_xname,
+	    if_name(ifp),
 	    ixl_link_speed_string(hw->phy.link_info.link_speed),
 	    req_fec_string, neg_fec_string,
 	    (hw->phy.link_info.an_info & I40E_AQ_AN_COMPLETED) ? "True" : "False",
@@ -1919,7 +1919,7 @@ void
 ixl_handle_empr_reset(struct ixl_pf *pf)
 {
 	struct ixl_vsi	*vsi = &pf->vsi;
-	bool is_up = !!(vsi->ifp->if_drv_flags & IFF_DRV_RUNNING);
+	bool is_up = !!(if_getdrvflags(vsi->ifp) & IFF_DRV_RUNNING);
 
 	ixl_prepare_for_reset(pf, is_up);
 	/*

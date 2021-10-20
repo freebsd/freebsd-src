@@ -422,7 +422,7 @@ LIST_HEAD(ixl_ftl_head, ixl_mac_filter);
 struct ixl_vsi {
 	if_ctx_t		ctx;
 	if_softc_ctx_t		shared;
-	struct ifnet		*ifp;
+	if_t			ifp;
 	device_t		dev;
 	struct i40e_hw		*hw;
 	struct ifmedia		*media;

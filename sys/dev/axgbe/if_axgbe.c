@@ -130,20 +130,20 @@ static void
 axgbe_init(void *p)
 {
 	struct axgbe_softc *sc;
-	struct ifnet *ifp;
+	if_t ifp;
 
 	sc = p;
 	ifp = sc->prv.netdev;
-	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+	if (if_getdrvflags(ifp) & IFF_DRV_RUNNING)
 		return;
 
-	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	if_setdrvflagbits(ifp, IFF_DRV_RUNNING, 0);
 }
 
 static int
-axgbe_ioctl(struct ifnet *ifp, unsigned long command, caddr_t data)
+axgbe_ioctl(if_t ifp, unsigned long command, caddr_t data)
 {
-	struct axgbe_softc *sc = ifp->if_softc;
+	struct axgbe_softc *sc = if_getsoftc(ifp);
 	struct ifreq *ifr = (struct ifreq *)data;
 	int error = 0;
 
@@ -169,19 +169,19 @@ axgbe_ioctl(struct ifnet *ifp, unsigned long command, caddr_t data)
 }
 
 static void
-axgbe_qflush(struct ifnet *ifp)
+axgbe_qflush(if_t ifp)
 {
 
 	if_qflush(ifp);
 }
 
 static int
-axgbe_media_change(struct ifnet *ifp)
+axgbe_media_change(if_t ifp)
 {
 	struct axgbe_softc *sc;
 	int cur_media;
 
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp);
 
 	sx_xlock(&sc->prv.an_mutex);
 	cur_media = sc->media.ifm_cur->ifm_media;
@@ -209,11 +209,11 @@ axgbe_media_change(struct ifnet *ifp)
 }
 
 static void
-axgbe_media_status(struct ifnet *ifp, struct ifmediareq *ifmr)
+axgbe_media_status(if_t ifp, struct ifmediareq *ifmr)
 {
 	struct axgbe_softc *sc;
 
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp);
 
 	ifmr->ifm_status = IFM_AVALID;
 	if (!sc->prv.phy.link)
@@ -241,9 +241,9 @@ axgbe_media_status(struct ifnet *ifp, struct ifmediareq *ifmr)
 }
 
 static uint64_t
-axgbe_get_counter(struct ifnet *ifp, ift_counter c)
+axgbe_get_counter(if_t ifp, ift_counter c)
 {
-	struct xgbe_prv_data *pdata = ifp->if_softc;
+	struct xgbe_prv_data *pdata = if_getsoftc(ifp);
 	struct xgbe_mmc_stats *pstats = &pdata->mmc_stats;
 
 	DBGPR("-->%s\n", __func__);
@@ -305,7 +305,7 @@ static int
 axgbe_attach(device_t dev)
 {
 	struct axgbe_softc *sc;
-	struct ifnet *ifp;
+	if_t ifp;
 	pcell_t phy_handle;
 	device_t phydev;
 	phandle_t node, phy_node;
@@ -532,18 +532,18 @@ axgbe_attach(device_t dev)
 	xgbe_init_tx_coalesce(&sc->prv);
 
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
-	ifp->if_init = axgbe_init;
-        ifp->if_softc = sc;
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
-	ifp->if_ioctl = axgbe_ioctl;
+	if_setinitfn(ifp, axgbe_init);
+        if_setsoftc(ifp, sc);
+	if_setflags(ifp, IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
+	if_setioctlfn(ifp, axgbe_ioctl);
 	/* TODO - change it to iflib way */ 
-	ifp->if_qflush = axgbe_qflush;
-	ifp->if_get_counter = axgbe_get_counter;
+	if_setqflushfn(ifp, axgbe_qflush);
+	if_setgetcounterfn(ifp, axgbe_get_counter);
 
 	/* TODO: Support HW offload */
-	ifp->if_capabilities = 0;
-	ifp->if_capenable = 0;
-	ifp->if_hwassist = 0;
+	if_setcapabilities(ifp, 0);
+	if_setcapenable(ifp, 0);
+	if_sethwassist(ifp, 0);
 
 	ether_ifattach(ifp, sc->mac_addr);
 

@@ -738,7 +738,7 @@ ice_rdma_pf_init(struct ice_softc *sc)
 	sx_xlock(&ice_rdma.mtx);
 
 	/* Update the MTU */
-	peer->mtu = sc->ifp->if_mtu;
+	peer->mtu = if_getmtu(sc->ifp);
 	sc->rdma_entry.initiated = true;
 
 	if (sc->rdma_entry.attached && ice_rdma.registered) {
