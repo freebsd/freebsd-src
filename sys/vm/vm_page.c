@@ -2395,23 +2395,72 @@ found:
 }
 
 /*
- * 	vm_page_alloc_freelist:
- *
- *	Allocate a physical page from the specified free page list.
- *
- *	The caller must always specify an allocation class.
- *
- *	allocation classes:
- *	VM_ALLOC_NORMAL		normal process request
- *	VM_ALLOC_SYSTEM		system *really* needs a page
- *	VM_ALLOC_INTERRUPT	interrupt time request
- *
- *	optional allocation flags:
- *	VM_ALLOC_COUNT(number)	the number of additional pages that the caller
- *				intends to allocate
- *	VM_ALLOC_WIRED		wire the allocated page
- *	VM_ALLOC_ZERO		prefer a zeroed page
+ * Allocate a physical page that is not intended to be inserted into a VM
+ * object.  If the "freelist" parameter is not equal to VM_NFREELIST, then only
+ * pages from the specified vm_phys freelist will be returned.
  */
+static __always_inline vm_page_t
+_vm_page_alloc_noobj_domain(int domain, const int freelist, int req)
+{
+	struct vm_domain *vmd;
+	vm_page_t m;
+	int flags;
+
+	KASSERT((req & (VM_ALLOC_SBUSY | VM_ALLOC_IGN_SBUSY |
+	    VM_ALLOC_NOOBJ)) == 0,
+	    ("%s: invalid req %#x", __func__, req));
+
+	flags = (req & VM_ALLOC_NODUMP) != 0 ? PG_NODUMP : 0;
+	vmd = VM_DOMAIN(domain);
+again:
+	if (freelist == VM_NFREELIST &&
+	    vmd->vmd_pgcache[VM_FREEPOOL_DIRECT].zone != NULL) {
+		m = uma_zalloc(vmd->vmd_pgcache[VM_FREEPOOL_DIRECT].zone,
+		    M_NOWAIT | M_NOVM);
+		if (m != NULL) {
+			flags |= PG_PCPU_CACHE;
+			goto found;
+		}
+	}
+
+	if (vm_domain_allocate(vmd, req, 1)) {
+		vm_domain_free_lock(vmd);
+		if (freelist == VM_NFREELIST)
+			m = vm_phys_alloc_pages(domain, VM_FREEPOOL_DIRECT, 0);
+		else
+			m = vm_phys_alloc_freelist_pages(domain, freelist,
+			    VM_FREEPOOL_DIRECT, 0);
+		vm_domain_free_unlock(vmd);
+		if (m == NULL)
+			vm_domain_freecnt_inc(vmd, 1);
+	}
+	if (m == NULL) {
+		if (vm_domain_alloc_fail(vmd, NULL, req))
+			goto again;
+		return (NULL);
+	}
+
+found:
+	vm_page_dequeue(m);
+	vm_page_alloc_check(m);
+
+	/* Consumers should not rely on a useful default pindex value. */
+	m->pindex = 0xdeadc0dedeadc0de;
+	m->flags = (m->flags & PG_ZERO) | flags;
+	m->a.flags = 0;
+	m->oflags = VPO_UNMANAGED;
+	m->busy_lock = VPB_UNBUSIED;
+	if ((req & VM_ALLOC_WIRED) != 0) {
+		vm_wire_add(1);
+		m->ref_count = 1;
+	}
+
+	if ((req & VM_ALLOC_ZERO) != 0 && (m->flags & PG_ZERO) == 0)
+		pmap_zero_page(m);
+
+	return (m);
+}
+
 vm_page_t
 vm_page_alloc_freelist(int freelist, int req)
 {
@@ -2432,44 +2481,33 @@ vm_page_alloc_freelist(int freelist, int req)
 vm_page_t
 vm_page_alloc_freelist_domain(int domain, int freelist, int req)
 {
-	struct vm_domain *vmd;
+	KASSERT(freelist >= 0 && freelist < VM_NFREELIST,
+	    ("%s: invalid freelist %d", __func__, freelist));
+
+	return (_vm_page_alloc_noobj_domain(domain, freelist, req));
+}
+
+vm_page_t
+vm_page_alloc_noobj(int req)
+{
+	struct vm_domainset_iter di;
 	vm_page_t m;
-	u_int flags;
+	int domain;
 
-	m = NULL;
-	vmd = VM_DOMAIN(domain);
-again:
-	if (vm_domain_allocate(vmd, req, 1)) {
-		vm_domain_free_lock(vmd);
-		m = vm_phys_alloc_freelist_pages(domain, freelist,
-		    VM_FREEPOOL_DIRECT, 0);
-		vm_domain_free_unlock(vmd);
-		if (m == NULL)
-			vm_domain_freecnt_inc(vmd, 1);
-	}
-	if (m == NULL) {
-		if (vm_domain_alloc_fail(vmd, NULL, req))
-			goto again;
-		return (NULL);
-	}
-	vm_page_dequeue(m);
-	vm_page_alloc_check(m);
+	vm_domainset_iter_page_init(&di, NULL, 0, &domain, &req);
+	do {
+		m = vm_page_alloc_noobj_domain(domain, req);
+		if (m != NULL)
+			break;
+	} while (vm_domainset_iter_page(&di, NULL, &domain) == 0);
 
-	/*
-	 * Initialize the page.  Only the PG_ZERO flag is inherited.
-	 */
-	m->a.flags = 0;
-	flags = 0;
-	if ((req & VM_ALLOC_ZERO) != 0)
-		flags = PG_ZERO;
-	m->flags &= flags;
-	if ((req & VM_ALLOC_WIRED) != 0) {
-		vm_wire_add(1);
-		m->ref_count = 1;
-	}
-	/* Unmanaged pages don't use "act_count". */
-	m->oflags = VPO_UNMANAGED;
 	return (m);
+}
+
+vm_page_t
+vm_page_alloc_noobj_domain(int domain, int req)
+{
+	return (_vm_page_alloc_noobj_domain(domain, VM_NFREELIST, req));
 }
 
 /*
@@ -2478,18 +2516,19 @@ again:
 static void
 vm_page_alloc_check(vm_page_t m)
 {
+
 	KASSERT(m->object == NULL, ("page %p has object", m));
-	KASSERT(m->ref_count == 0, ("page %p has references", m));
-	KASSERT(vm_page_busy_freed(m), ("page %p is not freed", m));
 	KASSERT(m->a.queue == PQ_NONE &&
 	    (m->a.flags & PGA_QUEUE_STATE_MASK) == 0,
 	    ("page %p has unexpected queue %d, flags %#x",
 	    m, m->a.queue, (m->a.flags & PGA_QUEUE_STATE_MASK)));
-	KASSERT(m->valid == 0, ("free page %p is valid", m));
+	KASSERT(m->ref_count == 0, ("page %p has references", m));
+	KASSERT(vm_page_busy_freed(m), ("page %p is not freed", m));
 	KASSERT(m->dirty == 0, ("page %p is dirty", m));
 	KASSERT(pmap_page_get_memattr(m) == VM_MEMATTR_DEFAULT,
 	    ("page %p has unexpected memattr %d",
 	    m, pmap_page_get_memattr(m)));
+	KASSERT(m->valid == 0, ("free page %p is valid", m));
 	pmap_vm_page_alloc_check(m);
 }
 
