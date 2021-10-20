@@ -4913,13 +4913,8 @@ nfsm_add_ext_pgs(struct mbuf *m, int maxextsiz, int *bextpg)
 		*bextpg = 0;
 		m->m_next = mp;
 	} else {
-		do {
-			pg = vm_page_alloc(NULL, 0, VM_ALLOC_NORMAL |
-			    VM_ALLOC_NOOBJ | VM_ALLOC_NODUMP |
-			    VM_ALLOC_WIRED);
-			if (pg == NULL)
-				vm_wait(NULL);
-		} while (pg == NULL);
+		pg = vm_page_alloc_noobj(VM_ALLOC_WAITOK | VM_ALLOC_NODUMP |
+		    VM_ALLOC_WIRED);
 		m->m_epg_pa[m->m_epg_npgs] = VM_PAGE_TO_PHYS(pg);
 		*bextpg = m->m_epg_npgs;
 		m->m_epg_npgs++;

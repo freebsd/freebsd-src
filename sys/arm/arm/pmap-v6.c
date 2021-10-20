@@ -2069,12 +2069,12 @@ pmap_growkernel(vm_offset_t addr)
 			/*
 			 * Install new PT2s page into kernel PT2TAB.
 			 */
-			m = vm_page_alloc(NULL,
-			    pte1_index(kernel_vm_end) & ~PT2PG_MASK,
-			    VM_ALLOC_INTERRUPT | VM_ALLOC_NOOBJ |
+			m = vm_page_alloc_noobj(VM_ALLOC_INTERRUPT |
 			    VM_ALLOC_WIRED | VM_ALLOC_ZERO);
 			if (m == NULL)
 				panic("%s: no memory to grow kernel", __func__);
+			m->pindex = pte1_index(kernel_vm_end) & ~PT2PG_MASK;
+
 			/*
 			 * QQQ: To link all new L2 page tables from L1 page
 			 *      table now and so pmap_kenter_pte1() them
@@ -2488,8 +2488,7 @@ _pmap_allocpte2(pmap_t pmap, vm_offset_t va, u_int flags)
 		/*
 		 * Install new PT2s page into pmap PT2TAB.
 		 */
-		m = vm_page_alloc(NULL, pte1_idx & ~PT2PG_MASK,
-		    VM_ALLOC_NOOBJ | VM_ALLOC_WIRED | VM_ALLOC_ZERO);
+		m = vm_page_alloc_noobj(VM_ALLOC_WIRED | VM_ALLOC_ZERO);
 		if (m == NULL) {
 			if ((flags & PMAP_ENTER_NOSLEEP) == 0) {
 				PMAP_UNLOCK(pmap);
@@ -2505,6 +2504,7 @@ _pmap_allocpte2(pmap_t pmap, vm_offset_t va, u_int flags)
 			 */
 			return (NULL);
 		}
+		m->pindex = pte1_idx & ~PT2PG_MASK;
 		pmap->pm_stats.resident_count++;
 		pt2pg_pa = pmap_pt2pg_init(pmap, va, m);
 	} else {
@@ -3062,8 +3062,8 @@ retry:
 	 * global lock.  If "pv_vafree" is currently non-empty, it will
 	 * remain non-empty until pmap_pte2list_alloc() completes.
 	 */
-	if (pv_vafree == 0 || (m = vm_page_alloc(NULL, 0, VM_ALLOC_NORMAL |
-	    VM_ALLOC_NOOBJ | VM_ALLOC_WIRED)) == NULL) {
+	if (pv_vafree == 0 ||
+	    (m = vm_page_alloc_noobj(VM_ALLOC_WIRED)) == NULL) {
 		if (try) {
 			pv_entry_count--;
 			PV_STAT(pc_chunk_tryfail++);
@@ -3711,9 +3711,8 @@ pmap_demote_pte1(pmap_t pmap, pt1_entry_t *pte1p, vm_offset_t va)
 		 * "failure" if the mapping was never accessed or the
 		 * allocation of the new page table page fails.
 		 */
-		if ((opte1 & PTE1_A) == 0 || (m = vm_page_alloc(NULL,
-		    pte1_index(va) & ~PT2PG_MASK, VM_ALLOC_NOOBJ |
-		    VM_ALLOC_NORMAL | VM_ALLOC_WIRED)) == NULL) {
+		if ((opte1 & PTE1_A) == 0 ||
+		    (m = vm_page_alloc_noobj(VM_ALLOC_WIRED)) == NULL) {
 			SLIST_INIT(&free);
 			pmap_remove_pte1(pmap, pte1p, pte1_trunc(va), &free);
 			vm_page_free_pages_toq(&free, false);
@@ -3721,6 +3720,7 @@ pmap_demote_pte1(pmap_t pmap, pt1_entry_t *pte1p, vm_offset_t va)
 			    __func__, va, pmap);
 			return (FALSE);
 		}
+		m->pindex = pte1_index(va) & ~PT2PG_MASK;
 		if (va < VM_MAXUSER_ADDRESS)
 			pmap->pm_stats.resident_count++;
 

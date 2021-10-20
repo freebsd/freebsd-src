@@ -305,8 +305,7 @@ mp_realloc_pcpu(int cpuid, int domain)
 	oa = (vm_offset_t)&__pcpu[cpuid];
 	if (vm_phys_domain(pmap_kextract(oa)) == domain)
 		return;
-	m = vm_page_alloc_domain(NULL, 0, domain,
-	    VM_ALLOC_NORMAL | VM_ALLOC_NOOBJ);
+	m = vm_page_alloc_noobj_domain(domain, 0);
 	if (m == NULL)
 		return;
 	na = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m));

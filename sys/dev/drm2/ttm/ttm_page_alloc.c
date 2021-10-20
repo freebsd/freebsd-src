@@ -178,12 +178,7 @@ ttm_vm_page_alloc_any(int req, vm_memattr_t memattr)
 {
 	vm_page_t p;
 
-	while (1) {
-		p = vm_page_alloc(NULL, 0, req);
-		if (p != NULL)
-			break;
-		vm_wait(NULL);
-	}
+	p = vm_page_alloc_noobj(req | VM_ALLOC_WAITOK);
 	pmap_page_set_memattr(p, memattr);
 	return (p);
 }

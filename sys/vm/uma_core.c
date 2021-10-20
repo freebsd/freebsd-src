@@ -1979,24 +1979,23 @@ pcpu_page_alloc(uma_zone_t zone, vm_size_t bytes, int domain, uint8_t *pflag,
 	MPASS(bytes == (mp_maxid + 1) * PAGE_SIZE);
 
 	TAILQ_INIT(&alloctail);
-	flags = VM_ALLOC_SYSTEM | VM_ALLOC_WIRED | VM_ALLOC_NOOBJ |
-	    malloc2vm_flags(wait);
+	flags = VM_ALLOC_SYSTEM | VM_ALLOC_WIRED | malloc2vm_flags(wait);
 	*pflag = UMA_SLAB_KERNEL;
 	for (cpu = 0; cpu <= mp_maxid; cpu++) {
 		if (CPU_ABSENT(cpu)) {
-			p = vm_page_alloc(NULL, 0, flags);
+			p = vm_page_alloc_noobj(flags);
 		} else {
 #ifndef NUMA
-			p = vm_page_alloc(NULL, 0, flags);
+			p = vm_page_alloc_noobj(flags);
 #else
 			pc = pcpu_find(cpu);
 			if (__predict_false(VM_DOMAIN_EMPTY(pc->pc_domain)))
 				p = NULL;
 			else
-				p = vm_page_alloc_domain(NULL, 0,
-				    pc->pc_domain, flags);
+				p = vm_page_alloc_noobj_domain(pc->pc_domain,
+				    flags);
 			if (__predict_false(p == NULL))
-				p = vm_page_alloc(NULL, 0, flags);
+				p = vm_page_alloc_noobj(flags);
 #endif
 		}
 		if (__predict_false(p == NULL))
@@ -2039,16 +2038,17 @@ noobj_alloc(uma_zone_t zone, vm_size_t bytes, int domain, uint8_t *flags,
 	vm_offset_t retkva, zkva;
 	vm_page_t p, p_next;
 	uma_keg_t keg;
+	int req;
 
 	TAILQ_INIT(&alloctail);
 	keg = zone->uz_keg;
+	req = VM_ALLOC_INTERRUPT | VM_ALLOC_WIRED;
+	if ((wait & M_WAITOK) != 0)
+		req |= VM_ALLOC_WAITOK;
 
 	npages = howmany(bytes, PAGE_SIZE);
 	while (npages > 0) {
-		p = vm_page_alloc_domain(NULL, 0, domain, VM_ALLOC_INTERRUPT |
-		    VM_ALLOC_WIRED | VM_ALLOC_NOOBJ |
-		    ((wait & M_WAITOK) != 0 ? VM_ALLOC_WAITOK :
-		    VM_ALLOC_NOWAIT));
+		p = vm_page_alloc_noobj_domain(domain, req);
 		if (p != NULL) {
 			/*
 			 * Since the page does not belong to an object, its
