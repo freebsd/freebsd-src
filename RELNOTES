@@ -10,6 +10,9 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+d410b585b6f:
+	sh(1) is now the default shell for the root user.
+
 396851c20ae:
 	libncursesw has been split into libtinfow and libncursesw, linker
 	scripts should make it transparent for consumers. pkg-config files
