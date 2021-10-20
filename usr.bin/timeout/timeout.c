@@ -127,7 +127,7 @@ sig_handler(int signo)
 		return;
 	}
 
-	switch(signo) {
+	switch (signo) {
 	case 0:
 	case SIGINT:
 	case SIGHUP:
@@ -237,13 +237,13 @@ main(int argc, char **argv)
 	if (killsig != SIGKILL && killsig != SIGSTOP)
 		signums[0] = killsig;
 
-	for (i = 0; i < sizeof(signums) / sizeof(signums[0]); i ++)
+	for (i = 0; i < sizeof(signums) / sizeof(signums[0]); i++)
 		sigaddset(&signals.sa_mask, signums[i]);
 
 	signals.sa_handler = sig_handler;
 	signals.sa_flags = SA_RESTART;
 
-	for (i = 0; i < sizeof(signums) / sizeof(signums[0]); i ++)
+	for (i = 0; i < sizeof(signums) / sizeof(signums[0]); i++)
 		if (signums[i] != -1 && signums[i] != 0 &&
 		    sigaction(signums[i], &signals, NULL) == -1)
 			err(EXIT_FAILURE, "sigaction()");
@@ -351,7 +351,7 @@ main(int argc, char **argv)
 
 	if (WEXITSTATUS(pstat))
 		pstat = WEXITSTATUS(pstat);
-	else if(WIFSIGNALED(pstat))
+	else if (WIFSIGNALED(pstat))
 		pstat = 128 + WTERMSIG(pstat);
 
 	if (timedout && !preserve)
