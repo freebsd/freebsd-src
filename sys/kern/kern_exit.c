@@ -417,6 +417,7 @@ exit1(struct thread *td, int rval, int signo)
 		mtx_unlock(&ppeers_lock);
 	}
 
+	exec_free_abi_mappings(p);
 	vmspace_exit(td);
 	(void)acct_process(td);
 
