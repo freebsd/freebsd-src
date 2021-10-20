@@ -20,6 +20,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/dirent.h>
+#include <sys/endian.h>
 #include <machine/elf.h>
 #include <machine/stdarg.h>
 #include <machine/md_var.h>
@@ -82,11 +83,11 @@ static char *__ultoa(char *buf, u_long val, int base);
  */
 typedef uint32_t	ofwcell_t;
 typedef uint32_t	u_ofwh_t;
-typedef int (*ofwfp_t)(void *);
+typedef int (*ofwfp_t)(ofwcell_t *);
 ofwfp_t ofw;			/* the prom Open Firmware entry */
 ofwh_t chosenh;
 
-void ofw_init(void *, int, int (*)(void *), char *, int);
+void ofw_init(void *, int, ofwfp_t, char *, int);
 static ofwh_t ofw_finddevice(const char *);
 static ofwh_t ofw_open(const char *);
 static int ofw_close(ofwh_t);
@@ -101,6 +102,16 @@ static void ofw_exit(void) __dead2;
 ofwh_t bootdevh;
 ofwh_t stdinh, stdouth;
 
+/*
+ * Note about the entry point:
+ *
+ * For some odd reason, the first page of the load appears to have trouble
+ * when entering in LE. The first five instructions decode weirdly.
+ * I suspect it is some cache weirdness between the ELF headers and .text.
+ *
+ * Ensure we have a gap between the start of .text and the entry as a
+ * workaround.
+ */
 __asm("                         \n\
         .data                   \n\
 	.align 4		\n\
@@ -108,6 +119,8 @@ stack:                          \n\
         .space  16384           \n\
                                 \n\
         .text                   \n\
+        /* SLOF cache hack */   \n\
+        .space 4096             \n\
         .globl  _start          \n\
 _start:                         \n\
         lis     %r1,stack@ha    \n\
@@ -117,18 +130,95 @@ _start:                         \n\
         b       ofw_init        \n\
 ");
 
+ofwfp_t realofw;
+
+#if BYTE_ORDER == LITTLE_ENDIAN
+/*
+ * Minimal endianness-swap trampoline for LE.
+ */
+__attribute__((naked)) int
+ofwtramp(void *buf, ofwfp_t cb)
+{
+__asm("									\n\
+	mflr	%r0							\n\
+	stw	%r0, 4(%r1)						\n\
+	stwu	%r1, -16(%r1)						\n\
+	stw	%r30, 8(%r1)						\n\
+	/* Save current MSR for restoration post-call. */		\n\
+	mfmsr	%r30							\n\
+	mr	%r5, %r30						\n\
+	/* Remove LE bit from MSR. */					\n\
+	clrrwi	%r5, %r5, 1						\n\
+	mtsrr0	%r4							\n\
+	mtsrr1	%r5							\n\
+	bcl	20, 31, .+4	/* LOAD_LR_NIA */			\n\
+1:									\n\
+	mflr	%r4							\n\
+	addi	%r4, %r4, (2f - 1b)					\n\
+	mtlr	%r4							\n\
+	/* Switch to BE and transfer control to OF entry */		\n\
+	rfid								\n\
+2:									\n\
+	/* Control is returned here, but in BE. */			\n\
+	.long	0x05009f42	/* LOAD_LR_NIA			      */\n\
+				/* 0:			 	      */\n\
+	.long	0xa603db7f	/* mtsrr1 	%r30		      */\n\
+	.long	0xa602c87f	/* mflr		%r30		      */\n\
+	.long	0x1400de3b	/* addi		%r30, %r30, (1f - 0b) */\n\
+	.long	0xa603da7f	/* mtsrr0	%r30		      */\n\
+	.long	0x2400004c	/* rfid				      */\n\
+				/* 1:				      */\n\
+1:									\n\
+	/* Back to normal. Tidy up for return. */			\n\
+	lwz	%r30, 8(%r1)						\n\
+	lwz	%r0, 20(%r1)						\n\
+	addi	%r1, %r1, 16						\n\
+	mtlr	%r0							\n\
+	blr								\n\
+");
+}
+
+/*
+ * Little-endian OFW entrypoint replacement.
+ *
+ * We are doing all the byteswapping in one place here to save space.
+ * This means instance handles will be byteswapped as well.
+ */
+int
+call_ofw(ofwcell_t* buf)
+{
+	int ret, i, ncells;
+
+	ncells = 3 + buf[1] + buf[2];
+	for (i = 0; i < ncells; i++)
+		buf[i] = htobe32(buf[i]);
+
+	ret = (ofwtramp(buf, realofw));
+	for (i = 0; i < ncells; i++)
+		buf[i] = be32toh(buf[i]);
+	return (ret);
+}
+#endif
+
 void
-ofw_init(void *vpd, int res, int (*openfirm)(void *), char *arg, int argl)
+ofw_init(void *vpd, int res, ofwfp_t openfirm, char *arg, int argl)
 {
 	char *av[16];
 	char *p;
 	int ac;
 
-	ofw = openfirm;
+#if BYTE_ORDER == LITTLE_ENDIAN
+	realofw = openfirm;
+	ofw = call_ofw;
+#else
+	realofw = ofw = openfirm;
+#endif
 
 	chosenh = ofw_finddevice("/chosen");
 	ofw_getprop(chosenh, "stdin", &stdinh, sizeof(stdinh));
+	stdinh = be32toh(stdinh);
 	ofw_getprop(chosenh, "stdout", &stdouth, sizeof(stdouth));
+	stdouth = be32toh(stdouth);
 	ofw_getprop(chosenh, "bootargs", bootargs, sizeof(bootargs));
 	ofw_getprop(chosenh, "bootpath", bootpath, sizeof(bootpath));
 
@@ -537,8 +627,8 @@ load(const char *fname)
 		__syncicache(p, ph.p_memsz);
 	}
 	ofw_close(bootdev);
-	(*(void (*)(void *, int, ofwfp_t, char *, int))eh.e_entry)(NULL, 0, 
-	    ofw,NULL,0);
+	(*(void (*)(void *, int, ofwfp_t, char *, int))eh.e_entry)(NULL, 0,
+	    realofw, NULL, 0);
 }
 
 static int
