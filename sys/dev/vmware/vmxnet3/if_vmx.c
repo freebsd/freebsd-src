@@ -1196,7 +1196,7 @@ vmxnet3_reinit_rss_shared_data(struct vmxnet3_softc *sc)
 static void
 vmxnet3_reinit_shared_data(struct vmxnet3_softc *sc)
 {
-	struct ifnet *ifp;
+	if_t ifp;
 	struct vmxnet3_driver_shared *ds;
 	if_softc_ctx_t scctx;
 
@@ -1204,16 +1204,16 @@ vmxnet3_reinit_shared_data(struct vmxnet3_softc *sc)
 	ds = sc->vmx_ds;
 	scctx = sc->vmx_scctx;
 
-	ds->mtu = ifp->if_mtu;
+	ds->mtu = if_getmtu(ifp);
 	ds->ntxqueue = scctx->isc_ntxqsets;
 	ds->nrxqueue = scctx->isc_nrxqsets;
 
 	ds->upt_features = 0;
-	if (ifp->if_capenable & (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6))
+	if (if_getcapenable(ifp) & (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6))
 		ds->upt_features |= UPT1_F_CSUM;
-	if (ifp->if_capenable & IFCAP_VLAN_HWTAGGING)
+	if (if_getcapenable(ifp) & IFCAP_VLAN_HWTAGGING)
 		ds->upt_features |= UPT1_F_VLAN;
-	if (ifp->if_capenable & IFCAP_LRO)
+	if (if_getcapenable(ifp) & IFCAP_LRO)
 		ds->upt_features |= UPT1_F_LRO;
 
 	if (sc->vmx_flags & VMXNET3_FLAG_RSS) {
@@ -1923,13 +1923,13 @@ vmxnet3_enable_device(struct vmxnet3_softc *sc)
 static void
 vmxnet3_reinit_rxfilters(struct vmxnet3_softc *sc)
 {
-	struct ifnet *ifp;
+	if_t ifp;
 
 	ifp = sc->vmx_ifp;
 
 	vmxnet3_set_rxfilter(sc, if_getflags(ifp));
 
-	if (ifp->if_capenable & IFCAP_VLAN_HWFILTER)
+	if (if_getcapenable(ifp) & IFCAP_VLAN_HWFILTER)
 		bcopy(sc->vmx_vlan_filter, sc->vmx_ds->vlan_filter,
 		    sizeof(sc->vmx_ds->vlan_filter));
 	else
@@ -1946,7 +1946,7 @@ vmxnet3_init(if_ctx_t ctx)
 	sc = iflib_get_softc(ctx);
 
 	/* Use the current MAC address. */
-	bcopy(IF_LLADDR(sc->vmx_ifp), sc->vmx_lladdr, ETHER_ADDR_LEN);
+	bcopy(if_getlladdr(sc->vmx_ifp), sc->vmx_lladdr, ETHER_ADDR_LEN);
 	vmxnet3_set_lladdr(sc);
 
 	vmxnet3_reinit_shared_data(sc);
@@ -2115,7 +2115,7 @@ vmxnet3_hash_maddr(void *arg, struct sockaddr_dl *sdl, u_int count)
 static void
 vmxnet3_set_rxfilter(struct vmxnet3_softc *sc, int flags)
 {
-	struct ifnet *ifp;
+	if_t ifp;
 	struct vmxnet3_driver_shared *ds;
 	u_int mode;
 

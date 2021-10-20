@@ -729,7 +729,7 @@ ice_if_attach_post(if_ctx_t ctx)
 	 */
 
 	sc->ifp = ifp;
-	sc->scctx->isc_max_frame_size = ifp->if_mtu +
+	sc->scctx->isc_max_frame_size = if_getmtu(ifp) +
 		ETHER_HDR_LEN + ETHER_CRC_LEN + ETHER_VLAN_ENCAP_LEN;
 
 	/*
@@ -2276,7 +2276,7 @@ ice_prepare_for_reset(struct ice_softc *sc)
 	if (ice_testandset_state(&sc->state, ICE_STATE_PREPARED_FOR_RESET))
 		return;
 
-	log(LOG_INFO, "%s: preparing to reset device logic\n", sc->ifp->if_xname);
+	log(LOG_INFO, "%s: preparing to reset device logic\n", if_name(sc->ifp));
 
 	/* In recovery mode, hardware is not initialized */
 	if (ice_test_state(&sc->state, ICE_STATE_RECOVERY_MODE))
@@ -2378,7 +2378,7 @@ ice_rebuild_recovery_mode(struct ice_softc *sc)
 	/* Now that the rebuild is finished, we're no longer prepared to reset */
 	ice_clear_state(&sc->state, ICE_STATE_PREPARED_FOR_RESET);
 
-	log(LOG_INFO, "%s: device rebuild successful\n", sc->ifp->if_xname);
+	log(LOG_INFO, "%s: device rebuild successful\n", if_name(sc->ifp));
 
 	/* In order to completely restore device functionality, the iflib core
 	 * needs to be reset. We need to request an iflib reset. Additionally,
@@ -2554,7 +2554,7 @@ ice_rebuild(struct ice_softc *sc)
 	/* Now that the rebuild is finished, we're no longer prepared to reset */
 	ice_clear_state(&sc->state, ICE_STATE_PREPARED_FOR_RESET);
 
-	log(LOG_INFO, "%s: device rebuild successful\n", sc->ifp->if_xname);
+	log(LOG_INFO, "%s: device rebuild successful\n", if_name(sc->ifp));
 
 	/* In order to completely restore device functionality, the iflib core
 	 * needs to be reset. We need to request an iflib reset. Additionally,

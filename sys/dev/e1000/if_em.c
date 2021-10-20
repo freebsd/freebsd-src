@@ -1292,7 +1292,7 @@ em_if_init(if_ctx_t ctx)
 {
 	struct e1000_softc *sc = iflib_get_softc(ctx);
 	if_softc_ctx_t scctx = sc->shared;
-	struct ifnet *ifp = iflib_get_ifp(ctx);
+	if_t ifp = iflib_get_ifp(ctx);
 	struct em_tx_queue *tx_que;
 	int i;
 
@@ -1654,7 +1654,7 @@ static int
 em_if_set_promisc(if_ctx_t ctx, int flags)
 {
 	struct e1000_softc *sc = iflib_get_softc(ctx);
-	struct ifnet *ifp = iflib_get_ifp(ctx);
+	if_t ifp = iflib_get_ifp(ctx);
 	u32 reg_rctl;
 	int mcnt = 0;
 
@@ -1711,7 +1711,7 @@ static void
 em_if_multi_set(if_ctx_t ctx)
 {
 	struct e1000_softc *sc = iflib_get_softc(ctx);
-	struct ifnet *ifp = iflib_get_ifp(ctx);
+	if_t ifp = iflib_get_ifp(ctx);
 	u8  *mta; /* Multicast array memory */
 	u32 reg_rctl = 0;
 	int mcnt = 0;
@@ -2471,7 +2471,7 @@ em_reset(if_ctx_t ctx)
 {
 	device_t dev = iflib_get_dev(ctx);
 	struct e1000_softc *sc = iflib_get_softc(ctx);
-	struct ifnet *ifp = iflib_get_ifp(ctx);
+	if_t ifp = iflib_get_ifp(ctx);
 	struct e1000_hw *hw = &sc->hw;
 	u32 rx_buffer_size;
 	u32 pba;
@@ -2568,7 +2568,7 @@ em_reset(if_ctx_t ctx)
 	}
 
 	/* Special needs in case of Jumbo frames */
-	if ((hw->mac.type == e1000_82575) && (ifp->if_mtu > ETHERMTU)) {
+	if ((hw->mac.type == e1000_82575) && (if_getmtu(ifp) > ETHERMTU)) {
 		u32 tx_space, min_tx, min_rx;
 		pba = E1000_READ_REG(hw, E1000_PBA);
 		tx_space = pba >> 16;
@@ -2866,7 +2866,7 @@ igb_initialize_rss_mapping(struct e1000_softc *sc)
 static int
 em_setup_interface(if_ctx_t ctx)
 {
-	struct ifnet *ifp = iflib_get_ifp(ctx);
+	if_t ifp = iflib_get_ifp(ctx);
 	struct e1000_softc *sc = iflib_get_softc(ctx);
 	if_softc_ctx_t scctx = sc->shared;
 
@@ -3171,7 +3171,7 @@ em_initialize_receive_unit(if_ctx_t ctx)
 {
 	struct e1000_softc *sc = iflib_get_softc(ctx);
 	if_softc_ctx_t scctx = sc->shared;
-	struct ifnet *ifp = iflib_get_ifp(ctx);
+	if_t ifp = iflib_get_ifp(ctx);
 	struct e1000_hw	*hw = &sc->hw;
 	struct em_rx_queue *que;
 	int i;
@@ -3320,7 +3320,7 @@ em_initialize_receive_unit(if_ctx_t ctx)
 		if (if_getmtu(ifp) > ETHERMTU) {
 			psize = scctx->isc_max_frame_size;
 			/* are we on a vlan? */
-			if (ifp->if_vlantrunk != NULL)
+			if (if_vlantrunkinuse(ifp))
 				psize += VLAN_TAG_SIZE;
 
 			if (sc->vf_ifp)
@@ -3520,7 +3520,7 @@ em_setup_vlan_hw_support(if_ctx_t ctx)
 {
 	struct e1000_softc *sc = iflib_get_softc(ctx);
 	struct e1000_hw *hw = &sc->hw;
-	struct ifnet *ifp = iflib_get_ifp(ctx);
+	if_t ifp = iflib_get_ifp(ctx);
 	u32 reg;
 
 	/* XXXKB: Return early if we are a VF until VF decap and filter management
@@ -4155,7 +4155,7 @@ static uint64_t
 em_if_get_counter(if_ctx_t ctx, ift_counter cnt)
 {
 	struct e1000_softc *sc = iflib_get_softc(ctx);
-	struct ifnet *ifp = iflib_get_ifp(ctx);
+	if_t ifp = iflib_get_ifp(ctx);
 
 	switch (cnt) {
 	case IFCOUNTER_COLLISIONS:
@@ -4830,7 +4830,7 @@ static void
 em_print_debug_info(struct e1000_softc *sc)
 {
 	device_t dev = iflib_get_dev(sc->ctx);
-	struct ifnet *ifp = iflib_get_ifp(sc->ctx);
+	if_t ifp = iflib_get_ifp(sc->ctx);
 	struct tx_ring *txr = &sc->tx_queues->txr;
 	struct rx_ring *rxr = &sc->rx_queues->rxr;
 

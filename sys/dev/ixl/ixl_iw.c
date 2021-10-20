@@ -165,7 +165,7 @@ ixl_iw_pf_init(struct ixl_pf *pf)
 	pf_info->dev		= pf->dev;
 	pf_info->pci_mem	= pf->pci_mem;
 	pf_info->pf_id		= pf->hw.pf_id;
-	pf_info->mtu		= pf->vsi.ifp->if_mtu;
+	pf_info->mtu		= pf->vsi.if_getmtu(ifp);
 
 	pf_info->iw_msix.count	= IXL_IW_VEC_COUNT(pf);
 	pf_info->iw_msix.base	= IXL_IW_VEC_BASE(pf);

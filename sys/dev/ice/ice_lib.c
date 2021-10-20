@@ -6942,7 +6942,7 @@ ice_link_up_msg(struct ice_softc *sc)
 	flowcontrol = ice_flowcontrol_mode(hw->port_info);
 
 	log(LOG_NOTICE, "%s: Link is up, %s Full Duplex, Requested FEC: %s, Negotiated FEC: %s, Autoneg: %s, Flow Control: %s\n",
-	    ifp->if_xname, speed, req_fec, neg_fec, autoneg, flowcontrol);
+	    if_name(ifp), speed, req_fec, neg_fec, autoneg, flowcontrol);
 }
 
 /**
