@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 6, 2019
+.Dd October 20, 2021
 .Dt CAMCONTROL 8
 .Os
 .Sh NAME
@@ -1092,18 +1092,8 @@ to print out the tagged queueing related fields of the XPT_GDEV_TYPE CCB:
 This is the amount of capacity for transactions queued to a given device.
 .It dev_active
 This is the number of transactions currently queued to a device.
-.It devq_openings
-This is the kernel queue space for transactions.
-This count usually mirrors
-dev_openings except during error recovery operations when
-the device queue is frozen (device is not allowed to receive
-commands), the number of dev_openings is reduced, or transaction
-replay is occurring.
-.It devq_queued
-This is the number of transactions waiting in the kernel queue for capacity
-on the device.
-This number is usually zero unless error recovery is in
-progress.
+.It allocated
+This is the number of CCBs allocated for the device.
 .It held
 The held count is the number of CCBs held by peripheral drivers that have
 either just been completed or are about to be released to the transport
