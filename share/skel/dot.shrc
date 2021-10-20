@@ -31,6 +31,14 @@ alias g='egrep -i'
 # alias mv='mv -i'
 # alias rm='rm -i'
 
+# # csh like history on arrow up and down
+bind ^[[A ed-search-prev-history
+bind ^[[B ed-search-next-history
+
+# # ctrl+arrow allow to jump from words to words
+bind "\\e[1;5C" em-next-word
+bind "\\e[1;5D" ed-prev-word
+alias history='fc -l'
 
 # set prompt: ``username@hostname:directory $ '' 
 PS1="\u@\h:\w \\$ "
