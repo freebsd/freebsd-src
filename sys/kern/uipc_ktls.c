@@ -2037,8 +2037,8 @@ ktls_encrypt(struct mbuf *top)
 				continue;
 			}
 retry_page:
-			pg = vm_page_alloc(NULL, 0, VM_ALLOC_NORMAL |
-			    VM_ALLOC_NOOBJ | VM_ALLOC_NODUMP | VM_ALLOC_WIRED);
+			pg = vm_page_alloc_noobj(VM_ALLOC_NODUMP |
+			    VM_ALLOC_WIRED);
 			if (pg == NULL) {
 				vm_wait(NULL);
 				goto retry_page;

@@ -698,10 +698,7 @@ kmem_init_zero_region(void)
 	 * zeros, while not using much more physical resources.
 	 */
 	addr = kva_alloc(ZERO_REGION_SIZE);
-	m = vm_page_alloc(NULL, 0, VM_ALLOC_NORMAL |
-	    VM_ALLOC_NOOBJ | VM_ALLOC_WIRED | VM_ALLOC_ZERO);
-	if ((m->flags & PG_ZERO) == 0)
-		pmap_zero_page(m);
+	m = vm_page_alloc_noobj(VM_ALLOC_WIRED | VM_ALLOC_ZERO);
 	for (i = 0; i < ZERO_REGION_SIZE; i += PAGE_SIZE)
 		pmap_qenter(addr + i, &m, 1);
 	pmap_protect(kernel_pmap, addr, addr + ZERO_REGION_SIZE, VM_PROT_READ);
