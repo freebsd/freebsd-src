@@ -173,8 +173,6 @@ in6_pcbbind(struct inpcb *inp, struct sockaddr *nam,
 	INP_WLOCK_ASSERT(inp);
 	INP_HASH_WLOCK_ASSERT(pcbinfo);
 
-	if (CK_STAILQ_EMPTY(&V_in6_ifaddrhead))	/* XXX broken! */
-		return (EADDRNOTAVAIL);
 	if (inp->inp_lport || !IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_laddr))
 		return (EINVAL);
 	if ((so->so_options & (SO_REUSEADDR|SO_REUSEPORT|SO_REUSEPORT_LB)) == 0)
