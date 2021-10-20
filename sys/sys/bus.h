@@ -805,7 +805,7 @@ DECLARE_MODULE(name##_##busname, name##_##busname##_mod,		\
 static __inline type varp ## _get_ ## var(device_t dev)			\
 {									\
 	uintptr_t v;							\
-	int e;								\
+	int e __diagused;						\
 	e = BUS_READ_IVAR(device_get_parent(dev), dev,			\
 	    ivarp ## _IVAR_ ## ivar, &v);				\
 	KASSERT(e == 0, ("%s failed for %s on bus %s, error = %d",	\
@@ -817,7 +817,7 @@ static __inline type varp ## _get_ ## var(device_t dev)			\
 static __inline void varp ## _set_ ## var(device_t dev, type t)		\
 {									\
 	uintptr_t v = (uintptr_t) t;					\
-	int e;								\
+	int e __diagused;						\
 	e = BUS_WRITE_IVAR(device_get_parent(dev), dev,			\
 	    ivarp ## _IVAR_ ## ivar, v);				\
 	KASSERT(e == 0, ("%s failed for %s on bus %s, error = %d",	\
