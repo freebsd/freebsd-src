@@ -2883,32 +2883,32 @@ vm_page_reclaim_run(int req_class, int domain, u_long npages, vm_page_t m_run,
 					 * "m_run" and "high" only as a last
 					 * resort.
 					 */
-					req = req_class | VM_ALLOC_NOOBJ;
+					req = req_class;
 					if ((m->flags & PG_NODUMP) != 0)
 						req |= VM_ALLOC_NODUMP;
 					if (trunc_page(high) !=
 					    ~(vm_paddr_t)PAGE_MASK) {
-						m_new = vm_page_alloc_contig(
-						    NULL, 0, req, 1,
-						    round_page(high),
-						    ~(vm_paddr_t)0,
-						    PAGE_SIZE, 0,
-						    VM_MEMATTR_DEFAULT);
+						m_new =
+						    vm_page_alloc_noobj_contig(
+						    req, 1, round_page(high),
+						    ~(vm_paddr_t)0, PAGE_SIZE,
+						    0, VM_MEMATTR_DEFAULT);
 					} else
 						m_new = NULL;
 					if (m_new == NULL) {
 						pa = VM_PAGE_TO_PHYS(m_run);
-						m_new = vm_page_alloc_contig(
-						    NULL, 0, req, 1,
-						    0, pa - 1, PAGE_SIZE, 0,
+						m_new =
+						    vm_page_alloc_noobj_contig(
+						    req, 1, 0, pa - 1,
+						    PAGE_SIZE, 0,
 						    VM_MEMATTR_DEFAULT);
 					}
 					if (m_new == NULL) {
 						pa += ptoa(npages);
-						m_new = vm_page_alloc_contig(
-						    NULL, 0, req, 1,
-						    pa, high, PAGE_SIZE, 0,
-						    VM_MEMATTR_DEFAULT);
+						m_new =
+						    vm_page_alloc_noobj_contig(
+						    req, 1, pa, high, PAGE_SIZE,
+						    0, VM_MEMATTR_DEFAULT);
 					}
 					if (m_new == NULL) {
 						vm_page_xunbusy(m);

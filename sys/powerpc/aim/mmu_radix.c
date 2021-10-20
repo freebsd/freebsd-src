@@ -3570,14 +3570,14 @@ static int
 radix_pgd_import(void *arg __unused, void **store, int count, int domain __unused,
     int flags)
 {
+	int req;
 
+	req = VM_ALLOC_WIRED | malloc2vm_flags(flags);
 	for (int i = 0; i < count; i++) {
-		vm_page_t m = vm_page_alloc_contig(NULL, 0,
-		    VM_ALLOC_NORMAL | VM_ALLOC_NOOBJ | VM_ALLOC_WIRED |
-		    VM_ALLOC_ZERO | VM_ALLOC_WAITOK, RADIX_PGD_SIZE/PAGE_SIZE,
+		vm_page_t m = vm_page_alloc_noobj_contig(req,
+		    RADIX_PGD_SIZE / PAGE_SIZE,
 		    0, (vm_paddr_t)-1, RADIX_PGD_SIZE, L1_PAGE_SIZE,
 		    VM_MEMATTR_DEFAULT);
-		/* XXX zero on alloc here so we don't have to later */
 		store[i] = (void *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m));
 	}
 	return (count);

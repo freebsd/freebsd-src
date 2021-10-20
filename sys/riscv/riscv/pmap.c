@@ -2757,8 +2757,6 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 			    VM_ALLOC_ZERO);
 			if (l3_m == NULL)
 				panic("pmap_enter: l3 pte_m == NULL");
-			if ((l3_m->flags & PG_ZERO) == 0)
-				pmap_zero_page(l3_m);
 
 			l3_pa = VM_PAGE_TO_PHYS(l3_m);
 			l3_pn = (l3_pa / PAGE_SIZE);
