@@ -29,6 +29,8 @@ __FBSDID("$FreeBSD$");
 #include <openfirm.h>
 #include <stand.h>
 
+#include <sys/endian.h>
+
 /* #define CAS_DEBUG */
 #ifdef CAS_DEBUG
 #define DPRINTF(fmt, ...)	printf(fmt, ## __VA_ARGS__)
@@ -132,12 +134,12 @@ static struct ibm_arch_vec {
 	struct opt_vec5		vec5;
 } __packed ibm_arch_vec = {
 	/* pvr_list */ {
-		{ PVR_CPU_MASK, PVR_CPU_P8 },		/* POWER8 */
-		{ PVR_CPU_MASK, PVR_CPU_P8E },		/* POWER8E */
-		{ PVR_CPU_MASK, PVR_CPU_P8NVL },	/* POWER8NVL */
-		{ PVR_CPU_MASK, PVR_CPU_P9 },		/* POWER9 */
-		{ PVR_ISA_MASK, PVR_ISA_207 },		/* All ISA 2.07 */
-		{ PVR_ISA_MASK, PVR_ISA_300 },		/* All ISA 3.00 */
+		{ htobe32(PVR_CPU_MASK), htobe32(PVR_CPU_P8) },
+		{ htobe32(PVR_CPU_MASK), htobe32(PVR_CPU_P8E) },
+		{ htobe32(PVR_CPU_MASK), htobe32(PVR_CPU_P8NVL) },
+		{ htobe32(PVR_CPU_MASK), htobe32(PVR_CPU_P9) },
+		{ htobe32(PVR_ISA_MASK), htobe32(PVR_ISA_207) },
+		{ htobe32(PVR_ISA_MASK), htobe32(PVR_ISA_300) },
 		{ 0, 0xffffffffu }			/* terminator */
 	},
 	4,	/* num_opts (4 actually means 5 option vectors) */
