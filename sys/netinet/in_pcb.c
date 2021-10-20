@@ -932,8 +932,6 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 	INP_LOCK_ASSERT(inp);
 	INP_HASH_LOCK_ASSERT(pcbinfo);
 
-	if (CK_STAILQ_EMPTY(&V_in_ifaddrhead)) /* XXX broken! */
-		return (EADDRNOTAVAIL);
 	laddr.s_addr = *laddrp;
 	if (nam != NULL && laddr.s_addr != INADDR_ANY)
 		return (EINVAL);
