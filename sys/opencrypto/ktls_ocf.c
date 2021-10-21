@@ -48,7 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <opencrypto/cryptodev.h>
 #include <opencrypto/ktls.h>
 
-struct ocf_session {
+struct ktls_ocf_session {
 	crypto_session_t sid;
 	crypto_session_t mac_sid;
 	struct mtx lock;
@@ -64,7 +64,7 @@ struct ocf_session {
 };
 
 struct ocf_operation {
-	struct ocf_session *os;
+	struct ktls_ocf_session *os;
 	bool done;
 };
 
@@ -142,7 +142,7 @@ ktls_ocf_callback_async(struct cryptop *crp)
 }
 
 static int
-ktls_ocf_dispatch(struct ocf_session *os, struct cryptop *crp)
+ktls_ocf_dispatch(struct ktls_ocf_session *os, struct cryptop *crp)
 {
 	struct ocf_operation oo;
 	int error;
@@ -228,7 +228,7 @@ ktls_ocf_tls_cbc_encrypt(struct ktls_ocf_encrypt_state *state,
 	struct uio *uio;
 	struct tls_mac_data *ad;
 	struct cryptop *crp;
-	struct ocf_session *os;
+	struct ktls_ocf_session *os;
 	struct iovec iov[m->m_epg_npgs + 2];
 	u_int pgoff;
 	int i, error;
@@ -237,7 +237,7 @@ ktls_ocf_tls_cbc_encrypt(struct ktls_ocf_encrypt_state *state,
 
 	MPASS(outiovcnt + 1 <= nitems(iov));
 
-	os = tls->cipher;
+	os = tls->ocf_session;
 	hdr = (const struct tls_record_layer *)m->m_epg_hdr;
 	crp = &state->crp;
 	uio = &state->uio;
@@ -376,11 +376,11 @@ ktls_ocf_tls12_aead_encrypt(struct ktls_ocf_encrypt_state *state,
 	struct uio *uio;
 	struct tls_aead_data *ad;
 	struct cryptop *crp;
-	struct ocf_session *os;
+	struct ktls_ocf_session *os;
 	int error;
 	uint16_t tls_comp_len;
 
-	os = tls->cipher;
+	os = tls->ocf_session;
 	hdr = (const struct tls_record_layer *)m->m_epg_hdr;
 	crp = &state->crp;
 	uio = &state->uio;
@@ -457,12 +457,12 @@ ktls_ocf_tls12_aead_decrypt(struct ktls_session *tls,
 {
 	struct tls_aead_data ad;
 	struct cryptop crp;
-	struct ocf_session *os;
+	struct ktls_ocf_session *os;
 	struct ocf_operation oo;
 	int error;
 	uint16_t tls_comp_len;
 
-	os = tls->cipher;
+	os = tls->ocf_session;
 
 	oo.os = os;
 	oo.done = false;
@@ -526,11 +526,11 @@ ktls_ocf_tls13_aead_encrypt(struct ktls_ocf_encrypt_state *state,
 	struct uio *uio;
 	struct tls_aead_data_13 *ad;
 	struct cryptop *crp;
-	struct ocf_session *os;
+	struct ktls_ocf_session *os;
 	char nonce[12];
 	int error;
 
-	os = tls->cipher;
+	os = tls->ocf_session;
 	hdr = (const struct tls_record_layer *)m->m_epg_hdr;
 	crp = &state->crp;
 	uio = &state->uio;
@@ -598,9 +598,9 @@ ktls_ocf_tls13_aead_encrypt(struct ktls_ocf_encrypt_state *state,
 void
 ktls_ocf_free(struct ktls_session *tls)
 {
-	struct ocf_session *os;
+	struct ktls_ocf_session *os;
 
-	os = tls->cipher;
+	os = tls->ocf_session;
 	crypto_freesession(os->sid);
 	mtx_destroy(&os->lock);
 	zfree(os, M_KTLS_OCF);
@@ -610,7 +610,7 @@ int
 ktls_ocf_try(struct socket *so, struct ktls_session *tls, int direction)
 {
 	struct crypto_session_params csp, mac_csp;
-	struct ocf_session *os;
+	struct ktls_ocf_session *os;
 	int error, mac_len;
 
 	memset(&csp, 0, sizeof(csp));
@@ -745,7 +745,7 @@ ktls_ocf_try(struct socket *so, struct ktls_session *tls, int direction)
 	}
 
 	mtx_init(&os->lock, "ktls_ocf", NULL, MTX_DEF);
-	tls->cipher = os;
+	tls->ocf_session = os;
 	if (tls->params.cipher_algorithm == CRYPTO_AES_NIST_GCM_16 ||
 	    tls->params.cipher_algorithm == CRYPTO_CHACHA20_POLY1305) {
 		if (direction == KTLS_TX) {
