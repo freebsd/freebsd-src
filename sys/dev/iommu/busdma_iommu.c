@@ -398,7 +398,8 @@ iommu_bus_dma_tag_set_domain(bus_dma_tag_t dmat)
 static int
 iommu_bus_dma_tag_destroy(bus_dma_tag_t dmat1)
 {
-	struct bus_dma_tag_iommu *dmat, *dmat_copy, *parent;
+	struct bus_dma_tag_iommu *dmat, *parent;
+	struct bus_dma_tag_iommu *dmat_copy __unused;
 	int error;
 
 	error = 0;
