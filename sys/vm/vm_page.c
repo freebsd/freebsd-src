@@ -2409,8 +2409,14 @@ again:
 			m = vm_phys_alloc_freelist_pages(domain, freelist,
 			    VM_FREEPOOL_DIRECT, 0);
 		vm_domain_free_unlock(vmd);
-		if (m == NULL)
+		if (m == NULL) {
 			vm_domain_freecnt_inc(vmd, 1);
+#if VM_NRESERVLEVEL > 0
+			if (freelist == VM_NFREELIST &&
+			    vm_reserv_reclaim_inactive(domain))
+				goto again;
+#endif
+		}
 	}
 	if (m == NULL) {
 		if (vm_domain_alloc_fail(vmd, NULL, req))
@@ -2540,6 +2546,11 @@ again:
 		vm_domain_free_unlock(vmd);
 		if (m_ret == NULL) {
 			vm_domain_freecnt_inc(vmd, npages);
+#if VM_NRESERVLEVEL > 0
+			if (vm_reserv_reclaim_contig(domain, npages, low,
+			    high, alignment, boundary))
+				goto again;
+#endif
 		}
 	}
 	if (m_ret == NULL) {
