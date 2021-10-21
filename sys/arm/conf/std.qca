@@ -12,6 +12,9 @@ files 		"../qualcomm/std.ipq4018"
 device 		uart
 device 		uart_msm	# Qualcomm MSM UART driver
 
+# Random
+device 		qcom_rnd
+
 device 		gic
 
 # MMC/SD/SDIO Card slot support
