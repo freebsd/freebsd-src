@@ -5156,11 +5156,12 @@ get_stat_flags(zpool_list_t *list)
  * Return 1 if cb_data->cb_vdev_names[0] is this vdev's name, 0 otherwise.
  */
 static int
-is_vdev_cb(zpool_handle_t *zhp, nvlist_t *nv, void *cb_data)
+is_vdev_cb(void *zhp_data, nvlist_t *nv, void *cb_data)
 {
 	iostat_cbdata_t *cb = cb_data;
 	char *name = NULL;
 	int ret = 0;
+	zpool_handle_t *zhp = zhp_data;
 
 	name = zpool_vdev_name(g_zfs, zhp, nv, cb->cb_name_flags);
 
@@ -7352,9 +7353,10 @@ zpool_do_trim(int argc, char **argv)
 				    "combined with the -c or -s options\n"));
 				usage(B_FALSE);
 			}
-			if (zfs_nicestrtonum(NULL, optarg, &rate) == -1) {
-				(void) fprintf(stderr,
-				    gettext("invalid value for rate\n"));
+			if (zfs_nicestrtonum(g_zfs, optarg, &rate) == -1) {
+				(void) fprintf(stderr, "%s: %s\n",
+				    gettext("invalid value for rate"),
+				    libzfs_error_description(g_zfs));
 				usage(B_FALSE);
 			}
 			break;

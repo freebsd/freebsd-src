@@ -613,7 +613,7 @@ dmu_buf_hold_array_by_dnode(dnode_t *dn, uint64_t offset, uint64_t length,
 	return (0);
 }
 
-static int
+int
 dmu_buf_hold_array(objset_t *os, uint64_t object, uint64_t offset,
     uint64_t length, int read, void *tag, int *numbufsp, dmu_buf_t ***dbpp)
 {
@@ -968,9 +968,7 @@ dmu_free_long_object(objset_t *os, uint64_t object)
 	dmu_tx_mark_netfree(tx);
 	err = dmu_tx_assign(tx, TXG_WAIT);
 	if (err == 0) {
-		if (err == 0)
-			err = dmu_object_free(os, object, tx);
-
+		err = dmu_object_free(os, object, tx);
 		dmu_tx_commit(tx);
 	} else {
 		dmu_tx_abort(tx);

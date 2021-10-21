@@ -45,7 +45,6 @@ USER_C = \
 # FreeBSD
 USER_C += \
         libzfs_compat.c \
-        libzfs_ioctl_compat.c \
         libzfs_zmount.c
 
 # libshare
