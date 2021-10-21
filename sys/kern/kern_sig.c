@@ -3232,7 +3232,7 @@ postsig(int sig)
 int
 sig_ast_checksusp(struct thread *td)
 {
-	struct proc *p;
+	struct proc *p __diagused;
 	int ret;
 
 	p = td->td_proc;
