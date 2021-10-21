@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 20, 2021
+.Dd October 21, 2021
 .Dt TIMEOUT 1
 .Os
 .Sh NAME
@@ -161,7 +161,7 @@ $ echo $?
 .Pp
 Same as above but preserving status.
 Exit status is 128 + signal number (15 for
-.Va SIGTERM )
+.Va SIGTERM ) :
 .Bd -literal -offset indent
 $ timeout --preserve-status 2 sleep 4
 $ echo $?
@@ -171,7 +171,7 @@ $ echo $?
 Same as above but sending
 .Va SIGALRM
 (signal number 14) instead of
-.Va SIGTERM
+.Va SIGTERM :
 .Bd -literal -offset indent
 $ timeout --preserve-status -s SIGALRM 2 sleep 4
 $ echo $?
@@ -189,8 +189,8 @@ signal after 1 minute and send a
 .Va SIGKILL
 signal 5 seconds later if the process refuses to stop:
 .Bd -literal -offset indent
-timeout -k 5s 1m fetch \\
-https://download.freebsd.org/ftp/doc/en/books/handbook/book.pdf
+$ timeout -k 5s 1m fetch \\
+> https://download.freebsd.org/ftp/doc/en/books/handbook/book.pdf
 .Ed
 .Sh SEE ALSO
 .Xr kill 1 ,
