@@ -167,6 +167,7 @@ struct tls_session_params {
 #define	KTLS_RX		2
 
 struct iovec;
+struct ktls_ocf_session;
 struct ktls_ocf_encrypt_state;
 struct ktls_session;
 struct m_snd_tag;
@@ -184,7 +185,7 @@ struct ktls_session {
 		    uint64_t seqno, int *trailer_len);
 	};
 	union {
-		void *cipher;
+		struct ktls_ocf_session *ocf_session;
 		struct m_snd_tag *snd_tag;
 	};
 	struct tls_session_params params;
