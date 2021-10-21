@@ -27,6 +27,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 14.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20211022:
+	The synchronous PPP kernel driver sppp(4) has been removed.
+	The cp(4) and ce(4) drivers are now always compiled with netgraph(4)
+	support, formerly enabled by NETGRAPH_CRONYX option.
+
 20211020:
 	sh(1) is now the default shell for the root user.  To force root to use
 	the csh shell, please run the following command as root:

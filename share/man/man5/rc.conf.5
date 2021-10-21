@@ -1941,21 +1941,6 @@ ifconfig_gif0="inet 10.0.0.1 10.0.0.2 netmask 255.255.255.252"
 gifconfig_gif1="inet6 2a00::1 2a01::1"
 ifconfig_gif1="inet 10.1.0.1 10.1.0.2 netmask 255.255.255.252"
 .Ed
-.It Va sppp_interfaces
-.Pq Vt str
-Set to the list of
-.Xr sppp 4
-interfaces to configure on this host.
-A
-.Va spppconfig_ Ns Aq Ar interface
-variable is assumed to exist for each value of
-.Ar interface .
-Each interface should also be configured by a general
-.Va ifconfig_ Ns Aq Ar interface
-setting.
-Refer to
-.Xr spppcontrol 8
-for more information about available options.
 .It Va ppp_enable
 .Pq Vt bool
 If set to

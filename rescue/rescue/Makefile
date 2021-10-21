@@ -101,7 +101,7 @@ CRUNCH_PROGS_sbin= 						\
 	mount_udf mount_unionfs newfs				\
 	newfs_msdos nos-tun ping reboot				\
 	restore rcorder route savecore		 		\
-	shutdown spppcontrol swapon sysctl tunefs umount
+	shutdown swapon sysctl tunefs umount
 
 .if ${MK_CCD} != "no"
 CRUNCH_PROGS_sbin+= ccdconfig

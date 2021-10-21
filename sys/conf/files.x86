@@ -79,6 +79,9 @@ dev/bxe/57710_init_values.c     optional	bxe pci
 dev/bxe/57711_init_values.c     optional	bxe pci
 dev/bxe/57712_init_values.c     optional	bxe pci
 dev/coretemp/coretemp.c		optional	coretemp
+dev/cp/cpddk.c			optional	cp \
+	compile-with "${NORMAL_C} ${NO_WMISLEADING_INDENTATION}"
+dev/cp/if_cp.c			optional	cp
 dev/cpuctl/cpuctl.c		optional	cpuctl
 dev/dpms/dpms.c			optional	dpms
 dev/fb/fb.c			optional	fb | vga

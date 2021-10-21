@@ -40,6 +40,17 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20211022
+OLD_FILES+=sbin/spppcontrol
+.if ${TARGET_ARCH} == "i386"
+OLD_FILES+=usr/include/machine/cserial.h
+.endif
+OLD_FILES+=usr/include/net/if_sppp.h
+OLD_FILES+=usr/include/netgraph/ng_sppp.h
+OLD_FILES+=usr/share/man/man4/ng_sppp.4.gz
+OLD_FILES+=usr/share/man/man4/sppp.4.gz
+OLD_FILES+=usr/share/man/man8/spppcontrol.8.gz
+
 # 20210929:
 OLD_FILES+=usr/sbin/hcseriald
 OLD_FILES+=usr/share/man/man8/hcseriald.8.gz

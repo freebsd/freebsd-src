@@ -47,31 +47,13 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcireg.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
-#include "opt_ng_cronyx.h"
-#ifdef NETGRAPH_CRONYX
-#   include "opt_netgraph.h"
-#   ifndef NETGRAPH
-#	error #option	NETGRAPH missed from configuration
-#   endif
-#   include <netgraph/ng_message.h>
-#   include <netgraph/netgraph.h>
-#   include <dev/cp/ng_cp.h>
-#else
-#   include <net/if_sppp.h>
-#   include <net/if_types.h>
-#include <dev/pci/pcivar.h>
-#   define PP_CISCO IFF_LINK2
-#   include <net/bpf.h>
-#endif
+#include <netgraph/ng_message.h>
+#include <netgraph/netgraph.h>
+#include <dev/cp/ng_cp.h>
 #include <dev/cp/machdep.h>
 #include <dev/cp/cpddk.h>
-#include <machine/cserial.h>
+#include <dev/cp/cserial.h>
 #include <machine/resource.h>
-
-/* If we don't have Cronyx's sppp version, we don't have fr support via sppp */
-#ifndef PP_FR
-#define PP_FR 0
-#endif
 
 #define CP_DEBUG(d,s)	({if (d->chan->debug) {\
 				printf ("%s: ", d->name); printf s;}})
@@ -110,17 +92,12 @@ typedef struct _drv_t {
 	cp_chan_t	*chan;
 	cp_board_t	*board;
 	cp_dma_mem_t	dmamem;
-#ifdef NETGRAPH
-	char	nodename [NG_NODESIZE];
+	char	nodename [NG_NODESIZ];
 	hook_p	hook;
 	hook_p	debug_hook;
 	node_p	node;
 	struct	ifqueue queue;
 	struct	ifqueue hi_queue;
-#else
-	struct	ifqueue queue;
-	struct	ifnet *ifp;
-#endif
 	short	timeout;
 	struct	callout timeout_handle;
 	struct	cdev *devt;
@@ -152,15 +129,7 @@ static void cp_start (drv_t *d);
 static void cp_down (drv_t *d);
 static void cp_watchdog (drv_t *d);
 static void cp_watchdog_timer (void *arg);
-#ifdef NETGRAPH
-extern struct ng_type typestruct;
-#else
-static void cp_ifstart (struct ifnet *ifp);
-static void cp_tlf (struct sppp *sp);
-static void cp_tls (struct sppp *sp);
-static int cp_sioctl (struct ifnet *ifp, u_long cmd, caddr_t data);
-static void cp_initialize (void *softc);
-#endif
+static struct ng_type typestruct;
 
 static cp_board_t *adapter [NBRD];
 static drv_t *channel [NBRD*NCHAN];
@@ -274,9 +243,6 @@ static void cp_intr (void *arg)
 {
 	bdrv_t *bd = arg;
 	cp_board_t *b = bd->board;
-#ifndef NETGRAPH
-	int i;
-#endif
 	int s = splimp ();
 	if (cp_destroy) {
 		splx (s);
@@ -300,21 +266,6 @@ static void cp_intr (void *arg)
 	CP_UNLOCK (bd);
 	splx (s);
 
-#ifndef NETGRAPH
-	/* Pass packets in a lock-free state */
-	for (i = 0; i < NCHAN && b->chan[i].type; i++) {
-		drv_t *d = b->chan[i].sys;
-		struct mbuf *m;
-		if (!d || !d->running)
-			continue;
-		while (_IF_QLEN(&d->queue)) {
-			IF_DEQUEUE (&d->queue,m);
-			if (!m)
-				continue;
-			sppp_input (d->ifp, m);	
-		}
-	}
-#endif
 }
 
 static void
@@ -474,7 +425,6 @@ static int cp_attach (device_t dev)
 		d->chan = c;
 		c->sys = d;
 		callout_init (&d->timeout_handle, 1);
-#ifdef NETGRAPH
 		if (ng_make_node_common (&typestruct, &d->node) != 0) {
 			printf ("%s: cannot make common node\n", d->name);
 			d->node = NULL;
@@ -492,29 +442,6 @@ static int cp_attach (device_t dev)
 		d->hi_queue.ifq_maxlen = ifqmaxlen;
 		mtx_init (&d->queue.ifq_mtx, "cp_queue", NULL, MTX_DEF);
 		mtx_init (&d->hi_queue.ifq_mtx, "cp_queue_hi", NULL, MTX_DEF);
-#else /*NETGRAPH*/
-		d->ifp = if_alloc(IFT_PPP);
-		if (d->ifp == NULL) {
-			printf ("%s: cannot if_alloc() interface\n", d->name);
-			continue;
-		}
-		d->ifp->if_softc	= d;
-		if_initname (d->ifp, "cp", b->num * NCHAN + c->num);
-		d->ifp->if_mtu		= PP_MTU;
-		d->ifp->if_flags	= IFF_POINTOPOINT | IFF_MULTICAST;
-		d->ifp->if_ioctl	= cp_sioctl;
-		d->ifp->if_start	= cp_ifstart;
-		d->ifp->if_init		= cp_initialize;
-		d->queue.ifq_maxlen	= NRBUF;
-		mtx_init (&d->queue.ifq_mtx, "cp_queue", NULL, MTX_DEF);
-		sppp_attach (d->ifp);
-		if_attach (d->ifp);
-		IFP2SP(d->ifp)->pp_tlf	= cp_tlf;
-		IFP2SP(d->ifp)->pp_tls	= cp_tls;
-		/* If BPF is in the kernel, call the attach for it.
-		 * The header size of PPP or Cisco/HDLC is 4 bytes. */
-		bpfattach (d->ifp, DLT_PPP, 4);
-#endif /*NETGRAPH*/
 		cp_start_e1 (c);
 		cp_start_chan (c, 1, 1, d->dmamem.virt, d->dmamem.phys);
 
@@ -586,19 +513,6 @@ static int cp_detach (device_t dev)
 		if (! d || ! d->chan->type)
 			continue;
 		callout_stop (&d->timeout_handle);
-#ifndef NETGRAPH
-		/* Detach from the packet filter list of interfaces. */
-		bpfdetach (d->ifp);
-
-		/* Detach from the sync PPP list. */
-		sppp_detach (d->ifp);
-
-		/* Detach from the system list of interfaces. */
-		if_detach (d->ifp);
-		if_free (d->ifp);
-		IF_DRAIN (&d->queue);
-		mtx_destroy (&d->queue.ifq_mtx);
-#else
 		if (d->node) {
 			ng_rmnode_self (d->node);
 			NG_NODE_UNREF (d->node);
@@ -606,7 +520,6 @@ static int cp_detach (device_t dev)
 		}
 		mtx_destroy (&d->queue.ifq_mtx);
 		mtx_destroy (&d->hi_queue.ifq_mtx);
-#endif
 		destroy_dev (d->devt);
 	}
 
@@ -639,96 +552,6 @@ static int cp_detach (device_t dev)
 	return 0;
 }
 
-#ifndef NETGRAPH
-static void cp_ifstart (struct ifnet *ifp)
-{
-	drv_t *d = ifp->if_softc;
-	bdrv_t *bd = d->board->sys;
-
-	CP_LOCK (bd);
-	cp_start (d);
-	CP_UNLOCK (bd);
-}
-
-static void cp_tlf (struct sppp *sp)
-{
-	drv_t *d = SP2IFP(sp)->if_softc;
-
-	CP_DEBUG2 (d, ("cp_tlf\n"));
-	/* XXXRIK: Don't forget to protect them by LOCK, or kill them. */
-/*	cp_set_dtr (d->chan, 0);*/
-/*	cp_set_rts (d->chan, 0);*/
-	if (!(sp->pp_flags & PP_FR) && !(d->ifp->if_flags & PP_CISCO))
-		sp->pp_down (sp);
-}
-
-static void cp_tls (struct sppp *sp)
-{
-	drv_t *d = SP2IFP(sp)->if_softc;
-
-	CP_DEBUG2 (d, ("cp_tls\n"));
-	if (!(sp->pp_flags & PP_FR) && !(d->ifp->if_flags & PP_CISCO))
-		sp->pp_up (sp);
-}
-
-/*
- * Process an ioctl request.
- */
-static int cp_sioctl (struct ifnet *ifp, u_long cmd, caddr_t data)
-{
-	drv_t *d = ifp->if_softc;
-	bdrv_t *bd = d->board->sys;
-	int error, s, was_up, should_be_up;
-
-	was_up = (ifp->if_drv_flags & IFF_DRV_RUNNING) != 0;
-	error = sppp_ioctl (ifp, cmd, data);
-
-	if (error)
-		return error;
-
-	if (! (ifp->if_flags & IFF_DEBUG))
-		d->chan->debug = 0;
-	else
-		d->chan->debug = d->chan->debug_shadow;
-
-	switch (cmd) {
-	default:	   CP_DEBUG2 (d, ("ioctl 0x%lx\n", cmd));   return 0;
-	case SIOCADDMULTI: CP_DEBUG2 (d, ("ioctl SIOCADDMULTI\n")); return 0;
-	case SIOCDELMULTI: CP_DEBUG2 (d, ("ioctl SIOCDELMULTI\n")); return 0;
-	case SIOCSIFFLAGS: CP_DEBUG2 (d, ("ioctl SIOCSIFFLAGS\n")); break;
-	case SIOCSIFADDR:  CP_DEBUG2 (d, ("ioctl SIOCSIFADDR\n"));  break;
-	}
-
-	/* We get here only in case of SIFFLAGS or SIFADDR. */
-	s = splimp ();
-	CP_LOCK (bd);
-	should_be_up = (ifp->if_drv_flags & IFF_DRV_RUNNING) != 0;
-	if (! was_up && should_be_up) {
-		/* Interface goes up -- start it. */
-		cp_up (d);
-		cp_start (d);
-	} else if (was_up && ! should_be_up) {
-		/* Interface is going down -- stop it. */
-/*		if ((IFP2SP(ifp)->pp_flags & PP_FR) || (ifp->if_flags & PP_CISCO))*/
-		cp_down (d);
-	}
-	CP_DEBUG (d, ("ioctl 0x%lx p4\n", cmd));
-	CP_UNLOCK (bd);
-	splx (s);
-	return 0;
-}
-
-/*
- * Initialization of interface.
- * It seems to be never called by upper level?
- */
-static void cp_initialize (void *softc)
-{
-	drv_t *d = softc;
-
-	CP_DEBUG (d, ("cp_initialize\n"));
-}
-#endif /*NETGRAPH*/
 
 /*
  * Stop the interface.  Called on splimp().
@@ -778,18 +601,11 @@ static void cp_send (drv_t *d)
 
 	while (cp_transmit_space (d->chan)) {
 		/* Get the packet to send. */
-#ifdef NETGRAPH
 		IF_DEQUEUE (&d->hi_queue, m);
 		if (! m)
 			IF_DEQUEUE (&d->queue, m);
-#else
-		m = sppp_dequeue (d->ifp);
-#endif
 		if (! m)
 			return;
-#ifndef NETGRAPH
-		BPF_MTAP (d->ifp, m);
-#endif
 		len = m_length (m, NULL);
 		if (len >= BUFSZ)
 			printf ("%s: too long packet: %d bytes: ",
@@ -805,9 +621,6 @@ static void cp_send (drv_t *d)
 		/* Set up transmit timeout, if the transmit ring is not empty.*/
 		d->timeout = 10;
 	}
-#ifndef NETGRAPH
-	d->ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-#endif
 }
 
 /*
@@ -864,10 +677,6 @@ static void cp_transmit (cp_chan_t *c, void *attachment, int len)
 	drv_t *d = c->sys;
 
 	d->timeout = 0;
-#ifndef NETGRAPH
-	if_inc_counter(d->ifp, IFCOUNTER_OPACKETS, 1);
-	d->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-#endif
 	cp_start (d);
 }
 
@@ -875,9 +684,7 @@ static void cp_receive (cp_chan_t *c, unsigned char *data, int len)
 {
 	drv_t *d = c->sys;
 	struct mbuf *m;
-#ifdef NETGRAPH
 	int error;
-#endif
 
 	if (! d->running)
 		return;
@@ -885,24 +692,12 @@ static void cp_receive (cp_chan_t *c, unsigned char *data, int len)
 	m = makembuf (data, len);
 	if (! m) {
 		CP_DEBUG (d, ("no memory for packet\n"));
-#ifndef NETGRAPH
-		if_inc_counter(d->ifp, IFCOUNTER_IQDROPS, 1);
-#endif
 		return;
 	}
 	if (c->debug > 1)
 		m_print (m, 0);
-#ifdef NETGRAPH
 	m->m_pkthdr.rcvif = 0;
 	NG_SEND_DATA_ONLY (error, d->hook, m);
-#else
-	if_inc_counter(d->ifp, IFCOUNTER_IPACKETS, 1);
-	m->m_pkthdr.rcvif = d->ifp;
-	/* Check if there's a BPF listener on this interface.
-	 * If so, hand off the raw packet to bpf. */
-	BPF_MTAP(d->ifp, m);
-	IF_ENQUEUE (&d->queue, m);
-#endif
 }
 
 static void cp_error (cp_chan_t *c, int data)
@@ -912,36 +707,19 @@ static void cp_error (cp_chan_t *c, int data)
 	switch (data) {
 	case CP_FRAME:
 		CP_DEBUG (d, ("frame error\n"));
-#ifndef NETGRAPH
-		if_inc_counter(d->ifp, IFCOUNTER_IERRORS, 1);
-#endif
 		break;
 	case CP_CRC:
 		CP_DEBUG (d, ("crc error\n"));
-#ifndef NETGRAPH
-		if_inc_counter(d->ifp, IFCOUNTER_IERRORS, 1);
-#endif
 		break;
 	case CP_OVERRUN:
 		CP_DEBUG (d, ("overrun error\n"));
-#ifndef NETGRAPH
-		if_inc_counter(d->ifp, IFCOUNTER_COLLISIONS, 1);
-		if_inc_counter(d->ifp, IFCOUNTER_IERRORS, 1);
-#endif
 		break;
 	case CP_OVERFLOW:
 		CP_DEBUG (d, ("overflow error\n"));
-#ifndef NETGRAPH
-		if_inc_counter(d->ifp, IFCOUNTER_IERRORS, 1);
-#endif
 		break;
 	case CP_UNDERRUN:
 		CP_DEBUG (d, ("underrun error\n"));
 		d->timeout = 0;
-#ifndef NETGRAPH
-		if_inc_counter(d->ifp, IFCOUNTER_OERRORS, 1);
-		d->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-#endif
 		cp_start (d);
 		break;
 	default:
@@ -1016,65 +794,6 @@ static int cp_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 		bcopy (mask, data, sizeof (mask));
 		return 0;
 
-#ifndef NETGRAPH
-	case SERIAL_GETPROTO:
-		CP_DEBUG2 (d, ("ioctl: getproto\n"));
-		strcpy ((char*)data, (IFP2SP(d->ifp)->pp_flags & PP_FR) ? "fr" :
-			(d->ifp->if_flags & PP_CISCO) ? "cisco" : "ppp");
-		return 0;
-
-	case SERIAL_SETPROTO:
-		CP_DEBUG2 (d, ("ioctl: setproto\n"));
-		/* Only for superuser! */
-		error = priv_check (td, PRIV_DRIVER);
-		if (error)
-			return error;
-		if (d->ifp->if_drv_flags & IFF_DRV_RUNNING)
-			return EBUSY;
-		if (! strcmp ("cisco", (char*)data)) {
-			IFP2SP(d->ifp)->pp_flags &= ~(PP_FR);
-			IFP2SP(d->ifp)->pp_flags |= PP_KEEPALIVE;
-			d->ifp->if_flags |= PP_CISCO;
-#if PP_FR != 0
-		} else if (! strcmp ("fr", (char*)data)) {
-			d->ifp->if_flags &= ~(PP_CISCO);
-			IFP2SP(d->ifp)->pp_flags |= PP_FR | PP_KEEPALIVE;
-#endif
-		} else if (! strcmp ("ppp", (char*)data)) {
-			IFP2SP(d->ifp)->pp_flags &= ~PP_FR;
-			IFP2SP(d->ifp)->pp_flags &= ~PP_KEEPALIVE;
-			d->ifp->if_flags &= ~(PP_CISCO);
-		} else
-			return EINVAL;
-		return 0;
-
-	case SERIAL_GETKEEPALIVE:
-		CP_DEBUG2 (d, ("ioctl: getkeepalive\n"));
-		if ((IFP2SP(d->ifp)->pp_flags & PP_FR) ||
-			(d->ifp->if_flags & PP_CISCO))
-			return EINVAL;
-		*(int*)data = (IFP2SP(d->ifp)->pp_flags & PP_KEEPALIVE) ? 1 : 0;
-		return 0;
-
-	case SERIAL_SETKEEPALIVE:
-		CP_DEBUG2 (d, ("ioctl: setkeepalive\n"));
-		/* Only for superuser! */
-		error = priv_check (td, PRIV_DRIVER);
-		if (error)
-			return error;
-		if ((IFP2SP(d->ifp)->pp_flags & PP_FR) ||
-			(d->ifp->if_flags & PP_CISCO))
-			return EINVAL;
-		s = splimp ();
-		CP_LOCK (bd);
-		if (*(int*)data)
-			IFP2SP(d->ifp)->pp_flags |= PP_KEEPALIVE;
-		else
-			IFP2SP(d->ifp)->pp_flags &= ~PP_KEEPALIVE;
-		CP_UNLOCK (bd);
-		splx (s);
-		return 0;
-#endif /*NETGRAPH*/
 
 	case SERIAL_GETMODE:
 		CP_DEBUG2 (d, ("ioctl: getmode\n"));
@@ -1308,18 +1027,7 @@ static int cp_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 		error = priv_check (td, PRIV_DRIVER);
 		if (error)
 			return error;
-#ifndef	NETGRAPH
-		/*
-		 * The debug_shadow is always greater than zero for logic 
-		 * simplicity.  For switching debug off the IFF_DEBUG is
-		 * responsible.
-		 */
-		d->chan->debug_shadow = (*(int*)data) ? (*(int*)data) : 1;
-		if (d->ifp->if_flags & IFF_DEBUG)
-			d->chan->debug = d->chan->debug_shadow;
-#else
 		d->chan->debug = *(int*)data;
-#endif
 		return 0;
 
 	case SERIAL_GETHIGAIN:
@@ -1783,7 +1491,6 @@ static int cp_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 	return ENOTTY;
 }
 
-#ifdef NETGRAPH
 static int ng_cp_constructor (node_p node)
 {
 	drv_t *d = NG_NODE_PRIVATE (node);
@@ -2209,7 +1916,6 @@ static int ng_cp_disconnect (hook_p hook)
 	}
 	return 0;
 }
-#endif
 
 static int cp_modevent (module_t mod, int type, void *unused)
 {
@@ -2217,10 +1923,8 @@ static int cp_modevent (module_t mod, int type, void *unused)
 
 	switch (type) {
 	case MOD_LOAD:
-#ifdef NETGRAPH
 		if (ng_newtype (&typestruct))
 			printf ("Failed to register ng_cp\n");
-#endif
 		++load_count;
 		callout_init (&timeout_handle, 1);
 		callout_reset (&timeout_handle, hz*5, cp_timeout, 0);
@@ -2228,9 +1932,7 @@ static int cp_modevent (module_t mod, int type, void *unused)
 	case MOD_UNLOAD:
 		if (load_count == 1) {
 			printf ("Removing device entry for Tau-PCI\n");
-#ifdef NETGRAPH
 			ng_rmtype (&typestruct);
-#endif			
 		}
 		/* If we were wait it than it reasserted now, just stop it.
 		 * Actually we shouldn't get this condition. But code could be
@@ -2246,7 +1948,6 @@ static int cp_modevent (module_t mod, int type, void *unused)
 	return 0;
 }
 
-#ifdef NETGRAPH
 static struct ng_type typestruct = {
 	.version	= NG_ABI_VERSION,
 	.name		= NG_CP_NODE_TYPE,
@@ -2258,12 +1959,7 @@ static struct ng_type typestruct = {
 	.rcvdata	= ng_cp_rcvdata,
 	.disconnect	= ng_cp_disconnect,
 };
-#endif /*NETGRAPH*/
 
-#ifdef NETGRAPH
 MODULE_DEPEND (ng_cp, netgraph, NG_ABI_VERSION, NG_ABI_VERSION, NG_ABI_VERSION);
-#else
-MODULE_DEPEND (cp, sppp, 1, 1, 1);
-#endif
 DRIVER_MODULE (cp, pci, cp_driver, cp_devclass, cp_modevent, NULL);
 MODULE_VERSION (cp, 1);

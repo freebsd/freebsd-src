@@ -129,7 +129,6 @@ DIRDEPS+= \
 	sbin/savecore \
 	sbin/setkey \
 	sbin/shutdown \
-	sbin/spppcontrol \
 	sbin/swapon \
 	sbin/sysctl \
 	sbin/tunefs \

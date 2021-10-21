@@ -26,7 +26,7 @@
 #
 
 # PROVIDE: netif
-# REQUIRE: FILESYSTEMS iovctl serial sppp sysctl
+# REQUIRE: FILESYSTEMS iovctl serial sysctl
 # REQUIRE: hostid
 # KEYWORD: nojailvnet
 
