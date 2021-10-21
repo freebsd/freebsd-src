@@ -88,24 +88,6 @@ or
 .Pa /boot/config .
 .It
 .Pa loader.efi
-searches partitions of type
-.Li freebsd-ufs
-and
-.Li freebsd-zfs
-for
-.Pa loader.efi .
-The search begins with partitions on the device from which
-.Pa loader.efi
-was loaded, and continues with other available partitions.
-If both
-.Li freebsd-ufs
-and
-.Li freebsd-zfs
-partitions exist on the same device the
-.Li freebsd-zfs
-partition is preferred.
-.It
-.Pa loader.efi
 loads and boots the kernel, as described in
 .Xr loader 8 .
 .El
