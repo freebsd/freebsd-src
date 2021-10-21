@@ -105,7 +105,7 @@ main(int argc, char *argv[])
 	bool special;
 	const char *file1, *file2;
 
-	skip1 = skip2 = 0;
+	limit = skip1 = skip2 = 0;
 	oflag = O_RDONLY;
 	while ((ch = getopt_long(argc, argv, "+bhi:ln:sxz", long_opts, NULL)) != -1)
 		switch (ch) {
