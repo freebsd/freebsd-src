@@ -762,7 +762,6 @@ dmar_find_by_scope(int dev_domain, int dev_busno,
 struct dmar_unit *
 dmar_find(device_t dev, bool verbose)
 {
-	device_t dmar_dev;
 	struct dmar_unit *unit;
 	const char *banner;
 	int i, dev_domain, dev_busno, dev_path_len;
@@ -774,7 +773,6 @@ dmar_find(device_t dev, bool verbose)
 	    devclass_find("pci"))
 		return (NULL);
 
-	dmar_dev = NULL;
 	dev_domain = pci_get_domain(dev);
 	dev_path_len = dmar_dev_depth(dev);
 	ACPI_DMAR_PCI_PATH dev_path[dev_path_len];
