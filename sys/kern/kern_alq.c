@@ -431,7 +431,7 @@ int
 alq_open_flags(struct alq **alqp, const char *file, struct ucred *cred, int cmode,
     int size, int flags)
 {
-	struct thread *td;
+	struct thread *td __unused;
 	struct nameidata nd;
 	struct alq *alq;
 	int oflags;
