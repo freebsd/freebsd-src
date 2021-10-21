@@ -47,7 +47,6 @@ SUBDIR=	async \
 	socket \
 	source \
 	split \
-	sppp \
 	tag \
 	tcpmss \
 	tee \

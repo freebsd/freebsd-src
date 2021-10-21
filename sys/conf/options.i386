@@ -88,9 +88,6 @@ ATKBD_DFLT_KEYMAP	opt_atkbd.h
 # Video spigot
 SPIGOT_UNSECURE		opt_spigot.h
 
-# Enables NETGRAPH support for Cronyx adapters
-NETGRAPH_CRONYX		opt_ng_cronyx.h
-
 # Device options
 DEV_APIC		opt_apic.h
 DEV_ATPIC		opt_atpic.h

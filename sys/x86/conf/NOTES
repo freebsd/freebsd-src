@@ -103,3 +103,8 @@ envvar		hint.fd.0.at="fdc0"
 envvar		hint.fd.0.drive="0"
 envvar		hint.fd.1.at="fdc0"
 envvar		hint.fd.1.drive="1"
+
+# cp:   Cronyx Tau-PCI sync single/dual/four port
+#       V.35/RS-232/RS-530/RS-449/X.21/G.703/E1/E3/T3/STS-1
+#       serial adaptor, requires NETGRAPH
+device		cp

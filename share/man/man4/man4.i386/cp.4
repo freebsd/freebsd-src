@@ -13,7 +13,7 @@
 .\" Cronyx Id: cp.4,v 1.1.2.5 2004/06/21 17:47:40 rik Exp $
 .\" $FreeBSD$
 .\"
-.Dd July 16, 2005
+.Dd October 22, 2021
 .Dt CP 4 i386
 .Os
 .Sh NAME
@@ -34,28 +34,19 @@ module at boot time, place the following line in
 if_cp_load="YES"
 .Ed
 .Pp
-Additional options:
-.Cd "device sppp"
-.Cd "options NETGRAPH"
-.Cd "options NETGRAPH_CRONYX"
 .Sh DESCRIPTION
 The
 .Nm
-driver needs either
-.Xr sppp 4
-or
-.Xr netgraph 4 .
-Which one to use is determined by the
-.Dv NETGRAPH_CRONYX
-option.
-If this option is present in your kernel configuration file, the
-.Nm
-driver will be compiled with
+driver creates a
 .Xr netgraph 4
-support.
-Otherwise, it will be compiled with
-.Xr sppp 4
-support.
+node for each device found.
+The node is usually paired with
+.Xr ng_async 4 ,
+.Xr ng_cisco 4 ,
+.Xr ng_frame_relay 4
+or with
+.Xr ng_ppp 4
+under control of net/mpd5 port.
 .Pp
 Refer to
 .Xr sconfig 8
@@ -92,12 +83,9 @@ T3 interface
 STS-1 interface
 .El
 .Sh SEE ALSO
-.Xr ctau 4 ,
-.Xr cx 4 ,
-.Xr sppp 4 ,
-.Xr ifconfig 8 ,
-.Xr sconfig 8 ,
-.Xr spppcontrol 8
+.Xr ce 4 ,
+.Xr netgraph 4 ,
+.Xr sconfig 8
 .Sh HISTORY
 The
 .Nm
@@ -105,9 +93,3 @@ driver was added in
 .Fx 5.3
 and
 .Fx 4.11 .
-The
-.Nm
-driver for previous versions of
-.Fx
-is available from
-.Pa http://www.cronyx.ru/ .

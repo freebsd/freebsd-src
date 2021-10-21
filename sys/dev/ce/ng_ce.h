@@ -16,8 +16,6 @@
  * $FreeBSD$
  */
 
-#ifdef NETGRAPH
-
 #ifndef _CE_NETGRAPH_H_
 #define _CE_NETGRAPH_H_
 
@@ -27,5 +25,3 @@
 #define NG_CE_HOOK_DEBUG	"debug"
 
 #endif /* _CE_NETGRAPH_H_ */
-
-#endif /* NETGRAPH */

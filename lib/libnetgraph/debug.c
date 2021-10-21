@@ -96,7 +96,6 @@ __FBSDID("$FreeBSD$");
 #include <netgraph/ng_socket.h>
 #include <netgraph/ng_source.h>
 #include <netgraph/ng_split.h>
-#include <netgraph/ng_sppp.h>
 #include <netgraph/ng_tag.h>
 #include <netgraph/ng_tcpmss.h>
 #include <netgraph/ng_tee.h>
@@ -172,7 +171,6 @@ static const struct ng_cookie cookies[] = {
 	COOKIE(SOCKET),
 	COOKIE(SOURCE),
 	COOKIE(SPLIT),
-	COOKIE(SPPP),
 	COOKIE(TAG),
 	COOKIE(TCPMSS),
 	COOKIE(TEE),

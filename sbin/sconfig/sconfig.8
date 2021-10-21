@@ -216,9 +216,6 @@ Select the Frame Relay synchronous protocol
 T1.617 Annex D).
 .It Cm ppp
 Select the synchronous PPP protocol.
-PPP parameters can be configured using the
-.Xr spppcontrol 8
-utility.
 .It Sm Cm keepalive No = Bro Cm on , off Brc Sm
 Turn on/off transmission of keepalive messages.
 This option is used only for synchronous PPP.
@@ -569,10 +566,8 @@ Test error (G.703 only).
 .Sh SEE ALSO
 .Xr stty 1 ,
 .Xr ioctl 2 ,
-.Xr sppp 4 ,
 .Xr ifconfig 8 ,
 .Xr route 8 ,
-.Xr spppcontrol 8
 .\"--------------------------------------------------------------
 .Sh HISTORY
 The

@@ -33,9 +33,6 @@ dev/ce/ceddk.c			optional ce
 dev/ce/if_ce.c			optional ce
 dev/ce/tau32-ddk.c		optional ce \
 	compile-with "${NORMAL_C} ${NO_WCONSTANT_CONVERSION} ${NO_WMISLEADING_INDENTATION}"
-dev/cp/cpddk.c			optional cp \
-	compile-with "${NORMAL_C} ${NO_WMISLEADING_INDENTATION}"
-dev/cp/if_cp.c			optional cp
 dev/glxiic/glxiic.c		optional glxiic
 dev/glxsb/glxsb.c		optional glxsb
 dev/glxsb/glxsb_hash.c		optional glxsb

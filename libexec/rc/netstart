@@ -43,7 +43,6 @@ _start=quietstart
 /etc/rc.d/ipfilter ${_start}
 /etc/rc.d/ipnat ${_start}
 /etc/rc.d/ipfs ${_start}
-/etc/rc.d/sppp ${_start}
 /etc/rc.d/netif ${_start}
 /etc/rc.d/ipsec ${_start}
 /etc/rc.d/ppp ${_start}

@@ -63,7 +63,6 @@ SUBDIR=adjkerntz \
 	savecore \
 	setkey \
 	shutdown \
-	spppcontrol \
 	swapon \
 	sysctl \
 	tunefs \

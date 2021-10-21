@@ -810,7 +810,6 @@ options 	NETGRAPH_PRED1
 options 	NETGRAPH_RFC1490
 options 	NETGRAPH_SOCKET
 options 	NETGRAPH_SPLIT
-options 	NETGRAPH_SPPP
 options 	NETGRAPH_TAG
 options 	NETGRAPH_TCPMSS
 options 	NETGRAPH_TEE
@@ -874,10 +873,6 @@ device		wlan_xauth
 #  The 'wlan_amrr' device provides AMRR transmit rate control algorithm
 device		wlan_acl
 device		wlan_amrr
-
-#  The `sppp' device serves a similar role for certain types
-#  of synchronous PPP links (like `cx', `ar').
-device		sppp
 
 #  The `bpf' device enables the Berkeley Packet Filter.  Be
 #  aware of the legal and administrative consequences of enabling this
