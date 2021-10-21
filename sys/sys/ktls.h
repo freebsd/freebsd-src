@@ -184,10 +184,8 @@ struct ktls_session {
 		    const struct tls_record_layer *hdr, struct mbuf *m,
 		    uint64_t seqno, int *trailer_len);
 	};
-	union {
-		struct ktls_ocf_session *ocf_session;
-		struct m_snd_tag *snd_tag;
-	};
+	struct ktls_ocf_session *ocf_session;
+	struct m_snd_tag *snd_tag;
 	struct tls_session_params params;
 	u_int	wq_index;
 	volatile u_int refcount;
