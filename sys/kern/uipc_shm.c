@@ -267,7 +267,7 @@ static int
 shm_largepage_phys_populate(vm_object_t object, vm_pindex_t pidx,
     int fault_type, vm_prot_t max_prot, vm_pindex_t *first, vm_pindex_t *last)
 {
-	vm_page_t m;
+	vm_page_t m __diagused;
 	int psind;
 
 	psind = object->un_pager.phys.data_val;
@@ -751,7 +751,8 @@ shm_dotruncate_largepage(struct shmfd *shmfd, off_t length, void *rl_cookie)
 {
 	vm_object_t object;
 	vm_page_t m;
-	vm_pindex_t newobjsz, oldobjsz;
+	vm_pindex_t newobjsz;
+	vm_pindex_t oldobjsz __unused;
 	int aflags, error, i, psind, try;
 
 	KASSERT(length >= 0, ("shm_dotruncate: length < 0"));
