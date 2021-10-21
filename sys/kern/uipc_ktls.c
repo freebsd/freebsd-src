@@ -1082,6 +1082,69 @@ sb_mark_notready(struct sockbuf *sb)
 	    sb->sb_ccc));
 }
 
+/*
+ * Return information about the pending TLS data in a socket
+ * buffer.  On return, 'seqno' is set to the sequence number
+ * of the next TLS record to be received, 'resid' is set to
+ * the amount of bytes still needed for the last pending
+ * record.  The function returns 'false' if the last pending
+ * record contains a partial TLS header.  In that case, 'resid'
+ * is the number of bytes needed to complete the TLS header.
+ */
+bool
+ktls_pending_rx_info(struct sockbuf *sb, uint64_t *seqnop, size_t *residp)
+{
+	struct tls_record_layer hdr;
+	struct mbuf *m;
+	uint64_t seqno;
+	size_t resid;
+	u_int offset, record_len;
+
+	SOCKBUF_LOCK_ASSERT(sb);
+	MPASS(sb->sb_flags & SB_TLS_RX);
+	seqno = sb->sb_tls_seqno;
+	resid = sb->sb_tlscc;
+	m = sb->sb_mtls;
+	offset = 0;
+
+	if (resid == 0) {
+		*seqnop = seqno;
+		*residp = 0;
+		return (true);
+	}
+
+	for (;;) {
+		seqno++;
+
+		if (resid < sizeof(hdr)) {
+			*seqnop = seqno;
+			*residp = sizeof(hdr) - resid;
+			return (false);
+		}
+
+		m_copydata(m, offset, sizeof(hdr), (void *)&hdr);
+
+		record_len = sizeof(hdr) + ntohs(hdr.tls_length);
+		if (resid <= record_len) {
+			*seqnop = seqno;
+			*residp = record_len - resid;
+			return (true);
+		}
+		resid -= record_len;
+
+		while (record_len != 0) {
+			if (m->m_len - offset > record_len) {
+				offset += record_len;
+				break;
+			}
+
+			record_len -= (m->m_len - offset);
+			offset = 0;
+			m = m->m_next;
+		}
+	}
+}
+
 int
 ktls_enable_rx(struct socket *so, struct tls_enable *en)
 {

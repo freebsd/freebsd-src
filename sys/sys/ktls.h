@@ -224,6 +224,7 @@ int ktls_output_eagain(struct inpcb *inp, struct ktls_session *tls);
 #ifdef RATELIMIT
 int ktls_modify_txrtlmt(struct ktls_session *tls, uint64_t max_pacing_rate);
 #endif
+bool ktls_pending_rx_info(struct sockbuf *sb, uint64_t *seqnop, size_t *residp);
 
 static inline struct ktls_session *
 ktls_hold(struct ktls_session *tls)
