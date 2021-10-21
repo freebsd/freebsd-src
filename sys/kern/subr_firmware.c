@@ -412,7 +412,6 @@ static void
 unloadentry(void *unused1, int unused2)
 {
 	struct priv_fw *fp;
-	int err;
 
 	mtx_lock(&firmware_mtx);
 restart:
@@ -434,7 +433,7 @@ restart:
 		 * on unload to actually free the entry.
 		 */
 		mtx_unlock(&firmware_mtx);
-		err = linker_release_module(NULL, NULL, fp->file);
+		(void)linker_release_module(NULL, NULL, fp->file);
 		mtx_lock(&firmware_mtx);
 
 		/*
