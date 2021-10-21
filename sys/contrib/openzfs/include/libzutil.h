@@ -146,7 +146,6 @@ _LIBZUTIL_H int zpool_history_unpack(char *, uint64_t, uint64_t *, nvlist_t ***,
     uint_t *);
 
 struct zfs_cmd;
-_LIBZUTIL_H int zfs_ioctl_fd(int fd, unsigned long request, struct zfs_cmd *zc);
 
 /*
  * List of colors to use
@@ -163,6 +162,16 @@ _LIBZUTIL_H int printf_color(char *color, char *format, ...);
 _LIBZUTIL_H const char *zfs_basename(const char *path);
 _LIBZUTIL_H ssize_t zfs_dirnamelen(const char *path);
 
+/*
+ * These functions are used by the ZFS libraries and cmd/zpool code, but are
+ * not exported in the ABI.
+ */
+typedef int (*pool_vdev_iter_f)(void *, nvlist_t *, void *);
+int for_each_vdev_cb(void *zhp, nvlist_t *nv, pool_vdev_iter_f func,
+    void *data);
+int for_each_vdev_in_nvlist(nvlist_t *nvroot, pool_vdev_iter_f func,
+    void *data);
+void update_vdevs_config_dev_sysfs_path(nvlist_t *config);
 #ifdef	__cplusplus
 }
 #endif

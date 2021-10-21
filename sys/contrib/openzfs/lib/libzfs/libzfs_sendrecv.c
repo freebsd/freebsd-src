@@ -1059,9 +1059,14 @@ dump_snapshot(zfs_handle_t *zhp, void *arg)
 			nvlist_t *nvfs = fsavl_find(sdd->fsavl,
 			    zhp->zfs_dmustats.dds_guid, &snapname);
 
-			snapprops = fnvlist_lookup_nvlist(nvfs, "snapprops");
-			snapprops = fnvlist_lookup_nvlist(snapprops, thissnap);
-			exclude = !nvlist_exists(snapprops, "is_clone_origin");
+			if (nvfs != NULL) {
+				snapprops = fnvlist_lookup_nvlist(nvfs,
+				    "snapprops");
+				snapprops = fnvlist_lookup_nvlist(snapprops,
+				    thissnap);
+				exclude = !nvlist_exists(snapprops,
+				    "is_clone_origin");
+			}
 		} else {
 			exclude = B_TRUE;
 		}
@@ -2142,6 +2147,23 @@ zfs_send(zfs_handle_t *zhp, const char *fromsnap, const char *tosnap,
 		zfs_error_aux(zhp->zfs_hdl, dgettext(TEXT_DOMAIN,
 		    "zero-length incremental source"));
 		return (zfs_error(zhp->zfs_hdl, EZFS_NOENT, errbuf));
+	}
+
+	if (fromsnap) {
+		char full_fromsnap_name[ZFS_MAX_DATASET_NAME_LEN];
+		if (snprintf(full_fromsnap_name, sizeof (full_fromsnap_name),
+		    "%s@%s", zhp->zfs_name, fromsnap) >=
+		    sizeof (full_fromsnap_name)) {
+			err = EINVAL;
+			goto stderr_out;
+		}
+		zfs_handle_t *fromsnapn = zfs_open(zhp->zfs_hdl,
+		    full_fromsnap_name, ZFS_TYPE_SNAPSHOT);
+		if (fromsnapn == NULL) {
+			err = -1;
+			goto err_out;
+		}
+		zfs_close(fromsnapn);
 	}
 
 	if (flags->replicate || flags->doall || flags->props ||

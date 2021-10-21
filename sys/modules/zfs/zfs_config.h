@@ -154,6 +154,9 @@
 /* blk_queue_secure_erase() is available */
 /* #undef HAVE_BLK_QUEUE_SECURE_ERASE */
 
+/* blk_queue_update_readahead() exists */
+/* #undef HAVE_BLK_QUEUE_UPDATE_READAHEAD */
+
 /* blk_queue_write_cache() exists */
 /* #undef HAVE_BLK_QUEUE_WRITE_CACHE */
 
@@ -211,6 +214,9 @@
 
 /* disk_*_io_acct() available */
 /* #undef HAVE_DISK_IO_ACCT */
+
+/* disk_update_readahead() exists */
+/* #undef HAVE_DISK_UPDATE_READAHEAD */
 
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #define HAVE_DLFCN_H 1
@@ -271,6 +277,12 @@
 
 /* Define if the GNU gettext() function is already present or preinstalled. */
 /* #undef HAVE_GETTEXT */
+
+/* iops->get_acl() exists */
+/* #undef HAVE_GET_ACL */
+
+/* iops->get_acl() takes rcu */
+/* #undef HAVE_GET_ACL_RCU */
 
 /* iops->get_link() cookie */
 /* #undef HAVE_GET_LINK_COOKIE */
@@ -589,6 +601,9 @@
 /* STACK_FRAME_NON_STANDARD is defined */
 /* #undef HAVE_STACK_FRAME_NON_STANDARD */
 
+/* standalone <linux/stdarg.h> exists */
+/* #undef HAVE_STANDALONE_LINUX_STDARG */
+
 /* Define to 1 if you have the <stdint.h> header file. */
 #define HAVE_STDINT_H 1
 
@@ -809,7 +824,7 @@
 /* #undef ZFS_IS_GPL_COMPATIBLE */
 
 /* Define the project alias string. */
-#define ZFS_META_ALIAS "zfs-2.1.99-FreeBSD_g4a1195ca5"
+#define ZFS_META_ALIAS "zfs-2.1.99-FreeBSD_gec64fdb93"
 
 /* Define the project author. */
 #define ZFS_META_AUTHOR "OpenZFS"
@@ -818,7 +833,7 @@
 /* #undef ZFS_META_DATA */
 
 /* Define the maximum compatible kernel version. */
-#define ZFS_META_KVER_MAX "5.13"
+#define ZFS_META_KVER_MAX "5.14"
 
 /* Define the minimum compatible kernel version. */
 #define ZFS_META_KVER_MIN "3.10"
@@ -839,7 +854,7 @@
 #define ZFS_META_NAME "zfs"
 
 /* Define the project release. */
-#define ZFS_META_RELEASE "FreeBSD_g4a1195ca5"
+#define ZFS_META_RELEASE "FreeBSD_gec64fdb93"
 
 /* Define the project version. */
 #define ZFS_META_VERSION "2.1.99"
