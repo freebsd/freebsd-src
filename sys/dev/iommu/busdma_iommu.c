@@ -398,7 +398,8 @@ iommu_bus_dma_tag_set_domain(bus_dma_tag_t dmat)
 static int
 iommu_bus_dma_tag_destroy(bus_dma_tag_t dmat1)
 {
-	struct bus_dma_tag_iommu *dmat, *dmat_copy, *parent;
+	struct bus_dma_tag_iommu *dmat, *parent;
+	struct bus_dma_tag_iommu *dmat_copy __unused;
 	int error;
 
 	error = 0;
@@ -920,7 +921,7 @@ static void
 iommu_bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map1,
     bus_dmasync_op_t op)
 {
-	struct bus_dmamap_iommu *map;
+	struct bus_dmamap_iommu *map __unused;
 
 	map = (struct bus_dmamap_iommu *)map1;
 	kmsan_bus_dmamap_sync(&map->kmsan_mem, op);

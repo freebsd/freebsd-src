@@ -354,7 +354,7 @@ iommu_gas_match_one(struct iommu_gas_match_args *a, iommu_gaddr_t beg,
 static void
 iommu_gas_match_insert(struct iommu_gas_match_args *a)
 {
-	bool found;
+	bool found __diagused;
 
 	/*
 	 * The prev->end is always aligned on the page size, which
@@ -475,7 +475,7 @@ iommu_gas_alloc_region(struct iommu_domain *domain, struct iommu_map_entry *entr
     u_int flags)
 {
 	struct iommu_map_entry *next, *prev;
-	bool found;
+	bool found __diagused;
 
 	IOMMU_DOMAIN_ASSERT_LOCKED(domain);
 

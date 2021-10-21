@@ -521,7 +521,7 @@ dmar_get_ctx_for_dev1(struct dmar_unit *dmar, device_t dev, uint16_t rid,
 {
 	struct dmar_domain *domain, *domain1;
 	struct dmar_ctx *ctx, *ctx1;
-	struct iommu_unit *unit;
+	struct iommu_unit *unit __diagused;
 	dmar_ctx_entry_t *ctxp;
 	struct sf_buf *sf;
 	int bus, slot, func, error;
@@ -904,7 +904,7 @@ dmar_domain_unload(struct dmar_domain *domain,
 	struct dmar_unit *unit;
 	struct iommu_domain *iodom;
 	struct iommu_map_entry *entry, *entry1;
-	int error;
+	int error __diagused;
 
 	iodom = DOM2IODOM(domain);
 	unit = DOM2DMAR(domain);
