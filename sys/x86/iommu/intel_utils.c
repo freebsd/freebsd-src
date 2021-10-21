@@ -489,6 +489,33 @@ dmar_flush_write_bufs(struct dmar_unit *unit)
 	return (error);
 }
 
+/*
+ * Some BIOSes protect memory region they reside in by using DMAR to
+ * prevent devices from doing any DMA transactions to that part of RAM.
+ * AMI refers to this as "DMA Control Guarantee".
+ * We need to disable this when address translation is enabled.
+ */
+int
+dmar_disable_protected_regions(struct dmar_unit *unit)
+{
+	uint32_t reg;
+	int error;
+
+	DMAR_ASSERT_LOCKED(unit);
+
+	/* Check if we support the feature. */
+	if ((unit->hw_cap & (DMAR_CAP_PLMR | DMAR_CAP_PHMR)) == 0)
+		return (0);
+
+	reg = dmar_read4(unit, DMAR_PMEN_REG);
+	reg &= ~DMAR_PMEN_EPM;
+	dmar_write4(unit, DMAR_PMEN_REG, reg);
+	DMAR_WAIT_UNTIL(((dmar_read4(unit, DMAR_PMEN_REG) & DMAR_PMEN_PRS)
+	    != 0));
+
+	return (error);
+}
+
 int
 dmar_enable_translation(struct dmar_unit *unit)
 {
