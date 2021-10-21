@@ -641,7 +641,7 @@ int
 umtxq_requeue(struct umtx_key *key, int n_wake, struct umtx_key *key2,
     int n_requeue)
 {
-	struct umtxq_queue *uh, *uh2;
+	struct umtxq_queue *uh;
 	struct umtx_q *uq, *uq_temp;
 	int ret;
 
@@ -649,7 +649,6 @@ umtxq_requeue(struct umtx_key *key, int n_wake, struct umtx_key *key2,
 	UMTXQ_LOCKED_ASSERT(umtxq_getchain(key));
 	UMTXQ_LOCKED_ASSERT(umtxq_getchain(key2));
 	uh = umtxq_queue_lookup(key, UMTX_SHARED_QUEUE);
-	uh2 = umtxq_queue_lookup(key2, UMTX_SHARED_QUEUE);
 	if (uh == NULL)
 		return (0);
 	TAILQ_FOREACH_SAFE(uq, &uh->head, uq_link, uq_temp) {
