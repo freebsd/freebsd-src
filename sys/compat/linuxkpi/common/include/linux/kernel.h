@@ -397,6 +397,24 @@ kstrtouint(const char *cp, unsigned int base, unsigned int *res)
 }
 
 static inline int
+kstrtou8(const char *cp, unsigned int base, u8 *res)
+{
+	char *end;
+	unsigned long temp;
+
+	*res = temp = strtoul(cp, &end, base);
+
+	/* skip newline character, if any */
+	if (*end == '\n')
+		end++;
+	if (*cp == 0 || *end != 0)
+		return (-EINVAL);
+	if (temp != (u8)temp)
+		return (-ERANGE);
+	return (0);
+}
+
+static inline int
 kstrtou16(const char *cp, unsigned int base, u16 *res)
 {
 	char *end;
@@ -485,6 +503,21 @@ kstrtobool_from_user(const char __user *s, size_t count, bool *res)
 		return (-EFAULT);
 
 	return (kstrtobool(buf, res));
+}
+
+static inline int
+kstrtou8_from_user(const char __user *s, size_t count, unsigned int base,
+    u8 *p)
+{
+	char buf[8] = {};
+
+	if (count > (sizeof(buf) - 1))
+		count = (sizeof(buf) - 1);
+
+	if (copy_from_user(buf, s, count))
+		return (-EFAULT);
+
+	return (kstrtou8(buf, base, p));
 }
 
 #define min(x, y)	((x) < (y) ? (x) : (y))
