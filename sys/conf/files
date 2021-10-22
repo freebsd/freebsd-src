@@ -1870,6 +1870,7 @@ dev/iicbus/rtc/rx8803.c		optional rx8803 iicbus fdt
 dev/iicbus/s35390a.c		optional s35390a
 dev/iicbus/sy8106a.c		optional sy8106a ext_resources fdt
 dev/iicbus/syr827.c		optional syr827 ext_resources fdt
+dev/iicbus/gpio/tca6408.c	optional tca6408 fdt gpio
 dev/iicbus/gpio/tca6416.c	optional tca6416 fdt
 dev/iicbus/pmic/fan53555.c	optional fan53555 ext_resources fdt
 dev/iir/iir.c			optional iir
