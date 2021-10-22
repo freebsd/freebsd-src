@@ -167,6 +167,19 @@ str_has_prefix(const char *str, const char *prefix)
 	return (strncmp(str, prefix, len) == 0 ? len : 0);
 }
 
+static inline char *
+strreplace(char *str, char old, char new)
+{
+	char *p;
+
+	p = strchrnul(str, old);
+	while (p != NULL && *p != '\0') {
+		*p = new;
+		p = strchrnul(str, old);
+	}
+	return (p);
+}
+
 static inline ssize_t
 strscpy(char* dst, const char* src, size_t len)
 {
