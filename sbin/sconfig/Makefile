@@ -4,7 +4,7 @@
 PACKAGE=runtime
 PROG=	sconfig
 MAN=	sconfig.8
-MANSUBDIR= /i386
 WARNS?=	2
+CFLAGS+=	-I${SRCTOP}/sys/dev/cp
 
 .include <bsd.prog.mk>

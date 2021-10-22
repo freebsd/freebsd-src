@@ -29,10 +29,7 @@ __FBSDID("$FreeBSD$");
 #include <ctype.h>
 #include <sys/ioctl.h>
 #include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/socket.h>
-#include <net/if.h>
-#include <machine/cserial.h>
+#include "cserial.h"
 
 #define MAXCHAN 128
 

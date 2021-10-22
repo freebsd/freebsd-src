@@ -93,10 +93,6 @@ SUBDIR.${MK_TESTS}+=	tests
 
 SUBDIR_PARALLEL=
 
-# Add architecture-specific manpages
-# to be included anyway
-MAN=   sconfig/sconfig.8
-
 .include <bsd.prog.mk>
 
 .include <bsd.subdir.mk>
