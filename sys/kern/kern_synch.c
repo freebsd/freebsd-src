@@ -685,3 +685,10 @@ sys_yield(struct thread *td, struct yield_args *uap)
 	td->td_retval[0] = 0;
 	return (0);
 }
+
+int
+sys_sched_getcpu(struct thread *td, struct sched_getcpu_args *uap)
+{
+	td->td_retval[0] = td->td_oncpu;
+	return (0);
+}

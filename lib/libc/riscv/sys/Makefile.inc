@@ -1,6 +1,7 @@
 # $FreeBSD$
 
-SRCS+=	__vdso_gettc.c
+SRCS+=	__vdso_gettc.c \
+	sched_getcpu_gen.c
 
 MDASM=	cerror.S \
 	syscall.S \

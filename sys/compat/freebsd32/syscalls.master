@@ -1177,6 +1177,6 @@
 579	AUE_AIO_READV	STD	{ int freebsd32_aio_readv( \
 				    struct aiocb32 *aiocbp); }
 580	AUE_NULL	UNIMPL	fspacectl
-581	AUE_NULL	UNIMPL	sched_getcpu
+581	AUE_NULL	NOPROTO	{ int sched_getcpu(void); }
 582	AUE_NULL	UNIMPL	swapoff
 ; vim: syntax=off

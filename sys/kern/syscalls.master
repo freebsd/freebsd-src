@@ -3274,7 +3274,9 @@
 		);
 	}
 580	AUE_NULL	UNIMPL	fspacectl
-581	AUE_NULL	UNIMPL	sched_getcpu
+581	AUE_NULL	STD|CAPENABLED {
+		int sched_getcpu(void);
+	}
 582	AUE_SWAPOFF	STD {
 		int swapoff(
 		    _In_z_ const char *name,
