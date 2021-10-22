@@ -82,6 +82,7 @@ joel [label="Joel Dahl\njoel@FreeBSD.org\n2005/04/05"]
 keramida [label="Giorgos Keramidas\nkeramida@FreeBSD.org\n2001/10/12"]
 linimon [label="Mark Linimon\nlinimon@FreeBSD.org\n2004/03/31"]
 loader [label="Fukang Chen\nloader@FreeBSD.org\n2007/07/30"]
+lwhsu [label="Li-Wen Hsu\nlwhsu@FreeBSD.org\n2021/08/01"]
 manolis [label="Manolis Kiagias\nmanolis@FreeBSD.org\n2008/05/24"]
 marck [label="Dmitry Morozovsky\nmarck@FreeBSD.org\n2004/08/10"]
 maxim [label="Maxim Konovalov\nmaxim@FreeBSD.org\n2002/02/07"]
@@ -131,6 +132,8 @@ blackend -> ale
 blackend -> ceri
 
 brueffer -> joel
+
+carlavilla -> lwhsu
 
 ceri -> brd
 ceri -> brueffer
@@ -210,4 +213,6 @@ trhodes -> jcamou
 
 wblock -> jgh
 wblock -> allanjude
+
+ygy -> lwhsu
 }
