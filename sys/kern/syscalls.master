@@ -3261,6 +3261,9 @@
 		    _Out_opt_ struct spacectl_range *rmsr,
 		);
 	}
+581	AUE_NULL	STD|CAPENABLED {
+		int sched_getcpu(void);
+	}
 
 ; Please copy any additions and changes to the following compatability tables:
 ; sys/compat/freebsd32/syscalls.master

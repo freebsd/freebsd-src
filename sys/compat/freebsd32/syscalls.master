@@ -1181,5 +1181,5 @@
 				    const struct spacectl_range32 *rqsr, \
 				    int flags, \
 				    struct spacectl_range32 *rmsr); }
-
+581	AUE_NULL	NOPROTO	{ int sched_getcpu(void); }
 ; vim: syntax=off

@@ -4,7 +4,8 @@
 
 SRCS+= \
 	__vdso_gettc.c \
-	pkru.c
+	pkru.c \
+	sched_getcpu_gen.c
 
 MAN+=	\
 	pkru.3
