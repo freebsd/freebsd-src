@@ -204,6 +204,7 @@ static int32_t rack_hw_rate_to_low = 0; /* 1200000; */
 static int32_t rack_hw_up_only = 1;
 static int32_t rack_stats_gets_ms_rtt = 1;
 static int32_t rack_prr_addbackmax = 2;
+static int32_t rack_do_hystart = 0;
 
 static int32_t rack_pkt_delay = 1000;
 static int32_t rack_send_a_lot_in_prr = 1;
@@ -624,7 +625,7 @@ rack_set_cc_pacing(struct tcp_rack *rack)
 	 * Hack alert we need to set in our newreno_flags
 	 * so that Abe behavior is also applied.
 	 */
-	((struct newreno *)tp->ccv->cc_data)->newreno_flags = CC_NEWRENO_BETA_ECN;
+	((struct newreno *)tp->ccv->cc_data)->newreno_flags |= CC_NEWRENO_BETA_ECN_ENABLED;
 	opt.name = CC_NEWRENO_BETA_ECN;
 	opt.val = rack->r_ctl.rc_saved_beta.beta_ecn;
 	error = CC_ALGO(tp)->ctl_output(tp->ccv, &sopt, &opt);
@@ -835,6 +836,7 @@ rack_init_sysctls(void)
 	struct sysctl_oid *rack_timers;
 	struct sysctl_oid *rack_tlp;
 	struct sysctl_oid *rack_misc;
+	struct sysctl_oid *rack_features;
 	struct sysctl_oid *rack_measure;
 	struct sysctl_oid *rack_probertt;
 	struct sysctl_oid *rack_hw_pacing;
@@ -1362,6 +1364,43 @@ rack_init_sysctls(void)
 	    OID_AUTO, "min_measure_tim", CTLFLAG_RW,
 	    &rack_min_measure_usec, 0,
 	    "What is the Minimum time time for a measurement if 0, this is off");
+	/* Features */
+	rack_features = SYSCTL_ADD_NODE(&rack_sysctl_ctx,
+	    SYSCTL_CHILDREN(rack_sysctl_root),
+	    OID_AUTO,
+	    "features",
+	    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+	    "Feature controls");
+	SYSCTL_ADD_S32(&rack_sysctl_ctx,
+	    SYSCTL_CHILDREN(rack_features),
+	    OID_AUTO, "cmpack", CTLFLAG_RW,
+	    &rack_use_cmp_acks, 1,
+	    "Should RACK have LRO send compressed acks");
+	SYSCTL_ADD_S32(&rack_sysctl_ctx,
+	    SYSCTL_CHILDREN(rack_features),
+	    OID_AUTO, "fsb", CTLFLAG_RW,
+	    &rack_use_fsb, 1,
+	    "Should RACK use the fast send block?");
+	SYSCTL_ADD_S32(&rack_sysctl_ctx,
+	    SYSCTL_CHILDREN(rack_features),
+	    OID_AUTO, "rfo", CTLFLAG_RW,
+	    &rack_use_rfo, 1,
+	    "Should RACK use rack_fast_output()?");
+	SYSCTL_ADD_S32(&rack_sysctl_ctx,
+	    SYSCTL_CHILDREN(rack_features),
+	    OID_AUTO, "rsmrfo", CTLFLAG_RW,
+	    &rack_use_rsm_rfo, 1,
+	    "Should RACK use rack_fast_rsm_output()?");
+	SYSCTL_ADD_S32(&rack_sysctl_ctx,
+	    SYSCTL_CHILDREN(rack_features),
+	    OID_AUTO, "non_paced_lro_queue", CTLFLAG_RW,
+	    &rack_enable_mqueue_for_nonpaced, 0,
+	    "Should RACK use mbuf queuing for non-paced connections");
+	SYSCTL_ADD_S32(&rack_sysctl_ctx,
+	    SYSCTL_CHILDREN(rack_features),
+	    OID_AUTO, "hystartplusplus", CTLFLAG_RW,
+	    &rack_do_hystart, 0,
+	    "Should RACK enable HyStart++ on connections?");
 	/* Misc rack controls */
 	rack_misc = SYSCTL_ADD_NODE(&rack_sysctl_ctx,
 	    SYSCTL_CHILDREN(rack_sysctl_root),
@@ -1376,7 +1415,6 @@ rack_init_sysctls(void)
 	    &rack_tcp_accounting, 0,
 	    "Should we turn on TCP accounting for all rack sessions?");
 #endif
-
 	SYSCTL_ADD_S32(&rack_sysctl_ctx,
 	    SYSCTL_CHILDREN(rack_misc),
 	    OID_AUTO, "rack_dsack_ctl", CTLFLAG_RW,
@@ -1404,26 +1442,6 @@ rack_init_sysctls(void)
 	    "Should RACK use a default profile (0=no, num == profile num)?");
 	SYSCTL_ADD_S32(&rack_sysctl_ctx,
 	    SYSCTL_CHILDREN(rack_misc),
-	    OID_AUTO, "cmpack", CTLFLAG_RW,
-	    &rack_use_cmp_acks, 1,
-	    "Should RACK have LRO send compressed acks");
-	SYSCTL_ADD_S32(&rack_sysctl_ctx,
-	    SYSCTL_CHILDREN(rack_misc),
-	    OID_AUTO, "fsb", CTLFLAG_RW,
-	    &rack_use_fsb, 1,
-	    "Should RACK use the fast send block?");
-	SYSCTL_ADD_S32(&rack_sysctl_ctx,
-	    SYSCTL_CHILDREN(rack_misc),
-	    OID_AUTO, "rfo", CTLFLAG_RW,
-	    &rack_use_rfo, 1,
-	    "Should RACK use rack_fast_output()?");
-	SYSCTL_ADD_S32(&rack_sysctl_ctx,
-	    SYSCTL_CHILDREN(rack_misc),
-	    OID_AUTO, "rsmrfo", CTLFLAG_RW,
-	    &rack_use_rsm_rfo, 1,
-	    "Should RACK use rack_fast_rsm_output()?");
-	SYSCTL_ADD_S32(&rack_sysctl_ctx,
-	    SYSCTL_CHILDREN(rack_misc),
 	    OID_AUTO, "shared_cwnd", CTLFLAG_RW,
 	    &rack_enable_shared_cwnd, 1,
 	    "Should RACK try to use the shared cwnd on connections where allowed");
@@ -1432,11 +1450,6 @@ rack_init_sysctls(void)
 	    OID_AUTO, "limits_on_scwnd", CTLFLAG_RW,
 	    &rack_limits_scwnd, 1,
 	    "Should RACK place low end time limits on the shared cwnd feature");
-	SYSCTL_ADD_S32(&rack_sysctl_ctx,
-	    SYSCTL_CHILDREN(rack_misc),
-	    OID_AUTO, "non_paced_lro_queue", CTLFLAG_RW,
-	    &rack_enable_mqueue_for_nonpaced, 0,
-	    "Should RACK use mbuf queuing for non-paced connections");
 	SYSCTL_ADD_S32(&rack_sysctl_ctx,
 	    SYSCTL_CHILDREN(rack_misc),
 	    OID_AUTO, "iMac_dack", CTLFLAG_RW,
@@ -6139,6 +6152,7 @@ rack_clone_rsm(struct tcp_rack *rack, struct rack_sendmap *nrsm,
 	nrsm->r_dupack = rsm->r_dupack;
 	nrsm->r_no_rtt_allowed = rsm->r_no_rtt_allowed;
 	nrsm->r_rtr_bytes = 0;
+	nrsm->r_fas = rsm->r_fas;
 	rsm->r_end = nrsm->r_start;
 	nrsm->r_just_ret = rsm->r_just_ret;
 	for (idx = 0; idx < nrsm->r_rtr_cnt; idx++) {
@@ -7260,6 +7274,12 @@ rack_update_rsm(struct tcpcb *tp, struct tcp_rack *rack,
 	}
 	idx = rsm->r_rtr_cnt - 1;
 	rsm->r_tim_lastsent[idx] = ts;
+	/*
+	 * Here we don't add in the len of send, since its already
+	 * in snduna <->snd_max.
+	 */
+	rsm->r_fas = ctf_flight_size(rack->rc_tp,
+				     rack->r_ctl.rc_sacked);
 	stripped_flags = rsm->r_flags & ~(RACK_SENT_SP|RACK_SENT_FP);
 	if (rsm->r_flags & RACK_ACKED) {
 		/* Problably MTU discovery messing with us */
@@ -7479,6 +7499,13 @@ again:
 		 */
 		rsm->m = s_mb;
 		rsm->soff = s_moff;
+		/*
+		 * Here we do add in the len of send, since its not yet
+		 * reflected in in snduna <->snd_max
+		 */
+		rsm->r_fas = (ctf_flight_size(rack->rc_tp,
+					      rack->r_ctl.rc_sacked) +
+			      (rsm->r_end - rsm->r_start));
 		/* rsm->m will be NULL if RACK_HAS_SYN or RACK_HAS_FIN is set */
 		if (rsm->m) {
 			if (rsm->m->m_len <= rsm->soff) {
@@ -7927,6 +7954,7 @@ static int
 rack_update_rtt(struct tcpcb *tp, struct tcp_rack *rack,
     struct rack_sendmap *rsm, struct tcpopt *to, uint32_t cts, int32_t ack_type, tcp_seq th_ack)
 {
+	uint32_t us_rtt;
 	int32_t i, all;
 	uint32_t t, len_acked;
 
@@ -7951,7 +7979,6 @@ rack_update_rtt(struct tcpcb *tp, struct tcp_rack *rack,
 		all = 0;
 	}
 	if (rsm->r_rtr_cnt == 1) {
-		uint32_t us_rtt;
 
 		t = cts - (uint32_t)rsm->r_tim_lastsent[(rsm->r_rtr_cnt - 1)];
 		if ((int)t <= 0)
@@ -7971,6 +7998,10 @@ rack_update_rtt(struct tcpcb *tp, struct tcp_rack *rack,
 			us_rtt = tcp_get_usecs(NULL) - (uint32_t)rsm->r_tim_lastsent[(rsm->r_rtr_cnt-1)];
 		if (us_rtt == 0)
 			us_rtt = 1;
+		if (CC_ALGO(tp)->rttsample != NULL) {
+			/* Kick the RTT to the CC */
+			CC_ALGO(tp)->rttsample(tp->ccv, us_rtt, 1, rsm->r_fas);
+		}
 		rack_apply_updated_usrtt(rack, us_rtt, tcp_tv_to_usectick(&rack->r_ctl.act_rcv_time));
 		if (ack_type == SACKED) {
 			rack_log_rtt_sample_calc(rack, t, (uint32_t)rsm->r_tim_lastsent[(rsm->r_rtr_cnt - 1)], cts, 1);
@@ -8057,12 +8088,29 @@ rack_update_rtt(struct tcpcb *tp, struct tcp_rack *rack,
 				t = cts - (uint32_t)rsm->r_tim_lastsent[i];
 				if ((int)t <= 0)
 					t = 1;
+				if (CC_ALGO(tp)->rttsample != NULL) {
+					/*
+					 * Kick the RTT to the CC, here
+					 * we lie a bit in that we know the
+					 * retransmission is correct even though
+					 * we retransmitted. This is because
+					 * we match the timestamps.
+					 */
+					if (TSTMP_GT(tcp_tv_to_usectick(&rack->r_ctl.act_rcv_time), rsm->r_tim_lastsent[i]))
+						us_rtt = tcp_tv_to_usectick(&rack->r_ctl.act_rcv_time) - (uint32_t)rsm->r_tim_lastsent[i];
+					else
+						us_rtt = tcp_get_usecs(NULL) - (uint32_t)rsm->r_tim_lastsent[i];
+					CC_ALGO(tp)->rttsample(tp->ccv, us_rtt, 1, rsm->r_fas);
+				}
 				if ((i + 1) < rsm->r_rtr_cnt) {
 					/*
 					 * The peer ack'd from our previous
 					 * transmission. We have a spurious
 					 * retransmission and thus we dont
 					 * want to update our rack_rtt.
+					 *
+					 * Hmm should there be a CC revert here?
+					 *
 					 */
 					return (0);
 				}
@@ -12548,10 +12596,11 @@ rack_init(struct tcpcb *tp)
 	rack->r_ctl.rc_saved_beta.beta = V_newreno_beta_ecn;
 	rack->r_ctl.rc_saved_beta.beta_ecn = V_newreno_beta_ecn;
 	/* We want abe like behavior as well */
-	rack->r_ctl.rc_saved_beta.newreno_flags = CC_NEWRENO_BETA_ECN;
+	rack->r_ctl.rc_saved_beta.newreno_flags |= CC_NEWRENO_BETA_ECN_ENABLED;
 	rack->r_ctl.rc_reorder_fade = rack_reorder_fade;
 	rack->rc_allow_data_af_clo = rack_ignore_data_after_close;
 	rack->r_ctl.rc_tlp_threshold = rack_tlp_thresh;
+	rack->r_ctl.roundends = tp->snd_max;
 	if (use_rack_rr)
 		rack->use_rack_rr = 1;
 	if (V_tcp_delack_enabled)
@@ -12730,6 +12779,17 @@ rack_init(struct tcpcb *tp)
 	 */
 	rack_convert_rtts(tp);
 	tp->t_rttlow = TICKS_2_USEC(tp->t_rttlow);
+	if (rack_do_hystart) {
+		struct sockopt sopt;
+		struct cc_newreno_opts opt;
+
+		sopt.sopt_valsize = sizeof(struct cc_newreno_opts);
+		sopt.sopt_dir = SOPT_SET;
+		opt.name = CC_NEWRENO_ENABLE_HYSTART;
+		opt.val = rack_do_hystart;
+		if (CC_ALGO(tp)->ctl_output != NULL)
+			(void)CC_ALGO(tp)->ctl_output(tp->ccv, &sopt, &opt);
+	}
 	if (rack_def_profile)
 		rack_set_profile(rack, rack_def_profile);
 	/* Cancel the GP measurement in progress */
@@ -13576,6 +13636,13 @@ rack_do_compressed_ack_processing(struct tcpcb *tp, struct socket *so, struct mb
 						(((ae->ack - high_seq) + segsiz - 1) / segsiz));
 #endif
 				high_seq = ae->ack;
+				if (SEQ_GEQ(high_seq, rack->r_ctl.roundends)) {
+					rack->r_ctl.current_round++;
+					rack->r_ctl.roundends = tp->snd_max;
+					if (CC_ALGO(tp)->newround != NULL) {
+						CC_ALGO(tp)->newround(tp->ccv, rack->r_ctl.current_round);
+					}
+				}
 				/* Setup our act_rcv_time */
 				if ((ae->flags & TSTMP_LRO) || (ae->flags & TSTMP_HDWR)) {
 					ts.tv_sec = ae->timestamp / 1000000000;
@@ -14463,6 +14530,14 @@ do_output_now:
 			}
 			rack_start_hpts_timer(rack, tp, cts, 0, 0, 0);
 			rack_free_trim(rack);
+		}
+		/* Update any rounds needed */
+		if (SEQ_GEQ(tp->snd_una, rack->r_ctl.roundends)) {
+			rack->r_ctl.current_round++;
+			rack->r_ctl.roundends = tp->snd_max;
+			if (CC_ALGO(tp)->newround != NULL) {
+				CC_ALGO(tp)->newround(tp->ccv, rack->r_ctl.current_round);
+			}
 		}
 		if ((nxt_pkt == 0) &&
 		    ((rack->r_ctl.rc_hpts_flags & PACE_TMR_MASK) == 0) &&
@@ -16936,7 +17011,6 @@ again:
 				goto just_return_nolock;
 			}
 			rsm = TAILQ_FIRST(&rack->r_ctl.rc_tmap);
-			KASSERT(rsm != NULL, ("rsm is NULL rack:%p r_must_retran set", rack));
 			if (rsm == NULL) {
 				/* TSNH */
 				rack->r_must_retran = 0;
@@ -19565,7 +19639,7 @@ rack_process_option(struct tcpcb *tp, struct tcp_rack *rack, int sopt_name,
 			 * rack pcb storage.
 			 */
 			rack->r_ctl.rc_saved_beta.beta_ecn = optval;
-			rack->r_ctl.rc_saved_beta.newreno_flags = CC_NEWRENO_BETA_ECN;
+			rack->r_ctl.rc_saved_beta.newreno_flags = CC_NEWRENO_BETA_ECN_ENABLED;
 		}
 		break;
 	case TCP_DEFER_OPTIONS:
@@ -19998,6 +20072,21 @@ rack_process_option(struct tcpcb *tp, struct tcp_rack *rack, int sopt_name,
 		RACK_OPTS_INC(tcp_rack_early_seg);
 		rack->r_ctl.rc_early_recovery_segs = optval;
 		break;
+	case TCP_RACK_ENABLE_HYSTART:
+	{
+		struct sockopt sopt;
+		struct cc_newreno_opts opt;
+
+		sopt.sopt_valsize = sizeof(struct cc_newreno_opts);
+		sopt.sopt_dir = SOPT_SET;
+		opt.name = CC_NEWRENO_ENABLE_HYSTART;
+		opt.val = optval;
+		if (CC_ALGO(tp)->ctl_output != NULL)
+			error = CC_ALGO(tp)->ctl_output(tp->ccv, &sopt, &opt);
+		else
+			error = EINVAL;
+	}
+	break;
 	case TCP_RACK_REORD_THRESH:
 		/* RACK reorder threshold (shift amount) */
 		RACK_OPTS_INC(tcp_rack_reord_thresh);
@@ -20210,6 +20299,7 @@ rack_set_sockopt(struct socket *so, struct sockopt *sopt,
 	case TCP_RACK_PACING_BETA:		/*  URL:pacing_beta */
 	case TCP_RACK_PACING_BETA_ECN:		/*  URL:pacing_beta_ecn */
 	case TCP_RACK_TIMER_SLOP:		/*  URL:timer_slop */
+	case TCP_RACK_ENABLE_HYSTART:		/*  URL:hystart */
 		break;
 	default:
 		/* Filter off all unknown options to the base stack */
@@ -20394,6 +20484,21 @@ rack_get_sockopt(struct socket *so, struct sockopt *sopt,
 			optval |= 2;
 		}
 		break;
+ 	case TCP_RACK_ENABLE_HYSTART:
+	{
+		struct sockopt sopt;
+		struct cc_newreno_opts opt;
+
+		sopt.sopt_valsize = sizeof(struct cc_newreno_opts);
+		sopt.sopt_dir = SOPT_GET;
+		opt.name = CC_NEWRENO_ENABLE_HYSTART;
+		if (CC_ALGO(tp)->ctl_output != NULL)
+			error = CC_ALGO(tp)->ctl_output(tp->ccv, &sopt, &opt);
+		else
+			error = EINVAL;
+		optval = opt.val;
+	}
+	break;
 	case TCP_FAST_RSM_HACK:
 		optval = rack->fast_rsm_hack;
 		break;

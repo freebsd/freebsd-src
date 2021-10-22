@@ -73,6 +73,7 @@ struct rack_sendmap {
 	uint64_t r_tim_lastsent[RACK_NUM_OF_RETRANS];
 	uint64_t r_ack_arrival;	/* This is the time of ack-arrival (if SACK'd) */
 	RB_ENTRY(rack_sendmap) r_next;		/* RB Tree next */
+	uint32_t r_fas;		/* Flight at send */
 };
 
 struct deferred_opt_list {
@@ -465,6 +466,8 @@ struct rack_control {
 	uint32_t rc_loss_at_start;	/* At measurement window where was our lost value */
 
 	uint32_t dsack_round_end;	/* In a round of seeing a DSACK */
+	uint32_t current_round;		/* Starting at zero */
+	uint32_t roundends;		/* acked value above which round ends */
 	uint32_t num_dsack;		/* Count of dsack's seen  (1 per window)*/
 	uint32_t forced_ack_ts;
 	uint32_t rc_lower_rtt_us_cts;	/* Time our GP rtt was last lowered */

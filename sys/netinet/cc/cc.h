@@ -163,6 +163,15 @@ struct cc_algo {
 	/* Called for an additional ECN processing apart from RFC3168. */
 	void	(*ecnpkt_handler)(struct cc_var *ccv);
 
+	/* Called when a new "round" begins, if the transport is tracking rounds.  */
+	void	(*newround)(struct cc_var *ccv, uint32_t round_cnt);
+
+	/*
+	 *  Called when a RTT sample is made (fas = flight at send, if you dont have it
+	 *  send the cwnd in).
+	 */
+	void	(*rttsample)(struct cc_var *ccv, uint32_t usec_rtt, uint32_t rxtcnt, uint32_t fas);
+
 	/* Called for {get|set}sockopt() on a TCP socket with TCP_CCALGOOPT. */
 	int     (*ctl_output)(struct cc_var *, struct sockopt *, void *);
 
