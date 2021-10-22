@@ -438,6 +438,7 @@ FBSD_1.6 {
 FBSD_1.7 {
 	 sched_getaffinity;
 	 sched_setaffinity;
+	 sched_getcpu;
 };
 
 FBSDprivate_1.0 {

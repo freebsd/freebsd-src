@@ -371,6 +371,7 @@ __ssize_t	__sys_recv(int, void *, __size_t, int);
 __ssize_t	__sys_recvfrom(int, void *, __size_t, int, struct sockaddr *,
 		    __socklen_t *);
 __ssize_t	__sys_recvmsg(int, struct msghdr *, int);
+int		__sys_sched_getcpu(void);
 int		__sys_select(int, struct fd_set *, struct fd_set *,
 		    struct fd_set *, struct timeval *);
 __ssize_t	__sys_sendmsg(int, const struct msghdr *, int);
