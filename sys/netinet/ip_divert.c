@@ -779,7 +779,6 @@ struct protosw div_protosw = {
 	.pr_protocol =		IPPROTO_DIVERT,
 	.pr_flags =		PR_ATOMIC|PR_ADDR,
 	.pr_input =		div_input,
-	.pr_ctloutput =		ip_ctloutput,
 	.pr_init =		div_init,
 	.pr_usrreqs =		&div_usrreqs
 };
