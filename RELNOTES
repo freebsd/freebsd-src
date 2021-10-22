@@ -10,16 +10,16 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
-d410b585b6f:
+d410b585b6f0:
 	sh(1) is now the default shell for the root user.
 
-396851c20ae:
+396851c20aeb:
 	libncursesw has been split into libtinfow and libncursesw, linker
 	scripts should make it transparent for consumers. pkg-config files
 	are also now installed to ease ports detecting the ncurses setup from
 	base.
 
-422084abbda:
+a422084abbda:
 	LLVM's MemorySanitizer can now be used in amd64 kernels.  See the
 	kmsan(9) manual page for more information.
 
