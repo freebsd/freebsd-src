@@ -241,9 +241,9 @@ static const struct execsw **execsw;
 
 #ifndef _SYS_SYSPROTO_H_
 struct execve_args {
-	char    *fname; 
+	char    *fname;
 	char    **argv;
-	char    **envv; 
+	char    **envv;
 };
 #endif
 
@@ -509,7 +509,8 @@ interpret:
 		/*
 		 * Descriptors opened only with O_EXEC or O_RDONLY are allowed.
 		 */
-		error = fgetvp_exec(td, args->fd, &cap_fexecve_rights, &newtextvp);
+		error = fgetvp_exec(td, args->fd, &cap_fexecve_rights,
+		    &newtextvp);
 		if (error)
 			goto exec_fail;
 		vn_lock(newtextvp, LK_SHARED | LK_RETRY);
@@ -628,7 +629,8 @@ interpret:
 		imgp->execpath = args->fname;
 	else {
 		VOP_UNLOCK(imgp->vp);
-		if (vn_fullpath(imgp->vp, &imgp->execpath, &imgp->freepath) != 0)
+		if (vn_fullpath(imgp->vp, &imgp->execpath,
+		    &imgp->freepath) != 0)
 			imgp->execpath = args->fname;
 		vn_lock(imgp->vp, LK_SHARED | LK_RETRY);
 	}
@@ -1040,7 +1042,7 @@ exec_map_first_page(struct image_params *imgp)
 #endif
 	error = vm_page_grab_valid_unlocked(&m, object, 0,
 	    VM_ALLOC_COUNT(VM_INITIAL_PAGEIN) |
-            VM_ALLOC_NORMAL | VM_ALLOC_NOBUSY | VM_ALLOC_WIRED);
+	    VM_ALLOC_NORMAL | VM_ALLOC_NOBUSY | VM_ALLOC_WIRED);
 
 	if (error != VM_PAGER_OK)
 		return (EIO);
@@ -1985,7 +1987,8 @@ sbuf_drain_core_output(void *arg, const char *data, int len)
 	if (locked)
 		PROC_UNLOCK(p);
 	if (cp->comp != NULL)
-		error = compressor_write(cp->comp, __DECONST(char *, data), len);
+		error = compressor_write(cp->comp, __DECONST(char *, data),
+		    len);
 	else
 		error = core_write(cp, __DECONST(void *, data), len, cp->offset,
 		    UIO_SYSSPACE, NULL);
