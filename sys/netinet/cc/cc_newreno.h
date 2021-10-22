@@ -35,6 +35,15 @@ struct newreno {
 	uint32_t beta;
 	uint32_t beta_ecn;
 	uint32_t newreno_flags;
+	uint32_t css_baseline_minrtt;
+	uint32_t css_current_round_minrtt;
+	uint32_t css_lastround_minrtt;
+	uint32_t css_rttsample_count;
+	uint32_t css_entered_at_round;
+	uint32_t css_current_round;
+	uint32_t css_fas_at_css_entry;
+	uint32_t css_lowrtt_fas;
+	uint32_t css_last_fas;
 };
 
 struct cc_newreno_opts {
@@ -42,6 +51,15 @@ struct cc_newreno_opts {
 	uint32_t	val;
 };
 
-#define CC_NEWRENO_BETA		1	/* Beta for normal DUP-ACK/Sack recovery */
-#define CC_NEWRENO_BETA_ECN	2	/* ECN Beta for Abe */
+#define CC_NEWRENO_BETA			1	/* Beta for normal DUP-ACK/Sack recovery */
+#define CC_NEWRENO_BETA_ECN		2	/* ECN Beta for Abe */
+#define CC_NEWRENO_ENABLE_HYSTART	3	/* Enable hystart */
+
+/* Flags values */
+#define CC_NEWRENO_HYSTART_ALLOWED	0x0001	/* Does the tcp connection allow hystart? */
+#define CC_NEWRENO_HYSTART_ENABLED	0x0002	/* We can do hystart, a loss removes this flag */
+#define CC_NEWRENO_HYSTART_IN_CSS	0x0004	/* If we enter hystart CSS this flag is set */
+#define CC_NEWRENO_HYSTART_CAN_SH_CWND	0x0008	/* Can hystart when going CSS -> CA slam the cwnd */
+#define CC_NEWRENO_HYSTART_CONS_SSTH	0x0010	/* Should hystart use the more conservative sstrhesh */
+#define CC_NEWRENO_BETA_ECN_ENABLED	0x0020
 #endif /* _CC_NEWRENO_H */
