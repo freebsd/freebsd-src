@@ -435,6 +435,11 @@ FBSD_1.6 {
 	tcsetwinsize;
 };
 
+FBSD_1.7 {
+	 sched_getaffinity;
+	 sched_setaffinity;
+};
+
 FBSDprivate_1.0 {
 	/* needed by thread libraries */
 	__thr_jtable;
