@@ -1,3 +1,0 @@
-pass in quick on enc0 all flags S/SA keep state
-pass in quick on enc0 inet all flags S/SA keep state
-pass in quick on enc0 inet6 all flags S/SA keep state

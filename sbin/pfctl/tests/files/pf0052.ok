@@ -1,5 +1,0 @@
-set optimization normal
-set optimization satellite
-set optimization high-latency
-set optimization conservative
-set optimization aggressive

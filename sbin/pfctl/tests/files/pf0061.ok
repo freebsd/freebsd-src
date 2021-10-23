@@ -1,1 +1,0 @@
-pass inet from any to (lo0)/24 flags S/SA keep state

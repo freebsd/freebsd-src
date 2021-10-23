@@ -1,3 +1,0 @@
-pass in quick on tun1000000 keep state tag regress
-pass out quick on lo0 keep state tagged regress
-

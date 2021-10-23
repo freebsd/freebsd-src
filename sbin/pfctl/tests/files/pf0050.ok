@@ -1,3 +1,0 @@
-extif = "wi0"
-extif = "lo0"
-block drop in on lo0 all

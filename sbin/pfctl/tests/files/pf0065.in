@@ -1,2 +1,0 @@
-antispoof for lo0 label "antispoof-lo0"
-antispoof log quick for lo0 inet label "antispoof-lo0-2"

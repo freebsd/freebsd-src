@@ -1,3 +1,0 @@
-interfaces = "{ enc0, tun1000000 }"
-
-block in on $interfaces all
