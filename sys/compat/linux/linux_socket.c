@@ -2101,6 +2101,8 @@ linux_sendfile_common(struct thread *td, l_int out, l_int in,
 	td->td_retval[0] = (ssize_t)bytes_read;
 drop:
 	fdrop(fp, td);
+	if (error == ENOTSOCK)
+		error = EINVAL;
 	return (error);
 }
 
