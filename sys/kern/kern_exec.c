@@ -432,6 +432,7 @@ do_execve(struct thread *td, struct image_args *args, struct mac *mac_p,
 	int error, i, orig_osrel;
 	uint32_t orig_fctl0;
 	Elf_Brandinfo *orig_brandinfo;
+	size_t freepath_size;
 	static const char fexecv_proc_title[] = "(fexecv)";
 
 	imgp = &image_params;
@@ -479,7 +480,8 @@ do_execve(struct thread *td, struct image_args *args, struct mac *mac_p,
 	 */
 	if (args->fname != NULL) {
 		NDINIT(&nd, LOOKUP, ISOPEN | LOCKLEAF | LOCKSHARED | FOLLOW |
-		    SAVENAME | AUDITVNODE1, UIO_SYSSPACE, args->fname, td);
+		    SAVENAME | AUDITVNODE1 | WANTPARENT,
+		    UIO_SYSSPACE, args->fname, td);
 	}
 
 	SDT_PROBE1(proc, , , exec, args->fname);
@@ -625,9 +627,18 @@ interpret:
 	/*
 	 * Do the best to calculate the full path to the image file.
 	 */
-	if (args->fname != NULL && args->fname[0] == '/')
-		imgp->execpath = args->fname;
-	else {
+	if (args->fname != NULL) {
+		if (args->fname[0] == '/') {
+			imgp->execpath = args->fname;
+		} else {
+			VOP_UNLOCK(imgp->vp);
+			freepath_size = MAXPATHLEN;
+			if (vn_fullpath_hardlink(&nd, &imgp->execpath,
+			    &imgp->freepath, &freepath_size) != 0)
+				imgp->execpath = args->fname;
+			vn_lock(imgp->vp, LK_SHARED | LK_RETRY);
+		}
+	} else {
 		VOP_UNLOCK(imgp->vp);
 		if (vn_fullpath(imgp->vp, &imgp->execpath,
 		    &imgp->freepath) != 0)
@@ -680,8 +691,6 @@ interpret:
 		VOP_UNSET_TEXT_CHECKED(newtextvp);
 		imgp->textset = false;
 		/* free name buffer and old vnode */
-		if (args->fname != NULL)
-			NDFREE(&nd, NDF_ONLY_PNBUF);
 #ifdef MAC
 		mac_execve_interpreter_enter(newtextvp, &interpvplabel);
 #endif
@@ -690,6 +699,11 @@ interpret:
 			imgp->opened = false;
 		}
 		vput(newtextvp);
+		if (args->fname != NULL) {
+			if (nd.ni_dvp != NULL)
+				vrele(nd.ni_dvp);
+			NDFREE(&nd, NDF_ONLY_PNBUF);
+		}
 		vm_object_deallocate(imgp->object);
 		imgp->object = NULL;
 		execve_nosetid(imgp);
@@ -697,9 +711,10 @@ interpret:
 		free(imgp->freepath, M_TEMP);
 		imgp->freepath = NULL;
 		/* set new name to that of the interpreter */
-		NDINIT(&nd, LOOKUP, ISOPEN | LOCKLEAF | LOCKSHARED | FOLLOW |
-		    SAVENAME, UIO_SYSSPACE, imgp->interpreter_name, td);
 		args->fname = imgp->interpreter_name;
+		NDINIT(&nd, LOOKUP, ISOPEN | LOCKLEAF | LOCKSHARED | FOLLOW |
+		    SAVENAME | WANTPARENT,
+		    UIO_SYSSPACE, imgp->interpreter_name, td);
 		goto interpret;
 	}
 
@@ -930,8 +945,6 @@ exec_fail_dealloc:
 		exec_unmap_first_page(imgp);
 
 	if (imgp->vp != NULL) {
-		if (args->fname)
-			NDFREE(&nd, NDF_ONLY_PNBUF);
 		if (imgp->opened)
 			VOP_CLOSE(imgp->vp, FREAD, td->td_ucred, td);
 		if (imgp->textset)
@@ -940,6 +953,11 @@ exec_fail_dealloc:
 			vput(imgp->vp);
 		else
 			VOP_UNLOCK(imgp->vp);
+		if (args->fname != NULL) {
+			if (nd.ni_dvp != NULL)
+				vrele(nd.ni_dvp);
+			NDFREE(&nd, NDF_ONLY_PNBUF);
+		}
 	}
 
 	if (imgp->object != NULL)
