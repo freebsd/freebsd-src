@@ -421,10 +421,10 @@ do_execve(struct thread *td, struct image_args *args, struct mac *mac_p,
 	struct ktr_io_params *kiop;
 #endif
 	struct vnode *oldtextvp = NULL, *newtextvp;
-	int credential_changing;
+	bool credential_changing;
 #ifdef MAC
 	struct label *interpvplabel = NULL;
-	int will_transition;
+	bool will_transition;
 #endif
 #ifdef HWPMC_HOOKS
 	struct pmckern_procexec pe;
@@ -558,14 +558,14 @@ interpret:
 	 * XXXMAC: For the time being, use NOSUID to also prohibit
 	 * transitions on the file system.
 	 */
-	credential_changing = 0;
+	credential_changing = false;
 	credential_changing |= (attr.va_mode & S_ISUID) &&
 	    oldcred->cr_uid != attr.va_uid;
 	credential_changing |= (attr.va_mode & S_ISGID) &&
 	    oldcred->cr_gid != attr.va_gid;
 #ifdef MAC
 	will_transition = mac_vnode_execve_will_transition(oldcred, imgp->vp,
-	    interpvplabel, imgp);
+	    interpvplabel, imgp) != 0;
 	credential_changing |= will_transition;
 #endif
 
