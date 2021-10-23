@@ -1,9 +1,0 @@
-echo fail all; false 'all' '${.TARGET}' '$${.TARGET}'
-fail all
-*** Error code 1 (continuing)
-
-Stop.
-make: stopped in unit-tests
-.ERROR_TARGET='all'
-.ERROR_CMD=''
-exit status 1

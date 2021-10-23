@@ -1,8 +1,0 @@
-make: don't know how to make .a (continuing)
-make: don't know how to make .a.b (continuing)
-make: don't know how to make .b.a (continuing)
-`all' not remade because of errors.
-
-Stop.
-make: stopped in unit-tests
-exit status 1

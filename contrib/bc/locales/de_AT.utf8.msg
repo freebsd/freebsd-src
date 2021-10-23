@@ -1,1 +1,0 @@
-de_AT.UTF-8.msg

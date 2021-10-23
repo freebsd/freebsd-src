@@ -1,4 +1,0 @@
-make: "cond-op-or.mk" line 43: Malformed conditional (0 ||| 0)
-make: Fatal errors encountered -- cannot continue
-make: stopped in unit-tests
-exit status 1

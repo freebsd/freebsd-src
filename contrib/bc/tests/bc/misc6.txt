@@ -1,1 +1,0 @@
-stdin1.txt

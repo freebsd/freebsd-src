@@ -1,9 +1,0 @@
-> cmd-interrupt-ordinary
-make: *** cmd-interrupt-ordinary removed
-interrupt-ordinary: ok
-> cmd-interrupt-phony
-make: *** cmd-interrupt-phony removed
-interrupt-phony: ok
-> cmd-interrupt-precious
-interrupt-precious: ok
-exit status 0

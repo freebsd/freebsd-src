@@ -1,1 +1,0 @@
-pt_PT.UTF-8.msg

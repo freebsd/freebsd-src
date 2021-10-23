@@ -1,6 +1,0 @@
-[Unit]
-Description=Rpcap Per-Connection Server
-
-[Service]
-ExecStart=-/usr/local/sbin/rpcapd -i
-StandardInput=socket

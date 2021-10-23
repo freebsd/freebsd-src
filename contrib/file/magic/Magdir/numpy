@@ -1,9 +1,0 @@
-
-#------------------------------------------------------------------------------
-# $File: numpy,v 1.1 2019/05/09 16:24:36 christos Exp $
-# numpy: file(1) magic for NumPy array binary serialization format
-# Reference: https://docs.scipy.org/doc/numpy/reference/generated/numpy.lib.format.html
-0	string		\x93NUMPY	NumPy array,
->6	ubyte		x		version %d
->7	ubyte		x		\b.%d,
->8	uleshort	x		header length %d

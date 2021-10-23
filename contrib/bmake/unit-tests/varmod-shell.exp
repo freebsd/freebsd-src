@@ -1,3 +1,0 @@
-make: "echo word; false" returned non-zero status
-make: "echo word; false" returned non-zero status
-exit status 0

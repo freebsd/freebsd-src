@@ -1,9 +1,0 @@
-prime.dc
-asciify.dc
-stream.dc
-array.dc
-else.dc
-factorial.dc
-loop.dc
-quit.dc
-weird.dc

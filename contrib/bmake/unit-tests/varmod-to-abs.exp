@@ -1,5 +1,0 @@
-make: "varmod-to-abs.mk" line 18: does-not-exist.c
-make: "varmod-to-abs.mk" line 19: does-not-exist.c
-cached_realpath: varmod-to-abs.mk -> varmod-to-abs.mk
-make: "varmod-to-abs.mk" line 23: varmod-to-abs.mk
-exit status 0

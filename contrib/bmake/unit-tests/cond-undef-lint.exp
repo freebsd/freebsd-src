@@ -1,7 +1,0 @@
-make: "cond-undef-lint.mk" line 23: Variable "UNDEF" is undefined
-make: "cond-undef-lint.mk" line 38: Variable "UNDEF" is undefined
-make: "cond-undef-lint.mk" line 38: Variable "VAR." is undefined
-make: "cond-undef-lint.mk" line 49: Variable "VAR.defined" is undefined
-make: Fatal errors encountered -- cannot continue
-make: stopped in unit-tests
-exit status 1

@@ -1,5 +1,0 @@
-# basics
-a		&	a	a
-abc		&	abc	abc
-abc|de		-	abc	abc
-a|b|c		-	abc	a

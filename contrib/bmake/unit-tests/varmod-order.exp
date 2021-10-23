@@ -1,7 +1,0 @@
-make: Bad modifier `:OX' for NUMBERS
-make: "varmod-order.mk" line 13: Undefined variable "${NUMBERS:OX"
-make: Bad modifier `:OxXX' for NUMBERS
-make: "varmod-order.mk" line 16: Undefined variable "${NUMBERS:Ox"
-make: Fatal errors encountered -- cannot continue
-make: stopped in unit-tests
-exit status 1

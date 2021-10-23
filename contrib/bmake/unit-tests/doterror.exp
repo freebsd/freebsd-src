@@ -1,9 +1,0 @@
-At first, I am
-happy
-and now: sad
-*** Error code 1
-
-Stop.
-make: stopped in unit-tests
-.ERROR: Looks like 'sad' is upset.
-exit status 1

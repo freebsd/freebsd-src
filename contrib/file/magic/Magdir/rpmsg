@@ -1,7 +1,0 @@
-
-#------------------------------------------------------------------------------
-# $File: rpmsg,v 1.1 2019/04/19 00:40:47 christos Exp $
-# rpmsg: file(1) magic for restricted-permission messages (or "rights-protected" messages)
-# see https://en.wikipedia.org/wiki/Rpmsg
-
-0	string	\x76\xe8\x04\x60\xc4\x11\xe3\x86	rpmsg Restricted Permission Message

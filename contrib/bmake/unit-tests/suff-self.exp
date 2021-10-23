@@ -1,6 +1,0 @@
-make: Graph cycles through suff-self.suff
-`all' not remade because of errors.
-
-Stop.
-make: stopped in unit-tests
-exit status 1

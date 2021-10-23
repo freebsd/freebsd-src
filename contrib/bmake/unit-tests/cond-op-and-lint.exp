@@ -1,4 +1,0 @@
-make: "cond-op-and-lint.mk" line 9: Unknown operator '&'
-make: Fatal errors encountered -- cannot continue
-make: stopped in unit-tests
-exit status 1

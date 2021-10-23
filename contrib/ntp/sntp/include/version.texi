@@ -1,3 +1,0 @@
-@set UPDATED 23 June 2020
-@set EDITION 4.2.8p15
-@set VERSION 4.2.8p15

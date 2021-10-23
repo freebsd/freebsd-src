@@ -1,1 +1,0 @@
-BEGIN { printf("%*s"); }

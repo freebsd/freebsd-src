@@ -1,2 +1,0 @@
-DPADD+= ${LIBBZ2}
-LDADD+= -lbz2

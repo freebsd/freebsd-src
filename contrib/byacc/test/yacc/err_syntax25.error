@@ -1,3 +1,0 @@
-YACC: e - line 11 of "./err_syntax25.y", too many %union declarations
-%union {
-^

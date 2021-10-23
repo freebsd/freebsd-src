@@ -1,6 +1,0 @@
-make: "error.mk" line 6: just FYI
-make: "error.mk" line 7: warning: this could be serious
-make: "error.mk" line 8: this is fatal
-
-make: stopped in unit-tests
-exit status 1

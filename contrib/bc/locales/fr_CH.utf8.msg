@@ -1,1 +1,0 @@
-fr_CH.UTF-8.msg

@@ -1,2 +1,0 @@
-make: "cond-cmp-unary.mk" line 53: This is only reached because of a bug in EvalNotEmpty.
-exit status 0

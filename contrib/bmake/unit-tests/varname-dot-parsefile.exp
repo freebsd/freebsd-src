@@ -1,5 +1,0 @@
-make: "varname-dot-parsefile.mk" line 23: At this point, .PARSEFILE is undefined.
-make: "<normalized>" line 29: The location can be faked in some cases.
-make: "varname-dot-parsefile.mk" line 33: The location is no longer fake.
-At run time, .PARSEFILE is undefined.
-exit status 0

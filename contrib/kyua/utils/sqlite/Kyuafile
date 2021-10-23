@@ -1,9 +1,0 @@
-syntax(2)
-
-test_suite("kyua")
-
-atf_test_program{name="c_gate_test"}
-atf_test_program{name="database_test"}
-atf_test_program{name="exceptions_test"}
-atf_test_program{name="statement_test"}
-atf_test_program{name="transaction_test"}

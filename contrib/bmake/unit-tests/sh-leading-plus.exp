@@ -1,4 +1,0 @@
-echo 'this command is not run'
-echo 'this command is run'
-this command is run
-exit status 0

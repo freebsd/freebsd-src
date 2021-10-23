@@ -1,9 +1,0 @@
-[Unit]
-Description=Rpcap Socket for Per-Connection Servers
-
-[Socket]
-ListenStream=2002
-Accept=yes
-
-[Install]
-WantedBy=sockets.target

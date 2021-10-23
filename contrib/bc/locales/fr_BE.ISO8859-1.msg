@@ -1,1 +1,0 @@
-fr_FR.ISO8859-1.msg
