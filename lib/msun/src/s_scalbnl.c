@@ -1,3 +1,11 @@
+/*
+ * Copyright (c) 2005-2020 Rich Felker, et al.
+ *
+ * SPDX-License-Identifier: MIT
+ *
+ * Please see https://git.musl-libc.org/cgit/musl/tree/COPYRIGHT
+ * for all contributors to musl.
+ */
 #include <math.h>
 #include <float.h>
 #include "math_private.h"
