@@ -1,5 +1,0 @@
-# $FreeBSD$
-.for m in 3 5 7
-.include "man/man${m}/Makefile"
-.PATH:	${.CURDIR}/man/man${m}
-.endfor
