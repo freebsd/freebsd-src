@@ -4384,7 +4384,11 @@ biodone(struct bio *bp)
 		atomic_add_int(&inflight_transient_maps, -1);
 	}
 	done = bp->bio_done;
-	if (done == NULL) {
+	/*
+	 * The check for done == biodone is to allow biodone to be
+	 * used as a bio_done routine.
+	 */
+	if (done == NULL || done == biodone) {
 		mtxp = mtx_pool_find(mtxpool_sleep, bp);
 		mtx_lock(mtxp);
 		bp->bio_flags |= BIO_DONE;
