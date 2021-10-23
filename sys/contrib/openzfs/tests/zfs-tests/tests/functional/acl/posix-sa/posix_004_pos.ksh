@@ -1,1 +1,0 @@
-../posix/posix_004_pos.ksh

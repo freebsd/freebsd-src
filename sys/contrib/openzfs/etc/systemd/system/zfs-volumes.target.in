@@ -1,7 +1,0 @@
-[Unit]
-Description=ZFS volumes are ready
-After=zfs-volume-wait.service
-Requires=zfs-volume-wait.service
-
-[Install]
-WantedBy=zfs.target

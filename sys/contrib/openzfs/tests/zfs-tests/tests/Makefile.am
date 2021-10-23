@@ -1,1 +1,0 @@
-SUBDIRS = functional perf stress
