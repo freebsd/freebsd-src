@@ -616,6 +616,15 @@ linux_ptrace_get_syscall_info(struct thread *td, pid_t pid,
 		if (sr.sr_error == 0) {
 			si.exit.rval = sr.sr_retval[0];
 			si.exit.is_error = 0;
+		} else if (sr.sr_error == EJUSTRETURN) {
+			/*
+			 * EJUSTRETURN means the actual value to return
+			 * has already been put into td_frame; instead
+			 * of extracting it and trying to determine whether
+			 * it's an error or not just bail out and let
+			 * the ptracing process fall back to another method.
+			 */
+			si.op = LINUX_PTRACE_SYSCALL_INFO_NONE;
 		} else {
 			si.exit.rval = bsd_to_linux_errno(sr.sr_error);
 			si.exit.is_error = 1;
