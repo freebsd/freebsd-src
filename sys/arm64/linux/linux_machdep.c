@@ -133,7 +133,7 @@ linux_set_cloned_tls(struct thread *td, void *desc)
 }
 
 void
-bsd_to_linux_regset(struct reg *b_reg, struct linux_pt_regset *l_regset)
+bsd_to_linux_regset(const struct reg *b_reg, struct linux_pt_regset *l_regset)
 {
 
 	KASSERT(sizeof(l_regset->x) == sizeof(b_reg->x) + sizeof(l_ulong),
