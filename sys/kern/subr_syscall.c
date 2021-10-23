@@ -255,6 +255,18 @@ syscallret(struct thread *td)
 	    (td->td_dbgflags & (TDB_EXEC | TDB_FORK)) != 0)) {
 		PROC_LOCK(p);
 		/*
+		 * Linux debuggers expect an additional stop for exec,
+		 * between the usual syscall entry and exit.  Raise
+		 * the exec event now and then clear TDB_EXEC so that
+		 * the next stop is reported as a syscall exit by
+		 * linux_ptrace_status().
+		 */
+		if ((td->td_dbgflags & TDB_EXEC) != 0 &&
+		    SV_PROC_ABI(td->td_proc) == SV_ABI_LINUX) {
+			ptracestop(td, SIGTRAP, NULL);
+			td->td_dbgflags &= ~TDB_EXEC;
+		}
+		/*
 		 * If tracing the execed process, trap to the debugger
 		 * so that breakpoints can be set before the program
 		 * executes.  If debugger requested tracing of syscall

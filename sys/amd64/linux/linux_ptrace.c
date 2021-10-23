@@ -71,6 +71,7 @@ __FBSDID("$FreeBSD$");
 #define	LINUX_PTRACE_SEIZE		0x4206
 #define	LINUX_PTRACE_GET_SYSCALL_INFO	0x420e
 
+#define	LINUX_PTRACE_EVENT_EXEC		4
 #define	LINUX_PTRACE_EVENT_EXIT		6
 
 #define	LINUX_PTRACE_O_TRACESYSGOOD	1
@@ -151,8 +152,12 @@ linux_ptrace_status(struct thread *td, pid_t pid, int status)
 	    lwpinfo.pl_flags & PL_FLAG_SCE)
 		status |= (LINUX_SIGTRAP | 0x80) << 8;
 	if ((pem->ptrace_flags & LINUX_PTRACE_O_TRACESYSGOOD) &&
-	    lwpinfo.pl_flags & PL_FLAG_SCX)
-		status |= (LINUX_SIGTRAP | 0x80) << 8;
+	    lwpinfo.pl_flags & PL_FLAG_SCX) {
+		if (lwpinfo.pl_flags & PL_FLAG_EXEC)
+			status |= (LINUX_SIGTRAP | LINUX_PTRACE_EVENT_EXEC << 8) << 8;
+		else
+			status |= (LINUX_SIGTRAP | 0x80) << 8;
+	}
 	if ((pem->ptrace_flags & LINUX_PTRACE_O_TRACEEXIT) &&
 	    lwpinfo.pl_flags & PL_FLAG_EXITED)
 		status |= (LINUX_SIGTRAP | LINUX_PTRACE_EVENT_EXIT << 8) << 8;
