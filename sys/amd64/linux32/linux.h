@@ -634,7 +634,7 @@ struct linux_pt_regset32 {
 
 struct reg32;
 
-void	bsd_to_linux_regset32(struct reg32 *b_reg,
+void	bsd_to_linux_regset32(const struct reg32 *b_reg,
 	    struct linux_pt_regset32 *l_regset);
 
 #endif /* !_AMD64_LINUX_H_ */

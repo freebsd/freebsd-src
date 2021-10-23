@@ -322,7 +322,7 @@ struct linux_pt_regset {
 
 struct reg;
 
-void	bsd_to_linux_regset(struct reg *b_reg,
+void	bsd_to_linux_regset(const struct reg *b_reg,
 	    struct linux_pt_regset *l_regset);
 
 #endif /* _ARM64_LINUX_H_ */
