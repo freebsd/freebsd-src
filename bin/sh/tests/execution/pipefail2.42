@@ -1,4 +1,0 @@
-# $FreeBSD$
-
-set -o pipefail
-(exit 42) | :

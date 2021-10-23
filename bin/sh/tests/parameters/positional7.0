@@ -1,8 +1,0 @@
-# $FreeBSD$
-
-set -- / ''
-IFS=*
-set -- "$*"
-IFS=:
-args="$*"
-[ "$#:$args" = "1:/*" ]

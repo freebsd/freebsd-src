@@ -1,5 +1,0 @@
-# $FreeBSD$
-
-case [ in
-[[:alpha:]]) echo bad
-esac

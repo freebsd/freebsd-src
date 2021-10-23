@@ -1,9 +1,0 @@
-# $FreeBSD$
-
-r=`cd /bin && PATH=. command -V ls`
-case $r in
-*/bin/ls*|*/bin/./ls*) ;;
-*)
-	echo "Unexpected result: $r"
-	exit 1
-esac

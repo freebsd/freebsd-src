@@ -1,3 +1,0 @@
-# $FreeBSD$
-
-env @badness=1 ${SH} -c 'v=`export -p`; eval "$v"'

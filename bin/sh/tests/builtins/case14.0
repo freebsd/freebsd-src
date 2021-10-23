@@ -1,5 +1,0 @@
-# $FreeBSD$
-
-case `false` in
-no) exit 3 ;;
-esac
