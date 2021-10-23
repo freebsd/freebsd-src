@@ -1,4 +1,0 @@
-.\" $FreeBSD$
-Set to build and install gcc and g++.
-This option is deprecated and will be removed before
-.Fx 13 .

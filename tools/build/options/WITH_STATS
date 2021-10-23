@@ -1,4 +1,0 @@
-.\" $FreeBSD$
-Set to build and install
-.Lb libstats
-and dependent binaries.

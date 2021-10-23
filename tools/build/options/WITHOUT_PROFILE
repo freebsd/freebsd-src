@@ -1,3 +1,0 @@
-.\" $FreeBSD$
-Set to not build profiled libraries for use with
-.Xr gprof 8 .

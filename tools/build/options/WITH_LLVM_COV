@@ -1,4 +1,0 @@
-.\" $FreeBSD$
-Set to build the
-.Xr llvm-cov 1
-tool.

@@ -1,5 +1,0 @@
-.\" $FreeBSD$
-Cache result of dirdeps.mk which can save significant time
-for subsequent builds.
-Depends on
-.Va WITH_DIRDEPS_BUILD .
