@@ -1,4 +1,0 @@
-file.c
-@@ -5,1 +5,1 @@
--       set Log(compressProg) /usr/local/bin/gzip
-+       set Log(compressProg) /usr/bin/gzip
