@@ -1,7 +1,0 @@
-Minimum SCTP events seen
-
-ip:::send - yes
-ip:::receive - yes
-sctp:::send - yes
-sctp:::receive - yes
-
