@@ -31,7 +31,7 @@
 # "panic: ffs_checkblk: cylinder group read failed" seen:
 # https://people.freebsd.org/~pho/stress/log/log0170.txt
 
-" "panic: softdep_update_inodeblock inconsistent ip ..." seen:
+# "panic: softdep_update_inodeblock inconsistent ip ..." seen:
 # https://people.freebsd.org/~pho/stress/log/log0184.txt
 
 [ `id -u ` -ne 0 ] && echo "Must be root!" && exit 1
