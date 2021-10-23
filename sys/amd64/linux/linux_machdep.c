@@ -299,7 +299,7 @@ DEFINE_IFUNC(, int, futex_xorl, (int, uint32_t *, int *))
 }
 
 void
-bsd_to_linux_regset(struct reg *b_reg, struct linux_pt_regset *l_regset)
+bsd_to_linux_regset(const struct reg *b_reg, struct linux_pt_regset *l_regset)
 {
 
 	l_regset->r15 = b_reg->r_r15;
