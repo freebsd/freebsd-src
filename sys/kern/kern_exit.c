@@ -424,11 +424,19 @@ exit1(struct thread *td, int rval, int signo)
 	ktrprocexit(td);
 #endif
 	/*
-	 * Release reference to text vnode
+	 * Release reference to text vnode etc
 	 */
 	if (p->p_textvp != NULL) {
 		vrele(p->p_textvp);
 		p->p_textvp = NULL;
+	}
+	if (p->p_textdvp != NULL) {
+		vrele(p->p_textdvp);
+		p->p_textdvp = NULL;
+	}
+	if (p->p_binname != NULL) {
+		free(p->p_binname, M_PARGS);
+		p->p_binname = NULL;
 	}
 
 	/*
