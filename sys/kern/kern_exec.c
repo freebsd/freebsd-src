@@ -420,7 +420,9 @@ do_execve(struct thread *td, struct image_args *args, struct mac *mac_p,
 #ifdef KTRACE
 	struct ktr_io_params *kiop;
 #endif
-	struct vnode *oldtextvp = NULL, *newtextvp;
+	struct vnode *oldtextvp, *newtextvp;
+	struct vnode *oldtextdvp, *newtextdvp;
+	char *oldbinname, *newbinname;
 	bool credential_changing;
 #ifdef MAC
 	struct label *interpvplabel = NULL;
@@ -436,6 +438,9 @@ do_execve(struct thread *td, struct image_args *args, struct mac *mac_p,
 	static const char fexecv_proc_title[] = "(fexecv)";
 
 	imgp = &image_params;
+	oldtextvp = oldtextdvp = NULL;
+	newtextvp = newtextdvp = NULL;
+	newbinname = oldbinname = NULL;
 #ifdef KTRACE
 	kiop = NULL;
 #endif
@@ -471,19 +476,6 @@ do_execve(struct thread *td, struct image_args *args, struct mac *mac_p,
 		goto exec_fail;
 #endif
 
-	/*
-	 * Translate the file name. namei() returns a vnode pointer
-	 *	in ni_vp among other things.
-	 *
-	 * XXXAUDIT: It would be desirable to also audit the name of the
-	 * interpreter if this is an interpreted binary.
-	 */
-	if (args->fname != NULL) {
-		NDINIT(&nd, LOOKUP, ISOPEN | LOCKLEAF | LOCKSHARED | FOLLOW |
-		    SAVENAME | AUDITVNODE1 | WANTPARENT,
-		    UIO_SYSSPACE, args->fname, td);
-	}
-
 	SDT_PROBE1(proc, , , exec, args->fname);
 
 interpret:
@@ -500,12 +492,42 @@ interpret:
 			goto exec_fail;
 		}
 #endif
+
+		/*
+		 * Translate the file name. namei() returns a vnode
+		 * pointer in ni_vp among other things.
+		 */
+		NDINIT(&nd, LOOKUP, ISOPEN | LOCKLEAF | LOCKSHARED | FOLLOW |
+		    SAVENAME | AUDITVNODE1 | WANTPARENT, UIO_SYSSPACE,
+		    args->fname, td);
+
 		error = namei(&nd);
 		if (error)
 			goto exec_fail;
 
 		newtextvp = nd.ni_vp;
+		newtextdvp = nd.ni_dvp;
+		nd.ni_dvp = NULL;
+		newbinname = malloc(nd.ni_cnd.cn_namelen + 1, M_PARGS,
+		    M_WAITOK);
+		memcpy(newbinname, nd.ni_cnd.cn_nameptr, nd.ni_cnd.cn_namelen);
+		newbinname[nd.ni_cnd.cn_namelen] = '\0';
 		imgp->vp = newtextvp;
+
+		/*
+		 * Do the best to calculate the full path to the image file.
+		 */
+		if (args->fname[0] == '/') {
+			imgp->execpath = args->fname;
+		} else {
+			VOP_UNLOCK(imgp->vp);
+			freepath_size = MAXPATHLEN;
+			if (vn_fullpath_hardlink(newtextvp, newtextdvp,
+			    newbinname, nd.ni_cnd.cn_namelen, &imgp->execpath,
+			    &imgp->freepath, &freepath_size) != 0)
+				imgp->execpath = args->fname;
+			vn_lock(imgp->vp, LK_SHARED | LK_RETRY);
+		}
 	} else {
 		AUDIT_ARG_FD(args->fd);
 		/*
@@ -515,6 +537,9 @@ interpret:
 		    &newtextvp);
 		if (error)
 			goto exec_fail;
+		if (vn_fullpath(imgp->vp, &imgp->execpath,
+		    &imgp->freepath) != 0)
+			imgp->execpath = args->fname;
 		vn_lock(newtextvp, LK_SHARED | LK_RETRY);
 		AUDIT_ARG_VNODE1(newtextvp);
 		imgp->vp = newtextvp;
@@ -625,28 +650,6 @@ interpret:
 	/* The new credentials are installed into the process later. */
 
 	/*
-	 * Do the best to calculate the full path to the image file.
-	 */
-	if (args->fname != NULL) {
-		if (args->fname[0] == '/') {
-			imgp->execpath = args->fname;
-		} else {
-			VOP_UNLOCK(imgp->vp);
-			freepath_size = MAXPATHLEN;
-			if (vn_fullpath_hardlink(&nd, &imgp->execpath,
-			    &imgp->freepath, &freepath_size) != 0)
-				imgp->execpath = args->fname;
-			vn_lock(imgp->vp, LK_SHARED | LK_RETRY);
-		}
-	} else {
-		VOP_UNLOCK(imgp->vp);
-		if (vn_fullpath(imgp->vp, &imgp->execpath,
-		    &imgp->freepath) != 0)
-			imgp->execpath = args->fname;
-		vn_lock(imgp->vp, LK_SHARED | LK_RETRY);
-	}
-
-	/*
 	 *	If the current process has a special image activator it
 	 *	wants to try first, call it.   For example, emulating shell
 	 *	scripts differently.
@@ -699,10 +702,15 @@ interpret:
 			imgp->opened = false;
 		}
 		vput(newtextvp);
+		imgp->vp = newtextvp = NULL;
 		if (args->fname != NULL) {
-			if (nd.ni_dvp != NULL)
-				vrele(nd.ni_dvp);
+			if (newtextdvp != NULL) {
+				vrele(newtextdvp);
+				newtextdvp = NULL;
+			}
 			NDFREE(&nd, NDF_ONLY_PNBUF);
+			free(newbinname, M_PARGS);
+			newbinname = NULL;
 		}
 		vm_object_deallocate(imgp->object);
 		imgp->object = NULL;
@@ -712,9 +720,6 @@ interpret:
 		imgp->freepath = NULL;
 		/* set new name to that of the interpreter */
 		args->fname = imgp->interpreter_name;
-		NDINIT(&nd, LOOKUP, ISOPEN | LOCKLEAF | LOCKSHARED | FOLLOW |
-		    SAVENAME | WANTPARENT,
-		    UIO_SYSSPACE, imgp->interpreter_name, td);
 		goto interpret;
 	}
 
@@ -875,11 +880,17 @@ interpret:
 	}
 
 	/*
-	 * Store the vp for use in procfs.  This vnode was referenced by namei
-	 * or fgetvp_exec.
+	 * Store the vp for use in kern.proc.pathname.  This vnode was
+	 * referenced by namei() or fgetvp_exec().
 	 */
 	oldtextvp = p->p_textvp;
 	p->p_textvp = newtextvp;
+	oldtextdvp = p->p_textdvp;
+	p->p_textdvp = newtextdvp;
+	newtextdvp = NULL;
+	oldbinname = p->p_binname;
+	p->p_binname = newbinname;
+	newbinname = NULL;
 
 #ifdef KDTRACE_HOOKS
 	/*
@@ -953,11 +964,11 @@ exec_fail_dealloc:
 			vput(imgp->vp);
 		else
 			VOP_UNLOCK(imgp->vp);
-		if (args->fname != NULL) {
-			if (nd.ni_dvp != NULL)
-				vrele(nd.ni_dvp);
+		if (args->fname != NULL)
 			NDFREE(&nd, NDF_ONLY_PNBUF);
-		}
+		if (newtextdvp != NULL)
+			vrele(newtextdvp);
+		free(newbinname, M_PARGS);
 	}
 
 	if (imgp->object != NULL)
@@ -996,6 +1007,9 @@ exec_fail:
 	 */
 	if (oldtextvp != NULL)
 		vrele(oldtextvp);
+	if (oldtextdvp != NULL)
+		vrele(oldtextdvp);
+	free(oldbinname, M_PARGS);
 #ifdef KTRACE
 	ktr_io_params_free(kiop);
 #endif

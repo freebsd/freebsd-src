@@ -666,6 +666,8 @@ struct proc {
 	int		p_traceflag;	/* (o) Kernel trace points. */
 	struct ktr_io_params	*p_ktrioparms;	/* (c + o) Params for ktrace. */
 	struct vnode	*p_textvp;	/* (b) Vnode of executable. */
+	struct vnode	*p_textdvp;	/* (b) Dir containing textvp. */
+	char		*p_binname;	/* (b) Binary hardlink name. */
 	u_int		p_lock;		/* (c) Proclock (prevent swap) count. */
 	struct sigiolst	p_sigiolst;	/* (c) List of sigio sources. */
 	int		p_sigparent;	/* (c) Signal to parent on exit. */
