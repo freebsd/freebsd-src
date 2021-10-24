@@ -511,7 +511,7 @@ struct iwm_softc {
 	/* phy contexts.  we only use the first one */
 	struct iwm_phy_ctxt	sc_phyctxt[IWM_NUM_PHY_CTX];
 
-	struct iwm_notif_statistics_v10 sc_stats;
+	struct iwm_notif_statistics sc_stats;
 	int			sc_noise;
 
 	struct iwm_rx_radiotap_header sc_rxtap;

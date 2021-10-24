@@ -159,7 +159,7 @@ static int
 iwm_binding_cmd(struct iwm_softc *sc, uint32_t action,
 	struct iwm_iface_iterator_data *data)
 {
-	struct iwm_binding_cmd cmd;
+	struct iwm_binding_cmd_v1 cmd;
 	struct iwm_phy_ctxt *phyctxt = data->phyctxt;
 	int i, ret;
 	uint32_t status;
