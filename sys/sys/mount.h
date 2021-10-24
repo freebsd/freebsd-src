@@ -1014,7 +1014,6 @@ void	vfs_deallocate_syncvnode(struct mount *);
 int	vfs_donmount(struct thread *td, uint64_t fsflags,
 	    struct uio *fsoptions);
 void	vfs_getnewfsid(struct mount *);
-struct cdev *vfs_getrootfsid(struct mount *);
 struct	mount *vfs_getvfs(fsid_t *);      /* return vfs given fsid */
 struct	mount *vfs_busyfs(fsid_t *);
 int	vfs_modevent(module_t, int, void *);
