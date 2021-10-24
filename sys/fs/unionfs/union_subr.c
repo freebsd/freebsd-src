@@ -153,8 +153,8 @@ unionfs_get_cached_vnode_locked(struct vnode *lookup, struct vnode *dvp)
 	hd = unionfs_get_hashhead(dvp, lookup);
 
 	LIST_FOREACH(unp, hd, un_hash) {
-		if ((unp->un_uppervp == lookup) ||
-		    (unp->un_lowervp == lookup)) {
+		if (unp->un_uppervp == lookup ||
+		    unp->un_lowervp == lookup) {
 			vp = UNIONFSTOV(unp);
 			VI_LOCK_FLAGS(vp, MTX_DUPOK);
 			vp->v_iflag &= ~VI_OWEINACT;
@@ -183,10 +183,10 @@ unionfs_get_cached_vnode(struct vnode *uvp, struct vnode *lvp,
 {
 	struct vnode *vp;
 
-	KASSERT((uvp == NULLVP || uvp->v_type == VDIR),
-	    ("unionfs_get_cached_vnode: v_type != VDIR"));
-	KASSERT((lvp == NULLVP || lvp->v_type == VDIR),
-	    ("unionfs_get_cached_vnode: v_type != VDIR"));
+	KASSERT(uvp == NULLVP || uvp->v_type == VDIR,
+	    ("%s: v_type != VDIR", __func__));
+	KASSERT(lvp == NULLVP || lvp->v_type == VDIR,
+	    ("%s: v_type != VDIR", __func__));
 
 	vp = NULLVP;
 	VI_LOCK(dvp);
@@ -209,10 +209,10 @@ unionfs_ins_cached_vnode(struct unionfs_node *uncp,
 	struct unionfs_node_hashhead *hd;
 	struct vnode *vp;
 
-	KASSERT((uncp->un_uppervp==NULLVP || uncp->un_uppervp->v_type==VDIR),
-	    ("unionfs_ins_cached_vnode: v_type != VDIR"));
-	KASSERT((uncp->un_lowervp==NULLVP || uncp->un_lowervp->v_type==VDIR),
-	    ("unionfs_ins_cached_vnode: v_type != VDIR"));
+	KASSERT(uncp->un_uppervp == NULLVP || uncp->un_uppervp->v_type == VDIR,
+	    ("%s: v_type != VDIR", __func__));
+	KASSERT(uncp->un_lowervp == NULLVP || uncp->un_lowervp->v_type == VDIR,
+	    ("%s: v_type != VDIR", __func__));
 
 	vp = NULLVP;
 	VI_LOCK(dvp);
@@ -236,9 +236,9 @@ unionfs_ins_cached_vnode(struct unionfs_node *uncp,
 static void
 unionfs_rem_cached_vnode(struct unionfs_node *unp, struct vnode *dvp)
 {
-	KASSERT((unp != NULL), ("unionfs_rem_cached_vnode: null node"));
-	KASSERT((dvp != NULLVP),
-	    ("unionfs_rem_cached_vnode: null parent vnode"));
+	KASSERT(unp != NULL, ("%s: null node", __func__));
+	KASSERT(dvp != NULLVP,
+	    ("%s: null parent vnode", __func__));
 
 	VI_LOCK(dvp);
 	if (unp->un_hash.le_prev != NULL) {
@@ -320,7 +320,7 @@ unionfs_nodeget(struct mount *mp, struct vnode *uppervp,
 	*vpp = NULLVP;
 
 	if (uppervp == NULLVP && lowervp == NULLVP)
-		panic("unionfs_nodeget: upper and lower is null");
+		panic("%s: upper and lower is null", __func__);
 
 	vt = (uppervp != NULLVP ? uppervp->v_type : lowervp->v_type);
 
@@ -440,7 +440,7 @@ unionfs_noderem(struct vnode *vp, struct thread *td)
 	int		count;
 
 	if (lockmgr(&(vp->v_lock), LK_EXCLUSIVE, NULL) != 0)
-		panic("the lock for deletion is unacquirable.");
+		panic("%s: failed to acquire lock for vnode lock", __func__);
 
 	/*
 	 * Use the interlock to protect the clearing of v_data to
@@ -529,8 +529,8 @@ unionfs_get_node_status(struct unionfs_node *unp, struct thread *td,
 
 	pid = td->td_proc->p_pid;
 
-	KASSERT(NULL != unspp, ("null pointer"));
-	ASSERT_VOP_ELOCKED(UNIONFSTOV(unp), "unionfs_get_node_status");
+	KASSERT(NULL != unspp, ("%s: NULL status", __func__));
+	ASSERT_VOP_ELOCKED(UNIONFSTOV(unp), __func__);
 
 	LIST_FOREACH(unsp, &(unp->un_unshead), uns_list) {
 		if (unsp->uns_pid == pid) {
@@ -557,8 +557,8 @@ void
 unionfs_tryrem_node_status(struct unionfs_node *unp,
     struct unionfs_node_status *unsp)
 {
-	KASSERT(NULL != unsp, ("null pointer"));
-	ASSERT_VOP_ELOCKED(UNIONFSTOV(unp), "unionfs_get_node_status");
+	KASSERT(NULL != unsp, ("%s: NULL status", __func__));
+	ASSERT_VOP_ELOCKED(UNIONFSTOV(unp), __func__);
 
 	if (0 < unsp->uns_lower_opencnt || 0 < unsp->uns_upper_opencnt)
 		return;
@@ -802,7 +802,7 @@ unionfs_node_update(struct unionfs_node *unp, struct vnode *uvp,
 
 	vp = UNIONFSTOV(unp);
 	lvp = unp->un_lowervp;
-	ASSERT_VOP_ELOCKED(lvp, "unionfs_node_update");
+	ASSERT_VOP_ELOCKED(lvp, __func__);
 	dvp = unp->un_dvp;
 
 	/*
@@ -991,7 +991,7 @@ unionfs_vn_create_on_upper(struct vnode **vpp, struct vnode *udvp,
 	unionfs_create_uppervattr_core(ump, &lva, uvap, td);
 
 	if (unp->un_path == NULL)
-		panic("unionfs: un_path is null");
+		panic("%s: NULL un_path", __func__);
 
 	nd.ni_cnd.cn_namelen = unp->un_pathlen;
 	nd.ni_cnd.cn_pnbuf = unp->un_path;
@@ -1211,7 +1211,7 @@ unionfs_check_rmdir(struct vnode *vp, struct ucred *cred, struct thread *td)
 	 */
 	char		buf[256 * 6];
 
-	ASSERT_VOP_ELOCKED(vp, "unionfs_check_rmdir");
+	ASSERT_VOP_ELOCKED(vp, __func__);
 
 	eofflag = 0;
 	uvp = UNIONFSVPTOUPPERVP(vp);
@@ -1253,7 +1253,8 @@ unionfs_check_rmdir(struct vnode *vp, struct ucred *cred, struct thread *td)
 			break;
 		if (eofflag == 0 && uio.uio_resid == sizeof(buf)) {
 #ifdef DIAGNOSTIC
-			panic("bad readdir response from lower FS.");
+			panic("%s: bad readdir response from lower FS",
+			    __func__);
 #endif
 			break;
 		}
@@ -1325,12 +1326,12 @@ unionfs_checkuppervp(struct vnode *vp, char *fil, int lno)
 
 #ifdef notyet
 	if (vp->v_op != unionfs_vnodeop_p) {
-		printf("unionfs_checkuppervp: on non-unionfs-node.\n");
+		printf("%s: on non-unionfs-node.\n", __func__);
 #ifdef KDB
 		kdb_enter(KDB_WHY_UNIONFS,
 		    "unionfs_checkuppervp: on non-unionfs-node.\n");
 #endif
-		panic("unionfs_checkuppervp");
+		panic("%s", __func__);
 	}
 #endif
 	return (unp->un_uppervp);
@@ -1345,12 +1346,12 @@ unionfs_checklowervp(struct vnode *vp, char *fil, int lno)
 
 #ifdef notyet
 	if (vp->v_op != unionfs_vnodeop_p) {
-		printf("unionfs_checklowervp: on non-unionfs-node.\n");
+		printf("%s: on non-unionfs-node.\n", __func__);
 #ifdef KDB
 		kdb_enter(KDB_WHY_UNIONFS,
 		    "unionfs_checklowervp: on non-unionfs-node.\n");
 #endif
-		panic("unionfs_checklowervp");
+		panic("%s", __func__);
 	}
 #endif
 	return (unp->un_lowervp);
