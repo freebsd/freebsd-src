@@ -439,6 +439,9 @@ unionfs_noderem(struct vnode *vp, struct thread *td)
 	struct vnode   *dvp;
 	int		count;
 
+	if (lockmgr(&(vp->v_lock), LK_EXCLUSIVE, NULL) != 0)
+		panic("the lock for deletion is unacquirable.");
+
 	/*
 	 * Use the interlock to protect the clearing of v_data to
 	 * prevent faults in unionfs_lock().
@@ -459,6 +462,22 @@ unionfs_noderem(struct vnode *vp, struct thread *td)
 			VOP_ADD_WRITECOUNT(lvp, -vp->v_writecount);
 	} else if (vp->v_writecount < 0)
 		vp->v_writecount = 0;
+	if (unp->un_hashtbl != NULL) {
+		/*
+		 * Clear out any cached child vnodes.  This should only
+		 * be necessary during forced unmount, when the vnode may
+		 * be reclaimed with a non-zero use count.  Otherwise the
+		 * reference held by each child should prevent reclamation.
+		 */
+		for (count = 0; count <= UNIONFSHASHMASK; count++) {
+			hd = unp->un_hashtbl + count;
+			LIST_FOREACH_SAFE(unp_t1, hd, un_hash, unp_t2) {
+				LIST_REMOVE(unp_t1, un_hash);
+				unp_t1->un_hash.le_next = NULL;
+				unp_t1->un_hash.le_prev = NULL;
+			}
+		}
+	}
 	VI_UNLOCK(vp);
 
 	if (lvp != NULLVP)
@@ -468,9 +487,6 @@ unionfs_noderem(struct vnode *vp, struct thread *td)
 
 	if (dvp != NULLVP)
 		unionfs_rem_cached_vnode(unp, dvp);
-
-	if (lockmgr(vp->v_vnlock, LK_EXCLUSIVE, VI_MTX(vp)) != 0)
-		panic("the lock for deletion is unacquirable.");
 
 	if (lvp != NULLVP)
 		vrele(lvp);
@@ -483,14 +499,6 @@ unionfs_noderem(struct vnode *vp, struct thread *td)
 	}
 
 	if (unp->un_hashtbl != NULL) {
-		for (count = 0; count <= UNIONFSHASHMASK; count++) {
-			hd = unp->un_hashtbl + count;
-			LIST_FOREACH_SAFE(unp_t1, hd, un_hash, unp_t2) {
-				LIST_REMOVE(unp_t1, un_hash);
-				unp_t1->un_hash.le_next = NULL;
-				unp_t1->un_hash.le_prev = NULL;
-			}
-		}
 		hashdestroy(unp->un_hashtbl, M_UNIONFSHASH, UNIONFSHASHMASK);
 	}
 
@@ -798,15 +806,16 @@ unionfs_node_update(struct unionfs_node *unp, struct vnode *uvp,
 	dvp = unp->un_dvp;
 
 	/*
-	 * lock update
+	 * Uppdate the upper vnode's lock state to match the lower vnode,
+	 * and then switch the unionfs vnode's lock to the upper vnode.
 	 */
+	lockrec = lvp->v_vnlock->lk_recurse;
+	for (count = 0; count < lockrec; count++)
+		vn_lock(uvp, LK_EXCLUSIVE | LK_CANRECURSE | LK_RETRY);
 	VI_LOCK(vp);
 	unp->un_uppervp = uvp;
 	vp->v_vnlock = uvp->v_vnlock;
 	VI_UNLOCK(vp);
-	lockrec = lvp->v_vnlock->lk_recurse;
-	for (count = 0; count < lockrec; count++)
-		vn_lock(uvp, LK_EXCLUSIVE | LK_CANRECURSE | LK_RETRY);
 
 	/*
 	 * Re-cache the unionfs vnode against the upper vnode
