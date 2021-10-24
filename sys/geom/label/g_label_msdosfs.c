@@ -50,6 +50,7 @@ g_label_msdosfs_taste(struct g_consumer *cp, char *label, size_t size)
 	FAT32_BSBPB *pfat32_bsbpb;
 	FAT_DES *pfat_entry;
 	uint8_t *sector0, *sector;
+	size_t copysize;
 
 	g_topology_assert_not();
 	pp = cp->provider;
@@ -111,8 +112,9 @@ g_label_msdosfs_taste(struct g_consumer *cp, char *label, size_t size)
 			    pp->name);
 			goto error;
 		}
-		strlcpy(label, pfat_bsbpb->BS_VolLab,
-		    MIN(size, sizeof(pfat_bsbpb->BS_VolLab) + 1));
+		copysize = MIN(size - 1, sizeof(pfat_bsbpb->BS_VolLab));
+		memcpy(label, pfat_bsbpb->BS_VolLab, copysize);
+		label[copysize] = '\0';
 	} else if (UINT32BYTES(pfat32_bsbpb->BPB_FATSz32) != 0) {
 		uint32_t fat_FirstDataSector, fat_BytesPerSector, offset;
 
@@ -133,8 +135,10 @@ g_label_msdosfs_taste(struct g_consumer *cp, char *label, size_t size)
 		 */
 		if (strncmp(pfat32_bsbpb->BS_VolLab, LABEL_NO_NAME,
 		    sizeof(pfat32_bsbpb->BS_VolLab)) != 0) {
-			strlcpy(label, pfat32_bsbpb->BS_VolLab,
-			    MIN(size, sizeof(pfat32_bsbpb->BS_VolLab) + 1));
+			copysize = MIN(size - 1,
+			    sizeof(pfat32_bsbpb->BS_VolLab) + 1);
+			memcpy(label, pfat32_bsbpb->BS_VolLab, copysize);
+			label[copysize] = '\0';
 			goto endofchecks;
 		}
 
@@ -184,9 +188,11 @@ g_label_msdosfs_taste(struct g_consumer *cp, char *label, size_t size)
 				 */
 				if (pfat_entry->DIR_Attr &
 				    FAT_DES_ATTR_VOLUME_ID) {
-					strlcpy(label, pfat_entry->DIR_Name,
-					    MIN(size,
-					    sizeof(pfat_entry->DIR_Name) + 1));
+					copysize = MIN(size - 1,
+					    sizeof(pfat_entry->DIR_Name));
+					memcpy(label, pfat_entry->DIR_Name,
+					    copysize);
+					label[copysize] = '\0';
 					goto endofchecks;
 				}
 			} while((uint8_t *)(++pfat_entry) <
