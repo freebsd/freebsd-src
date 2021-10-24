@@ -88,6 +88,11 @@
 #define	XHCI_BUS2SC(bus) \
 	__containerof(bus, struct xhci_softc, sc_bus)
 
+#define XHCI_GET_CTX(sc, which, field, ptr) \
+	((sc)->sc_ctx_is_64_byte ? \
+	    &((struct which##64 *)(ptr))->field.ctx : \
+	    &((struct which *)(ptr))->field)
+
 static SYSCTL_NODE(_hw_usb, OID_AUTO, xhci, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "USB XHCI");
 
@@ -163,12 +168,6 @@ static usb_error_t xhci_configure_mask(struct usb_device *,
 static usb_error_t xhci_cmd_evaluate_ctx(struct xhci_softc *,
 		    uint64_t, uint8_t);
 static void xhci_endpoint_doorbell(struct usb_xfer *);
-static void xhci_ctx_set_le32(struct xhci_softc *sc, volatile uint32_t *ptr, uint32_t val);
-static uint32_t xhci_ctx_get_le32(struct xhci_softc *sc, volatile uint32_t *ptr);
-static void xhci_ctx_set_le64(struct xhci_softc *sc, volatile uint64_t *ptr, uint64_t val);
-#ifdef USB_DEBUG
-static uint64_t xhci_ctx_get_le64(struct xhci_softc *sc, volatile uint64_t *ptr);
-#endif
 
 static const struct usb_bus_methods xhci_bus_methods;
 
@@ -183,26 +182,26 @@ xhci_dump_trb(struct xhci_trb *trb)
 }
 
 static void
-xhci_dump_endpoint(struct xhci_softc *sc, struct xhci_endp_ctx *pep)
+xhci_dump_endpoint(struct xhci_endp_ctx *pep)
 {
 	DPRINTFN(5, "pep = %p\n", pep);
-	DPRINTFN(5, "dwEpCtx0=0x%08x\n", xhci_ctx_get_le32(sc, &pep->dwEpCtx0));
-	DPRINTFN(5, "dwEpCtx1=0x%08x\n", xhci_ctx_get_le32(sc, &pep->dwEpCtx1));
-	DPRINTFN(5, "qwEpCtx2=0x%016llx\n", (long long)xhci_ctx_get_le64(sc, &pep->qwEpCtx2));
-	DPRINTFN(5, "dwEpCtx4=0x%08x\n", xhci_ctx_get_le32(sc, &pep->dwEpCtx4));
-	DPRINTFN(5, "dwEpCtx5=0x%08x\n", xhci_ctx_get_le32(sc, &pep->dwEpCtx5));
-	DPRINTFN(5, "dwEpCtx6=0x%08x\n", xhci_ctx_get_le32(sc, &pep->dwEpCtx6));
-	DPRINTFN(5, "dwEpCtx7=0x%08x\n", xhci_ctx_get_le32(sc, &pep->dwEpCtx7));
+	DPRINTFN(5, "dwEpCtx0=0x%08x\n", le32toh(pep->dwEpCtx0));
+	DPRINTFN(5, "dwEpCtx1=0x%08x\n", le32toh(pep->dwEpCtx1));
+	DPRINTFN(5, "qwEpCtx2=0x%016llx\n", (long long)le64toh(pep->qwEpCtx2));
+	DPRINTFN(5, "dwEpCtx4=0x%08x\n", le32toh(pep->dwEpCtx4));
+	DPRINTFN(5, "dwEpCtx5=0x%08x\n", le32toh(pep->dwEpCtx5));
+	DPRINTFN(5, "dwEpCtx6=0x%08x\n", le32toh(pep->dwEpCtx6));
+	DPRINTFN(5, "dwEpCtx7=0x%08x\n", le32toh(pep->dwEpCtx7));
 }
 
 static void
-xhci_dump_device(struct xhci_softc *sc, struct xhci_slot_ctx *psl)
+xhci_dump_device(struct xhci_slot_ctx *psl)
 {
 	DPRINTFN(5, "psl = %p\n", psl);
-	DPRINTFN(5, "dwSctx0=0x%08x\n", xhci_ctx_get_le32(sc, &psl->dwSctx0));
-	DPRINTFN(5, "dwSctx1=0x%08x\n", xhci_ctx_get_le32(sc, &psl->dwSctx1));
-	DPRINTFN(5, "dwSctx2=0x%08x\n", xhci_ctx_get_le32(sc, &psl->dwSctx2));
-	DPRINTFN(5, "dwSctx3=0x%08x\n", xhci_ctx_get_le32(sc, &psl->dwSctx3));
+	DPRINTFN(5, "dwSctx0=0x%08x\n", le32toh(psl->dwSctx0));
+	DPRINTFN(5, "dwSctx1=0x%08x\n", le32toh(psl->dwSctx1));
+	DPRINTFN(5, "dwSctx2=0x%08x\n", le32toh(psl->dwSctx2));
+	DPRINTFN(5, "dwSctx3=0x%08x\n", le32toh(psl->dwSctx3));
 }
 #endif
 
@@ -233,60 +232,6 @@ xhci_iterate_hw_softc(struct usb_bus *bus, usb_bus_mem_sub_cb_t *cb)
 		    XHCI_PAGE_SIZE, XHCI_PAGE_SIZE);
 	}
 }
-
-static void
-xhci_ctx_set_le32(struct xhci_softc *sc, volatile uint32_t *ptr, uint32_t val)
-{
-	if (sc->sc_ctx_is_64_byte) {
-		uint32_t offset;
-		/* exploit the fact that our structures are XHCI_PAGE_SIZE aligned */
-		/* all contexts are initially 32-bytes */
-		offset = ((uintptr_t)ptr) & ((XHCI_PAGE_SIZE - 1) & ~(31U));
-		ptr = (volatile uint32_t *)(((volatile uint8_t *)ptr) + offset);
-	}
-	*ptr = htole32(val);
-}
-
-static uint32_t
-xhci_ctx_get_le32(struct xhci_softc *sc, volatile uint32_t *ptr)
-{
-	if (sc->sc_ctx_is_64_byte) {
-		uint32_t offset;
-		/* exploit the fact that our structures are XHCI_PAGE_SIZE aligned */
-		/* all contexts are initially 32-bytes */
-		offset = ((uintptr_t)ptr) & ((XHCI_PAGE_SIZE - 1) & ~(31U));
-		ptr = (volatile uint32_t *)(((volatile uint8_t *)ptr) + offset);
-	}
-	return (le32toh(*ptr));
-}
-
-static void
-xhci_ctx_set_le64(struct xhci_softc *sc, volatile uint64_t *ptr, uint64_t val)
-{
-	if (sc->sc_ctx_is_64_byte) {
-		uint32_t offset;
-		/* exploit the fact that our structures are XHCI_PAGE_SIZE aligned */
-		/* all contexts are initially 32-bytes */
-		offset = ((uintptr_t)ptr) & ((XHCI_PAGE_SIZE - 1) & ~(31U));
-		ptr = (volatile uint64_t *)(((volatile uint8_t *)ptr) + offset);
-	}
-	*ptr = htole64(val);
-}
-
-#ifdef USB_DEBUG
-static uint64_t
-xhci_ctx_get_le64(struct xhci_softc *sc, volatile uint64_t *ptr)
-{
-	if (sc->sc_ctx_is_64_byte) {
-		uint32_t offset;
-		/* exploit the fact that our structures are XHCI_PAGE_SIZE aligned */
-		/* all contexts are initially 32-bytes */
-		offset = ((uintptr_t)ptr) & ((XHCI_PAGE_SIZE - 1) & ~(31U));
-		ptr = (volatile uint64_t *)(((volatile uint8_t *)ptr) + offset);
-	}
-	return (le64toh(*ptr));
-}
-#endif
 
 static int
 xhci_reset_command_queue_locked(struct xhci_softc *sc)
@@ -1397,7 +1342,7 @@ xhci_set_address(struct usb_device *udev, struct mtx *mtx, uint16_t address)
 	struct usb_page_search buf_dev;
 	struct xhci_softc *sc = XHCI_BUS2SC(udev->bus);
 	struct xhci_hw_dev *hdev;
-	struct xhci_dev_ctx *pdev;
+	struct xhci_slot_ctx *slot;
 	struct xhci_endpoint_ext *pepext;
 	uint32_t temp;
 	uint16_t mps;
@@ -1490,10 +1435,11 @@ xhci_set_address(struct usb_device *udev, struct mtx *mtx, uint16_t address)
 		/* update device address to new value */
 
 		usbd_get_page(&hdev->device_pc, 0, &buf_dev);
-		pdev = buf_dev.buffer;
+		slot = XHCI_GET_CTX(sc, xhci_dev_ctx, ctx_slot,
+		    buf_dev.buffer);
 		usb_pc_cpu_invalidate(&hdev->device_pc);
 
-		temp = xhci_ctx_get_le32(sc, &pdev->ctx_slot.dwSctx3);
+		temp = le32toh(slot->dwSctx3);
 		udev->address = XHCI_SCTX_3_DEV_ADDR_GET(temp);
 
 		/* update device state to new value */
@@ -2298,7 +2244,8 @@ xhci_configure_mask(struct usb_device *udev, uint32_t mask, uint8_t drop)
 {
 	struct xhci_softc *sc = XHCI_BUS2SC(udev->bus);
 	struct usb_page_search buf_inp;
-	struct xhci_input_dev_ctx *pinp;
+	struct xhci_input_ctx *input;
+	struct xhci_slot_ctx *slot;
 	uint32_t temp;
 	uint8_t index;
 	uint8_t x;
@@ -2307,22 +2254,23 @@ xhci_configure_mask(struct usb_device *udev, uint32_t mask, uint8_t drop)
 
 	usbd_get_page(&sc->sc_hw.devs[index].input_pc, 0, &buf_inp);
 
-	pinp = buf_inp.buffer;
+	input = XHCI_GET_CTX(sc, xhci_input_dev_ctx, ctx_input,
+	    buf_inp.buffer);
+	slot = XHCI_GET_CTX(sc, xhci_input_dev_ctx, ctx_slot, buf_inp.buffer);
 
 	if (drop) {
 		mask &= XHCI_INCTX_NON_CTRL_MASK;
-		xhci_ctx_set_le32(sc, &pinp->ctx_input.dwInCtx0, mask);
-		xhci_ctx_set_le32(sc, &pinp->ctx_input.dwInCtx1, 0);
+		input->dwInCtx0 = htole32(mask);
+		input->dwInCtx1 = htole32(0);
 	} else {
 		/*
 		 * Some hardware requires that we drop the endpoint
 		 * context before adding it again:
 		 */
-		xhci_ctx_set_le32(sc, &pinp->ctx_input.dwInCtx0,
-		    mask & XHCI_INCTX_NON_CTRL_MASK);
+		input->dwInCtx0 = htole32(mask & XHCI_INCTX_NON_CTRL_MASK);
 
 		/* Add new endpoint context */
-		xhci_ctx_set_le32(sc, &pinp->ctx_input.dwInCtx1, mask);
+		input->dwInCtx1 = htole32(mask);
 
 		/* find most significant set bit */
 		for (x = 31; x != 1; x--) {
@@ -2340,10 +2288,10 @@ xhci_configure_mask(struct usb_device *udev, uint32_t mask, uint8_t drop)
 			x = sc->sc_hw.devs[index].context_num;
 
 		/* update number of contexts */
-		temp = xhci_ctx_get_le32(sc, &pinp->ctx_slot.dwSctx0);
+		temp = le32toh(slot->dwSctx0);
 		temp &= ~XHCI_SCTX_0_CTX_NUM_SET(31);
 		temp |= XHCI_SCTX_0_CTX_NUM_SET(x + 1);
-		xhci_ctx_set_le32(sc, &pinp->ctx_slot.dwSctx0, temp);
+		slot->dwSctx0 = htole32(temp);
 	}
 	usb_pc_cpu_flush(&sc->sc_hw.devs[index].input_pc);
 	return (0);
@@ -2358,7 +2306,7 @@ xhci_configure_endpoint(struct usb_device *udev,
 {
 	struct usb_page_search buf_inp;
 	struct xhci_softc *sc = XHCI_BUS2SC(udev->bus);
-	struct xhci_input_dev_ctx *pinp;
+	struct xhci_endp_ctx *endp;
 	uint64_t ring_addr = pepext->physaddr;
 	uint32_t temp;
 	uint8_t index;
@@ -2368,8 +2316,6 @@ xhci_configure_endpoint(struct usb_device *udev,
 	index = udev->controller_slot_id;
 
 	usbd_get_page(&sc->sc_hw.devs[index].input_pc, 0, &buf_inp);
-
-	pinp = buf_inp.buffer;
 
 	epno = edesc->bEndpointAddress;
 	type = edesc->bmAttributes & UE_XFERTYPE;
@@ -2389,6 +2335,9 @@ xhci_configure_endpoint(struct usb_device *udev,
 
 	if (mult == 0)
 		return (USB_ERR_BAD_BUFSIZE);
+
+	endp = XHCI_GET_CTX(sc, xhci_input_dev_ctx, ctx_ep[epno - 1],
+	    buf_inp.buffer);
 
 	/* store endpoint mode */
 	pepext->trb_ep_mode = ep_mode;
@@ -2445,7 +2394,7 @@ xhci_configure_endpoint(struct usb_device *udev,
 		break;
 	}
 
-	xhci_ctx_set_le32(sc, &pinp->ctx_ep[epno - 1].dwEpCtx0, temp);
+	endp->dwEpCtx0 = htole32(temp);
 
 	temp =
 	    XHCI_EPCTX_1_HID_SET(0) |
@@ -2480,8 +2429,8 @@ xhci_configure_endpoint(struct usb_device *udev,
 	if (epno & 1)
 		temp |= XHCI_EPCTX_1_EPTYPE_SET(4);
 
-	xhci_ctx_set_le32(sc, &pinp->ctx_ep[epno - 1].dwEpCtx1, temp);
-	xhci_ctx_set_le64(sc, &pinp->ctx_ep[epno - 1].qwEpCtx2, ring_addr);
+	endp->dwEpCtx1 = htole32(temp);
+	endp->qwEpCtx2 = htole64(ring_addr);
 
 	switch (edesc->bmAttributes & UE_XFERTYPE) {
 	case UE_INTERRUPT:
@@ -2498,10 +2447,10 @@ xhci_configure_endpoint(struct usb_device *udev,
 		break;
 	}
 
-	xhci_ctx_set_le32(sc, &pinp->ctx_ep[epno - 1].dwEpCtx4, temp);
+	endp->dwEpCtx4 = htole32(temp);
 
 #ifdef USB_DEBUG
-	xhci_dump_endpoint(sc, &pinp->ctx_ep[epno - 1]);
+	xhci_dump_endpoint(endp);
 #endif
 	usb_pc_cpu_flush(&sc->sc_hw.devs[index].input_pc);
 
@@ -2557,7 +2506,7 @@ xhci_configure_device(struct usb_device *udev)
 	struct xhci_softc *sc = XHCI_BUS2SC(udev->bus);
 	struct usb_page_search buf_inp;
 	struct usb_page_cache *pcinp;
-	struct xhci_input_dev_ctx *pinp;
+	struct xhci_slot_ctx *slot;
 	struct usb_device *hubdev;
 	uint32_t temp;
 	uint32_t route;
@@ -2574,7 +2523,7 @@ xhci_configure_device(struct usb_device *udev)
 
 	usbd_get_page(pcinp, 0, &buf_inp);
 
-	pinp = buf_inp.buffer;
+	slot = XHCI_GET_CTX(sc, xhci_input_dev_ctx, ctx_slot, buf_inp.buffer);
 
 	rh_port = 0;
 	route = 0;
@@ -2649,7 +2598,7 @@ xhci_configure_device(struct usb_device *udev)
 	if (is_hub)
 		temp |= XHCI_SCTX_0_HUB_SET(1);
 
-	xhci_ctx_set_le32(sc, &pinp->ctx_slot.dwSctx0, temp);
+	slot->dwSctx0 = htole32(temp);
 
 	temp = XHCI_SCTX_1_RH_PORT_SET(rh_port);
 
@@ -2658,7 +2607,7 @@ xhci_configure_device(struct usb_device *udev)
 		    sc->sc_hw.devs[index].nports);
 	}
 
-	xhci_ctx_set_le32(sc, &pinp->ctx_slot.dwSctx1, temp);
+	slot->dwSctx1 = htole32(temp);
 
 	temp = XHCI_SCTX_2_IRQ_TARGET_SET(0);
 
@@ -2684,7 +2633,7 @@ xhci_configure_device(struct usb_device *udev)
 		break;
 	}
 
-	xhci_ctx_set_le32(sc, &pinp->ctx_slot.dwSctx2, temp);
+	slot->dwSctx2 = htole32(temp);
 
 	/*
 	 * These fields should be initialized to zero, according to
@@ -2693,10 +2642,10 @@ xhci_configure_device(struct usb_device *udev)
 	temp = XHCI_SCTX_3_DEV_ADDR_SET(0) |
 	    XHCI_SCTX_3_SLOT_STATE_SET(0);
 
-	xhci_ctx_set_le32(sc, &pinp->ctx_slot.dwSctx3, temp);
+	slot->dwSctx3 = htole32(temp);
 
 #ifdef USB_DEBUG
-	xhci_dump_device(sc, &pinp->ctx_slot);
+	xhci_dump_device(slot);
 #endif
 	usb_pc_cpu_flush(pcinp);
 
@@ -2725,7 +2674,7 @@ xhci_alloc_device_ext(struct usb_device *udev)
 	pc->tag_parent = sc->sc_bus.dma_parent_tag;
 
 	if (usb_pc_alloc_mem(pc, pg, sc->sc_ctx_is_64_byte ?
-	    (2 * sizeof(struct xhci_dev_ctx)) :
+	    sizeof(struct xhci_dev_ctx64) :
 	    sizeof(struct xhci_dev_ctx), XHCI_PAGE_SIZE))
 		goto error;
 
@@ -2738,7 +2687,7 @@ xhci_alloc_device_ext(struct usb_device *udev)
 	pc->tag_parent = sc->sc_bus.dma_parent_tag;
 
 	if (usb_pc_alloc_mem(pc, pg, sc->sc_ctx_is_64_byte ?
-	    (2 * sizeof(struct xhci_input_dev_ctx)) :
+	    sizeof(struct xhci_input_dev_ctx64) :
 	    sizeof(struct xhci_input_dev_ctx), XHCI_PAGE_SIZE)) {
 		goto error;
 	}
@@ -3785,7 +3734,7 @@ xhci_get_endpoint_state(struct usb_device *udev, uint8_t epno)
 	struct xhci_softc *sc = XHCI_BUS2SC(udev->bus);
 	struct usb_page_search buf_dev;
 	struct xhci_hw_dev *hdev;
-	struct xhci_dev_ctx *pdev;
+	struct xhci_endp_ctx *endp;
 	uint32_t temp;
 
 	MPASS(epno != 0);
@@ -3793,10 +3742,11 @@ xhci_get_endpoint_state(struct usb_device *udev, uint8_t epno)
 	hdev =	&sc->sc_hw.devs[udev->controller_slot_id];
 
 	usbd_get_page(&hdev->device_pc, 0, &buf_dev);
-	pdev = buf_dev.buffer;
+	endp = XHCI_GET_CTX(sc, xhci_dev_ctx, ctx_ep[epno - 1],
+	    buf_dev.buffer);
 	usb_pc_cpu_invalidate(&hdev->device_pc);
 
-	temp = xhci_ctx_get_le32(sc, &pdev->ctx_ep[epno - 1].dwEpCtx0);
+	temp = le32toh(endp->dwEpCtx0);
 
 	return (XHCI_EPCTX_0_EPSTATE_GET(temp));
 }
