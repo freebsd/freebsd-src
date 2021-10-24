@@ -1,3 +1,0 @@
-# $FreeBSD$
-
-WARNS?=	3
