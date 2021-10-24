@@ -111,6 +111,11 @@ struct xhci_slot_ctx {
 	volatile uint32_t	dwSctx7;
 };
 
+struct xhci_slot_ctx64 {
+	struct xhci_slot_ctx	ctx;
+	volatile uint8_t	padding[32];
+};
+
 struct xhci_endp_ctx {
 	volatile uint32_t	dwEpCtx0;
 #define	XHCI_EPCTX_0_EPSTATE_SET(x)		((x) & 0x7)
@@ -156,6 +161,11 @@ struct xhci_endp_ctx {
 	volatile uint32_t	dwEpCtx7;
 };
 
+struct xhci_endp_ctx64 {
+	struct xhci_endp_ctx	ctx;
+	volatile uint8_t	padding[32];
+};
+
 struct xhci_input_ctx {
 #define	XHCI_INCTX_NON_CTRL_MASK	0xFFFFFFFCU
 	volatile uint32_t	dwInCtx0;
@@ -170,15 +180,31 @@ struct xhci_input_ctx {
 	volatile uint32_t	dwInCtx7;
 };
 
+struct xhci_input_ctx64 {
+	struct xhci_input_ctx	ctx;
+	volatile uint8_t	padding[32];
+};
+
 struct xhci_input_dev_ctx {
 	struct xhci_input_ctx	ctx_input;
 	struct xhci_slot_ctx	ctx_slot;
 	struct xhci_endp_ctx	ctx_ep[XHCI_MAX_ENDPOINTS - 1];
 };
 
+struct xhci_input_dev_ctx64 {
+	struct xhci_input_ctx64	ctx_input;
+	struct xhci_slot_ctx64	ctx_slot;
+	struct xhci_endp_ctx64	ctx_ep[XHCI_MAX_ENDPOINTS - 1];
+};
+
 struct xhci_dev_ctx {
 	struct xhci_slot_ctx	ctx_slot;
 	struct xhci_endp_ctx	ctx_ep[XHCI_MAX_ENDPOINTS - 1];
+} __aligned(XHCI_DEV_CTX_ALIGN);
+
+struct xhci_dev_ctx64 {
+	struct xhci_slot_ctx64	ctx_slot;
+	struct xhci_endp_ctx64	ctx_ep[XHCI_MAX_ENDPOINTS - 1];
 } __aligned(XHCI_DEV_CTX_ALIGN);
 
 struct xhci_stream_ctx {
