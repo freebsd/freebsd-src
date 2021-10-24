@@ -171,19 +171,33 @@ SYSCTL_NODE(__CONCAT(_kern_elf, __ELF_WORD_SIZE), OID_AUTO, aslr,
     "");
 #define	ASLR_NODE_OID	__CONCAT(__CONCAT(_kern_elf, __ELF_WORD_SIZE), _aslr)
 
-static int __elfN(aslr_enabled) = 0;
+/*
+ * While for 64-bit machines ASLR works properly, there are
+ * still some problems when using 32-bit architectures. For this
+ * reason ASLR is only enabled by default when running native
+ * 64-bit non-PIE executables.
+ */
+static int __elfN(aslr_enabled) = __ELF_WORD_SIZE == 64;
 SYSCTL_INT(ASLR_NODE_OID, OID_AUTO, enable, CTLFLAG_RWTUN,
     &__elfN(aslr_enabled), 0,
     __XSTRING(__CONCAT(ELF, __ELF_WORD_SIZE))
     ": enable address map randomization");
 
-static int __elfN(pie_aslr_enabled) = 0;
+/*
+ * Enable ASLR only for 64-bit PIE binaries by default.
+ */
+static int __elfN(pie_aslr_enabled) = __ELF_WORD_SIZE == 64;
 SYSCTL_INT(ASLR_NODE_OID, OID_AUTO, pie_enable, CTLFLAG_RWTUN,
     &__elfN(pie_aslr_enabled), 0,
     __XSTRING(__CONCAT(ELF, __ELF_WORD_SIZE))
     ": enable address map randomization for PIE binaries");
 
-static int __elfN(aslr_honor_sbrk) = 1;
+/*
+ * Sbrk is now deprecated and it can be assumed, that in most
+ * cases it will not be used anyway. This setting is valid only
+ * for the ASLR enabled and allows for utilizing the bss grow region.
+ */
+static int __elfN(aslr_honor_sbrk) = 0;
 SYSCTL_INT(ASLR_NODE_OID, OID_AUTO, honor_sbrk, CTLFLAG_RW,
     &__elfN(aslr_honor_sbrk), 0,
     __XSTRING(__CONCAT(ELF, __ELF_WORD_SIZE)) ": assume sbrk is used");
