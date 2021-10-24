@@ -379,7 +379,7 @@ iwm_umac_scan_fill_channels(struct iwm_softc *sc,
 }
 
 static int
-iwm_fill_probe_req(struct iwm_softc *sc, struct iwm_scan_probe_req *preq)
+iwm_fill_probe_req(struct iwm_softc *sc, struct iwm_scan_probe_req_v1 *preq)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
@@ -594,12 +594,12 @@ iwm_scan_size(struct iwm_softc *sc)
 		return base_size +
 		    sizeof(struct iwm_scan_channel_cfg_umac) *
 		    sc->sc_fw.ucode_capa.n_scan_channels +
-		    sizeof(struct iwm_scan_req_umac_tail);
+		    sizeof(struct iwm_scan_req_umac_tail_v1);
 	} else {
 		return sizeof(struct iwm_scan_req_lmac) +
 		    sizeof(struct iwm_scan_channel_cfg_lmac) *
 		    sc->sc_fw.ucode_capa.n_scan_channels +
-		    sizeof(struct iwm_scan_probe_req);
+		    sizeof(struct iwm_scan_probe_req_v1);
 	}
 }
 
@@ -614,7 +614,7 @@ iwm_umac_scan(struct iwm_softc *sc)
 	};
 	struct ieee80211_scan_state *ss = sc->sc_ic.ic_scan;
 	struct iwm_scan_req_umac *req;
-	struct iwm_scan_req_umac_tail *tail;
+	struct iwm_scan_req_umac_tail_v1 *tail;
 	size_t req_len;
 	uint16_t general_flags;
 	uint8_t channel_flags, i, nssid;
@@ -799,7 +799,7 @@ iwm_lmac_scan(struct iwm_softc *sc)
 	    (struct iwm_scan_channel_cfg_lmac *)req->data, nssid);
 
 	ret = iwm_fill_probe_req(sc,
-			    (struct iwm_scan_probe_req *)(req->data +
+			    (struct iwm_scan_probe_req_v1 *)(req->data +
 			    (sizeof(struct iwm_scan_channel_cfg_lmac) *
 			    sc->sc_fw.ucode_capa.n_scan_channels)));
 	if (ret) {

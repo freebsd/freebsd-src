@@ -186,41 +186,6 @@ struct iwm_phy_db {
 	struct iwm_softc *sc;
 };
 
-enum iwm_phy_db_section_type {
-	IWM_PHY_DB_CFG = 1,
-	IWM_PHY_DB_CALIB_NCH,
-	IWM_PHY_DB_UNUSED,
-	IWM_PHY_DB_CALIB_CHG_PAPD,
-	IWM_PHY_DB_CALIB_CHG_TXP,
-	IWM_PHY_DB_MAX
-};
-
-#define PHY_DB_CMD 0x6c
-
-/*
- * phy db - configure operational ucode
- */
-struct iwm_phy_db_cmd {
-	uint16_t type;
-	uint16_t length;
-	uint8_t data[];
-} __packed;
-
-/* for parsing of tx power channel group data that comes from the firmware*/
-struct iwm_phy_db_chg_txp {
-	uint32_t space;
-	uint16_t max_channel_idx;
-} __packed;
-
-/*
- * phy db - Receive phy db chunk after calibrations
- */
-struct iwm_calib_res_notif_phy_db {
-	uint16_t type;
-	uint16_t length;
-	uint8_t data[];
-} __packed;
-
 struct iwm_phy_db *
 iwm_phy_db_init(struct iwm_softc *sc)
 {
@@ -477,7 +442,7 @@ iwm_send_phy_db_cmd(struct iwm_phy_db *phy_db, uint16_t type,
 {
 	struct iwm_phy_db_cmd phy_db_cmd;
 	struct iwm_host_cmd cmd = {
-		.id = PHY_DB_CMD,
+		.id = IWM_PHY_DB_CMD,
 	};
 
 	IWM_DPRINTF(phy_db->sc, IWM_DEBUG_RESET,
