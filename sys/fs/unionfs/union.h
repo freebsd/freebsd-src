@@ -137,15 +137,15 @@ int	unionfs_relookup(struct vnode *, struct vnode **,
 	    struct componentname *, struct componentname *, struct thread *,
 	    char *, int, u_long);
 int	unionfs_relookup_for_create(struct vnode *, struct componentname *,
-	    struct thread *td);
+	    struct thread *);
 int	unionfs_relookup_for_delete(struct vnode *, struct componentname *,
 	    struct thread *);
 int	unionfs_relookup_for_rename(struct vnode *, struct componentname *,
-	    struct thread *td);
+	    struct thread *);
 
 #ifdef DIAGNOSTIC
-struct vnode   *unionfs_checklowervp(struct vnode *vp, char *fil, int lno);
-struct vnode   *unionfs_checkuppervp(struct vnode *vp, char *fil, int lno);
+struct vnode	*unionfs_checklowervp(struct vnode *, char *, int);
+struct vnode	*unionfs_checkuppervp(struct vnode *, char *, int);
 #define	UNIONFSVPTOLOWERVP(vp) unionfs_checklowervp((vp), __FILE__, __LINE__)
 #define	UNIONFSVPTOUPPERVP(vp) unionfs_checkuppervp((vp), __FILE__, __LINE__)
 #else
