@@ -1938,18 +1938,30 @@ int
 usb_fifo_alloc_buffer(struct usb_fifo *f, usb_size_t bufsize,
     uint16_t nbuf)
 {
+	struct usb_ifqueue temp_q = {};
+	void *queue_data;
+
 	usb_fifo_free_buffer(f);
 
-	/* allocate an endpoint */
-	f->free_q.ifq_maxlen = nbuf;
-	f->used_q.ifq_maxlen = nbuf;
+	temp_q.ifq_maxlen = nbuf;
 
-	f->queue_data = usb_alloc_mbufs(
-	    M_USBDEV, &f->free_q, bufsize, nbuf);
+	queue_data = usb_alloc_mbufs(
+	    M_USBDEV, &temp_q, bufsize, nbuf);
 
-	if ((f->queue_data == NULL) && bufsize && nbuf) {
+	if (queue_data == NULL && bufsize != 0 && nbuf != 0)
 		return (ENOMEM);
-	}
+
+	mtx_lock(f->priv_mtx);
+
+	/*
+	 * Setup queues and sizes under lock to avoid early use by
+	 * concurrent FIFO access:
+	 */
+	f->free_q = temp_q;
+	f->used_q.ifq_maxlen = nbuf;
+	f->queue_data = queue_data;
+	mtx_unlock(f->priv_mtx);
+
 	return (0);			/* success */
 }
 
@@ -1962,15 +1974,24 @@ usb_fifo_alloc_buffer(struct usb_fifo *f, usb_size_t bufsize,
 void
 usb_fifo_free_buffer(struct usb_fifo *f)
 {
-	if (f->queue_data) {
-		/* free old buffer */
-		free(f->queue_data, M_USBDEV);
-		f->queue_data = NULL;
-	}
-	/* reset queues */
+	void *queue_data;
 
+	mtx_lock(f->priv_mtx);
+
+	/* Get and clear pointer to free, if any. */
+	queue_data = f->queue_data;
+	f->queue_data = NULL;
+
+	/*
+	 * Reset queues under lock to avoid use of freed buffers by
+	 * concurrent FIFO activity:
+	 */
 	memset(&f->free_q, 0, sizeof(f->free_q));
 	memset(&f->used_q, 0, sizeof(f->used_q));
+	mtx_unlock(f->priv_mtx);
+
+	/* Free old buffer, if any. */
+	free(queue_data, M_USBDEV);
 }
 
 void
