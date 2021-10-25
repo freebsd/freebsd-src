@@ -193,7 +193,7 @@ typedef int pci_power_t;
 struct pci_dev;
 
 struct pci_driver {
-	struct list_head		links;
+	struct list_head		node;
 	char				*name;
 	const struct pci_device_id		*id_table;
 	int  (*probe)(struct pci_dev *dev, const struct pci_device_id *id);
