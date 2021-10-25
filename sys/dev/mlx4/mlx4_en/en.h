@@ -39,12 +39,19 @@
 #include <linux/list.h>
 #include <linux/mutex.h>
 #include <linux/kobject.h>
-#include <linux/netdevice.h>
 #include <linux/if_vlan.h>
 #include <linux/if_ether.h>
 #ifdef CONFIG_MLX4_EN_DCB
 #include <linux/dcbnl.h>
 #endif
+
+#include <sys/socket.h>
+#include <sys/taskqueue.h>
+
+#include <net/if_types.h>
+#include <net/if.h>
+#include <net/if_var.h>
+#include <net/if_dl.h>
 
 #include <dev/mlx4/device.h>
 #include <dev/mlx4/qp.h>
@@ -655,7 +662,7 @@ struct mlx4_mac_entry {
 };
 
 static inline void *
-netdev_priv(const struct ifnet *dev)
+mlx4_netdev_priv(const struct ifnet *dev)
 {
 	return (dev->if_softc);
 }
@@ -710,7 +717,7 @@ static inline bool mlx4_en_cq_lock_poll(struct mlx4_en_cq *cq)
 	spin_lock_bh(&cq->poll_lock);
 	if ((cq->state & MLX4_CQ_LOCKED)) {
 		struct ifnet *dev = cq->dev;
-		struct mlx4_en_priv *priv = netdev_priv(dev);
+		struct mlx4_en_priv *priv = mlx4_netdev_priv(dev);
 		struct mlx4_en_rx_ring *rx_ring = priv->rx_ring[cq->ring];
 
 		cq->state |= MLX4_EN_CQ_STATE_POLL_YIELD;

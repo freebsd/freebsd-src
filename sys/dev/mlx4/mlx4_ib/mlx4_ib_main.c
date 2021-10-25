@@ -148,7 +148,7 @@ static struct ifnet *mlx4_ib_get_netdev(struct ib_device *device, u8 port_num)
 			if (upper) {
 				struct ifnet *active;
 
-				active = bond_option_active_slave_get_rcu(netdev_priv(upper));
+				active = bond_option_active_slave_get_rcu(mlx4_netdev_priv(upper));
 				if (active)
 					dev = active;
 			}

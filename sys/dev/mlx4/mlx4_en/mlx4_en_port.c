@@ -74,7 +74,7 @@ int mlx4_SET_VLAN_FLTR(struct mlx4_dev *dev, struct mlx4_en_priv *priv)
 int mlx4_en_QUERY_PORT(struct mlx4_en_dev *mdev, u8 port)
 {
 	struct mlx4_en_query_port_context *qport_context;
-	struct mlx4_en_priv *priv = netdev_priv(mdev->pndev[port]);
+	struct mlx4_en_priv *priv = mlx4_netdev_priv(mdev->pndev[port]);
 	struct mlx4_en_port_state *state = &priv->port_state;
 	struct mlx4_cmd_mailbox *mailbox;
 	int err;
@@ -151,7 +151,7 @@ static u64 en_stats_adder(__be64 *start, __be64 *next, int num)
 
 static void mlx4_en_fold_software_stats(struct ifnet *dev)
 {
-	struct mlx4_en_priv *priv = netdev_priv(dev);
+	struct mlx4_en_priv *priv = mlx4_netdev_priv(dev);
 	struct mlx4_en_dev *mdev = priv->mdev;
 	u64 packets, bytes;
 	int i;
@@ -188,7 +188,7 @@ int mlx4_en_DUMP_ETH_STATS(struct mlx4_en_dev *mdev, u8 port, u8 reset)
 	struct mlx4_en_stat_out_mbox *mlx4_en_stats;
 	struct mlx4_en_stat_out_flow_control_mbox *flowstats;
 	struct ifnet *dev = mdev->pndev[port];
-	struct mlx4_en_priv *priv = netdev_priv(dev);
+	struct mlx4_en_priv *priv = mlx4_netdev_priv(dev);
 	struct mlx4_en_vport_stats *vport_stats = &priv->vport_stats;
 	struct mlx4_cmd_mailbox *mailbox;
 	u64 in_mod = reset << 8 | port;
@@ -436,7 +436,7 @@ out:
 
 int mlx4_en_get_vport_stats(struct mlx4_en_dev *mdev, u8 port)
 {
-	struct mlx4_en_priv *priv = netdev_priv(mdev->pndev[port]);
+	struct mlx4_en_priv *priv = mlx4_netdev_priv(mdev->pndev[port]);
 	struct mlx4_counter tmp_vport_stats;
 	struct mlx4_en_vf_stats *vf_stats = &priv->vf_stats;
 	int err, i, counter_index;

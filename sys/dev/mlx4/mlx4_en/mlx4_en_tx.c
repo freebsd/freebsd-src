@@ -310,7 +310,7 @@ done:
 
 int mlx4_en_free_tx_buf(struct ifnet *dev, struct mlx4_en_tx_ring *ring)
 {
-	struct mlx4_en_priv *priv = netdev_priv(dev);
+	struct mlx4_en_priv *priv = mlx4_netdev_priv(dev);
 	int cnt = 0;
 
 	/* Skip last polled descriptor */
@@ -347,7 +347,7 @@ mlx4_en_tx_ring_is_full(struct mlx4_en_tx_ring *ring)
 static int mlx4_en_process_tx_cq(struct ifnet *dev,
 				 struct mlx4_en_cq *cq)
 {
-	struct mlx4_en_priv *priv = netdev_priv(dev);
+	struct mlx4_en_priv *priv = mlx4_netdev_priv(dev);
 	struct mlx4_cq *mcq = &cq->mcq;
 	struct mlx4_en_tx_ring *ring = priv->tx_ring[cq->ring];
 	struct mlx4_cqe *cqe;
@@ -423,7 +423,7 @@ static int mlx4_en_process_tx_cq(struct ifnet *dev,
 void mlx4_en_tx_irq(struct mlx4_cq *mcq)
 {
 	struct mlx4_en_cq *cq = container_of(mcq, struct mlx4_en_cq, mcq);
-	struct mlx4_en_priv *priv = netdev_priv(cq->dev);
+	struct mlx4_en_priv *priv = mlx4_netdev_priv(cq->dev);
 	struct mlx4_en_tx_ring *ring = priv->tx_ring[cq->ring];
 
 	if (priv->port_up == 0 || !spin_trylock(&ring->comp_lock))
@@ -436,7 +436,7 @@ void mlx4_en_tx_irq(struct mlx4_cq *mcq)
 void mlx4_en_poll_tx_cq(unsigned long data)
 {
 	struct mlx4_en_cq *cq = (struct mlx4_en_cq *) data;
-	struct mlx4_en_priv *priv = netdev_priv(cq->dev);
+	struct mlx4_en_priv *priv = mlx4_netdev_priv(cq->dev);
 	struct mlx4_en_tx_ring *ring = priv->tx_ring[cq->ring];
 	u32 inflight;
 
@@ -606,7 +606,7 @@ SYSINIT(hashrandom_init, SI_SUB_RANDOM, SI_ORDER_ANY, &hashrandom_init, NULL);
 
 u16 mlx4_en_select_queue(struct ifnet *dev, struct mbuf *mb)
 {
-	struct mlx4_en_priv *priv = netdev_priv(dev);
+	struct mlx4_en_priv *priv = mlx4_netdev_priv(dev);
 	u32 rings_p_up = priv->num_tx_rings_p_up;
 	u32 up = 0;
 	u32 queue_index;
@@ -929,7 +929,7 @@ tx_drop:
 static int
 mlx4_en_transmit_locked(struct ifnet *ifp, int tx_ind, struct mbuf *mb)
 {
-	struct mlx4_en_priv *priv = netdev_priv(ifp);
+	struct mlx4_en_priv *priv = mlx4_netdev_priv(ifp);
 	struct mlx4_en_tx_ring *ring = priv->tx_ring[tx_ind];
 	int err = 0;
 
@@ -954,7 +954,7 @@ mlx4_en_transmit_locked(struct ifnet *ifp, int tx_ind, struct mbuf *mb)
 int
 mlx4_en_transmit(struct ifnet *dev, struct mbuf *m)
 {
-	struct mlx4_en_priv *priv = netdev_priv(dev);
+	struct mlx4_en_priv *priv = mlx4_netdev_priv(dev);
 	struct mlx4_en_tx_ring *ring;
 	int i, err = 0;
 
@@ -994,7 +994,7 @@ mlx4_en_transmit(struct ifnet *dev, struct mbuf *m)
 void
 mlx4_en_qflush(struct ifnet *dev)
 {
-	struct mlx4_en_priv *priv = netdev_priv(dev);
+	struct mlx4_en_priv *priv = mlx4_netdev_priv(dev);
 
 	if (priv->port_up == 0)
 		return;
