@@ -126,6 +126,12 @@ COMMON_SRCS+=	catrigl.c \
 # See also: https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=130067
 .if ${COMPILER_TYPE} == "gcc"
 CFLAGS.e_powl.c+= -Wno-error=overflow
+
+# IEEE-754 2008 and ISO/IEC TS 18661-4 half-cycle trignometric functions
+COMMON_SRCS+=	s_cospi.c s_cospif.c s_cospil.c \
+	s_sinpi.c s_sinpif.c s_sinpil.c \
+	s_tanpi.c s_tanpif.c s_tanpil.c
+
 .endif
 .endif
 
@@ -154,7 +160,8 @@ INCS+=	fenv.h math.h
 
 MAN=	acos.3 acosh.3 asin.3 asinh.3 atan.3 atan2.3 atanh.3 \
 	ceil.3 cacos.3 ccos.3 ccosh.3 cexp.3 \
-	cimag.3 clog.3 copysign.3 cos.3 cosh.3 cpow.3 csqrt.3 erf.3 \
+	cimag.3 clog.3 copysign.3 cos.3 cosh.3 cospi.3 \
+	cpow.3 csqrt.3 erf.3 \
 	exp.3 fabs.3 fdim.3 \
 	feclearexcept.3 feenableexcept.3 fegetenv.3 \
 	fegetround.3 fenv.3 floor.3 \
@@ -162,7 +169,7 @@ MAN=	acos.3 acosh.3 asin.3 asinh.3 atan.3 atan2.3 atanh.3 \
 	lgamma.3 log.3 lrint.3 lround.3 math.3 nan.3 \
 	nextafter.3 remainder.3 rint.3 \
 	round.3 scalbn.3 signbit.3 sin.3 sincos.3 \
-	sinh.3 sqrt.3 tan.3 tanh.3 trunc.3 \
+	sinh.3 sinpi.3 sqrt.3 tan.3 tanh.3 tanpi.3 trunc.3 \
 	complex.3
 
 MLINKS+=acos.3 acosf.3 acos.3 acosl.3
@@ -192,6 +199,7 @@ MLINKS+=clog.3 clogf.3 clog.3 clogl.3
 MLINKS+=copysign.3 copysignf.3 copysign.3 copysignl.3
 MLINKS+=cos.3 cosf.3 cos.3 cosl.3
 MLINKS+=cosh.3 coshf.3 cosh.3 coshl.3
+MLINKS+=cospi.3 cospif.3 cospi.3 cospil.3
 MLINKS+=cpow.3 cpowf.3 cpow.3 cpowl.3
 MLINKS+=csqrt.3 csqrtf.3 csqrt.3 csqrtl.3
 MLINKS+=erf.3 erfc.3 erf.3 erff.3 erf.3 erfcf.3 erf.3 erfl.3 erf.3 erfcl.3
@@ -244,10 +252,12 @@ MLINKS+=scalbn.3 scalbnf.3 scalbn.3 scalbnl.3
 MLINKS+=sin.3 sinf.3 sin.3 sinl.3
 MLINKS+=sincos.3 sincosf.3 sin.3 sincosl.3
 MLINKS+=sinh.3 sinhf.3 sinh.3 sinhl.3
+MLINKS+=sinpi.3 sinpif.3 sinpi.3 sinpil.3
 MLINKS+=sqrt.3 cbrt.3 sqrt.3 cbrtf.3 sqrt.3 cbrtl.3 sqrt.3 sqrtf.3 \
 	sqrt.3 sqrtl.3
 MLINKS+=tan.3 tanf.3 tan.3 tanl.3
 MLINKS+=tanh.3 tanhf.3 tanh.3 tanhl.3
+MLINKS+=tanpi.3 tanpif.3 tanpi.3 tanpil.3
 MLINKS+=trunc.3 truncf.3 trunc.3 truncl.3
 
 .include <src.opts.mk>

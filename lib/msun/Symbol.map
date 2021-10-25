@@ -304,3 +304,16 @@ FBSD_1.5 {
 	sincosf;
 	sincosl;
 };
+
+/* First added in 14.0-CURRENT */
+FBSD_1.7 {
+	cospi;
+	cospif;
+	cospil;
+	sinpi;
+	sinpif;
+	sinpil;
+	tanpi;
+	tanpif;
+	tanpil;
+};
