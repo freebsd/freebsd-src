@@ -119,7 +119,7 @@ static void mlx4_en_event(struct mlx4_dev *dev, void *endev_ptr,
 	case MLX4_DEV_EVENT_PORT_DOWN:
 		if (!mdev->pndev[port])
 			return;
-		priv = netdev_priv(mdev->pndev[port]);
+		priv = mlx4_netdev_priv(mdev->pndev[port]);
 		/* To prevent races, we poll the link state in a separate
 		  task rather than changing it here */
 		priv->link_state = event;
