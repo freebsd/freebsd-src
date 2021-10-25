@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
+#include <sys/sysctl.h>
 #include <sys/rman.h>
 
 #include <machine/bus.h>
@@ -326,6 +327,33 @@ felix_setup(felix_softc_t sc)
 }
 
 static int
+felix_timer_rate(SYSCTL_HANDLER_ARGS)
+{
+	felix_softc_t sc;
+	int error, value, old;
+
+	sc = arg1;
+
+	old = value = sc->timer_ticks;
+	error = sysctl_handle_int(oidp, &value, 0, req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+
+	if (value < 0)
+		return (EINVAL);
+
+	if (value == old)
+		return (0);
+
+	FELIX_LOCK(sc);
+	sc->timer_ticks = value;
+	callout_reset(&sc->tick_callout, sc->timer_ticks, felix_tick, sc);
+	FELIX_UNLOCK(sc);
+
+	return (0);
+}
+
+static int
 felix_attach(device_t dev)
 {
 	phandle_t child, ports, node;
@@ -425,6 +453,13 @@ felix_attach(device_t dev)
 	error = felix_setup(sc);
 	if (error != 0)
 		goto out_fail;
+
+	sc->timer_ticks = hz;	/* Default to 1s. */
+	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+	    OID_AUTO, "timer_ticks", CTLTYPE_INT | CTLFLAG_RW,
+	    sc, 0, felix_timer_rate, "I",
+	    "Number of ticks between timer invocations");
 
 	/* The tick routine has to be called with the lock held. */
 	FELIX_LOCK(sc);
@@ -922,7 +957,8 @@ felix_tick(void *arg)
 		MPASS(mii != NULL);
 		mii_tick(mii);
 	}
-	callout_reset(&sc->tick_callout, hz, felix_tick, sc);
+	if (sc->timer_ticks != 0)
+		callout_reset(&sc->tick_callout, sc->timer_ticks, felix_tick, sc);
 }
 
 static int

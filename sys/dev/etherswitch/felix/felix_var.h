@@ -102,6 +102,8 @@ typedef struct felix_softc {
 
 	int			vlan_mode;
 	int                     vlans[FELIX_NUM_VLANS];
+
+	uint32_t		timer_ticks;
 } *felix_softc_t;
 
 #endif
