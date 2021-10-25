@@ -245,6 +245,12 @@ nonseekable_open(struct inode *inode, struct file *filp)
 	return 0;
 }
 
+static inline int
+simple_open(struct inode *inode, struct file *filp)
+{
+	return 0;
+}
+
 extern unsigned int linux_iminor(struct inode *);
 #define	iminor(...) linux_iminor(__VA_ARGS__)
 
