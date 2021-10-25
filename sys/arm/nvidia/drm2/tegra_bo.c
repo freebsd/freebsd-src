@@ -105,7 +105,7 @@ tegra_bo_alloc_contig(size_t npages, u_long alignment, vm_memattr_t memattr,
 	boundary = 0;
 	tries = 0;
 retry:
-	m = vm_page_alloc_noobj_contig(VM_ALLOC_WIRE | VM_ALLOC_ZERO, npages,
+	m = vm_page_alloc_noobj_contig(VM_ALLOC_WIRED | VM_ALLOC_ZERO, npages,
 	    low, high, alignment, boundary, memattr);
 	if (m == NULL) {
 		if (tries < 3) {
