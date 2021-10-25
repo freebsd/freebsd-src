@@ -167,12 +167,11 @@ newreno_log_hystart_event(struct cc_var *ccv, struct newreno *nreno, uint8_t mod
 	}
 }
 
-static 	int
+static int
 newreno_cb_init(struct cc_var *ccv)
 {
 	struct newreno *nreno;
 
-	ccv->cc_data = NULL;
 	ccv->cc_data = malloc(sizeof(struct newreno), M_NEWRENO, M_NOWAIT);
 	if (ccv->cc_data == NULL)
 		return (ENOMEM);
@@ -210,7 +209,13 @@ newreno_ack_received(struct cc_var *ccv, uint16_t type)
 {
 	struct newreno *nreno;
 
-	nreno = (struct newreno *)ccv->cc_data;
+	/*
+	 * Other TCP congestion controls use newreno_ack_received(), but
+	 * with their own private cc_data. Make sure the cc_data is used
+	 * correctly.
+	 */
+	nreno = (CC_ALGO(ccv->ccvc.tcp) == &newreno_cc_algo) ? ccv->cc_data : NULL;
+
 	if (type == CC_ACK && !IN_RECOVERY(CCV(ccv, t_flags)) &&
 	    (ccv->flags & CCF_CWND_LIMITED)) {
 		u_int cw = CCV(ccv, snd_cwnd);
@@ -244,7 +249,8 @@ newreno_ack_received(struct cc_var *ccv, uint16_t type)
 		 *   avoid capping cwnd.
 		 */
 		if (cw > CCV(ccv, snd_ssthresh)) {
-			if (nreno->newreno_flags & CC_NEWRENO_HYSTART_IN_CSS) {
+			if ((nreno != NULL) &&
+			    (nreno->newreno_flags & CC_NEWRENO_HYSTART_IN_CSS)) {
 				/*
 				 * We have slipped into CA with
 				 * CSS active. Deactivate all.
@@ -278,7 +284,8 @@ newreno_ack_received(struct cc_var *ccv, uint16_t type)
 				abc_val = ccv->labc;
 			else
 				abc_val = V_tcp_abc_l_var;
-			if ((nreno->newreno_flags & CC_NEWRENO_HYSTART_ALLOWED) &&
+			if ((nreno != NULL) &&
+			    (nreno->newreno_flags & CC_NEWRENO_HYSTART_ALLOWED) &&
 			    (nreno->newreno_flags & CC_NEWRENO_HYSTART_ENABLED) &&
 			    ((nreno->newreno_flags & CC_NEWRENO_HYSTART_IN_CSS) == 0)) {
 				/*
@@ -316,7 +323,8 @@ newreno_ack_received(struct cc_var *ccv, uint16_t type)
 				incr = min(ccv->bytes_this_ack, CCV(ccv, t_maxseg));
 
 			/* Only if Hystart is enabled will the flag get set */
-			if (nreno->newreno_flags & CC_NEWRENO_HYSTART_IN_CSS) {
+			if ((nreno != NULL) &&
+			    (nreno->newreno_flags & CC_NEWRENO_HYSTART_IN_CSS)) {
 				incr /= hystart_css_growth_div;
 				newreno_log_hystart_event(ccv, nreno, 3, incr);
 			}
@@ -334,7 +342,12 @@ newreno_after_idle(struct cc_var *ccv)
 	struct newreno *nreno;
 	uint32_t rw;
 
-	nreno = (struct newreno *)ccv->cc_data;
+	/*
+	 * Other TCP congestion controls use newreno_after_idle(), but
+	 * with their own private cc_data. Make sure the cc_data is used
+	 * correctly.
+	 */
+	nreno = (CC_ALGO(ccv->ccvc.tcp) == &newreno_cc_algo) ? ccv->cc_data : NULL;
 	/*
 	 * If we've been idle for more than one retransmit timeout the old
 	 * congestion window is no longer current and we have to reduce it to
@@ -358,7 +371,8 @@ newreno_after_idle(struct cc_var *ccv)
 	    CCV(ccv, snd_cwnd)-(CCV(ccv, snd_cwnd)>>2));
 
 	CCV(ccv, snd_cwnd) = min(rw, CCV(ccv, snd_cwnd));
-	if ((nreno->newreno_flags & CC_NEWRENO_HYSTART_ENABLED) == 0) {
+	if ((nreno != NULL) &&
+	    (nreno->newreno_flags & CC_NEWRENO_HYSTART_ENABLED) == 0) {
 		if (CCV(ccv, snd_cwnd) <= (hystart_lowcwnd * tcp_fixed_maxseg(ccv->ccvc.tcp))) {
 			/*
 			 * Re-enable hystart if our cwnd has fallen below
@@ -382,9 +396,14 @@ newreno_cong_signal(struct cc_var *ccv, uint32_t type)
 
 	cwin = CCV(ccv, snd_cwnd);
 	mss = tcp_fixed_maxseg(ccv->ccvc.tcp);
-	nreno = (struct newreno *) ccv->cc_data;
-	beta = nreno->beta;
-	beta_ecn = nreno->beta_ecn;
+	/*
+	 * Other TCP congestion controls use newreno_cong_signal(), but
+	 * with their own private cc_data. Make sure the cc_data is used
+	 * correctly.
+	 */
+	nreno = (CC_ALGO(ccv->ccvc.tcp) == &newreno_cc_algo) ? ccv->cc_data : NULL;
+	beta = (nreno == NULL) ? V_newreno_beta : nreno->beta;;
+	beta_ecn = (nreno == NULL) ? V_newreno_beta_ecn : nreno->beta_ecn;
 	/*
 	 * Note that we only change the backoff for ECN if the
 	 * global sysctl V_cc_do_abe is set <or> the stack itself
@@ -407,7 +426,8 @@ newreno_cong_signal(struct cc_var *ccv, uint32_t type)
 
 	switch (type) {
 	case CC_NDUPACK:
-		if (nreno->newreno_flags & CC_NEWRENO_HYSTART_ENABLED) {
+		if ((nreno != NULL) &&
+		    (nreno->newreno_flags & CC_NEWRENO_HYSTART_ENABLED)) {
 			/* Make sure the flags are all off we had a loss */
 			nreno->newreno_flags &= ~CC_NEWRENO_HYSTART_ENABLED;
 			nreno->newreno_flags &= ~CC_NEWRENO_HYSTART_IN_CSS;
@@ -425,7 +445,8 @@ newreno_cong_signal(struct cc_var *ccv, uint32_t type)
 		}
 		break;
 	case CC_ECN:
-		if (nreno->newreno_flags & CC_NEWRENO_HYSTART_ENABLED) {
+		if ((nreno != NULL) &&
+		    (nreno->newreno_flags & CC_NEWRENO_HYSTART_ENABLED)) {
 			/* Make sure the flags are all off we had a loss */
 			nreno->newreno_flags &= ~CC_NEWRENO_HYSTART_ENABLED;
 			nreno->newreno_flags &= ~CC_NEWRENO_HYSTART_IN_CSS;
