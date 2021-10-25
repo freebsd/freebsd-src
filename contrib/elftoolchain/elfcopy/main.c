@@ -738,6 +738,8 @@ create_file(struct elfcopy *ecp, const char *src, const char *dst)
 
 	if ((ecp->ein = elf_begin(ifd, ELF_C_READ, NULL)) == NULL) {
 		cleanup_tempfile(tempfile);
+		if (fstat(ifd, &sb) == 0 && sb.st_size == 0)
+			errx(EXIT_FAILURE, "file format not recognized");
 		errx(EXIT_FAILURE, "elf_begin() failed: %s",
 		    elf_errmsg(-1));
 	}
