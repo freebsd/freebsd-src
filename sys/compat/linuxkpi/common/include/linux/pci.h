@@ -692,7 +692,7 @@ pci_disable_link_state(struct pci_dev *pdev, uint32_t flags)
 }
 
 static inline int
-pci_read_config_byte(struct pci_dev *pdev, int where, u8 *val)
+pci_read_config_byte(const struct pci_dev *pdev, int where, u8 *val)
 {
 
 	*val = (u8)pci_read_config(pdev->dev.bsddev, where, 1);
@@ -700,7 +700,7 @@ pci_read_config_byte(struct pci_dev *pdev, int where, u8 *val)
 }
 
 static inline int
-pci_read_config_word(struct pci_dev *pdev, int where, u16 *val)
+pci_read_config_word(const struct pci_dev *pdev, int where, u16 *val)
 {
 
 	*val = (u16)pci_read_config(pdev->dev.bsddev, where, 2);
@@ -708,7 +708,7 @@ pci_read_config_word(struct pci_dev *pdev, int where, u16 *val)
 }
 
 static inline int
-pci_read_config_dword(struct pci_dev *pdev, int where, u32 *val)
+pci_read_config_dword(const struct pci_dev *pdev, int where, u32 *val)
 {
 
 	*val = (u32)pci_read_config(pdev->dev.bsddev, where, 4);
@@ -716,7 +716,7 @@ pci_read_config_dword(struct pci_dev *pdev, int where, u32 *val)
 }
 
 static inline int
-pci_write_config_byte(struct pci_dev *pdev, int where, u8 val)
+pci_write_config_byte(const struct pci_dev *pdev, int where, u8 val)
 {
 
 	pci_write_config(pdev->dev.bsddev, where, val, 1);
@@ -724,7 +724,7 @@ pci_write_config_byte(struct pci_dev *pdev, int where, u8 val)
 }
 
 static inline int
-pci_write_config_word(struct pci_dev *pdev, int where, u16 val)
+pci_write_config_word(const struct pci_dev *pdev, int where, u16 val)
 {
 
 	pci_write_config(pdev->dev.bsddev, where, val, 2);
@@ -732,7 +732,7 @@ pci_write_config_word(struct pci_dev *pdev, int where, u16 val)
 }
 
 static inline int
-pci_write_config_dword(struct pci_dev *pdev, int where, u32 val)
+pci_write_config_dword(const struct pci_dev *pdev, int where, u32 val)
 {
 
 	pci_write_config(pdev->dev.bsddev, where, val, 4);
