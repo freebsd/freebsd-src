@@ -242,7 +242,7 @@ linux_pci_find(device_t dev, const struct pci_device_id **idp)
 	subdevice = pci_get_subdevice(dev);
 
 	spin_lock(&pci_lock);
-	list_for_each_entry(pdrv, &pci_drivers, links) {
+	list_for_each_entry(pdrv, &pci_drivers, node) {
 		for (id = pdrv->id_table; id->vendor != 0; id++) {
 			if (vendor == id->vendor &&
 			    (PCI_ANY_ID == id->device || device == id->device) &&
@@ -640,7 +640,7 @@ _linux_pci_register_driver(struct pci_driver *pdrv, devclass_t dc)
 
 	linux_set_current(curthread);
 	spin_lock(&pci_lock);
-	list_add(&pdrv->links, &pci_drivers);
+	list_add(&pdrv->node, &pci_drivers);
 	spin_unlock(&pci_lock);
 	pdrv->bsddriver.name = pdrv->name;
 	pdrv->bsddriver.methods = pci_methods;
@@ -734,7 +734,7 @@ linux_pci_unregister_driver(struct pci_driver *pdrv)
 	bus = devclass_find("pci");
 
 	spin_lock(&pci_lock);
-	list_del(&pdrv->links);
+	list_del(&pdrv->node);
 	spin_unlock(&pci_lock);
 	mtx_lock(&Giant);
 	if (bus != NULL)
@@ -750,7 +750,7 @@ linux_pci_unregister_drm_driver(struct pci_driver *pdrv)
 	bus = devclass_find("vgapci");
 
 	spin_lock(&pci_lock);
-	list_del(&pdrv->links);
+	list_del(&pdrv->node);
 	spin_unlock(&pci_lock);
 	mtx_lock(&Giant);
 	if (bus != NULL)
