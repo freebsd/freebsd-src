@@ -65,7 +65,7 @@ static int mlx4_en_low_latency_recv(struct napi_struct *napi)
 {
 	struct mlx4_en_cq *cq = container_of(napi, struct mlx4_en_cq, napi);
 	struct ifnet *dev = cq->dev;
-	struct mlx4_en_priv *priv = netdev_priv(dev);
+	struct mlx4_en_priv *priv = mlx4_netdev_priv(dev);
 	struct mlx4_en_rx_ring *rx_ring = priv->rx_ring[cq->ring];
 	int done;
 
@@ -291,7 +291,7 @@ static int
 mlx4_en_filter_rfs(struct ifnet *net_dev, const struct sk_buff *skb,
 		   u16 rxq_index, u32 flow_id)
 {
-	struct mlx4_en_priv *priv = netdev_priv(net_dev);
+	struct mlx4_en_priv *priv = mlx4_netdev_priv(net_dev);
 	struct mlx4_en_filter *filter;
 	const struct iphdr *ip;
 	const __be16 *ports;
@@ -402,7 +402,7 @@ static void mlx4_en_filter_rfs_expire(struct mlx4_en_priv *priv)
 
 static void mlx4_en_vlan_rx_add_vid(void *arg, struct ifnet *dev, u16 vid)
 {
-	struct mlx4_en_priv *priv = netdev_priv(dev);
+	struct mlx4_en_priv *priv = mlx4_netdev_priv(dev);
 	struct mlx4_en_dev *mdev = priv->mdev;
 	int err;
 	int idx;
@@ -429,7 +429,7 @@ static void mlx4_en_vlan_rx_add_vid(void *arg, struct ifnet *dev, u16 vid)
 
 static void mlx4_en_vlan_rx_kill_vid(void *arg, struct ifnet *dev, u16 vid)
 {
-	struct mlx4_en_priv *priv = netdev_priv(dev);
+	struct mlx4_en_priv *priv = mlx4_netdev_priv(dev);
 	struct mlx4_en_dev *mdev = priv->mdev;
 	int err;
 
@@ -608,7 +608,7 @@ static void mlx4_en_put_qp(struct mlx4_en_priv *priv)
 
 static void mlx4_en_clear_uclist(struct ifnet *dev)
 {
-	struct mlx4_en_priv *priv = netdev_priv(dev);
+	struct mlx4_en_priv *priv = mlx4_netdev_priv(dev);
 	struct mlx4_en_addr_list *tmp, *uc_to_del;
 
 	list_for_each_entry_safe(uc_to_del, tmp, &priv->uc_list, list) {
@@ -637,7 +637,7 @@ static u_int mlx4_copy_addr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
 
 static void mlx4_en_cache_uclist(struct ifnet *dev)
 {
-	struct mlx4_en_priv *priv = netdev_priv(dev);
+	struct mlx4_en_priv *priv = mlx4_netdev_priv(dev);
 
 	mlx4_en_clear_uclist(dev);
 	if_foreach_lladdr(dev, mlx4_copy_addr, priv);
@@ -645,7 +645,7 @@ static void mlx4_en_cache_uclist(struct ifnet *dev)
 
 static void mlx4_en_clear_mclist(struct ifnet *dev)
 {
-	struct mlx4_en_priv *priv = netdev_priv(dev);
+	struct mlx4_en_priv *priv = mlx4_netdev_priv(dev);
 	struct mlx4_en_addr_list *tmp, *mc_to_del;
 
 	list_for_each_entry_safe(mc_to_del, tmp, &priv->mc_list, list) {
@@ -673,7 +673,7 @@ static u_int mlx4_copy_maddr(void *arg, struct sockaddr_dl *sdl, u_int count)
 
 static void mlx4_en_cache_mclist(struct ifnet *dev)
 {
-	struct mlx4_en_priv *priv = netdev_priv(dev);
+	struct mlx4_en_priv *priv = mlx4_netdev_priv(dev);
 
 	mlx4_en_clear_mclist(dev);
 	if_foreach_llmaddr(dev, mlx4_copy_maddr, priv);
@@ -730,7 +730,7 @@ static void update_addr_list_flags(struct mlx4_en_priv *priv,
 
 static void mlx4_en_set_rx_mode(struct ifnet *dev)
 {
-	struct mlx4_en_priv *priv = netdev_priv(dev);
+	struct mlx4_en_priv *priv = mlx4_netdev_priv(dev);
 
 	if (!priv->port_up)
 		return;
@@ -1260,7 +1260,7 @@ static void mlx4_en_linkstate(struct work_struct *work)
 
 int mlx4_en_start_port(struct ifnet *dev)
 {
-	struct mlx4_en_priv *priv = netdev_priv(dev);
+	struct mlx4_en_priv *priv = mlx4_netdev_priv(dev);
 	struct mlx4_en_dev *mdev = priv->mdev;
 	struct mlx4_en_cq *cq;
 	struct mlx4_en_tx_ring *tx_ring;
@@ -1453,7 +1453,7 @@ cq_err:
 
 void mlx4_en_stop_port(struct ifnet *dev)
 {
-	struct mlx4_en_priv *priv = netdev_priv(dev);
+	struct mlx4_en_priv *priv = mlx4_netdev_priv(dev);
 	struct mlx4_en_dev *mdev = priv->mdev;
 	struct mlx4_en_addr_list *addr_list, *tmp;
 	int i;
@@ -1603,7 +1603,7 @@ reset:
 
 static void mlx4_en_clear_stats(struct ifnet *dev)
 {
-	struct mlx4_en_priv *priv = netdev_priv(dev);
+	struct mlx4_en_priv *priv = mlx4_netdev_priv(dev);
 	struct mlx4_en_dev *mdev = priv->mdev;
 	int i;
 
@@ -1762,7 +1762,7 @@ struct en_port_attribute en_port_attr_##_name = __ATTR(_name, _mode, _show, _sto
 
 void mlx4_en_destroy_netdev(struct ifnet *dev)
 {
-	struct mlx4_en_priv *priv = netdev_priv(dev);
+	struct mlx4_en_priv *priv = mlx4_netdev_priv(dev);
 	struct mlx4_en_dev *mdev = priv->mdev;
 
 	en_dbg(DRV, priv, "Destroying netdev on port:%d\n", priv->port);
@@ -1817,7 +1817,7 @@ void mlx4_en_destroy_netdev(struct ifnet *dev)
 
 static int mlx4_en_change_mtu(struct ifnet *dev, int new_mtu)
 {
-	struct mlx4_en_priv *priv = netdev_priv(dev);
+	struct mlx4_en_priv *priv = mlx4_netdev_priv(dev);
 	struct mlx4_en_dev *mdev = priv->mdev;
 	int err = 0;
 
@@ -2353,7 +2353,7 @@ out:
 static int mlx4_en_set_ring_size(struct ifnet *dev,
     int rx_size, int tx_size)
 {
-        struct mlx4_en_priv *priv = netdev_priv(dev);
+        struct mlx4_en_priv *priv = mlx4_netdev_priv(dev);
         struct mlx4_en_dev *mdev = priv->mdev;
         int port_up = 0;
         int err = 0;
@@ -2427,7 +2427,7 @@ static int mlx4_en_set_tx_ring_size(SYSCTL_HANDLER_ARGS)
 static int mlx4_en_get_module_info(struct ifnet *dev,
 				   struct ethtool_modinfo *modinfo)
 {
-	struct mlx4_en_priv *priv = netdev_priv(dev);
+	struct mlx4_en_priv *priv = mlx4_netdev_priv(dev);
 	struct mlx4_en_dev *mdev = priv->mdev;
 	int ret;
 	u8 data[4];
@@ -2475,7 +2475,7 @@ static int mlx4_en_get_module_eeprom(struct ifnet *dev,
 				     struct ethtool_eeprom *ee,
 				     u8 *data)
 {
-	struct mlx4_en_priv *priv = netdev_priv(dev);
+	struct mlx4_en_priv *priv = mlx4_netdev_priv(dev);
 	struct mlx4_en_dev *mdev = priv->mdev;
 	int offset = ee->offset;
 	int i = 0, ret;
