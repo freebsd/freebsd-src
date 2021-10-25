@@ -508,6 +508,15 @@ long double	lgammal_r(long double, int *);
 void		sincos(double, double *, double *);
 void		sincosf(float, float *, float *);
 void		sincosl(long double, long double *, long double *);
+double		cospi(double);
+float		cospif(float);
+long double 	cospil(long double);
+double		sinpi(double);
+float		sinpif(float);
+long double 	sinpil(long double);
+double		tanpi(double);
+float		tanpif(float);
+long double	tanpil(long double);
 #endif
 
 __END_DECLS
