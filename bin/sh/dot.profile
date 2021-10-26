@@ -1,9 +1,9 @@
 # $FreeBSD$
 #
-PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin:~/bin
-export PATH
 HOME=/root
 export HOME
+PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin:~/bin
+export PATH
 TERM=${TERM:-xterm}
 export TERM
 PAGER=less
