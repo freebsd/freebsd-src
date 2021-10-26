@@ -31,6 +31,8 @@
 
 #define	BIT(x)						(1UL << (x))
 
+#define FELIX_MDIO_BASE					0x1C00
+
 #define	FELIX_DEVCPU_GCB_RST				0x70004
 #define	FELIX_DEVCPU_GCB_RST_EN				BIT(0)
 
