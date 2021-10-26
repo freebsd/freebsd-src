@@ -16,7 +16,9 @@ case "$weekly_locate_enable" in
 	echo ""
 	echo "Rebuilding locate database:"
 
-	locdb=/var/db/locate.database
+        . /etc/locate.rc
+	: ${FCODES:="/var/db/locate.database"}
+        locdb="$FCODES"
 
 	touch $locdb && rc=0 || rc=3
 	chown nobody $locdb || rc=3
