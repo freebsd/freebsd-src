@@ -27,9 +27,10 @@
 #
 
 .PATH:	${SRCTOP}/sys/dev/etherswitch/felix
+.PATH:	${SRCTOP}/sys/dev/enetc
 
 KMOD	= felix
-SRCS	= felix.c
+SRCS	= felix.c enetc_mdio.c
 SRCS	+= bus_if.h device_if.h etherswitch_if.h miibus_if.h ofw_bus_if.h pci_if.h
 
 .include <bsd.kmod.mk>
