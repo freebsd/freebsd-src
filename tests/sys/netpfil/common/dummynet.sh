@@ -329,6 +329,50 @@ queue_v6_cleanup()
 	firewall_cleanup $1
 }
 
+nat_head()
+{
+	atf_set descr 'Basic dummynet + NAT test'
+	atf_set require.user root
+}
+
+nat_body()
+{
+	fw=$1
+	firewall_init $fw
+	dummynet_init $fw
+	nat_init $fw
+
+	epair=$(vnet_mkepair)
+	epair_two=$(vnet_mkepair)
+
+	ifconfig ${epair}a 192.0.2.2/24 up
+	route add -net 198.51.100.0/24 192.0.2.1
+
+	vnet_mkjail gw ${epair}b ${epair_two}a
+	jexec gw ifconfig ${epair}b 192.0.2.1/24 up
+	jexec gw ifconfig ${epair_two}a 198.51.100.1/24 up
+	jexec gw sysctl net.inet.ip.forwarding=1
+
+	vnet_mkjail srv ${epair_two}b
+	jexec srv ifconfig ${epair_two}b 198.51.100.2/24 up
+
+	jexec gw dnctl pipe 1 config bw 300Byte/s
+
+	firewall_config gw $fw \
+		"pf"	\
+			"nat on ${epair_two}a inet from 192.0.2.0/24 to any -> (${epair_two}a)" \
+			"pass dnpipe 1"
+
+	# We've deliberately not set a route to 192.0.2.0/24 on srv, so the
+	# only way it can respond to this is if NAT is applied correctly.
+	atf_check -s exit:0 -o ignore ping -c 1 198.51.100.2
+}
+
+nat_cleanup()
+{
+	firewall_cleanup $1
+}
+
 setup_tests		\
 	pipe		\
 		ipfw	\
@@ -341,4 +385,6 @@ setup_tests		\
 		pf	\
 	queue_v6	\
 		ipfw	\
+		pf	\
+	nat		\
 		pf
