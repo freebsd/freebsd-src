@@ -103,6 +103,7 @@ initswap(void)
 	}
 	pathlen = 80 - 50 /* % */ - 5 /* Used */ - 5 /* Size */ - 3 /* space */;
 	dsinit(12);
+	procinit();
 	once = 1;
 
 	return (1);
@@ -125,14 +126,13 @@ fetchswap(void)
 	cur_dev.dinfo = tmp_dinfo;
 
 	last_dev.snap_time = cur_dev.snap_time;
-	dsgetinfo( &cur_dev );
+	dsgetinfo(&cur_dev);
+	procgetinfo();
 }
 
 void
 labelswap(void)
 {
-	const char *name;
-	int i;
 
 	werase(wnd);
 
@@ -146,18 +146,13 @@ labelswap(void)
 	mvwprintw(wnd, 0, 0, "%*s%5s %5s %s",
 	    -pathlen, "Device/Path", "Size", "Used",
 	    "|0%  /10  /20  /30  /40  / 60\\  70\\  80\\  90\\ 100|");
-
-	for (i = 0; i <= kvnsw; ++i) {
-		name = i == kvnsw ? "Total" : kvmsw[i].ksw_devname;
-		mvwprintw(wnd, 1 + i, 0, "%-*.*s", pathlen, pathlen - 1, name);
-	}
 }
 
 void
 showswap(void)
 {
-	int count;
-	int i;
+	const char *name;
+	int count, i;
 
 	if (kvnsw != okvnsw)
 		labelswap();
@@ -167,7 +162,10 @@ showswap(void)
 	if (kvnsw <= 0)
 		return;
 
-	for (i = 0; i <= kvnsw; ++i) {
+	for (i = (kvnsw == 1 ? 0 : kvnsw); i >= 0; i--) {
+		name = i == kvnsw ? "Total" : kvmsw[i].ksw_devname;
+		mvwprintw(wnd, 1 + i, 0, "%-*.*s", pathlen, pathlen - 1, name);
+
 		sysputpage(wnd, i + 1, pathlen, 5, kvmsw[i].ksw_total, 0);
 		sysputpage(wnd, i + 1, pathlen + 5 + 1, 5, kvmsw[i].ksw_used,
 		    0);
@@ -178,4 +176,8 @@ showswap(void)
 		}
 		wclrtoeol(wnd);
 	}
+	count = kvnsw == 1 ? 2 : 3;
+	proclabel(kvnsw + count);
+	procshow(kvnsw + count, LINES - 5 - kvnsw + 3 - DISKHIGHT + 1,
+	    kvmsw[kvnsw].ksw_total);
 }

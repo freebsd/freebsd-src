@@ -5,7 +5,7 @@
 
 PROG=	systat
 SRCS=	cmds.c cmdtab.c devs.c fetch.c iostat.c keyboard.c main.c sysput.c \
-	netcmds.c netstat.c pigs.c swap.c icmp.c \
+	netcmds.c netstat.c pigs.c proc.c swap.c icmp.c \
 	mode.c ip.c sctp.c tcp.c zarc.c \
 	vmstat.c convtbl.c ifcmds.c ifstat.c
 
@@ -16,6 +16,6 @@ CFLAGS+= -DINET6
 
 WARNS?=	1
 
-LIBADD=	tinfow ncursesw m devstat kvm util
+LIBADD=	tinfow ncursesw m devstat kvm util procstat
 
 .include <bsd.prog.mk>

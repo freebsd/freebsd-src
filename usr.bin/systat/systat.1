@@ -279,9 +279,11 @@ not display kilobytes per transaction).
 .El
 .It Ic swap
 Show information about swap space usage on all the
-swap areas compiled into the kernel.
-The first column is the device name of the partition.
-The next column is the total space available in the partition.
+swap areas compiled into the kernel and processes that are swapped out
+as well as a summary of disk activity.
+.Pp
+The swap areas are displayed first with their name, sizes and
+usage percentage.
 The
 .Ar Used
 column indicates the total blocks used so far;
@@ -289,6 +291,28 @@ the graph shows the percentage of space in use on each partition.
 If there are more than one swap partition in use,
 a total line is also shown.
 Areas known to the kernel, but not in use are shown as not available.
+.Pp
+Below the swap space statistics,
+processes are listed in order of higher swap area usage.
+Pid, username, a part of command line, the total use of swap space
+in bytes, the size of process, as well as per-process swap usage percentage and
+per-system swap space percentage are shown per process.
+.Pp
+At the bottom left is the disk usage display.
+It reports the number of
+kilobytes per transaction, transactions per second, megabytes
+per second and the percentage of the time the disk was busy averaged
+over the refresh period of the display (by default, five seconds).
+The system keeps statistics on most every storage device.
+In general, up
+to seven devices are displayed.
+The devices displayed by default are the
+first devices in the kernel's device list.
+See
+.Xr devstat 3
+and
+.Xr devstat 9
+for details on the devstat system.
 .It Ic vmstat
 Take over the entire display and show a (rather crowded) compendium
 of statistics related to virtual memory usage, process scheduling,
