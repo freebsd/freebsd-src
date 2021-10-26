@@ -14909,6 +14909,7 @@ pace_to_fill_cwnd(struct tcp_rack *rack, int32_t slot, uint32_t len, uint32_t se
 static int32_t
 rack_get_pacing_delay(struct tcp_rack *rack, struct tcpcb *tp, uint32_t len, struct rack_sendmap *rsm, uint32_t segsiz)
 {
+	uint64_t srtt;
 	int32_t slot = 0;
 	int can_start_hw_pacing = 1;
 	int err;
@@ -14921,7 +14922,7 @@ rack_get_pacing_delay(struct tcp_rack *rack, struct tcpcb *tp, uint32_t len, str
 		 * quicker then possible. But thats ok we don't want
 		 * the peer to have a gap in data sending.
 		 */
-		uint32_t srtt, cwnd, tr_perms = 0;
+		uint64_t cwnd, tr_perms = 0;
 		int32_t reduce = 0;
 
 	old_method:
@@ -14971,7 +14972,7 @@ rack_get_pacing_delay(struct tcp_rack *rack, struct tcpcb *tp, uint32_t len, str
 			rack_log_pacing_delay_calc(rack, len, slot, tr_perms, reduce, 0, 7, __LINE__, NULL, 0);
 	} else {
 		uint64_t bw_est, res, lentim, rate_wanted;
-		uint32_t orig_val, srtt, segs, oh;
+		uint32_t orig_val, segs, oh;
 		int capped = 0;
 		int prev_fill;
 
@@ -15196,7 +15197,7 @@ done_w_hdwr:
 				srtt = rack->rc_tp->t_srtt;
 			else
 				srtt = RACK_INITIAL_RTO * HPTS_USEC_IN_MSEC;	/* its in ms convert */
-			if (srtt < slot) {
+			if (srtt < (uint64_t)slot) {
 				rack_log_pacing_delay_calc(rack, srtt, slot, rate_wanted, bw_est, lentim, 99, __LINE__, NULL, 0);
 				slot = srtt;
 			}
