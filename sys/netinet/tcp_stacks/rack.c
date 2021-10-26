@@ -20245,6 +20245,12 @@ static int
 rack_set_sockopt(struct socket *so, struct sockopt *sopt,
     struct inpcb *inp, struct tcpcb *tp, struct tcp_rack *rack)
 {
+#ifdef INET6
+	struct ip6_hdr *ip6 = (struct ip6_hdr *)rack->r_ctl.fsb.tcp_ip_hdr;
+#endif
+#ifdef INET
+	struct ip *ip = (struct ip *)rack->r_ctl.fsb.tcp_ip_hdr;
+#endif
 	uint64_t loptval;
 	int32_t error = 0, optval;
 
@@ -20255,13 +20261,34 @@ rack_set_sockopt(struct socket *so, struct sockopt *sopt,
 		switch (sopt->sopt_name) {
 		case IPV6_USE_MIN_MTU:
 			tcp6_use_min_mtu(tp);
-			/* FALLTHROUGH */
+			break;
+		case IPV6_TCLASS:
+			/*
+			 * The DSCP codepoint has changed, update the fsb.
+			 */
+			ip6->ip6_flow = (ip6->ip6_flow & ~IPV6_FLOWINFO_MASK) |
+			    (rack->rc_inp->inp_flow & IPV6_FLOWINFO_MASK);
+			break;
 		}
 		INP_WUNLOCK(inp);
 		return (0);
 #endif
 #ifdef INET
 	case IPPROTO_IP:
+		switch (sopt->sopt_name) {
+		case IP_TOS:
+			/*
+			 * The DSCP codepoint has changed, update the fsb.
+			 */
+			ip->ip_tos = rack->rc_inp->inp_ip_tos;
+			break;
+		case IP_TTL:
+			/*
+			 * The TTL has changed, update the fsb.
+			 */
+			ip->ip_ttl = rack->rc_inp->inp_ip_ttl;
+			break;
+		}
 		INP_WUNLOCK(inp);
 		return (0);
 #endif
