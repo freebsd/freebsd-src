@@ -14253,6 +14253,12 @@ bbr_set_sockopt(struct socket *so, struct sockopt *sopt,
 	struct epoch_tracker et;
 	int32_t error = 0, optval;
 
+	switch (sopt->sopt_level) {
+	case IPPROTO_IPV6:
+	case IPPROTO_IP:
+		return (tcp_default_ctloutput(so, sopt, inp, tp));
+	}
+
 	switch (sopt->sopt_name) {
 	case TCP_RACK_PACE_MAX_SEG:
 	case TCP_RACK_MIN_TO:
