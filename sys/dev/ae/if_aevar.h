@@ -102,7 +102,7 @@ typedef struct ae_stats {
 
 /* Software state structure. */
 typedef struct ae_softc	{
-	struct ifnet		*ifp;
+	if_t			ifp;
 	device_t		dev;
 	device_t		miibus;
 	struct resource		*mem[1];
