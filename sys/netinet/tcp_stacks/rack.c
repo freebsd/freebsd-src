@@ -20248,6 +20248,25 @@ rack_set_sockopt(struct socket *so, struct sockopt *sopt,
 	uint64_t loptval;
 	int32_t error = 0, optval;
 
+	switch (sopt->sopt_level) {
+#ifdef INET6
+	case IPPROTO_IPV6:
+		MPASS(inp->inp_vflag & INP_IPV6PROTO);
+		switch (sopt->sopt_name) {
+		case IPV6_USE_MIN_MTU:
+			tcp6_use_min_mtu(tp);
+			/* FALLTHROUGH */
+		}
+		INP_WUNLOCK(inp);
+		return (0);
+#endif
+#ifdef INET
+	case IPPROTO_IP:
+		INP_WUNLOCK(inp);
+		return (0);
+#endif
+	}
+
 	switch (sopt->sopt_name) {
 	case TCP_RACK_TLP_REDUCE:		/*  URL:tlp_reduce */
 	/*  Pacing related ones */

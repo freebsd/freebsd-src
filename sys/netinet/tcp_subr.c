@@ -3559,6 +3559,41 @@ tcp_maxmtu6(struct in_conninfo *inc, struct tcp_ifcap *cap)
 
 	return (maxmtu);
 }
+
+/*
+ * Handle setsockopt(IPV6_USE_MIN_MTU) by a TCP stack.
+ *
+ * XXXGL: we are updating inpcb here with INC_IPV6MINMTU flag.
+ * The right place to do that is ip6_setpktopt() that has just been
+ * executed.  By the way it just filled ip6po_minmtu for us.
+ */
+void
+tcp6_use_min_mtu(struct tcpcb *tp)
+{
+	struct inpcb *inp = tp->t_inpcb;
+
+	INP_WLOCK_ASSERT(inp);
+	/*
+	 * In case of the IPV6_USE_MIN_MTU socket
+	 * option, the INC_IPV6MINMTU flag to announce
+	 * a corresponding MSS during the initial
+	 * handshake.  If the TCP connection is not in
+	 * the front states, just reduce the MSS being
+	 * used.  This avoids the sending of TCP
+	 * segments which will be fragmented at the
+	 * IPv6 layer.
+	 */
+	inp->inp_inc.inc_flags |= INC_IPV6MINMTU;
+	if ((tp->t_state >= TCPS_SYN_SENT) &&
+	    (inp->inp_inc.inc_flags & INC_ISIPV6)) {
+		struct ip6_pktopts *opt;
+
+		opt = inp->in6p_outputopts;
+		if (opt != NULL && opt->ip6po_minmtu == IP6PO_MINMTU_ALL &&
+		    tp->t_maxseg > TCP6_MSS)
+			tp->t_maxseg = TCP6_MSS;
+	}
+}
 #endif /* INET6 */
 
 /*

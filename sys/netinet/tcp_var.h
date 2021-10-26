@@ -1053,6 +1053,7 @@ extern uint32_t tcp_ack_war_cnt;
 
 uint32_t tcp_maxmtu(struct in_conninfo *, struct tcp_ifcap *);
 uint32_t tcp_maxmtu6(struct in_conninfo *, struct tcp_ifcap *);
+void	 tcp6_use_min_mtu(struct tcpcb *);
 u_int	 tcp_maxseg(const struct tcpcb *);
 u_int	 tcp_fixed_maxseg(const struct tcpcb *);
 void	 tcp_mss_update(struct tcpcb *, int, int, struct hc_metrics_lite *,

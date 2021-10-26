@@ -1763,43 +1763,8 @@ tcp_ctloutput_set(struct inpcb *inp, struct sockopt *sopt)
 				/* Notify tcp stacks that care (e.g. RACK). */
 				break;
 			case IPV6_USE_MIN_MTU:
-				/*
-				 * XXXGL: this handling should belong to
-				 * stack specific tfb_tcp_ctloutput, we
-				 * should just break here.
-				 *
-				 * In case of the IPV6_USE_MIN_MTU socket
-				 * option, the INC_IPV6MINMTU flag to announce
-				 * a corresponding MSS during the initial
-				 * handshake.  If the TCP connection is not in
-				 * the front states, just reduce the MSS being
-				 * used.  This avoids the sending of TCP
-				 * segments which will be fragmented at the
-				 * IPv6 layer.
-				 */
-				INP_WLOCK(inp);
-				if ((inp->inp_flags &
-				    (INP_TIMEWAIT | INP_DROPPED))) {
-					INP_WUNLOCK(inp);
-					return (ECONNRESET);
-				}
-				inp->inp_inc.inc_flags |= INC_IPV6MINMTU;
-				tp = intotcpcb(inp);
-				if ((tp->t_state >= TCPS_SYN_SENT) &&
-				    (inp->inp_inc.inc_flags & INC_ISIPV6)) {
-					struct ip6_pktopts *opt;
-
-					opt = inp->in6p_outputopts;
-					if ((opt != NULL) &&
-					    (opt->ip6po_minmtu ==
-					    IP6PO_MINMTU_ALL)) {
-						if (tp->t_maxseg > TCP6_MSS) {
-							tp->t_maxseg = TCP6_MSS;
-						}
-					}
-				}
-				INP_WUNLOCK(inp);
-				/* FALLTHROUGH */
+				/* Update t_maxseg accordingly. */
+				break;
 			default:
 				return (error);
 			}
@@ -2057,6 +2022,27 @@ tcp_default_ctloutput(struct socket *so, struct sockopt *sopt, struct inpcb *inp
 	struct statsblob *sbp;
 #endif
 	size_t	len;
+
+	INP_WLOCK_ASSERT(inp);
+
+	switch (sopt->sopt_level) {
+#ifdef INET6
+	case IPPROTO_IPV6:
+		MPASS(inp->inp_vflag & INP_IPV6PROTO);
+		switch (sopt->sopt_name) {
+		case IPV6_USE_MIN_MTU:
+			tcp6_use_min_mtu(tp);
+			/* FALLTHROUGH */
+		}
+		INP_WUNLOCK(inp);
+		return (0);
+#endif
+#ifdef INET
+	case IPPROTO_IP:
+		INP_WUNLOCK(inp);
+		return (0);
+#endif
+	}
 
 	/*
 	 * For TCP_CCALGOOPT forward the control to CC module, for both
