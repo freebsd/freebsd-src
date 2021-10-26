@@ -763,6 +763,10 @@ bpf_attachd(struct bpf_d *d, struct bpf_if *bp)
 		CK_LIST_INSERT_HEAD(&bp->bif_dlist, d, bd_next);
 
 	reset_d(d);
+
+	/* Trigger EVFILT_WRITE events. */
+	bpf_wakeup(d);
+
 	BPFD_UNLOCK(d);
 	bpf_bpfd_cnt++;
 
@@ -2229,11 +2233,16 @@ static int
 filt_bpfwrite(struct knote *kn, long hint)
 {
 	struct bpf_d *d = (struct bpf_d *)kn->kn_hook;
+
 	BPFD_LOCK_ASSERT(d);
 
-	kn->kn_data = d->bd_bif->bif_ifp->if_mtu;
-
-	return (1);
+	if (d->bd_bif == NULL) {
+		kn->kn_data = 0;
+		return (0);
+	} else {
+		kn->kn_data = d->bd_bif->bif_ifp->if_mtu;
+		return (1);
+	}
 }
 
 #define	BPF_TSTAMP_NONE		0

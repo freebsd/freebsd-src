@@ -390,8 +390,8 @@ For eventfds,
 will contain the maximum value that can be added to the counter
 without blocking.
 .Pp
-For BPF devices, the filter always indicates that it is possible to
-write and
+For BPF devices, when the descriptor is attached to an interface the filter
+always indicates that it is possible to write and
 .Va data
 will contain the MTU size of the underlying interface.
 .It Dv EVFILT_EMPTY
