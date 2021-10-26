@@ -76,7 +76,6 @@ SUBDIR.${MK_INET6}+=	rtsol
 SUBDIR.${MK_IPFILTER}+=	ipf
 SUBDIR.${MK_IPFW}+=	ipfw
 SUBDIR.${MK_IPFW}+=	natd
-SUBDIR.${MK_ISCSI}+=	iscontrol
 SUBDIR.${MK_NVME}+=	nvmecontrol
 SUBDIR.${MK_OPENSSL}+=	decryptcore
 SUBDIR.${MK_PF}+=	pfctl

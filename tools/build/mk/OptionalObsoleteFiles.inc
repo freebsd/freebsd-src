@@ -2717,13 +2717,10 @@ OLD_FILES+=etc/rc.d/iscsictl
 OLD_FILES+=etc/rc.d/iscsid
 OLD_FILES+=rescue/iscsictl
 OLD_FILES+=rescue/iscsid
-OLD_FILES+=sbin/iscontrol
 OLD_FILES+=usr/bin/iscsictl
 OLD_FILES+=usr/sbin/iscsid
 OLD_FILES+=usr/share/man/man4/iscsi.4.gz
-OLD_FILES+=usr/share/man/man4/iscsi_initiator.4.gz
 OLD_FILES+=usr/share/man/man5/iscsi.conf.5.gz
-OLD_FILES+=usr/share/man/man8/iscontrol.8.gz
 OLD_FILES+=usr/share/man/man8/iscsictl.8.gz
 OLD_FILES+=usr/share/man/man8/iscsid.8.gz
 .endif

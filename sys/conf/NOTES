@@ -1523,7 +1523,6 @@ device		aacraid
 device		ahc
 device		ahd
 device		esp
-device		iscsi_initiator
 device		isp
 envvar		hint.isp.0.disable="1"
 envvar		hint.isp.0.role="3"

@@ -937,7 +937,6 @@ MLINKS+=	efidev.4 efirtc.4
 .if ${MK_ISCSI} != "no"
 MAN+=		cfiscsi.4
 MAN+=		iscsi.4
-MAN+=		iscsi_initiator.4
 MAN+=		iser.4
 .endif
 

@@ -169,21 +169,6 @@ Note that in order for the iSCSI initiator to be able to connect to a target,
 the
 .Xr iscsid 8
 daemon must be running.
-.Pp
-Also note that
-.Fx
-currently supports two different initiators: the old one,
-.Xr iscsi_initiator 4 ,
-with its control utility
-.Xr iscontrol 8 ,
-and the new one,
-.Xr iscsi 4 ,
-with
-.Nm
-and
-.Xr iscsid 8 .
-The only thing the two have in common is the configuration file,
-.Xr iscsi.conf 5 .
 .Sh FILES
 .Bl -tag -width ".Pa /etc/iscsi.conf" -compact
 .It Pa /etc/iscsi.conf
