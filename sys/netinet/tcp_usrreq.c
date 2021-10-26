@@ -1739,20 +1739,44 @@ tcp_ctloutput_set(struct inpcb *inp, struct sockopt *sopt)
 
 	if (sopt->sopt_level != IPPROTO_TCP) {
 #ifdef INET6
-		if (inp->inp_vflag & INP_IPV6PROTO) {
+		if (inp->inp_vflag & INP_IPV6PROTO)
 			error = ip6_ctloutput(inp->inp_socket, sopt);
-			/*
-			 * In case of the IPV6_USE_MIN_MTU socket option,
-			 * the INC_IPV6MINMTU flag to announce a corresponding
-			 * MSS during the initial handshake.
-			 * If the TCP connection is not in the front states,
-			 * just reduce the MSS being used.
-			 * This avoids the sending of TCP segments which will
-			 * be fragmented at the IPv6 layer.
-			 */
-			if ((error == 0) &&
-			    (sopt->sopt_level == IPPROTO_IPV6) &&
-			    (sopt->sopt_name == IPV6_USE_MIN_MTU)) {
+#endif
+#if defined(INET6) && defined(INET)
+		else
+#endif
+#ifdef INET
+			error = ip_ctloutput(inp->inp_socket, sopt);
+#endif
+		/*
+		 * When an IP-level socket option affects TCP, pass control
+		 * down to stack tfb_tcp_ctloutput, otherwise return what
+		 * IP level returned.
+		 */
+		switch (sopt->sopt_level) {
+#ifdef INET6
+		case IPPROTO_IPV6:
+			if ((inp->inp_vflag & INP_IPV6PROTO) == 0)
+				return (error);
+			switch (sopt->sopt_name) {
+			case IPV6_TCLASS:
+				/* Notify tcp stacks that care (e.g. RACK). */
+				break;
+			case IPV6_USE_MIN_MTU:
+				/*
+				 * XXXGL: this handling should belong to
+				 * stack specific tfb_tcp_ctloutput, we
+				 * should just break here.
+				 *
+				 * In case of the IPV6_USE_MIN_MTU socket
+				 * option, the INC_IPV6MINMTU flag to announce
+				 * a corresponding MSS during the initial
+				 * handshake.  If the TCP connection is not in
+				 * the front states, just reduce the MSS being
+				 * used.  This avoids the sending of TCP
+				 * segments which will be fragmented at the
+				 * IPv6 layer.
+				 */
 				INP_WLOCK(inp);
 				if ((inp->inp_flags &
 				    (INP_TIMEWAIT | INP_DROPPED))) {
@@ -1775,18 +1799,27 @@ tcp_ctloutput_set(struct inpcb *inp, struct sockopt *sopt)
 					}
 				}
 				INP_WUNLOCK(inp);
+				/* FALLTHROUGH */
+			default:
+				return (error);
 			}
-		}
-#endif /* INET6 */
-#if defined(INET6) && defined(INET)
-		else
+			break;
 #endif
 #ifdef INET
-		{
-			error = ip_ctloutput(inp->inp_socket, sopt);
-		}
+		case IPPROTO_IP:
+			switch (sopt->sopt_name) {
+			case IP_TOS:
+			case IP_TTL:
+				/* Notify tcp stacks that care (e.g. RACK). */
+				break;
+			default:
+				return (error);
+			}
+			break;
 #endif
-		return (error);
+		default:
+			return (error);
+		}
 	} else if (sopt->sopt_name == TCP_FUNCTION_BLK) {
 		/*
 		 * Protect the TCP option TCP_FUNCTION_BLK so
