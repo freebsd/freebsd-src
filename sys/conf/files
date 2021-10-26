@@ -1929,12 +1929,6 @@ dev/iscsi/icl_conn_if.m		optional cfiscsi | iscsi
 dev/iscsi/icl_soft.c		optional iscsi
 dev/iscsi/icl_soft_proxy.c	optional iscsi
 dev/iscsi/iscsi.c		optional iscsi scbus
-dev/iscsi_initiator/iscsi.c	optional iscsi_initiator scbus
-dev/iscsi_initiator/iscsi_subr.c	optional iscsi_initiator scbus
-dev/iscsi_initiator/isc_cam.c	optional iscsi_initiator scbus
-dev/iscsi_initiator/isc_soc.c	optional iscsi_initiator scbus
-dev/iscsi_initiator/isc_sm.c	optional iscsi_initiator scbus
-dev/iscsi_initiator/isc_subr.c	optional iscsi_initiator scbus
 dev/ismt/ismt.c			optional ismt
 dev/isl/isl.c			optional isl iicbus
 dev/isp/isp.c			optional isp

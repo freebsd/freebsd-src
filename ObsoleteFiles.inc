@@ -40,6 +40,11 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20211026: retire obsolete iscsi initiator
+OLD_FILES+=sbin/iscontrol
+OLD_FILES+=usr/share/man/man4/iscsi_initiator.4.gz
+OLD_FILES+=usr/share/man/man8/iscontrol.8.gz
+
 # 20211022
 OLD_FILES+=sbin/spppcontrol
 .if ${TARGET_ARCH} == "i386"
