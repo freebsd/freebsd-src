@@ -522,7 +522,7 @@ function menu.autoboot(delay)
 			last = time
 			screen.setcursor(x, y)
 			print("Autoboot in " .. time ..
-			    " seconds. [Space] to pause")
+			    " seconds. [Space] to pause ")
 			screen.defcursor()
 		end
 		if io.ischar() then
