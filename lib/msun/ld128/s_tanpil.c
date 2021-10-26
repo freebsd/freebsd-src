@@ -42,7 +42,7 @@ pi_hi = 3.14159265358979322702026593105983920e+00L,
 pi_lo = 1.14423774522196636802434264184180742e-17L;
 
 static inline long double
-__kernel_tanpi(long double x)
+__kernel_tanpil(long double x)
 {
 	long double hi, lo, t;
 
@@ -72,7 +72,7 @@ volatile static const double vzero = 0;
 long double
 tanpil(long double x)
 {
-	long double ax, hi, lo, xf;
+	long double ax, hi, lo, xf, t;
 	uint32_t ix;
 
 	ax = fabsl(ax);
@@ -83,7 +83,7 @@ tanpil(long double x)
 				if (x == 0)
 					return (x);
 				hi = (double)x;
-				hi *= 0x1p113L
+				hi *= 0x1p113L;
 				lo = x * 0x1p113L - hi;
 				t = (pi_lo + pi_hi) * lo + pi_lo * lo +
 				    pi_hi * hi;
