@@ -1729,22 +1729,18 @@ tcp_fill_info(struct tcpcb *tp, struct tcp_info *ti)
 } while(0)
 #define INP_WLOCK_RECHECK(inp) INP_WLOCK_RECHECK_CLEANUP((inp), /* noop */)
 
-int
-tcp_ctloutput(struct socket *so, struct sockopt *sopt)
+static int
+tcp_ctloutput_set(struct inpcb *inp, struct sockopt *sopt)
 {
-	int	error;
-	struct	inpcb *inp;
-	struct	tcpcb *tp;
-	struct tcp_function_block *blk;
-	struct tcp_function_set fsn;
+	struct	tcpcb *tp = intotcpcb(inp);
+	int error = 0;
 
-	error = 0;
-	inp = sotoinpcb(so);
-	KASSERT(inp != NULL, ("tcp_ctloutput: inp == NULL"));
+	MPASS(sopt->sopt_dir == SOPT_SET);
+
 	if (sopt->sopt_level != IPPROTO_TCP) {
 #ifdef INET6
 		if (inp->inp_vflag & INP_IPV6PROTO) {
-			error = ip6_ctloutput(so, sopt);
+			error = ip6_ctloutput(inp->inp_socket, sopt);
 			/*
 			 * In case of the IPV6_USE_MIN_MTU socket option,
 			 * the INC_IPV6MINMTU flag to announce a corresponding
@@ -1755,7 +1751,6 @@ tcp_ctloutput(struct socket *so, struct sockopt *sopt)
 			 * be fragmented at the IPv6 layer.
 			 */
 			if ((error == 0) &&
-			    (sopt->sopt_dir == SOPT_SET) &&
 			    (sopt->sopt_level == IPPROTO_IPV6) &&
 			    (sopt->sopt_name == IPV6_USE_MIN_MTU)) {
 				INP_WLOCK(inp);
@@ -1788,29 +1783,29 @@ tcp_ctloutput(struct socket *so, struct sockopt *sopt)
 #endif
 #ifdef INET
 		{
-			error = ip_ctloutput(so, sopt);
+			error = ip_ctloutput(inp->inp_socket, sopt);
 		}
 #endif
 		return (error);
-	}
-	INP_WLOCK(inp);
-	if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
-		INP_WUNLOCK(inp);
-		return (ECONNRESET);
-	}
-	tp = intotcpcb(inp);
-	/*
-	 * Protect the TCP option TCP_FUNCTION_BLK so
-	 * that a sub-function can *never* overwrite this.
-	 */
-	if ((sopt->sopt_dir == SOPT_SET) &&
-	    (sopt->sopt_name == TCP_FUNCTION_BLK)) {
-		INP_WUNLOCK(inp);
-		error = sooptcopyin(sopt, &fsn, sizeof fsn,
-		    sizeof fsn);
+	} else if (sopt->sopt_name == TCP_FUNCTION_BLK) {
+		/*
+		 * Protect the TCP option TCP_FUNCTION_BLK so
+		 * that a sub-function can *never* overwrite this.
+		 */
+		struct tcp_function_set fsn;
+		struct tcp_function_block *blk;
+
+		error = sooptcopyin(sopt, &fsn, sizeof fsn, sizeof fsn);
 		if (error)
 			return (error);
-		INP_WLOCK_RECHECK(inp);
+
+		INP_WLOCK(inp);
+		if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
+			INP_WUNLOCK(inp);
+			return (ECONNRESET);
+		}
+		tp = intotcpcb(inp);
+
 		blk = find_and_ref_tcp_functions(&fsn);
 		if (blk == NULL) {
 			INP_WUNLOCK(inp);
@@ -1875,7 +1870,7 @@ tcp_ctloutput(struct socket *so, struct sockopt *sopt)
 					if((*tp->t_fb->tfb_tcp_fb_init)(tp) != 0)  {
 						/* Fall back failed, drop the connection */
 						INP_WUNLOCK(inp);
-						soabort(so);
+						soabort(inp->inp_socket);
 						return(error);
 					}
 				}
@@ -1893,9 +1888,50 @@ tcp_ctloutput(struct socket *so, struct sockopt *sopt)
 err_out:
 		INP_WUNLOCK(inp);
 		return (error);
-	} else if ((sopt->sopt_dir == SOPT_GET) &&
-	    ((sopt->sopt_name == TCP_FUNCTION_BLK) ||
+	}
+
+	INP_WLOCK(inp);
+	if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
+		INP_WUNLOCK(inp);
+		return (ECONNRESET);
+	}
+	tp = intotcpcb(inp);
+
+	/* Pass in the INP locked, caller must unlock it. */
+	return (tp->t_fb->tfb_tcp_ctloutput(inp->inp_socket, sopt, inp, tp));
+}
+
+static int
+tcp_ctloutput_get(struct inpcb *inp, struct sockopt *sopt)
+{
+	int	error = 0;
+	struct	tcpcb *tp;
+
+	MPASS(sopt->sopt_dir == SOPT_GET);
+
+	if (sopt->sopt_level != IPPROTO_TCP) {
+#ifdef INET6
+		if (inp->inp_vflag & INP_IPV6PROTO)
+			error = ip6_ctloutput(inp->inp_socket, sopt);
+#endif /* INET6 */
+#if defined(INET6) && defined(INET)
+		else
+#endif
+#ifdef INET
+			error = ip_ctloutput(inp->inp_socket, sopt);
+#endif
+		return (error);
+	}
+	INP_WLOCK(inp);
+	if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
+		INP_WUNLOCK(inp);
+		return (ECONNRESET);
+	}
+	tp = intotcpcb(inp);
+	if (((sopt->sopt_name == TCP_FUNCTION_BLK) ||
 	     (sopt->sopt_name == TCP_FUNCTION_ALIAS))) {
+		struct tcp_function_set fsn;
+
 		if (sopt->sopt_name == TCP_FUNCTION_ALIAS) {
 			memset(&fsn, 0, sizeof(fsn));
 			find_tcp_function_alias(tp->t_fb, &fsn);
@@ -1910,8 +1946,27 @@ err_out:
 		error = sooptcopyout(sopt, &fsn, sizeof fsn);
 		return (error);
 	}
-	/* Pass in the INP locked, called must unlock it */
-	return (tp->t_fb->tfb_tcp_ctloutput(so, sopt, inp, tp));
+
+	/* Pass in the INP locked, caller must unlock it. */
+	return (tp->t_fb->tfb_tcp_ctloutput(inp->inp_socket, sopt, inp, tp));
+}
+
+int
+tcp_ctloutput(struct socket *so, struct sockopt *sopt)
+{
+	int	error;
+	struct	inpcb *inp;
+
+	error = 0;
+	inp = sotoinpcb(so);
+	KASSERT(inp != NULL, ("tcp_ctloutput: inp == NULL"));
+
+	if (sopt->sopt_dir == SOPT_SET)
+		return (tcp_ctloutput_set(inp, sopt));
+	else if (sopt->sopt_dir == SOPT_GET)
+		return (tcp_ctloutput_get(inp, sopt));
+	else
+		panic("%s: sopt_dir $%d", __func__, sopt->sopt_dir);
 }
 
 /*
