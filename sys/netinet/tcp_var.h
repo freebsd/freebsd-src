@@ -1020,6 +1020,7 @@ int register_tcp_functions_as_name(struct tcp_function_block *blk,
 int deregister_tcp_functions(struct tcp_function_block *blk, bool quiesce,
     bool force);
 struct tcp_function_block *find_and_ref_tcp_functions(struct tcp_function_set *fs);
+int find_tcp_function_alias(struct tcp_function_block *blk, struct tcp_function_set *fs);
 void tcp_switch_back_to_default(struct tcpcb *tp);
 struct tcp_function_block *
 find_and_ref_tcp_fb(struct tcp_function_block *fs);

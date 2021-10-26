@@ -473,6 +473,37 @@ find_and_ref_tcp_fb(struct tcp_function_block *blk)
 	return(rblk);
 }
 
+/* Find a matching alias for the given tcp_function_block. */
+int
+find_tcp_function_alias(struct tcp_function_block *blk,
+    struct tcp_function_set *fs)
+{
+	struct tcp_function *f;
+	int found;
+
+	found = 0;
+	rw_rlock(&tcp_function_lock);
+	TAILQ_FOREACH(f, &t_functions, tf_next) {
+		if ((f->tf_fb == blk) &&
+		    (strncmp(f->tf_name, blk->tfb_tcp_block_name,
+		        TCP_FUNCTION_NAME_LEN_MAX) != 0)) {
+			/* Matching function block with different name. */
+			strncpy(fs->function_set_name, f->tf_name,
+			    TCP_FUNCTION_NAME_LEN_MAX);
+			found = 1;
+			break;
+		}
+	}
+	/* Null terminate the string appropriately. */
+	if (found) {
+		fs->function_set_name[TCP_FUNCTION_NAME_LEN_MAX - 1] = '\0';
+	} else {
+		fs->function_set_name[0] = '\0';
+	}
+	rw_runlock(&tcp_function_lock);
+	return (found);
+}
+
 static struct tcp_function_block *
 find_and_ref_tcp_default_fb(void)
 {
