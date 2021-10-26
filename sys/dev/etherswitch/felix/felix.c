@@ -110,6 +110,13 @@ static device_method_t felix_methods[] = {
 
 	/* bus interface */
 	DEVMETHOD(bus_add_child,		device_add_child_ordered),
+	DEVMETHOD(bus_setup_intr,		bus_generic_setup_intr),
+	DEVMETHOD(bus_teardown_intr,		bus_generic_teardown_intr),
+	DEVMETHOD(bus_release_resource,		bus_generic_release_resource),
+	DEVMETHOD(bus_activate_resource,	bus_generic_activate_resource),
+	DEVMETHOD(bus_deactivate_resource,	bus_generic_deactivate_resource),
+	DEVMETHOD(bus_adjust_resource,		bus_generic_adjust_resource),
+	DEVMETHOD(bus_alloc_resource,		bus_generic_alloc_resource),
 
 	/* etherswitch interface */
 	DEVMETHOD(etherswitch_getinfo,		felix_getinfo),
@@ -139,7 +146,7 @@ DEFINE_CLASS_0(felix, felix_driver, felix_methods,
 
 DRIVER_MODULE_ORDERED(felix, pci, felix_driver, felix_devclass,
     NULL, NULL, SI_ORDER_ANY);
-DRIVER_MODULE(miibus, felix, miibus_driver, miibus_devclass,
+DRIVER_MODULE(miibus, felix, miibus_fdt_driver, miibus_fdt_devclass,
     NULL, NULL);
 DRIVER_MODULE(etherswitch, felix, etherswitch_driver, etherswitch_devclass,
     NULL, NULL);
