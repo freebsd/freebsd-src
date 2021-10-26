@@ -108,7 +108,7 @@ mana_ifmedia_status(struct ifnet *ifp, struct ifmediareq *ifmr)
 
 	if (!apc->port_is_up) {
 		MANA_APC_LOCK_UNLOCK(apc);
-		mana_info(NULL, "Port %u link is down\n", apc->port_idx);
+		mana_dbg(NULL, "Port %u link is down\n", apc->port_idx);
 		return;
 	}
 
@@ -139,19 +139,6 @@ mana_get_counter(struct ifnet *ifp, ift_counter cnt)
 		return (counter_u64_fetch(stats->tx_drops));
 	default:
 		return (if_get_counter_default(ifp, cnt));
-	}
-}
-
-static void
-mana_drain_eq_task(struct gdma_queue *queue)
-{
-	if (!queue || !queue->eq.cleanup_tq)
-		return;
-
-	while (taskqueue_cancel(queue->eq.cleanup_tq,
-	    &queue->eq.cleanup_task, NULL)) {
-		taskqueue_drain(queue->eq.cleanup_tq,
-		    &queue->eq.cleanup_task);
 	}
 }
 
@@ -439,13 +426,11 @@ mana_xmit(struct mana_txq *txq)
 	struct mana_tx_package pkg = {};
 	struct mana_stats *tx_stats;
 	struct gdma_queue *gdma_sq;
-	struct gdma_queue *gdma_eq;
 	struct mana_cq *cq;
 	int err, len;
 
 	gdma_sq = txq->gdma_sq;
 	cq = &apc->tx_qp[txq->idx].tx_cq;
-	gdma_eq = cq->gdma_cq->cq.parent;
 	tx_stats = &txq->stats;
 
 	packets = 0;
@@ -476,8 +461,7 @@ mana_xmit(struct mana_txq *txq)
 
 			drbr_putback(ndev, txq->txq_br, mbuf);
 
-			taskqueue_enqueue(gdma_eq->eq.cleanup_tq,
-			    &gdma_eq->eq.cleanup_task);
+			taskqueue_enqueue(cq->cleanup_tq, &cq->cleanup_task);
 			break;
 		}
 
@@ -1183,67 +1167,57 @@ mana_destroy_wq_obj(struct mana_port_context *apc, uint32_t wq_type,
 }
 
 static void
-mana_init_cqe_poll_buf(struct gdma_comp *cqe_poll_buf)
+mana_destroy_eq(struct mana_context *ac)
 {
-	int i;
-
-	for (i = 0; i < CQE_POLLING_BUFFER; i++)
-		memset(&cqe_poll_buf[i], 0, sizeof(struct gdma_comp));
-}
-
-static void
-mana_destroy_eq(struct gdma_context *gc, struct mana_port_context *apc)
-{
+	struct gdma_context *gc = ac->gdma_dev->gdma_context;
 	struct gdma_queue *eq;
 	int i;
 
-	if (!apc->eqs)
+	if (!ac->eqs)
 		return;
 
-	for (i = 0; i < apc->num_queues; i++) {
-		eq = apc->eqs[i].eq;
+	for (i = 0; i < gc->max_num_queues; i++) {
+		eq = ac->eqs[i].eq;
 		if (!eq)
 			continue;
 
 		mana_gd_destroy_queue(gc, eq);
 	}
 
-	free(apc->eqs, M_DEVBUF);
-	apc->eqs = NULL;
+	free(ac->eqs, M_DEVBUF);
+	ac->eqs = NULL;
 }
 
 static int
-mana_create_eq(struct mana_port_context *apc)
+mana_create_eq(struct mana_context *ac)
 {
-	struct gdma_dev *gd = apc->ac->gdma_dev;
+	struct gdma_dev *gd = ac->gdma_dev;
+	struct gdma_context *gc = gd->gdma_context;
 	struct gdma_queue_spec spec = {};
 	int err;
 	int i;
 
-	apc->eqs = mallocarray(apc->num_queues, sizeof(struct mana_eq),
+	ac->eqs = mallocarray(gc->max_num_queues, sizeof(struct mana_eq),
 	    M_DEVBUF, M_WAITOK | M_ZERO);
-	if (!apc->eqs)
+	if (!ac->eqs)
 		return ENOMEM;
 
 	spec.type = GDMA_EQ;
 	spec.monitor_avl_buf = false;
 	spec.queue_size = EQ_SIZE;
 	spec.eq.callback = NULL;
-	spec.eq.context = apc->eqs;
+	spec.eq.context = ac->eqs;
 	spec.eq.log2_throttle_limit = LOG2_EQ_THROTTLE;
-	spec.eq.ndev = apc->ndev;
 
-	for (i = 0; i < apc->num_queues; i++) {
-		mana_init_cqe_poll_buf(apc->eqs[i].cqe_poll);
-
-		err = mana_gd_create_mana_eq(gd, &spec, &apc->eqs[i].eq);
+	for (i = 0; i < gc->max_num_queues; i++) {
+		err = mana_gd_create_mana_eq(gd, &spec, &ac->eqs[i].eq);
 		if (err)
 			goto out;
 	}
 
 	return 0;
 out:
-	mana_destroy_eq(gd->gdma_context, apc);
+	mana_destroy_eq(ac);
 	return err;
 }
 
@@ -1293,6 +1267,9 @@ mana_poll_tx_cq(struct mana_cq *cq)
 
 	comp_read = mana_gd_poll_cq(cq->gdma_cq, completions,
 	    CQE_POLLING_BUFFER);
+
+	if (comp_read < 1)
+		return;
 
 	next_to_complete = txq->next_to_complete;
 
@@ -1360,7 +1337,7 @@ mana_poll_tx_cq(struct mana_cq *cq)
 			    txq_idx, next_to_complete, txq->next_to_use,
 			    txq->pending_sends, pkt_transmitted, sa_drop,
 			    i, comp_read);
-			continue;
+			break;
 		}
 
 		wqe_info = &tx_info->wqe_inf;
@@ -1430,6 +1407,8 @@ mana_poll_tx_cq(struct mana_cq *cq)
 		mana_err(NULL,
 		    "WARNING: TX %d pending_sends error: %d\n",
 		    txq->idx, txq->pending_sends);
+
+	cq->work_done = pkt_transmitted;
 }
 
 static void
@@ -1468,13 +1447,11 @@ mana_rx_mbuf(struct mbuf *mbuf, struct mana_rxcomp_oob *cqe,
 	uint32_t pkt_len = cqe->ppi[0].pkt_len;
 	uint16_t rxq_idx = rxq->rxq_idx;
 	struct mana_port_context *apc;
-	struct gdma_queue *eq;
 	bool do_lro = false;
 	bool do_if_input;
 
 	apc = if_getsoftc(ndev);
-	eq = apc->eqs[rxq_idx].eq;
-	eq->eq.work_done++;
+	rxq->rx_cq.work_done++;
 
 	if (!mbuf) {
 		return;
@@ -1688,6 +1665,7 @@ static void
 mana_cq_handler(void *context, struct gdma_queue *gdma_queue)
 {
 	struct mana_cq *cq = context;
+	uint8_t arm_bit;
 
 	KASSERT(cq->gdma_cq == gdma_queue,
 	    ("cq do not match %p, %p", cq->gdma_cq, gdma_queue));
@@ -1698,7 +1676,54 @@ mana_cq_handler(void *context, struct gdma_queue *gdma_queue)
 		mana_poll_tx_cq(cq);
 	}
 
-	mana_gd_arm_cq(gdma_queue);
+	if (cq->work_done < cq->budget && cq->do_not_ring_db == false)
+		arm_bit = SET_ARM_BIT;
+	else
+		arm_bit = 0;
+
+	mana_gd_ring_cq(gdma_queue, arm_bit);
+}
+
+#define MANA_POLL_BUDGET	8
+#define MANA_RX_BUDGET		256
+#define MANA_TX_BUDGET		MAX_SEND_BUFFERS_PER_QUEUE
+
+static void
+mana_poll(void *arg, int pending)
+{
+	struct mana_cq *cq = arg;
+	int i;
+
+	cq->work_done = 0;
+	if (cq->type == MANA_CQ_TYPE_RX) {
+		cq->budget = MANA_RX_BUDGET;
+	} else {
+		cq->budget = MANA_TX_BUDGET;
+	}
+
+	for (i = 0; i < MANA_POLL_BUDGET; i++) {
+		/*
+		 * If this is the last loop, set the budget big enough
+		 * so it will arm the CQ any way.
+		 */
+		if (i == (MANA_POLL_BUDGET - 1))
+			cq->budget = CQE_POLLING_BUFFER + 1;
+
+		mana_cq_handler(cq, cq->gdma_cq);
+
+		if (cq->work_done < cq->budget)
+			break;
+
+		cq->work_done = 0;
+	}
+}
+
+static void
+mana_schedule_task(void *arg, struct gdma_queue *gdma_queue)
+{
+	struct mana_cq *cq = arg;
+
+	taskqueue_enqueue(cq->cleanup_tq, &cq->cleanup_task);
 }
 
 static void
@@ -1708,6 +1733,17 @@ mana_deinit_cq(struct mana_port_context *apc, struct mana_cq *cq)
 
 	if (!cq->gdma_cq)
 		return;
+
+	/* Drain cleanup taskqueue */
+	if (cq->cleanup_tq) {
+		while (taskqueue_cancel(cq->cleanup_tq,
+		    &cq->cleanup_task, NULL)) {
+			taskqueue_drain(cq->cleanup_tq,
+			    &cq->cleanup_task);
+		}
+
+		taskqueue_free(cq->cleanup_tq);
+	}
 
 	mana_gd_destroy_queue(gd->gdma_context, cq->gdma_cq);
 }
@@ -1798,7 +1834,8 @@ mana_destroy_txq(struct mana_port_context *apc)
 static int
 mana_create_txq(struct mana_port_context *apc, struct ifnet *net)
 {
-	struct gdma_dev *gd = apc->ac->gdma_dev;
+	struct mana_context *ac = apc->ac;
+	struct gdma_dev *gd = ac->gdma_dev;
 	struct mana_obj_spec wq_spec;
 	struct mana_obj_spec cq_spec;
 	struct gdma_queue_spec spec;
@@ -1850,7 +1887,6 @@ mana_create_txq(struct mana_port_context *apc, struct ifnet *net)
 
 		/* Create SQ's CQ */
 		cq = &apc->tx_qp[i].tx_cq;
-		cq->gdma_comp_buf = apc->eqs[i].cqe_poll;
 		cq->type = MANA_CQ_TYPE_TX;
 
 		cq->txq = txq;
@@ -1859,8 +1895,8 @@ mana_create_txq(struct mana_port_context *apc, struct ifnet *net)
 		spec.type = GDMA_CQ;
 		spec.monitor_avl_buf = false;
 		spec.queue_size = cq_size;
-		spec.cq.callback = mana_cq_handler;
-		spec.cq.parent_eq = apc->eqs[i].eq;
+		spec.cq.callback = mana_schedule_task;
+		spec.cq.parent_eq = ac->eqs[i].eq;
 		spec.cq.context = cq;
 		err = mana_gd_create_mana_wq_cq(gd, &spec, &cq->gdma_cq);
 		if (err)
@@ -1942,12 +1978,39 @@ mana_create_txq(struct mana_port_context *apc, struct ifnet *net)
 			goto out;
 		}
 		taskqueue_start_threads(&txq->enqueue_tq, 1, PI_NET,
-		    "mana txq %d", i);
+		    "mana txq p%u-tx%d", apc->port_idx, i);
 
 		mana_alloc_counters((counter_u64_t *)&txq->stats,
 		    sizeof(txq->stats));
 
-		mana_gd_arm_cq(cq->gdma_cq);
+		/* Allocate and start the cleanup task on CQ */
+		cq->do_not_ring_db = false;
+
+		NET_TASK_INIT(&cq->cleanup_task, 0, mana_poll, cq);
+		cq->cleanup_tq =
+		    taskqueue_create_fast("mana tx cq cleanup",
+		    M_WAITOK, taskqueue_thread_enqueue,
+		    &cq->cleanup_tq);
+
+		if (apc->last_tx_cq_bind_cpu < 0)
+			apc->last_tx_cq_bind_cpu = CPU_FIRST();
+		cq->cpu = apc->last_tx_cq_bind_cpu;
+		apc->last_tx_cq_bind_cpu = CPU_NEXT(apc->last_tx_cq_bind_cpu);
+
+		if (apc->bind_cleanup_thread_cpu) {
+			cpuset_t cpu_mask;
+			CPU_SETOF(cq->cpu, &cpu_mask);
+			taskqueue_start_threads_cpuset(&cq->cleanup_tq,
+			    1, PI_NET, &cpu_mask,
+			    "mana cq p%u-tx%u-cpu%d",
+			    apc->port_idx, txq->idx, cq->cpu);
+		} else {
+			taskqueue_start_threads(&cq->cleanup_tq, 1,
+			    PI_NET, "mana cq p%u-tx%u",
+			    apc->port_idx, txq->idx);
+		}
+
+		mana_gd_ring_cq(cq->gdma_cq, SET_ARM_BIT);
 	}
 
 	return 0;
@@ -2144,7 +2207,6 @@ mana_create_rxq(struct mana_port_context *apc, uint32_t rxq_idx,
 
 	/* Create RQ's CQ */
 	cq = &rxq->rx_cq;
-	cq->gdma_comp_buf = eq->cqe_poll;
 	cq->type = MANA_CQ_TYPE_RX;
 	cq->rxq = rxq;
 
@@ -2152,7 +2214,7 @@ mana_create_rxq(struct mana_port_context *apc, uint32_t rxq_idx,
 	spec.type = GDMA_CQ;
 	spec.monitor_avl_buf = false;
 	spec.queue_size = cq_size;
-	spec.cq.callback = mana_cq_handler;
+	spec.cq.callback = mana_schedule_task;
 	spec.cq.parent_eq = eq->eq;
 	spec.cq.context = cq;
 	err = mana_gd_create_mana_wq_cq(gd, &spec, &cq->gdma_cq);
@@ -2192,7 +2254,34 @@ mana_create_rxq(struct mana_port_context *apc, uint32_t rxq_idx,
 
 	gc->cq_table[cq->gdma_id] = cq->gdma_cq;
 
-	mana_gd_arm_cq(cq->gdma_cq);
+	/* Allocate and start the cleanup task on CQ */
+	cq->do_not_ring_db = false;
+
+	NET_TASK_INIT(&cq->cleanup_task, 0, mana_poll, cq);
+	cq->cleanup_tq =
+	    taskqueue_create_fast("mana rx cq cleanup",
+	    M_WAITOK, taskqueue_thread_enqueue,
+	    &cq->cleanup_tq);
+
+	if (apc->last_rx_cq_bind_cpu < 0)
+		apc->last_rx_cq_bind_cpu = CPU_FIRST();
+	cq->cpu = apc->last_rx_cq_bind_cpu;
+	apc->last_rx_cq_bind_cpu = CPU_NEXT(apc->last_rx_cq_bind_cpu);
+
+	if (apc->bind_cleanup_thread_cpu) {
+		cpuset_t cpu_mask;
+		CPU_SETOF(cq->cpu, &cpu_mask);
+		taskqueue_start_threads_cpuset(&cq->cleanup_tq,
+		    1, PI_NET, &cpu_mask,
+		    "mana cq p%u-rx%u-cpu%d",
+		    apc->port_idx, rxq->rxq_idx, cq->cpu);
+	} else {
+		taskqueue_start_threads(&cq->cleanup_tq, 1,
+		    PI_NET, "mana cq p%u-rx%u",
+		    apc->port_idx, rxq->rxq_idx);
+	}
+
+	mana_gd_ring_cq(cq->gdma_cq, SET_ARM_BIT);
 out:
 	if (!err)
 		return rxq;
@@ -2210,12 +2299,13 @@ out:
 static int
 mana_add_rx_queues(struct mana_port_context *apc, struct ifnet *ndev)
 {
+	struct mana_context *ac = apc->ac;
 	struct mana_rxq *rxq;
 	int err = 0;
 	int i;
 
 	for (i = 0; i < apc->num_queues; i++) {
-		rxq = mana_create_rxq(apc, i, &apc->eqs[i], ndev);
+		rxq = mana_create_rxq(apc, i, &ac->eqs[i], ndev);
 		if (!rxq) {
 			err = ENOMEM;
 			goto out;
@@ -2234,19 +2324,11 @@ mana_destroy_vport(struct mana_port_context *apc)
 {
 	struct mana_rxq *rxq;
 	uint32_t rxq_idx;
-	struct mana_cq *rx_cq;
-	struct gdma_queue *cq, *eq;
 
 	for (rxq_idx = 0; rxq_idx < apc->num_queues; rxq_idx++) {
 		rxq = apc->rxqs[rxq_idx];
 		if (!rxq)
 			continue;
-
-		rx_cq = &rxq->rx_cq;
-		if ((cq = rx_cq->gdma_cq) != NULL) {
-			eq = cq->cq.parent;
-			mana_drain_eq_task(eq);
-		}
 
 		mana_destroy_rxq(apc, rxq, true);
 		apc->rxqs[rxq_idx] = NULL;
@@ -2336,16 +2418,11 @@ int
 mana_alloc_queues(struct ifnet *ndev)
 {
 	struct mana_port_context *apc = if_getsoftc(ndev);
-	struct gdma_dev *gd = apc->ac->gdma_dev;
 	int err;
-
-	err = mana_create_eq(apc);
-	if (err)
-		return err;
 
 	err = mana_create_vport(apc, ndev);
 	if (err)
-		goto destroy_eq;
+		return err;
 
 	err = mana_add_rx_queues(apc, ndev);
 	if (err)
@@ -2363,8 +2440,6 @@ mana_alloc_queues(struct ifnet *ndev)
 
 destroy_vport:
 	mana_destroy_vport(apc);
-destroy_eq:
-	mana_destroy_eq(gd->gdma_context, apc);
 	return err;
 }
 
@@ -2430,16 +2505,13 @@ mana_dealloc_queues(struct ifnet *ndev)
 		txq = &apc->tx_qp[i].txq;
 
 		struct mana_cq *tx_cq = &apc->tx_qp[i].tx_cq;
-		struct gdma_queue *eq = NULL;
-		if (tx_cq->gdma_cq)
-			eq = tx_cq->gdma_cq->cq.parent;
-		if (eq) {
-			/* Stop EQ interrupt */
-			eq->eq.do_not_ring_db = true;
-			/* Schedule a cleanup task */
-			taskqueue_enqueue(eq->eq.cleanup_tq,
-			    &eq->eq.cleanup_task);
-		}
+		struct mana_cq *rx_cq = &(apc->rxqs[i]->rx_cq);
+
+		tx_cq->do_not_ring_db = true;
+		rx_cq->do_not_ring_db = true;
+
+		/* Schedule a cleanup task */
+		taskqueue_enqueue(tx_cq->cleanup_tq, &tx_cq->cleanup_task);
 
 		while (atomic_read(&txq->pending_sends) > 0)
 			usleep_range(1000, 2000);
@@ -2460,8 +2532,6 @@ mana_dealloc_queues(struct ifnet *ndev)
 	gdma_msleep(1000);
 
 	mana_destroy_vport(apc);
-
-	mana_destroy_eq(apc->ac->gdma_dev->gdma_context, apc);
 
 	return 0;
 }
@@ -2550,6 +2620,8 @@ mana_probe_port(struct mana_context *ac, int port_idx,
 	apc->port_handle = INVALID_MANA_HANDLE;
 	apc->port_idx = port_idx;
 	apc->frame_size = DEFAULT_FRAME_SIZE;
+	apc->last_tx_cq_bind_cpu = -1;
+	apc->last_rx_cq_bind_cpu = -1;
 
 	MANA_APC_LOCK_INIT(apc);
 
@@ -2637,6 +2709,10 @@ int mana_probe(struct gdma_dev *gd)
 	ac->num_ports = 1;
 	gd->driver_data = ac;
 
+	err = mana_create_eq(ac);
+	if (err)
+		goto out;
+
 	err = mana_query_device_cfg(ac, MANA_MAJOR_VERSION, MANA_MINOR_VERSION,
 	    MANA_MICRO_VERSION, &ac->num_ports);
 	if (err)
@@ -2682,6 +2758,9 @@ mana_remove(struct gdma_dev *gd)
 
 		if_free(ndev);
 	}
+
+	mana_destroy_eq(ac);
+
 out:
 	mana_gd_deregister_device(gd);
 	gd->driver_data = NULL;

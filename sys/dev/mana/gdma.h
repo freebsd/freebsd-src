@@ -291,8 +291,6 @@ struct gdma_event {
 
 struct gdma_queue;
 
-#define CQE_POLLING_BUFFER	512
-
 typedef void gdma_eq_callback(void *context, struct gdma_queue *q,
     struct gdma_event *e);
 
@@ -339,14 +337,6 @@ struct gdma_queue {
 			unsigned int		msix_index;
 
 			uint32_t		log2_throttle_limit;
-
-			struct task		cleanup_task;
-			struct taskqueue	*cleanup_tq;
-			int			cpu;
-			bool			do_not_ring_db;
-
-			int			work_done;
-			int			budget;
 		} eq;
 
 		struct {
@@ -371,9 +361,6 @@ struct gdma_queue_spec {
 			void			*context;
 
 			unsigned long		log2_throttle_limit;
-
-			/* Only used by the MANA device. */
-			struct ifnet		*ndev;
 		} eq;
 
 		struct {
@@ -388,7 +375,6 @@ struct gdma_queue_spec {
 
 struct mana_eq {
 	struct gdma_queue	*eq;
-	struct gdma_comp	cqe_poll[CQE_POLLING_BUFFER];
 };
 
 struct gdma_irq_context {
@@ -473,7 +459,7 @@ void mana_gd_destroy_queue(struct gdma_context *gc, struct gdma_queue *queue);
 
 int mana_gd_poll_cq(struct gdma_queue *cq, struct gdma_comp *comp, int num_cqe);
 
-void mana_gd_arm_cq(struct gdma_queue *cq);
+void mana_gd_ring_cq(struct gdma_queue *cq, uint8_t arm_bit);
 
 struct gdma_wqe {
 	uint32_t reserved	:24;

@@ -422,7 +422,7 @@ mana_gd_wq_ring_doorbell(struct gdma_context *gc, struct gdma_queue *queue)
 }
 
 void
-mana_gd_arm_cq(struct gdma_queue *cq)
+mana_gd_ring_cq(struct gdma_queue *cq, uint8_t arm_bit)
 {
 	struct gdma_context *gc = cq->gdma_dev->gdma_context;
 
@@ -431,7 +431,7 @@ mana_gd_arm_cq(struct gdma_queue *cq)
 	uint32_t head = cq->head % (num_cqe << GDMA_CQE_OWNER_BITS);
 
 	mana_gd_ring_doorbell(gc, cq->gdma_dev->doorbell, cq->type, cq->id,
-	    head, SET_ARM_BIT);
+	    head, arm_bit);
 }
 
 static void
@@ -508,7 +508,6 @@ mana_gd_process_eq_events(void *arg)
 	struct gdma_context *gc;
 	uint32_t head, num_eqe;
 	struct gdma_eqe *eqe;
-	unsigned int arm_bit;
 	int i, j;
 
 	gc = eq->gdma_dev->gdma_context;
@@ -565,66 +564,17 @@ mana_gd_process_eq_events(void *arg)
 	bus_dmamap_sync(eq->mem_info.dma_tag, eq->mem_info.dma_map,
 	    BUS_DMASYNC_PREREAD);
 
-	/* Always rearm the EQ for HWC. */
-	if (mana_gd_is_hwc(eq->gdma_dev)) {
-		arm_bit = SET_ARM_BIT;
-	} else if (eq->eq.work_done < eq->eq.budget &&
-	    eq->eq.do_not_ring_db == false) {
-		arm_bit = SET_ARM_BIT;
-	} else {
-		arm_bit = 0;
-	}
-
 	head = eq->head % (num_eqe << GDMA_EQE_OWNER_BITS);
 
 	mana_gd_ring_doorbell(gc, eq->gdma_dev->doorbell, eq->type, eq->id,
-	    head, arm_bit);
-}
-
-#define MANA_POLL_BUDGET	8
-#define MANA_RX_BUDGET		256
-
-static void
-mana_poll(void *arg, int pending)
-{
-	struct gdma_queue *eq = arg;
-	int i;
-
-	eq->eq.work_done = 0;
-	eq->eq.budget = MANA_RX_BUDGET;
-
-	for (i = 0; i < MANA_POLL_BUDGET; i++) {
-		/*
-		 * If this is the last loop, set the budget big enough
-		 * so it will arm the EQ any way.
-		 */
-		if (i == (MANA_POLL_BUDGET - 1))
-			eq->eq.budget = CQE_POLLING_BUFFER + 1;
-
-		mana_gd_process_eq_events(eq);
-
-		if (eq->eq.work_done < eq->eq.budget)
-			break;
-
-		eq->eq.work_done = 0;
-	}
-}
-
-static void
-mana_gd_schedule_task(void *arg)
-{
-	struct gdma_queue *eq = arg;
-
-	taskqueue_enqueue(eq->eq.cleanup_tq, &eq->eq.cleanup_task);
+	    head, SET_ARM_BIT);
 }
 
 static int
 mana_gd_register_irq(struct gdma_queue *queue,
     const struct gdma_queue_spec *spec)
 {
-	static int mana_last_bind_cpu = -1;
 	struct gdma_dev *gd = queue->gdma_dev;
-	bool is_mana = mana_gd_is_mana(gd);
 	struct gdma_irq_context *gic;
 	struct gdma_context *gc;
 	struct gdma_resource *r;
@@ -659,39 +609,6 @@ mana_gd_register_irq(struct gdma_queue *queue,
 
 	gic = &gc->irq_contexts[msi_index];
 
-	if (is_mana) {
-		struct mana_port_context *apc = if_getsoftc(spec->eq.ndev);
-		queue->eq.do_not_ring_db = false;
-
-		NET_TASK_INIT(&queue->eq.cleanup_task, 0, mana_poll, queue);
-		queue->eq.cleanup_tq =
-		    taskqueue_create_fast("mana eq cleanup",
-		    M_WAITOK, taskqueue_thread_enqueue,
-		    &queue->eq.cleanup_tq);
-
-		if (mana_last_bind_cpu < 0)
-			mana_last_bind_cpu = CPU_FIRST();
-		queue->eq.cpu = mana_last_bind_cpu;
-		mana_last_bind_cpu = CPU_NEXT(mana_last_bind_cpu);
-
-		/* XXX Name is not optimal. However we have to start
-		 * the task here. Otherwise, test eq will have no
-		 * handler.
-		 */
-		if (apc->bind_cleanup_thread_cpu) {
-			cpuset_t cpu_mask;
-			CPU_SETOF(queue->eq.cpu, &cpu_mask);
-			taskqueue_start_threads_cpuset(&queue->eq.cleanup_tq,
-			    1, PI_NET, &cpu_mask,
-			    "mana eq poll msix %u on cpu %d",
-			    msi_index, queue->eq.cpu);
-		} else {
-
-			taskqueue_start_threads(&queue->eq.cleanup_tq, 1,
-			    PI_NET, "mana eq poll on msix %u", msi_index);
-		}
-	}
-
 	if (unlikely(gic->handler || gic->arg)) {
 		device_printf(gc->dev,
 		    "interrupt handler or arg already assigned, "
@@ -700,10 +617,7 @@ mana_gd_register_irq(struct gdma_queue *queue,
 
 	gic->arg = queue;
 
-	if (is_mana)
-		gic->handler = mana_gd_schedule_task;
-	else
-		gic->handler = mana_gd_process_eq_events;
+	gic->handler = mana_gd_process_eq_events;
 
 	mana_dbg(NULL, "registered msix index %d vector %d irq %ju\n",
 	    msi_index, gic->msix_e.vector, rman_get_start(gic->res));
@@ -809,15 +723,6 @@ mana_gd_destroy_eq(struct gdma_context *gc, bool flush_evenets,
 	}
 
 	mana_gd_deregiser_irq(queue);
-
-	if (mana_gd_is_mana(queue->gdma_dev)) {
-		while (taskqueue_cancel(queue->eq.cleanup_tq,
-		    &queue->eq.cleanup_task, NULL))
-			taskqueue_drain(queue->eq.cleanup_tq,
-			    &queue->eq.cleanup_task);
-
-		taskqueue_free(queue->eq.cleanup_tq);
-	}
 
 	if (queue->eq.disable_needed)
 		mana_gd_disable_queue(queue);
@@ -1602,10 +1507,8 @@ mana_gd_setup_irqs(device_t dev)
 	if (max_queues_per_port > MANA_MAX_NUM_QUEUES)
 		max_queues_per_port = MANA_MAX_NUM_QUEUES;
 
-	max_irqs = max_queues_per_port * MAX_PORTS_IN_MANA_DEV;
-
 	/* Need 1 interrupt for the Hardware communication Channel (HWC) */
-	max_irqs++;
+	max_irqs = max_queues_per_port + 1;
 
 	nvec = max_irqs;
 	rc = pci_alloc_msix(dev, &nvec);

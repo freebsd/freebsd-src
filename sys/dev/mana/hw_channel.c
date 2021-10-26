@@ -377,7 +377,7 @@ mana_hwc_comp_event(void *ctx, struct gdma_queue *q_self)
 	bus_dmamap_sync(q_self->mem_info.dma_tag, q_self->mem_info.dma_map,
 	    BUS_DMASYNC_POSTREAD);
 
-	mana_gd_arm_cq(q_self);
+	mana_gd_ring_cq(q_self, SET_ARM_BIT);
 }
 
 static void
