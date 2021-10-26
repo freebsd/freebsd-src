@@ -5672,6 +5672,8 @@ nfscl_doiods(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 	if (layp == NULL || rflp == NULL) {
 		if (recalled != 0) {
 			NFSFREECRED(newcred);
+			if (lckp != NULL)
+				nfscl_lockderef(lckp);
 			nfscl_relref(nmp);
 			return (EIO);
 		}
