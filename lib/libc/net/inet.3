@@ -28,7 +28,7 @@
 .\"     From: @(#)inet.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 14, 2007
+.Dd November 9, 2021
 .Dt INET 3
 .Os
 .Sh NAME
@@ -157,18 +157,20 @@ The routine
 .Fn inet_ntoa_r
 is the reentrant version of
 .Fn inet_ntoa .
-The routine
+The deprecated routine
 .Fn inet_makeaddr
 takes an Internet network number and a local
-network address and constructs an Internet address
+host address on that network, and constructs an Internet address
 from it.
-The routines
+It should only be assumed to work for historical class A/B/C networks.
+The deprecated routines
 .Fn inet_netof
 and
 .Fn inet_lnaof
 break apart Internet host addresses, returning
-the network number and local network address part,
-respectively.
+the network number and local host address part,
+respectively,
+assuming the historical class A/B/C network masks.
 .Pp
 All Internet addresses are returned in network
 order (bytes ordered from left to right).
@@ -203,17 +205,11 @@ ordered from right to left.
 .Pp
 When a three part address is specified, the last
 part is interpreted as a 16-bit quantity and placed
-in the right-most two bytes of the network address.
-This makes the three part address format convenient
-for specifying Class B network addresses as
-.Dq Li 128.net.host .
+in the least significant two bytes of the network address.
 .Pp
 When a two part address is supplied, the last part
 is interpreted as a 24-bit quantity and placed in
-the right most three bytes of the network address.
-This makes the two part address format convenient
-for specifying Class A network addresses as
-.Dq Li net.host .
+the least significant three bytes of the network address.
 .Pp
 When only one part is given, the value is stored
 directly in the network address without any byte
