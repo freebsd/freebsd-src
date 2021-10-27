@@ -31,23 +31,15 @@
 #define	_LINUXKPI_LINUX_BCD_H
 
 #include <sys/types.h>
+#include <sys/libkern.h>
 
-/*
- * We could use libkern, but we need the argument truncating.
- *
- * This leaves us with a duplicate symbol with conflicting types
- * so we cannot simply re-define as libkern.h gets included in
- * too many places directly or indirectly.  This means for now
- * drivers will have to be adjusted to call linuxkpi_bcd2bin().
- */
+/* Compared to the libkern version this one truncates the argument. */
 static inline uint8_t linuxkpi_bcd2bin(uint8_t x)
 {
 
-	return (x & 0x0f) + (x >> 4) * 10;
+	return (bcd2bin(x));
 }
 
-#if 0
 #define	bcd2bin(_x)	linuxkpi_bcd2bin(_x)
-#endif
 
 #endif	/* _LINUXKPI_LINUX_BCD_H */
