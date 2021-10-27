@@ -1715,7 +1715,7 @@ ipf_pr_ipv4hdr(fin)
 	fin->fin_crc += fi->fi_saddr;
 	fi->fi_daddr = ip->ip_dst.s_addr;
 	fin->fin_crc += fi->fi_daddr;
-	if (IN_CLASSD(ntohl(fi->fi_daddr)))
+	if (IN_MULTICAST(ntohl(fi->fi_daddr)))
 		fin->fin_flx |= FI_MULTICAST|FI_MBCAST;
 
 	/*
