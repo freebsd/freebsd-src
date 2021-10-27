@@ -3418,6 +3418,9 @@ get_net(char *cp, struct netmsk *net, int maskflg)
 		    (opt_flags & OP_MASK) == 0) {
 			in_addr_t addr;
 
+			syslog(LOG_WARNING,
+			    "WARNING: No mask specified for %s, "
+			    "using out-of-date default", name);
 			addr = ((struct sockaddr_in *)sa)->sin_addr.s_addr;
 			if (IN_CLASSA(addr))
 				preflen = 8;
@@ -3425,7 +3428,7 @@ get_net(char *cp, struct netmsk *net, int maskflg)
 				preflen = 16;
 			else if (IN_CLASSC(addr))
 				preflen = 24;
-			else if (IN_CLASSD(addr))
+			else if (IN_CLASSD(addr))	/* XXX Multicast??? */
 				preflen = 28;
 			else
 				preflen = 32;	/* XXX */
