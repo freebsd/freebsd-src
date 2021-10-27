@@ -99,6 +99,44 @@ mii_fdt_get_phynode(phandle_t macnode)
 	return (-1);
 }
 
+static phandle_t
+mii_fdt_lookup_phy(phandle_t node, int addr)
+{
+	phandle_t ports, phynode, child;
+	int reg;
+
+	/* First try to see if we have a direct xref pointing to a PHY. */
+	phynode = mii_fdt_get_phynode(node);
+	if (phynode != -1)
+		return (phynode);
+
+	/*
+	 * Now handle the "switch" case.
+	 * Search "ports" subnode for nodes that describe a switch port
+	 * including a PHY xref.
+	 * Since we have multiple candidates select one based on PHY address.
+	 */
+	ports = ofw_bus_find_child(node, "ports");
+	if (ports <= 0)
+		return (-1);
+
+	for (child = OF_child(ports); child != 0; child = OF_peer(child)) {
+		if (ofw_bus_node_status_okay(child) == 0)
+			continue;
+
+		phynode = mii_fdt_get_phynode(child);
+		if (phynode <= 0)
+			continue;
+
+		if (OF_getencprop(phynode, "reg", &reg, sizeof(reg)) <= 0)
+			continue;
+
+		if (reg == addr)
+			return (phynode);
+	}
+	return (-1);
+}
+
 mii_contype_t
 mii_fdt_contype_from_name(const char *name)
 {
@@ -145,10 +183,12 @@ mii_fdt_free_config(struct mii_fdt_phy_config *cfg)
 mii_fdt_phy_config_t *
 mii_fdt_get_config(device_t phydev)
 {
+	struct mii_attach_args *ma;
 	mii_fdt_phy_config_t *cfg;
 	device_t miibus, macdev;
 	pcell_t val;
 
+	ma = device_get_ivars(phydev);
 	miibus = device_get_parent(phydev);
 	macdev = device_get_parent(miibus);
 
@@ -167,7 +207,8 @@ mii_fdt_get_config(device_t phydev)
 	 * If we can't find our own PHY node, there's nothing more we can fill
 	 * in, just return what we've got.
 	 */
-	if ((cfg->phynode = mii_fdt_get_phynode(cfg->macnode)) == -1)
+	cfg->phynode = mii_fdt_lookup_phy(cfg->macnode, ma->mii_phyno);
+	if (cfg->phynode == -1)
 		return (cfg);
 
 	if (OF_getencprop(cfg->phynode, "max-speed", &val, sizeof(val)) > 0)
