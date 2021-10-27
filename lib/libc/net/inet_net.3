@@ -32,7 +32,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 18, 2016
+.Dd November 9, 2021
 .Dt INET_NET 3
 .Os
 .Sh NAME
@@ -120,17 +120,11 @@ That is, little-endian bytes are ordered from right to left.
 .Pp
 When a three part number is specified, the last
 part is interpreted as a 16-bit quantity and placed
-in the rightmost two bytes of the Internet network number.
-This makes the three part number format convenient
-for specifying Class B network numbers as
-.Dq Li 128.net.host .
+in the least significant two bytes of the Internet network number.
 .Pp
 When a two part number is supplied, the last part
 is interpreted as a 24-bit quantity and placed in
-the rightmost three bytes of the Internet network number.
-This makes the two part number format convenient
-for specifying Class A network numbers as
-.Dq Li net.host .
+the least significant three bytes of the Internet network number.
 .Pp
 When only one part is given, the value is stored
 directly in the Internet network number without any byte

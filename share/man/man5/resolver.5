@@ -28,7 +28,7 @@
 .\"     @(#)resolver.5	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd August 16, 2018
+.Dd November 9, 2021
 .Dt RESOLVER 5
 .Os
 .Sh NAME
@@ -104,15 +104,16 @@ with a total of 256 characters.
 .It Sy sortlist
 Sortlist allows addresses returned by gethostbyname to be sorted.
 A sortlist is specified by IP address netmask pairs.
-The netmask is
-optional and defaults to the natural netmask of the net.
+If the netmask is not specified,
+it defaults to the historical Class A/B/C netmask of the net;
+this usage is deprecated.
 The IP address
-and optional network pairs are separated by slashes.
+and network pairs are separated by slashes.
 Up to 10 pairs may
 be specified.
 E.g.,
 .Pp
-.Dl "sortlist 130.155.160.0/255.255.240.0 130.155.0.0"
+.Dl "sortlist 10.9.1.0/255.255.240.0 10.9.0.0/255.255.0.0"
 .It Sy options
 Options allows certain internal resolver variables to be modified.
 The syntax is
