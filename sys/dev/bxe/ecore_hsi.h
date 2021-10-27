@@ -9448,7 +9448,7 @@ struct iscsi_cq_db
 	struct iscsi_cq_db_prod_pnd_cmpltn_cnt_arr cq_u_prod_pend_comp_ctr_arr /* Ustorm CQ producer and pending completion counter array, updated by Ustorm */;
 	struct iscsi_cq_db_pnd_comp_itt_arr cq_c_pend_comp_itt_arr /* Cstorm CQ pending completion ITT array, updated by Cstorm */;
 	struct iscsi_cq_db_sqn_2_notify_arr cq_drv_sqn_2_notify_arr /* Cstorm CQ sequence to notify array, updated by driver */;
-	uint32_t reserved[4] /* 16 byte allignment */;
+	uint32_t reserved[4] /* 16 byte alignment */;
 };
 
 
