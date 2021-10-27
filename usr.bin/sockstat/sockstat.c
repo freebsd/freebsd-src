@@ -856,7 +856,7 @@ printaddr(struct sockaddr_storage *ss)
 
 	switch (ss->ss_family) {
 	case AF_INET:
-		if (inet_lnaof(sstosin(ss)->sin_addr) == INADDR_ANY)
+		if (sstosin(ss)->sin_addr.s_addr == INADDR_ANY)
 			addrstr[0] = '*';
 		port = ntohs(sstosin(ss)->sin_port);
 		break;
