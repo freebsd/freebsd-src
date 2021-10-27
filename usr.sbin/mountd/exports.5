@@ -28,7 +28,7 @@
 .\"     @(#)exports.5	8.3 (Berkeley) 3/29/95
 .\" $FreeBSD$
 .\"
-.Dd November 20, 2020
+.Dd November 9, 2021
 .Dt EXPORTS 5
 .Os
 .Sh NAME
@@ -338,9 +338,10 @@ to the
 option, or by using a separate
 .Fl mask
 option.
-If the mask is not specified, it will default to the mask for that network
-class (A, B or C; see
+If the mask is not specified, it will default to the historical mask
+for that network class (A, B, or C; see
 .Xr inet 4 ) .
+This usage is deprecated, and will elicit a warning log message.
 See the
 .Sx EXAMPLES
 section below.
