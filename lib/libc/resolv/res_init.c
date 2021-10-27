@@ -202,11 +202,7 @@ __res_vinit(res_state statp, int preinit) {
 	statp->id = res_nrandomid(statp);
 
 	memset(u, 0, sizeof(u));
-#ifdef USELOOPBACK
-	u[nserv].sin.sin_addr = inet_makeaddr(IN_LOOPBACKNET, 1);
-#else
 	u[nserv].sin.sin_addr.s_addr = INADDR_ANY;
-#endif
 	u[nserv].sin.sin_family = AF_INET;
 	u[nserv].sin.sin_port = htons(NAMESERVER_PORT);
 #ifdef HAVE_SA_LEN
@@ -214,11 +210,7 @@ __res_vinit(res_state statp, int preinit) {
 #endif
 	nserv++;
 #ifdef HAS_INET6_STRUCTS
-#ifdef USELOOPBACK
-	u[nserv].sin6.sin6_addr = in6addr_loopback;
-#else
 	u[nserv].sin6.sin6_addr = in6addr_any;
-#endif
 	u[nserv].sin6.sin6_family = AF_INET6;
 	u[nserv].sin6.sin6_port = htons(NAMESERVER_PORT);
 #ifdef HAVE_SA_LEN
