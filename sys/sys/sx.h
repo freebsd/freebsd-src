@@ -253,12 +253,13 @@ __sx_xunlock(struct sx *sx, struct thread *td, const char *file, int line)
 	(((sx)->sx_lock & ~(SX_LOCK_FLAGMASK & ~SX_LOCK_SHARED)) ==	\
 	    (uintptr_t)curthread)
 
-#define	sx_unlock_(sx, file, line) do {					\
+#define	sx_unlock_(sx, file, line) __extension__ ({			\
 	if (sx_xlocked(sx))						\
 		sx_xunlock_(sx, file, line);				\
 	else								\
 		sx_sunlock_(sx, file, line);				\
-} while (0)
+	(void)0; /* ensure void type for expression */			\
+})
 
 #define	sx_unlock(sx)	sx_unlock_((sx), LOCK_FILE, LOCK_LINE)
 
