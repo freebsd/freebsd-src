@@ -756,6 +756,9 @@ ktls_ocf_try(struct socket *so, struct ktls_session *tls, int direction)
 		if (tls->params.tls_vminor == TLS_MINOR_VER_ZERO) {
 			os->implicit_iv = true;
 			memcpy(os->iv, tls->params.iv, AES_BLOCK_LEN);
+#ifdef INVARIANTS
+			os->next_seqno = tls->next_seqno;
+#endif
 		}
 	}
 	tls->free = ktls_ocf_free;
