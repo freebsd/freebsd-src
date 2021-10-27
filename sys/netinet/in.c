@@ -449,18 +449,17 @@ in_aifaddr_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp, struct thread *td)
 		ia->ia_sockmask = *mask;
 		ia->ia_subnetmask = ntohl(ia->ia_sockmask.sin_addr.s_addr);
 	} else {
-		in_addr_t i = ntohl(addr->sin_addr.s_addr);
-
 		/*
-	 	 * Be compatible with network classes, if netmask isn't
-		 * supplied, guess it based on classes.
+	 	 * If netmask isn't supplied, use default for now.
+		 * This is deprecated for interfaces other than loopback
+		 * or point-to-point; warn in other cases.  In the future
+		 * we should return an error rather than warning.
 	 	 */
-		if (IN_CLASSA(i))
-			ia->ia_subnetmask = IN_CLASSA_NET;
-		else if (IN_CLASSB(i))
-			ia->ia_subnetmask = IN_CLASSB_NET;
-		else
-			ia->ia_subnetmask = IN_CLASSC_NET;
+		if ((ifp->if_flags & (IFF_POINTOPOINT | IFF_LOOPBACK)) == 0)
+			printf("%s: set address: WARNING: network mask"
+			     " should be specified; using default mask\n",
+			     ifp->if_xname);
+		ia->ia_subnetmask = IN_NETMASK_DEFAULT;
 		ia->ia_sockmask.sin_addr.s_addr = htonl(ia->ia_subnetmask);
 	}
 	ia->ia_subnet = ntohl(addr->sin_addr.s_addr) & ia->ia_subnetmask;
