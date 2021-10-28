@@ -1466,6 +1466,9 @@ X_ip_mforward(struct ip *ip, struct ifnet *ifp, struct mbuf *m,
 		timevalclear(&rt->mfc_last_assert);
 
 		buf_ring_enqueue(rt->mfc_stall_ring, rte);
+
+		/* Add RT to hashtable as it didn't exist before */
+		LIST_INSERT_HEAD(&V_mfchashtbl[hash], rt, mfc_hash);
 	} else {
 		/* determine if queue has overflowed */
 		if (buf_ring_full(rt->mfc_stall_ring)) {
