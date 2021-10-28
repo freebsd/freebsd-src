@@ -12,7 +12,7 @@
 .\"
 .\"
 .\" $FreeBSD$
-.Dd September 6, 2015
+.Dd November 3, 2021
 .Dt BLACKHOLE 4
 .Os
 .Sh NAME
@@ -24,7 +24,9 @@ attempts
 .Sh SYNOPSIS
 .Cd sysctl net.inet.sctp.blackhole Ns Op = Ns Brq "0 | 1 | 2"
 .Cd sysctl net.inet.tcp.blackhole Ns Op = Ns Brq "0 | 1 | 2"
+.Cd sysctl net.inet.tcp.blackhole_local Ns Op = Ns Brq "0 | 1"
 .Cd sysctl net.inet.udp.blackhole Ns Op = Ns Brq "0 | 1"
+.Cd sysctl net.inet.udp.blackhole_local Ns Op = Ns Brq "0 | 1"
 .Sh DESCRIPTION
 The
 .Nm
@@ -35,6 +37,14 @@ are received on SCTP, TCP, or UDP ports where there is no socket listening.
 The blackhole behaviour is useful to slow down an attacker who is port-scanning
 a system in an attempt to detect vulnerable services.
 It might also slow down an attempted denial of service attack.
+.Pp
+The blackhole behaviour is disabled by default.
+If enabled, the locally originated packets would still be responded to,
+unless also
+.Va net.inet.tcp.blackhole_local
+(for TCP) and/or
+.Va net.inet.udp.blackhole_local
+(for UDP) are enforced.
 .Ss SCTP
 Setting the SCTP blackhole MIB to a numeric value of one
 will prevent sending an ABORT packet in response to an incoming INIT.

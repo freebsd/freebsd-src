@@ -144,6 +144,12 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, blackhole, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(blackhole), 0,
     "Do not send RST on segments to closed ports");
 
+VNET_DEFINE(bool, blackhole_local) = false;
+#define	V_blackhole_local	VNET(blackhole_local)
+SYSCTL_BOOL(_net_inet_tcp, OID_AUTO, blackhole_local, CTLFLAG_VNET |
+    CTLFLAG_RW, &VNET_NAME(blackhole_local), false,
+    "Enforce net.inet.tcp.blackhole for locally originated packets");
+
 VNET_DEFINE(int, tcp_delack_enabled) = 1;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, delayed_ack, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(tcp_delack_enabled), 0,
@@ -935,8 +941,17 @@ findpcb:
 		 * When blackholing do not respond with a RST but
 		 * completely ignore the segment and drop it.
 		 */
-		if ((V_blackhole == 1 && (thflags & TH_SYN)) ||
-		    V_blackhole == 2)
+		if (((V_blackhole == 1 && (thflags & TH_SYN)) ||
+		    V_blackhole == 2) && (V_blackhole_local ||
+#ifdef INET6
+		    isipv6 ? !in6_localaddr(&ip6->ip6_src) :
+#endif
+#ifdef INET
+		    !in_localip(ip->ip_src)
+#else
+		    true
+#endif
+		    ))
 			goto dropunlock;
 
 		rstreason = BANDLIM_RST_CLOSEDPORT;
