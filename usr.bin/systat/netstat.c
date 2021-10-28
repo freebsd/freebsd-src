@@ -206,7 +206,7 @@ again:
 		next = &inpcb;
 		if (!aflag) {
 			if (inpcb.inp_vflag & INP_IPV4) {
-				if (inet_lnaof(inpcb.inp_laddr) == INADDR_ANY)
+				if (inpcb.inp_laddr.s_addr == INADDR_ANY)
 					continue;
 			}
 #ifdef INET6
@@ -303,8 +303,7 @@ fetchnetstat_sysctl(void)
 
 			if (!aflag) {
 				if (xip->inp_vflag & INP_IPV4) {
-					if (inet_lnaof(xip->inp_laddr) ==
-					    INADDR_ANY)
+					if (xip->inp_laddr.s_addr == INADDR_ANY)
 						continue;
 				}
 #ifdef INET6
@@ -584,7 +583,6 @@ inetname(struct sockaddr *sa)
 	char *cp = 0;
 	static char line[NI_MAXHOST];
 	struct hostent *hp;
-	struct netent *np;
 	struct in_addr in;
 
 #ifdef INET6
@@ -601,19 +599,9 @@ inetname(struct sockaddr *sa)
 
 	in = ((struct sockaddr_in *)sa)->sin_addr;
 	if (!nflag && in.s_addr != INADDR_ANY) {
-		int net = inet_netof(in);
-		int lna = inet_lnaof(in);
-
-		if (lna == INADDR_ANY) {
-			np = getnetbyaddr(net, AF_INET);
-			if (np)
-				cp = np->n_name;
-		}
-		if (cp == NULL) {
-			hp = gethostbyaddr((char *)&in, sizeof (in), AF_INET);
-			if (hp)
-				cp = hp->h_name;
-		}
+		hp = gethostbyaddr((char *)&in, sizeof (in), AF_INET);
+		if (hp)
+			cp = hp->h_name;
 	}
 	if (in.s_addr == INADDR_ANY)
 		strcpy(line, "*");
