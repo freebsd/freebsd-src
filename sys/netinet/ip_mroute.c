@@ -713,8 +713,10 @@ ip_mrouter_init(struct socket *so, int version)
     mtx_init(&V_bw_upcalls_ring_mtx, "mroute upcall buf_ring mtx", NULL, MTX_DEF);
     V_bw_upcalls_ring = buf_ring_alloc(BW_UPCALLS_MAX, M_MRTABLE,
 	M_NOWAIT, &V_bw_upcalls_ring_mtx);
-    if (!V_bw_upcalls_ring)
+    if (!V_bw_upcalls_ring) {
+	MRW_WUNLOCK();
 	return (ENOMEM);
+    }
 
     /* Create upcall thread */
     upcall_thread_shutdown = 0;
