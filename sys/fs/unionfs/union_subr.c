@@ -183,11 +183,6 @@ unionfs_get_cached_vnode(struct vnode *uvp, struct vnode *lvp,
 {
 	struct vnode *vp;
 
-	KASSERT(uvp == NULLVP || uvp->v_type == VDIR,
-	    ("%s: v_type != VDIR", __func__));
-	KASSERT(lvp == NULLVP || lvp->v_type == VDIR,
-	    ("%s: v_type != VDIR", __func__));
-
 	vp = NULLVP;
 	VI_LOCK(dvp);
 	if (uvp != NULLVP)
@@ -209,6 +204,8 @@ unionfs_ins_cached_vnode(struct unionfs_node *uncp,
 	struct unionfs_node_hashhead *hd;
 	struct vnode *vp;
 
+	ASSERT_VOP_ELOCKED(uncp->un_uppervp, __func__);
+	ASSERT_VOP_ELOCKED(uncp->un_lowervp, __func__);
 	KASSERT(uncp->un_uppervp == NULLVP || uncp->un_uppervp->v_type == VDIR,
 	    ("%s: v_type != VDIR", __func__));
 	KASSERT(uncp->un_lowervp == NULLVP || uncp->un_lowervp->v_type == VDIR,
@@ -439,7 +436,9 @@ unionfs_noderem(struct vnode *vp, struct thread *td)
 	struct vnode   *dvp;
 	int		count;
 
-	if (lockmgr(&(vp->v_lock), LK_EXCLUSIVE, NULL) != 0)
+	KASSERT(vp->v_vnlock->lk_recurse == 0,
+	    ("%s: vnode %p locked recursively", __func__, vp));
+	if (lockmgr(&vp->v_lock, LK_EXCLUSIVE | LK_NOWAIT, NULL) != 0)
 		panic("%s: failed to acquire lock for vnode lock", __func__);
 
 	/*
@@ -803,6 +802,7 @@ unionfs_node_update(struct unionfs_node *unp, struct vnode *uvp,
 	vp = UNIONFSTOV(unp);
 	lvp = unp->un_lowervp;
 	ASSERT_VOP_ELOCKED(lvp, __func__);
+	ASSERT_VOP_ELOCKED(uvp, __func__);
 	dvp = unp->un_dvp;
 
 	/*
