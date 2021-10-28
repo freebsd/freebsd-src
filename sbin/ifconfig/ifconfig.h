@@ -110,7 +110,8 @@ struct afswtch {
 	void		(*af_getaddr)(const char *, int);
 					/* parse prefix method (IPv6) */
 	void		(*af_getprefix)(const char *, int);
-	void		(*af_postproc)(int s, const struct afswtch *);
+	void		(*af_postproc)(int s, const struct afswtch *,
+			    int newaddr, int ifflags);
 	u_long		af_difaddr;	/* set dst if address ioctl */
 	u_long		af_aifaddr;	/* set if address ioctl */
 	void		*af_ridreq;	/* */

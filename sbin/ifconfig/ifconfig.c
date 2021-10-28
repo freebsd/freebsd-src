@@ -116,7 +116,7 @@ static	void status(const struct afswtch *afp, const struct sockaddr_dl *sdl,
 static	void tunnel_status(int s);
 static _Noreturn void usage(void);
 
-static int getifflags(const char *ifname, int us);
+static int getifflags(const char *ifname, int us, bool err_ok);
 
 static struct afswtch *af_getbyname(const char *name);
 static struct afswtch *af_getbyfamily(int af);
@@ -603,7 +603,7 @@ main(int argc, char *argv[])
 		if (iflen >= sizeof(name)) {
 			warnx("%s: interface name too long, skipping", ifname);
 		} else {
-			flags = getifflags(name, -1);
+			flags = getifflags(name, -1, false);
 			if (!(((flags & IFF_CANTCONFIG) != 0) ||
 				(downonly && (flags & IFF_UP) != 0) ||
 				(uponly && (flags & IFF_UP) == 0)))
@@ -1000,7 +1000,7 @@ top:
 	 * Do any post argument processing required by the address family.
 	 */
 	if (afp->af_postproc != NULL)
-		afp->af_postproc(s, afp);
+		afp->af_postproc(s, afp, newaddr, getifflags(name, s, true));
 	/*
 	 * Do deferred callbacks registered while processing
 	 * command-line arguments.
@@ -1179,7 +1179,7 @@ setifdstaddr(const char *addr, int param __unused, int s,
 }
 
 static int
-getifflags(const char *ifname, int us)
+getifflags(const char *ifname, int us, bool err_ok)
 {
 	struct ifreq my_ifr;
 	int s;
@@ -1192,8 +1192,10 @@ getifflags(const char *ifname, int us)
 	} else
 		s = us;
  	if (ioctl(s, SIOCGIFFLAGS, (caddr_t)&my_ifr) < 0) {
- 		Perror("ioctl (SIOCGIFFLAGS)");
- 		exit(1);
+		if (!err_ok) {
+			Perror("ioctl (SIOCGIFFLAGS)");
+			exit(1);
+		}
  	}
 	if (us < 0)
 		close(s);
@@ -1211,7 +1213,7 @@ setifflags(const char *vname, int value, int s, const struct afswtch *afp)
 	struct ifreq		my_ifr;
 	int flags;
 
-	flags = getifflags(name, s);
+	flags = getifflags(name, s, false);
 	if (value < 0) {
 		value = -value;
 		flags &= ~value;

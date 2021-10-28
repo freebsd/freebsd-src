@@ -419,7 +419,8 @@ sec2str(time_t total)
 }
 
 static void
-in6_postproc(int s, const struct afswtch *afp)
+in6_postproc(int s, const struct afswtch *afp, int newaddr __unused,
+    int ifflags __unused)
 {
 	if (explicit_prefix == 0) {
 		/* Aggregatable address architecture defines all prefixes
