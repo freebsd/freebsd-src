@@ -176,10 +176,10 @@ SYSCTL_PROC(_net_inet_tcp, OID_AUTO, maxtcptw,
     &maxtcptw, 0, sysctl_maxtcptw, "IU",
     "Maximum number of compressed TCP TIME_WAIT entries");
 
-VNET_DEFINE_STATIC(int, nolocaltimewait) = 0;
+VNET_DEFINE_STATIC(bool, nolocaltimewait) = true;
 #define	V_nolocaltimewait	VNET(nolocaltimewait)
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, nolocaltimewait, CTLFLAG_VNET | CTLFLAG_RW,
-    &VNET_NAME(nolocaltimewait), 0,
+SYSCTL_BOOL(_net_inet_tcp, OID_AUTO, nolocaltimewait, CTLFLAG_VNET | CTLFLAG_RW,
+    &VNET_NAME(nolocaltimewait), true,
     "Do not create compressed TCP TIME_WAIT entries for local connections");
 
 void
