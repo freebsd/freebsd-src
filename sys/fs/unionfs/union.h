@@ -108,8 +108,23 @@ struct unionfs_node {
 #define UNIONFS_OPENEXTL	0x01	/* openextattr (lower) */
 #define UNIONFS_OPENEXTU	0x02	/* openextattr (upper) */
 
+extern struct vop_vector unionfs_vnodeops;
+
+static inline struct unionfs_node *
+unionfs_check_vnode(struct vnode *vp, const char *file __unused,
+    int line __unused)
+{
+	/*
+	 * unionfs_lock() needs the NULL check here, as it explicitly
+	 * handles the case in which the vnode has been vgonel()'ed.
+	 */
+	KASSERT(vp->v_op == &unionfs_vnodeops || vp->v_data == NULL,
+	    ("%s:%d: non-unionfs vnode %p", file, line, vp));
+	return ((struct unionfs_node *)vp->v_data);
+}
+
 #define	MOUNTTOUNIONFSMOUNT(mp) ((struct unionfs_mount *)((mp)->mnt_data))
-#define	VTOUNIONFS(vp) ((struct unionfs_node *)(vp)->v_data)
+#define	VTOUNIONFS(vp) unionfs_check_vnode(vp, __FILE__, __LINE__)
 #define	UNIONFSTOV(xp) ((xp)->un_vnode)
 
 int	unionfs_init(struct vfsconf *);
@@ -143,17 +158,8 @@ int	unionfs_relookup_for_delete(struct vnode *, struct componentname *,
 int	unionfs_relookup_for_rename(struct vnode *, struct componentname *,
 	    struct thread *);
 
-#ifdef DIAGNOSTIC
-struct vnode	*unionfs_checklowervp(struct vnode *, char *, int);
-struct vnode	*unionfs_checkuppervp(struct vnode *, char *, int);
-#define	UNIONFSVPTOLOWERVP(vp) unionfs_checklowervp((vp), __FILE__, __LINE__)
-#define	UNIONFSVPTOUPPERVP(vp) unionfs_checkuppervp((vp), __FILE__, __LINE__)
-#else
 #define	UNIONFSVPTOLOWERVP(vp) (VTOUNIONFS(vp)->un_lowervp)
 #define	UNIONFSVPTOUPPERVP(vp) (VTOUNIONFS(vp)->un_uppervp)
-#endif
-
-extern struct vop_vector unionfs_vnodeops;
 
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_UNIONFSNODE);
