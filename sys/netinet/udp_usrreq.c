@@ -398,7 +398,6 @@ udp_input(struct mbuf **mp, int *offp, int proto)
 	struct inpcb *inp;
 	uint16_t len, ip_len;
 	struct inpcbinfo *pcbinfo;
-	struct ip save_ip;
 	struct sockaddr_in udp_in[2];
 	struct mbuf *m;
 	struct m_tag *fwd_tag;
@@ -475,15 +474,6 @@ udp_input(struct mbuf **mp, int *offp, int proto)
 	}
 
 	/*
-	 * Save a copy of the IP header in case we want restore it for
-	 * sending an ICMP error message in response.
-	 */
-	if (!V_udp_blackhole)
-		save_ip = *ip;
-	else
-		memset(&save_ip, 0, sizeof(save_ip));
-
-	/*
 	 * Checksum extended UDP header and data.
 	 */
 	if (uh->uh_sum) {
@@ -499,14 +489,15 @@ udp_input(struct mbuf **mp, int *offp, int proto)
 				    m->m_pkthdr.csum_data + proto));
 			uh_sum ^= 0xffff;
 		} else {
-			char b[9];
+			char b[offsetof(struct ipovly, ih_src)];
+			struct ipovly *ipov = (struct ipovly *)ip;
 
-			bcopy(((struct ipovly *)ip)->ih_x1, b, 9);
-			bzero(((struct ipovly *)ip)->ih_x1, 9);
-			((struct ipovly *)ip)->ih_len = (proto == IPPROTO_UDP) ?
+			bcopy(ipov, b, sizeof(b));
+			bzero(ipov, sizeof(ipov->ih_x1));
+			ipov->ih_len = (proto == IPPROTO_UDP) ?
 			    uh->uh_ulen : htons(ip_len);
 			uh_sum = in_cksum(m, len + sizeof (struct ip));
-			bcopy(b, ((struct ipovly *)ip)->ih_x1, 9);
+			bcopy(b, ipov, sizeof(b));
 		}
 		if (uh_sum) {
 			UDPSTAT_INC(udps_badsum);
@@ -714,7 +705,6 @@ udp_input(struct mbuf **mp, int *offp, int proto)
 			goto badunlocked;
 		if (badport_bandlim(BANDLIM_ICMP_UNREACH) < 0)
 			goto badunlocked;
-		*ip = save_ip;
 		icmp_error(m, ICMP_UNREACH, ICMP_UNREACH_PORT, 0, 0);
 		return (IPPROTO_DONE);
 	}
