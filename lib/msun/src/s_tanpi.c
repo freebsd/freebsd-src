@@ -63,6 +63,7 @@
  *    tanpi(nan) = NaN.  Raises the "invalid" floating-point exception.
  */
 
+#include <float.h>
 #include "math.h"
 #include "math_private.h"
 
