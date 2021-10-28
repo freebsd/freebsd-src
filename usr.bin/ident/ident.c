@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015 Baptiste Daroussin <bapt@FreeBSD.org>
+ * Copyright (c) 2015-2021 Baptiste Daroussin <bapt@FreeBSD.org>
  * Copyright (c) 2015 Xin LI <delphij@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #include <xlocale.h>
 
@@ -58,10 +59,17 @@ scan(FILE *fp, const char *name, bool quiet)
 	bool hasid = false;
 	bool subversion = false;
 	analyzer_states state = INIT;
-	struct sbuf *id = sbuf_new_auto();
+	FILE* buffp;
+	char *buf;
+	size_t sz;
 	locale_t l;
 
 	l = newlocale(LC_ALL_MASK, "C", NULL);
+	sz = 0;
+	buf = NULL;
+	buffp = open_memstream(&buf, &sz);
+	if (buffp == NULL)
+		err(EXIT_FAILURE, "open_memstream()");
 
 	if (name != NULL)
 		printf("%s:\n", name);
@@ -80,9 +88,11 @@ scan(FILE *fp, const char *name, bool quiet)
 		case DELIM_SEEN:
 			if (isalpha_l(c, l)) {
 				/* Transit to KEYWORD if we see letter */
-				sbuf_clear(id);
-				sbuf_putc(id, '$');
-				sbuf_putc(id, c);
+				if (buf != NULL)
+					memset(buf, 0, sz);
+				rewind(buffp);
+				fputc('$', buffp);
+				fputc(c, buffp);
 				state = KEYWORD;
 
 				continue;
@@ -95,7 +105,7 @@ scan(FILE *fp, const char *name, bool quiet)
 			}
 			break;
 		case KEYWORD:
-			sbuf_putc(id, c);
+			fputc(c, buffp);
 
 			if (isalpha_l(c, l)) {
 				/*
@@ -125,7 +135,7 @@ scan(FILE *fp, const char *name, bool quiet)
 			break;
 		case PUNC_SEEN:
 		case PUNC_SEEN_SVN:
-			sbuf_putc(id, c);
+			fputc(c, buffp);
 
 			switch (c) {
 			case ':':
@@ -159,13 +169,13 @@ scan(FILE *fp, const char *name, bool quiet)
 			}
 			break;
 		case TEXT:
-			sbuf_putc(id, c);
+			fputc(c, buffp);
 
 			if (iscntrl_l(c, l)) {
 				/* Control characters are not allowed in this state */
 				state = INIT;
 			} else if (c == '$') {
-				sbuf_finish(id);
+				fflush(buffp);
 				/*
 				 * valid ident should end with a space.
 				 *
@@ -175,9 +185,9 @@ scan(FILE *fp, const char *name, bool quiet)
 				 * subversion mode.  No length check is enforced
 				 * because GNU RCS ident(1) does not do it either.
 				 */
-				c = sbuf_data(id)[sbuf_len(id) - 2];
+				c = buf[strlen(buf) -2 ];
 				if (c == ' ' || (subversion && c == '#')) {
-					printf("     %s\n", sbuf_data(id));
+					printf("     %s\n", buf);
 					hasid = true;
 				}
 				state = INIT;
@@ -186,7 +196,8 @@ scan(FILE *fp, const char *name, bool quiet)
 			break;
 		}
 	}
-	sbuf_delete(id);
+	fclose(buffp);
+	free(buf);
 	freelocale(l);
 
 	if (!hasid) {
