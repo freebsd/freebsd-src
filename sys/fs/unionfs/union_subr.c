@@ -1251,13 +1251,8 @@ unionfs_check_rmdir(struct vnode *vp, struct ucred *cred, struct thread *td)
 		error = VOP_READDIR(lvp, &uio, cred, &eofflag, NULL, NULL);
 		if (error != 0)
 			break;
-		if (eofflag == 0 && uio.uio_resid == sizeof(buf)) {
-#ifdef DIAGNOSTIC
-			panic("%s: bad readdir response from lower FS",
-			    __func__);
-#endif
-			break;
-		}
+		KASSERT(eofflag != 0 || uio.uio_resid < sizeof(buf),
+		    ("%s: empty read from lower FS", __func__));
 
 		edp = (struct dirent*)&buf[sizeof(buf) - uio.uio_resid];
 		for (dp = (struct dirent*)buf; !error && dp < edp;
