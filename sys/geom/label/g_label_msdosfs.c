@@ -136,7 +136,7 @@ g_label_msdosfs_taste(struct g_consumer *cp, char *label, size_t size)
 		if (strncmp(pfat32_bsbpb->BS_VolLab, LABEL_NO_NAME,
 		    sizeof(pfat32_bsbpb->BS_VolLab)) != 0) {
 			copysize = MIN(size - 1,
-			    sizeof(pfat32_bsbpb->BS_VolLab) + 1);
+			    sizeof(pfat32_bsbpb->BS_VolLab));
 			memcpy(label, pfat32_bsbpb->BS_VolLab, copysize);
 			label[copysize] = '\0';
 			goto endofchecks;
