@@ -511,7 +511,8 @@ skip_checksum:
 			UDPSTAT_INC(udps_noportmcast);
 			goto badunlocked;
 		}
-		if (V_udp_blackhole)
+		if (V_udp_blackhole && (V_udp_blackhole_local ||
+		    !in6_localaddr(&ip6->ip6_src)))
 			goto badunlocked;
 		icmp6_error(m, ICMP6_DST_UNREACH, ICMP6_DST_UNREACH_NOPORT, 0);
 		*mp = NULL;

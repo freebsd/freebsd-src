@@ -127,6 +127,10 @@ VNET_DEFINE(int, udp_blackhole) = 0;
 SYSCTL_INT(_net_inet_udp, OID_AUTO, blackhole, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(udp_blackhole), 0,
     "Do not send port unreachables for refused connects");
+VNET_DEFINE(bool, udp_blackhole_local) = false;
+SYSCTL_BOOL(_net_inet_udp, OID_AUTO, blackhole_local, CTLFLAG_VNET |
+    CTLFLAG_RW, &VNET_NAME(udp_blackhole_local), false,
+    "Enforce net.inet.udp.blackhole for locally originated packets");
 
 u_long	udp_sendspace = 9216;		/* really max datagram size */
 SYSCTL_ULONG(_net_inet_udp, UDPCTL_MAXDGRAM, maxdgram, CTLFLAG_RW,
@@ -701,7 +705,8 @@ udp_input(struct mbuf **mp, int *offp, int proto)
 			UDPSTAT_INC(udps_noportbcast);
 			goto badunlocked;
 		}
-		if (V_udp_blackhole)
+		if (V_udp_blackhole && (V_udp_blackhole_local ||
+		    !in_localip(ip->ip_src)))
 			goto badunlocked;
 		if (badport_bandlim(BANDLIM_ICMP_UNREACH) < 0)
 			goto badunlocked;
