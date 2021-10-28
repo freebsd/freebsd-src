@@ -271,6 +271,67 @@ regions_to_avail(vm_paddr_t *avail, uint32_t exflags, size_t maxavail,
 }
 
 /*
+ * Check if the region at idx can be merged with the region above it.
+ */
+static size_t
+merge_upper_regions(struct region *regions, size_t rcnt, size_t idx)
+{
+	struct region *lower, *upper;
+	vm_paddr_t lend, uend;
+	size_t i, mergecnt, movecnt;
+
+	lower = &regions[idx];
+	lend = lower->addr + lower->size;
+
+	/*
+	 * Continue merging in upper entries as long as we have entries to
+	 * merge; the new block could have spanned more than one, although one
+	 * is likely the common case.
+	 */
+	for (i = idx + 1; i < rcnt; i++) {
+		upper = &regions[i];
+		if (lend < upper->addr || lower->flags != upper->flags)
+			break;
+
+		uend = upper->addr + upper->size;
+		if (uend > lend) {
+			lower->size += uend - lend;
+			lend = lower->addr + lower->size;
+		}
+
+		if (uend >= lend) {
+			/*
+			 * If we didn't move past the end of the upper region,
+			 * then we don't need to bother checking for another
+			 * merge because it would have been done already.  Just
+			 * increment i once more to maintain the invariant that
+			 * i is one past the last entry merged.
+			 */
+			i++;
+			break;
+		}
+	}
+
+	/*
+	 * We merged in the entries from [idx + 1, i); physically move the tail
+	 * end at [i, rcnt) if we need to.
+	 */
+	mergecnt = i - (idx + 1);
+	if (mergecnt > 0) {
+		movecnt = rcnt - i;
+		if (movecnt == 0) {
+			/* Merged all the way to the end, just decrease rcnt. */
+			rcnt = idx + 1;
+		} else {
+			memmove(&regions[idx + 1], &regions[idx + mergecnt + 1],
+			    movecnt * sizeof(*regions));
+			rcnt -= mergecnt;
+		}
+	}
+	return (rcnt);
+}
+
+/*
  * Insertion-sort a new entry into a regions list; sorted by start address.
  */
 static size_t
@@ -278,19 +339,38 @@ insert_region(struct region *regions, size_t rcnt, vm_paddr_t addr,
     vm_size_t size, uint32_t flags)
 {
 	size_t i;
+	vm_paddr_t nend, rend;
 	struct region *ep, *rp;
 
+	nend = addr + size;
 	ep = regions + rcnt;
 	for (i = 0, rp = regions; i < rcnt; ++i, ++rp) {
-		if (rp->addr == addr && rp->size == size) /* Pure dup. */
-			return (rcnt);
 		if (flags == rp->flags) {
-			if (addr + size == rp->addr) {
+			rend = rp->addr + rp->size;
+			if (addr <= rp->addr && nend >= rp->addr) {
+				/*
+				 * New mapping overlaps at the beginning, shift
+				 * for any difference in the beginning then
+				 * shift if the new mapping extends past.
+				 */
+				rp->size += rp->addr - addr;
 				rp->addr = addr;
-				rp->size += size;
+				if (nend > rend) {
+					rp->size += nend - rend;
+					rcnt = merge_upper_regions(regions,
+					    rcnt, i);
+				}
 				return (rcnt);
-			} else if (rp->addr + rp->size == addr) {
-				rp->size += size;
+			} else if (addr <= rend && nend > rp->addr) {
+				/*
+				 * New mapping is either entirely contained
+				 * within or it's overlapping at the end.
+				 */
+				if (nend > rend) {
+					rp->size += nend - rend;
+					rcnt = merge_upper_regions(regions,
+					    rcnt, i);
+				}
 				return (rcnt);
 			}
 		}
