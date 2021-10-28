@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 9, 2020
+.Dd October 28, 2021
 .Dt CONFIG 5
 .Os
 .Sh NAME
@@ -329,7 +329,9 @@ A value of 0 indicates that the kernel should configure
 its data structures according to the size of available
 physical memory.
 If auto configuration is requested, the kernel will set
-this tunable to a value between 32 and 384.
+this tunable to a value between 32 and 384 for 32-bit systems,
+or scale the value higher based on available memory for 64-bit
+systems.
 .Pp
 As explained in
 .Xr tuning 7 ,
