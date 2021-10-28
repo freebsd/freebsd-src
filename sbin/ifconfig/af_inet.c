@@ -176,6 +176,16 @@ in_getaddr(const char *s, int which)
 }
 
 static void
+in_postproc(int s, const struct afswtch *afp, int newaddr, int ifflags)
+{
+	if (sintab[ADDR]->sin_len != 0 && sintab[MASK]->sin_len == 0 &&
+	    newaddr && (ifflags & (IFF_POINTOPOINT | IFF_LOOPBACK)) == 0) {
+		warnx("WARNING: setting interface address without mask "
+		    "is deprecated,\ndefault mask may not be correct.");
+	}
+}
+
+static void
 in_status_tunnel(int s)
 {
 	char src[NI_MAXHOST];
@@ -222,6 +232,7 @@ static struct afswtch af_inet = {
 	.af_af		= AF_INET,
 	.af_status	= in_status,
 	.af_getaddr	= in_getaddr,
+	.af_postproc	= in_postproc,
 	.af_status_tunnel = in_status_tunnel,
 	.af_settunnel	= in_set_tunnel,
 	.af_difaddr	= SIOCDIFADDR,
