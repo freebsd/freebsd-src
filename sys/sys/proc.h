@@ -1128,6 +1128,8 @@ struct	pargs *pargs_alloc(int len);
 void	pargs_drop(struct pargs *pa);
 void	pargs_hold(struct pargs *pa);
 void	proc_add_orphan(struct proc *child, struct proc *parent);
+int	proc_get_binpath(struct proc *p, char *binname, char **fullpath,
+	    char **freepath);
 int	proc_getargv(struct thread *td, struct proc *p, struct sbuf *sb);
 int	proc_getauxv(struct thread *td, struct proc *p, struct sbuf *sb);
 int	proc_getenvv(struct thread *td, struct proc *p, struct sbuf *sb);
