@@ -5363,8 +5363,6 @@ rack_get_persists_timer_val(struct tcpcb *tp, struct tcp_rack *rack)
 	t = (tp->t_srtt + (tp->t_rttvar << 2));
 	RACK_TCPT_RANGESET(tt, t * tcp_backoff[tp->t_rxtshift],
  	    rack_persist_min, rack_persist_max, rack->r_ctl.timer_slop);
-	if (tp->t_rxtshift < TCP_MAXRXTSHIFT)
-		tp->t_rxtshift++;
 	rack->r_ctl.rc_hpts_flags |= PACE_TMR_PERSIT;
 	ret_val = (uint32_t)tt;
 	return (ret_val);
@@ -14448,11 +14446,20 @@ rack_do_segment_nounlock(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		 * at least use timestamps if available to validate).
 		 */
 		rack->forced_ack = 0;
-		us_rtt = us_cts - rack->r_ctl.forced_ack_ts;
-		if (us_rtt == 0)
-			us_rtt = 1;
-		rack_apply_updated_usrtt(rack, us_rtt, us_cts);
-		tcp_rack_xmit_timer(rack, us_rtt, 0, us_rtt, 3, NULL, 1);
+		if (tiwin == tp->snd_wnd) {
+			/*
+			 * Only apply the RTT update if this is
+			 * a response to our window probe. And that
+			 * means the rwnd sent must match the current
+			 * snd_wnd. If it does not, then we got a
+			 * window update ack instead.
+			 */
+			us_rtt = us_cts - rack->r_ctl.forced_ack_ts;
+			if (us_rtt == 0)
+				us_rtt = 1;
+			rack_apply_updated_usrtt(rack, us_rtt, us_cts);
+			tcp_rack_xmit_timer(rack, us_rtt, 0, us_rtt, 3, NULL, 1);
+		}
 	}
 	/*
 	 * This is the one exception case where we set the rack state
