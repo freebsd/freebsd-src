@@ -22,6 +22,7 @@ ATF_TESTS_SH+=	altq \
 		set_tos \
 		src_track \
 		rdr \
+		ridentifier \
 		route_to \
 		syncookie \
 		synproxy \
