@@ -28,22 +28,23 @@
 #ifndef _NETINET_TCP_RACK_H_
 #define _NETINET_TCP_RACK_H_
 
-#define RACK_ACKED	    0x0001/* The remote endpoint acked this */
-#define RACK_TO_REXT	    0x0002/* A timeout occured on this sendmap entry */
-#define RACK_DEFERRED	    0x0004/* We can't use this for RTT calc - not used */
-#define RACK_OVERMAX	    0x0008/* We have more retran's then we can fit */
-#define RACK_SACK_PASSED    0x0010/* A sack was done above this block */
-#define RACK_WAS_SACKPASS   0x0020/* We retransmitted due to SACK pass */
-#define RACK_HAS_FIN	    0x0040/* segment is sent with fin */
-#define RACK_TLP	    0x0080/* segment sent as tail-loss-probe */
-#define RACK_RWND_COLLAPSED 0x0100/* The peer collapsed the rwnd on the segment */
-#define RACK_APP_LIMITED    0x0200/* We went app limited after this send */
-#define RACK_WAS_ACKED	    0x0400/* a RTO undid the ack, but it already had a rtt calc done */
-#define RACK_HAS_SYN	    0x0800/* SYN is on this guy */
-#define RACK_SENT_W_DSACK   0x1000/* Sent with a dsack */
-#define RACK_SENT_SP	    0x2000/* sent in slow path */
-#define RACK_SENT_FP        0x4000/* sent in fast path */
-#define RACK_HAD_PUSH	    0x8000/* Push was sent on original send */
+#define RACK_ACKED	    0x000001/* The remote endpoint acked this */
+#define RACK_TO_REXT	    0x000002/* A timeout occured on this sendmap entry */
+#define RACK_DEFERRED	    0x000004/* We can't use this for RTT calc - not used */
+#define RACK_OVERMAX	    0x000008/* We have more retran's then we can fit */
+#define RACK_SACK_PASSED    0x000010/* A sack was done above this block */
+#define RACK_WAS_SACKPASS   0x000020/* We retransmitted due to SACK pass */
+#define RACK_HAS_FIN	    0x000040/* segment is sent with fin */
+#define RACK_TLP	    0x000080/* segment sent as tail-loss-probe */
+#define RACK_RWND_COLLAPSED 0x000100/* The peer collapsed the rwnd on the segment */
+#define RACK_APP_LIMITED    0x000200/* We went app limited after this send */
+#define RACK_WAS_ACKED	    0x000400/* a RTO undid the ack, but it already had a rtt calc done */
+#define RACK_HAS_SYN	    0x000800/* SYN is on this guy */
+#define RACK_SENT_W_DSACK   0x001000/* Sent with a dsack */
+#define RACK_SENT_SP	    0x002000/* sent in slow path */
+#define RACK_SENT_FP        0x004000/* sent in fast path */
+#define RACK_HAD_PUSH	    0x008000/* Push was sent on original send */
+#define RACK_MUST_RXT	    0x010000/* We must retransmit this rsm (non-sack/mtu chg)*/
 #define RACK_NUM_OF_RETRANS 3
 
 #define RACK_INITIAL_RTO 1000000 /* 1 second in microseconds */
@@ -55,9 +56,8 @@ struct rack_sendmap {
 	uint32_t r_start;	/* Sequence number of the segment */
 	uint32_t r_end;		/* End seq, this is 1 beyond actually */
 	uint32_t r_rtr_bytes;	/* How many bytes have been retransmitted */
-	uint16_t r_rtr_cnt;	/* Retran count, index this -1 to get time
-				 * sent */
-	uint16_t r_flags;	/* Flags as defined above */
+	uint32_t r_flags : 24,	/* Flags as defined above */
+		 r_rtr_cnt : 8;	/* Retran count, index this -1 to get time */
 	struct mbuf *m;
 	uint32_t soff;
 	uint32_t orig_m_len;
