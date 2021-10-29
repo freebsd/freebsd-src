@@ -27,8 +27,8 @@
 
 .include <src.opts.mk>
 
-SUBDIR=		libatf-c \
-		libatf-c++ \
+SUBDIR=			libatf-c
+SUBDIR.${MK_CXX}+=	libatf-c++
 
 SUBDIR.${MK_TESTS}+= tests
 
