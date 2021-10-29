@@ -688,7 +688,7 @@ siginfo_to_lsiginfo(const siginfo_t *si, l_siginfo_t *lsi, l_int sig)
 			lsi->lsi_pid = si->si_pid;
 			lsi->lsi_uid = si->si_uid;
 
-			if (si->si_code == CLD_STOPPED)
+			if (si->si_code == CLD_STOPPED || si->si_code == CLD_KILLED)
 				lsi->lsi_status = bsd_to_linux_signal(si->si_status);
 			else if (si->si_code == CLD_CONTINUED)
 				lsi->lsi_status = bsd_to_linux_signal(SIGCONT);
