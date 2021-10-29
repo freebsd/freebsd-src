@@ -531,6 +531,7 @@ pf_nvrule_to_krule(const nvlist_t *nvl, struct pf_krule *rule)
 		}
 	}
 
+	PFNV_CHK(pf_nvuint32_opt(nvl, "ridentifier", &rule->ridentifier, 0));
 	PFNV_CHK(pf_nvstring(nvl, "ifname", rule->ifname,
 	    sizeof(rule->ifname)));
 	PFNV_CHK(pf_nvstring(nvl, "qname", rule->qname, sizeof(rule->qname)));
@@ -693,6 +694,7 @@ pf_krule_to_nvrule(struct pf_krule *rule)
 		nvlist_append_string_array(nvl, "labels", rule->label[i]);
 	}
 	nvlist_add_string(nvl, "label", rule->label[0]);
+	nvlist_add_number(nvl, "ridentifier", rule->ridentifier);
 	nvlist_add_string(nvl, "ifname", rule->ifname);
 	nvlist_add_string(nvl, "qname", rule->qname);
 	nvlist_add_string(nvl, "pqname", rule->pqname);

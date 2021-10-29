@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 31, 2007
+.Dd October 29, 2021
 .Dt PFLOG 4
 .Os
 .Sh NAME
@@ -79,6 +79,7 @@ struct pfloghdr {
 	pid_t		rule_pid;
 	u_int8_t	dir;
 	u_int8_t	pad[3];
+	u_int32_t	ridentifier;
 };
 .Ed
 .Sh EXAMPLES

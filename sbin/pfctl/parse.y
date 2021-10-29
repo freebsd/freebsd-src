@@ -236,6 +236,7 @@ static struct filter_opts {
 	struct node_icmp	*icmpspec;
 	u_int32_t		 tos;
 	u_int32_t		 prob;
+	u_int32_t		 ridentifier;
 	struct {
 		int			 action;
 		struct node_state_opt	*options;
@@ -260,6 +261,7 @@ static struct filter_opts {
 static struct antispoof_opts {
 	char			*label[PF_RULE_MAX_LABEL_COUNT];
 	int			 labelcount;
+	u_int32_t		 ridentifier;
 	u_int			 rtableid;
 } antispoof_opts;
 
@@ -468,6 +470,7 @@ int	parseport(char *, struct range *r, int);
 %token	BITMASK RANDOM SOURCEHASH ROUNDROBIN STATICPORT PROBABILITY MAPEPORTSET
 %token	ALTQ CBQ CODEL PRIQ HFSC FAIRQ BANDWIDTH TBRSIZE LINKSHARE REALTIME
 %token	UPPERLIMIT QUEUE PRIORITY QLIMIT HOGS BUCKETS RTABLE TARGET INTERVAL
+%token	RIDENTIFIER
 %token	LOAD RULESET_OPTIMIZATION PRIO
 %token	STICKYADDRESS MAXSRCSTATES MAXSRCNODES SOURCETRACK GLOBAL RULE
 %token	MAXSRCCONN MAXSRCCONNRATE OVERLOAD FLUSH SLOPPY
@@ -915,6 +918,7 @@ anchorrule	: ANCHOR anchorname dir quick interface af proto fromto
 			r.af = $6;
 			r.prob = $9.prob;
 			r.rtableid = $9.rtableid;
+			r.ridentifier = $9.ridentifier;
 
 			if ($9.tag)
 				if (strlcpy(r.tagname, $9.tag,
@@ -1314,6 +1318,7 @@ antispoof	: ANTISPOOF logquick antispoof_ifspc af antispoof_opts {
 				r.logif = $2.logif;
 				r.quick = $2.quick;
 				r.af = $4;
+				r.ridentifier = $5.ridentifier;
 				if (rule_label(&r, $5.label))
 					YYERROR;
 				r.rtableid = $5.rtableid;
@@ -1366,6 +1371,7 @@ antispoof	: ANTISPOOF logquick antispoof_ifspc af antispoof_opts {
 					r.logif = $2.logif;
 					r.quick = $2.quick;
 					r.af = $4;
+					r.ridentifier = $5.ridentifier;
 					if (rule_label(&r, $5.label))
 						YYERROR;
 					r.rtableid = $5.rtableid;
@@ -1427,6 +1433,9 @@ antispoof_opt	: label	{
 				YYERROR;
 			}
 			antispoof_opts.label[antispoof_opts.labelcount++] = $1;
+		}
+		| RIDENTIFIER number {
+			antispoof_opts.ridentifier = $2;
 		}
 		| RTABLE NUMBER				{
 			if ($2 < 0 || $2 > rt_tableid_max()) {
@@ -2143,6 +2152,7 @@ pfrule		: action dir logquick interface route af proto fromto
 				YYERROR;
 			for (int i = 0; i < PF_RULE_MAX_LABEL_COUNT; i++)
 				free($9.label[i]);
+			r.ridentifier = $9.ridentifier;
 			r.flags = $9.flags.b1;
 			r.flagset = $9.flags.b2;
 			if (($9.flags.b1 & $9.flags.b2) != $9.flags.b1) {
@@ -2572,6 +2582,9 @@ filter_opt	: USER uids {
 			filter_opts.marker |= FOM_KEEP;
 			filter_opts.keep.action = $1.action;
 			filter_opts.keep.options = $1.options;
+		}
+		| RIDENTIFIER number {
+			filter_opts.ridentifier = $2;
 		}
 		| FRAGMENT {
 			filter_opts.fragment = 1;
@@ -5687,6 +5700,7 @@ lookup(char *s)
 		{ "return-icmp",	RETURNICMP},
 		{ "return-icmp6",	RETURNICMP6},
 		{ "return-rst",		RETURNRST},
+		{ "ridentifier",	RIDENTIFIER},
 		{ "round-robin",	ROUNDROBIN},
 		{ "route",		ROUTE},
 		{ "route-to",		ROUTETO},
