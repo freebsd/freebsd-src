@@ -46,6 +46,13 @@ pfsynct_init()
 	fi
 }
 
+pflog_init()
+{
+	if ! kldstat -q -m pflog; then
+		atf_skip "This test requires pflog"
+	fi
+}
+
 pft_set_rules()
 {
 	jname=$1
