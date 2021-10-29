@@ -314,7 +314,7 @@ parse_arguments(struct g_command *cmd, struct gctl_req *req, int *argc,
 	struct g_option *opt;
 	char opts[64];
 	unsigned i;
-	int ch;
+	int ch, vcount;
 
 	*opts = '\0';
 	if ((cmd->gc_flags & G_FLAG_VERBOSE) != 0)
@@ -336,17 +336,22 @@ parse_arguments(struct g_command *cmd, struct gctl_req *req, int *argc,
 	/*
 	 * Add specified arguments.
 	 */
+	vcount = 0;
 	while ((ch = getopt(*argc, *argv, opts)) != -1) {
 		/* Standard (not passed to kernel) options. */
-		switch (ch) {
-		case 'v':
+		if (ch == 'v' && (cmd->gc_flags & G_FLAG_VERBOSE) != 0)
 			verbose = 1;
-			continue;
-		}
 		/* Options passed to kernel. */
 		opt = find_option(cmd, ch);
-		if (opt == NULL)
+		if (opt == NULL) {
+			if (ch == 'v' && (cmd->gc_flags & G_FLAG_VERBOSE) != 0){
+				if (++vcount < 2)
+					continue;
+				else
+					warnx("Option 'v' specified twice.");
+			}
 			usage();
+		}
 		if (!G_OPT_ISMULTI(opt) && G_OPT_ISDONE(opt)) {
 			warnx("Option '%c' specified twice.", opt->go_char);
 			usage();
@@ -440,7 +445,7 @@ set_flags(struct g_command *cmd)
 {
 	unsigned flags = 0;
 
-	if ((cmd->gc_flags & G_FLAG_VERBOSE) != 0 && verbose)
+	if ((cmd->gc_flags & G_FLAG_VERBOSE) != 0)
 		flags |= G_FLAG_VERBOSE;
 
 	return (flags);

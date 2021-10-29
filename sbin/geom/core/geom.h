@@ -32,6 +32,19 @@
 #define	_GEOM_H_
 #define	G_LIB_VERSION	5
 
+/*
+ * The G_FLAG_VERBOSE flag on a command specification means that the
+ * comand will accept a -v option and the GEOM framework will print
+ * out status information after the command when it is run with -v.
+ * Additionally a GEOM command can explicitly specify a -v option and
+ * handle it as it would any other option. If both a -v option and
+ * G_FLAG_VERBOSE are specified for a command then both types of verbose
+ * information will be output when that command is run with -v.
+ *
+ * When the G_FLAG_LOADKLD is specified for a command, the GEOM kernel
+ * module will be loaded when that command is run if it has not yet been
+ * loaded. This flag is typically specified for the `create' command.
+ */
 #define	G_FLAG_NONE	0x0000
 #define	G_FLAG_VERBOSE	0x0001
 #define	G_FLAG_LOADKLD	0x0002
