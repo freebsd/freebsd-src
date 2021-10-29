@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <amd64/linux/linux.h>
 #include <amd64/linux/linux_proto.h>
 #include <compat/linux/linux_emul.h>
+#include <compat/linux/linux_errno.h>
 #include <compat/linux/linux_misc.h>
 #include <compat/linux/linux_signal.h>
 #include <compat/linux/linux_util.h>
@@ -639,6 +640,9 @@ linux_ptrace_get_syscall_info(struct thread *td, pid_t pid,
 			 * the ptracing process fall back to another method.
 			 */
 			si.op = LINUX_PTRACE_SYSCALL_INFO_NONE;
+		} else if (sr.sr_error == ERESTART) {
+			si.exit.rval = -LINUX_ERESTARTSYS;
+			si.exit.is_error = 1;
 		} else {
 			si.exit.rval = bsd_to_linux_errno(sr.sr_error);
 			si.exit.is_error = 1;
