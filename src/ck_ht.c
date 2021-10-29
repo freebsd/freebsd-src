@@ -30,9 +30,6 @@
 /*
  * This implementation borrows several techniques from Josh Dybnis's
  * nbds library which can be found at http://code.google.com/p/nbds
- *
- * This release currently only includes support for 64-bit platforms.
- * We can address 32-bit platforms in a future release.
  */
 #include <ck_cc.h>
 #include <ck_md.h>

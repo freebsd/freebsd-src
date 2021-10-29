@@ -50,7 +50,7 @@ ck_backoff_eb(unsigned int *c)
 	for (i = 0; i < ceiling; i++)
 		ck_pr_barrier();
 
-	*c = ceiling <<= ceiling < CK_BACKOFF_CEILING;
+	*c = ceiling << (ceiling < CK_BACKOFF_CEILING);
 	return;
 }
 
