@@ -69,22 +69,17 @@
 int
 procfs_doprocfile(PFS_FILL_ARGS)
 {
-	char *fullpath;
-	char *freepath;
-	struct vnode *textvp;
+	char *fullpath, *freepath, *binpath;
 	int error;
 
 	freepath = NULL;
+	binpath = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
 	PROC_LOCK(p);
-	textvp = p->p_textvp;
-	vhold(textvp);
-	PROC_UNLOCK(p);
-	error = vn_fullpath(textvp, &fullpath, &freepath);
-	vdrop(textvp);
+	error = proc_get_binpath(p, binpath, &fullpath, &freepath);
 	if (error == 0)
-		sbuf_printf(sb, "%s", fullpath);
-	if (freepath != NULL)
-		free(freepath, M_TEMP);
+		sbuf_printf(sb, "%s", fullpath == NULL ? "" : fullpath);
+	free(binpath, M_TEMP);
+	free(freepath, M_TEMP);
 	return (error);
 }
 
