@@ -2422,7 +2422,8 @@ rack_log_rtt_upd(struct tcpcb *tp, struct tcp_rack *rack, uint32_t t, uint32_t l
 			log.u_bbr.pkt_epoch = rsm->r_start;
 			log.u_bbr.lost = rsm->r_end;
 			log.u_bbr.cwnd_gain = rsm->r_rtr_cnt;
-			log.u_bbr.pacing_gain = rsm->r_flags;
+			/* We loose any upper of the 24 bits */
+			log.u_bbr.pacing_gain = (uint16_t)rsm->r_flags;
 		} else {
 			/* Its a SYN */
 			log.u_bbr.pkt_epoch = rack->rc_tp->iss;
@@ -6670,6 +6671,7 @@ rack_remxt_tmr(struct tcpcb *tp)
 		if (rsm->r_flags & RACK_ACKED)
 			rsm->r_flags |= RACK_WAS_ACKED;
 		rsm->r_flags &= ~(RACK_ACKED | RACK_SACK_PASSED | RACK_WAS_SACKPASS);
+		rsm->r_flags |= RACK_MUST_RXT;
 	}
 	/* Clear the count (we just un-acked them) */
 	rack->r_ctl.rc_last_timeout_snduna = tp->snd_una;
@@ -7257,7 +7259,6 @@ rack_update_rsm(struct tcpcb *tp, struct tcp_rack *rack,
     struct rack_sendmap *rsm, uint64_t ts, uint16_t add_flag)
 {
 	int32_t idx;
-	uint16_t stripped_flags;
 
 	rsm->r_rtr_cnt++;
 	rack_log_retran_reason(rack, rsm, __LINE__, 0, 2);
@@ -7278,7 +7279,6 @@ rack_update_rsm(struct tcpcb *tp, struct tcp_rack *rack,
 	 */
 	rsm->r_fas = ctf_flight_size(rack->rc_tp,
 				     rack->r_ctl.rc_sacked);
-	stripped_flags = rsm->r_flags & ~(RACK_SENT_SP|RACK_SENT_FP);
 	if (rsm->r_flags & RACK_ACKED) {
 		/* Problably MTU discovery messing with us */
 		rsm->r_flags &= ~RACK_ACKED;
@@ -16112,12 +16112,25 @@ rack_fast_rsm_output(struct tcpcb *tp, struct tcp_rack *rack, struct rack_sendma
 	rack_start_hpts_timer(rack, tp, cts, slot, len, 0);
 	if (rack->r_must_retran) {
 		rack->r_ctl.rc_out_at_rto -= (rsm->r_end - rsm->r_start);
-		if (SEQ_GEQ(rsm->r_end, rack->r_ctl.rc_snd_max_at_rto)) {
+		if ((SEQ_GEQ(rsm->r_end, rack->r_ctl.rc_snd_max_at_rto)) ||
+		    ((rsm->r_flags & RACK_MUST_RXT) == 0)) {
 			/*
-			 * We have retransmitted all we need.
+			 * We have retransmitted all we need. If 
+			 * RACK_MUST_RXT is not set then we need to
+			 * not retransmit this guy.
 			 */
 			rack->r_must_retran = 0;
 			rack->r_ctl.rc_out_at_rto = 0;
+			if ((rsm->r_flags & RACK_MUST_RXT) == 0) {
+				/* Not one we should rxt */
+				goto failed;
+			} else {
+				/* Clear the flag */
+				rsm->r_flags &= ~RACK_MUST_RXT;
+			}
+		} else {
+			/* Remove  the flag */
+			rsm->r_flags &= ~RACK_MUST_RXT;
 		}
 	}
 #ifdef TCP_ACCOUNTING
@@ -17004,8 +17017,8 @@ again:
 	if (rack->r_must_retran &&
 	    (rsm == NULL)) {
 		/*
-		 * Non-Sack and we had a RTO or MTU change, we
-		 * need to retransmit until we reach
+		 * Non-Sack and we had a RTO or Sack/non-Sack and a 
+		 * MTU change, we need to retransmit until we reach
 		 * the former snd_max (rack->r_ctl.rc_snd_max_at_rto).
 		 */
 		if (SEQ_GT(tp->snd_max, tp->snd_una)) {
@@ -17028,12 +17041,24 @@ again:
 				sb = &so->so_snd;
 				goto just_return_nolock;
 			}
-			sack_rxmit = 1;
-			len = rsm->r_end - rsm->r_start;
-			sendalot = 0;
-			sb_offset = rsm->r_start - tp->snd_una;
-			if (len >= segsiz)
-				len = segsiz;
+			if ((rsm->r_flags & RACK_MUST_RXT) == 0) {
+				/* It does not have the flag, we are done */
+				rack->r_must_retran = 0;
+				rack->r_ctl.rc_out_at_rto = 0;
+			} else {
+				sack_rxmit = 1;
+				len = rsm->r_end - rsm->r_start;
+				sendalot = 0;
+				sb_offset = rsm->r_start - tp->snd_una;
+				if (len >= segsiz)
+					len = segsiz;
+				/* 
+				 * Delay removing the flag RACK_MUST_RXT so
+				 * that the fastpath for retransmit will
+				 * work with this rsm.
+				 */
+
+			}
 		} else {
 			/* We must be done if there is nothing outstanding */
 			rack->r_must_retran = 0;
@@ -17079,6 +17104,15 @@ again:
 		ret = rack_fast_rsm_output(tp, rack, rsm, ts_val, cts, ms_cts, &tv, len, doing_tlp);
 		if (ret == 0)
 			return (0);
+	}
+	if (rsm && (rsm->r_flags & RACK_MUST_RXT)) {
+		/* 
+		 * Clear the flag in prep for the send
+		 * note that if we can't get an mbuf
+		 * and fail, we won't retransmit this
+		 * rsm but that should be ok (its rare).
+		 */
+		rsm->r_flags &= ~RACK_MUST_RXT;
 	}
 	so = inp->inp_socket;
 	sb = &so->so_snd;
@@ -19313,6 +19347,7 @@ rack_mtu_change(struct tcpcb *tp)
 	 * The MSS may have changed
 	 */
 	struct tcp_rack *rack;
+	struct rack_sendmap *rsm;
 
 	rack = (struct tcp_rack *)tp->t_fb_ptr;
 	if (rack->r_ctl.rc_pace_min_segs != ctf_fixed_maxseg(tp)) {
@@ -19329,7 +19364,10 @@ rack_mtu_change(struct tcpcb *tp)
 						rack->r_ctl.rc_sacked);
 		rack->r_ctl.rc_snd_max_at_rto = tp->snd_max;
 		rack->r_must_retran = 1;
-
+		/* Mark all inflight to needing to be rxt'd */
+		TAILQ_FOREACH(rsm, &rack->r_ctl.rc_tmap, r_tnext) {
+			rsm->r_flags |= RACK_MUST_RXT;
+		}
 	}
 	sack_filter_clear(&rack->r_ctl.rack_sf, tp->snd_una);
 	/* We don't use snd_nxt to retransmit */
