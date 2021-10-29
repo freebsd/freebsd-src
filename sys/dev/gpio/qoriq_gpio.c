@@ -46,39 +46,11 @@ __FBSDID("$FreeBSD$");
 #include <machine/stdarg.h>
 
 #include <dev/gpio/gpiobusvar.h>
+#include <dev/gpio/qoriq_gpio.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include "gpio_if.h"
-
-#define MAXPIN		(31)
-
-#define VALID_PIN(u)	((u) >= 0 && (u) <= MAXPIN)
-#define DEFAULT_CAPS	(GPIO_PIN_INPUT | GPIO_PIN_OUTPUT | \
-			 GPIO_PIN_OPENDRAIN | GPIO_PIN_PUSHPULL)
-
-#define GPIO_LOCK(sc)			mtx_lock(&(sc)->sc_mtx)
-#define	GPIO_UNLOCK(sc)		mtx_unlock(&(sc)->sc_mtx)
-#define GPIO_LOCK_INIT(sc) \
-	mtx_init(&(sc)->sc_mtx, device_get_nameunit((sc)->dev),	\
-	    "gpio", MTX_DEF)
-#define GPIO_LOCK_DESTROY(_sc)	mtx_destroy(&_sc->sc_mtx);
-
-#define	GPIO_GPDIR	0x0
-#define	GPIO_GPODR	0x4
-#define	GPIO_GPDAT	0x8
-#define	GPIO_GPIER	0xc
-#define	GPIO_GPIMR	0x10
-#define	GPIO_GPICR	0x14
-#define	GPIO_GPIBE	0x18
-
-struct qoriq_gpio_softc {
-	device_t	dev;
-	device_t	busdev;
-	struct mtx	sc_mtx;
-	struct resource *sc_mem;	/* Memory resource */
-	struct gpio_pin	 sc_pins[MAXPIN + 1];
-};
 
 static device_t
 qoriq_gpio_get_bus(device_t dev)
@@ -379,9 +351,7 @@ qoriq_gpio_map_gpios(device_t bus, phandle_t dev, phandle_t gparent, int gcells,
 	return (err);
 }
 
-static int qoriq_gpio_detach(device_t dev);
-
-static int
+int
 qoriq_gpio_attach(device_t dev)
 {
 	struct qoriq_gpio_softc *sc = device_get_softc(dev);
@@ -422,7 +392,7 @@ qoriq_gpio_attach(device_t dev)
 	return (0);
 }
 
-static int
+int
 qoriq_gpio_detach(device_t dev)
 {
 	struct qoriq_gpio_softc *sc = device_get_softc(dev);
@@ -464,12 +434,10 @@ static device_method_t qoriq_gpio_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t qoriq_gpio_driver = {
-	"gpio",
-	qoriq_gpio_methods,
-	sizeof(struct qoriq_gpio_softc),
-};
 static devclass_t qoriq_gpio_devclass;
+
+DEFINE_CLASS_0(gpio, qoriq_gpio_driver, qoriq_gpio_methods,
+    sizeof(struct qoriq_gpio_softc));
 
 EARLY_DRIVER_MODULE(qoriq_gpio, simplebus, qoriq_gpio_driver,
     qoriq_gpio_devclass, NULL, NULL,
