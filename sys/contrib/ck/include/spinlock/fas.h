@@ -77,10 +77,11 @@ CK_CC_INLINE static void
 ck_spinlock_fas_lock(struct ck_spinlock_fas *lock)
 {
 
-	while (ck_pr_fas_uint(&lock->value, true) == true) {
-		while (ck_pr_load_uint(&lock->value) == true)
-			ck_pr_stall();
-	}
+        while (CK_CC_UNLIKELY(ck_pr_fas_uint(&lock->value, true) == true)) {
+                do {
+                        ck_pr_stall();
+                } while (ck_pr_load_uint(&lock->value) == true);
+        }
 
 	ck_pr_fence_lock();
 	return;

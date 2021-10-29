@@ -92,7 +92,7 @@ CK_PR_FENCE(unlock, CK_DMB_SY)
 	ck_pr_md_load_##S(const M *target)			\
 	{							\
 		long r = 0;					\
-		__asm__ __volatile__(I " %w0, [%1];"		\
+		__asm__ __volatile__(I " %w0, [%1]\n"		\
 					: "=r" (r)		\
 					: "r"  (target)		\
 					: "memory");		\
@@ -103,7 +103,7 @@ CK_PR_FENCE(unlock, CK_DMB_SY)
 	ck_pr_md_load_##S(const M *target)			\
 	{							\
 		long r = 0;					\
-		__asm__ __volatile__(I " %0, [%1];"		\
+		__asm__ __volatile__(I " %0, [%1]\n"		\
 					: "=r" (r)		\
 					: "r"  (target)		\
 					: "memory");		\
@@ -195,10 +195,10 @@ CK_PR_STORE_S_64(double, double, "str")
                 T previous = 0;					\
                 T tmp = 0;					\
                 __asm__ __volatile__("1:"			\
-                                     "ldxr" W " %" R "0, [%2];"	\
-                                     "neg %" R "0, %" R "0;"	\
-                                     "stxr" W " %w1, %" R "0, [%2];"	\
-                                     "cbnz %w1, 1b;"		\
+                                     "ldxr" W " %" R "0, [%2]\n"\
+                                     "neg %" R "0, %" R "0\n"	\
+                                     "stxr" W " %w1, %" R "0, [%2]\n"	\
+                                     "cbnz %w1, 1b\n"		\
                                         : "=&r" (previous),	\
                                           "=&r" (tmp)		\
                                         : "r"   (target)	\

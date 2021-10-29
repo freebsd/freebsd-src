@@ -106,9 +106,11 @@ ck_hs_map_signal(struct ck_hs_map *map, unsigned long h)
 }
 
 static bool 
-_ck_hs_next(struct ck_hs *hs, struct ck_hs_map *map, struct ck_hs_iterator *i, void **key)
+_ck_hs_next(struct ck_hs *hs, struct ck_hs_map *map,
+    struct ck_hs_iterator *i, void **key)
 {
 	void *value;
+
 	if (i->offset >= map->capacity)
 		return false;
 
@@ -143,6 +145,7 @@ ck_hs_iterator_init(struct ck_hs_iterator *iterator)
 bool
 ck_hs_next(struct ck_hs *hs, struct ck_hs_iterator *i, void **key)
 {
+
 	return _ck_hs_next(hs, hs->map, i, key);
 }
 
@@ -150,9 +153,11 @@ bool
 ck_hs_next_spmc(struct ck_hs *hs, struct ck_hs_iterator *i, void **key)
 {
 	struct ck_hs_map *m = i->map;
+
 	if (m == NULL) {
 		m = i->map = ck_pr_load_ptr(&hs->map);
 	}
+
 	return _ck_hs_next(hs, m, i, key);
 }
 

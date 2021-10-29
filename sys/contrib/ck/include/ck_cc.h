@@ -50,6 +50,7 @@
  * Container function.
  * This relies on (compiler) implementation-defined behavior.
  */
+#ifndef CK_CC_CONTAINER
 #define CK_CC_CONTAINER(F, T, M, N)						\
 	CK_CC_INLINE static T *							\
 	N(F *p)									\
@@ -57,6 +58,7 @@
 		F *n = p;							\
 		return (T *)(void *)(((char *)n) - ((size_t)&((T *)0)->M));	\
 	}
+#endif
 
 #define CK_CC_PAD(x) union { char pad[x]; }
 

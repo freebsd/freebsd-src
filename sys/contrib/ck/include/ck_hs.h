@@ -109,6 +109,14 @@ typedef struct ck_hs_iterator ck_hs_iterator_t;
 /* Convenience wrapper to table hash function. */
 #define CK_HS_HASH(T, F, K) F((K), (T)->seed)
 
+/* Computes the hash of n bytes of k for the specified hash map. */
+static inline unsigned long
+ck_hs_hash(const struct ck_hs *hs, const void *k)
+{
+
+	return hs->hf(k, hs->seed);
+}
+
 typedef void *ck_hs_apply_fn_t(void *, void *);
 bool ck_hs_apply(ck_hs_t *, unsigned long, const void *, ck_hs_apply_fn_t *, void *);
 void ck_hs_iterator_init(ck_hs_iterator_t *);

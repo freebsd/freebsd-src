@@ -408,8 +408,38 @@ CK_PR_GENERATE(xor)
 #undef CK_PR_BINARY
 
 /*
- * Atomic compare and swap.
+ * Atomic compare and swap, with a variant that sets *v to the old value of target.
  */
+#ifdef __GCC_ASM_FLAG_OUTPUTS__
+#define CK_PR_CAS(S, M, T, C, I)						\
+	CK_CC_INLINE static bool						\
+	ck_pr_cas_##S(M *target, T compare, T set)				\
+	{									\
+		bool z;								\
+		__asm__ __volatile__(CK_PR_LOCK_PREFIX I " %3, %0"		\
+					: "+m"    (*(C *)target),		\
+					  "=@ccz" (z),				\
+					  /* RAX is clobbered by cmpxchg. */	\
+					  "+a"    (compare)			\
+					: "q"     (set)				\
+					: "memory", "cc");			\
+		return z;							\
+	}									\
+										\
+	CK_CC_INLINE static bool						\
+	ck_pr_cas_##S##_value(M *target, T compare, T set, M *v)		\
+	{									\
+		bool z;								\
+		__asm__ __volatile__(CK_PR_LOCK_PREFIX I " %3, %0;"		\
+					: "+m"    (*(C *)target),		\
+					  "=@ccz" (z),				\
+					  "+a"    (compare)			\
+					: "q"     (set)				\
+					: "memory", "cc");			\
+		*(T *)v = compare;						\
+		return z;							\
+	}
+#else
 #define CK_PR_CAS(S, M, T, C, I)						\
 	CK_CC_INLINE static bool						\
 	ck_pr_cas_##S(M *target, T compare, T set)				\
@@ -422,7 +452,23 @@ CK_PR_GENERATE(xor)
 					  "a"   (compare)			\
 					: "memory", "cc");			\
 		return z;							\
+	}									\
+										\
+	CK_CC_INLINE static bool						\
+	ck_pr_cas_##S##_value(M *target, T compare, T set, M *v)		\
+	{									\
+		bool z;								\
+		__asm__ __volatile__(CK_PR_LOCK_PREFIX I " %3, %0;"		\
+				     "setz %1;"					\
+					: "+m"  (*(C *)target),			\
+					  "=q"  (z),				\
+					  "+a"  (compare)			\
+					: "q"   (set)				\
+					: "memory", "cc");			\
+		*(T *)v = compare;						\
+		return z;							\
 	}
+#endif
 
 CK_PR_CAS(ptr, void, void *, uint64_t, "cmpxchgq")
 
@@ -441,45 +487,6 @@ CK_PR_CAS_S(8,  uint8_t,  "cmpxchgb")
 
 #undef CK_PR_CAS_S
 #undef CK_PR_CAS
-
-/*
- * Compare and swap, set *v to old value of target.
- */
-#define CK_PR_CAS_O(S, M, T, C, I, R)						\
-	CK_CC_INLINE static bool						\
-	ck_pr_cas_##S##_value(M *target, T compare, T set, M *v)		\
-	{									\
-		bool z;								\
-		__asm__ __volatile__(CK_PR_LOCK_PREFIX "cmpxchg" I " %3, %0;"	\
-				     "mov %% " R ", %2;"			\
-				     "setz %1;"					\
-					: "+m"  (*(C *)target),			\
-					  "=a"  (z),				\
-					  "=m"  (*(C *)v)			\
-					: "q"   (set),				\
-					  "a"   (compare)			\
-					: "memory", "cc");			\
-		return z;							\
-	}
-
-CK_PR_CAS_O(ptr, void, void *, uint64_t, "q", "rax")
-
-#define CK_PR_CAS_O_S(S, T, I, R)	\
-	CK_PR_CAS_O(S, T, T, T, I, R)
-
-CK_PR_CAS_O_S(char, char, "b", "al")
-CK_PR_CAS_O_S(int, int, "l", "eax")
-CK_PR_CAS_O_S(uint, unsigned int, "l", "eax")
-#ifndef CK_PR_DISABLE_DOUBLE
-CK_PR_CAS_O_S(double, double, "q", "rax")
-#endif
-CK_PR_CAS_O_S(64, uint64_t, "q", "rax")
-CK_PR_CAS_O_S(32, uint32_t, "l", "eax")
-CK_PR_CAS_O_S(16, uint16_t, "w", "ax")
-CK_PR_CAS_O_S(8,  uint8_t,  "b", "al")
-
-#undef CK_PR_CAS_O_S
-#undef CK_PR_CAS_O
 
 /*
  * Contrary to C-interface, alignment requirements are that of uint64_t[2].

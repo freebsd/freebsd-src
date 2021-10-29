@@ -53,7 +53,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)queue.h	8.5 (Berkeley) 8/20/94
- * $FreeBSD$
+ * $FreeBSD: release/9.0.0/sys/sys/queue.h 221843 2011-05-13 15:49:23Z mdf $
  */
 
 #ifndef CK_QUEUE_H
@@ -150,17 +150,17 @@ struct {									\
 
 #define	CK_SLIST_FOREACH(var, head, field)					\
 	for ((var) = CK_SLIST_FIRST((head));					\
-	    (var) && (ck_pr_fence_load(), 1);					\
+	    (var);								\
 	    (var) = CK_SLIST_NEXT((var), field))
 
-#define	CK_SLIST_FOREACH_SAFE(var, head, field, tvar)				 \
-	for ((var) = CK_SLIST_FIRST(head);					 \
-	    (var) && (ck_pr_fence_load(), (tvar) = CK_SLIST_NEXT(var, field), 1);\
+#define	CK_SLIST_FOREACH_SAFE(var, head, field, tvar)				\
+	for ((var) = CK_SLIST_FIRST(head);					\
+	    (var) && ((tvar) = CK_SLIST_NEXT(var, field), 1);			\
 	    (var) = (tvar))
 
 #define	CK_SLIST_FOREACH_PREVPTR(var, varp, head, field)			\
 	for ((varp) = &(head)->cslh_first;					\
-	    ((var) = ck_pr_load_ptr(varp)) != NULL && (ck_pr_fence_load(), 1);	\
+	    ((var) = ck_pr_load_ptr(varp)) != NULL;				\
 	    (varp) = &(var)->field.csle_next)
 
 #define	CK_SLIST_INIT(head) do {						\
@@ -259,12 +259,12 @@ struct {								\
 
 #define	CK_STAILQ_FOREACH(var, head, field)				\
 	for((var) = CK_STAILQ_FIRST((head));				\
-	   (var) && (ck_pr_fence_load(), 1);				\
+	   (var);							\
 	   (var) = CK_STAILQ_NEXT((var), field))
 
 #define	CK_STAILQ_FOREACH_SAFE(var, head, field, tvar)			\
 	for ((var) = CK_STAILQ_FIRST((head));				\
-	    (var) && (ck_pr_fence_load(), (tvar) =			\
+	    (var) && ((tvar) =						\
 		CK_STAILQ_NEXT((var), field), 1);			\
 	    (var) = (tvar))
 
@@ -371,12 +371,12 @@ struct {									\
 
 #define	CK_LIST_FOREACH(var, head, field)					\
 	for ((var) = CK_LIST_FIRST((head));					\
-	    (var) && (ck_pr_fence_load(), 1);					\
+	    (var);								\
 	    (var) = CK_LIST_NEXT((var), field))
 
 #define	CK_LIST_FOREACH_SAFE(var, head, field, tvar)				  \
 	for ((var) = CK_LIST_FIRST((head));					  \
-	    (var) && (ck_pr_fence_load(), (tvar) = CK_LIST_NEXT((var), field), 1);\
+	    (var) && ((tvar) = CK_LIST_NEXT((var), field), 1);			  \
 	    (var) = (tvar))
 
 #define	CK_LIST_INIT(head) do {							\

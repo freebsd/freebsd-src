@@ -39,6 +39,15 @@
 #define CK_CC_UNUSED __attribute__((unused))
 #define CK_CC_USED   __attribute__((used))
 #define CK_CC_IMM "i"
+
+#define CK_CC_CONTAINER(F, T, M, N)					       \
+       CK_CC_INLINE static T *						       \
+       N(F *p)								       \
+       {								       \
+									       \
+	       return (T *)(void *)((char *)p - __builtin_offsetof(T, M));     \
+       }
+
 #if defined(__x86_64__) || defined(__x86__)
 #define CK_CC_IMM_U32 "Z"
 #define CK_CC_IMM_S32 "e"
