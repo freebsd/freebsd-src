@@ -133,7 +133,7 @@ mvneta_fdt_attach(device_t dev)
 	}
 
 	if (ofw_bus_has_prop(dev, "tx-csum-limit")) {
-		err = OF_getprop(ofw_bus_get_node(dev), "tx-csum-limit",
+		err = OF_getencprop(ofw_bus_get_node(dev), "tx-csum-limit",
 			    &tx_csum_limit, sizeof(tx_csum_limit));
 		if (err <= 0) {
 			device_printf(dev,
