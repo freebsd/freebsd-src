@@ -152,7 +152,7 @@ bwsprintf(FILE *f, struct bwstring *bws, const char *prefix, const char *suffix)
 const void* bwsrawdata(const struct bwstring *bws)
 {
 
-	return (&(bws->wdata));
+	return (bws->wdata.str);
 }
 
 size_t bwsrawlen(const struct bwstring *bws)
