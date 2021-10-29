@@ -181,7 +181,7 @@ nat64lsn_log(struct pfloghdr *plog, struct mbuf *m, sa_family_t family,
 {
 
 	memset(plog, 0, sizeof(*plog));
-	plog->length = PFLOG_REAL_HDRLEN;
+	plog->length = PFLOG_HDRLEN;
 	plog->af = family;
 	plog->action = PF_NAT;
 	plog->dir = PF_IN;

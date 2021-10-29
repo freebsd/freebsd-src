@@ -455,6 +455,7 @@ pf_nvrule_to_rule(const nvlist_t *nvl, struct pfctl_rule *rule)
 	assert(labelcount <= PF_RULE_MAX_LABEL_COUNT);
 	for (size_t i = 0; i < labelcount; i++)
 		strlcpy(rule->label[i], labels[i], PF_RULE_LABEL_SIZE);
+	rule->ridentifier = nvlist_get_number(nvl, "ridentifier");
 	strlcpy(rule->ifname, nvlist_get_string(nvl, "ifname"), IFNAMSIZ);
 	strlcpy(rule->qname, nvlist_get_string(nvl, "qname"), PF_QNAME_SIZE);
 	strlcpy(rule->pqname, nvlist_get_string(nvl, "pqname"), PF_QNAME_SIZE);
@@ -566,6 +567,7 @@ pfctl_add_rule(int dev, const struct pfctl_rule *r, const char *anchor,
 		    r->label[labelcount]);
 		labelcount++;
 	}
+	nvlist_add_number(nvlr, "ridentifier", r->ridentifier);
 
 	nvlist_add_string(nvlr, "ifname", r->ifname);
 	nvlist_add_string(nvlr, "qname", r->qname);
