@@ -81,6 +81,7 @@ struct pfctl_rule {
 	struct pf_rule_addr	 dst;
 	union pf_rule_ptr	 skip[PF_SKIP_COUNT];
 	char			 label[PF_RULE_MAX_LABEL_COUNT][PF_RULE_LABEL_SIZE];
+	u_int32_t		 ridentifier;
 	char			 ifname[IFNAMSIZ];
 	char			 qname[PF_QNAME_SIZE];
 	char			 pqname[PF_QNAME_SIZE];

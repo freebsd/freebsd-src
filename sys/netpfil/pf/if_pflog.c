@@ -215,7 +215,7 @@ pflog_packet(struct pfi_kkif *kif, struct mbuf *m, sa_family_t af, u_int8_t dir,
 		return (0);
 
 	bzero(&hdr, sizeof(hdr));
-	hdr.length = PFLOG_REAL_HDRLEN;
+	hdr.length = PFLOG_HDRLEN;
 	hdr.af = af;
 	hdr.action = rm->action;
 	hdr.reason = reason;
@@ -231,6 +231,7 @@ pflog_packet(struct pfi_kkif *kif, struct mbuf *m, sa_family_t af, u_int8_t dir,
 			strlcpy(hdr.ruleset, ruleset->anchor->name,
 			    sizeof(hdr.ruleset));
 	}
+	hdr.ridentifier = htonl(rm->ridentifier);
 	/*
 	 * XXXGL: we avoid pf_socket_lookup() when we are holding
 	 * state lock, since this leads to unsafe LOR.
