@@ -22,6 +22,7 @@ ATF_TESTS_SH+=	altq \
 		pfsync	\
 		proxy \
 		rdr \
+		ridentifier \
 		route_to \
 		rules_counter \
 		set_skip \
