@@ -29,6 +29,7 @@
 #ifndef CK_PR_AARCH64_LSE_H
 #define CK_PR_AARCH64_LSE_H
 
+#error bite
 #ifndef CK_PR_H
 #error Do not include this file directly, use ck_pr.h
 #endif
@@ -43,10 +44,10 @@ ck_pr_cas_64_2_value(uint64_t target[2], uint64_t compare[2], uint64_t set[2], u
         register uint64_t x2 __asm__ ("x2") = set[0];
         register uint64_t x3 __asm__ ("x3") = set[1];
 
-        __asm__ __volatile__("casp %0, %1, %4, %5, [%6];"
-                             "eor %2, %0, %7;"
-                             "eor %3, %1, %8;"
-                             "orr %2, %2, %3;"
+        __asm__ __volatile__("casp %0, %1, %4, %5, [%6]\n"
+                             "eor %2, %0, %7\n"
+                             "eor %3, %1, %8\n"
+                             "orr %2, %2, %3\n"
                              : "+&r" (x0), "+&r" (x1), "=&r" (tmp1), "=&r" (tmp2)
                              : "r" (x2), "r" (x3), "r" (target), "r" (compare[0]), "r" (compare[1])
                              : "memory");
@@ -74,10 +75,10 @@ ck_pr_cas_64_2(uint64_t target[2], uint64_t compare[2], uint64_t set[2])
         register uint64_t x2 __asm__ ("x2") = set[0];
         register uint64_t x3 __asm__ ("x3") = set[1];
 
-        __asm__ __volatile__("casp %0, %1, %2, %3, [%4];"
-                             "eor %0, %0, %5;"
-                             "eor %1, %1, %6;"
-                             "orr %0, %0, %1;"
+        __asm__ __volatile__("casp %0, %1, %2, %3, [%4]\n"
+                             "eor %0, %0, %5\n"
+                             "eor %1, %1, %6\n"
+                             "orr %0, %0, %1\n"
                              : "+&r" (x0), "+&r" (x1)
                              : "r" (x2), "r" (x3), "r" (target), "r" (compare[0]), "r" (compare[1])
                              : "memory");
@@ -99,7 +100,7 @@ ck_pr_cas_ptr_2(void *target, void *compare, void *set)
         {								\
                   *(T *)value = compare;				\
                 __asm__ __volatile__(					\
-                                     "cas" W " %" R "0, %" R "2, [%1];"	\
+                                     "cas" W " %" R "0, %" R "2, [%1]\n"\
                     : "+&r" (*(T *)value)				\
                     : "r"   (target),					\
                     "r"   (set)						\
@@ -111,7 +112,7 @@ ck_pr_cas_ptr_2(void *target, void *compare, void *set)
         {								\
                 T previous = compare;					\
                 __asm__ __volatile__(					\
-                                     "cas" W " %" R "0, %" R "2, [%1];"	\
+                                     "cas" W " %" R "0, %" R "2, [%1]\n"\
                     : "+&r" (previous)					\
                     : "r"   (target),					\
                     "r"   (set)						\
@@ -144,7 +145,7 @@ CK_PR_CAS_S(char, char, "b", "w")
         {								\
                 T previous;						\
                 __asm__ __volatile__(					\
-                                     "swp" W " %" R "2, %" R "0, [%1];"	\
+                                     "swp" W " %" R "2, %" R "0, [%1]\n"\
                                         : "=&r" (previous)		\
                                         : "r"   (target),		\
                                           "r"   (v)			\
@@ -169,8 +170,8 @@ CK_PR_FAS(char, char, char, "b", "w")
         CK_CC_INLINE static void				\
         ck_pr_##O##_##N(M *target)				\
         {							\
-                __asm__ __volatile__(I ";"			\
-                                     "st" S W " " R "0, [%0];"	\
+                __asm__ __volatile__(I "\n"			\
+                                     "st" S W " " R "0, [%0]\n"	\
                                         :			\
                                         : "r"   (target)	\
                                         : "x0", "memory");	\
@@ -204,8 +205,8 @@ CK_PR_UNARY_S(char, char, "b")
         CK_CC_INLINE static void				\
         ck_pr_##O##_##N(M *target, T delta)			\
         {							\
-                __asm__ __volatile__(I ";"			\
-                                     "st" S W " %" R "0, [%1];"	\
+                __asm__ __volatile__(I "\n"			\
+                                     "st" S W " %" R "0, [%1]\n"\
                                         : "+&r" (delta)		\
                                         : "r"   (target)	\
                                         : "memory");		\
@@ -247,7 +248,7 @@ ck_pr_faa_ptr(void *target, uintptr_t delta)
         uintptr_t previous;
 
         __asm__ __volatile__(
-                             "ldadd %2, %0, [%1];"
+                             "ldadd %2, %0, [%1]\n"
                                 : "=r" (previous)
                                 : "r"   (target),
                                   "r"   (delta)
@@ -262,7 +263,7 @@ ck_pr_faa_64(uint64_t *target, uint64_t delta)
         uint64_t previous;
 
         __asm__ __volatile__(
-                             "ldadd %2, %0, [%1];"
+                             "ldadd %2, %0, [%1]\n"
                                 : "=r" (previous)
                                 : "r"   (target),
                                   "r"   (delta)
@@ -277,7 +278,7 @@ ck_pr_faa_64(uint64_t *target, uint64_t delta)
         {								\
                 T previous;						\
                 __asm__ __volatile__(					\
-                                     "ldadd" W " %w2, %w0, [%1];"	\
+                                     "ldadd" W " %w2, %w0, [%1]\n"	\
                                         : "=r" (previous)		\
                                         : "r"   (target),		\
                                           "r"   (delta)			\
