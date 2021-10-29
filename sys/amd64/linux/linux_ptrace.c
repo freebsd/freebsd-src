@@ -540,7 +540,7 @@ linux_ptrace_getregset_prstatus(struct thread *td, pid_t pid, l_ulong data)
 		return (error);
 	}
 
-	iov.iov_len -= len;
+	iov.iov_len = len;
 	error = copyout(&iov, (void *)data, sizeof(iov));
 	if (error != 0) {
 		linux_msg(td, "iov copyout error %d", error);
