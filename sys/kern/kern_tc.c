@@ -1353,6 +1353,7 @@ static void
 tc_windup(struct bintime *new_boottimebin)
 {
 	struct bintime bt;
+	struct timecounter *tc;
 	struct timehands *th, *tho;
 	u_int delta, ncount, ogen;
 	int i;
@@ -1381,9 +1382,10 @@ tc_windup(struct bintime *new_boottimebin)
 	 * changing timecounters, a counter value from the new timecounter.
 	 * Update the offset fields accordingly.
 	 */
+	tc = atomic_load_ptr(&timecounter);
 	delta = tc_delta(th);
-	if (th->th_counter != timecounter)
-		ncount = timecounter->tc_get_timecount(timecounter);
+	if (th->th_counter != tc)
+		ncount = tc->tc_get_timecount(tc);
 	else
 		ncount = 0;
 #ifdef FFCLOCK
@@ -1447,17 +1449,17 @@ tc_windup(struct bintime *new_boottimebin)
 	bintime2timespec(&bt, &th->th_nanotime);
 
 	/* Now is a good time to change timecounters. */
-	if (th->th_counter != timecounter) {
+	if (th->th_counter != tc) {
 #ifndef __arm__
-		if ((timecounter->tc_flags & TC_FLAGS_C2STOP) != 0)
+		if ((tc->tc_flags & TC_FLAGS_C2STOP) != 0)
 			cpu_disable_c2_sleep++;
 		if ((th->th_counter->tc_flags & TC_FLAGS_C2STOP) != 0)
 			cpu_disable_c2_sleep--;
 #endif
-		th->th_counter = timecounter;
+		th->th_counter = tc;
 		th->th_offset_count = ncount;
-		tc_min_ticktock_freq = max(1, timecounter->tc_frequency /
-		    (((uint64_t)timecounter->tc_counter_mask + 1) / 3));
+		tc_min_ticktock_freq = max(1, tc->tc_frequency /
+		    (((uint64_t)tc->tc_counter_mask + 1) / 3));
 		recalculate_scaling_factor_and_large_delta(th);
 #ifdef FFCLOCK
 		ffclock_change_tc(th);
