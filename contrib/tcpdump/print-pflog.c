@@ -88,10 +88,12 @@ static const struct tok pf_directions[] = {
 static void
 pflog_print(netdissect_options *ndo, const struct pfloghdr *hdr)
 {
-	uint32_t rulenr, subrulenr;
+	uint32_t rulenr, subrulenr, ridentifier;
 
 	rulenr = EXTRACT_32BITS(&hdr->rulenr);
 	subrulenr = EXTRACT_32BITS(&hdr->subrulenr);
+	ridentifier = EXTRACT_32BITS(&hdr->ridentifier);
+
 	if (subrulenr == (uint32_t)-1)
 		ND_PRINT((ndo, "rule %u/", rulenr));
 	else
@@ -101,6 +103,9 @@ pflog_print(netdissect_options *ndo, const struct pfloghdr *hdr)
 
 	if (hdr->uid != UID_MAX)
 		ND_PRINT((ndo, " [uid %u]", (unsigned)hdr->uid));
+
+	if (ridentifier != 0)
+		ND_PRINT((ndo, " [ridentifier %u]", ridentifier));
 
 	ND_PRINT((ndo, ": %s %s on %s: ",
 	    tok2str(pf_actions, "unkn(%u)", hdr->action),

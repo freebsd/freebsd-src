@@ -1896,6 +1896,9 @@ pass in inet proto tcp from any to 1.2.3.5 \e
 The macro expansion for the
 .Ar label
 directive occurs only at configuration file parse time, not during runtime.
+.It Ar ridentifier Aq Ar number
+Add an identifier (number) to the rule, which can be used to correlate the rule
+to pflog entries, even after ruleset updates.
 .It Xo Ar queue Aq Ar queue
 .No \*(Ba ( Aq Ar queue ,
 .Aq Ar queue )
@@ -3000,7 +3003,8 @@ filteropt      = user | group | flags | icmp-type | icmp6-type | "tos" tos |
                  "queue" ( string | "(" string [ [ "," ] string ] ")" ) |
                  "rtable" number | "probability" number"%" | "prio" number |
                  "dnpipe" ( number | "(" number "," number ")" ) |
-                 "dnqueue" ( number | "(" number "," number ")" )
+                 "dnqueue" ( number | "(" number "," number ")" ) |
+                 "ridentifier" number
 
 nat-rule       = [ "no" ] "nat" [ "pass" [ "log" [ "(" logopts ")" ] ] ]
                  [ "on" ifspec ] [ af ]
@@ -3024,6 +3028,7 @@ rdr-rule       = [ "no" ] "rdr" [ "pass" [ "log" [ "(" logopts ")" ] ] ]
 
 antispoof-rule = "antispoof" [ "log" ] [ "quick" ]
                  "for" ifspec [ af ] [ "label" string ]
+                 [ "ridentifier" number ]
 
 table-rule     = "table" "\*(Lt" string "\*(Gt" [ tableopts-list ]
 tableopts-list = tableopts-list tableopts | tableopts

@@ -1019,6 +1019,8 @@ print_rule(struct pfctl_rule *r, const char *anchor_call, int verbose, int numer
 	i = 0;
 	while (r->label[i][0])
 		printf(" label \"%s\"", r->label[i++]);
+	if (r->ridentifier)
+		printf(" ridentifier %u", r->ridentifier);
 	/* Only dnrpipe as we might do (0, 42) to only queue return traffic. */
 	if (r->dnrpipe)
 		printf(" %s(%d, %d)",
