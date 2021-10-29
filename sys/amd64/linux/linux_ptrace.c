@@ -214,38 +214,6 @@ struct syscall_info {
 	};
 };
 
-/*
- * Translate amd64 ptrace registers between Linux and FreeBSD formats.
- * The translation is pretty straighforward, for all registers but
- * orig_rax on Linux side and r_trapno and r_err in FreeBSD.
- */
-static void
-map_regs_to_linux(struct reg *b_reg, struct linux_pt_reg *l_reg)
-{
-
-	l_reg->r15 = b_reg->r_r15;
-	l_reg->r14 = b_reg->r_r14;
-	l_reg->r13 = b_reg->r_r13;
-	l_reg->r12 = b_reg->r_r12;
-	l_reg->rbp = b_reg->r_rbp;
-	l_reg->rbx = b_reg->r_rbx;
-	l_reg->r11 = b_reg->r_r11;
-	l_reg->r10 = b_reg->r_r10;
-	l_reg->r9 = b_reg->r_r9;
-	l_reg->r8 = b_reg->r_r8;
-	l_reg->rax = b_reg->r_rax;
-	l_reg->rcx = b_reg->r_rcx;
-	l_reg->rdx = b_reg->r_rdx;
-	l_reg->rsi = b_reg->r_rsi;
-	l_reg->rdi = b_reg->r_rdi;
-	l_reg->orig_rax = b_reg->r_rax;
-	l_reg->rip = b_reg->r_rip;
-	l_reg->cs = b_reg->r_cs;
-	l_reg->eflags = b_reg->r_rflags;
-	l_reg->rsp = b_reg->r_rsp;
-	l_reg->ss = b_reg->r_ss;
-}
-
 static void
 map_regs_from_linux(struct reg *b_reg, struct linux_pt_reg *l_reg)
 {
@@ -434,14 +402,21 @@ linux_ptrace_getregs(struct thread *td, pid_t pid, void *data)
 {
 	struct ptrace_lwpinfo lwpinfo;
 	struct reg b_reg;
-	struct linux_pt_reg l_reg;
+	struct linux_pt_regset l_regset;
+	struct pcb *pcb;
 	int error;
 
 	error = kern_ptrace(td, PT_GETREGS, pid, &b_reg, 0);
 	if (error != 0)
 		return (error);
 
-	map_regs_to_linux(&b_reg, &l_reg);
+	pcb = td->td_pcb;
+	if (td == curthread)
+		update_pcb_bases(pcb);
+
+	bsd_to_linux_regset(&b_reg, &l_regset);
+	l_regset.fs_base = pcb->pcb_fsbase;
+	l_regset.gs_base = pcb->pcb_gsbase;
 
 	error = kern_ptrace(td, PT_LWPINFO, pid, &lwpinfo, sizeof(lwpinfo));
 	if (error != 0) {
@@ -450,21 +425,20 @@ linux_ptrace_getregs(struct thread *td, pid_t pid, void *data)
 	}
 	if (lwpinfo.pl_flags & PL_FLAG_SCE) {
 		/*
-		 * The strace(1) utility depends on RAX being set to -ENOSYS
-		 * on syscall entry; otherwise it loops printing those:
-		 *
-		 * [ Process PID=928 runs in 64 bit mode. ]
-		 * [ Process PID=928 runs in x32 mode. ]
-		 */
-		l_reg.rax = -38; /* -ENOSYS */
-
-		/*
 		 * Undo the mangling done in exception.S:fast_syscall_common().
 		 */
-		l_reg.r10 = l_reg.rcx;
+		l_regset.r10 = l_regset.rcx;
+	}
+	if (lwpinfo.pl_flags & (PL_FLAG_SCE | PL_FLAG_SCX)) {
+		/*
+		 * In Linux, the syscall number - passed to the syscall
+		 * as rax - is preserved in orig_rax; rax gets overwritten
+		 * with syscall return value.
+		 */
+		l_regset.orig_rax = lwpinfo.pl_syscall_code;
 	}
 
-	error = copyout(&l_reg, (void *)data, sizeof(l_reg));
+	error = copyout(&l_regset, (void *)data, sizeof(l_regset));
 	return (error);
 }
 
