@@ -182,4 +182,10 @@
 
 #define	LINUX_ELAST		LINUX_EHWPOISON
 
+/*
+ * This is a special "internal" errno that must never be returned
+ * to a Linux process, but might be observed via ptrace(2).
+ */
+#define	LINUX_ERESTARTSYS	512
+
 #endif /* _LINUX_ERRNO_H_ */
