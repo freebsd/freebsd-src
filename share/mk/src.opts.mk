@@ -395,6 +395,9 @@ MK_KERBEROS_SUPPORT:=	no
 .if ${MK_CXX} == "no"
 MK_CLANG:=	no
 MK_GOOGLETEST:=	no
+MK_OFED:=	no
+MK_OPENMP:=	no
+MK_PMC:=	no
 MK_TESTS:=	no
 .endif
 
