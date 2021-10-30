@@ -3767,6 +3767,7 @@ nfs_deallocate(struct vop_deallocate_args *ap)
 	off_t tlen, mlen;
 	int attrflag, error, ret;
 	bool clipped;
+	struct timespec ts;
 
 	error = 0;
 	attrflag = 0;
@@ -3809,6 +3810,10 @@ nfs_deallocate(struct vop_deallocate_args *ap)
 		if (error == 0) {
 			NFSCL_DEBUG(4, "dealloc: attrflag=%d na_size=%ju\n",
 			    attrflag, (uintmax_t)nfsva.na_size);
+			nanouptime(&ts);
+			NFSLOCKNODE(np);
+			np->n_localmodtime = ts;
+			NFSUNLOCKNODE(np);
 			if (attrflag != 0) {
 				if ((uint64_t)*ap->a_offset < nfsva.na_size)
 					*ap->a_offset += omin((off_t)
