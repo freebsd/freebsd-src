@@ -128,6 +128,7 @@ struct nfsnode {
 	u_int64_t		 n_change;	/* old Change attribute */
 	struct nfsv4node	*n_v4;		/* extra V4 stuff */
 	struct ucred		*n_writecred;	/* Cred. for putpages */
+	struct timespec		n_localmodtime;	/* Last local modify */
 };
 
 #define	n_atim		n_un1.nf_atim
