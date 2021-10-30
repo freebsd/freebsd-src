@@ -4565,6 +4565,12 @@ nfscl_mustflush(vnode_t vp)
 	nmp = VFSTONFS(vp->v_mount);
 	if (!NFSHASNFSV4(nmp))
 		return (1);
+	NFSLOCKMNT(nmp);
+	if ((nmp->nm_privflag & NFSMNTP_DELEGISSUED) == 0) {
+		NFSUNLOCKMNT(nmp);
+		return (1);
+	}
+	NFSUNLOCKMNT(nmp);
 	NFSLOCKCLSTATE();
 	clp = nfscl_findcl(nmp);
 	if (clp == NULL) {
@@ -4748,6 +4754,12 @@ nfscl_renamedeleg(vnode_t fvp, nfsv4stateid_t *fstp, int *gotfdp, vnode_t tvp,
 	*gottdp = 0;
 	if (NFSHASPNFS(nmp))
 		return (retcnt);
+	NFSLOCKMNT(nmp);
+	if ((nmp->nm_privflag & NFSMNTP_DELEGISSUED) == 0) {
+		NFSUNLOCKMNT(nmp);
+		return (retcnt);
+	}
+	NFSUNLOCKMNT(nmp);
 	NFSLOCKCLSTATE();
 	/*
 	 * Loop around waiting for:
