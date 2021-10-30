@@ -330,3 +330,34 @@ bsd_to_linux_regset(const struct reg *b_reg, struct linux_pt_regset *l_regset)
 	l_regset->fs = b_reg->r_fs;
 	l_regset->gs = b_reg->r_gs;
 }
+
+void
+linux_to_bsd_regset(struct reg *b_reg, const struct linux_pt_regset *l_regset)
+{
+
+	b_reg->r_r15 = l_regset->r15;
+	b_reg->r_r14 = l_regset->r14;
+	b_reg->r_r13 = l_regset->r13;
+	b_reg->r_r12 = l_regset->r12;
+	b_reg->r_rbp = l_regset->rbp;
+	b_reg->r_rbx = l_regset->rbx;
+	b_reg->r_r11 = l_regset->r11;
+	b_reg->r_r10 = l_regset->r10;
+	b_reg->r_r9 = l_regset->r9;
+	b_reg->r_r8 = l_regset->r8;
+	b_reg->r_rax = l_regset->rax;
+	b_reg->r_rcx = l_regset->rcx;
+	b_reg->r_rdx = l_regset->rdx;
+	b_reg->r_rsi = l_regset->rsi;
+	b_reg->r_rdi = l_regset->rdi;
+	b_reg->r_rax = l_regset->orig_rax;
+	b_reg->r_rip = l_regset->rip;
+	b_reg->r_cs = l_regset->cs;
+	b_reg->r_rflags = l_regset->eflags;
+	b_reg->r_rsp = l_regset->rsp;
+	b_reg->r_ss = l_regset->ss;
+	b_reg->r_ds = l_regset->ds;
+	b_reg->r_es = l_regset->es;
+	b_reg->r_fs = l_regset->fs;
+	b_reg->r_gs = l_regset->gs;
+}
