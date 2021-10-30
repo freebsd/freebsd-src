@@ -25,6 +25,9 @@ device 		sdhci
 device 		generic_timer
 device 		mpcore_timer
 
+# PSCI - SMC calls, needed for qualcomm SCM
+device 		psci
+
 options 	FDT
 
 # Disable CP14 work in DDB as TZ won't let us by default
