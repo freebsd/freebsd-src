@@ -129,6 +129,7 @@ struct nfsnode {
 	struct nfsv4node	*n_v4;		/* extra V4 stuff */
 	struct ucred		*n_writecred;	/* Cred. for putpages */
 	struct nfsclopen	*n_openstateid;	/* Cached open stateid */
+	struct timespec		n_localmodtime;	/* Last local modify */
 };
 
 #define	n_atim		n_un1.nf_atim
