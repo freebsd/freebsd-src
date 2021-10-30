@@ -168,30 +168,6 @@ linux_ptrace_status(struct thread *td, pid_t pid, int status)
 	return (status);
 }
 
-struct linux_pt_reg {
-	l_ulong	r15;
-	l_ulong	r14;
-	l_ulong	r13;
-	l_ulong	r12;
-	l_ulong	rbp;
-	l_ulong	rbx;
-	l_ulong	r11;
-	l_ulong	r10;
-	l_ulong	r9;
-	l_ulong	r8;
-	l_ulong	rax;
-	l_ulong	rcx;
-	l_ulong	rdx;
-	l_ulong	rsi;
-	l_ulong	rdi;
-	l_ulong	orig_rax;
-	l_ulong	rip;
-	l_ulong	cs;
-	l_ulong	eflags;
-	l_ulong	rsp;
-	l_ulong	ss;
-};
-
 struct syscall_info {
 	uint8_t op;
 	uint32_t arch;
@@ -213,42 +189,6 @@ struct syscall_info {
 		} seccomp;
 	};
 };
-
-static void
-map_regs_from_linux(struct reg *b_reg, struct linux_pt_reg *l_reg)
-{
-	b_reg->r_r15 = l_reg->r15;
-	b_reg->r_r14 = l_reg->r14;
-	b_reg->r_r13 = l_reg->r13;
-	b_reg->r_r12 = l_reg->r12;
-	b_reg->r_r11 = l_reg->r11;
-	b_reg->r_r10 = l_reg->r10;
-	b_reg->r_r9 = l_reg->r9;
-	b_reg->r_r8 = l_reg->r8;
-	b_reg->r_rdi = l_reg->rdi;
-	b_reg->r_rsi = l_reg->rsi;
-	b_reg->r_rbp = l_reg->rbp;
-	b_reg->r_rbx = l_reg->rbx;
-	b_reg->r_rdx = l_reg->rdx;
-	b_reg->r_rcx = l_reg->rcx;
-	b_reg->r_rax = l_reg->rax;
-
-	/*
-	 * XXX: Are zeroes the right thing to put here?
-	 */
-	b_reg->r_trapno = 0;
-	b_reg->r_fs = 0;
-	b_reg->r_gs = 0;
-	b_reg->r_err = 0;
-	b_reg->r_es = 0;
-	b_reg->r_ds = 0;
-
-	b_reg->r_rip = l_reg->rip;
-	b_reg->r_cs = l_reg->cs;
-	b_reg->r_rflags = l_reg->eflags;
-	b_reg->r_rsp = l_reg->rsp;
-	b_reg->r_ss = l_reg->ss;
-}
 
 static int
 linux_ptrace_peek(struct thread *td, pid_t pid, void *addr, void *data)
@@ -446,13 +386,13 @@ static int
 linux_ptrace_setregs(struct thread *td, pid_t pid, void *data)
 {
 	struct reg b_reg;
-	struct linux_pt_reg l_reg;
+	struct linux_pt_regset l_regset;
 	int error;
 
-	error = copyin(data, &l_reg, sizeof(l_reg));
+	error = copyin(data, &l_regset, sizeof(l_regset));
 	if (error != 0)
 		return (error);
-	map_regs_from_linux(&b_reg, &l_reg);
+	linux_to_bsd_regset(&b_reg, &l_regset);
 	error = kern_ptrace(td, PT_SETREGS, pid, &b_reg, 0);
 	return (error);
 }
