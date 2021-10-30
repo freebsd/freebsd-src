@@ -50,6 +50,7 @@
 #define	CPU_ZERO(p) 			BIT_ZERO(CPU_SETSIZE, p)
 #define	CPU_FILL(p) 			BIT_FILL(CPU_SETSIZE, p)
 #define	CPU_SETOF(n, p)			BIT_SETOF(CPU_SETSIZE, n, p)
+#define	CPU_EQUAL(p, c)			(BIT_CMP(CPU_SETSIZE, p, c) == 0)
 #define	CPU_EMPTY(p)			BIT_EMPTY(CPU_SETSIZE, p)
 #define	CPU_ISFULLSET(p)		BIT_ISFULLSET(CPU_SETSIZE, p)
 #define	CPU_SUBSET(p, c)		BIT_SUBSET(CPU_SETSIZE, p, c)
