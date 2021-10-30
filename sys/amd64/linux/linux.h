@@ -461,5 +461,8 @@ struct reg;
 
 void	bsd_to_linux_regset(const struct reg *b_reg,
 	    struct linux_pt_regset *l_regset);
+void	linux_to_bsd_regset(struct reg *b_reg,
+	    const struct linux_pt_regset *l_regset);
+
 
 #endif /* !_AMD64_LINUX_H_ */
