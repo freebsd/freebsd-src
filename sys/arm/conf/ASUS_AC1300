@@ -38,8 +38,7 @@ makeoptions 	FDT_DTS_FILE=qcom-ipq4018-rt-ac58u.dts
 
 options 	LINUX_BOOT_ABI
 options 	SCHED_ULE
-# DEFINITELY not ready for SMP yet!
-# options 	SMP
+options 	SMP
 options 	PLATFORM
 
 device 		loop
@@ -50,3 +49,4 @@ device 		gpio
 device 		ether
 device 		mii
 device 		bpf
+
