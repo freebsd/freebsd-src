@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <grp.h>
 #include <limits.h>
+#include <locale.h>
 #include <paths.h>
 #include <pwd.h>
 #include <stdio.h>
@@ -763,6 +764,7 @@ format1(const struct stat *st,
 			ts.tv_sec = 0;
 			tm = localtime(&ts.tv_sec);
 		}
+		(void)setlocale(LC_TIME, "");
 		(void)strftime(path, sizeof(path), timefmt, tm);
 		sdata = path;
 		formats = FMTF_DECIMAL | FMTF_OCTAL | FMTF_UNSIGNED | FMTF_HEX |
