@@ -5407,13 +5407,6 @@ extattr_check_cred(struct vnode *vp, int attrnamespace, struct ucred *cred,
 }
 
 #ifdef DEBUG_VFS_LOCKS
-/*
- * This only exists to suppress warnings from unlocked specfs accesses.  It is
- * no longer ok to have an unlocked VFS.
- */
-#define	IGNORE_LOCK(vp) (KERNEL_PANICKED() || (vp) == NULL ||		\
-	(vp)->v_type == VCHR ||	(vp)->v_type == VBAD)
-
 int vfs_badlock_ddb = 1;	/* Drop into debugger on violation. */
 SYSCTL_INT(_debug, OID_AUTO, vfs_badlock_ddb, CTLFLAG_RW, &vfs_badlock_ddb, 0,
     "Drop into debugger on lock violation");
@@ -5473,26 +5466,31 @@ assert_vop_locked(struct vnode *vp, const char *str)
 {
 	int locked;
 
-	if (!IGNORE_LOCK(vp)) {
-		locked = VOP_ISLOCKED(vp);
-		if (locked == 0 || locked == LK_EXCLOTHER)
-			vfs_badlock("is not locked but should be", str, vp);
-	}
+	if (KERNEL_PANICKED() || vp == NULL)
+		return;
+
+	locked = VOP_ISLOCKED(vp);
+	if (locked == 0 || locked == LK_EXCLOTHER)
+		vfs_badlock("is not locked but should be", str, vp);
 }
 
 void
 assert_vop_unlocked(struct vnode *vp, const char *str)
 {
+	if (KERNEL_PANICKED() || vp == NULL)
+		return;
 
-	if (!IGNORE_LOCK(vp) && VOP_ISLOCKED(vp) == LK_EXCLUSIVE)
+	if (VOP_ISLOCKED(vp) == LK_EXCLUSIVE)
 		vfs_badlock("is locked but should not be", str, vp);
 }
 
 void
 assert_vop_elocked(struct vnode *vp, const char *str)
 {
+	if (KERNEL_PANICKED() || vp == NULL)
+		return;
 
-	if (!IGNORE_LOCK(vp) && VOP_ISLOCKED(vp) != LK_EXCLUSIVE)
+	if (VOP_ISLOCKED(vp) != LK_EXCLUSIVE)
 		vfs_badlock("is not exclusive locked but should be", str, vp);
 }
 #endif /* DEBUG_VFS_LOCKS */
