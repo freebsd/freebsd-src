@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2017 Steven G. Kargl
+ * Copyright (c) 2017-2021 Steven G. Kargl
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,9 +26,6 @@
 
 /*
  * See ../src/s_sinpi.c for implementation details.
- *
- * FIXME:  This has not been compiled nor has it been tested for accuracy.
- * FIXME:  This should use bit twiddling.
  */
 
 #include "math.h"
@@ -68,7 +65,7 @@ sinpil(long double x)
 			}
 
 			s = __kernel_sinpil(ax);
-			return (copysignl(s, x));
+			return (x < 0 ? -s : s);
 		}
 
 		if (ax < 0.5)
@@ -77,12 +74,18 @@ sinpil(long double x)
 			s = __kernel_cospil(ax - 0.5);
 		else
 			s = __kernel_sinpil(1 - ax);
-		return (copysignl(s, x));
+		return (x < 0 ? -s : s);
 	}
 
 	if (ax < 0x1p112) {
-		xf = floorl(ax);
-		ax -= xf;
+		/* Split x = n + r with 0 <= r < 1. */
+		xf = (ax + 0x1p112L) - 0x1p112L;        /* Integer part */
+		ax -= xf;                               /* Remainder */
+		if (ax < 0) {
+			ax += 1;
+			xf -= 1;
+		}
+
 		if (ax == 0) {
 			s = 0;
 		} else {
@@ -98,14 +101,14 @@ sinpil(long double x)
 					s = __kernel_sinpil(1 - ax);
 			}
 
-			if (xf > 0x1p50)
-				xf -= 0x1p50;
-			if (xf > 0x1p30)
-				xf -= 0x1p30;
+			if (xf > 0x1p64)
+				xf -= 0x1p64;
+			if (xf > 0x1p32)
+				xf -= 0x1p32;
 			ix = (uint32_t)xf;
 			if (ix & 1) s = -s;
 		}
-		return (copysignl(s, x));
+		return (x < 0 ? -s : s);
 	}
 
 	if (isinf(x) || isnan(x))
