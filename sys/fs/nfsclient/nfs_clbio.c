@@ -907,6 +907,7 @@ ncl_write(struct vop_write_args *ap)
 	int bp_cached, n, on, error = 0, error1, save2, wouldcommit;
 	size_t orig_resid, local_resid;
 	off_t orig_size, tmp_off;
+	struct timespec ts;
 
 	KASSERT(uio->uio_rw == UIO_WRITE, ("ncl_write mode"));
 	KASSERT(uio->uio_segflg != UIO_USERSPACE || uio->uio_td == curthread,
@@ -1284,7 +1285,12 @@ again:
 			break;
 	} while (uio->uio_resid > 0 && n > 0);
 
-	if (error != 0) {
+	if (error == 0) {
+		nanouptime(&ts);
+		NFSLOCKNODE(np);
+		np->n_localmodtime = ts;
+		NFSUNLOCKNODE(np);
+	} else {
 		if (ioflag & IO_UNIT) {
 			VATTR_NULL(&vattr);
 			vattr.va_size = orig_size;
@@ -1356,6 +1362,7 @@ ncl_vinvalbuf(struct vnode *vp, int flags, struct thread *td, int intrflg)
 	struct nfsmount *nmp = VFSTONFS(vp->v_mount);
 	int error = 0, slpflag, slptimeo;
 	bool old_lock;
+	struct timespec ts;
 
 	ASSERT_VOP_LOCKED(vp, "ncl_vinvalbuf");
 
@@ -1400,16 +1407,21 @@ ncl_vinvalbuf(struct vnode *vp, int flags, struct thread *td, int intrflg)
 	}
 	if (NFSHASPNFS(nmp)) {
 		nfscl_layoutcommit(vp, td);
+		nanouptime(&ts);
 		/*
 		 * Invalidate the attribute cache, since writes to a DS
 		 * won't update the size attribute.
 		 */
 		NFSLOCKNODE(np);
 		np->n_attrstamp = 0;
-	} else
+	} else {
+		nanouptime(&ts);
 		NFSLOCKNODE(np);
-	if (np->n_directio_asyncwr == 0)
+	}
+	if (np->n_directio_asyncwr == 0 && (np->n_flag & NMODIFIED) != 0) {
+		np->n_localmodtime = ts;
 		np->n_flag &= ~NMODIFIED;
+	}
 	NFSUNLOCKNODE(np);
 out:
 	ncl_excl_finish(vp, old_lock);
