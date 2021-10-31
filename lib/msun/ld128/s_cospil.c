@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2017 Steven G. Kargl
+ * Copyright (c) 2017-2021 Steven G. Kargl
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,9 +26,6 @@
 
 /*
  * See ../src/s_cospi.c for implementation details.
- *
- * FIXME:  This has not been compiled nor has it been tested for accuracy.
- * FIXME:  This should use bit twiddling.
  */
 
 #include "math.h"
@@ -54,7 +51,7 @@ cospil(long double x)
 
 	ax = fabsl(x);
 
-	if (ax < 1) {
+	if (ax <= 1) {
 		if (ax < 0.25) {
 			if (ax < 0x1p-60) {
 				if ((int)x == 0)
@@ -75,15 +72,21 @@ cospil(long double x)
 	}
 
 	if (ax < 0x1p112) {
-		xf = floorl(ax);
-		ax -= xf;
-		if (x < 0.5) {
-			if (x < 0.25)
+		/* Split x = n + r with 0 <= r < 1. */
+		xf = (ax + 0x1p112L) - 0x1p112L;        /* Integer part */
+		ax -= xf;                               /* Remainder */
+		if (ax < 0) {
+			ax += 1;
+			xf -= 1;
+		}
+
+		if (ax < 0.5) {
+			if (ax < 0.25)
 				c = ax == 0 ? 1 : __kernel_cospil(ax);
 			else
 				c = __kernel_sinpil(0.5 - ax);
 		} else {
-			if (x < 0.75) {
+			if (ax < 0.75) {
 				if (ax == 0.5)
 					return (0);
 				c = -__kernel_sinpil(ax - 0.5);
@@ -91,10 +94,10 @@ cospil(long double x)
 				c = -__kernel_cospil(1 - ax);
 		}
 
-		if (xf > 0x1p50)
-			xf -= 0x1p50;
-		if (xf > 0x1p30)
-			xf -= 0x1p30;
+		if (xf > 0x1p64)
+			xf -= 0x1p64;
+		if (xf > 0x1p32)
+			xf -= 0x1p32;
 		ix = (uint32_t)xf;
 		return (ix & 1 ? -c : c);
 	}
