@@ -48,6 +48,15 @@ wait_for_carp()
 	done
 }
 
+carp_init()
+{
+	if ! kldstat -q -m carp; then
+		atf_skip "This test requires carp"
+	fi
+
+	vnet_init
+}
+
 atf_test_case "basic_v4" "cleanup"
 basic_v4_head()
 {
@@ -57,11 +66,8 @@ basic_v4_head()
 
 basic_v4_body()
 {
-	if ! kldstat -q -m carp; then
-		atf_skip "This test requires carp"
-	fi
+	carp_init
 
-	vnet_init
 	bridge=$(vnet_mkbridge)
 	epair_one=$(vnet_mkepair)
 	epair_two=$(vnet_mkepair)
@@ -104,11 +110,8 @@ basic_v6_head()
 
 basic_v6_body()
 {
-	if ! kldstat -q -m carp; then
-		atf_skip "This test requires carp"
-	fi
+	carp_init
 
-	vnet_init
 	bridge=$(vnet_mkbridge)
 	epair_one=$(vnet_mkepair)
 	epair_two=$(vnet_mkepair)
@@ -145,8 +148,56 @@ basic_v6_cleanup()
 	vnet_cleanup
 }
 
+atf_test_case "negative_demotion" "cleanup"
+negative_demotion_head()
+{
+	atf_set descr 'Test PR #259528'
+	atf_set require.user root
+}
+
+negative_demotion_body()
+{
+	carp_init
+
+	epair=$(vnet_mkepair)
+
+	vnet_mkjail one ${epair}a
+	jexec one sysctl net.inet.carp.preempt=1
+	jexec one ifconfig ${epair}a 192.0.2.1/24 up
+	jexec one ifconfig ${epair}a add vhid 1 192.0.2.254/24 \
+	    advskew 0 pass foobar
+
+	vnet_mkjail two ${epair}b
+	jexec two sysctl net.inet.carp.preempt=1
+	jexec two ifconfig ${epair}b 192.0.2.2/24 up
+	jexec two ifconfig ${epair}b add vhid 1 192.0.2.254/24 \
+	    advskew 100 pass foobar
+
+	# Allow things to settle
+	wait_for_carp one ${epair}a two ${epair}b
+
+	if is_master one ${epair}a && is_master two ${epair}b
+	then
+		atf_fail "Two masters!"
+	fi
+
+	jexec one sysctl net.inet.carp.demotion=-1
+	sleep 3
+
+	if is_master one ${epair}a && is_master two ${epair}b
+	then
+		atf_fail "Two masters!"
+	fi
+}
+
+negative_demotion_cleanup()
+{
+	vnet_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "basic_v4"
 	atf_add_test_case "basic_v6"
+	atf_add_test_case "negative_demotion"
 }
