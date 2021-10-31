@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 19, 2021
+.Dd November 1, 2021
 .Dt DEVELOPMENT 7
 .Os
 .Sh NAME
@@ -157,20 +157,20 @@ for another CPU architecture,
 first prepare your source tree by building the cross-toolchain:
 .Bd -literal -offset indent
 cd src
-make -sj8 toolchain TARGET_ARCH=armv6
+make -sj8 toolchain TARGET_ARCH=aarch64
 .Ed
 .Pp
 Afterwards, to build and install a single piece of userspace, use:
 .Bd -literal -offset indent
 cd src/bin/ls
-make buildenv TARGET_ARCH=armv6
+make buildenv TARGET_ARCH=aarch64
 make clean all install DESTDIR=/clients/arm
 .Ed
 .Pp
 Likewise, to quickly rebuild and reinstall the kernel, use:
 .Bd -literal -offset indent
 cd src
-make buildenv TARGET_ARCH=armv6
+make buildenv TARGET_ARCH=aarch64
 make -sj8 kernel KERNFAST=1 DESTDIR=/clients/arm
 .Ed
 .Sh SEE ALSO
