@@ -263,6 +263,7 @@ struct nfscllayout {
 #define	NFSLY_RETONCLOSE	0x0080
 #define	NFSLY_WRITTEN		0x0100	/* Has been used to write to a DS. */
 #define	NFSLY_FLEXFILE		0x0200
+#define	NFSLY_RETURNED		0x0400
 
 /*
  * Flex file layout mirror specific stuff for nfsclflayout.
