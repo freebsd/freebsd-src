@@ -65,7 +65,7 @@ __FBSDID("$FreeBSD$");
 
 FEATURE(geom_eli, "GEOM crypto module");
 
-MALLOC_DEFINE(M_ELI, "eli data", "GEOM_ELI Data");
+MALLOC_DEFINE(M_ELI, "eli_data", "GEOM_ELI Data");
 
 SYSCTL_DECL(_kern_geom);
 SYSCTL_NODE(_kern_geom, OID_AUTO, eli, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
