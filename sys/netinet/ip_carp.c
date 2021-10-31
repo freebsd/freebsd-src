@@ -304,7 +304,9 @@ SYSCTL_VNET_PCPUSTAT(_net_inet_carp, OID_AUTO, stats, struct carpstats,
 
 #define	DEMOTE_ADVSKEW(sc)					\
     (((sc)->sc_advskew + V_carp_demotion > CARP_MAXSKEW) ?	\
-    CARP_MAXSKEW : ((sc)->sc_advskew + V_carp_demotion))
+    CARP_MAXSKEW :						\
+        (((sc)->sc_advskew + V_carp_demotion < 0) ?		\
+        0 : ((sc)->sc_advskew + V_carp_demotion)))
 
 static void	carp_input_c(struct mbuf *, struct carp_header *, sa_family_t);
 static struct carp_softc
