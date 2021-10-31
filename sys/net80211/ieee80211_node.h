@@ -260,6 +260,8 @@ struct ieee80211_node {
 	/* U-APSD */
 	uint8_t			ni_uapsd;	/* U-APSD per-node flags matching WMM STA QoS Info field */
 
+	void			*ni_drv_data;	/* driver specific */
+
 	uint64_t		ni_spare[3];
 };
 MALLOC_DECLARE(M_80211_NODE);
