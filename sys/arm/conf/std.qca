@@ -12,6 +12,15 @@ files 		"../qualcomm/std.ipq4018"
 device 		uart
 device 		uart_msm	# Qualcomm MSM UART driver
 
+# EXT_RESOURCES pseudo devices
+options 	EXT_RESOURCES
+device 		clk
+device 		phy
+device 		hwreset
+device 		nvmem
+device 		regulator
+device 		syscon
+
 # Random
 device 		qcom_rnd
 
@@ -27,6 +36,9 @@ device 		mpcore_timer
 
 # PSCI - SMC calls, needed for qualcomm SCM
 device 		psci
+
+# Clock/Reset provider
+device 		qcom_gcc_ipq4018
 
 options 	FDT
 
