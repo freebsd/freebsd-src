@@ -536,21 +536,6 @@ s32 igc_phy_hw_reset(struct igc_hw *hw)
 }
 
 /**
- *  igc_phy_commit - Soft PHY reset
- *  @hw: pointer to the HW structure
- *
- *  Performs a soft PHY reset on those that apply. This is a function pointer
- *  entry point called by drivers.
- **/
-s32 igc_phy_commit(struct igc_hw *hw)
-{
-	if (hw->phy.ops.commit)
-		return hw->phy.ops.commit(hw);
-
-	return IGC_SUCCESS;
-}
-
-/**
  *  igc_set_d0_lplu_state - Sets low power link up state for D0
  *  @hw: pointer to the HW structure
  *  @active: boolean used to enable/disable lplu

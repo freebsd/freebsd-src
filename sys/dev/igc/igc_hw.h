@@ -382,7 +382,6 @@ struct igc_phy_operations {
 	s32  (*init_params)(struct igc_hw *);
 	s32  (*acquire)(struct igc_hw *);
 	s32  (*check_reset_block)(struct igc_hw *);
-	s32  (*commit)(struct igc_hw *);
 	s32  (*force_speed_duplex)(struct igc_hw *);
 	s32  (*get_info)(struct igc_hw *);
 	s32  (*set_page)(struct igc_hw *, u16);
