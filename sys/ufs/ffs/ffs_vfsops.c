@@ -1511,7 +1511,7 @@ ffs_flushfiles(mp, flags, td)
 		 */
 	}
 #endif
-	ASSERT_VOP_LOCKED(ump->um_devvp, "ffs_flushfiles");
+	/* devvp is not locked there */
 	if (ump->um_devvp->v_vflag & VV_COPYONWRITE) {
 		if ((error = vflush(mp, 0, SKIPSYSTEM | flags, td)) != 0)
 			return (error);
