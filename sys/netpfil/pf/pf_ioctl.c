@@ -2041,7 +2041,7 @@ pf_kill_matching_state(struct pf_state_key_cmp *key, int dir)
 		return (0);
 	}
 
-	pf_unlink_state(s, PF_ENTER_LOCKED);
+	pf_unlink_state(s);
 	return (1);
 }
 
@@ -2138,7 +2138,7 @@ relock_DIOCKILLSTATES:
 			match_key.port[1] = s->key[idx]->port[0];
 		}
 
-		pf_unlink_state(s, PF_ENTER_LOCKED);
+		pf_unlink_state(s);
 		killed++;
 
 		if (psk->psk_kill_match)
@@ -5040,7 +5040,7 @@ relock:
 			s->timeout = PFTM_PURGE;
 			/* Don't send out individual delete messages. */
 			s->state_flags |= PFSTATE_NOSYNC;
-			pf_unlink_state(s, PF_ENTER_LOCKED);
+			pf_unlink_state(s);
 			goto relock;
 		}
 		PF_HASHROW_UNLOCK(ih);
@@ -5227,7 +5227,7 @@ relock_DIOCCLRSTATES:
 			 * delete messages.
 			 */
 			s->state_flags |= PFSTATE_NOSYNC;
-			pf_unlink_state(s, PF_ENTER_LOCKED);
+			pf_unlink_state(s);
 			killed++;
 
 			if (kill->psk_kill_match)
@@ -5255,7 +5255,7 @@ pf_killstates(struct pf_kstate_kill *kill, unsigned int *killed)
 			kill->psk_pfcmp.creatorid = V_pf_status.hostid;
 		if ((s = pf_find_state_byid(kill->psk_pfcmp.id,
 		    kill->psk_pfcmp.creatorid))) {
-			pf_unlink_state(s, PF_ENTER_LOCKED);
+			pf_unlink_state(s);
 			*killed = 1;
 		}
 		return;
