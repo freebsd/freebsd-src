@@ -86,16 +86,16 @@ typedef enum {
 
 struct statinfo cur_dev, last_dev, run_dev;
 
-last_match_type last_type;
+static last_match_type last_type;
 struct device_selection *dev_select;
 long generation;
 int num_devices, num_selected;
 int num_selections;
 long select_generation;
-struct devstat_match *matches = NULL;
-int num_matches = 0;
-char **specified_devices;
-int num_devices_specified = 0;
+static struct devstat_match *matches = NULL;
+static int num_matches = 0;
+static char **specified_devices;
+static int num_devices_specified = 0;
 
 static int dsmatchselect(const char *args, devstat_select_mode select_mode,
 			 int maxshowdevs, struct statinfo *s1);

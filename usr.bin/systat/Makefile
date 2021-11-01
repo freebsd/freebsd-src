@@ -14,8 +14,8 @@ SRCS+=	icmp6.c ip6.c
 CFLAGS+= -DINET6
 .endif
 
-WARNS?=	1
-
 LIBADD=	tinfow ncursesw m devstat kvm util procstat
 
 .include <bsd.prog.mk>
+
+CFLAGS+= -Wno-cast-align -Wno-cast-qual

@@ -41,36 +41,42 @@ __FBSDID("$FreeBSD$");
 #include "extern.h"
 
 void
-sysputspaces(WINDOW *wd, int row, int col, int width)
+sysputspaces(WINDOW *wd, int row, int lcol, int width)
 {
 	static char str60[] = "                    "
 	    "                                        ";
 
-	mvwaddstr(wd, row, col, str60 + sizeof(str60) - width - 1);
+	mvwaddstr(wd, row, lcol, str60 + sizeof(str60) - width - 1);
 }
 
 void
-sysputstrs(WINDOW *wd, int row, int col, int width)
+sysputstrs(WINDOW *wd __unused, int row, int lcol, int width)
 {
 	static char str60[] = "********************"
 	    "****************************************";
 
-	mvwaddstr(wnd, row, col, str60 + sizeof(str60) - width - 1);
+	/*
+	 * XXX wnd instead of wd?
+	 */
+	mvwaddstr(wnd, row, lcol, str60 + sizeof(str60) - width - 1);
 }
 
 void
-sysputXs(WINDOW *wd, int row, int col, int width)
+sysputXs(WINDOW *wd __unused, int row, int lcol, int width)
 {
 	static char str60[] = "XXXXXXXXXXXXXXXXXXXX"
 	    "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX";
 
-	mvwaddstr(wnd, row, col, str60 + sizeof(str60) - width - 1);
+	/*
+	 * XXX wnd instead of wd?
+	 */
+	mvwaddstr(wnd, row, lcol, str60 + sizeof(str60) - width - 1);
 }
 
 void
-sysputuint64(WINDOW *wd, int row, int col, int width, uint64_t val, int flags)
+sysputuint64(WINDOW *wd, int row, int lcol, int width, uint64_t val, int flags)
 {
-	char unit, *ptr, *start, wrtbuf[width + width + 1];
+	char unit, *start, wrtbuf[width + width + 1];
 	int len;
 
 	unit = 0;
@@ -88,25 +94,25 @@ sysputuint64(WINDOW *wd, int row, int col, int width, uint64_t val, int flags)
 		memset(wrtbuf + len, ' ', width - len);
 	start += len;
 
-	mvwaddstr(wd, row, col, start);
+	mvwaddstr(wd, row, lcol, start);
 	return;
 
 error:
-	sysputstrs(wd, row, col, width);
+	sysputstrs(wd, row, lcol, width);
 }
 
 void
-sysputwuint64(WINDOW *wd, int row, int col, int width, uint64_t val, int flags)
+sysputwuint64(WINDOW *wd, int row, int lcol, int width, uint64_t val, int flags)
 {
 	if(val == 0)
-		sysputspaces(wd, row, col, width);
+		sysputspaces(wd, row, lcol, width);
 	else
-		sysputuint64(wd, row, col, width, val, flags);
+		sysputuint64(wd, row, lcol, width, val, flags);
 }
 
 void
-sysputpage(WINDOW *wd, int row, int col, int width, uint64_t pages, int flags)
+sysputpage(WINDOW *wd, int row, int lcol, int width, uint64_t pages, int flags)
 {
 
-	sysputuint64(wd, row, col, width, ptoa(pages), flags);
+	sysputuint64(wd, row, lcol, width, ptoa(pages), flags);
 }

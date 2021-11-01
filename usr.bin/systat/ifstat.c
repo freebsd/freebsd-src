@@ -56,15 +56,11 @@
 #define C4	60		/* 60-80 */
 #define C5	80		/* Used for label positioning. */
 
-static const int col0 = 0;
-static const int col1 = C1;
 static const int col2 = C2;
 static const int col3 = C3;
 static const int col4 = C4;
-static const int col5 = C5;
 
-SLIST_HEAD(, if_stat)		curlist;
-SLIST_HEAD(, if_stat_disp)	displist;
+static SLIST_HEAD(, if_stat)		curlist;
 
 struct if_stat {
 	SLIST_ENTRY(if_stat)	 link;
@@ -86,11 +82,6 @@ struct if_stat {
 	bool	display;
 	u_int	match;
 };
-
-extern	 int curscale;
-extern	 char *matchline;
-extern	 int showpps;
-extern	 int needsort;
 
 static	 int needclear = 0;
 static	 bool displayall = false;
@@ -217,19 +208,19 @@ showifstat(void)
 	struct	if_stat *ifp = NULL;
 	
 	SLIST_FOREACH(ifp, &curlist, link) {
-		if (ifp->if_ypos < LINES - 3 && ifp->if_ypos != -1)
+		if (ifp->if_ypos < LINES - 3 && ifp->if_ypos != -1) {
 			if (!ifp->display || ifp->match == 0) {
 					wmove(wnd, ifp->if_ypos, 0);
 					wclrtoeol(wnd);
 					wmove(wnd, ifp->if_ypos + 1, 0);
 					wclrtoeol(wnd);
-			}
-			else {
+			} else {
 				PUTNAME(ifp);
 				PUTRATE(col2, ifp->if_ypos);
 				PUTRATE(col3, ifp->if_ypos);
 				PUTTOTAL(col4, ifp->if_ypos);
 			}
+		}
 	}
 
 	return;
@@ -390,9 +381,9 @@ format_device_name(struct if_stat *ifp)
 static int
 check_match(const char *ifname) 
 {
-	char *p = matchline, *c, t;
+	char *p = matchline, *ch, t;
 	int match = 0, mlen;
-	
+
 	if (matchline == NULL)
 		return (0);
 
@@ -400,21 +391,21 @@ check_match(const char *ifname)
 	while (*p == ' ')
 		p ++;
 
-	c = p;
-	while ((mlen = strcspn(c, " ;,")) != 0) {
-		p = c + mlen;
+	ch = p;
+	while ((mlen = strcspn(ch, " ;,")) != 0) {
+		p = ch + mlen;
 		t = *p;
-		if (p - c > 0) {
+		if (p - ch > 0) {
 			*p = '\0';
-			if (fnmatch(c, ifname, FNM_CASEFOLD) == 0) {
+			if (fnmatch(ch, ifname, FNM_CASEFOLD) == 0) {
 				*p = t;
 				return (1);
 			}
 			*p = t;
-			c = p + strspn(p, " ;,");
+			ch = p + strspn(p, " ;,");
 		}
 		else {
-			c = p + strspn(p, " ;,");
+			ch = p + strspn(p, " ;,");
 		}
 	}
 
