@@ -119,13 +119,13 @@ DPCPU_DECLARE(struct vcpu_info *, vcpu_info);
 struct xenisrc {
 	struct intsrc	xi_intsrc;
 	enum evtchn_type xi_type;
-	int		xi_cpu;		/* VCPU for delivery. */
-	int		xi_vector;	/* Global isrc vector number. */
+	u_int		xi_cpu;		/* VCPU for delivery. */
+	u_int		xi_vector;	/* Global isrc vector number. */
 	evtchn_port_t	xi_port;
-	int		xi_virq;
+	u_int		xi_virq;
 	void		*xi_cookie;
-	u_int		xi_close:1;	/* close on unbind? */
-	u_int		xi_masked:1;
+	bool		xi_close:1;	/* close on unbind? */
+	bool		xi_masked:1;
 	volatile u_int	xi_refcount;
 };
 
@@ -433,7 +433,7 @@ xen_intr_bind_isrc(struct xenisrc **isrcp, evtchn_port_t local_port,
 		}
 	}
 	isrc->xi_port = local_port;
-	isrc->xi_close = 0;
+	isrc->xi_close = false;
 	xen_intr_port_to_isrc[local_port] = isrc;
 	refcount_init(&isrc->xi_refcount, 1);
 	mtx_unlock(&xen_intr_isrc_lock);
@@ -579,7 +579,7 @@ xen_intr_handle_upcall(struct trapframe *trap_frame)
 
 			/* Make sure we are firing on the right vCPU */
 			KASSERT((isrc->xi_cpu == PCPU_GET(cpuid)),
-				("Received unexpected event on vCPU#%d, event bound to vCPU#%d",
+				("Received unexpected event on vCPU#%u, event bound to vCPU#%u",
 				PCPU_GET(cpuid), isrc->xi_cpu));
 
 			intr_execute_handlers(&isrc->xi_intsrc, trap_frame);
@@ -696,7 +696,7 @@ static void
 xen_rebind_ipi(struct xenisrc *isrc)
 {
 #ifdef SMP
-	int cpu = isrc->xi_cpu;
+	u_int cpu = isrc->xi_cpu;
 	u_int vcpu_id = XEN_CPUID_TO_VCPUID(cpu);
 	int error;
 	struct evtchn_bind_ipi bind_ipi = { .vcpu = vcpu_id };
@@ -715,7 +715,7 @@ xen_rebind_ipi(struct xenisrc *isrc)
 static void
 xen_rebind_virq(struct xenisrc *isrc)
 {
-	int cpu = isrc->xi_cpu;
+	u_int cpu = isrc->xi_cpu;
 	u_int vcpu_id = XEN_CPUID_TO_VCPUID(cpu);
 	int error;
 	struct evtchn_bind_virq bind_virq = { .virq = isrc->xi_virq,
@@ -724,7 +724,7 @@ xen_rebind_virq(struct xenisrc *isrc)
 	error = HYPERVISOR_event_channel_op(EVTCHNOP_bind_virq,
 	                                    &bind_virq);
 	if (error != 0)
-		panic("unable to rebind xen VIRQ#%d: %d", isrc->xi_virq, error);
+		panic("unable to rebind xen VIRQ#%u: %d", isrc->xi_virq, error);
 
 	isrc->xi_port = bind_virq.port;
 }
@@ -1373,12 +1373,12 @@ xen_intr_dump_port(struct xenisrc *isrc)
 {
 	struct xen_intr_pcpu_data *pcpu;
 	shared_info_t *s = HYPERVISOR_shared_info;
-	int i;
+	u_int i;
 
 	db_printf("Port %d Type: %s\n",
 	    isrc->xi_port, xen_intr_print_type(isrc->xi_type));
 	if (isrc->xi_type == EVTCHN_TYPE_VIRQ)
-		db_printf("\tVirq: %d\n", isrc->xi_virq);
+		db_printf("\tVirq: %u\n", isrc->xi_virq);
 
 	db_printf("\tMasked: %d Pending: %d\n",
 	    !!xen_test_bit(isrc->xi_port, &s->evtchn_mask[0]),
@@ -1387,7 +1387,7 @@ xen_intr_dump_port(struct xenisrc *isrc)
 	db_printf("\tPer-CPU Masks: ");
 	CPU_FOREACH(i) {
 		pcpu = DPCPU_ID_PTR(i, xen_intr_pcpu);
-		db_printf("cpu#%d: %d ", i,
+		db_printf("cpu#%u: %d ", i,
 		    !!xen_test_bit(isrc->xi_port, pcpu->evtchn_enabled));
 	}
 	db_printf("\n");
@@ -1395,7 +1395,7 @@ xen_intr_dump_port(struct xenisrc *isrc)
 
 DB_SHOW_COMMAND(xen_evtchn, db_show_xen_evtchn)
 {
-	int i;
+	u_int i;
 
 	if (!xen_domain()) {
 		db_printf("Only available on Xen guests\n");
