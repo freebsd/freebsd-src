@@ -1,0 +1,4 @@
+Build the base system with Address Sanitizer (ASan) to detect
+memory corruption bugs such as buffer overflows or use-after-free.
+Requires that Clang be used as the base system compiler
+and that the runtime support library is available.
