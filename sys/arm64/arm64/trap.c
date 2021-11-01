@@ -397,7 +397,7 @@ print_registers(struct trapframe *frame)
 	}
 	printf("  sp: %16lx\n", frame->tf_sp);
 	print_gp_register(" lr", frame->tf_lr);
-	print_gp_register("elr", frame->tf_lr);
+	print_gp_register("elr", frame->tf_elr);
 	printf("spsr:         %8x\n", frame->tf_spsr);
 }
 
