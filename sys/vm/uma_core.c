@@ -3982,7 +3982,8 @@ zone_import(void *arg, void **bucket, int max, int domain, int flags)
 		dom = &keg->uk_domain[slab->us_domain];
 		do {
 			bucket[i++] = slab_alloc_item(keg, slab);
-			if (dom->ud_free_items <= keg->uk_reserve) {
+			if (keg->uk_reserve > 0 &&
+			    dom->ud_free_items <= keg->uk_reserve) {
 				/*
 				 * Avoid depleting the reserve after a
 				 * successful item allocation, even if
