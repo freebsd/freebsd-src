@@ -85,6 +85,9 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
+static struct  tcp_debug tcp_debug[TCP_NDEBUG];
+static int     tcp_debx;
+
 static struct nlist nl[3];
 #define	N_TCP_DEBUG	0
 #define	N_TCP_DEBX	1
