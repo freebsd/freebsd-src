@@ -64,14 +64,14 @@ static struct proc_usage {
 	uint64_t total;
 	uint32_t pages;
 } **pu = NULL;
-static unsigned int nproc;
+static int nproc;
 static int proc_compar(const void *, const void *);
 
 static void
 display_proc_line(int idx, int y, uint64_t totalswappages)
 {
 	int offset = 0, rate;
-	const char *uname, *pname;
+	const char *uname;
 	char buf[30];
 	uint64_t swapbytes;
 
@@ -210,25 +210,11 @@ per_proc_swap_usage(struct kinfo_proc *kipp)
 }
 
 void
-closeproc(WINDOW *w)
-{
-
-	if (prstat != NULL)
-		procstat_close(prstat);
-	prstat = NULL;
-	if (w == NULL)
-		return;
-	wclear(w);
-	wrefresh(w);
-	delwin(w);
-}
-
-void
-procshow(int col, int hight, uint64_t totalswappages)
+procshow(int lcol, int hight, uint64_t totalswappages)
 {
 	int i, y;
 
-	for (i = 0, y = col + 1 /* HEADING */; i < hight; i++, y++)
+	for (i = 0, y = lcol + 1 /* HEADING */; i < hight; i++, y++)
 		display_proc_line(i, y, totalswappages);
 }
 
@@ -244,7 +230,7 @@ procinit(void)
 void
 procgetinfo(void)
 {
-	static unsigned int maxnproc = 0;
+	static int maxnproc = 0;
 	int cnt, i;
 	uint32_t pages;
 	struct kinfo_proc *kipp;
@@ -289,12 +275,12 @@ procgetinfo(void)
 }
 
 void
-proclabel(int col)
+proclabel(int lcol)
 {
 
-	wmove(wnd, col, 0);
+	wmove(wnd, lcol, 0);
 	wclrtoeol(wnd);
-	mvwaddstr(wnd, col, 0,
+	mvwaddstr(wnd, lcol, 0,
 	    "Pid    Username   Command     Swap/Total "
 	    "Per-Process    Per-System");
 }

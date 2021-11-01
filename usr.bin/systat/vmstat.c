@@ -136,7 +136,6 @@ static void copyinfo(struct Info *, struct Info *);
 static float cputime(int);
 static void do_putuint64(uint64_t, int, int, int, int);
 static void getinfo(struct Info *);
-static void putuint64(uint64_t, int, int, int);
 static int ucount(void);
 
 static	int ncpu;
@@ -298,7 +297,7 @@ fetchkre(void)
 void
 labelkre(void)
 {
-	int i, j;
+	int i;
 
 	clear();
 	mvprintw(STATROW, STATCOL + 6, "users    Load");
@@ -635,18 +634,11 @@ putint(int n, int l, int lc, int w)
 }
 
 static void
-putuint64(uint64_t n, int l, int lc, int w)
-{
-
-	do_putuint64(n, l, lc, w, IEC);
-}
-
-static void
 do_putuint64(uint64_t n, int l, int lc, int w, int div)
 {
 	int snr;
 	char b[128];
-	char buf[128];
+	char lbuf[128];
 
 	move(l, lc);
 #ifdef DEBUG
@@ -661,9 +653,9 @@ do_putuint64(uint64_t n, int l, int lc, int w, int div)
 	}
 	snr = snprintf(b, sizeof(b), "%*ju", w, (uintmax_t)n);
 	if (snr != w) {
-		humanize_number(buf, w, n, "", HN_AUTOSCALE,
+		humanize_number(lbuf, w, n, "", HN_AUTOSCALE,
 		    HN_NOSPACE | HN_DECIMAL | div);
-		snr = snprintf(b, sizeof(b), "%*s", w, buf);
+		snr = snprintf(b, sizeof(b), "%*s", w, lbuf);
 	}
 	if (snr != w) {
 		while (w-- > 0)

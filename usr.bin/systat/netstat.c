@@ -115,7 +115,7 @@ struct netinfo {
 	u_int	ni_sndcc;		/* snd buffer character count */
 };
 
-TAILQ_HEAD(netinfohead, netinfo) netcb = TAILQ_HEAD_INITIALIZER(netcb);
+static TAILQ_HEAD(netinfohead, netinfo) netcb = TAILQ_HEAD_INITIALIZER(netcb);
 
 static	int aflag = 0;
 static	int nflag = 0;

@@ -58,6 +58,11 @@ extern int	protos;
 extern int	verbose;
 extern unsigned int	delay;
 
+extern int	curscale;
+extern char	*matchline;
+extern int	showpps;
+extern int	needsort;
+
 struct in_conninfo;
 
 extern struct device_selection *dev_select;
