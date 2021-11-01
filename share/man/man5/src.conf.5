@@ -106,6 +106,19 @@ Do not build
 .Xr apm 8 ,
 .Xr apmd 8
 and related programs.
+.It Va WITH_ASAN
+Build the base system with Address Sanitizer (ASan) to detect
+memory corruption bugs such as buffer overflows or use-after-free.
+Requires that Clang be used as the base system compiler
+and that the runtime support library is available.
+When set, it enforces these options:
+.Pp
+.Bl -item -compact
+.It
+.Va WITH_LLVM_BINUTILS
+.It
+.Va WITH_LLVM_CXXFILT
+.El
 .It Va WITHOUT_ASSERT_DEBUG
 Compile programs and libraries without the
 .Xr assert 3
@@ -1645,6 +1658,11 @@ When set, it enforces these options:
 .It
 .Va WITHOUT_LLVM_COV
 .El
+.It Va WITH_UBSAN
+Build the base system with Undefined Behavior Sanitizer (UBSan) to detect
+various kinds of undefined behavior at runtime.
+Requires that Clang be used as the base system compiler
+and that the runtime support library is available
 .It Va WITHOUT_UNBOUND
 Do not build
 .Xr unbound 8
