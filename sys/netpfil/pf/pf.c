@@ -1510,6 +1510,9 @@ pf_find_state(struct pfi_kkif *kif, struct pf_state_key_cmp *key, u_int dir)
 	return (NULL);
 }
 
+/*
+ * Returns with ID hash slot locked on success.
+ */
 struct pf_kstate *
 pf_find_state_all(struct pf_state_key_cmp *key, u_int dir, int *more)
 {
@@ -1547,14 +1550,17 @@ pf_find_state_all(struct pf_state_key_cmp *key, u_int dir, int *more)
 second_run:
 	TAILQ_FOREACH(s, &sk->states[idx], key_list[idx]) {
 		if (more == NULL) {
+			PF_STATE_LOCK(s);
 			PF_HASHROW_UNLOCK(kh);
 			return (s);
 		}
 
 		if (ret)
 			(*more)++;
-		else
+		else {
 			ret = s;
+			PF_STATE_LOCK(s);
+		}
 	}
 	if (inout == 1) {
 		inout = 0;
@@ -1566,13 +1572,24 @@ second_run:
 	return (ret);
 }
 
+/*
+ * FIXME
+ * This routine is inefficient -- locks the state only to unlock immediately on
+ * return.
+ * It is racy -- after the state is unlocked nothing stops other threads from
+ * removing it.
+ */
 bool
 pf_find_state_all_exists(struct pf_state_key_cmp *key, u_int dir)
 {
 	struct pf_kstate *s;
 
 	s = pf_find_state_all(key, dir, NULL);
-	return (s != NULL);
+	if (s != NULL) {
+		PF_STATE_UNLOCK(s);
+		return (true);
+	}
+	return (false);
 }
 
 /* END state table stuff */
