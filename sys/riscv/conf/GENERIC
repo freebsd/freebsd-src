@@ -203,6 +203,10 @@ device		bpf		# Berkeley packet filter
 options 	FDT
 makeoptions	MODULES_EXTRA+="dtb/sifive"
 
+# I2C support
+device		iicbus		# Bus support, required for iicoc below.
+device		iicoc		# OpenCores I2C controller support
+
 # SiFive device drivers
 device		fu740_pci_dw
 device		sifive_gpio
