@@ -928,6 +928,7 @@ ffs_mountfs(odevvp, mp, td)
 
 	devvp = mntfs_allocvp(mp, odevvp);
 	VOP_UNLOCK(odevvp);
+	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY);
 	KASSERT(devvp->v_type == VCHR, ("reclaimed devvp"));
 	dev = devvp->v_rdev;
 	KASSERT(dev->si_snapdata == NULL, ("non-NULL snapshot data"));
@@ -949,6 +950,7 @@ ffs_mountfs(odevvp, mp, td)
 	BO_LOCK(&odevvp->v_bufobj);
 	odevvp->v_bufobj.bo_flag |= BO_NOBUFS;
 	BO_UNLOCK(&odevvp->v_bufobj);
+	VOP_UNLOCK(devvp);
 	if (dev->si_iosize_max != 0)
 		mp->mnt_iosize_max = dev->si_iosize_max;
 	if (mp->mnt_iosize_max > maxphys)
@@ -1233,6 +1235,7 @@ out:
 	odevvp->v_bufobj.bo_flag &= ~BO_NOBUFS;
 	BO_UNLOCK(&odevvp->v_bufobj);
 	atomic_store_rel_ptr((uintptr_t *)&dev->si_mountpt, 0);
+	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY);
 	mntfs_freevp(devvp);
 	dev_rel(dev);
 	return (error);
@@ -1435,6 +1438,7 @@ ffs_unmount(mp, mntflags)
 	ump->um_odevvp->v_bufobj.bo_flag &= ~BO_NOBUFS;
 	BO_UNLOCK(&ump->um_odevvp->v_bufobj);
 	atomic_store_rel_ptr((uintptr_t *)&ump->um_dev->si_mountpt, 0);
+	vn_lock(ump->um_devvp, LK_EXCLUSIVE | LK_RETRY);
 	mntfs_freevp(ump->um_devvp);
 	vrele(ump->um_odevvp);
 	dev_rel(ump->um_dev);
