@@ -55,6 +55,9 @@ __FBSDID("$FreeBSD$");
 
 static struct ofw_compat_data compat_data[] = {
 	{ "opencores,i2c-ocores",	1 },
+	{ "sifive,fu740-c000-i2c",	1 },
+	{ "sifive,fu540-c000-i2c",	1 },
+	{ "sifive,i2c0",		1 },
 	{ NULL,				0 }
 };
 
