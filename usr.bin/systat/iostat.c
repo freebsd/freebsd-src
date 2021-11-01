@@ -185,7 +185,7 @@ static int
 numlabels(int row)
 {
 	int i, _col, regions, ndrives;
-	char tmpstr[10];
+	char tmpstr[32];
 
 #define COLWIDTH	17
 #define DRIVESPERLINE	((getmaxx(wnd) - 1 - INSET) / COLWIDTH)
@@ -211,7 +211,7 @@ numlabels(int row)
 				if (row > getmaxy(wnd) - 1 - (linesperregion + 1))
 					break;
 			}
-			sprintf(tmpstr, "%s%d", dev_select[i].device_name,
+			snprintf(tmpstr, sizeof(tmpstr), "%s%d", dev_select[i].device_name,
 				dev_select[i].unit_number);
 			mvwaddstr(wnd, row, _col + 4, tmpstr);
 			mvwaddstr(wnd, row + 1, _col, "  KB/t tps  MB/s ");
@@ -226,7 +226,7 @@ static int
 barlabels(int row)
 {
 	int i;
-	char tmpstr[10];
+	char tmpstr[32];
 
 	mvwaddstr(wnd, row++, INSET,
 	    "/0%  /10  /20  /30  /40  /50  /60  /70  /80  /90  /100");
@@ -235,7 +235,7 @@ barlabels(int row)
 		if (dev_select[i].selected) {
 			if (row > getmaxy(wnd) - 1 - linesperregion)
 				break;
-			sprintf(tmpstr, "%s%d", dev_select[i].device_name,
+			snprintf(tmpstr, sizeof(tmpstr), "%s%d", dev_select[i].device_name,
 				dev_select[i].unit_number);
 			mvwprintw(wnd, row++, 0, "%-5.5s MB/s|",
 				  tmpstr);
