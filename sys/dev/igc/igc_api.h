@@ -42,7 +42,6 @@ s32 igc_get_phy_info(struct igc_hw *hw);
 void igc_release_phy(struct igc_hw *hw);
 s32 igc_acquire_phy(struct igc_hw *hw);
 s32 igc_phy_hw_reset(struct igc_hw *hw);
-s32 igc_phy_commit(struct igc_hw *hw);
 void igc_power_up_phy(struct igc_hw *hw);
 void igc_power_down_phy(struct igc_hw *hw);
 s32 igc_read_mac_addr(struct igc_hw *hw);

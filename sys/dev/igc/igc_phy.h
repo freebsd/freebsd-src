@@ -18,7 +18,6 @@ s32  igc_null_set_page(struct igc_hw *hw, u16 data);
 s32  igc_check_downshift_generic(struct igc_hw *hw);
 s32  igc_check_reset_block_generic(struct igc_hw *hw);
 s32  igc_get_phy_id(struct igc_hw *hw);
-s32  igc_phy_sw_reset_generic(struct igc_hw *hw);
 void igc_phy_force_speed_duplex_setup(struct igc_hw *hw, u16 *phy_ctrl);
 s32  igc_phy_hw_reset_generic(struct igc_hw *hw);
 s32  igc_phy_reset_dsp_generic(struct igc_hw *hw);
