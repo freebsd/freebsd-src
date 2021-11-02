@@ -182,6 +182,7 @@ init_secondary(int cpu)
 	pc->pc_curthread = pc->pc_idlethread;
 	pc->pc_curpcb = pc->pc_idlethread->td_pcb;
 	set_curthread(pc->pc_idlethread);
+	schedinit_ap();
 #ifdef VFP
 	vfp_init();
 #endif
