@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 11, 2018
+.Dd November 2, 2021
 .Dt EFIRT 9
 .Os
 .Sh NAME
@@ -63,8 +63,8 @@
 .Ft int
 .Fn efi_var_nextname "size_t *namesize" "uint16_t *name" "struct uuid *vendor"
 .Ft int
-.Fn efi_var_set "uint16_t *name" "struct uuid *vendor" "uint32_t *attrib" \
-    "size_t *datasize" "void *data"
+.Fn efi_var_set "uint16_t *name" "struct uuid *vendor" "uint32_t attrib" \
+    "size_t datasize" "void *data"
 .Sh DESCRIPTION
 All of the following calls will return
 .Dv ENXIO
