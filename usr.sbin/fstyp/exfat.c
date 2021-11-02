@@ -365,6 +365,11 @@ fstyp_exfat(FILE *fp, char *label, size_t size)
 #ifdef WITH_ICONV
 	if (show_label)
 		exfat_find_label(fp, ev, bytespersec, label, size);
+#else
+	if (show_label) {
+		warnx("label not available without iconv support");
+		memset(label, 0, size);
+	}
 #endif
 
 out:
