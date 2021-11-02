@@ -1,4 +1,6 @@
 /******************************************************************************
+ * SPDX-License-Identifier: MIT OR GPL-2.0-only
+ *
  * hypercall.h
  *
  * Linux-specific hypervisor handling.
