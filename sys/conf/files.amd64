@@ -88,6 +88,7 @@ cddl/dev/dtrace/amd64/dtrace_asm.S			optional dtrace compile-with "${DTRACE_S}"
 cddl/dev/dtrace/amd64/dtrace_subr.c			optional dtrace compile-with "${DTRACE_C}"
 crypto/aesni/aeskeys_amd64.S	optional aesni
 crypto/des/des_enc.c		optional	netsmb
+crypto/openssl/amd64/aesni-x86_64.S	optional ossl
 crypto/openssl/amd64/chacha-x86_64.S	optional ossl
 crypto/openssl/amd64/poly1305-x86_64.S	optional ossl
 crypto/openssl/amd64/sha1-x86_64.S	optional ossl
