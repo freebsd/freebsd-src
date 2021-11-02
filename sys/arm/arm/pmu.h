@@ -33,7 +33,7 @@
 #ifndef _ARM_PMU_H_
 #define _ARM_PMU_H_
 
-#define	MAX_RLEN	8
+#define	MAX_RLEN	MAXCPU
 
 struct pmu_intr {
 	struct resource	*res;
