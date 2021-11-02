@@ -179,6 +179,11 @@ fstyp_ntfs(FILE *fp, char *label, size_t size)
 	}
 
 ok:
+#else
+	if (show_label) {
+		warnx("label not available without iconv support");
+		memset(label, 0, size);
+	}
 #endif /* WITH_ICONV */
 	free(bf);
 	free(filerecp);
