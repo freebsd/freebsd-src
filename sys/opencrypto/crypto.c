@@ -327,12 +327,11 @@ crypto_init(void)
 	struct proc *p;
 	int error;
 
-	mtx_init(&crypto_drivers_mtx, "crypto", "crypto driver table",
-		MTX_DEF|MTX_QUIET);
+	mtx_init(&crypto_drivers_mtx, "crypto driver table", NULL, MTX_DEF);
 
 	TAILQ_INIT(&crp_q);
 	TAILQ_INIT(&crp_kq);
-	mtx_init(&crypto_q_mtx, "crypto", "crypto op queues", MTX_DEF);
+	mtx_init(&crypto_q_mtx, "crypto op queues", NULL, MTX_DEF);
 
 	cryptop_zone = uma_zcreate("cryptop",
 	    sizeof(struct cryptop), NULL, NULL, NULL, NULL,
@@ -371,7 +370,8 @@ crypto_init(void)
 		ret_worker->reorder_ops = 0;
 		ret_worker->reorder_cur_seq = 0;
 
-		mtx_init(&ret_worker->crypto_ret_mtx, "crypto", "crypto return queues", MTX_DEF);
+		mtx_init(&ret_worker->crypto_ret_mtx, "crypto return queues",
+		    NULL, MTX_DEF);
 
 		error = kthread_add(crypto_ret_thread, ret_worker, p,
 		    &ret_worker->td, 0, 0, "crypto returns %td",
