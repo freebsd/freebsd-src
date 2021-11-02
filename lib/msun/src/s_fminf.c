@@ -33,6 +33,13 @@ __FBSDID("$FreeBSD$");
 
 #include "fpmath.h"
 
+#ifdef USE_BUILTIN_FMINF
+float
+fminf(float x, float y)
+{
+	return (__builtin_fminf(x, y));
+}
+#else
 float
 fminf(float x, float y)
 {
@@ -53,3 +60,4 @@ fminf(float x, float y)
 
 	return (x < y ? x : y);
 }
+#endif

@@ -34,6 +34,13 @@ __FBSDID("$FreeBSD$");
 
 #include "fpmath.h"
 
+#ifdef USE_BUILTIN_FMIN
+double
+fmin(double x, double y)
+{
+	return (__builtin_fmin(x, y));
+}
+#else
 double
 fmin(double x, double y)
 {
@@ -54,6 +61,7 @@ fmin(double x, double y)
 
 	return (x < y ? x : y);
 }
+#endif
 
 #if (LDBL_MANT_DIG == 53)
 __weak_reference(fmin, fminl);

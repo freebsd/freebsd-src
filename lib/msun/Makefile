@@ -45,6 +45,11 @@ CFLAGS+=	-I${.CURDIR}/${ARCH_SUBDIR}
 CFLAGS+=	-ffp-exception-behavior=maytrap
 .endif
 
+# Tell the compiler we don't set errno in any of the math functions. This
+# stops gcc from trying to generate a function call to set errno when using
+# a builtin in the implementation
+CFLAGS+=	-fno-math-errno
+
 .PATH:	${.CURDIR}/bsdsrc
 .PATH:	${.CURDIR}/src
 .PATH:	${.CURDIR}/man
