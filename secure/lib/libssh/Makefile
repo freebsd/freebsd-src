@@ -1,6 +1,7 @@
 # $FreeBSD$
 
 .include <src.opts.mk>
+.include "${SRCTOP}/secure/ssh.mk"
 
 LIB=	ssh
 PRIVATELIB=	true
@@ -44,9 +45,6 @@ CFLAGS+=	-DHAVE_LDNS=1 -I${LDNSDIR}
 SRCS+=	getrrsetbyname-ldns.c
 LIBADD+=	ldns
 .endif
-
-CFLAGS+= -I${SSHDIR} -include ssh_namespace.h
-SRCS+=	 ssh_namespace.h
 
 .if ${MK_GSSAPI} != "no" && ${MK_KERBEROS_SUPPORT} != "no"
 CFLAGS+= -include krb5_config.h
