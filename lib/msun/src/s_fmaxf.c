@@ -33,6 +33,13 @@ __FBSDID("$FreeBSD$");
 
 #include "fpmath.h"
 
+#ifdef USE_BUILTIN_FMAXF
+float
+fmaxf(float x, float y)
+{
+	return (__builtin_fmaxf(x, y));
+}
+#else
 float
 fmaxf(float x, float y)
 {
@@ -53,3 +60,4 @@ fmaxf(float x, float y)
 
 	return (x > y ? x : y);
 }
+#endif
