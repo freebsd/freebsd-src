@@ -172,6 +172,13 @@ ossl_probesession(device_t dev, const struct crypto_session_params *csp)
 		if (ossl_lookup_cipher(csp) == NULL)
 			return (EINVAL);
 		break;
+	case CSP_MODE_ETA:
+		if (!sc->has_aes ||
+		    csp->csp_cipher_alg == CRYPTO_CHACHA20 ||
+		    ossl_lookup_hash(csp) == NULL ||
+		    ossl_lookup_cipher(csp) == NULL)
+			return (EINVAL);
+		break;
 	case CSP_MODE_AEAD:
 		switch (csp->csp_cipher_alg) {
 		case CRYPTO_CHACHA20_POLY1305:
@@ -268,6 +275,10 @@ ossl_newsession(device_t dev, crypto_session_t cses,
 	case CSP_MODE_CIPHER:
 		error = ossl_newsession_cipher(s, csp);
 		break;
+	case CSP_MODE_ETA:
+		ossl_newsession_hash(s, csp);
+		error = ossl_newsession_cipher(s, csp);
+		break;
 	}
 
 	return (error);
@@ -342,6 +353,25 @@ out:
 }
 
 static int
+ossl_process_eta(struct ossl_session *s, struct cryptop *crp,
+    const struct crypto_session_params *csp)
+{
+	int error;
+
+	if (CRYPTO_OP_IS_ENCRYPT(crp->crp_op)) {
+		error = s->cipher.cipher->process(&s->cipher, crp, csp);
+		if (error == 0)
+			error = ossl_process_hash(s, crp, csp);
+	} else {
+		error = ossl_process_hash(s, crp, csp);
+		if (error == 0)
+			error = s->cipher.cipher->process(&s->cipher, crp, csp);
+	}
+
+	return (error);
+}
+
+static int
 ossl_process(device_t dev, struct cryptop *crp, int hint)
 {
 	const struct crypto_session_params *csp;
@@ -365,6 +395,9 @@ ossl_process(device_t dev, struct cryptop *crp, int hint)
 		break;
 	case CSP_MODE_CIPHER:
 		error = s->cipher.cipher->process(&s->cipher, crp, csp);
+		break;
+	case CSP_MODE_ETA:
+		error = ossl_process_eta(s, crp, csp);
 		break;
 	case CSP_MODE_AEAD:
 		if (CRYPTO_OP_IS_ENCRYPT(crp->crp_op))
