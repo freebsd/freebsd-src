@@ -34,6 +34,13 @@ __FBSDID("$FreeBSD$");
 #include "math.h"
 #include "math_private.h"
 
+#ifdef USE_BUILTIN_FMAF
+float
+fmaf(float x, float y, float z)
+{
+	return (__builtin_fmaf(x, y, z));
+}
+#else
 /*
  * Fused multiply-add: Compute x * y + z with a single rounding error.
  *
@@ -69,3 +76,4 @@ fmaf(float x, float y, float z)
 		SET_LOW_WORD(adjusted_result, lr + 1);
 	return (adjusted_result);
 }
+#endif /* !USE_BUILTIN_FMAF */

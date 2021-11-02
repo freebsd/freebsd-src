@@ -35,6 +35,13 @@ __FBSDID("$FreeBSD$");
 
 #include "math_private.h"
 
+#ifdef USE_BUILTIN_FMA
+double
+fma(double x, double y, double z)
+{
+	return (__builtin_fma(x, y, z));
+}
+#else
 /*
  * A struct dd represents a floating-point number with twice the precision
  * of a double.  We maintain the invariant that "hi" stores the 53 high-order
@@ -284,6 +291,7 @@ fma(double x, double y, double z)
 	else
 		return (add_and_denormalize(r.hi, adj, spread));
 }
+#endif /* !USE_BUILTIN_FMA */
 
 #if (LDBL_MANT_DIG == 53)
 __weak_reference(fma, fmal);
