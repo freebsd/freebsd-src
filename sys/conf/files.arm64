@@ -522,6 +522,7 @@ tegra210_xusb.fw				optional tegra210_xusb_fw	\
 # NXP
 arm/freescale/vybrid/vf_i2c.c			optional vf_i2c iicbus SOC_NXP_LS
 arm64/qoriq/qoriq_dw_pci.c			optional pci fdt SOC_NXP_LS
+arm64/qoriq/qoriq_gpio_pic.c			optional gpio fdt SOC_NXP_LS
 arm64/qoriq/qoriq_therm.c			optional pci fdt SOC_NXP_LS
 arm64/qoriq/qoriq_therm_if.m			optional pci fdt SOC_NXP_LS
 arm64/qoriq/clk/ls1028a_clkgen.c		optional clk SOC_NXP_LS
