@@ -233,7 +233,6 @@ qoriq_gpio_pin_toggle(device_t dev, uint32_t pin)
 }
 
 static struct ofw_compat_data gpio_matches[] = {
-    {"fsl,qoriq-gpio", 1},
     {"fsl,pq3-gpio", 1},
     {"fsl,mpc8572-gpio", 1},
     {0, 0}
