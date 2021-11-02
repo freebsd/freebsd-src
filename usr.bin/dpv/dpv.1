@@ -374,7 +374,7 @@ dpv -o /dev/ada0 -m label disk-image.img
 .Pp
 Zeroing a disk:
 .Bd -literal -offset indent
-dpv -o /dev/md42 < /dev/zero
+dpv -o /dev/md42 "Zeroing md42" < /dev/zero
 .Ed
 .Sh SEE ALSO
 .Xr dialog 1 ,
