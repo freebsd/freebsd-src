@@ -309,12 +309,23 @@ g_part_mbr_destroy(struct g_part_table *basetable, struct g_part_parms *gpp)
 }
 
 static void
+g_part_mbr_efimedia(struct g_part_mbr_table *table, struct g_part_mbr_entry *entry,
+    struct sbuf *sb)
+{
+	uint32_t dsn;
+
+	dsn = le32dec(table->mbr + DOSDSNOFF);
+	sbuf_printf(sb, "HD(%d,MBR,%#08x,%#jx,%#jx)",
+	    entry->base.gpe_index, dsn, (intmax_t)entry->base.gpe_start,
+	    (intmax_t)(entry->base.gpe_end - entry->base.gpe_start + 1));
+}
+
+static void
 g_part_mbr_dumpconf(struct g_part_table *basetable, struct g_part_entry *baseentry,
     struct sbuf *sb, const char *indent)
 {
 	struct g_part_mbr_entry *entry;
 	struct g_part_mbr_table *table;
-	uint32_t dsn;
 
 	table = (struct g_part_mbr_table *)basetable;
 	entry = (struct g_part_mbr_entry *)baseentry;
@@ -327,10 +338,8 @@ g_part_mbr_dumpconf(struct g_part_table *basetable, struct g_part_entry *baseent
 		    entry->ent.dp_typ);
 		if (entry->ent.dp_flag & 0x80)
 			sbuf_printf(sb, "%s<attrib>active</attrib>\n", indent);
-		dsn = le32dec(table->mbr + DOSDSNOFF);
-		sbuf_printf(sb, "%s<efimedia>HD(%d,MBR,%#08x,%#jx,%#jx)", indent,
-		    entry->base.gpe_index, dsn, (intmax_t)entry->base.gpe_start,
-		    (intmax_t)(entry->base.gpe_end - entry->base.gpe_start + 1));
+		sbuf_printf(sb, "%s<efimedia>", indent);
+		g_part_mbr_efimedia(table, entry, sb);
 		sbuf_cat(sb, "</efimedia>\n");
 	} else {
 		/* confxml: scheme information */
