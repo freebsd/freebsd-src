@@ -181,7 +181,7 @@ struct crypto_ret_worker {
 	uint32_t reorder_ops;		/* total ordered sym jobs received */
 	uint32_t reorder_cur_seq;	/* current sym job dispatched */
 
-	struct proc *cryptoretproc;
+	struct thread *td;
 };
 static struct crypto_ret_worker *crypto_ret_workers = NULL;
 
@@ -229,9 +229,9 @@ SYSCTL_INT(_kern, OID_AUTO, cryptodevallowsoft, CTLFLAG_RWTUN,
 
 MALLOC_DEFINE(M_CRYPTO_DATA, "crypto", "crypto session records");
 
-static	void crypto_proc(void);
-static	struct proc *cryptoproc;
-static	void crypto_ret_proc(struct crypto_ret_worker *ret_worker);
+static	void crypto_dispatch_thread(void *arg);
+static	struct thread *cryptotd;
+static	void crypto_ret_thread(void *arg);
 static	void crypto_destroy(void);
 static	int crypto_invoke(struct cryptocap *cap, struct cryptop *crp, int hint);
 static	int crypto_kinvoke(struct cryptkop *krp);
@@ -324,6 +324,7 @@ static int
 crypto_init(void)
 {
 	struct crypto_ret_worker *ret_worker;
+	struct proc *p;
 	int error;
 
 	mtx_init(&crypto_drivers_mtx, "crypto", "crypto driver table",
@@ -350,8 +351,9 @@ crypto_init(void)
 	taskqueue_start_threads(&crypto_tq, crypto_workers_num, PRI_MIN_KERN,
 	    "crypto");
 
-	error = kproc_create((void (*)(void *)) crypto_proc, NULL,
-		    &cryptoproc, 0, 0, "crypto");
+	p = NULL;
+	error = kproc_kthread_add(crypto_dispatch_thread, NULL, &p, &cryptotd,
+	    0, 0, "crypto", "crypto");
 	if (error) {
 		printf("crypto_init: cannot start crypto thread; error %d",
 			error);
@@ -371,8 +373,9 @@ crypto_init(void)
 
 		mtx_init(&ret_worker->crypto_ret_mtx, "crypto", "crypto return queues", MTX_DEF);
 
-		error = kproc_create((void (*)(void *)) crypto_ret_proc, ret_worker,
-				&ret_worker->cryptoretproc, 0, 0, "crypto returns %td", CRYPTO_RETW_ID(ret_worker));
+		error = kthread_add(crypto_ret_thread, ret_worker, p,
+		    &ret_worker->td, 0, 0, "crypto returns %td",
+		    CRYPTO_RETW_ID(ret_worker));
 		if (error) {
 			printf("crypto_init: cannot start cryptoret thread; error %d",
 				error);
@@ -396,20 +399,16 @@ bad:
  * for the other half of this song-and-dance.
  */
 static void
-crypto_terminate(struct proc **pp, void *q)
+crypto_terminate(struct thread **tdp, void *q)
 {
-	struct proc *p;
+	struct thread *td;
 
 	mtx_assert(&crypto_drivers_mtx, MA_OWNED);
-	p = *pp;
-	*pp = NULL;
-	if (p) {
+	td = *tdp;
+	*tdp = NULL;
+	if (td != NULL) {
 		wakeup_one(q);
-		PROC_LOCK(p);		/* NB: insure we don't miss wakeup */
-		CRYPTO_DRIVER_UNLOCK();	/* let crypto_finis progress */
-		msleep(p, &p->p_mtx, PWAIT, "crypto_destroy", 0);
-		PROC_UNLOCK(p);
-		CRYPTO_DRIVER_LOCK();
+		mtx_sleep(td, &crypto_drivers_mtx, PWAIT, "crypto_destroy", 0);
 	}
 }
 
@@ -472,9 +471,9 @@ crypto_destroy(void)
 	if (crypto_tq != NULL)
 		taskqueue_drain_all(crypto_tq);
 	CRYPTO_DRIVER_LOCK();
-	crypto_terminate(&cryptoproc, &crp_q);
+	crypto_terminate(&cryptotd, &crp_q);
 	FOREACH_CRYPTO_RETW(ret_worker)
-		crypto_terminate(&ret_worker->cryptoretproc, &ret_worker->crp_ret_q);
+		crypto_terminate(&ret_worker->td, &ret_worker->crp_ret_q);
 	CRYPTO_DRIVER_UNLOCK();
 
 	/* XXX flush queues??? */
@@ -1987,14 +1986,14 @@ crypto_finis(void *chan)
 	CRYPTO_DRIVER_LOCK();
 	wakeup_one(chan);
 	CRYPTO_DRIVER_UNLOCK();
-	kproc_exit(0);
+	kthread_exit();
 }
 
 /*
  * Crypto thread, dispatches crypto requests.
  */
 static void
-crypto_proc(void)
+crypto_dispatch_thread(void *arg __unused)
 {
 	struct cryptop *crp, *submit;
 	struct cryptkop *krp;
@@ -2126,7 +2125,7 @@ crypto_proc(void)
 			crp_sleep = 1;
 			msleep(&crp_q, &crypto_q_mtx, PWAIT, "crypto_wait", 0);
 			crp_sleep = 0;
-			if (cryptoproc == NULL)
+			if (cryptotd == NULL)
 				break;
 			CRYPTOSTAT_INC(cs_intrs);
 		}
@@ -2142,8 +2141,9 @@ crypto_proc(void)
  * callbacks typically are expensive and would slow interrupt handling.
  */
 static void
-crypto_ret_proc(struct crypto_ret_worker *ret_worker)
+crypto_ret_thread(void *arg)
 {
+	struct crypto_ret_worker *ret_worker = arg;
 	struct cryptop *crpt;
 	struct cryptkop *krpt;
 
@@ -2187,7 +2187,7 @@ crypto_ret_proc(struct crypto_ret_worker *ret_worker)
 			 */
 			msleep(&ret_worker->crp_ret_q, &ret_worker->crypto_ret_mtx, PWAIT,
 				"crypto_ret_wait", 0);
-			if (ret_worker->cryptoretproc == NULL)
+			if (ret_worker->td == NULL)
 				break;
 			CRYPTOSTAT_INC(cs_rets);
 		}
