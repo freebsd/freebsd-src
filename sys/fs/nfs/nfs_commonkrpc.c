@@ -107,6 +107,10 @@ static int	nfs_reconnects;
 static int	nfs3_jukebox_delay = 10;
 static int	nfs_skip_wcc_data_onerr = 1;
 static int	nfs_dsretries = 2;
+static struct timespec	nfs_trylater_max = {
+	.tv_sec		= NFS_TRYLATERDEL,
+	.tv_nsec	= 0,
+};
 
 SYSCTL_DECL(_vfs_nfs);
 
@@ -541,12 +545,10 @@ newnfs_request(struct nfsrv_descript *nd, struct nfsmount *nmp,
     u_char *retsum, int toplevel, u_int64_t *xidp, struct nfsclsession *dssep)
 {
 	uint32_t retseq, retval, slotseq, *tl;
-	time_t waituntil;
 	int i = 0, j = 0, opcnt, set_sigset = 0, slot;
 	int error = 0, usegssname = 0, secflavour = AUTH_SYS;
 	int freeslot, maxslot, reterr, slotpos, timeo;
 	u_int16_t procnum;
-	u_int trylater_delay = 1;
 	struct nfs_feedback_arg nf;
 	struct timeval timo;
 	AUTH *auth;
@@ -558,7 +560,11 @@ newnfs_request(struct nfsrv_descript *nd, struct nfsmount *nmp,
 	struct ucred *authcred;
 	struct nfsclsession *sep;
 	uint8_t sessionid[NFSX_V4SESSIONID];
+	struct timespec trylater_delay, ts, waituntil;
 
+	/* Initially 1msec. */
+	trylater_delay.tv_sec = 0;
+	trylater_delay.tv_nsec = 1000000;
 	sep = dssep;
 	if (xidp != NULL)
 		*xidp = 0;
@@ -1075,12 +1081,19 @@ tryagain:
 			    (nd->nd_repstat == NFSERR_DELAY &&
 			     (nd->nd_flag & ND_NFSV4) == 0) ||
 			    nd->nd_repstat == NFSERR_RESOURCE) {
-				if (trylater_delay > NFS_TRYLATERDEL)
-					trylater_delay = NFS_TRYLATERDEL;
-				waituntil = NFSD_MONOSEC + trylater_delay;
-				while (NFSD_MONOSEC < waituntil)
-					(void) nfs_catnap(PZERO, 0, "nfstry");
-				trylater_delay *= 2;
+				/* Clip at NFS_TRYLATERDEL. */
+				if (timespeccmp(&trylater_delay,
+				    &nfs_trylater_max, >))
+					trylater_delay = nfs_trylater_max;
+				getnanouptime(&waituntil);
+				timespecadd(&waituntil, &trylater_delay,
+				    &waituntil);
+				do {
+					nfs_catnap(PZERO, 0, "nfstry");
+					getnanouptime(&ts);
+				} while (timespeccmp(&ts, &waituntil, <));
+				timespecadd(&trylater_delay, &trylater_delay,
+				    &trylater_delay);	/* Double each time. */
 				if (slot != -1) {
 					mtx_lock(&sep->nfsess_mtx);
 					sep->nfsess_slotseq[slot]++;
