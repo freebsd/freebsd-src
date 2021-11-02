@@ -735,6 +735,15 @@ g_part_gpt_destroy(struct g_part_table *basetable, struct g_part_parms *gpp)
 }
 
 static void
+g_part_gpt_efimedia(struct g_part_gpt_entry *entry, struct sbuf *sb)
+{
+	sbuf_printf(sb, "HD(%d,GPT,", entry->base.gpe_index);
+	sbuf_printf_uuid(sb, &entry->ent.ent_uuid);
+	sbuf_printf(sb, ",%#jx,%#jx)", (intmax_t)entry->base.gpe_start,
+	    (intmax_t)(entry->base.gpe_end - entry->base.gpe_start + 1));
+}
+
+static void
 g_part_gpt_dumpconf(struct g_part_table *table, struct g_part_entry *baseentry,
     struct sbuf *sb, const char *indent)
 {
@@ -768,10 +777,7 @@ g_part_gpt_dumpconf(struct g_part_table *table, struct g_part_entry *baseentry,
 		sbuf_printf_uuid(sb, &entry->ent.ent_uuid);
 		sbuf_cat(sb, "</rawuuid>\n");
 		sbuf_printf(sb, "%s<efimedia>", indent);
-		sbuf_printf(sb, "HD(%d,GPT,", entry->base.gpe_index);
-		sbuf_printf_uuid(sb, &entry->ent.ent_uuid);
-		sbuf_printf(sb, ",%#jx,%#jx)", (intmax_t)entry->base.gpe_start,
-		    (intmax_t)(entry->base.gpe_end - entry->base.gpe_start + 1));
+		g_part_gpt_efimedia(entry, sb);
 		sbuf_cat(sb, "</efimedia>\n");
 	} else {
 		/* confxml: scheme information */
