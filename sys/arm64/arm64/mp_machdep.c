@@ -255,6 +255,7 @@ init_secondary(uint64_t cpu)
 	/* Initialize curthread */
 	KASSERT(PCPU_GET(idlethread) != NULL, ("no idle thread"));
 	pcpup->pc_curthread = pcpup->pc_idlethread;
+	schedinit_ap();
 
 	/* Initialize curpmap to match TTBR0's current setting. */
 	pmap0 = vmspace_pmap(&vmspace0);

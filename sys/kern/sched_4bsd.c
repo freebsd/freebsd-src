@@ -678,6 +678,13 @@ schedinit(void)
 	mtx_init(&sched_lock, "sched lock", NULL, MTX_SPIN);
 }
 
+void
+schedinit_ap(void)
+{
+
+	/* Nothing needed. */
+}
+
 int
 sched_runnable(void)
 {

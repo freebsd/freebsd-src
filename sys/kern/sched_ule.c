@@ -1744,6 +1744,26 @@ schedinit(void)
 }
 
 /*
+ * schedinit_ap() is needed prior to calling sched_throw(NULL) to ensure that
+ * the pcpu requirements are met for any calls in the period between curthread
+ * initialization and sched_throw().  One can safely add threads to the queue
+ * before sched_throw(), for instance, as long as the thread lock is setup
+ * correctly.
+ *
+ * TDQ_SELF() relies on the below sched pcpu setting; it may be used only
+ * after schedinit_ap().
+ */
+void
+schedinit_ap(void)
+{
+
+#ifdef SMP
+	PCPU_SET(sched, DPCPU_PTR(tdq));
+#endif
+	PCPU_GET(idlethread)->td_lock = TDQ_LOCKPTR(TDQ_SELF());
+}
+
+/*
  * This is only somewhat accurate since given many processes of the same
  * priority they will switch when their slices run out, which will be
  * at most sched_slice stathz ticks.
@@ -2973,19 +2993,14 @@ sched_throw(struct thread *td)
 	struct thread *newtd;
 	struct tdq *tdq;
 
+	tdq = TDQ_SELF();
 	if (__predict_false(td == NULL)) {
-#ifdef SMP
-		PCPU_SET(sched, DPCPU_PTR(tdq));
-#endif
-		/* Correct spinlock nesting and acquire the correct lock. */
-		tdq = TDQ_SELF();
 		TDQ_LOCK(tdq);
+		/* Correct spinlock nesting. */
 		spinlock_exit();
 		PCPU_SET(switchtime, cpu_ticks());
 		PCPU_SET(switchticks, ticks);
-		PCPU_GET(idlethread)->td_lock = TDQ_LOCKPTR(tdq);
 	} else {
-		tdq = TDQ_SELF();
 		THREAD_LOCK_ASSERT(td, MA_OWNED);
 		THREAD_LOCKPTR_ASSERT(td, TDQ_LOCKPTR(tdq));
 		tdq_load_rem(tdq, td);
