@@ -1,12 +1,11 @@
 # $FreeBSD$
 
 .include <src.opts.mk>
+.include "${SRCTOP}/secure/ssh.mk"
 
 PROG=	ssh-keyscan
 SRCS=	ssh-keyscan.c
 PACKAGE=	ssh
-CFLAGS+=-I${SSHDIR} -include ssh_namespace.h
-SRCS+=	ssh_namespace.h
 
 LIBADD=	ssh
 
