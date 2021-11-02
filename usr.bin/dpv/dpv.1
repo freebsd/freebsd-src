@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 26, 2016
+.Dd November 2, 2021
 .Dt DPV 1
 .Os
 .Sh NAME
@@ -33,13 +33,26 @@
 .Sh SYNOPSIS
 .Nm
 .Op options
-.Ar [bytes:]label
+.Sm off
+.Op Ar bytes Cm \&:
+.Ar label
+.Sm on
 .Nm
 .Op options
 .Fl m
-.Ar [bytes1:]label1
+.Sm off
+.Op Ar bytes1 Cm \& :
+. Ar label1
+.Sm on
 .Ar path1
-.Op Ar [bytes2:]label2 path2 ...
+.Oo
+.Sm off
+.Op Ar bytes2 Cm \&:
+.Ar label2
+.Sm on
+.Ar path2
+.Ar ...
+.Oc
 .Sh DESCRIPTION
 .Nm
 provides a dialog progress view, allowing a user to see current throughput rate
@@ -95,10 +108,6 @@ When using
 this is displayed inside the window
 .Pq at the top
 followed by a separator line.
-.It Fl d
-Debug mode.
-Print dialog prompt data to standard out and provide additional debugging on
-standard error.
 .It Fl D
 Do not use the default interface of
 .Xr dialog 3 ,
@@ -111,21 +120,13 @@ is taken from the
 environment variable or simply
 .Dq Li dialog
 if unset or NULL.
+.It Fl d
+Debug mode.
+Print dialog prompt data to standard out and provide additional debugging on
+standard error.
 .It Fl h
 Produce a short syntax usage with brief option descriptions and exit.
 Output is produced on standard error.
-.It Fl i Ar format
-Customize the single-file format string used to update the status line.
-Ignored when using either
-.Ql Fl D
-or
-.Ql Fl X
-which lack the ability to display the status line
-.Pq containing bytes/rate/thread information .
-Default value
-is
-.Dq Li %'10lli bytes read @ %'9.1f bytes/sec. .
-This format is used when handling one file.
 .It Fl I Ar format
 Customize the multi-file format string used to update the status line.
 Ignored when using either
@@ -138,22 +139,37 @@ Default value
 is
 .Dq Li %'10lli bytes read @ %'9.1f bytes/sec. [%i/%i busy/wait] .
 This format is used when handling more than one file.
+.It Fl i Ar format
+Customize the single-file format string used to update the status line.
+Ignored when using either
+.Ql Fl D
+or
+.Ql Fl X
+which lack the ability to display the status line
+.Pq containing bytes/rate/thread information .
+Default value
+is
+.Dq Li %'10lli bytes read @ %'9.1f bytes/sec. .
+This format is used when handling one file.
 .It Fl k
 Keep tite.
 Prevent visually distracting initialization/exit routines for scripts running
 .Xr dialog 1
 several times.
-.It Fl l
-Line mode.
-Read lines from input instead of bytes.
 .It Fl L Ar size
 Label size.
 If negative, shrink to longest label width.
+.It Fl l
+Line mode.
+Read lines from input instead of bytes.
 .It Fl m
 Multi-input mode.
 Instead of reading bytes from standard input, read from a set of paths
 .Pq one for each label .
 By default, each path is processed sequentially in the order given.
+.It Fl N
+No overrun.
+If enabled, stop reading known-length inputs when input reaches stated length.
 .It Fl n Ar num
 Display at-most
 .Ar num
@@ -162,9 +178,6 @@ If zero, display as many as possible.
 If negative, only display the main progress indicator.
 Default is 0.
 Maximum value is 10.
-.It Fl N
-No overrun.
-If enabled, stop reading known-length inputs when input reaches stated length.
 .It Fl o Ar file
 Output data to
 .Ar file .
@@ -176,10 +189,6 @@ in
 will be replaced with the
 .Ar label
 text.
-.It Fl p Ar text
-Display
-.Ar text
-above the file progress indicator(s).
 .It Fl P Ar size
 Mini-progressbar size.
 If negative, don't display mini-progressbars
@@ -187,6 +196,19 @@ If negative, don't display mini-progressbars
 If zero, auto-adjust based on number of files to read.
 When zero and only one file to read, defaults to -1.
 When zero and more than one file to read, defaults to 17.
+.It Fl p Ar text
+Display
+.Ar text
+above the file progress indicator(s).
+.It Fl T
+Test mode.
+Simulate reading a number of bytes, divided evenly across the number of files,
+while stepping through each percent value of each file to process.
+Appends
+.Dq Li [TEST MODE]
+to the status line
+.Pq to override, use Ql Fl u Ar format .
+No data is actually read.
 .It Fl t Ar title
 Display
 .Ar title
@@ -201,15 +223,6 @@ and
 .Ar title
 are effectively switched
 .Pq see BUGS section below .
-.It Fl T
-Test mode.
-Simulate reading a number of bytes, divided evenly across the number of files,
-while stepping through each percent value of each file to process.
-Appends
-.Dq Li [TEST MODE]
-to the status line
-.Pq to override, use Ql Fl u Ar format .
-No data is actually read.
 .It Fl U Ar num
 Update status line
 .Ar num
@@ -237,6 +250,13 @@ and
 to bump the dialog width.
 Prompts wider than the maximum width will wrap
 .Pq unless using Xr Xdialog 1 ; see BUGS section below .
+.It Fl X
+Enable X11 mode by using
+.Xr Xdialog 1
+instead of
+.Xr dialog 1
+or
+.Xr dialog 3 .
 .It Fl x Ar cmd
 Execute
 .Ar cmd
@@ -259,13 +279,6 @@ in
 will be replaced with the
 .Ar label
 text.
-.It Fl X
-Enable X11 mode by using
-.Xr Xdialog 1
-instead of
-.Xr dialog 1
-or
-.Xr dialog 3 .
 .El
 .Sh ENVIRONMENT
 The following environment variables are referenced by
