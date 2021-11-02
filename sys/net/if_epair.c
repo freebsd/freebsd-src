@@ -2,7 +2,6 @@
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
  * Copyright (c) 2008 The FreeBSD Foundation
- * All rights reserved.
  * Copyright (c) 2009-2021 Bjoern A. Zeeb <bz@FreeBSD.org>
  *
  * This software was developed by CK Software GmbH under sponsorship
