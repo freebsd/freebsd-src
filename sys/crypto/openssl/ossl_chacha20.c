@@ -37,10 +37,24 @@
 
 #include <crypto/openssl/ossl.h>
 #include <crypto/openssl/ossl_chacha.h>
+#include <crypto/openssl/ossl_cipher.h>
 #include <crypto/openssl/ossl_poly1305.h>
 
-int
-ossl_chacha20(struct cryptop *crp, const struct crypto_session_params *csp)
+static ossl_cipher_process_t ossl_chacha20;
+
+struct ossl_cipher ossl_cipher_chacha20 = {
+	.type = CRYPTO_CHACHA20,
+	.blocksize = CHACHA_BLK_SIZE,
+	.ivsize = CHACHA_CTR_SIZE,
+
+	.set_encrypt_key = NULL,
+	.set_decrypt_key = NULL,
+	.process = ossl_chacha20
+};
+
+static int
+ossl_chacha20(struct ossl_session_cipher *s, struct cryptop *crp,
+    const struct crypto_session_params *csp)
 {
 	_Alignas(8) unsigned int key[CHACHA_KEY_SIZE / 4];
 	unsigned int counter[CHACHA_CTR_SIZE / 4];
