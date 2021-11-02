@@ -1,6 +1,7 @@
 # $FreeBSD$
 
 .include <src.opts.mk>
+.include "${SRCTOP}/secure/ssh.mk"
 
 CONFS=	moduli sshd_config
 CONFSDIR=	/etc/ssh
@@ -25,8 +26,6 @@ PACKAGE=	ssh
 SRCS+=	gss-genr.c
 
 MAN=	sshd.8 sshd_config.5
-CFLAGS+=-I${SSHDIR} -include ssh_namespace.h
-SRCS+=	ssh_namespace.h
 
 # Don't rebuild based on moduli.c
 moduli: .MADE

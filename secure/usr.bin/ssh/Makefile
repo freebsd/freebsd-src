@@ -1,6 +1,7 @@
 # $FreeBSD$
 
 .include <src.opts.mk>
+.include "${SRCTOP}/secure/ssh.mk"
 
 CONFS=	ssh_config
 CONFSDIR=	/etc/ssh
@@ -15,9 +16,6 @@ SRCS=	ssh.c readconf.c clientloop.c sshtty.c \
 
 # gss-genr.c really belongs in libssh; see src/secure/lib/libssh/Makefile
 SRCS+=	gss-genr.c
-
-CFLAGS+=-I${SSHDIR} -include ssh_namespace.h
-SRCS+=	ssh_namespace.h
 
 LIBADD=	ssh
 
