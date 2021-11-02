@@ -68,6 +68,7 @@ dexter [label="Michael Dexter\ndexter@FreeBSD.org\n2016/11/15"]
 dru [label="Dru Lavigne\ndru@FreeBSD.org\n2013/01/22"]
 eadler [label="Eitan Adler\neadler@FreeBSD.org\n2012/10/15"]
 ebrandi [label="Edson Brandi\nebrandi@FreeBSD.org\n2012/09/13"]
+emaste [label="Ed Maste\nemaste@FreeBSD.org\n2021/08/18"]
 fernape [label="Fernando Apesteguia\fernape@FreeBSD.org\n2021/02/07"]
 gabor [label="Gabor Kovesdan\ngabor@FreeBSD.org\n2007/02/02"]
 ganbold [label="Ganbold Tsagaankhuu\nganbold@FreeBSD.org\n2008/02/26"]
@@ -133,6 +134,7 @@ blackend -> ceri
 
 brueffer -> joel
 
+carlavilla -> emaste
 carlavilla -> lwhsu
 
 ceri -> brd
@@ -214,5 +216,6 @@ trhodes -> jcamou
 wblock -> jgh
 wblock -> allanjude
 
+ygy -> emaste
 ygy -> lwhsu
 }
