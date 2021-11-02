@@ -193,7 +193,7 @@ struct age_stats {
  * Software state per device.
  */
 struct age_softc {
-	struct ifnet 		*age_ifp;
+	if_t	 		age_ifp;
 	device_t		age_dev;
 	device_t		age_miibus;
 	struct resource		*age_res[1];
