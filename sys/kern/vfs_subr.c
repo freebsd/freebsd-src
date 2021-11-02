@@ -1896,7 +1896,9 @@ freevnode(struct vnode *vp)
 	mac_vnode_destroy(vp);
 #endif
 	if (vp->v_pollinfo != NULL) {
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 		destroy_vpollinfo(vp->v_pollinfo);
+		VOP_UNLOCK(vp);
 		vp->v_pollinfo = NULL;
 	}
 	vp->v_mountedhere = NULL;
