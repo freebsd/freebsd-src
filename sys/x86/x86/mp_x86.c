@@ -1040,6 +1040,7 @@ init_secondary_tail(void)
 	/* Initialize curthread. */
 	KASSERT(PCPU_GET(idlethread) != NULL, ("no idle thread"));
 	PCPU_SET(curthread, PCPU_GET(idlethread));
+	schedinit_ap();
 
 	mtx_lock_spin(&ap_boot_mtx);
 

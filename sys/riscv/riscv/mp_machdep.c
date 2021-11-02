@@ -248,6 +248,7 @@ init_secondary(uint64_t hart)
 	/* Initialize curthread */
 	KASSERT(PCPU_GET(idlethread) != NULL, ("no idle thread"));
 	pcpup->pc_curthread = pcpup->pc_idlethread;
+	schedinit_ap();
 
 	/*
 	 * Identify current CPU. This is necessary to setup
