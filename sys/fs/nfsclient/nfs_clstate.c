@@ -119,7 +119,8 @@ static void nfscl_insertlock(struct nfscllockowner *, struct nfscllock *,
     struct nfscllock *, int);
 static int nfscl_updatelock(struct nfscllockowner *, struct nfscllock **,
     struct nfscllock **, int);
-static void nfscl_delegreturnall(struct nfsclclient *, NFSPROC_T *);
+static void nfscl_delegreturnall(struct nfsclclient *, NFSPROC_T *,
+    struct nfscldeleghead *);
 static u_int32_t nfscl_nextcbident(void);
 static mount_t nfscl_getmnt(int, uint8_t *, u_int32_t, struct nfsclclient **);
 static struct nfsclclient *nfscl_getclnt(u_int32_t);
@@ -1985,7 +1986,7 @@ static int	fake_global;	/* Used to force visibility of MNTK_UNMOUNTF */
  * Called from nfs umount to free up the clientid.
  */
 void
-nfscl_umount(struct nfsmount *nmp, NFSPROC_T *p)
+nfscl_umount(struct nfsmount *nmp, NFSPROC_T *p, struct nfscldeleghead *dhp)
 {
 	struct nfsclclient *clp;
 	struct ucred *cred;
@@ -2047,7 +2048,7 @@ nfscl_umount(struct nfsmount *nmp, NFSPROC_T *p)
 		 * the server throws it away?
 		 */
 		LIST_REMOVE(clp, nfsc_list);
-		nfscl_delegreturnall(clp, p);
+		nfscl_delegreturnall(clp, p, dhp);
 		cred = newnfs_getcred();
 		if (NFSHASNFSV4N(nmp)) {
 			(void)nfsrpc_destroysession(nmp, clp, cred, p);
@@ -3438,7 +3439,8 @@ lookformore:
  * (Must be called with client sleep lock.)
  */
 static void
-nfscl_delegreturnall(struct nfsclclient *clp, NFSPROC_T *p)
+nfscl_delegreturnall(struct nfsclclient *clp, NFSPROC_T *p,
+    struct nfscldeleghead *dhp)
 {
 	struct nfscldeleg *dp, *ndp;
 	struct ucred *cred;
@@ -3447,7 +3449,11 @@ nfscl_delegreturnall(struct nfsclclient *clp, NFSPROC_T *p)
 	TAILQ_FOREACH_SAFE(dp, &clp->nfsc_deleg, nfsdl_list, ndp) {
 		nfscl_cleandeleg(dp);
 		(void) nfscl_trydelegreturn(dp, cred, clp->nfsc_nmp, p);
-		nfscl_freedeleg(&clp->nfsc_deleg, dp, true);
+		if (dhp != NULL) {
+			nfscl_freedeleg(&clp->nfsc_deleg, dp, false);
+			TAILQ_INSERT_HEAD(dhp, dp, nfsdl_list);
+		} else
+			nfscl_freedeleg(&clp->nfsc_deleg, dp, true);
 	}
 	NFSFREECRED(cred);
 }
