@@ -40,8 +40,8 @@ SRCS+=	opt_apic.h
 OBJS=	linux${SFX}_vdso.so
 
 .if ${MACHINE_CPUARCH} == "i386"
-SRCS+=	linux_ptrace.c imgact_linux.c linux_util.c linux_mib.c linux_mmap.c \
-	linux_dummy.c linux_emul.c linux_errno.c opt_cpu.h linux.c
+SRCS+=	linux_ptrace_machdep.c imgact_linux.c linux_util.c linux_mib.c \
+	linux_mmap.c linux_dummy.c linux_emul.c linux_errno.c opt_cpu.h linux.c
 .endif
 
 .if ${MACHINE_CPUARCH} == "i386"
