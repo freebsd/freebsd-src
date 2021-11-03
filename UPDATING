@@ -11,6 +11,20 @@ handbook:
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20211103:
+	13.0-RELEASE-p5	FreeBSD-EN-21:26.libevent
+			FreeBSD-EN-21:27.caroot
+			FreeBSD-EN-21:28.vmci
+			FreeBSD-EN-21:29.tzdata
+
+	Fix libevent1 ABI breakage. [EN-21:26.libevent]
+
+	Root certificate bundle update. [EN-21:27.caroot]
+
+	Fix kernel panic in vmci driver initialization. [EN-21:28.vmci]
+
+	Timezone database information update. [EN-21:29.tzdata]
+	
 20210824:
 	13.0-RELEASE-p4	FreeBSD-EN-21:23.virtio_blk
 			FreeBSD-EN-21:24.libcrypto
