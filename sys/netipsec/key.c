@@ -2961,8 +2961,8 @@ key_newsav(const struct sadb_msghdr *mhp, struct secasindex *saidx,
 		*errp = ENOBUFS;
 		goto done;
 	}
-	sav->lock = malloc(sizeof(struct mtx), M_IPSEC_MISC,
-	    M_NOWAIT | M_ZERO);
+	sav->lock = malloc_aligned(max(sizeof(struct mtx), CACHE_LINE_SIZE),
+	    CACHE_LINE_SIZE, M_IPSEC_MISC, M_NOWAIT | M_ZERO);
 	if (sav->lock == NULL) {
 		*errp = ENOBUFS;
 		goto done;
