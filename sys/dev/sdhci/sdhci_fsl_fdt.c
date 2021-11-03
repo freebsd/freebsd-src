@@ -72,6 +72,12 @@ __FBSDID("$FreeBSD$");
 #define	SDHCI_FSL_PROT_CTRL_DMA_MASK	(3 << 8)
 #define	SDHCI_FSL_PROT_CTRL_VOLT_SEL	(1 << 10)
 
+#define SDHCI_FSL_IRQSTAT		0x30
+#define SDHCI_FSL_IRQSTAT_BRR		(1 << 5)
+#define SDHCI_FSL_IRQSTAT_CINTSEN	(1 << 8)
+#define SDHCI_FSL_IRQSTAT_RTE		(1 << 12)
+#define SDHCI_FSL_IRQSTAT_TNE		(1 << 26)
+
 #define	SDHCI_FSL_SYS_CTRL		0x2c
 #define	SDHCI_FSL_CLK_IPGEN		(1 << 0)
 #define	SDHCI_FSL_CLK_SDCLKEN		(1 << 3)
@@ -84,18 +90,54 @@ __FBSDID("$FreeBSD$");
 #define	SDHCI_FSL_WTMK_RD_512B		(0 << 0)
 #define	SDHCI_FSL_WTMK_WR_512B		(0 << 15)
 
+#define SDHCI_FSL_AUTOCERR		0x3C
+#define SDHCI_FSL_AUTOCERR_UHMS_HS200	(3 << 17)
+#define SDHCI_FSL_AUTOCERR_UHMS		(7 << 18)
+#define SDHCI_FSL_AUTOCERR_EXTN		(1 << 22)
+#define SDHCI_FSL_AUTOCERR_SMPCLKSEL	(1 << 23)
+
 #define	SDHCI_FSL_HOST_VERSION		0xfc
 #define	SDHCI_FSL_VENDOR_V23		0x13
+
 #define	SDHCI_FSL_CAPABILITIES2		0x114
 
 #define	SDHCI_FSL_TBCTL			0x120
+
+#define SDHCI_FSL_TBSTAT		0x124
 #define	SDHCI_FSL_TBCTL_TBEN		(1 << 2)
+#define SDHCI_FSL_TBCTL_HS400_EN	(1 << 4)
+#define SDHCI_FSL_TBCTL_SAMP_CMD_DQS	(1 << 5)
+#define SDHCI_FSL_TBCTL_HS400_WND_ADJ	(1 << 6)
+#define SDHCI_FSL_TBCTL_TB_MODE_MASK	0x3
+#define SDHCI_FSL_TBCTL_MODE_1		0
+#define SDHCI_FSL_TBCTL_MODE_2		1
+#define SDHCI_FSL_TBCTL_MODE_3		2
+#define SDHCI_FSL_TBCTL_MODE_SW		3
+
+#define SDHCI_FSL_TBPTR			0x128
+#define SDHCI_FSL_TBPTR_WND_START	0x7F00
+#define SDHCI_FSL_TBPTR_WND_END		0x7F
+
+#define SDHCI_FSL_SDCLKCTL		0x144
+#define SDHCI_FSL_SDCLKCTL_CMD_CLK_CTL	(1 << 15)
+#define SDHCI_FSL_SDCLKCTL_LPBK_CLK_SEL	(1 << 31)
+
+#define SDHCI_FSL_SDTIMINGCTL		0x148
+#define SDHCI_FSL_SDTIMINGCTL_FLW_CTL	(1 << 15)
+
+#define SDHCI_FSL_DLLCFG0		0x160
+#define SDHCI_FSL_DLLCFG0_FREQ_SEL	(1 << 27)
+#define SDHCI_FSL_DLLCFG0_EN		(1 << 31)
+
+#define SDHCI_FSL_DLLCFG1		0x164
+#define SDHCI_FSL_DLLCFG1_PULSE_STRETCH	(1 << 31)
 
 #define SDHCI_FSL_DLLCFG1               0x164
 #define SDHCI_FSL_DLLCFG1_PULSE_STRETCH (1 << 31)
 
 #define	SDHCI_FSL_ESDHC_CTRL		0x40c
 #define	SDHCI_FSL_ESDHC_CTRL_SNOOP	(1 << 6)
+#define SDHCI_FSL_ESDHC_CTRL_FAF	(1 << 18)
 #define	SDHCI_FSL_ESDHC_CTRL_CLK_DIV2	(1 << 19)
 
 #define SDHCI_FSL_CAN_VDD_MASK		\
@@ -105,6 +147,24 @@ __FBSDID("$FreeBSD$");
 #define SDHCI_FSL_UNRELIABLE_PULSE_DET	(1 << 0)
 /* On some platforms switching voltage to 1.8V is not supported */
 #define SDHCI_FSL_UNSUPP_1_8V		(1 << 1)
+/* Hardware tuning can fail, fallback to SW tuning in that case. */
+#define SDHCI_FSL_TUNING_ERRATUM_TYPE1	(1 << 2)
+/*
+ * Pointer window might not be set properly on some platforms.
+ * Check window and perform SW tuning.
+ */
+#define SDHCI_FSL_TUNING_ERRATUM_TYPE2	(1 << 3)
+/*
+ * In HS400 mode only 4, 8, 12 clock dividers can be used.
+ * Use the smallest value, bigger than requested in that case.
+ */
+#define SDHCI_FSL_HS400_LIMITED_CLK_DIV	(1 << 4)
+
+#define SDHCI_FSL_HS400_FLAG		(1 << 0)
+#define SDHCI_FSL_SWITCH_TO_HS400_FLAG	(1 << 1)
+#define SDHCI_FSL_HS400_DONE		(1 << 2)
+
+#define SDHCI_FSL_MAX_RETRIES		10
 
 struct sdhci_fsl_fdt_softc {
 	device_t				dev;
@@ -121,6 +181,8 @@ struct sdhci_fsl_fdt_softc {
 	uint16_t				sdclk_bits;
 	struct mmc_helper			fdt_helper;
 	uint8_t					vendor_ver;
+	uint32_t				flags;
+	enum mmc_bus_timing			last_mode;
 
 	uint32_t (* read)(struct sdhci_fsl_fdt_softc *, bus_size_t);
 	void (* write)(struct sdhci_fsl_fdt_softc *, bus_size_t, uint32_t);
@@ -142,7 +204,8 @@ static const struct sdhci_fsl_fdt_soc_data sdhci_fsl_fdt_ls1028a_soc_data = {
 	.quirks = SDHCI_QUIRK_DONT_SET_HISPD_BIT |
 	    SDHCI_QUIRK_BROKEN_AUTO_STOP | SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK,
 	.baseclk_div = 2,
-	.errata = SDHCI_FSL_UNRELIABLE_PULSE_DET,
+	.errata = SDHCI_FSL_UNRELIABLE_PULSE_DET |
+	    SDHCI_FSL_HS400_LIMITED_CLK_DIV,
 };
 
 static const struct sdhci_fsl_fdt_soc_data sdhci_fsl_fdt_ls1046a_soc_data = {
@@ -226,7 +289,7 @@ static void
 fsl_sdhc_fdt_set_clock(struct sdhci_fsl_fdt_softc *sc, struct sdhci_slot *slot,
     uint16_t val)
 {
-	uint32_t prescale, div, val32;
+	uint32_t prescale, div, val32, div_ratio;
 
 	sc->sdclk_bits = val & SDHCI_DIVIDERS_MASK;
 	val32 = RD4(sc, SDHCI_CLOCK_CONTROL);
@@ -248,6 +311,29 @@ fsl_sdhc_fdt_set_clock(struct sdhci_fsl_fdt_softc *sc, struct sdhci_slot *slot,
 	    slot->clock, sc->baseclk_hz / (prescale * div),
 	    sc->baseclk_hz, prescale, div);
 #endif
+
+	div_ratio = prescale * div;
+
+	/*
+	 * According to limited clock division erratum, clock dividers in hs400
+	 * can be only 4, 8 or 12
+	 */
+	if ((sc->soc_data->errata & SDHCI_FSL_HS400_LIMITED_CLK_DIV) &&
+	    (sc->slot.host.ios.timing == bus_timing_mmc_hs400 ||
+	     (sc->flags & SDHCI_FSL_HS400_FLAG))) {
+		if (div_ratio <= 4) {
+			prescale = 4;
+			div = 1;
+		} else if (div_ratio <= 8) {
+			prescale = 4;
+			div = 2;
+		} else if (div_ratio <= 12) {
+			prescale = 4;
+			div = 3;
+		} else {
+			device_printf(sc->dev, "Unsupported clock divider.\n");
+		}
+	}
 
 	prescale >>= 1;
 	div -= 1;
@@ -416,6 +502,24 @@ sdhci_fsl_fdt_write_2(device_t dev, struct sdhci_slot *slot, bus_size_t off,
 		WR4(sc, SDHCI_TRANSFER_MODE, sc->cmd_and_mode);
 		sc->cmd_and_mode = 0;
 		return;
+	/*
+	 * When switching to HS400 mode, setting these registers
+	 * is required for successful tuning.
+	 */
+	case SDHCI_HOST_CONTROL2:
+		if ((val & SDHCI_CTRL2_MMC_HS400) &&
+		    (sc->flags & SDHCI_FSL_SWITCH_TO_HS400_FLAG)) {
+			val32 = RD4(sc, SDHCI_FSL_TBCTL);
+			val32 |= SDHCI_FSL_TBCTL_HS400_EN;
+			WR4(sc, SDHCI_FSL_TBCTL, val32);
+
+			val32 = RD4(sc, SDHCI_FSL_SDCLKCTL);
+			val32 |= SDHCI_FSL_SDCLKCTL_CMD_CLK_CTL;
+			WR4(sc, SDHCI_FSL_SDCLKCTL, val32);
+
+		}
+
+		val &= ~SDHCI_CTRL2_MMC_HS400;
 	default:
 		val32 = RD4(sc, off & ~3);
 		val32 &= ~(UINT16_MAX << (off & 3) * 8);
@@ -659,6 +763,24 @@ sdhci_fsl_fdt_of_parse(device_t dev)
 }
 
 static int
+sdhci_fsl_poll_register(struct sdhci_fsl_fdt_softc *sc,
+    uint32_t reg, uint32_t mask, int value)
+{
+	int retries;
+
+	retries = SDHCI_FSL_MAX_RETRIES;
+
+	while ((RD4(sc, reg) & mask) != value) {
+		if (!retries--)
+			return (ENXIO);
+
+		DELAY(10);
+	}
+
+	return (0);
+}
+
+static int
 sdhci_fsl_fdt_attach(device_t dev)
 {
 	struct sdhci_fsl_fdt_softc *sc;
@@ -677,6 +799,8 @@ sdhci_fsl_fdt_attach(device_t dev)
 	sc->soc_data = (struct sdhci_fsl_fdt_soc_data *)ocd_data;
 	sc->dev = dev;
 	sc->slot.quirks = sc->soc_data->quirks;
+	sc->flags = 0;
+	sc->last_mode = bus_timing_normal;
 	host = &sc->slot.host;
 
 	rid = 0;
@@ -903,6 +1027,411 @@ sdhci_fsl_fdt_reset(device_t dev, struct sdhci_slot *slot, uint8_t mask)
 		val &= ~SDHCI_FSL_TBCTL_TBEN;
 		WR4(sc, SDHCI_FSL_TBCTL, val);
 	}
+
+	sc->flags &= ~SDHCI_FSL_HS400_DONE;
+}
+
+static void
+sdhci_fsl_switch_tuning_block(device_t dev, bool enable)
+{
+	struct sdhci_fsl_fdt_softc *sc;
+	uint32_t reg;
+
+	sc = device_get_softc(dev);
+
+	reg = RD4(sc, SDHCI_FSL_TBCTL);
+
+	if (enable)
+		reg |= SDHCI_FSL_TBCTL_TBEN;
+	else
+		reg &= ~SDHCI_FSL_TBCTL_TBEN;
+
+	WR4(sc, SDHCI_FSL_TBCTL, reg);
+}
+
+static int
+sdhci_hw_tuning(struct sdhci_fsl_fdt_softc *sc, device_t bus, device_t child,
+   bool hs400)
+{
+	int error, retries;
+	uint32_t reg;
+
+	retries = SDHCI_FSL_MAX_RETRIES;
+
+	/* Set SYSCTL2[EXTN] to start the tuning procedure. */
+	reg = RD4(sc, SDHCI_FSL_AUTOCERR);
+	reg |= SDHCI_FSL_AUTOCERR_EXTN;
+	WR4(sc, SDHCI_FSL_AUTOCERR, reg);
+
+	while (true) {
+		/* Execute generic tuning to issue CMD19 and CMD21. */
+		error = sdhci_generic_tune(bus, child, hs400);
+		if (error != 0) {
+			device_printf(bus, "Generic tuning failed.\n");
+			return (error);
+		}
+
+		/*
+		 * Tuning is done after a corresponding interrupt
+		 * is set.
+		 */
+		error = sdhci_fsl_poll_register(sc, SDHCI_FSL_IRQSTAT,
+		    SDHCI_FSL_IRQSTAT_BRR, SDHCI_FSL_IRQSTAT_BRR);
+		if (error)
+			device_printf(sc->dev,
+			    "Timeout while waiting for hardware to finish tuning.\n");
+
+		/* Clear IRQSTAT[BRR] register. */
+		reg = RD4(sc, SDHCI_FSL_IRQSTAT);
+		reg &= ~SDHCI_FSL_IRQSTAT_BRR;
+		WR4(sc, SDHCI_FSL_IRQSTAT, reg);
+
+		/* Check SYSCTL2[EXTN] register. */
+		if ((RD4(sc, SDHCI_FSL_AUTOCERR) &
+		    SDHCI_FSL_AUTOCERR_EXTN) == 0)
+			break;
+
+		if (!retries--) {
+			error = ENXIO;
+			device_printf(bus,
+			    "Failed to execute HW tuning.\n");
+			break;
+		}
+
+		DELAY(10);
+	}
+
+	/* Check SYSCTL2[SMPCLKSEL]. */
+	reg = RD4(sc, SDHCI_FSL_AUTOCERR);
+	if (!(reg & SDHCI_FSL_AUTOCERR_SMPCLKSEL)) {
+		error = ENXIO;
+		device_printf(bus,
+		    "Hardware tuning failed. Turning off tuning block\n");
+		sdhci_fsl_switch_tuning_block(bus, false);
+	} else
+		error = 0;
+
+	return (error);
+}
+
+static int
+sdhci_fsl_sw_tuning(struct sdhci_fsl_fdt_softc *sc, device_t bus,
+    device_t child, bool hs400, uint32_t wnd_start, uint32_t wnd_end)
+{
+	uint32_t start_p, end_p, reg;
+	int error;
+
+	wnd_start = 5 * sc->soc_data->baseclk_div;
+	wnd_end = 3 * sc->soc_data->baseclk_div;
+
+	reg = RD4(sc, SDHCI_FSL_TBCTL);
+	reg &= ~SDHCI_FSL_TBCTL_TB_MODE_MASK;
+	reg |= SDHCI_FSL_TBCTL_MODE_SW;
+	WR4(sc, SDHCI_FSL_TBCTL, reg);
+
+	reg = RD4(sc, SDHCI_FSL_TBPTR);
+	start_p = reg | SDHCI_FSL_TBPTR_WND_START;
+	end_p = reg | SDHCI_FSL_TBPTR_WND_END;
+
+	if (abs(start_p - end_p) > (4 * sc->soc_data->baseclk_div + 2)) {
+		wnd_start = 8 * sc->soc_data->baseclk_div;
+		wnd_end = 4 * sc->soc_data->baseclk_div;
+	} else {
+		wnd_start = 5 * sc->soc_data->baseclk_div;
+		wnd_end = 3 * sc->soc_data->baseclk_div;
+	}
+
+	reg |= (wnd_start << 14);
+	reg |= (wnd_end << 6);
+	WR4(sc, SDHCI_FSL_TBPTR, reg);
+
+	reg = RD4(sc, SDHCI_FSL_AUTOCERR);
+	reg |= SDHCI_FSL_AUTOCERR_EXTN | SDHCI_FSL_AUTOCERR_SMPCLKSEL;
+	WR4(sc, SDHCI_FSL_AUTOCERR, reg);
+
+	error = sdhci_generic_tune(bus, child, hs400);
+	if (error != 0) {
+		device_printf(bus,
+		    "Failed to execute generic tune while performing software tuning.\n");
+		return (error);
+	}
+
+	reg = RD4(sc, SDHCI_FSL_IRQSTAT);
+	reg &= ~SDHCI_FSL_IRQSTAT_BRR;
+	WR4(sc, SDHCI_FSL_IRQSTAT, reg);
+
+	reg = RD4(sc, SDHCI_FSL_AUTOCERR);
+	if (!(reg & SDHCI_FSL_AUTOCERR_SMPCLKSEL)) {
+		/* Error occured, need to disable tuning block. */
+		reg = RD4(sc, SDHCI_FSL_TBCTL);
+		reg &= ~SDHCI_FSL_TBCTL_TBEN;
+		WR4(sc, SDHCI_FSL_TBCTL, reg);
+		error = ENXIO;
+	}
+
+	return (error);
+}
+
+static int
+sdhci_fsl_fdt_tune(device_t bus, device_t child, bool hs400)
+{
+	uint32_t wnd_start, wnd_end, clk_divider, reg;
+	struct sdhci_fsl_fdt_softc *sc;
+	struct sdhci_slot *slot;
+	int error;
+
+	sc = device_get_softc(bus);
+	slot = device_get_ivars(child);
+	error = 0;
+	clk_divider = slot->max_clk / slot->clock;
+
+	/* For tuning mode SD clock divider must be within 3 to 16. */
+	if (clk_divider < 3 || clk_divider > 16)
+		return (ENXIO);
+
+	if (hs400)
+		sc->flags |= SDHCI_FSL_HS400_FLAG;
+
+	/* Disable clock. */
+	fsl_sdhc_fdt_set_clock(sc, slot, sc->sdclk_bits);
+
+	/* Wait for PRSSTAT[SDSTB] to be set by hardware. */
+	error = sdhci_fsl_poll_register(sc, SDHCI_FSL_PRES_STATE,
+	    SDHCI_FSL_PRES_SDSTB, SDHCI_FSL_PRES_SDSTB);
+	if (error != 0)
+		device_printf(bus,
+		    "Timeout while waiting for hardware.\n");
+
+	/* Set ESDHCCTL[FAF] register. */
+	reg = RD4(sc, SDHCI_FSL_ESDHC_CTRL);
+	reg |= SDHCI_FSL_ESDHC_CTRL_FAF;
+	WR4(sc, SDHCI_FSL_ESDHC_CTRL, reg);
+
+	/* Wait for ESDHC[FAF] to be cleared by hardware. */
+	error = sdhci_fsl_poll_register(sc, SDHCI_FSL_ESDHC_CTRL,
+	    SDHCI_FSL_ESDHC_CTRL_FAF, 0);
+	if (error)
+		device_printf(bus,
+		    "Timeout while waiting for hardware.\n");
+
+	/* Set AUTOCERR[UHSM] register. */
+	reg = RD4(sc, SDHCI_FSL_AUTOCERR);
+	reg &= ~SDHCI_FSL_AUTOCERR_UHMS;
+	reg |= SDHCI_FSL_AUTOCERR_UHMS_HS200;
+	WR4(sc, SDHCI_FSL_AUTOCERR, reg);
+
+	/* Set TBCTL[TB_EN] register and program valid tuning mode. */
+	reg = RD4(sc, SDHCI_FSL_TBCTL);
+	reg &= ~SDHCI_FSL_TBCTL_TB_MODE_MASK;
+	reg |= SDHCI_FSL_TBCTL_TBEN | SDHCI_FSL_TBCTL_MODE_3;
+	WR4(sc, SDHCI_FSL_TBCTL, reg);
+
+	/* Enable clock. */
+	fsl_sdhc_fdt_set_clock(sc, slot, SDHCI_CLOCK_CARD_EN | sc->sdclk_bits);
+
+	/* Wait for clock to stabilize. */
+	error = sdhci_fsl_poll_register(sc, SDHCI_FSL_PRES_STATE,
+	    SDHCI_FSL_PRES_SDSTB, SDHCI_FSL_PRES_SDSTB);
+	if (error)
+		device_printf(bus,
+		    "Timeout while waiting for clock to stabilize.\n");
+
+	/* Perform hardware tuning. */
+	error = sdhci_hw_tuning(sc, bus, child, hs400);
+
+	reg = RD4(sc, SDHCI_FSL_TBPTR);
+	wnd_start = reg & SDHCI_FSL_TBPTR_WND_START;
+	wnd_end = reg & SDHCI_FSL_TBPTR_WND_END;
+
+	/* For erratum type2 affected platforms, check tuning pointer window. */
+	if (sc->soc_data->errata & SDHCI_FSL_TUNING_ERRATUM_TYPE2) {
+		if (abs(wnd_start - wnd_end) >
+		    (4 * sc->soc_data->baseclk_div + 2))
+			error = ENXIO;
+	}
+
+	if (error != 0 &&
+	    (sc->soc_data->errata &
+	    (SDHCI_FSL_TUNING_ERRATUM_TYPE1 |
+	    SDHCI_FSL_TUNING_ERRATUM_TYPE2))) {
+		/* If hardware tuning failed, try software tuning. */
+		error = sdhci_fsl_sw_tuning(sc, bus, child, hs400, wnd_start,
+		    wnd_end);
+		if (error != 0)
+			device_printf(bus, "Software tuning failed.\n");
+	}
+
+	if (error != 0) {
+		sdhci_fsl_switch_tuning_block(bus, false);
+
+		return (error);
+	}
+
+	if (hs400) {
+		reg = RD4(sc, SDHCI_FSL_SDTIMINGCTL);
+		reg |= SDHCI_FSL_SDTIMINGCTL_FLW_CTL;
+		WR4(sc, SDHCI_FSL_SDTIMINGCTL, reg);
+
+		/*
+		 * Tuning block needs to be disabled now.
+		 * It will be enabled by set_uhs_signalling
+		 */
+		reg = RD4(sc, SDHCI_FSL_TBCTL);
+		reg &= ~SDHCI_FSL_TBCTL_TBEN;
+		WR4(sc, SDHCI_FSL_TBCTL, reg);
+	}
+
+	return (0);
+}
+
+static void
+sdhci_fsl_disable_hs400_mode(device_t dev, struct sdhci_fsl_fdt_softc *sc)
+{
+	uint32_t reg;
+	int error;
+
+	reg = RD4(sc, SDHCI_FSL_SDTIMINGCTL);
+	reg &= ~SDHCI_FSL_SDTIMINGCTL_FLW_CTL;
+	WR4(sc, SDHCI_FSL_SDTIMINGCTL, reg);
+
+	reg = RD4(sc, SDHCI_FSL_SDCLKCTL);
+	reg &= ~SDHCI_FSL_SDCLKCTL_CMD_CLK_CTL;
+	WR4(sc, SDHCI_FSL_SDCLKCTL, reg);
+
+	fsl_sdhc_fdt_set_clock(sc, &sc->slot, sc->sdclk_bits);
+	error = sdhci_fsl_poll_register(sc, SDHCI_FSL_PRES_STATE,
+	    SDHCI_FSL_PRES_SDSTB, SDHCI_FSL_PRES_SDSTB);
+	if (error != 0)
+		device_printf(dev,
+		    "Internal clock never stabilized.\n");
+
+	reg = RD4(sc, SDHCI_FSL_TBCTL);
+	reg &= ~SDHCI_FSL_TBCTL_HS400_EN;
+	WR4(sc, SDHCI_FSL_TBCTL, reg);
+
+	fsl_sdhc_fdt_set_clock(sc, &sc->slot, SDHCI_CLOCK_CARD_EN |
+	    sc->sdclk_bits);
+
+	error = sdhci_fsl_poll_register(sc, SDHCI_FSL_PRES_STATE,
+	    SDHCI_FSL_PRES_SDSTB, SDHCI_FSL_PRES_SDSTB);
+	if (error != 0)
+		device_printf(dev,
+		    "Internal clock never stabilized.\n");
+
+	reg = RD4(sc, SDHCI_FSL_DLLCFG0);
+	reg &= ~(SDHCI_FSL_DLLCFG0_EN |
+	    SDHCI_FSL_DLLCFG0_FREQ_SEL);
+	WR4(sc, SDHCI_FSL_DLLCFG0, reg);
+
+	reg = RD4(sc, SDHCI_FSL_TBCTL);
+	reg &= ~SDHCI_FSL_TBCTL_HS400_WND_ADJ;
+	WR4(sc, SDHCI_FSL_TBCTL, reg);
+
+	sdhci_fsl_switch_tuning_block(dev, false);
+}
+
+static void
+sdhci_fsl_enable_hs400_mode(device_t dev, struct sdhci_slot *slot,
+    struct sdhci_fsl_fdt_softc *sc)
+{
+	uint32_t reg;
+	int error;
+
+	sdhci_fsl_switch_tuning_block(dev, true);
+	fsl_sdhc_fdt_set_clock(sc, slot, sc->sdclk_bits);
+
+	error = sdhci_fsl_poll_register(sc, SDHCI_FSL_PRES_STATE,
+	    SDHCI_FSL_PRES_SDSTB, SDHCI_FSL_PRES_SDSTB);
+	if (error != 0)
+		device_printf(dev, "Internal clock never stabilized.\n");
+
+	fsl_sdhc_fdt_set_clock(sc, slot, SDHCI_CLOCK_CARD_EN |
+	    sc->sdclk_bits);
+	error = sdhci_fsl_poll_register(sc, SDHCI_FSL_PRES_STATE,
+	    SDHCI_FSL_PRES_SDSTB, SDHCI_FSL_PRES_SDSTB);
+	if (error != 0)
+		device_printf(dev, "Internal clock never stabilized.\n");
+
+	reg = sc->read(sc, SDHCI_FSL_DLLCFG0);
+	reg |= SDHCI_FSL_DLLCFG0_EN | SDHCI_FSL_DLLCFG0_FREQ_SEL;
+	sc->write(sc, SDHCI_FSL_DLLCFG0, reg);
+
+	DELAY(20);
+
+	reg = sc->read(sc, SDHCI_FSL_TBCTL);
+	reg |= SDHCI_FSL_TBCTL_HS400_WND_ADJ;
+	sc->write(sc, SDHCI_FSL_TBCTL, reg);
+
+	fsl_sdhc_fdt_set_clock(sc, slot, sc->sdclk_bits);
+
+	error = sdhci_fsl_poll_register(sc, SDHCI_FSL_PRES_STATE,
+	    SDHCI_FSL_PRES_SDSTB, SDHCI_FSL_PRES_SDSTB);
+	if (error != 0)
+		device_printf(dev,
+		    "Timeout while waiting for clock to stabilize.\n");
+
+	reg = sc->read(sc, SDHCI_FSL_ESDHC_CTRL);
+	reg |= SDHCI_FSL_ESDHC_CTRL_FAF;
+	sc->write(sc, SDHCI_FSL_ESDHC_CTRL, reg);
+
+	error = sdhci_fsl_poll_register(sc, SDHCI_FSL_ESDHC_CTRL,
+	    SDHCI_FSL_ESDHC_CTRL_FAF, 0);
+	if (error != 0)
+		device_printf(dev,
+		    "Timeout while waiting for hardware.\n");
+
+	fsl_sdhc_fdt_set_clock(sc, slot, SDHCI_CLOCK_CARD_EN |
+	    sc->sdclk_bits);
+
+	error = sdhci_fsl_poll_register(sc, SDHCI_FSL_PRES_STATE,
+	    SDHCI_FSL_PRES_SDSTB, SDHCI_FSL_PRES_SDSTB);
+	if (error != 0)
+		device_printf(dev,
+		    "Timeout while waiting for clock to stabilize.\n");
+
+	sdhci_generic_set_uhs_timing(dev, slot);
+	sc->flags = SDHCI_FSL_HS400_DONE;
+}
+
+static void
+sdhci_fsl_fdt_set_uhs_timing(device_t dev, struct sdhci_slot *slot)
+{
+	struct sdhci_fsl_fdt_softc *sc;
+	uint32_t reg;
+
+	sc = device_get_softc(dev);
+
+	if (sc->flags & SDHCI_FSL_HS400_DONE)
+		return;
+
+	reg = RD4(sc, SDHCI_FSL_TBCTL);
+
+	if (slot->host.ios.timing == bus_timing_hs &&
+	    (!(sc->flags & SDHCI_FSL_SWITCH_TO_HS400_FLAG)) &&
+	    sc->last_mode >= bus_timing_mmc_hs200) {
+		sdhci_fsl_switch_tuning_block(dev, false);
+
+		if (reg & SDHCI_FSL_TBCTL_HS400_EN)
+			sdhci_fsl_disable_hs400_mode(dev, sc);
+
+		sc->flags |= SDHCI_FSL_SWITCH_TO_HS400_FLAG;
+
+		return;
+	}
+
+	if ((slot->host.ios.timing == bus_timing_mmc_hs400) &&
+	    sc->flags & SDHCI_FSL_SWITCH_TO_HS400_FLAG) {
+		if (sc->last_mode < bus_timing_uhs_sdr50) {
+			sc->last_mode = sc->slot.host.ios.timing;
+			return;
+		}
+
+		sdhci_fsl_enable_hs400_mode(dev, slot, sc);
+
+	} else
+		sdhci_generic_set_uhs_timing(dev, slot);
+
+	sc->last_mode = sc->slot.host.ios.timing;
 }
 
 static const device_method_t sdhci_fsl_fdt_methods[] = {
@@ -922,6 +1451,8 @@ static const device_method_t sdhci_fsl_fdt_methods[] = {
 	DEVMETHOD(mmcbr_release_host,		sdhci_generic_release_host),
 	DEVMETHOD(mmcbr_switch_vccq,		sdhci_fsl_fdt_switch_vccq),
 	DEVMETHOD(mmcbr_update_ios,		sdhci_fsl_fdt_update_ios),
+	DEVMETHOD(mmcbr_tune,			sdhci_fsl_fdt_tune),
+	DEVMETHOD(mmcbr_retune,			sdhci_generic_retune),
 
 	/* SDHCI accessors. */
 	DEVMETHOD(sdhci_read_1,			sdhci_fsl_fdt_read_1),
@@ -934,6 +1465,7 @@ static const device_method_t sdhci_fsl_fdt_methods[] = {
 	DEVMETHOD(sdhci_write_multi_4,		sdhci_fsl_fdt_write_multi_4),
 	DEVMETHOD(sdhci_get_card_present,	sdhci_fsl_fdt_get_card_present),
 	DEVMETHOD(sdhci_reset,			sdhci_fsl_fdt_reset),
+	DEVMETHOD(sdhci_set_uhs_timing,		sdhci_fsl_fdt_set_uhs_timing),
 	DEVMETHOD_END
 };
 
