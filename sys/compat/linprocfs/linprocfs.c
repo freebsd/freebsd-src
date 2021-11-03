@@ -1089,12 +1089,12 @@ linprocfs_doprocstatus(PFS_FILL_ARGS)
 	sbuf_printf(sb, "Pid:\t%d\n",		p->p_pid);
 	sbuf_printf(sb, "PPid:\t%d\n",		kp.ki_ppid );
 	sbuf_printf(sb, "TracerPid:\t%d\n",	kp.ki_tracer );
-	sbuf_printf(sb, "Uid:\t%d %d %d %d\n",	p->p_ucred->cr_ruid,
+	sbuf_printf(sb, "Uid:\t%d\t%d\t%d\t%d\n", p->p_ucred->cr_ruid,
 						p->p_ucred->cr_uid,
 						p->p_ucred->cr_svuid,
 						/* FreeBSD doesn't have fsuid */
 						p->p_ucred->cr_uid);
-	sbuf_printf(sb, "Gid:\t%d %d %d %d\n",	p->p_ucred->cr_rgid,
+	sbuf_printf(sb, "Gid:\t%d\t%d\t%d\t%d\n", p->p_ucred->cr_rgid,
 						p->p_ucred->cr_gid,
 						p->p_ucred->cr_svgid,
 						/* FreeBSD doesn't have fsgid */
