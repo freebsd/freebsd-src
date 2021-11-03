@@ -1,0 +1,10 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+	compatible = "allwinner,sun8i-h3";
+};
+
+&{/soc/i2c@1c2b000} {
+	status = "okay";
+};
