@@ -530,13 +530,20 @@ interpret:
 		}
 	} else {
 		AUDIT_ARG_FD(args->fd);
+
 		/*
-		 * Descriptors opened only with O_EXEC or O_RDONLY are allowed.
+		 * If the descriptors was not opened with O_PATH, then
+		 * we require that it was opened with O_EXEC or
+		 * O_RDONLY.  In either case, exec_check_permissions()
+		 * below checks _current_ file access mode regardless
+		 * of the permissions additionally checked at the
+		 * open(2).
 		 */
 		error = fgetvp_exec(td, args->fd, &cap_fexecve_rights,
 		    &newtextvp);
-		if (error)
+		if (error != 0)
 			goto exec_fail;
+
 		if (vn_fullpath(newtextvp, &imgp->execpath,
 		    &imgp->freepath) != 0)
 			imgp->execpath = args->fname;
@@ -881,7 +888,7 @@ interpret:
 
 	/*
 	 * Store the vp for use in kern.proc.pathname.  This vnode was
-	 * referenced by namei() or fgetvp_exec().
+	 * referenced by namei() or by fexecve variant of fname handling.
 	 */
 	oldtextvp = p->p_textvp;
 	p->p_textvp = newtextvp;
