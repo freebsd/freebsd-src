@@ -492,7 +492,7 @@ static int max_kstack_used;
 
 SYSCTL_INT(_debug, OID_AUTO, max_kstack_used, CTLFLAG_RD,
     &max_kstack_used, 0,
-    "Maxiumum stack depth used by a thread in kernel");
+    "Maximum stack depth used by a thread in kernel");
 
 void
 intr_prof_stack_use(struct thread *td, struct trapframe *frame)
