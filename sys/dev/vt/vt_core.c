@@ -121,7 +121,7 @@ const struct terminal_class vt_termclass = {
 
 /* Bell pitch/duration. */
 #define	VT_BELLDURATION	(SBT_1S / 20)
-#define	VT_BELLPITCH	800
+#define	VT_BELLPITCH	(1193182 / 800) /* Approx 1491Hz */
 
 #define	VT_UNIT(vw)	((vw)->vw_device->vd_unit * VT_MAXWINDOWS + \
 			(vw)->vw_number)
@@ -1094,7 +1094,7 @@ vt_allocate_keyboard(struct vt_device *vd)
 
 #define DEVCTL_LEN 64
 static void
-vtterm_devctl(bool enabled, int hz, sbintime_t duration)
+vtterm_devctl(bool enabled, bool hushed, int hz, sbintime_t duration)
 {
 	struct sbuf sb;
 	char *buf;
@@ -1103,8 +1103,9 @@ vtterm_devctl(bool enabled, int hz, sbintime_t duration)
 	if (buf == NULL)
 		return;
 	sbuf_new(&sb, buf, DEVCTL_LEN, SBUF_FIXEDLEN);
-	sbuf_printf(&sb, "enabled=%s hz=%d duration_ms=%d",
-	    enabled ? "true" : "false", hz, (int)(duration / SBT_1MS));
+	sbuf_printf(&sb, "enabled=%s hushed=%s hz=%d duration_ms=%d",
+	    enabled ? "true" : "false", hushed ? "true" : "false",
+	    hz, (int)(duration / SBT_1MS));
 	sbuf_finish(&sb);
 	if (sbuf_error(&sb) == 0)
 		devctl_notify("VT", "BELL", "RING", sbuf_data(&sb));
@@ -1118,8 +1119,8 @@ vtterm_bell(struct terminal *tm)
 	struct vt_window *vw = tm->tm_softc;
 	struct vt_device *vd = vw->vw_device;
 
-	vtterm_devctl(vt_enable_bell, vw->vw_bell_pitch,
-		vw->vw_bell_duration);
+	vtterm_devctl(vt_enable_bell, vd->vd_flags & VDF_QUIET_BELL,
+	    vw->vw_bell_pitch, vw->vw_bell_duration);
 
 	if (!vt_enable_bell)
 		return;
@@ -1139,6 +1140,8 @@ vtterm_beep(struct terminal *tm, u_int param)
 {
 	u_int freq;
 	sbintime_t period;
+	struct vt_window *vw = tm->tm_softc;
+	struct vt_device *vd = vw->vw_device;
 
 	if ((param == 0) || ((param & 0xffff) == 0)) {
 		vtterm_bell(tm);
@@ -1148,7 +1151,8 @@ vtterm_beep(struct terminal *tm, u_int param)
 	period = ((param >> 16) & 0xffff) * SBT_1MS;
 	freq = 1193182 / (param & 0xffff);
 
-	vtterm_devctl(vt_enable_bell, freq, period);
+	vtterm_devctl(vt_enable_bell, vd->vd_flags & VDF_QUIET_BELL,
+	    freq, period);
 
 	if (!vt_enable_bell)
 		return;
