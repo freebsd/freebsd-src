@@ -5019,7 +5019,7 @@ static uint32_t
 key_do_getnewspi(struct sadb_spirange *spirange, struct secasindex *saidx)
 {
 	uint32_t min, max, newspi, t;
-	int count = V_key_spi_trycnt;
+	int tries, limit;
 
 	/* set spi range to allocate */
 	if (spirange != NULL) {
@@ -5047,21 +5047,22 @@ key_do_getnewspi(struct sadb_spirange *spirange, struct secasindex *saidx)
 			return 0;
 		}
 
-		count--; /* taking one cost. */
+		tries = 1;
 		newspi = min;
 	} else {
 		/* init SPI */
 		newspi = 0;
 
+		limit = atomic_load_int(&V_key_spi_trycnt);
 		/* when requesting to allocate spi ranged */
-		while (count--) {
+		for (tries = 0; tries < limit; tries++) {
 			/* generate pseudo-random SPI value ranged. */
 			newspi = min + (key_random() % (max - min + 1));
 			if (!key_checkspidup(htonl(newspi)))
 				break;
 		}
 
-		if (count == 0 || newspi == 0) {
+		if (tries == limit || newspi == 0) {
 			ipseclog((LOG_DEBUG,
 			    "%s: failed to allocate SPI.\n", __func__));
 			return 0;
@@ -5070,7 +5071,7 @@ key_do_getnewspi(struct sadb_spirange *spirange, struct secasindex *saidx)
 
 	/* statistics */
 	keystat.getspi_count =
-	    (keystat.getspi_count + V_key_spi_trycnt - count) / 2;
+	    (keystat.getspi_count + tries) / 2;
 
 	return (htonl(newspi));
 }
