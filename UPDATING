@@ -16,6 +16,16 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20211103:	p11	FreeBSD-EN-21:27.caroot
+			FreeBSD-EN-21:28.vmci
+			FreeBSD-EN-21:29.tzdata
+
+		Root certificate bundle update. [EN-21:27.caroot]
+
+		Fix kernel panic in vmci driver initialization. [EN-21:28.vmci]
+
+		Timezone database information update. [EN-21:29.tzdata]
+
 20210824:	p10	FreeBSD-EN-21:24.libcrypto
 			FreeBSD-EN-21:25.bhyve
 			FreeBSD-SA-21:13.bhyve
