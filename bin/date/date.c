@@ -383,11 +383,11 @@ static void
 usage(void)
 {
 	(void)fprintf(stderr, "%s\n%s\n%s\n",
-	    "usage: date [-jnRu] [-r seconds|file] [-v[+|-]val[ymwdHMS]]",
+	    "usage: date [-jnRu] [-I[date|hours|minutes|seconds]] [-f input_fmt]",
 	    "            "
-	    "[-I[date | hours | minutes | seconds]]",
+	    "[-r filename|seconds] [-v[+|-]val[y|m|w|d|H|M|S]]",
 	    "            "
-	    "[-f fmt date | [[[[[cc]yy]mm]dd]HH]MM[.ss]] [+format]"
+	    "[[[[[[cc]yy]mm]dd]HH]MM[.ss] | new_date] [+output_fmt]"
 	    );
 	exit(1);
 }
