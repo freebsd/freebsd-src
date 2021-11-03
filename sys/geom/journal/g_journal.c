@@ -2445,7 +2445,7 @@ g_journal_destroy(struct g_journal_softc *sc)
 		if (cp->acr + cp->acw + cp->ace > 0)
 			g_access(cp, -1, -1, -1);
 		/*
-		 * We keep all consumers open for writting, so if I'll detach
+		 * We keep all consumers open for writing, so if I'll detach
 		 * and destroy consumer here, I'll get providers for taste, so
 		 * journal will be started again.
 		 * Sending an event here, prevents this from happening.
