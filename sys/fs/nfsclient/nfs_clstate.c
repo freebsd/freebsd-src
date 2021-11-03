@@ -4907,6 +4907,7 @@ int
 nfscl_getref(struct nfsmount *nmp)
 {
 	struct nfsclclient *clp;
+	int ret;
 
 	NFSLOCKCLSTATE();
 	clp = nfscl_findcl(nmp);
@@ -4914,9 +4915,12 @@ nfscl_getref(struct nfsmount *nmp)
 		NFSUNLOCKCLSTATE();
 		return (0);
 	}
-	nfsv4_getref(&clp->nfsc_lock, NULL, NFSCLSTATEMUTEXPTR, NULL);
+	nfsv4_getref(&clp->nfsc_lock, NULL, NFSCLSTATEMUTEXPTR, nmp->nm_mountp);
+	ret = 1;
+	if (NFSCL_FORCEDISM(nmp->nm_mountp))
+		ret = 0;
 	NFSUNLOCKCLSTATE();
-	return (1);
+	return (ret);
 }
 
 /*
