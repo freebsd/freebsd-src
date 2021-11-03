@@ -1298,9 +1298,13 @@ newnfs_nmcancelreqs(struct nfsmount *nmp)
 {
 	struct nfsclds *dsp;
 	struct __rpc_client *cl;
+	int i;
 
 	if (nmp->nm_sockreq.nr_client != NULL)
 		CLNT_CLOSE(nmp->nm_sockreq.nr_client);
+	for (i = 0; i < nmp->nm_aconnect; i++)
+		if (nmp->nm_aconn[i] != NULL)
+			CLNT_CLOSE(nmp->nm_aconn[i]);
 lookformore:
 	NFSLOCKMNT(nmp);
 	TAILQ_FOREACH(dsp, &nmp->nm_sess, nfsclds_list) {
