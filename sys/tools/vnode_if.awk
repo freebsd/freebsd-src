@@ -473,6 +473,8 @@ if (cfile) {
 	printc("\t\tpanic(\"%s: vop_vector %p already registered\",")
 	printc("\t\t    __func__, orig_vop);");
 	printc("");
+	printc("\tcache_vop_vector_register(orig_vop);");
+	printc("");
 	for (name in funcarr) {
 		printc("\tvop = orig_vop;");
 		printc("\twhile (vop != NULL && \\");

@@ -650,6 +650,7 @@ int	cache_symlink_resolve(struct cache_fpl *fpl, const char *string,
 void	cache_vop_rename(struct vnode *fdvp, struct vnode *fvp, struct vnode *tdvp,
     struct vnode *tvp, struct componentname *fcnp, struct componentname *tcnp);
 void	cache_vop_rmdir(struct vnode *dvp, struct vnode *vp);
+void	cache_vop_vector_register(struct vop_vector *);
 #ifdef INVARIANTS
 void	cache_validate(struct vnode *dvp, struct vnode *vp,
 	    struct componentname *cnp);
