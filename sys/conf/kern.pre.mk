@@ -114,7 +114,8 @@ SAN_CFLAGS+=	-fsanitize=kernel-address \
 		-mllvm -asan-instrument-dynamic-allocas=true \
 		-mllvm -asan-globals=true \
 		-mllvm -asan-use-after-scope=true \
-		-mllvm -asan-instrumentation-with-call-threshold=0
+		-mllvm -asan-instrumentation-with-call-threshold=0 \
+		-mllvm -asan-instrument-byval=false
 .endif
 
 KCSAN_ENABLED!=	grep KCSAN opt_global.h || true ; echo
