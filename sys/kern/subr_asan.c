@@ -119,7 +119,7 @@ kasan_shadow_map(vm_offset_t addr, size_t size)
 	    ("%s: invalid address range %#lx-%#lx", __func__, sva, eva));
 
 	for (i = 0; i < npages; i++)
-		pmap_kasan_enter(sva + ptoa(i));
+		pmap_san_enter(sva + ptoa(i));
 }
 
 void
