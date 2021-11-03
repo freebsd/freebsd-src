@@ -100,7 +100,7 @@
 #define OCS_RSVD_INI_IO			8
 
 #define OCS_MIN_DMA_ALIGNMENT		16
-#define OCS_MAX_DMA_ALLOC		(64*1024)	/* maxium DMA allocation that is expected to reliably succeed  */
+#define OCS_MAX_DMA_ALLOC		(64*1024)	/* maximum DMA allocation that is expected to reliably succeed  */
 
 /*
  * Macros used to size the CQ hash table. We want to round up to the next
@@ -465,7 +465,7 @@ typedef struct ocs_dma_s {
  * Return maximum supported DMA allocation size, given alignment
  * requirement.
  *
- * @return maxiumum supported DMA allocation size
+ * @return maximum supported DMA allocation size
  */
 static inline uint32_t ocs_max_dma_alloc(ocs_os_handle_t os, size_t align)
 {
