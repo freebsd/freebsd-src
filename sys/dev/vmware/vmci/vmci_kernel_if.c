@@ -70,7 +70,7 @@ void
 vmci_cleanup_lock(vmci_lock *lock)
 {
 
-	if mtx_initialized(lock)
+	if (mtx_initialized(lock))
 		mtx_destroy(lock);
 }
 
