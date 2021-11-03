@@ -5703,6 +5703,7 @@ init_link_config(struct port_info *pi)
 
 	PORT_LOCK_ASSERT_OWNED(pi);
 
+	lc->requested_caps = 0;
 	lc->requested_speed = 0;
 
 	if (t4_autoneg == 0)
@@ -7770,6 +7771,8 @@ cxgbe_sysctls(struct port_info *pi)
 	    sysctl_autoneg, "I",
 	    "autonegotiation (-1 = not supported)");
 
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "rcaps", CTLFLAG_RD,
+	    &pi->link_cfg.requested_caps, 0, "L1 config requested by driver");
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "pcaps", CTLFLAG_RD,
 	    &pi->link_cfg.pcaps, 0, "port capabilities");
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "acaps", CTLFLAG_RD,

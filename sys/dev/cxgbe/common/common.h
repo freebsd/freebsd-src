@@ -444,6 +444,7 @@ struct link_config {
 	int8_t requested_fc;	/* flow control */
 	int8_t requested_fec;	/* FEC */
 	u_int requested_speed;	/* speed (Mbps) */
+	uint32_t requested_caps;/* rcap in last l1cfg issued by the driver. */
 
 	uint32_t pcaps;		/* link capabilities */
 	uint32_t acaps;		/* advertised capabilities */
