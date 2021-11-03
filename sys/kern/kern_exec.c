@@ -537,7 +537,7 @@ interpret:
 		    &newtextvp);
 		if (error)
 			goto exec_fail;
-		if (vn_fullpath(imgp->vp, &imgp->execpath,
+		if (vn_fullpath(newtextvp, &imgp->execpath,
 		    &imgp->freepath) != 0)
 			imgp->execpath = args->fname;
 		vn_lock(newtextvp, LK_SHARED | LK_RETRY);
