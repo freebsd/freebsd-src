@@ -108,6 +108,7 @@ __FBSDID("$FreeBSD$");
 #define LINUX_PTRACE_PEEKUSER_DS	184
 
 #define	LINUX_ARCH_AMD64		0xc000003e
+#define	LINUX_ARCH_AARCH64		0xc00000b7
 
 static int
 map_signum(int lsig, int *bsigp)
@@ -217,6 +218,7 @@ linux_ptrace_peekuser(struct thread *td, pid_t pid, void *addr, void *data)
 		return (error);
 
 	switch ((uintptr_t)addr) {
+#ifdef __amd64__
 	case LINUX_PTRACE_PEEKUSER_ORIG_RAX:
 		val = b_reg.r_rax;
 		break;
@@ -229,6 +231,7 @@ linux_ptrace_peekuser(struct thread *td, pid_t pid, void *addr, void *data)
 	case LINUX_PTRACE_PEEKUSER_DS:
 		val = b_reg.r_ds;
 		break;
+#endif /* __amd64__ */
 	default:
 		linux_msg(td, "PTRACE_PEEKUSER offset %ld not implemented; "
 		    "returning EINVAL", (uintptr_t)addr);
@@ -343,20 +346,25 @@ linux_ptrace_getregs(struct thread *td, pid_t pid, void *data)
 	struct ptrace_lwpinfo lwpinfo;
 	struct reg b_reg;
 	struct linux_pt_regset l_regset;
+#ifdef __amd64__
 	struct pcb *pcb;
+#endif
 	int error;
 
 	error = kern_ptrace(td, PT_GETREGS, pid, &b_reg, 0);
 	if (error != 0)
 		return (error);
 
+	bsd_to_linux_regset(&b_reg, &l_regset);
+
+#ifdef __amd64__
 	pcb = td->td_pcb;
 	if (td == curthread)
 		update_pcb_bases(pcb);
 
-	bsd_to_linux_regset(&b_reg, &l_regset);
 	l_regset.fs_base = pcb->pcb_fsbase;
 	l_regset.gs_base = pcb->pcb_gsbase;
+#endif
 
 	error = kern_ptrace(td, PT_LWPINFO, pid, &lwpinfo, sizeof(lwpinfo));
 	if (error != 0) {
@@ -404,7 +412,9 @@ linux_ptrace_getregset_prstatus(struct thread *td, pid_t pid, l_ulong data)
 	struct reg b_reg;
 	struct linux_pt_regset l_regset;
 	struct iovec iov;
+#ifdef __amd64__
 	struct pcb *pcb;
+#endif
 	size_t len;
 	int error;
 
@@ -418,13 +428,16 @@ linux_ptrace_getregset_prstatus(struct thread *td, pid_t pid, l_ulong data)
 	if (error != 0)
 		return (error);
 
+	bsd_to_linux_regset(&b_reg, &l_regset);
+
+#ifdef __amd64__
 	pcb = td->td_pcb;
 	if (td == curthread)
 		update_pcb_bases(pcb);
 
-	bsd_to_linux_regset(&b_reg, &l_regset);
 	l_regset.fs_base = pcb->pcb_fsbase;
 	l_regset.gs_base = pcb->pcb_gsbase;
+#endif
 
 	error = kern_ptrace(td, PT_LWPINFO, pid, &lwpinfo, sizeof(lwpinfo));
 	if (error != 0) {
@@ -569,9 +582,17 @@ linux_ptrace_get_syscall_info(struct thread *td, pid_t pid,
 	if (error != 0)
 		return (error);
 
+#if defined(__amd64__)
 	si.arch = LINUX_ARCH_AMD64;
 	si.instruction_pointer = b_reg.r_rip;
 	si.stack_pointer = b_reg.r_rsp;
+#elif defined(__aarch64__)
+	si.arch = LINUX_ARCH_AARCH64;
+	si.instruction_pointer = b_reg.lr;
+	si.stack_pointer = b_reg.sp;
+#else
+#error "unknown architecture"
+#endif
 
 	len = MIN(len, sizeof(si));
 	error = copyout(&si, (void *)data, len);
