@@ -40,13 +40,6 @@
 #ifndef	_MACHINE_PROC_H_
 #define	_MACHINE_PROC_H_
 
-#include <machine/utrap.h>
-
-struct md_utrap {
-	utrap_entry_t *ut_precise[UT_MAX];	/* must be first */
-	int	ut_refcnt;
-};
-
 struct mdthread {
 	int	md_spinlock_count;	/* (k) */
 	register_t md_saved_cspr;	/* (k) */
@@ -58,8 +51,7 @@ struct mdthread {
 };
 
 struct mdproc {
-	struct	md_utrap *md_utrap;
-	void	*md_sigtramp;
+	long	md_dummy;
 };
 
 #define	KINFO_PROC_SIZE 816
