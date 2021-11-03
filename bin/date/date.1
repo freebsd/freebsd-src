@@ -39,34 +39,55 @@
 .Nm date
 .Nd display or set date and time
 .Sh SYNOPSIS
+.\" Display time.
 .Nm
-.Op Fl jnRu
-.Op Fl r Ar seconds | Ar filename
+.Op Fl nRu
+.Op Fl I Ns Op Ar FMT
+.Op Fl r Ar filename
+.Op Fl r Ar seconds
 .Oo
-.Fl v
 .Sm off
+.Fl v
 .Op Cm + | -
 .Ar val Op Cm y | m | w | d | H | M | S
 .Sm on
 .Oc
 .Op Cm + Ns Ar output_fmt
+.\" Set time with the default input format.
 .Nm
-.Op Fl ju
-.Sm off
-.Op Oo Oo Oo Oo Ar cc Oc Ar yy Oc Ar mm Oc Ar dd Oc Ar HH
-.Ar MM Op Ar .ss
-.Sm on
-.Nm
-.Op Fl jRu
-.Fl f Ar input_fmt new_date
-.Op Cm + Ns Ar output_fmt
-.Nm
-.Op Fl jnu
+.Op Fl jnRu
 .Op Fl I Ns Op Ar FMT
-.Op Fl f Ar input_fmt
-.Op Fl r Ar ...
-.Op Fl v Ar ...
-.Op Ar new_date
+.Oo
+.Sm off
+.Fl v
+.Op Cm + | -
+.Ar val Op Cm y | m | w | d | H | M | S
+.Sm on
+.Oc
+.Sm off
+.Oo Oo Oo Oo Oo
+.Ar cc Oc
+.Ar yy Oc
+.Ar mm Oc
+.Ar dd Oc
+.Ar HH
+.Oc Ar MM Op Cm \&. Ar ss
+.Sm on
+.Op Cm + Ns Ar output_fmt
+.\" Set time with the user-provided input format.
+.Nm
+.Op Fl jnRu
+.Op Fl I Ns Op Ar FMT
+.Oo
+.Sm off
+.Fl v
+.Op Cm + | -
+.Ar val Op Cm y | m | w | d | H | M | S
+.Sm on
+.Oc
+.Fl f Ar input_fmt
+.Ar new_date
+.Op Cm + Ns Ar output_fmt
 .Sh DESCRIPTION
 When invoked without arguments, the
 .Nm
