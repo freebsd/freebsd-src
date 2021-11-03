@@ -596,7 +596,7 @@ void nfscl_lockrelease(struct nfscllockowner *, int, int);
 void nfscl_fillclid(u_int64_t, char *, u_int8_t *, u_int16_t);
 void nfscl_filllockowner(void *, u_int8_t *, int);
 void nfscl_freeopen(struct nfsclopen *, int, bool);
-void nfscl_umount(struct nfsmount *, NFSPROC_T *);
+void nfscl_umount(struct nfsmount *, NFSPROC_T *, struct nfscldeleghead *);
 void nfscl_renewthread(struct nfsclclient *, NFSPROC_T *);
 void nfscl_initiate_recovery(struct nfsclclient *);
 int nfscl_hasexpired(struct nfsclclient *, u_int32_t, NFSPROC_T *);
