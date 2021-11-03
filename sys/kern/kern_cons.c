@@ -658,7 +658,7 @@ constty_timeout(void *arg)
 
 #ifdef HAS_TIMER_SPKR
 
-static int beeping;
+static bool beeping;
 static struct callout beeping_timer;
 
 static void
@@ -666,11 +666,11 @@ sysbeepstop(void *chan)
 {
 
 	timer_spkr_release();
-	beeping = 0;
+	beeping = false;
 }
 
 int
-sysbeep(int pitch, int period)
+sysbeep(int pitch, sbintime_t duration)
 {
 
 	if (timer_spkr_acquire()) {
@@ -681,8 +681,9 @@ sysbeep(int pitch, int period)
 	}
 	timer_spkr_setfreq(pitch);
 	if (!beeping) {
-		beeping = period;
-		callout_reset(&beeping_timer, period, sysbeepstop, NULL);
+		beeping = true;
+		callout_reset_sbt(&beeping_timer, duration, 0, sysbeepstop,
+		    NULL, C_PREL(5));
 	}
 	return (0);
 }
@@ -701,7 +702,7 @@ SYSINIT(sysbeep, SI_SUB_SOFTINTR, SI_ORDER_ANY, sysbeep_init, NULL);
  */
 
 int
-sysbeep(int pitch __unused, int period __unused)
+sysbeep(int pitch __unused, sbintime_t duration __unused)
 {
 
 	return (ENODEV);
