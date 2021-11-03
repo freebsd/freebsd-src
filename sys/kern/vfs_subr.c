@@ -5580,6 +5580,54 @@ vop_fplookup_symlink_debugpost(void *ap __unused, int rc __unused)
 
 	VFS_SMR_ASSERT_ENTERED();
 }
+
+static void
+vop_fsync_debugprepost(struct vnode *vp, const char *name)
+{
+	if (vp->v_type == VCHR)
+		;
+	else if (MNT_EXTENDED_SHARED(vp->v_mount))
+		ASSERT_VOP_LOCKED(vp, name);
+	else
+		ASSERT_VOP_ELOCKED(vp, name);
+}
+
+void
+vop_fsync_debugpre(void *a)
+{
+	struct vop_fsync_args *ap;
+
+	ap = a;
+	vop_fsync_debugprepost(ap->a_vp, "fsync");
+}
+
+void
+vop_fsync_debugpost(void *a, int rc __unused)
+{
+	struct vop_fsync_args *ap;
+
+	ap = a;
+	vop_fsync_debugprepost(ap->a_vp, "fsync");
+}
+
+void
+vop_fdatasync_debugpre(void *a)
+{
+	struct vop_fdatasync_args *ap;
+
+	ap = a;
+	vop_fsync_debugprepost(ap->a_vp, "fsync");
+}
+
+void
+vop_fdatasync_debugpost(void *a, int rc __unused)
+{
+	struct vop_fdatasync_args *ap;
+
+	ap = a;
+	vop_fsync_debugprepost(ap->a_vp, "fsync");
+}
+
 void
 vop_strategy_debugpre(void *ap)
 {
