@@ -10,6 +10,11 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+92b3e07229ba:
+	net.inet.tcp.nolocaltimewait enabled by default.  It prevents
+	creation of timewait entries for TCP connections that were
+	terminated locally.
+
 d410b585b6f0:
 	sh(1) is now the default shell for the root user.
 
