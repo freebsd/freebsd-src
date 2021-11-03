@@ -927,10 +927,14 @@ void	vop_symlink_post(void *a, int rc);
 int	vop_sigdefer(struct vop_vector *vop, struct vop_generic_args *a);
 
 #ifdef DEBUG_VFS_LOCKS
+void	vop_fdatasync_debugpre(void *a);
+void	vop_fdatasync_debugpost(void *a, int rc);
 void	vop_fplookup_vexec_debugpre(void *a);
 void	vop_fplookup_vexec_debugpost(void *a, int rc);
 void	vop_fplookup_symlink_debugpre(void *a);
 void	vop_fplookup_symlink_debugpost(void *a, int rc);
+void	vop_fsync_debugpre(void *a);
+void	vop_fsync_debugpost(void *a, int rc);
 void	vop_strategy_debugpre(void *a);
 void	vop_lock_debugpre(void *a);
 void	vop_lock_debugpost(void *a, int rc);
@@ -939,10 +943,14 @@ void	vop_need_inactive_debugpre(void *a);
 void	vop_need_inactive_debugpost(void *a, int rc);
 void	vop_mkdir_debugpost(void *a, int rc);
 #else
+#define	vop_fdatasync_debugpre(x)		do { } while (0)
+#define	vop_fdatasync_debugpost(x, y)		do { } while (0)
 #define	vop_fplookup_vexec_debugpre(x)		do { } while (0)
 #define	vop_fplookup_vexec_debugpost(x, y)	do { } while (0)
 #define	vop_fplookup_symlink_debugpre(x)	do { } while (0)
 #define	vop_fplookup_symlink_debugpost(x, y)	do { } while (0)
+#define	vop_fsync_debugpre(x)			do { } while (0)
+#define	vop_fsync_debugpost(x, y)		do { } while (0)
 #define	vop_strategy_debugpre(x)		do { } while (0)
 #define	vop_lock_debugpre(x)			do { } while (0)
 #define	vop_lock_debugpost(x, y)		do { } while (0)
