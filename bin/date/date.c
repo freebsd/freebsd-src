@@ -387,7 +387,7 @@ usage(void)
 	    "            "
 	    "[-r filename|seconds] [-v[+|-]val[y|m|w|d|H|M|S]]",
 	    "            "
-	    "[[[[[[cc]yy]mm]dd]HH]MM[.ss] | new_date] [+output_fmt]"
+	    "[[[[[[cc]yy]mm]dd]HH]MM[.SS] | new_date] [+output_fmt]"
 	    );
 	exit(1);
 }
