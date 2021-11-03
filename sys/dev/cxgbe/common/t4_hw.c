@@ -3975,6 +3975,7 @@ int t4_link_l1cfg(struct adapter *adap, unsigned int mbox, unsigned int port,
 		c.u.l1cfg.rcap = cpu_to_be32(fwcaps32_to_caps16(rcap));
 	}
 
+	lc->requested_caps = rcap;
 	return t4_wr_mbox_ns(adap, mbox, &c, sizeof(c), NULL);
 }
 
