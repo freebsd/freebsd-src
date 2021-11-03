@@ -61,7 +61,8 @@ struct ofwfb_softc {
 	uint32_t	vendor_id;
 };
 
-#define PCI_VENDOR_ID_NVIDIA	0x10de
+#define PCI_VID_NVIDIA	0x10de	/* NVIDIA Corporation */
+#define PCI_VID_ASPEED	0x1a03	/* ASPEED Technology, Inc. */
 
 static void ofwfb_initialize(struct vt_device *vd);
 static vd_probe_t	ofwfb_probe;
@@ -297,6 +298,104 @@ ofwfb_bitblt_text(struct vt_device *vd, const struct vt_window *vw,
 #endif
 }
 
+
+/*
+ * Decode OpenFirmware/IEEE 1275-1994 "ranges" property
+ *
+ * XXX: this is similar to ofw_pcib_fill_ranges but cannot use it here because
+ *      it's not possible to allocate memory at the moment this is funcion is
+ *      used. Since there are other similar functions dealing with "ranges"
+ *      property, a proper refactoring is suggested.
+ */
+static uint64_t
+decode_pci_ranges_host_addr(phandle_t pcinode)
+{
+	struct simplebus_range {
+		uint64_t bus;
+		uint64_t host;
+		uint64_t size;
+	};
+
+	struct simplebus_range ranges[4];
+	int nranges, host_address_cells;
+	pcell_t acells, scells;
+	cell_t base_ranges[64];
+
+	ssize_t nbase_ranges;
+	int i, j, k;
+
+	if (!OF_hasprop(pcinode, "ranges"))
+		return (0);
+
+	if (OF_getencprop(pcinode, "#address-cells", &acells, sizeof(acells)) !=
+	    sizeof(acells))
+		return (0);
+
+	if (OF_getencprop(pcinode, "#size-cells", &scells, sizeof(scells)) !=
+		sizeof(scells))
+		return (0);
+
+	if (OF_searchencprop(OF_parent(pcinode), "#address-cells",
+		&host_address_cells, sizeof(host_address_cells)) !=
+		sizeof(host_address_cells))
+		return (0);
+
+	nbase_ranges = OF_getproplen(pcinode, "ranges");
+	nranges = nbase_ranges / sizeof(cell_t) / (acells + host_address_cells + scells);
+
+	/* prevent buffer overflow during iteration */
+	if (nranges > sizeof(ranges) / sizeof(ranges[0]))
+		nranges = sizeof(ranges) / sizeof(ranges[0]);
+
+	/* decode range value and return the first valid address */
+	OF_getencprop(pcinode, "ranges", base_ranges, nbase_ranges);
+	for (i = 0, j = 0; i < nranges; i++) {
+		ranges[i].bus = 0;
+		for (k = 0; k < acells; k++) {
+			ranges[i].bus <<= 32;
+			ranges[i].bus |= base_ranges[j++];
+		}
+
+		ranges[i].host = 0;
+		for (k = 0; k < host_address_cells; k++) {
+			ranges[i].host <<= 32;
+			ranges[i].host |= base_ranges[j++];
+		}
+		ranges[i].size = 0;
+		for (k = 0; k < scells; k++) {
+			ranges[i].size <<= 32;
+			ranges[i].size |= base_ranges[j++];
+		}
+
+		if (ranges[i].host != 0)
+			return (ranges[i].host);
+	}
+
+	return (0);
+}
+
+static bus_addr_t
+find_pci_host_address(phandle_t node)
+{
+	uint64_t addr;
+
+	/*
+	 * According to IEEE STD 1275, if property "ranges" exists but has a
+	 * zero-length property value, the child address space is identical
+	 * to the parent address space.
+	 */
+	while (node) {
+		if (OF_hasprop(node, "ranges")) {
+			addr = decode_pci_ranges_host_addr(node);
+			if (addr != 0)
+				return ((bus_addr_t)addr);
+		}
+		node = OF_parent(node);
+	}
+
+	return (0);
+}
+
 static void
 ofwfb_initialize(struct vt_device *vd)
 {
@@ -350,7 +449,7 @@ ofwfb_initialize(struct vt_device *vd)
 		 * There is no good way to determine the correct option, as this
 		 * is independent of endian swapping.
 		 */
-		if (sc->vendor_id == PCI_VENDOR_ID_NVIDIA)
+		if (sc->vendor_id == PCI_VID_NVIDIA)
 			sc->argb = 0;
 		else
 			sc->argb = 1;
@@ -430,7 +529,6 @@ ofwfb_init(struct vt_device *vd)
 	    sizeof(vendor_id)) == sizeof(vendor_id))
 		sc->vendor_id = vendor_id;
 
-
 	/* Keep track of the OF node */
 	sc->sc_node = node;
 
@@ -497,12 +595,18 @@ ofwfb_init(struct vt_device *vd)
 	 * Grab the physical address of the framebuffer, and then map it
 	 * into our memory space. If the MMU is not yet up, it will be
 	 * remapped for us when relocation turns on.
+	 *
+	 * The ASPEED driver on recent petitboot versions doesn't expose the
+	 * physical address of framebuffer anymore for security. So it should
+	 * retrieve the address from PCI device properties.
 	 */
 	user_phys = 0;
 	TUNABLE_UINT64_FETCH("hw.ofwfb.physaddr", &user_phys);
-	fb_phys = (bus_addr_t)user_phys;
-	if (fb_phys)
-		sc->fb.fb_pbase = (vm_paddr_t)fb_phys;
+
+	if (user_phys)
+		sc->fb.fb_pbase = (vm_paddr_t)user_phys;
+	else if (sc->vendor_id == PCI_VID_ASPEED)
+		sc->fb.fb_pbase = find_pci_host_address(node);
 	else if (OF_hasprop(node, "address")) {
 
 		switch (OF_getproplen(node, "address")) {
