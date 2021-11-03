@@ -2252,7 +2252,7 @@ proc_get_binpath(struct proc *p, char *binname, char **retbuf,
 	vp = p->p_textvp;
 	if (vp == NULL) {
 		PROC_UNLOCK(p);
-		*retbuf = NULL;
+		*retbuf = "";
 		*freebuf = NULL;
 		return (0);
 	}
