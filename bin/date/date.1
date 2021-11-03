@@ -32,7 +32,7 @@
 .\"     @(#)date.1	8.3 (Berkeley) 4/28/95
 .\" $FreeBSD$
 .\"
-.Dd June 16, 2021
+.Dd November 3, 2021
 .Dt DATE 1
 .Os
 .Sh NAME
@@ -46,10 +46,9 @@
 .Fl v
 .Sm off
 .Op Cm + | -
-.Ar val Op Ar ymwdHMS
+.Ar val Op Cm y | m | w | d | H | M | S
 .Sm on
 .Oc
-.Ar ...
 .Op Cm + Ns Ar output_fmt
 .Nm
 .Op Fl ju
@@ -90,7 +89,7 @@ the time may not be changed by more than 1 second.
 .Pp
 The options are as follows:
 .Bl -tag -width Ds
-.It Fl f
+.It Fl f Ar input_fmt
 Use
 .Ar input_fmt
 as the format string to parse the
@@ -103,7 +102,7 @@ provided rather than using the default
 .Ar mm Oc
 .Ar dd Oc
 .Ar HH
-.Oc Ar MM Op Ar .ss
+.Oc Ar MM Op Cm \&. Ar ss
 .Sm on
 format.
 Parsing is done using
@@ -114,24 +113,24 @@ Use
 output format.
 .Ar FMT
 may be omitted, in which case the default is
-.Sq date .
+.Cm date .
 Valid
 .Ar FMT
 values are
-.Sq date ,
-.Sq hours ,
-.Sq minutes ,
+.Cm date ,
+.Cm hours ,
+.Cm minutes ,
 and
-.Sq seconds .
+.Cm seconds .
 The date and time is formatted to the specified precision.
 When
 .Ar FMT
 is
-.Sq hours
+.Cm hours
 (or the more precise
-.Sq minutes
+.Cm minutes
 or
-.Sq seconds ) ,
+.Cm seconds ) ,
 the
 .St -iso8601
 format includes the timezone.
@@ -175,7 +174,13 @@ Print the date and time of the last modification of
 Display or set the date in
 .Tn UTC
 (Coordinated Universal) time.
-.It Fl v
+.It Xo
+.Fl v
+.Sm off
+.Op Cm + | -
+.Ar val Op Cm y | m | w | d | H | M | S
+.Sm on
+.Xc
 Adjust (i.e., take the current date and display the result of the
 adjustment; not actually set the date) the second, minute, hour, month
 day, week day, month or year according to
@@ -199,14 +204,14 @@ and years are in the range 80-38 or 1980-2038.
 If
 .Ar val
 is numeric, one of either
-.Ar y ,
-.Ar m ,
-.Ar w ,
-.Ar d ,
-.Ar H ,
-.Ar M
+.Cm y ,
+.Cm m ,
+.Cm w ,
+.Cm d ,
+.Cm H ,
+.Cm M
 or
-.Ar S
+.Cm S
 must be used to specify which part of the date is to be adjusted.
 .Pp
 The week day or month may be specified using a name rather than a
@@ -420,7 +425,7 @@ will display
 .Pp
 Finally the command:
 .Pp
-.Dl "date -j -f ""%a %b %d %T %Z %Y"" ""`date`"" ""+%s"""
+.Dl "date -j -f ""%a %b %d %T %Z %Y"" ""`LC_ALL=C date`"" ""+%s"""
 .Pp
 can be used to parse the output from
 .Nm
