@@ -1666,8 +1666,11 @@ nfs_unmount(struct mount *mp, int mntflags)
 	struct nfsmount *nmp;
 	int error, flags = 0, i, trycnt = 0;
 	struct nfsclds *dsp, *tdsp;
+	struct nfscldeleg *dp, *ndp;
+	struct nfscldeleghead dh;
 
 	td = curthread;
+	TAILQ_INIT(&dh);
 
 	if (mntflags & MNT_FORCE)
 		flags |= FORCECLOSE;
@@ -1691,7 +1694,7 @@ nfs_unmount(struct mount *mp, int mntflags)
 		if (error)
 			goto out;
 		/* For a forced close, get rid of the renew thread now */
-		nfscl_umount(nmp, td);
+		nfscl_umount(nmp, td, &dh);
 	}
 	/* We hold 1 extra ref on the root vnode; see comment in mountnfs(). */
 	do {
@@ -1706,7 +1709,7 @@ nfs_unmount(struct mount *mp, int mntflags)
 	 * We are now committed to the unmount.
 	 */
 	if ((mntflags & MNT_FORCE) == 0)
-		nfscl_umount(nmp, td);
+		nfscl_umount(nmp, td, NULL);
 	else {
 		mtx_lock(&nmp->nm_mtx);
 		nmp->nm_privflag |= NFSMNTP_FORCEDISM;
@@ -1747,6 +1750,12 @@ nfs_unmount(struct mount *mp, int mntflags)
 		nfscl_freenfsclds(dsp);
 	}
 	free(nmp, M_NEWNFSMNT);
+
+	/* Free up the delegation structures for forced dismounts. */
+	TAILQ_FOREACH_SAFE(dp, &dh, nfsdl_list, ndp) {
+		TAILQ_REMOVE(&dh, dp, nfsdl_list);
+		free(dp, M_NFSCLDELEG);
+	}
 out:
 	return (error);
 }
