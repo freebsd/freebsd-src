@@ -1666,7 +1666,7 @@ bbr_init_sysctls(void)
 	    SYSCTL_CHILDREN(bbr_timeout),
 	    OID_AUTO, "maxrto", CTLFLAG_RW,
 	    &bbr_rto_max_sec, 4,
-	    "Maxiumum RTO in seconds -- should be at least as large as min_rto");
+	    "Maximum RTO in seconds -- should be at least as large as min_rto");
 	SYSCTL_ADD_S32(&bbr_sysctl_ctx,
 	    SYSCTL_CHILDREN(bbr_timeout),
 	    OID_AUTO, "tlp_retry", CTLFLAG_RW,
