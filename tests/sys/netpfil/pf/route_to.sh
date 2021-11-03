@@ -257,6 +257,7 @@ icmp_nat_head()
 {
 	atf_set descr 'Test that ICMP packets are correct for route-to + NAT'
 	atf_set require.user root
+	atf_set require.progs scapy
 }
 
 icmp_nat_body()
