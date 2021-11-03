@@ -26,6 +26,7 @@ DTS=	\
 
 DTSO=	sun8i-a83t-sid.dtso \
 	sun8i-h3-i2c0.dtso \
+	sun8i-h3-i2c1.dtso \
 	sun8i-h3-spi0.dtso
 
 LINKS= \
