@@ -774,7 +774,7 @@ tcp_over_udp_stop(void)
 {
 	/*
 	 * This function assumes sysctl caller holds inp_rinfo_lock()
-	 * for writting!
+	 * for writing!
 	 */
 #ifdef INET
 	if (V_udp4_tun_socket != NULL) {
@@ -803,7 +803,7 @@ tcp_over_udp_start(void)
 #endif
 	/*
 	 * This function assumes sysctl caller holds inp_info_rlock()
-	 * for writting!
+	 * for writing!
 	 */
 	port = V_tcp_udp_tunneling_port;
 	if (ntohs(port) == 0) {
