@@ -11424,9 +11424,9 @@ pmap_pkru_clear(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	return (error);
 }
 
-#ifdef KASAN
+#if defined(KASAN) || defined(KMSAN)
 static vm_page_t
-pmap_kasan_enter_alloc_4k(void)
+pmap_san_enter_alloc_4k(void)
 {
 	vm_page_t m;
 
@@ -11438,18 +11438,18 @@ pmap_kasan_enter_alloc_4k(void)
 }
 
 static vm_page_t
-pmap_kasan_enter_alloc_2m(void)
+pmap_san_enter_alloc_2m(void)
 {
 	return (vm_page_alloc_noobj_contig(VM_ALLOC_WIRED | VM_ALLOC_ZERO,
 	    NPTEPG, 0, ~0ul, NBPDR, 0, VM_MEMATTR_DEFAULT));
 }
 
 /*
- * Grow the shadow map by at least one 4KB page at the specified address.  Use
- * 2MB pages when possible.
+ * Grow a shadow map by at least one 4KB page at the specified address.  Use 2MB
+ * pages when possible.
  */
 void
-pmap_kasan_enter(vm_offset_t va)
+pmap_san_enter(vm_offset_t va)
 {
 	pdp_entry_t *pdpe;
 	pd_entry_t *pde;
@@ -11460,18 +11460,18 @@ pmap_kasan_enter(vm_offset_t va)
 
 	pdpe = pmap_pdpe(kernel_pmap, va);
 	if ((*pdpe & X86_PG_V) == 0) {
-		m = pmap_kasan_enter_alloc_4k();
+		m = pmap_san_enter_alloc_4k();
 		*pdpe = (pdp_entry_t)(VM_PAGE_TO_PHYS(m) | X86_PG_RW |
 		    X86_PG_V | pg_nx);
 	}
 	pde = pmap_pdpe_to_pde(pdpe, va);
 	if ((*pde & X86_PG_V) == 0) {
-		m = pmap_kasan_enter_alloc_2m();
+		m = pmap_san_enter_alloc_2m();
 		if (m != NULL) {
 			*pde = (pd_entry_t)(VM_PAGE_TO_PHYS(m) | X86_PG_RW |
 			    X86_PG_PS | X86_PG_V | X86_PG_A | X86_PG_M | pg_nx);
 		} else {
-			m = pmap_kasan_enter_alloc_4k();
+			m = pmap_san_enter_alloc_4k();
 			*pde = (pd_entry_t)(VM_PAGE_TO_PHYS(m) | X86_PG_RW |
 			    X86_PG_V | pg_nx);
 		}
@@ -11481,70 +11481,7 @@ pmap_kasan_enter(vm_offset_t va)
 	pte = pmap_pde_to_pte(pde, va);
 	if ((*pte & X86_PG_V) != 0)
 		return;
-	m = pmap_kasan_enter_alloc_4k();
-	*pte = (pt_entry_t)(VM_PAGE_TO_PHYS(m) | X86_PG_RW | X86_PG_V |
-	    X86_PG_M | X86_PG_A | pg_nx);
-}
-#endif
-
-#ifdef KMSAN
-static vm_page_t
-pmap_kmsan_enter_alloc_4k(void)
-{
-	vm_page_t m;
-
-	m = vm_page_alloc_noobj(VM_ALLOC_INTERRUPT | VM_ALLOC_WIRED |
-	    VM_ALLOC_ZERO);
-	if (m == NULL)
-		panic("%s: no memory to grow shadow map", __func__);
-	return (m);
-}
-
-static vm_page_t
-pmap_kmsan_enter_alloc_2m(void)
-{
-	return (vm_page_alloc_noobj_contig(VM_ALLOC_ZERO | VM_ALLOC_WIRED,
-	    NPTEPG, 0, ~0ul, NBPDR, 0, VM_MEMATTR_DEFAULT));
-}
-
-/*
- * Grow the shadow or origin maps by at least one 4KB page at the specified
- * address.  Use 2MB pages when possible.
- */
-void
-pmap_kmsan_enter(vm_offset_t va)
-{
-	pdp_entry_t *pdpe;
-	pd_entry_t *pde;
-	pt_entry_t *pte;
-	vm_page_t m;
-
-	mtx_assert(&kernel_map->system_mtx, MA_OWNED);
-
-	pdpe = pmap_pdpe(kernel_pmap, va);
-	if ((*pdpe & X86_PG_V) == 0) {
-		m = pmap_kmsan_enter_alloc_4k();
-		*pdpe = (pdp_entry_t)(VM_PAGE_TO_PHYS(m) | X86_PG_RW |
-		    X86_PG_V | pg_nx);
-	}
-	pde = pmap_pdpe_to_pde(pdpe, va);
-	if ((*pde & X86_PG_V) == 0) {
-		m = pmap_kmsan_enter_alloc_2m();
-		if (m != NULL) {
-			*pde = (pd_entry_t)(VM_PAGE_TO_PHYS(m) | X86_PG_RW |
-			    X86_PG_PS | X86_PG_V | X86_PG_A | X86_PG_M | pg_nx);
-		} else {
-			m = pmap_kmsan_enter_alloc_4k();
-			*pde = (pd_entry_t)(VM_PAGE_TO_PHYS(m) | X86_PG_RW |
-			    X86_PG_V | pg_nx);
-		}
-	}
-	if ((*pde & X86_PG_PS) != 0)
-		return;
-	pte = pmap_pde_to_pte(pde, va);
-	if ((*pte & X86_PG_V) != 0)
-		return;
-	m = pmap_kmsan_enter_alloc_4k();
+	m = pmap_san_enter_alloc_4k();
 	*pte = (pt_entry_t)(VM_PAGE_TO_PHYS(m) | X86_PG_RW | X86_PG_V |
 	    X86_PG_M | X86_PG_A | pg_nx);
 }

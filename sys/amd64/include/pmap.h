@@ -528,11 +528,8 @@ int	pmap_vmspace_copy(pmap_t dst_pmap, pmap_t src_pmap);
 void	pmap_page_array_startup(long count);
 vm_page_t pmap_page_alloc_below_4g(bool zeroed);
 
-#ifdef KASAN
-void	pmap_kasan_enter(vm_offset_t);
-#endif
-#ifdef KMSAN
-void	pmap_kmsan_enter(vm_offset_t);
+#if defined(KASAN) || defined(KMSAN)
+void	pmap_san_enter(vm_offset_t);
 #endif
 
 #endif /* _KERNEL */

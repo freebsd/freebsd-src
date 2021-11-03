@@ -525,12 +525,12 @@ kmsan_shadow_map(vm_offset_t addr, size_t size)
 
 	va = kmsan_md_addr_to_shad(addr);
 	for (i = 0; i < npages; i++) {
-		pmap_kmsan_enter(va + ptoa(i));
+		pmap_san_enter(va + ptoa(i));
 	}
 
 	va = kmsan_md_addr_to_orig(addr);
 	for (i = 0; i < npages; i++) {
-		pmap_kmsan_enter(va + ptoa(i));
+		pmap_san_enter(va + ptoa(i));
 	}
 }
 
