@@ -2234,6 +2234,14 @@ Zone	Asia/Tokyo	9:18:59	-	LMT	1887 Dec 31 15:00u
 # From Paul Eggert (2013-12-11):
 # As Steffen suggested, consider the past 21-month experiment to be DST.
 
+# From Steffen Thorsen (2021-09-24):
+# The Jordanian Government announced yesterday that they will start DST
+# in February instead of March:
+# https://petra.gov.jo/Include/InnerPage.jsp?ID=37683&lang=en&name=en_news (English)
+# https://petra.gov.jo/Include/InnerPage.jsp?ID=189969&lang=ar&name=news (Arabic)
+# From the Arabic version, it seems to say it would be at midnight
+# (assume 24:00) on the last Thursday in February, starting from 2022.
+
 # Rule	NAME	FROM	TO	-	IN	ON	AT	SAVE	LETTER/S
 Rule	Jordan	1973	only	-	Jun	6	0:00	1:00	S
 Rule	Jordan	1973	1975	-	Oct	1	0:00	0	-
@@ -2264,8 +2272,9 @@ Rule	Jordan	2004	only	-	Oct	15	0:00s	0	-
 Rule	Jordan	2005	only	-	Sep	lastFri	0:00s	0	-
 Rule	Jordan	2006	2011	-	Oct	lastFri	0:00s	0	-
 Rule	Jordan	2013	only	-	Dec	20	0:00	0	-
-Rule	Jordan	2014	max	-	Mar	lastThu	24:00	1:00	S
+Rule	Jordan	2014	2021	-	Mar	lastThu	24:00	1:00	S
 Rule	Jordan	2014	max	-	Oct	lastFri	0:00s	0	-
+Rule	Jordan	2022	max	-	Feb	lastThu	24:00	1:00	S
 # Zone	NAME		STDOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Amman	2:23:44 -	LMT	1931
 			2:00	Jordan	EE%sT
@@ -3379,11 +3388,6 @@ Zone	Asia/Karachi	4:28:12 -	LMT	1907
 # shall [end] on Oct 24th 2020 at 01:00AM by delaying the clock by 60 minutes.
 # http://www.palestinecabinet.gov.ps/portal/Meeting/Details/51584
 
-# From Tim Parenti (2020-10-20):
-# Predict future fall transitions at 01:00 on the Saturday preceding October's
-# last Sunday (i.e., Sat>=24).  This is consistent with our predictions since
-# 2016, although the time of the change differed slightly in 2019.
-
 # From Pierre Cashon (2020-10-20):
 # The summer time this year started on March 28 at 00:00.
 # https://wafa.ps/ar_page.aspx?id=GveQNZa872839351758aGveQNZ
@@ -3395,6 +3399,17 @@ Zone	Asia/Karachi	4:28:12 -	LMT	1907
 # From Paul Eggert (2019-04-10):
 # For now, guess spring-ahead transitions are at 00:00 on the Saturday
 # preceding March's last Sunday (i.e., Sat>=24).
+
+# From P Chan (2021-10-18):
+# http://wafa.ps/Pages/Details/34701
+# Palestine winter time will start from midnight 2021-10-29 (Thursday-Friday).
+#
+# From Heba Hemad, Palestine Ministry of Telecom & IT (2021-10-20):
+# ... winter time will begin in Palestine from Friday 10-29, 01:00 AM
+# by 60 minutes backwards.
+#
+# From Paul Eggert (2021-10-20):
+# Guess future fall transitions on October's last Friday at 01:00.
 
 # Rule	NAME	FROM	TO	-	IN	ON	AT	SAVE	LETTER/S
 Rule EgyptAsia	1957	only	-	May	10	0:00	1:00	S
@@ -3431,7 +3446,8 @@ Rule Palestine	2016	2018	-	Oct	Sat>=24	1:00	0	-
 Rule Palestine	2019	only	-	Mar	29	0:00	1:00	S
 Rule Palestine	2019	only	-	Oct	Sat>=24	0:00	0	-
 Rule Palestine	2020	max	-	Mar	Sat>=24	0:00	1:00	S
-Rule Palestine	2020	max	-	Oct	Sat>=24	1:00	0	-
+Rule Palestine	2020	only	-	Oct	24	1:00	0	-
+Rule Palestine	2021	max	-	Oct	lastFri	1:00	0	-
 
 # Zone	NAME		STDOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Gaza	2:17:52	-	LMT	1900 Oct
