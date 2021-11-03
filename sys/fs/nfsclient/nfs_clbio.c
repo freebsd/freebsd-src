@@ -1726,7 +1726,7 @@ ncl_doio(struct vnode *vp, struct buf *bp, struct ucred *cr, struct thread *td,
 		    off = ((u_quad_t)bp->b_blkno) * DEV_BSIZE + bp->b_dirtyoff;
 		    retv = ncl_commit(vp, off, bp->b_dirtyend-bp->b_dirtyoff,
 			bp->b_wcred, td);
-		    if (retv == 0) {
+		    if (NFSCL_FORCEDISM(vp->v_mount) || retv == 0) {
 			    bp->b_dirtyoff = bp->b_dirtyend = 0;
 			    bp->b_flags &= ~(B_NEEDCOMMIT | B_CLUSTEROK);
 			    bp->b_resid = 0;
