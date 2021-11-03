@@ -121,7 +121,7 @@ const struct terminal_class vt_termclass = {
 
 /* Bell pitch/duration. */
 #define	VT_BELLDURATION	(SBT_1S / 20)
-#define	VT_BELLPITCH	(1193182 / 800) /* Approx 1491Hz */
+#define	VT_BELLPITCH	800
 
 #define	VT_UNIT(vw)	((vw)->vw_device->vd_unit * VT_MAXWINDOWS + \
 			(vw)->vw_number)
