@@ -70,7 +70,8 @@ void
 vmci_cleanup_lock(vmci_lock *lock)
 {
 
-	mtx_destroy(lock);
+	if mtx_initialized(lock)
+		mtx_destroy(lock);
 }
 
 /*
@@ -163,6 +164,29 @@ vmci_release_lock_bh(vmci_lock *lock)
 {
 
 	mtx_unlock(lock);
+}
+
+/*
+ *------------------------------------------------------------------------------
+ *
+ * vmci_initialized_lock
+ *
+ *     Returns whether a lock has been initialized.
+ *
+ * Results:
+ *     Return 1 if initialized or 0 if unininitialized.
+ *
+ * Side effects:
+ *     None
+ *
+ *------------------------------------------------------------------------------
+ */
+
+int
+vmci_initialized_lock(vmci_lock *lock)
+{
+
+	return mtx_initialized(lock);
 }
 
 /*
@@ -446,6 +470,28 @@ vmci_mutex_release(vmci_mutex *mutex)
 	mtx_unlock(mutex);
 }
 
+/*
+ *------------------------------------------------------------------------------
+ *
+ * vmci_mutex_initialized
+ *
+ *     Returns whether a mutex has been initialized.
+ *
+ * Results:
+ *     Return 1 if initialized or 0 if unininitialized.
+ *
+ * Side effects:
+ *     None
+ *
+ *------------------------------------------------------------------------------
+ */
+
+int
+vmci_mutex_initialized(vmci_mutex *mutex)
+{
+
+	return mtx_initialized(mutex);
+}
 /*
  *------------------------------------------------------------------------------
  *
