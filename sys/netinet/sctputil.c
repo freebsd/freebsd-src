@@ -7458,7 +7458,7 @@ sctp_over_udp_stop(void)
 {
 	/*
 	 * This function assumes sysctl caller holds sctp_sysctl_info_lock()
-	 * for writting!
+	 * for writing!
 	 */
 #ifdef INET
 	if (SCTP_BASE_INFO(udp4_tun_socket) != NULL) {
@@ -7487,7 +7487,7 @@ sctp_over_udp_start(void)
 #endif
 	/*
 	 * This function assumes sysctl caller holds sctp_sysctl_info_lock()
-	 * for writting!
+	 * for writing!
 	 */
 	port = SCTP_BASE_SYSCTL(sctp_udp_tunneling_port);
 	if (ntohs(port) == 0) {
