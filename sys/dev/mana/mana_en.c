@@ -2164,7 +2164,7 @@ mana_create_rxq(struct mana_port_context *apc, uint32_t rxq_idx,
 	rxq->rxq_idx = rxq_idx;
 	/*
 	 * Minimum size is MCLBYTES(2048) bytes for a mbuf cluster.
-	 * Now we just allow maxium size of 4096.
+	 * Now we just allow maximum size of 4096.
 	 */
 	rxq->datasize = ALIGN(apc->frame_size, MCLBYTES);
 	if (rxq->datasize > MAX_FRAME_SIZE)
