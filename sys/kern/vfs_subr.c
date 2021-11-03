@@ -5545,10 +5545,17 @@ vop_fplookup_vexec_debugpre(void *ap __unused)
 }
 
 void
-vop_fplookup_vexec_debugpost(void *ap __unused, int rc __unused)
+vop_fplookup_vexec_debugpost(void *ap, int rc)
 {
+	struct vop_fplookup_vexec_args *a;
+	struct vnode *vp;
+
+	a = ap;
+	vp = a->a_vp;
 
 	VFS_SMR_ASSERT_ENTERED();
+	if (rc == EOPNOTSUPP)
+		VNPASS(VN_IS_DOOMED(vp), vp);
 }
 
 void
