@@ -279,7 +279,8 @@ cam_periph_alloc(periph_ctor_t *periph_ctor,
 	    && cur_periph->unit_number < periph->unit_number)
 		cur_periph = TAILQ_NEXT(cur_periph, unit_links);
 	if (cur_periph != NULL) {
-		KASSERT(cur_periph->unit_number != periph->unit_number, ("duplicate units on periph list"));
+		KASSERT(cur_periph->unit_number != periph->unit_number,
+		    ("duplicate units on periph list"));
 		TAILQ_INSERT_BEFORE(cur_periph, periph, unit_links);
 	} else {
 		TAILQ_INSERT_TAIL(&(*p_drv)->units, periph, unit_links);
