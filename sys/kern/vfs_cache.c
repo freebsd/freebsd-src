@@ -3957,6 +3957,40 @@ static int cache_fast_lookup = 1;
 #define CACHE_FPL_FAILED	-2020
 
 void
+cache_vop_vector_register(struct vop_vector *v)
+{
+	size_t ops;
+
+	ops = 0;
+	if (v->vop_fplookup_vexec != NULL) {
+		ops++;
+	}
+	if (v->vop_fplookup_symlink != NULL) {
+		ops++;
+	}
+
+	if (ops == 2) {
+		return;
+	}
+
+	if (ops == 0) {
+		v->vop_fplookup_vexec = VOP_PANIC;
+		v->vop_fplookup_symlink = VOP_PANIC;
+		return;
+	}
+
+	printf("%s: invalid vop vector %p -- either all or none fplookup vops "
+	    "need to be provided",  __func__, v);
+	if (v->vop_fplookup_vexec == NULL) {
+		printf("%s: missing vop_fplookup_vexec\n", __func__);
+	}
+	if (v->vop_fplookup_symlink == NULL) {
+		printf("%s: missing vop_fplookup_symlink\n", __func__);
+	}
+	panic("bad vop vector %p", v);
+}
+
+void
 cache_fast_lookup_enabled_recalc(void)
 {
 	int lookup_flag;
