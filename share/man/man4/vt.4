@@ -297,6 +297,20 @@ console fonts
 .It Pa /usr/share/vt/keymaps/*.kbd
 keyboard layouts
 .El
+.Sh DEVCTL MESSAGES
+.Bl -column "System" "Subsystem" "1234567" -compact
+.Sy "System" Ta Sy "Subsystem" Ta Sy "Type" Ta Sy "Description"
+.It Li VT Ta BELL Ta RING Ta
+Notifcation that the console bell has run.
+.El
+.Pp
+.Bl -column "Variable" "Meaning" -compact
+.Sy "Variable" Ta Sy "Meaning"
+.It Li duration_ms Ta Length of time the bell was requested to ring in milliseconds.
+.It Li enabled Ta true or false indicating whether or not the bell was enabled when rung.
+.It Li hz Ta Tone that was requested in Hz.
+.El
+.Pp
 .Sh EXAMPLES
 This example changes the default color of normal text to green on a
 black background, or black on a green background when reversed.
