@@ -364,7 +364,7 @@ sysctl_maxsockets(SYSCTL_HANDLER_ARGS)
 
 	newmaxsockets = maxsockets;
 	error = sysctl_handle_int(oidp, &newmaxsockets, 0, req);
-	if (error == 0 && req->newptr) {
+	if (error == 0 && req->newptr && newmaxsockets != maxsockets) {
 		if (newmaxsockets > maxsockets &&
 		    newmaxsockets <= maxfiles) {
 			maxsockets = newmaxsockets;
