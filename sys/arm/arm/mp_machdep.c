@@ -217,7 +217,7 @@ init_secondary(int cpu)
 	CTR0(KTR_SMP, "go into scheduler");
 
 	/* Enter the scheduler */
-	sched_throw(NULL);
+	sched_ap_entry();
 
 	panic("scheduler returned us to %s", __func__);
 	/* NOTREACHED */

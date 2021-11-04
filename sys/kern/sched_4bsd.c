@@ -1662,12 +1662,22 @@ sched_idletd(void *dummy)
 	}
 }
 
+static void
+sched_throw_tail(struct thread *td)
+{
+
+	mtx_assert(&sched_lock, MA_OWNED);
+	KASSERT(curthread->td_md.md_spinlock_count == 1, ("invalid count"));
+	cpu_throw(td, choosethread());	/* doesn't return */
+}
+
 /*
- * A CPU is entering for the first time or a thread is exiting.
+ * A CPU is entering for the first time.
  */
 void
-sched_throw(struct thread *td)
+sched_ap_entry(void)
 {
+
 	/*
 	 * Correct spinlock nesting.  The idle thread context that we are
 	 * borrowing was created so that it would start out with a single
@@ -1677,20 +1687,29 @@ sched_throw(struct thread *td)
 	 * spinlock_exit() will simply adjust the counts without allowing
 	 * spin lock using code to interrupt us.
 	 */
-	if (td == NULL) {
-		mtx_lock_spin(&sched_lock);
-		spinlock_exit();
-		PCPU_SET(switchtime, cpu_ticks());
-		PCPU_SET(switchticks, ticks);
-	} else {
-		lock_profile_release_lock(&sched_lock.lock_object, true);
-		MPASS(td->td_lock == &sched_lock);
-		td->td_lastcpu = td->td_oncpu;
-		td->td_oncpu = NOCPU;
-	}
-	mtx_assert(&sched_lock, MA_OWNED);
-	KASSERT(curthread->td_md.md_spinlock_count == 1, ("invalid count"));
-	cpu_throw(td, choosethread());	/* doesn't return */
+	mtx_lock_spin(&sched_lock);
+	spinlock_exit();
+	PCPU_SET(switchtime, cpu_ticks());
+	PCPU_SET(switchticks, ticks);
+
+	sched_throw_tail(NULL);
+}
+
+/*
+ * A thread is exiting.
+ */
+void
+sched_throw(struct thread *td)
+{
+
+	MPASS(td != NULL);
+	MPASS(td->td_lock == &sched_lock);
+
+	lock_profile_release_lock(&sched_lock.lock_object, true);
+	td->td_lastcpu = td->td_oncpu;
+	td->td_oncpu = NOCPU;
+
+	sched_throw_tail(td);
 }
 
 void

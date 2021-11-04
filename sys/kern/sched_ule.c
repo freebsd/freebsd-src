@@ -2985,7 +2985,52 @@ sched_idletd(void *dummy)
 }
 
 /*
- * A CPU is entering for the first time or a thread is exiting.
+ * sched_throw_grab() chooses a thread from the queue to switch to
+ * next.  It returns with the tdq lock dropped in a spinlock section to
+ * keep interrupts disabled until the CPU is running in a proper threaded
+ * context.
+ */
+static struct thread *
+sched_throw_grab(struct tdq *tdq)
+{
+	struct thread *newtd;
+
+	newtd = choosethread();
+	spinlock_enter();
+	TDQ_UNLOCK(tdq);
+	KASSERT(curthread->td_md.md_spinlock_count == 1,
+	    ("invalid count %d", curthread->td_md.md_spinlock_count));
+	return (newtd);
+}
+
+/*
+ * A CPU is entering for the first time.
+ */
+void
+sched_ap_entry(void)
+{
+	struct thread *newtd;
+	struct tdq *tdq;
+
+	tdq = TDQ_SELF();
+
+	/* This should have been setup in schedinit_ap(). */
+	THREAD_LOCKPTR_ASSERT(curthread, TDQ_LOCKPTR(tdq));
+
+	TDQ_LOCK(tdq);
+	/* Correct spinlock nesting. */
+	spinlock_exit();
+	PCPU_SET(switchtime, cpu_ticks());
+	PCPU_SET(switchticks, ticks);
+
+	newtd = sched_throw_grab(tdq);
+
+	/* doesn't return */
+	cpu_throw(NULL, newtd);
+}
+
+/*
+ * A thread is exiting.
  */
 void
 sched_throw(struct thread *td)
@@ -2994,30 +3039,20 @@ sched_throw(struct thread *td)
 	struct tdq *tdq;
 
 	tdq = TDQ_SELF();
-	if (__predict_false(td == NULL)) {
-		TDQ_LOCK(tdq);
-		/* Correct spinlock nesting. */
-		spinlock_exit();
-		PCPU_SET(switchtime, cpu_ticks());
-		PCPU_SET(switchticks, ticks);
-	} else {
-		THREAD_LOCK_ASSERT(td, MA_OWNED);
-		THREAD_LOCKPTR_ASSERT(td, TDQ_LOCKPTR(tdq));
-		tdq_load_rem(tdq, td);
-		td->td_lastcpu = td->td_oncpu;
-		td->td_oncpu = NOCPU;
-		thread_lock_block(td);
-	}
-	newtd = choosethread();
-	spinlock_enter();
-	TDQ_UNLOCK(tdq);
-	KASSERT(curthread->td_md.md_spinlock_count == 1,
-	    ("invalid count %d", curthread->td_md.md_spinlock_count));
+
+	MPASS(td != NULL);
+	THREAD_LOCK_ASSERT(td, MA_OWNED);
+	THREAD_LOCKPTR_ASSERT(td, TDQ_LOCKPTR(tdq));
+
+	tdq_load_rem(tdq, td);
+	td->td_lastcpu = td->td_oncpu;
+	td->td_oncpu = NOCPU;
+	thread_lock_block(td);
+
+	newtd = sched_throw_grab(tdq);
+
 	/* doesn't return */
-	if (__predict_false(td == NULL))
-		cpu_throw(td, newtd);		/* doesn't return */
-	else
-		cpu_switch(td, newtd, TDQ_LOCKPTR(tdq));
+	cpu_switch(td, newtd, TDQ_LOCKPTR(tdq));
 }
 
 /*

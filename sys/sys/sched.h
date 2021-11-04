@@ -91,6 +91,7 @@ void	sched_nice(struct proc *p, int nice);
  * Threads are switched in and out, block on resources, have temporary
  * priorities inherited from their procs, and use up cpu time.
  */
+void	sched_ap_entry(void);
 void	sched_exit_thread(struct thread *td, struct thread *child);
 u_int	sched_estcpu(struct thread *td);
 void	sched_fork_thread(struct thread *td, struct thread *child);
