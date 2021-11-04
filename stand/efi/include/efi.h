@@ -60,11 +60,13 @@ Revision History
 #include "efitcp.h"
 #include "efipoint.h"
 #include "efiuga.h"
+#include <sys/types.h>
 
 /*
  * Global variables
  */
 extern EFI_LOADED_IMAGE *boot_img;
+extern bool boot_services_active;
 
 /*
  * FreeBSD UUID

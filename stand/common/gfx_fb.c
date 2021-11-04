@@ -751,14 +751,16 @@ gfxfb_blt(void *BltBuffer, GFXFB_BLT_OPERATION BltOperation,
 #if defined(EFI)
 	EFI_STATUS status;
 	EFI_GRAPHICS_OUTPUT *gop = gfx_state.tg_private;
-	extern int boot_services_gone;
 	EFI_TPL tpl;
 
 	/*
-	 * We assume Blt() does work, if not, we will need to build
-	 * exception list case by case.
+	 * We assume Blt() does work, if not, we will need to build exception
+	 * list case by case. We only have boot services during part of our
+	 * exectution. Once terminate boot services, these operations cannot be
+	 * done as they are provided by protocols that disappear when exit
+	 * boot services.
 	 */
-	if (gop != NULL && boot_services_gone == 0) {
+	if (gop != NULL && boot_services_active) {
 		tpl = BS->RaiseTPL(TPL_NOTIFY);
 		switch (BltOperation) {
 		case GfxFbBltVideoFill:
