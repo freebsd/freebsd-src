@@ -11,7 +11,7 @@ AZURE_UPLOAD_TGTS=	azure-check-depends \
 CLEANFILES+=		${AZURE_UPLOAD_TGTS}
 
 .if defined(AZURE_UPLOAD_CONF) && !empty(AZURE_UPLOAD_CONF)
-. for VAR in _STORAGE _ACCOUNT _RESOURCEGROUP _KEY _LOCATION
+. for VAR in _STORAGE _ACCOUNT _KEY
 AZURE${VAR}!=	grep -E '^AZURE${VAR}' ${AZURE_UPLOAD_CONF} | awk -F '	' '{print $$2}'
 . endfor
 .endif
@@ -28,7 +28,7 @@ EXPIRY_DATE!=	date -v+1m -I -u
 azure-upload:		${AZURE_UPLOAD_TGTS}
 
 azure-check-depends:
-.for VAR in _STORAGE _ACCOUNT _RESOURCEGROUP _KEY _LOCATION
+.for VAR in _STORAGE _ACCOUNT _KEY
 . if !defined(AZURE${VAR}) || empty(AZURE${VAR})
 	@echo "Variable AZURE${VAR} cannot be empty."
 	@false
