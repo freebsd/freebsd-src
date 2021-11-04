@@ -10,6 +10,11 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+ba48d52ca6c8,4ac3d08a9693,2533eca1c2b9:
+	The default bell tone is now 800Hz. It may be set with kbdcontrol
+	again. There's devd integration for people wishing to use their sound
+	cards for the beep.
+
 92b3e07229ba:
 	net.inet.tcp.nolocaltimewait enabled by default.  It prevents
 	creation of timewait entries for TCP connections that were
