@@ -466,11 +466,17 @@ static int
 htu21_probe(device_t dev)
 {
 	uint8_t addr;
+	int rc;
 
 #ifdef FDT
-	if (!ofw_bus_search_compatible(dev, compat_data)->ocd_data)
+	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
+	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data)
+		rc = BUS_PROBE_GENERIC;
+	else
 #endif
+		rc = BUS_PROBE_NOWILDCARD;
+
 	addr = iicbus_get_addr(dev);
 	if (addr != (HTU21_ADDR << 1)) {
 		device_printf(dev, "non-standard slave address 0x%02x\n",
@@ -478,7 +484,7 @@ htu21_probe(device_t dev)
 	}
 
 	device_set_desc(dev, "HTU21 temperature and humidity sensor");
-	return (BUS_PROBE_GENERIC);
+	return (rc);
 }
 
 static int
@@ -524,6 +530,4 @@ static devclass_t htu21_devclass;
 DRIVER_MODULE(htu21, iicbus, htu21_driver, htu21_devclass, 0, 0);
 MODULE_DEPEND(htu21, iicbus, IICBUS_MINVER, IICBUS_PREFVER, IICBUS_MAXVER);
 MODULE_VERSION(htu21, 1);
-#ifdef FDT
 IICBUS_FDT_PNP_INFO(compat_data);
-#endif
