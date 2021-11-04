@@ -214,7 +214,7 @@ vnet_gif_init(const void *unused __unused)
 	in6_gif_init();
 #endif
 }
-VNET_SYSINIT(vnet_gif_init, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY,
+VNET_SYSINIT(vnet_gif_init, SI_SUB_PSEUDO, SI_ORDER_ANY,
     vnet_gif_init, NULL);
 
 static void
@@ -229,7 +229,7 @@ vnet_gif_uninit(const void *unused __unused)
 	in6_gif_uninit();
 #endif
 }
-VNET_SYSUNINIT(vnet_gif_uninit, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY,
+VNET_SYSUNINIT(vnet_gif_uninit, SI_SUB_PSEUDO, SI_ORDER_ANY,
     vnet_gif_uninit, NULL);
 
 static int
