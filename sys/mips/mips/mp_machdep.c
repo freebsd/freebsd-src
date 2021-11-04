@@ -335,7 +335,7 @@ smp_init_secondary(u_int32_t cpuid)
 	cpu_initclocks_ap();
 
 	/* enter the scheduler */
-	sched_throw(NULL);
+	sched_ap_entry();
 
 	panic("scheduler returned us to %s", __func__);
 	/* NOTREACHED */

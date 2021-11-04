@@ -112,7 +112,7 @@ machdep_ap_bootstrap(void)
 	cpu_initclocks_ap();
 
 	/* Announce ourselves awake, and enter the scheduler */
-	sched_throw(NULL);
+	sched_ap_entry();
 }
 
 void
