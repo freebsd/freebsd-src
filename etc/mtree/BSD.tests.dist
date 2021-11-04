@@ -873,6 +873,10 @@
         apply
         ..
         awk
+	    bugs-fixed
+	    ..
+	    netbsd
+	    ..
         ..
         basename
         ..
