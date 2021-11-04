@@ -77,7 +77,7 @@ procfs_doprocfile(PFS_FILL_ARGS)
 	PROC_LOCK(p);
 	error = proc_get_binpath(p, binpath, &fullpath, &freepath);
 	if (error == 0)
-		sbuf_printf(sb, "%s", fullpath == NULL ? "" : fullpath);
+		sbuf_cat(sb, fullpath);
 	free(binpath, M_TEMP);
 	free(freepath, M_TEMP);
 	return (error);
