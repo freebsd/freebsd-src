@@ -63,8 +63,6 @@ __FBSDID("$FreeBSD$");
 int bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp,
     bool exit_bs);
 
-int boot_services_gone;
-
 static int
 bi_getboothowto(char *kargs)
 {
@@ -397,7 +395,7 @@ bi_load_efi_data(struct preloaded_file *kfp, bool exit_bs)
 			break;
 		status = BS->ExitBootServices(IH, efi_mapkey);
 		if (!EFI_ERROR(status)) {
-			boot_services_gone = 1;
+			boot_services_active = false;
 			break;
 		}
 	}

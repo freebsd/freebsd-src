@@ -37,14 +37,15 @@ __FBSDID("$FreeBSD$");
 #include <framebuffer.h>
 #include "bootstrap.h"
 
-extern int boot_services_gone;
 extern EFI_GUID gop_guid;
+
+bool boot_services_active = true; /* boot services active first thing in main */
+
 static EFI_GUID simple_input_ex_guid = EFI_SIMPLE_TEXT_INPUT_EX_PROTOCOL_GUID;
 static SIMPLE_TEXT_OUTPUT_INTERFACE	*conout;
 static SIMPLE_INPUT_INTERFACE		*conin;
 static EFI_SIMPLE_TEXT_INPUT_EX_PROTOCOL *coninex;
 static bool efi_started;
-
 static int mode;		/* Does ConOut have serial console? */
 
 static uint32_t utf8_left;
@@ -177,7 +178,7 @@ efi_text_cursor(void *arg, const teken_pos_t *p)
 	teken_gfx_t *state = arg;
 	UINTN col, row;
 
-	if (boot_services_gone)
+	if (!boot_services_active)
 		return;
 
 	row = p->tp_row;
@@ -238,7 +239,7 @@ efi_text_putchar(void *s, const teken_pos_t *p, teken_char_t c,
 	EFI_STATUS status;
 	int idx;
 
-	if (boot_services_gone)
+	if (!boot_services_active)
 		return;
 
 	idx = p->tp_col + p->tp_row * state->tg_tp.tp_col;
@@ -258,7 +259,7 @@ efi_text_fill(void *arg, const teken_rect_t *r, teken_char_t c,
 	teken_gfx_t *state = arg;
 	teken_pos_t p;
 
-	if (boot_services_gone)
+	if (!boot_services_active)
 		return;
 
 	if (state->tg_cursor_visible)
@@ -313,7 +314,7 @@ efi_text_copy(void *arg, const teken_rect_t *r, const teken_pos_t *p)
 	int nrow, ncol, x, y; /* Has to be signed - >= 0 comparison */
 	bool scroll = false;
 
-	if (boot_services_gone)
+	if (!boot_services_active)
 		return;
 
 	/*
@@ -369,7 +370,7 @@ efi_text_param(void *arg, int cmd, unsigned int value)
 {
 	teken_gfx_t *state = arg;
 
-	if (boot_services_gone)
+	if (!boot_services_active)
 		return;
 
 	switch (cmd) {
@@ -739,6 +740,8 @@ get_arg(int c)
 static void
 efi_term_emu(int c)
 {
+	if (!boot_services_active)
+		return;
 #ifdef TERM_EMU
 	static int ansi_col[] = {
 		0, 4, 2, 6, 1, 5, 3, 7
@@ -746,9 +749,6 @@ efi_term_emu(int c)
 	int t, i;
 	EFI_STATUS status;
  
-	if (boot_services_gone)
-		return;
-
 	switch (esc) {
 	case 0:
 		switch (c) {
@@ -858,8 +858,7 @@ efi_term_emu(int c)
 		break;
 	}
 #else
-	if (!boot_services_gone)
-		efi_cons_rawputchar(c);
+	efi_cons_rawputchar(c);
 #endif
 }
 
