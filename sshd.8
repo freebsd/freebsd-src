@@ -33,8 +33,8 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: sshd.8,v 1.316 2021/07/30 14:28:13 jmc Exp $
-.Dd $Mdocdate: July 30 2021 $
+.\" $OpenBSD: sshd.8,v 1.317 2021/09/10 11:38:38 dtucker Exp $
+.Dd $Mdocdate: September 10 2021 $
 .Dt SSHD 8
 .Os
 .Sh NAME
@@ -303,7 +303,12 @@ things like allocating a pseudo-tty, forwarding X11 connections,
 forwarding TCP connections, or forwarding the authentication agent
 connection over the secure channel.
 .Pp
-After this, the client either requests a shell or execution of a command.
+After this, the client either requests an interactive shell or execution
+or a non-interactive command, which
+.Nm
+will execute via the user's shell using its
+.Fl c
+option.
 The sides then enter session mode.
 In this mode, either side may send
 data at any time, and such data is forwarded to/from the shell or

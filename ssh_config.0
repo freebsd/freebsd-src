@@ -173,6 +173,9 @@ DESCRIPTION
              canonicalized to names in the "*.b.example.com" or
              "*.c.example.com" domains.
 
+             A single argument of "none" causes no CNAMEs to be considered for
+             canonicalization.  This is the default behaviour.
+
      CASignatureAlgorithms
              Specifies which algorithms are allowed for signing of
              certificates by certificate authorities (CAs).  The default is:
@@ -494,12 +497,11 @@ DESCRIPTION
                 sk-ecdsa-sha2-nistp256-cert-v01@openssh.com,
                 rsa-sha2-512-cert-v01@openssh.com,
                 rsa-sha2-256-cert-v01@openssh.com,
-                ssh-rsa-cert-v01@openssh.com,
                 ssh-ed25519,
                 ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
                 sk-ssh-ed25519@openssh.com,
                 sk-ecdsa-sha2-nistp256@openssh.com,
-                rsa-sha2-512,rsa-sha2-256,ssh-rsa
+                rsa-sha2-512,rsa-sha2-256
 
              The -Q option of ssh(1) may be used to list supported signature
              algorithms.  This was formerly named HostbasedKeyTypes.
@@ -529,12 +531,11 @@ DESCRIPTION
                 sk-ecdsa-sha2-nistp256-cert-v01@openssh.com,
                 rsa-sha2-512-cert-v01@openssh.com,
                 rsa-sha2-256-cert-v01@openssh.com,
-                ssh-rsa-cert-v01@openssh.com,
                 ssh-ed25519,
                 ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
                 sk-ecdsa-sha2-nistp256@openssh.com,
                 sk-ssh-ed25519@openssh.com,
-                rsa-sha2-512,rsa-sha2-256,ssh-rsa
+                rsa-sha2-512,rsa-sha2-256
 
              If hostkeys are known for the destination host then this default
              is modified to prefer their algorithms.
@@ -661,13 +662,13 @@ DESCRIPTION
      KexAlgorithms
              Specifies the available KEX (Key Exchange) algorithms.  Multiple
              algorithms must be comma-separated.  If the specified list begins
-             with a M-bM-^@M-^X+M-bM-^@M-^Y character, then the specified methods will be appended
-             to the default set instead of replacing them.  If the specified
-             list begins with a M-bM-^@M-^X-M-bM-^@M-^Y character, then the specified methods
-             (including wildcards) will be removed from the default set
-             instead of replacing them.  If the specified list begins with a
-             M-bM-^@M-^X^M-bM-^@M-^Y character, then the specified methods will be placed at the
-             head of the default set.  The default is:
+             with a M-bM-^@M-^X+M-bM-^@M-^Y character, then the specified algorithms will be
+             appended to the default set instead of replacing them.  If the
+             specified list begins with a M-bM-^@M-^X-M-bM-^@M-^Y character, then the specified
+             algorithms (including wildcards) will be removed from the default
+             set instead of replacing them.  If the specified list begins with
+             a M-bM-^@M-^X^M-bM-^@M-^Y character, then the specified algorithms will be placed at
+             the head of the default set.  The default is:
 
                    curve25519-sha256,curve25519-sha256@libssh.org,
                    ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521,
@@ -895,12 +896,11 @@ DESCRIPTION
                 sk-ecdsa-sha2-nistp256-cert-v01@openssh.com,
                 rsa-sha2-512-cert-v01@openssh.com,
                 rsa-sha2-256-cert-v01@openssh.com,
-                ssh-rsa-cert-v01@openssh.com,
                 ssh-ed25519,
                 ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
                 sk-ssh-ed25519@openssh.com,
                 sk-ecdsa-sha2-nistp256@openssh.com,
-                rsa-sha2-512,rsa-sha2-256,ssh-rsa
+                rsa-sha2-512,rsa-sha2-256
 
              The list of available signature algorithms may also be obtained
              using "ssh -Q PubkeyAcceptedAlgorithms".
@@ -1080,11 +1080,11 @@ DESCRIPTION
              maintained or when connections to new hosts are frequently made.
              This option forces the user to manually add all new hosts.
 
-             If this flag is set to M-bM-^@M-^\accept-newM-bM-^@M-^] then ssh will automatically
-             add new host keys to the user's known_hosts file, but will not
-             permit connections to hosts with changed host keys.  If this flag
-             is set to M-bM-^@M-^\noM-bM-^@M-^] or M-bM-^@M-^\offM-bM-^@M-^], ssh will automatically add new host keys
-             to the user known hosts files and allow connections to hosts with
+             If this flag is set to accept-new then ssh will automatically add
+             new host keys to the user's known_hosts file, but will not permit
+             connections to hosts with changed host keys.  If this flag is set
+             to no or off, ssh will automatically add new host keys to the
+             user known hosts files and allow connections to hosts with
              changed hostkeys to proceed, subject to some restrictions.  If
              this flag is set to ask (the default), new host keys will be
              added to the user known host files only after the user has
@@ -1303,4 +1303,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 6.9                     August 12, 2021                    OpenBSD 6.9
+OpenBSD 6.9                   September 25, 2021                   OpenBSD 6.9

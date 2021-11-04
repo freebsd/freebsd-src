@@ -1,4 +1,4 @@
-/* $OpenBSD: scp.c,v 1.232 2021/08/11 14:07:54 naddy Exp $ */
+/* $OpenBSD: scp.c,v 1.239 2021/09/20 06:53:56 djm Exp $ */
 /*
  * scp - secure remote copy.  This is basically patched BSD rcp which
  * uses ssh to do the data transfer (instead of using rcmd).
@@ -467,7 +467,7 @@ main(int argc, char **argv)
 
 	__progname = ssh_get_progname(argv[0]);
 
-	log_init(argv0, log_level, SYSLOG_FACILITY_USER, 1);
+	log_init(argv0, log_level, SYSLOG_FACILITY_USER, 2);
 
 	memset(&args, '\0', sizeof(args));
 	memset(&remote_remote_args, '\0', sizeof(remote_remote_args));
@@ -588,7 +588,7 @@ main(int argc, char **argv)
 	argc -= optind;
 	argv += optind;
 
-	log_init(argv0, log_level, SYSLOG_FACILITY_USER, 1);
+	log_init(argv0, log_level, SYSLOG_FACILITY_USER, 2);
 
 	/* Do this last because we want the user to be able to override it */
 	addargs(&args, "-oForwardAgent=no");
@@ -652,7 +652,7 @@ main(int argc, char **argv)
 	 * Finally check the exit status of the ssh process, if one was forked
 	 * and no error has occurred yet
 	 */
-	if (do_cmd_pid != -1 && errs == 0) {
+	if (do_cmd_pid != -1 && (mode == MODE_SFTP || errs == 0)) {
 		if (remin != -1)
 		    (void) close(remin);
 		if (remout != -1)
@@ -1213,8 +1213,7 @@ tolocal(int argc, char **argv, enum scp_mode_e mode, char *sftp_direct)
 			conn = do_sftp_connect(host, suser, sport,
 			    sftp_direct, &remin, &remout, &do_cmd_pid);
 			if (conn == NULL) {
-				error("Couldn't make sftp connection "
-				    "to server");
+				error("sftp connection failed");
 				++errs;
 				continue;
 			}
@@ -1261,7 +1260,8 @@ prepare_remote_path(struct sftp_conn *conn, const char *path)
 	if (can_expand_path(conn))
 		return do_expand_path(conn, path);
 	/* No protocol extension */
-	error("~user paths are not currently supported");
+	error("server expand-path extension is required "
+	    "for ~user paths in SFTP mode");
 	return NULL;
 }
 
@@ -1296,11 +1296,14 @@ source_sftp(int argc, char *src, char *targ, struct sftp_conn *conn)
 	if (local_is_dir(src) && iamrecursive) {
 		if (upload_dir(conn, src, abs_dst, pflag,
 		    SFTP_PROGRESS_ONLY, 0, 0, 1) != 0) {
-			fatal("failed to upload directory %s to %s",
+			error("failed to upload directory %s to %s",
 				src, abs_dst);
+			errs = 1;
 		}
-	} else if (do_upload(conn, src, abs_dst, pflag, 0, 0) != 0)
-		fatal("failed to upload file %s to %s", src, abs_dst);
+	} else if (do_upload(conn, src, abs_dst, pflag, 0, 0) != 0) {
+		error("failed to upload file %s to %s", src, abs_dst);
+		errs = 1;
+	}
 
 	free(abs_dst);
 	free(target);
@@ -1490,9 +1493,9 @@ sink_sftp(int argc, char *dst, const char *src, struct sftp_conn *conn)
 	debug3_f("copying remote %s to local %s", abs_src, dst);
 	if ((r = remote_glob(conn, abs_src, GLOB_MARK, NULL, &g)) != 0) {
 		if (r == GLOB_NOSPACE)
-			error("Too many glob matches for \"%s\".", abs_src);
+			error("%s: too many glob matches", abs_src);
 		else
-			error("File \"%s\" not found.", abs_src);
+			error("%s: %s", abs_src, strerror(ENOENT));
 		err = -1;
 		goto out;
 	}
@@ -1537,9 +1540,8 @@ out:
 	free(abs_src);
 	free(tmp);
 	globfree(&g);
-	if (err == -1) {
-		fatal("Failed to download file '%s'", src);
-	}
+	if (err == -1)
+		errs = 1;
 }
 
 
@@ -1887,7 +1889,7 @@ throughlocal_sftp(struct sftp_conn *from, struct sftp_conn *to,
 
 	targetisdir = remote_is_dir(to, target);
 	if (!targetisdir && targetshouldbedirectory) {
-		error("Destination path \"%s\" is not a directory", target);
+		error("%s: destination is not a directory", target);
 		err = -1;
 		goto out;
 	}
@@ -1895,9 +1897,9 @@ throughlocal_sftp(struct sftp_conn *from, struct sftp_conn *to,
 	debug3_f("copying remote %s to remote %s", abs_src, target);
 	if ((r = remote_glob(from, abs_src, GLOB_MARK, NULL, &g)) != 0) {
 		if (r == GLOB_NOSPACE)
-			error("Too many glob matches for \"%s\".", abs_src);
+			error("%s: too many glob matches", abs_src);
 		else
-			error("File \"%s\" not found.", abs_src);
+			error("%s: %s", abs_src, strerror(ENOENT));
 		err = -1;
 		goto out;
 	}
@@ -1938,7 +1940,7 @@ out:
 	free(tmp);
 	globfree(&g);
 	if (err == -1)
-		fatal("Failed to download file '%s'", src);
+		errs = 1;
 }
 
 int

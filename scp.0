@@ -12,8 +12,7 @@ DESCRIPTION
      scp copies files between hosts on a network.
 
      It uses ssh(1) for data transfer, and uses the same authentication and
-     provides the same security as a login session.  The scp protocol requires
-     execution of the remote user's shell to perform glob(3) pattern matching.
+     provides the same security as a login session.
 
      scp will ask for passwords or passphrases if they are needed for
      authentication.
@@ -31,7 +30,7 @@ DESCRIPTION
 
      -3      Copies between two remote hosts are transferred through the local
              host.  Without this option the data is copied directly between
-             the two remote hosts.  Note that, when using the legacy SCP
+             the two remote hosts.  Note that, when using the original SCP
              protocol (the default), this option selects batch mode for the
              second host as scp cannot ask for passwords or passphrases for
              both hosts.  This mode is the default.
@@ -54,7 +53,7 @@ DESCRIPTION
              option is directly passed to ssh(1).
 
      -D sftp_server_path
-             When using the SFTP protocol support via -M, connect directly to
+             When using the SFTP protocol support via -s, connect directly to
              a local SFTP server program rather than a remote one via ssh(1).
              This option may be useful in debugging the client and server.
 
@@ -78,11 +77,12 @@ DESCRIPTION
      -l limit
              Limits the used bandwidth, specified in Kbit/s.
 
-     -O      Use the legacy SCP protocol for file transfers instead of the
+     -O      Use the original SCP protocol for file transfers instead of the
              SFTP protocol.  Forcing the use of the SCP protocol may be
-             necessary for servers that do not implement SFTP or for
-             backwards-compatibility for particular filename wildcard
-             patterns.  This mode is the default.
+             necessary for servers that do not implement SFTP, for backwards-
+             compatibility for particular filename wildcard patterns and for
+             expanding paths with a M-bM-^@M-^X~M-bM-^@M-^Y prefix for older SFTP servers.  This
+             mode is the default.
 
      -o ssh_option
              Can be used to pass options to ssh in the format used in
@@ -155,10 +155,10 @@ DESCRIPTION
      -P port
              Specifies the port to connect to on the remote host.  Note that
              this option is written with a capital M-bM-^@M-^XPM-bM-^@M-^Y, because -p is already
-             reserved for preserving the times and modes of the file.
+             reserved for preserving the times and mode bits of the file.
 
-     -p      Preserves modification times, access times, and modes from the
-             original file.
+     -p      Preserves modification times, access times, and file mode bits
+             from the source file.
 
      -q      Quiet mode: disables the progress meter as well as warning and
              diagnostic messages from ssh(1).
@@ -175,14 +175,8 @@ DESCRIPTION
              Name of program to use for the encrypted connection.  The program
              must understand ssh(1) options.
 
-     -s      Use the SFTP protocol for file transfers instead of the legacy
-             SCP protocol.  Using SFTP avoids invoking a shell on the remote
-             side and provides more predictable filename handling, as the SCP
-             protocol relied on the remote shell for expanding glob(3)
-             wildcards.
-
-             A near-future release of OpenSSH will make the SFTP protocol the
-             default.  This option will be deleted before the end of 2022.
+     -s      Use the SFTP protocol for transfers rather than the original scp
+             protocol.
 
      -T      Disable strict filename checking.  By default when copying files
              from a remote host to a local directory scp checks that the
@@ -213,4 +207,10 @@ AUTHORS
      Timo Rinne <tri@iki.fi>
      Tatu Ylonen <ylo@cs.hut.fi>
 
-OpenBSD 6.9                     August 11, 2021                    OpenBSD 6.9
+CAVEATS
+     The original SCP protocol (used by default) requires execution of the
+     remote user's shell to perform glob(3) pattern matching.  This requires
+     careful quoting of any characters that have special meaning to the remote
+     shell, such as quote characters.
+
+OpenBSD 6.9                   September 20, 2021                   OpenBSD 6.9

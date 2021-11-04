@@ -33,8 +33,8 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: sshd_config.5,v 1.334 2021/08/12 23:59:25 djm Exp $
-.Dd $Mdocdate: August 12 2021 $
+.\" $OpenBSD: sshd_config.5,v 1.335 2021/09/03 05:25:50 dtucker Exp $
+.Dd $Mdocdate: September 3 2021 $
 .Dt SSHD_CONFIG 5
 .Os
 .Sh NAME
@@ -920,15 +920,15 @@ Specifies the available KEX (Key Exchange) algorithms.
 Multiple algorithms must be comma-separated.
 Alternately if the specified list begins with a
 .Sq +
-character, then the specified methods will be appended to the default set
+character, then the specified algorithms will be appended to the default set
 instead of replacing them.
 If the specified list begins with a
 .Sq -
-character, then the specified methods (including wildcards) will be removed
+character, then the specified algorithms (including wildcards) will be removed
 from the default set instead of replacing them.
 If the specified list begins with a
 .Sq ^
-character, then the specified methods will be placed at the head of the
+character, then the specified algorithms will be placed at the head of the
 default set.
 The supported algorithms are:
 .Pp

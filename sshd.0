@@ -157,10 +157,12 @@ AUTHENTICATION
      connections, or forwarding the authentication agent connection over the
      secure channel.
 
-     After this, the client either requests a shell or execution of a command.
-     The sides then enter session mode.  In this mode, either side may send
-     data at any time, and such data is forwarded to/from the shell or command
-     on the server side, and the user terminal in the client side.
+     After this, the client either requests an interactive shell or execution
+     or a non-interactive command, which sshd will execute via the user's
+     shell using its -c option.  The sides then enter session mode.  In this
+     mode, either side may send data at any time, and such data is forwarded
+     to/from the shell or command on the server side, and the user terminal in
+     the client side.
 
      When the user program terminates and all forwarded X11 and other
      connections have been closed, the server sends command exit status to the
@@ -670,4 +672,4 @@ AUTHORS
      versions 1.5 and 2.0.  Niels Provos and Markus Friedl contributed support
      for privilege separation.
 
-OpenBSD 6.9                      July 30, 2021                     OpenBSD 6.9
+OpenBSD 6.9                   September 10, 2021                   OpenBSD 6.9

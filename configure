@@ -645,7 +645,6 @@ SSHDLIBS
 SSH_PRIVSEP_USER
 LIBFIDO2
 SK_DUMMY_LIBRARY
-COMMENT_OUT_ECC
 TEST_SSH_ECC
 PICFLAG
 LIBEDIT
@@ -7138,6 +7137,7 @@ for ac_header in  \
 	sys/ndir.h \
 	sys/poll.h \
 	sys/prctl.h \
+	sys/procctl.h \
 	sys/pstat.h \
 	sys/ptrace.h \
 	sys/random.h \
@@ -11515,6 +11515,7 @@ for ac_func in  \
 	pledge \
 	poll \
 	prctl \
+	procctl \
 	pselect \
 	pstat \
 	raise \
@@ -13470,7 +13471,8 @@ if ac_fn_c_try_run "$LINENO"; then :
 				;;
 			101*)   ;; # 1.1.x
 			200*)   ;; # LibreSSL
-			300*)   ;; # OpenSSL development branch.
+			300*)   ;; # OpenSSL 3
+			301*)   ;; # OpenSSL development branch.
 		        *)
 				as_fn_error $? "Unknown/unsupported OpenSSL version (\"$ssl_library_ver\")" "$LINENO" 5
 		                ;;
@@ -14171,7 +14173,6 @@ fi
 rm -f core conftest.err conftest.$ac_objext \
     conftest$ac_exeext conftest.$ac_ext
 
-	COMMENT_OUT_ECC="#no ecc#"
 	TEST_SSH_ECC=no
 
 	if test x$enable_nistp256 = x1 || test x$enable_nistp384 = x1 || \
@@ -14199,7 +14200,6 @@ done
 $as_echo "#define OPENSSL_HAS_NISTP256 1" >>confdefs.h
 
 		TEST_SSH_ECC=yes
-		COMMENT_OUT_ECC=""
 	else
 		unsupported_algorithms="$unsupported_algorithms \
 			ecdsa-sha2-nistp256 \
@@ -14211,7 +14211,6 @@ $as_echo "#define OPENSSL_HAS_NISTP256 1" >>confdefs.h
 $as_echo "#define OPENSSL_HAS_NISTP384 1" >>confdefs.h
 
 		TEST_SSH_ECC=yes
-		COMMENT_OUT_ECC=""
 	else
 		unsupported_algorithms="$unsupported_algorithms \
 			ecdsa-sha2-nistp384 \
@@ -14223,14 +14222,12 @@ $as_echo "#define OPENSSL_HAS_NISTP384 1" >>confdefs.h
 $as_echo "#define OPENSSL_HAS_NISTP521 1" >>confdefs.h
 
 		TEST_SSH_ECC=yes
-		COMMENT_OUT_ECC=""
 	else
 		unsupported_algorithms="$unsupported_algorithms \
 			ecdh-sha2-nistp521 \
 			ecdsa-sha2-nistp521 \
 			ecdsa-sha2-nistp521-cert-v01@openssh.com"
 	fi
-
 
 
 else
