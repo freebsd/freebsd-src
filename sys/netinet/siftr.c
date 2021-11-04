@@ -99,7 +99,7 @@ __FBSDID("$FreeBSD$");
 
 #ifdef SIFTR_IPV6
 #include <netinet/ip6.h>
-#include <netinet/ip6_var.h>
+#include <netinet6/ip6_var.h>
 #include <netinet6/in6_pcb.h>
 #endif /* SIFTR_IPV6 */
 
@@ -1007,8 +1007,9 @@ ret:
 }
 
 #ifdef SIFTR_IPV6
-static int
-siftr_chkpkt6(struct mbuf **m, struct ifnet *ifp, int flags, struct inpcb *inp)
+static pfil_return_t
+siftr_chkpkt6(struct mbuf **m, struct ifnet *ifp, int flags,
+    void *ruleset __unused, struct inpcb *inp)
 {
 	struct pkt_node *pn;
 	struct ip6_hdr *ip6;
@@ -1134,7 +1135,7 @@ ret6:
 
 VNET_DEFINE_STATIC(pfil_hook_t, siftr_inet_hook);
 #define	V_siftr_inet_hook	VNET(siftr_inet_hook)
-#ifdef INET6
+#ifdef SIFTR_IPV6
 VNET_DEFINE_STATIC(pfil_hook_t, siftr_inet6_hook);
 #define	V_siftr_inet6_hook	VNET(siftr_inet6_hook)
 #endif
