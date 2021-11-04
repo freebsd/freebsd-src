@@ -12,6 +12,8 @@ SRCS=	linux_compat.c \
 	linux_hrtimer.c \
 	linux_idr.c \
 	linux_interrupt.c \
+	linux_i2c.c \
+	linux_i2cbb.c \
 	linux_kmod.c \
 	linux_kthread.c \
 	linux_lock.c \

@@ -1820,7 +1820,7 @@ dev/ichsmb/ichsmb_pci.c		optional ichsmb pci
 dev/ida/ida.c			optional ida
 dev/ida/ida_disk.c		optional ida
 dev/ida/ida_pci.c		optional ida pci
-dev/iicbus/acpi_iicbus.c	optional acpi iicbus
+dev/iicbus/acpi_iicbus.c	optional acpi iicbus | acpi compat_linuxkpi
 dev/iicbus/ad7418.c		optional ad7418
 dev/iicbus/ads111x.c		optional ads111x
 dev/iicbus/ds1307.c		optional ds1307
@@ -1831,13 +1831,13 @@ dev/iicbus/htu21.c		optional htu21
 dev/iicbus/icee.c		optional icee
 dev/iicbus/if_ic.c		optional ic
 dev/iicbus/iic.c		optional iic
-dev/iicbus/iic_recover_bus.c	optional iicbus
-dev/iicbus/iicbb.c		optional iicbb
-dev/iicbus/iicbb_if.m		optional iicbb
-dev/iicbus/iicbus.c		optional iicbus
-dev/iicbus/iicbus_if.m		optional iicbus
+dev/iicbus/iic_recover_bus.c	optional iicbus | compat_linuxkpi
+dev/iicbus/iicbb.c		optional iicbb | compat_linuxkpi
+dev/iicbus/iicbb_if.m		optional iicbb | compat_linuxkpi
+dev/iicbus/iicbus.c		optional iicbus | compat_linuxkpi
+dev/iicbus/iicbus_if.m		optional iicbus | compat_linuxkpi
 dev/iicbus/iichid.c		optional iichid acpi hid iicbus
-dev/iicbus/iiconf.c		optional iicbus
+dev/iicbus/iiconf.c		optional iicbus | compat_linuxkpi
 dev/iicbus/iicsmb.c		optional iicsmb				\
 	dependency	"iicbus_if.h"
 dev/iicbus/iicoc.c		optional iicoc
@@ -4552,6 +4552,10 @@ compat/linuxkpi/common/src/linux_fpu.c		optional compat_linuxkpi \
 	compile-with "${LINUXKPI_C}"
 compat/linuxkpi/common/src/linux_hrtimer.c	optional compat_linuxkpi \
 	compile-with "${LINUXKPI_C}"
+compat/linuxkpi/common/src/linux_i2c.c		optional compat_linuxkpi \
+	compile-with "${LINUXKPI_C}"
+compat/linuxkpi/common/src/linux_i2cbb.c	optional compat_linuxkpi \
+	compile-with "${LINUXKPI_C}"
 compat/linuxkpi/common/src/linux_interrupt.c	optional compat_linuxkpi \
 	compile-with "${LINUXKPI_C}"
 compat/linuxkpi/common/src/linux_kthread.c	optional compat_linuxkpi \
@@ -4588,6 +4592,7 @@ compat/linuxkpi/common/src/linux_work.c		optional compat_linuxkpi \
 	compile-with "${LINUXKPI_C}"
 compat/linuxkpi/common/src/linux_xarray.c	optional compat_linuxkpi \
 	compile-with "${LINUXKPI_C}"
+compat/linuxkpi/common/src/lkpi_iic_if.m	optional compat_linuxkpi
 
 compat/linuxkpi/common/src/linux_seq_file.c		optional compat_linuxkpi | lindebugfs \
 	compile-with "${LINUXKPI_C}"
