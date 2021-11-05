@@ -4538,6 +4538,7 @@ nfscl_removedeleg(vnode_t vp, NFSPROC_T *p, nfsv4stateid_t *stp)
 	struct nfsclowner *owp;
 	struct nfscllockowner *lp;
 	struct nfsmount *nmp;
+	struct mount *mp;
 	struct ucred *cred;
 	struct nfsnode *np;
 	int igotlock = 0, triedrecall = 0, needsrecall, retcnt = 0, islept;
@@ -4546,6 +4547,7 @@ nfscl_removedeleg(vnode_t vp, NFSPROC_T *p, nfsv4stateid_t *stp)
 	if (NFSHASPNFS(nmp))
 		return (retcnt);
 	np = VTONFS(vp);
+	mp = nmp->nm_mountp;
 	NFSLOCKCLSTATE();
 	/*
 	 * Loop around waiting for:
@@ -4572,8 +4574,13 @@ nfscl_removedeleg(vnode_t vp, NFSPROC_T *p, nfsv4stateid_t *stp)
 			    igotlock = 0;
 			}
 			dp->nfsdl_rwlock.nfslock_lock |= NFSV4LOCK_WANTED;
-			(void) nfsmsleep(&dp->nfsdl_rwlock,
-			    NFSCLSTATEMUTEXPTR, PZERO, "nfscld", NULL);
+			msleep(&dp->nfsdl_rwlock, NFSCLSTATEMUTEXPTR, PZERO,
+			    "nfscld", hz);
+			if (NFSCL_FORCEDISM(mp)) {
+			    dp->nfsdl_flags &= ~NFSCLDL_DELEGRET;
+			    NFSUNLOCKCLSTATE();
+			    return (0);
+			}
 			continue;
 		    }
 		    needsrecall = 0;
@@ -4596,7 +4603,14 @@ nfscl_removedeleg(vnode_t vp, NFSPROC_T *p, nfsv4stateid_t *stp)
 			islept = 0;
 			while (!igotlock) {
 			    igotlock = nfsv4_lock(&clp->nfsc_lock, 1,
-				&islept, NFSCLSTATEMUTEXPTR, NULL);
+				&islept, NFSCLSTATEMUTEXPTR, mp);
+			    if (NFSCL_FORCEDISM(mp)) {
+				dp->nfsdl_flags &= ~NFSCLDL_DELEGRET;
+				if (igotlock)
+				    nfsv4_unlock(&clp->nfsc_lock, 0);
+				NFSUNLOCKCLSTATE();
+				return (0);
+			    }
 			    if (islept)
 				break;
 			}
@@ -4637,6 +4651,7 @@ nfscl_renamedeleg(vnode_t fvp, nfsv4stateid_t *fstp, int *gotfdp, vnode_t tvp,
 	struct nfsclowner *owp;
 	struct nfscllockowner *lp;
 	struct nfsmount *nmp;
+	struct mount *mp;
 	struct ucred *cred;
 	struct nfsnode *np;
 	int igotlock = 0, triedrecall = 0, needsrecall, retcnt = 0, islept;
@@ -4646,6 +4661,7 @@ nfscl_renamedeleg(vnode_t fvp, nfsv4stateid_t *fstp, int *gotfdp, vnode_t tvp,
 	*gottdp = 0;
 	if (NFSHASPNFS(nmp))
 		return (retcnt);
+	mp = nmp->nm_mountp;
 	NFSLOCKCLSTATE();
 	/*
 	 * Loop around waiting for:
@@ -4673,8 +4689,15 @@ nfscl_renamedeleg(vnode_t fvp, nfsv4stateid_t *fstp, int *gotfdp, vnode_t tvp,
 			    igotlock = 0;
 			}
 			dp->nfsdl_rwlock.nfslock_lock |= NFSV4LOCK_WANTED;
-			(void) nfsmsleep(&dp->nfsdl_rwlock,
-			    NFSCLSTATEMUTEXPTR, PZERO, "nfscld", NULL);
+			msleep(&dp->nfsdl_rwlock, NFSCLSTATEMUTEXPTR, PZERO,
+			    "nfscld", hz);
+			if (NFSCL_FORCEDISM(mp)) {
+			    dp->nfsdl_flags &= ~NFSCLDL_DELEGRET;
+			    NFSUNLOCKCLSTATE();
+			    *gotfdp = 0;
+			    *gottdp = 0;
+			    return (0);
+			}
 			continue;
 		    }
 		    needsrecall = 0;
@@ -4697,7 +4720,16 @@ nfscl_renamedeleg(vnode_t fvp, nfsv4stateid_t *fstp, int *gotfdp, vnode_t tvp,
 			islept = 0;
 			while (!igotlock) {
 			    igotlock = nfsv4_lock(&clp->nfsc_lock, 1,
-				&islept, NFSCLSTATEMUTEXPTR, NULL);
+				&islept, NFSCLSTATEMUTEXPTR, mp);
+			    if (NFSCL_FORCEDISM(mp)) {
+				dp->nfsdl_flags &= ~NFSCLDL_DELEGRET;
+				if (igotlock)
+				    nfsv4_unlock(&clp->nfsc_lock, 0);
+				NFSUNLOCKCLSTATE();
+				*gotfdp = 0;
+				*gottdp = 0;
+				return (0);
+			    }
 			    if (islept)
 				break;
 			}
@@ -4734,8 +4766,14 @@ nfscl_renamedeleg(vnode_t fvp, nfsv4stateid_t *fstp, int *gotfdp, vnode_t tvp,
 			 */
 			if (dp->nfsdl_rwlock.nfslock_usecnt > 0) {
 			    dp->nfsdl_rwlock.nfslock_lock |= NFSV4LOCK_WANTED;
-			    (void) nfsmsleep(&dp->nfsdl_rwlock,
-				NFSCLSTATEMUTEXPTR, PZERO, "nfscld", NULL);
+			    msleep(&dp->nfsdl_rwlock, NFSCLSTATEMUTEXPTR, PZERO,
+				"nfscld", hz);
+			    if (NFSCL_FORCEDISM(mp)) {
+				NFSUNLOCKCLSTATE();
+				*gotfdp = 0;
+				*gottdp = 0;
+				return (0);
+			    }
 			    continue;
 			}
 			LIST_FOREACH(owp, &dp->nfsdl_owner, nfsow_list) {
