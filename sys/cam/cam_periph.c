@@ -69,7 +69,8 @@ static	u_int		camperiphnextunit(struct periph_driver *p_drv,
 					  lun_id_t lun);
 static	u_int		camperiphunit(struct periph_driver *p_drv,
 				      path_id_t pathid, target_id_t target,
-				      lun_id_t lun); 
+				      lun_id_t lun,
+				      const char *sn);
 static	void		camperiphdone(struct cam_periph *periph, 
 					union ccb *done_ccb);
 static  void		camperiphfree(struct cam_periph *periph);
@@ -273,7 +274,8 @@ cam_periph_alloc(periph_ctor_t *periph_ctor,
 		free(periph, M_CAMPERIPH);
 		return (CAM_REQ_INVALID);
 	}
-	periph->unit_number = camperiphunit(*p_drv, path_id, target_id, lun_id);
+	periph->unit_number = camperiphunit(*p_drv, path_id, target_id, lun_id,
+	    path->device->serial_num);
 	cur_periph = TAILQ_FIRST(&(*p_drv)->units);
 	while (cur_periph != NULL
 	    && cur_periph->unit_number < periph->unit_number)
@@ -582,7 +584,8 @@ camperiphnextunit(struct periph_driver *p_drv, u_int newunit, int wired,
 
 			if (newunit != dunit)
 				continue;
-			if (resource_int_value(dname, dunit, "lun", &val) == 0 ||
+			if (resource_string_value(dname, dunit, "sn", &strval) == 0 ||
+			    resource_int_value(dname, dunit, "lun", &val) == 0 ||
 			    resource_int_value(dname, dunit, "target", &val) == 0 ||
 			    resource_string_value(dname, dunit, "at", &strval) == 0)
 				break;
@@ -595,7 +598,7 @@ camperiphnextunit(struct periph_driver *p_drv, u_int newunit, int wired,
 
 static u_int
 camperiphunit(struct periph_driver *p_drv, path_id_t pathid,
-	      target_id_t target, lun_id_t lun)
+    target_id_t target, lun_id_t lun, const char *sn)
 {
 	u_int	unit;
 	int	wired, i, val, dunit;
@@ -621,6 +624,11 @@ camperiphunit(struct periph_driver *p_drv, path_id_t pathid,
 		}
 		if (resource_int_value(dname, dunit, "lun", &val) == 0) {
 			if (val != lun)
+				continue;
+			wired++;
+		}
+		if (resource_string_value(dname, dunit, "sn", &strval) == 0) {
+			if (sn == NULL || strcmp(strval, sn) != 0)
 				continue;
 			wired++;
 		}
