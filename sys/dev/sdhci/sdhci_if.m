@@ -164,3 +164,9 @@ METHOD void set_uhs_timing {
 	device_t		brdev;
 	struct sdhci_slot	*slot;
 } DEFAULT null_set_uhs_timing;
+
+METHOD void reset {
+	device_t		brdev;
+	struct sdhci_slot	*slot;
+	uint8_t			mask;
+} DEFAULT sdhci_generic_reset;
