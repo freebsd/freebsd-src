@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 19, 2018
+.Dd November 3, 2021
 .Dt COMPLEX 3
 .Os
 .Sh NAME
@@ -121,3 +121,9 @@ The
 .In complex.h
 functions described here conform to
 .St -isoC-99 .
+.Sh BUGS
+The power functions,
+.Fn cpowf, cpow ,
+and
+.Fn cpowl ,
+are implemented, but the code was neither reviewed nor tested.

@@ -307,6 +307,7 @@ FBSD_1.5 {
 
 /* First added in 14.0-CURRENT */
 FBSD_1.7 {
+	cexpl;
 	cospi;
 	cospif;
 	cospil;

@@ -98,6 +98,8 @@ double complex	ccosh(double complex);
 float complex	ccoshf(float complex);
 double complex	cexp(double complex);
 float complex	cexpf(float complex);
+long double complex
+		cexpl(long double complex);
 double		cimag(double complex) __pure2;
 float		cimagf(float complex) __pure2;
 long double	cimagl(long double complex) __pure2;

@@ -117,7 +117,7 @@ COMMON_SRCS+=	catrigl.c \
 	e_lgammal.c e_lgammal_r.c e_powl.c \
 	e_remainderl.c e_sinhl.c e_sqrtl.c \
 	invtrig.c k_cosl.c k_sinl.c k_tanl.c \
-	s_asinhl.c s_atanl.c s_cbrtl.c s_ceill.c \
+	s_asinhl.c s_atanl.c s_cbrtl.c s_ceill.c s_cexpl.c \
 	s_clogl.c s_cosl.c s_cospil.c s_cprojl.c \
 	s_csqrtl.c s_erfl.c s_exp2l.c s_expl.c s_floorl.c s_fmal.c \
 	s_fmaxl.c s_fminl.c s_frexpl.c s_logbl.c s_logl.c s_nanl.c \
@@ -189,7 +189,7 @@ MLINKS+=ccos.3 ccosf.3 ccos.3 csin.3 ccos.3 csinf.3 ccos.3 ctan.3 ccos.3 ctanf.3
 MLINKS+=ccosh.3 ccoshf.3 ccosh.3 csinh.3 ccosh.3 csinhf.3 \
 	ccosh.3 ctanh.3 ccosh.3 ctanhf.3
 MLINKS+=ceil.3 ceilf.3 ceil.3 ceill.3
-MLINKS+=cexp.3 cexpf.3
+MLINKS+=cexp.3 cexpf.3 cexp.3 cexpl.3
 MLINKS+=cimag.3 cimagf.3 cimag.3 cimagl.3 \
 	cimag.3 conj.3 cimag.3 conjf.3 cimag.3 conjl.3 \
 	cimag.3 cproj.3 cimag.3 cprojf.3 cimag.3 cprojl.3 \
