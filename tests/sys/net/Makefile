@@ -10,6 +10,7 @@ ATF_TESTS_SH+=	if_bridge_test
 ATF_TESTS_SH+=	if_clone_test
 ATF_TESTS_SH+=	if_gif
 ATF_TESTS_SH+=	if_lagg_test
+ATF_TESTS_SH+=	if_stf
 ATF_TESTS_SH+=	if_tun_test
 ATF_TESTS_SH+=	if_vlan
 
