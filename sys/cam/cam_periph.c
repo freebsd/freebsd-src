@@ -582,7 +582,8 @@ camperiphnextunit(struct periph_driver *p_drv, u_int newunit, int wired,
 
 			if (newunit != dunit)
 				continue;
-			if (resource_int_value(dname, dunit, "target", &val) == 0 ||
+			if (resource_int_value(dname, dunit, "lun", &val) == 0 ||
+			    resource_int_value(dname, dunit, "target", &val) == 0 ||
 			    resource_string_value(dname, dunit, "at", &strval) == 0)
 				break;
 		}
