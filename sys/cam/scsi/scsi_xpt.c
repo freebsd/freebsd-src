@@ -1615,6 +1615,14 @@ probe_device_check:
 					 */
 					slen = 0;
 				}
+				/*
+				 * In apparent violation of the spec, some
+				 * devices pad their serial numbers with
+				 * trailing spaces. Remove them.
+				 */
+				while (slen > 0 &&
+				    serial_buf->serial_num[slen - 1] == ' ')
+					slen--;
 				memcpy(path->device->serial_num,
 				       &serial_buf->serial_num[start], slen);
 				path->device->serial_num_len = slen;
