@@ -24,7 +24,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd June 18, 2020
+.Dd November 3, 2021
 .Dt CAM 4
 .Os
 .Sh NAME
@@ -252,14 +252,6 @@ The namespace id 1 is exported as
 .Tn nda10
 and namespace id 2 is exported as
 .Tn nda11 .
-.Pp
-When you have a mixture of wired down and counted devices then the
-counting begins with the first non-wired down unit for a particular
-type.
-That is, if you have a disk wired down as
-.Em "device da1" ,
-then the first non-wired disk shall come on line as
-.Em da2 .
 .Sh ADAPTERS
 The system allows common device drivers to work through many different
 types of adapters.
