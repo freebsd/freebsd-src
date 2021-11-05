@@ -123,11 +123,6 @@ static uma_zone_t icl_soft_pdu_zone;
 
 static volatile u_int	icl_ncons;
 
-#define ICL_CONN_LOCK(X)		mtx_lock(X->ic_lock)
-#define ICL_CONN_UNLOCK(X)		mtx_unlock(X->ic_lock)
-#define ICL_CONN_LOCK_ASSERT(X)		mtx_assert(X->ic_lock, MA_OWNED)
-#define ICL_CONN_LOCK_ASSERT_NOT(X)	mtx_assert(X->ic_lock, MA_NOTOWNED)
-
 STAILQ_HEAD(icl_pdu_stailq, icl_pdu);
 
 static icl_conn_new_pdu_t	icl_soft_conn_new_pdu;
