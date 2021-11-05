@@ -120,6 +120,11 @@ struct icl_conn {
 	void			*ic_prv0;
 };
 
+#define ICL_CONN_LOCK(X)		mtx_lock(X->ic_lock)
+#define ICL_CONN_UNLOCK(X)		mtx_unlock(X->ic_lock)
+#define ICL_CONN_LOCK_ASSERT(X)		mtx_assert(X->ic_lock, MA_OWNED)
+#define ICL_CONN_LOCK_ASSERT_NOT(X)	mtx_assert(X->ic_lock, MA_NOTOWNED)
+
 struct icl_drv_limits {
 	int idl_max_recv_data_segment_length;
 	int idl_max_send_data_segment_length;

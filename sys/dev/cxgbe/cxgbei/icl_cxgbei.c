@@ -129,11 +129,6 @@ SYSCTL_INT(_kern_icl_cxgbei, OID_AUTO, recvspace, CTLFLAG_RWTUN,
 
 static volatile u_int icl_cxgbei_ncons;
 
-#define ICL_CONN_LOCK(X)		mtx_lock(X->ic_lock)
-#define ICL_CONN_UNLOCK(X)		mtx_unlock(X->ic_lock)
-#define ICL_CONN_LOCK_ASSERT(X)		mtx_assert(X->ic_lock, MA_OWNED)
-#define ICL_CONN_LOCK_ASSERT_NOT(X)	mtx_assert(X->ic_lock, MA_NOTOWNED)
-
 static icl_conn_new_pdu_t	icl_cxgbei_conn_new_pdu;
 static icl_conn_pdu_data_segment_length_t
 				    icl_cxgbei_conn_pdu_data_segment_length;
