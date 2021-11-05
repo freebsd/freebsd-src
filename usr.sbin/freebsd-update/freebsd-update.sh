@@ -2207,11 +2207,20 @@ fetch_run () {
 	if [ ! -f fetch_run.pending ] && [ -f tag.new -a -f tag ] &&
 	    cmp -s tag.new tag; then
 		echo "No updates are available to fetch."
-		[ -f fetch_create_manifest.out ] && cat fetch_create_manifest.out
+		if [ -f fetch_create_manifest.out ]; then
+			echo "Updates available to install."
+			echo
+			cat fetch_create_manifest.out
+		else
+			echo
+			echo -n "No updates needed to update system to "
+			echo "${RELNUM}-p${RELPATCHNUM}."
+		fi
 		rm -f tag.new
 		return 0
 	fi
 	touch fetch_run.pending || return 1
+	rm -f fetch_create_manifest.out
 
 	# Fetch the latest INDEX-NEW and INDEX-OLD files.
 	fetch_metadata INDEX-NEW INDEX-OLD || return 1
@@ -2652,6 +2661,8 @@ upgrade_run () {
 		fetch_pick_server || return 1
 	done
 	fetch_tagsanity || return 1
+
+	rm -f fetch_create_manifest.out
 
 	# Fetch the INDEX-OLD and INDEX-ALL.
 	fetch_metadata INDEX-OLD INDEX-ALL || return 1
