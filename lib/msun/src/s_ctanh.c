@@ -76,7 +76,7 @@ __FBSDID("$FreeBSD$");
 double complex
 ctanh(double complex z)
 {
-	volatile double x, y;
+	double x, y;
 	double t, beta, s, rho, denom;
 	uint32_t hx, ix, lx;
 
