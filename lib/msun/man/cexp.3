@@ -24,12 +24,13 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 6, 2011
+.Dd November 3, 2021
 .Dt CEXP 3
 .Os
 .Sh NAME
 .Nm cexp ,
-.Nm cexpf
+.Nm cexpf ,
+.Nm cexpl
 .Nd complex exponential functions
 .Sh LIBRARY
 .Lb libm
@@ -39,11 +40,14 @@
 .Fn cexp "double complex z"
 .Ft float complex
 .Fn cexpf "float complex z"
+.Ft long double complex
+.Fn cexpl "long double complex z"
 .Sh DESCRIPTION
 The
-.Fn cexp
+.Fn cexp ,
+.Fn cexpf ,
 and
-.Fn cexpf
+.Fn cexpl
 functions compute the complex exponential of
 .Fa z ,
 also known as
@@ -106,8 +110,9 @@ is not finite, the sign of the result is indeterminate.
 .Xr math 3
 .Sh STANDARDS
 The
-.Fn cexp
+.Fn cexp ,
+.Fn cexpf ,
 and
-.Fn cexpf
+.Fn cexpl
 functions conform to
 .St -isoC-99 .
