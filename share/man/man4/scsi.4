@@ -242,16 +242,32 @@ hint.nda.11.target="1"
 hint.nda.11.unit="2"
 .Ed
 .Pp
-This assigns the NVMe card living at PCI bus 7 to scbus 10 (in PCIe,
-slot and function are rarely used and usually 0).
+This assigns the NVMe card living at PCI bus 7 slot 0 function 1 to scbus 10.
 The target for
 .Xr nda 4
 devices is always 1.
 The unit is the namespace identifier from the drive.
 The namespace id 1 is exported as
-.Tn nda10
+.Em nda10
 and namespace id 2 is exported as
-.Tn nda11 .
+.Em nda11 .
+.Pp
+For devices that provide a serial number, units may be wired to that serial
+number without regard where the drive is attached:
+.Bd -literal -offset indent
+hint.nda.3.sn="CY0AN07101120B12P"
+hint.da.44.sn="143282400011"
+hint.ada.2.sn="A065D591"
+.Ed
+wires
+.Em nda3 ,
+.Em da44 ,
+and
+.Em ada2
+to drives with the specified serial numbers.
+One need not specify an
+.Em at
+line when serial numbers are used.
 .Sh ADAPTERS
 The system allows common device drivers to work through many different
 types of adapters.
