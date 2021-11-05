@@ -84,6 +84,7 @@ __FBSDID("$FreeBSD$");
 #define	SDHCI_FSL_WTMK_WR_512B		(0 << 15)
 
 #define	SDHCI_FSL_HOST_VERSION		0xfc
+#define	SDHCI_FSL_VENDOR_V23		0x13
 #define	SDHCI_FSL_CAPABILITIES2		0x114
 
 #define	SDHCI_FSL_TBCTL			0x120
@@ -110,6 +111,7 @@ struct sdhci_fsl_fdt_softc {
 	uint32_t				cmd_and_mode;
 	uint16_t				sdclk_bits;
 	struct mmc_helper			fdt_helper;
+	uint8_t					vendor_ver;
 
 	uint32_t (* read)(struct sdhci_fsl_fdt_softc *, bus_size_t);
 	void (* write)(struct sdhci_fsl_fdt_softc *, bus_size_t, uint32_t);
@@ -186,10 +188,26 @@ sdhci_fsl_fdt_get_clock(struct sdhci_fsl_fdt_softc *sc)
 	return (val);
 }
 
+/*
+ * Calculate clock prescaler and divisor values based on the following formula:
+ * `frequency = base clock / (prescaler * divisor)`.
+ */
+#define	SDHCI_FSL_FDT_CLK_DIV(sc, base, freq, pre, div)			\
+	do {								\
+		(pre) = (sc)->vendor_ver < SDHCI_FSL_VENDOR_V23 ? 2 : 1;\
+		while ((freq) < (base) / ((pre) * 16) && (pre) < 256)	\
+			(pre) <<= 1;					\
+		/* div/pre can't both be set to 1, according to PM. */	\
+		(div) = ((pre) == 1 ? 2 : 1);				\
+		while ((freq) < (base) / ((pre) * (div)) && (div) < 16)	\
+			++(div);					\
+	} while (0)
+
 static void
-fsl_sdhc_fdt_set_clock(struct sdhci_fsl_fdt_softc *sc, uint16_t val)
+fsl_sdhc_fdt_set_clock(struct sdhci_fsl_fdt_softc *sc, struct sdhci_slot *slot,
+    uint16_t val)
 {
-	uint32_t div, freq, prescale, val32;
+	uint32_t prescale, div, val32;
 
 	sc->sdclk_bits = val & SDHCI_DIVIDERS_MASK;
 	val32 = RD4(sc, SDHCI_CLOCK_CONTROL);
@@ -199,23 +217,16 @@ fsl_sdhc_fdt_set_clock(struct sdhci_fsl_fdt_softc *sc, uint16_t val)
 		return;
 	}
 
-	div = ((val >> SDHCI_DIVIDER_SHIFT) & SDHCI_DIVIDER_MASK) |
-	    ((val >> SDHCI_DIVIDER_HI_SHIFT) & SDHCI_DIVIDER_HI_MASK) <<
-	    SDHCI_DIVIDER_MASK_LEN;
-	if (div == 0)
-		freq = sc->maxclk_hz;
-	else
-		freq = sc->maxclk_hz / (2 * div);
-
-	for (prescale = 2; freq < sc->baseclk_hz / (prescale * 16); )
-		prescale <<= 1;
-	for (div = 1; freq < sc->baseclk_hz / (prescale * div); )
-		++div;
+	/*
+	 * Ignore dividers provided by core in `sdhci_set_clock` and calculate
+	 * them anew with higher accuracy.
+	 */
+	SDHCI_FSL_FDT_CLK_DIV(sc, sc->baseclk_hz, slot->clock, prescale, div);
 
 #ifdef DEBUG
 	device_printf(sc->dev,
 	    "Desired SD/MMC freq: %d, actual: %d; base %d prescale %d divisor %d\n",
-	    freq, sc->baseclk_hz / (prescale * div),
+	    slot->clock, sc->baseclk_hz / (prescale * div),
 	    sc->baseclk_hz, prescale, div);
 #endif
 
@@ -370,7 +381,7 @@ sdhci_fsl_fdt_write_2(device_t dev, struct sdhci_slot *slot, bus_size_t off,
 
 	switch (off) {
 	case SDHCI_CLOCK_CONTROL:
-		fsl_sdhc_fdt_set_clock(sc, val);
+		fsl_sdhc_fdt_set_clock(sc, slot, val);
 		return;
 	/*
 	 * eSDHC hardware combines command and mode into a single
@@ -689,6 +700,9 @@ sdhci_fsl_fdt_attach(device_t dev)
 		buf_order = SDHCI_FSL_PROT_CTRL_BYTE_SWAP;
 	}
 
+	sc->vendor_ver = (RD4(sc, SDHCI_FSL_HOST_VERSION) &
+	    SDHCI_VENDOR_VER_MASK) >> SDHCI_VENDOR_VER_SHIFT;
+
 	sdhci_fsl_fdt_of_parse(dev);
 	sc->maxclk_hz = host->f_max ? host->f_max : sc->baseclk_hz;
 
@@ -803,6 +817,32 @@ sdhci_fsl_fdt_read_ivar(device_t bus, device_t child, int which,
 	return (sdhci_generic_read_ivar(bus, child, which, result));
 }
 
+static int
+sdhci_fsl_fdt_write_ivar(device_t bus, device_t child, int which,
+    uintptr_t value)
+{
+	struct sdhci_fsl_fdt_softc *sc;
+	struct sdhci_slot *slot = device_get_ivars(child);
+	uint32_t prescale, div;
+
+	/* Don't depend on clock resolution limits from sdhci core. */
+	if (which == MMCBR_IVAR_CLOCK) {
+		if (value == 0) {
+			slot->host.ios.clock = 0;
+			return (0);
+		}
+
+		sc = device_get_softc(bus);
+
+		SDHCI_FSL_FDT_CLK_DIV(sc, sc->baseclk_hz, value, prescale, div);
+		slot->host.ios.clock = sc->baseclk_hz / (prescale * div);
+
+		return (0);
+	}
+
+	return (sdhci_generic_write_ivar(bus, child, which, value));
+}
+
 static void
 sdhci_fsl_fdt_reset(device_t dev, struct sdhci_slot *slot, uint8_t mask)
 {
@@ -832,7 +872,7 @@ static const device_method_t sdhci_fsl_fdt_methods[] = {
 
 	/* Bus interface. */
 	DEVMETHOD(bus_read_ivar,		sdhci_fsl_fdt_read_ivar),
-	DEVMETHOD(bus_write_ivar,		sdhci_generic_write_ivar),
+	DEVMETHOD(bus_write_ivar,		sdhci_fsl_fdt_write_ivar),
 
 	/* MMC bridge interface. */
 	DEVMETHOD(mmcbr_request,		sdhci_generic_request),
