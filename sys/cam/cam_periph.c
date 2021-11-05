@@ -579,11 +579,11 @@ camperiphnextunit(struct periph_driver *p_drv, u_int newunit, int wired,
 			r = resource_find_dev(&i, dname, &dunit, NULL, NULL);
 			if (r != 0)
 				break;
-			/* if no "target" and no specific scbus, skip */
-			if (resource_int_value(dname, dunit, "target", &val) &&
-			    resource_string_value(dname, dunit, "at",&strval))
+
+			if (newunit != dunit)
 				continue;
-			if (newunit == dunit)
+			if (resource_int_value(dname, dunit, "target", &val) == 0 ||
+			    resource_string_value(dname, dunit, "at", &strval) == 0)
 				break;
 		}
 		if (r != 0)
