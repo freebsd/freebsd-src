@@ -64,7 +64,7 @@ __FBSDID("$FreeBSD$");
 #include <cam/scsi/scsi_pass.h>
 
 static	u_int		camperiphnextunit(struct periph_driver *p_drv,
-					  u_int newunit, int wired,
+					  u_int newunit, bool wired,
 					  path_id_t pathid, target_id_t target,
 					  lun_id_t lun);
 static	u_int		camperiphunit(struct periph_driver *p_drv,
@@ -539,7 +539,7 @@ cam_periph_unhold(struct cam_periph *periph)
  * numbers that did not match a wiring entry.
  */
 static u_int
-camperiphnextunit(struct periph_driver *p_drv, u_int newunit, int wired,
+camperiphnextunit(struct periph_driver *p_drv, u_int newunit, bool wired,
 		  path_id_t pathid, target_id_t target, lun_id_t lun)
 {
 	struct	cam_periph *periph;
@@ -555,14 +555,14 @@ camperiphnextunit(struct periph_driver *p_drv, u_int newunit, int wired,
 			;
 
 		if (periph != NULL && periph->unit_number == newunit) {
-			if (wired != 0) {
+			if (wired) {
 				xpt_print(periph->path, "Duplicate Wired "
 				    "Device entry!\n");
 				xpt_print(periph->path, "Second device (%s "
 				    "device at scbus%d target %d lun %d) will "
 				    "not be wired\n", periph_name, pathid,
 				    target, lun);
-				wired = 0;
+				wired = false;
 			}
 			continue;
 		}
@@ -600,8 +600,9 @@ static u_int
 camperiphunit(struct periph_driver *p_drv, path_id_t pathid,
     target_id_t target, lun_id_t lun, const char *sn)
 {
+	bool	wired;
 	u_int	unit;
-	int	wired, i, val, dunit;
+	int	i, val, dunit;
 	const char *dname, *strval;
 	char	pathbuf[32], *periph_name;
 
@@ -610,29 +611,29 @@ camperiphunit(struct periph_driver *p_drv, path_id_t pathid,
 	unit = 0;
 	i = 0;
 	dname = periph_name;
-	for (wired = 0; resource_find_dev(&i, dname, &dunit, NULL, NULL) == 0;
-	     wired = 0) {
+	while (resource_find_dev(&i, dname, &dunit, NULL, NULL) == 0) {
+		wired = false;
 		if (resource_string_value(dname, dunit, "at", &strval) == 0) {
 			if (strcmp(strval, pathbuf) != 0)
 				continue;
-			wired++;
+			wired = true;
 		}
 		if (resource_int_value(dname, dunit, "target", &val) == 0) {
 			if (val != target)
 				continue;
-			wired++;
+			wired = true;
 		}
 		if (resource_int_value(dname, dunit, "lun", &val) == 0) {
 			if (val != lun)
 				continue;
-			wired++;
+			wired = true;
 		}
 		if (resource_string_value(dname, dunit, "sn", &strval) == 0) {
 			if (sn == NULL || strcmp(strval, sn) != 0)
 				continue;
-			wired++;
+			wired = true;
 		}
-		if (wired != 0) {
+		if (wired) {
 			unit = dunit;
 			break;
 		}
