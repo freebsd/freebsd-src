@@ -170,7 +170,8 @@ static int stf_ioctl(struct ifnet *, u_long, caddr_t);
 static int stf_clone_match(struct if_clone *, const char *);
 static int stf_clone_create(struct if_clone *, char *, size_t, caddr_t);
 static int stf_clone_destroy(struct if_clone *, struct ifnet *);
-static struct if_clone *stf_cloner;
+VNET_DEFINE_STATIC(struct if_clone *, stf_cloner);
+#define V_stf_cloner	VNET(stf_cloner)
 
 static const struct encap_config ipv4_encap_cfg = {
 	.proto = IPPROTO_IPV6,
@@ -282,17 +283,33 @@ stf_clone_destroy(struct if_clone *ifc, struct ifnet *ifp)
 	return (0);
 }
 
+static void
+vnet_stf_init(const void *unused __unused)
+{
+	V_stf_cloner = if_clone_advanced(stfname, 0, stf_clone_match,
+	    stf_clone_create, stf_clone_destroy);
+}
+VNET_SYSINIT(vnet_stf_init, SI_SUB_PSEUDO, SI_ORDER_ANY, vnet_stf_init, NULL);
+
+static void
+vnet_stf_uninit(const void *unused __unused)
+{
+	if_clone_detach(V_stf_cloner);
+	V_stf_cloner = NULL;
+}
+VNET_SYSUNINIT(vnet_stf_uninit, SI_SUB_PSEUDO, SI_ORDER_ANY, vnet_stf_uninit,
+    NULL);
+
 static int
 stfmodevent(module_t mod, int type, void *data)
 {
 
 	switch (type) {
 	case MOD_LOAD:
-		stf_cloner = if_clone_advanced(stfname, 0, stf_clone_match,
-		    stf_clone_create, stf_clone_destroy);
+		/* Done in vnet_stf_init() */
 		break;
 	case MOD_UNLOAD:
-		if_clone_detach(stf_cloner);
+		/* Done in vnet_stf_uninit() */
 		break;
 	default:
 		return (EOPNOTSUPP);
