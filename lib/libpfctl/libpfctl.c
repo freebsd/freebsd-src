@@ -61,7 +61,7 @@ static int	_pfctl_clear_states(int , const struct pfctl_kill *,
 
 static void
 pf_nvuint_8_array(const nvlist_t *nvl, const char *name, size_t maxelems,
-    u_int8_t *numbers, size_t *nelems)
+    uint8_t *numbers, size_t *nelems)
 {
 	const uint64_t *tmp;
 	size_t elems;
@@ -78,7 +78,7 @@ pf_nvuint_8_array(const nvlist_t *nvl, const char *name, size_t maxelems,
 
 static void
 pf_nvuint_16_array(const nvlist_t *nvl, const char *name, size_t maxelems,
-    u_int16_t *numbers, size_t *nelems)
+    uint16_t *numbers, size_t *nelems)
 {
 	const uint64_t *tmp;
 	size_t elems;
@@ -95,7 +95,7 @@ pf_nvuint_16_array(const nvlist_t *nvl, const char *name, size_t maxelems,
 
 static void
 pf_nvuint_32_array(const nvlist_t *nvl, const char *name, size_t maxelems,
-    u_int32_t *numbers, size_t *nelems)
+    uint32_t *numbers, size_t *nelems)
 {
 	const uint64_t *tmp;
 	size_t elems;
@@ -112,7 +112,7 @@ pf_nvuint_32_array(const nvlist_t *nvl, const char *name, size_t maxelems,
 
 static void
 pf_nvuint_64_array(const nvlist_t *nvl, const char *name, size_t maxelems,
-    u_int64_t *numbers, size_t *nelems)
+    uint64_t *numbers, size_t *nelems)
 {
 	const uint64_t *tmp;
 	size_t elems;
@@ -304,7 +304,7 @@ static void
 pfctl_nv_add_rule_addr(nvlist_t *nvparent, const char *name,
     const struct pf_rule_addr *addr)
 {
-	u_int64_t ports[2];
+	uint64_t ports[2];
 	nvlist_t *nvl = nvlist_create(0);
 
 	pfctl_nv_add_addr_wrap(nvl, "addr", &addr->addr);
@@ -345,7 +345,7 @@ static void
 pfctl_nv_add_pool(nvlist_t *nvparent, const char *name,
     const struct pfctl_pool *pool)
 {
-	u_int64_t ports[2];
+	uint64_t ports[2];
 	nvlist_t *nvl = nvlist_create(0);
 
 	nvlist_add_binary(nvl, "key", &pool->key, sizeof(pool->key));
@@ -394,7 +394,7 @@ static void
 pfctl_nv_add_uid(nvlist_t *nvparent, const char *name,
     const struct pf_rule_uid *uid)
 {
-	u_int64_t uids[2];
+	uint64_t uids[2];
 	nvlist_t *nvl = nvlist_create(0);
 
 	uids[0] = uid->uid[0];
@@ -539,11 +539,11 @@ pf_nvrule_to_rule(const nvlist_t *nvl, struct pfctl_rule *rule)
 
 int
 pfctl_add_rule(int dev, const struct pfctl_rule *r, const char *anchor,
-    const char *anchor_call, u_int32_t ticket, u_int32_t pool_ticket)
+    const char *anchor_call, uint32_t ticket, uint32_t pool_ticket)
 {
 	struct pfioc_nv nv;
-	u_int64_t timeouts[PFTM_MAX];
-	u_int64_t set_prio[2];
+	uint64_t timeouts[PFTM_MAX];
+	uint64_t set_prio[2];
 	nvlist_t *nvl, *nvlr;
 	size_t labelcount;
 	int ret;
@@ -656,15 +656,15 @@ pfctl_add_rule(int dev, const struct pfctl_rule *r, const char *anchor,
 }
 
 int
-pfctl_get_rule(int dev, u_int32_t nr, u_int32_t ticket, const char *anchor,
-    u_int32_t ruleset, struct pfctl_rule *rule, char *anchor_call)
+pfctl_get_rule(int dev, uint32_t nr, uint32_t ticket, const char *anchor,
+    uint32_t ruleset, struct pfctl_rule *rule, char *anchor_call)
 {
 	return (pfctl_get_clear_rule(dev, nr, ticket, anchor, ruleset, rule,
 	    anchor_call, false));
 }
 
-int	pfctl_get_clear_rule(int dev, u_int32_t nr, u_int32_t ticket,
-	    const char *anchor, u_int32_t ruleset, struct pfctl_rule *rule,
+int	pfctl_get_clear_rule(int dev, uint32_t nr, uint32_t ticket,
+	    const char *anchor, uint32_t ruleset, struct pfctl_rule *rule,
 	    char *anchor_call, bool clear)
 {
 	struct pfioc_nv nv;
@@ -941,7 +941,7 @@ pfctl_kill_states(int dev, const struct pfctl_kill *kill, unsigned int *killed)
 }
 
 static int
-pfctl_get_limit(int dev, const int index, u_int *limit)
+pfctl_get_limit(int dev, const int index, uint *limit)
 {
 	struct pfioc_limit pl;
 
@@ -962,7 +962,7 @@ pfctl_set_syncookies(int dev, const struct pfctl_syncookies *s)
 	struct pfioc_nv	 nv;
 	nvlist_t	*nvl;
 	int		 ret;
-	u_int		 state_limit;
+	uint		 state_limit;
 
 	ret = pfctl_get_limit(dev, PF_LIMIT_STATES, &state_limit);
 	if (ret != 0)
@@ -992,7 +992,7 @@ pfctl_get_syncookies(int dev, struct pfctl_syncookies *s)
 	struct pfioc_nv	 nv;
 	nvlist_t	*nvl;
 	int		 ret;
-	u_int		 state_limit;
+	uint		 state_limit;
 	bool		 enabled, adaptive;
 
 	ret = pfctl_get_limit(dev, PF_LIMIT_STATES, &state_limit);
