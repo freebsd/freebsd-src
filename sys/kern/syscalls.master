@@ -1907,9 +1907,9 @@
 363	AUE_KEVENT	COMPAT11|CAPENABLED {
 		int kevent(
 		    int fd,
-		    _In_reads_opt_(nchanges) struct kevent_freebsd11 *changelist,
+		    _In_reads_opt_(nchanges) const struct freebsd11_kevent *changelist,
 		    int nchanges,
-		    _Out_writes_opt_(nevents) struct kevent_freebsd11 *eventlist,
+		    _Out_writes_opt_(nevents) struct freebsd11_kevent *eventlist,
 		    int nevents,
 		    _In_opt_ const struct timespec *timeout
 		);
@@ -3099,7 +3099,7 @@
 560	AUE_KEVENT	STD|CAPENABLED {
 		int kevent(
 		    int fd,
-		    _In_reads_opt_(nchanges) struct kevent *changelist,
+		    _In_reads_opt_(nchanges) const struct kevent *changelist,
 		    int nchanges,
 		    _Out_writes_opt_(nevents) struct kevent *eventlist,
 		    int nevents,

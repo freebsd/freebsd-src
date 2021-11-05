@@ -670,10 +670,10 @@
 				    gid_t *sgid); }
 362	AUE_KQUEUE	NOPROTO	{ int kqueue(void); }
 363	AUE_KEVENT	COMPAT11 { int freebsd32_kevent(int fd, \
-				    const struct kevent32_freebsd11 * \
+				    const struct freebsd11_kevent32 * \
 				    changelist, \
 				    int nchanges, \
-				    struct kevent32_freebsd11 *eventlist, \
+				    struct freebsd11_kevent32 *eventlist, \
 				    int nevents, \
 				    const struct timespec32 *timeout); }
 364	AUE_NULL	OBSOL	__cap_get_proc
