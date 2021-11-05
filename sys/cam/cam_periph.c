@@ -568,9 +568,10 @@ camperiphnextunit(struct periph_driver *p_drv, u_int newunit, int wired,
 			break;
 
 		/*
-		 * Don't match entries like "da 4" as a wired down
-		 * device, but do match entries like "da 4 target 5"
-		 * or even "da 4 scbus 1". 
+		 * Don't allow the mere presence of any attributes of a device
+		 * means that it is for a wired down entry. Instead, insist that
+		 * one of the matching criteria from camperiphunit be present
+		 * for the device.
 		 */
 		i = 0;
 		dname = periph_name;
@@ -580,8 +581,7 @@ camperiphnextunit(struct periph_driver *p_drv, u_int newunit, int wired,
 				break;
 			/* if no "target" and no specific scbus, skip */
 			if (resource_int_value(dname, dunit, "target", &val) &&
-			    (resource_string_value(dname, dunit, "at",&strval)||
-			     strcmp(strval, "scbus") == 0))
+			    resource_string_value(dname, dunit, "at",&strval))
 				continue;
 			if (newunit == dunit)
 				break;
