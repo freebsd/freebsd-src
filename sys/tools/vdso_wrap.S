@@ -1,6 +1,10 @@
 /*-
- * Copyright (c) 2003 Peter Wemm <peter@freeBSD.org>
- * All rights reserved.
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
+ * Copyright (c) 2021 The FreeBSD Foundation
+ *
+ * This software was developed by Konstantin Belousov <kib@FreeBSD.org>
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -22,27 +26,23 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
-#include <sys/syscall.h>
-#include <machine/asmacros.h>
+#include <sys/cdefs.h>
 
-#include "assym.inc"
+#define	VDSO_BLOB_START(S)	__CONCAT(_binary_, __CONCAT(S, _start))
+#define	VDSO_BLOB_END(S)	__CONCAT(_binary_, __CONCAT(S, _end))
+#define	VDSO_BLOB_SIZE(S)	__CONCAT(_binary_, __CONCAT(S, _size))
 
-	.text
-/*
- * Signal trampoline, mapped as vdso into shared page.
- */
-ENTRY(__vdso_sigcode)
-	call	*SIGF_HANDLER(%rsp)	/* call signal handler */
-	lea	SIGF_UC(%rsp),%rdi	/* get ucontext_t */
-	pushq	$0			/* junk to fake return addr. */
-	movq	$SYS_sigreturn,%rax
-	syscall				/* enter kernel with args */
-0:	hlt				/* trap priviliged instruction */
-	jmp	0b
-END(__vdso_sigcode)
-
-	.section .note.GNU-stack,"",%progbits
+	.section .rodata, "a", %progbits
+	.globl	VDSO_BLOB_START(VDSO_NAME)
+	.type	VDSO_BLOB_START(VDSO_NAME), %object
+	.size	VDSO_BLOB_START(VDSO_NAME), 0
+VDSO_BLOB_START(VDSO_NAME):
+	.incbin	__XSTRING(VDSO_FILE)
+	.globl	VDSO_BLOB_END(VDSO_NAME)
+	.type	VDSO_BLOB_END(VDSO_NAME), %object
+	.size	VDSO_BLOB_END(VDSO_NAME), 0
+VDSO_BLOB_END(VDSO_NAME):
+	.globl	VDSO_BLOB_SIZE(VDSO_NAME)
+	.set	VDSO_BLOB_SIZE(VDSO_NAME), . - VDSO_BLOB_START(VDSO_NAME)

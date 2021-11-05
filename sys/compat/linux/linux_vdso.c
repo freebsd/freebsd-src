@@ -110,7 +110,7 @@ __elfN(linux_vdso_fixup)(struct sysentvec *sv)
 	Elf_Shdr *shdr;
 	int i;
 
-	ehdr = (Elf_Ehdr *) sv->sv_sigcode;
+	ehdr = __DECONST(Elf_Ehdr *, sv->sv_sigcode);
 
 	if (!IS_ELF(*ehdr) ||
 	    ehdr->e_ident[EI_CLASS] != ELF_TARG_CLASS ||
@@ -153,7 +153,7 @@ __elfN(linux_vdso_reloc)(struct sysentvec *sv)
 	Elf_Sym *sym;
 	int i, j, symcnt;
 
-	ehdr = (Elf_Ehdr *) sv->sv_sigcode;
+	ehdr = __DECONST(Elf_Ehdr *, sv->sv_sigcode);
 
 	/* Adjust our so relative to the sigcode_base */
 	if (sv->sv_shared_page_base != 0) {

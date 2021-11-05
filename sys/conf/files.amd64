@@ -12,6 +12,12 @@ include 	"conf/files.x86"
 # dependency lines other than the first are silently ignored.
 #
 #
+elf-vdso.so.o			standard				\
+	dependency	"$S/amd64/amd64/sigtramp.S assym.inc $S/tools/amd64_vdso.sh" \
+	compile-with	"env AWK='${AWK}' NM='${NM}' LD='${LD}' CC='${CC}' OBJCOPY='${OBJCOPY}' S='${S}' sh $S/tools/amd64_vdso.sh" \
+	no-implicit-rule before-depend	\
+	clean		"elf-vdso.so.o elf-vdso.so.1 vdso_offsets.h sigtramp.pico"
+#
 cloudabi32_vdso.o		optional	compat_cloudabi32	\
 	dependency	"$S/contrib/cloudabi/cloudabi_vdso_i686_on_64bit.S" \
 	compile-with	"${CC} -x assembler-with-cpp -m32 -shared -nostdinc -nostdlib -Wl,-T$S/compat/cloudabi/cloudabi_vdso.lds $S/contrib/cloudabi/cloudabi_vdso_i686_on_64bit.S -o ${.TARGET}" \
@@ -124,7 +130,6 @@ amd64/amd64/mpboot.S		optional	smp
 amd64/amd64/pmap.c		standard
 amd64/amd64/prof_machdep.c	optional	profiling-routine
 amd64/amd64/ptrace_machdep.c	standard
-amd64/amd64/sigtramp.S		standard
 amd64/amd64/support.S		standard
 amd64/amd64/sys_machdep.c	standard
 amd64/amd64/trap.c		standard
