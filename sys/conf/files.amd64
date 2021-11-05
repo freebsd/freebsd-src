@@ -12,6 +12,12 @@ include 	"conf/files.x86"
 # dependency lines other than the first are silently ignored.
 #
 #
+elf-vdso.so.o			standard				\
+	dependency	"$S/amd64/amd64/sigtramp.S assym.inc $S/tools/amd64_vdso.sh" \
+	compile-with	"env AWK='${AWK}' NM='${NM}' LD='${LD}' CC='${CC}' OBJCOPY='${OBJCOPY}' S='${S}' sh $S/tools/amd64_vdso.sh" \
+	no-implicit-rule before-depend	\
+	clean		"elf-vdso.so.o elf-vdso.so.1 vdso_offsets.h sigtramp.pico"
+#
 ia32_genassym.o			standard				\
 	dependency 	"$S/compat/ia32/ia32_genassym.c offset.inc"		\
 	compile-with	"${CC} ${CFLAGS:N-flto:N-fno-common} -fcommon -c ${.IMPSRC}" \
@@ -75,7 +81,6 @@ amd64/amd64/mp_machdep.c	optional	smp
 amd64/amd64/mpboot.S		optional	smp
 amd64/amd64/pmap.c		standard
 amd64/amd64/ptrace_machdep.c	standard
-amd64/amd64/sigtramp.S		standard
 amd64/amd64/support.S		standard
 amd64/amd64/sys_machdep.c	standard
 amd64/amd64/trap.c		standard
