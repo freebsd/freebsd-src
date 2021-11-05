@@ -2207,6 +2207,7 @@ fetch_run () {
 	if [ ! -f fetch_run.pending ] && [ -f tag.new -a -f tag ] &&
 	    cmp -s tag.new tag; then
 		echo "No updates are available to fetch."
+		[ -f fetch_create_manifest.out ] && cat fetch_create_manifest.out
 		rm -f tag.new
 		return 0
 	fi
@@ -2266,7 +2267,8 @@ fetch_run () {
 
 	# Create and populate install manifest directory; and report what
 	# updates are available.
-	fetch_create_manifest || return 1
+	fetch_create_manifest > fetch_create_manifest.out || return 1
+	cat fetch_create_manifest.out
 
 	# Warn about any upcoming EoL
 	fetch_warn_eol || return 1
@@ -2753,7 +2755,8 @@ upgrade_run () {
 
 	# Create and populate install manifest directory; and report what
 	# updates are available.
-	fetch_create_manifest || return 1
+	fetch_create_manifest > fetch_create_manifest.out || return 1
+	cat fetch_create_manifest.out
 
 	# Leave a note behind to tell the "install" command that the kernel
 	# needs to be installed before the world.
@@ -3139,6 +3142,8 @@ install_run () {
 	# Rearrange bits to allow the installed updates to be rolled back
 	install_setup_rollback
 
+	rm -f fetch_create_manifest.out
+
 	echo " done."
 }
 
@@ -3409,7 +3414,7 @@ cmd_cron () {
 	TMPFILE=`mktemp /tmp/freebsd-update.XXXXXX` || exit 1
 	finalize_components_config ${COMPONENTS} >> ${TMPFILE}
 	if ! fetch_run >> ${TMPFILE} ||
-	    ! grep -q -E "(^No updates are available to fetch\.$|No updates needed)" ${TMPFILE} ||
+	    ! grep -q "No updates needed" ${TMPFILE} ||
 	    [ ${VERBOSELEVEL} = "debug" ]; then
 		mail -s "`hostname` security updates" ${MAILTO} < ${TMPFILE}
 	fi
