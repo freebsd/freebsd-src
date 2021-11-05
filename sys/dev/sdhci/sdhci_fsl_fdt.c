@@ -86,6 +86,9 @@ __FBSDID("$FreeBSD$");
 #define	SDHCI_FSL_HOST_VERSION		0xfc
 #define	SDHCI_FSL_CAPABILITIES2		0x114
 
+#define	SDHCI_FSL_TBCTL			0x120
+#define	SDHCI_FSL_TBCTL_TBEN		(1 << 2)
+
 #define	SDHCI_FSL_ESDHC_CTRL		0x40c
 #define	SDHCI_FSL_ESDHC_CTRL_SNOOP	(1 << 6)
 #define	SDHCI_FSL_ESDHC_CTRL_CLK_DIV2	(1 << 19)
@@ -347,9 +350,6 @@ sdhci_fsl_fdt_write_1(device_t dev, struct sdhci_slot *slot, bus_size_t off,
 		return;
 	case SDHCI_POWER_CONTROL:
 		return;
-	case SDHCI_SOFTWARE_RESET:
-		val &= ~SDHCI_RESET_ALL;
-	/* FALLTHROUGH. */
 	default:
 		val32 = RD4(sc, off & ~3);
 		val32 &= ~(UINT8_MAX << (off & 3) * 8);
@@ -803,6 +803,27 @@ sdhci_fsl_fdt_read_ivar(device_t bus, device_t child, int which,
 	return (sdhci_generic_read_ivar(bus, child, which, result));
 }
 
+static void
+sdhci_fsl_fdt_reset(device_t dev, struct sdhci_slot *slot, uint8_t mask)
+{
+	struct sdhci_fsl_fdt_softc *sc;
+	uint32_t val;
+
+	sdhci_generic_reset(dev, slot, mask);
+
+	if (!(mask & SDHCI_RESET_ALL))
+		return;
+
+	sc = device_get_softc(dev);
+
+	/* Some registers have to be cleared by hand. */
+	if (slot->version >= SDHCI_SPEC_300) {
+		val = RD4(sc, SDHCI_FSL_TBCTL);
+		val &= ~SDHCI_FSL_TBCTL_TBEN;
+		WR4(sc, SDHCI_FSL_TBCTL, val);
+	}
+}
+
 static const device_method_t sdhci_fsl_fdt_methods[] = {
 	/* Device interface. */
 	DEVMETHOD(device_probe,			sdhci_fsl_fdt_probe),
@@ -831,6 +852,7 @@ static const device_method_t sdhci_fsl_fdt_methods[] = {
 	DEVMETHOD(sdhci_write_4,		sdhci_fsl_fdt_write_4),
 	DEVMETHOD(sdhci_write_multi_4,		sdhci_fsl_fdt_write_multi_4),
 	DEVMETHOD(sdhci_get_card_present,	sdhci_fsl_fdt_get_card_present),
+	DEVMETHOD(sdhci_reset,			sdhci_fsl_fdt_reset),
 	DEVMETHOD_END
 };
 
