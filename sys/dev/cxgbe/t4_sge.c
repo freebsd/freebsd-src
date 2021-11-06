@@ -234,53 +234,66 @@ static int service_iq_fl(struct sge_iq *, int);
 static struct mbuf *get_fl_payload(struct adapter *, struct sge_fl *, uint32_t);
 static int eth_rx(struct adapter *, struct sge_rxq *, const struct iq_desc *,
     u_int);
-static inline void init_iq(struct sge_iq *, struct adapter *, int, int, int);
+static inline void init_iq(struct sge_iq *, struct adapter *, int, int, int,
+    int, int);
 static inline void init_fl(struct adapter *, struct sge_fl *, int, int, char *);
 static inline void init_eq(struct adapter *, struct sge_eq *, int, int, uint8_t,
-    uint16_t, char *);
+    struct sge_iq *, char *);
 static int alloc_iq_fl(struct vi_info *, struct sge_iq *, struct sge_fl *,
-    int, int);
-static int free_iq_fl(struct vi_info *, struct sge_iq *, struct sge_fl *);
+    struct sysctl_ctx_list *, struct sysctl_oid *);
+static void free_iq_fl(struct adapter *, struct sge_iq *, struct sge_fl *);
 static void add_iq_sysctls(struct sysctl_ctx_list *, struct sysctl_oid *,
     struct sge_iq *);
 static void add_fl_sysctls(struct adapter *, struct sysctl_ctx_list *,
     struct sysctl_oid *, struct sge_fl *);
+static int alloc_iq_fl_hwq(struct vi_info *, struct sge_iq *, struct sge_fl *);
+static int free_iq_fl_hwq(struct adapter *, struct sge_iq *, struct sge_fl *);
 static int alloc_fwq(struct adapter *);
-static int free_fwq(struct adapter *);
-static int alloc_ctrlq(struct adapter *, struct sge_wrq *, int,
-    struct sysctl_oid *);
-static int alloc_rxq(struct vi_info *, struct sge_rxq *, int, int,
-    struct sysctl_oid *);
-static int free_rxq(struct vi_info *, struct sge_rxq *);
+static void free_fwq(struct adapter *);
+static int alloc_ctrlq(struct adapter *, int);
+static void free_ctrlq(struct adapter *, int);
+static int alloc_rxq(struct vi_info *, struct sge_rxq *, int, int, int);
+static void free_rxq(struct vi_info *, struct sge_rxq *);
+static void add_rxq_sysctls(struct sysctl_ctx_list *, struct sysctl_oid *,
+    struct sge_rxq *);
 #ifdef TCP_OFFLOAD
 static int alloc_ofld_rxq(struct vi_info *, struct sge_ofld_rxq *, int, int,
-    struct sysctl_oid *);
-static int free_ofld_rxq(struct vi_info *, struct sge_ofld_rxq *);
+    int);
+static void free_ofld_rxq(struct vi_info *, struct sge_ofld_rxq *);
+static void add_ofld_rxq_sysctls(struct sysctl_ctx_list *, struct sysctl_oid *,
+    struct sge_ofld_rxq *);
 #endif
 static int ctrl_eq_alloc(struct adapter *, struct sge_eq *);
 static int eth_eq_alloc(struct adapter *, struct vi_info *, struct sge_eq *);
 #if defined(TCP_OFFLOAD) || defined(RATELIMIT)
 static int ofld_eq_alloc(struct adapter *, struct vi_info *, struct sge_eq *);
 #endif
-static int alloc_eq(struct adapter *, struct vi_info *, struct sge_eq *);
-static int free_eq(struct adapter *, struct sge_eq *);
+static int alloc_eq(struct adapter *, struct sge_eq *, struct sysctl_ctx_list *,
+    struct sysctl_oid *);
+static void free_eq(struct adapter *, struct sge_eq *);
+static void add_eq_sysctls(struct adapter *, struct sysctl_ctx_list *,
+    struct sysctl_oid *, struct sge_eq *);
+static int alloc_eq_hwq(struct adapter *, struct vi_info *, struct sge_eq *);
+static int free_eq_hwq(struct adapter *, struct vi_info *, struct sge_eq *);
 static int alloc_wrq(struct adapter *, struct vi_info *, struct sge_wrq *,
-    struct sysctl_oid *);
-static int free_wrq(struct adapter *, struct sge_wrq *);
-static int alloc_txq(struct vi_info *, struct sge_txq *, int,
-    struct sysctl_oid *);
-static int free_txq(struct vi_info *, struct sge_txq *);
+    struct sysctl_ctx_list *, struct sysctl_oid *);
+static void free_wrq(struct adapter *, struct sge_wrq *);
+static void add_wrq_sysctls(struct sysctl_ctx_list *, struct sysctl_oid *,
+    struct sge_wrq *);
+static int alloc_txq(struct vi_info *, struct sge_txq *, int);
+static void free_txq(struct vi_info *, struct sge_txq *);
+static void add_txq_sysctls(struct vi_info *, struct sysctl_ctx_list *,
+    struct sysctl_oid *, struct sge_txq *);
 #if defined(TCP_OFFLOAD) || defined(RATELIMIT)
-static int alloc_ofld_txq(struct vi_info *, struct sge_ofld_txq *, int,
-    struct sysctl_oid *);
-static int free_ofld_txq(struct vi_info *, struct sge_ofld_txq *);
+static int alloc_ofld_txq(struct vi_info *, struct sge_ofld_txq *, int);
+static void free_ofld_txq(struct vi_info *, struct sge_ofld_txq *);
+static void add_ofld_txq_sysctls(struct sysctl_ctx_list *, struct sysctl_oid *,
+    struct sge_ofld_txq *);
 #endif
 static void oneseg_dma_callback(void *, bus_dma_segment_t *, int, int);
 static inline void ring_fl_db(struct adapter *, struct sge_fl *);
 static int refill_fl(struct adapter *, struct sge_fl *, int);
 static void refill_sfl(void *);
-static int alloc_fl_sdesc(struct sge_fl *);
-static void free_fl_sdesc(struct adapter *, struct sge_fl *);
 static int find_refill_source(struct adapter *, int, bool);
 static void add_fl_to_sfl(struct adapter *, struct sge_fl *);
 
@@ -320,7 +333,9 @@ static void drain_wrq_wr_list(struct adapter *, struct sge_wrq *);
 
 static int sysctl_bufsizes(SYSCTL_HANDLER_ARGS);
 #ifdef RATELIMIT
+#if defined(INET) || defined(INET6)
 static inline u_int txpkt_eo_len16(u_int, u_int, u_int);
+#endif
 static int ethofld_fw4_ack(struct sge_iq *, const struct rss_header *,
     struct mbuf *);
 #endif
@@ -1019,14 +1034,9 @@ t4_destroy_dma_tag(struct adapter *sc)
 int
 t4_setup_adapter_queues(struct adapter *sc)
 {
-	struct sysctl_oid *oid;
-	struct sysctl_oid_list *children;
 	int rc, i;
 
 	ADAPTER_LOCK_ASSERT_NOTOWNED(sc);
-
-	sysctl_ctx_init(&sc->ctx);
-	sc->flags |= ADAP_SYSCTL_CTX;
 
 	/*
 	 * Firmware event queue
@@ -1041,9 +1051,6 @@ t4_setup_adapter_queues(struct adapter *sc)
 	if (sc->flags & IS_VF)
 		return (rc);
 
-	oid = device_get_sysctl_tree(sc->dev);
-	children = SYSCTL_CHILDREN(oid);
-
 	/*
 	 * XXX: General purpose rx queues, one per port.
 	 */
@@ -1051,12 +1058,8 @@ t4_setup_adapter_queues(struct adapter *sc)
 	/*
 	 * Control queues, one per port.
 	 */
-	oid = SYSCTL_ADD_NODE(&sc->ctx, children, OID_AUTO, "ctrlq",
-	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "control queues");
 	for_each_port(sc, i) {
-		struct sge_wrq *ctrlq = &sc->sge.ctrlq[i];
-
-		rc = alloc_ctrlq(sc, ctrlq, i, oid);
+		rc = alloc_ctrlq(sc, i);
 		if (rc != 0)
 			return (rc);
 	}
@@ -1074,15 +1077,9 @@ t4_teardown_adapter_queues(struct adapter *sc)
 
 	ADAPTER_LOCK_ASSERT_NOTOWNED(sc);
 
-	/* Do this before freeing the queue */
-	if (sc->flags & ADAP_SYSCTL_CTX) {
-		sysctl_ctx_free(&sc->ctx);
-		sc->flags &= ~ADAP_SYSCTL_CTX;
-	}
-
 	if (!(sc->flags & IS_VF)) {
 		for_each_port(sc, i)
-			free_wrq(sc, &sc->sge.ctrlq[i]);
+			free_ctrlq(sc, i);
 	}
 	free_fwq(sc);
 
@@ -1107,7 +1104,7 @@ max_rx_payload(struct adapter *sc, struct ifnet *ifp, const bool ofld)
 int
 t4_setup_vi_queues(struct vi_info *vi)
 {
-	int rc = 0, i, intr_idx, iqidx;
+	int rc = 0, i, intr_idx;
 	struct sge_rxq *rxq;
 	struct sge_txq *txq;
 #ifdef TCP_OFFLOAD
@@ -1117,16 +1114,12 @@ t4_setup_vi_queues(struct vi_info *vi)
 	struct sge_ofld_txq *ofld_txq;
 #endif
 #ifdef DEV_NETMAP
-	int saved_idx;
+	int saved_idx, iqidx;
 	struct sge_nm_rxq *nm_rxq;
 	struct sge_nm_txq *nm_txq;
 #endif
-	char name[16];
-	struct port_info *pi = vi->pi;
-	struct adapter *sc = pi->adapter;
+	struct adapter *sc = vi->adapter;
 	struct ifnet *ifp = vi->ifp;
-	struct sysctl_oid *oid = device_get_sysctl_tree(vi->dev);
-	struct sysctl_oid_list *children = SYSCTL_CHILDREN(oid);
 	int maxp;
 
 	/* Interrupt vector to start from (when using multiple vectors) */
@@ -1138,26 +1131,23 @@ t4_setup_vi_queues(struct vi_info *vi)
 
 		/* netmap is supported with direct interrupts only. */
 		MPASS(!forwarding_intr_to_fwq(sc));
+		MPASS(vi->first_intr >= 0);
 
 		/*
 		 * We don't have buffers to back the netmap rx queues
 		 * right now so we create the queues in a way that
 		 * doesn't set off any congestion signal in the chip.
 		 */
-		oid = SYSCTL_ADD_NODE(&vi->ctx, children, OID_AUTO, "nm_rxq",
-		    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "rx queues");
 		for_each_nm_rxq(vi, i, nm_rxq) {
-			rc = alloc_nm_rxq(vi, nm_rxq, intr_idx, i, oid);
+			rc = alloc_nm_rxq(vi, nm_rxq, intr_idx, i);
 			if (rc != 0)
 				goto done;
 			intr_idx++;
 		}
 
-		oid = SYSCTL_ADD_NODE(&vi->ctx, children, OID_AUTO, "nm_txq",
-		    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "tx queues");
 		for_each_nm_txq(vi, i, nm_txq) {
 			iqidx = vi->first_nm_rxq + (i % vi->nnmrxq);
-			rc = alloc_nm_txq(vi, nm_txq, iqidx, i, oid);
+			rc = alloc_nm_txq(vi, nm_txq, iqidx, i);
 			if (rc != 0)
 				goto done;
 		}
@@ -1172,21 +1162,12 @@ t4_setup_vi_queues(struct vi_info *vi)
 	 * creating a tx queue.
 	 */
 	maxp = max_rx_payload(sc, ifp, false);
-	oid = SYSCTL_ADD_NODE(&vi->ctx, children, OID_AUTO, "rxq",
-	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "rx queues");
 	for_each_rxq(vi, i, rxq) {
-
-		init_iq(&rxq->iq, sc, vi->tmr_idx, vi->pktc_idx, vi->qsize_rxq);
-
-		snprintf(name, sizeof(name), "%s rxq%d-fl",
-		    device_get_nameunit(vi->dev), i);
-		init_fl(sc, &rxq->fl, vi->qsize_rxq / 8, maxp, name);
-
-		rc = alloc_rxq(vi, rxq,
-		    forwarding_intr_to_fwq(sc) ? -1 : intr_idx, i, oid);
+		rc = alloc_rxq(vi, rxq, i, intr_idx, maxp);
 		if (rc != 0)
 			goto done;
-		intr_idx++;
+		if (!forwarding_intr_to_fwq(sc))
+			intr_idx++;
 	}
 #ifdef DEV_NETMAP
 	if (ifp->if_capabilities & IFCAP_NETMAP)
@@ -1194,59 +1175,26 @@ t4_setup_vi_queues(struct vi_info *vi)
 #endif
 #ifdef TCP_OFFLOAD
 	maxp = max_rx_payload(sc, ifp, true);
-	oid = SYSCTL_ADD_NODE(&vi->ctx, children, OID_AUTO, "ofld_rxq",
-	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "rx queues for offloaded TCP connections");
 	for_each_ofld_rxq(vi, i, ofld_rxq) {
-
-		init_iq(&ofld_rxq->iq, sc, vi->ofld_tmr_idx, vi->ofld_pktc_idx,
-		    vi->qsize_rxq);
-
-		snprintf(name, sizeof(name), "%s ofld_rxq%d-fl",
-		    device_get_nameunit(vi->dev), i);
-		init_fl(sc, &ofld_rxq->fl, vi->qsize_rxq / 8, maxp, name);
-
-		rc = alloc_ofld_rxq(vi, ofld_rxq,
-		    forwarding_intr_to_fwq(sc) ? -1 : intr_idx, i, oid);
+		rc = alloc_ofld_rxq(vi, ofld_rxq, i, intr_idx, maxp);
 		if (rc != 0)
 			goto done;
-		intr_idx++;
+		if (!forwarding_intr_to_fwq(sc))
+			intr_idx++;
 	}
 #endif
 
 	/*
 	 * Now the tx queues.
 	 */
-	oid = SYSCTL_ADD_NODE(&vi->ctx, children, OID_AUTO, "txq",
-	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "tx queues");
 	for_each_txq(vi, i, txq) {
-		iqidx = vi->first_rxq + (i % vi->nrxq);
-		snprintf(name, sizeof(name), "%s txq%d",
-		    device_get_nameunit(vi->dev), i);
-		init_eq(sc, &txq->eq, EQ_ETH, vi->qsize_txq, pi->tx_chan,
-		    sc->sge.rxq[iqidx].iq.cntxt_id, name);
-
-		rc = alloc_txq(vi, txq, i, oid);
+		rc = alloc_txq(vi, txq, i);
 		if (rc != 0)
 			goto done;
 	}
 #if defined(TCP_OFFLOAD) || defined(RATELIMIT)
-	oid = SYSCTL_ADD_NODE(&vi->ctx, children, OID_AUTO, "ofld_txq",
-	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "tx queues for TOE/ETHOFLD");
 	for_each_ofld_txq(vi, i, ofld_txq) {
-		snprintf(name, sizeof(name), "%s ofld_txq%d",
-		    device_get_nameunit(vi->dev), i);
-		if (vi->nofldrxq > 0) {
-			iqidx = vi->first_ofld_rxq + (i % vi->nofldrxq);
-			init_eq(sc, &ofld_txq->wrq.eq, EQ_OFLD, vi->qsize_txq,
-			    pi->tx_chan, sc->sge.ofld_rxq[iqidx].iq.cntxt_id,
-			    name);
-		} else {
-			iqidx = vi->first_rxq + (i % vi->nrxq);
-			init_eq(sc, &ofld_txq->wrq.eq, EQ_OFLD, vi->qsize_txq,
-			    pi->tx_chan, sc->sge.rxq[iqidx].iq.cntxt_id, name);
-		}
-
-		rc = alloc_ofld_txq(vi, ofld_txq, i, oid);
+		rc = alloc_ofld_txq(vi, ofld_txq, i);
 		if (rc != 0)
 			goto done;
 	}
@@ -1277,12 +1225,6 @@ t4_teardown_vi_queues(struct vi_info *vi)
 	struct sge_nm_rxq *nm_rxq;
 	struct sge_nm_txq *nm_txq;
 #endif
-
-	/* Do this before freeing the queues */
-	if (vi->flags & VI_SYSCTL_CTX) {
-		sysctl_ctx_free(&vi->ctx);
-		vi->flags &= ~VI_SYSCTL_CTX;
-	}
 
 #ifdef DEV_NETMAP
 	if (vi->ifp->if_capabilities & IFCAP_NETMAP) {
@@ -1557,12 +1499,14 @@ service_iq(struct sge_iq *iq, int budget)
 	return (0);
 }
 
+#if defined(INET) || defined(INET6)
 static inline int
 sort_before_lro(struct lro_ctrl *lro)
 {
 
 	return (lro->lro_mbuf_max != 0);
 }
+#endif
 
 static inline uint64_t
 last_flit_to_ns(struct adapter *sc, uint64_t lf)
@@ -2371,6 +2315,7 @@ mbuf_eo_nsegs(struct mbuf *m)
 	return (m->m_pkthdr.PH_loc.eight[1]);
 }
 
+#if defined(INET) || defined(INET6)
 static inline void
 set_mbuf_eo_nsegs(struct mbuf *m, uint8_t nsegs)
 {
@@ -2378,6 +2323,7 @@ set_mbuf_eo_nsegs(struct mbuf *m, uint8_t nsegs)
 	M_ASSERTPKTHDR(m);
 	m->m_pkthdr.PH_loc.eight[1] = nsegs;
 }
+#endif
 
 static inline int
 mbuf_eo_len16(struct mbuf *m)
@@ -2391,6 +2337,7 @@ mbuf_eo_len16(struct mbuf *m)
 	return (n);
 }
 
+#if defined(INET) || defined(INET6)
 static inline void
 set_mbuf_eo_len16(struct mbuf *m, uint8_t len16)
 {
@@ -2398,6 +2345,7 @@ set_mbuf_eo_len16(struct mbuf *m, uint8_t len16)
 	M_ASSERTPKTHDR(m);
 	m->m_pkthdr.PH_loc.eight[2] = len16;
 }
+#endif
 
 static inline int
 mbuf_eo_tsclk_tsoff(struct mbuf *m)
@@ -2407,6 +2355,7 @@ mbuf_eo_tsclk_tsoff(struct mbuf *m)
 	return (m->m_pkthdr.PH_loc.eight[3]);
 }
 
+#if defined(INET) || defined(INET6)
 static inline void
 set_mbuf_eo_tsclk_tsoff(struct mbuf *m, uint8_t tsclk_tsoff)
 {
@@ -2414,6 +2363,7 @@ set_mbuf_eo_tsclk_tsoff(struct mbuf *m, uint8_t tsclk_tsoff)
 	M_ASSERTPKTHDR(m);
 	m->m_pkthdr.PH_loc.eight[3] = tsclk_tsoff;
 }
+#endif
 
 static inline int
 needs_eo(struct m_snd_tag *mst)
@@ -2494,6 +2444,7 @@ needs_vxlan_tso(struct mbuf *m)
 	    (m->m_pkthdr.csum_flags & csum_flags) != CSUM_ENCAP_VXLAN);
 }
 
+#if defined(INET) || defined(INET6)
 static inline bool
 needs_inner_tcp_csum(struct mbuf *m)
 {
@@ -2503,6 +2454,7 @@ needs_inner_tcp_csum(struct mbuf *m)
 
 	return (m->m_pkthdr.csum_flags & csum_flags);
 }
+#endif
 
 static inline bool
 needs_l3_csum(struct mbuf *m)
@@ -3396,15 +3348,18 @@ send_txpkts:
 
 static inline void
 init_iq(struct sge_iq *iq, struct adapter *sc, int tmr_idx, int pktc_idx,
-    int qsize)
+    int qsize, int intr_idx, int cong)
 {
 
 	KASSERT(tmr_idx >= 0 && tmr_idx < SGE_NTIMERS,
 	    ("%s: bad tmr_idx %d", __func__, tmr_idx));
 	KASSERT(pktc_idx < SGE_NCOUNTERS,	/* -ve is ok, means don't use */
 	    ("%s: bad pktc_idx %d", __func__, pktc_idx));
+	KASSERT(intr_idx >= -1 && intr_idx < sc->intr_count,
+	    ("%s: bad intr_idx %d", __func__, intr_idx));
 
 	iq->flags = 0;
+	iq->state = IQS_DISABLED;
 	iq->adapter = sc;
 	iq->intr_params = V_QINTR_TIMER_IDX(tmr_idx);
 	iq->intr_pktc_idx = SGE_NCOUNTERS - 1;
@@ -3414,34 +3369,49 @@ init_iq(struct sge_iq *iq, struct adapter *sc, int tmr_idx, int pktc_idx,
 	}
 	iq->qsize = roundup2(qsize, 16);	/* See FW_IQ_CMD/iqsize */
 	iq->sidx = iq->qsize - sc->params.sge.spg_len / IQ_ESIZE;
+	iq->intr_idx = intr_idx;
+	iq->cong = cong;
 }
 
 static inline void
 init_fl(struct adapter *sc, struct sge_fl *fl, int qsize, int maxp, char *name)
 {
+	struct sge_params *sp = &sc->params.sge;
 
 	fl->qsize = qsize;
 	fl->sidx = qsize - sc->params.sge.spg_len / EQ_ESIZE;
 	strlcpy(fl->lockname, name, sizeof(fl->lockname));
+	mtx_init(&fl->fl_lock, fl->lockname, NULL, MTX_DEF);
 	if (sc->flags & BUF_PACKING_OK &&
 	    ((!is_t4(sc) && buffer_packing) ||	/* T5+: enabled unless 0 */
 	    (is_t4(sc) && buffer_packing == 1)))/* T4: disabled unless 1 */
 		fl->flags |= FL_BUF_PACKING;
 	fl->zidx = find_refill_source(sc, maxp, fl->flags & FL_BUF_PACKING);
 	fl->safe_zidx = sc->sge.safe_zidx;
+	if (fl->flags & FL_BUF_PACKING) {
+		fl->lowat = roundup2(sp->fl_starve_threshold2, 8);
+		fl->buf_boundary = sp->pack_boundary;
+	} else {
+		fl->lowat = roundup2(sp->fl_starve_threshold, 8);
+		fl->buf_boundary = 16;
+	}
+	if (fl_pad && fl->buf_boundary < sp->pad_boundary)
+		fl->buf_boundary = sp->pad_boundary;
 }
 
 static inline void
 init_eq(struct adapter *sc, struct sge_eq *eq, int eqtype, int qsize,
-    uint8_t tx_chan, uint16_t iqid, char *name)
+    uint8_t tx_chan, struct sge_iq *iq, char *name)
 {
-	KASSERT(eqtype <= EQ_TYPEMASK, ("%s: bad qtype %d", __func__, eqtype));
+	KASSERT(eqtype >= EQ_CTRL && eqtype <= EQ_OFLD,
+	    ("%s: bad qtype %d", __func__, eqtype));
 
-	eq->flags = eqtype & EQ_TYPEMASK;
+	eq->type = eqtype;
 	eq->tx_chan = tx_chan;
-	eq->iqid = iqid;
+	eq->iq = iq;
 	eq->sidx = qsize - sc->params.sge.spg_len / EQ_ESIZE;
 	strlcpy(eq->lockname, name, sizeof(eq->lockname));
+	mtx_init(&eq->eq_lock, eq->lockname, NULL, MTX_DEF);
 }
 
 int
@@ -3453,20 +3423,20 @@ alloc_ring(struct adapter *sc, size_t len, bus_dma_tag_t *tag,
 	rc = bus_dma_tag_create(sc->dmat, 512, 0, BUS_SPACE_MAXADDR,
 	    BUS_SPACE_MAXADDR, NULL, NULL, len, 1, len, 0, NULL, NULL, tag);
 	if (rc != 0) {
-		device_printf(sc->dev, "cannot allocate DMA tag: %d\n", rc);
+		CH_ERR(sc, "cannot allocate DMA tag: %d\n", rc);
 		goto done;
 	}
 
 	rc = bus_dmamem_alloc(*tag, va,
 	    BUS_DMA_WAITOK | BUS_DMA_COHERENT | BUS_DMA_ZERO, map);
 	if (rc != 0) {
-		device_printf(sc->dev, "cannot allocate DMA memory: %d\n", rc);
+		CH_ERR(sc, "cannot allocate DMA memory: %d\n", rc);
 		goto done;
 	}
 
 	rc = bus_dmamap_load(*tag, *map, *va, len, oneseg_dma_callback, pa, 0);
 	if (rc != 0) {
-		device_printf(sc->dev, "cannot load DMA map: %d\n", rc);
+		CH_ERR(sc, "cannot load DMA map: %d\n", rc);
 		goto done;
 	}
 done:
@@ -3491,34 +3461,87 @@ free_ring(struct adapter *sc, bus_dma_tag_t tag, bus_dmamap_t map,
 }
 
 /*
- * Allocates the ring for an ingress queue and an optional freelist.  If the
- * freelist is specified it will be allocated and then associated with the
- * ingress queue.
+ * Allocates the software resources (mainly memory and sysctl nodes) for an
+ * ingress queue and an optional freelist.
  *
- * Returns errno on failure.  Resources allocated up to that point may still be
- * allocated.  Caller is responsible for cleanup in case this function fails.
- *
- * If the ingress queue will take interrupts directly then the intr_idx
- * specifies the vector, starting from 0.  -1 means the interrupts for this
- * queue should be forwarded to the fwq.
+ * Sets IQ_SW_ALLOCATED and returns 0 on success.
  */
 static int
 alloc_iq_fl(struct vi_info *vi, struct sge_iq *iq, struct sge_fl *fl,
-    int intr_idx, int cong)
+    struct sysctl_ctx_list *ctx, struct sysctl_oid *oid)
 {
-	int rc, i, cntxt_id;
+	int rc;
 	size_t len;
-	struct fw_iq_cmd c;
-	struct port_info *pi = vi->pi;
-	struct adapter *sc = iq->adapter;
-	struct sge_params *sp = &sc->params.sge;
-	__be32 v = 0;
+	struct adapter *sc = vi->adapter;
+
+	MPASS(!(iq->flags & IQ_SW_ALLOCATED));
 
 	len = iq->qsize * IQ_ESIZE;
 	rc = alloc_ring(sc, len, &iq->desc_tag, &iq->desc_map, &iq->ba,
 	    (void **)&iq->desc);
 	if (rc != 0)
 		return (rc);
+
+	if (fl) {
+		len = fl->qsize * EQ_ESIZE;
+		rc = alloc_ring(sc, len, &fl->desc_tag, &fl->desc_map,
+		    &fl->ba, (void **)&fl->desc);
+		if (rc) {
+			free_ring(sc, iq->desc_tag, iq->desc_map, iq->ba,
+			    iq->desc);
+			return (rc);
+		}
+
+		/* Allocate space for one software descriptor per buffer. */
+		fl->sdesc = malloc(fl->sidx * 8 * sizeof(struct fl_sdesc),
+		    M_CXGBE, M_ZERO | M_WAITOK);
+
+		add_fl_sysctls(sc, ctx, oid, fl);
+		iq->flags |= IQ_HAS_FL;
+	}
+	add_iq_sysctls(ctx, oid, iq);
+	iq->flags |= IQ_SW_ALLOCATED;
+
+	return (0);
+}
+
+/*
+ * Frees all software resources (memory and locks) associated with an ingress
+ * queue and an optional freelist.
+ */
+static void
+free_iq_fl(struct adapter *sc, struct sge_iq *iq, struct sge_fl *fl)
+{
+	MPASS(iq->flags & IQ_SW_ALLOCATED);
+
+	if (fl) {
+		MPASS(iq->flags & IQ_HAS_FL);
+		free_ring(sc, fl->desc_tag, fl->desc_map, fl->ba, fl->desc);
+		free_fl_buffers(sc, fl);
+		free(fl->sdesc, M_CXGBE);
+		mtx_destroy(&fl->fl_lock);
+		bzero(fl, sizeof(*fl));
+	}
+	free_ring(sc, iq->desc_tag, iq->desc_map, iq->ba, iq->desc);
+	bzero(iq, sizeof(*iq));
+}
+
+/*
+ * Allocates a hardware ingress queue and an optional freelist that will be
+ * associated with it.
+ *
+ * Returns errno on failure.  Resources allocated up to that point may still be
+ * allocated.  Caller is responsible for cleanup in case this function fails.
+ */
+static int
+alloc_iq_fl_hwq(struct vi_info *vi, struct sge_iq *iq, struct sge_fl *fl)
+{
+	int rc, i, cntxt_id;
+	struct fw_iq_cmd c;
+	struct adapter *sc = vi->adapter;
+	__be32 v = 0;
+
+	MPASS (!(iq->flags & IQ_HW_ALLOCATED));
 
 	bzero(&c, sizeof(c));
 	c.op_to_vfn = htobe32(V_FW_CMD_OP(FW_IQ_CMD) | F_FW_CMD_REQUEST |
@@ -3532,66 +3555,41 @@ alloc_iq_fl(struct vi_info *vi, struct sge_iq *iq, struct sge_fl *fl,
 	if (iq == &sc->sge.fwq)
 		v |= F_FW_IQ_CMD_IQASYNCH;
 
-	if (intr_idx < 0) {
+	if (iq->intr_idx < 0) {
 		/* Forwarded interrupts, all headed to fwq */
 		v |= F_FW_IQ_CMD_IQANDST;
 		v |= V_FW_IQ_CMD_IQANDSTINDEX(sc->sge.fwq.cntxt_id);
 	} else {
-		KASSERT(intr_idx < sc->intr_count,
-		    ("%s: invalid direct intr_idx %d", __func__, intr_idx));
-		v |= V_FW_IQ_CMD_IQANDSTINDEX(intr_idx);
+		KASSERT(iq->intr_idx < sc->intr_count,
+		    ("%s: invalid direct intr_idx %d", __func__, iq->intr_idx));
+		v |= V_FW_IQ_CMD_IQANDSTINDEX(iq->intr_idx);
 	}
 
+	bzero(iq->desc, iq->qsize * IQ_ESIZE);
 	c.type_to_iqandstindex = htobe32(v |
 	    V_FW_IQ_CMD_TYPE(FW_IQ_TYPE_FL_INT_CAP) |
 	    V_FW_IQ_CMD_VIID(vi->viid) |
 	    V_FW_IQ_CMD_IQANUD(X_UPDATEDELIVERY_INTERRUPT));
-	c.iqdroprss_to_iqesize = htobe16(V_FW_IQ_CMD_IQPCIECH(pi->tx_chan) |
+	c.iqdroprss_to_iqesize = htobe16(V_FW_IQ_CMD_IQPCIECH(vi->pi->tx_chan) |
 	    F_FW_IQ_CMD_IQGTSMODE |
 	    V_FW_IQ_CMD_IQINTCNTTHRESH(iq->intr_pktc_idx) |
 	    V_FW_IQ_CMD_IQESIZE(ilog2(IQ_ESIZE) - 4));
 	c.iqsize = htobe16(iq->qsize);
 	c.iqaddr = htobe64(iq->ba);
-	if (cong >= 0)
+	if (iq->cong >= 0)
 		c.iqns_to_fl0congen = htobe32(F_FW_IQ_CMD_IQFLINTCONGEN);
 
 	if (fl) {
-		mtx_init(&fl->fl_lock, fl->lockname, NULL, MTX_DEF);
-
-		len = fl->qsize * EQ_ESIZE;
-		rc = alloc_ring(sc, len, &fl->desc_tag, &fl->desc_map,
-		    &fl->ba, (void **)&fl->desc);
-		if (rc)
-			return (rc);
-
-		/* Allocate space for one software descriptor per buffer. */
-		rc = alloc_fl_sdesc(fl);
-		if (rc != 0) {
-			device_printf(sc->dev,
-			    "failed to setup fl software descriptors: %d\n",
-			    rc);
-			return (rc);
-		}
-
-		if (fl->flags & FL_BUF_PACKING) {
-			fl->lowat = roundup2(sp->fl_starve_threshold2, 8);
-			fl->buf_boundary = sp->pack_boundary;
-		} else {
-			fl->lowat = roundup2(sp->fl_starve_threshold, 8);
-			fl->buf_boundary = 16;
-		}
-		if (fl_pad && fl->buf_boundary < sp->pad_boundary)
-			fl->buf_boundary = sp->pad_boundary;
-
+		bzero(fl->desc, fl->sidx * EQ_ESIZE + sc->params.sge.spg_len);
 		c.iqns_to_fl0congen |=
 		    htobe32(V_FW_IQ_CMD_FL0HOSTFCMODE(X_HOSTFCMODE_NONE) |
 			F_FW_IQ_CMD_FL0FETCHRO | F_FW_IQ_CMD_FL0DATARO |
 			(fl_pad ? F_FW_IQ_CMD_FL0PADEN : 0) |
 			(fl->flags & FL_BUF_PACKING ? F_FW_IQ_CMD_FL0PACKEN :
 			    0));
-		if (cong >= 0) {
+		if (iq->cong >= 0) {
 			c.iqns_to_fl0congen |=
-				htobe32(V_FW_IQ_CMD_FL0CNGCHMAP(cong) |
+				htobe32(V_FW_IQ_CMD_FL0CNGCHMAP(iq->cong) |
 				    F_FW_IQ_CMD_FL0CONGCIF |
 				    F_FW_IQ_CMD_FL0CONGEN);
 		}
@@ -3606,17 +3604,14 @@ alloc_iq_fl(struct vi_info *vi, struct sge_iq *iq, struct sge_fl *fl,
 
 	rc = -t4_wr_mbox(sc, sc->mbox, &c, sizeof(c), &c);
 	if (rc != 0) {
-		device_printf(sc->dev,
-		    "failed to create ingress queue: %d\n", rc);
+		CH_ERR(sc, "failed to create hw ingress queue: %d\n", rc);
 		return (rc);
 	}
 
 	iq->cidx = 0;
 	iq->gen = F_RSPD_GEN;
-	iq->intr_next = iq->intr_params;
 	iq->cntxt_id = be16toh(c.iqid);
 	iq->abs_id = be16toh(c.physiqid);
-	iq->flags |= IQ_ALLOCATED;
 
 	cntxt_id = iq->cntxt_id - sc->sge.iq_start;
 	if (cntxt_id >= sc->sge.iqmap_sz) {
@@ -3627,10 +3622,15 @@ alloc_iq_fl(struct vi_info *vi, struct sge_iq *iq, struct sge_fl *fl,
 
 	if (fl) {
 		u_int qid;
-
-		iq->flags |= IQ_HAS_FL;
+#ifdef INVARIANTS
+		MPASS(!(fl->flags & FL_BUF_RESUME));
+		for (i = 0; i < fl->sidx * 8; i++)
+			MPASS(fl->sdesc[i].cl == NULL);
+#endif
 		fl->cntxt_id = be16toh(c.fl0id);
-		fl->pidx = fl->cidx = 0;
+		fl->pidx = fl->cidx = fl->hw_cidx = fl->dbidx = 0;
+		fl->rx_offset = 0;
+		fl->flags &= ~(FL_STARVING | FL_DOOMED);
 
 		cntxt_id = fl->cntxt_id - sc->sge.eq_start;
 		if (cntxt_id >= sc->sge.eqmap_sz) {
@@ -3662,18 +3662,18 @@ alloc_iq_fl(struct vi_info *vi, struct sge_iq *iq, struct sge_fl *fl,
 		FL_UNLOCK(fl);
 	}
 
-	if (chip_id(sc) >= CHELSIO_T5 && !(sc->flags & IS_VF) && cong >= 0) {
+	if (chip_id(sc) >= CHELSIO_T5 && !(sc->flags & IS_VF) && iq->cong >= 0) {
 		uint32_t param, val;
 
 		param = V_FW_PARAMS_MNEM(FW_PARAMS_MNEM_DMAQ) |
 		    V_FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DMAQ_CONM_CTXT) |
 		    V_FW_PARAMS_PARAM_YZ(iq->cntxt_id);
-		if (cong == 0)
+		if (iq->cong == 0)
 			val = 1 << 19;
 		else {
 			val = 2 << 19;
 			for (i = 0; i < 4; i++) {
-				if (cong & (1 << i))
+				if (iq->cong & (1 << i))
 					val |= 1 << (i << 2);
 			}
 		}
@@ -3681,9 +3681,8 @@ alloc_iq_fl(struct vi_info *vi, struct sge_iq *iq, struct sge_fl *fl,
 		rc = -t4_set_params(sc, sc->mbox, sc->pf, 0, 1, &param, &val);
 		if (rc != 0) {
 			/* report error but carry on */
-			device_printf(sc->dev,
-			    "failed to set congestion manager context for "
-			    "ingress queue %d: %d\n", iq->cntxt_id, rc);
+			CH_ERR(sc, "failed to set congestion manager context "
+			    "for ingress queue %d: %d\n", iq->cntxt_id, rc);
 		}
 	}
 
@@ -3692,49 +3691,24 @@ alloc_iq_fl(struct vi_info *vi, struct sge_iq *iq, struct sge_fl *fl,
 	t4_write_reg(sc, sc->sge_gts_reg, V_SEINTARM(iq->intr_params) |
 	    V_INGRESSQID(iq->cntxt_id));
 
+	iq->flags |= IQ_HW_ALLOCATED;
+
 	return (0);
 }
 
 static int
-free_iq_fl(struct vi_info *vi, struct sge_iq *iq, struct sge_fl *fl)
+free_iq_fl_hwq(struct adapter *sc, struct sge_iq *iq, struct sge_fl *fl)
 {
 	int rc;
-	struct adapter *sc = iq->adapter;
-	device_t dev;
 
-	if (sc == NULL)
-		return (0);	/* nothing to do */
-
-	dev = vi ? vi->dev : sc->dev;
-
-	if (iq->flags & IQ_ALLOCATED) {
-		rc = -t4_iq_free(sc, sc->mbox, sc->pf, 0,
-		    FW_IQ_TYPE_FL_INT_CAP, iq->cntxt_id,
-		    fl ? fl->cntxt_id : 0xffff, 0xffff);
-		if (rc != 0) {
-			device_printf(dev,
-			    "failed to free queue %p: %d\n", iq, rc);
-			return (rc);
-		}
-		iq->flags &= ~IQ_ALLOCATED;
+	MPASS(iq->flags & IQ_HW_ALLOCATED);
+	rc = -t4_iq_free(sc, sc->mbox, sc->pf, 0, FW_IQ_TYPE_FL_INT_CAP,
+	    iq->cntxt_id, fl ? fl->cntxt_id : 0xffff, 0xffff);
+	if (rc != 0) {
+		CH_ERR(sc, "failed to free iq %p: %d\n", iq, rc);
+		return (rc);
 	}
-
-	free_ring(sc, iq->desc_tag, iq->desc_map, iq->ba, iq->desc);
-
-	bzero(iq, sizeof(*iq));
-
-	if (fl) {
-		free_ring(sc, fl->desc_tag, fl->desc_map, fl->ba,
-		    fl->desc);
-
-		if (fl->sdesc)
-			free_fl_sdesc(sc, fl);
-
-		if (mtx_initialized(&fl->fl_lock))
-			mtx_destroy(&fl->fl_lock);
-
-		bzero(fl, sizeof(*fl));
-	}
+	iq->flags &= ~IQ_HW_ALLOCATED;
 
 	return (0);
 }
@@ -3743,8 +3717,12 @@ static void
 add_iq_sysctls(struct sysctl_ctx_list *ctx, struct sysctl_oid *oid,
     struct sge_iq *iq)
 {
-	struct sysctl_oid_list *children = SYSCTL_CHILDREN(oid);
+	struct sysctl_oid_list *children;
 
+	if (ctx == NULL || oid == NULL)
+		return;
+
+	children = SYSCTL_CHILDREN(oid);
 	SYSCTL_ADD_UAUTO(ctx, children, OID_AUTO, "ba", CTLFLAG_RD, &iq->ba,
 	    "bus address of descriptor ring");
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "dmalen", CTLFLAG_RD, NULL,
@@ -3761,8 +3739,12 @@ static void
 add_fl_sysctls(struct adapter *sc, struct sysctl_ctx_list *ctx,
     struct sysctl_oid *oid, struct sge_fl *fl)
 {
-	struct sysctl_oid_list *children = SYSCTL_CHILDREN(oid);
+	struct sysctl_oid_list *children;
 
+	if (ctx == NULL || oid == NULL)
+		return;
+
+	children = SYSCTL_CHILDREN(oid);
 	oid = SYSCTL_ADD_NODE(ctx, children, OID_AUTO, "fl",
 	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "freelist");
 	children = SYSCTL_CHILDREN(oid);
@@ -3794,59 +3776,134 @@ add_fl_sysctls(struct adapter *sc, struct sysctl_ctx_list *ctx,
 	    CTLFLAG_RD, &fl->cl_fast_recycled, "# of clusters recycled (fast)");
 }
 
+/*
+ * Idempotent.
+ */
 static int
 alloc_fwq(struct adapter *sc)
 {
 	int rc, intr_idx;
 	struct sge_iq *fwq = &sc->sge.fwq;
-	struct sysctl_oid *oid = device_get_sysctl_tree(sc->dev);
-	struct sysctl_oid_list *children = SYSCTL_CHILDREN(oid);
+	struct vi_info *vi = &sc->port[0]->vi[0];
 
-	init_iq(fwq, sc, 0, 0, FW_IQ_QSIZE);
-	if (sc->flags & IS_VF)
-		intr_idx = 0;
-	else
-		intr_idx = sc->intr_count > 1 ? 1 : 0;
-	rc = alloc_iq_fl(&sc->port[0]->vi[0], fwq, NULL, intr_idx, -1);
-	if (rc != 0) {
-		device_printf(sc->dev,
-		    "failed to create firmware event queue: %d\n", rc);
-		return (rc);
+	if (!(fwq->flags & IQ_SW_ALLOCATED)) {
+		MPASS(!(fwq->flags & IQ_HW_ALLOCATED));
+
+		if (sc->flags & IS_VF)
+			intr_idx = 0;
+		else
+			intr_idx = sc->intr_count > 1 ? 1 : 0;
+		init_iq(fwq, sc, 0, 0, FW_IQ_QSIZE, intr_idx, -1);
+		rc = alloc_iq_fl(vi, fwq, NULL, &sc->ctx, sc->fwq_oid);
+		if (rc != 0) {
+			CH_ERR(sc, "failed to allocate fwq: %d\n", rc);
+			return (rc);
+		}
+		MPASS(fwq->flags & IQ_SW_ALLOCATED);
 	}
 
-	oid = SYSCTL_ADD_NODE(&sc->ctx, children, OID_AUTO, "fwq",
-	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "firmware event queue");
-	add_iq_sysctls(&sc->ctx, oid, fwq);
+	if (!(fwq->flags & IQ_HW_ALLOCATED)) {
+		MPASS(fwq->flags & IQ_SW_ALLOCATED);
+
+		rc = alloc_iq_fl_hwq(vi, fwq, NULL);
+		if (rc != 0) {
+			CH_ERR(sc, "failed to create hw fwq: %d\n", rc);
+			return (rc);
+		}
+		MPASS(fwq->flags & IQ_HW_ALLOCATED);
+	}
 
 	return (0);
 }
 
-static int
+/*
+ * Idempotent.
+ */
+static void
 free_fwq(struct adapter *sc)
 {
-	return free_iq_fl(NULL, &sc->sge.fwq, NULL);
+	struct sge_iq *fwq = &sc->sge.fwq;
+
+	if (fwq->flags & IQ_HW_ALLOCATED) {
+		MPASS(fwq->flags & IQ_SW_ALLOCATED);
+		free_iq_fl_hwq(sc, fwq, NULL);
+		MPASS(!(fwq->flags & IQ_HW_ALLOCATED));
+	}
+
+	if (fwq->flags & IQ_SW_ALLOCATED) {
+		MPASS(!(fwq->flags & IQ_HW_ALLOCATED));
+		free_iq_fl(sc, fwq, NULL);
+		MPASS(!(fwq->flags & IQ_SW_ALLOCATED));
+	}
 }
 
+/*
+ * Idempotent.
+ */
 static int
-alloc_ctrlq(struct adapter *sc, struct sge_wrq *ctrlq, int idx,
-    struct sysctl_oid *oid)
+alloc_ctrlq(struct adapter *sc, int idx)
 {
 	int rc;
 	char name[16];
-	struct sysctl_oid_list *children;
+	struct sysctl_oid *oid;
+	struct sge_wrq *ctrlq = &sc->sge.ctrlq[idx];
 
-	snprintf(name, sizeof(name), "%s ctrlq%d", device_get_nameunit(sc->dev),
-	    idx);
-	init_eq(sc, &ctrlq->eq, EQ_CTRL, CTRL_EQ_QSIZE, sc->port[idx]->tx_chan,
-	    sc->sge.fwq.cntxt_id, name);
+	MPASS(idx < sc->params.nports);
 
-	children = SYSCTL_CHILDREN(oid);
-	snprintf(name, sizeof(name), "%d", idx);
-	oid = SYSCTL_ADD_NODE(&sc->ctx, children, OID_AUTO, name,
-	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "ctrl queue");
-	rc = alloc_wrq(sc, NULL, ctrlq, oid);
+	if (!(ctrlq->eq.flags & EQ_SW_ALLOCATED)) {
+		MPASS(!(ctrlq->eq.flags & EQ_HW_ALLOCATED));
 
-	return (rc);
+		snprintf(name, sizeof(name), "%d", idx);
+		oid = SYSCTL_ADD_NODE(&sc->ctx, SYSCTL_CHILDREN(sc->ctrlq_oid),
+		    OID_AUTO, name, CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
+		    "ctrl queue");
+
+		snprintf(name, sizeof(name), "%s ctrlq%d",
+		    device_get_nameunit(sc->dev), idx);
+		init_eq(sc, &ctrlq->eq, EQ_CTRL, CTRL_EQ_QSIZE,
+		    sc->port[idx]->tx_chan, &sc->sge.fwq, name);
+		rc = alloc_wrq(sc, NULL, ctrlq, &sc->ctx, oid);
+		if (rc != 0) {
+			CH_ERR(sc, "failed to allocate ctrlq%d: %d\n", idx, rc);
+			sysctl_remove_oid(oid, 1, 1);
+			return (rc);
+		}
+		MPASS(ctrlq->eq.flags & EQ_SW_ALLOCATED);
+	}
+
+	if (!(ctrlq->eq.flags & EQ_HW_ALLOCATED)) {
+		MPASS(ctrlq->eq.flags & EQ_SW_ALLOCATED);
+
+		rc = alloc_eq_hwq(sc, NULL, &ctrlq->eq);
+		if (rc != 0) {
+			CH_ERR(sc, "failed to create hw ctrlq%d: %d\n", idx, rc);
+			return (rc);
+		}
+		MPASS(ctrlq->eq.flags & EQ_HW_ALLOCATED);
+	}
+
+	return (0);
+}
+
+/*
+ * Idempotent.
+ */
+static void
+free_ctrlq(struct adapter *sc, int idx)
+{
+	struct sge_wrq *ctrlq = &sc->sge.ctrlq[idx];
+
+	if (ctrlq->eq.flags & EQ_HW_ALLOCATED) {
+		MPASS(ctrlq->eq.flags & EQ_SW_ALLOCATED);
+		free_eq_hwq(sc, NULL, &ctrlq->eq);
+		MPASS(!(ctrlq->eq.flags & EQ_HW_ALLOCATED));
+	}
+
+	if (ctrlq->eq.flags & EQ_SW_ALLOCATED) {
+		MPASS(!(ctrlq->eq.flags & EQ_HW_ALLOCATED));
+		free_wrq(sc, ctrlq);
+		MPASS(!(ctrlq->eq.flags & EQ_SW_ALLOCATED));
+	}
 }
 
 int
@@ -3861,138 +3918,259 @@ tnl_cong(struct port_info *pi, int drop)
 		return (pi->rx_e_chan_map);
 }
 
+/*
+ * Idempotent.
+ */
 static int
-alloc_rxq(struct vi_info *vi, struct sge_rxq *rxq, int intr_idx, int idx,
-    struct sysctl_oid *oid)
+alloc_rxq(struct vi_info *vi, struct sge_rxq *rxq, int idx, int intr_idx,
+    int maxp)
 {
 	int rc;
 	struct adapter *sc = vi->adapter;
-	struct sysctl_oid_list *children;
+	struct ifnet *ifp = vi->ifp;
+	struct sysctl_oid *oid;
 	char name[16];
 
-	rc = alloc_iq_fl(vi, &rxq->iq, &rxq->fl, intr_idx,
-	    tnl_cong(vi->pi, cong_drop));
-	if (rc != 0)
-		return (rc);
-
-	if (idx == 0)
-		sc->sge.iq_base = rxq->iq.abs_id - rxq->iq.cntxt_id;
-	else
-		KASSERT(rxq->iq.cntxt_id + sc->sge.iq_base == rxq->iq.abs_id,
-		    ("iq_base mismatch"));
-	KASSERT(sc->sge.iq_base == 0 || sc->flags & IS_VF,
-	    ("PF with non-zero iq_base"));
-
-	/*
-	 * The freelist is just barely above the starvation threshold right now,
-	 * fill it up a bit more.
-	 */
-	FL_LOCK(&rxq->fl);
-	refill_fl(sc, &rxq->fl, 128);
-	FL_UNLOCK(&rxq->fl);
-
+	if (!(rxq->iq.flags & IQ_SW_ALLOCATED)) {
+		MPASS(!(rxq->iq.flags & IQ_HW_ALLOCATED));
 #if defined(INET) || defined(INET6)
-	rc = tcp_lro_init_args(&rxq->lro, vi->ifp, lro_entries, lro_mbufs);
-	if (rc != 0)
-		return (rc);
-	MPASS(rxq->lro.ifp == vi->ifp);	/* also indicates LRO init'ed */
+		rc = tcp_lro_init_args(&rxq->lro, ifp, lro_entries, lro_mbufs);
+		if (rc != 0)
+			return (rc);
+		MPASS(rxq->lro.ifp == ifp);	/* also indicates LRO init'ed */
 
-	if (vi->ifp->if_capenable & IFCAP_LRO)
-		rxq->iq.flags |= IQ_LRO_ENABLED;
+		if (ifp->if_capenable & IFCAP_LRO)
+			rxq->iq.flags |= IQ_LRO_ENABLED;
 #endif
-	if (vi->ifp->if_capenable & IFCAP_HWRXTSTMP)
-		rxq->iq.flags |= IQ_RX_TIMESTAMP;
-	rxq->ifp = vi->ifp;
+		if (ifp->if_capenable & IFCAP_HWRXTSTMP)
+			rxq->iq.flags |= IQ_RX_TIMESTAMP;
+		rxq->ifp = ifp;
 
-	children = SYSCTL_CHILDREN(oid);
+		snprintf(name, sizeof(name), "%d", idx);
+		oid = SYSCTL_ADD_NODE(&vi->ctx, SYSCTL_CHILDREN(vi->rxq_oid),
+		    OID_AUTO, name, CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
+		    "rx queue");
 
-	snprintf(name, sizeof(name), "%d", idx);
-	oid = SYSCTL_ADD_NODE(&vi->ctx, children, OID_AUTO, name,
-	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "rx queue");
-	children = SYSCTL_CHILDREN(oid);
-
-	add_iq_sysctls(&vi->ctx, oid, &rxq->iq);
+		init_iq(&rxq->iq, sc, vi->tmr_idx, vi->pktc_idx, vi->qsize_rxq,
+		    intr_idx, tnl_cong(vi->pi, cong_drop));
+		snprintf(name, sizeof(name), "%s rxq%d-fl",
+		    device_get_nameunit(vi->dev), idx);
+		init_fl(sc, &rxq->fl, vi->qsize_rxq / 8, maxp, name);
+		rc = alloc_iq_fl(vi, &rxq->iq, &rxq->fl, &vi->ctx, oid);
+		if (rc != 0) {
+			CH_ERR(vi, "failed to allocate rxq%d: %d\n", idx, rc);
+			sysctl_remove_oid(oid, 1, 1);
 #if defined(INET) || defined(INET6)
-	SYSCTL_ADD_U64(&vi->ctx, children, OID_AUTO, "lro_queued", CTLFLAG_RD,
-	    &rxq->lro.lro_queued, 0, NULL);
-	SYSCTL_ADD_U64(&vi->ctx, children, OID_AUTO, "lro_flushed", CTLFLAG_RD,
-	    &rxq->lro.lro_flushed, 0, NULL);
+			tcp_lro_free(&rxq->lro);
+			rxq->lro.ifp = NULL;
 #endif
-	SYSCTL_ADD_UQUAD(&vi->ctx, children, OID_AUTO, "rxcsum", CTLFLAG_RD,
-	    &rxq->rxcsum, "# of times hardware assisted with checksum");
-	SYSCTL_ADD_UQUAD(&vi->ctx, children, OID_AUTO, "vlan_extraction",
-	    CTLFLAG_RD, &rxq->vlan_extraction,
-	    "# of times hardware extracted 802.1Q tag");
-	SYSCTL_ADD_UQUAD(&vi->ctx, children, OID_AUTO, "vxlan_rxcsum",
-	    CTLFLAG_RD, &rxq->vxlan_rxcsum,
-	    "# of times hardware assisted with inner checksum (VXLAN) ");
+			return (rc);
+		}
+		MPASS(rxq->iq.flags & IQ_SW_ALLOCATED);
+		add_rxq_sysctls(&vi->ctx, oid, rxq);
+	}
 
-	add_fl_sysctls(sc, &vi->ctx, oid, &rxq->fl);
+	if (!(rxq->iq.flags & IQ_HW_ALLOCATED)) {
+		MPASS(rxq->iq.flags & IQ_SW_ALLOCATED);
+		rc = alloc_iq_fl_hwq(vi, &rxq->iq, &rxq->fl);
+		if (rc != 0) {
+			CH_ERR(vi, "failed to create hw rxq%d: %d\n", idx, rc);
+			return (rc);
+		}
+		MPASS(rxq->iq.flags & IQ_HW_ALLOCATED);
 
-	return (rc);
+		if (idx == 0)
+			sc->sge.iq_base = rxq->iq.abs_id - rxq->iq.cntxt_id;
+		else
+			KASSERT(rxq->iq.cntxt_id + sc->sge.iq_base == rxq->iq.abs_id,
+			    ("iq_base mismatch"));
+		KASSERT(sc->sge.iq_base == 0 || sc->flags & IS_VF,
+		    ("PF with non-zero iq_base"));
+
+		/*
+		 * The freelist is just barely above the starvation threshold
+		 * right now, fill it up a bit more.
+		 */
+		FL_LOCK(&rxq->fl);
+		refill_fl(sc, &rxq->fl, 128);
+		FL_UNLOCK(&rxq->fl);
+	}
+
+	return (0);
 }
 
-static int
+/*
+ * Idempotent.
+ */
+static void
 free_rxq(struct vi_info *vi, struct sge_rxq *rxq)
 {
-	int rc;
-
-#if defined(INET) || defined(INET6)
-	if (rxq->lro.ifp) {
-		tcp_lro_free(&rxq->lro);
-		rxq->lro.ifp = NULL;
+	if (rxq->iq.flags & IQ_HW_ALLOCATED) {
+		MPASS(rxq->iq.flags & IQ_SW_ALLOCATED);
+		free_iq_fl_hwq(vi->adapter, &rxq->iq, &rxq->fl);
+		MPASS(!(rxq->iq.flags & IQ_HW_ALLOCATED));
 	}
+
+	if (rxq->iq.flags & IQ_SW_ALLOCATED) {
+		MPASS(!(rxq->iq.flags & IQ_HW_ALLOCATED));
+#if defined(INET) || defined(INET6)
+		tcp_lro_free(&rxq->lro);
 #endif
-
-	rc = free_iq_fl(vi, &rxq->iq, &rxq->fl);
-	if (rc == 0)
+		free_iq_fl(vi->adapter, &rxq->iq, &rxq->fl);
+		MPASS(!(rxq->iq.flags & IQ_SW_ALLOCATED));
 		bzero(rxq, sizeof(*rxq));
+	}
+}
 
-	return (rc);
+static void
+add_rxq_sysctls(struct sysctl_ctx_list *ctx, struct sysctl_oid *oid,
+    struct sge_rxq *rxq)
+{
+	struct sysctl_oid_list *children;
+
+	if (ctx == NULL || oid == NULL)
+		return;
+
+	children = SYSCTL_CHILDREN(oid);
+#if defined(INET) || defined(INET6)
+	SYSCTL_ADD_U64(ctx, children, OID_AUTO, "lro_queued", CTLFLAG_RD,
+	    &rxq->lro.lro_queued, 0, NULL);
+	SYSCTL_ADD_U64(ctx, children, OID_AUTO, "lro_flushed", CTLFLAG_RD,
+	    &rxq->lro.lro_flushed, 0, NULL);
+#endif
+	SYSCTL_ADD_UQUAD(ctx, children, OID_AUTO, "rxcsum", CTLFLAG_RD,
+	    &rxq->rxcsum, "# of times hardware assisted with checksum");
+	SYSCTL_ADD_UQUAD(ctx, children, OID_AUTO, "vlan_extraction", CTLFLAG_RD,
+	    &rxq->vlan_extraction, "# of times hardware extracted 802.1Q tag");
+	SYSCTL_ADD_UQUAD(ctx, children, OID_AUTO, "vxlan_rxcsum", CTLFLAG_RD,
+	    &rxq->vxlan_rxcsum,
+	    "# of times hardware assisted with inner checksum (VXLAN)");
 }
 
 #ifdef TCP_OFFLOAD
+/*
+ * Idempotent.
+ */
 static int
-alloc_ofld_rxq(struct vi_info *vi, struct sge_ofld_rxq *ofld_rxq,
-    int intr_idx, int idx, struct sysctl_oid *oid)
+alloc_ofld_rxq(struct vi_info *vi, struct sge_ofld_rxq *ofld_rxq, int idx,
+    int intr_idx, int maxp)
 {
-	struct port_info *pi = vi->pi;
 	int rc;
-	struct sysctl_oid_list *children;
+	struct adapter *sc = vi->adapter;
+	struct sysctl_oid *oid;
 	char name[16];
 
-	rc = alloc_iq_fl(vi, &ofld_rxq->iq, &ofld_rxq->fl, intr_idx, 0);
-	if (rc != 0)
-		return (rc);
+	if (!(ofld_rxq->iq.flags & IQ_SW_ALLOCATED)) {
+		MPASS(!(ofld_rxq->iq.flags & IQ_HW_ALLOCATED));
 
-	children = SYSCTL_CHILDREN(oid);
+		snprintf(name, sizeof(name), "%d", idx);
+		oid = SYSCTL_ADD_NODE(&vi->ctx,
+		    SYSCTL_CHILDREN(vi->ofld_rxq_oid), OID_AUTO, name,
+		    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "offload rx queue");
 
-	snprintf(name, sizeof(name), "%d", idx);
-	oid = SYSCTL_ADD_NODE(&vi->ctx, children, OID_AUTO, name,
-	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "rx queue");
-	add_iq_sysctls(&vi->ctx, oid, &ofld_rxq->iq);
-	add_fl_sysctls(pi->adapter, &vi->ctx, oid, &ofld_rxq->fl);
+		init_iq(&ofld_rxq->iq, sc, vi->ofld_tmr_idx, vi->ofld_pktc_idx,
+		    vi->qsize_rxq, intr_idx, 0);
+		snprintf(name, sizeof(name), "%s ofld_rxq%d-fl",
+		    device_get_nameunit(vi->dev), idx);
+		init_fl(sc, &ofld_rxq->fl, vi->qsize_rxq / 8, maxp, name);
+		rc = alloc_iq_fl(vi, &ofld_rxq->iq, &ofld_rxq->fl, &vi->ctx,
+		    oid);
+		if (rc != 0) {
+			CH_ERR(vi, "failed to allocate ofld_rxq%d: %d\n", idx,
+			    rc);
+			sysctl_remove_oid(oid, 1, 1);
+			return (rc);
+		}
+		MPASS(ofld_rxq->iq.flags & IQ_SW_ALLOCATED);
+		ofld_rxq->rx_iscsi_ddp_setup_ok = counter_u64_alloc(M_WAITOK);
+		ofld_rxq->rx_iscsi_ddp_setup_error =
+		    counter_u64_alloc(M_WAITOK);
+		add_ofld_rxq_sysctls(&vi->ctx, oid, ofld_rxq);
+	}
 
-	SYSCTL_ADD_ULONG(&vi->ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
-	    "rx_toe_tls_records", CTLFLAG_RD, &ofld_rxq->rx_toe_tls_records,
-	    "# of TOE TLS records received");
-	SYSCTL_ADD_ULONG(&vi->ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
-	    "rx_toe_tls_octets", CTLFLAG_RD, &ofld_rxq->rx_toe_tls_octets,
-	    "# of payload octets in received TOE TLS records");
-
+	if (!(ofld_rxq->iq.flags & IQ_HW_ALLOCATED)) {
+		MPASS(ofld_rxq->iq.flags & IQ_SW_ALLOCATED);
+		rc = alloc_iq_fl_hwq(vi, &ofld_rxq->iq, &ofld_rxq->fl);
+		if (rc != 0) {
+			CH_ERR(vi, "failed to create hw ofld_rxq%d: %d\n", idx,
+			    rc);
+			return (rc);
+		}
+		MPASS(ofld_rxq->iq.flags & IQ_HW_ALLOCATED);
+	}
 	return (rc);
 }
 
-static int
+/*
+ * Idempotent.
+ */
+static void
 free_ofld_rxq(struct vi_info *vi, struct sge_ofld_rxq *ofld_rxq)
 {
-	int rc;
+	if (ofld_rxq->iq.flags & IQ_HW_ALLOCATED) {
+		MPASS(ofld_rxq->iq.flags & IQ_SW_ALLOCATED);
+		free_iq_fl_hwq(vi->adapter, &ofld_rxq->iq, &ofld_rxq->fl);
+		MPASS(!(ofld_rxq->iq.flags & IQ_HW_ALLOCATED));
+	}
 
-	rc = free_iq_fl(vi, &ofld_rxq->iq, &ofld_rxq->fl);
-	if (rc == 0)
+	if (ofld_rxq->iq.flags & IQ_SW_ALLOCATED) {
+		MPASS(!(ofld_rxq->iq.flags & IQ_HW_ALLOCATED));
+		free_iq_fl(vi->adapter, &ofld_rxq->iq, &ofld_rxq->fl);
+		MPASS(!(ofld_rxq->iq.flags & IQ_SW_ALLOCATED));
+		counter_u64_free(ofld_rxq->rx_iscsi_ddp_setup_ok);
+		counter_u64_free(ofld_rxq->rx_iscsi_ddp_setup_error);
 		bzero(ofld_rxq, sizeof(*ofld_rxq));
+	}
+}
 
-	return (rc);
+static void
+add_ofld_rxq_sysctls(struct sysctl_ctx_list *ctx, struct sysctl_oid *oid,
+    struct sge_ofld_rxq *ofld_rxq)
+{
+	struct sysctl_oid_list *children;
+
+	if (ctx == NULL || oid == NULL)
+		return;
+
+	children = SYSCTL_CHILDREN(oid);
+	SYSCTL_ADD_ULONG(ctx, children, OID_AUTO,
+	    "rx_toe_tls_records", CTLFLAG_RD, &ofld_rxq->rx_toe_tls_records,
+	    "# of TOE TLS records received");
+	SYSCTL_ADD_ULONG(ctx, children, OID_AUTO,
+	    "rx_toe_tls_octets", CTLFLAG_RD, &ofld_rxq->rx_toe_tls_octets,
+	    "# of payload octets in received TOE TLS records");
+
+	oid = SYSCTL_ADD_NODE(ctx, children, OID_AUTO, "iscsi",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "TOE iSCSI statistics");
+	children = SYSCTL_CHILDREN(oid);
+
+	SYSCTL_ADD_COUNTER_U64(ctx, children, OID_AUTO, "ddp_setup_ok",
+	    CTLFLAG_RD, &ofld_rxq->rx_iscsi_ddp_setup_ok,
+	    "# of times DDP buffer was setup successfully.");
+	SYSCTL_ADD_COUNTER_U64(ctx, children, OID_AUTO, "ddp_setup_error",
+	    CTLFLAG_RD, &ofld_rxq->rx_iscsi_ddp_setup_error,
+	    "# of times DDP buffer setup failed.");
+	SYSCTL_ADD_U64(ctx, children, OID_AUTO, "ddp_octets",
+	    CTLFLAG_RD, &ofld_rxq->rx_iscsi_ddp_octets, 0,
+	    "# of octets placed directly");
+	SYSCTL_ADD_U64(ctx, children, OID_AUTO, "ddp_pdus",
+	    CTLFLAG_RD, &ofld_rxq->rx_iscsi_ddp_pdus, 0,
+	    "# of PDUs with data placed directly.");
+	SYSCTL_ADD_U64(ctx, children, OID_AUTO, "fl_octets",
+	    CTLFLAG_RD, &ofld_rxq->rx_iscsi_fl_octets, 0,
+	    "# of data octets delivered in freelist");
+	SYSCTL_ADD_U64(ctx, children, OID_AUTO, "fl_pdus",
+	    CTLFLAG_RD, &ofld_rxq->rx_iscsi_fl_pdus, 0,
+	    "# of PDUs with data delivered in freelist");
+	SYSCTL_ADD_U64(ctx, children, OID_AUTO, "padding_errors",
+	    CTLFLAG_RD, &ofld_rxq->rx_iscsi_padding_errors, 0,
+	    "# of PDUs with invalid padding");
+	SYSCTL_ADD_U64(ctx, children, OID_AUTO, "header_digest_errors",
+	    CTLFLAG_RD, &ofld_rxq->rx_iscsi_header_digest_errors, 0,
+	    "# of PDUs with invalid header digests");
+	SYSCTL_ADD_U64(ctx, children, OID_AUTO, "data_digest_errors",
+	    CTLFLAG_RD, &ofld_rxq->rx_iscsi_data_digest_errors, 0,
+	    "# of PDUs with invalid data digests");
 }
 #endif
 
@@ -4043,13 +4221,13 @@ ctrl_eq_alloc(struct adapter *sc, struct sge_eq *eq)
 
 	rc = -t4_wr_mbox(sc, sc->mbox, &c, sizeof(c), &c);
 	if (rc != 0) {
-		device_printf(sc->dev,
-		    "failed to create control queue %d: %d\n", eq->tx_chan, rc);
+		CH_ERR(sc, "failed to create hw ctrlq for tx_chan %d: %d\n",
+		    eq->tx_chan, rc);
 		return (rc);
 	}
-	eq->flags |= EQ_ALLOCATED;
 
 	eq->cntxt_id = G_FW_EQ_CTRL_CMD_EQID(be32toh(c.cmpliqid_eqid));
+	eq->abs_id = G_FW_EQ_CTRL_CMD_PHYSEQID(be32toh(c.physeqid_pkd));
 	cntxt_id = eq->cntxt_id - sc->sge.eq_start;
 	if (cntxt_id >= sc->sge.eqmap_sz)
 	    panic("%s: eq->cntxt_id (%d) more than the max (%d)", __func__,
@@ -4092,7 +4270,6 @@ eth_eq_alloc(struct adapter *sc, struct vi_info *vi, struct sge_eq *eq)
 		    "failed to create Ethernet egress queue: %d\n", rc);
 		return (rc);
 	}
-	eq->flags |= EQ_ALLOCATED;
 
 	eq->cntxt_id = G_FW_EQ_ETH_CMD_EQID(be32toh(c.eqid_pkd));
 	eq->abs_id = G_FW_EQ_ETH_CMD_PHYSEQID(be32toh(c.physeqid_pkd));
@@ -4138,9 +4315,9 @@ ofld_eq_alloc(struct adapter *sc, struct vi_info *vi, struct sge_eq *eq)
 		    "failed to create egress queue for TCP offload: %d\n", rc);
 		return (rc);
 	}
-	eq->flags |= EQ_ALLOCATED;
 
 	eq->cntxt_id = G_FW_EQ_OFLD_CMD_EQID(be32toh(c.eqid_pkd));
+	eq->abs_id = G_FW_EQ_OFLD_CMD_PHYSEQID(be32toh(c.physeqid_pkd));
 	cntxt_id = eq->cntxt_id - sc->sge.eq_start;
 	if (cntxt_id >= sc->sge.eqmap_sz)
 	    panic("%s: eq->cntxt_id (%d) more than the max (%d)", __func__,
@@ -4151,27 +4328,80 @@ ofld_eq_alloc(struct adapter *sc, struct vi_info *vi, struct sge_eq *eq)
 }
 #endif
 
+/* SW only */
 static int
-alloc_eq(struct adapter *sc, struct vi_info *vi, struct sge_eq *eq)
+alloc_eq(struct adapter *sc, struct sge_eq *eq, struct sysctl_ctx_list *ctx,
+    struct sysctl_oid *oid)
 {
 	int rc, qsize;
 	size_t len;
 
-	mtx_init(&eq->eq_lock, eq->lockname, NULL, MTX_DEF);
+	MPASS(!(eq->flags & EQ_SW_ALLOCATED));
 
 	qsize = eq->sidx + sc->params.sge.spg_len / EQ_ESIZE;
 	len = qsize * EQ_ESIZE;
-	rc = alloc_ring(sc, len, &eq->desc_tag, &eq->desc_map,
-	    &eq->ba, (void **)&eq->desc);
+	rc = alloc_ring(sc, len, &eq->desc_tag, &eq->desc_map, &eq->ba,
+	    (void **)&eq->desc);
 	if (rc)
 		return (rc);
+	if (ctx != NULL && oid != NULL)
+		add_eq_sysctls(sc, ctx, oid, eq);
+	eq->flags |= EQ_SW_ALLOCATED;
 
+	return (0);
+}
+
+/* SW only */
+static void
+free_eq(struct adapter *sc, struct sge_eq *eq)
+{
+	MPASS(eq->flags & EQ_SW_ALLOCATED);
+	if (eq->type == EQ_ETH)
+		MPASS(eq->pidx == eq->cidx);
+
+	free_ring(sc, eq->desc_tag, eq->desc_map, eq->ba, eq->desc);
+	mtx_destroy(&eq->eq_lock);
+	bzero(eq, sizeof(*eq));
+}
+
+static void
+add_eq_sysctls(struct adapter *sc, struct sysctl_ctx_list *ctx,
+    struct sysctl_oid *oid, struct sge_eq *eq)
+{
+	struct sysctl_oid_list *children = SYSCTL_CHILDREN(oid);
+
+	SYSCTL_ADD_UAUTO(ctx, children, OID_AUTO, "ba", CTLFLAG_RD, &eq->ba,
+	    "bus address of descriptor ring");
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "dmalen", CTLFLAG_RD, NULL,
+	    eq->sidx * EQ_ESIZE + sc->params.sge.spg_len,
+	    "desc ring size in bytes");
+	SYSCTL_ADD_UINT(ctx, children, OID_AUTO, "abs_id", CTLFLAG_RD,
+	    &eq->abs_id, 0, "absolute id of the queue");
+	SYSCTL_ADD_UINT(ctx, children, OID_AUTO, "cntxt_id", CTLFLAG_RD,
+	    &eq->cntxt_id, 0, "SGE context id of the queue");
+	SYSCTL_ADD_U16(ctx, children, OID_AUTO, "cidx", CTLFLAG_RD, &eq->cidx,
+	    0, "consumer index");
+	SYSCTL_ADD_U16(ctx, children, OID_AUTO, "pidx", CTLFLAG_RD, &eq->pidx,
+	    0, "producer index");
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "sidx", CTLFLAG_RD, NULL,
+	    eq->sidx, "status page index");
+}
+
+static int
+alloc_eq_hwq(struct adapter *sc, struct vi_info *vi, struct sge_eq *eq)
+{
+	int rc;
+
+	MPASS(!(eq->flags & EQ_HW_ALLOCATED));
+
+	eq->iqid = eq->iq->cntxt_id;
 	eq->pidx = eq->cidx = eq->dbidx = 0;
 	/* Note that equeqidx is not used with sge_wrq (OFLD/CTRL) queues. */
 	eq->equeqidx = 0;
 	eq->doorbells = sc->doorbells;
+	bzero(eq->desc, eq->sidx * EQ_ESIZE + sc->params.sge.spg_len);
 
-	switch (eq->flags & EQ_TYPEMASK) {
+	switch (eq->type) {
 	case EQ_CTRL:
 		rc = ctrl_eq_alloc(sc, eq);
 		break;
@@ -4187,13 +4417,12 @@ alloc_eq(struct adapter *sc, struct vi_info *vi, struct sge_eq *eq)
 #endif
 
 	default:
-		panic("%s: invalid eq type %d.", __func__,
-		    eq->flags & EQ_TYPEMASK);
+		panic("%s: invalid eq type %d.", __func__, eq->type);
 	}
 	if (rc != 0) {
-		device_printf(sc->dev,
-		    "failed to allocate egress queue(%d): %d\n",
-		    eq->flags & EQ_TYPEMASK, rc);
+		CH_ERR(sc, "failed to allocate egress queue(%d): %d\n",
+		    eq->type, rc);
+		return (rc);
 	}
 
 	if (isset(&eq->doorbells, DOORBELL_UDB) ||
@@ -4215,66 +4444,55 @@ alloc_eq(struct adapter *sc, struct vi_info *vi, struct sge_eq *eq)
 		eq->udb = (volatile void *)udb;
 	}
 
-	return (rc);
+	eq->flags |= EQ_HW_ALLOCATED;
+	return (0);
 }
 
 static int
-free_eq(struct adapter *sc, struct sge_eq *eq)
+free_eq_hwq(struct adapter *sc, struct vi_info *vi __unused, struct sge_eq *eq)
 {
 	int rc;
 
-	if (eq->flags & EQ_ALLOCATED) {
-		switch (eq->flags & EQ_TYPEMASK) {
-		case EQ_CTRL:
-			rc = -t4_ctrl_eq_free(sc, sc->mbox, sc->pf, 0,
-			    eq->cntxt_id);
-			break;
+	MPASS(eq->flags & EQ_HW_ALLOCATED);
 
-		case EQ_ETH:
-			rc = -t4_eth_eq_free(sc, sc->mbox, sc->pf, 0,
-			    eq->cntxt_id);
-			break;
-
+	switch (eq->type) {
+	case EQ_CTRL:
+		rc = -t4_ctrl_eq_free(sc, sc->mbox, sc->pf, 0, eq->cntxt_id);
+		break;
+	case EQ_ETH:
+		rc = -t4_eth_eq_free(sc, sc->mbox, sc->pf, 0, eq->cntxt_id);
+		break;
 #if defined(TCP_OFFLOAD) || defined(RATELIMIT)
-		case EQ_OFLD:
-			rc = -t4_ofld_eq_free(sc, sc->mbox, sc->pf, 0,
-			    eq->cntxt_id);
-			break;
+	case EQ_OFLD:
+		rc = -t4_ofld_eq_free(sc, sc->mbox, sc->pf, 0, eq->cntxt_id);
+		break;
 #endif
-
-		default:
-			panic("%s: invalid eq type %d.", __func__,
-			    eq->flags & EQ_TYPEMASK);
-		}
-		if (rc != 0) {
-			device_printf(sc->dev,
-			    "failed to free egress queue (%d): %d\n",
-			    eq->flags & EQ_TYPEMASK, rc);
-			return (rc);
-		}
-		eq->flags &= ~EQ_ALLOCATED;
+	default:
+		panic("%s: invalid eq type %d.", __func__, eq->type);
 	}
+	if (rc != 0) {
+		CH_ERR(sc, "failed to free eq (type %d): %d\n", eq->type, rc);
+		return (rc);
+	}
+	eq->flags &= ~EQ_HW_ALLOCATED;
 
-	free_ring(sc, eq->desc_tag, eq->desc_map, eq->ba, eq->desc);
-
-	if (mtx_initialized(&eq->eq_lock))
-		mtx_destroy(&eq->eq_lock);
-
-	bzero(eq, sizeof(*eq));
 	return (0);
 }
 
 static int
 alloc_wrq(struct adapter *sc, struct vi_info *vi, struct sge_wrq *wrq,
-    struct sysctl_oid *oid)
+    struct sysctl_ctx_list *ctx, struct sysctl_oid *oid)
 {
+	struct sge_eq *eq = &wrq->eq;
 	int rc;
-	struct sysctl_ctx_list *ctx = vi ? &vi->ctx : &sc->ctx;
-	struct sysctl_oid_list *children = SYSCTL_CHILDREN(oid);
 
-	rc = alloc_eq(sc, vi, &wrq->eq);
+	MPASS(!(eq->flags & EQ_SW_ALLOCATED));
+
+	rc = alloc_eq(sc, eq, ctx, oid);
 	if (rc)
 		return (rc);
+	MPASS(eq->flags & EQ_SW_ALLOCATED);
+	/* Can't fail after this. */
 
 	wrq->adapter = sc;
 	TASK_INIT(&wrq->wrq_tx_task, 0, wrq_tx_drain, wrq);
@@ -4282,283 +4500,373 @@ alloc_wrq(struct adapter *sc, struct vi_info *vi, struct sge_wrq *wrq,
 	STAILQ_INIT(&wrq->wr_list);
 	wrq->nwr_pending = 0;
 	wrq->ndesc_needed = 0;
+	add_wrq_sysctls(ctx, oid, wrq);
 
-	SYSCTL_ADD_UAUTO(ctx, children, OID_AUTO, "ba", CTLFLAG_RD,
-	    &wrq->eq.ba, "bus address of descriptor ring");
-	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "dmalen", CTLFLAG_RD, NULL,
-	    wrq->eq.sidx * EQ_ESIZE + sc->params.sge.spg_len,
-	    "desc ring size in bytes");
-	SYSCTL_ADD_UINT(ctx, children, OID_AUTO, "cntxt_id", CTLFLAG_RD,
-	    &wrq->eq.cntxt_id, 0, "SGE context id of the queue");
-	SYSCTL_ADD_U16(ctx, children, OID_AUTO, "cidx", CTLFLAG_RD,
-	    &wrq->eq.cidx, 0, "consumer index");
-	SYSCTL_ADD_U16(ctx, children, OID_AUTO, "pidx", CTLFLAG_RD,
-	    &wrq->eq.pidx, 0, "producer index");
-	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "sidx", CTLFLAG_RD, NULL,
-	    wrq->eq.sidx, "status page index");
+	return (0);
+}
+
+static void
+free_wrq(struct adapter *sc, struct sge_wrq *wrq)
+{
+	free_eq(sc, &wrq->eq);
+	MPASS(wrq->nwr_pending == 0);
+	MPASS(TAILQ_EMPTY(&wrq->incomplete_wrs));
+	MPASS(STAILQ_EMPTY(&wrq->wr_list));
+	bzero(wrq, sizeof(*wrq));
+}
+
+static void
+add_wrq_sysctls(struct sysctl_ctx_list *ctx, struct sysctl_oid *oid,
+    struct sge_wrq *wrq)
+{
+	struct sysctl_oid_list *children;
+
+	if (ctx == NULL || oid == NULL)
+		return;
+
+	children = SYSCTL_CHILDREN(oid);
 	SYSCTL_ADD_UQUAD(ctx, children, OID_AUTO, "tx_wrs_direct", CTLFLAG_RD,
 	    &wrq->tx_wrs_direct, "# of work requests (direct)");
 	SYSCTL_ADD_UQUAD(ctx, children, OID_AUTO, "tx_wrs_copied", CTLFLAG_RD,
 	    &wrq->tx_wrs_copied, "# of work requests (copied)");
 	SYSCTL_ADD_UQUAD(ctx, children, OID_AUTO, "tx_wrs_sspace", CTLFLAG_RD,
 	    &wrq->tx_wrs_ss, "# of work requests (copied from scratch space)");
-
-	return (rc);
 }
 
+/*
+ * Idempotent.
+ */
 static int
-free_wrq(struct adapter *sc, struct sge_wrq *wrq)
+alloc_txq(struct vi_info *vi, struct sge_txq *txq, int idx)
 {
-	int rc;
-
-	rc = free_eq(sc, &wrq->eq);
-	if (rc)
-		return (rc);
-
-	bzero(wrq, sizeof(*wrq));
-	return (0);
-}
-
-static int
-alloc_txq(struct vi_info *vi, struct sge_txq *txq, int idx,
-    struct sysctl_oid *oid)
-{
-	int rc;
+	int rc, iqidx;
 	struct port_info *pi = vi->pi;
-	struct adapter *sc = pi->adapter;
+	struct adapter *sc = vi->adapter;
 	struct sge_eq *eq = &txq->eq;
 	struct txpkts *txp;
 	char name[16];
-	struct sysctl_oid_list *children = SYSCTL_CHILDREN(oid);
+	struct sysctl_oid *oid;
 
-	rc = mp_ring_alloc(&txq->r, eq->sidx, txq, eth_tx, can_resume_eth_tx,
-	    M_CXGBE, &eq->eq_lock, M_WAITOK);
-	if (rc != 0) {
-		device_printf(sc->dev, "failed to allocate mp_ring: %d\n", rc);
-		return (rc);
+	if (!(eq->flags & EQ_SW_ALLOCATED)) {
+		MPASS(!(eq->flags & EQ_HW_ALLOCATED));
+
+		snprintf(name, sizeof(name), "%d", idx);
+		oid = SYSCTL_ADD_NODE(&vi->ctx, SYSCTL_CHILDREN(vi->txq_oid),
+		    OID_AUTO, name, CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
+		    "tx queue");
+
+		iqidx = vi->first_rxq + (idx % vi->nrxq);
+		snprintf(name, sizeof(name), "%s txq%d",
+		    device_get_nameunit(vi->dev), idx);
+		init_eq(sc, &txq->eq, EQ_ETH, vi->qsize_txq, pi->tx_chan,
+		    &sc->sge.rxq[iqidx].iq, name);
+
+		rc = mp_ring_alloc(&txq->r, eq->sidx, txq, eth_tx,
+		    can_resume_eth_tx, M_CXGBE, &eq->eq_lock, M_WAITOK);
+		if (rc != 0) {
+			CH_ERR(vi, "failed to allocate mp_ring for txq%d: %d\n",
+			    idx, rc);
+failed:
+			sysctl_remove_oid(oid, 1, 1);
+			return (rc);
+		}
+
+		rc = alloc_eq(sc, eq, &vi->ctx, oid);
+		if (rc) {
+			CH_ERR(vi, "failed to allocate txq%d: %d\n", idx, rc);
+			mp_ring_free(txq->r);
+			goto failed;
+		}
+		MPASS(eq->flags & EQ_SW_ALLOCATED);
+		/* Can't fail after this point. */
+
+		TASK_INIT(&txq->tx_reclaim_task, 0, tx_reclaim, eq);
+		txq->ifp = vi->ifp;
+		txq->gl = sglist_alloc(TX_SGL_SEGS, M_WAITOK);
+		txq->sdesc = malloc(eq->sidx * sizeof(struct tx_sdesc), M_CXGBE,
+		    M_ZERO | M_WAITOK);
+
+		add_txq_sysctls(vi, &vi->ctx, oid, txq);
 	}
 
-	rc = alloc_eq(sc, vi, eq);
-	if (rc != 0) {
+	if (!(eq->flags & EQ_HW_ALLOCATED)) {
+		MPASS(eq->flags & EQ_SW_ALLOCATED);
+		rc = alloc_eq_hwq(sc, vi, eq);
+		if (rc != 0) {
+			CH_ERR(vi, "failed to create hw txq%d: %d\n", idx, rc);
+			return (rc);
+		}
+		MPASS(eq->flags & EQ_HW_ALLOCATED);
+		/* Can't fail after this point. */
+
+		if (idx == 0)
+			sc->sge.eq_base = eq->abs_id - eq->cntxt_id;
+		else
+			KASSERT(eq->cntxt_id + sc->sge.eq_base == eq->abs_id,
+			    ("eq_base mismatch"));
+		KASSERT(sc->sge.eq_base == 0 || sc->flags & IS_VF,
+		    ("PF with non-zero eq_base"));
+
+		txp = &txq->txp;
+		MPASS(nitems(txp->mb) >= sc->params.max_pkts_per_eth_tx_pkts_wr);
+		txq->txp.max_npkt = min(nitems(txp->mb),
+		    sc->params.max_pkts_per_eth_tx_pkts_wr);
+		if (vi->flags & TX_USES_VM_WR && !(sc->flags & IS_VF))
+			txq->txp.max_npkt--;
+
+		if (vi->flags & TX_USES_VM_WR)
+			txq->cpl_ctrl0 = htobe32(V_TXPKT_OPCODE(CPL_TX_PKT_XT) |
+			    V_TXPKT_INTF(pi->tx_chan));
+		else
+			txq->cpl_ctrl0 = htobe32(V_TXPKT_OPCODE(CPL_TX_PKT_XT) |
+			    V_TXPKT_INTF(pi->tx_chan) | V_TXPKT_PF(sc->pf) |
+			    V_TXPKT_VF(vi->vin) | V_TXPKT_VF_VLD(vi->vfvld));
+
+		txq->tc_idx = -1;
+	}
+
+	return (0);
+}
+
+/*
+ * Idempotent.
+ */
+static void
+free_txq(struct vi_info *vi, struct sge_txq *txq)
+{
+	struct adapter *sc = vi->adapter;
+	struct sge_eq *eq = &txq->eq;
+
+	if (eq->flags & EQ_HW_ALLOCATED) {
+		MPASS(eq->flags & EQ_SW_ALLOCATED);
+		free_eq_hwq(sc, NULL, eq);
+		MPASS(!(eq->flags & EQ_HW_ALLOCATED));
+	}
+
+	if (eq->flags & EQ_SW_ALLOCATED) {
+		MPASS(!(eq->flags & EQ_HW_ALLOCATED));
+		sglist_free(txq->gl);
+		free(txq->sdesc, M_CXGBE);
 		mp_ring_free(txq->r);
-		txq->r = NULL;
-		return (rc);
+		free_eq(sc, eq);
+		MPASS(!(eq->flags & EQ_SW_ALLOCATED));
+		bzero(txq, sizeof(*txq));
 	}
+}
 
-	/* Can't fail after this point. */
+static void
+add_txq_sysctls(struct vi_info *vi, struct sysctl_ctx_list *ctx,
+    struct sysctl_oid *oid, struct sge_txq *txq)
+{
+	struct adapter *sc;
+	struct sysctl_oid_list *children;
 
-	if (idx == 0)
-		sc->sge.eq_base = eq->abs_id - eq->cntxt_id;
-	else
-		KASSERT(eq->cntxt_id + sc->sge.eq_base == eq->abs_id,
-		    ("eq_base mismatch"));
-	KASSERT(sc->sge.eq_base == 0 || sc->flags & IS_VF,
-	    ("PF with non-zero eq_base"));
+	if (ctx == NULL || oid == NULL)
+		return;
 
-	TASK_INIT(&txq->tx_reclaim_task, 0, tx_reclaim, eq);
-	txq->ifp = vi->ifp;
-	txq->gl = sglist_alloc(TX_SGL_SEGS, M_WAITOK);
-	if (vi->flags & TX_USES_VM_WR)
-		txq->cpl_ctrl0 = htobe32(V_TXPKT_OPCODE(CPL_TX_PKT_XT) |
-		    V_TXPKT_INTF(pi->tx_chan));
-	else
-		txq->cpl_ctrl0 = htobe32(V_TXPKT_OPCODE(CPL_TX_PKT_XT) |
-		    V_TXPKT_INTF(pi->tx_chan) | V_TXPKT_PF(sc->pf) |
-		    V_TXPKT_VF(vi->vin) | V_TXPKT_VF_VLD(vi->vfvld));
-	txq->tc_idx = -1;
-	txq->sdesc = malloc(eq->sidx * sizeof(struct tx_sdesc), M_CXGBE,
-	    M_ZERO | M_WAITOK);
-
-	txp = &txq->txp;
-	MPASS(nitems(txp->mb) >= sc->params.max_pkts_per_eth_tx_pkts_wr);
-	txq->txp.max_npkt = min(nitems(txp->mb),
-	    sc->params.max_pkts_per_eth_tx_pkts_wr);
-	if (vi->flags & TX_USES_VM_WR && !(sc->flags & IS_VF))
-		txq->txp.max_npkt--;
-
-	snprintf(name, sizeof(name), "%d", idx);
-	oid = SYSCTL_ADD_NODE(&vi->ctx, children, OID_AUTO, name,
-	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "tx queue");
+	sc = vi->adapter;
 	children = SYSCTL_CHILDREN(oid);
 
-	SYSCTL_ADD_UAUTO(&vi->ctx, children, OID_AUTO, "ba", CTLFLAG_RD,
-	    &eq->ba, "bus address of descriptor ring");
-	SYSCTL_ADD_INT(&vi->ctx, children, OID_AUTO, "dmalen", CTLFLAG_RD, NULL,
-	    eq->sidx * EQ_ESIZE + sc->params.sge.spg_len,
-	    "desc ring size in bytes");
-	SYSCTL_ADD_UINT(&vi->ctx, children, OID_AUTO, "abs_id", CTLFLAG_RD,
-	    &eq->abs_id, 0, "absolute id of the queue");
-	SYSCTL_ADD_UINT(&vi->ctx, children, OID_AUTO, "cntxt_id", CTLFLAG_RD,
-	    &eq->cntxt_id, 0, "SGE context id of the queue");
-	SYSCTL_ADD_U16(&vi->ctx, children, OID_AUTO, "cidx", CTLFLAG_RD,
-	    &eq->cidx, 0, "consumer index");
-	SYSCTL_ADD_U16(&vi->ctx, children, OID_AUTO, "pidx", CTLFLAG_RD,
-	    &eq->pidx, 0, "producer index");
-	SYSCTL_ADD_INT(&vi->ctx, children, OID_AUTO, "sidx", CTLFLAG_RD, NULL,
-	    eq->sidx, "status page index");
+	mp_ring_sysctls(txq->r, ctx, children);
 
-	SYSCTL_ADD_PROC(&vi->ctx, children, OID_AUTO, "tc",
-	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, vi, idx, sysctl_tc,
-	    "I", "traffic class (-1 means none)");
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "tc",
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, vi, txq - sc->sge.txq,
+	    sysctl_tc, "I", "traffic class (-1 means none)");
 
-	SYSCTL_ADD_UQUAD(&vi->ctx, children, OID_AUTO, "txcsum", CTLFLAG_RD,
+	SYSCTL_ADD_UQUAD(ctx, children, OID_AUTO, "txcsum", CTLFLAG_RD,
 	    &txq->txcsum, "# of times hardware assisted with checksum");
-	SYSCTL_ADD_UQUAD(&vi->ctx, children, OID_AUTO, "vlan_insertion",
-	    CTLFLAG_RD, &txq->vlan_insertion,
-	    "# of times hardware inserted 802.1Q tag");
-	SYSCTL_ADD_UQUAD(&vi->ctx, children, OID_AUTO, "tso_wrs", CTLFLAG_RD,
+	SYSCTL_ADD_UQUAD(ctx, children, OID_AUTO, "vlan_insertion", CTLFLAG_RD,
+	    &txq->vlan_insertion, "# of times hardware inserted 802.1Q tag");
+	SYSCTL_ADD_UQUAD(ctx, children, OID_AUTO, "tso_wrs", CTLFLAG_RD,
 	    &txq->tso_wrs, "# of TSO work requests");
-	SYSCTL_ADD_UQUAD(&vi->ctx, children, OID_AUTO, "imm_wrs", CTLFLAG_RD,
+	SYSCTL_ADD_UQUAD(ctx, children, OID_AUTO, "imm_wrs", CTLFLAG_RD,
 	    &txq->imm_wrs, "# of work requests with immediate data");
-	SYSCTL_ADD_UQUAD(&vi->ctx, children, OID_AUTO, "sgl_wrs", CTLFLAG_RD,
+	SYSCTL_ADD_UQUAD(ctx, children, OID_AUTO, "sgl_wrs", CTLFLAG_RD,
 	    &txq->sgl_wrs, "# of work requests with direct SGL");
-	SYSCTL_ADD_UQUAD(&vi->ctx, children, OID_AUTO, "txpkt_wrs", CTLFLAG_RD,
+	SYSCTL_ADD_UQUAD(ctx, children, OID_AUTO, "txpkt_wrs", CTLFLAG_RD,
 	    &txq->txpkt_wrs, "# of txpkt work requests (one pkt/WR)");
-	SYSCTL_ADD_UQUAD(&vi->ctx, children, OID_AUTO, "txpkts0_wrs",
-	    CTLFLAG_RD, &txq->txpkts0_wrs,
-	    "# of txpkts (type 0) work requests");
-	SYSCTL_ADD_UQUAD(&vi->ctx, children, OID_AUTO, "txpkts1_wrs",
-	    CTLFLAG_RD, &txq->txpkts1_wrs,
-	    "# of txpkts (type 1) work requests");
-	SYSCTL_ADD_UQUAD(&vi->ctx, children, OID_AUTO, "txpkts0_pkts",
-	    CTLFLAG_RD, &txq->txpkts0_pkts,
+	SYSCTL_ADD_UQUAD(ctx, children, OID_AUTO, "txpkts0_wrs", CTLFLAG_RD,
+	    &txq->txpkts0_wrs, "# of txpkts (type 0) work requests");
+	SYSCTL_ADD_UQUAD(ctx, children, OID_AUTO, "txpkts1_wrs", CTLFLAG_RD,
+	    &txq->txpkts1_wrs, "# of txpkts (type 1) work requests");
+	SYSCTL_ADD_UQUAD(ctx, children, OID_AUTO, "txpkts0_pkts", CTLFLAG_RD,
+	    &txq->txpkts0_pkts,
 	    "# of frames tx'd using type0 txpkts work requests");
-	SYSCTL_ADD_UQUAD(&vi->ctx, children, OID_AUTO, "txpkts1_pkts",
-	    CTLFLAG_RD, &txq->txpkts1_pkts,
+	SYSCTL_ADD_UQUAD(ctx, children, OID_AUTO, "txpkts1_pkts", CTLFLAG_RD,
+	    &txq->txpkts1_pkts,
 	    "# of frames tx'd using type1 txpkts work requests");
-	SYSCTL_ADD_UQUAD(&vi->ctx, children, OID_AUTO, "txpkts_flush",
-	    CTLFLAG_RD, &txq->txpkts_flush,
+	SYSCTL_ADD_UQUAD(ctx, children, OID_AUTO, "txpkts_flush", CTLFLAG_RD,
+	    &txq->txpkts_flush,
 	    "# of times txpkts had to be flushed out by an egress-update");
-	SYSCTL_ADD_UQUAD(&vi->ctx, children, OID_AUTO, "raw_wrs", CTLFLAG_RD,
+	SYSCTL_ADD_UQUAD(ctx, children, OID_AUTO, "raw_wrs", CTLFLAG_RD,
 	    &txq->raw_wrs, "# of raw work requests (non-packets)");
-	SYSCTL_ADD_UQUAD(&vi->ctx, children, OID_AUTO, "vxlan_tso_wrs",
-	    CTLFLAG_RD, &txq->vxlan_tso_wrs, "# of VXLAN TSO work requests");
-	SYSCTL_ADD_UQUAD(&vi->ctx, children, OID_AUTO, "vxlan_txcsum",
-	    CTLFLAG_RD, &txq->vxlan_txcsum,
+	SYSCTL_ADD_UQUAD(ctx, children, OID_AUTO, "vxlan_tso_wrs", CTLFLAG_RD,
+	    &txq->vxlan_tso_wrs, "# of VXLAN TSO work requests");
+	SYSCTL_ADD_UQUAD(ctx, children, OID_AUTO, "vxlan_txcsum", CTLFLAG_RD,
+	    &txq->vxlan_txcsum,
 	    "# of times hardware assisted with inner checksums (VXLAN)");
 
 #ifdef KERN_TLS
 	if (is_ktls(sc)) {
-		SYSCTL_ADD_UQUAD(&vi->ctx, children, OID_AUTO,
-		    "kern_tls_records", CTLFLAG_RD, &txq->kern_tls_records,
+		SYSCTL_ADD_UQUAD(ctx, children, OID_AUTO, "kern_tls_records",
+		    CTLFLAG_RD, &txq->kern_tls_records,
 		    "# of NIC TLS records transmitted");
-		SYSCTL_ADD_UQUAD(&vi->ctx, children, OID_AUTO,
-		    "kern_tls_short", CTLFLAG_RD, &txq->kern_tls_short,
+		SYSCTL_ADD_UQUAD(ctx, children, OID_AUTO, "kern_tls_short",
+		    CTLFLAG_RD, &txq->kern_tls_short,
 		    "# of short NIC TLS records transmitted");
-		SYSCTL_ADD_UQUAD(&vi->ctx, children, OID_AUTO,
-		    "kern_tls_partial", CTLFLAG_RD, &txq->kern_tls_partial,
+		SYSCTL_ADD_UQUAD(ctx, children, OID_AUTO, "kern_tls_partial",
+		    CTLFLAG_RD, &txq->kern_tls_partial,
 		    "# of partial NIC TLS records transmitted");
-		SYSCTL_ADD_UQUAD(&vi->ctx, children, OID_AUTO,
-		    "kern_tls_full", CTLFLAG_RD, &txq->kern_tls_full,
+		SYSCTL_ADD_UQUAD(ctx, children, OID_AUTO, "kern_tls_full",
+		    CTLFLAG_RD, &txq->kern_tls_full,
 		    "# of full NIC TLS records transmitted");
-		SYSCTL_ADD_UQUAD(&vi->ctx, children, OID_AUTO,
-		    "kern_tls_octets", CTLFLAG_RD, &txq->kern_tls_octets,
+		SYSCTL_ADD_UQUAD(ctx, children, OID_AUTO, "kern_tls_octets",
+		    CTLFLAG_RD, &txq->kern_tls_octets,
 		    "# of payload octets in transmitted NIC TLS records");
-		SYSCTL_ADD_UQUAD(&vi->ctx, children, OID_AUTO,
-		    "kern_tls_waste", CTLFLAG_RD, &txq->kern_tls_waste,
+		SYSCTL_ADD_UQUAD(ctx, children, OID_AUTO, "kern_tls_waste",
+		    CTLFLAG_RD, &txq->kern_tls_waste,
 		    "# of octets DMAd but not transmitted in NIC TLS records");
-		SYSCTL_ADD_UQUAD(&vi->ctx, children, OID_AUTO,
-		    "kern_tls_options", CTLFLAG_RD, &txq->kern_tls_options,
+		SYSCTL_ADD_UQUAD(ctx, children, OID_AUTO, "kern_tls_options",
+		    CTLFLAG_RD, &txq->kern_tls_options,
 		    "# of NIC TLS options-only packets transmitted");
-		SYSCTL_ADD_UQUAD(&vi->ctx, children, OID_AUTO,
-		    "kern_tls_header", CTLFLAG_RD, &txq->kern_tls_header,
+		SYSCTL_ADD_UQUAD(ctx, children, OID_AUTO, "kern_tls_header",
+		    CTLFLAG_RD, &txq->kern_tls_header,
 		    "# of NIC TLS header-only packets transmitted");
-		SYSCTL_ADD_UQUAD(&vi->ctx, children, OID_AUTO,
-		    "kern_tls_fin", CTLFLAG_RD, &txq->kern_tls_fin,
+		SYSCTL_ADD_UQUAD(ctx, children, OID_AUTO, "kern_tls_fin",
+		    CTLFLAG_RD, &txq->kern_tls_fin,
 		    "# of NIC TLS FIN-only packets transmitted");
-		SYSCTL_ADD_UQUAD(&vi->ctx, children, OID_AUTO,
-		    "kern_tls_fin_short", CTLFLAG_RD, &txq->kern_tls_fin_short,
+		SYSCTL_ADD_UQUAD(ctx, children, OID_AUTO, "kern_tls_fin_short",
+		    CTLFLAG_RD, &txq->kern_tls_fin_short,
 		    "# of NIC TLS padded FIN packets on short TLS records");
-		SYSCTL_ADD_UQUAD(&vi->ctx, children, OID_AUTO,
-		    "kern_tls_cbc", CTLFLAG_RD, &txq->kern_tls_cbc,
+		SYSCTL_ADD_UQUAD(ctx, children, OID_AUTO, "kern_tls_cbc",
+		    CTLFLAG_RD, &txq->kern_tls_cbc,
 		    "# of NIC TLS sessions using AES-CBC");
-		SYSCTL_ADD_UQUAD(&vi->ctx, children, OID_AUTO,
-		    "kern_tls_gcm", CTLFLAG_RD, &txq->kern_tls_gcm,
+		SYSCTL_ADD_UQUAD(ctx, children, OID_AUTO, "kern_tls_gcm",
+		    CTLFLAG_RD, &txq->kern_tls_gcm,
 		    "# of NIC TLS sessions using AES-GCM");
 	}
 #endif
-	mp_ring_sysctls(txq->r, &vi->ctx, children);
-
-	return (0);
-}
-
-static int
-free_txq(struct vi_info *vi, struct sge_txq *txq)
-{
-	int rc;
-	struct adapter *sc = vi->adapter;
-	struct sge_eq *eq = &txq->eq;
-
-	rc = free_eq(sc, eq);
-	if (rc)
-		return (rc);
-
-	sglist_free(txq->gl);
-	free(txq->sdesc, M_CXGBE);
-	mp_ring_free(txq->r);
-
-	bzero(txq, sizeof(*txq));
-	return (0);
 }
 
 #if defined(TCP_OFFLOAD) || defined(RATELIMIT)
+/*
+ * Idempotent.
+ */
 static int
-alloc_ofld_txq(struct vi_info *vi, struct sge_ofld_txq *ofld_txq, int idx,
-    struct sysctl_oid *oid)
+alloc_ofld_txq(struct vi_info *vi, struct sge_ofld_txq *ofld_txq, int idx)
 {
+	struct sysctl_oid *oid;
+	struct port_info *pi = vi->pi;
 	struct adapter *sc = vi->adapter;
-	struct sysctl_oid_list *children;
+	struct sge_eq *eq = &ofld_txq->wrq.eq;
+	int rc, iqidx;
 	char name[16];
-	int rc;
 
-	children = SYSCTL_CHILDREN(oid);
+	MPASS(idx >= 0);
+	MPASS(idx < vi->nofldtxq);
 
-	snprintf(name, sizeof(name), "%d", idx);
-	oid = SYSCTL_ADD_NODE(&vi->ctx, children, OID_AUTO, name,
-	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "offload tx queue");
-	children = SYSCTL_CHILDREN(oid);
+	if (!(eq->flags & EQ_SW_ALLOCATED)) {
+		snprintf(name, sizeof(name), "%d", idx);
+		oid = SYSCTL_ADD_NODE(&vi->ctx,
+		    SYSCTL_CHILDREN(vi->ofld_txq_oid), OID_AUTO, name,
+		    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "offload tx queue");
 
-	rc = alloc_wrq(sc, vi, &ofld_txq->wrq, oid);
-	if (rc != 0)
-		return (rc);
+		snprintf(name, sizeof(name), "%s ofld_txq%d",
+		    device_get_nameunit(vi->dev), idx);
+		if (vi->nofldrxq > 0) {
+			iqidx = vi->first_ofld_rxq + (idx % vi->nofldrxq);
+			init_eq(sc, eq, EQ_OFLD, vi->qsize_txq, pi->tx_chan,
+			    &sc->sge.ofld_rxq[iqidx].iq, name);
+		} else {
+			iqidx = vi->first_rxq + (idx % vi->nrxq);
+			init_eq(sc, eq, EQ_OFLD, vi->qsize_txq, pi->tx_chan,
+			    &sc->sge.rxq[iqidx].iq, name);
+		}
 
-	ofld_txq->tx_iscsi_pdus = counter_u64_alloc(M_WAITOK);
-	ofld_txq->tx_iscsi_octets = counter_u64_alloc(M_WAITOK);
-	ofld_txq->tx_toe_tls_records = counter_u64_alloc(M_WAITOK);
-	ofld_txq->tx_toe_tls_octets = counter_u64_alloc(M_WAITOK);
-	SYSCTL_ADD_COUNTER_U64(&vi->ctx, children, OID_AUTO,
-	    "tx_iscsi_pdus", CTLFLAG_RD, &ofld_txq->tx_iscsi_pdus,
-	    "# of iSCSI PDUs transmitted");
-	SYSCTL_ADD_COUNTER_U64(&vi->ctx, children, OID_AUTO,
-	    "tx_iscsi_octets", CTLFLAG_RD, &ofld_txq->tx_iscsi_octets,
-	    "# of payload octets in transmitted iSCSI PDUs");
-	SYSCTL_ADD_COUNTER_U64(&vi->ctx, children, OID_AUTO,
-	    "tx_toe_tls_records", CTLFLAG_RD, &ofld_txq->tx_toe_tls_records,
-	    "# of TOE TLS records transmitted");
-	SYSCTL_ADD_COUNTER_U64(&vi->ctx, children, OID_AUTO,
-	    "tx_toe_tls_octets", CTLFLAG_RD, &ofld_txq->tx_toe_tls_octets,
-	    "# of payload octets in transmitted TOE TLS records");
+		rc = alloc_wrq(sc, vi, &ofld_txq->wrq, &vi->ctx, oid);
+		if (rc != 0) {
+			CH_ERR(vi, "failed to allocate ofld_txq%d: %d\n", idx,
+			    rc);
+			sysctl_remove_oid(oid, 1, 1);
+			return (rc);
+		}
+		MPASS(eq->flags & EQ_SW_ALLOCATED);
+		/* Can't fail after this point. */
 
-	return (rc);
+		ofld_txq->tx_iscsi_pdus = counter_u64_alloc(M_WAITOK);
+		ofld_txq->tx_iscsi_octets = counter_u64_alloc(M_WAITOK);
+		ofld_txq->tx_iscsi_iso_wrs = counter_u64_alloc(M_WAITOK);
+		ofld_txq->tx_toe_tls_records = counter_u64_alloc(M_WAITOK);
+		ofld_txq->tx_toe_tls_octets = counter_u64_alloc(M_WAITOK);
+		add_ofld_txq_sysctls(&vi->ctx, oid, ofld_txq);
+	}
+
+	if (!(eq->flags & EQ_HW_ALLOCATED)) {
+		rc = alloc_eq_hwq(sc, vi, eq);
+		if (rc != 0) {
+			CH_ERR(vi, "failed to create hw ofld_txq%d: %d\n", idx,
+			    rc);
+			return (rc);
+		}
+		MPASS(eq->flags & EQ_HW_ALLOCATED);
+	}
+
+	return (0);
 }
 
-static int
+/*
+ * Idempotent.
+ */
+static void
 free_ofld_txq(struct vi_info *vi, struct sge_ofld_txq *ofld_txq)
 {
 	struct adapter *sc = vi->adapter;
-	int rc;
+	struct sge_eq *eq = &ofld_txq->wrq.eq;
 
-	rc = free_wrq(sc, &ofld_txq->wrq);
-	if (rc != 0)
-		return (rc);
+	if (eq->flags & EQ_HW_ALLOCATED) {
+		MPASS(eq->flags & EQ_SW_ALLOCATED);
+		free_eq_hwq(sc, NULL, eq);
+		MPASS(!(eq->flags & EQ_HW_ALLOCATED));
+	}
 
-	counter_u64_free(ofld_txq->tx_iscsi_pdus);
-	counter_u64_free(ofld_txq->tx_iscsi_octets);
-	counter_u64_free(ofld_txq->tx_toe_tls_records);
-	counter_u64_free(ofld_txq->tx_toe_tls_octets);
+	if (eq->flags & EQ_SW_ALLOCATED) {
+		MPASS(!(eq->flags & EQ_HW_ALLOCATED));
+		counter_u64_free(ofld_txq->tx_iscsi_pdus);
+		counter_u64_free(ofld_txq->tx_iscsi_octets);
+		counter_u64_free(ofld_txq->tx_iscsi_iso_wrs);
+		counter_u64_free(ofld_txq->tx_toe_tls_records);
+		counter_u64_free(ofld_txq->tx_toe_tls_octets);
+		free_wrq(sc, &ofld_txq->wrq);
+		MPASS(!(eq->flags & EQ_SW_ALLOCATED));
+		bzero(ofld_txq, sizeof(*ofld_txq));
+	}
+}
 
-	bzero(ofld_txq, sizeof(*ofld_txq));
-	return (0);
+static void
+add_ofld_txq_sysctls(struct sysctl_ctx_list *ctx, struct sysctl_oid *oid,
+    struct sge_ofld_txq *ofld_txq)
+{
+	struct sysctl_oid_list *children;
+
+	if (ctx == NULL || oid == NULL)
+		return;
+
+	children = SYSCTL_CHILDREN(oid);
+	SYSCTL_ADD_COUNTER_U64(ctx, children, OID_AUTO, "tx_iscsi_pdus",
+	    CTLFLAG_RD, &ofld_txq->tx_iscsi_pdus,
+	    "# of iSCSI PDUs transmitted");
+	SYSCTL_ADD_COUNTER_U64(ctx, children, OID_AUTO, "tx_iscsi_octets",
+	    CTLFLAG_RD, &ofld_txq->tx_iscsi_octets,
+	    "# of payload octets in transmitted iSCSI PDUs");
+	SYSCTL_ADD_COUNTER_U64(ctx, children, OID_AUTO, "tx_iscsi_iso_wrs",
+	    CTLFLAG_RD, &ofld_txq->tx_iscsi_iso_wrs,
+	    "# of iSCSI segmentation offload work requests");
+	SYSCTL_ADD_COUNTER_U64(ctx, children, OID_AUTO, "tx_toe_tls_records",
+	    CTLFLAG_RD, &ofld_txq->tx_toe_tls_records,
+	    "# of TOE TLS records transmitted");
+	SYSCTL_ADD_COUNTER_U64(ctx, children, OID_AUTO, "tx_toe_tls_octets",
+	    CTLFLAG_RD, &ofld_txq->tx_toe_tls_octets,
+	    "# of payload octets in transmitted TOE TLS records");
 }
 #endif
 
@@ -4731,18 +5039,13 @@ refill_sfl(void *arg)
 		callout_schedule(&sc->sfl_callout, hz / 5);
 }
 
-static int
-alloc_fl_sdesc(struct sge_fl *fl)
-{
-
-	fl->sdesc = malloc(fl->sidx * 8 * sizeof(struct fl_sdesc), M_CXGBE,
-	    M_ZERO | M_WAITOK);
-
-	return (0);
-}
-
-static void
-free_fl_sdesc(struct adapter *sc, struct sge_fl *fl)
+/*
+ * Release the driver's reference on all buffers in the given freelist.  Buffers
+ * with kernel references cannot be freed and will prevent the driver from being
+ * unloaded safely.
+ */
+void
+free_fl_buffers(struct adapter *sc, struct sge_fl *fl)
 {
 	struct fl_sdesc *sd;
 	struct cluster_metadata *clm;
@@ -4766,8 +5069,10 @@ free_fl_sdesc(struct adapter *sc, struct sge_fl *fl)
 		sd->cl = NULL;
 	}
 
-	free(fl->sdesc, M_CXGBE);
-	fl->sdesc = NULL;
+	if (fl->flags & FL_BUF_RESUME) {
+		m_freem(fl->m0);
+		fl->flags &= ~FL_BUF_RESUME;
+	}
 }
 
 static inline void
@@ -5986,7 +6291,7 @@ handle_eth_egr_update(struct adapter *sc, struct sge_eq *eq)
 {
 	struct sge_txq *txq = (void *)eq;
 
-	MPASS((eq->flags & EQ_TYPEMASK) == EQ_ETH);
+	MPASS(eq->type == EQ_ETH);
 
 	atomic_readandclear_int(&eq->equiq);
 	if (mp_ring_is_idle(txq->r))
@@ -6012,7 +6317,7 @@ handle_sge_egr_update(struct sge_iq *iq, const struct rss_header *rss,
 	    rss->opcode));
 
 	eq = s->eqmap[qid - s->eq_start - s->eq_base];
-	(*h[eq->flags & EQ_TYPEMASK])(sc, eq);
+	(*h[eq->type])(sc, eq);
 
 	return (0);
 }
@@ -6147,6 +6452,7 @@ sysctl_bufsizes(SYSCTL_HANDLER_ARGS)
 }
 
 #ifdef RATELIMIT
+#if defined(INET) || defined(INET6)
 /*
  * len16 for a txpkt WR with a GL.  Includes the firmware work request header.
  */
@@ -6170,6 +6476,7 @@ txpkt_eo_len16(u_int nsegs, u_int immhdrs, u_int tso)
 done:
 	return (howmany(n, 16));
 }
+#endif
 
 #define ETID_FLOWC_NPARAMS 6
 #define ETID_FLOWC_LEN (roundup2((sizeof(struct fw_flowc_wr) + \

@@ -243,25 +243,26 @@ def GenTestCase(cname):
         def runCCMEncryptWithParser(self, parser):
             for data in next(parser):
                 Nlen = int(data['Nlen'])
-                if Nlen != 12:
-                    # OCF only supports 12 byte IVs
-                    continue
+                Tlen = int(data['Tlen'])
                 key = binascii.unhexlify(data['Key'])
                 nonce = binascii.unhexlify(data['Nonce'])
                 Alen = int(data['Alen'])
+                Plen = int(data['Plen'])
                 if Alen != 0:
                     aad = binascii.unhexlify(data['Adata'])
                 else:
                     aad = None
-                payload = binascii.unhexlify(data['Payload'])
+                if Plen != 0:
+                    payload = binascii.unhexlify(data['Payload'])
+                else:
+                    payload = None
                 ct = binascii.unhexlify(data['CT'])
 
                 try:
                     c = Crypto(crid=crid,
                         cipher=cryptodev.CRYPTO_AES_CCM_16,
                         key=key,
-                        mac=cryptodev.CRYPTO_AES_CCM_CBC_MAC,
-                        mackey=key, maclen=16)
+                        mackey=key, maclen=Tlen, ivlen=Nlen)
                     r, tag = Crypto.encrypt(c, payload,
                         nonce, aad)
                 except EnvironmentError as e:
@@ -280,36 +281,29 @@ def GenTestCase(cname):
                 self.runCCMDecryptWithParser(parser)
 
         def runCCMDecryptWithParser(self, parser):
-            # XXX: Note that all of the current CCM
-            # decryption test vectors use IV and tag sizes
-            # that aren't supported by OCF none of the
-            # tests are actually ran.
             for data in next(parser):
                 Nlen = int(data['Nlen'])
-                if Nlen != 12:
-                    # OCF only supports 12 byte IVs
-                    continue
                 Tlen = int(data['Tlen'])
-                if Tlen != 16:
-                    # OCF only supports 16 byte tags
-                    continue
                 key = binascii.unhexlify(data['Key'])
                 nonce = binascii.unhexlify(data['Nonce'])
                 Alen = int(data['Alen'])
+                Plen = int(data['Plen'])
                 if Alen != 0:
                     aad = binascii.unhexlify(data['Adata'])
                 else:
                     aad = None
                 ct = binascii.unhexlify(data['CT'])
-                tag = ct[-16:]
-                ct = ct[:-16]
+                tag = ct[-Tlen:]
+                if Plen != 0:
+                    payload = ct[:-Tlen]
+                else:
+                    payload = None
 
                 try:
                     c = Crypto(crid=crid,
                         cipher=cryptodev.CRYPTO_AES_CCM_16,
                         key=key,
-                        mac=cryptodev.CRYPTO_AES_CCM_CBC_MAC,
-                        mackey=key, maclen=16)
+                        mackey=key, maclen=Tlen, ivlen=Nlen)
                 except EnvironmentError as e:
                     if e.errno != errno.EOPNOTSUPP:
                         raise
@@ -319,12 +313,11 @@ def GenTestCase(cname):
                     self.assertRaises(IOError,
                         c.decrypt, payload, nonce, aad, tag)
                 else:
-                    r = Crypto.decrypt(c, payload, nonce,
-                        aad, tag)
+                    r, tag = Crypto.decrypt(c, payload, nonce,
+                                            aad, tag)
 
                     payload = binascii.unhexlify(data['Payload'])
-                    plen = int(data('Plen'))
-                    payload = payload[:plen]
+                    payload = payload[:Plen]
                     self.assertEqual(r, payload,
                         "Count " + data['Count'] + \
                         " Actual: " + repr(binascii.hexlify(r)) + \

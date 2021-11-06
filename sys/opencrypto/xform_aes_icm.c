@@ -55,9 +55,9 @@ __FBSDID("$FreeBSD$");
 static	int aes_icm_setkey(void *, const uint8_t *, int);
 static	void aes_icm_crypt(void *, const uint8_t *, uint8_t *);
 static	void aes_icm_crypt_last(void *, const uint8_t *, uint8_t *, size_t);
-static	void aes_icm_reinit(void *, const uint8_t *);
-static	void aes_gcm_reinit(void *, const uint8_t *);
-static	void aes_ccm_reinit(void *, const uint8_t *);
+static	void aes_icm_reinit(void *, const uint8_t *, size_t);
+static	void aes_gcm_reinit(void *, const uint8_t *, size_t);
+static	void aes_ccm_reinit(void *, const uint8_t *, size_t);
 
 /* Encryption instances */
 struct enc_xform enc_xform_aes_icm = {
@@ -114,20 +114,24 @@ struct enc_xform enc_xform_ccm = {
  * Encryption wrapper routines.
  */
 static void
-aes_icm_reinit(void *key, const uint8_t *iv)
+aes_icm_reinit(void *key, const uint8_t *iv, size_t ivlen)
 {
 	struct aes_icm_ctx *ctx;
 
 	ctx = key;
-	bcopy(iv, ctx->ac_block, AESICM_BLOCKSIZE);
+	KASSERT(ivlen <= sizeof(ctx->ac_block),
+	    ("%s: ivlen too large", __func__));
+	bcopy(iv, ctx->ac_block, ivlen);
 }
 
 static void
-aes_gcm_reinit(void *key, const uint8_t *iv)
+aes_gcm_reinit(void *key, const uint8_t *iv, size_t ivlen)
 {
 	struct aes_icm_ctx *ctx;
 
-	aes_icm_reinit(key, iv);
+	KASSERT(ivlen == AES_GCM_IV_LEN,
+	    ("%s: invalid IV length", __func__));
+	aes_icm_reinit(key, iv, ivlen);
 
 	ctx = key;
 	/* GCM starts with 2 as counter 1 is used for final xor of tag. */
@@ -136,17 +140,18 @@ aes_gcm_reinit(void *key, const uint8_t *iv)
 }
 
 static void
-aes_ccm_reinit(void *key, const uint8_t *iv)
+aes_ccm_reinit(void *key, const uint8_t *iv, size_t ivlen)
 {
 	struct aes_icm_ctx *ctx;
 
+	KASSERT(ivlen >= 7 && ivlen <= 13,
+	    ("%s: invalid IV length", __func__));
 	ctx = key;
 
 	/* CCM has flags, then the IV, then the counter, which starts at 1 */
 	bzero(ctx->ac_block, sizeof(ctx->ac_block));
-	/* 3 bytes for length field; this gives a nonce of 12 bytes */
-	ctx->ac_block[0] = (15 - AES_CCM_IV_LEN) - 1;
-	bcopy(iv, ctx->ac_block+1, AES_CCM_IV_LEN);
+	ctx->ac_block[0] = (15 - ivlen) - 1;
+	bcopy(iv, ctx->ac_block + 1, ivlen);
 	ctx->ac_block[AESICM_BLOCKSIZE - 1] = 1;
 }
 

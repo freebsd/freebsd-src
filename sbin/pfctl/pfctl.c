@@ -1528,6 +1528,12 @@ pfctl_load_ruleset(struct pfctl *pf, char *path, struct pfctl_ruleset *rs,
 
 	while ((r = TAILQ_FIRST(rs->rules[rs_num].active.ptr)) != NULL) {
 		TAILQ_REMOVE(rs->rules[rs_num].active.ptr, r, entries);
+
+		for (int i = 0; i < PF_RULE_MAX_LABEL_COUNT; i++)
+			expand_label(r->label[i], PF_RULE_LABEL_SIZE, r);
+		expand_label(r->tagname, PF_TAG_NAME_SIZE, r);
+		expand_label(r->match_tagname, PF_TAG_NAME_SIZE, r);
+
 		if ((error = pfctl_load_rule(pf, path, r, depth)))
 			goto error;
 		if (r->anchor) {

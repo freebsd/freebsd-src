@@ -6,6 +6,7 @@ SUBDIR=	src .WAIT \
 	wpa_passphrase \
 	hostapd \
 	hostapd_cli \
+	ndis_events
 
 SUBDIR_PARALLEL=
 

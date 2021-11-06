@@ -53,6 +53,16 @@ enum {
 	RXF_ACTIVE	= 1 << 0,	/* In the worker thread's queue */
 };
 
+struct cxgbei_cmp {
+	LIST_ENTRY(cxgbei_cmp) link;
+
+	uint32_t tt;		/* Transfer tag. */
+
+	uint32_t next_buffer_offset;
+	uint32_t last_datasn;
+};
+LIST_HEAD(cxgbei_cmp_head, cxgbei_cmp);
+
 struct icl_cxgbei_conn {
 	struct icl_conn ic;
 
@@ -67,6 +77,10 @@ struct icl_cxgbei_conn {
 	u_int cwt;
 	STAILQ_HEAD(, icl_pdu) rcvd_pdus;	/* protected by so_rcv lock */
 	TAILQ_ENTRY(icl_cxgbei_conn) rx_link;	/* protected by cwt lock */
+
+	struct cxgbei_cmp_head *cmp_table;	/* protected by cmp_lock */
+	struct mtx cmp_lock;
+	unsigned long cmp_hash_mask;
 };
 
 static inline struct icl_cxgbei_conn *
@@ -82,9 +96,6 @@ enum {
 	ICPF_RX_FLBUF	= 1 << 1, /* PDU payload received in a freelist. */
 	ICPF_RX_DDP	= 1 << 2, /* PDU payload DDP'd. */
 	ICPF_RX_STATUS	= 1 << 3, /* Rx status received. */
-	ICPF_HCRC_ERR	= 1 << 4, /* Header digest error. */
-	ICPF_DCRC_ERR	= 1 << 5, /* Data digest error. */
-	ICPF_PAD_ERR	= 1 << 6, /* Padding error. */
 
 	CXGBEI_PDU_SIGNATURE = 0x12344321
 };
@@ -96,6 +107,10 @@ struct icl_cxgbei_pdu {
 	uint32_t icp_signature;
 	uint32_t icp_seq;	/* For debug only */
 	u_int icp_flags;
+
+	u_int ref_cnt;
+	icl_pdu_cb cb;
+	int error;
 };
 
 static inline struct icl_cxgbei_pdu *
@@ -106,20 +121,16 @@ ip_to_icp(struct icl_pdu *ip)
 }
 
 struct cxgbei_data {
-	u_int max_tx_pdu_len;
-	u_int max_rx_pdu_len;
+	u_int max_tx_data_len;
+	u_int max_rx_data_len;
 
 	u_int ddp_threshold;
 	struct ppod_region pr;
 
 	struct sysctl_ctx_list ctx;	/* from uld_activate to deactivate */
-	counter_u64_t ddp_setup_ok;
-	counter_u64_t ddp_setup_error;
-	counter_u64_t ddp_bytes;
-	counter_u64_t ddp_pdus;
-	counter_u64_t fl_bytes;
-	counter_u64_t fl_pdus;
 };
+
+#define CXGBEI_MAX_ISO_PAYLOAD	65535
 
 /* cxgbei.c */
 u_int cxgbei_select_worker_thread(struct icl_cxgbei_conn *);
@@ -130,5 +141,6 @@ int icl_cxgbei_mod_unload(void);
 struct icl_pdu *icl_cxgbei_new_pdu(int);
 void icl_cxgbei_new_pdu_set_conn(struct icl_pdu *, struct icl_conn *);
 void icl_cxgbei_conn_pdu_free(struct icl_conn *, struct icl_pdu *);
+struct cxgbei_cmp *cxgbei_find_cmp(struct icl_cxgbei_conn *, uint32_t);
 
 #endif

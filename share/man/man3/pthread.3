@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 17, 2018
+.Dd October 12, 2021
 .Dt PTHREAD 3
 .Os
 .Sh NAME
@@ -67,6 +67,10 @@ Per-Thread Context Routines
 .It
 Cleanup Routines
 .El
+.Pp
+.Fx
+extensions to the POSIX thread functions are summarized in
+.Xr pthread_np 3 .
 .Ss Thread Routines
 .Bl -tag -width indent
 .It Xo
@@ -478,7 +482,6 @@ functions and the thread functions.
 Threaded applications are linked with this library.
 .Sh SEE ALSO
 .Xr libthr 3 ,
-.Xr pthread_affinity_np 3 ,
 .Xr pthread_atfork 3 ,
 .Xr pthread_attr 3 ,
 .Xr pthread_cancel 3 ,
@@ -513,6 +516,7 @@ Threaded applications are linked with this library.
 .Xr pthread_mutexattr_setprioceiling 3 ,
 .Xr pthread_mutexattr_setprotocol 3 ,
 .Xr pthread_mutexattr_settype 3 ,
+.Xr pthread_np 3 ,
 .Xr pthread_once 3 ,
 .Xr pthread_rwlock_destroy 3 ,
 .Xr pthread_rwlock_init 3 ,

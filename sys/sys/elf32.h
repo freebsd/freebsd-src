@@ -152,6 +152,8 @@ typedef struct {
 /* Macro for constructing r_info from field values. */
 #define ELF32_R_INFO(sym, type)	(((sym) << 8) + (unsigned char)(type))
 
+typedef Elf32_Word Elf32_Relr;
+
 /*
  *	Note entry header
  */

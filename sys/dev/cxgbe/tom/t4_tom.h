@@ -76,6 +76,7 @@ enum {
 	TPF_INITIALIZED    = (1 << 12), /* init_toepcb has been called */
 	TPF_TLS_RECEIVE	   = (1 << 13), /* should receive TLS records */
 	TPF_TLS_ESTABLISHED = (1 << 14), /* TLS handshake timer initialized */
+	TPF_WAITING_FOR_FINAL = (1<< 15), /* waiting for wakeup on final CPL */
 };
 
 enum {
@@ -88,6 +89,7 @@ enum {
 	DDP_DEAD	= (1 << 6),	/* toepcb is shutting down */
 };
 
+struct ctl_sg_entry;
 struct sockopt;
 struct offload_settings;
 
@@ -331,6 +333,22 @@ td_adapter(struct tom_data *td)
 }
 
 static inline void
+set_mbuf_raw_wr(struct mbuf *m, bool raw)
+{
+
+	M_ASSERTPKTHDR(m);
+	m->m_pkthdr.PH_per.eight[6] = raw;
+}
+
+static inline bool
+mbuf_raw_wr(struct mbuf *m)
+{
+
+	M_ASSERTPKTHDR(m);
+	return (m->m_pkthdr.PH_per.eight[6]);
+}
+
+static inline void
 set_mbuf_ulp_submode(struct mbuf *m, uint8_t ulp_submode)
 {
 
@@ -344,6 +362,58 @@ mbuf_ulp_submode(struct mbuf *m)
 
 	M_ASSERTPKTHDR(m);
 	return (m->m_pkthdr.PH_per.eight[0]);
+}
+
+static inline void
+set_mbuf_iscsi_iso(struct mbuf *m, bool iso)
+{
+
+	M_ASSERTPKTHDR(m);
+	m->m_pkthdr.PH_per.eight[1] = iso;
+}
+
+static inline bool
+mbuf_iscsi_iso(struct mbuf *m)
+{
+
+	M_ASSERTPKTHDR(m);
+	return (m->m_pkthdr.PH_per.eight[1]);
+}
+
+/* Flags for iSCSI segmentation offload. */
+#define	CXGBE_ISO_TYPE(flags)	((flags) & 0x3)
+#define	CXGBE_ISO_F		0x4
+
+static inline void
+set_mbuf_iscsi_iso_flags(struct mbuf *m, uint8_t flags)
+{
+
+	M_ASSERTPKTHDR(m);
+	m->m_pkthdr.PH_per.eight[2] = flags;
+}
+
+static inline uint8_t
+mbuf_iscsi_iso_flags(struct mbuf *m)
+{
+
+	M_ASSERTPKTHDR(m);
+	return (m->m_pkthdr.PH_per.eight[2]);
+}
+
+static inline void
+set_mbuf_iscsi_iso_mss(struct mbuf *m, uint16_t mss)
+{
+
+	M_ASSERTPKTHDR(m);
+	m->m_pkthdr.PH_per.sixteen[2] = mss;
+}
+
+static inline uint16_t
+mbuf_iscsi_iso_mss(struct mbuf *m)
+{
+
+	M_ASSERTPKTHDR(m);
+	return (m->m_pkthdr.PH_per.sixteen[2]);
 }
 
 /* t4_tom.c */
@@ -421,10 +491,14 @@ void t4_free_ppod_region(struct ppod_region *);
 int t4_alloc_page_pods_for_ps(struct ppod_region *, struct pageset *);
 int t4_alloc_page_pods_for_buf(struct ppod_region *, vm_offset_t, int,
     struct ppod_reservation *);
+int t4_alloc_page_pods_for_sgl(struct ppod_region *, struct ctl_sg_entry *, int,
+    struct ppod_reservation *);
 int t4_write_page_pods_for_ps(struct adapter *, struct sge_wrq *, int,
     struct pageset *);
-int t4_write_page_pods_for_buf(struct adapter *, struct sge_wrq *, int,
-    struct ppod_reservation *, vm_offset_t, int);
+int t4_write_page_pods_for_buf(struct adapter *, struct toepcb *,
+    struct ppod_reservation *, vm_offset_t, int, struct mbufq *);
+int t4_write_page_pods_for_sgl(struct adapter *, struct toepcb *,
+    struct ppod_reservation *, struct ctl_sg_entry *, int, int, struct mbufq *);
 void t4_free_page_pods(struct ppod_reservation *);
 int t4_soreceive_ddp(struct socket *, struct sockaddr **, struct uio *,
     struct mbuf **, struct mbuf **, int *);

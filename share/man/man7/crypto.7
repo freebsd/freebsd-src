@@ -1,9 +1,13 @@
-.\" Copyright (c) 2014 The FreeBSD Foundation
+.\" Copyright (c) 2014-2021 The FreeBSD Foundation
 .\" All rights reserved.
 .\"
-.\" This documentation was written by John-Mark Gurney under
-.\" the sponsorship of the FreeBSD Foundation and
+.\" Portions of this documentation were written by John-Mark Gurney
+.\" under the sponsorship of the FreeBSD Foundation and
 .\" Rubicon Communications, LLC (Netgate).
+.\"
+.\" Portions of this documentation were written by Ararat River
+.\" Consulting, LLC under sponsorship of the FreeBSD Foundation.
+.\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
 .\" are met:
@@ -27,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 20, 2021
+.Dd October 6, 2021
 .Dt CRYPTO 7
 .Os
 .Sh NAME
@@ -136,7 +140,7 @@ counter rollover.
 .Dv CRYPTO_CHACHA20
 accepts a 16 byte IV.
 The first 8 bytes are used as a nonce.
-The last 8 bytes are used as 64-bit big-endian block counter.
+The last 8 bytes are used as a 64-bit little-endian block counter.
 .Ss Authenticated Encryption with Associated Data Algorithms
 AEAD algorithms in OCF combine a stream cipher with an authentication
 algorithm to provide both secrecy and authentication.
@@ -153,14 +157,18 @@ This nonce must be provided in
 via the
 .Dv CRYPTO_F_IV_SEPARATE
 flag.
+Some AEAD algorithms support multiple nonce sizes.
+The first size listed is the default nonce size.
 .Pp
 The following AEAD algorithms are supported:
-.Bl -column "CRYPTO_AES_NIST_GCM_16" "Nonce" "16, 24, 32" "Tag"
+.Bl -column "CRYPTO_AES_NIST_GCM_16" "12, 7-13" "16, 24, 32" "Tag"
 .It Sy Name Ta Sy Nonce Ta Sy Key Sizes Ta Sy Tag Ta Sy Description
 .It Dv CRYPTO_AES_NIST_GCM_16 Ta 12 Ta 16, 24, 32 Ta 16 Ta
 AES Galois/Counter Mode
-.It Dv CRYPTO_AES_CCM_16 Ta 12 Ta 16, 24, 32 Ta 16 Ta
+.It Dv CRYPTO_AES_CCM_16 Ta 12, 7-13 Ta 16, 24, 32 Ta 16 Ta
 AES Counter with CBC-MAC
+.It Dv CRYPTO_CHACHA20_POLY1305 Ta 12, 8 Ta 32 Ta 16 Ta
+ChaCha20-Poly1305
 .El
 .Sh SEE ALSO
 .Xr crypto 4 ,

@@ -88,7 +88,7 @@ __FBSDID("$FreeBSD$");
 
 #include "common/common.h"
 #include "common/t4_msg.h"
-#include "common/t4_regs.h"     /* for PCIE_MEM_ACCESS */
+#include "common/t4_regs.h"	/* for PCIE_MEM_ACCESS */
 #include "tom/t4_tom.h"
 #include "cxgbei.h"
 
@@ -97,52 +97,8 @@ static struct cxgbei_worker_thread_softc *cwt_softc;
 static struct proc *cxgbei_proc;
 
 static void
-free_ci_counters(struct cxgbei_data *ci)
-{
-
-#define FREE_CI_COUNTER(x) do { \
-	if (ci->x != NULL) { \
-		counter_u64_free(ci->x); \
-		ci->x = NULL; \
-	} \
-} while (0)
-
-	FREE_CI_COUNTER(ddp_setup_ok);
-	FREE_CI_COUNTER(ddp_setup_error);
-	FREE_CI_COUNTER(ddp_bytes);
-	FREE_CI_COUNTER(ddp_pdus);
-	FREE_CI_COUNTER(fl_bytes);
-	FREE_CI_COUNTER(fl_pdus);
-#undef FREE_CI_COUNTER
-}
-
-static int
-alloc_ci_counters(struct cxgbei_data *ci)
-{
-
-#define ALLOC_CI_COUNTER(x) do { \
-	ci->x = counter_u64_alloc(M_WAITOK); \
-	if (ci->x == NULL) \
-		goto fail; \
-} while (0)
-
-	ALLOC_CI_COUNTER(ddp_setup_ok);
-	ALLOC_CI_COUNTER(ddp_setup_error);
-	ALLOC_CI_COUNTER(ddp_bytes);
-	ALLOC_CI_COUNTER(ddp_pdus);
-	ALLOC_CI_COUNTER(fl_bytes);
-	ALLOC_CI_COUNTER(fl_pdus);
-#undef ALLOC_CI_COUNTER
-
-	return (0);
-fail:
-	free_ci_counters(ci);
-	return (ENOMEM);
-}
-
-static void
-read_pdu_limits(struct adapter *sc, uint32_t *max_tx_pdu_len,
-    uint32_t *max_rx_pdu_len)
+read_pdu_limits(struct adapter *sc, uint32_t *max_tx_data_len,
+    uint32_t *max_rx_data_len, struct ppod_region *pr)
 {
 	uint32_t tx_len, rx_len, r, v;
 
@@ -158,11 +114,32 @@ read_pdu_limits(struct adapter *sc, uint32_t *max_tx_pdu_len,
 	rx_len = min(rx_len, v);
 	tx_len = min(tx_len, v);
 
-	/* Remove after FW_FLOWC_MNEM_TXDATAPLEN_MAX fix in firmware. */
-	tx_len = min(tx_len, 3 * 4096);
+	/*
+	 * AHS is not supported by the kernel so we'll not account for
+	 * it either in our PDU len -> data segment len conversions.
+	 */
+	rx_len -= ISCSI_BHS_SIZE + ISCSI_HEADER_DIGEST_SIZE +
+	    ISCSI_DATA_DIGEST_SIZE;
+	tx_len -= ISCSI_BHS_SIZE + ISCSI_HEADER_DIGEST_SIZE +
+	    ISCSI_DATA_DIGEST_SIZE;
 
-	*max_tx_pdu_len = rounddown2(tx_len, 512);
-	*max_rx_pdu_len = rounddown2(rx_len, 512);
+	/*
+	 * DDP can place only 4 pages for a single PDU.  A single
+	 * request might use larger pages than the smallest page size,
+	 * but that cannot be guaranteed.  Assume the smallest DDP
+	 * page size for this limit.
+	 */
+	rx_len = min(rx_len, 4 * (1U << pr->pr_page_shift[0]));
+
+	if (chip_id(sc) == CHELSIO_T5) {
+		tx_len = min(tx_len, 15360);
+
+		rx_len = rounddown2(rx_len, 512);
+		tx_len = rounddown2(tx_len, 512);
+	}
+
+	*max_tx_data_len = tx_len;
+	*max_rx_data_len = rx_len;
 }
 
 /*
@@ -182,12 +159,6 @@ cxgbei_init(struct adapter *sc, struct cxgbei_data *ci)
 	MPASS(sc->vres.iscsi.size > 0);
 	MPASS(ci != NULL);
 
-	rc = alloc_ci_counters(ci);
-	if (rc != 0)
-		return (rc);
-
-	read_pdu_limits(sc, &ci->max_tx_pdu_len, &ci->max_rx_pdu_len);
-
 	pr = &ci->pr;
 	r = t4_read_reg(sc, A_ULP_RX_ISCSI_PSZ);
 	rc = t4_init_ppod_region(pr, &sc->vres.iscsi, r, "iSCSI page pods");
@@ -195,7 +166,6 @@ cxgbei_init(struct adapter *sc, struct cxgbei_data *ci)
 		device_printf(sc->dev,
 		    "%s: failed to initialize the iSCSI page pod region: %u.\n",
 		    __func__, rc);
-		free_ci_counters(ci);
 		return (rc);
 	}
 
@@ -214,38 +184,26 @@ cxgbei_init(struct adapter *sc, struct cxgbei_data *ci)
 		    V_ISCSITAGMASK(M_ISCSITAGMASK), pr->pr_tag_mask);
 	}
 
+	read_pdu_limits(sc, &ci->max_tx_data_len, &ci->max_rx_data_len, pr);
+
 	sysctl_ctx_init(&ci->ctx);
 	oid = device_get_sysctl_tree(sc->dev);	/* dev.t5nex.X */
 	children = SYSCTL_CHILDREN(oid);
 
 	oid = SYSCTL_ADD_NODE(&ci->ctx, children, OID_AUTO, "iscsi",
-	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "iSCSI ULP statistics");
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "iSCSI ULP settings");
 	children = SYSCTL_CHILDREN(oid);
-
-	SYSCTL_ADD_COUNTER_U64(&ci->ctx, children, OID_AUTO, "ddp_setup_ok",
-	    CTLFLAG_RD, &ci->ddp_setup_ok,
-	    "# of times DDP buffer was setup successfully.");
-
-	SYSCTL_ADD_COUNTER_U64(&ci->ctx, children, OID_AUTO, "ddp_setup_error",
-	    CTLFLAG_RD, &ci->ddp_setup_error,
-	    "# of times DDP buffer setup failed.");
-
-	SYSCTL_ADD_COUNTER_U64(&ci->ctx, children, OID_AUTO, "ddp_bytes",
-	    CTLFLAG_RD, &ci->ddp_bytes, "# of bytes placed directly");
-
-	SYSCTL_ADD_COUNTER_U64(&ci->ctx, children, OID_AUTO, "ddp_pdus",
-	    CTLFLAG_RD, &ci->ddp_pdus, "# of PDUs with data placed directly.");
-
-	SYSCTL_ADD_COUNTER_U64(&ci->ctx, children, OID_AUTO, "fl_bytes",
-	    CTLFLAG_RD, &ci->fl_bytes, "# of data bytes delivered in freelist");
-
-	SYSCTL_ADD_COUNTER_U64(&ci->ctx, children, OID_AUTO, "fl_pdus",
-	    CTLFLAG_RD, &ci->fl_pdus,
-	    "# of PDUs with data delivered in freelist");
 
 	ci->ddp_threshold = 2048;
 	SYSCTL_ADD_UINT(&ci->ctx, children, OID_AUTO, "ddp_threshold",
 	    CTLFLAG_RW, &ci->ddp_threshold, 0, "Rx zero copy threshold");
+
+	SYSCTL_ADD_UINT(&ci->ctx, children, OID_AUTO, "max_rx_data_len",
+	    CTLFLAG_RD, &ci->max_rx_data_len, 0,
+	    "Maximum receive data segment length");
+	SYSCTL_ADD_UINT(&ci->ctx, children, OID_AUTO, "max_tx_data_len",
+	    CTLFLAG_RD, &ci->max_tx_data_len, 0,
+	    "Maximum transmit data segment length");
 
 	return (0);
 }
@@ -291,32 +249,51 @@ static int
 do_rx_iscsi_data(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 {
 	struct adapter *sc = iq->adapter;
-	struct cxgbei_data *ci = sc->iscsi_ulp_softc;
 	struct cpl_iscsi_data *cpl =  mtod(m, struct cpl_iscsi_data *);
 	u_int tid = GET_TID(cpl);
 	struct toepcb *toep = lookup_tid(sc, tid);
 	struct icl_cxgbei_pdu *icp = toep->ulpcb2;
+	struct icl_pdu *ip;
 
 	M_ASSERTPKTHDR(m);
 	MPASS(m->m_pkthdr.len == be16toh(cpl->len) + sizeof(*cpl));
 
-	/* Must already have received the header (but not the data). */
-	MPASS(icp != NULL);
-	MPASS(icp->icp_flags == ICPF_RX_HDR);
-	MPASS(icp->ip.ip_data_mbuf == NULL);
+	if (icp == NULL) {
+		/*
+		 * T6 completion enabled, start of a new pdu. Header
+		 * will come in completion CPL.
+		 */
+	        ip = icl_cxgbei_new_pdu(M_NOWAIT);
+	        if (ip == NULL)
+			CXGBE_UNIMPLEMENTED("PDU allocation failure");
+		icp = ip_to_icp(ip);
+	} else {
+		/* T5 mode, header is already received. */
+		MPASS(icp->icp_flags == ICPF_RX_HDR);
+		MPASS(icp->ip.ip_data_mbuf == NULL);
+		MPASS(icp->ip.ip_data_len == m->m_pkthdr.len - sizeof(*cpl));
+	}
 
-
+	/* Trim the cpl header from mbuf. */
 	m_adj(m, sizeof(*cpl));
-	MPASS(icp->ip.ip_data_len == m->m_pkthdr.len);
 
 	icp->icp_flags |= ICPF_RX_FLBUF;
 	icp->ip.ip_data_mbuf = m;
-	counter_u64_add(ci->fl_pdus, 1);
-	counter_u64_add(ci->fl_bytes, m->m_pkthdr.len);
+	toep->ofld_rxq->rx_iscsi_fl_pdus++;
+	toep->ofld_rxq->rx_iscsi_fl_octets += m->m_pkthdr.len;
+
+	/*
+	 * For T6, save the icp for further processing in the
+	 * completion handler.
+	 */
+	if (icp->icp_flags == ICPF_RX_FLBUF) {
+		MPASS(toep->ulpcb2 == NULL);
+		toep->ulpcb2 = icp;
+	}
 
 #if 0
-	CTR3(KTR_CXGBE, "%s: tid %u, cpl->len %u", __func__, tid,
-	    be16toh(cpl->len));
+	CTR4(KTR_CXGBE, "%s: tid %u, cpl->len %u, icp %p", __func__, tid,
+	    be16toh(cpl->len), icp);
 #endif
 
 	return (0);
@@ -326,7 +303,6 @@ static int
 do_rx_iscsi_ddp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 {
 	struct adapter *sc = iq->adapter;
-	struct cxgbei_data *ci = sc->iscsi_ulp_softc;
 	const struct cpl_rx_data_ddp *cpl = (const void *)(rss + 1);
 	u_int tid = GET_TID(cpl);
 	struct toepcb *toep = lookup_tid(sc, tid);
@@ -359,18 +335,27 @@ do_rx_iscsi_ddp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 
 	icp->icp_flags |= ICPF_RX_STATUS;
 	ip = &icp->ip;
-	if (val & F_DDP_PADDING_ERR)
-		icp->icp_flags |= ICPF_PAD_ERR;
-	if (val & F_DDP_HDRCRC_ERR)
-		icp->icp_flags |= ICPF_HCRC_ERR;
-	if (val & F_DDP_DATACRC_ERR)
-		icp->icp_flags |= ICPF_DCRC_ERR;
+	if (val & F_DDP_PADDING_ERR) {
+		ICL_WARN("received PDU 0x%02x with invalid padding",
+		    ip->ip_bhs->bhs_opcode);
+		toep->ofld_rxq->rx_iscsi_padding_errors++;
+	}
+	if (val & F_DDP_HDRCRC_ERR) {
+		ICL_WARN("received PDU 0x%02x with invalid header digest",
+		    ip->ip_bhs->bhs_opcode);
+		toep->ofld_rxq->rx_iscsi_header_digest_errors++;
+	}
+	if (val & F_DDP_DATACRC_ERR) {
+		ICL_WARN("received PDU 0x%02x with invalid data digest",
+		    ip->ip_bhs->bhs_opcode);
+		toep->ofld_rxq->rx_iscsi_data_digest_errors++;
+	}
 	if (val & F_DDP_PDU && ip->ip_data_mbuf == NULL) {
 		MPASS((icp->icp_flags & ICPF_RX_FLBUF) == 0);
 		MPASS(ip->ip_data_len > 0);
 		icp->icp_flags |= ICPF_RX_DDP;
-		counter_u64_add(ci->ddp_pdus, 1);
-		counter_u64_add(ci->ddp_bytes, ip->ip_data_len);
+		toep->ofld_rxq->rx_iscsi_ddp_pdus++;
+		toep->ofld_rxq->rx_iscsi_ddp_octets += ip->ip_data_len;
 	}
 
 	INP_WLOCK(inp);
@@ -379,21 +364,23 @@ do_rx_iscsi_ddp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 		    __func__, tid, pdu_len, inp->inp_flags);
 		INP_WUNLOCK(inp);
 		icl_cxgbei_conn_pdu_free(NULL, ip);
-#ifdef INVARIANTS
 		toep->ulpcb2 = NULL;
-#endif
 		return (0);
 	}
 
+	/*
+	 * T6+ does not report data PDUs received via DDP without F
+	 * set.  This can result in gaps in the TCP sequence space.
+	 */
 	tp = intotcpcb(inp);
-	MPASS(icp->icp_seq == tp->rcv_nxt);
-	MPASS(tp->rcv_wnd >= pdu_len);
-	tp->rcv_nxt += pdu_len;
-	tp->rcv_wnd -= pdu_len;
+	MPASS(chip_id(sc) >= CHELSIO_T6 || icp->icp_seq == tp->rcv_nxt);
+	tp->rcv_nxt = icp->icp_seq + pdu_len;
 	tp->t_rcvtime = ticks;
 
-	/* update rx credits */
-	t4_rcvd(&toep->td->tod, tp);	/* XXX: sc->tom_softc.tod */
+	/*
+	 * Don't update the window size or return credits since RX
+	 * flow control is disabled.
+	 */
 
 	so = inp->inp_socket;
 	sb = &so->so_rcv;
@@ -417,13 +404,21 @@ do_rx_iscsi_ddp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 		CURVNET_RESTORE();
 
 		icl_cxgbei_conn_pdu_free(NULL, ip);
-#ifdef INVARIANTS
 		toep->ulpcb2 = NULL;
-#endif
 		return (0);
 	}
 	MPASS(icc->icc_signature == CXGBEI_CONN_SIGNATURE);
 	ic = &icc->ic;
+	if ((val & (F_DDP_PADDING_ERR | F_DDP_HDRCRC_ERR |
+	    F_DDP_DATACRC_ERR)) != 0) {
+		SOCKBUF_UNLOCK(sb);
+		INP_WUNLOCK(inp);
+
+		icl_cxgbei_conn_pdu_free(NULL, ip);
+		toep->ulpcb2 = NULL;
+		ic->ic_error(ic);
+		return (0);
+	}
 	icl_cxgbei_new_pdu_set_conn(ip, ic);
 
 	MPASS(m == NULL); /* was unused, we'll use it now. */
@@ -474,9 +469,257 @@ do_rx_iscsi_ddp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	SOCKBUF_UNLOCK(sb);
 	INP_WUNLOCK(inp);
 
-#ifdef INVARIANTS
 	toep->ulpcb2 = NULL;
+
+	return (0);
+}
+
+static int
+do_rx_iscsi_cmp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
+{
+	struct epoch_tracker et;
+	struct adapter *sc = iq->adapter;
+	struct cpl_rx_iscsi_cmp *cpl = mtod(m, struct cpl_rx_iscsi_cmp *);
+	u_int tid = GET_TID(cpl);
+	struct toepcb *toep = lookup_tid(sc, tid);
+	struct icl_cxgbei_pdu *icp = toep->ulpcb2;
+	struct icl_pdu *ip;
+	struct cxgbei_cmp *cmp;
+	struct inpcb *inp = toep->inp;
+#ifdef INVARIANTS
+	uint16_t len = be16toh(cpl->len);
 #endif
+	struct socket *so;
+	struct sockbuf *sb;
+	struct tcpcb *tp;
+	struct icl_cxgbei_conn *icc;
+	struct icl_conn *ic;
+	struct iscsi_bhs_data_out *bhsdo;
+	u_int val = be32toh(cpl->ddpvld);
+	u_int npdus, pdu_len, data_digest_len, hdr_digest_len;
+	uint32_t prev_seg_len;
+
+	M_ASSERTPKTHDR(m);
+	MPASS(m->m_pkthdr.len == len + sizeof(*cpl));
+
+	if ((val & F_DDP_PDU) == 0) {
+		MPASS(icp != NULL);
+		MPASS((icp->icp_flags & ICPF_RX_STATUS) == 0);
+		ip = &icp->ip;
+	}
+
+	if (icp == NULL) {
+		/* T6 completion enabled, start of a new PDU. */
+		ip = icl_cxgbei_new_pdu(M_NOWAIT);
+		if (ip == NULL)
+			CXGBE_UNIMPLEMENTED("PDU allocation failure");
+		icp = ip_to_icp(ip);
+	}
+	pdu_len = G_ISCSI_PDU_LEN(be16toh(cpl->pdu_len_ddp));
+
+#if 0
+	CTR5(KTR_CXGBE,
+	    "%s: tid %u, cpl->len %u, ddpvld 0x%08x, icp %p",
+	    __func__, tid, pdu_len, val, icp);
+#endif
+
+	/* Copy header */
+	m_copydata(m, sizeof(*cpl), ISCSI_BHS_SIZE, (caddr_t)ip->ip_bhs);
+	bhsdo = (struct iscsi_bhs_data_out *)ip->ip_bhs;
+	ip->ip_data_len = bhsdo->bhsdo_data_segment_len[0] << 16 |
+	    bhsdo->bhsdo_data_segment_len[1] << 8 |
+	    bhsdo->bhsdo_data_segment_len[2];
+	icp->icp_seq = ntohl(cpl->seq);
+	icp->icp_flags |= ICPF_RX_HDR;
+	icp->icp_flags |= ICPF_RX_STATUS;
+
+	if (val & F_DDP_PADDING_ERR) {
+		ICL_WARN("received PDU 0x%02x with invalid padding",
+		    ip->ip_bhs->bhs_opcode);
+		toep->ofld_rxq->rx_iscsi_padding_errors++;
+	}
+	if (val & F_DDP_HDRCRC_ERR) {
+		ICL_WARN("received PDU 0x%02x with invalid header digest",
+		    ip->ip_bhs->bhs_opcode);
+		toep->ofld_rxq->rx_iscsi_header_digest_errors++;
+	}
+	if (val & F_DDP_DATACRC_ERR) {
+		ICL_WARN("received PDU 0x%02x with invalid data digest",
+		    ip->ip_bhs->bhs_opcode);
+		toep->ofld_rxq->rx_iscsi_data_digest_errors++;
+	}
+
+	INP_WLOCK(inp);
+	if (__predict_false(inp->inp_flags & (INP_DROPPED | INP_TIMEWAIT))) {
+		CTR4(KTR_CXGBE, "%s: tid %u, rx (%d bytes), inp_flags 0x%x",
+		    __func__, tid, pdu_len, inp->inp_flags);
+		INP_WUNLOCK(inp);
+		icl_cxgbei_conn_pdu_free(NULL, ip);
+		toep->ulpcb2 = NULL;
+		m_freem(m);
+		return (0);
+	}
+
+	tp = intotcpcb(inp);
+
+	/*
+	 * If icc is NULL, the connection is being closed in
+	 * icl_cxgbei_conn_close(), just drop this data.
+	 */
+	icc = toep->ulpcb;
+	if (__predict_false(icc == NULL)) {
+		CTR4(KTR_CXGBE, "%s: tid %u, excess rx (%d bytes), icc %p",
+		    __func__, tid, pdu_len, icc);
+
+		/*
+		 * Update rcv_nxt so the sequence number of the FIN
+		 * doesn't appear wrong.
+		 */
+		tp->rcv_nxt = icp->icp_seq + pdu_len;
+		tp->t_rcvtime = ticks;
+		INP_WUNLOCK(inp);
+
+		icl_cxgbei_conn_pdu_free(NULL, ip);
+		toep->ulpcb2 = NULL;
+		m_freem(m);
+		return (0);
+	}
+
+	MPASS(icc->icc_signature == CXGBEI_CONN_SIGNATURE);
+	ic = &icc->ic;
+	if ((val & (F_DDP_PADDING_ERR | F_DDP_HDRCRC_ERR |
+	    F_DDP_DATACRC_ERR)) != 0) {
+		INP_WUNLOCK(inp);
+
+		icl_cxgbei_conn_pdu_free(NULL, ip);
+		toep->ulpcb2 = NULL;
+		m_freem(m);
+		ic->ic_error(ic);
+		return (0);
+	}
+
+	data_digest_len = (icc->ulp_submode & ULP_CRC_DATA) ?
+	    ISCSI_DATA_DIGEST_SIZE : 0;
+	hdr_digest_len = (icc->ulp_submode & ULP_CRC_HEADER) ?
+	    ISCSI_HEADER_DIGEST_SIZE : 0;
+	MPASS(roundup2(ip->ip_data_len, 4) == pdu_len - len - data_digest_len);
+
+	if (val & F_DDP_PDU && ip->ip_data_mbuf == NULL) {
+		MPASS((icp->icp_flags & ICPF_RX_FLBUF) == 0);
+		MPASS(ip->ip_data_len > 0);
+		icp->icp_flags |= ICPF_RX_DDP;
+		bhsdo = (struct iscsi_bhs_data_out *)ip->ip_bhs;
+
+		switch (ip->ip_bhs->bhs_opcode & ~ISCSI_BHS_OPCODE_IMMEDIATE) {
+		case ISCSI_BHS_OPCODE_SCSI_DATA_IN:
+			cmp = cxgbei_find_cmp(icc,
+			    be32toh(bhsdo->bhsdo_initiator_task_tag));
+			break;
+		case ISCSI_BHS_OPCODE_SCSI_DATA_OUT:
+			cmp = cxgbei_find_cmp(icc,
+			    be32toh(bhsdo->bhsdo_target_transfer_tag));
+			break;
+		default:
+			__assert_unreachable();
+		}
+		MPASS(cmp != NULL);
+
+		/*
+		 * The difference between the end of the last burst
+		 * and the offset of the last PDU in this burst is
+		 * the additional data received via DDP.
+		 */
+		prev_seg_len = be32toh(bhsdo->bhsdo_buffer_offset) -
+		    cmp->next_buffer_offset;
+
+		if (prev_seg_len != 0) {
+			uint32_t orig_datasn;
+
+			/*
+			 * Return a "large" PDU representing the burst
+			 * of PDUs.  Adjust the offset and length of
+			 * this PDU to represent the entire burst.
+			 */
+			ip->ip_data_len += prev_seg_len;
+			bhsdo->bhsdo_data_segment_len[2] = ip->ip_data_len;
+			bhsdo->bhsdo_data_segment_len[1] = ip->ip_data_len >> 8;
+			bhsdo->bhsdo_data_segment_len[0] = ip->ip_data_len >> 16;
+			bhsdo->bhsdo_buffer_offset =
+			    htobe32(cmp->next_buffer_offset);
+
+			orig_datasn = htobe32(bhsdo->bhsdo_datasn);
+			npdus = orig_datasn - cmp->last_datasn;
+			bhsdo->bhsdo_datasn = htobe32(cmp->last_datasn + 1);
+			cmp->last_datasn = orig_datasn;
+			ip->ip_additional_pdus = npdus - 1;
+		} else {
+			MPASS(htobe32(bhsdo->bhsdo_datasn) ==
+			    cmp->last_datasn + 1);
+			npdus = 1;
+			cmp->last_datasn = htobe32(bhsdo->bhsdo_datasn);
+		}
+
+		cmp->next_buffer_offset += ip->ip_data_len;
+		toep->ofld_rxq->rx_iscsi_ddp_pdus += npdus;
+		toep->ofld_rxq->rx_iscsi_ddp_octets += ip->ip_data_len;
+	} else {
+		MPASS(icp->icp_flags & (ICPF_RX_FLBUF));
+		MPASS(ip->ip_data_len == ip->ip_data_mbuf->m_pkthdr.len);
+	}
+
+	tp->rcv_nxt = icp->icp_seq + pdu_len;
+	tp->t_rcvtime = ticks;
+
+	/*
+	 * Don't update the window size or return credits since RX
+	 * flow control is disabled.
+	 */
+
+	so = inp->inp_socket;
+	sb = &so->so_rcv;
+	SOCKBUF_LOCK(sb);
+	if (__predict_false(sb->sb_state & SBS_CANTRCVMORE)) {
+		CTR5(KTR_CXGBE,
+		    "%s: tid %u, excess rx (%d bytes), icc %p, sb_state 0x%x",
+		    __func__, tid, pdu_len, icc, sb->sb_state);
+		SOCKBUF_UNLOCK(sb);
+		INP_WUNLOCK(inp);
+
+		CURVNET_SET(so->so_vnet);
+		NET_EPOCH_ENTER(et);
+		INP_WLOCK(inp);
+		tp = tcp_drop(tp, ECONNRESET);
+		if (tp != NULL)
+			INP_WUNLOCK(inp);
+		NET_EPOCH_EXIT(et);
+		CURVNET_RESTORE();
+
+		icl_cxgbei_conn_pdu_free(NULL, ip);
+		toep->ulpcb2 = NULL;
+		m_freem(m);
+		return (0);
+	}
+	icl_cxgbei_new_pdu_set_conn(ip, ic);
+
+	/* Enqueue the PDU to the received pdus queue. */
+	STAILQ_INSERT_TAIL(&icc->rcvd_pdus, ip, ip_next);
+	if ((icc->rx_flags & RXF_ACTIVE) == 0) {
+		struct cxgbei_worker_thread_softc *cwt = &cwt_softc[icc->cwt];
+
+		mtx_lock(&cwt->cwt_lock);
+		icc->rx_flags |= RXF_ACTIVE;
+		TAILQ_INSERT_TAIL(&cwt->rx_head, icc, rx_link);
+		if (cwt->cwt_state == CWT_SLEEPING) {
+			cwt->cwt_state = CWT_RUNNING;
+			cv_signal(&cwt->cwt_cv);
+		}
+		mtx_unlock(&cwt->cwt_lock);
+	}
+	SOCKBUF_UNLOCK(sb);
+	INP_WUNLOCK(inp);
+
+	toep->ulpcb2 = NULL;
+	m_freem(m);
 
 	return (0);
 }
@@ -527,7 +770,6 @@ cxgbei_deactivate(struct adapter *sc)
 	if (ci != NULL) {
 		sysctl_ctx_free(&ci->ctx);
 		t4_free_ppod_region(&ci->pr);
-		free_ci_counters(ci);
 		free(ci, M_CXGBE);
 		sc->iscsi_ulp_softc = NULL;
 	}
@@ -745,6 +987,7 @@ cxgbei_mod_load(void)
 	t4_register_cpl_handler(CPL_ISCSI_HDR, do_rx_iscsi_hdr);
 	t4_register_cpl_handler(CPL_ISCSI_DATA, do_rx_iscsi_data);
 	t4_register_cpl_handler(CPL_RX_ISCSI_DDP, do_rx_iscsi_ddp);
+	t4_register_cpl_handler(CPL_RX_ISCSI_CMP, do_rx_iscsi_cmp);
 
 	rc = start_worker_threads();
 	if (rc != 0)
@@ -775,6 +1018,7 @@ cxgbei_mod_unload(void)
 	t4_register_cpl_handler(CPL_ISCSI_HDR, NULL);
 	t4_register_cpl_handler(CPL_ISCSI_DATA, NULL);
 	t4_register_cpl_handler(CPL_RX_ISCSI_DDP, NULL);
+	t4_register_cpl_handler(CPL_RX_ISCSI_CMP, NULL);
 
 	return (0);
 }

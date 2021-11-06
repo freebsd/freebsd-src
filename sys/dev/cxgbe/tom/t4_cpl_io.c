@@ -67,6 +67,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_map.h>
 #include <vm/vm_page.h>
 
+#include <dev/iscsi/iscsi_proto.h>
+
 #include "common/common.h"
 #include "common/t4_msg.h"
 #include "common/t4_regs.h"
@@ -102,7 +104,7 @@ send_flowc_wr(struct toepcb *toep, struct tcpcb *tp)
 		nparams++;
 	if (toep->params.tc_idx != -1) {
 		MPASS(toep->params.tc_idx >= 0 &&
-		    toep->params.tc_idx < sc->chip_params->nsched_cls);
+		    toep->params.tc_idx < sc->params.nsched_cls);
 		nparams++;
 	}
 
@@ -189,7 +191,7 @@ update_tx_rate_limit(struct adapter *sc, struct toepcb *toep, u_int Bps)
 		rc = t4_reserve_cl_rl_kbps(sc, port_id, kbps, &tc_idx);
 		if (rc != 0)
 			return (rc);
-		MPASS(tc_idx >= 0 && tc_idx < sc->chip_params->nsched_cls);
+		MPASS(tc_idx >= 0 && tc_idx < sc->params.nsched_cls);
 	}
 
 	if (toep->params.tc_idx != tc_idx) {
@@ -516,38 +518,44 @@ t4_close_conn(struct adapter *sc, struct toepcb *toep)
 
 #define MAX_OFLD_TX_CREDITS (SGE_MAX_WR_LEN / 16)
 #define MIN_OFLD_TX_CREDITS (howmany(sizeof(struct fw_ofld_tx_data_wr) + 1, 16))
+#define MIN_ISO_TX_CREDITS  (howmany(sizeof(struct cpl_tx_data_iso), 16))
+#define MIN_TX_CREDITS(iso)						\
+	(MIN_OFLD_TX_CREDITS + ((iso) ? MIN_ISO_TX_CREDITS : 0))
 
 /* Maximum amount of immediate data we could stuff in a WR */
 static inline int
-max_imm_payload(int tx_credits)
+max_imm_payload(int tx_credits, int iso)
 {
+	const int iso_cpl_size = iso ? sizeof(struct cpl_tx_data_iso) : 0;
 	const int n = 1;	/* Use no more than one desc for imm. data WR */
 
 	KASSERT(tx_credits >= 0 &&
 		tx_credits <= MAX_OFLD_TX_CREDITS,
 		("%s: %d credits", __func__, tx_credits));
 
-	if (tx_credits < MIN_OFLD_TX_CREDITS)
+	if (tx_credits < MIN_TX_CREDITS(iso))
 		return (0);
 
 	if (tx_credits >= (n * EQ_ESIZE) / 16)
-		return ((n * EQ_ESIZE) - sizeof(struct fw_ofld_tx_data_wr));
+		return ((n * EQ_ESIZE) - sizeof(struct fw_ofld_tx_data_wr) -
+		    iso_cpl_size);
 	else
-		return (tx_credits * 16 - sizeof(struct fw_ofld_tx_data_wr));
+		return (tx_credits * 16 - sizeof(struct fw_ofld_tx_data_wr) -
+		    iso_cpl_size);
 }
 
 /* Maximum number of SGL entries we could stuff in a WR */
 static inline int
-max_dsgl_nsegs(int tx_credits)
+max_dsgl_nsegs(int tx_credits, int iso)
 {
 	int nseg = 1;	/* ulptx_sgl has room for 1, rest ulp_tx_sge_pair */
-	int sge_pair_credits = tx_credits - MIN_OFLD_TX_CREDITS;
+	int sge_pair_credits = tx_credits - MIN_TX_CREDITS(iso);
 
 	KASSERT(tx_credits >= 0 &&
 		tx_credits <= MAX_OFLD_TX_CREDITS,
 		("%s: %d credits", __func__, tx_credits));
 
-	if (tx_credits < MIN_OFLD_TX_CREDITS)
+	if (tx_credits < MIN_TX_CREDITS(iso))
 		return (0);
 
 	nseg += 2 * (sge_pair_credits * 16 / 24);
@@ -558,12 +566,13 @@ max_dsgl_nsegs(int tx_credits)
 }
 
 static inline void
-write_tx_wr(void *dst, struct toepcb *toep, unsigned int immdlen,
-    unsigned int plen, uint8_t credits, int shove, int ulp_submode)
+write_tx_wr(void *dst, struct toepcb *toep, int fw_wr_opcode,
+    unsigned int immdlen, unsigned int plen, uint8_t credits, int shove,
+    int ulp_submode)
 {
 	struct fw_ofld_tx_data_wr *txwr = dst;
 
-	txwr->op_to_immdlen = htobe32(V_WR_OP(FW_OFLD_TX_DATA_WR) |
+	txwr->op_to_immdlen = htobe32(V_WR_OP(fw_wr_opcode) |
 	    V_FW_WR_IMMDLEN(immdlen));
 	txwr->flowid_len16 = htobe32(V_FW_WR_FLOWID(toep->tid) |
 	    V_FW_WR_LEN16(credits));
@@ -707,8 +716,8 @@ t4_push_frames(struct adapter *sc, struct toepcb *toep, int drop)
 	txsd = &toep->txsd[toep->txsd_pidx];
 	do {
 		tx_credits = min(toep->tx_credits, MAX_OFLD_TX_CREDITS);
-		max_imm = max_imm_payload(tx_credits);
-		max_nsegs = max_dsgl_nsegs(tx_credits);
+		max_imm = max_imm_payload(tx_credits, 0);
+		max_nsegs = max_dsgl_nsegs(tx_credits, 0);
 
 		SOCKBUF_LOCK(sb);
 		sowwakeup = drop;
@@ -832,7 +841,8 @@ t4_push_frames(struct adapter *sc, struct toepcb *toep, int drop)
 			}
 			txwr = wrtod(wr);
 			credits = howmany(wr->wr_len, 16);
-			write_tx_wr(txwr, toep, plen, plen, credits, shove, 0);
+			write_tx_wr(txwr, toep, FW_OFLD_TX_DATA_WR, plen, plen,
+			    credits, shove, 0);
 			m_copydata(sndptr, 0, plen, (void *)(txwr + 1));
 			nsegs = 0;
 		} else {
@@ -851,7 +861,8 @@ t4_push_frames(struct adapter *sc, struct toepcb *toep, int drop)
 			}
 			txwr = wrtod(wr);
 			credits = howmany(wr_len, 16);
-			write_tx_wr(txwr, toep, 0, plen, credits, shove, 0);
+			write_tx_wr(txwr, toep, FW_OFLD_TX_DATA_WR, 0, plen,
+			    credits, shove, 0);
 			write_tx_sgl(txwr + 1, sndptr, m, nsegs,
 			    max_nsegs_1mbuf);
 			if (wr_len & 0xf) {
@@ -927,20 +938,215 @@ rqdrop_locked(struct mbufq *q, int plen)
 	}
 }
 
+/*
+ * Not a bit in the TCB, but is a bit in the ulp_submode field of the
+ * CPL_TX_DATA flags field in FW_ISCSI_TX_DATA_WR.
+ */
+#define	ULP_ISO		G_TX_ULP_SUBMODE(F_FW_ISCSI_TX_DATA_WR_ULPSUBMODE_ISO)
+
+static void
+write_tx_data_iso(void *dst, u_int ulp_submode, uint8_t flags, uint16_t mss,
+    int len, int npdu)
+{
+	struct cpl_tx_data_iso *cpl;
+	unsigned int burst_size;
+	unsigned int last;
+
+	/*
+	 * The firmware will set the 'F' bit on the last PDU when
+	 * either condition is true:
+	 *
+	 * - this large PDU is marked as the "last" slice
+	 *
+	 * - the amount of data payload bytes equals the burst_size
+	 *
+	 * The strategy used here is to always set the burst_size
+	 * artificially high (len includes the size of the template
+	 * BHS) and only set the "last" flag if the original PDU had
+	 * 'F' set.
+	 */
+	burst_size = len;
+	last = !!(flags & CXGBE_ISO_F);
+
+	cpl = (struct cpl_tx_data_iso *)dst;
+	cpl->op_to_scsi = htonl(V_CPL_TX_DATA_ISO_OP(CPL_TX_DATA_ISO) |
+	    V_CPL_TX_DATA_ISO_FIRST(1) | V_CPL_TX_DATA_ISO_LAST(last) |
+	    V_CPL_TX_DATA_ISO_CPLHDRLEN(0) |
+	    V_CPL_TX_DATA_ISO_HDRCRC(!!(ulp_submode & ULP_CRC_HEADER)) |
+	    V_CPL_TX_DATA_ISO_PLDCRC(!!(ulp_submode & ULP_CRC_DATA)) |
+	    V_CPL_TX_DATA_ISO_IMMEDIATE(0) |
+	    V_CPL_TX_DATA_ISO_SCSI(CXGBE_ISO_TYPE(flags)));
+
+	cpl->ahs_len = 0;
+	cpl->mpdu = htons(DIV_ROUND_UP(mss, 4));
+	cpl->burst_size = htonl(DIV_ROUND_UP(burst_size, 4));
+	cpl->len = htonl(len);
+	cpl->reserved2_seglen_offset = htonl(0);
+	cpl->datasn_offset = htonl(0);
+	cpl->buffer_offset = htonl(0);
+	cpl->reserved3 = 0;
+}
+
+static struct wrqe *
+write_iscsi_mbuf_wr(struct toepcb *toep, struct mbuf *sndptr)
+{
+	struct mbuf *m;
+	struct fw_ofld_tx_data_wr *txwr;
+	struct cpl_tx_data_iso *cpl_iso;
+	void *p;
+	struct wrqe *wr;
+	u_int plen, nsegs, credits, max_imm, max_nsegs, max_nsegs_1mbuf;
+	u_int adjusted_plen, imm_data, ulp_submode;
+	struct inpcb *inp = toep->inp;
+	struct tcpcb *tp = intotcpcb(inp);
+	int tx_credits, shove, npdu, wr_len;
+	uint16_t iso_mss;
+	static const u_int ulp_extra_len[] = {0, 4, 4, 8};
+	bool iso;
+
+	M_ASSERTPKTHDR(sndptr);
+
+	tx_credits = min(toep->tx_credits, MAX_OFLD_TX_CREDITS);
+	if (mbuf_raw_wr(sndptr)) {
+		plen = sndptr->m_pkthdr.len;
+		KASSERT(plen <= SGE_MAX_WR_LEN,
+		    ("raw WR len %u is greater than max WR len", plen));
+		if (plen > tx_credits * 16)
+			return (NULL);
+
+		wr = alloc_wrqe(roundup2(plen, 16), &toep->ofld_txq->wrq);
+		if (__predict_false(wr == NULL))
+			return (NULL);
+
+		m_copydata(sndptr, 0, plen, wrtod(wr));
+		return (wr);
+	}
+
+	iso = mbuf_iscsi_iso(sndptr);
+	max_imm = max_imm_payload(tx_credits, iso);
+	max_nsegs = max_dsgl_nsegs(tx_credits, iso);
+	iso_mss = mbuf_iscsi_iso_mss(sndptr);
+
+	plen = 0;
+	nsegs = 0;
+	max_nsegs_1mbuf = 0; /* max # of SGL segments in any one mbuf */
+	for (m = sndptr; m != NULL; m = m->m_next) {
+		int n = sglist_count(mtod(m, void *), m->m_len);
+
+		nsegs += n;
+		plen += m->m_len;
+
+		/*
+		 * This mbuf would send us _over_ the nsegs limit.
+		 * Suspend tx because the PDU can't be sent out.
+		 */
+		if (plen > max_imm && nsegs > max_nsegs)
+			return (NULL);
+
+		if (max_nsegs_1mbuf < n)
+			max_nsegs_1mbuf = n;
+	}
+
+	if (__predict_false(toep->flags & TPF_FIN_SENT))
+		panic("%s: excess tx.", __func__);
+
+	/*
+	 * We have a PDU to send.  All of it goes out in one WR so 'm'
+	 * is NULL.  A PDU's length is always a multiple of 4.
+	 */
+	MPASS(m == NULL);
+	MPASS((plen & 3) == 0);
+	MPASS(sndptr->m_pkthdr.len == plen);
+
+	shove = !(tp->t_flags & TF_MORETOCOME);
+
+	/*
+	 * plen doesn't include header and data digests, which are
+	 * generated and inserted in the right places by the TOE, but
+	 * they do occupy TCP sequence space and need to be accounted
+	 * for.
+	 */
+	ulp_submode = mbuf_ulp_submode(sndptr);
+	MPASS(ulp_submode < nitems(ulp_extra_len));
+	npdu = iso ? howmany(plen - ISCSI_BHS_SIZE, iso_mss) : 1;
+	adjusted_plen = plen + ulp_extra_len[ulp_submode] * npdu;
+	if (iso)
+		adjusted_plen += ISCSI_BHS_SIZE * (npdu - 1);
+	wr_len = sizeof(*txwr);
+	if (iso)
+		wr_len += sizeof(struct cpl_tx_data_iso);
+	if (plen <= max_imm) {
+		/* Immediate data tx */
+		imm_data = plen;
+		wr_len += plen;
+		nsegs = 0;
+	} else {
+		/* DSGL tx */
+		imm_data = 0;
+		wr_len += sizeof(struct ulptx_sgl) +
+		    ((3 * (nsegs - 1)) / 2 + ((nsegs - 1) & 1)) * 8;
+	}
+
+	wr = alloc_wrqe(roundup2(wr_len, 16), &toep->ofld_txq->wrq);
+	if (wr == NULL) {
+		/* XXX: how will we recover from this? */
+		return (NULL);
+	}
+	txwr = wrtod(wr);
+	credits = howmany(wr->wr_len, 16);
+
+	if (iso) {
+		write_tx_wr(txwr, toep, FW_ISCSI_TX_DATA_WR,
+		    imm_data + sizeof(struct cpl_tx_data_iso),
+		    adjusted_plen, credits, shove, ulp_submode | ULP_ISO);
+		cpl_iso = (struct cpl_tx_data_iso *)(txwr + 1);
+		MPASS(plen == sndptr->m_pkthdr.len);
+		write_tx_data_iso(cpl_iso, ulp_submode,
+		    mbuf_iscsi_iso_flags(sndptr), iso_mss, plen, npdu);
+		p = cpl_iso + 1;
+	} else {
+		write_tx_wr(txwr, toep, FW_OFLD_TX_DATA_WR, imm_data,
+		    adjusted_plen, credits, shove, ulp_submode);
+		p = txwr + 1;
+	}
+
+	if (imm_data != 0) {
+		m_copydata(sndptr, 0, plen, p);
+	} else {
+		write_tx_sgl(p, sndptr, m, nsegs, max_nsegs_1mbuf);
+		if (wr_len & 0xf) {
+			uint64_t *pad = (uint64_t *)((uintptr_t)txwr + wr_len);
+			*pad = 0;
+		}
+	}
+
+	KASSERT(toep->tx_credits >= credits,
+	    ("%s: not enough credits: credits %u "
+		"toep->tx_credits %u tx_credits %u nsegs %u "
+		"max_nsegs %u iso %d", __func__, credits,
+		toep->tx_credits, tx_credits, nsegs, max_nsegs, iso));
+
+	tp->snd_nxt += adjusted_plen;
+	tp->snd_max += adjusted_plen;
+
+	counter_u64_add(toep->ofld_txq->tx_iscsi_pdus, npdu);
+	counter_u64_add(toep->ofld_txq->tx_iscsi_octets, plen);
+	if (iso)
+		counter_u64_add(toep->ofld_txq->tx_iscsi_iso_wrs, 1);
+
+	return (wr);
+}
+
 void
 t4_push_pdus(struct adapter *sc, struct toepcb *toep, int drop)
 {
 	struct mbuf *sndptr, *m;
-	struct fw_ofld_tx_data_wr *txwr;
+	struct fw_wr_hdr *wrhdr;
 	struct wrqe *wr;
-	u_int plen, nsegs, credits, max_imm, max_nsegs, max_nsegs_1mbuf;
-	u_int adjusted_plen, ulp_submode;
+	u_int plen, credits;
 	struct inpcb *inp = toep->inp;
-	struct tcpcb *tp = intotcpcb(inp);
-	int tx_credits, shove;
 	struct ofld_tx_sdesc *txsd = &toep->txsd[toep->txsd_pidx];
 	struct mbufq *pduq = &toep->ulp_pduq;
-	static const u_int ulp_extra_len[] = {0, 4, 4, 8};
 
 	INP_WLOCK_ASSERT(inp);
 	KASSERT(toep->flags & TPF_FLOWC_WR_SENT,
@@ -961,103 +1167,44 @@ t4_push_pdus(struct adapter *sc, struct toepcb *toep, int drop)
 		return;
 	}
 
-	if (drop)
+	if (drop) {
+		struct socket *so = inp->inp_socket;
+		struct sockbuf *sb = &so->so_snd;
+		int sbu;
+
+		/*
+		 * An unlocked read is ok here as the data should only
+		 * transition from a non-zero value to either another
+		 * non-zero value or zero.  Once it is zero it should
+		 * stay zero.
+		 */
+		if (__predict_false(sbused(sb)) > 0) {
+			SOCKBUF_LOCK(sb);
+			sbu = sbused(sb);
+			if (sbu > 0) {
+				/*
+				 * The data transmitted before the
+				 * tid's ULP mode changed to ISCSI is
+				 * still in so_snd.  Incoming credits
+				 * should account for so_snd first.
+				 */
+				sbdrop_locked(sb, min(sbu, drop));
+				drop -= min(sbu, drop);
+			}
+			sowwakeup_locked(so);	/* unlocks so_snd */
+		}
 		rqdrop_locked(&toep->ulp_pdu_reclaimq, drop);
+	}
 
 	while ((sndptr = mbufq_first(pduq)) != NULL) {
-		M_ASSERTPKTHDR(sndptr);
-
-		tx_credits = min(toep->tx_credits, MAX_OFLD_TX_CREDITS);
-		max_imm = max_imm_payload(tx_credits);
-		max_nsegs = max_dsgl_nsegs(tx_credits);
-
-		plen = 0;
-		nsegs = 0;
-		max_nsegs_1mbuf = 0; /* max # of SGL segments in any one mbuf */
-		for (m = sndptr; m != NULL; m = m->m_next) {
-			int n = sglist_count(mtod(m, void *), m->m_len);
-
-			nsegs += n;
-			plen += m->m_len;
-
-			/*
-			 * This mbuf would send us _over_ the nsegs limit.
-			 * Suspend tx because the PDU can't be sent out.
-			 */
-			if (plen > max_imm && nsegs > max_nsegs) {
-				toep->flags |= TPF_TX_SUSPENDED;
-				return;
-			}
-
-			if (max_nsegs_1mbuf < n)
-				max_nsegs_1mbuf = n;
+		wr = write_iscsi_mbuf_wr(toep, sndptr);
+		if (wr == NULL) {
+			toep->flags |= TPF_TX_SUSPENDED;
+			return;
 		}
 
-		if (__predict_false(toep->flags & TPF_FIN_SENT))
-			panic("%s: excess tx.", __func__);
-
-		/*
-		 * We have a PDU to send.  All of it goes out in one WR so 'm'
-		 * is NULL.  A PDU's length is always a multiple of 4.
-		 */
-		MPASS(m == NULL);
-		MPASS((plen & 3) == 0);
-		MPASS(sndptr->m_pkthdr.len == plen);
-
-		shove = !(tp->t_flags & TF_MORETOCOME);
-		ulp_submode = mbuf_ulp_submode(sndptr);
-		MPASS(ulp_submode < nitems(ulp_extra_len));
-
-		/*
-		 * plen doesn't include header and data digests, which are
-		 * generated and inserted in the right places by the TOE, but
-		 * they do occupy TCP sequence space and need to be accounted
-		 * for.
-		 */
-		adjusted_plen = plen + ulp_extra_len[ulp_submode];
-		if (plen <= max_imm) {
-
-			/* Immediate data tx */
-
-			wr = alloc_wrqe(roundup2(sizeof(*txwr) + plen, 16),
-					&toep->ofld_txq->wrq);
-			if (wr == NULL) {
-				/* XXX: how will we recover from this? */
-				toep->flags |= TPF_TX_SUSPENDED;
-				return;
-			}
-			txwr = wrtod(wr);
-			credits = howmany(wr->wr_len, 16);
-			write_tx_wr(txwr, toep, plen, adjusted_plen, credits,
-			    shove, ulp_submode);
-			m_copydata(sndptr, 0, plen, (void *)(txwr + 1));
-			nsegs = 0;
-		} else {
-			int wr_len;
-
-			/* DSGL tx */
-			wr_len = sizeof(*txwr) + sizeof(struct ulptx_sgl) +
-			    ((3 * (nsegs - 1)) / 2 + ((nsegs - 1) & 1)) * 8;
-			wr = alloc_wrqe(roundup2(wr_len, 16),
-			    &toep->ofld_txq->wrq);
-			if (wr == NULL) {
-				/* XXX: how will we recover from this? */
-				toep->flags |= TPF_TX_SUSPENDED;
-				return;
-			}
-			txwr = wrtod(wr);
-			credits = howmany(wr_len, 16);
-			write_tx_wr(txwr, toep, 0, adjusted_plen, credits,
-			    shove, ulp_submode);
-			write_tx_sgl(txwr + 1, sndptr, m, nsegs,
-			    max_nsegs_1mbuf);
-			if (wr_len & 0xf) {
-				uint64_t *pad = (uint64_t *)
-				    ((uintptr_t)txwr + wr_len);
-				*pad = 0;
-			}
-		}
-
+		plen = sndptr->m_pkthdr.len;
+		credits = howmany(wr->wr_len, 16);
 		KASSERT(toep->tx_credits >= credits,
 			("%s: not enough credits", __func__));
 
@@ -1068,15 +1215,18 @@ t4_push_pdus(struct adapter *sc, struct toepcb *toep, int drop)
 		toep->tx_credits -= credits;
 		toep->tx_nocompl += credits;
 		toep->plen_nocompl += plen;
-		if (toep->tx_credits <= toep->tx_total * 3 / 8 &&
+
+		/*
+		 * Ensure there are enough credits for a full-sized WR
+		 * as page pod WRs can be full-sized.
+		 */
+		if (toep->tx_credits <= SGE_MAX_WR_LEN * 5 / 4 &&
 		    toep->tx_nocompl >= toep->tx_total / 4) {
-			txwr->op_to_immdlen |= htobe32(F_FW_WR_COMPL);
+			wrhdr = wrtod(wr);
+			wrhdr->hi |= htobe32(F_FW_WR_COMPL);
 			toep->tx_nocompl = 0;
 			toep->plen_nocompl = 0;
 		}
-
-		tp->snd_nxt += adjusted_plen;
-		tp->snd_max += adjusted_plen;
 
 		toep->flags |= TPF_TX_DATA_SENT;
 		if (toep->tx_credits < MIN_OFLD_TX_CREDITS)
@@ -1091,9 +1241,6 @@ t4_push_pdus(struct adapter *sc, struct toepcb *toep, int drop)
 			txsd = &toep->txsd[0];
 		}
 		toep->txsd_avail--;
-
-		counter_u64_add(toep->ofld_txq->tx_iscsi_pdus, 1);
-		counter_u64_add(toep->ofld_txq->tx_iscsi_octets, plen);
 
 		t4_l2t_send(sc, wr, toep->l2te);
 	}
@@ -1231,8 +1378,6 @@ do_peer_close(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	if (toep->flags & TPF_ABORT_SHUTDOWN)
 		goto done;
 
-	tp->rcv_nxt++;	/* FIN */
-
 	so = inp->inp_socket;
 	socantrcvmore(so);
 	if (ulp_mode(toep) == ULP_MODE_TCPDDP) {
@@ -1243,11 +1388,21 @@ do_peer_close(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 		DDP_UNLOCK(toep);
 	}
 
-	if (ulp_mode(toep) != ULP_MODE_RDMA) {
-		KASSERT(tp->rcv_nxt == be32toh(cpl->rcv_nxt),
-	    		("%s: rcv_nxt mismatch: %u %u", __func__, tp->rcv_nxt,
-	    		be32toh(cpl->rcv_nxt)));
+	if (ulp_mode(toep) == ULP_MODE_RDMA ||
+	    (ulp_mode(toep) == ULP_MODE_ISCSI && chip_id(sc) >= CHELSIO_T6)) {
+		/*
+		 * There might be data received via DDP before the FIN
+		 * not reported to the driver.  Just assume the
+		 * sequence number in the CPL is correct as the
+		 * sequence number of the FIN.
+		 */
+	} else {
+		KASSERT(tp->rcv_nxt + 1 == be32toh(cpl->rcv_nxt),
+		    ("%s: rcv_nxt mismatch: %u %u", __func__, tp->rcv_nxt,
+		    be32toh(cpl->rcv_nxt)));
 	}
+
+	tp->rcv_nxt = be32toh(cpl->rcv_nxt);
 
 	switch (tp->t_state) {
 	case TCPS_SYN_RECEIVED:
@@ -1784,13 +1939,12 @@ do_fw4_ack(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 		SOCKBUF_LOCK(sb);
 		sbu = sbused(sb);
 		if (ulp_mode(toep) == ULP_MODE_ISCSI) {
-
 			if (__predict_false(sbu > 0)) {
 				/*
-				 * The data trasmitted before the tid's ULP mode
-				 * changed to ISCSI is still in so_snd.
-				 * Incoming credits should account for so_snd
-				 * first.
+				 * The data transmitted before the
+				 * tid's ULP mode changed to ISCSI is
+				 * still in so_snd.  Incoming credits
+				 * should account for so_snd first.
 				 */
 				sbdrop_locked(sb, min(sbu, plen));
 				plen -= min(sbu, plen);
@@ -1849,7 +2003,7 @@ t4_set_tcb_field(struct adapter *sc, struct sge_wrq *wrq, struct toepcb *toep,
 	req->word_cookie = htobe16(V_WORD(word) | V_COOKIE(cookie));
 	req->mask = htobe64(mask);
 	req->val = htobe64(val);
-	if ((wrq->eq.flags & EQ_TYPEMASK) == EQ_OFLD) {
+	if (wrq->eq.type == EQ_OFLD) {
 		txsd = &toep->txsd[toep->txsd_pidx];
 		txsd->tx_credits = howmany(sizeof(*req), 16);
 		txsd->plen = 0;

@@ -17,7 +17,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 11, 2020
+.Dd March 18, 2021
 .Dt CRYPTO 9
 .Os
 .Sh NAME
@@ -136,9 +136,10 @@ The following encryption algorithms are supported:
 The following authenticated encryption with additional data (AEAD)
 algorithms are supported:
 .Pp
-.Bl -tag -offset indent -width CRYPTO_AES_NIST_GCM_16 -compact
+.Bl -tag -offset indent -width CRYPTO_CHACHA20_POLY1305 -compact
 .It Dv CRYPTO_AES_CCM_16
 .It Dv CRYPTO_AES_NIST_GCM_16
+.It Dv CRYPTO_CHACHA20_POLY1305
 .El
 .Pp
 The following compression algorithms are supported:

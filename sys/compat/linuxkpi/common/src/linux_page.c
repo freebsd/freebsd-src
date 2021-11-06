@@ -92,21 +92,20 @@ linux_alloc_pages(gfp_t flags, unsigned int order)
 
 	if (PMAP_HAS_DMAP) {
 		unsigned long npages = 1UL << order;
-		int req = VM_ALLOC_NOOBJ | VM_ALLOC_WIRED | VM_ALLOC_NORMAL;
+		int req = VM_ALLOC_WIRED;
 
 		if ((flags & M_ZERO) != 0)
 			req |= VM_ALLOC_ZERO;
 		if (order == 0 && (flags & GFP_DMA32) == 0) {
-			page = vm_page_alloc(NULL, 0, req);
+			page = vm_page_alloc_noobj(req);
 			if (page == NULL)
 				return (NULL);
 		} else {
 			vm_paddr_t pmax = (flags & GFP_DMA32) ?
 			    BUS_SPACE_MAXADDR_32BIT : BUS_SPACE_MAXADDR;
 		retry:
-			page = vm_page_alloc_contig(NULL, 0, req,
-			    npages, 0, pmax, PAGE_SIZE, 0, VM_MEMATTR_DEFAULT);
-
+			page = vm_page_alloc_noobj_contig(req, npages, 0, pmax,
+			    PAGE_SIZE, 0, VM_MEMATTR_DEFAULT);
 			if (page == NULL) {
 				if (flags & M_WAITOK) {
 					if (!vm_page_reclaim_contig(req,
@@ -117,16 +116,6 @@ linux_alloc_pages(gfp_t flags, unsigned int order)
 					goto retry;
 				}
 				return (NULL);
-			}
-		}
-		if (flags & M_ZERO) {
-			unsigned long x;
-
-			for (x = 0; x != npages; x++) {
-				vm_page_t pgo = page + x;
-
-				if ((pgo->flags & PG_ZERO) == 0)
-					pmap_zero_page(pgo);
 			}
 		}
 	} else {

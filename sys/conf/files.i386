@@ -77,6 +77,8 @@ compat/linux/linux.c		optional compat_linux
 compat/ndis/winx32_wrap.S	optional ndisapi pci
 crypto/aesni/aeskeys_i386.S	optional aesni
 crypto/des/arch/i386/des_enc.S	optional netsmb
+crypto/openssl/i386/chacha-x86.S	optional ossl
+crypto/openssl/i386/poly1305-x86.S	optional ossl
 crypto/openssl/i386/sha1-586.S	optional ossl
 crypto/openssl/i386/sha256-586.S	optional ossl
 crypto/openssl/i386/sha512-586.S	optional ossl
@@ -165,6 +167,7 @@ i386/i386/copyout.c		standard
 i386/i386/db_disasm.c		optional ddb
 i386/i386/db_interface.c	optional ddb
 i386/i386/db_trace.c		optional ddb
+i386/i386/exec_machdep.c	standard
 i386/i386/elan-mmcr.c		optional cpu_elan | cpu_soekris
 i386/i386/elf_machdep.c		standard
 i386/i386/exception.s		standard

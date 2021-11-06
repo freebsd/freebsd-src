@@ -2471,7 +2471,7 @@ vm_object_busy_wait(vm_object_t obj, const char *wmesg)
 }
 
 static int
-sysctl_vm_object_list(SYSCTL_HANDLER_ARGS)
+vm_object_list_handler(struct sysctl_req *req, bool swap_only)
 {
 	struct kinfo_vmobject *kvo;
 	char *fullpath, *freepath;
@@ -2509,10 +2509,12 @@ sysctl_vm_object_list(SYSCTL_HANDLER_ARGS)
 	 */
 	mtx_lock(&vm_object_list_mtx);
 	TAILQ_FOREACH(obj, &vm_object_list, object_list) {
-		if (obj->type == OBJT_DEAD)
+		if (obj->type == OBJT_DEAD ||
+		    (swap_only && (obj->flags & (OBJ_ANON | OBJ_SWAP)) == 0))
 			continue;
 		VM_OBJECT_RLOCK(obj);
-		if (obj->type == OBJT_DEAD) {
+		if (obj->type == OBJT_DEAD ||
+		    (swap_only && (obj->flags & (OBJ_ANON | OBJ_SWAP)) == 0)) {
 			VM_OBJECT_RUNLOCK(obj);
 			continue;
 		}
@@ -2524,20 +2526,22 @@ sysctl_vm_object_list(SYSCTL_HANDLER_ARGS)
 		kvo->kvo_memattr = obj->memattr;
 		kvo->kvo_active = 0;
 		kvo->kvo_inactive = 0;
-		TAILQ_FOREACH(m, &obj->memq, listq) {
-			/*
-			 * A page may belong to the object but be
-			 * dequeued and set to PQ_NONE while the
-			 * object lock is not held.  This makes the
-			 * reads of m->queue below racy, and we do not
-			 * count pages set to PQ_NONE.  However, this
-			 * sysctl is only meant to give an
-			 * approximation of the system anyway.
-			 */
-			if (m->a.queue == PQ_ACTIVE)
-				kvo->kvo_active++;
-			else if (m->a.queue == PQ_INACTIVE)
-				kvo->kvo_inactive++;
+		if (!swap_only) {
+			TAILQ_FOREACH(m, &obj->memq, listq) {
+				/*
+				 * A page may belong to the object but be
+				 * dequeued and set to PQ_NONE while the
+				 * object lock is not held.  This makes the
+				 * reads of m->queue below racy, and we do not
+				 * count pages set to PQ_NONE.  However, this
+				 * sysctl is only meant to give an
+				 * approximation of the system anyway.
+				 */
+				if (m->a.queue == PQ_ACTIVE)
+					kvo->kvo_active++;
+				else if (m->a.queue == PQ_INACTIVE)
+					kvo->kvo_inactive++;
+			}
 		}
 
 		kvo->kvo_vn_fileid = 0;
@@ -2545,7 +2549,8 @@ sysctl_vm_object_list(SYSCTL_HANDLER_ARGS)
 		kvo->kvo_vn_fsid_freebsd11 = 0;
 		freepath = NULL;
 		fullpath = "";
-		kvo->kvo_type = vm_object_kvme_type(obj, &vp);
+		vp = NULL;
+		kvo->kvo_type = vm_object_kvme_type(obj, swap_only ? NULL : &vp);
 		if (vp != NULL) {
 			vref(vp);
 		} else if ((obj->flags & OBJ_ANON) != 0) {
@@ -2580,6 +2585,7 @@ sysctl_vm_object_list(SYSCTL_HANDLER_ARGS)
 		kvo->kvo_structsize = roundup(kvo->kvo_structsize,
 		    sizeof(uint64_t));
 		error = SYSCTL_OUT(req, kvo, kvo->kvo_structsize);
+		maybe_yield();
 		mtx_lock(&vm_object_list_mtx);
 		if (error)
 			break;
@@ -2588,9 +2594,34 @@ sysctl_vm_object_list(SYSCTL_HANDLER_ARGS)
 	free(kvo, M_TEMP);
 	return (error);
 }
+
+static int
+sysctl_vm_object_list(SYSCTL_HANDLER_ARGS)
+{
+	return (vm_object_list_handler(req, false));
+}
+
 SYSCTL_PROC(_vm, OID_AUTO, objects, CTLTYPE_STRUCT | CTLFLAG_RW | CTLFLAG_SKIP |
     CTLFLAG_MPSAFE, NULL, 0, sysctl_vm_object_list, "S,kinfo_vmobject",
     "List of VM objects");
+
+static int
+sysctl_vm_object_list_swap(SYSCTL_HANDLER_ARGS)
+{
+	return (vm_object_list_handler(req, true));
+}
+
+/*
+ * This sysctl returns list of the anonymous or swap objects. Intent
+ * is to provide stripped optimized list useful to analyze swap use.
+ * Since technically non-swap (default) objects participate in the
+ * shadow chains, and are converted to swap type as needed by swap
+ * pager, we must report them.
+ */
+SYSCTL_PROC(_vm, OID_AUTO, swap_objects,
+    CTLTYPE_STRUCT | CTLFLAG_RW | CTLFLAG_SKIP | CTLFLAG_MPSAFE, NULL, 0,
+    sysctl_vm_object_list_swap, "S,kinfo_vmobject",
+    "List of swap VM objects");
 
 #include "opt_ddb.h"
 #ifdef DDB

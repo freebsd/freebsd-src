@@ -56,6 +56,10 @@ static int prune_associations(struct hostapd_iface *iface, void *ctx)
 		ohapd = iface->bss[j];
 		if (ohapd == data->hapd)
 			continue;
+#ifdef CONFIG_TESTING_OPTIONS
+		if (ohapd->conf->skip_prune_assoc)
+			continue;
+#endif /* CONFIG_TESTING_OPTIONS */
 #ifdef CONFIG_FST
 		/* Don't prune STAs belong to same FST */
 		if (ohapd->iface->fst &&

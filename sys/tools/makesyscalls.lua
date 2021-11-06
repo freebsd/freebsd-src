@@ -148,12 +148,14 @@ local known_abi_flags = {
 local known_flags = {
 	STD		= 0x00000001,
 	OBSOL		= 0x00000002,
-	UNIMPL		= 0x00000004,
-	NODEF		= 0x00000008,
-	NOARGS		= 0x00000010,
-	NOPROTO		= 0x00000020,
-	NOSTD		= 0x00000040,
-	NOTSTATIC	= 0x00000080,
+	RESERVED	= 0x00000004,
+	UNIMPL		= 0x00000008,
+	NODEF		= 0x00000010,
+	NOARGS		= 0x00000020,
+	NOPROTO		= 0x00000040,
+	NOSTD		= 0x00000080,
+	NOTSTATIC	= 0x00000100,
+	CAPENABLED	= 0x00000200,
 
 	-- Compat flags start from here.  We have plenty of space.
 }
@@ -906,6 +908,10 @@ local function handle_unimpl(sysnum, sysstart, sysend, comment)
 	end
 end
 
+local function handle_reserved(sysnum, sysstart, sysend, comment)
+	handle_unimpl(sysnum, sysstart, sysend, "reserved for local use")
+end
+
 process_syscall_def = function(line)
 	local sysstart, sysend, flags, funcname, sysflags
 	local thr_flag, syscallret
@@ -950,8 +956,8 @@ process_syscall_def = function(line)
 		flags = flags | known_flags[flag]
 	end
 
-	if (flags & known_flags["UNIMPL"]) == 0 and sysnum == nil then
-		abort(1, "Range only allowed with UNIMPL: " .. line)
+	if (flags & get_mask({"RESERVED", "UNIMPL"})) == 0 and sysnum == nil then
+		abort(1, "Range only allowed with RESERVED and UNIMPL: " .. line)
 	end
 
 	if (flags & known_flags["NOTSTATIC"]) ~= 0 then
@@ -1055,7 +1061,8 @@ process_syscall_def = function(line)
 	-- If applicable; strip the ABI prefix from the name
 	local stripped_name = strip_abi_prefix(funcname)
 
-	if config["capenabled"][funcname] ~= nil or
+	if flags & known_flags['CAPENABLED'] ~= 0 or
+	    config["capenabled"][funcname] ~= nil or
 	    config["capenabled"][stripped_name] ~= nil then
 		sysflags = "SYF_CAPENABLED"
 	end
@@ -1115,6 +1122,8 @@ process_syscall_def = function(line)
 		    argalias)
 	elseif flags & known_flags["OBSOL"] ~= 0 then
 		handle_obsol(sysnum, funcname, funcomment)
+	elseif flags & known_flags["RESERVED"] ~= 0 then
+		handle_reserved(sysnum, sysstart, sysend)
 	elseif flags & known_flags["UNIMPL"] ~= 0 then
 		handle_unimpl(sysnum, sysstart, sysend, funcomment)
 	else

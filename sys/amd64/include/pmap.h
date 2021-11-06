@@ -196,6 +196,19 @@
 #define NKPML4E		4
 
 /*
+ * Number of PML4 slots for the KASAN shadow map.  It requires 1 byte of memory
+ * for every 8 bytes of the kernel address space.
+ */
+#define	NKASANPML4E	((NKPML4E + 7) / 8)
+
+/*
+ * Number of PML4 slots for the KMSAN shadow and origin maps.  These are
+ * one-to-one with the kernel map.
+ */
+#define	NKMSANSHADPML4E	NKPML4E
+#define	NKMSANORIGPML4E	NKPML4E
+
+/*
  * We use the same numbering of the page table pages for 5-level and
  * 4-level paging structures.
  */
@@ -243,9 +256,14 @@
 #define	KPML4I		(NPML4EPG-1)
 #define	KPDPI		(NPDPEPG-2)	/* kernbase at -2GB */
 
+#define	KASANPML4I	(DMPML4I - NKASANPML4E) /* Below the direct map */
+
+#define	KMSANSHADPML4I	(KPML4BASE - NKMSANSHADPML4E)
+#define	KMSANORIGPML4I	(DMPML4I - NKMSANORIGPML4E)
+
 /* Large map: index of the first and max last pml4 entry */
 #define	LMSPML4I	(PML4PML4I + 1)
-#define	LMEPML4I	(DMPML4I - 1)
+#define	LMEPML4I	(KASANPML4I - 1)
 
 /*
  * XXX doesn't really belong here I guess...
@@ -509,6 +527,14 @@ void	pmap_thread_init_invl_gen(struct thread *td);
 int	pmap_vmspace_copy(pmap_t dst_pmap, pmap_t src_pmap);
 void	pmap_page_array_startup(long count);
 vm_page_t pmap_page_alloc_below_4g(bool zeroed);
+
+#ifdef KASAN
+void	pmap_kasan_enter(vm_offset_t);
+#endif
+#ifdef KMSAN
+void	pmap_kmsan_enter(vm_offset_t);
+#endif
+
 #endif /* _KERNEL */
 
 /* Return various clipped indexes for a given VA */

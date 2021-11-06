@@ -112,7 +112,7 @@ ofwfdt_fixups(void *fdtp)
 
 		node = OF_finddevice("/rtas");
 		OF_package_to_path(node, path, sizeof(path));
-		OF_getprop(node, "rtas-size", &len, sizeof(len));
+		OF_getencprop(node, "rtas-size", &len, sizeof(len));
 
 		/* Allocate memory */
 		rtasmem = OF_claim(0, len, 4096);
@@ -133,6 +133,7 @@ ofwfdt_fixups(void *fdtp)
 		    sizeof(base));
 
 		/* Mark RTAS private data area reserved */
+		base = fdt32_to_cpu(base);
 		fdt_add_mem_rsv(fdtp, base, len);
 	} else {
 		/*
@@ -157,8 +158,7 @@ ofwfdt_fixups(void *fdtp)
 		for (i = 0; chosenprops[i] != NULL; i++) {
 			ihand = fdt_getprop(fdtp, offset, chosenprops[i], &len);
 			if (ihand != NULL && len == sizeof(*ihand)) {
-				node = OF_instance_to_package(
-				    fdt32_to_cpu(*ihand));
+				node = OF_instance_to_package(*ihand);
 				if (OF_hasprop(node, "phandle"))
 					OF_getprop(node, "phandle", &node,
 					    sizeof(node));
@@ -168,7 +168,6 @@ ofwfdt_fixups(void *fdtp)
 				else if (OF_hasprop(node, "ibm,phandle"))
 					OF_getprop(node, "ibm,phandle", &node,
 					    sizeof(node));
-				node = cpu_to_fdt32(node);
 				fdt_setprop(fdtp, offset, chosenprops[i], &node,
 				    sizeof(node));
 			}

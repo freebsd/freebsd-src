@@ -83,6 +83,7 @@ __FBSDID("$FreeBSD$");
 #define VLAPIC_BUS_FREQ		(128 * 1024 * 1024)
 
 static void vlapic_set_error(struct vlapic *, uint32_t, bool);
+static void vlapic_callout_handler(void *arg);
 
 static __inline uint32_t
 vlapic_get_id(struct vlapic *vlapic)
@@ -711,6 +712,13 @@ vlapic_trigger_lvt(struct vlapic *vlapic, int vector)
 }
 
 static void
+vlapic_callout_reset(struct vlapic *vlapic, sbintime_t t)
+{
+	callout_reset_sbt_curcpu(&vlapic->callout, t, 0,
+	    vlapic_callout_handler, vlapic, 0);
+}
+
+static void
 vlapic_callout_handler(void *arg)
 {
 	struct vlapic *vlapic;
@@ -765,8 +773,7 @@ vlapic_callout_handler(void *arg)
 		}
 
 		bintime_add(&vlapic->timer_fire_bt, &vlapic->timer_period_bt);
-		callout_reset_sbt(&vlapic->callout, rem_sbt, 0,
-		    vlapic_callout_handler, vlapic, 0);
+		vlapic_callout_reset(vlapic, rem_sbt);
 	}
 done:
 	VLAPIC_TIMER_UNLOCK(vlapic);
@@ -792,8 +799,7 @@ vlapic_icrtmr_write_handler(struct vlapic *vlapic)
 		bintime_add(&vlapic->timer_fire_bt, &vlapic->timer_period_bt);
 
 		sbt = bttosbt(vlapic->timer_period_bt);
-		callout_reset_sbt(&vlapic->callout, sbt, 0,
-		    vlapic_callout_handler, vlapic, 0);
+		vlapic_callout_reset(vlapic, sbt);
 	} else
 		callout_stop(&vlapic->callout);
 
@@ -860,10 +866,7 @@ vlapic_calcdest(struct vm *vm, cpuset_t *dmask, uint32_t dest, bool phys,
 		 */
 		CPU_ZERO(dmask);
 		amask = vm_active_cpus(vm);
-		while ((vcpuid = CPU_FFS(&amask)) != 0) {
-			vcpuid--;
-			CPU_CLR(vcpuid, &amask);
-
+		CPU_FOREACH_ISSET(vcpuid, &amask) {
 			vlapic = vm_lapic(vm, vcpuid);
 			dfr = vlapic->apic_page->dfr;
 			ldr = vlapic->apic_page->ldr;
@@ -1003,9 +1006,7 @@ vlapic_icrlo_write_handler(struct vlapic *vlapic, bool *retu)
 			break;
 		}
 
-		while ((i = CPU_FFS(&dmask)) != 0) {
-			i--;
-			CPU_CLR(i, &dmask);
+		CPU_FOREACH_ISSET(i, &dmask) {
 			if (mode == APIC_DELMODE_FIXED) {
 				lapic_intr_edge(vlapic->vm, i, vec);
 				vmm_stat_array_incr(vlapic->vm, vlapic->vcpuid,
@@ -1554,9 +1555,7 @@ vlapic_deliver_intr(struct vm *vm, bool level, uint32_t dest, bool phys,
 	 */
 	vlapic_calcdest(vm, &dmask, dest, phys, lowprio, false);
 
-	while ((vcpuid = CPU_FFS(&dmask)) != 0) {
-		vcpuid--;
-		CPU_CLR(vcpuid, &dmask);
+	CPU_FOREACH_ISSET(vcpuid, &dmask) {
 		if (delmode == IOART_DELEXINT) {
 			vm_inject_extint(vm, vcpuid);
 		} else {
@@ -1674,8 +1673,7 @@ vlapic_reset_callout(struct vlapic *vlapic, uint32_t ccr)
 		bintime_add(&vlapic->timer_fire_bt, &bt);
 
 		sbt = bttosbt(bt);
-		callout_reset_sbt(&vlapic->callout, sbt, 0,
-		    vlapic_callout_handler, vlapic, 0);
+		vlapic_callout_reset(vlapic, sbt);
 	} else {
 		/* even if the CCR was 0, periodic timers should be reset */
 		if (vlapic_periodic_timer(vlapic)) {
@@ -1685,8 +1683,7 @@ vlapic_reset_callout(struct vlapic *vlapic, uint32_t ccr)
 			sbt = bttosbt(vlapic->timer_period_bt);
 
 			callout_stop(&vlapic->callout);
-			callout_reset_sbt(&vlapic->callout, sbt, 0,
-					  vlapic_callout_handler, vlapic, 0);
+			vlapic_callout_reset(vlapic, sbt);
 		}
 	}
 

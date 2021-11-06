@@ -9,42 +9,44 @@ Connector mechanism.
 Introduction to DPP
 -------------------
 
-Device provisioning Protocol allows enrolling of interface-less devices
-in a secure Wi-Fi network using many methods like QR code based
-authentication( detailed below ), PKEX based authentication etc. In DPP
-a Configurator is used to provide network credentials to the devices.
-The three phases of DPP connection are authentication, configuration and
+Device Provisioning Protocol (also known as Wi-Fi Easy Connect) allows
+enrolling of interface-less devices in a secure Wi-Fi network using many
+methods like QR code based authentication (detailed below), PKEX based
+authentication (password with in-band provisioning), etc. In DPP a
+Configurator is used to provide network credentials to the devices. The
+three phases of DPP connection are authentication, configuration and
 network introduction.
+
+More information about Wi-Fi Easy Connect is available from this Wi-Fi
+Alliance web page:
+https://www.wi-fi.org/discover-wi-fi/wi-fi-easy-connect
 
 Build config setup
 ------------------
 
-The following changes must go in the config file used to compile hostapd
-and wpa_supplicant.
+The following parameters must be included in the config file used to
+compile hostapd and wpa_supplicant.
 
 wpa_supplicant build config
 ---------------------------
 
-Enable DPP and protected management frame in wpa_supplicant build config
-file
+Enable DPP in wpa_supplicant build config file
 
-CONFIG_IEEE80211W=y
 CONFIG_DPP=y
 
 hostapd build config
 --------------------
 
-Enable DPP and protected management frame in hostapd build config file
+Enable DPP in hostapd build config file
 
-CONFIG_IEEE80211W=y
 CONFIG_DPP=y
 
 Configurator build config
 -------------------------
 
-Any STA or AP device can act as a Configurator. Enable DPP and protected
-managment frames in build config. For an AP to act as Configurator,
-Interworking needs to be enabled. For wpa_supplicant it is not required.
+Any STA or AP device can act as a Configurator. Enable DPP in build
+config. For an AP to act as a Configurator, Interworking needs to be
+enabled for GAS. For wpa_supplicant it is not required.
 
 CONFIG_INTERWORKING=y
 
@@ -92,39 +94,46 @@ To get key of Configurator
 > dpp_configurator_get_key <id>
 
 
-How to configure an enrollee using Configurator
+How to configure an Enrollee using Configurator
 -----------------------------------------------
 
-On enrollee side:
+On Enrollee side:
 
-Generate QR code for the device. Store the qr code id returned by the
+Generate QR code for the device. Store the QR code id returned by the
 command.
 
-> dpp_bootstrap_gen type=qrcode mac=<mac-address-of-device> chan=<operating-class/operating-channel> key=<key of the device>
-(returns bootstrapping info id)
+> dpp_bootstrap_gen type=qrcode mac=<mac-address-of-device> chan=<operating-class/channel> key=<key of the device>
+(Returns bootstrapping info id. If the key parameter is not included, a new key
+is generated automatically. The MAC address is specified without octet
+separating colons. The channel list includes the possible channels on which the
+device is waiting. This uses global operating classes; e.g., 81/1 is the 2.4
+GHz channel 1 on 2412 MHz.)
 
-Get QR Code of device using the bootstrap info id.
+Get URI for the QR Code of device using the bootstrap info id.
 > dpp_bootstrap_get_uri <bootstrap-id>
 
-Make device listen to DPP request (The central frequency of channel 1 is
-2412) in case if enrollee is a client device.
+Make device listen to DPP request. The central frequency of the 2.4 GHz
+band channel 1 is 2412 MHz) in case the Enrollee is a client device. An
+AP as an Enrollee is listening on its operating channel.
 
 > dpp_listen <frequency>
 
 On Configurator side:
 
 Enter the QR Code in the Configurator.
-> dpp_qr_code "<QR-Code-read-from-enrollee>"
+> dpp_qr_code "<URI-from-QR-Code-read-from-enrollee>"
 
 On successfully adding QR Code, a bootstrapping info id is returned.
 
-Send provisioning request to enrollee. (conf is ap-dpp if enrollee is an
-AP. conf is sta-dpp if enrollee is a client)
-> dpp_auth_init peer=<qr-code-id> conf=<ap-dpp|sta-dpp> configurator=<configurator-id>
+Send provisioning request to Enrollee. (conf is ap-dpp if Enrollee is an
+AP. conf is sta-dpp if Enrollee is a client)
+> dpp_auth_init peer=<qr-code-id> conf=<ap-dpp|sta-dpp> ssid=<SSID hexdump> configurator=<configurator-id>
+or for legacy (PSK/SAE) provisioning for a station Enrollee:
+> dpp_auth_init peer=<qr-code-id> conf=sta-psk ssid=<SSID hexdump> pass=<passphrase hexdump>
 
-The DPP values will be printed in the console. Save this values into the
-config file. If the enrollee is an AP, we need to manually write these
-values to the hostapd config file. If the enrollee is a client device,
+The DPP values will be printed in the console. Save these values into the
+config file. If the Enrollee is an AP, we need to manually write these
+values to the hostapd config file. If the Enrollee is a client device,
 these details can be automatically saved to config file using the
 following command.
 
@@ -156,7 +165,7 @@ command to get DPP credentials.
 
 > dpp_configurator_add
 (returns configurator id)
-> dpp_configurator_sign conf=<ap-dpp|sta-dpp> configurator=<configurator-id>
+> dpp_configurator_sign conf=<ap-dpp|sta-dpp> configurator=<configurator-id> ssid=<SSID hexdump>
 
 
 Sample AP configuration files after provisioning

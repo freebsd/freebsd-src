@@ -1399,7 +1399,6 @@ static int
 ffs_open_ea(struct vnode *vp, struct ucred *cred, struct thread *td)
 {
 	struct inode *ip;
-	struct ufs2_dinode *dp;
 	int error;
 
 	ip = VTOI(vp);
@@ -1410,7 +1409,6 @@ ffs_open_ea(struct vnode *vp, struct ucred *cred, struct thread *td)
 		ffs_unlock_ea(vp);
 		return (0);
 	}
-	dp = ip->i_din2;
 	error = ffs_rdextattr(&ip->i_ea_area, vp, td);
 	if (error) {
 		ffs_unlock_ea(vp);
@@ -1994,7 +1992,6 @@ ffs_vput_pair(struct vop_vput_pair_args *ap)
 	struct inode *dp, *ip;
 	ino_t ip_ino;
 	u_int64_t ip_gen;
-	off_t old_size;
 	int error, vp_locked;
 
 	dvp = ap->a_dvp;
@@ -2031,7 +2028,6 @@ ffs_vput_pair(struct vop_vput_pair_args *ap)
 		VNASSERT(I_ENDOFF(dp) != 0 && I_ENDOFF(dp) < dp->i_size, dvp,
 		    ("IN_ENDOFF set but I_ENDOFF() is not"));
 		dp->i_flag &= ~IN_ENDOFF;
-		old_size = dp->i_size;
 		error = UFS_TRUNCATE(dvp, (off_t)I_ENDOFF(dp), IO_NORMAL |
 		    (DOINGASYNC(dvp) ? 0 : IO_SYNC), curthread->td_ucred);
 		if (error != 0 && error != ERELOOKUP) {

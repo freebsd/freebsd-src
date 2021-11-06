@@ -239,6 +239,65 @@ cvm_page_copydata(vm_page_t *pages, int off, int len, caddr_t cp)
 }
 #endif /* CRYPTO_MAY_HAVE_VMPAGE */
 
+/*
+ * Given a starting page in an m_epg, determine the length of the
+ * current physically contiguous segment.
+ */
+static __inline size_t
+m_epg_pages_extent(struct mbuf *m, int idx, u_int pglen)
+{
+	size_t len;
+	u_int i;
+
+	len = pglen;
+	for (i = idx + 1; i < m->m_epg_npgs; i++) {
+		if (m->m_epg_pa[i - 1] + PAGE_SIZE != m->m_epg_pa[i])
+			break;
+		len += m_epg_pagelen(m, i, 0);
+	}
+	return (len);
+}
+
+static void *
+m_epg_segment(struct mbuf *m, size_t offset, size_t *len)
+{
+	u_int i, pglen, pgoff;
+
+	offset += mtod(m, vm_offset_t);
+	if (offset < m->m_epg_hdrlen) {
+		*len = m->m_epg_hdrlen - offset;
+		return (m->m_epg_hdr + offset);
+	}
+	offset -= m->m_epg_hdrlen;
+	pgoff = m->m_epg_1st_off;
+	for (i = 0; i < m->m_epg_npgs; i++) {
+		pglen = m_epg_pagelen(m, i, pgoff);
+		if (offset < pglen) {
+			*len = m_epg_pages_extent(m, i, pglen) - offset;
+			return ((void *)PHYS_TO_DMAP(m->m_epg_pa[i] + pgoff +
+			    offset));
+		}
+		offset -= pglen;
+		pgoff = 0;
+	}
+	KASSERT(offset <= m->m_epg_trllen, ("%s: offset beyond trailer",
+	    __func__));
+	*len = m->m_epg_trllen - offset;
+	return (m->m_epg_trail + offset);
+}
+
+static __inline void *
+m_epg_contiguous_subsegment(struct mbuf *m, size_t skip, size_t len)
+{
+	void *base;
+	size_t seglen;
+
+	base = m_epg_segment(m, skip, &seglen);
+	if (len > seglen)
+		return (NULL);
+	return (base);
+}
+
 void
 crypto_cursor_init(struct crypto_buffer_cursor *cc,
     const struct crypto_buffer *cb)
@@ -251,6 +310,7 @@ crypto_cursor_init(struct crypto_buffer_cursor *cc,
 		cc->cc_buf_len = cb->cb_buf_len;
 		break;
 	case CRYPTO_BUF_MBUF:
+	case CRYPTO_BUF_SINGLE_MBUF:
 		cc->cc_mbuf = cb->cb_mbuf;
 		break;
 	case CRYPTO_BUF_VMPAGE:
@@ -296,6 +356,10 @@ crypto_cursor_advance(struct crypto_buffer_cursor *cc, size_t amount)
 				break;
 		}
 		break;
+	case CRYPTO_BUF_SINGLE_MBUF:
+		MPASS(cc->cc_mbuf->m_len >= cc->cc_offset + amount);
+		cc->cc_offset += amount;
+		break;
 	case CRYPTO_BUF_VMPAGE:
 		for (;;) {
 			SDT_PROBE2(opencrypto, criov, cursor_advance, vmpage,
@@ -337,50 +401,53 @@ crypto_cursor_advance(struct crypto_buffer_cursor *cc, size_t amount)
 }
 
 void *
-crypto_cursor_segbase(struct crypto_buffer_cursor *cc)
+crypto_cursor_segment(struct crypto_buffer_cursor *cc, size_t *len)
 {
 	switch (cc->cc_type) {
 	case CRYPTO_BUF_CONTIG:
+		*len = cc->cc_buf_len;
 		return (cc->cc_buf);
 	case CRYPTO_BUF_MBUF:
-		if (cc->cc_mbuf == NULL)
+	case CRYPTO_BUF_SINGLE_MBUF:
+		if (cc->cc_mbuf == NULL) {
+			*len = 0;
 			return (NULL);
-		KASSERT((cc->cc_mbuf->m_flags & M_EXTPG) == 0,
-		    ("%s: not supported for unmapped mbufs", __func__));
+		}
+		if (cc->cc_mbuf->m_flags & M_EXTPG)
+			return (m_epg_segment(cc->cc_mbuf, cc->cc_offset, len));
+		*len = cc->cc_mbuf->m_len - cc->cc_offset;
 		return (mtod(cc->cc_mbuf, char *) + cc->cc_offset);
 	case CRYPTO_BUF_VMPAGE:
+		*len = PAGE_SIZE - cc->cc_offset;
 		return ((char *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(
 		    *cc->cc_vmpage)) + cc->cc_offset);
 	case CRYPTO_BUF_UIO:
+		*len = cc->cc_iov->iov_len - cc->cc_offset;
 		return ((char *)cc->cc_iov->iov_base + cc->cc_offset);
 	default:
 #ifdef INVARIANTS
 		panic("%s: invalid buffer type %d", __func__, cc->cc_type);
 #endif
+		*len = 0;
 		return (NULL);
 	}
+}
+
+void *
+crypto_cursor_segbase(struct crypto_buffer_cursor *cc)
+{
+	size_t len;
+
+	return (crypto_cursor_segment(cc, &len));
 }
 
 size_t
 crypto_cursor_seglen(struct crypto_buffer_cursor *cc)
 {
-	switch (cc->cc_type) {
-	case CRYPTO_BUF_CONTIG:
-		return (cc->cc_buf_len);
-	case CRYPTO_BUF_VMPAGE:
-		return (PAGE_SIZE - cc->cc_offset);
-	case CRYPTO_BUF_MBUF:
-		if (cc->cc_mbuf == NULL)
-			return (0);
-		return (cc->cc_mbuf->m_len - cc->cc_offset);
-	case CRYPTO_BUF_UIO:
-		return (cc->cc_iov->iov_len - cc->cc_offset);
-	default:
-#ifdef INVARIANTS
-		panic("%s: invalid buffer type %d", __func__, cc->cc_type);
-#endif
-		return (0);
-	}
+	size_t len;
+
+	crypto_cursor_segment(cc, &len);
+	return (len);
 }
 
 void
@@ -401,12 +468,14 @@ crypto_cursor_copyback(struct crypto_buffer_cursor *cc, int size,
 		break;
 	case CRYPTO_BUF_MBUF:
 		for (;;) {
-			KASSERT((cc->cc_mbuf->m_flags & M_EXTPG) == 0,
-			    ("%s: not supported for unmapped mbufs", __func__));
-			dst = mtod(cc->cc_mbuf, char *) + cc->cc_offset;
+			/*
+			 * This uses m_copyback() for individual
+			 * mbufs so that cc_mbuf and cc_offset are
+			 * updated.
+			 */
 			remain = cc->cc_mbuf->m_len - cc->cc_offset;
 			todo = MIN(remain, size);
-			memcpy(dst, src, todo);
+			m_copyback(cc->cc_mbuf, cc->cc_offset, todo, src);
 			src += todo;
 			if (todo < remain) {
 				cc->cc_offset += todo;
@@ -418,6 +487,11 @@ crypto_cursor_copyback(struct crypto_buffer_cursor *cc, int size,
 			if (size == 0)
 				break;
 		}
+		break;
+	case CRYPTO_BUF_SINGLE_MBUF:
+		MPASS(cc->cc_mbuf->m_len >= cc->cc_offset + size);
+		m_copyback(cc->cc_mbuf, cc->cc_offset, size, src);
+		cc->cc_offset += size;
 		break;
 	case CRYPTO_BUF_VMPAGE:
 		for (;;) {
@@ -482,12 +556,14 @@ crypto_cursor_copydata(struct crypto_buffer_cursor *cc, int size, void *vdst)
 		break;
 	case CRYPTO_BUF_MBUF:
 		for (;;) {
-			KASSERT((cc->cc_mbuf->m_flags & M_EXTPG) == 0,
-			    ("%s: not supported for unmapped mbufs", __func__));
-			src = mtod(cc->cc_mbuf, const char *) + cc->cc_offset;
+			/*
+			 * This uses m_copydata() for individual
+			 * mbufs so that cc_mbuf and cc_offset are
+			 * updated.
+			 */
 			remain = cc->cc_mbuf->m_len - cc->cc_offset;
 			todo = MIN(remain, size);
-			memcpy(dst, src, todo);
+			m_copydata(cc->cc_mbuf, cc->cc_offset, todo, dst);
 			dst += todo;
 			if (todo < remain) {
 				cc->cc_offset += todo;
@@ -499,6 +575,11 @@ crypto_cursor_copydata(struct crypto_buffer_cursor *cc, int size, void *vdst)
 			if (size == 0)
 				break;
 		}
+		break;
+	case CRYPTO_BUF_SINGLE_MBUF:
+		MPASS(cc->cc_mbuf->m_len >= cc->cc_offset + size);
+		m_copydata(cc->cc_mbuf, cc->cc_offset, size, dst);
+		cc->cc_offset += size;
 		break;
 	case CRYPTO_BUF_VMPAGE:
 		for (;;) {
@@ -600,6 +681,7 @@ crypto_copyback(struct cryptop *crp, int off, int size, const void *src)
 		cb = &crp->crp_buf;
 	switch (cb->cb_type) {
 	case CRYPTO_BUF_MBUF:
+	case CRYPTO_BUF_SINGLE_MBUF:
 		m_copyback(cb->cb_mbuf, off, size, src);
 		break;
 #if CRYPTO_MAY_HAVE_VMPAGE
@@ -632,6 +714,7 @@ crypto_copydata(struct cryptop *crp, int off, int size, void *dst)
 
 	switch (crp->crp_buf.cb_type) {
 	case CRYPTO_BUF_MBUF:
+	case CRYPTO_BUF_SINGLE_MBUF:
 		m_copydata(crp->crp_buf.cb_mbuf, off, size, dst);
 		break;
 #if CRYPTO_MAY_HAVE_VMPAGE
@@ -666,6 +749,7 @@ crypto_apply_buf(struct crypto_buffer *cb, int off, int len,
 
 	switch (cb->cb_type) {
 	case CRYPTO_BUF_MBUF:
+	case CRYPTO_BUF_SINGLE_MBUF:
 		error = m_apply(cb->cb_mbuf, off, len,
 		    (int (*)(void *, void *, u_int))f, arg);
 		break;
@@ -715,6 +799,8 @@ m_contiguous_subsegment(struct mbuf *m, size_t skip, size_t len)
 	if (skip + len > m->m_len)
 		return (NULL);
 
+	if (m->m_flags & M_EXTPG)
+		return (m_epg_contiguous_subsegment(m, skip, len));
 	return (mtod(m, char*) + skip);
 }
 
@@ -742,6 +828,7 @@ crypto_buffer_contiguous_subsegment(struct crypto_buffer *cb, size_t skip,
 
 	switch (cb->cb_type) {
 	case CRYPTO_BUF_MBUF:
+	case CRYPTO_BUF_SINGLE_MBUF:
 		return (m_contiguous_subsegment(cb->cb_mbuf, skip, len));
 	case CRYPTO_BUF_UIO:
 		return (cuio_contiguous_segment(cb->cb_uio, skip, len));

@@ -1,7 +1,11 @@
 /*-
  * Copyright (c) 2017 Chelsio Communications, Inc.
+ * Copyright (c) 2021 The FreeBSD Foundation
  * All rights reserved.
  * Written by: John Baldwin <jhb@FreeBSD.org>
+ *
+ * Portions of this software were developed by Ararat River
+ * Consulting, LLC under sponsorship of the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -270,6 +274,9 @@ ccr_populate_sglist(struct sglist *sg, struct crypto_buffer *cb)
 	switch (cb->cb_type) {
 	case CRYPTO_BUF_MBUF:
 		error = sglist_append_mbuf(sg, cb->cb_mbuf);
+		break;
+	case CRYPTO_BUF_SINGLE_MBUF:
+		error = sglist_append_single_mbuf(sg, cb->cb_mbuf);
 		break;
 	case CRYPTO_BUF_UIO:
 		error = sglist_append_uio(sg, cb->cb_uio);
@@ -1133,26 +1140,7 @@ ccr_gcm(struct ccr_softc *sc, struct ccr_session *s, struct cryptop *crp)
 	else
 		op_type = CHCR_DECRYPT_OP;
 
-	/*
-	 * The IV handling for GCM in OCF is a bit more complicated in
-	 * that IPSec provides a full 16-byte IV (including the
-	 * counter), whereas the /dev/crypto interface sometimes
-	 * provides a full 16-byte IV (if no IV is provided in the
-	 * ioctl) and sometimes a 12-byte IV (if the IV was explicit).
-	 *
-	 * When provided a 12-byte IV, assume the IV is really 16 bytes
-	 * with a counter in the last 4 bytes initialized to 1.
-	 *
-	 * While iv_len is checked below, the value is currently
-	 * always set to 12 when creating a GCM session in this driver
-	 * due to limitations in OCF (there is no way to know what the
-	 * IV length of a given request will be).  This means that the
-	 * driver always assumes as 12-byte IV for now.
-	 */
-	if (s->blkcipher.iv_len == 12)
-		iv_len = AES_BLOCK_LEN;
-	else
-		iv_len = s->blkcipher.iv_len;
+	iv_len = AES_BLOCK_LEN;
 
 	/*
 	 * GCM requests should always provide an explicit IV.
@@ -1290,9 +1278,8 @@ ccr_gcm(struct ccr_softc *sc, struct ccr_session *s, struct cryptop *crp)
 	crwr = wrtod(wr);
 	memset(crwr, 0, wr_len);
 
-	memcpy(iv, crp->crp_iv, s->blkcipher.iv_len);
-	if (s->blkcipher.iv_len == 12)
-		*(uint32_t *)&iv[12] = htobe32(1);
+	crypto_read_iv(crp, iv);
+	*(uint32_t *)&iv[12] = htobe32(1);
 
 	ccr_populate_wreq(sc, s, crwr, kctx_len, wr_len, imm_len, sgl_len, 0,
 	    crp);
@@ -1404,7 +1391,6 @@ ccr_gcm_soft(struct ccr_session *s, struct cryptop *crp)
 	void *auth_ctx, *kschedule;
 	char block[GMAC_BLOCK_LEN];
 	char digest[GMAC_DIGEST_LEN];
-	char iv[AES_BLOCK_LEN];
 	int error, i, len;
 
 	auth_ctx = NULL;
@@ -1445,18 +1431,12 @@ ccr_gcm_soft(struct ccr_session *s, struct cryptop *crp)
 	if (error)
 		goto out;
 
-	/*
-	 * This assumes a 12-byte IV from the crp.  See longer comment
-	 * above in ccr_gcm() for more details.
-	 */
 	if ((crp->crp_flags & CRYPTO_F_IV_SEPARATE) == 0) {
 		error = EINVAL;
 		goto out;
 	}
-	memcpy(iv, crp->crp_iv, 12);
-	*(uint32_t *)&iv[12] = htobe32(1);
 
-	axf->Reinit(auth_ctx, iv, sizeof(iv));
+	axf->Reinit(auth_ctx, crp->crp_iv, AES_GCM_IV_LEN);
 
 	/* MAC the AAD. */
 	if (crp->crp_aad != NULL) {
@@ -1479,7 +1459,7 @@ ccr_gcm_soft(struct ccr_session *s, struct cryptop *crp)
 		}
 	}
 
-	exf->reinit(kschedule, iv);
+	exf->reinit(kschedule, crp->crp_iv, AES_GCM_IV_LEN);
 
 	/* Do encryption with MAC */
 	for (i = 0; i < crp->crp_payload_length; i += sizeof(block)) {
@@ -1539,27 +1519,50 @@ out:
 	zfree(kschedule, M_CCR);
 	zfree(auth_ctx, M_CCR);
 	explicit_bzero(block, sizeof(block));
-	explicit_bzero(iv, sizeof(iv));
 	explicit_bzero(digest, sizeof(digest));
 	crp->crp_etype = error;
 	crypto_done(crp);
+}
+
+static int
+ccr_ccm_hmac_ctrl(unsigned int authsize)
+{
+	switch (authsize) {
+	case 4:
+		return (SCMD_HMAC_CTRL_PL1);
+	case 6:
+		return (SCMD_HMAC_CTRL_PL2);
+	case 8:
+		return (SCMD_HMAC_CTRL_DIV2);
+	case 10:
+		return (SCMD_HMAC_CTRL_TRUNC_RFC4366);
+	case 12:
+		return (SCMD_HMAC_CTRL_IPSEC_96BIT);
+	case 14:
+		return (SCMD_HMAC_CTRL_PL3);
+	case 16:
+		return (SCMD_HMAC_CTRL_NO_TRUNC);
+	default:
+		__assert_unreachable();
+	}
 }
 
 static void
 generate_ccm_b0(struct cryptop *crp, u_int hash_size_in_response,
     const char *iv, char *b0)
 {
-	u_int i, payload_len;
+	u_int i, payload_len, L;
 
 	/* NB: L is already set in the first byte of the IV. */
 	memcpy(b0, iv, CCM_B0_SIZE);
+	L = iv[0] + 1;
 
 	/* Set length of hash in bits 3 - 5. */
 	b0[0] |= (((hash_size_in_response - 2) / 2) << 3);
 
 	/* Store the payload length as a big-endian value. */
 	payload_len = crp->crp_payload_length;
-	for (i = 0; i < iv[0]; i++) {
+	for (i = 0; i < L; i++) {
 		b0[CCM_CBC_BLOCK_LEN - 1 - i] = payload_len;
 		payload_len >>= 8;
 	}
@@ -1580,6 +1583,7 @@ static int
 ccr_ccm(struct ccr_softc *sc, struct ccr_session *s, struct cryptop *crp)
 {
 	char iv[CHCR_MAX_CRYPTO_IV_LEN];
+	const struct crypto_session_params *csp;
 	struct ulptx_idata *idata;
 	struct chcr_wr *crwr;
 	struct wrqe *wr;
@@ -1592,6 +1596,8 @@ ccr_ccm(struct ccr_softc *sc, struct ccr_session *s, struct cryptop *crp)
 	int sgl_nsegs, sgl_len;
 	int error;
 
+	csp = crypto_get_params(crp->crp_session);
+
 	if (s->blkcipher.key_len == 0)
 		return (EINVAL);
 
@@ -1600,6 +1606,10 @@ ccr_ccm(struct ccr_softc *sc, struct ccr_session *s, struct cryptop *crp)
 	 * payload, so handle those in software instead.
 	 */
 	if (crp->crp_payload_length == 0)
+		return (EMSGSIZE);
+
+	/* The length has to fit within the length field in block 0. */
+	if (crp->crp_payload_length > ccm_max_payload_length(csp))
 		return (EMSGSIZE);
 
 	/*
@@ -1619,9 +1629,8 @@ ccr_ccm(struct ccr_softc *sc, struct ccr_session *s, struct cryptop *crp)
 		return (EINVAL);
 
 	/*
-	 * Always assume a 12 byte input nonce for now since that is
-	 * what OCF always generates.  The full IV in the work request
-	 * is 16 bytes.
+	 * The IV in the work request is 16 bytes and not just the
+	 * nonce.
 	 */
 	iv_len = AES_BLOCK_LEN;
 
@@ -1766,8 +1775,8 @@ ccr_ccm(struct ccr_softc *sc, struct ccr_session *s, struct cryptop *crp)
 	 * the full IV with the counter set to 0.
 	 */
 	memset(iv, 0, iv_len);
-	iv[0] = (15 - AES_CCM_IV_LEN) - 1;
-	memcpy(iv + 1, crp->crp_iv, AES_CCM_IV_LEN);
+	iv[0] = (15 - csp->csp_ivlen) - 1;
+	crypto_read_iv(crp, iv + 1);
 
 	ccr_populate_wreq(sc, s, crwr, kctx_len, wr_len, imm_len, sgl_len, 0,
 	    crp);
@@ -1797,7 +1806,7 @@ ccr_ccm(struct ccr_softc *sc, struct ccr_session *s, struct cryptop *crp)
 	    V_CPL_TX_SEC_PDU_AUTHINSERT(auth_insert));
 
 	/* These two flits are actually a CPL_TLS_TX_SCMD_FMT. */
-	hmac_ctrl = ccr_hmac_ctrl(AES_CBC_MAC_HASH_LEN, hash_size_in_response);
+	hmac_ctrl = ccr_ccm_hmac_ctrl(hash_size_in_response);
 	crwr->sec_cpl.seqno_numivs = htobe32(
 	    V_SCMD_SEQ_NO_CTRL(0) |
 	    V_SCMD_PROTO_VERSION(SCMD_PROTO_VERSION_GENERIC) |
@@ -1884,22 +1893,82 @@ ccr_ccm_done(struct ccr_softc *sc, struct ccr_session *s,
 
 /*
  * Handle a CCM request that is not supported by the crypto engine by
- * performing the operation in software.  Derived from swcr_authenc().
+ * performing the operation in software.  Derived from swcr_ccm().
  */
+static void
+build_ccm_b0(const char *nonce, u_int nonce_length, u_int aad_length,
+    u_int data_length, u_int tag_length, uint8_t *b0)
+{
+	uint8_t *bp;
+	uint8_t flags, L;
+
+	KASSERT(nonce_length >= 7 && nonce_length <= 13,
+	    ("nonce_length must be between 7 and 13 bytes"));
+
+	/*
+	 * Need to determine the L field value.  This is the number of
+	 * bytes needed to specify the length of the message; the length
+	 * is whatever is left in the 16 bytes after specifying flags and
+	 * the nonce.
+	 */
+	L = 15 - nonce_length;
+
+	flags = ((aad_length > 0) << 6) +
+	    (((tag_length - 2) / 2) << 3) +
+	    L - 1;
+
+	/*
+	 * Now we need to set up the first block, which has flags, nonce,
+	 * and the message length.
+	 */
+	b0[0] = flags;
+	memcpy(b0 + 1, nonce, nonce_length);
+	bp = b0 + 1 + nonce_length;
+
+	/* Need to copy L' [aka L-1] bytes of data_length */
+	for (uint8_t *dst = b0 + CCM_CBC_BLOCK_LEN - 1; dst >= bp; dst--) {
+		*dst = data_length;
+		data_length >>= 8;
+	}
+}
+
+/* NB: OCF only supports AAD lengths < 2^32. */
+static int
+build_ccm_aad_length(u_int aad_length, uint8_t *blk)
+{
+	if (aad_length < ((1 << 16) - (1 << 8))) {
+		be16enc(blk, aad_length);
+		return (sizeof(uint16_t));
+	} else {
+		blk[0] = 0xff;
+		blk[1] = 0xfe;
+		be32enc(blk + 2, aad_length);
+		return (2 + sizeof(uint32_t));
+	}
+}
+
 static void
 ccr_ccm_soft(struct ccr_session *s, struct cryptop *crp)
 {
+	const struct crypto_session_params *csp;
 	struct auth_hash *axf;
 	struct enc_xform *exf;
 	union authctx *auth_ctx;
 	void *kschedule;
 	char block[CCM_CBC_BLOCK_LEN];
-	char digest[AES_CBC_MAC_HASH_LEN];
-	char iv[AES_CCM_IV_LEN];
+	char tag[AES_CBC_MAC_HASH_LEN];
+	u_int taglen;
 	int error, i, len;
 
 	auth_ctx = NULL;
 	kschedule = NULL;
+	taglen = s->ccm_mac.hash_len;
+
+	csp = crypto_get_params(crp->crp_session);
+	if (crp->crp_payload_length > ccm_max_payload_length(csp)) {
+		error = EMSGSIZE;
+		goto out;
+	}
 
 	/* Initialize the MAC. */
 	switch (s->blkcipher.key_len) {
@@ -1940,23 +2009,35 @@ ccr_ccm_soft(struct ccr_session *s, struct cryptop *crp)
 		error = EINVAL;
 		goto out;
 	}
-	memcpy(iv, crp->crp_iv, AES_CCM_IV_LEN);
 
-	auth_ctx->aes_cbc_mac_ctx.authDataLength = crp->crp_aad_length;
-	auth_ctx->aes_cbc_mac_ctx.cryptDataLength = crp->crp_payload_length;
-	axf->Reinit(auth_ctx, iv, sizeof(iv));
+	axf->Reinit(auth_ctx, crp->crp_iv, csp->csp_ivlen);
+
+	/* Supply MAC with b0. */
+	build_ccm_b0(crp->crp_iv, csp->csp_ivlen, crp->crp_aad_length,
+	    crp->crp_payload_length, taglen, block);
+	axf->Update(auth_ctx, block, CCM_CBC_BLOCK_LEN);
 
 	/* MAC the AAD. */
-	if (crp->crp_aad != NULL)
-		error = axf->Update(auth_ctx, crp->crp_aad,
-		    crp->crp_aad_length);
-	else
-		error = crypto_apply(crp, crp->crp_aad_start,
-		    crp->crp_aad_length, axf->Update, auth_ctx);
-	if (error)
-		goto out;
+	if (crp->crp_aad_length != 0) {
+		len = build_ccm_aad_length(crp->crp_aad_length, block);
+		axf->Update(auth_ctx, block, len);
+		if (crp->crp_aad != NULL)
+			axf->Update(auth_ctx, crp->crp_aad,
+			    crp->crp_aad_length);
+		else
+			crypto_apply(crp, crp->crp_aad_start,
+			    crp->crp_aad_length, axf->Update, auth_ctx);
 
-	exf->reinit(kschedule, iv);
+		/* Pad the AAD (including length field) to a full block. */
+		len = (len + crp->crp_aad_length) % CCM_CBC_BLOCK_LEN;
+		if (len != 0) {
+			len = CCM_CBC_BLOCK_LEN - len;
+			memset(block, 0, CCM_CBC_BLOCK_LEN);
+			axf->Update(auth_ctx, block, len);
+		}
+	}
+
+	exf->reinit(kschedule, crp->crp_iv, csp->csp_ivlen);
 
 	/* Do encryption/decryption with MAC */
 	for (i = 0; i < crp->crp_payload_length; i += sizeof(block)) {
@@ -1975,23 +2056,21 @@ ccr_ccm_soft(struct ccr_session *s, struct cryptop *crp)
 	}
 
 	/* Finalize MAC. */
-	axf->Final(digest, auth_ctx);
+	axf->Final(tag, auth_ctx);
 
 	/* Inject or validate tag. */
 	if (CRYPTO_OP_IS_ENCRYPT(crp->crp_op)) {
-		crypto_copyback(crp, crp->crp_digest_start, sizeof(digest),
-		    digest);
+		crypto_copyback(crp, crp->crp_digest_start, taglen, tag);
 		error = 0;
 	} else {
-		char digest2[AES_CBC_MAC_HASH_LEN];
+		char tag2[AES_CBC_MAC_HASH_LEN];
 
-		crypto_copydata(crp, crp->crp_digest_start, sizeof(digest2),
-		    digest2);
-		if (timingsafe_bcmp(digest, digest2, sizeof(digest)) == 0) {
+		crypto_copydata(crp, crp->crp_digest_start, taglen, tag2);
+		if (timingsafe_bcmp(tag, tag2, taglen) == 0) {
 			error = 0;
 
 			/* Tag matches, decrypt data. */
-			exf->reinit(kschedule, iv);
+			exf->reinit(kschedule, crp->crp_iv, csp->csp_ivlen);
 			for (i = 0; i < crp->crp_payload_length;
 			     i += sizeof(block)) {
 				len = imin(crp->crp_payload_length - i,
@@ -2005,15 +2084,14 @@ ccr_ccm_soft(struct ccr_session *s, struct cryptop *crp)
 			}
 		} else
 			error = EBADMSG;
-		explicit_bzero(digest2, sizeof(digest2));
+		explicit_bzero(tag2, sizeof(tag2));
 	}
 
 out:
 	zfree(kschedule, M_CCR);
 	zfree(auth_ctx, M_CCR);
 	explicit_bzero(block, sizeof(block));
-	explicit_bzero(iv, sizeof(iv));
-	explicit_bzero(digest, sizeof(digest));
+	explicit_bzero(tag, sizeof(tag));
 	crp->crp_etype = error;
 	crypto_done(crp);
 }
@@ -2469,11 +2547,6 @@ ccr_probesession(device_t dev, const struct crypto_session_params *csp)
 				return (EINVAL);
 			break;
 		case CRYPTO_AES_CCM_16:
-			if (csp->csp_ivlen != AES_CCM_IV_LEN)
-				return (EINVAL);
-			if (csp->csp_auth_mlen < 0 ||
-			    csp->csp_auth_mlen > AES_CBC_MAC_HASH_LEN)
-				return (EINVAL);
 			break;
 		default:
 			return (EINVAL);

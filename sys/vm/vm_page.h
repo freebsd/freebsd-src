@@ -527,8 +527,8 @@ vm_page_t PHYS_TO_VM_PAGE(vm_paddr_t pa);
  * Legend:
  * (a) - vm_page_alloc() supports the flag.
  * (c) - vm_page_alloc_contig() supports the flag.
- * (f) - vm_page_alloc_freelist() supports the flag.
  * (g) - vm_page_grab() supports the flag.
+ * (n) - vm_page_alloc_noobj() and vm_page_alloc_freelist() support the flag.
  * (p) - vm_page_grab_pages() supports the flag.
  * Bits above 15 define the count of additional pages that the caller
  * intends to allocate.
@@ -537,17 +537,18 @@ vm_page_t PHYS_TO_VM_PAGE(vm_paddr_t pa);
 #define VM_ALLOC_INTERRUPT	1
 #define VM_ALLOC_SYSTEM		2
 #define	VM_ALLOC_CLASS_MASK	3
-#define	VM_ALLOC_WAITOK		0x0008	/* (acf) Sleep and retry */
-#define	VM_ALLOC_WAITFAIL	0x0010	/* (acf) Sleep and return error */
-#define	VM_ALLOC_WIRED		0x0020	/* (acfgp) Allocate a wired page */
-#define	VM_ALLOC_ZERO		0x0040	/* (acfgp) Allocate a prezeroed page */
+#define	VM_ALLOC_WAITOK		0x0008	/* (acn) Sleep and retry */
+#define	VM_ALLOC_WAITFAIL	0x0010	/* (acn) Sleep and return error */
+#define	VM_ALLOC_WIRED		0x0020	/* (acgnp) Allocate a wired page */
+#define	VM_ALLOC_ZERO		0x0040	/* (acgnp) Allocate a zeroed page */
+#define	VM_ALLOC_NORECLAIM	0x0080	/* (c) Do not reclaim after failure */
 #define	VM_ALLOC_NOOBJ		0x0100	/* (acg) No associated object */
 #define	VM_ALLOC_NOBUSY		0x0200	/* (acgp) Do not excl busy the page */
 #define	VM_ALLOC_NOCREAT	0x0400	/* (gp) Don't create a page */
 #define	VM_ALLOC_IGN_SBUSY	0x1000	/* (gp) Ignore shared busy flag */
 #define	VM_ALLOC_NODUMP		0x2000	/* (ag) don't include in dump */
 #define	VM_ALLOC_SBUSY		0x4000	/* (acgp) Shared busy the page */
-#define	VM_ALLOC_NOWAIT		0x8000	/* (acfgp) Do not sleep */
+#define	VM_ALLOC_NOWAIT		0x8000	/* (acgnp) Do not sleep */
 #define	VM_ALLOC_COUNT_SHIFT	16
 #define	VM_ALLOC_COUNT(count)	((count) << VM_ALLOC_COUNT_SHIFT)
 
@@ -570,6 +571,8 @@ malloc2vm_flags(int malloc_flags)
 		pflags |= VM_ALLOC_NOWAIT;
 	if ((malloc_flags & M_WAITOK))
 		pflags |= VM_ALLOC_WAITOK;
+	if ((malloc_flags & M_NORECLAIM))
+		pflags |= VM_ALLOC_NORECLAIM;
 	return (pflags);
 }
 #endif
@@ -611,6 +614,14 @@ vm_page_t vm_page_alloc_contig_domain(vm_object_t object,
     vm_memattr_t memattr);
 vm_page_t vm_page_alloc_freelist(int, int);
 vm_page_t vm_page_alloc_freelist_domain(int, int, int);
+vm_page_t vm_page_alloc_noobj(int);
+vm_page_t vm_page_alloc_noobj_domain(int, int);
+vm_page_t vm_page_alloc_noobj_contig(int req, u_long npages, vm_paddr_t low,
+    vm_paddr_t high, u_long alignment, vm_paddr_t boundary,
+    vm_memattr_t memattr);
+vm_page_t vm_page_alloc_noobj_contig_domain(int domain, int req, u_long npages,
+    vm_paddr_t low, vm_paddr_t high, u_long alignment, vm_paddr_t boundary,
+    vm_memattr_t memattr);
 void vm_page_bits_set(vm_page_t m, vm_page_bits_t *bits, vm_page_bits_t set);
 bool vm_page_blacklist_add(vm_paddr_t pa, bool verbose);
 vm_page_t vm_page_grab(vm_object_t, vm_pindex_t, int);

@@ -1283,7 +1283,7 @@ ciss_identify_adapter(struct ciss_softc *sc)
 		    "\20\1ultra2\2ultra3\10fibre1\11fibre2\n");
 	ciss_printf(sc, "  server name '%.16s'\n", sc->ciss_cfg->server_name);
 	ciss_printf(sc, "  heartbeat 0x%x\n", sc->ciss_cfg->heartbeat);
-    	ciss_printf(sc, "  max logical logical volumes: %d\n", sc->ciss_cfg->max_logical_supported);
+	ciss_printf(sc, "  max logical volumes: %d\n", sc->ciss_cfg->max_logical_supported);
     	ciss_printf(sc, "  max physical disks supported: %d\n", sc->ciss_cfg->max_physical_supported);
     	ciss_printf(sc, "  max physical disks per logical volume: %d\n", sc->ciss_cfg->max_physical_per_logical);
 	ciss_printf(sc, "  JBOD Support is %s\n", (sc->ciss_id->uiYetMoreControllerFlags & YMORE_CONTROLLER_FLAGS_JBOD_SUPPORTED) ?
@@ -2331,13 +2331,15 @@ _ciss_report_request(struct ciss_request *cr, int *command_status, int *scsi_sta
 	if (command_status != NULL)
 	    *command_status = ce->command_status;
 	if (scsi_status != NULL) {
-	    if (ce->command_status == CISS_CMD_STATUS_TARGET_STATUS) {
+	    if (ce->command_status == CISS_CMD_STATUS_DATA_UNDERRUN) {
+		*scsi_status = SCSI_STATUS_OK;
+	    } else if (ce->command_status == CISS_CMD_STATUS_TARGET_STATUS) {
 		*scsi_status = ce->scsi_status;
 	    } else {
 		*scsi_status = -1;
 	    }
 	}
-	if (bootverbose)
+	if (bootverbose && ce->command_status != CISS_CMD_STATUS_DATA_UNDERRUN)
 	    ciss_printf(cr->cr_sc, "command status 0x%x (%s) scsi status 0x%x\n",
 			ce->command_status, ciss_name_command_status(ce->command_status),
 			ce->scsi_status);
@@ -3311,28 +3313,17 @@ ciss_cam_complete(struct ciss_request *cr)
      * Extract status values from request.
      */
     ciss_report_request(cr, &command_status, &scsi_status);
-    csio->scsi_status = scsi_status;
-
-    /*
-     * Handle specific SCSI status values.
-     */
-    switch(scsi_status) {
-	/* no status due to adapter error */
-    case -1:
-	debug(0, "adapter error");
-	csio->ccb_h.status |= CAM_REQ_CMP_ERR;
-	break;
-
-	/* no status due to command completed OK */
-    case SCSI_STATUS_OK:		/* CISS_SCSI_STATUS_GOOD */
+    switch(command_status) {
+    case CISS_CMD_STATUS_DATA_UNDERRUN:
+	csio->resid = ce->residual_count;
+	/* FALLTHROUGH */
+    case CISS_CMD_STATUS_SUCCESS:
+	csio->scsi_status = scsi_status;
 	debug(2, "SCSI_STATUS_OK");
 	csio->ccb_h.status |= CAM_REQ_CMP;
 	break;
-
-	/* check condition, sense data included */
-    case SCSI_STATUS_CHECK_COND:	/* CISS_SCSI_STATUS_CHECK_CONDITION */
-	debug(0, "SCSI_STATUS_CHECK_COND  sense size %d  resid %d\n",
-	      ce->sense_length, ce->residual_count);
+    case CISS_CMD_STATUS_TARGET_STATUS:
+	csio->scsi_status = scsi_status;
 	bzero(&csio->sense_data, SSD_FULL_SIZE);
 	bcopy(&ce->sense_info[0], &csio->sense_data, ce->sense_length);
 	if (csio->sense_len > ce->sense_length)
@@ -3341,22 +3332,11 @@ ciss_cam_complete(struct ciss_request *cr)
 		csio->sense_resid = 0;
 	csio->resid = ce->residual_count;
 	csio->ccb_h.status |= CAM_SCSI_STATUS_ERROR | CAM_AUTOSNS_VALID;
-#ifdef CISS_DEBUG
-	{
-	    struct scsi_sense_data	*sns = (struct scsi_sense_data *)&ce->sense_info[0];
-	    debug(0, "sense key %x", scsi_get_sense_key(sns, csio->sense_len -
-		  csio->sense_resid, /*show_errors*/ 1));
-	}
-#endif
 	break;
-
-    case SCSI_STATUS_BUSY:		/* CISS_SCSI_STATUS_BUSY */
-	debug(0, "SCSI_STATUS_BUSY");
-	csio->ccb_h.status |= CAM_SCSI_BUSY;
+    case CISS_CMD_STATUS_DATA_OVERRUN:
+	csio->ccb_h.status |= CAM_DATA_RUN_ERR;
 	break;
-
     default:
-	debug(0, "unknown status 0x%x", csio->scsi_status);
 	csio->ccb_h.status |= CAM_REQ_CMP_ERR;
 	break;
     }

@@ -522,6 +522,11 @@ set_filter_mode(struct adapter *sc, uint32_t mode)
 	if (rc)
 		return (rc);
 
+	if (hw_off_limits(sc)) {
+		rc = ENXIO;
+		goto done;
+	}
+
 	if (sc->tids.ftids_in_use > 0 ||	/* TCAM filters active */
 	    sc->tids.hpftids_in_use > 0 ||	/* hi-pri TCAM filters active */
 	    sc->tids.tids_in_use > 0) {		/* TOE or hashfilters active */
@@ -568,6 +573,11 @@ set_filter_mask(struct adapter *sc, uint32_t mode)
 	if (rc)
 		return (rc);
 
+	if (hw_off_limits(sc)) {
+		rc = ENXIO;
+		goto done;
+	}
+
 	if (sc->tids.tids_in_use > 0) {		/* TOE or hashfilters active */
 		rc = EBUSY;
 		goto done;
@@ -589,20 +599,27 @@ static inline uint64_t
 get_filter_hits(struct adapter *sc, uint32_t tid)
 {
 	uint32_t tcb_addr;
+	uint64_t hits;
 
 	tcb_addr = t4_read_reg(sc, A_TP_CMM_TCB_BASE) + tid * TCB_SIZE;
 
-	if (is_t4(sc)) {
-		uint64_t hits;
+	mtx_lock(&sc->reg_lock);
+	if (hw_off_limits(sc))
+		hits = 0;
+	else if (is_t4(sc)) {
+		uint64_t t;
 
-		read_via_memwin(sc, 0, tcb_addr + 16, (uint32_t *)&hits, 8);
-		return (be64toh(hits));
+		read_via_memwin(sc, 0, tcb_addr + 16, (uint32_t *)&t, 8);
+		hits = be64toh(t);
 	} else {
-		uint32_t hits;
+		uint32_t t;
 
-		read_via_memwin(sc, 0, tcb_addr + 24, &hits, 4);
-		return (be32toh(hits));
+		read_via_memwin(sc, 0, tcb_addr + 24, &t, 4);
+		hits = be32toh(t);
 	}
+	mtx_unlock(&sc->reg_lock);
+
+	return (hits);
 }
 
 int
@@ -960,11 +977,15 @@ set_filter(struct adapter *sc, struct t4_filter *t)
 	rc = begin_synchronized_op(sc, NULL, SLEEP_OK | INTR_OK, "t4setf");
 	if (rc)
 		return (rc);
-	if (!(sc->flags & FULL_INIT_DONE) &&
-	    ((rc = adapter_full_init(sc)) != 0)) {
-		end_synchronized_op(sc, 0);
-		return (rc);
+
+	if (hw_off_limits(sc)) {
+		rc = ENXIO;
+		goto done;
 	}
+
+	if (!(sc->flags & FULL_INIT_DONE) && ((rc = adapter_init(sc)) != 0))
+		goto done;
+
 	if (t->fs.hash) {
 		if (__predict_false(ti->hftid_hash_4t == NULL)) {
 			rc = alloc_hftid_hash(&sc->tids, HASH_NOWAIT);

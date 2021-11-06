@@ -2043,7 +2043,7 @@ __CONCAT(PMTYPE, pinit0)(pmap_t pmap)
 #ifdef PMAP_PAE_COMP
 	pmap->pm_pdpt = IdlePDPT;
 #endif
-	pmap->pm_root.rt_root = 0;
+	vm_radix_init(&pmap->pm_root);
 	CPU_ZERO(&pmap->pm_active);
 	TAILQ_INIT(&pmap->pm_pvchunk);
 	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
@@ -2057,7 +2057,6 @@ __CONCAT(PMTYPE, pinit0)(pmap_t pmap)
 static int
 __CONCAT(PMTYPE, pinit)(pmap_t pmap)
 {
-	vm_page_t m;
 	int i;
 
 	/*
@@ -2076,7 +2075,7 @@ __CONCAT(PMTYPE, pinit)(pmap_t pmap)
 		KASSERT(pmap_kextract((vm_offset_t)pmap->pm_pdpt) < (4ULL<<30),
 		    ("pmap_pinit: pdpt above 4g"));
 #endif
-		pmap->pm_root.rt_root = 0;
+		vm_radix_init(&pmap->pm_root);
 	}
 	KASSERT(vm_radix_is_empty(&pmap->pm_root),
 	    ("pmap_pinit: pmap has reserved page table page(s)"));
@@ -2085,11 +2084,10 @@ __CONCAT(PMTYPE, pinit)(pmap_t pmap)
 	 * allocate the page directory page(s)
 	 */
 	for (i = 0; i < NPGPTD; i++) {
-		m = vm_page_alloc(NULL, 0, VM_ALLOC_NORMAL | VM_ALLOC_NOOBJ |
-		    VM_ALLOC_WIRED | VM_ALLOC_ZERO | VM_ALLOC_WAITOK);
-		pmap->pm_ptdpg[i] = m;
+		pmap->pm_ptdpg[i] = vm_page_alloc_noobj(VM_ALLOC_WIRED |
+		    VM_ALLOC_ZERO | VM_ALLOC_WAITOK);
 #ifdef PMAP_PAE_COMP
-		pmap->pm_pdpt[i] = VM_PAGE_TO_PHYS(m) | PG_V;
+		pmap->pm_pdpt[i] = VM_PAGE_TO_PHYS(pmap->pm_ptdpg[i]) | PG_V;
 #endif
 	}
 
@@ -2102,10 +2100,6 @@ __CONCAT(PMTYPE, pinit)(pmap_t pmap)
 		    NPGPTD * sizeof(pdpt_entry_t)));
 	}
 #endif
-
-	for (i = 0; i < NPGPTD; i++)
-		if ((pmap->pm_ptdpg[i]->flags & PG_ZERO) == 0)
-			pagezero(pmap->pm_pdir + (i * NPDEPG));
 
 	/* Install the trampoline mapping. */
 	pmap->pm_pdir[TRPTDI] = PTD[TRPTDI];
@@ -2130,8 +2124,7 @@ _pmap_allocpte(pmap_t pmap, u_int ptepindex, u_int flags)
 	/*
 	 * Allocate a page table page.
 	 */
-	if ((m = vm_page_alloc(NULL, ptepindex, VM_ALLOC_NOOBJ |
-	    VM_ALLOC_WIRED | VM_ALLOC_ZERO)) == NULL) {
+	if ((m = vm_page_alloc_noobj(VM_ALLOC_WIRED | VM_ALLOC_ZERO)) == NULL) {
 		if ((flags & PMAP_ENTER_NOSLEEP) == 0) {
 			PMAP_UNLOCK(pmap);
 			rw_wunlock(&pvh_global_lock);
@@ -2146,8 +2139,7 @@ _pmap_allocpte(pmap_t pmap, u_int ptepindex, u_int flags)
 		 */
 		return (NULL);
 	}
-	if ((m->flags & PG_ZERO) == 0)
-		pmap_zero_page(m);
+	m->pindex = ptepindex;
 
 	/*
 	 * Map the pagetable page into the process address space, if
@@ -2271,16 +2263,13 @@ __CONCAT(PMTYPE, growkernel)(vm_offset_t addr)
 			continue;
 		}
 
-		nkpg = vm_page_alloc(NULL, kernel_vm_end >> PDRSHIFT,
-		    VM_ALLOC_INTERRUPT | VM_ALLOC_NOOBJ | VM_ALLOC_WIRED |
+		nkpg = vm_page_alloc_noobj(VM_ALLOC_INTERRUPT | VM_ALLOC_WIRED |
 		    VM_ALLOC_ZERO);
 		if (nkpg == NULL)
 			panic("pmap_growkernel: no memory to grow kernel");
-
+		nkpg->pindex = kernel_vm_end >> PDRSHIFT;
 		nkpt++;
 
-		if ((nkpg->flags & PG_ZERO) == 0)
-			pmap_zero_page(nkpg);
 		ptppaddr = VM_PAGE_TO_PHYS(nkpg);
 		newpdir = (pd_entry_t) (ptppaddr | PG_V | PG_RW | PG_A | PG_M);
 		pdir_pde(KPTD, kernel_vm_end) = newpdir;
@@ -2575,8 +2564,8 @@ retry:
 	 * global lock.  If "pv_vafree" is currently non-empty, it will
 	 * remain non-empty until pmap_ptelist_alloc() completes.
 	 */
-	if (pv_vafree == 0 || (m = vm_page_alloc(NULL, 0, VM_ALLOC_NORMAL |
-	    VM_ALLOC_NOOBJ | VM_ALLOC_WIRED)) == NULL) {
+	if (pv_vafree == 0 ||
+	    (m = vm_page_alloc_noobj(VM_ALLOC_WIRED)) == NULL) {
 		if (try) {
 			pv_entry_count--;
 			PV_STAT(pc_chunk_tryfail++);
@@ -2808,9 +2797,8 @@ pmap_demote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va)
 		 * "failure" if the mapping was never accessed or the
 		 * allocation of the new page table page fails.
 		 */
-		if ((oldpde & PG_A) == 0 || (mpte = vm_page_alloc(NULL,
-		    va >> PDRSHIFT, VM_ALLOC_NOOBJ | VM_ALLOC_NORMAL |
-		    VM_ALLOC_WIRED)) == NULL) {
+		if ((oldpde & PG_A) == 0 ||
+		    (mpte = vm_page_alloc_noobj(VM_ALLOC_WIRED)) == NULL) {
 			SLIST_INIT(&free);
 			sva = trunc_4mpage(va);
 			pmap_remove_pde(pmap, pde, sva, &free);
@@ -2821,6 +2809,7 @@ pmap_demote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va)
 			    " in pmap %p", va, pmap);
 			return (FALSE);
 		}
+		mpte->pindex = va >> PDRSHIFT;
 		if (pmap != kernel_pmap) {
 			mpte->ref_count = NPTEPG;
 			pmap->pm_stats.resident_count++;
@@ -5914,8 +5903,7 @@ pmap_trm_import(void *unused __unused, vmem_size_t size, int flags,
 	prev_addr += trm_guard;
 	trm_pte = PTmap + atop(prev_addr);
 	for (af = prev_addr; af < addr; af += PAGE_SIZE) {
-		m = vm_page_alloc(NULL, 0, VM_ALLOC_NOOBJ | VM_ALLOC_NOBUSY |
-		    VM_ALLOC_NORMAL | VM_ALLOC_WIRED | VM_ALLOC_WAITOK);
+		m = vm_page_alloc_noobj(VM_ALLOC_WIRED | VM_ALLOC_WAITOK);
 		pte_store(&trm_pte[atop(af - prev_addr)], VM_PAGE_TO_PHYS(m) |
 		    PG_M | PG_A | PG_RW | PG_V | pgeflag |
 		    pmap_cache_bits(kernel_pmap, VM_MEMATTR_DEFAULT, FALSE));
@@ -5934,10 +5922,8 @@ pmap_init_trm(void)
 		trm_guard = 0;
 	pmap_trm_arena = vmem_create("i386trampoline", 0, 0, 1, 0, M_WAITOK);
 	vmem_set_import(pmap_trm_arena, pmap_trm_import, NULL, NULL, PAGE_SIZE);
-	pd_m = vm_page_alloc(NULL, 0, VM_ALLOC_NOOBJ | VM_ALLOC_NOBUSY |
-	    VM_ALLOC_NORMAL | VM_ALLOC_WIRED | VM_ALLOC_WAITOK | VM_ALLOC_ZERO);
-	if ((pd_m->flags & PG_ZERO) == 0)
-		pmap_zero_page(pd_m);
+	pd_m = vm_page_alloc_noobj(VM_ALLOC_WIRED | VM_ALLOC_WAITOK |
+	    VM_ALLOC_ZERO);
 	PTD[TRPTDI] = VM_PAGE_TO_PHYS(pd_m) | PG_M | PG_A | PG_RW | PG_V |
 	    pmap_cache_bits(kernel_pmap, VM_MEMATTR_DEFAULT, TRUE);
 }

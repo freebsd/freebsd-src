@@ -34,13 +34,23 @@
 /* Compatibility shims. */
 #define	OPENSSL_cleanse		explicit_bzero
 
+struct cryptop;
+struct crypto_session_params;
+
+int	ossl_chacha20(struct cryptop *crp,
+	    const struct crypto_session_params *csp);
+int	ossl_chacha20_poly1305_decrypt(struct cryptop *crp,
+	    const struct crypto_session_params *csp);
+int	ossl_chacha20_poly1305_encrypt(struct cryptop *crp,
+	    const struct crypto_session_params *csp);
 void ossl_cpuid(void);
 
 /* Needs to be big enough to hold any hash context. */
 struct ossl_hash_context {
-	uint32_t	dummy[54];
+	uint32_t	dummy[61];
 } __aligned(32);
 
+extern struct auth_hash ossl_hash_poly1305;
 extern struct auth_hash ossl_hash_sha1;
 extern struct auth_hash ossl_hash_sha224;
 extern struct auth_hash ossl_hash_sha256;

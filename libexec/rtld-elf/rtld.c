@@ -63,7 +63,7 @@ __FBSDID("$FreeBSD$");
 #include "debug.h"
 #include "rtld.h"
 #include "libmap.h"
-#include "paths.h"
+#include "rtld_paths.h"
 #include "rtld_tls.h"
 #include "rtld_printf.h"
 #include "rtld_malloc.h"
@@ -140,7 +140,7 @@ static void objlist_remove(Objlist *, Obj_Entry *);
 static int open_binary_fd(const char *argv0, bool search_in_path,
     const char **binpath_res);
 static int parse_args(char* argv[], int argc, bool *use_pathp, int *fdp,
-    const char **argv0);
+    const char **argv0, bool *dir_ignore);
 static int parse_integer(const char *);
 static void *path_enumerate(const char *, path_enum_proc, const char *, void *);
 static void print_usage(const char *argv0);
@@ -466,6 +466,13 @@ rtld_init_env_vars(char **env)
 	rtld_init_env_vars_for_prefix(env, ld_env_prefix);
 }
 
+static void
+set_ld_elf_hints_path(void)
+{
+	if (ld_elf_hints_path == NULL || strlen(ld_elf_hints_path) == 0)
+		ld_elf_hints_path = ld_elf_hints_default;
+}
+
 /*
  * Main entry point for dynamic linking.  The first argument is the
  * stack pointer.  The stack is expected to be laid out as described
@@ -503,7 +510,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 #ifdef __powerpc__
     int old_auxv_format = 1;
 #endif
-    bool dir_enable, direct_exec, explicit_fd, search_in_path;
+    bool dir_enable, dir_ignore, direct_exec, explicit_fd, search_in_path;
 
     /*
      * On entry, the dynamic linker itself has not been relocated yet.
@@ -589,7 +596,8 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 
 	    dbg("opening main program in direct exec mode");
 	    if (argc >= 2) {
-		rtld_argc = parse_args(argv, argc, &search_in_path, &fd, &argv0);
+		rtld_argc = parse_args(argv, argc, &search_in_path, &fd,
+		  &argv0, &dir_ignore);
 		explicit_fd = (fd != -1);
 		binpath = NULL;
 		if (!explicit_fd)
@@ -621,7 +629,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 		} else if ((st.st_mode & S_IXOTH) != 0) {
 		    dir_enable = true;
 		}
-		if (!dir_enable) {
+		if (!dir_enable && !dir_ignore) {
 		    _rtld_error("No execute permission for binary %s",
 		        argv0);
 		    rtld_die();
@@ -722,9 +730,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     ld_tracing = ld_get_env_var(LD_TRACE_LOADED_OBJECTS);
     ld_utrace = ld_get_env_var(LD_UTRACE);
 
-    if ((ld_elf_hints_path == NULL) || strlen(ld_elf_hints_path) == 0)
-	ld_elf_hints_path = ld_elf_hints_default;
-
+    set_ld_elf_hints_path();
     if (ld_debug != NULL && *ld_debug != '\0')
 	debug = 1;
     dbg("%s is initialized, base address = %p", __progname,
@@ -1252,6 +1258,18 @@ digest_dynamic1(Obj_Entry *obj, int early, const Elf_Dyn **dyn_rpath,
 
 	case DT_RELAENT:
 	    assert(dynp->d_un.d_val == sizeof(Elf_Rela));
+	    break;
+
+	case DT_RELR:
+	    obj->relr = (const Elf_Relr *)(obj->relocbase + dynp->d_un.d_ptr);
+	    break;
+
+	case DT_RELRSZ:
+	    obj->relrsize = dynp->d_un.d_val;
+	    break;
+
+	case DT_RELRENT:
+	    assert(dynp->d_un.d_val == sizeof(Elf_Relr));
 	    break;
 
 	case DT_PLTREL:
@@ -3147,6 +3165,29 @@ reloc_textrel_prot(Obj_Entry *obj, bool before)
 	return (0);
 }
 
+/* Process RELR relative relocations. */
+static void
+reloc_relr(Obj_Entry *obj)
+{
+	const Elf_Relr *relr, *relrlim;
+	Elf_Addr *where;
+
+	relrlim = (const Elf_Relr *)((const char *)obj->relr + obj->relrsize);
+	for (relr = obj->relr; relr < relrlim; relr++) {
+	    Elf_Relr entry = *relr;
+
+	    if ((entry & 1) == 0) {
+		where = (Elf_Addr *)(obj->relocbase + entry);
+		*where++ += (Elf_Addr)obj->relocbase;
+	    } else {
+		for (long i = 0; (entry >>= 1) != 0; i++)
+		    if ((entry & 1) != 0)
+			where[i] += (Elf_Addr)obj->relocbase;
+		where += CHAR_BIT * sizeof(Elf_Relr) - 1;
+	    }
+	}
+}
+
 /*
  * Relocate single object.
  * Returns 0 on success, or -1 on failure.
@@ -3173,6 +3214,7 @@ relocate_object(Obj_Entry *obj, bool bind_now, Obj_Entry *rtldobj,
 	/* Process the non-PLT non-IFUNC relocations. */
 	if (reloc_non_plt(obj, rtldobj, flags, lockstate))
 		return (-1);
+	reloc_relr(obj);
 
 	/* Re-protected the text segment. */
 	if (obj->textrel && reloc_textrel_prot(obj, false) != 0)
@@ -5842,7 +5884,7 @@ open_binary_fd(const char *argv0, bool search_in_path,
  */
 static int
 parse_args(char* argv[], int argc, bool *use_pathp, int *fdp,
-    const char **argv0)
+    const char **argv0, bool *dir_ignore)
 {
 	const char *arg;
 	char machine[64];
@@ -5854,6 +5896,7 @@ parse_args(char* argv[], int argc, bool *use_pathp, int *fdp,
 	dbg("Parsing command-line arguments");
 	*use_pathp = false;
 	*fdp = -1;
+	*dir_ignore = false;
 	seen_b = seen_f = false;
 
 	for (i = 1; i < argc; i++ ) {
@@ -5889,6 +5932,9 @@ parse_args(char* argv[], int argc, bool *use_pathp, int *fdp,
 				i++;
 				*argv0 = argv[i];
 				seen_b = true;
+				break;
+			} else if (opt == 'd') {
+				*dir_ignore = true;
 				break;
 			} else if (opt == 'f') {
 				if (seen_b) {
@@ -5931,16 +5977,23 @@ parse_args(char* argv[], int argc, bool *use_pathp, int *fdp,
 				mib[1] = HW_MACHINE;
 				sz = sizeof(machine);
 				sysctl(mib, nitems(mib), machine, &sz, NULL, 0);
+				ld_elf_hints_path = ld_get_env_var(
+				    LD_ELF_HINTS_PATH);
+				set_ld_elf_hints_path();
 				rtld_printf(
 				    "FreeBSD ld-elf.so.1 %s\n"
 				    "FreeBSD_version %d\n"
 				    "Default lib path %s\n"
+				    "Hints lib path %s\n"
 				    "Env prefix %s\n"
+				    "Default hint file %s\n"
 				    "Hint file %s\n"
 				    "libmap file %s\n",
 				    machine,
 				    __FreeBSD_version, ld_standard_library_path,
+				    gethints(false),
 				    ld_env_prefix, ld_elf_hints_default,
+				    ld_elf_hints_path,
 				    ld_path_libmap_conf);
 				_exit(0);
 			} else {
@@ -5988,11 +6041,12 @@ print_usage(const char *argv0)
 {
 
 	rtld_printf(
-	    "Usage: %s [-h] [-b <exe>] [-f <FD>] [-p] [--] <binary> [<args>]\n"
+	    "Usage: %s [-h] [-b <exe>] [-d] [-f <FD>] [-p] [--] <binary> [<args>]\n"
 	    "\n"
 	    "Options:\n"
 	    "  -h        Display this help message\n"
 	    "  -b <exe>  Execute <exe> instead of <binary>, arg0 is <binary>\n"
+	    "  -d        Ignore lack of exec permissions for the binary\n"
 	    "  -f <FD>   Execute <FD> instead of searching for <binary>\n"
 	    "  -p        Search in PATH for named binary\n"
 	    "  -u        Ignore LD_ environment variables\n"

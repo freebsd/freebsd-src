@@ -58,6 +58,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/endian.h>
+
 #include <machine/stdarg.h>
 
 #include <stand.h>
@@ -70,6 +72,13 @@ phandle_t chosen;
 ihandle_t mmu;
 ihandle_t memory;
 int	  real_mode = 0;
+
+#define IN(x)		htobe32((cell_t)x)
+#define OUT(x)		be32toh(x)
+#define SETUP(a, b, c, d)		\
+	a.name = IN( (b) );		\
+	a.nargs = IN( (c) );		\
+	a.nreturns = IN( (d) );
 
 /* Initialiser */
 
@@ -117,16 +126,13 @@ OF_test(char *name)
 		cell_t nreturns;
 		cell_t service;
 		cell_t missing;
-	} args = {
-		(cell_t)"test",
-		1,
-		1,
-	};
+	} args = {};
+	SETUP(args, "test", 1, 1);
 
-	args.service = (cell_t)name;
+	args.service = IN(name);
 	if (openfirmware(&args) == -1)
 		return (-1);
-	return (args.missing);
+	return (OUT(args.missing));
 }
 
 /* Return firmware millisecond count. */
@@ -138,14 +144,11 @@ OF_milliseconds()
 		cell_t nargs;
 		cell_t nreturns;
 		cell_t ms;
-	} args = {
-		(cell_t)"milliseconds",
-		0,
-		1,
-	};
+	} args = {};
+	SETUP(args, "milliseconds", 0, 1);
 
 	openfirmware(&args);
-	return (args.ms);
+	return (OUT(args.ms));
 }
 
 /*
@@ -162,11 +165,8 @@ OF_peer(phandle_t node)
 		cell_t nreturns;
 		cell_t node;
 		cell_t next;
-	} args = {
-		(cell_t)"peer",
-		1,
-		1,
-	};
+	} args = {};
+	SETUP(args, "peer", 1, 1);
 
 	args.node = node;
 	if (openfirmware(&args) == -1)
@@ -184,11 +184,8 @@ OF_child(phandle_t node)
 		cell_t nreturns;
 		cell_t node;
 		cell_t child;
-	} args = {
-		(cell_t)"child",
-		1,
-		1,
-	};
+	} args = {};
+	SETUP(args, "child", 1, 1);
 
 	args.node = node;
 	if (openfirmware(&args) == -1)
@@ -206,11 +203,8 @@ OF_parent(phandle_t node)
 		cell_t nreturns;
 		cell_t node;
 		cell_t parent;
-	} args = {
-		(cell_t)"parent",
-		1,
-		1,
-	};
+	} args = {};
+	SETUP(args, "parent", 1, 1);
 
 	args.node = node;
 	if (openfirmware(&args) == -1)
@@ -228,11 +222,8 @@ OF_instance_to_package(ihandle_t instance)
 		cell_t nreturns;
 		cell_t instance;
 		cell_t package;
-	} args = {
-		(cell_t)"instance-to-package",
-		1,
-		1,
-	};
+	} args = {};
+	SETUP(args, "instance-to-package", 1, 1);
 
 	args.instance = instance;
 	if (openfirmware(&args) == -1)
@@ -251,17 +242,14 @@ OF_getproplen(phandle_t package, const char *propname)
 		cell_t package;
 		cell_t propname;
 		cell_t proplen;
-	} args = {
-		(cell_t)"getproplen",
-		2,
-		1,
-	};
+	} args = {};
+	SETUP(args, "getproplen", 2, 1);
 
 	args.package = package;
-	args.propname = (cell_t)propname;
+	args.propname = IN(propname);
 	if (openfirmware(&args) == -1)
 		return (-1);
-	return (args.proplen);
+	return (OUT(args.proplen));
 }
 
 /* Get the value of a property of a package. */
@@ -277,19 +265,31 @@ OF_getprop(phandle_t package, const char *propname, void *buf, int buflen)
 		cell_t buf;
 		cell_t buflen;
 		cell_t size;
-	} args = {
-		(cell_t)"getprop",
-		4,
-		1,
-	};
+	} args = {};
+	SETUP(args, "getprop", 4, 1);
 
 	args.package = package;
-	args.propname = (cell_t)propname;
-	args.buf = (cell_t)buf;
-	args.buflen = buflen;
+	args.propname = IN(propname);
+	args.buf = IN(buf);
+	args.buflen = IN(buflen);
 	if (openfirmware(&args) == -1)
 		return (-1);
-	return (args.size);
+	return (OUT(args.size));
+}
+
+/* Decode a binary property from a package. */
+int
+OF_getencprop(phandle_t package, const char *propname, cell_t *buf, int buflen)
+{
+	int retval, i;
+	retval = OF_getprop(package, propname, buf, buflen);
+	if (retval == -1)
+		return (retval);
+
+	for (i = 0; i < buflen/4; i++)
+		buf[i] = be32toh((uint32_t)buf[i]);
+
+	return (retval);
 }
 
 /* Get the next property of a package. */
@@ -304,18 +304,15 @@ OF_nextprop(phandle_t package, const char *previous, char *buf)
 		cell_t previous;
 		cell_t buf;
 		cell_t flag;
-	} args = {
-		(cell_t)"nextprop",
-		3,
-		1,
-	};
+	} args = {};
+	SETUP(args, "nextprop", 3, 1);
 
 	args.package = package;
-	args.previous = (cell_t)previous;
-	args.buf = (cell_t)buf;
+	args.previous = IN(previous);
+	args.buf = IN(buf);
 	if (openfirmware(&args) == -1)
 		return (-1);
-	return (args.flag);
+	return (OUT(args.flag));
 }
 
 /* Set the value of a property of a package. */
@@ -332,19 +329,16 @@ OF_setprop(phandle_t package, const char *propname, void *buf, int len)
 		cell_t buf;
 		cell_t len;
 		cell_t size;
-	} args = {
-		(cell_t)"setprop",
-		4,
-		1,
-	};
+	} args = {};
+	SETUP(args, "setprop", 4, 1);
 
 	args.package = package;
-	args.propname = (cell_t)propname;
-	args.buf = (cell_t)buf;
-	args.len = len;
+	args.propname = IN(propname);
+	args.buf = IN(buf);
+	args.len = IN(len);
 	if (openfirmware(&args) == -1)
 		return (-1);
-	return (args.size);
+	return (OUT(args.size));
 }
 
 /* Convert a device specifier to a fully qualified pathname. */
@@ -359,18 +353,15 @@ OF_canon(const char *device, char *buf, int len)
 		cell_t buf;
 		cell_t len;
 		cell_t size;
-	} args = {
-		(cell_t)"canon",
-		3,
-		1,
-	};
+	} args = {};
+	SETUP(args, "canon", 3, 1);
 
-	args.device = (cell_t)device;
-	args.buf = (cell_t)buf;
-	args.len = len;
+	args.device = IN(device);
+	args.buf = IN(buf);
+	args.len = IN(len);
 	if (openfirmware(&args) == -1)
 		return (-1);
-	return (args.size);
+	return (OUT(args.size));
 }
 
 /* Return a package handle for the specified device. */
@@ -383,13 +374,10 @@ OF_finddevice(const char *device)
 		cell_t nreturns;
 		cell_t device;
 		cell_t package;
-	} args = {
-		(cell_t)"finddevice",
-		1,
-		1,
-	};
+	} args = {};
+	SETUP(args, "finddevice", 1, 1);
 
-	args.device = (cell_t)device;
+	args.device = IN(device);
 	if (openfirmware(&args) == -1)
 		return (-1);
 	return (args.package);
@@ -407,18 +395,15 @@ OF_instance_to_path(ihandle_t instance, char *buf, int len)
 		cell_t buf;
 		cell_t len;
 		cell_t size;
-	} args = {
-		(cell_t)"instance-to-path",
-		3,
-		1,
-	};
+	} args = {};
+	SETUP(args, "instance-to-path", 3, 1);
 
 	args.instance = instance;
-	args.buf = (cell_t)buf;
-	args.len = len;
+	args.buf = IN(buf);
+	args.len = IN(len);
 	if (openfirmware(&args) == -1)
 		return (-1);
-	return (args.size);
+	return (OUT(args.size));
 }
 
 /* Return the fully qualified pathname corresponding to a package. */
@@ -433,18 +418,15 @@ OF_package_to_path(phandle_t package, char *buf, int len)
 		cell_t buf;
 		cell_t len;
 		cell_t size;
-	} args = {
-		(cell_t)"package-to-path",
-		3,
-		1,
-	};
+	} args = {};
+	SETUP(args, "package-to-path", 3, 1);
 
 	args.package = package;
-	args.buf = (cell_t)buf;
-	args.len = len;
+	args.buf = IN(buf);
+	args.len = IN(len);
 	if (openfirmware(&args) == -1)
 		return (-1);
-	return (args.size);
+	return (OUT(args.size));
 }
 
 /*  Call the method in the scope of a given instance. */
@@ -459,30 +441,26 @@ OF_call_method(char *method, ihandle_t instance, int nargs, int nreturns, ...)
 		cell_t method;
 		cell_t instance;
 		cell_t args_n_results[12];
-	} args = {
-		(cell_t)"call-method",
-		2,
-		1,
-	};
+	} args = {};
+	SETUP(args, "call-method", nargs + 2, nreturns + 1);
 	cell_t *cp;
 	int n;
 
 	if (nargs > 6)
 		return (-1);
-	args.nargs = nargs + 2;
-	args.nreturns = nreturns + 1;
-	args.method = (cell_t)method;
+	args.method = IN(method);
 	args.instance = instance;
 	va_start(ap, nreturns);
 	for (cp = (cell_t *)(args.args_n_results + (n = nargs)); --n >= 0;)
-		*--cp = va_arg(ap, cell_t);
+		*--cp = IN(va_arg(ap, cell_t));
 	if (openfirmware(&args) == -1)
 		return (-1);
 	if (args.args_n_results[nargs])
-		return (args.args_n_results[nargs]);
-	for (cp = (cell_t *)(args.args_n_results + nargs + (n = args.nreturns));
-	    --n > 0;)
-		*va_arg(ap, cell_t *) = *--cp;
+		return (OUT(args.args_n_results[nargs]));
+	/* XXX what if ihandles or phandles are returned */
+	for (cp = (cell_t *)(args.args_n_results + nargs +
+	    (n = be32toh(args.nreturns))); --n > 0;)
+		*va_arg(ap, cell_t *) = OUT(*--cp);
 	va_end(ap);
 	return (0);
 }
@@ -501,13 +479,10 @@ OF_open(char *device)
 		cell_t nreturns;
 		cell_t device;
 		cell_t instance;
-	} args = {
-		(cell_t)"open",
-		1,
-		1,
-	};
+	} args = {};
+	SETUP(args, "open", 1, 1);
 
-	args.device = (cell_t)device;
+	args.device = IN(device);
 	if (openfirmware(&args) == -1 || args.instance == 0) {
 		return (-1);
 	}
@@ -523,10 +498,8 @@ OF_close(ihandle_t instance)
 		cell_t nargs;
 		cell_t nreturns;
 		cell_t instance;
-	} args = {
-		(cell_t)"close",
-		1,
-	};
+	} args = {};
+	SETUP(args, "close", 1, 0);
 
 	args.instance = instance;
 	openfirmware(&args);
@@ -544,19 +517,16 @@ OF_read(ihandle_t instance, void *addr, int len)
 		cell_t addr;
 		cell_t len;
 		cell_t actual;
-	} args = {
-		(cell_t)"read",
-		3,
-		1,
-	};
+	} args = {};
+	SETUP(args, "read", 3, 1);
 
 	args.instance = instance;
-	args.addr = (cell_t)addr;
-	args.len = len;
+	args.addr = IN(addr);
+	args.len = IN(len);
 
 #if defined(OPENFIRM_DEBUG)
 	printf("OF_read: called with instance=%08x, addr=%p, len=%d\n",
-	    args.instance, args.addr, args.len);
+	    instance, addr, len);
 #endif
 
 	if (openfirmware(&args) == -1)
@@ -564,10 +534,10 @@ OF_read(ihandle_t instance, void *addr, int len)
 
 #if defined(OPENFIRM_DEBUG)
 	printf("OF_read: returning instance=%d, addr=%p, len=%d, actual=%d\n",
-	    args.instance, args.addr, args.len, args.actual);
+	    args.instance, OUT(args.addr), OUT(args.len), OUT(args.actual));
 #endif
 
-	return (args.actual);
+	return (OUT(args.actual));
 }
 
 /* Write to an instance. */
@@ -582,18 +552,15 @@ OF_write(ihandle_t instance, void *addr, int len)
 		cell_t addr;
 		cell_t len;
 		cell_t actual;
-	} args = {
-		(cell_t)"write",
-		3,
-		1,
-	};
+	} args = {};
+	SETUP(args, "write", 3, 1);
 
 	args.instance = instance;
-	args.addr = (cell_t)addr;
-	args.len = len;
+	args.addr = IN(addr);
+	args.len = IN(len);
 	if (openfirmware(&args) == -1)
 		return (-1);
-	return (args.actual);
+	return (OUT(args.actual));
 }
 
 /* Seek to a position. */
@@ -608,18 +575,15 @@ OF_seek(ihandle_t instance, uint64_t pos)
 		cell_t poshi;
 		cell_t poslo;
 		cell_t status;
-	} args = {
-		(cell_t)"seek",
-		3,
-		1,
-	};
+	} args = {};
+	SETUP(args, "seek", 3, 1);
 
 	args.instance = instance;
-	args.poshi = pos >> 32;
-	args.poslo = pos;
+	args.poshi = IN(((uint64_t)pos >> 32));
+	args.poslo = IN(pos);
 	if (openfirmware(&args) == -1)
 		return (-1);
-	return (args.status);
+	return (OUT(args.status));
 }
 
 /* Blocks. */
@@ -633,16 +597,13 @@ OF_blocks(ihandle_t instance)
 		cell_t instance;
 		cell_t result;
 		cell_t blocks;
-	} args = {
-		(cell_t)"#blocks",
-		2,
-		1,
-	};
+	} args = {};
+	SETUP(args, "#blocks", 2, 1);
 
 	args.instance = instance;
 	if (openfirmware(&args) == -1)
 		return ((unsigned int)-1);
-	return (args.blocks);
+	return (OUT(args.blocks));
 }
 
 /* Block size. */
@@ -656,16 +617,13 @@ OF_block_size(ihandle_t instance)
 		cell_t instance;
 		cell_t result;
 		cell_t size;
-	} args = {
-		(cell_t)"block-size",
-		2,
-		1,
-	};
+	} args = {};
+	SETUP(args, "block-size", 2, 1);
 
 	args.instance = instance;
 	if (openfirmware(&args) == -1)
 		return (512);
-	return (args.size);
+	return (OUT(args.size));
 }
 
 /* 
@@ -684,18 +642,15 @@ OF_claim(void *virt, u_int size, u_int align)
 		cell_t size;
 		cell_t align;
 		cell_t baseaddr;
-	} args = {
-		(cell_t)"claim",
-		3,
-		1,
-	};
+	} args = {};
+	SETUP(args, "claim", 3, 1);
 
-	args.virt = (cell_t)virt;
-	args.size = size;
-	args.align = align;
+	args.virt = IN(virt);
+	args.size = IN(size);
+	args.align = IN(align);
 	if (openfirmware(&args) == -1)
 		return ((void *)-1);
-	return ((void *)args.baseaddr);
+	return ((void *)OUT(args.baseaddr));
 }
 
 /* Release an area of memory. */
@@ -708,13 +663,11 @@ OF_release(void *virt, u_int size)
 		cell_t nreturns;
 		cell_t virt;
 		cell_t size;
-	} args = {
-		(cell_t)"release",
-		2,
-	};
+	} args = {};
+	SETUP(args, "release", 2, 0);
 
-	args.virt = (cell_t)virt;
-	args.size = size;
+	args.virt = IN(virt);
+	args.size = IN(size);
 	openfirmware(&args);
 }
 
@@ -731,12 +684,10 @@ OF_boot(char *bootspec)
 		cell_t nargs;
 		cell_t nreturns;
 		cell_t bootspec;
-	} args = {
-		(cell_t)"boot",
-		1,
-	};
+	} args = {};
+	SETUP(args, "boot", 1, 0);
 
-	args.bootspec = (cell_t)bootspec;
+	args.bootspec = IN(bootspec);
 	openfirmware(&args);
 	for (;;)			/* just in case */
 		;
@@ -750,9 +701,8 @@ OF_enter()
 		cell_t name;
 		cell_t nargs;
 		cell_t nreturns;
-	} args = {
-		(cell_t)"enter",
-	};
+	} args = {};
+	SETUP(args, "enter", 0, 0);
 
 	openfirmware(&args);
 	/* We may come back. */
@@ -766,9 +716,8 @@ OF_exit()
 		cell_t name;
 		cell_t nargs;
 		cell_t nreturns;
-	} args = {
-		(cell_t)"exit",
-	};
+	} args = {};
+	SETUP(args, "exit", 0, 0);
 
 	openfirmware(&args);
 	for (;;)			/* just in case */
@@ -782,9 +731,8 @@ OF_quiesce()
 		cell_t name;
 		cell_t nargs;
 		cell_t nreturns;
-	} args = {
-		(cell_t)"quiesce",
-	};
+	} args = {};
+	SETUP(args, "quiesce", 0, 0);
 
 	openfirmware(&args);
 }
@@ -803,16 +751,14 @@ OF_chain(void *virt, u_int size, void (*entry)(), void *arg, u_int len)
 		cell_t entry;
 		cell_t arg;
 		cell_t len;
-	} args = {
-		(cell_t)"chain",
-		5,
-	};
+	} args = {};
+	SETUP(args, "chain", 5, 0);
 
-	args.virt = (cell_t)virt;
-	args.size = size;
-	args.entry = (cell_t)entry;
-	args.arg = (cell_t)arg;
-	args.len = len;
+	args.virt = IN(virt);
+	args.size = IN(size);
+	args.entry = IN(entry);
+	args.arg = IN(arg);
+	args.len = IN(len);
 	openfirmware(&args);
 }
 #else

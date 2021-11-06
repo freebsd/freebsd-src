@@ -4839,7 +4839,9 @@ enum fw_params_param_dev {
 	FW_PARAMS_PARAM_DEV_TCB_CACHE_FLUSH = 0x2D,
 	FW_PARAMS_PARAM_DEV_FILTER = 0x2E,
 	FW_PARAMS_PARAM_DEV_CLIP2_CMD = 0x2F,
+	FW_PARAMS_PARAM_DEV_DEV_512SGL_MR = 0x30,
 	FW_PARAMS_PARAM_DEV_KTLS_HW = 0x31,
+	FW_PARAMS_PARAM_DEV_VI_ENABLE_INGRESS_AFTER_LINKUP = 0x32,
 };
 
 /*
@@ -4874,11 +4876,12 @@ enum fw_params_param_dev_diag {
 enum fw_params_param_dev_filter{
 	FW_PARAM_DEV_FILTER_VNIC_MODE	= 0x00,
 	FW_PARAM_DEV_FILTER_MODE_MASK	= 0x01,
+};
 
-	/* VNIC modes */
-	FW_VNIC_MODE_PF_VF	= 0,
-	FW_VNIC_MODE_OUTER_VLAN	= 1,
-	FW_VNIC_MODE_ENCAP_EN	= 2,
+enum fw_filter_vnic_mode {
+	FW_VNIC_MODE_PF_VF = 0,
+	FW_VNIC_MODE_OUTER_VLAN = 1,
+	FW_VNIC_MODE_ENCAP_EN = 2,
 };
 
 enum fw_params_param_dev_ktls_hw {
@@ -9949,7 +9952,10 @@ struct fw_hdr {
 	__u32	reserved3;
 	__be32	magic;			/* runtime or bootstrap fw */
 	__be32	flags;
-	__be32	reserved6[23];
+	__be32	reserved6[4];
+	__u8	reserved7[3];
+	__u8	dsign_len;
+	__u8	dsign[72];		/* fw binary digital signature */
 };
 
 enum fw_hdr_chip {
@@ -9988,19 +9994,19 @@ enum fw_hdr_chip {
 
 enum {
 	T4FW_VERSION_MAJOR	= 1,
-	T4FW_VERSION_MINOR	= 25,
-	T4FW_VERSION_MICRO	= 0,
-	T4FW_VERSION_BUILD	= 40,
+	T4FW_VERSION_MINOR	= 26,
+	T4FW_VERSION_MICRO	= 2,
+	T4FW_VERSION_BUILD	= 0,
 
 	T5FW_VERSION_MAJOR	= 1,
-	T5FW_VERSION_MINOR	= 25,
-	T5FW_VERSION_MICRO	= 0,
-	T5FW_VERSION_BUILD	= 40,
+	T5FW_VERSION_MINOR	= 26,
+	T5FW_VERSION_MICRO	= 2,
+	T5FW_VERSION_BUILD	= 0,
 
 	T6FW_VERSION_MAJOR	= 1,
-	T6FW_VERSION_MINOR	= 25,
-	T6FW_VERSION_MICRO	= 0,
-	T6FW_VERSION_BUILD	= 40,
+	T6FW_VERSION_MINOR	= 26,
+	T6FW_VERSION_MICRO	= 2,
+	T6FW_VERSION_BUILD	= 0,
 };
 
 enum {
@@ -10049,6 +10055,7 @@ enum {
 
 enum fw_hdr_flags {
 	FW_HDR_FLAGS_RESET_HALT	= 0x00000001,
+	FW_HDR_FLAGS_SIGNED_FW	= 0x00000002,
 };
 
 /*

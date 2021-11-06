@@ -28,10 +28,10 @@ int hmac_sha512_vector(const u8 *key, size_t key_len, size_t num_elem,
 {
 	unsigned char k_pad[128]; /* padding - key XORd with ipad/opad */
 	unsigned char tk[64];
-	const u8 *_addr[6];
-	size_t _len[6], i;
+	const u8 *_addr[11];
+	size_t _len[11], i;
 
-	if (num_elem > 5) {
+	if (num_elem > 10) {
 		/*
 		 * Fixed limit on the number of fragments to avoid having to
 		 * allocate memory (which could fail).

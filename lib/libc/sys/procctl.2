@@ -62,6 +62,8 @@ The following identifier types are supported:
 .It Dv P_PID
 Control the process with the process ID
 .Fa id .
+.Fa id
+zero is a shortcut for the calling process ID.
 .It Dv P_PGID
 Control processes belonging to the process group with the ID
 .Fa id .
@@ -70,6 +72,14 @@ Control processes belonging to the process group with the ID
 The control request to perform is specified by the
 .Fa cmd
 argument.
+.Pp
+All status changing requests
+.Dv *_CTL
+require the caller to have the right to debug the target.
+All status query requests
+.DV *_STATUS
+require the caller to have the right to observe the target.
+.Pp
 The following commands are supported:
 .Bl -tag -width PROC_TRAPCAP_STATUS
 .It Dv PROC_ASLR_CTL

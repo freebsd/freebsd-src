@@ -102,10 +102,11 @@ protect_setchildren(struct thread *td, struct proc *top, int flags)
 }
 
 static int
-protect_set(struct thread *td, struct proc *p, int flags)
+protect_set(struct thread *td, struct proc *p, void *data)
 {
-	int error, ret;
+	int error, flags, ret;
 
+	flags = *(int *)data;
 	switch (PPROT_OP(flags)) {
 	case PPROT_SET:
 	case PPROT_CLEAR:
@@ -131,11 +132,11 @@ protect_set(struct thread *td, struct proc *p, int flags)
 }
 
 static int
-reap_acquire(struct thread *td, struct proc *p)
+reap_acquire(struct thread *td, struct proc *p, void *data __unused)
 {
 
 	sx_assert(&proctree_lock, SX_XLOCKED);
-	if (p != curproc)
+	if (p != td->td_proc)
 		return (EPERM);
 	if ((p->p_treeflag & P_TREE_REAPER) != 0)
 		return (EBUSY);
@@ -148,11 +149,11 @@ reap_acquire(struct thread *td, struct proc *p)
 }
 
 static int
-reap_release(struct thread *td, struct proc *p)
+reap_release(struct thread *td, struct proc *p, void *data __unused)
 {
 
 	sx_assert(&proctree_lock, SX_XLOCKED);
-	if (p != curproc)
+	if (p != td->td_proc)
 		return (EPERM);
 	if (p == initproc)
 		return (EINVAL);
@@ -163,13 +164,13 @@ reap_release(struct thread *td, struct proc *p)
 }
 
 static int
-reap_status(struct thread *td, struct proc *p,
-    struct procctl_reaper_status *rs)
+reap_status(struct thread *td, struct proc *p, void *data)
 {
 	struct proc *reap, *p2, *first_p;
+	struct procctl_reaper_status *rs;
 
+	rs = data;
 	sx_assert(&proctree_lock, SX_LOCKED);
-	bzero(rs, sizeof(*rs));
 	if ((p->p_treeflag & P_TREE_REAPER) == 0) {
 		reap = p->p_reaper;
 	} else {
@@ -198,13 +199,15 @@ reap_status(struct thread *td, struct proc *p,
 }
 
 static int
-reap_getpids(struct thread *td, struct proc *p, struct procctl_reaper_pids *rp)
+reap_getpids(struct thread *td, struct proc *p, void *data)
 {
 	struct proc *reap, *p2;
 	struct procctl_reaper_pidinfo *pi, *pip;
+	struct procctl_reaper_pids *rp;
 	u_int i, n;
 	int error;
 
+	rp = data;
 	sx_assert(&proctree_lock, SX_LOCKED);
 	PROC_UNLOCK(p);
 	reap = (p->p_treeflag & P_TREE_REAPER) == 0 ? p->p_reaper : p;
@@ -276,14 +279,16 @@ reap_kill_sched(struct reap_kill_tracker_head *tracker, struct proc *p2)
 }
 
 static int
-reap_kill(struct thread *td, struct proc *p, struct procctl_reaper_kill *rk)
+reap_kill(struct thread *td, struct proc *p, void *data)
 {
 	struct proc *reap, *p2;
 	ksiginfo_t ksi;
 	struct reap_kill_tracker_head tracker;
 	struct reap_kill_tracker *t;
+	struct procctl_reaper_kill *rk;
 	int error;
 
+	rk = data;
 	sx_assert(&proctree_lock, SX_LOCKED);
 	if (IN_CAPABILITY_MODE(td))
 		return (ECAPMODE);
@@ -336,10 +341,12 @@ reap_kill(struct thread *td, struct proc *p, struct procctl_reaper_kill *rk)
 }
 
 static int
-trace_ctl(struct thread *td, struct proc *p, int state)
+trace_ctl(struct thread *td, struct proc *p, void *data)
 {
+	int state;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
+	state = *(int *)data;
 
 	/*
 	 * Ktrace changes p_traceflag from or to zero under the
@@ -376,26 +383,30 @@ trace_ctl(struct thread *td, struct proc *p, int state)
 }
 
 static int
-trace_status(struct thread *td, struct proc *p, int *data)
+trace_status(struct thread *td, struct proc *p, void *data)
 {
+	int *status;
 
+	status = data;
 	if ((p->p_flag2 & P2_NOTRACE) != 0) {
 		KASSERT((p->p_flag & P_TRACED) == 0,
 		    ("%d traced but tracing disabled", p->p_pid));
-		*data = -1;
+		*status = -1;
 	} else if ((p->p_flag & P_TRACED) != 0) {
-		*data = p->p_pptr->p_pid;
+		*status = p->p_pptr->p_pid;
 	} else {
-		*data = 0;
+		*status = 0;
 	}
 	return (0);
 }
 
 static int
-trapcap_ctl(struct thread *td, struct proc *p, int state)
+trapcap_ctl(struct thread *td, struct proc *p, void *data)
 {
+	int state;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
+	state = *(int *)data;
 
 	switch (state) {
 	case PROC_TRAPCAP_CTL_ENABLE:
@@ -411,19 +422,23 @@ trapcap_ctl(struct thread *td, struct proc *p, int state)
 }
 
 static int
-trapcap_status(struct thread *td, struct proc *p, int *data)
+trapcap_status(struct thread *td, struct proc *p, void *data)
 {
+	int *status;
 
-	*data = (p->p_flag2 & P2_TRAPCAP) != 0 ? PROC_TRAPCAP_CTL_ENABLE :
+	status = data;
+	*status = (p->p_flag2 & P2_TRAPCAP) != 0 ? PROC_TRAPCAP_CTL_ENABLE :
 	    PROC_TRAPCAP_CTL_DISABLE;
 	return (0);
 }
 
 static int
-no_new_privs_ctl(struct thread *td, struct proc *p, int state)
+no_new_privs_ctl(struct thread *td, struct proc *p, void *data)
 {
+	int state;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
+	state = *(int *)data;
 
 	if (state != PROC_NO_NEW_PRIVS_ENABLE)
 		return (EINVAL);
@@ -432,18 +447,21 @@ no_new_privs_ctl(struct thread *td, struct proc *p, int state)
 }
 
 static int
-no_new_privs_status(struct thread *td, struct proc *p, int *data)
+no_new_privs_status(struct thread *td, struct proc *p, void *data)
 {
 
-	*data = (p->p_flag2 & P2_NO_NEW_PRIVS) != 0 ?
+	*(int *)data = (p->p_flag2 & P2_NO_NEW_PRIVS) != 0 ?
 	    PROC_NO_NEW_PRIVS_ENABLE : PROC_NO_NEW_PRIVS_DISABLE;
 	return (0);
 }
 
 static int
-protmax_ctl(struct thread *td, struct proc *p, int state)
+protmax_ctl(struct thread *td, struct proc *p, void *data)
 {
+	int state;
+
 	PROC_LOCK_ASSERT(p, MA_OWNED);
+	state = *(int *)data;
 
 	switch (state) {
 	case PROC_PROTMAX_FORCE_ENABLE:
@@ -464,7 +482,7 @@ protmax_ctl(struct thread *td, struct proc *p, int state)
 }
 
 static int
-protmax_status(struct thread *td, struct proc *p, int *data)
+protmax_status(struct thread *td, struct proc *p, void *data)
 {
 	int d;
 
@@ -481,15 +499,17 @@ protmax_status(struct thread *td, struct proc *p, int *data)
 	}
 	if (kern_mmap_maxprot(p, PROT_READ) == PROT_READ)
 		d |= PROC_PROTMAX_ACTIVE;
-	*data = d;
+	*(int *)data = d;
 	return (0);
 }
 
 static int
-aslr_ctl(struct thread *td, struct proc *p, int state)
+aslr_ctl(struct thread *td, struct proc *p, void *data)
 {
+	int state;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
+	state = *(int *)data;
 
 	switch (state) {
 	case PROC_ASLR_FORCE_ENABLE:
@@ -510,7 +530,7 @@ aslr_ctl(struct thread *td, struct proc *p, int state)
 }
 
 static int
-aslr_status(struct thread *td, struct proc *p, int *data)
+aslr_status(struct thread *td, struct proc *p, void *data)
 {
 	struct vmspace *vm;
 	int d;
@@ -538,14 +558,17 @@ aslr_status(struct thread *td, struct proc *p, int *data)
 		PROC_LOCK(p);
 		_PRELE(p);
 	}
-	*data = d;
+	*(int *)data = d;
 	return (0);
 }
 
 static int
-stackgap_ctl(struct thread *td, struct proc *p, int state)
+stackgap_ctl(struct thread *td, struct proc *p, void *data)
 {
+	int state;
+
 	PROC_LOCK_ASSERT(p, MA_OWNED);
+	state = *(int *)data;
 
 	if ((state & ~(PROC_STACKGAP_ENABLE | PROC_STACKGAP_DISABLE |
 	    PROC_STACKGAP_ENABLE_EXEC | PROC_STACKGAP_DISABLE_EXEC)) != 0)
@@ -580,26 +603,31 @@ stackgap_ctl(struct thread *td, struct proc *p, int state)
 }
 
 static int
-stackgap_status(struct thread *td, struct proc *p, int *data)
+stackgap_status(struct thread *td, struct proc *p, void *data)
 {
+	int d;
+
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 
-	*data = (p->p_flag2 & P2_STKGAP_DISABLE) != 0 ? PROC_STACKGAP_DISABLE :
+	d = (p->p_flag2 & P2_STKGAP_DISABLE) != 0 ? PROC_STACKGAP_DISABLE :
 	    PROC_STACKGAP_ENABLE;
-	*data |= (p->p_flag2 & P2_STKGAP_DISABLE_EXEC) != 0 ?
+	d |= (p->p_flag2 & P2_STKGAP_DISABLE_EXEC) != 0 ?
 	    PROC_STACKGAP_DISABLE_EXEC : PROC_STACKGAP_ENABLE_EXEC;
+	*(int *)data = d;
 	return (0);
 }
 
 static int
-wxmap_ctl(struct thread *td, struct proc *p, int state)
+wxmap_ctl(struct thread *td, struct proc *p, void *data)
 {
 	struct vmspace *vm;
 	vm_map_t map;
+	int state;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	if ((p->p_flag & P_WEXIT) != 0)
 		return (ESRCH);
+	state = *(int *)data;
 
 	switch (state) {
 	case PROC_WX_MAPPINGS_PERMIT:
@@ -628,7 +656,7 @@ wxmap_ctl(struct thread *td, struct proc *p, int state)
 }
 
 static int
-wxmap_status(struct thread *td, struct proc *p, int *data)
+wxmap_status(struct thread *td, struct proc *p, void *data)
 {
 	struct vmspace *vm;
 	int d;
@@ -652,115 +680,221 @@ wxmap_status(struct thread *td, struct proc *p, int *data)
 	}
 	PROC_LOCK(p);
 	_PRELE(p);
-	*data = d;
+	*(int *)data = d;
 	return (0);
 }
 
-#ifndef _SYS_SYSPROTO_H_
-struct procctl_args {
-	idtype_t idtype;
-	id_t	id;
-	int	com;
-	void	*data;
+static int
+pdeathsig_ctl(struct thread *td, struct proc *p, void *data)
+{
+	int signum;
+
+	signum = *(int *)data;
+	if (p != td->td_proc || (signum != 0 && !_SIG_VALID(signum)))
+		return (EINVAL);
+	p->p_pdeathsig = signum;
+	return (0);
+}
+
+static int
+pdeathsig_status(struct thread *td, struct proc *p, void *data)
+{
+	if (p != td->td_proc)
+		return (EINVAL);
+	*(int *)data = p->p_pdeathsig;
+	return (0);
+}
+
+enum {
+	PCTL_SLOCKED,
+	PCTL_XLOCKED,
+	PCTL_UNLOCKED,
 };
-#endif
-/* ARGSUSED */
+
+struct procctl_cmd_info {
+	int lock_tree;
+	bool one_proc : 1;
+	bool esrch_is_einval : 1;
+	bool copyout_on_error : 1;
+	bool no_nonnull_data : 1;
+	bool need_candebug : 1;
+	int copyin_sz;
+	int copyout_sz;
+	int (*exec)(struct thread *, struct proc *, void *);
+};
+static const struct procctl_cmd_info procctl_cmds_info[] = {
+	[PROC_SPROTECT] =
+	    { .lock_tree = PCTL_SLOCKED, .one_proc = false,
+	      .esrch_is_einval = false, .no_nonnull_data = false,
+	      .need_candebug = false,
+	      .copyin_sz = sizeof(int), .copyout_sz = 0,
+	      .exec = protect_set, .copyout_on_error = false, },
+	[PROC_REAP_ACQUIRE] =
+	    { .lock_tree = PCTL_XLOCKED, .one_proc = true,
+	      .esrch_is_einval = false, .no_nonnull_data = true,
+	      .need_candebug = false,
+	      .copyin_sz = 0, .copyout_sz = 0,
+	      .exec = reap_acquire, .copyout_on_error = false, },
+	[PROC_REAP_RELEASE] =
+	    { .lock_tree = PCTL_XLOCKED, .one_proc = true,
+	      .esrch_is_einval = false, .no_nonnull_data = true,
+	      .need_candebug = false,
+	      .copyin_sz = 0, .copyout_sz = 0,
+	      .exec = reap_release, .copyout_on_error = false, },
+	[PROC_REAP_STATUS] =
+	    { .lock_tree = PCTL_SLOCKED, .one_proc = true,
+	      .esrch_is_einval = false, .no_nonnull_data = false,
+	      .need_candebug = false,
+	      .copyin_sz = 0,
+	      .copyout_sz = sizeof(struct procctl_reaper_status),
+	      .exec = reap_status, .copyout_on_error = false, },
+	[PROC_REAP_GETPIDS] =
+	    { .lock_tree = PCTL_SLOCKED, .one_proc = true,
+	      .esrch_is_einval = false, .no_nonnull_data = false,
+	      .need_candebug = false,
+	      .copyin_sz = sizeof(struct procctl_reaper_pids),
+	      .copyout_sz = 0,
+	      .exec = reap_getpids, .copyout_on_error = false, },
+	[PROC_REAP_KILL] =
+	    { .lock_tree = PCTL_SLOCKED, .one_proc = true,
+	      .esrch_is_einval = false, .no_nonnull_data = false,
+	      .need_candebug = false,
+	      .copyin_sz = sizeof(struct procctl_reaper_kill),
+	      .copyout_sz = sizeof(struct procctl_reaper_kill),
+	      .exec = reap_kill, .copyout_on_error = true, },
+	[PROC_TRACE_CTL] =
+	    { .lock_tree = PCTL_SLOCKED, .one_proc = false,
+	      .esrch_is_einval = false, .no_nonnull_data = false,
+	      .need_candebug = true,
+	      .copyin_sz = sizeof(int), .copyout_sz = 0,
+	      .exec = trace_ctl, .copyout_on_error = false, },
+	[PROC_TRACE_STATUS] =
+	    { .lock_tree = PCTL_UNLOCKED, .one_proc = true,
+	      .esrch_is_einval = false, .no_nonnull_data = false,
+	      .need_candebug = false,
+	      .copyin_sz = 0, .copyout_sz = sizeof(int),
+	      .exec = trace_status, .copyout_on_error = false, },
+	[PROC_TRAPCAP_CTL] =
+	    { .lock_tree = PCTL_SLOCKED, .one_proc = false,
+	      .esrch_is_einval = false, .no_nonnull_data = false,
+	      .need_candebug = true,
+	      .copyin_sz = sizeof(int), .copyout_sz = 0,
+	      .exec = trapcap_ctl, .copyout_on_error = false, },
+	[PROC_TRAPCAP_STATUS] =
+	    { .lock_tree = PCTL_UNLOCKED, .one_proc = true,
+	      .esrch_is_einval = false, .no_nonnull_data = false,
+	      .need_candebug = false,
+	      .copyin_sz = 0, .copyout_sz = sizeof(int),
+	      .exec = trapcap_status, .copyout_on_error = false, },
+	[PROC_PDEATHSIG_CTL] =
+	    { .lock_tree = PCTL_UNLOCKED, .one_proc = true,
+	      .esrch_is_einval = true, .no_nonnull_data = false,
+	      .need_candebug = false,
+	      .copyin_sz = sizeof(int), .copyout_sz = 0,
+	      .exec = pdeathsig_ctl, .copyout_on_error = false, },
+	[PROC_PDEATHSIG_STATUS] =
+	    { .lock_tree = PCTL_UNLOCKED, .one_proc = true,
+	      .esrch_is_einval = true, .no_nonnull_data = false,
+	      .need_candebug = false,
+	      .copyin_sz = 0, .copyout_sz = sizeof(int),
+	      .exec = pdeathsig_status, .copyout_on_error = false, },
+	[PROC_ASLR_CTL] =
+	    { .lock_tree = PCTL_UNLOCKED, .one_proc = true,
+	      .esrch_is_einval = false, .no_nonnull_data = false,
+	      .need_candebug = true,
+	      .copyin_sz = sizeof(int), .copyout_sz = 0,
+	      .exec = aslr_ctl, .copyout_on_error = false, },
+	[PROC_ASLR_STATUS] =
+	    { .lock_tree = PCTL_UNLOCKED, .one_proc = true,
+	      .esrch_is_einval = false, .no_nonnull_data = false,
+	      .need_candebug = false,
+	      .copyin_sz = 0, .copyout_sz = sizeof(int),
+	      .exec = aslr_status, .copyout_on_error = false, },
+	[PROC_PROTMAX_CTL] =
+	    { .lock_tree = PCTL_UNLOCKED, .one_proc = true,
+	      .esrch_is_einval = false, .no_nonnull_data = false,
+	      .need_candebug = true,
+	      .copyin_sz = sizeof(int), .copyout_sz = 0,
+	      .exec = protmax_ctl, .copyout_on_error = false, },
+	[PROC_PROTMAX_STATUS] =
+	    { .lock_tree = PCTL_UNLOCKED, .one_proc = true,
+	      .esrch_is_einval = false, .no_nonnull_data = false,
+	      .need_candebug = false,
+	      .copyin_sz = 0, .copyout_sz = sizeof(int),
+	      .exec = protmax_status, .copyout_on_error = false, },
+	[PROC_STACKGAP_CTL] =
+	    { .lock_tree = PCTL_UNLOCKED, .one_proc = true,
+	      .esrch_is_einval = false, .no_nonnull_data = false,
+	      .need_candebug = true,
+	      .copyin_sz = sizeof(int), .copyout_sz = 0,
+	      .exec = stackgap_ctl, .copyout_on_error = false, },
+	[PROC_STACKGAP_STATUS] =
+	    { .lock_tree = PCTL_UNLOCKED, .one_proc = true,
+	      .esrch_is_einval = false, .no_nonnull_data = false,
+	      .need_candebug = false,
+	      .copyin_sz = 0, .copyout_sz = sizeof(int),
+	      .exec = stackgap_status, .copyout_on_error = false, },
+	[PROC_NO_NEW_PRIVS_CTL] =
+	    { .lock_tree = PCTL_SLOCKED, .one_proc = true,
+	      .esrch_is_einval = false, .no_nonnull_data = false,
+	      .need_candebug = true,
+	      .copyin_sz = sizeof(int), .copyout_sz = 0,
+	      .exec = no_new_privs_ctl, .copyout_on_error = false, },
+	[PROC_NO_NEW_PRIVS_STATUS] =
+	    { .lock_tree = PCTL_UNLOCKED, .one_proc = true,
+	      .esrch_is_einval = false, .no_nonnull_data = false,
+	      .need_candebug = false,
+	      .copyin_sz = 0, .copyout_sz = sizeof(int),
+	      .exec = no_new_privs_status, .copyout_on_error = false, },
+	[PROC_WXMAP_CTL] =
+	    { .lock_tree = PCTL_UNLOCKED, .one_proc = true,
+	      .esrch_is_einval = false, .no_nonnull_data = false,
+	      .need_candebug = true,
+	      .copyin_sz = sizeof(int), .copyout_sz = 0,
+	      .exec = wxmap_ctl, .copyout_on_error = false, },
+	[PROC_WXMAP_STATUS] =
+	    { .lock_tree = PCTL_UNLOCKED, .one_proc = true,
+	      .esrch_is_einval = false, .no_nonnull_data = false,
+	      .need_candebug = false,
+	      .copyin_sz = 0, .copyout_sz = sizeof(int),
+	      .exec = wxmap_status, .copyout_on_error = false, },
+};
+
 int
 sys_procctl(struct thread *td, struct procctl_args *uap)
 {
-	void *data;
 	union {
 		struct procctl_reaper_status rs;
 		struct procctl_reaper_pids rp;
 		struct procctl_reaper_kill rk;
+		int flags;
 	} x;
-	int error, error1, flags, signum;
+	const struct procctl_cmd_info *cmd_info;
+	int error, error1;
 
 	if (uap->com >= PROC_PROCCTL_MD_MIN)
 		return (cpu_procctl(td, uap->idtype, uap->id,
 		    uap->com, uap->data));
+	if (uap->com == 0 || uap->com >= nitems(procctl_cmds_info))
+		return (EINVAL);
+	cmd_info = &procctl_cmds_info[uap->com];
+	bzero(&x, sizeof(x));
 
-	switch (uap->com) {
-	case PROC_ASLR_CTL:
-	case PROC_PROTMAX_CTL:
-	case PROC_SPROTECT:
-	case PROC_STACKGAP_CTL:
-	case PROC_TRACE_CTL:
-	case PROC_TRAPCAP_CTL:
-	case PROC_NO_NEW_PRIVS_CTL:
-	case PROC_WXMAP_CTL:
-		error = copyin(uap->data, &flags, sizeof(flags));
+	if (cmd_info->copyin_sz > 0) {
+		error = copyin(uap->data, &x, cmd_info->copyin_sz);
 		if (error != 0)
 			return (error);
-		data = &flags;
-		break;
-	case PROC_REAP_ACQUIRE:
-	case PROC_REAP_RELEASE:
-		if (uap->data != NULL)
-			return (EINVAL);
-		data = NULL;
-		break;
-	case PROC_REAP_STATUS:
-		data = &x.rs;
-		break;
-	case PROC_REAP_GETPIDS:
-		error = copyin(uap->data, &x.rp, sizeof(x.rp));
-		if (error != 0)
-			return (error);
-		data = &x.rp;
-		break;
-	case PROC_REAP_KILL:
-		error = copyin(uap->data, &x.rk, sizeof(x.rk));
-		if (error != 0)
-			return (error);
-		data = &x.rk;
-		break;
-	case PROC_ASLR_STATUS:
-	case PROC_PROTMAX_STATUS:
-	case PROC_STACKGAP_STATUS:
-	case PROC_TRACE_STATUS:
-	case PROC_TRAPCAP_STATUS:
-	case PROC_NO_NEW_PRIVS_STATUS:
-	case PROC_WXMAP_STATUS:
-		data = &flags;
-		break;
-	case PROC_PDEATHSIG_CTL:
-		error = copyin(uap->data, &signum, sizeof(signum));
-		if (error != 0)
-			return (error);
-		data = &signum;
-		break;
-	case PROC_PDEATHSIG_STATUS:
-		data = &signum;
-		break;
-	default:
+	} else if (cmd_info->no_nonnull_data && uap->data != NULL) {
 		return (EINVAL);
 	}
-	error = kern_procctl(td, uap->idtype, uap->id, uap->com, data);
-	switch (uap->com) {
-	case PROC_REAP_STATUS:
-		if (error == 0)
-			error = copyout(&x.rs, uap->data, sizeof(x.rs));
-		break;
-	case PROC_REAP_KILL:
-		error1 = copyout(&x.rk, uap->data, sizeof(x.rk));
+
+	error = kern_procctl(td, uap->idtype, uap->id, uap->com, &x);
+
+	if (cmd_info->copyout_sz > 0 && (error == 0 ||
+	    cmd_info->copyout_on_error)) {
+		error1 = copyout(&x, uap->data, cmd_info->copyout_sz);
 		if (error == 0)
 			error = error1;
-		break;
-	case PROC_ASLR_STATUS:
-	case PROC_PROTMAX_STATUS:
-	case PROC_STACKGAP_STATUS:
-	case PROC_TRACE_STATUS:
-	case PROC_TRAPCAP_STATUS:
-	case PROC_NO_NEW_PRIVS_STATUS:
-	case PROC_WXMAP_STATUS:
-		if (error == 0)
-			error = copyout(&flags, uap->data, sizeof(flags));
-		break;
-	case PROC_PDEATHSIG_STATUS:
-		if (error == 0)
-			error = copyout(&signum, uap->data, sizeof(signum));
-		break;
 	}
 	return (error);
 }
@@ -770,50 +904,7 @@ kern_procctl_single(struct thread *td, struct proc *p, int com, void *data)
 {
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
-	switch (com) {
-	case PROC_ASLR_CTL:
-		return (aslr_ctl(td, p, *(int *)data));
-	case PROC_ASLR_STATUS:
-		return (aslr_status(td, p, data));
-	case PROC_SPROTECT:
-		return (protect_set(td, p, *(int *)data));
-	case PROC_PROTMAX_CTL:
-		return (protmax_ctl(td, p, *(int *)data));
-	case PROC_PROTMAX_STATUS:
-		return (protmax_status(td, p, data));
-	case PROC_STACKGAP_CTL:
-		return (stackgap_ctl(td, p, *(int *)data));
-	case PROC_STACKGAP_STATUS:
-		return (stackgap_status(td, p, data));
-	case PROC_REAP_ACQUIRE:
-		return (reap_acquire(td, p));
-	case PROC_REAP_RELEASE:
-		return (reap_release(td, p));
-	case PROC_REAP_STATUS:
-		return (reap_status(td, p, data));
-	case PROC_REAP_GETPIDS:
-		return (reap_getpids(td, p, data));
-	case PROC_REAP_KILL:
-		return (reap_kill(td, p, data));
-	case PROC_TRACE_CTL:
-		return (trace_ctl(td, p, *(int *)data));
-	case PROC_TRACE_STATUS:
-		return (trace_status(td, p, data));
-	case PROC_TRAPCAP_CTL:
-		return (trapcap_ctl(td, p, *(int *)data));
-	case PROC_TRAPCAP_STATUS:
-		return (trapcap_status(td, p, data));
-	case PROC_NO_NEW_PRIVS_CTL:
-		return (no_new_privs_ctl(td, p, *(int *)data));
-	case PROC_NO_NEW_PRIVS_STATUS:
-		return (no_new_privs_status(td, p, data));
-	case PROC_WXMAP_CTL:
-		return (wxmap_ctl(td, p, *(int *)data));
-	case PROC_WXMAP_STATUS:
-		return (wxmap_status(td, p, data));
-	default:
-		return (EINVAL);
-	}
+	return (procctl_cmds_info[com].exec(td, p, data));
 }
 
 int
@@ -821,96 +912,41 @@ kern_procctl(struct thread *td, idtype_t idtype, id_t id, int com, void *data)
 {
 	struct pgrp *pg;
 	struct proc *p;
+	const struct procctl_cmd_info *cmd_info;
 	int error, first_error, ok;
-	int signum;
-	bool tree_locked;
 
-	switch (com) {
-	case PROC_ASLR_CTL:
-	case PROC_ASLR_STATUS:
-	case PROC_PROTMAX_CTL:
-	case PROC_PROTMAX_STATUS:
-	case PROC_REAP_ACQUIRE:
-	case PROC_REAP_RELEASE:
-	case PROC_REAP_STATUS:
-	case PROC_REAP_GETPIDS:
-	case PROC_REAP_KILL:
-	case PROC_STACKGAP_CTL:
-	case PROC_STACKGAP_STATUS:
-	case PROC_TRACE_STATUS:
-	case PROC_TRAPCAP_STATUS:
-	case PROC_PDEATHSIG_CTL:
-	case PROC_PDEATHSIG_STATUS:
-	case PROC_NO_NEW_PRIVS_CTL:
-	case PROC_NO_NEW_PRIVS_STATUS:
-	case PROC_WXMAP_CTL:
-	case PROC_WXMAP_STATUS:
-		if (idtype != P_PID)
-			return (EINVAL);
-	}
+	MPASS(com > 0 && com < nitems(procctl_cmds_info));
+	cmd_info = &procctl_cmds_info[com];
+	if (idtype != P_PID && cmd_info->one_proc)
+		return (EINVAL);
 
-	switch (com) {
-	case PROC_PDEATHSIG_CTL:
-		signum = *(int *)data;
-		p = td->td_proc;
-		if ((id != 0 && id != p->p_pid) ||
-		    (signum != 0 && !_SIG_VALID(signum)))
-			return (EINVAL);
-		PROC_LOCK(p);
-		p->p_pdeathsig = signum;
-		PROC_UNLOCK(p);
-		return (0);
-	case PROC_PDEATHSIG_STATUS:
-		p = td->td_proc;
-		if (id != 0 && id != p->p_pid)
-			return (EINVAL);
-		PROC_LOCK(p);
-		*(int *)data = p->p_pdeathsig;
-		PROC_UNLOCK(p);
-		return (0);
-	}
-
-	switch (com) {
-	case PROC_SPROTECT:
-	case PROC_REAP_STATUS:
-	case PROC_REAP_GETPIDS:
-	case PROC_REAP_KILL:
-	case PROC_TRACE_CTL:
-	case PROC_TRAPCAP_CTL:
-	case PROC_NO_NEW_PRIVS_CTL:
-		sx_slock(&proctree_lock);
-		tree_locked = true;
-		break;
-	case PROC_REAP_ACQUIRE:
-	case PROC_REAP_RELEASE:
+	switch (cmd_info->lock_tree) {
+	case PCTL_XLOCKED:
 		sx_xlock(&proctree_lock);
-		tree_locked = true;
 		break;
-	case PROC_ASLR_CTL:
-	case PROC_ASLR_STATUS:
-	case PROC_PROTMAX_CTL:
-	case PROC_PROTMAX_STATUS:
-	case PROC_STACKGAP_CTL:
-	case PROC_STACKGAP_STATUS:
-	case PROC_TRACE_STATUS:
-	case PROC_TRAPCAP_STATUS:
-	case PROC_NO_NEW_PRIVS_STATUS:
-	case PROC_WXMAP_CTL:
-	case PROC_WXMAP_STATUS:
-		tree_locked = false;
+	case PCTL_SLOCKED:
+		sx_slock(&proctree_lock);
 		break;
 	default:
-		return (EINVAL);
+		break;
 	}
 
 	switch (idtype) {
 	case P_PID:
-		p = pfind(id);
-		if (p == NULL) {
-			error = ESRCH;
-			break;
+		if (id == 0) {
+			p = td->td_proc;
+			error = 0;
+			PROC_LOCK(p);
+		} else {
+			p = pfind(id);
+			if (p == NULL) {
+				error = cmd_info->esrch_is_einval ?
+				    EINVAL : ESRCH;
+				break;
+			}
+			error = cmd_info->need_candebug ? p_candebug(td, p) :
+			    p_cansee(td, p);
 		}
-		error = p_cansee(td, p);
 		if (error == 0)
 			error = kern_procctl_single(td, p, com, data);
 		PROC_UNLOCK(p);
@@ -932,7 +968,10 @@ kern_procctl(struct thread *td, idtype_t idtype, id_t id, int com, void *data)
 		first_error = 0;
 		LIST_FOREACH(p, &pg->pg_members, p_pglist) {
 			PROC_LOCK(p);
-			if (p->p_state == PRS_NEW || p_cansee(td, p) != 0) {
+			if (p->p_state == PRS_NEW ||
+			    p->p_state == PRS_ZOMBIE ||
+			    (cmd_info->need_candebug ? p_candebug(td, p) :
+			    p_cansee(td, p)) != 0) {
 				PROC_UNLOCK(p);
 				continue;
 			}
@@ -958,7 +997,16 @@ kern_procctl(struct thread *td, idtype_t idtype, id_t id, int com, void *data)
 		error = EINVAL;
 		break;
 	}
-	if (tree_locked)
-		sx_unlock(&proctree_lock);
+
+	switch (cmd_info->lock_tree) {
+	case PCTL_XLOCKED:
+		sx_xunlock(&proctree_lock);
+		break;
+	case PCTL_SLOCKED:
+		sx_sunlock(&proctree_lock);
+		break;
+	default:
+		break;
+	}
 	return (error);
 }

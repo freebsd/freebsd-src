@@ -344,6 +344,9 @@ static inline void WPA_PUT_LE64(u8 *a, u64 val)
 #ifndef ETH_P_OUI
 #define ETH_P_OUI 0x88B7
 #endif /* ETH_P_OUI */
+#ifndef ETH_P_8021Q
+#define ETH_P_8021Q 0x8100
+#endif /* ETH_P_8021Q */
 
 
 #ifdef __GNUC__
@@ -479,7 +482,8 @@ int hexstr2bin(const char *hex, u8 *buf, size_t len);
 void inc_byte_array(u8 *counter, size_t len);
 void buf_shift_right(u8 *buf, size_t len, size_t bits);
 void wpa_get_ntp_timestamp(u8 *buf);
-int wpa_scnprintf(char *buf, size_t size, const char *fmt, ...);
+int wpa_scnprintf(char *buf, size_t size, const char *fmt, ...)
+	PRINTF_FORMAT(3, 4);
 int wpa_snprintf_hex_sep(char *buf, size_t buf_size, const u8 *data, size_t len,
 			 char sep);
 int wpa_snprintf_hex(char *buf, size_t buf_size, const u8 *data, size_t len);
@@ -544,7 +548,7 @@ int freq_range_list_includes(const struct wpa_freq_range_list *list,
 			     unsigned int freq);
 char * freq_range_list_str(const struct wpa_freq_range_list *list);
 
-int int_array_len(const int *a);
+size_t int_array_len(const int *a);
 void int_array_concat(int **res, const int *a);
 void int_array_sort_unique(int *a);
 void int_array_add_unique(int **res, int a);

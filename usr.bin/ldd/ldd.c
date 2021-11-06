@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <fcntl.h>
 #include <gelf.h>
 #include <libelf.h>
+#include <rtld_paths.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -134,7 +135,8 @@ int
 main(int argc, char *argv[])
 {
 	char *fmt1, *fmt2;
-	int rval, c, aflag;
+	const char *rtld;
+	int aflag, c, fd, rval, status, is_shlib, rv, type;
 
 	aflag = 0;
 	fmt1 = fmt2 = NULL;
@@ -167,8 +169,6 @@ main(int argc, char *argv[])
 
 	rval = 0;
 	for (; argc > 0; argc--, argv++) {
-		int fd, status, is_shlib, rv, type;
-
 		if ((fd = open(*argv, O_RDONLY, 0)) < 0) {
 			warn("%s", *argv);
 			rval |= 1;
@@ -236,15 +236,23 @@ main(int argc, char *argv[])
 			if (is_shlib == 0) {
 				execl(*argv, *argv, (char *)NULL);
 				warn("%s", *argv);
-			} else {
+			} else if (fmt1 == NULL && fmt2 == NULL) {
 				dlopen(*argv, RTLD_TRACE);
 				warnx("%s: %s", *argv, dlerror());
+			} else {
+				rtld = _PATH_RTLD;
+#if __ELF_WORD_SIZE > 32 && defined(ELF32_SUPPORTED)
+				if (type == TYPE_ELF32)
+					rtld = _COMPAT32_PATH_RTLD;
+#endif
+				execl(rtld, rtld, "-d", "--",
+				    *argv, (char *)NULL);
 			}
 			_exit(1);
 		}
 	}
 
-	return rval;
+	return (rval);
 }
 
 static void

@@ -750,13 +750,6 @@ __elfN(loadimage)(struct preloaded_file *fp, elf_file_t ef, uint64_t off)
 		}
 #endif
 		size = shdr[i].sh_size;
-#if defined(__powerpc__)
-  #if __ELF_WORD_SIZE == 64
-		size = htobe64(size);
-  #else
-		size = htobe32(size);
-  #endif
-#endif
 
 		archsw.arch_copyin(&size, lastaddr, sizeof(size));
 		lastaddr += sizeof(size);
@@ -800,17 +793,6 @@ __elfN(loadimage)(struct preloaded_file *fp, elf_file_t ef, uint64_t off)
 	esym = lastaddr;
 #ifndef ELF_VERBOSE
 	printf("]");
-#endif
-
-#if defined(__powerpc__)
-  /* On PowerPC we always need to provide BE data to the kernel */
-  #if __ELF_WORD_SIZE == 64
-	ssym = htobe64((uint64_t)ssym);
-	esym = htobe64((uint64_t)esym);
-  #else
-	ssym = htobe32((uint32_t)ssym);
-	esym = htobe32((uint32_t)esym);
-  #endif
 #endif
 
 	file_addmetadata(fp, MODINFOMD_SSYM, sizeof(ssym), &ssym);

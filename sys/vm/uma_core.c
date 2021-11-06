@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/asan.h>
 #include <sys/bitset.h>
 #include <sys/domainset.h>
 #include <sys/eventhandler.h>
@@ -323,6 +324,7 @@ static void bucket_zone_drain(int domain);
 static uma_bucket_t zone_alloc_bucket(uma_zone_t, void *, int, int);
 static void *slab_alloc_item(uma_keg_t keg, uma_slab_t slab);
 static void slab_free_item(uma_zone_t zone, uma_slab_t slab, void *item);
+static size_t slab_sizeof(int nitems);
 static uma_keg_t uma_kcreate(uma_zone_t zone, size_t size, uma_init uminit,
     uma_fini fini, int align, uint32_t flags);
 static int zone_import(void *, void **, int, int, int);
@@ -536,6 +538,99 @@ bucket_zone_drain(int domain)
 		uma_zone_reclaim_domain(ubz->ubz_zone, UMA_RECLAIM_DRAIN,
 		    domain);
 }
+
+#ifdef KASAN
+_Static_assert(UMA_SMALLEST_UNIT % KASAN_SHADOW_SCALE == 0,
+    "Base UMA allocation size not a multiple of the KASAN scale factor");
+
+static void
+kasan_mark_item_valid(uma_zone_t zone, void *item)
+{
+	void *pcpu_item;
+	size_t sz, rsz;
+	int i;
+
+	if ((zone->uz_flags & UMA_ZONE_NOKASAN) != 0)
+		return;
+
+	sz = zone->uz_size;
+	rsz = roundup2(sz, KASAN_SHADOW_SCALE);
+	if ((zone->uz_flags & UMA_ZONE_PCPU) == 0) {
+		kasan_mark(item, sz, rsz, KASAN_GENERIC_REDZONE);
+	} else {
+		pcpu_item = zpcpu_base_to_offset(item);
+		for (i = 0; i <= mp_maxid; i++)
+			kasan_mark(zpcpu_get_cpu(pcpu_item, i), sz, rsz,
+			    KASAN_GENERIC_REDZONE);
+	}
+}
+
+static void
+kasan_mark_item_invalid(uma_zone_t zone, void *item)
+{
+	void *pcpu_item;
+	size_t sz;
+	int i;
+
+	if ((zone->uz_flags & UMA_ZONE_NOKASAN) != 0)
+		return;
+
+	sz = roundup2(zone->uz_size, KASAN_SHADOW_SCALE);
+	if ((zone->uz_flags & UMA_ZONE_PCPU) == 0) {
+		kasan_mark(item, 0, sz, KASAN_UMA_FREED);
+	} else {
+		pcpu_item = zpcpu_base_to_offset(item);
+		for (i = 0; i <= mp_maxid; i++)
+			kasan_mark(zpcpu_get_cpu(pcpu_item, i), 0, sz,
+			    KASAN_UMA_FREED);
+	}
+}
+
+static void
+kasan_mark_slab_valid(uma_keg_t keg, void *mem)
+{
+	size_t sz;
+
+	if ((keg->uk_flags & UMA_ZONE_NOKASAN) == 0) {
+		sz = keg->uk_ppera * PAGE_SIZE;
+		kasan_mark(mem, sz, sz, 0);
+	}
+}
+
+static void
+kasan_mark_slab_invalid(uma_keg_t keg, void *mem)
+{
+	size_t sz;
+
+	if ((keg->uk_flags & UMA_ZONE_NOKASAN) == 0) {
+		if ((keg->uk_flags & UMA_ZFLAG_OFFPAGE) != 0)
+			sz = keg->uk_ppera * PAGE_SIZE;
+		else
+			sz = keg->uk_pgoff;
+		kasan_mark(mem, 0, sz, KASAN_UMA_FREED);
+	}
+}
+#else /* !KASAN */
+static void
+kasan_mark_item_valid(uma_zone_t zone __unused, void *item __unused)
+{
+}
+
+static void
+kasan_mark_item_invalid(uma_zone_t zone __unused, void *item __unused)
+{
+}
+
+static void
+kasan_mark_slab_valid(uma_keg_t keg __unused, void *mem __unused)
+{
+}
+
+static void
+kasan_mark_slab_invalid(uma_keg_t keg __unused, void *mem __unused)
+{
+}
+#endif /* KASAN */
 
 /*
  * Acquire the domain lock and record contention.
@@ -1205,8 +1300,11 @@ bucket_drain(uma_zone_t zone, uma_bucket_t bucket)
 			    zone->uz_size, NULL, SKIP_NONE);
 	}
 	if (zone->uz_fini)
-		for (i = 0; i < bucket->ub_cnt; i++) 
+		for (i = 0; i < bucket->ub_cnt; i++) {
+			kasan_mark_item_valid(zone, bucket->ub_bucket[i]);
 			zone->uz_fini(bucket->ub_bucket[i], zone->uz_size);
+			kasan_mark_item_invalid(zone, bucket->ub_bucket[i]);
+		}
 	zone->uz_release(zone->uz_arg, bucket->ub_bucket, bucket->ub_cnt);
 	if (zone->uz_max_items > 0)
 		zone_free_limit(zone, bucket->ub_cnt);
@@ -1437,6 +1535,7 @@ static void
 keg_free_slab(uma_keg_t keg, uma_slab_t slab, int start)
 {
 	uint8_t *mem;
+	size_t size;
 	int i;
 	uint8_t flags;
 
@@ -1444,10 +1543,11 @@ keg_free_slab(uma_keg_t keg, uma_slab_t slab, int start)
 	    keg->uk_name, keg, slab, PAGE_SIZE * keg->uk_ppera);
 
 	mem = slab_data(slab, keg);
-	flags = slab->us_flags;
-	i = start;
+	size = PAGE_SIZE * keg->uk_ppera;
+
+	kasan_mark_slab_valid(keg, mem);
 	if (keg->uk_fini != NULL) {
-		for (i--; i > -1; i--)
+		for (i = start - 1; i > -1; i--)
 #ifdef INVARIANTS
 		/*
 		 * trash_fini implies that dtor was trash_dtor. trash_fini
@@ -1462,11 +1562,13 @@ keg_free_slab(uma_keg_t keg, uma_slab_t slab, int start)
 #endif
 			keg->uk_fini(slab_item(slab, keg, i), keg->uk_size);
 	}
-	if (keg->uk_flags & UMA_ZFLAG_OFFPAGE)
+	flags = slab->us_flags;
+	if (keg->uk_flags & UMA_ZFLAG_OFFPAGE) {
 		zone_free_item(slabzone(keg->uk_ipers), slab_tohashslab(slab),
 		    NULL, SKIP_NONE);
-	keg->uk_freef(mem, PAGE_SIZE * keg->uk_ppera, flags);
-	uma_total_dec(PAGE_SIZE * keg->uk_ppera);
+	}
+	keg->uk_freef(mem, size, flags);
+	uma_total_dec(size);
 }
 
 static void
@@ -1612,7 +1714,6 @@ keg_alloc_slab(uma_keg_t keg, uma_zone_t zone, int domain, int flags,
     int aflags)
 {
 	uma_domain_t dom;
-	uma_alloc allocf;
 	uma_slab_t slab;
 	unsigned long size;
 	uint8_t *mem;
@@ -1622,7 +1723,6 @@ keg_alloc_slab(uma_keg_t keg, uma_zone_t zone, int domain, int flags,
 	KASSERT(domain >= 0 && domain < vm_ndomains,
 	    ("keg_alloc_slab: domain %d out of range", domain));
 
-	allocf = keg->uk_allocf;
 	slab = NULL;
 	mem = NULL;
 	if (keg->uk_flags & UMA_ZFLAG_OFFPAGE) {
@@ -1651,7 +1751,7 @@ keg_alloc_slab(uma_keg_t keg, uma_zone_t zone, int domain, int flags,
 
 	/* zone is passed for legacy reasons. */
 	size = keg->uk_ppera * PAGE_SIZE;
-	mem = allocf(zone, size, domain, &sflags, aflags);
+	mem = keg->uk_allocf(zone, size, domain, &sflags, aflags);
 	if (mem == NULL) {
 		if (keg->uk_flags & UMA_ZFLAG_OFFPAGE)
 			zone_free_item(slabzone(keg->uk_ipers),
@@ -1666,7 +1766,7 @@ keg_alloc_slab(uma_keg_t keg, uma_zone_t zone, int domain, int flags,
 
 	/* Point the slab into the allocated memory */
 	if (!(keg->uk_flags & UMA_ZFLAG_OFFPAGE))
-		slab = (uma_slab_t )(mem + keg->uk_pgoff);
+		slab = (uma_slab_t)(mem + keg->uk_pgoff);
 	else
 		slab_tohashslab(slab)->uhs_data = mem;
 
@@ -1694,6 +1794,7 @@ keg_alloc_slab(uma_keg_t keg, uma_zone_t zone, int domain, int flags,
 			goto fail;
 		}
 	}
+	kasan_mark_slab_invalid(keg, mem);
 	KEG_LOCK(keg, domain);
 
 	CTR3(KTR_UMA, "keg_alloc_slab: allocated slab %p for %s(%p)",
@@ -1729,17 +1830,15 @@ startup_alloc(uma_zone_t zone, vm_size_t bytes, int domain, uint8_t *pflag,
 {
 	vm_paddr_t pa;
 	vm_page_t m;
-	void *mem;
-	int pages;
-	int i;
+	int i, pages;
 
 	pages = howmany(bytes, PAGE_SIZE);
 	KASSERT(pages > 0, ("%s can't reserve 0 pages", __func__));
 
 	*pflag = UMA_SLAB_BOOT;
-	m = vm_page_alloc_contig_domain(NULL, 0, domain,
-	    malloc2vm_flags(wait) | VM_ALLOC_NOOBJ | VM_ALLOC_WIRED, pages, 
-	    (vm_paddr_t)0, ~(vm_paddr_t)0, 1, 0, VM_MEMATTR_DEFAULT);
+	m = vm_page_alloc_noobj_contig_domain(domain, malloc2vm_flags(wait) |
+	    VM_ALLOC_WIRED, pages, (vm_paddr_t)0, ~(vm_paddr_t)0, 1, 0,
+	    VM_MEMATTR_DEFAULT);
 	if (m == NULL)
 		return (NULL);
 
@@ -1751,13 +1850,10 @@ startup_alloc(uma_zone_t zone, vm_size_t bytes, int domain, uint8_t *pflag,
 			dump_add_page(pa);
 #endif
 	}
-	/* Allocate KVA and indirectly advance bootmem. */
-	mem = (void *)pmap_map(&bootmem, m->phys_addr,
-	    m->phys_addr + (pages * PAGE_SIZE), VM_PROT_READ | VM_PROT_WRITE);
-        if ((wait & M_ZERO) != 0)
-                bzero(mem, pages * PAGE_SIZE);
 
-        return (mem);
+	/* Allocate KVA and indirectly advance bootmem. */
+	return ((void *)pmap_map(&bootmem, m->phys_addr,
+	    m->phys_addr + (pages * PAGE_SIZE), VM_PROT_READ | VM_PROT_WRITE));
 }
 
 static void
@@ -1823,24 +1919,23 @@ pcpu_page_alloc(uma_zone_t zone, vm_size_t bytes, int domain, uint8_t *pflag,
 	MPASS(bytes == (mp_maxid + 1) * PAGE_SIZE);
 
 	TAILQ_INIT(&alloctail);
-	flags = VM_ALLOC_SYSTEM | VM_ALLOC_WIRED | VM_ALLOC_NOOBJ |
-	    malloc2vm_flags(wait);
+	flags = VM_ALLOC_SYSTEM | VM_ALLOC_WIRED | malloc2vm_flags(wait);
 	*pflag = UMA_SLAB_KERNEL;
 	for (cpu = 0; cpu <= mp_maxid; cpu++) {
 		if (CPU_ABSENT(cpu)) {
-			p = vm_page_alloc(NULL, 0, flags);
+			p = vm_page_alloc_noobj(flags);
 		} else {
 #ifndef NUMA
-			p = vm_page_alloc(NULL, 0, flags);
+			p = vm_page_alloc_noobj(flags);
 #else
 			pc = pcpu_find(cpu);
 			if (__predict_false(VM_DOMAIN_EMPTY(pc->pc_domain)))
 				p = NULL;
 			else
-				p = vm_page_alloc_domain(NULL, 0,
-				    pc->pc_domain, flags);
+				p = vm_page_alloc_noobj_domain(pc->pc_domain,
+				    flags);
 			if (__predict_false(p == NULL))
-				p = vm_page_alloc(NULL, 0, flags);
+				p = vm_page_alloc_noobj(flags);
 #endif
 		}
 		if (__predict_false(p == NULL))
@@ -1883,16 +1978,17 @@ noobj_alloc(uma_zone_t zone, vm_size_t bytes, int domain, uint8_t *flags,
 	vm_offset_t retkva, zkva;
 	vm_page_t p, p_next;
 	uma_keg_t keg;
+	int req;
 
 	TAILQ_INIT(&alloctail);
 	keg = zone->uz_keg;
+	req = VM_ALLOC_INTERRUPT | VM_ALLOC_WIRED;
+	if ((wait & M_WAITOK) != 0)
+		req |= VM_ALLOC_WAITOK;
 
 	npages = howmany(bytes, PAGE_SIZE);
 	while (npages > 0) {
-		p = vm_page_alloc_domain(NULL, 0, domain, VM_ALLOC_INTERRUPT |
-		    VM_ALLOC_WIRED | VM_ALLOC_NOOBJ |
-		    ((wait & M_WAITOK) != 0 ? VM_ALLOC_WAITOK :
-		    VM_ALLOC_NOWAIT));
+		p = vm_page_alloc_noobj_domain(domain, req);
 		if (p != NULL) {
 			/*
 			 * Since the page does not belong to an object, its
@@ -2139,6 +2235,14 @@ keg_layout(uma_keg_t keg)
 	     PRINT_UMA_ZFLAGS));
 
 	alignsize = keg->uk_align + 1;
+#ifdef KASAN
+	/*
+	 * ASAN requires that each allocation be aligned to the shadow map
+	 * scale factor.
+	 */
+	if (alignsize < KASAN_SHADOW_SCALE)
+		alignsize = KASAN_SHADOW_SCALE;
+#endif
 
 	/*
 	 * Calculate the size of each allocation (rsize) according to
@@ -2693,9 +2797,12 @@ zone_ctor(void *mem, int size, void *udata, int flags)
 		STAILQ_INIT(&zdom->uzd_buckets);
 	}
 
-#ifdef INVARIANTS
+#if defined(INVARIANTS) && !defined(KASAN)
 	if (arg->uminit == trash_init && arg->fini == trash_fini)
 		zone->uz_flags |= UMA_ZFLAG_TRASH | UMA_ZFLAG_CTORDTOR;
+#elif defined(KASAN)
+	if ((arg->flags & (UMA_ZONE_NOFREE | UMA_ZFLAG_CACHE)) != 0)
+		arg->flags |= UMA_ZONE_NOKASAN;
 #endif
 
 	/*
@@ -3118,7 +3225,7 @@ uma_zcreate(const char *name, size_t size, uma_ctor ctor, uma_dtor dtor,
 	args.dtor = dtor;
 	args.uminit = uminit;
 	args.fini = fini;
-#ifdef  INVARIANTS
+#if defined(INVARIANTS) && !defined(KASAN)
 	/*
 	 * Inject procedures which check for memory use after free if we are
 	 * allowed to scramble the memory while it is not allocated.  This
@@ -3275,12 +3382,17 @@ item_ctor(uma_zone_t zone, int uz_flags, int size, void *udata, int flags,
 {
 #ifdef INVARIANTS
 	bool skipdbg;
+#endif
 
+	kasan_mark_item_valid(zone, item);
+
+#ifdef INVARIANTS
 	skipdbg = uma_dbg_zskip(zone, item);
-	if (!skipdbg && (zone->uz_flags & UMA_ZFLAG_TRASH) != 0 &&
+	if (!skipdbg && (uz_flags & UMA_ZFLAG_TRASH) != 0 &&
 	    zone->uz_ctor != trash_ctor)
 		trash_ctor(item, size, udata, flags);
 #endif
+
 	/* Check flags before loading ctor pointer. */
 	if (__predict_false((uz_flags & UMA_ZFLAG_CTORDTOR) != 0) &&
 	    __predict_false(zone->uz_ctor != NULL) &&
@@ -3323,6 +3435,7 @@ item_dtor(uma_zone_t zone, void *item, int size, void *udata,
 			trash_dtor(item, size, udata);
 #endif
 	}
+	kasan_mark_item_invalid(zone, item);
 }
 
 #ifdef NUMA
@@ -4044,7 +4157,7 @@ static uma_bucket_t
 zone_alloc_bucket(uma_zone_t zone, void *udata, int domain, int flags)
 {
 	uma_bucket_t bucket;
-	int maxbucket, cnt;
+	int error, maxbucket, cnt;
 
 	CTR3(KTR_UMA, "zone_alloc_bucket zone %s(%p) domain %d", zone->uz_name,
 	    zone, domain);
@@ -4079,10 +4192,15 @@ zone_alloc_bucket(uma_zone_t zone, void *udata, int domain, int flags)
 	if (bucket->ub_cnt != 0 && zone->uz_init != NULL) {
 		int i;
 
-		for (i = 0; i < bucket->ub_cnt; i++)
-			if (zone->uz_init(bucket->ub_bucket[i], zone->uz_size,
-			    flags) != 0)
+		for (i = 0; i < bucket->ub_cnt; i++) {
+			kasan_mark_item_valid(zone, bucket->ub_bucket[i]);
+			error = zone->uz_init(bucket->ub_bucket[i],
+			    zone->uz_size, flags);
+			kasan_mark_item_invalid(zone, bucket->ub_bucket[i]);
+			if (error != 0)
 				break;
+		}
+
 		/*
 		 * If we couldn't initialize the whole bucket, put the
 		 * rest back onto the freelist.
@@ -4149,7 +4267,12 @@ zone_alloc_item(uma_zone_t zone, void *udata, int domain, int flags)
 	 * to be both zone-init'd as well as zone-ctor'd.
 	 */
 	if (zone->uz_init != NULL) {
-		if (zone->uz_init(item, zone->uz_size, flags) != 0) {
+		int error;
+
+		kasan_mark_item_valid(zone, item);
+		error = zone->uz_init(item, zone->uz_size, flags);
+		kasan_mark_item_invalid(zone, item);
+		if (error != 0) {
 			zone_free_item(zone, item, udata, SKIP_FINI | SKIP_CNT);
 			goto fail_cnt;
 		}
@@ -4631,8 +4754,11 @@ zone_free_item(uma_zone_t zone, void *item, void *udata, enum zfreeskip skip)
 
 	item_dtor(zone, item, zone->uz_size, udata, skip);
 
-	if (skip < SKIP_FINI && zone->uz_fini)
+	if (skip < SKIP_FINI && zone->uz_fini) {
+		kasan_mark_item_valid(zone, item);
 		zone->uz_fini(item, zone->uz_size);
+		kasan_mark_item_invalid(zone, item);
+	}
 
 	zone->uz_release(zone->uz_arg, &item, 1);
 

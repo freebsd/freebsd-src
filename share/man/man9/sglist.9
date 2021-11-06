@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 24, 2020
+.Dd May 25, 2021
 .Dt SGLIST 9
 .Os
 .Sh NAME
@@ -38,6 +38,7 @@
 .Nm sglist_append_mbuf_epg,
 .Nm sglist_append_phys ,
 .Nm sglist_append_sglist ,
+.Nm sglist_append_single_mbuf ,
 .Nm sglist_append_uio ,
 .Nm sglist_append_user ,
 .Nm sglist_append_vmpages ,
@@ -73,6 +74,8 @@
 .Fn sglist_append_phys "struct sglist *sg" "vm_paddr_t paddr" "size_t len"
 .Ft int
 .Fn sglist_append_sglist "struct sglist *sg" "struct sglist *source" "size_t offset" "size_t len"
+.Ft int
+.Fn sglist_append_single_mbuf "struct sglist *sg" "struct mbuf *m"
 .Ft int
 .Fn sglist_append_uio "struct sglist *sg" "struct uio *uio"
 .Ft int
@@ -279,6 +282,13 @@ The
 .Nm sglist_append_mbuf
 function appends the physical address ranges described by an entire mbuf
 chain
+.Fa m
+to the scatter/gather list
+.Fa sg .
+.Pp
+The
+.Nm sglist_append_mbuf
+function appends the physical address ranges described by a single mbuf
 .Fa m
 to the scatter/gather list
 .Fa sg .

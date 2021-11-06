@@ -49,7 +49,7 @@ enum {
 	T5_REGMAP_SIZE = (332 * 1024),
 };
 
-enum { MEM_EDC0, MEM_EDC1, MEM_MC, MEM_MC0 = MEM_MC, MEM_MC1 };
+enum { MEM_EDC0, MEM_EDC1, MEM_MC, MEM_MC0 = MEM_MC, MEM_MC1, MEM_HMA };
 
 enum dev_master { MASTER_CANT, MASTER_MAY, MASTER_MUST };
 
@@ -405,8 +405,10 @@ struct adapter_params {
 
 	bool ulptx_memwrite_dsgl;	/* use of T5 DSGL allowed */
 	bool fr_nsmr_tpte_wr_support;	/* FW support for FR_NSMR_TPTE_WR */
+	bool dev_512sgl_mr;		/* FW support for 512 SGL per FR MR */
 	bool viid_smt_extn_support;	/* FW returns vin, vfvld & smt index? */
 	unsigned int max_pkts_per_eth_tx_pkts_wr;
+	uint8_t nsched_cls;		/* # of usable sched classes per port */
 };
 
 #define CHELSIO_T4		0x4

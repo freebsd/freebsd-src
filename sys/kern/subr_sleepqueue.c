@@ -1040,7 +1040,8 @@ sleepq_timeout(void *arg)
 	    (void *)td, (long)td->td_proc->p_pid, (void *)td->td_name);
 
 	thread_lock(td);
-	if (td->td_sleeptimo == 0 || td->td_sleeptimo > sbinuptime()) {
+	if (td->td_sleeptimo == 0 ||
+	    td->td_sleeptimo > td->td_slpcallout.c_time) {
 		/*
 		 * The thread does not want a timeout (yet).
 		 */

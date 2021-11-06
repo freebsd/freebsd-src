@@ -30,7 +30,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#define	KCSAN_RUNTIME
+#define	SAN_RUNTIME
 
 #include "opt_ddb.h"
 
@@ -350,12 +350,6 @@ kcsan_strlen(const char *str)
 	return (s - str);
 }
 
-#undef copyin
-#undef copyin_nofault
-#undef copyinstr
-#undef copyout
-#undef copyout_nofault
-
 int
 kcsan_copyin(const void *uaddr, void *kaddr, size_t len)
 {
@@ -380,6 +374,7 @@ kcsan_copyout(const void *kaddr, void *uaddr, size_t len)
 /* -------------------------------------------------------------------------- */
 
 #include <machine/atomic.h>
+#define	ATOMIC_SAN_PREFIX	kcsan
 #include <sys/atomic_san.h>
 
 #define	_CSAN_ATOMIC_FUNC_ADD(name, type)				\
@@ -684,10 +679,17 @@ CSAN_ATOMIC_FUNC_THREAD_FENCE(acq_rel)
 CSAN_ATOMIC_FUNC_THREAD_FENCE(rel)
 CSAN_ATOMIC_FUNC_THREAD_FENCE(seq_cst)
 
+void
+kcsan_atomic_interrupt_fence(void)
+{
+	atomic_interrupt_fence();
+}
+
 /* -------------------------------------------------------------------------- */
 
 #include <sys/bus.h>
 #include <machine/bus.h>
+#define	BUS_SAN_PREFIX		kcsan
 #include <sys/bus_san.h>
 
 int

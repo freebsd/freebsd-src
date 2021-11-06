@@ -765,8 +765,8 @@ static void web_connection_send_reply(struct http_request *req,
 
 	if (reply) {
 		size_t len;
-		replydata = (char *) base64_encode(wpabuf_head(reply),
-						   wpabuf_len(reply), &len);
+		replydata = base64_encode(wpabuf_head(reply), wpabuf_len(reply),
+					  &len);
 	} else
 		replydata = NULL;
 

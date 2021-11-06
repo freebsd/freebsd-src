@@ -271,6 +271,35 @@
 	__count;							\
 })
 
+#define	_BIT_FOREACH_ADVANCE(_s, i, p, op) __extension__ ({		\
+	int __found;							\
+	for (;;) {							\
+		if (__bits != 0) {					\
+			int __bit = ffsl(__bits) - 1;			\
+			__bits &= ~(1ul << __bit);			\
+			(i) = __i * _BITSET_BITS + __bit;		\
+			__found = 1;					\
+			break;						\
+		}							\
+		if (++__i == __bitset_words(_s)) {			\
+			__found = 0;					\
+			break;						\
+		}							\
+		__bits = op((p)->__bits[__i]);				\
+	}								\
+	__found != 0;							\
+})
+
+/*
+ * Non-destructively loop over all set or clear bits in the set.
+ */
+#define _BIT_FOREACH(_s, i, p, op)					\
+	for (long __i = -1, __bits = 0;					\
+	    _BIT_FOREACH_ADVANCE(_s, i, p, op); )
+
+#define	BIT_FOREACH_ISSET(_s, i, p)	_BIT_FOREACH(_s, i, p, )
+#define	BIT_FOREACH_ISCLR(_s, i, p)	_BIT_FOREACH(_s, i, p, ~)
+
 #define	BITSET_T_INITIALIZER(x)						\
 	{ .__bits = { x } }
 

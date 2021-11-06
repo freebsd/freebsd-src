@@ -76,18 +76,19 @@ struct icl_pdu {
 	struct mbuf		*ip_data_mbuf;
 
 	/*
+	 * When a "large" received PDU represents multiple on-the-wire
+	 * PDUs, this is the count of additional on-the-wire PDUs.
+	 * For PDUs that match on-the-wire PDUs, this should be set to
+	 * zero.
+	 */
+	u_int			ip_additional_pdus;
+
+	/*
 	 * User (initiator or provider) private fields.
 	 */
 	void			*ip_prv0;
 	void			*ip_prv1;
 };
-
-#define ICL_CONN_STATE_INVALID		0
-#define ICL_CONN_STATE_BHS		1
-#define ICL_CONN_STATE_AHS		2
-#define ICL_CONN_STATE_HEADER_DIGEST	3
-#define ICL_CONN_STATE_DATA		4
-#define ICL_CONN_STATE_DATA_DIGEST	5
 
 #define	ICL_NOCOPY			(1 << 30)
 
@@ -98,19 +99,12 @@ struct icl_conn {
 #ifdef DIAGNOSTIC
 	volatile u_int		ic_outstanding_pdus;
 #endif
-	STAILQ_HEAD(, icl_pdu)	ic_to_send;
-	bool			ic_check_send_space;
-	size_t			ic_receive_len;
-	int			ic_receive_state;
-	struct icl_pdu		*ic_receive_pdu;
-	struct cv		ic_send_cv;
-	struct cv		ic_receive_cv;
+	uint32_t		ic_max_recv_data_segment_length;
+	uint32_t		ic_max_send_data_segment_length;
+	size_t			ic_hw_isomax;
+	size_t			ic_maxtags;
 	bool			ic_header_crc32c;
 	bool			ic_data_crc32c;
-	bool			ic_send_running;
-	bool			ic_receive_running;
-	size_t			ic_max_data_segment_length;
-	size_t			ic_maxtags;
 	bool			ic_disconnecting;
 	bool			ic_iser;
 	bool			ic_unmapped;

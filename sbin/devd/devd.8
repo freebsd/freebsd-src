@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 5, 2016
+.Dd October 19, 2021
 .Dt DEVD 8
 .Os
 .Sh NAME
@@ -115,10 +115,16 @@ option and uses that file to drive the rest of the process.
 While the format of this file is described in
 .Xr devd.conf 5 ,
 some basics are covered here.
+.Pp
 In the
 .Ic options
 section, one can define multiple directories to search
 for config files.
+The default config file specifies
+.Pa /etc/devd
+and
+.Pa /usr/local/etc/devd
+as directories to search.
 All files in these directories whose names match the pattern
 .Pa *.conf
 are parsed.

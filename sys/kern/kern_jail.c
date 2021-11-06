@@ -3618,7 +3618,7 @@ prison_priv_check(struct ucred *cred, int priv)
 
 		/*
 		 * As in the non-jail case, non-root users are expected to be
-		 * able to read kernel/phyiscal memory (provided /dev/[k]mem
+		 * able to read kernel/physical memory (provided /dev/[k]mem
 		 * exists in the jail and they have permission to access it).
 		 */
 	case PRIV_KMEM_READ:

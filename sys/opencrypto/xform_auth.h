@@ -84,6 +84,7 @@ extern struct auth_hash auth_hash_poly1305;
 extern struct auth_hash auth_hash_ccm_cbc_mac_128;
 extern struct auth_hash auth_hash_ccm_cbc_mac_192;
 extern struct auth_hash auth_hash_ccm_cbc_mac_256;
+extern struct auth_hash auth_hash_chacha20_poly1305;
 
 union authctx {
 	SHA1_CTX sha1ctx;

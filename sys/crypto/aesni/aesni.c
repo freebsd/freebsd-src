@@ -1,13 +1,16 @@
 /*-
  * Copyright (c) 2005-2008 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * Copyright (c) 2010 Konstantin Belousov <kib@FreeBSD.org>
- * Copyright (c) 2014 The FreeBSD Foundation
+ * Copyright (c) 2014-2021 The FreeBSD Foundation
  * Copyright (c) 2017 Conrad Meyer <cem@FreeBSD.org>
  * All rights reserved.
  *
  * Portions of this software were developed by John-Mark Gurney
  * under sponsorship of the FreeBSD Foundation and
  * Rubicon Communications, LLC (Netgate).
+ *
+ * Portions of this software were developed by Ararat River
+ * Consulting, LLC under sponsorship of the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -316,11 +319,7 @@ aesni_probesession(device_t dev, const struct crypto_session_params *csp)
 				CRYPTDEB("invalid CCM key length");
 				return (EINVAL);
 			}
-			if (csp->csp_auth_mlen != 0 &&
-			    csp->csp_auth_mlen != AES_CBC_MAC_HASH_LEN)
-				return (EINVAL);
-			if (csp->csp_ivlen != AES_CCM_IV_LEN ||
-			    !sc->has_aes)
+			if (!sc->has_aes)
 				return (EINVAL);
 			break;
 		default:
@@ -608,6 +607,11 @@ aesni_cipher_setup(struct aesni_session *ses,
 		error = aesni_authprepare(ses, csp->csp_auth_klen);
 		if (error != 0)
 			return (error);
+	} else if (csp->csp_cipher_alg == CRYPTO_AES_CCM_16) {
+		if (csp->csp_auth_mlen == 0)
+			ses->mlen = AES_CBC_MAC_HASH_LEN;
+		else
+			ses->mlen = csp->csp_auth_mlen;
 	}
 
 	kt = is_fpu_kern_thread(0) || (csp->csp_cipher_alg == 0);
@@ -639,9 +643,12 @@ aesni_cipher_process(struct aesni_session *ses, struct cryptop *crp)
 
 	csp = crypto_get_params(crp->crp_session);
 	switch (csp->csp_cipher_alg) {
+	case CRYPTO_AES_CCM_16:
+		if (crp->crp_payload_length > ccm_max_payload_length(csp))
+			return (EMSGSIZE);
+		/* FALLTHROUGH */
 	case CRYPTO_AES_ICM:
 	case CRYPTO_AES_NIST_GCM_16:
-	case CRYPTO_AES_CCM_16:
 		if ((crp->crp_flags & CRYPTO_F_IV_SEPARATE) == 0)
 			return (EINVAL);
 		break;
@@ -695,28 +702,36 @@ aesni_cipher_crypt(struct aesni_session *ses, struct cryptop *crp,
 	int error;
 	bool encflag, allocated, authallocated, outallocated, outcopy;
 
-	buf = aesni_cipher_alloc(crp, crp->crp_payload_start,
-	    crp->crp_payload_length, &allocated);
-	if (buf == NULL)
-		return (ENOMEM);
+	if (crp->crp_payload_length == 0) {
+		buf = NULL;
+		allocated = false;
+	} else {
+		buf = aesni_cipher_alloc(crp, crp->crp_payload_start,
+		    crp->crp_payload_length, &allocated);
+		if (buf == NULL)
+			return (ENOMEM);
+	}
 
 	outallocated = false;
 	authallocated = false;
 	authbuf = NULL;
 	if (csp->csp_cipher_alg == CRYPTO_AES_NIST_GCM_16 ||
 	    csp->csp_cipher_alg == CRYPTO_AES_CCM_16) {
-		if (crp->crp_aad != NULL)
+		if (crp->crp_aad_length == 0) {
+			authbuf = NULL;
+		} else if (crp->crp_aad != NULL) {
 			authbuf = crp->crp_aad;
-		else
+		} else {
 			authbuf = aesni_cipher_alloc(crp, crp->crp_aad_start,
 			    crp->crp_aad_length, &authallocated);
-		if (authbuf == NULL) {
-			error = ENOMEM;
-			goto out;
+			if (authbuf == NULL) {
+				error = ENOMEM;
+				goto out;
+			}
 		}
 	}
 
-	if (CRYPTO_HAS_OUTPUT_BUFFER(crp)) {
+	if (CRYPTO_HAS_OUTPUT_BUFFER(crp) && crp->crp_payload_length > 0) {
 		outbuf = crypto_buffer_contiguous_subsegment(&crp->crp_obuf,
 		    crp->crp_payload_output_start, crp->crp_payload_length);
 		if (outbuf == NULL) {
@@ -796,15 +811,17 @@ aesni_cipher_crypt(struct aesni_session *ses, struct cryptop *crp,
 			memset(tag, 0, sizeof(tag));			
 			AES_CCM_encrypt(buf, outbuf, authbuf, iv, tag,
 			    crp->crp_payload_length, crp->crp_aad_length,
-			    csp->csp_ivlen, ses->enc_schedule, ses->rounds);
-			crypto_copyback(crp, crp->crp_digest_start, sizeof(tag),
+			    csp->csp_ivlen, ses->mlen, ses->enc_schedule,
+			    ses->rounds);
+			crypto_copyback(crp, crp->crp_digest_start, ses->mlen,
 			    tag);
 		} else {
-			crypto_copydata(crp, crp->crp_digest_start, sizeof(tag),
+			crypto_copydata(crp, crp->crp_digest_start, ses->mlen,
 			    tag);
 			if (!AES_CCM_decrypt(buf, outbuf, authbuf, iv, tag,
 			    crp->crp_payload_length, crp->crp_aad_length,
-			    csp->csp_ivlen, ses->enc_schedule, ses->rounds))
+			    csp->csp_ivlen, ses->mlen, ses->enc_schedule,
+			    ses->rounds))
 				error = EBADMSG;
 		}
 		break;

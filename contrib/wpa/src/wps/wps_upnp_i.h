@@ -178,10 +178,11 @@ int web_listener_start(struct upnp_wps_device_sm *sm);
 void web_listener_stop(struct upnp_wps_device_sm *sm);
 
 /* wps_upnp_event.c */
-int event_add(struct subscription *s, const struct wpabuf *data, int probereq);
-void event_delete_all(struct subscription *s);
-void event_send_all_later(struct upnp_wps_device_sm *sm);
-void event_send_stop_all(struct upnp_wps_device_sm *sm);
+int wps_upnp_event_add(struct subscription *s, const struct wpabuf *data,
+		       int probereq);
+void wps_upnp_event_delete_all(struct subscription *s);
+void wps_upnp_event_send_all_later(struct upnp_wps_device_sm *sm);
+void wps_upnp_event_send_stop_all(struct upnp_wps_device_sm *sm);
 
 /* wps_upnp_ap.c */
 int upnp_er_set_selected_registrar(struct wps_registrar *reg,

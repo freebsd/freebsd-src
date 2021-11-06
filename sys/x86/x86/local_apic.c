@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/asan.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
@@ -1299,6 +1300,9 @@ lapic_handle_intr(int vector, struct trapframe *frame)
 {
 	struct intsrc *isrc;
 
+	/* The frame may have been written into a poisoned region. */
+	kasan_mark(frame, sizeof(*frame), sizeof(*frame), 0);
+
 	isrc = intr_lookup_source(apic_idt_to_irq(PCPU_GET(apic_id),
 	    vector));
 	intr_execute_handlers(isrc, frame);
@@ -1313,6 +1317,9 @@ lapic_handle_timer(struct trapframe *frame)
 
 	/* Send EOI first thing. */
 	lapic_eoi();
+
+	/* The frame may have been written into a poisoned region. */
+	kasan_mark(frame, sizeof(*frame), sizeof(*frame), 0);
 
 #if defined(SMP) && !defined(SCHED_ULE)
 	/*

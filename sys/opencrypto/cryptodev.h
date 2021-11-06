@@ -23,12 +23,15 @@
  * PURPOSE.
  *
  * Copyright (c) 2001 Theo de Raadt
- * Copyright (c) 2014 The FreeBSD Foundation
+ * Copyright (c) 2014-2021 The FreeBSD Foundation
  * All rights reserved.
  *
  * Portions of this software were developed by John-Mark Gurney
  * under sponsorship of the FreeBSD Foundation and
  * Rubicon Communications, LLC (Netgate).
+ *
+ * Portions of this software were developed by Ararat River
+ * Consulting, LLC under sponsorship of the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -124,6 +127,7 @@
 #define	AES_CCM_IV_LEN		12
 #define	AES_XTS_IV_LEN		8
 #define	AES_XTS_ALPHA		0x87	/* GF(2^128) generator polynomial */
+#define	CHACHA20_POLY1305_IV_LEN	12
 
 /* Min and Max Encryption Key Sizes */
 #define	NULL_MIN_KEY		0
@@ -136,6 +140,7 @@
 #define	AES_XTS_MAX_KEY		(2 * AES_MAX_KEY)
 #define	CAMELLIA_MIN_KEY	16
 #define	CAMELLIA_MAX_KEY	32
+#define	CHACHA20_POLY1305_KEY	32
 
 /* Maximum hash algorithm result length */
 #define	AALG_MAX_RESULT_LEN	64 /* Keep this updated */
@@ -184,7 +189,8 @@
 #define	CRYPTO_POLY1305		38
 #define	CRYPTO_AES_CCM_CBC_MAC	39	/* auth side */
 #define	CRYPTO_AES_CCM_16	40	/* cipher side */
-#define	CRYPTO_ALGORITHM_MAX	40	/* Keep updated - see below */
+#define	CRYPTO_CHACHA20_POLY1305 41	/* combined AEAD cipher per RFC 8439 */
+#define	CRYPTO_ALGORITHM_MAX	41	/* Keep updated - see below */
 
 #define	CRYPTO_ALGO_VALID(x)	((x) >= CRYPTO_ALGORITHM_MIN && \
 				 (x) <= CRYPTO_ALGORITHM_MAX)
@@ -243,7 +249,9 @@ struct session2_op {
 
   	uint32_t	ses;		/* returns: session # */ 
 	int		crid;		/* driver id + flags (rw) */
-	int		pad[4];		/* for future expansion */
+	int		ivlen;		/* length of nonce/IV */
+	int		maclen;		/* length of MAC/tag */
+	int		pad[2];		/* for future expansion */
 };
 
 struct crypt_op {
@@ -389,7 +397,8 @@ enum crypto_buffer_type {
 	CRYPTO_BUF_UIO,
 	CRYPTO_BUF_MBUF,
 	CRYPTO_BUF_VMPAGE,
-	CRYPTO_BUF_LAST = CRYPTO_BUF_VMPAGE
+	CRYPTO_BUF_SINGLE_MBUF,
+	CRYPTO_BUF_LAST = CRYPTO_BUF_SINGLE_MBUF
 };
 
 /*
@@ -522,6 +531,13 @@ _crypto_use_mbuf(struct crypto_buffer *cb, struct mbuf *m)
 }
 
 static __inline void
+_crypto_use_single_mbuf(struct crypto_buffer *cb, struct mbuf *m)
+{
+	cb->cb_mbuf = m;
+	cb->cb_type = CRYPTO_BUF_SINGLE_MBUF;
+}
+
+static __inline void
 _crypto_use_vmpage(struct crypto_buffer *cb, vm_page_t *pages, int len,
     int offset)
 {
@@ -551,6 +567,12 @@ crypto_use_mbuf(struct cryptop *crp, struct mbuf *m)
 }
 
 static __inline void
+crypto_use_single_mbuf(struct cryptop *crp, struct mbuf *m)
+{
+	_crypto_use_single_mbuf(&crp->crp_buf, m);
+}
+
+static __inline void
 crypto_use_vmpage(struct cryptop *crp, vm_page_t *pages, int len, int offset)
 {
 	_crypto_use_vmpage(&crp->crp_buf, pages, len, offset);
@@ -572,6 +594,12 @@ static __inline void
 crypto_use_output_mbuf(struct cryptop *crp, struct mbuf *m)
 {
 	_crypto_use_mbuf(&crp->crp_obuf, m);
+}
+
+static __inline void
+crypto_use_output_single_mbuf(struct cryptop *crp, struct mbuf *m)
+{
+	_crypto_use_single_mbuf(&crp->crp_obuf, m);
 }
 
 static __inline void
@@ -703,6 +731,7 @@ size_t	crypto_buffer_len(struct crypto_buffer *cb);
 void	crypto_cursor_init(struct crypto_buffer_cursor *cc,
 	    const struct crypto_buffer *cb);
 void	crypto_cursor_advance(struct crypto_buffer_cursor *cc, size_t amount);
+void	*crypto_cursor_segment(struct crypto_buffer_cursor *cc, size_t *len);
 void	*crypto_cursor_segbase(struct crypto_buffer_cursor *cc);
 size_t	crypto_cursor_seglen(struct crypto_buffer_cursor *cc);
 void	crypto_cursor_copyback(struct crypto_buffer_cursor *cc, int size,
@@ -722,6 +751,35 @@ crypto_read_iv(struct cryptop *crp, void *iv)
 		memcpy(iv, crp->crp_iv, csp->csp_ivlen);
 	else
 		crypto_copydata(crp, crp->crp_iv_start, csp->csp_ivlen, iv);
+}
+
+static __inline size_t
+ccm_max_payload_length(const struct crypto_session_params *csp)
+{
+	/* RFC 3160 */
+	const u_int L = 15 - csp->csp_ivlen;
+
+	switch (L) {
+	case 2:
+		return (0xffff);
+	case 3:
+		return (0xffffff);
+#ifdef __LP64__
+	case 4:
+		return (0xffffffff);
+	case 5:
+		return (0xffffffffff);
+	case 6:
+		return (0xffffffffffff);
+	case 7:
+		return (0xffffffffffffff);
+	default:
+		return (0xffffffffffffffff);
+#else
+	default:
+		return (0xffffffff);
+#endif
+	}
 }
 
 #endif /* _KERNEL */

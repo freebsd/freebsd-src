@@ -916,7 +916,7 @@ pmap_kextract(vm_offset_t va)
  ***************************************************/
 
 void
-pmap_kenter_device(vm_offset_t sva, vm_size_t size, vm_paddr_t pa)
+pmap_kenter(vm_offset_t sva, vm_size_t size, vm_paddr_t pa, int mode __unused)
 {
 	pt_entry_t entry;
 	pt_entry_t *l3;
@@ -945,6 +945,12 @@ pmap_kenter_device(vm_offset_t sva, vm_size_t size, vm_paddr_t pa)
 		size -= PAGE_SIZE;
 	}
 	pmap_invalidate_range(kernel_pmap, sva, va);
+}
+
+void
+pmap_kenter_device(vm_offset_t sva, vm_size_t size, vm_paddr_t pa)
+{
+	pmap_kenter(sva, size, pa, VM_MEMATTR_DEVICE);
 }
 
 /*
@@ -1214,16 +1220,12 @@ pmap_pinit(pmap_t pmap)
 	/*
 	 * allocate the l1 page
 	 */
-	while ((l1pt = vm_page_alloc(NULL, 0xdeadbeef, VM_ALLOC_NORMAL |
-	    VM_ALLOC_NOOBJ | VM_ALLOC_WIRED | VM_ALLOC_ZERO)) == NULL)
-		vm_wait(NULL);
+	l1pt = vm_page_alloc_noobj(VM_ALLOC_WIRED | VM_ALLOC_ZERO |
+	    VM_ALLOC_WAITOK);
 
 	l1phys = VM_PAGE_TO_PHYS(l1pt);
 	pmap->pm_l1 = (pd_entry_t *)PHYS_TO_DMAP(l1phys);
 	pmap->pm_satp = SATP_MODE_SV39 | (l1phys >> PAGE_SHIFT);
-
-	if ((l1pt->flags & PG_ZERO) == 0)
-		pagezero(pmap->pm_l1);
 
 	bzero(&pmap->pm_stats, sizeof(pmap->pm_stats));
 
@@ -1266,8 +1268,8 @@ _pmap_alloc_l3(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp)
 	/*
 	 * Allocate a page table page.
 	 */
-	if ((m = vm_page_alloc(NULL, ptepindex, VM_ALLOC_NOOBJ |
-	    VM_ALLOC_WIRED | VM_ALLOC_ZERO)) == NULL) {
+	m = vm_page_alloc_noobj(VM_ALLOC_WIRED | VM_ALLOC_ZERO);
+	if (m == NULL) {
 		if (lockp != NULL) {
 			RELEASE_PV_LIST_LOCK(lockp);
 			PMAP_UNLOCK(pmap);
@@ -1283,9 +1285,7 @@ _pmap_alloc_l3(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp)
 		 */
 		return (NULL);
 	}
-
-	if ((m->flags & PG_ZERO) == 0)
-		pmap_zero_page(m);
+	m->pindex = ptepindex;
 
 	/*
 	 * Map the pagetable page into the process address space, if
@@ -1479,13 +1479,11 @@ pmap_growkernel(vm_offset_t addr)
 		l1 = pmap_l1(kernel_pmap, kernel_vm_end);
 		if (pmap_load(l1) == 0) {
 			/* We need a new PDP entry */
-			nkpg = vm_page_alloc(NULL, kernel_vm_end >> L1_SHIFT,
-			    VM_ALLOC_INTERRUPT | VM_ALLOC_NOOBJ |
+			nkpg = vm_page_alloc_noobj(VM_ALLOC_INTERRUPT |
 			    VM_ALLOC_WIRED | VM_ALLOC_ZERO);
 			if (nkpg == NULL)
 				panic("pmap_growkernel: no memory to grow kernel");
-			if ((nkpg->flags & PG_ZERO) == 0)
-				pmap_zero_page(nkpg);
+			nkpg->pindex = kernel_vm_end >> L1_SHIFT;
 			paddr = VM_PAGE_TO_PHYS(nkpg);
 
 			pn = (paddr / PAGE_SIZE);
@@ -1507,14 +1505,11 @@ pmap_growkernel(vm_offset_t addr)
 			continue;
 		}
 
-		nkpg = vm_page_alloc(NULL, kernel_vm_end >> L2_SHIFT,
-		    VM_ALLOC_INTERRUPT | VM_ALLOC_NOOBJ | VM_ALLOC_WIRED |
+		nkpg = vm_page_alloc_noobj(VM_ALLOC_INTERRUPT | VM_ALLOC_WIRED |
 		    VM_ALLOC_ZERO);
 		if (nkpg == NULL)
 			panic("pmap_growkernel: no memory to grow kernel");
-		if ((nkpg->flags & PG_ZERO) == 0) {
-			pmap_zero_page(nkpg);
-		}
+		nkpg->pindex = kernel_vm_end >> L2_SHIFT;
 		paddr = VM_PAGE_TO_PHYS(nkpg);
 
 		pn = (paddr / PAGE_SIZE);
@@ -1694,8 +1689,7 @@ retry:
 		}
 	}
 	/* No free items, allocate another chunk */
-	m = vm_page_alloc(NULL, 0, VM_ALLOC_NORMAL | VM_ALLOC_NOOBJ |
-	    VM_ALLOC_WIRED);
+	m = vm_page_alloc_noobj(VM_ALLOC_WIRED);
 	if (m == NULL) {
 		if (lockp == NULL) {
 			PV_STAT(pc_chunk_tryfail++);
@@ -1761,8 +1755,7 @@ retry:
 			break;
 	}
 	for (reclaimed = false; avail < needed; avail += _NPCPV) {
-		m = vm_page_alloc(NULL, 0, VM_ALLOC_NORMAL | VM_ALLOC_NOOBJ |
-		    VM_ALLOC_WIRED);
+		m = vm_page_alloc_noobj(VM_ALLOC_WIRED);
 		if (m == NULL) {
 			m = reclaim_pv_chunk(pmap, lockp);
 			if (m == NULL)
@@ -2481,10 +2474,9 @@ pmap_demote_l2_locked(pmap_t pmap, pd_entry_t *l2, vm_offset_t va,
 	    ("pmap_demote_l2_locked: oldl2 is not a leaf entry"));
 	if ((oldl2 & PTE_A) == 0 || (mpte = pmap_remove_pt_page(pmap, va)) ==
 	    NULL) {
-		if ((oldl2 & PTE_A) == 0 || (mpte = vm_page_alloc(NULL,
-		    pmap_l2_pindex(va), (VIRT_IN_DMAP(va) ? VM_ALLOC_INTERRUPT :
-		    VM_ALLOC_NORMAL) | VM_ALLOC_NOOBJ | VM_ALLOC_WIRED)) ==
-		    NULL) {
+		if ((oldl2 & PTE_A) == 0 || (mpte = vm_page_alloc_noobj(
+		    (VIRT_IN_DMAP(va) ? VM_ALLOC_INTERRUPT : 0) |
+		    VM_ALLOC_WIRED)) == NULL) {
 			SLIST_INIT(&free);
 			(void)pmap_remove_l2(pmap, l2, va & ~L2_OFFSET,
 			    pmap_load(pmap_l1(pmap, va)), &free, lockp);
@@ -2493,6 +2485,7 @@ pmap_demote_l2_locked(pmap_t pmap, pd_entry_t *l2, vm_offset_t va,
 			    "failure for va %#lx in pmap %p", va, pmap);
 			return (false);
 		}
+		mpte->pindex = pmap_l2_pindex(va);
 		if (va < VM_MAXUSER_ADDRESS) {
 			mpte->ref_count = Ln_ENTRIES;
 			pmap_resident_count_inc(pmap, 1);
@@ -2744,13 +2737,10 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		/* TODO: This is not optimal, but should mostly work */
 		if (l3 == NULL) {
 			if (l2 == NULL) {
-				l2_m = vm_page_alloc(NULL, 0, VM_ALLOC_NORMAL |
-				    VM_ALLOC_NOOBJ | VM_ALLOC_WIRED |
+				l2_m = vm_page_alloc_noobj(VM_ALLOC_WIRED |
 				    VM_ALLOC_ZERO);
 				if (l2_m == NULL)
 					panic("pmap_enter: l2 pte_m == NULL");
-				if ((l2_m->flags & PG_ZERO) == 0)
-					pmap_zero_page(l2_m);
 
 				l2_pa = VM_PAGE_TO_PHYS(l2_m);
 				l2_pn = (l2_pa / PAGE_SIZE);
@@ -2763,12 +2753,10 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 				l2 = pmap_l1_to_l2(l1, va);
 			}
 
-			l3_m = vm_page_alloc(NULL, 0, VM_ALLOC_NORMAL |
-			    VM_ALLOC_NOOBJ | VM_ALLOC_WIRED | VM_ALLOC_ZERO);
+			l3_m = vm_page_alloc_noobj(VM_ALLOC_WIRED |
+			    VM_ALLOC_ZERO);
 			if (l3_m == NULL)
 				panic("pmap_enter: l3 pte_m == NULL");
-			if ((l3_m->flags & PG_ZERO) == 0)
-				pmap_zero_page(l3_m);
 
 			l3_pa = VM_PAGE_TO_PHYS(l3_m);
 			l3_pn = (l3_pa / PAGE_SIZE);

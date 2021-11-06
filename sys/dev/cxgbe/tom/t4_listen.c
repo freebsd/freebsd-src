@@ -211,7 +211,7 @@ alloc_lctx(struct adapter *sc, struct inpcb *inp, struct vi_info *vi)
 
 	if (inp->inp_vflag & INP_IPV6 &&
 	    !IN6_ARE_ADDR_EQUAL(&in6addr_any, &inp->in6p_laddr)) {
-		lctx->ce = t4_hold_lip(sc, &inp->in6p_laddr, NULL);
+		lctx->ce = t4_get_clip_entry(sc, &inp->in6p_laddr, true);
 		if (lctx->ce == NULL) {
 			free(lctx, M_CXGBE);
 			return (NULL);
@@ -244,7 +244,7 @@ free_lctx(struct adapter *sc, struct listen_ctx *lctx)
 	    __func__, lctx->stid, lctx, lctx->inp);
 
 	if (lctx->ce)
-		t4_release_lip(sc, lctx->ce);
+		t4_release_clip_entry(sc, lctx->ce);
 	free_stid(sc, lctx);
 	free(lctx, M_CXGBE);
 
@@ -1525,8 +1525,18 @@ reset:
 
 	/* Come up with something that syncache_expand should be ok with. */
 	synqe_to_protohdrs(sc, synqe, cpl, &inc, &th, &to);
-	if (inc.inc_flags & INC_ISIPV6)
-		toep->ce = t4_hold_lip(sc, &inc.inc6_laddr, lctx->ce);
+	if (inc.inc_flags & INC_ISIPV6) {
+		if (lctx->ce == NULL) {
+			toep->ce = t4_get_clip_entry(sc, &inc.inc6_laddr, true);
+			if (toep->ce == NULL) {
+				free_toepcb(toep);
+				goto reset;	/* RST without a CLIP entry? */
+			}
+		} else {
+			t4_hold_clip_entry(sc, lctx->ce);
+			toep->ce = lctx->ce;
+		}
+	}
 	so = inp->inp_socket;
 	KASSERT(so != NULL, ("%s: socket is NULL", __func__));
 

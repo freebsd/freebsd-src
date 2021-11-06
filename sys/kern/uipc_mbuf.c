@@ -628,8 +628,8 @@ m_copyfromunmapped(const struct mbuf *m, int off, int len, caddr_t cp)
 	uio.uio_iovcnt = 1;
 	uio.uio_offset = 0;
 	uio.uio_rw = UIO_READ;
-	error = m_unmappedtouio(m, off, &uio, len);
-	KASSERT(error == 0, ("m_unmappedtouio failed: off %d, len %d", off,
+	error = m_unmapped_uiomove(m, off, &uio, len);
+	KASSERT(error == 0, ("m_unmapped_uiomove failed: off %d, len %d", off,
 	   len));
 }
 
@@ -1139,6 +1139,29 @@ m_devget(char *buf, int totlen, int off, struct ifnet *ifp,
 	return (top);
 }
 
+static void
+m_copytounmapped(const struct mbuf *m, int off, int len, c_caddr_t cp)
+{
+	struct iovec iov;
+	struct uio uio;
+	int error;
+
+	KASSERT(off >= 0, ("m_copytounmapped: negative off %d", off));
+	KASSERT(len >= 0, ("m_copytounmapped: negative len %d", len));
+	KASSERT(off < m->m_len, ("m_copytounmapped: len exceeds mbuf length"));
+	iov.iov_base = __DECONST(caddr_t, cp);
+	iov.iov_len = len;
+	uio.uio_resid = len;
+	uio.uio_iov = &iov;
+	uio.uio_segflg = UIO_SYSSPACE;
+	uio.uio_iovcnt = 1;
+	uio.uio_offset = 0;
+	uio.uio_rw = UIO_WRITE;
+	error = m_unmapped_uiomove(m, off, &uio, len);
+	KASSERT(error == 0, ("m_unmapped_uiomove failed: off %d, len %d", off,
+	   len));
+}
+
 /*
  * Copy data from a buffer back into the indicated mbuf chain,
  * starting "off" bytes from the beginning, extending the mbuf
@@ -1172,7 +1195,10 @@ m_copyback(struct mbuf *m0, int off, int len, c_caddr_t cp)
 			    M_TRAILINGSPACE(m));
 		}
 		mlen = min (m->m_len - off, len);
-		bcopy(cp, off + mtod(m, caddr_t), (u_int)mlen);
+		if ((m->m_flags & M_EXTPG) != 0)
+			m_copytounmapped(m, off, mlen, cp);
+		else
+			bcopy(cp, off + mtod(m, caddr_t), (u_int)mlen);
 		cp += mlen;
 		len -= mlen;
 		mlen += off;
@@ -1239,6 +1265,62 @@ m_append(struct mbuf *m0, int len, c_caddr_t cp)
 	return (remainder == 0);
 }
 
+static int
+m_apply_extpg_one(struct mbuf *m, int off, int len,
+    int (*f)(void *, void *, u_int), void *arg)
+{
+	void *p;
+	u_int i, count, pgoff, pglen;
+	int rval;
+
+	KASSERT(PMAP_HAS_DMAP,
+	    ("m_apply_extpg_one does not support unmapped mbufs"));
+	off += mtod(m, vm_offset_t);
+	if (off < m->m_epg_hdrlen) {
+		count = min(m->m_epg_hdrlen - off, len);
+		rval = f(arg, m->m_epg_hdr + off, count);
+		if (rval)
+			return (rval);
+		len -= count;
+		off = 0;
+	} else
+		off -= m->m_epg_hdrlen;
+	pgoff = m->m_epg_1st_off;
+	for (i = 0; i < m->m_epg_npgs && len > 0; i++) {
+		pglen = m_epg_pagelen(m, i, pgoff);
+		if (off < pglen) {
+			count = min(pglen - off, len);
+			p = (void *)PHYS_TO_DMAP(m->m_epg_pa[i] + pgoff);
+			rval = f(arg, p, count);
+			if (rval)
+				return (rval);
+			len -= count;
+			off = 0;
+		} else
+			off -= pglen;
+		pgoff = 0;
+	}
+	if (len > 0) {
+		KASSERT(off < m->m_epg_trllen,
+		    ("m_apply_extpg_one: offset beyond trailer"));
+		KASSERT(len <= m->m_epg_trllen - off,
+		    ("m_apply_extpg_one: length beyond trailer"));
+		return (f(arg, m->m_epg_trail + off, len));
+	}
+	return (0);
+}
+
+/* Apply function f to the data in a single mbuf. */
+static int
+m_apply_one(struct mbuf *m, int off, int len,
+    int (*f)(void *, void *, u_int), void *arg)
+{
+	if ((m->m_flags & M_EXTPG) != 0)
+		return (m_apply_extpg_one(m, off, len, f, arg));
+	else
+		return (f(arg, mtod(m, caddr_t) + off, len));
+}
+
 /*
  * Apply function f to the data in an mbuf chain starting "off" bytes from
  * the beginning, continuing for "len" bytes.
@@ -1262,7 +1344,7 @@ m_apply(struct mbuf *m, int off, int len,
 	while (len > 0) {
 		KASSERT(m != NULL, ("m_apply, offset > size of mbuf chain"));
 		count = min(m->m_len - off, len);
-		rval = (*f)(arg, mtod(m, caddr_t) + off, count);
+		rval = m_apply_one(m, off, count, f, arg);
 		if (rval)
 			return (rval);
 		len -= count;
@@ -1675,8 +1757,7 @@ m_uiotombuf_nomap(struct uio *uio, int how, int len, int maxseg, int flags)
 	vm_page_t pg_array[MBUF_PEXT_MAX_PGS];
 	int error, length, i, needed;
 	ssize_t total;
-	int pflags = malloc2vm_flags(how) | VM_ALLOC_NOOBJ | VM_ALLOC_NODUMP |
-	    VM_ALLOC_WIRED;
+	int pflags = malloc2vm_flags(how) | VM_ALLOC_NODUMP | VM_ALLOC_WIRED;
 
 	MPASS((flags & M_PKTHDR) == 0);
 	MPASS((how & M_ZERO) == 0);
@@ -1724,7 +1805,7 @@ m_uiotombuf_nomap(struct uio *uio, int how, int len, int maxseg, int flags)
 		needed = length = MIN(maxseg, total);
 		for (i = 0; needed > 0; i++, needed -= PAGE_SIZE) {
 retry_page:
-			pg_array[i] = vm_page_alloc(NULL, 0, pflags);
+			pg_array[i] = vm_page_alloc_noobj(pflags);
 			if (pg_array[i] == NULL) {
 				if (how & M_NOWAIT) {
 					goto failed;
@@ -1814,10 +1895,10 @@ m_uiotombuf(struct uio *uio, int how, int len, int align, int flags)
 }
 
 /*
- * Copy data from an unmapped mbuf into a uio limited by len if set.
+ * Copy data to/from an unmapped mbuf into a uio limited by len if set.
  */
 int
-m_unmappedtouio(const struct mbuf *m, int m_off, struct uio *uio, int len)
+m_unmapped_uiomove(const struct mbuf *m, int m_off, struct uio *uio, int len)
 {
 	vm_page_t pg;
 	int error, i, off, pglen, pgoff, seglen, segoff;
@@ -1888,7 +1969,7 @@ m_mbuftouio(struct uio *uio, const struct mbuf *m, int len)
 		length = min(m->m_len, total - progress);
 
 		if ((m->m_flags & M_EXTPG) != 0)
-			error = m_unmappedtouio(m, 0, uio, length);
+			error = m_unmapped_uiomove(m, 0, uio, length);
 		else
 			error = uiomove(mtod(m, void *), length, uio);
 		if (error)

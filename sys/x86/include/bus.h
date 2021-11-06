@@ -96,8 +96,8 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _X86_BUS_H_
-#define _X86_BUS_H_
+#ifndef _MACHINE_BUS_H_
+#define _MACHINE_BUS_H_
 
 #include <machine/_bus.h>
 #include <machine/cpufunc.h>
@@ -135,7 +135,15 @@
 #define	BUS_SPACE_BARRIER_READ	0x01		/* force read barrier */
 #define	BUS_SPACE_BARRIER_WRITE	0x02		/* force write barrier */
 
-#if defined(KCSAN) && !defined(KCSAN_RUNTIME)
+#ifndef SAN_RUNTIME
+#if defined(KASAN)
+#define	BUS_SAN_PREFIX	kasan
+#elif defined(KCSAN)
+#define	BUS_SAN_PREFIX	kcsan
+#endif
+#endif
+
+#ifdef BUS_SAN_PREFIX
 #include <sys/bus_san.h>
 #else
 
@@ -1121,6 +1129,6 @@ BUS_POKE_FUNC(4, uint32_t)
 BUS_POKE_FUNC(8, uint64_t)
 #endif
 
-#endif /* KCSAN && !KCSAN_RUNTIME */
+#endif /* !BUS_SAN_PREFIX */
 
-#endif /* _X86_BUS_H_ */
+#endif /* !_MACHINE_BUS_H_ */

@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 24, 2020
+.Dd May 25, 2021
 .Dt CRYPTO_BUFFER 9
 .Os
 .Sh NAME
@@ -93,6 +93,8 @@
 .Fa "int size"
 .Fa "void *dst"
 .Fc
+.Ft void *
+.Fn crypto_cursor_segment "struct crypto_buffer_cursor *cc" "size_t *len"
 .Ft void *
 .Fn crypto_cursor_segbase "struct crypto_buffer_cursor *cc"
 .Ft size_t
@@ -195,7 +197,10 @@ An array of bytes mapped into the kernel's address space.
 A scatter/gather list of kernel buffers as described in
 .Xr uio 9 .
 .It Dv CRYPTO_BUF_MBUF
-A network memory buffer as described in
+A chain of network memory buffers as described in
+.Xr mbuf 9 .
+.It Dv CRYPTO_BUF_SINGLE_MBUF
+A single network memory buffer as described in
 .Xr mbuf 9 .
 .It Dv CRYPTO_BUF_VMPAGE
 A scatter/gather list of
@@ -220,7 +225,9 @@ data buffer
 A pointer to a
 .Vt struct mbuf
 for
-.Dv CRYPTO_BUF_MBUF .
+.Dv CRYPTO_BUF_MBUF
+and
+.Dv CRYPTO_BUF_SINGLE_MBUF .
 .It Fa cb_uio
 A pointer to a
 .Vt struct uio
@@ -288,6 +295,12 @@ is similar to
 except that it does not change the current position of
 .Fa cc .
 .Pp
+.Fn crypto_cursor_segment
+returns the start of the virtually-contiguous segment at the current position of
+.Fa cc .
+The length of the segment is stored in
+.Fa len .
+.Pp
 .Fn crypto_cursor_segbase
 and
 .Fn crypto_cursor_seglen
@@ -302,8 +315,9 @@ return the return value from the caller-supplied callback function.
 .Pp
 .Fn crypto_buffer_contiguous_subsegment ,
 .Fn crypto_contiguous_subsegment ,
-and
 .Fn crypto_cursor_segbase ,
+and
+.Fn crypto_cursor_segment
 return a pointer to a contiguous segment or
 .Dv NULL .
 .Pp

@@ -32,19 +32,18 @@
 #ifndef __T4_CLIP_H
 #define	__T4_CLIP_H
 
-struct clip_entry {
-	TAILQ_ENTRY(clip_entry) link;
-	struct in6_addr lip;	/* local IPv6 address */
-	u_int refcount;
-};
+#define CLIP_HASH_SIZE 32
+struct clip_entry;
+struct in6_addr;
 
 void t4_clip_modload(void);
 void t4_clip_modunload(void);
 void t4_init_clip_table(struct adapter *);
 void t4_destroy_clip_table(struct adapter *);
-struct clip_entry *t4_hold_lip(struct adapter *, struct in6_addr *,
-    struct clip_entry *);
-void t4_release_lip(struct adapter *, struct clip_entry *);
+struct clip_entry *t4_get_clip_entry(struct adapter *, struct in6_addr *, bool);
+void t4_hold_clip_entry(struct adapter *, struct clip_entry *);
+void t4_release_clip_entry(struct adapter *, struct clip_entry *);
+int t4_release_clip_addr(struct adapter *, struct in6_addr *);
 
 int sysctl_clip(SYSCTL_HANDLER_ARGS);
 
