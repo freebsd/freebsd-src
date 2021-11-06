@@ -41,8 +41,8 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/pcb.h>
 
-#include <amd64/linux/linux.h>
-#include <amd64/linux/linux_proto.h>
+#include <machine/../linux/linux.h>
+#include <machine/../linux/linux_proto.h>
 #include <compat/linux/linux_emul.h>
 #include <compat/linux/linux_errno.h>
 #include <compat/linux/linux_misc.h>
@@ -343,10 +343,10 @@ linux_ptrace_getsiginfo(struct thread *td, pid_t pid, l_ulong data)
 static int
 linux_ptrace_getregs(struct thread *td, pid_t pid, void *data)
 {
-	struct ptrace_lwpinfo lwpinfo;
 	struct reg b_reg;
 	struct linux_pt_regset l_regset;
 #ifdef __amd64__
+	struct ptrace_lwpinfo lwpinfo;
 	struct pcb *pcb;
 #endif
 	int error;
@@ -364,7 +364,6 @@ linux_ptrace_getregs(struct thread *td, pid_t pid, void *data)
 
 	l_regset.fs_base = pcb->pcb_fsbase;
 	l_regset.gs_base = pcb->pcb_gsbase;
-#endif
 
 	error = kern_ptrace(td, PT_LWPINFO, pid, &lwpinfo, sizeof(lwpinfo));
 	if (error != 0) {
@@ -385,6 +384,7 @@ linux_ptrace_getregs(struct thread *td, pid_t pid, void *data)
 		 */
 		l_regset.orig_rax = lwpinfo.pl_syscall_code;
 	}
+#endif
 
 	error = copyout(&l_regset, (void *)data, sizeof(l_regset));
 	return (error);
@@ -408,11 +408,11 @@ linux_ptrace_setregs(struct thread *td, pid_t pid, void *data)
 static int
 linux_ptrace_getregset_prstatus(struct thread *td, pid_t pid, l_ulong data)
 {
-	struct ptrace_lwpinfo lwpinfo;
 	struct reg b_reg;
 	struct linux_pt_regset l_regset;
 	struct iovec iov;
 #ifdef __amd64__
+	struct ptrace_lwpinfo lwpinfo;
 	struct pcb *pcb;
 #endif
 	size_t len;
@@ -437,7 +437,6 @@ linux_ptrace_getregset_prstatus(struct thread *td, pid_t pid, l_ulong data)
 
 	l_regset.fs_base = pcb->pcb_fsbase;
 	l_regset.gs_base = pcb->pcb_gsbase;
-#endif
 
 	error = kern_ptrace(td, PT_LWPINFO, pid, &lwpinfo, sizeof(lwpinfo));
 	if (error != 0) {
@@ -459,6 +458,7 @@ linux_ptrace_getregset_prstatus(struct thread *td, pid_t pid, l_ulong data)
 		 */
 		l_regset.orig_rax = lwpinfo.pl_syscall_code;
 	}
+#endif
 
 	len = MIN(iov.iov_len, sizeof(l_regset));
 	error = copyout(&l_regset, (void *)iov.iov_base, len);
