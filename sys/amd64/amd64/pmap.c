@@ -2247,6 +2247,10 @@ pmap_bootstrap_la57(void *arg __unused)
 	    la57_trampoline_gdt - la57_trampoline + VM_PAGE_TO_PHYS(m_code);
 	la57_tramp = (void (*)(uint64_t))VM_PAGE_TO_PHYS(m_code);
 	invlpg((vm_offset_t)la57_tramp);
+	if (bootverbose) {
+		printf("entering LA57 trampoline at %#lx\n",
+		    (vm_offset_t)la57_tramp);
+	}
 	la57_tramp(KPML5phys);
 
 	/*
@@ -2260,6 +2264,9 @@ pmap_bootstrap_la57(void *arg __unused)
 	ssdtosyssd(&gdt_segs[GPROC0_SEL],
 	    (struct system_segment_descriptor *)&__pcpu[0].pc_gdt[GPROC0_SEL]);
 	ltr(GSEL(GPROC0_SEL, SEL_KPL));
+
+	if (bootverbose)
+		printf("LA57 trampoline returned, CR4 %#lx\n", rcr4());
 
 	/*
 	 * Now unmap the trampoline, and free the pages.
