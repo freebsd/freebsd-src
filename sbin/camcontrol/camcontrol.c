@@ -8118,6 +8118,8 @@ mmcsdcmd(struct cam_device *device, int argc, char **argv, char *combinedopt,
 			break;
 		default:
 			printf("No command-specific decoder for CMD %d\n", mmc_opcode);
+			if (mmc_data_len > 0)
+				hexdump(mmc_data, mmc_data_len, NULL, 0);
 		}
 	}
 mmccmd_bailout:
