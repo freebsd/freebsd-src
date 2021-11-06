@@ -726,7 +726,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     }
     dangerous_ld_env = libmap_disable || libmap_override != NULL ||
 	ld_library_path != NULL || ld_preload != NULL ||
-	ld_elf_hints_path != NULL || ld_loadfltr || ld_dynamic_weak;
+	ld_elf_hints_path != NULL || ld_loadfltr || !ld_dynamic_weak;
     ld_tracing = ld_get_env_var(LD_TRACE_LOADED_OBJECTS);
     ld_utrace = ld_get_env_var(LD_UTRACE);
 
