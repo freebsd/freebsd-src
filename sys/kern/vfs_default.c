@@ -961,7 +961,7 @@ vop_stdallocate(struct vop_allocate_args *ap)
 	len = *ap->a_len;
 	offset = *ap->a_offset;
 
-	error = VOP_GETATTR(vp, vap, td->td_ucred);
+	error = VOP_GETATTR(vp, vap, ap->a_cred);
 	if (error != 0)
 		goto out;
 	fsize = vap->va_size;
@@ -998,12 +998,12 @@ vop_stdallocate(struct vop_allocate_args *ap)
 		 */
 		VATTR_NULL(vap);
 		vap->va_size = offset + len;
-		error = VOP_SETATTR(vp, vap, td->td_ucred);
+		error = VOP_SETATTR(vp, vap, ap->a_cred);
 		if (error != 0)
 			goto out;
 		VATTR_NULL(vap);
 		vap->va_size = fsize;
-		error = VOP_SETATTR(vp, vap, td->td_ucred);
+		error = VOP_SETATTR(vp, vap, ap->a_cred);
 		if (error != 0)
 			goto out;
 	}
@@ -1029,7 +1029,7 @@ vop_stdallocate(struct vop_allocate_args *ap)
 			auio.uio_segflg = UIO_SYSSPACE;
 			auio.uio_rw = UIO_READ;
 			auio.uio_td = td;
-			error = VOP_READ(vp, &auio, 0, td->td_ucred);
+			error = VOP_READ(vp, &auio, ap->a_ioflag, ap->a_cred);
 			if (error != 0)
 				break;
 			if (auio.uio_resid > 0) {
@@ -1050,7 +1050,7 @@ vop_stdallocate(struct vop_allocate_args *ap)
 		auio.uio_rw = UIO_WRITE;
 		auio.uio_td = td;
 
-		error = VOP_WRITE(vp, &auio, 0, td->td_ucred);
+		error = VOP_WRITE(vp, &auio, ap->a_ioflag, ap->a_cred);
 		if (error != 0)
 			break;
 

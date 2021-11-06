@@ -3470,7 +3470,8 @@ vn_fallocate(struct file *fp, off_t offset, off_t len, struct thread *td)
 		error = mac_vnode_check_write(td->td_ucred, fp->f_cred, vp);
 		if (error == 0)
 #endif
-			error = VOP_ALLOCATE(vp, &offset, &len);
+			error = VOP_ALLOCATE(vp, &offset, &len, 0,
+			    td->td_ucred);
 		VOP_UNLOCK(vp);
 		vn_finished_write(mp);
 
