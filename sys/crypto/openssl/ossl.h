@@ -36,46 +36,19 @@
 
 struct cryptop;
 struct crypto_session_params;
-struct ossl_softc;
-struct ossl_session;
 
+int	ossl_chacha20(struct cryptop *crp,
+	    const struct crypto_session_params *csp);
 int	ossl_chacha20_poly1305_decrypt(struct cryptop *crp,
 	    const struct crypto_session_params *csp);
 int	ossl_chacha20_poly1305_encrypt(struct cryptop *crp,
 	    const struct crypto_session_params *csp);
-void ossl_cpuid(struct ossl_softc *sc);
-
-struct ossl_softc {
-	int32_t sc_cid;
-	bool has_aes;
-};
+void ossl_cpuid(void);
 
 /* Needs to be big enough to hold any hash context. */
 struct ossl_hash_context {
 	uint32_t	dummy[61];
 } __aligned(32);
-
-struct ossl_cipher_context {
-	uint32_t	dummy[61];
-} __aligned(32);
-
-struct ossl_session_hash {
-	struct ossl_hash_context ictx;
-	struct ossl_hash_context octx;
-	struct auth_hash *axf;
-	u_int mlen;
-};
-
-struct ossl_session_cipher {
-	struct ossl_cipher_context dec_ctx;
-	struct ossl_cipher_context enc_ctx;
-	struct ossl_cipher *cipher;
-};
-
-struct ossl_session {
-	struct ossl_session_cipher cipher;
-	struct ossl_session_hash hash;
-};
 
 extern struct auth_hash ossl_hash_poly1305;
 extern struct auth_hash ossl_hash_sha1;
@@ -83,8 +56,5 @@ extern struct auth_hash ossl_hash_sha224;
 extern struct auth_hash ossl_hash_sha256;
 extern struct auth_hash ossl_hash_sha384;
 extern struct auth_hash ossl_hash_sha512;
-
-extern struct ossl_cipher ossl_cipher_aes_cbc;
-extern struct ossl_cipher ossl_cipher_chacha20;
 
 #endif /* !__OSSL_H__ */

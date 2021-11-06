@@ -15,7 +15,6 @@ cddl/dev/dtrace/i386/dtrace_asm.S			optional dtrace compile-with "${DTRACE_S}"
 cddl/dev/dtrace/i386/dtrace_subr.c			optional dtrace compile-with "${DTRACE_C}"
 crypto/aesni/aeskeys_i386.S	optional aesni
 crypto/des/arch/i386/des_enc.S	optional netsmb
-crypto/openssl/i386/aesni-x86.S	optional ossl
 crypto/openssl/i386/chacha-x86.S	optional ossl
 crypto/openssl/i386/poly1305-x86.S	optional ossl
 crypto/openssl/i386/sha1-586.S	optional ossl

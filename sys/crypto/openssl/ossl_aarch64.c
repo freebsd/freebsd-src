@@ -36,7 +36,6 @@
 #include <machine/md_var.h>
 
 #include <crypto/openssl/ossl.h>
-#include <crypto/openssl/ossl_cipher.h>
 #include <crypto/openssl/aarch64/arm_arch.h>
 
 /*
@@ -44,14 +43,8 @@
  */
 unsigned int OPENSSL_armcap_P;
 
-ossl_cipher_setkey_t aes_v8_set_encrypt_key;
-ossl_cipher_setkey_t aes_v8_set_decrypt_key;
-
-ossl_cipher_setkey_t vpaes_set_encrypt_key;
-ossl_cipher_setkey_t vpaes_set_decrypt_key;
-
 void
-ossl_cpuid(struct ossl_softc *sc)
+ossl_cpuid(void)
 {
 	/* SHA features */
 	if ((elf_hwcap & HWCAP_SHA1) != 0)
@@ -66,18 +59,4 @@ ossl_cpuid(struct ossl_softc *sc)
 		OPENSSL_armcap_P |= ARMV8_AES;
 	if ((elf_hwcap & HWCAP_PMULL) != 0)
 		OPENSSL_armcap_P |= ARMV8_PMULL;
-
-	if ((OPENSSL_armcap_P & ARMV8_AES) == 0 &&
-	    (OPENSSL_armcap_P & ARMV7_NEON) == 0) {
-		sc->has_aes = false;
-		return;
-	}
-	sc->has_aes = true;
-	if (OPENSSL_armcap_P & ARMV8_AES) {
-		ossl_cipher_aes_cbc.set_encrypt_key = aes_v8_set_encrypt_key;
-		ossl_cipher_aes_cbc.set_decrypt_key = aes_v8_set_decrypt_key;
-	} else {
-		ossl_cipher_aes_cbc.set_encrypt_key = vpaes_set_encrypt_key;
-		ossl_cipher_aes_cbc.set_decrypt_key = vpaes_set_decrypt_key;
-	}
 }
