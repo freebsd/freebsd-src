@@ -91,6 +91,8 @@ __FBSDID("$FreeBSD$");
 #include <linux/smp.h>
 #include <linux/wait_bit.h>
 #include <linux/rcupdate.h>
+#include <linux/interval_tree.h>
+#include <linux/interval_tree_generic.h>
 
 #if defined(__i386__) || defined(__amd64__)
 #include <asm/smp.h>
@@ -147,6 +149,12 @@ panic_cmp(struct rb_node *one, struct rb_node *two)
 }
 
 RB_GENERATE(linux_root, rb_node, __entry, panic_cmp);
+
+#define	START(node)	((node)->start)
+#define	LAST(node)	((node)->last)
+
+INTERVAL_TREE_DEFINE(struct interval_tree_node, rb, unsigned long,, START,
+    LAST,, lkpi_interval_tree)
 
 int
 kobject_set_name_vargs(struct kobject *kobj, const char *fmt, va_list args)
