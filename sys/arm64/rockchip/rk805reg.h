@@ -93,6 +93,10 @@
 #define	RK808_LDO8_ON_VSEL	0x49
 #define	RK808_LDO8_SLEEP_VSEL	0x4A
 
+#define	RK805_DEV_CTRL		0x4B
+#define	 RK805_DEV_CTRL_OFF	(1 << 0)
+#define	 RK805_DEV_CTRL_SLP	(1 << 1)
+
 enum rk805_regulator {
 	RK805_DCDC1 = 0,
 	RK805_DCDC2,
