@@ -31,8 +31,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/clock.h>
+#include <sys/eventhandler.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
+#include <sys/reboot.h>
 #include <sys/mutex.h>
 #include <sys/rman.h>
 #include <machine/bus.h>
@@ -844,6 +846,29 @@ rk805_settime(device_t dev, struct timespec *ts)
 	return (error);
 }
 
+static void
+rk805_poweroff(void *arg, int howto)
+{
+	device_t dev = arg;
+	int error;
+	uint8_t val;
+
+	if ((howto & RB_POWEROFF) == 0)
+		return;
+
+	device_printf(dev, "Powering off...\n");
+	error = rk805_read(dev, RK805_DEV_CTRL, &val, 1);
+	if (error == 0) {
+		val |= RK805_DEV_CTRL_OFF;
+		error = rk805_write(dev, RK805_DEV_CTRL, &val, 1);
+
+		/* Wait a bit for the command to take effect. */
+		if (error == 0)
+			DELAY(100);
+	}
+	device_printf(dev, "Power off failed\n");
+}
+
 static int
 rk805_attach(device_t dev)
 {
@@ -905,6 +930,17 @@ rk805_attach(device_t dev)
 				device_printf(dev, "Regulator %s attached\n",
 				    regdefs[i].name);
 		}
+	}
+
+	if (OF_hasprop(ofw_bus_get_node(dev),
+	    "rockchip,system-power-controller")) {
+		/*
+		 * The priority is chosen to override PSCI and EFI shutdown
+		 * methods as those two just hang without powering off on Rock64
+		 * at least.
+		 */
+		EVENTHANDLER_REGISTER(shutdown_final, rk805_poweroff, dev,
+		    SHUTDOWN_PRI_LAST - 2);
 	}
 
 	return (0);
