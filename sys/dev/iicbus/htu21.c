@@ -192,21 +192,24 @@ htu21_temp_sysctl(SYSCTL_HANDLER_ARGS)
 	dev = arg1;
 	sc = device_get_softc(dev);
 
-	if (sc->sc_hold)
-		error = htu21_get_measurement(dev, HTU21_GET_TEMP,
-		    raw_data, nitems(raw_data));
-	else
-		error = htu21_get_measurement_nohold(dev, HTU21_GET_TEMP_NH,
-		    raw_data, nitems(raw_data));
+	if (req->oldptr != NULL) {
+		if (sc->sc_hold)
+			error = htu21_get_measurement(dev, HTU21_GET_TEMP,
+			    raw_data, nitems(raw_data));
+		else
+			error = htu21_get_measurement_nohold(dev,
+			    HTU21_GET_TEMP_NH, raw_data, nitems(raw_data));
 
-	if (error != 0) {
-		return (EIO);
-	} else if (!check_crc_16(raw_data, raw_data[2])) {
-		temp = -1;
-		sc->sc_errcount++;
-	} else {
-		temp = (((uint16_t)raw_data[0]) << 8) | (raw_data[1] & 0xfc);
-		temp = ((temp * 17572) >> 16 ) + 27315 - 4685;
+		if (error != 0) {
+			return (EIO);
+		} else if (!check_crc_16(raw_data, raw_data[2])) {
+			temp = -1;
+			sc->sc_errcount++;
+		} else {
+			temp = (((uint16_t)raw_data[0]) << 8) |
+			    (raw_data[1] & 0xfc);
+			temp = ((temp * 17572) >> 16 ) + 27315 - 4685;
+		}
 	}
 
 	error = sysctl_handle_int(oidp, &temp, 0, req);
@@ -224,21 +227,24 @@ htu21_rh_sysctl(SYSCTL_HANDLER_ARGS)
 	dev = arg1;
 	sc = device_get_softc(dev);
 
-	if (sc->sc_hold)
-		error = htu21_get_measurement(dev, HTU21_GET_HUM,
-		    raw_data, nitems(raw_data));
-	else
-		error = htu21_get_measurement_nohold(dev, HTU21_GET_HUM_NH,
-		    raw_data, nitems(raw_data));
+	if (req->oldptr != NULL) {
+		if (sc->sc_hold)
+			error = htu21_get_measurement(dev, HTU21_GET_HUM,
+			    raw_data, nitems(raw_data));
+		else
+			error = htu21_get_measurement_nohold(dev,
+			    HTU21_GET_HUM_NH, raw_data, nitems(raw_data));
 
-	if (error != 0) {
-		return (EIO);
-	} else if (!check_crc_16(raw_data, raw_data[2])) {
-		rh = -1;
-		sc->sc_errcount++;
-	} else {
-		rh = (((uint16_t)raw_data[0]) << 8) | (raw_data[1] & 0xfc);
-		rh = ((rh * 12500) >> 16 ) - 600;
+		if (error != 0) {
+			return (EIO);
+		} else if (!check_crc_16(raw_data, raw_data[2])) {
+			rh = -1;
+			sc->sc_errcount++;
+		} else {
+			rh = (((uint16_t)raw_data[0]) << 8) |
+			    (raw_data[1] & 0xfc);
+			rh = ((rh * 12500) >> 16 ) - 600;
+		}
 	}
 
 	error = sysctl_handle_int(oidp, &rh, 0, req);
@@ -302,11 +308,12 @@ htu21_heater_sysctl(SYSCTL_HANDLER_ARGS)
 	dev = arg1;
 	sc = device_get_softc(dev);
 
-	error = htu21_get_cfg(dev, &cfg);
-	if (error != 0)
-		return (EIO);
-
-	heater = (cfg & 0x04) != 0;
+	if (req->oldptr != NULL) {
+		error = htu21_get_cfg(dev, &cfg);
+		if (error != 0)
+			return (EIO);
+		heater = (cfg & 0x04) != 0;
+	}
 	error = sysctl_handle_int(oidp, &heater, 0, req);
 	if (error != 0 || req->newptr == NULL)
 		return (error);
@@ -328,11 +335,12 @@ htu21_power_sysctl(SYSCTL_HANDLER_ARGS)
 	dev = arg1;
 	sc = device_get_softc(dev);
 
-	error = htu21_get_cfg(dev, &cfg);
-	if (error != 0)
-		return (EIO);
-
-	power = (cfg & 0x40) == 0;
+	if (req->oldptr != NULL) {
+		error = htu21_get_cfg(dev, &cfg);
+		if (error != 0)
+			return (EIO);
+		power = (cfg & 0x40) == 0;
+	}
 	error = sysctl_handle_int(oidp, &power, 0, req);
 	return (error);
 }
