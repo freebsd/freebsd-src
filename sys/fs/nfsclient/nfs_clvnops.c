@@ -3731,7 +3731,7 @@ nfs_allocate(struct vop_allocate_args *ap)
 			if ((uint64_t)alen > nfs_maxalloclen)
 				alen = nfs_maxalloclen;
 			error = nfsrpc_allocate(vp, *ap->a_offset, alen,
-			    &nfsva, &attrflag, td->td_ucred, td, NULL);
+			    &nfsva, &attrflag, ap->a_cred, td, NULL);
 		}
 		if (error == 0) {
 			*ap->a_offset += alen;

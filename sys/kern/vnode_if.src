@@ -702,6 +702,8 @@ vop_allocate {
 	IN struct vnode *vp;
 	INOUT off_t *offset;
 	INOUT off_t *len;
+	IN int ioflag;
+	IN struct ucred *cred;
 };
 
 
