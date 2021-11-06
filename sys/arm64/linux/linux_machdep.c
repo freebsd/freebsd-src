@@ -145,3 +145,16 @@ bsd_to_linux_regset(const struct reg *b_reg, struct linux_pt_regset *l_regset)
 	l_regset->pc = b_reg->elr;
 	l_regset->cpsr = b_reg->spsr;
 }
+
+void
+linux_to_bsd_regset(struct reg *b_reg, const struct linux_pt_regset *l_regset)
+{
+
+	KASSERT(sizeof(l_regset->x) == sizeof(b_reg->x) + sizeof(l_ulong),
+	    ("%s: size mismatch\n", __func__));
+
+	memcpy(b_reg->x, l_regset->x, sizeof(b_reg->x));
+	b_reg->sp = l_regset->sp;
+	b_reg->elr = l_regset->pc;
+	b_reg->spsr = l_regset->cpsr;
+}
