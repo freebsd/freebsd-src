@@ -380,7 +380,7 @@ topo_probe_intel_0x4(void)
 
 /*
  * Determine topology of processing units for Intel CPUs
- * using CPUID Leaf 11, if supported.
+ * using CPUID Leaf 1Fh or 0Bh, if supported.
  * See:
  *  - Intel 64 Architecture Processor Topology Enumeration
  *  - Intel 64 and IA-32 ArchitecturesSoftware Developer’s Manual,
@@ -390,13 +390,23 @@ topo_probe_intel_0x4(void)
 static void
 topo_probe_intel_0xb(void)
 {
-	u_int p[4];
+	u_int leaf;
+	u_int p[4] = { 0 };
 	int bits;
 	int type;
 	int i;
 
-	/* Fall back if CPU leaf 11 doesn't really exist. */
-	cpuid_count(0x0b, 0, p);
+	/* Prefer leaf 1Fh (V2 Extended Topology Enumeration). */
+	if (cpu_high >= 0x1f) {
+		leaf = 0x1f;
+		cpuid_count(leaf, 0, p);
+	}
+	/* Fall back to leaf 0Bh (Extended Topology Enumeration). */
+	if (p[1] == 0) {
+		leaf = 0x0b;
+		cpuid_count(leaf, 0, p);
+	}
+	/* Fall back to leaf 04h (Deterministic Cache Parameters). */
 	if (p[1] == 0) {
 		topo_probe_intel_0x4();
 		return;
@@ -404,7 +414,7 @@ topo_probe_intel_0xb(void)
 
 	/* We only support three levels for now. */
 	for (i = 0; ; i++) {
-		cpuid_count(0x0b, i, p);
+		cpuid_count(leaf, i, p);
 
 		bits = p[0] & 0x1f;
 		type = (p[2] >> 8) & 0xff;
@@ -412,13 +422,12 @@ topo_probe_intel_0xb(void)
 		if (type == 0)
 			break;
 
-		/* TODO: check for duplicate (re-)assignment */
 		if (type == CPUID_TYPE_SMT)
 			core_id_shift = bits;
 		else if (type == CPUID_TYPE_CORE)
 			pkg_id_shift = bits;
-		else
-			printf("unknown CPU level type %d\n", type);
+		else if (bootverbose)
+			printf("Topology level type %d shift: %d\n", type, bits);
 	}
 
 	if (pkg_id_shift < core_id_shift) {
