@@ -27,6 +27,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 14.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20211106:
+	Commit f0c9847a6c47 changed the arguments for VOP_ALLOCATE.
+	The NFS modules must be rebuilt from sources and any out
+	of tree file systems that implement their own VOP_ALLOCATE
+	may need to be modified.
+
 20211022:
 	The synchronous PPP kernel driver sppp(4) has been removed.
 	The cp(4) and ce(4) drivers are now always compiled with netgraph(4)
