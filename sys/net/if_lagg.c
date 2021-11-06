@@ -1726,7 +1726,9 @@ lagg_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 					(*lp->lp_ioctl)(lp->lp_ifp, cmd, data);
 			}
 		}
+		lagg_capabilities(sc);
 		LAGG_XUNLOCK(sc);
+		VLAN_CAPABILITIES(ifp);
 		break;
 
 	default:
