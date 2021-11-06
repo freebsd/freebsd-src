@@ -49,9 +49,23 @@ __FBSDID("$FreeBSD$");
 
 #include <crypto/openssl/ossl.h>
 #include <crypto/openssl/ossl_chacha.h>
-#include <crypto/openssl/ossl_cipher.h>
 
 #include "cryptodev_if.h"
+
+struct ossl_softc {
+	int32_t sc_cid;
+};
+
+struct ossl_session_hash {
+	struct ossl_hash_context ictx;
+	struct ossl_hash_context octx;
+	struct auth_hash *axf;
+	u_int mlen;
+};
+
+struct ossl_session {
+	struct ossl_session_hash hash;
+};
 
 static MALLOC_DEFINE(M_OSSL, "ossl", "OpenSSL crypto");
 
@@ -78,7 +92,7 @@ ossl_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 
-	ossl_cpuid(sc);
+	ossl_cpuid();
 	sc->sc_cid = crypto_get_driverid(dev, sizeof(struct ossl_session),
 	    CRYPTOCAP_F_SOFTWARE | CRYPTOCAP_F_SYNC |
 	    CRYPTOCAP_F_ACCEL_SOFTWARE);
@@ -129,34 +143,9 @@ ossl_lookup_hash(const struct crypto_session_params *csp)
 	}
 }
 
-static struct ossl_cipher*
-ossl_lookup_cipher(const struct crypto_session_params *csp)
-{
-
-	switch (csp->csp_cipher_alg) {
-	case CRYPTO_AES_CBC:
-		switch (csp->csp_cipher_klen * 8) {
-		case 128:
-		case 192:
-		case 256:
-			break;
-		default:
-			return (NULL);
-		}
-		return (&ossl_cipher_aes_cbc);
-	case CRYPTO_CHACHA20:
-		if (csp->csp_cipher_klen != CHACHA_KEY_SIZE)
-			return (NULL);
-		return (&ossl_cipher_chacha20);
-	default:
-		return (NULL);
-	}
-}
-
 static int
 ossl_probesession(device_t dev, const struct crypto_session_params *csp)
 {
-	struct ossl_softc *sc = device_get_softc(dev);
 
 	if ((csp->csp_flags & ~(CSP_F_SEPARATE_OUTPUT | CSP_F_SEPARATE_AAD)) !=
 	    0)
@@ -167,10 +156,14 @@ ossl_probesession(device_t dev, const struct crypto_session_params *csp)
 			return (EINVAL);
 		break;
 	case CSP_MODE_CIPHER:
-		if (csp->csp_cipher_alg != CRYPTO_CHACHA20 && !sc->has_aes)
+		switch (csp->csp_cipher_alg) {
+		case CRYPTO_CHACHA20:
+			if (csp->csp_cipher_klen != CHACHA_KEY_SIZE)
+				return (EINVAL);
+			break;
+		default:
 			return (EINVAL);
-		if (ossl_lookup_cipher(csp) == NULL)
-			return (EINVAL);
+		}
 		break;
 	case CSP_MODE_AEAD:
 		switch (csp->csp_cipher_alg) {
@@ -221,56 +214,19 @@ ossl_newsession_hash(struct ossl_session *s,
 }
 
 static int
-ossl_newsession_cipher(struct ossl_session *s,
-    const struct crypto_session_params *csp)
-{
-	struct ossl_cipher *cipher;
-	int error = 0;
-
-	cipher = ossl_lookup_cipher(csp);
-	if (cipher == NULL)
-		return (EINVAL);
-
-	s->cipher.cipher = cipher;
-
-	if (csp->csp_cipher_key == NULL)
-		return (0);
-
-	fpu_kern_enter(curthread, NULL, FPU_KERN_NOCTX);
-	if (cipher->set_encrypt_key != NULL) {
-		error = cipher->set_encrypt_key(csp->csp_cipher_key,
-		    8 * csp->csp_cipher_klen, &s->cipher.enc_ctx);
-		if (error != 0) {
-			fpu_kern_leave(curthread, NULL);
-			return (error);
-		}
-	}
-	if (cipher->set_decrypt_key != NULL)
-		error = cipher->set_decrypt_key(csp->csp_cipher_key,
-		    8 * csp->csp_cipher_klen, &s->cipher.dec_ctx);
-	fpu_kern_leave(curthread, NULL);
-
-	return (error);
-}
-
-static int
 ossl_newsession(device_t dev, crypto_session_t cses,
     const struct crypto_session_params *csp)
 {
 	struct ossl_session *s;
-	int error = 0;
 
 	s = crypto_get_driver_session(cses);
 	switch (csp->csp_mode) {
 	case CSP_MODE_DIGEST:
 		ossl_newsession_hash(s, csp);
 		break;
-	case CSP_MODE_CIPHER:
-		error = ossl_newsession_cipher(s, csp);
-		break;
 	}
 
-	return (error);
+	return (0);
 }
 
 static int
@@ -364,7 +320,7 @@ ossl_process(device_t dev, struct cryptop *crp, int hint)
 		error = ossl_process_hash(s, crp, csp);
 		break;
 	case CSP_MODE_CIPHER:
-		error = s->cipher.cipher->process(&s->cipher, crp, csp);
+		error = ossl_chacha20(crp, csp);
 		break;
 	case CSP_MODE_AEAD:
 		if (CRYPTO_OP_IS_ENCRYPT(crp->crp_op))

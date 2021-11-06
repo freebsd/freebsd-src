@@ -39,7 +39,6 @@
 #include <x86/specialreg.h>
 
 #include <crypto/openssl/ossl.h>
-#include <crypto/openssl/ossl_cipher.h>
 
 /*
  * See OPENSSL_ia32cap(3).
@@ -50,13 +49,9 @@
  * [3] = 0
  */
 unsigned int OPENSSL_ia32cap_P[4];
-#define AESNI_CAPABLE	(OPENSSL_ia32cap_P[1]&(1<<(57-32)))
-
-ossl_cipher_setkey_t aesni_set_encrypt_key;
-ossl_cipher_setkey_t aesni_set_decrypt_key;
 
 void
-ossl_cpuid(struct ossl_softc *sc)
+ossl_cpuid(void)
 {
 	uint64_t xcr0;
 	u_int regs[4];
@@ -117,12 +112,4 @@ ossl_cpuid(struct ossl_softc *sc)
 		OPENSSL_ia32cap_P[1] &= ~(CPUID2_AVX | AMDID2_XOP | CPUID2_FMA);
 		OPENSSL_ia32cap_P[2] &= ~CPUID_STDEXT_AVX2;
 	}
-
-	if (!AESNI_CAPABLE) {
-		sc->has_aes = false;
-		return;
-	}
-	sc->has_aes = true;
-	ossl_cipher_aes_cbc.set_encrypt_key = aesni_set_encrypt_key;
-	ossl_cipher_aes_cbc.set_decrypt_key = aesni_set_decrypt_key;
 }
