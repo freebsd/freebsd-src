@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 14, 2021
+.Dd January 13, 2021
 .Dt MAKE.CONF 5
 .Os
 .Sh NAME
@@ -272,6 +272,9 @@ It defaults to
 .It Va MODULES_OVERRIDE
 .Pq Vt str
 Set to a list of modules to build instead of all of them.
+.It Va MODULES_EXCLUDE
+.Pq Vt str
+Set to a list of modules to exclude from the build.
 .It Va NO_KERNELCLEAN
 .Pq Vt bool
 Set this to skip running
