@@ -6598,7 +6598,7 @@ nfsvno_allocate(struct vnode *vp, off_t off, off_t len, struct ucred *cred,
 	 */
 	do {
 		olen = len;
-		error = VOP_ALLOCATE(vp, &off, &len);
+		error = VOP_ALLOCATE(vp, &off, &len, IO_SYNC, cred);
 		if (error == 0 && len > 0 && olen > len)
 			maybe_yield();
 	} while (error == 0 && len > 0 && olen > len);
