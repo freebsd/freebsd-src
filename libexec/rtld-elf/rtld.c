@@ -2773,19 +2773,17 @@ do_load_object(int fd, const char *name, char *path, struct stat *sbp,
     struct statfs fs;
 
     /*
-     * but first, make sure that environment variables haven't been
+     * First, make sure that environment variables haven't been
      * used to circumvent the noexec flag on a filesystem.
+     * We ignore fstatfs(2) failures, since fd might reference
+     * not a file, e.g. shmfd.
      */
-    if (dangerous_ld_env) {
-	if (fstatfs(fd, &fs) != 0) {
-	    _rtld_error("Cannot fstatfs \"%s\"", printable_path(path));
-	    return NULL;
-	}
-	if (fs.f_flags & MNT_NOEXEC) {
+    if (dangerous_ld_env && fstatfs(fd, &fs) == 0 &&
+	(fs.f_flags & MNT_NOEXEC) != 0) {
 	    _rtld_error("Cannot execute objects on %s", fs.f_mntonname);
-	    return NULL;
-	}
+	    return (NULL);
     }
+
     dbg("loading \"%s\"", printable_path(path));
     obj = map_object(fd, printable_path(path), sbp);
     if (obj == NULL)
