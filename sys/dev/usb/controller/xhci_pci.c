@@ -134,6 +134,8 @@ xhci_pci_match(device_t self)
 		return ("Intel Gemini Lake USB 3.0 controller");
 	case 0x5aa88086:
 		return ("Intel Apollo Lake USB 3.0 controller");
+	case 0x7ae08086:
+		return ("Intel Alder Lake USB 3.2 controller");
 	case 0x8c318086:
 		return ("Intel Lynx Point USB 3.0 controller");
 	case 0x8cb18086:
