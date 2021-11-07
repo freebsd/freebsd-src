@@ -40,7 +40,19 @@ METHOD int lookup_symbol {
     c_linker_sym_t*	symp;
 };
 
+METHOD int lookup_debug_symbol {
+    linker_file_t	file;
+    const char*		name;
+    c_linker_sym_t*	symp;
+};
+
 METHOD int symbol_values {
+    linker_file_t	file;
+    c_linker_sym_t	sym;
+    linker_symval_t*	valp;
+};
+
+METHOD int debug_symbol_values {
     linker_file_t	file;
     c_linker_sym_t	sym;
     linker_symval_t*	valp;
