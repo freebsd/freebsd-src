@@ -62,7 +62,6 @@ int
 kvm_getloadavg(kvm_t *kd, double loadavg[], int nelem)
 {
 	struct loadavg loadinfo;
-	struct nlist *p;
 	int fscale, i;
 
 	if (ISALIVE(kd))
@@ -74,10 +73,9 @@ kvm_getloadavg(kvm_t *kd, double loadavg[], int nelem)
 		return (-1);
 	}
 
-	if (kvm_nlist(kd, nl) != 0) {
-		for (p = nl; p->n_type != 0; ++p);
+	if (kvm_nlist(kd, nl) != 0 && nl[X_AVERUNNABLE].n_type == 0) {
 		_kvm_err(kd, kd->program,
-		    "%s: no such symbol", p->n_name);
+		    "%s: no such symbol", nl[X_AVERUNNABLE].n_name);
 		return (-1);
 	}
 
@@ -92,7 +90,8 @@ kvm_getloadavg(kvm_t *kd, double loadavg[], int nelem)
 	 * Old kernels have fscale separately; if not found assume
 	 * running new format.
 	 */
-	if (!KREAD(kd, nl[X_FSCALE].n_value, &fscale))
+	if (nl[X_FSCALE].n_type != 0 &&
+	    !KREAD(kd, nl[X_FSCALE].n_value, &fscale))
 		loadinfo.fscale = fscale;
 
 	nelem = MIN(nelem, (int)(sizeof(loadinfo.ldavg) / sizeof(fixpt_t)));
