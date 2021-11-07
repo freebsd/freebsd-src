@@ -32,10 +32,11 @@
 .\"     @(#)getenv.3	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd June 20, 2007
+.Dd November 7, 2021
 .Dt GETENV 3
 .Os
 .Sh NAME
+.Nm clearenv ,
 .Nm getenv ,
 .Nm putenv ,
 .Nm setenv ,
@@ -45,6 +46,8 @@
 .Lb libc
 .Sh SYNOPSIS
 .In stdlib.h
+.Ft int
+.Fn clearenv "void"
 .Ft char *
 .Fn getenv "const char *name"
 .Ft int
@@ -57,6 +60,14 @@
 These functions set, unset and fetch environment variables from the
 host
 .Em environment list .
+.Pp
+The
+.Fn clearenv
+function clears all environment variables.
+New variables can be added using
+.Fn setenv
+and
+.Fn putenv .
 .Pp
 The
 .Fn getenv
@@ -128,7 +139,7 @@ is not in the current environment,
 .Dv NULL
 is returned.
 .Pp
-.Rv -std setenv putenv unsetenv
+.Rv -std clearenv setenv putenv unsetenv
 .Sh ERRORS
 .Bl -tag -width Er
 .It Bq Er EINVAL
@@ -211,6 +222,11 @@ This was changed to use
 as the memory location of the ``name=value'' pair to follow the
 .Tn POSIX
 specification.
+.Pp
+The
+.Fn clearenv
+was added in
+.Fx 14 .
 .Sh BUGS
 Successive calls to
 .Fn setenv
