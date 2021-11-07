@@ -33,4 +33,6 @@ KMOD=	ucom
 SRCS=	opt_bus.h opt_usb.h opt_gdb.h device_if.h bus_if.h usb_if.h usbdevs.h \
 	usb_serial.c
 
+EXPORT_SYMS=	YES
+
 .include <bsd.kmod.mk>

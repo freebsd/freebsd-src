@@ -41,4 +41,6 @@ SRCS=	bus_if.h device_if.h usb_if.h usb_if.c vnode_if.h \
 SRCS+=	usb_fdt_support.c ofw_bus_if.h
 .endif
 
+EXPORT_SYMS=	YES
+
 .include <bsd.kmod.mk>

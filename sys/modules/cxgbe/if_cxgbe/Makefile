@@ -44,4 +44,6 @@ SRCS+=  fastlz.c
 
 CFLAGS+= -I${CXGBE}
 
+EXPORT_SYMS=	YES
+
 .include <bsd.kmod.mk>

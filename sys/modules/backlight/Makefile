@@ -10,4 +10,6 @@ SRCS+=	bus_if.h \
 	backlight_if.h \
 	backlight_if.c
 
+EXPORT_SYMS=	YES
+
 .include <bsd.kmod.mk>

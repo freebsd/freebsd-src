@@ -10,7 +10,8 @@ SRCS=	opt_pseudofs.h \
 	pseudofs_vncache.c \
 	pseudofs_vnops.c
 
-EXPORT_SYMS=	pfs_mount	\
+EXPORT_SYMS=	pfs_cmount 	\
+		pfs_mount	\
 		pfs_unmount	\
 		pfs_root	\
 		pfs_statfs	\
@@ -19,8 +20,6 @@ EXPORT_SYMS=	pfs_mount	\
 		pfs_create_dir	\
 		pfs_create_file	\
 		pfs_create_link	\
-		pfs_disable	\
-		pfs_enable	\
 		pfs_destroy
 
 .if !defined(KERNBUILDDIR)

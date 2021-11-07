@@ -19,4 +19,6 @@ CFLAGS+= -DIPFIREWALL -I${SRCTOP}/sys/contrib/ck/include
 #CFLAGS+= -DIPFIREWALL_DEFAULT_TO_ACCEPT
 #
 
+EXPORT_SYMS=	YES
+
 .include <bsd.kmod.mk>

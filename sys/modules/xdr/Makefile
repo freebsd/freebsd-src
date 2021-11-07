@@ -9,4 +9,6 @@ SRCS=	xdr.c \
 	xdr_reference.c \
 	xdr_sizeof.c
 
+EXPORT_SYMS=	YES
+
 .include <bsd.kmod.mk>
