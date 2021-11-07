@@ -1313,7 +1313,7 @@ rack_init_sysctls(void)
 	    SYSCTL_CHILDREN(rack_timers),
 	    OID_AUTO, "maxrto", CTLFLAG_RW,
 	    &rack_rto_max, 4000000,
-	    "Maxiumum RTO in microseconds -- should be at least as large as min_rto");
+	    "Maximum RTO in microseconds -- should be at least as large as min_rto");
 	SYSCTL_ADD_S32(&rack_sysctl_ctx,
 	    SYSCTL_CHILDREN(rack_timers),
 	    OID_AUTO, "minto", CTLFLAG_RW,

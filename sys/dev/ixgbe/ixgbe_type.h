@@ -1488,7 +1488,7 @@ struct ixgbe_dmac_config {
 #define IXGBE_CTRL_RST_MASK	(IXGBE_CTRL_LNK_RST | IXGBE_CTRL_RST)
 
 /* FACTPS */
-#define IXGBE_FACTPS_MNGCG	0x20000000 /* Manageblility Clock Gated */
+#define IXGBE_FACTPS_MNGCG	0x20000000 /* Managebility Clock Gated */
 #define IXGBE_FACTPS_LFS	0x40000000 /* LAN Function Select */
 
 /* MHADD Bit Masks */
@@ -2334,7 +2334,7 @@ enum {
 /* EEPROM Addressing bits based on type (0-small, 1-large) */
 #define IXGBE_EEC_ADDR_SIZE	0x00000400
 #define IXGBE_EEC_SIZE		0x00007800 /* EEPROM Size */
-#define IXGBE_EERD_MAX_ADDR	0x00003FFF /* EERD alows 14 bits for addr. */
+#define IXGBE_EERD_MAX_ADDR	0x00003FFF /* EERD allows 14 bits for addr. */
 
 #define IXGBE_EEC_SIZE_SHIFT		11
 #define IXGBE_EEPROM_WORD_SIZE_SHIFT	6
