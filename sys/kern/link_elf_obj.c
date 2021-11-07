@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/namei.h>
 #include <sys/proc.h>
 #include <sys/rwlock.h>
+#include <sys/sysctl.h>
 #include <sys/vnode.h>
 
 #include <machine/elf.h>
@@ -182,6 +183,11 @@ static struct linker_class link_elf_class = {
 #endif
 	link_elf_methods, sizeof(struct elf_file)
 };
+
+static bool link_elf_obj_leak_locals = true;
+SYSCTL_BOOL(_debug, OID_AUTO, link_elf_obj_leak_locals,
+    CTLFLAG_RWTUN, &link_elf_obj_leak_locals, 0,
+    "Allow local symbols to participate in global module symbol resolution");
 
 static int	relocate_file(elf_file_t ef);
 static void	elf_obj_cleanup_globals_cache(elf_file_t);
@@ -1455,7 +1461,8 @@ link_elf_lookup_symbol1(linker_file_t lf, const char *name, c_linker_sym_t *sym,
 static int
 link_elf_lookup_symbol(linker_file_t lf, const char *name, c_linker_sym_t *sym)
 {
-	return (link_elf_lookup_symbol1(lf, name, sym, false));
+	return (link_elf_lookup_symbol1(lf, name, sym,
+	    link_elf_obj_leak_locals));
 }
 
 static int
@@ -1494,7 +1501,8 @@ static int
 link_elf_symbol_values(linker_file_t lf, c_linker_sym_t sym,
     linker_symval_t *symval)
 {
-	return (link_elf_symbol_values1(lf, sym, symval, false));
+	return (link_elf_symbol_values1(lf, sym, symval,
+	    link_elf_obj_leak_locals));
 }
 
 static int
