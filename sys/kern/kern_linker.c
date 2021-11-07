@@ -912,7 +912,7 @@ linker_debug_lookup(const char *symstr, c_linker_sym_t *sym)
 	linker_file_t lf;
 
 	TAILQ_FOREACH(lf, &linker_files, link) {
-		if (LINKER_LOOKUP_SYMBOL(lf, symstr, sym) == 0)
+		if (LINKER_LOOKUP_DEBUG_SYMBOL(lf, symstr, sym) == 0)
 			return (0);
 	}
 	return (ENOENT);
