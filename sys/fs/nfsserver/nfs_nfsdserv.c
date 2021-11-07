@@ -5046,10 +5046,11 @@ nfsrvd_layouterror(struct nfsrv_descript *nd, __unused int isdgram,
 		opnum = fxdr_unsigned(int, *tl);
 		NFSD_DEBUG(4, "nfsrvd_layouterr op=%d stat=%d\n", opnum, stat);
 		/*
-		 * Except for NFSERR_ACCES and NFSERR_STALE errors,
-		 * disable the mirror.
+		 * Except for NFSERR_ACCES, NFSERR_STALE and NFSERR_NOSPC
+		 * errors, disable the mirror.
 		 */
-		if (stat != NFSERR_ACCES && stat != NFSERR_STALE)
+		if (stat != NFSERR_ACCES && stat != NFSERR_STALE &&
+		    stat != NFSERR_NOSPC)
 			nfsrv_delds(devid, curthread);
 	}
 nfsmout:
