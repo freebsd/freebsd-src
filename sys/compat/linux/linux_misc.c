@@ -1024,7 +1024,7 @@ linux_common_wait(struct thread *td, int pid, int *statusp,
 		} else if (WIFSTOPPED(tmpstat)) {
 			tmpstat = (tmpstat & 0xffff00ff) |
 			    (bsd_to_linux_signal(WSTOPSIG(tmpstat)) << 8);
-#if defined(__amd64__) && !defined(COMPAT_LINUX32)
+#if defined(__aarch64__) || (defined(__amd64__) && !defined(COMPAT_LINUX32))
 			if (WSTOPSIG(status) == SIGTRAP) {
 				tmpstat = linux_ptrace_status(td,
 				    siginfo.si_pid, tmpstat);
