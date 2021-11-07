@@ -118,6 +118,7 @@ extern minor_t zfsdev_minor_alloc(void);
 #define	Z_ISDIR(type) ((type) == VDIR)
 
 #define	zn_has_cached_data(zp)	vn_has_cached_data(ZTOV(zp))
+#define	zn_flush_cached_data(zp, sync)	vn_flush_cached_data(ZTOV(zp), sync)
 #define	zn_rlimit_fsize(zp, uio, td)	vn_rlimit_fsize(ZTOV(zp), (uio), (td))
 
 /* Called on entry to each ZFS vnode and vfs operation  */
