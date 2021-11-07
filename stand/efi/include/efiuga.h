@@ -139,7 +139,7 @@ typedef enum {
   
     @retval EFI_SUCCESS           - The Blt operation completed.
     @retval EFI_INVALID_PARAMETER - BltOperation is not valid.
-    @retval EFI_DEVICE_ERROR      - A hardware error occurred writting to the video buffer.
+    @retval EFI_DEVICE_ERROR      - A hardware error occurred writing to the video buffer.
 
 --*/
 typedef
