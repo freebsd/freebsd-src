@@ -33,4 +33,6 @@ KMOD=	uhid
 SRCS=	opt_bus.h opt_hid.h opt_usb.h device_if.h bus_if.h usb_if.h \
 	vnode_if.h usbdevs.h uhid.c
 
+EXPORT_SYMS=	YES
+
 .include <bsd.kmod.mk>

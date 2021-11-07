@@ -24,4 +24,6 @@ SRCS+=	acpi_iicbus.c opt_acpi.h acpi_if.h
 SRCS+=	ofw_iicbus.c ofw_bus_if.h
 .endif
 
+EXPORT_SYMS=	YES
+
 .include <bsd.kmod.mk>

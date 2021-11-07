@@ -14,4 +14,6 @@ SRCS=	opt_ddb.h opt_directio.h opt_ffs.h opt_quota.h opt_suiddir.h opt_ufs.h \
 CFLAGS+= -DSOFTUPDATES -DUFS_DIRHASH
 .endif
 
+EXPORT_SYMS=	YES
+
 .include <bsd.kmod.mk>

@@ -42,4 +42,6 @@ SRCS+=	ofw_gpiobus.c
 
 CFLAGS+=  -I. -I${SRCTOP}/sys/dev/gpio/
 
+EXPORT_SYMS=	YES
+
 .include <bsd.kmod.mk>

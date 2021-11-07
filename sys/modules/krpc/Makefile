@@ -55,4 +55,6 @@ rpctlssd_xdr.c:	$S/rpc/rpcsec_tls/rpctlssd.x
 rpctlssd_clnt.c:	$S/rpc/rpcsec_tls/rpctlssd.x
 	RPCGEN_CPP=${CPP:Q} rpcgen -lM $S/rpc/rpcsec_tls/rpctlssd.x | grep -v string.h > rpctlssd_clnt.c
 
+EXPORT_SYMS=	YES
+
 .include <bsd.kmod.mk>

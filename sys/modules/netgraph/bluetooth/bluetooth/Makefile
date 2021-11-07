@@ -8,4 +8,6 @@ CFLAGS+=	-I${SRCTOP}/sys/netgraph/bluetooth/include
 KMOD=		ng_bluetooth
 SRCS=		ng_bluetooth.c
 
+EXPORT_SYMS=	YES
+
 .include <bsd.kmod.mk>

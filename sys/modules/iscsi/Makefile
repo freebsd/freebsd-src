@@ -22,4 +22,6 @@ CFLAGS+=-DICL_KERNEL_PROXY
 
 MFILES=	kern/bus_if.m kern/device_if.m dev/iscsi/icl_conn_if.m
 
+EXPORT_SYMS=	YES
+
 .include <bsd.kmod.mk>

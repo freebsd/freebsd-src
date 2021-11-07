@@ -16,4 +16,6 @@ SRCS=	amr.c amr_pci.c amr_disk.c device_if.h bus_if.h pci_if.h
 # Debugging
 #CFLAGS+= -DAMR_DEBUG=3
 
+EXPORT_SYMS=	YES
+
 .include <bsd.kmod.mk>

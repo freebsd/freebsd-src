@@ -13,4 +13,6 @@ SRCS=	vnode_if.h \
 	opt_nfs.h \
 	opt_ufs.h
 
+EXPORT_SYMS=	YES
+
 .include <bsd.kmod.mk>

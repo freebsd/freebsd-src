@@ -17,4 +17,6 @@ efirt_support.o:	efirt_support.S assym.inc
 	    ${.IMPSRC} -o ${.TARGET}
 .endif
 
+EXPORT_SYMS=	YES
+
 .include <bsd.kmod.mk>

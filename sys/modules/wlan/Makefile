@@ -16,6 +16,8 @@ SRCS=	ieee80211.c ieee80211_action.c ieee80211_ageq.c \
 SRCS+=	bus_if.h device_if.h opt_ddb.h opt_inet.h opt_inet6.h \
 	opt_tdma.h opt_wlan.h
 
+EXPORT_SYMS=	YES
+
 .include <bsd.kmod.mk>
 
 CWARNFLAGS.ieee80211_adhoc.c=	-Wno-unused-function
