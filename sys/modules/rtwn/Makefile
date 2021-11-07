@@ -47,4 +47,6 @@ opt_rtwn.h:
 	@echo "#define RTWN_WITHOUT_UCODE 1" >> ${.TARGET}
 .endif
 
+EXPORT_SYMS=	YES
+
 .include <bsd.kmod.mk>

@@ -11,4 +11,6 @@ SRCS	= bus_if.h device_if.h pci_if.h \
 	  iec13213.h iec68113.h \
 	  fwcrom.c fwdev.c fwmem.c fwmem.h fwdma.c fwdma.h
 
+EXPORT_SYMS=	YES
+
 .include <bsd.kmod.mk>

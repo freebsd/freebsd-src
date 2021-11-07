@@ -28,4 +28,6 @@ SRCS+=	opt_cam.h
 
 MFILES=	kern/bus_if.m kern/device_if.m
 
+EXPORT_SYMS=	YES
+
 .include <bsd.kmod.mk>

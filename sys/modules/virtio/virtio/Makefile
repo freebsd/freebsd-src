@@ -32,4 +32,6 @@ SRCS+=	virtio_bus_if.c virtio_bus_if.h
 SRCS+=	virtio_if.c virtio_if.h
 SRCS+=	bus_if.h device_if.h 
 
+EXPORT_SYMS=	YES
+
 .include <bsd.kmod.mk>

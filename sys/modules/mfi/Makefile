@@ -15,4 +15,6 @@ SRCS+=	device_if.h bus_if.h pci_if.h
 
 #CFLAGS += -DMFI_DEBUG
 
+EXPORT_SYMS=	YES
+
 .include <bsd.kmod.mk>

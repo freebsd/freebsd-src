@@ -16,4 +16,6 @@ SRCS+=	\
 SRCS+=	ofw_bus_if.h
 .endif
 
+EXPORT_SYMS=	YES
+
 .include <bsd.kmod.mk>

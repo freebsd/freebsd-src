@@ -13,4 +13,6 @@ SRCS=		ng_btsocket.c \
 		ng_btsocket_rfcomm.c \
 		ng_btsocket_sco.c
 
+EXPORT_SYMS=	YES
+
 .include <bsd.kmod.mk>

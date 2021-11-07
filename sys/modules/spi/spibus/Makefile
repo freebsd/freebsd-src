@@ -17,4 +17,6 @@ SRCS+=	\
 	spibus_if.c \
 	spibus_if.h \
 
+EXPORT_SYMS=	YES
+
 .include <bsd.kmod.mk>

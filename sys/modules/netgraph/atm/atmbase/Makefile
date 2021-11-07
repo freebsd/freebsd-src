@@ -15,4 +15,6 @@ SRCS= 	ngatmbase.c unimsg_common.c straddr.c				\
 
 CFLAGS+= -I${LIBBASE} # -DNGATM_DEBUG
 
+EXPORT_SYMS=	YES
+
 .include <bsd.kmod.mk>

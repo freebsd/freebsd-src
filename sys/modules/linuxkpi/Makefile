@@ -39,4 +39,6 @@ SRCS+=	${LINUXKPI_GENSRCS}
 CFLAGS+= -I${SRCTOP}/sys/compat/linuxkpi/common/include
 CFLAGS+= -I${SRCTOP}/sys/contrib/ck/include
 
+EXPORT_SYMS=	YES
+
 .include <bsd.kmod.mk>

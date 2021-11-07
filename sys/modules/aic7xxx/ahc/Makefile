@@ -52,4 +52,6 @@ cleanfirmware: clean
 CLEANFILES= ${GENSRCS}
 .endif
 
+EXPORT_SYMS=	YES
+
 .include <bsd.kmod.mk>

@@ -51,6 +51,8 @@ SRCS+= \
 	mlx5fpga_ipsec.c
 .endif
 
+EXPORT_SYMS=	YES
+
 .include <bsd.kmod.mk>
 
 CFLAGS+= -Wno-cast-qual -Wno-pointer-arith ${GCC_MS_EXTENSIONS}

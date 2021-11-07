@@ -4,4 +4,6 @@
 KMOD=	netgraph
 SRCS= 	ng_base.c ng_parse.c
 
+EXPORT_SYMS=	YES
+
 .include <bsd.kmod.mk>

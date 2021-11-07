@@ -35,4 +35,6 @@ vmbus_vector.o:
 CFLAGS+= -I${SRCTOP}/sys/dev/hyperv/include \
 	 -I${SRCTOP}/sys/dev/hyperv/vmbus
 
+EXPORT_SYMS=	YES
+
 .include <bsd.kmod.mk>

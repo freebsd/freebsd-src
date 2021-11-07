@@ -13,12 +13,6 @@ SRCS+=	smscphy.c tdkphy.c truephy.c
 SRCS+=	ukphy.c ukphy_subr.c
 SRCS+=	xmphy.c
 
-EXPORT_SYMS=	mii_attach	\
-		mii_bitbang_readreg \
-		mii_bitbang_sync \
-		mii_bitbang_writereg \
-		mii_mediachg	\
-		mii_pollstat	\
-		mii_tick
+EXPORT_SYMS=	YES
 
 .include <bsd.kmod.mk>

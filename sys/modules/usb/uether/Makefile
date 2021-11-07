@@ -34,4 +34,6 @@ SRCS=	opt_bus.h opt_usb.h device_if.h bus_if.h usb_if.h usbdevs.h \
 	miibus_if.h opt_inet.h \
 	usb_ethernet.c
 
+EXPORT_SYMS=	YES
+
 .include <bsd.kmod.mk>

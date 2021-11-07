@@ -22,4 +22,6 @@ SRCS    += i40e_common.c i40e_nvm.c i40e_adminq.c i40e_lan_hmc.c i40e_hmc.c i40e
 # CFLAGS += -DIXL_IW
 # SRCS	+= ixl_iw.c
 
+EXPORT_SYMS=	YES
+
 .include <bsd.kmod.mk>

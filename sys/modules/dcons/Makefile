@@ -17,4 +17,6 @@ opt_ddb.h:
 
 CFLAGS+= -I${SRCTOP}/sys 
 
+EXPORT_SYMS=	YES
+
 .include <bsd.kmod.mk>
