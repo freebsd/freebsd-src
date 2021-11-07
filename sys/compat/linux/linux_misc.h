@@ -153,7 +153,7 @@ extern int stclohz;
 /* Linux syslog flags */
 #define	LINUX_SYSLOG_ACTION_READ_ALL	3
 
-#if defined(__amd64__) && !defined(COMPAT_LINUX32)
+#if defined(__aarch64__) || (defined(__amd64__) && !defined(COMPAT_LINUX32))
 int linux_ptrace_status(struct thread *td, int pid, int status);
 #endif
 void linux_to_bsd_waitopts(int options, int *bsdopts);
