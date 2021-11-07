@@ -691,3 +691,28 @@ unsetenv(const char *name)
 
 	return (0);
 }
+
+/*
+ * Unset all variable by flagging them as inactive.  No variable is
+ * ever freed.
+ */
+int
+clearenv(void)
+{
+	int ndx;
+
+	/* Initialize environment. */
+	if (__merge_environ() == -1 || (envVars == NULL && __build_env() == -1))
+		return (-1);
+
+	/* Remove from the end to not shuffle memory too much. */
+	for (ndx = envVarsTotal - 1; ndx >= 0; ndx--) {
+		envVars[ndx].active = false;
+		if (envVars[ndx].putenv)
+			__remove_putenv(ndx);
+	}
+
+	__rebuild_environ(0);
+
+	return (0);
+}

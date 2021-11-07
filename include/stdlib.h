@@ -283,6 +283,8 @@ int	 cgetset(const char *);
 int	 cgetstr(char *, const char *, char **);
 int	 cgetustr(char *, const char *, char **);
 
+int	 clearenv(void);
+
 int	 daemon(int, int);
 int	 daemonfd(int, int);
 char	*devname(__dev_t, __mode_t);

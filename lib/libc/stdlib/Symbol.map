@@ -128,6 +128,10 @@ FBSD_1.6 {
 	srand;
 };
 
+FBSD_1.7 {
+	clearenv;
+};
+
 FBSDprivate_1.0 {
 	__system;
 	_system;
