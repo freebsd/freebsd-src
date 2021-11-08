@@ -353,7 +353,7 @@ uu_decode(void)
 
 #define OUT_OF_RANGE do {						\
 	warnx("%s: %s: character out of range: [%d-%d]",		\
-	    infile, outfile, 1 + ' ', 077 + ' ' + 1);			\
+	    infile, outfile, ' ', 077 + ' ' + 1);			\
 	return (1);							\
 } while (0)
 
