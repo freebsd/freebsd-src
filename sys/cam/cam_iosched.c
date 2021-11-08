@@ -1823,7 +1823,7 @@ cam_iosched_update(struct iop_stats *iop, sbintime_t sim_latency)
 		}
 	}
 	if (i == LAT_BUCKETS - 1)
-		iop->latencies[i]++; 	 /* Put all > 1024ms values into the last bucket. */
+		iop->latencies[i]++; 	 /* Put all > 8192ms values into the last bucket. */
 
 	/*
 	 * Classic exponentially decaying average with a tiny alpha
