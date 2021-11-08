@@ -599,7 +599,6 @@ rack_set_cc_pacing(struct tcp_rack *rack)
 	ptr = ((struct newreno *)tp->ccv->cc_data);
 	if (CC_ALGO(tp)->ctl_output == NULL)  {
 		/* Huh, why does new_reno no longer have a set function? */
-		printf("no ctl_output for algo:%s\n", tp->cc_algo->name);
 		goto out;
 	}
 	if (ptr == NULL) {
@@ -618,7 +617,6 @@ rack_set_cc_pacing(struct tcp_rack *rack)
 	opt.val = rack->r_ctl.rc_saved_beta.beta;
 	error = CC_ALGO(tp)->ctl_output(tp->ccv, &sopt, &opt);
 	if (error)  {
-		printf("Error returned by ctl_output %d\n", error);
 		goto out;
 	}
 	/*
@@ -630,7 +628,6 @@ rack_set_cc_pacing(struct tcp_rack *rack)
 	opt.val = rack->r_ctl.rc_saved_beta.beta_ecn;
 	error = CC_ALGO(tp)->ctl_output(tp->ccv, &sopt, &opt);
 	if (error) {
-		printf("Error returned by ctl_output %d\n", error);
 		goto out;
 	}
 	/* Save off the original values for restoral */
