@@ -5,6 +5,9 @@
  * SPDX-License-Identifier: BSD-3-Clause
  *
  * Copyright (C) 2000 WIDE Project.
+ * Copyright (c) 2010 Hiroki Sato <hrs@FreeBSD.org>
+ * Copyright (c) 2013 Ermal Luci <eri@FreeBSD.org>
+ * Copyright (c) 2017-2021 Rubicon Communications, LLC (Netgate)
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -81,10 +84,12 @@
 #include <sys/socket.h>
 #include <sys/sockio.h>
 #include <sys/mbuf.h>
+#include <sys/endian.h>
 #include <sys/errno.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/module.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/queue.h>
 #include <sys/sysctl.h>
@@ -98,6 +103,7 @@
 #include <net/route.h>
 #include <net/route/nhop.h>
 #include <net/netisr.h>
+#include <net/if_stf.h>
 #include <net/if_types.h>
 #include <net/vnet.h>
 
@@ -109,6 +115,7 @@
 #include <netinet/in_var.h>
 
 #include <netinet/ip6.h>
+#include <netinet6/in6_fib.h>
 #include <netinet6/ip6_var.h>
 #include <netinet6/in6_var.h>
 #include <netinet/ip_ecn.h>
@@ -141,7 +148,10 @@ SYSCTL_INT(_net_link_stf, OID_AUTO, permit_rfc1918, CTLFLAG_RWTUN,
 
 struct stf_softc {
 	struct ifnet	*sc_ifp;
-	u_int	sc_fibnum;
+	in_addr_t	braddr;		/* Border relay IPv4 address */
+	in_addr_t	srcv4_addr;	/* Our IPv4 WAN address */
+	u_int		v4prefixlen;	/* How much of the v4 address to include in our address. */
+	u_int		sc_fibnum;
 	const struct encaptab *encap_cookie;
 };
 #define STF2IFP(sc)	((sc)->sc_ifp)
@@ -164,6 +174,11 @@ static int stf_checkaddr4(struct stf_softc *, struct in_addr *,
 	struct ifnet *);
 static int stf_checkaddr6(struct stf_softc *, struct in6_addr *,
 	struct ifnet *);
+static struct sockaddr_in *stf_getin4addr_in6(struct stf_softc *,
+	struct sockaddr_in *, struct in6_addr, struct in6_addr,
+	struct in6_addr);
+static struct sockaddr_in *stf_getin4addr(struct stf_softc *,
+	struct sockaddr_in *, struct in6_addr, struct in6_addr);
 static int stf_ioctl(struct ifnet *, u_long, caddr_t);
 
 static int stf_clone_match(struct if_clone *, const char *);
@@ -324,14 +339,15 @@ static moduledata_t stf_mod = {
 };
 
 DECLARE_MODULE(if_stf, stf_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
+MODULE_VERSION(if_stf, 2);
 
 static int
 stf_encapcheck(const struct mbuf *m, int off, int proto, void *arg)
 {
 	struct ip ip;
 	struct stf_softc *sc;
-	struct in_addr a, b, mask;
 	struct in6_addr addr6, mask6;
+	struct sockaddr_in sin4addr, sin4mask;
 
 	sc = (struct stf_softc *)arg;
 	if (sc == NULL)
@@ -355,28 +371,42 @@ stf_encapcheck(const struct mbuf *m, int off, int proto, void *arg)
 	if (stf_getsrcifa6(STF2IFP(sc), &addr6, &mask6) != 0)
 		return (0);
 
-	/*
-	 * check if IPv4 dst matches the IPv4 address derived from the
-	 * local 6to4 address.
-	 * success on: dst = 10.1.1.1, ia6->ia_addr = 2002:0a01:0101:...
-	 */
-	if (bcmp(GET_V4(&addr6), &ip.ip_dst, sizeof(ip.ip_dst)) != 0)
+	if (sc->srcv4_addr != INADDR_ANY) {
+		sin4addr.sin_addr.s_addr = sc->srcv4_addr;
+		sin4addr.sin_family = AF_INET;
+	} else
+		if (stf_getin4addr(sc, &sin4addr, addr6, mask6) == NULL)
+			return (0);
+
+	if (sin4addr.sin_addr.s_addr != ip.ip_dst.s_addr)
 		return (0);
 
-	/*
-	 * check if IPv4 src matches the IPv4 address derived from the
-	 * local 6to4 address masked by prefixmask.
-	 * success on: src = 10.1.1.1, ia6->ia_addr = 2002:0a00:.../24
-	 * fail on: src = 10.1.1.1, ia6->ia_addr = 2002:0b00:.../24
-	 */
-	bzero(&a, sizeof(a));
-	bcopy(GET_V4(&addr6), &a, sizeof(a));
-	bcopy(GET_V4(&mask6), &mask, sizeof(mask));
-	a.s_addr &= mask.s_addr;
-	b = ip.ip_src;
-	b.s_addr &= mask.s_addr;
-	if (a.s_addr != b.s_addr)
-		return (0);
+	if (IN6_IS_ADDR_6TO4(&addr6)) {
+		/*
+		 * 6to4 (RFC 3056).
+		 * Check if IPv4 src matches the IPv4 address derived
+		 * from the local 6to4 address masked by prefixmask.
+		 * success on: src = 10.1.1.1, ia6->ia_addr = 2002:0a00:.../24
+		 * fail on: src = 10.1.1.1, ia6->ia_addr = 2002:0b00:.../24
+		 */
+		memcpy(&sin4mask.sin_addr, GET_V4(&mask6),
+		    sizeof(sin4mask.sin_addr));
+		if ((sin4addr.sin_addr.s_addr & sin4mask.sin_addr.s_addr) !=
+		    (ip.ip_src.s_addr & sin4mask.sin_addr.s_addr))
+			return (0);
+	} else {
+		/* 6rd (RFC 5569) */
+		/*
+		 * No restriction on the src address in the case of
+		 * 6rd because the stf(4) interface always has a
+		 * prefix which covers whole of IPv4 src address
+		 * range.  So, stf_output() will catch all of
+		 * 6rd-capsuled IPv4 traffic with suspicious inner dst
+		 * IPv4 address (i.e. the IPv6 destination address is
+		 * one the admin does not like to route to outside),
+		 * and then it discard them silently.
+		 */
+	}
 
 	/* stf interface makes single side match only */
 	return (32);
@@ -387,30 +417,38 @@ stf_getsrcifa6(struct ifnet *ifp, struct in6_addr *addr, struct in6_addr *mask)
 {
 	struct ifaddr *ia;
 	struct in_ifaddr *ia4;
-	struct in6_ifaddr *ia6;
-	struct sockaddr_in6 *sin6;
+	struct in6_addr addr6, mask6;
+	struct sockaddr_in sin4;
+	struct stf_softc *sc;
 	struct in_addr in;
 
 	NET_EPOCH_ASSERT();
 
+	sc = ifp->if_softc;
+
 	CK_STAILQ_FOREACH(ia, &ifp->if_addrhead, ifa_link) {
 		if (ia->ifa_addr->sa_family != AF_INET6)
 			continue;
-		sin6 = (struct sockaddr_in6 *)ia->ifa_addr;
-		if (!IN6_IS_ADDR_6TO4(&sin6->sin6_addr))
-			continue;
 
-		bcopy(GET_V4(&sin6->sin6_addr), &in, sizeof(in));
+		addr6 = *IFA_IN6(ia);
+		mask6 = *IFA_MASKIN6(ia);
+		if (sc->srcv4_addr != INADDR_ANY)
+			bcopy(&sc->srcv4_addr, &in, sizeof(in));
+		else {
+			if (stf_getin4addr(sc, &sin4, addr6, mask6) == NULL)
+				continue;
+			bcopy(&sin4.sin_addr, &in, sizeof(in));
+		}
+
 		CK_LIST_FOREACH(ia4, INADDR_HASH(in.s_addr), ia_hash)
 			if (ia4->ia_addr.sin_addr.s_addr == in.s_addr)
 				break;
 		if (ia4 == NULL)
 			continue;
 
-		ia6 = (struct in6_ifaddr *)ia;
+		*addr = addr6;
+		*mask = mask6;
 
-		*addr = sin6->sin6_addr;
-		*mask = ia6->ia_prefixmask.sin6_addr;
 		return (0);
 	}
 
@@ -423,8 +461,7 @@ stf_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 {
 	struct stf_softc *sc;
 	const struct sockaddr_in6 *dst6;
-	struct in_addr in4;
-	const void *ptr;
+	struct sockaddr_in dst4, src4;
 	u_int8_t tos;
 	struct ip *ip;
 	struct ip6_hdr *ip6;
@@ -474,17 +511,17 @@ stf_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	 * Pickup the right outer dst addr from the list of candidates.
 	 * ip6_dst has priority as it may be able to give us shorter IPv4 hops.
 	 */
-	ptr = NULL;
-	if (IN6_IS_ADDR_6TO4(&ip6->ip6_dst))
-		ptr = GET_V4(&ip6->ip6_dst);
-	else if (IN6_IS_ADDR_6TO4(&dst6->sin6_addr))
-		ptr = GET_V4(&dst6->sin6_addr);
-	else {
-		m_freem(m);
-		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
-		return (ENETUNREACH);
+	if (stf_getin4addr_in6(sc, &dst4, addr6, mask6,
+	    ip6->ip6_dst) == NULL) {
+		if (sc->braddr != INADDR_ANY)
+			dst4.sin_addr.s_addr = sc->braddr;
+		else if (stf_getin4addr_in6(sc, &dst4, addr6, mask6,
+		    dst6->sin6_addr) == NULL) {
+			m_freem(m);
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
+			return (ENETUNREACH);
+		}
 	}
-	bcopy(ptr, &in4, sizeof(in4));
 
 	if (bpf_peers_present(ifp->if_bpf)) {
 		/*
@@ -507,8 +544,16 @@ stf_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 
 	bzero(ip, sizeof(*ip));
 
-	bcopy(GET_V4(&addr6), &ip->ip_src, sizeof(ip->ip_src));
-	bcopy(&in4, &ip->ip_dst, sizeof(ip->ip_dst));
+	if (sc->srcv4_addr != INADDR_ANY)
+		src4.sin_addr.s_addr = sc->srcv4_addr;
+	else if (stf_getin4addr(sc, &src4, addr6, mask6) == NULL) {
+		m_freem(m);
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
+		return (ENETUNREACH);
+	}
+	bcopy(&src4.sin_addr, &ip->ip_src, sizeof(ip->ip_src));
+	bcopy(&dst4.sin_addr, &ip->ip_dst, sizeof(ip->ip_dst));
+
 	ip->ip_p = IPPROTO_IPV6;
 	ip->ip_ttl = ip_stf_ttl;
 	ip->ip_len = htons(m->m_pkthdr.len);
@@ -555,13 +600,6 @@ stf_checkaddr4(struct stf_softc *sc, struct in_addr *in, struct ifnet *inifp)
 	case 0: case 127: case 255:
 		return (-1);
 	}
-
-	/*
-	 * reject packets with private address range.
-	 * (requirement from RFC3056 section 2 1st paragraph)
-	 */
-	if (isrfc1918addr(in))
-		return (-1);
 
 	/*
 	 * reject packets with broadcast
@@ -624,6 +662,7 @@ in_stf_input(struct mbuf *m, int off, int proto, void *arg)
 	struct ip6_hdr *ip6;
 	u_int8_t otos, itos;
 	struct ifnet *ifp;
+	struct nhop_object *nh;
 
 	NET_EPOCH_ASSERT();
 
@@ -674,6 +713,32 @@ in_stf_input(struct mbuf *m, int off, int proto, void *arg)
 		return (IPPROTO_DONE);
 	}
 
+	/*
+	 * reject packets with private address range.
+	 * (requirement from RFC3056 section 2 1st paragraph)
+	 */
+	if ((IN6_IS_ADDR_6TO4(&ip6->ip6_src) && isrfc1918addr(&ip->ip_src)) ||
+	    (IN6_IS_ADDR_6TO4(&ip6->ip6_dst) && isrfc1918addr(&ip->ip_dst))) {
+		m_freem(m);
+		return (IPPROTO_DONE);
+	}
+
+	/*
+	 * Ignore if the destination is the same stf interface because
+	 * all of valid IPv6 outgoing traffic should go interfaces
+	 * except for it.
+	 */
+	nh = fib6_lookup(sc->sc_fibnum, &ip6->ip6_dst, 0, 0, 0);
+	if (nh == NULL) {
+		m_free(m);
+		return (IPPROTO_DONE);
+	}
+	if ((nh->nh_ifp == ifp) &&
+	    (!IN6_ARE_ADDR_EQUAL(&ip6->ip6_src, &nh->gw6_sa.sin6_addr))) {
+		m_free(m);
+		return (IPPROTO_DONE);
+	}
+
 	itos = IPV6_TRAFFIC_CLASS(ip6);
 	if ((ifp->if_flags & IFF_LINK1) != 0)
 		ip_ecn_egress(ECN_ALLOWED, &otos, &itos);
@@ -709,34 +774,159 @@ in_stf_input(struct mbuf *m, int off, int proto, void *arg)
 	return (IPPROTO_DONE);
 }
 
+static struct sockaddr_in *
+stf_getin4addr_in6(struct stf_softc *sc, struct sockaddr_in *sin,
+    struct in6_addr addr6, struct in6_addr mask6, struct in6_addr in6)
+{
+       int i;
+
+	/*
+	* When (src addr & src mask) != (in6 & src mask),
+	* the dst is not in the 6rd domain.  The IPv4 address must
+	* not be used.
+	*/
+	for (i = 0; i < sizeof(addr6); i++) {
+		if ((((u_char *)&addr6)[i] & ((u_char *)&mask6)[i]) !=
+		    (((u_char *)&in6)[i] & ((u_char *)&mask6)[i]))
+		return (NULL);
+	}
+
+	/* After the mask check, use in6 instead of addr6. */
+	return (stf_getin4addr(sc, sin, in6, mask6));
+}
+
+static struct sockaddr_in *
+stf_getin4addr(struct stf_softc *sc, struct sockaddr_in *sin,
+    struct in6_addr addr6, struct in6_addr mask6)
+{
+	struct in_addr *in;
+
+	memset(sin, 0, sizeof(*sin));
+	in = &sin->sin_addr;
+	if (IN6_IS_ADDR_6TO4(&addr6)) {
+		/* 6to4 (RFC 3056) */
+		bcopy(GET_V4(&addr6), in, sizeof(*in));
+		if (isrfc1918addr(in))
+			return (NULL);
+	} else {
+		/* 6rd (RFC 5569) */
+		in_addr_t v4prefix;
+		uint8_t *v6 = (uint8_t*)&addr6;
+		uint64_t v6prefix;
+		u_int plen;
+		u_int v4suffixlen;
+
+		v4prefix = 0;
+		if (sc->v4prefixlen < 32) {
+			v4suffixlen = 32 - sc->v4prefixlen;
+			v4prefix = ntohl(sc->srcv4_addr) &
+			    (0xffffffffU << v4suffixlen);
+		} else {
+			MPASS(sc->v4prefixlen == 32);
+			v4suffixlen = 32;
+		}
+
+		plen = in6_mask2len(&mask6, NULL);
+		if (plen > 64)
+			return (NULL);
+
+		/* To make this simple we do not support prefixes longer than
+		 * 64 bits. RFC5969 says "a 6rd delegated prefix SHOULD be /64
+		 * or shorter." so this is a moderately safe assumption. */
+		v6prefix = be64toh(*(uint64_t *)v6);
+
+		/* Shift away the v6 prefix itself. */
+		v6prefix <<= plen;
+		v6prefix >>= plen;
+
+		/* Now shift away everything after the v4 address. */
+		v6prefix >>= 64 - plen - v4suffixlen;
+
+		sin->sin_addr.s_addr = htonl(v4prefix | (uint32_t)v6prefix);
+	}
+
+	return (sin);
+}
+
 static int
 stf_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	struct ifaddr *ifa;
+	struct ifdrv *ifd;
 	struct ifreq *ifr;
-	struct sockaddr_in6 *sin6;
-	struct in_addr addr;
+	struct sockaddr_in sin4;
+	struct stf_softc *sc_cur;
+	struct stfv4args args;
 	int error, mtu;
 
 	error = 0;
+	sc_cur = ifp->if_softc;
+
 	switch (cmd) {
+	case SIOCSDRVSPEC:
+		ifd = (struct ifdrv *)data;
+		error = priv_check(curthread, PRIV_NET_ADDIFADDR);
+		if (error)
+			break;
+		if (ifd->ifd_cmd == STF6RD_SV4NET) {
+			if (ifd->ifd_len != sizeof(args)) {
+				error = EINVAL;
+				break;
+			}
+			bzero(&args, sizeof(args));
+			error = copyin(ifd->ifd_data, &args, ifd->ifd_len);
+			if (error)
+				break;
+
+			if (args.v4_prefixlen < 1 || args.v4_prefixlen > 32) {
+				error = EINVAL;
+				break;
+			}
+
+			bcopy(&args.srcv4_addr, &sc_cur->srcv4_addr,
+			    sizeof(sc_cur->srcv4_addr));
+			sc_cur->v4prefixlen = args.v4_prefixlen;
+		} else if (ifd->ifd_cmd == STF6RD_SBR) {
+			if (ifd->ifd_len != sizeof(args)) {
+				error = EINVAL;
+				break;
+			}
+			bzero(&args, sizeof(args));
+			error = copyin(ifd->ifd_data, &args, ifd->ifd_len);
+			if (error)
+				break;
+			sc_cur->braddr = args.braddr.s_addr;
+		} else
+			error = EINVAL;
+		break;
+	case SIOCGDRVSPEC:
+		ifd = (struct ifdrv *)data;
+		if (ifd->ifd_cmd != STF6RD_GV4NET) {
+			error = EINVAL;
+			break;
+		}
+		if (ifd->ifd_len != sizeof(args)) {
+			error = EINVAL;
+			break;
+		}
+		bzero(&args, sizeof(args));
+		args.srcv4_addr.s_addr = sc_cur->srcv4_addr;
+		args.braddr.s_addr = sc_cur->braddr;
+		args.v4_prefixlen = sc_cur->v4prefixlen;
+		error = copyout(&args, ifd->ifd_data, ifd->ifd_len);
+		break;
 	case SIOCSIFADDR:
 		ifa = (struct ifaddr *)data;
 		if (ifa == NULL || ifa->ifa_addr->sa_family != AF_INET6) {
 			error = EAFNOSUPPORT;
 			break;
 		}
-		sin6 = (struct sockaddr_in6 *)ifa->ifa_addr;
-		if (!IN6_IS_ADDR_6TO4(&sin6->sin6_addr)) {
+		if (stf_getin4addr(sc_cur, &sin4,
+		    satosin6(ifa->ifa_addr)->sin6_addr,
+		    satosin6(ifa->ifa_netmask)->sin6_addr) == NULL) {
 			error = EINVAL;
 			break;
 		}
-		bcopy(GET_V4(&sin6->sin6_addr), &addr, sizeof(addr));
-		if (isrfc1918addr(&addr)) {
-			error = EINVAL;
-			break;
-		}
-
 		ifp->if_flags |= IFF_UP;
 		ifp->if_drv_flags |= IFF_DRV_RUNNING;
 		break;
