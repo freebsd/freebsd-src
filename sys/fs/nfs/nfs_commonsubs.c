@@ -2514,6 +2514,17 @@ nfsv4_fillattr(struct nfsrv_descript *nd, struct mount *mp, vnode_t vp,
 			}
 			NFSCLRSTATFS_ATTRBIT(retbitp);
 		}
+		/*
+		 * Since NFS handles these values as unsigned on the
+		 * wire, there is no way to represent negative values,
+		 * so set them to 0. Without this, they will appear
+		 * to be very large positive values for clients like
+		 * Solaris10.
+		 */
+		if (fs->f_bavail < 0)
+			fs->f_bavail = 0;
+		if (fs->f_ffree < 0)
+			fs->f_ffree = 0;
 	}
 #endif
 
