@@ -3,6 +3,7 @@
  *
  * Copyright © 2002-2005 K A Fraser
  * Copyright © 2005 Intel Corporation <xiaofeng.ling@intel.com>
+ * Copyright © 2005-2006 Kip Macy
  * Copyright © 2013 Spectra Logic Corporation
  * Copyright © 2015 Julien Grall
  * Copyright © 2021,2022 Elliott Mitchell
@@ -38,6 +39,14 @@
 
 /* Current implementation only supports 2L event channels. */
 #define NR_EVENT_CHANNELS EVTCHN_2L_NR_CHANNELS
+
+enum evtchn_type {
+	EVTCHN_TYPE_UNBOUND,
+	EVTCHN_TYPE_VIRQ,
+	EVTCHN_TYPE_IPI,
+	EVTCHN_TYPE_PORT,
+	EVTCHN_TYPE_COUNT
+};
 
 struct xenisrc {
 	xen_arch_isrc_t		xi_arch;	/* @TOP -> *xi_arch=*xenisrc */

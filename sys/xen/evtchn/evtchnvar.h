@@ -38,14 +38,6 @@
 #include <xen/hypervisor.h>
 #include <contrib/xen/event_channel.h>
 
-enum evtchn_type {
-	EVTCHN_TYPE_UNBOUND,
-	EVTCHN_TYPE_VIRQ,
-	EVTCHN_TYPE_IPI,
-	EVTCHN_TYPE_PORT,
-	EVTCHN_TYPE_COUNT
-};
-
 /** Submit a port notification for delivery to a userland evtchn consumer */
 void evtchn_device_upcall(evtchn_port_t port);
 
