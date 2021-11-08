@@ -722,6 +722,9 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram, u_char *tag,
 
 	p = curthread;
 
+	/* Check for and optionally clear the no space flags for DSs. */
+	nfsrv_checknospc();
+
 	NFSVNO_EXINIT(&vpnes);
 	NFSVNO_EXINIT(&savevpnes);
 	/*
