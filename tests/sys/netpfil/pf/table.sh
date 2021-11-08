@@ -214,6 +214,34 @@ network_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "pr259689" "cleanup"
+pr259689_head()
+{
+	atf_set descr 'Test PR 259689'
+	atf_set require.user root
+}
+
+pr259689_body()
+{
+	pft_init
+
+	vnet_mkjail alcatraz
+	jexec alcatraz pfctl -e
+
+	pft_set_rules alcatraz \
+	    "pass in" \
+	    "block in inet from { 1.1.1.1, 1.1.1.2, 2.2.2.2, 2.2.2.3, 4.4.4.4, 4.4.4.5 }"
+
+	atf_check -o match:'block drop in inet from <__automatic_.*:6> to any' \
+	    -e ignore \
+	    jexec alcatraz pfctl -sr -vv
+}
+
+pr259689_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "v4_counters"
@@ -221,4 +249,5 @@ atf_init_test_cases()
 	atf_add_test_case "pr251414"
 	atf_add_test_case "automatic"
 	atf_add_test_case "network"
+	atf_add_test_case "pr259689"
 }
