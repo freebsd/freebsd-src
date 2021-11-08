@@ -98,6 +98,7 @@ demon [label="Dmitry Sivachenko\ndemon@FreeBSD.org\n2000/11/13"]
 dhn [label="Dennis Herrmann\ndhn@FreeBSD.org\n2009/03/03"]
 diizzy [label="Daniel Engberg\ndiizzy@FreeBSD.org\n2021/07/06"]
 dmgk [label="Dmitri Goutnik\ndmgk@FreeBSD.org\n2019/09/15"]
+driesm [label="Dries Michiels\ndriesm@FreeBSD.org\n2021/11/06"]
 dryice [label="Dryice Dong Liu\ndryice@FreeBSD.org\n2006/12/25"]
 dteske [label="Devin Teske\ndteske@FreeBSD.org\n2018/03/01"]
 dumbbell [label="Jean-Sebastien Pedron\ndumbbell@FreeBSD.org\n2017/01/10"]
@@ -304,6 +305,7 @@ znerd [label="Ernst de Haan\nznerd@FreeBSD.org\n2001/11/15"]
 # Group together all the mentees for a particular mentor.
 # Keep the list sorted by mentor login.
 
+"0mp" -> driesm
 "0mp" -> nc
 
 adamw -> ahze
@@ -680,6 +682,7 @@ pgollucci -> junovitch
 pgollucci -> sunpoet
 pgollucci -> swills
 
+philip -> driesm
 philip -> fox
 philip -> koitsu
 
