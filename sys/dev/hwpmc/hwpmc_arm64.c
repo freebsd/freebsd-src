@@ -454,6 +454,16 @@ arm64_pcpu_init(struct pmc_mdep *md, int cpu)
 		pc->pc_hwpmcs[i + first_ri] = phw;
 	}
 
+	/*
+	 * Disable all counters and overflow interrupts. Upon reset they are in
+	 * an undefined state.
+	 *
+	 * Don't issue an isb here, just wait for the one in arm64_pmcr_write()
+	 * to make the writes visible.
+	 */
+	WRITE_SPECIALREG(pmcntenclr_el0, 0xffffffff);
+	WRITE_SPECIALREG(pmintenclr_el1, 0xffffffff);
+
 	/* Enable unit */
 	pmcr = arm64_pmcr_read();
 	pmcr |= PMCR_E;
