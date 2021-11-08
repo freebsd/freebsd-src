@@ -136,7 +136,7 @@ ATF_TC_BODY(clearenv__environ_null, tc)
 {
 
 	ATF_CHECK(clearenv() == 0);
-	ATF_CHECK(environ == NULL);
+	ATF_CHECK(environ != NULL);
 }
 
 ATF_TC_WITHOUT_HEAD(clearenv__putenv_vars);
