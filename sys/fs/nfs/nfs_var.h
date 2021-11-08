@@ -170,6 +170,7 @@ int nfsrv_copymr(vnode_t, vnode_t, vnode_t, struct nfsdevice *,
 int nfsrv_mdscopymr(char *, char *, char *, char *, int *, char *, NFSPROC_T *,
     struct vnode **, struct vnode **, struct pnfsdsfile **, struct nfsdevice **,
     struct nfsdevice **);
+void nfsrv_marknospc(char *, bool);
 
 /* nfs_nfsdserv.c */
 int nfsrvd_access(struct nfsrv_descript *, int,
@@ -770,6 +771,7 @@ int nfsvno_listxattr(struct vnode *, uint64_t, struct ucred *, struct thread *,
 void nfsm_trimtrailing(struct nfsrv_descript *, struct mbuf *, char *, int,
     int);
 bool nfsrv_checkwrongsec(struct nfsrv_descript *, int, enum vtype);
+void nfsrv_checknospc(void);
 
 /* nfs_commonkrpc.c */
 int newnfs_nmcancelreqs(struct nfsmount *);
