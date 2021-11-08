@@ -287,14 +287,20 @@ pfctl_nv_add_addr_wrap(nvlist_t *nvparent, const char *name,
 static void
 pf_nvaddr_wrap_to_addr_wrap(const nvlist_t *nvl, struct pf_addr_wrap *addr)
 {
+	bzero(addr, sizeof(*addr));
+
 	addr->type = nvlist_get_number(nvl, "type");
 	addr->iflags = nvlist_get_number(nvl, "iflags");
-	if (addr->type == PF_ADDR_DYNIFTL)
+	if (addr->type == PF_ADDR_DYNIFTL) {
 		strlcpy(addr->v.ifname, nvlist_get_string(nvl, "ifname"),
 		    IFNAMSIZ);
-	if (addr->type == PF_ADDR_TABLE)
+		addr->p.dyncnt = nvlist_get_number(nvl, "dynctl");
+	}
+	if (addr->type == PF_ADDR_TABLE) {
 		strlcpy(addr->v.tblname, nvlist_get_string(nvl, "tblname"),
 		    PF_TABLE_NAME_SIZE);
+		addr->p.tblcnt = nvlist_get_number(nvl, "tblcnt");
+	}
 
 	pf_nvaddr_to_addr(nvlist_get_nvlist(nvl, "addr"), &addr->v.a.addr);
 	pf_nvaddr_to_addr(nvlist_get_nvlist(nvl, "mask"), &addr->v.a.mask);

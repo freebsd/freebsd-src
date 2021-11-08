@@ -327,6 +327,8 @@ pf_addr_wrap_to_nvaddr_wrap(const struct pf_addr_wrap *addr)
 {
 	nvlist_t *nvl;
 	nvlist_t *tmp;
+	uint64_t num;
+	struct pfr_ktable *kt;
 
 	nvl = nvlist_create(0);
 	if (nvl == NULL)
@@ -334,10 +336,25 @@ pf_addr_wrap_to_nvaddr_wrap(const struct pf_addr_wrap *addr)
 
 	nvlist_add_number(nvl, "type", addr->type);
 	nvlist_add_number(nvl, "iflags", addr->iflags);
-	if (addr->type == PF_ADDR_DYNIFTL)
+	if (addr->type == PF_ADDR_DYNIFTL) {
 		nvlist_add_string(nvl, "ifname", addr->v.ifname);
-	if (addr->type == PF_ADDR_TABLE)
+		num = 0;
+		if (addr->p.dyn != NULL)
+			num = addr->p.dyn->pfid_acnt4 +
+			    addr->p.dyn->pfid_acnt6;
+		nvlist_add_number(nvl, "dyncnt", num);
+	}
+	if (addr->type == PF_ADDR_TABLE) {
 		nvlist_add_string(nvl, "tblname", addr->v.tblname);
+		num = -1;
+		kt = addr->p.tbl;
+		if ((kt->pfrkt_flags & PFR_TFLAG_ACTIVE) &&
+		    kt->pfrkt_root != NULL)
+			kt = kt->pfrkt_root;
+		if (kt->pfrkt_flags & PFR_TFLAG_ACTIVE)
+			num = kt->pfrkt_cnt;
+		nvlist_add_number(nvl, "tblcnt", num);
+	}
 
 	tmp = pf_addr_to_nvaddr(&addr->v.a.addr);
 	if (tmp == NULL)
