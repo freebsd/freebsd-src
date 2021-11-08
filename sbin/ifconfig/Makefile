@@ -24,6 +24,7 @@ SRCS+=	af_inet6.c		# IPv6 support
 .endif
 .if ${MK_INET6_SUPPORT} != "no"
 SRCS+=	af_nd6.c		# ND6 support
+SRCS+=	ifstf.c			# STF configuration options
 .endif
 
 SRCS+=	ifclone.c		# clone device support
