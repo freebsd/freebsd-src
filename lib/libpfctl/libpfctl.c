@@ -294,7 +294,7 @@ pf_nvaddr_wrap_to_addr_wrap(const nvlist_t *nvl, struct pf_addr_wrap *addr)
 	if (addr->type == PF_ADDR_DYNIFTL) {
 		strlcpy(addr->v.ifname, nvlist_get_string(nvl, "ifname"),
 		    IFNAMSIZ);
-		addr->p.dyncnt = nvlist_get_number(nvl, "dynctl");
+		addr->p.dyncnt = nvlist_get_number(nvl, "dyncnt");
 	}
 	if (addr->type == PF_ADDR_TABLE) {
 		strlcpy(addr->v.tblname, nvlist_get_string(nvl, "tblname"),
