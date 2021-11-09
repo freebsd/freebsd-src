@@ -26,7 +26,6 @@ SRCS=	bss.c \
 	notify.c \
 	op_classes.c \
 	offchannel.c \
-	pasn_supplicant.c \
 	robust_av.c \
 	rrm.c \
 	scan.c \
@@ -35,6 +34,10 @@ SRCS=	bss.c \
 	wnm_sta.c \
 	wpa_supplicant.c \
 	wpas_glue.c
+
+.if ${MK_OPENSSL} != "no"
+SRCS+=	pasn_supplicant.c
+.endif
 
 MAN=	wpa_supplicant.8 wpa_supplicant.conf.5
 
