@@ -535,6 +535,15 @@ freebsd6_freebsd32_mmap(struct thread *td,
 }
 #endif
 
+#ifdef COMPAT_43
+int
+ofreebsd32_mmap(struct thread *td, struct ofreebsd32_mmap_args *uap)
+{
+	return (kern_ommap(td, (uintptr_t)uap->addr, uap->len, uap->prot,
+	    uap->flags, uap->fd, uap->pos));
+}
+#endif
+
 int
 freebsd32_setitimer(struct thread *td, struct freebsd32_setitimer_args *uap)
 {

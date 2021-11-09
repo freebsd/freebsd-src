@@ -176,8 +176,8 @@
 68	AUE_NULL	OBSOL	vwrite
 69	AUE_SBRK	NOPROTO	{ int sbrk(int incr); }
 70	AUE_SSTK	NOPROTO	{ int sstk(int incr); }
-71	AUE_MMAP	COMPAT|NOPROTO	{ void *mmap(void *addr, int len, \
-				    int prot, int flags, int fd, int pos); }
+71	AUE_MMAP	COMPAT	{ void *freebsd32_mmap(void *addr, int len, \
+				    int prot, int flags, int fd, int32_t pos); }
 72	AUE_O_VADVISE	COMPAT11|NOPROTO	{ int vadvise(int anom); }
 73	AUE_MUNMAP	NOPROTO	{ int munmap(void *addr, size_t len); }
 74	AUE_MPROTECT	STD	{ int freebsd32_mprotect(void *addr, \
