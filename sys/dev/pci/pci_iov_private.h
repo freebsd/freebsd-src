@@ -37,6 +37,7 @@ struct pci_iov_bar {
 };
 
 struct pcicfg_iov {
+	device_t iov_pf;
 	struct cdev *iov_cdev;
 	nvlist_t *iov_schema;
 
