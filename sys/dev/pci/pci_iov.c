@@ -151,6 +151,7 @@ pci_iov_attach_method(device_t bus, device_t dev, nvlist_t *pf_schema,
 		error = EBUSY;
 		goto cleanup;
 	}
+	iov->iov_pf = dev;
 	iov->iov_pos = iov_pos;
 
 	schema = pci_iov_build_schema(&pf_schema, &vf_schema);
