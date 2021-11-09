@@ -139,20 +139,6 @@ SRCS+=	dh_groups.c
 .endif
 
 .if ${MK_WPA_SUPPLICANT_EAPOL} != "no"
-CFLAGS+=-DCONFIG_WPS \
-	-DCONFIG_HS20 \
-	-DCONFIG_INTERWORKING \
-	-DEAP_GTC \
-	-DEAP_LEAP \
-	-DEAP_MD5 \
-	-DEAP_MSCHAPv2 \
-	-DEAP_OTP \
-	-DEAP_PEAP \
-	-DEAP_PSK \
-	-DEAP_TLS \
-	-DEAP_TTLS \
-	-DEAP_WSC \
-	-DIEEE8021X_EAPOL
 SRCS+=	ms_funcs.c
 .endif
 
