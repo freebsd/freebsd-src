@@ -2372,7 +2372,6 @@ t4_aiotx_task(void *context, int pending)
 	NET_EPOCH_EXIT(et);
 
 	free_toepcb(toep);
-	SOCK_LOCK(so);
 	sorele(so);
 	CURVNET_RESTORE();
 }

@@ -3911,7 +3911,6 @@ sysctl_switch_tls(SYSCTL_HANDLER_ARGS)
 			error = ktls_set_tx_mode(so,
 			    arg2 == 0 ? TCP_TLS_MODE_SW : TCP_TLS_MODE_IFNET);
 			INP_WUNLOCK(inp);
-			SOCK_LOCK(so);
 			sorele(so);
 		}
 	} else

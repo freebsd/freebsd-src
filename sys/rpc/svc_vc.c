@@ -468,7 +468,6 @@ svc_vc_destroy_common(SVCXPRT *xprt)
 			}
 			/* Must sorele() to get rid of reference. */
 			CURVNET_SET(xprt->xp_socket->so_vnet);
-			SOCK_LOCK(xprt->xp_socket);
 			sorele(xprt->xp_socket);
 			CURVNET_RESTORE();
 		} else
