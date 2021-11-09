@@ -55,19 +55,16 @@ mount /dev/md$mdstart.nop $mntpoint
 chmod 777 $mntpoint
 set +e
 
-start=`date '+%s'`
-(cd /usr; tar --exclude compile -cf - src) | (cd $mntpoint; tar xf -)
+(cd /usr; tar --exclude compile --exclude-vcs -cf - src) | \
+    (cd $mntpoint; tar xf -)
 
 cd $mntpoint/src
 export MAKEOBJDIRPREFIX=$mntpoint/obj
 
 p=$((`sysctl -n hw.ncpu`+ 1))
-make -i -j $p buildworld  DESTDIR=$mntpoint TARGET=amd64 TARGET_ARCH=amd64 \
-    > /dev/null &
-e=$((`date '+%s'` - start))
-sleep $((15 *  60 - e))
-kill $!
-wait
+timeout 10m \
+    make -i -j $p buildworld  DESTDIR=$mntpoint TARGET=amd64 \
+    TARGET_ARCH=amd64 > /dev/null
 
 cd /
 while mount | grep $mntpoint | grep -q /dev/md; do
