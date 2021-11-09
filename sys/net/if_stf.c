@@ -92,6 +92,7 @@
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/queue.h>
+#include <sys/sdt.h>
 #include <sys/sysctl.h>
 #include <machine/cpu.h>
 
@@ -127,6 +128,38 @@
 #include <net/bpf.h>
 
 #include <security/mac/mac_framework.h>
+
+SDT_PROVIDER_DEFINE(if_stf);
+SDT_PROBE_DEFINE3(if_stf, , encapcheck, in, "struct mbuf *", "int", "int");
+SDT_PROBE_DEFINE0(if_stf, , encapcheck, accept);
+SDT_PROBE_DEFINE3(if_stf, , getsrcifa6, in, "struct ifnet *",
+    "struct in6_addr *", "struct in6_addr *");
+SDT_PROBE_DEFINE2(if_stf, , getsrcifa6, found, "struct in6_addr *",
+    "struct in6_addr *");
+SDT_PROBE_DEFINE0(if_stf, , getsrcifa6, notfound);
+
+SDT_PROBE_DEFINE4(if_stf, , stf_output, in, "struct ifnet *", "struct mbuf *",
+    "struct sockaddr *", "struct route *");
+SDT_PROBE_DEFINE2(if_stf, , stf_output, error, "int", "int");
+SDT_PROBE_DEFINE1(if_stf, , stf_output, out, "int");
+
+SDT_PROBE_DEFINE3(if_stf, , checkaddr6, in, "struct stf_softc *",
+    "struct in6_addr *", "struct ifnet *");
+SDT_PROBE_DEFINE2(if_stf, , checkaddr6, out, "int", "int");
+
+SDT_PROBE_DEFINE3(if_stf, , stf_input, in, "struct mbuf *", "int", "int");
+SDT_PROBE_DEFINE2(if_stf, , stf_input, out, "int", "int");
+
+SDT_PROBE_DEFINE3(if_stf, , ioctl, sv4net, "struct in_addr *",
+    "struct in_addr *", "int");
+SDT_PROBE_DEFINE1(if_stf, , ioctl, sdstv4, "struct in_addr *");
+SDT_PROBE_DEFINE1(if_stf, , ioctl, ifaddr, "struct ifaddr *");
+
+SDT_PROBE_DEFINE4(if_stf, , getin4addr_in6, out, "struct in6_addr *",
+    "struct in6_addr *", "struct in6_addr *", "struct sockaddr_in *");
+
+SDT_PROBE_DEFINE2(if_stf, , getin4addr, in, "struct in6_addr *", "struct in6_addr *");
+SDT_PROBE_DEFINE1(if_stf, , getin4addr, out, "struct sockaddr_in *");
 
 SYSCTL_DECL(_net_link);
 static SYSCTL_NODE(_net_link, IFT_STF, stf, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
@@ -349,6 +382,8 @@ stf_encapcheck(const struct mbuf *m, int off, int proto, void *arg)
 	struct in6_addr addr6, mask6;
 	struct sockaddr_in sin4addr, sin4mask;
 
+	SDT_PROBE3(if_stf, , encapcheck, in, m, off, proto);
+
 	sc = (struct stf_softc *)arg;
 	if (sc == NULL)
 		return (0);
@@ -408,6 +443,8 @@ stf_encapcheck(const struct mbuf *m, int off, int proto, void *arg)
 		 */
 	}
 
+	SDT_PROBE0(if_stf, , encapcheck, accept);
+
 	/* stf interface makes single side match only */
 	return (32);
 }
@@ -425,6 +462,8 @@ stf_getsrcifa6(struct ifnet *ifp, struct in6_addr *addr, struct in6_addr *mask)
 	NET_EPOCH_ASSERT();
 
 	sc = ifp->if_softc;
+
+	SDT_PROBE3(if_stf, , getsrcifa6, in, ifp, addr, mask);
 
 	CK_STAILQ_FOREACH(ia, &ifp->if_addrhead, ifa_link) {
 		if (ia->ifa_addr->sa_family != AF_INET6)
@@ -449,8 +488,12 @@ stf_getsrcifa6(struct ifnet *ifp, struct in6_addr *addr, struct in6_addr *mask)
 		*addr = addr6;
 		*mask = mask6;
 
+		SDT_PROBE2(if_stf, , getsrcifa6, found, addr, mask);
+
 		return (0);
 	}
+
+	SDT_PROBE0(if_stf, , getsrcifa6, notfound);
 
 	return (ENOENT);
 }
@@ -468,10 +511,13 @@ stf_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	struct in6_addr addr6, mask6;
 	int error;
 
+	SDT_PROBE4(if_stf, , stf_output, in, ifp, m, dst, ro);
+
 #ifdef MAC
 	error = mac_ifnet_check_transmit(ifp, m);
 	if (error) {
 		m_freem(m);
+		SDT_PROBE2(if_stf, , stf_output, error, error, __LINE__);
 		return (error);
 	}
 #endif
@@ -483,6 +529,7 @@ stf_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	if ((ifp->if_flags & IFF_UP) == 0) {
 		m_freem(m);
 		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
+		SDT_PROBE2(if_stf, , stf_output, error, ENETDOWN, __LINE__);
 		return (ENETDOWN);
 	}
 
@@ -494,6 +541,7 @@ stf_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	if (stf_getsrcifa6(ifp, &addr6, &mask6) != 0) {
 		m_freem(m);
 		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
+		SDT_PROBE2(if_stf, , stf_output, error, ENETDOWN, __LINE__);
 		return (ENETDOWN);
 	}
 
@@ -501,6 +549,8 @@ stf_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 		m = m_pullup(m, sizeof(*ip6));
 		if (!m) {
 			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
+			SDT_PROBE2(if_stf, , stf_output, error, ENOBUFS,
+			    __LINE__);
 			return (ENOBUFS);
 		}
 	}
@@ -519,6 +569,8 @@ stf_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 		    dst6->sin6_addr) == NULL) {
 			m_freem(m);
 			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
+			SDT_PROBE2(if_stf, , stf_output, error, ENETUNREACH,
+			    __LINE__);
 			return (ENETUNREACH);
 		}
 	}
@@ -538,6 +590,7 @@ stf_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	M_PREPEND(m, sizeof(struct ip), M_NOWAIT);
 	if (m == NULL) {
 		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
+		SDT_PROBE2(if_stf, , stf_output, error, ENOBUFS, __LINE__);
 		return (ENOBUFS);
 	}
 	ip = mtod(m, struct ip *);
@@ -549,6 +602,7 @@ stf_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	else if (stf_getin4addr(sc, &src4, addr6, mask6) == NULL) {
 		m_freem(m);
 		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
+		SDT_PROBE2(if_stf, , stf_output, error, ENETUNREACH, __LINE__);
 		return (ENETUNREACH);
 	}
 	bcopy(&src4.sin_addr, &ip->ip_src, sizeof(ip->ip_src));
@@ -566,6 +620,7 @@ stf_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 	error = ip_output(m, NULL, NULL, 0, NULL, NULL);
 
+	SDT_PROBE1(if_stf, , stf_output, out, error);
 	return (error);
 }
 
@@ -633,13 +688,19 @@ stf_checkaddr4(struct stf_softc *sc, struct in_addr *in, struct ifnet *inifp)
 static int
 stf_checkaddr6(struct stf_softc *sc, struct in6_addr *in6, struct ifnet *inifp)
 {
+	SDT_PROBE3(if_stf, , checkaddr6, in, sc, in6, inifp);
+
 	/*
 	 * check 6to4 addresses
 	 */
 	if (IN6_IS_ADDR_6TO4(in6)) {
 		struct in_addr in4;
+		int ret;
+
 		bcopy(GET_V4(in6), &in4, sizeof(in4));
-		return (stf_checkaddr4(sc, &in4, inifp));
+		ret = stf_checkaddr4(sc, &in4, inifp);
+		SDT_PROBE2(if_stf, , checkaddr6, out, ret, __LINE__);
+		return (ret);
 	}
 
 	/*
@@ -648,9 +709,17 @@ stf_checkaddr6(struct stf_softc *sc, struct in6_addr *in6, struct ifnet *inifp)
 	 * (1) reject bad packets earlier, and
 	 * (2) to be safe against future ip6_input change.
 	 */
-	if (IN6_IS_ADDR_V4COMPAT(in6) || IN6_IS_ADDR_V4MAPPED(in6))
+	if (IN6_IS_ADDR_V4COMPAT(in6)) {
+		SDT_PROBE2(if_stf, , checkaddr6, out, -1, __LINE__);
 		return (-1);
+	}
 
+	if (IN6_IS_ADDR_V4MAPPED(in6)) {
+		SDT_PROBE2(if_stf, , checkaddr6, out, -1, __LINE__);
+		return (-1);
+	}
+
+	SDT_PROBE2(if_stf, , checkaddr6, out, 0, __LINE__);
 	return (0);
 }
 
@@ -666,14 +735,18 @@ in_stf_input(struct mbuf *m, int off, int proto, void *arg)
 
 	NET_EPOCH_ASSERT();
 
+	SDT_PROBE3(if_stf, , stf_input, in, m, off, proto);
+
 	if (proto != IPPROTO_IPV6) {
 		m_freem(m);
+		SDT_PROBE2(if_stf, , stf_input, out, IPPROTO_DONE, __LINE__);
 		return (IPPROTO_DONE);
 	}
 
 	ip = mtod(m, struct ip *);
 	if (sc == NULL || (STF2IFP(sc)->if_flags & IFF_UP) == 0) {
 		m_freem(m);
+		SDT_PROBE2(if_stf, , stf_input, out, IPPROTO_DONE, __LINE__);
 		return (IPPROTO_DONE);
 	}
 
@@ -690,6 +763,7 @@ in_stf_input(struct mbuf *m, int off, int proto, void *arg)
 	if (stf_checkaddr4(sc, &ip->ip_dst, NULL) < 0 ||
 	    stf_checkaddr4(sc, &ip->ip_src, m->m_pkthdr.rcvif) < 0) {
 		m_freem(m);
+		SDT_PROBE2(if_stf, , stf_input, out, IPPROTO_DONE, __LINE__);
 		return (IPPROTO_DONE);
 	}
 
@@ -698,8 +772,11 @@ in_stf_input(struct mbuf *m, int off, int proto, void *arg)
 
 	if (m->m_len < sizeof(*ip6)) {
 		m = m_pullup(m, sizeof(*ip6));
-		if (!m)
+		if (!m) {
+			SDT_PROBE2(if_stf, , stf_input, out, IPPROTO_DONE,
+			    __LINE__);
 			return (IPPROTO_DONE);
+		}
 	}
 	ip6 = mtod(m, struct ip6_hdr *);
 
@@ -710,6 +787,7 @@ in_stf_input(struct mbuf *m, int off, int proto, void *arg)
 	if (stf_checkaddr6(sc, &ip6->ip6_dst, NULL) < 0 ||
 	    stf_checkaddr6(sc, &ip6->ip6_src, m->m_pkthdr.rcvif) < 0) {
 		m_freem(m);
+		SDT_PROBE2(if_stf, , stf_input, out, IPPROTO_DONE, __LINE__);
 		return (IPPROTO_DONE);
 	}
 
@@ -720,6 +798,7 @@ in_stf_input(struct mbuf *m, int off, int proto, void *arg)
 	if ((IN6_IS_ADDR_6TO4(&ip6->ip6_src) && isrfc1918addr(&ip->ip_src)) ||
 	    (IN6_IS_ADDR_6TO4(&ip6->ip6_dst) && isrfc1918addr(&ip->ip_dst))) {
 		m_freem(m);
+		SDT_PROBE2(if_stf, , stf_input, out, IPPROTO_DONE, __LINE__);
 		return (IPPROTO_DONE);
 	}
 
@@ -731,11 +810,13 @@ in_stf_input(struct mbuf *m, int off, int proto, void *arg)
 	nh = fib6_lookup(sc->sc_fibnum, &ip6->ip6_dst, 0, 0, 0);
 	if (nh == NULL) {
 		m_free(m);
+		SDT_PROBE2(if_stf, , stf_input, out, IPPROTO_DONE, __LINE__);
 		return (IPPROTO_DONE);
 	}
 	if ((nh->nh_ifp == ifp) &&
 	    (!IN6_ARE_ADDR_EQUAL(&ip6->ip6_src, &nh->gw6_sa.sin6_addr))) {
 		m_free(m);
+		SDT_PROBE2(if_stf, , stf_input, out, IPPROTO_DONE, __LINE__);
 		return (IPPROTO_DONE);
 	}
 
@@ -771,6 +852,7 @@ in_stf_input(struct mbuf *m, int off, int proto, void *arg)
 	if_inc_counter(ifp, IFCOUNTER_IBYTES, m->m_pkthdr.len);
 	M_SETFIB(m, ifp->if_fib);
 	netisr_dispatch(NETISR_IPV6, m);
+	SDT_PROBE2(if_stf, , stf_input, out, IPPROTO_DONE, __LINE__);
 	return (IPPROTO_DONE);
 }
 
@@ -779,6 +861,7 @@ stf_getin4addr_in6(struct stf_softc *sc, struct sockaddr_in *sin,
     struct in6_addr addr6, struct in6_addr mask6, struct in6_addr in6)
 {
        int i;
+       struct sockaddr_in *out;
 
 	/*
 	* When (src addr & src mask) != (in6 & src mask),
@@ -787,12 +870,17 @@ stf_getin4addr_in6(struct stf_softc *sc, struct sockaddr_in *sin,
 	*/
 	for (i = 0; i < sizeof(addr6); i++) {
 		if ((((u_char *)&addr6)[i] & ((u_char *)&mask6)[i]) !=
-		    (((u_char *)&in6)[i] & ((u_char *)&mask6)[i]))
-		return (NULL);
+		    (((u_char *)&in6)[i] & ((u_char *)&mask6)[i])) {
+			SDT_PROBE4(if_stf, , getin4addr_in6, out, &addr6,
+			    &mask6, &in6, NULL);
+			return (NULL);
+		}
 	}
 
 	/* After the mask check, use in6 instead of addr6. */
-	return (stf_getin4addr(sc, sin, in6, mask6));
+	out = stf_getin4addr(sc, sin, in6, mask6);
+	SDT_PROBE4(if_stf, , getin4addr_in6, out, &addr6, &mask6, &in6, out);
+	return (out);
 }
 
 static struct sockaddr_in *
@@ -800,6 +888,8 @@ stf_getin4addr(struct stf_softc *sc, struct sockaddr_in *sin,
     struct in6_addr addr6, struct in6_addr mask6)
 {
 	struct in_addr *in;
+
+	SDT_PROBE2(if_stf, , getin4addr, in, &addr6, &mask6);
 
 	memset(sin, 0, sizeof(*sin));
 	in = &sin->sin_addr;
@@ -845,6 +935,8 @@ stf_getin4addr(struct stf_softc *sc, struct sockaddr_in *sin,
 		sin->sin_addr.s_addr = htonl(v4prefix | (uint32_t)v6prefix);
 	}
 
+	SDT_PROBE1(if_stf, , getin4addr, out, sin);
+
 	return (sin);
 }
 
@@ -886,6 +978,8 @@ stf_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			bcopy(&args.srcv4_addr, &sc_cur->srcv4_addr,
 			    sizeof(sc_cur->srcv4_addr));
 			sc_cur->v4prefixlen = args.v4_prefixlen;
+			SDT_PROBE3(if_stf, , ioctl, sv4net, sc_cur->srcv4_addr,
+			    sc_cur->srcv4_addr, sc_cur->v4prefixlen);
 		} else if (ifd->ifd_cmd == STF6RD_SBR) {
 			if (ifd->ifd_len != sizeof(args)) {
 				error = EINVAL;
@@ -896,6 +990,8 @@ stf_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			if (error)
 				break;
 			sc_cur->braddr = args.braddr.s_addr;
+			SDT_PROBE1(if_stf, , ioctl, sdstv4,
+			    sc_cur->braddr);
 		} else
 			error = EINVAL;
 		break;
@@ -917,6 +1013,7 @@ stf_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		break;
 	case SIOCSIFADDR:
 		ifa = (struct ifaddr *)data;
+		SDT_PROBE1(if_stf, , ioctl, ifaddr, ifa);
 		if (ifa == NULL || ifa->ifa_addr->sa_family != AF_INET6) {
 			error = EAFNOSUPPORT;
 			break;
