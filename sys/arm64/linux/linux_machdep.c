@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/imgact.h>
 #include <sys/ktr.h>
 #include <sys/proc.h>
+#include <sys/ptrace.h>
 #include <sys/reg.h>
 #include <sys/sdt.h>
 
@@ -49,6 +50,8 @@ __FBSDID("$FreeBSD$");
 #include <compat/linux/linux_misc.h>
 #include <compat/linux/linux_mmap.h>
 #include <compat/linux/linux_util.h>
+
+#define	LINUX_ARCH_AARCH64		0xc00000b7
 
 /* DTrace init */
 LIN_SDT_PROVIDER_DECLARE(LINUX_DTRACE);
@@ -158,3 +161,22 @@ linux_to_bsd_regset(struct reg *b_reg, const struct linux_pt_regset *l_regset)
 	b_reg->elr = l_regset->pc;
 	b_reg->spsr = l_regset->cpsr;
 }
+
+void
+linux_ptrace_get_syscall_info_machdep(const struct reg *reg,
+    struct syscall_info *si)
+{
+
+	si->arch = LINUX_ARCH_AARCH64;
+	si->instruction_pointer = reg->lr;
+	si->stack_pointer = reg->sp;
+}
+
+int
+linux_ptrace_getregs_machdep(struct thread *td __unused, pid_t pid __unused,
+    struct linux_pt_regset *l_regset __unused)
+{
+
+	return (0);
+}
+

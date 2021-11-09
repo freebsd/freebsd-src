@@ -107,9 +107,6 @@ __FBSDID("$FreeBSD$");
 #define LINUX_PTRACE_PEEKUSER_CS	136
 #define LINUX_PTRACE_PEEKUSER_DS	184
 
-#define	LINUX_ARCH_AMD64		0xc000003e
-#define	LINUX_ARCH_AARCH64		0xc00000b7
-
 static int
 map_signum(int lsig, int *bsigp)
 {
@@ -168,28 +165,6 @@ linux_ptrace_status(struct thread *td, pid_t pid, int status)
 
 	return (status);
 }
-
-struct syscall_info {
-	uint8_t op;
-	uint32_t arch;
-	uint64_t instruction_pointer;
-	uint64_t stack_pointer;
-	union {
-		struct {
-			uint64_t nr;
-			uint64_t args[6];
-		} entry;
-		struct {
-			int64_t rval;
-			uint8_t is_error;
-		} exit;
-		struct {
-			uint64_t nr;
-			uint64_t args[6];
-			uint32_t ret_data;
-		} seccomp;
-	};
-};
 
 static int
 linux_ptrace_peek(struct thread *td, pid_t pid, void *addr, void *data)
@@ -345,10 +320,6 @@ linux_ptrace_getregs(struct thread *td, pid_t pid, void *data)
 {
 	struct reg b_reg;
 	struct linux_pt_regset l_regset;
-#ifdef __amd64__
-	struct ptrace_lwpinfo lwpinfo;
-	struct pcb *pcb;
-#endif
 	int error;
 
 	error = kern_ptrace(td, PT_GETREGS, pid, &b_reg, 0);
@@ -356,35 +327,9 @@ linux_ptrace_getregs(struct thread *td, pid_t pid, void *data)
 		return (error);
 
 	bsd_to_linux_regset(&b_reg, &l_regset);
-
-#ifdef __amd64__
-	pcb = td->td_pcb;
-	if (td == curthread)
-		update_pcb_bases(pcb);
-
-	l_regset.fs_base = pcb->pcb_fsbase;
-	l_regset.gs_base = pcb->pcb_gsbase;
-
-	error = kern_ptrace(td, PT_LWPINFO, pid, &lwpinfo, sizeof(lwpinfo));
-	if (error != 0) {
-		linux_msg(td, "PT_LWPINFO failed with error %d", error);
+	error = linux_ptrace_getregs_machdep(td, pid, &l_regset);
+	if (error != 0)
 		return (error);
-	}
-	if (lwpinfo.pl_flags & PL_FLAG_SCE) {
-		/*
-		 * Undo the mangling done in exception.S:fast_syscall_common().
-		 */
-		l_regset.r10 = l_regset.rcx;
-	}
-	if (lwpinfo.pl_flags & (PL_FLAG_SCE | PL_FLAG_SCX)) {
-		/*
-		 * In Linux, the syscall number - passed to the syscall
-		 * as rax - is preserved in orig_rax; rax gets overwritten
-		 * with syscall return value.
-		 */
-		l_regset.orig_rax = lwpinfo.pl_syscall_code;
-	}
-#endif
 
 	error = copyout(&l_regset, (void *)data, sizeof(l_regset));
 	return (error);
@@ -411,10 +356,6 @@ linux_ptrace_getregset_prstatus(struct thread *td, pid_t pid, l_ulong data)
 	struct reg b_reg;
 	struct linux_pt_regset l_regset;
 	struct iovec iov;
-#ifdef __amd64__
-	struct ptrace_lwpinfo lwpinfo;
-	struct pcb *pcb;
-#endif
 	size_t len;
 	int error;
 
@@ -429,36 +370,9 @@ linux_ptrace_getregset_prstatus(struct thread *td, pid_t pid, l_ulong data)
 		return (error);
 
 	bsd_to_linux_regset(&b_reg, &l_regset);
-
-#ifdef __amd64__
-	pcb = td->td_pcb;
-	if (td == curthread)
-		update_pcb_bases(pcb);
-
-	l_regset.fs_base = pcb->pcb_fsbase;
-	l_regset.gs_base = pcb->pcb_gsbase;
-
-	error = kern_ptrace(td, PT_LWPINFO, pid, &lwpinfo, sizeof(lwpinfo));
-	if (error != 0) {
-		linux_msg(td, "PT_LWPINFO failed with error %d", error);
+	error = linux_ptrace_getregs_machdep(td, pid, &l_regset);
+	if (error != 0)
 		return (error);
-	}
-	if (lwpinfo.pl_flags & PL_FLAG_SCE) {
-		/*
-		 * Undo the mangling done in exception.S:fast_syscall_common().
-		 */
-		l_regset.r10 = l_regset.rcx;
-	}
-
-	if (lwpinfo.pl_flags & (PL_FLAG_SCE | PL_FLAG_SCX)) {
-		/*
-		 * In Linux, the syscall number - passed to the syscall
-		 * as rax - is preserved in orig_rax; rax gets overwritten
-		 * with syscall return value.
-		 */
-		l_regset.orig_rax = lwpinfo.pl_syscall_code;
-	}
-#endif
 
 	len = MIN(iov.iov_len, sizeof(l_regset));
 	error = copyout(&l_regset, (void *)iov.iov_base, len);
@@ -582,17 +496,7 @@ linux_ptrace_get_syscall_info(struct thread *td, pid_t pid,
 	if (error != 0)
 		return (error);
 
-#if defined(__amd64__)
-	si.arch = LINUX_ARCH_AMD64;
-	si.instruction_pointer = b_reg.r_rip;
-	si.stack_pointer = b_reg.r_rsp;
-#elif defined(__aarch64__)
-	si.arch = LINUX_ARCH_AARCH64;
-	si.instruction_pointer = b_reg.lr;
-	si.stack_pointer = b_reg.sp;
-#else
-#error "unknown architecture"
-#endif
+	linux_ptrace_get_syscall_info_machdep(&b_reg, &si);
 
 	len = MIN(len, sizeof(si));
 	error = copyout(&si, (void *)data, len);

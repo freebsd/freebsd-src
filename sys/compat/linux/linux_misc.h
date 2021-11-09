@@ -159,4 +159,26 @@ int linux_ptrace_status(struct thread *td, int pid, int status);
 void linux_to_bsd_waitopts(int options, int *bsdopts);
 struct thread	*linux_tdfind(struct thread *, lwpid_t, pid_t);
 
+struct syscall_info {
+	uint8_t op;
+	uint32_t arch;
+	uint64_t instruction_pointer;
+	uint64_t stack_pointer;
+	union {
+		struct {
+			uint64_t nr;
+			uint64_t args[6];
+		} entry;
+		struct {
+			int64_t rval;
+			uint8_t is_error;
+		} exit;
+		struct {
+			uint64_t nr;
+			uint64_t args[6];
+			uint32_t ret_data;
+		} seccomp;
+	};
+};
+
 #endif	/* _LINUX_MISC_H_ */
