@@ -96,7 +96,6 @@ static void felix_set_port_cfg(felix_softc_t, etherswitch_port_t *);
 
 static bool felix_is_phyport(felix_softc_t, int);
 static struct mii_data *felix_miiforport(felix_softc_t, unsigned int);
-static int felix_phyforport(felix_softc_t, int);
 
 static struct felix_pci_id felix_pci_ids[] = {
 	{PCI_VENDOR_FREESCALE, FELIX_DEV_ID, FELIX_DEV_NAME},
@@ -997,18 +996,6 @@ felix_is_phyport(felix_softc_t sc, int port)
 {
 
 	return (!sc->ports[port].fixed_port);
-}
-
-static int
-felix_phyforport(felix_softc_t sc, int phy)
-{
-	int port;
-
-	for (port = 0; port < sc->info.es_nports; port++) {
-		if (sc->ports[port].phyaddr == phy)
-			return (port);
-	}
-	return (-1);
 }
 
 static  struct mii_data*
