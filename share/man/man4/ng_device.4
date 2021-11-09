@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 19, 2004
+.Dd November 8, 2021
 .Dt NG_DEVICE 4
 .Os
 .Sh NAME
@@ -48,7 +48,7 @@ etc.
 .Pp
 The first node is created as
 .Pa /dev/ngd0 ,
-all subsequent nodes
+subsequent nodes are
 .Pa /dev/ngd1 , /dev/ngd2 ,
 etc.
 .Sh HOOKS
@@ -64,10 +64,18 @@ will be forwarded to the hook.
 .Sh CONTROL MESSAGES
 The
 .Nm device
-node supports one non-generic control message:
+node supports the generic control messages, plus the following:
 .Bl -tag -width 3n
 .It Dv NGM_DEVICE_GET_DEVNAME
-Returns device name corresponding to a node.
+Returns the device name corresponding to the node.
+.It Dv NGM_DEVICE_ETHERALIGN
+Apply the system ETHER_ALIGN offset to mbufs sent out the node's hook,
+if running on an architecture that requires strict alignment.
+Use this option when the data being injected via the device node ultimately
+ends up being fed into the protocol stack as ethernet packets (e.g., via
+an
+.Xr ng_eiface 4
+node).
 .El
 .\" Additionally, the node accepts
 .\" .Xr ioctl 2 Ns s

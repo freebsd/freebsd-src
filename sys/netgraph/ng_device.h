@@ -39,6 +39,7 @@
 /* Netgraph control messages */
 enum {
 	NGM_DEVICE_GET_DEVNAME,
+	NGM_DEVICE_ETHERALIGN,
 };
 
 #if 0

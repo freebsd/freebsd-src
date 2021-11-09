@@ -50,10 +50,12 @@
 #include <sys/epoch.h>
 #include <sys/queue.h>
 #include <sys/socket.h>
+#include <sys/syslog.h>
 #include <sys/systm.h>
 #include <sys/uio.h>
 #include <sys/vnode.h>
 
+#include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_var.h>
 #include <netinet/in.h>
@@ -63,6 +65,7 @@
 #include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
 #include <netgraph/ng_device.h>
+#include <netgraph/ng_parse.h>
 
 #define	ERROUT(x) do { error = (x); goto done; } while (0)
 
@@ -75,6 +78,25 @@ static ng_newhook_t	ng_device_newhook;
 static ng_rcvdata_t	ng_device_rcvdata;
 static ng_disconnect_t	ng_device_disconnect;
 
+/* List of commands and how to convert arguments to/from ASCII. */
+static const struct ng_cmdlist ng_device_cmds[] = {
+	{
+	  NGM_DEVICE_COOKIE,
+	  NGM_DEVICE_GET_DEVNAME,
+	  "getdevname",
+	  NULL,
+	  &ng_parse_string_type
+	},
+	{
+	  NGM_DEVICE_COOKIE,
+	  NGM_DEVICE_ETHERALIGN,
+	  "etheralign",
+	  NULL,
+	  NULL
+	},
+	{ 0 }
+};
+
 /* Netgraph type */
 static struct ng_type ngd_typestruct = {
 	.version =	NG_ABI_VERSION,
@@ -86,6 +108,7 @@ static struct ng_type ngd_typestruct = {
 	.newhook =	ng_device_newhook,
 	.rcvdata =	ng_device_rcvdata,
 	.disconnect =	ng_device_disconnect,
+	.cmdlist =	ng_device_cmds,
 };
 NETGRAPH_INIT(device, &ngd_typestruct);
 
@@ -97,6 +120,7 @@ struct ngd_private {
 	struct	cdev	*ngddev;
 	struct	mtx	ngd_mtx;
 	int 		unit;
+	int		ether_align;
 	uint16_t	flags;
 #define	NGDF_OPEN	0x0001
 #define	NGDF_RWAIT	0x0002
@@ -194,6 +218,11 @@ ng_device_constructor(node_p node)
 	/* XXX: race here? */
 	priv->ngddev->si_drv1 = priv;
 
+	/* Give this node the same name as the device (if possible). */
+	if (ng_name_node(node, devtoname(priv->ngddev)) != 0)
+		log(LOG_WARNING, "%s: can't acquire netgraph name\n",
+		    devtoname(priv->ngddev));
+
 	return(0);
 }
 
@@ -224,6 +253,13 @@ ng_device_rcvmsg(node_p node, item_p item, hook_p lasthook)
 
 			dn = devtoname(priv->ngddev);
 			strlcpy((char *)resp->data, dn, strlen(dn) + 1);
+			break;
+
+		case NGM_DEVICE_ETHERALIGN:
+			/* Use ETHER_ALIGN on arches that require it. */
+#ifndef __NO_STRICT_ALIGNMENT
+			priv->ether_align = ETHER_ALIGN;
+#endif
 			break;
 
 		default:
@@ -468,7 +504,8 @@ ngdwrite(struct cdev *dev, struct uio *uio, int flag)
 	if (uio->uio_resid < 0 || uio->uio_resid > IP_MAXPACKET)
 		return (EIO);
 
-	if ((m = m_uiotombuf(uio, M_NOWAIT, 0, 0, M_PKTHDR)) == NULL)
+	m = m_uiotombuf(uio, M_NOWAIT, 0, priv->ether_align, M_PKTHDR);
+	if (m == NULL)
 		return (ENOBUFS);
 
 	NET_EPOCH_ENTER(et);
