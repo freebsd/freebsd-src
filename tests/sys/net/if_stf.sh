@@ -131,8 +131,73 @@ atf_test_case "6rd" "cleanup"
 	vnet_cleanup
 }
 
+atf_test_case "6rd_peer" "cleanup"
+6rd_peer_head()
+{
+	atf_set descr '6RD peer test'
+	atf_set require.user root
+}
+
+6rd_peer_body()
+{
+	vnet_init
+
+	if ! kldstat -q -m if_stf; then
+		atf_skip "This test requires if_stf"
+	fi
+
+	epair=$(vnet_mkepair)
+
+	vnet_mkjail one ${epair}a
+	jexec one ifconfig lo0 up
+	jexec one ifconfig ${epair}a 192.0.2.1/24 up
+	stf_one=$(jexec one ifconfig stf create)
+	jexec one ifconfig $stf_one stfv4br 192.0.2.3
+	jexec one ifconfig $stf_one stfv4net 192.0.2.1/32
+	jexec one ifconfig $stf_one inet6 2001:db8:c000:0201::1/32 up
+	jexec one route -6 add default -interface $stf_one
+
+	vnet_mkjail two ${epair}b
+	jexec two ifconfig lo0 up
+	jexec two ifconfig ${epair}b 192.0.2.2/24 up
+	stf_two=$(jexec two ifconfig stf create)
+	jexec two ifconfig $stf_two stfv4br 192.0.2.3
+	jexec two ifconfig $stf_two stfv4net 192.0.2.2/32
+	jexec two ifconfig $stf_two inet6 2001:db8:c000:0202::1/32 up
+	jexec two route -6 add default -interface $stf_two
+
+	# Sanity check
+	atf_check -s exit:0 -o ignore \
+	    jexec one ping -c 1 192.0.2.2
+
+	# Test 6rd
+	atf_check -s exit:0 -o ignore \
+	    jexec one ping6 -c 1 2001:db8:c000:0202::1
+	atf_check -s exit:0 -o ignore \
+	    jexec two ping6 -c 1 2001:db8:c000:0201::1
+
+	# Shorter prefixes, for both v4 and v6
+	jexec one ifconfig $stf_one inet6 2001:db8:c000:0201::1 delete
+	jexec one ifconfig $stf_one inet6 2001:0201::1/16
+	jexec one ifconfig $stf_one stfv4net 192.0.2.1/16
+	jexec two ifconfig $stf_two inet6 2001:db8:c000:0202::1 delete
+	jexec two ifconfig $stf_two inet6 2001:0202::1/16
+	jexec two ifconfig $stf_two stfv4net 192.0.2.2/16
+
+	atf_check -s exit:0 -o ignore \
+	    jexec one ping6 -c 1 2001:0202::1
+	atf_check -s exit:0 -o ignore \
+	    jexec two ping6 -c 1 2001:0201::1
+}
+
+6rd_peer_cleanup()
+{
+	vnet_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "6to4"
 	atf_add_test_case "6rd"
+	atf_add_test_case "6rd_peer"
 }
