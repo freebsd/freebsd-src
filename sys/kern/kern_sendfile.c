@@ -399,7 +399,6 @@ sendfile_iodone(void *arg, vm_page_t *pa, int count, int error)
 		(void)(so->so_proto->pr_usrreqs->pru_ready)(so, sfio->m,
 		    sfio->npages);
 
-	SOCK_LOCK(so);
 	sorele(so);
 #ifdef KERN_TLS
 out_with_ref:

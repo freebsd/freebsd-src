@@ -727,7 +727,6 @@ soaio_process_sb(struct socket *so, struct sockbuf *sb)
 	sb->sb_flags &= ~SB_AIO_RUNNING;
 	SOCKBUF_UNLOCK(sb);
 
-	SOCK_LOCK(so);
 	sorele(so);
 	CURVNET_RESTORE();
 }

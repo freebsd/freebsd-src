@@ -785,7 +785,7 @@ sonewconn(struct socket *head, int connstatus)
 			sp->so_qstate = SQ_NONE;
 			sp->so_listen = NULL;
 			SOCK_UNLOCK(sp);
-			sorele(head);	/* does SOLISTEN_UNLOCK, head stays */
+			sorele_locked(head);	/* does SOLISTEN_UNLOCK, head stays */
 			soabort(sp);
 			SOLISTEN_LOCK(head);
 		}
@@ -1090,7 +1090,7 @@ solisten_dequeue(struct socket *head, struct socket **ret, int flags)
 	else
 		so->so_state |= (flags & SOCK_NONBLOCK) ? SS_NBIO : 0;
 	SOCK_UNLOCK(so);
-	sorele(head);
+	sorele_locked(head);
 
 	*ret = so;
 	return (0);
@@ -1170,7 +1170,7 @@ sofree(struct socket *so)
 			KASSERT(so->so_listen == NULL,
 			    ("%s: so %p not on (in)comp with so_listen",
 			    __func__, so));
-		sorele(sol);
+		sorele_locked(sol);
 		KASSERT(refcount_load(&so->so_count) == 1,
 		    ("%s: so %p count %u", __func__, so, so->so_count));
 		so->so_count = 0;
@@ -1211,6 +1211,20 @@ sofree(struct socket *so)
 	knlist_destroy(&so->so_rdsel.si_note);
 	knlist_destroy(&so->so_wrsel.si_note);
 	sodealloc(so);
+}
+
+/*
+ * Release a reference on a socket while holding the socket lock.
+ * Unlocks the socket lock before returning.
+ */
+void
+sorele_locked(struct socket *so)
+{
+	SOCK_LOCK_ASSERT(so);
+	if (refcount_release(&so->so_count))
+		sofree(so);
+	else
+		SOCK_UNLOCK(so);
 }
 
 /*
@@ -1282,7 +1296,7 @@ drop:
 	}
 	KASSERT((so->so_state & SS_NOFDREF) == 0, ("soclose: NOFDREF"));
 	so->so_state |= SS_NOFDREF;
-	sorele(so);
+	sorele_locked(so);
 	if (listening) {
 		struct socket *sp, *tsp;
 
@@ -4060,7 +4074,7 @@ soisconnected(struct socket *so)
 				 * The socket is about to soabort().
 				 */
 				SOCK_UNLOCK(so);
-				sorele(head);
+				sorele_locked(head);
 				return;
 			}
 			last = refcount_release(&head->so_count);
