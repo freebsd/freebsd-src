@@ -1110,7 +1110,8 @@ its_get_devid(device_t pci_dev)
 	uintptr_t id;
 
 	if (pci_get_id(pci_dev, PCI_ID_MSI, &id) != 0)
-		panic("its_get_devid: Unable to get the MSI DeviceID");
+		panic("%s: %s: Unable to get the MSI DeviceID", __func__,
+		    device_get_nameunit(pci_dev));
 
 	return (id);
 }
