@@ -3666,17 +3666,17 @@ uaudio_mixer_add_feature(struct uaudio_softc *sc,
 		cmask |= uaudio_mixer_feature_get_bmaControls(d, chan);
 	}
 
-	if (nchan > MIX_MAX_CHAN)
-		nchan = MIX_MAX_CHAN;
-
 	MIX(sc).wIndex = MAKE_WORD(d->bUnitId, sc->sc_mixer_iface_no);
 
-	i = d->bmaControls[d->bControlSize];
+	i = d->bmaControls[nchan * d->bControlSize];
 	if (i == 0 ||
 	    usbd_req_get_string_any(sc->sc_udev, NULL,
 	    MIX(sc).desc, sizeof(MIX(sc).desc), i) != 0) {
 		MIX(sc).desc[0] = 0;
 	}
+
+	if (nchan > MIX_MAX_CHAN)
+		nchan = MIX_MAX_CHAN;
 
 	for (ctl = 1; ctl <= LOUDNESS_CONTROL; ctl++) {
 
@@ -3801,9 +3801,6 @@ uaudio20_mixer_add_feature(struct uaudio_softc *sc,
 	for (chan = 1; chan < nchan; chan++)
 		cmask |= UGETDW(d->bmaControls[chan]);
 
-	if (nchan > MIX_MAX_CHAN)
-		nchan = MIX_MAX_CHAN;
-
 	MIX(sc).wIndex = MAKE_WORD(d->bUnitId, sc->sc_mixer_iface_no);
 
 	i = d->bmaControls[nchan][0];
@@ -3812,6 +3809,9 @@ uaudio20_mixer_add_feature(struct uaudio_softc *sc,
 	    MIX(sc).desc, sizeof(MIX(sc).desc), i) != 0) {
 		MIX(sc).desc[0] = 0;
 	}
+
+	if (nchan > MIX_MAX_CHAN)
+		nchan = MIX_MAX_CHAN;
 
 	for (ctl = 3; ctl != 0; ctl <<= 2) {
 
