@@ -3151,6 +3151,16 @@ pci_bar_enabled(device_t dev, struct pci_map *pm)
 	if (PCIR_IS_BIOS(&dinfo->cfg, pm->pm_reg) &&
 	    !(pm->pm_value & PCIM_BIOS_ENABLE))
 		return (0);
+#ifdef PCI_IOV
+	if ((dinfo->cfg.flags & PCICFG_VF) != 0) {
+		struct pcicfg_iov *iov;
+
+		iov = dinfo->cfg.iov;
+		cmd = pci_read_config(iov->iov_pf,
+		    iov->iov_pos + PCIR_SRIOV_CTL, 2);
+		return ((cmd & PCIM_SRIOV_VF_MSE) != 0);
+	}
+#endif
 	cmd = pci_read_config(dev, PCIR_COMMAND, 2);
 	if (PCIR_IS_BIOS(&dinfo->cfg, pm->pm_reg) || PCI_BAR_MEM(pm->pm_value))
 		return ((cmd & PCIM_CMD_MEMEN) != 0);
