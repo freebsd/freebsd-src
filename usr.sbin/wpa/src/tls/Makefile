@@ -29,13 +29,14 @@ SRCS+=	asn1.c \
 	tlsv1_server_read.c \
 	tlsv1_server_write.c \
 	x509v3.c
-.endif
-.endif
 
 CFLAGS+=-DCONFIG_INTERNAL_LIBTOMMATH \
-	-DCONFIG_CRYPTO_INTERNAL \
-	-DCONFIG_TLSV11 \
+	-DCONFIG_CRYPTO_INTERNAL
+.else
+CFLAGS+=-DCONFIG_TLSV11 \
 	-DCONFIG_TLSV12
+.endif
+.endif
 
 # We are only interested in includes at this point. Not libraries.
 LIBADD=
