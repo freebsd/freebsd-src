@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
+#include <sys/ptrace.h>
 #include <sys/resource.h>
 #include <sys/resourcevar.h>
 #include <sys/sched.h>
@@ -94,6 +95,8 @@ __FBSDID("$FreeBSD$");
 #include <compat/linux/linux_mmap.h>
 #include <compat/linux/linux_signal.h>
 #include <compat/linux/linux_util.h>
+
+#define	LINUX_ARCH_AMD64		0xc000003e
 
 int
 linux_execve(struct thread *td, struct linux_execve_args *args)
@@ -360,4 +363,52 @@ linux_to_bsd_regset(struct reg *b_reg, const struct linux_pt_regset *l_regset)
 	b_reg->r_es = l_regset->es;
 	b_reg->r_fs = l_regset->fs;
 	b_reg->r_gs = l_regset->gs;
+}
+
+void
+linux_ptrace_get_syscall_info_machdep(const struct reg *reg,
+    struct syscall_info *si)
+{
+
+	si->arch = LINUX_ARCH_AMD64;
+	si->instruction_pointer = reg->r_rip;
+	si->stack_pointer = reg->r_rsp;
+}
+
+int
+linux_ptrace_getregs_machdep(struct thread *td, pid_t pid,
+    struct linux_pt_regset *l_regset)
+{
+	struct ptrace_lwpinfo lwpinfo;
+	struct pcb *pcb;
+	int error;
+
+	pcb = td->td_pcb;
+	if (td == curthread)
+		update_pcb_bases(pcb);
+
+	l_regset->fs_base = pcb->pcb_fsbase;
+	l_regset->gs_base = pcb->pcb_gsbase;
+
+	error = kern_ptrace(td, PT_LWPINFO, pid, &lwpinfo, sizeof(lwpinfo));
+	if (error != 0) {
+		linux_msg(td, "PT_LWPINFO failed with error %d", error);
+		return (error);
+	}
+	if ((lwpinfo.pl_flags & PL_FLAG_SCE) != 0) {
+		/*
+		 * Undo the mangling done in exception.S:fast_syscall_common().
+		 */
+		l_regset->r10 = l_regset->rcx;
+	}
+	if ((lwpinfo.pl_flags & (PL_FLAG_SCE | PL_FLAG_SCX)) != 0) {
+		/*
+		 * In Linux, the syscall number - passed to the syscall
+		 * as rax - is preserved in orig_rax; rax gets overwritten
+		 * with syscall return value.
+		 */
+		l_regset->orig_rax = lwpinfo.pl_syscall_code;
+	}
+
+	return (0);
 }

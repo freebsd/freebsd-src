@@ -458,11 +458,15 @@ struct linux_pt_regset {
 };
 
 struct reg;
+struct syscall_info;
 
 void	bsd_to_linux_regset(const struct reg *b_reg,
 	    struct linux_pt_regset *l_regset);
 void	linux_to_bsd_regset(struct reg *b_reg,
 	    const struct linux_pt_regset *l_regset);
-
+void	linux_ptrace_get_syscall_info_machdep(const struct reg *reg,
+	    struct syscall_info *si);
+int	linux_ptrace_getregs_machdep(struct thread *td, pid_t pid,
+	    struct linux_pt_regset *l_regset);
 
 #endif /* !_AMD64_LINUX_H_ */
