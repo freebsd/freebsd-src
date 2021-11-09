@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 3, 2013
+.Dd November 8, 2021
 .Dt VOP_ALLOCATE 9
 .Os
 .Sh NAME
@@ -37,7 +37,13 @@
 .In sys/param.h
 .In sys/vnode.h
 .Ft int
-.Fn VOP_ALLOCATE "struct vnode *vp" "off_t *offset" "off_t *len"
+.Fo VOP_ALLOCATE
+.Fa "struct vnode *vp"
+.Fa "off_t *offset"
+.Fa "off_t *len"
+.Fa "int ioflag"
+.Fa "struct ucred *cred"
+.Fc
 .Sh DESCRIPTION
 This call allocates storage for a range of offsets in a file.
 It is used to implement the
@@ -52,6 +58,10 @@ The vnode of the file.
 The start of the range to allocate storage for in the file.
 .It Fa len
 The length of the range to allocate storage for in the file.
+.It Fa ioflag
+Directives and hints to be given to the file system.
+.It Fa cred
+The credentials of the caller.
 .El
 .Pp
 The
