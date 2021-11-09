@@ -33,7 +33,7 @@ $FreeBSD$
 
 /*
  * List of known MII OUIs.
- * For a complete list see http://standards.ieee.org/regauth/oui/
+ * For a complete list see http://standards-oui.ieee.org/
  *
  * XXX Vendors do obviously not agree how OUIs (24 bit) are mapped
  * to the 22 bits available in the id registers.
