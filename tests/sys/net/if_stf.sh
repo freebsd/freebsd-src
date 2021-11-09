@@ -78,7 +78,61 @@ atf_test_case "6to4" "cleanup"
 	vnet_cleanup
 }
 
+atf_test_case "6rd" "cleanup"
+6rd_head()
+{
+	atf_set descr '6RD test'
+	atf_set require.user root
+}
+
+6rd_body()
+{
+	vnet_init
+
+	if ! kldstat -q -m if_stf; then
+		atf_skip "This test requires if_stf"
+	fi
+	if ! kldstat -q -m if_gif; then
+		atf_skip "This test requires if_gif"
+	fi
+
+	epair=$(vnet_mkepair)
+	vnet_mkjail br ${epair}a
+	jexec br ifconfig ${epair}a 192.0.2.1/24 up
+
+	# Simple gif to terminate the 6RD tunnel
+	gif=$(jexec br ifconfig gif create)
+	jexec br ifconfig lo0 inet6 2001:db9::1/64 up
+	jexec br ifconfig $gif inet6 2001:db8::/64 up
+	jexec br ifconfig $gif tunnel 192.0.2.1 192.0.2.2
+	jexec br route -6 add default -interface $gif
+
+	vnet_mkjail client ${epair}b
+	jexec client ifconfig lo0 up
+	jexec client ifconfig ${epair}b 192.0.2.2/24 up
+
+	# Sanity check
+	atf_check -s exit:0 -o ignore \
+	    jexec client ping -c 1 192.0.2.1
+
+	stf=$(jexec client ifconfig stf create)
+
+	jexec client ifconfig $stf stfv4br 192.0.2.1
+	jexec client ifconfig $stf stfv4net 192.0.2.2/32
+	jexec client ifconfig $stf inet6 2001:db8:c000:0202::1/32 up
+	jexec client route -6 add default -interface $stf
+
+	atf_check -s exit:0 -o ignore \
+	    jexec client ping6 -c 1 2001:db9::1
+}
+
+6rd_cleanup()
+{
+	vnet_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "6to4"
+	atf_add_test_case "6rd"
 }
