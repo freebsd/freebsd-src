@@ -264,11 +264,13 @@ snps_dwc3_do_quirks(struct snps_dwc3_softc *sc)
 		reg |= DWC3_GUCTL1_TX_IPGAP_LINECHECK_DIS;
 	DWC3_WRITE(sc, DWC3_GUCTL1, reg);
 
-	if (OF_hasprop(sc->node, "snps,dis-del-phy-power-chg-quirk")) {
-		reg = DWC3_READ(sc, DWC3_GUSB3PIPECTL0);
+	reg = DWC3_READ(sc, DWC3_GUSB3PIPECTL0);
+	if (OF_hasprop(sc->node, "snps,dis-del-phy-power-chg-quirk"))
 		reg |= DWC3_GUSB3PIPECTL0_DELAYP1TRANS;
-		DWC3_WRITE(sc, DWC3_GUSB3PIPECTL0, reg);
-	}
+	if (OF_hasprop(sc->node, "snps,dis_rxdet_inp3_quirk"))
+		reg |= DWC3_GUSB3PIPECTL0_DISRXDETINP3;
+	DWC3_WRITE(sc, DWC3_GUSB3PIPECTL0, reg);
+
 }
 
 static int
