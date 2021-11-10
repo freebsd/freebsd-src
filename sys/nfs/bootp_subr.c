@@ -42,6 +42,8 @@
  *	$NetBSD: krpc_subr.c,v 1.10 1995/08/08 20:43:43 gwr Exp $
  */
 
+#define IN_HISTORICAL_NETS		/* include class masks */
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -1486,11 +1488,16 @@ bootpc_decode_reply(struct nfsv3_diskless *nd, struct bootpc_ifcontext *ifctx,
 
 	if (ifctx->gotnetmask == 0) {
 		/*
-		 * If there is no netmask, use a default, but we really
-		 * need the right mask from the server.
+		 * If there is no netmask, use historical default,
+		 * but we really need the right mask from the server.
 		 */
 		printf("%s: no netmask received!\n", ifctx->ireq.ifr_name);
-		ifctx->netmask.sin_addr.s_addr = htonl(IN_NETMASK_DEFAULT);
+		if (IN_CLASSA(ntohl(ifctx->myaddr.sin_addr.s_addr)))
+			ifctx->netmask.sin_addr.s_addr = htonl(IN_CLASSA_NET);
+		else if (IN_CLASSB(ntohl(ifctx->myaddr.sin_addr.s_addr)))
+			ifctx->netmask.sin_addr.s_addr = htonl(IN_CLASSB_NET);
+		else
+			ifctx->netmask.sin_addr.s_addr = htonl(IN_CLASSC_NET);
 	}
 }
 
