@@ -85,6 +85,7 @@ zfs_fsync(znode_t *zp, int syncflag, cred_t *cr)
 static int
 zfs_holey_common(znode_t *zp, ulong_t cmd, loff_t *off)
 {
+	zfs_locked_range_t *lr;
 	uint64_t noff = (uint64_t)*off; /* new offset */
 	uint64_t file_sz;
 	int error;
@@ -100,12 +101,18 @@ zfs_holey_common(znode_t *zp, ulong_t cmd, loff_t *off)
 	else
 		hole = B_FALSE;
 
+	/* Flush any mmap()'d data to disk */
+	if (zn_has_cached_data(zp))
+		zn_flush_cached_data(zp, B_FALSE);
+
+	lr = zfs_rangelock_enter(&zp->z_rangelock, 0, file_sz, RL_READER);
 	error = dmu_offset_next(ZTOZSB(zp)->z_os, zp->z_id, hole, &noff);
+	zfs_rangelock_exit(lr);
 
 	if (error == ESRCH)
 		return (SET_ERROR(ENXIO));
 
-	/* file was dirty, so fall back to using generic logic */
+	/* File was dirty, so fall back to using generic logic */
 	if (error == EBUSY) {
 		if (hole)
 			*off = file_sz;
@@ -254,6 +261,9 @@ zfs_read(struct znode *zp, zfs_uio_t *uio, int ioflag, cred_t *cr)
 	}
 
 	ASSERT(zfs_uio_offset(uio) < zp->z_size);
+#if defined(__linux__)
+	ssize_t start_offset = zfs_uio_offset(uio);
+#endif
 	ssize_t n = MIN(zfs_uio_resid(uio), zp->z_size - zfs_uio_offset(uio));
 	ssize_t start_resid = n;
 
@@ -276,6 +286,18 @@ zfs_read(struct znode *zp, zfs_uio_t *uio, int ioflag, cred_t *cr)
 			/* convert checksum errors into IO errors */
 			if (error == ECKSUM)
 				error = SET_ERROR(EIO);
+
+#if defined(__linux__)
+			/*
+			 * if we actually read some bytes, bubbling EFAULT
+			 * up to become EAGAIN isn't what we want here...
+			 *
+			 * ...on Linux, at least. On FBSD, doing this breaks.
+			 */
+			if (error == EFAULT &&
+			    (zfs_uio_offset(uio) - start_offset) != 0)
+				error = 0;
+#endif
 			break;
 		}
 

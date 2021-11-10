@@ -118,6 +118,7 @@ extern int zfs_recover;
 extern unsigned long zfs_arc_meta_min, zfs_arc_meta_limit;
 extern int zfs_vdev_async_read_max_active;
 extern boolean_t spa_load_verify_dryrun;
+extern boolean_t spa_mode_readable_spacemaps;
 extern int zfs_reconstruct_indirect_combinations_max;
 extern int zfs_btree_verify_intensity;
 
@@ -4148,7 +4149,7 @@ cksum_record_compare(const void *x1, const void *x2)
 	const cksum_record_t *l = (cksum_record_t *)x1;
 	const cksum_record_t *r = (cksum_record_t *)x2;
 	int arraysize = ARRAY_SIZE(l->cksum.zc_word);
-	int difference;
+	int difference = 0;
 
 	for (int i = 0; i < arraysize; i++) {
 		difference = TREE_CMP(l->cksum.zc_word[i], r->cksum.zc_word[i]);
@@ -8523,6 +8524,11 @@ main(int argc, char **argv)
 	 * to load non-idle pools.
 	 */
 	spa_load_verify_dryrun = B_TRUE;
+
+	/*
+	 * ZDB should have ability to read spacemaps.
+	 */
+	spa_mode_readable_spacemaps = B_TRUE;
 
 	kernel_init(SPA_MODE_READ);
 

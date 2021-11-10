@@ -1562,6 +1562,9 @@ badlabel:
 	 *
 	 * If normalization was chosen, but rejecting non-UTF8 names
 	 * was explicitly not chosen, it is an error.
+	 *
+	 * If utf8only was turned off, but the parent has normalization,
+	 * turn off normalization.
 	 */
 	if (chosen_normal > 0 && chosen_utf < 0) {
 		if (nvlist_add_uint64(ret,
@@ -1575,6 +1578,12 @@ badlabel:
 		    zfs_prop_to_name(ZFS_PROP_UTF8ONLY));
 		(void) zfs_error(hdl, EZFS_BADPROP, errbuf);
 		goto error;
+	} else if (chosen_normal < 0 && chosen_utf == 0) {
+		if (nvlist_add_uint64(ret,
+		    zfs_prop_to_name(ZFS_PROP_NORMALIZE), 0) != 0) {
+			(void) no_memory(hdl);
+			goto error;
+		}
 	}
 	return (ret);
 
@@ -2767,16 +2776,15 @@ zfs_prop_get(zfs_handle_t *zhp, zfs_prop_t prop, char *propbuf, size_t proplen,
 			return (-1);
 
 		/*
-		 * If limit is UINT64_MAX, we translate this into 'none' (unless
-		 * literal is set), and indicate that it's the default value.
-		 * Otherwise, we print the number nicely and indicate that it's
-		 * set locally.
+		 * If limit is UINT64_MAX, we translate this into 'none', and
+		 * indicate that it's the default value. Otherwise, we print
+		 * the number nicely and indicate that it's set locally.
 		 */
-		if (literal) {
+		if (val == UINT64_MAX) {
+			(void) strlcpy(propbuf, "none", proplen);
+		} else if (literal) {
 			(void) snprintf(propbuf, proplen, "%llu",
 			    (u_longlong_t)val);
-		} else if (val == UINT64_MAX) {
-			(void) strlcpy(propbuf, "none", proplen);
 		} else {
 			zfs_nicenum(val, propbuf, proplen);
 		}
