@@ -476,28 +476,31 @@ ip_input(struct mbuf *m)
 
 	IPSTAT_INC(ips_total);
 
-	if (m->m_pkthdr.len < sizeof(struct ip))
+	if (__predict_false(m->m_pkthdr.len < sizeof(struct ip)))
 		goto tooshort;
 
-	if (m->m_len < sizeof (struct ip) &&
-	    (m = m_pullup(m, sizeof (struct ip))) == NULL) {
-		IPSTAT_INC(ips_toosmall);
-		return;
+	if (m->m_len < sizeof(struct ip)) {
+		m = m_pullup(m, sizeof(struct ip));
+		if (__predict_false(m == NULL)) {
+			IPSTAT_INC(ips_toosmall);
+			return;
+		}
 	}
 	ip = mtod(m, struct ip *);
 
-	if (ip->ip_v != IPVERSION) {
+	if (__predict_false(ip->ip_v != IPVERSION)) {
 		IPSTAT_INC(ips_badvers);
 		goto bad;
 	}
 
 	hlen = ip->ip_hl << 2;
-	if (hlen < sizeof(struct ip)) {	/* minimum header length */
+	if (__predict_false(hlen < sizeof(struct ip))) {	/* minimum header length */
 		IPSTAT_INC(ips_badhlen);
 		goto bad;
 	}
 	if (hlen > m->m_len) {
-		if ((m = m_pullup(m, hlen)) == NULL) {
+		m = m_pullup(m, hlen);
+		if (__predict_false(m == NULL)) {
 			IPSTAT_INC(ips_badhlen);
 			return;
 		}
@@ -525,7 +528,7 @@ ip_input(struct mbuf *m)
 			sum = in_cksum(m, hlen);
 		}
 	}
-	if (sum) {
+	if (__predict_false(sum)) {
 		IPSTAT_INC(ips_badsum);
 		goto bad;
 	}
@@ -537,7 +540,7 @@ ip_input(struct mbuf *m)
 #endif
 
 	ip_len = ntohs(ip->ip_len);
-	if (ip_len < hlen) {
+	if (__predict_false(ip_len < hlen)) {
 		IPSTAT_INC(ips_badlen);
 		goto bad;
 	}
@@ -548,7 +551,7 @@ ip_input(struct mbuf *m)
 	 * Trim mbufs if longer than we expect.
 	 * Drop packet if shorter than we expect.
 	 */
-	if (m->m_pkthdr.len < ip_len) {
+	if (__predict_false(m->m_pkthdr.len < ip_len)) {
 tooshort:
 		IPSTAT_INC(ips_tooshort);
 		goto bad;
@@ -650,7 +653,7 @@ passin:
          * anywhere else. Also checks if the rsvp daemon is running before
 	 * grabbing the packet.
          */
-	if (V_rsvp_on && ip->ip_p==IPPROTO_RSVP)
+	if (ip->ip_p == IPPROTO_RSVP && V_rsvp_on)
 		goto ours;
 
 	/*
