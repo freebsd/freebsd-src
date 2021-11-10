@@ -3917,9 +3917,19 @@ int t4_link_l1cfg(struct adapter *adap, unsigned int mbox, unsigned int port,
 		speed = fwcap_top_speed(lc->pcaps);
 
 	fec = 0;
+#ifdef INVARIANTS
+	if (lc->force_fec != 0)
+		MPASS(lc->pcaps & FW_PORT_CAP32_FORCE_FEC);
+#endif
 	if (fec_supported(speed)) {
 		if (lc->requested_fec == FEC_AUTO) {
-			if (lc->pcaps & FW_PORT_CAP32_FORCE_FEC) {
+			if (lc->force_fec > 0) {
+				/*
+				 * Must use FORCE_FEC even though requested FEC
+				 * is AUTO. Set all the FEC bits valid for the
+				 * speed and let the firmware pick one.
+				 */
+				fec |= FW_PORT_CAP32_FORCE_FEC;
 				if (speed & FW_PORT_CAP32_SPEED_100G) {
 					fec |= FW_PORT_CAP32_FEC_RS;
 					fec |= FW_PORT_CAP32_FEC_NO_FEC;
@@ -3929,20 +3939,26 @@ int t4_link_l1cfg(struct adapter *adap, unsigned int mbox, unsigned int port,
 					fec |= FW_PORT_CAP32_FEC_NO_FEC;
 				}
 			} else {
-				/* Set only 1b with old firmwares. */
+				/*
+				 * Set only 1b. Old firmwares can't deal with
+				 * multiple bits and new firmwares are free to
+				 * ignore this and try whatever FECs they want
+				 * because we aren't setting FORCE_FEC here.
+				 */
 				fec |= fec_to_fwcap(lc->fec_hint);
 			}
 		} else {
+			/*
+			 * User has explicitly requested some FEC(s). Set
+			 * FORCE_FEC unless prohibited from using it.
+			 */
+			if (lc->force_fec != 0)
+				fec |= FW_PORT_CAP32_FORCE_FEC;
 			fec |= fec_to_fwcap(lc->requested_fec &
 			    M_FW_PORT_CAP32_FEC);
 			if (lc->requested_fec & FEC_MODULE)
 				fec |= fec_to_fwcap(lc->fec_hint);
 		}
-
-		if (lc->pcaps & FW_PORT_CAP32_FORCE_FEC)
-			fec |= FW_PORT_CAP32_FORCE_FEC;
-		else if (fec == FW_PORT_CAP32_FEC_NO_FEC)
-			fec = 0;
 	}
 
 	/* Force AN on for BT cards. */

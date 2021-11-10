@@ -443,9 +443,11 @@ struct link_config {
 	int8_t requested_aneg;	/* link autonegotiation */
 	int8_t requested_fc;	/* flow control */
 	int8_t requested_fec;	/* FEC */
+	int8_t force_fec;	/* FORCE_FEC in L1_CFG32 command. */
 	u_int requested_speed;	/* speed (Mbps) */
 	uint32_t requested_caps;/* rcap in last l1cfg issued by the driver. */
 
+	/* These are populated with information from the firmware. */
 	uint32_t pcaps;		/* link capabilities */
 	uint32_t acaps;		/* advertised capabilities */
 	uint32_t lpacaps;	/* peer advertised capabilities */
