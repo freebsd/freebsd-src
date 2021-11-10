@@ -58,9 +58,10 @@ The
 .Fa limit_func
 is a function of type
 .Li service_limit_func_t
-where the first argument of the function contains an containing
+where the first argument of the function contains an
 .Xr nvlist 9 ,
-old service limits and the second argument contains the new limits.
+old service limits and
+the second argument contains the new limits.
 If the service was not limited then the old limits will be set to
 .Dv NULL .
 This function must not allow the extension of service limits.
