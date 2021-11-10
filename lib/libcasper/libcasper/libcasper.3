@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 3, 2021
+.Dd November 15, 2021
 .Dt LIBCASPER 3
 .Os
 .Sh NAME
@@ -78,7 +78,8 @@
 .Sh DESCRIPTION
 The
 .Nm libcasper
-library provides for the control of application capabilities through the casper process.
+library provides for the control of application capabilities through
+the casper process.
 .Pp
 An application capability, represented by the
 .Vt cap_channel_t
@@ -86,7 +87,7 @@ type, is a communication channel between the caller and the casper
 daemon or an instance of one of the daemon's services.
 A capability to the casper process, obtained with the
 .Fn cap_init
-function, allows a program to create capabilities to acacce
+function, allows a program to create capabilities to access
 the casper daemon's services via the
 .Fn cap_service_open
 function.
@@ -107,7 +108,7 @@ system call,
 or sent over a
 .Xr unix 4
 domain socket as a file descriptor,
-nd has to be converted into a
+and has to be converted into a
 .Vt cap_channel_t .
 The
 .Fa flags
@@ -115,16 +116,15 @@ argument defines the channel behavior.
 The supported flags are:
 .Bl -ohang -offset indent
 .It CASPER_NO_UNIQ
-The communication between the process and the casper daemon no unique version of nvlist.
+The communication between the process and the casper daemon no
+unique version of nvlist.
 .El
 .Pp
 The
 .Fn cap_unwrap
 function returns the
 .Xr unix 4
-domain socket that was provided to the
-.Fn cap_wrap
-function,
+domain socket used by the daemon service,
 and frees the
 .Vt cap_channel_t
 structure.
@@ -191,7 +191,8 @@ The
 .Fn cap_xfer_nvlist
 function sends the given
 .Xr nvlist 9 ,
-destroys it, and receives a new
+destroys it,
+and receives a new
 .Xr nvlist 9
 in response over the given capability.
 It does not matter if the function succeeds or fails, the
