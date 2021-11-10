@@ -423,4 +423,5 @@ MIASM =  \
 	__specialfd.o \
 	aio_writev.o \
 	aio_readv.o \
-	fspacectl.o
+	fspacectl.o \
+	sched_getcpu.o

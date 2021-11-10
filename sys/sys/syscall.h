@@ -518,4 +518,5 @@
 #define	SYS_aio_writev	578
 #define	SYS_aio_readv	579
 #define	SYS_fspacectl	580
-#define	SYS_MAXSYSCALL	581
+#define	SYS_sched_getcpu	581
+#define	SYS_MAXSYSCALL	582

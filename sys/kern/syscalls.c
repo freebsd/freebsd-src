@@ -587,4 +587,5 @@ const char *syscallnames[] = {
 	"aio_writev",			/* 578 = aio_writev */
 	"aio_readv",			/* 579 = aio_readv */
 	"fspacectl",			/* 580 = fspacectl */
+	"sched_getcpu",			/* 581 = sched_getcpu */
 };
