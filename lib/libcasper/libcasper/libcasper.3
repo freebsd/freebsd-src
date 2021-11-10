@@ -116,7 +116,7 @@ argument defines the channel behavior.
 The supported flags are:
 .Bl -ohang -offset indent
 .It CASPER_NO_UNIQ
-The communication between the process and the casper daemon no
+The communication between the process and the casper daemon uses no
 unique version of nvlist.
 .El
 .Pp
@@ -144,7 +144,7 @@ function returns the
 domain socket descriptor associated with the given capability for use with
 system calls such as:
 .Xr kevent 2 ,
-.Xr poll 2
+.Xr poll 2 ,
 and
 .Xr select 2 .
 .Pp
