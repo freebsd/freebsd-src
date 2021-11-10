@@ -3418,6 +3418,11 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 5;
 		break;
 	}
+	/* sched_getcpu */
+	case 581: {
+		*n_args = 0;
+		break;
+	}
 	default:
 		*n_args = 0;
 		break;
@@ -9216,6 +9221,9 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
+	/* sched_getcpu */
+	case 581:
+		break;
 	default:
 		break;
 	};
@@ -11140,6 +11148,8 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
+	/* sched_getcpu */
+	case 581:
 	default:
 		break;
 	};
