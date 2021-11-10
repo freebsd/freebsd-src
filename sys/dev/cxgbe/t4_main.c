@@ -771,7 +771,8 @@ static int sysctl_holdoff_pktc_idx(SYSCTL_HANDLER_ARGS);
 static int sysctl_qsize_rxq(SYSCTL_HANDLER_ARGS);
 static int sysctl_qsize_txq(SYSCTL_HANDLER_ARGS);
 static int sysctl_pause_settings(SYSCTL_HANDLER_ARGS);
-static int sysctl_fec(SYSCTL_HANDLER_ARGS);
+static int sysctl_link_fec(SYSCTL_HANDLER_ARGS);
+static int sysctl_requested_fec(SYSCTL_HANDLER_ARGS);
 static int sysctl_module_fec(SYSCTL_HANDLER_ARGS);
 static int sysctl_autoneg(SYSCTL_HANDLER_ARGS);
 static int sysctl_handle_t4_reg64(SYSCTL_HANDLER_ARGS);
@@ -7759,9 +7760,12 @@ cxgbe_sysctls(struct port_info *pi)
 	    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE, pi, 0,
 	    sysctl_pause_settings, "A",
 	    "PAUSE settings (bit 0 = rx_pause, 1 = tx_pause, 2 = pause_autoneg)");
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "fec",
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "link_fec",
+	    CTLTYPE_STRING | CTLFLAG_MPSAFE, pi, 0, sysctl_link_fec, "A",
+	    "FEC in use on the link");
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "requested_fec",
 	    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE, pi, 0,
-	    sysctl_fec, "A",
+	    sysctl_requested_fec, "A",
 	    "FECs to use (bit 0 = RS, 1 = FC, 2 = none, 5 = auto, 6 = module)");
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "module_fec",
 	    CTLTYPE_STRING | CTLFLAG_MPSAFE, pi, 0, sysctl_module_fec, "A",
@@ -8281,7 +8285,33 @@ sysctl_pause_settings(SYSCTL_HANDLER_ARGS)
 }
 
 static int
-sysctl_fec(SYSCTL_HANDLER_ARGS)
+sysctl_link_fec(SYSCTL_HANDLER_ARGS)
+{
+	struct port_info *pi = arg1;
+	struct link_config *lc = &pi->link_cfg;
+	int rc;
+	struct sbuf *sb;
+	static char *bits = "\20\1RS-FEC\2FC-FEC\3NO-FEC\4RSVD1\5RSVD2";
+
+	rc = sysctl_wire_old_buffer(req, 0);
+	if (rc != 0)
+		return(rc);
+
+	sb = sbuf_new_for_sysctl(NULL, NULL, 128, req);
+	if (sb == NULL)
+		return (ENOMEM);
+	if (lc->link_ok)
+		sbuf_printf(sb, "%b", lc->fec, bits);
+	else
+		sbuf_printf(sb, "no link");
+	rc = sbuf_finish(sb);
+	sbuf_delete(sb);
+
+	return (rc);
+}
+
+static int
+sysctl_requested_fec(SYSCTL_HANDLER_ARGS)
 {
 	struct port_info *pi = arg1;
 	struct adapter *sc = pi->adapter;
@@ -8302,17 +8332,7 @@ sysctl_fec(SYSCTL_HANDLER_ARGS)
 		if (sb == NULL)
 			return (ENOMEM);
 
-		/*
-		 * Display the requested_fec when the link is down -- the actual
-		 * FEC makes sense only when the link is up.
-		 */
-		if (lc->link_ok) {
-			sbuf_printf(sb, "%b", (lc->fec & M_FW_PORT_CAP32_FEC) |
-			    (lc->requested_fec & (FEC_AUTO | FEC_MODULE)),
-			    bits);
-		} else {
-			sbuf_printf(sb, "%b", lc->requested_fec, bits);
-		}
+		sbuf_printf(sb, "%b", lc->requested_fec, bits);
 		rc = sbuf_finish(sb);
 		sbuf_delete(sb);
 	} else {
@@ -8334,7 +8354,7 @@ sysctl_fec(SYSCTL_HANDLER_ARGS)
 			return (EINVAL);/* some other bit is set too */
 
 		rc = begin_synchronized_op(sc, &pi->vi[0], SLEEP_OK | INTR_OK,
-		    "t4fec");
+		    "t4reqf");
 		if (rc)
 			return (rc);
 		PORT_LOCK(pi);
