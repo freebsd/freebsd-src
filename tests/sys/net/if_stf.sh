@@ -41,7 +41,7 @@ atf_test_case "6to4" "cleanup"
 		atf_skip "This test requires if_stf"
 	fi
 	if ! kldstat -q -m if_gif; then
-		atf_skip "This test requires if_stf"
+		atf_skip "This test requires if_gif"
 	fi
 
 	epair=$(vnet_mkepair)
@@ -56,6 +56,7 @@ atf_test_case "6to4" "cleanup"
 	jexec relay route -6 add default -interface $gif
 
 	vnet_mkjail client ${epair}b
+	jexec client ifconfig lo0 up
 	jexec client ifconfig ${epair}b 192.0.2.2/24 up
 	stf=$(jexec client ifconfig stf create)
 	jexec client ifconfig $stf inet6 2002:c000:0202::1/32 up no_dad
