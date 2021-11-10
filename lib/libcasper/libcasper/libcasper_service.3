@@ -47,7 +47,7 @@ typedef int service_command_func_t(const char *, const nvlist_t *, nvlist_t *,
 .Sh DESCRIPTION
 The
 .Nm CREATE_SERVICE
-macro to create a new Casper service.
+macro is used to create a new Casper service.
 The
 .Fa name
 is a string containing the service name, which will be used in the
@@ -57,44 +57,43 @@ function to identify it.
 The
 .Fa limit_func
 is a function of type
-.Li service_limit_func_t .
-The first argument of the function contains
+.Li service_limit_func_t
+where the first argument of the function contains an containing
 .Xr nvlist 9 ,
-old service limits and second one the new limits.
-If the services wasn't limited the old limits will be set to
+old service limits and the second argument contains the new limits.
+If the service wasn't limited then the old limits will be set to
 .Dv NULL .
-This function should not allow to extend service limits and only limit it
-further.
+This function must not allow the extension of service limits.
 The
 .Fa command_func
 is a function of type
-.Li service_command_func_t .
-First argument is the name of the command that should be executed.
+.Li service_command_func_t
+where the first argument is the name of the command that should be executed.
 The first
 .Xr nvlist 9
-contains the current limits.
-Next one contains a
+contains the current limits and the second contains an
 .Xr nvlist 9
-with current request.
-The last one contains an output
+with the current request.
+The last argument contains a return value
 .Xr nvlist 9
 which contains the response from Casper.
 .Pp
 The
 .Fa flags
-argument defines limits of the service.
+argument defines the limits of the service.
 The supported flags are:
 .Bl -ohang -offset indent
 .It CASPER_SERVICE_STDIO
 The Casper service has access to the stdio descriptors from the process it was
 spawned from.
 .It CASPER_SERVICE_FD
-The Casper service has access to all descriptors besides stdio descriptors from
-the process it was spawned from.
+The Casper service has access to all of the descriptors,
+besides the stdio descriptors,
+from the process it was spawned from.
 .It CASPER_SERVICE_NO_UNIQ_LIMITS
-The whole Casper communication is using
+The whole Casper communication is using an
 .Xr nvlist 9
-with
+with the
 .Xr NVLIST_NO_UNIQ 9
 flag.
 .El

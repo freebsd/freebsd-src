@@ -91,7 +91,7 @@ The functions
 .Fn cap_gethostbyaddr
 and
 .Fn cap_getnameinfo
-are respectively equivalent to
+provide a set of APIs equivalent to
 .Xr bind 2 ,
 .Xr connect 2 ,
 .Xr gethostbyname 3 ,
@@ -99,7 +99,7 @@ are respectively equivalent to
 .Xr gethostbyaddr 3
 and
 .Xr getnameinfo 3
-except that the connection to the
+except that a connection to the
 .Nm system.net
 service needs to be provided.
 .Sh LIMITS
@@ -107,8 +107,10 @@ By default, the cap_net capability provides unrestricted access to the network
 namespace.
 Applications typically only require access to a small portion of the network
 namespace:
+The
 .Fn cap_net_limit
-interface can be used to restrict access to the network.
+function can be used to restrict access to the network.
+The
 .Fn cap_net_limit_init
 returns an opaque limit handle used to store a list of capabilities.
 The

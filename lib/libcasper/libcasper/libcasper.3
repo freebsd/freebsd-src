@@ -78,68 +78,71 @@
 .Sh DESCRIPTION
 The
 .Nm libcasper
-library allows to manage application capabilities through the casper process.
+library provides for the control of application capabilities through the casper process.
 .Pp
-The application capability (represented by the
+An application capability, represented by the
 .Vt cap_channel_t
-type) is a communication channel between the caller and the casper process
-daemon or an instance of one of its services.
-A capability to the casper process obtained with the
+type, is a communication channel between the caller and the casper
+daemon or an instance of one of the daemon's services.
+A capability to the casper process, obtained with the
 .Fn cap_init
-function allows to create capabilities to casper's services via the
+function, allows a program to create capabilities to acacce
+the casper daemon's services via the
 .Fn cap_service_open
 function.
 .Pp
 The
 .Fn cap_init
-function opens capability to the casper process.
+function instantiates a capability to allow a program to access
+the casper daemon.
 .Pp
 The
 .Fn cap_wrap
-function creates
+function creates a
 .Vt cap_channel_t
-based on the given socket.
-The function is used when capability is inherited through
+based on the socket supplied in the call.
+The function is used when a capability is inherited through the
 .Xr execve 2
-or send over
+system call,
+or sent over a
 .Xr unix 4
-domain socket as a regular file descriptor and has to be represented as
-.Vt cap_channel_t
-again.
+domain socket as a file descriptor,
+nd has to be converted into a
+.Vt cap_channel_t .
 The
 .Fa flags
 argument defines the channel behavior.
 The supported flags are:
 .Bl -ohang -offset indent
 .It CASPER_NO_UNIQ
-The communication between process and casper uses no unique version of nvlist.
+The communication between the process and the casper daemon no unique version of nvlist.
 .El
 .Pp
 The
 .Fn cap_unwrap
-function is the opposite of the
-.Fn cap_wrap
-function.
-It frees the
-.Vt cap_channel_t
-structure and returns
+function returns the
 .Xr unix 4
-domain socket associated with it.
+domain socket that was provided to the
+.Fn cap_wrap
+function,
+and frees the
+.Vt cap_channel_t
+structure.
 .Pp
 The
 .Fn cap_clone
-function clones the given capability.
+function returns a clone of the capability passed as its only argument.
 .Pp
 The
 .Fn cap_close
-function closes the given capability.
+function closes, and frees, the given capability.
 .Pp
 The
 .Fn cap_sock
-function returns
+function returns the
 .Xr unix 4
 domain socket descriptor associated with the given capability for use with
-system calls like
+system calls such as:
 .Xr kevent 2 ,
 .Xr poll 2
 and
@@ -147,33 +150,36 @@ and
 .Pp
 The
 .Fn cap_limit_get
-function stores current limits of the given capability in the
+function stores the current limits of the given capability in the
 .Fa limitsp
 argument.
-If the function return
+If the function returns
 .Va 0
 and
 .Dv NULL
-is stored in
+is stored in the
 .Fa limitsp
-it means there are no limits set.
+argument,
+there are no limits set.
 .Pp
 The
 .Fn cap_limit_set
 function sets limits for the given capability.
-The limits are provided as a
+The limits are provided as an
 .Xr nvlist 9 .
-The exact format depends on the service the capability represents.
+The exact format of the limits depends on the service that the
+capability represents.
 .Fn cap_limit_set
-frees the limits regardless of whether the operation succeeds or fails.
+frees the limits passed to the call,
+whether or not the operation succeeds or fails.
 .Pp
 The
 .Fn cap_send_nvlist
 function sends the given
 .Xr nvlist 9
 over the given capability.
-This is low level interface to communicate with casper services.
-Most services should provide higher level API.
+This is a low level interface to communicate with casper services.
+It is expected that most services will provide a higher level API.
 .Pp
 The
 .Fn cap_recv_nvlist
@@ -185,41 +191,43 @@ The
 .Fn cap_xfer_nvlist
 function sends the given
 .Xr nvlist 9 ,
-destroys it and receives new
+destroys it, and receives a new
 .Xr nvlist 9
 in response over the given capability.
 It does not matter if the function succeeds or fails, the
 .Xr nvlist 9
-given for sending will always be destroyed once the function returns.
+given for sending will always be destroyed before the function returns.
 .Pp
 The
 .Fn cap_service_open
-function opens casper service of the given name through casper capability
-obtained via the
+function opens the casper service named in the call using
+the casper capability obtained via the
 .Fn cap_init
 function.
-The function returns capability that provides access to opened service.
+The
+.Fn cap_service_open
+function returns a capability that provides access to the opened service.
 Casper supports the following services in the base system:
 .Pp
 .Bl -tag -width "system.random" -compact -offset indent
 .It system.dns
-provides DNS libc compatible API
+provides libc compatible DNS API
 .It system.grp
-provides
+provides a
 .Xr getgrent 3
 compatible API
 .It system.net
-provides network libc compatible API
+provides a libc compatible network API
 .It system.pwd
-provides
+provides a
 .Xr getpwent 3
 compatible API
 .It system.sysctl
-provides
+provides a
 .Xr sysctlbyname 3
 compatible API
 .It system.syslog
-provides
+provides a
 .Xr syslog 3
 compatible API
 .El
