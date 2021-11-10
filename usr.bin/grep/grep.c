@@ -57,7 +57,7 @@ const char	*errstr[] = {
 	"",
 /* 1*/	"(standard input)",
 /* 2*/	"unknown %s option",
-/* 3*/	"usage: %s [-abcDEFGHhIiLlmnOoPqRSsUVvwxz] [-A num] [-B num] [-C num]\n",
+/* 3*/	"usage: %s [-abcDEFGHhIiLlmnOopqRSsUVvwxz] [-A num] [-B num] [-C num]\n",
 /* 4*/	"\t[-e pattern] [-f file] [--binary-files=value] [--color=when]\n",
 /* 5*/	"\t[--context=num] [--directories=action] [--label] [--line-buffered]\n",
 /* 6*/	"\t[--null] [pattern] [file ...]\n",
@@ -110,7 +110,7 @@ bool	 lbflag;	/* --line-buffered */
 bool	 nullflag;	/* --null */
 char	*label;		/* --label */
 const char *color;	/* --color */
-int	 grepbehave = GREP_BASIC;	/* -EFGP: type of the regex */
+int	 grepbehave = GREP_BASIC;	/* -EFG: type of the regex */
 int	 binbehave = BINFILE_BIN;	/* -aIU: handling of binary files */
 int	 filebehave = FILE_STDIO;
 int	 devbehave = DEV_READ;		/* -D: handling of devices */
@@ -152,7 +152,7 @@ usage(void)
 	exit(2);
 }
 
-static const char	*optstr = "0123456789A:B:C:D:EFGHILOPSRUVabcd:e:f:hilm:nopqrsuvwxyz";
+static const char	*optstr = "0123456789A:B:C:D:EFGHILOSRUVabcd:e:f:hilm:nopqrsuvwxyz";
 
 static const struct option long_options[] =
 {
