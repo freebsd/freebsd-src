@@ -57,8 +57,6 @@
 #include <xen/xen_intr.h>
 #include <xen/evtchn/evtchnvar.h>
 
-#include <dev/xen/xenpci/xenpcivar.h>
-#include <dev/pci/pcivar.h>
 #include <machine/xen/arch-intr.h>
 
 #ifdef DDB
