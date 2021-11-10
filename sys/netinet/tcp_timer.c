@@ -328,7 +328,7 @@ tcp_timer_2msl(void *xtp)
 		return;
 	}
 	callout_deactivate(&tp->t_timers->tt_2msl);
-	if ((inp->inp_flags & INP_DROPPED) != 0) {
+	if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
 		INP_WUNLOCK(inp);
 		CURVNET_RESTORE();
 		return;
@@ -341,26 +341,14 @@ tcp_timer_2msl(void *xtp)
 	 * too long delete connection control block.  Otherwise, check
 	 * again in a bit.
 	 *
-	 * If in TIME_WAIT state just ignore as this timeout is handled in
-	 * tcp_tw_2msl_scan().
-	 *
 	 * If fastrecycle of FIN_WAIT_2, in FIN_WAIT_2 and receiver has closed,
 	 * there's no point in hanging onto FIN_WAIT_2 socket. Just close it.
 	 * Ignore fact that there were recent incoming segments.
 	 */
-	if ((inp->inp_flags & INP_TIMEWAIT) != 0) {
-		INP_WUNLOCK(inp);
-		CURVNET_RESTORE();
-		return;
-	}
 	if (tcp_fast_finwait2_recycle && tp->t_state == TCPS_FIN_WAIT_2 &&
 	    tp->t_inpcb && tp->t_inpcb->inp_socket &&
 	    (tp->t_inpcb->inp_socket->so_rcv.sb_state & SBS_CANTRCVMORE)) {
 		TCPSTAT_INC(tcps_finwait2_drops);
-		if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
-			tcp_inpinfo_lock_del(inp, tp);
-			goto out;
-		}
 		NET_EPOCH_ENTER(et);
 		tp = tcp_close(tp);
 		NET_EPOCH_EXIT(et);
@@ -371,10 +359,6 @@ tcp_timer_2msl(void *xtp)
 			callout_reset(&tp->t_timers->tt_2msl,
 				      TP_KEEPINTVL(tp), tcp_timer_2msl, tp);
 		} else {
-			if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
-				tcp_inpinfo_lock_del(inp, tp);
-				goto out;
-			}
 			NET_EPOCH_ENTER(et);
 			tp = tcp_close(tp);
 			NET_EPOCH_EXIT(et);
@@ -419,7 +403,7 @@ tcp_timer_keep(void *xtp)
 		return;
 	}
 	callout_deactivate(&tp->t_timers->tt_keep);
-	if ((inp->inp_flags & INP_DROPPED) != 0) {
+	if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
 		INP_WUNLOCK(inp);
 		CURVNET_RESTORE();
 		return;
@@ -498,10 +482,6 @@ tcp_timer_keep(void *xtp)
 
 dropit:
 	TCPSTAT_INC(tcps_keepdrops);
-	if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
-		tcp_inpinfo_lock_del(inp, tp);
-		goto out;
-	}
 	NET_EPOCH_ENTER(et);
 	tp = tcp_drop(tp, ETIMEDOUT);
 
@@ -513,7 +493,6 @@ dropit:
 	TCP_PROBE2(debug__user, tp, PRU_SLOWTIMO);
 	NET_EPOCH_EXIT(et);
 	tcp_inpinfo_lock_del(inp, tp);
- out:
 	CURVNET_RESTORE();
 }
 
@@ -539,7 +518,7 @@ tcp_timer_persist(void *xtp)
 		return;
 	}
 	callout_deactivate(&tp->t_timers->tt_persist);
-	if ((inp->inp_flags & INP_DROPPED) != 0) {
+	if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
 		INP_WUNLOCK(inp);
 		CURVNET_RESTORE();
 		return;
@@ -562,10 +541,6 @@ tcp_timer_persist(void *xtp)
 	    (ticks - tp->t_rcvtime >= tcp_maxpersistidle ||
 	     ticks - tp->t_rcvtime >= TCP_REXMTVAL(tp) * tcp_totbackoff)) {
 		TCPSTAT_INC(tcps_persistdrop);
-		if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
-			tcp_inpinfo_lock_del(inp, tp);
-			goto out;
-		}
 		NET_EPOCH_ENTER(et);
 		tp = tcp_drop(tp, ETIMEDOUT);
 		NET_EPOCH_EXIT(et);
@@ -579,10 +554,6 @@ tcp_timer_persist(void *xtp)
 	if (tp->t_state > TCPS_CLOSE_WAIT &&
 	    (ticks - tp->t_rcvtime) >= TCPTV_PERSMAX) {
 		TCPSTAT_INC(tcps_persistdrop);
-		if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
-			tcp_inpinfo_lock_del(inp, tp);
-			goto out;
-		}
 		NET_EPOCH_ENTER(et);
 		tp = tcp_drop(tp, ETIMEDOUT);
 		NET_EPOCH_EXIT(et);
@@ -630,7 +601,7 @@ tcp_timer_rexmt(void * xtp)
 		return;
 	}
 	callout_deactivate(&tp->t_timers->tt_rexmt);
-	if ((inp->inp_flags & INP_DROPPED) != 0) {
+	if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
 		INP_WUNLOCK(inp);
 		CURVNET_RESTORE();
 		return;
@@ -651,10 +622,6 @@ tcp_timer_rexmt(void * xtp)
 	if (++tp->t_rxtshift > TCP_MAXRXTSHIFT) {
 		tp->t_rxtshift = TCP_MAXRXTSHIFT;
 		TCPSTAT_INC(tcps_timeoutdrop);
-		if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
-			tcp_inpinfo_lock_del(inp, tp);
-			goto out;
-		}
 		NET_EPOCH_ENTER(et);
 		tp = tcp_drop(tp, ETIMEDOUT);
 		NET_EPOCH_EXIT(et);
