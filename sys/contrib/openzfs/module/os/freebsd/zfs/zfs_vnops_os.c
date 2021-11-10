@@ -1324,6 +1324,9 @@ zfs_lookup_internal(znode_t *dzp, const char *name, vnode_t **vpp,
 	cnp->cn_flags = ISLASTCN | SAVENAME;
 	cnp->cn_lkflags = LK_EXCLUSIVE | LK_RETRY;
 	cnp->cn_cred = kcred;
+#if __FreeBSD_version < 1400037
+	cnp->cn_thread = curthread;
+#endif
 
 	if (zfsvfs->z_use_namecache && !zfsvfs->z_replay) {
 		struct vop_lookup_args a;
@@ -2205,7 +2208,7 @@ zfs_setattr(znode_t *zp, vattr_t *vap, int flags, cred_t *cr)
 {
 	vnode_t		*vp = ZTOV(zp);
 	zfsvfs_t	*zfsvfs = zp->z_zfsvfs;
-	objset_t	*os = zfsvfs->z_os;
+	objset_t	*os;
 	zilog_t		*zilog;
 	dmu_tx_t	*tx;
 	vattr_t		oldva;
@@ -2240,6 +2243,7 @@ zfs_setattr(znode_t *zp, vattr_t *vap, int flags, cred_t *cr)
 	ZFS_ENTER(zfsvfs);
 	ZFS_VERIFY_ZP(zp);
 
+	os = zfsvfs->z_os;
 	zilog = zfsvfs->z_log;
 
 	/*
@@ -3427,7 +3431,6 @@ zfs_rename_(vnode_t *sdvp, vnode_t **svpp, struct componentname *scnp,
 	dmu_tx_commit(tx);
 
 unlockout:			/* all 4 vnodes are locked, ZFS_ENTER called */
-	ZFS_EXIT(zfsvfs);
 	if (want_seqc_end) {
 		vn_seqc_write_end(*svpp);
 		vn_seqc_write_end(sdvp);
@@ -3440,10 +3443,12 @@ unlockout:			/* all 4 vnodes are locked, ZFS_ENTER called */
 	VOP_UNLOCK1(*svpp);
 	VOP_UNLOCK1(sdvp);
 
-out:				/* original two vnodes are locked */
-	MPASS(!want_seqc_end);
 	if (error == 0 && zfsvfs->z_os->os_sync == ZFS_SYNC_ALWAYS)
 		zil_commit(zilog, 0);
+	ZFS_EXIT(zfsvfs);
+
+out:				/* original two vnodes are locked */
+	MPASS(!want_seqc_end);
 
 	if (*tvpp != NULL)
 		VOP_UNLOCK1(*tvpp);
@@ -4043,7 +4048,6 @@ zfs_getpages(struct vnode *vp, vm_page_t *ma, int count, int *rbehind,
 {
 	znode_t *zp = VTOZ(vp);
 	zfsvfs_t *zfsvfs = zp->z_zfsvfs;
-	objset_t *os = zp->z_zfsvfs->z_os;
 	zfs_locked_range_t *lr;
 	vm_object_t object;
 	off_t start, end, obj_size;
@@ -4113,8 +4117,8 @@ zfs_getpages(struct vnode *vp, vm_page_t *ma, int count, int *rbehind,
 	 * ZFS will panic if we request DMU to read beyond the end of the last
 	 * allocated block.
 	 */
-	error = dmu_read_pages(os, zp->z_id, ma, count, &pgsin_b, &pgsin_a,
-	    MIN(end, obj_size) - (end - PAGE_SIZE));
+	error = dmu_read_pages(zfsvfs->z_os, zp->z_id, ma, count, &pgsin_b,
+	    &pgsin_a, MIN(end, obj_size) - (end - PAGE_SIZE));
 
 	if (lr != NULL)
 		zfs_rangelock_exit(lr);
