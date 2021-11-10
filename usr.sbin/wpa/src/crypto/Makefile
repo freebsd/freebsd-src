@@ -138,9 +138,7 @@ SRCS+=	dh_group5.c
 SRCS+=	dh_groups.c
 .endif
 
-.if ${MK_WPA_SUPPLICANT_EAPOL} != "no"
 SRCS+=	ms_funcs.c
-.endif
 
 CFLAGS+=-DCONFIG_CRYPTO_INTERNAL \
 	-DCONFIG_TLS_INTERNAL_CLIENT \
