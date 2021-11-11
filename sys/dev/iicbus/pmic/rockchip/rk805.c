@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/extres/regulator/regulator.h>
 
 #include <dev/iicbus/pmic/rockchip/rk805reg.h>
+#include <dev/iicbus/pmic/rockchip/rk808reg.h>
 
 #include "clock_if.h"
 #include "regdev_if.h"
@@ -114,11 +115,11 @@ static int rk805_regnode_get_voltage(struct regnode *regnode, int *uvolt);
 
 static struct rk805_regdef rk805_regdefs[] = {
 	{
-		.id = RK805_DCDC1,
+		.id = RK805_BUCK1,
 		.name = "DCDC_REG1",
 		.enable_reg = RK805_DCDC_EN,
 		.enable_mask = 0x11,
-		.voltage_reg = RK805_DCDC1_ON_VSEL,
+		.voltage_reg = RK805_BUCK1_ON_VSEL,
 		.voltage_mask = 0x3F,
 		.voltage_min = 712500,
 		.voltage_max = 1450000,
@@ -126,11 +127,11 @@ static struct rk805_regdef rk805_regdefs[] = {
 		.voltage_nstep = 64,
 	},
 	{
-		.id = RK805_DCDC2,
+		.id = RK805_BUCK2,
 		.name = "DCDC_REG2",
 		.enable_reg = RK805_DCDC_EN,
 		.enable_mask = 0x22,
-		.voltage_reg = RK805_DCDC2_ON_VSEL,
+		.voltage_reg = RK805_BUCK2_ON_VSEL,
 		.voltage_mask = 0x3F,
 		.voltage_min = 712500,
 		.voltage_max = 1450000,
@@ -138,17 +139,17 @@ static struct rk805_regdef rk805_regdefs[] = {
 		.voltage_nstep = 64,
 	},
 	{
-		.id = RK805_DCDC3,
+		.id = RK805_BUCK3,
 		.name = "DCDC_REG3",
 		.enable_reg = RK805_DCDC_EN,
 		.enable_mask = 0x44,
 	},
 	{
-		.id = RK805_DCDC4,
+		.id = RK805_BUCK4,
 		.name = "DCDC_REG4",
 		.enable_reg = RK805_DCDC_EN,
 		.enable_mask = 0x88,
-		.voltage_reg = RK805_DCDC4_ON_VSEL,
+		.voltage_reg = RK805_BUCK4_ON_VSEL,
 		.voltage_mask = 0x3F,
 		.voltage_min = 800000,
 		.voltage_max = 3500000,
@@ -195,11 +196,11 @@ static struct rk805_regdef rk805_regdefs[] = {
 
 static struct rk805_regdef rk808_regdefs[] = {
 	{
-		.id = RK805_DCDC1,
+		.id = RK808_BUCK1,
 		.name = "DCDC_REG1",
-		.enable_reg = RK805_DCDC_EN,
+		.enable_reg = RK808_DCDC_EN,
 		.enable_mask = 0x1,
-		.voltage_reg = RK805_DCDC1_ON_VSEL,
+		.voltage_reg = RK808_BUCK1_ON_VSEL,
 		.voltage_mask = 0x3F,
 		.voltage_min = 712500,
 		.voltage_max = 1500000,
@@ -207,11 +208,11 @@ static struct rk805_regdef rk808_regdefs[] = {
 		.voltage_nstep = 64,
 	},
 	{
-		.id = RK805_DCDC2,
+		.id = RK808_BUCK2,
 		.name = "DCDC_REG2",
-		.enable_reg = RK805_DCDC_EN,
+		.enable_reg = RK808_DCDC_EN,
 		.enable_mask = 0x2,
-		.voltage_reg = RK805_DCDC2_ON_VSEL,
+		.voltage_reg = RK808_BUCK2_ON_VSEL,
 		.voltage_mask = 0x3F,
 		.voltage_min = 712500,
 		.voltage_max = 1500000,
@@ -220,17 +221,17 @@ static struct rk805_regdef rk808_regdefs[] = {
 	},
 	{
 		/* BUCK3 voltage is calculated based on external resistor */
-		.id = RK805_DCDC3,
+		.id = RK808_BUCK3,
 		.name = "DCDC_REG3",
-		.enable_reg = RK805_DCDC_EN,
+		.enable_reg = RK808_DCDC_EN,
 		.enable_mask = 0x4,
 	},
 	{
-		.id = RK805_DCDC4,
+		.id = RK808_BUCK4,
 		.name = "DCDC_REG4",
-		.enable_reg = RK805_DCDC_EN,
+		.enable_reg = RK808_DCDC_EN,
 		.enable_mask = 0x8,
-		.voltage_reg = RK805_DCDC4_ON_VSEL,
+		.voltage_reg = RK808_BUCK4_ON_VSEL,
 		.voltage_mask = 0xF,
 		.voltage_min = 1800000,
 		.voltage_max = 3300000,
@@ -242,7 +243,7 @@ static struct rk805_regdef rk808_regdefs[] = {
 		.name = "LDO_REG1",
 		.enable_reg = RK808_LDO_EN,
 		.enable_mask = 0x1,
-		.voltage_reg = RK805_LDO1_ON_VSEL,
+		.voltage_reg = RK808_LDO1_ON_VSEL,
 		.voltage_mask = 0x1F,
 		.voltage_min = 1800000,
 		.voltage_max = 3400000,
@@ -254,7 +255,7 @@ static struct rk805_regdef rk808_regdefs[] = {
 		.name = "LDO_REG2",
 		.enable_reg = RK808_LDO_EN,
 		.enable_mask = 0x2,
-		.voltage_reg = RK805_LDO2_ON_VSEL,
+		.voltage_reg = RK808_LDO2_ON_VSEL,
 		.voltage_mask = 0x1F,
 		.voltage_min = 1800000,
 		.voltage_max = 3400000,
@@ -266,7 +267,7 @@ static struct rk805_regdef rk808_regdefs[] = {
 		.name = "LDO_REG3",
 		.enable_reg = RK808_LDO_EN,
 		.enable_mask = 0x4,
-		.voltage_reg = RK805_LDO3_ON_VSEL,
+		.voltage_reg = RK808_LDO3_ON_VSEL,
 		.voltage_mask = 0xF,
 		.voltage_min = 800000,
 		.voltage_max = 2500000,
@@ -336,7 +337,7 @@ static struct rk805_regdef rk808_regdefs[] = {
 	{
 		.id = RK808_SWITCH1,
 		.name = "SWITCH_REG1",
-		.enable_reg = RK805_DCDC_EN,
+		.enable_reg = RK808_DCDC_EN,
 		.enable_mask = 0x20,
 		.voltage_min = 3000000,
 		.voltage_max = 3000000,
@@ -344,7 +345,7 @@ static struct rk805_regdef rk808_regdefs[] = {
 	{
 		.id = RK808_SWITCH2,
 		.name = "SWITCH_REG2",
-		.enable_reg = RK805_DCDC_EN,
+		.enable_reg = RK808_DCDC_EN,
 		.enable_mask = 0x40,
 		.voltage_min = 3000000,
 		.voltage_max = 3000000,
