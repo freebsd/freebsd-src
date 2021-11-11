@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 12, 2018
+.Dd November 11, 2021
 .Dt MODULE 9
 .Os
 .Sh NAME
@@ -42,6 +42,9 @@ The structure contains the name of the device, a unique ID number,
 a pointer to an event handler function and to an argument,
 which is given to the event handler,
 as well as some kernel internal data.
+If the event handler function is
+.Dv NULL ,
+the module will use a no-operation function handler instead.
 .Pp
 The
 .Xr DECLARE_MODULE 9
