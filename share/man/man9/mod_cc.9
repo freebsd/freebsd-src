@@ -68,7 +68,8 @@ struct cc_algo {
 	char	name[TCP_CA_NAME_MAX];
 	int	(*mod_init) (void);
 	int	(*mod_destroy) (void);
-	int	(*cb_init) (struct cc_var *ccv);
+	size_t  (*cc_data_sz)(void);
+	int	(*cb_init) (struct cc_var *ccv, void *ptr);
 	void	(*cb_destroy) (struct cc_var *ccv);
 	void	(*conn_init) (struct cc_var *ccv);
 	void	(*ack_received) (struct cc_var *ccv, uint16_t type);
@@ -76,6 +77,8 @@ struct cc_algo {
 	void	(*post_recovery) (struct cc_var *ccv);
 	void	(*after_idle) (struct cc_var *ccv);
 	int	(*ctl_output)(struct cc_var *, struct sockopt *, void *);
+	void    (*rttsample)(struct cc_var *, uint32_t, uint32_t, uint32_t);
+	void    (*newround)(struct cc_var *, uint32_t);
 };
 .Ed
 .Pp
@@ -104,6 +107,17 @@ being removed from the kernel.
 The return value is currently ignored.
 .Pp
 The
+.Va cc_data_sz
+function is called by the socket option code to get the size of
+data that the
+.Va cb_init
+function needs.
+The socket option code then preallocates the modules memory so that the
+.Va cb_init
+function will not fail (the socket option code uses M_WAITOK with
+no locks held to do this).
+.Pp
+The
 .Va cb_init
 function is called when a TCP control block
 .Vt struct tcpcb
@@ -114,6 +128,9 @@ Returning a non-zero value from
 .Va cb_init
 will cause the connection set up to be aborted, terminating the connection as a
 result.
+Note that the ptr argument passed to the function should be checked to
+see if it is non-NULL, if so it is preallocated memory that the cb_init function
+must use instead of calling malloc itself.
 .Pp
 The
 .Va cb_destroy
@@ -182,6 +199,30 @@ pointer forwarded unmodified from the TCP control, and a
 pointer to algorithm specific argument.
 .Pp
 The
+.Va rttsample
+function is called to pass round trip time information to the
+congestion controller.
+The additional arguments to the function include the microsecond RTT
+that is being noted, the number of times that the data being
+acknowledged was retransmitted as well as the flightsize at send.
+For transports that do not track flightsize at send, this variable
+will be the current cwnd at the time of the call.
+.Pp
+The
+.Va newround
+function is called each time a new round trip time begins.
+The montonically increasing round number is also passed to the
+congestion controller as well.
+This can be used for various purposes by the congestion controller (e.g Hystart++).
+.Pp
+Note that currently not all TCP stacks call the
+.Va rttsample
+and
+.Va newround
+function so dependancy on these functions is also
+dependant upon which TCP stack is in use.
+.Pp
+The
 .Fn DECLARE_CC_MODULE
 macro provides a convenient wrapper around the
 .Xr DECLARE_MODULE 9
@@ -203,8 +244,23 @@ modules must instantiate a
 .Vt struct cc_algo ,
 but are only required to set the name field, and optionally any of the function
 pointers.
+Note that if a module defines the
+.Va cb_init
+function it also must define a
+.Va cc_data_sz
+function.
+This is because when switching from one congestion control
+module to another the socket option code will preallocate memory for the
+.Va cb_init
+function. If no memory is allocated by the modules
+.Va cb_init
+then the
+.Va cc_data_sz
+function should return 0.
+.Pp
 The stack will skip calling any function pointer which is NULL, so there is no
-requirement to implement any of the function pointers.
+requirement to implement any of the function pointers (with the exception of
+the cb_init <-> cc_data_sz dependancy noted above).
 Using the C99 designated initialiser feature to set fields is encouraged.
 .Pp
 Each function pointer which deals with congestion control state is passed a
@@ -222,6 +278,8 @@ struct cc_var {
 		struct tcpcb		*tcp;
 		struct sctp_nets	*sctp;
 	} ccvc;
+	uint16_t	nsegs;
+	uint8_t		labc;
 };
 .Ed
 .Pp
@@ -305,6 +363,19 @@ and is set when the connection's ability to send data is currently constrained
 by the value of the congestion window.
 Algorithms should use the absence of this flag being set to avoid accumulating
 a large difference between the congestion window and send window.
+.Pp
+The
+.Va nsegs
+variable is used to pass in how much compression was done by the local
+LRO system.
+So for example if LRO pushed three in-order acknowledgements into
+one acknowledgement the variable would be set to three.
+.Pp
+The 
+.Va labc
+variable is used in conjunction with the CCF_USE_LOCAL_ABC flag
+to override what labc variable the congestion controller will use
+for this particular acknowledgement.
 .Sh SEE ALSO
 .Xr cc_cdg 4 ,
 .Xr cc_chd 4 ,

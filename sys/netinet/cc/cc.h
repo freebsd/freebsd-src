@@ -53,10 +53,11 @@
 
 #ifdef _KERNEL
 
+MALLOC_DECLARE(M_CC_MEM);
+
 /* Global CC vars. */
 extern STAILQ_HEAD(cc_head, cc_algo) cc_list;
 extern const int tcprexmtthresh;
-extern struct cc_algo newreno_cc_algo;
 
 /* Per-netstack bits. */
 VNET_DECLARE(struct cc_algo *, default_cc_ptr);
@@ -139,8 +140,19 @@ struct cc_algo {
 	/* Cleanup global module state on kldunload. */
 	int	(*mod_destroy)(void);
 
-	/* Init CC state for a new control block. */
-	int	(*cb_init)(struct cc_var *ccv);
+	/* Return the size of the void pointer the CC needs for state */
+	size_t  (*cc_data_sz)(void);
+
+	/*
+	 * Init CC state for a new control block. The CC
+	 * module may be passed a NULL ptr indicating that
+	 * it must allocate the memory. If it is passed a
+	 * non-null pointer it is pre-allocated memory by
+	 * the caller and the cb_init is expected to use that memory.
+	 * It is not expected to fail if memory is passed in and
+	 * all currently defined modules do not.
+	 */
+	int	(*cb_init)(struct cc_var *ccv, void *ptr);
 
 	/* Cleanup CC state for a terminating control block. */
 	void	(*cb_destroy)(struct cc_var *ccv);
@@ -176,7 +188,10 @@ struct cc_algo {
 	int     (*ctl_output)(struct cc_var *, struct sockopt *, void *);
 
 	STAILQ_ENTRY (cc_algo) entries;
+	uint8_t flags;
 };
+
+#define CC_MODULE_BEING_REMOVED		0x01	/* The module is being removed */
 
 /* Macro to obtain the CC algo's struct ptr. */
 #define	CC_ALGO(tp)	((tp)->cc_algo)
@@ -185,7 +200,7 @@ struct cc_algo {
 #define	CC_DATA(tp)	((tp)->ccv->cc_data)
 
 /* Macro to obtain the system default CC algo's struct ptr. */
-#define	CC_DEFAULT()	V_default_cc_ptr
+#define	CC_DEFAULT_ALGO()	V_default_cc_ptr
 
 extern struct rwlock cc_list_lock;
 #define	CC_LIST_LOCK_INIT()	rw_init(&cc_list_lock, "cc_list")
@@ -197,6 +212,17 @@ extern struct rwlock cc_list_lock;
 #define	CC_LIST_LOCK_ASSERT()	rw_assert(&cc_list_lock, RA_LOCKED)
 
 #define CC_ALGOOPT_LIMIT	2048
+
+/*
+ * These routines give NewReno behavior to the caller
+ * they require no state and can be used by any other CC
+ * module that wishes to use NewReno type behaviour (along
+ * with anything else they may add on, pre or post call).
+ */
+void newreno_cc_post_recovery(struct cc_var *);
+void newreno_cc_after_idle(struct cc_var *);
+void newreno_cc_cong_signal(struct cc_var *, uint32_t );
+void newreno_cc_ack_received(struct cc_var *, uint16_t);
 
 #endif /* _KERNEL */
 #endif /* _NETINET_CC_CC_H_ */

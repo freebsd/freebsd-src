@@ -81,6 +81,15 @@ BOOTVERBOSE	opt_global.h
 CALLOUT_PROFILING
 CAPABILITIES	opt_capsicum.h
 CAPABILITY_MODE	opt_capsicum.h
+CC_CDG		opt_global.h
+CC_CHD		opt_global.h
+CC_CUBIC	opt_global.h
+CC_DEFAULT	opt_cc.h
+CC_DCTCP	opt_global.h
+CC_HD		opt_global.h
+CC_HTCP		opt_global.h
+CC_NEWRENO	opt_global.h
+CC_VEGAS	opt_global.h
 COMPAT_43	opt_global.h
 COMPAT_43TTY	opt_global.h
 COMPAT_FREEBSD4	opt_global.h
