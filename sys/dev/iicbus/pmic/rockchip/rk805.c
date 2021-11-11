@@ -48,7 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/extres/clk/clk.h>
 #include <dev/extres/regulator/regulator.h>
 
-#include <arm64/rockchip/rk805reg.h>
+#include <dev/iicbus/pmic/rockchip/rk805reg.h>
 
 #include "clock_if.h"
 #include "regdev_if.h"
