@@ -328,6 +328,7 @@ exec_sysvec_init(void *param)
 			if (res == -1)
 				panic("copying sigtramp to shared page");
 			sb += res;
+			sv->sv_vdso_base = sb;
 			sb += sv->sv_sigcodeoff;
 			sv->sv_sigcode_base = sb;
 		} else {
@@ -392,6 +393,10 @@ exec_sysvec_init_secondary(struct sysentvec *sv, struct sysentvec *sv2)
 	sv2->sv_shared_page_obj = sv->sv_shared_page_obj;
 	sv2->sv_sigcode_base = sv2->sv_shared_page_base +
 	    (sv->sv_sigcode_base - sv->sv_shared_page_base);
+	if ((sv2->sv_flags & SV_DSO_SIG) != 0) {
+		sv2->sv_vdso_base = sv2->sv_shared_page_base +
+		    (sv->sv_vdso_base - sv->sv_shared_page_base);
+	}
 	if ((sv2->sv_flags & SV_ABI_MASK) != SV_ABI_FREEBSD)
 		return;
 	if ((sv2->sv_flags & SV_TIMEKEEP) != 0) {
