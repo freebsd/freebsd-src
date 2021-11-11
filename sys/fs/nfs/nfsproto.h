@@ -402,10 +402,13 @@
 /* Do an NFSv4.2 Deallocate. */
 #define	NFSPROC_DEALLOCATE	67
 
+/* Do an NFSv4.2 LayoutError. */
+#define	NFSPROC_LAYOUTERROR	68
+
 /*
  * Must be defined as one higher than the last NFSv4.2 Proc# above.
  */
-#define	NFSV42_NPROCS		68
+#define	NFSV42_NPROCS		69
 
 #endif	/* NFS_V3NPROCS */
 
