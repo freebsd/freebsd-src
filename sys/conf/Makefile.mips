@@ -57,6 +57,8 @@ TRAMP_ARCH_FLAGS?=$(ARCH_FLAGS)
 TRAMP_EXTRA_FLAGS=${EXTRA_FLAGS} ${TRAMP_ARCH_FLAGS}
 # Kernel code is always compiled with soft-float on MIPS
 TRAMP_EXTRA_FLAGS+=-msoft-float
+# No standard library available
+TRAMP_EXTRA_FLAGS+=-ffreestanding
 .if ${MACHINE_ARCH:Mmips64*} != ""
 TRAMP_ELFSIZE=64
 .else
