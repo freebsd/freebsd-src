@@ -70,7 +70,7 @@ static struct ofw_compat_data compat_data[] = {
 	{NULL,             0}
 };
 
-struct rk805_regdef {
+struct rk8xx_regdef {
 	intptr_t		id;
 	char			*name;
 	uint8_t			enable_reg;
@@ -83,20 +83,20 @@ struct rk805_regdef {
 	int			voltage_nstep;
 };
 
-struct rk805_reg_sc {
+struct rk8xx_reg_sc {
 	struct regnode		*regnode;
 	device_t		base_dev;
-	struct rk805_regdef	*def;
+	struct rk8xx_regdef	*def;
 	phandle_t		xref;
 	struct regnode_std_param *param;
 };
 
 struct reg_list {
 	TAILQ_ENTRY(reg_list)	next;
-	struct rk805_reg_sc	*reg;
+	struct rk8xx_reg_sc	*reg;
 };
 
-struct rk805_softc {
+struct rk8xx_softc {
 	device_t		dev;
 	struct mtx		mtx;
 	struct resource *	res[1];
@@ -108,12 +108,12 @@ struct rk805_softc {
 	int			nregs;
 };
 
-static int rk805_regnode_status(struct regnode *regnode, int *status);
-static int rk805_regnode_set_voltage(struct regnode *regnode, int min_uvolt,
+static int rk8xx_regnode_status(struct regnode *regnode, int *status);
+static int rk8xx_regnode_set_voltage(struct regnode *regnode, int min_uvolt,
     int max_uvolt, int *udelay);
-static int rk805_regnode_get_voltage(struct regnode *regnode, int *uvolt);
+static int rk8xx_regnode_get_voltage(struct regnode *regnode, int *uvolt);
 
-static struct rk805_regdef rk805_regdefs[] = {
+static struct rk8xx_regdef rk805_regdefs[] = {
 	{
 		.id = RK805_BUCK1,
 		.name = "DCDC_REG1",
@@ -194,7 +194,7 @@ static struct rk805_regdef rk805_regdefs[] = {
 	},
 };
 
-static struct rk805_regdef rk808_regdefs[] = {
+static struct rk8xx_regdef rk808_regdefs[] = {
 	{
 		.id = RK808_BUCK1,
 		.name = "DCDC_REG1",
@@ -353,7 +353,7 @@ static struct rk805_regdef rk808_regdefs[] = {
 };
 
 static int
-rk805_read(device_t dev, uint8_t reg, uint8_t *data, uint8_t size)
+rk8xx_read(device_t dev, uint8_t reg, uint8_t *data, uint8_t size)
 {
 	int err;
 
@@ -362,16 +362,16 @@ rk805_read(device_t dev, uint8_t reg, uint8_t *data, uint8_t size)
 }
 
 static int
-rk805_write(device_t dev, uint8_t reg, uint8_t *data, uint8_t size)
+rk8xx_write(device_t dev, uint8_t reg, uint8_t *data, uint8_t size)
 {
 
 	return (iicdev_writeto(dev, reg, data, size, IIC_INTRWAIT));
 }
 
 static int
-rk805_regnode_init(struct regnode *regnode)
+rk8xx_regnode_init(struct regnode *regnode)
 {
-	struct rk805_reg_sc *sc;
+	struct rk8xx_reg_sc *sc;
 	struct regnode_std_param *param;
 	int rv, udelay, uvolt, status;
 
@@ -382,7 +382,7 @@ rk805_regnode_init(struct regnode *regnode)
 		return (0);
 
 	/* Check that the regulator is preset to the correct voltage */
-	rv  = rk805_regnode_get_voltage(regnode, &uvolt);
+	rv  = rk8xx_regnode_get_voltage(regnode, &uvolt);
 	if (rv != 0)
 		return(rv);
 
@@ -393,11 +393,11 @@ rk805_regnode_init(struct regnode *regnode)
 	 * Do not enable it, this is will be done either by a
 	 * consumer or by regnode_set_constraint if boot_on is true
 	 */
-	rv = rk805_regnode_status(regnode, &status);
+	rv = rk8xx_regnode_status(regnode, &status);
 	if (rv != 0 || status == REGULATOR_STATUS_ENABLED)
 		return (rv);
 
-	rv = rk805_regnode_set_voltage(regnode, param->min_uvolt,
+	rv = rk8xx_regnode_set_voltage(regnode, param->min_uvolt,
 	    param->max_uvolt, &udelay);
 	if (udelay != 0)
 		DELAY(udelay);
@@ -406,9 +406,9 @@ rk805_regnode_init(struct regnode *regnode)
 }
 
 static int
-rk805_regnode_enable(struct regnode *regnode, bool enable, int *udelay)
+rk8xx_regnode_enable(struct regnode *regnode, bool enable, int *udelay)
 {
-	struct rk805_reg_sc *sc;
+	struct rk8xx_reg_sc *sc;
 	uint8_t val;
 
 	sc = regnode_get_softc(regnode);
@@ -416,12 +416,12 @@ rk805_regnode_enable(struct regnode *regnode, bool enable, int *udelay)
 	dprintf(sc, "%sabling regulator %s\n",
 	    enable ? "En" : "Dis",
 	    sc->def->name);
-	rk805_read(sc->base_dev, sc->def->enable_reg, &val, 1);
+	rk8xx_read(sc->base_dev, sc->def->enable_reg, &val, 1);
 	if (enable)
 		val |= sc->def->enable_mask;
 	else
 		val &= ~sc->def->enable_mask;
-	rk805_write(sc->base_dev, sc->def->enable_reg, &val, 1);
+	rk8xx_write(sc->base_dev, sc->def->enable_reg, &val, 1);
 
 	*udelay = 0;
 
@@ -429,7 +429,7 @@ rk805_regnode_enable(struct regnode *regnode, bool enable, int *udelay)
 }
 
 static void
-rk805_regnode_reg_to_voltage(struct rk805_reg_sc *sc, uint8_t val, int *uv)
+rk8xx_regnode_reg_to_voltage(struct rk8xx_reg_sc *sc, uint8_t val, int *uv)
 {
 	if (val < sc->def->voltage_nstep)
 		*uv = sc->def->voltage_min + val * sc->def->voltage_step;
@@ -439,7 +439,7 @@ rk805_regnode_reg_to_voltage(struct rk805_reg_sc *sc, uint8_t val, int *uv)
 }
 
 static int
-rk805_regnode_voltage_to_reg(struct rk805_reg_sc *sc, int min_uvolt,
+rk8xx_regnode_voltage_to_reg(struct rk8xx_reg_sc *sc, int min_uvolt,
     int max_uvolt, uint8_t *val)
 {
 	uint8_t nval;
@@ -461,15 +461,15 @@ rk805_regnode_voltage_to_reg(struct rk805_reg_sc *sc, int min_uvolt,
 }
 
 static int
-rk805_regnode_status(struct regnode *regnode, int *status)
+rk8xx_regnode_status(struct regnode *regnode, int *status)
 {
-	struct rk805_reg_sc *sc;
+	struct rk8xx_reg_sc *sc;
 	uint8_t val;
 
 	sc = regnode_get_softc(regnode);
 
 	*status = 0;
-	rk805_read(sc->base_dev, sc->def->enable_reg, &val, 1);
+	rk8xx_read(sc->base_dev, sc->def->enable_reg, &val, 1);
 	if (val & sc->def->enable_mask)
 		*status = REGULATOR_STATUS_ENABLED;
 
@@ -477,10 +477,10 @@ rk805_regnode_status(struct regnode *regnode, int *status)
 }
 
 static int
-rk805_regnode_set_voltage(struct regnode *regnode, int min_uvolt,
+rk8xx_regnode_set_voltage(struct regnode *regnode, int min_uvolt,
     int max_uvolt, int *udelay)
 {
-	struct rk805_reg_sc *sc;
+	struct rk8xx_reg_sc *sc;
 	uint8_t val;
 	int uvolt;
 
@@ -493,17 +493,17 @@ rk805_regnode_set_voltage(struct regnode *regnode, int min_uvolt,
 	    sc->def->name,
 	    min_uvolt,
 	    max_uvolt);
-	rk805_read(sc->base_dev, sc->def->voltage_reg, &val, 1);
-	if (rk805_regnode_voltage_to_reg(sc, min_uvolt, max_uvolt, &val) != 0)
+	rk8xx_read(sc->base_dev, sc->def->voltage_reg, &val, 1);
+	if (rk8xx_regnode_voltage_to_reg(sc, min_uvolt, max_uvolt, &val) != 0)
 		return (ERANGE);
 
-	rk805_write(sc->base_dev, sc->def->voltage_reg, &val, 1);
+	rk8xx_write(sc->base_dev, sc->def->voltage_reg, &val, 1);
 
-	rk805_read(sc->base_dev, sc->def->voltage_reg, &val, 1);
+	rk8xx_read(sc->base_dev, sc->def->voltage_reg, &val, 1);
 
 	*udelay = 0;
 
-	rk805_regnode_reg_to_voltage(sc, val, &uvolt);
+	rk8xx_regnode_reg_to_voltage(sc, val, &uvolt);
 	dprintf(sc, "Regulator %s set to %d uvolt\n",
 	  sc->def->name,
 	  uvolt);
@@ -512,9 +512,9 @@ rk805_regnode_set_voltage(struct regnode *regnode, int min_uvolt,
 }
 
 static int
-rk805_regnode_get_voltage(struct regnode *regnode, int *uvolt)
+rk8xx_regnode_get_voltage(struct regnode *regnode, int *uvolt)
 {
-	struct rk805_reg_sc *sc;
+	struct rk8xx_reg_sc *sc;
 	uint8_t val;
 
 	sc = regnode_get_softc(regnode);
@@ -527,8 +527,8 @@ rk805_regnode_get_voltage(struct regnode *regnode, int *uvolt)
 	if (!sc->def->voltage_step)
 		return (ENXIO);
 
-	rk805_read(sc->base_dev, sc->def->voltage_reg, &val, 1);
-	rk805_regnode_reg_to_voltage(sc, val & sc->def->voltage_mask, uvolt);
+	rk8xx_read(sc->base_dev, sc->def->voltage_reg, &val, 1);
+	rk8xx_regnode_reg_to_voltage(sc, val & sc->def->voltage_mask, uvolt);
 
 	dprintf(sc, "Regulator %s is at %d uvolt\n",
 	  sc->def->name,
@@ -537,24 +537,24 @@ rk805_regnode_get_voltage(struct regnode *regnode, int *uvolt)
 	return (0);
 }
 
-static regnode_method_t rk805_regnode_methods[] = {
+static regnode_method_t rk8xx_regnode_methods[] = {
 	/* Regulator interface */
-	REGNODEMETHOD(regnode_init,		rk805_regnode_init),
-	REGNODEMETHOD(regnode_enable,		rk805_regnode_enable),
-	REGNODEMETHOD(regnode_status,		rk805_regnode_status),
-	REGNODEMETHOD(regnode_set_voltage,	rk805_regnode_set_voltage),
-	REGNODEMETHOD(regnode_get_voltage,	rk805_regnode_get_voltage),
+	REGNODEMETHOD(regnode_init,		rk8xx_regnode_init),
+	REGNODEMETHOD(regnode_enable,		rk8xx_regnode_enable),
+	REGNODEMETHOD(regnode_status,		rk8xx_regnode_status),
+	REGNODEMETHOD(regnode_set_voltage,	rk8xx_regnode_set_voltage),
+	REGNODEMETHOD(regnode_get_voltage,	rk8xx_regnode_get_voltage),
 	REGNODEMETHOD(regnode_check_voltage,	regnode_method_check_voltage),
 	REGNODEMETHOD_END
 };
-DEFINE_CLASS_1(rk805_regnode, rk805_regnode_class, rk805_regnode_methods,
-    sizeof(struct rk805_reg_sc), regnode_class);
+DEFINE_CLASS_1(rk8xx_regnode, rk8xx_regnode_class, rk8xx_regnode_methods,
+    sizeof(struct rk8xx_reg_sc), regnode_class);
 
-static struct rk805_reg_sc *
-rk805_reg_attach(device_t dev, phandle_t node,
-    struct rk805_regdef *def)
+static struct rk8xx_reg_sc *
+rk8xx_reg_attach(device_t dev, phandle_t node,
+    struct rk8xx_regdef *def)
 {
-	struct rk805_reg_sc *reg_sc;
+	struct rk8xx_reg_sc *reg_sc;
 	struct regnode_init_def initdef;
 	struct regnode *regnode;
 
@@ -570,7 +570,7 @@ rk805_reg_attach(device_t dev, phandle_t node,
 	initdef.id = def->id;
 	initdef.ofw_node = node;
 
-	regnode = regnode_create(dev, &rk805_regnode_class, &initdef);
+	regnode = regnode_create(dev, &rk8xx_regnode_class, &initdef);
 	if (regnode == NULL) {
 		device_printf(dev, "cannot create regulator\n");
 		return (NULL);
@@ -591,7 +591,7 @@ rk805_reg_attach(device_t dev, phandle_t node,
 /* -------------------------------------------------------------------------- */
 
 /* Clock class and method */
-struct rk805_clk_sc {
+struct rk8xx_clk_sc {
 	device_t		base_dev;
 };
 
@@ -599,56 +599,56 @@ struct rk805_clk_sc {
 #define	CLK32OUT_CLKOUT2_EN	1
 
 static int
-rk805_clk_set_gate_1(struct clknode *clk, bool enable)
+rk8xx_clk_set_gate_1(struct clknode *clk, bool enable)
 {
-	struct rk805_clk_sc *sc;
+	struct rk8xx_clk_sc *sc;
 	uint8_t val;
 
 	sc = clknode_get_softc(clk);
 
-	rk805_read(sc->base_dev, CLK32OUT_REG, &val, sizeof(val));
+	rk8xx_read(sc->base_dev, CLK32OUT_REG, &val, sizeof(val));
 	if (enable)
 		val |= CLK32OUT_CLKOUT2_EN;
 	else
 		val &= ~CLK32OUT_CLKOUT2_EN;
-	rk805_write(sc->base_dev, CLK32OUT_REG, &val, 1);
+	rk8xx_write(sc->base_dev, CLK32OUT_REG, &val, 1);
 
 	return (0);
 }
 
 static int
-rk805_clk_recalc(struct clknode *clk, uint64_t *freq)
+rk8xx_clk_recalc(struct clknode *clk, uint64_t *freq)
 {
 
 	*freq = 32768;
 	return (0);
 }
 
-static clknode_method_t rk805_clk_clknode_methods_0[] = {
-	CLKNODEMETHOD(clknode_recalc_freq,	rk805_clk_recalc),
+static clknode_method_t rk8xx_clk_clknode_methods_0[] = {
+	CLKNODEMETHOD(clknode_recalc_freq,	rk8xx_clk_recalc),
 	CLKNODEMETHOD_END
 };
 
-DEFINE_CLASS_1(rk805_clk_clknode_0, rk805_clk_clknode_class_0,
-    rk805_clk_clknode_methods_0, sizeof(struct rk805_clk_sc),
+DEFINE_CLASS_1(rk8xx_clk_clknode_0, rk8xx_clk_clknode_class_0,
+    rk8xx_clk_clknode_methods_0, sizeof(struct rk8xx_clk_sc),
     clknode_class);
 
-static clknode_method_t rk805_clk_clknode_methods_1[] = {
-	CLKNODEMETHOD(clknode_set_gate,		rk805_clk_set_gate_1),
+static clknode_method_t rk8xx_clk_clknode_methods_1[] = {
+	CLKNODEMETHOD(clknode_set_gate,		rk8xx_clk_set_gate_1),
 	CLKNODEMETHOD_END
 };
 
-DEFINE_CLASS_1(rk805_clk_clknode_1, rk805_clk_clknode_class_1,
-    rk805_clk_clknode_methods_1, sizeof(struct rk805_clk_sc),
-    rk805_clk_clknode_class_0);
+DEFINE_CLASS_1(rk8xx_clk_clknode_1, rk8xx_clk_clknode_class_1,
+    rk8xx_clk_clknode_methods_1, sizeof(struct rk8xx_clk_sc),
+    rk8xx_clk_clknode_class_0);
 
 static int
-rk805_export_clocks(device_t dev)
+rk8xx_export_clocks(device_t dev)
 {
 	struct clkdom *clkdom;
 	struct clknode_init_def clkidef;
 	struct clknode *clk;
-	struct rk805_clk_sc *clksc;
+	struct rk8xx_clk_sc *clksc;
 	const char **clknames;
 	phandle_t node;
 	int nclks, rv;
@@ -664,7 +664,7 @@ rk805_export_clocks(device_t dev)
 	memset(&clkidef, 0, sizeof(clkidef));
 	clkidef.id = 0;
 	clkidef.name = (nclks = 2) ? clknames[0] : "clk32kout1";
-	clk = clknode_create(clkdom, &rk805_clk_clknode_class_0, &clkidef);
+	clk = clknode_create(clkdom, &rk8xx_clk_clknode_class_0, &clkidef);
 	if (clk == NULL) {
 		device_printf(dev, "Cannot create '%s'.\n", clkidef.name);
 		return (ENXIO);
@@ -676,7 +676,7 @@ rk805_export_clocks(device_t dev)
 	memset(&clkidef, 0, sizeof(clkidef));
 	clkidef.id = 1;
 	clkidef.name = (nclks = 2) ? clknames[1] : "clk32kout2";
-	clk = clknode_create(clkdom, &rk805_clk_clknode_class_1, &clkidef);
+	clk = clknode_create(clkdom, &rk8xx_clk_clknode_class_1, &clkidef);
 	if (clk == NULL) {
 		device_printf(dev, "Cannot create '%s'.\n", clkidef.name);
 		return (ENXIO);
@@ -701,7 +701,7 @@ rk805_export_clocks(device_t dev)
 /* -------------------------------------------------------------------------- */
 
 static int
-rk805_probe(device_t dev)
+rk8xx_probe(device_t dev)
 {
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
@@ -709,14 +709,14 @@ rk805_probe(device_t dev)
 	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data == 0)
 		return (ENXIO);
 
-	device_set_desc(dev, "RockChip RK805 PMIC");
+	device_set_desc(dev, "RockChip RK8XX PMIC");
 	return (BUS_PROBE_DEFAULT);
 }
 
 static void
-rk805_start(void *pdev)
+rk8xx_start(void *pdev)
 {
-	struct rk805_softc *sc;
+	struct rk8xx_softc *sc;
 	device_t dev;
 	uint8_t data[2];
 	int err;
@@ -727,12 +727,12 @@ rk805_start(void *pdev)
 
 	/* No version register in RK808 */
 	if (bootverbose && sc->type == RK805) {
-		err = rk805_read(dev, RK805_CHIP_NAME, data, 1);
+		err = rk8xx_read(dev, RK805_CHIP_NAME, data, 1);
 		if (err != 0) {
 			device_printf(dev, "Cannot read chip name reg\n");
 			return;
 		}
-		err = rk805_read(dev, RK805_CHIP_VER, data + 1, 1);
+		err = rk8xx_read(dev, RK805_CHIP_VER, data + 1, 1);
 		if (err != 0) {
 			device_printf(dev, "Cannot read chip version reg\n");
 			return;
@@ -749,7 +749,7 @@ rk805_start(void *pdev)
 }
 
 static int
-rk805_gettime(device_t dev, struct timespec *ts)
+rk8xx_gettime(device_t dev, struct timespec *ts)
 {
 	struct bcd_clocktime bct;
 	uint8_t data[7];
@@ -757,26 +757,26 @@ rk805_gettime(device_t dev, struct timespec *ts)
 	int error;
 
 	/* Latch the RTC value into the shadow registers and set 24hr mode */
-	error = rk805_read(dev, RK805_RTC_CTRL, &ctrl, 1);
+	error = rk8xx_read(dev, RK805_RTC_CTRL, &ctrl, 1);
 	if (error != 0)
 		return (error);
 
 	ctrl |= RK805_RTC_READSEL;
 	ctrl &= ~(RK805_RTC_AMPM_MODE | RK805_RTC_GET_TIME);
-	error = rk805_write(dev, RK805_RTC_CTRL, &ctrl, 1);
+	error = rk8xx_write(dev, RK805_RTC_CTRL, &ctrl, 1);
 	if (error != 0)
 		return (error);
 	ctrl |= RK805_RTC_GET_TIME;
-	error = rk805_write(dev, RK805_RTC_CTRL, &ctrl, 1);
+	error = rk8xx_write(dev, RK805_RTC_CTRL, &ctrl, 1);
 	if (error != 0)
 		return (error);
 	ctrl &= ~RK805_RTC_GET_TIME;
-	error = rk805_write(dev, RK805_RTC_CTRL, &ctrl, 1);
+	error = rk8xx_write(dev, RK805_RTC_CTRL, &ctrl, 1);
 	if (error != 0)
 		return (error);
 
 	/* This works as long as RK805_RTC_SECS = 0 */
-	error = rk805_read(dev, RK805_RTC_SECS, data, 7);
+	error = rk8xx_read(dev, RK805_RTC_SECS, data, 7);
 	if (error != 0)
 		return (error);
 
@@ -809,7 +809,7 @@ rk805_gettime(device_t dev, struct timespec *ts)
 }
 
 static int
-rk805_settime(device_t dev, struct timespec *ts)
+rk8xx_settime(device_t dev, struct timespec *ts)
 {
 	struct bcd_clocktime bct;
 	uint8_t data[7];
@@ -830,19 +830,19 @@ rk805_settime(device_t dev, struct timespec *ts)
 	if (data[RK805_RTC_WEEKS] == 0)
 		data[RK805_RTC_WEEKS] = 7;
 
-	error = rk805_read(dev, RK805_RTC_CTRL, &ctrl, 1);
+	error = rk8xx_read(dev, RK805_RTC_CTRL, &ctrl, 1);
 	if (error != 0)
 		return (error);
 
 	ctrl |= RK805_RTC_CTRL_STOP;
 	ctrl &= ~RK805_RTC_AMPM_MODE;
-	error = rk805_write(dev, RK805_RTC_CTRL, &ctrl, 1);
+	error = rk8xx_write(dev, RK805_RTC_CTRL, &ctrl, 1);
 	if (error != 0)
 		return (error);
 
-	error = rk805_write(dev, RK805_RTC_SECS, data, 7);
+	error = rk8xx_write(dev, RK805_RTC_SECS, data, 7);
 	ctrl &= ~RK805_RTC_CTRL_STOP;
-	rk805_write(dev, RK805_RTC_CTRL, &ctrl, 1);
+	rk8xx_write(dev, RK805_RTC_CTRL, &ctrl, 1);
 
 	return (error);
 }
@@ -871,11 +871,11 @@ rk805_poweroff(void *arg, int howto)
 }
 
 static int
-rk805_attach(device_t dev)
+rk8xx_attach(device_t dev)
 {
-	struct rk805_softc *sc;
-	struct rk805_reg_sc *reg;
-	struct rk805_regdef *regdefs;
+	struct rk8xx_softc *sc;
+	struct rk8xx_reg_sc *reg;
+	struct rk8xx_regdef *regdefs;
 	struct reg_list *regp;
 	phandle_t rnode, child;
 	int error, i;
@@ -883,11 +883,11 @@ rk805_attach(device_t dev)
 	sc = device_get_softc(dev);
 
 	sc->type = ofw_bus_search_compatible(dev, compat_data)->ocd_data;
-	error = rk805_export_clocks(dev);
+	error = rk8xx_export_clocks(dev);
 	if (error != 0)
 		return (error);
 
-	sc->intr_hook.ich_func = rk805_start;
+	sc->intr_hook.ich_func = rk8xx_start;
 	sc->intr_hook.ich_arg = dev;
 	if (config_intrhook_establish(&sc->intr_hook) != 0)
 		return (ENOMEM);
@@ -917,7 +917,7 @@ rk805_attach(device_t dev)
 				continue;
 			if (OF_hasprop(child, "regulator-name") != 1)
 				continue;
-			reg = rk805_reg_attach(dev, child, &regdefs[i]);
+			reg = rk8xx_reg_attach(dev, child, &regdefs[i]);
 			if (reg == NULL) {
 				device_printf(dev,
 				    "cannot attach regulator %s\n",
@@ -948,7 +948,7 @@ rk805_attach(device_t dev)
 }
 
 static int
-rk805_detach(device_t dev)
+rk8xx_detach(device_t dev)
 {
 
 	/* We cannot detach regulators */
@@ -956,10 +956,10 @@ rk805_detach(device_t dev)
 }
 
 static int
-rk805_map(device_t dev, phandle_t xref, int ncells,
+rk8xx_map(device_t dev, phandle_t xref, int ncells,
     pcell_t *cells, intptr_t *id)
 {
-	struct rk805_softc *sc;
+	struct rk8xx_softc *sc;
 	struct reg_list *regp;
 
 	sc = device_get_softc(dev);
@@ -974,30 +974,30 @@ rk805_map(device_t dev, phandle_t xref, int ncells,
 	return (ERANGE);
 }
 
-static device_method_t rk805_methods[] = {
-	DEVMETHOD(device_probe,		rk805_probe),
-	DEVMETHOD(device_attach,	rk805_attach),
-	DEVMETHOD(device_detach,	rk805_detach),
+static device_method_t rk8xx_methods[] = {
+	DEVMETHOD(device_probe,		rk8xx_probe),
+	DEVMETHOD(device_attach,	rk8xx_attach),
+	DEVMETHOD(device_detach,	rk8xx_detach),
 
 	/* regdev interface */
-	DEVMETHOD(regdev_map,		rk805_map),
+	DEVMETHOD(regdev_map,		rk8xx_map),
 
 	/* Clock interface */
-	DEVMETHOD(clock_gettime,	rk805_gettime),
-	DEVMETHOD(clock_settime,	rk805_settime),
+	DEVMETHOD(clock_gettime,	rk8xx_gettime),
+	DEVMETHOD(clock_settime,	rk8xx_settime),
 
 	DEVMETHOD_END
 };
 
-static driver_t rk805_driver = {
-	"rk805_pmu",
-	rk805_methods,
-	sizeof(struct rk805_softc),
+static driver_t rk8xx_driver = {
+	"rk8xx_pmu",
+	rk8xx_methods,
+	sizeof(struct rk8xx_softc),
 };
 
-static devclass_t rk805_devclass;
+static devclass_t rk8xx_devclass;
 
-EARLY_DRIVER_MODULE(rk805, iicbus, rk805_driver, rk805_devclass, 0, 0,
+EARLY_DRIVER_MODULE(rk8xx, iicbus, rk8xx_driver, rk8xx_devclass, 0, 0,
     BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LAST);
-MODULE_DEPEND(rk805, iicbus, IICBUS_MINVER, IICBUS_PREFVER, IICBUS_MAXVER);
-MODULE_VERSION(rk805, 1);
+MODULE_DEPEND(rk8xx, iicbus, IICBUS_MINVER, IICBUS_PREFVER, IICBUS_MAXVER);
+MODULE_VERSION(rk8xx, 1);
