@@ -2250,11 +2250,14 @@ vm_page_alloc_contig_domain(vm_object_t object, vm_pindex_t pindex, int domain,
 	vm_page_t m, m_ret, mpred;
 	u_int busy_lock, flags, oflags;
 
-#define	VPAC_FLAGS	VPA_FLAGS
+#define	VPAC_FLAGS	(VPA_FLAGS | VM_ALLOC_NORECLAIM)
 	KASSERT((req & ~VPAC_FLAGS) == 0,
 	    ("invalid request %#x", req));
 	KASSERT(((req & (VM_ALLOC_NOBUSY | VM_ALLOC_SBUSY)) !=
 	    (VM_ALLOC_NOBUSY | VM_ALLOC_SBUSY)),
+	    ("invalid request %#x", req));
+	KASSERT((req & (VM_ALLOC_WAITOK | VM_ALLOC_NORECLAIM)) !=
+	    (VM_ALLOC_WAITOK | VM_ALLOC_NORECLAIM),
 	    ("invalid request %#x", req));
 	VM_OBJECT_ASSERT_WLOCKED(object);
 	KASSERT((object->flags & OBJ_FICTITIOUS) == 0,
@@ -2294,7 +2297,8 @@ again:
 		if (m_ret == NULL) {
 			vm_domain_freecnt_inc(vmd, npages);
 #if VM_NRESERVLEVEL > 0
-			if (vm_reserv_reclaim_contig(domain, npages, low,
+			if ((req & VM_ALLOC_NORECLAIM) == 0 &&
+			    vm_reserv_reclaim_contig(domain, npages, low,
 			    high, alignment, boundary))
 				goto again;
 #endif
@@ -2525,8 +2529,11 @@ vm_page_alloc_noobj_contig_domain(int domain, int req, u_long npages,
 	vm_page_t m, m_ret;
 	u_int flags;
 
-#define	VPANC_FLAGS	VPAN_FLAGS
+#define	VPANC_FLAGS	(VPAN_FLAGS | VM_ALLOC_NORECLAIM)
 	KASSERT((req & ~VPANC_FLAGS) == 0,
+	    ("invalid request %#x", req));
+	KASSERT((req & (VM_ALLOC_WAITOK | VM_ALLOC_NORECLAIM)) !=
+	    (VM_ALLOC_WAITOK | VM_ALLOC_NORECLAIM),
 	    ("invalid request %#x", req));
 	KASSERT(((req & (VM_ALLOC_NOBUSY | VM_ALLOC_SBUSY)) !=
 	    (VM_ALLOC_NOBUSY | VM_ALLOC_SBUSY)),
@@ -2547,7 +2554,8 @@ again:
 		if (m_ret == NULL) {
 			vm_domain_freecnt_inc(vmd, npages);
 #if VM_NRESERVLEVEL > 0
-			if (vm_reserv_reclaim_contig(domain, npages, low,
+			if ((req & VM_ALLOC_NORECLAIM) == 0 &&
+			    vm_reserv_reclaim_contig(domain, npages, low,
 			    high, alignment, boundary))
 				goto again;
 #endif
