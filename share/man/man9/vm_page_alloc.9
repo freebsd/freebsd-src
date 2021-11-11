@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 17, 2021
+.Dd November 11, 2021
 .Dt VM_PAGE_ALLOC 9
 .Os
 .Sh NAME
@@ -315,6 +315,16 @@ If this flag is specified, the
 .Dq noobj
 variants will return zeroed pages.
 The other allocator interfaces ignore this flag.
+.It Dv VM_ALLOC_NORECLAIM
+If this flag is specified and the request can not be immediately satisfied,
+the allocator will not attempt to break superpage reservations to satisfy the
+allocation.
+This may be useful when the overhead of scanning the reservation queue
+outweighs the cost of a failed allocation.
+This flag may be used only with the
+.Dq contig
+variants, and must not be specified in combination with
+.Dv VM_ALLOC_WAITOK .
 .It Dv VM_ALLOC_COUNT(n)
 Hint that at least
 .Fa n
