@@ -215,7 +215,7 @@ static struct nfsrv_lughash	*nfsgroupnamehash;
 static int nfs_bigreply[NFSV42_NPROCS] = { 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0,
-    1, 0, 0, 1, 0 };
+    1, 0, 0, 1, 0, 0, 0, 0 };
 
 /* local functions */
 static int nfsrv_skipace(struct nfsrv_descript *nd, int *acesizep);
@@ -299,6 +299,9 @@ static struct {
 	{ NFSV4OP_REMOVEXATTR, 2, "Rmxattr", 7, },
 	{ NFSV4OP_LISTXATTRS, 2, "Listxattr", 9, },
 	{ NFSV4OP_BINDCONNTOSESS, 1, "BindConSess", 11, },
+	{ NFSV4OP_LOOKUP, 5, "LookupOpen", 10, },
+	{ NFSV4OP_DEALLOCATE, 2, "Deallocate", 10, },
+	{ NFSV4OP_LAYOUTERROR, 1, "LayoutError", 11, },
 };
 
 /*
@@ -307,7 +310,8 @@ static struct {
 static int nfs_bigrequest[NFSV42_NPROCS] = {
 	0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0
+	0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0,
+	0
 };
 
 /*
