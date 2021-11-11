@@ -32,6 +32,7 @@
 #include <machine/sysarch.h>
 #include <x86/ifunc.h>
 #include <errno.h>
+#define	_WITH_CPU_SET_T
 #include <sched.h>
 #include "libc_private.h"
 
