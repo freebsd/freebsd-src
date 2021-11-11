@@ -125,6 +125,7 @@ static void load_filtees(Obj_Entry *, int flags, RtldLockState *);
 static void unload_filtees(Obj_Entry *, RtldLockState *);
 static int load_needed_objects(Obj_Entry *, int);
 static int load_preload_objects(const char *, bool);
+static int load_kpreload(const void *addr);
 static Obj_Entry *load_object(const char *, int fd, const Obj_Entry *, int);
 static void map_stacks_exec(RtldLockState *);
 static int obj_disable_relro(Obj_Entry *);
@@ -827,6 +828,13 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 
     if (!libmap_disable)
         libmap_disable = (bool)lm_init(libmap_override);
+
+    if (aux_info[AT_KPRELOAD] != NULL &&
+      aux_info[AT_KPRELOAD]->a_un.a_ptr != NULL) {
+	dbg("loading kernel vdso");
+	if (load_kpreload(aux_info[AT_KPRELOAD]->a_un.a_ptr) == -1)
+	    rtld_die();
+    }
 
     dbg("loading LD_PRELOAD_FDS libraries");
     if (load_preload_objects(ld_preload_fds, true) == -1)
@@ -2840,6 +2848,77 @@ errp:
     munmap(obj->mapbase, obj->mapsize);
     obj_free(obj);
     return (NULL);
+}
+
+static int
+load_kpreload(const void *addr)
+{
+	Obj_Entry *obj;
+	const Elf_Ehdr *ehdr;
+	const Elf_Phdr *phdr, *phlimit, *phdyn, *seg0, *segn;
+	static const char kname[] = "[vdso]";
+
+	ehdr = addr;
+	if (!check_elf_headers(ehdr, "kpreload"))
+		return (-1);
+	obj = obj_new();
+	phdr = (const Elf_Phdr *)((const char *)addr + ehdr->e_phoff);
+	obj->phdr = phdr;
+	obj->phsize = ehdr->e_phnum * sizeof(*phdr);
+	phlimit = phdr + ehdr->e_phnum;
+	seg0 = segn = NULL;
+
+	for (; phdr < phlimit; phdr++) {
+		switch (phdr->p_type) {
+		case PT_DYNAMIC:
+			phdyn = phdr;
+			break;
+		case PT_GNU_STACK:
+			/* Absense of PT_GNU_STACK implies stack_flags == 0. */
+			obj->stack_flags = phdr->p_flags;
+			break;
+		case PT_LOAD:
+			if (seg0 == NULL || seg0->p_vaddr > phdr->p_vaddr)
+				seg0 = phdr;
+			if (segn == NULL || segn->p_vaddr + segn->p_memsz <
+			    phdr->p_vaddr + phdr->p_memsz)
+				segn = phdr;
+			break;
+		}
+	}
+
+	obj->mapbase = __DECONST(caddr_t, addr);
+	obj->mapsize = segn->p_vaddr + segn->p_memsz - (Elf_Addr)addr;
+	obj->vaddrbase = 0;
+	obj->relocbase = obj->mapbase;
+
+	object_add_name(obj, kname);
+	obj->path = xstrdup(kname);
+	obj->dynamic = (const Elf_Dyn *)(obj->relocbase + phdyn->p_vaddr);
+
+	if (!digest_dynamic(obj, 0)) {
+		obj_free(obj);
+		return (-1);
+	}
+
+	/*
+	 * We assume that kernel-preloaded object does not need
+	 * relocation.  It is currently written into read-only page,
+	 * handling relocations would mean we need to allocate at
+	 * least one additional page per AS.
+	 */
+	dbg("%s mapbase %p phdrs %p PT_LOAD phdr %p vaddr %p dynamic %p",
+	    obj->path, obj->mapbase, obj->phdr, seg0,
+	    obj->relocbase + seg0->p_vaddr, obj->dynamic);
+
+	TAILQ_INSERT_TAIL(&obj_list, obj, next);
+	obj_count++;
+	obj_loads++;
+	linkmap_add(obj);	/* for GDB & dlinfo() */
+	max_stack_flags |= obj->stack_flags;
+
+	LD_UTRACE(UTRACE_LOAD_OBJECT, obj, obj->mapbase, 0, 0, obj->path);
+	return (0);
 }
 
 Obj_Entry *
