@@ -405,6 +405,7 @@ void free_tls_offset(Obj_Entry *obj);
 const Ver_Entry *fetch_ventry(const Obj_Entry *obj, unsigned long);
 int convert_prot(int elfflags);
 void *_get_tp(void);	/* libc implementation */
+bool check_elf_headers(const Elf_Ehdr *hdr, const char *path);
 
 /*
  * MD function declarations.
