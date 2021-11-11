@@ -345,6 +345,39 @@ error:
     return (NULL);
 }
 
+bool
+check_elf_headers(const Elf_Ehdr *hdr, const char *path)
+{
+	if (!IS_ELF(*hdr)) {
+		_rtld_error("%s: invalid file format", path);
+		return (false);
+	}
+	if (hdr->e_ident[EI_CLASS] != ELF_TARG_CLASS ||
+	    hdr->e_ident[EI_DATA] != ELF_TARG_DATA) {
+		_rtld_error("%s: unsupported file layout", path);
+		return (false);
+	}
+	if (hdr->e_ident[EI_VERSION] != EV_CURRENT ||
+	    hdr->e_version != EV_CURRENT) {
+		_rtld_error("%s: unsupported file version", path);
+		return (false);
+	}
+	if (hdr->e_type != ET_EXEC && hdr->e_type != ET_DYN) {
+		_rtld_error("%s: unsupported file type", path);
+		return (false);
+	}
+	if (hdr->e_machine != ELF_TARG_MACH) {
+		_rtld_error("%s: unsupported machine", path);
+		return (false);
+	}
+	if (hdr->e_phentsize != sizeof(Elf_Phdr)) {
+		_rtld_error(
+	    "%s: invalid shared object: e_phentsize != sizeof(Elf_Phdr)", path);
+		return (false);
+	}
+	return (true);
+}
+
 static Elf_Ehdr *
 get_elf_header(int fd, const char *path, const struct stat *sbp,
     Elf_Phdr **phdr_p)
@@ -366,39 +399,14 @@ get_elf_header(int fd, const char *path, const struct stat *sbp,
 	}
 
 	/* Make sure the file is valid */
-	if (!IS_ELF(*hdr)) {
-		_rtld_error("%s: invalid file format", path);
+	if (!check_elf_headers(hdr, path))
 		goto error;
-	}
-	if (hdr->e_ident[EI_CLASS] != ELF_TARG_CLASS ||
-	    hdr->e_ident[EI_DATA] != ELF_TARG_DATA) {
-		_rtld_error("%s: unsupported file layout", path);
-		goto error;
-	}
-	if (hdr->e_ident[EI_VERSION] != EV_CURRENT ||
-	    hdr->e_version != EV_CURRENT) {
-		_rtld_error("%s: unsupported file version", path);
-		goto error;
-	}
-	if (hdr->e_type != ET_EXEC && hdr->e_type != ET_DYN) {
-		_rtld_error("%s: unsupported file type", path);
-		goto error;
-	}
-	if (hdr->e_machine != ELF_TARG_MACH) {
-		_rtld_error("%s: unsupported machine", path);
-		goto error;
-	}
 
 	/*
 	 * We rely on the program header being in the first page.  This is
 	 * not strictly required by the ABI specification, but it seems to
 	 * always true in practice.  And, it simplifies things considerably.
 	 */
-	if (hdr->e_phentsize != sizeof(Elf_Phdr)) {
-		_rtld_error(
-	    "%s: invalid shared object: e_phentsize != sizeof(Elf_Phdr)", path);
-		goto error;
-	}
 	if (phdr_in_zero_page(hdr)) {
 		phdr = (Elf_Phdr *)((char *)hdr + hdr->e_phoff);
 	} else {
