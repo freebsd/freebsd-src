@@ -496,6 +496,7 @@ struct rack_control {
 	uint32_t challenge_ack_cnt;
 	uint32_t rc_min_to;	/* Socket option value Lock(a) */
 	uint32_t rc_pkt_delay;	/* Socket option value Lock(a) */
+	uint32_t persist_lost_ends;
 	struct newreno rc_saved_beta;	/*
 					 * For newreno cc:
 					 * rc_saved_cc are the values we have had
@@ -567,7 +568,8 @@ struct tcp_rack {
 		rc_last_tlp_past_cumack: 1,
 		rc_last_sent_tlp_seq_valid: 1,
 		rc_last_sent_tlp_past_cumack: 1,
-		avail_bytes : 3;
+		probe_not_answered: 1,
+		avail_bytes : 2;
 	uint32_t rc_rack_rtt;	/* RACK-RTT Lock(a) */
 	uint16_t r_mbuf_queue : 1,	/* Do we do mbuf queue for non-paced */
 		 rtt_limit_mul : 4,	/* muliply this by low rtt */

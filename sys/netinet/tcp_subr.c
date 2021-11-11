@@ -1748,6 +1748,7 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 	struct mbuf *optm;
 	struct udphdr *uh = NULL;
 	struct tcphdr *nth;
+	struct tcp_log_buffer *lgb;
 	u_char *optp;
 #ifdef INET6
 	struct ip6_hdr *ip6;
@@ -1756,6 +1757,7 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 	int optlen, tlen, win, ulen;
 	bool incl_opts;
 	uint16_t port;
+	int output_ret;
 
 	KASSERT(tp != NULL || m != NULL, ("tcp_respond: tp and m both NULL"));
 	NET_EPOCH_ASSERT();
@@ -2086,11 +2088,26 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 	TCP_PROBE3(debug__output, tp, th, m);
 	if (flags & TH_RST)
 		TCP_PROBE5(accept__refused, NULL, NULL, m, tp, nth);
+	if ((tp != NULL) && (tp->t_logstate != TCP_LOG_STATE_OFF)) {
+		union tcp_log_stackspecific log;
+		struct timeval tv;
+
+		memset(&log.u_bbr, 0, sizeof(log.u_bbr));
+		log.u_bbr.inhpts = tp->t_inpcb->inp_in_hpts;
+		log.u_bbr.ininput = tp->t_inpcb->inp_in_input;
+		log.u_bbr.flex8 = 4;
+		log.u_bbr.pkts_out = tp->t_maxseg;
+		log.u_bbr.timeStamp = tcp_get_usecs(&tv);
+		log.u_bbr.delivered = 0;
+		lgb = tcp_log_event_(tp, nth, NULL, NULL, TCP_LOG_OUT, ERRNO_UNK,
+				     0, &log, false, NULL, NULL, 0, &tv);
+	} else
+		lgb = NULL;
 
 #ifdef INET6
 	if (isipv6) {
 		TCP_PROBE5(send, NULL, tp, ip6, tp, nth);
-		(void)ip6_output(m, NULL, NULL, 0, NULL, NULL, inp);
+		output_ret = ip6_output(m, NULL, NULL, 0, NULL, NULL, inp);
 	}
 #endif /* INET6 */
 #if defined(INET) && defined(INET6)
@@ -2099,9 +2116,13 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 #ifdef INET
 	{
 		TCP_PROBE5(send, NULL, tp, ip, tp, nth);
-		(void)ip_output(m, NULL, NULL, 0, NULL, inp);
+		output_ret = ip_output(m, NULL, NULL, 0, NULL, inp);
 	}
 #endif
+	if (lgb) {
+		lgb->tlb_errno = output_ret;
+		lgb = NULL;
+	}
 }
 
 /*
