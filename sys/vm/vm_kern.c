@@ -182,10 +182,6 @@ kmem_alloc_contig_pages(vm_object_t object, vm_pindex_t pindex, int domain,
 
 	VM_OBJECT_ASSERT_WLOCKED(object);
 
-	/* Disallow an invalid combination of flags. */
-	MPASS((pflags & (VM_ALLOC_WAITOK | VM_ALLOC_NORECLAIM)) !=
-	    (VM_ALLOC_WAITOK | VM_ALLOC_NORECLAIM));
-
 	wait = (pflags & VM_ALLOC_WAITOK) != 0;
 	reclaim = (pflags & VM_ALLOC_NORECLAIM) == 0;
 	pflags &= ~(VM_ALLOC_NOWAIT | VM_ALLOC_WAITOK | VM_ALLOC_WAITFAIL);
