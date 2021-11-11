@@ -4351,8 +4351,20 @@ netinet/ip_options.c		optional inet
 netinet/ip_output.c		optional inet
 netinet/ip_reass.c		optional inet
 netinet/raw_ip.c		optional inet | inet6
-netinet/cc/cc.c			optional inet | inet6
-netinet/cc/cc_newreno.c		optional inet | inet6
+netinet/cc/cc.c			optional cc_newreno inet | cc_vegas inet | \
+	cc_htcp inet | cc_hd inet | cc_dctcp inet | cc_cubic inet | \
+	cc_chd inet | cc_cdg inet | cc_newreno inet6 | cc_vegas inet6 | \
+	cc_htcp inet6 | cc_hd inet6 |cc_dctcp inet6 | cc_cubic inet6 | \
+	cc_chd inet6 | cc_cdg inet6
+netinet/cc/cc_cdg.c		optional inet cc_cdg tcp_hhook
+netinet/cc/cc_chd.c		optional inet cc_chd tcp_hhook
+netinet/cc/cc_cubic.c		optional inet cc_cubic | inet6 cc_cubic
+netinet/cc/cc_dctcp.c		optional inet cc_dctcp | inet6 cc_dctcp
+netinet/cc/cc_hd.c		optional inet cc_hd tcp_hhook
+netinet/cc/cc_htcp.c		optional inet cc_htcp | inet6 cc_htcp
+netinet/cc/cc_newreno.c		optional inet cc_newreno | inet6 cc_newreno
+netinet/cc/cc_vegas.c		optional inet cc_vegas tcp_hhook
+netinet/khelp/h_ertt.c		optional inet tcp_hhook
 netinet/sctp_asconf.c		optional inet sctp | inet6 sctp
 netinet/sctp_auth.c		optional inet sctp | inet6 sctp
 netinet/sctp_bsd_addr.c		optional inet sctp | inet6 sctp

@@ -27,6 +27,19 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 14.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20211110:
+	Commit xxxxxx changed the TCP congestion control framework so
+	that any of the included congestion control modules could be
+	the single module built into the kernel. Previously newreno
+	was automatically built in through direct reference. Has of
+	this commit you are required to declare at least one congestion
+	control module (e.g. 'options CC_NEWRENO') and to also delcare a 
+	default using the CC_DEFAULT option (e.g. options CC_DEFAULT="newreno\").
+	The GENERIC configuation includes CC_NEWRENO and defines newreno
+	as the default. If no congestion control option is built into the
+	kernel and you are including networking, the kernel compile will
+	fail. Also if no default is declared the kernel compile will fail.
+
 20211106:
 	Commit f0c9847a6c47 changed the arguments for VOP_ALLOCATE.
 	The NFS modules must be rebuilt from sources and any out

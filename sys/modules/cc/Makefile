@@ -1,6 +1,7 @@
 # $FreeBSD$
 
-SUBDIR=	cc_cubic \
+SUBDIR=	cc_newreno \
+	cc_cubic \
 	cc_dctcp \
 	cc_htcp
 

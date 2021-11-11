@@ -71,6 +71,10 @@ __FBSDID("$FreeBSD$");
 
 #include <net/vnet.h>
 
+#include <net/route.h>
+#include <net/route/nhop.h>
+
+#include <netinet/in_pcb.h>
 #include <netinet/tcp.h>
 #include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
@@ -87,10 +91,11 @@ __FBSDID("$FreeBSD$");
 
 static void	vegas_ack_received(struct cc_var *ccv, uint16_t ack_type);
 static void	vegas_cb_destroy(struct cc_var *ccv);
-static int	vegas_cb_init(struct cc_var *ccv);
+static int	vegas_cb_init(struct cc_var *ccv, void *ptr);
 static void	vegas_cong_signal(struct cc_var *ccv, uint32_t signal_type);
 static void	vegas_conn_init(struct cc_var *ccv);
 static int	vegas_mod_init(void);
+static size_t	vegas_data_sz(void);
 
 struct vegas {
 	int slow_start_toggle;
@@ -103,9 +108,6 @@ VNET_DEFINE_STATIC(uint32_t, vegas_beta) = 3;
 #define	V_vegas_alpha	VNET(vegas_alpha)
 #define	V_vegas_beta	VNET(vegas_beta)
 
-static MALLOC_DEFINE(M_VEGAS, "vegas data",
-    "Per connection data required for the Vegas congestion control algorithm");
-
 struct cc_algo vegas_cc_algo = {
 	.name = "vegas",
 	.ack_received = vegas_ack_received,
@@ -113,7 +115,10 @@ struct cc_algo vegas_cc_algo = {
 	.cb_init = vegas_cb_init,
 	.cong_signal = vegas_cong_signal,
 	.conn_init = vegas_conn_init,
-	.mod_init = vegas_mod_init
+	.mod_init = vegas_mod_init,
+	.cc_data_sz = vegas_data_sz,
+	.after_idle = newreno_cc_after_idle,
+	.post_recovery = newreno_cc_post_recovery,
 };
 
 /*
@@ -162,24 +167,33 @@ vegas_ack_received(struct cc_var *ccv, uint16_t ack_type)
 	}
 
 	if (vegas_data->slow_start_toggle)
-		newreno_cc_algo.ack_received(ccv, ack_type);
+		newreno_cc_ack_received(ccv, ack_type);
 }
 
 static void
 vegas_cb_destroy(struct cc_var *ccv)
 {
-	free(ccv->cc_data, M_VEGAS);
+	free(ccv->cc_data, M_CC_MEM);
+}
+
+static size_t
+vegas_data_sz(void)
+{
+	return (sizeof(struct vegas));
 }
 
 static int
-vegas_cb_init(struct cc_var *ccv)
+vegas_cb_init(struct cc_var *ccv, void *ptr)
 {
 	struct vegas *vegas_data;
 
-	vegas_data = malloc(sizeof(struct vegas), M_VEGAS, M_NOWAIT);
-
-	if (vegas_data == NULL)
-		return (ENOMEM);
+	INP_WLOCK_ASSERT(ccv->ccvc.tcp->t_inpcb);
+	if (ptr == NULL) {
+		vegas_data = malloc(sizeof(struct vegas), M_CC_MEM, M_NOWAIT);
+		if (vegas_data == NULL)
+			return (ENOMEM);
+	} else
+		vegas_data = ptr;
 
 	vegas_data->slow_start_toggle = 1;
 	ccv->cc_data = vegas_data;
@@ -216,7 +230,7 @@ vegas_cong_signal(struct cc_var *ccv, uint32_t signal_type)
 		break;
 
 	default:
-		newreno_cc_algo.cong_signal(ccv, signal_type);
+		newreno_cc_cong_signal(ccv, signal_type);
 	}
 
 	if (IN_RECOVERY(CCV(ccv, t_flags)) && !presignalrecov)
@@ -236,16 +250,11 @@ vegas_conn_init(struct cc_var *ccv)
 static int
 vegas_mod_init(void)
 {
-
 	ertt_id = khelp_get_id("ertt");
 	if (ertt_id <= 0) {
 		printf("%s: h_ertt module not found\n", __func__);
 		return (ENOENT);
 	}
-
-	vegas_cc_algo.after_idle = newreno_cc_algo.after_idle;
-	vegas_cc_algo.post_recovery = newreno_cc_algo.post_recovery;
-
 	return (0);
 }
 
@@ -301,5 +310,5 @@ SYSCTL_PROC(_net_inet_tcp_cc_vegas, OID_AUTO, beta,
     "vegas beta, specified as number of \"buffers\" (0 < alpha < beta)");
 
 DECLARE_CC_MODULE(vegas, &vegas_cc_algo);
-MODULE_VERSION(vegas, 1);
+MODULE_VERSION(vegas, 2);
 MODULE_DEPEND(vegas, ertt, 1, 1, 1);

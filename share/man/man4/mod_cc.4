@@ -67,6 +67,16 @@ socket option (see
 for details).
 Callers must pass a pointer to an algorithm specific data, and specify
 its size.
+.Pp
+Unloading a congestion control module will fail if it is used as a
+default by any Vnet.
+When unloading a module, the Vnet default is
+used to switch a connection to an alternate congestion control.
+Note that the new congestion control module may fail to initialize its
+internal memory, if so it will fail the module unload.
+If this occurs often times retrying the unload will succeed since the temporary
+memory shortage as the new CC module malloc's memory, that prevented the
+switch is often transient.
 .Sh MIB Variables
 The framework exposes the following variables in the
 .Va net.inet.tcp.cc
@@ -93,6 +103,44 @@ support for ABE and for configuration details.
 If non-zero, apply standard beta instead of ABE-beta during ECN-signalled
 congestion recovery episodes if loss also needs to be repaired.
 .El
+.Pp
+Each congestion control module may also expose other MIB variables
+to control their behaviour.
+.Sh Kernel Configuration
+.Pp
+All of the available congestion control modules may also be loaded
+via kernel configutation options.
+A kernel configuration is required to have at least one congestion control
+algorithm built into it via kernel option and a system default specified.
+Compilation of the kernel will fail if these two conditions are not met.
+.Sh Kernel Configuration Options
+The framework exposes the following kernel configuration options.
+.Bl -tag -width ".Va CC_NEWRENO"
+.It Va CC_NEWRENO
+This directive loads the newreno congestion control algorithm and is included
+in GENERIC by default.
+.It Va CC_CUBIC
+This directive loads the cubic congestion control algorithm.
+.It Va CC_VEGAS
+This directive loads the vegas congestion control algorithm, note that
+this algorithm also requires the TCP_HHOOK option as well.
+.It Va CC_CDG
+This directive loads the cdg congestion control algorithm, note that
+this algorithm also requires the TCP_HHOOK option as well.
+.It Va CC_DCTCP
+This directive loads the dctcp congestion control algorithm.
+.It Va CC_HD
+This directive loads the hd congestion control algorithm, note that
+this algorithm also requires the TCP_HHOOK option as well.
+.It Va CC_CHD
+This directive loads the chd congestion control algorithm, note that
+this algorithm also requires the TCP_HHOOK option as well.
+.It Va CC_HTCP
+This directive loads the htcp congestion control algorithm.
+.It Va CC_DEFAULT
+This directive specifies the string that represents the name of the system default algorithm, the GENERIC kernel
+defaults this to newreno.
+.El
 .Sh SEE ALSO
 .Xr cc_cdg 4 ,
 .Xr cc_chd 4 ,
@@ -103,6 +151,8 @@ congestion recovery episodes if loss also needs to be repaired.
 .Xr cc_newreno 4 ,
 .Xr cc_vegas 4 ,
 .Xr tcp 4 ,
+.Xr config 5 ,
+.Xr config 8 ,
 .Xr mod_cc 9
 .Sh ACKNOWLEDGEMENTS
 Development and testing of this software were made possible in part by grants

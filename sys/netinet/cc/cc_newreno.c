@@ -71,6 +71,10 @@ __FBSDID("$FreeBSD$");
 
 #include <net/vnet.h>
 
+#include <net/route.h>
+#include <net/route/nhop.h>
+
+#include <netinet/in_pcb.h>
 #include <netinet/in.h>
 #include <netinet/in_pcb.h>
 #include <netinet/tcp.h>
@@ -82,22 +86,20 @@ __FBSDID("$FreeBSD$");
 #include <netinet/cc/cc_module.h>
 #include <netinet/cc/cc_newreno.h>
 
-static MALLOC_DEFINE(M_NEWRENO, "newreno data",
-	"newreno beta values");
-
 static void	newreno_cb_destroy(struct cc_var *ccv);
 static void	newreno_ack_received(struct cc_var *ccv, uint16_t type);
 static void	newreno_after_idle(struct cc_var *ccv);
 static void	newreno_cong_signal(struct cc_var *ccv, uint32_t type);
-static void	newreno_post_recovery(struct cc_var *ccv);
 static int newreno_ctl_output(struct cc_var *ccv, struct sockopt *sopt, void *buf);
 static void	newreno_newround(struct cc_var *ccv, uint32_t round_cnt);
 static void	newreno_rttsample(struct cc_var *ccv, uint32_t usec_rtt, uint32_t rxtcnt, uint32_t fas);
-static 	int	newreno_cb_init(struct cc_var *ccv);
+static 	int	newreno_cb_init(struct cc_var *ccv, void *);
+static size_t	newreno_data_sz(void);
 
-VNET_DEFINE(uint32_t, newreno_beta) = 50;
-VNET_DEFINE(uint32_t, newreno_beta_ecn) = 80;
+
+VNET_DECLARE(uint32_t, newreno_beta);
 #define V_newreno_beta VNET(newreno_beta)
+VNET_DEFINE(uint32_t, newreno_beta_ecn) = 80;
 #define V_newreno_beta_ecn VNET(newreno_beta_ecn)
 
 struct cc_algo newreno_cc_algo = {
@@ -106,11 +108,12 @@ struct cc_algo newreno_cc_algo = {
 	.ack_received = newreno_ack_received,
 	.after_idle = newreno_after_idle,
 	.cong_signal = newreno_cong_signal,
-	.post_recovery = newreno_post_recovery,
+	.post_recovery = newreno_cc_post_recovery,
 	.ctl_output = newreno_ctl_output,
 	.newround = newreno_newround,
 	.rttsample = newreno_rttsample,
 	.cb_init = newreno_cb_init,
+	.cc_data_sz = newreno_data_sz,
 };
 
 static uint32_t hystart_lowcwnd = 16;
@@ -167,14 +170,24 @@ newreno_log_hystart_event(struct cc_var *ccv, struct newreno *nreno, uint8_t mod
 	}
 }
 
+static size_t
+newreno_data_sz(void)
+{
+	return (sizeof(struct newreno));
+}
+
 static int
-newreno_cb_init(struct cc_var *ccv)
+newreno_cb_init(struct cc_var *ccv, void *ptr)
 {
 	struct newreno *nreno;
 
-	ccv->cc_data = malloc(sizeof(struct newreno), M_NEWRENO, M_NOWAIT);
-	if (ccv->cc_data == NULL)
-		return (ENOMEM);
+	INP_WLOCK_ASSERT(ccv->ccvc.tcp->t_inpcb);
+	if (ptr == NULL) {
+		ccv->cc_data = malloc(sizeof(struct newreno), M_CC_MEM, M_NOWAIT);
+		if (ccv->cc_data == NULL)
+			return (ENOMEM);
+	} else
+		ccv->cc_data = ptr;
 	nreno = (struct newreno *)ccv->cc_data;
 	/* NB: nreno is not zeroed, so initialise all fields. */
 	nreno->beta = V_newreno_beta;
@@ -201,7 +214,7 @@ newreno_cb_init(struct cc_var *ccv)
 static void
 newreno_cb_destroy(struct cc_var *ccv)
 {
-	free(ccv->cc_data, M_NEWRENO);
+	free(ccv->cc_data, M_CC_MEM);
 }
 
 static void
@@ -209,13 +222,7 @@ newreno_ack_received(struct cc_var *ccv, uint16_t type)
 {
 	struct newreno *nreno;
 
-	/*
-	 * Other TCP congestion controls use newreno_ack_received(), but
-	 * with their own private cc_data. Make sure the cc_data is used
-	 * correctly.
-	 */
-	nreno = (CC_ALGO(ccv->ccvc.tcp) == &newreno_cc_algo) ? ccv->cc_data : NULL;
-
+	nreno = ccv->cc_data;
 	if (type == CC_ACK && !IN_RECOVERY(CCV(ccv, t_flags)) &&
 	    (ccv->flags & CCF_CWND_LIMITED)) {
 		u_int cw = CCV(ccv, snd_cwnd);
@@ -249,8 +256,7 @@ newreno_ack_received(struct cc_var *ccv, uint16_t type)
 		 *   avoid capping cwnd.
 		 */
 		if (cw > CCV(ccv, snd_ssthresh)) {
-			if ((nreno != NULL) &&
-			    (nreno->newreno_flags & CC_NEWRENO_HYSTART_IN_CSS)) {
+			if (nreno->newreno_flags & CC_NEWRENO_HYSTART_IN_CSS) {
 				/*
 				 * We have slipped into CA with
 				 * CSS active. Deactivate all.
@@ -284,8 +290,7 @@ newreno_ack_received(struct cc_var *ccv, uint16_t type)
 				abc_val = ccv->labc;
 			else
 				abc_val = V_tcp_abc_l_var;
-			if ((nreno != NULL) &&
-			    (nreno->newreno_flags & CC_NEWRENO_HYSTART_ALLOWED) &&
+			if ((nreno->newreno_flags & CC_NEWRENO_HYSTART_ALLOWED) &&
 			    (nreno->newreno_flags & CC_NEWRENO_HYSTART_ENABLED) &&
 			    ((nreno->newreno_flags & CC_NEWRENO_HYSTART_IN_CSS) == 0)) {
 				/*
@@ -323,8 +328,7 @@ newreno_ack_received(struct cc_var *ccv, uint16_t type)
 				incr = min(ccv->bytes_this_ack, CCV(ccv, t_maxseg));
 
 			/* Only if Hystart is enabled will the flag get set */
-			if ((nreno != NULL) &&
-			    (nreno->newreno_flags & CC_NEWRENO_HYSTART_IN_CSS)) {
+			if (nreno->newreno_flags & CC_NEWRENO_HYSTART_IN_CSS) {
 				incr /= hystart_css_growth_div;
 				newreno_log_hystart_event(ccv, nreno, 3, incr);
 			}
@@ -340,39 +344,10 @@ static void
 newreno_after_idle(struct cc_var *ccv)
 {
 	struct newreno *nreno;
-	uint32_t rw;
 
-	/*
-	 * Other TCP congestion controls use newreno_after_idle(), but
-	 * with their own private cc_data. Make sure the cc_data is used
-	 * correctly.
-	 */
-	nreno = (CC_ALGO(ccv->ccvc.tcp) == &newreno_cc_algo) ? ccv->cc_data : NULL;
-	/*
-	 * If we've been idle for more than one retransmit timeout the old
-	 * congestion window is no longer current and we have to reduce it to
-	 * the restart window before we can transmit again.
-	 *
-	 * The restart window is the initial window or the last CWND, whichever
-	 * is smaller.
-	 *
-	 * This is done to prevent us from flooding the path with a full CWND at
-	 * wirespeed, overloading router and switch buffers along the way.
-	 *
-	 * See RFC5681 Section 4.1. "Restarting Idle Connections".
-	 *
-	 * In addition, per RFC2861 Section 2, the ssthresh is set to the
-	 * maximum of the former ssthresh or 3/4 of the old cwnd, to
-	 * not exit slow-start prematurely.
-	 */
-	rw = tcp_compute_initwnd(tcp_maxseg(ccv->ccvc.tcp));
-
-	CCV(ccv, snd_ssthresh) = max(CCV(ccv, snd_ssthresh),
-	    CCV(ccv, snd_cwnd)-(CCV(ccv, snd_cwnd)>>2));
-
-	CCV(ccv, snd_cwnd) = min(rw, CCV(ccv, snd_cwnd));
-	if ((nreno != NULL) &&
-	    (nreno->newreno_flags & CC_NEWRENO_HYSTART_ENABLED) == 0) {
+	nreno = ccv->cc_data;
+	newreno_cc_after_idle(ccv);
+	if ((nreno->newreno_flags & CC_NEWRENO_HYSTART_ENABLED) == 0) {
 		if (CCV(ccv, snd_cwnd) <= (hystart_lowcwnd * tcp_fixed_maxseg(ccv->ccvc.tcp))) {
 			/*
 			 * Re-enable hystart if our cwnd has fallen below
@@ -396,12 +371,7 @@ newreno_cong_signal(struct cc_var *ccv, uint32_t type)
 
 	cwin = CCV(ccv, snd_cwnd);
 	mss = tcp_fixed_maxseg(ccv->ccvc.tcp);
-	/*
-	 * Other TCP congestion controls use newreno_cong_signal(), but
-	 * with their own private cc_data. Make sure the cc_data is used
-	 * correctly.
-	 */
-	nreno = (CC_ALGO(ccv->ccvc.tcp) == &newreno_cc_algo) ? ccv->cc_data : NULL;
+	nreno = ccv->cc_data;
 	beta = (nreno == NULL) ? V_newreno_beta : nreno->beta;;
 	beta_ecn = (nreno == NULL) ? V_newreno_beta_ecn : nreno->beta_ecn;
 	/*
@@ -426,8 +396,7 @@ newreno_cong_signal(struct cc_var *ccv, uint32_t type)
 
 	switch (type) {
 	case CC_NDUPACK:
-		if ((nreno != NULL) &&
-		    (nreno->newreno_flags & CC_NEWRENO_HYSTART_ENABLED)) {
+		if (nreno->newreno_flags & CC_NEWRENO_HYSTART_ENABLED) {
 			/* Make sure the flags are all off we had a loss */
 			nreno->newreno_flags &= ~CC_NEWRENO_HYSTART_ENABLED;
 			nreno->newreno_flags &= ~CC_NEWRENO_HYSTART_IN_CSS;
@@ -445,8 +414,7 @@ newreno_cong_signal(struct cc_var *ccv, uint32_t type)
 		}
 		break;
 	case CC_ECN:
-		if ((nreno != NULL) &&
-		    (nreno->newreno_flags & CC_NEWRENO_HYSTART_ENABLED)) {
+		if (nreno->newreno_flags & CC_NEWRENO_HYSTART_ENABLED) {
 			/* Make sure the flags are all off we had a loss */
 			nreno->newreno_flags &= ~CC_NEWRENO_HYSTART_ENABLED;
 			nreno->newreno_flags &= ~CC_NEWRENO_HYSTART_IN_CSS;
@@ -463,41 +431,6 @@ newreno_cong_signal(struct cc_var *ccv, uint32_t type)
 					     2) * mss;
 		CCV(ccv, snd_cwnd) = mss;
 		break;
-	}
-}
-
-/*
- * Perform any necessary tasks before we exit congestion recovery.
- */
-static void
-newreno_post_recovery(struct cc_var *ccv)
-{
-	int pipe;
-
-	if (IN_FASTRECOVERY(CCV(ccv, t_flags))) {
-		/*
-		 * Fast recovery will conclude after returning from this
-		 * function. Window inflation should have left us with
-		 * approximately snd_ssthresh outstanding data. But in case we
-		 * would be inclined to send a burst, better to do it via the
-		 * slow start mechanism.
-		 *
-		 * XXXLAS: Find a way to do this without needing curack
-		 */
-		if (V_tcp_do_newsack)
-			pipe = tcp_compute_pipe(ccv->ccvc.tcp);
-		else
-			pipe = CCV(ccv, snd_max) - ccv->curack;
-
-		if (pipe < CCV(ccv, snd_ssthresh))
-			/*
-			 * Ensure that cwnd does not collapse to 1 MSS under
-			 * adverse conditons. Implements RFC6582
-			 */
-			CCV(ccv, snd_cwnd) = max(pipe, CCV(ccv, t_maxseg)) +
-			    CCV(ccv, t_maxseg);
-		else
-			CCV(ccv, snd_cwnd) = CCV(ccv, snd_ssthresh);
 	}
 }
 
@@ -723,4 +656,4 @@ SYSCTL_UINT(_net_inet_tcp_cc_newreno_hystartplusplus, OID_AUTO, bblogs,
 
 
 DECLARE_CC_MODULE(newreno, &newreno_cc_algo);
-MODULE_VERSION(newreno, 1);
+MODULE_VERSION(newreno, 2);

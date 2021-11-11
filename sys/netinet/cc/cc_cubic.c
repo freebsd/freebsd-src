@@ -62,6 +62,10 @@ __FBSDID("$FreeBSD$");
 
 #include <net/vnet.h>
 
+#include <net/route.h>
+#include <net/route/nhop.h>
+
+#include <netinet/in_pcb.h>
 #include <netinet/tcp.h>
 #include <netinet/tcp_seq.h>
 #include <netinet/tcp_timer.h>
@@ -72,7 +76,7 @@ __FBSDID("$FreeBSD$");
 
 static void	cubic_ack_received(struct cc_var *ccv, uint16_t type);
 static void	cubic_cb_destroy(struct cc_var *ccv);
-static int	cubic_cb_init(struct cc_var *ccv);
+static int	cubic_cb_init(struct cc_var *ccv, void *ptr);
 static void	cubic_cong_signal(struct cc_var *ccv, uint32_t type);
 static void	cubic_conn_init(struct cc_var *ccv);
 static int	cubic_mod_init(void);
@@ -80,6 +84,7 @@ static void	cubic_post_recovery(struct cc_var *ccv);
 static void	cubic_record_rtt(struct cc_var *ccv);
 static void	cubic_ssthresh_update(struct cc_var *ccv, uint32_t maxseg);
 static void	cubic_after_idle(struct cc_var *ccv);
+static size_t	cubic_data_sz(void);
 
 struct cubic {
 	/* Cubic K in fixed point form with CUBIC_SHIFT worth of precision. */
@@ -114,9 +119,6 @@ struct cubic {
 	int		t_last_cong_prev;
 };
 
-static MALLOC_DEFINE(M_CUBIC, "cubic data",
-    "Per connection data required for the CUBIC congestion control algorithm");
-
 struct cc_algo cubic_cc_algo = {
 	.name = "cubic",
 	.ack_received = cubic_ack_received,
@@ -127,6 +129,7 @@ struct cc_algo cubic_cc_algo = {
 	.mod_init = cubic_mod_init,
 	.post_recovery = cubic_post_recovery,
 	.after_idle = cubic_after_idle,
+	.cc_data_sz = cubic_data_sz
 };
 
 static void
@@ -149,7 +152,7 @@ cubic_ack_received(struct cc_var *ccv, uint16_t type)
 		if (CCV(ccv, snd_cwnd) <= CCV(ccv, snd_ssthresh) ||
 		    cubic_data->min_rtt_ticks == TCPTV_SRTTBASE) {
 			cubic_data->flags |= CUBICFLAG_IN_SLOWSTART;
-			newreno_cc_algo.ack_received(ccv, type);
+			newreno_cc_ack_received(ccv, type);
 		} else {
 			if ((cubic_data->flags & CUBICFLAG_RTO_EVENT) &&
 			    (cubic_data->flags & CUBICFLAG_IN_SLOWSTART)) {
@@ -243,25 +246,34 @@ cubic_after_idle(struct cc_var *ccv)
 	cubic_data->max_cwnd = ulmax(cubic_data->max_cwnd, CCV(ccv, snd_cwnd));
 	cubic_data->K = cubic_k(cubic_data->max_cwnd / CCV(ccv, t_maxseg));
 
-	newreno_cc_algo.after_idle(ccv);
+	newreno_cc_after_idle(ccv);
 	cubic_data->t_last_cong = ticks;
 }
 
 static void
 cubic_cb_destroy(struct cc_var *ccv)
 {
-	free(ccv->cc_data, M_CUBIC);
+	free(ccv->cc_data, M_CC_MEM);
+}
+
+static size_t
+cubic_data_sz(void)
+{
+	return (sizeof(struct cubic));
 }
 
 static int
-cubic_cb_init(struct cc_var *ccv)
+cubic_cb_init(struct cc_var *ccv, void *ptr)
 {
 	struct cubic *cubic_data;
 
-	cubic_data = malloc(sizeof(struct cubic), M_CUBIC, M_NOWAIT|M_ZERO);
-
-	if (cubic_data == NULL)
-		return (ENOMEM);
+	INP_WLOCK_ASSERT(ccv->ccvc.tcp->t_inpcb);
+	if (ptr == NULL) {
+		cubic_data = malloc(sizeof(struct cubic), M_CC_MEM, M_NOWAIT|M_ZERO);
+		if (cubic_data == NULL)
+			return (ENOMEM);
+	} else
+		cubic_data = ptr;
 
 	/* Init some key variables with sensible defaults. */
 	cubic_data->t_last_cong = ticks;
@@ -484,4 +496,4 @@ cubic_ssthresh_update(struct cc_var *ccv, uint32_t maxseg)
 }
 
 DECLARE_CC_MODULE(cubic, &cubic_cc_algo);
-MODULE_VERSION(cubic, 1);
+MODULE_VERSION(cubic, 2);
