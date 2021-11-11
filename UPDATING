@@ -28,7 +28,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 14.x IS SLOW:
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
 20211110:
-	Commit xxxxxx changed the TCP congestion control framework so
+	Commit b8d60729deef changed the TCP congestion control framework so
 	that any of the included congestion control modules could be
 	the single module built into the kernel. Previously newreno
 	was automatically built in through direct reference. Has of
