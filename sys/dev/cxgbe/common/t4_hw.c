@@ -3959,6 +3959,14 @@ int t4_link_l1cfg(struct adapter *adap, unsigned int mbox, unsigned int port,
 			if (lc->requested_fec & FEC_MODULE)
 				fec |= fec_to_fwcap(lc->fec_hint);
 		}
+
+		/*
+		 * This is for compatibility with old firmwares. The original
+		 * way to request NO_FEC was to not set any of the FEC bits. New
+		 * firmwares understand this too.
+		 */
+		if (fec == FW_PORT_CAP32_FEC_NO_FEC)
+			fec = 0;
 	}
 
 	/* Force AN on for BT cards. */
