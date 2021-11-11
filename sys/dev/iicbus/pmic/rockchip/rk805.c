@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/iicbus/pmic/rockchip/rk805reg.h>
 #include <dev/iicbus/pmic/rockchip/rk808reg.h>
+#include <dev/iicbus/pmic/rockchip/rk8xx.h>
 
 #include "clock_if.h"
 #include "regdev_if.h"
@@ -59,53 +60,10 @@ MALLOC_DEFINE(M_RK805_REG, "RK805 regulator", "RK805 power regulator");
 /* #define	dprintf(sc, format, arg...)	device_printf(sc->base_dev, "%s: " format, __func__, arg) */
 #define	dprintf(sc, format, arg...)
 
-enum rk_pmic_type {
-	RK805 = 1,
-	RK808,
-};
-
 static struct ofw_compat_data compat_data[] = {
 	{"rockchip,rk805", RK805},
 	{"rockchip,rk808", RK808},
 	{NULL,             0}
-};
-
-struct rk8xx_regdef {
-	intptr_t		id;
-	char			*name;
-	uint8_t			enable_reg;
-	uint8_t			enable_mask;
-	uint8_t			voltage_reg;
-	uint8_t			voltage_mask;
-	int			voltage_min;
-	int			voltage_max;
-	int			voltage_step;
-	int			voltage_nstep;
-};
-
-struct rk8xx_reg_sc {
-	struct regnode		*regnode;
-	device_t		base_dev;
-	struct rk8xx_regdef	*def;
-	phandle_t		xref;
-	struct regnode_std_param *param;
-};
-
-struct reg_list {
-	TAILQ_ENTRY(reg_list)	next;
-	struct rk8xx_reg_sc	*reg;
-};
-
-struct rk8xx_softc {
-	device_t		dev;
-	struct mtx		mtx;
-	struct resource *	res[1];
-	void *			intrcookie;
-	struct intr_config_hook	intr_hook;
-	enum rk_pmic_type	type;
-
-	TAILQ_HEAD(, reg_list)		regs;
-	int			nregs;
 };
 
 static int rk8xx_regnode_status(struct regnode *regnode, int *status);
@@ -352,7 +310,7 @@ static struct rk8xx_regdef rk808_regdefs[] = {
 	},
 };
 
-static int
+int
 rk8xx_read(device_t dev, uint8_t reg, uint8_t *data, uint8_t size)
 {
 	int err;
@@ -361,7 +319,7 @@ rk8xx_read(device_t dev, uint8_t reg, uint8_t *data, uint8_t size)
 	return (err);
 }
 
-static int
+int
 rk8xx_write(device_t dev, uint8_t reg, uint8_t *data, uint8_t size)
 {
 
@@ -749,128 +707,6 @@ rk8xx_start(void *pdev)
 }
 
 static int
-rk8xx_gettime(device_t dev, struct timespec *ts)
-{
-	struct bcd_clocktime bct;
-	uint8_t data[7];
-	uint8_t ctrl;
-	int error;
-
-	/* Latch the RTC value into the shadow registers and set 24hr mode */
-	error = rk8xx_read(dev, RK805_RTC_CTRL, &ctrl, 1);
-	if (error != 0)
-		return (error);
-
-	ctrl |= RK805_RTC_READSEL;
-	ctrl &= ~(RK805_RTC_AMPM_MODE | RK805_RTC_GET_TIME);
-	error = rk8xx_write(dev, RK805_RTC_CTRL, &ctrl, 1);
-	if (error != 0)
-		return (error);
-	ctrl |= RK805_RTC_GET_TIME;
-	error = rk8xx_write(dev, RK805_RTC_CTRL, &ctrl, 1);
-	if (error != 0)
-		return (error);
-	ctrl &= ~RK805_RTC_GET_TIME;
-	error = rk8xx_write(dev, RK805_RTC_CTRL, &ctrl, 1);
-	if (error != 0)
-		return (error);
-
-	/* This works as long as RK805_RTC_SECS = 0 */
-	error = rk8xx_read(dev, RK805_RTC_SECS, data, 7);
-	if (error != 0)
-		return (error);
-
-	/*
-	 * If the reported year is earlier than 2019, assume the clock is unset.
-	 * This is both later than the reset value for the RK805 and RK808 as
-	 * well as being prior to the current time.
-	 */
-	if (data[RK805_RTC_YEARS] < 0x19)
-		return (EINVAL);
-
-	memset(&bct, 0, sizeof(bct));
-	bct.year = data[RK805_RTC_YEARS];
-	bct.mon = data[RK805_RTC_MONTHS] & RK805_RTC_MONTHS_MASK;
-	bct.day = data[RK805_RTC_DAYS] & RK805_RTC_DAYS_MASK;
-	bct.hour = data[RK805_RTC_HOURS] & RK805_RTC_HOURS_MASK;
-	bct.min = data[RK805_RTC_MINUTES] & RK805_RTC_MINUTES_MASK;
-	bct.sec = data[RK805_RTC_SECS] & RK805_RTC_SECS_MASK;
-	bct.dow = data[RK805_RTC_WEEKS] & RK805_RTC_WEEKS_MASK;
-	/* The day of week is reported as 1-7 with 1 = Monday */
-	if (bct.dow == 7)
-		bct.dow = 0;
-	bct.ispm = 0;
-
-	if (bootverbose)
-		device_printf(dev, "Read RTC: %02x-%02x-%02x %02x:%02x:%02x\n",
-		    bct.year, bct.mon, bct.day, bct.hour, bct.min, bct.sec);
-
-	return (clock_bcd_to_ts(&bct, ts, false));
-}
-
-static int
-rk8xx_settime(device_t dev, struct timespec *ts)
-{
-	struct bcd_clocktime bct;
-	uint8_t data[7];
-	int error;
-	uint8_t ctrl;
-
-	clock_ts_to_bcd(ts, &bct, false);
-
-	/* This works as long as RK805_RTC_SECS = 0 */
-	data[RK805_RTC_YEARS] = bct.year;
-	data[RK805_RTC_MONTHS] = bct.mon;
-	data[RK805_RTC_DAYS] = bct.day;
-	data[RK805_RTC_HOURS] = bct.hour;
-	data[RK805_RTC_MINUTES] = bct.min;
-	data[RK805_RTC_SECS] = bct.sec;
-	data[RK805_RTC_WEEKS] = bct.dow;
-	/* The day of week is reported as 1-7 with 1 = Monday */
-	if (data[RK805_RTC_WEEKS] == 0)
-		data[RK805_RTC_WEEKS] = 7;
-
-	error = rk8xx_read(dev, RK805_RTC_CTRL, &ctrl, 1);
-	if (error != 0)
-		return (error);
-
-	ctrl |= RK805_RTC_CTRL_STOP;
-	ctrl &= ~RK805_RTC_AMPM_MODE;
-	error = rk8xx_write(dev, RK805_RTC_CTRL, &ctrl, 1);
-	if (error != 0)
-		return (error);
-
-	error = rk8xx_write(dev, RK805_RTC_SECS, data, 7);
-	ctrl &= ~RK805_RTC_CTRL_STOP;
-	rk8xx_write(dev, RK805_RTC_CTRL, &ctrl, 1);
-
-	return (error);
-}
-
-static void
-rk805_poweroff(void *arg, int howto)
-{
-	device_t dev = arg;
-	int error;
-	uint8_t val;
-
-	if ((howto & RB_POWEROFF) == 0)
-		return;
-
-	device_printf(dev, "Powering off...\n");
-	error = rk805_read(dev, RK805_DEV_CTRL, &val, 1);
-	if (error == 0) {
-		val |= RK805_DEV_CTRL_OFF;
-		error = rk805_write(dev, RK805_DEV_CTRL, &val, 1);
-
-		/* Wait a bit for the command to take effect. */
-		if (error == 0)
-			DELAY(100);
-	}
-	device_printf(dev, "Power off failed\n");
-}
-
-static int
 rk8xx_attach(device_t dev)
 {
 	struct rk8xx_softc *sc;
@@ -896,10 +732,44 @@ rk8xx_attach(device_t dev)
 	case RK805:
 		regdefs = rk805_regdefs;
 		sc->nregs = nitems(rk805_regdefs);
+		sc->rtc_regs.secs = RK805_RTC_SECS;
+		sc->rtc_regs.secs_mask = RK805_RTC_SECS_MASK;
+		sc->rtc_regs.minutes = RK805_RTC_MINUTES;
+		sc->rtc_regs.minutes_mask = RK805_RTC_MINUTES_MASK;
+		sc->rtc_regs.hours = RK805_RTC_HOURS;
+		sc->rtc_regs.hours_mask = RK805_RTC_HOURS_MASK;
+		sc->rtc_regs.days = RK805_RTC_DAYS;
+		sc->rtc_regs.days_mask = RK805_RTC_DAYS_MASK;
+		sc->rtc_regs.months = RK805_RTC_MONTHS;
+		sc->rtc_regs.months_mask = RK805_RTC_MONTHS_MASK;
+		sc->rtc_regs.years = RK805_RTC_YEARS;
+		sc->rtc_regs.weeks = RK805_RTC_WEEKS_MASK;
+		sc->rtc_regs.ctrl = RK805_RTC_CTRL;
+		sc->rtc_regs.ctrl_stop_mask = RK805_RTC_CTRL_STOP;
+		sc->rtc_regs.ctrl_ampm_mask = RK805_RTC_AMPM_MODE;
+		sc->rtc_regs.ctrl_gettime_mask = RK805_RTC_GET_TIME;
+		sc->rtc_regs.ctrl_readsel_mask = RK805_RTC_READSEL;
 		break;
 	case RK808:
 		regdefs = rk808_regdefs;
 		sc->nregs = nitems(rk808_regdefs);
+		sc->rtc_regs.secs = RK808_RTC_SECS;
+		sc->rtc_regs.secs_mask = RK808_RTC_SECS_MASK;
+		sc->rtc_regs.minutes = RK808_RTC_MINUTES;
+		sc->rtc_regs.minutes_mask = RK808_RTC_MINUTES_MASK;
+		sc->rtc_regs.hours = RK808_RTC_HOURS;
+		sc->rtc_regs.hours_mask = RK808_RTC_HOURS_MASK;
+		sc->rtc_regs.days = RK808_RTC_DAYS;
+		sc->rtc_regs.days_mask = RK808_RTC_DAYS_MASK;
+		sc->rtc_regs.months = RK808_RTC_MONTHS;
+		sc->rtc_regs.months_mask = RK808_RTC_MONTHS_MASK;
+		sc->rtc_regs.years = RK808_RTC_YEARS;
+		sc->rtc_regs.weeks = RK808_RTC_WEEKS_MASK;
+		sc->rtc_regs.ctrl = RK808_RTC_CTRL;
+		sc->rtc_regs.ctrl_stop_mask = RK808_RTC_CTRL_STOP;
+		sc->rtc_regs.ctrl_ampm_mask = RK808_RTC_AMPM_MODE;
+		sc->rtc_regs.ctrl_gettime_mask = RK808_RTC_GET_TIME;
+		sc->rtc_regs.ctrl_readsel_mask = RK808_RTC_READSEL;
 		break;
 	default:
 		device_printf(dev, "Unknown type %d\n", sc->type);
