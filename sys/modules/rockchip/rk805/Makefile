@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${SRCTOP}/sys/arm64/rockchip
+.PATH: ${SRCTOP}/sys/dev/iicbus/pmic/rockchip
 
 KMOD=	rk805
 SRCS=	rk805.c
