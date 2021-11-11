@@ -445,7 +445,7 @@ set_flags(struct g_command *cmd)
 {
 	unsigned flags = 0;
 
-	if ((cmd->gc_flags & G_FLAG_VERBOSE) != 0)
+	if ((cmd->gc_flags & G_FLAG_VERBOSE) != 0 && verbose)
 		flags |= G_FLAG_VERBOSE;
 
 	return (flags);
