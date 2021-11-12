@@ -124,6 +124,12 @@ SYSCTL_BOOL(_net_inet_ip, OID_AUTO, rfc1122_strong_es,
     CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip_strong_es), false,
     "Packet's IP destination address must match address on arrival interface");
 
+VNET_DEFINE_STATIC(bool, ip_sav) = true;
+#define	V_ip_sav	VNET(ip_sav)
+SYSCTL_BOOL(_net_inet_ip, OID_AUTO, source_address_validation,
+    CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip_sav), true,
+    "Drop incoming packets with source address that is a local address");
+
 VNET_DEFINE(pfil_head_t, inet_pfil_head);	/* Packet filter hooks */
 
 static struct netisr_handler ip_nh = {
@@ -679,6 +685,16 @@ passin:
 		 * that the packet arrived via the correct interface.
 		 */
 		if (__predict_false(strong_es && ia->ia_ifp != ifp)) {
+			IPSTAT_INC(ips_badaddr);
+			goto bad;
+		}
+
+		/*
+		 * net.inet.ip.source_address_validation: drop incoming
+		 * packets that pretend to be ours.
+		 */
+		if (V_ip_sav && !(ifp->if_flags & IFF_LOOPBACK) &&
+		    __predict_false(in_localip_fib(ip->ip_src, ifp->if_fib))) {
 			IPSTAT_INC(ips_badaddr);
 			goto bad;
 		}
