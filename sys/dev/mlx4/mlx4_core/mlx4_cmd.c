@@ -3110,7 +3110,7 @@ int mlx4_set_vf_rate(struct mlx4_dev *dev, int port, int vf, int min_tx_rate,
 			mlx4_info(dev, "VF in VGT mode (needed VST)\n");
 
 		mlx4_info(dev,
-			  "rate %d take affect when VF moves to valid state\n",
+			  "rate %d take effect when VF moves to valid state\n",
 			  max_tx_rate);
 		return 0;
 	}
