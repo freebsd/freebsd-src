@@ -742,15 +742,9 @@ ofreebsd32_sigreturn(struct thread *td, struct ofreebsd32_sigreturn_args *uap)
 #endif
 
 #ifdef COMPAT_FREEBSD4
-/*
- * MPSAFE
- */
 int
-freebsd4_freebsd32_sigreturn(td, uap)
-	struct thread *td;
-	struct freebsd4_freebsd32_sigreturn_args /* {
-		const struct freebsd4_freebsd32_ucontext *sigcntxp;
-	} */ *uap;
+freebsd4_freebsd32_sigreturn(struct thread *td,
+    struct freebsd4_freebsd32_sigreturn_args *uap)
 {
 	struct ia32_ucontext4 uc;
 	struct trapframe *regs;
@@ -816,15 +810,8 @@ freebsd4_freebsd32_sigreturn(td, uap)
 }
 #endif	/* COMPAT_FREEBSD4 */
 
-/*
- * MPSAFE
- */
 int
-freebsd32_sigreturn(td, uap)
-	struct thread *td;
-	struct freebsd32_sigreturn_args /* {
-		const struct freebsd32_ucontext *sigcntxp;
-	} */ *uap;
+freebsd32_sigreturn(struct thread *td, struct freebsd32_sigreturn_args *uap)
 {
 	struct ia32_ucontext uc;
 	struct trapframe *regs;
