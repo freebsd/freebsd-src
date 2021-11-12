@@ -77,6 +77,13 @@ __FBSDID("$FreeBSD$");
 #include <netinet/cc/cc.h>
 #include <netinet/cc/cc_module.h>
 
+/*
+ * Have a sane default if no CC_DEFAULT is specified in the kernel config file.
+ */
+#ifndef CC_DEFAULT
+#define CC_DEFAULT "newreno"
+#endif
+
 MALLOC_DEFINE(M_CC_MEM, "CC Mem", "Congestion Control State memory");
 
 /*
