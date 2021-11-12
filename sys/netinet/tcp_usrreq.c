@@ -2073,11 +2073,16 @@ no_mem_needed:
 			free(ptr, M_CC_MEM);
 		goto do_over;
 	}
-	if (ptr)  {
+	INP_WLOCK(inp);
+	if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
+		INP_WUNLOCK(inp);
+		CC_LIST_RUNLOCK();
+		free(ptr, M_CC_MEM);
+		return (ECONNRESET);
+	}
+	tp = intotcpcb(inp);
+	if (ptr != NULL)
 		memset(ptr, 0, mem_sz);
-		INP_WLOCK_RECHECK_CLEANUP(inp, free(ptr, M_CC_MEM));
-	} else
-		INP_WLOCK_RECHECK(inp);
 	CC_LIST_RUNLOCK();
 	cc_mem.ccvc.tcp = tp;
 	/*
