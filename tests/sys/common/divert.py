@@ -42,6 +42,7 @@ IPPROTO_DIVERT = 258
 def parse_args():
     parser = argparse.ArgumentParser(description='divert socket tester')
     parser.add_argument('--dip', type=str, help='destination packet IP')
+    parser.add_argument('--sip', type=str, help='source packet IP')
     parser.add_argument('--divert_port', type=int, default=6668,
                         help='divert port to use')
     parser.add_argument('--test_name', type=str, required=True,
@@ -65,7 +66,7 @@ def ipdivert_ip6_output_remote_success(args):
 
 def ipdivert_ip_input_local_success(args):
     """Sends IPv4 packet to OS stack as inbound local packet."""
-    packet = sc.IP(dst=args.dip) / sc.ICMP(type='echo-request')
+    packet = sc.IP(dst=args.dip,src=args.sip) / sc.ICMP(type='echo-request')
     with socket.socket(socket.AF_INET, socket.SOCK_RAW, IPPROTO_DIVERT) as s:
         s.bind(('0.0.0.0', args.divert_port))
         s.sendto(bytes(packet), (args.dip, 0))
