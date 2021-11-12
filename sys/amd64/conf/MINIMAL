@@ -43,6 +43,8 @@ options 	NUMA			# Non-Uniform Memory Architecture support
 options 	PREEMPTION		# Enable kernel thread preemption
 options 	INET			# InterNETworking
 options 	INET6			# IPv6 communications protocols
+options		CC_NEWRENO		# include newreno congestion control
+options		CC_DEFAULT=\"newreno\"	# define our default CC module it should be compiled in.
 options 	TCP_OFFLOAD		# TCP offload
 options 	SCTP_SUPPORT		# Allow kldload of SCTP
 options 	FFS			# Berkeley Fast Filesystem
