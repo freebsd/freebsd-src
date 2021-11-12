@@ -30,8 +30,6 @@ options 	PREEMPTION		# Enable kernel thread preemption
 options 	VIMAGE			# Subsystem virtualization, e.g. VNET
 options 	INET			# InterNETworking
 options 	INET6			# IPv6 communications protocols
-options		CC_NEWRENO		# include newreno congestion control
-options		CC_DEFAULT=\"newreno\"	# define our default CC module it should be compiled in.
 options 	IPSEC_SUPPORT		# Allow kldload of ipsec and tcpmd5
 options		ROUTE_MPATH		# Multipath routing support
 options		FIB_ALGO		# Modular fib lookups

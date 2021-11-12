@@ -5,3 +5,6 @@
 
 device		mem
 
+# Default congestion control algorithm
+options 	CC_NEWRENO		# include newreno congestion control
+

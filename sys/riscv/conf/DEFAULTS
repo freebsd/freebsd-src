@@ -12,4 +12,7 @@ device		mem		# Memory and kernel memory devices
 options 	GEOM_PART_BSD
 options 	GEOM_PART_MBR
 
+# Default congestion control algorithm
+options 	CC_NEWRENO		# include newreno congestion control
+
 options 	NEW_PCIB

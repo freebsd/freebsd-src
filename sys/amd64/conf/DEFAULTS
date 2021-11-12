@@ -21,4 +21,7 @@ options 	GEOM_PART_EBR
 options 	GEOM_PART_MBR
 options 	GEOM_PART_GPT
 
+# Default congestion control algorithm
+options 	CC_NEWRENO		# include newreno congestion control
+
 options 	NEW_PCIB
