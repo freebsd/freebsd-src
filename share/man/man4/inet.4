@@ -219,6 +219,14 @@ or destination address rewriting
 .Xr pfil 4
 filters may override and bypass this check.
 Disabled by default.
+.It Va ip.source_address_validation
+Boolean: perform source address validation for packets destined for the local
+host.
+Consider this as following Section 3.2 of RFC3704/BCP84, where we treat local
+host as our own infrastructure.
+This has no effect on packets to be forwarded, so don't consider it as
+anti-spoof feature for a router.
+Enabled by default.
 .It Va ip.rfc6864
 Boolean: control IP IDs generation behaviour.
 True value enables RFC6864 support, which specifies that IP ID field of
