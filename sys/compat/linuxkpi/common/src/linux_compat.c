@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rwlock.h>
 #include <sys/mman.h>
 #include <sys/stack.h>
+#include <sys/time.h>
 #include <sys/user.h>
 
 #include <vm/vm.h>
@@ -96,6 +97,12 @@ SYSCTL_NODE(_compat, OID_AUTO, linuxkpi, CTLFLAG_RW, 0, "LinuxKPI parameters");
 int linuxkpi_debug;
 SYSCTL_INT(_compat_linuxkpi, OID_AUTO, debug, CTLFLAG_RWTUN,
     &linuxkpi_debug, 0, "Set to enable pr_debug() prints. Clear to disable.");
+
+static struct timeval lkpi_net_lastlog;
+static int lkpi_net_curpps;
+static int lkpi_net_maxpps = 99;
+SYSCTL_INT(_compat_linuxkpi, OID_AUTO, net_ratelimit, CTLFLAG_RWTUN,
+    &lkpi_net_maxpps, 0, "Limit number of LinuxKPI net messages per second.");
 
 MALLOC_DEFINE(M_KMALLOC, "linux", "Linux kmalloc compat");
 
@@ -2512,6 +2519,14 @@ linux_dump_stack(void)
 	stack_save(&st);
 	stack_print(&st);
 #endif
+}
+
+int
+linuxkpi_net_ratelimit(void)
+{
+
+	return (ppsratecheck(&lkpi_net_lastlog, &lkpi_net_curpps,
+	   lkpi_net_maxpps));
 }
 
 #if defined(__i386__) || defined(__amd64__)

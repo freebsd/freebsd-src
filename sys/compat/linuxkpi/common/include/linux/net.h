@@ -76,4 +76,14 @@ sock_release(struct socket *so)
 	soclose(so);
 }
 
+
+int linuxkpi_net_ratelimit(void);
+
+static inline int
+net_ratelimit(void)
+{
+
+	return (linuxkpi_net_ratelimit());
+}
+
 #endif	/* _LINUX_NET_H_ */
