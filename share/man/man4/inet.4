@@ -28,7 +28,7 @@
 .\"     From: @(#)inet.4	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd August 14, 2018
+.Dd November 12, 2021
 .Dt INET 4
 .Os
 .Sh NAME
@@ -204,6 +204,21 @@ This
 .Xr sysctl 8
 variable affects packets destined for a local host as well as packets
 forwarded to some other host.
+.It Va ip.rfc1122_strong_es
+Boolean: in non-forwarding mode
+.Pq ip.forwarding is disabled
+partially implement the Strong End System model per RFC1122.
+If a packet with destination address that is local arrives on a different
+interface than the interface the address belongs to, the packet would be
+silently dropped.
+Enabling this option may break certain setups, e.g. having an alias address(es)
+on loopback that are expected to be reachable by outside traffic.
+Enabling some other network features, e.g.
+.Xr carp 4
+or destination address rewriting
+.Xr pfil 4
+filters may override and bypass this check.
+Disabled by default.
 .It Va ip.rfc6864
 Boolean: control IP IDs generation behaviour.
 True value enables RFC6864 support, which specifies that IP ID field of
