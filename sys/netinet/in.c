@@ -138,6 +138,24 @@ in_localip(struct in_addr in)
 }
 
 /*
+ * Like in_localip(), but FIB-aware.
+ */
+bool
+in_localip_fib(struct in_addr in, uint16_t fib)
+{
+	struct in_ifaddr *ia;
+
+	NET_EPOCH_ASSERT();
+
+	CK_LIST_FOREACH(ia, INADDR_HASH(in.s_addr), ia_hash)
+		if (IA_SIN(ia)->sin_addr.s_addr == in.s_addr &&
+		    ia->ia_ifa.ifa_ifp->if_fib == fib)
+			return (true);
+
+	return (false);
+}
+
+/*
  * Return 1 if an internet address is configured on an interface.
  */
 int

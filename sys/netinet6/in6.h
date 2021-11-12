@@ -674,6 +674,7 @@ int	in6_cksum_partial(struct mbuf *, u_int8_t, u_int32_t, u_int32_t,
 			  u_int32_t);
 int	in6_localaddr(struct in6_addr *);
 int	in6_localip(struct in6_addr *);
+bool	in6_localip_fib(struct in6_addr *, uint16_t);
 int	in6_ifhasaddr(struct ifnet *, struct in6_addr *);
 int	in6_addrscope(const struct in6_addr *);
 char	*ip6_sprintf(char *, const struct in6_addr *);
