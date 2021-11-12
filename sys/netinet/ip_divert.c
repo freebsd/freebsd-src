@@ -218,18 +218,12 @@ divert_packet(struct mbuf *m, int incoming)
 #endif
 #ifdef INET6
 	if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA_IPV6) {
-		m = mb_unmapped_to_ext(m);
-		if (m == NULL)
-			return;
 		in6_delayed_cksum(m, m->m_pkthdr.len -
 		    sizeof(struct ip6_hdr), sizeof(struct ip6_hdr));
 		m->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA_IPV6;
 	}
 #if defined(SCTP) || defined(SCTP_SUPPORT)
 	if (m->m_pkthdr.csum_flags & CSUM_SCTP_IPV6) {
-		m = mb_unmapped_to_ext(m);
-		if (m == NULL)
-			return;
 		sctp_delayed_cksum(m, sizeof(struct ip6_hdr));
 		m->m_pkthdr.csum_flags &= ~CSUM_SCTP_IPV6;
 	}
