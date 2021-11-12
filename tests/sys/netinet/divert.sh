@@ -135,7 +135,8 @@ ipdivert_ip_input_local_success_body() {
 	jexec ${jname} ifconfig ${epair}b inet ${ip4b}/30
 
 	atf_check -s exit:0 jexec ${jname} $(atf_get_srcdir)/${script_name} \
-		--dip ${ip4b} --test_name ipdivert_ip_input_local_success
+	    --sip ${ip4a} --dip ${ip4b} \
+	    --test_name ipdivert_ip_input_local_success
 	
 	count=`jexec ${jname} netstat -s -p icmp  | grep 'Input histogram:' -A8 | grep -c 'echo: '`
 	# Verify redirect got installed
