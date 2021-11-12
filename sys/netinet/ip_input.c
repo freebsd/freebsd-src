@@ -607,7 +607,6 @@ tooshort:
 
 	ip = mtod(m, struct ip *);
 	dchg = (odst.s_addr != ip->ip_dst.s_addr);
-	ifp = m->m_pkthdr.rcvif;
 
 	if (m->m_flags & M_FASTFWD_OURS) {
 		m->m_flags &= ~M_FASTFWD_OURS;
@@ -665,7 +664,7 @@ passin:
 	 *   checked it with carp_iamatch() and carp_forus().
 	 */
 	strong_es = V_ip_strong_es && (V_ipforwarding == 0) &&
-	    ifp != NULL && ((ifp->if_flags & IFF_LOOPBACK) == 0) &&
+	    ((ifp->if_flags & IFF_LOOPBACK) == 0) &&
 	    ifp->if_carp == NULL && (dchg == 0);
 
 	/*
@@ -697,7 +696,7 @@ passin:
 	 * be handled via ip_forward() and ether_output() with the loopback
 	 * into the stack for SIMPLEX interfaces handled by ether_output().
 	 */
-	if (ifp != NULL && ifp->if_flags & IFF_BROADCAST) {
+	if (ifp->if_flags & IFF_BROADCAST) {
 		CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr->sa_family != AF_INET)
 				continue;
