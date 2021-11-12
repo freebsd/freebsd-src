@@ -2020,7 +2020,7 @@ s32 e1000_phy_force_speed_duplex_ife(struct e1000_hw *hw)
  *  disable auto-negotiation, configure duplex, configure speed, configure
  *  the collision distance, write configuration to CTRL register.  The
  *  caller must write to the PHY_CONTROL register for these settings to
- *  take affect.
+ *  take effect.
  **/
 void e1000_phy_force_speed_duplex_setup(struct e1000_hw *hw, u16 *phy_ctrl)
 {
