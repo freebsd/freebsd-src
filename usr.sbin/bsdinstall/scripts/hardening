@@ -28,20 +28,6 @@
 
 : ${DIALOG_OK=0}
 
-set_aslr_sysctls()
-{
-	for bit in 32 64; do
-		if ! sysctl -Nq kern.elf$bit.aslr.enable >/dev/null; then
-			continue
-		fi
-		cat >> $BSDINSTALL_TMPETC/sysctl.conf.hardening <<-EOF
-			kern.elf$bit.aslr.enable=1
-			kern.elf$bit.aslr.pie_enable=1
-			kern.elf$bit.aslr.honor_sbrk=0
-		EOF
-	done
-}
-
 echo -n > $BSDINSTALL_TMPETC/rc.conf.hardening
 echo -n > $BSDINSTALL_TMPETC/sysctl.conf.hardening
 echo -n > $BSDINSTALL_TMPBOOT/loader.conf.hardening
@@ -62,7 +48,6 @@ FEATURES=$( dialog --backtitle "FreeBSD Installer" \
 	"8 disable_sendmail" "Disable Sendmail service" ${disable_sendmail:-off} \
 	"9 secure_console" "Enable console password prompt" ${secure_console:-off} \
 	"10 disable_ddtrace" "Disallow DTrace destructive-mode" ${disable_ddtrace:-off} \
-	"11 enable_aslr" "Enable address layout randomization" ${enable_aslr:-off} \
 2>&1 1>&3 )
 exec 3>&-
 
@@ -100,9 +85,6 @@ for feature in $FEATURES; do
 		;;
 	disable_ddtrace)
 		echo 'security.bsd.allow_destructive_dtrace=0' >> $BSDINSTALL_TMPBOOT/loader.conf.hardening
-		;;
-	enable_aslr)
-		set_aslr_sysctls
 		;;
 	esac
 done
