@@ -316,6 +316,23 @@ cc_register_algo(struct cc_algo *add_cc)
 	return (err);
 }
 
+static void
+vnet_cc_sysinit(void *arg)
+{
+	struct cc_algo *cc;
+
+	if (IS_DEFAULT_VNET(curvnet))
+		return;
+
+	CURVNET_SET(vnet0);
+	cc = V_default_cc_ptr;
+	CURVNET_RESTORE();
+
+	V_default_cc_ptr = cc;
+}
+VNET_SYSINIT(vnet_cc_sysinit, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY,
+    vnet_cc_sysinit, NULL);
+
 /*
  * Perform any necessary tasks before we exit congestion recovery.
  */
