@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 25, 2020
+.Dd November 12, 2021
 .Dt INET6 4
 .Os
 .Sh NAME
@@ -341,6 +341,14 @@ mapped address on
 .Dv AF_INET6
 sockets.
 Defaults to on.
+.It Va ip6.source_address_validation
+Boolean: perform source address validation for packets destined for the local
+host.
+Consider this as following Section 3.2 of RFC3704/BCP84, where we treat local
+host as our own infrastructure.
+This has no effect on packets to be forwarded, so don't consider it as
+anti-spoof feature for a router.
+Enabled by default.
 .El
 .Ss Interaction between IPv4/v6 sockets
 By default,
