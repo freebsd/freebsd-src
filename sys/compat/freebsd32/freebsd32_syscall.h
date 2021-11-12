@@ -76,7 +76,7 @@
 				/* 68 is obsolete vwrite */
 #define	FREEBSD32_SYS_sbrk	69
 #define	FREEBSD32_SYS_sstk	70
-				/* 71 is old mmap */
+				/* 71 is old freebsd32_mmap */
 #define	FREEBSD32_SYS_freebsd11_vadvise	72
 #define	FREEBSD32_SYS_munmap	73
 #define	FREEBSD32_SYS_freebsd32_mprotect	74
