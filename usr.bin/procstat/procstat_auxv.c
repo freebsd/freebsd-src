@@ -234,6 +234,12 @@ procstat_auxv(struct procstat *procstat, struct kinfo_proc *kipp)
 			    prefix, "AT_PS_STRINGS", auxv[i].a_un.a_ptr);
 			break;
 #endif
+#ifdef AT_FXRNG
+		case AT_FXRNG:
+			xo_emit("{dw:/%s}{Lw:/%-16s/%s}{:AT_FXRNG/%p}\n",
+			    prefix, "AT_FXRNG", auxv[i].a_un.a_ptr);
+			break;
+#endif
 		default:
 			xo_emit("{dw:/%s}{Lw:/%16ld/%ld}{:UNKNOWN/%#lx}\n",
 			    prefix, auxv[i].a_type, auxv[i].a_un.a_val);
