@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 15, 2021
+.Dd November 13, 2021
 .Dt RTLD 1
 .Os
 .Sh NAME
@@ -309,6 +309,11 @@ will process the filtee dependencies of the loaded objects immediately,
 instead of postponing it until required.
 Normally, the filtees are opened at the time of the first symbol resolution
 from the filter object.
+.It Ev LD_SHOW_AUXV
+If set, causes
+.Nm
+to dump content of the aux vector to standard output, before passing
+control to any user code.
 .El
 .Sh DIRECT EXECUTION MODE
 .Nm
