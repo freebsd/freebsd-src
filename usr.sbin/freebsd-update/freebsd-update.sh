@@ -2210,7 +2210,7 @@ fetch_run () {
 		if [ -f fetch_create_manifest.out ]; then
 			echo "Updates available to install."
 			echo
-			cat fetch_create_manifest.out
+			cat fetch_create_manifest.out | ${PAGER}
 		else
 			echo
 			echo -n "No updates needed to update system to "
