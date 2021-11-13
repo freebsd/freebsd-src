@@ -6105,6 +6105,15 @@ static const struct auxfmt {
 	AUXFMT(AT_FXRNG, "%p"),
 };
 
+static bool
+is_ptr_fmt(const char *fmt)
+{
+	char last;
+
+	last = fmt[strlen(fmt) - 1];
+	return (last == 'p' || last == 's');
+}
+
 static void
 dump_auxv(Elf_Auxinfo **aux_info)
 {
@@ -6120,7 +6129,13 @@ dump_auxv(Elf_Auxinfo **aux_info)
 		if (fmt->fmt == NULL)
 			continue;
 		rtld_fdprintf(STDOUT_FILENO, "%s:\t", fmt->name);
-		rtld_fdprintfx(STDOUT_FILENO, fmt->fmt, auxp->a_un.a_ptr);
+		if (is_ptr_fmt(fmt->fmt)) {
+			rtld_fdprintfx(STDOUT_FILENO, fmt->fmt,
+			    auxp->a_un.a_ptr);
+		} else {
+			rtld_fdprintfx(STDOUT_FILENO, fmt->fmt,
+			    auxp->a_un.a_val);
+		}
 		rtld_fdprintf(STDOUT_FILENO, "\n");
 	}
 }
