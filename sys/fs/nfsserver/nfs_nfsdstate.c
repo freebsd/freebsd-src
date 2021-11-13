@@ -7400,6 +7400,7 @@ nfsrv_addlayout(struct nfsrv_descript *nd, struct nfslayout **lypp,
 	/* Insert the new layout in the lists. */
 	*lypp = NULL;
 	atomic_add_int(&nfsrv_layoutcnt, 1);
+	nfsstatsv1.srvlayouts++;
 	NFSBCOPY(lyp->lay_xdr, layp, lyp->lay_layoutlen);
 	*layoutlenp = lyp->lay_layoutlen;
 	TAILQ_INSERT_HEAD(&lhyp->list, lyp, lay_list);
@@ -7492,6 +7493,7 @@ nfsrv_freelayout(struct nfslayouthead *lhp, struct nfslayout *lyp)
 
 	NFSD_DEBUG(4, "Freelayout=%p\n", lyp);
 	atomic_add_int(&nfsrv_layoutcnt, -1);
+	nfsstatsv1.srvlayouts--;
 	TAILQ_REMOVE(lhp, lyp, lay_list);
 	free(lyp, M_NFSDSTATE);
 }

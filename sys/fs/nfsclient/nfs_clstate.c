@@ -5212,6 +5212,7 @@ nfscl_layout(struct nfsmount *nmp, vnode_t vp, u_int8_t *fhp, int fhlen,
 			    nfsly_hash);
 			lyp->nfsly_timestamp = NFSD_MONOSEC + 120;
 			nfscl_layoutcnt++;
+			nfsstatsv1.cllayouts++;
 		} else {
 			if (retonclose != 0)
 				lyp->nfsly_flags |= NFSLY_RETONCLOSE;
@@ -5586,6 +5587,7 @@ nfscl_freelayout(struct nfscllayout *layp)
 		free(rp, M_NFSLAYRECALL);
 	}
 	nfscl_layoutcnt--;
+	nfsstatsv1.cllayouts--;
 	free(layp, M_NFSLAYOUT);
 }
 
