@@ -489,6 +489,18 @@ rtld_fdprintf(int fd, const char *fmt, ...)
 	return (retval);
 }
 
+int
+rtld_fdprintfx(int fd, const char *fmt, ...)
+{
+	va_list ap;
+	int retval;
+
+	va_start(ap, fmt);
+	retval = rtld_vfdprintf(fd, fmt, ap);
+	va_end(ap);
+	return (retval);
+}
+
 void
 rtld_fdputstr(int fd, const char *str)
 {
