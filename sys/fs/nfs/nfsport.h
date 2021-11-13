@@ -459,8 +459,8 @@ struct nfsstatsv1 {
 	uint64_t	rpccnt[NFSV42_NPROCS + 11];
 	uint64_t	rpcretries;
 	uint64_t	srvrpccnt[NFSV42_NOPS + NFSV4OP_FAKENOPS + 15];
-	uint64_t	reserved_0;
-	uint64_t	reserved_1;
+	uint64_t	srvlayouts;
+	uint64_t	cllayouts;
 	uint64_t	rpcrequests;
 	uint64_t	rpctimeouts;
 	uint64_t	rpcunexpected;
