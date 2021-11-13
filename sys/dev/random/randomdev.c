@@ -340,7 +340,6 @@ randomdev_write(struct cdev *dev __unused, struct uio *uio, int flags __unused)
 		if (error)
 			break;
 		randomdev_accumulate(random_buf, c);
-		tsleep(p_random_alg_context, 0, "randwr", hz/10);
 	}
 	if (nbytes != uio->uio_resid && (error == ERESTART || error == EINTR))
 		/* Partial write, not error. */
