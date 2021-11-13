@@ -2662,8 +2662,6 @@ upgrade_run () {
 	done
 	fetch_tagsanity || return 1
 
-	rm -f fetch_create_manifest.out
-
 	# Fetch the INDEX-OLD and INDEX-ALL.
 	fetch_metadata INDEX-OLD INDEX-ALL || return 1
 
@@ -2766,8 +2764,7 @@ upgrade_run () {
 
 	# Create and populate install manifest directory; and report what
 	# updates are available.
-	fetch_create_manifest > fetch_create_manifest.out || return 1
-	cat fetch_create_manifest.out
+	fetch_create_manifest || return 1
 
 	# Leave a note behind to tell the "install" command that the kernel
 	# needs to be installed before the world.
