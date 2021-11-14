@@ -3,7 +3,11 @@
 .PATH: ${SRCTOP}/sys/dev/iicbus/pmic/rockchip
 
 KMOD=	rk805
-SRCS=	rk805.c
+SRCS=	rk8xx.c \
+	rk805.c \
+	rk8xx_clocks.c \
+	rk8xx_rtc.c \
+	rk8xx_regulators.c
 
 SRCS+=	\
 	bus_if.h \
