@@ -632,7 +632,6 @@ fill_addrinfo(struct rt_msghdr *rtm, int len, struct linear_buffer *lb, u_int fi
     struct rt_addrinfo *info)
 {
 	int error;
-	sa_family_t saf;
 
 	rtm->rtm_pid = curproc->p_pid;
 	info->rti_addrs = rtm->rtm_addrs;
@@ -652,7 +651,6 @@ fill_addrinfo(struct rt_msghdr *rtm, int len, struct linear_buffer *lb, u_int fi
 	error = cleanup_xaddrs(info, lb);
 	if (error != 0)
 		return (error);
-	saf = info->rti_info[RTAX_DST]->sa_family;
 	/*
 	 * Verify that the caller has the appropriate privilege; RTM_GET
 	 * is the only operation the non-superuser is allowed.
@@ -1025,7 +1023,6 @@ static int
 route_output(struct mbuf *m, struct socket *so, ...)
 {
 	struct rt_msghdr *rtm = NULL;
-	struct rtentry *rt = NULL;
 	struct rt_addrinfo info;
 	struct epoch_tracker et;
 #ifdef INET6
@@ -1187,7 +1184,6 @@ route_output(struct mbuf *m, struct socket *so, ...)
 
 flush:
 	NET_EPOCH_EXIT(et);
-	rt = NULL;
 
 #ifdef INET6
 	if (rtm != NULL) {
