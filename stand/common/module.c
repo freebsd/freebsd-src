@@ -381,14 +381,19 @@ command_pnpmatch(int argc, char *argv[])
 			return(CMD_OK);
 		}
 	}
-	argv += (optind - 1);
-	argc -= (optind - 1);
+	argv += optind;
+	argc -= optind;
 
-	module = mod_searchmodule_pnpinfo(argv[1], argv[2]);
+	if (argc != 2) {
+		command_errmsg = "Usage: pnpmatch <busname> compat=<compatdata>";
+		return (CMD_CRIT);
+	}
+
+	module = mod_searchmodule_pnpinfo(argv[0], argv[1]);
 	if (module)
 		printf("Matched module: %s\n", module);
-	else if(argv[1])
-		printf("No module matches %s\n", argv[1]);
+	else
+		printf("No module matches %s on bus %s\n", argv[1], argv[0]);
 
 	return (CMD_OK);
 }
