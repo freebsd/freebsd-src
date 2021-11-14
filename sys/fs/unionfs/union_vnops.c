@@ -1434,11 +1434,23 @@ unionfs_rmdir(struct vop_rmdir_args *ap)
 		ump = MOUNTTOUNIONFSMOUNT(ap->a_vp->v_mount);
 		if (ump->um_whitemode == UNIONFS_WHITE_ALWAYS || lvp != NULLVP)
 			cnp->cn_flags |= DOWHITEOUT;
+		/*
+		 * The relookup path will need to relock the parent dvp and
+		 * possibly the vp as well.  Locking is expected to be done
+		 * in parent->child order; drop the lock on vp to avoid LOR
+		 * and potential recursion on vp's lock.
+		 * vp is expected to remain referenced during VOP_RMDIR(),
+		 * so vref/vrele should not be necessary here.
+		 */
+		VOP_UNLOCK(ap->a_vp);
+		VNPASS(vrefcnt(ap->a_vp) > 0, ap->a_vp);
 		error = unionfs_relookup_for_delete(ap->a_dvp, cnp, td);
+		vn_lock(ap->a_vp, LK_EXCLUSIVE | LK_RETRY);
+		if (error == 0 && VN_IS_DOOMED(uvp))
+			error = ENOENT;
 		if (error == 0)
 			error = VOP_RMDIR(udvp, uvp, cnp);
-	}
-	else if (lvp != NULLVP)
+	} else if (lvp != NULLVP)
 		error = unionfs_mkwhiteout(udvp, cnp, td,
 		    unp->un_path, unp->un_pathlen);
 
