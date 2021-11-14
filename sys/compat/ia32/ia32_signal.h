@@ -195,14 +195,6 @@ struct ia32_sigframe3 {
 
 struct ksiginfo;
 struct image_params;
-extern char ia32_sigcode[];
-extern char freebsd4_ia32_sigcode[];
-extern char ia32_osigcode[];
-extern char lcall_tramp;
-extern int sz_ia32_sigcode;
-extern int sz_freebsd4_ia32_sigcode;
-extern int sz_ia32_osigcode;
-extern int sz_lcall_tramp;
 void ia32_sendsig(sig_t, struct ksiginfo *, sigset_t *);
 void ia32_setregs(struct thread *td, struct image_params *imgp,
     uintptr_t stack);

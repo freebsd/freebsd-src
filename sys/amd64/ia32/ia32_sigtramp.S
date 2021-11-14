@@ -32,14 +32,13 @@
 #include "ia32_assym.h"
 
 	.text
-	.code32
 /*
- * Signal trampoline, copied to top of user stack
- * XXX may need to be MD to match backend sendsig handoff protocol
+ * Signal trampoline, mapped as vdso into shared page, or copied to
+ * top of user stack for old binaries.
  */
 	ALIGN_TEXT
-	.globl	ia32_sigcode
-ia32_sigcode:
+	.globl	__vdso_ia32_sigcode
+__vdso_ia32_sigcode:
 	calll	*IA32_SIGF_HANDLER(%esp)
 	leal	IA32_SIGF_UC(%esp),%eax	/* get ucontext */
 	pushl	%eax
@@ -52,7 +51,8 @@ ia32_sigcode:
 
 #ifdef COMPAT_FREEBSD4
 	ALIGN_TEXT
-freebsd4_ia32_sigcode:
+	.globl	__vdso_freebsd4_ia32_sigcode
+__vdso_freebsd4_ia32_sigcode:
 	calll	*IA32_SIGF_HANDLER(%esp)
 	leal	IA32_SIGF_UC4(%esp),%eax/* get ucontext */
 	pushl	%eax
@@ -66,7 +66,8 @@ freebsd4_ia32_sigcode:
 
 #ifdef COMPAT_43
 	ALIGN_TEXT
-ia32_osigcode:
+	.globl	__vdso_ia32_osigcode
+__vdso_ia32_osigcode:
 	calll	*IA32_SIGF_HANDLER(%esp)/* call signal handler */
 	leal	IA32_SIGF_SC(%esp),%eax	/* get sigcontext */
 	pushl	%eax
@@ -90,28 +91,9 @@ ia32_osigcode:
  * vfork() and harder for other syscalls.
  */
 	ALIGN_TEXT
-lcall_tramp:
+	.globl	__vdso_lcall_tramp
+__vdso_lcall_tramp:
 	int	$0x80
 1:	jmp	1b
 #endif
-
-	ALIGN_TEXT
-esigcode:
-
-	.data
-	.globl	sz_ia32_sigcode
-sz_ia32_sigcode:
-	.long	esigcode-ia32_sigcode
-#ifdef COMPAT_FREEBSD4
-	.globl	sz_freebsd4_ia32_sigcode
-sz_freebsd4_ia32_sigcode:
-	.long	esigcode-freebsd4_ia32_sigcode
-#endif
-#ifdef COMPAT_43
-	.globl	sz_ia32_osigcode
-sz_ia32_osigcode:
-	.long	esigcode-ia32_osigcode
-	.globl	sz_lcall_tramp
-sz_lcall_tramp:
-	.long	esigcode-lcall_tramp
-#endif
+	.p2align 1
