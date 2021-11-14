@@ -479,7 +479,7 @@ static void
 pfil_init(const void *unused __unused)
 {
 	struct make_dev_args args;
-	int error;
+	int error __diagused;
 
 	make_dev_args_init(&args);
 	args.mda_flags = MAKEDEV_WAITOK | MAKEDEV_CHECKNAME;
