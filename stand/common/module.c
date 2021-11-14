@@ -446,7 +446,7 @@ command_pnpload(int argc, char *argv[])
 
 #if defined(LOADER_FDT_SUPPORT)
 static void
-pnpautoload_simplebus(void) {
+pnpautoload_fdt_bus(const char *busname) {
 	const char *pnpstring;
 	const char *compatstr;
 	char *pnpinfo = NULL;
@@ -464,7 +464,7 @@ pnpautoload_simplebus(void) {
 			pnplen += strlen(compatstr) + 1;
 			asprintf(&pnpinfo, "compat=%s", compatstr);
 
-			module = mod_searchmodule_pnpinfo("simplebus", pnpinfo);
+			module = mod_searchmodule_pnpinfo(busname, pnpinfo);
 			if (module) {
 				error = mod_loadkld(module, 0, NULL);
 				if (error)
@@ -480,12 +480,15 @@ pnpautoload_simplebus(void) {
 
 struct pnp_bus {
 	const char *name;
-	void (*load)(void);
+	void (*load)(const char *busname);
 };
 
 struct pnp_bus pnp_buses[] = {
 #if defined(LOADER_FDT_SUPPORT)
-	{"simplebus", pnpautoload_simplebus},
+	{"simplebus", pnpautoload_fdt_bus},
+	{"ofwbus", pnpautoload_fdt_bus},
+	{"iicbus", pnpautoload_fdt_bus},
+	{"spibus", pnpautoload_fdt_bus},
 #endif
 };
 
@@ -528,8 +531,8 @@ command_pnpautoload(int argc, char *argv[])
 			continue;
 		}
 		if (verbose)
-			printf("Autoloading modules for simplebus\n");
-		pnp_buses[i].load();
+			printf("Autoloading modules for %s\n", pnp_buses[i].name);
+		pnp_buses[i].load(pnp_buses[i].name);
 		match = 1;
 	}
 	if (match == 0)
