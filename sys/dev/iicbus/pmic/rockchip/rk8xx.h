@@ -102,6 +102,12 @@ struct rk8xx_softc {
 int rk8xx_read(device_t dev, uint8_t reg, uint8_t *data, uint8_t size);
 int rk8xx_write(device_t dev, uint8_t reg, uint8_t *data, uint8_t size);
 
+/* rk8xx_regulators.c */
+struct rk8xx_reg_sc *rk8xx_reg_attach(device_t dev, phandle_t node,
+    struct rk8xx_regdef *def);
+int rk8xx_map(device_t dev, phandle_t xref, int ncells,
+    pcell_t *cells, intptr_t *id);
+
 /* rk8xx_rtc.c */
 int rk8xx_gettime(device_t dev, struct timespec *ts);
 int rk8xx_settime(device_t dev, struct timespec *ts);
