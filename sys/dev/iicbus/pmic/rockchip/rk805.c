@@ -45,9 +45,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-#include <dev/extres/clk/clk.h>
-#include <dev/extres/regulator/regulator.h>
-
 #include <dev/iicbus/pmic/rockchip/rk805reg.h>
 #include <dev/iicbus/pmic/rockchip/rk808reg.h>
 #include <dev/iicbus/pmic/rockchip/rk8xx.h>
@@ -317,118 +314,6 @@ rk8xx_write(device_t dev, uint8_t reg, uint8_t *data, uint8_t size)
 
 	return (iicdev_writeto(dev, reg, data, size, IIC_INTRWAIT));
 }
-
-/* -------------------------------------------------------------------------- */
-
-/* Clock class and method */
-struct rk8xx_clk_sc {
-	device_t		base_dev;
-};
-
-#define	CLK32OUT_REG		0x20
-#define	CLK32OUT_CLKOUT2_EN	1
-
-static int
-rk8xx_clk_set_gate_1(struct clknode *clk, bool enable)
-{
-	struct rk8xx_clk_sc *sc;
-	uint8_t val;
-
-	sc = clknode_get_softc(clk);
-
-	rk8xx_read(sc->base_dev, CLK32OUT_REG, &val, sizeof(val));
-	if (enable)
-		val |= CLK32OUT_CLKOUT2_EN;
-	else
-		val &= ~CLK32OUT_CLKOUT2_EN;
-	rk8xx_write(sc->base_dev, CLK32OUT_REG, &val, 1);
-
-	return (0);
-}
-
-static int
-rk8xx_clk_recalc(struct clknode *clk, uint64_t *freq)
-{
-
-	*freq = 32768;
-	return (0);
-}
-
-static clknode_method_t rk8xx_clk_clknode_methods_0[] = {
-	CLKNODEMETHOD(clknode_recalc_freq,	rk8xx_clk_recalc),
-	CLKNODEMETHOD_END
-};
-
-DEFINE_CLASS_1(rk8xx_clk_clknode_0, rk8xx_clk_clknode_class_0,
-    rk8xx_clk_clknode_methods_0, sizeof(struct rk8xx_clk_sc),
-    clknode_class);
-
-static clknode_method_t rk8xx_clk_clknode_methods_1[] = {
-	CLKNODEMETHOD(clknode_set_gate,		rk8xx_clk_set_gate_1),
-	CLKNODEMETHOD_END
-};
-
-DEFINE_CLASS_1(rk8xx_clk_clknode_1, rk8xx_clk_clknode_class_1,
-    rk8xx_clk_clknode_methods_1, sizeof(struct rk8xx_clk_sc),
-    rk8xx_clk_clknode_class_0);
-
-static int
-rk8xx_export_clocks(device_t dev)
-{
-	struct clkdom *clkdom;
-	struct clknode_init_def clkidef;
-	struct clknode *clk;
-	struct rk8xx_clk_sc *clksc;
-	const char **clknames;
-	phandle_t node;
-	int nclks, rv;
-
-	node = ofw_bus_get_node(dev);
-
-	/* clock-output-names are optional. Could use them for clkidef.name. */
-	nclks = ofw_bus_string_list_to_array(node, "clock-output-names",
-	    &clknames);
-
-	clkdom = clkdom_create(dev);
-
-	memset(&clkidef, 0, sizeof(clkidef));
-	clkidef.id = 0;
-	clkidef.name = (nclks = 2) ? clknames[0] : "clk32kout1";
-	clk = clknode_create(clkdom, &rk8xx_clk_clknode_class_0, &clkidef);
-	if (clk == NULL) {
-		device_printf(dev, "Cannot create '%s'.\n", clkidef.name);
-		return (ENXIO);
-	}
-	clksc = clknode_get_softc(clk);
-	clksc->base_dev = dev;
-	clknode_register(clkdom, clk);
-
-	memset(&clkidef, 0, sizeof(clkidef));
-	clkidef.id = 1;
-	clkidef.name = (nclks = 2) ? clknames[1] : "clk32kout2";
-	clk = clknode_create(clkdom, &rk8xx_clk_clknode_class_1, &clkidef);
-	if (clk == NULL) {
-		device_printf(dev, "Cannot create '%s'.\n", clkidef.name);
-		return (ENXIO);
-	}
-	clksc = clknode_get_softc(clk);
-	clksc->base_dev = dev;
-	clknode_register(clkdom, clk);
-
-	rv = clkdom_finit(clkdom);
-	if (rv != 0) {
-		device_printf(dev, "Cannot finalize clkdom initialization: "
-		    "%d\n", rv);
-		return (ENXIO);
-	}
-
-	if (bootverbose)
-		clkdom_dump(clkdom);
-
-	return (0);
-}
-
-/* -------------------------------------------------------------------------- */
 
 static int
 rk8xx_probe(device_t dev)
