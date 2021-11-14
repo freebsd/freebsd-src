@@ -94,7 +94,7 @@ DEFINE_CLASS_1(rk8xx_clk_clknode_1, rk8xx_clk_clknode_class_1,
     rk8xx_clk_clknode_class_0);
 
 int
-rk8xx_export_clocks(device_t dev)
+rk8xx_attach_clocks(struct rk8xx_softc *sc)
 {
 	struct clkdom *clkdom;
 	struct clknode_init_def clkidef;
@@ -104,24 +104,24 @@ rk8xx_export_clocks(device_t dev)
 	phandle_t node;
 	int nclks, rv;
 
-	node = ofw_bus_get_node(dev);
+	node = ofw_bus_get_node(sc->dev);
 
 	/* clock-output-names are optional. Could use them for clkidef.name. */
 	nclks = ofw_bus_string_list_to_array(node, "clock-output-names",
 	    &clknames);
 
-	clkdom = clkdom_create(dev);
+	clkdom = clkdom_create(sc->dev);
 
 	memset(&clkidef, 0, sizeof(clkidef));
 	clkidef.id = 0;
 	clkidef.name = (nclks = 2) ? clknames[0] : "clk32kout1";
 	clk = clknode_create(clkdom, &rk8xx_clk_clknode_class_0, &clkidef);
 	if (clk == NULL) {
-		device_printf(dev, "Cannot create '%s'.\n", clkidef.name);
+		device_printf(sc->dev, "Cannot create '%s'.\n", clkidef.name);
 		return (ENXIO);
 	}
 	clksc = clknode_get_softc(clk);
-	clksc->base_dev = dev;
+	clksc->base_dev = sc->dev;
 	clknode_register(clkdom, clk);
 
 	memset(&clkidef, 0, sizeof(clkidef));
@@ -129,16 +129,16 @@ rk8xx_export_clocks(device_t dev)
 	clkidef.name = (nclks = 2) ? clknames[1] : "clk32kout2";
 	clk = clknode_create(clkdom, &rk8xx_clk_clknode_class_1, &clkidef);
 	if (clk == NULL) {
-		device_printf(dev, "Cannot create '%s'.\n", clkidef.name);
+		device_printf(sc->dev, "Cannot create '%s'.\n", clkidef.name);
 		return (ENXIO);
 	}
 	clksc = clknode_get_softc(clk);
-	clksc->base_dev = dev;
+	clksc->base_dev = sc->dev;
 	clknode_register(clkdom, clk);
 
 	rv = clkdom_finit(clkdom);
 	if (rv != 0) {
-		device_printf(dev, "Cannot finalize clkdom initialization: "
+		device_printf(sc->dev, "Cannot finalize clkdom initialization: "
 		    "%d\n", rv);
 		return (ENXIO);
 	}

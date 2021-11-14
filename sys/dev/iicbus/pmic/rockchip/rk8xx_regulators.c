@@ -232,7 +232,7 @@ static regnode_method_t rk8xx_regnode_methods[] = {
 DEFINE_CLASS_1(rk8xx_regnode, rk8xx_regnode_class, rk8xx_regnode_methods,
     sizeof(struct rk8xx_reg_sc), regnode_class);
 
-struct rk8xx_reg_sc *
+static struct rk8xx_reg_sc *
 rk8xx_reg_attach(device_t dev, phandle_t node,
     struct rk8xx_regdef *def)
 {
@@ -268,6 +268,42 @@ rk8xx_reg_attach(device_t dev, phandle_t node,
 	regnode_register(regnode);
 
 	return (reg_sc);
+}
+
+void
+rk8xx_attach_regulators(struct rk8xx_softc *sc)
+{
+	struct rk8xx_reg_sc *reg;
+	struct reg_list *regp;
+	phandle_t rnode, child;
+	int i;
+
+	TAILQ_INIT(&sc->regs);
+
+	rnode = ofw_bus_find_child(ofw_bus_get_node(sc->dev), "regulators");
+	if (rnode > 0) {
+		for (i = 0; i < sc->nregs; i++) {
+			child = ofw_bus_find_child(rnode,
+			    sc->regdefs[i].name);
+			if (child == 0)
+				continue;
+			if (OF_hasprop(child, "regulator-name") != 1)
+				continue;
+			reg = rk8xx_reg_attach(sc->dev, child, &sc->regdefs[i]);
+			if (reg == NULL) {
+				device_printf(sc->dev,
+				    "cannot attach regulator %s\n",
+				    sc->regdefs[i].name);
+				continue;
+			}
+			regp = malloc(sizeof(*regp), M_DEVBUF, M_WAITOK | M_ZERO);
+			regp->reg = reg;
+			TAILQ_INSERT_TAIL(&sc->regs, regp, next);
+			if (bootverbose)
+				device_printf(sc->dev, "Regulator %s attached\n",
+				    sc->regdefs[i].name);
+		}
+	}
 }
 
 int
