@@ -93,7 +93,8 @@ struct rk8xx_softc {
 	struct intr_config_hook	intr_hook;
 	enum rk_pmic_type	type;
 
-	TAILQ_HEAD(, reg_list)		regs;
+	struct rk8xx_regdef	*regdefs;
+	TAILQ_HEAD(, reg_list)	regs;
 	int			nregs;
 
 	struct rk8xx_rtc_reg	rtc_regs;
@@ -102,12 +103,15 @@ struct rk8xx_softc {
 int rk8xx_read(device_t dev, uint8_t reg, uint8_t *data, uint8_t size);
 int rk8xx_write(device_t dev, uint8_t reg, uint8_t *data, uint8_t size);
 
+DECLARE_CLASS(rk8xx_driver);
+
+int rk8xx_attach(struct rk8xx_softc *sc);
+
 /* rk8xx_clocks.c */
-int rk8xx_export_clocks(device_t dev);
+int rk8xx_attach_clocks(struct rk8xx_softc *sc);
 
 /* rk8xx_regulators.c */
-struct rk8xx_reg_sc *rk8xx_reg_attach(device_t dev, phandle_t node,
-    struct rk8xx_regdef *def);
+void rk8xx_attach_regulators(struct rk8xx_softc *sc);
 int rk8xx_map(device_t dev, phandle_t xref, int ncells,
     pcell_t *cells, intptr_t *id);
 

@@ -540,7 +540,9 @@ arm64/rockchip/rk3399_emmcphy.c			optional fdt rk_emmcphy soc_rockchip_rk3399
 arm64/rockchip/rk_dwc3.c			optional fdt rk_dwc3 soc_rockchip_rk3399
 arm64/rockchip/rk_i2c.c				optional fdt rk_i2c soc_rockchip_rk3328 | fdt rk_i2c soc_rockchip_rk3399
 arm64/rockchip/rk_i2s.c				optional fdt sound soc_rockchip_rk3328 | fdt sound soc_rockchip_rk3399
-dev/iicbus/pmic/rockchip/rk805.c		optional fdt rk805 soc_rockchip_rk3328 | fdt rk805 soc_rockchip_rk3399
+dev/iicbus/pmic/rockchip/rk8xx.c		optional fdt rk805 soc_rockchip_rk3328 | fdt rk805 soc_rockchip_rk3399
+dev/iicbus/pmic/rockchip/rk805.c		optional fdt rk805 soc_rockchip_rk3328
+dev/iicbus/pmic/rockchip/rk808.c		optional fdt rk805 soc_rockchip_rk3399
 dev/iicbus/pmic/rockchip/rk8xx_clocks.c		optional fdt rk805 soc_rockchip_rk3328 | fdt rk805 soc_rockchip_rk3399
 dev/iicbus/pmic/rockchip/rk8xx_regulators.c	optional fdt rk805 soc_rockchip_rk3328 | fdt rk805 soc_rockchip_rk3399
 dev/iicbus/pmic/rockchip/rk8xx_rtc.c		optional fdt rk805 soc_rockchip_rk3328 | fdt rk805 soc_rockchip_rk3399
