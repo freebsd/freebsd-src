@@ -262,14 +262,14 @@ static device_method_t rk808_methods[] = {
 	DEVMETHOD_END
 };
 
-DEFINE_CLASS_1(rk808, rk808_driver, rk808_methods,
+DEFINE_CLASS_1(rk808_pmu, rk808_driver, rk808_methods,
     sizeof(struct rk8xx_softc), rk8xx_driver);
 
 static devclass_t rk808_devclass;
 
-EARLY_DRIVER_MODULE(rk808, iicbus, rk808_driver, rk808_devclass, 0, 0,
+EARLY_DRIVER_MODULE(rk808_pmu, iicbus, rk808_driver, rk808_devclass, 0, 0,
     BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LAST);
-EARLY_DRIVER_MODULE(iicbus, rk808, iicbus_driver, iicbus_devclass, 0, 0,
+EARLY_DRIVER_MODULE(iicbus, rk808_pmu, iicbus_driver, iicbus_devclass, 0, 0,
     BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LAST);
-MODULE_DEPEND(rk808, iicbus, IICBUS_MINVER, IICBUS_PREFVER, IICBUS_MAXVER);
-MODULE_VERSION(rk808, 1);
+MODULE_DEPEND(rk808_pmu, iicbus, IICBUS_MINVER, IICBUS_PREFVER, IICBUS_MAXVER);
+MODULE_VERSION(rk808_pmu, 1);
