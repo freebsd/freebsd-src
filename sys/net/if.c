@@ -746,7 +746,7 @@ if_free(struct ifnet *ifp)
 void
 if_ref(struct ifnet *ifp)
 {
-	u_int old;
+	u_int old __diagused;
 
 	/* We don't assert the ifnet list lock here, but arguably should. */
 	old = refcount_acquire(&ifp->if_refcount);
@@ -1847,7 +1847,7 @@ fail:
 void
 ifa_ref(struct ifaddr *ifa)
 {
-	u_int old;
+	u_int old __diagused;
 
 	old = refcount_acquire(&ifa->ifa_refcnt);
 	KASSERT(old > 0, ("%s: ifa %p has 0 refs", __func__, ifa));
