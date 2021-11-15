@@ -55,5 +55,5 @@ ${CC} -x assembler-with-cpp -DLOCORE -fPIC -nostdinc -c \
    "${S}"/tools/vdso_wrap.S
 
 ${NM} -D elf-vdso.so.1 | \
-   awk '/__vdso_sigcode/{printf "#define VDSO_SIGCODE_OFFSET 0x%s\n",$1}' \
+   ${AWK} '/__vdso_sigcode/{printf "#define VDSO_SIGCODE_OFFSET 0x%s\n",$1}' \
    >vdso_offsets.h
