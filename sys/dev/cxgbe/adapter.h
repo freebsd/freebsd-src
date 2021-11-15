@@ -930,7 +930,8 @@ struct adapter {
 	struct tls_tunables tlst;
 
 	uint8_t doorbells;
-	int offload_map;	/* ports with IFCAP_TOE enabled */
+	int offload_map;	/* port_id's with IFCAP_TOE enabled */
+	int bt_map;		/* tx_chan's with BASE-T */
 	int active_ulds;	/* ULDs activated on this adapter */
 	int flags;
 	int debug_flags;
