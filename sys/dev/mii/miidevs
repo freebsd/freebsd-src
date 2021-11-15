@@ -337,6 +337,7 @@ model TI TLAN10T		0x0001 ThunderLAN 10BASE-T media interface
 model TI 100VGPMI		0x0002 ThunderLAN 100VG-AnyLan media interface
 model TI TNETE2101		0x0003 TNETE2101 media interface
 model xxTI DP83867		0x0023 High Immunity 10/100/1000 PHY
+model xxTI DP83822		0x0024 High Immunity 10/100 PHY
 
 /* TDK Semiconductor PHYs */
 model xxTSC 78Q2120		0x0014 78Q2120 10/100 media interface
