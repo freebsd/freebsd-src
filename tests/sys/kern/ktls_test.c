@@ -970,9 +970,9 @@ ATF_TC_BODY(ktls_transmit_##cipher_name##_##name, tc)			\
 	ATF_TP_ADD_TC(tp, ktls_transmit_##cipher_name##_##name);
 
 #define GEN_TRANSMIT_CONTROL_TEST(cipher_name, cipher_alg, key_size,	\
-	    auth_alg, minor, type, len)					\
-ATF_TC_WITHOUT_HEAD(ktls_transmit_##cipher_name##_control);		\
-ATF_TC_BODY(ktls_transmit_##cipher_name##_control, tc)			\
+	    auth_alg, minor, name, type, len)				\
+ATF_TC_WITHOUT_HEAD(ktls_transmit_##cipher_name##_##name);		\
+ATF_TC_BODY(ktls_transmit_##cipher_name##_##name, tc)			\
 {									\
 	struct tls_enable en;						\
 	uint64_t seqno;							\
@@ -986,8 +986,8 @@ ATF_TC_BODY(ktls_transmit_##cipher_name##_control, tc)			\
 }
 
 #define ADD_TRANSMIT_CONTROL_TEST(cipher_name, cipher_alg, key_size,	\
-	    auth_alg, minor)						\
-	ATF_TP_ADD_TC(tp, ktls_transmit_##cipher_name##_control);
+	    auth_alg, minor, name)					\
+	ATF_TP_ADD_TC(tp, ktls_transmit_##cipher_name##_##name);
 
 #define GEN_TRANSMIT_TESTS(cipher_name, cipher_alg, key_size, auth_alg,	\
 	    minor)							\
@@ -996,7 +996,7 @@ ATF_TC_BODY(ktls_transmit_##cipher_name##_control, tc)			\
 	GEN_TRANSMIT_APP_DATA_TEST(cipher_name, cipher_alg, key_size,	\
 	    auth_alg, minor, long, 64 * 1024)				\
 	GEN_TRANSMIT_CONTROL_TEST(cipher_name, cipher_alg, key_size,	\
-	    auth_alg, minor, 0x21 /* Alert */, 32)
+	    auth_alg, minor, control, 0x21 /* Alert */, 32)
 
 #define ADD_TRANSMIT_TESTS(cipher_name, cipher_alg, key_size, auth_alg,	\
 	    minor)							\
@@ -1005,7 +1005,7 @@ ATF_TC_BODY(ktls_transmit_##cipher_name##_control, tc)			\
 	ADD_TRANSMIT_APP_DATA_TEST(cipher_name, cipher_alg, key_size,	\
 	    auth_alg, minor, long)					\
 	ADD_TRANSMIT_CONTROL_TEST(cipher_name, cipher_alg, key_size,	\
-	    auth_alg, minor)
+	    auth_alg, minor, control)
 
 /*
  * For each supported cipher suite, run three transmit tests:
@@ -1023,11 +1023,92 @@ AES_CBC_TESTS(GEN_TRANSMIT_TESTS);
 AES_GCM_TESTS(GEN_TRANSMIT_TESTS);
 CHACHA20_TESTS(GEN_TRANSMIT_TESTS);
 
+#define GEN_TRANSMIT_PADDING_TESTS(cipher_name, cipher_alg, key_size,	\
+	    auth_alg, minor)						\
+	GEN_TRANSMIT_CONTROL_TEST(cipher_name, cipher_alg, key_size,	\
+	    auth_alg, minor, padding_1, 0x21 /* Alert */, 1)		\
+	GEN_TRANSMIT_CONTROL_TEST(cipher_name, cipher_alg, key_size,	\
+	    auth_alg, minor, padding_2, 0x21 /* Alert */, 2)		\
+	GEN_TRANSMIT_CONTROL_TEST(cipher_name, cipher_alg, key_size,	\
+	    auth_alg, minor, padding_3, 0x21 /* Alert */, 3)		\
+	GEN_TRANSMIT_CONTROL_TEST(cipher_name, cipher_alg, key_size,	\
+	    auth_alg, minor, padding_4, 0x21 /* Alert */, 4)		\
+	GEN_TRANSMIT_CONTROL_TEST(cipher_name, cipher_alg, key_size,	\
+	    auth_alg, minor, padding_5, 0x21 /* Alert */, 5)		\
+	GEN_TRANSMIT_CONTROL_TEST(cipher_name, cipher_alg, key_size,	\
+	    auth_alg, minor, padding_6, 0x21 /* Alert */, 6)		\
+	GEN_TRANSMIT_CONTROL_TEST(cipher_name, cipher_alg, key_size,	\
+	    auth_alg, minor, padding_7, 0x21 /* Alert */, 7)		\
+	GEN_TRANSMIT_CONTROL_TEST(cipher_name, cipher_alg, key_size,	\
+	    auth_alg, minor, padding_8, 0x21 /* Alert */, 8)		\
+	GEN_TRANSMIT_CONTROL_TEST(cipher_name, cipher_alg, key_size,	\
+	    auth_alg, minor, padding_9, 0x21 /* Alert */, 9)		\
+	GEN_TRANSMIT_CONTROL_TEST(cipher_name, cipher_alg, key_size,	\
+	    auth_alg, minor, padding_10, 0x21 /* Alert */, 10)		\
+	GEN_TRANSMIT_CONTROL_TEST(cipher_name, cipher_alg, key_size,	\
+	    auth_alg, minor, padding_11, 0x21 /* Alert */, 11)		\
+	GEN_TRANSMIT_CONTROL_TEST(cipher_name, cipher_alg, key_size,	\
+	    auth_alg, minor, padding_12, 0x21 /* Alert */, 12)		\
+	GEN_TRANSMIT_CONTROL_TEST(cipher_name, cipher_alg, key_size,	\
+	    auth_alg, minor, padding_13, 0x21 /* Alert */, 13)		\
+	GEN_TRANSMIT_CONTROL_TEST(cipher_name, cipher_alg, key_size,	\
+	    auth_alg, minor, padding_14, 0x21 /* Alert */, 14)		\
+	GEN_TRANSMIT_CONTROL_TEST(cipher_name, cipher_alg, key_size,	\
+	    auth_alg, minor, padding_15, 0x21 /* Alert */, 15)		\
+	GEN_TRANSMIT_CONTROL_TEST(cipher_name, cipher_alg, key_size,	\
+	    auth_alg, minor, padding_16, 0x21 /* Alert */, 16)
+
+#define ADD_TRANSMIT_PADDING_TESTS(cipher_name, cipher_alg, key_size,	\
+	    auth_alg, minor)						\
+	ADD_TRANSMIT_CONTROL_TEST(cipher_name, cipher_alg, key_size,	\
+	    auth_alg, minor, padding_1)					\
+	ADD_TRANSMIT_CONTROL_TEST(cipher_name, cipher_alg, key_size,	\
+	    auth_alg, minor, padding_2)					\
+	ADD_TRANSMIT_CONTROL_TEST(cipher_name, cipher_alg, key_size,	\
+	    auth_alg, minor, padding_3)					\
+	ADD_TRANSMIT_CONTROL_TEST(cipher_name, cipher_alg, key_size,	\
+	    auth_alg, minor, padding_4)					\
+	ADD_TRANSMIT_CONTROL_TEST(cipher_name, cipher_alg, key_size,	\
+	    auth_alg, minor, padding_5)					\
+	ADD_TRANSMIT_CONTROL_TEST(cipher_name, cipher_alg, key_size,	\
+	    auth_alg, minor, padding_6)					\
+	ADD_TRANSMIT_CONTROL_TEST(cipher_name, cipher_alg, key_size,	\
+	    auth_alg, minor, padding_7)					\
+	ADD_TRANSMIT_CONTROL_TEST(cipher_name, cipher_alg, key_size,	\
+	    auth_alg, minor, padding_8)					\
+	ADD_TRANSMIT_CONTROL_TEST(cipher_name, cipher_alg, key_size,	\
+	    auth_alg, minor, padding_9)					\
+	ADD_TRANSMIT_CONTROL_TEST(cipher_name, cipher_alg, key_size,	\
+	    auth_alg, minor, padding_10)				\
+	ADD_TRANSMIT_CONTROL_TEST(cipher_name, cipher_alg, key_size,	\
+	    auth_alg, minor, padding_11)				\
+	ADD_TRANSMIT_CONTROL_TEST(cipher_name, cipher_alg, key_size,	\
+	    auth_alg, minor, padding_12)				\
+	ADD_TRANSMIT_CONTROL_TEST(cipher_name, cipher_alg, key_size,	\
+	    auth_alg, minor, padding_13)				\
+	ADD_TRANSMIT_CONTROL_TEST(cipher_name, cipher_alg, key_size,	\
+	    auth_alg, minor, padding_14)				\
+	ADD_TRANSMIT_CONTROL_TEST(cipher_name, cipher_alg, key_size,	\
+	    auth_alg, minor, padding_15)				\
+	ADD_TRANSMIT_CONTROL_TEST(cipher_name, cipher_alg, key_size,	\
+	    auth_alg, minor, padding_16)
+
+/*
+ * For AES-CBC MTE cipher suites using padding, add tests of messages
+ * with each possible padding size.  Note that the padding_<N> tests
+ * do not necessarily test <N> bytes of padding as the padding is a
+ * function of the cipher suite's MAC length.  However, cycling
+ * through all of the payload sizes from 1 to 16 should exercise all
+ * of the possible padding lengths for each suite.
+ */
+AES_CBC_TESTS(GEN_TRANSMIT_PADDING_TESTS);
+
 ATF_TP_ADD_TCS(tp)
 {
 	AES_CBC_TESTS(ADD_TRANSMIT_TESTS);
 	AES_GCM_TESTS(ADD_TRANSMIT_TESTS);
 	CHACHA20_TESTS(ADD_TRANSMIT_TESTS);
+	AES_CBC_TESTS(ADD_TRANSMIT_PADDING_TESTS);
 
 	return (atf_no_error());
 }
