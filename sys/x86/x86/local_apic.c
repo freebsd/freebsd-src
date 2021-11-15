@@ -1007,7 +1007,12 @@ lapic_change_mode(struct eventtimer *et, struct lapic *la,
     enum lat_timer_mode newmode)
 {
 
-	if (la->la_timer_mode == newmode)
+	/*
+	 * The TSC frequency may change during late calibration against other
+	 * timecounters (HPET or ACPI PMTimer).
+	 */
+	if (la->la_timer_mode == newmode &&
+	    (newmode != LAT_MODE_DEADLINE || et->et_frequency == tsc_freq))
 		return;
 	switch (newmode) {
 	case LAT_MODE_PERIODIC:
