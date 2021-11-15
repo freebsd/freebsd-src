@@ -43,6 +43,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/bus.h>
 #include <sys/malloc.h>
+#include <sys/resource.h>
+#include <sys/rman.h>
 
 #include <net/if.h>
 #include <net/if_media.h>
@@ -59,11 +61,22 @@ __FBSDID("$FreeBSD$");
 #include <dev/mii/mii_fdt.h>
 #endif
 
+#define	BIT(x)	(1 << (x))
+
 /* Vitesse VSC8501 */
 #define	VSC8501_EXTPAGE_REG		0x001f
 
 #define	VSC8501_EXTCTL1_REG		0x0017
 #define	  VSC8501_EXTCTL1_RGMII_MODE	  (1u << 12)
+
+#define	VSC8501_INT_MASK		0x19
+#define	VSC8501_INT_MDINT		BIT(15)
+#define	VSC8501_INT_SPD_CHG		BIT(14)
+#define	VSC8501_INT_LINK_CHG		BIT(13)
+#define	VSC8501_INT_FD_CHG		BIT(12)
+#define	VSC8501_INT_AN_CMPL		BIT(10)
+
+#define	VSC8501_INT_STS			0x1a
 
 #define	VSC8501_RGMII_CTRL_PAGE		0x02
 #define	VSC8501_RGMII_CTRL_REG		0x14
@@ -83,6 +96,8 @@ struct vscphy_softc {
 	int		rxdelay;
 	int		txdelay;
 	bool		laneswap;
+	struct resource *irq_res;
+	void 		*irq_cookie;
 };
 
 static void vscphy_reset(struct mii_softc *);
@@ -90,6 +105,7 @@ static int  vscphy_service(struct mii_softc *, struct mii_data *, int);
 
 static const struct mii_phydesc vscphys[] = {
 	MII_PHY_DESC(xxVITESSE, VSC8501),
+	MII_PHY_DESC(xxVITESSE, VSC8504),
 	MII_PHY_END
 };
 
@@ -235,10 +251,30 @@ vscphy_probe(device_t dev)
 	return (mii_phy_dev_probe(dev, vscphys, BUS_PROBE_DEFAULT));
 }
 
+static void
+vscphy_intr(void *arg)
+{
+	struct vscphy_softc *vsc;
+	uint32_t status;
+
+	vsc = (struct vscphy_softc *)arg;
+
+	status = vscphy_read(vsc, VSC8501_INT_STS);
+	status &= vscphy_read(vsc, VSC8501_INT_MASK);
+
+	if (!status)
+		return;
+
+	PHY_STATUS(&vsc->mii_sc);
+	mii_phy_update(&vsc->mii_sc, MII_MEDIACHG);
+}
+
 static int
 vscphy_attach(device_t dev)
 {
 	struct vscphy_softc *vsc;
+	uint32_t value;
+	int rid, error;
 
 	vsc = device_get_softc(dev);
 	vsc->dev = dev;
@@ -250,14 +286,51 @@ vscphy_attach(device_t dev)
 	mii_phy_dev_attach(dev, MIIF_NOMANPAUSE, &vscphy_funcs, 1);
 	mii_phy_setmedia(&vsc->mii_sc);
 
+	rid = 0;
+	vsc->irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
+	    RF_ACTIVE | RF_SHAREABLE);
+	if (vsc->irq_res == NULL)
+		goto no_irq;
+
+	error = bus_setup_intr(dev, vsc->irq_res, INTR_TYPE_NET | INTR_MPSAFE,
+	    NULL, vscphy_intr, vsc, &vsc->irq_cookie);
+	if (error != 0) {
+		bus_release_resource(dev, SYS_RES_IRQ, 0, vsc->irq_res);
+		vsc->irq_res = NULL;
+		goto no_irq;
+	}
+
+	/* Ack and unmask all relevant interrupts. */
+	(void)vscphy_read(vsc, VSC8501_INT_STS);
+	value = VSC8501_INT_MDINT    |
+		VSC8501_INT_SPD_CHG  |
+		VSC8501_INT_LINK_CHG |
+		VSC8501_INT_FD_CHG   |
+		VSC8501_INT_AN_CMPL;
+	vscphy_write(vsc, VSC8501_INT_MASK, value);
+
+no_irq:
 	return (0);
+}
+
+static int
+vscphy_detach(device_t dev)
+{
+	struct vscphy_softc *vsc;
+
+	vsc = device_get_softc(dev);
+
+	bus_teardown_intr(dev, vsc->irq_res, vsc->irq_cookie);
+	bus_release_resource(dev, SYS_RES_IRQ, 0, vsc->irq_res);
+
+	return (mii_phy_detach(dev));
 }
 
 static device_method_t vscphy_methods[] = {
 	/* device interface */
 	DEVMETHOD(device_probe,		vscphy_probe),
 	DEVMETHOD(device_attach,	vscphy_attach),
-	DEVMETHOD(device_detach,	mii_phy_detach),
+	DEVMETHOD(device_detach,	vscphy_detach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 	DEVMETHOD_END
 };
