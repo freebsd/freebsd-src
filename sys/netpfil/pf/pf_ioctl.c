@@ -4665,6 +4665,9 @@ DIOCCHANGEADDR_error:
 		pf_kill_srcnodes((struct pfioc_src_node_kill *)addr);
 		break;
 
+#ifdef COMPAT_FREEBSD13
+	case DIOCKEEPCOUNTERS_FREEBSD13:
+#endif
 	case DIOCKEEPCOUNTERS:
 		error = pf_keepcounters((struct pfioc_nv *)addr);
 		break;
