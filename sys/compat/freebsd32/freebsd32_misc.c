@@ -762,7 +762,7 @@ static int
 freebsd32_kevent11_copyout(void *arg, struct kevent *kevp, int count)
 {
 	struct freebsd11_freebsd32_kevent_args *uap;
-	struct kevent32_freebsd11 ks32[KQ_NEVENTS];
+	struct freebsd11_kevent32 ks32[KQ_NEVENTS];
 	int i, error;
 
 	KASSERT(count <= KQ_NEVENTS, ("count (%d) > KQ_NEVENTS", count));
@@ -789,7 +789,7 @@ static int
 freebsd32_kevent11_copyin(void *arg, struct kevent *kevp, int count)
 {
 	struct freebsd11_freebsd32_kevent_args *uap;
-	struct kevent32_freebsd11 ks32[KQ_NEVENTS];
+	struct freebsd11_kevent32 ks32[KQ_NEVENTS];
 	int i, j, error;
 
 	KASSERT(count <= KQ_NEVENTS, ("count (%d) > KQ_NEVENTS", count));
@@ -826,7 +826,7 @@ freebsd11_freebsd32_kevent(struct thread *td,
 		.k_copyin = freebsd32_kevent11_copyin,
 	};
 #ifdef KTRACE
-	struct kevent32_freebsd11 *eventlist = uap->eventlist;
+	struct freebsd11_kevent32 *eventlist = uap->eventlist;
 #endif
 	int error;
 
@@ -841,17 +841,17 @@ freebsd11_freebsd32_kevent(struct thread *td,
 		tsp = NULL;
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_STRUCT_ARRAY))
-		ktrstructarray("kevent32_freebsd11", UIO_USERSPACE,
+		ktrstructarray("freebsd11_kevent32", UIO_USERSPACE,
 		    uap->changelist, uap->nchanges,
-		    sizeof(struct kevent32_freebsd11));
+		    sizeof(struct freebsd11_kevent32));
 #endif
 	error = kern_kevent(td, uap->fd, uap->nchanges, uap->nevents,
 	    &k_ops, tsp);
 #ifdef KTRACE
 	if (error == 0 && KTRPOINT(td, KTR_STRUCT_ARRAY))
-		ktrstructarray("kevent32_freebsd11", UIO_USERSPACE,
+		ktrstructarray("freebsd11_kevent32", UIO_USERSPACE,
 		    eventlist, td->td_retval[0],
-		    sizeof(struct kevent32_freebsd11));
+		    sizeof(struct freebsd11_kevent32));
 #endif
 	return (error);
 }
