@@ -114,6 +114,7 @@ vscphy_fdt_get_config(struct vscphy_softc *vsc)
 		vsc->rxdelay = val;
 	if (OF_getencprop(cfg->phynode, "tx-delay", &val, sizeof(val)) > 0)
 		vsc->txdelay = val;
+	vsc->mii_sc.mii_maxspeed = cfg->max_speed;
 	mii_fdt_free_config(cfg);
 }
 #endif
