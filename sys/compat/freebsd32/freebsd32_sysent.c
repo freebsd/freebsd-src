@@ -133,7 +133,7 @@ struct sysent freebsd32_sysent[] = {
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)nosys, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_ABSENT },			/* 68 = obsolete vwrite */
 	{ .sy_narg = AS(sbrk_args), .sy_call = (sy_call_t *)sys_sbrk, .sy_auevent = AUE_SBRK, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 69 = sbrk */
 	{ .sy_narg = AS(sstk_args), .sy_call = (sy_call_t *)sys_sstk, .sy_auevent = AUE_SSTK, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 70 = sstk */
-	{ compat(AS(ommap_args),mmap), .sy_auevent = AUE_MMAP, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 71 = old mmap */
+	{ compat(AS(ofreebsd32_mmap_args),freebsd32_mmap), .sy_auevent = AUE_MMAP, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 71 = old freebsd32_mmap */
 	{ compat11(AS(freebsd11_vadvise_args),vadvise), .sy_auevent = AUE_O_VADVISE, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 72 = freebsd11 vadvise */
 	{ .sy_narg = AS(munmap_args), .sy_call = (sy_call_t *)sys_munmap, .sy_auevent = AUE_MUNMAP, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 73 = munmap */
 	{ .sy_narg = AS(freebsd32_mprotect_args), .sy_call = (sy_call_t *)freebsd32_mprotect, .sy_auevent = AUE_MPROTECT, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 74 = freebsd32_mprotect */
