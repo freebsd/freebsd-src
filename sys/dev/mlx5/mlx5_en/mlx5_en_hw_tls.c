@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2019 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2019-2021 Mellanox Technologies. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -82,37 +82,45 @@ static const char *mlx5e_tls_stats_desc[] = {
 static void mlx5e_tls_work(struct work_struct *);
 
 static int
-mlx5e_tls_tag_zinit(void *mem, int size, int flags)
+mlx5e_tls_tag_import(void *arg, void **store, int cnt, int domain, int flags)
 {
-	struct mlx5e_tls_tag *ptag = mem;
+	struct mlx5e_tls_tag *ptag;
+	int i;
 
-	MPASS(size == sizeof(*ptag));
-
-	memset(ptag, 0, sizeof(*ptag));
-	mtx_init(&ptag->mtx, "mlx5-tls-tag-mtx", NULL, MTX_DEF);
-	INIT_WORK(&ptag->work, mlx5e_tls_work);
-
-	return (0);
+	for (i = 0; i != cnt; i++) {
+		ptag = malloc_domainset(sizeof(*ptag), M_MLX5E_TLS,
+		    mlx5_dev_domainset(arg), flags | M_ZERO);
+		mtx_init(&ptag->mtx, "mlx5-tls-tag-mtx", NULL, MTX_DEF);
+		INIT_WORK(&ptag->work, mlx5e_tls_work);
+		store[i] = ptag;
+	}
+	return (i);
 }
 
 static void
-mlx5e_tls_tag_zfini(void *mem, int size)
+mlx5e_tls_tag_release(void *arg, void **store, int cnt)
 {
-	struct mlx5e_tls_tag *ptag = mem;
+	struct mlx5e_tls_tag *ptag;
 	struct mlx5e_priv *priv;
 	struct mlx5e_tls *ptls;
+	int i;
 
-	ptls = ptag->tls;
-	priv = container_of(ptls, struct mlx5e_priv, tls);
+	for (i = 0; i != cnt; i++) {
+		ptag = store[i];
+		ptls = ptag->tls;
+		priv = container_of(ptls, struct mlx5e_priv, tls);
 
-	flush_work(&ptag->work);
+		flush_work(&ptag->work);
 
-	if (ptag->tisn != 0) {
-		mlx5_tls_close_tis(priv->mdev, ptag->tisn);
-		atomic_add_32(&ptls->num_resources, -1U);
+		if (ptag->tisn != 0) {
+			mlx5_tls_close_tis(priv->mdev, ptag->tisn);
+			atomic_add_32(&ptls->num_resources, -1U);
+		}
+
+		mtx_destroy(&ptag->mtx);
+
+		free(ptag, M_MLX5E_TLS);
 	}
-
-	mtx_destroy(&ptag->mtx);
 }
 
 static void
@@ -154,8 +162,9 @@ mlx5e_tls_init(struct mlx5e_priv *priv)
 	snprintf(ptls->zname, sizeof(ptls->zname),
 	    "mlx5_%u_tls", device_get_unit(priv->mdev->pdev->dev.bsddev));
 
-	ptls->zone = uma_zcreate(ptls->zname, sizeof(struct mlx5e_tls_tag),
-	    NULL, NULL, mlx5e_tls_tag_zinit, mlx5e_tls_tag_zfini, UMA_ALIGN_CACHE, 0);
+	ptls->zone = uma_zcache_create(ptls->zname,
+	     sizeof(struct mlx5e_tls_tag), NULL, NULL, NULL, NULL,
+	     mlx5e_tls_tag_import, mlx5e_tls_tag_release, priv->mdev, 0);
 
 	ptls->max_resources = 1U << MLX5_CAP_GEN(priv->mdev, log_max_dek);
 
