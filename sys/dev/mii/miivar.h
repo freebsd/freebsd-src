@@ -117,6 +117,7 @@ struct mii_softc {
 	u_int mii_anegticks;		/* ticks before retrying aneg */
 	u_int mii_media_active;		/* last active media */
 	u_int mii_media_status;		/* last active status */
+	u_int mii_maxspeed;		/* Max speed supported by this PHY */
 };
 typedef struct mii_softc mii_softc_t;
 
