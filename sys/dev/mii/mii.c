@@ -60,7 +60,6 @@ MODULE_VERSION(miibus, 1);
 
 #include "miibus_if.h"
 
-static device_attach_t miibus_attach;
 static bus_child_detached_t miibus_child_detached;
 static bus_child_location_t miibus_child_location;
 static bus_child_pnpinfo_t miibus_child_pnpinfo;
@@ -103,12 +102,7 @@ static device_method_t miibus_methods[] = {
 };
 
 devclass_t miibus_devclass;
-
-driver_t miibus_driver = {
-	"miibus",
-	miibus_methods,
-	sizeof(struct mii_data)
-};
+DEFINE_CLASS_0(miibus, miibus_driver, miibus_methods, sizeof(struct mii_data));
 
 struct miibus_ivars {
 	if_t		ifp;
@@ -127,7 +121,7 @@ miibus_probe(device_t dev)
 	return (BUS_PROBE_SPECIFIC);
 }
 
-static int
+int
 miibus_attach(device_t dev)
 {
 	struct miibus_ivars	*ivars;
