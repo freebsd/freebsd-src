@@ -1187,6 +1187,70 @@ AES_CBC_TESTS(GEN_TRANSMIT_PADDING_TESTS);
  */
 TLS_10_TESTS(GEN_TRANSMIT_EMPTY_FRAGMENT_TEST);
 
+static void
+test_ktls_invalid_transmit_cipher_suite(struct tls_enable *en)
+{
+	int sockets[2];
+
+	ATF_REQUIRE_MSG(socketpair_tcp(sockets), "failed to create sockets");
+
+	ATF_REQUIRE(setsockopt(sockets[1], IPPROTO_TCP, TCP_TXTLS_ENABLE, en,
+	    sizeof(*en)) == -1);
+	ATF_REQUIRE(errno == EINVAL);
+
+	close(sockets[1]);
+	close(sockets[0]);
+}
+
+#define GEN_INVALID_TRANSMIT_TEST(name, cipher_alg, key_size, auth_alg,	\
+	    minor)							\
+ATF_TC_WITHOUT_HEAD(ktls_transmit_invalid_##name);			\
+ATF_TC_BODY(ktls_transmit_invalid_##name, tc)				\
+{									\
+	struct tls_enable en;						\
+	uint64_t seqno;							\
+									\
+	ATF_REQUIRE_KTLS();						\
+	seqno = random();						\
+	build_tls_enable(cipher_alg, key_size, auth_alg, minor,	seqno,	\
+	    &en);							\
+	test_ktls_invalid_transmit_cipher_suite(&en);			\
+	free_tls_enable(&en);						\
+}
+
+#define ADD_INVALID_TRANSMIT_TEST(name, cipher_alg, key_size, auth_alg, \
+	    minor)							\
+	ATF_TP_ADD_TC(tp, ktls_transmit_invalid_##name);
+
+#define	INVALID_CIPHER_SUITES(M)					\
+	M(aes128_cbc_1_0_sha256, CRYPTO_AES_CBC, 128 / 8,		\
+	    CRYPTO_SHA2_256_HMAC, TLS_MINOR_VER_ZERO)			\
+	M(aes128_cbc_1_0_sha384, CRYPTO_AES_CBC, 128 / 8,		\
+	    CRYPTO_SHA2_384_HMAC, TLS_MINOR_VER_ZERO)			\
+	M(aes128_gcm_1_0, CRYPTO_AES_NIST_GCM_16, 128 / 8, 0,		\
+	    TLS_MINOR_VER_ZERO)						\
+	M(chacha20_poly1305_1_0, CRYPTO_CHACHA20_POLY1305, 256 / 8, 0,	\
+	    TLS_MINOR_VER_ZERO)						\
+	M(aes128_cbc_1_1_sha256, CRYPTO_AES_CBC, 128 / 8,		\
+	    CRYPTO_SHA2_256_HMAC, TLS_MINOR_VER_ONE)			\
+	M(aes128_cbc_1_1_sha384, CRYPTO_AES_CBC, 128 / 8,		\
+	    CRYPTO_SHA2_384_HMAC, TLS_MINOR_VER_ONE)			\
+	M(aes128_gcm_1_1, CRYPTO_AES_NIST_GCM_16, 128 / 8, 0,		\
+	    TLS_MINOR_VER_ONE)						\
+	M(chacha20_poly1305_1_1, CRYPTO_CHACHA20_POLY1305, 256 / 8, 0,	\
+	    TLS_MINOR_VER_ONE)						\
+	M(aes128_cbc_1_3_sha1, CRYPTO_AES_CBC, 128 / 8,			\
+	    CRYPTO_SHA1_HMAC, TLS_MINOR_VER_THREE)			\
+	M(aes128_cbc_1_3_sha256, CRYPTO_AES_CBC, 128 / 8,		\
+	    CRYPTO_SHA2_256_HMAC, TLS_MINOR_VER_THREE)			\
+	M(aes128_cbc_1_3_sha384, CRYPTO_AES_CBC, 128 / 8,		\
+	    CRYPTO_SHA2_384_HMAC, TLS_MINOR_VER_THREE)
+
+/*
+ * Ensure that invalid cipher suites are rejected for transmit.
+ */
+INVALID_CIPHER_SUITES(GEN_INVALID_TRANSMIT_TEST);
+
 ATF_TP_ADD_TCS(tp)
 {
 	AES_CBC_TESTS(ADD_TRANSMIT_TESTS);
@@ -1194,6 +1258,7 @@ ATF_TP_ADD_TCS(tp)
 	CHACHA20_TESTS(ADD_TRANSMIT_TESTS);
 	AES_CBC_TESTS(ADD_TRANSMIT_PADDING_TESTS);
 	TLS_10_TESTS(ADD_TRANSMIT_EMPTY_FRAGMENT_TEST);
+	INVALID_CIPHER_SUITES(ADD_INVALID_TRANSMIT_TEST);
 
 	return (atf_no_error());
 }
