@@ -40,6 +40,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20211115: vm_page_sleep_if_busy removed
+OLD_FILES+=share/man/man9/vm_page_sleep_if_busy.9.gz
+
 # 20211113: new clang import which bumps version from 12.0.1 to 13.0.0.
 OLD_FILES+=usr/lib/clang/12.0.1/include/cuda_wrappers/algorithm
 OLD_FILES+=usr/lib/clang/12.0.1/include/cuda_wrappers/complex

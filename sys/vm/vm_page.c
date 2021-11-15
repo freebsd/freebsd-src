@@ -1000,24 +1000,26 @@ vm_page_sunbusy(vm_page_t m)
  *	vm_page_busy_sleep:
  *
  *	Sleep if the page is busy, using the page pointer as wchan.
- *	This is used to implement the hard-path of busying mechanism.
+ *	This is used to implement the hard-path of the busying mechanism.
  *
- *	If nonshared is true, sleep only if the page is xbusy.
+ *	If VM_ALLOC_IGN_SBUSY is specified in allocflags, the function
+ *	will not sleep if the page is shared-busy.
  *
- *	The object lock must be held on entry and will be released on exit.
+ *	The object lock must be held on entry.
+ *
+ *	Returns true if it slept and dropped the object lock, or false
+ *	if there was no sleep and the lock is still held.
  */
-void
-vm_page_busy_sleep(vm_page_t m, const char *wmesg, bool nonshared)
+bool
+vm_page_busy_sleep(vm_page_t m, const char *wmesg, int allocflags)
 {
 	vm_object_t obj;
 
 	obj = m->object;
 	VM_OBJECT_ASSERT_LOCKED(obj);
-	vm_page_lock_assert(m, MA_NOTOWNED);
 
-	if (!_vm_page_busy_sleep(obj, m, m->pindex, wmesg,
-	    nonshared ? VM_ALLOC_SBUSY : 0 , true))
-		VM_OBJECT_DROP(obj);
+	return (_vm_page_busy_sleep(obj, m, m->pindex, wmesg, allocflags,
+	    true));
 }
 
 /*
@@ -1026,21 +1028,19 @@ vm_page_busy_sleep(vm_page_t m, const char *wmesg, bool nonshared)
  *	Sleep if the page is busy, using the page pointer as wchan.
  *	This is used to implement the hard-path of busying mechanism.
  *
- *	If nonshared is true, sleep only if the page is xbusy.
+ *	If VM_ALLOC_IGN_SBUSY is specified in allocflags, the function
+ *	will not sleep if the page is shared-busy.
  *
  *	The object lock must not be held on entry.  The operation will
  *	return if the page changes identity.
  */
 void
 vm_page_busy_sleep_unlocked(vm_object_t obj, vm_page_t m, vm_pindex_t pindex,
-    const char *wmesg, bool nonshared)
+    const char *wmesg, int allocflags)
 {
-
 	VM_OBJECT_ASSERT_UNLOCKED(obj);
-	vm_page_lock_assert(m, MA_NOTOWNED);
 
-	_vm_page_busy_sleep(obj, m, pindex, wmesg,
-	    nonshared ? VM_ALLOC_SBUSY : 0, false);
+	(void)_vm_page_busy_sleep(obj, m, pindex, wmesg, allocflags, false);
 }
 
 /*
@@ -1049,6 +1049,8 @@ vm_page_busy_sleep_unlocked(vm_object_t obj, vm_page_t m, vm_pindex_t pindex,
  *	Internal busy sleep function.  Verifies the page identity and
  *	lockstate against parameters.  Returns true if it sleeps and
  *	false otherwise.
+ *
+ *	allocflags uses VM_ALLOC_* flags to specify the lock required.
  *
  *	If locked is true the lock will be dropped for any true returns
  *	and held for any false returns.
@@ -1393,71 +1395,6 @@ vm_page_free_invalid(vm_page_t m)
 	 */
 	if (vm_page_remove(m))
 		vm_page_free(m);
-}
-
-/*
- *	vm_page_sleep_if_busy:
- *
- *	Sleep and release the object lock if the page is busied.
- *	Returns TRUE if the thread slept.
- *
- *	The given page must be unlocked and object containing it must
- *	be locked.
- */
-int
-vm_page_sleep_if_busy(vm_page_t m, const char *wmesg)
-{
-	vm_object_t obj;
-
-	vm_page_lock_assert(m, MA_NOTOWNED);
-	VM_OBJECT_ASSERT_WLOCKED(m->object);
-
-	/*
-	 * The page-specific object must be cached because page
-	 * identity can change during the sleep, causing the
-	 * re-lock of a different object.
-	 * It is assumed that a reference to the object is already
-	 * held by the callers.
-	 */
-	obj = m->object;
-	if (_vm_page_busy_sleep(obj, m, m->pindex, wmesg, 0, true)) {
-		VM_OBJECT_WLOCK(obj);
-		return (TRUE);
-	}
-	return (FALSE);
-}
-
-/*
- *	vm_page_sleep_if_xbusy:
- *
- *	Sleep and release the object lock if the page is xbusied.
- *	Returns TRUE if the thread slept.
- *
- *	The given page must be unlocked and object containing it must
- *	be locked.
- */
-int
-vm_page_sleep_if_xbusy(vm_page_t m, const char *wmesg)
-{
-	vm_object_t obj;
-
-	vm_page_lock_assert(m, MA_NOTOWNED);
-	VM_OBJECT_ASSERT_WLOCKED(m->object);
-
-	/*
-	 * The page-specific object must be cached because page
-	 * identity can change during the sleep, causing the
-	 * re-lock of a different object.
-	 * It is assumed that a reference to the object is already
-	 * held by the callers.
-	 */
-	obj = m->object;
-	if (_vm_page_busy_sleep(obj, m, m->pindex, wmesg, VM_ALLOC_SBUSY,
-	    true)) {
-		VM_OBJECT_WLOCK(obj);
-		return (TRUE);
-	}
-	return (FALSE);
 }
 
 /*

@@ -24,7 +24,7 @@
 .\" DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd August 07, 2013
+.Dd November 11, 2021
 .Dt VM_PAGE_BUSY 9
 .Os
 .Sh NAME
@@ -33,7 +33,6 @@
 .Nm vm_page_busy_sleep ,
 .Nm vm_page_sbusied ,
 .Nm vm_page_sbusy ,
-.Nm vm_page_sleep_if_busy ,
 .Nm vm_page_sunbusy ,
 .Nm vm_page_trysbusy ,
 .Nm vm_page_tryxbusy ,
@@ -52,14 +51,12 @@
 .Fn vm_page_busied "vm_page_t m"
 .Ft void
 .Fn vm_page_busy_downgrade "vm_page_t m"
-.Ft void
-.Fn vm_page_busy_sleep "vm_page_t m" "const char *msg"
+.Ft bool
+.Fn vm_page_busy_sleep "vm_page_t m" "const char *msg" "int allocflags"
 .Ft int
 .Fn vm_page_sbusied "vm_page_t m"
 .Ft void
 .Fn vm_page_sbusy "vm_page_t m"
-.Ft int
-.Fn vm_page_sleep_if_busy "vm_page_t m" "const char *msg"
 .Ft void
 .Fn vm_page_sunbusy "vm_page_t m"
 .Ft int
@@ -114,8 +111,23 @@ from an exclusive busy state to a shared busy state.
 .Pp
 The
 .Fn vm_page_busy_sleep
-function puts the invoking thread to sleep using the appropriate
-waitchannels for the busy mechanism.
+checks the busy state of the page
+.Fa m
+and puts the invoking thread to sleep if the page is busy.
+The VM object for the page must be locked.
+The
+.Fa allocflags
+parameter must be either
+.Dv 0 ,
+in which case the function will sleep if the page is busied,
+or
+.Dv VM_ALLOC_IGN_SBUSY ,
+in which case the function will sleep only if the page is exclusively
+busied.
+A return value of true indicates that the invoking thread was put to
+sleep and that the object was unlocked.
+A return value of false indicates that the invoking thread did not sleep
+and the object remains locked.
 The parameter
 .Fa msg
 is a string describing the sleep condition for userland tools.
@@ -131,18 +143,6 @@ The
 .Fn vm_page_sbusy
 function shared busies
 .Fa m .
-.Pp
-The
-.Fn vm_page_sleep_if_busy
-function puts the invoking thread to sleep, using the appropriate
-waitchannels for the busy mechanism, if
-.Fa m .
-is busied in either exclusive or shared mode.
-If the invoking thread slept a non-zero value is returned, otherwise
-0 is returned.
-The parameter
-.Fa msg
-is a string describing the sleep condition for userland tools.
 .Pp
 The
 .Fn vm_page_sunbusy

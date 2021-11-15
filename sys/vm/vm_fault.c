@@ -1294,9 +1294,8 @@ vm_fault_busy_sleep(struct faultstate *fs)
 	}
 	vm_object_pip_wakeup(fs->object);
 	unlock_map(fs);
-	if (fs->m == vm_page_lookup(fs->object, fs->pindex))
-		vm_page_busy_sleep(fs->m, "vmpfw", false);
-	else
+	if (fs->m != vm_page_lookup(fs->object, fs->pindex) ||
+	    !vm_page_busy_sleep(fs->m, "vmpfw", 0))
 		VM_OBJECT_WUNLOCK(fs->object);
 	VM_CNT_INC(v_intrans);
 	vm_object_deallocate(fs->first_object);
