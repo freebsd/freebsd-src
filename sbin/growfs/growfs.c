@@ -1503,7 +1503,10 @@ main(int argc, char **argv)
 		humanize_number(newsizebuf, sizeof(newsizebuf), size,
 		    "B", HN_AUTOSCALE, HN_B | HN_NOSPACE | HN_DECIMAL);
 
-		errx(1, "requested size %s is not larger than the current "
+		if (size == (uint64_t)(osblock.fs_size * osblock.fs_fsize))
+			errx(0, "requested size %s is equal to the current "
+			    "filesystem size %s", newsizebuf, oldsizebuf);
+		errx(1, "requested size %s is smaller than the current "
 		   "filesystem size %s", newsizebuf, oldsizebuf);
 	}
 
