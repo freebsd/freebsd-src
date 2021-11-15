@@ -2095,6 +2095,21 @@ again:
 		next = TAILQ_NEXT(p, listq);
 
 		/*
+		 * Skip invalid pages if asked to do so.  Try to avoid acquiring
+		 * the busy lock, as some consumers rely on this to avoid
+		 * deadlocks.
+		 *
+		 * A thread may concurrently transition the page from invalid to
+		 * valid using only the busy lock, so the result of this check
+		 * is immediately stale.  It is up to consumers to handle this,
+		 * for instance by ensuring that all invalid->valid transitions
+		 * happen with a mutex held, as may be possible for a
+		 * filesystem.
+		 */
+		if ((options & OBJPR_VALIDONLY) != 0 && vm_page_none_valid(p))
+			continue;
+
+		/*
 		 * If the page is wired for any reason besides the existence
 		 * of managed, wired mappings, then it cannot be freed.  For
 		 * example, fictitious pages, which represent device memory,
@@ -2105,6 +2120,10 @@ again:
 		if (vm_page_tryxbusy(p) == 0) {
 			vm_page_sleep_if_busy(p, "vmopar");
 			goto again;
+		}
+		if ((options & OBJPR_VALIDONLY) != 0 && vm_page_none_valid(p)) {
+			vm_page_xunbusy(p);
+			continue;
 		}
 		if (vm_page_wired(p)) {
 wired:

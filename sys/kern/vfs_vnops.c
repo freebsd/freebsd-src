@@ -2425,6 +2425,10 @@ vn_chown(struct file *fp, uid_t uid, gid_t gid, struct ucred *active_cred,
 	return (setfown(td, active_cred, vp, uid, gid));
 }
 
+/*
+ * Remove pages in the range ["start", "end") from the vnode's VM object.  If
+ * "end" is 0, then the range extends to the end of the object.
+ */
 void
 vn_pages_remove(struct vnode *vp, vm_pindex_t start, vm_pindex_t end)
 {
@@ -2434,6 +2438,24 @@ vn_pages_remove(struct vnode *vp, vm_pindex_t start, vm_pindex_t end)
 		return;
 	VM_OBJECT_WLOCK(object);
 	vm_object_page_remove(object, start, end, 0);
+	VM_OBJECT_WUNLOCK(object);
+}
+
+/*
+ * Like vn_pages_remove(), but skips invalid pages, which by definition are not
+ * mapped into any process' address space.  Filesystems may use this in
+ * preference to vn_pages_remove() to avoid blocking on pages busied in
+ * preparation for a VOP_GETPAGES.
+ */
+void
+vn_pages_remove_valid(struct vnode *vp, vm_pindex_t start, vm_pindex_t end)
+{
+	vm_object_t object;
+
+	if ((object = vp->v_object) == NULL)
+		return;
+	VM_OBJECT_WLOCK(object);
+	vm_object_page_remove(object, start, end, OBJPR_VALIDONLY);
 	VM_OBJECT_WUNLOCK(object);
 }
 
