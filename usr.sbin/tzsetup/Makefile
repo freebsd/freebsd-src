@@ -7,10 +7,10 @@ MAN=	tzsetup.8
 
 CFLAGS+= -I.
 
-.if ${MK_DIALOG} != no && !defined(BOOTSTRAPPING)
+.if !defined(BOOTSTRAPPING)
 WARNS?=	3
-CFLAGS+=	-I${SRCTOP}/contrib/dialog -DHAVE_DIALOG
-LIBADD=	dialog tinfow
+CFLAGS+=	-I${SRCTOP}/contrib/bsddialog/lib -DHAVE_BSDDIALOG
+LIBADD=		bsddialog
 .endif
 
 .include <bsd.prog.mk>
