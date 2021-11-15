@@ -1,12 +1,4 @@
-#include "config.h"
-
-#if HAVE_STRCASESTR
-
-int dummy;
-
-#else
-
-/*	$Id: compat_strcasestr.c,v 1.4 2014/12/11 09:19:32 schwarze Exp $	*/
+/*	$Id: compat_strcasestr.c,v 1.5 2020/06/15 01:37:15 schwarze Exp $ */
 /*	$NetBSD: strcasestr.c,v 1.3 2005/11/29 03:12:00 christos Exp $	*/
 
 /*-
@@ -40,6 +32,7 @@ int dummy;
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
+#include "config.h"
 
 #include <sys/types.h>
 #include <ctype.h>
@@ -69,5 +62,3 @@ strcasestr(const char *s, const char *find)
 	}
 	return __UNCONST(s);
 }
-
-#endif

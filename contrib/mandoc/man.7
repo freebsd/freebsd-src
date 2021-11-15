@@ -1,7 +1,7 @@
-.\"	$Id: man.7,v 1.144 2019/07/09 03:46:59 schwarze Exp $
+.\"	$Id: man.7,v 1.148 2021/08/05 14:31:14 schwarze Exp $
 .\"
 .\" Copyright (c) 2009, 2010, 2011, 2012 Kristaps Dzonsons <kristaps@bsd.lv>
-.\" Copyright (c) 2011-2015,2017,2018,2019 Ingo Schwarze <schwarze@openbsd.org>
+.\" Copyright (c) 2011-2015, 2017-2020 Ingo Schwarze <schwarze@openbsd.org>
 .\" Copyright (c) 2017 Anthony Bentley <bentley@openbsd.org>
 .\" Copyright (c) 2010 Joerg Sonnenberger <joerg@netbsd.org>
 .\"
@@ -17,7 +17,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: July 9 2019 $
+.Dd $Mdocdate: August 5 2021 $
 .Dt MAN 7
 .Os
 .Sh NAME
@@ -127,6 +127,8 @@ Sets the volume for the footer for compatibility with man pages from
 .At
 releases.
 The optional arguments specify which release it is from.
+This macro is an extension that first appeared in
+.Bx 4.3 .
 .It Ic B
 Text is rendered in bold face.
 .It Ic BI
@@ -244,7 +246,7 @@ link description to be shown
 .Ed
 .It Ic OP
 Optional command-line argument.
-This is a non-standard GNU extension.
+This is a non-standard DWB extension.
 It has the following syntax:
 .Pp
 .D1 Pf . Ic OP Ar key Op Ar value
@@ -255,8 +257,12 @@ is usually a command-line flag and
 .Ar value
 its argument.
 .It Ic P
-A synonym for
-.Ic PP .
+This synonym for
+.Ic PP
+is an
+.At III
+extension later adopted by
+.Bx 4.3 .
 .It Ic PD
 Specify the vertical space to be inserted before each new paragraph.
 .br
@@ -343,6 +349,9 @@ See also
 .It Ic SB
 Text is rendered in small size (one point smaller than the default font)
 bold face.
+This macro is an extension that probably first appeared in SunOS 4.0
+and was later adopted by GNU and by
+.Bx 4.4 .
 .It Ic SH
 Begin a section.
 The scope of a section is only closed by another section or the end of
@@ -435,6 +444,8 @@ Sets the volume for the footer for compatibility with man pages from
 .Bx
 releases.
 The optional first argument specifies which release it is from.
+This macro is an extension that first appeared in
+.Bx 3 .
 .It Ic UE
 End a uniform resource identifier block started with
 .Ic UR .
@@ -505,7 +516,7 @@ The syntax is as follows:
 .It Ic I   Ta    n         Ta    next-line Ta    \&
 .It Ic IB  Ta    n         Ta    current   Ta    \&
 .It Ic IR  Ta    n         Ta    current   Ta    \&
-.It Ic OP  Ta    >=1       Ta    current   Ta    GNU
+.It Ic OP  Ta    >=1       Ta    current   Ta    DWB
 .It Ic PD  Ta    1         Ta    current   Ta    \&
 .It Ic RB  Ta    n         Ta    current   Ta    \&
 .It Ic RI  Ta    n         Ta    current   Ta    \&
@@ -601,16 +612,32 @@ The
 language first appeared as a macro package for the roff typesetting
 system in
 .At v7 .
-It was later rewritten by James Clark as a macro package for groff.
-Eric S. Raymond wrote the extended
-.Nm
-macros for groff in 2007.
+.Pp
 The stand-alone implementation that is part of the
 .Xr mandoc 1
-utility written by Kristaps Dzonsons appeared in
+utility first appeared in
 .Ox 4.6 .
 .Sh AUTHORS
-This
+.An -nosplit
+.An Douglas McIlroy Aq Mt m.douglas.mcilroy@dartmouth.edu
+designed and implemented the original version of these macros,
+wrote the original version of this manual page,
+and was the first to use them when he edited volume 1 of the
+.At v7
+manual pages.
+.Pp
+.An James Clark
+later rewrote the macros for groff.
+.An Eric S. Raymond Aq Mt esr@thyrsus.com
+and
+.An Werner Lemberg Aq Mt wl@gnu.org
+added the extended
 .Nm
-reference was written by
+macros to groff in 2007.
+.Pp
+The
+.Xr mandoc 1
+program and this
+.Nm
+reference were written by
 .An Kristaps Dzonsons Aq Mt kristaps@bsd.lv .

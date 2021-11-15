@@ -72,6 +72,7 @@ TERM_SRCS=	eqn_term.c \
 		term_ascii.c \
 		term_ps.c \
 		term_tab.c \
+		term_tag.c \
 		tbl_term.c
 
 DBM_SRCS=	dbm.c \

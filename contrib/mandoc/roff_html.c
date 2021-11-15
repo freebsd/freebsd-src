@@ -1,4 +1,4 @@
-/*	$Id: roff_html.c,v 1.20 2019/04/30 15:53:01 schwarze Exp $ */
+/* $Id: roff_html.c,v 1.21 2020/06/22 19:20:40 schwarze Exp $ */
 /*
  * Copyright (c) 2010 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2014, 2017, 2018, 2019 Ingo Schwarze <schwarze@openbsd.org>
@@ -15,6 +15,8 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
+#include "config.h"
+
 #include <sys/types.h>
 
 #include <assert.h>

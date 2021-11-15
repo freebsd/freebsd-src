@@ -1,7 +1,7 @@
-/*	$Id: read.c,v 1.214 2019/07/10 19:39:01 schwarze Exp $ */
+/* $Id: read.c,v 1.220 2021/06/27 17:57:54 schwarze Exp $ */
 /*
+ * Copyright (c) 2010-2020 Ingo Schwarze <schwarze@openbsd.org>
  * Copyright (c) 2008, 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2010-2019 Ingo Schwarze <schwarze@openbsd.org>
  * Copyright (c) 2010, 2012 Joerg Sonnenberger <joerg@netbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,6 +15,12 @@
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ *
+ * Top-level functions of the mandoc(3) parser:
+ * Parser and input encoding selection, decompression,
+ * handling of input bytes, characters, lines, and files,
+ * handling of roff(7) loops and file inclusion,
+ * and steering of the various parsers.
  */
 #include "config.h"
 
@@ -41,6 +47,7 @@
 #include "mandoc_parse.h"
 #include "libmandoc.h"
 #include "roff_int.h"
+#include "tag.h"
 
 #define	REPARSE_LIMIT	1000
 
@@ -147,6 +154,7 @@ mparse_buf_r(struct mparse *curp, struct buf blk, size_t i, int start)
 	struct buf	*firstln, *lastln, *thisln, *loop;
 	char		*cp;
 	size_t		 pos; /* byte number in the ln buffer */
+	size_t		 spos; /* at the start of the current line parse */
 	int		 line_result, result;
 	int		 of;
 	int		 lnn; /* line number in the real file */
@@ -173,6 +181,7 @@ mparse_buf_r(struct mparse *curp, struct buf blk, size_t i, int start)
 			    curp->filenc & MPARSE_LATIN1)
 				curp->filenc = preconv_cue(&blk, i);
 		}
+		spos = pos;
 
 		while (i < blk.sz && (start || blk.buf[i] != '\0')) {
 
@@ -272,7 +281,8 @@ mparse_buf_r(struct mparse *curp, struct buf blk, size_t i, int start)
 
 		of = 0;
 rerun:
-		line_result = roff_parseln(curp->roff, curp->line, &ln, &of);
+		line_result = roff_parseln(curp->roff, curp->line,
+		    &ln, &of, start && spos == 0 ? pos : 0);
 
 		/* Process options. */
 
@@ -547,7 +557,7 @@ mparse_readfd(struct mparse *curp, int fd, const char *filename)
 
 	struct buf	 blk;
 	struct buf	*save_primary;
-	const char	*save_filename;
+	const char	*save_filename, *cp;
 	size_t		 offset;
 	int		 save_filenc, save_lineno;
 	int		 with_mmap;
@@ -555,7 +565,13 @@ mparse_readfd(struct mparse *curp, int fd, const char *filename)
 	if (recursion_depth > 64) {
 		mandoc_msg(MANDOCERR_ROFFLOOP, curp->line, 0, NULL);
 		return;
-	}
+	} else if (recursion_depth == 0 &&
+	    (cp = strrchr(filename, '.')) != NULL &&
+            cp[1] >= '1' && cp[1] <= '9')
+                curp->man->filesec = cp[1];
+        else
+                curp->man->filesec = '\0';
+
 	if (read_whole_file(curp, fd, &blk, &with_mmap) == -1)
 		return;
 
@@ -664,22 +680,26 @@ mparse_alloc(int options, enum mandoc_os os_e, const char *os_s)
 	}
 	curp->man->meta.first->tok = TOKEN_NONE;
 	curp->man->meta.os_e = os_e;
+	tag_alloc();
 	return curp;
 }
 
 void
 mparse_reset(struct mparse *curp)
 {
+	tag_free();
 	roff_reset(curp->roff);
 	roff_man_reset(curp->man);
 	free_buf_list(curp->secondary);
 	curp->secondary = NULL;
 	curp->gzip = 0;
+	tag_alloc();
 }
 
 void
 mparse_free(struct mparse *curp)
 {
+	tag_free();
 	roffhash_free(curp->man->mdocmac);
 	roffhash_free(curp->man->manmac);
 	roff_man_free(curp->man);
@@ -697,6 +717,7 @@ mparse_result(struct mparse *curp)
 			mdoc_validate(curp->man);
 		else
 			man_validate(curp->man);
+		tag_postprocess(curp->man, curp->man->meta.first);
 	}
 	return &curp->man->meta;
 }

@@ -1,7 +1,7 @@
-/*	$Id: mandoc_msg.c,v 1.8 2019/07/14 18:16:13 schwarze Exp $ */
+/* $OpenBSD: mandoc_msg.c,v 1.8 2020/01/19 17:59:01 schwarze Exp $ */
 /*
+ * Copyright (c) 2014-2021 Ingo Schwarze <schwarze@openbsd.org>
  * Copyright (c) 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2014-2019 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -14,6 +14,8 @@
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ *
+ * Implementation of warning and error messages for mandoc(1).
  */
 #include "config.h"
 
@@ -53,7 +55,6 @@ static	const char *const type_message[MANDOCERR_MAX] = {
 	"unknown architecture",
 	"operating system explicitly specified",
 	"RCS id missing",
-	"referenced manual not found",
 
 	"generic style suggestion",
 
@@ -67,10 +68,12 @@ static	const char *const type_message[MANDOCERR_MAX] = {
 	"consider using OS macro",
 	"errnos out of order",
 	"duplicate errno",
+	"referenced manual not found",
 	"trailing delimiter",
 	"no blank before trailing delimiter",
 	"fill mode already enabled, skipping",
 	"fill mode already disabled, skipping",
+	"input text line longer than 80 bytes",
 	"verbatim \"--\", maybe consider using \\(em",
 	"function name without markup",
 	"whitespace at end of input line",
@@ -83,7 +86,8 @@ static	const char *const type_message[MANDOCERR_MAX] = {
 	"missing manual title, using \"\"",
 	"missing manual section, using \"\"",
 	"unknown manual section",
-	"missing date, using today's date",
+	"filename/section mismatch",
+	"missing date, using \"\"",
 	"cannot parse date, using it verbatim",
 	"date in the future, using it anyway",
 	"missing Os macro, using \"\"",
@@ -187,6 +191,7 @@ static	const char *const type_message[MANDOCERR_MAX] = {
 	"empty tbl layout",
 	"invalid character in tbl layout",
 	"unmatched parenthesis in tbl layout",
+	"ignoring excessive spacing in tbl layout",
 	"tbl without any data cells",
 	"ignoring data in spanned tbl cell",
 	"ignoring extra tbl data cells",
@@ -223,6 +228,7 @@ static	const char *const type_message[MANDOCERR_MAX] = {
 	"excessive shift",
 	"NOT IMPLEMENTED: .so with absolute path or \"..\"",
 	".so request failed",
+	"skipping tag containing whitespace",
 	"skipping all arguments",
 	"skipping excess arguments",
 	"divide by zero",
@@ -239,6 +245,8 @@ static	const char *const type_message[MANDOCERR_MAX] = {
 	"eqn delim option in tbl",
 	"unsupported tbl layout modifier",
 	"ignoring macro in table",
+	"skipping tbl in -Tman mode",
+	"skipping eqn in -Tman mode",
 
 	/* bad command line arguments */
 	NULL,
@@ -249,6 +257,7 @@ static	const char *const type_message[MANDOCERR_MAX] = {
 	"bad option value",
 	"duplicate option value",
 	"no such tag",
+	"-Tmarkdown unsupported for man(7) input",
 
 	/* system errors */
 	NULL,

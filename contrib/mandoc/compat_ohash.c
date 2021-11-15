@@ -1,11 +1,4 @@
-#include "config.h"
-
-#if HAVE_OHASH
-
-int dummy;
-
-#else
-
+/* $Id: compat_ohash.c,v 1.7 2020/06/15 01:37:15 schwarze Exp $ */
 /* $OpenBSD: ohash.c,v 1.1 2014/06/02 18:52:03 deraadt Exp $ */
 
 /* Copyright (c) 1999, 2004 Marc Espie <espie@openbsd.org>
@@ -22,9 +15,9 @@ int dummy;
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
+#include "config.h"
 
 #include <sys/types.h>
-
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -335,5 +328,3 @@ ohash_qlookupi(struct ohash *h, const char *s, const char **e)
 	hv = ohash_interval(s, e);
 	return ohash_lookup_interval(h, s, *e, hv);
 }
-
-#endif /*!HAVE_OHASH*/
