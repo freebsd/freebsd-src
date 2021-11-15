@@ -645,6 +645,11 @@ nfs_open(struct vop_open_args *ap)
 	NFSLOCKNODE(np);
 	if (np->n_flag & NMODIFIED) {
 		NFSUNLOCKNODE(np);
+		if (VOP_ISLOCKED(vp) != LK_EXCLUSIVE) {
+			NFSVOPLOCK(vp, LK_UPGRADE | LK_RETRY);
+			if (VN_IS_DOOMED(vp))
+				return (EBADF);
+		}
 		error = ncl_vinvalbuf(vp, V_SAVE, ap->a_td, 1);
 		if (error == EINTR || error == EIO) {
 			if (NFS_ISV4(vp))
@@ -681,6 +686,11 @@ nfs_open(struct vop_open_args *ap)
 			if (vp->v_type == VDIR)
 				np->n_direofoffset = 0;
 			NFSUNLOCKNODE(np);
+			if (VOP_ISLOCKED(vp) != LK_EXCLUSIVE) {
+				NFSVOPLOCK(vp, LK_UPGRADE | LK_RETRY);
+				if (VN_IS_DOOMED(vp))
+					return (EBADF);
+			}
 			error = ncl_vinvalbuf(vp, V_SAVE, ap->a_td, 1);
 			if (error == EINTR || error == EIO) {
 				if (NFS_ISV4(vp))
@@ -701,6 +711,11 @@ nfs_open(struct vop_open_args *ap)
 	    (vp->v_type == VREG)) {
 		if (np->n_directio_opens == 0) {
 			NFSUNLOCKNODE(np);
+			if (VOP_ISLOCKED(vp) != LK_EXCLUSIVE) {
+				NFSVOPLOCK(vp, LK_UPGRADE | LK_RETRY);
+				if (VN_IS_DOOMED(vp))
+					return (EBADF);
+			}
 			error = ncl_vinvalbuf(vp, V_SAVE, ap->a_td, 1);
 			if (error) {
 				if (NFS_ISV4(vp))
@@ -746,6 +761,11 @@ nfs_open(struct vop_open_args *ap)
 	if (vp->v_writecount <= -1) {
 		if ((obj = vp->v_object) != NULL &&
 		    vm_object_mightbedirty(obj)) {
+			if (VOP_ISLOCKED(vp) != LK_EXCLUSIVE) {
+				NFSVOPLOCK(vp, LK_UPGRADE | LK_RETRY);
+				if (VN_IS_DOOMED(vp))
+					return (EBADF);
+			}
 			VM_OBJECT_WLOCK(obj);
 			vm_object_page_clean(obj, 0, 0, OBJPC_SYNC);
 			VM_OBJECT_WUNLOCK(obj);
@@ -829,6 +849,11 @@ nfs_close(struct vop_close_args *ap)
 	     * mmap'ed writes or via write().
 	     */
 	    if (nfs_clean_pages_on_close && vp->v_object) {
+		if (VOP_ISLOCKED(vp) != LK_EXCLUSIVE) {
+			NFSVOPLOCK(vp, LK_UPGRADE | LK_RETRY);
+			if (VN_IS_DOOMED(vp) && ap->a_fflag != FNONBLOCK)
+				return (EBADF);
+		}
 		VM_OBJECT_WLOCK(vp->v_object);
 		vm_object_page_clean(vp->v_object, 0, 0, 0);
 		VM_OBJECT_WUNLOCK(vp->v_object);
@@ -853,11 +878,22 @@ nfs_close(struct vop_close_args *ap)
 		     * traditional vnode locking implemented for Vnode Ops.
 		     */
 		    int cm = newnfs_commit_on_close ? 1 : 0;
+		    if (VOP_ISLOCKED(vp) != LK_EXCLUSIVE) {
+			    NFSVOPLOCK(vp, LK_UPGRADE | LK_RETRY);
+			    if (VN_IS_DOOMED(vp) && ap->a_fflag != FNONBLOCK)
+				    return (EBADF);
+		    }
 		    error = ncl_flush(vp, MNT_WAIT, ap->a_td, cm, 0);
 		    /* np->n_flag &= ~NMODIFIED; */
 		} else if (NFS_ISV4(vp)) { 
 			if (nfscl_mustflush(vp) != 0) {
 				int cm = newnfs_commit_on_close ? 1 : 0;
+				if (VOP_ISLOCKED(vp) != LK_EXCLUSIVE) {
+					NFSVOPLOCK(vp, LK_UPGRADE | LK_RETRY);
+					if (VN_IS_DOOMED(vp) && ap->a_fflag !=
+					    FNONBLOCK)
+						return (EBADF);
+				}
 				error = ncl_flush(vp, MNT_WAIT, ap->a_td,
 				    cm, 0);
 				/*
@@ -867,6 +903,12 @@ nfs_close(struct vop_close_args *ap)
 				 */
 			}
 		} else {
+			if (VOP_ISLOCKED(vp) != LK_EXCLUSIVE) {
+				NFSVOPLOCK(vp, LK_UPGRADE | LK_RETRY);
+				if (VN_IS_DOOMED(vp) && ap->a_fflag !=
+				    FNONBLOCK)
+					return (EBADF);
+			}
 			error = ncl_vinvalbuf(vp, V_SAVE, ap->a_td, 1);
 		}
 		NFSLOCKNODE(np);
