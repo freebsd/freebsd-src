@@ -448,8 +448,7 @@
 63	AUE_NULL	COMPAT {
 		int getkerninfo(
 		    int op,
-		    _Out_writes_bytes_opt(
-		    *size) char *where,
+		    _Out_writes_bytes_opt(*size) char *where,
 		    _Inout_opt_ size_t *size,
 		    int arg
 		);
