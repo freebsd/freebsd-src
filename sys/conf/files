@@ -2417,6 +2417,7 @@ dev/mii/axphy.c			optional miibus | axphy
 dev/mii/bmtphy.c		optional miibus | bmtphy
 dev/mii/brgphy.c		optional miibus | brgphy
 dev/mii/ciphy.c			optional miibus | ciphy
+dev/mii/dp83867phy.c		optional miibus | dp83867phy
 dev/mii/e1000phy.c		optional miibus | e1000phy
 dev/mii/gentbi.c		optional miibus | gentbi
 dev/mii/icsphy.c		optional miibus | icsphy
