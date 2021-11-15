@@ -110,6 +110,7 @@ oui xxPMCSIERRA			0x0009c0	PMC-Sierra
 oui xxPMCSIERRA2		0x009057	PMC-Sierra
 oui xxREALTEK			0x000732	RealTek Semicondctor
 oui yyREALTEK			0x000004	RealTek Semicondctor
+oui xxTI			0x100014	Texas Instruments
 
 /*
  * List of known models.  Grouped by oui.
@@ -335,6 +336,7 @@ model SIS 900			0x0000 SiS 900 10/100 media interface
 model TI TLAN10T		0x0001 ThunderLAN 10BASE-T media interface
 model TI 100VGPMI		0x0002 ThunderLAN 100VG-AnyLan media interface
 model TI TNETE2101		0x0003 TNETE2101 media interface
+model xxTI DP83867		0x0023 High Immunity 10/100/1000 PHY
 
 /* TDK Semiconductor PHYs */
 model xxTSC 78Q2120		0x0014 78Q2120 10/100 media interface
