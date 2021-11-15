@@ -119,6 +119,13 @@ lkpi_clflushopt(unsigned long addr)
 }
 #define	clflush(x)	clflush((unsigned long)(x))
 #define	clflushopt(x)	lkpi_clflushopt((unsigned long)(x))
+
+static inline void
+clflush_cache_range(void *addr, unsigned int size)
+{
+	pmap_force_invalidate_cache_range((vm_offset_t)addr,
+	    (vm_offset_t)addr + size);
+}
 #endif
 
 #endif	/* _LINUX_PAGE_H_ */
