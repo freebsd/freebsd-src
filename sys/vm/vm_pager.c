@@ -338,12 +338,11 @@ vm_pager_get_pages(vm_object_t object, vm_page_t *m, int count, int *rbehind,
 		 * updated the array.
 		 */
 #ifdef INVARIANTS
-		VM_OBJECT_RLOCK(object);
-		KASSERT(m[i] == vm_page_lookup(object, pindex++),
+		KASSERT(m[i] == vm_page_relookup(object, pindex++),
 		    ("%s: mismatch page %p pindex %ju", __func__,
 		    m[i], (uintmax_t )pindex - 1));
-		VM_OBJECT_RUNLOCK(object);
 #endif
+
 		/*
 		 * Zero out partially filled data.
 		 */
