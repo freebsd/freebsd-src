@@ -1868,6 +1868,16 @@ unionfs_lock(struct vop_lock1_args *ap)
 
 	KASSERT_UNIONFS_VNODE(ap->a_vp);
 
+	/*
+	 * TODO: rework the unionfs locking scheme.
+	 * It's not guaranteed to be safe to blindly lock two vnodes on
+	 * different mounts as is done here.  Further, the entanglement
+	 * of locking both vnodes with the various options that can be
+	 * passed to VOP_LOCK() makes this code hard to reason about.
+	 * Instead, consider locking only the upper vnode, or the lower
+	 * vnode is the upper is not present, and taking separate measures
+	 * to lock both vnodes in the few cases when that is needed.
+	 */
 	error = 0;
 	interlock = 1;
 	uhold = 0;
@@ -2535,6 +2545,128 @@ unionfs_add_writecount(struct vop_add_writecount_args *ap)
 	return (error);
 }
 
+static int
+unionfs_vput_pair(struct vop_vput_pair_args *ap)
+{
+	struct mount *mp;
+	struct vnode *dvp, *vp, **vpp, *lvp, *ldvp, *uvp, *udvp, *tempvp;
+	struct unionfs_node *dunp, *unp;
+	int error, res;
+
+	dvp = ap->a_dvp;
+	vpp = ap->a_vpp;
+	vp = NULLVP;
+	lvp = NULLVP;
+	uvp = NULLVP;
+	unp = NULL;
+
+	dunp = VTOUNIONFS(dvp);
+	udvp = dunp->un_uppervp;
+	ldvp = dunp->un_lowervp;
+
+	/*
+	 * Underlying vnodes should be locked because the encompassing unionfs
+	 * node is locked, but will not be referenced, as the reference will
+	 * only be on the unionfs node.  Reference them now so that the vput()s
+	 * performed by VOP_VPUT_PAIR() will have a reference to drop.
+	 */
+	if (udvp != NULLVP)
+		vref(udvp);
+	if (ldvp != NULLVP)
+		vref(ldvp);
+
+	if (vpp != NULL)
+		vp = *vpp;
+
+	if (vp != NULLVP) {
+		unp = VTOUNIONFS(vp);
+		uvp = unp->un_uppervp;
+		lvp = unp->un_lowervp;
+		if (uvp != NULLVP)
+			vref(uvp);
+		if (lvp != NULLVP)
+			vref(lvp);
+
+		/*
+		 * If we're being asked to return a locked child vnode, then
+		 * we may need to create a replacement vnode in case the
+		 * original is reclaimed while the lock is dropped.  In that
+		 * case we'll need to ensure the mount and the underlying
+		 * vnodes aren't also recycled during that window.
+		 */
+		if (!ap->a_unlock_vp) {
+			vhold(vp);
+			if (uvp != NULLVP)
+				vhold(uvp);
+			if (lvp != NULLVP)
+				vhold(lvp);
+			mp = vp->v_mount;
+			vfs_ref(mp);
+		}
+	}
+
+	/*
+	 * TODO: Because unionfs_lock() locks both the lower and upper vnodes
+	 * (if available), we must also call VOP_VPUT_PAIR() on both the lower
+	 * and upper parent/child pairs.  If unionfs_lock() is reworked to lock
+	 * only a single vnode, this code will need to change to also only
+	 * operate on one vnode pair.
+	 */
+	ASSERT_VOP_LOCKED(ldvp, __func__);
+	ASSERT_VOP_LOCKED(udvp, __func__);
+	ASSERT_VOP_LOCKED(lvp, __func__);
+	ASSERT_VOP_LOCKED(uvp, __func__);
+
+	KASSERT(lvp == NULLVP || ldvp != NULLVP,
+	    ("%s: NULL ldvp with non-NULL lvp", __func__));
+	if (ldvp != NULLVP)
+		res = VOP_VPUT_PAIR(ldvp, lvp != NULLVP ? &lvp : NULL, true);
+	KASSERT(uvp == NULLVP || udvp != NULLVP,
+	    ("%s: NULL udvp with non-NULL uvp", __func__));
+	if (udvp != NULLVP)
+		res = VOP_VPUT_PAIR(udvp, uvp != NULLVP ? &uvp : NULL, true);
+
+	ASSERT_VOP_UNLOCKED(ldvp, __func__);
+	ASSERT_VOP_UNLOCKED(udvp, __func__);
+	ASSERT_VOP_UNLOCKED(lvp, __func__);
+	ASSERT_VOP_UNLOCKED(uvp, __func__);
+
+	/*
+	 * VOP_VPUT_PAIR() dropped the references we added to the underlying
+	 * vnodes, now drop the caller's reference to the unionfs vnodes.
+	 */
+	if (vp != NULLVP && ap->a_unlock_vp)
+		vrele(vp);
+	vrele(dvp);
+
+	if (vp == NULLVP || ap->a_unlock_vp)
+		return (res);
+
+	/*
+	 * We're being asked to return a locked vnode.  At this point, the
+	 * underlying vnodes have been unlocked, so vp may have been reclaimed.
+	 */
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+	if (vp->v_data == NULL && vfs_busy(mp, MBF_NOWAIT) == 0) {
+		vput(vp);
+		error = unionfs_nodeget(mp, uvp, lvp, dvp, &tempvp, NULL);
+		if (error == 0) {
+			vn_lock(tempvp, LK_EXCLUSIVE | LK_RETRY);
+			*vpp = tempvp;
+		} else
+			vget(vp, LK_EXCLUSIVE | LK_RETRY);
+		vfs_unbusy(mp);
+	}
+	if (lvp != NULLVP)
+		vdrop(lvp);
+	if (uvp != NULLVP)
+		vdrop(uvp);
+	vdrop(vp);
+	vfs_rel(mp);
+
+	return (res);
+}
+
 struct vop_vector unionfs_vnodeops = {
 	.vop_default =		&default_vnodeops,
 
@@ -2585,5 +2717,6 @@ struct vop_vector unionfs_vnodeops = {
 	.vop_write =		unionfs_write,
 	.vop_vptofh =		unionfs_vptofh,
 	.vop_add_writecount =	unionfs_add_writecount,
+	.vop_vput_pair =	unionfs_vput_pair,
 };
 VFS_VOP_VECTOR_REGISTER(unionfs_vnodeops);
