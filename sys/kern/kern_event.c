@@ -1107,7 +1107,7 @@ kern_kqueue(struct thread *td, int flags, struct filecaps *fcaps)
 
 struct g_kevent_args {
 	int	fd;
-	void	*changelist;
+	const void *changelist;
 	int	nchanges;
 	void	*eventlist;
 	int	nevents;
@@ -1212,7 +1212,7 @@ static int
 kevent11_copyout(void *arg, struct kevent *kevp, int count)
 {
 	struct freebsd11_kevent_args *uap;
-	struct kevent_freebsd11 kev11;
+	struct freebsd11_kevent kev11;
 	int error, i;
 
 	KASSERT(count <= KQ_NEVENTS, ("count (%d) > KQ_NEVENTS", count));
@@ -1241,7 +1241,7 @@ static int
 kevent11_copyin(void *arg, struct kevent *kevp, int count)
 {
 	struct freebsd11_kevent_args *uap;
-	struct kevent_freebsd11 kev11;
+	struct freebsd11_kevent kev11;
 	int error, i;
 
 	KASSERT(count <= KQ_NEVENTS, ("count (%d) > KQ_NEVENTS", count));
@@ -1271,7 +1271,7 @@ freebsd11_kevent(struct thread *td, struct freebsd11_kevent_args *uap)
 		.arg = uap,
 		.k_copyout = kevent11_copyout,
 		.k_copyin = kevent11_copyin,
-		.kevent_size = sizeof(struct kevent_freebsd11),
+		.kevent_size = sizeof(struct freebsd11_kevent),
 	};
 	struct g_kevent_args gk_args = {
 		.fd = uap->fd,
@@ -1282,7 +1282,7 @@ freebsd11_kevent(struct thread *td, struct freebsd11_kevent_args *uap)
 		.timeout = uap->timeout,
 	};
 
-	return (kern_kevent_generic(td, &gk_args, &k_ops, "kevent_freebsd11"));
+	return (kern_kevent_generic(td, &gk_args, &k_ops, "freebsd11_kevent"));
 }
 #endif
 
