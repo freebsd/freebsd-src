@@ -118,12 +118,6 @@ void	ffs_update_dinode_ckhash(struct fs *, struct ufs2_dinode *);
 int	ffs_verify_dinode_ckhash(struct fs *, struct ufs2_dinode *);
 
 /*
- * Request standard superblock location in ffs_sbget
- */
-#define	STDSB			-1	/* Fail if check-hash is bad */
-#define	STDSB_NOHASHFAIL	-2	/* Ignore check-hash failure */
-
-/*
  * block.c
  */
 ssize_t bread(struct uufsd *, ufs2_daddr_t, void *, size_t);

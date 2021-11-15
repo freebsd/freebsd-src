@@ -154,11 +154,6 @@ static int	ufs_use_sa_read(void *, off_t, void **, int);
 /* from ffs_subr.c */
 int	ffs_sbget(void *, struct fs **, off_t, char *,
 	    int (*)(void *, off_t, void **, int));
-/*
- * Request standard superblock location in ffs_sbget
- */
-#define	STDSB			-1	/* Fail if check-hash is bad */
-#define	STDSB_NOHASHFAIL	-2	/* Ignore check-hash failure */
 
 /*
  * Read a new inode into a file structure.

@@ -50,11 +50,6 @@ uint32_t ffs_calc_sbhash(struct fs *);
 struct malloc_type;
 #define UFS_MALLOC(size, type, flags) malloc(size)
 #define UFS_FREE(ptr, type) free(ptr)
-/*
- * Request standard superblock location in ffs_sbget
- */
-#define	STDSB			-1	/* Fail if check-hash is bad */
-#define	STDSB_NOHASHFAIL	-2	/* Ignore check-hash failure */
 
 #else /* _KERNEL */
 #include <sys/systm.h>
