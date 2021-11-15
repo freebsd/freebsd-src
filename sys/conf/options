@@ -100,6 +100,7 @@ COMPAT_FREEBSD9	opt_global.h
 COMPAT_FREEBSD10	opt_global.h
 COMPAT_FREEBSD11	opt_global.h
 COMPAT_FREEBSD12	opt_global.h
+COMPAT_FREEBSD13	opt_global.h
 COMPAT_LINUXKPI	opt_dontuse.h
 _COMPAT_LINUX32	opt_compat.h	# XXX: make sure opt_compat.h exists
 COMPILING_LINT	opt_global.h
