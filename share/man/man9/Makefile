@@ -2325,12 +2325,10 @@ MLINKS+=vm_page_busy.9 vm_page_busied.9 \
 	vm_page_busy.9 vm_page_busy_downgrade.9 \
 	vm_page_busy.9 vm_page_busy_sleep.9 \
 	vm_page_busy.9 vm_page_sbusied.9 \
-	vm_page_busy.9 vm_page_sbusy.9 \
 	vm_page_busy.9 vm_page_sunbusy.9 \
 	vm_page_busy.9 vm_page_trysbusy.9 \
 	vm_page_busy.9 vm_page_tryxbusy.9 \
 	vm_page_busy.9 vm_page_xbusied.9 \
-	vm_page_busy.9 vm_page_xbusy.9 \
 	vm_page_busy.9 vm_page_xunbusy.9 \
 	vm_page_busy.9 vm_page_assert_sbusied.9 \
 	vm_page_busy.9 vm_page_assert_unbusied.9 \
