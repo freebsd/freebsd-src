@@ -32,12 +32,10 @@
 .Nm vm_page_busy_downgrade ,
 .Nm vm_page_busy_sleep ,
 .Nm vm_page_sbusied ,
-.Nm vm_page_sbusy ,
 .Nm vm_page_sunbusy ,
 .Nm vm_page_trysbusy ,
 .Nm vm_page_tryxbusy ,
 .Nm vm_page_xbusied ,
-.Nm vm_page_xbusy ,
 .Nm vm_page_xunbusy ,
 .Nm vm_page_assert_sbusied ,
 .Nm vm_page_assert_unbusied ,
@@ -56,8 +54,6 @@
 .Ft int
 .Fn vm_page_sbusied "vm_page_t m"
 .Ft void
-.Fn vm_page_sbusy "vm_page_t m"
-.Ft void
 .Fn vm_page_sunbusy "vm_page_t m"
 .Ft int
 .Fn vm_page_trysbusy "vm_page_t m"
@@ -65,8 +61,6 @@
 .Fn vm_page_tryxbusy "vm_page_t m"
 .Ft int
 .Fn vm_page_xbusied "vm_page_t m"
-.Ft void
-.Fn vm_page_xbusy "vm_page_t m"
 .Ft void
 .Fn vm_page_xunbusy "vm_page_t m"
 .Pp
@@ -140,11 +134,6 @@ in shared mode.
 Returns zero otherwise.
 .Pp
 The
-.Fn vm_page_sbusy
-function shared busies
-.Fa m .
-.Pp
-The
 .Fn vm_page_sunbusy
 function shared unbusies
 .Fa m .
@@ -171,11 +160,6 @@ function returns non-zero if the current thread busied
 .Fa m
 in exclusive mode.
 Returns zero otherwise.
-.Pp
-The
-.Fn vm_page_xbusy
-function exclusive busies
-.Fa m .
 .Pp
 The
 .Fn vm_page_xunbusy
