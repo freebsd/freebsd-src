@@ -105,6 +105,7 @@ pgprot2cachemode(pgprot_t prot)
 #define	trunc_page(x)	((uintptr_t)(x) & ~(PAGE_SIZE - 1))
 
 #if defined(__i386__) || defined(__amd64__)
+#undef clflush
 #undef clflushopt
 static inline void
 lkpi_clflushopt(unsigned long addr)
@@ -116,6 +117,7 @@ lkpi_clflushopt(unsigned long addr)
 	else
 		pmap_invalidate_cache();
 }
+#define	clflush(x)	clflush((unsigned long)(x))
 #define	clflushopt(x)	lkpi_clflushopt((unsigned long)(x))
 #endif
 
