@@ -1,7 +1,7 @@
-# $Id: Makefile,v 1.530 2019/03/06 16:08:41 schwarze Exp $
+# $Id: Makefile,v 1.540 2021/09/21 11:04:40 schwarze Exp $
 #
+# Copyright (c) 2011, 2013-2021 Ingo Schwarze <schwarze@openbsd.org>
 # Copyright (c) 2010, 2011, 2012 Kristaps Dzonsons <kristaps@bsd.lv>
-# Copyright (c) 2011, 2013-2019 Ingo Schwarze <schwarze@openbsd.org>
 #
 # Permission to use, copy, modify, and distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -15,11 +15,12 @@
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-VERSION = 1.14.5
+VERSION = 1.14.6
 
 # === LIST OF FILES ====================================================
 
-TESTSRCS	 = test-be32toh.c \
+TESTSRCS	 = test-attribute.c \
+		   test-be32toh.c \
 		   test-cmsg.c \
 		   test-dirent-namlen.c \
 		   test-EFTYPE.c \
@@ -29,6 +30,7 @@ TESTSRCS	 = test-be32toh.c \
 		   test-getsubopt.c \
 		   test-isblank.c \
 		   test-mkdtemp.c \
+		   test-mkstemps.c \
 		   test-nanosleep.c \
 		   test-noop.c \
 		   test-ntohl.c \
@@ -65,6 +67,7 @@ SRCS		 = arch.c \
 		   compat_getsubopt.c \
 		   compat_isblank.c \
 		   compat_mkdtemp.c \
+		   compat_mkstemps.c \
 		   compat_ohash.c \
 		   compat_progname.c \
 		   compat_reallocarray.c \
@@ -134,6 +137,7 @@ SRCS		 = arch.c \
 		   term_ascii.c \
 		   term_ps.c \
 		   term_tab.c \
+		   term_tag.c \
 		   tree.c
 
 DISTFILES	 = INSTALL \
@@ -209,6 +213,7 @@ DISTFILES	 = INSTALL \
 		   tbl_int.h \
 		   tbl_parse.h \
 		   term.h \
+		   term_tag.h \
 		   $(SRCS) \
 		   $(TESTSRCS)
 
@@ -245,19 +250,22 @@ LIBMANDOC_OBJS	 = $(LIBMAN_OBJS) \
 		   mandoc_xr.o \
 		   msec.o \
 		   preconv.o \
-		   read.o
+		   read.o \
+		   tag.o
 
-COMPAT_OBJS	 = compat_err.o \
+ALL_COBJS	 = compat_err.o \
 		   compat_fts.o \
 		   compat_getline.o \
 		   compat_getsubopt.o \
 		   compat_isblank.o \
 		   compat_mkdtemp.o \
+		   compat_mkstemps.o \
 		   compat_ohash.o \
 		   compat_progname.o \
 		   compat_reallocarray.o \
 		   compat_recallocarray.o \
 		   compat_strcasestr.o \
+		   compat_stringlist.o \
 		   compat_strlcat.o \
 		   compat_strlcpy.o \
 		   compat_strndup.o \
@@ -280,6 +288,7 @@ MANDOC_TERM_OBJS = eqn_term.o \
 		   term_ascii.o \
 		   term_ps.o \
 		   term_tab.o \
+		   term_tag.o \
 		   tbl_term.o
 
 DBM_OBJS	 = dbm.o \
@@ -302,7 +311,6 @@ MAIN_OBJS	 = $(MANDOC_HTML_OBJS) \
 		   mdoc_man.o \
 		   mdoc_markdown.o \
 		   out.o \
-		   tag.o \
 		   tree.o
 
 CGI_OBJS	 = $(MANDOC_HTML_OBJS) \
@@ -313,17 +321,9 @@ CGI_OBJS	 = $(MANDOC_HTML_OBJS) \
 MANDOCD_OBJS	 = $(MANDOC_HTML_OBJS) \
 		   $(MANDOC_TERM_OBJS) \
 		   mandocd.o \
-		   out.o \
-		   tag.o
+		   out.o
 
 DEMANDOC_OBJS	 = demandoc.o
-
-SOELIM_OBJS	 = soelim.o \
-		   compat_err.o \
-		   compat_getline.o \
-		   compat_progname.o \
-		   compat_reallocarray.o \
-		   compat_stringlist.o
 
 WWW_MANS	 = apropos.1.html \
 		   demandoc.1.html \
@@ -373,7 +373,7 @@ include Makefile.local
 
 # === DEPENDENCY HANDLING ==============================================
 
-all: mandoc demandoc soelim $(BUILD_TARGETS) Makefile.local
+all: mandoc man demandoc soelim $(BUILD_TARGETS) Makefile.local
 
 install: base-install $(INSTALL_TARGETS)
 
@@ -392,13 +392,14 @@ distclean: clean
 	rm -f Makefile.local config.h config.h.old config.log config.log.old
 
 clean:
-	rm -f libmandoc.a $(LIBMANDOC_OBJS) $(COMPAT_OBJS)
-	rm -f mandoc $(MAIN_OBJS)
+	rm -f libmandoc.a $(LIBMANDOC_OBJS) $(ALL_COBJS)
+	rm -f mandoc man $(MAIN_OBJS)
 	rm -f man.cgi $(CGI_OBJS)
 	rm -f mandocd catman catman.o $(MANDOCD_OBJS)
 	rm -f demandoc $(DEMANDOC_OBJS)
-	rm -f soelim $(SOELIM_OBJS)
+	rm -f soelim soelim.o
 	rm -f $(WWW_MANS) $(WWW_INCS) mandoc*.tar.gz mandoc*.sha256
+	rm -f Makefile.tmp1 Makefile.tmp2
 	rm -rf *.dSYM
 
 base-install: mandoc demandoc soelim
@@ -511,11 +512,14 @@ Makefile.local config.h: configure $(TESTSRCS)
 	@echo "$@ is out of date; please run ./configure"
 	@exit 1
 
-libmandoc.a: $(COMPAT_OBJS) $(LIBMANDOC_OBJS)
-	ar rs $@ $(COMPAT_OBJS) $(LIBMANDOC_OBJS)
+libmandoc.a: $(MANDOC_COBJS) $(LIBMANDOC_OBJS)
+	$(AR) rs $@ $(MANDOC_COBJS) $(LIBMANDOC_OBJS)
 
 mandoc: $(MAIN_OBJS) libmandoc.a
 	$(CC) -o $@ $(LDFLAGS) $(MAIN_OBJS) libmandoc.a $(LDADD)
+
+man: mandoc
+	$(LN) mandoc man
 
 man.cgi: $(CGI_OBJS) libmandoc.a
 	$(CC) $(STATIC) -o $@ $(LDFLAGS) $(CGI_OBJS) libmandoc.a $(LDADD)
@@ -529,8 +533,8 @@ catman: catman.o libmandoc.a
 demandoc: $(DEMANDOC_OBJS) libmandoc.a
 	$(CC) -o $@ $(LDFLAGS) $(DEMANDOC_OBJS) libmandoc.a $(LDADD)
 
-soelim: $(SOELIM_OBJS)
-	$(CC) -o $@ $(LDFLAGS) $(SOELIM_OBJS)
+soelim: $(SOELIM_COBJS) soelim.o
+	$(CC) -o $@ $(LDFLAGS) $(SOELIM_COBJS) soelim.o
 
 # --- maintainer targets ---
 
@@ -540,11 +544,13 @@ www-install: www
 	$(INSTALL_DATA) $(WWW_INCS) $(HTDOCDIR)/includes
 
 depend: config.h
-	mkdep -f Makefile.depend $(CFLAGS) $(SRCS)
+	./configure -depend
+	mkdep -f Makefile.tmp1 $(CFLAGS) $(SRCS)
 	perl -e 'undef $$/; $$_ = <>; s|/usr/include/\S+||g; \
 		s|\\\n||g; s|  +| |g; s| $$||mg; print;' \
-		Makefile.depend > Makefile.tmp
-	mv Makefile.tmp Makefile.depend
+		Makefile.tmp1 > Makefile.tmp2
+	rm Makefile.tmp1
+	mv Makefile.tmp2 Makefile.depend
 
 regress-distclean:
 	@find regress \
@@ -597,7 +603,7 @@ dist-install: dist
 .h.h.html:
 	highlight -I $< > $@
 
-.1.1.html .3.3.html .5.5.html .7.7.html .8.8.html: mandoc
-	mandoc -Thtml -Wwarning,stop \
+.1.1.html .3.3.html .5.5.html .7.7.html .8.8.html:
+	./mandoc -Thtml -Wwarning,stop \
 		-O 'style=/mandoc.css,man=/man/%N.%S.html;https://man.openbsd.org/%N.%S,includes=/includes/%I.html' \
 		$< > $@

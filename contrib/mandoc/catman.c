@@ -1,4 +1,4 @@
-/*	$Id: catman.c,v 1.21 2017/02/18 12:24:24 schwarze Exp $ */
+/*	$Id: catman.c,v 1.22 2020/06/14 23:40:31 schwarze Exp $ */
 /*
  * Copyright (c) 2017 Michael Stapelberg <stapelberg@debian.org>
  * Copyright (c) 2017 Ingo Schwarze <schwarze@openbsd.org>
@@ -17,7 +17,7 @@
  */
 #include "config.h"
 
-#if HAVE_CMSG_XPG42
+#if NEED_XPG4_2
 #define _XPG4_2
 #endif
 

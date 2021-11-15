@@ -1,6 +1,6 @@
-# $Id: configure.local.example,v 1.36 2019/03/06 10:18:58 schwarze Exp $
+# $Id: configure.local.example,v 1.43 2021/09/20 13:25:42 schwarze Exp $
 #
-# Copyright (c) 2014-2019 Ingo Schwarze <schwarze@openbsd.org>
+# Copyright (c) 2014-2021 Ingo Schwarze <schwarze@openbsd.org>
 #
 # Permission to use, copy, modify, and distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -27,6 +27,19 @@
 # It is not intended as a template to be copied as a whole.
 
 # --- user settings relevant for all builds ----------------------------
+
+# By default, "cc" is used as the C compiler, but it can be overridden.
+# For example, the system compiler in SunOS 5.9 may not provide <stdint.h>,
+# which may require this line:
+CC=gcc
+
+# IBM AIX may need:
+CC=xlc
+
+# By default, "ar" is used as the library archive builder, but it
+# can be overridden.  For example, NixOS may not have ar(1) in the
+# PATH, but may want to specify an absolute path instead.
+AR=ar
 
 # For -Tutf8 and -Tlocale operation, mandoc(1) requires <locale.h>
 # providing setlocale(3) and <wchar.h> providing wcwidth(3) and
@@ -88,7 +101,7 @@ OSENUM=MANDOC_OS_OTHER
 # If you do not want uname(3) to be called but instead want a fixed
 # string to be used, use the following line:
 
-OSNAME="OpenBSD 6.5"
+OSNAME="OpenBSD 7.0"
 
 # The following installation directories are used.
 # It is possible to set only one or a few of these variables,
@@ -143,6 +156,14 @@ BINM_WHATIS=mwhatis		# default is "whatis"
 BINM_MAKEWHATIS=mandocdb	# default is "makewhatis"
 BINM_SOELIM=msoelim		# default is "soelim"
 
+# If less(1) is available, it is used as the default manual pager.
+# Otherwise, more(1) is used: its existence is required by POSIX.
+# It is possible to force using a different default pager, either
+# by giving the name of a program found in the PATH, or by giving
+# an absolute path.
+
+BINM_PAGER=pg			# default is "less" or "more"
+
 # Some distributions do not want hardlinks
 # between installed binary programs.
 # Set the following variable to use symbolic links instead.
@@ -193,14 +214,28 @@ INSTALL_LIB="${INSTALL} -m 0444"
 INSTALL_MAN="${INSTALL} -m 0444"
 INSTALL_DATA="${INSTALL} -m 0444"
 
-# When using the "homebrew" package manager on Mac OS X, the actual
-# manuals are located in a so-called "cellar" and only symlinked
-# into the manual trees.  To allow mandoc to follow such symlinks,
-# you have to specify the physical location of the cellar as returned
-# by realpath(3), for example:
+# By default, makewhatis(8) can only read from the paths passed on the
+# command line or configured in man.conf(5).
+# But some package managers on some operating systems store manual pages
+# in separate "cellar" or "store" directories and only symlink them
+# into the manual trees.
+# To support one or more such package managers, give makewhatis(8)
+# read access to the cellars and stores on your system, in the form
+# of a colon-separated path:
 
+# Homebrow package manager on Mac OS X:
 PREFIX="/usr/local"
-HOMEBREWDIR="${PREFIX}/Cellar"
+READ_ALLOWED_PATH="${PREFIX}/Cellar"
+
+# Nix package manager and/or NixOS Linux distribution:
+READ_ALLOWED_PATH="/nix/store"
+
+# GNU Guix package manager and/or GNU Guix Linux distribution:
+READ_ALLOWED_PATH="/gnu/store"
+
+# If multiple package managers are used concurrently:
+PREFIX="/usr/local"
+READ_ALLOWED_PATH="/nix/store:${PREFIX}/Cellar"
 
 # --- user settings for the mandoc(3) library --------------------------
 
@@ -256,6 +291,8 @@ CGIBINDIR="${WWWPREFIX}/cgi-bin"
 # To enable it, use the following line.
 # It does not work on SunOS 5.10 because there is no mkdirat(2)
 # nor on SunOS 5.9 which also lacks CMSG_LEN(3) and CMSG_SPACE(3).
+# It may not work on old releases of Mac OS X either.  For example,
+# Mac OS X 10.4 Tiger provides neither mkdirat(2) nor openat(2).
 
 BUILD_CATMAN=1
 
@@ -267,21 +304,6 @@ BINM_CATMAN=mcatman		# default is "catman"
 # --- settings that rarely need to be touched --------------------------
 
 # Do not set these variables unless you really need to.
-
-# You can manually override the compiler to be used.
-# But that's rarely useful because ./configure asks your make(1)
-# which compiler to use, and that answer will hardly be wrong.
-
-CC=cc
-
-# Because the system compiler may not provide <stdint.h>,
-# SunOS 5.9 may need:
-
-CC=gcc
-
-# IBM AIX may need:
-
-CC=xlc
 
 # Normally, leave CFLAGS unset.  In that case, -g will automatically
 # be used, and various -W options will be added if the compiler
@@ -295,6 +317,7 @@ CFLAGS="-g"
 # and will be regarded as failed) or 1 (test will not be run and will
 # be regarded as successful).
 
+HAVE_ATTRIBUTE=0
 HAVE_DIRENT_NAMLEN=0
 HAVE_ENDIAN=0
 HAVE_EFTYPE=0

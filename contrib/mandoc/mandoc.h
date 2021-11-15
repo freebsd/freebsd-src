@@ -1,7 +1,7 @@
-/*	$Id: mandoc.h,v 1.264 2019/07/14 18:16:13 schwarze Exp $ */
+/* $Id: mandoc.h,v 1.274 2021/08/14 13:53:08 schwarze Exp $ */
 /*
+ * Copyright (c) 2012-2021 Ingo Schwarze <schwarze@openbsd.org>
  * Copyright (c) 2010, 2011, 2014 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2012-2019 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -16,6 +16,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
  * Error handling, escape sequence, and character utilities.
+ * Can be used by all code in the mandoc package.
  */
 
 #define ASCII_NBRSP	 31  /* non-breaking space */
@@ -53,7 +54,6 @@ enum	mandocerr {
 	MANDOCERR_ARCH_BAD,  /* unknown architecture: Dt ... arch */
 	MANDOCERR_OS_ARG,  /* operating system explicitly specified: Os ... */
 	MANDOCERR_RCS_MISSING, /* RCS id missing */
-	MANDOCERR_XR_BAD,  /* referenced manual not found: Xr name sec */
 
 	MANDOCERR_STYLE, /* ===== start of style suggestions ===== */
 
@@ -67,10 +67,12 @@ enum	mandocerr {
 	MANDOCERR_BX, /* consider using OS macro: macro */
 	MANDOCERR_ER_ORDER, /* errnos out of order: Er ... */
 	MANDOCERR_ER_REP, /* duplicate errno: Er ... */
+	MANDOCERR_XR_BAD,  /* referenced manual not found: Xr name sec */
 	MANDOCERR_DELIM, /* trailing delimiter: macro ... */
 	MANDOCERR_DELIM_NB, /* no blank before trailing delimiter: macro ... */
 	MANDOCERR_FI_SKIP, /* fill mode already enabled, skipping: fi */
 	MANDOCERR_NF_SKIP, /* fill mode already disabled, skipping: nf */
+	MANDOCERR_TEXT_LONG, /* input text line longer than 80 bytes */
 	MANDOCERR_DASHDASH, /* verbatim "--", maybe consider using \(em */
 	MANDOCERR_FUNC, /* function name without markup: name() */
 	MANDOCERR_SPACE_EOL, /* whitespace at end of input line */
@@ -83,7 +85,8 @@ enum	mandocerr {
 	MANDOCERR_TH_NOTITLE, /* missing manual title, using "": [macro] */
 	MANDOCERR_MSEC_MISSING, /* missing manual section, using "": macro */
 	MANDOCERR_MSEC_BAD, /* unknown manual section: Dt ... section */
-	MANDOCERR_DATE_MISSING, /* missing date, using today's date */
+	MANDOCERR_MSEC_FILE, /* filename/section mismatch: ... */
+	MANDOCERR_DATE_MISSING, /* missing date, using "": [macro] */
 	MANDOCERR_DATE_BAD, /* cannot parse date, using it verbatim: date */
 	MANDOCERR_DATE_FUTURE, /* date in the future, using it anyway: date */
 	MANDOCERR_OS_MISSING, /* missing Os macro, using "" */
@@ -187,6 +190,7 @@ enum	mandocerr {
 	MANDOCERR_TBLLAYOUT_NONE, /* empty tbl layout */
 	MANDOCERR_TBLLAYOUT_CHAR, /* invalid character in tbl layout: char */
 	MANDOCERR_TBLLAYOUT_PAR, /* unmatched parenthesis in tbl layout */
+	MANDOCERR_TBLLAYOUT_SPC, /* ignoring excessive spacing in tbl layout */
 	MANDOCERR_TBLDATA_NONE, /* tbl without any data cells */
 	MANDOCERR_TBLDATA_SPAN, /* ignoring data in spanned tbl cell: data */
 	MANDOCERR_TBLDATA_EXTRA, /* ignoring extra tbl data cells: data */
@@ -223,6 +227,7 @@ enum	mandocerr {
 	MANDOCERR_SHIFT, /* excessive shift: ..., but max is ... */
 	MANDOCERR_SO_PATH, /* NOT IMPLEMENTED: .so with absolute path or ".." */
 	MANDOCERR_SO_FAIL, /* .so request failed */
+	MANDOCERR_TG_SPC, /* skipping tag containing whitespace: tag */
 	MANDOCERR_ARG_SKIP, /* skipping all arguments: macro args */
 	MANDOCERR_ARG_EXCESS, /* skipping excess arguments: macro ... args */
 	MANDOCERR_DIVZERO, /* divide by zero */
@@ -240,6 +245,8 @@ enum	mandocerr {
 	MANDOCERR_TBLOPT_EQN, /* eqn delim option in tbl: arg */
 	MANDOCERR_TBLLAYOUT_MOD, /* unsupported tbl layout modifier: m */
 	MANDOCERR_TBLMACRO, /* ignoring macro in table: macro */
+	MANDOCERR_TBL_TMAN, /* skipping tbl in -Tman mode */
+	MANDOCERR_EQN_TMAN, /* skipping eqn in -Tman mode */
 
 	MANDOCERR_BADARG, /* ===== start of bad invocations ===== */
 
@@ -250,6 +257,7 @@ enum	mandocerr {
 	MANDOCERR_BADVAL_BAD, /* bad argument value */
 	MANDOCERR_BADVAL_DUPE, /* duplicate argument value */
 	MANDOCERR_TAG, /* no such tag */
+	MANDOCERR_MAN_TMARKDOWN, /* -Tmarkdown unsupported for man(7) input */
 
 	MANDOCERR_SYSERR, /* ===== start of system errors ===== */
 
@@ -284,7 +292,9 @@ enum	mandoc_esc {
 	ESCAPE_FONTITALIC, /* italic font mode */
 	ESCAPE_FONTBI, /* bold italic font mode */
 	ESCAPE_FONTROMAN, /* roman font mode */
-	ESCAPE_FONTCW, /* constant width font mode */
+	ESCAPE_FONTCR, /* constant width font mode */
+	ESCAPE_FONTCB, /* constant width bold font mode */
+	ESCAPE_FONTCI, /* constant width italic font mode */
 	ESCAPE_FONTPREV, /* previous font mode */
 	ESCAPE_NUMBERED, /* a numbered glyph */
 	ESCAPE_UNICODE, /* a unicode codepoint */
@@ -298,7 +308,7 @@ enum	mandoc_esc {
 };
 
 
-enum mandoc_esc	  mandoc_font(const char *, int sz);
+enum mandoc_esc	  mandoc_font(const char *, int);
 enum mandoc_esc	  mandoc_escape(const char **, const char **, int *);
 void		  mandoc_msg_setoutfile(FILE *);
 const char	 *mandoc_msg_getinfilename(void);

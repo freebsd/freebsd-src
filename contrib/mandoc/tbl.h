@@ -1,7 +1,7 @@
-/*	$Id: tbl.h,v 1.1 2018/12/12 21:54:35 schwarze Exp $ */
+/*	$Id: tbl.h,v 1.2 2021/08/10 12:55:04 schwarze Exp $ */
 /*
  * Copyright (c) 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2014, 2015, 2017, 2018 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2014,2015,2017,2018,2021 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -57,14 +57,13 @@ struct	tbl_cell {
 	int		  vert;     /* Width of subsequent vertical line. */
 	int		  col;      /* Column number, starting from 0. */
 	int		  flags;
-#define	TBL_CELL_BOLD	 (1 << 0)   /* b, B, fB */
-#define	TBL_CELL_ITALIC	 (1 << 1)   /* i, I, fI */
 #define	TBL_CELL_TALIGN	 (1 << 2)   /* t, T */
 #define	TBL_CELL_UP	 (1 << 3)   /* u, U */
 #define	TBL_CELL_BALIGN	 (1 << 4)   /* d, D */
 #define	TBL_CELL_WIGN	 (1 << 5)   /* z, Z */
 #define	TBL_CELL_EQUAL	 (1 << 6)   /* e, E */
 #define	TBL_CELL_WMAX	 (1 << 7)   /* x, X */
+	enum mandoc_esc	  font;
 	enum tbl_cellt	  pos;
 };
 

@@ -1,4 +1,4 @@
-/*	$Id: mandoc_parse.h,v 1.4 2018/12/30 00:49:55 schwarze Exp $ */
+/*	$Id: mandoc_parse.h,v 1.5 2019/11/09 14:39:49 schwarze Exp $ */
 /*
  * Copyright (c) 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2014,2015,2016,2017,2018 Ingo Schwarze <schwarze@openbsd.org>
@@ -29,6 +29,7 @@
 #define	MPARSE_UTF8	(1 << 4)  /* accept UTF-8 input */
 #define	MPARSE_LATIN1	(1 << 5)  /* accept ISO-LATIN-1 input */
 #define	MPARSE_VALIDATE	(1 << 6)  /* call validation functions */
+#define	MPARSE_COMMENT	(1 << 7)  /* save comments in the tree */
 
 
 struct	roff_meta;

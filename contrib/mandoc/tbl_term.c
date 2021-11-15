@@ -1,7 +1,7 @@
-/*	$Id: tbl_term.c,v 1.72 2019/07/01 22:56:24 schwarze Exp $ */
+/*	$Id: tbl_term.c,v 1.75 2021/08/10 12:55:04 schwarze Exp $ */
 /*
  * Copyright (c) 2009, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2011-2019 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2011-2021 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -190,17 +190,6 @@ term_tbl(struct termp *tp, const struct tbl_span *sp)
 
 		tblcalc(&tp->tbl, sp, tp->tcol->offset, tp->tcol->rmargin);
 
-		/* Tables leak .ta settings to subsequent text. */
-
-		term_tab_set(tp, NULL);
-		coloff = sp->opts->opts & (TBL_OPT_BOX | TBL_OPT_DBOX) ||
-		    sp->opts->lvert;
-		for (ic = 0; ic < sp->opts->cols; ic++) {
-			coloff += tp->tbl.cols[ic].width;
-			term_tab_iset(coloff);
-			coloff += tp->tbl.cols[ic].spacing;
-		}
-
 		/* Center the table as a whole. */
 
 		offset = tp->tcol->offset;
@@ -267,11 +256,11 @@ term_tbl(struct termp *tp, const struct tbl_span *sp)
 				hspans--;
 				continue;
 			}
-			if (dp == NULL)
-				continue;
-			hspans = dp->hspans;
-			if (ic || sp->layout->first->pos != TBL_CELL_SPAN)
+			if (dp != NULL &&
+			    (ic || sp->layout->first->pos != TBL_CELL_SPAN)) {
+				hspans = dp->hspans;
 				dp = dp->next;
+			}
 		}
 
 		/* Set up a column for a right vertical frame. */
@@ -302,11 +291,11 @@ term_tbl(struct termp *tp, const struct tbl_span *sp)
 			tp->tcol++;
 			tp->col = 0;
 			tbl_data(tp, sp->opts, cp, dp, tp->tbl.cols + ic);
-			if (dp == NULL)
-				continue;
-			hspans = dp->hspans;
-			if (cp->pos != TBL_CELL_SPAN)
+			if (dp != NULL &&
+			    (ic || sp->layout->first->pos != TBL_CELL_SPAN)) {
+				hspans = dp->hspans;
 				dp = dp->next;
+			}
 		}
 		break;
 	}
@@ -425,11 +414,10 @@ term_tbl(struct termp *tp, const struct tbl_span *sp)
 					cp = cp->next;
 					continue;
 				}
-				if (dp != NULL) {
+				if (dp != NULL && (ic ||
+				    sp->layout->first->pos != TBL_CELL_SPAN)) {
 					hspans = dp->hspans;
-					if (ic || sp->layout->first->pos
-					    != TBL_CELL_SPAN)
-						dp = dp->next;
+					dp = dp->next;
 				}
 
 				/*
@@ -935,10 +923,24 @@ tbl_word(struct termp *tp, const struct tbl_dat *dp)
 	int		 prev_font;
 
 	prev_font = tp->fonti;
-	if (dp->layout->flags & TBL_CELL_BOLD)
-		term_fontpush(tp, TERMFONT_BOLD);
-	else if (dp->layout->flags & TBL_CELL_ITALIC)
-		term_fontpush(tp, TERMFONT_UNDER);
+	switch (dp->layout->font) {
+		case ESCAPE_FONTBI:
+			term_fontpush(tp, TERMFONT_BI);
+			break;
+		case ESCAPE_FONTBOLD:
+		case ESCAPE_FONTCB:
+			term_fontpush(tp, TERMFONT_BOLD);
+			break;
+		case ESCAPE_FONTITALIC:
+		case ESCAPE_FONTCI:
+			term_fontpush(tp, TERMFONT_UNDER);
+			break;
+		case ESCAPE_FONTROMAN:
+		case ESCAPE_FONTCR:
+			break;
+		default:
+			abort();
+	}
 
 	term_word(tp, dp->string);
 

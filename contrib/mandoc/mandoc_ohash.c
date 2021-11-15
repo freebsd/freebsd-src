@@ -1,4 +1,4 @@
-/*	$Id: mandoc_ohash.c,v 1.2 2015/10/19 18:58:47 schwarze Exp $	*/
+/* $Id: mandoc_ohash.c,v 1.3 2020/06/22 19:20:40 schwarze Exp $	*/
 /*
  * Copyright (c) 2014, 2015 Ingo Schwarze <schwarze@openbsd.org>
  *
@@ -14,6 +14,8 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
+#include "config.h"
+
 #include <sys/types.h>
 #include <stddef.h>
 #include <stdint.h>

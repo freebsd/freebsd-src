@@ -1,4 +1,4 @@
-/* $Id: mandoc.css,v 1.46 2019/06/02 16:57:13 schwarze Exp $ */
+/* $Id: mandoc.css,v 1.48 2021/03/30 19:26:20 schwarze Exp $ */
 /*
  * Standard style sheet for mandoc(1) -Thtml and man.cgi(8).
  *
@@ -31,6 +31,7 @@ td {		vertical-align: top;
 ul, ol, dl {	margin-top: 0em;
 		margin-bottom: 0em; }
 li, dt {	margin-top: 1em; }
+pre {		font-family: inherit; }
 
 .permalink {	border-bottom: thin dotted;
 		color: inherit;
@@ -135,12 +136,12 @@ h2.Ss {		margin-top: 1.2em;
 		vertical-align: top; }
 .Bl-tag > dd {
 		clear: right;
+		column-count: 1;  /* Force block formatting context. */
 		width: 100%;
 		margin-top: 0em;
 		margin-left: 0em;
 		margin-bottom: 0.6em;
-		vertical-align: top;
-		overflow: auto; }
+		vertical-align: top; }
 .Bl-compact {	margin-top: 0em; }
 .Bl-compact > dd {
 		margin-bottom: 0em; }

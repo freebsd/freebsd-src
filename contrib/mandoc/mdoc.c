@@ -1,7 +1,7 @@
-/*	$Id: mdoc.c,v 1.274 2018/12/31 07:46:07 schwarze Exp $ */
+/* $Id: mdoc.c,v 1.275 2020/04/06 10:16:17 schwarze Exp $ */
 /*
+ * Copyright (c) 2010, 2012-2018, 2020 Ingo Schwarze <schwarze@openbsd.org>
  * Copyright (c) 2008, 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2010, 2012-2018 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -14,6 +14,8 @@
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ *
+ * Top level and utility functions of the mdoc(7) parser for mandoc(1).
  */
 #include "config.h"
 
@@ -352,12 +354,13 @@ mdoc_pmacro(struct roff_man *mdoc, int ln, char *buf, int offs)
 		mandoc_msg(MANDOCERR_SPACE_EOL, ln, offs - 1, NULL);
 
 	/*
-	 * If an initial macro or a list invocation, divert directly
-	 * into macro processing.
+	 * If an initial or transparent macro or a list invocation,
+	 * divert directly into macro processing.
 	 */
 
 	n = mdoc->last;
-	if (n == NULL || tok == MDOC_It || tok == MDOC_El) {
+	if (n == NULL || tok == MDOC_It || tok == MDOC_El ||
+	    roff_tok_transparent(tok)) {
 		(*mdoc_macro(tok)->fp)(mdoc, tok, ln, sv, &offs, buf);
 		return 1;
 	}

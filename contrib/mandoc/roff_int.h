@@ -1,7 +1,7 @@
-/*	$Id: roff_int.h,v 1.16 2019/01/05 00:36:50 schwarze Exp $	*/
+/* $OpenBSD: roff_int.h,v 1.16 2019/01/05 00:36:46 schwarze Exp $	*/
 /*
+ * Copyright (c) 2013-2015, 2017-2020 Ingo Schwarze <schwarze@openbsd.org>
  * Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2013-2015, 2017-2019 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -59,6 +59,7 @@ struct	roff_man {
 	enum roff_sec	  lastsec; /* Last section seen. */
 	enum roff_sec	  lastnamed; /* Last standard section seen. */
 	enum roff_next	  next;    /* Where to put the next node. */
+	char		  filesec; /* Section digit in the file name. */
 };
 
 

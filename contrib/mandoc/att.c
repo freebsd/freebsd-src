@@ -1,4 +1,4 @@
-/*	$Id: att.c,v 1.18 2018/12/13 11:55:46 schwarze Exp $ */
+/*	$Id: att.c,v 1.19 2021/09/04 20:26:43 schwarze Exp $ */
 /*
  * Copyright (c) 2009 Kristaps Dzonsons <kristaps@bsd.lv>
  *
@@ -37,7 +37,7 @@ mdoc_a2att(const char *p)
 	LINE("v5",	"Version\\~5 AT&T UNIX");
 	LINE("v6",	"Version\\~6 AT&T UNIX");
 	LINE("v7",	"Version\\~7 AT&T UNIX");
-	LINE("32v",	"Version\\~32V AT&T UNIX");
+	LINE("32v",	"Version\\~7 AT&T UNIX/32V");
 	LINE("III",	"AT&T System\\~III UNIX");
 	LINE("V",	"AT&T System\\~V UNIX");
 	LINE("V.1",	"AT&T System\\~V Release\\~1 UNIX");
