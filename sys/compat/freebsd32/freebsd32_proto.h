@@ -936,6 +936,14 @@ struct ofreebsd32_fstat_args {
 struct ofreebsd32_getpagesize_args {
 	char dummy_l_[PADL_(int32_t)]; int32_t dummy; char dummy_r_[PADR_(int32_t)];
 };
+struct ofreebsd32_mmap_args {
+	char addr_l_[PADL_(void *)]; void * addr; char addr_r_[PADR_(void *)];
+	char len_l_[PADL_(int)]; int len; char len_r_[PADR_(int)];
+	char prot_l_[PADL_(int)]; int prot; char prot_r_[PADR_(int)];
+	char flags_l_[PADL_(int)]; int flags; char flags_r_[PADR_(int)];
+	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
+	char pos_l_[PADL_(int32_t)]; int32_t pos; char pos_r_[PADR_(int32_t)];
+};
 struct ofreebsd32_sigreturn_args {
 	char sigcntxp_l_[PADL_(struct ia32_sigcontext3 *)]; struct ia32_sigcontext3 * sigcntxp; char sigcntxp_r_[PADR_(struct ia32_sigcontext3 *)];
 };
@@ -986,6 +994,7 @@ int	ofreebsd32_sigprocmask(struct thread *, struct ofreebsd32_sigprocmask_args *
 int	ofreebsd32_sigpending(struct thread *, struct ofreebsd32_sigpending_args *);
 int	ofreebsd32_fstat(struct thread *, struct ofreebsd32_fstat_args *);
 int	ofreebsd32_getpagesize(struct thread *, struct ofreebsd32_getpagesize_args *);
+int	ofreebsd32_mmap(struct thread *, struct ofreebsd32_mmap_args *);
 int	ofreebsd32_sigreturn(struct thread *, struct ofreebsd32_sigreturn_args *);
 int	ofreebsd32_sigvec(struct thread *, struct ofreebsd32_sigvec_args *);
 int	ofreebsd32_sigblock(struct thread *, struct ofreebsd32_sigblock_args *);
@@ -1343,6 +1352,7 @@ int	freebsd11_freebsd32_fstatat(struct thread *, struct freebsd11_freebsd32_fsta
 #define	FREEBSD32_SYS_AUE_freebsd32_execve	AUE_EXECVE
 #define	FREEBSD32_SYS_AUE_ofreebsd32_fstat	AUE_FSTAT
 #define	FREEBSD32_SYS_AUE_ofreebsd32_getpagesize	AUE_NULL
+#define	FREEBSD32_SYS_AUE_ofreebsd32_mmap	AUE_MMAP
 #define	FREEBSD32_SYS_AUE_freebsd32_mprotect	AUE_MPROTECT
 #define	FREEBSD32_SYS_AUE_freebsd32_setitimer	AUE_SETITIMER
 #define	FREEBSD32_SYS_AUE_freebsd32_getitimer	AUE_GETITIMER
