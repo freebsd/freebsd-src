@@ -7804,6 +7804,14 @@ enum fw_port_type {
 	FW_PORT_TYPE_NONE = M_FW_PORT_CMD_PTYPE
 };
 
+static inline bool
+is_bt(enum fw_port_type port_type)
+{
+	return (port_type == FW_PORT_TYPE_BT_SGMII ||
+	    port_type == FW_PORT_TYPE_BT_XFI ||
+	    port_type == FW_PORT_TYPE_BT_XAUI);
+}
+
 /* These are read from module's EEPROM and determined once the
    module is inserted. */
 enum fw_port_module_type {

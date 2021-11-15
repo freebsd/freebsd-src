@@ -1313,6 +1313,11 @@ t4_attach(device_t dev)
 			goto done;
 		}
 
+		if (is_bt(pi->port_type))
+			setbit(&sc->bt_map, pi->tx_chan);
+		else
+			MPASS(!isset(&sc->bt_map, pi->tx_chan));
+
 		snprintf(pi->lockname, sizeof(pi->lockname), "%sp%d",
 		    device_get_nameunit(dev), i);
 		mtx_init(&pi->pi_lock, pi->lockname, 0, MTX_DEF);
