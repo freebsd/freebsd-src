@@ -78,7 +78,6 @@ unionfs_domount(struct mount *mp)
 	struct vnode   *lowerrootvp;
 	struct vnode   *upperrootvp;
 	struct unionfs_mount *ump;
-	struct thread *td;
 	char           *target;
 	char           *tmp;
 	char           *ep;
@@ -105,7 +104,6 @@ unionfs_domount(struct mount *mp)
 	copymode = UNIONFS_TRANSPARENT;	/* default */
 	whitemode = UNIONFS_WHITE_ALWAYS;
 	ndp = &nd;
-	td = curthread;
 
 	if (mp->mnt_flag & MNT_ROOTFS) {
 		vfs_mount_error(mp, "Cannot union mount root filesystem");
@@ -284,7 +282,7 @@ unionfs_domount(struct mount *mp)
 	 * Get the unionfs root vnode.
 	 */
 	error = unionfs_nodeget(mp, ump->um_uppervp, ump->um_lowervp,
-	    NULLVP, &(ump->um_rootvp), NULL, td);
+	    NULLVP, &(ump->um_rootvp), NULL);
 	vrele(upperrootvp);
 	if (error != 0) {
 		free(ump, M_UNIONFSMNT);
