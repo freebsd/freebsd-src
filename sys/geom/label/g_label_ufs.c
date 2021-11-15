@@ -140,7 +140,7 @@ g_label_ufs_taste_common(struct g_consumer *cp, char *label, size_t size, int wh
 
 	fs = NULL;
 	if (SBLOCKSIZE % pp->sectorsize != 0 || ffs_sbget(cp, &fs,
-	    STDSB_NOHASHFAIL, M_GEOM, g_use_g_read_data) != 0) {
+	    STDSB_NOHASHFAIL_NOMSG, M_GEOM, g_use_g_read_data) != 0) {
 		KASSERT(fs == NULL,
 		    ("g_label_ufs_taste_common: non-NULL fs %p\n", fs));
 		return;
