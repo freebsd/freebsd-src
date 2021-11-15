@@ -1567,6 +1567,51 @@ ATF_TC_BODY(ktls_receive_##cipher_name##_##name, tc)			\
  */
 TLS_12_TESTS(GEN_RECEIVE_TESTS);
 
+static void
+test_ktls_invalid_receive_cipher_suite(struct tls_enable *en)
+{
+	int sockets[2];
+
+	ATF_REQUIRE_MSG(socketpair_tcp(sockets), "failed to create sockets");
+
+	ATF_REQUIRE(setsockopt(sockets[1], IPPROTO_TCP, TCP_RXTLS_ENABLE, en,
+	    sizeof(*en)) == -1);
+
+	/*
+	 * XXX: TLS 1.3 fails with ENOTSUP before checking for invalid
+	 * ciphers.
+	 */
+	ATF_REQUIRE(errno == EINVAL || errno == ENOTSUP);
+
+	close(sockets[1]);
+	close(sockets[0]);
+}
+
+#define GEN_INVALID_RECEIVE_TEST(name, cipher_alg, key_size, auth_alg,	\
+	    minor)							\
+ATF_TC_WITHOUT_HEAD(ktls_receive_invalid_##name);			\
+ATF_TC_BODY(ktls_receive_invalid_##name, tc)				\
+{									\
+	struct tls_enable en;						\
+	uint64_t seqno;							\
+									\
+	ATF_REQUIRE_KTLS();						\
+	seqno = random();						\
+	build_tls_enable(cipher_alg, key_size, auth_alg, minor,	seqno,	\
+	    &en);							\
+	test_ktls_invalid_receive_cipher_suite(&en);			\
+	free_tls_enable(&en);						\
+}
+
+#define ADD_INVALID_RECEIVE_TEST(name, cipher_alg, key_size, auth_alg,	\
+	    minor)							\
+	ATF_TP_ADD_TC(tp, ktls_receive_invalid_##name);
+
+/*
+ * Ensure that invalid cipher suites are rejected for receive.
+ */
+INVALID_CIPHER_SUITES(GEN_INVALID_RECEIVE_TEST);
+
 ATF_TP_ADD_TCS(tp)
 {
 	/* Transmit tests */
@@ -1579,5 +1624,7 @@ ATF_TP_ADD_TCS(tp)
 
 	/* Receive tests */
 	TLS_12_TESTS(ADD_RECEIVE_TESTS);
+	INVALID_CIPHER_SUITES(ADD_INVALID_RECEIVE_TEST);
+
 	return (atf_no_error());
 }
