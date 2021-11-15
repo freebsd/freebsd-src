@@ -535,6 +535,12 @@ void	pmap_kasan_enter(vm_offset_t);
 void	pmap_kmsan_enter(vm_offset_t);
 #endif
 
+static __inline cpuset_t
+pmap_invalidate_cpu_mask(pmap_t pmap)
+{
+	return (pmap->pm_active);
+}
+
 #endif /* _KERNEL */
 
 /* Return various clipped indexes for a given VA */
