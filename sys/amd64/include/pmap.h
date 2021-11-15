@@ -532,10 +532,15 @@ vm_page_t pmap_page_alloc_below_4g(bool zeroed);
 void	pmap_san_enter(vm_offset_t);
 #endif
 
-static __inline cpuset_t
+/*
+ * Returns a pointer to a set of CPUs on which the pmap is currently active.
+ * Note that the set can be modified without any mutual exclusion, so a copy
+ * must be made if a stable value is required.
+ */
+static __inline volatile cpuset_t *
 pmap_invalidate_cpu_mask(pmap_t pmap)
 {
-	return (pmap->pm_active);
+	return (&pmap->pm_active);
 }
 
 #endif /* _KERNEL */
