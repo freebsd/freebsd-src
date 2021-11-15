@@ -1,4 +1,4 @@
-.\"	$Id: man.conf.5,v 1.6 2018/10/02 14:56:47 schwarze Exp $
+.\"	$Id: man.conf.5,v 1.8 2020/02/10 14:42:10 schwarze Exp $
 .\"
 .\" Copyright (c) 2015, 2017 Ingo Schwarze <schwarze@openbsd.org>
 .\"
@@ -14,7 +14,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: October 2 2018 $
+.Dd $Mdocdate: February 10 2020 $
 .Dt MAN.CONF 5
 .Os
 .Sh NAME
@@ -101,15 +101,11 @@ manual.
 .It Ic toc      Ta none     Ta Cm html Ta print table of contents
 .It Ic width    Ta integer  Ta Cm ascii , utf8 Ta right margin
 .El
-.It Ic _whatdb Ar path Ns Cm /whatis.db
-This directive provides the same functionality as
-.Ic manpath ,
-but using a historic and misleading syntax.
-It is kept for backward compatibility for now,
-but will eventually be removed.
 .El
 .Sh FILES
-.Pa /etc/man.conf
+.Bl -tag -width /etc/examples/man.conf -compact
+.It Pa /etc/man.conf
+.El
 .Sh EXAMPLES
 The following configuration file reproduces the defaults:
 installing it is equivalent to not having a

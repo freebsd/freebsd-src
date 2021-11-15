@@ -1,4 +1,4 @@
-.\"	$Id: mandoc_html.3,v 1.19 2019/01/11 12:56:43 schwarze Exp $
+.\"	$Id: mandoc_html.3,v 1.23 2020/04/24 13:13:06 schwarze Exp $
 .\"
 .\" Copyright (c) 2014, 2017, 2018 Ingo Schwarze <schwarze@openbsd.org>
 .\"
@@ -14,14 +14,18 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: January 11 2019 $
+.Dd $Mdocdate: April 24 2020 $
 .Dt MANDOC_HTML 3
 .Os
 .Sh NAME
 .Nm mandoc_html
 .Nd internals of the mandoc HTML formatter
 .Sh SYNOPSIS
-.In "html.h"
+.In sys/types.h
+.Fd #include """mandoc.h"""
+.Fd #include """roff.h"""
+.Fd #include """out.h"""
+.Fd #include """html.h"""
 .Ft void
 .Fn print_gen_decls "struct html *h"
 .Ft void
@@ -46,18 +50,42 @@
 .Fa "const struct tag *suntil"
 .Fc
 .Ft void
+.Fn html_close_paragraph "struct html *h"
+.Ft enum roff_tok
+.Fo html_fillmode
+.Fa "struct html *h"
+.Fa "enum roff_tok tok"
+.Fc
+.Ft int
+.Fo html_setfont
+.Fa "struct html *h"
+.Fa "enum mandoc_esc font"
+.Fc
+.Ft void
 .Fo print_text
 .Fa "struct html *h"
 .Fa "const char *word"
 .Fc
+.Ft void
+.Fo print_tagged_text
+.Fa "struct html *h"
+.Fa "const char *word"
+.Fa "struct roff_node *n"
+.Fc
 .Ft char *
 .Fo html_make_id
 .Fa "const struct roff_node *n"
+.Fa "int unique"
 .Fc
-.Ft int
-.Fo html_strlen
-.Fa "const char *cp"
+.Ft struct tag *
+.Fo print_otag_id
+.Fa "struct html *h"
+.Fa "enum htmltag tag"
+.Fa "const char *cattr"
+.Fa "struct roff_node *n"
 .Fc
+.Ft void
+.Fn print_endline "struct html *h"
 .Sh DESCRIPTION
 The mandoc HTML formatter is not a formal library.
 However, as it is compiled into more than one program, in particular
@@ -96,7 +124,7 @@ These structures are declared in
 Internal state of the HTML formatter.
 .It Vt struct tag
 One entry for the LIFO stack of HTML elements.
-Members are
+Members include
 .Fa "enum htmltag tag"
 and
 .Fa "struct tag *next" .
@@ -105,10 +133,8 @@ and
 The function
 .Fn print_gen_decls
 prints the opening
-.Ao Pf \&? Ic xml ? Ac
-and
 .Aq Pf \&! Ic DOCTYPE
-declarations required for the current document type.
+declaration.
 .Pp
 The function
 .Fn print_gen_comment
@@ -235,6 +261,59 @@ is used to close out all open elements up to and including
 .Fn print_stagq
 is a variant to close out all open elements up to but excluding
 .Fa suntil .
+The function
+.Fn html_close_paragraph
+closes all open elements that establish phrasing context,
+thus returning to the innermost flow context.
+.Pp
+The function
+.Fn html_fillmode
+switches to fill mode if
+.Fa want
+is
+.Dv ROFF_fi
+or to no-fill mode if
+.Fa want
+is
+.Dv ROFF_nf .
+Switching from fill mode to no-fill mode closes the current paragraph
+and opens a
+.Aq Ic PRE
+element.
+Switching in the opposite direction closes the
+.Aq Ic PRE
+element, but does not open a new paragraph.
+If
+.Fa want
+matches the mode that is already active, no elements are closed nor opened.
+If
+.Fa want
+is
+.Dv TOKEN_NONE ,
+the mode remains as it is.
+.Pp
+The function
+.Fn html_setfont
+selects the
+.Fa font ,
+which can be
+.Dv ESCAPE_FONTROMAN ,
+.Dv ESCAPE_FONTBOLD ,
+.Dv ESCAPE_FONTITALIC ,
+.Dv ESCAPE_FONTBI ,
+or
+.Dv ESCAPE_FONTCW ,
+for future text output and internally remembers
+the font that was active before the change.
+If the
+.Fa font
+argument is
+.Dv ESCAPE_FONTPREV ,
+the current and the previous font are exchanged.
+This function only changes the internal state of the
+.Fa h
+object; no HTML elements are written yet.
+Subsequent text output will write font elements when needed.
 .Pp
 The function
 .Fn print_text
@@ -256,24 +335,118 @@ and
 functions.
 .Pp
 The function
-.Fn html_make_id
-takes a node containing one or more text children
-and returns a newly allocated string containing the concatenation
-of the child strings, with blanks replaced by underscores.
-If the node
+.Fn print_tagged_text
+is a variant of
+.Fn print_text
+that wraps
+.Fa word
+in an
+.Aq Ic A
+element of class
+.Qq permalink
+if
 .Fa n
-contains any non-text child node,
-.Fn html_make_id
-returns
+is not
 .Dv NULL
-instead.
-The caller is responsible for freeing the returned string.
+and yields a segment identifier when passed to
+.Fn html_make_id .
 .Pp
 The function
-.Fn html_strlen
-counts the number of characters in
-.Fa cp .
-It is used as a crude estimate of the width needed to display a string.
+.Fn html_make_id
+allocates a string to be used for the
+.Cm id
+attribute of an HTML element and/or as a segment identifier for a URI in an
+.Aq Ic A
+element.
+If
+.Fa n
+contains a
+.Fa tag
+attribute, it is used; otherwise, child nodes are used.
+If
+.Fa n
+is an
+.Ic \&Sh ,
+.Ic \&Ss ,
+.Ic \&Sx ,
+.Ic SH ,
+or
+.Ic SS
+node, the resulting string is the concatenation of the child strings;
+for other node types, only the first child is used.
+Bytes not permitted in URI-fragment strings are replaced by underscores.
+If any of the children to be used is not a text node,
+no string is generated and
+.Dv NULL
+is returned instead.
+If the
+.Fa unique
+argument is non-zero, deduplication is performed by appending an
+underscore and a decimal integer, if necessary.
+If the
+.Fa unique
+argument is 1, this is assumed to be the first call for this tag
+at this location, typically for use by
+.Dv NODE_ID ,
+so the integer is incremented before use.
+If the
+.Fa unique
+argument is 2, this is ssumed to be the second call for this tag
+at this location, typically for use by
+.Dv NODE_HREF ,
+so the existing integer, if any, is used without incrementing it.
+.Pp
+The function
+.Fn print_otag_id
+opens a
+.Fa tag
+element of class
+.Fa cattr
+for the node
+.Fa n .
+If the flag
+.Dv NODE_ID
+is set in
+.Fa n ,
+it attempts to generate an
+.Cm id
+attribute with
+.Fn html_make_id .
+If the flag
+.Dv NODE_HREF
+is set in
+.Fa n ,
+an
+.Aq Ic A
+element of class
+.Qq permalink
+is added:
+outside if
+.Fa n
+generates an element that can only occur in phrasing context,
+or inside otherwise.
+This function is a wrapper around
+.Fn html_make_id
+and
+.Fn print_otag ,
+automatically chosing the
+.Fa unique
+argument appropriately and setting the
+.Fa fmt
+arguments to
+.Qq chR
+and
+.Qq ci ,
+respectively.
+.Pp
+The function
+.Fn print_endline
+makes sure subsequent output starts on a new HTML output line.
+If nothing was printed on the current output line yet, it has no effect.
+Otherwise, it appends any buffered text to the current output line,
+ends the line, and updates the internal state of the
+.Fa h
+object.
 .Pp
 The functions
 .Fn print_eqn ,
@@ -281,6 +454,46 @@ The functions
 and
 .Fn print_tblclose
 are not yet documented.
+.Sh RETURN VALUES
+The functions
+.Fn print_otag
+and
+.Fn print_otag_id
+return a pointer to a new element on the stack of HTML elements.
+When
+.Fn print_otag_id
+opens two elements, a pointer to the outer one is returned.
+The memory pointed to is owned by the library and is automatically
+.Xr free 3 Ns d
+when
+.Fn print_tagq
+is called on it or when
+.Fn print_stagq
+is called on a parent element.
+.Pp
+The function
+.Fn html_fillmode
+returns
+.Dv ROFF_fi
+if fill mode was active before the call or
+.Dv ROFF_nf
+otherwise.
+.Pp
+The function
+.Fn html_make_id
+returns a newly allocated string or
+.Dv NULL
+if
+.Fa n
+lacks text data to create the attribute from.
+The caller is responsible for
+.Xr free 3 Ns ing
+the returned string after using it.
+.Pp
+In case of
+.Xr malloc 3
+failure, these functions do not return but call
+.Xr err 3 .
 .Sh FILES
 .Bl -tag -width mandoc_aux.c -compact
 .It Pa main.h
@@ -303,6 +516,17 @@ HTML formatter
 .It Pa eqn_html.c
 .Xr eqn 7
 HTML formatter
+.It Pa roff_html.c
+.Xr roff 7
+HTML formatter, handling requests like
+.Ic br ,
+.Ic ce ,
+.Ic fi ,
+.Ic ft ,
+.Ic nf ,
+.Ic rj ,
+and
+.Ic sp .
 .It Pa out.h
 declarations of data types and private functions
 for shared use by all mandoc formatters,

@@ -1,6 +1,6 @@
-.\"	$Id: mandoc_headers.3,v 1.31 2019/03/17 18:21:45 schwarze Exp $
+.\"	$Id: mandoc_headers.3,v 1.34 2021/08/10 12:55:03 schwarze Exp $
 .\"
-.\" Copyright (c) 2014-2019 Ingo Schwarze <schwarze@openbsd.org>
+.\" Copyright (c) 2014-2021 Ingo Schwarze <schwarze@openbsd.org>
 .\"
 .\" Permission to use, copy, modify, and distribute this software for any
 .\" purpose with or without fee is hereby granted, provided that the above
@@ -14,7 +14,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: March 17 2019 $
+.Dd $Mdocdate: August 10 2021 $
 .Dt MANDOC_HEADERS 3
 .Os
 .Sh NAME
@@ -167,7 +167,11 @@ parse tree; can be used everywhere.
 Requires
 .In sys/types.h
 for
-.Vt size_t .
+.Vt size_t
+and
+.Qq Pa mandoc.h
+for
+.Vt enum mandoc_esc .
 .Pp
 Provides
 .Vt enum tbl_cellt ,
@@ -232,6 +236,30 @@ and the functions
 .Fn mandoc_xr_get ,
 and
 .Fn mandoc_xr_free .
+.It Qq Pa tag.h
+Internal interfaces to tag syntax tree nodes,
+for use by validation modules only.
+.Pp
+Requires
+.In limits.h
+for
+.Dv INT_MAX .
+.Pp
+Provides the functions
+.Fn tag_alloc ,
+.Fn tag_put ,
+.Fn tag_check ,
+and
+.Fn tag_free
+and some
+.Dv TAG_*
+constants.
+.Pp
+Uses the type
+.Vt struct roff_node
+from
+.Qq Pa roff.h
+as an opaque type for function prototypes.
 .El
 .Pp
 The following two require
@@ -587,6 +615,33 @@ When this header is included, the same file should not include
 .Qq Pa html.h
 or
 .Qq Pa mansearch.h .
+.It Qq Pa tag_term.h
+Requires
+.In sys/types.h
+for
+.Vt size_t
+and
+.In stdio.h
+for
+.Vt FILE .
+.Pp
+Provides an interface to generate
+.Xr ctags 1
+files for the
+.Ic :t
+functionality mentioned in
+.Xr man 1 .
+.Pp
+Uses the type
+.Vt struct roff_node
+from
+.Qq Pa roff.h
+as an opaque type for function prototypes.
+.Pp
+When this header is included, the same file should not include
+.Qq Pa html.h
+or
+.Qq Pa mansearch.h .
 .It Qq Pa html.h
 Requires
 .In sys/types.h
@@ -629,21 +684,10 @@ from
 as opaque types for function prototypes.
 .Pp
 When this header is included, the same file should not include
-.Qq Pa term.h
+.Qq Pa term.h ,
+.Qq Pa tab_term.h ,
 or
 .Qq Pa mansearch.h .
-.It Qq Pa tag.h
-Requires
-.In sys/types.h
-for
-.Vt size_t .
-.Pp
-Provides an interface to generate
-.Xr ctags 1
-files for the
-.Ic :t
-functionality mentioned in
-.Xr man 1 .
 .It Qq Pa main.h
 Provides the top level steering functions for all formatters.
 .Pp
@@ -696,6 +740,7 @@ as an opaque type for function prototypes.
 When this header is included, the same file should not include
 .Qq Pa out.h ,
 .Qq Pa term.h ,
+.Qq Pa tab_term.h ,
 or
 .Qq Pa html.h .
 .El

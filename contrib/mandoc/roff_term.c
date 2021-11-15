@@ -1,6 +1,6 @@
-/*	$Id: roff_term.c,v 1.19 2019/01/04 03:24:33 schwarze Exp $ */
+/* $OpenBSD: roff_term.c,v 1.20 2020/09/03 17:37:06 schwarze Exp $ */
 /*
- * Copyright (c) 2010,2014,2015,2017-2019 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2010,2014,2015,2017-2020 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -14,6 +14,8 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
+#include "config.h"
+
 #include <sys/types.h>
 
 #include <assert.h>
@@ -110,9 +112,11 @@ roff_term_pre_ft(ROFF_TERM_ARGS)
 	cp = n->child->string;
 	switch (mandoc_font(cp, (int)strlen(cp))) {
 	case ESCAPE_FONTBOLD:
+	case ESCAPE_FONTCB:
 		term_fontrepl(p, TERMFONT_BOLD);
 		break;
 	case ESCAPE_FONTITALIC:
+	case ESCAPE_FONTCI:
 		term_fontrepl(p, TERMFONT_UNDER);
 		break;
 	case ESCAPE_FONTBI:
@@ -122,7 +126,7 @@ roff_term_pre_ft(ROFF_TERM_ARGS)
 		term_fontlast(p);
 		break;
 	case ESCAPE_FONTROMAN:
-	case ESCAPE_FONTCW:
+	case ESCAPE_FONTCR:
 		term_fontrepl(p, TERMFONT_NONE);
 		break;
 	default:
@@ -155,9 +159,13 @@ static void
 roff_term_pre_po(ROFF_TERM_ARGS)
 {
 	struct roffsu	 su;
-	static int	 po, polast;
+	static int	 po, pouse, polast;
 	int		 ponew;
 
+	/* Revert the currently active page offset. */
+	p->tcol->offset -= pouse;
+
+	/* Determine the requested page offset. */
 	if (n->child != NULL &&
 	    a2roffsu(n->child->string, &su, SCALE_EM) != NULL) {
 		ponew = term_hen(p, &su);
@@ -166,11 +174,15 @@ roff_term_pre_po(ROFF_TERM_ARGS)
 			ponew += po;
 	} else
 		ponew = polast;
+
+	/* Remeber both the previous and the newly requested offset. */
 	polast = po;
 	po = ponew;
 
-	ponew = po - polast + (int)p->tcol->offset;
-	p->tcol->offset = ponew > 0 ? ponew : 0;
+	/* Truncate to the range [-offset, 60], remember, and apply it. */
+	pouse = po >= 60 ? 60 :
+	    po < -(int)p->tcol->offset ? -(int)p->tcol->offset : po;
+	p->tcol->offset += pouse;
 }
 
 static void
@@ -208,6 +220,7 @@ roff_term_pre_ti(ROFF_TERM_ARGS)
 {
 	struct roffsu	 su;
 	const char	*cp;
+	const size_t	 maxoff = 72;
 	int		 len, sign;
 
 	roff_term_pre_br(p, n);
@@ -228,17 +241,26 @@ roff_term_pre_ti(ROFF_TERM_ARGS)
 		return;
 	len = term_hen(p, &su);
 
-	if (sign == 0) {
+	switch (sign) {
+	case 1:
+		if (p->tcol->offset + len <= maxoff)
+			p->ti = len;
+		else if (p->tcol->offset < maxoff)
+			p->ti = maxoff - p->tcol->offset;
+		else
+			p->ti = 0;
+		break;
+	case -1:
+		if ((size_t)len < p->tcol->offset)
+			p->ti = -len;
+		else
+			p->ti = -p->tcol->offset;
+		break;
+	default:
+		if ((size_t)len > maxoff)
+			len = maxoff;
 		p->ti = len - p->tcol->offset;
-		p->tcol->offset = len;
-	} else if (sign == 1) {
-		p->ti = len;
-		p->tcol->offset += len;
-	} else if ((size_t)len < p->tcol->offset) {
-		p->ti = -len;
-		p->tcol->offset -= len;
-	} else {
-		p->ti = -p->tcol->offset;
-		p->tcol->offset = 0;
+		break;
 	}
+	p->tcol->offset += p->ti;
 }

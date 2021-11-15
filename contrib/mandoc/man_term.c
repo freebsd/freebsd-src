@@ -1,7 +1,7 @@
-/*	$Id: man_term.c,v 1.232 2019/07/23 17:53:35 schwarze Exp $ */
+/* $Id: man_term.c,v 1.236 2021/06/28 19:50:15 schwarze Exp $ */
 /*
+ * Copyright (c) 2010-2015, 2017-2020 Ingo Schwarze <schwarze@openbsd.org>
  * Copyright (c) 2008-2012 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2010-2015, 2017-2019 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -14,6 +14,9 @@
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ *
+ * Plain text formatter for man(7), used by mandoc(1)
+ * for ASCII, UTF-8, PostScript, and PDF output.
  */
 #include "config.h"
 
@@ -32,7 +35,7 @@
 #include "man.h"
 #include "out.h"
 #include "term.h"
-#include "tag.h"
+#include "term_tag.h"
 #include "main.h"
 
 #define	MAXMARGINS	  64 /* maximum number of indented scopes */
@@ -64,7 +67,7 @@ static	void		  print_man_head(struct termp *,
 static	void		  print_man_foot(struct termp *,
 				const struct roff_meta *);
 static	void		  print_bvspace(struct termp *,
-				const struct roff_node *, int);
+				struct roff_node *, int);
 
 static	int		  pre_B(DECL_ARGS);
 static	int		  pre_DT(DECL_ARGS);
@@ -93,8 +96,6 @@ static	void		  post_SH(DECL_ARGS);
 static	void		  post_SY(DECL_ARGS);
 static	void		  post_TP(DECL_ARGS);
 static	void		  post_UR(DECL_ARGS);
-
-static	void		  tag_man(struct termp *, struct roff_node *);
 
 static const struct man_term_act man_term_acts[MAN_MAX - MAN_TH] = {
 	{ NULL, NULL, 0 }, /* TH */
@@ -205,19 +206,20 @@ terminal_man(void *arg, const struct roff_meta *man)
  * first, print it.
  */
 static void
-print_bvspace(struct termp *p, const struct roff_node *n, int pardist)
+print_bvspace(struct termp *p, struct roff_node *n, int pardist)
 {
-	int	 i;
+	struct roff_node	*nch;
+	int			 i;
 
 	term_newln(p);
 
-	if (n->body != NULL && n->body->child != NULL)
-		if (n->body->child->type == ROFFT_TBL)
-			return;
+	if (n->body != NULL &&
+	    (nch = roff_node_child(n->body)) != NULL &&
+	    nch->type == ROFFT_TBL)
+		return;
 
-	if (n->parent->type == ROFFT_ROOT || n->parent->tok != MAN_RS)
-		if (n->prev == NULL)
-			return;
+	if (n->parent->tok != MAN_RS && roff_node_prev(n) == NULL)
+		return;
 
 	for (i = 0; i < pardist; i++)
 		term_vspace(p);
@@ -538,10 +540,8 @@ pre_IP(DECL_ARGS)
 	case ROFFT_HEAD:
 		p->tcol->offset = mt->offset;
 		p->tcol->rmargin = mt->offset + len;
-		if (n->child != NULL) {
+		if (n->child != NULL)
 			print_man_node(p, mt, n->child, meta);
-			tag_man(p, n->child);
-		}
 		return 0;
 	case ROFFT_BODY:
 		p->tcol->offset = mt->offset + len;
@@ -621,18 +621,6 @@ pre_TP(DECL_ARGS)
 		while (nn != NULL && (nn->flags & NODE_LINE) == 0)
 			nn = nn->next;
 
-		if (nn == NULL)
-			return 0;
-
-		if (nn->type == ROFFT_TEXT)
-			tag_man(p, nn);
-		else if (nn->child != NULL &&
-		    nn->child->type == ROFFT_TEXT &&
-		    (nn->tok == MAN_B || nn->tok == MAN_BI ||
-		     nn->tok == MAN_BR || nn->tok == MAN_I ||
-		     nn->tok == MAN_IB || nn->tok == MAN_IR))
-			tag_man(p, nn->child);
-
 		while (nn != NULL) {
 			print_man_node(p, mt, nn, meta);
 			nn = nn->next;
@@ -683,12 +671,8 @@ pre_SS(DECL_ARGS)
 		 * and after an empty subsection.
 		 */
 
-		do {
-			n = n->prev;
-		} while (n != NULL && n->tok >= MAN_TH &&
-		    man_term_act(n->tok)->flags & MAN_NOTEXT);
-		if (n == NULL || n->type == ROFFT_COMMENT ||
-		    (n->tok == MAN_SS && n->body->child == NULL))
+		if ((n = roff_node_prev(n)) == NULL ||
+		    (n->tok == MAN_SS && roff_node_child(n->body) == NULL))
 			break;
 
 		for (i = 0; i < mt->pardist; i++)
@@ -728,12 +712,8 @@ pre_SH(DECL_ARGS)
 		 * and after an empty section.
 		 */
 
-		do {
-			n = n->prev;
-		} while (n != NULL && n->tok >= MAN_TH &&
-		    man_term_act(n->tok)->flags & MAN_NOTEXT);
-		if (n == NULL || n->type == ROFFT_COMMENT ||
-		    (n->tok == MAN_SH && n->body->child == NULL))
+		if ((n = roff_node_prev(n)) == NULL ||
+		    (n->tok == MAN_SH && roff_node_child(n->body) == NULL))
 			break;
 
 		for (i = 0; i < mt->pardist; i++)
@@ -839,7 +819,7 @@ pre_SY(DECL_ARGS)
 
 	switch (n->type) {
 	case ROFFT_BLOCK:
-		if (n->prev == NULL || n->prev->tok != MAN_SY)
+		if ((nn = roff_node_prev(n)) == NULL || nn->tok != MAN_SY)
 			print_bvspace(p, n, mt->pardist);
 		return 1;
 	case ROFFT_HEAD:
@@ -919,6 +899,9 @@ print_man_node(DECL_ARGS)
 {
 	const struct man_term_act *act;
 	int c;
+
+	if (n->flags & NODE_ID)
+		term_tag_write(n, p->line);
 
 	switch (n->type) {
 	case ROFFT_TEXT:
@@ -1038,10 +1021,6 @@ print_man_foot(struct termp *p, const struct roff_meta *meta)
 	 */
 
 	if ( ! p->mdocstyle) {
-		if (meta->hasbody) {
-			term_vspace(p);
-			term_vspace(p);
-		}
 		mandoc_asprintf(&title, "%s(%s)",
 		    meta->title, meta->msec);
 	} else if (meta->os != NULL) {
@@ -1160,66 +1139,5 @@ print_man_head(struct termp *p, const struct roff_meta *meta)
 	 */
 
 	term_vspace(p);
-	if ( ! p->mdocstyle) {
-		term_vspace(p);
-		term_vspace(p);
-	}
 	free(title);
-}
-
-/*
- * Skip leading whitespace, dashes, backslashes, and font escapes,
- * then create a tag if the first following byte is a letter.
- * Priority is high unless whitespace is present.
- */
-static void
-tag_man(struct termp *p, struct roff_node *n)
-{
-	const char	*cp, *arg;
-	int		 prio, sz;
-
-	assert(n->type == ROFFT_TEXT);
-	cp = n->string;
-	prio = 1;
-	for (;;) {
-		switch (*cp) {
-		case ' ':
-		case '\t':
-			prio = INT_MAX;
-			/* FALLTHROUGH */
-		case '-':
-			cp++;
-			break;
-		case '\\':
-			cp++;
-			switch (mandoc_escape(&cp, &arg, &sz)) {
-			case ESCAPE_FONT:
-			case ESCAPE_FONTROMAN:
-			case ESCAPE_FONTITALIC:
-			case ESCAPE_FONTBOLD:
-			case ESCAPE_FONTPREV:
-			case ESCAPE_FONTBI:
-				break;
-			case ESCAPE_SPECIAL:
-				if (sz != 1)
-					return;
-				switch (*arg) {
-				case '&':
-				case '-':
-				case 'e':
-					break;
-				default:
-					return;
-				}
-				break;
-			default:
-				return;
-			}
-			break;
-		default:
-			if (isalpha((unsigned char)*cp))
-				tag_put(cp, prio, p->line);
-			return;
-		}
-	}
 }

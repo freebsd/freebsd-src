@@ -43,7 +43,8 @@ typedef struct {
 	char *fts_path;			/* path for this descent */
 	size_t fts_pathlen;		/* sizeof(path) */
 	int fts_nitems;			/* elements in the sort array */
-	int (*fts_compar)();		/* compare function */
+	int (*fts_compar)(const struct _ftsent **, const struct _ftsent **);
+					/* compare function */
 
 #define	FTS_NOCHDIR	0x0004		/* don't change directories */
 #define	FTS_PHYSICAL	0x0010		/* physical walk */

@@ -1,7 +1,7 @@
-.\"	$Id: mdoc.7,v 1.279 2019/07/15 19:20:30 schwarze Exp $
+.\"	$Id: mdoc.7,v 1.287 2021/07/29 17:32:01 schwarze Exp $
 .\"
 .\" Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
-.\" Copyright (c) 2010, 2011, 2013-2018 Ingo Schwarze <schwarze@openbsd.org>
+.\" Copyright (c) 2010, 2011, 2013-2020 Ingo Schwarze <schwarze@openbsd.org>
 .\"
 .\" Permission to use, copy, modify, and distribute this software for any
 .\" purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: July 15 2019 $
+.Dd $Mdocdate: July 29 2021 $
 .Dt MDOC 7
 .Os
 .Sh NAME
@@ -297,7 +297,7 @@ utility does this, that, and the other.
 It usually follows with a breakdown of the options (if documenting a
 command), such as:
 .Bd -literal -offset indent
-The arguments are as follows:
+The options are as follows:
 \&.Bl \-tag \-width Ds
 \&.It Fl v
 Print verbose information.
@@ -449,6 +449,7 @@ in the alphabetical
 .It Ic \&Ss Ta subsection header (one line)
 .It Ic \&Sx Ta internal cross reference to a section or subsection
 .It Ic \&Xr Ta cross reference to another manual page: Ar name section
+.It Ic \&Tg Ta tag the definition of a Ar term Pq <= 1 arguments
 .It Ic \&Pp Ta start a text paragraph (no arguments)
 .El
 .Ss Displays and lists
@@ -631,6 +632,7 @@ Close an
 .Ic \&Ao
 block.
 Does not have any tail arguments.
+.Tg Ad
 .It Ic \&Ad Ar address
 Memory address.
 Do not use this for postal addresses.
@@ -638,6 +640,7 @@ Do not use this for postal addresses.
 Examples:
 .Dl \&.Ad [0,$]
 .Dl \&.Ad 0x00000000
+.Tg An
 .It Ic \&An Fl split | nosplit | Ar first_name ... last_name
 Author name.
 Can be used both for the authors of the program, function, or driver
@@ -678,6 +681,7 @@ This macro is almost never useful.
 See
 .Ic \&Aq
 for more details.
+.Tg Ap
 .It Ic \&Ap
 Inserts an apostrophe without any surrounding whitespace.
 This is generally used as a grammatical device when referring to the verb
@@ -685,6 +689,7 @@ form of a function.
 .Pp
 Examples:
 .Dl \&.Fn execve \&Ap d
+.Tg Aq
 .It Ic \&Aq Ar line
 Enclose the rest of the input line in angle brackets.
 The only important use case is for email addresses.
@@ -729,6 +734,7 @@ as needed.
 .Pp
 See also
 .Ic \&Ao .
+.Tg Ar
 .It Ic \&Ar Op Ar placeholder ...
 Command arguments.
 If an argument is not provided, the string
@@ -747,6 +753,7 @@ for fixed strings to be passed verbatim as arguments, use
 .Ic \&Fl
 or
 .Ic \&Cm .
+.Tg At
 .It Ic \&At Op Ar version
 Formats an
 .At
@@ -784,6 +791,7 @@ Close a
 .Ic \&Bo
 block.
 Does not have any tail arguments.
+.Tg Bd
 .It Ic \&Bd Fl Ns Ar type Oo Fl offset Ar width Oc Op Fl compact
 Begin a display block.
 Display blocks are used to select a different indentation and
@@ -874,6 +882,7 @@ See also
 .Ic \&D1
 and
 .Ic \&Dl .
+.Tg Bf
 .It Ic \&Bf Fl emphasis | literal | symbolic | Cm \&Em | \&Li | \&Sy
 Change the font mode for a scoped block of text.
 The
@@ -900,6 +909,7 @@ See also
 .Ic \&Em ,
 and
 .Ic \&Sy .
+.Tg Bk
 .It Ic \&Bk Fl words
 For each macro, keep its output together on the same output line,
 until the end of the macro or the end of the input line is reached,
@@ -922,6 +932,7 @@ macro line:
 .Pp
 Be careful in using over-long lines within a keep block!
 Doing so will clobber the right margin.
+.Tg Bl
 .It Xo
 .Ic \&Bl
 .Fl Ns Ar type
@@ -1064,6 +1075,7 @@ Examples:
 .Pp
 See also
 .Ic \&Bq .
+.Tg Bq
 .It Ic \&Bq Ar line
 Encloses its arguments in square brackets.
 .Pp
@@ -1097,6 +1109,7 @@ Examples:
 .Pp
 See also
 .Ic \&Brq .
+.Tg Brq
 .It Ic \&Brq Ar line
 Encloses its arguments in curly braces.
 .Pp
@@ -1105,6 +1118,7 @@ Examples:
 .Pp
 See also
 .Ic \&Bro .
+.Tg Bsx
 .It Ic \&Bsx Op Ar version
 Format the
 .Bsx
@@ -1127,6 +1141,7 @@ and
 Supported only for compatibility, do not use this in new manuals.
 Prints
 .Dq is currently in beta test.
+.Tg Bx
 .It Ic \&Bx Op Ar version Op Ar variant
 Format the
 .Bx
@@ -1146,6 +1161,7 @@ See also
 .Ic \&Nx ,
 and
 .Ic \&Ox .
+.Tg Cd
 .It Ic \&Cd Ar line
 Kernel configuration declaration.
 This denotes strings accepted by
@@ -1161,6 +1177,7 @@ whitespace and align consecutive
 .Ic \&Cd
 declarations.
 This practise is discouraged.
+.Tg Cm
 .It Ic \&Cm Ar keyword ...
 Command modifiers.
 Typically used for fixed strings passed as arguments to interactive
@@ -1176,6 +1193,7 @@ Examples:
 .Dl ".Ic set Fl o Cm vi"
 .Dl ".Ic lookup Cm file bind"
 .Dl ".Ic permit Ar identity Op Cm as Ar target"
+.Tg D1
 .It Ic \&D1 Ar line
 One-line indented display.
 This is formatted by the default rules and is useful for simple indented
@@ -1201,8 +1219,10 @@ Close a
 .Ic \&Do
 block.
 Does not have any tail arguments.
+.Tg Dd
 .It Ic \&Dd Cm $\&Mdocdate$ | Ar month day , year
-Document date for display in the page footer.
+Document date for display in the page footer,
+by convention the date of the last change.
 This is the mandatory first macro of any
 .Nm
 manual.
@@ -1248,6 +1268,7 @@ See also
 .Ic \&Dt
 and
 .Ic \&Os .
+.Tg Dl
 .It Ic \&Dl Ar line
 One-line indented display.
 This is formatted as literal text and is useful for commands and
@@ -1276,6 +1297,7 @@ April is the cruellest month
 .Pp
 See also
 .Ic \&Dq .
+.Tg Dq
 .It Ic \&Dq Ar line
 Encloses its arguments in
 .Dq typographic
@@ -1292,6 +1314,7 @@ See also
 .Ic \&Sq ,
 and
 .Ic \&Do .
+.Tg Dt
 .It Ic \&Dt Ar TITLE section Op Ar arch
 Document title for display in the page header.
 This is the mandatory second macro of any
@@ -1351,6 +1374,7 @@ See also
 .Ic \&Dd
 and
 .Ic \&Os .
+.Tg Dv
 .It Ic \&Dv Ar identifier ...
 Defined variables such as preprocessor constants, constant symbols,
 enumeration values, and so on.
@@ -1370,6 +1394,7 @@ for variable symbols, and
 .Ic \&Fd
 for listing preprocessor variable definitions in the
 .Em SYNOPSIS .
+.Tg Dx
 .It Ic \&Dx Op Ar version
 Format the
 .Dx
@@ -1411,6 +1436,7 @@ End a list context started by
 .Ic \&Bl .
 See also
 .Ic \&It .
+.Tg Em
 .It Ic \&Em Ar word ...
 Request an italic font.
 If the output device does not provide that, underline.
@@ -1450,6 +1476,7 @@ or any of the other enclosure macros.
 It encloses its argument in the delimiters specified by the last
 .Ic \&Es
 macro.
+.Tg Eo
 .It Ic \&Eo Op Ar opening_delimiter
 An arbitrary enclosure.
 The
@@ -1457,6 +1484,7 @@ The
 argument is used as the enclosure head, for example, specifying \e(lq
 will emulate
 .Ic \&Do .
+.Tg Er
 .It Ic \&Er Ar identifier ...
 Error constants for definitions of the
 .Va errno
@@ -1479,6 +1507,7 @@ or any of the other enclosure macros.
 It takes two arguments, defining the delimiters to be used by subsequent
 .Ic \&En
 macros.
+.Tg Ev
 .It Ic \&Ev Ar identifier ...
 Environmental variables such as those specified in
 .Xr environ 7 .
@@ -1490,6 +1519,7 @@ Examples:
 See also
 .Ic \&Dv
 for general constants.
+.Tg Ex
 .It Ic \&Ex Fl std Op Ar utility ...
 Insert a standard sentence regarding command exit values of 0 on success
 and >0 on failure.
@@ -1506,6 +1536,7 @@ arguments are treated as separate utilities.
 .Pp
 See also
 .Ic \&Rv .
+.Tg Fa
 .It Ic \&Fa Ar argument ...
 Function argument or parameter.
 Each argument may be a name and a type (recommended for the
@@ -1543,6 +1574,7 @@ See also
 .It Ic \&Fc
 End a function context started by
 .Ic \&Fo .
+.Tg Fd
 .It Ic \&Fd Pf # Ar directive Op Ar argument ...
 Preprocessor directive, in particular for listing it in the
 .Em SYNOPSIS .
@@ -1563,25 +1595,33 @@ See also
 .Ic \&In ,
 and
 .Ic \&Dv .
+.Tg Fl
 .It Ic \&Fl Op Ar word ...
 Command-line flag or option.
 Used when listing arguments to command-line utilities.
-Prints a fixed-width hyphen
-.Sq \-
-directly followed by each argument.
-If no arguments are provided, a hyphen is printed followed by a space.
-If the argument is a macro, a hyphen is prefixed to the subsequent macro
-output.
+For each argument, prints an ASCII hyphen-minus character
+.Sq \- ,
+immediately followed by the argument.
+If no arguments are provided, a hyphen-minus is printed followed by a space.
+If the argument is a macro, a hyphen-minus is prefixed
+to the subsequent macro output.
 .Pp
 Examples:
-.Dl ".Fl R Op Fl H | L | P"
-.Dl ".Op Fl 1AaCcdFfgHhikLlmnopqRrSsTtux"
-.Dl ".Fl type Cm d Fl name Pa CVS"
-.Dl ".Fl Ar signal_number"
-.Dl ".Fl o Fl"
+.Dl ".Nm du Op Fl H | L | P"
+.Dl ".Nm ls Op Fl 1AaCcdFfgHhikLlmnopqRrSsTtux"
+.Dl ".Nm route Cm add Fl inet Ar destination gateway"
+.Dl ".Nm locate.updatedb Op Fl \e-fcodes Ns = Ns Ar dbfile"
+.Dl ".Nm aucat Fl o Fl"
+.Dl ".Nm kill Fl Ar signal_number"
+.Pp
+For GNU-sytle long options, escaping the additional hyphen-minus is not
+strictly required, but may be safer with future versions of GNU troff; see
+.Xr mandoc_char 7
+for details.
 .Pp
 See also
 .Ic \&Cm .
+.Tg Fn
 .It Ic \&Fn Ar funcname Op Ar argument ...
 A function name.
 .Pp
@@ -1610,6 +1650,7 @@ See also
 .Ic \&Fo ,
 and
 .Ic \&Ft .
+.Tg Fo
 .It Ic \&Fo Ar funcname
 Begin a function block.
 This is a multi-line version of
@@ -1644,6 +1685,7 @@ This macro is obsolete.
 No replacement markup is needed.
 .Pp
 It was used to show numerical function return values in an italic font.
+.Tg Ft
 .It Ic \&Ft Ar functype
 A function type.
 .Pp
@@ -1663,6 +1705,7 @@ See also
 .Ic \&Fn ,
 and
 .Ic \&Fo .
+.Tg Fx
 .It Ic \&Fx Op Ar version
 Format the
 .Fx
@@ -1685,6 +1728,7 @@ and
 This macro is not implemented in
 .Xr mandoc 1 .
 It was used to include the contents of a (header) file literally.
+.Tg Ic
 .It Ic \&Ic Ar keyword ...
 Internal or interactive command, or configuration instruction
 in a configuration file.
@@ -1704,6 +1748,7 @@ or
 is preferred for displaying code samples; the
 .Ic \&Ic
 macro is used when referring to an individual command name.
+.Tg In
 .It Ic \&In Ar filename
 The name of an include file.
 This macro is most often used in section 2, 3, and 9 manual pages.
@@ -1723,6 +1768,7 @@ Examples:
 .Pp
 See also
 .Sx MANUAL STRUCTURE .
+.Tg It
 .It Ic \&It Op Ar head
 A list item.
 The syntax of this macro depends on the list type.
@@ -1813,6 +1859,7 @@ but not the whitespace before the semicolon.
 .Pp
 See also
 .Ic \&Bl .
+.Tg Lb
 .It Ic \&Lb Cm lib Ns Ar name
 Specify a library.
 .Pp
@@ -1833,6 +1880,7 @@ section as described in
 Examples:
 .Dl \&.Lb libz
 .Dl \&.Lb libmandoc
+.Tg Li
 .It Ic \&Li Ar word ...
 Request a typewriter (literal) font.
 Deprecated because on terminal output devices, this is usually
@@ -1843,24 +1891,27 @@ For literal displays, use
 or
 .Ic \&Bd Fl literal Pq multi-line
 instead.
+.Tg Lk
 .It Ic \&Lk Ar uri Op Ar display_name
 Format a hyperlink.
 .Pp
 Examples:
-.Dl \&.Lk http://bsd.lv \(dqThe BSD.lv Project\(dq
-.Dl \&.Lk http://bsd.lv
+.Dl \&.Lk https://bsd.lv \(dqThe BSD.lv Project\(dq
+.Dl \&.Lk https://bsd.lv
 .Pp
 See also
 .Ic \&Mt .
 .It Ic \&Lp
 Deprecated synonym for
 .Ic \&Pp .
+.Tg Ms
 .It Ic \&Ms Ar name
 Display a mathematical symbol.
 .Pp
 Examples:
 .Dl \&.Ms sigma
 .Dl \&.Ms aleph
+.Tg Mt
 .It Ic \&Mt Ar localpart Ns @ Ns Ar domain
 Format a
 .Dq mailto:
@@ -1869,6 +1920,7 @@ hyperlink.
 Examples:
 .Dl \&.Mt discuss@manpages.bsd.lv
 .Dl \&.An Kristaps Dzonsons \&Aq \&Mt kristaps@bsd.lv
+.Tg Nd
 .It Ic \&Nd Ar line
 A one line description of the manual's content.
 This is the mandatory last macro of the
@@ -1891,6 +1943,7 @@ arguments and will display macros verbatim.
 .Pp
 See also
 .Ic \&Nm .
+.Tg Nm
 .It Ic \&Nm Op Ar name
 The name of the manual page, or \(em in particular in section 1, 6,
 and 8 pages \(em of an additional command or feature documented in
@@ -1928,6 +1981,7 @@ of section 2, 3 and 9 manual pages, use the
 macro rather than
 .Ic \&Nm
 to mark up the name of the manual page.
+.Tg No
 .It Ic \&No Ar word ...
 Normal text.
 Closes the scope of any preceding in-line macro.
@@ -1952,6 +2006,7 @@ See also
 .Ic \&Ql ,
 and
 .Ic \&Sy .
+.Tg Ns
 .It Ic \&Ns
 Suppress a space between the output of the preceding macro
 and the following text or macro.
@@ -1971,6 +2026,7 @@ See also
 .Ic \&No
 and
 .Ic \&Sm .
+.Tg Nx
 .It Ic \&Nx Op Ar version
 Format the
 .Nx
@@ -2003,6 +2059,7 @@ Examples:
 \&.Op Fl flag Ns Ar value
 \&.Oc
 .Ed
+.Tg Op
 .It Ic \&Op Ar line
 Optional part of a command line.
 Prints the argument(s) in brackets.
@@ -2016,6 +2073,7 @@ Examples:
 .Pp
 See also
 .Ic \&Oo .
+.Tg Os
 .It Ic \&Os Op Ar system Op Ar version
 Operating system version for display in the page footer.
 This is the mandatory third macro of
@@ -2058,6 +2116,7 @@ Historical
 .Nm
 packages described it as
 .Dq "old function type (FORTRAN)" .
+.Tg Ox
 .It Ic \&Ox Op Ar version
 Format the
 .Ox
@@ -2076,6 +2135,7 @@ See also
 .Ic \&Fx ,
 and
 .Ic \&Nx .
+.Tg Pa
 .It Ic \&Pa Ar name ...
 An absolute or relative file system path, or a file or directory name.
 If an argument is not provided, the character
@@ -2091,6 +2151,7 @@ See also
 .It Ic \&Pc
 Close parenthesised context opened by
 .Ic \&Po .
+.Tg Pf
 .It Ic \&Pf Ar prefix macro Op Ar argument ...
 Removes the space between its argument and the following macro.
 It is equivalent to:
@@ -2114,6 +2175,7 @@ and
 .It Ic \&Po Ar block
 Multi-line version of
 .Ic \&Pq .
+.Tg Pp
 .It Ic \&Pp
 Break a paragraph.
 This will assert vertical space between prior and subsequent macros
@@ -2130,6 +2192,7 @@ or lists
 unless the
 .Fl compact
 flag is given.
+.Tg Pq
 .It Ic \&Pq Ar line
 Parenthesised enclosure.
 .Pp
@@ -2138,6 +2201,7 @@ See also
 .It Ic \&Qc
 Close quoted context opened by
 .Ic \&Qo .
+.Tg Ql
 .It Ic \&Ql Ar line
 In-line literal display.
 This can be used for complete command invocations and for multi-word
@@ -2151,6 +2215,7 @@ and
 .It Ic \&Qo Ar block
 Multi-line version of
 .Ic \&Qq .
+.Tg Qq
 .It Ic \&Qq Ar line
 Encloses its arguments in
 .Qq typewriter
@@ -2168,6 +2233,7 @@ Close an
 .Ic \&Rs
 block.
 Does not have any tail arguments.
+.Tg Rs
 .It Ic \&Rs
 Begin a bibliographic
 .Pq Dq reference
@@ -2208,6 +2274,7 @@ If an
 block is used within a SEE ALSO section, a vertical space is asserted
 before the rendered output, else the block continues on the current
 line.
+.Tg Rv
 .It Ic \&Rv Fl std Op Ar function ...
 Insert a standard sentence regarding a function call's return value of 0
 on success and \-1 on error, with the
@@ -2228,6 +2295,7 @@ See also
 .It Ic \&Sc
 Close single-quoted context opened by
 .Ic \&So .
+.Tg Sh
 .It Ic \&Sh Ar TITLE LINE
 Begin a new section.
 For a list of conventional manual sections, see
@@ -2246,6 +2314,7 @@ See also
 .Ic \&Ss ,
 and
 .Ic \&Sx .
+.Tg Sm
 .It Ic \&Sm Op Cm on | off
 Switches the spacing mode for output generated from macros.
 .Pp
@@ -2264,6 +2333,7 @@ Using this is not recommended because it makes the code harder to read.
 .It Ic \&So Ar block
 Multi-line version of
 .Ic \&Sq .
+.Tg Sq
 .It Ic \&Sq Ar line
 Encloses its arguments in
 .Sq typewriter
@@ -2274,6 +2344,7 @@ See also
 .Ic \&Qq ,
 and
 .Ic \&So .
+.Tg Ss
 .It Ic \&Ss Ar Title line
 Begin a new subsection.
 Unlike with
@@ -2296,6 +2367,7 @@ See also
 .Ic \&Sh ,
 and
 .Ic \&Sx .
+.Tg St
 .It Ic \&St Fl Ns Ar abbreviation
 Replace an abbreviation for a standard with the full form.
 The following standards are recognised.
@@ -2506,6 +2578,7 @@ Ethernet local area networks.
 .St -ieee1275-94
 .El
 .El
+.Tg Sx
 .It Ic \&Sx Ar Title line
 Reference a section or subsection in the same manual page.
 The referenced section or subsection name must be identical to the
@@ -2518,6 +2591,7 @@ See also
 .Ic \&Sh
 and
 .Ic \&Ss .
+.Tg Sy
 .It Ic \&Sy Ar word ...
 Request a boldface font.
 .Pp
@@ -2543,11 +2617,56 @@ See also
 .Ic \&No ,
 and
 .Ic \&Ql .
+.Tg Ta
 .It Ic \&Ta
 Table cell separator in
 .Ic \&Bl Fl column
 lists; can only be used below
 .Ic \&It .
+.Tg Tg
+.It Ic \&Tg Op Ar term
+Announce that the next input line starts a definition of the
+.Ar term .
+This macro must appear alone on its own input line.
+The argument defaults to the first argument of the first macro
+on the next line.
+The argument may not contain whitespace characters, not even when it is quoted.
+This macro is a
+.Xr mandoc 1
+extension and is typically ignored by other formatters.
+.Pp
+When viewing terminal output with
+.Xr less 1 ,
+the interactive
+.Ic :t
+command can be used to go to the definition of the
+.Ar term
+as described for the
+.Ev MANPAGER
+variable in
+.Xr man 1 ;
+when producing HTML output, a fragment identifier
+.Pq Ic id No attribute
+is generated, to be used for deep linking to this place of the document.
+.Pp
+In most cases, adding a
+.Ic \&Tg
+macro would be redundant because
+.Xr mandoc 1
+is able to automatically tag most definitions.
+This macro is intended for cases where automatic tagging of a
+.Ar term
+is unsatisfactory, for example if a definition is not tagged
+automatically (false negative) or if places are tagged that do
+not define the
+.Ar term
+(false positives).
+When there is at least one
+.Ic \&Tg
+macro for a
+.Ar term ,
+no other places are automatically marked as definitions of that
+.Ar term .
 .It Ic \&Tn Ar word ...
 Supported only for compatibility, do not use this in new manuals.
 Even though the macro name
@@ -2562,6 +2681,7 @@ Prints out
 Supported only for compatibility, do not use this in new manuals.
 Prints out
 .Dq Ux .
+.Tg Va
 .It Ic \&Va Oo Ar type Oc Ar identifier ...
 A variable name.
 .Pp
@@ -2576,6 +2696,7 @@ For declarations of global variables in the
 .Em SYNOPSIS
 section, use
 .Ic \&Vt .
+.Tg Vt
 .It Ic \&Vt Ar type Op Ar identifier
 A variable type.
 .Pp
@@ -2619,6 +2740,7 @@ beyond the end of the input line.
 This macro originally existed to work around the 9-argument limit
 of historic
 .Xr roff 7 .
+.Tg Xr
 .It Ic \&Xr Ar name section
 Link to another manual
 .Pq Qq cross-reference .
@@ -2681,7 +2803,7 @@ column, if applicable, describes closure rules.
 .Ss Block full-explicit
 Multi-line scope closed by an explicit closing macro.
 All macros contains bodies; only
-.Ic \s&Bf
+.Ic \&Bf
 and
 .Pq optionally
 .Ic \&Bl
@@ -2912,6 +3034,7 @@ then the macro accepts an arbitrary number of arguments.
 .It Ic \&St  Ta    \&No     Ta    Yes      Ta    1
 .It Ic \&Sx  Ta    Yes      Ta    Yes      Ta    >0
 .It Ic \&Sy  Ta    Yes      Ta    Yes      Ta    >0
+.It Ic \&Tg  Ta    \&No     Ta    \&No     Ta    <2
 .It Ic \&Tn  Ta    Yes      Ta    Yes      Ta    >0
 .It Ic \&Ud  Ta    \&No     Ta    \&No     Ta    0
 .It Ic \&Ux  Ta    Yes      Ta    Yes      Ta    n
@@ -3039,26 +3162,12 @@ The following problematic behaviour is found in groff:
 .Pp
 .Bl -dash -compact
 .It
-.Ic \&Dd
-with non-standard arguments behaves very strangely.
-When there are three arguments, they are printed verbatim.
-Any other number of arguments is replaced by the current date,
-but without any arguments the string
-.Dq Epoch
-is printed.
-.It
-.Ic \&Lk
-only accepts a single link-name argument; the remainder is misformatted.
-.It
 .Ic \&Pa
 does not format its arguments when used in the FILES section under
 certain list types.
 .It
 .Ic \&Ta
 can only be called by other macros, but not at the beginning of a line.
-.It
-.Ic \&%C
-is not implemented (up to and including groff-1.22.2).
 .It
 .Sq \ef
 .Pq font face
@@ -3109,10 +3218,16 @@ but produces large indentations.
 .Xr tbl 7
 .Pp
 The web page
-.Lk http://mandoc.bsd.lv/mdoc/ "extended documentation for the mdoc language"
+.Lk https://mandoc.bsd.lv/mdoc/ "extended documentation for the mdoc language"
 provides a few tutorial-style pages for beginners, an extensive style
 guide for advanced authors, and an alphabetic index helping to choose
 the best macros for various kinds of content.
+.Pp
+The manual page
+.Lk https://man.voidlinux.org/groff_mdoc "groff_mdoc(7)"
+contained in the
+.Dq groff
+package documents exactly the same language in a somewhat different style.
 .Sh HISTORY
 The
 .Nm

@@ -1,12 +1,4 @@
-#include "config.h"
-
-#if HAVE_ISBLANK
-
-int dummy;
-
-#else
-
-/*	$Id: compat_isblank.c,v 1.2 2015/10/06 18:32:19 schwarze Exp $	*/
+/* $Id: compat_isblank.c,v 1.3 2020/06/15 01:37:15 schwarze Exp $ */
 /*
  * Copyright (c) 2015 Ingo Schwarze <schwarze@openbsd.org>
  *
@@ -22,12 +14,10 @@ int dummy;
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
+#include "config.h"
 
 int
 isblank(int c)
 {
-
 	return c == ' ' || c == '\t';
 }
-
-#endif

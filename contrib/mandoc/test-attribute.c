@@ -1,6 +1,6 @@
-/* $Id: compat_vasprintf.c,v 1.4 2020/06/15 01:37:15 schwarze Exp $ */
+/* $Id: test-attribute.c,v 1.1 2020/06/22 20:00:38 schwarze Exp $ */
 /*
- * Copyright (c) 2015 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2020 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -13,35 +13,36 @@
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
- *
- * This fallback implementation is not efficient:
- * It does the formatting twice.
- * Short of fiddling with the unknown internals of the system's
- * printf(3) or completely reimplementing printf(3), i can't think
- * of another portable solution.
  */
-#include "config.h"
 
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 
-int
-vasprintf(char **ret, const char *format, va_list ap)
+void	 var_arg(const char *, ...)
+		__attribute__((__format__ (__printf__, 1, 2)));
+void	 no_ret(int)
+		__attribute__((__noreturn__));
+
+void
+var_arg(const char *fmt, ...)
 {
-	char	 buf[2];
-	va_list	 ap2;
-	int	 sz;
+	va_list	 ap;
 
-	va_copy(ap2, ap);
-	sz = vsnprintf(buf, sizeof(buf), format, ap2);
-	va_end(ap2);
+	va_start(ap, fmt);
+	vprintf(fmt, ap);
+	va_end(ap);
+}
 
-	if (sz != -1 && (*ret = malloc(sz + 1)) != NULL) {
-		if (vsnprintf(*ret, sz + 1, format, ap) == sz)
-			return sz;
-		free(*ret);
-	}
-	*ret = NULL;
-	return -1;
+void
+no_ret(int i)
+{
+	exit(i);
+}
+
+int
+main(void)
+{
+	var_arg("Test output: %d\n", 42);
+	no_ret(0);
 }
