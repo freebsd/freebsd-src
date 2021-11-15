@@ -2,6 +2,11 @@
  * Copyright (c) 2003 Peter Wemm
  * All rights reserved.
  *
+ * Copyright (c) 2021 The FreeBSD Foundation
+ *
+ * Portions of this software were developed by Konstantin Belousov
+ * under sponsorship from the FreeBSD Foundation.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -39,15 +44,45 @@
 	ALIGN_TEXT
 	.globl	__vdso_ia32_sigcode
 __vdso_ia32_sigcode:
+	.cfi_startproc
+	.cfi_signal_frame
+	.cfi_def_cfa	%esp, 0
+#if 0
+	.cfi_offset	%gs,  IA32_SIGF_UC + IA32_UC_GS
+	.cfi_offset	%fs,  IA32_SIGF_UC + IA32_UC_FS
+	.cfi_offset	%es,  IA32_SIGF_UC + IA32_UC_ES
+	.cfi_offset	%ds,  IA32_SIGF_UC + IA32_UC_DS
+#endif
+	.cfi_offset	%edi, IA32_SIGF_UC + IA32_UC_EDI
+	.cfi_offset	%esi, IA32_SIGF_UC + IA32_UC_ESI
+	.cfi_offset	%ebp, IA32_SIGF_UC + IA32_UC_EBP
+	.cfi_offset	%ebx, IA32_SIGF_UC + IA32_UC_EBX
+	.cfi_offset	%edx, IA32_SIGF_UC + IA32_UC_EDX
+	.cfi_offset	%ecx, IA32_SIGF_UC + IA32_UC_ECX
+	.cfi_offset	%eax, IA32_SIGF_UC + IA32_UC_EAX
+	.cfi_offset	%eip, IA32_SIGF_UC + IA32_UC_EIP
+#if 0
+	.cfi_offset	%cs,  IA32_SIGF_UC + IA32_UC_CS
+	.cfi_offset	%flags, IA32_SIGF_UC + IA32_UC_EFLAGS
+#endif
+	.cfi_offset	%esp, IA32_SIGF_UC + IA32_UC_ESP
+#if 0
+	.cfi_offset	%ss,  IA32_SIGF_UC + IA32_UC_SS
+	.cfi_offset	93 /* %fs.base */, IA32_SIGF_UC + IA32_UC_FSBASE
+	.cfi_offset	94 /* %gs.base */, IA32_SIGF_UC + IA32_UC_GSBASE
+#endif
 	calll	*IA32_SIGF_HANDLER(%esp)
 	leal	IA32_SIGF_UC(%esp),%eax	/* get ucontext */
 	pushl	%eax
+	.cfi_def_cfa	%esp, 4
 	movl	$SYS_sigreturn,%eax
 	pushl	%eax			/* junk to fake return addr. */
+	.cfi_def_cfa	%esp, 8
 	int	$0x80			/* enter kernel with args */
 					/* on stack */
 1:
 	jmp	1b
+	.cfi_endproc
 
 #ifdef COMPAT_FREEBSD4
 	ALIGN_TEXT
