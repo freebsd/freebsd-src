@@ -331,7 +331,7 @@ pci_host_generic_core_release_resource(device_t dev, device_t child, int type,
 	return (bus_generic_release_resource(dev, child, type, rid, res));
 }
 
-static bool
+static int
 generic_pcie_translate_resource_common(device_t dev, int type, rman_res_t start,
     rman_res_t end, rman_res_t *new_start, rman_res_t *new_end)
 {
@@ -385,7 +385,7 @@ generic_pcie_translate_resource_common(device_t dev, int type, rman_res_t start,
 		break;
 	}
 
-	return (found);
+	return (found ? 0 : ENOENT);
 }
 
 static int
@@ -394,7 +394,7 @@ generic_pcie_translate_resource(device_t bus, int type,
 {
 	rman_res_t newend; /* unused */
 
-	return (!generic_pcie_translate_resource_common(
+	return (generic_pcie_translate_resource_common(
 	    bus, type, start, 0, newstart, &newend));
 }
 
@@ -422,8 +422,8 @@ pci_host_generic_core_alloc_resource(device_t dev, device_t child, int type,
 		    type, rid, start, end, count, flags));
 
 	/* Translate the address from a PCI address to a physical address */
-	if (!generic_pcie_translate_resource_common(dev, type, start, end, &phys_start,
-	    &phys_end)) {
+	if (generic_pcie_translate_resource_common(dev, type, start, end,
+	    &phys_start, &phys_end) != 0) {
 		device_printf(dev,
 		    "Failed to translate resource %jx-%jx type %x for %s\n",
 		    (uintmax_t)start, (uintmax_t)end, type,
@@ -474,9 +474,12 @@ generic_pcie_activate_resource(device_t dev, device_t child, int type,
 
 	start = rman_get_start(r);
 	end = rman_get_end(r);
-	if (!generic_pcie_translate_resource_common(dev, type, start, end, &start,
-	    &end))
-		return (EINVAL);
+	res = generic_pcie_translate_resource_common(dev, type, start, end,
+	    &start, &end);
+	if (res != 0) {
+		rman_deactivate_resource(r);
+		return (res);
+	}
 	rman_set_start(r, start);
 	rman_set_end(r, end);
 

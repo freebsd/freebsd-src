@@ -515,6 +515,8 @@ void	bus_release_resources(device_t dev, const struct resource_spec *rs,
 
 int	bus_adjust_resource(device_t child, int type, struct resource *r,
 			    rman_res_t start, rman_res_t end);
+int	bus_translate_resource(device_t child, int type, rman_res_t start,
+			       rman_res_t *newstart);
 struct	resource *bus_alloc_resource(device_t dev, int type, int *rid,
 				     rman_res_t start, rman_res_t end,
 				     rman_res_t count, u_int flags);

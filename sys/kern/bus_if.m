@@ -77,18 +77,6 @@ CODE {
 		return (0);
 	}
 
-	static int
-	null_translate_resource(device_t bus, int type, rman_res_t start,
-		rman_res_t *newstart)
-	{
-		if (device_get_parent(bus) != NULL)
-			return (BUS_TRANSLATE_RESOURCE(device_get_parent(bus),
-			    type, start, newstart));
-
-		*newstart = start;
-		return (0);
-	}
-
 	static ssize_t
 	null_get_property(device_t dev, device_t child, const char *propname,
 	    void *propvalue, size_t size)
@@ -425,10 +413,12 @@ METHOD int adjust_resource {
 	rman_res_t	_end;
 };
 
-
 /**
  * @brief translate a resource value
  *
+ * Give a bus driver the opportunity to translate resource ranges.  If
+ * successful, the host's view of the resource starting at @p _start is
+ * returned in @p _newstart, otherwise an error is returned.
  *
  * @param _dev		the device associated with the resource
  * @param _type		the type of resource
@@ -440,7 +430,7 @@ METHOD int translate_resource {
 	int		_type;
 	rman_res_t	_start;
 	rman_res_t	*_newstart;
-} DEFAULT null_translate_resource;
+} DEFAULT bus_generic_translate_resource;
 
 /**
  * @brief Release a resource

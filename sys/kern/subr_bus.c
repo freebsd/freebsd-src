@@ -4242,6 +4242,24 @@ bus_generic_adjust_resource(device_t dev, device_t child, int type,
 	return (EINVAL);
 }
 
+/*
+ * @brief Helper function for implementing BUS_TRANSLATE_RESOURCE().
+ *
+ * This simple implementation of BUS_TRANSLATE_RESOURCE() simply calls the
+ * BUS_TRANSLATE_RESOURCE() method of the parent of @p dev.  If there is no
+ * parent, no translation happens.
+ */
+int
+bus_generic_translate_resource(device_t dev, int type, rman_res_t start,
+    rman_res_t *newstart)
+{
+	if (dev->parent)
+		return (BUS_TRANSLATE_RESOURCE(dev->parent, type, start,
+		    newstart));
+	*newstart = start;
+	return (0);
+}
+
 /**
  * @brief Helper function for implementing BUS_ALLOC_RESOURCE().
  *
@@ -4670,6 +4688,21 @@ bus_adjust_resource(device_t dev, int type, struct resource *r, rman_res_t start
 	if (dev->parent == NULL)
 		return (EINVAL);
 	return (BUS_ADJUST_RESOURCE(dev->parent, dev, type, r, start, end));
+}
+
+/**
+ * @brief Wrapper function for BUS_TRANSLATE_RESOURCE().
+ *
+ * This function simply calls the BUS_TRANSLATE_RESOURCE() method of the
+ * parent of @p dev.
+ */
+int
+bus_translate_resource(device_t dev, int type, rman_res_t start,
+    rman_res_t *newstart)
+{
+	if (dev->parent == NULL)
+		return (EINVAL);
+	return (BUS_TRANSLATE_RESOURCE(dev->parent, type, start, newstart));
 }
 
 /**
