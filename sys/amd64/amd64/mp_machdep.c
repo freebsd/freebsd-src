@@ -613,10 +613,10 @@ invl_scoreboard_slot(u_int cpu)
  * completion.
  */
 static void
-smp_targeted_tlb_shootdown(cpuset_t mask, pmap_t pmap, vm_offset_t addr1,
-    vm_offset_t addr2, smp_invl_cb_t curcpu_cb, enum invl_op_codes op)
+smp_targeted_tlb_shootdown(pmap_t pmap, vm_offset_t addr1, vm_offset_t addr2,
+    smp_invl_cb_t curcpu_cb, enum invl_op_codes op)
 {
-	cpuset_t other_cpus;
+	cpuset_t mask;
 	uint32_t generation, *p_cpudone;
 	int cpu;
 	bool is_all;
@@ -631,10 +631,12 @@ smp_targeted_tlb_shootdown(cpuset_t mask, pmap_t pmap, vm_offset_t addr1,
 	KASSERT(curthread->td_pinned > 0, ("curthread not pinned"));
 
 	/*
-	 * Check for other cpus.  Return if none.
+	 * Make a stable copy of the set of CPUs on which the pmap is active.
+	 * See if we have to interrupt other CPUs.
 	 */
-	is_all = !CPU_CMP(&mask, &all_cpus);
-	CPU_CLR(PCPU_GET(cpuid), &mask);
+	CPU_COPY(pmap_invalidate_cpu_mask(pmap), &mask);
+	is_all = CPU_CMP(&mask, &all_cpus) == 0;
+	CPU_CLR(curcpu, &mask);
 	if (CPU_EMPTY(&mask))
 		goto local_cb;
 
@@ -663,7 +665,7 @@ smp_targeted_tlb_shootdown(cpuset_t mask, pmap_t pmap, vm_offset_t addr1,
 	CPU_FOREACH_ISSET(cpu, &mask) {
 		KASSERT(*invl_scoreboard_slot(cpu) != 0,
 		    ("IPI scoreboard is zero, initiator %d target %d",
-		    PCPU_GET(cpuid), cpu));
+		    curcpu, cpu));
 		*invl_scoreboard_slot(cpu) = 0;
 	}
 
@@ -674,14 +676,11 @@ smp_targeted_tlb_shootdown(cpuset_t mask, pmap_t pmap, vm_offset_t addr1,
 	 */
 	if (is_all) {
 		ipi_all_but_self(IPI_INVLOP);
-		other_cpus = all_cpus;
-		CPU_CLR(PCPU_GET(cpuid), &other_cpus);
 	} else {
-		other_cpus = mask;
 		ipi_selected(mask, IPI_INVLOP);
 	}
 	curcpu_cb(pmap, addr1, addr2);
-	CPU_FOREACH_ISSET(cpu, &other_cpus) {
+	CPU_FOREACH_ISSET(cpu, &mask) {
 		p_cpudone = invl_scoreboard_slot(cpu);
 		while (atomic_load_int(p_cpudone) != generation)
 			ia32_pause();
@@ -705,29 +704,28 @@ local_cb:
 }
 
 void
-smp_masked_invltlb(cpuset_t mask, pmap_t pmap, smp_invl_cb_t curcpu_cb)
+smp_masked_invltlb(pmap_t pmap, smp_invl_cb_t curcpu_cb)
 {
-	smp_targeted_tlb_shootdown(mask, pmap, 0, 0, curcpu_cb, invl_op_tlb);
+	smp_targeted_tlb_shootdown(pmap, 0, 0, curcpu_cb, invl_op_tlb);
 #ifdef COUNT_XINVLTLB_HITS
 	ipi_global++;
 #endif
 }
 
 void
-smp_masked_invlpg(cpuset_t mask, vm_offset_t addr, pmap_t pmap,
-    smp_invl_cb_t curcpu_cb)
+smp_masked_invlpg(vm_offset_t addr, pmap_t pmap, smp_invl_cb_t curcpu_cb)
 {
-	smp_targeted_tlb_shootdown(mask, pmap, addr, 0, curcpu_cb, invl_op_pg);
+	smp_targeted_tlb_shootdown(pmap, addr, 0, curcpu_cb, invl_op_pg);
 #ifdef COUNT_XINVLTLB_HITS
 	ipi_page++;
 #endif
 }
 
 void
-smp_masked_invlpg_range(cpuset_t mask, vm_offset_t addr1, vm_offset_t addr2,
-    pmap_t pmap, smp_invl_cb_t curcpu_cb)
+smp_masked_invlpg_range(vm_offset_t addr1, vm_offset_t addr2, pmap_t pmap,
+    smp_invl_cb_t curcpu_cb)
 {
-	smp_targeted_tlb_shootdown(mask, pmap, addr1, addr2, curcpu_cb,
+	smp_targeted_tlb_shootdown(pmap, addr1, addr2, curcpu_cb,
 	    invl_op_pgrng);
 #ifdef COUNT_XINVLTLB_HITS
 	ipi_range++;
@@ -738,8 +736,7 @@ smp_masked_invlpg_range(cpuset_t mask, vm_offset_t addr1, vm_offset_t addr2,
 void
 smp_cache_flush(smp_invl_cb_t curcpu_cb)
 {
-	smp_targeted_tlb_shootdown(all_cpus, NULL, 0, 0, curcpu_cb,
-	    INVL_OP_CACHE);
+	smp_targeted_tlb_shootdown(kernel_pmap, 0, 0, curcpu_cb, INVL_OP_CACHE);
 }
 
 /*
