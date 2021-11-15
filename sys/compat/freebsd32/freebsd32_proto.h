@@ -1263,9 +1263,9 @@ struct freebsd11_freebsd32_fhstat_args {
 };
 struct freebsd11_freebsd32_kevent_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
-	char changelist_l_[PADL_(const struct kevent32_freebsd11 *)]; const struct kevent32_freebsd11 * changelist; char changelist_r_[PADR_(const struct kevent32_freebsd11 *)];
+	char changelist_l_[PADL_(const struct freebsd11_kevent32 *)]; const struct freebsd11_kevent32 * changelist; char changelist_r_[PADR_(const struct freebsd11_kevent32 *)];
 	char nchanges_l_[PADL_(int)]; int nchanges; char nchanges_r_[PADR_(int)];
-	char eventlist_l_[PADL_(struct kevent32_freebsd11 *)]; struct kevent32_freebsd11 * eventlist; char eventlist_r_[PADR_(struct kevent32_freebsd11 *)];
+	char eventlist_l_[PADL_(struct freebsd11_kevent32 *)]; struct freebsd11_kevent32 * eventlist; char eventlist_r_[PADR_(struct freebsd11_kevent32 *)];
 	char nevents_l_[PADL_(int)]; int nevents; char nevents_r_[PADR_(int)];
 	char timeout_l_[PADL_(const struct timespec32 *)]; const struct timespec32 * timeout; char timeout_r_[PADR_(const struct timespec32 *)];
 };

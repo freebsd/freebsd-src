@@ -1735,7 +1735,7 @@ struct mknodat_args {
 };
 struct kevent_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
-	char changelist_l_[PADL_(struct kevent *)]; struct kevent * changelist; char changelist_r_[PADR_(struct kevent *)];
+	char changelist_l_[PADL_(const struct kevent *)]; const struct kevent * changelist; char changelist_r_[PADR_(const struct kevent *)];
 	char nchanges_l_[PADL_(int)]; int nchanges; char nchanges_r_[PADR_(int)];
 	char eventlist_l_[PADL_(struct kevent *)]; struct kevent * eventlist; char eventlist_r_[PADR_(struct kevent *)];
 	char nevents_l_[PADL_(int)]; int nevents; char nevents_r_[PADR_(int)];
@@ -2649,9 +2649,9 @@ struct freebsd11_fhstat_args {
 };
 struct freebsd11_kevent_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
-	char changelist_l_[PADL_(struct kevent_freebsd11 *)]; struct kevent_freebsd11 * changelist; char changelist_r_[PADR_(struct kevent_freebsd11 *)];
+	char changelist_l_[PADL_(const struct freebsd11_kevent *)]; const struct freebsd11_kevent * changelist; char changelist_r_[PADR_(const struct freebsd11_kevent *)];
 	char nchanges_l_[PADL_(int)]; int nchanges; char nchanges_r_[PADR_(int)];
-	char eventlist_l_[PADL_(struct kevent_freebsd11 *)]; struct kevent_freebsd11 * eventlist; char eventlist_r_[PADR_(struct kevent_freebsd11 *)];
+	char eventlist_l_[PADL_(struct freebsd11_kevent *)]; struct freebsd11_kevent * eventlist; char eventlist_r_[PADR_(struct freebsd11_kevent *)];
 	char nevents_l_[PADL_(int)]; int nevents; char nevents_r_[PADR_(int)];
 	char timeout_l_[PADL_(const struct timespec *)]; const struct timespec * timeout; char timeout_r_[PADR_(const struct timespec *)];
 };
