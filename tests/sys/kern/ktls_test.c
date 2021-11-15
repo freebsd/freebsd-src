@@ -911,6 +911,64 @@ test_ktls_transmit_control(struct tls_enable *en, uint64_t seqno, uint8_t type,
 	close(sockets[0]);
 }
 
+static void
+test_ktls_transmit_empty_fragment(struct tls_enable *en, uint64_t seqno)
+{
+	struct tls_record_layer *hdr;
+	char *outbuf;
+	size_t outbuf_cap, payload_len, record_len;
+	ssize_t rv;
+	int sockets[2];
+	uint8_t record_type;
+
+	outbuf_cap = tls_header_len(en) + tls_trailer_len(en);
+	outbuf = malloc(outbuf_cap);
+	hdr = (struct tls_record_layer *)outbuf;
+
+	ATF_REQUIRE_MSG(socketpair_tcp(sockets), "failed to create sockets");
+
+	ATF_REQUIRE(setsockopt(sockets[1], IPPROTO_TCP, TCP_TXTLS_ENABLE, en,
+	    sizeof(*en)) == 0);
+
+	fd_set_blocking(sockets[0]);
+	fd_set_blocking(sockets[1]);
+
+	/* A write of zero bytes should send an empty fragment. */
+	rv = write(sockets[1], NULL, 0);
+	ATF_REQUIRE(rv == 0);
+
+	/*
+	 * First read the header to determine how much additional data
+	 * to read.
+	 */
+	rv = read(sockets[0], outbuf, sizeof(struct tls_record_layer));
+	ATF_REQUIRE(rv == sizeof(struct tls_record_layer));
+	payload_len = ntohs(hdr->tls_length);
+	record_len = payload_len + sizeof(struct tls_record_layer);
+	ATF_REQUIRE(record_len <= outbuf_cap);
+	rv = read(sockets[0], outbuf + sizeof(struct tls_record_layer),
+	    payload_len);
+	ATF_REQUIRE(rv == (ssize_t)payload_len);
+
+	rv = decrypt_tls_record(en, seqno, outbuf, record_len, NULL, 0,
+	    &record_type);
+
+	ATF_REQUIRE_MSG(rv == 0,
+	    "read %zd decrypted bytes for an empty fragment", rv);
+	ATF_REQUIRE(record_type == TLS_RLTYPE_APP);
+
+	free(outbuf);
+
+	close(sockets[1]);
+	close(sockets[0]);
+}
+
+#define	TLS_10_TESTS(M)							\
+	M(aes128_cbc_1_0_sha1, CRYPTO_AES_CBC, 128 / 8,			\
+	    CRYPTO_SHA1_HMAC)						\
+	M(aes256_cbc_1_0_sha1, CRYPTO_AES_CBC, 256 / 8,			\
+	    CRYPTO_SHA1_HMAC)
+
 #define	AES_CBC_TESTS(M)						\
 	M(aes128_cbc_1_0_sha1, CRYPTO_AES_CBC, 128 / 8,			\
 	    CRYPTO_SHA1_HMAC, TLS_MINOR_VER_ZERO)			\
@@ -988,6 +1046,26 @@ ATF_TC_BODY(ktls_transmit_##cipher_name##_##name, tc)			\
 #define ADD_TRANSMIT_CONTROL_TEST(cipher_name, cipher_alg, key_size,	\
 	    auth_alg, minor, name)					\
 	ATF_TP_ADD_TC(tp, ktls_transmit_##cipher_name##_##name);
+
+#define GEN_TRANSMIT_EMPTY_FRAGMENT_TEST(cipher_name, cipher_alg,	\
+	    key_size, auth_alg)						\
+ATF_TC_WITHOUT_HEAD(ktls_transmit_##cipher_name##_empty_fragment);	\
+ATF_TC_BODY(ktls_transmit_##cipher_name##_empty_fragment, tc)		\
+{									\
+	struct tls_enable en;						\
+	uint64_t seqno;							\
+									\
+	ATF_REQUIRE_KTLS();						\
+	seqno = random();						\
+	build_tls_enable(cipher_alg, key_size, auth_alg,		\
+	    TLS_MINOR_VER_ZERO,	seqno, &en);				\
+	test_ktls_transmit_empty_fragment(&en, seqno);			\
+	free_tls_enable(&en);						\
+}
+
+#define ADD_TRANSMIT_EMPTY_FRAGMENT_TEST(cipher_name, cipher_alg,	\
+	    key_size, auth_alg)						\
+	ATF_TP_ADD_TC(tp, ktls_transmit_##cipher_name##_empty_fragment);
 
 #define GEN_TRANSMIT_TESTS(cipher_name, cipher_alg, key_size, auth_alg,	\
 	    minor)							\
@@ -1103,12 +1181,19 @@ CHACHA20_TESTS(GEN_TRANSMIT_TESTS);
  */
 AES_CBC_TESTS(GEN_TRANSMIT_PADDING_TESTS);
 
+/*
+ * Test "empty fragments" which are TLS records with no payload that
+ * OpenSSL can send for TLS 1.0 connections.
+ */
+TLS_10_TESTS(GEN_TRANSMIT_EMPTY_FRAGMENT_TEST);
+
 ATF_TP_ADD_TCS(tp)
 {
 	AES_CBC_TESTS(ADD_TRANSMIT_TESTS);
 	AES_GCM_TESTS(ADD_TRANSMIT_TESTS);
 	CHACHA20_TESTS(ADD_TRANSMIT_TESTS);
 	AES_CBC_TESTS(ADD_TRANSMIT_PADDING_TESTS);
+	TLS_10_TESTS(ADD_TRANSMIT_EMPTY_FRAGMENT_TEST);
 
 	return (atf_no_error());
 }
