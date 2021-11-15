@@ -457,6 +457,14 @@ struct ommap_args {
 int
 ommap(struct thread *td, struct ommap_args *uap)
 {
+	return (kern_ommap(td, (uintptr_t)uap->addr, uap->len, uap->prot,
+	    uap->flags, uap->fd, uap->pos));
+}
+
+int
+kern_ommap(struct thread *td, uintptr_t hint, int len, int oprot,
+    int oflags, int fd, long pos)
+{
 	static const char cvtbsdprot[8] = {
 		0,
 		PROT_EXEC,
@@ -469,35 +477,38 @@ ommap(struct thread *td, struct ommap_args *uap)
 	};
 	int flags, prot;
 
+	if (len < 0)
+		return (EINVAL);
+
 #define	OMAP_ANON	0x0002
 #define	OMAP_COPY	0x0020
 #define	OMAP_SHARED	0x0010
 #define	OMAP_FIXED	0x0100
 
-	prot = cvtbsdprot[uap->prot & 0x7];
+	prot = cvtbsdprot[oprot & 0x7];
 #if (defined(COMPAT_FREEBSD32) && defined(__amd64__)) || defined(__i386__)
 	if (i386_read_exec && SV_PROC_FLAG(td->td_proc, SV_ILP32) &&
 	    prot != 0)
 		prot |= PROT_EXEC;
 #endif
 	flags = 0;
-	if (uap->flags & OMAP_ANON)
+	if (oflags & OMAP_ANON)
 		flags |= MAP_ANON;
-	if (uap->flags & OMAP_COPY)
+	if (oflags & OMAP_COPY)
 		flags |= MAP_COPY;
-	if (uap->flags & OMAP_SHARED)
+	if (oflags & OMAP_SHARED)
 		flags |= MAP_SHARED;
 	else
 		flags |= MAP_PRIVATE;
-	if (uap->flags & OMAP_FIXED)
+	if (oflags & OMAP_FIXED)
 		flags |= MAP_FIXED;
 	return (kern_mmap(td, &(struct mmap_req){
-		.mr_hint = (uintptr_t)uap->addr,
-		.mr_len = uap->len,
+		.mr_hint = hint,
+		.mr_len = len,
 		.mr_prot = prot,
 		.mr_flags = flags,
-		.mr_fd = uap->fd,
-		.mr_pos = uap->pos,
+		.mr_fd = fd,
+		.mr_pos = pos,
 	    }));
 }
 #endif				/* COMPAT_43 */
