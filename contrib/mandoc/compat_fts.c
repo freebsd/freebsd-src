@@ -1,13 +1,5 @@
-#include "config.h"
-
-#if HAVE_FTS
-
-int dummy;
-
-#else
-
-/*	$Id: compat_fts.c,v 1.14 2017/02/18 12:24:24 schwarze Exp $	*/
-/*	$OpenBSD: fts.c,v 1.56 2016/09/21 04:38:56 guenther Exp $	*/
+/*	$Id: compat_fts.c,v 1.17 2020/06/15 01:37:14 schwarze Exp $	*/
+/*	$OpenBSD: fts.c,v 1.59 2019/06/28 13:32:41 deraadt Exp $	*/
 
 /*-
  * Copyright (c) 1990, 1993, 1994
@@ -37,6 +29,7 @@ int dummy;
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
+#include "config.h"
 
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -61,6 +54,8 @@ static void	 fts_padjust(FTS *, FTSENT *);
 static int	 fts_palloc(FTS *, size_t);
 static FTSENT	*fts_sort(FTS *, FTSENT *, int);
 static unsigned short	 fts_stat(FTS *, FTSENT *);
+
+typedef int (*qsort_compar_proto)(const void *, const void *);
 
 #define	ISDOT(a)	(a[0] == '.' && (!a[1] || (a[1] == '.' && !a[2])))
 #ifndef	O_CLOEXEC
@@ -573,19 +568,20 @@ fts_sort(FTS *sp, FTSENT *head, int nitems)
 	if (nitems > sp->fts_nitems) {
 		struct _ftsent **a;
 
-		sp->fts_nitems = nitems + 40;
 		if ((a = reallocarray(sp->fts_array,
-		    sp->fts_nitems, sizeof(FTSENT *))) == NULL) {
+		    nitems + 40, sizeof(FTSENT *))) == NULL) {
 			free(sp->fts_array);
 			sp->fts_array = NULL;
 			sp->fts_nitems = 0;
 			return (head);
 		}
+		sp->fts_nitems = nitems + 40;
 		sp->fts_array = a;
 	}
 	for (ap = sp->fts_array, p = head; p; p = p->fts_link)
 		*ap++ = p;
-	qsort(sp->fts_array, nitems, sizeof(FTSENT *), sp->fts_compar);
+	qsort(sp->fts_array, nitems, sizeof(FTSENT *),
+	    (qsort_compar_proto)sp->fts_compar);
 	for (head = *(ap = sp->fts_array); --nitems; ++ap)
 		ap[0]->fts_link = ap[1];
 	ap[0]->fts_link = NULL;
@@ -648,13 +644,14 @@ fts_palloc(FTS *sp, size_t more)
 		errno = ENAMETOOLONG;
 		return (1);
 	}
-	sp->fts_pathlen += more;
-	p = realloc(sp->fts_path, sp->fts_pathlen);
+	p = recallocarray(sp->fts_path, sp->fts_pathlen,
+	    sp->fts_pathlen + more, 1);
 	if (p == NULL) {
 		free(sp->fts_path);
 		sp->fts_path = NULL;
 		return (1);
 	}
+	sp->fts_pathlen += more;
 	sp->fts_path = p;
 	return (0);
 }
@@ -697,5 +694,3 @@ fts_maxarglen(char * const *argv)
 			max = len;
 	return (max + 1);
 }
-
-#endif

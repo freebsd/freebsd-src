@@ -1,9 +1,9 @@
-.\"	$Id: man.1,v 1.35 2019/03/09 15:55:01 schwarze Exp $
+.\"	$Id: man.1,v 1.40 2020/07/20 16:57:30 schwarze Exp $
 .\"
 .\" Copyright (c) 1989, 1990, 1993
 .\"	The Regents of the University of California.  All rights reserved.
 .\" Copyright (c) 2003, 2007, 2008, 2014 Jason McIntyre <jmc@openbsd.org>
-.\" Copyright (c) 2010, 2011, 2014-2018 Ingo Schwarze <schwarze@openbsd.org>
+.\" Copyright (c) 2010, 2011, 2014-2020 Ingo Schwarze <schwarze@openbsd.org>
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -31,7 +31,7 @@
 .\"
 .\"     @(#)man.1	8.2 (Berkeley) 1/2/94
 .\"
-.Dd $Mdocdate: March 9 2019 $
+.Dd $Mdocdate: July 20 2020 $
 .Dt MAN 1
 .Os
 .Sh NAME
@@ -51,7 +51,7 @@ The
 .Nm
 utility
 displays the
-manual pages entitled
+manual page entitled
 .Ar name .
 Pages may be selected according to
 a specific category
@@ -64,7 +64,6 @@ The options are as follows:
 .Bl -tag -width Ds
 .It Fl a
 Display all matching manual pages.
-Normally, only the first page found is displayed.
 .It Fl C Ar file
 Use the specified
 .Ar file
@@ -75,7 +74,7 @@ See
 for a description of the contents of this file.
 .It Fl c
 Copy the manual page to the standard output instead of using
-.Xr more 1
+.Xr less 1
 to paginate it.
 This is done by default if the standard output is not a terminal device.
 .Pp
@@ -129,31 +128,31 @@ are ignored.
 This option implies
 .Fl a .
 .It Fl M Ar path
-Override the list of standard directories which
-.Nm
-searches for manual pages.
+Override the list of directories to search for manual pages.
 The supplied
 .Ar path
 must be a colon
 .Pq Ql \&:
 separated list of directories.
-This search path may also be set using the environment variable
-.Ev MANPATH .
-.It Fl m Ar path
-Augment the list of standard directories which
-.Nm
-searches for manual pages.
-The supplied
-.Ar path
-must be a colon
-.Pq Ql \&:
-separated list of directories.
-These directories will be searched before the standard directories or
-the directories specified using the
-.Fl M
-option or the
+This option also overrides the environment variable
 .Ev MANPATH
-environment variable.
+and any directories specified in the
+.Xr man.conf 5
+file.
+.It Fl m Ar path
+Augment the list of directories to search for manual pages.
+The supplied
+.Ar path
+must be a colon
+.Pq Ql \&:
+separated list of directories.
+These directories will be searched before those specified using the
+.Fl M
+option, the
+.Ev MANPATH
+environment variable, the
+.Xr man.conf 5
+file, or the default directories.
 .It Fl S Ar subsection
 Only show pages for the specified
 .Xr machine 1
@@ -168,6 +167,7 @@ architecture whilst using another.
 This option overrides the
 .Ev MACHINE
 environment variable.
+.Tg s
 .It Oo Fl s Oc Ar section
 Only select manuals from the specified
 .Ar section .
@@ -197,13 +197,12 @@ System maintenance and operation commands.
 .It 9
 Kernel internals.
 .El
-.Pp
-If not specified and a match is found in more than one section,
-the first match is selected from the following list:
-1, 8, 6, 2, 3, 5, 7, 4, 9, 3p.
 .It Fl w
 List the pathnames of all matching manual pages instead of displaying
 any of them.
+If no
+.Ar name
+is given, list the directories that would be searched.
 .El
 .Pp
 The options
@@ -214,9 +213,23 @@ The options
 .Fl fkl
 are mutually exclusive and override each other.
 .Pp
-Guidelines for writing
-man pages can be found in
-.Xr mdoc 7 .
+The search starts with the
+.Fl m
+argument if provided, then continues with the
+.Fl M
+argument, the
+.Ev MANPATH
+variable, the
+.Ic manpath
+entries in the
+.Xr man.conf 5
+file, or with
+.Pa /usr/share/man : Ns Pa /usr/X11R6/man : Ns Pa /usr/local/man
+by default.
+Within each of these, directories are searched in the order provided.
+Within each directory, the search proceeds according to the following
+list of sections: 1, 8, 6, 2, 3, 5, 7, 4, 9, 3p.
+The first match found is shown.
 .Pp
 The
 .Xr mandoc.db 5
@@ -236,6 +249,10 @@ The database is kept up to date with
 which is run by the
 .Xr weekly 8
 maintenance script.
+.Pp
+Guidelines for writing
+man pages can be found in
+.Xr mdoc 7 .
 .Sh ENVIRONMENT
 .Bl -tag -width MANPATHX
 .It Ev MACHINE
@@ -258,7 +275,7 @@ is case insensitive.
 Any non-empty value of the environment variable
 .Ev MANPAGER
 is used instead of the standard pagination program,
-.Xr more 1 .
+.Xr less 1 .
 If
 .Xr less 1
 is used, the interactive
@@ -286,15 +303,15 @@ manual opens a manual page at the definition of a specific
 .Ar term
 rather than at the beginning.
 .It Ev MANPATH
-The standard search path used by
-.Nm
-may be changed by specifying a path in the
+Override the standard search path which is either specified in
+.Xr man.conf 5
+or the default path.
+The format of
 .Ev MANPATH
-environment variable.
-The format of the path is a colon
+is a colon
 .Pq Ql \&:
 separated list of directories.
-Invalid paths are ignored.
+Invalid directories are ignored.
 Overridden by
 .Fl M ,
 ignored if
@@ -303,25 +320,24 @@ is specified.
 .Pp
 If
 .Ev MANPATH
-begins with a colon, it is appended to the default list;
-if it ends with a colon, it is prepended to the default list;
+begins with a colon, it is appended to the standard path;
+if it ends with a colon, it is prepended to the standard path;
 or if it contains two adjacent colons,
-the standard search path is inserted between the colons.
-If none of these conditions are met, it overrides the
-standard search path.
+the standard path is inserted between the colons.
 .It Ev PAGER
 Specifies the pagination program to use when
 .Ev MANPAGER
 is not defined.
 If neither PAGER nor MANPAGER is defined,
-.Xr more 1
-.Fl s
+.Xr less 1
 is used.
 .El
 .Sh FILES
 .Bl -tag -width /etc/man.conf -compact
 .It Pa /etc/man.conf
-default man configuration file
+default
+.Nm
+configuration file
 .El
 .Sh EXIT STATUS
 .Ex -std man
@@ -365,7 +381,7 @@ are extensions to that specification.
 A
 .Nm
 command first appeared in
-.At v3 .
+.At v2 .
 .Pp
 The
 .Fl w

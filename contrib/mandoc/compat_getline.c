@@ -1,12 +1,4 @@
-#include "config.h"
-
-#if HAVE_GETLINE
-
-int dummy;
-
-#else
-
-/*	$Id: compat_getline.c,v 1.1 2015/11/07 20:52:52 schwarze Exp $ */
+/* $Id: compat_getline.c,v 1.2 2020/06/15 01:37:14 schwarze Exp $ */
 /*
  * Copyright (c) 2015 Ingo Schwarze <schwarze@openbsd.org>
  *
@@ -22,6 +14,7 @@ int dummy;
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
+#include "config.h"
 
 #include <sys/types.h>
 #include <errno.h>
@@ -64,5 +57,3 @@ getline(char **buf, size_t *bufsz, FILE *fp)
 			return pos;
 	}
 }
-
-#endif

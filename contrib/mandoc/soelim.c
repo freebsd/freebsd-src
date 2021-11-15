@@ -1,4 +1,4 @@
-/*	$Id: soelim.c,v 1.5 2015/11/07 14:22:29 schwarze Exp $	*/
+/*	$Id: soelim.c,v 1.6 2021/09/19 18:14:24 schwarze Exp $	*/
 /*
  * Copyright (c) 2014 Baptiste Daroussin <bapt@FreeBSD.org>
  * All rights reserved.
@@ -104,16 +104,16 @@ soelim_file(FILE *f, int flag)
 		}
 
 		walk = line + 3;
-		if (!isspace(*walk) && ((flag & C_OPTION) == 0)) {
+		if (!isspace((unsigned char)*walk) && (flag & C_OPTION) == 0) {
 			printf("%s", line);
 			continue;
 		}
 
-		while (isspace(*walk))
+		while (isspace((unsigned char)*walk))
 			walk++;
 
 		cp = walk;
-		while (*cp != '\0' && !isspace(*cp))
+		while (*cp != '\0' && !isspace((unsigned char)*cp))
 			cp++;
 		*cp = 0;
 		if (cp < line + linelen)

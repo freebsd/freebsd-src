@@ -1,4 +1,4 @@
-/*	$Id: manpath.c,v 1.40 2019/07/10 19:39:01 schwarze Exp $ */
+/*	$Id: manpath.c,v 1.43 2020/08/27 14:59:47 schwarze Exp $ */
 /*
  * Copyright (c) 2011,2014,2015,2017-2019 Ingo Schwarze <schwarze@openbsd.org>
  * Copyright (c) 2011 Kristaps Dzonsons <kristaps@bsd.lv>
@@ -163,7 +163,7 @@ manconf_free(struct manconf *conf)
 static void
 manconf_file(struct manconf *conf, const char *file)
 {
-	const char *const toks[] = { "manpath", "output", "_whatdb" };
+	const char *const toks[] = { "manpath", "output" };
 	char manpath_default[] = MANPATH_DEFAULT;
 
 	FILE		*stream;
@@ -200,13 +200,6 @@ manconf_file(struct manconf *conf, const char *file)
 		}
 
 		switch (tok) {
-		case 2:  /* _whatdb */
-			while (ep > cp && ep[-1] != '/')
-				ep--;
-			if (ep == cp)
-				continue;
-			*ep = '\0';
-			/* FALLTHROUGH */
 		case 0:  /* manpath */
 			manpath_add(&conf->manpath, cp, '\0');
 			*manpath_default = '\0';
@@ -230,8 +223,13 @@ int
 manconf_output(struct manoutput *conf, const char *cp, int fromfile)
 {
 	const char *const toks[] = {
+	    /* Tokens requiring an argument. */
 	    "includes", "man", "paper", "style", "indent", "width",
-	    "tag", "fragment", "mdoc", "noval", "toc"
+	    "outfilename", "tagfilename",
+	    /* Token taking an optional argument. */
+	    "tag",
+	    /* Tokens not taking arguments. */
+	    "fragment", "mdoc", "noval", "toc"
 	};
 	const size_t ntoks = sizeof(toks) / sizeof(toks[0]);
 
@@ -252,11 +250,11 @@ manconf_output(struct manoutput *conf, const char *cp, int fromfile)
 		}
 	}
 
-	if (tok < 6 && *cp == '\0') {
+	if (tok < 8 && *cp == '\0') {
 		mandoc_msg(MANDOCERR_BADVAL_MISS, 0, 0, "-O %s=?", toks[tok]);
 		return -1;
 	}
-	if (tok > 6 && tok < ntoks && *cp != '\0') {
+	if (tok > 8 && tok < ntoks && *cp != '\0') {
 		mandoc_msg(MANDOCERR_BADVAL, 0, 0, "-O %s=%s", toks[tok], cp);
 		return -1;
 	}
@@ -313,22 +311,40 @@ manconf_output(struct manoutput *conf, const char *cp, int fromfile)
 		    "-O width=%s is %s", cp, errstr);
 		return -1;
 	case 6:
+		if (conf->outfilename != NULL) {
+			oldval = mandoc_strdup(conf->outfilename);
+			break;
+		}
+		conf->outfilename = mandoc_strdup(cp);
+		return 0;
+	case 7:
+		if (conf->tagfilename != NULL) {
+			oldval = mandoc_strdup(conf->tagfilename);
+			break;
+		}
+		conf->tagfilename = mandoc_strdup(cp);
+		return 0;
+	/*
+	 * If the index of the following token changes,
+	 * do not forget to adjust the range check above the switch.
+	 */
+	case 8:
 		if (conf->tag != NULL) {
 			oldval = mandoc_strdup(conf->tag);
 			break;
 		}
 		conf->tag = mandoc_strdup(cp);
 		return 0;
-	case 7:
+	case 9:
 		conf->fragment = 1;
 		return 0;
-	case 8:
+	case 10:
 		conf->mdoc = 1;
 		return 0;
-	case 9:
+	case 11:
 		conf->noval = 1;
 		return 0;
-	case 10:
+	case 12:
 		conf->toc = 1;
 		return 0;
 	default:

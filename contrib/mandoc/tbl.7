@@ -1,4 +1,4 @@
-.\"	$Id: tbl.7,v 1.34 2019/03/02 21:03:02 schwarze Exp $
+.\"	$Id: tbl.7,v 1.37 2021/09/18 12:34:27 schwarze Exp $
 .\"
 .\" Copyright (c) 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
 .\" Copyright (c) 2014,2015,2017,2018,2019 Ingo Schwarze <schwarze@openbsd.org>
@@ -15,7 +15,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: March 2 2019 $
+.Dd $Mdocdate: September 18 2021 $
 .Dt TBL 7
 .Os
 .Sh NAME
@@ -94,7 +94,7 @@ Allow page breaks within the table.
 This is a GNU extension and currently ignored.
 .It Cm nospaces
 Ignore leading and trailing spaces in data cells.
-This is a GNU extension and currently ignored.
+This is a GNU extension.
 .It Cm nowarn
 Suppress warnings about tables exceeding the current line length.
 This is a GNU extension and currently ignored.
@@ -178,10 +178,11 @@ of any other column also having the
 .Cm e
 modifier.
 .It Cm f
-The next character selects the font to use for this cell.
+The next one or two characters select the font to use for this cell.
+One-character font names must be followed by a blank or period.
 See the
 .Xr roff 7
-manual for supported one-character font names.
+manual for supported font names.
 .It Cm i
 Use an italic font for the contents of this cell.
 .It Cm m
@@ -416,7 +417,7 @@ equations inside tables.
 .Xr roff 7
 .Rs
 .%A M. E. Lesk
-.%T Tbl\(emA Program to Format Tables
+.%T Tbl \(em A Program to Format Tables
 .%D June 11, 1976
 .Re
 .Sh HISTORY

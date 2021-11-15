@@ -1,7 +1,7 @@
-/*	$Id: mandoc.c,v 1.116 2019/06/27 15:07:30 schwarze Exp $ */
+/*	$Id: mandoc.c,v 1.119 2021/08/10 12:55:03 schwarze Exp $ */
 /*
  * Copyright (c) 2008-2011, 2014 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2011-2015, 2017, 2018 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2011-2015, 2017-2021 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -74,12 +74,12 @@ mandoc_font(const char *cp, int sz)
 		case 'C':
 			switch (cp[1]) {
 			case 'B':
-				return ESCAPE_FONTBOLD;
+				return ESCAPE_FONTCB;
 			case 'I':
-				return ESCAPE_FONTITALIC;
+				return ESCAPE_FONTCI;
 			case 'R':
 			case 'W':
-				return ESCAPE_FONTCW;
+				return ESCAPE_FONTCR;
 			default:
 				return ESCAPE_ERROR;
 			}
@@ -203,7 +203,18 @@ mandoc_escape(const char **end, const char **start, int *sz)
 	case 'O':
 	case 'V':
 	case 'Y':
-		gly = (*start)[-1] == 'f' ? ESCAPE_FONT : ESCAPE_IGNORE;
+	case '*':
+		switch ((*start)[-1]) {
+		case 'f':
+			gly = ESCAPE_FONT;
+			break;
+		case '*':
+			gly = ESCAPE_DEVICE;
+			break;
+		default:
+			gly = ESCAPE_IGNORE;
+			break;
+		}
 		switch (**start) {
 		case '(':
 			if ((*start)[-1] == 'O')
@@ -237,13 +248,6 @@ mandoc_escape(const char **end, const char **start, int *sz)
 			*sz = 1;
 			break;
 		}
-		break;
-	case '*':
-		if (strncmp(*start, "(.T", 3) != 0)
-			abort();
-		gly = ESCAPE_DEVICE;
-		*start = ++*end;
-		*sz = 2;
 		break;
 
 	/*
@@ -459,6 +463,9 @@ mandoc_escape(const char **end, const char **start, int *sz)
 		    + 1 == *sz)
 			gly = ESCAPE_UNICODE;
 		break;
+	case ESCAPE_DEVICE:
+		assert(*sz == 2 && (*start)[0] == '.' && (*start)[1] == 'T');
+		break;
 	default:
 		break;
 	}
@@ -536,45 +543,59 @@ fail:
 }
 
 char *
-mandoc_normdate(struct roff_man *man, char *in, int ln, int pos)
+mandoc_normdate(struct roff_node *nch, struct roff_node *nbl)
 {
 	char		*cp;
 	time_t		 t;
 
-	if (man->quick)
-		return mandoc_strdup(in == NULL ? "" : in);
+	/* No date specified. */
 
-	/* No date specified: use today's date. */
-
-	if (in == NULL || *in == '\0')
-		mandoc_msg(MANDOCERR_DATE_MISSING, ln, pos, NULL);
-	if (in == NULL || *in == '\0' || strcmp(in, "$" "Mdocdate$") == 0)
+	if (nch == NULL) {
+		if (nbl == NULL)
+			mandoc_msg(MANDOCERR_DATE_MISSING, 0, 0, NULL);
+		else
+			mandoc_msg(MANDOCERR_DATE_MISSING, nbl->line,
+			    nbl->pos, "%s", roff_name[nbl->tok]);
+		return mandoc_strdup("");
+	}
+	if (*nch->string == '\0') {
+		mandoc_msg(MANDOCERR_DATE_MISSING, nch->line,
+		    nch->pos, "%s", roff_name[nbl->tok]);
+		return mandoc_strdup("");
+	}
+	if (strcmp(nch->string, "$" "Mdocdate$") == 0)
 		return time2a(time(NULL));
 
 	/* Valid mdoc(7) date format. */
 
-	if (a2time(&t, "$" "Mdocdate: %b %d %Y $", in) ||
-	    a2time(&t, "%b %d, %Y", in)) {
+	if (a2time(&t, "$" "Mdocdate: %b %d %Y $", nch->string) ||
+	    a2time(&t, "%b %d, %Y", nch->string)) {
 		cp = time2a(t);
 		if (t > time(NULL) + 86400)
-			mandoc_msg(MANDOCERR_DATE_FUTURE, ln, pos, "%s", cp);
-		else if (*in != '$' && strcmp(in, cp) != 0)
-			mandoc_msg(MANDOCERR_DATE_NORM, ln, pos, "%s", cp);
+			mandoc_msg(MANDOCERR_DATE_FUTURE, nch->line,
+			    nch->pos, "%s %s", roff_name[nbl->tok], cp);
+		else if (*nch->string != '$' &&
+		    strcmp(nch->string, cp) != 0)
+			mandoc_msg(MANDOCERR_DATE_NORM, nch->line,
+			    nch->pos, "%s %s", roff_name[nbl->tok], cp);
 		return cp;
 	}
 
 	/* In man(7), do not warn about the legacy format. */
 
-	if (a2time(&t, "%Y-%m-%d", in) == 0)
-		mandoc_msg(MANDOCERR_DATE_BAD, ln, pos, "%s", in);
+	if (a2time(&t, "%Y-%m-%d", nch->string) == 0)
+		mandoc_msg(MANDOCERR_DATE_BAD, nch->line, nch->pos,
+		    "%s %s", roff_name[nbl->tok], nch->string);
 	else if (t > time(NULL) + 86400)
-		mandoc_msg(MANDOCERR_DATE_FUTURE, ln, pos, "%s", in);
-	else if (man->meta.macroset == MACROSET_MDOC)
-		mandoc_msg(MANDOCERR_DATE_LEGACY, ln, pos, "Dd %s", in);
+		mandoc_msg(MANDOCERR_DATE_FUTURE, nch->line, nch->pos,
+		    "%s %s", roff_name[nbl->tok], nch->string);
+	else if (nbl->tok == MDOC_Dd)
+		mandoc_msg(MANDOCERR_DATE_LEGACY, nch->line, nch->pos,
+		    "Dd %s", nch->string);
 
 	/* Use any non-mdoc(7) date verbatim. */
 
-	return mandoc_strdup(in);
+	return mandoc_strdup(nch->string);
 }
 
 int

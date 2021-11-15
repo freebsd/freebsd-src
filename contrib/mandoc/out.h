@@ -1,4 +1,4 @@
-/*	$Id: out.h,v 1.33 2018/08/18 20:18:14 schwarze Exp $ */
+/* $Id: out.h,v 1.34 2020/04/03 11:35:01 schwarze Exp $ */
 /*
  * Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2014, 2017, 2018 Ingo Schwarze <schwarze@openbsd.org>
@@ -14,6 +14,8 @@
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ *
+ * Utilities for use by multiple mandoc(1) formatters.
  */
 
 enum	roffscale {
@@ -64,5 +66,5 @@ struct	rofftbl {
 struct	tbl_span;
 
 const char	 *a2roffsu(const char *, struct roffsu *, enum roffscale);
-void		  tblcalc(struct rofftbl *tbl,
+void		  tblcalc(struct rofftbl *,
 			const struct tbl_span *, size_t, size_t);

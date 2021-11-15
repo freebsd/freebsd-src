@@ -1,8 +1,8 @@
-.\"	$Id: mandoc_char.7,v 1.76 2019/03/31 19:17:26 schwarze Exp $
+.\"	$Id: mandoc_char.7,v 1.78 2020/10/31 11:45:16 schwarze Exp $
 .\"
 .\" Copyright (c) 2003 Jason McIntyre <jmc@openbsd.org>
 .\" Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
-.\" Copyright (c) 2011,2013,2015,2017,2018 Ingo Schwarze <schwarze@openbsd.org>
+.\" Copyright (c) 2011,2013,2015,2017-2020 Ingo Schwarze <schwarze@openbsd.org>
 .\"
 .\" Permission to use, copy, modify, and distribute this software for any
 .\" purpose with or without fee is hereby granted, provided that the above
@@ -16,7 +16,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: March 31 2019 $
+.Dd $Mdocdate: October 31 2020 $
 .Dt MANDOC_CHAR 7
 .Os
 .Sh NAME
@@ -261,15 +261,15 @@ subsection of the
 .Xr roff 7
 manual.
 .Pp
-Spacing:
+Spaces, non-breaking unless stated otherwise:
 .Bl -column "Input" "Description" -offset indent -compact
 .It Em Input Ta Em Description
-.It Sq \e\ \& Ta unpaddable non-breaking space
-.It \e\(ti   Ta paddable non-breaking space
-.It \e0      Ta digit-width space allowing line break
+.It Sq \e\ \& Ta unpaddable space
+.It \e\(ti   Ta paddable space
+.It \e0      Ta digit-width space
 .It \e|      Ta one-sixth \e(em narrow space, zero width in nroff mode
 .It \e^      Ta one-twelfth \e(em half-narrow space, zero width in nroff
-.It \e&      Ta zero-width non-breaking space
+.It \e&      Ta zero-width space
 .It \e)      Ta zero-width space transparent to end-of-sentence detection
 .It \e%      Ta zero-width space allowing hyphenation
 .It \e:      Ta zero-width space allowing line break
@@ -709,11 +709,6 @@ Their syntax is similar to special characters, using
 and
 .Sq \e*[N]
 .Pq N-character .
-For details, see the
-.Em Predefined Strings
-subsection of the
-.Xr roff 7
-manual.
 .Bl -column "Input" "Rendered" "Description" -offset indent
 .It Em Input Ta Em Rendered Ta Em Description
 .It \e*(Ba   Ta \*(Ba       Ta vertical bar

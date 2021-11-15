@@ -1,6 +1,6 @@
-/*	$Id: mdoc_man.c,v 1.132 2019/01/04 03:17:36 schwarze Exp $ */
+/*	$Id: mdoc_man.c,v 1.137 2021/07/04 15:38:26 schwarze Exp $ */
 /*
- * Copyright (c) 2011-2019 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2011-2021 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -113,7 +113,7 @@ static	int	  pre_sm(DECL_ARGS);
 static	void	  pre_sp(DECL_ARGS);
 static	int	  pre_sect(DECL_ARGS);
 static	int	  pre_sy(DECL_ARGS);
-static	void	  pre_syn(const struct roff_node *);
+static	void	  pre_syn(struct roff_node *);
 static	void	  pre_ta(DECL_ARGS);
 static	int	  pre_vt(DECL_ARGS);
 static	int	  pre_xr(DECL_ARGS);
@@ -262,6 +262,7 @@ static const struct mdoc_man_act mdoc_man_acts[MDOC_MAX - MDOC_Dd] = {
 	{ NULL, NULL, post_percent, NULL, NULL }, /* %Q */
 	{ NULL, NULL, post_percent, NULL, NULL }, /* %U */
 	{ NULL, NULL, NULL, NULL, NULL }, /* Ta */
+	{ NULL, pre_skip, NULL, NULL, NULL }, /* Tg */
 };
 static const struct mdoc_man_act *mdoc_man_act(enum roff_tok);
 
@@ -582,9 +583,9 @@ print_width(const struct mdoc_bl *bl, const struct roff_node *child)
 
 	/* Set up the current list. */
 	if (chsz > sz && bl->type != LIST_tag)
-		print_block(".HP", 0);
+		print_block(".HP", MMAN_spc);
 	else {
-		print_block(".TP", 0);
+		print_block(".TP", MMAN_spc);
 		remain = sz + 2;
 	}
 	if (numeric) {
@@ -649,7 +650,9 @@ print_node(DECL_ARGS)
 	 * Break the line if we were parsed subsequent the current node.
 	 * This makes the page structure be more consistent.
 	 */
-	if (MMAN_spc & outflags && NODE_LINE & n->flags)
+	if (outflags & MMAN_spc &&
+	    n->flags & NODE_LINE &&
+	    !roff_node_transparent(n))
 		outflags |= MMAN_nl;
 
 	act = NULL;
@@ -657,7 +660,20 @@ print_node(DECL_ARGS)
 	do_sub = 1;
 	n->flags &= ~NODE_ENDED;
 
-	if (n->type == ROFFT_TEXT) {
+	switch (n->type) {
+	case ROFFT_EQN:
+	case ROFFT_TBL:
+		mandoc_msg(n->type == ROFFT_EQN ? MANDOCERR_EQN_TMAN :
+		    MANDOCERR_TBL_TMAN, n->line, n->pos, NULL);
+		outflags |= MMAN_PP | MMAN_sp | MMAN_nl;
+		print_word("The");
+		print_line(".B \\-T man", MMAN_nl);
+		print_word("output mode does not support");
+		print_word(n->type == ROFFT_EQN ? "eqn(7)" : "tbl(7)");
+		print_word("input.");
+		outflags |= MMAN_PP | MMAN_sp | MMAN_nl;
+		return;
+	case ROFFT_TEXT:
 		/*
 		 * Make sure that we don't happen to start with a
 		 * control character at the start of a line.
@@ -677,19 +693,18 @@ print_node(DECL_ARGS)
 			outflags &= ~(MMAN_spc | MMAN_spc_force);
 		else if (outflags & MMAN_Sm)
 			outflags |= MMAN_spc;
-	} else if (n->tok < ROFF_MAX) {
-		(*roff_man_acts[n->tok])(meta, n);
-		return;
-	} else {
-		/*
-		 * Conditionally run the pre-node action handler for a
-		 * node.
-		 */
+		break;
+	default:
+		if (n->tok < ROFF_MAX) {
+			(*roff_man_acts[n->tok])(meta, n);
+			return;
+		}
 		act = mdoc_man_act(n->tok);
 		cond = act->cond == NULL || (*act->cond)(meta, n);
 		if (cond && act->pre != NULL &&
 		    (n->end == ENDBODY_NOT || n->child != NULL))
 			do_sub = (*act->pre)(meta, n);
+		break;
 	}
 
 	/*
@@ -776,13 +791,20 @@ post_font(DECL_ARGS)
 static void
 post_percent(DECL_ARGS)
 {
+	struct roff_node *np, *nn, *nnn;
 
 	if (mdoc_man_act(n->tok)->pre == pre_em)
 		font_pop();
-	if (n->next) {
-		print_word(",");
-		if (n->prev &&	n->prev->tok == n->tok &&
-				n->next->tok == n->tok)
+
+	if ((nn = roff_node_next(n)) != NULL) {
+		np = roff_node_prev(n);
+		nnn = nn == NULL ? NULL : roff_node_next(nn);
+		if (nn->tok != n->tok ||
+		    (np != NULL && np->tok == n->tok) ||
+		    (nnn != NULL && nnn->tok == n->tok))
+			print_word(",");
+		if (nn->tok == n->tok &&
+		    (nnn == NULL || nnn->tok != n->tok))
 			print_word("and");
 	} else {
 		print_word(".");
@@ -850,13 +872,15 @@ post_sect(DECL_ARGS)
 
 /* See mdoc_term.c, synopsis_pre() for comments. */
 static void
-pre_syn(const struct roff_node *n)
+pre_syn(struct roff_node *n)
 {
+	struct roff_node *np;
 
-	if (NULL == n->prev || ! (NODE_SYNPRETTY & n->flags))
+	if ((n->flags & NODE_SYNPRETTY) == 0 ||
+	    (np = roff_node_prev(n)) == NULL)
 		return;
 
-	if (n->prev->tok == n->tok &&
+	if (np->tok == n->tok &&
 	    MDOC_Ft != n->tok &&
 	    MDOC_Fo != n->tok &&
 	    MDOC_Fn != n->tok) {
@@ -864,7 +888,7 @@ pre_syn(const struct roff_node *n)
 		return;
 	}
 
-	switch (n->prev->tok) {
+	switch (np->tok) {
 	case MDOC_Fd:
 	case MDOC_Fn:
 	case MDOC_Fo:
@@ -940,11 +964,10 @@ static int
 pre_bd(DECL_ARGS)
 {
 	outflags &= ~(MMAN_PP | MMAN_sp | MMAN_br);
-
-	if (DISP_unfilled == n->norm->Bd.type ||
-	    DISP_literal  == n->norm->Bd.type)
+	if (n->norm->Bd.type == DISP_unfilled ||
+	    n->norm->Bd.type == DISP_literal)
 		print_line(".nf", 0);
-	if (0 == n->norm->Bd.comp && NULL != n->parent->prev)
+	if (n->norm->Bd.comp == 0 && roff_node_prev(n->parent) != NULL)
 		outflags |= MMAN_sp;
 	print_offs(n->norm->Bd.offs, 1);
 	return 1;
@@ -976,7 +999,7 @@ post_bd(DECL_ARGS)
 	}
 
 	/* Maybe we are inside an enclosing list? */
-	if (NULL != n->parent->next)
+	if (roff_node_next(n->parent) != NULL)
 		mid_it();
 }
 
@@ -1101,16 +1124,15 @@ post_bl(DECL_ARGS)
 		print_line(".RE", MMAN_nl);
 		assert(Bl_stack_len);
 		Bl_stack_len--;
-		assert(0 == Bl_stack[Bl_stack_len]);
+		assert(Bl_stack[Bl_stack_len] == 0);
 	} else {
 		outflags |= MMAN_PP | MMAN_nl;
 		outflags &= ~(MMAN_sp | MMAN_br);
 	}
 
 	/* Maybe we are inside an enclosing list? */
-	if (NULL != n->parent->next)
+	if (roff_node_next(n->parent) != NULL)
 		mid_it();
-
 }
 
 static void
@@ -1122,7 +1144,6 @@ pre_br(DECL_ARGS)
 static int
 pre_dl(DECL_ARGS)
 {
-
 	print_offs("6n", 0);
 	return 1;
 }
@@ -1130,11 +1151,10 @@ pre_dl(DECL_ARGS)
 static void
 post_dl(DECL_ARGS)
 {
-
 	print_line(".RE", MMAN_nl);
 
 	/* Maybe we are inside an enclosing list? */
-	if (NULL != n->parent->next)
+	if (roff_node_next(n->parent) != NULL)
 		mid_it();
 }
 
@@ -1235,15 +1255,15 @@ pre_fa(DECL_ARGS)
 static void
 post_fa(DECL_ARGS)
 {
+	struct roff_node *nn;
 
-	if (NULL != n->next && MDOC_Fa == n->next->tok)
+	if ((nn = roff_node_next(n)) != NULL && nn->tok == MDOC_Fa)
 		print_word(",");
 }
 
 static int
 pre_fd(DECL_ARGS)
 {
-
 	pre_syn(n);
 	font_push('B');
 	return 1;
@@ -1252,7 +1272,6 @@ pre_fd(DECL_ARGS)
 static void
 post_fd(DECL_ARGS)
 {
-
 	font_pop();
 	outflags |= MMAN_br;
 }
@@ -1260,7 +1279,6 @@ post_fd(DECL_ARGS)
 static int
 pre_fl(DECL_ARGS)
 {
-
 	font_push('B');
 	print_word("\\-");
 	if (n->child != NULL)
@@ -1271,12 +1289,13 @@ pre_fl(DECL_ARGS)
 static void
 post_fl(DECL_ARGS)
 {
+	struct roff_node *nn;
 
 	font_pop();
-	if (!(n->child != NULL ||
-	    n->next == NULL ||
-	    n->next->type == ROFFT_TEXT ||
-	    n->next->flags & NODE_LINE))
+	if (n->child == NULL &&
+	    ((nn = roff_node_next(n)) != NULL &&
+	    nn->type != ROFFT_TEXT &&
+	    (nn->flags & NODE_LINE) == 0))
 		outflags &= ~MMAN_spc;
 }
 
@@ -1419,9 +1438,9 @@ pre_it(DECL_ARGS)
 	case ROFFT_HEAD:
 		outflags |= MMAN_PP | MMAN_nl;
 		bln = n->parent->parent;
-		if (0 == bln->norm->Bl.comp ||
-		    (NULL == n->parent->prev &&
-		     NULL == bln->parent->prev))
+		if (bln->norm->Bl.comp == 0 ||
+		    (n->parent->prev == NULL &&
+		     roff_node_prev(bln->parent) == NULL))
 			outflags |= MMAN_sp;
 		outflags &= ~MMAN_br;
 		switch (bln->norm->Bl.type) {
@@ -1633,17 +1652,22 @@ pre_nm(DECL_ARGS)
 {
 	char	*name;
 
-	if (n->type == ROFFT_BLOCK) {
+	switch (n->type) {
+	case ROFFT_BLOCK:
 		outflags |= MMAN_Bk;
 		pre_syn(n);
-	}
-	if (n->type != ROFFT_ELEM && n->type != ROFFT_HEAD)
 		return 1;
+	case ROFFT_HEAD:
+	case ROFFT_ELEM:
+		break;
+	default:
+		return 1;
+	}
 	name = n->child == NULL ? NULL : n->child->string;
-	if (NULL == name)
+	if (name == NULL)
 		return 0;
 	if (n->type == ROFFT_HEAD) {
-		if (NULL == n->parent->prev)
+		if (roff_node_prev(n->parent) == NULL)
 			outflags |= MMAN_sp;
 		print_block(".HP", 0);
 		printf(" %dn", man_strlen(name) + 1);

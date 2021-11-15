@@ -1,4 +1,4 @@
-.\"	$Id: mandoc_malloc.3,v 1.2 2016/07/07 19:19:01 schwarze Exp $
+.\"	$Id: mandoc_malloc.3,v 1.3 2021/09/17 18:50:21 schwarze Exp $
 .\"
 .\" Copyright (c) 2014 Ingo Schwarze <schwarze@openbsd.org>
 .\"
@@ -14,7 +14,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: July 7 2016 $
+.Dd $Mdocdate: September 17 2021 $
 .Dt MANDOC_MALLOC 3
 .Os
 .Sh NAME
@@ -22,6 +22,7 @@
 .Nm mandoc_realloc ,
 .Nm mandoc_reallocarray ,
 .Nm mandoc_calloc ,
+.Nm mandoc_recallocarray ,
 .Nm mandoc_strdup ,
 .Nm mandoc_strndup ,
 .Nm mandoc_asprintf
@@ -46,6 +47,13 @@
 .Fc
 .Ft "void *"
 .Fo mandoc_calloc
+.Fa "size_t nmemb"
+.Fa "size_t size"
+.Fc
+.Ft "void *"
+.Fo mandoc_recallocarray
+.Fa "void *ptr"
+.Fa "size_t oldnmemb"
 .Fa "size_t nmemb"
 .Fa "size_t size"
 .Fc
@@ -82,12 +90,15 @@ The function
 .Fn mandoc_malloc
 allocates one new object, leaving the memory uninitialized.
 The functions
-.Fn mandoc_realloc
+.Fn mandoc_realloc ,
+.Fn mandoc_reallocarray ,
 and
-.Fn mandoc_reallocarray
+.Fn mandoc_recallocarray
 change the size of an existing object or array, possibly moving it.
 When shrinking the size, existing data is truncated; when growing,
-the additional memory is not initialized.
+only
+.Fn mandoc_recallocarray
+initializes the new elements to zero.
 The function
 .Fn mandoc_calloc
 allocates a new array, initializing it to zero.
@@ -98,6 +109,9 @@ is the size of each object.
 The argument
 .Fa nmemb
 is the new number of objects in the array.
+The argument
+.Fa oldnmemb
+is the number of objects in the array before the call.
 The argument
 .Fa ptr
 is a pointer to the existing object or array to be resized; if it is
@@ -168,9 +182,13 @@ is a widespread extension that first appeared in the GNU C library.
 The function
 .Fn reallocarray
 is an extension that first appeared in
-.Ox 5.6 .
-If it is not provided by the operating system, the mandoc build system
-uses a bundled portable implementation.
+.Ox 5.6 ,
+and
+.Fn recallocarray
+in
+.Ox 6.1 .
+If these two are not provided by the operating system,
+the mandoc build system uses bundled portable implementations.
 .Sh HISTORY
 The functions
 .Fn mandoc_malloc ,
@@ -181,11 +199,12 @@ and
 have been available since mandoc 1.9.12,
 .Fn mandoc_strndup
 since 1.11.5,
-and
 .Fn mandoc_asprintf
-and
+since 1.12.4,
 .Fn mandoc_reallocarray
-since 1.12.4 and 1.13.0.
+since 1.13.0, and
+.Fn mandoc_recallocarray
+since 1.14.2.
 .Sh AUTHORS
 .An Kristaps Dzonsons Aq Mt kristaps@bsd.lv
 .An Ingo Schwarze Aq Mt schwarze@openbsd.org

@@ -1,4 +1,4 @@
-/*	$Id: mandocd.c,v 1.11 2019/03/03 13:02:11 schwarze Exp $ */
+/*	$Id: mandocd.c,v 1.12 2020/06/14 23:40:31 schwarze Exp $ */
 /*
  * Copyright (c) 2017 Michael Stapelberg <stapelberg@debian.org>
  * Copyright (c) 2017, 2019 Ingo Schwarze <schwarze@openbsd.org>
@@ -17,7 +17,7 @@
  */
 #include "config.h"
 
-#if HAVE_CMSG_XPG42
+#if NEED_XPG4_2
 #define _XPG4_2
 #endif
 

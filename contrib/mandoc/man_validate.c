@@ -1,7 +1,7 @@
-/*	$Id: man_validate.c,v 1.149 2019/06/27 15:07:30 schwarze Exp $ */
+/* $Id: man_validate.c,v 1.156 2021/08/10 12:55:03 schwarze Exp $ */
 /*
+ * Copyright (c) 2010, 2012-2020 Ingo Schwarze <schwarze@openbsd.org>
  * Copyright (c) 2008, 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2010, 2012-2018 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -14,6 +14,8 @@
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ *
+ * Validation module for man(7) syntax trees used by mandoc(1).
  */
 #include "config.h"
 
@@ -36,6 +38,7 @@
 #include "libmandoc.h"
 #include "roff_int.h"
 #include "libman.h"
+#include "tag.h"
 
 #define	CHKARGS	  struct roff_man *man, struct roff_node *n
 
@@ -45,6 +48,7 @@ static	void	  check_abort(CHKARGS) __attribute__((__noreturn__));
 static	void	  check_par(CHKARGS);
 static	void	  check_part(CHKARGS);
 static	void	  check_root(CHKARGS);
+static	void	  check_tag(struct roff_node *, struct roff_node *);
 static	void	  check_text(CHKARGS);
 
 static	void	  post_AT(CHKARGS);
@@ -54,6 +58,7 @@ static	void	  post_IP(CHKARGS);
 static	void	  post_OP(CHKARGS);
 static	void	  post_SH(CHKARGS);
 static	void	  post_TH(CHKARGS);
+static	void	  post_TP(CHKARGS);
 static	void	  post_UC(CHKARGS);
 static	void	  post_UR(CHKARGS);
 static	void	  post_in(CHKARGS);
@@ -62,8 +67,8 @@ static	const v_check man_valids[MAN_MAX - MAN_TH] = {
 	post_TH,    /* TH */
 	post_SH,    /* SH */
 	post_SH,    /* SS */
-	NULL,       /* TP */
-	NULL,       /* TQ */
+	post_TP,    /* TP */
+	post_TP,    /* TQ */
 	check_abort,/* LP */
 	check_par,  /* PP */
 	check_abort,/* P */
@@ -185,7 +190,7 @@ check_root(CHKARGS)
 
 		man->meta.title = mandoc_strdup("");
 		man->meta.msec = mandoc_strdup("");
-		man->meta.date = mandoc_normdate(man, NULL, n->line, n->pos);
+		man->meta.date = mandoc_normdate(NULL, NULL);
 	}
 
 	if (man->meta.os_e &&
@@ -199,6 +204,68 @@ static void
 check_abort(CHKARGS)
 {
 	abort();
+}
+
+/*
+ * Skip leading whitespace, dashes, backslashes, and font escapes,
+ * then create a tag if the first following byte is a letter.
+ * Priority is high unless whitespace is present.
+ */
+static void
+check_tag(struct roff_node *n, struct roff_node *nt)
+{
+	const char	*cp, *arg;
+	int		 prio, sz;
+
+	if (nt == NULL || nt->type != ROFFT_TEXT)
+		return;
+
+	cp = nt->string;
+	prio = TAG_STRONG;
+	for (;;) {
+		switch (*cp) {
+		case ' ':
+		case '\t':
+			prio = TAG_WEAK;
+			/* FALLTHROUGH */
+		case '-':
+			cp++;
+			break;
+		case '\\':
+			cp++;
+			switch (mandoc_escape(&cp, &arg, &sz)) {
+			case ESCAPE_FONT:
+			case ESCAPE_FONTBOLD:
+			case ESCAPE_FONTITALIC:
+			case ESCAPE_FONTBI:
+			case ESCAPE_FONTROMAN:
+			case ESCAPE_FONTCR:
+			case ESCAPE_FONTCB:
+			case ESCAPE_FONTCI:
+			case ESCAPE_FONTPREV:
+			case ESCAPE_IGNORE:
+				break;
+			case ESCAPE_SPECIAL:
+				if (sz != 1)
+					return;
+				switch (*arg) {
+				case '-':
+				case 'e':
+					break;
+				default:
+					return;
+				}
+				break;
+			default:
+				return;
+			}
+			break;
+		default:
+			if (isalpha((unsigned char)*cp))
+				tag_put(cp, prio, n);
+			return;
+		}
+	}
 }
 
 static void
@@ -246,9 +313,32 @@ static void
 post_SH(CHKARGS)
 {
 	struct roff_node	*nc;
+	char			*cp, *tag;
 
-	if (n->type != ROFFT_BODY || (nc = n->child) == NULL)
+	nc = n->child;
+	switch (n->type) {
+	case ROFFT_HEAD:
+		tag = NULL;
+		deroff(&tag, n);
+		if (tag != NULL) {
+			for (cp = tag; *cp != '\0'; cp++)
+				if (*cp == ' ')
+					*cp = '_';
+			if (nc != NULL && nc->type == ROFFT_TEXT &&
+			    strcmp(nc->string, tag) == 0)
+				tag_put(NULL, TAG_STRONG, n);
+			else
+				tag_put(tag, TAG_FALLBACK, n);
+			free(tag);
+		}
 		return;
+	case ROFFT_BODY:
+		if (nc != NULL)
+			break;
+		return;
+	default:
+		return;
+	}
 
 	if (nc->tok == MAN_PP && nc->body->child != NULL) {
 		while (nc->body->last != NULL) {
@@ -332,11 +422,13 @@ check_par(CHKARGS)
 static void
 post_IP(CHKARGS)
 {
-
 	switch (n->type) {
 	case ROFFT_BLOCK:
 		if (n->head->child == NULL && n->body->child == NULL)
 			roff_node_delete(man, n);
+		break;
+	case ROFFT_HEAD:
+		check_tag(n, n->child);
 		break;
 	case ROFFT_BODY:
 		if (n->parent->head->child == NULL && n->child == NULL)
@@ -346,6 +438,37 @@ post_IP(CHKARGS)
 	default:
 		break;
 	}
+}
+
+/*
+ * The first next-line element in the head is the tag.
+ * If that's a font macro, use its first child instead.
+ */
+static void
+post_TP(CHKARGS)
+{
+	struct roff_node *nt;
+
+	if (n->type != ROFFT_HEAD || (nt = n->child) == NULL)
+		return;
+
+	while ((nt->flags & NODE_LINE) == 0)
+		if ((nt = nt->next) == NULL)
+			return;
+
+	switch (nt->tok) {
+	case MAN_B:
+	case MAN_BI:
+	case MAN_BR:
+	case MAN_I:
+	case MAN_IB:
+	case MAN_IR:
+		nt = nt->child;
+		break;
+	default:
+		break;
+	}
+	check_tag(n, nt);
 }
 
 static void
@@ -389,9 +512,14 @@ post_TH(CHKARGS)
 
 	if (n != NULL)
 		n = n->next;
-	if (n != NULL && n->string != NULL)
+	if (n != NULL && n->string != NULL) {
 		man->meta.msec = mandoc_strdup(n->string);
-	else {
+		if (man->filesec != '\0' &&
+		    man->filesec != *n->string &&
+		    *n->string >= '1' && *n->string <= '9')
+			mandoc_msg(MANDOCERR_MSEC_FILE, n->line, n->pos,
+			    "*.%c vs TH ... %c", man->filesec, *n->string);
+	} else {
 		man->meta.msec = mandoc_strdup("");
 		mandoc_msg(MANDOCERR_MSEC_MISSING,
 		    nb->line, nb->pos, "TH %s", man->meta.title);
@@ -401,15 +529,10 @@ post_TH(CHKARGS)
 
 	if (n != NULL)
 		n = n->next;
-	if (n != NULL && n->string != NULL && n->string[0] != '\0')
-		man->meta.date = mandoc_normdate(man,
-		    n->string, n->line, n->pos);
-	else {
+	if (man->quick && n != NULL)
 		man->meta.date = mandoc_strdup("");
-		mandoc_msg(MANDOCERR_DATE_MISSING,
-		    n == NULL ? nb->line : n->line,
-		    n == NULL ? nb->pos : n->pos, "TH");
-	}
+	else
+		man->meta.date = mandoc_normdate(n, nb);
 
 	/* TITLE MSEC DATE ->OS<- VOL */
 

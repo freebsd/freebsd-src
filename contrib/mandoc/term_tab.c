@@ -1,4 +1,4 @@
-/*	$Id: term_tab.c,v 1.5 2018/12/16 00:21:05 schwarze Exp $ */
+/* $Id: term_tab.c,v 1.6 2020/06/22 19:20:40 schwarze Exp $ */
 /*
  * Copyright (c) 2017 Ingo Schwarze <schwarze@openbsd.org>
  *
@@ -14,6 +14,8 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
+#include "config.h"
+
 #include <sys/types.h>
 
 #include <stddef.h>
