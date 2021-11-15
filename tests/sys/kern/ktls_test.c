@@ -1237,6 +1237,14 @@ test_ktls_receive_app_data(struct tls_enable *en, uint64_t seqno, size_t len)
 	M(chacha20_poly1305_1_2, CRYPTO_CHACHA20_POLY1305, 256 / 8, 0,	\
 	    TLS_MINOR_VER_TWO)
 
+#define	TLS_13_TESTS(M)							\
+	M(aes128_gcm_1_3, CRYPTO_AES_NIST_GCM_16, 128 / 8, 0,		\
+	    TLS_MINOR_VER_THREE)					\
+	M(aes256_gcm_1_3, CRYPTO_AES_NIST_GCM_16, 256 / 8, 0,		\
+	    TLS_MINOR_VER_THREE)					\
+	M(chacha20_poly1305_1_3, CRYPTO_CHACHA20_POLY1305, 256 / 8, 0,	\
+	    TLS_MINOR_VER_THREE)
+
 #define	AES_CBC_TESTS(M)						\
 	M(aes128_cbc_1_0_sha1, CRYPTO_AES_CBC, 128 / 8,			\
 	    CRYPTO_SHA1_HMAC, TLS_MINOR_VER_ZERO)			\
@@ -1612,6 +1620,48 @@ ATF_TC_BODY(ktls_receive_invalid_##name, tc)				\
  */
 INVALID_CIPHER_SUITES(GEN_INVALID_RECEIVE_TEST);
 
+static void
+test_ktls_unsupported_receive_cipher_suite(struct tls_enable *en)
+{
+	int sockets[2];
+
+	ATF_REQUIRE_MSG(socketpair_tcp(sockets), "failed to create sockets");
+
+	ATF_REQUIRE(setsockopt(sockets[1], IPPROTO_TCP, TCP_RXTLS_ENABLE, en,
+	    sizeof(*en)) == -1);
+	ATF_REQUIRE(errno == EPROTONOSUPPORT || errno == ENOTSUP);
+
+	close(sockets[1]);
+	close(sockets[0]);
+}
+
+#define GEN_UNSUPPORTED_RECEIVE_TEST(name, cipher_alg, key_size,	\
+	    auth_alg, minor)						\
+ATF_TC_WITHOUT_HEAD(ktls_receive_unsupported_##name);			\
+ATF_TC_BODY(ktls_receive_unsupported_##name, tc)			\
+{									\
+	struct tls_enable en;						\
+	uint64_t seqno;							\
+									\
+	ATF_REQUIRE_KTLS();						\
+	seqno = random();						\
+	build_tls_enable(cipher_alg, key_size, auth_alg, minor,	seqno,	\
+	    &en);							\
+	test_ktls_unsupported_receive_cipher_suite(&en);		\
+	free_tls_enable(&en);						\
+}
+
+#define ADD_UNSUPPORTED_RECEIVE_TEST(name, cipher_alg, key_size,	\
+	    auth_alg, minor)						\
+	ATF_TP_ADD_TC(tp, ktls_receive_unsupported_##name);
+
+/*
+ * Ensure that valid cipher suites not supported for receive are
+ * rejected.
+ */
+AES_CBC_TESTS(GEN_UNSUPPORTED_RECEIVE_TEST);
+TLS_13_TESTS(GEN_UNSUPPORTED_RECEIVE_TEST);
+
 ATF_TP_ADD_TCS(tp)
 {
 	/* Transmit tests */
@@ -1623,7 +1673,9 @@ ATF_TP_ADD_TCS(tp)
 	INVALID_CIPHER_SUITES(ADD_INVALID_TRANSMIT_TEST);
 
 	/* Receive tests */
+	AES_CBC_TESTS(ADD_UNSUPPORTED_RECEIVE_TEST);
 	TLS_12_TESTS(ADD_RECEIVE_TESTS);
+	TLS_13_TESTS(ADD_UNSUPPORTED_RECEIVE_TEST);
 	INVALID_CIPHER_SUITES(ADD_INVALID_RECEIVE_TEST);
 
 	return (atf_no_error());
