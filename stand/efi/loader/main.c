@@ -1378,6 +1378,30 @@ command_mode(int argc, char *argv[])
 
 COMMAND_SET(lsefi, "lsefi", "list EFI handles", command_lsefi);
 
+static void
+lsefi_print_handle_info(EFI_HANDLE handle)
+{
+	EFI_DEVICE_PATH *devpath;
+	EFI_DEVICE_PATH *imagepath;
+	CHAR16 *dp_name;
+
+	imagepath = efi_lookup_image_devpath(handle);
+	if (imagepath != NULL) {
+		dp_name = efi_devpath_name(imagepath);
+		printf("Handle for image %S", dp_name);
+		efi_free_devpath_name(dp_name);
+		return;
+	}
+	devpath = efi_lookup_devpath(handle);
+	if (devpath != NULL) {
+		dp_name = efi_devpath_name(devpath);
+		printf("Handle for device %S", dp_name);
+		efi_free_devpath_name(dp_name);
+		return;
+	}
+	printf("Handle %p", handle);
+}
+
 static int
 command_lsefi(int argc __unused, char *argv[] __unused)
 {
@@ -1413,7 +1437,7 @@ command_lsefi(int argc __unused, char *argv[] __unused)
 		EFI_GUID **protocols = NULL;
 
 		handle = buffer[i];
-		printf("Handle %p", handle);
+		lsefi_print_handle_info(handle);
 		if (pager_output("\n"))
 			break;
 		/* device path */
