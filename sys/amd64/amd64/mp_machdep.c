@@ -625,7 +625,7 @@ smp_targeted_tlb_shootdown(cpuset_t mask, pmap_t pmap, vm_offset_t addr1,
 	 * It is not necessary to signal other CPUs while booting or
 	 * when in the debugger.
 	 */
-	if (kdb_active || KERNEL_PANICKED() || !smp_started)
+	if (__predict_false(kdb_active || KERNEL_PANICKED() || !smp_started))
 		goto local_cb;
 
 	KASSERT(curthread->td_pinned > 0, ("curthread not pinned"));
