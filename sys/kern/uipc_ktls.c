@@ -551,40 +551,51 @@ ktls_create_session(struct socket *so, struct tls_enable *en,
 		}
 		if (en->auth_key_len != 0)
 			return (EINVAL);
-		if ((en->tls_vminor == TLS_MINOR_VER_TWO &&
-			en->iv_len != TLS_AEAD_GCM_LEN) ||
-		    (en->tls_vminor == TLS_MINOR_VER_THREE &&
-			en->iv_len != TLS_1_3_GCM_IV_LEN))
+		switch (en->tls_vminor) {
+		case TLS_MINOR_VER_TWO:
+			if (en->iv_len != TLS_AEAD_GCM_LEN)
+				return (EINVAL);
+			break;
+		case TLS_MINOR_VER_THREE:
+			if (en->iv_len != TLS_1_3_GCM_IV_LEN)
+				return (EINVAL);
+			break;
+		default:
 			return (EINVAL);
+		}
 		break;
 	case CRYPTO_AES_CBC:
 		switch (en->auth_algorithm) {
 		case CRYPTO_SHA1_HMAC:
-			/*
-			 * TLS 1.0 requires an implicit IV.  TLS 1.1+
-			 * all use explicit IVs.
-			 */
-			if (en->tls_vminor == TLS_MINOR_VER_ZERO) {
-				if (en->iv_len != TLS_CBC_IMPLICIT_IV_LEN)
-					return (EINVAL);
-				break;
-			}
-
-			/* FALLTHROUGH */
+			break;
 		case CRYPTO_SHA2_256_HMAC:
 		case CRYPTO_SHA2_384_HMAC:
-			/* Ignore any supplied IV. */
-			en->iv_len = 0;
+			if (en->tls_vminor != TLS_MINOR_VER_TWO)
+				return (EINVAL);
 			break;
 		default:
 			return (EINVAL);
 		}
 		if (en->auth_key_len == 0)
 			return (EINVAL);
-		if (en->tls_vminor != TLS_MINOR_VER_ZERO &&
-		    en->tls_vminor != TLS_MINOR_VER_ONE &&
-		    en->tls_vminor != TLS_MINOR_VER_TWO)
+
+		/*
+		 * TLS 1.0 requires an implicit IV.  TLS 1.1 and 1.2
+		 * use explicit IVs.
+		 */
+		switch (en->tls_vminor) {
+		case TLS_MINOR_VER_ZERO:
+			if (en->iv_len != TLS_CBC_IMPLICIT_IV_LEN)
+				return (EINVAL);
+			break;
+		case TLS_MINOR_VER_ONE:
+		case TLS_MINOR_VER_TWO:
+			/* Ignore any supplied IV. */
+			en->iv_len = 0;
+			break;
+		default:
 			return (EINVAL);
+		}
 		break;
 	case CRYPTO_CHACHA20_POLY1305:
 		if (en->auth_algorithm != 0 || en->auth_key_len != 0)
