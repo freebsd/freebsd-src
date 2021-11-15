@@ -263,7 +263,7 @@ unionfs_lookup(struct vop_cachedlookup_args *ap)
 	    (1 < cnp->cn_namelen || '.' != *(cnp->cn_nameptr))) {
 		/* get unionfs vnode in order to create a new shadow dir. */
 		error = unionfs_nodeget(dvp->v_mount, NULLVP, lvp, dvp, &vp,
-		    cnp, td);
+		    cnp);
 		if (error != 0)
 			goto unionfs_lookup_cleanup;
 
@@ -319,7 +319,7 @@ unionfs_lookup(struct vop_cachedlookup_args *ap)
 		 */
 		else
 			error = unionfs_nodeget(dvp->v_mount, uvp, lvp,
-			    dvp, &vp, cnp, td);
+			    dvp, &vp, cnp);
 		if (error != 0) {
 			UNIONFSDEBUG(
 			    "unionfs_lookup: Unable to create unionfs vnode.");
@@ -383,7 +383,7 @@ unionfs_create(struct vop_create_args *ap)
 		else {
 			VOP_UNLOCK(vp);
 			error = unionfs_nodeget(ap->a_dvp->v_mount, vp, NULLVP,
-			    ap->a_dvp, ap->a_vpp, cnp, curthread);
+			    ap->a_dvp, ap->a_vpp, cnp);
 			vrele(vp);
 		}
 	}
@@ -457,7 +457,7 @@ unionfs_mknod(struct vop_mknod_args *ap)
 		else {
 			VOP_UNLOCK(vp);
 			error = unionfs_nodeget(ap->a_dvp->v_mount, vp, NULLVP,
-			    ap->a_dvp, ap->a_vpp, cnp, curthread);
+			    ap->a_dvp, ap->a_vpp, cnp);
 			vrele(vp);
 		}
 	}
@@ -1347,7 +1347,6 @@ unionfs_mkdir(struct vop_mkdir_args *ap)
 {
 	struct unionfs_node *dunp;
 	struct componentname *cnp;
-	struct thread  *td;
 	struct vnode   *udvp;
 	struct vnode   *uvp;
 	struct vattr	va;
@@ -1362,7 +1361,6 @@ unionfs_mkdir(struct vop_mkdir_args *ap)
 	dunp = VTOUNIONFS(ap->a_dvp);
 	cnp = ap->a_cnp;
 	lkflags = cnp->cn_lkflags;
-	td = curthread;
 	udvp = dunp->un_uppervp;
 
 	if (udvp != NULLVP) {
@@ -1379,7 +1377,7 @@ unionfs_mkdir(struct vop_mkdir_args *ap)
 			VOP_UNLOCK(uvp);
 			cnp->cn_lkflags = LK_EXCLUSIVE;
 			error = unionfs_nodeget(ap->a_dvp->v_mount, uvp, NULLVP,
-			    ap->a_dvp, ap->a_vpp, cnp, td);
+			    ap->a_dvp, ap->a_vpp, cnp);
 			cnp->cn_lkflags = lkflags;
 			vrele(uvp);
 		}
@@ -1467,7 +1465,6 @@ unionfs_symlink(struct vop_symlink_args *ap)
 {
 	struct unionfs_node *dunp;
 	struct componentname *cnp;
-	struct thread  *td;
 	struct vnode   *udvp;
 	struct vnode   *uvp;
 	int		error;
@@ -1481,7 +1478,6 @@ unionfs_symlink(struct vop_symlink_args *ap)
 	dunp = VTOUNIONFS(ap->a_dvp);
 	cnp = ap->a_cnp;
 	lkflags = cnp->cn_lkflags;
-	td = curthread;
 	udvp = dunp->un_uppervp;
 
 	if (udvp != NULLVP) {
@@ -1490,7 +1486,7 @@ unionfs_symlink(struct vop_symlink_args *ap)
 			VOP_UNLOCK(uvp);
 			cnp->cn_lkflags = LK_EXCLUSIVE;
 			error = unionfs_nodeget(ap->a_dvp->v_mount, uvp, NULLVP,
-			    ap->a_dvp, ap->a_vpp, cnp, td);
+			    ap->a_dvp, ap->a_vpp, cnp);
 			cnp->cn_lkflags = lkflags;
 			vrele(uvp);
 		}
@@ -1761,7 +1757,7 @@ unionfs_reclaim(struct vop_reclaim_args *ap)
 {
 	/* UNIONFS_INTERNAL_DEBUG("unionfs_reclaim: enter\n"); */
 
-	unionfs_noderem(ap->a_vp, curthread);
+	unionfs_noderem(ap->a_vp);
 
 	/* UNIONFS_INTERNAL_DEBUG("unionfs_reclaim: leave\n"); */
 

@@ -299,7 +299,7 @@ unionfs_nodeget_cleanup(struct vnode *vp, void *arg)
 int
 unionfs_nodeget(struct mount *mp, struct vnode *uppervp,
     struct vnode *lowervp, struct vnode *dvp, struct vnode **vpp,
-    struct componentname *cnp, struct thread *td)
+    struct componentname *cnp)
 {
 	char	       *path;
 	struct unionfs_mount *ump;
@@ -426,7 +426,7 @@ unionfs_nodeget_out:
  * Clean up the unionfs node.
  */
 void
-unionfs_noderem(struct vnode *vp, struct thread *td)
+unionfs_noderem(struct vnode *vp)
 {
 	struct unionfs_node *unp, *unp_t1, *unp_t2;
 	struct unionfs_node_hashhead *hd;
