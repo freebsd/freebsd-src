@@ -90,9 +90,6 @@ PMC_SOFT_DEFINE_EX( , , clock, prof, \
 extern void hardclock_device_poll(void);
 #endif /* DEVICE_POLLING */
 
-static void initclocks(void *dummy);
-SYSINIT(clocks, SI_SUB_CLOCKS, SI_ORDER_FIRST, initclocks, NULL);
-
 /* Spin-lock protecting profiling statistics. */
 static struct mtx time_lock;
 
@@ -391,9 +388,8 @@ static int devpoll_run = 0;
 /*
  * Initialize clock frequencies and start both clocks running.
  */
-/* ARGSUSED*/
 static void
-initclocks(void *dummy)
+initclocks(void *dummy __unused)
 {
 	int i;
 
@@ -421,6 +417,7 @@ initclocks(void *dummy)
 		wdog_software_attach = watchdog_attach;
 #endif
 }
+SYSINIT(clocks, SI_SUB_CLOCKS, SI_ORDER_FIRST, initclocks, NULL);
 
 static __noinline void
 hardclock_itimer(struct thread *td, struct pstats *pstats, int cnt, int usermode)
