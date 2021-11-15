@@ -511,11 +511,11 @@ ofw_pcib_translate_resource(device_t bus, int type, rman_res_t start,
 
 		if (type == space) {
 			start += (rp->host - rp->pci);
-			break;
+			*newstart = start;
+			return (0);
 		}
 	}
-	*newstart = start;
-	return (0);
+	return (ENOENT);
 }
 
 static int
