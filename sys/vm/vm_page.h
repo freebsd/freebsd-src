@@ -755,23 +755,11 @@ void vm_page_lock_assert_KBI(vm_page_t m, int a, const char *file, int line);
 #define	vm_page_busied(m)						\
 	(vm_page_busy_fetch(m) != VPB_UNBUSIED)
 
-#define	vm_page_sbusy(m) do {						\
-	if (!vm_page_trysbusy(m))					\
-		panic("%s: page %p failed shared busying", __func__,	\
-		    (m));						\
-} while (0)
-
 #define	vm_page_xbusied(m)						\
 	((vm_page_busy_fetch(m) & VPB_SINGLE_EXCLUSIVE) != 0)
 
 #define	vm_page_busy_freed(m)						\
 	(vm_page_busy_fetch(m) == VPB_FREED)
-
-#define	vm_page_xbusy(m) do {						\
-	if (!vm_page_tryxbusy(m))					\
-		panic("%s: page %p failed exclusive busying", __func__,	\
-		    (m));						\
-} while (0)
 
 /* Note: page m's lock must not be owned by the caller. */
 #define	vm_page_xunbusy(m) do {						\
