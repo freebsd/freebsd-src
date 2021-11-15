@@ -138,12 +138,6 @@ int	ffs_breadz(struct ufsmount *, struct vnode *, daddr_t, daddr_t, int,
 #define	FFSR_UNSUSPEND	0x0002
 
 /*
- * Request standard superblock location in ffs_sbget
- */
-#define	STDSB			-1	/* Fail if check-hash is bad */
-#define	STDSB_NOHASHFAIL	-2	/* Ignore check-hash failure */
-
-/*
  * Definitions for TRIM interface
  *
  * Special keys and recommended hash table size
