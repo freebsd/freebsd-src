@@ -228,6 +228,21 @@ void lkpi_devres_release_free_list(struct device *);
 void lkpi_devres_unlink(struct device *, void *);
 void lkpi_devm_kmalloc_release(struct device *, void *);
 
+static inline const char *
+dev_driver_string(const struct device *dev)
+{
+	driver_t *drv;
+	const char *str = "";
+
+	if (dev->bsddev != NULL) {
+		drv = device_get_driver(dev->bsddev);
+		if (drv != NULL)
+			str = drv->name;
+	}
+
+	return (str);
+}
+
 static inline void *
 dev_get_drvdata(const struct device *dev)
 {
