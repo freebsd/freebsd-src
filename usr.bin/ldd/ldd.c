@@ -236,7 +236,7 @@ main(int argc, char *argv[])
 			if (is_shlib == 0) {
 				execl(*argv, *argv, (char *)NULL);
 				warn("%s", *argv);
-			} else if (fmt1 == NULL && fmt2 == NULL) {
+			} else if (fmt1 == NULL && fmt2 == NULL && !aflag) {
 				dlopen(*argv, RTLD_TRACE);
 				warnx("%s: %s", *argv, dlerror());
 			} else {
