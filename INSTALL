@@ -1,4 +1,4 @@
-$Id: INSTALL,v 1.23 2019/03/06 15:58:10 schwarze Exp $
+$Id: INSTALL,v 1.24 2021/09/20 13:25:42 schwarze Exp $
 
 About the portable mandoc distribution
 --------------------------------------
@@ -18,7 +18,7 @@ tech@ mailing list, too.
 
 Enjoy using the mandoc toolset!
 
-Ingo Schwarze, Karlsruhe, March 2019
+Ingo Schwarze, Karlsruhe, September 2021
 
 
 Installation
@@ -65,10 +65,15 @@ installed to the intended places.  Otherwise, put some *DIR or *NM*
 variables into "configure.local" and go back to step 4.
 
 7. Optionally run the regression suite.
-Basically, that amounts to "cd regress && ./regress.pl".
-But you should probably look at "./mandoc -l regress/regress.pl.1"
-first.  In particular, regarding Solaris systems, look at the BUGS
-section of that manual page.
+Basically, that amounts to "make regress" to do a standard regression
+run, running all tests.  For more fine-grained control,
+read "./mandoc -l regress/regress.pl.1",
+then run "cd regress && ./regress.pl" with optional arguments.
+The regression suite requires a reasonably modern Perl interpreter.
+Examples of systems that are too old to run the regression suite
+include Solaris 9, Solaris 10, and Mac OS X 10.4 Tiger.
+On Solaris 11, the suite does run, but some tests fail;
+look at the BUGS section of that manual page.
 
 8. Run "sudo make install".  If you intend to build a binary
 package using some kind of fake root mechanism, you may need a

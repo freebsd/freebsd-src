@@ -1,4 +1,4 @@
-/*	$Id: dba_read.c,v 1.4 2016/08/17 20:46:56 schwarze Exp $ */
+/* $Id: dba_read.c,v 1.5 2020/06/22 19:20:40 schwarze Exp $ */
 /*
  * Copyright (c) 2016 Ingo Schwarze <schwarze@openbsd.org>
  *
@@ -19,6 +19,8 @@
  * The interface is defined in "dba.h".
  * This file is seperate from dba.c because this also uses "dbm.h".
  */
+#include "config.h"
+
 #include <regex.h>
 #include <stdint.h>
 #include <stdlib.h>

@@ -1,4 +1,4 @@
-/*	$Id: dba_array.c,v 1.1 2016/07/19 21:31:55 schwarze Exp $ */
+/* $Id: dba_array.c,v 1.2 2020/06/22 19:20:40 schwarze Exp $ */
 /*
  * Copyright (c) 2016 Ingo Schwarze <schwarze@openbsd.org>
  *
@@ -17,6 +17,8 @@
  * Allocation-based arrays for the mandoc database, for read-write access.
  * The interface is defined in "dba_array.h".
  */
+#include "config.h"
+
 #include <assert.h>
 #include <stdint.h>
 #include <stdlib.h>

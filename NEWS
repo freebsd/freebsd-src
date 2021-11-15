@@ -1,6 +1,205 @@
-$Id: NEWS,v 1.34 2019/03/10 09:32:00 schwarze Exp $
+$Id: NEWS,v 1.40 2021/09/23 18:03:00 schwarze Exp $
 
 This file lists the most important changes in the mandoc.bsd.lv distribution.
+
+Changes in version 1.14.6, released on September 23, 2021
+
+    --- MAJOR NEW FEATURES ---
+ * mdoc(7): automatic tagging improved in many respects
+ * mdoc(7): new .Tg (tag) macro to explicitly mark a place as defining a term
+ * man(7): implement some automatic tagging support
+ * man(1): let -w without argument show the manpath, like in man-db and man-1.6
+ * -T html: wrap text and phrasing elements in paragraphs unless already
+   contained in flow containers; never put them directly into sections.
+   This helps to format paragraphs with the CSS class selector .Pp.
+ * man.conf(5): remove support for the "_whatdb" configuration directive
+   that was deprecated in 2015; please use "manpath" instead
+    --- MINOR NEW FEATURES ---
+ * man(1): switch the default pager from "more -s" to "less"
+ * man(1): in the fallback code to look for manual pages without using
+   mandoc.db(5), accept files "man<one-digit-section>/<name>.<full-section>"
+   in addition to the already supported "man<full-section>/name.[01-9]*"
+ * if messages are shown and output is printed without a pager, display
+   a heads-up on stderr at the end because otherwise, users may easily
+   miss the messages
+ * man.cgi(8): add a Content-Security-Policy HTTP header
+ * man.cgi(8): switch off autocomplete and autocapitalize
+ * mandoc.css: support prefers-color-scheme: dark
+ * -T html: add meta viewport element to help mobile devices
+ * -T html -O tag: let this pass a file:// URI to the pager
+ * tbl(7): implement the "nospaces" option
+ * tbl(7) -T html: implement the "a" (em indent) layout specification
+ * tbl(7) -T html: implement the "b" (bold) and "i" (italic) layout modifiers
+ * tbl(7): support two-character font names in the layout font modifier
+ * tbl(7) -T html: support horinzontal rulers in individual cells
+ * tbl(7) -T tree: print more details about columns, options, rows, and cells
+ * roff(7): implement the .break request (break out of a .while loop)
+ * roff(7): support the CB and CI fonts in \f and .ft
+ * -T lint: new STYLE message if a file name extension contradicts .Dt/.TH
+ * -T lint: new STYLE message about overlong text lines
+ * -W style: check .Xr links along the full manpath
+    --- RELIABILITY BUGFIXES ---
+ * man(1): do not segfault if /tmp/ is not writeable
+ * man(1): do not access a NULL pointer when both -l and -w are given
+ * makewhatis(8): do not crash when a manpath directory contains
+   a symbolic link that points to a directory 
+ * man(7): fix an assertion failure caused by doubly nested next-line scopes
+ * tbl(7): fix a crash when the last column is only reached by spans
+ * tbl(7): fix a NULL pointer access in some cases of two spans on one row
+ * tbl(7) -T ascii: fix a NULL pointer access on empty data cells
+ * tbl(7) -T ascii: fix a NULL pointer access on a line next to a short row
+ * tbl(7): fix an assertion failure caused by excessive spacing modifiers
+ * tbl(7): fix an infinite loop for some overlapping horizontal spans
+ * roff(7): fix a rare case of writing one byte past the end of the input buffer
+ * roff(7): do not call abort(3) when \*[.T] is encountered
+ * roff(7): fix an assertion failure caused by a macro inside .ce .if
+ * roff(7): fix assertion failures for .ti and .po with excessive arguments
+ * roff(7): avoid near-infinte output for .ce inside explicit no-fill mode
+ * -T ascii/utf8: fix assertion failures caused by excessive spacing
+ * -T html: fix an assertion failure caused by .ft in rare situations
+ * -T man: fix an assertion failure caused by tbl(7) and eqn(7) input
+    --- PORTABILITY IMPROVEMENTS ---
+ * rename HOMEBREWDIR to READ_ALLOWED_PATH, allow it to contain more than
+   one directory, and explain how to use that for NixOS and GNU Guix Linux
+ * configure: stop trying to ask make(1) what the default compiler is
+   because that test was too fragile; just use "cc" by default
+ * configure: various simplifications and improved robustness
+ * configure: only compile compat_*.c implementations that are needed
+ * configure: provide feature tests for __attribute__(()) and mkstemps(3)
+ * compat_*: sync with upstreams for security, functionality, and style
+ * in regress.pl, avoid the non-portable options sed(1) -i and echo(1) -n
+ * in the regression suite, avoid file names that differ only by case
+    --- MINOR FUNCTIONAL IMPROVEMENTS ---
+ * man(1) -h: for pages lacking a SYNOPSIS, show the NAME section
+ * man(1): when the first argument starts with a digit, optionally
+   followed by a letter, and at least one more argument follows,
+   interpret the first argument as a section name even when additional
+   characters follow after the digit and letter
+ * man(1): with a specific section requested, try harder to find
+   the best match; use this order of preference:
+   1. The section in both the directory name and the file name matches exactly.
+   2. The section in the file name matches exactly.
+   3. The section in the directory name matches exactly.
+   4. Neither of them matches exactly.
+ * man(1): if no tags were generated at all, unlink(2) the empty tags file
+   as soon as the condition can be detected and do not pass it to less(1)
+ * makewhatis(8): handle both dangling symlinks and .so links
+   in manual page directories more gracefully
+ * man.cgi(8): for invalid queries and for valid queries returning
+   no result, return the appropriate 40x status code rather than 200
+ * mdoc(7): let .Dd concatenate all arguments and default to the empty string
+ * mdoc(7): convert ".Fl Fl" to ".Fl \-" during validation, improving -T html
+ * mdoc(7): improve output of .At 32v
+ * man(7): no longer print multiple blank lines before NAME and page footer
+ * tbl(7) -T utf8: improved rendering of horizontal lines
+ * tbl(7) -T html: in "n" cells, align by padding numbers on the right
+ * tbl(7): no longer leak tabulator settings to subsequent roff(7) code
+ * mdoc(7) -T html: for .Bl -tag, use "column-count: 1" rather
+   than "overflow: auto" to avoid the ugly side effects
+ * mdoc(7) -T html: render .Bd -unfilled in proportionally-spaced font
+ * mdoc(7) -T html: format .Nd with <span> rather than <div>
+ * mdoc(7) -T lint: do not warn about Mdocdate without an actual date
+ * mdoc(7) -T lint: do not complain about function types of the
+   form "ret_type (fname)(args)", but otherwise check names more strictly
+ * -T html: append .html suffix to temporary files to please browsers
+ * -T markdown: print a BAGARG message if called on man(7) input
+    --- MINOR BUGFIXES ---
+ * man(1): do the search for each name independently, and
+   show the results in the order of the command line argument
+ * man(1): escape shell wildcard characters in name arguments before glob(3)
+ * man(1): when asking for a single manual page by name, prefer file name
+   matches over .Dt/.TH matches over first NAME matches over later NAME
+   matches, but do not change the ordering for apropos(1) nor for man -a
+ * man(1): correctly extract the section name from the file name extension
+   of gzipped manual page files
+ * makewhatis(8): fix file type tests putting wrong data into mandoc.db(5)
+ * man.cgi(8): fix section number in the <title> element for preformatted pages
+ * tbl(7): correct handling of T& after horizontal rulers in the layout
+ * tbl(7): correct column widths if rows have different numbers of cells
+ * tbl(7): empty columns are 1n wide rather than 0n
+ * tbl(7): correctly calculate required column widths for tables containing
+   cells that horizontally span columns which contains "n" (number) formatted
+   cells on other rows
+ * tbl(7): skip escape sequences when looking for column separators
+ * eqn(7): skip whitespace before tokens
+ * roff(7): when calling an empty macro, do not clobber existing arguments
+ * roff(7): recognize \} on lines closing a macro definition request
+ * roff(7): do not throw a bogus warning for "'br\}" and similar lines
+ * roff(7): stop generating comment nodes when encountering the first content
+ * mandoc_char(7): make \0 (digit-width space) non-breaking
+ * mdoc(7) .Bl -column: parse Macro in .It "word<tab>word" Ta word Macro<eol>
+ * mdoc(7) -T html: display straight quotes, not curly quotes, for .Qq/.Qo
+ * -T html: remove some spurious line breaks, in particular inside <pre>
+ * -T html: use <br/> for a space character at the beginning of an input line
+ * -T html: use ~%d for ordinal fragment suffixes, reserve '~' for that purpose
+    --- STRUCTURAL IMPROVEMENTS ---
+ * introduce the concept of semantically transparent syntax tree nodes,
+   allowing improved decisions in various validators and formatters
+ * move some code out of the giant main() into separate functions
+   doing one well-defined task each
+ * clearly separate parser state (struct curparse) and formatter state
+   (struct outstate), don't mix them in the same struct
+ * in the HTML formatter, assert(3) that no HTML nesting violation occurs
+ * let html_close_paragraph() close any phrasing context
+    --- THANKS TO ---
+ * Anthony Bentley and Klemens Nanni (OpenBSD) for many patches and bug
+   reports, for useful discussions, and for checking patches
+ * Anton Lindqvist (OpenBSD) for two patches and a bug report
+ * Marc Espie (OpenBSD) for a patch, many bug reports, and useful discussions
+ * Lukas Epple (NixOS) for a patch, bug reports, suggesting a minor
+   portability feature, checking patches, and extensive release testing
+ * Abel Romero Perez for a patch, a bug report, and suggesting a new feature
+ * nabijaczleweli for a patch and for suggesting feature improvements
+ * Jonathan Gray (OpenBSD) for a patch and for bug reports
+ * Otto Moerbeek (OpenBSD) and Alexander Gromnitsky for a patch
+ * Armin Besirovic for a contribution to mandoc.css
+ * Jason McIntyre (OpenBSD) for manual page patches, suggesting a new feature,
+   checking many patches, and useful discussions
+ * Martin Vahlensieck for a manual page patch and reporting a code style issue
+ * Frederic Cambus and Ian Sutton (OpenBSD) for a manual page patch
+ * Jan Schreiber for many bug reports found with afl(1)
+ * G. Branden Robinson (GNU troff) for several bug reports, feature
+   suggestions, and for checking many groff patches
+ * Michael Stapelberg (Debian) for several bug reports and feature
+   suggestions, and for extensive release testing
+ * Ian Ropers, Lorenzo Beretta, and Oliver Corff for several bug reports
+   and feature suggestions
+ * Stephen Gregoratto for several bug reports
+ * Theo de Raadt (OpenBSD) for two bug reports, checking a patch,
+   and a useful discussion
+ * Thomas Klausner (NetBSD) for two bug reports and for release testing
+ * Andreas Kahari and Jason A. Donenfeld for two bug reports
+ * Soeren Tempel (Alpine Linux) for a bug report, suggesting a feature
+   improvement, and checking two patches
+ * Aman Verma, Jan Stary, and John Gardner for a bug report
+   and for suggesting a feature impovement
+ * Todd Miller (OpenBSD) for a bug report, checking a patch,
+   and a useful discussion
+ * Andrew Fresh, Brian Callahan, Christian Weisgerber, Paul de Weerd (OpenBSD),
+   Havard Eidnes, Jason Thorpe (NetBSD), Yuri Pankov (FreeBSD),
+   Bjarni Ingi Gislason, Chris Bennett, Edgar Pettijohn, Eldred Habert,
+   Jamie Landeg-Jones, Kazuo KUROI, and Wynn Wolf Arbor for a bug report
+ * Theo Buehler (OpenBSD) for suggesting two feature impovements
+   and for checking a patch
+ * Leah Neukirchen (Void Linux) for suggesting a feature impovement
+   and for release testing
+ * Colin Watson (Debian) for suggesting a feature impovement
+   and for checking groff patches
+ * Matej Cepl (SUSE Linux), Matthew Martin, Steffen Nurpmeso,
+   and Tim Baumgard for suggesting a feature impovement
+ * Christos Zoulas (NetBSD) for a report regarding portability
+ * Daniel Dickman (OpenBSD) for suggesting a portability improvement
+ * Werner Lemberg (GNU troff) and Douglas McIlroy
+   for reporting bugs in manual pages
+ * Baptiste Daroussin and Eygene Ryabinkin (FreeBSD)
+   for an additional regression test
+ * Michal Nowak for reporting several code style issues
+ * TJ Townsend (OpenBSD) for help with CSS
+ * Sevan Janiyan (NetBSD) and Robert Mustacchi (Illumos) 
+   for extensive release testing
+ * Job Snijders, Kinichiro INOGUCHI, and Martijn van Duren (OpenBSD)
+   for checking patches
+ * Bertrand Garrigues and Ralph Corderoy (GNU troff) for checking groff patches
 
 Changes in version 1.14.5, released on March 10, 2019
 

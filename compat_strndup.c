@@ -1,15 +1,8 @@
-#include "config.h"
+/*	$Id: compat_strndup.c,v 1.3 2020/06/15 20:19:39 schwarze Exp $	*/
+/*	$OpenBSD: strndup.c,v 1.3 2019/01/25 00:19:25 millert Exp $	*/
 
-#if HAVE_STRNDUP
-
-int dummy;
-
-#else
-
-/* $Id: compat_strndup.c,v 1.1 2018/02/27 11:16:23 schwarze Exp $ */
-/* OpenBSD: strndup.c,v 1.2 2015/08/31 02:53:57 guenther Exp */
 /*
- * Copyright (c) 2010 Todd C. Miller <Todd.Miller@courtesan.com>
+ * Copyright (c) 2010 Todd C. Miller <millert@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -23,6 +16,7 @@ int dummy;
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
+#include "config.h"
 
 #include <sys/types.h>
 
@@ -46,5 +40,3 @@ strndup(const char *str, size_t maxlen)
 
 	return copy;
 }
-
-#endif

@@ -1,4 +1,4 @@
-/* $Id: tag.h,v 1.14 2020/04/18 20:40:10 schwarze Exp $ */
+/* $Id: term_tag.h,v 1.4 2021/03/30 17:16:55 schwarze Exp $ */
 /*
  * Copyright (c) 2015, 2018, 2019, 2020 Ingo Schwarze <schwarze@openbsd.org>
  *
@@ -14,22 +14,21 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * Internal interfaces to tag syntax tree nodes.
- * For use by mandoc(1) validation modules only.
+ * Internal interfaces to write a ctags(1) file.
+ * For use by the mandoc(1) ASCII and UTF-8 formatters only.
  */
 
-/*
- * Tagging priorities.
- * Lower numbers indicate higher importance.
- */
-#define	TAG_MANUAL	1		/* Set with a .Tg macro. */
-#define	TAG_STRONG	2		/* Good automatic tagging. */
-#define	TAG_WEAK	(INT_MAX - 2)	/* Dubious automatic tagging. */
-#define	TAG_FALLBACK	(INT_MAX - 1)	/* Tag only used if unique. */
-#define	TAG_DELETE	(INT_MAX)	/* Tag not used at all. */
+struct	tag_files {
+	char	 ofn[80];	/* Output file name. */
+	char	 tfn[80];	/* Tag file name. */
+	FILE	*tfs;		/* Tag file object. */
+	int	 ofd;		/* Original output file descriptor. */
+	pid_t	 tcpgid;	/* Process group controlling the terminal. */
+	pid_t	 pager_pid;	/* Process ID of the pager. */
+};
 
-void		 tag_alloc(void);
-int		 tag_exists(const char *);
-void		 tag_put(const char *, int, struct roff_node *);
-void		 tag_postprocess(struct roff_man *, struct roff_node *);
-void		 tag_free(void);
+
+struct tag_files	*term_tag_init(const char *, const char *, const char *);
+void			 term_tag_write(struct roff_node *, size_t);
+int			 term_tag_close(void);
+void			 term_tag_unlink(void);

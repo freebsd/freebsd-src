@@ -1,15 +1,7 @@
-#include "config.h"
-
-#if HAVE_RECALLOCARRAY
-
-int dummy;
-
-#else
-
-/*	$Id: compat_recallocarray.c,v 1.1 2017/06/12 19:05:47 schwarze Exp $ */
-/*	$OpenBSD: malloc.c,v 1.225 2017/05/13 07:11:29 otto Exp $ */
+/*	$Id: compat_recallocarray.c,v 1.2 2020/06/15 01:37:15 schwarze Exp $ */
+/*	$OpenBSD: recallocarray.c,v 1.1 2017/03/06 18:44:21 otto Exp $	*/
 /*
- * Copyright (c) 2017 Otto Moerbeek <otto@drijf.net>
+ * Copyright (c) 2008, 2017 Otto Moerbeek <otto@drijf.net>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -23,18 +15,19 @@ int dummy;
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
+#include "config.h"
 
 #include <sys/types.h>
 #include <errno.h>
-#include <stdint.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
 
 /*
  * This is sqrt(SIZE_MAX+1), as s1*s2 <= SIZE_MAX
  * if both s1 < MUL_NO_OVERFLOW and s2 < MUL_NO_OVERFLOW
  */
-#define MUL_NO_OVERFLOW	((size_t)1 << (sizeof(size_t) * 4))
+#define MUL_NO_OVERFLOW ((size_t)1 << (sizeof(size_t) * 4))
 
 /*
  * Even though specified in POSIX, the PAGESIZE and PAGE_SIZE
@@ -42,7 +35,7 @@ int dummy;
  * to avoid free() overhead for small shrinking, simply pick
  * an arbitrary number.
  */
-#define MALLOC_PAGESIZE         (1UL << 12)
+#define getpagesize()	(1UL << 12)
 
 
 void *
@@ -75,7 +68,7 @@ recallocarray(void *ptr, size_t oldnmemb, size_t newnmemb, size_t size)
 	if (newsize <= oldsize) {
 		size_t d = oldsize - newsize;
 
-		if (d < oldsize / 2 && d < MALLOC_PAGESIZE) {
+		if (d < oldsize / 2 && d < getpagesize()) {
 			memset((char *)ptr + newsize, 0, d);
 			return ptr;
 		}
@@ -104,5 +97,3 @@ recallocarray(void *ptr, size_t oldnmemb, size_t newnmemb, size_t size)
 
 	return newptr;
 }
-
-#endif /* !HAVE_RECALLOCARRAY */

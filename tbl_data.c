@@ -1,7 +1,7 @@
-/*	$Id: tbl_data.c,v 1.52 2019/02/09 16:00:39 schwarze Exp $ */
+/*	$Id: tbl_data.c,v 1.59 2021/09/10 13:24:38 schwarze Exp $ */
 /*
  * Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2011,2015,2017,2018,2019 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2011,2015,2017-2019,2021 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -21,6 +21,7 @@
 
 #include <assert.h>
 #include <ctype.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -45,16 +46,20 @@ getdata(struct tbl_node *tbl, struct tbl_span *dp,
 	struct tbl_dat	*dat, *pdat;
 	struct tbl_cell	*cp;
 	struct tbl_span	*pdp;
-	int		 sv;
+	const char	*ccp;
+	int		 startpos, endpos;
 
 	/*
 	 * Determine the length of the string in the cell
 	 * and advance the parse point to the end of the cell.
 	 */
 
-	sv = *pos;
-	while (p[*pos] != '\0' && p[*pos] != tbl->opts.tab)
-		(*pos)++;
+	startpos = *pos;
+	ccp = p + startpos;
+	while (*ccp != '\0' && *ccp != tbl->opts.tab)
+		if (*ccp++ == '\\')
+			mandoc_escape(&ccp, NULL, NULL);
+	*pos = ccp - p;
 
 	/* Advance to the next layout cell, skipping spanners. */
 
@@ -73,12 +78,14 @@ getdata(struct tbl_node *tbl, struct tbl_span *dp,
 		if (dp->layout->last->col + 1 < dp->opts->cols) {
 			cp = mandoc_calloc(1, sizeof(*cp));
 			cp->pos = TBL_CELL_LEFT;
+			cp->font = ESCAPE_FONTROMAN;
+			cp->spacing = SIZE_MAX;
 			dp->layout->last->next = cp;
 			cp->col = dp->layout->last->col + 1;
 			dp->layout->last = cp;
 		} else {
 			mandoc_msg(MANDOCERR_TBLDATA_EXTRA,
-			    ln, sv, "%s", p + sv);
+			    ln, startpos, "%s", p + startpos);
 			while (p[*pos] != '\0')
 				(*pos)++;
 			return;
@@ -103,7 +110,8 @@ getdata(struct tbl_node *tbl, struct tbl_span *dp,
 	 */
 
 	if (cp->pos == TBL_CELL_DOWN ||
-	    (*pos - sv == 2 && p[sv] == '\\' && p[sv + 1] == '^')) {
+	    (*pos - startpos == 2 &&
+	     p[startpos] == '\\' && p[startpos + 1] == '^')) {
 		pdp = dp;
 		while ((pdp = pdp->prev) != NULL) {
 			pdat = pdp->first;
@@ -139,18 +147,29 @@ getdata(struct tbl_node *tbl, struct tbl_span *dp,
 		dp->last->next = dat;
 	dp->last = dat;
 
+	/* Strip leading and trailing spaces, if requested. */
+
+	endpos = *pos;
+	if (dp->opts->opts & TBL_OPT_NOSPACE) {
+		while (p[startpos] == ' ')
+			startpos++;
+		while (endpos > startpos && p[endpos - 1] == ' ')
+			endpos--;
+	}
+
 	/*
 	 * Check for a continued-data scope opening.  This consists of a
 	 * trailing `T{' at the end of the line.  Subsequent lines,
 	 * until a standalone `T}', are included in our cell.
 	 */
 
-	if (*pos - sv == 2 && p[sv] == 'T' && p[sv + 1] == '{') {
+	if (endpos - startpos == 2 &&
+	    p[startpos] == 'T' && p[startpos + 1] == '{') {
 		tbl->part = TBL_PART_CDATA;
 		return;
 	}
 
-	dat->string = mandoc_strndup(p + sv, *pos - sv);
+	dat->string = mandoc_strndup(p + startpos, endpos - startpos);
 
 	if (p[*pos] != '\0')
 		(*pos)++;
@@ -171,7 +190,7 @@ getdata(struct tbl_node *tbl, struct tbl_span *dp,
 	    dat->layout->pos == TBL_CELL_DOWN) &&
 	    dat->pos == TBL_DATA_DATA && *dat->string != '\0')
 		mandoc_msg(MANDOCERR_TBLDATA_SPAN,
-		    ln, sv, "%s", dat->string);
+		    ln, startpos, "%s", dat->string);
 }
 
 void
@@ -184,6 +203,9 @@ tbl_cdata(struct tbl_node *tbl, int ln, const char *p, int pos)
 
 	if (p[pos] == 'T' && p[pos + 1] == '}') {
 		pos += 2;
+		if (tbl->opts.opts & TBL_OPT_NOSPACE)
+			while (p[pos] == ' ')
+				pos++;
 		if (p[pos] == tbl->opts.tab) {
 			tbl->part = TBL_PART_DATA;
 			pos++;
@@ -242,10 +264,11 @@ tbl_data(struct tbl_node *tbl, int ln, const char *p, int pos)
 	struct tbl_cell	*cp;
 	struct tbl_span	*sp;
 
-	rp = (sp = tbl->last_span) == NULL ? tbl->first_row :
-	    sp->pos == TBL_SPAN_DATA && sp->layout->next != NULL ?
-	    sp->layout->next : sp->layout;
-
+	for (sp = tbl->last_span; sp != NULL; sp = sp->prev)
+		if (sp->pos == TBL_SPAN_DATA)
+			break;
+	rp = sp == NULL ? tbl->first_row :
+	    sp->layout->next == NULL ? sp->layout : sp->layout->next;
 	assert(rp != NULL);
 
 	if (p[1] == '\0') {

@@ -1,12 +1,4 @@
-#include "config.h"
-
-#if HAVE_GETSUBOPT
-
-int dummy;
-
-#else
-
-/*	$Id: compat_getsubopt.c,v 1.5 2014/08/17 20:53:50 schwarze Exp $	*/
+/*	$Id: compat_getsubopt.c,v 1.6 2020/06/15 01:37:15 schwarze Exp $ */
 /*	$OpenBSD: getsubopt.c,v 1.4 2005/08/08 08:05:36 espie Exp $	*/
 
 /*-
@@ -37,6 +29,7 @@ int dummy;
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
+#include "config.h"
 
 #include <unistd.h>
 #include <stdlib.h>
@@ -92,5 +85,3 @@ getsubopt(char **optionp, char * const *tokens, char **valuep)
 			return(cnt);
 	return(-1);
 }
-
-#endif

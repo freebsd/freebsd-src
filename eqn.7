@@ -1,4 +1,4 @@
-.\"	$Id: eqn.7,v 1.38 2019/04/23 17:57:49 schwarze Exp $
+.\"	$Id: eqn.7,v 1.39 2020/01/10 11:55:04 schwarze Exp $
 .\"
 .\" Copyright (c) 2011 Kristaps Dzonsons <kristaps@bsd.lv>
 .\" Copyright (c) 2014 Ingo Schwarze <schwarze@openbsd.org>
@@ -15,7 +15,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: April 23 2019 $
+.Dd $Mdocdate: January 10 2020 $
 .Dt EQN 7
 .Os
 .Sh NAME
@@ -44,28 +44,16 @@ specification (see
 .Sx SEE ALSO
 for references).
 .Pp
-Equations within
-.Xr mdoc 7
-or
-.Xr man 7
-documents are enclosed by the standalone
-.Sq \&.EQ
-and
-.Sq \&.EN
-tags.
-Equations are multi-line blocks consisting of formulas and control
-statements.
-.Sh EQUATION STRUCTURE
-Each equation is bracketed by
-.Sq \&.EQ
-and
-.Sq \&.EN
-strings.
-.Em Note :
-these are not the same as
-.Xr roff 7
-macros, and may only be invoked as
-.Sq \&.EQ .
+An equation starts with an input line containing exactly the characters
+.Sq \&.EQ ,
+may contain multiple input lines, and ends with an input line
+containing exactly the characters
+.Sq \&.EN .
+Equivalently, an equation can be given in the middle of a single
+text input line by surrounding it with the equation delimiters
+defined with the
+.Cm delim
+statement.
 .Pp
 The equation grammar is as follows, where quoted strings are
 case-sensitive literals in the input:
@@ -178,6 +166,25 @@ statement is a synonym for
 while
 .Cm tdefine
 is discarded.
+.It Cm delim
+This statement takes a string argument consisting of two bytes,
+to be used as the opening and closing delimiters for equations
+in the middle of text input lines.
+Conventionally, the dollar sign is used for both delimiters,
+as follows:
+.Bd -literal -offset indent
+\&.EQ
+delim $$
+\&.EN
+An equation like $sin pi = 0$ can now be entered
+in the middle of a text input line.
+.Ed
+.Pp
+The special statement
+.Cm delim off
+temporarily disables previously declared delimiters and
+.Cm delim on
+reenables them.
 .It Cm gfont
 Set the default font of subsequent output.
 Its syntax is as follows:
