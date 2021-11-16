@@ -964,7 +964,7 @@ ffs_mountfs(odevvp, mp, td)
 	}
 	/* fetch the superblock and summary information */
 	loc = STDSB;
-	if ((mp->mnt_flag & MNT_ROOTFS) != 0)
+	if ((mp->mnt_flag & (MNT_ROOTFS | MNT_FORCE)) != 0)
 		loc = STDSB_NOHASHFAIL;
 	if ((error = ffs_sbget(devvp, &fs, loc, M_UFSMNT, ffs_use_bread)) != 0)
 		goto out;
