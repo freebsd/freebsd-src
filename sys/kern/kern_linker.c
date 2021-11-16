@@ -956,7 +956,7 @@ linker_debug_symbol_values(c_linker_sym_t sym, linker_symval_t *symval)
 	linker_file_t lf;
 
 	TAILQ_FOREACH(lf, &linker_files, link) {
-		if (LINKER_SYMBOL_VALUES(lf, sym, symval) == 0)
+		if (LINKER_DEBUG_SYMBOL_VALUES(lf, sym, symval) == 0)
 			return (0);
 	}
 	return (ENOENT);
