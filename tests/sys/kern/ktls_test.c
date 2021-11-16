@@ -913,8 +913,8 @@ test_ktls_transmit_app_data(struct tls_enable *en, uint64_t seqno, size_t len)
 
 			record_len = sizeof(struct tls_record_layer) +
 			    ntohs(hdr->tls_length);
-			assert(record_len <= outbuf_cap);
-			assert(record_len > outbuf_len);
+			ATF_REQUIRE(record_len <= outbuf_cap);
+			ATF_REQUIRE(record_len > outbuf_len);
 			rv = read(ev.ident, outbuf + outbuf_len,
 			    record_len - outbuf_len);
 			if (rv == -1 && errno == EAGAIN)
@@ -1013,7 +1013,7 @@ test_ktls_transmit_control(struct tls_enable *en, uint64_t seqno, uint8_t type,
 	ATF_REQUIRE(rv == sizeof(struct tls_record_layer));
 	payload_len = ntohs(hdr->tls_length);
 	record_len = payload_len + sizeof(struct tls_record_layer);
-	assert(record_len <= outbuf_cap);
+	ATF_REQUIRE(record_len <= outbuf_cap);
 	rv = read(sockets[0], outbuf + sizeof(struct tls_record_layer),
 	    payload_len);
 	ATF_REQUIRE(rv == (ssize_t)payload_len);
