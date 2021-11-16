@@ -220,9 +220,6 @@ divert_packet(struct mbuf *m, bool incoming)
 	}
 #if defined(SCTP) || defined(SCTP_SUPPORT)
 	if (m->m_pkthdr.csum_flags & CSUM_SCTP) {
-		m = mb_unmapped_to_ext(m);
-		if (m == NULL)
-			return;
 		sctp_delayed_cksum(m, (uint32_t)(ip->ip_hl << 2));
 		m->m_pkthdr.csum_flags &= ~CSUM_SCTP;
 	}
@@ -238,9 +235,6 @@ divert_packet(struct mbuf *m, bool incoming)
 	}
 #if defined(SCTP) || defined(SCTP_SUPPORT)
 	if (m->m_pkthdr.csum_flags & CSUM_SCTP_IPV6) {
-		m = mb_unmapped_to_ext(m);
-		if (m == NULL)
-			return;
 		sctp_delayed_cksum(m, sizeof(struct ip6_hdr));
 		m->m_pkthdr.csum_flags &= ~CSUM_SCTP_IPV6;
 	}

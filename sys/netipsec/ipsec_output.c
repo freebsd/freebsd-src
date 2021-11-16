@@ -411,12 +411,6 @@ ipsec4_common_output(struct mbuf *m, struct inpcb *inp, int forwarding)
 		if (m->m_pkthdr.csum_flags & CSUM_SCTP) {
 			struct ip *ip;
 
-			m = mb_unmapped_to_ext(m);
-			if (m == NULL) {
-				IPSECSTAT_INC(ips_out_nomem);
-				key_freesp(&sp);
-				return (ENOBUFS);
-			}
 			ip = mtod(m, struct ip *);
 			sctp_delayed_cksum(m, (uint32_t)(ip->ip_hl << 2));
 			m->m_pkthdr.csum_flags &= ~CSUM_SCTP;
@@ -791,12 +785,6 @@ ipsec6_common_output(struct mbuf *m, struct inpcb *inp, int forwarding)
 		}
 #if defined(SCTP) || defined(SCTP_SUPPORT)
 		if (m->m_pkthdr.csum_flags & CSUM_SCTP_IPV6) {
-			m = mb_unmapped_to_ext(m);
-			if (m == NULL) {
-				IPSEC6STAT_INC(ips_out_nomem);
-				key_freesp(&sp);
-				return (ENOBUFS);
-			}
 			sctp_delayed_cksum(m, sizeof(struct ip6_hdr));
 			m->m_pkthdr.csum_flags &= ~CSUM_SCTP_IPV6;
 		}
