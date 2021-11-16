@@ -945,9 +945,9 @@ test_ktls_transmit_app_data(struct tls_enable *en, uint64_t seqno, size_t len)
 	free(decrypted);
 	free(plaintext);
 
-	close(sockets[1]);
-	close(sockets[0]);
-	close(kq);
+	ATF_REQUIRE(close(sockets[1]) == 0);
+	ATF_REQUIRE(close(sockets[0]) == 0);
+	ATF_REQUIRE(close(kq) == 0);
 }
 
 static void
@@ -1031,8 +1031,8 @@ test_ktls_transmit_control(struct tls_enable *en, uint64_t seqno, uint8_t type,
 	free(decrypted);
 	free(plaintext);
 
-	close(sockets[1]);
-	close(sockets[0]);
+	ATF_REQUIRE(close(sockets[1]) == 0);
+	ATF_REQUIRE(close(sockets[0]) == 0);
 }
 
 static void
@@ -1083,8 +1083,8 @@ test_ktls_transmit_empty_fragment(struct tls_enable *en, uint64_t seqno)
 
 	free(outbuf);
 
-	close(sockets[1]);
-	close(sockets[0]);
+	ATF_REQUIRE(close(sockets[1]) == 0);
+	ATF_REQUIRE(close(sockets[0]) == 0);
 }
 
 static size_t
@@ -1218,9 +1218,9 @@ test_ktls_receive_app_data(struct tls_enable *en, uint64_t seqno, size_t len)
 	free(received);
 	free(plaintext);
 
-	close(sockets[1]);
-	close(sockets[0]);
-	close(kq);
+	ATF_REQUIRE(close(sockets[1]) == 0);
+	ATF_REQUIRE(close(sockets[0]) == 0);
+	ATF_REQUIRE(close(kq) == 0);
 }
 
 #define	TLS_10_TESTS(M)							\
@@ -1474,8 +1474,8 @@ test_ktls_invalid_transmit_cipher_suite(struct tls_enable *en)
 	    sizeof(*en)) == -1);
 	ATF_REQUIRE(errno == EINVAL);
 
-	close(sockets[1]);
-	close(sockets[0]);
+	ATF_REQUIRE(close(sockets[1]) == 0);
+	ATF_REQUIRE(close(sockets[0]) == 0);
 }
 
 #define GEN_INVALID_TRANSMIT_TEST(name, cipher_alg, key_size, auth_alg,	\
@@ -1591,8 +1591,8 @@ test_ktls_invalid_receive_cipher_suite(struct tls_enable *en)
 	 */
 	ATF_REQUIRE(errno == EINVAL || errno == ENOTSUP);
 
-	close(sockets[1]);
-	close(sockets[0]);
+	ATF_REQUIRE(close(sockets[1]) == 0);
+	ATF_REQUIRE(close(sockets[0]) == 0);
 }
 
 #define GEN_INVALID_RECEIVE_TEST(name, cipher_alg, key_size, auth_alg,	\
@@ -1631,8 +1631,8 @@ test_ktls_unsupported_receive_cipher_suite(struct tls_enable *en)
 	    sizeof(*en)) == -1);
 	ATF_REQUIRE(errno == EPROTONOSUPPORT || errno == ENOTSUP);
 
-	close(sockets[1]);
-	close(sockets[0]);
+	ATF_REQUIRE(close(sockets[1]) == 0);
+	ATF_REQUIRE(close(sockets[0]) == 0);
 }
 
 #define GEN_UNSUPPORTED_RECEIVE_TEST(name, cipher_alg, key_size,	\
