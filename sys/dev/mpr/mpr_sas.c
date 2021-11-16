@@ -1677,19 +1677,19 @@ mprsas_scsiio_timeout(void *data)
 		/* target already in recovery, just queue up another
 		 * timedout command to be processed later.
 		 */
-		mpr_dprint(sc, MPR_RECOVERY, "queued timedout cm %p for "
-		    "processing by tm %p\n", cm, targ->tm);
-	}
-	else if ((targ->tm = mprsas_alloc_tm(sc)) != NULL) {
-		/* start recovery by aborting the first timedout command */
+		mpr_dprint(sc, MPR_RECOVERY,
+		    "queued timedout cm %p for processing by tm %p\n",
+		    cm, targ->tm);
+	} else if ((targ->tm = mprsas_alloc_tm(sc)) != NULL) {
 		mpr_dprint(sc, MPR_RECOVERY|MPR_INFO,
 		    "Sending abort to target %u for SMID %d\n", targ->tid,
 		    cm->cm_desc.Default.SMID);
 		mpr_dprint(sc, MPR_RECOVERY, "timedout cm %p allocated tm %p\n",
 		    cm, targ->tm);
+
+		/* start recovery by aborting the first timedout command */
 		mprsas_send_abort(sc, targ->tm, cm);
-	}
-	else {
+	} else {
 		/* XXX queue this target up for recovery once a TM becomes
 		 * available.  The firmware only has a limited number of
 		 * HighPriority credits for the high priority requests used
