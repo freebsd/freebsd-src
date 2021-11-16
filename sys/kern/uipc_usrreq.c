@@ -1006,7 +1006,7 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 	struct unpcb *unp, *unp2;
 	struct socket *so2;
 	u_int mbcnt, sbcc;
-	int freed, error;
+	int error;
 
 	unp = sotounpcb(so);
 	KASSERT(unp != NULL, ("%s: unp == NULL", __func__));
@@ -1014,7 +1014,7 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 	    so->so_type == SOCK_SEQPACKET,
 	    ("%s: socktype %d", __func__, so->so_type));
 
-	freed = error = 0;
+	error = 0;
 	if (flags & PRUS_OOB) {
 		error = EOPNOTSUPP;
 		goto release;
