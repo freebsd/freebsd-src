@@ -1560,7 +1560,7 @@ mpssas_scsiio_timeout(void *data)
 	MPS_FUNCTRACE(sc);
 	mtx_assert(&sc->mps_mtx, MA_OWNED);
 
-	mps_dprint(sc, MPS_XINFO|MPS_RECOVERY, "Timeout checking cm %p\n", sc);
+	mps_dprint(sc, MPS_XINFO|MPS_RECOVERY, "Timeout checking cm %p\n", cm);
 
 	/*
 	 * Run the interrupt handler to make sure it's not pending.  This
