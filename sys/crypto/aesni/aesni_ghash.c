@@ -504,9 +504,10 @@ AES_GCM_encrypt(const unsigned char *in, unsigned char *out,
 		}
 		tmp1 = _mm_aesenc_si128(tmp1, KEY[nr-1]);
 		tmp1 = _mm_aesenclast_si128(tmp1, KEY[nr]);
-		tmp1 = _mm_xor_si128(tmp1,
-		    _mm_loadu_si128(&((const __m128i *)in)[k]));
-		last_block = tmp1;
+		last_block = _mm_setzero_si128();
+		memcpy(&last_block, &((const __m128i *)in)[k],
+		    nbytes % 16);
+		last_block = _mm_xor_si128(last_block, tmp1);
 		for (j=0; j<nbytes%16; j++)
 			out[k*16+j] = ((unsigned char*)&last_block)[j];
 		for ((void)j; j<16; j++)
