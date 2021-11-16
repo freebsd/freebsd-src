@@ -286,7 +286,7 @@ readsuper(void *devfd, struct fs **fsp, off_t sblockloc, int isaltsblk,
 			res = uprintf("Superblock check-hash failed: recorded "
 			    "check-hash 0x%x != computed check-hash 0x%x%s\n",
 			    fs->fs_ckhash, ckhash,
-			    chkhash == 0 ? " (Ignored)" : "");
+			    chkhash == STDSB_NOHASHFAIL ? " (Ignored)" : "");
 #else
 			res = 0;
 #endif
@@ -298,7 +298,8 @@ readsuper(void *devfd, struct fs **fsp, off_t sblockloc, int isaltsblk,
 				printf("Superblock check-hash failed: recorded "
 				    "check-hash 0x%x != computed check-hash "
 				    "0x%x%s\n", fs->fs_ckhash, ckhash,
-				    chkhash == 0 ? " (Ignored)" : "");
+				    chkhash == STDSB_NOHASHFAIL ?
+				    " (Ignored)" : "");
 			if (chkhash == STDSB)
 				return (EINTEGRITY);
 			/* chkhash == STDSB_NOHASHFAIL */
