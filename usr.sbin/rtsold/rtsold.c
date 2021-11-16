@@ -99,6 +99,7 @@ cap_channel_t *capllflags, *capscript, *capsendmsg, *capsyslog;
 
 /* static variables and functions */
 static int mobile_node = 0;
+static int no_solicitation_delay = 0;
 
 static sig_atomic_t do_dump, do_exit;
 static struct pidfh *pfh;
@@ -125,11 +126,11 @@ main(int argc, char **argv)
 
 	progname = basename(argv[0]);
 	if (strcmp(progname, "rtsold") == 0) {
-		opts = "adDfFm1M:O:p:R:u";
+		opts = "adDfFim1M:O:p:R:u";
 		once = 0;
 		pidfilepath = NULL;
 	} else {
-		opts = "adDFM:O:R:u";
+		opts = "adDFiM:O:R:u";
 		fflag = 1;
 		once = 1;
 	}
@@ -150,6 +151,9 @@ main(int argc, char **argv)
 			break;
 		case 'F':
 			Fflag = 1;
+			break;
+		case 'i':
+			no_solicitation_delay = 1;
 			break;
 		case 'm':
 			mobile_node = 1;
@@ -717,7 +721,10 @@ rtsol_timer_update(struct ifinfo *ifi)
 			ifi->timer = tm_max;	/* stop timer(valid?) */
 		break;
 	case IFS_DELAY:
-		interval = arc4random_uniform(MAX_RTR_SOLICITATION_DELAY * MILLION);
+		if (no_solicitation_delay)
+			interval = 0;
+		else
+			interval = arc4random_uniform(MAX_RTR_SOLICITATION_DELAY * MILLION);
 		ifi->timer.tv_sec = interval / MILLION;
 		ifi->timer.tv_nsec = (interval % MILLION) * 1000;
 		break;
