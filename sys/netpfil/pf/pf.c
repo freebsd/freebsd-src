@@ -6000,9 +6000,6 @@ pf_route(struct mbuf **m, struct pf_krule *r, int dir, struct ifnet *oifp,
 	}
 #if defined(SCTP) || defined(SCTP_SUPPORT)
 	if (m0->m_pkthdr.csum_flags & CSUM_SCTP & ~ifp->if_hwassist) {
-		m0 = mb_unmapped_to_ext(m0);
-		if (m0 == NULL)
-			goto done;
 		sctp_delayed_cksum(m0, (uint32_t)(ip->ip_hl << 2));
 		m0->m_pkthdr.csum_flags &= ~CSUM_SCTP;
 	}
