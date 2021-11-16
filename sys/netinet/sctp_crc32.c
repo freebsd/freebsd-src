@@ -80,6 +80,16 @@ sctp_finalize_crc32c(uint32_t crc32c)
 	return (crc32c);
 }
 
+static int
+sctp_calculate_cksum_cb(void *arg, void *data, u_int len)
+{
+	uint32_t *basep;
+
+	basep = arg;
+	*basep = calculate_crc32c(*basep, data, len);
+	return (0);
+}
+
 /*
  * Compute the SCTP checksum in network byte order for a given mbuf chain m
  * which contains an SCTP packet starting at offset.
@@ -89,30 +99,17 @@ sctp_finalize_crc32c(uint32_t crc32c)
 uint32_t
 sctp_calculate_cksum(struct mbuf *m, uint32_t offset)
 {
-	uint32_t base = 0xffffffff;
+	uint32_t base;
+	int len;
 
-	while (offset > 0) {
-		KASSERT(m != NULL, ("sctp_calculate_cksum, offset > length of mbuf chain"));
-		if (offset < (uint32_t)m->m_len) {
-			break;
-		}
-		offset -= m->m_len;
-		m = m->m_next;
-	}
-	if (offset > 0) {
-		base = calculate_crc32c(base,
-		    (unsigned char *)(m->m_data + offset),
-		    (unsigned int)(m->m_len - offset));
-		m = m->m_next;
-	}
-	while (m != NULL) {
-		base = calculate_crc32c(base,
-		    (unsigned char *)m->m_data,
-		    (unsigned int)m->m_len);
-		m = m->m_next;
-	}
-	base = sctp_finalize_crc32c(base);
-	return (base);
+	M_ASSERTPKTHDR(m);
+	KASSERT(offset < m->m_pkthdr.len,
+	    ("%s: invalid offset %u into mbuf %p", __func__, offset, m));
+
+	base = 0xffffffff;
+	len = m->m_pkthdr.len - offset;
+	(void)m_apply(m, offset, len, sctp_calculate_cksum_cb, &base);
+	return (sctp_finalize_crc32c(base));
 }
 
 #if defined(SCTP) || defined(SCTP_SUPPORT)
