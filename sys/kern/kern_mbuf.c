@@ -116,9 +116,26 @@ int nmbjumbop;			/* limits number of page size jumbo clusters */
 int nmbjumbo9;			/* limits number of 9k jumbo clusters */
 int nmbjumbo16;			/* limits number of 16k jumbo clusters */
 
-bool mb_use_ext_pgs = true;	/* use M_EXTPG mbufs for sendfile & TLS */
-SYSCTL_BOOL(_kern_ipc, OID_AUTO, mb_use_ext_pgs, CTLFLAG_RWTUN,
+bool mb_use_ext_pgs = false;	/* use M_EXTPG mbufs for sendfile & TLS */
+
+static int
+sysctl_mb_use_ext_pgs(SYSCTL_HANDLER_ARGS)
+{
+	int error, extpg;
+
+	extpg = mb_use_ext_pgs;
+	error = sysctl_handle_int(oidp, &extpg, 0, req);
+	if (error == 0 && req->newptr != NULL) {
+		if (extpg != 0 && !PMAP_HAS_DMAP)
+			error = EOPNOTSUPP;
+		else
+			mb_use_ext_pgs = extpg != 0;
+	}
+	return (error);
+}
+SYSCTL_PROC(_kern_ipc, OID_AUTO, mb_use_ext_pgs, CTLTYPE_INT | CTLFLAG_RW,
     &mb_use_ext_pgs, 0,
+    sysctl_mb_use_ext_pgs, "IU",
     "Use unmapped mbufs for sendfile(2) and TLS offload");
 
 static quad_t maxmbufmem;	/* overall real memory limit for all mbufs */
@@ -137,6 +154,7 @@ static void
 tunable_mbinit(void *dummy)
 {
 	quad_t realmem;
+	int extpg;
 
 	/*
 	 * The default limit for all mbuf related memory is 1/2 of all
@@ -173,6 +191,16 @@ tunable_mbinit(void *dummy)
 	if (nmbufs < nmbclusters + nmbjumbop + nmbjumbo9 + nmbjumbo16)
 		nmbufs = lmax(maxmbufmem / MSIZE / 5,
 		    nmbclusters + nmbjumbop + nmbjumbo9 + nmbjumbo16);
+
+	/*
+	 * Unmapped mbufs can only safely be used on platforms with a direct
+	 * map.
+	 */
+	if (PMAP_HAS_DMAP) {
+		extpg = mb_use_ext_pgs;
+		TUNABLE_INT_FETCH("kern.ipc.mb_use_ext_pgs", &extpg);
+		mb_use_ext_pgs = extpg != 0;
+	}
 }
 SYSINIT(tunable_mbinit, SI_SUB_KMEM, SI_ORDER_MIDDLE, tunable_mbinit, NULL);
 

@@ -711,7 +711,7 @@ rpctls_getinfo(u_int *maxlenp, bool rpctlscd_run, bool rpctlssd_run)
 	int error;
 	size_t siz;
 
-	if (PMAP_HAS_DMAP == 0 || !mb_use_ext_pgs)
+	if (!mb_use_ext_pgs)
 		return (false);
 	siz = sizeof(enable);
 	error = kernel_sysctlbyname(curthread, "kern.ipc.tls.enable",
