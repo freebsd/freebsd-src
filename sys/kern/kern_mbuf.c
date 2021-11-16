@@ -197,7 +197,7 @@ tunable_mbinit(void *dummy)
 	 * map.
 	 */
 	if (PMAP_HAS_DMAP) {
-		extpg = mb_use_ext_pgs;
+		extpg = 1;
 		TUNABLE_INT_FETCH("kern.ipc.mb_use_ext_pgs", &extpg);
 		mb_use_ext_pgs = extpg != 0;
 	}
