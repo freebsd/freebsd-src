@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 14, 2021
+.Dd November 12, 2021
 .Dt RTSOLD 8
 .Os
 .\"
@@ -39,27 +39,27 @@
 .\"
 .Sh SYNOPSIS
 .Nm
-.Op Fl dDfFmu1
+.Op Fl dDfFimu1
 .Op Fl M Ar script-name
 .Op Fl O Ar script-name
 .Op Fl p Ar pidfile
 .Op Fl R Ar script-name
 .Ar interface ...
 .Nm
-.Op Fl dDfFmu1
+.Op Fl dDfFimu1
 .Op Fl M Ar script-name
 .Op Fl O Ar script-name
 .Op Fl p Ar pidfile
 .Op Fl R Ar script-name
 .Fl a
 .Nm rtsol
-.Op Fl dDu
+.Op Fl dDiu
 .Op Fl M Ar script-name
 .Op Fl O Ar script-name
 .Op Fl R Ar script-name
 .Ar interface ...
 .Nm rtsol
-.Op Fl dDu
+.Op Fl dDiu
 .Op Fl M Ar script-name
 .Op Fl O Ar script-name
 .Op Fl R Ar script-name
@@ -194,6 +194,12 @@ The settings may be changed manually with
 .Xr sysctl 8
 and
 .Xr ifconfig 8 .
+.It Fl i
+Transmit Router Solicitation packets immediately, without waiting the
+normal random (between 0 and 1 second) delay.
+This option should not be used on networks where it might result in
+congestion due to many hosts simultaneously (re)connecting and
+sending such packets.
 .It Fl m
 Enable mobility support.
 If this option is specified,
