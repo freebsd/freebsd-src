@@ -1428,7 +1428,7 @@ m_get3(int size, int how, short type, int flags)
 	else
 		zone = zone_jumbo16;
 
-	n = uma_zalloc_arg(zone_jumbop, m, how);
+	n = uma_zalloc_arg(zone, m, how);
 	if (n == NULL) {
 		m_free_raw(m);
 		return (NULL);
