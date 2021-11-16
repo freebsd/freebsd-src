@@ -76,34 +76,44 @@ static SYSCTL_NODE(_kern_ipc_tls_stats, OID_AUTO, ocf,
     CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "Kernel TLS offload via OCF stats");
 
-static COUNTER_U64_DEFINE_EARLY(ocf_tls10_cbc_crypts);
-SYSCTL_COUNTER_U64(_kern_ipc_tls_stats_ocf, OID_AUTO, tls10_cbc_crypts,
-    CTLFLAG_RD, &ocf_tls10_cbc_crypts,
+static COUNTER_U64_DEFINE_EARLY(ocf_tls10_cbc_encrypts);
+SYSCTL_COUNTER_U64(_kern_ipc_tls_stats_ocf, OID_AUTO, tls10_cbc_encrypts,
+    CTLFLAG_RD, &ocf_tls10_cbc_encrypts,
     "Total number of OCF TLS 1.0 CBC encryption operations");
 
-static COUNTER_U64_DEFINE_EARLY(ocf_tls11_cbc_crypts);
-SYSCTL_COUNTER_U64(_kern_ipc_tls_stats_ocf, OID_AUTO, tls11_cbc_crypts,
-    CTLFLAG_RD, &ocf_tls11_cbc_crypts,
+static COUNTER_U64_DEFINE_EARLY(ocf_tls11_cbc_encrypts);
+SYSCTL_COUNTER_U64(_kern_ipc_tls_stats_ocf, OID_AUTO, tls11_cbc_encrypts,
+    CTLFLAG_RD, &ocf_tls11_cbc_encrypts,
     "Total number of OCF TLS 1.1/1.2 CBC encryption operations");
 
-static COUNTER_U64_DEFINE_EARLY(ocf_tls12_gcm_crypts);
-SYSCTL_COUNTER_U64(_kern_ipc_tls_stats_ocf, OID_AUTO, tls12_gcm_crypts,
-    CTLFLAG_RD, &ocf_tls12_gcm_crypts,
+static COUNTER_U64_DEFINE_EARLY(ocf_tls12_gcm_decrypts);
+SYSCTL_COUNTER_U64(_kern_ipc_tls_stats_ocf, OID_AUTO, tls12_gcm_decrypts,
+    CTLFLAG_RD, &ocf_tls12_gcm_decrypts,
+    "Total number of OCF TLS 1.2 GCM decryption operations");
+
+static COUNTER_U64_DEFINE_EARLY(ocf_tls12_gcm_encrypts);
+SYSCTL_COUNTER_U64(_kern_ipc_tls_stats_ocf, OID_AUTO, tls12_gcm_encrypts,
+    CTLFLAG_RD, &ocf_tls12_gcm_encrypts,
     "Total number of OCF TLS 1.2 GCM encryption operations");
 
-static COUNTER_U64_DEFINE_EARLY(ocf_tls12_chacha20_crypts);
-SYSCTL_COUNTER_U64(_kern_ipc_tls_stats_ocf, OID_AUTO, tls12_chacha20_crypts,
-    CTLFLAG_RD, &ocf_tls12_chacha20_crypts,
+static COUNTER_U64_DEFINE_EARLY(ocf_tls12_chacha20_decrypts);
+SYSCTL_COUNTER_U64(_kern_ipc_tls_stats_ocf, OID_AUTO, tls12_chacha20_decrypts,
+    CTLFLAG_RD, &ocf_tls12_chacha20_decrypts,
+    "Total number of OCF TLS 1.2 Chacha20-Poly1305 decryption operations");
+
+static COUNTER_U64_DEFINE_EARLY(ocf_tls12_chacha20_encrypts);
+SYSCTL_COUNTER_U64(_kern_ipc_tls_stats_ocf, OID_AUTO, tls12_chacha20_encrypts,
+    CTLFLAG_RD, &ocf_tls12_chacha20_encrypts,
     "Total number of OCF TLS 1.2 Chacha20-Poly1305 encryption operations");
 
-static COUNTER_U64_DEFINE_EARLY(ocf_tls13_gcm_crypts);
-SYSCTL_COUNTER_U64(_kern_ipc_tls_stats_ocf, OID_AUTO, tls13_gcm_crypts,
-    CTLFLAG_RD, &ocf_tls13_gcm_crypts,
+static COUNTER_U64_DEFINE_EARLY(ocf_tls13_gcm_encrypts);
+SYSCTL_COUNTER_U64(_kern_ipc_tls_stats_ocf, OID_AUTO, tls13_gcm_encrypts,
+    CTLFLAG_RD, &ocf_tls13_gcm_encrypts,
     "Total number of OCF TLS 1.3 GCM encryption operations");
 
-static COUNTER_U64_DEFINE_EARLY(ocf_tls13_chacha20_crypts);
-SYSCTL_COUNTER_U64(_kern_ipc_tls_stats_ocf, OID_AUTO, tls13_chacha20_crypts,
-    CTLFLAG_RD, &ocf_tls13_chacha20_crypts,
+static COUNTER_U64_DEFINE_EARLY(ocf_tls13_chacha20_encrypts);
+SYSCTL_COUNTER_U64(_kern_ipc_tls_stats_ocf, OID_AUTO, tls13_chacha20_encrypts,
+    CTLFLAG_RD, &ocf_tls13_chacha20_encrypts,
     "Total number of OCF TLS 1.3 Chacha20-Poly1305 encryption operations");
 
 static COUNTER_U64_DEFINE_EARLY(ocf_inplace);
@@ -340,9 +350,9 @@ ktls_ocf_tls_cbc_encrypt(struct ktls_ocf_encrypt_state *state,
 	}
 
 	if (os->implicit_iv)
-		counter_u64_add(ocf_tls10_cbc_crypts, 1);
+		counter_u64_add(ocf_tls10_cbc_encrypts, 1);
 	else
-		counter_u64_add(ocf_tls11_cbc_crypts, 1);
+		counter_u64_add(ocf_tls11_cbc_encrypts, 1);
 	if (outiov != NULL)
 		counter_u64_add(ocf_separate_output, 1);
 	else
@@ -434,9 +444,9 @@ ktls_ocf_tls12_aead_encrypt(struct ktls_ocf_encrypt_state *state,
 	crp->crp_op = CRYPTO_OP_ENCRYPT | CRYPTO_OP_COMPUTE_DIGEST;
 	crp->crp_flags = CRYPTO_F_CBIMM | CRYPTO_F_IV_SEPARATE;
 	if (tls->params.cipher_algorithm == CRYPTO_AES_NIST_GCM_16)
-		counter_u64_add(ocf_tls12_gcm_crypts, 1);
+		counter_u64_add(ocf_tls12_gcm_encrypts, 1);
 	else
-		counter_u64_add(ocf_tls12_chacha20_crypts, 1);
+		counter_u64_add(ocf_tls12_chacha20_encrypts, 1);
 	if (outiov != NULL)
 		counter_u64_add(ocf_separate_output, 1);
 	else
@@ -502,9 +512,9 @@ ktls_ocf_tls12_aead_decrypt(struct ktls_session *tls,
 	crypto_use_mbuf(&crp, m);
 
 	if (tls->params.cipher_algorithm == CRYPTO_AES_NIST_GCM_16)
-		counter_u64_add(ocf_tls12_gcm_crypts, 1);
+		counter_u64_add(ocf_tls12_gcm_decrypts, 1);
 	else
-		counter_u64_add(ocf_tls12_chacha20_crypts, 1);
+		counter_u64_add(ocf_tls12_chacha20_decrypts, 1);
 	error = ktls_ocf_dispatch(os, &crp);
 
 	crypto_destroyreq(&crp);
@@ -575,9 +585,9 @@ ktls_ocf_tls13_aead_encrypt(struct ktls_ocf_encrypt_state *state,
 	memcpy(crp->crp_iv, nonce, sizeof(nonce));
 
 	if (tls->params.cipher_algorithm == CRYPTO_AES_NIST_GCM_16)
-		counter_u64_add(ocf_tls13_gcm_crypts, 1);
+		counter_u64_add(ocf_tls13_gcm_encrypts, 1);
 	else
-		counter_u64_add(ocf_tls13_chacha20_crypts, 1);
+		counter_u64_add(ocf_tls13_chacha20_encrypts, 1);
 	if (outiov != NULL)
 		counter_u64_add(ocf_separate_output, 1);
 	else
