@@ -224,7 +224,7 @@ chroot_setup() {
 		if [ -d "${CHROOTDIR}/usr/ports/.git" ]; then
 			git -C ${CHROOTDIR}/usr/ports pull -q
 		else
-			git -C ${CHROOTDIR}/usr/ports -b ${PORTBRANCH} clone
+			git clone -b ${PORTBRANCH} ${GITROOT}/${GITPORTS} ${CHROOTDIR}/usr/ports
 		fi
 	fi
 
