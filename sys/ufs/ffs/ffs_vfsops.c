@@ -1462,6 +1462,7 @@ ffs_unmount(mp, mntflags)
 		taskqueue_free(ump->um_trim_tq);
 		free (ump->um_trimhash, M_TRIM);
 	}
+	vn_lock(ump->um_devvp, LK_EXCLUSIVE | LK_RETRY);
 	g_topology_lock();
 	g_vfs_close(ump->um_cp);
 	g_topology_unlock();
@@ -1469,7 +1470,6 @@ ffs_unmount(mp, mntflags)
 	ump->um_odevvp->v_bufobj.bo_flag &= ~BO_NOBUFS;
 	BO_UNLOCK(&ump->um_odevvp->v_bufobj);
 	atomic_store_rel_ptr((uintptr_t *)&ump->um_dev->si_mountpt, 0);
-	vn_lock(ump->um_devvp, LK_EXCLUSIVE | LK_RETRY);
 	mntfs_freevp(ump->um_devvp);
 	vrele(ump->um_odevvp);
 	dev_rel(ump->um_dev);
