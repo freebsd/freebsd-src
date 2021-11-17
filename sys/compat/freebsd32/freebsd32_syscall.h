@@ -430,6 +430,7 @@
 #define	FREEBSD32_SYS_symlinkat	502
 #define	FREEBSD32_SYS_unlinkat	503
 #define	FREEBSD32_SYS_posix_openpt	504
+#define	FREEBSD32_SYS_gssd_syscall	505
 #define	FREEBSD32_SYS_freebsd32_jail_get	506
 #define	FREEBSD32_SYS_freebsd32_jail_set	507
 #define	FREEBSD32_SYS_jail_remove	508
