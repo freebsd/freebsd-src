@@ -243,6 +243,9 @@ contrib/openzfs/module/zcommon/zfs_prop.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/zcommon/zpool_prop.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/zcommon/zprop_common.c		optional zfs compile-with "${ZFS_C}"
 
+# zfs edon-r hash support
+contrib/openzfs/module/icp/algs/edonr/edonr.c		optional zfs compile-with "${ZFS_C}"
+
 #zfs core common code
 contrib/openzfs/module/zfs/abd.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/zfs/aggsum.c		optional zfs compile-with "${ZFS_C}"
@@ -283,6 +286,7 @@ contrib/openzfs/module/zfs/dsl_prop.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/zfs/dsl_scan.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/zfs/dsl_synctask.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/zfs/dsl_userhold.c		optional zfs compile-with "${ZFS_C}"
+contrib/openzfs/module/zfs/edonr_zfs.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/zfs/fm.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/zfs/gzip.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/zfs/lzjb.c		optional zfs compile-with "${ZFS_C}"
