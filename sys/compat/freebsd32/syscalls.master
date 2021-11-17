@@ -420,7 +420,7 @@
 
 220	AUE_SEMCTL	COMPAT7|NOSTD	{ int freebsd32_semctl( \
 				    int semid, int semnum, \
-				    int cmd, union semun32 *arg); }
+				    int cmd, union semun_old32 *arg); }
 221	AUE_SEMGET	NOSTD|NOPROTO	{ int semget(key_t key, int nsems, \
 				    int semflg); }
 222	AUE_SEMOP	NOSTD|NOPROTO	{ int semop(int semid, \

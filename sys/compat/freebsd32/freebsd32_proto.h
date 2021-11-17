@@ -1171,7 +1171,7 @@ struct freebsd7_freebsd32_semctl_args {
 	char semid_l_[PADL_(int)]; int semid; char semid_r_[PADR_(int)];
 	char semnum_l_[PADL_(int)]; int semnum; char semnum_r_[PADR_(int)];
 	char cmd_l_[PADL_(int)]; int cmd; char cmd_r_[PADR_(int)];
-	char arg_l_[PADL_(union semun32 *)]; union semun32 * arg; char arg_r_[PADR_(union semun32 *)];
+	char arg_l_[PADL_(union semun_old32 *)]; union semun_old32 * arg; char arg_r_[PADR_(union semun_old32 *)];
 };
 struct freebsd7_freebsd32_msgctl_args {
 	char msqid_l_[PADL_(int)]; int msqid; char msqid_r_[PADR_(int)];

@@ -1870,7 +1870,7 @@ freebsd7_freebsd32_semctl(struct thread *td,
 	struct semid_ds32_old dsbuf32;
 	struct semid_ds dsbuf;
 	union semun semun;
-	union semun32 arg;
+	union semun_old32 arg;
 	register_t rval;
 	int error;
 
