@@ -1176,12 +1176,12 @@ struct freebsd7_freebsd32_semctl_args {
 struct freebsd7_freebsd32_msgctl_args {
 	char msqid_l_[PADL_(int)]; int msqid; char msqid_r_[PADR_(int)];
 	char cmd_l_[PADL_(int)]; int cmd; char cmd_r_[PADR_(int)];
-	char buf_l_[PADL_(struct msqid_ds32_old *)]; struct msqid_ds32_old * buf; char buf_r_[PADR_(struct msqid_ds32_old *)];
+	char buf_l_[PADL_(struct msqid_ds_old32 *)]; struct msqid_ds_old32 * buf; char buf_r_[PADR_(struct msqid_ds_old32 *)];
 };
 struct freebsd7_freebsd32_shmctl_args {
 	char shmid_l_[PADL_(int)]; int shmid; char shmid_r_[PADR_(int)];
 	char cmd_l_[PADL_(int)]; int cmd; char cmd_r_[PADR_(int)];
-	char buf_l_[PADL_(struct shmid_ds32_old *)]; struct shmid_ds32_old * buf; char buf_r_[PADR_(struct shmid_ds32_old *)];
+	char buf_l_[PADL_(struct shmid_ds_old32 *)]; struct shmid_ds_old32 * buf; char buf_r_[PADR_(struct shmid_ds_old32 *)];
 };
 #ifdef PAD64_REQUIRED
 #else
