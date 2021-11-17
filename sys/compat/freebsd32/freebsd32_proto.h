@@ -597,7 +597,7 @@ struct freebsd32_posix_fadvise_args {
 	char advice_l_[PADL_(int)]; int advice; char advice_r_[PADR_(int)];
 };
 struct freebsd32_wait6_args {
-	char idtype_l_[PADL_(int)]; int idtype; char idtype_r_[PADR_(int)];
+	char idtype_l_[PADL_(idtype_t)]; idtype_t idtype; char idtype_r_[PADR_(idtype_t)];
 	char pad_l_[PADL_(int)]; int pad; char pad_r_[PADR_(int)];
 	char id1_l_[PADL_(uint32_t)]; uint32_t id1; char id1_r_[PADR_(uint32_t)];
 	char id2_l_[PADL_(uint32_t)]; uint32_t id2; char id2_r_[PADR_(uint32_t)];
@@ -623,7 +623,7 @@ struct freebsd32_posix_fadvise_args {
 	char advice_l_[PADL_(int)]; int advice; char advice_r_[PADR_(int)];
 };
 struct freebsd32_wait6_args {
-	char idtype_l_[PADL_(int)]; int idtype; char idtype_r_[PADR_(int)];
+	char idtype_l_[PADL_(idtype_t)]; idtype_t idtype; char idtype_r_[PADR_(idtype_t)];
 	char id1_l_[PADL_(uint32_t)]; uint32_t id1; char id1_r_[PADR_(uint32_t)];
 	char id2_l_[PADL_(uint32_t)]; uint32_t id2; char id2_r_[PADR_(uint32_t)];
 	char status_l_[PADL_(int *)]; int * status; char status_r_[PADR_(int *)];
@@ -647,7 +647,7 @@ struct freebsd32_aio_mlock_args {
 };
 #ifdef PAD64_REQUIRED
 struct freebsd32_procctl_args {
-	char idtype_l_[PADL_(int)]; int idtype; char idtype_r_[PADR_(int)];
+	char idtype_l_[PADL_(idtype_t)]; idtype_t idtype; char idtype_r_[PADR_(idtype_t)];
 	char pad_l_[PADL_(int)]; int pad; char pad_r_[PADR_(int)];
 	char id1_l_[PADL_(uint32_t)]; uint32_t id1; char id1_r_[PADR_(uint32_t)];
 	char id2_l_[PADL_(uint32_t)]; uint32_t id2; char id2_r_[PADR_(uint32_t)];
@@ -656,7 +656,7 @@ struct freebsd32_procctl_args {
 };
 #else
 struct freebsd32_procctl_args {
-	char idtype_l_[PADL_(int)]; int idtype; char idtype_r_[PADR_(int)];
+	char idtype_l_[PADL_(idtype_t)]; idtype_t idtype; char idtype_r_[PADR_(idtype_t)];
 	char id1_l_[PADL_(uint32_t)]; uint32_t id1; char id1_r_[PADR_(uint32_t)];
 	char id2_l_[PADL_(uint32_t)]; uint32_t id2; char id2_r_[PADR_(uint32_t)];
 	char com_l_[PADL_(int)]; int com; char com_r_[PADR_(int)];
