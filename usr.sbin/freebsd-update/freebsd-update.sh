@@ -3134,6 +3134,7 @@ install_setup_rollback () {
 
 # Actually install updates
 install_run () {
+	rm -f tag
 	echo -n "Installing updates..."
 
 	# Make sure we have all the files we should have
@@ -3219,6 +3220,7 @@ rollback_files () {
 
 # Actually rollback updates
 rollback_run () {
+	rm -f tag
 	echo -n "Uninstalling updates..."
 
 	# If there are updates waiting to be installed, remove them; we
