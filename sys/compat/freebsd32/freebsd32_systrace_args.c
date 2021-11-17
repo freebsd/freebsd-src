@@ -2238,7 +2238,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct freebsd32_sigqueue_args *p = params;
 		iarg[0] = p->pid; /* pid_t */
 		iarg[1] = p->signum; /* int */
-		iarg[2] = p->value; /* int */
+		uarg[2] = (intptr_t)p->value; /* void * */
 		*n_args = 3;
 		break;
 	}
@@ -7071,7 +7071,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 2:
-			p = "int";
+			p = "userland void *";
 			break;
 		default:
 			break;
