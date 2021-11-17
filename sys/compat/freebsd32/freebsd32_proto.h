@@ -1223,11 +1223,6 @@ struct freebsd11_freebsd32_getdirentries_args {
 	char count_l_[PADL_(u_int)]; u_int count; char count_r_[PADR_(u_int)];
 	char basep_l_[PADL_(int32_t *)]; int32_t * basep; char basep_r_[PADR_(int32_t *)];
 };
-struct freebsd11_freebsd32_getdents_args {
-	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
-	char buf_l_[PADL_(char *)]; char * buf; char buf_r_[PADR_(char *)];
-	char count_l_[PADL_(int)]; int count; char count_r_[PADR_(int)];
-};
 struct freebsd11_freebsd32_fhstat_args {
 	char u_fhp_l_[PADL_(const struct fhandle *)]; const struct fhandle * u_fhp; char u_fhp_r_[PADR_(const struct fhandle *)];
 	char sb_l_[PADL_(struct freebsd11_stat32 *)]; struct freebsd11_stat32 * sb; char sb_r_[PADR_(struct freebsd11_stat32 *)];
@@ -1265,7 +1260,6 @@ int	freebsd11_freebsd32_stat(struct thread *, struct freebsd11_freebsd32_stat_ar
 int	freebsd11_freebsd32_fstat(struct thread *, struct freebsd11_freebsd32_fstat_args *);
 int	freebsd11_freebsd32_lstat(struct thread *, struct freebsd11_freebsd32_lstat_args *);
 int	freebsd11_freebsd32_getdirentries(struct thread *, struct freebsd11_freebsd32_getdirentries_args *);
-int	freebsd11_freebsd32_getdents(struct thread *, struct freebsd11_freebsd32_getdents_args *);
 int	freebsd11_freebsd32_fhstat(struct thread *, struct freebsd11_freebsd32_fhstat_args *);
 int	freebsd11_freebsd32_kevent(struct thread *, struct freebsd11_freebsd32_kevent_args *);
 int	freebsd11_freebsd32_fstatat(struct thread *, struct freebsd11_freebsd32_fstatat_args *);
@@ -1362,7 +1356,6 @@ int	freebsd11_freebsd32_fstatat(struct thread *, struct freebsd11_freebsd32_fsta
 #define	FREEBSD32_SYS_AUE_freebsd32_aio_read	AUE_AIO_READ
 #define	FREEBSD32_SYS_AUE_freebsd32_aio_write	AUE_AIO_WRITE
 #define	FREEBSD32_SYS_AUE_freebsd32_lio_listio	AUE_LIO_LISTIO
-#define	FREEBSD32_SYS_AUE_freebsd11_freebsd32_getdents	AUE_O_GETDENTS
 #define	FREEBSD32_SYS_AUE_freebsd32_lutimes	AUE_LUTIMES
 #define	FREEBSD32_SYS_AUE_freebsd32_preadv	AUE_PREADV
 #define	FREEBSD32_SYS_AUE_freebsd32_pwritev	AUE_PWRITEV
