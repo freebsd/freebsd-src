@@ -140,7 +140,7 @@ struct minidumpstate {
 	struct bitset	*dump_bitset;
 };
 
-int minidumpsys(struct dumperinfo *);
+int minidumpsys(struct dumperinfo *, bool);
 int dumpsys_generic(struct dumperinfo *);
 
 void dumpsys_map_chunk(vm_paddr_t, size_t, void **);
