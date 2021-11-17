@@ -194,13 +194,13 @@
 				    const gid_t *gidset); }
 81	AUE_GETPGRP	NOPROTO	{ int getpgrp(void); }
 82	AUE_SETPGRP	NOPROTO	{ int setpgid(int pid, int pgid); }
-83	AUE_SETITIMER	STD	{ int freebsd32_setitimer(u_int which, \
+83	AUE_SETITIMER	STD	{ int freebsd32_setitimer(int which, \
 				    const struct itimerval32 *itv, \
 				    struct itimerval32 *oitv); }
 84	AUE_NULL	OBSOL	owait
 ; XXX implement
 85	AUE_SWAPON	NOPROTO	{ int swapon(const char *name); }
-86	AUE_GETITIMER	STD	{ int freebsd32_getitimer(u_int which, \
+86	AUE_GETITIMER	STD	{ int freebsd32_getitimer(int which, \
 				    struct itimerval32 *itv); }
 87	AUE_O_GETHOSTNAME	OBSOL	ogethostname
 88	AUE_O_SETHOSTNAME	OBSOL	osethostname
