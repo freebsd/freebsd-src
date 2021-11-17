@@ -142,8 +142,7 @@
 				   struct osigaction32 *nsa, \
 				   struct osigaction32 *osa); }
 47	AUE_GETGID	NOPROTO	{ gid_t getgid(void); }
-48	AUE_SIGPROCMASK	COMPAT	{ int freebsd32_sigprocmask(int how, \
-				   osigset_t mask); }
+48	AUE_SIGPROCMASK	COMPAT|NOPROTO	{ int sigprocmask(int how, osigset_t mask); }
 49	AUE_GETLOGIN	NOPROTO	{ int getlogin(char *namebuf, \
 				    u_int namelen); }
 50	AUE_SETLOGIN	NOPROTO	{ int setlogin(const char *namebuf); }
@@ -235,9 +234,9 @@
 108	AUE_O_SIGVEC	COMPAT	{ int freebsd32_sigvec(int signum, \
 				     struct sigvec32 *nsv, \
 				     struct sigvec32 *osv); }
-109	AUE_O_SIGBLOCK	COMPAT	{ int freebsd32_sigblock(int mask); }
-110	AUE_O_SIGSETMASK	COMPAT	{ int freebsd32_sigsetmask( int mask); }
-111	AUE_SIGSUSPEND	COMPAT	{ int freebsd32_sigsuspend( int mask); }
+109	AUE_O_SIGBLOCK	COMPAT|NOPROTO	{ int sigblock(int mask); }
+110	AUE_O_SIGSETMASK	COMPAT|NOPROTO	{ int sigsetmask(int mask); }
+111	AUE_SIGSUSPEND	COMPAT|NOPROTO	{ int sigsuspend( int mask); }
 112	AUE_O_SIGSTACK	COMPAT	{ int freebsd32_sigstack( \
 				     struct sigstack32 *nss, \
 				     struct sigstack32 *oss); }
