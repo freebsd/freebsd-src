@@ -253,7 +253,9 @@ extern int mod_debug;
 #endif
 #endif	/* _KERNEL */
 
-#define	MAXMODNAME	32
+#define	MAXMODNAMEV1V2	32
+#define	MAXMODNAMEV3	MAXPATHLEN
+#define	MAXMODNAME	MAXMODNAMEV3
 
 struct module_stat {
 	int		version;	/* set to sizeof(struct module_stat) */
