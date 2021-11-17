@@ -611,8 +611,7 @@
 				    uint32_t offset1, uint32_t offset2, \
 				    size_t nbytes, struct sf_hdtr32 *hdtr, \
 				    off_t *sbytes, int flags); }
-337	AUE_NULL	NOPROTO	{ int kldsym(int fileid, int cmd, \
-				    void *data); }
+337	AUE_NULL	UNIMPL	kldsym
 338	AUE_JAIL	STD	{ int freebsd32_jail(struct jail32 *jail); }
 339	AUE_NULL	UNIMPL	pioctl
 340	AUE_SIGPROCMASK	NOPROTO	{ int sigprocmask(int how, \
