@@ -159,7 +159,7 @@ cpu_minidumpsys(struct dumperinfo *di, const struct minidumpstate *state)
 	uint64_t dumpsize, *dump_avail_buf;
 	uint32_t ptesize;
 	uint32_t pa, prev_pa = 0, count = 0;
-	vm_offset_t va;
+	vm_offset_t va, kva_end;
 	int error, i;
 	char *addr;
 
@@ -174,9 +174,15 @@ cpu_minidumpsys(struct dumperinfo *di, const struct minidumpstate *state)
 	 */
 	dcache_wbinv_poc_all();
 
-	/* Walk page table pages, set bits in vm_page_dump */
+	/* Snapshot the KVA upper bound in case it grows. */
+	kva_end = kernel_vm_end;
+
+	/*
+	 * Walk the kernel page table pages, setting the active entries in the
+	 * dump bitmap.
+	 */
 	ptesize = 0;
-	for (va = KERNBASE; va < kernel_vm_end; va += PAGE_SIZE) {
+	for (va = KERNBASE; va < kva_end; va += PAGE_SIZE) {
 		pa = pmap_dump_kextract(va, NULL);
 		if (pa != 0 && vm_phys_is_dumpable(pa))
 			dump_add_page(pa);
@@ -255,7 +261,7 @@ cpu_minidumpsys(struct dumperinfo *di, const struct minidumpstate *state)
 
 	/* Dump kernel page table pages */
 	addr = dumpbuf;
-	for (va = KERNBASE; va < kernel_vm_end; va += PAGE_SIZE) {
+	for (va = KERNBASE; va < kva_end; va += PAGE_SIZE) {
 		pmap_dump_kextract(va, (pt2_entry_t *)addr);
 		addr += sizeof(pt2_entry_t);
 		if (addr == dumpbuf + sizeof(dumpbuf)) {

@@ -155,11 +155,11 @@ blk_write(struct dumperinfo *di, char *ptr, vm_paddr_t pa, size_t sz)
 int
 cpu_minidumpsys(struct dumperinfo *di, const struct minidumpstate *state)
 {
-	pd_entry_t *l1, *l2;
-	pt_entry_t *l3;
+	pd_entry_t *l1, *l2, l2e;
+	pt_entry_t *l3, l3e;
 	struct minidumphdr mdhdr;
 	uint32_t pmapsize;
-	vm_offset_t va;
+	vm_offset_t va, kva_max;
 	vm_paddr_t pa;
 	int error;
 	int i;
@@ -171,8 +171,17 @@ retry:
 	error = 0;
 	pmapsize = 0;
 
-	/* Build set of dumpable pages from kernel pmap */
-	for (va = VM_MIN_KERNEL_ADDRESS; va < kernel_vm_end; va += L2_SIZE) {
+	/* Snapshot the KVA upper bound in case it grows. */
+	kva_max = kernel_vm_end;
+
+	/*
+	 * Walk the kernel page table pages, setting the active entries in the
+	 * dump bitmap.
+	 *
+	 * NB: for a live dump, we may be racing with updates to the page
+	 * tables, so care must be taken to read each entry only once.
+	 */
+	for (va = VM_MIN_KERNEL_ADDRESS; va < kva_max; va += L2_SIZE) {
 		pmapsize += PAGE_SIZE;
 		if (!pmap_get_tables(pmap_kernel(), va, &l1, &l2, &l3))
 			continue;
@@ -182,18 +191,20 @@ retry:
 			continue;
 
 		/* l2 may be a superpage */
-		if ((*l2 & PTE_RWX) != 0) {
-			pa = (*l2 >> PTE_PPN1_S) << L2_SHIFT;
+		l2e = atomic_load_64(l2);
+		if ((l2e & PTE_RWX) != 0) {
+			pa = (l2e >> PTE_PPN1_S) << L2_SHIFT;
 			for (i = 0; i < Ln_ENTRIES; i++, pa += PAGE_SIZE) {
 				if (vm_phys_is_dumpable(pa))
 					dump_add_page(pa);
 			}
 		} else {
 			for (i = 0; i < Ln_ENTRIES; i++) {
-				if ((l3[i] & PTE_V) == 0)
+				l3e = atomic_load_64(&l3[i]);
+				if ((l3e & PTE_V) == 0)
 					continue;
-				pa = (l3[i] >> PTE_PPN0_S) * PAGE_SIZE;
-				if (vm_phys_is_dumpable(pa))
+				pa = (l3e >> PTE_PPN0_S) * PAGE_SIZE;
+				if (PHYS_IN_DMAP(pa) && vm_phys_is_dumpable(pa))
 					dump_add_page(pa);
 			}
 		}
@@ -206,7 +217,7 @@ retry:
 	dumpsize += round_page(BITSET_SIZE(vm_page_dump_pages));
 	VM_PAGE_DUMP_FOREACH(pa) {
 		/* Clear out undumpable pages now if needed */
-		if (vm_phys_is_dumpable(pa))
+		if (PHYS_IN_DMAP(pa) && vm_phys_is_dumpable(pa))
 			dumpsize += PAGE_SIZE;
 		else
 			dump_drop_page(pa);
@@ -268,7 +279,7 @@ retry:
 
 	/* Dump kernel page directory pages */
 	bzero(&tmpbuffer, sizeof(tmpbuffer));
-	for (va = VM_MIN_KERNEL_ADDRESS; va < kernel_vm_end; va += L2_SIZE) {
+	for (va = VM_MIN_KERNEL_ADDRESS; va < kva_max; va += L2_SIZE) {
 		if (!pmap_get_tables(pmap_kernel(), va, &l1, &l2, &l3)) {
 			/* We always write a page, even if it is zero */
 			error = blk_write(di, (char *)&tmpbuffer, 0, PAGE_SIZE);
@@ -278,10 +289,14 @@ retry:
 			error = blk_flush(di);
 			if (error)
 				goto fail;
-		} else if ((*l2 & PTE_RWX) != 0) {
+			continue;
+		}
+
+		l2e = atomic_load_64(l2);
+		if ((l2e & PTE_RWX) != 0) {
 			/* Generate fake l3 entries based on the l2 superpage */
 			for (i = 0; i < Ln_ENTRIES; i++) {
-				tmpbuffer[i] = (*l2 | (i << PTE_PPN0_S));
+				tmpbuffer[i] = (l2e | (i << PTE_PPN0_S));
 			}
 			/* We always write a page, even if it is zero */
 			error = blk_write(di, (char *)&tmpbuffer, 0, PAGE_SIZE);
@@ -293,10 +308,17 @@ retry:
 				goto fail;
 			bzero(&tmpbuffer, sizeof(tmpbuffer));
 		} else {
-			pa = (*l2 >> PTE_PPN0_S) * PAGE_SIZE;
+			pa = (l2e >> PTE_PPN0_S) * PAGE_SIZE;
 
-			/* We always write a page, even if it is zero */
-			error = blk_write(di, NULL, pa, PAGE_SIZE);
+			/*
+			 * We always write a page, even if it is zero. If pa
+			 * is malformed, write the zeroed tmpbuffer.
+			 */
+			if (PHYS_IN_DMAP(pa) && vm_phys_is_dumpable(pa))
+				error = blk_write(di, NULL, pa, PAGE_SIZE);
+			else
+				error = blk_write(di, (char *)&tmpbuffer, 0,
+				    PAGE_SIZE);
 			if (error)
 				goto fail;
 		}
