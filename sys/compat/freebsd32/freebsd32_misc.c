@@ -2247,7 +2247,7 @@ ofreebsd32_fstat(struct thread *td, struct ofreebsd32_fstat_args *uap)
 	if (error)
 		return (error);
 	copy_ostat(&ub, &ub32);
-	error = copyout(&ub32, uap->ub, sizeof(ub32));
+	error = copyout(&ub32, uap->sb, sizeof(ub32));
 	return (error);
 }
 #endif
@@ -2406,7 +2406,7 @@ freebsd11_freebsd32_fstat(struct thread *td,
 		return (error);
 	error = freebsd11_cvtstat32(&sb, &sb32);
 	if (error == 0)
-		error = copyout(&sb32, uap->ub, sizeof (sb32));
+		error = copyout(&sb32, uap->sb, sizeof (sb32));
 	return (error);
 }
 

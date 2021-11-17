@@ -931,7 +931,7 @@ struct ofreebsd32_sigprocmask_args {
 };
 struct ofreebsd32_fstat_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
-	char ub_l_[PADL_(struct ostat32 *)]; struct ostat32 * ub; char ub_r_[PADR_(struct ostat32 *)];
+	char sb_l_[PADL_(struct ostat32 *)]; struct ostat32 * sb; char sb_r_[PADR_(struct ostat32 *)];
 };
 struct ofreebsd32_getpagesize_args {
 	char dummy_l_[PADL_(int32_t)]; int32_t dummy; char dummy_r_[PADR_(int32_t)];
@@ -1249,7 +1249,7 @@ struct freebsd11_freebsd32_stat_args {
 };
 struct freebsd11_freebsd32_fstat_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
-	char ub_l_[PADL_(struct freebsd11_stat32 *)]; struct freebsd11_stat32 * ub; char ub_r_[PADR_(struct freebsd11_stat32 *)];
+	char sb_l_[PADL_(struct freebsd11_stat32 *)]; struct freebsd11_stat32 * sb; char sb_r_[PADR_(struct freebsd11_stat32 *)];
 };
 struct freebsd11_freebsd32_lstat_args {
 	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
