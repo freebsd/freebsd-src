@@ -247,7 +247,7 @@ struct freebsd32_aio_write_args {
 };
 struct freebsd32_lio_listio_args {
 	char mode_l_[PADL_(int)]; int mode; char mode_r_[PADR_(int)];
-	char acb_list_l_[PADL_(struct aiocb32 * const *)]; struct aiocb32 * const * acb_list; char acb_list_r_[PADR_(struct aiocb32 * const *)];
+	char acb_list_l_[PADL_(uint32_t *)]; uint32_t * acb_list; char acb_list_r_[PADR_(uint32_t *)];
 	char nent_l_[PADL_(int)]; int nent; char nent_r_[PADR_(int)];
 	char sig_l_[PADL_(struct sigevent32 *)]; struct sigevent32 * sig; char sig_r_[PADR_(struct sigevent32 *)];
 };
@@ -281,7 +281,7 @@ struct freebsd32_aio_return_args {
 	char aiocbp_l_[PADL_(struct aiocb32 *)]; struct aiocb32 * aiocbp; char aiocbp_r_[PADR_(struct aiocb32 *)];
 };
 struct freebsd32_aio_suspend_args {
-	char aiocbp_l_[PADL_(struct aiocb32 * const *)]; struct aiocb32 * const * aiocbp; char aiocbp_r_[PADR_(struct aiocb32 * const *)];
+	char aiocbp_l_[PADL_(uint32_t *)]; uint32_t * aiocbp; char aiocbp_r_[PADR_(uint32_t *)];
 	char nent_l_[PADL_(int)]; int nent; char nent_r_[PADR_(int)];
 	char timeout_l_[PADL_(const struct timespec32 *)]; const struct timespec32 * timeout; char timeout_r_[PADR_(const struct timespec32 *)];
 };
@@ -305,7 +305,7 @@ struct freebsd32_sigwaitinfo_args {
 	char info_l_[PADL_(struct siginfo32 *)]; struct siginfo32 * info; char info_r_[PADR_(struct siginfo32 *)];
 };
 struct freebsd32_aio_waitcomplete_args {
-	char aiocbp_l_[PADL_(struct aiocb32 **)]; struct aiocb32 ** aiocbp; char aiocbp_r_[PADR_(struct aiocb32 **)];
+	char aiocbp_l_[PADL_(uint32_t *)]; uint32_t * aiocbp; char aiocbp_r_[PADR_(uint32_t *)];
 	char timeout_l_[PADL_(struct timespec32 *)]; struct timespec32 * timeout; char timeout_r_[PADR_(struct timespec32 *)];
 };
 struct freebsd32_nmount_args {
@@ -1130,7 +1130,7 @@ struct freebsd6_freebsd32_aio_write_args {
 };
 struct freebsd6_freebsd32_lio_listio_args {
 	char mode_l_[PADL_(int)]; int mode; char mode_r_[PADR_(int)];
-	char acb_list_l_[PADL_(struct oaiocb32 * const *)]; struct oaiocb32 * const * acb_list; char acb_list_r_[PADR_(struct oaiocb32 * const *)];
+	char acb_list_l_[PADL_(uint32_t *)]; uint32_t * acb_list; char acb_list_r_[PADR_(uint32_t *)];
 	char nent_l_[PADL_(int)]; int nent; char nent_r_[PADR_(int)];
 	char sig_l_[PADL_(struct osigevent32 *)]; struct osigevent32 * sig; char sig_r_[PADR_(struct osigevent32 *)];
 };

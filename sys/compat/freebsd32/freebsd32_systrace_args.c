@@ -1278,7 +1278,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 257: {
 		struct freebsd32_lio_listio_args *p = params;
 		iarg[0] = p->mode; /* int */
-		uarg[1] = (intptr_t)p->acb_list; /* struct aiocb32 * const * */
+		uarg[1] = (intptr_t)p->acb_list; /* uint32_t * */
 		iarg[2] = p->nent; /* int */
 		uarg[3] = (intptr_t)p->sig; /* struct sigevent32 * */
 		*n_args = 4;
@@ -1437,7 +1437,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	/* freebsd32_aio_suspend */
 	case 315: {
 		struct freebsd32_aio_suspend_args *p = params;
-		uarg[0] = (intptr_t)p->aiocbp; /* struct aiocb32 * const * */
+		uarg[0] = (intptr_t)p->aiocbp; /* uint32_t * */
 		iarg[1] = p->nent; /* int */
 		uarg[2] = (intptr_t)p->timeout; /* const struct timespec32 * */
 		*n_args = 3;
@@ -1721,7 +1721,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	/* freebsd32_aio_waitcomplete */
 	case 359: {
 		struct freebsd32_aio_waitcomplete_args *p = params;
-		uarg[0] = (intptr_t)p->aiocbp; /* struct aiocb32 ** */
+		uarg[0] = (intptr_t)p->aiocbp; /* uint32_t * */
 		uarg[1] = (intptr_t)p->timeout; /* struct timespec32 * */
 		*n_args = 2;
 		break;
@@ -2271,7 +2271,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct abort2_args *p = params;
 		uarg[0] = (intptr_t)p->why; /* const char * */
 		iarg[1] = p->nargs; /* int */
-		uarg[2] = (intptr_t)p->args; /* void ** */
+		uarg[2] = (intptr_t)p->args; /* uint32_t * */
 		*n_args = 3;
 		break;
 	}
@@ -5445,7 +5445,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 1:
-			p = "userland struct aiocb32 * const *";
+			p = "userland uint32_t *";
 			break;
 		case 2:
 			p = "int";
@@ -5702,7 +5702,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 315:
 		switch (ndx) {
 		case 0:
-			p = "userland struct aiocb32 * const *";
+			p = "userland uint32_t *";
 			break;
 		case 1:
 			p = "int";
@@ -6166,7 +6166,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 359:
 		switch (ndx) {
 		case 0:
-			p = "userland struct aiocb32 **";
+			p = "userland uint32_t *";
 			break;
 		case 1:
 			p = "userland struct timespec32 *";
@@ -7100,7 +7100,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 2:
-			p = "userland void **";
+			p = "userland uint32_t *";
 			break;
 		default:
 			break;
