@@ -196,15 +196,15 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 3;
 		break;
 	}
-	/* freebsd32_recvfrom */
+	/* recvfrom */
 	case 29: {
-		struct freebsd32_recvfrom_args *p = params;
+		struct recvfrom_args *p = params;
 		iarg[0] = p->s; /* int */
 		uarg[1] = (intptr_t)p->buf; /* void * */
 		uarg[2] = p->len; /* size_t */
 		iarg[3] = p->flags; /* int */
 		uarg[4] = (intptr_t)p->from; /* struct sockaddr * */
-		uarg[5] = p->fromlenaddr; /* uint32_t */
+		uarg[5] = (intptr_t)p->fromlenaddr; /* __socklen_t * */
 		*n_args = 6;
 		break;
 	}
@@ -3720,7 +3720,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* freebsd32_recvfrom */
+	/* recvfrom */
 	case 29:
 		switch (ndx) {
 		case 0:
@@ -3739,7 +3739,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "userland struct sockaddr *";
 			break;
 		case 5:
-			p = "uint32_t";
+			p = "userland __socklen_t *";
 			break;
 		default:
 			break;
@@ -9360,7 +9360,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* freebsd32_recvfrom */
+	/* recvfrom */
 	case 29:
 		if (ndx == 0 || ndx == 1)
 			p = "int";

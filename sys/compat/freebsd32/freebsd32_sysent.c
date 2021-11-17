@@ -91,7 +91,7 @@ struct sysent freebsd32_sysent[] = {
 	{ .sy_narg = AS(freebsd32_ptrace_args), .sy_call = (sy_call_t *)freebsd32_ptrace, .sy_auevent = AUE_PTRACE, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 26 = freebsd32_ptrace */
 	{ .sy_narg = AS(freebsd32_recvmsg_args), .sy_call = (sy_call_t *)freebsd32_recvmsg, .sy_auevent = AUE_RECVMSG, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 27 = freebsd32_recvmsg */
 	{ .sy_narg = AS(freebsd32_sendmsg_args), .sy_call = (sy_call_t *)freebsd32_sendmsg, .sy_auevent = AUE_SENDMSG, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 28 = freebsd32_sendmsg */
-	{ .sy_narg = AS(freebsd32_recvfrom_args), .sy_call = (sy_call_t *)freebsd32_recvfrom, .sy_auevent = AUE_RECVFROM, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 29 = freebsd32_recvfrom */
+	{ .sy_narg = AS(recvfrom_args), .sy_call = (sy_call_t *)sys_recvfrom, .sy_auevent = AUE_RECVFROM, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 29 = recvfrom */
 	{ .sy_narg = AS(accept_args), .sy_call = (sy_call_t *)sys_accept, .sy_auevent = AUE_ACCEPT, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 30 = accept */
 	{ .sy_narg = AS(getpeername_args), .sy_call = (sy_call_t *)sys_getpeername, .sy_auevent = AUE_GETPEERNAME, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 31 = getpeername */
 	{ .sy_narg = AS(getsockname_args), .sy_call = (sy_call_t *)sys_getsockname, .sy_auevent = AUE_GETSOCKNAME, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 32 = getsockname */
