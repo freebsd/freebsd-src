@@ -4874,7 +4874,7 @@ int
 freebsd32__umtx_op(struct thread *td, struct freebsd32__umtx_op_args *uap)
 {
 
-	return (kern__umtx_op(td, uap->obj, uap->op, uap->val, uap->uaddr,
+	return (kern__umtx_op(td, uap->obj, uap->op, uap->val, uap->uaddr1,
 	    uap->uaddr2, &umtx_native_ops32));
 }
 #endif /* COMPAT_FREEBSD32 */
