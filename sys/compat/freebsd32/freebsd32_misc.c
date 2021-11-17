@@ -154,7 +154,7 @@ CTASSERT(sizeof(struct timespec32) == 8);
 CTASSERT(sizeof(struct itimerval32) == 16);
 CTASSERT(sizeof(struct bintime32) == 12);
 #endif
-CTASSERT(sizeof(struct statfs32) == 256);
+CTASSERT(sizeof(struct ostatfs32) == 256);
 #ifdef __amd64__
 CTASSERT(sizeof(struct rusage32) == 72);
 #endif
@@ -260,7 +260,7 @@ freebsd32_wait6(struct thread *td, struct freebsd32_wait6_args *uap)
 
 #ifdef COMPAT_FREEBSD4
 static void
-copy_statfs(struct statfs *in, struct statfs32 *out)
+copy_statfs(struct statfs *in, struct ostatfs32 *out)
 {
 
 	statfs_scale_blocks(in, INT32_MAX);
@@ -281,11 +281,11 @@ copy_statfs(struct statfs *in, struct statfs32 *out)
 	strlcpy(out->f_fstypename,
 	      in->f_fstypename, MFSNAMELEN);
 	strlcpy(out->f_mntonname,
-	      in->f_mntonname, min(MNAMELEN, FREEBSD4_MNAMELEN));
+	      in->f_mntonname, min(MNAMELEN, FREEBSD4_OMNAMELEN));
 	out->f_syncreads = MIN(in->f_syncreads, INT32_MAX);
 	out->f_asyncreads = MIN(in->f_asyncreads, INT32_MAX);
 	strlcpy(out->f_mntfromname,
-	      in->f_mntfromname, min(MNAMELEN, FREEBSD4_MNAMELEN));
+	      in->f_mntfromname, min(MNAMELEN, FREEBSD4_OMNAMELEN));
 }
 #endif
 
@@ -295,11 +295,11 @@ freebsd4_freebsd32_getfsstat(struct thread *td,
     struct freebsd4_freebsd32_getfsstat_args *uap)
 {
 	struct statfs *buf, *sp;
-	struct statfs32 stat32;
+	struct ostatfs32 stat32;
 	size_t count, size, copycount;
 	int error;
 
-	count = uap->bufsize / sizeof(struct statfs32);
+	count = uap->bufsize / sizeof(struct ostatfs32);
 	size = count * sizeof(struct statfs);
 	error = kern_getfsstat(td, &buf, size, &count, UIO_SYSSPACE, uap->mode);
 	if (size > 0) {
@@ -1828,7 +1828,7 @@ freebsd32_adjtime(struct thread *td, struct freebsd32_adjtime_args *uap)
 int
 freebsd4_freebsd32_statfs(struct thread *td, struct freebsd4_freebsd32_statfs_args *uap)
 {
-	struct statfs32 s32;
+	struct ostatfs32 s32;
 	struct statfs *sp;
 	int error;
 
@@ -1847,7 +1847,7 @@ freebsd4_freebsd32_statfs(struct thread *td, struct freebsd4_freebsd32_statfs_ar
 int
 freebsd4_freebsd32_fstatfs(struct thread *td, struct freebsd4_freebsd32_fstatfs_args *uap)
 {
-	struct statfs32 s32;
+	struct ostatfs32 s32;
 	struct statfs *sp;
 	int error;
 
@@ -1866,7 +1866,7 @@ freebsd4_freebsd32_fstatfs(struct thread *td, struct freebsd4_freebsd32_fstatfs_
 int
 freebsd4_freebsd32_fhstatfs(struct thread *td, struct freebsd4_freebsd32_fhstatfs_args *uap)
 {
-	struct statfs32 s32;
+	struct ostatfs32 s32;
 	struct statfs *sp;
 	fhandle_t fh;
 	int error;

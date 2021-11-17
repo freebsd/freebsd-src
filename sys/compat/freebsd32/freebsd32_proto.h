@@ -1012,21 +1012,21 @@ int	ofreebsd32_getdirentries(struct thread *, struct ofreebsd32_getdirentries_ar
 #define PAD64_REQUIRED
 #endif
 struct freebsd4_freebsd32_getfsstat_args {
-	char buf_l_[PADL_(struct statfs32 *)]; struct statfs32 * buf; char buf_r_[PADR_(struct statfs32 *)];
+	char buf_l_[PADL_(struct ostatfs32 *)]; struct ostatfs32 * buf; char buf_r_[PADR_(struct ostatfs32 *)];
 	char bufsize_l_[PADL_(long)]; long bufsize; char bufsize_r_[PADR_(long)];
 	char mode_l_[PADL_(int)]; int mode; char mode_r_[PADR_(int)];
 };
 struct freebsd4_freebsd32_statfs_args {
 	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
-	char buf_l_[PADL_(struct statfs32 *)]; struct statfs32 * buf; char buf_r_[PADR_(struct statfs32 *)];
+	char buf_l_[PADL_(struct ostatfs32 *)]; struct ostatfs32 * buf; char buf_r_[PADR_(struct ostatfs32 *)];
 };
 struct freebsd4_freebsd32_fstatfs_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
-	char buf_l_[PADL_(struct statfs32 *)]; struct statfs32 * buf; char buf_r_[PADR_(struct statfs32 *)];
+	char buf_l_[PADL_(struct ostatfs32 *)]; struct ostatfs32 * buf; char buf_r_[PADR_(struct ostatfs32 *)];
 };
 struct freebsd4_freebsd32_fhstatfs_args {
 	char u_fhp_l_[PADL_(const struct fhandle *)]; const struct fhandle * u_fhp; char u_fhp_r_[PADR_(const struct fhandle *)];
-	char buf_l_[PADL_(struct statfs32 *)]; struct statfs32 * buf; char buf_r_[PADR_(struct statfs32 *)];
+	char buf_l_[PADL_(struct ostatfs32 *)]; struct ostatfs32 * buf; char buf_r_[PADR_(struct ostatfs32 *)];
 };
 struct freebsd4_freebsd32_sendfile_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
