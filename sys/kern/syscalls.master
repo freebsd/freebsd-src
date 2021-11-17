@@ -628,14 +628,14 @@
 		int connect(
 		    int s,
 		    _In_reads_bytes_(namelen) const struct sockaddr *name,
-		    int namelen
+		    __socklen_t namelen
 		);
 	}
 99	AUE_ACCEPT	COMPAT|CAPENABLED {
 		int accept(
 		    int s,
 		    _Out_writes_bytes_opt_(*anamelen) struct sockaddr *name,
-		    int *anamelen
+		    __socklen_t *anamelen
 		);
 	}
 100	AUE_GETPRIORITY	STD|CAPENABLED {
@@ -669,7 +669,7 @@
 		int bind(
 		    int s,
 		    _In_reads_bytes_(namelen) const struct sockaddr *name,
-		    int namelen
+		    __socklen_t namelen
 		);
 	}
 105	AUE_SETSOCKOPT	STD|CAPENABLED {
@@ -678,7 +678,7 @@
 		    int level,
 		    int name,
 		    _In_reads_bytes_opt_(valsize) const void *val,
-		    int valsize
+		    __socklen_t valsize
 		);
 	}
 106	AUE_LISTEN	STD|CAPENABLED {
@@ -751,7 +751,7 @@
 		    int level,
 		    int name,
 		    _Out_writes_bytes_opt_(*avalsize) void *val,
-		    _Inout_  int *avalsize
+		    _Inout_ __socklen_t *avalsize
 		);
 	}
 119	AUE_NULL	RESERVED
@@ -795,7 +795,7 @@
 		    size_t len,
 		    int flags,
 		    _Out_writes_bytes_(*fromlenaddr) struct sockaddr *from,
-		    _Inout_ int *fromlenaddr
+		    _Inout_ __socklen_t *fromlenaddr
 		);
 	} recvfrom recvfrom_args int
 126	AUE_SETREUID	STD|CAPENABLED {
@@ -847,7 +847,7 @@
 		    size_t len,
 		    int flags,
 		    _In_reads_bytes_opt_(tolen) const struct sockaddr *to,
-		    int tolen
+		    __socklen_t tolen
 		);
 	}
 134	AUE_SHUTDOWN	STD|CAPENABLED {
@@ -892,7 +892,7 @@
 		int getpeername(
 		    int fdes,
 		    _Out_writes_bytes_(*alen) struct sockaddr *asa,
-		    _Inout_opt_ int *alen
+		    _Inout_opt_ __socklen_t *alen
 		);
 	}
 142	AUE_SYSCTL	COMPAT|CAPENABLED {
@@ -939,7 +939,7 @@
 		int getsockname(
 		    int fdec,
 		    _Out_writes_bytes_(*alen) struct sockaddr *asa,
-		    _Inout_ int *alen
+		    _Inout_ __socklen_t *alen
 		);
 	} getsockname getsockname_args int
 151-153	AUE_NULL	RESERVED
@@ -2960,7 +2960,7 @@
 		    int fd,
 		    int s,
 		    _In_reads_bytes_(namelen) const struct sockaddr *name,
-		    int namelen
+		    __socklen_t namelen
 		);
 	}
 539	AUE_CONNECTAT	STD|CAPENABLED {
@@ -2968,7 +2968,7 @@
 		    int fd,
 		    int s,
 		    _In_reads_bytes_(namelen) const struct sockaddr *name,
-		    int namelen
+		    __socklen_t namelen
 		);
 	}
 540	AUE_CHFLAGSAT	STD|CAPENABLED {
