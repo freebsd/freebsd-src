@@ -335,11 +335,11 @@ struct freebsd32_sendfile_args {
 	char flags_l_[PADL_(int)]; int flags; char flags_r_[PADR_(int)];
 };
 struct freebsd32_ksem_init_args {
-	char idp_l_[PADL_(semid_t *)]; semid_t * idp; char idp_r_[PADR_(semid_t *)];
+	char idp_l_[PADL_(int32_t *)]; int32_t * idp; char idp_r_[PADR_(int32_t *)];
 	char value_l_[PADL_(unsigned int)]; unsigned int value; char value_r_[PADR_(unsigned int)];
 };
 struct freebsd32_ksem_open_args {
-	char idp_l_[PADL_(semid_t *)]; semid_t * idp; char idp_r_[PADR_(semid_t *)];
+	char idp_l_[PADL_(int32_t *)]; int32_t * idp; char idp_r_[PADR_(int32_t *)];
 	char name_l_[PADL_(const char *)]; const char * name; char name_r_[PADR_(const char *)];
 	char oflag_l_[PADL_(int)]; int oflag; char oflag_r_[PADR_(int)];
 	char mode_l_[PADL_(mode_t)]; mode_t mode; char mode_r_[PADR_(mode_t)];
@@ -364,7 +364,7 @@ struct freebsd32_swapcontext_args {
 	char ucp_l_[PADL_(const struct __ucontext32 *)]; const struct __ucontext32 * ucp; char ucp_r_[PADR_(const struct __ucontext32 *)];
 };
 struct freebsd32_ksem_timedwait_args {
-	char id_l_[PADL_(semid_t)]; semid_t id; char id_r_[PADR_(semid_t)];
+	char id_l_[PADL_(int32_t)]; int32_t id; char id_r_[PADR_(int32_t)];
 	char abstime_l_[PADL_(const struct timespec32 *)]; const struct timespec32 * abstime; char abstime_r_[PADR_(const struct timespec32 *)];
 };
 struct freebsd32_thr_suspend_args {

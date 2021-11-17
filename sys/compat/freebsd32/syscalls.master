@@ -753,19 +753,19 @@
 				    const struct fhandle *u_fhp, \
 				    struct freebsd11_statfs *buf); }
 399	AUE_NULL	RESERVED
-400	AUE_SEMCLOSE	NOSTD|NOPROTO	{ int ksem_close(semid_t id); }
-401	AUE_SEMPOST	NOSTD|NOPROTO	{ int ksem_post(semid_t id); }
-402	AUE_SEMWAIT	NOSTD|NOPROTO	{ int ksem_wait(semid_t id); }
-403	AUE_SEMTRYWAIT	NOSTD|NOPROTO	{ int ksem_trywait(semid_t id); }
-404	AUE_SEMINIT	NOSTD	{ int freebsd32_ksem_init(semid_t *idp, \
+400	AUE_SEMCLOSE	NOSTD|NOPROTO	{ int ksem_close(int32_t id); }
+401	AUE_SEMPOST	NOSTD|NOPROTO	{ int ksem_post(int32_t id); }
+402	AUE_SEMWAIT	NOSTD|NOPROTO	{ int ksem_wait(int32_t id); }
+403	AUE_SEMTRYWAIT	NOSTD|NOPROTO	{ int ksem_trywait(int32_t id); }
+404	AUE_SEMINIT	NOSTD	{ int freebsd32_ksem_init(int32_t *idp, \
 				    unsigned int value); }
-405	AUE_SEMOPEN	NOSTD	{ int freebsd32_ksem_open(semid_t *idp, \
+405	AUE_SEMOPEN	NOSTD	{ int freebsd32_ksem_open(int32_t *idp, \
 				    const char *name, int oflag, \
 				    mode_t mode, unsigned int value); }
 406	AUE_SEMUNLINK	NOSTD|NOPROTO	{ int ksem_unlink(const char *name); }
-407	AUE_SEMGETVALUE	NOSTD|NOPROTO	{ int ksem_getvalue(semid_t id, \
+407	AUE_SEMGETVALUE	NOSTD|NOPROTO	{ int ksem_getvalue(int32_t id, \
 				    int *val); }
-408	AUE_SEMDESTROY	NOSTD|NOPROTO	{ int ksem_destroy(semid_t id); }
+408	AUE_SEMDESTROY	NOSTD|NOPROTO	{ int ksem_destroy(int32_t id); }
 409	AUE_NULL	UNIMPL	__mac_get_pid
 410	AUE_NULL	UNIMPL	__mac_get_link
 411	AUE_NULL	UNIMPL	__mac_set_link
@@ -826,7 +826,7 @@
 				    const char *path, int attrnamespace, \
 				    void *data, size_t nbytes); }
 440	AUE_NULL	OBSOL	kse_switchin
-441	AUE_SEMWAIT	NOSTD	{ int freebsd32_ksem_timedwait(semid_t id, \
+441	AUE_SEMWAIT	NOSTD	{ int freebsd32_ksem_timedwait(int32_t id, \
 				    const struct timespec32 *abstime); }
 442	AUE_NULL	STD	{ int freebsd32_thr_suspend( \
 				    const struct timespec32 *timeout); }
