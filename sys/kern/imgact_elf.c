@@ -302,16 +302,16 @@ __elfN(remove_brand_entry)(Elf_Brandinfo *entry)
 	return (0);
 }
 
-int
+bool
 __elfN(brand_inuse)(Elf_Brandinfo *entry)
 {
 	struct proc *p;
-	int rval = FALSE;
+	bool rval = false;
 
 	sx_slock(&allproc_lock);
 	FOREACH_PROC_IN_SYSTEM(p) {
 		if (p->p_sysent == entry->sysvec) {
-			rval = TRUE;
+			rval = true;
 			break;
 		}
 	}
