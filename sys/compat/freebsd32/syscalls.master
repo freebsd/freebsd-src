@@ -165,7 +165,7 @@
 60	AUE_UMASK	NOPROTO	{ int umask(mode_t newmask); }
 61	AUE_CHROOT	NOPROTO	{ int chroot(const char *path); }
 62	AUE_FSTAT	COMPAT	{ int freebsd32_fstat(int fd, \
-				    struct ostat32 *ub); }
+				    struct ostat32 *sb); }
 63	AUE_NULL	OBSOL	ogetkerninfo
 64	AUE_NULL	COMPAT	{ int freebsd32_getpagesize( \
 				    int32_t dummy); }
@@ -361,7 +361,7 @@
 188	AUE_STAT	COMPAT11 { int freebsd32_stat(const char *path, \
 				    struct freebsd11_stat32 *ub); }
 189	AUE_FSTAT	COMPAT11 { int freebsd32_fstat(int fd, \
-				    struct freebsd11_stat32 *ub); }
+				    struct freebsd11_stat32 *sb); }
 190	AUE_LSTAT	COMPAT11 { int freebsd32_lstat(const char *path, \
 				    struct freebsd11_stat32 *ub); }
 191	AUE_PATHCONF	NOPROTO	{ int pathconf(const char *path, int name); }
