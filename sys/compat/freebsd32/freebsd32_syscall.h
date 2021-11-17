@@ -240,6 +240,8 @@
 #define	FREEBSD32_SYS_freebsd11_nlstat	280
 #define	FREEBSD32_SYS_freebsd32_preadv	289
 #define	FREEBSD32_SYS_freebsd32_pwritev	290
+#define	FREEBSD32_SYS_freebsd32_preadv	289
+#define	FREEBSD32_SYS_freebsd32_pwritev	290
 				/* 297 is freebsd4 freebsd32_fhstatfs */
 #define	FREEBSD32_SYS_fhopen	298
 #define	FREEBSD32_SYS_freebsd11_freebsd32_fhstat	299

@@ -541,6 +541,18 @@
 286	AUE_NULL	UNIMPL	nosys
 287	AUE_NULL	UNIMPL	nosys
 288	AUE_NULL	UNIMPL	nosys
+#ifdef PAD64_REQUIRED
+289	AUE_PREADV	STD	{ ssize_t freebsd32_preadv(int fd, \
+					struct iovec32 *iovp, \
+					u_int iovcnt, \
+					int _pad, \
+					uint32_t offset1, uint32_t offset2); }
+290	AUE_PWRITEV	STD	{ ssize_t freebsd32_pwritev(int fd, \
+					struct iovec32 *iovp, \
+					u_int iovcnt, \
+					int _pad, \
+					uint32_t offset1, uint32_t offset2); }
+#else
 289	AUE_PREADV	STD	{ ssize_t freebsd32_preadv(int fd, \
 					struct iovec32 *iovp, \
 					u_int iovcnt, \
@@ -549,6 +561,7 @@
 					struct iovec32 *iovp, \
 					u_int iovcnt, \
 					uint32_t offset1, uint32_t offset2); }
+#endif
 291	AUE_NULL	UNIMPL	nosys
 292	AUE_NULL	UNIMPL	nosys
 293	AUE_NULL	UNIMPL	nosys
