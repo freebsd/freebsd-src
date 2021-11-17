@@ -918,7 +918,7 @@ struct ofreebsd32_stat_args {
 };
 struct ofreebsd32_lstat_args {
 	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
-	char ub_l_[PADL_(struct ostat *)]; struct ostat * ub; char ub_r_[PADR_(struct ostat *)];
+	char ub_l_[PADL_(struct ostat32 *)]; struct ostat32 * ub; char ub_r_[PADR_(struct ostat32 *)];
 };
 struct ofreebsd32_sigaction_args {
 	char signum_l_[PADL_(int)]; int signum; char signum_r_[PADR_(int)];
