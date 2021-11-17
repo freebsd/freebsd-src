@@ -348,7 +348,7 @@ struct socket_args {
 struct connect_args {
 	char s_l_[PADL_(int)]; int s; char s_r_[PADR_(int)];
 	char name_l_[PADL_(const struct sockaddr *)]; const struct sockaddr * name; char name_r_[PADR_(const struct sockaddr *)];
-	char namelen_l_[PADL_(int)]; int namelen; char namelen_r_[PADR_(int)];
+	char namelen_l_[PADL_(__socklen_t)]; __socklen_t namelen; char namelen_r_[PADR_(__socklen_t)];
 };
 struct getpriority_args {
 	char which_l_[PADL_(int)]; int which; char which_r_[PADR_(int)];
@@ -357,14 +357,14 @@ struct getpriority_args {
 struct bind_args {
 	char s_l_[PADL_(int)]; int s; char s_r_[PADR_(int)];
 	char name_l_[PADL_(const struct sockaddr *)]; const struct sockaddr * name; char name_r_[PADR_(const struct sockaddr *)];
-	char namelen_l_[PADL_(int)]; int namelen; char namelen_r_[PADR_(int)];
+	char namelen_l_[PADL_(__socklen_t)]; __socklen_t namelen; char namelen_r_[PADR_(__socklen_t)];
 };
 struct setsockopt_args {
 	char s_l_[PADL_(int)]; int s; char s_r_[PADR_(int)];
 	char level_l_[PADL_(int)]; int level; char level_r_[PADR_(int)];
 	char name_l_[PADL_(int)]; int name; char name_r_[PADR_(int)];
 	char val_l_[PADL_(const void *)]; const void * val; char val_r_[PADR_(const void *)];
-	char valsize_l_[PADL_(int)]; int valsize; char valsize_r_[PADR_(int)];
+	char valsize_l_[PADL_(__socklen_t)]; __socklen_t valsize; char valsize_r_[PADR_(__socklen_t)];
 };
 struct listen_args {
 	char s_l_[PADL_(int)]; int s; char s_r_[PADR_(int)];
@@ -383,7 +383,7 @@ struct getsockopt_args {
 	char level_l_[PADL_(int)]; int level; char level_r_[PADR_(int)];
 	char name_l_[PADL_(int)]; int name; char name_r_[PADR_(int)];
 	char val_l_[PADL_(void *)]; void * val; char val_r_[PADR_(void *)];
-	char avalsize_l_[PADL_(int *)]; int * avalsize; char avalsize_r_[PADR_(int *)];
+	char avalsize_l_[PADL_(__socklen_t *)]; __socklen_t * avalsize; char avalsize_r_[PADR_(__socklen_t *)];
 };
 struct readv_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
@@ -434,7 +434,7 @@ struct sendto_args {
 	char len_l_[PADL_(size_t)]; size_t len; char len_r_[PADR_(size_t)];
 	char flags_l_[PADL_(int)]; int flags; char flags_r_[PADR_(int)];
 	char to_l_[PADL_(const struct sockaddr *)]; const struct sockaddr * to; char to_r_[PADR_(const struct sockaddr *)];
-	char tolen_l_[PADL_(int)]; int tolen; char tolen_r_[PADR_(int)];
+	char tolen_l_[PADL_(__socklen_t)]; __socklen_t tolen; char tolen_r_[PADR_(__socklen_t)];
 };
 struct shutdown_args {
 	char s_l_[PADL_(int)]; int s; char s_r_[PADR_(int)];
@@ -1638,13 +1638,13 @@ struct bindat_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
 	char s_l_[PADL_(int)]; int s; char s_r_[PADR_(int)];
 	char name_l_[PADL_(const struct sockaddr *)]; const struct sockaddr * name; char name_r_[PADR_(const struct sockaddr *)];
-	char namelen_l_[PADL_(int)]; int namelen; char namelen_r_[PADR_(int)];
+	char namelen_l_[PADL_(__socklen_t)]; __socklen_t namelen; char namelen_r_[PADR_(__socklen_t)];
 };
 struct connectat_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
 	char s_l_[PADL_(int)]; int s; char s_r_[PADR_(int)];
 	char name_l_[PADL_(const struct sockaddr *)]; const struct sockaddr * name; char name_r_[PADR_(const struct sockaddr *)];
-	char namelen_l_[PADL_(int)]; int namelen; char namelen_r_[PADR_(int)];
+	char namelen_l_[PADL_(__socklen_t)]; __socklen_t namelen; char namelen_r_[PADR_(__socklen_t)];
 };
 struct chflagsat_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
@@ -2311,7 +2311,7 @@ struct osethostname_args {
 struct oaccept_args {
 	char s_l_[PADL_(int)]; int s; char s_r_[PADR_(int)];
 	char name_l_[PADL_(struct sockaddr *)]; struct sockaddr * name; char name_r_[PADR_(struct sockaddr *)];
-	char anamelen_l_[PADL_(int *)]; int * anamelen; char anamelen_r_[PADR_(int *)];
+	char anamelen_l_[PADL_(__socklen_t *)]; __socklen_t * anamelen; char anamelen_r_[PADR_(__socklen_t *)];
 };
 struct osend_args {
 	char s_l_[PADL_(int)]; int s; char s_r_[PADR_(int)];
@@ -2367,7 +2367,7 @@ struct oftruncate_args {
 struct ogetpeername_args {
 	char fdes_l_[PADL_(int)]; int fdes; char fdes_r_[PADR_(int)];
 	char asa_l_[PADL_(struct sockaddr *)]; struct sockaddr * asa; char asa_r_[PADR_(struct sockaddr *)];
-	char alen_l_[PADL_(int *)]; int * alen; char alen_r_[PADR_(int *)];
+	char alen_l_[PADL_(__socklen_t *)]; __socklen_t * alen; char alen_r_[PADR_(__socklen_t *)];
 };
 struct osethostid_args {
 	char hostid_l_[PADL_(long)]; long hostid; char hostid_r_[PADR_(long)];
