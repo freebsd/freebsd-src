@@ -2205,7 +2205,7 @@ fetch_run () {
 	# further processing, expediting fetch_run.  fetch_run can only
 	# be expedited subsequent to an uninterrupted fetch_run.
 	if [ ! -f fetch_run.pending ] && [ -f tag.new -a -f tag ] &&
-	    cmp -s tag.new tag; then
+	    [ "$BASEDIR" = "/" ] && cmp -s tag.new tag; then
 		echo "No updates are available to fetch."
 		if [ -f fetch_create_manifest.out ]; then
 			echo "Updates available to install."
