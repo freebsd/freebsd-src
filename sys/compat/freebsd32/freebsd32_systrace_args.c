@@ -3207,9 +3207,9 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 2;
 		break;
 	}
-	/* getfsstat */
+	/* freebsd32_getfsstat */
 	case 557: {
-		struct getfsstat_args *p = params;
+		struct freebsd32_getfsstat_args *p = params;
 		uarg[0] = (intptr_t)p->buf; /* struct statfs * */
 		iarg[1] = p->bufsize; /* int32_t */
 		iarg[2] = p->mode; /* int */
@@ -8858,7 +8858,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* getfsstat */
+	/* freebsd32_getfsstat */
 	case 557:
 		switch (ndx) {
 		case 0:
@@ -11149,7 +11149,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* getfsstat */
+	/* freebsd32_getfsstat */
 	case 557:
 		if (ndx == 0 || ndx == 1)
 			p = "int";

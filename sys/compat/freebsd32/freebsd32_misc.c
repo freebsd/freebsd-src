@@ -292,6 +292,21 @@ copy_statfs(struct statfs *in, struct ostatfs32 *out)
 }
 #endif
 
+int
+freebsd32_getfsstat(struct thread *td, struct freebsd32_getfsstat_args *uap)
+{
+	size_t count;
+	int error;
+
+	if (uap->bufsize < 0 || uap->bufsize > SIZE_MAX)
+		return (EINVAL);
+	error = kern_getfsstat(td, &uap->buf, uap->bufsize, &count,
+	    UIO_USERSPACE, uap->mode);
+	if (error == 0)
+		td->td_retval[0] = count;
+	return (error);
+}
+
 #ifdef COMPAT_FREEBSD4
 int
 freebsd4_freebsd32_getfsstat(struct thread *td,
@@ -320,6 +335,16 @@ freebsd4_freebsd32_getfsstat(struct thread *td,
 	if (error == 0)
 		td->td_retval[0] = count;
 	return (error);
+}
+#endif
+
+#ifdef COMPAT_FREEBSD11
+int
+freebsd11_freebsd32_getfsstat(struct thread *td,
+    struct freebsd11_freebsd32_getfsstat_args *uap)
+{
+	return(kern_freebsd11_getfsstat(td, uap->buf, uap->bufsize,
+	    uap->mode));
 }
 #endif
 

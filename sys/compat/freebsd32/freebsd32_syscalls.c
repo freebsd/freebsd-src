@@ -409,7 +409,7 @@ const char *freebsd32_syscallnames[] = {
 	"uuidgen",			/* 392 = uuidgen */
 	"freebsd32_sendfile",			/* 393 = freebsd32_sendfile */
 	"#394",			/* 394 = mac_syscall */
-	"compat11.getfsstat",		/* 395 = freebsd11 getfsstat */
+	"compat11.freebsd32_getfsstat",		/* 395 = freebsd11 freebsd32_getfsstat */
 	"compat11.statfs",		/* 396 = freebsd11 statfs */
 	"compat11.fstatfs",		/* 397 = freebsd11 fstatfs */
 	"compat11.fhstatfs",		/* 398 = freebsd11 fhstatfs */
@@ -594,7 +594,7 @@ const char *freebsd32_syscallnames[] = {
 	"getdirentries",			/* 554 = getdirentries */
 	"statfs",			/* 555 = statfs */
 	"fstatfs",			/* 556 = fstatfs */
-	"getfsstat",			/* 557 = getfsstat */
+	"freebsd32_getfsstat",			/* 557 = freebsd32_getfsstat */
 	"fhstatfs",			/* 558 = fhstatfs */
 #ifdef PAD64_REQUIRED
 	"freebsd32_mknodat",			/* 559 = freebsd32_mknodat */

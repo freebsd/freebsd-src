@@ -329,7 +329,7 @@
 #define	FREEBSD32_SYS_lchflags	391
 #define	FREEBSD32_SYS_uuidgen	392
 #define	FREEBSD32_SYS_freebsd32_sendfile	393
-#define	FREEBSD32_SYS_freebsd11_getfsstat	395
+#define	FREEBSD32_SYS_freebsd11_freebsd32_getfsstat	395
 #define	FREEBSD32_SYS_freebsd11_statfs	396
 #define	FREEBSD32_SYS_freebsd11_fstatfs	397
 #define	FREEBSD32_SYS_freebsd11_fhstatfs	398
@@ -488,7 +488,7 @@
 #define	FREEBSD32_SYS_getdirentries	554
 #define	FREEBSD32_SYS_statfs	555
 #define	FREEBSD32_SYS_fstatfs	556
-#define	FREEBSD32_SYS_getfsstat	557
+#define	FREEBSD32_SYS_freebsd32_getfsstat	557
 #define	FREEBSD32_SYS_fhstatfs	558
 #define	FREEBSD32_SYS_freebsd32_mknodat	559
 #define	FREEBSD32_SYS_freebsd32_mknodat	559

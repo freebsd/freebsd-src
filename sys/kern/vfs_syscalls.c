@@ -790,24 +790,33 @@ freebsd11_fstatfs(struct thread *td, struct freebsd11_fstatfs_args *uap)
 int
 freebsd11_getfsstat(struct thread *td, struct freebsd11_getfsstat_args *uap)
 {
+	return (kern_freebsd11_getfsstat(td, uap->buf, uap->bufsize, uap->mode));
+}
+
+int
+kern_freebsd11_getfsstat(struct thread *td, struct freebsd11_statfs * ubuf,
+    long bufsize, int mode)
+{
 	struct freebsd11_statfs osb;
 	struct statfs *buf, *sp;
 	size_t count, size;
 	int error;
 
-	count = uap->bufsize / sizeof(struct ostatfs);
+	if (bufsize < 0)
+		return (EINVAL);
+
+	count = bufsize / sizeof(struct ostatfs);
 	size = count * sizeof(struct statfs);
-	error = kern_getfsstat(td, &buf, size, &count, UIO_SYSSPACE,
-	    uap->mode);
+	error = kern_getfsstat(td, &buf, size, &count, UIO_SYSSPACE, mode);
 	if (error == 0)
 		td->td_retval[0] = count;
 	if (size > 0) {
 		sp = buf;
 		while (count > 0 && error == 0) {
 			freebsd11_cvtstatfs(sp, &osb);
-			error = copyout(&osb, uap->buf, sizeof(osb));
+			error = copyout(&osb, ubuf, sizeof(osb));
 			sp++;
-			uap->buf++;
+			ubuf++;
 			count--;
 		}
 		free(buf, M_STATFS);
