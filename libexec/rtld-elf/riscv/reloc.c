@@ -406,13 +406,11 @@ allocate_initial_tls(Obj_Entry *objs)
 void *
 __tls_get_addr(tls_index* ti)
 {
-	char *_tp;
+	Elf_Addr **dtvp;
 	void *p;
 
-	__asm __volatile("mv %0, tp" : "=r" (_tp));
-
-	p = tls_get_addr_common((Elf_Addr**)((Elf_Addr)_tp - TLS_TP_OFFSET
-	    - TLS_TCB_SIZE), ti->ti_module, ti->ti_offset);
+	dtvp = _get_tp();
+	p = tls_get_addr_common(dtvp, ti->ti_module, ti->ti_offset);
 
 	return ((char*)p + TLS_DTV_OFFSET);
 }
