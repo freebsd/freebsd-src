@@ -786,9 +786,9 @@
 429	AUE_SIGWAIT	NOPROTO	{ int sigwait(const sigset_t *set, \
 				    int *sig); }
 430	AUE_THR_CREATE	UNIMPL	thr_create;
-431	AUE_THR_EXIT	NOPROTO	{ void thr_exit(long *state); }
-432	AUE_NULL	NOPROTO	{ int thr_self(long *id); }
-433	AUE_THR_KILL	NOPROTO	{ int thr_kill(long id, int sig); }
+431	AUE_THR_EXIT	NOPROTO	{ void thr_exit(int32_t *state); }
+432	AUE_NULL	NOPROTO	{ int thr_self(int32_t *id); }
+433	AUE_THR_KILL	NOPROTO	{ int thr_kill(int32_t id, int sig); }
 434	AUE_NULL	COMPAT10 { int freebsd32_umtx_lock( \
 				    struct umtx *umtx); }
 435	AUE_NULL	COMPAT10 { int freebsd32_umtx_unlock( \
@@ -808,7 +808,7 @@
 				    const struct timespec32 *abstime); }
 442	AUE_NULL	STD	{ int freebsd32_thr_suspend( \
 				    const struct timespec32 *timeout); }
-443	AUE_NULL	NOPROTO	{ int thr_wake(long id); }
+443	AUE_NULL	NOPROTO	{ int thr_wake(int32_t id); }
 444	AUE_MODUNLOAD	NOPROTO	{ int kldunloadf(int fileid, int flags); }
 445	AUE_AUDIT	NOPROTO	{ int audit(const void *record, \
 				    u_int length); }
@@ -851,7 +851,7 @@
 				    const struct sigevent32 *sigev); }
 462	AUE_MQ_UNLINK	NOPROTO|NOSTD	{ int kmq_unlink(const char *path); }
 463	AUE_NULL	NOPROTO	{ int abort2(const char *why, int nargs, void **args); }
-464	AUE_NULL 	NOPROTO	{ int thr_set_name(long id, const char *name); }
+464	AUE_NULL 	NOPROTO	{ int thr_set_name(int32_t id, const char *name); }
 465	AUE_AIO_FSYNC	STD	{ int freebsd32_aio_fsync(int op, \
 				    struct aiocb32 *aiocbp); }
 466	AUE_RTPRIO	NOPROTO	{ int rtprio_thread(int function, \
@@ -912,7 +912,7 @@
 480	AUE_FTRUNCATE	STD	{ int freebsd32_ftruncate(int fd, \
 				    uint32_t length1, uint32_t length2); }
 #endif
-481	AUE_THR_KILL2	NOPROTO	{ int thr_kill2(pid_t pid, long id, int sig); }
+481	AUE_THR_KILL2	NOPROTO	{ int thr_kill2(pid_t pid, int32_t id, int sig); }
 482	AUE_SHMOPEN	COMPAT12|NOPROTO	{ int shm_open( \
 				    const char *path, int flags, mode_t mode); }
 483	AUE_SHMUNLINK	NOPROTO	{ int shm_unlink(const char *path); }
