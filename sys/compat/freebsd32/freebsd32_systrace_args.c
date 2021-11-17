@@ -201,7 +201,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct freebsd32_recvfrom_args *p = params;
 		iarg[0] = p->s; /* int */
 		uarg[1] = (intptr_t)p->buf; /* void * */
-		uarg[2] = p->len; /* uint32_t */
+		uarg[2] = p->len; /* size_t */
 		iarg[3] = p->flags; /* int */
 		uarg[4] = (intptr_t)p->from; /* struct sockaddr * */
 		uarg[5] = p->fromlenaddr; /* uint32_t */
@@ -943,7 +943,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		uarg[2] = (intptr_t)p->old; /* void * */
 		uarg[3] = (intptr_t)p->oldlenp; /* uint32_t * */
 		uarg[4] = (intptr_t)p->new; /* const void * */
-		uarg[5] = p->newlen; /* uint32_t */
+		uarg[5] = p->newlen; /* size_t */
 		*n_args = 6;
 		break;
 	}
@@ -1058,7 +1058,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct semop_args *p = params;
 		iarg[0] = p->semid; /* int */
 		uarg[1] = (intptr_t)p->sops; /* struct sembuf * */
-		uarg[2] = p->nsops; /* u_int */
+		uarg[2] = p->nsops; /* size_t */
 		*n_args = 3;
 		break;
 	}
@@ -1111,7 +1111,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 231: {
 		struct shmget_args *p = params;
 		iarg[0] = p->key; /* key_t */
-		iarg[1] = p->size; /* int */
+		uarg[1] = p->size; /* size_t */
 		iarg[2] = p->shmflg; /* int */
 		*n_args = 3;
 		break;
@@ -3730,7 +3730,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "userland void *";
 			break;
 		case 2:
-			p = "uint32_t";
+			p = "size_t";
 			break;
 		case 3:
 			p = "int";
@@ -4946,7 +4946,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "userland const void *";
 			break;
 		case 5:
-			p = "uint32_t";
+			p = "size_t";
 			break;
 		default:
 			break;
@@ -5083,7 +5083,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "userland struct sembuf *";
 			break;
 		case 2:
-			p = "u_int";
+			p = "size_t";
 			break;
 		default:
 			break;
@@ -5176,7 +5176,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "key_t";
 			break;
 		case 1:
-			p = "int";
+			p = "size_t";
 			break;
 		case 2:
 			p = "int";
