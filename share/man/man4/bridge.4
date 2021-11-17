@@ -35,7 +35,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 1, 2020
+.Dd November 17, 2021
 .Dt IF_BRIDGE 4
 .Os
 .Sh NAME
@@ -96,20 +96,20 @@ If
 .Xr sysctl 8
 node
 .Va net.link.bridge.inherit_mac
-has non-zero value, a newly created bridge will inherit its MAC address
-from its first member instead of choosing a random link-level address.
-This provides a more predictable bridge MAC without any
-additional configuration, but currently this feature is known
-to break some L2 protocols, for example PPPoE that is provided
-by
+has a non-zero value, the newly created bridge will inherit the MAC
+address from its first member instead of choosing a random link-level
+address.
+This will provide more predictable bridge MAC addresses without any
+additional configuration, but currently this feature is known to break
+some L2 protocols, for example PPPoE that is provided by
 .Xr ng_pppoe 4
 and
 .Xr ppp 8 .
-Currently this feature is considered experimental and is turned off
+Currently this feature is considered as experimental and is turned off
 by default.
 .Pp
 A bridge can be used to provide several services, such as a simple
-802.11-to-Ethernet bridge for wireless hosts, and traffic isolation.
+802.11-to-Ethernet bridge for wireless hosts, or traffic isolation.
 .Pp
 A bridge works like a switch, forwarding traffic from one interface
 to another.
@@ -130,7 +130,7 @@ The MTU of the first member interface to be added is used as the bridge MTU.
 All additional members are required to have exactly the same MTU value.
 .Pp
 The TOE, TSO, TXCSUM and TXCSUM6 capabilities on all interfaces added to the
-bridge are disabled if any of the interfaces doesn't support/enable them.
+bridge are disabled if any of the interfaces do not support/enable them.
 The LRO capability is always disabled.
 All the capabilities are restored when the interface is removed from the bridge.
 Changing capabilities at run-time may cause NIC reinit and a link flap.
@@ -180,7 +180,7 @@ This situation is clearly against the description
 in Section 5,
 RFC 4007.
 Although it works in most cases,
-it can cause some counterintuitive or undesirable behavior in some
+it can cause some counterintuitive or undesirable behaviour in some
 edge cases when both, the
 .Nm
 interface and one of the member interfaces, have an IPv6 address
@@ -198,7 +198,7 @@ interface has IPv6 addresses,
 IPv6 addresses on the member interface will be automatically removed
 before the interface is added.
 .Pp
-This behavior can be disabled by setting
+This behaviour can be disabled by setting
 .Xr sysctl 8
 variable
 .Va net.link.bridge.allow_llz_overlap
