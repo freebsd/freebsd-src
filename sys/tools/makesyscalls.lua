@@ -352,6 +352,9 @@ end
 local function strip_abi_prefix(funcname)
 	local abiprefix = config["abi_func_prefix"]
 	local stripped_name
+	if funcname == nil then
+		return nil
+	end
 	if abiprefix ~= "" and funcname:find("^" .. abiprefix) then
 		stripped_name = funcname:gsub("^" .. abiprefix, "")
 	else
