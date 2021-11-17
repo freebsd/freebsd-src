@@ -545,7 +545,7 @@
 	}
 83	AUE_SETITIMER	STD|CAPENABLED {
 		int setitimer(
-		    u_int which,
+		    int which,
 		    _In_ const struct itimerval *itv,
 		    _Out_opt_ struct itimerval *oitv
 		);
@@ -560,7 +560,7 @@
 	}
 86	AUE_GETITIMER	STD|CAPENABLED {
 		int getitimer(
-		    u_int which,
+		    int which,
 		    _Out_ struct itimerval *itv
 		);
 	}
