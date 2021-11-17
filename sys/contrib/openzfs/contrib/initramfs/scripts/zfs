@@ -79,7 +79,9 @@ find_rootfs()
 
 	# If it's already specified, just keep it mounted and exit
 	# User (kernel command line) must be correct.
-	[ -n "${ZFS_BOOTFS}" ] && return 0
+	if [ -n "${ZFS_BOOTFS}" ] && [ "${ZFS_BOOTFS}" != "zfs:AUTO" ]; then
+		return 0
+	fi
 
 	# Not set, try to find it in the 'bootfs' property of the pool.
 	# NOTE: zpool does not support 'get -H -ovalue bootfs'...
@@ -105,8 +107,7 @@ find_rootfs()
 find_pools()
 {
 	pools=$("$@" 2> /dev/null | \
-		grep -E "pool:|^[a-zA-Z0-9]" | \
-		sed 's@.*: @@' | \
+		sed -Ee '/pool:|^[a-zA-Z0-9]/!d' -e 's@.*: @@' | \
 		tr '\n' ';')
 
 	echo "${pools%%;}" # Return without the last ';'.
@@ -428,7 +429,7 @@ decrypt_fs()
 			else
 				# Temporarily setting "printk" to "7" allows the prompt to appear even when the "quiet" kernel option has been used
 				echo "load-key" > /run/zfs_console_askpwd_cmd
-				storeprintk="$(awk '{print $1}' /proc/sys/kernel/printk)"
+				read -r storeprintk _ < /proc/sys/kernel/printk
 				echo 7 > /proc/sys/kernel/printk
 				$ZFS load-key "${ENCRYPTIONROOT}"
 				echo "$storeprintk" > /proc/sys/kernel/printk
@@ -757,7 +758,7 @@ mountroot()
 	#	rpool=rpool			(default if none of the above is used)
 	#	root=<pool>/<dataset>		(uses this for rpool - first part)
 	#	root=ZFS=<pool>/<dataset>	(uses this for rpool - first part, without 'ZFS=')
-	#	root=zfs:AUTO			(tries to detect both pool and rootfs
+	#	root=zfs:AUTO			(tries to detect both pool and rootfs)
 	#	root=zfs:<pool>/<dataset>	(uses this for rpool - first part, without 'zfs:')
 	#
 	# Option <dataset> could also be <snapshot>
