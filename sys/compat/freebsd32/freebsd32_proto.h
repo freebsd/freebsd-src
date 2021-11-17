@@ -1044,7 +1044,7 @@ struct freebsd4_freebsd32_sigaction_args {
 	char oact_l_[PADL_(struct sigaction32 *)]; struct sigaction32 * oact; char oact_r_[PADR_(struct sigaction32 *)];
 };
 struct freebsd4_freebsd32_sigreturn_args {
-	char sigcntxp_l_[PADL_(const struct freebsd4_freebsd32_ucontext *)]; const struct freebsd4_freebsd32_ucontext * sigcntxp; char sigcntxp_r_[PADR_(const struct freebsd4_freebsd32_ucontext *)];
+	char sigcntxp_l_[PADL_(const struct freebsd4_ucontext32 *)]; const struct freebsd4_ucontext32 * sigcntxp; char sigcntxp_r_[PADR_(const struct freebsd4_ucontext32 *)];
 };
 #ifdef PAD64_REQUIRED
 #else
