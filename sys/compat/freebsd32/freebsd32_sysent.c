@@ -462,7 +462,7 @@ struct sysent freebsd32_sysent[] = {
 	{ .sy_narg = AS(uuidgen_args), .sy_call = (sy_call_t *)sys_uuidgen, .sy_auevent = AUE_NULL, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 392 = uuidgen */
 	{ .sy_narg = AS(freebsd32_sendfile_args), .sy_call = (sy_call_t *)freebsd32_sendfile, .sy_auevent = AUE_SENDFILE, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 393 = freebsd32_sendfile */
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)nosys, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_ABSENT },			/* 394 = mac_syscall */
-	{ compat11(AS(freebsd11_getfsstat_args),getfsstat), .sy_auevent = AUE_GETFSSTAT, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 395 = freebsd11 getfsstat */
+	{ compat11(AS(freebsd11_freebsd32_getfsstat_args),freebsd32_getfsstat), .sy_auevent = AUE_GETFSSTAT, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 395 = freebsd11 freebsd32_getfsstat */
 	{ compat11(AS(freebsd11_statfs_args),statfs), .sy_auevent = AUE_STATFS, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 396 = freebsd11 statfs */
 	{ compat11(AS(freebsd11_fstatfs_args),fstatfs), .sy_auevent = AUE_FSTATFS, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 397 = freebsd11 fstatfs */
 	{ compat11(AS(freebsd11_fhstatfs_args),fhstatfs), .sy_auevent = AUE_FHSTATFS, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 398 = freebsd11 fhstatfs */
@@ -647,7 +647,7 @@ struct sysent freebsd32_sysent[] = {
 	{ .sy_narg = AS(getdirentries_args), .sy_call = (sy_call_t *)sys_getdirentries, .sy_auevent = AUE_GETDIRENTRIES, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 554 = getdirentries */
 	{ .sy_narg = AS(statfs_args), .sy_call = (sy_call_t *)sys_statfs, .sy_auevent = AUE_STATFS, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 555 = statfs */
 	{ .sy_narg = AS(fstatfs_args), .sy_call = (sy_call_t *)sys_fstatfs, .sy_auevent = AUE_FSTATFS, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 556 = fstatfs */
-	{ .sy_narg = AS(getfsstat_args), .sy_call = (sy_call_t *)sys_getfsstat, .sy_auevent = AUE_GETFSSTAT, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 557 = getfsstat */
+	{ .sy_narg = AS(freebsd32_getfsstat_args), .sy_call = (sy_call_t *)freebsd32_getfsstat, .sy_auevent = AUE_GETFSSTAT, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 557 = freebsd32_getfsstat */
 	{ .sy_narg = AS(fhstatfs_args), .sy_call = (sy_call_t *)sys_fhstatfs, .sy_auevent = AUE_FHSTATFS, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 558 = fhstatfs */
 #ifdef PAD64_REQUIRED
 	{ .sy_narg = AS(freebsd32_mknodat_args), .sy_call = (sy_call_t *)freebsd32_mknodat, .sy_auevent = AUE_MKNODAT, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 559 = freebsd32_mknodat */

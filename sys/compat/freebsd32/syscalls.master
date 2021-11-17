@@ -746,7 +746,7 @@
 				    size_t nbytes, struct sf_hdtr32 *hdtr, \
 				    off_t *sbytes, int flags); }
 394	AUE_NULL	UNIMPL	mac_syscall
-395	AUE_GETFSSTAT	COMPAT11|NOPROTO	{ int getfsstat( \
+395	AUE_GETFSSTAT	COMPAT11	{ int freebsd32_getfsstat( \
 				    struct freebsd11_statfs *buf, \
 				    int32_t bufsize, int mode); }
 396	AUE_STATFS	COMPAT11|NOPROTO	{ int statfs(const char *path, \
@@ -1140,7 +1140,7 @@
 555	AUE_STATFS	NOPROTO	{ int statfs(const char *path, \
 				    struct statfs *buf); }
 556	AUE_FSTATFS	NOPROTO	{ int fstatfs(int fd, struct statfs *buf); }
-557	AUE_GETFSSTAT	NOPROTO	{ int getfsstat(struct statfs *buf, \
+557	AUE_GETFSSTAT	STD	{ int freebsd32_getfsstat(struct statfs *buf, \
 				    int32_t bufsize, int mode); }
 558	AUE_FHSTATFS	NOPROTO	{ int fhstatfs(const struct fhandle *u_fhp, \
 				    struct statfs *buf); }
