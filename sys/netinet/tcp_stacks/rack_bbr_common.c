@@ -764,7 +764,8 @@ ctf_do_drop(struct mbuf *m, struct tcpcb *tp)
 }
 
 int
-ctf_process_rst(struct mbuf *m, struct tcphdr *th, struct socket *so, struct tcpcb *tp)
+__ctf_process_rst(struct mbuf *m, struct tcphdr *th, struct socket *so,
+		struct tcpcb *tp, uint32_t *ts, uint32_t *cnt)
 {
 	/*
 	 * RFC5961 Section 3.2
@@ -811,11 +812,40 @@ ctf_process_rst(struct mbuf *m, struct tcphdr *th, struct socket *so, struct tcp
 			dropped = 1;
 			ctf_do_drop(m, tp);
 		} else {
+			int send_challenge;
+
 			KMOD_TCPSTAT_INC(tcps_badrst);
-			/* Send challenge ACK. */
-			tcp_respond(tp, mtod(m, void *), th, m,
-			    tp->rcv_nxt, tp->snd_nxt, TH_ACK);
-			tp->last_ack_sent = tp->rcv_nxt;
+			if ((ts != NULL) && (cnt != NULL) &&
+			    (tcp_ack_war_time_window > 0) &&
+			    (tcp_ack_war_cnt > 0)) {
+				/* We are possibly preventing an  ack-rst  war prevention */
+				uint32_t cts;
+
+				/*
+				 * We use a msec tick here which gives us
+				 * roughly 49 days. We don't need the
+				 * precision of a microsecond timestamp which
+				 * would only give us hours.
+				 */
+				cts = tcp_ts_getticks();
+				if (TSTMP_LT((*ts), cts)) {
+					/* Timestamp is in the past */
+					*cnt = 0;
+					*ts = (cts + tcp_ack_war_time_window);
+				}
+				if (*cnt < tcp_ack_war_cnt) {
+					*cnt = (*cnt + 1);
+					send_challenge = 1;
+				} else
+					send_challenge = 0;
+			} else
+				send_challenge = 1;
+			if (send_challenge) {
+				/* Send challenge ACK. */
+				tcp_respond(tp, mtod(m, void *), th, m,
+					    tp->rcv_nxt, tp->snd_nxt, TH_ACK);
+				tp->last_ack_sent = tp->rcv_nxt;
+			}
 		}
 	} else {
 		m_freem(m);
