@@ -1956,29 +1956,29 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	/* freebsd32_sigreturn */
 	case 417: {
 		struct freebsd32_sigreturn_args *p = params;
-		uarg[0] = (intptr_t)p->sigcntxp; /* const struct freebsd32_ucontext * */
+		uarg[0] = (intptr_t)p->sigcntxp; /* const struct __ucontext32 * */
 		*n_args = 1;
 		break;
 	}
 	/* freebsd32_getcontext */
 	case 421: {
 		struct freebsd32_getcontext_args *p = params;
-		uarg[0] = (intptr_t)p->ucp; /* struct freebsd32_ucontext * */
+		uarg[0] = (intptr_t)p->ucp; /* struct __ucontext32 * */
 		*n_args = 1;
 		break;
 	}
 	/* freebsd32_setcontext */
 	case 422: {
 		struct freebsd32_setcontext_args *p = params;
-		uarg[0] = (intptr_t)p->ucp; /* const struct freebsd32_ucontext * */
+		uarg[0] = (intptr_t)p->ucp; /* const struct __ucontext32 * */
 		*n_args = 1;
 		break;
 	}
 	/* freebsd32_swapcontext */
 	case 423: {
 		struct freebsd32_swapcontext_args *p = params;
-		uarg[0] = (intptr_t)p->oucp; /* struct freebsd32_ucontext * */
-		uarg[1] = (intptr_t)p->ucp; /* const struct freebsd32_ucontext * */
+		uarg[0] = (intptr_t)p->oucp; /* struct __ucontext32 * */
+		uarg[1] = (intptr_t)p->ucp; /* const struct __ucontext32 * */
 		*n_args = 2;
 		break;
 	}
@@ -6566,7 +6566,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 417:
 		switch (ndx) {
 		case 0:
-			p = "userland const struct freebsd32_ucontext *";
+			p = "userland const struct __ucontext32 *";
 			break;
 		default:
 			break;
@@ -6576,7 +6576,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 421:
 		switch (ndx) {
 		case 0:
-			p = "userland struct freebsd32_ucontext *";
+			p = "userland struct __ucontext32 *";
 			break;
 		default:
 			break;
@@ -6586,7 +6586,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 422:
 		switch (ndx) {
 		case 0:
-			p = "userland const struct freebsd32_ucontext *";
+			p = "userland const struct __ucontext32 *";
 			break;
 		default:
 			break;
@@ -6596,10 +6596,10 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 423:
 		switch (ndx) {
 		case 0:
-			p = "userland struct freebsd32_ucontext *";
+			p = "userland struct __ucontext32 *";
 			break;
 		case 1:
-			p = "userland const struct freebsd32_ucontext *";
+			p = "userland const struct __ucontext32 *";
 			break;
 		default:
 			break;

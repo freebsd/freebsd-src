@@ -340,17 +340,17 @@ struct freebsd32_sigaction_args {
 	char oact_l_[PADL_(struct sigaction32 *)]; struct sigaction32 * oact; char oact_r_[PADR_(struct sigaction32 *)];
 };
 struct freebsd32_sigreturn_args {
-	char sigcntxp_l_[PADL_(const struct freebsd32_ucontext *)]; const struct freebsd32_ucontext * sigcntxp; char sigcntxp_r_[PADR_(const struct freebsd32_ucontext *)];
+	char sigcntxp_l_[PADL_(const struct __ucontext32 *)]; const struct __ucontext32 * sigcntxp; char sigcntxp_r_[PADR_(const struct __ucontext32 *)];
 };
 struct freebsd32_getcontext_args {
-	char ucp_l_[PADL_(struct freebsd32_ucontext *)]; struct freebsd32_ucontext * ucp; char ucp_r_[PADR_(struct freebsd32_ucontext *)];
+	char ucp_l_[PADL_(struct __ucontext32 *)]; struct __ucontext32 * ucp; char ucp_r_[PADR_(struct __ucontext32 *)];
 };
 struct freebsd32_setcontext_args {
-	char ucp_l_[PADL_(const struct freebsd32_ucontext *)]; const struct freebsd32_ucontext * ucp; char ucp_r_[PADR_(const struct freebsd32_ucontext *)];
+	char ucp_l_[PADL_(const struct __ucontext32 *)]; const struct __ucontext32 * ucp; char ucp_r_[PADR_(const struct __ucontext32 *)];
 };
 struct freebsd32_swapcontext_args {
-	char oucp_l_[PADL_(struct freebsd32_ucontext *)]; struct freebsd32_ucontext * oucp; char oucp_r_[PADR_(struct freebsd32_ucontext *)];
-	char ucp_l_[PADL_(const struct freebsd32_ucontext *)]; const struct freebsd32_ucontext * ucp; char ucp_r_[PADR_(const struct freebsd32_ucontext *)];
+	char oucp_l_[PADL_(struct __ucontext32 *)]; struct __ucontext32 * oucp; char oucp_r_[PADR_(struct __ucontext32 *)];
+	char ucp_l_[PADL_(const struct __ucontext32 *)]; const struct __ucontext32 * ucp; char ucp_r_[PADR_(const struct __ucontext32 *)];
 };
 struct freebsd32_ksem_timedwait_args {
 	char id_l_[PADL_(semid_t)]; semid_t id; char id_r_[PADR_(semid_t)];
