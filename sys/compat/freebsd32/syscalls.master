@@ -207,13 +207,13 @@
 				    char *hostname, u_int len); }
 89	AUE_GETDTABLESIZE	NOPROTO	{ int getdtablesize(void); }
 90	AUE_DUP2	NOPROTO	{ int dup2(u_int from, u_int to); }
-91	AUE_NULL	UNIMPL	getdopt
+91	AUE_NULL	RESERVED
 92	AUE_FCNTL	STD	{ int freebsd32_fcntl(int fd, int cmd, \
 				    int arg); }
 93	AUE_SELECT	STD	{ int freebsd32_select(int nd, fd_set *in, \
 				    fd_set *ou, fd_set *ex, \
 				    struct timeval32 *tv); }
-94	AUE_NULL	UNIMPL	setdopt
+94	AUE_NULL	RESERVED
 95	AUE_FSYNC	NOPROTO	{ int fsync(int fd); }
 96	AUE_SETPRIORITY	NOPROTO	{ int setpriority(int which, int who, \
 				    int prio); }
@@ -259,7 +259,7 @@
 				    struct rusage32 *rusage); }
 118	AUE_GETSOCKOPT	NOPROTO	{ int getsockopt(int s, int level, \
 				    int name, void *val, int *avalsize); }
-119	AUE_NULL	UNIMPL	resuba (BSD/OS 2.x)
+119	AUE_NULL	RESERVED
 120	AUE_READV	STD	{ int freebsd32_readv(int fd, \
 				    struct iovec32 *iovp, u_int iovcnt); }
 121	AUE_WRITEV	STD	{ int freebsd32_writev(int fd, \
@@ -311,13 +311,9 @@
 149	AUE_O_QUOTA	COMPAT|NOPROTO { int quota(void); }
 150	AUE_GETSOCKNAME	COMPAT|NOPROTO getsockname
 
-; Syscalls 151-180 inclusive are reserved for vendor-specific
-; system calls.  (This includes various calls added for compatibity
-; with other Unix variants.)
-; Some of these calls are now supported by BSD...
-151	AUE_NULL	UNIMPL	sem_lock (BSD/OS 2.x)
-152	AUE_NULL	UNIMPL	sem_wakeup (BSD/OS 2.x)
-153	AUE_NULL	UNIMPL	asyncdaemon (BSD/OS 2.x)
+151	AUE_NULL	RESERVED
+152	AUE_NULL	RESERVED
+153	AUE_NULL	RESERVED
 ; 154 is initialised by the NLM code, if present.
 154	AUE_NULL	UNIMPL	nlm_syscall
 ; 155 is initialized by the NFS code, if present.
@@ -329,7 +325,7 @@
 				    struct ostatfs32 *buf); }
 158	AUE_FSTATFS	COMPAT4	{ int freebsd32_fstatfs(int fd, \
 				    struct ostatfs32 *buf); }
-159	AUE_NULL	UNIMPL	nosys
+159	AUE_NULL	RESERVED
 160	AUE_LGETFH	UNIMPL	lgetfh
 161	AUE_NFS_GETFH	NOPROTO	{ int getfh(const char *fname, \
 				    struct fhandle *fhp); }
@@ -341,15 +337,15 @@
 165	AUE_SYSARCH	STD	{ int freebsd32_sysarch(int op, char *parms); }
 166	AUE_RTPRIO	NOPROTO	{ int rtprio(int function, pid_t pid, \
 				    struct rtprio *rtp); }
-167	AUE_NULL	UNIMPL	nosys
-168	AUE_NULL	UNIMPL	nosys
+167	AUE_NULL	RESERVED
+168	AUE_NULL	RESERVED
 169	AUE_SEMSYS	NOSTD	{ int freebsd32_semsys(int which, int a2, \
 				    int a3, int a4, int a5); }
 170	AUE_MSGSYS	NOSTD	{ int freebsd32_msgsys(int which, int a2, \
 				    int a3, int a4, int a5, int a6); }
 171	AUE_SHMSYS	NOSTD	{ int freebsd32_shmsys(uint32_t which, uint32_t a2, \
 				    uint32_t a3, uint32_t a4); }
-172	AUE_NULL	UNIMPL	nosys
+172	AUE_NULL	RESERVED
 173	AUE_PREAD	COMPAT6	{ ssize_t freebsd32_pread(int fd, void *buf, \
 				    size_t nbyte, int pad, \
 				    uint32_t offset1, uint32_t offset2); }
@@ -359,10 +355,10 @@
 175	AUE_SETFIB	NOPROTO	{ int setfib(int fibnum); }
 176	AUE_NTP_ADJTIME	STD	{ int freebsd32_ntp_adjtime( \
 				    struct timex32 *tp); }
-177	AUE_NULL	UNIMPL	sfork (BSD/OS 2.x)
-178	AUE_NULL	UNIMPL	getdescriptor (BSD/OS 2.x)
-179	AUE_NULL	UNIMPL	setdescriptor (BSD/OS 2.x)
-180	AUE_NULL	UNIMPL	nosys
+177	AUE_NULL	RESERVED
+178	AUE_NULL	RESERVED
+179	AUE_NULL	RESERVED
+180	AUE_NULL	RESERVED
 
 ; Syscalls 181-199 are used by/reserved for BSD
 181	AUE_SETGID	NOPROTO	{ int setgid(gid_t gid); }
@@ -380,7 +376,7 @@
 				    struct freebsd11_stat32 *ub); }
 191	AUE_PATHCONF	NOPROTO	{ int pathconf(const char *path, int name); }
 192	AUE_FPATHCONF	NOPROTO	{ int fpathconf(int fd, int name); }
-193	AUE_NULL	UNIMPL	nosys
+193	AUE_NULL	RESERVED
 194	AUE_GETRLIMIT	NOPROTO	{ int getrlimit(u_int which, \
 				    struct rlimit *rlp); } getrlimit \
 				    __getrlimit_args int
@@ -414,7 +410,7 @@
 206	AUE_FUTIMES	STD	{ int freebsd32_futimes(int fd, \
 				    const struct timeval32 *tptr); }
 207	AUE_GETPGID	NOPROTO	{ int getpgid(pid_t pid); }
-208	AUE_NULL	UNIMPL	nosys
+208	AUE_NULL	RESERVED
 209	AUE_POLL	NOPROTO	{ int poll(struct pollfd *fds, u_int nfds, \
 				    int timeout); }
 
@@ -486,13 +482,13 @@
 				    clockid_t clock_id, int flags, \
 				    const struct timespec32 *rqtp, \
 				    struct timespec32 *rmtp); }
-245	AUE_NULL	UNIMPL	nosys
-246	AUE_NULL	UNIMPL	nosys
+245	AUE_NULL	RESERVED
+246	AUE_NULL	RESERVED
 247	AUE_NULL	STD	{ int freebsd32_clock_getcpuclockid2(\
 				    uint32_t id1, uint32_t id2,\
 				    int which, clockid_t *clock_id); }
 248	AUE_NULL	UNIMPL	ntp_gettime
-249	AUE_NULL	UNIMPL	nosys
+249	AUE_NULL	RESERVED
 250	AUE_MINHERIT	NOPROTO	{ int minherit(void *addr, size_t len, \
 				    int inherit); }
 251	AUE_RFORK	NOPROTO	{ int rfork(int flags); }
@@ -507,23 +503,23 @@
 257	AUE_LIO_LISTIO	STD	{ int freebsd32_lio_listio(int mode, \
 				    uint32_t *acb_list, \
 				    int nent, struct sigevent32 *sig); }
-258	AUE_NULL	UNIMPL	nosys
-259	AUE_NULL	UNIMPL	nosys
-260	AUE_NULL	UNIMPL	nosys
-261	AUE_NULL	UNIMPL	nosys
-262	AUE_NULL	UNIMPL	nosys
-263	AUE_NULL	UNIMPL	nosys
-264	AUE_NULL	UNIMPL	nosys
-265	AUE_NULL	UNIMPL	nosys
-266	AUE_NULL	UNIMPL	nosys
-267	AUE_NULL	UNIMPL	nosys
-268	AUE_NULL	UNIMPL	nosys
-269	AUE_NULL	UNIMPL	nosys
-270	AUE_NULL	UNIMPL	nosys
-271	AUE_NULL	UNIMPL	nosys
+258	AUE_NULL	RESERVED
+259	AUE_NULL	RESERVED
+260	AUE_NULL	RESERVED
+261	AUE_NULL	RESERVED
+262	AUE_NULL	RESERVED
+263	AUE_NULL	RESERVED
+264	AUE_NULL	RESERVED
+265	AUE_NULL	RESERVED
+266	AUE_NULL	RESERVED
+267	AUE_NULL	RESERVED
+268	AUE_NULL	RESERVED
+269	AUE_NULL	RESERVED
+270	AUE_NULL	RESERVED
+271	AUE_NULL	RESERVED
 272	AUE_O_GETDENTS	COMPAT11|NOPROTO { int getdents(int fd, char *buf, \
 				    int count); }
-273	AUE_NULL	UNIMPL	nosys
+273	AUE_NULL	RESERVED
 274	AUE_LCHMOD	NOPROTO	{ int lchmod(const char *path, mode_t mode); }
 275	AUE_NULL	OBSOL	netbsd_lchown
 276	AUE_LUTIMES	STD	{ int freebsd32_lutimes(const char *path, \
@@ -534,14 +530,14 @@
 279	AUE_FSTAT COMPAT11|NOPROTO { int nfstat(int fd, struct nstat *sb); }
 280	AUE_LSTAT COMPAT11|NOPROTO { int nlstat(const char *path, \
 				    struct nstat *ub); }
-281	AUE_NULL	UNIMPL	nosys
-282	AUE_NULL	UNIMPL	nosys
-283	AUE_NULL	UNIMPL	nosys
-284	AUE_NULL	UNIMPL	nosys
-285	AUE_NULL	UNIMPL	nosys
-286	AUE_NULL	UNIMPL	nosys
-287	AUE_NULL	UNIMPL	nosys
-288	AUE_NULL	UNIMPL	nosys
+281	AUE_NULL	RESERVED
+282	AUE_NULL	RESERVED
+283	AUE_NULL	RESERVED
+284	AUE_NULL	RESERVED
+285	AUE_NULL	RESERVED
+286	AUE_NULL	RESERVED
+287	AUE_NULL	RESERVED
+288	AUE_NULL	RESERVED
 #ifdef PAD64_REQUIRED
 289	AUE_PREADV	STD	{ ssize_t freebsd32_preadv(int fd, \
 					struct iovec32 *iovp, \
@@ -563,12 +559,12 @@
 					u_int iovcnt, \
 					uint32_t offset1, uint32_t offset2); }
 #endif
-291	AUE_NULL	UNIMPL	nosys
-292	AUE_NULL	UNIMPL	nosys
-293	AUE_NULL	UNIMPL	nosys
-294	AUE_NULL	UNIMPL	nosys
-295	AUE_NULL	UNIMPL	nosys
-296	AUE_NULL	UNIMPL	nosys
+291	AUE_NULL	RESERVED
+292	AUE_NULL	RESERVED
+293	AUE_NULL	RESERVED
+294	AUE_NULL	RESERVED
+295	AUE_NULL	RESERVED
+296	AUE_NULL	RESERVED
 297	AUE_FHSTATFS	COMPAT4	{ int freebsd32_fhstatfs( \
 				    const struct fhandle *u_fhp, \
 				    struct ostatfs32 *buf); }
@@ -708,7 +704,7 @@
 367	AUE_NULL	OBSOL	__cap_get_file
 368	AUE_NULL	OBSOL	__cap_set_fd
 369	AUE_NULL	OBSOL	__cap_set_file
-370	AUE_NULL	UNIMPL	nosys
+370	AUE_NULL	RESERVED
 371	AUE_EXTATTR_SET_FD	NOPROTO	{ ssize_t extattr_set_fd(int fd, \
 				    int attrnamespace, const char *attrname, \
 				    void *data, size_t nbytes); }
@@ -756,7 +752,7 @@
 398	AUE_FHSTATFS	COMPAT11|NOPROTO	{ int fhstatfs( \
 				    const struct fhandle *u_fhp, \
 				    struct freebsd11_statfs *buf); }
-399	AUE_NULL	UNIMPL	nosys
+399	AUE_NULL	RESERVED
 400	AUE_SEMCLOSE	NOSTD|NOPROTO	{ int ksem_close(semid_t id); }
 401	AUE_SEMPOST	NOSTD|NOPROTO	{ int ksem_post(semid_t id); }
 402	AUE_SEMWAIT	NOSTD|NOPROTO	{ int ksem_wait(semid_t id); }
@@ -790,9 +786,9 @@
 				    struct sigaction32 *oact); }
 417	AUE_SIGRETURN	STD	{ int freebsd32_sigreturn( \
 		    const struct __ucontext32 *sigcntxp); }
-418	AUE_NULL	UNIMPL	__xstat
-419	AUE_NULL	UNIMPL	__xfstat
-420	AUE_NULL	UNIMPL	__xlstat
+418	AUE_NULL	RESERVED
+419	AUE_NULL	RESERVED
+420	AUE_NULL	RESERVED
 421	AUE_NULL	STD	{ int freebsd32_getcontext( \
 				    struct __ucontext32 *ucp); }
 422	AUE_NULL	STD	{ int freebsd32_setcontext( \
@@ -882,10 +878,10 @@
 				    struct aiocb32 *aiocbp); }
 466	AUE_RTPRIO	NOPROTO	{ int rtprio_thread(int function, \
 				    lwpid_t lwpid, struct rtprio *rtp); }
-467	AUE_NULL	UNIMPL	nosys
-468	AUE_NULL	UNIMPL	nosys
-469	AUE_NULL	UNIMPL	__getpath_fromfd
-470	AUE_NULL	UNIMPL	__getpath_fromaddr
+467	AUE_NULL	RESERVED
+468	AUE_NULL	RESERVED
+469	AUE_NULL	RESERVED
+470	AUE_NULL	RESERVED
 471	AUE_SCTP_PEELOFF	NOPROTO|NOSTD	{ int sctp_peeloff(int sd, uint32_t name); }
 472	AUE_SCTP_GENERIC_SENDMSG	NOPROTO|NOSTD	{ int sctp_generic_sendmsg( \
 				    int sd, void *msg, int mlen, \
@@ -1025,7 +1021,7 @@
 518	AUE_PDFORK	NOPROTO	{ int pdfork(int *fdp, int flags); }
 519	AUE_PDKILL	NOPROTO	{ int pdkill(int fd, int signum); }
 520	AUE_PDGETPID	NOPROTO	{ int pdgetpid(int fd, pid_t *pidp); }
-521	AUE_PDWAIT	UNIMPL	pdwait4
+521	AUE_PDWAIT	RESERVED
 522	AUE_SELECT	STD	{ int freebsd32_pselect(int nd, fd_set *in, \
 				    fd_set *ou, fd_set *ex, \
 				    const struct timespec32 *ts, \
