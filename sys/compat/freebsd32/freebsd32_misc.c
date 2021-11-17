@@ -1913,6 +1913,14 @@ freebsd32_truncate(struct thread *td, struct freebsd32_truncate_args *uap)
 	    PAIR32TO64(off_t, uap->length)));
 }
 
+#ifdef COMPAT_43
+int
+ofreebsd32_truncate(struct thread *td, struct ofreebsd32_truncate_args *uap)
+{
+	return (kern_truncate(td, uap->path, UIO_USERSPACE, uap->length));
+}
+#endif
+
 int
 freebsd32_ftruncate(struct thread *td, struct freebsd32_ftruncate_args *uap)
 {
@@ -1921,6 +1929,12 @@ freebsd32_ftruncate(struct thread *td, struct freebsd32_ftruncate_args *uap)
 }
 
 #ifdef COMPAT_43
+int
+ofreebsd32_ftruncate(struct thread *td, struct ofreebsd32_ftruncate_args *uap)
+{
+	return (kern_ftruncate(td, uap->fd, uap->length));
+}
+
 int
 ofreebsd32_getdirentries(struct thread *td,
     struct ofreebsd32_getdirentries_args *uap)
@@ -3841,6 +3855,19 @@ freebsd32_ffclock_getestimate(struct thread *td,
 	return (ENOSYS);
 }
 #endif /* FFCLOCK */
+
+#ifdef COMPAT_43
+int
+ofreebsd32_sethostid(struct thread *td, struct ofreebsd32_sethostid_args *uap)
+{
+	int name[] = { CTL_KERN, KERN_HOSTID };
+	long hostid;
+
+	hostid = uap->hostid;
+	return (kernel_sysctl(td, name, nitems(name), NULL, NULL, &hostid,
+	    sizeof(hostid), NULL, 0));
+}
+#endif
 
 int
 freebsd32_fspacectl(struct thread *td, struct freebsd32_fspacectl_args *uap)

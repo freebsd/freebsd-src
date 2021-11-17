@@ -131,8 +131,8 @@
 #define	FREEBSD32_SYS_setreuid	126
 #define	FREEBSD32_SYS_setregid	127
 #define	FREEBSD32_SYS_rename	128
-				/* 129 is old truncate */
-				/* 130 is old ftruncate */
+				/* 129 is old freebsd32_truncate */
+				/* 130 is old freebsd32_ftruncate */
 #define	FREEBSD32_SYS_flock	131
 #define	FREEBSD32_SYS_mkfifo	132
 #define	FREEBSD32_SYS_sendto	133
@@ -145,7 +145,7 @@
 #define	FREEBSD32_SYS_freebsd32_adjtime	140
 				/* 141 is old getpeername */
 				/* 142 is old gethostid */
-				/* 143 is obsolete sethostid */
+				/* 143 is old freebsd32_sethostid */
 				/* 144 is old getrlimit */
 				/* 145 is old setrlimit */
 				/* 146 is old killpg */
