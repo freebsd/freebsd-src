@@ -3082,7 +3082,7 @@ freebsd32_sigqueue(struct thread *td, struct freebsd32_sigqueue_args *uap)
 	 * more common.
 	 */
 	bzero(&sv, sizeof(sv));
-	sv.sival_int = uap->value;
+	sv.sival_int = (uint32_t)(uint64_t)uap->value;
 
 	return (kern_sigqueue(td, uap->pid, uap->signum, &sv));
 }
