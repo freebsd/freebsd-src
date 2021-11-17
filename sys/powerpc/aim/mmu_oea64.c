@@ -438,7 +438,7 @@ static int moea64_map_user_ptr(pmap_t pm,
     volatile const void *uaddr, void **kaddr, size_t ulen, size_t *klen);
 static int moea64_decode_kernel_ptr(vm_offset_t addr,
     int *is_user, vm_offset_t *decoded_addr);
-static size_t moea64_scan_pmap(void);
+static size_t moea64_scan_pmap(struct bitset *dump_bitset);
 static void *moea64_dump_pmap_init(unsigned blkpgs);
 #ifdef __powerpc64__
 static void moea64_page_array_startup(long);
@@ -3324,7 +3324,7 @@ moea64_scan_init()
 #ifdef __powerpc64__
 
 static size_t
-moea64_scan_pmap()
+moea64_scan_pmap(struct bitset *dump_bitset)
 {
 	struct pvo_entry *pvo;
 	vm_paddr_t pa, pa_end;
@@ -3367,11 +3367,11 @@ moea64_scan_pmap()
 			pa_end = pa + lpsize;
 			for (; pa < pa_end; pa += PAGE_SIZE) {
 				if (vm_phys_is_dumpable(pa))
-					dump_add_page(pa);
+					vm_page_dump_add(dump_bitset, pa);
 			}
 		} else {
 			if (vm_phys_is_dumpable(pa))
-				dump_add_page(pa);
+				vm_page_dump_add(dump_bitset, pa);
 		}
 	}
 	PMAP_UNLOCK(kernel_pmap);
@@ -3393,7 +3393,7 @@ moea64_dump_pmap_init(unsigned blkpgs)
 #else
 
 static size_t
-moea64_scan_pmap()
+moea64_scan_pmap(struct bitset *dump_bitset __unused)
 {
 	return (0);
 }

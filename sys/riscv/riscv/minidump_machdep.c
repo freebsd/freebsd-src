@@ -197,7 +197,8 @@ retry:
 			pa = (l2e >> PTE_PPN1_S) << L2_SHIFT;
 			for (i = 0; i < Ln_ENTRIES; i++, pa += PAGE_SIZE) {
 				if (vm_phys_is_dumpable(pa))
-					dump_add_page(pa);
+					vm_page_dump_add(state->dump_bitset,
+					    pa);
 			}
 		} else {
 			for (i = 0; i < Ln_ENTRIES; i++) {
@@ -206,7 +207,8 @@ retry:
 					continue;
 				pa = (l3e >> PTE_PPN0_S) * PAGE_SIZE;
 				if (PHYS_IN_DMAP(pa) && vm_phys_is_dumpable(pa))
-					dump_add_page(pa);
+					vm_page_dump_add(state->dump_bitset,
+					    pa);
 			}
 		}
 	}
@@ -217,12 +219,12 @@ retry:
 	dumpsize += round_page(mbp->msg_size);
 	dumpsize += round_page(sizeof(dump_avail));
 	dumpsize += round_page(BITSET_SIZE(vm_page_dump_pages));
-	VM_PAGE_DUMP_FOREACH(pa) {
+	VM_PAGE_DUMP_FOREACH(state->dump_bitset, pa) {
 		/* Clear out undumpable pages now if needed */
 		if (PHYS_IN_DMAP(pa) && vm_phys_is_dumpable(pa))
 			dumpsize += PAGE_SIZE;
 		else
-			dump_drop_page(pa);
+			vm_page_dump_drop(state->dump_bitset, pa);
 	}
 	dumpsize += PAGE_SIZE;
 
@@ -327,7 +329,7 @@ retry:
 
 	/* Dump memory chunks */
 	/* XXX cluster it up and use blk_dump() */
-	VM_PAGE_DUMP_FOREACH(pa) {
+	VM_PAGE_DUMP_FOREACH(state->dump_bitset, pa) {
 		error = blk_write(di, 0, pa, PAGE_SIZE);
 		if (error)
 			goto fail;
