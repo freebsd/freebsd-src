@@ -603,7 +603,7 @@ struct freebsd32_wait6_args {
 	char id2_l_[PADL_(uint32_t)]; uint32_t id2; char id2_r_[PADR_(uint32_t)];
 	char status_l_[PADL_(int *)]; int * status; char status_r_[PADR_(int *)];
 	char options_l_[PADL_(int)]; int options; char options_r_[PADR_(int)];
-	char wrusage_l_[PADL_(struct wrusage32 *)]; struct wrusage32 * wrusage; char wrusage_r_[PADR_(struct wrusage32 *)];
+	char wrusage_l_[PADL_(struct __wrusage32 *)]; struct __wrusage32 * wrusage; char wrusage_r_[PADR_(struct __wrusage32 *)];
 	char info_l_[PADL_(struct siginfo32 *)]; struct siginfo32 * info; char info_r_[PADR_(struct siginfo32 *)];
 };
 #else
@@ -628,7 +628,7 @@ struct freebsd32_wait6_args {
 	char id2_l_[PADL_(uint32_t)]; uint32_t id2; char id2_r_[PADR_(uint32_t)];
 	char status_l_[PADL_(int *)]; int * status; char status_r_[PADR_(int *)];
 	char options_l_[PADL_(int)]; int options; char options_r_[PADR_(int)];
-	char wrusage_l_[PADL_(struct wrusage32 *)]; struct wrusage32 * wrusage; char wrusage_r_[PADR_(struct wrusage32 *)];
+	char wrusage_l_[PADL_(struct __wrusage32 *)]; struct __wrusage32 * wrusage; char wrusage_r_[PADR_(struct __wrusage32 *)];
 	char info_l_[PADL_(struct siginfo32 *)]; struct siginfo32 * info; char info_r_[PADR_(struct siginfo32 *)];
 };
 #endif
