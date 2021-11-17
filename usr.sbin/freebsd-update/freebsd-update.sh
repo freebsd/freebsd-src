@@ -3134,7 +3134,6 @@ install_setup_rollback () {
 
 # Actually install updates
 install_run () {
-	rm -f tag
 	echo -n "Installing updates..."
 
 	# Make sure we have all the files we should have
