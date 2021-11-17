@@ -1942,19 +1942,6 @@ freebsd11_freebsd32_getdirentries(struct thread *td,
 	}
 	return (error);
 }
-
-int
-freebsd11_freebsd32_getdents(struct thread *td,
-    struct freebsd11_freebsd32_getdents_args *uap)
-{
-	struct freebsd11_freebsd32_getdirentries_args ap;
-
-	ap.fd = uap->fd;
-	ap.buf = uap->buf;
-	ap.count = uap->count;
-	ap.basep = NULL;
-	return (freebsd11_freebsd32_getdirentries(td, &ap));
-}
 #endif /* COMPAT_FREEBSD11 */
 
 #ifdef COMPAT_FREEBSD6
