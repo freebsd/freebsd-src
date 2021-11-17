@@ -181,6 +181,12 @@ struct shmid_ds32_old {
 	uint32_t	shm_internal;
 };
 
+union semun_old32 {
+	int		val;
+	uint32_t	buf;
+	uint32_t	array;
+};
+
 void	freebsd32_ipcperm_old_in(struct ipc_perm32_old *ip32,
 	    struct ipc_perm *ip);
 void	freebsd32_ipcperm_old_out(struct ipc_perm *ip,
