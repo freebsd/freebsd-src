@@ -1035,7 +1035,7 @@
 532	AUE_WAIT6	STD	{ int freebsd32_wait6(idtype_t idtype, int pad, \
 				    uint32_t id1, uint32_t id2, \
 				    int *status, int options, \
-				    struct wrusage32 *wrusage, \
+				    struct __wrusage32 *wrusage, \
 				    struct siginfo32 *info); }
 #else
 530	AUE_POSIX_FALLOCATE	STD	{ int freebsd32_posix_fallocate(int fd,\
@@ -1048,7 +1048,7 @@
 532	AUE_WAIT6	STD	{ int freebsd32_wait6(idtype_t idtype, \
 				    uint32_t id1, uint32_t id2, \
 				    int *status, int options, \
-				    struct wrusage32 *wrusage, \
+				    struct __wrusage32 *wrusage, \
 				    struct siginfo32 *info); }
 #endif
 533	AUE_CAP_RIGHTS_LIMIT	NOPROTO	{ \

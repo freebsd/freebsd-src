@@ -84,7 +84,7 @@ struct rusage32 {
 	int32_t	ru_nivcsw;
 };
 
-struct wrusage32 {
+struct __wrusage32 {
 	struct rusage32	wru_self;
 	struct rusage32 wru_children;
 };

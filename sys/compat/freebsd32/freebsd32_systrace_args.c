@@ -2922,7 +2922,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		uarg[3] = p->id2; /* uint32_t */
 		uarg[4] = (intptr_t)p->status; /* int * */
 		iarg[5] = p->options; /* int */
-		uarg[6] = (intptr_t)p->wrusage; /* struct wrusage32 * */
+		uarg[6] = (intptr_t)p->wrusage; /* struct __wrusage32 * */
 		uarg[7] = (intptr_t)p->info; /* struct siginfo32 * */
 		*n_args = 8;
 		break;
@@ -2959,7 +2959,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		uarg[2] = p->id2; /* uint32_t */
 		uarg[3] = (intptr_t)p->status; /* int * */
 		iarg[4] = p->options; /* int */
-		uarg[5] = (intptr_t)p->wrusage; /* struct wrusage32 * */
+		uarg[5] = (intptr_t)p->wrusage; /* struct __wrusage32 * */
 		uarg[6] = (intptr_t)p->info; /* struct siginfo32 * */
 		*n_args = 7;
 		break;
@@ -8312,7 +8312,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 6:
-			p = "userland struct wrusage32 *";
+			p = "userland struct __wrusage32 *";
 			break;
 		case 7:
 			p = "userland struct siginfo32 *";
@@ -8388,7 +8388,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 5:
-			p = "userland struct wrusage32 *";
+			p = "userland struct __wrusage32 *";
 			break;
 		case 6:
 			p = "userland struct siginfo32 *";

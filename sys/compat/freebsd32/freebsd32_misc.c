@@ -225,7 +225,7 @@ freebsd32_wait4(struct thread *td, struct freebsd32_wait4_args *uap)
 int
 freebsd32_wait6(struct thread *td, struct freebsd32_wait6_args *uap)
 {
-	struct wrusage32 wru32;
+	struct __wrusage32 wru32;
 	struct __wrusage wru, *wrup;
 	struct siginfo32 si32;
 	struct __siginfo si, *sip;
