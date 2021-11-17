@@ -79,8 +79,8 @@ struct freebsd32_sigaltstack_args {
 };
 struct freebsd32_ioctl_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
-	char com_l_[PADL_(uint32_t)]; uint32_t com; char com_r_[PADR_(uint32_t)];
-	char data_l_[PADL_(struct md_ioctl32 *)]; struct md_ioctl32 * data; char data_r_[PADR_(struct md_ioctl32 *)];
+	char com_l_[PADL_(u_long)]; u_long com; char com_r_[PADR_(u_long)];
+	char data_l_[PADL_(char *)]; char * data; char data_r_[PADR_(char *)];
 };
 struct freebsd32_execve_args {
 	char fname_l_[PADL_(const char *)]; const char * fname; char fname_r_[PADR_(const char *)];

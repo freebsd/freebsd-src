@@ -348,8 +348,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 54: {
 		struct freebsd32_ioctl_args *p = params;
 		iarg[0] = p->fd; /* int */
-		uarg[1] = p->com; /* uint32_t */
-		uarg[2] = (intptr_t)p->data; /* struct md_ioctl32 * */
+		uarg[1] = p->com; /* u_long */
+		uarg[2] = (intptr_t)p->data; /* char * */
 		*n_args = 3;
 		break;
 	}
@@ -3958,10 +3958,10 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 1:
-			p = "uint32_t";
+			p = "u_long";
 			break;
 		case 2:
-			p = "userland struct md_ioctl32 *";
+			p = "userland char *";
 			break;
 		default:
 			break;

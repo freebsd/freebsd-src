@@ -152,8 +152,8 @@
 53	AUE_SIGALTSTACK	STD	{ int freebsd32_sigaltstack( \
 				    const struct sigaltstack32 *ss, \
 				    struct sigaltstack32 *oss); }
-54	AUE_IOCTL	STD	{ int freebsd32_ioctl(int fd, uint32_t com, \
-				    struct md_ioctl32 *data); }
+54	AUE_IOCTL	STD	{ int freebsd32_ioctl(int fd, u_long com, \
+				    char *data); }
 55	AUE_REBOOT	NOPROTO	{ int reboot(int opt); }
 56	AUE_REVOKE	NOPROTO	{ int revoke(const char *path); }
 57	AUE_SYMLINK	NOPROTO	{ int symlink(const char *path, \
