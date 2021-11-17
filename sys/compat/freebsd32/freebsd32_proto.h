@@ -948,6 +948,16 @@ struct ofreebsd32_sigstack_args {
 	char nss_l_[PADL_(struct sigstack32 *)]; struct sigstack32 * nss; char nss_r_[PADR_(struct sigstack32 *)];
 	char oss_l_[PADL_(struct sigstack32 *)]; struct sigstack32 * oss; char oss_r_[PADR_(struct sigstack32 *)];
 };
+struct ofreebsd32_recvmsg_args {
+	char s_l_[PADL_(int)]; int s; char s_r_[PADR_(int)];
+	char msg_l_[PADL_(struct omsghdr32 *)]; struct omsghdr32 * msg; char msg_r_[PADR_(struct omsghdr32 *)];
+	char flags_l_[PADL_(int)]; int flags; char flags_r_[PADR_(int)];
+};
+struct ofreebsd32_sendmsg_args {
+	char s_l_[PADL_(int)]; int s; char s_r_[PADR_(int)];
+	char msg_l_[PADL_(const struct omsghdr32 *)]; const struct omsghdr32 * msg; char msg_r_[PADR_(const struct omsghdr32 *)];
+	char flags_l_[PADL_(int)]; int flags; char flags_r_[PADR_(int)];
+};
 struct ofreebsd32_getdirentries_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
 	char buf_l_[PADL_(char *)]; char * buf; char buf_r_[PADR_(char *)];
@@ -978,6 +988,8 @@ int	ofreebsd32_mmap(struct thread *, struct ofreebsd32_mmap_args *);
 int	ofreebsd32_sigreturn(struct thread *, struct ofreebsd32_sigreturn_args *);
 int	ofreebsd32_sigvec(struct thread *, struct ofreebsd32_sigvec_args *);
 int	ofreebsd32_sigstack(struct thread *, struct ofreebsd32_sigstack_args *);
+int	ofreebsd32_recvmsg(struct thread *, struct ofreebsd32_recvmsg_args *);
+int	ofreebsd32_sendmsg(struct thread *, struct ofreebsd32_sendmsg_args *);
 int	ofreebsd32_getdirentries(struct thread *, struct ofreebsd32_getdirentries_args *);
 
 #endif /* COMPAT_43 */
@@ -1326,6 +1338,8 @@ int	freebsd11_freebsd32_fstatat(struct thread *, struct freebsd11_freebsd32_fsta
 #define	FREEBSD32_SYS_AUE_ofreebsd32_sigreturn	AUE_SIGRETURN
 #define	FREEBSD32_SYS_AUE_ofreebsd32_sigvec	AUE_O_SIGVEC
 #define	FREEBSD32_SYS_AUE_ofreebsd32_sigstack	AUE_O_SIGSTACK
+#define	FREEBSD32_SYS_AUE_ofreebsd32_recvmsg	AUE_RECVMSG
+#define	FREEBSD32_SYS_AUE_ofreebsd32_sendmsg	AUE_SENDMSG
 #define	FREEBSD32_SYS_AUE_freebsd32_gettimeofday	AUE_GETTIMEOFDAY
 #define	FREEBSD32_SYS_AUE_freebsd32_getrusage	AUE_GETRUSAGE
 #define	FREEBSD32_SYS_AUE_freebsd32_readv	AUE_READV

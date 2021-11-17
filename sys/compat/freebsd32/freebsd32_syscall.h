@@ -116,8 +116,8 @@
 				/* 110 is old sigsetmask */
 				/* 111 is old sigsuspend */
 				/* 112 is old freebsd32_sigstack */
-				/* 113 is obsolete orecvmsg */
-				/* 114 is obsolete osendmsg */
+				/* 113 is old freebsd32_recvmsg */
+				/* 114 is old freebsd32_sendmsg */
 				/* 115 is obsolete vtrace */
 #define	FREEBSD32_SYS_freebsd32_gettimeofday	116
 #define	FREEBSD32_SYS_freebsd32_getrusage	117

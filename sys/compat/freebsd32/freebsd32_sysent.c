@@ -175,8 +175,8 @@ struct sysent freebsd32_sysent[] = {
 	{ compat(AS(osigsetmask_args),sigsetmask), .sy_auevent = AUE_O_SIGSETMASK, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 110 = old sigsetmask */
 	{ compat(AS(osigsuspend_args),sigsuspend), .sy_auevent = AUE_SIGSUSPEND, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 111 = old sigsuspend */
 	{ compat(AS(ofreebsd32_sigstack_args),freebsd32_sigstack), .sy_auevent = AUE_O_SIGSTACK, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 112 = old freebsd32_sigstack */
-	{ .sy_narg = 0, .sy_call = (sy_call_t *)nosys, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_ABSENT },			/* 113 = obsolete orecvmsg */
-	{ .sy_narg = 0, .sy_call = (sy_call_t *)nosys, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_ABSENT },			/* 114 = obsolete osendmsg */
+	{ compat(AS(ofreebsd32_recvmsg_args),freebsd32_recvmsg), .sy_auevent = AUE_RECVMSG, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 113 = old freebsd32_recvmsg */
+	{ compat(AS(ofreebsd32_sendmsg_args),freebsd32_sendmsg), .sy_auevent = AUE_SENDMSG, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 114 = old freebsd32_sendmsg */
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)nosys, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_ABSENT },			/* 115 = obsolete vtrace */
 	{ .sy_narg = AS(freebsd32_gettimeofday_args), .sy_call = (sy_call_t *)freebsd32_gettimeofday, .sy_auevent = AUE_GETTIMEOFDAY, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 116 = freebsd32_gettimeofday */
 	{ .sy_narg = AS(freebsd32_getrusage_args), .sy_call = (sy_call_t *)freebsd32_getrusage, .sy_auevent = AUE_GETRUSAGE, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 117 = freebsd32_getrusage */
