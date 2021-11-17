@@ -627,10 +627,10 @@
 344	AUE_SIGRETURN	COMPAT4	{ int freebsd32_sigreturn( \
 		    const struct freebsd4_freebsd32_ucontext *sigcntxp); }
 345	AUE_SIGWAIT	STD	{ int freebsd32_sigtimedwait(const sigset_t *set, \
-				    siginfo_t *info, \
+				    struct siginfo32 *info, \
 				    const struct timespec *timeout); }
 346	AUE_NULL	STD	{ int freebsd32_sigwaitinfo(const sigset_t *set, \
-				    siginfo_t *info); }
+				    struct siginfo32 *info); }
 347	AUE_ACL_GET_FILE	NOPROTO	{ int __acl_get_file(const char *path, \
 				    acl_type_t type, struct acl *aclp); }
 348	AUE_ACL_SET_FILE	NOPROTO	{ int __acl_set_file(const char *path, \
@@ -1036,7 +1036,7 @@
 				    uint32_t id1, uint32_t id2, \
 				    int *status, int options, \
 				    struct wrusage32 *wrusage, \
-				    siginfo_t *info); }
+				    struct siginfo32 *info); }
 #else
 530	AUE_POSIX_FALLOCATE	STD	{ int freebsd32_posix_fallocate(int fd,\
 				    uint32_t offset1, uint32_t offset2,\
@@ -1049,7 +1049,7 @@
 				    uint32_t id1, uint32_t id2, \
 				    int *status, int options, \
 				    struct wrusage32 *wrusage, \
-				    siginfo_t *info); }
+				    struct siginfo32 *info); }
 #endif
 533	AUE_CAP_RIGHTS_LIMIT	NOPROTO	{ \
 				    int cap_rights_limit(int fd, \
