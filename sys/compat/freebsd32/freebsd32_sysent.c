@@ -70,7 +70,7 @@ struct sysent freebsd32_sysent[] = {
 	{ .sy_narg = AS(open_args), .sy_call = (sy_call_t *)sys_open, .sy_auevent = AUE_OPEN_RWTC, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 5 = open */
 	{ .sy_narg = AS(close_args), .sy_call = (sy_call_t *)sys_close, .sy_auevent = AUE_CLOSE, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 6 = close */
 	{ .sy_narg = AS(freebsd32_wait4_args), .sy_call = (sy_call_t *)freebsd32_wait4, .sy_auevent = AUE_WAIT4, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 7 = freebsd32_wait4 */
-	{ .sy_narg = 0, .sy_call = (sy_call_t *)nosys, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_ABSENT },			/* 8 = obsolete old creat */
+	{ compat(AS(ocreat_args),creat), .sy_auevent = AUE_CREAT, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 8 = old creat */
 	{ .sy_narg = AS(link_args), .sy_call = (sy_call_t *)sys_link, .sy_auevent = AUE_LINK, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 9 = link */
 	{ .sy_narg = AS(unlink_args), .sy_call = (sy_call_t *)sys_unlink, .sy_auevent = AUE_UNLINK, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 10 = unlink */
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)nosys, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_ABSENT },			/* 11 = obsolete execv */
@@ -146,11 +146,11 @@ struct sysent freebsd32_sysent[] = {
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)sys_getpgrp, .sy_auevent = AUE_GETPGRP, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 81 = getpgrp */
 	{ .sy_narg = AS(setpgid_args), .sy_call = (sy_call_t *)sys_setpgid, .sy_auevent = AUE_SETPGRP, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 82 = setpgid */
 	{ .sy_narg = AS(freebsd32_setitimer_args), .sy_call = (sy_call_t *)freebsd32_setitimer, .sy_auevent = AUE_SETITIMER, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 83 = freebsd32_setitimer */
-	{ .sy_narg = 0, .sy_call = (sy_call_t *)nosys, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_ABSENT },			/* 84 = obsolete owait */
+	{ compat(0,wait), .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },			/* 84 = old wait */
 	{ .sy_narg = AS(swapon_args), .sy_call = (sy_call_t *)sys_swapon, .sy_auevent = AUE_SWAPON, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 85 = swapon */
 	{ .sy_narg = AS(freebsd32_getitimer_args), .sy_call = (sy_call_t *)freebsd32_getitimer, .sy_auevent = AUE_GETITIMER, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 86 = freebsd32_getitimer */
-	{ .sy_narg = 0, .sy_call = (sy_call_t *)nosys, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_ABSENT },			/* 87 = obsolete ogethostname */
-	{ .sy_narg = 0, .sy_call = (sy_call_t *)nosys, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_ABSENT },			/* 88 = obsolete osethostname */
+	{ compat(AS(ogethostname_args),gethostname), .sy_auevent = AUE_O_GETHOSTNAME, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 87 = old gethostname */
+	{ compat(AS(osethostname_args),sethostname), .sy_auevent = AUE_O_SETHOSTNAME, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 88 = old sethostname */
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)sys_getdtablesize, .sy_auevent = AUE_GETDTABLESIZE, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 89 = getdtablesize */
 	{ .sy_narg = AS(dup2_args), .sy_call = (sy_call_t *)sys_dup2, .sy_auevent = AUE_DUP2, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 90 = dup2 */
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)nosys, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_ABSENT },			/* 91 = getdopt */
@@ -161,10 +161,10 @@ struct sysent freebsd32_sysent[] = {
 	{ .sy_narg = AS(setpriority_args), .sy_call = (sy_call_t *)sys_setpriority, .sy_auevent = AUE_SETPRIORITY, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 96 = setpriority */
 	{ .sy_narg = AS(socket_args), .sy_call = (sy_call_t *)sys_socket, .sy_auevent = AUE_SOCKET, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 97 = socket */
 	{ .sy_narg = AS(connect_args), .sy_call = (sy_call_t *)sys_connect, .sy_auevent = AUE_CONNECT, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 98 = connect */
-	{ .sy_narg = 0, .sy_call = (sy_call_t *)nosys, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_ABSENT },			/* 99 = obsolete oaccept */
+	{ compat(AS(oaccept_args),accept), .sy_auevent = AUE_NULL, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 99 = old accept */
 	{ .sy_narg = AS(getpriority_args), .sy_call = (sy_call_t *)sys_getpriority, .sy_auevent = AUE_GETPRIORITY, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 100 = getpriority */
-	{ .sy_narg = 0, .sy_call = (sy_call_t *)nosys, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_ABSENT },			/* 101 = obsolete osend */
-	{ .sy_narg = 0, .sy_call = (sy_call_t *)nosys, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_ABSENT },			/* 102 = obsolete orecv */
+	{ compat(AS(osend_args),send), .sy_auevent = AUE_NULL, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 101 = old send */
+	{ compat(AS(orecv_args),recv), .sy_auevent = AUE_NULL, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 102 = old recv */
 	{ compat(AS(ofreebsd32_sigreturn_args),freebsd32_sigreturn), .sy_auevent = AUE_SIGRETURN, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 103 = old freebsd32_sigreturn */
 	{ .sy_narg = AS(bind_args), .sy_call = (sy_call_t *)sys_bind, .sy_auevent = AUE_BIND, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 104 = bind */
 	{ .sy_narg = AS(setsockopt_args), .sy_call = (sy_call_t *)sys_setsockopt, .sy_auevent = AUE_SETSOCKOPT, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 105 = setsockopt */
@@ -203,16 +203,16 @@ struct sysent freebsd32_sysent[] = {
 	{ .sy_narg = AS(freebsd32_utimes_args), .sy_call = (sy_call_t *)freebsd32_utimes, .sy_auevent = AUE_UTIMES, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 138 = freebsd32_utimes */
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)nosys, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_ABSENT },			/* 139 = obsolete 4.2 sigreturn */
 	{ .sy_narg = AS(freebsd32_adjtime_args), .sy_call = (sy_call_t *)freebsd32_adjtime, .sy_auevent = AUE_ADJTIME, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 140 = freebsd32_adjtime */
-	{ .sy_narg = 0, .sy_call = (sy_call_t *)nosys, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_ABSENT },			/* 141 = obsolete ogetpeername */
-	{ .sy_narg = 0, .sy_call = (sy_call_t *)nosys, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_ABSENT },			/* 142 = obsolete ogethostid */
+	{ compat(AS(ogetpeername_args),getpeername), .sy_auevent = AUE_GETPEERNAME, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 141 = old getpeername */
+	{ compat(0,gethostid), .sy_auevent = AUE_SYSCTL, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 142 = old gethostid */
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)nosys, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_ABSENT },			/* 143 = obsolete sethostid */
-	{ .sy_narg = 0, .sy_call = (sy_call_t *)nosys, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_ABSENT },			/* 144 = obsolete getrlimit */
-	{ .sy_narg = 0, .sy_call = (sy_call_t *)nosys, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_ABSENT },			/* 145 = obsolete setrlimit */
-	{ .sy_narg = 0, .sy_call = (sy_call_t *)nosys, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_ABSENT },			/* 146 = obsolete killpg */
+	{ compat(AS(ogetrlimit_args),getrlimit), .sy_auevent = AUE_GETRLIMIT, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 144 = old getrlimit */
+	{ compat(AS(osetrlimit_args),setrlimit), .sy_auevent = AUE_SETRLIMIT, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 145 = old setrlimit */
+	{ compat(AS(okillpg_args),killpg), .sy_auevent = AUE_KILLPG, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 146 = old killpg */
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)sys_setsid, .sy_auevent = AUE_SETSID, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 147 = setsid */
 	{ .sy_narg = AS(quotactl_args), .sy_call = (sy_call_t *)sys_quotactl, .sy_auevent = AUE_QUOTACTL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 148 = quotactl */
-	{ .sy_narg = 0, .sy_call = (sy_call_t *)nosys, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_ABSENT },			/* 149 = obsolete oquota */
-	{ .sy_narg = 0, .sy_call = (sy_call_t *)nosys, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_ABSENT },			/* 150 = obsolete ogetsockname */
+	{ compat(0,quota), .sy_auevent = AUE_O_QUOTA, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },		/* 149 = old quota */
+	{ compat(0,getsockname), .sy_auevent = AUE_GETSOCKNAME, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 150 = old getsockname */
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)nosys, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_ABSENT },			/* 151 = sem_lock */
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)nosys, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_ABSENT },			/* 152 = sem_wakeup */
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)nosys, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_ABSENT },			/* 153 = asyncdaemon */
@@ -224,9 +224,9 @@ struct sysent freebsd32_sysent[] = {
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)nosys, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_ABSENT },			/* 159 = nosys */
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)nosys, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_ABSENT },			/* 160 = lgetfh */
 	{ .sy_narg = AS(getfh_args), .sy_call = (sy_call_t *)sys_getfh, .sy_auevent = AUE_NFS_GETFH, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 161 = getfh */
-	{ .sy_narg = 0, .sy_call = (sy_call_t *)nosys, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_ABSENT },			/* 162 = obsolete getdomainname */
-	{ .sy_narg = 0, .sy_call = (sy_call_t *)nosys, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_ABSENT },			/* 163 = obsolete setdomainname */
-	{ .sy_narg = 0, .sy_call = (sy_call_t *)nosys, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_ABSENT },			/* 164 = obsolete uname */
+	{ compat4(AS(freebsd4_getdomainname_args),getdomainname), .sy_auevent = AUE_SYSCTL, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 162 = freebsd4 getdomainname */
+	{ compat4(AS(freebsd4_setdomainname_args),setdomainname), .sy_auevent = AUE_SYSCTL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 163 = freebsd4 setdomainname */
+	{ compat4(AS(freebsd4_uname_args),uname), .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 164 = freebsd4 uname */
 	{ .sy_narg = AS(freebsd32_sysarch_args), .sy_call = (sy_call_t *)freebsd32_sysarch, .sy_auevent = AUE_SYSARCH, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 165 = freebsd32_sysarch */
 	{ .sy_narg = AS(rtprio_args), .sy_call = (sy_call_t *)sys_rtprio, .sy_auevent = AUE_RTPRIO, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 166 = rtprio */
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)nosys, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_ABSENT },			/* 167 = nosys */
@@ -237,7 +237,7 @@ struct sysent freebsd32_sysent[] = {
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)nosys, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_ABSENT },			/* 172 = nosys */
 	{ compat6(AS(freebsd6_freebsd32_pread_args),freebsd32_pread), .sy_auevent = AUE_PREAD, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 173 = freebsd6 freebsd32_pread */
 	{ compat6(AS(freebsd6_freebsd32_pwrite_args),freebsd32_pwrite), .sy_auevent = AUE_PWRITE, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 174 = freebsd6 freebsd32_pwrite */
-	{ .sy_narg = 0, .sy_call = (sy_call_t *)nosys, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_ABSENT },			/* 175 = nosys */
+	{ .sy_narg = AS(setfib_args), .sy_call = (sy_call_t *)sys_setfib, .sy_auevent = AUE_SETFIB, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 175 = setfib */
 	{ .sy_narg = AS(freebsd32_ntp_adjtime_args), .sy_call = (sy_call_t *)freebsd32_ntp_adjtime, .sy_auevent = AUE_NTP_ADJTIME, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 176 = freebsd32_ntp_adjtime */
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)nosys, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_ABSENT },			/* 177 = sfork */
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)nosys, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_ABSENT },			/* 178 = getdescriptor */
@@ -486,7 +486,7 @@ struct sysent freebsd32_sysent[] = {
 	{ .sy_narg = AS(freebsd32_getcontext_args), .sy_call = (sy_call_t *)freebsd32_getcontext, .sy_auevent = AUE_NULL, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 421 = freebsd32_getcontext */
 	{ .sy_narg = AS(freebsd32_setcontext_args), .sy_call = (sy_call_t *)freebsd32_setcontext, .sy_auevent = AUE_NULL, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 422 = freebsd32_setcontext */
 	{ .sy_narg = AS(freebsd32_swapcontext_args), .sy_call = (sy_call_t *)freebsd32_swapcontext, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 423 = freebsd32_swapcontext */
-	{ .sy_narg = 0, .sy_call = (sy_call_t *)nosys, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_ABSENT },			/* 424 = swapoff */
+	{ .sy_narg = AS(swapoff_args), .sy_call = (sy_call_t *)sys_swapoff, .sy_auevent = AUE_SWAPOFF, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 424 = swapoff */
 	{ .sy_narg = AS(__acl_get_link_args), .sy_call = (sy_call_t *)sys___acl_get_link, .sy_auevent = AUE_ACL_GET_LINK, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 425 = __acl_get_link */
 	{ .sy_narg = AS(__acl_set_link_args), .sy_call = (sy_call_t *)sys___acl_set_link, .sy_auevent = AUE_ACL_SET_LINK, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 426 = __acl_set_link */
 	{ .sy_narg = AS(__acl_delete_link_args), .sy_call = (sy_call_t *)sys___acl_delete_link, .sy_auevent = AUE_ACL_DELETE_LINK, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 427 = __acl_delete_link */
