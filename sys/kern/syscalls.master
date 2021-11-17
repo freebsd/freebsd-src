@@ -728,7 +728,7 @@
 114	AUE_SENDMSG	COMPAT|CAPENABLED {
 		int sendmsg(
 		    int s,
-		    _In_ const void *msg,
+		    _In_ const struct omsghdr *msg,
 		    int flags
 		);
 	}
