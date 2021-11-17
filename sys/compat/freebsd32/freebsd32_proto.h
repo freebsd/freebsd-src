@@ -56,7 +56,7 @@ struct freebsd32_recvmsg_args {
 };
 struct freebsd32_sendmsg_args {
 	char s_l_[PADL_(int)]; int s; char s_r_[PADR_(int)];
-	char msg_l_[PADL_(struct msghdr32 *)]; struct msghdr32 * msg; char msg_r_[PADR_(struct msghdr32 *)];
+	char msg_l_[PADL_(const struct msghdr32 *)]; const struct msghdr32 * msg; char msg_r_[PADR_(const struct msghdr32 *)];
 	char flags_l_[PADL_(int)]; int flags; char flags_r_[PADR_(int)];
 };
 struct freebsd32_recvfrom_args {
@@ -74,7 +74,7 @@ struct ofreebsd32_sigpending_args {
 	register_t dummy;
 };
 struct freebsd32_sigaltstack_args {
-	char ss_l_[PADL_(struct sigaltstack32 *)]; struct sigaltstack32 * ss; char ss_r_[PADR_(struct sigaltstack32 *)];
+	char ss_l_[PADL_(const struct sigaltstack32 *)]; const struct sigaltstack32 * ss; char ss_r_[PADR_(const struct sigaltstack32 *)];
 	char oss_l_[PADL_(struct sigaltstack32 *)]; struct sigaltstack32 * oss; char oss_r_[PADR_(struct sigaltstack32 *)];
 };
 struct freebsd32_ioctl_args {
@@ -88,13 +88,13 @@ struct freebsd32_execve_args {
 	char envv_l_[PADL_(uint32_t *)]; uint32_t * envv; char envv_r_[PADR_(uint32_t *)];
 };
 struct freebsd32_mprotect_args {
-	char addr_l_[PADL_(void *)]; void * addr; char addr_r_[PADR_(void *)];
+	char addr_l_[PADL_(const void *)]; const void * addr; char addr_r_[PADR_(const void *)];
 	char len_l_[PADL_(size_t)]; size_t len; char len_r_[PADR_(size_t)];
 	char prot_l_[PADL_(int)]; int prot; char prot_r_[PADR_(int)];
 };
 struct freebsd32_setitimer_args {
 	char which_l_[PADL_(u_int)]; u_int which; char which_r_[PADR_(u_int)];
-	char itv_l_[PADL_(struct itimerval32 *)]; struct itimerval32 * itv; char itv_r_[PADR_(struct itimerval32 *)];
+	char itv_l_[PADL_(const struct itimerval32 *)]; const struct itimerval32 * itv; char itv_r_[PADR_(const struct itimerval32 *)];
 	char oitv_l_[PADL_(struct itimerval32 *)]; struct itimerval32 * oitv; char oitv_r_[PADR_(struct itimerval32 *)];
 };
 struct freebsd32_getitimer_args {
@@ -132,15 +132,15 @@ struct freebsd32_writev_args {
 	char iovcnt_l_[PADL_(u_int)]; u_int iovcnt; char iovcnt_r_[PADR_(u_int)];
 };
 struct freebsd32_settimeofday_args {
-	char tv_l_[PADL_(struct timeval32 *)]; struct timeval32 * tv; char tv_r_[PADR_(struct timeval32 *)];
-	char tzp_l_[PADL_(struct timezone *)]; struct timezone * tzp; char tzp_r_[PADR_(struct timezone *)];
+	char tv_l_[PADL_(const struct timeval32 *)]; const struct timeval32 * tv; char tv_r_[PADR_(const struct timeval32 *)];
+	char tzp_l_[PADL_(const struct timezone *)]; const struct timezone * tzp; char tzp_r_[PADR_(const struct timezone *)];
 };
 struct freebsd32_utimes_args {
 	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
-	char tptr_l_[PADL_(struct timeval32 *)]; struct timeval32 * tptr; char tptr_r_[PADR_(struct timeval32 *)];
+	char tptr_l_[PADL_(const struct timeval32 *)]; const struct timeval32 * tptr; char tptr_r_[PADR_(const struct timeval32 *)];
 };
 struct freebsd32_adjtime_args {
-	char delta_l_[PADL_(struct timeval32 *)]; struct timeval32 * delta; char delta_r_[PADR_(struct timeval32 *)];
+	char delta_l_[PADL_(const struct timeval32 *)]; const struct timeval32 * delta; char delta_r_[PADR_(const struct timeval32 *)];
 	char olddelta_l_[PADL_(struct timeval32 *)]; struct timeval32 * olddelta; char olddelta_r_[PADR_(struct timeval32 *)];
 };
 struct freebsd32_sysarch_args {
@@ -181,11 +181,11 @@ struct freebsd32___sysctl_args {
 };
 struct freebsd32_futimes_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
-	char tptr_l_[PADL_(struct timeval32 *)]; struct timeval32 * tptr; char tptr_r_[PADR_(struct timeval32 *)];
+	char tptr_l_[PADL_(const struct timeval32 *)]; const struct timeval32 * tptr; char tptr_r_[PADR_(const struct timeval32 *)];
 };
 struct freebsd32_msgsnd_args {
 	char msqid_l_[PADL_(int)]; int msqid; char msqid_r_[PADR_(int)];
-	char msgp_l_[PADL_(void *)]; void * msgp; char msgp_r_[PADR_(void *)];
+	char msgp_l_[PADL_(const void *)]; const void * msgp; char msgp_r_[PADR_(const void *)];
 	char msgsz_l_[PADL_(size_t)]; size_t msgsz; char msgsz_r_[PADR_(size_t)];
 	char msgflg_l_[PADL_(int)]; int msgflg; char msgflg_r_[PADR_(int)];
 };
@@ -253,7 +253,7 @@ struct freebsd32_lio_listio_args {
 };
 struct freebsd32_lutimes_args {
 	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
-	char tptr_l_[PADL_(struct timeval32 *)]; struct timeval32 * tptr; char tptr_r_[PADR_(struct timeval32 *)];
+	char tptr_l_[PADL_(const struct timeval32 *)]; const struct timeval32 * tptr; char tptr_r_[PADR_(const struct timeval32 *)];
 };
 struct freebsd32_preadv_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
@@ -298,7 +298,7 @@ struct freebsd32_jail_args {
 struct freebsd32_sigtimedwait_args {
 	char set_l_[PADL_(const sigset_t *)]; const sigset_t * set; char set_r_[PADR_(const sigset_t *)];
 	char info_l_[PADL_(struct siginfo32 *)]; struct siginfo32 * info; char info_r_[PADR_(struct siginfo32 *)];
-	char timeout_l_[PADL_(const struct timespec *)]; const struct timespec * timeout; char timeout_r_[PADR_(const struct timespec *)];
+	char timeout_l_[PADL_(const struct timespec32 *)]; const struct timespec32 * timeout; char timeout_r_[PADR_(const struct timespec32 *)];
 };
 struct freebsd32_sigwaitinfo_args {
 	char set_l_[PADL_(const sigset_t *)]; const sigset_t * set; char set_r_[PADR_(const sigset_t *)];
@@ -336,7 +336,7 @@ struct freebsd32_ksem_open_args {
 };
 struct freebsd32_sigaction_args {
 	char sig_l_[PADL_(int)]; int sig; char sig_r_[PADR_(int)];
-	char act_l_[PADL_(struct sigaction32 *)]; struct sigaction32 * act; char act_r_[PADR_(struct sigaction32 *)];
+	char act_l_[PADL_(const struct sigaction32 *)]; const struct sigaction32 * act; char act_r_[PADR_(const struct sigaction32 *)];
 	char oact_l_[PADL_(struct sigaction32 *)]; struct sigaction32 * oact; char oact_r_[PADR_(struct sigaction32 *)];
 };
 struct freebsd32_sigreturn_args {
@@ -542,7 +542,7 @@ struct freebsd32_fexecve_args {
 struct freebsd32_futimesat_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
 	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
-	char times_l_[PADL_(struct timeval *)]; struct timeval * times; char times_r_[PADR_(struct timeval *)];
+	char times_l_[PADL_(const struct timeval32 *)]; const struct timeval32 * times; char times_r_[PADR_(const struct timeval32 *)];
 };
 struct freebsd32_jail_get_args {
 	char iovp_l_[PADL_(struct iovec32 *)]; struct iovec32 * iovp; char iovp_r_[PADR_(struct iovec32 *)];
@@ -671,12 +671,12 @@ struct freebsd32_ppoll_args {
 };
 struct freebsd32_futimens_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
-	char times_l_[PADL_(struct timespec *)]; struct timespec * times; char times_r_[PADR_(struct timespec *)];
+	char times_l_[PADL_(const struct timespec32 *)]; const struct timespec32 * times; char times_r_[PADR_(const struct timespec32 *)];
 };
 struct freebsd32_utimensat_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
 	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
-	char times_l_[PADL_(struct timespec *)]; struct timespec * times; char times_r_[PADR_(struct timespec *)];
+	char times_l_[PADL_(const struct timespec32 *)]; const struct timespec32 * times; char times_r_[PADR_(const struct timespec32 *)];
 	char flag_l_[PADL_(int)]; int flag; char flag_r_[PADR_(int)];
 };
 struct freebsd32_fstat_args {
@@ -1040,7 +1040,7 @@ struct freebsd4_freebsd32_sendfile_args {
 };
 struct freebsd4_freebsd32_sigaction_args {
 	char sig_l_[PADL_(int)]; int sig; char sig_r_[PADR_(int)];
-	char act_l_[PADL_(struct sigaction32 *)]; struct sigaction32 * act; char act_r_[PADR_(struct sigaction32 *)];
+	char act_l_[PADL_(const struct sigaction32 *)]; const struct sigaction32 * act; char act_r_[PADR_(const struct sigaction32 *)];
 	char oact_l_[PADL_(struct sigaction32 *)]; struct sigaction32 * oact; char oact_r_[PADR_(struct sigaction32 *)];
 };
 struct freebsd4_freebsd32_sigreturn_args {
