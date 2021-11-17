@@ -13,7 +13,7 @@
 #define	FREEBSD32_SYS_open	5
 #define	FREEBSD32_SYS_close	6
 #define	FREEBSD32_SYS_freebsd32_wait4	7
-				/* 8 is obsolete old creat */
+				/* 8 is old creat */
 #define	FREEBSD32_SYS_link	9
 #define	FREEBSD32_SYS_unlink	10
 				/* 11 is obsolete execv */
@@ -89,11 +89,11 @@
 #define	FREEBSD32_SYS_getpgrp	81
 #define	FREEBSD32_SYS_setpgid	82
 #define	FREEBSD32_SYS_freebsd32_setitimer	83
-				/* 84 is obsolete owait */
+				/* 84 is old wait */
 #define	FREEBSD32_SYS_swapon	85
 #define	FREEBSD32_SYS_freebsd32_getitimer	86
-				/* 87 is obsolete ogethostname */
-				/* 88 is obsolete osethostname */
+				/* 87 is old gethostname */
+				/* 88 is old sethostname */
 #define	FREEBSD32_SYS_getdtablesize	89
 #define	FREEBSD32_SYS_dup2	90
 #define	FREEBSD32_SYS_freebsd32_fcntl	92
@@ -102,10 +102,10 @@
 #define	FREEBSD32_SYS_setpriority	96
 #define	FREEBSD32_SYS_socket	97
 #define	FREEBSD32_SYS_connect	98
-				/* 99 is obsolete oaccept */
+				/* 99 is old accept */
 #define	FREEBSD32_SYS_getpriority	100
-				/* 101 is obsolete osend */
-				/* 102 is obsolete orecv */
+				/* 101 is old send */
+				/* 102 is old recv */
 				/* 103 is old freebsd32_sigreturn */
 #define	FREEBSD32_SYS_bind	104
 #define	FREEBSD32_SYS_setsockopt	105
@@ -143,23 +143,23 @@
 #define	FREEBSD32_SYS_freebsd32_utimes	138
 				/* 139 is obsolete 4.2 sigreturn */
 #define	FREEBSD32_SYS_freebsd32_adjtime	140
-				/* 141 is obsolete ogetpeername */
-				/* 142 is obsolete ogethostid */
+				/* 141 is old getpeername */
+				/* 142 is old gethostid */
 				/* 143 is obsolete sethostid */
-				/* 144 is obsolete getrlimit */
-				/* 145 is obsolete setrlimit */
-				/* 146 is obsolete killpg */
+				/* 144 is old getrlimit */
+				/* 145 is old setrlimit */
+				/* 146 is old killpg */
 #define	FREEBSD32_SYS_setsid	147
 #define	FREEBSD32_SYS_quotactl	148
-				/* 149 is obsolete oquota */
-				/* 150 is obsolete ogetsockname */
+				/* 149 is old quota */
+				/* 150 is old getsockname */
 				/* 156 is old freebsd32_getdirentries */
 				/* 157 is freebsd4 freebsd32_statfs */
 				/* 158 is freebsd4 freebsd32_fstatfs */
 #define	FREEBSD32_SYS_getfh	161
-				/* 162 is obsolete getdomainname */
-				/* 163 is obsolete setdomainname */
-				/* 164 is obsolete uname */
+				/* 162 is freebsd4 getdomainname */
+				/* 163 is freebsd4 setdomainname */
+				/* 164 is freebsd4 uname */
 #define	FREEBSD32_SYS_freebsd32_sysarch	165
 #define	FREEBSD32_SYS_rtprio	166
 #define	FREEBSD32_SYS_freebsd32_semsys	169
@@ -167,6 +167,7 @@
 #define	FREEBSD32_SYS_freebsd32_shmsys	171
 				/* 173 is freebsd6 freebsd32_pread */
 				/* 174 is freebsd6 freebsd32_pwrite */
+#define	FREEBSD32_SYS_setfib	175
 #define	FREEBSD32_SYS_freebsd32_ntp_adjtime	176
 #define	FREEBSD32_SYS_setgid	181
 #define	FREEBSD32_SYS_setegid	182
@@ -347,6 +348,7 @@
 #define	FREEBSD32_SYS_freebsd32_getcontext	421
 #define	FREEBSD32_SYS_freebsd32_setcontext	422
 #define	FREEBSD32_SYS_freebsd32_swapcontext	423
+#define	FREEBSD32_SYS_swapoff	424
 #define	FREEBSD32_SYS___acl_get_link	425
 #define	FREEBSD32_SYS___acl_set_link	426
 #define	FREEBSD32_SYS___acl_delete_link	427

@@ -78,7 +78,8 @@
 6	AUE_CLOSE	NOPROTO	{ int close(int fd); }
 7	AUE_WAIT4	STD	{ int freebsd32_wait4(int pid, int *status, \
 				    int options, struct rusage32 *rusage); }
-8	AUE_CREAT	OBSOL	old creat
+8	AUE_CREAT	COMPAT|NOPROTO	{ int creat(const char *path, \
+				    int mode); }
 9	AUE_LINK	NOPROTO	{ int link(const char *path, \
 				    const char *link); }
 10	AUE_UNLINK	NOPROTO	{ int unlink(const char *path); }
@@ -195,13 +196,15 @@
 83	AUE_SETITIMER	STD	{ int freebsd32_setitimer(int which, \
 				    const struct itimerval32 *itv, \
 				    struct itimerval32 *oitv); }
-84	AUE_NULL	OBSOL	owait
+84	AUE_NULL	COMPAT|NOPROTO	{ int wait(void); }
 ; XXX implement
 85	AUE_SWAPON	NOPROTO	{ int swapon(const char *name); }
 86	AUE_GETITIMER	STD	{ int freebsd32_getitimer(int which, \
 				    struct itimerval32 *itv); }
-87	AUE_O_GETHOSTNAME	OBSOL	ogethostname
-88	AUE_O_SETHOSTNAME	OBSOL	osethostname
+87	AUE_O_GETHOSTNAME	COMPAT|NOPROTO	{ int gethostname( \
+				    char *hostname, u_int len); }
+88	AUE_O_SETHOSTNAME	COMPAT|NOPROTO	{ int sethostname( \
+				    char *hostname, u_int len); }
 89	AUE_GETDTABLESIZE	NOPROTO	{ int getdtablesize(void); }
 90	AUE_DUP2	NOPROTO	{ int dup2(u_int from, u_int to); }
 91	AUE_NULL	UNIMPL	getdopt
@@ -219,10 +222,14 @@
 98	AUE_CONNECT	NOPROTO	{ int connect(int s, \
 				    const struct sockaddr *name, \
 				    int namelen); }
-99	AUE_NULL	OBSOL	oaccept
+99	AUE_NULL	COMPAT|NOPROTO { int accept(int s, \
+				    struct sockaddr *name, \
+				    __socklen_t *anamelen); }
 100	AUE_GETPRIORITY	NOPROTO	{ int getpriority(int which, int who); }
-101	AUE_NULL	OBSOL	osend
-102	AUE_NULL	OBSOL	orecv
+101	AUE_NULL	COMPAT|NOPROTO { int send(int s, const void *buf, \
+				    int len, int flags); }
+102	AUE_NULL	COMPAT|NOPROTO { int recv(int s, void *buf, int len, \
+				    int flags); }
 103	AUE_SIGRETURN	COMPAT	{ int freebsd32_sigreturn( \
 				    struct ia32_sigcontext3 *sigcntxp); }
 104	AUE_BIND	NOPROTO	{ int bind(int s, const struct sockaddr *name, \
@@ -285,17 +292,21 @@
 140	AUE_ADJTIME	STD	{ int freebsd32_adjtime( \
 				    const struct timeval32 *delta, \
 				    struct timeval32 *olddelta); }
-141	AUE_GETPEERNAME	OBSOL	ogetpeername
-142	AUE_SYSCTL	OBSOL	ogethostid
+141	AUE_GETPEERNAME	COMPAT|NOPROTO { int getpeername(int fdes, \
+				    struct sockaddr *asa, \
+				    __socklen_t *alen); }
+142	AUE_SYSCTL	COMPAT|NOPROTO { long gethostid(void); }
 143	AUE_SYSCTL	OBSOL	sethostid
-144	AUE_GETRLIMIT	OBSOL	getrlimit
-145	AUE_SETRLIMIT	OBSOL	setrlimit
-146	AUE_KILLPG	OBSOL	killpg
+144	AUE_GETRLIMIT	COMPAT|NOPROTO { int getrlimit(u_int which, \
+				    struct orlimit *rlp); }
+145	AUE_SETRLIMIT	COMPAT|NOPROTO { int setrlimit(u_int which, \
+				    struct orlimit *rlp); }
+146	AUE_KILLPG	COMPAT|NOPROTO { int killpg(int pgid, int signum); }
 147	AUE_SETSID	NOPROTO	{ int setsid(void); }
 148	AUE_QUOTACTL	NOPROTO	{ int quotactl(const char *path, int cmd, \
 				    int uid, void *arg); }
-149	AUE_O_QUOTA	OBSOL oquota
-150	AUE_GETSOCKNAME	OBSOL ogetsockname
+149	AUE_O_QUOTA	COMPAT|NOPROTO { int quota(void); }
+150	AUE_GETSOCKNAME	COMPAT|NOPROTO getsockname
 
 ; Syscalls 151-180 inclusive are reserved for vendor-specific
 ; system calls.  (This includes various calls added for compatibity
@@ -319,9 +330,11 @@
 160	AUE_LGETFH	UNIMPL	lgetfh
 161	AUE_NFS_GETFH	NOPROTO	{ int getfh(const char *fname, \
 				    struct fhandle *fhp); }
-162	AUE_SYSCTL	OBSOL	getdomainname
-163	AUE_SYSCTL	OBSOL	setdomainname
-164	AUE_NULL	OBSOL	uname
+162	AUE_SYSCTL	COMPAT4|NOPROTO	{ int getdomainname(char *domainname, \
+				    int len); }
+163	AUE_SYSCTL	COMPAT4|NOPROTO	{ int setdomainname(char *domainname, \
+				    int len); }
+164	AUE_NULL	COMPAT4|NOPROTO { int uname(struct utsname *name); }
 165	AUE_SYSARCH	STD	{ int freebsd32_sysarch(int op, char *parms); }
 166	AUE_RTPRIO	NOPROTO	{ int rtprio(int function, pid_t pid, \
 				    struct rtprio *rtp); }
@@ -340,7 +353,7 @@
 174	AUE_PWRITE	COMPAT6	{ ssize_t freebsd32_pwrite(int fd, \
 				    const void *buf, size_t nbyte, int pad, \
 				    uint32_t offset1, uint32_t offset2); }
-175	AUE_NULL	UNIMPL	nosys
+175	AUE_SETFIB	NOPROTO	{ int setfib(int fibnum); }
 176	AUE_NTP_ADJTIME	STD	{ int freebsd32_ntp_adjtime( \
 				    struct timex32 *tp); }
 177	AUE_NULL	UNIMPL	sfork (BSD/OS 2.x)
@@ -771,7 +784,7 @@
 423	AUE_NULL	STD	{ int freebsd32_swapcontext( \
 				    struct __ucontext32 *oucp, \
 				    const struct __ucontext32 *ucp); }
-424	AUE_SWAPOFF	UNIMPL	swapoff
+424	AUE_SWAPOFF	NOPROTO	{ int swapoff(const char *name); }
 425	AUE_ACL_GET_LINK	NOPROTO	{ int __acl_get_link(const char *path, \
 				    acl_type_t type, struct acl *aclp); }
 426	AUE_ACL_SET_LINK	NOPROTO	{ int __acl_set_link(const char *path, \
