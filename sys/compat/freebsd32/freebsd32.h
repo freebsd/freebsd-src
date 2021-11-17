@@ -115,11 +115,11 @@ struct umutex32 {
 	__uint32_t		m_spare[2];
 };
 
-#define FREEBSD4_MFSNAMELEN	16
-#define FREEBSD4_MNAMELEN	(88 - 2 * sizeof(int32_t))
+#define FREEBSD4_OMFSNAMELEN	16
+#define FREEBSD4_OMNAMELEN	(88 - 2 * sizeof(int32_t))
 
 /* 4.x version */
-struct statfs32 {
+struct ostatfs32 {
 	int32_t	f_spare2;
 	int32_t	f_bsize;
 	int32_t	f_iosize;
@@ -134,12 +134,12 @@ struct statfs32 {
 	int32_t	f_flags;
 	int32_t	f_syncwrites;
 	int32_t	f_asyncwrites;
-	char	f_fstypename[FREEBSD4_MFSNAMELEN];
-	char	f_mntonname[FREEBSD4_MNAMELEN];
+	char	f_fstypename[FREEBSD4_OMFSNAMELEN];
+	char	f_mntonname[FREEBSD4_OMNAMELEN];
 	int32_t	f_syncreads;
 	int32_t	f_asyncreads;
 	int16_t	f_spares1;
-	char	f_mntfromname[FREEBSD4_MNAMELEN];
+	char	f_mntfromname[FREEBSD4_OMNAMELEN];
 	int16_t	f_spares2 __packed;
 	int32_t f_spare[2];
 };
