@@ -109,10 +109,10 @@
 				    int flags); }
 28	AUE_SENDMSG	STD	{ int freebsd32_sendmsg(int s, \
 				    const struct msghdr32 *msg, int flags); }
-29	AUE_RECVFROM	STD	{ int freebsd32_recvfrom(int s, void *buf, \
+29	AUE_RECVFROM	NOPROTO	{ int recvfrom(int s, void *buf, \
 				    size_t len, int flags, \
 				    struct sockaddr *from, \
-				    uint32_t fromlenaddr); }
+				    __socklen_t *fromlenaddr); }
 30	AUE_ACCEPT	NOPROTO	{ int accept(int s, struct sockaddr *name, \
 				    int *anamelen); }
 31	AUE_GETPEERNAME	NOPROTO	{ int getpeername(int fdes, \
