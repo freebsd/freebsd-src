@@ -428,7 +428,7 @@
 223	AUE_NULL	OBSOL	semconfig
 224	AUE_MSGCTL	COMPAT7|NOSTD	{ int freebsd32_msgctl( \
 				    int msqid, int cmd, \
-				    struct msqid_ds32_old *buf); }
+				    struct msqid_ds_old32 *buf); }
 225	AUE_MSGGET	NOSTD|NOPROTO	{ int msgget(key_t key, int msgflg); }
 226	AUE_MSGSND	NOSTD	{ int freebsd32_msgsnd(int msqid, const void *msgp, \
 				    size_t msgsz, int msgflg); }
@@ -438,7 +438,7 @@
 				    int shmflg); }
 229	AUE_SHMCTL	COMPAT7|NOSTD	{ int freebsd32_shmctl( \
 				    int shmid, int cmd, \
-				    struct shmid_ds32_old *buf); }
+				    struct shmid_ds_old32 *buf); }
 230	AUE_SHMDT	NOSTD|NOPROTO	{ int shmdt(const void *shmaddr); }
 231	AUE_SHMGET	NOSTD|NOPROTO	{ int shmget(key_t key, size_t size, \
 				    int shmflg); }

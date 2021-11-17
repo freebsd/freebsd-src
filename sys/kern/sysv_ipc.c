@@ -196,7 +196,7 @@ ipcperm_new2old(struct ipc_perm *new, struct ipc_perm_old *old)
 #if defined(COMPAT_FREEBSD4) || defined(COMPAT_FREEBSD5) || \
     defined(COMPAT_FREEBSD6) || defined(COMPAT_FREEBSD7)
 void
-freebsd32_ipcperm_old_in(struct ipc_perm32_old *ip32, struct ipc_perm *ip)
+freebsd32_ipcperm_old_in(struct ipc_perm_old32 *ip32, struct ipc_perm *ip)
 {
 
 	CP(*ip32, *ip, cuid);
@@ -209,7 +209,7 @@ freebsd32_ipcperm_old_in(struct ipc_perm32_old *ip32, struct ipc_perm *ip)
 }
 
 void
-freebsd32_ipcperm_old_out(struct ipc_perm *ip, struct ipc_perm32_old *ip32)
+freebsd32_ipcperm_old_out(struct ipc_perm *ip, struct ipc_perm_old32 *ip32)
 {
 
 	CP(*ip, *ip32, cuid);
