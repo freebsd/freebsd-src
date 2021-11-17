@@ -499,7 +499,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	/* setitimer */
 	case 83: {
 		struct setitimer_args *p = params;
-		uarg[0] = p->which; /* u_int */
+		iarg[0] = p->which; /* int */
 		uarg[1] = (intptr_t)p->itv; /* const struct itimerval * */
 		uarg[2] = (intptr_t)p->oitv; /* struct itimerval * */
 		*n_args = 3;
@@ -515,7 +515,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	/* getitimer */
 	case 86: {
 		struct getitimer_args *p = params;
-		uarg[0] = p->which; /* u_int */
+		iarg[0] = p->which; /* int */
 		uarg[1] = (intptr_t)p->itv; /* struct itimerval * */
 		*n_args = 2;
 		break;
@@ -4180,7 +4180,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 83:
 		switch (ndx) {
 		case 0:
-			p = "u_int";
+			p = "int";
 			break;
 		case 1:
 			p = "userland const struct itimerval *";
@@ -4206,7 +4206,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 86:
 		switch (ndx) {
 		case 0:
-			p = "u_int";
+			p = "int";
 			break;
 		case 1:
 			p = "userland struct itimerval *";

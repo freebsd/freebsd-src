@@ -299,7 +299,7 @@ struct setpgid_args {
 	char pgid_l_[PADL_(int)]; int pgid; char pgid_r_[PADR_(int)];
 };
 struct setitimer_args {
-	char which_l_[PADL_(u_int)]; u_int which; char which_r_[PADR_(u_int)];
+	char which_l_[PADL_(int)]; int which; char which_r_[PADR_(int)];
 	char itv_l_[PADL_(const struct itimerval *)]; const struct itimerval * itv; char itv_r_[PADR_(const struct itimerval *)];
 	char oitv_l_[PADL_(struct itimerval *)]; struct itimerval * oitv; char oitv_r_[PADR_(struct itimerval *)];
 };
@@ -310,7 +310,7 @@ struct swapon_args {
 	char name_l_[PADL_(const char *)]; const char * name; char name_r_[PADR_(const char *)];
 };
 struct getitimer_args {
-	char which_l_[PADL_(u_int)]; u_int which; char which_r_[PADR_(u_int)];
+	char which_l_[PADL_(int)]; int which; char which_r_[PADR_(int)];
 	char itv_l_[PADL_(struct itimerval *)]; struct itimerval * itv; char itv_r_[PADR_(struct itimerval *)];
 };
 struct getdtablesize_args {
