@@ -247,8 +247,10 @@
 112	AUE_O_SIGSTACK	COMPAT	{ int freebsd32_sigstack( \
 				     struct sigstack32 *nss, \
 				     struct sigstack32 *oss); }
-113	AUE_NULL	OBSOL	orecvmsg
-114	AUE_NULL	OBSOL	osendmsg
+113	AUE_RECVMSG	COMPAT	{ int freebsd32_recvmsg(int s, \
+				    struct omsghdr32 *msg, int flags); }
+114	AUE_SENDMSG	COMPAT	{ int freebsd32_sendmsg(int s, \
+				    const struct omsghdr32 *msg, int flags); }
 115	AUE_NULL	OBSOL	vtrace
 116	AUE_GETTIMEOFDAY	STD	{ int freebsd32_gettimeofday( \
 				    struct timeval32 *tp, \
