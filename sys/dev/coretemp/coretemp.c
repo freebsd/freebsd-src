@@ -53,7 +53,6 @@ __FBSDID("$FreeBSD$");
 
 #define	TZ_ZEROC			2731
 
-#define THERM
 #define THERM_CRITICAL_STATUS_LOG       0x20
 #define THERM_CRITICAL_STATUS           0x10
 #define	THERM_STATUS_LOG		0x02
