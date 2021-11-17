@@ -1203,17 +1203,17 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 1;
 		break;
 	}
-	/* ffclock_setestimate */
+	/* freebsd32_ffclock_setestimate */
 	case 242: {
-		struct ffclock_setestimate_args *p = params;
-		uarg[0] = (intptr_t)p->cest; /* struct ffclock_estimate * */
+		struct freebsd32_ffclock_setestimate_args *p = params;
+		uarg[0] = (intptr_t)p->cest; /* struct ffclock_estimate32 * */
 		*n_args = 1;
 		break;
 	}
-	/* ffclock_getestimate */
+	/* freebsd32_ffclock_getestimate */
 	case 243: {
-		struct ffclock_getestimate_args *p = params;
-		uarg[0] = (intptr_t)p->cest; /* struct ffclock_estimate * */
+		struct freebsd32_ffclock_getestimate_args *p = params;
+		uarg[0] = (intptr_t)p->cest; /* struct ffclock_estimate32 * */
 		*n_args = 1;
 		break;
 	}
@@ -5330,21 +5330,21 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* ffclock_setestimate */
+	/* freebsd32_ffclock_setestimate */
 	case 242:
 		switch (ndx) {
 		case 0:
-			p = "userland struct ffclock_estimate *";
+			p = "userland struct ffclock_estimate32 *";
 			break;
 		default:
 			break;
 		};
 		break;
-	/* ffclock_getestimate */
+	/* freebsd32_ffclock_getestimate */
 	case 243:
 		switch (ndx) {
 		case 0:
-			p = "userland struct ffclock_estimate *";
+			p = "userland struct ffclock_estimate32 *";
 			break;
 		default:
 			break;
@@ -9947,12 +9947,12 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* ffclock_setestimate */
+	/* freebsd32_ffclock_setestimate */
 	case 242:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* ffclock_getestimate */
+	/* freebsd32_ffclock_getestimate */
 	case 243:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
