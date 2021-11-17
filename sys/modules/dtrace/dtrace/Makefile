@@ -49,9 +49,7 @@ CFLAGS+=	-I${SYSDIR}/cddl/compat/opensolaris \
 		-I${SYSDIR}/cddl/contrib/opensolaris/common/util \
 		-I${SYSDIR} -DDIS_MEM
 
-EXPORT_SYMS=	dtrace_register \
-		dtrace_unregister \
-		dtrace_probe_lookup
+EXPORT_SYMS=	YES
 
 dtrace_asm.o:  assym.inc
 
