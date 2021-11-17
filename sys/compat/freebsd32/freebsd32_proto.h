@@ -429,7 +429,7 @@ struct freebsd32_pread_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
 	char buf_l_[PADL_(void *)]; void * buf; char buf_r_[PADR_(void *)];
 	char nbyte_l_[PADL_(size_t)]; size_t nbyte; char nbyte_r_[PADR_(size_t)];
-	char pad_l_[PADL_(int)]; int pad; char pad_r_[PADR_(int)];
+	char _pad_l_[PADL_(int)]; int _pad; char _pad_r_[PADR_(int)];
 	char offset1_l_[PADL_(uint32_t)]; uint32_t offset1; char offset1_r_[PADR_(uint32_t)];
 	char offset2_l_[PADL_(uint32_t)]; uint32_t offset2; char offset2_r_[PADR_(uint32_t)];
 };
@@ -437,7 +437,7 @@ struct freebsd32_pwrite_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
 	char buf_l_[PADL_(const void *)]; const void * buf; char buf_r_[PADR_(const void *)];
 	char nbyte_l_[PADL_(size_t)]; size_t nbyte; char nbyte_r_[PADR_(size_t)];
-	char pad_l_[PADL_(int)]; int pad; char pad_r_[PADR_(int)];
+	char _pad_l_[PADL_(int)]; int _pad; char _pad_r_[PADR_(int)];
 	char offset1_l_[PADL_(uint32_t)]; uint32_t offset1; char offset1_r_[PADR_(uint32_t)];
 	char offset2_l_[PADL_(uint32_t)]; uint32_t offset2; char offset2_r_[PADR_(uint32_t)];
 };
@@ -447,26 +447,26 @@ struct freebsd32_mmap_args {
 	char prot_l_[PADL_(int)]; int prot; char prot_r_[PADR_(int)];
 	char flags_l_[PADL_(int)]; int flags; char flags_r_[PADR_(int)];
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
-	char pad_l_[PADL_(int)]; int pad; char pad_r_[PADR_(int)];
+	char _pad_l_[PADL_(int)]; int _pad; char _pad_r_[PADR_(int)];
 	char pos1_l_[PADL_(uint32_t)]; uint32_t pos1; char pos1_r_[PADR_(uint32_t)];
 	char pos2_l_[PADL_(uint32_t)]; uint32_t pos2; char pos2_r_[PADR_(uint32_t)];
 };
 struct freebsd32_lseek_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
-	char pad_l_[PADL_(int)]; int pad; char pad_r_[PADR_(int)];
+	char _pad_l_[PADL_(int)]; int _pad; char _pad_r_[PADR_(int)];
 	char offset1_l_[PADL_(uint32_t)]; uint32_t offset1; char offset1_r_[PADR_(uint32_t)];
 	char offset2_l_[PADL_(uint32_t)]; uint32_t offset2; char offset2_r_[PADR_(uint32_t)];
 	char whence_l_[PADL_(int)]; int whence; char whence_r_[PADR_(int)];
 };
 struct freebsd32_truncate_args {
 	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
-	char pad_l_[PADL_(int)]; int pad; char pad_r_[PADR_(int)];
+	char _pad_l_[PADL_(int)]; int _pad; char _pad_r_[PADR_(int)];
 	char length1_l_[PADL_(uint32_t)]; uint32_t length1; char length1_r_[PADR_(uint32_t)];
 	char length2_l_[PADL_(uint32_t)]; uint32_t length2; char length2_r_[PADR_(uint32_t)];
 };
 struct freebsd32_ftruncate_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
-	char pad_l_[PADL_(int)]; int pad; char pad_r_[PADR_(int)];
+	char _pad_l_[PADL_(int)]; int _pad; char _pad_r_[PADR_(int)];
 	char length1_l_[PADL_(uint32_t)]; uint32_t length1; char length1_r_[PADR_(uint32_t)];
 	char length2_l_[PADL_(uint32_t)]; uint32_t length2; char length2_r_[PADR_(uint32_t)];
 };
@@ -514,7 +514,7 @@ struct freebsd32_ftruncate_args {
 #ifdef PAD64_REQUIRED
 struct freebsd32_cpuset_setid_args {
 	char which_l_[PADL_(cpuwhich_t)]; cpuwhich_t which; char which_r_[PADR_(cpuwhich_t)];
-	char pad_l_[PADL_(int)]; int pad; char pad_r_[PADR_(int)];
+	char _pad_l_[PADL_(int)]; int _pad; char _pad_r_[PADR_(int)];
 	char id1_l_[PADL_(uint32_t)]; uint32_t id1; char id1_r_[PADR_(uint32_t)];
 	char id2_l_[PADL_(uint32_t)]; uint32_t id2; char id2_r_[PADR_(uint32_t)];
 	char setid_l_[PADL_(cpusetid_t)]; cpusetid_t setid; char setid_r_[PADR_(cpusetid_t)];
@@ -597,7 +597,7 @@ struct freebsd32_pselect_args {
 #ifdef PAD64_REQUIRED
 struct freebsd32_posix_fallocate_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
-	char pad_l_[PADL_(int)]; int pad; char pad_r_[PADR_(int)];
+	char _pad_l_[PADL_(int)]; int _pad; char _pad_r_[PADR_(int)];
 	char offset1_l_[PADL_(uint32_t)]; uint32_t offset1; char offset1_r_[PADR_(uint32_t)];
 	char offset2_l_[PADL_(uint32_t)]; uint32_t offset2; char offset2_r_[PADR_(uint32_t)];
 	char len1_l_[PADL_(uint32_t)]; uint32_t len1; char len1_r_[PADR_(uint32_t)];
@@ -605,7 +605,7 @@ struct freebsd32_posix_fallocate_args {
 };
 struct freebsd32_posix_fadvise_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
-	char pad_l_[PADL_(int)]; int pad; char pad_r_[PADR_(int)];
+	char _pad_l_[PADL_(int)]; int _pad; char _pad_r_[PADR_(int)];
 	char offset1_l_[PADL_(uint32_t)]; uint32_t offset1; char offset1_r_[PADR_(uint32_t)];
 	char offset2_l_[PADL_(uint32_t)]; uint32_t offset2; char offset2_r_[PADR_(uint32_t)];
 	char len1_l_[PADL_(uint32_t)]; uint32_t len1; char len1_r_[PADR_(uint32_t)];
@@ -614,7 +614,7 @@ struct freebsd32_posix_fadvise_args {
 };
 struct freebsd32_wait6_args {
 	char idtype_l_[PADL_(idtype_t)]; idtype_t idtype; char idtype_r_[PADR_(idtype_t)];
-	char pad_l_[PADL_(int)]; int pad; char pad_r_[PADR_(int)];
+	char _pad_l_[PADL_(int)]; int _pad; char _pad_r_[PADR_(int)];
 	char id1_l_[PADL_(uint32_t)]; uint32_t id1; char id1_r_[PADR_(uint32_t)];
 	char id2_l_[PADL_(uint32_t)]; uint32_t id2; char id2_r_[PADR_(uint32_t)];
 	char status_l_[PADL_(int *)]; int * status; char status_r_[PADR_(int *)];
@@ -664,7 +664,7 @@ struct freebsd32_aio_mlock_args {
 #ifdef PAD64_REQUIRED
 struct freebsd32_procctl_args {
 	char idtype_l_[PADL_(idtype_t)]; idtype_t idtype; char idtype_r_[PADR_(idtype_t)];
-	char pad_l_[PADL_(int)]; int pad; char pad_r_[PADR_(int)];
+	char _pad_l_[PADL_(int)]; int _pad; char _pad_r_[PADR_(int)];
 	char id1_l_[PADL_(uint32_t)]; uint32_t id1; char id1_r_[PADR_(uint32_t)];
 	char id2_l_[PADL_(uint32_t)]; uint32_t id2; char id2_r_[PADR_(uint32_t)];
 	char com_l_[PADL_(int)]; int com; char com_r_[PADR_(int)];
@@ -719,7 +719,7 @@ struct freebsd32_mknodat_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
 	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
 	char mode_l_[PADL_(mode_t)]; mode_t mode; char mode_r_[PADR_(mode_t)];
-	char pad_l_[PADL_(int)]; int pad; char pad_r_[PADR_(int)];
+	char _pad_l_[PADL_(int)]; int _pad; char _pad_r_[PADR_(int)];
 	char dev1_l_[PADL_(uint32_t)]; uint32_t dev1; char dev1_r_[PADR_(uint32_t)];
 	char dev2_l_[PADL_(uint32_t)]; uint32_t dev2; char dev2_r_[PADR_(uint32_t)];
 };

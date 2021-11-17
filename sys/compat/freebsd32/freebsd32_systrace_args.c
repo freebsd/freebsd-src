@@ -2386,7 +2386,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		iarg[0] = p->fd; /* int */
 		uarg[1] = (intptr_t)p->buf; /* void * */
 		uarg[2] = p->nbyte; /* size_t */
-		iarg[3] = p->pad; /* int */
+		iarg[3] = p->_pad; /* int */
 		uarg[4] = p->offset1; /* uint32_t */
 		uarg[5] = p->offset2; /* uint32_t */
 		*n_args = 6;
@@ -2398,7 +2398,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		iarg[0] = p->fd; /* int */
 		uarg[1] = (intptr_t)p->buf; /* const void * */
 		uarg[2] = p->nbyte; /* size_t */
-		iarg[3] = p->pad; /* int */
+		iarg[3] = p->_pad; /* int */
 		uarg[4] = p->offset1; /* uint32_t */
 		uarg[5] = p->offset2; /* uint32_t */
 		*n_args = 6;
@@ -2412,7 +2412,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		iarg[2] = p->prot; /* int */
 		iarg[3] = p->flags; /* int */
 		iarg[4] = p->fd; /* int */
-		iarg[5] = p->pad; /* int */
+		iarg[5] = p->_pad; /* int */
 		uarg[6] = p->pos1; /* uint32_t */
 		uarg[7] = p->pos2; /* uint32_t */
 		*n_args = 8;
@@ -2422,7 +2422,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 478: {
 		struct freebsd32_lseek_args *p = params;
 		iarg[0] = p->fd; /* int */
-		iarg[1] = p->pad; /* int */
+		iarg[1] = p->_pad; /* int */
 		uarg[2] = p->offset1; /* uint32_t */
 		uarg[3] = p->offset2; /* uint32_t */
 		iarg[4] = p->whence; /* int */
@@ -2433,7 +2433,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 479: {
 		struct freebsd32_truncate_args *p = params;
 		uarg[0] = (intptr_t)p->path; /* const char * */
-		iarg[1] = p->pad; /* int */
+		iarg[1] = p->_pad; /* int */
 		uarg[2] = p->length1; /* uint32_t */
 		uarg[3] = p->length2; /* uint32_t */
 		*n_args = 4;
@@ -2443,7 +2443,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 480: {
 		struct freebsd32_ftruncate_args *p = params;
 		iarg[0] = p->fd; /* int */
-		iarg[1] = p->pad; /* int */
+		iarg[1] = p->_pad; /* int */
 		uarg[2] = p->length1; /* uint32_t */
 		uarg[3] = p->length2; /* uint32_t */
 		*n_args = 4;
@@ -2542,7 +2542,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 485: {
 		struct freebsd32_cpuset_setid_args *p = params;
 		iarg[0] = p->which; /* cpuwhich_t */
-		iarg[1] = p->pad; /* int */
+		iarg[1] = p->_pad; /* int */
 		uarg[2] = p->id1; /* uint32_t */
 		uarg[3] = p->id2; /* uint32_t */
 		iarg[4] = p->setid; /* cpusetid_t */
@@ -2924,7 +2924,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 530: {
 		struct freebsd32_posix_fallocate_args *p = params;
 		iarg[0] = p->fd; /* int */
-		iarg[1] = p->pad; /* int */
+		iarg[1] = p->_pad; /* int */
 		uarg[2] = p->offset1; /* uint32_t */
 		uarg[3] = p->offset2; /* uint32_t */
 		uarg[4] = p->len1; /* uint32_t */
@@ -2936,7 +2936,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 531: {
 		struct freebsd32_posix_fadvise_args *p = params;
 		iarg[0] = p->fd; /* int */
-		iarg[1] = p->pad; /* int */
+		iarg[1] = p->_pad; /* int */
 		uarg[2] = p->offset1; /* uint32_t */
 		uarg[3] = p->offset2; /* uint32_t */
 		uarg[4] = p->len1; /* uint32_t */
@@ -2949,7 +2949,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 532: {
 		struct freebsd32_wait6_args *p = params;
 		iarg[0] = p->idtype; /* idtype_t */
-		iarg[1] = p->pad; /* int */
+		iarg[1] = p->_pad; /* int */
 		uarg[2] = p->id1; /* uint32_t */
 		uarg[3] = p->id2; /* uint32_t */
 		uarg[4] = (intptr_t)p->status; /* int * */
@@ -3099,7 +3099,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 544: {
 		struct freebsd32_procctl_args *p = params;
 		iarg[0] = p->idtype; /* idtype_t */
-		iarg[1] = p->pad; /* int */
+		iarg[1] = p->_pad; /* int */
 		uarg[2] = p->id1; /* uint32_t */
 		uarg[3] = p->id2; /* uint32_t */
 		iarg[4] = p->com; /* int */
@@ -3231,7 +3231,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		iarg[0] = p->fd; /* int */
 		uarg[1] = (intptr_t)p->path; /* const char * */
 		iarg[2] = p->mode; /* mode_t */
-		iarg[3] = p->pad; /* int */
+		iarg[3] = p->_pad; /* int */
 		uarg[4] = p->dev1; /* uint32_t */
 		uarg[5] = p->dev2; /* uint32_t */
 		*n_args = 6;
