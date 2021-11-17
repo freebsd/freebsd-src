@@ -977,7 +977,7 @@
 				    int flag); }
 504	AUE_POSIX_OPENPT	NOPROTO	{ int posix_openpt(int flags); }
 ; 505 is initialised by the kgssapi code, if present.
-505	AUE_NULL	UNIMPL	gssd_syscall
+505	AUE_NULL	NOPROTO|NOSTD	{ int gssd_syscall(char *path); }
 506	AUE_JAIL_GET	STD	{ int freebsd32_jail_get(struct iovec32 *iovp, \
 				    unsigned int iovcnt, int flags); }
 507	AUE_JAIL_SET	STD	{ int freebsd32_jail_set(struct iovec32 *iovp, \
