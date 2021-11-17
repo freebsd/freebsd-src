@@ -320,14 +320,6 @@ freebsd4_freebsd32_getfsstat(struct thread *td,
 }
 #endif
 
-#ifdef COMPAT_FREEBSD10
-int
-freebsd10_freebsd32_pipe(struct thread *td,
-    struct freebsd10_freebsd32_pipe_args *uap) {
-	return (freebsd10_pipe(td, (struct freebsd10_pipe_args*)uap));
-}
-#endif
-
 int
 freebsd32_sigaltstack(struct thread *td,
 		      struct freebsd32_sigaltstack_args *uap)
@@ -2738,21 +2730,6 @@ ofreebsd32_sigprocmask(struct thread *td,
 	error = kern_sigprocmask(td, uap->how, &set, &oset, SIGPROCMASK_OLD);
 	SIG2OSIG(oset, td->td_retval[0]);
 	return (error);
-}
-
-int
-ofreebsd32_sigpending(struct thread *td,
-			      struct ofreebsd32_sigpending_args *uap)
-{
-	struct proc *p = td->td_proc;
-	sigset_t siglist;
-
-	PROC_LOCK(p);
-	siglist = p->p_siglist;
-	SIGSETOR(siglist, td->td_siglist);
-	PROC_UNLOCK(p);
-	SIG2OSIG(siglist, td->td_retval[0]);
-	return (0);
 }
 
 struct sigvec32 {

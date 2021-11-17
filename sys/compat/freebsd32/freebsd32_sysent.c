@@ -104,7 +104,7 @@ struct sysent freebsd32_sysent[] = {
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)sys_getppid, .sy_auevent = AUE_GETPPID, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 39 = getppid */
 	{ compat(AS(ofreebsd32_lstat_args),freebsd32_lstat), .sy_auevent = AUE_LSTAT, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 40 = old freebsd32_lstat */
 	{ .sy_narg = AS(dup_args), .sy_call = (sy_call_t *)sys_dup, .sy_auevent = AUE_DUP, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 41 = dup */
-	{ compat10(0,freebsd32_pipe), .sy_auevent = AUE_PIPE, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 42 = freebsd10 freebsd32_pipe */
+	{ compat10(0,pipe), .sy_auevent = AUE_PIPE, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 42 = freebsd10 pipe */
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)sys_getegid, .sy_auevent = AUE_GETEGID, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 43 = getegid */
 	{ .sy_narg = AS(profil_args), .sy_call = (sy_call_t *)sys_profil, .sy_auevent = AUE_PROFILE, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 44 = profil */
 	{ .sy_narg = AS(ktrace_args), .sy_call = (sy_call_t *)sys_ktrace, .sy_auevent = AUE_KTRACE, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 45 = ktrace */
@@ -114,7 +114,7 @@ struct sysent freebsd32_sysent[] = {
 	{ .sy_narg = AS(getlogin_args), .sy_call = (sy_call_t *)sys_getlogin, .sy_auevent = AUE_GETLOGIN, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 49 = getlogin */
 	{ .sy_narg = AS(setlogin_args), .sy_call = (sy_call_t *)sys_setlogin, .sy_auevent = AUE_SETLOGIN, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 50 = setlogin */
 	{ .sy_narg = AS(acct_args), .sy_call = (sy_call_t *)sys_acct, .sy_auevent = AUE_ACCT, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 51 = acct */
-	{ compat(0,freebsd32_sigpending), .sy_auevent = AUE_SIGPENDING, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 52 = old freebsd32_sigpending */
+	{ compat(0,sigpending), .sy_auevent = AUE_SIGPENDING, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 52 = old sigpending */
 	{ .sy_narg = AS(freebsd32_sigaltstack_args), .sy_call = (sy_call_t *)freebsd32_sigaltstack, .sy_auevent = AUE_SIGALTSTACK, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 53 = freebsd32_sigaltstack */
 	{ .sy_narg = AS(freebsd32_ioctl_args), .sy_call = (sy_call_t *)freebsd32_ioctl, .sy_auevent = AUE_IOCTL, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 54 = freebsd32_ioctl */
 	{ .sy_narg = AS(reboot_args), .sy_call = (sy_call_t *)sys_reboot, .sy_auevent = AUE_REBOOT, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 55 = reboot */
@@ -126,7 +126,7 @@ struct sysent freebsd32_sysent[] = {
 	{ .sy_narg = AS(chroot_args), .sy_call = (sy_call_t *)sys_chroot, .sy_auevent = AUE_CHROOT, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 61 = chroot */
 	{ compat(AS(ofreebsd32_fstat_args),freebsd32_fstat), .sy_auevent = AUE_FSTAT, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 62 = old freebsd32_fstat */
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)nosys, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_ABSENT },			/* 63 = obsolete ogetkerninfo */
-	{ compat(AS(ofreebsd32_getpagesize_args),freebsd32_getpagesize), .sy_auevent = AUE_NULL, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 64 = old freebsd32_getpagesize */
+	{ compat(0,getpagesize), .sy_auevent = AUE_NULL, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 64 = old getpagesize */
 	{ .sy_narg = AS(msync_args), .sy_call = (sy_call_t *)sys_msync, .sy_auevent = AUE_MSYNC, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 65 = msync */
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)sys_vfork, .sy_auevent = AUE_VFORK, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 66 = vfork */
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)nosys, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_ABSENT },			/* 67 = obsolete vread */

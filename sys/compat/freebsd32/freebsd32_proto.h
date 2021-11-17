@@ -67,12 +67,6 @@ struct freebsd32_recvfrom_args {
 	char from_l_[PADL_(struct sockaddr *)]; struct sockaddr * from; char from_r_[PADR_(struct sockaddr *)];
 	char fromlenaddr_l_[PADL_(uint32_t)]; uint32_t fromlenaddr; char fromlenaddr_r_[PADR_(uint32_t)];
 };
-struct freebsd10_freebsd32_pipe_args {
-	register_t dummy;
-};
-struct ofreebsd32_sigpending_args {
-	register_t dummy;
-};
 struct freebsd32_sigaltstack_args {
 	char ss_l_[PADL_(const struct sigaltstack32 *)]; const struct sigaltstack32 * ss; char ss_r_[PADR_(const struct sigaltstack32 *)];
 	char oss_l_[PADL_(struct sigaltstack32 *)]; struct sigaltstack32 * oss; char oss_r_[PADR_(struct sigaltstack32 *)];
@@ -933,9 +927,6 @@ struct ofreebsd32_fstat_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
 	char sb_l_[PADL_(struct ostat32 *)]; struct ostat32 * sb; char sb_r_[PADR_(struct ostat32 *)];
 };
-struct ofreebsd32_getpagesize_args {
-	char dummy_l_[PADL_(int32_t)]; int32_t dummy; char dummy_r_[PADR_(int32_t)];
-};
 struct ofreebsd32_mmap_args {
 	char addr_l_[PADL_(void *)]; void * addr; char addr_r_[PADR_(void *)];
 	char len_l_[PADL_(int)]; int len; char len_r_[PADR_(int)];
@@ -991,9 +982,7 @@ int	ofreebsd32_stat(struct thread *, struct ofreebsd32_stat_args *);
 int	ofreebsd32_lstat(struct thread *, struct ofreebsd32_lstat_args *);
 int	ofreebsd32_sigaction(struct thread *, struct ofreebsd32_sigaction_args *);
 int	ofreebsd32_sigprocmask(struct thread *, struct ofreebsd32_sigprocmask_args *);
-int	ofreebsd32_sigpending(struct thread *, struct ofreebsd32_sigpending_args *);
 int	ofreebsd32_fstat(struct thread *, struct ofreebsd32_fstat_args *);
-int	ofreebsd32_getpagesize(struct thread *, struct ofreebsd32_getpagesize_args *);
 int	ofreebsd32_mmap(struct thread *, struct ofreebsd32_mmap_args *);
 int	ofreebsd32_sigreturn(struct thread *, struct ofreebsd32_sigreturn_args *);
 int	ofreebsd32_sigvec(struct thread *, struct ofreebsd32_sigvec_args *);
@@ -1231,7 +1220,6 @@ struct freebsd10_freebsd32_umtx_unlock_args {
 #ifdef PAD64_REQUIRED
 #else
 #endif
-int	freebsd10_freebsd32_pipe(struct thread *, struct freebsd10_freebsd32_pipe_args *);
 int	freebsd10_freebsd32_umtx_lock(struct thread *, struct freebsd10_freebsd32_umtx_lock_args *);
 int	freebsd10_freebsd32_umtx_unlock(struct thread *, struct freebsd10_freebsd32_umtx_unlock_args *);
 
@@ -1343,15 +1331,12 @@ int	freebsd11_freebsd32_fstatat(struct thread *, struct freebsd11_freebsd32_fsta
 #define	FREEBSD32_SYS_AUE_freebsd32_recvfrom	AUE_RECVFROM
 #define	FREEBSD32_SYS_AUE_ofreebsd32_stat	AUE_STAT
 #define	FREEBSD32_SYS_AUE_ofreebsd32_lstat	AUE_LSTAT
-#define	FREEBSD32_SYS_AUE_freebsd10_freebsd32_pipe	AUE_PIPE
 #define	FREEBSD32_SYS_AUE_ofreebsd32_sigaction	AUE_SIGACTION
 #define	FREEBSD32_SYS_AUE_ofreebsd32_sigprocmask	AUE_SIGPROCMASK
-#define	FREEBSD32_SYS_AUE_ofreebsd32_sigpending	AUE_SIGPENDING
 #define	FREEBSD32_SYS_AUE_freebsd32_sigaltstack	AUE_SIGALTSTACK
 #define	FREEBSD32_SYS_AUE_freebsd32_ioctl	AUE_IOCTL
 #define	FREEBSD32_SYS_AUE_freebsd32_execve	AUE_EXECVE
 #define	FREEBSD32_SYS_AUE_ofreebsd32_fstat	AUE_FSTAT
-#define	FREEBSD32_SYS_AUE_ofreebsd32_getpagesize	AUE_NULL
 #define	FREEBSD32_SYS_AUE_ofreebsd32_mmap	AUE_MMAP
 #define	FREEBSD32_SYS_AUE_freebsd32_mprotect	AUE_MPROTECT
 #define	FREEBSD32_SYS_AUE_freebsd32_setitimer	AUE_SETITIMER

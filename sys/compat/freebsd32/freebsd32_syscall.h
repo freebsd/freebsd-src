@@ -47,7 +47,7 @@
 #define	FREEBSD32_SYS_getppid	39
 				/* 40 is old freebsd32_lstat */
 #define	FREEBSD32_SYS_dup	41
-#define	FREEBSD32_SYS_freebsd10_freebsd32_pipe	42
+#define	FREEBSD32_SYS_freebsd10_pipe	42
 #define	FREEBSD32_SYS_getegid	43
 #define	FREEBSD32_SYS_profil	44
 #define	FREEBSD32_SYS_ktrace	45
@@ -57,7 +57,7 @@
 #define	FREEBSD32_SYS_getlogin	49
 #define	FREEBSD32_SYS_setlogin	50
 #define	FREEBSD32_SYS_acct	51
-				/* 52 is old freebsd32_sigpending */
+				/* 52 is old sigpending */
 #define	FREEBSD32_SYS_freebsd32_sigaltstack	53
 #define	FREEBSD32_SYS_freebsd32_ioctl	54
 #define	FREEBSD32_SYS_reboot	55
@@ -69,7 +69,7 @@
 #define	FREEBSD32_SYS_chroot	61
 				/* 62 is old freebsd32_fstat */
 				/* 63 is obsolete ogetkerninfo */
-				/* 64 is old freebsd32_getpagesize */
+				/* 64 is old getpagesize */
 #define	FREEBSD32_SYS_msync	65
 #define	FREEBSD32_SYS_vfork	66
 				/* 67 is obsolete vread */
