@@ -386,7 +386,7 @@
 #define	FREEBSD32_SYS_freebsd32_kmq_timedsend	460
 #define	FREEBSD32_SYS_freebsd32_kmq_notify	461
 #define	FREEBSD32_SYS_kmq_unlink	462
-#define	FREEBSD32_SYS_abort2	463
+#define	FREEBSD32_SYS_freebsd32_abort2	463
 #define	FREEBSD32_SYS_thr_set_name	464
 #define	FREEBSD32_SYS_freebsd32_aio_fsync	465
 #define	FREEBSD32_SYS_rtprio_thread	466
