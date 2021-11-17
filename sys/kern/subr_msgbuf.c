@@ -414,3 +414,18 @@ msgbuf_copy(struct msgbuf *src, struct msgbuf *dst)
 	while ((c = msgbuf_getchar(src)) >= 0)
 		msgbuf_addchar(dst, c);
 }
+
+/*
+ * Get a snapshot of the message buffer, without modifying its internal state
+ * (i.e. don't mark any new characters as read).
+ */
+void
+msgbuf_duplicate(struct msgbuf *src, struct msgbuf *dst, char *dst_msgptr)
+{
+
+	mtx_lock_spin(&src->msg_lock);
+	bcopy(src, dst, sizeof(struct msgbuf));
+	dst->msg_ptr = dst_msgptr;
+	bcopy(src->msg_ptr, dst->msg_ptr, src->msg_size);
+	mtx_unlock_spin(&src->msg_lock);
+}

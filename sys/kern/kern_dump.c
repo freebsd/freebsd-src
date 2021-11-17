@@ -31,8 +31,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/cons.h>
+#include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/kerneldump.h>
+#include <sys/malloc.h>
 #include <sys/msgbuf.h>
 #include <sys/proc.h>
 #include <sys/watchdog.h>
@@ -295,7 +297,7 @@ dumpsys_generic(struct dumperinfo *di)
 
 #if MINIDUMP_PAGE_TRACKING == 1
 	if (do_minidump)
-		return (minidumpsys(di));
+		return (minidumpsys(di, false));
 #endif
 
 	bzero(&ehdr, sizeof(ehdr));
@@ -461,15 +463,72 @@ dumpsys_pb_progress(size_t delta)
 }
 
 int
-minidumpsys(struct dumperinfo *di)
+minidumpsys(struct dumperinfo *di, bool livedump)
 {
 	struct minidumpstate state;
+	struct msgbuf mb_copy;
+	char *msg_ptr;
+	size_t sz;
 	int error;
 
-	state.msgbufp = msgbufp;
-	state.dump_bitset = vm_page_dump;
+	if (livedump) {
+		KASSERT(!dumping, ("live dump invoked from incorrect context"));
+
+		/*
+		 * Before invoking cpu_minidumpsys() on the live system, we
+		 * must snapshot some required global state: the message
+		 * buffer, and the page dump bitset. They may be modified at
+		 * any moment, so for the sake of the live dump it is best to
+		 * have an unchanging snapshot to work with. Both are included
+		 * as part of the dump and consumed by userspace tools.
+		 *
+		 * Other global state important to the minidump code is the
+		 * dump_avail array and the kernel's page tables, but snapshots
+		 * are not taken of these. For one, dump_avail[] is expected
+		 * not to change after boot. Snapshotting the kernel page
+		 * tables would involve an additional walk, so this is avoided
+		 * too.
+		 *
+		 * This means live dumps are best effort, and the result may or
+		 * may not be usable; there are no guarantees about the
+		 * consistency of the dump's contents. Any of the following
+		 * (and likely more) may affect the live dump:
+		 *
+		 *  - Data may be modified, freed, or remapped during the
+		 *    course of the dump, such that the contents written out
+		 *    are partially or entirely unrecognizable. This means
+		 *    valid references may point to destroyed/mangled objects,
+		 *    and vice versa.
+		 *
+		 *  - The dumped context of any threads that ran during the
+		 *    dump process may be unreliable.
+		 *
+		 *  - The set of kernel page tables included in the dump likely
+		 *    won't correspond exactly to the copy of the dump bitset.
+		 *    This means some pages will be dumped without any way to
+		 *    locate them, and some pages may not have been dumped
+		 *    despite appearing as if they should.
+		 */
+		msg_ptr = malloc(msgbufsize, M_TEMP, M_WAITOK);
+		msgbuf_duplicate(msgbufp, &mb_copy, msg_ptr);
+		state.msgbufp = &mb_copy;
+
+		sz = BITSET_SIZE(vm_page_dump_pages);
+		state.dump_bitset = malloc(sz, M_TEMP, M_WAITOK);
+		BIT_COPY_STORE_REL(sz, vm_page_dump, state.dump_bitset);
+	} else {
+		KASSERT(dumping, ("minidump invoked outside of doadump()"));
+
+		/* Use the globals. */
+		state.msgbufp = msgbufp;
+		state.dump_bitset = vm_page_dump;
+	}
 
 	error = cpu_minidumpsys(di, &state);
+	if (livedump) {
+		free(msg_ptr, M_TEMP);
+		free(state.dump_bitset, M_TEMP);
+	}
 
 	return (error);
 }

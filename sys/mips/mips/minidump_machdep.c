@@ -120,6 +120,10 @@ cpu_minidumpsys(struct dumperinfo *di, const struct minidumpstate *state)
 	int i, error;
 	void *dump_va;
 
+	/* Live dumps are untested. */
+	if (!dumping)
+		return (EOPNOTSUPP);
+
 	/* Flush cache */
 	mips_dcache_wbinv_all();
 
