@@ -763,17 +763,17 @@
 				    struct sigaction32 *act, \
 				    struct sigaction32 *oact); }
 417	AUE_SIGRETURN	STD	{ int freebsd32_sigreturn( \
-		    const struct freebsd32_ucontext *sigcntxp); }
+		    const struct __ucontext32 *sigcntxp); }
 418	AUE_NULL	UNIMPL	__xstat
 419	AUE_NULL	UNIMPL	__xfstat
 420	AUE_NULL	UNIMPL	__xlstat
 421	AUE_NULL	STD	{ int freebsd32_getcontext( \
-				    struct freebsd32_ucontext *ucp); }
+				    struct __ucontext32 *ucp); }
 422	AUE_NULL	STD	{ int freebsd32_setcontext( \
-				    const struct freebsd32_ucontext *ucp); }
+				    const struct __ucontext32 *ucp); }
 423	AUE_NULL	STD	{ int freebsd32_swapcontext( \
-				    struct freebsd32_ucontext *oucp, \
-				    const struct freebsd32_ucontext *ucp); }
+				    struct __ucontext32 *oucp, \
+				    const struct __ucontext32 *ucp); }
 424	AUE_SWAPOFF	UNIMPL	swapoff
 425	AUE_ACL_GET_LINK	NOPROTO	{ int __acl_get_link(const char *path, \
 				    acl_type_t type, struct acl *aclp); }
