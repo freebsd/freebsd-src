@@ -2697,6 +2697,13 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 1;
 		break;
 	}
+	/* gssd_syscall */
+	case 505: {
+		struct gssd_syscall_args *p = params;
+		uarg[0] = (intptr_t)p->path; /* char * */
+		*n_args = 1;
+		break;
+	}
 	/* freebsd32_jail_get */
 	case 506: {
 		struct freebsd32_jail_get_args *p = params;
@@ -7902,6 +7909,16 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
+	/* gssd_syscall */
+	case 505:
+		switch (ndx) {
+		case 0:
+			p = "userland char *";
+			break;
+		default:
+			break;
+		};
+		break;
 	/* freebsd32_jail_get */
 	case 506:
 		switch (ndx) {
@@ -10764,6 +10781,11 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* posix_openpt */
 	case 504:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* gssd_syscall */
+	case 505:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
