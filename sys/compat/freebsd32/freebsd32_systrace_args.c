@@ -1307,6 +1307,32 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 2;
 		break;
 	}
+#ifdef PAD64_REQUIRED
+	/* freebsd32_preadv */
+	case 289: {
+		struct freebsd32_preadv_args *p = params;
+		iarg[0] = p->fd; /* int */
+		uarg[1] = (intptr_t)p->iovp; /* struct iovec32 * */
+		uarg[2] = p->iovcnt; /* u_int */
+		iarg[3] = p->_pad; /* int */
+		uarg[4] = p->offset1; /* uint32_t */
+		uarg[5] = p->offset2; /* uint32_t */
+		*n_args = 6;
+		break;
+	}
+	/* freebsd32_pwritev */
+	case 290: {
+		struct freebsd32_pwritev_args *p = params;
+		iarg[0] = p->fd; /* int */
+		uarg[1] = (intptr_t)p->iovp; /* struct iovec32 * */
+		uarg[2] = p->iovcnt; /* u_int */
+		iarg[3] = p->_pad; /* int */
+		uarg[4] = p->offset1; /* uint32_t */
+		uarg[5] = p->offset2; /* uint32_t */
+		*n_args = 6;
+		break;
+	}
+#else
 	/* freebsd32_preadv */
 	case 289: {
 		struct freebsd32_preadv_args *p = params;
@@ -1329,6 +1355,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 5;
 		break;
 	}
+#endif
 	/* fhopen */
 	case 298: {
 		struct fhopen_args *p = params;
@@ -5498,6 +5525,58 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
+#ifdef PAD64_REQUIRED
+	/* freebsd32_preadv */
+	case 289:
+		switch (ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "userland struct iovec32 *";
+			break;
+		case 2:
+			p = "u_int";
+			break;
+		case 3:
+			p = "int";
+			break;
+		case 4:
+			p = "uint32_t";
+			break;
+		case 5:
+			p = "uint32_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* freebsd32_pwritev */
+	case 290:
+		switch (ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "userland struct iovec32 *";
+			break;
+		case 2:
+			p = "u_int";
+			break;
+		case 3:
+			p = "int";
+			break;
+		case 4:
+			p = "uint32_t";
+			break;
+		case 5:
+			p = "uint32_t";
+			break;
+		default:
+			break;
+		};
+		break;
+#else
 	/* freebsd32_preadv */
 	case 289:
 		switch (ndx) {
@@ -5542,6 +5621,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
+#endif
 	/* fhopen */
 	case 298:
 		switch (ndx) {
@@ -10009,6 +10089,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
+#ifdef PAD64_REQUIRED
 	/* freebsd32_preadv */
 	case 289:
 		if (ndx == 0 || ndx == 1)
@@ -10019,6 +10100,18 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "ssize_t";
 		break;
+#else
+	/* freebsd32_preadv */
+	case 289:
+		if (ndx == 0 || ndx == 1)
+			p = "ssize_t";
+		break;
+	/* freebsd32_pwritev */
+	case 290:
+		if (ndx == 0 || ndx == 1)
+			p = "ssize_t";
+		break;
+#endif
 	/* fhopen */
 	case 298:
 		if (ndx == 0 || ndx == 1)
