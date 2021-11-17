@@ -187,14 +187,16 @@ cpu_minidumpsys(struct dumperinfo *di, const struct minidumpstate *state)
 			for (i = 0; i < Ln_ENTRIES * Ln_ENTRIES;
 			    i++, pa += PAGE_SIZE)
 				if (vm_phys_is_dumpable(pa))
-					dump_add_page(pa);
+					vm_page_dump_add(state->dump_bitset,
+					    pa);
 			pmapsize += (Ln_ENTRIES - 1) * PAGE_SIZE;
 			va += L1_SIZE - L2_SIZE;
 		} else if ((l2e & ATTR_DESCR_MASK) == L2_BLOCK) {
 			pa = l2e & ~ATTR_MASK;
 			for (i = 0; i < Ln_ENTRIES; i++, pa += PAGE_SIZE) {
 				if (vm_phys_is_dumpable(pa))
-					dump_add_page(pa);
+					vm_page_dump_add(state->dump_bitset,
+					    pa);
 			}
 		} else if ((l2e & ATTR_DESCR_MASK) == L2_TABLE) {
 			for (i = 0; i < Ln_ENTRIES; i++) {
@@ -202,9 +204,9 @@ cpu_minidumpsys(struct dumperinfo *di, const struct minidumpstate *state)
 				if ((l3e & ATTR_DESCR_MASK) != L3_PAGE)
 					continue;
 				pa = l3e & ~ATTR_MASK;
-				pa = l3e & ~ATTR_MASK;
 				if (PHYS_IN_DMAP(pa) && vm_phys_is_dumpable(pa))
-					dump_add_page(pa);
+					vm_page_dump_add(state->dump_bitset,
+					    pa);
 			}
 		}
 	}
@@ -215,11 +217,11 @@ cpu_minidumpsys(struct dumperinfo *di, const struct minidumpstate *state)
 	dumpsize += round_page(mbp->msg_size);
 	dumpsize += round_page(sizeof(dump_avail));
 	dumpsize += round_page(BITSET_SIZE(vm_page_dump_pages));
-	VM_PAGE_DUMP_FOREACH(pa) {
+	VM_PAGE_DUMP_FOREACH(state->dump_bitset, pa) {
 		if (PHYS_IN_DMAP(pa) && vm_phys_is_dumpable(pa))
 			dumpsize += PAGE_SIZE;
 		else
-			dump_drop_page(pa);
+			vm_page_dump_drop(state->dump_bitset, pa);
 	}
 	dumpsize += PAGE_SIZE;
 
@@ -270,7 +272,7 @@ cpu_minidumpsys(struct dumperinfo *di, const struct minidumpstate *state)
 		goto fail;
 
 	/* Dump bitmap */
-	error = blk_write(di, (char *)vm_page_dump, 0,
+	error = blk_write(di, (char *)state->dump_bitset, 0,
 	    round_page(BITSET_SIZE(vm_page_dump_pages)));
 	if (error)
 		goto fail;
@@ -351,7 +353,7 @@ cpu_minidumpsys(struct dumperinfo *di, const struct minidumpstate *state)
 	}
 
 	/* Dump memory chunks */
-	VM_PAGE_DUMP_FOREACH(pa) {
+	VM_PAGE_DUMP_FOREACH(state->dump_bitset, pa) {
 		error = blk_write(di, 0, pa, PAGE_SIZE);
 		if (error)
 			goto fail;
