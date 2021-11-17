@@ -910,10 +910,6 @@ struct ofreebsd32_sigaction_args {
 	char nsa_l_[PADL_(struct osigaction32 *)]; struct osigaction32 * nsa; char nsa_r_[PADR_(struct osigaction32 *)];
 	char osa_l_[PADL_(struct osigaction32 *)]; struct osigaction32 * osa; char osa_r_[PADR_(struct osigaction32 *)];
 };
-struct ofreebsd32_sigprocmask_args {
-	char how_l_[PADL_(int)]; int how; char how_r_[PADR_(int)];
-	char mask_l_[PADL_(osigset_t)]; osigset_t mask; char mask_r_[PADR_(osigset_t)];
-};
 struct ofreebsd32_fstat_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
 	char sb_l_[PADL_(struct ostat32 *)]; struct ostat32 * sb; char sb_r_[PADR_(struct ostat32 *)];
@@ -933,15 +929,6 @@ struct ofreebsd32_sigvec_args {
 	char signum_l_[PADL_(int)]; int signum; char signum_r_[PADR_(int)];
 	char nsv_l_[PADL_(struct sigvec32 *)]; struct sigvec32 * nsv; char nsv_r_[PADR_(struct sigvec32 *)];
 	char osv_l_[PADL_(struct sigvec32 *)]; struct sigvec32 * osv; char osv_r_[PADR_(struct sigvec32 *)];
-};
-struct ofreebsd32_sigblock_args {
-	char mask_l_[PADL_(int)]; int mask; char mask_r_[PADR_(int)];
-};
-struct ofreebsd32_sigsetmask_args {
-	char mask_l_[PADL_(int)]; int mask; char mask_r_[PADR_(int)];
-};
-struct ofreebsd32_sigsuspend_args {
-	char mask_l_[PADL_(int)]; int mask; char mask_r_[PADR_(int)];
 };
 struct ofreebsd32_sigstack_args {
 	char nss_l_[PADL_(struct sigstack32 *)]; struct sigstack32 * nss; char nss_r_[PADR_(struct sigstack32 *)];
@@ -972,14 +959,10 @@ int	ofreebsd32_lseek(struct thread *, struct ofreebsd32_lseek_args *);
 int	ofreebsd32_stat(struct thread *, struct ofreebsd32_stat_args *);
 int	ofreebsd32_lstat(struct thread *, struct ofreebsd32_lstat_args *);
 int	ofreebsd32_sigaction(struct thread *, struct ofreebsd32_sigaction_args *);
-int	ofreebsd32_sigprocmask(struct thread *, struct ofreebsd32_sigprocmask_args *);
 int	ofreebsd32_fstat(struct thread *, struct ofreebsd32_fstat_args *);
 int	ofreebsd32_mmap(struct thread *, struct ofreebsd32_mmap_args *);
 int	ofreebsd32_sigreturn(struct thread *, struct ofreebsd32_sigreturn_args *);
 int	ofreebsd32_sigvec(struct thread *, struct ofreebsd32_sigvec_args *);
-int	ofreebsd32_sigblock(struct thread *, struct ofreebsd32_sigblock_args *);
-int	ofreebsd32_sigsetmask(struct thread *, struct ofreebsd32_sigsetmask_args *);
-int	ofreebsd32_sigsuspend(struct thread *, struct ofreebsd32_sigsuspend_args *);
 int	ofreebsd32_sigstack(struct thread *, struct ofreebsd32_sigstack_args *);
 int	ofreebsd32_getdirentries(struct thread *, struct ofreebsd32_getdirentries_args *);
 
@@ -1322,7 +1305,6 @@ int	freebsd11_freebsd32_fstatat(struct thread *, struct freebsd11_freebsd32_fsta
 #define	FREEBSD32_SYS_AUE_ofreebsd32_stat	AUE_STAT
 #define	FREEBSD32_SYS_AUE_ofreebsd32_lstat	AUE_LSTAT
 #define	FREEBSD32_SYS_AUE_ofreebsd32_sigaction	AUE_SIGACTION
-#define	FREEBSD32_SYS_AUE_ofreebsd32_sigprocmask	AUE_SIGPROCMASK
 #define	FREEBSD32_SYS_AUE_freebsd32_sigaltstack	AUE_SIGALTSTACK
 #define	FREEBSD32_SYS_AUE_freebsd32_ioctl	AUE_IOCTL
 #define	FREEBSD32_SYS_AUE_freebsd32_execve	AUE_EXECVE
@@ -1335,9 +1317,6 @@ int	freebsd11_freebsd32_fstatat(struct thread *, struct freebsd11_freebsd32_fsta
 #define	FREEBSD32_SYS_AUE_freebsd32_select	AUE_SELECT
 #define	FREEBSD32_SYS_AUE_ofreebsd32_sigreturn	AUE_SIGRETURN
 #define	FREEBSD32_SYS_AUE_ofreebsd32_sigvec	AUE_O_SIGVEC
-#define	FREEBSD32_SYS_AUE_ofreebsd32_sigblock	AUE_O_SIGBLOCK
-#define	FREEBSD32_SYS_AUE_ofreebsd32_sigsetmask	AUE_O_SIGSETMASK
-#define	FREEBSD32_SYS_AUE_ofreebsd32_sigsuspend	AUE_SIGSUSPEND
 #define	FREEBSD32_SYS_AUE_ofreebsd32_sigstack	AUE_O_SIGSTACK
 #define	FREEBSD32_SYS_AUE_freebsd32_gettimeofday	AUE_GETTIMEOFDAY
 #define	FREEBSD32_SYS_AUE_freebsd32_getrusage	AUE_GETRUSAGE
