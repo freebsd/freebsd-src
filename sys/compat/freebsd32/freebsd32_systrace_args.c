@@ -1550,15 +1550,6 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 2;
 		break;
 	}
-	/* kldsym */
-	case 337: {
-		struct kldsym_args *p = params;
-		iarg[0] = p->fileid; /* int */
-		iarg[1] = p->cmd; /* int */
-		uarg[2] = (intptr_t)p->data; /* void * */
-		*n_args = 3;
-		break;
-	}
 	/* freebsd32_jail */
 	case 338: {
 		struct freebsd32_jail_args *p = params;
@@ -5867,22 +5858,6 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* kldsym */
-	case 337:
-		switch (ndx) {
-		case 0:
-			p = "int";
-			break;
-		case 1:
-			p = "int";
-			break;
-		case 2:
-			p = "userland void *";
-			break;
-		default:
-			break;
-		};
-		break;
 	/* freebsd32_jail */
 	case 338:
 		switch (ndx) {
@@ -10148,11 +10123,6 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* utrace */
 	case 335:
-		if (ndx == 0 || ndx == 1)
-			p = "int";
-		break;
-	/* kldsym */
-	case 337:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
