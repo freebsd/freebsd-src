@@ -53,7 +53,7 @@
 #define	FREEBSD32_SYS_ktrace	45
 				/* 46 is old freebsd32_sigaction */
 #define	FREEBSD32_SYS_getgid	47
-				/* 48 is old freebsd32_sigprocmask */
+				/* 48 is old sigprocmask */
 #define	FREEBSD32_SYS_getlogin	49
 #define	FREEBSD32_SYS_setlogin	50
 #define	FREEBSD32_SYS_acct	51
@@ -112,9 +112,9 @@
 #define	FREEBSD32_SYS_listen	106
 				/* 107 is obsolete vtimes */
 				/* 108 is old freebsd32_sigvec */
-				/* 109 is old freebsd32_sigblock */
-				/* 110 is old freebsd32_sigsetmask */
-				/* 111 is old freebsd32_sigsuspend */
+				/* 109 is old sigblock */
+				/* 110 is old sigsetmask */
+				/* 111 is old sigsuspend */
 				/* 112 is old freebsd32_sigstack */
 				/* 113 is obsolete orecvmsg */
 				/* 114 is obsolete osendmsg */

@@ -110,7 +110,7 @@ struct sysent freebsd32_sysent[] = {
 	{ .sy_narg = AS(ktrace_args), .sy_call = (sy_call_t *)sys_ktrace, .sy_auevent = AUE_KTRACE, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 45 = ktrace */
 	{ compat(AS(ofreebsd32_sigaction_args),freebsd32_sigaction), .sy_auevent = AUE_SIGACTION, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 46 = old freebsd32_sigaction */
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)sys_getgid, .sy_auevent = AUE_GETGID, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 47 = getgid */
-	{ compat(AS(ofreebsd32_sigprocmask_args),freebsd32_sigprocmask), .sy_auevent = AUE_SIGPROCMASK, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 48 = old freebsd32_sigprocmask */
+	{ compat(AS(osigprocmask_args),sigprocmask), .sy_auevent = AUE_SIGPROCMASK, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 48 = old sigprocmask */
 	{ .sy_narg = AS(getlogin_args), .sy_call = (sy_call_t *)sys_getlogin, .sy_auevent = AUE_GETLOGIN, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 49 = getlogin */
 	{ .sy_narg = AS(setlogin_args), .sy_call = (sy_call_t *)sys_setlogin, .sy_auevent = AUE_SETLOGIN, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 50 = setlogin */
 	{ .sy_narg = AS(acct_args), .sy_call = (sy_call_t *)sys_acct, .sy_auevent = AUE_ACCT, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 51 = acct */
@@ -171,9 +171,9 @@ struct sysent freebsd32_sysent[] = {
 	{ .sy_narg = AS(listen_args), .sy_call = (sy_call_t *)sys_listen, .sy_auevent = AUE_LISTEN, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 106 = listen */
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)nosys, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_ABSENT },			/* 107 = obsolete vtimes */
 	{ compat(AS(ofreebsd32_sigvec_args),freebsd32_sigvec), .sy_auevent = AUE_O_SIGVEC, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 108 = old freebsd32_sigvec */
-	{ compat(AS(ofreebsd32_sigblock_args),freebsd32_sigblock), .sy_auevent = AUE_O_SIGBLOCK, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 109 = old freebsd32_sigblock */
-	{ compat(AS(ofreebsd32_sigsetmask_args),freebsd32_sigsetmask), .sy_auevent = AUE_O_SIGSETMASK, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 110 = old freebsd32_sigsetmask */
-	{ compat(AS(ofreebsd32_sigsuspend_args),freebsd32_sigsuspend), .sy_auevent = AUE_SIGSUSPEND, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 111 = old freebsd32_sigsuspend */
+	{ compat(AS(osigblock_args),sigblock), .sy_auevent = AUE_O_SIGBLOCK, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 109 = old sigblock */
+	{ compat(AS(osigsetmask_args),sigsetmask), .sy_auevent = AUE_O_SIGSETMASK, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 110 = old sigsetmask */
+	{ compat(AS(osigsuspend_args),sigsuspend), .sy_auevent = AUE_SIGSUSPEND, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 111 = old sigsuspend */
 	{ compat(AS(ofreebsd32_sigstack_args),freebsd32_sigstack), .sy_auevent = AUE_O_SIGSTACK, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 112 = old freebsd32_sigstack */
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)nosys, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_ABSENT },			/* 113 = obsolete orecvmsg */
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)nosys, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_ABSENT },			/* 114 = obsolete osendmsg */

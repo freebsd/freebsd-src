@@ -2688,19 +2688,6 @@ ofreebsd32_sigaction(struct thread *td,
 	return (error);
 }
 
-int
-ofreebsd32_sigprocmask(struct thread *td,
-			       struct ofreebsd32_sigprocmask_args *uap)
-{
-	sigset_t set, oset;
-	int error;
-
-	OSIG2SIG(uap->mask, set);
-	error = kern_sigprocmask(td, uap->how, &set, &oset, SIGPROCMASK_OLD);
-	SIG2OSIG(oset, td->td_retval[0]);
-	return (error);
-}
-
 struct sigvec32 {
 	u_int32_t	sv_handler;
 	int		sv_mask;
@@ -2739,40 +2726,6 @@ ofreebsd32_sigvec(struct thread *td,
 		error = copyout(&vec, uap->osv, sizeof(vec));
 	}
 	return (error);
-}
-
-int
-ofreebsd32_sigblock(struct thread *td,
-			    struct ofreebsd32_sigblock_args *uap)
-{
-	sigset_t set, oset;
-
-	OSIG2SIG(uap->mask, set);
-	kern_sigprocmask(td, SIG_BLOCK, &set, &oset, 0);
-	SIG2OSIG(oset, td->td_retval[0]);
-	return (0);
-}
-
-int
-ofreebsd32_sigsetmask(struct thread *td,
-			      struct ofreebsd32_sigsetmask_args *uap)
-{
-	sigset_t set, oset;
-
-	OSIG2SIG(uap->mask, set);
-	kern_sigprocmask(td, SIG_SETMASK, &set, &oset, 0);
-	SIG2OSIG(oset, td->td_retval[0]);
-	return (0);
-}
-
-int
-ofreebsd32_sigsuspend(struct thread *td,
-			      struct ofreebsd32_sigsuspend_args *uap)
-{
-	sigset_t mask;
-
-	OSIG2SIG(uap->mask, mask);
-	return (kern_sigsuspend(td, mask));
 }
 
 struct sigstack32 {
