@@ -826,7 +826,7 @@
 				    u_int length); }
 453	AUE_AUDITCTL	NOPROTO	{ int auditctl(const char *path); }
 454	AUE_NULL	STD	{ int freebsd32__umtx_op(void *obj, int op,\
-				    u_long val, void *uaddr, \
+				    u_long val, void *uaddr1, \
 				    void *uaddr2); }
 455	AUE_THR_NEW	STD	{ int freebsd32_thr_new(	\
 				    struct thr_param32 *param,	\
