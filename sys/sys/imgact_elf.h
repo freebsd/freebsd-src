@@ -112,7 +112,7 @@ struct sseg_closure {
 	size_t size;            /* Total size of all writable segments. */
 };
 
-int	__elfN(brand_inuse)(Elf_Brandinfo *entry);
+bool	__elfN(brand_inuse)(Elf_Brandinfo *entry);
 int	__elfN(insert_brand_entry)(Elf_Brandinfo *entry);
 int	__elfN(remove_brand_entry)(Elf_Brandinfo *entry);
 int	__elfN(freebsd_fixup)(uintptr_t *, struct image_params *);
