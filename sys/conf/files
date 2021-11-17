@@ -379,6 +379,7 @@ cddl/dev/fbt/fbt.c			optional dtrace_fbt      | dtraceall compile-with "${FBT_C}
 cddl/dev/systrace/systrace.c		optional dtrace_systrace | dtraceall compile-with "${CDDL_C}"
 cddl/dev/prototype.c			optional dtrace_prototype | dtraceall compile-with "${CDDL_C}"
 fs/nfsclient/nfs_clkdtrace.c		optional dtnfscl nfscl   | dtraceall nfscl compile-with "${CDDL_C}"
+compat/freebsd32/freebsd32_abort2.c	optional compat_freebsd32
 compat/freebsd32/freebsd32_capability.c	optional compat_freebsd32
 compat/freebsd32/freebsd32_ioctl.c	optional compat_freebsd32
 compat/freebsd32/freebsd32_misc.c	optional compat_freebsd32

@@ -525,7 +525,7 @@ struct sysent freebsd32_sysent[] = {
 	{ .sy_narg = AS(freebsd32_kmq_timedsend_args), .sy_call = (sy_call_t *)lkmressys, .sy_auevent = AUE_NULL, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_ABSENT },	/* 460 = freebsd32_kmq_timedsend */
 	{ .sy_narg = AS(freebsd32_kmq_notify_args), .sy_call = (sy_call_t *)lkmressys, .sy_auevent = AUE_NULL, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_ABSENT },	/* 461 = freebsd32_kmq_notify */
 	{ .sy_narg = AS(kmq_unlink_args), .sy_call = (sy_call_t *)lkmressys, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_ABSENT },	/* 462 = kmq_unlink */
-	{ .sy_narg = AS(abort2_args), .sy_call = (sy_call_t *)sys_abort2, .sy_auevent = AUE_NULL, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 463 = abort2 */
+	{ .sy_narg = AS(freebsd32_abort2_args), .sy_call = (sy_call_t *)freebsd32_abort2, .sy_auevent = AUE_NULL, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 463 = freebsd32_abort2 */
 	{ .sy_narg = AS(thr_set_name_args), .sy_call = (sy_call_t *)sys_thr_set_name, .sy_auevent = AUE_NULL, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 464 = thr_set_name */
 	{ .sy_narg = AS(freebsd32_aio_fsync_args), .sy_call = (sy_call_t *)freebsd32_aio_fsync, .sy_auevent = AUE_AIO_FSYNC, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 465 = freebsd32_aio_fsync */
 	{ .sy_narg = AS(rtprio_thread_args), .sy_call = (sy_call_t *)sys_rtprio_thread, .sy_auevent = AUE_RTPRIO, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 466 = rtprio_thread */

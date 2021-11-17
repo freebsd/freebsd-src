@@ -860,7 +860,7 @@
 461	AUE_MQ_NOTIFY	NOSTD	{ int freebsd32_kmq_notify(int mqd,	\
 				    const struct sigevent32 *sigev); }
 462	AUE_MQ_UNLINK	NOPROTO|NOSTD	{ int kmq_unlink(const char *path); }
-463	AUE_NULL	NOPROTO	{ int abort2(const char *why, int nargs, uint32_t *args); }
+463	AUE_NULL	STD	{ void freebsd32_abort2(const char *why, int nargs, uint32_t *args); }
 464	AUE_NULL 	NOPROTO	{ int thr_set_name(int32_t id, const char *name); }
 465	AUE_AIO_FSYNC	STD	{ int freebsd32_aio_fsync(int op, \
 				    struct aiocb32 *aiocbp); }
