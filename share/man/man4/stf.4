@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 28, 2012
+.Dd November 16, 2021
 .Dt STF 4
 .Os
 .Sh NAME
@@ -44,11 +44,15 @@ The
 .Nm
 interface supports
 .Dq 6to4
+and
+.Dq 6rd
 IPv6 in IPv4 encapsulation.
 It can tunnel IPv6 traffic over IPv4, as specified in
-.Li RFC3056 .
+.Li RFC3056
+or
+.Li RFC5969 .
 .Pp
-For ordinary nodes in 6to4 site, you do not need
+For ordinary nodes in a 6to4 or 6RD site, you do not need
 .Nm
 interface.
 The
@@ -56,6 +60,8 @@ The
 interface is necessary for site border router
 (called
 .Dq 6to4 router
+or
+.Dq 6rd Customer Edge (CE)
 in the specification).
 .Pp
 Each
@@ -69,6 +75,7 @@ command or using the
 .Va cloned_interfaces
 variable in
 .Xr rc.conf 5 .
+.Sh 6to4
 .Pp
 Due to the way 6to4 protocol is specified,
 .Nm
@@ -180,6 +187,41 @@ Note, however, there are other security risks exist.
 If you wish to use the configuration,
 you must not advertise your 6to4 address to others.
 .\"
+.Sh 6rd
+Like
+.Dq 6to4
+.Dq 6rd
+also requires configuration before it can be used.
+The required configuration parameters are:
+.Bl -bullet
+.It
+The IPv6 address and prefix length.
+.It
+The border router IPv4 address.
+.It
+The IPv4 WAN address.
+.It
+The prefix length of the IPv4 WAN address.
+.El
+.Pp
+These can parameters are all configured through
+.Xr ifconfig 8 .
+.Pp
+The IPv6 address and prefix length can be configured like any other IPv6 address.
+Note that the prefix length is the IPv6 prefix length excluding the embedded
+IPv4 address bits.
+The prefix length of the delegated network is the sum of the IPv6 prefix length
+and the IPv4 prefix length.
+.Pp
+The border router IPv4 address is configured with the
+.Xr ifconfig 8
+.Cm stfv4br
+command.
+.Pp
+The IPv4 WAN address and IPv4 prefix length are configured using the
+.Xr ifconfig 8
+.Cm stfv4net
+command.
 .Sh SYSCTL VARIABLES
 The following
 .Xr sysctl 8
@@ -240,6 +282,24 @@ and not to use your 6to4 prefix as a source.
 	prefixlen 16 alias deprecated link0
 # route add -inet6 2002:: -prefixlen 16 ::1
 # route change -inet6 2002:: -prefixlen 16 ::1 -ifp stf0
+.Ed
+.Pp
+The following example configures a
+.Dq 6rd
+tunnel on a
+.Dq 6rd CE
+where the ISP's
+.Dq 6rd
+IPv6 prefix is 2001:db8::/32.
+The border router is 192.0.2.1.
+The
+.Dq 6rd CE
+has a WAN address of 192.0.2.2 and the full IPv4 address is embedded in the
+.Dq 6rd IPv6 address:
+.Bd -literal
+# ifconfig stf0 inet6 2001:db8:c000:0202:: prefixlen 32 up
+# ifconfig stf0 stfv4br 192.0.2.1
+# ifconfig stf0 stfv4net 192.0.2.2/32
 .Ed
 .\"
 .Sh SEE ALSO
