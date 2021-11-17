@@ -900,25 +900,25 @@
 #ifdef PAD64_REQUIRED
 475	AUE_PREAD	STD	{ ssize_t freebsd32_pread(int fd, \
 				    void *buf,size_t nbyte, \
-				    int pad, \
+				    int _pad, \
 				    uint32_t offset1, uint32_t offset2); }
 476	AUE_PWRITE	STD	{ ssize_t freebsd32_pwrite(int fd, \
 				    const void *buf, size_t nbyte, \
-				    int pad, \
+				    int _pad, \
 				    uint32_t offset1, uint32_t offset2); }
 477	AUE_MMAP	STD 	{ void *freebsd32_mmap(void *addr, \
 				    size_t len, int prot, int flags, int fd, \
-				    int pad, \
+				    int _pad, \
 				    uint32_t pos1, uint32_t pos2); }
 478	AUE_LSEEK	STD	{ off_t freebsd32_lseek(int fd, \
-				    int pad, \
+				    int _pad, \
 				    uint32_t offset1, uint32_t offset2, \
 				    int whence); }
 479	AUE_TRUNCATE	STD	{ int freebsd32_truncate(const char *path, \
-				    int pad, \
+				    int _pad, \
 				    uint32_t length1, uint32_t length2); }
 480	AUE_FTRUNCATE	STD	{ int freebsd32_ftruncate(int fd, \
-				    int pad, \
+				    int _pad, \
 				    uint32_t length1, uint32_t length2); }
 #else
 475	AUE_PREAD	STD	{ ssize_t freebsd32_pread(int fd, \
@@ -945,7 +945,7 @@
 484	AUE_NULL	NOPROTO	{ int cpuset(cpusetid_t *setid); }
 #ifdef PAD64_REQUIRED
 485	AUE_NULL	STD	{ int freebsd32_cpuset_setid(cpuwhich_t which, \
-				    int pad, \
+				    int _pad, \
 				    uint32_t id1, uint32_t id2, \
 				    cpusetid_t setid); }
 #else
@@ -1050,15 +1050,15 @@
 				    size_t outbuflen); }
 #ifdef PAD64_REQUIRED
 530	AUE_POSIX_FALLOCATE	STD	{ int freebsd32_posix_fallocate(int fd, \
-				    int pad, \
+				    int _pad, \
 				    uint32_t offset1, uint32_t offset2,\
 				    uint32_t len1, uint32_t len2); }
 531	AUE_POSIX_FADVISE	STD	{ int freebsd32_posix_fadvise(int fd, \
-				    int pad, \
+				    int _pad, \
 				    uint32_t offset1, uint32_t offset2,\
 				    uint32_t len1, uint32_t len2, \
 				    int advice); }
-532	AUE_WAIT6	STD	{ int freebsd32_wait6(idtype_t idtype, int pad, \
+532	AUE_WAIT6	STD	{ int freebsd32_wait6(idtype_t idtype, int _pad, \
 				    uint32_t id1, uint32_t id2, \
 				    int *status, int options, \
 				    struct __wrusage32 *wrusage, \
@@ -1106,7 +1106,7 @@
 543	AUE_AIO_MLOCK	STD	{ int freebsd32_aio_mlock( \
 				    struct aiocb32 *aiocbp); }
 #ifdef PAD64_REQUIRED
-544	AUE_PROCCTL	STD	{ int freebsd32_procctl(idtype_t idtype, int pad, \
+544	AUE_PROCCTL	STD	{ int freebsd32_procctl(idtype_t idtype, int _pad, \
 				    uint32_t id1, uint32_t id2, int com, \
 				    void *data); }
 #else
@@ -1147,7 +1147,7 @@
 #ifdef PAD64_REQUIRED
 559	AUE_MKNODAT	STD	{ int freebsd32_mknodat(int fd, \
 				    const char *path, mode_t mode, \
-				    int pad, uint32_t dev1, uint32_t dev2); }
+				    int _pad, uint32_t dev1, uint32_t dev2); }
 #else
 559	AUE_MKNODAT	STD	{ int freebsd32_mknodat(int fd, \
 				    const char *path, mode_t mode, \
