@@ -1783,14 +1783,14 @@
 345	AUE_SIGWAIT	STD|CAPENABLED {
 		int sigtimedwait(
 		    _In_ const sigset_t *set,
-		    _Out_opt_ siginfo_t *info,
+		    _Out_opt_ struct siginfo *info,
 		    _In_opt_ const struct timespec *timeout
 		);
 	}
 346	AUE_NULL	STD|CAPENABLED {
 		int sigwaitinfo(
 		    _In_ const sigset_t *set,
-		    _Out_opt_ siginfo_t *info
+		    _Out_opt_ struct siginfo *info
 		);
 	}
 347	AUE_ACL_GET_FILE	STD {
@@ -2920,7 +2920,7 @@
 		    _Out_opt_ int *status,
 		    int options,
 		    _Out_opt_ struct __wrusage *wrusage,
-		    _Out_opt_ siginfo_t *info
+		    _Out_opt_ struct siginfo *info
 		);
 	}
 533	AUE_CAP_RIGHTS_LIMIT	STD|CAPENABLED {
