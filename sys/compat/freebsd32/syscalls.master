@@ -132,7 +132,7 @@
 40	AUE_LSTAT	COMPAT	{ int freebsd32_lstat(const char *path, \
 				    struct ostat32 *ub); }
 41	AUE_DUP		NOPROTO	{ int dup(u_int fd); }
-42	AUE_PIPE	COMPAT10	{ int freebsd32_pipe(void); }
+42	AUE_PIPE	COMPAT10|NOPROTO	{ int pipe(void); }
 43	AUE_GETEGID	NOPROTO	{ gid_t getegid(void); }
 44	AUE_PROFILE	NOPROTO	{ int profil(char *samples, size_t size, \
 				    size_t offset, u_int scale); }
@@ -148,7 +148,7 @@
 				    u_int namelen); }
 50	AUE_SETLOGIN	NOPROTO	{ int setlogin(const char *namebuf); }
 51	AUE_ACCT	NOPROTO	{ int acct(const char *path); }
-52	AUE_SIGPENDING	COMPAT	{ int freebsd32_sigpending(void); }
+52	AUE_SIGPENDING	COMPAT|NOPROTO	{ int sigpending(void); }
 53	AUE_SIGALTSTACK	STD	{ int freebsd32_sigaltstack( \
 				    const struct sigaltstack32 *ss, \
 				    struct sigaltstack32 *oss); }
@@ -167,8 +167,7 @@
 62	AUE_FSTAT	COMPAT	{ int freebsd32_fstat(int fd, \
 				    struct ostat32 *sb); }
 63	AUE_NULL	OBSOL	ogetkerninfo
-64	AUE_NULL	COMPAT	{ int freebsd32_getpagesize( \
-				    int32_t dummy); }
+64	AUE_NULL	COMPAT|NOPROTO	{ int getpagesize(void); }
 65	AUE_MSYNC	NOPROTO	{ int msync(void *addr, size_t len, \
 				    int flags); }
 66	AUE_VFORK	NOPROTO	{ int vfork(void); }
