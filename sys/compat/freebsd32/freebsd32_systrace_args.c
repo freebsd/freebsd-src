@@ -2271,9 +2271,9 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 1;
 		break;
 	}
-	/* abort2 */
+	/* freebsd32_abort2 */
 	case 463: {
-		struct abort2_args *p = params;
+		struct freebsd32_abort2_args *p = params;
 		uarg[0] = (intptr_t)p->why; /* const char * */
 		iarg[1] = p->nargs; /* int */
 		uarg[2] = (intptr_t)p->args; /* uint32_t * */
@@ -7099,7 +7099,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* abort2 */
+	/* freebsd32_abort2 */
 	case 463:
 		switch (ndx) {
 		case 0:
@@ -10582,10 +10582,10 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* abort2 */
+	/* freebsd32_abort2 */
 	case 463:
 		if (ndx == 0 || ndx == 1)
-			p = "int";
+			p = "void";
 		break;
 	/* thr_set_name */
 	case 464:

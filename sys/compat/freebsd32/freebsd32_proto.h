@@ -396,6 +396,11 @@ struct freebsd32_kmq_notify_args {
 	char mqd_l_[PADL_(int)]; int mqd; char mqd_r_[PADR_(int)];
 	char sigev_l_[PADL_(const struct sigevent32 *)]; const struct sigevent32 * sigev; char sigev_r_[PADR_(const struct sigevent32 *)];
 };
+struct freebsd32_abort2_args {
+	char why_l_[PADL_(const char *)]; const char * why; char why_r_[PADR_(const char *)];
+	char nargs_l_[PADL_(int)]; int nargs; char nargs_r_[PADR_(int)];
+	char args_l_[PADL_(uint32_t *)]; uint32_t * args; char args_r_[PADR_(uint32_t *)];
+};
 struct freebsd32_aio_fsync_args {
 	char op_l_[PADL_(int)]; int op; char op_r_[PADR_(int)];
 	char aiocbp_l_[PADL_(struct aiocb32 *)]; struct aiocb32 * aiocbp; char aiocbp_r_[PADR_(struct aiocb32 *)];
@@ -827,6 +832,7 @@ int	freebsd32_kmq_setattr(struct thread *, struct freebsd32_kmq_setattr_args *);
 int	freebsd32_kmq_timedreceive(struct thread *, struct freebsd32_kmq_timedreceive_args *);
 int	freebsd32_kmq_timedsend(struct thread *, struct freebsd32_kmq_timedsend_args *);
 int	freebsd32_kmq_notify(struct thread *, struct freebsd32_kmq_notify_args *);
+int	freebsd32_abort2(struct thread *, struct freebsd32_abort2_args *);
 int	freebsd32_aio_fsync(struct thread *, struct freebsd32_aio_fsync_args *);
 #ifdef PAD64_REQUIRED
 int	freebsd32_pread(struct thread *, struct freebsd32_pread_args *);
@@ -1409,6 +1415,7 @@ int	freebsd11_freebsd32_fstatat(struct thread *, struct freebsd11_freebsd32_fsta
 #define	FREEBSD32_SYS_AUE_freebsd32_kmq_timedreceive	AUE_MQ_TIMEDRECEIVE
 #define	FREEBSD32_SYS_AUE_freebsd32_kmq_timedsend	AUE_MQ_TIMEDSEND
 #define	FREEBSD32_SYS_AUE_freebsd32_kmq_notify	AUE_MQ_NOTIFY
+#define	FREEBSD32_SYS_AUE_freebsd32_abort2	AUE_NULL
 #define	FREEBSD32_SYS_AUE_freebsd32_aio_fsync	AUE_AIO_FSYNC
 #define	FREEBSD32_SYS_AUE_freebsd32_pread	AUE_PREAD
 #define	FREEBSD32_SYS_AUE_freebsd32_pwrite	AUE_PWRITE
