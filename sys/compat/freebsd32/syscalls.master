@@ -638,7 +638,7 @@
 				    off_t *sbytes, int flags); }
 337	AUE_NULL	UNIMPL	kldsym
 338	AUE_JAIL	STD	{ int freebsd32_jail(struct jail32 *jail); }
-339	AUE_NULL	UNIMPL	pioctl
+339	AUE_NULL	UNIMPL	nnpfs_syscall
 340	AUE_SIGPROCMASK	NOPROTO	{ int sigprocmask(int how, \
 				    const sigset_t *set, sigset_t *oset); }
 341	AUE_SIGSUSPEND	NOPROTO	{ int sigsuspend(const sigset_t *sigmask); }
@@ -717,7 +717,7 @@
 374	AUE_SETUGID	NOPROTO	{ int __setugid(int flag); }
 375	AUE_NULL	OBSOL	nfsclnt
 376	AUE_EACCESS	NOPROTO	{ int eaccess(const char *path, int amode); }
-377	AUE_NULL	UNIMPL	afs_syscall
+377	AUE_NULL	UNIMPL	afs3_syscall
 378	AUE_NMOUNT	STD	{ int freebsd32_nmount(struct iovec32 *iovp, \
 				    unsigned int iovcnt, int flags); }
 379	AUE_NULL	OBSOL	kse_exit
@@ -807,7 +807,7 @@
 				    acl_type_t type, struct acl *aclp); }
 429	AUE_SIGWAIT	NOPROTO	{ int sigwait(const sigset_t *set, \
 				    int *sig); }
-430	AUE_THR_CREATE	UNIMPL	thr_create;
+430	AUE_THR_CREATE	UNIMPL	thr_create
 431	AUE_THR_EXIT	NOPROTO	{ void thr_exit(int32_t *state); }
 432	AUE_NULL	NOPROTO	{ int thr_self(int32_t *id); }
 433	AUE_THR_KILL	NOPROTO	{ int thr_kill(int32_t id, int sig); }
