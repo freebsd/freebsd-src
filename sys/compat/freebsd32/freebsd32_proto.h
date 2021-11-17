@@ -179,7 +179,7 @@ struct freebsd32_msgrcv_args {
 	char msqid_l_[PADL_(int)]; int msqid; char msqid_r_[PADR_(int)];
 	char msgp_l_[PADL_(void *)]; void * msgp; char msgp_r_[PADR_(void *)];
 	char msgsz_l_[PADL_(size_t)]; size_t msgsz; char msgsz_r_[PADR_(size_t)];
-	char msgtyp_l_[PADL_(long)]; long msgtyp; char msgtyp_r_[PADR_(long)];
+	char msgtyp_l_[PADL_(int32_t)]; int32_t msgtyp; char msgtyp_r_[PADR_(int32_t)];
 	char msgflg_l_[PADL_(int)]; int msgflg; char msgflg_r_[PADR_(int)];
 };
 struct freebsd32_clock_gettime_args {
@@ -932,7 +932,7 @@ int	freebsd32_fspacectl(struct thread *, struct freebsd32_fspacectl_args *);
 #endif
 struct ofreebsd32_lseek_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
-	char offset_l_[PADL_(int)]; int offset; char offset_r_[PADR_(int)];
+	char offset_l_[PADL_(int32_t)]; int32_t offset; char offset_r_[PADR_(int32_t)];
 	char whence_l_[PADL_(int)]; int whence; char whence_r_[PADR_(int)];
 };
 struct ofreebsd32_stat_args {
@@ -982,11 +982,22 @@ struct ofreebsd32_sendmsg_args {
 	char msg_l_[PADL_(const struct omsghdr32 *)]; const struct omsghdr32 * msg; char msg_r_[PADR_(const struct omsghdr32 *)];
 	char flags_l_[PADL_(int)]; int flags; char flags_r_[PADR_(int)];
 };
+struct ofreebsd32_truncate_args {
+	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
+	char length_l_[PADL_(int32_t)]; int32_t length; char length_r_[PADR_(int32_t)];
+};
+struct ofreebsd32_ftruncate_args {
+	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
+	char length_l_[PADL_(int32_t)]; int32_t length; char length_r_[PADR_(int32_t)];
+};
+struct ofreebsd32_sethostid_args {
+	char hostid_l_[PADL_(int32_t)]; int32_t hostid; char hostid_r_[PADR_(int32_t)];
+};
 struct ofreebsd32_getdirentries_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
 	char buf_l_[PADL_(char *)]; char * buf; char buf_r_[PADR_(char *)];
 	char count_l_[PADL_(u_int)]; u_int count; char count_r_[PADR_(u_int)];
-	char basep_l_[PADL_(uint32_t *)]; uint32_t * basep; char basep_r_[PADR_(uint32_t *)];
+	char basep_l_[PADL_(int32_t *)]; int32_t * basep; char basep_r_[PADR_(int32_t *)];
 };
 #ifdef PAD64_REQUIRED
 #else
@@ -1017,6 +1028,9 @@ int	ofreebsd32_sigvec(struct thread *, struct ofreebsd32_sigvec_args *);
 int	ofreebsd32_sigstack(struct thread *, struct ofreebsd32_sigstack_args *);
 int	ofreebsd32_recvmsg(struct thread *, struct ofreebsd32_recvmsg_args *);
 int	ofreebsd32_sendmsg(struct thread *, struct ofreebsd32_sendmsg_args *);
+int	ofreebsd32_truncate(struct thread *, struct ofreebsd32_truncate_args *);
+int	ofreebsd32_ftruncate(struct thread *, struct ofreebsd32_ftruncate_args *);
+int	ofreebsd32_sethostid(struct thread *, struct ofreebsd32_sethostid_args *);
 int	ofreebsd32_getdirentries(struct thread *, struct ofreebsd32_getdirentries_args *);
 
 #endif /* COMPAT_43 */
@@ -1029,7 +1043,7 @@ int	ofreebsd32_getdirentries(struct thread *, struct ofreebsd32_getdirentries_ar
 #endif
 struct freebsd4_freebsd32_getfsstat_args {
 	char buf_l_[PADL_(struct ostatfs32 *)]; struct ostatfs32 * buf; char buf_r_[PADR_(struct ostatfs32 *)];
-	char bufsize_l_[PADL_(long)]; long bufsize; char bufsize_r_[PADR_(long)];
+	char bufsize_l_[PADL_(int32_t)]; int32_t bufsize; char bufsize_r_[PADR_(int32_t)];
 	char mode_l_[PADL_(int)]; int mode; char mode_r_[PADR_(int)];
 };
 struct freebsd4_freebsd32_statfs_args {
@@ -1390,8 +1404,11 @@ int	freebsd11_freebsd32_fstatat(struct thread *, struct freebsd11_freebsd32_fsta
 #define	FREEBSD32_SYS_AUE_freebsd32_readv	AUE_READV
 #define	FREEBSD32_SYS_AUE_freebsd32_writev	AUE_WRITEV
 #define	FREEBSD32_SYS_AUE_freebsd32_settimeofday	AUE_SETTIMEOFDAY
+#define	FREEBSD32_SYS_AUE_ofreebsd32_truncate	AUE_TRUNCATE
+#define	FREEBSD32_SYS_AUE_ofreebsd32_ftruncate	AUE_FTRUNCATE
 #define	FREEBSD32_SYS_AUE_freebsd32_utimes	AUE_UTIMES
 #define	FREEBSD32_SYS_AUE_freebsd32_adjtime	AUE_ADJTIME
+#define	FREEBSD32_SYS_AUE_ofreebsd32_sethostid	AUE_SYSCTL
 #define	FREEBSD32_SYS_AUE_ofreebsd32_getdirentries	AUE_GETDIRENTRIES
 #define	FREEBSD32_SYS_AUE_freebsd4_freebsd32_statfs	AUE_STATFS
 #define	FREEBSD32_SYS_AUE_freebsd4_freebsd32_fstatfs	AUE_FSTATFS

@@ -1093,7 +1093,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		iarg[0] = p->msqid; /* int */
 		uarg[1] = (intptr_t)p->msgp; /* void * */
 		uarg[2] = p->msgsz; /* size_t */
-		iarg[3] = p->msgtyp; /* long */
+		iarg[3] = p->msgtyp; /* int32_t */
 		iarg[4] = p->msgflg; /* int */
 		*n_args = 5;
 		break;
@@ -3211,7 +3211,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 557: {
 		struct getfsstat_args *p = params;
 		uarg[0] = (intptr_t)p->buf; /* struct statfs * */
-		iarg[1] = p->bufsize; /* long */
+		iarg[1] = p->bufsize; /* int32_t */
 		iarg[2] = p->mode; /* int */
 		*n_args = 3;
 		break;
@@ -5176,7 +5176,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "size_t";
 			break;
 		case 3:
-			p = "long";
+			p = "int32_t";
 			break;
 		case 4:
 			p = "int";
@@ -8865,7 +8865,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "userland struct statfs *";
 			break;
 		case 1:
-			p = "long";
+			p = "int32_t";
 			break;
 		case 2:
 			p = "int";

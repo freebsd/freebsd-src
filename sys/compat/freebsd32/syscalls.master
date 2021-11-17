@@ -92,9 +92,9 @@
 16	AUE_CHOWN	NOPROTO	{ int chown(const char *path, int uid, int gid); }
 17	AUE_NULL	NOPROTO	{ void *break(char *nsize); }
 18	AUE_GETFSSTAT	COMPAT4	{ int freebsd32_getfsstat( \
-				    struct ostatfs32 *buf, long bufsize, \
+				    struct ostatfs32 *buf, int32_t bufsize, \
 				    int mode); }
-19	AUE_LSEEK	COMPAT	{ int freebsd32_lseek(int fd, int offset, \
+19	AUE_LSEEK	COMPAT	{ int freebsd32_lseek(int fd, int32_t offset, \
 				    int whence); }
 20	AUE_GETPID	NOPROTO	{ pid_t getpid(void); }
 21	AUE_MOUNT	NOPROTO	{ int mount(const char *type, \
@@ -274,9 +274,10 @@
 127	AUE_SETREGID	NOPROTO	{ int setregid(int rgid, int egid); }
 128	AUE_RENAME	NOPROTO	{ int rename(const char *from, \
 				    const char *to); }
-129	AUE_TRUNCATE	COMPAT|NOPROTO	{ int truncate(const char *path, \
-					    int length); }
-130	AUE_FTRUNCATE	COMPAT|NOPROTO	{ int ftruncate(int fd, int length); }
+129	AUE_TRUNCATE	COMPAT	{ int freebsd32_truncate(const char *path, \
+					    int32_t length); }
+130	AUE_FTRUNCATE	COMPAT	{ int freebsd32_ftruncate(int fd, \
+				    int32_t length); }
 131	AUE_FLOCK	NOPROTO	{ int flock(int fd, int how); }
 132	AUE_MKFIFO	NOPROTO	{ int mkfifo(const char *path, mode_t mode); }
 133	AUE_SENDTO	NOPROTO	{ int sendto(int s, const void *buf, \
@@ -298,7 +299,7 @@
 				    struct sockaddr *asa, \
 				    __socklen_t *alen); }
 142	AUE_SYSCTL	COMPAT|NOPROTO { long gethostid(void); }
-143	AUE_SYSCTL	OBSOL	sethostid
+143	AUE_SYSCTL	COMPAT	{ int freebsd32_sethostid(int32_t hostid); }
 144	AUE_GETRLIMIT	COMPAT|NOPROTO { int getrlimit(u_int which, \
 				    struct orlimit *rlp); }
 145	AUE_SETRLIMIT	COMPAT|NOPROTO { int setrlimit(u_int which, \
@@ -323,7 +324,7 @@
 ; XXX this is a problem!!!
 155	AUE_NFS_SVC	UNIMPL	nfssvc
 156	AUE_GETDIRENTRIES COMPAT { int freebsd32_getdirentries(int fd, \
-				    char *buf, u_int count, uint32_t *basep); }
+				    char *buf, u_int count, int32_t *basep); }
 157	AUE_STATFS	COMPAT4	{ int freebsd32_statfs(const char *path, \
 				    struct ostatfs32 *buf); }
 158	AUE_FSTATFS	COMPAT4	{ int freebsd32_fstatfs(int fd, \
@@ -446,7 +447,7 @@
 226	AUE_MSGSND	NOSTD	{ int freebsd32_msgsnd(int msqid, const void *msgp, \
 				    size_t msgsz, int msgflg); }
 227	AUE_MSGRCV	NOSTD	{ int freebsd32_msgrcv(int msqid, void *msgp, \
-				    size_t msgsz, long msgtyp, int msgflg); }
+				    size_t msgsz, int32_t msgtyp, int msgflg); }
 228	AUE_SHMAT	NOSTD|NOPROTO	{ void *shmat(int shmid, const void *shmaddr, \
 				    int shmflg); }
 229	AUE_SHMCTL	COMPAT7|NOSTD	{ int freebsd32_shmctl( \
@@ -747,7 +748,7 @@
 394	AUE_NULL	UNIMPL	mac_syscall
 395	AUE_GETFSSTAT	COMPAT11|NOPROTO	{ int getfsstat( \
 				    struct freebsd11_statfs *buf, \
-				    long bufsize, int mode); }
+				    int32_t bufsize, int mode); }
 396	AUE_STATFS	COMPAT11|NOPROTO	{ int statfs(const char *path, \
 				    struct statfs *buf); }
 397	AUE_FSTATFS	COMPAT11|NOPROTO	{ int fstatfs(int fd, \
@@ -1140,7 +1141,7 @@
 				    struct statfs *buf); }
 556	AUE_FSTATFS	NOPROTO	{ int fstatfs(int fd, struct statfs *buf); }
 557	AUE_GETFSSTAT	NOPROTO	{ int getfsstat(struct statfs *buf, \
-				    long bufsize, int mode); }
+				    int32_t bufsize, int mode); }
 558	AUE_FHSTATFS	NOPROTO	{ int fhstatfs(const struct fhandle *u_fhp, \
 				    struct statfs *buf); }
 #ifdef PAD64_REQUIRED
