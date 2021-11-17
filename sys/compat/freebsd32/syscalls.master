@@ -115,13 +115,13 @@
 				    struct sockaddr *from, \
 				    __socklen_t *fromlenaddr); }
 30	AUE_ACCEPT	NOPROTO	{ int accept(int s, struct sockaddr *name, \
-				    int *anamelen); }
+				    __socklen_t *anamelen); }
 31	AUE_GETPEERNAME	NOPROTO	{ int getpeername(int fdes, \
 				    struct sockaddr *asa, \
-				    int *alen); }
+				    __socklen_t *alen); }
 32	AUE_GETSOCKNAME	NOPROTO	{ int getsockname(int fdes, \
 				    struct sockaddr *asa, \
-				    int *alen); }
+				    __socklen_t *alen); }
 33	AUE_ACCESS	NOPROTO	{ int access(const char *path, int amode); }
 34	AUE_CHFLAGS	NOPROTO	{ int chflags(const char *path, u_long flags); }
 35	AUE_FCHFLAGS	NOPROTO	{ int fchflags(int fd, u_long flags); }
@@ -221,7 +221,7 @@
 				    int protocol); }
 98	AUE_CONNECT	NOPROTO	{ int connect(int s, \
 				    const struct sockaddr *name, \
-				    int namelen); }
+				    __socklen_t namelen); }
 99	AUE_NULL	COMPAT|NOPROTO { int accept(int s, \
 				    struct sockaddr *name, \
 				    __socklen_t *anamelen); }
@@ -233,9 +233,9 @@
 103	AUE_SIGRETURN	COMPAT	{ int freebsd32_sigreturn( \
 				    struct ia32_sigcontext3 *sigcntxp); }
 104	AUE_BIND	NOPROTO	{ int bind(int s, const struct sockaddr *name, \
-				    int namelen); }
+				    __socklen_t namelen); }
 105	AUE_SETSOCKOPT	NOPROTO	{ int setsockopt(int s, int level, \
-				    int name, const void *val, int valsize); }
+				    int name, const void *val, __socklen_t valsize); }
 106	AUE_LISTEN	NOPROTO	{ int listen(int s, int backlog); }
 107	AUE_NULL	OBSOL	vtimes
 108	AUE_O_SIGVEC	COMPAT	{ int freebsd32_sigvec(int signum, \
@@ -258,7 +258,7 @@
 117	AUE_GETRUSAGE	STD	{ int freebsd32_getrusage(int who, \
 				    struct rusage32 *rusage); }
 118	AUE_GETSOCKOPT	NOPROTO	{ int getsockopt(int s, int level, \
-				    int name, void *val, int *avalsize); }
+				    int name, void *val, __socklen_t *avalsize); }
 119	AUE_NULL	RESERVED
 120	AUE_READV	STD	{ int freebsd32_readv(int fd, \
 				    struct iovec32 *iovp, u_int iovcnt); }
@@ -283,7 +283,7 @@
 133	AUE_SENDTO	NOPROTO	{ int sendto(int s, const void *buf, \
 				    size_t len, int flags, \
 				    const struct sockaddr *to, \
-				    int tolen); }
+				    __socklen_t tolen); }
 134	AUE_SHUTDOWN	NOPROTO	{ int shutdown(int s, int how); }
 135	AUE_SOCKETPAIR	NOPROTO	{ int socketpair(int domain, int type, \
 				    int protocol, int *rsv); }
@@ -1088,10 +1088,10 @@
 				    uint32_t *fcntlrightsp); }
 538	AUE_BINDAT	NOPROTO	{ int bindat(int fd, int s, \
 				    const struct sockaddr *name, \
-				    int namelen); }
+				    __socklen_t namelen); }
 539	AUE_CONNECTAT	NOPROTO	{ int connectat(int fd, int s, \
 				    const struct sockaddr *name, \
-				    int namelen); }
+				    __socklen_t namelen); }
 540	AUE_CHFLAGSAT	NOPROTO	{ int chflagsat(int fd, const char *path, \
 				    u_long flags, int atflag); }
 541	AUE_ACCEPT	NOPROTO	{ int accept4(int s, \
