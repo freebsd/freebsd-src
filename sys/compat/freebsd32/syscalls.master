@@ -196,14 +196,14 @@
 83	AUE_SETITIMER	STD	{ int freebsd32_setitimer(int which, \
 				    const struct itimerval32 *itv, \
 				    struct itimerval32 *oitv); }
-84	AUE_NULL	COMPAT|NOPROTO	{ int wait(void); }
+84	AUE_WAIT4	COMPAT|NOPROTO	{ int wait(void); }
 ; XXX implement
 85	AUE_SWAPON	NOPROTO	{ int swapon(const char *name); }
 86	AUE_GETITIMER	STD	{ int freebsd32_getitimer(int which, \
 				    struct itimerval32 *itv); }
-87	AUE_O_GETHOSTNAME	COMPAT|NOPROTO	{ int gethostname( \
+87	AUE_SYSCTL	COMPAT|NOPROTO	{ int gethostname( \
 				    char *hostname, u_int len); }
-88	AUE_O_SETHOSTNAME	COMPAT|NOPROTO	{ int sethostname( \
+88	AUE_SYSCTL	COMPAT|NOPROTO	{ int sethostname( \
 				    char *hostname, u_int len); }
 89	AUE_GETDTABLESIZE	NOPROTO	{ int getdtablesize(void); }
 90	AUE_DUP2	NOPROTO	{ int dup2(u_int from, u_int to); }
@@ -222,13 +222,13 @@
 98	AUE_CONNECT	NOPROTO	{ int connect(int s, \
 				    const struct sockaddr *name, \
 				    __socklen_t namelen); }
-99	AUE_NULL	COMPAT|NOPROTO { int accept(int s, \
+99	AUE_ACCEPT	COMPAT|NOPROTO { int accept(int s, \
 				    struct sockaddr *name, \
 				    __socklen_t *anamelen); }
 100	AUE_GETPRIORITY	NOPROTO	{ int getpriority(int which, int who); }
-101	AUE_NULL	COMPAT|NOPROTO { int send(int s, const void *buf, \
+101	AUE_SEND	COMPAT|NOPROTO { int send(int s, const void *buf, \
 				    int len, int flags); }
-102	AUE_NULL	COMPAT|NOPROTO { int recv(int s, void *buf, int len, \
+102	AUE_RECV	COMPAT|NOPROTO { int recv(int s, void *buf, int len, \
 				    int flags); }
 103	AUE_SIGRETURN	COMPAT	{ int freebsd32_sigreturn( \
 				    struct ia32_sigcontext3 *sigcntxp); }
@@ -238,13 +238,13 @@
 				    int name, const void *val, __socklen_t valsize); }
 106	AUE_LISTEN	NOPROTO	{ int listen(int s, int backlog); }
 107	AUE_NULL	OBSOL	vtimes
-108	AUE_O_SIGVEC	COMPAT	{ int freebsd32_sigvec(int signum, \
+108	AUE_NULL	COMPAT	{ int freebsd32_sigvec(int signum, \
 				     struct sigvec32 *nsv, \
 				     struct sigvec32 *osv); }
 109	AUE_O_SIGBLOCK	COMPAT|NOPROTO	{ int sigblock(int mask); }
 110	AUE_O_SIGSETMASK	COMPAT|NOPROTO	{ int sigsetmask(int mask); }
 111	AUE_SIGSUSPEND	COMPAT|NOPROTO	{ int sigsuspend( int mask); }
-112	AUE_O_SIGSTACK	COMPAT	{ int freebsd32_sigstack( \
+112	AUE_NULL	COMPAT	{ int freebsd32_sigstack( \
 				     struct sigstack32 *nss, \
 				     struct sigstack32 *oss); }
 113	AUE_RECVMSG	COMPAT	{ int freebsd32_recvmsg(int s, \
