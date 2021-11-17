@@ -28,6 +28,12 @@ nfsd_precmd()
 	# oids are available.
 	load_kld nfsd || return 1
 
+	if [ -n "${nfs_server_maxio}" ]; then
+		if ! sysctl vfs.nfsd.srvmaxio=${nfs_server_maxio} >/dev/null; then
+			warn "Failed to set server max I/O"
+		fi
+	fi
+
 	if checkyesno nfs_reserved_port_only; then
 		echo 'NFS on reserved port only=YES'
 		sysctl vfs.nfsd.nfs_privport=1 > /dev/null
