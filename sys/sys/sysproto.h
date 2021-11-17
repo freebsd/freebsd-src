@@ -2353,7 +2353,7 @@ struct orecvmsg_args {
 };
 struct osendmsg_args {
 	char s_l_[PADL_(int)]; int s; char s_r_[PADR_(int)];
-	char msg_l_[PADL_(const void *)]; const void * msg; char msg_r_[PADR_(const void *)];
+	char msg_l_[PADL_(const struct omsghdr *)]; const struct omsghdr * msg; char msg_r_[PADR_(const struct omsghdr *)];
 	char flags_l_[PADL_(int)]; int flags; char flags_r_[PADR_(int)];
 };
 struct otruncate_args {
