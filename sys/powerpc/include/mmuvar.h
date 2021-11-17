@@ -96,7 +96,7 @@ typedef	void	(*pmap_sync_icache_t)(pmap_t, vm_offset_t, vm_size_t);
 typedef	void	(*pmap_dumpsys_map_chunk_t)(vm_paddr_t, size_t, void **);
 typedef	void	(*pmap_dumpsys_unmap_chunk_t)(vm_paddr_t, size_t, void *);
 typedef	void	(*pmap_dumpsys_pa_init_t)(void);
-typedef	size_t	(*pmap_dumpsys_scan_pmap_t)(void);
+typedef	size_t	(*pmap_dumpsys_scan_pmap_t)(struct bitset *dump_bitset);
 typedef	void	*(*pmap_dumpsys_dump_pmap_init_t)(unsigned);
 typedef	void	*(*pmap_dumpsys_dump_pmap_t)(void *, void *, u_long *);
 typedef	vm_offset_t	(*pmap_quick_enter_page_t)(vm_page_t);

@@ -40,7 +40,7 @@
 
 void dumpsys_pa_init(void);
 void dumpsys_unmap_chunk(vm_paddr_t, size_t, void *);
-size_t dumpsys_scan_pmap(void);
+size_t dumpsys_scan_pmap(struct bitset *);
 void *dumpsys_dump_pmap_init(unsigned blkpgs);
 void *dumpsys_dump_pmap(void *ctx, void *buf, u_long *nbytes);
 

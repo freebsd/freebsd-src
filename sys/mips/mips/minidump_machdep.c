@@ -134,7 +134,8 @@ cpu_minidumpsys(struct dumperinfo *di, const struct minidumpstate *state)
 			if (pte_test(&pte[i], PTE_V)) {
 				pa = TLBLO_PTE_TO_PA(pte[i]);
 				if (vm_phys_is_dumpable(pa))
-					dump_add_page(pa);
+					vm_page_dump_add(state->dump_bitset,
+					    pa);
 			}
 		}
 	}
@@ -145,7 +146,7 @@ cpu_minidumpsys(struct dumperinfo *di, const struct minidumpstate *state)
 	 */
 	for (pa = 0; pa < phys_avail[0]; pa += PAGE_SIZE) {
 		if (vm_phys_is_dumpable(pa))
-			dump_add_page(pa);
+			vm_page_dump_add(state->dump_bitset, pa);
 	}
 
 	/* Calculate dump size. */
@@ -154,12 +155,12 @@ cpu_minidumpsys(struct dumperinfo *di, const struct minidumpstate *state)
 	dumpsize += round_page(mbp->msg_size);
 	dumpsize += round_page(nitems(dump_avail) * sizeof(uint64_t));
 	dumpsize += round_page(BITSET_SIZE(vm_page_dump_pages));
-	VM_PAGE_DUMP_FOREACH(pa) {
+	VM_PAGE_DUMP_FOREACH(state->dump_bitset, pa) {
 		/* Clear out undumpable pages now if needed */
 		if (vm_phys_is_dumpable(pa))
 			dumpsize += PAGE_SIZE;
 		else
-			dump_drop_page(pa);
+			vm_page_dump_drop(state->dump_bitset, pa);
 	}
 	dumpsize += PAGE_SIZE;
 
@@ -249,8 +250,8 @@ cpu_minidumpsys(struct dumperinfo *di, const struct minidumpstate *state)
 		prev_pte = 0;
 	}
 
-	/* Dump memory chunks  page by page*/
-	VM_PAGE_DUMP_FOREACH(pa) {
+	/* Dump memory chunks page by page */
+	VM_PAGE_DUMP_FOREACH(state->dump_bitset, pa) {
 		dump_va = pmap_kenter_temporary(pa, 0);
 		error = write_buffer(di, dump_va, PAGE_SIZE);
 		if (error)

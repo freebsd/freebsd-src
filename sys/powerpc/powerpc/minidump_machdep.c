@@ -204,7 +204,7 @@ retry:
 	DBG(total = dumptotal = 0;)
 
 	/* Build set of dumpable pages from kernel pmap */
-	pmapsize = dumpsys_scan_pmap();
+	pmapsize = dumpsys_scan_pmap(state->dump_bitset);
 	if (pmapsize % PAGE_SIZE != 0) {
 		printf("pmapsize not page aligned: 0x%x\n", pmapsize);
 		return (EINVAL);
@@ -217,12 +217,12 @@ retry:
 	dumpsize += round_page(sizeof(dump_avail));
 	dumpsize += round_page(BITSET_SIZE(vm_page_dump_pages));
 	dumpsize += pmapsize;
-	VM_PAGE_DUMP_FOREACH(pa) {
+	VM_PAGE_DUMP_FOREACH(state->dump_bitset, pa) {
 		/* Clear out undumpable pages now if needed */
 		if (vm_phys_is_dumpable(pa))
 			dumpsize += PAGE_SIZE;
 		else
-			dump_drop_page(pa);
+			vm_page_dump_drop(state->dump_bitset, pa);
 	}
 	dumpsys_pb_init(dumpsize);
 
@@ -289,7 +289,7 @@ retry:
 	dump_total("pmap", pmapsize);
 
 	/* Dump memory chunks */
-	VM_PAGE_DUMP_FOREACH(pa) {
+	VM_PAGE_DUMP_FOREACH(state->dump_bitset, pa) {
 		error = blk_write(di, 0, pa, PAGE_SIZE);
 		if (error)
 			goto fail;
