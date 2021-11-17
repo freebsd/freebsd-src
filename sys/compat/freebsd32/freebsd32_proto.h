@@ -1407,8 +1407,8 @@ int	freebsd11_freebsd32_fstatat(struct thread *, struct freebsd11_freebsd32_fsta
 #define	FREEBSD32_SYS_AUE_freebsd32_fcntl	AUE_FCNTL
 #define	FREEBSD32_SYS_AUE_freebsd32_select	AUE_SELECT
 #define	FREEBSD32_SYS_AUE_ofreebsd32_sigreturn	AUE_SIGRETURN
-#define	FREEBSD32_SYS_AUE_ofreebsd32_sigvec	AUE_O_SIGVEC
-#define	FREEBSD32_SYS_AUE_ofreebsd32_sigstack	AUE_O_SIGSTACK
+#define	FREEBSD32_SYS_AUE_ofreebsd32_sigvec	AUE_NULL
+#define	FREEBSD32_SYS_AUE_ofreebsd32_sigstack	AUE_NULL
 #define	FREEBSD32_SYS_AUE_ofreebsd32_recvmsg	AUE_RECVMSG
 #define	FREEBSD32_SYS_AUE_ofreebsd32_sendmsg	AUE_SENDMSG
 #define	FREEBSD32_SYS_AUE_freebsd32_gettimeofday	AUE_GETTIMEOFDAY
