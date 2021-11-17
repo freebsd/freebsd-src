@@ -91,7 +91,7 @@
 16	AUE_CHOWN	NOPROTO	{ int chown(const char *path, int uid, int gid); }
 17	AUE_NULL	NOPROTO	{ void *break(char *nsize); }
 18	AUE_GETFSSTAT	COMPAT4	{ int freebsd32_getfsstat( \
-				    struct statfs32 *buf, long bufsize, \
+				    struct ostatfs32 *buf, long bufsize, \
 				    int mode); }
 19	AUE_LSEEK	COMPAT	{ int freebsd32_lseek(int fd, int offset, \
 				    int whence); }
@@ -314,9 +314,9 @@
 156	AUE_GETDIRENTRIES COMPAT { int freebsd32_getdirentries(int fd, \
 				    char *buf, u_int count, uint32_t *basep); }
 157	AUE_STATFS	COMPAT4	{ int freebsd32_statfs(const char *path, \
-				    struct statfs32 *buf); }
+				    struct ostatfs32 *buf); }
 158	AUE_FSTATFS	COMPAT4	{ int freebsd32_fstatfs(int fd, \
-				    struct statfs32 *buf); }
+				    struct ostatfs32 *buf); }
 159	AUE_NULL	UNIMPL	nosys
 160	AUE_LGETFH	UNIMPL	lgetfh
 161	AUE_NFS_GETFH	NOPROTO	{ int getfh(const char *fname, \
@@ -544,7 +544,7 @@
 296	AUE_NULL	UNIMPL	nosys
 297	AUE_FHSTATFS	COMPAT4	{ int freebsd32_fhstatfs( \
 				    const struct fhandle *u_fhp, \
-				    struct statfs32 *buf); }
+				    struct ostatfs32 *buf); }
 298	AUE_FHOPEN	NOPROTO	{ int fhopen(const struct fhandle *u_fhp, \
 			 	    int flags); }
 299	AUE_FHSTAT	COMPAT11 { int freebsd32_fhstat( \
@@ -1112,12 +1112,12 @@
 				    int fd, char *buf, size_t count, \
 				    off_t *basep); }
 555	AUE_STATFS	NOPROTO	{ int statfs(const char *path, \
-				    struct statfs32 *buf); }
-556	AUE_FSTATFS	NOPROTO	{ int fstatfs(int fd, struct statfs32 *buf); }
-557	AUE_GETFSSTAT	NOPROTO	{ int getfsstat(struct statfs32 *buf, \
+				    struct statfs *buf); }
+556	AUE_FSTATFS	NOPROTO	{ int fstatfs(int fd, struct statfs *buf); }
+557	AUE_GETFSSTAT	NOPROTO	{ int getfsstat(struct statfs *buf, \
 				    long bufsize, int mode); }
 558	AUE_FHSTATFS	NOPROTO	{ int fhstatfs(const struct fhandle *u_fhp, \
-				    struct statfs32 *buf); }
+				    struct statfs *buf); }
 #ifdef PAD64_REQUIRED
 559	AUE_MKNODAT	STD	{ int freebsd32_mknodat(int fd, \
 				    const char *path, mode_t mode, \
