@@ -3127,7 +3127,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 551: {
 		struct freebsd32_fstat_args *p = params;
 		iarg[0] = p->fd; /* int */
-		uarg[1] = (intptr_t)p->ub; /* struct stat32 * */
+		uarg[1] = (intptr_t)p->sb; /* struct stat32 * */
 		*n_args = 2;
 		break;
 	}

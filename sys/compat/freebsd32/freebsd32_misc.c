@@ -2231,7 +2231,7 @@ freebsd32_fstat(struct thread *td, struct freebsd32_fstat_args *uap)
 	if (error)
 		return (error);
 	copy_stat(&ub, &ub32);
-	error = copyout(&ub32, uap->ub, sizeof(ub32));
+	error = copyout(&ub32, uap->sb, sizeof(ub32));
 	return (error);
 }
 

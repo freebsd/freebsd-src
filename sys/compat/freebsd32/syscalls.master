@@ -1101,7 +1101,7 @@
 549	AUE_NULL	OBSOL	numa_setaffinity
 550	AUE_FSYNC	NOPROTO	{ int fdatasync(int fd); }
 551	AUE_FSTAT	STD	{ int freebsd32_fstat(int fd, \
-				    struct stat32 *ub); }
+				    struct stat32 *sb); }
 552	AUE_FSTATAT	STD	{ int freebsd32_fstatat(int fd, \
 				    const char *path, struct stat32 *buf, \
 				    int flag); }

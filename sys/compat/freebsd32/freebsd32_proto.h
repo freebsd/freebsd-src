@@ -681,7 +681,7 @@ struct freebsd32_utimensat_args {
 };
 struct freebsd32_fstat_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
-	char ub_l_[PADL_(struct stat32 *)]; struct stat32 * ub; char ub_r_[PADR_(struct stat32 *)];
+	char sb_l_[PADL_(struct stat32 *)]; struct stat32 * sb; char sb_r_[PADR_(struct stat32 *)];
 };
 struct freebsd32_fstatat_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
