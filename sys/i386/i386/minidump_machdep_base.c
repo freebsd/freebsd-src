@@ -164,6 +164,7 @@ cpu_minidumpsys(struct dumperinfo *di, const struct minidumpstate *state)
 	pt_entry_t *pt, pte;
 	int j, k;
 	struct minidumphdr mdhdr;
+	struct msgbuf *mbp;
 
 	/* Snapshot the KVA upper bound in case it grows. */
 	kva_end = kernel_vm_end;
@@ -212,8 +213,9 @@ cpu_minidumpsys(struct dumperinfo *di, const struct minidumpstate *state)
 	}
 
 	/* Calculate dump size. */
+	mbp = state->msgbufp;
 	dumpsize = ptesize;
-	dumpsize += round_page(msgbufp->msg_size);
+	dumpsize += round_page(mbp->msg_size);
 	dumpsize += round_page(sizeof(dump_avail));
 	dumpsize += round_page(BITSET_SIZE(vm_page_dump_pages));
 	VM_PAGE_DUMP_FOREACH(pa) {
@@ -232,7 +234,7 @@ cpu_minidumpsys(struct dumperinfo *di, const struct minidumpstate *state)
 	bzero(&mdhdr, sizeof(mdhdr));
 	strcpy(mdhdr.magic, MINIDUMP_MAGIC);
 	mdhdr.version = MINIDUMP_VERSION;
-	mdhdr.msgbufsize = msgbufp->msg_size;
+	mdhdr.msgbufsize = mbp->msg_size;
 	mdhdr.bitmapsize = round_page(BITSET_SIZE(vm_page_dump_pages));
 	mdhdr.ptesize = ptesize;
 	mdhdr.kernbase = KERNBASE;
@@ -257,7 +259,8 @@ cpu_minidumpsys(struct dumperinfo *di, const struct minidumpstate *state)
 		goto fail;
 
 	/* Dump msgbuf up front */
-	error = blk_write(di, (char *)msgbufp->msg_ptr, 0, round_page(msgbufp->msg_size));
+	error = blk_write(di, (char *)mbp->msg_ptr, 0,
+	    round_page(mbp->msg_size));
 	if (error)
 		goto fail;
 
