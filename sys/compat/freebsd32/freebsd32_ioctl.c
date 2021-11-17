@@ -85,7 +85,7 @@ freebsd32_ioctl_memrange(struct thread *td,
 		break;
 
 	default:
-		panic("%s: unknown MEMRANGE %#x", __func__, uap->com);
+		panic("%s: unknown MEMRANGE %#lx", __func__, uap->com);
 	}
 
 	if ((error = fo_ioctl(fp, com, (caddr_t)&mro, td->td_ucred, td)) != 0)
