@@ -93,12 +93,12 @@ struct freebsd32_mprotect_args {
 	char prot_l_[PADL_(int)]; int prot; char prot_r_[PADR_(int)];
 };
 struct freebsd32_setitimer_args {
-	char which_l_[PADL_(u_int)]; u_int which; char which_r_[PADR_(u_int)];
+	char which_l_[PADL_(int)]; int which; char which_r_[PADR_(int)];
 	char itv_l_[PADL_(const struct itimerval32 *)]; const struct itimerval32 * itv; char itv_r_[PADR_(const struct itimerval32 *)];
 	char oitv_l_[PADL_(struct itimerval32 *)]; struct itimerval32 * oitv; char oitv_r_[PADR_(struct itimerval32 *)];
 };
 struct freebsd32_getitimer_args {
-	char which_l_[PADL_(u_int)]; u_int which; char which_r_[PADR_(u_int)];
+	char which_l_[PADL_(int)]; int which; char which_r_[PADR_(int)];
 	char itv_l_[PADL_(struct itimerval32 *)]; struct itimerval32 * itv; char itv_r_[PADR_(struct itimerval32 *)];
 };
 struct freebsd32_fcntl_args {
