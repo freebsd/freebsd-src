@@ -554,7 +554,7 @@ struct freebsd32_jail_set_args {
 	char iovcnt_l_[PADL_(unsigned int)]; unsigned int iovcnt; char iovcnt_r_[PADR_(unsigned int)];
 	char flags_l_[PADL_(int)]; int flags; char flags_r_[PADR_(int)];
 };
-struct freebsd32_semctl_args {
+struct freebsd32___semctl_args {
 	char semid_l_[PADL_(int)]; int semid; char semid_r_[PADR_(int)];
 	char semnum_l_[PADL_(int)]; int semnum; char semnum_r_[PADR_(int)];
 	char cmd_l_[PADL_(int)]; int cmd; char cmd_r_[PADR_(int)];
@@ -862,7 +862,7 @@ int	freebsd32_fexecve(struct thread *, struct freebsd32_fexecve_args *);
 int	freebsd32_futimesat(struct thread *, struct freebsd32_futimesat_args *);
 int	freebsd32_jail_get(struct thread *, struct freebsd32_jail_get_args *);
 int	freebsd32_jail_set(struct thread *, struct freebsd32_jail_set_args *);
-int	freebsd32_semctl(struct thread *, struct freebsd32_semctl_args *);
+int	freebsd32___semctl(struct thread *, struct freebsd32___semctl_args *);
 int	freebsd32_msgctl(struct thread *, struct freebsd32_msgctl_args *);
 int	freebsd32_shmctl(struct thread *, struct freebsd32_shmctl_args *);
 int	freebsd32_pselect(struct thread *, struct freebsd32_pselect_args *);
@@ -1167,7 +1167,7 @@ int	freebsd6_freebsd32_lio_listio(struct thread *, struct freebsd6_freebsd32_lio
 #if !defined(PAD64_REQUIRED) && !defined(__amd64__)
 #define PAD64_REQUIRED
 #endif
-struct freebsd7_freebsd32_semctl_args {
+struct freebsd7_freebsd32___semctl_args {
 	char semid_l_[PADL_(int)]; int semid; char semid_r_[PADR_(int)];
 	char semnum_l_[PADL_(int)]; int semnum; char semnum_r_[PADR_(int)];
 	char cmd_l_[PADL_(int)]; int cmd; char cmd_r_[PADR_(int)];
@@ -1198,7 +1198,7 @@ struct freebsd7_freebsd32_shmctl_args {
 #ifdef PAD64_REQUIRED
 #else
 #endif
-int	freebsd7_freebsd32_semctl(struct thread *, struct freebsd7_freebsd32_semctl_args *);
+int	freebsd7_freebsd32___semctl(struct thread *, struct freebsd7_freebsd32___semctl_args *);
 int	freebsd7_freebsd32_msgctl(struct thread *, struct freebsd7_freebsd32_msgctl_args *);
 int	freebsd7_freebsd32_shmctl(struct thread *, struct freebsd7_freebsd32_shmctl_args *);
 
@@ -1391,7 +1391,7 @@ int	freebsd11_freebsd32_fstatat(struct thread *, struct freebsd11_freebsd32_fsta
 #define	FREEBSD32_SYS_AUE_freebsd6_freebsd32_ftruncate	AUE_FTRUNCATE
 #define	FREEBSD32_SYS_AUE_freebsd32___sysctl	AUE_SYSCTL
 #define	FREEBSD32_SYS_AUE_freebsd32_futimes	AUE_FUTIMES
-#define	FREEBSD32_SYS_AUE_freebsd7_freebsd32_semctl	AUE_SEMCTL
+#define	FREEBSD32_SYS_AUE_freebsd7_freebsd32___semctl	AUE_SEMCTL
 #define	FREEBSD32_SYS_AUE_freebsd7_freebsd32_msgctl	AUE_MSGCTL
 #define	FREEBSD32_SYS_AUE_freebsd32_msgsnd	AUE_MSGSND
 #define	FREEBSD32_SYS_AUE_freebsd32_msgrcv	AUE_MSGRCV
@@ -1475,7 +1475,7 @@ int	freebsd11_freebsd32_fstatat(struct thread *, struct freebsd11_freebsd32_fsta
 #define	FREEBSD32_SYS_AUE_freebsd32_futimesat	AUE_FUTIMESAT
 #define	FREEBSD32_SYS_AUE_freebsd32_jail_get	AUE_JAIL_GET
 #define	FREEBSD32_SYS_AUE_freebsd32_jail_set	AUE_JAIL_SET
-#define	FREEBSD32_SYS_AUE_freebsd32_semctl	AUE_SEMCTL
+#define	FREEBSD32_SYS_AUE_freebsd32___semctl	AUE_SEMCTL
 #define	FREEBSD32_SYS_AUE_freebsd32_msgctl	AUE_MSGCTL
 #define	FREEBSD32_SYS_AUE_freebsd32_shmctl	AUE_SHMCTL
 #define	FREEBSD32_SYS_AUE_freebsd32_pselect	AUE_SELECT

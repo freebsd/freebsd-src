@@ -195,7 +195,7 @@
 #define	FREEBSD32_SYS_freebsd32_futimes	206
 #define	FREEBSD32_SYS_getpgid	207
 #define	FREEBSD32_SYS_poll	209
-#define	FREEBSD32_SYS_freebsd7_freebsd32_semctl	220
+#define	FREEBSD32_SYS_freebsd7_freebsd32___semctl	220
 #define	FREEBSD32_SYS_semget	221
 #define	FREEBSD32_SYS_semop	222
 				/* 223 is obsolete semconfig */
@@ -435,7 +435,7 @@
 #define	FREEBSD32_SYS_freebsd32_jail_set	507
 #define	FREEBSD32_SYS_jail_remove	508
 #define	FREEBSD32_SYS_freebsd12_closefrom	509
-#define	FREEBSD32_SYS_freebsd32_semctl	510
+#define	FREEBSD32_SYS_freebsd32___semctl	510
 #define	FREEBSD32_SYS_freebsd32_msgctl	511
 #define	FREEBSD32_SYS_freebsd32_shmctl	512
 #define	FREEBSD32_SYS_lpathconf	513
