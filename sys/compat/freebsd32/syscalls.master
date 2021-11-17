@@ -418,7 +418,7 @@
 218	AUE_NULL	NODEF|NOTSTATIC	lkmnosys lkmnosys nosys_args int
 219	AUE_NULL	NODEF|NOTSTATIC	lkmnosys lkmnosys nosys_args int
 
-220	AUE_SEMCTL	COMPAT7|NOSTD	{ int freebsd32_semctl( \
+220	AUE_SEMCTL	COMPAT7|NOSTD	{ int freebsd32___semctl( \
 				    int semid, int semnum, \
 				    int cmd, union semun_old32 *arg); }
 221	AUE_SEMGET	NOSTD|NOPROTO	{ int semget(key_t key, int nsems, \
@@ -984,7 +984,7 @@
 				    unsigned int iovcnt, int flags); }
 508	AUE_JAIL_REMOVE	NOPROTO	{ int jail_remove(int jid); }
 509	AUE_CLOSEFROM	COMPAT12|NOPROTO	{ int closefrom(int lowfd); }
-510	AUE_SEMCTL	NOSTD { int freebsd32_semctl(int semid, int semnum, \
+510	AUE_SEMCTL	NOSTD { int freebsd32___semctl(int semid, int semnum, \
 				    int cmd, union semun32 *arg); }
 511	AUE_MSGCTL	NOSTD	{ int freebsd32_msgctl(int msqid, int cmd, \
 				    struct msqid_ds32 *buf); }
