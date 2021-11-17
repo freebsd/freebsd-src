@@ -275,7 +275,7 @@ struct freebsd32_modstat_args {
 };
 struct freebsd32_kldstat_args {
 	char fileid_l_[PADL_(int)]; int fileid; char fileid_r_[PADR_(int)];
-	char stat_l_[PADL_(struct kld32_file_stat *)]; struct kld32_file_stat * stat; char stat_r_[PADR_(struct kld32_file_stat *)];
+	char stat_l_[PADL_(struct kld_file_stat32 *)]; struct kld_file_stat32 * stat; char stat_r_[PADR_(struct kld_file_stat32 *)];
 };
 struct freebsd32_aio_return_args {
 	char aiocbp_l_[PADL_(struct aiocb32 *)]; struct aiocb32 * aiocbp; char aiocbp_r_[PADR_(struct aiocb32 *)];
