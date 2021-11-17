@@ -3242,7 +3242,7 @@ sys_futimesat(struct thread *td, struct futimesat_args *uap)
 
 int
 kern_utimesat(struct thread *td, int fd, const char *path,
-    enum uio_seg pathseg, struct timeval *tptr, enum uio_seg tptrseg)
+    enum uio_seg pathseg, const struct timeval *tptr, enum uio_seg tptrseg)
 {
 	struct nameidata nd;
 	struct timespec ts[2];
@@ -3280,7 +3280,7 @@ sys_lutimes(struct thread *td, struct lutimes_args *uap)
 
 int
 kern_lutimes(struct thread *td, const char *path, enum uio_seg pathseg,
-    struct timeval *tptr, enum uio_seg tptrseg)
+    const struct timeval *tptr, enum uio_seg tptrseg)
 {
 	struct timespec ts[2];
 	struct nameidata nd;
@@ -3314,7 +3314,7 @@ sys_futimes(struct thread *td, struct futimes_args *uap)
 }
 
 int
-kern_futimes(struct thread *td, int fd, struct timeval *tptr,
+kern_futimes(struct thread *td, int fd, const struct timeval *tptr,
     enum uio_seg tptrseg)
 {
 	struct timespec ts[2];
@@ -3348,7 +3348,7 @@ sys_futimens(struct thread *td, struct futimens_args *uap)
 }
 
 int
-kern_futimens(struct thread *td, int fd, struct timespec *tptr,
+kern_futimens(struct thread *td, int fd, const struct timespec *tptr,
     enum uio_seg tptrseg)
 {
 	struct timespec ts[2];
@@ -3386,7 +3386,7 @@ sys_utimensat(struct thread *td, struct utimensat_args *uap)
 
 int
 kern_utimensat(struct thread *td, int fd, const char *path,
-    enum uio_seg pathseg, struct timespec *tptr, enum uio_seg tptrseg,
+    enum uio_seg pathseg, const struct timespec *tptr, enum uio_seg tptrseg,
     int flag)
 {
 	struct nameidata nd;
