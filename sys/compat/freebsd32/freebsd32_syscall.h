@@ -34,7 +34,7 @@
 #define	FREEBSD32_SYS_freebsd32_ptrace	26
 #define	FREEBSD32_SYS_freebsd32_recvmsg	27
 #define	FREEBSD32_SYS_freebsd32_sendmsg	28
-#define	FREEBSD32_SYS_freebsd32_recvfrom	29
+#define	FREEBSD32_SYS_recvfrom	29
 #define	FREEBSD32_SYS_accept	30
 #define	FREEBSD32_SYS_getpeername	31
 #define	FREEBSD32_SYS_getsockname	32

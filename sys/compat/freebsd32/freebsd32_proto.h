@@ -59,14 +59,6 @@ struct freebsd32_sendmsg_args {
 	char msg_l_[PADL_(const struct msghdr32 *)]; const struct msghdr32 * msg; char msg_r_[PADR_(const struct msghdr32 *)];
 	char flags_l_[PADL_(int)]; int flags; char flags_r_[PADR_(int)];
 };
-struct freebsd32_recvfrom_args {
-	char s_l_[PADL_(int)]; int s; char s_r_[PADR_(int)];
-	char buf_l_[PADL_(void *)]; void * buf; char buf_r_[PADR_(void *)];
-	char len_l_[PADL_(size_t)]; size_t len; char len_r_[PADR_(size_t)];
-	char flags_l_[PADL_(int)]; int flags; char flags_r_[PADR_(int)];
-	char from_l_[PADL_(struct sockaddr *)]; struct sockaddr * from; char from_r_[PADR_(struct sockaddr *)];
-	char fromlenaddr_l_[PADL_(uint32_t)]; uint32_t fromlenaddr; char fromlenaddr_r_[PADR_(uint32_t)];
-};
 struct freebsd32_sigaltstack_args {
 	char ss_l_[PADL_(const struct sigaltstack32 *)]; const struct sigaltstack32 * ss; char ss_r_[PADR_(const struct sigaltstack32 *)];
 	char oss_l_[PADL_(struct sigaltstack32 *)]; struct sigaltstack32 * oss; char oss_r_[PADR_(struct sigaltstack32 *)];
@@ -759,7 +751,6 @@ int	freebsd32_wait4(struct thread *, struct freebsd32_wait4_args *);
 int	freebsd32_ptrace(struct thread *, struct freebsd32_ptrace_args *);
 int	freebsd32_recvmsg(struct thread *, struct freebsd32_recvmsg_args *);
 int	freebsd32_sendmsg(struct thread *, struct freebsd32_sendmsg_args *);
-int	freebsd32_recvfrom(struct thread *, struct freebsd32_recvfrom_args *);
 int	freebsd32_sigaltstack(struct thread *, struct freebsd32_sigaltstack_args *);
 int	freebsd32_ioctl(struct thread *, struct freebsd32_ioctl_args *);
 int	freebsd32_execve(struct thread *, struct freebsd32_execve_args *);
@@ -1328,7 +1319,6 @@ int	freebsd11_freebsd32_fstatat(struct thread *, struct freebsd11_freebsd32_fsta
 #define	FREEBSD32_SYS_AUE_freebsd32_ptrace	AUE_PTRACE
 #define	FREEBSD32_SYS_AUE_freebsd32_recvmsg	AUE_RECVMSG
 #define	FREEBSD32_SYS_AUE_freebsd32_sendmsg	AUE_SENDMSG
-#define	FREEBSD32_SYS_AUE_freebsd32_recvfrom	AUE_RECVFROM
 #define	FREEBSD32_SYS_AUE_ofreebsd32_stat	AUE_STAT
 #define	FREEBSD32_SYS_AUE_ofreebsd32_lstat	AUE_LSTAT
 #define	FREEBSD32_SYS_AUE_ofreebsd32_sigaction	AUE_SIGACTION

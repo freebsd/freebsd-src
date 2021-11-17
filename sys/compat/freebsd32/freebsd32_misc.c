@@ -1604,37 +1604,6 @@ out:
 }
 
 int
-freebsd32_recvfrom(struct thread *td,
-		   struct freebsd32_recvfrom_args *uap)
-{
-	struct msghdr msg;
-	struct iovec aiov;
-	int error;
-
-	if (uap->fromlenaddr) {
-		error = copyin(PTRIN(uap->fromlenaddr), &msg.msg_namelen,
-		    sizeof(msg.msg_namelen));
-		if (error)
-			return (error);
-	} else {
-		msg.msg_namelen = 0;
-	}
-
-	msg.msg_name = PTRIN(uap->from);
-	msg.msg_iov = &aiov;
-	msg.msg_iovlen = 1;
-	aiov.iov_base = PTRIN(uap->buf);
-	aiov.iov_len = uap->len;
-	msg.msg_control = NULL;
-	msg.msg_flags = uap->flags;
-	error = kern_recvit(td, uap->s, &msg, UIO_USERSPACE, NULL);
-	if (error == 0 && uap->fromlenaddr)
-		error = copyout(&msg.msg_namelen, PTRIN(uap->fromlenaddr),
-		    sizeof (msg.msg_namelen));
-	return (error);
-}
-
-int
 freebsd32_settimeofday(struct thread *td,
 		       struct freebsd32_settimeofday_args *uap)
 {
