@@ -1032,7 +1032,7 @@
 				    uint32_t offset1, uint32_t offset2,\
 				    uint32_t len1, uint32_t len2, \
 				    int advice); }
-532	AUE_WAIT6	STD	{ int freebsd32_wait6(int idtype, int pad, \
+532	AUE_WAIT6	STD	{ int freebsd32_wait6(idtype_t idtype, int pad, \
 				    uint32_t id1, uint32_t id2, \
 				    int *status, int options, \
 				    struct wrusage32 *wrusage, \
@@ -1045,7 +1045,7 @@
 				    uint32_t offset1, uint32_t offset2,\
 				    uint32_t len1, uint32_t len2, \
 				    int advice); }
-532	AUE_WAIT6	STD	{ int freebsd32_wait6(int idtype, \
+532	AUE_WAIT6	STD	{ int freebsd32_wait6(idtype_t idtype, \
 				    uint32_t id1, uint32_t id2, \
 				    int *status, int options, \
 				    struct wrusage32 *wrusage, \
@@ -1080,11 +1080,11 @@
 543	AUE_AIO_MLOCK	STD	{ int freebsd32_aio_mlock( \
 				    struct aiocb32 *aiocbp); }
 #ifdef PAD64_REQUIRED
-544	AUE_PROCCTL	STD	{ int freebsd32_procctl(int idtype, int pad, \
+544	AUE_PROCCTL	STD	{ int freebsd32_procctl(idtype_t idtype, int pad, \
 				    uint32_t id1, uint32_t id2, int com, \
 				    void *data); }
 #else
-544	AUE_PROCCTL	STD	{ int freebsd32_procctl(int idtype, \
+544	AUE_PROCCTL	STD	{ int freebsd32_procctl(idtype_t idtype, \
 				    uint32_t id1, uint32_t id2, int com, \
 				    void *data); }
 #endif
