@@ -153,7 +153,7 @@ blk_write(struct dumperinfo *di, char *ptr, vm_paddr_t pa, size_t sz)
 }
 
 int
-minidumpsys(struct dumperinfo *di)
+cpu_minidumpsys(struct dumperinfo *di, const struct minidumpstate *state)
 {
 	pd_entry_t *l1, *l2;
 	pt_entry_t *l3;

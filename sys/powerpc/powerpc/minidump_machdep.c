@@ -189,7 +189,7 @@ dump_pmap(struct dumperinfo *di)
 }
 
 int
-minidumpsys(struct dumperinfo *di)
+cpu_minidumpsys(struct dumperinfo *di, const struct minidumpstate *state)
 {
 	vm_paddr_t pa;
 	int error, retry_count;
