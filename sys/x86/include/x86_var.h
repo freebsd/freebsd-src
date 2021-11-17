@@ -103,6 +103,7 @@ struct	fpreg;
 struct  dbreg;
 struct	dumperinfo;
 struct	trapframe;
+struct	minidumpstate;
 
 /*
  * The interface type of the interrupt handler entry point cannot be
@@ -150,7 +151,7 @@ void	pagecopy(void *from, void *to);
 void	printcpuinfo(void);
 int	pti_get_default(void);
 int	user_dbreg_trap(register_t dr6);
-int	minidumpsys(struct dumperinfo *);
+int	cpu_minidumpsys(struct dumperinfo *, const struct minidumpstate *);
 struct pcb *get_pcb_td(struct thread *td);
 uint64_t rdtsc_ordered(void);
 
