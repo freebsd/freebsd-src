@@ -62,7 +62,7 @@ struct freebsd32_sendmsg_args {
 struct freebsd32_recvfrom_args {
 	char s_l_[PADL_(int)]; int s; char s_r_[PADR_(int)];
 	char buf_l_[PADL_(void *)]; void * buf; char buf_r_[PADR_(void *)];
-	char len_l_[PADL_(uint32_t)]; uint32_t len; char len_r_[PADR_(uint32_t)];
+	char len_l_[PADL_(size_t)]; size_t len; char len_r_[PADR_(size_t)];
 	char flags_l_[PADL_(int)]; int flags; char flags_r_[PADR_(int)];
 	char from_l_[PADL_(struct sockaddr *)]; struct sockaddr * from; char from_r_[PADR_(struct sockaddr *)];
 	char fromlenaddr_l_[PADL_(uint32_t)]; uint32_t fromlenaddr; char fromlenaddr_r_[PADR_(uint32_t)];
@@ -177,7 +177,7 @@ struct freebsd32___sysctl_args {
 	char old_l_[PADL_(void *)]; void * old; char old_r_[PADR_(void *)];
 	char oldlenp_l_[PADL_(uint32_t *)]; uint32_t * oldlenp; char oldlenp_r_[PADR_(uint32_t *)];
 	char new_l_[PADL_(const void *)]; const void * new; char new_r_[PADR_(const void *)];
-	char newlen_l_[PADL_(uint32_t)]; uint32_t newlen; char newlen_r_[PADR_(uint32_t)];
+	char newlen_l_[PADL_(size_t)]; size_t newlen; char newlen_r_[PADR_(size_t)];
 };
 struct freebsd32_futimes_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];

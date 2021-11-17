@@ -110,7 +110,7 @@
 28	AUE_SENDMSG	STD	{ int freebsd32_sendmsg(int s, \
 				    const struct msghdr32 *msg, int flags); }
 29	AUE_RECVFROM	STD	{ int freebsd32_recvfrom(int s, void *buf, \
-				    uint32_t len, int flags, \
+				    size_t len, int flags, \
 				    struct sockaddr *from, \
 				    uint32_t fromlenaddr); }
 30	AUE_ACCEPT	NOPROTO	{ int accept(int s, struct sockaddr *name, \
@@ -391,7 +391,7 @@
 202	AUE_SYSCTL	STD	{ int freebsd32___sysctl(int *name, \
 				    u_int namelen, void *old, \
 				    uint32_t *oldlenp, const void *new, \
-				    uint32_t newlen); }
+				    size_t newlen); }
 203	AUE_MLOCK	NOPROTO	{ int mlock(const void *addr, \
 				    size_t len); }
 204	AUE_MUNLOCK	NOPROTO	{ int munlock(const void *addr, \
@@ -424,7 +424,7 @@
 221	AUE_SEMGET	NOSTD|NOPROTO	{ int semget(key_t key, int nsems, \
 				    int semflg); }
 222	AUE_SEMOP	NOSTD|NOPROTO	{ int semop(int semid, \
-				    struct sembuf *sops, u_int nsops); }
+				    struct sembuf *sops, size_t nsops); }
 223	AUE_NULL	OBSOL	semconfig
 224	AUE_MSGCTL	COMPAT7|NOSTD	{ int freebsd32_msgctl( \
 				    int msqid, int cmd, \
@@ -440,7 +440,7 @@
 				    int shmid, int cmd, \
 				    struct shmid_ds32_old *buf); }
 230	AUE_SHMDT	NOSTD|NOPROTO	{ int shmdt(const void *shmaddr); }
-231	AUE_SHMGET	NOSTD|NOPROTO	{ int shmget(key_t key, int size, \
+231	AUE_SHMGET	NOSTD|NOPROTO	{ int shmget(key_t key, size_t size, \
 				    int shmflg); }
 ;
 232	AUE_NULL	STD 	{ int freebsd32_clock_gettime(clockid_t clock_id, \
