@@ -79,7 +79,7 @@ struct ioctl_privcmd_dmop {
 #define IOCTL_PRIVCMD_MMAPBATCH					\
 	_IOWR('E', 1, struct ioctl_privcmd_mmapbatch)
 #define IOCTL_PRIVCMD_MMAP_RESOURCE				\
-	_IOW('E', 2, struct ioctl_privcmd_mmapresource)
+	_IOWR('E', 2, struct ioctl_privcmd_mmapresource)
 #define IOCTL_PRIVCMD_DM_OP					\
 	_IOW('E', 3, struct ioctl_privcmd_dmop)
 #define IOCTL_PRIVCMD_RESTRICT					\
