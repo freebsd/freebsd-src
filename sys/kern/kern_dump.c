@@ -32,15 +32,18 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/cons.h>
 #include <sys/kernel.h>
-#include <sys/proc.h>
 #include <sys/kerneldump.h>
+#include <sys/msgbuf.h>
+#include <sys/proc.h>
 #include <sys/watchdog.h>
+
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/vm_page.h>
 #include <vm/vm_phys.h>
 #include <vm/vm_dumpset.h>
 #include <vm/pmap.h>
+
 #include <machine/dump.h>
 #include <machine/elf.h>
 #include <machine/md_var.h>
@@ -386,6 +389,8 @@ dumpsys_generic(struct dumperinfo *di)
 	return (error);
 }
 
+#if MINIDUMP_PAGE_TRACKING == 1
+
 /* Minidump progress bar */
 static struct {
 	const int min_per;
@@ -454,3 +459,18 @@ dumpsys_pb_progress(size_t delta)
 		break;
 	}
 }
+
+int
+minidumpsys(struct dumperinfo *di)
+{
+	struct minidumpstate state;
+	int error;
+
+	state.msgbufp = msgbufp;
+	state.dump_bitset = vm_page_dump;
+
+	error = cpu_minidumpsys(di, &state);
+
+	return (error);
+}
+#endif /* MINIDUMP_PAGE_TRACKING == 1 */

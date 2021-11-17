@@ -153,7 +153,7 @@ static char dumpbuf[PAGE_SIZE] __aligned(sizeof(uint64_t));
 CTASSERT(sizeof(dumpbuf) % sizeof(pt2_entry_t) == 0);
 
 int
-minidumpsys(struct dumperinfo *di)
+cpu_minidumpsys(struct dumperinfo *di, const struct minidumpstate *state)
 {
 	struct minidumphdr mdhdr;
 	uint64_t dumpsize, *dump_avail_buf;

@@ -135,6 +135,12 @@ struct dump_pa {
 	vm_paddr_t pa_size;
 };
 
+struct minidumpstate {
+	struct msgbuf	*msgbufp;
+	struct bitset	*dump_bitset;
+};
+
+int minidumpsys(struct dumperinfo *);
 int dumpsys_generic(struct dumperinfo *);
 
 void dumpsys_map_chunk(vm_paddr_t, size_t, void **);

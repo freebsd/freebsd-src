@@ -50,8 +50,9 @@ __FBSDID("$FreeBSD$");
 CTASSERT(sizeof(struct kerneldumpheader) == 512);
 
 int
-minidumpsys(struct dumperinfo *di)
+cpu_minidumpsys(struct dumperinfo *di, const struct minidumpstate *state)
 {
 
-	return (pae_mode ? minidumpsys_pae(di) : minidumpsys_nopae(di));
+	return (pae_mode ? cpu_minidumpsys_pae(di, state) :
+	    cpu_minidumpsys_nopae(di, state));
 }

@@ -145,15 +145,15 @@ blk_write(struct dumperinfo *di, char *ptr, vm_paddr_t pa, size_t sz)
 static pt_entry_t fakept[NPTEPG];
 
 #ifdef PMAP_PAE_COMP
-#define	minidumpsys	minidumpsys_pae
-#define	IdlePTD		IdlePTD_pae
+#define	cpu_minidumpsys		cpu_minidumpsys_pae
+#define	IdlePTD			IdlePTD_pae
 #else
-#define	minidumpsys	minidumpsys_nopae
-#define	IdlePTD		IdlePTD_nopae
+#define	cpu_minidumpsys		cpu_minidumpsys_nopae
+#define	IdlePTD			IdlePTD_nopae
 #endif
 
 int
-minidumpsys(struct dumperinfo *di)
+cpu_minidumpsys(struct dumperinfo *di, const struct minidumpstate *state)
 {
 	uint64_t dumpsize;
 	uint32_t ptesize;
