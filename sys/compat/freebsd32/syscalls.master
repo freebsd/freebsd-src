@@ -130,7 +130,7 @@
 				    struct ostat32 *ub); }
 39	AUE_GETPPID	NOPROTO	{ pid_t getppid(void); }
 40	AUE_LSTAT	COMPAT	{ int freebsd32_lstat(const char *path, \
-				    struct ostat *ub); }
+				    struct ostat32 *ub); }
 41	AUE_DUP		NOPROTO	{ int dup(u_int fd); }
 42	AUE_PIPE	COMPAT10	{ int freebsd32_pipe(void); }
 43	AUE_GETEGID	NOPROTO	{ gid_t getegid(void); }
