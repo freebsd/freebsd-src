@@ -625,7 +625,7 @@
 				    struct sigaction32 *oact); }
 343	AUE_SIGPENDING	NOPROTO	{ int sigpending(sigset_t *set); }
 344	AUE_SIGRETURN	COMPAT4	{ int freebsd32_sigreturn( \
-		    const struct freebsd4_freebsd32_ucontext *sigcntxp); }
+		    const struct freebsd4_ucontext32 *sigcntxp); }
 345	AUE_SIGWAIT	STD	{ int freebsd32_sigtimedwait(const sigset_t *set, \
 				    struct siginfo32 *info, \
 				    const struct timespec *timeout); }
