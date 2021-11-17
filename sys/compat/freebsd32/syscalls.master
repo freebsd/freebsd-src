@@ -475,10 +475,10 @@
 				    const struct timespec32 *rqtp, \
 				    struct timespec32 *rmtp); }
 241	AUE_NULL	NOPROTO	{ int ffclock_getcounter(ffcounter *ffcount); }
-242	AUE_NULL	NOPROTO	{ int ffclock_setestimate( \
-				    struct ffclock_estimate *cest); }
-243	AUE_NULL	NOPROTO	{ int ffclock_getestimate( \
-				    struct ffclock_estimate *cest); }
+242	AUE_NULL	STD	{ int freebsd32_ffclock_setestimate( \
+				    struct ffclock_estimate32 *cest); }
+243	AUE_NULL	STD	{ int freebsd32_ffclock_getestimate( \
+				    struct ffclock_estimate32 *cest); }
 244	AUE_NULL	STD	{ int freebsd32_clock_nanosleep( \
 				    clockid_t clock_id, int flags, \
 				    const struct timespec32 *rqtp, \

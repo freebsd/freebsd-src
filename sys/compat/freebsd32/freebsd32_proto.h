@@ -213,6 +213,12 @@ struct freebsd32_nanosleep_args {
 	char rqtp_l_[PADL_(const struct timespec32 *)]; const struct timespec32 * rqtp; char rqtp_r_[PADR_(const struct timespec32 *)];
 	char rmtp_l_[PADL_(struct timespec32 *)]; struct timespec32 * rmtp; char rmtp_r_[PADR_(struct timespec32 *)];
 };
+struct freebsd32_ffclock_setestimate_args {
+	char cest_l_[PADL_(struct ffclock_estimate32 *)]; struct ffclock_estimate32 * cest; char cest_r_[PADR_(struct ffclock_estimate32 *)];
+};
+struct freebsd32_ffclock_getestimate_args {
+	char cest_l_[PADL_(struct ffclock_estimate32 *)]; struct ffclock_estimate32 * cest; char cest_r_[PADR_(struct ffclock_estimate32 *)];
+};
 struct freebsd32_clock_nanosleep_args {
 	char clock_id_l_[PADL_(clockid_t)]; clockid_t clock_id; char clock_id_r_[PADR_(clockid_t)];
 	char flags_l_[PADL_(int)]; int flags; char flags_r_[PADR_(int)];
@@ -782,6 +788,8 @@ int	freebsd32_ktimer_create(struct thread *, struct freebsd32_ktimer_create_args
 int	freebsd32_ktimer_settime(struct thread *, struct freebsd32_ktimer_settime_args *);
 int	freebsd32_ktimer_gettime(struct thread *, struct freebsd32_ktimer_gettime_args *);
 int	freebsd32_nanosleep(struct thread *, struct freebsd32_nanosleep_args *);
+int	freebsd32_ffclock_setestimate(struct thread *, struct freebsd32_ffclock_setestimate_args *);
+int	freebsd32_ffclock_getestimate(struct thread *, struct freebsd32_ffclock_getestimate_args *);
 int	freebsd32_clock_nanosleep(struct thread *, struct freebsd32_clock_nanosleep_args *);
 int	freebsd32_clock_getcpuclockid2(struct thread *, struct freebsd32_clock_getcpuclockid2_args *);
 int	freebsd32_aio_read(struct thread *, struct freebsd32_aio_read_args *);
@@ -1351,6 +1359,8 @@ int	freebsd11_freebsd32_fstatat(struct thread *, struct freebsd11_freebsd32_fsta
 #define	FREEBSD32_SYS_AUE_freebsd32_ktimer_settime	AUE_NULL
 #define	FREEBSD32_SYS_AUE_freebsd32_ktimer_gettime	AUE_NULL
 #define	FREEBSD32_SYS_AUE_freebsd32_nanosleep	AUE_NULL
+#define	FREEBSD32_SYS_AUE_freebsd32_ffclock_setestimate	AUE_NULL
+#define	FREEBSD32_SYS_AUE_freebsd32_ffclock_getestimate	AUE_NULL
 #define	FREEBSD32_SYS_AUE_freebsd32_clock_nanosleep	AUE_NULL
 #define	FREEBSD32_SYS_AUE_freebsd32_clock_getcpuclockid2	AUE_NULL
 #define	FREEBSD32_SYS_AUE_freebsd32_aio_read	AUE_AIO_READ

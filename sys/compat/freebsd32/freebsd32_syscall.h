@@ -218,8 +218,8 @@
 #define	FREEBSD32_SYS_ktimer_getoverrun	239
 #define	FREEBSD32_SYS_freebsd32_nanosleep	240
 #define	FREEBSD32_SYS_ffclock_getcounter	241
-#define	FREEBSD32_SYS_ffclock_setestimate	242
-#define	FREEBSD32_SYS_ffclock_getestimate	243
+#define	FREEBSD32_SYS_freebsd32_ffclock_setestimate	242
+#define	FREEBSD32_SYS_freebsd32_ffclock_getestimate	243
 #define	FREEBSD32_SYS_freebsd32_clock_nanosleep	244
 #define	FREEBSD32_SYS_freebsd32_clock_getcpuclockid2	247
 #define	FREEBSD32_SYS_minherit	250

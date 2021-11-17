@@ -35,6 +35,7 @@
 #include <sys/procfs.h>
 #include <sys/socket.h>
 #include <sys/user.h>
+#include <sys/_ffcounter.h>
 
 /*
  * i386 is the only arch with a 32-bit time_t
@@ -64,6 +65,28 @@ struct bintime32 {
 	time32_t sec;
 	uint32_t frac[2];
 };
+
+struct ffclock_estimate32 {
+	struct bintime32 update_time;
+	ffcounter update_ffcount;
+	ffcounter leapsec_next;
+	uint64_t period;
+	uint32_t errb_abs;
+	uint32_t errb_rate;
+	uint32_t status;
+	int16_t leapsec_total;
+	int8_t leapsec;
+	int8_t _pad;
+}
+#if defined(__amd64__)
+__attribute__((packed))
+#endif
+;
+#if defined(__amd64__)
+_Static_assert(sizeof(struct ffclock_estimate32) == 52, "ffclock_estimate32 size");
+#else
+_Static_assert(sizeof(struct ffclock_estimate32) == 56, "ffclock_estimate32 size");
+#endif
 
 struct rusage32 {
 	struct timeval32 ru_utime;
