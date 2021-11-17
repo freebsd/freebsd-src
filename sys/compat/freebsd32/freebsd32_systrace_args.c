@@ -9442,17 +9442,17 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	/* freebsd32_recvmsg */
 	case 27:
 		if (ndx == 0 || ndx == 1)
-			p = "int";
+			p = "ssize_t";
 		break;
 	/* freebsd32_sendmsg */
 	case 28:
 		if (ndx == 0 || ndx == 1)
-			p = "int";
+			p = "ssize_t";
 		break;
 	/* recvfrom */
 	case 29:
 		if (ndx == 0 || ndx == 1)
-			p = "int";
+			p = "ssize_t";
 		break;
 	/* accept */
 	case 30:
@@ -9565,7 +9565,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	/* umask */
 	case 60:
 		if (ndx == 0 || ndx == 1)
-			p = "int";
+			p = "mode_t";
 		break;
 	/* chroot */
 	case 61:
@@ -9766,7 +9766,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	/* sendto */
 	case 133:
 		if (ndx == 0 || ndx == 1)
-			p = "int";
+			p = "ssize_t";
 		break;
 	/* shutdown */
 	case 134:
@@ -9960,7 +9960,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	/* freebsd32_msgrcv */
 	case 227:
 		if (ndx == 0 || ndx == 1)
-			p = "int";
+			p = "ssize_t";
 		break;
 	/* shmat */
 	case 228:
@@ -10185,7 +10185,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	/* freebsd32_aio_return */
 	case 314:
 		if (ndx == 0 || ndx == 1)
-			p = "int";
+			p = "ssize_t";
 		break;
 	/* freebsd32_aio_suspend */
 	case 315:
@@ -10351,7 +10351,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	/* freebsd32_aio_waitcomplete */
 	case 359:
 		if (ndx == 0 || ndx == 1)
-			p = "int";
+			p = "ssize_t";
 		break;
 	/* getresuid */
 	case 360:
