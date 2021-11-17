@@ -505,7 +505,7 @@
 269	AUE_NULL	UNIMPL	nosys
 270	AUE_NULL	UNIMPL	nosys
 271	AUE_NULL	UNIMPL	nosys
-272	AUE_O_GETDENTS	COMPAT11 { int freebsd32_getdents(int fd, char *buf, \
+272	AUE_O_GETDENTS	COMPAT11|NOPROTO { int getdents(int fd, char *buf, \
 				    int count); }
 273	AUE_NULL	UNIMPL	nosys
 274	AUE_LCHMOD	NOPROTO	{ int lchmod(const char *path, mode_t mode); }
