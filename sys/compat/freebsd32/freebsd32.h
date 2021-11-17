@@ -384,7 +384,7 @@ struct kinfo_sigtramp32 {
 	uint32_t ksigtramp_spare[4];
 };
 
-struct kld32_file_stat_1 {
+struct kld_file_stat_1_32 {
 	int	version;	/* set to sizeof(struct kld_file_stat_1) */
 	char	name[MAXPATHLEN];
 	int	refs;
@@ -393,7 +393,7 @@ struct kld32_file_stat_1 {
 	uint32_t size;		/* size in bytes */
 };
 
-struct kld32_file_stat {
+struct kld_file_stat32 {
 	int	version;	/* set to sizeof(struct kld_file_stat) */
 	char	name[MAXPATHLEN];
 	int	refs;
