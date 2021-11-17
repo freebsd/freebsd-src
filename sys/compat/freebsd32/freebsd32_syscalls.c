@@ -298,8 +298,13 @@ const char *freebsd32_syscallnames[] = {
 	"#286",			/* 286 = nosys */
 	"#287",			/* 287 = nosys */
 	"#288",			/* 288 = nosys */
+#ifdef PAD64_REQUIRED
 	"freebsd32_preadv",			/* 289 = freebsd32_preadv */
 	"freebsd32_pwritev",			/* 290 = freebsd32_pwritev */
+#else
+	"freebsd32_preadv",			/* 289 = freebsd32_preadv */
+	"freebsd32_pwritev",			/* 290 = freebsd32_pwritev */
+#endif
 	"#291",			/* 291 = nosys */
 	"#292",			/* 292 = nosys */
 	"#293",			/* 293 = nosys */
