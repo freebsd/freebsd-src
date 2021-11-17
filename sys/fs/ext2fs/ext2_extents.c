@@ -250,6 +250,10 @@ ext4_ext_check_header(struct inode *ip, struct ext4_extent_header *eh)
 		error_msg = "header: invalid eh_entries";
 		goto corrupted;
 	}
+	if (eh->eh_depth > 5) {
+		error_msg = "header: invalid eh_depth";
+		goto corrupted;
+	}
 
 	return (0);
 
