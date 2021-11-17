@@ -27,7 +27,7 @@ SRCS+=		opensolaris_atomic.c
 
 CFLAGS+= 	${OPENZFS_CFLAGS}
 
-EXPORT_SYMS=	cpu_core
+EXPORT_SYMS=	YES
 
 IGNORE_PRAGMA=	1
 
