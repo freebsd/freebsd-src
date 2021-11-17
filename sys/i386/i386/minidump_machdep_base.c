@@ -157,17 +157,26 @@ cpu_minidumpsys(struct dumperinfo *di, const struct minidumpstate *state)
 {
 	uint64_t dumpsize;
 	uint32_t ptesize;
-	vm_offset_t va;
+	vm_offset_t va, kva_end;
 	int error;
 	uint64_t pa;
-	pd_entry_t *pd;
-	pt_entry_t *pt;
+	pd_entry_t *pd, pde;
+	pt_entry_t *pt, pte;
 	int j, k;
 	struct minidumphdr mdhdr;
 
-	/* Walk page table pages, set bits in vm_page_dump */
+	/* Snapshot the KVA upper bound in case it grows. */
+	kva_end = kernel_vm_end;
+
+	/*
+	 * Walk the kernel page table pages, setting the active entries in the
+	 * dump bitmap.
+	 *
+	 * NB: for a live dump, we may be racing with updates to the page
+	 * tables, so care must be taken to read each entry only once.
+	 */
 	ptesize = 0;
-	for (va = KERNBASE; va < kernel_vm_end; va += NBPDR) {
+	for (va = KERNBASE; va < kva_end; va += NBPDR) {
 		/*
 		 * We always write a page, even if it is zero. Each
 		 * page written corresponds to 2MB of space
@@ -175,9 +184,10 @@ cpu_minidumpsys(struct dumperinfo *di, const struct minidumpstate *state)
 		ptesize += PAGE_SIZE;
 		pd = IdlePTD;	/* always mapped! */
 		j = va >> PDRSHIFT;
-		if ((pd[j] & (PG_PS | PG_V)) == (PG_PS | PG_V))  {
+		pde = pte_load(&pd[va >> PDRSHIFT]);
+		if ((pde & (PG_PS | PG_V)) == (PG_PS | PG_V))  {
 			/* This is an entire 2M page. */
-			pa = pd[j] & PG_PS_FRAME;
+			pa = pde & PG_PS_FRAME;
 			for (k = 0; k < NPTEPG; k++) {
 				if (vm_phys_is_dumpable(pa))
 					dump_add_page(pa);
@@ -185,12 +195,13 @@ cpu_minidumpsys(struct dumperinfo *di, const struct minidumpstate *state)
 			}
 			continue;
 		}
-		if ((pd[j] & PG_V) == PG_V) {
+		if ((pde & PG_V) == PG_V) {
 			/* set bit for each valid page in this 2MB block */
-			pt = pmap_kenter_temporary(pd[j] & PG_FRAME, 0);
+			pt = pmap_kenter_temporary(pde & PG_FRAME, 0);
 			for (k = 0; k < NPTEPG; k++) {
-				if ((pt[k] & PG_V) == PG_V) {
-					pa = pt[k] & PG_FRAME;
+				pte = pte_load(&pt[k]);
+				if ((pte & PG_V) == PG_V) {
+					pa = pte & PG_FRAME;
 					if (vm_phys_is_dumpable(pa))
 						dump_add_page(pa);
 				}
@@ -266,13 +277,13 @@ cpu_minidumpsys(struct dumperinfo *di, const struct minidumpstate *state)
 		goto fail;
 
 	/* Dump kernel page table pages */
-	for (va = KERNBASE; va < kernel_vm_end; va += NBPDR) {
+	for (va = KERNBASE; va < kva_end; va += NBPDR) {
 		/* We always write a page, even if it is zero */
 		pd = IdlePTD;	/* always mapped! */
-		j = va >> PDRSHIFT;
-		if ((pd[j] & (PG_PS | PG_V)) == (PG_PS | PG_V))  {
+		pde = pte_load(&pd[va >> PDRSHIFT]);
+		if ((pde & (PG_PS | PG_V)) == (PG_PS | PG_V))  {
 			/* This is a single 2M block. Generate a fake PTP */
-			pa = pd[j] & PG_PS_FRAME;
+			pa = pde & PG_PS_FRAME;
 			for (k = 0; k < NPTEPG; k++) {
 				fakept[k] = (pa + (k * PAGE_SIZE)) | PG_V | PG_RW | PG_A | PG_M;
 			}
@@ -285,8 +296,8 @@ cpu_minidumpsys(struct dumperinfo *di, const struct minidumpstate *state)
 				goto fail;
 			continue;
 		}
-		if ((pd[j] & PG_V) == PG_V) {
-			pa = pd[j] & PG_FRAME;
+		if ((pde & PG_V) == PG_V) {
+			pa = pde & PG_FRAME;
 			error = blk_write(di, 0, pa, PAGE_SIZE);
 			if (error)
 				goto fail;
