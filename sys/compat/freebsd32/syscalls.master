@@ -858,7 +858,7 @@
 				    struct thr_param32 *param,	\
 				    int param_size); }
 456	AUE_NULL	STD	{ int freebsd32_sigqueue(pid_t pid, \
-				    int signum, int value); }
+				    int signum, void *value); }
 457	AUE_MQ_OPEN	NOSTD	{ int freebsd32_kmq_open( \
 				    const char *path, int flags, mode_t mode, \
 				    const struct mq_attr32 *attr); }

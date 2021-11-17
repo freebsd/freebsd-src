@@ -384,7 +384,7 @@ struct freebsd32_thr_new_args {
 struct freebsd32_sigqueue_args {
 	char pid_l_[PADL_(pid_t)]; pid_t pid; char pid_r_[PADR_(pid_t)];
 	char signum_l_[PADL_(int)]; int signum; char signum_r_[PADR_(int)];
-	char value_l_[PADL_(int)]; int value; char value_r_[PADR_(int)];
+	char value_l_[PADL_(void *)]; void * value; char value_r_[PADR_(void *)];
 };
 struct freebsd32_kmq_open_args {
 	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
