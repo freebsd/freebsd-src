@@ -3534,14 +3534,14 @@ int
 freebsd32_kldstat(struct thread *td, struct freebsd32_kldstat_args *uap)
 {
 	struct kld_file_stat *stat;
-	struct kld32_file_stat *stat32;
+	struct kld_file_stat32 *stat32;
 	int error, version;
 
 	if ((error = copyin(&uap->stat->version, &version, sizeof(version)))
 	    != 0)
 		return (error);
-	if (version != sizeof(struct kld32_file_stat_1) &&
-	    version != sizeof(struct kld32_file_stat))
+	if (version != sizeof(struct kld_file_stat_1_32) &&
+	    version != sizeof(struct kld_file_stat32))
 		return (EINVAL);
 
 	stat = malloc(sizeof(*stat), M_TEMP, M_WAITOK | M_ZERO);
