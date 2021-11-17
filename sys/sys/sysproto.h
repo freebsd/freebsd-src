@@ -127,7 +127,7 @@ struct recvmsg_args {
 };
 struct sendmsg_args {
 	char s_l_[PADL_(int)]; int s; char s_r_[PADR_(int)];
-	char msg_l_[PADL_(struct msghdr *)]; struct msghdr * msg; char msg_r_[PADR_(struct msghdr *)];
+	char msg_l_[PADL_(const struct msghdr *)]; const struct msghdr * msg; char msg_r_[PADR_(const struct msghdr *)];
 	char flags_l_[PADL_(int)]; int flags; char flags_r_[PADR_(int)];
 };
 struct recvfrom_args {
@@ -213,7 +213,7 @@ struct osigpending_args {
 	register_t dummy;
 };
 struct sigaltstack_args {
-	char ss_l_[PADL_(stack_t *)]; stack_t * ss; char ss_r_[PADR_(stack_t *)];
+	char ss_l_[PADL_(const stack_t *)]; const stack_t * ss; char ss_r_[PADR_(const stack_t *)];
 	char oss_l_[PADL_(stack_t *)]; stack_t * oss; char oss_r_[PADR_(stack_t *)];
 };
 struct ioctl_args {
@@ -269,7 +269,7 @@ struct munmap_args {
 	char len_l_[PADL_(size_t)]; size_t len; char len_r_[PADR_(size_t)];
 };
 struct mprotect_args {
-	char addr_l_[PADL_(void *)]; void * addr; char addr_r_[PADR_(void *)];
+	char addr_l_[PADL_(const void *)]; const void * addr; char addr_r_[PADR_(const void *)];
 	char len_l_[PADL_(size_t)]; size_t len; char len_r_[PADR_(size_t)];
 	char prot_l_[PADL_(int)]; int prot; char prot_r_[PADR_(int)];
 };
@@ -289,7 +289,7 @@ struct getgroups_args {
 };
 struct setgroups_args {
 	char gidsetsize_l_[PADL_(int)]; int gidsetsize; char gidsetsize_r_[PADR_(int)];
-	char gidset_l_[PADL_(gid_t *)]; gid_t * gidset; char gidset_r_[PADR_(gid_t *)];
+	char gidset_l_[PADL_(const gid_t *)]; const gid_t * gidset; char gidset_r_[PADR_(const gid_t *)];
 };
 struct getpgrp_args {
 	register_t dummy;
@@ -300,7 +300,7 @@ struct setpgid_args {
 };
 struct setitimer_args {
 	char which_l_[PADL_(u_int)]; u_int which; char which_r_[PADR_(u_int)];
-	char itv_l_[PADL_(struct itimerval *)]; struct itimerval * itv; char itv_r_[PADR_(struct itimerval *)];
+	char itv_l_[PADL_(const struct itimerval *)]; const struct itimerval * itv; char itv_r_[PADR_(const struct itimerval *)];
 	char oitv_l_[PADL_(struct itimerval *)]; struct itimerval * oitv; char oitv_r_[PADR_(struct itimerval *)];
 };
 struct owait_args {
@@ -396,8 +396,8 @@ struct writev_args {
 	char iovcnt_l_[PADL_(u_int)]; u_int iovcnt; char iovcnt_r_[PADR_(u_int)];
 };
 struct settimeofday_args {
-	char tv_l_[PADL_(struct timeval *)]; struct timeval * tv; char tv_r_[PADR_(struct timeval *)];
-	char tzp_l_[PADL_(struct timezone *)]; struct timezone * tzp; char tzp_r_[PADR_(struct timezone *)];
+	char tv_l_[PADL_(const struct timeval *)]; const struct timeval * tv; char tv_r_[PADR_(const struct timeval *)];
+	char tzp_l_[PADL_(const struct timezone *)]; const struct timezone * tzp; char tzp_r_[PADR_(const struct timezone *)];
 };
 struct fchown_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
@@ -455,10 +455,10 @@ struct rmdir_args {
 };
 struct utimes_args {
 	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
-	char tptr_l_[PADL_(struct timeval *)]; struct timeval * tptr; char tptr_r_[PADR_(struct timeval *)];
+	char tptr_l_[PADL_(const struct timeval *)]; const struct timeval * tptr; char tptr_r_[PADR_(const struct timeval *)];
 };
 struct adjtime_args {
-	char delta_l_[PADL_(struct timeval *)]; struct timeval * delta; char delta_r_[PADR_(struct timeval *)];
+	char delta_l_[PADL_(const struct timeval *)]; const struct timeval * delta; char delta_r_[PADR_(const struct timeval *)];
 	char olddelta_l_[PADL_(struct timeval *)]; struct timeval * olddelta; char olddelta_r_[PADR_(struct timeval *)];
 };
 struct ogethostid_args {
@@ -576,7 +576,7 @@ struct undelete_args {
 };
 struct futimes_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
-	char tptr_l_[PADL_(struct timeval *)]; struct timeval * tptr; char tptr_r_[PADR_(struct timeval *)];
+	char tptr_l_[PADL_(const struct timeval *)]; const struct timeval * tptr; char tptr_r_[PADR_(const struct timeval *)];
 };
 struct getpgid_args {
 	char pid_l_[PADL_(pid_t)]; pid_t pid; char pid_r_[PADR_(pid_t)];
@@ -720,7 +720,7 @@ struct lchmod_args {
 };
 struct lutimes_args {
 	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
-	char tptr_l_[PADL_(struct timeval *)]; struct timeval * tptr; char tptr_r_[PADR_(struct timeval *)];
+	char tptr_l_[PADL_(const struct timeval *)]; const struct timeval * tptr; char tptr_r_[PADR_(const struct timeval *)];
 };
 struct preadv_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
@@ -1320,7 +1320,7 @@ struct sctp_generic_sendmsg_args {
 	char sd_l_[PADL_(int)]; int sd; char sd_r_[PADR_(int)];
 	char msg_l_[PADL_(void *)]; void * msg; char msg_r_[PADR_(void *)];
 	char mlen_l_[PADL_(int)]; int mlen; char mlen_r_[PADR_(int)];
-	char to_l_[PADL_(struct sockaddr *)]; struct sockaddr * to; char to_r_[PADR_(struct sockaddr *)];
+	char to_l_[PADL_(const struct sockaddr *)]; const struct sockaddr * to; char to_r_[PADR_(const struct sockaddr *)];
 	char tolen_l_[PADL_(__socklen_t)]; __socklen_t tolen; char tolen_r_[PADR_(__socklen_t)];
 	char sinfo_l_[PADL_(struct sctp_sndrcvinfo *)]; struct sctp_sndrcvinfo * sinfo; char sinfo_r_[PADR_(struct sctp_sndrcvinfo *)];
 	char flags_l_[PADL_(int)]; int flags; char flags_r_[PADR_(int)];
@@ -1329,7 +1329,7 @@ struct sctp_generic_sendmsg_iov_args {
 	char sd_l_[PADL_(int)]; int sd; char sd_r_[PADR_(int)];
 	char iov_l_[PADL_(struct iovec *)]; struct iovec * iov; char iov_r_[PADR_(struct iovec *)];
 	char iovlen_l_[PADL_(int)]; int iovlen; char iovlen_r_[PADR_(int)];
-	char to_l_[PADL_(struct sockaddr *)]; struct sockaddr * to; char to_r_[PADR_(struct sockaddr *)];
+	char to_l_[PADL_(const struct sockaddr *)]; const struct sockaddr * to; char to_r_[PADR_(const struct sockaddr *)];
 	char tolen_l_[PADL_(__socklen_t)]; __socklen_t tolen; char tolen_r_[PADR_(__socklen_t)];
 	char sinfo_l_[PADL_(struct sctp_sndrcvinfo *)]; struct sctp_sndrcvinfo * sinfo; char sinfo_r_[PADR_(struct sctp_sndrcvinfo *)];
 	char flags_l_[PADL_(int)]; int flags; char flags_r_[PADR_(int)];
@@ -1439,7 +1439,7 @@ struct fexecve_args {
 struct futimesat_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
 	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
-	char times_l_[PADL_(struct timeval *)]; struct timeval * times; char times_r_[PADR_(struct timeval *)];
+	char times_l_[PADL_(const struct timeval *)]; const struct timeval * times; char times_r_[PADR_(const struct timeval *)];
 };
 struct linkat_args {
 	char fd1_l_[PADL_(int)]; int fd1; char fd1_r_[PADR_(int)];
@@ -1679,12 +1679,12 @@ struct ppoll_args {
 };
 struct futimens_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
-	char times_l_[PADL_(struct timespec *)]; struct timespec * times; char times_r_[PADR_(struct timespec *)];
+	char times_l_[PADL_(const struct timespec *)]; const struct timespec * times; char times_r_[PADR_(const struct timespec *)];
 };
 struct utimensat_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
 	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
-	char times_l_[PADL_(struct timespec *)]; struct timespec * times; char times_r_[PADR_(struct timespec *)];
+	char times_l_[PADL_(const struct timespec *)]; const struct timespec * times; char times_r_[PADR_(const struct timespec *)];
 	char flag_l_[PADL_(int)]; int flag; char flag_r_[PADR_(int)];
 };
 struct fdatasync_args {

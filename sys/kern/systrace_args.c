@@ -188,7 +188,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 28: {
 		struct sendmsg_args *p = params;
 		iarg[0] = p->s; /* int */
-		uarg[1] = (intptr_t)p->msg; /* struct msghdr * */
+		uarg[1] = (intptr_t)p->msg; /* const struct msghdr * */
 		iarg[2] = p->flags; /* int */
 		*n_args = 3;
 		break;
@@ -336,7 +336,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	/* sigaltstack */
 	case 53: {
 		struct sigaltstack_args *p = params;
-		uarg[0] = (intptr_t)p->ss; /* stack_t * */
+		uarg[0] = (intptr_t)p->ss; /* const stack_t * */
 		uarg[1] = (intptr_t)p->oss; /* stack_t * */
 		*n_args = 2;
 		break;
@@ -443,7 +443,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	/* mprotect */
 	case 74: {
 		struct mprotect_args *p = params;
-		uarg[0] = (intptr_t)p->addr; /* void * */
+		uarg[0] = (intptr_t)p->addr; /* const void * */
 		uarg[1] = p->len; /* size_t */
 		iarg[2] = p->prot; /* int */
 		*n_args = 3;
@@ -479,7 +479,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 80: {
 		struct setgroups_args *p = params;
 		iarg[0] = p->gidsetsize; /* int */
-		uarg[1] = (intptr_t)p->gidset; /* gid_t * */
+		uarg[1] = (intptr_t)p->gidset; /* const gid_t * */
 		*n_args = 2;
 		break;
 	}
@@ -500,7 +500,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 83: {
 		struct setitimer_args *p = params;
 		uarg[0] = p->which; /* u_int */
-		uarg[1] = (intptr_t)p->itv; /* struct itimerval * */
+		uarg[1] = (intptr_t)p->itv; /* const struct itimerval * */
 		uarg[2] = (intptr_t)p->oitv; /* struct itimerval * */
 		*n_args = 3;
 		break;
@@ -671,8 +671,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	/* settimeofday */
 	case 122: {
 		struct settimeofday_args *p = params;
-		uarg[0] = (intptr_t)p->tv; /* struct timeval * */
-		uarg[1] = (intptr_t)p->tzp; /* struct timezone * */
+		uarg[0] = (intptr_t)p->tv; /* const struct timeval * */
+		uarg[1] = (intptr_t)p->tzp; /* const struct timezone * */
 		*n_args = 2;
 		break;
 	}
@@ -782,14 +782,14 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 138: {
 		struct utimes_args *p = params;
 		uarg[0] = (intptr_t)p->path; /* const char * */
-		uarg[1] = (intptr_t)p->tptr; /* struct timeval * */
+		uarg[1] = (intptr_t)p->tptr; /* const struct timeval * */
 		*n_args = 2;
 		break;
 	}
 	/* adjtime */
 	case 140: {
 		struct adjtime_args *p = params;
-		uarg[0] = (intptr_t)p->delta; /* struct timeval * */
+		uarg[0] = (intptr_t)p->delta; /* const struct timeval * */
 		uarg[1] = (intptr_t)p->olddelta; /* struct timeval * */
 		*n_args = 2;
 		break;
@@ -1004,7 +1004,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 206: {
 		struct futimes_args *p = params;
 		iarg[0] = p->fd; /* int */
-		uarg[1] = (intptr_t)p->tptr; /* struct timeval * */
+		uarg[1] = (intptr_t)p->tptr; /* const struct timeval * */
 		*n_args = 2;
 		break;
 	}
@@ -1332,7 +1332,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 276: {
 		struct lutimes_args *p = params;
 		uarg[0] = (intptr_t)p->path; /* const char * */
-		uarg[1] = (intptr_t)p->tptr; /* struct timeval * */
+		uarg[1] = (intptr_t)p->tptr; /* const struct timeval * */
 		*n_args = 2;
 		break;
 	}
@@ -2476,7 +2476,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		iarg[0] = p->sd; /* int */
 		uarg[1] = (intptr_t)p->msg; /* void * */
 		iarg[2] = p->mlen; /* int */
-		uarg[3] = (intptr_t)p->to; /* struct sockaddr * */
+		uarg[3] = (intptr_t)p->to; /* const struct sockaddr * */
 		iarg[4] = p->tolen; /* __socklen_t */
 		uarg[5] = (intptr_t)p->sinfo; /* struct sctp_sndrcvinfo * */
 		iarg[6] = p->flags; /* int */
@@ -2489,7 +2489,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		iarg[0] = p->sd; /* int */
 		uarg[1] = (intptr_t)p->iov; /* struct iovec * */
 		iarg[2] = p->iovlen; /* int */
-		uarg[3] = (intptr_t)p->to; /* struct sockaddr * */
+		uarg[3] = (intptr_t)p->to; /* const struct sockaddr * */
 		iarg[4] = p->tolen; /* __socklen_t */
 		uarg[5] = (intptr_t)p->sinfo; /* struct sctp_sndrcvinfo * */
 		iarg[6] = p->flags; /* int */
@@ -2675,7 +2675,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct futimesat_args *p = params;
 		iarg[0] = p->fd; /* int */
 		uarg[1] = (intptr_t)p->path; /* const char * */
-		uarg[2] = (intptr_t)p->times; /* struct timeval * */
+		uarg[2] = (intptr_t)p->times; /* const struct timeval * */
 		*n_args = 3;
 		break;
 	}
@@ -3105,7 +3105,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 546: {
 		struct futimens_args *p = params;
 		iarg[0] = p->fd; /* int */
-		uarg[1] = (intptr_t)p->times; /* struct timespec * */
+		uarg[1] = (intptr_t)p->times; /* const struct timespec * */
 		*n_args = 2;
 		break;
 	}
@@ -3114,7 +3114,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct utimensat_args *p = params;
 		iarg[0] = p->fd; /* int */
 		uarg[1] = (intptr_t)p->path; /* const char * */
-		uarg[2] = (intptr_t)p->times; /* struct timespec * */
+		uarg[2] = (intptr_t)p->times; /* const struct timespec * */
 		iarg[3] = p->flag; /* int */
 		*n_args = 4;
 		break;
@@ -3693,7 +3693,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 1:
-			p = "userland struct msghdr *";
+			p = "userland const struct msghdr *";
 			break;
 		case 2:
 			p = "int";
@@ -3924,7 +3924,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 53:
 		switch (ndx) {
 		case 0:
-			p = "userland stack_t *";
+			p = "userland const stack_t *";
 			break;
 		case 1:
 			p = "userland stack_t *";
@@ -4090,7 +4090,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 74:
 		switch (ndx) {
 		case 0:
-			p = "userland void *";
+			p = "userland const void *";
 			break;
 		case 1:
 			p = "size_t";
@@ -4154,7 +4154,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 1:
-			p = "userland gid_t *";
+			p = "userland const gid_t *";
 			break;
 		default:
 			break;
@@ -4183,7 +4183,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "u_int";
 			break;
 		case 1:
-			p = "userland struct itimerval *";
+			p = "userland const struct itimerval *";
 			break;
 		case 2:
 			p = "userland struct itimerval *";
@@ -4475,10 +4475,10 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 122:
 		switch (ndx) {
 		case 0:
-			p = "userland struct timeval *";
+			p = "userland const struct timeval *";
 			break;
 		case 1:
-			p = "userland struct timezone *";
+			p = "userland const struct timezone *";
 			break;
 		default:
 			break;
@@ -4665,7 +4665,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "userland const char *";
 			break;
 		case 1:
-			p = "userland struct timeval *";
+			p = "userland const struct timeval *";
 			break;
 		default:
 			break;
@@ -4675,7 +4675,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 140:
 		switch (ndx) {
 		case 0:
-			p = "userland struct timeval *";
+			p = "userland const struct timeval *";
 			break;
 		case 1:
 			p = "userland struct timeval *";
@@ -5032,7 +5032,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 1:
-			p = "userland struct timeval *";
+			p = "userland const struct timeval *";
 			break;
 		default:
 			break;
@@ -5521,7 +5521,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "userland const char *";
 			break;
 		case 1:
-			p = "userland struct timeval *";
+			p = "userland const struct timeval *";
 			break;
 		default:
 			break;
@@ -7431,7 +7431,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 3:
-			p = "userland struct sockaddr *";
+			p = "userland const struct sockaddr *";
 			break;
 		case 4:
 			p = "__socklen_t";
@@ -7459,7 +7459,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 3:
-			p = "userland struct sockaddr *";
+			p = "userland const struct sockaddr *";
 			break;
 		case 4:
 			p = "__socklen_t";
@@ -7808,7 +7808,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "userland const char *";
 			break;
 		case 2:
-			p = "userland struct timeval *";
+			p = "userland const struct timeval *";
 			break;
 		default:
 			break;
@@ -8569,7 +8569,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 1:
-			p = "userland struct timespec *";
+			p = "userland const struct timespec *";
 			break;
 		default:
 			break;
@@ -8585,7 +8585,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "userland const char *";
 			break;
 		case 2:
-			p = "userland struct timespec *";
+			p = "userland const struct timespec *";
 			break;
 		case 3:
 			p = "int";
