@@ -363,7 +363,7 @@ struct freebsd32__umtx_op_args {
 	char obj_l_[PADL_(void *)]; void * obj; char obj_r_[PADR_(void *)];
 	char op_l_[PADL_(int)]; int op; char op_r_[PADR_(int)];
 	char val_l_[PADL_(u_long)]; u_long val; char val_r_[PADR_(u_long)];
-	char uaddr_l_[PADL_(void *)]; void * uaddr; char uaddr_r_[PADR_(void *)];
+	char uaddr1_l_[PADL_(void *)]; void * uaddr1; char uaddr1_r_[PADR_(void *)];
 	char uaddr2_l_[PADL_(void *)]; void * uaddr2; char uaddr2_r_[PADR_(void *)];
 };
 struct freebsd32_thr_new_args {
