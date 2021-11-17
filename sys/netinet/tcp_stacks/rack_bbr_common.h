@@ -119,8 +119,9 @@ void
 ctf_do_drop(struct mbuf *m, struct tcpcb *tp);
 
 int
-ctf_process_rst(struct mbuf *m, struct tcphdr *th,
-    struct socket *so, struct tcpcb *tp);
+__ctf_process_rst(struct mbuf *m, struct tcphdr *th,
+      struct socket *so, struct tcpcb *tp, uint32_t *ts, uint32_t *cnt);
+#define ctf_process_rst(m, t, s, p) __ctf_process_rst(m, t, s, p, NULL, NULL)
 
 void
 ctf_challenge_ack(struct mbuf *m, struct tcphdr *th,

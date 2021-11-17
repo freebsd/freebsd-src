@@ -11564,9 +11564,12 @@ rack_do_syn_recv(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			return (0);
 		}
 	}
+
 	if ((thflags & TH_RST) ||
 	    (tp->t_fin_is_rst && (thflags & TH_FIN)))
-		return (ctf_process_rst(m, th, so, tp));
+		return (__ctf_process_rst(m, th, so, tp,
+					  &rack->r_ctl.challenge_ack_ts,
+					  &rack->r_ctl.challenge_ack_cnt));
 	/*
 	 * RFC 1323 PAWS: If we have a timestamp reply on this segment and
 	 * it's less than ts_recent, drop it.
@@ -11775,7 +11778,9 @@ rack_do_established(struct mbuf *m, struct tcphdr *th, struct socket *so,
 
 	if ((thflags & TH_RST) ||
 	    (tp->t_fin_is_rst && (thflags & TH_FIN)))
-		return (ctf_process_rst(m, th, so, tp));
+		return (__ctf_process_rst(m, th, so, tp,
+					  &rack->r_ctl.challenge_ack_ts,
+					  &rack->r_ctl.challenge_ack_cnt));
 
 	/*
 	 * RFC5961 Section 4.2 Send challenge ACK for any SYN in
@@ -11875,7 +11880,9 @@ rack_do_close_wait(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	ctf_calc_rwin(so, tp);
 	if ((thflags & TH_RST) ||
 	    (tp->t_fin_is_rst && (thflags & TH_FIN)))
-		return (ctf_process_rst(m, th, so, tp));
+		return (__ctf_process_rst(m, th, so, tp,
+					  &rack->r_ctl.challenge_ack_ts,
+					  &rack->r_ctl.challenge_ack_cnt));
 	/*
 	 * RFC5961 Section 4.2 Send challenge ACK for any SYN in
 	 * synchronized state.
@@ -12004,7 +12011,9 @@ rack_do_fin_wait_1(struct mbuf *m, struct tcphdr *th, struct socket *so,
 
 	if ((thflags & TH_RST) ||
 	    (tp->t_fin_is_rst && (thflags & TH_FIN)))
-		return (ctf_process_rst(m, th, so, tp));
+		return (__ctf_process_rst(m, th, so, tp,
+					  &rack->r_ctl.challenge_ack_ts,
+					  &rack->r_ctl.challenge_ack_cnt));
 	/*
 	 * RFC5961 Section 4.2 Send challenge ACK for any SYN in
 	 * synchronized state.
@@ -12131,7 +12140,9 @@ rack_do_closing(struct mbuf *m, struct tcphdr *th, struct socket *so,
 
 	if ((thflags & TH_RST) ||
 	    (tp->t_fin_is_rst && (thflags & TH_FIN)))
-		return (ctf_process_rst(m, th, so, tp));
+		return (__ctf_process_rst(m, th, so, tp,
+					  &rack->r_ctl.challenge_ack_ts,
+					  &rack->r_ctl.challenge_ack_cnt));
 	/*
 	 * RFC5961 Section 4.2 Send challenge ACK for any SYN in
 	 * synchronized state.
@@ -12244,7 +12255,9 @@ rack_do_lastack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 
 	if ((thflags & TH_RST) ||
 	    (tp->t_fin_is_rst && (thflags & TH_FIN)))
-		return (ctf_process_rst(m, th, so, tp));
+		return (__ctf_process_rst(m, th, so, tp,
+					  &rack->r_ctl.challenge_ack_ts,
+					  &rack->r_ctl.challenge_ack_cnt));
 	/*
 	 * RFC5961 Section 4.2 Send challenge ACK for any SYN in
 	 * synchronized state.
@@ -12358,7 +12371,9 @@ rack_do_fin_wait_2(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	/* Reset receive buffer auto scaling when not in bulk receive mode. */
 	if ((thflags & TH_RST) ||
 	    (tp->t_fin_is_rst && (thflags & TH_FIN)))
-		return (ctf_process_rst(m, th, so, tp));
+		return (__ctf_process_rst(m, th, so, tp,
+					  &rack->r_ctl.challenge_ack_ts,
+					  &rack->r_ctl.challenge_ack_cnt));
 	/*
 	 * RFC5961 Section 4.2 Send challenge ACK for any SYN in
 	 * synchronized state.
@@ -14566,7 +14581,8 @@ rack_do_segment_nounlock(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		rack_check_probe_rtt(rack, us_cts);
 	}
 	rack_clear_rate_sample(rack);
-	if (rack->forced_ack) {
+	if ((rack->forced_ack) &&
+	    ((th->th_flags & TH_RST) == 0)) {
 		rack_handle_probe_response(rack, tiwin, us_cts);
 	}
 	/*
