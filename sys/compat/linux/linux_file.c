@@ -1170,9 +1170,9 @@ linux_linkat(struct thread *td, struct linux_linkat_args *args)
 	if (args->flag & ~(LINUX_AT_SYMLINK_FOLLOW | LINUX_AT_EMPTY_PATH))
 		return (EINVAL);
 
-	flag = (args->flag & LINUX_AT_SYMLINK_FOLLOW) == 0 ? AT_SYMLINK_FOLLOW :
+	flag = (args->flag & LINUX_AT_SYMLINK_FOLLOW) != 0 ? AT_SYMLINK_FOLLOW :
 	    0;
-	flag |= (args->flag & LINUX_AT_EMPTY_PATH) == 0 ? AT_EMPTY_PATH : 0;
+	flag |= (args->flag & LINUX_AT_EMPTY_PATH) != 0 ? AT_EMPTY_PATH : 0;
 
 	olddfd = (args->olddfd == LINUX_AT_FDCWD) ? AT_FDCWD : args->olddfd;
 	newdfd = (args->newdfd == LINUX_AT_FDCWD) ? AT_FDCWD : args->newdfd;
