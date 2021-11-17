@@ -1458,6 +1458,14 @@ freebsd32_recvmsg(struct thread *td, struct freebsd32_recvmsg_args *uap)
 	return (error);
 }
 
+#ifdef COMPAT_43
+int
+ofreebsd32_recvmsg(struct thread *td, struct ofreebsd32_recvmsg_args *uap)
+{
+	return (ENOSYS);
+}
+#endif
+
 /*
  * Copy-in the array of control messages constructed using alignment
  * and padding suitable for a 32-bit environment and construct an
@@ -1605,6 +1613,15 @@ out:
 		free(to, M_SONAME);
 	return (error);
 }
+
+#ifdef COMPAT_43
+int
+ofreebsd32_sendmsg(struct thread *td, struct ofreebsd32_sendmsg_args *uap)
+{
+	return (ENOSYS);
+}
+#endif
+
 
 int
 freebsd32_settimeofday(struct thread *td,
