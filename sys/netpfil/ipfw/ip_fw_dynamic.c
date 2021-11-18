@@ -59,8 +59,8 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip.h>
 #include <netinet/ip_var.h>
 #include <netinet/ip_fw.h>
-#include <netinet/tcp_var.h>
 #include <netinet/udp.h>
+#include <netinet/tcp.h>
 
 #include <netinet/ip6.h>	/* IN6_ARE_ADDR_EQUAL */
 #ifdef INET6
