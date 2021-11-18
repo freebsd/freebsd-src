@@ -227,11 +227,11 @@ pci_fbuf_baraddr(struct vmctx *ctx, struct pci_devinst *pi, int baridx,
 		return;
 
 	sc = pi->pi_arg;
-	if (!enabled && sc->fbaddr != 0) {
+	if (!enabled) {
 		if (vm_munmap_memseg(ctx, sc->fbaddr, FB_SIZE) != 0)
 			EPRINTLN("pci_fbuf: munmap_memseg failed");
 		sc->fbaddr = 0;
-	} else if (sc->fb_base != NULL && sc->fbaddr == 0) {
+	} else {
 		prot = PROT_READ | PROT_WRITE;
 		if (vm_mmap_memseg(ctx, address, VM_FRAMEBUFFER, 0, FB_SIZE, prot) != 0)
 			EPRINTLN("pci_fbuf: mmap_memseg failed");
@@ -375,7 +375,7 @@ pci_fbuf_render(struct bhyvegc *gc, void *arg)
 static int
 pci_fbuf_init(struct vmctx *ctx, struct pci_devinst *pi, nvlist_t *nvl)
 {
-	int error, prot;
+	int error;
 	struct pci_fbuf_softc *sc;
 	
 	if (fbuf_sc != NULL) {
@@ -393,6 +393,13 @@ pci_fbuf_init(struct vmctx *ctx, struct pci_devinst *pi, nvlist_t *nvl)
 	pci_set_cfgdata8(pi, PCIR_CLASS, PCIC_DISPLAY);
 	pci_set_cfgdata8(pi, PCIR_SUBCLASS, PCIS_DISPLAY_VGA);
 
+	sc->fb_base = vm_create_devmem(
+	    ctx, VM_FRAMEBUFFER, "framebuffer", FB_SIZE);
+	if (sc->fb_base == MAP_FAILED) {
+		error = -1;
+		goto done;
+	}
+
 	error = pci_emul_alloc_bar(pi, 0, PCIBAR_MEM32, DMEMSZ);
 	assert(error == 0);
 
@@ -402,7 +409,6 @@ pci_fbuf_init(struct vmctx *ctx, struct pci_devinst *pi, nvlist_t *nvl)
 	error = pci_emul_add_msicap(pi, PCI_FBUF_MSI_MSGS);
 	assert(error == 0);
 
-	sc->fbaddr = pi->pi_bar[1].addr;
 	sc->memregs.fbsize = FB_SIZE;
 	sc->memregs.width  = COLS_DEFAULT;
 	sc->memregs.height = ROWS_DEFAULT;
@@ -423,26 +429,8 @@ pci_fbuf_init(struct vmctx *ctx, struct pci_devinst *pi, nvlist_t *nvl)
 		goto done;
 	}
 
-	sc->fb_base = vm_create_devmem(ctx, VM_FRAMEBUFFER, "framebuffer", FB_SIZE);
-	if (sc->fb_base == MAP_FAILED) {
-		error = -1;
-		goto done;
-	}
 	DPRINTF(DEBUG_INFO, ("fbuf frame buffer base: %p [sz %lu]",
 	        sc->fb_base, FB_SIZE));
-
-	/*
-	 * Map the framebuffer into the guest address space.
-	 * XXX This may fail if the BAR is different than a prior
-	 * run. In this case flag the error. This will be fixed
-	 * when a change_memseg api is available.
-	 */
-	prot = PROT_READ | PROT_WRITE;
-	if (vm_mmap_memseg(ctx, sc->fbaddr, VM_FRAMEBUFFER, 0, FB_SIZE, prot) != 0) {
-		EPRINTLN("pci_fbuf: mapseg failed - try deleting VM and restarting");
-		error = -1;
-		goto done;
-	}
 
 	console_init(sc->memregs.width, sc->memregs.height, sc->fb_base);
 	console_fb_register(pci_fbuf_render, sc);
