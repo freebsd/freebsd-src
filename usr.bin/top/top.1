@@ -35,9 +35,13 @@ processes will be displayed instead of the default.
 makes a distinction between terminals that support advanced capabilities
 and those that do not.
 This distinction affects the choice of defaults for certain options.
-In the remainder of this document, an \*(lqintelligent\*(rq terminal is one that
+In the remainder of this document, an
+.Dq intelligent
+terminal is one that
 supports cursor addressing, clear screen, and clear to end of line.
-Conversely, a \*(lqdumb\*(rq terminal is one that does not support such
+Conversely, a
+.Dq dumb
+terminal is one that does not support such
 features.
 If the output of
 .Nm
@@ -57,7 +61,9 @@ Non-printable characters in the command line are
 encoded in C-style backslash sequences or
 a three digit octal sequences.
 .It Fl b
-Use \*(lqbatch\*(rq mode.
+Use
+.Dq batch
+mode.
 In this mode, all input from the terminal is
 ignored.
 Interrupt characters (such as ^C and ^\e) still have an effect.
@@ -70,9 +76,15 @@ By default top displays the weighted CPU percentage in the WCPU column
 displays as CPU).
 Each time
 .Fl C
-flag is passed it toggles between \*(lqraw cpu\*(rq mode
-and \*(lqweighted cpu\*(rq mode, showing the \*(lqCPU\*(rq or
-the \*(lqWCPU\*(rq column respectively.
+flag is passed it toggles between
+.Dq raw cpu
+mode and
+.Dq weighted cpu
+mode, showing the
+.Dq CPU
+or the
+.Dq WCPU
+column respectively.
 .It Fl d Ar count
 Show only
 .Ar count
@@ -91,10 +103,13 @@ By default a single summary line is displayed for each process.
 Do not display idle processes.
 By default, top displays both active and idle processes.
 .It Fl i
-Use \*(lqinteractive\*(rq mode.
+Use
+.Dq interactive
+mode.
 In this mode, any input is immediately
 read for processing.
-See the section on \*(lqInteractive Mode\*(rq
+See the section on
+.Dq Interactive Mode
 for an explanation of
 which keys perform what functions.
 After the command is processed, the
@@ -129,17 +144,32 @@ and
 Default is
 .Cm cpu .
 .It Fl n
-Use \*(lqnon-interactive\*(rq mode.
-This is identical to \*(lqbatch\*(rq
+Use
+.Dq non-interactive
+mode.
+This is identical to
+.Dq batch
 mode.
 .It Fl o Ar field
 Sort the process display area on the specified field.
 The field name
 is the name of the column as seen in the output, but in lower case:
-\*(lqcpu\*(lq, \*(rqsize\*(lq, \*(rqres\*(lq, \*(rqtime\*(lq,
-\*(rqpri\*(lq, \*(rqthreads\*(lq, \*(lqtotal\*(lq, \*(rqread\*(lq,
-\*(rqwrite\*(lq, \*(rqfault\*(lq, \*(rqvcsw\*(lq, \*(rqivcsw\*(lq,
-\*(lqjid\*(lq, \*(rqswap\*(lq or \*(rqpid\*(lq.
+.Dq cpu ,
+.Dq size ,
+.Dq res ,
+.Dq time ,
+.Dq pri ,
+.Dq threads ,
+.Dq total ,
+.Dq read ,
+.Dq write ,
+.Dq fault ,
+.Dq vcsw ,
+.Dq ivcsw ,
+.Dq jid ,
+.Dq swap ,
+or
+.Dq pid .
 .It Fl P
 Display per-cpu CPU usage statistics.
 .It Fl p Ar pid
@@ -176,7 +206,9 @@ uid numbers.
 Do not map uid numbers to usernames.
 Normally,
 .Nm
-will read as much of the file \*(lq/etc/passwd\*(rq as is necessary to map
+will read as much of the file
+.Pa /etc/passwd
+as is necessary to map
 all the user id numbers it encounters into login names.
 This option disables all that, while possibly decreasing execution time.
 The uid numbers are displayed instead of the names.
@@ -192,23 +224,29 @@ Both
 .Ar count
 and
 .Ar number
-fields can be specified as \*(lqinfinite\*(rq, indicating that they can
+fields can be specified as
+.Dq infinite ,
+indicating that they can
 stretch as far as possible.
 This is accomplished by using any proper
 prefix of the keywords
-\*(lqinfinity\*(rq,
-\*(lqmaximum\*(rq,
+.Dq infinity ,
+.Dq maximum ,
 or
-\*(lqall\*(rq.
+.Dq all .
 Boolean flags are toggles.
 A second specification of any of these options will negate the first.
 .Sh "INTERACTIVE MODE"
 When
 .Nm
-is running in \*(lqinteractive mode\*(rq, it reads commands from the
+is running in
+.Dq interactive mode ,
+it reads commands from the
 terminal and acts upon them accordingly.
 In this mode, the terminal is
-put in \*(lqCBREAK\*(rq, so that a character will be
+put in
+.Dq CBREAK ,
+so that a character will be
 processed as soon as it is typed.
 Almost always, a key will be
 pressed when
@@ -265,30 +303,45 @@ Toggle the display of system processes.
 .It a
 Toggle the display of process titles.
 .It k
-Send a signal (\*(lqkill\*(rq by default) to a list of processes.
+Send a signal
+.Pq SIGKILL by default
+to a list of processes.
 This acts similarly to the command
 .Xr kill 1 .
 .It r
-Change the priority (the \*(lqnice\*(rq) of a list of processes.
+Change the priority
+.Pq the Dq nice
+of a list of processes.
 This acts similarly to
 .Xr renice 8 .
 .It u
 Display only processes owned by a specific set of usernames (prompt for
 username).
-If the username specified is simply \*(lq+\*(rq or \*(lq-\*(rq,
+If the username specified is simply
+.Dq +
+or
+.Dq - ,
 then processes belonging to all users will be displayed.
 Usernames can be added
-to and removed from the set by prepending them with \*(lq+\*(rq and
-\*(lq-\*(rq, respectively.
+to and removed from the set by prepending them with
+.Dq +
+and
+.Dq - ,
+respectively.
 .It o
 Change the order in which the display is sorted.
 The sort key names include
-\*(lqcpu\*(rq, \*(lqres\*(rq, \*(lqsize\*(rq,
-\*(lqtime\*(rq.
+.Dq cpu ,
+.Dq res ,
+.Dq size ,
+and
+.Dq time.
 The default is cpu.
 .It p
 Display a specific process (prompt for pid).
-If the pid specified is simply \*(lq+\*(rq, then show all processes.
+If the pid specified is simply
+.Dq + ,
+then show all processes.
 .It e
 Display a list of system errors (if any) generated by the last
 command.
@@ -302,7 +355,9 @@ Toggle the display of
 ID.
 .It J
 Display only processes owned by a specific jail (prompt for jail).
-If the jail specified is simply \*(lq+\*(rq, then processes belonging
+If the jail specified is simply
+.Dq + ,
+then processes belonging
 to all jails and the host will be displayed.
 This will also enable the display of JID.
 .It P
@@ -351,10 +406,18 @@ SIZE is the total size of the process (text, data, and stack),
 RES is the current amount of resident memory,
 SWAP is the approximate amount of swap, if enabled
 (SIZE, RES and SWAP are given in kilobytes),
-STATE is the current state (one of \*(lqSTART\*(rq, \*(lqRUN\*(rq
-(shown as \*(lqCPUn\*(rq on SMP systems), \*(lqSLEEP\*(rq, \*(lqSTOP\*(rq,
-\*(lqZOMB\*(rq, \*(lqWAIT\*(rq, \*(lqLOCK\*(rq or the event on which the
-process waits),
+STATE is the current state (one of
+.Dq START ,
+.Dq RUN
+(shown as
+.Dq CPUn
+on SMP systems),
+.Dq SLEEP ,
+.Dq STOP ,
+.Dq ZOMB ,
+.Dq WAIT ,
+.Dq LOCK ,
+or the event on which the process waits),
 C is the processor number on which the process is executing
 (visible only on SMP systems),
 TIME is the number of system and user cpu seconds that the process has used,
@@ -365,12 +428,19 @@ displays as CPU),
 CPU is the raw percentage and is the field that is sorted to determine
 the order of the processes, and
 COMMAND is the name of the command that the process is currently running
-(if the process is swapped out, this column is marked \*(lq<swapped>\*(rq).
+(if the process is swapped out, this column is marked
+.Dq <swapped> ) .
 .Pp
-If a process is in the \*(lqSLEEP\*(rq or \*(lqLOCK\*(rq state,
+If a process is in the
+.Dq SLEEP
+or
+.Dq LOCK
+state,
 the state column will report the name of the event or lock on which the
 process is waiting.
-Lock names are prefixed with an asterisk \*(lq*\*(rq while sleep events
+Lock names are prefixed with an asterisk
+.Dq *
+while sleep events
 are not.
 .Sh DESCRIPTION OF MEMORY
 .Bd -literal
