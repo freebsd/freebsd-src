@@ -302,13 +302,11 @@ g_vfs_close(struct g_consumer *cp)
 {
 	struct g_geom *gp;
 	struct g_vfs_softc *sc;
-	struct vnode *vp;
 
 	g_topology_assert();
 
 	gp = cp->geom;
 	sc = gp->softc;
-	vp = cp->private;
 	bufobj_invalbuf(sc->sc_bo, V_SAVE, 0, 0);
 	sc->sc_bo->bo_private = cp->private;
 	gp->softc = NULL;
