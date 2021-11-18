@@ -99,6 +99,7 @@ struct pcibar {
 	enum pcibar_type	type;		/* io or memory */
 	uint64_t		size;
 	uint64_t		addr;
+	uint8_t			lobits;
 };
 
 #define PI_NAMESZ	40
