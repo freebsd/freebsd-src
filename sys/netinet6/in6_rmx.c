@@ -93,11 +93,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/icmp6.h>
 #include <netinet6/nd6.h>
 
-#include <netinet/tcp.h>
-#include <netinet/tcp_seq.h>
-#include <netinet/tcp_timer.h>
-#include <netinet/tcp_var.h>
-
 static int
 rib6_preadd(u_int fibnum, const struct sockaddr *addr, const struct sockaddr *mask,
     struct nhop_object *nh)
