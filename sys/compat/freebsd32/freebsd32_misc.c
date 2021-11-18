@@ -3893,37 +3893,3 @@ ofreebsd32_sethostid(struct thread *td, struct ofreebsd32_sethostid_args *uap)
 	    sizeof(hostid), NULL, 0));
 }
 #endif
-
-int
-freebsd32_fspacectl(struct thread *td, struct freebsd32_fspacectl_args *uap)
-{
-	struct spacectl_range rqsr, rmsr;
-	struct spacectl_range32 rqsr32, rmsr32;
-	int error, cerror;
-
-	error = copyin(uap->rqsr, &rqsr32, sizeof(rqsr32));
-	if (error != 0)
-		return (error);
-	rqsr.r_offset = PAIR32TO64(off_t, rqsr32.r_offset);
-	rqsr.r_len = PAIR32TO64(off_t, rqsr32.r_len);
-
-	error = kern_fspacectl(td, uap->fd, uap->cmd, &rqsr, uap->flags,
-	    &rmsr);
-	if (uap->rmsr != NULL) {
-#if BYTE_ORDER == LITTLE_ENDIAN
-		rmsr32.r_offset1 = rmsr.r_offset;
-		rmsr32.r_offset2 = rmsr.r_offset >> 32;
-		rmsr32.r_len1 = rmsr.r_len;
-		rmsr32.r_len2 = rmsr.r_len >> 32;
-#else
-		rmsr32.r_offset1 = rmsr.r_offset >> 32;
-		rmsr32.r_offset2 = rmsr.r_offset;
-		rmsr32.r_len1 = rmsr.r_len >> 32;
-		rmsr32.r_len2 = rmsr.r_len;
-#endif
-		cerror = copyout(&rmsr32, uap->rmsr, sizeof(rmsr32));
-		if (error == 0)
-			error = cerror;
-	}
-	return (error);
-}
