@@ -10,7 +10,7 @@
 .Op Fl abCHIijnPpqSTtuvxz
 .Op Fl d Ar count
 .Op Fl J Ar jail
-.Op Fl m Ar cpu|io
+.Op Fl m Ar mode
 .Op Fl o Ar field
 .Op Fl p Ar pid
 .Op Fl s Ar time
@@ -116,9 +116,15 @@ Using this option implies
 Display the
 .Xr jail 8
 ID.
-.It Fl m Ar display
-Display either 'cpu' or 'io' statistics.
-Default is 'cpu'.
+.It Fl m Ar mode
+Display statistics in the specified
+.Ar mode .
+Available modes are
+.Cm cpu
+and
+.Cm io .
+Default is
+.Cm cpu .
 .It Fl n
 Use \*(lqnon-interactive\*(rq mode.
 This is identical to \*(lqbatch\*(rq
