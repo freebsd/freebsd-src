@@ -3537,6 +3537,8 @@ parsecred(char *namelist, struct expcred *cr)
 	struct group *gr;
 	gid_t groups[NGROUPS_MAX + 1];
 	int ngroups;
+	unsigned long name_ul;
+	char *end = NULL;
 
 	/*
 	 * Set up the unprivileged user.
@@ -3551,10 +3553,11 @@ parsecred(char *namelist, struct expcred *cr)
 	names = namelist;
 	name = strsep_quote(&names, ":");
 	/* Bug?  name could be NULL here */
-	if (isdigit(*name) || *name == '-')
-		pw = getpwuid(atoi(name));
-	else
+	name_ul = strtoul(name, &end, 10);
+	if (*end != '\0' || end == name)
 		pw = getpwnam(name);
+	else
+		pw = getpwuid((uid_t)name_ul);
 	/*
 	 * Credentials specified as those of a user.
 	 */
@@ -3576,8 +3579,9 @@ parsecred(char *namelist, struct expcred *cr)
 		if (ngroups > 1 && groups[0] == groups[1]) {
 			ngroups--;
 			inpos = 2;
-		} else
+		} else {
 			inpos = 1;
+		}
 		if (ngroups > NGROUPS_MAX)
 			ngroups = NGROUPS_MAX;
 		if (ngroups > SMALLNGROUPS)
@@ -3592,25 +3596,26 @@ parsecred(char *namelist, struct expcred *cr)
 	 * Explicit credential specified as a colon separated list:
 	 *	uid:gid:gid:...
 	 */
-	if (pw != NULL)
+	if (pw != NULL) {
 		cr->cr_uid = pw->pw_uid;
-	else if (isdigit(*name) || *name == '-')
-		cr->cr_uid = atoi(name);
-	else {
+	} else if (*end != '\0' || end == name) {
 		syslog(LOG_ERR, "unknown user: %s", name);
 		return;
+	} else {
+		cr->cr_uid = name_ul;
 	}
 	cr->cr_ngroups = 0;
 	while (names != NULL && *names != '\0' && cr->cr_ngroups < NGROUPS_MAX) {
 		name = strsep_quote(&names, ":");
-		if (isdigit(*name) || *name == '-') {
-			groups[cr->cr_ngroups++] = atoi(name);
-		} else {
+		name_ul = strtoul(name, &end, 10);
+		if (*end != '\0' || end == name) {
 			if ((gr = getgrnam(name)) == NULL) {
 				syslog(LOG_ERR, "unknown group: %s", name);
 				continue;
 			}
 			groups[cr->cr_ngroups++] = gr->gr_gid;
+		} else {
+			groups[cr->cr_ngroups++] = name_ul;
 		}
 	}
 	if (names != NULL && *names != '\0' && cr->cr_ngroups == NGROUPS_MAX)
