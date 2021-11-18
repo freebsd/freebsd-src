@@ -459,8 +459,8 @@ main(int argc, const char *argv[])
 
 	      default:
 		errx(1, 
-"[-abCHIijnPqStuvwz] [-d count] [-m io | cpu] [-o field] [-p pid]\n"
-"       [-s time] [-J jail] [-U username] [number]");
+"[-abCHIijnPqStuvwz] [-d count] [-J jail] [-m cpu | io] [-o field]\n"
+"     [-p pid] [-s time] [-U username] [number]");
 	    }
 	}
 
