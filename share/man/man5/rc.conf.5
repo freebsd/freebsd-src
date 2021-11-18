@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 5, 2021
+.Dd November 18, 2021
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -2388,9 +2388,40 @@ is set to
 .Dq Li YES
 and
 .Va nfsv4_server_enable
-are set to
+is set to
 .Dq Li YES ,
 enable the server for NFSv4 as well as NFSv2 and NFSv3.
+.It Va nfsv4_server_only
+.Pq Vt bool
+If
+.Va nfs_server_enable
+is set to
+.Dq Li YES
+and
+.Va nfsv4_server_only
+is set to
+.Dq Li YES ,
+enable the NFS server for NFSv4 only.
+.It Va nfs_server_maxio
+.Pq Vt int
+value to set vfs.nfsd.srvmaxio to, which is the
+maximum I/O size for the NFS server.
+.It Va tlsclntd_enable
+.Pq Vt bool
+If set to
+.Dq Li YES ,
+run the
+.Xr rpc.tlsclntd 8
+daemon, which is needed for NFS-over-TLS NFS mounts.
+.It Va tlsservd_enable
+.Pq Vt bool
+If set to
+.Dq Li YES ,
+run the
+.Xr rpc.tlsservd 8
+daemon, which is needed for the
+.Xr nfsd 8
+to support NFS-over-TLS NFS mounts.
 .It Va nfsuserd_enable
 .Pq Vt bool
 If
@@ -4663,6 +4694,8 @@ it will be made permanently active.
 .Xr routed 8 ,
 .Xr rpc.lockd 8 ,
 .Xr rpc.statd 8 ,
+.Xr rpc.tlsclntd 8 ,
+.Xr rpc.tlsservd 8 ,
 .Xr rpcbind 8 ,
 .Xr rwhod 8 ,
 .Xr savecore 8 ,
