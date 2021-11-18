@@ -40,6 +40,12 @@ ${LD} --shared -Bsymbolic -soname="elf-vdso32.so.1" \
    --hash-style=sysv --fatal-warnings --strip-all \
    -o elf-vdso32.so.1 ia32_sigtramp.pico
 
+if [ "$(wc -c elf-vdso32.so.1 | ${AWK} '{print $1}')" -gt 2048 ]
+then
+    echo "elf-vdso32.so.1 too large" 1>&2
+    exit 1
+fi
+
 ${CC} -x assembler-with-cpp -DLOCORE -fPIC -nostdinc -c \
    -o elf-vdso32.so.o -I. -I"${S}" -include opt_global.h \
    -DVDSO_NAME=elf_vdso32_so_1 -DVDSO_FILE=elf-vdso32.so.1 \
