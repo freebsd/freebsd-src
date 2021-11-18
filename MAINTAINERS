@@ -122,12 +122,12 @@ usr.sbin/bsdconfig	dteske	Pre-commit phabricator review requested.
 usr.sbin/dpv	dteske	Pre-commit review requested. Keep in sync with libdpv.
 usr.sbin/pkg	pkg@	Please coordinate behavior or flag changes with pkg team.
 usr.sbin/sysrc	dteske	Pre-commit phabricator review requested. Keep in sync with bsdconfig(8) sysrc.subr.
-vmm(4)		jhb, grehan	Pre-commit review requested via #bhyve
-				phabricator group.
-libvmmapi	jhb, grehan	Pre-commit review requested via #bhyve
-				phabricator group.
-usr.sbin/bhyve*	jhb, grehan	Pre-commit review requested via #bhyve
-				phabricator group.
+vmm(4)		jhb	Pre-commit review requested via #bhyve
+			phabricator group.
+libvmmapi	jhb	Pre-commit review requested via #bhyve
+			phabricator group.
+usr.sbin/bhyve*	jhb	Pre-commit review requested via #bhyve
+			phabricator group.
 autofs(5)	trasz	Pre-commit review recommended.
 iscsi(4)	trasz	Pre-commit review recommended.
 rctl(8)		trasz	Pre-commit review recommended.
