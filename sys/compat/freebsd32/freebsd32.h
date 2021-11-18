@@ -458,9 +458,4 @@ struct ptrace_coredump32 {
 	uint32_t	pc_limit1, pc_limit2;
 };
 
-struct spacectl_range32 {
-	uint32_t	r_offset1, r_offset2;
-	uint32_t	r_len1, r_len2;
-};
-
 #endif /* !_COMPAT_FREEBSD32_FREEBSD32_H_ */

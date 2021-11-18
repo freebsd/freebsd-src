@@ -772,13 +772,6 @@ struct freebsd32_aio_writev_args {
 struct freebsd32_aio_readv_args {
 	char aiocbp_l_[PADL_(struct aiocb32 *)]; struct aiocb32 * aiocbp; char aiocbp_r_[PADR_(struct aiocb32 *)];
 };
-struct freebsd32_fspacectl_args {
-	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
-	char cmd_l_[PADL_(int)]; int cmd; char cmd_r_[PADR_(int)];
-	char rqsr_l_[PADL_(const struct spacectl_range32 *)]; const struct spacectl_range32 * rqsr; char rqsr_r_[PADR_(const struct spacectl_range32 *)];
-	char flags_l_[PADL_(int)]; int flags; char flags_r_[PADR_(int)];
-	char rmsr_l_[PADL_(struct spacectl_range32 *)]; struct spacectl_range32 * rmsr; char rmsr_r_[PADR_(struct spacectl_range32 *)];
-};
 #if !defined(PAD64_REQUIRED) && !defined(__amd64__)
 #define PAD64_REQUIRED
 #endif
@@ -929,7 +922,6 @@ int	freebsd32_cpuset_setdomain(struct thread *, struct freebsd32_cpuset_setdomai
 int	freebsd32___sysctlbyname(struct thread *, struct freebsd32___sysctlbyname_args *);
 int	freebsd32_aio_writev(struct thread *, struct freebsd32_aio_writev_args *);
 int	freebsd32_aio_readv(struct thread *, struct freebsd32_aio_readv_args *);
-int	freebsd32_fspacectl(struct thread *, struct freebsd32_fspacectl_args *);
 
 #ifdef COMPAT_43
 
@@ -1560,7 +1552,6 @@ int	freebsd11_freebsd32_fstatat(struct thread *, struct freebsd11_freebsd32_fsta
 #define	FREEBSD32_SYS_AUE_freebsd32___sysctlbyname	AUE_SYSCTL
 #define	FREEBSD32_SYS_AUE_freebsd32_aio_writev	AUE_AIO_WRITEV
 #define	FREEBSD32_SYS_AUE_freebsd32_aio_readv	AUE_AIO_READV
-#define	FREEBSD32_SYS_AUE_freebsd32_fspacectl	AUE_FSPACECTL
 
 #undef PAD_
 #undef PADL_

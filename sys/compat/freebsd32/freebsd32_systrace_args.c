@@ -3446,14 +3446,14 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 1;
 		break;
 	}
-	/* freebsd32_fspacectl */
+	/* fspacectl */
 	case 580: {
-		struct freebsd32_fspacectl_args *p = params;
+		struct fspacectl_args *p = params;
 		iarg[0] = p->fd; /* int */
 		iarg[1] = p->cmd; /* int */
-		uarg[2] = (intptr_t)p->rqsr; /* const struct spacectl_range32 * */
+		uarg[2] = (intptr_t)p->rqsr; /* const struct spacectl_range * */
 		iarg[3] = p->flags; /* int */
-		uarg[4] = (intptr_t)p->rmsr; /* struct spacectl_range32 * */
+		uarg[4] = (intptr_t)p->rmsr; /* struct spacectl_range * */
 		*n_args = 5;
 		break;
 	}
@@ -9305,7 +9305,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* freebsd32_fspacectl */
+	/* fspacectl */
 	case 580:
 		switch (ndx) {
 		case 0:
@@ -9315,13 +9315,13 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 2:
-			p = "userland const struct spacectl_range32 *";
+			p = "userland const struct spacectl_range *";
 			break;
 		case 3:
 			p = "int";
 			break;
 		case 4:
-			p = "userland struct spacectl_range32 *";
+			p = "userland struct spacectl_range *";
 			break;
 		default:
 			break;
@@ -11272,7 +11272,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* freebsd32_fspacectl */
+	/* fspacectl */
 	case 580:
 		if (ndx == 0 || ndx == 1)
 			p = "int";

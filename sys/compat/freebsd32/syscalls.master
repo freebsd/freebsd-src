@@ -1199,10 +1199,10 @@
 				    struct aiocb32 *aiocbp); }
 579	AUE_AIO_READV	STD	{ int freebsd32_aio_readv( \
 				    struct aiocb32 *aiocbp); }
-580	AUE_FSPACECTL	STD	{ int freebsd32_fspacectl(int fd, \
+580	AUE_FSPACECTL	NOPROTO	{ int fspacectl(int fd, \
 				    int cmd, \
-				    const struct spacectl_range32 *rqsr, \
+				    const struct spacectl_range *rqsr, \
 				    int flags, \
-				    struct spacectl_range32 *rmsr); }
+				    struct spacectl_range *rmsr); }
 581	AUE_NULL	NOPROTO	{ int sched_getcpu(void); }
 ; vim: syntax=off
