@@ -7,14 +7,14 @@
 .Nd display and update information about the top cpu processes
 .Sh SYNOPSIS
 .Nm
-.Op Fl CHIPSTabijnpqtuvxz
-.Op Fl J Ar jail
-.Op Fl U Ar uid
+.Op Fl abCHIijnPpqSTtuvxz
 .Op Fl d Ar count
+.Op Fl J Ar jail
 .Op Fl m Ar cpu|io
-.Op Fl s Ar time
 .Op Fl o Ar field
 .Op Fl p Ar pid
+.Op Fl s Ar time
+.Op Fl U Ar uid
 .Op Ar number
 .Sh DESCRIPTION
 .Nm
@@ -43,22 +43,9 @@ If the output of
 .Nm
 is redirected to a file, it acts as if it were being run on a dumb
 terminal.
-.Bl -tag -width indent -compact
-.It Fl C
-Toggle CPU display mode.
-By default top displays the weighted CPU percentage in the WCPU column
-(this is the same value that
-.Xr ps 1
-displays as CPU).
-Each time
-.Fl C
-flag is passed it toggles between \*(lqraw cpu\*(rq mode
-and \*(lqweighted cpu\*(rq mode, showing the \*(lqCPU\*(rq or
-the \*(lqWCPU\*(rq column respectively.
-.It Fl S
-Show system processes in the display.
-Normally, system processes such as the pager and the swapper are not shown.
-This option makes them visible.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
 .It Fl a
 Display command names derived from the argv[] vector, rather than real
 executable name.
@@ -75,9 +62,34 @@ In this mode, all input from the terminal is
 ignored.
 Interrupt characters (such as ^C and ^\e) still have an effect.
 This is the default on a dumb terminal, or when the output is not a terminal.
+.It Fl C
+Toggle CPU display mode.
+By default top displays the weighted CPU percentage in the WCPU column
+(this is the same value that
+.Xr ps 1
+displays as CPU).
+Each time
+.Fl C
+flag is passed it toggles between \*(lqraw cpu\*(rq mode
+and \*(lqweighted cpu\*(rq mode, showing the \*(lqCPU\*(rq or
+the \*(lqWCPU\*(rq column respectively.
+.It Fl d Ar count
+Show only
+.Ar count
+displays, then exit.
+A display is considered to be one update of the
+screen.
+The default is 1 for dumb terminals.
+Note that for
+.Ar count
+= 1
+no information is available about the percentage of time spent by the CPU in every state.
 .It Fl H
 Display each thread for a multithreaded process individually.
 By default a single summary line is displayed for each process.
+.It Fl I
+Do not display idle processes.
+By default, top displays both active and idle processes.
 .It Fl i
 Use \*(lqinteractive\*(rq mode.
 In this mode, any input is immediately
@@ -90,19 +102,23 @@ screen will immediately be updated, even if the command was not
 understood.
 This mode is the default when standard output is an
 intelligent terminal.
-.It Fl I
-Do not display idle processes.
-By default, top displays both active and idle processes.
+.It Fl J Ar jail
+Show only those processes owned by
+.Ar jail .
+This may be either the
+.Ar jid
+or
+.Ar name
+of the jail.
+Use
+0
+to limit to host processes.
+Using this option implies
+.Fl j .
 .It Fl j
 Display the
 .Xr jail 8
 ID.
-.It Fl T
-Toggle displaying thread ID (tid) instead of process id (pid).
-.It Fl t
-Do not display the
-.Nm
-process itself.
 .It Fl m Ar display
 Display either 'cpu' or 'io' statistics.
 Default is 'cpu'.
@@ -110,8 +126,19 @@ Default is 'cpu'.
 Use \*(lqnon-interactive\*(rq mode.
 This is identical to \*(lqbatch\*(rq
 mode.
+.It Fl o Ar field
+Sort the process display area on the specified field.
+The field name
+is the name of the column as seen in the output, but in lower case:
+\*(lqcpu\*(lq, \*(rqsize\*(lq, \*(rqres\*(lq, \*(rqtime\*(lq,
+\*(rqpri\*(lq, \*(rqthreads\*(lq, \*(lqtotal\*(lq, \*(rqread\*(lq,
+\*(rqwrite\*(lq, \*(rqfault\*(lq, \*(rqvcsw\*(lq, \*(rqivcsw\*(lq,
+\*(lqjid\*(lq, \*(rqswap\*(lq or \*(rqpid\*(lq.
 .It Fl P
 Display per-cpu CPU usage statistics.
+.It Fl p Ar pid
+Show only the process
+.Ar pid .
 .It Fl q
 Renice
 .Nm
@@ -119,6 +146,26 @@ to -20 so that it will run faster.
 This can be used when the system is
 being very sluggish to improve the possibility of discovering the problem.
 This option can only be used by root.
+.It Fl S
+Show system processes in the display.
+Normally, system processes such as the pager and the swapper are not shown.
+This option makes them visible.
+.It Fl s Ar time
+Set the delay between screen updates to
+.Ar time
+seconds, which may be fractional.
+The default delay between updates is 1 second.
+.It Fl T
+Toggle displaying thread ID (tid) instead of process id (pid).
+.It Fl t
+Do not display the
+.Nm
+process itself.
+.It Fl U Ar username
+Show only those processes owned by
+.Ar username .
+This option currently only accepts usernames and will not understand
+uid numbers.
 .It Fl u
 Do not map uid numbers to usernames.
 Normally,
@@ -133,52 +180,6 @@ Write version number information to stderr then exit immediately.
 Display approximate swap usage for each process.
 .It Fl z
 Do not display the system idle process.
-.It Fl d Ar count
-Show only
-.Ar count
-displays, then exit.
-A display is considered to be one update of the
-screen.
-The default is 1 for dumb terminals.
-Note that for
-.Ar count
-= 1
-no information is available about the percentage of time spent by the CPU in every state.
-.It Fl s Ar time
-Set the delay between screen updates to
-.Ar time
-seconds, which may be fractional.
-The default delay between updates is 1 second.
-.It Fl o Ar field
-Sort the process display area on the specified field.
-The field name
-is the name of the column as seen in the output, but in lower case:
-\*(lqcpu\*(lq, \*(rqsize\*(lq, \*(rqres\*(lq, \*(rqtime\*(lq,
-\*(rqpri\*(lq, \*(rqthreads\*(lq, \*(lqtotal\*(lq, \*(rqread\*(lq,
-\*(rqwrite\*(lq, \*(rqfault\*(lq, \*(rqvcsw\*(lq, \*(rqivcsw\*(lq,
-\*(lqjid\*(lq, \*(rqswap\*(lq or \*(rqpid\*(lq.
-.It Fl p Ar pid
-Show only the process
-.Ar pid .
-.It Fl J Ar jail
-Show only those processes owned by
-.Ar jail .
-This may be either the
-.Ar jid
-or
-.Ar name
-of the jail.
-Use
-0
-to limit to host processes.
-Using this option implies
-.Fl j .
-.Pp
-.It Fl U Ar username
-Show only those processes owned by
-.Ar username .
-This option currently only accepts usernames and will not understand
-uid numbers.
 .El
 .Pp
 Both
@@ -238,9 +239,7 @@ Quit
 .Nm
 .It d
 Change the number of displays to show (prompt for new number).
-Remember that the next display counts as one, so typing
-.It d1
-will make
+Remember that the next display counts as one, so typing 'd1' will make
 .Nm
 show one final display and then immediately exit.
 .It /
