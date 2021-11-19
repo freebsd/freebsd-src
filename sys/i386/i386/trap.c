@@ -414,7 +414,7 @@ user_trctrap_out:
 #endif
 			if (time_second - lastalert > 10) {
 				log(LOG_WARNING, "NMI: power fail\n");
-				sysbeep(880, hz);
+				sysbeep(880, SBT_1S);
 				lastalert = time_second;
 			}
 			return;
@@ -671,7 +671,7 @@ kernel_trctrap:
 #ifdef POWERFAIL_NMI
 			if (time_second - lastalert > 10) {
 				log(LOG_WARNING, "NMI: power fail\n");
-				sysbeep(880, hz);
+				sysbeep(880, SBT_1S);
 				lastalert = time_second;
 			}
 			return;

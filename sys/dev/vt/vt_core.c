@@ -119,8 +119,8 @@ const struct terminal_class vt_termclass = {
 #define	VT_TIMERFREQ	25
 
 /* Bell pitch/duration. */
-#define	VT_BELLDURATION	((5 * hz + 99) / 100)
-#define	VT_BELLPITCH	800
+#define	VT_BELLDURATION	(SBT_1S / 20)
+#define	VT_BELLPITCH	(1193182 / 800) /* Approx 1491Hz */
 
 #define	VT_UNIT(vw)	((vw)->vw_device->vd_unit * VT_MAXWINDOWS + \
 			(vw)->vw_number)
@@ -1101,7 +1101,7 @@ vtterm_bell(struct terminal *tm)
 	if (vd->vd_flags & VDF_QUIET_BELL)
 		return;
 
-	sysbeep(1193182 / VT_BELLPITCH, VT_BELLDURATION);
+	sysbeep(VT_BELLPITCH, VT_BELLDURATION);
 }
 
 static void
@@ -1117,7 +1117,7 @@ vtterm_beep(struct terminal *tm, u_int param)
 		return;
 	}
 
-	period = ((param >> 16) & 0xffff) * hz / 1000;
+	period = ((param >> 16) & 0xffff) * SBT_1MS;
 	freq = 1193182 / (param & 0xffff);
 
 	sysbeep(freq, period);

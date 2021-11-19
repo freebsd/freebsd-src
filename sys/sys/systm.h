@@ -445,7 +445,7 @@ int	casueword(volatile u_long *p, u_long oldval, u_long *oldvalp,
 
 void	realitexpire(void *);
 
-int	sysbeep(int hertz, int period);
+int	sysbeep(int hertz, sbintime_t duration);
 
 void	hardclock(int cnt, int usermode);
 void	hardclock_sync(int cpu);
