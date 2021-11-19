@@ -35,8 +35,12 @@
 #define	_COMPAT32_BASENAME_RTLD		"ld-elf32.so.1"
 #endif
 
+#ifndef _PATH_ELF32_HINTS
+#define	_PATH_ELF32_HINTS	"/var/run/ld-elf32.so.hints"
+#endif
+
 #ifdef COMPAT_32BIT
-#define	_PATH_ELF_HINTS		"/var/run/ld-elf32.so.hints"
+#define	_PATH_ELF_HINTS		_PATH_ELF32_HINTS
 #define	_PATH_LIBMAP_CONF	"/etc/libmap32.conf"
 #define	_BASENAME_RTLD		_COMPAT32_BASENAME_RTLD
 #define	STANDARD_LIBRARY_PATH	"/lib32:/usr/lib32"
