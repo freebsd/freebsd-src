@@ -741,7 +741,7 @@ ppb_1284_negociate(device_t bus, int mode, int options)
 		goto error;
 	}
 
-	/* Event 7 - quering result consider nACK not to misunderstand
+	/* Event 7 - querying result consider nACK not to misunderstand
 	 * a remote computer terminate sequence */
 	if (options & PPB_EXTENSIBILITY_LINK) {
 
