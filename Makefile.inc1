@@ -681,8 +681,8 @@ PACKAGE=	kernel
 
 BOOTSTRAPPING?=	0
 # Keep these in sync
-MINIMUM_SUPPORTED_OSREL?= 1102501
-MINIMUM_SUPPORTED_REL?= 11.3
+MINIMUM_SUPPORTED_OSREL?= 1002501
+MINIMUM_SUPPORTED_REL?= 10.3
 
 # Common environment for world related stages
 CROSSENV+=	\
@@ -2239,6 +2239,24 @@ _vtfontcvt=	usr.bin/vtfontcvt
 # If you add a new bootstrap tool where we could also use the host version,
 # please ensure that you also add a .else case where you add the tool to the
 # _bootstrap_tools_links variable.
+.if ${BOOTSTRAPPING} < 1000033
+# Note: lex needs m4 to build but m4 also depends on lex (which needs m4 to
+# generate any files). To fix this cyclic dependency we can build a bootstrap
+# version of m4 (with pre-generated files) then use that to build the real m4.
+# We can't simply use the host m4 since e.g. the macOS version does not accept
+# the flags that are passed by lex.
+# For lex we also use the pre-gerated files since we would otherwise need to
+# build awk and sed first (which need lex to build)
+# TODO: add a _bootstrap_lex and then build the real lex afterwards
+_lex=		usr.bin/lex
+_m4=		tools/build/bootstrap-m4 usr.bin/m4
+${_bt}-tools/build/bootstrap-m4: ${_bt}-usr.bin/lex ${_bt}-lib/libopenbsd ${_bt}-usr.bin/yacc
+${_bt}-usr.bin/m4: ${_bt}-lib/libopenbsd ${_bt}-usr.bin/yacc ${_bt}-usr.bin/lex ${_bt}-tools/build/bootstrap-m4
+_bt_m4_depend=${_bt}-usr.bin/m4
+_bt_lex_depend=${_bt}-usr.bin/lex ${_bt_m4_depend}
+.else
+_bootstrap_tools_links+=m4 lex
+.endif
 
 # ELF Tool Chain libraries are needed for ELF tools and dtrace tools.
 # r296685 fix cross-endian objcopy
@@ -2274,12 +2292,39 @@ ${_bt}-usr.sbin/nmtree: ${_bt}-lib/libnetbsd
 _bootstrap_tools_links+=mtree
 .endif
 
+# r246097: log addition login.conf.db, passwd, pwd.db, and spwd.db with cat -l
+.if ${BOOTSTRAPPING} < 1000027
+_cat=		bin/cat
+.else
+_bootstrap_tools_links+=cat
+.endif
+
+# r277259 crunchide: Correct 64-bit section header offset
+# r281674 crunchide: always include both 32- and 64-bit ELF support
+.if ${BOOTSTRAPPING} < 1100078
+_crunchide=	usr.sbin/crunch/crunchide
+.else
+_bootstrap_tools_links+=crunchide
+.endif
+
 # 1300115: Higher WARNS fixes
 .if ${BOOTSTRAPPING} < 1202502 || \
 	(${BOOTSTRAPPING} > 1300000 && ${BOOTSTRAPPING} < 1300131)
 _crunchgen=	usr.sbin/crunch/crunchgen
 .else
 _bootstrap_tools_links+=crunchgen
+.endif
+
+# r296926 -P keymap search path, MFC to stable/10 in r298297
+# Note: kbdcontrol can not be bootstrapped on non-FreeBSD systems
+.if !defined(CROSSBUILD_HOST)
+.if (${BOOTSTRAPPING} < 1003501 || \
+	(${BOOTSTRAPPING} >= 1100000 && ${BOOTSTRAPPING} < 1100103) || \
+	(!exists(/usr/sbin/kbdcontrol)))
+_kbdcontrol=	usr.sbin/kbdcontrol
+.else
+_bootstrap_tools_links+=kbdcontrol
+.endif
 .endif
 
 # 1300102: VHDX support
@@ -2378,8 +2423,6 @@ _basic_bootstrap_tools+=usr.sbin/services_mkdb usr.sbin/pwd_mkdb
 # bootstrap ldd on non-FreeBSD systems
 _basic_bootstrap_tools+=usr.bin/ldd
 .endif
-# cat is used by sys/kern/genoffset.sh and sys/conf/newvers.sh
-_basic_bootstrap_tools+=bin/cat
 # sysctl/chflags are required for installkernel:
 .if !defined(CROSSBUILD_HOST)
 _basic_bootstrap_tools+=bin/chflags
