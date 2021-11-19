@@ -126,7 +126,7 @@ struct sbp_status {
 #define STATUS_LUR		5
 /*   6: Maximum payload too small */
 /*   7: Reserved for future standardization */
-/*   8: Resource unavailabe */
+/*   8: Resource unavailable */
 #define STATUS_RES_UNAVAIL	8
 /*   9: Function Rejected */
 /*  10: Login ID not recognized */
