@@ -6,8 +6,8 @@
 //
 //==-----------------------------------------------------------------------===//
 
-#include "AMDGPU.h"
-#include "MCTargetDesc/AMDGPUMCTargetDesc.h"
+#include "MCTargetDesc/R600MCTargetDesc.h"
+#include "R600.h"
 #include "R600RegisterInfo.h"
 #include "R600Subtarget.h"
 #include "llvm/ADT/SCCIterator.h"
@@ -127,6 +127,10 @@ public:
   bool prepare();
 
   bool runOnMachineFunction(MachineFunction &MF) override {
+    // FIXME: This pass causes verification failures.
+    MF.getProperties().set(
+        MachineFunctionProperties::Property::FailsVerification);
+
     TII = MF.getSubtarget<R600Subtarget>().getInstrInfo();
     TRI = &TII->getRegisterInfo();
     LLVM_DEBUG(MF.dump(););
@@ -245,7 +249,7 @@ protected:
   int loopendPatternMatch();
   int mergeLoop(MachineLoop *LoopRep);
 
-  /// return true iff src1Blk->succ_size() == 0 && src1Blk and src2Blk are in
+  /// return true iff src1Blk->succ_empty() && src1Blk and src2Blk are in
   /// the same loop with LoopLandInfo without explicitly keeping track of
   /// loopContBlks and loopBreakBlks, this is a method to get the information.
   bool isSameloopDetachedContbreak(MachineBasicBlock *Src1MBB,
@@ -571,12 +575,9 @@ bool AMDGPUCFGStructurizer::isUncondBranch(MachineInstr *MI) {
 DebugLoc AMDGPUCFGStructurizer::getLastDebugLocInBB(MachineBasicBlock *MBB) {
   //get DebugLoc from the first MachineBasicBlock instruction with debug info
   DebugLoc DL;
-  for (MachineBasicBlock::iterator It = MBB->begin(); It != MBB->end();
-      ++It) {
-    MachineInstr *instr = &(*It);
-    if (instr->getDebugLoc())
-      DL = instr->getDebugLoc();
-  }
+  for (MachineInstr &MI : *MBB)
+    if (MI.getDebugLoc())
+      DL = MI.getDebugLoc();
   return DL;
 }
 
@@ -617,7 +618,7 @@ MachineInstr *AMDGPUCFGStructurizer::getReturnInstr(MachineBasicBlock *MBB) {
 
 bool AMDGPUCFGStructurizer::isReturnBlock(MachineBasicBlock *MBB) {
   MachineInstr *MI = getReturnInstr(MBB);
-  bool IsReturn = (MBB->succ_size() == 0);
+  bool IsReturn = MBB->succ_empty();
   if (MI)
     assert(IsReturn);
   else if (IsReturn)
@@ -628,9 +629,8 @@ bool AMDGPUCFGStructurizer::isReturnBlock(MachineBasicBlock *MBB) {
 
 void AMDGPUCFGStructurizer::cloneSuccessorList(MachineBasicBlock *DstMBB,
     MachineBasicBlock *SrcMBB) {
-  for (MachineBasicBlock::succ_iterator It = SrcMBB->succ_begin(),
-       iterEnd = SrcMBB->succ_end(); It != iterEnd; ++It)
-    DstMBB->addSuccessor(*It);  // *iter's predecessor is also taken care of
+  for (MachineBasicBlock *Succ : SrcMBB->successors())
+    DstMBB->addSuccessor(Succ);  // *iter's predecessor is also taken care of
 }
 
 MachineBasicBlock *AMDGPUCFGStructurizer::clone(MachineBasicBlock *MBB) {
@@ -808,7 +808,7 @@ bool AMDGPUCFGStructurizer::run() {
 
     MachineBasicBlock *EntryMBB =
         *GraphTraits<MachineFunction *>::nodes_begin(FuncRep);
-    if (EntryMBB->succ_size() == 0) {
+    if (EntryMBB->succ_empty()) {
       Finish = true;
       LLVM_DEBUG(dbgs() << "Reduce to one block\n";);
     } else {
@@ -1054,7 +1054,7 @@ int AMDGPUCFGStructurizer::mergeLoop(MachineLoop *LoopRep) {
 
 bool AMDGPUCFGStructurizer::isSameloopDetachedContbreak(
     MachineBasicBlock *Src1MBB, MachineBasicBlock *Src2MBB) {
-  if (Src1MBB->succ_size() == 0) {
+  if (Src1MBB->succ_empty()) {
     MachineLoop *LoopRep = MLI->getLoopFor(Src1MBB);
     if (LoopRep&& LoopRep == MLI->getLoopFor(Src2MBB)) {
       MachineBasicBlock *&TheEntry = LLInfoMap[LoopRep];
@@ -1319,12 +1319,9 @@ int AMDGPUCFGStructurizer::improveSimpleJumpintoIf(MachineBasicBlock *HeadMBB,
     insertInstrBefore(I, R600::ENDIF);
 
     // put initReg = 2 to other predecessors of landBlk
-    for (MachineBasicBlock::pred_iterator PI = LandBlk->pred_begin(),
-         PE = LandBlk->pred_end(); PI != PE; ++PI) {
-      MachineBasicBlock *MBB = *PI;
+    for (MachineBasicBlock *MBB : LandBlk->predecessors())
       if (MBB != TrueMBB && MBB != FalseMBB)
         report_fatal_error("Extra register needed to handle CFG");
-    }
   }
   LLVM_DEBUG(
       dbgs() << "result from improveSimpleJumpintoIf: ";
@@ -1393,7 +1390,7 @@ void AMDGPUCFGStructurizer::mergeIfthenelseBlock(MachineInstr *BranchMI,
     MBB->splice(I, FalseMBB, FalseMBB->begin(),
                    FalseMBB->end());
     MBB->removeSuccessor(FalseMBB, true);
-    if (LandMBB && FalseMBB->succ_size() != 0)
+    if (LandMBB && !FalseMBB->succ_empty())
       FalseMBB->removeSuccessor(LandMBB, true);
     retireBlock(FalseMBB);
     MLI->removeBlock(FalseMBB);
@@ -1639,8 +1636,7 @@ void AMDGPUCFGStructurizer::retireBlock(MachineBasicBlock *MBB) {
     SrcBlkInfo = new BlockInformation();
 
   SrcBlkInfo->IsRetired = true;
-  assert(MBB->succ_size() == 0 && MBB->pred_size() == 0
-         && "can't retire block yet");
+  assert(MBB->succ_empty() && MBB->pred_empty() && "can't retire block yet");
 }
 
 INITIALIZE_PASS_BEGIN(AMDGPUCFGStructurizer, "amdgpustructurizer",

@@ -340,7 +340,7 @@ void Sema::ActOnPragmaPack(SourceLocation PragmaLoc, PragmaMsStackAction Action,
 
     // pack(0) is like pack(), which just works out since that is what
     // we use 0 for in PackAttr.
-    if (Alignment->isTypeDependent() || Alignment->isValueDependent() || !Val ||
+    if (Alignment->isTypeDependent() || !Val ||
         !(*Val == 0 || Val->isPowerOf2()) || Val->getZExtValue() > 16) {
       Diag(PragmaLoc, diag::warn_pragma_pack_invalid_alignment);
       return; // Ignore
@@ -475,8 +475,9 @@ void Sema::ActOnPragmaFloatControl(SourceLocation Loc,
                                    PragmaFloatControlKind Value) {
   FPOptionsOverride NewFPFeatures = CurFPFeatureOverrides();
   if ((Action == PSK_Push_Set || Action == PSK_Push || Action == PSK_Pop) &&
-      !(CurContext->isTranslationUnit()) && !CurContext->isNamespace()) {
-    // Push and pop can only occur at file or namespace scope.
+      !CurContext->getRedeclContext()->isFileContext()) {
+    // Push and pop can only occur at file or namespace scope, or within a
+    // language linkage declaration.
     Diag(Loc, diag::err_pragma_fc_pp_scope);
     return;
   }

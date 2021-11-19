@@ -32,8 +32,10 @@ extern cl::opt<unsigned> SCEVCheapExpansionBudget;
 
 /// Return true if the given expression is safe to expand in the sense that
 /// all materialized values are safe to speculate anywhere their operands are
-/// defined.
-bool isSafeToExpand(const SCEV *S, ScalarEvolution &SE);
+/// defined, and the expander is capable of expanding the expression.
+/// CanonicalMode indicates whether the expander will be used in canonical mode.
+bool isSafeToExpand(const SCEV *S, ScalarEvolution &SE,
+                    bool CanonicalMode = true);
 
 /// Return true if the given expression is safe to expand in the sense that
 /// all materialized values are defined and safe to speculate at the specified
@@ -488,9 +490,6 @@ private:
                                      Type *&TruncTy, bool &InvertStep);
   Value *expandIVInc(PHINode *PN, Value *StepV, const Loop *L, Type *ExpandTy,
                      Type *IntTy, bool useSubtract);
-
-  void hoistBeforePos(DominatorTree *DT, Instruction *InstToHoist,
-                      Instruction *Pos, PHINode *LoopPhi);
 
   void fixupInsertPoints(Instruction *I);
 

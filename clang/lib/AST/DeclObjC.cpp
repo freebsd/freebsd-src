@@ -603,10 +603,6 @@ void ObjCInterfaceDecl::allocateDefinitionData() {
   assert(!hasDefinition() && "ObjC class already has a definition");
   Data.setPointer(new (getASTContext()) DefinitionData());
   Data.getPointer()->Definition = this;
-
-  // Make the type point at the definition, now that we have one.
-  if (TypeForDecl)
-    cast<ObjCInterfaceType>(TypeForDecl)->Decl = this;
 }
 
 void ObjCInterfaceDecl::startDefinition() {
@@ -852,6 +848,14 @@ bool ObjCMethodDecl::isDesignatedInitializerForTheInterface(
     return false;
   if (const ObjCInterfaceDecl *ID = getClassInterface())
     return ID->isDesignatedInitializer(getSelector(), InitMethod);
+  return false;
+}
+
+bool ObjCMethodDecl::hasParamDestroyedInCallee() const {
+  for (auto param : parameters()) {
+    if (param->isDestroyedInCallee())
+      return true;
+  }
   return false;
 }
 

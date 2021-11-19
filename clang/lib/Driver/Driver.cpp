@@ -67,6 +67,7 @@
 #include "llvm/ADT/StringSet.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/Config/llvm-config.h"
+#include "llvm/MC/TargetRegistry.h"
 #include "llvm/Option/Arg.h"
 #include "llvm/Option/ArgList.h"
 #include "llvm/Option/OptSpecifier.h"
@@ -84,7 +85,6 @@
 #include "llvm/Support/Process.h"
 #include "llvm/Support/Program.h"
 #include "llvm/Support/StringSaver.h"
-#include "llvm/Support/TargetRegistry.h"
 #include "llvm/Support/VirtualFileSystem.h"
 #include "llvm/Support/raw_ostream.h"
 #include <map>
@@ -277,7 +277,8 @@ phases::ID Driver::getFinalPhase(const DerivedArgList &DAL,
   if (CCCIsCPP() || (PhaseArg = DAL.getLastArg(options::OPT_E)) ||
       (PhaseArg = DAL.getLastArg(options::OPT__SLASH_EP)) ||
       (PhaseArg = DAL.getLastArg(options::OPT_M, options::OPT_MM)) ||
-      (PhaseArg = DAL.getLastArg(options::OPT__SLASH_P))) {
+      (PhaseArg = DAL.getLastArg(options::OPT__SLASH_P)) ||
+      CCGenDiagnostics) {
     FinalPhase = phases::Preprocess;
 
   // --precompile only runs up to precompilation.
@@ -303,6 +304,9 @@ phases::ID Driver::getFinalPhase(const DerivedArgList &DAL,
   // -c compilation only runs up to the assembler.
   } else if ((PhaseArg = DAL.getLastArg(options::OPT_c))) {
     FinalPhase = phases::Assemble;
+
+  } else if ((PhaseArg = DAL.getLastArg(options::OPT_emit_interface_stubs))) {
+    FinalPhase = phases::IfsMerge;
 
   // Otherwise do everything.
   } else
@@ -432,8 +436,7 @@ static llvm::Triple computeTargetTriple(const Driver &D,
   // GNU/Hurd's triples should have been -hurd-gnu*, but were historically made
   // -gnu* only, and we can not change this, so we have to detect that case as
   // being the Hurd OS.
-  if (TargetTriple.find("-unknown-gnu") != StringRef::npos ||
-      TargetTriple.find("-pc-gnu") != StringRef::npos)
+  if (TargetTriple.contains("-unknown-gnu") || TargetTriple.contains("-pc-gnu"))
     Target.setOSName("hurd");
 
   // Handle Apple-specific options available here.
@@ -522,8 +525,11 @@ static llvm::Triple computeTargetTriple(const Driver &D,
       Target.setEnvironment(llvm::Triple::CODE16);
     }
 
-    if (AT != llvm::Triple::UnknownArch && AT != Target.getArch())
+    if (AT != llvm::Triple::UnknownArch && AT != Target.getArch()) {
       Target.setArch(AT);
+      if (Target.isWindowsGNUEnvironment())
+        toolchains::MinGW::fixTripleArch(D, Target, Args);
+    }
   }
 
   // Handle -miamcu flag.
@@ -585,53 +591,34 @@ static llvm::Triple computeTargetTriple(const Driver &D,
 // Parse the LTO options and record the type of LTO compilation
 // based on which -f(no-)?lto(=.*)? or -f(no-)?offload-lto(=.*)?
 // option occurs last.
-static llvm::Optional<driver::LTOKind>
-parseLTOMode(Driver &D, const llvm::opt::ArgList &Args, OptSpecifier OptPos,
-             OptSpecifier OptNeg, OptSpecifier OptEq, bool IsOffload) {
-  driver::LTOKind LTOMode = LTOK_None;
-  // Non-offload LTO allows -flto=auto and -flto=jobserver. Offload LTO does
-  // not support those options.
-  if (!Args.hasFlag(OptPos, OptEq, OptNeg, false) &&
-      (IsOffload ||
-       (!Args.hasFlag(options::OPT_flto_EQ_auto, options::OPT_fno_lto, false) &&
-        !Args.hasFlag(options::OPT_flto_EQ_jobserver, options::OPT_fno_lto,
-                      false))))
-    return None;
-
-  StringRef LTOName("full");
+static driver::LTOKind parseLTOMode(Driver &D, const llvm::opt::ArgList &Args,
+                                    OptSpecifier OptEq, OptSpecifier OptNeg) {
+  if (!Args.hasFlag(OptEq, OptNeg, false))
+    return LTOK_None;
 
   const Arg *A = Args.getLastArg(OptEq);
-  if (A)
-    LTOName = A->getValue();
+  StringRef LTOName = A->getValue();
 
-  LTOMode = llvm::StringSwitch<LTOKind>(LTOName)
-                .Case("full", LTOK_Full)
-                .Case("thin", LTOK_Thin)
-                .Default(LTOK_Unknown);
+  driver::LTOKind LTOMode = llvm::StringSwitch<LTOKind>(LTOName)
+                                .Case("full", LTOK_Full)
+                                .Case("thin", LTOK_Thin)
+                                .Default(LTOK_Unknown);
 
   if (LTOMode == LTOK_Unknown) {
-    assert(A);
     D.Diag(diag::err_drv_unsupported_option_argument)
         << A->getOption().getName() << A->getValue();
-    return None;
+    return LTOK_None;
   }
   return LTOMode;
 }
 
 // Parse the LTO options.
 void Driver::setLTOMode(const llvm::opt::ArgList &Args) {
-  LTOMode = LTOK_None;
-  if (auto M = parseLTOMode(*this, Args, options::OPT_flto,
-                            options::OPT_fno_lto, options::OPT_flto_EQ,
-                            /*IsOffload=*/false))
-    LTOMode = M.getValue();
+  LTOMode =
+      parseLTOMode(*this, Args, options::OPT_flto_EQ, options::OPT_fno_lto);
 
-  OffloadLTOMode = LTOK_None;
-  if (auto M = parseLTOMode(*this, Args, options::OPT_foffload_lto,
-                            options::OPT_fno_offload_lto,
-                            options::OPT_foffload_lto_EQ,
-                            /*IsOffload=*/true))
-    OffloadLTOMode = M.getValue();
+  OffloadLTOMode = parseLTOMode(*this, Args, options::OPT_foffload_lto_EQ,
+                                options::OPT_fno_offload_lto);
 }
 
 /// Compute the desired OpenMP runtime from the flags provided.
@@ -699,6 +686,12 @@ void Driver::CreateOffloadingDeviceToolChains(Compilation &C,
     }
     C.addOffloadDeviceToolChain(CudaTC.get(), OFK);
   } else if (IsHIP) {
+    if (auto *OMPTargetArg =
+            C.getInputArgs().getLastArg(options::OPT_fopenmp_targets_EQ)) {
+      Diag(clang::diag::err_drv_unsupported_opt_for_language_mode)
+          << OMPTargetArg->getSpelling() << "HIP";
+      return;
+    }
     const ToolChain *HostTC = C.getSingleOffloadToolChain<Action::OFK_Host>();
     const llvm::Triple &HostTriple = HostTC->getTriple();
     auto OFK = Action::OFK_HIP;
@@ -889,10 +882,9 @@ bool Driver::loadConfigFile() {
     std::vector<std::string> ConfigFiles =
         CLOptions->getAllArgValues(options::OPT_config);
     if (ConfigFiles.size() > 1) {
-      if (!std::all_of(ConfigFiles.begin(), ConfigFiles.end(),
-                       [ConfigFiles](const std::string &s) {
-                         return s == ConfigFiles[0];
-                       })) {
+      if (!llvm::all_of(ConfigFiles, [ConfigFiles](const std::string &s) {
+            return s == ConfigFiles[0];
+          })) {
         Diag(diag::err_drv_duplicate_config);
         return true;
       }
@@ -1091,7 +1083,8 @@ Compilation *Driver::BuildCompilation(ArrayRef<const char *> ArgList) {
   // Silence driver warnings if requested
   Diags.setIgnoreAllWarnings(Args.hasArg(options::OPT_w));
 
-  // -no-canonical-prefixes is used very early in main.
+  // -canonical-prefixes, -no-canonical-prefixes are used very early in main.
+  Args.ClaimAllArgs(options::OPT_canonical_prefixes);
   Args.ClaimAllArgs(options::OPT_no_canonical_prefixes);
 
   // f(no-)integated-cc1 is also used very early in main.
@@ -1228,8 +1221,14 @@ Compilation *Driver::BuildCompilation(ArrayRef<const char *> ArgList) {
 
 static void printArgList(raw_ostream &OS, const llvm::opt::ArgList &Args) {
   llvm::opt::ArgStringList ASL;
-  for (const auto *A : Args)
+  for (const auto *A : Args) {
+    // Use user's original spelling of flags. For example, use
+    // `/source-charset:utf-8` instead of `-finput-charset=utf-8` if the user
+    // wrote the former.
+    while (A->getAlias())
+      A = A->getAlias();
     A->render(Args, ASL);
+  }
 
   for (auto I = ASL.begin(), E = ASL.end(); I != E; ++I) {
     if (I != ASL.begin())
@@ -1346,7 +1345,6 @@ void Driver::generateCompilationDiagnostics(
   PrintVersion(C, llvm::errs());
 
   // Suppress driver output and emit preprocessor output to temp file.
-  Mode = CPPMode;
   CCGenDiagnostics = true;
 
   // Save the original job command(s).
@@ -2148,19 +2146,6 @@ bool Driver::DiagnoseInputExistence(const DerivedArgList &Args, StringRef Value,
   if (getVFS().exists(Value))
     return true;
 
-  if (IsCLMode()) {
-    if (!llvm::sys::path::is_absolute(Twine(Value)) &&
-        llvm::sys::Process::FindInEnvPath("LIB", Value, ';'))
-      return true;
-
-    if (Args.hasArg(options::OPT__SLASH_link) && Ty == types::TY_Object) {
-      // Arguments to the /link flag might cause the linker to search for object
-      // and library files in paths we don't know about. Don't error in such
-      // cases.
-      return true;
-    }
-  }
-
   if (TypoCorrect) {
     // Check if the filename is a typo for an option flag. OptTable thinks
     // that all args that are not known options and that start with / are
@@ -2179,6 +2164,43 @@ bool Driver::DiagnoseInputExistence(const DerivedArgList &Args, StringRef Value,
       return false;
     }
   }
+
+  // In CL mode, don't error on apparently non-existent linker inputs, because
+  // they can be influenced by linker flags the clang driver might not
+  // understand.
+  // Examples:
+  // - `clang-cl main.cc ole32.lib` in a a non-MSVC shell will make the driver
+  //   module look for an MSVC installation in the registry. (We could ask
+  //   the MSVCToolChain object if it can find `ole32.lib`, but the logic to
+  //   look in the registry might move into lld-link in the future so that
+  //   lld-link invocations in non-MSVC shells just work too.)
+  // - `clang-cl ... /link ...` can pass arbitrary flags to the linker,
+  //   including /libpath:, which is used to find .lib and .obj files.
+  // So do not diagnose this on the driver level. Rely on the linker diagnosing
+  // it. (If we don't end up invoking the linker, this means we'll emit a
+  // "'linker' input unused [-Wunused-command-line-argument]" warning instead
+  // of an error.)
+  //
+  // Only do this skip after the typo correction step above. `/Brepo` is treated
+  // as TY_Object, but it's clearly a typo for `/Brepro`. It seems fine to emit
+  // an error if we have a flag that's within an edit distance of 1 from a
+  // flag. (Users can use `-Wl,` or `/linker` to launder the flag past the
+  // driver in the unlikely case they run into this.)
+  //
+  // Don't do this for inputs that start with a '/', else we'd pass options
+  // like /libpath: through to the linker silently.
+  //
+  // Emitting an error for linker inputs can also cause incorrect diagnostics
+  // with the gcc driver. The command
+  //     clang -fuse-ld=lld -Wl,--chroot,some/dir /file.o
+  // will make lld look for some/dir/file.o, while we will diagnose here that
+  // `/file.o` does not exist. However, configure scripts check if
+  // `clang /GR-` compiles without error to see if the compiler is cl.exe,
+  // so we can't downgrade diagnostics for `/GR-` from an error to a warning
+  // in cc mode. (We can in cl mode because cl.exe itself only warns on
+  // unknown flags.)
+  if (IsCLMode() && Ty == types::TY_Object && !Value.startswith("/"))
+    return true;
 
   Diag(clang::diag::err_drv_no_such_file) << Value;
   return false;
@@ -2242,6 +2264,7 @@ void Driver::BuildInputs(const ToolChain &TC, DerivedArgList &Args,
             //
             // Otherwise emit an error but still use a valid type to avoid
             // spurious errors (e.g., no inputs).
+            assert(!CCGenDiagnostics && "stdin produces no crash reproducer");
             if (!Args.hasArgNoClaim(options::OPT_E) && !CCCIsCPP())
               Diag(IsCLMode() ? clang::diag::err_drv_unknown_stdin_type_clang_cl
                               : clang::diag::err_drv_unknown_stdin_type);
@@ -2257,10 +2280,10 @@ void Driver::BuildInputs(const ToolChain &TC, DerivedArgList &Args,
             Ty = TC.LookupTypeForExtension(Ext + 1);
 
           if (Ty == types::TY_INVALID) {
-            if (CCCIsCPP())
-              Ty = types::TY_C;
-            else if (IsCLMode() && Args.hasArgNoClaim(options::OPT_E))
+            if (IsCLMode() && (Args.hasArgNoClaim(options::OPT_E) || CCGenDiagnostics))
               Ty = types::TY_CXX;
+            else if (CCCIsCPP() || CCGenDiagnostics)
+              Ty = types::TY_C;
             else
               Ty = types::TY_Object;
           }
@@ -2634,7 +2657,7 @@ class OffloadingActionBuilder final {
       assert(CudaDeviceActions.size() == GpuArchList.size() &&
              "Expecting one action per GPU architecture.");
       assert(ToolChains.size() == 1 &&
-             "Expecting to have a sing CUDA toolchain.");
+             "Expecting to have a single CUDA toolchain.");
       for (unsigned I = 0, E = GpuArchList.size(); I != E; ++I)
         AddTopLevel(CudaDeviceActions[I], GpuArchList[I]);
 
@@ -2765,7 +2788,7 @@ class OffloadingActionBuilder final {
     CudaActionBuilder(Compilation &C, DerivedArgList &Args,
                       const Driver::InputList &Inputs)
         : CudaActionBuilderBase(C, Args, Inputs, Action::OFK_Cuda) {
-      DefaultCudaArch = CudaArch::SM_20;
+      DefaultCudaArch = CudaArch::SM_35;
     }
 
     StringRef getCanonicalOffloadArch(StringRef ArchStr) override {
@@ -2891,7 +2914,6 @@ class OffloadingActionBuilder final {
   class HIPActionBuilder final : public CudaActionBuilderBase {
     /// The linker inputs obtained for each device arch.
     SmallVector<ActionList, 8> DeviceLinkerInputs;
-    bool GPUSanitize;
     // The default bundling behavior depends on the type of output, therefore
     // BundleOutput needs to be tri-value: None, true, or false.
     // Bundle code objects except --no-gpu-output is specified for device
@@ -2904,8 +2926,6 @@ class OffloadingActionBuilder final {
                      const Driver::InputList &Inputs)
         : CudaActionBuilderBase(C, Args, Inputs, Action::OFK_HIP) {
       DefaultCudaArch = CudaArch::GFX803;
-      GPUSanitize = Args.hasFlag(options::OPT_fgpu_sanitize,
-                                 options::OPT_fno_gpu_sanitize, false);
       if (Args.hasArg(options::OPT_gpu_bundle_output,
                       options::OPT_no_gpu_bundle_output))
         BundleOutput = Args.hasFlag(options::OPT_gpu_bundle_output,
@@ -3823,7 +3843,7 @@ void Driver::BuildActions(Compilation &C, DerivedArgList &Args,
   if (Args.hasArg(options::OPT_emit_interface_stubs)) {
     auto PhaseList = types::getCompilationPhases(
         types::TY_IFS_CPP,
-        Args.hasArg(options::OPT_c) ? phases::Compile : phases::LastPhase);
+        Args.hasArg(options::OPT_c) ? phases::Compile : phases::IfsMerge);
 
     ActionList MergerInputs;
 
@@ -4124,7 +4144,7 @@ void Driver::BuildJobs(Compilation &C) const {
             << '\n';
         Out.flush();
         std::error_code EC;
-        llvm::raw_fd_ostream OS(CCPrintStatReportFilename.c_str(), EC,
+        llvm::raw_fd_ostream OS(CCPrintStatReportFilename, EC,
                                 llvm::sys::fs::OF_Append |
                                     llvm::sys::fs::OF_Text);
         if (EC)
@@ -4674,8 +4694,14 @@ InputInfo Driver::BuildJobsForActionNoCache(
         CachedResults, A->getOffloadingDeviceKind()));
   }
 
-  // Always use the first input as the base input.
+  // Always use the first file input as the base input.
   const char *BaseInput = InputInfos[0].getBaseInput();
+  for (auto &Info : InputInfos) {
+    if (Info.isFilename()) {
+      BaseInput = Info.getBaseInput();
+      break;
+    }
+  }
 
   // ... except dsymutil actions, which use their actual input as the base
   // input.
@@ -4870,11 +4896,11 @@ const char *Driver::GetNamedOutputPath(Compilation &C, const JobAction &JA,
                                        bool MultipleArchs,
                                        StringRef OffloadingPrefix) const {
   std::string BoundArch = OrigBoundArch.str();
-#if defined(_WIN32)
-  // BoundArch may contains ':', which is invalid in file names on Windows,
-  // therefore replace it with '%'.
-  std::replace(BoundArch.begin(), BoundArch.end(), ':', '@');
-#endif
+  if (is_style_windows(llvm::sys::path::Style::native)) {
+    // BoundArch may contains ':', which is invalid in file names on Windows,
+    // therefore replace it with '%'.
+    std::replace(BoundArch.begin(), BoundArch.end(), ':', '@');
+  }
 
   llvm::PrettyStackTraceString CrashInfo("Computing output path");
   // Output to a user requested destination?
@@ -4939,7 +4965,13 @@ const char *Driver::GetNamedOutputPath(Compilation &C, const JobAction &JA,
         return "";
       }
     } else {
-      TmpName = GetTemporaryPath(Split.first, Suffix);
+      if (MultipleArchs && !BoundArch.empty()) {
+        TmpName = GetTemporaryDirectory(Split.first);
+        llvm::sys::path::append(TmpName,
+                                Split.first + "-" + BoundArch + "." + Suffix);
+      } else {
+        TmpName = GetTemporaryPath(Split.first, Suffix);
+      }
     }
     return C.addTempFile(C.getArgs().MakeArgString(TmpName));
   }
@@ -5568,7 +5600,6 @@ llvm::StringRef clang::driver::getDriverMode(StringRef ProgName,
     if (!Arg.startswith(OptName))
       continue;
     Opt = Arg;
-    break;
   }
   if (Opt.empty())
     Opt = ToolChain::getTargetAndModeFromProgramName(ProgName).DriverMode;

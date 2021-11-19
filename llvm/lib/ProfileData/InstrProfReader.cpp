@@ -204,13 +204,15 @@ TextInstrProfReader::readValueProfileData(InstrProfRecord &Record) {
     return success();
   }
   if (NumValueKinds == 0 || NumValueKinds > IPVK_Last + 1)
-    return error(instrprof_error::malformed);
+    return error(instrprof_error::malformed,
+                 "number of value kinds is invalid");
   Line++;
 
   for (uint32_t VK = 0; VK < NumValueKinds; VK++) {
     VP_READ_ADVANCE(ValueKind);
     if (ValueKind > IPVK_Last)
-      return error(instrprof_error::malformed);
+      return error(instrprof_error::malformed, "value kind is invalid");
+    ;
     VP_READ_ADVANCE(NumValueSites);
     if (!NumValueSites)
       continue;
@@ -268,16 +270,18 @@ Error TextInstrProfReader::readNextRecord(NamedInstrProfRecord &Record) {
   if (Line.is_at_end())
     return error(instrprof_error::truncated);
   if ((Line++)->getAsInteger(0, Record.Hash))
-    return error(instrprof_error::malformed);
+    return error(instrprof_error::malformed,
+                 "function hash is not a valid integer");
 
   // Read the number of counters.
   uint64_t NumCounters;
   if (Line.is_at_end())
     return error(instrprof_error::truncated);
   if ((Line++)->getAsInteger(10, NumCounters))
-    return error(instrprof_error::malformed);
+    return error(instrprof_error::malformed,
+                 "number of counters is not a valid integer");
   if (NumCounters == 0)
-    return error(instrprof_error::malformed);
+    return error(instrprof_error::malformed, "number of counters is zero");
 
   // Read each counter and fill our internal storage with the values.
   Record.Clear();
@@ -287,7 +291,7 @@ Error TextInstrProfReader::readNextRecord(NamedInstrProfRecord &Record) {
       return error(instrprof_error::truncated);
     uint64_t Count;
     if ((Line++)->getAsInteger(10, Count))
-      return error(instrprof_error::malformed);
+      return error(instrprof_error::malformed, "count is invalid");
     Record.Counts.push_back(Count);
   }
 
@@ -332,10 +336,12 @@ Error RawInstrProfReader<IntPtrT>::readNextHeader(const char *CurrentPos) {
   // If there isn't enough space for another header, this is probably just
   // garbage at the end of the file.
   if (CurrentPos + sizeof(RawInstrProf::Header) > End)
-    return make_error<InstrProfError>(instrprof_error::malformed);
+    return make_error<InstrProfError>(instrprof_error::malformed,
+                                      "not enough space for another header");
   // The writer ensures each profile is padded to start at an aligned address.
   if (reinterpret_cast<size_t>(CurrentPos) % alignof(uint64_t))
-    return make_error<InstrProfError>(instrprof_error::malformed);
+    return make_error<InstrProfError>(instrprof_error::malformed,
+                                      "insufficient padding");
   // The magic should have the same byte order as in the previous header.
   uint64_t Magic = *reinterpret_cast<const uint64_t *>(CurrentPos);
   if (Magic != swap(RawInstrProf::getMagic<IntPtrT>()))
@@ -366,6 +372,10 @@ Error RawInstrProfReader<IntPtrT>::readHeader(
   if (GET_VERSION(Version) != RawInstrProf::Version)
     return error(instrprof_error::unsupported_version);
 
+  BinaryIdsSize = swap(Header.BinaryIdsSize);
+  if (BinaryIdsSize % sizeof(uint64_t))
+    return error(instrprof_error::bad_header);
+
   CountersDelta = swap(Header.CountersDelta);
   NamesDelta = swap(Header.NamesDelta);
   auto DataSize = swap(Header.DataSize);
@@ -374,7 +384,6 @@ Error RawInstrProfReader<IntPtrT>::readHeader(
   auto PaddingBytesAfterCounters = swap(Header.PaddingBytesAfterCounters);
   NamesSize = swap(Header.NamesSize);
   ValueKindLast = swap(Header.ValueKindLast);
-  BinaryIdsSize = swap(Header.BinaryIdsSize);
 
   auto DataSizeInBytes = DataSize * sizeof(RawInstrProf::ProfileData<IntPtrT>);
   auto PaddingSize = getNumPaddingBytes(NamesSize);
@@ -402,6 +411,10 @@ Error RawInstrProfReader<IntPtrT>::readHeader(
   NamesStart = Start + NamesOffset;
   ValueDataStart = reinterpret_cast<const uint8_t *>(Start + ValueDataOffset);
 
+  const uint8_t *BufferEnd = (const uint8_t *)DataBuffer->getBufferEnd();
+  if (BinaryIdsStart + BinaryIdsSize > BufferEnd)
+    return error(instrprof_error::bad_header);
+
   std::unique_ptr<InstrProfSymtab> NewSymtab = std::make_unique<InstrProfSymtab>();
   if (Error E = createSymtab(*NewSymtab.get()))
     return E;
@@ -426,21 +439,46 @@ template <class IntPtrT>
 Error RawInstrProfReader<IntPtrT>::readRawCounts(
     InstrProfRecord &Record) {
   uint32_t NumCounters = swap(Data->NumCounters);
-  IntPtrT CounterPtr = Data->CounterPtr;
   if (NumCounters == 0)
-    return error(instrprof_error::malformed);
+    return error(instrprof_error::malformed, "number of counters is zero");
 
+  IntPtrT CounterPtr = Data->CounterPtr;
   auto *NamesStartAsCounter = reinterpret_cast<const uint64_t *>(NamesStart);
   ptrdiff_t MaxNumCounters = NamesStartAsCounter - CountersStart;
 
   // Check bounds. Note that the counter pointer embedded in the data record
   // may itself be corrupt.
   if (MaxNumCounters < 0 || NumCounters > (uint32_t)MaxNumCounters)
-    return error(instrprof_error::malformed);
+    return error(instrprof_error::malformed,
+                 "counter pointer is out of bounds");
+
+  // We need to compute the in-buffer counter offset from the in-memory address
+  // distance. The initial CountersDelta is the in-memory address difference
+  // start(__llvm_prf_cnts)-start(__llvm_prf_data), so SrcData->CounterPtr -
+  // CountersDelta computes the offset into the in-buffer counter section.
+  //
+  // CountersDelta decreases as we advance to the next data record.
   ptrdiff_t CounterOffset = getCounterOffset(CounterPtr);
-  if (CounterOffset < 0 || CounterOffset > MaxNumCounters ||
-      ((uint32_t)CounterOffset + NumCounters) > (uint32_t)MaxNumCounters)
-    return error(instrprof_error::malformed);
+  CountersDelta -= sizeof(*Data);
+  if (CounterOffset < 0)
+    return error(
+        instrprof_error::malformed,
+        ("counter offset " + Twine(CounterOffset) + " is negative").str());
+
+  if (CounterOffset > MaxNumCounters)
+    return error(instrprof_error::malformed,
+                 ("counter offset " + Twine(CounterOffset) +
+                  " is greater than the maximum number of counters " +
+                  Twine((uint32_t)MaxNumCounters))
+                     .str());
+
+  if (((uint32_t)CounterOffset + NumCounters) > (uint32_t)MaxNumCounters)
+    return error(instrprof_error::malformed,
+                 ("number of counters " +
+                  Twine(((uint32_t)CounterOffset + NumCounters)) +
+                  " is greater than the maximum number of counters " +
+                  Twine((uint32_t)MaxNumCounters))
+                     .str());
 
   auto RawCounts = makeArrayRef(getCounter(CounterOffset), NumCounters);
 
@@ -512,6 +550,10 @@ Error RawInstrProfReader<IntPtrT>::readNextRecord(NamedInstrProfRecord &Record) 
   return success();
 }
 
+static size_t RoundUp(size_t size, size_t align) {
+  return (size + align - 1) & ~(align - 1);
+}
+
 template <class IntPtrT>
 Error RawInstrProfReader<IntPtrT>::printBinaryIds(raw_ostream &OS) {
   if (BinaryIdsSize == 0)
@@ -519,19 +561,38 @@ Error RawInstrProfReader<IntPtrT>::printBinaryIds(raw_ostream &OS) {
 
   OS << "Binary IDs: \n";
   const uint8_t *BI = BinaryIdsStart;
-  while (BI < BinaryIdsStart + BinaryIdsSize) {
+  const uint8_t *BIEnd = BinaryIdsStart + BinaryIdsSize;
+  while (BI < BIEnd) {
+    size_t Remaining = BIEnd - BI;
+
+    // There should be enough left to read the binary ID size field.
+    if (Remaining < sizeof(uint64_t))
+      return make_error<InstrProfError>(
+          instrprof_error::malformed,
+          "not enough data to read binary id length");
+
     uint64_t BinaryIdLen = swap(*reinterpret_cast<const uint64_t *>(BI));
+
+    // There should be enough left to read the binary ID size field, and the
+    // binary ID.
+    if (Remaining < sizeof(BinaryIdLen) + BinaryIdLen)
+      return make_error<InstrProfError>(
+          instrprof_error::malformed, "not enough data to read binary id data");
+
     // Increment by binary id length data type size.
     BI += sizeof(BinaryIdLen);
     if (BI > (const uint8_t *)DataBuffer->getBufferEnd())
-      return make_error<InstrProfError>(instrprof_error::malformed);
+      return make_error<InstrProfError>(
+          instrprof_error::malformed,
+          "binary id that is read is bigger than buffer size");
 
     for (uint64_t I = 0; I < BinaryIdLen; I++)
       OS << format("%02x", BI[I]);
     OS << "\n";
 
-    // Increment by binary id data length.
-    BI += BinaryIdLen;
+    // Increment by binary id data length, rounded to the next 8 bytes. This
+    // accounts for the zero-padding after each build ID.
+    BI += RoundUp(BinaryIdLen, sizeof(uint64_t));
     if (BI > (const uint8_t *)DataBuffer->getBufferEnd())
       return make_error<InstrProfError>(instrprof_error::malformed);
   }
@@ -624,7 +685,8 @@ Error InstrProfReaderIndex<HashTableImpl>::getRecords(
 
   Data = (*Iter);
   if (Data.empty())
-    return make_error<InstrProfError>(instrprof_error::malformed);
+    return make_error<InstrProfError>(instrprof_error::malformed,
+                                      "profile data is empty");
 
   return Error::success();
 }
@@ -638,7 +700,8 @@ Error InstrProfReaderIndex<HashTableImpl>::getRecords(
   Data = *RecordIterator;
 
   if (Data.empty())
-    return make_error<InstrProfError>(instrprof_error::malformed);
+    return make_error<InstrProfError>(instrprof_error::malformed,
+                                      "profile data is empty");
 
   return Error::success();
 }
@@ -669,7 +732,7 @@ public:
     return Underlying.getRecords(FuncName, Data);
   }
 };
-}
+} // namespace
 
 /// A remapper that applies remappings based on a symbol remapping file.
 template <typename HashTableImpl>

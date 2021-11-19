@@ -52,6 +52,7 @@
 #include "llvm/Support/MachineValueType.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Target/TargetMachine.h"
+#include "llvm/Target/TargetOptions.h"
 #include "llvm/Transforms/Utils/SizeOpts.h"
 #include <algorithm>
 #include <cassert>
@@ -236,6 +237,8 @@ RTLIB::Libcall RTLIB::getFPEXT(EVT OpVT, EVT RetVT) {
       return FPEXT_F16_F32;
     if (RetVT == MVT::f64)
       return FPEXT_F16_F64;
+    if (RetVT == MVT::f80)
+      return FPEXT_F16_F80;
     if (RetVT == MVT::f128)
       return FPEXT_F16_F128;
   } else if (OpVT == MVT::f32) {
@@ -659,7 +662,7 @@ RTLIB::Libcall RTLIB::getMEMSET_ELEMENT_UNORDERED_ATOMIC(uint64_t ElementSize) {
 
 /// InitCmpLibcallCCs - Set default comparison libcall CC.
 static void InitCmpLibcallCCs(ISD::CondCode *CCs) {
-  memset(CCs, ISD::SETCC_INVALID, sizeof(ISD::CondCode)*RTLIB::UNKNOWN_LIBCALL);
+  std::fill(CCs, CCs + RTLIB::UNKNOWN_LIBCALL, ISD::SETCC_INVALID);
   CCs[RTLIB::OEQ_F32] = ISD::SETEQ;
   CCs[RTLIB::OEQ_F64] = ISD::SETEQ;
   CCs[RTLIB::OEQ_F128] = ISD::SETEQ;
@@ -896,8 +899,6 @@ void TargetLoweringBase::initActions() {
     setOperationAction(ISD::FCEIL,      VT, Expand);
     setOperationAction(ISD::FRINT,      VT, Expand);
     setOperationAction(ISD::FTRUNC,     VT, Expand);
-    setOperationAction(ISD::FROUND,     VT, Expand);
-    setOperationAction(ISD::FROUNDEVEN, VT, Expand);
     setOperationAction(ISD::LROUND,     VT, Expand);
     setOperationAction(ISD::LLROUND,    VT, Expand);
     setOperationAction(ISD::LRINT,      VT, Expand);
@@ -924,8 +925,15 @@ EVT TargetLoweringBase::getShiftAmountTy(EVT LHSTy, const DataLayout &DL,
   assert(LHSTy.isInteger() && "Shift amount is not an integer type!");
   if (LHSTy.isVector())
     return LHSTy;
-  return LegalTypes ? getScalarShiftAmountTy(DL, LHSTy)
-                    : getPointerTy(DL);
+  MVT ShiftVT =
+      LegalTypes ? getScalarShiftAmountTy(DL, LHSTy) : getPointerTy(DL);
+  // If any possible shift value won't fit in the prefered type, just use
+  // something safe. Assume it will be legalized when the shift is expanded.
+  if (ShiftVT.getSizeInBits() < Log2_32_Ceil(LHSTy.getSizeInBits()))
+    ShiftVT = MVT::i32;
+  assert(ShiftVT.getSizeInBits() >= Log2_32_Ceil(LHSTy.getSizeInBits()) &&
+         "ShiftVT is still too small!");
+  return ShiftVT;
 }
 
 bool TargetLoweringBase::canOpTrap(unsigned Op, EVT VT) const {
@@ -1556,7 +1564,7 @@ unsigned TargetLoweringBase::getVectorTypeBreakdown(LLVMContext &Context,
 
   // Scalable vectors cannot be scalarized, so handle the legalisation of the
   // types like done elsewhere in SelectionDAG.
-  if (VT.isScalableVector() && !isPowerOf2_32(EltCnt.getKnownMinValue())) {
+  if (EltCnt.isScalable()) {
     LegalizeKind LK;
     EVT PartVT = VT;
     do {
@@ -1565,16 +1573,14 @@ unsigned TargetLoweringBase::getVectorTypeBreakdown(LLVMContext &Context,
       PartVT = LK.second;
     } while (LK.first != TypeLegal);
 
-    NumIntermediates = VT.getVectorElementCount().getKnownMinValue() /
-                       PartVT.getVectorElementCount().getKnownMinValue();
+    if (!PartVT.isVector()) {
+      report_fatal_error(
+          "Don't know how to legalize this scalable vector type");
+    }
 
-    // FIXME: This code needs to be extended to handle more complex vector
-    // breakdowns, like nxv7i64 -> nxv8i64 -> 4 x nxv2i64. Currently the only
-    // supported cases are vectors that are broken down into equal parts
-    // such as nxv6i64 -> 3 x nxv2i64.
-    assert((PartVT.getVectorElementCount() * NumIntermediates) ==
-               VT.getVectorElementCount() &&
-           "Expected an integer multiple of PartVT");
+    NumIntermediates =
+        divideCeil(VT.getVectorElementCount().getKnownMinValue(),
+                   PartVT.getVectorElementCount().getKnownMinValue());
     IntermediateVT = PartVT;
     RegisterVT = getRegisterType(Context, IntermediateVT);
     return NumIntermediates;
@@ -1657,9 +1663,9 @@ void llvm::GetReturnInfo(CallingConv::ID CC, Type *ReturnType,
     EVT VT = ValueVTs[j];
     ISD::NodeType ExtendKind = ISD::ANY_EXTEND;
 
-    if (attr.hasAttribute(AttributeList::ReturnIndex, Attribute::SExt))
+    if (attr.hasRetAttr(Attribute::SExt))
       ExtendKind = ISD::SIGN_EXTEND;
-    else if (attr.hasAttribute(AttributeList::ReturnIndex, Attribute::ZExt))
+    else if (attr.hasRetAttr(Attribute::ZExt))
       ExtendKind = ISD::ZERO_EXTEND;
 
     // FIXME: C calling convention requires the return type to be promoted to
@@ -1679,13 +1685,13 @@ void llvm::GetReturnInfo(CallingConv::ID CC, Type *ReturnType,
 
     // 'inreg' on function refers to return value
     ISD::ArgFlagsTy Flags = ISD::ArgFlagsTy();
-    if (attr.hasAttribute(AttributeList::ReturnIndex, Attribute::InReg))
+    if (attr.hasRetAttr(Attribute::InReg))
       Flags.setInReg();
 
     // Propagate extension type if any
-    if (attr.hasAttribute(AttributeList::ReturnIndex, Attribute::SExt))
+    if (attr.hasRetAttr(Attribute::SExt))
       Flags.setSExt();
-    else if (attr.hasAttribute(AttributeList::ReturnIndex, Attribute::ZExt))
+    else if (attr.hasRetAttr(Attribute::ZExt))
       Flags.setZExt();
 
     for (unsigned i = 0; i < NumParts; ++i)
@@ -1696,7 +1702,7 @@ void llvm::GetReturnInfo(CallingConv::ID CC, Type *ReturnType,
 /// getByValTypeAlignment - Return the desired alignment for ByVal aggregate
 /// function arguments in the caller parameter area.  This is the actual
 /// alignment, not its logarithm.
-unsigned TargetLoweringBase::getByValTypeAlignment(Type *Ty,
+uint64_t TargetLoweringBase::getByValTypeAlignment(Type *Ty,
                                                    const DataLayout &DL) const {
   return DL.getABITypeAlign(Ty).value();
 }
@@ -1749,8 +1755,9 @@ bool TargetLoweringBase::allowsMemoryAccess(LLVMContext &Context,
                                             const DataLayout &DL, LLT Ty,
                                             const MachineMemOperand &MMO,
                                             bool *Fast) const {
-  return allowsMemoryAccess(Context, DL, getMVTForLLT(Ty), MMO.getAddrSpace(),
-                            MMO.getAlign(), MMO.getFlags(), Fast);
+  EVT VT = getApproximateEVTForLLT(Ty, DL, Context);
+  return allowsMemoryAccess(Context, DL, VT, MMO.getAddrSpace(), MMO.getAlign(),
+                            MMO.getFlags(), Fast);
 }
 
 //===----------------------------------------------------------------------===//
@@ -1849,8 +1856,12 @@ TargetLoweringBase::getTypeLegalizationCost(const DataLayout &DL,
   while (true) {
     LegalizeKind LK = getTypeConversion(C, MTy);
 
-    if (LK.first == TypeScalarizeScalableVector)
-      return std::make_pair(InstructionCost::getInvalid(), MVT::getVT(Ty));
+    if (LK.first == TypeScalarizeScalableVector) {
+      // Ensure we return a sensible simple VT here, since many callers of this
+      // function require it.
+      MVT VT = MTy.isSimple() ? MTy.getSimpleVT() : MVT::i64;
+      return std::make_pair(InstructionCost::getInvalid(), VT);
+    }
 
     if (LK.first == TypeLegal)
       return std::make_pair(Cost, MTy.getSimpleVT());
@@ -1980,8 +1991,11 @@ void TargetLoweringBase::insertSSPDeclarations(Module &M) const {
     auto *GV = new GlobalVariable(M, Type::getInt8PtrTy(M.getContext()), false,
                                   GlobalVariable::ExternalLinkage, nullptr,
                                   "__stack_chk_guard");
+
+    // FreeBSD has "__stack_chk_guard" defined externally on libc.so
     if (TM.getRelocationModel() == Reloc::Static &&
-        !TM.getTargetTriple().isWindowsGNUEnvironment())
+        !TM.getTargetTriple().isWindowsGNUEnvironment() &&
+        !TM.getTargetTriple().isOSFreeBSD())
       GV->setDSOLocal(true);
   }
 }
@@ -2018,6 +2032,12 @@ void TargetLoweringBase::setMaximumJumpTableSize(unsigned Val) {
 
 bool TargetLoweringBase::isJumpTableRelative() const {
   return getTargetMachine().isPositionIndependent();
+}
+
+Align TargetLoweringBase::getPrefLoopAlignment(MachineLoop *ML) const {
+  if (TM.Options.LoopAlignment)
+    return Align(TM.Options.LoopAlignment);
+  return PrefLoopAlignment;
 }
 
 //===----------------------------------------------------------------------===//

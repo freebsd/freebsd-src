@@ -25,6 +25,7 @@
 #include "lldb/Host/Host.h"
 #include "lldb/Host/HostInfo.h"
 #include "lldb/Host/PosixApi.h"
+#include "lldb/Host/Socket.h"
 #include "lldb/Host/common/NativeProcessProtocol.h"
 #include "lldb/Host/common/NativeRegisterContext.h"
 #include "lldb/Host/common/NativeThreadProtocol.h"
@@ -183,6 +184,9 @@ void GDBRemoteCommunicationServerLLGS::RegisterPacketHandlers() {
       StringExtractorGDBRemote::eServerPacketType_vCont_actions,
       &GDBRemoteCommunicationServerLLGS::Handle_vCont_actions);
   RegisterMemberFunctionHandler(
+      StringExtractorGDBRemote::eServerPacketType_vRun,
+      &GDBRemoteCommunicationServerLLGS::Handle_vRun);
+  RegisterMemberFunctionHandler(
       StringExtractorGDBRemote::eServerPacketType_x,
       &GDBRemoteCommunicationServerLLGS::Handle_memory_read);
   RegisterMemberFunctionHandler(StringExtractorGDBRemote::eServerPacketType_Z,
@@ -226,6 +230,10 @@ void GDBRemoteCommunicationServerLLGS::RegisterPacketHandlers() {
                           quit = true;
                           return this->Handle_k(packet);
                         });
+
+  RegisterMemberFunctionHandler(
+      StringExtractorGDBRemote::eServerPacketType_qLLDBSaveCore,
+      &GDBRemoteCommunicationServerLLGS::Handle_qSaveCore);
 }
 
 void GDBRemoteCommunicationServerLLGS::SetLaunchInfo(const ProcessLaunchInfo &info) {
@@ -278,7 +286,7 @@ Status GDBRemoteCommunicationServerLLGS::LaunchProcess() {
   if (should_forward_stdio) {
     // nullptr means it's not redirected to file or pty (in case of LLGS local)
     // at least one of stdio will be transferred pty<->gdb-remote we need to
-    // give the pty master handle to this object to read and/or write
+    // give the pty primary handle to this object to read and/or write
     LLDB_LOG(log,
              "pid = {0}: setting up stdout/stderr redirection via $O "
              "gdb-remote commands",
@@ -331,7 +339,7 @@ Status GDBRemoteCommunicationServerLLGS::AttachToProcess(lldb::pid_t pid) {
   auto process_or = m_process_factory.Attach(pid, *this, m_mainloop);
   if (!process_or) {
     Status status(process_or.takeError());
-    llvm::errs() << llvm::formatv("failed to attach to process {0}: {1}", pid,
+    llvm::errs() << llvm::formatv("failed to attach to process {0}: {1}\n", pid,
                                   status);
     return status;
   }
@@ -1820,13 +1828,6 @@ GDBRemoteCommunicationServerLLGS::Handle_qRegisterInfo(
     response.PutChar(';');
   }
 
-  if (reg_info->dynamic_size_dwarf_expr_bytes) {
-    const size_t dwarf_opcode_len = reg_info->dynamic_size_dwarf_len;
-    response.PutCString("dynamic_size_dwarf_expr_bytes:");
-    for (uint32_t i = 0; i < dwarf_opcode_len; ++i)
-      response.PutHex8(reg_info->dynamic_size_dwarf_expr_bytes[i]);
-    response.PutChar(';');
-  }
   return SendPacketNoLock(response.GetString());
 }
 
@@ -2064,12 +2065,8 @@ GDBRemoteCommunicationServerLLGS::Handle_P(StringExtractorGDBRemote &packet) {
     return SendErrorResponse(0x47);
   }
 
-  // The dwarf expression are evaluate on host site which may cause register
-  // size to change Hence the reg_size may not be same as reg_info->bytes_size
-  if ((reg_size != reg_info->byte_size) &&
-      !(reg_info->dynamic_size_dwarf_expr_bytes)) {
+  if (reg_size != reg_info->byte_size)
     return SendIllFormedResponse(packet, "P packet register size is incorrect");
-  }
 
   // Build the reginfos response.
   StreamGDBRemote response;
@@ -2909,14 +2906,6 @@ GDBRemoteCommunicationServerLLGS::BuildTargetXml() {
       response.Printf("\" ");
     }
 
-    if (reg_info->dynamic_size_dwarf_expr_bytes) {
-      const size_t dwarf_opcode_len = reg_info->dynamic_size_dwarf_len;
-      response.PutCString("dynamic_size_dwarf_expr_bytes=\"");
-      for (uint32_t i = 0; i < dwarf_opcode_len; ++i)
-        response.PutHex8(reg_info->dynamic_size_dwarf_expr_bytes[i]);
-      response.Printf("\" ");
-    }
-
     response.Printf("/>");
   }
 
@@ -3252,6 +3241,38 @@ GDBRemoteCommunicationServerLLGS::Handle_vAttachOrWait(
 }
 
 GDBRemoteCommunication::PacketResult
+GDBRemoteCommunicationServerLLGS::Handle_vRun(
+    StringExtractorGDBRemote &packet) {
+  Log *log(GetLogIfAnyCategoriesSet(LIBLLDB_LOG_PROCESS));
+
+  llvm::StringRef s = packet.GetStringRef();
+  if (!s.consume_front("vRun;"))
+    return SendErrorResponse(8);
+
+  llvm::SmallVector<llvm::StringRef, 16> argv;
+  s.split(argv, ';');
+
+  for (llvm::StringRef hex_arg : argv) {
+    StringExtractor arg_ext{hex_arg};
+    std::string arg;
+    arg_ext.GetHexByteString(arg);
+    m_process_launch_info.GetArguments().AppendArgument(arg);
+    LLDB_LOGF(log, "LLGSPacketHandler::%s added arg: \"%s\"", __FUNCTION__,
+              arg.c_str());
+  }
+
+  if (!argv.empty()) {
+    m_process_launch_info.GetExecutableFile().SetFile(
+        m_process_launch_info.GetArguments()[0].ref(), FileSpec::Style::native);
+    m_process_launch_error = LaunchProcess();
+    if (m_process_launch_error.Success())
+      return SendStopReasonForState(m_current_process->GetState());
+    LLDB_LOG(log, "failed to launch exe: {0}", m_process_launch_error);
+  }
+  return SendErrorResponse(8);
+}
+
+GDBRemoteCommunication::PacketResult
 GDBRemoteCommunicationServerLLGS::Handle_D(StringExtractorGDBRemote &packet) {
   StopSTDIOForwarding();
 
@@ -3474,14 +3495,30 @@ GDBRemoteCommunicationServerLLGS::Handle_qMemTags(
   if (packet.GetBytesLeft() < 1 || packet.GetChar() != ':')
     return SendIllFormedResponse(packet, invalid_type_err);
 
-  int32_t type =
-      packet.GetS32(std::numeric_limits<int32_t>::max(), /*base=*/16);
-  if (type == std::numeric_limits<int32_t>::max() ||
+  // Type is a signed integer but packed into the packet as its raw bytes.
+  // However, our GetU64 uses strtoull which allows +/-. We do not want this.
+  const char *first_type_char = packet.Peek();
+  if (first_type_char && (*first_type_char == '+' || *first_type_char == '-'))
+    return SendIllFormedResponse(packet, invalid_type_err);
+
+  // Extract type as unsigned then cast to signed.
+  // Using a uint64_t here so that we have some value outside of the 32 bit
+  // range to use as the invalid return value.
+  uint64_t raw_type =
+      packet.GetU64(std::numeric_limits<uint64_t>::max(), /*base=*/16);
+
+  if ( // Make sure the cast below would be valid
+      raw_type > std::numeric_limits<uint32_t>::max() ||
       // To catch inputs like "123aardvark" that will parse but clearly aren't
       // valid in this case.
       packet.GetBytesLeft()) {
     return SendIllFormedResponse(packet, invalid_type_err);
   }
+
+  // First narrow to 32 bits otherwise the copy into type would take
+  // the wrong 4 bytes on big endian.
+  uint32_t raw_type_32 = raw_type;
+  int32_t type = reinterpret_cast<int32_t &>(raw_type_32);
 
   StreamGDBRemote response;
   std::vector<uint8_t> tags;
@@ -3552,7 +3589,11 @@ GDBRemoteCommunicationServerLLGS::Handle_QMemTags(
       packet.GetU64(std::numeric_limits<uint64_t>::max(), /*base=*/16);
   if (raw_type > std::numeric_limits<uint32_t>::max())
     return SendIllFormedResponse(packet, invalid_type_err);
-  int32_t type = static_cast<int32_t>(raw_type);
+
+  // First narrow to 32 bits. Otherwise the copy below would get the wrong
+  // 4 bytes on big endian.
+  uint32_t raw_type_32 = raw_type;
+  int32_t type = reinterpret_cast<int32_t &>(raw_type_32);
 
   // Tag data
   if (packet.GetBytesLeft() < 1 || packet.GetChar() != ':')
@@ -3582,6 +3623,37 @@ GDBRemoteCommunicationServerLLGS::Handle_QMemTags(
   Status status =
       m_current_process->WriteMemoryTags(type, addr, length, tag_data);
   return status.Success() ? SendOKResponse() : SendErrorResponse(1);
+}
+
+GDBRemoteCommunication::PacketResult
+GDBRemoteCommunicationServerLLGS::Handle_qSaveCore(
+    StringExtractorGDBRemote &packet) {
+  // Fail if we don't have a current process.
+  if (!m_current_process ||
+      (m_current_process->GetID() == LLDB_INVALID_PROCESS_ID))
+    return SendErrorResponse(Status("Process not running."));
+
+  std::string path_hint;
+
+  StringRef packet_str{packet.GetStringRef()};
+  assert(packet_str.startswith("qSaveCore"));
+  if (packet_str.consume_front("qSaveCore;")) {
+    for (auto x : llvm::split(packet_str, ';')) {
+      if (x.consume_front("path-hint:"))
+        StringExtractor(x).GetHexByteString(path_hint);
+      else
+        return SendErrorResponse(Status("Unsupported qSaveCore option"));
+    }
+  }
+
+  llvm::Expected<std::string> ret = m_current_process->SaveCore(path_hint);
+  if (!ret)
+    return SendErrorResponse(ret.takeError());
+
+  StreamString response;
+  response.PutCString("core-path:");
+  response.PutStringAsRawHex8(ret.get());
+  return SendPacketNoLock(response.GetString());
 }
 
 void GDBRemoteCommunicationServerLLGS::MaybeCloseInferiorTerminalConnection() {
@@ -3780,6 +3852,8 @@ std::vector<std::string> GDBRemoteCommunicationServerLLGS::HandleFeatures(
     ret.push_back("qXfer:libraries-svr4:read+");
   if (bool(plugin_features & Extension::memory_tagging))
     ret.push_back("memory-tagging+");
+  if (bool(plugin_features & Extension::savecore))
+    ret.push_back("qSaveCore+");
 
   // check for client features
   m_extensions_supported = {};
@@ -3815,4 +3889,39 @@ void GDBRemoteCommunicationServerLLGS::SetEnabledExtensions(
   NativeProcessProtocol::Extension flags = m_extensions_supported;
   assert(!bool(flags & ~m_process_factory.GetSupportedExtensions()));
   process.SetEnabledExtensions(flags);
+}
+
+std::string
+lldb_private::process_gdb_remote::LLGSArgToURL(llvm::StringRef url_arg,
+                                               bool reverse_connect) {
+  // Try parsing the argument as URL.
+  if (llvm::Optional<URI> url = URI::Parse(url_arg)) {
+    if (reverse_connect)
+      return url_arg.str();
+
+    // Translate the scheme from LLGS notation to ConnectionFileDescriptor.
+    // If the scheme doesn't match any, pass it through to support using CFD
+    // schemes directly.
+    std::string new_url = llvm::StringSwitch<std::string>(url->scheme)
+                              .Case("tcp", "listen")
+                              .Case("unix", "unix-accept")
+                              .Case("unix-abstract", "unix-abstract-accept")
+                              .Default(url->scheme.str());
+    llvm::append_range(new_url, url_arg.substr(url->scheme.size()));
+    return new_url;
+  }
+
+  std::string host_port = url_arg.str();
+  // If host_and_port starts with ':', default the host to be "localhost" and
+  // expect the remainder to be the port.
+  if (url_arg.startswith(":"))
+    host_port.insert(0, "localhost");
+
+  // Try parsing the (preprocessed) argument as host:port pair.
+  if (!llvm::errorToBool(Socket::DecodeHostAndPort(host_port).takeError()))
+    return (reverse_connect ? "connect://" : "listen://") + host_port;
+
+  // If none of the above applied, interpret the argument as UNIX socket path.
+  return (reverse_connect ? "unix-connect://" : "unix-accept://") +
+         url_arg.str();
 }

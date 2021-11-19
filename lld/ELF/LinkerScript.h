@@ -247,11 +247,11 @@ class LinkerScript final {
   // not be used outside of the scope of a call to the above functions.
   struct AddressState {
     AddressState();
-    uint64_t threadBssOffset = 0;
     OutputSection *outSec = nullptr;
     MemoryRegion *memRegion = nullptr;
     MemoryRegion *lmaRegion = nullptr;
     uint64_t lmaOffset = 0;
+    uint64_t tbssAddr = 0;
   };
 
   llvm::DenseMap<StringRef, OutputSection *> nameToOutputSection;
@@ -272,7 +272,8 @@ class LinkerScript final {
 
   std::vector<size_t> getPhdrIndices(OutputSection *sec);
 
-  MemoryRegion *findMemoryRegion(OutputSection *sec);
+  std::pair<MemoryRegion *, MemoryRegion *>
+  findMemoryRegion(OutputSection *sec, MemoryRegion *hint);
 
   void switchTo(OutputSection *sec);
   uint64_t advance(uint64_t size, unsigned align);
@@ -316,6 +317,8 @@ public:
   void processSectionCommands();
   void processSymbolAssignments();
   void declareSymbols();
+
+  bool isDiscarded(const OutputSection *sec) const;
 
   // Used to handle INSERT AFTER statements.
   void processInsertCommands();

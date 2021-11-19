@@ -614,7 +614,9 @@ public:
     if (!isInline())
       return false;
     auto X = lookup(Name);
-    auto Y = getParent()->lookup(Name);
+    // We should not perform a lookup within a transparent context, so find a
+    // non-transparent parent context.
+    auto Y = getParent()->getNonTransparentContext()->lookup(Name);
     return std::distance(X.begin(), X.end()) ==
       std::distance(Y.begin(), Y.end());
   }
@@ -1990,8 +1992,8 @@ private:
 protected:
   FunctionDecl(Kind DK, ASTContext &C, DeclContext *DC, SourceLocation StartLoc,
                const DeclarationNameInfo &NameInfo, QualType T,
-               TypeSourceInfo *TInfo, StorageClass S, bool isInlineSpecified,
-               ConstexprSpecKind ConstexprKind,
+               TypeSourceInfo *TInfo, StorageClass S, bool UsesFPIntrin,
+               bool isInlineSpecified, ConstexprSpecKind ConstexprKind,
                Expr *TrailingRequiresClause = nullptr);
 
   using redeclarable_base = Redeclarable<FunctionDecl>;
@@ -2025,23 +2027,23 @@ public:
   static FunctionDecl *
   Create(ASTContext &C, DeclContext *DC, SourceLocation StartLoc,
          SourceLocation NLoc, DeclarationName N, QualType T,
-         TypeSourceInfo *TInfo, StorageClass SC, bool isInlineSpecified = false,
-         bool hasWrittenPrototype = true,
+         TypeSourceInfo *TInfo, StorageClass SC, bool UsesFPIntrin = false,
+         bool isInlineSpecified = false, bool hasWrittenPrototype = true,
          ConstexprSpecKind ConstexprKind = ConstexprSpecKind::Unspecified,
          Expr *TrailingRequiresClause = nullptr) {
     DeclarationNameInfo NameInfo(N, NLoc);
     return FunctionDecl::Create(C, DC, StartLoc, NameInfo, T, TInfo, SC,
-                                isInlineSpecified, hasWrittenPrototype,
-                                ConstexprKind, TrailingRequiresClause);
+                                UsesFPIntrin, isInlineSpecified,
+                                hasWrittenPrototype, ConstexprKind,
+                                TrailingRequiresClause);
   }
 
-  static FunctionDecl *Create(ASTContext &C, DeclContext *DC,
-                              SourceLocation StartLoc,
-                              const DeclarationNameInfo &NameInfo, QualType T,
-                              TypeSourceInfo *TInfo, StorageClass SC,
-                              bool isInlineSpecified, bool hasWrittenPrototype,
-                              ConstexprSpecKind ConstexprKind,
-                              Expr *TrailingRequiresClause);
+  static FunctionDecl *
+  Create(ASTContext &C, DeclContext *DC, SourceLocation StartLoc,
+         const DeclarationNameInfo &NameInfo, QualType T, TypeSourceInfo *TInfo,
+         StorageClass SC, bool UsesFPIntrin, bool isInlineSpecified,
+         bool hasWrittenPrototype, ConstexprSpecKind ConstexprKind,
+         Expr *TrailingRequiresClause);
 
   static FunctionDecl *CreateDeserialized(ASTContext &C, unsigned ID);
 
@@ -2593,6 +2595,14 @@ public:
     FunctionDeclBits.IsInlineSpecified = I;
     FunctionDeclBits.IsInline = I;
   }
+
+  /// Determine whether the function was declared in source context
+  /// that requires constrained FP intrinsics
+  bool UsesFPIntrin() const { return FunctionDeclBits.UsesFPIntrin; }
+
+  /// Set whether the function was declared in source context
+  /// that requires constrained FP intrinsics
+  void setUsesFPIntrin(bool I) { FunctionDeclBits.UsesFPIntrin = I; }
 
   /// Flag that this function is implicitly inline.
   void setImplicitlyInline(bool I = true) { FunctionDeclBits.IsInline = I; }
@@ -3691,6 +3701,10 @@ public:
                           bool IsFixed);
   static EnumDecl *CreateDeserialized(ASTContext &C, unsigned ID);
 
+  /// Overrides to provide correct range when there's an enum-base specifier
+  /// with forward declarations.
+  SourceRange getSourceRange() const override LLVM_READONLY;
+
   /// When created, the EnumDecl corresponds to a
   /// forward-declared enum. This method is used to mark the
   /// declaration as being defined; its enumerators have already been
@@ -4579,7 +4593,7 @@ public:
 /// into a diagnostic with <<.
 inline const StreamingDiagnostic &operator<<(const StreamingDiagnostic &PD,
                                              const NamedDecl *ND) {
-  PD.AddTaggedVal(reinterpret_cast<intptr_t>(ND),
+  PD.AddTaggedVal(reinterpret_cast<uint64_t>(ND),
                   DiagnosticsEngine::ak_nameddecl);
   return PD;
 }

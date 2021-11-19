@@ -240,12 +240,7 @@ void SymbolFileNativePDB::Terminate() {
 
 void SymbolFileNativePDB::DebuggerInitialize(Debugger &debugger) {}
 
-ConstString SymbolFileNativePDB::GetPluginNameStatic() {
-  static ConstString g_name("native-pdb");
-  return g_name;
-}
-
-const char *SymbolFileNativePDB::GetPluginDescriptionStatic() {
+llvm::StringRef SymbolFileNativePDB::GetPluginDescriptionStatic() {
   return "Microsoft PDB debug symbol cross-platform file reader.";
 }
 
@@ -950,11 +945,11 @@ uint32_t SymbolFileNativePDB::ResolveSymbolContext(
     llvm::Optional<uint16_t> modi = m_index->GetModuleIndexForVa(file_addr);
     if (!modi)
       return 0;
-    CompilandIndexItem *cci = m_index->compilands().GetCompiland(*modi);
-    if (!cci)
+    CompUnitSP cu_sp = GetCompileUnitAtIndex(modi.getValue());
+    if (!cu_sp)
       return 0;
 
-    sc.comp_unit = GetOrCreateCompileUnit(*cci).get();
+    sc.comp_unit = cu_sp.get();
     resolved_flags |= eSymbolContextCompUnit;
   }
 
@@ -1567,9 +1562,8 @@ SymbolFileNativePDB::GetTypeSystemForLanguage(lldb::LanguageType language) {
   return type_system_or_err;
 }
 
-ConstString SymbolFileNativePDB::GetPluginName() {
-  static ConstString g_name("pdb");
-  return g_name;
+uint64_t SymbolFileNativePDB::GetDebugInfoSize() {
+  // PDB files are a separate file that contains all debug info.
+  return m_index->pdb().getFileSize();
 }
 
-uint32_t SymbolFileNativePDB::GetPluginVersion() { return 1; }

@@ -821,6 +821,13 @@ QualType ObjCObjectType::stripObjCKindOfTypeAndQuals(
                                /*isKindOf=*/false);
 }
 
+ObjCInterfaceDecl *ObjCInterfaceType::getDecl() const {
+  ObjCInterfaceDecl *Canon = Decl->getCanonicalDecl();
+  if (ObjCInterfaceDecl *Def = Canon->getDefinition())
+    return Def;
+  return Canon;
+}
+
 const ObjCObjectPointerType *ObjCObjectPointerType::stripObjCKindOfTypeAndQuals(
                                const ASTContext &ctx) const {
   if (!isKindOfType() && qual_empty())
@@ -1885,7 +1892,7 @@ DeducedType *Type::getContainedDeducedType() const {
 }
 
 bool Type::hasAutoForTrailingReturnType() const {
-  return dyn_cast_or_null<FunctionType>(
+  return isa_and_nonnull<FunctionType>(
       GetContainedDeducedTypeVisitor(true).Visit(this));
 }
 
@@ -2097,7 +2104,7 @@ bool Type::hasUnsignedIntegerRepresentation() const {
 bool Type::isFloatingType() const {
   if (const auto *BT = dyn_cast<BuiltinType>(CanonicalType))
     return BT->getKind() >= BuiltinType::Half &&
-           BT->getKind() <= BuiltinType::Float128;
+           BT->getKind() <= BuiltinType::Ibm128;
   if (const auto *CT = dyn_cast<ComplexType>(CanonicalType))
     return CT->getElementType()->isFloatingType();
   return false;
@@ -2119,7 +2126,7 @@ bool Type::isRealFloatingType() const {
 bool Type::isRealType() const {
   if (const auto *BT = dyn_cast<BuiltinType>(CanonicalType))
     return BT->getKind() >= BuiltinType::Bool &&
-           BT->getKind() <= BuiltinType::Float128;
+           BT->getKind() <= BuiltinType::Ibm128;
   if (const auto *ET = dyn_cast<EnumType>(CanonicalType))
       return ET->getDecl()->isComplete() && !ET->getDecl()->isScoped();
   return isExtIntType();
@@ -2128,7 +2135,7 @@ bool Type::isRealType() const {
 bool Type::isArithmeticType() const {
   if (const auto *BT = dyn_cast<BuiltinType>(CanonicalType))
     return BT->getKind() >= BuiltinType::Bool &&
-           BT->getKind() <= BuiltinType::Float128 &&
+           BT->getKind() <= BuiltinType::Ibm128 &&
            BT->getKind() != BuiltinType::BFloat16;
   if (const auto *ET = dyn_cast<EnumType>(CanonicalType))
     // GCC allows forward declaration of enum types (forbid by C99 6.7.2.3p2).
@@ -2785,7 +2792,6 @@ bool Type::isSpecifierType() const {
   case DependentTemplateSpecialization:
   case ObjCInterface:
   case ObjCObject:
-  case ObjCObjectPointer: // FIXME: object pointers aren't really specifiers
     return true;
   default:
     return false;
@@ -3030,6 +3036,8 @@ StringRef BuiltinType::getName(const PrintingPolicy &Policy) const {
     return "_Float16";
   case Float128:
     return "__float128";
+  case Ibm128:
+    return "__ibm128";
   case WChar_S:
   case WChar_U:
     return Policy.MSWChar ? "__wchar_t" : "wchar_t";
@@ -3040,7 +3048,7 @@ StringRef BuiltinType::getName(const PrintingPolicy &Policy) const {
   case Char32:
     return "char32_t";
   case NullPtr:
-    return "nullptr_t";
+    return "std::nullptr_t";
   case Overload:
     return "<overloaded function type>";
   case BoundMember:
@@ -3505,7 +3513,7 @@ bool RecordType::hasConstFields() const {
         return true;
       FieldTy = FieldTy.getCanonicalType();
       if (const auto *FieldRecTy = FieldTy->getAs<RecordType>()) {
-        if (llvm::find(RecordTypeList, FieldRecTy) == RecordTypeList.end())
+        if (!llvm::is_contained(RecordTypeList, FieldRecTy))
           RecordTypeList.push_back(FieldRecTy);
       }
     }
@@ -3757,8 +3765,8 @@ public:
 
   friend CachedProperties merge(CachedProperties L, CachedProperties R) {
     Linkage MergedLinkage = minLinkage(L.L, R.L);
-    return CachedProperties(MergedLinkage,
-                         L.hasLocalOrUnnamedType() | R.hasLocalOrUnnamedType());
+    return CachedProperties(MergedLinkage, L.hasLocalOrUnnamedType() ||
+                                               R.hasLocalOrUnnamedType());
   }
 };
 
@@ -4392,10 +4400,10 @@ void clang::FixedPointValueToString(SmallVectorImpl<char> &Str,
 }
 
 AutoType::AutoType(QualType DeducedAsType, AutoTypeKeyword Keyword,
-                   TypeDependence ExtraDependence,
+                   TypeDependence ExtraDependence, QualType Canon,
                    ConceptDecl *TypeConstraintConcept,
                    ArrayRef<TemplateArgument> TypeConstraintArgs)
-    : DeducedType(Auto, DeducedAsType, ExtraDependence) {
+    : DeducedType(Auto, DeducedAsType, ExtraDependence, Canon) {
   AutoTypeBits.Keyword = (unsigned)Keyword;
   AutoTypeBits.NumArgs = TypeConstraintArgs.size();
   this->TypeConstraintConcept = TypeConstraintConcept;

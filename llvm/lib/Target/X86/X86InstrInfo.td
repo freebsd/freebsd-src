@@ -91,8 +91,7 @@ def SDT_X86Call   : SDTypeProfile<0, -1, [SDTCisVT<0, iPTR>]>;
 def SDT_X86NtBrind : SDTypeProfile<0, -1, [SDTCisVT<0, iPTR>]>;
 
 def SDT_X86VASTART_SAVE_XMM_REGS : SDTypeProfile<0, -1, [SDTCisVT<0, i8>,
-                                                         SDTCisVT<1, iPTR>,
-                                                         SDTCisVT<2, iPTR>]>;
+                                                         SDTCisPtrTy<1>]>;
 
 def SDT_X86VAARG : SDTypeProfile<1, -1, [SDTCisPtrTy<0>,
                                          SDTCisPtrTy<1>,
@@ -112,7 +111,7 @@ def SDT_X86TLSBASEADDR : SDTypeProfile<0, 1, [SDTCisInt<0>]>;
 
 def SDT_X86TLSCALL : SDTypeProfile<0, 1, [SDTCisInt<0>]>;
 
-def SDT_X86WIN_ALLOCA : SDTypeProfile<0, 1, [SDTCisVT<0, iPTR>]>;
+def SDT_X86DYN_ALLOCA : SDTypeProfile<0, 1, [SDTCisVT<0, iPTR>]>;
 
 def SDT_X86SEG_ALLOCA : SDTypeProfile<1, 1, [SDTCisVT<0, iPTR>, SDTCisVT<1, iPTR>]>;
 
@@ -184,7 +183,7 @@ def X86iret : SDNode<"X86ISD::IRET", SDTX86Ret,
 def X86vastart_save_xmm_regs :
                  SDNode<"X86ISD::VASTART_SAVE_XMM_REGS",
                         SDT_X86VASTART_SAVE_XMM_REGS,
-                        [SDNPHasChain, SDNPVariadic]>;
+                        [SDNPHasChain, SDNPMayStore, SDNPMemOperand, SDNPVariadic]>;
 def X86vaarg64 :
                  SDNode<"X86ISD::VAARG_64", SDT_X86VAARG,
                         [SDNPHasChain, SDNPMayLoad, SDNPMayStore,
@@ -294,7 +293,7 @@ def X86pext   : SDNode<"X86ISD::PEXT",   SDTIntBinOp>;
 
 def X86mul_imm : SDNode<"X86ISD::MUL_IMM", SDTIntBinOp>;
 
-def X86WinAlloca : SDNode<"X86ISD::WIN_ALLOCA", SDT_X86WIN_ALLOCA,
+def X86DynAlloca : SDNode<"X86ISD::DYN_ALLOCA", SDT_X86DYN_ALLOCA,
                           [SDNPHasChain, SDNPOutGlue]>;
 
 def X86SegAlloca : SDNode<"X86ISD::SEG_ALLOCA", SDT_X86SEG_ALLOCA,
@@ -421,6 +420,7 @@ def i64mem  : X86MemOperand<"printqwordmem",  X86Mem64AsmOperand>;
 def i128mem : X86MemOperand<"printxmmwordmem", X86Mem128AsmOperand>;
 def i256mem : X86MemOperand<"printymmwordmem", X86Mem256AsmOperand>;
 def i512mem : X86MemOperand<"printzmmwordmem", X86Mem512AsmOperand>;
+def f16mem  : X86MemOperand<"printwordmem",   X86Mem16AsmOperand>;
 def f32mem  : X86MemOperand<"printdwordmem",  X86Mem32AsmOperand>;
 def f64mem  : X86MemOperand<"printqwordmem",  X86Mem64AsmOperand>;
 def f80mem  : X86MemOperand<"printtbytemem",  X86Mem80AsmOperand>;
@@ -919,6 +919,7 @@ def PKU        : Predicate<"Subtarget->hasPKU()">;
 def HasVNNI    : Predicate<"Subtarget->hasVNNI()">;
 def HasVP2INTERSECT : Predicate<"Subtarget->hasVP2INTERSECT()">;
 def HasBF16      : Predicate<"Subtarget->hasBF16()">;
+def HasFP16      : Predicate<"Subtarget->hasFP16()">;
 def HasAVXVNNI : Predicate <"Subtarget->hasAVXVNNI()">;
 def NoVLX_Or_NoVNNI : Predicate<"!Subtarget->hasVLX() || !Subtarget->hasVNNI()">;
 
@@ -993,6 +994,7 @@ def HasAMXTILE   : Predicate<"Subtarget->hasAMXTILE()">;
 def HasAMXBF16   : Predicate<"Subtarget->hasAMXBF16()">;
 def HasAMXINT8   : Predicate<"Subtarget->hasAMXINT8()">;
 def HasUINTR     : Predicate<"Subtarget->hasUINTR()">;
+def HasCRC32     : Predicate<"Subtarget->hasCRC32()">;
 def Not64BitMode : Predicate<"!Subtarget->is64Bit()">,
                              AssemblerPredicate<(all_of (not Mode64Bit)), "Not 64-bit mode">;
 def In64BitMode  : Predicate<"Subtarget->is64Bit()">,
@@ -1193,6 +1195,7 @@ def loadi32 : PatFrag<(ops node:$ptr), (i32 (unindexedload node:$ptr)), [{
 }]>;
 
 def loadi64  : PatFrag<(ops node:$ptr), (i64 (load node:$ptr))>;
+def loadf16  : PatFrag<(ops node:$ptr), (f16 (load node:$ptr))>;
 def loadf32  : PatFrag<(ops node:$ptr), (f32 (load node:$ptr))>;
 def loadf64  : PatFrag<(ops node:$ptr), (f64 (load node:$ptr))>;
 def loadf80  : PatFrag<(ops node:$ptr), (f80 (load node:$ptr))>;
@@ -3154,9 +3157,6 @@ include "X86InstrSSE.td"
 include "X86InstrAVX512.td"
 include "X86InstrMMX.td"
 include "X86Instr3DNow.td"
-
-// MPX instructions
-include "X86InstrMPX.td"
 
 include "X86InstrVMX.td"
 include "X86InstrSVM.td"

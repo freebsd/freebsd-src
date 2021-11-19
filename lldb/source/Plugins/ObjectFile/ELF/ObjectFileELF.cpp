@@ -55,36 +55,36 @@ using namespace llvm::ELF;
 
 LLDB_PLUGIN_DEFINE(ObjectFileELF)
 
-namespace {
-
 // ELF note owner definitions
-const char *const LLDB_NT_OWNER_FREEBSD = "FreeBSD";
-const char *const LLDB_NT_OWNER_GNU = "GNU";
-const char *const LLDB_NT_OWNER_NETBSD = "NetBSD";
-const char *const LLDB_NT_OWNER_NETBSDCORE = "NetBSD-CORE";
-const char *const LLDB_NT_OWNER_OPENBSD = "OpenBSD";
-const char *const LLDB_NT_OWNER_ANDROID = "Android";
-const char *const LLDB_NT_OWNER_CORE = "CORE";
-const char *const LLDB_NT_OWNER_LINUX = "LINUX";
+static const char *const LLDB_NT_OWNER_FREEBSD = "FreeBSD";
+static const char *const LLDB_NT_OWNER_GNU = "GNU";
+static const char *const LLDB_NT_OWNER_NETBSD = "NetBSD";
+static const char *const LLDB_NT_OWNER_NETBSDCORE = "NetBSD-CORE";
+static const char *const LLDB_NT_OWNER_OPENBSD = "OpenBSD";
+static const char *const LLDB_NT_OWNER_ANDROID = "Android";
+static const char *const LLDB_NT_OWNER_CORE = "CORE";
+static const char *const LLDB_NT_OWNER_LINUX = "LINUX";
 
 // ELF note type definitions
-const elf_word LLDB_NT_FREEBSD_ABI_TAG = 0x01;
-const elf_word LLDB_NT_FREEBSD_ABI_SIZE = 4;
+static const elf_word LLDB_NT_FREEBSD_ABI_TAG = 0x01;
+static const elf_word LLDB_NT_FREEBSD_ABI_SIZE = 4;
 
-const elf_word LLDB_NT_GNU_ABI_TAG = 0x01;
-const elf_word LLDB_NT_GNU_ABI_SIZE = 16;
+static const elf_word LLDB_NT_GNU_ABI_TAG = 0x01;
+static const elf_word LLDB_NT_GNU_ABI_SIZE = 16;
 
-const elf_word LLDB_NT_GNU_BUILD_ID_TAG = 0x03;
+static const elf_word LLDB_NT_GNU_BUILD_ID_TAG = 0x03;
 
-const elf_word LLDB_NT_NETBSD_IDENT_TAG = 1;
-const elf_word LLDB_NT_NETBSD_IDENT_DESCSZ = 4;
-const elf_word LLDB_NT_NETBSD_IDENT_NAMESZ = 7;
-const elf_word LLDB_NT_NETBSD_PROCINFO = 1;
+static const elf_word LLDB_NT_NETBSD_IDENT_TAG = 1;
+static const elf_word LLDB_NT_NETBSD_IDENT_DESCSZ = 4;
+static const elf_word LLDB_NT_NETBSD_IDENT_NAMESZ = 7;
+static const elf_word LLDB_NT_NETBSD_PROCINFO = 1;
 
 // GNU ABI note OS constants
-const elf_word LLDB_NT_GNU_ABI_OS_LINUX = 0x00;
-const elf_word LLDB_NT_GNU_ABI_OS_HURD = 0x01;
-const elf_word LLDB_NT_GNU_ABI_OS_SOLARIS = 0x02;
+static const elf_word LLDB_NT_GNU_ABI_OS_LINUX = 0x00;
+static const elf_word LLDB_NT_GNU_ABI_OS_HURD = 0x01;
+static const elf_word LLDB_NT_GNU_ABI_OS_SOLARIS = 0x02;
+
+namespace {
 
 //===----------------------------------------------------------------------===//
 /// \class ELFRelocation
@@ -125,6 +125,7 @@ private:
 
   RelocUnion reloc;
 };
+} // end anonymous namespace
 
 ELFRelocation::ELFRelocation(unsigned type) {
   if (type == DT_REL || type == SHT_REL)
@@ -207,8 +208,6 @@ unsigned ELFRelocation::RelocAddend64(const ELFRelocation &rel) {
   else
     return rel.reloc.get<ELFRela *>()->r_addend;
 }
-
-} // end anonymous namespace
 
 static user_id_t SegmentID(size_t PHdrIndex) {
   return ~user_id_t(PHdrIndex);
@@ -333,15 +332,6 @@ void ObjectFileELF::Initialize() {
 
 void ObjectFileELF::Terminate() {
   PluginManager::UnregisterPlugin(CreateInstance);
-}
-
-lldb_private::ConstString ObjectFileELF::GetPluginNameStatic() {
-  static ConstString g_name("elf");
-  return g_name;
-}
-
-const char *ObjectFileELF::GetPluginDescriptionStatic() {
-  return "ELF object file reader.";
 }
 
 ObjectFile *ObjectFileELF::CreateInstance(const lldb::ModuleSP &module_sp,
@@ -634,12 +624,6 @@ size_t ObjectFileELF::GetModuleSpecifications(
   return specs.GetSize() - initial_count;
 }
 
-// PluginInterface protocol
-lldb_private::ConstString ObjectFileELF::GetPluginName() {
-  return GetPluginNameStatic();
-}
-
-uint32_t ObjectFileELF::GetPluginVersion() { return m_plugin_version; }
 // ObjectFile protocol
 
 ObjectFileELF::ObjectFileELF(const lldb::ModuleSP &module_sp,
@@ -2708,9 +2692,6 @@ Symtab *ObjectFileELF::GetSymtab() {
   if (!module_sp)
     return nullptr;
 
-  Progress progress(llvm::formatv("Parsing symbol table for {0}",
-                                  m_file.GetFilename().AsCString("<Unknown>")));
-
   // We always want to use the main object file so we (hopefully) only have one
   // cached copy of our symtab, dynamic sections, etc.
   ObjectFile *module_obj_file = module_sp->GetObjectFile();
@@ -2718,6 +2699,10 @@ Symtab *ObjectFileELF::GetSymtab() {
     return module_obj_file->GetSymtab();
 
   if (m_symtab_up == nullptr) {
+    Progress progress(
+        llvm::formatv("Parsing symbol table for {0}",
+                      m_file.GetFilename().AsCString("<Unknown>")));
+    ElapsedTime elapsed(module_sp->GetSymtabParseTime());
     SectionList *section_list = module_sp->GetSectionList();
     if (!section_list)
       return nullptr;

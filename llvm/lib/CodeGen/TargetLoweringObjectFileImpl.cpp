@@ -677,8 +677,9 @@ calcUniqueIDUpdateFlagsAndSize(const GlobalObject *GO, StringRef SectionName,
   }
 
   if (Retain) {
-    if (Ctx.getAsmInfo()->useIntegratedAssembler() ||
-        Ctx.getAsmInfo()->binutilsIsAtLeast(2, 36))
+    if ((Ctx.getAsmInfo()->useIntegratedAssembler() ||
+         Ctx.getAsmInfo()->binutilsIsAtLeast(2, 36)) &&
+        !TM.getTargetTriple().isOSSolaris())
       Flags |= ELF::SHF_GNU_RETAIN;
     return NextUniqueID++;
   }
@@ -855,8 +856,10 @@ static MCSection *selectELFSectionForGlobal(
     EmitUniqueSection = true;
     Flags |= ELF::SHF_LINK_ORDER;
   }
-  if (Retain && (Ctx.getAsmInfo()->useIntegratedAssembler() ||
-                 Ctx.getAsmInfo()->binutilsIsAtLeast(2, 36))) {
+  if (Retain &&
+      (Ctx.getAsmInfo()->useIntegratedAssembler() ||
+       Ctx.getAsmInfo()->binutilsIsAtLeast(2, 36)) &&
+      !TM.getTargetTriple().isOSSolaris()) {
     EmitUniqueSection = true;
     Flags |= ELF::SHF_GNU_RETAIN;
   }
@@ -1492,7 +1495,7 @@ void TargetLoweringObjectFileMachO::getNameWithPrefix(
     SmallVectorImpl<char> &OutName, const GlobalValue *GV,
     const TargetMachine &TM) const {
   bool CannotUsePrivateLabel = true;
-  if (auto *GO = GV->getBaseObject()) {
+  if (auto *GO = GV->getAliaseeObject()) {
     SectionKind GOKind = TargetLoweringObjectFile::getKindForGlobal(GO, TM);
     const MCSection *TheSection = SectionForGlobal(GO, GOKind, TM);
     CannotUsePrivateLabel =
@@ -1563,7 +1566,7 @@ static int getSelectionForCOFF(const GlobalValue *GV) {
   if (const Comdat *C = GV->getComdat()) {
     const GlobalValue *ComdatKey = getComdatGVForCOFF(GV);
     if (const auto *GA = dyn_cast<GlobalAlias>(ComdatKey))
-      ComdatKey = GA->getBaseObject();
+      ComdatKey = GA->getAliaseeObject();
     if (ComdatKey == GV) {
       switch (C->getSelectionKind()) {
       case Comdat::Any:
@@ -1942,7 +1945,7 @@ static std::string APIntToHexString(const APInt &AI) {
 static std::string scalarConstantToHexString(const Constant *C) {
   Type *Ty = C->getType();
   if (isa<UndefValue>(C)) {
-    return APIntToHexString(APInt::getNullValue(Ty->getPrimitiveSizeInBits()));
+    return APIntToHexString(APInt::getZero(Ty->getPrimitiveSizeInBits()));
   } else if (const auto *CFP = dyn_cast<ConstantFP>(C)) {
     return APIntToHexString(CFP->getValueAPF().bitcastToAPInt());
   } else if (const auto *CI = dyn_cast<ConstantInt>(C)) {
@@ -2414,7 +2417,20 @@ bool TargetLoweringObjectFileXCOFF::shouldPutJumpTableInFunctionSection(
 MCSection *TargetLoweringObjectFileXCOFF::getSectionForConstant(
     const DataLayout &DL, SectionKind Kind, const Constant *C,
     Align &Alignment) const {
-  //TODO: Enable emiting constant pool to unique sections when we support it.
+  // TODO: Enable emiting constant pool to unique sections when we support it.
+  if (Alignment > Align(16))
+    report_fatal_error("Alignments greater than 16 not yet supported.");
+
+  if (Alignment == Align(8)) {
+    assert(ReadOnly8Section && "Section should always be initialized.");
+    return ReadOnly8Section;
+  }
+
+  if (Alignment == Align(16)) {
+    assert(ReadOnly16Section && "Section should always be initialized.");
+    return ReadOnly16Section;
+  }
+
   return ReadOnlySection;
 }
 
@@ -2443,7 +2459,8 @@ MCSection *TargetLoweringObjectFileXCOFF::getStaticDtorSection(
 const MCExpr *TargetLoweringObjectFileXCOFF::lowerRelativeReference(
     const GlobalValue *LHS, const GlobalValue *RHS,
     const TargetMachine &TM) const {
-  report_fatal_error("XCOFF not yet implemented.");
+  /* Not implemented yet, but don't crash, return nullptr. */
+  return nullptr;
 }
 
 XCOFF::StorageClass
@@ -2473,12 +2490,12 @@ TargetLoweringObjectFileXCOFF::getStorageClassForGlobal(const GlobalValue *GV) {
 
 MCSymbol *TargetLoweringObjectFileXCOFF::getFunctionEntryPointSymbol(
     const GlobalValue *Func, const TargetMachine &TM) const {
-  assert(
-      (isa<Function>(Func) ||
-       (isa<GlobalAlias>(Func) &&
-        isa_and_nonnull<Function>(cast<GlobalAlias>(Func)->getBaseObject()))) &&
-      "Func must be a function or an alias which has a function as base "
-      "object.");
+  assert((isa<Function>(Func) ||
+          (isa<GlobalAlias>(Func) &&
+           isa_and_nonnull<Function>(
+               cast<GlobalAlias>(Func)->getAliaseeObject()))) &&
+         "Func must be a function or an alias which has a function as base "
+         "object.");
 
   SmallString<128> NameStr;
   NameStr.push_back('.');

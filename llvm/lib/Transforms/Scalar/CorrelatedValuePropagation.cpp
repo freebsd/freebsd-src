@@ -67,6 +67,7 @@ STATISTIC(NumUDivURemsNarrowed,
 STATISTIC(NumAShrs,     "Number of ashr converted to lshr");
 STATISTIC(NumSRems,     "Number of srem converted to urem");
 STATISTIC(NumSExt,      "Number of sext converted to zext");
+STATISTIC(NumSICmps,    "Number of signed icmp preds simplified to unsigned");
 STATISTIC(NumAnd,       "Number of ands removed");
 STATISTIC(NumNW,        "Number of no-wrap deductions");
 STATISTIC(NumNSW,       "Number of no-signed-wrap deductions");
@@ -295,11 +296,34 @@ static bool processMemAccess(Instruction *I, LazyValueInfo *LVI) {
   return true;
 }
 
+static bool processICmp(ICmpInst *Cmp, LazyValueInfo *LVI) {
+  // Only for signed relational comparisons of scalar integers.
+  if (Cmp->getType()->isVectorTy() ||
+      !Cmp->getOperand(0)->getType()->isIntegerTy())
+    return false;
+
+  if (!Cmp->isSigned())
+    return false;
+
+  ICmpInst::Predicate UnsignedPred =
+      ConstantRange::getEquivalentPredWithFlippedSignedness(
+          Cmp->getPredicate(), LVI->getConstantRange(Cmp->getOperand(0), Cmp),
+          LVI->getConstantRange(Cmp->getOperand(1), Cmp));
+
+  if (UnsignedPred == ICmpInst::Predicate::BAD_ICMP_PREDICATE)
+    return false;
+
+  ++NumSICmps;
+  Cmp->setPredicate(UnsignedPred);
+
+  return true;
+}
+
 /// See if LazyValueInfo's ability to exploit edge conditions or range
 /// information is sufficient to prove this comparison. Even for local
 /// conditions, this can sometimes prove conditions instcombine can't by
 /// exploiting range information.
-static bool processCmp(CmpInst *Cmp, LazyValueInfo *LVI) {
+static bool constantFoldCmp(CmpInst *Cmp, LazyValueInfo *LVI) {
   Value *Op0 = Cmp->getOperand(0);
   auto *C = dyn_cast<Constant>(Cmp->getOperand(1));
   if (!C)
@@ -316,6 +340,17 @@ static bool processCmp(CmpInst *Cmp, LazyValueInfo *LVI) {
   Cmp->replaceAllUsesWith(TorF);
   Cmp->eraseFromParent();
   return true;
+}
+
+static bool processCmp(CmpInst *Cmp, LazyValueInfo *LVI) {
+  if (constantFoldCmp(Cmp, LVI))
+    return true;
+
+  if (auto *ICmp = dyn_cast<ICmpInst>(Cmp))
+    if (processICmp(ICmp, LVI))
+      return true;
+
+  return false;
 }
 
 /// Simplify a switch instruction by removing cases which can never fire. If the
@@ -341,7 +376,13 @@ static bool processSwitch(SwitchInst *I, LazyValueInfo *LVI,
     // ConstantFoldTerminator() as the underlying SwitchInst can be changed.
     SwitchInstProfUpdateWrapper SI(*I);
 
-    for (auto CI = SI->case_begin(), CE = SI->case_end(); CI != CE;) {
+    APInt Low =
+        APInt::getSignedMaxValue(Cond->getType()->getScalarSizeInBits());
+    APInt High =
+        APInt::getSignedMinValue(Cond->getType()->getScalarSizeInBits());
+
+    SwitchInst::CaseIt CI = SI->case_begin();
+    for (auto CE = SI->case_end(); CI != CE;) {
       ConstantInt *Case = CI->getCaseValue();
       LazyValueInfo::Tristate State =
           LVI->getPredicateAt(CmpInst::ICMP_EQ, Cond, Case, I,
@@ -374,8 +415,27 @@ static bool processSwitch(SwitchInst *I, LazyValueInfo *LVI,
         break;
       }
 
+      // Get Lower/Upper bound from switch cases.
+      Low = APIntOps::smin(Case->getValue(), Low);
+      High = APIntOps::smax(Case->getValue(), High);
+
       // Increment the case iterator since we didn't delete it.
       ++CI;
+    }
+
+    // Try to simplify default case as unreachable
+    if (CI == SI->case_end() && SI->getNumCases() != 0 &&
+        !isa<UnreachableInst>(SI->getDefaultDest()->getFirstNonPHIOrDbg())) {
+      const ConstantRange SIRange =
+          LVI->getConstantRange(SI->getCondition(), SI);
+
+      // If the numbered switch cases cover the entire range of the condition,
+      // then the default case is not reachable.
+      if (SIRange.getSignedMin() == Low && SIRange.getSignedMax() == High &&
+          SI->getNumCases() == High - Low + 1) {
+        createUnreachableSwitchDefault(SI, &DTU);
+        Changed = true;
+      }
     }
   }
 
@@ -690,7 +750,7 @@ static bool narrowSDivOrSRem(BinaryOperator *Instr, LazyValueInfo *LVI) {
 
   // sdiv/srem is UB if divisor is -1 and divident is INT_MIN, so unless we can
   // prove that such a combination is impossible, we need to bump the bitwidth.
-  if (CRs[1]->contains(APInt::getAllOnesValue(OrigWidth)) &&
+  if (CRs[1]->contains(APInt::getAllOnes(OrigWidth)) &&
       CRs[0]->contains(
           APInt::getSignedMinValue(MinSignedBits).sextOrSelf(OrigWidth)))
     ++MinSignedBits;
@@ -1023,49 +1083,48 @@ static bool runImpl(Function &F, LazyValueInfo *LVI, DominatorTree *DT,
   // blocks.
   for (BasicBlock *BB : depth_first(&F.getEntryBlock())) {
     bool BBChanged = false;
-    for (BasicBlock::iterator BI = BB->begin(), BE = BB->end(); BI != BE;) {
-      Instruction *II = &*BI++;
-      switch (II->getOpcode()) {
+    for (Instruction &II : llvm::make_early_inc_range(*BB)) {
+      switch (II.getOpcode()) {
       case Instruction::Select:
-        BBChanged |= processSelect(cast<SelectInst>(II), LVI);
+        BBChanged |= processSelect(cast<SelectInst>(&II), LVI);
         break;
       case Instruction::PHI:
-        BBChanged |= processPHI(cast<PHINode>(II), LVI, DT, SQ);
+        BBChanged |= processPHI(cast<PHINode>(&II), LVI, DT, SQ);
         break;
       case Instruction::ICmp:
       case Instruction::FCmp:
-        BBChanged |= processCmp(cast<CmpInst>(II), LVI);
+        BBChanged |= processCmp(cast<CmpInst>(&II), LVI);
         break;
       case Instruction::Load:
       case Instruction::Store:
-        BBChanged |= processMemAccess(II, LVI);
+        BBChanged |= processMemAccess(&II, LVI);
         break;
       case Instruction::Call:
       case Instruction::Invoke:
-        BBChanged |= processCallSite(cast<CallBase>(*II), LVI);
+        BBChanged |= processCallSite(cast<CallBase>(II), LVI);
         break;
       case Instruction::SRem:
       case Instruction::SDiv:
-        BBChanged |= processSDivOrSRem(cast<BinaryOperator>(II), LVI);
+        BBChanged |= processSDivOrSRem(cast<BinaryOperator>(&II), LVI);
         break;
       case Instruction::UDiv:
       case Instruction::URem:
-        BBChanged |= processUDivOrURem(cast<BinaryOperator>(II), LVI);
+        BBChanged |= processUDivOrURem(cast<BinaryOperator>(&II), LVI);
         break;
       case Instruction::AShr:
-        BBChanged |= processAShr(cast<BinaryOperator>(II), LVI);
+        BBChanged |= processAShr(cast<BinaryOperator>(&II), LVI);
         break;
       case Instruction::SExt:
-        BBChanged |= processSExt(cast<SExtInst>(II), LVI);
+        BBChanged |= processSExt(cast<SExtInst>(&II), LVI);
         break;
       case Instruction::Add:
       case Instruction::Sub:
       case Instruction::Mul:
       case Instruction::Shl:
-        BBChanged |= processBinOp(cast<BinaryOperator>(II), LVI);
+        BBChanged |= processBinOp(cast<BinaryOperator>(&II), LVI);
         break;
       case Instruction::And:
-        BBChanged |= processAnd(cast<BinaryOperator>(II), LVI);
+        BBChanged |= processAnd(cast<BinaryOperator>(&II), LVI);
         break;
       }
     }

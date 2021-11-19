@@ -20,9 +20,9 @@
 #include "llvm/CodeGen/TargetPassConfig.h"
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/PassManager.h"
+#include "llvm/MC/TargetRegistry.h"
 #include "llvm/Passes/PassBuilder.h"
 #include "llvm/Support/FormattedStream.h"
-#include "llvm/Support/TargetRegistry.h"
 #include "llvm/Target/TargetOptions.h"
 #include "llvm/Transforms/IPO/PassManagerBuilder.h"
 #include "llvm/Transforms/Scalar.h"
@@ -43,6 +43,7 @@ extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeBPFTarget() {
   PassRegistry &PR = *PassRegistry::getPassRegistry();
   initializeBPFAbstractMemberAccessLegacyPassPass(PR);
   initializeBPFPreserveDITypePass(PR);
+  initializeBPFIRPeepholePass(PR);
   initializeBPFAdjustOptPass(PR);
   initializeBPFCheckAndAdjustIRPass(PR);
   initializeBPFMIPeepholePass(PR);
@@ -107,6 +108,7 @@ void BPFTargetMachine::adjustPassManager(PassManagerBuilder &Builder) {
       [&](const PassManagerBuilder &, legacy::PassManagerBase &PM) {
         PM.add(createBPFAbstractMemberAccess(this));
         PM.add(createBPFPreserveDIType());
+        PM.add(createBPFIRPeephole());
       });
 
   Builder.addExtension(
@@ -124,18 +126,19 @@ void BPFTargetMachine::adjustPassManager(PassManagerBuilder &Builder) {
 
 void BPFTargetMachine::registerPassBuilderCallbacks(PassBuilder &PB) {
   PB.registerPipelineStartEPCallback(
-      [=](ModulePassManager &MPM, PassBuilder::OptimizationLevel) {
+      [=](ModulePassManager &MPM, OptimizationLevel) {
         FunctionPassManager FPM;
         FPM.addPass(BPFAbstractMemberAccessPass(this));
         FPM.addPass(BPFPreserveDITypePass());
+        FPM.addPass(BPFIRPeepholePass());
         MPM.addPass(createModuleToFunctionPassAdaptor(std::move(FPM)));
       });
   PB.registerPeepholeEPCallback([=](FunctionPassManager &FPM,
-                                    PassBuilder::OptimizationLevel Level) {
+                                    OptimizationLevel Level) {
     FPM.addPass(SimplifyCFGPass(SimplifyCFGOptions().hoistCommonInsts(true)));
   });
   PB.registerPipelineEarlySimplificationEPCallback(
-      [=](ModulePassManager &MPM, PassBuilder::OptimizationLevel) {
+      [=](ModulePassManager &MPM, OptimizationLevel) {
         MPM.addPass(BPFAdjustOptPass());
       });
 }

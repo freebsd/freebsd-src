@@ -1164,8 +1164,11 @@ bool SeparateConstOffsetFromGEP::run(Function &F) {
   DL = &F.getParent()->getDataLayout();
   bool Changed = false;
   for (BasicBlock &B : F) {
-    for (BasicBlock::iterator I = B.begin(), IE = B.end(); I != IE;)
-      if (GetElementPtrInst *GEP = dyn_cast<GetElementPtrInst>(I++))
+    if (!DT->isReachableFromEntry(&B))
+      continue;
+
+    for (Instruction &I : llvm::make_early_inc_range(B))
+      if (GetElementPtrInst *GEP = dyn_cast<GetElementPtrInst>(&I))
         Changed |= splitGEP(GEP);
     // No need to split GEP ConstantExprs because all its indices are constant
     // already.
@@ -1258,10 +1261,8 @@ bool SeparateConstOffsetFromGEP::reuniteExts(Function &F) {
   DominatingSubs.clear();
   for (const auto Node : depth_first(DT)) {
     BasicBlock *BB = Node->getBlock();
-    for (auto I = BB->begin(); I != BB->end(); ) {
-      Instruction *Cur = &*I++;
-      Changed |= reuniteExts(Cur);
-    }
+    for (Instruction &I : llvm::make_early_inc_range(*BB))
+      Changed |= reuniteExts(&I);
   }
   return Changed;
 }

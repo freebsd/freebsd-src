@@ -257,18 +257,17 @@ public:
   ///
   ///  * Sign of the step and the comparison operator might disagree:
   ///
-  ///      for (int i = 0; i < 42; --i)
+  ///      for (int i = 0; i < 42; i -= 1u)
   ///
   //
   /// \param Loc       The insert and source location description.
   /// \param BodyGenCB Callback that will generate the loop body code.
   /// \param Start     Value of the loop counter for the first iterations.
-  /// \param Stop      Loop counter values past this will stop the the
-  ///                  iterations.
+  /// \param Stop      Loop counter values past this will stop the loop.
   /// \param Step      Loop counter increment after each iteration; negative
-  ///                  means counting down. \param IsSigned  Whether Start, Stop
-  ///                  and Stop are signed integers.
-  /// \param InclusiveStop Whether  \p Stop itself is a valid value for the loop
+  ///                  means counting down.
+  /// \param IsSigned  Whether Start, Stop and Step are signed integers.
+  /// \param InclusiveStop Whether \p Stop itself is a valid value for the loop
   ///                      counter.
   /// \param ComputeIP Insertion point for instructions computing the trip
   ///                  count. Can be used to ensure the trip count is available
@@ -335,7 +334,7 @@ public:
   ///    has a trip count of 0). This is permitted by the OpenMP specification.
   ///
   /// \param DL        Debug location for instructions added for collapsing,
-  ///                  such as instructions to compute derive the input loop's
+  ///                  such as instructions to compute/derive the input loop's
   ///                  induction variables.
   /// \param Loops     Loops in the loop nest to collapse. Loops are specified
   ///                  from outermost-to-innermost and every control flow of a
@@ -358,8 +357,16 @@ public:
   /// the current thread, updates the relevant instructions in the canonical
   /// loop and calls to an OpenMP runtime finalization function after the loop.
   ///
-  /// \param Loc      The source location description, the insertion location
-  ///                 is not used.
+  /// TODO: Workshare loops with static scheduling may contain up to two loops
+  /// that fulfill the requirements of an OpenMP canonical loop. One for
+  /// iterating over all iterations of a chunk and another one for iterating
+  /// over all chunks that are executed on the same thread. Returning
+  /// CanonicalLoopInfo objects representing them may eventually be useful for
+  /// the apply clause planned in OpenMP 6.0, but currently whether these are
+  /// canonical loops is irrelevant.
+  ///
+  /// \param DL       Debug location for instructions added for the
+  ///                 workshare-loop construct itself.
   /// \param CLI      A descriptor of the canonical loop to workshare.
   /// \param AllocaIP An insertion point for Alloca instructions usable in the
   ///                 preheader of the loop.
@@ -368,12 +375,11 @@ public:
   /// \param Chunk    The size of loop chunk considered as a unit when
   ///                 scheduling. If \p nullptr, defaults to 1.
   ///
-  /// \returns Updated CanonicalLoopInfo.
-  CanonicalLoopInfo *createStaticWorkshareLoop(const LocationDescription &Loc,
-                                               CanonicalLoopInfo *CLI,
-                                               InsertPointTy AllocaIP,
-                                               bool NeedsBarrier,
-                                               Value *Chunk = nullptr);
+  /// \returns Point where to insert code after the workshare construct.
+  InsertPointTy applyStaticWorkshareLoop(DebugLoc DL, CanonicalLoopInfo *CLI,
+                                         InsertPointTy AllocaIP,
+                                         bool NeedsBarrier,
+                                         Value *Chunk = nullptr);
 
   /// Modifies the canonical loop to be a dynamically-scheduled workshare loop.
   ///
@@ -382,8 +388,9 @@ public:
   /// turn it into a workshare loop. In particular, it calls to an OpenMP
   /// runtime function in the preheader to obtain, and then in each iteration
   /// to update the loop counter.
-  /// \param Loc      The source location description, the insertion location
-  ///                 is not used.
+  ///
+  /// \param DL       Debug location for instructions added for the
+  ///                 workshare-loop construct itself.
   /// \param CLI      A descriptor of the canonical loop to workshare.
   /// \param AllocaIP An insertion point for Alloca instructions usable in the
   ///                 preheader of the loop.
@@ -393,13 +400,12 @@ public:
   /// \param Chunk    The size of loop chunk considered as a unit when
   ///                 scheduling. If \p nullptr, defaults to 1.
   ///
-  /// \returns Point where to insert code after the loop.
-  InsertPointTy createDynamicWorkshareLoop(const LocationDescription &Loc,
-                                           CanonicalLoopInfo *CLI,
-                                           InsertPointTy AllocaIP,
-                                           omp::OMPScheduleType SchedType,
-                                           bool NeedsBarrier,
-                                           Value *Chunk = nullptr);
+  /// \returns Point where to insert code after the workshare construct.
+  InsertPointTy applyDynamicWorkshareLoop(DebugLoc DL, CanonicalLoopInfo *CLI,
+                                          InsertPointTy AllocaIP,
+                                          omp::OMPScheduleType SchedType,
+                                          bool NeedsBarrier,
+                                          Value *Chunk = nullptr);
 
   /// Modifies the canonical loop to be a workshare loop.
   ///
@@ -410,19 +416,17 @@ public:
   /// the current thread, updates the relevant instructions in the canonical
   /// loop and calls to an OpenMP runtime finalization function after the loop.
   ///
-  /// \param Loc      The source location description, the insertion location
-  ///                 is not used.
+  /// \param DL       Debug location for instructions added for the
+  ///                 workshare-loop construct itself.
   /// \param CLI      A descriptor of the canonical loop to workshare.
   /// \param AllocaIP An insertion point for Alloca instructions usable in the
   ///                 preheader of the loop.
   /// \param NeedsBarrier Indicates whether a barrier must be insterted after
   ///                     the loop.
   ///
-  /// \returns Updated CanonicalLoopInfo.
-  CanonicalLoopInfo *createWorkshareLoop(const LocationDescription &Loc,
-                                         CanonicalLoopInfo *CLI,
-                                         InsertPointTy AllocaIP,
-                                         bool NeedsBarrier);
+  /// \returns Point where to insert code after the workshare construct.
+  InsertPointTy applyWorkshareLoop(DebugLoc DL, CanonicalLoopInfo *CLI,
+                                   InsertPointTy AllocaIP, bool NeedsBarrier);
 
   /// Tile a loop nest.
   ///
@@ -471,6 +475,48 @@ public:
   tileLoops(DebugLoc DL, ArrayRef<CanonicalLoopInfo *> Loops,
             ArrayRef<Value *> TileSizes);
 
+  /// Fully unroll a loop.
+  ///
+  /// Instead of unrolling the loop immediately (and duplicating its body
+  /// instructions), it is deferred to LLVM's LoopUnrollPass by adding loop
+  /// metadata.
+  ///
+  /// \param DL   Debug location for instructions added by unrolling.
+  /// \param Loop The loop to unroll. The loop will be invalidated.
+  void unrollLoopFull(DebugLoc DL, CanonicalLoopInfo *Loop);
+
+  /// Fully or partially unroll a loop. How the loop is unrolled is determined
+  /// using LLVM's LoopUnrollPass.
+  ///
+  /// \param DL   Debug location for instructions added by unrolling.
+  /// \param Loop The loop to unroll. The loop will be invalidated.
+  void unrollLoopHeuristic(DebugLoc DL, CanonicalLoopInfo *Loop);
+
+  /// Partially unroll a loop.
+  ///
+  /// The CanonicalLoopInfo of the unrolled loop for use with chained
+  /// loop-associated directive can be requested using \p UnrolledCLI. Not
+  /// needing the CanonicalLoopInfo allows more efficient code generation by
+  /// deferring the actual unrolling to the LoopUnrollPass using loop metadata.
+  /// A loop-associated directive applied to the unrolled loop needs to know the
+  /// new trip count which means that if using a heuristically determined unroll
+  /// factor (\p Factor == 0), that factor must be computed immediately. We are
+  /// using the same logic as the LoopUnrollPass to derived the unroll factor,
+  /// but which assumes that some canonicalization has taken place (e.g.
+  /// Mem2Reg, LICM, GVN, Inlining, etc.). That is, the heuristic will perform
+  /// better when the unrolled loop's CanonicalLoopInfo is not needed.
+  ///
+  /// \param DL          Debug location for instructions added by unrolling.
+  /// \param Loop        The loop to unroll. The loop will be invalidated.
+  /// \param Factor      The factor to unroll the loop by. A factor of 0
+  ///                    indicates that a heuristic should be used to determine
+  ///                    the unroll-factor.
+  /// \param UnrolledCLI If non-null, receives the CanonicalLoopInfo of the
+  ///                    partially unrolled loop. Otherwise, uses loop metadata
+  ///                    to defer unrolling to the LoopUnrollPass.
+  void unrollLoopPartial(DebugLoc DL, CanonicalLoopInfo *Loop, int32_t Factor,
+                         CanonicalLoopInfo **UnrolledCLI);
+
   /// Generator for '#omp flush'
   ///
   /// \param Loc The location where the flush directive was encountered
@@ -485,6 +531,115 @@ public:
   ///
   /// \param Loc The location where the taskyield directive was encountered.
   void createTaskyield(const LocationDescription &Loc);
+
+  /// Functions used to generate reductions. Such functions take two Values
+  /// representing LHS and RHS of the reduction, respectively, and a reference
+  /// to the value that is updated to refer to the reduction result.
+  using ReductionGenTy =
+      function_ref<InsertPointTy(InsertPointTy, Value *, Value *, Value *&)>;
+
+  /// Functions used to generate atomic reductions. Such functions take two
+  /// Values representing pointers to LHS and RHS of the reduction. They are
+  /// expected to atomically update the LHS to the reduced value.
+  using AtomicReductionGenTy =
+      function_ref<InsertPointTy(InsertPointTy, Value *, Value *)>;
+
+  /// Information about an OpenMP reduction.
+  struct ReductionInfo {
+    ReductionInfo(Value *Variable, Value *PrivateVariable,
+                  ReductionGenTy ReductionGen,
+                  AtomicReductionGenTy AtomicReductionGen)
+        : Variable(Variable), PrivateVariable(PrivateVariable),
+          ReductionGen(ReductionGen), AtomicReductionGen(AtomicReductionGen) {}
+
+    /// Returns the type of the element being reduced.
+    Type *getElementType() const {
+      return Variable->getType()->getPointerElementType();
+    }
+
+    /// Reduction variable of pointer type.
+    Value *Variable;
+
+    /// Thread-private partial reduction variable.
+    Value *PrivateVariable;
+
+    /// Callback for generating the reduction body. The IR produced by this will
+    /// be used to combine two values in a thread-safe context, e.g., under
+    /// lock or within the same thread, and therefore need not be atomic.
+    ReductionGenTy ReductionGen;
+
+    /// Callback for generating the atomic reduction body, may be null. The IR
+    /// produced by this will be used to atomically combine two values during
+    /// reduction. If null, the implementation will use the non-atomic version
+    /// along with the appropriate synchronization mechanisms.
+    AtomicReductionGenTy AtomicReductionGen;
+  };
+
+  // TODO: provide atomic and non-atomic reduction generators for reduction
+  // operators defined by the OpenMP specification.
+
+  /// Generator for '#omp reduction'.
+  ///
+  /// Emits the IR instructing the runtime to perform the specific kind of
+  /// reductions. Expects reduction variables to have been privatized and
+  /// initialized to reduction-neutral values separately. Emits the calls to
+  /// runtime functions as well as the reduction function and the basic blocks
+  /// performing the reduction atomically and non-atomically.
+  ///
+  /// The code emitted for the following:
+  ///
+  /// \code
+  ///   type var_1;
+  ///   type var_2;
+  ///   #pragma omp <directive> reduction(reduction-op:var_1,var_2)
+  ///   /* body */;
+  /// \endcode
+  ///
+  /// corresponds to the following sketch.
+  ///
+  /// \code
+  /// void _outlined_par() {
+  ///   // N is the number of different reductions.
+  ///   void *red_array[] = {privatized_var_1, privatized_var_2, ...};
+  ///   switch(__kmpc_reduce(..., N, /*size of data in red array*/, red_array,
+  ///                        _omp_reduction_func,
+  ///                        _gomp_critical_user.reduction.var)) {
+  ///   case 1: {
+  ///     var_1 = var_1 <reduction-op> privatized_var_1;
+  ///     var_2 = var_2 <reduction-op> privatized_var_2;
+  ///     // ...
+  ///    __kmpc_end_reduce(...);
+  ///     break;
+  ///   }
+  ///   case 2: {
+  ///     _Atomic<ReductionOp>(var_1, privatized_var_1);
+  ///     _Atomic<ReductionOp>(var_2, privatized_var_2);
+  ///     // ...
+  ///     break;
+  ///   }
+  ///   default: break;
+  ///   }
+  /// }
+  ///
+  /// void _omp_reduction_func(void **lhs, void **rhs) {
+  ///   *(type *)lhs[0] = *(type *)lhs[0] <reduction-op> *(type *)rhs[0];
+  ///   *(type *)lhs[1] = *(type *)lhs[1] <reduction-op> *(type *)rhs[1];
+  ///   // ...
+  /// }
+  /// \endcode
+  ///
+  /// \param Loc                The location where the reduction was
+  ///                           encountered. Must be within the associate
+  ///                           directive and after the last local access to the
+  ///                           reduction variables.
+  /// \param AllocaIP           An insertion point suitable for allocas usable
+  ///                           in reductions.
+  /// \param ReductionInfos     A list of info on each reduction variable.
+  /// \param IsNoWait           A flag set if the reduction is marked as nowait.
+  InsertPointTy createReductions(const LocationDescription &Loc,
+                                 InsertPointTy AllocaIP,
+                                 ArrayRef<ReductionInfo> ReductionInfos,
+                                 bool IsNoWait = false);
 
   ///}
 
@@ -515,6 +670,10 @@ public:
   Constant *getOrCreateSrcLocStr(StringRef FunctionName, StringRef FileName,
                                  unsigned Line, unsigned Column);
 
+  /// Return the (LLVM-IR) string describing the DebugLoc \p DL. Use \p F as
+  /// fallback if \p DL does not specify the function name.
+  Constant *getOrCreateSrcLocStr(DebugLoc DL, Function *F = nullptr);
+
   /// Return the (LLVM-IR) string describing the source location \p Loc.
   Constant *getOrCreateSrcLocStr(const LocationDescription &Loc);
 
@@ -524,8 +683,8 @@ public:
                           omp::IdentFlag Flags = omp::IdentFlag(0),
                           unsigned Reserve2Flags = 0);
 
-  // Get the type corresponding to __kmpc_impl_lanemask_t from the deviceRTL
-  Type *getLanemaskType();
+  /// Create a global flag \p Namein the module with initial value \p Value.
+  GlobalValue *createGlobalFlag(unsigned Value, StringRef Name);
 
   /// Generate control flow and cleanup for cancellation.
   ///
@@ -651,11 +810,11 @@ public:
   /// \param Loc The source location description.
   /// \param MapperFunc Function to be called.
   /// \param SrcLocInfo Source location information global.
-  /// \param MaptypesArgs
-  /// \param MapnamesArg
+  /// \param MaptypesArg The argument types.
+  /// \param MapnamesArg The argument names.
   /// \param MapperAllocas The AllocaInst used for the call.
   /// \param DeviceID Device ID for the call.
-  /// \param TotalNbOperand Number of operand in the call.
+  /// \param NumOperands Number of operands in the call.
   void emitMapperCall(const LocationDescription &Loc, Function *MapperFunc,
                       Value *SrcLocInfo, Value *MaptypesArg, Value *MapnamesArg,
                       struct MapperAllocas &MapperAllocas, int64_t DeviceID,
@@ -705,7 +864,7 @@ public:
   /// \param BodyGenCB Callback that will generate the region code.
   /// \param FiniCB Callback to finialize variable copies.
   ///
-  /// \returns The insertion position *after* the master.
+  /// \returns The insertion position *after* the masked.
   InsertPointTy createMasked(const LocationDescription &Loc,
                              BodyGenCallbackTy BodyGenCB,
                              FinalizeCallbackTy FiniCB, Value *Filter);
@@ -718,11 +877,40 @@ public:
   /// \param CriticalName name of the lock used by the critical directive
   /// \param HintInst Hint Instruction for hint clause associated with critical
   ///
-  /// \returns The insertion position *after* the master.
+  /// \returns The insertion position *after* the critical.
   InsertPointTy createCritical(const LocationDescription &Loc,
                                BodyGenCallbackTy BodyGenCB,
                                FinalizeCallbackTy FiniCB,
                                StringRef CriticalName, Value *HintInst);
+
+  /// Generator for '#omp ordered depend (source | sink)'
+  ///
+  /// \param Loc The insert and source location description.
+  /// \param AllocaIP The insertion point to be used for alloca instructions.
+  /// \param NumLoops The number of loops in depend clause.
+  /// \param StoreValues The value will be stored in vector address.
+  /// \param Name The name of alloca instruction.
+  /// \param IsDependSource If true, depend source; otherwise, depend sink.
+  ///
+  /// \return The insertion position *after* the ordered.
+  InsertPointTy createOrderedDepend(const LocationDescription &Loc,
+                                    InsertPointTy AllocaIP, unsigned NumLoops,
+                                    ArrayRef<llvm::Value *> StoreValues,
+                                    const Twine &Name, bool IsDependSource);
+
+  /// Generator for '#omp ordered [threads | simd]'
+  ///
+  /// \param Loc The insert and source location description.
+  /// \param BodyGenCB Callback that will generate the region code.
+  /// \param FiniCB Callback to finalize variable copies.
+  /// \param IsThreads If true, with threads clause or without clause;
+  /// otherwise, with simd clause;
+  ///
+  /// \returns The insertion position *after* the ordered.
+  InsertPointTy createOrderedThreadsSimd(const LocationDescription &Loc,
+                                         BodyGenCallbackTy BodyGenCB,
+                                         FinalizeCallbackTy FiniCB,
+                                         bool IsThreads);
 
   /// Generator for '#omp sections'
   ///
@@ -816,14 +1004,16 @@ public:
   /// \param Loc The insert and source location description.
   /// \param IsSPMD Flag to indicate if the kernel is an SPMD kernel or not.
   /// \param RequiresFullRuntime Indicate if a full device runtime is necessary.
-  InsertPointTy createTargetInit(const LocationDescription &Loc, bool IsSPMD, bool RequiresFullRuntime);
+  InsertPointTy createTargetInit(const LocationDescription &Loc, bool IsSPMD,
+                                 bool RequiresFullRuntime);
 
   /// Create a runtime call for kmpc_target_deinit
   ///
   /// \param Loc The insert and source location description.
   /// \param IsSPMD Flag to indicate if the kernel is an SPMD kernel or not.
   /// \param RequiresFullRuntime Indicate if a full device runtime is necessary.
-  void createTargetDeinit(const LocationDescription &Loc, bool IsSPMD, bool RequiresFullRuntime);
+  void createTargetDeinit(const LocationDescription &Loc, bool IsSPMD,
+                          bool RequiresFullRuntime);
 
   ///}
 
@@ -1121,7 +1311,25 @@ public:
 /// The control-flow structure is standardized for easy consumption by
 /// directives associated with loops. For instance, the worksharing-loop
 /// construct may change this control flow such that each loop iteration is
-/// executed on only one thread.
+/// executed on only one thread. The constraints of a canonical loop in brief
+/// are:
+///
+///  * The number of loop iterations must have been computed before entering the
+///    loop.
+///
+///  * Has an (unsigned) logical induction variable that starts at zero and
+///    increments by one.
+///
+///  * The loop's CFG itself has no side-effects. The OpenMP specification
+///    itself allows side-effects, but the order in which they happen, including
+///    how often or whether at all, is unspecified. We expect that the frontend
+///    will emit those side-effect instructions somewhere (e.g. before the loop)
+///    such that the CanonicalLoopInfo itself can be side-effect free.
+///
+/// Keep in mind that CanonicalLoopInfo is meant to only describe a repeated
+/// execution of a loop body that satifies these constraints. It does NOT
+/// represent arbitrary SESE regions that happen to contain a loop. Do not use
+/// CanonicalLoopInfo for such purposes.
 ///
 /// The control flow can be described as follows:
 ///
@@ -1141,73 +1349,149 @@ public:
 ///              |
 ///            After
 ///
-/// Code in the header, condition block, latch and exit block must not have any
-/// side-effect. The body block is the single entry point into the loop body,
-/// which may contain arbitrary control flow as long as all control paths
-/// eventually branch to the latch block.
+/// The loop is thought to start at PreheaderIP (at the Preheader's terminator,
+/// including) and end at AfterIP (at the After's first instruction, excluding).
+/// That is, instructions in the Preheader and After blocks (except the
+/// Preheader's terminator) are out of CanonicalLoopInfo's control and may have
+/// side-effects. Typically, the Preheader is used to compute the loop's trip
+/// count. The instructions from BodyIP (at the Body block's first instruction,
+/// excluding) until the Latch are also considered outside CanonicalLoopInfo's
+/// control and thus can have side-effects. The body block is the single entry
+/// point into the loop body, which may contain arbitrary control flow as long
+/// as all control paths eventually branch to the Latch block.
 ///
-/// Defined outside OpenMPIRBuilder because one cannot forward-declare nested
-/// classes.
+/// TODO: Consider adding another standardized BasicBlock between Body CFG and
+/// Latch to guarantee that there is only a single edge to the latch. It would
+/// make loop transformations easier to not needing to consider multiple
+/// predecessors of the latch (See redirectAllPredecessorsTo) and would give us
+/// an equivalant to PreheaderIP, AfterIP and BodyIP for inserting code that
+/// executes after each body iteration.
+///
+/// There must be no loop-carried dependencies through llvm::Values. This is
+/// equivalant to that the Latch has no PHINode and the Header's only PHINode is
+/// for the induction variable.
+///
+/// All code in Header, Cond, Latch and Exit (plus the terminator of the
+/// Preheader) are CanonicalLoopInfo's responsibility and their build-up checked
+/// by assertOK(). They are expected to not be modified unless explicitly
+/// modifying the CanonicalLoopInfo through a methods that applies a OpenMP
+/// loop-associated construct such as applyWorkshareLoop, tileLoops, unrollLoop,
+/// etc. These methods usually invalidate the CanonicalLoopInfo and re-use its
+/// basic blocks. After invalidation, the CanonicalLoopInfo must not be used
+/// anymore as its underlying control flow may not exist anymore.
+/// Loop-transformation methods such as tileLoops, collapseLoops and unrollLoop
+/// may also return a new CanonicalLoopInfo that can be passed to other
+/// loop-associated construct implementing methods. These loop-transforming
+/// methods may either create a new CanonicalLoopInfo usually using
+/// createLoopSkeleton and invalidate the input CanonicalLoopInfo, or reuse and
+/// modify one of the input CanonicalLoopInfo and return it as representing the
+/// modified loop. What is done is an implementation detail of
+/// transformation-implementing method and callers should always assume that the
+/// CanonicalLoopInfo passed to it is invalidated and a new object is returned.
+/// Returned CanonicalLoopInfo have the same structure and guarantees as the one
+/// created by createCanonicalLoop, such that transforming methods do not have
+/// to special case where the CanonicalLoopInfo originated from.
+///
+/// Generally, methods consuming CanonicalLoopInfo do not need an
+/// OpenMPIRBuilder::InsertPointTy as argument, but use the locations of the
+/// CanonicalLoopInfo to insert new or modify existing instructions. Unless
+/// documented otherwise, methods consuming CanonicalLoopInfo do not invalidate
+/// any InsertPoint that is outside CanonicalLoopInfo's control. Specifically,
+/// any InsertPoint in the Preheader, After or Block can still be used after
+/// calling such a method.
+///
+/// TODO: Provide mechanisms for exception handling and cancellation points.
+///
+/// Defined outside OpenMPIRBuilder because nested classes cannot be
+/// forward-declared, e.g. to avoid having to include the entire OMPIRBuilder.h.
 class CanonicalLoopInfo {
   friend class OpenMPIRBuilder;
 
 private:
-  /// Whether this object currently represents a loop.
-  bool IsValid = false;
-
-  BasicBlock *Preheader;
-  BasicBlock *Header;
-  BasicBlock *Cond;
-  BasicBlock *Body;
-  BasicBlock *Latch;
-  BasicBlock *Exit;
-  BasicBlock *After;
+  BasicBlock *Preheader = nullptr;
+  BasicBlock *Header = nullptr;
+  BasicBlock *Cond = nullptr;
+  BasicBlock *Body = nullptr;
+  BasicBlock *Latch = nullptr;
+  BasicBlock *Exit = nullptr;
+  BasicBlock *After = nullptr;
 
   /// Add the control blocks of this loop to \p BBs.
   ///
   /// This does not include any block from the body, including the one returned
   /// by getBody().
+  ///
+  /// FIXME: This currently includes the Preheader and After blocks even though
+  /// their content is (mostly) not under CanonicalLoopInfo's control.
+  /// Re-evaluated whether this makes sense.
   void collectControlBlocks(SmallVectorImpl<BasicBlock *> &BBs);
 
 public:
+  /// Returns whether this object currently represents the IR of a loop. If
+  /// returning false, it may have been consumed by a loop transformation or not
+  /// been intialized. Do not use in this case;
+  bool isValid() const { return Header; }
+
   /// The preheader ensures that there is only a single edge entering the loop.
   /// Code that must be execute before any loop iteration can be emitted here,
   /// such as computing the loop trip count and begin lifetime markers. Code in
   /// the preheader is not considered part of the canonical loop.
-  BasicBlock *getPreheader() const { return Preheader; }
+  BasicBlock *getPreheader() const {
+    assert(isValid() && "Requires a valid canonical loop");
+    return Preheader;
+  }
 
   /// The header is the entry for each iteration. In the canonical control flow,
   /// it only contains the PHINode for the induction variable.
-  BasicBlock *getHeader() const { return Header; }
+  BasicBlock *getHeader() const {
+    assert(isValid() && "Requires a valid canonical loop");
+    return Header;
+  }
 
   /// The condition block computes whether there is another loop iteration. If
   /// yes, branches to the body; otherwise to the exit block.
-  BasicBlock *getCond() const { return Cond; }
+  BasicBlock *getCond() const {
+    assert(isValid() && "Requires a valid canonical loop");
+    return Cond;
+  }
 
   /// The body block is the single entry for a loop iteration and not controlled
   /// by CanonicalLoopInfo. It can contain arbitrary control flow but must
   /// eventually branch to the \p Latch block.
-  BasicBlock *getBody() const { return Body; }
+  BasicBlock *getBody() const {
+    assert(isValid() && "Requires a valid canonical loop");
+    return Body;
+  }
 
   /// Reaching the latch indicates the end of the loop body code. In the
   /// canonical control flow, it only contains the increment of the induction
   /// variable.
-  BasicBlock *getLatch() const { return Latch; }
+  BasicBlock *getLatch() const {
+    assert(isValid() && "Requires a valid canonical loop");
+    return Latch;
+  }
 
   /// Reaching the exit indicates no more iterations are being executed.
-  BasicBlock *getExit() const { return Exit; }
+  BasicBlock *getExit() const {
+    assert(isValid() && "Requires a valid canonical loop");
+    return Exit;
+  }
 
   /// The after block is intended for clean-up code such as lifetime end
   /// markers. It is separate from the exit block to ensure, analogous to the
   /// preheader, it having just a single entry edge and being free from PHI
   /// nodes should there be multiple loop exits (such as from break
   /// statements/cancellations).
-  BasicBlock *getAfter() const { return After; }
+  BasicBlock *getAfter() const {
+    assert(isValid() && "Requires a valid canonical loop");
+    return After;
+  }
 
   /// Returns the llvm::Value containing the number of loop iterations. It must
   /// be valid in the preheader and always interpreted as an unsigned integer of
   /// any bit-width.
   Value *getTripCount() const {
+    assert(isValid() && "Requires a valid canonical loop");
     Instruction *CmpI = &Cond->front();
     assert(isa<CmpInst>(CmpI) && "First inst must compare IV with TripCount");
     return CmpI->getOperand(1);
@@ -1216,33 +1500,47 @@ public:
   /// Returns the instruction representing the current logical induction
   /// variable. Always unsigned, always starting at 0 with an increment of one.
   Instruction *getIndVar() const {
+    assert(isValid() && "Requires a valid canonical loop");
     Instruction *IndVarPHI = &Header->front();
     assert(isa<PHINode>(IndVarPHI) && "First inst must be the IV PHI");
     return IndVarPHI;
   }
 
   /// Return the type of the induction variable (and the trip count).
-  Type *getIndVarType() const { return getIndVar()->getType(); }
+  Type *getIndVarType() const {
+    assert(isValid() && "Requires a valid canonical loop");
+    return getIndVar()->getType();
+  }
 
   /// Return the insertion point for user code before the loop.
   OpenMPIRBuilder::InsertPointTy getPreheaderIP() const {
+    assert(isValid() && "Requires a valid canonical loop");
     return {Preheader, std::prev(Preheader->end())};
   };
 
   /// Return the insertion point for user code in the body.
   OpenMPIRBuilder::InsertPointTy getBodyIP() const {
+    assert(isValid() && "Requires a valid canonical loop");
     return {Body, Body->begin()};
   };
 
   /// Return the insertion point for user code after the loop.
   OpenMPIRBuilder::InsertPointTy getAfterIP() const {
+    assert(isValid() && "Requires a valid canonical loop");
     return {After, After->begin()};
   };
 
-  Function *getFunction() const { return Header->getParent(); }
+  Function *getFunction() const {
+    assert(isValid() && "Requires a valid canonical loop");
+    return Header->getParent();
+  }
 
   /// Consistency self-check.
   void assertOK() const;
+
+  /// Invalidate this loop. That is, the underlying IR does not fulfill the
+  /// requirements of an OpenMP canonical loop anymore.
+  void invalidate();
 };
 
 } // end namespace llvm

@@ -1,5 +1,5 @@
 // -*- C++ -*-
-//===---------------------------- cmath -----------------------------------===//
+//===----------------------------------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -535,7 +535,7 @@ inline _LIBCPP_INLINE_VISIBILITY long double hypot( long double x, long double y
 
 template <class _A1, class _A2, class _A3>
 inline _LIBCPP_INLINE_VISIBILITY
-typename _EnableIf
+typename enable_if_t
 <
     is_arithmetic<_A1>::value &&
     is_arithmetic<_A2>::value &&

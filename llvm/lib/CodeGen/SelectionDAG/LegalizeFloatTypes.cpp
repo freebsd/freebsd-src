@@ -61,6 +61,7 @@ void DAGTypeLegalizer::SoftenFloatResult(SDNode *N, unsigned ResNo) {
 #endif
     llvm_unreachable("Do not know how to soften the result of this operator!");
 
+    case ISD::ARITH_FENCE: R = SoftenFloatRes_ARITH_FENCE(N); break;
     case ISD::MERGE_VALUES:R = SoftenFloatRes_MERGE_VALUES(N, ResNo); break;
     case ISD::BITCAST:     R = SoftenFloatRes_BITCAST(N); break;
     case ISD::BUILD_PAIR:  R = SoftenFloatRes_BUILD_PAIR(N); break;
@@ -206,6 +207,13 @@ SDValue DAGTypeLegalizer::SoftenFloatRes_FREEZE(SDNode *N) {
                      GetSoftenedFloat(N->getOperand(0)));
 }
 
+SDValue DAGTypeLegalizer::SoftenFloatRes_ARITH_FENCE(SDNode *N) {
+  EVT Ty = TLI.getTypeToTransformTo(*DAG.getContext(), N->getValueType(0));
+  SDValue NewFence = DAG.getNode(ISD::ARITH_FENCE, SDLoc(N), Ty,
+                                 GetSoftenedFloat(N->getOperand(0)));
+  return NewFence;
+}
+
 SDValue DAGTypeLegalizer::SoftenFloatRes_MERGE_VALUES(SDNode *N,
                                                       unsigned ResNo) {
   SDValue Op = DisintegrateMERGE_VALUES(N, ResNo);
@@ -257,7 +265,7 @@ SDValue DAGTypeLegalizer::SoftenFloatRes_FABS(SDNode *N) {
   unsigned Size = NVT.getSizeInBits();
 
   // Mask = ~(1 << (Size-1))
-  APInt API = APInt::getAllOnesValue(Size);
+  APInt API = APInt::getAllOnes(Size);
   API.clearBit(Size - 1);
   SDValue Mask = DAG.getConstant(API, SDLoc(N), NVT);
   SDValue Op = GetSoftenedFloat(N->getOperand(0));
@@ -820,6 +828,7 @@ bool DAGTypeLegalizer::SoftenFloatOperand(SDNode *N, unsigned OpNo) {
 
   case ISD::BITCAST:     Res = SoftenFloatOp_BITCAST(N); break;
   case ISD::BR_CC:       Res = SoftenFloatOp_BR_CC(N); break;
+  case ISD::STRICT_FP_TO_FP16:
   case ISD::FP_TO_FP16:  // Same as FP_ROUND for softening purposes
   case ISD::STRICT_FP_ROUND:
   case ISD::FP_ROUND:    Res = SoftenFloatOp_FP_ROUND(N); break;
@@ -871,13 +880,17 @@ SDValue DAGTypeLegalizer::SoftenFloatOp_FP_ROUND(SDNode *N) {
   // We actually deal with the partially-softened FP_TO_FP16 node too, which
   // returns an i16 so doesn't meet the constraints necessary for FP_ROUND.
   assert(N->getOpcode() == ISD::FP_ROUND || N->getOpcode() == ISD::FP_TO_FP16 ||
+         N->getOpcode() == ISD::STRICT_FP_TO_FP16 ||
          N->getOpcode() == ISD::STRICT_FP_ROUND);
 
   bool IsStrict = N->isStrictFPOpcode();
   SDValue Op = N->getOperand(IsStrict ? 1 : 0);
   EVT SVT = Op.getValueType();
   EVT RVT = N->getValueType(0);
-  EVT FloatRVT = N->getOpcode() == ISD::FP_TO_FP16 ? MVT::f16 : RVT;
+  EVT FloatRVT = (N->getOpcode() == ISD::FP_TO_FP16 ||
+                  N->getOpcode() == ISD::STRICT_FP_TO_FP16)
+                     ? MVT::f16
+                     : RVT;
 
   RTLIB::Libcall LC = RTLIB::getFPROUND(SVT, FloatRVT);
   assert(LC != RTLIB::UNKNOWN_LIBCALL && "Unsupported FP_ROUND libcall");

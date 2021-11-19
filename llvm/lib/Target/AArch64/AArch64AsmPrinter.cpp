@@ -50,9 +50,9 @@
 #include "llvm/MC/MCSectionELF.h"
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCSymbol.h"
+#include "llvm/MC/TargetRegistry.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/ErrorHandling.h"
-#include "llvm/Support/TargetRegistry.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Transforms/Instrumentation/HWAddressSanitizer.h"
@@ -293,7 +293,7 @@ void AArch64AsmPrinter::emitSled(const MachineInstr &MI, SledKind Kind) {
   //   ;DATA: higher 32 bits of the address of the trampoline
   //   LDP X0, X30, [SP], #16 ; pop X0 and the link register from the stack
   //
-  OutStreamer->emitCodeAlignment(4);
+  OutStreamer->emitCodeAlignment(4, &getSubtargetInfo());
   auto CurSled = OutContext.createTempSymbol("xray_sled_", true);
   OutStreamer->emitLabel(CurSled);
   auto Target = OutContext.createTempSymbol();
@@ -653,6 +653,9 @@ bool AArch64AsmPrinter::printAsmMRegister(const MachineOperand &MO, char Mode,
   case 'x':
     Reg = getXRegFromWReg(Reg);
     break;
+  case 't':
+    Reg = getXRegFromXRegTuple(Reg);
+    break;
   }
 
   O << AArch64InstPrinter::getRegisterName(Reg);
@@ -748,6 +751,10 @@ bool AArch64AsmPrinter::PrintAsmOperand(const MachineInstr *MI, unsigned OpNum,
     if (AArch64::GPR32allRegClass.contains(Reg) ||
         AArch64::GPR64allRegClass.contains(Reg))
       return printAsmMRegister(MO, 'x', O);
+
+    // If this is an x register tuple, print an x register.
+    if (AArch64::GPR64x8ClassRegClass.contains(Reg))
+      return printAsmMRegister(MO, 't', O);
 
     unsigned AltName = AArch64::NoRegAltName;
     const TargetRegisterClass *RegClass;

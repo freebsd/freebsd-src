@@ -16,6 +16,7 @@
 
 #include "CoroInternal.h"
 #include "llvm/ADT/BitVector.h"
+#include "llvm/ADT/ScopeExit.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/Analysis/PtrUseVisitor.h"
 #include "llvm/Analysis/StackLifetime.h"
@@ -435,7 +436,7 @@ private:
   DenseMap<Value*, unsigned> FieldIndexByKey;
 
 public:
-  FrameTypeBuilder(LLVMContext &Context, DataLayout const &DL,
+  FrameTypeBuilder(LLVMContext &Context, const DataLayout &DL,
                    Optional<Align> MaxFrameAlignment)
       : DL(DL), Context(Context), MaxFrameAlignment(MaxFrameAlignment) {}
 
@@ -576,13 +577,8 @@ void FrameTypeBuilder::addFieldForAllocas(const Function &F,
   using AllocaSetType = SmallVector<AllocaInst *, 4>;
   SmallVector<AllocaSetType, 4> NonOverlapedAllocas;
 
-  // We need to add field for allocas at the end of this function. However, this
-  // function has multiple exits, so we use this helper to avoid redundant code.
-  struct RTTIHelper {
-    std::function<void()> func;
-    RTTIHelper(std::function<void()> &&func) : func(func) {}
-    ~RTTIHelper() { func(); }
-  } Helper([&]() {
+  // We need to add field for allocas at the end of this function.
+  auto AddFieldForAllocasAtExit = make_scope_exit([&]() {
     for (auto AllocaList : NonOverlapedAllocas) {
       auto *LargestAI = *AllocaList.begin();
       FieldIDType Id = addFieldForAlloca(LargestAI);
@@ -840,8 +836,9 @@ static StringRef solveTypeName(Type *Ty) {
   return "UnknownType";
 }
 
-static DIType *solveDIType(DIBuilder &Builder, Type *Ty, DataLayout &Layout,
-                           DIScope *Scope, unsigned LineNum,
+static DIType *solveDIType(DIBuilder &Builder, Type *Ty,
+                           const DataLayout &Layout, DIScope *Scope,
+                           unsigned LineNum,
                            DenseMap<Type *, DIType *> &DITypeCache) {
   if (DIType *DT = DITypeCache.lookup(Ty))
     return DT;
@@ -1348,13 +1345,17 @@ struct AllocaUseVisitor : PtrUseVisitor<AllocaUseVisitor> {
   }
 
   void visitIntrinsicInst(IntrinsicInst &II) {
-    if (II.getIntrinsicID() != Intrinsic::lifetime_start)
+    // When we found the lifetime markers refers to a
+    // subrange of the original alloca, ignore the lifetime
+    // markers to avoid misleading the analysis.
+    if (II.getIntrinsicID() != Intrinsic::lifetime_start || !IsOffsetKnown ||
+        !Offset.isZero())
       return Base::visitIntrinsicInst(II);
     LifetimeStarts.insert(&II);
   }
 
   void visitCallBase(CallBase &CB) {
-    for (unsigned Op = 0, OpCount = CB.getNumArgOperands(); Op < OpCount; ++Op)
+    for (unsigned Op = 0, OpCount = CB.arg_size(); Op < OpCount; ++Op)
       if (U->get() == CB.getArgOperand(Op) && !CB.doesNotCapture(Op))
         PI.setEscaped(&CB);
     handleMayWrite(CB);
@@ -1868,8 +1869,7 @@ static void cleanupSinglePredPHIs(Function &F) {
     }
   }
   while (!Worklist.empty()) {
-    auto *Phi = Worklist.back();
-    Worklist.pop_back();
+    auto *Phi = Worklist.pop_back_val();
     auto *OriginalValue = Phi->getIncomingValue(0);
     Phi->replaceAllUsesWith(OriginalValue);
   }
@@ -1984,14 +1984,15 @@ static void rewriteMaterializableInstructions(IRBuilder<> &IRB,
       if (CurrentBlock != U->getParent()) {
 
         bool IsInCoroSuspendBlock = isa<AnyCoroSuspendInst>(U);
-        CurrentBlock = IsInCoroSuspendBlock
-                           ? U->getParent()->getSinglePredecessor()
-                           : U->getParent();
+        CurrentBlock = U->getParent();
+        auto *InsertBlock = IsInCoroSuspendBlock
+                                ? CurrentBlock->getSinglePredecessor()
+                                : CurrentBlock;
         CurrentMaterialization = cast<Instruction>(Def)->clone();
         CurrentMaterialization->setName(Def->getName());
         CurrentMaterialization->insertBefore(
-            IsInCoroSuspendBlock ? CurrentBlock->getTerminator()
-                                 : &*CurrentBlock->getFirstInsertionPt());
+            IsInCoroSuspendBlock ? InsertBlock->getTerminator()
+                                 : &*InsertBlock->getFirstInsertionPt());
       }
       if (auto *PN = dyn_cast<PHINode>(U)) {
         assert(PN->getNumIncomingValues() == 1 &&
@@ -2244,12 +2245,7 @@ static Value *emitSetAndGetSwiftErrorValueAround(Instruction *Call,
 /// intrinsics and attempting to MemToReg the alloca away.
 static void eliminateSwiftErrorAlloca(Function &F, AllocaInst *Alloca,
                                       coro::Shape &Shape) {
-  for (auto UI = Alloca->use_begin(), UE = Alloca->use_end(); UI != UE; ) {
-    // We're likely changing the use list, so use a mutation-safe
-    // iteration pattern.
-    auto &Use = *UI;
-    ++UI;
-
+  for (Use &Use : llvm::make_early_inc_range(Alloca->uses())) {
     // swifterror values can only be used in very specific ways.
     // We take advantage of that here.
     auto User = Use.getUser();
@@ -2510,11 +2506,11 @@ void coro::salvageDebugInfo(
   DIExpression *Expr = DVI->getExpression();
   // Follow the pointer arithmetic all the way to the incoming
   // function argument and convert into a DIExpression.
-  bool OutermostLoad = true;
+  bool SkipOutermostLoad = !isa<DbgValueInst>(DVI);
   Value *Storage = DVI->getVariableLocationOp(0);
   Value *OriginalStorage = Storage;
-  while (Storage) {
-    if (auto *LdInst = dyn_cast<LoadInst>(Storage)) {
+  while (auto *Inst = dyn_cast_or_null<Instruction>(Storage)) {
+    if (auto *LdInst = dyn_cast<LoadInst>(Inst)) {
       Storage = LdInst->getOperand(0);
       // FIXME: This is a heuristic that works around the fact that
       // LLVM IR debug intrinsics cannot yet distinguish between
@@ -2522,26 +2518,25 @@ void coro::salvageDebugInfo(
       // implicitly a memory location no DW_OP_deref operation for the
       // last direct load from an alloca is necessary.  This condition
       // effectively drops the *last* DW_OP_deref in the expression.
-      if (!OutermostLoad)
+      if (!SkipOutermostLoad)
         Expr = DIExpression::prepend(Expr, DIExpression::DerefBefore);
-      OutermostLoad = false;
-    } else if (auto *StInst = dyn_cast<StoreInst>(Storage)) {
+    } else if (auto *StInst = dyn_cast<StoreInst>(Inst)) {
       Storage = StInst->getOperand(0);
-    } else if (auto *GEPInst = dyn_cast<GetElementPtrInst>(Storage)) {
-      SmallVector<Value *> AdditionalValues;
-      DIExpression *SalvagedExpr = llvm::salvageDebugInfoImpl(
-          *GEPInst, Expr,
-          /*WithStackValue=*/false, 0, AdditionalValues);
-      // Debug declares cannot currently handle additional location
-      // operands.
-      if (!SalvagedExpr || !AdditionalValues.empty())
+    } else {
+      SmallVector<uint64_t, 16> Ops;
+      SmallVector<Value *, 0> AdditionalValues;
+      Value *Op = llvm::salvageDebugInfoImpl(
+          *Inst, Expr ? Expr->getNumLocationOperands() : 0, Ops,
+          AdditionalValues);
+      if (!Op || !AdditionalValues.empty()) {
+        // If salvaging failed or salvaging produced more than one location
+        // operand, give up.
         break;
-      Expr = SalvagedExpr;
-      Storage = GEPInst->getOperand(0);
-    } else if (auto *BCInst = dyn_cast<llvm::BitCastInst>(Storage))
-      Storage = BCInst->getOperand(0);
-    else
-      break;
+      }
+      Storage = Op;
+      Expr = DIExpression::appendOpsToArg(Expr, Ops, 0, /*StackValue*/ false);
+    }
+    SkipOutermostLoad = false;
   }
   if (!Storage)
     return;

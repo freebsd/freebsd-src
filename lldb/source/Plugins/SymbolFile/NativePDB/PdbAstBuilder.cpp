@@ -1105,7 +1105,7 @@ clang::QualType PdbAstBuilder::CreateEnumType(PdbTypeSymId id,
 
   Declaration declaration;
   CompilerType enum_ct = m_clang.CreateEnumerationType(
-      uname.c_str(), decl_context, OptionalClangModuleID(), declaration,
+      uname, decl_context, OptionalClangModuleID(), declaration,
       ToCompilerType(underlying_type), er.isScoped());
 
   TypeSystemClang::StartTagDeclarationDefinition(enum_ct);
@@ -1358,4 +1358,6 @@ PdbAstBuilder::FromCompilerDeclContext(CompilerDeclContext context) {
   return static_cast<clang::DeclContext *>(context.GetOpaqueDeclContext());
 }
 
-void PdbAstBuilder::Dump(Stream &stream) { m_clang.Dump(stream); }
+void PdbAstBuilder::Dump(Stream &stream) {
+  m_clang.Dump(stream.AsRawOstream());
+}

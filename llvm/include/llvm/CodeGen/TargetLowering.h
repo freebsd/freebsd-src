@@ -30,6 +30,7 @@
 #include "llvm/ADT/StringRef.h"
 #include "llvm/CodeGen/DAGCombine.h"
 #include "llvm/CodeGen/ISDOpcodes.h"
+#include "llvm/CodeGen/LowLevelType.h"
 #include "llvm/CodeGen/RuntimeLibcalls.h"
 #include "llvm/CodeGen/SelectionDAG.h"
 #include "llvm/CodeGen/SelectionDAGNodes.h"
@@ -371,10 +372,18 @@ public:
     return getPointerTy(DL);
   }
 
-  /// EVT is not used in-tree, but is used by out-of-tree target.
-  /// A documentation for this function would be nice...
+  /// Return the type to use for a scalar shift opcode, given the shifted amount
+  /// type. Targets should return a legal type if the input type is legal.
+  /// Targets can return a type that is too small if the input type is illegal.
   virtual MVT getScalarShiftAmountTy(const DataLayout &, EVT) const;
 
+  /// Returns the type for the shift amount of a shift opcode. For vectors,
+  /// returns the input type. For scalars, behavior depends on \p LegalTypes. If
+  /// \p LegalTypes is true, calls getScalarShiftAmountTy, otherwise uses
+  /// pointer type. If getScalarShiftAmountTy or pointer type cannot represent
+  /// all possible shift amounts, returns MVT::i32. In general, \p LegalTypes
+  /// should be set to true for calls during type legalization and after type
+  /// legalization has been completed.
   EVT getShiftAmountTy(EVT LHSTy, const DataLayout &DL,
                        bool LegalTypes = true) const;
 
@@ -591,7 +600,7 @@ public:
 
   /// Returns if it's reasonable to merge stores to MemVT size.
   virtual bool canMergeStoresTo(unsigned AS, EVT MemVT,
-                                const SelectionDAG &DAG) const {
+                                const MachineFunction &MF) const {
     return true;
   }
 
@@ -1396,6 +1405,11 @@ public:
     return NVT;
   }
 
+  virtual EVT getAsmOperandValueType(const DataLayout &DL, Type *Ty,
+                                     bool AllowUnknown = false) const {
+    return getValueType(DL, Ty, AllowUnknown);
+  }
+
   /// Return the EVT corresponding to this LLVM type.  This is fixed by the LLVM
   /// operations except for the pointer size.  If AllowUnknown is true, this
   /// will return MVT::Other for types with no EVT counterpart (e.g. structs),
@@ -1448,7 +1462,7 @@ public:
   /// Return the desired alignment for ByVal or InAlloca aggregate function
   /// arguments in the caller parameter area.  This is the actual alignment, not
   /// its logarithm.
-  virtual unsigned getByValTypeAlignment(Type *Ty, const DataLayout &DL) const;
+  virtual uint64_t getByValTypeAlignment(Type *Ty, const DataLayout &DL) const;
 
   /// Return the type of registers that this ValueType will eventually require.
   MVT getRegisterType(MVT VT) const {
@@ -1763,9 +1777,7 @@ public:
   Align getPrefFunctionAlignment() const { return PrefFunctionAlignment; }
 
   /// Return the preferred loop alignment.
-  virtual Align getPrefLoopAlignment(MachineLoop *ML = nullptr) const {
-    return PrefLoopAlignment;
-  }
+  virtual Align getPrefLoopAlignment(MachineLoop *ML = nullptr) const;
 
   /// Should loops be aligned even when the function is marked OptSize (but not
   /// MinSize).
@@ -2077,6 +2089,20 @@ public:
     return false;
   }
 
+  /// Return true if it may be profitable to transform
+  /// (mul (add x, c1), c2) -> (add (mul x, c2), c1*c2).
+  /// This may not be true if c1 and c2 can be represented as immediates but
+  /// c1*c2 cannot, for example.
+  /// The target should check if c1, c2 and c1*c2 can be represented as
+  /// immediates, or have to be materialized into registers. If it is not sure
+  /// about some cases, a default true can be returned to let the DAGCombiner
+  /// decide.
+  /// AddNode is (add x, c1), and ConstNode is c2.
+  virtual bool isMulAddWithConstProfitable(const SDValue &AddNode,
+                                           const SDValue &ConstNode) const {
+    return true;
+  }
+
   /// Return true if it is more correct/profitable to use strict FP_TO_INT
   /// conversion operations - canonicalizing the FP source value instead of
   /// converting all cases and then selecting based on value.
@@ -2177,8 +2203,7 @@ protected:
   /// Indicate that the specified operation does not work with the specified
   /// type and indicate what to do about it. Note that VT may refer to either
   /// the type of a result or that of an operand of Op.
-  void setOperationAction(unsigned Op, MVT VT,
-                          LegalizeAction Action) {
+  void setOperationAction(unsigned Op, MVT VT, LegalizeAction Action) {
     assert(Op < array_lengthof(OpActions[0]) && "Table isn't big enough!");
     OpActions[(unsigned)VT.SimpleTy][Op] = Action;
   }
@@ -2197,8 +2222,7 @@ protected:
 
   /// Indicate that the specified truncating store does not work with the
   /// specified type and indicate what to do about it.
-  void setTruncStoreAction(MVT ValVT, MVT MemVT,
-                           LegalizeAction Action) {
+  void setTruncStoreAction(MVT ValVT, MVT MemVT, LegalizeAction Action) {
     assert(ValVT.isValid() && MemVT.isValid() && "Table isn't big enough!");
     TruncStoreActions[(unsigned)ValVT.SimpleTy][MemVT.SimpleTy] = Action;
   }
@@ -2506,8 +2530,11 @@ public:
     return false;
   }
 
-  virtual bool isTruncateFree(EVT FromVT, EVT ToVT) const {
-    return false;
+  virtual bool isTruncateFree(EVT FromVT, EVT ToVT) const { return false; }
+  virtual bool isTruncateFree(LLT FromTy, LLT ToTy, const DataLayout &DL,
+                              LLVMContext &Ctx) const {
+    return isTruncateFree(getApproximateEVTForLLT(FromTy, DL, Ctx),
+                          getApproximateEVTForLLT(ToTy, DL, Ctx));
   }
 
   virtual bool isProfitableToHoist(Instruction *I) const { return true; }
@@ -2583,8 +2610,11 @@ public:
     return false;
   }
 
-  virtual bool isZExtFree(EVT FromTy, EVT ToTy) const {
-    return false;
+  virtual bool isZExtFree(EVT FromTy, EVT ToTy) const { return false; }
+  virtual bool isZExtFree(LLT FromTy, LLT ToTy, const DataLayout &DL,
+                          LLVMContext &Ctx) const {
+    return isZExtFree(getApproximateEVTForLLT(FromTy, DL, Ctx),
+                      getApproximateEVTForLLT(ToTy, DL, Ctx));
   }
 
   /// Return true if sign-extension from FromTy to ToTy is cheaper than
@@ -3807,7 +3837,7 @@ public:
       RetSExt = Call.hasRetAttr(Attribute::SExt);
       RetZExt = Call.hasRetAttr(Attribute::ZExt);
       NoMerge = Call.hasFnAttr(Attribute::NoMerge);
-      
+
       Callee = Target;
 
       CallConv = Call.getCallingConv();
@@ -4424,33 +4454,29 @@ public:
   /// Expand CTPOP nodes. Expands vector/scalar CTPOP nodes,
   /// vector nodes can only succeed if all operations are legal/custom.
   /// \param N Node to expand
-  /// \param Result output after conversion
-  /// \returns True, if the expansion was successful, false otherwise
-  bool expandCTPOP(SDNode *N, SDValue &Result, SelectionDAG &DAG) const;
+  /// \returns The expansion result or SDValue() if it fails.
+  SDValue expandCTPOP(SDNode *N, SelectionDAG &DAG) const;
 
   /// Expand CTLZ/CTLZ_ZERO_UNDEF nodes. Expands vector/scalar CTLZ nodes,
   /// vector nodes can only succeed if all operations are legal/custom.
   /// \param N Node to expand
-  /// \param Result output after conversion
-  /// \returns True, if the expansion was successful, false otherwise
-  bool expandCTLZ(SDNode *N, SDValue &Result, SelectionDAG &DAG) const;
+  /// \returns The expansion result or SDValue() if it fails.
+  SDValue expandCTLZ(SDNode *N, SelectionDAG &DAG) const;
 
   /// Expand CTTZ/CTTZ_ZERO_UNDEF nodes. Expands vector/scalar CTTZ nodes,
   /// vector nodes can only succeed if all operations are legal/custom.
   /// \param N Node to expand
-  /// \param Result output after conversion
-  /// \returns True, if the expansion was successful, false otherwise
-  bool expandCTTZ(SDNode *N, SDValue &Result, SelectionDAG &DAG) const;
+  /// \returns The expansion result or SDValue() if it fails.
+  SDValue expandCTTZ(SDNode *N, SelectionDAG &DAG) const;
 
   /// Expand ABS nodes. Expands vector/scalar ABS nodes,
   /// vector nodes can only succeed if all operations are legal/custom.
   /// (ABS x) -> (XOR (ADD x, (SRA x, type_size)), (SRA x, type_size))
   /// \param N Node to expand
-  /// \param Result output after conversion
   /// \param IsNegative indicate negated abs
-  /// \returns True, if the expansion was successful, false otherwise
-  bool expandABS(SDNode *N, SDValue &Result, SelectionDAG &DAG,
-                 bool IsNegative = false) const;
+  /// \returns The expansion result or SDValue() if it fails.
+  SDValue expandABS(SDNode *N, SelectionDAG &DAG,
+                    bool IsNegative = false) const;
 
   /// Expand BSWAP nodes. Expands scalar/vector BSWAP nodes with i16/i32/i64
   /// scalar types. Returns SDValue() if expand fails.

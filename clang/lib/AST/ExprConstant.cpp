@@ -1084,14 +1084,10 @@ namespace {
 
     void performLifetimeExtension() {
       // Disable the cleanups for lifetime-extended temporaries.
-      CleanupStack.erase(std::remove_if(CleanupStack.begin(),
-                                        CleanupStack.end(),
-                                        [](Cleanup &C) {
-                                          return !C.isDestroyedAtEndOf(
-                                              ScopeKind::FullExpression);
-                                        }),
-                         CleanupStack.end());
-     }
+      llvm::erase_if(CleanupStack, [](Cleanup &C) {
+        return !C.isDestroyedAtEndOf(ScopeKind::FullExpression);
+      });
+    }
 
     /// Throw away any remaining cleanups at the end of evaluation. If any
     /// cleanups would have had a side-effect, note that as an unmodeled
@@ -1826,6 +1822,8 @@ static bool EvaluateComplex(const Expr *E, ComplexValue &Res, EvalInfo &Info);
 static bool EvaluateAtomic(const Expr *E, const LValue *This, APValue &Result,
                            EvalInfo &Info);
 static bool EvaluateAsRValue(EvalInfo &Info, const Expr *E, APValue &Result);
+static bool EvaluateBuiltinStrLen(const Expr *E, uint64_t &Result,
+                                  EvalInfo &Info);
 
 /// Evaluate an integer or fixed point expression into an APResult.
 static bool EvaluateFixedPointOrInteger(const Expr *E, APFixedPoint &Result,
@@ -2673,7 +2671,7 @@ static bool EvalAndBitcastToAPInt(EvalInfo &Info, const Expr *E,
     QualType EltTy = VecTy->castAs<VectorType>()->getElementType();
     unsigned EltSize = Info.Ctx.getTypeSize(EltTy);
     bool BigEndian = Info.Ctx.getTargetInfo().isBigEndian();
-    Res = llvm::APInt::getNullValue(VecSize);
+    Res = llvm::APInt::getZero(VecSize);
     for (unsigned i = 0; i < SVal.getVectorLength(); i++) {
       APValue &Elt = SVal.getVectorElt(i);
       llvm::APInt EltAsInt;
@@ -2755,8 +2753,8 @@ static bool handleIntIntBinOp(EvalInfo &Info, const Expr *E, const APSInt &LHS,
     Result = (Opcode == BO_Rem ? LHS % RHS : LHS / RHS);
     // Check for overflow case: INT_MIN / -1 or INT_MIN % -1. APSInt supports
     // this operation and gives the two's complement result.
-    if (RHS.isNegative() && RHS.isAllOnesValue() &&
-        LHS.isSigned() && LHS.isMinSignedValue())
+    if (RHS.isNegative() && RHS.isAllOnes() && LHS.isSigned() &&
+        LHS.isMinSignedValue())
       return HandleOverflow(Info, E, -LHS.extend(LHS.getBitWidth() + 1),
                             E->getType());
     return true;
@@ -5193,7 +5191,10 @@ static EvalStmtResult EvaluateStmt(StmtResult &Result, EvalInfo &Info,
       }
     }
     bool Cond;
-    if (!EvaluateCond(Info, IS->getConditionVariable(), IS->getCond(), Cond))
+    if (IS->isConsteval())
+      Cond = IS->isNonNegatedConsteval();
+    else if (!EvaluateCond(Info, IS->getConditionVariable(), IS->getCond(),
+                           Cond))
       return ESR_Failed;
 
     if (const Stmt *SubStmt = Cond ? IS->getThen() : IS->getElse()) {
@@ -5317,6 +5318,11 @@ static EvalStmtResult EvaluateStmt(StmtResult &Result, EvalInfo &Info,
         return ESR_Failed;
       return ESR;
     }
+
+    // In error-recovery cases it's possible to get here even if we failed to
+    // synthesize the __begin and __end variables.
+    if (!FS->getBeginStmt() || !FS->getEndStmt() || !FS->getCond())
+      return ESR_Failed;
 
     // Create the __begin and __end iterators.
     ESR = EvaluateStmt(Result, Info, FS->getBeginStmt());
@@ -6757,7 +6763,7 @@ public:
                   SmallVectorImpl<unsigned char> &Output) const {
     for (CharUnits I = Offset, E = Offset + Width; I != E; ++I) {
       // If a byte of an integer is uninitialized, then the whole integer is
-      // uninitalized.
+      // uninitialized.
       if (!Bytes[I.getQuantity()])
         return false;
       Output.push_back(*Bytes[I.getQuantity()]);
@@ -8672,8 +8678,6 @@ public:
   bool VisitSYCLUniqueStableNameExpr(const SYCLUniqueStableNameExpr *E) {
     std::string ResultStr = E->ComputeName(Info.Ctx);
 
-    Info.Ctx.SYCLUniqueStableNameEvaluatedValues[E] = ResultStr;
-
     QualType CharTy = Info.Ctx.CharTy.withConst();
     APInt Size(Info.Ctx.getTypeSize(Info.Ctx.getSizeType()),
                ResultStr.size() + 1);
@@ -9931,10 +9935,19 @@ bool RecordExprEvaluator::VisitCXXConstructExpr(const CXXConstructExpr *E,
     return false;
 
   // Avoid materializing a temporary for an elidable copy/move constructor.
-  if (E->isElidable() && !ZeroInit)
-    if (const MaterializeTemporaryExpr *ME
-          = dyn_cast<MaterializeTemporaryExpr>(E->getArg(0)))
+  if (E->isElidable() && !ZeroInit) {
+    // FIXME: This only handles the simplest case, where the source object
+    //        is passed directly as the first argument to the constructor.
+    //        This should also handle stepping though implicit casts and
+    //        and conversion sequences which involve two steps, with a
+    //        conversion operator followed by a converting constructor.
+    const Expr *SrcObj = E->getArg(0);
+    assert(SrcObj->isTemporaryObject(Info.Ctx, FD->getParent()));
+    assert(Info.Ctx.hasSameUnqualifiedType(E->getType(), SrcObj->getType()));
+    if (const MaterializeTemporaryExpr *ME =
+            dyn_cast<MaterializeTemporaryExpr>(SrcObj))
       return Visit(ME->getSubExpr());
+  }
 
   if (ZeroInit && !ZeroInitialization(E, T))
     return false;
@@ -10471,13 +10484,17 @@ bool ArrayExprEvaluator::VisitInitListExpr(const InitListExpr *E,
   // C++11 [dcl.init.string]p1: A char array [...] can be initialized by [...]
   // an appropriately-typed string literal enclosed in braces.
   if (E->isStringLiteralInit()) {
-    auto *SL = dyn_cast<StringLiteral>(E->getInit(0)->IgnoreParens());
+    auto *SL = dyn_cast<StringLiteral>(E->getInit(0)->IgnoreParenImpCasts());
     // FIXME: Support ObjCEncodeExpr here once we support it in
     // ArrayExprEvaluator generally.
     if (!SL)
       return Error(E);
     return VisitStringLiteral(SL, AllocType);
   }
+  // Any other transparent list init will need proper handling of the
+  // AllocType; we can't just recurse to the inner initializer.
+  assert(!E->isTransparent() &&
+         "transparent array list initialization is not string literal init?");
 
   bool Success = true;
 
@@ -10598,8 +10615,8 @@ bool ArrayExprEvaluator::VisitCXXConstructExpr(const CXXConstructExpr *E,
     for (unsigned I = 0; I != N; ++I)
       if (!VisitCXXConstructExpr(E, ArrayElt, &Value->getArrayInitializedElt(I),
                                  CAT->getElementType()) ||
-          !HandleLValueArrayAdjustment(Info, E, ArrayElt,
-                                       CAT->getElementType(), 1))
+          !HandleLValueArrayAdjustment(Info, E, ArrayElt, CAT->getElementType(),
+                                       1))
         return false;
 
     return true;
@@ -11836,46 +11853,10 @@ bool IntExprEvaluator::VisitBuiltinCallExpr(const CallExpr *E,
   case Builtin::BI__builtin_wcslen: {
     // As an extension, we support __builtin_strlen() as a constant expression,
     // and support folding strlen() to a constant.
-    LValue String;
-    if (!EvaluatePointer(E->getArg(0), String, Info))
-      return false;
-
-    QualType CharTy = E->getArg(0)->getType()->getPointeeType();
-
-    // Fast path: if it's a string literal, search the string value.
-    if (const StringLiteral *S = dyn_cast_or_null<StringLiteral>(
-            String.getLValueBase().dyn_cast<const Expr *>())) {
-      // The string literal may have embedded null characters. Find the first
-      // one and truncate there.
-      StringRef Str = S->getBytes();
-      int64_t Off = String.Offset.getQuantity();
-      if (Off >= 0 && (uint64_t)Off <= (uint64_t)Str.size() &&
-          S->getCharByteWidth() == 1 &&
-          // FIXME: Add fast-path for wchar_t too.
-          Info.Ctx.hasSameUnqualifiedType(CharTy, Info.Ctx.CharTy)) {
-        Str = Str.substr(Off);
-
-        StringRef::size_type Pos = Str.find(0);
-        if (Pos != StringRef::npos)
-          Str = Str.substr(0, Pos);
-
-        return Success(Str.size(), E);
-      }
-
-      // Fall through to slow path to issue appropriate diagnostic.
-    }
-
-    // Slow path: scan the bytes of the string looking for the terminating 0.
-    for (uint64_t Strlen = 0; /**/; ++Strlen) {
-      APValue Char;
-      if (!handleLValueToRValueConversion(Info, E, CharTy, String, Char) ||
-          !Char.isInt())
-        return false;
-      if (!Char.getInt())
-        return Success(Strlen, E);
-      if (!HandleLValueArrayAdjustment(Info, E, String, CharTy, 1))
-        return false;
-    }
+    uint64_t StrLen;
+    if (EvaluateBuiltinStrLen(E->getArg(0), StrLen, Info))
+      return Success(StrLen, E);
+    return false;
   }
 
   case Builtin::BIstrcmp:
@@ -15347,7 +15328,7 @@ static ICEDiag CheckICE(const Expr* E, const ASTContext &Ctx) {
           llvm::APSInt REval = Exp->getRHS()->EvaluateKnownConstInt(Ctx);
           if (REval == 0)
             return ICEDiag(IK_ICEIfUnevaluated, E->getBeginLoc());
-          if (REval.isSigned() && REval.isAllOnesValue()) {
+          if (REval.isSigned() && REval.isAllOnes()) {
             llvm::APSInt LEval = Exp->getLHS()->EvaluateKnownConstInt(Ctx);
             if (LEval.isMinSignedValue())
               return ICEDiag(IK_ICEIfUnevaluated, E->getBeginLoc());
@@ -15525,8 +15506,10 @@ bool Expr::isIntegerConstantExpr(const ASTContext &Ctx,
 Optional<llvm::APSInt> Expr::getIntegerConstantExpr(const ASTContext &Ctx,
                                                     SourceLocation *Loc,
                                                     bool isEvaluated) const {
-  assert(!isValueDependent() &&
-         "Expression evaluator can't be called on a dependent expression.");
+  if (isValueDependent()) {
+    // Expression evaluator can't succeed on a dependent expression.
+    return None;
+  }
 
   APSInt Value;
 
@@ -15735,4 +15718,59 @@ bool Expr::tryEvaluateObjectSize(uint64_t &Result, ASTContext &Ctx,
   Expr::EvalStatus Status;
   EvalInfo Info(Ctx, Status, EvalInfo::EM_ConstantFold);
   return tryEvaluateBuiltinObjectSize(this, Type, Info, Result);
+}
+
+static bool EvaluateBuiltinStrLen(const Expr *E, uint64_t &Result,
+                                  EvalInfo &Info) {
+  if (!E->getType()->hasPointerRepresentation() || !E->isPRValue())
+    return false;
+
+  LValue String;
+
+  if (!EvaluatePointer(E, String, Info))
+    return false;
+
+  QualType CharTy = E->getType()->getPointeeType();
+
+  // Fast path: if it's a string literal, search the string value.
+  if (const StringLiteral *S = dyn_cast_or_null<StringLiteral>(
+          String.getLValueBase().dyn_cast<const Expr *>())) {
+    StringRef Str = S->getBytes();
+    int64_t Off = String.Offset.getQuantity();
+    if (Off >= 0 && (uint64_t)Off <= (uint64_t)Str.size() &&
+        S->getCharByteWidth() == 1 &&
+        // FIXME: Add fast-path for wchar_t too.
+        Info.Ctx.hasSameUnqualifiedType(CharTy, Info.Ctx.CharTy)) {
+      Str = Str.substr(Off);
+
+      StringRef::size_type Pos = Str.find(0);
+      if (Pos != StringRef::npos)
+        Str = Str.substr(0, Pos);
+
+      Result = Str.size();
+      return true;
+    }
+
+    // Fall through to slow path.
+  }
+
+  // Slow path: scan the bytes of the string looking for the terminating 0.
+  for (uint64_t Strlen = 0; /**/; ++Strlen) {
+    APValue Char;
+    if (!handleLValueToRValueConversion(Info, E, CharTy, String, Char) ||
+        !Char.isInt())
+      return false;
+    if (!Char.getInt()) {
+      Result = Strlen;
+      return true;
+    }
+    if (!HandleLValueArrayAdjustment(Info, E, String, CharTy, 1))
+      return false;
+  }
+}
+
+bool Expr::tryEvaluateStrLen(uint64_t &Result, ASTContext &Ctx) const {
+  Expr::EvalStatus Status;
+  EvalInfo Info(Ctx, Status, EvalInfo::EM_ConstantFold);
+  return EvaluateBuiltinStrLen(this, Result, Info);
 }

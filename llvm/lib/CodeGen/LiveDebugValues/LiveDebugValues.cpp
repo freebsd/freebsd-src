@@ -40,6 +40,19 @@ static cl::opt<bool>
                               "normal DBG_VALUE inputs"),
                      cl::init(false));
 
+// Options to prevent pathological compile-time behavior. If InputBBLimit and
+// InputDbgValueLimit are both exceeded, range extension is disabled.
+static cl::opt<unsigned> InputBBLimit(
+    "livedebugvalues-input-bb-limit",
+    cl::desc("Maximum input basic blocks before DBG_VALUE limit applies"),
+    cl::init(10000), cl::Hidden);
+static cl::opt<unsigned> InputDbgValueLimit(
+    "livedebugvalues-input-dbg-value-limit",
+    cl::desc(
+        "Maximum input DBG_VALUE insts supported by debug range extension"),
+    cl::init(50000), cl::Hidden);
+
+namespace {
 /// Generic LiveDebugValues pass. Calls through to VarLocBasedLDV or
 /// InstrRefBasedLDV to perform location propagation, via the LDVImpl
 /// base class.
@@ -48,10 +61,7 @@ public:
   static char ID;
 
   LiveDebugValues();
-  ~LiveDebugValues() {
-    if (TheImpl)
-      delete TheImpl;
-  }
+  ~LiveDebugValues() {}
 
   /// Calculate the liveness information for the given machine function.
   bool runOnMachineFunction(MachineFunction &MF) override;
@@ -67,9 +77,12 @@ public:
   }
 
 private:
-  LDVImpl *TheImpl;
+  std::unique_ptr<LDVImpl> InstrRefImpl;
+  std::unique_ptr<LDVImpl> VarLocImpl;
   TargetPassConfig *TPC;
+  MachineDominatorTree MDT;
 };
+} // namespace
 
 char LiveDebugValues::ID = 0;
 
@@ -81,27 +94,26 @@ INITIALIZE_PASS(LiveDebugValues, DEBUG_TYPE, "Live DEBUG_VALUE analysis", false,
 /// Default construct and initialize the pass.
 LiveDebugValues::LiveDebugValues() : MachineFunctionPass(ID) {
   initializeLiveDebugValuesPass(*PassRegistry::getPassRegistry());
-  TheImpl = nullptr;
+  InstrRefImpl =
+      std::unique_ptr<LDVImpl>(llvm::makeInstrRefBasedLiveDebugValues());
+  VarLocImpl = std::unique_ptr<LDVImpl>(llvm::makeVarLocBasedLiveDebugValues());
 }
 
 bool LiveDebugValues::runOnMachineFunction(MachineFunction &MF) {
-  if (!TheImpl) {
-    TPC = getAnalysisIfAvailable<TargetPassConfig>();
+  bool InstrRefBased = MF.useDebugInstrRef();
+  // Allow the user to force selection of InstrRef LDV.
+  InstrRefBased |= ForceInstrRefLDV;
 
-    bool InstrRefBased = false;
-    if (TPC) {
-      auto &TM = TPC->getTM<TargetMachine>();
-      InstrRefBased = TM.Options.ValueTrackingVariableLocations;
-    }
+  TPC = getAnalysisIfAvailable<TargetPassConfig>();
+  LDVImpl *TheImpl = &*VarLocImpl;
 
-    // Allow the user to force selection of InstrRef LDV.
-    InstrRefBased |= ForceInstrRefLDV;
-
-    if (InstrRefBased)
-      TheImpl = llvm::makeInstrRefBasedLiveDebugValues();
-    else
-      TheImpl = llvm::makeVarLocBasedLiveDebugValues();
+  MachineDominatorTree *DomTree = nullptr;
+  if (InstrRefBased) {
+    DomTree = &MDT;
+    MDT.calculate(MF);
+    TheImpl = &*InstrRefImpl;
   }
 
-  return TheImpl->ExtendRanges(MF, TPC);
+  return TheImpl->ExtendRanges(MF, DomTree, TPC, InputBBLimit,
+                               InputDbgValueLimit);
 }

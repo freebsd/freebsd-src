@@ -55,6 +55,7 @@ class X86FastISel final : public FastISel {
   /// When SSE2 is available, use it for f64 operations.
   bool X86ScalarSSEf64;
   bool X86ScalarSSEf32;
+  bool X86ScalarSSEf16;
 
 public:
   explicit X86FastISel(FunctionLoweringInfo &funcInfo,
@@ -63,6 +64,7 @@ public:
     Subtarget = &funcInfo.MF->getSubtarget<X86Subtarget>();
     X86ScalarSSEf64 = Subtarget->hasSSE2();
     X86ScalarSSEf32 = Subtarget->hasSSE1();
+    X86ScalarSSEf16 = Subtarget->hasFP16();
   }
 
   bool fastSelectInstruction(const Instruction *I) override;
@@ -157,7 +159,8 @@ private:
   /// computed in an SSE register, not on the X87 floating point stack.
   bool isScalarFPTypeInSSEReg(EVT VT) const {
     return (VT == MVT::f64 && X86ScalarSSEf64) || // f64 is when SSE2
-      (VT == MVT::f32 && X86ScalarSSEf32);   // f32 is when SSE1
+           (VT == MVT::f32 && X86ScalarSSEf32) || // f32 is when SSE1
+           (VT == MVT::f16 && X86ScalarSSEf16);   // f16 is when AVX512FP16
   }
 
   bool isTypeLegal(Type *Ty, MVT &VT, bool AllowI1 = false);
@@ -786,7 +789,8 @@ bool X86FastISel::handleConstantAddresses(const Value *V, X86AddressMode &AM) {
           RC  = &X86::GR32RegClass;
         }
 
-        if (Subtarget->isPICStyleRIPRel() || GVFlags == X86II::MO_GOTPCREL)
+        if (Subtarget->isPICStyleRIPRel() || GVFlags == X86II::MO_GOTPCREL ||
+            GVFlags == X86II::MO_GOTPCREL_NORELAX)
           StubAM.Base.Reg = X86::RIP;
 
         LoadReg = createResultReg(RC);
@@ -1301,11 +1305,11 @@ bool X86FastISel::X86SelectRet(const Instruction *I) {
   MachineInstrBuilder MIB;
   if (X86MFInfo->getBytesToPopOnReturn()) {
     MIB = BuildMI(*FuncInfo.MBB, FuncInfo.InsertPt, DbgLoc,
-                  TII.get(Subtarget->is64Bit() ? X86::RETIQ : X86::RETIL))
+                  TII.get(Subtarget->is64Bit() ? X86::RETI64 : X86::RETI32))
               .addImm(X86MFInfo->getBytesToPopOnReturn());
   } else {
     MIB = BuildMI(*FuncInfo.MBB, FuncInfo.InsertPt, DbgLoc,
-                  TII.get(Subtarget->is64Bit() ? X86::RETQ : X86::RETL));
+                  TII.get(Subtarget->is64Bit() ? X86::RET64 : X86::RET32));
   }
   for (unsigned i = 0, e = RetRegs.size(); i != e; ++i)
     MIB.addReg(RetRegs[i], RegState::Implicit);
@@ -2283,9 +2287,10 @@ bool X86FastISel::X86FastEmitPseudoSelect(MVT RetVT, const Instruction *I) {
   unsigned Opc;
   switch (RetVT.SimpleTy) {
   default: return false;
-  case MVT::i8:  Opc = X86::CMOV_GR8;  break;
-  case MVT::i16: Opc = X86::CMOV_GR16; break;
-  case MVT::i32: Opc = X86::CMOV_GR32; break;
+  case MVT::i8:  Opc = X86::CMOV_GR8;   break;
+  case MVT::i16: Opc = X86::CMOV_GR16;  break;
+  case MVT::f16: Opc = X86::CMOV_FR16X; break;
+  case MVT::i32: Opc = X86::CMOV_GR32;  break;
   case MVT::f32: Opc = Subtarget->hasAVX512() ? X86::CMOV_FR32X
                                               : X86::CMOV_FR32; break;
   case MVT::f64: Opc = Subtarget->hasAVX512() ? X86::CMOV_FR64X
@@ -2741,7 +2746,7 @@ bool X86FastISel::fastLowerIntrinsicCall(const IntrinsicInst *II) {
     if (MCI->getSourceAddressSpace() > 255 || MCI->getDestAddressSpace() > 255)
       return false;
 
-    return lowerCallTo(II, "memcpy", II->getNumArgOperands() - 1);
+    return lowerCallTo(II, "memcpy", II->arg_size() - 1);
   }
   case Intrinsic::memset: {
     const MemSetInst *MSI = cast<MemSetInst>(II);
@@ -2756,7 +2761,7 @@ bool X86FastISel::fastLowerIntrinsicCall(const IntrinsicInst *II) {
     if (MSI->getDestAddressSpace() > 255)
       return false;
 
-    return lowerCallTo(II, "memset", II->getNumArgOperands() - 1);
+    return lowerCallTo(II, "memset", II->arg_size() - 1);
   }
   case Intrinsic::stackprotector: {
     // Emit code to store the stack guard onto the stack.
@@ -2780,8 +2785,6 @@ bool X86FastISel::fastLowerIntrinsicCall(const IntrinsicInst *II) {
     if (!X86SelectAddress(DI->getAddress(), AM))
       return false;
     const MCInstrDesc &II = TII.get(TargetOpcode::DBG_VALUE);
-    // FIXME may need to add RegState::Debug to any registers produced,
-    // although ESP/EBP should be the only ones at the moment.
     assert(DI->getVariable()->isValidLocationForIntrinsic(DbgLoc) &&
            "Expected inlined-at fields to agree");
     addFullAddress(BuildMI(*FuncInfo.MBB, FuncInfo.InsertPt, DbgLoc, II), AM)
@@ -3484,6 +3487,7 @@ bool X86FastISel::fastLowerCall(CallLoweringInfo &CLI) {
     // NonLazyBind calls or dllimport calls.
     bool NeedLoad = OpFlags == X86II::MO_DLLIMPORT ||
                     OpFlags == X86II::MO_GOTPCREL ||
+                    OpFlags == X86II::MO_GOTPCREL_NORELAX ||
                     OpFlags == X86II::MO_COFFSTUB;
     unsigned CallOpc = NeedLoad
                            ? (Is64Bit ? X86::CALL64m : X86::CALL32m)
@@ -3838,11 +3842,11 @@ unsigned X86FastISel::fastMaterializeConstant(const Constant *C) {
 
   if (const auto *CI = dyn_cast<ConstantInt>(C))
     return X86MaterializeInt(CI, VT);
-  else if (const ConstantFP *CFP = dyn_cast<ConstantFP>(C))
+  if (const auto *CFP = dyn_cast<ConstantFP>(C))
     return X86MaterializeFP(CFP, VT);
-  else if (const GlobalValue *GV = dyn_cast<GlobalValue>(C))
+  if (const auto *GV = dyn_cast<GlobalValue>(C))
     return X86MaterializeGV(GV, VT);
-  else if (isa<UndefValue>(C)) {
+  if (isa<UndefValue>(C)) {
     unsigned Opc = 0;
     switch (VT.SimpleTy) {
     default:

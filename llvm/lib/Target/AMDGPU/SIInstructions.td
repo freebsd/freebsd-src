@@ -1017,21 +1017,32 @@ def : GCNPat <
 /********** Extraction, Insertion, Building and Casting  **********/
 /********** ============================================ **********/
 
-foreach Index = 0-2 in {
-  def Extract_Element_v2i32_#Index : Extract_Element <
-    i32, v2i32, Index, !cast<SubRegIndex>(sub#Index)
+// Special case for 2 element vectors. REQ_SEQUENCE produces better code
+// than an INSERT_SUBREG.
+multiclass Insert_Element_V2<RegisterClass RC, ValueType elem_type, ValueType vec_type> {
+  def : GCNPat <
+    (insertelt vec_type:$vec, elem_type:$elem, 0),
+    (REG_SEQUENCE RC, $elem, sub0, (elem_type (EXTRACT_SUBREG $vec, sub1)), sub1)
   >;
-  def Insert_Element_v2i32_#Index : Insert_Element <
+
+  def : GCNPat <
+    (insertelt vec_type:$vec, elem_type:$elem, 1),
+    (REG_SEQUENCE RC, (elem_type (EXTRACT_SUBREG $vec, sub0)), sub0, $elem, sub1)
+  >;
+}
+
+foreach Index = 0-1 in {
+  def Extract_Element_v2i32_#Index : Extract_Element <
     i32, v2i32, Index, !cast<SubRegIndex>(sub#Index)
   >;
 
   def Extract_Element_v2f32_#Index : Extract_Element <
     f32, v2f32, Index, !cast<SubRegIndex>(sub#Index)
   >;
-  def Insert_Element_v2f32_#Index : Insert_Element <
-    f32, v2f32, Index, !cast<SubRegIndex>(sub#Index)
-  >;
 }
+
+defm : Insert_Element_V2 <SReg_64, i32, v2i32>;
+defm : Insert_Element_V2 <SReg_64, f32, v2f32>;
 
 foreach Index = 0-2 in {
   def Extract_Element_v3i32_#Index : Extract_Element <
@@ -1860,38 +1871,90 @@ def : GCNPat <
 // Conversion Patterns
 //===----------------------------------------------------------------------===//
 
-def : GCNPat<(i32 (sext_inreg i32:$src, i1)),
+class UniformSextInreg<ValueType VT> : PatFrag<
+  (ops node:$src),
+  (sext_inreg $src, VT),
+  [{ return !N->isDivergent(); }]>;
+
+def : GCNPat<(i32 (UniformSextInreg<i1> i32:$src)),
   (S_BFE_I32 i32:$src, (i32 65536))>; // 0 | 1 << 16
 
 // Handle sext_inreg in i64
 def : GCNPat <
-  (i64 (sext_inreg i64:$src, i1)),
+  (i64 (UniformSextInreg<i1> i64:$src)),
   (S_BFE_I64 i64:$src, (i32 0x10000)) // 0 | 1 << 16
 >;
 
 def : GCNPat <
-  (i16 (sext_inreg i16:$src, i1)),
+  (i16 (UniformSextInreg<i1> i16:$src)),
   (S_BFE_I32 $src, (i32 0x00010000)) // 0 | 1 << 16
 >;
 
 def : GCNPat <
-  (i16 (sext_inreg i16:$src, i8)),
+  (i16 (UniformSextInreg<i8> i16:$src)),
   (S_BFE_I32 $src, (i32 0x80000)) // 0 | 8 << 16
 >;
 
 def : GCNPat <
-  (i64 (sext_inreg i64:$src, i8)),
+  (i64 (UniformSextInreg<i8> i64:$src)),
   (S_BFE_I64 i64:$src, (i32 0x80000)) // 0 | 8 << 16
 >;
 
 def : GCNPat <
-  (i64 (sext_inreg i64:$src, i16)),
+  (i64 (UniformSextInreg<i16> i64:$src)),
   (S_BFE_I64 i64:$src, (i32 0x100000)) // 0 | 16 << 16
 >;
 
 def : GCNPat <
-  (i64 (sext_inreg i64:$src, i32)),
+  (i64 (UniformSextInreg<i32> i64:$src)),
   (S_BFE_I64 i64:$src, (i32 0x200000)) // 0 | 32 << 16
+>;
+
+
+class DivergentSextInreg<ValueType VT> : PatFrag<
+  (ops node:$src),
+  (sext_inreg $src, VT),
+  [{ return N->isDivergent(); }]>;
+
+def : GCNPat<(i32 (DivergentSextInreg<i1> i32:$src)),
+  (V_BFE_I32_e64 i32:$src, (i32 0), (i32 1))>;
+
+def : GCNPat <
+  (i16 (DivergentSextInreg<i1> i16:$src)),
+  (V_BFE_I32_e64 $src, (i32 0), (i32 1)) // 0 | 1 << 16
+>;
+
+def : GCNPat <
+  (i16 (DivergentSextInreg<i8> i16:$src)),
+  (V_BFE_I32_e64 $src, (i32 0), (i32 8)) // 0 | 8 << 16
+>;
+
+def : GCNPat <
+  (i64 (DivergentSextInreg<i1> i64:$src)),
+  (REG_SEQUENCE VReg_64,
+    (V_BFE_I32_e64 (i32 (EXTRACT_SUBREG i64:$src, sub0)), (i32 0), (i32 1)), sub0,
+    (V_ASHRREV_I32_e32  (i32 31), (V_BFE_I32_e64 (i32 (EXTRACT_SUBREG i64:$src, sub0)), (i32 0), (i32 1))), sub1)
+>;
+
+def : GCNPat <
+  (i64 (DivergentSextInreg<i8> i64:$src)),
+  (REG_SEQUENCE VReg_64,
+    (V_BFE_I32_e64 (i32 (EXTRACT_SUBREG i64:$src, sub0)), (i32 0), (i32 8)/* 0 | 8 << 16 */), sub0,
+    (V_ASHRREV_I32_e32 (i32 31), (V_BFE_I32_e64 (i32 (EXTRACT_SUBREG i64:$src, sub0)), (i32 0), (i32 8))), sub1)
+>;
+
+def : GCNPat <
+  (i64 (DivergentSextInreg<i16> i64:$src)),
+  (REG_SEQUENCE VReg_64,
+    (V_BFE_I32_e64 (i32 (EXTRACT_SUBREG i64:$src, sub0)), (i32 0), (i32 16)/* 0 | 16 << 16 */), sub0,
+    (V_ASHRREV_I32_e32 (i32 31), (V_BFE_I32_e64 (i32 (EXTRACT_SUBREG i64:$src, sub0)), (i32 0), (i32 16))), sub1)
+>;
+
+def : GCNPat <
+  (i64 (DivergentSextInreg<i32> i64:$src)),
+  (REG_SEQUENCE VReg_64,
+    (i32 (EXTRACT_SUBREG i64:$src, sub0)), sub0,
+    (V_ASHRREV_I32_e32 (i32 31), (i32 (EXTRACT_SUBREG i64:$src, sub0))), sub1)
 >;
 
 def : GCNPat <
@@ -2097,6 +2160,22 @@ def : GCNPat <
 >;
 
 def : GCNPat <
+  (i1 (UniformUnaryFrag<trunc> i32:$a)),
+  (S_CMP_EQ_U32 (S_AND_B32 (i32 1), $a), (i32 1))
+>;
+
+def : GCNPat <
+  (i1 (UniformUnaryFrag<trunc> i16:$a)),
+  (S_CMP_EQ_U32 (S_AND_B32 (i32 1), $a), (i32 1))
+>;
+
+def : GCNPat <
+  (i1 (UniformUnaryFrag<trunc> i64:$a)),
+  (S_CMP_EQ_U32 (S_AND_B32 (i32 1),
+                    (i32 (EXTRACT_SUBREG $a, sub0))), (i32 1))
+>;
+
+def : GCNPat <
   (i1 (trunc i32:$a)),
   (V_CMP_EQ_U32_e64 (S_AND_B32 (i32 1), $a), (i32 1))
 >;
@@ -2278,31 +2357,37 @@ let SubtargetPredicate = NotHasMinMaxDenormModes in {
 
 
 let OtherPredicates = [HasDLInsts] in {
+// Don't allow source modifiers. If there are any source modifiers then it's
+// better to select fma instead of fmac.
 def : GCNPat <
-  (fma (f32 (VOP3Mods f32:$src0, i32:$src0_modifiers)),
-       (f32 (VOP3Mods f32:$src1, i32:$src1_modifiers)),
+  (fma (f32 (VOP3NoMods f32:$src0)),
+       (f32 (VOP3NoMods f32:$src1)),
        (f32 (VOP3NoMods f32:$src2))),
-  (V_FMAC_F32_e64 $src0_modifiers, $src0, $src1_modifiers, $src1,
+  (V_FMAC_F32_e64 SRCMODS.NONE, $src0, SRCMODS.NONE, $src1,
                   SRCMODS.NONE, $src2)
 >;
 } // End OtherPredicates = [HasDLInsts]
 
 let SubtargetPredicate = isGFX10Plus in
+// Don't allow source modifiers. If there are any source modifiers then it's
+// better to select fma instead of fmac.
 def : GCNPat <
-  (fma (f16 (VOP3Mods f32:$src0, i32:$src0_modifiers)),
-       (f16 (VOP3Mods f32:$src1, i32:$src1_modifiers)),
+  (fma (f16 (VOP3NoMods f32:$src0)),
+       (f16 (VOP3NoMods f32:$src1)),
        (f16 (VOP3NoMods f32:$src2))),
-  (V_FMAC_F16_e64 $src0_modifiers, $src0, $src1_modifiers, $src1,
+  (V_FMAC_F16_e64 SRCMODS.NONE, $src0, SRCMODS.NONE, $src1,
                   SRCMODS.NONE, $src2)
 >;
 
 let SubtargetPredicate = isGFX90APlus in
+// Don't allow source modifiers. If there are any source modifiers then it's
+// better to select fma instead of fmac.
 def : GCNPat <
-  (fma (f64 (VOP3Mods0 f64:$src0, i32:$src0_modifiers, i1:$clamp, i32:$omod)),
-       (f64 (VOP3Mods f64:$src1, i32:$src1_modifiers)),
+  (fma (f64 (VOP3NoMods f64:$src0)),
+       (f64 (VOP3NoMods f64:$src1)),
        (f64 (VOP3NoMods f64:$src2))),
-  (V_FMAC_F64_e64 $src0_modifiers, $src0, $src1_modifiers, $src1,
-                  SRCMODS.NONE, $src2, $clamp, $omod)
+  (V_FMAC_F64_e64 SRCMODS.NONE, $src0, SRCMODS.NONE, $src1,
+                  SRCMODS.NONE, $src2)
 >;
 
 // COPY is workaround tablegen bug from multiple outputs
@@ -2656,7 +2741,15 @@ class AMDGPUGenericInstruction : GenericInstruction {
   let Namespace = "AMDGPU";
 }
 
+// Returns -1 if the input is zero.
 def G_AMDGPU_FFBH_U32 : AMDGPUGenericInstruction {
+  let OutOperandList = (outs type0:$dst);
+  let InOperandList = (ins type1:$src);
+  let hasSideEffects = 0;
+}
+
+// Returns -1 if the input is zero.
+def G_AMDGPU_FFBL_B32 : AMDGPUGenericInstruction {
   let OutOperandList = (outs type0:$dst);
   let InOperandList = (ins type1:$src);
   let hasSideEffects = 0;
@@ -2853,4 +2946,17 @@ def G_AMDGPU_INTRIN_BVH_INTERSECT_RAY : AMDGPUGenericInstruction {
   let hasSideEffects = 0;
   let mayLoad = 1;
   let mayStore = 0;
+}
+
+// Generic instruction for SI_CALL, so we can select the register bank and insert a waterfall loop
+// if necessary.
+def G_SI_CALL : AMDGPUGenericInstruction {
+  let OutOperandList = (outs SReg_64:$dst);
+  let InOperandList = (ins type0:$src0, unknown:$callee);
+  let Size = 4;
+  let isCall = 1;
+  let UseNamedOperandTable = 1;
+  let SchedRW = [WriteBranch];
+  // TODO: Should really base this on the call target
+  let isConvergent = 1;
 }

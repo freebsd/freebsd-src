@@ -517,7 +517,7 @@ public:
   SmallSet<Register, 4> getUsedDebugRegs() const {
     assert(isDebugValue() && "not a DBG_VALUE*");
     SmallSet<Register, 4> UsedRegs;
-    for (auto MO : debug_operands())
+    for (const auto &MO : debug_operands())
       if (MO.isReg() && MO.getReg())
         UsedRegs.insert(MO.getReg());
     return UsedRegs;
@@ -1331,6 +1331,7 @@ public:
     case TargetOpcode::LIFETIME_START:
     case TargetOpcode::LIFETIME_END:
     case TargetOpcode::PSEUDO_PROBE:
+    case TargetOpcode::ARITH_FENCE:
       return true;
     }
   }
@@ -1857,17 +1858,6 @@ public:
         MO.setSubReg(0);
       }
     }
-  }
-
-  PseudoProbeAttributes getPseudoProbeAttribute() const {
-    assert(isPseudoProbe() && "Must be a pseudo probe instruction");
-    return (PseudoProbeAttributes)getOperand(3).getImm();
-  }
-
-  void addPseudoProbeAttribute(PseudoProbeAttributes Attr) {
-    assert(isPseudoProbe() && "Must be a pseudo probe instruction");
-    MachineOperand &AttrOperand = getOperand(3);
-    AttrOperand.setImm(AttrOperand.getImm() | (uint32_t)Attr);
   }
 
 private:

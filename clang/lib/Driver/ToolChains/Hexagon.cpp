@@ -146,6 +146,8 @@ void hexagon::Assembler::ConstructJob(Compilation &C, const JobAction &JA,
       "-mcpu=hexagon" +
       toolchains::HexagonToolChain::GetTargetCPUVersion(Args)));
 
+  addSanitizerRuntimes(HTC, Args, CmdArgs);
+
   if (Output.isFilename()) {
     CmdArgs.push_back("-o");
     CmdArgs.push_back(Output.getFilename());
@@ -223,6 +225,8 @@ constructHexagonLinkArgs(Compilation &C, const JobAction &JA,
   bool UseShared = IsShared && !IsStatic;
   StringRef CpuVer = toolchains::HexagonToolChain::GetTargetCPUVersion(Args);
 
+  bool NeedsSanitizerDeps = addSanitizerRuntimes(HTC, Args, CmdArgs);
+
   //----------------------------------------------------------------------------
   // Silence warnings for various options
   //----------------------------------------------------------------------------
@@ -288,6 +292,12 @@ constructHexagonLinkArgs(Compilation &C, const JobAction &JA,
     AddLinkerInputs(HTC, Inputs, Args, CmdArgs, JA);
 
     if (!Args.hasArg(options::OPT_nostdlib, options::OPT_nodefaultlibs)) {
+      if (NeedsSanitizerDeps) {
+        linkSanitizerRuntimeDeps(HTC, CmdArgs);
+
+        CmdArgs.push_back("-lunwind");
+      }
+
       CmdArgs.push_back("-lclang_rt.builtins-hexagon");
       CmdArgs.push_back("-lc");
     }
@@ -450,6 +460,13 @@ Optional<unsigned> HexagonToolChain::getSmallDataThreshold(
   return None;
 }
 
+std::string HexagonToolChain::getCompilerRTPath() const {
+  SmallString<128> Dir(getDriver().SysRoot);
+  llvm::sys::path::append(Dir, "usr", "lib");
+  Dir += SelectedMultilib.gccSuffix();
+  return std::string(Dir.str());
+}
+
 void HexagonToolChain::getHexagonLibraryPaths(const ArgList &Args,
       ToolChain::path_list &LibPaths) const {
   const Driver &D = getDriver();
@@ -470,7 +487,7 @@ void HexagonToolChain::getHexagonLibraryPaths(const ArgList &Args,
 
   std::string TargetDir = getHexagonTargetDir(D.getInstalledDir(),
                                               D.PrefixDirs);
-  if (llvm::find(RootDirs, TargetDir) == RootDirs.end())
+  if (!llvm::is_contained(RootDirs, TargetDir))
     RootDirs.push_back(TargetDir);
 
   bool HasPIC = Args.hasArg(options::OPT_fpic, options::OPT_fPIC);
@@ -588,21 +605,43 @@ void HexagonToolChain::addClangTargetOptions(const ArgList &DriverArgs,
 
 void HexagonToolChain::AddClangSystemIncludeArgs(const ArgList &DriverArgs,
                                                  ArgStringList &CC1Args) const {
-  if (DriverArgs.hasArg(options::OPT_nostdinc) ||
-      DriverArgs.hasArg(options::OPT_nostdlibinc))
+  if (DriverArgs.hasArg(options::OPT_nostdinc))
     return;
 
+  const bool IsELF = !getTriple().isMusl() && !getTriple().isOSLinux();
+  const bool IsLinuxMusl = getTriple().isMusl() && getTriple().isOSLinux();
+
   const Driver &D = getDriver();
-  if (!D.SysRoot.empty()) {
+  SmallString<128> ResourceDirInclude(D.ResourceDir);
+  if (!IsELF) {
+    llvm::sys::path::append(ResourceDirInclude, "include");
+    if (!DriverArgs.hasArg(options::OPT_nobuiltininc) &&
+        (!IsLinuxMusl || DriverArgs.hasArg(options::OPT_nostdlibinc)))
+      addSystemInclude(DriverArgs, CC1Args, ResourceDirInclude);
+  }
+  if (DriverArgs.hasArg(options::OPT_nostdlibinc))
+    return;
+
+  const bool HasSysRoot = !D.SysRoot.empty();
+  if (HasSysRoot) {
     SmallString<128> P(D.SysRoot);
-    if (getTriple().isMusl())
+    if (IsLinuxMusl)
       llvm::sys::path::append(P, "usr/include");
     else
       llvm::sys::path::append(P, "include");
+
     addExternCSystemInclude(DriverArgs, CC1Args, P.str());
-    return;
+    // LOCAL_INCLUDE_DIR
+    addSystemInclude(DriverArgs, CC1Args, P + "/usr/local/include");
+    // TOOL_INCLUDE_DIR
+    AddMultilibIncludeArgs(DriverArgs, CC1Args);
   }
 
+  if (!DriverArgs.hasArg(options::OPT_nobuiltininc) && IsLinuxMusl)
+    addSystemInclude(DriverArgs, CC1Args, ResourceDirInclude);
+
+  if (HasSysRoot)
+    return;
   std::string TargetDir = getHexagonTargetDir(D.getInstalledDir(),
                                               D.PrefixDirs);
   addExternCSystemInclude(DriverArgs, CC1Args, TargetDir + "/hexagon/include");
@@ -665,11 +704,11 @@ bool HexagonToolChain::isAutoHVXEnabled(const llvm::opt::ArgList &Args) {
 // Returns the default CPU for Hexagon. This is the default compilation target
 // if no Hexagon processor is selected at the command-line.
 //
-const StringRef HexagonToolChain::GetDefaultCPU() {
+StringRef HexagonToolChain::GetDefaultCPU() {
   return "hexagonv60";
 }
 
-const StringRef HexagonToolChain::GetTargetCPUVersion(const ArgList &Args) {
+StringRef HexagonToolChain::GetTargetCPUVersion(const ArgList &Args) {
   Arg *CpuArg = nullptr;
   if (Arg *A = Args.getLastArg(options::OPT_mcpu_EQ))
     CpuArg = A;

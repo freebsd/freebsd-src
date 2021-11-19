@@ -1,9 +1,8 @@
 //===-- SemaConcept.cpp - Semantic Analysis for Constraints and Concepts --===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -235,7 +234,7 @@ static bool calculateConstraintSatisfaction(
             //   ...If substitution results in an invalid type or expression, the
             //   constraint is not satisfied.
             if (!Trap.hasErrorOccurred())
-              // A non-SFINAE error has occured as a result of this
+              // A non-SFINAE error has occurred as a result of this
               // substitution.
               return ExprError();
 
@@ -461,7 +460,7 @@ static void diagnoseUnsatisfiedRequirement(Sema &S,
         Expr *e = Req->getExpr();
         S.Diag(e->getBeginLoc(),
                diag::note_expr_requirement_constraints_not_satisfied_simple)
-            << (int)First << S.getDecltypeForParenthesizedExpr(e)
+            << (int)First << S.Context.getReferenceQualifiedType(e)
             << ConstraintExpr->getNamedConcept();
       } else {
         S.Diag(ConstraintExpr->getBeginLoc(),
@@ -742,22 +741,15 @@ Optional<NormalizedConstraint>
 NormalizedConstraint::fromConstraintExprs(Sema &S, NamedDecl *D,
                                           ArrayRef<const Expr *> E) {
   assert(E.size() != 0);
-  auto First = fromConstraintExpr(S, D, E[0]);
-  if (E.size() == 1)
-    return First;
-  auto Second = fromConstraintExpr(S, D, E[1]);
-  if (!Second)
+  auto Conjunction = fromConstraintExpr(S, D, E[0]);
+  if (!Conjunction)
     return None;
-  llvm::Optional<NormalizedConstraint> Conjunction;
-  Conjunction.emplace(S.Context, std::move(*First), std::move(*Second),
-                      CCK_Conjunction);
-  for (unsigned I = 2; I < E.size(); ++I) {
+  for (unsigned I = 1; I < E.size(); ++I) {
     auto Next = fromConstraintExpr(S, D, E[I]);
     if (!Next)
-      return llvm::Optional<NormalizedConstraint>{};
-    NormalizedConstraint NewConjunction(S.Context, std::move(*Conjunction),
+      return None;
+    *Conjunction = NormalizedConstraint(S.Context, std::move(*Conjunction),
                                         std::move(*Next), CCK_Conjunction);
-    *Conjunction = std::move(NewConjunction);
   }
   return Conjunction;
 }
@@ -988,8 +980,8 @@ bool Sema::MaybeEmitAmbiguousAtomicConstraintsDiagnostic(NamedDecl *D1,
         // Not the same source level expression - are the expressions
         // identical?
         llvm::FoldingSetNodeID IDA, IDB;
-        EA->Profile(IDA, Context, /*Cannonical=*/true);
-        EB->Profile(IDB, Context, /*Cannonical=*/true);
+        EA->Profile(IDA, Context, /*Canonical=*/true);
+        EB->Profile(IDB, Context, /*Canonical=*/true);
         if (IDA != IDB)
           return false;
 
@@ -1073,8 +1065,7 @@ ReturnTypeRequirement(TemplateParameterList *TPL) :
   assert(TC &&
          "TPL must have a template type parameter with a type constraint");
   auto *Constraint =
-      cast_or_null<ConceptSpecializationExpr>(
-          TC->getImmediatelyDeclaredConstraint());
+      cast<ConceptSpecializationExpr>(TC->getImmediatelyDeclaredConstraint());
   bool Dependent =
       Constraint->getTemplateArgsAsWritten() &&
       TemplateSpecializationType::anyInstantiationDependentTemplateArguments(

@@ -40,6 +40,26 @@ const Builtin::Info AArch64TargetInfo::BuiltinInfo[] = {
 #include "clang/Basic/BuiltinsAArch64.def"
 };
 
+static StringRef getArchVersionString(llvm::AArch64::ArchKind Kind) {
+  switch (Kind) {
+  case llvm::AArch64::ArchKind::ARMV9A:
+  case llvm::AArch64::ArchKind::ARMV9_1A:
+  case llvm::AArch64::ArchKind::ARMV9_2A:
+    return "9";
+  default:
+    return "8";
+  }
+}
+
+StringRef AArch64TargetInfo::getArchProfile() const {
+  switch (ArchKind) {
+  case llvm::AArch64::ArchKind::ARMV8R:
+    return "R";
+  default:
+    return "A";
+  }
+}
+
 AArch64TargetInfo::AArch64TargetInfo(const llvm::Triple &Triple,
                                      const TargetOptions &Opts)
     : TargetInfo(Triple), ABI("aapcs") {
@@ -203,6 +223,24 @@ void AArch64TargetInfo::getTargetDefinesARMV87A(const LangOptions &Opts,
   getTargetDefinesARMV86A(Opts, Builder);
 }
 
+void AArch64TargetInfo::getTargetDefinesARMV9A(const LangOptions &Opts,
+                                               MacroBuilder &Builder) const {
+  // Armv9-A maps to Armv8.5-A
+  getTargetDefinesARMV85A(Opts, Builder);
+}
+
+void AArch64TargetInfo::getTargetDefinesARMV91A(const LangOptions &Opts,
+                                                MacroBuilder &Builder) const {
+  // Armv9.1-A maps to Armv8.6-A
+  getTargetDefinesARMV86A(Opts, Builder);
+}
+
+void AArch64TargetInfo::getTargetDefinesARMV92A(const LangOptions &Opts,
+                                                MacroBuilder &Builder) const {
+  // Armv9.2-A maps to Armv8.7-A
+  getTargetDefinesARMV87A(Opts, Builder);
+}
+
 void AArch64TargetInfo::getTargetDefines(const LangOptions &Opts,
                                          MacroBuilder &Builder) const {
   // Target identification.
@@ -227,8 +265,8 @@ void AArch64TargetInfo::getTargetDefines(const LangOptions &Opts,
 
   // ACLE predefines. Many can only have one possible value on v8 AArch64.
   Builder.defineMacro("__ARM_ACLE", "200");
-  Builder.defineMacro("__ARM_ARCH", "8");
-  Builder.defineMacro("__ARM_ARCH_PROFILE", "'A'");
+  Builder.defineMacro("__ARM_ARCH", getArchVersionString(ArchKind));
+  Builder.defineMacro("__ARM_ARCH_PROFILE", "'" + getArchProfile() + "'");
 
   Builder.defineMacro("__ARM_64BIT_STATE", "1");
   Builder.defineMacro("__ARM_PCS_AAPCS64", "1");
@@ -405,6 +443,15 @@ void AArch64TargetInfo::getTargetDefines(const LangOptions &Opts,
   case llvm::AArch64::ArchKind::ARMV8_7A:
     getTargetDefinesARMV87A(Opts, Builder);
     break;
+  case llvm::AArch64::ArchKind::ARMV9A:
+    getTargetDefinesARMV9A(Opts, Builder);
+    break;
+  case llvm::AArch64::ArchKind::ARMV9_1A:
+    getTargetDefinesARMV91A(Opts, Builder);
+    break;
+  case llvm::AArch64::ArchKind::ARMV9_2A:
+    getTargetDefinesARMV92A(Opts, Builder);
+    break;
   }
 
   // All of the __sync_(bool|val)_compare_and_swap_(1|2|4|8) builtins work.
@@ -413,8 +460,8 @@ void AArch64TargetInfo::getTargetDefines(const LangOptions &Opts,
   Builder.defineMacro("__GCC_HAVE_SYNC_COMPARE_AND_SWAP_4");
   Builder.defineMacro("__GCC_HAVE_SYNC_COMPARE_AND_SWAP_8");
 
-  if (Opts.ArmSveVectorBits) {
-    Builder.defineMacro("__ARM_FEATURE_SVE_BITS", Twine(Opts.ArmSveVectorBits));
+  if (Opts.VScaleMin && Opts.VScaleMin == Opts.VScaleMax) {
+    Builder.defineMacro("__ARM_FEATURE_SVE_BITS", Twine(Opts.VScaleMin * 128));
     Builder.defineMacro("__ARM_FEATURE_SVE_VECTOR_OPERATORS");
   }
 }
@@ -424,6 +471,16 @@ ArrayRef<Builtin::Info> AArch64TargetInfo::getTargetBuiltins() const {
                                              Builtin::FirstTSBuiltin);
 }
 
+Optional<std::pair<unsigned, unsigned>>
+AArch64TargetInfo::getVScaleRange(const LangOptions &LangOpts) const {
+  if (LangOpts.VScaleMin || LangOpts.VScaleMax)
+    return std::pair<unsigned, unsigned>(LangOpts.VScaleMin,
+                                         LangOpts.VScaleMax);
+  if (hasFeature("sve"))
+    return std::pair<unsigned, unsigned>(0, 16);
+  return None;
+}
+
 bool AArch64TargetInfo::hasFeature(StringRef Feature) const {
   return Feature == "aarch64" || Feature == "arm64" || Feature == "arm" ||
          (Feature == "neon" && (FPU & NeonMode)) ||
@@ -431,7 +488,8 @@ bool AArch64TargetInfo::hasFeature(StringRef Feature) const {
            Feature == "sve2-aes" || Feature == "sve2-sha3" ||
            Feature == "sve2-sm4" || Feature == "f64mm" || Feature == "f32mm" ||
            Feature == "i8mm" || Feature == "bf16") &&
-          (FPU & SveMode));
+          (FPU & SveMode)) ||
+         (Feature == "ls64" && HasLS64);
 }
 
 bool AArch64TargetInfo::handleTargetFeatures(std::vector<std::string> &Features,
@@ -462,7 +520,7 @@ bool AArch64TargetInfo::handleTargetFeatures(std::vector<std::string> &Features,
   HasMatmulFP32 = false;
   HasLSE = false;
 
-  ArchKind = llvm::AArch64::ArchKind::ARMV8A;
+  ArchKind = llvm::AArch64::ArchKind::INVALID;
 
   for (const auto &Feature : Features) {
     if (Feature == "+neon")
@@ -524,6 +582,8 @@ bool AArch64TargetInfo::handleTargetFeatures(std::vector<std::string> &Features,
       HasSM4 = true;
     if (Feature == "+strict-align")
       HasUnaligned = false;
+    if (Feature == "+v8a")
+      ArchKind = llvm::AArch64::ArchKind::ARMV8A;
     if (Feature == "+v8.1a")
       ArchKind = llvm::AArch64::ArchKind::ARMV8_1A;
     if (Feature == "+v8.2a")
@@ -538,6 +598,12 @@ bool AArch64TargetInfo::handleTargetFeatures(std::vector<std::string> &Features,
       ArchKind = llvm::AArch64::ArchKind::ARMV8_6A;
     if (Feature == "+v8.7a")
       ArchKind = llvm::AArch64::ArchKind::ARMV8_7A;
+    if (Feature == "+v9a")
+      ArchKind = llvm::AArch64::ArchKind::ARMV9A;
+    if (Feature == "+v9.1a")
+      ArchKind = llvm::AArch64::ArchKind::ARMV9_1A;
+    if (Feature == "+v9.2a")
+      ArchKind = llvm::AArch64::ArchKind::ARMV9_2A;
     if (Feature == "+v8r")
       ArchKind = llvm::AArch64::ArchKind::ARMV8R;
     if (Feature == "+fullfp16")
@@ -751,6 +817,9 @@ bool AArch64TargetInfo::validateConstraintModifier(
       // registers.
       if (Size == 64)
         return true;
+
+      if (Size == 512)
+        return HasLS64;
 
       SuggestedModifier = "w";
       return false;

@@ -316,7 +316,7 @@ public:
   /// Set the exception handling to be used with constrained floating point
   void setDefaultConstrainedExcept(fp::ExceptionBehavior NewExcept) {
 #ifndef NDEBUG
-    Optional<StringRef> ExceptStr = ExceptionBehaviorToStr(NewExcept);
+    Optional<StringRef> ExceptStr = convertExceptionBehaviorToStr(NewExcept);
     assert(ExceptStr.hasValue() && "Garbage strict exception behavior!");
 #endif
     DefaultConstrainedExcept = NewExcept;
@@ -325,7 +325,7 @@ public:
   /// Set the rounding mode handling to be used with constrained floating point
   void setDefaultConstrainedRounding(RoundingMode NewRounding) {
 #ifndef NDEBUG
-    Optional<StringRef> RoundingStr = RoundingModeToStr(NewRounding);
+    Optional<StringRef> RoundingStr = convertRoundingModeToStr(NewRounding);
     assert(RoundingStr.hasValue() && "Garbage strict rounding mode!");
 #endif
     DefaultConstrainedRounding = NewRounding;
@@ -351,7 +351,7 @@ public:
   }
 
   void setConstrainedFPCallAttr(CallBase *I) {
-    I->addAttribute(AttributeList::FunctionIndex, Attribute::StrictFP);
+    I->addFnAttr(Attribute::StrictFP);
   }
 
   void setDefaultOperandBundles(ArrayRef<OperandBundleDef> OpBundles) {
@@ -697,12 +697,16 @@ public:
       MDNode *TBAAStructTag = nullptr, MDNode *ScopeTag = nullptr,
       MDNode *NoAliasTag = nullptr);
 
-  /// Create a vector fadd reduction intrinsic of the source vector.
-  /// The first parameter is a scalar accumulator value for ordered reductions.
+  /// Create a sequential vector fadd reduction intrinsic of the source vector.
+  /// The first parameter is a scalar accumulator value. An unordered reduction
+  /// can be created by adding the reassoc fast-math flag to the resulting
+  /// sequential reduction.
   CallInst *CreateFAddReduce(Value *Acc, Value *Src);
 
-  /// Create a vector fmul reduction intrinsic of the source vector.
-  /// The first parameter is a scalar accumulator value for ordered reductions.
+  /// Create a sequential vector fmul reduction intrinsic of the source vector.
+  /// The first parameter is a scalar accumulator value. An unordered reduction
+  /// can be created by adding the reassoc fast-math flag to the resulting
+  /// sequential reduction.
   CallInst *CreateFMulReduce(Value *Acc, Value *Src);
 
   /// Create a vector int add reduction intrinsic of the source vector.
@@ -1172,7 +1176,7 @@ private:
     if (Rounding.hasValue())
       UseRounding = Rounding.getValue();
 
-    Optional<StringRef> RoundingStr = RoundingModeToStr(UseRounding);
+    Optional<StringRef> RoundingStr = convertRoundingModeToStr(UseRounding);
     assert(RoundingStr.hasValue() && "Garbage strict rounding mode!");
     auto *RoundingMDS = MDString::get(Context, RoundingStr.getValue());
 
@@ -1185,7 +1189,7 @@ private:
     if (Except.hasValue())
       UseExcept = Except.getValue();
 
-    Optional<StringRef> ExceptStr = ExceptionBehaviorToStr(UseExcept);
+    Optional<StringRef> ExceptStr = convertExceptionBehaviorToStr(UseExcept);
     assert(ExceptStr.hasValue() && "Garbage strict exception behavior!");
     auto *ExceptMDS = MDString::get(Context, ExceptStr.getValue());
 
@@ -2446,6 +2450,16 @@ public:
   Value *CreateExtractElement(Value *Vec, uint64_t Idx,
                               const Twine &Name = "") {
     return CreateExtractElement(Vec, getInt64(Idx), Name);
+  }
+
+  Value *CreateInsertElement(Type *VecTy, Value *NewElt, Value *Idx,
+                             const Twine &Name = "") {
+    return CreateInsertElement(PoisonValue::get(VecTy), NewElt, Idx, Name);
+  }
+
+  Value *CreateInsertElement(Type *VecTy, Value *NewElt, uint64_t Idx,
+                             const Twine &Name = "") {
+    return CreateInsertElement(PoisonValue::get(VecTy), NewElt, Idx, Name);
   }
 
   Value *CreateInsertElement(Value *Vec, Value *NewElt, Value *Idx,

@@ -67,6 +67,13 @@ X86Subtarget::classifyGlobalReference(const GlobalValue *GV) const {
 
 unsigned char
 X86Subtarget::classifyLocalReference(const GlobalValue *GV) const {
+  // Tagged globals have non-zero upper bits, which makes direct references
+  // require a 64-bit immediate.  On the small code model this causes relocation
+  // errors, so we go through the GOT instead.
+  if (AllowTaggedGlobals && TM.getCodeModel() == CodeModel::Small && GV &&
+      !isa<Function>(GV))
+    return X86II::MO_GOTPCREL_NORELAX;
+
   // If we're not PIC, it's not very interesting.
   if (!isPositionIndependent())
     return X86II::MO_NO_FLAG;
@@ -143,6 +150,9 @@ unsigned char X86Subtarget::classifyGlobalReference(const GlobalValue *GV,
     return classifyLocalReference(GV);
 
   if (isTargetCOFF()) {
+    // ExternalSymbolSDNode like _tls_index.
+    if (!GV)
+      return X86II::MO_NO_FLAG;
     if (GV->hasDLLImportStorageClass())
       return X86II::MO_DLLIMPORT;
     return X86II::MO_COFFSTUB;
@@ -157,6 +167,11 @@ unsigned char X86Subtarget::classifyGlobalReference(const GlobalValue *GV,
     // reference for them.
     if (TM.getCodeModel() == CodeModel::Large)
       return isTargetELF() ? X86II::MO_GOT : X86II::MO_NO_FLAG;
+    // Tagged globals have non-zero upper bits, which makes direct references
+    // require a 64-bit immediate. So we can't let the linker relax the
+    // relocation to a 32-bit RIP-relative direct reference.
+    if (AllowTaggedGlobals && GV && !isa<Function>(GV))
+      return X86II::MO_GOTPCREL_NORELAX;
     return X86II::MO_GOTPCREL;
   }
 
@@ -184,10 +199,13 @@ X86Subtarget::classifyGlobalFunctionReference(const GlobalValue *GV,
   if (TM.shouldAssumeDSOLocal(M, GV))
     return X86II::MO_NO_FLAG;
 
-  // Functions on COFF can be non-DSO local for two reasons:
+  // Functions on COFF can be non-DSO local for three reasons:
+  // - They are intrinsic functions (!GV)
   // - They are marked dllimport
   // - They are extern_weak, and a stub is needed
   if (isTargetCOFF()) {
+    if (!GV)
+      return X86II::MO_NO_FLAG;
     if (GV->hasDLLImportStorageClass())
       return X86II::MO_DLLIMPORT;
     return X86II::MO_COFFSTUB;

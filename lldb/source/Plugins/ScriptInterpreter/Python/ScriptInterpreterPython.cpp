@@ -355,7 +355,6 @@ private:
     PyEval_InitThreads();
   }
 
-  TerminalState m_stdin_tty_state;
   PyGILState_STATE m_gil_state = PyGILState_UNLOCKED;
   bool m_was_already_initialized = false;
 };
@@ -411,6 +410,36 @@ FileSpec ScriptInterpreterPython::GetPythonDir() {
   return g_spec;
 }
 
+static const char GetInterpreterInfoScript[] = R"(
+import os
+import sys
+
+def main(lldb_python_dir, python_exe_relative_path):
+  info = {
+    "lldb-pythonpath": lldb_python_dir,
+    "language": "python",
+    "prefix": sys.prefix,
+    "executable": os.path.join(sys.prefix, python_exe_relative_path)
+  }
+  return info
+)";
+
+static const char python_exe_relative_path[] = LLDB_PYTHON_EXE_RELATIVE_PATH;
+
+StructuredData::DictionarySP ScriptInterpreterPython::GetInterpreterInfo() {
+  GIL gil;
+  FileSpec python_dir_spec = GetPythonDir();
+  if (!python_dir_spec)
+    return nullptr;
+  PythonScript get_info(GetInterpreterInfoScript);
+  auto info_json = unwrapIgnoringErrors(
+      As<PythonDictionary>(get_info(PythonString(python_dir_spec.GetPath()),
+                                    PythonString(python_exe_relative_path))));
+  if (!info_json)
+    return nullptr;
+  return info_json.CreateStructuredDictionary();
+}
+
 void ScriptInterpreterPython::SharedLibraryDirectoryHelper(
     FileSpec &this_file) {
   // When we're loaded from python, this_file will point to the file inside the
@@ -437,12 +466,7 @@ void ScriptInterpreterPython::SharedLibraryDirectoryHelper(
 #endif
 }
 
-lldb_private::ConstString ScriptInterpreterPython::GetPluginNameStatic() {
-  static ConstString g_name("script-python");
-  return g_name;
-}
-
-const char *ScriptInterpreterPython::GetPluginDescriptionStatic() {
+llvm::StringRef ScriptInterpreterPython::GetPluginDescriptionStatic() {
   return "Embedded Python interpreter";
 }
 
@@ -590,12 +614,6 @@ ScriptInterpreterPythonImpl::~ScriptInterpreterPythonImpl() {
   m_session_dict.Reset();
   PyGILState_Release(gil_state);
 }
-
-lldb_private::ConstString ScriptInterpreterPythonImpl::GetPluginName() {
-  return GetPluginNameStatic();
-}
-
-uint32_t ScriptInterpreterPythonImpl::GetPluginVersion() { return 1; }
 
 void ScriptInterpreterPythonImpl::IOHandlerActivated(IOHandler &io_handler,
                                                      bool interactive) {

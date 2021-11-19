@@ -161,10 +161,9 @@ Sema::getTemplateInstantiationArgs(NamedDecl *D,
         if (isGenericLambdaCallOperatorOrStaticInvokerSpecialization(Function))
           break;
 
-      } else if (FunctionTemplateDecl *FunTmpl
-                                   = Function->getDescribedFunctionTemplate()) {
-        // Add the "injected" template arguments.
-        Result.addOuterTemplateArguments(FunTmpl->getInjectedTemplateArgs());
+      } else if (Function->getDescribedFunctionTemplate()) {
+        assert(Result.getNumSubstitutedLevels() == 0 &&
+               "Outer template not instantiated?");
       }
 
       // If this is a friend declaration and it declares an entity at
@@ -180,11 +179,8 @@ Sema::getTemplateInstantiationArgs(NamedDecl *D,
       }
     } else if (CXXRecordDecl *Rec = dyn_cast<CXXRecordDecl>(Ctx)) {
       if (ClassTemplateDecl *ClassTemplate = Rec->getDescribedClassTemplate()) {
-        QualType T = ClassTemplate->getInjectedClassNameSpecialization();
-        const TemplateSpecializationType *TST =
-            cast<TemplateSpecializationType>(Context.getCanonicalType(T));
-        Result.addOuterTemplateArguments(
-            llvm::makeArrayRef(TST->getArgs(), TST->getNumArgs()));
+        assert(Result.getNumSubstitutedLevels() == 0 &&
+               "Outer template not instantiated?");
         if (ClassTemplate->isMemberSpecialization())
           break;
       }
@@ -1934,25 +1930,23 @@ TemplateInstantiator::TransformExprRequirement(concepts::ExprRequirement *Req) {
     return Req;
 
   Sema::SFINAETrap Trap(SemaRef);
-  TemplateDeductionInfo Info(Req->getExpr()->getBeginLoc());
 
   llvm::PointerUnion<Expr *, concepts::Requirement::SubstitutionDiagnostic *>
       TransExpr;
   if (Req->isExprSubstitutionFailure())
     TransExpr = Req->getExprSubstitutionDiagnostic();
   else {
-    Sema::InstantiatingTemplate ExprInst(SemaRef, Req->getExpr()->getBeginLoc(),
-                                         Req, Info,
-                                         Req->getExpr()->getSourceRange());
+    Expr *E = Req->getExpr();
+    TemplateDeductionInfo Info(E->getBeginLoc());
+    Sema::InstantiatingTemplate ExprInst(SemaRef, E->getBeginLoc(), Req, Info,
+                                         E->getSourceRange());
     if (ExprInst.isInvalid())
       return nullptr;
-    ExprResult TransExprRes = TransformExpr(Req->getExpr());
+    ExprResult TransExprRes = TransformExpr(E);
     if (TransExprRes.isInvalid() || Trap.hasErrorOccurred())
-      TransExpr = createSubstDiag(SemaRef, Info,
-          [&] (llvm::raw_ostream& OS) {
-              Req->getExpr()->printPretty(OS, nullptr,
-                                          SemaRef.getPrintingPolicy());
-          });
+      TransExpr = createSubstDiag(SemaRef, Info, [&](llvm::raw_ostream &OS) {
+        E->printPretty(OS, nullptr, SemaRef.getPrintingPolicy());
+      });
     else
       TransExpr = TransExprRes.get();
   }
@@ -1966,6 +1960,7 @@ TemplateInstantiator::TransformExprRequirement(concepts::ExprRequirement *Req) {
   else if (RetReq.isTypeConstraint()) {
     TemplateParameterList *OrigTPL =
         RetReq.getTypeConstraintTemplateParameterList();
+    TemplateDeductionInfo Info(OrigTPL->getTemplateLoc());
     Sema::InstantiatingTemplate TPLInst(SemaRef, OrigTPL->getTemplateLoc(),
                                         Req, Info, OrigTPL->getSourceRange());
     if (TPLInst.isInvalid())
@@ -2309,6 +2304,29 @@ namespace {
 
 } // namespace
 
+bool Sema::SubstTypeConstraint(
+    TemplateTypeParmDecl *Inst, const TypeConstraint *TC,
+    const MultiLevelTemplateArgumentList &TemplateArgs) {
+  const ASTTemplateArgumentListInfo *TemplArgInfo =
+      TC->getTemplateArgsAsWritten();
+  TemplateArgumentListInfo InstArgs;
+
+  if (TemplArgInfo) {
+    InstArgs.setLAngleLoc(TemplArgInfo->LAngleLoc);
+    InstArgs.setRAngleLoc(TemplArgInfo->RAngleLoc);
+    if (SubstTemplateArguments(TemplArgInfo->arguments(), TemplateArgs,
+                               InstArgs))
+      return true;
+  }
+  return AttachTypeConstraint(
+      TC->getNestedNameSpecifierLoc(), TC->getConceptNameInfo(),
+      TC->getNamedConcept(), &InstArgs, Inst,
+      Inst->isParameterPack()
+          ? cast<CXXFoldExpr>(TC->getImmediatelyDeclaredConstraint())
+                ->getEllipsisLoc()
+          : SourceLocation());
+}
+
 ParmVarDecl *Sema::SubstParmVarDecl(ParmVarDecl *OldParm,
                             const MultiLevelTemplateArgumentList &TemplateArgs,
                                     int indexAdjustment,
@@ -2373,24 +2391,7 @@ ParmVarDecl *Sema::SubstParmVarDecl(ParmVarDecl *OldParm,
       if (Inst && !Inst->getTypeConstraint()) {
         // TODO: Concepts: do not instantiate the constraint (delayed constraint
         // substitution)
-        const ASTTemplateArgumentListInfo *TemplArgInfo
-          = TC->getTemplateArgsAsWritten();
-        TemplateArgumentListInfo InstArgs;
-
-        if (TemplArgInfo) {
-          InstArgs.setLAngleLoc(TemplArgInfo->LAngleLoc);
-          InstArgs.setRAngleLoc(TemplArgInfo->RAngleLoc);
-          if (Subst(TemplArgInfo->getTemplateArgs(),
-                    TemplArgInfo->NumTemplateArgs, InstArgs, TemplateArgs))
-            return nullptr;
-        }
-        if (AttachTypeConstraint(
-                TC->getNestedNameSpecifierLoc(), TC->getConceptNameInfo(),
-                TC->getNamedConcept(), TemplArgInfo ? &InstArgs : nullptr, Inst,
-                TTP->isParameterPack()
-                    ? cast<CXXFoldExpr>(TC->getImmediatelyDeclaredConstraint())
-                          ->getEllipsisLoc()
-                    : SourceLocation()))
+        if (SubstTypeConstraint(Inst, TC, TemplateArgs))
           return nullptr;
       }
     }
@@ -3538,15 +3539,6 @@ Sema::SubstTemplateName(NestedNameSpecifierLoc QualifierLoc,
   return Instantiator.TransformTemplateName(SS, Name, Loc);
 }
 
-bool Sema::Subst(const TemplateArgumentLoc *Args, unsigned NumArgs,
-                 TemplateArgumentListInfo &Result,
-                 const MultiLevelTemplateArgumentList &TemplateArgs) {
-  TemplateInstantiator Instantiator(*this, TemplateArgs, SourceLocation(),
-                                    DeclarationName());
-
-  return Instantiator.TransformTemplateArguments(Args, NumArgs, Result);
-}
-
 static const Decl *getCanonicalParmVarDecl(const Decl *D) {
   // When storing ParmVarDecls in the local instantiation scope, we always
   // want to use the ParmVarDecl from the canonical function declaration,
@@ -3666,7 +3658,7 @@ void LocalInstantiationScope::MakeInstantiatedLocalArgPack(const Decl *D) {
 
 bool LocalInstantiationScope::isLocalPackExpansion(const Decl *D) {
   for (DeclArgumentPack *Pack : ArgumentPacks)
-    if (std::find(Pack->begin(), Pack->end(), D) != Pack->end())
+    if (llvm::is_contained(*Pack, D))
       return true;
   return false;
 }

@@ -9,12 +9,14 @@
 #include "AMDGPUOpenMP.h"
 #include "AMDGPU.h"
 #include "CommonArgs.h"
+#include "ToolChains/ROCm.h"
 #include "clang/Basic/DiagnosticDriver.h"
 #include "clang/Driver/Compilation.h"
 #include "clang/Driver/Driver.h"
 #include "clang/Driver/DriverDiagnostic.h"
 #include "clang/Driver/InputInfo.h"
 #include "clang/Driver/Options.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/FormatAdapters.h"
 #include "llvm/Support/FormatVariadic.h"
@@ -84,14 +86,54 @@ static bool checkSystemForAMDGPU(const ArgList &Args, const AMDGPUToolChain &TC,
 } // namespace
 
 const char *AMDGCN::OpenMPLinker::constructLLVMLinkCommand(
-    Compilation &C, const JobAction &JA, const InputInfoList &Inputs,
-    const ArgList &Args, StringRef SubArchName,
-    StringRef OutputFilePrefix) const {
+    const toolchains::AMDGPUOpenMPToolChain &AMDGPUOpenMPTC, Compilation &C,
+    const JobAction &JA, const InputInfoList &Inputs, const ArgList &Args,
+    StringRef SubArchName, StringRef OutputFilePrefix) const {
   ArgStringList CmdArgs;
 
   for (const auto &II : Inputs)
     if (II.isFilename())
       CmdArgs.push_back(II.getFilename());
+
+  if (Args.hasArg(options::OPT_l)) {
+    auto Lm = Args.getAllArgValues(options::OPT_l);
+    bool HasLibm = false;
+    for (auto &Lib : Lm) {
+      if (Lib == "m") {
+        HasLibm = true;
+        break;
+      }
+    }
+
+    if (HasLibm) {
+      // This is not certain to work. The device libs added here, and passed to
+      // llvm-link, are missing attributes that they expect to be inserted when
+      // passed to mlink-builtin-bitcode. The amdgpu backend does not generate
+      // conservatively correct code when attributes are missing, so this may
+      // be the root cause of miscompilations. Passing via mlink-builtin-bitcode
+      // ultimately hits CodeGenModule::addDefaultFunctionDefinitionAttributes
+      // on each function, see D28538 for context.
+      // Potential workarounds:
+      //  - unconditionally link all of the device libs to every translation
+      //    unit in clang via mlink-builtin-bitcode
+      //  - build a libm bitcode file as part of the DeviceRTL and explictly
+      //    mlink-builtin-bitcode the rocm device libs components at build time
+      //  - drop this llvm-link fork in favour or some calls into LLVM, chosen
+      //    to do basically the same work as llvm-link but with that call first
+      //  - write an opt pass that sets that on every function it sees and pipe
+      //    the device-libs bitcode through that on the way to this llvm-link
+      SmallVector<std::string, 12> BCLibs =
+          AMDGPUOpenMPTC.getCommonDeviceLibNames(Args, SubArchName.str());
+      llvm::for_each(BCLibs, [&](StringRef BCFile) {
+        CmdArgs.push_back(Args.MakeArgString(BCFile));
+      });
+    }
+  }
+
+  AddStaticDeviceLibsLinking(C, *this, JA, Inputs, Args, CmdArgs, "amdgcn",
+                      SubArchName,
+                      /* bitcode SDL?*/ true,
+                      /* PostClang Link? */ false);
   // Add an intermediate output file.
   CmdArgs.push_back("-o");
   const char *OutputFileName =
@@ -180,8 +222,8 @@ void AMDGCN::OpenMPLinker::ConstructJob(Compilation &C, const JobAction &JA,
   assert(Prefix.length() && "no linker inputs are files ");
 
   // Each command outputs different files.
-  const char *LLVMLinkCommand =
-      constructLLVMLinkCommand(C, JA, Inputs, Args, GPUArch, Prefix);
+  const char *LLVMLinkCommand = constructLLVMLinkCommand(
+      AMDGPUOpenMPTC, C, JA, Inputs, Args, GPUArch, Prefix);
 
   // Produce readable assembly if save-temps is enabled.
   if (C.getDriver().isSaveTempsEnabled())
@@ -226,7 +268,7 @@ void AMDGPUOpenMPToolChain::addClangTargetOptions(
   std::string BitcodeSuffix;
   if (DriverArgs.hasFlag(options::OPT_fopenmp_target_new_runtime,
                          options::OPT_fno_openmp_target_new_runtime, false))
-    BitcodeSuffix = "new-amdgcn-" + GPUArch;
+    BitcodeSuffix = "new-amdgpu-" + GPUArch;
   else
     BitcodeSuffix = "amdgcn-" + GPUArch;
 

@@ -18,12 +18,13 @@
 #include <__iterator/iterator_traits.h>
 #include <__utility/swap.h>
 
+#if defined(_LIBCPP_DEBUG_RANDOMIZE_UNSPECIFIED_STABILITY)
+#  include <__algorithm/shuffle.h>
+#endif
+
 #if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
 #pragma GCC system_header
 #endif
-
-_LIBCPP_PUSH_MACROS
-#include <__undef_macros>
 
 _LIBCPP_BEGIN_NAMESPACE_STD
 
@@ -51,8 +52,10 @@ void
 partial_sort(_RandomAccessIterator __first, _RandomAccessIterator __middle, _RandomAccessIterator __last,
              _Compare __comp)
 {
-    typedef typename __comp_ref_type<_Compare>::type _Comp_ref;
-    _VSTD::__partial_sort<_Comp_ref>(__first, __middle, __last, __comp);
+  _LIBCPP_DEBUG_RANDOMIZE_RANGE(__first, __last);
+  typedef typename __comp_ref_type<_Compare>::type _Comp_ref;
+  _VSTD::__partial_sort<_Comp_ref>(__first, __middle, __last, __comp);
+  _LIBCPP_DEBUG_RANDOMIZE_RANGE(__middle, __last);
 }
 
 template <class _RandomAccessIterator>
@@ -65,7 +68,5 @@ partial_sort(_RandomAccessIterator __first, _RandomAccessIterator __middle, _Ran
 }
 
 _LIBCPP_END_NAMESPACE_STD
-
-_LIBCPP_POP_MACROS
 
 #endif // _LIBCPP___ALGORITHM_PARTIAL_SORT_H

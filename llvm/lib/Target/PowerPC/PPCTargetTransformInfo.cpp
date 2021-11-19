@@ -485,6 +485,9 @@ bool PPCTTIImpl::mightUseCTR(BasicBlock *BB, TargetLibraryInfo *LibInfo,
           case Intrinsic::experimental_constrained_sin:
           case Intrinsic::experimental_constrained_cos:
             return true;
+          // There is no corresponding FMA instruction for PPC double double.
+          // Thus, we need to disable CTR loop generation for this type.
+          case Intrinsic::fmuladd:
           case Intrinsic::copysign:
             if (CI->getArgOperand(0)->getType()->getScalarType()->
                 isPPC_FP128Ty())
@@ -787,7 +790,8 @@ bool PPCTTIImpl::isHardwareLoopProfitable(Loop *L, ScalarEvolution &SE,
 }
 
 void PPCTTIImpl::getUnrollingPreferences(Loop *L, ScalarEvolution &SE,
-                                         TTI::UnrollingPreferences &UP) {
+                                         TTI::UnrollingPreferences &UP,
+                                         OptimizationRemarkEmitter *ORE) {
   if (ST->getCPUDirective() == PPC::DIR_A2) {
     // The A2 is in-order with a deep pipeline, and concatenation unrolling
     // helps expose latency-hiding opportunities to the instruction scheduler.
@@ -798,7 +802,7 @@ void PPCTTIImpl::getUnrollingPreferences(Loop *L, ScalarEvolution &SE,
     UP.AllowExpensiveTripCount = true;
   }
 
-  BaseT::getUnrollingPreferences(L, SE, UP);
+  BaseT::getUnrollingPreferences(L, SE, UP, ORE);
 }
 
 void PPCTTIImpl::getPeelingPreferences(Loop *L, ScalarEvolution &SE,

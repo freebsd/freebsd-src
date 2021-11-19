@@ -227,6 +227,10 @@ static cl::opt<bool> ListDependentLibrariesOnly(
         "Instead of running LTO, list the dependent libraries in each IR file"),
     cl::cat(LTOCategory));
 
+static cl::opt<bool> QueryHasCtorDtor(
+    "query-hasCtorDtor", cl::init(false),
+    cl::desc("Queries LTOModule::hasCtorDtor() on each IR file"));
+
 static cl::opt<bool>
     SetMergedModule("set-merged-module", cl::init(false),
                     cl::desc("Use the first input module as the merged module"),
@@ -371,7 +375,7 @@ static void printIndexStats() {
         ExitOnErr(getModuleSummaryIndexForFile(Filename));
     // Skip files without a module summary.
     if (!Index)
-      report_fatal_error(Filename + " does not contain an index");
+      report_fatal_error(Twine(Filename) + " does not contain an index");
 
     unsigned Calls = 0, Refs = 0, Functions = 0, Alias = 0, Globals = 0;
     for (auto &Summaries : *Index) {
@@ -394,22 +398,27 @@ static void printIndexStats() {
   }
 }
 
-/// List symbols in each IR file.
+/// Load each IR file and dump certain information based on active flags.
 ///
 /// The main point here is to provide lit-testable coverage for the LTOModule
-/// functionality that's exposed by the C API to list symbols.  Moreover, this
-/// provides testing coverage for modules that have been created in their own
-/// contexts.
-static void listSymbols(const TargetOptions &Options) {
+/// functionality that's exposed by the C API. Moreover, this provides testing
+/// coverage for modules that have been created in their own contexts.
+static void testLTOModule(const TargetOptions &Options) {
   for (auto &Filename : InputFilenames) {
     std::unique_ptr<MemoryBuffer> Buffer;
     std::unique_ptr<LTOModule> Module =
         getLocalLTOModule(Filename, Buffer, Options);
 
-    // List the symbols.
-    outs() << Filename << ":\n";
-    for (int I = 0, E = Module->getSymbolCount(); I != E; ++I)
-      outs() << Module->getSymbolName(I) << "\n";
+    if (ListSymbolsOnly) {
+      // List the symbols.
+      outs() << Filename << ":\n";
+      for (int I = 0, E = Module->getSymbolCount(); I != E; ++I)
+        outs() << Module->getSymbolName(I) << "\n";
+    }
+    if (QueryHasCtorDtor)
+      outs() << Filename
+             << ": hasCtorDtor = " << (Module->hasCtorDtor() ? "true" : "false")
+             << "\n";
   }
 }
 
@@ -478,6 +487,10 @@ static void createCombinedModuleSummaryIndex() {
         ExitOnErr(errorOrToExpected(MemoryBuffer::getFileOrSTDIN(Filename)));
     ExitOnErr(readModuleSummaryIndex(*MB, CombinedIndex, NextModuleId++));
   }
+  // In order to use this index for testing, specifically import testing, we
+  // need to update any indirect call edges created from SamplePGO, so that they
+  // point to the correct GUIDs.
+  updateIndirectCalls(CombinedIndex);
   std::error_code EC;
   assert(!OutputFilename.empty());
   raw_fd_ostream OS(OutputFilename + ".thinlto.bc", EC,
@@ -939,8 +952,8 @@ int main(int argc, char **argv) {
   // set up the TargetOptions for the machine
   TargetOptions Options = codegen::InitTargetOptionsFromCodeGenFlags(Triple());
 
-  if (ListSymbolsOnly) {
-    listSymbols(Options);
+  if (ListSymbolsOnly || QueryHasCtorDtor) {
+    testLTOModule(Options);
     return 0;
   }
 
@@ -1050,7 +1063,7 @@ int main(int argc, char **argv) {
     CodeGen.addMustPreserveSymbol(KeptDSOSyms[i]);
 
   // Set cpu and attrs strings for the default target/subtarget.
-  CodeGen.setCpu(codegen::getMCPU().c_str());
+  CodeGen.setCpu(codegen::getMCPU());
 
   CodeGen.setOptLevel(OptLevel - '0');
   CodeGen.setAttrs(codegen::getMAttrs());
@@ -1084,8 +1097,7 @@ int main(int argc, char **argv) {
         error("writing merged module failed.");
     }
 
-    auto AddStream =
-        [&](size_t Task) -> std::unique_ptr<lto::NativeObjectStream> {
+    auto AddStream = [&](size_t Task) -> std::unique_ptr<CachedFileStream> {
       std::string PartFilename = OutputFilename;
       if (Parallelism != 1)
         PartFilename += "." + utostr(Task);
@@ -1095,7 +1107,7 @@ int main(int argc, char **argv) {
           std::make_unique<raw_fd_ostream>(PartFilename, EC, sys::fs::OF_None);
       if (EC)
         error("error opening the file '" + PartFilename + "': " + EC.message());
-      return std::make_unique<lto::NativeObjectStream>(std::move(S));
+      return std::make_unique<CachedFileStream>(std::move(S));
     };
 
     if (!CodeGen.compileOptimized(AddStream, Parallelism))

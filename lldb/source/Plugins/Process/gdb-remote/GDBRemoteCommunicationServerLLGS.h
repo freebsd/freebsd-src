@@ -202,6 +202,8 @@ protected:
 
   PacketResult Handle_vAttachOrWait(StringExtractorGDBRemote &packet);
 
+  PacketResult Handle_vRun(StringExtractorGDBRemote &packet);
+
   PacketResult Handle_D(StringExtractorGDBRemote &packet);
 
   PacketResult Handle_qThreadStopInfo(StringExtractorGDBRemote &packet);
@@ -213,6 +215,8 @@ protected:
   PacketResult Handle_qFileLoadAddress(StringExtractorGDBRemote &packet);
 
   PacketResult Handle_QPassSignals(StringExtractorGDBRemote &packet);
+
+  PacketResult Handle_qSaveCore(StringExtractorGDBRemote &packet);
 
   PacketResult Handle_g(StringExtractorGDBRemote &packet);
 
@@ -284,6 +288,8 @@ private:
   const GDBRemoteCommunicationServerLLGS &
   operator=(const GDBRemoteCommunicationServerLLGS &) = delete;
 };
+
+std::string LLGSArgToURL(llvm::StringRef url_arg, bool reverse_connect);
 
 } // namespace process_gdb_remote
 } // namespace lldb_private

@@ -796,7 +796,7 @@ void Module::LookupInfo::Prune(SymbolContextList &sc_list,
 void Module::FindFunctions(ConstString name,
                            const CompilerDeclContext &parent_decl_ctx,
                            FunctionNameType name_type_mask,
-                           bool include_symbols, bool include_inlines,
+                           const ModuleFunctionSearchOptions &options,
                            SymbolContextList &sc_list) {
   const size_t old_size = sc_list.GetSize();
 
@@ -808,12 +808,12 @@ void Module::FindFunctions(ConstString name,
 
     if (symbols) {
       symbols->FindFunctions(lookup_info.GetLookupName(), parent_decl_ctx,
-                             lookup_info.GetNameTypeMask(), include_inlines,
-                             sc_list);
+                             lookup_info.GetNameTypeMask(),
+                             options.include_inlines, sc_list);
 
       // Now check our symbol table for symbols that are code symbols if
       // requested
-      if (include_symbols) {
+      if (options.include_symbols) {
         Symtab *symtab = symbols->GetSymtab();
         if (symtab)
           symtab->FindFunctionSymbols(lookup_info.GetLookupName(),
@@ -828,11 +828,11 @@ void Module::FindFunctions(ConstString name,
   } else {
     if (symbols) {
       symbols->FindFunctions(name, parent_decl_ctx, name_type_mask,
-                             include_inlines, sc_list);
+                             options.include_inlines, sc_list);
 
       // Now check our symbol table for symbols that are code symbols if
       // requested
-      if (include_symbols) {
+      if (options.include_symbols) {
         Symtab *symtab = symbols->GetSymtab();
         if (symtab)
           symtab->FindFunctionSymbols(name, name_type_mask, sc_list);
@@ -841,17 +841,17 @@ void Module::FindFunctions(ConstString name,
   }
 }
 
-void Module::FindFunctions(const RegularExpression &regex, bool include_symbols,
-                           bool include_inlines,
+void Module::FindFunctions(const RegularExpression &regex,
+                           const ModuleFunctionSearchOptions &options,
                            SymbolContextList &sc_list) {
   const size_t start_size = sc_list.GetSize();
 
   if (SymbolFile *symbols = GetSymbolFile()) {
-    symbols->FindFunctions(regex, include_inlines, sc_list);
+    symbols->FindFunctions(regex, options.include_inlines, sc_list);
 
     // Now check our symbol table for symbols that are code symbols if
     // requested
-    if (include_symbols) {
+    if (options.include_symbols) {
       Symtab *symtab = symbols->GetSymtab();
       if (symtab) {
         std::vector<uint32_t> symbol_indexes;
@@ -1614,24 +1614,23 @@ llvm::Optional<std::string> Module::RemapSourceFile(llvm::StringRef path) const 
 
 void Module::RegisterXcodeSDK(llvm::StringRef sdk_name, llvm::StringRef sysroot) {
   XcodeSDK sdk(sdk_name.str());
-  ConstString sdk_path(HostInfo::GetXcodeSDKPath(sdk));
-  if (!sdk_path)
+  llvm::StringRef sdk_path(HostInfo::GetXcodeSDKPath(sdk));
+  if (sdk_path.empty())
     return;
   // If the SDK changed for a previously registered source path, update it.
   // This could happend with -fdebug-prefix-map, otherwise it's unlikely.
-  ConstString sysroot_cs(sysroot);
-  if (!m_source_mappings.Replace(sysroot_cs, sdk_path, true))
+  if (!m_source_mappings.Replace(sysroot, sdk_path, true))
     // In the general case, however, append it to the list.
-    m_source_mappings.Append(sysroot_cs, sdk_path, false);
+    m_source_mappings.Append(sysroot, sdk_path, false);
 }
 
 bool Module::MergeArchitecture(const ArchSpec &arch_spec) {
   if (!arch_spec.IsValid())
     return false;
-  LLDB_LOG(GetLogIfAllCategoriesSet(LIBLLDB_LOG_OBJECT | LIBLLDB_LOG_MODULES),
-           "module has arch %s, merging/replacing with arch %s",
-           m_arch.GetTriple().getTriple().c_str(),
-           arch_spec.GetTriple().getTriple().c_str());
+  LLDB_LOGF(GetLogIfAllCategoriesSet(LIBLLDB_LOG_OBJECT | LIBLLDB_LOG_MODULES),
+            "module has arch %s, merging/replacing with arch %s",
+            m_arch.GetTriple().getTriple().c_str(),
+            arch_spec.GetTriple().getTriple().c_str());
   if (!m_arch.IsCompatibleMatch(arch_spec)) {
     // The new architecture is different, we just need to replace it.
     return SetArchitecture(arch_spec);

@@ -1,4 +1,4 @@
-//===-------------------------- DwarfInstructions.hpp ---------------------===//
+//===----------------------------------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -115,12 +115,15 @@ double DwarfInstructions<A, R>::getSavedFloatRegister(
     return addressSpace.getDouble(
         evaluateExpression((pint_t)savedReg.value, addressSpace,
                             registers, cfa));
-
+  case CFI_Parser<A>::kRegisterUndefined:
+    return 0.0;
+  case CFI_Parser<A>::kRegisterInRegister:
+#ifndef _LIBUNWIND_TARGET_ARM
+    return registers.getFloatRegister((int)savedReg.value);
+#endif
   case CFI_Parser<A>::kRegisterIsExpression:
   case CFI_Parser<A>::kRegisterUnused:
-  case CFI_Parser<A>::kRegisterUndefined:
   case CFI_Parser<A>::kRegisterOffsetFromCFA:
-  case CFI_Parser<A>::kRegisterInRegister:
     // FIX ME
     break;
   }
@@ -219,7 +222,7 @@ int DwarfInstructions<A, R>::stepWithDwarf(A &addressSpace, pint_t pc,
       // restored. autia1716 is used instead of autia as autia1716 assembles
       // to a NOP on pre-v8.3a architectures.
       if ((R::getArch() == REGISTERS_ARM64) &&
-          prolog.savedRegisters[UNW_ARM64_RA_SIGN_STATE].value &&
+          prolog.savedRegisters[UNW_AARCH64_RA_SIGN_STATE].value &&
           returnAddress != 0) {
 #if !defined(_LIBUNWIND_IS_NATIVE_ONLY)
         return UNW_ECROSSRASIGNING;

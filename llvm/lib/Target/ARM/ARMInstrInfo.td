@@ -1252,7 +1252,7 @@ def addrmode5_pre : AddrMode5 {
 // addrmode5fp16 := reg +/- imm8*2
 //
 def AddrMode5FP16AsmOperand : AsmOperandClass { let Name = "AddrMode5FP16"; }
-class AddrMode5FP16 : Operand<i32>,
+class AddrMode5FP16 : MemOperand,
                       ComplexPattern<i32, 2, "SelectAddrMode5FP16", []> {
   let EncoderMethod = "getAddrMode5FP16OpValue";
   let DecoderMethod = "DecodeAddrMode5FP16Operand";
@@ -1589,7 +1589,7 @@ multiclass AsI1_bin_irs<bits<4> opcod, string opc,
 let TwoOperandAliasConstraint = "$Rn = $Rd" in
 multiclass AsI1_rbin_irs<bits<4> opcod, string opc,
                      InstrItinClass iii, InstrItinClass iir, InstrItinClass iis,
-                     SDNode opnode, bit Commutable = 0> {
+                     SDNode opnode> {
   // The register-immediate version is re-materializable. This is useful
   // in particular for taking the address of a local.
   let isReMaterializable = 1 in {
@@ -1693,9 +1693,8 @@ multiclass AsI1_bin_s_irs<InstrItinClass iii, InstrItinClass iir,
 /// AsI1_rbin_s_is - Same as AsI1_bin_s_irs, except selection DAG
 /// operands are reversed.
 let hasPostISelHook = 1, Defs = [CPSR] in {
-multiclass AsI1_rbin_s_is<InstrItinClass iii, InstrItinClass iir,
-                          InstrItinClass iis, SDNode opnode,
-                          bit Commutable = 0> {
+multiclass AsI1_rbin_s_is<InstrItinClass iii,
+                          InstrItinClass iis, SDNode opnode> {
   def ri : ARMPseudoInst<(outs GPR:$Rd), (ins GPR:$Rn, mod_imm:$imm, pred:$p),
                          4, iii,
                          [(set GPR:$Rd, CPSR, (opnode mod_imm:$imm, GPR:$Rn))]>,
@@ -3853,7 +3852,7 @@ defm RSB  : AsI1_rbin_irs<0b0011, "rsb",
 
 // FIXME: Eliminate them if we can write def : Pat patterns which defines
 // CPSR and the implicit def of CPSR is not needed.
-defm RSBS : AsI1_rbin_s_is<IIC_iALUi, IIC_iALUr, IIC_iALUsr, ARMsubc>;
+defm RSBS : AsI1_rbin_s_is<IIC_iALUi, IIC_iALUsr, ARMsubc>;
 
 defm RSC : AI1_rsc_irs<0b0111, "rsc", ARMsube>;
 
@@ -5391,14 +5390,16 @@ def CDP2 : ABXI<0b1110, (outs), (ins p_imm:$cop, imm0_15:$opc1,
 }
 
 class ACI<dag oops, dag iops, string opc, string asm,
-            list<dag> pattern, IndexMode im = IndexModeNone>
-  : I<oops, iops, AddrModeNone, 4, im, BrFrm, NoItinerary,
+            list<dag> pattern, IndexMode im = IndexModeNone,
+            AddrMode am = AddrModeNone>
+  : I<oops, iops, am, 4, im, BrFrm, NoItinerary,
       opc, asm, "", pattern> {
   let Inst{27-25} = 0b110;
 }
 class ACInoP<dag oops, dag iops, string opc, string asm,
-          list<dag> pattern, IndexMode im = IndexModeNone>
-  : InoP<oops, iops, AddrModeNone, 4, im, BrFrm, NoItinerary,
+          list<dag> pattern, IndexMode im = IndexModeNone,
+          AddrMode am = AddrModeNone>
+  : InoP<oops, iops, am, 4, im, BrFrm, NoItinerary,
          opc, asm, "", pattern> {
   let Inst{31-28} = 0b1111;
   let Inst{27-25} = 0b110;
@@ -5407,7 +5408,8 @@ class ACInoP<dag oops, dag iops, string opc, string asm,
 let DecoderNamespace = "CoProc" in {
 multiclass LdStCop<bit load, bit Dbit, string asm, list<dag> pattern> {
   def _OFFSET : ACI<(outs), (ins p_imm:$cop, c_imm:$CRd, addrmode5:$addr),
-                    asm, "\t$cop, $CRd, $addr", pattern> {
+                    asm, "\t$cop, $CRd, $addr", pattern, IndexModeNone,
+                    AddrMode5> {
     bits<13> addr;
     bits<4> cop;
     bits<4> CRd;
@@ -5478,7 +5480,8 @@ multiclass LdStCop<bit load, bit Dbit, string asm, list<dag> pattern> {
 }
 multiclass LdSt2Cop<bit load, bit Dbit, string asm, list<dag> pattern> {
   def _OFFSET : ACInoP<(outs), (ins p_imm:$cop, c_imm:$CRd, addrmode5:$addr),
-                       asm, "\t$cop, $CRd, $addr", pattern> {
+                       asm, "\t$cop, $CRd, $addr", pattern, IndexModeNone,
+                       AddrMode5> {
     bits<13> addr;
     bits<4> cop;
     bits<4> CRd;

@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "AMDGPULDSUtils.h"
+#include "AMDGPU.h"
 #include "Utils/AMDGPUBaseInfo.h"
 #include "llvm/ADT/DepthFirstIterator.h"
 #include "llvm/ADT/SetVector.h"
@@ -66,6 +67,11 @@ class CollectReachableCallees {
       auto *CGN = CGNStack.pop_back_val();
 
       if (!VisitedCGNodes.insert(CGN).second)
+        continue;
+
+      // Ignore call graph node which does not have associated function or
+      // associated function is not a definition.
+      if (!CGN->getFunction() || CGN->getFunction()->isDeclaration())
         continue;
 
       for (auto GI = CGN->begin(), GE = CGN->end(); GI != GE; ++GI) {

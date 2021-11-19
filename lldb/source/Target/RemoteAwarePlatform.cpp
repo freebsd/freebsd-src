@@ -72,8 +72,7 @@ Status RemoteAwarePlatform::ResolveExecutable(
   } else {
     if (m_remote_platform_sp) {
       return GetCachedExecutable(resolved_module_spec, exe_module_sp,
-                                 module_search_paths_ptr,
-                                 *m_remote_platform_sp);
+                                 module_search_paths_ptr);
     }
 
     // We may connect to a process and use the provided executable (Don't use
@@ -154,10 +153,10 @@ Status RemoteAwarePlatform::ResolveExecutable(
       if (error.Fail() || !exe_module_sp) {
         if (FileSystem::Instance().Readable(
                 resolved_module_spec.GetFileSpec())) {
-          error.SetErrorStringWithFormat(
-              "'%s' doesn't contain any '%s' platform architectures: %s",
-              resolved_module_spec.GetFileSpec().GetPath().c_str(),
-              GetPluginName().GetCString(), arch_names.GetData());
+          error.SetErrorStringWithFormatv(
+              "'{0}' doesn't contain any '{1}' platform architectures: {2}",
+              resolved_module_spec.GetFileSpec(), GetPluginName(),
+              arch_names.GetData());
         } else {
           error.SetErrorStringWithFormat(
               "'%s' is not readable",
@@ -332,18 +331,16 @@ bool RemoteAwarePlatform::GetRemoteOSVersion() {
   return false;
 }
 
-bool RemoteAwarePlatform::GetRemoteOSBuildString(std::string &s) {
+llvm::Optional<std::string> RemoteAwarePlatform::GetRemoteOSBuildString() {
   if (m_remote_platform_sp)
-    return m_remote_platform_sp->GetRemoteOSBuildString(s);
-  s.clear();
-  return false;
+    return m_remote_platform_sp->GetRemoteOSBuildString();
+  return llvm::None;
 }
 
-bool RemoteAwarePlatform::GetRemoteOSKernelDescription(std::string &s) {
+llvm::Optional<std::string> RemoteAwarePlatform::GetRemoteOSKernelDescription() {
   if (m_remote_platform_sp)
-    return m_remote_platform_sp->GetRemoteOSKernelDescription(s);
-  s.clear();
-  return false;
+    return m_remote_platform_sp->GetRemoteOSKernelDescription();
+  return llvm::None;
 }
 
 ArchSpec RemoteAwarePlatform::GetRemoteSystemArchitecture() {

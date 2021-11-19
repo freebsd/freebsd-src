@@ -12,6 +12,7 @@
 #include "GDBRemoteCommunicationHistory.h"
 
 #include <condition_variable>
+#include <future>
 #include <mutex>
 #include <queue>
 #include <string>
@@ -49,6 +50,32 @@ enum class CompressionType {
   LZ4, // lz compression - called "lz4 raw" in libcompression terms, compat with
        // https://code.google.com/p/lz4/
   LZMA, // Lempel–Ziv–Markov chain algorithm
+};
+
+// Data included in the vFile:fstat packet.
+// https://sourceware.org/gdb/onlinedocs/gdb/struct-stat.html#struct-stat
+struct GDBRemoteFStatData {
+  llvm::support::ubig32_t gdb_st_dev;
+  llvm::support::ubig32_t gdb_st_ino;
+  llvm::support::ubig32_t gdb_st_mode;
+  llvm::support::ubig32_t gdb_st_nlink;
+  llvm::support::ubig32_t gdb_st_uid;
+  llvm::support::ubig32_t gdb_st_gid;
+  llvm::support::ubig32_t gdb_st_rdev;
+  llvm::support::ubig64_t gdb_st_size;
+  llvm::support::ubig64_t gdb_st_blksize;
+  llvm::support::ubig64_t gdb_st_blocks;
+  llvm::support::ubig32_t gdb_st_atime;
+  llvm::support::ubig32_t gdb_st_mtime;
+  llvm::support::ubig32_t gdb_st_ctime;
+};
+static_assert(sizeof(GDBRemoteFStatData) == 64,
+              "size of GDBRemoteFStatData is not 64");
+
+enum GDBErrno {
+#define HANDLE_ERRNO(name, value) GDB_##name = value,
+#include "Plugins/Process/gdb-remote/GDBRemoteErrno.def"
+  GDB_EUNKNOWN = 9999
 };
 
 class ProcessGDBRemote;
@@ -217,6 +244,8 @@ private:
   std::mutex m_packet_queue_mutex; // Mutex for accessing queue
   std::condition_variable
       m_condition_queue_not_empty; // Condition variable to wait for packets
+  // Promise used to grab the port number from listening thread
+  std::promise<uint16_t> m_port_promise;
 
   HostThread m_listen_thread;
   std::string m_listen_url;

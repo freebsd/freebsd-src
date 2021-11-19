@@ -35,10 +35,10 @@
 #include "llvm/CodeGen/StackMaps.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCInst.h"
+#include "llvm/MC/TargetRegistry.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
-#include "llvm/Support/TargetRegistry.h"
 #include "llvm/Support/raw_ostream.h"
 
 using namespace llvm;
@@ -1109,6 +1109,8 @@ bool PPCInstrInfo::isReallyTriviallyReMaterializable(const MachineInstr &MI,
   case PPC::XXLXORdpz:
   case PPC::XXLEQVOnes:
   case PPC::XXSPLTI32DX:
+  case PPC::XXSPLTIW:
+  case PPC::XXSPLTIDP:
   case PPC::V_SET0B:
   case PPC::V_SET0H:
   case PPC::V_SET0:
@@ -1539,6 +1541,11 @@ bool PPCInstrInfo::canInsertSelect(const MachineBasicBlock &MBB,
   // If this is really a bdnz-like condition, then it cannot be turned into a
   // select.
   if (Cond[1].getReg() == PPC::CTR || Cond[1].getReg() == PPC::CTR8)
+    return false;
+
+  // If the conditional branch uses a physical register, then it cannot be
+  // turned into a select.
+  if (Register::isPhysicalRegister(Cond[1].getReg()))
     return false;
 
   // Check register classes.
@@ -2239,11 +2246,13 @@ bool PPCInstrInfo::PredicateInstruction(MachineInstr &MI,
 
     return true;
   } else if (OpC == PPC::BCTR || OpC == PPC::BCTR8 || OpC == PPC::BCTRL ||
-             OpC == PPC::BCTRL8) {
+             OpC == PPC::BCTRL8 || OpC == PPC::BCTRL_RM ||
+             OpC == PPC::BCTRL8_RM) {
     if (Pred[1].getReg() == PPC::CTR8 || Pred[1].getReg() == PPC::CTR)
       llvm_unreachable("Cannot predicate bctr[l] on the ctr register");
 
-    bool setLR = OpC == PPC::BCTRL || OpC == PPC::BCTRL8;
+    bool setLR = OpC == PPC::BCTRL || OpC == PPC::BCTRL8 ||
+                 OpC == PPC::BCTRL_RM || OpC == PPC::BCTRL8_RM;
     bool isPPC64 = Subtarget.isPPC64();
 
     if (Pred[0].getImm() == PPC::PRED_BIT_SET) {
@@ -2267,6 +2276,9 @@ bool PPCInstrInfo::PredicateInstruction(MachineInstr &MI,
       MachineInstrBuilder(*MI.getParent()->getParent(), MI)
           .addReg(isPPC64 ? PPC::LR8 : PPC::LR, RegState::Implicit)
           .addReg(isPPC64 ? PPC::LR8 : PPC::LR, RegState::ImplicitDefine);
+    if (OpC == PPC::BCTRL_RM || OpC == PPC::BCTRL8_RM)
+      MachineInstrBuilder(*MI.getParent()->getParent(), MI)
+          .addReg(PPC::RM, RegState::ImplicitDefine);
 
     return true;
   }
@@ -2343,8 +2355,8 @@ bool PPCInstrInfo::ClobbersPredicate(MachineInstr &MI,
 }
 
 bool PPCInstrInfo::analyzeCompare(const MachineInstr &MI, Register &SrcReg,
-                                  Register &SrcReg2, int &Mask,
-                                  int &Value) const {
+                                  Register &SrcReg2, int64_t &Mask,
+                                  int64_t &Value) const {
   unsigned Opc = MI.getOpcode();
 
   switch (Opc) {
@@ -2373,7 +2385,8 @@ bool PPCInstrInfo::analyzeCompare(const MachineInstr &MI, Register &SrcReg,
 }
 
 bool PPCInstrInfo::optimizeCompareInstr(MachineInstr &CmpInstr, Register SrcReg,
-                                        Register SrcReg2, int Mask, int Value,
+                                        Register SrcReg2, int64_t Mask,
+                                        int64_t Value,
                                         const MachineRegisterInfo *MRI) const {
   if (DisableCmpOpt)
     return false;
@@ -3009,7 +3022,7 @@ bool PPCInstrInfo::expandPostRAPseudo(MachineInstr &MI) const {
             .addReg(SrcVSR + VecNo)
             .addReg(SrcVSR + VecNo);
     }
-    // BUILD_UACC is expanded to 4 copies of the underlying vsx regisers.
+    // BUILD_UACC is expanded to 4 copies of the underlying vsx registers.
     // So after building the 4 copies, we can replace the BUILD_UACC instruction
     // with a NOP.
     LLVM_FALLTHROUGH;
@@ -3103,6 +3116,7 @@ bool PPCInstrInfo::expandPostRAPseudo(MachineInstr &MI) const {
     return true;
   }
 
+    // FIXME: Maybe we can expand it in 'PowerPC Expand Atomic' pass.
   case PPC::CFENCE8: {
     auto Val = MI.getOperand(0).getReg();
     BuildMI(MBB, MI, DL, get(PPC::CMPD), PPC::CR7).addReg(Val).addReg(Val);
@@ -3770,7 +3784,7 @@ bool PPCInstrInfo::combineRLWINM(MachineInstr &MI,
   bool Simplified = false;
 
   // If final mask is 0, MI result should be 0 too.
-  if (FinalMask.isNullValue()) {
+  if (FinalMask.isZero()) {
     bool Is64Bit =
         (MI.getOpcode() == PPC::RLWINM8 || MI.getOpcode() == PPC::RLWINM8_rec);
     Simplified = true;
@@ -5241,8 +5255,7 @@ PPCInstrInfo::isSignOrZeroExtended(const MachineInstr &MI, bool SignExt,
               return false;
             const IntegerType *IntTy =
               dyn_cast<IntegerType>(CalleeFn->getReturnType());
-            const AttributeSet &Attrs =
-              CalleeFn->getAttributes().getRetAttributes();
+            const AttributeSet &Attrs = CalleeFn->getAttributes().getRetAttrs();
             if (IntTy && IntTy->getBitWidth() <= 32)
               return Attrs.hasAttribute(SignExt ? Attribute::SExt :
                                                   Attribute::ZExt);

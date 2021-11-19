@@ -35,6 +35,7 @@
 #include "llvm/IR/Intrinsics.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/MDBuilder.h"
+#include "llvm/IR/MatrixBuilder.h"
 #include "llvm/Support/ConvertUTF.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/Path.h"
@@ -94,7 +95,7 @@ Address CodeGenFunction::CreateTempAlloca(llvm::Type *Ty, CharUnits Align,
     // otherwise alloca is inserted at the current insertion point of the
     // builder.
     if (!ArraySize)
-      Builder.SetInsertPoint(AllocaInsertPt);
+      Builder.SetInsertPoint(getPostAllocaInsertPoint());
     V = getTargetHooks().performAddrSpaceCast(
         *this, V, getASTAllocaAddressSpace(), LangAS::Default,
         Ty->getPointerTo(DestAddrSpace), /*non-null*/ true);
@@ -122,21 +123,8 @@ llvm::AllocaInst *CodeGenFunction::CreateTempAlloca(llvm::Type *Ty,
 Address CodeGenFunction::CreateDefaultAlignTempAlloca(llvm::Type *Ty,
                                                       const Twine &Name) {
   CharUnits Align =
-    CharUnits::fromQuantity(CGM.getDataLayout().getABITypeAlignment(Ty));
+      CharUnits::fromQuantity(CGM.getDataLayout().getPrefTypeAlignment(Ty));
   return CreateTempAlloca(Ty, Align, Name);
-}
-
-void CodeGenFunction::InitTempAlloca(Address Var, llvm::Value *Init) {
-  auto *Alloca = Var.getPointer();
-  assert(isa<llvm::AllocaInst>(Alloca) ||
-         (isa<llvm::AddrSpaceCastInst>(Alloca) &&
-          isa<llvm::AllocaInst>(
-              cast<llvm::AddrSpaceCastInst>(Alloca)->getPointerOperand())));
-
-  auto *Store = new llvm::StoreInst(Init, Alloca, /*volatile*/ false,
-                                    Var.getAlignment().getAsAlign());
-  llvm::BasicBlock *Block = AllocaInsertPt->getParent();
-  Block->getInstList().insertAfter(AllocaInsertPt->getIterator(), Store);
 }
 
 Address CodeGenFunction::CreateIRTemp(QualType Ty, const Twine &Name) {
@@ -580,8 +568,7 @@ EmitMaterializeTemporaryExpr(const MaterializeTemporaryExpr *M) {
   // Perform derived-to-base casts and/or field accesses, to get from the
   // temporary object we created (and, potentially, for which we extended
   // the lifetime) to the subobject we're binding the reference to.
-  for (unsigned I = Adjustments.size(); I != 0; --I) {
-    SubobjectAdjustment &Adjustment = Adjustments[I-1];
+  for (SubobjectAdjustment &Adjustment : llvm::reverse(Adjustments)) {
     switch (Adjustment.Kind) {
     case SubobjectAdjustment::DerivedToBaseAdjustment:
       Object =
@@ -667,9 +654,9 @@ bool CodeGenFunction::isVptrCheckRequired(TypeCheckKind TCK, QualType Ty) {
 }
 
 bool CodeGenFunction::sanitizePerformTypeCheck() const {
-  return SanOpts.has(SanitizerKind::Null) |
-         SanOpts.has(SanitizerKind::Alignment) |
-         SanOpts.has(SanitizerKind::ObjectSize) |
+  return SanOpts.has(SanitizerKind::Null) ||
+         SanOpts.has(SanitizerKind::Alignment) ||
+         SanOpts.has(SanitizerKind::ObjectSize) ||
          SanOpts.has(SanitizerKind::Vptr);
 }
 
@@ -1642,7 +1629,7 @@ static bool getRangeForType(CodeGenFunction &CGF, QualType Ty,
     } else {
       assert(NumPositiveBits <= Bitwidth);
       End = llvm::APInt(Bitwidth, 1) << NumPositiveBits;
-      Min = llvm::APInt(Bitwidth, 0);
+      Min = llvm::APInt::getZero(Bitwidth);
     }
   }
   return true;
@@ -1939,10 +1926,15 @@ RValue CodeGenFunction::EmitLoadOfLValue(LValue LV, SourceLocation Loc) {
     return EmitLoadOfGlobalRegLValue(LV);
 
   if (LV.isMatrixElt()) {
+    llvm::Value *Idx = LV.getMatrixIdx();
+    if (CGM.getCodeGenOpts().OptimizationLevel > 0) {
+      const auto *const MatTy = LV.getType()->getAs<ConstantMatrixType>();
+      llvm::MatrixBuilder<CGBuilderTy> MB(Builder);
+      MB.CreateIndexAssumption(Idx, MatTy->getNumElementsFlattened());
+    }
     llvm::LoadInst *Load =
         Builder.CreateLoad(LV.getMatrixAddress(), LV.isVolatileQualified());
-    return RValue::get(
-        Builder.CreateExtractElement(Load, LV.getMatrixIdx(), "matrixext"));
+    return RValue::get(Builder.CreateExtractElement(Load, Idx, "matrixext"));
   }
 
   assert(LV.isBitField() && "Unknown LValue type!");
@@ -2080,9 +2072,15 @@ void CodeGenFunction::EmitStoreThroughLValue(RValue Src, LValue Dst,
       return EmitStoreThroughGlobalRegLValue(Src, Dst);
 
     if (Dst.isMatrixElt()) {
-      llvm::Value *Vec = Builder.CreateLoad(Dst.getMatrixAddress());
-      Vec = Builder.CreateInsertElement(Vec, Src.getScalarVal(),
-                                        Dst.getMatrixIdx(), "matins");
+      llvm::Value *Idx = Dst.getMatrixIdx();
+      if (CGM.getCodeGenOpts().OptimizationLevel > 0) {
+        const auto *const MatTy = Dst.getType()->getAs<ConstantMatrixType>();
+        llvm::MatrixBuilder<CGBuilderTy> MB(Builder);
+        MB.CreateIndexAssumption(Idx, MatTy->getNumElementsFlattened());
+      }
+      llvm::Instruction *Load = Builder.CreateLoad(Dst.getMatrixAddress());
+      llvm::Value *Vec =
+          Builder.CreateInsertElement(Load, Src.getScalarVal(), Idx, "matins");
       Builder.CreateStore(Vec, Dst.getMatrixAddress(),
                           Dst.isVolatileQualified());
       return;
@@ -3498,7 +3496,7 @@ void CodeGenFunction::EmitTrapCheck(llvm::Value *Checked,
     if (!CGM.getCodeGenOpts().TrapFuncName.empty()) {
       auto A = llvm::Attribute::get(getLLVMContext(), "trap-func-name",
                                     CGM.getCodeGenOpts().TrapFuncName);
-      TrapCall->addAttribute(llvm::AttributeList::FunctionIndex, A);
+      TrapCall->addFnAttr(A);
     }
     TrapCall->setDoesNotReturn();
     TrapCall->setDoesNotThrow();
@@ -3522,7 +3520,7 @@ llvm::CallInst *CodeGenFunction::EmitTrapCall(llvm::Intrinsic::ID IntrID) {
   if (!CGM.getCodeGenOpts().TrapFuncName.empty()) {
     auto A = llvm::Attribute::get(getLLVMContext(), "trap-func-name",
                                   CGM.getCodeGenOpts().TrapFuncName);
-    TrapCall->addAttribute(llvm::AttributeList::FunctionIndex, A);
+    TrapCall->addFnAttr(A);
   }
 
   return TrapCall;
@@ -4684,9 +4682,27 @@ LValue CodeGenFunction::EmitCastLValue(const CastExpr *E) {
   case CK_UserDefinedConversion:
   case CK_CPointerToObjCPointerCast:
   case CK_BlockPointerToObjCPointerCast:
-  case CK_NoOp:
   case CK_LValueToRValue:
     return EmitLValue(E->getSubExpr());
+
+  case CK_NoOp: {
+    // CK_NoOp can model a qualification conversion, which can remove an array
+    // bound and change the IR type.
+    // FIXME: Once pointee types are removed from IR, remove this.
+    LValue LV = EmitLValue(E->getSubExpr());
+    if (LV.isSimple()) {
+      Address V = LV.getAddress(*this);
+      if (V.isValid()) {
+        llvm::Type *T =
+            ConvertTypeForMem(E->getType())
+                ->getPointerTo(
+                    cast<llvm::PointerType>(V.getType())->getAddressSpace());
+        if (V.getType() != T)
+          LV.setAddress(Builder.CreateBitCast(V, T));
+      }
+    }
+    return LV;
+  }
 
   case CK_UncheckedDerivedToBase:
   case CK_DerivedToBase: {
@@ -4879,12 +4895,28 @@ static CGCallee EmitDirectCallee(CodeGenFunction &CGF, GlobalDecl GD) {
   const FunctionDecl *FD = cast<FunctionDecl>(GD.getDecl());
 
   if (auto builtinID = FD->getBuiltinID()) {
-    // Replaceable builtin provide their own implementation of a builtin. Unless
-    // we are in the builtin implementation itself, don't call the actual
-    // builtin. If we are in the builtin implementation, avoid trivial infinite
+    std::string FDInlineName = (FD->getName() + ".inline").str();
+    // When directing calling an inline builtin, call it through it's mangled
+    // name to make it clear it's not the actual builtin.
+    if (FD->isInlineBuiltinDeclaration() &&
+        CGF.CurFn->getName() != FDInlineName) {
+      llvm::Constant *CalleePtr = EmitFunctionDeclPointer(CGF.CGM, GD);
+      llvm::Function *Fn = llvm::cast<llvm::Function>(CalleePtr);
+      llvm::Module *M = Fn->getParent();
+      llvm::Function *Clone = M->getFunction(FDInlineName);
+      if (!Clone) {
+        Clone = llvm::Function::Create(Fn->getFunctionType(),
+                                       llvm::GlobalValue::InternalLinkage,
+                                       Fn->getAddressSpace(), FDInlineName, M);
+        Clone->addFnAttr(llvm::Attribute::AlwaysInline);
+      }
+      return CGCallee::forDirect(Clone, GD);
+    }
+
+    // Replaceable builtins provide their own implementation of a builtin. If we
+    // are in an inline builtin implementation, avoid trivial infinite
     // recursion.
-    if (!FD->isInlineBuiltinDeclaration() ||
-        CGF.CurFn->getName() == FD->getName())
+    else
       return CGCallee::forBuiltin(builtinID, FD);
   }
 
@@ -4893,6 +4925,7 @@ static CGCallee EmitDirectCallee(CodeGenFunction &CGF, GlobalDecl GD) {
       FD->hasAttr<CUDAGlobalAttr>())
     CalleePtr = CGF.CGM.getCUDARuntime().getKernelStub(
         cast<llvm::GlobalValue>(CalleePtr->stripPointerCasts()));
+
   return CGCallee::forDirect(CalleePtr, GD);
 }
 
@@ -5306,9 +5339,13 @@ RValue CodeGenFunction::EmitCall(QualType CalleeType, const CGCallee &OrigCallee
   // Generate function declaration DISuprogram in order to be used
   // in debug info about call sites.
   if (CGDebugInfo *DI = getDebugInfo()) {
-    if (auto *CalleeDecl = dyn_cast_or_null<FunctionDecl>(TargetDecl))
-      DI->EmitFuncDeclForCallSite(CallOrInvoke, QualType(FnType, 0),
+    if (auto *CalleeDecl = dyn_cast_or_null<FunctionDecl>(TargetDecl)) {
+      FunctionArgList Args;
+      QualType ResTy = BuildFunctionArgList(CalleeDecl, Args);
+      DI->EmitFuncDeclForCallSite(CallOrInvoke,
+                                  DI->getFunctionType(CalleeDecl, ResTy, Args),
                                   CalleeDecl);
+    }
   }
 
   return Call;

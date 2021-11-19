@@ -51,6 +51,101 @@ struct XCOFFFileHeader64 {
   support::ubig32_t NumberOfSymTableEntries;
 };
 
+template <typename T> struct XCOFFAuxiliaryHeader {
+  static constexpr uint8_t AuxiHeaderFlagMask = 0xF0;
+  static constexpr uint8_t AuxiHeaderTDataAlignmentMask = 0x0F;
+
+public:
+  uint8_t getFlag() const {
+    return static_cast<const T *>(this)->FlagAndTDataAlignment &
+           AuxiHeaderFlagMask;
+  }
+  uint8_t getTDataAlignment() const {
+    return static_cast<const T *>(this)->FlagAndTDataAlignment &
+           AuxiHeaderTDataAlignmentMask;
+  }
+};
+
+struct XCOFFAuxiliaryHeader32 : XCOFFAuxiliaryHeader<XCOFFAuxiliaryHeader32> {
+  support::ubig16_t
+      AuxMagic; ///< If the value of the o_vstamp field is greater than 1, the
+                ///< o_mflags field is reserved for future use and it should
+                ///< contain 0. Otherwise, this field is not used.
+  support::ubig16_t
+      Version; ///< The valid values are 1 and 2. When the o_vstamp field is 2
+               ///< in an XCOFF32 file, the new interpretation of the n_type
+               ///< field in the symbol table entry is used.
+  support::ubig32_t TextSize;
+  support::ubig32_t InitDataSize;
+  support::ubig32_t BssDataSize;
+  support::ubig32_t EntryPointAddr;
+  support::ubig32_t TextStartAddr;
+  support::ubig32_t DataStartAddr;
+  support::ubig32_t TOCAnchorAddr;
+  support::ubig16_t SecNumOfEntryPoint;
+  support::ubig16_t SecNumOfText;
+  support::ubig16_t SecNumOfData;
+  support::ubig16_t SecNumOfTOC;
+  support::ubig16_t SecNumOfLoader;
+  support::ubig16_t SecNumOfBSS;
+  support::ubig16_t MaxAlignOfText;
+  support::ubig16_t MaxAlignOfData;
+  support::ubig16_t ModuleType;
+  uint8_t CpuFlag;
+  uint8_t CpuType;
+  support::ubig32_t MaxStackSize; ///< If the value is 0, the system default
+                                  ///< maximum stack size is used.
+  support::ubig32_t MaxDataSize;  ///< If the value is 0, the system default
+                                  ///< maximum data size is used.
+  support::ubig32_t
+      ReservedForDebugger; ///< This field should contain 0. When a loaded
+                           ///< program is being debugged, the memory image of
+                           ///< this field may be modified by a debugger to
+                           ///< insert a trap instruction.
+  uint8_t TextPageSize;  ///< Specifies the size of pages for the exec text. The
+                         ///< default value is 0 (system-selected page size).
+  uint8_t DataPageSize;  ///< Specifies the size of pages for the exec data. The
+                         ///< default value is 0 (system-selected page size).
+  uint8_t StackPageSize; ///< Specifies the size of pages for the stack. The
+                         ///< default value is 0 (system-selected page size).
+  uint8_t FlagAndTDataAlignment;
+  support::ubig16_t SecNumOfTData;
+  support::ubig16_t SecNumOfTBSS;
+};
+
+struct XCOFFAuxiliaryHeader64 : XCOFFAuxiliaryHeader<XCOFFAuxiliaryHeader32> {
+  support::ubig16_t AuxMagic;
+  support::ubig16_t Version;
+  support::ubig32_t ReservedForDebugger;
+  support::ubig64_t TextStartAddr;
+  support::ubig64_t DataStartAddr;
+  support::ubig64_t TOCAnchorAddr;
+  support::ubig16_t SecNumOfEntryPoint;
+  support::ubig16_t SecNumOfText;
+  support::ubig16_t SecNumOfData;
+  support::ubig16_t SecNumOfTOC;
+  support::ubig16_t SecNumOfLoader;
+  support::ubig16_t SecNumOfBSS;
+  support::ubig16_t MaxAlignOfText;
+  support::ubig16_t MaxAlignOfData;
+  support::ubig16_t ModuleType;
+  uint8_t CpuFlag;
+  uint8_t CpuType;
+  uint8_t TextPageSize;
+  uint8_t DataPageSize;
+  uint8_t StackPageSize;
+  uint8_t FlagAndTDataAlignment;
+  support::ubig64_t TextSize;
+  support::ubig64_t InitDataSize;
+  support::ubig64_t BssDataSize;
+  support::ubig64_t EntryPointAddr;
+  support::ubig64_t MaxStackSize;
+  support::ubig64_t MaxDataSize;
+  support::ubig16_t SecNumOfTData;
+  support::ubig16_t SecNumOfTBSS;
+  support::ubig16_t XCOFF64Flag;
+};
+
 template <typename T> struct XCOFFSectionHeader {
   // Least significant 3 bits are reserved.
   static constexpr unsigned SectionFlagsReservedMask = 0x7;
@@ -95,6 +190,31 @@ struct XCOFFSectionHeader64 : XCOFFSectionHeader<XCOFFSectionHeader64> {
   support::ubig32_t NumberOfLineNumbers;
   support::big32_t Flags;
   char Padding[4];
+};
+
+struct LoaderSectionHeader32 {
+  support::ubig32_t Version;
+  support::ubig32_t NumberOfSymTabEnt;
+  support::ubig32_t NumberOfRelTabEnt;
+  support::ubig32_t LengthOfImpidStrTbl;
+  support::ubig32_t NumberOfImpid;
+  support::big32_t OffsetToImpid;
+  support::ubig32_t LengthOfStrTbl;
+  support::big32_t OffsetToStrTbl;
+};
+
+struct LoaderSectionHeader64 {
+  support::ubig32_t Version;
+  support::ubig32_t NumberOfSymTabEnt;
+  support::ubig32_t NumberOfRelTabEnt;
+  support::ubig32_t LengthOfImpidStrTbl;
+  support::ubig32_t NumberOfImpid;
+  support::ubig32_t LengthOfStrTbl;
+  support::big64_t OffsetToImpid;
+  support::big64_t OffsetToStrTbl;
+  support::big64_t OffsetToSymTbl;
+  char Padding[16];
+  support::big32_t OffsetToRelEnt;
 };
 
 struct XCOFFStringTable {
@@ -228,7 +348,7 @@ struct XCOFFSectAuxEntForStat {
   uint8_t Pad[10];
 }; // 32-bit XCOFF file only.
 
-struct XCOFFRelocation32 {
+template <typename AddressType> struct XCOFFRelocation {
   // Masks for packing/unpacking the r_rsize field of relocations.
 
   // The msb is used to indicate if the bits being relocated are signed or
@@ -244,7 +364,7 @@ struct XCOFFRelocation32 {
   static constexpr uint8_t XR_BIASED_LENGTH_MASK = 0x3f;
 
 public:
-  support::ubig32_t VirtualAddress;
+  AddressType VirtualAddress;
   support::ubig32_t SymbolIndex;
 
   // Packed field, see XR_* masks for details of packing.
@@ -260,11 +380,18 @@ public:
   uint8_t getRelocatedLength() const;
 };
 
+extern template struct XCOFFRelocation<llvm::support::ubig32_t>;
+extern template struct XCOFFRelocation<llvm::support::ubig64_t>;
+
+struct XCOFFRelocation32 : XCOFFRelocation<llvm::support::ubig32_t> {};
+struct XCOFFRelocation64 : XCOFFRelocation<llvm::support::ubig64_t> {};
+
 class XCOFFSymbolRef;
 
 class XCOFFObjectFile : public ObjectFile {
 private:
   const void *FileHeader = nullptr;
+  const void *AuxiliaryHeader = nullptr;
   const void *SectionHeaderTable = nullptr;
 
   const void *SymbolTblPtr = nullptr;
@@ -275,6 +402,7 @@ private:
 
   const XCOFFSectionHeader32 *sectionHeaderTable32() const;
   const XCOFFSectionHeader64 *sectionHeaderTable64() const;
+  template <typename T> const T *sectionHeaderTable() const;
 
   size_t getFileHeaderSize() const;
   size_t getSectionHeaderSize() const;
@@ -283,6 +411,7 @@ private:
   const XCOFFSectionHeader64 *toSection64(DataRefImpl Ref) const;
   uintptr_t getSectionHeaderTableAddress() const;
   uintptr_t getEndOfSymbolTableAddress() const;
+  Expected<uintptr_t> getLoaderSectionAddress() const;
 
   // This returns a pointer to the start of the storage for the name field of
   // the 32-bit or 64-bit SectionHeader struct. This string is *not* necessarily
@@ -322,6 +451,7 @@ public:
   Expected<StringRef> getSymbolName(DataRefImpl Symb) const override;
   Expected<uint64_t> getSymbolAddress(DataRefImpl Symb) const override;
   uint64_t getSymbolValueImpl(DataRefImpl Symb) const override;
+  uint32_t getSymbolAlignment(DataRefImpl Symb) const override;
   uint64_t getCommonSymbolSizeImpl(DataRefImpl Symb) const override;
   Expected<SymbolRef::Type> getSymbolType(DataRefImpl Symb) const override;
   Expected<section_iterator> getSymbolSection(DataRefImpl Symb) const override;
@@ -368,6 +498,9 @@ public:
   // Below here is the non-inherited interface.
   bool is64Bit() const;
 
+  const XCOFFAuxiliaryHeader32 *auxiliaryHeader32() const;
+  const XCOFFAuxiliaryHeader64 *auxiliaryHeader64() const;
+
   const void *getPointerToSymbolTable() const { return SymbolTblPtr; }
 
   Expected<StringRef> getSymbolSectionName(XCOFFSymbolRef Ref) const;
@@ -398,6 +531,11 @@ public:
   uint32_t getNumberOfSymbolTableEntries() const;
 
   uint32_t getSymbolIndex(uintptr_t SymEntPtr) const;
+  uint64_t getSymbolSize(DataRefImpl Symb) const;
+  uintptr_t getSymbolByIndex(uint32_t Idx) const {
+    return reinterpret_cast<uintptr_t>(SymbolTblPtr) +
+           XCOFF::SymbolTableEntrySize * Idx;
+  }
   uintptr_t getSymbolEntryAddressByIndex(uint32_t SymbolTableIndex) const;
   Expected<StringRef> getSymbolNameByIndex(uint32_t SymbolTableIndex) const;
 
@@ -415,11 +553,15 @@ public:
   void checkSymbolEntryPointer(uintptr_t SymbolEntPtr) const;
 
   // Relocation-related interfaces.
+  template <typename T>
   Expected<uint32_t>
-  getLogicalNumberOfRelocationEntries(const XCOFFSectionHeader32 &Sec) const;
+  getNumberOfRelocationEntries(const XCOFFSectionHeader<T> &Sec) const;
 
-  Expected<ArrayRef<XCOFFRelocation32>>
-  relocations(const XCOFFSectionHeader32 &) const;
+  template <typename Shdr, typename Reloc>
+  Expected<ArrayRef<Reloc>> relocations(const Shdr &Sec) const;
+
+  // Loader section related interfaces.
+  Expected<StringRef> getImportFileTable() const;
 
   // This function returns string table entry.
   Expected<StringRef> getStringTableEntry(uint32_t Offset) const;
@@ -572,6 +714,7 @@ class XCOFFTracebackTable {
   Optional<uint8_t> ExtensionTable;
 
   XCOFFTracebackTable(const uint8_t *Ptr, uint64_t &Size, Error &Err);
+
 public:
   /// Parse an XCOFF Traceback Table from \a Ptr with \a Size bytes.
   /// Returns an XCOFFTracebackTable upon successful parsing, otherwise an

@@ -250,7 +250,19 @@ loadRegFromStackSlot(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
 void Thumb2InstrInfo::expandLoadStackGuard(
     MachineBasicBlock::iterator MI) const {
   MachineFunction &MF = *MI->getParent()->getParent();
-  if (MF.getTarget().isPositionIndependent())
+  Module &M = *MF.getFunction().getParent();
+
+  if (M.getStackProtectorGuard() == "tls") {
+    expandLoadStackGuardBase(MI, ARM::t2MRC, ARM::t2LDRi12);
+    return;
+  }
+
+  const GlobalValue *GV =
+      cast<GlobalValue>((*MI->memoperands_begin())->getValue());
+
+  if (MF.getSubtarget<ARMSubtarget>().isGVInGOT(GV))
+    expandLoadStackGuardBase(MI, ARM::tLDRLIT_ga_pcrel, ARM::t2LDRi12);
+  else if (MF.getTarget().isPositionIndependent())
     expandLoadStackGuardBase(MI, ARM::t2MOV_ga_pcrel, ARM::t2LDRi12);
   else
     expandLoadStackGuardBase(MI, ARM::t2MOVi32imm, ARM::t2LDRi12);
@@ -792,8 +804,12 @@ void llvm::recomputeVPTBlockMask(MachineInstr &Instr) {
   MachineBasicBlock::iterator Iter = ++Instr.getIterator(),
                               End = Instr.getParent()->end();
 
+  while (Iter != End && Iter->isDebugInstr())
+    ++Iter;
+
   // Verify that the instruction after the VPT/VPST is predicated (it should
   // be), and skip it.
+  assert(Iter != End && "Expected some instructions in any VPT block");
   assert(
       getVPTInstrPredicate(*Iter) == ARMVCC::Then &&
       "VPT/VPST should be followed by an instruction with a 'then' predicate!");
@@ -802,6 +818,10 @@ void llvm::recomputeVPTBlockMask(MachineInstr &Instr) {
   // Iterate over the predicated instructions, updating the BlockMask as we go.
   ARM::PredBlockMask BlockMask = ARM::PredBlockMask::T;
   while (Iter != End) {
+    if (Iter->isDebugInstr()) {
+      ++Iter;
+      continue;
+    }
     ARMVCC::VPTCodes Pred = getVPTInstrPredicate(*Iter);
     if (Pred == ARMVCC::None)
       break;

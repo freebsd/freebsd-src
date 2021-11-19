@@ -43,7 +43,7 @@ enum ID {
 #include "Opts.inc"
 #undef PREFIX
 
-static const opt::OptTable::Info InfoTable[] = {
+const opt::OptTable::Info InfoTable[] = {
 #define OPTION(PREFIX, NAME, ID, KIND, GROUP, ALIAS, ALIASARGS, FLAGS, PARAM,  \
                HELPTEXT, METAVAR, VALUES)                                      \
   {                                                                            \
@@ -73,7 +73,7 @@ static bool PrintFileName;
 enum radix { none, octal, hexadecimal, decimal };
 static radix Radix;
 
-LLVM_ATTRIBUTE_NORETURN static void reportCmdLineError(const Twine &Message) {
+[[noreturn]] static void reportCmdLineError(const Twine &Message) {
   WithColor::error(errs(), ToolName) << Message << "\n";
   exit(1);
 }

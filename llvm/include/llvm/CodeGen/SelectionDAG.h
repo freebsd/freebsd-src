@@ -531,7 +531,7 @@ public:
   }
 
 #ifndef NDEBUG
-  void VerifyDAGDiverence();
+  void VerifyDAGDivergence();
 #endif
 
   /// This iterates over the nodes in the SelectionDAG, folding
@@ -621,8 +621,8 @@ public:
 
   SDValue getAllOnesConstant(const SDLoc &DL, EVT VT, bool IsTarget = false,
                              bool IsOpaque = false) {
-    return getConstant(APInt::getAllOnesValue(VT.getScalarSizeInBits()), DL,
-                       VT, IsTarget, IsOpaque);
+    return getConstant(APInt::getAllOnes(VT.getScalarSizeInBits()), DL, VT,
+                       IsTarget, IsOpaque);
   }
 
   SDValue getConstant(const ConstantInt &Val, const SDLoc &DL, EVT VT,
@@ -1307,6 +1307,74 @@ public:
   SDValue getIndexedStore(SDValue OrigStore, const SDLoc &dl, SDValue Base,
                           SDValue Offset, ISD::MemIndexedMode AM);
 
+  SDValue getLoadVP(ISD::MemIndexedMode AM, ISD::LoadExtType ExtType, EVT VT,
+                    const SDLoc &dl, SDValue Chain, SDValue Ptr, SDValue Offset,
+                    SDValue Mask, SDValue EVL, MachinePointerInfo PtrInfo,
+                    EVT MemVT, Align Alignment,
+                    MachineMemOperand::Flags MMOFlags, const AAMDNodes &AAInfo,
+                    const MDNode *Ranges = nullptr, bool IsExpanding = false);
+  inline SDValue
+  getLoadVP(ISD::MemIndexedMode AM, ISD::LoadExtType ExtType, EVT VT,
+            const SDLoc &dl, SDValue Chain, SDValue Ptr, SDValue Offset,
+            SDValue Mask, SDValue EVL, MachinePointerInfo PtrInfo, EVT MemVT,
+            MaybeAlign Alignment = MaybeAlign(),
+            MachineMemOperand::Flags MMOFlags = MachineMemOperand::MONone,
+            const AAMDNodes &AAInfo = AAMDNodes(),
+            const MDNode *Ranges = nullptr, bool IsExpanding = false) {
+    // Ensures that codegen never sees a None Alignment.
+    return getLoadVP(AM, ExtType, VT, dl, Chain, Ptr, Offset, Mask, EVL,
+                     PtrInfo, MemVT, Alignment.getValueOr(getEVTAlign(MemVT)),
+                     MMOFlags, AAInfo, Ranges, IsExpanding);
+  }
+  SDValue getLoadVP(ISD::MemIndexedMode AM, ISD::LoadExtType ExtType, EVT VT,
+                    const SDLoc &dl, SDValue Chain, SDValue Ptr, SDValue Offset,
+                    SDValue Mask, SDValue EVL, EVT MemVT,
+                    MachineMemOperand *MMO, bool IsExpanding = false);
+  SDValue getLoadVP(EVT VT, const SDLoc &dl, SDValue Chain, SDValue Ptr,
+                    SDValue Mask, SDValue EVL, MachinePointerInfo PtrInfo,
+                    MaybeAlign Alignment, MachineMemOperand::Flags MMOFlags,
+                    const AAMDNodes &AAInfo, const MDNode *Ranges = nullptr,
+                    bool IsExpanding = false);
+  SDValue getLoadVP(EVT VT, const SDLoc &dl, SDValue Chain, SDValue Ptr,
+                    SDValue Mask, SDValue EVL, MachineMemOperand *MMO,
+                    bool IsExpanding = false);
+  SDValue getExtLoadVP(ISD::LoadExtType ExtType, const SDLoc &dl, EVT VT,
+                       SDValue Chain, SDValue Ptr, SDValue Mask, SDValue EVL,
+                       MachinePointerInfo PtrInfo, EVT MemVT,
+                       MaybeAlign Alignment, MachineMemOperand::Flags MMOFlags,
+                       const AAMDNodes &AAInfo, bool IsExpanding = false);
+  SDValue getExtLoadVP(ISD::LoadExtType ExtType, const SDLoc &dl, EVT VT,
+                       SDValue Chain, SDValue Ptr, SDValue Mask, SDValue EVL,
+                       EVT MemVT, MachineMemOperand *MMO,
+                       bool IsExpanding = false);
+  SDValue getIndexedLoadVP(SDValue OrigLoad, const SDLoc &dl, SDValue Base,
+                           SDValue Offset, ISD::MemIndexedMode AM);
+  SDValue getStoreVP(SDValue Chain, const SDLoc &dl, SDValue Val, SDValue Ptr,
+                     SDValue Mask, SDValue EVL, MachinePointerInfo PtrInfo,
+                     Align Alignment, MachineMemOperand::Flags MMOFlags,
+                     const AAMDNodes &AAInfo = AAMDNodes(),
+                     bool IsCompressing = false);
+  SDValue getStoreVP(SDValue Chain, const SDLoc &dl, SDValue Val, SDValue Ptr,
+                     SDValue Mask, SDValue EVL, MachineMemOperand *MMO,
+                     bool IsCompressing = false);
+  SDValue getTruncStoreVP(SDValue Chain, const SDLoc &dl, SDValue Val,
+                          SDValue Ptr, SDValue Mask, SDValue EVL,
+                          MachinePointerInfo PtrInfo, EVT SVT, Align Alignment,
+                          MachineMemOperand::Flags MMOFlags,
+                          const AAMDNodes &AAInfo, bool IsCompressing = false);
+  SDValue getTruncStoreVP(SDValue Chain, const SDLoc &dl, SDValue Val,
+                          SDValue Ptr, SDValue Mask, SDValue EVL, EVT SVT,
+                          MachineMemOperand *MMO, bool IsCompressing = false);
+  SDValue getIndexedStoreVP(SDValue OrigStore, const SDLoc &dl, SDValue Base,
+                            SDValue Offset, ISD::MemIndexedMode AM);
+
+  SDValue getGatherVP(SDVTList VTs, EVT VT, const SDLoc &dl,
+                      ArrayRef<SDValue> Ops, MachineMemOperand *MMO,
+                      ISD::MemIndexType IndexType);
+  SDValue getScatterVP(SDVTList VTs, EVT VT, const SDLoc &dl,
+                       ArrayRef<SDValue> Ops, MachineMemOperand *MMO,
+                       ISD::MemIndexType IndexType);
+
   SDValue getMaskedLoad(EVT VT, const SDLoc &dl, SDValue Chain, SDValue Base,
                         SDValue Offset, SDValue Mask, SDValue Src0, EVT MemVT,
                         MachineMemOperand *MMO, ISD::MemIndexedMode AM,
@@ -1664,10 +1732,6 @@ public:
   SDValue FoldConstantArithmetic(unsigned Opcode, const SDLoc &DL, EVT VT,
                                  ArrayRef<SDValue> Ops);
 
-  SDValue FoldConstantVectorArithmetic(unsigned Opcode, const SDLoc &DL, EVT VT,
-                                       ArrayRef<SDValue> Ops,
-                                       const SDNodeFlags Flags = SDNodeFlags());
-
   /// Fold floating-point operations with 2 operands when both operands are
   /// constants and/or undefined.
   SDValue foldConstantFPMath(unsigned Opcode, const SDLoc &DL, EVT VT,
@@ -1768,6 +1832,19 @@ public:
   /// TargetLowering class to allow target nodes to be understood.
   unsigned ComputeNumSignBits(SDValue Op, const APInt &DemandedElts,
                               unsigned Depth = 0) const;
+
+  /// Get the minimum bit size for this Value \p Op as a signed integer.
+  /// i.e.  x == sext(trunc(x to MinSignedBits) to bitwidth(x)).
+  /// Similar to the APInt::getMinSignedBits function.
+  /// Helper wrapper to ComputeNumSignBits.
+  unsigned ComputeMinSignedBits(SDValue Op, unsigned Depth = 0) const;
+
+  /// Get the minimum bit size for this Value \p Op as a signed integer.
+  /// i.e.  x == sext(trunc(x to MinSignedBits) to bitwidth(x)).
+  /// Similar to the APInt::getMinSignedBits function.
+  /// Helper wrapper to ComputeNumSignBits.
+  unsigned ComputeMinSignedBits(SDValue Op, const APInt &DemandedElts,
+                                unsigned Depth = 0) const;
 
   /// Return true if this function can prove that \p Op is never poison
   /// and, if \p PoisonOnly is false, does not have undef bits.

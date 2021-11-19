@@ -33,6 +33,19 @@ using namespace llvm;
 
 namespace {
 
+// Determine if a promotion alias should be created for a symbol name.
+static bool allowPromotionAlias(const std::string &Name) {
+  // Promotion aliases are used only in inline assembly. It's safe to
+  // simply skip unusual names. Subset of MCAsmInfo::isAcceptableChar()
+  // and MCAsmInfoXCOFF::isAcceptableChar().
+  for (const char &C : Name) {
+    if (isAlnum(C) || C == '_' || C == '.')
+      continue;
+    return false;
+  }
+  return true;
+}
+
 // Promote each local-linkage entity defined by ExportM and used by ImportM by
 // changing visibility and appending the given ModuleId.
 void promoteInternals(Module &ExportM, Module &ImportM, StringRef ModuleId,
@@ -55,6 +68,7 @@ void promoteInternals(Module &ExportM, Module &ImportM, StringRef ModuleId,
       }
     }
 
+    std::string OldName = Name.str();
     std::string NewName = (Name + ModuleId).str();
 
     if (const auto *C = ExportGV.getComdat())
@@ -68,6 +82,13 @@ void promoteInternals(Module &ExportM, Module &ImportM, StringRef ModuleId,
     if (ImportGV) {
       ImportGV->setName(NewName);
       ImportGV->setVisibility(GlobalValue::HiddenVisibility);
+    }
+
+    if (isa<Function>(&ExportGV) && allowPromotionAlias(OldName)) {
+      // Create a local alias with the original name to avoid breaking
+      // references from inline assembly.
+      std::string Alias = ".set " + OldName + "," + NewName + "\n";
+      ExportM.appendModuleInlineAsm(Alias);
     }
   }
 
@@ -143,8 +164,7 @@ void simplifyExternals(Module &M) {
   FunctionType *EmptyFT =
       FunctionType::get(Type::getVoidTy(M.getContext()), false);
 
-  for (auto I = M.begin(), E = M.end(); I != E;) {
-    Function &F = *I++;
+  for (Function &F : llvm::make_early_inc_range(M)) {
     if (F.isDeclaration() && F.use_empty()) {
       F.eraseFromParent();
       continue;
@@ -160,16 +180,15 @@ void simplifyExternals(Module &M) {
                          F.getAddressSpace(), "", &M);
     NewF->copyAttributesFrom(&F);
     // Only copy function attribtues.
-    NewF->setAttributes(
-        AttributeList::get(M.getContext(), AttributeList::FunctionIndex,
-                           F.getAttributes().getFnAttributes()));
+    NewF->setAttributes(AttributeList::get(M.getContext(),
+                                           AttributeList::FunctionIndex,
+                                           F.getAttributes().getFnAttrs()));
     NewF->takeName(&F);
     F.replaceAllUsesWith(ConstantExpr::getBitCast(NewF, F.getType()));
     F.eraseFromParent();
   }
 
-  for (auto I = M.global_begin(), E = M.global_end(); I != E;) {
-    GlobalVariable &GV = *I++;
+  for (GlobalVariable &GV : llvm::make_early_inc_range(M.globals())) {
     if (GV.isDeclaration() && GV.use_empty()) {
       GV.eraseFromParent();
       continue;
@@ -304,7 +323,8 @@ void splitAndWriteThinLTOBitcode(
             return true;
         if (auto *F = dyn_cast<Function>(GV))
           return EligibleVirtualFns.count(F);
-        if (auto *GVar = dyn_cast_or_null<GlobalVariable>(GV->getBaseObject()))
+        if (auto *GVar =
+                dyn_cast_or_null<GlobalVariable>(GV->getAliaseeObject()))
           return HasTypeMetadata(GVar);
         return false;
       }));
@@ -333,7 +353,7 @@ void splitAndWriteThinLTOBitcode(
   // Remove all globals with type metadata, globals with comdats that live in
   // MergedM, and aliases pointing to such globals from the thin LTO module.
   filterModule(&M, [&](const GlobalValue *GV) {
-    if (auto *GVar = dyn_cast_or_null<GlobalVariable>(GV->getBaseObject()))
+    if (auto *GVar = dyn_cast_or_null<GlobalVariable>(GV->getAliaseeObject()))
       if (HasTypeMetadata(GVar))
         return false;
     if (const auto *C = GV->getComdat())

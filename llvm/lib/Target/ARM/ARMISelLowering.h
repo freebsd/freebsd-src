@@ -680,7 +680,7 @@ class VectorType;
                                    unsigned &Cost) const override;
 
     bool canMergeStoresTo(unsigned AddressSpace, EVT MemVT,
-                          const SelectionDAG &DAG) const override {
+                          const MachineFunction &MF) const override {
       // Do not merge to larger than i32.
       return (MemVT.getSizeInBits() <= 32);
     }
@@ -711,6 +711,9 @@ class VectorType;
     bool isLegalInterleavedAccessType(unsigned Factor, FixedVectorType *VecTy,
                                       Align Alignment,
                                       const DataLayout &DL) const;
+
+    bool isMulAddWithConstProfitable(const SDValue &AddNode,
+                                     const SDValue &ConstNode) const override;
 
     bool alignLoopsWithOptSize() const override;
 

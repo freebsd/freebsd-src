@@ -85,6 +85,9 @@ flag.
 .It Fl Bsymbolic-functions
 Bind default visibility defined function symbols locally for
 .Fl shared.
+.It Fl Bsymbolic-non-weak-functions
+Bind default visibility defined STB_GLOBAL function symbols locally for
+.Fl shared.
 .It Fl -build-id Ns = Ns Ar value
 Generate a build ID note.
 .Ar value
@@ -164,10 +167,9 @@ Specify the dynamic linker to be used for a dynamically linked executable.
 This is recorded in an ELF segment of type
 .Dv PT_INTERP .
 .It Fl -dynamic-list Ns = Ns Ar file
-Read a list of dynamic symbols from
-.Ar file .
-(executable) Put matched non-local defined symbols to the dynamic symbol table.
-(shared object) References to matched non-local STV_DEFAULT symbols shouldn't be bound to definitions within the shared object. Implies
+Similar to
+.Cm --export-dynamic-symbol-list .
+When creating a shared object, implies
 .Cm -Bsymbolic
 but does not set DF_SYMBOLIC
 .It Fl -EB
@@ -222,6 +224,12 @@ Put symbols in the dynamic symbol table.
 .Cm -Bsymbolic-functions
 or
 .Cm --dynamic-list
+.It Fl -export-dynamic-symbol-list Ns = Ns Ar file
+Read a list of dynamic symbol patterns from
+.Ar file .
+Apply
+.Cm --export-dynamic-symbol
+on each pattern.
 .It Fl -fatal-warnings
 Treat warnings as errors.
 .It Fl -filter Ns = Ns Ar value , Fl F Ar value
@@ -337,7 +345,7 @@ Page align sections.
 .It Fl -no-omagic
 Do not set the text data sections to be writable, page align sections.
 .It Fl -no-relax
-Disable target-specific relaxations. This is currently a no-op.
+Disable target-specific relaxations. For x86-64 this disables R_X86_64_GOTPCRELX and R_X86_64_REX_GOTPCRELX GOT optimization.
 .It Fl -no-rosegment
 Do not put read-only non-executable sections in their own segment.
 .It Fl -no-undefined-version
@@ -650,6 +658,8 @@ linkers, and may be removed in the future.
 Report unresolved symbols as warnings.
 .It Fl -whole-archive
 Force load of all members in a static library.
+.It Fl -why-extract Ns = Ns Ar file
+Print to a file about why archive members are extracted.
 .It Fl -wrap Ns = Ns Ar symbol
 Redirect
 .Ar symbol

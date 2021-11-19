@@ -108,7 +108,7 @@ class IRPromoter {
   SetVector<Value*> &Visited;
   SetVector<Value*> &Sources;
   SetVector<Instruction*> &Sinks;
-  SmallVectorImpl<Instruction*> &SafeWrap;
+  SmallPtrSetImpl<Instruction *> &SafeWrap;
   IntegerType *ExtTy = nullptr;
   SmallPtrSet<Value*, 8> NewInsts;
   SmallPtrSet<Instruction*, 4> InstsToRemove;
@@ -116,7 +116,6 @@ class IRPromoter {
   SmallPtrSet<Value*, 8> Promoted;
 
   void ReplaceAllUsersOfWith(Value *From, Value *To);
-  void PrepareWrappingAdds(void);
   void ExtendSources(void);
   void ConvertTruncs(void);
   void PromoteTree(void);
@@ -125,11 +124,11 @@ class IRPromoter {
 
 public:
   IRPromoter(LLVMContext &C, IntegerType *Ty, unsigned Width,
-             SetVector<Value*> &visited, SetVector<Value*> &sources,
-             SetVector<Instruction*> &sinks,
-             SmallVectorImpl<Instruction*> &wrap) :
-    Ctx(C), OrigTy(Ty), PromotedWidth(Width), Visited(visited),
-    Sources(sources), Sinks(sinks), SafeWrap(wrap) {
+             SetVector<Value *> &visited, SetVector<Value *> &sources,
+             SetVector<Instruction *> &sinks,
+             SmallPtrSetImpl<Instruction *> &wrap)
+      : Ctx(C), OrigTy(Ty), PromotedWidth(Width), Visited(visited),
+        Sources(sources), Sinks(sinks), SafeWrap(wrap) {
     ExtTy = IntegerType::get(Ctx, PromotedWidth);
     assert(OrigTy->getPrimitiveSizeInBits().getFixedSize() <
                ExtTy->getPrimitiveSizeInBits().getFixedSize() &&
@@ -145,7 +144,7 @@ class TypePromotion : public FunctionPass {
   unsigned RegisterBitWidth = 0;
   SmallPtrSet<Value*, 16> AllVisited;
   SmallPtrSet<Instruction*, 8> SafeToPromote;
-  SmallVector<Instruction*, 4> SafeWrap;
+  SmallPtrSet<Instruction *, 4> SafeWrap;
 
   // Does V have the same size result type as TypeSize.
   bool EqualTypeSize(Value *V);
@@ -183,6 +182,7 @@ public:
   void getAnalysisUsage(AnalysisUsage &AU) const override {
     AU.addRequired<TargetTransformInfoWrapperPass>();
     AU.addRequired<TargetPassConfig>();
+    AU.setPreservesCFG();
   }
 
   StringRef getPassName() const override { return PASS_NAME; }
@@ -192,11 +192,8 @@ public:
 
 }
 
-static bool GenerateSignBits(Value *V) {
-  if (!isa<Instruction>(V))
-    return false;
-
-  unsigned Opc = cast<Instruction>(V)->getOpcode();
+static bool GenerateSignBits(Instruction *I) {
+  unsigned Opc = I->getOpcode();
   return Opc == Instruction::AShr || Opc == Instruction::SDiv ||
          Opc == Instruction::SRem || Opc == Instruction::SExt;
 }
@@ -283,7 +280,7 @@ bool TypePromotion::isSafeWrap(Instruction *I) {
   // wrap in respect to itself in the original bitwidth. If it doesn't wrap,
   // just underflows the range, the icmp would give the same result whether the
   // result has been truncated or not. We calculate this by:
-  // - Zero extending both constants, if needed, to 32-bits.
+  // - Zero extending both constants, if needed, to RegisterBitWidth.
   // - Take the absolute value of I's constant, adding this to the icmp const.
   // - Check that this value is not out of range for small type. If it is, it
   //   means that it has underflowed enough to wrap around the icmp constant.
@@ -335,16 +332,8 @@ bool TypePromotion::isSafeWrap(Instruction *I) {
   if (Opc != Instruction::Add && Opc != Instruction::Sub)
     return false;
 
-  if (!I->hasOneUse() ||
-      !isa<ICmpInst>(*I->user_begin()) ||
+  if (!I->hasOneUse() || !isa<ICmpInst>(*I->user_begin()) ||
       !isa<ConstantInt>(I->getOperand(1)))
-    return false;
-
-  ConstantInt *OverflowConst = cast<ConstantInt>(I->getOperand(1));
-  bool NegImm = OverflowConst->isNegative();
-  bool IsDecreasing = ((Opc == Instruction::Sub) && !NegImm) ||
-                       ((Opc == Instruction::Add) && NegImm);
-  if (!IsDecreasing)
     return false;
 
   // Don't support an icmp that deals with sign bits.
@@ -352,36 +341,37 @@ bool TypePromotion::isSafeWrap(Instruction *I) {
   if (CI->isSigned() || CI->isEquality())
     return false;
 
-  ConstantInt *ICmpConst = nullptr;
+  ConstantInt *ICmpConstant = nullptr;
   if (auto *Const = dyn_cast<ConstantInt>(CI->getOperand(0)))
-    ICmpConst = Const;
+    ICmpConstant = Const;
   else if (auto *Const = dyn_cast<ConstantInt>(CI->getOperand(1)))
-    ICmpConst = Const;
+    ICmpConstant = Const;
   else
     return false;
 
-  // Now check that the result can't wrap on itself.
-  APInt Total = ICmpConst->getValue().getBitWidth() < 32 ?
-    ICmpConst->getValue().zext(32) : ICmpConst->getValue();
-
-  Total += OverflowConst->getValue().getBitWidth() < 32 ?
-    OverflowConst->getValue().abs().zext(32) : OverflowConst->getValue().abs();
-
-  APInt Max = APInt::getAllOnesValue(TypePromotion::TypeSize);
-
-  if (Total.getBitWidth() > Max.getBitWidth()) {
-    if (Total.ugt(Max.zext(Total.getBitWidth())))
-      return false;
-  } else if (Max.getBitWidth() > Total.getBitWidth()) {
-    if (Total.zext(Max.getBitWidth()).ugt(Max))
-      return false;
-  } else if (Total.ugt(Max))
+  const APInt &ICmpConst = ICmpConstant->getValue();
+  APInt OverflowConst = cast<ConstantInt>(I->getOperand(1))->getValue();
+  if (Opc == Instruction::Sub)
+    OverflowConst = -OverflowConst;
+  if (!OverflowConst.isNonPositive())
     return false;
 
-  LLVM_DEBUG(dbgs() << "IR Promotion: Allowing safe overflow for "
-             << *I << "\n");
-  SafeWrap.push_back(I);
-  return true;
+  // Using C1 = OverflowConst and C2 = ICmpConst, we can use either prove that:
+  //   zext(x) + sext(C1) <u zext(C2)  if C1 < 0 and C1 >s C2
+  //   zext(x) + sext(C1) <u sext(C2)  if C1 < 0 and C1 <=s C2
+  if (OverflowConst.sgt(ICmpConst)) {
+    LLVM_DEBUG(dbgs() << "IR Promotion: Allowing safe overflow for sext "
+                      << "const of " << *I << "\n");
+    SafeWrap.insert(I);
+    return true;
+  } else {
+    LLVM_DEBUG(dbgs() << "IR Promotion: Allowing safe overflow for sext "
+                      << "const of " << *I << " and " << *CI << "\n");
+    SafeWrap.insert(I);
+    SafeWrap.insert(CI);
+    return true;
+  }
+  return false;
 }
 
 bool TypePromotion::shouldPromote(Value *V) {
@@ -403,17 +393,14 @@ bool TypePromotion::shouldPromote(Value *V) {
 
 /// Return whether we can safely mutate V's type to ExtTy without having to be
 /// concerned with zero extending or truncation.
-static bool isPromotedResultSafe(Value *V) {
-  if (GenerateSignBits(V))
+static bool isPromotedResultSafe(Instruction *I) {
+  if (GenerateSignBits(I))
     return false;
 
-  if (!isa<Instruction>(V))
+  if (!isa<OverflowingBinaryOperator>(I))
     return true;
 
-  if (!isa<OverflowingBinaryOperator>(V))
-    return true;
-
-  return cast<Instruction>(V)->hasNoUnsignedWrap();
+  return I->hasNoUnsignedWrap();
 }
 
 void IRPromoter::ReplaceAllUsersOfWith(Value *From, Value *To) {
@@ -422,7 +409,7 @@ void IRPromoter::ReplaceAllUsersOfWith(Value *From, Value *To) {
   bool ReplacedAll = true;
 
   LLVM_DEBUG(dbgs() << "IR Promotion: Replacing " << *From << " with " << *To
-             << "\n");
+                    << "\n");
 
   for (Use &U : From->uses()) {
     auto *User = cast<Instruction>(U.getUser());
@@ -439,39 +426,6 @@ void IRPromoter::ReplaceAllUsersOfWith(Value *From, Value *To) {
   if (ReplacedAll)
     if (auto *I = dyn_cast<Instruction>(From))
       InstsToRemove.insert(I);
-}
-
-void IRPromoter::PrepareWrappingAdds() {
-  LLVM_DEBUG(dbgs() << "IR Promotion: Prepare wrapping adds.\n");
-  IRBuilder<> Builder{Ctx};
-
-  // For adds that safely wrap and use a negative immediate as operand 1, we
-  // create an equivalent instruction using a positive immediate.
-  // That positive immediate can then be zext along with all the other
-  // immediates later.
-  for (auto *I : SafeWrap) {
-    if (I->getOpcode() != Instruction::Add)
-      continue;
-
-    LLVM_DEBUG(dbgs() << "IR Promotion: Adjusting " << *I << "\n");
-    assert((isa<ConstantInt>(I->getOperand(1)) &&
-            cast<ConstantInt>(I->getOperand(1))->isNegative()) &&
-           "Wrapping should have a negative immediate as the second operand");
-
-    auto Const = cast<ConstantInt>(I->getOperand(1));
-    auto *NewConst = ConstantInt::get(Ctx, Const->getValue().abs());
-    Builder.SetInsertPoint(I);
-    Value *NewVal = Builder.CreateSub(I->getOperand(0), NewConst);
-    if (auto *NewInst = dyn_cast<Instruction>(NewVal)) {
-      NewInst->copyIRFlags(I);
-      NewInsts.insert(NewInst);
-    }
-    InstsToRemove.insert(I);
-    I->replaceAllUsesWith(NewVal);
-    LLVM_DEBUG(dbgs() << "IR Promotion: New equivalent: " << *NewVal << "\n");
-  }
-  for (auto *I : NewInsts)
-    Visited.insert(I);
 }
 
 void IRPromoter::ExtendSources() {
@@ -515,8 +469,6 @@ void IRPromoter::ExtendSources() {
 void IRPromoter::PromoteTree() {
   LLVM_DEBUG(dbgs() << "IR Promotion: Mutating the tree..\n");
 
-  IRBuilder<> Builder{Ctx};
-
   // Mutate the types of the instructions within the tree. Here we handle
   // constant operands.
   for (auto *V : Visited) {
@@ -533,14 +485,16 @@ void IRPromoter::PromoteTree() {
         continue;
 
       if (auto *Const = dyn_cast<ConstantInt>(Op)) {
-        Constant *NewConst = ConstantExpr::getZExt(Const, ExtTy);
+        Constant *NewConst = SafeWrap.contains(I)
+                                 ? ConstantExpr::getSExt(Const, ExtTy)
+                                 : ConstantExpr::getZExt(Const, ExtTy);
         I->setOperand(i, NewConst);
       } else if (isa<UndefValue>(Op))
         I->setOperand(i, UndefValue::get(ExtTy));
     }
 
-    // Mutate the result type, unless this is an icmp.
-    if (!isa<ICmpInst>(I)) {
+    // Mutate the result type, unless this is an icmp or switch.
+    if (!isa<ICmpInst>(I) && !isa<SwitchInst>(I)) {
       I->mutateType(ExtTy);
       Promoted.insert(I);
     }
@@ -575,7 +529,7 @@ void IRPromoter::TruncateSinks() {
 
     // Handle calls separately as we need to iterate over arg operands.
     if (auto *Call = dyn_cast<CallInst>(I)) {
-      for (unsigned i = 0; i < Call->getNumArgOperands(); ++i) {
+      for (unsigned i = 0; i < Call->arg_size(); ++i) {
         Value *Arg = Call->getArgOperand(i);
         Type *Ty = TruncTysMap[Call][i];
         if (Instruction *Trunc = InsertTrunc(Arg, Ty)) {
@@ -678,10 +632,8 @@ void IRPromoter::Mutate() {
   // Cache original types of the values that will likely need truncating
   for (auto *I : Sinks) {
     if (auto *Call = dyn_cast<CallInst>(I)) {
-      for (unsigned i = 0; i < Call->getNumArgOperands(); ++i) {
-        Value *Arg = Call->getArgOperand(i);
+      for (Value *Arg : Call->args())
         TruncTysMap[Call].push_back(Arg->getType());
-      }
     } else if (auto *Switch = dyn_cast<SwitchInst>(I))
       TruncTysMap[I].push_back(Switch->getCondition()->getType());
     else {
@@ -695,10 +647,6 @@ void IRPromoter::Mutate() {
     auto *Trunc = cast<TruncInst>(V);
     TruncTysMap[Trunc].push_back(Trunc->getDestTy());
   }
-
-  // Convert adds using negative immediates to equivalent instructions that use
-  // positive constants.
-  PrepareWrappingAdds();
 
   // Insert zext instructions between sources and their users.
   ExtendSources();
@@ -798,7 +746,7 @@ bool TypePromotion::isLegalToPromote(Value *V) {
   if (SafeToPromote.count(I))
    return true;
 
-  if (isPromotedResultSafe(V) || isSafeWrap(I)) {
+  if (isPromotedResultSafe(I) || isSafeWrap(I)) {
     SafeToPromote.insert(I);
     return true;
   }
@@ -815,7 +763,7 @@ bool TypePromotion::TryToPromote(Value *V, unsigned PromotedWidth) {
     return false;
 
   LLVM_DEBUG(dbgs() << "IR Promotion: TryToPromote: " << *V << ", from "
-             << TypeSize << " bits to " << PromotedWidth << "\n");
+                    << TypeSize << " bits to " << PromotedWidth << "\n");
 
   SetVector<Value*> WorkList;
   SetVector<Value*> Sources;

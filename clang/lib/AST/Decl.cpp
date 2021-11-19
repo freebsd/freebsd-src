@@ -1088,13 +1088,29 @@ NamedDecl::isReserved(const LangOptions &LangOpts) const {
     return ReservedIdentifierStatus::NotReserved;
 
   ReservedIdentifierStatus Status = II->isReserved(LangOpts);
-  if (Status == ReservedIdentifierStatus::StartsWithUnderscoreAtGlobalScope) {
-    // Check if we're at TU level or not.
+  if (isReservedAtGlobalScope(Status) && !isReservedInAllContexts(Status)) {
+    // This name is only reserved at global scope. Check if this declaration
+    // conflicts with a global scope declaration.
     if (isa<ParmVarDecl>(this) || isTemplateParameter())
       return ReservedIdentifierStatus::NotReserved;
+
+    // C++ [dcl.link]/7:
+    //   Two declarations [conflict] if [...] one declares a function or
+    //   variable with C language linkage, and the other declares [...] a
+    //   variable that belongs to the global scope.
+    //
+    // Therefore names that are reserved at global scope are also reserved as
+    // names of variables and functions with C language linkage.
     const DeclContext *DC = getDeclContext()->getRedeclContext();
-    if (!DC->isTranslationUnit())
-      return ReservedIdentifierStatus::NotReserved;
+    if (DC->isTranslationUnit())
+      return Status;
+    if (auto *VD = dyn_cast<VarDecl>(this))
+      if (VD->isExternC())
+        return ReservedIdentifierStatus::StartsWithUnderscoreAndIsExternC;
+    if (auto *FD = dyn_cast<FunctionDecl>(this))
+      if (FD->isExternC())
+        return ReservedIdentifierStatus::StartsWithUnderscoreAndIsExternC;
+    return ReservedIdentifierStatus::NotReserved;
   }
 
   return Status;
@@ -1647,8 +1663,7 @@ void NamedDecl::printNestedNameSpecifier(raw_ostream &OS,
     NameInScope = ND->getDeclName();
   }
 
-  for (unsigned I = Contexts.size(); I != 0; --I) {
-    const DeclContext *DC = Contexts[I - 1];
+  for (const DeclContext *DC : llvm::reverse(Contexts)) {
     if (const auto *Spec = dyn_cast<ClassTemplateSpecializationDecl>(DC)) {
       OS << Spec->getName();
       const TemplateArgumentList &TemplateArgs = Spec->getTemplateArgs();
@@ -2216,14 +2231,18 @@ VarDecl *VarDecl::getActingDefinition() {
     return nullptr;
 
   VarDecl *LastTentative = nullptr;
-  VarDecl *First = getFirstDecl();
-  for (auto I : First->redecls()) {
-    Kind = I->isThisDeclarationADefinition();
+
+  // Loop through the declaration chain, starting with the most recent.
+  for (VarDecl *Decl = getMostRecentDecl(); Decl;
+       Decl = Decl->getPreviousDecl()) {
+    Kind = Decl->isThisDeclarationADefinition();
     if (Kind == Definition)
       return nullptr;
-    if (Kind == TentativeDefinition)
-      LastTentative = I;
+    // Record the first (most recent) TentativeDefinition that is encountered.
+    if (Kind == TentativeDefinition && !LastTentative)
+      LastTentative = Decl;
   }
+
   return LastTentative;
 }
 
@@ -2769,11 +2788,15 @@ SourceRange ParmVarDecl::getSourceRange() const {
 }
 
 bool ParmVarDecl::isDestroyedInCallee() const {
+  // ns_consumed only affects code generation in ARC
   if (hasAttr<NSConsumedAttr>())
-    return true;
+    return getASTContext().getLangOpts().ObjCAutoRefCount;
 
+  // FIXME: isParamDestroyedInCallee() should probably imply
+  // isDestructedType()
   auto *RT = getType()->getAs<RecordType>();
-  if (RT && RT->getDecl()->isParamDestroyedInCallee())
+  if (RT && RT->getDecl()->isParamDestroyedInCallee() &&
+      getType().isDestructedType())
     return true;
 
   return false;
@@ -2852,7 +2875,7 @@ FunctionDecl::FunctionDecl(Kind DK, ASTContext &C, DeclContext *DC,
                            SourceLocation StartLoc,
                            const DeclarationNameInfo &NameInfo, QualType T,
                            TypeSourceInfo *TInfo, StorageClass S,
-                           bool isInlineSpecified,
+                           bool UsesFPIntrin, bool isInlineSpecified,
                            ConstexprSpecKind ConstexprKind,
                            Expr *TrailingRequiresClause)
     : DeclaratorDecl(DK, DC, NameInfo.getLoc(), NameInfo.getName(), T, TInfo,
@@ -2878,7 +2901,7 @@ FunctionDecl::FunctionDecl(Kind DK, ASTContext &C, DeclContext *DC,
   FunctionDeclBits.ConstexprKind = static_cast<uint64_t>(ConstexprKind);
   FunctionDeclBits.InstantiationIsPending = false;
   FunctionDeclBits.UsesSEHTry = false;
-  FunctionDeclBits.UsesFPIntrin = false;
+  FunctionDeclBits.UsesFPIntrin = UsesFPIntrin;
   FunctionDeclBits.HasSkippedBody = false;
   FunctionDeclBits.WillHaveBody = false;
   FunctionDeclBits.IsMultiVersion = false;
@@ -3172,7 +3195,9 @@ bool FunctionDecl::isInlineBuiltinDeclaration() const {
     return false;
 
   const FunctionDecl *Definition;
-  return hasBody(Definition) && Definition->isInlineSpecified();
+  return hasBody(Definition) && Definition->isInlineSpecified() &&
+         Definition->hasAttr<AlwaysInlineAttr>() &&
+         Definition->hasAttr<GNUInlineAttr>();
 }
 
 bool FunctionDecl::isDestroyingOperatorDelete() const {
@@ -4498,6 +4523,17 @@ unsigned EnumDecl::getODRHash() {
   return ODRHash;
 }
 
+SourceRange EnumDecl::getSourceRange() const {
+  auto Res = TagDecl::getSourceRange();
+  // Set end-point to enum-base, e.g. enum foo : ^bar
+  if (auto *TSI = getIntegerTypeSourceInfo()) {
+    // TagDecl doesn't know about the enum base.
+    if (!getBraceRange().getEnd().isValid())
+      Res.setEnd(TSI->getTypeLoc().getEndLoc());
+  }
+  return Res;
+}
+
 //===----------------------------------------------------------------------===//
 // RecordDecl Implementation
 //===----------------------------------------------------------------------===//
@@ -4857,18 +4893,16 @@ ImplicitParamDecl *ImplicitParamDecl::CreateDeserialized(ASTContext &C,
   return new (C, ID) ImplicitParamDecl(C, QualType(), ImplicitParamKind::Other);
 }
 
-FunctionDecl *FunctionDecl::Create(ASTContext &C, DeclContext *DC,
-                                   SourceLocation StartLoc,
-                                   const DeclarationNameInfo &NameInfo,
-                                   QualType T, TypeSourceInfo *TInfo,
-                                   StorageClass SC, bool isInlineSpecified,
-                                   bool hasWrittenPrototype,
-                                   ConstexprSpecKind ConstexprKind,
-                                   Expr *TrailingRequiresClause) {
-  FunctionDecl *New =
-      new (C, DC) FunctionDecl(Function, C, DC, StartLoc, NameInfo, T, TInfo,
-                               SC, isInlineSpecified, ConstexprKind,
-                               TrailingRequiresClause);
+FunctionDecl *
+FunctionDecl::Create(ASTContext &C, DeclContext *DC, SourceLocation StartLoc,
+                     const DeclarationNameInfo &NameInfo, QualType T,
+                     TypeSourceInfo *TInfo, StorageClass SC, bool UsesFPIntrin,
+                     bool isInlineSpecified, bool hasWrittenPrototype,
+                     ConstexprSpecKind ConstexprKind,
+                     Expr *TrailingRequiresClause) {
+  FunctionDecl *New = new (C, DC) FunctionDecl(
+      Function, C, DC, StartLoc, NameInfo, T, TInfo, SC, UsesFPIntrin,
+      isInlineSpecified, ConstexprKind, TrailingRequiresClause);
   New->setHasWrittenPrototype(hasWrittenPrototype);
   return New;
 }
@@ -4876,7 +4910,7 @@ FunctionDecl *FunctionDecl::Create(ASTContext &C, DeclContext *DC,
 FunctionDecl *FunctionDecl::CreateDeserialized(ASTContext &C, unsigned ID) {
   return new (C, ID) FunctionDecl(
       Function, C, nullptr, SourceLocation(), DeclarationNameInfo(), QualType(),
-      nullptr, SC_None, false, ConstexprSpecKind::Unspecified, nullptr);
+      nullptr, SC_None, false, false, ConstexprSpecKind::Unspecified, nullptr);
 }
 
 BlockDecl *BlockDecl::Create(ASTContext &C, DeclContext *DC, SourceLocation L) {

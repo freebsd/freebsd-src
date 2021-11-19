@@ -155,7 +155,7 @@ public:
   void PragmaDiagnosticPop(SourceLocation Loc, StringRef Namespace) override;
   void PragmaDiagnostic(SourceLocation Loc, StringRef Namespace,
                         diag::Severity Map, StringRef Str) override;
-  void PragmaWarning(SourceLocation Loc, StringRef WarningSpec,
+  void PragmaWarning(SourceLocation Loc, PragmaWarningSpecifier WarningSpec,
                      ArrayRef<int> Ids) override;
   void PragmaWarningPush(SourceLocation Loc, int Level) override;
   void PragmaWarningPop(SourceLocation Loc) override;
@@ -182,25 +182,23 @@ public:
   /// implicitly when at the beginning of the file.
   ///
   /// @param Tok                 Token where to move to.
-  /// @param RequiresStartOfLine Whether the next line depends on being in the
+  /// @param RequireStartOfLine  Whether the next line depends on being in the
   ///                            first column, such as a directive.
   ///
   /// @return Whether column adjustments are necessary.
   bool MoveToLine(const Token &Tok, bool RequireStartOfLine) {
     PresumedLoc PLoc = SM.getPresumedLoc(Tok.getLocation());
-    if (PLoc.isInvalid())
-      return false;
+    unsigned TargetLine = PLoc.isValid() ? PLoc.getLine() : CurLine;
     bool IsFirstInFile = Tok.isAtStartOfLine() && PLoc.getLine() == 1;
-    return MoveToLine(PLoc.getLine(), RequireStartOfLine) || IsFirstInFile;
+    return MoveToLine(TargetLine, RequireStartOfLine) || IsFirstInFile;
   }
 
   /// Move to the line of the provided source location. Returns true if a new
   /// line was inserted.
   bool MoveToLine(SourceLocation Loc, bool RequireStartOfLine) {
     PresumedLoc PLoc = SM.getPresumedLoc(Loc);
-    if (PLoc.isInvalid())
-      return false;
-    return MoveToLine(PLoc.getLine(), RequireStartOfLine);
+    unsigned TargetLine = PLoc.isValid() ? PLoc.getLine() : CurLine;
+    return MoveToLine(TargetLine, RequireStartOfLine);
   }
   bool MoveToLine(unsigned LineNo, bool RequireStartOfLine);
 
@@ -276,20 +274,27 @@ bool PrintPPOutputPPCallbacks::MoveToLine(unsigned LineNo,
   // otherwise print a #line directive.
   if (CurLine == LineNo) {
     // Nothing to do if we are already on the correct line.
-  } else if (!StartedNewLine && (!MinimizeWhitespace || !DisableLineMarkers) &&
-             LineNo - CurLine == 1) {
+  } else if (MinimizeWhitespace && DisableLineMarkers) {
+    // With -E -P -fminimize-whitespace, don't emit anything if not necessary.
+  } else if (!StartedNewLine && LineNo - CurLine == 1) {
     // Printing a single line has priority over printing a #line directive, even
     // when minimizing whitespace which otherwise would print #line directives
     // for every single line.
     OS << '\n';
     StartedNewLine = true;
-  } else if (!MinimizeWhitespace && LineNo - CurLine <= 8) {
-    const char *NewLines = "\n\n\n\n\n\n\n\n";
-    OS.write(NewLines, LineNo - CurLine);
-    StartedNewLine = true;
   } else if (!DisableLineMarkers) {
-    // Emit a #line or line marker.
-    WriteLineInfo(LineNo, nullptr, 0);
+    if (LineNo - CurLine <= 8) {
+      const char *NewLines = "\n\n\n\n\n\n\n\n";
+      OS.write(NewLines, LineNo - CurLine);
+    } else {
+      // Emit a #line or line marker.
+      WriteLineInfo(LineNo, nullptr, 0);
+    }
+    StartedNewLine = true;
+  } else if (EmittedTokensOnThisLine) {
+    // If we are not on the correct line and don't need to be line-correct,
+    // at least ensure we start on a new line.
+    OS << '\n';
     StartedNewLine = true;
   }
 
@@ -573,10 +578,24 @@ void PrintPPOutputPPCallbacks::PragmaDiagnostic(SourceLocation Loc,
 }
 
 void PrintPPOutputPPCallbacks::PragmaWarning(SourceLocation Loc,
-                                             StringRef WarningSpec,
+                                             PragmaWarningSpecifier WarningSpec,
                                              ArrayRef<int> Ids) {
   MoveToLine(Loc, /*RequireStartOfLine=*/true);
-  OS << "#pragma warning(" << WarningSpec << ':';
+
+  OS << "#pragma warning(";
+  switch(WarningSpec) {
+    case PWS_Default:  OS << "default"; break;
+    case PWS_Disable:  OS << "disable"; break;
+    case PWS_Error:    OS << "error"; break;
+    case PWS_Once:     OS << "once"; break;
+    case PWS_Suppress: OS << "suppress"; break;
+    case PWS_Level1:   OS << '1'; break;
+    case PWS_Level2:   OS << '2'; break;
+    case PWS_Level3:   OS << '3'; break;
+    case PWS_Level4:   OS << '4'; break;
+  }
+  OS << ':';
+
   for (ArrayRef<int>::iterator I = Ids.begin(), E = Ids.end(); I != E; ++I)
     OS << ' ' << *I;
   OS << ')';
@@ -639,7 +658,9 @@ void PrintPPOutputPPCallbacks::HandleWhitespaceBeforeTok(const Token &Tok,
        !Tok.is(tok::annot_module_begin) && !Tok.is(tok::annot_module_end)))
     return;
 
-  if (!RequireSameLine && MoveToLine(Tok, /*RequireStartOfLine=*/false)) {
+  // EmittedDirectiveOnThisLine takes priority over RequireSameLine.
+  if ((!RequireSameLine || EmittedDirectiveOnThisLine) &&
+      MoveToLine(Tok, /*RequireStartOfLine=*/EmittedDirectiveOnThisLine)) {
     if (MinimizeWhitespace) {
       // Avoid interpreting hash as a directive under -fpreprocessed.
       if (Tok.is(tok::hash))
@@ -677,7 +698,7 @@ void PrintPPOutputPPCallbacks::HandleWhitespaceBeforeTok(const Token &Tok,
     // - The whitespace is necessary to keep the tokens apart and there is not
     //   already a newline between them
     if (RequireSpace || (!MinimizeWhitespace && Tok.hasLeadingSpace()) ||
-        ((EmittedTokensOnThisLine || EmittedTokensOnThisLine) &&
+        ((EmittedTokensOnThisLine || EmittedDirectiveOnThisLine) &&
          AvoidConcat(PrevPrevTok, PrevTok, Tok)))
       OS << ' ';
   }

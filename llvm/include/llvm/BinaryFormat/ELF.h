@@ -660,6 +660,12 @@ enum {
 #include "ELFRelocs/RISCV.def"
 };
 
+enum {
+  // Symbol may follow different calling convention than the standard calling
+  // convention.
+  STO_RISCV_VARIANT_CC = 0x80
+};
+
 // ELF Relocation types for S390/zSeries
 enum {
 #include "ELFRelocs/SystemZ.def"
@@ -1596,6 +1602,16 @@ enum {
   NT_FREEBSD_PROCSTAT_AUXV = 16,
 };
 
+// OpenBSD core note types.
+enum {
+  NT_OPENBSD_PROCINFO = 10,
+  NT_OPENBSD_AUXV = 11,
+  NT_OPENBSD_REGS = 20,
+  NT_OPENBSD_FPREGS = 21,
+  NT_OPENBSD_XFPREGS = 22,
+  NT_OPENBSD_WCOOKIE = 23,
+};
+
 // AMDGPU-specific section indices.
 enum {
   SHN_AMDGPU_LDS = 0xff00, // Variable in LDS; symbol encoded like SHN_COMMON
@@ -1616,6 +1632,13 @@ enum {
 enum {
   // Note types with values between 0 and 31 (inclusive) are reserved.
   NT_AMDGPU_METADATA = 32
+};
+
+// LLVMOMPOFFLOAD specific notes.
+enum : unsigned {
+  NT_LLVM_OPENMP_OFFLOAD_VERSION = 1,
+  NT_LLVM_OPENMP_OFFLOAD_PRODUCER = 2,
+  NT_LLVM_OPENMP_OFFLOAD_PRODUCER_VERSION = 3
 };
 
 enum {

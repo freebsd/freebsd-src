@@ -18,7 +18,7 @@ def SiFive7Model : SchedMachineModel {
   let UnsupportedFeatures = [HasStdExtV, HasStdExtZvamo, HasStdExtZvlsseg];
 }
 
-// The SiFive7 microarchitecure has two pipelines: A and B.
+// The SiFive7 microarchitecture has two pipelines: A and B.
 // Pipe A can handle memory, integer alu and vector operations.
 // Pipe B can handle integer alu, control flow, integer multiply and divide,
 // and floating point computation.
@@ -219,6 +219,9 @@ def : ReadAdvance<ReadFMovI64ToF64, 0>;
 def : ReadAdvance<ReadFClass32, 0>;
 def : ReadAdvance<ReadFClass64, 0>;
 
+//===----------------------------------------------------------------------===//
+// Unsupported extensions
+defm : UnsupportedSchedV;
 defm : UnsupportedSchedZba;
 defm : UnsupportedSchedZbb;
 defm : UnsupportedSchedZfh;

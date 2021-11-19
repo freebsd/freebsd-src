@@ -49,6 +49,8 @@
 #include "llvm/Support/FormatVariadic.h"
 #include "llvm/Support/FormattedStream.h"
 #include "llvm/Support/LEB128.h"
+#include "llvm/Support/MSP430AttributeParser.h"
+#include "llvm/Support/MSP430Attributes.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/MipsABIFlags.h"
 #include "llvm/Support/RISCVAttributeParser.h"
@@ -339,7 +341,8 @@ protected:
     return DynRegionInfo(ObjF, *this, Obj.base() + Offset, Size, EntSize);
   }
 
-  void printAttributes();
+  void printAttributes(unsigned, std::unique_ptr<ELFAttributeParser>,
+                       support::endianness);
   void printMipsReginfo();
   void printMipsOptions();
 
@@ -963,19 +966,19 @@ findNotEmptySectionByAddress(const ELFO &Obj, StringRef FileName,
   return nullptr;
 }
 
-static const EnumEntry<unsigned> ElfClass[] = {
+const EnumEntry<unsigned> ElfClass[] = {
   {"None",   "none",   ELF::ELFCLASSNONE},
   {"32-bit", "ELF32",  ELF::ELFCLASS32},
   {"64-bit", "ELF64",  ELF::ELFCLASS64},
 };
 
-static const EnumEntry<unsigned> ElfDataEncoding[] = {
+const EnumEntry<unsigned> ElfDataEncoding[] = {
   {"None",         "none",                          ELF::ELFDATANONE},
   {"LittleEndian", "2's complement, little endian", ELF::ELFDATA2LSB},
   {"BigEndian",    "2's complement, big endian",    ELF::ELFDATA2MSB},
 };
 
-static const EnumEntry<unsigned> ElfObjectFileType[] = {
+const EnumEntry<unsigned> ElfObjectFileType[] = {
   {"None",         "NONE (none)",              ELF::ET_NONE},
   {"Relocatable",  "REL (Relocatable file)",   ELF::ET_REL},
   {"Executable",   "EXEC (Executable file)",   ELF::ET_EXEC},
@@ -983,7 +986,7 @@ static const EnumEntry<unsigned> ElfObjectFileType[] = {
   {"Core",         "CORE (Core file)",         ELF::ET_CORE},
 };
 
-static const EnumEntry<unsigned> ElfOSABI[] = {
+const EnumEntry<unsigned> ElfOSABI[] = {
   {"SystemV",      "UNIX - System V",      ELF::ELFOSABI_NONE},
   {"HPUX",         "UNIX - HP-UX",         ELF::ELFOSABI_HPUX},
   {"NetBSD",       "UNIX - NetBSD",        ELF::ELFOSABI_NETBSD},
@@ -1004,22 +1007,22 @@ static const EnumEntry<unsigned> ElfOSABI[] = {
   {"Standalone",   "Standalone App",       ELF::ELFOSABI_STANDALONE}
 };
 
-static const EnumEntry<unsigned> AMDGPUElfOSABI[] = {
+const EnumEntry<unsigned> AMDGPUElfOSABI[] = {
   {"AMDGPU_HSA",    "AMDGPU - HSA",    ELF::ELFOSABI_AMDGPU_HSA},
   {"AMDGPU_PAL",    "AMDGPU - PAL",    ELF::ELFOSABI_AMDGPU_PAL},
   {"AMDGPU_MESA3D", "AMDGPU - MESA3D", ELF::ELFOSABI_AMDGPU_MESA3D}
 };
 
-static const EnumEntry<unsigned> ARMElfOSABI[] = {
+const EnumEntry<unsigned> ARMElfOSABI[] = {
   {"ARM", "ARM", ELF::ELFOSABI_ARM}
 };
 
-static const EnumEntry<unsigned> C6000ElfOSABI[] = {
+const EnumEntry<unsigned> C6000ElfOSABI[] = {
   {"C6000_ELFABI", "Bare-metal C6000", ELF::ELFOSABI_C6000_ELFABI},
   {"C6000_LINUX",  "Linux C6000",      ELF::ELFOSABI_C6000_LINUX}
 };
 
-static const EnumEntry<unsigned> ElfMachineType[] = {
+const EnumEntry<unsigned> ElfMachineType[] = {
   ENUM_ENT(EM_NONE,          "None"),
   ENUM_ENT(EM_M32,           "WE32100"),
   ENUM_ENT(EM_SPARC,         "Sparc"),
@@ -1185,19 +1188,19 @@ static const EnumEntry<unsigned> ElfMachineType[] = {
   ENUM_ENT(EM_VE,            "NEC SX-Aurora Vector Engine"),
 };
 
-static const EnumEntry<unsigned> ElfSymbolBindings[] = {
+const EnumEntry<unsigned> ElfSymbolBindings[] = {
     {"Local",  "LOCAL",  ELF::STB_LOCAL},
     {"Global", "GLOBAL", ELF::STB_GLOBAL},
     {"Weak",   "WEAK",   ELF::STB_WEAK},
     {"Unique", "UNIQUE", ELF::STB_GNU_UNIQUE}};
 
-static const EnumEntry<unsigned> ElfSymbolVisibilities[] = {
+const EnumEntry<unsigned> ElfSymbolVisibilities[] = {
     {"DEFAULT",   "DEFAULT",   ELF::STV_DEFAULT},
     {"INTERNAL",  "INTERNAL",  ELF::STV_INTERNAL},
     {"HIDDEN",    "HIDDEN",    ELF::STV_HIDDEN},
     {"PROTECTED", "PROTECTED", ELF::STV_PROTECTED}};
 
-static const EnumEntry<unsigned> AMDGPUSymbolTypes[] = {
+const EnumEntry<unsigned> AMDGPUSymbolTypes[] = {
   { "AMDGPU_HSA_KERNEL",            ELF::STT_AMDGPU_HSA_KERNEL }
 };
 
@@ -1208,7 +1211,7 @@ static const char *getGroupType(uint32_t Flag) {
     return "(unknown)";
 }
 
-static const EnumEntry<unsigned> ElfSectionFlags[] = {
+const EnumEntry<unsigned> ElfSectionFlags[] = {
   ENUM_ENT(SHF_WRITE,            "W"),
   ENUM_ENT(SHF_ALLOC,            "A"),
   ENUM_ENT(SHF_EXECINSTR,        "X"),
@@ -1224,20 +1227,20 @@ static const EnumEntry<unsigned> ElfSectionFlags[] = {
   ENUM_ENT(SHF_EXCLUDE,          "E"),
 };
 
-static const EnumEntry<unsigned> ElfXCoreSectionFlags[] = {
+const EnumEntry<unsigned> ElfXCoreSectionFlags[] = {
   ENUM_ENT(XCORE_SHF_CP_SECTION, ""),
   ENUM_ENT(XCORE_SHF_DP_SECTION, "")
 };
 
-static const EnumEntry<unsigned> ElfARMSectionFlags[] = {
+const EnumEntry<unsigned> ElfARMSectionFlags[] = {
   ENUM_ENT(SHF_ARM_PURECODE, "y")
 };
 
-static const EnumEntry<unsigned> ElfHexagonSectionFlags[] = {
+const EnumEntry<unsigned> ElfHexagonSectionFlags[] = {
   ENUM_ENT(SHF_HEX_GPREL, "")
 };
 
-static const EnumEntry<unsigned> ElfMipsSectionFlags[] = {
+const EnumEntry<unsigned> ElfMipsSectionFlags[] = {
   ENUM_ENT(SHF_MIPS_NODUPES, ""),
   ENUM_ENT(SHF_MIPS_NAMES,   ""),
   ENUM_ENT(SHF_MIPS_LOCAL,   ""),
@@ -1248,7 +1251,7 @@ static const EnumEntry<unsigned> ElfMipsSectionFlags[] = {
   ENUM_ENT(SHF_MIPS_STRING,  "")
 };
 
-static const EnumEntry<unsigned> ElfX86_64SectionFlags[] = {
+const EnumEntry<unsigned> ElfX86_64SectionFlags[] = {
   ENUM_ENT(SHF_X86_64_LARGE, "l")
 };
 
@@ -1395,13 +1398,13 @@ static std::string getGNUPtType(unsigned Arch, unsigned Type) {
   return Seg.drop_front(3).str();
 }
 
-static const EnumEntry<unsigned> ElfSegmentFlags[] = {
+const EnumEntry<unsigned> ElfSegmentFlags[] = {
   LLVM_READOBJ_ENUM_ENT(ELF, PF_X),
   LLVM_READOBJ_ENUM_ENT(ELF, PF_W),
   LLVM_READOBJ_ENUM_ENT(ELF, PF_R)
 };
 
-static const EnumEntry<unsigned> ElfHeaderMipsFlags[] = {
+const EnumEntry<unsigned> ElfHeaderMipsFlags[] = {
   ENUM_ENT(EF_MIPS_NOREORDER, "noreorder"),
   ENUM_ENT(EF_MIPS_PIC, "pic"),
   ENUM_ENT(EF_MIPS_CPIC, "cpic"),
@@ -1447,7 +1450,7 @@ static const EnumEntry<unsigned> ElfHeaderMipsFlags[] = {
   ENUM_ENT(EF_MIPS_ARCH_64R6, "mips64r6")
 };
 
-static const EnumEntry<unsigned> ElfHeaderAMDGPUFlagsABIVersion3[] = {
+const EnumEntry<unsigned> ElfHeaderAMDGPUFlagsABIVersion3[] = {
   LLVM_READOBJ_ENUM_ENT(ELF, EF_AMDGPU_MACH_NONE),
   LLVM_READOBJ_ENUM_ENT(ELF, EF_AMDGPU_MACH_R600_R600),
   LLVM_READOBJ_ENUM_ENT(ELF, EF_AMDGPU_MACH_R600_R630),
@@ -1501,7 +1504,7 @@ static const EnumEntry<unsigned> ElfHeaderAMDGPUFlagsABIVersion3[] = {
   LLVM_READOBJ_ENUM_ENT(ELF, EF_AMDGPU_FEATURE_SRAMECC_V3)
 };
 
-static const EnumEntry<unsigned> ElfHeaderAMDGPUFlagsABIVersion4[] = {
+const EnumEntry<unsigned> ElfHeaderAMDGPUFlagsABIVersion4[] = {
   LLVM_READOBJ_ENUM_ENT(ELF, EF_AMDGPU_MACH_NONE),
   LLVM_READOBJ_ENUM_ENT(ELF, EF_AMDGPU_MACH_R600_R600),
   LLVM_READOBJ_ENUM_ENT(ELF, EF_AMDGPU_MACH_R600_R630),
@@ -1559,7 +1562,7 @@ static const EnumEntry<unsigned> ElfHeaderAMDGPUFlagsABIVersion4[] = {
   LLVM_READOBJ_ENUM_ENT(ELF, EF_AMDGPU_FEATURE_SRAMECC_ON_V4)
 };
 
-static const EnumEntry<unsigned> ElfHeaderRISCVFlags[] = {
+const EnumEntry<unsigned> ElfHeaderRISCVFlags[] = {
   ENUM_ENT(EF_RISCV_RVC, "RVC"),
   ENUM_ENT(EF_RISCV_FLOAT_ABI_SINGLE, "single-float ABI"),
   ENUM_ENT(EF_RISCV_FLOAT_ABI_DOUBLE, "double-float ABI"),
@@ -1567,7 +1570,7 @@ static const EnumEntry<unsigned> ElfHeaderRISCVFlags[] = {
   ENUM_ENT(EF_RISCV_RVE, "RVE")
 };
 
-static const EnumEntry<unsigned> ElfHeaderAVRFlags[] = {
+const EnumEntry<unsigned> ElfHeaderAVRFlags[] = {
   LLVM_READOBJ_ENUM_ENT(ELF, EF_AVR_ARCH_AVR1),
   LLVM_READOBJ_ENUM_ENT(ELF, EF_AVR_ARCH_AVR2),
   LLVM_READOBJ_ENUM_ENT(ELF, EF_AVR_ARCH_AVR25),
@@ -1590,28 +1593,31 @@ static const EnumEntry<unsigned> ElfHeaderAVRFlags[] = {
 };
 
 
-static const EnumEntry<unsigned> ElfSymOtherFlags[] = {
+const EnumEntry<unsigned> ElfSymOtherFlags[] = {
   LLVM_READOBJ_ENUM_ENT(ELF, STV_INTERNAL),
   LLVM_READOBJ_ENUM_ENT(ELF, STV_HIDDEN),
   LLVM_READOBJ_ENUM_ENT(ELF, STV_PROTECTED)
 };
 
-static const EnumEntry<unsigned> ElfMipsSymOtherFlags[] = {
+const EnumEntry<unsigned> ElfMipsSymOtherFlags[] = {
   LLVM_READOBJ_ENUM_ENT(ELF, STO_MIPS_OPTIONAL),
   LLVM_READOBJ_ENUM_ENT(ELF, STO_MIPS_PLT),
   LLVM_READOBJ_ENUM_ENT(ELF, STO_MIPS_PIC),
   LLVM_READOBJ_ENUM_ENT(ELF, STO_MIPS_MICROMIPS)
 };
 
-static const EnumEntry<unsigned> ElfAArch64SymOtherFlags[] = {
+const EnumEntry<unsigned> ElfAArch64SymOtherFlags[] = {
   LLVM_READOBJ_ENUM_ENT(ELF, STO_AARCH64_VARIANT_PCS)
 };
 
-static const EnumEntry<unsigned> ElfMips16SymOtherFlags[] = {
+const EnumEntry<unsigned> ElfMips16SymOtherFlags[] = {
   LLVM_READOBJ_ENUM_ENT(ELF, STO_MIPS_OPTIONAL),
   LLVM_READOBJ_ENUM_ENT(ELF, STO_MIPS_PLT),
   LLVM_READOBJ_ENUM_ENT(ELF, STO_MIPS_MIPS16)
 };
+
+const EnumEntry<unsigned> ElfRISCVSymOtherFlags[] = {
+    LLVM_READOBJ_ENUM_ENT(ELF, STO_RISCV_VARIANT_CC)};
 
 static const char *getElfMipsOptionsOdkType(unsigned Odk) {
   switch (Odk) {
@@ -2065,7 +2071,7 @@ template <typename ELFT> void ELFDumper<ELFT>::printVersionInfo() {
 #define LLVM_READOBJ_DT_FLAG_ENT(prefix, enum)                                 \
   { #enum, prefix##_##enum }
 
-static const EnumEntry<unsigned> ElfDynamicDTFlags[] = {
+const EnumEntry<unsigned> ElfDynamicDTFlags[] = {
   LLVM_READOBJ_DT_FLAG_ENT(DF, ORIGIN),
   LLVM_READOBJ_DT_FLAG_ENT(DF, SYMBOLIC),
   LLVM_READOBJ_DT_FLAG_ENT(DF, TEXTREL),
@@ -2073,7 +2079,7 @@ static const EnumEntry<unsigned> ElfDynamicDTFlags[] = {
   LLVM_READOBJ_DT_FLAG_ENT(DF, STATIC_TLS)
 };
 
-static const EnumEntry<unsigned> ElfDynamicDTFlags1[] = {
+const EnumEntry<unsigned> ElfDynamicDTFlags1[] = {
   LLVM_READOBJ_DT_FLAG_ENT(DF_1, NOW),
   LLVM_READOBJ_DT_FLAG_ENT(DF_1, GLOBAL),
   LLVM_READOBJ_DT_FLAG_ENT(DF_1, GROUP),
@@ -2103,7 +2109,7 @@ static const EnumEntry<unsigned> ElfDynamicDTFlags1[] = {
   LLVM_READOBJ_DT_FLAG_ENT(DF_1, PIE),
 };
 
-static const EnumEntry<unsigned> ElfDynamicDTMipsFlags[] = {
+const EnumEntry<unsigned> ElfDynamicDTMipsFlags[] = {
   LLVM_READOBJ_DT_FLAG_ENT(RHF, NONE),
   LLVM_READOBJ_DT_FLAG_ENT(RHF, QUICKSTART),
   LLVM_READOBJ_DT_FLAG_ENT(RHF, NOTPOT),
@@ -2292,6 +2298,8 @@ std::string ELFDumper<ELFT>::getDynamicEntry(uint64_t Type,
   case DT_INIT_ARRAYSZ:
   case DT_FINI_ARRAYSZ:
   case DT_PREINIT_ARRAYSZ:
+  case DT_RELRSZ:
+  case DT_RELRENT:
   case DT_ANDROID_RELSZ:
   case DT_ANDROID_RELASZ:
     return std::to_string(Value) + " (bytes)";
@@ -2557,8 +2565,27 @@ template <typename ELFT> void ELFDumper<ELFT>::printLoadName() {
 template <class ELFT> void ELFDumper<ELFT>::printArchSpecificInfo() {
   switch (Obj.getHeader().e_machine) {
   case EM_ARM:
+    if (Obj.isLE())
+      printAttributes(ELF::SHT_ARM_ATTRIBUTES,
+                      std::make_unique<ARMAttributeParser>(&W),
+                      support::little);
+    else
+      reportUniqueWarning("attribute printing not implemented for big-endian "
+                          "ARM objects");
+    break;
   case EM_RISCV:
-    printAttributes();
+    if (Obj.isLE())
+      printAttributes(ELF::SHT_RISCV_ATTRIBUTES,
+                      std::make_unique<RISCVAttributeParser>(&W),
+                      support::little);
+    else
+      reportUniqueWarning("attribute printing not implemented for big-endian "
+                          "RISC-V objects");
+    break;
+  case EM_MSP430:
+    printAttributes(ELF::SHT_MSP430_ATTRIBUTES,
+                    std::make_unique<MSP430AttributeParser>(&W),
+                    support::little);
     break;
   case EM_MIPS: {
     printMipsABIFlags();
@@ -2581,20 +2608,15 @@ template <class ELFT> void ELFDumper<ELFT>::printArchSpecificInfo() {
   }
 }
 
-template <class ELFT> void ELFDumper<ELFT>::printAttributes() {
-  if (!Obj.isLE()) {
-    W.startLine() << "Attributes not implemented.\n";
-    return;
-  }
-
-  const unsigned Machine = Obj.getHeader().e_machine;
-  assert((Machine == EM_ARM || Machine == EM_RISCV) &&
-         "Attributes not implemented.");
-
+template <class ELFT>
+void ELFDumper<ELFT>::printAttributes(
+    unsigned AttrShType, std::unique_ptr<ELFAttributeParser> AttrParser,
+    support::endianness Endianness) {
+  assert((AttrShType != ELF::SHT_NULL) && AttrParser &&
+         "Incomplete ELF attribute implementation");
   DictScope BA(W, "BuildAttributes");
   for (const Elf_Shdr &Sec : cantFail(Obj.sections())) {
-    if (Sec.sh_type != ELF::SHT_ARM_ATTRIBUTES &&
-        Sec.sh_type != ELF::SHT_RISCV_ATTRIBUTES)
+    if (Sec.sh_type != AttrShType)
       continue;
 
     ArrayRef<uint8_t> Contents;
@@ -2613,13 +2635,7 @@ template <class ELFT> void ELFDumper<ELFT>::printAttributes() {
 
     W.printHex("FormatVersion", Contents[0]);
 
-    auto ParseAttrubutes = [&]() {
-      if (Machine == EM_ARM)
-        return ARMAttributeParser(&W).parse(Contents, support::little);
-      return RISCVAttributeParser(&W).parse(Contents, support::little);
-    };
-
-    if (Error E = ParseAttrubutes())
+    if (Error E = AttrParser->parse(Contents, Endianness))
       reportUniqueWarning("unable to dump attributes from the " +
                           describe(Sec) + ": " + toString(std::move(E)));
   }
@@ -2934,7 +2950,7 @@ MipsGOTParser<ELFT>::getPltSym(const Entry *E) const {
   }
 }
 
-static const EnumEntry<unsigned> ElfMipsISAExtType[] = {
+const EnumEntry<unsigned> ElfMipsISAExtType[] = {
   {"None",                    Mips::AFL_EXT_NONE},
   {"Broadcom SB-1",           Mips::AFL_EXT_SB1},
   {"Cavium Networks Octeon",  Mips::AFL_EXT_OCTEON},
@@ -2957,7 +2973,7 @@ static const EnumEntry<unsigned> ElfMipsISAExtType[] = {
   {"Toshiba R3900",           Mips::AFL_EXT_3900}
 };
 
-static const EnumEntry<unsigned> ElfMipsASEFlags[] = {
+const EnumEntry<unsigned> ElfMipsASEFlags[] = {
   {"DSP",                Mips::AFL_ASE_DSP},
   {"DSPR2",              Mips::AFL_ASE_DSPR2},
   {"Enhanced VA Scheme", Mips::AFL_ASE_EVA},
@@ -2975,7 +2991,7 @@ static const EnumEntry<unsigned> ElfMipsASEFlags[] = {
   {"GINV",               Mips::AFL_ASE_GINV},
 };
 
-static const EnumEntry<unsigned> ElfMipsFpABIType[] = {
+const EnumEntry<unsigned> ElfMipsFpABIType[] = {
   {"Hard or soft float",                  Mips::Val_GNU_MIPS_ABI_FP_ANY},
   {"Hard float (double precision)",       Mips::Val_GNU_MIPS_ABI_FP_DOUBLE},
   {"Hard float (single precision)",       Mips::Val_GNU_MIPS_ABI_FP_SINGLE},
@@ -3762,6 +3778,15 @@ void GNUELFDumper<ELFT>::printSymbol(const Elf_Sym &Symbol, unsigned SymIndex,
           Fields[5].Str.append(" | " + to_hexString(Other, false));
         Fields[5].Str.append("]");
       }
+    } else if (this->Obj.getHeader().e_machine == ELF::EM_RISCV) {
+      uint8_t Other = Symbol.st_other & ~0x3;
+      if (Other & STO_RISCV_VARIANT_CC) {
+        Other &= ~STO_RISCV_VARIANT_CC;
+        Fields[5].Str += " [VARIANT_CC";
+        if (Other != 0)
+          Fields[5].Str.append(" | " + to_hexString(Other, false));
+        Fields[5].Str.append("]");
+      }
     } else {
       Fields[5].Str +=
           " [<other: " + to_string(format_hex(Symbol.st_other, 2)) + ">]";
@@ -4358,7 +4383,7 @@ template <class ELFT> void GNUELFDumper<ELFT>::printDynamicTable() {
   for (auto Entry : Table) {
     uintX_t Tag = Entry.getTag();
     std::string Type =
-        std::string("(") + this->Obj.getDynamicTagAsString(Tag).c_str() + ")";
+        std::string("(") + this->Obj.getDynamicTagAsString(Tag) + ")";
     std::string Value = this->getDynamicEntry(Tag, Entry.getVal());
     OS << "  " << format_hex(Tag, ELFT::Is64Bits ? 18 : 10)
        << format(ValueFmt.c_str(), Type.c_str()) << Value << "\n";
@@ -4951,7 +4976,7 @@ static std::string getGNUBuildId(ArrayRef<uint8_t> Desc) {
   return OS.str();
 }
 
-static StringRef getGNUGoldVersion(ArrayRef<uint8_t> Desc) {
+static StringRef getDescAsStringRef(ArrayRef<uint8_t> Desc) {
   return StringRef(reinterpret_cast<const char *>(Desc.data()), Desc.size());
 }
 
@@ -4975,7 +5000,7 @@ static bool printGNUNote(raw_ostream &OS, uint32_t NoteType,
     break;
   }
   case ELF::NT_GNU_GOLD_VERSION:
-    OS << "    Version: " << getGNUGoldVersion(Desc);
+    OS << "    Version: " << getDescAsStringRef(Desc);
     break;
   case ELF::NT_GNU_PROPERTY_TYPE_0:
     OS << "    Properties:";
@@ -4987,7 +5012,27 @@ static bool printGNUNote(raw_ostream &OS, uint32_t NoteType,
   return true;
 }
 
-static const EnumEntry<unsigned> FreeBSDFeatureCtlFlags[] = {
+template <typename ELFT>
+static bool printLLVMOMPOFFLOADNote(raw_ostream &OS, uint32_t NoteType,
+                                    ArrayRef<uint8_t> Desc) {
+  switch (NoteType) {
+  default:
+    return false;
+  case ELF::NT_LLVM_OPENMP_OFFLOAD_VERSION:
+    OS << "    Version: " << getDescAsStringRef(Desc);
+    break;
+  case ELF::NT_LLVM_OPENMP_OFFLOAD_PRODUCER:
+    OS << "    Producer: " << getDescAsStringRef(Desc);
+    break;
+  case ELF::NT_LLVM_OPENMP_OFFLOAD_PRODUCER_VERSION:
+    OS << "    Producer version: " << getDescAsStringRef(Desc);
+    break;
+  }
+  OS << '\n';
+  return true;
+}
+
+const EnumEntry<unsigned> FreeBSDFeatureCtlFlags[] = {
     {"ASLR_DISABLE", NT_FREEBSD_FCTL_ASLR_DISABLE},
     {"PROTMAX_DISABLE", NT_FREEBSD_FCTL_PROTMAX_DISABLE},
     {"STKGAP_DISABLE", NT_FREEBSD_FCTL_STKGAP_DISABLE},
@@ -5251,14 +5296,14 @@ static void printCoreNote(raw_ostream &OS, const CoreNote &Note) {
   }
 }
 
-static const NoteType GenericNoteTypes[] = {
+const NoteType GenericNoteTypes[] = {
     {ELF::NT_VERSION, "NT_VERSION (version)"},
     {ELF::NT_ARCH, "NT_ARCH (architecture)"},
     {ELF::NT_GNU_BUILD_ATTRIBUTE_OPEN, "OPEN"},
     {ELF::NT_GNU_BUILD_ATTRIBUTE_FUNC, "func"},
 };
 
-static const NoteType GNUNoteTypes[] = {
+const NoteType GNUNoteTypes[] = {
     {ELF::NT_GNU_ABI_TAG, "NT_GNU_ABI_TAG (ABI version tag)"},
     {ELF::NT_GNU_HWCAP, "NT_GNU_HWCAP (DSO-supplied software HWCAP info)"},
     {ELF::NT_GNU_BUILD_ID, "NT_GNU_BUILD_ID (unique build ID bitstring)"},
@@ -5266,7 +5311,7 @@ static const NoteType GNUNoteTypes[] = {
     {ELF::NT_GNU_PROPERTY_TYPE_0, "NT_GNU_PROPERTY_TYPE_0 (property note)"},
 };
 
-static const NoteType FreeBSDCoreNoteTypes[] = {
+const NoteType FreeBSDCoreNoteTypes[] = {
     {ELF::NT_FREEBSD_THRMISC, "NT_THRMISC (thrmisc structure)"},
     {ELF::NT_FREEBSD_PROCSTAT_PROC, "NT_PROCSTAT_PROC (proc data)"},
     {ELF::NT_FREEBSD_PROCSTAT_FILES, "NT_PROCSTAT_FILES (files data)"},
@@ -5280,7 +5325,7 @@ static const NoteType FreeBSDCoreNoteTypes[] = {
     {ELF::NT_FREEBSD_PROCSTAT_AUXV, "NT_PROCSTAT_AUXV (auxv data)"},
 };
 
-static const NoteType FreeBSDNoteTypes[] = {
+const NoteType FreeBSDNoteTypes[] = {
     {ELF::NT_FREEBSD_ABI_TAG, "NT_FREEBSD_ABI_TAG (ABI version tag)"},
     {ELF::NT_FREEBSD_NOINIT_TAG, "NT_FREEBSD_NOINIT_TAG (no .init tag)"},
     {ELF::NT_FREEBSD_ARCH_TAG, "NT_FREEBSD_ARCH_TAG (architecture tag)"},
@@ -5288,7 +5333,15 @@ static const NoteType FreeBSDNoteTypes[] = {
      "NT_FREEBSD_FEATURE_CTL (FreeBSD feature control)"},
 };
 
-static const NoteType AMDNoteTypes[] = {
+const NoteType OpenBSDCoreNoteTypes[] = {
+    {ELF::NT_OPENBSD_PROCINFO, "NT_OPENBSD_PROCINFO (procinfo structure)"},
+    {ELF::NT_OPENBSD_AUXV, "NT_OPENBSD_AUXV (ELF auxiliary vector data)"},
+    {ELF::NT_OPENBSD_REGS, "NT_OPENBSD_REGS (regular registers)"},
+    {ELF::NT_OPENBSD_FPREGS, "NT_OPENBSD_FPREGS (floating point registers)"},
+    {ELF::NT_OPENBSD_WCOOKIE, "NT_OPENBSD_WCOOKIE (window cookie)"},
+};
+
+const NoteType AMDNoteTypes[] = {
     {ELF::NT_AMD_HSA_CODE_OBJECT_VERSION,
      "NT_AMD_HSA_CODE_OBJECT_VERSION (AMD HSA Code Object Version)"},
     {ELF::NT_AMD_HSA_HSAIL, "NT_AMD_HSA_HSAIL (AMD HSA HSAIL Properties)"},
@@ -5298,11 +5351,20 @@ static const NoteType AMDNoteTypes[] = {
     {ELF::NT_AMD_PAL_METADATA, "NT_AMD_PAL_METADATA (AMD PAL Metadata)"},
 };
 
-static const NoteType AMDGPUNoteTypes[] = {
+const NoteType AMDGPUNoteTypes[] = {
     {ELF::NT_AMDGPU_METADATA, "NT_AMDGPU_METADATA (AMDGPU Metadata)"},
 };
 
-static const NoteType CoreNoteTypes[] = {
+const NoteType LLVMOMPOFFLOADNoteTypes[] = {
+    {ELF::NT_LLVM_OPENMP_OFFLOAD_VERSION,
+     "NT_LLVM_OPENMP_OFFLOAD_VERSION (image format version)"},
+    {ELF::NT_LLVM_OPENMP_OFFLOAD_PRODUCER,
+     "NT_LLVM_OPENMP_OFFLOAD_PRODUCER (producing toolchain)"},
+    {ELF::NT_LLVM_OPENMP_OFFLOAD_PRODUCER_VERSION,
+     "NT_LLVM_OPENMP_OFFLOAD_PRODUCER_VERSION (producing toolchain version)"},
+};
+
+const NoteType CoreNoteTypes[] = {
     {ELF::NT_PRSTATUS, "NT_PRSTATUS (prstatus structure)"},
     {ELF::NT_FPREGSET, "NT_FPREGSET (floating point registers)"},
     {ELF::NT_PRPSINFO, "NT_PRPSINFO (prpsinfo structure)"},
@@ -5391,10 +5453,19 @@ StringRef getNoteTypeName(const typename ELFT::Note &Note, unsigned ELFType) {
       return FindNote(FreeBSDNoteTypes);
     }
   }
+  if (Name.startswith("OpenBSD") && ELFType == ELF::ET_CORE) {
+    // OpenBSD also places the generic core notes in the OpenBSD namespace.
+    StringRef Result = FindNote(OpenBSDCoreNoteTypes);
+    if (!Result.empty())
+      return Result;
+    return FindNote(CoreNoteTypes);
+  }
   if (Name == "AMD")
     return FindNote(AMDNoteTypes);
   if (Name == "AMDGPU")
     return FindNote(AMDGPUNoteTypes);
+  if (Name == "LLVMOMPOFFLOAD")
+    return FindNote(LLVMOMPOFFLOADNoteTypes);
 
   if (ELFType == ELF::ET_CORE)
     return FindNote(CoreNoteTypes);
@@ -5530,6 +5601,9 @@ template <class ELFT> void GNUELFDumper<ELFT>::printNotes() {
         OS << "    " << N.Type << ":\n        " << N.Value << '\n';
         return Error::success();
       }
+    } else if (Name == "LLVMOMPOFFLOAD") {
+      if (printLLVMOMPOFFLOADNote<ELFT>(OS, Type, Descriptor))
+        return Error::success();
     } else if (Name == "CORE") {
       if (Type == ELF::NT_FILE) {
         DataExtractor DescExtractor(Descriptor,
@@ -6532,6 +6606,10 @@ void LLVMELFDumper<ELFT>::printSymbol(const Elf_Sym &Symbol, unsigned SymIndex,
       SymOtherFlags.insert(SymOtherFlags.end(),
                            std::begin(ElfAArch64SymOtherFlags),
                            std::end(ElfAArch64SymOtherFlags));
+    } else if (this->Obj.getHeader().e_machine == EM_RISCV) {
+      SymOtherFlags.insert(SymOtherFlags.end(),
+                           std::begin(ElfRISCVSymOtherFlags),
+                           std::end(ElfRISCVSymOtherFlags));
     }
     W.printFlags("Other", Symbol.st_other, makeArrayRef(SymOtherFlags), 0x3u);
   }
@@ -6650,7 +6728,7 @@ void LLVMELFDumper<ELFT>::printVersionSymbolSection(const Elf_Shdr *Sec) {
   }
 }
 
-static const EnumEntry<unsigned> SymVersionFlags[] = {
+const EnumEntry<unsigned> SymVersionFlags[] = {
     {"Base", "BASE", VER_FLG_BASE},
     {"Weak", "WEAK", VER_FLG_WEAK},
     {"Info", "INFO", VER_FLG_INFO}};
@@ -6818,14 +6896,14 @@ template <class ELFT> void LLVMELFDumper<ELFT>::printBBAddrMaps() {
       FunctionSec =
           unwrapOrError(this->FileName, this->Obj.getSection(Sec.sh_link));
     ListScope L(W, "BBAddrMap");
-    Expected<std::vector<Elf_BBAddrMap>> BBAddrMapOrErr =
+    Expected<std::vector<BBAddrMap>> BBAddrMapOrErr =
         this->Obj.decodeBBAddrMap(Sec);
     if (!BBAddrMapOrErr) {
       this->reportUniqueWarning("unable to dump " + this->describe(Sec) + ": " +
                                 toString(BBAddrMapOrErr.takeError()));
       continue;
     }
-    for (const Elf_BBAddrMap &AM : *BBAddrMapOrErr) {
+    for (const BBAddrMap &AM : *BBAddrMapOrErr) {
       DictScope D(W, "Function");
       W.printHex("At", AM.Addr);
       SmallVector<uint32_t> FuncSymIndex =
@@ -6840,7 +6918,7 @@ template <class ELFT> void LLVMELFDumper<ELFT>::printBBAddrMaps() {
       W.printString("Name", FuncName);
 
       ListScope L(W, "BB entries");
-      for (const typename Elf_BBAddrMap::BBEntry &BBE : AM.BBEntries) {
+      for (const BBAddrMap::BBEntry &BBE : AM.BBEntries) {
         DictScope L(W);
         W.printHex("Offset", BBE.Offset);
         W.printHex("Size", BBE.Size);
@@ -6892,12 +6970,32 @@ static bool printGNUNoteLLVMStyle(uint32_t NoteType, ArrayRef<uint8_t> Desc,
     break;
   }
   case ELF::NT_GNU_GOLD_VERSION:
-    W.printString("Version", getGNUGoldVersion(Desc));
+    W.printString("Version", getDescAsStringRef(Desc));
     break;
   case ELF::NT_GNU_PROPERTY_TYPE_0:
     ListScope D(W, "Property");
     for (const std::string &Property : getGNUPropertyList<ELFT>(Desc))
       W.printString(Property);
+    break;
+  }
+  return true;
+}
+
+template <typename ELFT>
+static bool printLLVMOMPOFFLOADNoteLLVMStyle(uint32_t NoteType,
+                                             ArrayRef<uint8_t> Desc,
+                                             ScopedPrinter &W) {
+  switch (NoteType) {
+  default:
+    return false;
+  case ELF::NT_LLVM_OPENMP_OFFLOAD_VERSION:
+    W.printString("Version", getDescAsStringRef(Desc));
+    break;
+  case ELF::NT_LLVM_OPENMP_OFFLOAD_PRODUCER:
+    W.printString("Producer", getDescAsStringRef(Desc));
+    break;
+  case ELF::NT_LLVM_OPENMP_OFFLOAD_PRODUCER_VERSION:
+    W.printString("Producer version", getDescAsStringRef(Desc));
     break;
   }
   return true;
@@ -6970,6 +7068,9 @@ template <class ELFT> void LLVMELFDumper<ELFT>::printNotes() {
         W.printString(N.Type, N.Value);
         return Error::success();
       }
+    } else if (Name == "LLVMOMPOFFLOAD") {
+      if (printLLVMOMPOFFLOADNoteLLVMStyle<ELFT>(Type, Descriptor, W))
+        return Error::success();
     } else if (Name == "CORE") {
       if (Type == ELF::NT_FILE) {
         DataExtractor DescExtractor(Descriptor,

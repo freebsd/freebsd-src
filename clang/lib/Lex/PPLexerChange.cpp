@@ -12,6 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Basic/FileManager.h"
+#include "clang/Basic/SourceLocation.h"
 #include "clang/Basic/SourceManager.h"
 #include "clang/Lex/HeaderSearch.h"
 #include "clang/Lex/LexDiagnostic.h"
@@ -22,6 +23,7 @@
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/MemoryBufferRef.h"
 #include "llvm/Support/Path.h"
+
 using namespace clang;
 
 //===----------------------------------------------------------------------===//
@@ -37,8 +39,8 @@ bool Preprocessor::isInPrimaryFile() const {
   // If there are any stacked lexers, we're in a #include.
   assert(IsFileLexer(IncludeMacroStack[0]) &&
          "Top level include stack isn't our primary lexer?");
-  return std::none_of(
-      IncludeMacroStack.begin() + 1, IncludeMacroStack.end(),
+  return llvm::none_of(
+      llvm::drop_begin(IncludeMacroStack),
       [&](const IncludeStackInfo &ISI) -> bool { return IsFileLexer(ISI); });
 }
 
@@ -65,7 +67,8 @@ PreprocessorLexer *Preprocessor::getCurrentFileLexer() const {
 /// EnterSourceFile - Add a source file to the top of the include stack and
 /// start lexing tokens from it instead of the current buffer.
 bool Preprocessor::EnterSourceFile(FileID FID, const DirectoryLookup *CurDir,
-                                   SourceLocation Loc) {
+                                   SourceLocation Loc,
+                                   bool IsFirstIncludeOfFile) {
   assert(!CurTokenLexer && "Cannot #include a file inside a macro!");
   ++NumEnteredSourceFiles;
 
@@ -89,7 +92,8 @@ bool Preprocessor::EnterSourceFile(FileID FID, const DirectoryLookup *CurDir,
         CodeCompletionFileLoc.getLocWithOffset(CodeCompletionOffset);
   }
 
-  EnterSourceFileWithLexer(new Lexer(FID, *InputFile, *this), CurDir);
+  EnterSourceFileWithLexer(
+      new Lexer(FID, *InputFile, *this, IsFirstIncludeOfFile), CurDir);
   return false;
 }
 
@@ -299,10 +303,46 @@ void Preprocessor::diagnoseMissingHeaderInUmbrellaDir(const Module &Mod) {
   }
 }
 
+void Preprocessor::ResolvePragmaIncludeInstead(
+    const SourceLocation Location) const {
+  assert(Location.isValid());
+  if (CurLexer == nullptr)
+    return;
+
+  if (SourceMgr.isInSystemHeader(Location))
+    return;
+
+  for (const auto &Include : CurLexer->getIncludeHistory()) {
+    StringRef Filename = Include.getKey();
+    const PreprocessorLexer::IncludeInfo &Info = Include.getValue();
+    ArrayRef<SmallString<32>> Aliases =
+        HeaderInfo.getFileInfo(Info.File).Aliases.getArrayRef();
+
+    if (Aliases.empty())
+      continue;
+
+    switch (Aliases.size()) {
+    case 1:
+      Diag(Info.Location, diag::err_pragma_include_instead_system_reserved)
+          << Filename << 0 << Aliases[0];
+      continue;
+    case 2:
+      Diag(Info.Location, diag::err_pragma_include_instead_system_reserved)
+          << Filename << 1 << Aliases[0] << Aliases[1];
+      continue;
+    default: {
+      Diag(Info.Location, diag::err_pragma_include_instead_system_reserved)
+          << Filename << 2 << ("{'" + llvm::join(Aliases, "', '") + "'}");
+    }
+    }
+  }
+}
+
 /// HandleEndOfFile - This callback is invoked when the lexer hits the end of
 /// the current file.  This either returns the EOF token or pops a level off
 /// the include stack and keeps going.
-bool Preprocessor::HandleEndOfFile(Token &Result, bool isEndOfMacro) {
+bool Preprocessor::HandleEndOfFile(Token &Result, SourceLocation EndLoc,
+                                   bool isEndOfMacro) {
   assert(!CurTokenLexer &&
          "Ending a file when currently in a macro!");
 
@@ -339,7 +379,7 @@ bool Preprocessor::HandleEndOfFile(Token &Result, bool isEndOfMacro) {
               CurPPLexer->MIOpt.GetDefinedMacro()) {
           if (!isMacroDefined(ControllingMacro) &&
               DefinedMacro != ControllingMacro &&
-              HeaderInfo.FirstTimeLexingFile(FE)) {
+              CurLexer->isFirstTimeLexingFile()) {
 
             // If the edit distance between the two macros is more than 50%,
             // DefinedMacro may not be header guard, or can be header guard of
@@ -371,6 +411,9 @@ bool Preprocessor::HandleEndOfFile(Token &Result, bool isEndOfMacro) {
       }
     }
   }
+
+  if (EndLoc.isValid())
+    ResolvePragmaIncludeInstead(EndLoc);
 
   // Complain about reaching a true EOF within arc_cf_code_audited.
   // We don't want to complain about reaching the end of a macro
@@ -560,7 +603,7 @@ bool Preprocessor::HandleEndOfTokenLexer(Token &Result) {
     TokenLexerCache[NumCachedTokenLexers++] = std::move(CurTokenLexer);
 
   // Handle this like a #include file being popped off the stack.
-  return HandleEndOfFile(Result, true);
+  return HandleEndOfFile(Result, {}, true);
 }
 
 /// RemoveTopOfLexerStack - Pop the current lexer/macro exp off the top of the

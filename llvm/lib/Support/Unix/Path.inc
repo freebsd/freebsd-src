@@ -39,6 +39,9 @@
 #include <mach-o/dyld.h>
 #include <sys/attr.h>
 #include <copyfile.h>
+#if __has_include(<sys/clonefile.h>)
+#include <sys/clonefile.h>
+#endif
 #elif defined(__FreeBSD__)
 #include <osreldate.h>
 #if __FreeBSD_version >= 1300057
@@ -125,7 +128,8 @@ const file_t kInvalidFile = -1;
 
 #if defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) ||     \
     defined(__minix) || defined(__FreeBSD_kernel__) || defined(__linux__) ||   \
-    defined(__CYGWIN__) || defined(__DragonFly__) || defined(_AIX) || defined(__GNU__)
+    defined(__CYGWIN__) || defined(__DragonFly__) || defined(_AIX) || defined(__GNU__) || \
+    (defined(__sun__) && defined(__svr4__))
 static int
 test_dir(char ret[PATH_MAX], const char *dir, const char *bin)
 {
@@ -282,6 +286,20 @@ std::string getMainExecutable(const char *argv0, void *MainAddr) {
   }
   // Fall back to the classical detection.
   if (getprogpath(exe_path, argv0))
+    return exe_path;
+#elif defined(__sun__) && defined(__svr4__)
+  char exe_path[PATH_MAX];
+  const char *aPath = "/proc/self/execname";
+  if (sys::fs::exists(aPath)) {
+    int fd = open(aPath, O_RDONLY);
+    if (fd == -1)
+      return "";
+    if (read(fd, exe_path, sizeof(exe_path)) < 0)
+      return "";
+    return exe_path;
+  }
+  // Fall back to the classical detection.
+  if (getprogpath(exe_path, argv0) != NULL)
     return exe_path;
 #elif defined(__MVS__)
   int token = 0;
@@ -1442,22 +1460,37 @@ namespace fs {
 /// file descriptor variant of this function still uses the default
 /// implementation.
 std::error_code copy_file(const Twine &From, const Twine &To) {
-  uint32_t Flag = COPYFILE_DATA;
-#if __has_builtin(__builtin_available) && defined(COPYFILE_CLONE)
+  std::string FromS = From.str();
+  std::string ToS = To.str();
+#if __has_builtin(__builtin_available)
   if (__builtin_available(macos 10.12, *)) {
-    bool IsSymlink;
-    if (std::error_code Error = is_symlink_file(From, IsSymlink))
-      return Error;
-    // COPYFILE_CLONE clones the symlink instead of following it
-    // and returns EEXISTS if the target file already exists.
-    if (!IsSymlink && !exists(To))
-      Flag = COPYFILE_CLONE;
+    // Optimistically try to use clonefile() and handle errors, rather than
+    // calling stat() to see if it'll work.
+    //
+    // Note: It's okay if From is a symlink. In contrast to the behaviour of
+    // copyfile() with COPYFILE_CLONE, clonefile() clones targets (not the
+    // symlink itself) unless the flag CLONE_NOFOLLOW is passed.
+    if (!clonefile(FromS.c_str(), ToS.c_str(), 0))
+      return std::error_code();
+
+    auto Errno = errno;
+    switch (Errno) {
+      case EEXIST:  // To already exists.
+      case ENOTSUP: // Device does not support cloning.
+      case EXDEV:   // From and To are on different devices.
+        break;
+      default:
+        // Anything else will also break copyfile().
+        return std::error_code(Errno, std::generic_category());
+    }
+
+    // TODO: For EEXIST, profile calling fs::generateUniqueName() and
+    // clonefile() in a retry loop (then rename() on success) before falling
+    // back to copyfile(). Depending on the size of the file this could be
+    // cheaper.
   }
 #endif
-  int Status =
-      copyfile(From.str().c_str(), To.str().c_str(), /* State */ NULL, Flag);
-
-  if (Status == 0)
+  if (!copyfile(FromS.c_str(), ToS.c_str(), /*State=*/NULL, COPYFILE_DATA))
     return std::error_code();
   return std::error_code(errno, std::generic_category());
 }

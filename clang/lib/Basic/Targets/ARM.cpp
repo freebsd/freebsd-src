@@ -212,6 +212,12 @@ StringRef ARMTargetInfo::getCPUAttr() const {
     return "8_6A";
   case llvm::ARM::ArchKind::ARMV8_7A:
     return "8_7A";
+  case llvm::ARM::ArchKind::ARMV9A:
+    return "9A";
+  case llvm::ARM::ArchKind::ARMV9_1A:
+    return "9_1A";
+  case llvm::ARM::ArchKind::ARMV9_2A:
+    return "9_2A";
   case llvm::ARM::ArchKind::ARMV8MBaseline:
     return "8M_BASE";
   case llvm::ARM::ArchKind::ARMV8MMainline:
@@ -440,6 +446,7 @@ bool ARMTargetInfo::handleTargetFeatures(std::vector<std::string> &Features,
   HasFloat16 = true;
   ARMCDECoprocMask = 0;
   HasBFloat16 = false;
+  FPRegsDisabled = false;
 
   // This does not diagnose illegal cases like having both
   // "+vfpv2" and "+vfpv3" or having "+neon" and "-fp64".
@@ -516,6 +523,8 @@ bool ARMTargetInfo::handleTargetFeatures(std::vector<std::string> &Features,
       ARMCDECoprocMask |= (1U << Coproc);
     } else if (Feature == "+bf16") {
       HasBFloat16 = true;
+    } else if (Feature == "-fpregs") {
+      FPRegsDisabled = true;
     }
   }
 
@@ -535,6 +544,7 @@ bool ARMTargetInfo::handleTargetFeatures(std::vector<std::string> &Features,
       LDREX = LDREX_D | LDREX_W | LDREX_H | LDREX_B;
     break;
   case 8:
+  case 9:
     LDREX = LDREX_D | LDREX_W | LDREX_H | LDREX_B;
   }
 
@@ -877,6 +887,9 @@ void ARMTargetInfo::getTargetDefines(const LangOptions &Opts,
   case llvm::ARM::ArchKind::ARMV8_4A:
   case llvm::ARM::ArchKind::ARMV8_5A:
   case llvm::ARM::ArchKind::ARMV8_6A:
+  case llvm::ARM::ArchKind::ARMV9A:
+  case llvm::ARM::ArchKind::ARMV9_1A:
+  case llvm::ARM::ArchKind::ARMV9_2A:
     getTargetDefinesARMV83A(Opts, Builder);
     break;
   }
@@ -968,6 +981,8 @@ bool ARMTargetInfo::validateAsmConstraint(
   case 't': // s0-s31, d0-d31, or q0-q15
   case 'w': // s0-s15, d0-d7, or q0-q3
   case 'x': // s0-s31, d0-d15, or q0-q7
+    if (FPRegsDisabled)
+      return false;
     Info.setAllowsRegister();
     return true;
   case 'j': // An immediate integer between 0 and 65535 (valid for MOVW)

@@ -1158,11 +1158,33 @@ void AArch64FrameLowering::emitPrologue(MachineFunction &MF,
   // ORR is sufficient, it is assumed a Swift kernel would initialize the TBI
   // bits so that is still true.
   if (HasFP && AFI->hasSwiftAsyncContext()) {
-    // ORR x29, x29, #0x1000_0000_0000_0000
-    BuildMI(MBB, MBBI, DL, TII->get(AArch64::ORRXri), AArch64::FP)
-        .addUse(AArch64::FP)
-        .addImm(0x1100)
-        .setMIFlag(MachineInstr::FrameSetup);
+    switch (MF.getTarget().Options.SwiftAsyncFramePointer) {
+    case SwiftAsyncFramePointerMode::DeploymentBased:
+      if (Subtarget.swiftAsyncContextIsDynamicallySet()) {
+        // The special symbol below is absolute and has a *value* that can be
+        // combined with the frame pointer to signal an extended frame.
+        BuildMI(MBB, MBBI, DL, TII->get(AArch64::LOADgot), AArch64::X16)
+            .addExternalSymbol("swift_async_extendedFramePointerFlags",
+                               AArch64II::MO_GOT);
+        BuildMI(MBB, MBBI, DL, TII->get(AArch64::ORRXrs), AArch64::FP)
+            .addUse(AArch64::FP)
+            .addUse(AArch64::X16)
+            .addImm(Subtarget.isTargetILP32() ? 32 : 0);
+        break;
+      }
+      LLVM_FALLTHROUGH;
+
+    case SwiftAsyncFramePointerMode::Always:
+      // ORR x29, x29, #0x1000_0000_0000_0000
+      BuildMI(MBB, MBBI, DL, TII->get(AArch64::ORRXri), AArch64::FP)
+          .addUse(AArch64::FP)
+          .addImm(0x1100)
+          .setMIFlag(MachineInstr::FrameSetup);
+      break;
+
+    case SwiftAsyncFramePointerMode::Never:
+      break;
+    }
   }
 
   // All calls are tail calls in GHC calling conv, and functions have no
@@ -1205,7 +1227,7 @@ void AArch64FrameLowering::emitPrologue(MachineFunction &MF,
       emitFrameOffset(MBB, MBBI, DL, AArch64::SP, AArch64::SP,
                       StackOffset::getFixed(-NumBytes), TII,
                       MachineInstr::FrameSetup, false, NeedsWinCFI, &HasWinCFI);
-      if (!NeedsWinCFI && needsFrameMoves) {
+      if (needsFrameMoves) {
         // Label used to tie together the PROLOG_LABEL and the MachineMoves.
         MCSymbol *FrameLabel = MMI.getContext().createTempSymbol();
           // Encode the stack size of the leaf function.
@@ -1631,7 +1653,8 @@ static void InsertReturnAddressAuth(MachineFunction &MF,
   // The AUTIASP instruction assembles to a hint instruction before v8.3a so
   // this instruction can safely used for any v8a architecture.
   // From v8.3a onwards there are optimised authenticate LR and return
-  // instructions, namely RETA{A,B}, that can be used instead.
+  // instructions, namely RETA{A,B}, that can be used instead. In this case the
+  // DW_CFA_AARCH64_negate_ra_state can't be emitted.
   if (Subtarget.hasPAuth() && MBBI != MBB.end() &&
       MBBI->getOpcode() == AArch64::RET_ReallyLR) {
     BuildMI(MBB, MBBI, DL,
@@ -1643,6 +1666,12 @@ static void InsertReturnAddressAuth(MachineFunction &MF,
         MBB, MBBI, DL,
         TII->get(MFI.shouldSignWithBKey() ? AArch64::AUTIBSP : AArch64::AUTIASP))
         .setMIFlag(MachineInstr::FrameDestroy);
+
+    unsigned CFIIndex =
+        MF.addFrameInst(MCCFIInstruction::createNegateRAState(nullptr));
+    BuildMI(MBB, MBBI, DL, TII->get(TargetOpcode::CFI_INSTRUCTION))
+        .addCFIIndex(CFIIndex)
+        .setMIFlags(MachineInstr::FrameDestroy);
   }
 }
 
@@ -2472,22 +2501,20 @@ bool AArch64FrameLowering::spillCalleeSavedRegisters(
       BuildMI(MBB, MI, DL, TII.get(AArch64::SEH_Nop))
           .setMIFlag(MachineInstr::FrameSetup);
 
-    if (!MF.getFunction().hasFnAttribute(Attribute::NoUnwind)) {
-      // Emit a CFI instruction that causes 8 to be subtracted from the value of
-      // x18 when unwinding past this frame.
-      static const char CFIInst[] = {
-          dwarf::DW_CFA_val_expression,
-          18, // register
-          2,  // length
-          static_cast<char>(unsigned(dwarf::DW_OP_breg18)),
-          static_cast<char>(-8) & 0x7f, // addend (sleb128)
-      };
-      unsigned CFIIndex = MF.addFrameInst(MCCFIInstruction::createEscape(
-          nullptr, StringRef(CFIInst, sizeof(CFIInst))));
-      BuildMI(MBB, MI, DL, TII.get(AArch64::CFI_INSTRUCTION))
-          .addCFIIndex(CFIIndex)
-          .setMIFlag(MachineInstr::FrameSetup);
-    }
+    // Emit a CFI instruction that causes 8 to be subtracted from the value of
+    // x18 when unwinding past this frame.
+    static const char CFIInst[] = {
+        dwarf::DW_CFA_val_expression,
+        18, // register
+        2,  // length
+        static_cast<char>(unsigned(dwarf::DW_OP_breg18)),
+        static_cast<char>(-8) & 0x7f, // addend (sleb128)
+    };
+    unsigned CFIIndex = MF.addFrameInst(MCCFIInstruction::createEscape(
+        nullptr, StringRef(CFIInst, sizeof(CFIInst))));
+    BuildMI(MBB, MI, DL, TII.get(AArch64::CFI_INSTRUCTION))
+        .addCFIIndex(CFIIndex)
+        .setMIFlag(MachineInstr::FrameSetup);
 
     // This instruction also makes x18 live-in to the entry block.
     MBB.addLiveIn(AArch64::X18);
@@ -2509,9 +2536,7 @@ bool AArch64FrameLowering::spillCalleeSavedRegisters(
     }
     return true;
   }
-  for (auto RPII = RegPairs.rbegin(), RPIE = RegPairs.rend(); RPII != RPIE;
-       ++RPII) {
-    RegPairInfo RPI = *RPII;
+  for (const RegPairInfo &RPI : llvm::reverse(RegPairs)) {
     unsigned Reg1 = RPI.Reg1;
     unsigned Reg2 = RPI.Reg2;
     unsigned StrOpc;
@@ -3512,7 +3537,14 @@ StackOffset AArch64FrameLowering::getFrameIndexReferencePreferSP(
     return StackOffset::getFixed(MFI.getObjectOffset(FI));
   }
 
-  return getFrameIndexReference(MF, FI, FrameReg);
+  // Go to common code if we cannot provide sp + offset.
+  if (MFI.hasVarSizedObjects() ||
+      MF.getInfo<AArch64FunctionInfo>()->getStackSizeSVE() ||
+      MF.getSubtarget().getRegisterInfo()->hasStackRealignment(MF))
+    return getFrameIndexReference(MF, FI, FrameReg);
+
+  FrameReg = AArch64::SP;
+  return getStackOffset(MF, MFI.getObjectOffset(FI));
 }
 
 /// The parent frame offset (aka dispFrame) is only used on X86_64 to retrieve

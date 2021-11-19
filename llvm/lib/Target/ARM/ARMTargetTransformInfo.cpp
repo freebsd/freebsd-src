@@ -149,7 +149,7 @@ ARMTTIImpl::instCombineIntrinsic(InstCombiner &IC, IntrinsicInst &II) const {
     Align MemAlign =
         getKnownAlignment(II.getArgOperand(0), IC.getDataLayout(), &II,
                           &IC.getAssumptionCache(), &IC.getDominatorTree());
-    unsigned AlignArg = II.getNumArgOperands() - 1;
+    unsigned AlignArg = II.arg_size() - 1;
     Value *AlignArgOp = II.getArgOperand(AlignArg);
     MaybeAlign Align = cast<ConstantInt>(AlignArgOp)->getMaybeAlignValue();
     if (Align && *Align < MemAlign) {
@@ -175,7 +175,7 @@ ARMTTIImpl::instCombineIntrinsic(InstCombiner &IC, IntrinsicInst &II) const {
                          PatternMatch::m_Constant(XorMask))) &&
         II.getType() == ArgArg->getType()) {
       if (auto *CI = dyn_cast<ConstantInt>(XorMask)) {
-        if (CI->getValue().trunc(16).isAllOnesValue()) {
+        if (CI->getValue().trunc(16).isAllOnes()) {
           auto TrueVector = IC.Builder.CreateVectorSplat(
               cast<FixedVectorType>(II.getType())->getNumElements(),
               IC.Builder.getTrue());
@@ -248,6 +248,48 @@ ARMTTIImpl::instCombineIntrinsic(InstCombiner &IC, IntrinsicInst &II) const {
   return None;
 }
 
+Optional<Value *> ARMTTIImpl::simplifyDemandedVectorEltsIntrinsic(
+    InstCombiner &IC, IntrinsicInst &II, APInt OrigDemandedElts,
+    APInt &UndefElts, APInt &UndefElts2, APInt &UndefElts3,
+    std::function<void(Instruction *, unsigned, APInt, APInt &)>
+        SimplifyAndSetOp) const {
+
+  // Compute the demanded bits for a narrowing MVE intrinsic. The TopOpc is the
+  // opcode specifying a Top/Bottom instruction, which can change between
+  // instructions.
+  auto SimplifyNarrowInstrTopBottom =[&](unsigned TopOpc) {
+    unsigned NumElts = cast<FixedVectorType>(II.getType())->getNumElements();
+    unsigned IsTop = cast<ConstantInt>(II.getOperand(TopOpc))->getZExtValue();
+
+    // The only odd/even lanes of operand 0 will only be demanded depending
+    // on whether this is a top/bottom instruction.
+    APInt DemandedElts =
+        APInt::getSplat(NumElts, IsTop ? APInt::getLowBitsSet(2, 1)
+                                       : APInt::getHighBitsSet(2, 1));
+    SimplifyAndSetOp(&II, 0, OrigDemandedElts & DemandedElts, UndefElts);
+    // The other lanes will be defined from the inserted elements.
+    UndefElts &= APInt::getSplat(NumElts, !IsTop ? APInt::getLowBitsSet(2, 1)
+                                                 : APInt::getHighBitsSet(2, 1));
+    return None;
+  };
+
+  switch (II.getIntrinsicID()) {
+  default:
+    break;
+  case Intrinsic::arm_mve_vcvt_narrow:
+    SimplifyNarrowInstrTopBottom(2);
+    break;
+  case Intrinsic::arm_mve_vqmovn:
+    SimplifyNarrowInstrTopBottom(4);
+    break;
+  case Intrinsic::arm_mve_vshrn:
+    SimplifyNarrowInstrTopBottom(7);
+    break;
+  }
+
+  return None;
+}
+
 InstructionCost ARMTTIImpl::getIntImmCost(const APInt &Imm, Type *Ty,
                                           TTI::TargetCostKind CostKind) {
   assert(Ty->isIntegerTy());
@@ -300,7 +342,7 @@ static bool isSSATMinMaxPattern(Instruction *Inst, const APInt &Imm) {
 
   if (InstSPF == SPF_SMAX &&
       PatternMatch::match(RHS, PatternMatch::m_ConstantInt(C)) &&
-      C->getValue() == Imm && Imm.isNegative() && (-Imm).isPowerOf2()) {
+      C->getValue() == Imm && Imm.isNegative() && Imm.isNegatedPowerOf2()) {
 
     auto isSSatMin = [&](Value *MinInst) {
       if (isa<SelectInst>(MinInst)) {
@@ -368,7 +410,7 @@ InstructionCost ARMTTIImpl::getIntImmCostInst(unsigned Opcode, unsigned Idx,
   }
 
   // xor a, -1 can always be folded to MVN
-  if (Opcode == Instruction::Xor && Imm.isAllOnesValue())
+  if (Opcode == Instruction::Xor && Imm.isAllOnes())
     return 0;
 
   // Ensures negative constant of min(max()) or max(min()) patterns that
@@ -379,6 +421,14 @@ InstructionCost ARMTTIImpl::getIntImmCostInst(unsigned Opcode, unsigned Idx,
         (isa<ICmpInst>(Inst) && Inst->hasOneUse() &&
          isSSATMinMaxPattern(cast<Instruction>(*Inst->user_begin()), Imm)))
       return 0;
+  }
+
+  // We can convert <= -1 to < 0, which is generally quite cheap.
+  if (Inst && Opcode == Instruction::ICmp && Idx == 1 && Imm.isAllOnesValue()) {
+    ICmpInst::Predicate Pred = cast<ICmpInst>(Inst)->getPredicate();
+    if (Pred == ICmpInst::ICMP_SGT || Pred == ICmpInst::ICMP_SLE)
+      return std::min(getIntImmCost(Imm, Ty, CostKind),
+                      getIntImmCost(Imm + 1, Ty, CostKind));
   }
 
   return getIntImmCost(Imm, Ty, CostKind);
@@ -1623,13 +1673,24 @@ ARMTTIImpl::getExtendedAddReductionCost(bool IsMLA, bool IsUnsigned,
                                         TTI::TargetCostKind CostKind) {
   EVT ValVT = TLI->getValueType(DL, ValTy);
   EVT ResVT = TLI->getValueType(DL, ResTy);
+
   if (ST->hasMVEIntegerOps() && ValVT.isSimple() && ResVT.isSimple()) {
     std::pair<InstructionCost, MVT> LT =
         TLI->getTypeLegalizationCost(DL, ValTy);
-    if ((LT.second == MVT::v16i8 && ResVT.getSizeInBits() <= 32) ||
-        (LT.second == MVT::v8i16 &&
-         ResVT.getSizeInBits() <= (IsMLA ? 64 : 32)) ||
-        (LT.second == MVT::v4i32 && ResVT.getSizeInBits() <= 64))
+
+    // The legal cases are:
+    //   VADDV u/s 8/16/32
+    //   VMLAV u/s 8/16/32
+    //   VADDLV u/s 32
+    //   VMLALV u/s 16/32
+    // Codegen currently cannot always handle larger than legal vectors very
+    // well, especially for predicated reductions where the mask needs to be
+    // split, so restrict to 128bit or smaller input types.
+    unsigned RevVTSize = ResVT.getSizeInBits();
+    if (ValVT.getSizeInBits() <= 128 &&
+        ((LT.second == MVT::v16i8 && RevVTSize <= 32) ||
+         (LT.second == MVT::v8i16 && RevVTSize <= (IsMLA ? 64u : 32u)) ||
+         (LT.second == MVT::v4i32 && RevVTSize <= 64)))
       return ST->getMVEVectorCostFactor(CostKind) * LT.first;
   }
 
@@ -1949,6 +2010,20 @@ static bool canTailPredicateInstruction(Instruction &I, int &ICmpCount) {
   // we simply count the icmps, i.e. there should only be 1 for the backedge.
   if (isa<ICmpInst>(&I) && ++ICmpCount > 1)
     return false;
+  // FIXME: This is a workaround for poor cost modelling. Min/Max intrinsics are
+  // not currently canonical, but soon will be. Code without them uses icmp, and
+  // so is not tail predicated as per the condition above. In order to get the
+  // same performance we treat min and max the same as an icmp for tailpred
+  // purposes for the moment (we often rely on non-tailpred and higher VF's to
+  // pick more optimial instructions like VQDMULH. They need to be recognized
+  // directly by the vectorizer).
+  if (auto *II = dyn_cast<IntrinsicInst>(&I))
+    if ((II->getIntrinsicID() == Intrinsic::smin ||
+         II->getIntrinsicID() == Intrinsic::smax ||
+         II->getIntrinsicID() == Intrinsic::umin ||
+         II->getIntrinsicID() == Intrinsic::umax) &&
+        ++ICmpCount > 1)
+      return false;
 
   if (isa<FCmpInst>(&I))
     return false;
@@ -2035,8 +2110,9 @@ static bool canTailPredicateLoop(Loop *L, LoopInfo *LI, ScalarEvolution &SE,
         return false;
       }
       if (isa<StoreInst>(I) || isa<LoadInst>(I)) {
-        Value *Ptr = isa<LoadInst>(I) ? I.getOperand(0) : I.getOperand(1);
-        int64_t NextStride = getPtrStride(PSE, Ptr, L);
+        Value *Ptr = getLoadStorePointerOperand(&I);
+        Type *AccessTy = getLoadStoreType(&I);
+        int64_t NextStride = getPtrStride(PSE, AccessTy, Ptr, L);
         if (NextStride == 1) {
           // TODO: for now only allow consecutive strides of 1. We could support
           // other strides as long as it is uniform, but let's keep it simple
@@ -2055,8 +2131,7 @@ static bool canTailPredicateLoop(Loop *L, LoopInfo *LI, ScalarEvolution &SE,
           // least if they are loop invariant.
           // TODO: Loop variant strides should in theory work, too, but
           // this requires further testing.
-          const SCEV *PtrScev =
-              replaceSymbolicStrideSCEV(PSE, llvm::ValueToValueMap(), Ptr);
+          const SCEV *PtrScev = PSE.getSE()->getSCEV(Ptr);
           if (auto AR = dyn_cast<SCEVAddRecExpr>(PtrScev)) {
             const SCEV *Step = AR->getStepRecurrence(*PSE.getSE());
             if (PSE.getSE()->isLoopInvariant(Step, L))
@@ -2135,14 +2210,15 @@ bool ARMTTIImpl::emitGetActiveLaneMask() const {
   return true;
 }
 void ARMTTIImpl::getUnrollingPreferences(Loop *L, ScalarEvolution &SE,
-                                         TTI::UnrollingPreferences &UP) {
+                                         TTI::UnrollingPreferences &UP,
+                                         OptimizationRemarkEmitter *ORE) {
   // Enable Upper bound unrolling universally, not dependant upon the conditions
   // below.
   UP.UpperBound = true;
 
   // Only currently enable these preferences for M-Class cores.
   if (!ST->isMClass())
-    return BasicTTIImplBase::getUnrollingPreferences(L, SE, UP);
+    return BasicTTIImplBase::getUnrollingPreferences(L, SE, UP, ORE);
 
   // Disable loop unrolling for Oz and Os.
   UP.OptSizeThreshold = 0;

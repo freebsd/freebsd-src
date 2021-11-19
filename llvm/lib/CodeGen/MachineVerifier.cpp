@@ -210,6 +210,11 @@ namespace {
     void visitMachineBasicBlockBefore(const MachineBasicBlock *MBB);
     void visitMachineBundleBefore(const MachineInstr *MI);
 
+    /// Verify that all of \p MI's virtual register operands are scalars.
+    /// \returns True if all virtual register operands are scalar. False
+    /// otherwise.
+    bool verifyAllRegOpsScalar(const MachineInstr &MI,
+                               const MachineRegisterInfo &MRI);
     bool verifyVectorElementMatch(LLT Ty0, LLT Ty1, const MachineInstr *MI);
     void verifyPreISelGenericInstruction(const MachineInstr *MI);
     void visitMachineInstrBefore(const MachineInstr *MI);
@@ -287,6 +292,13 @@ namespace {
     }
 
     bool runOnMachineFunction(MachineFunction &MF) override {
+      // Skip functions that have known verification problems.
+      // FIXME: Remove this mechanism when all problematic passes have been
+      // fixed.
+      if (MF.getProperties().hasProperty(
+              MachineFunctionProperties::Property::FailsVerification))
+        return false;
+
       unsigned FoundErrors = MachineVerifier(this, Banner.c_str()).verify(MF);
       if (FoundErrors)
         report_fatal_error("Found "+Twine(FoundErrors)+" machine code errors.");
@@ -849,6 +861,21 @@ void MachineVerifier::verifyInlineAsm(const MachineInstr *MI) {
   }
 }
 
+bool MachineVerifier::verifyAllRegOpsScalar(const MachineInstr &MI,
+                                            const MachineRegisterInfo &MRI) {
+  if (none_of(MI.explicit_operands(), [&MRI](const MachineOperand &Op) {
+        if (!Op.isReg())
+          return false;
+        const auto Reg = Op.getReg();
+        if (Reg.isPhysical())
+          return false;
+        return !MRI.getType(Reg).isScalar();
+      }))
+    return true;
+  report("All register operands must have scalar types", &MI);
+  return false;
+}
+
 /// Check that types are consistent when two operands need to have the same
 /// number of vector elements.
 /// \return true if the types are valid.
@@ -1392,7 +1419,7 @@ void MachineVerifier::verifyPreISelGenericInstruction(const MachineInstr *MI) {
       AttributeList Attrs
         = Intrinsic::getAttributes(MF->getFunction().getContext(),
                                    static_cast<Intrinsic::ID>(IntrID));
-      bool DeclHasSideEffects = !Attrs.hasFnAttribute(Attribute::ReadNone);
+      bool DeclHasSideEffects = !Attrs.hasFnAttr(Attribute::ReadNone);
       if (NoSideEffects && DeclHasSideEffects) {
         report("G_INTRINSIC used with intrinsic that accesses memory", MI);
         break;
@@ -1570,11 +1597,8 @@ void MachineVerifier::verifyPreISelGenericInstruction(const MachineInstr *MI) {
   case TargetOpcode::G_VECREDUCE_UMAX:
   case TargetOpcode::G_VECREDUCE_UMIN: {
     LLT DstTy = MRI->getType(MI->getOperand(0).getReg());
-    LLT SrcTy = MRI->getType(MI->getOperand(1).getReg());
     if (!DstTy.isScalar())
       report("Vector reduction requires a scalar destination type", MI);
-    if (!SrcTy.isVector())
-      report("Vector reduction requires vector source=", MI);
     break;
   }
 
@@ -1598,7 +1622,11 @@ void MachineVerifier::verifyPreISelGenericInstruction(const MachineInstr *MI) {
     }
     break;
   }
-
+  case TargetOpcode::G_LLROUND:
+  case TargetOpcode::G_LROUND: {
+    verifyAllRegOpsScalar(*MI, *MRI);
+    break;
+  }
   default:
     break;
   }
@@ -1632,6 +1660,8 @@ void MachineVerifier::visitMachineInstrBefore(const MachineInstr *MI) {
       report("Unspillable Terminator does not define a reg", MI);
     Register Def = MI->getOperand(0).getReg();
     if (Def.isVirtual() &&
+        !MF->getProperties().hasProperty(
+            MachineFunctionProperties::Property::NoPHIs) &&
         std::distance(MRI->use_nodbg_begin(Def), MRI->use_nodbg_end()) > 1)
       report("Unspillable Terminator expected to have at most one use!", MI);
   }
@@ -1866,6 +1896,15 @@ MachineVerifier::visitMachineOperand(const MachineOperand *MO, unsigned MONum) {
 
   switch (MO->getType()) {
   case MachineOperand::MO_Register: {
+    // Verify debug flag on debug instructions. Check this first because reg0
+    // indicates an undefined debug value.
+    if (MI->isDebugInstr() && MO->isUse()) {
+      if (!MO->isDebug())
+        report("Register operand must be marked debug", MO, MONum);
+    } else if (MO->isDebug()) {
+      report("Register operand must not be marked debug", MO, MONum);
+    }
+
     const Register Reg = MO->getReg();
     if (!Reg)
       return;
@@ -1931,10 +1970,6 @@ MachineVerifier::visitMachineOperand(const MachineOperand *MO, unsigned MONum) {
           report("isRenamable set on reserved register", MO, MONum);
           return;
         }
-      }
-      if (MI->isDebugValue() && MO->isUse() && !MO->isDebug()) {
-        report("Use-reg is not IsDebug in a DBG_VALUE", MO, MONum);
-        return;
       }
     } else {
       // Virtual register.
@@ -2182,14 +2217,30 @@ void MachineVerifier::checkLivenessAtDef(const MachineOperand *MO,
 void MachineVerifier::checkLiveness(const MachineOperand *MO, unsigned MONum) {
   const MachineInstr *MI = MO->getParent();
   const Register Reg = MO->getReg();
+  const unsigned SubRegIdx = MO->getSubReg();
+
+  const LiveInterval *LI = nullptr;
+  if (LiveInts && Reg.isVirtual()) {
+    if (LiveInts->hasInterval(Reg)) {
+      LI = &LiveInts->getInterval(Reg);
+      if (SubRegIdx != 0 && !LI->empty() && !LI->hasSubRanges() &&
+          MRI->shouldTrackSubRegLiveness(Reg))
+        report("Live interval for subreg operand has no subranges", MO, MONum);
+    } else {
+      report("Virtual register has no live interval", MO, MONum);
+    }
+  }
 
   // Both use and def operands can read a register.
   if (MO->readsReg()) {
     if (MO->isKill())
       addRegWithSubRegs(regsKilled, Reg);
 
-    // Check that LiveVars knows this kill.
-    if (LiveVars && Register::isVirtualRegister(Reg) && MO->isKill()) {
+    // Check that LiveVars knows this kill (unless we are inside a bundle, in
+    // which case we have already checked that LiveVars knows any kills on the
+    // bundle header instead).
+    if (LiveVars && Reg.isVirtual() && MO->isKill() &&
+        !MI->isBundledWithPred()) {
       LiveVariables::VarInfo &VI = LiveVars->getVarInfo(Reg);
       if (!is_contained(VI.Kills, MI))
         report("Kill missing from LiveVariables", MO, MONum);
@@ -2209,42 +2260,36 @@ void MachineVerifier::checkLiveness(const MachineOperand *MO, unsigned MONum) {
         }
       }
 
-      if (Register::isVirtualRegister(Reg)) {
-        if (LiveInts->hasInterval(Reg)) {
-          // This is a virtual register interval.
-          const LiveInterval &LI = LiveInts->getInterval(Reg);
-          checkLivenessAtUse(MO, MONum, UseIdx, LI, Reg);
+      if (Reg.isVirtual()) {
+        // This is a virtual register interval.
+        checkLivenessAtUse(MO, MONum, UseIdx, *LI, Reg);
 
-          if (LI.hasSubRanges() && !MO->isDef()) {
-            unsigned SubRegIdx = MO->getSubReg();
-            LaneBitmask MOMask = SubRegIdx != 0
-                               ? TRI->getSubRegIndexLaneMask(SubRegIdx)
-                               : MRI->getMaxLaneMaskForVReg(Reg);
-            LaneBitmask LiveInMask;
-            for (const LiveInterval::SubRange &SR : LI.subranges()) {
-              if ((MOMask & SR.LaneMask).none())
-                continue;
-              checkLivenessAtUse(MO, MONum, UseIdx, SR, Reg, SR.LaneMask);
-              LiveQueryResult LRQ = SR.Query(UseIdx);
-              if (LRQ.valueIn())
-                LiveInMask |= SR.LaneMask;
-            }
-            // At least parts of the register has to be live at the use.
-            if ((LiveInMask & MOMask).none()) {
-              report("No live subrange at use", MO, MONum);
-              report_context(LI);
-              report_context(UseIdx);
-            }
+        if (LI->hasSubRanges() && !MO->isDef()) {
+          LaneBitmask MOMask = SubRegIdx != 0
+                                   ? TRI->getSubRegIndexLaneMask(SubRegIdx)
+                                   : MRI->getMaxLaneMaskForVReg(Reg);
+          LaneBitmask LiveInMask;
+          for (const LiveInterval::SubRange &SR : LI->subranges()) {
+            if ((MOMask & SR.LaneMask).none())
+              continue;
+            checkLivenessAtUse(MO, MONum, UseIdx, SR, Reg, SR.LaneMask);
+            LiveQueryResult LRQ = SR.Query(UseIdx);
+            if (LRQ.valueIn())
+              LiveInMask |= SR.LaneMask;
           }
-        } else {
-          report("Virtual register has no live interval", MO, MONum);
+          // At least parts of the register has to be live at the use.
+          if ((LiveInMask & MOMask).none()) {
+            report("No live subrange at use", MO, MONum);
+            report_context(*LI);
+            report_context(UseIdx);
+          }
         }
       }
     }
 
     // Use of a dead register.
     if (!regsLive.count(Reg)) {
-      if (Register::isPhysicalRegister(Reg)) {
+      if (Reg.isPhysical()) {
         // Reserved registers may be used even when 'dead'.
         bool Bad = !isReserved(Reg);
         // We are fine if just any subregister has a defined value.
@@ -2266,7 +2311,7 @@ void MachineVerifier::checkLiveness(const MachineOperand *MO, unsigned MONum) {
             if (!MOP.isReg() || !MOP.isImplicit())
               continue;
 
-            if (!Register::isPhysicalRegister(MOP.getReg()))
+            if (!MOP.getReg().isPhysical())
               continue;
 
             if (llvm::is_contained(TRI->subregs(MOP.getReg()), Reg))
@@ -2299,7 +2344,7 @@ void MachineVerifier::checkLiveness(const MachineOperand *MO, unsigned MONum) {
       addRegWithSubRegs(regsDefined, Reg);
 
     // Verify SSA form.
-    if (MRI->isSSA() && Register::isVirtualRegister(Reg) &&
+    if (MRI->isSSA() && Reg.isVirtual() &&
         std::next(MRI->def_begin(Reg)) != MRI->def_end())
       report("Multiple virtual register defs in SSA form", MO, MONum);
 
@@ -2308,24 +2353,18 @@ void MachineVerifier::checkLiveness(const MachineOperand *MO, unsigned MONum) {
       SlotIndex DefIdx = LiveInts->getInstructionIndex(*MI);
       DefIdx = DefIdx.getRegSlot(MO->isEarlyClobber());
 
-      if (Register::isVirtualRegister(Reg)) {
-        if (LiveInts->hasInterval(Reg)) {
-          const LiveInterval &LI = LiveInts->getInterval(Reg);
-          checkLivenessAtDef(MO, MONum, DefIdx, LI, Reg);
+      if (Reg.isVirtual()) {
+        checkLivenessAtDef(MO, MONum, DefIdx, *LI, Reg);
 
-          if (LI.hasSubRanges()) {
-            unsigned SubRegIdx = MO->getSubReg();
-            LaneBitmask MOMask = SubRegIdx != 0
-              ? TRI->getSubRegIndexLaneMask(SubRegIdx)
-              : MRI->getMaxLaneMaskForVReg(Reg);
-            for (const LiveInterval::SubRange &SR : LI.subranges()) {
-              if ((SR.LaneMask & MOMask).none())
-                continue;
-              checkLivenessAtDef(MO, MONum, DefIdx, SR, Reg, true, SR.LaneMask);
-            }
+        if (LI->hasSubRanges()) {
+          LaneBitmask MOMask = SubRegIdx != 0
+                                   ? TRI->getSubRegIndexLaneMask(SubRegIdx)
+                                   : MRI->getMaxLaneMaskForVReg(Reg);
+          for (const LiveInterval::SubRange &SR : LI->subranges()) {
+            if ((SR.LaneMask & MOMask).none())
+              continue;
+            checkLivenessAtDef(MO, MONum, DefIdx, SR, Reg, true, SR.LaneMask);
           }
-        } else {
-          report("Virtual register has no Live interval", MO, MONum);
         }
       }
     }
@@ -2918,9 +2957,13 @@ void MachineVerifier::verifyLiveRangeSegment(const LiveRange &LR,
     }
   }
 
-  // A live segment can only end at an early-clobber slot if it is being
-  // redefined by an early-clobber def.
-  if (S.end.isEarlyClobber()) {
+  // After tied operands are rewritten, a live segment can only end at an
+  // early-clobber slot if it is being redefined by an early-clobber def.
+  // TODO: Before tied operands are rewritten, a live segment can only end at an
+  // early-clobber slot if the last use is tied to an early-clobber def.
+  if (MF->getProperties().hasProperty(
+          MachineFunctionProperties::Property::TiedOpsRewritten) &&
+      S.end.isEarlyClobber()) {
     if (I+1 == LR.end() || (I+1)->start != S.end) {
       report("Live segment ending at early clobber slot must be "
              "redefined by an EC def in the same instruction", EndMBB);

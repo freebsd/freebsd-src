@@ -205,9 +205,9 @@ StringRef getFuncNameWithoutPrefix(StringRef PGOFuncName,
                                    StringRef FileName = "<unknown>");
 
 /// Given a vector of strings (function PGO names) \c NameStrs, the
-/// method generates a combined string \c Result thatis ready to be
+/// method generates a combined string \c Result that is ready to be
 /// serialized.  The \c Result string is comprised of three fields:
-/// The first field is the legnth of the uncompressed strings, and the
+/// The first field is the length of the uncompressed strings, and the
 /// the second field is the length of the zlib-compressed string.
 /// Both fields are encoded in ULEB128.  If \c doCompress is false, the
 ///  third field is the uncompressed strings; otherwise it is the
@@ -308,7 +308,8 @@ inline std::error_code make_error_code(instrprof_error E) {
 
 class InstrProfError : public ErrorInfo<InstrProfError> {
 public:
-  InstrProfError(instrprof_error Err) : Err(Err) {
+  InstrProfError(instrprof_error Err, const Twine &ErrStr = Twine())
+      : Err(Err), Msg(ErrStr.str()) {
     assert(Err != instrprof_error::success && "Not an error");
   }
 
@@ -321,6 +322,7 @@ public:
   }
 
   instrprof_error get() const { return Err; }
+  const std::string &getMessage() const { return Msg; }
 
   /// Consume an Error and return the raw enum value contained within it. The
   /// Error must either be a success value, or contain a single InstrProfError.
@@ -337,6 +339,7 @@ public:
 
 private:
   instrprof_error Err;
+  std::string Msg;
 };
 
 class SoftInstrProfErrors {
@@ -474,7 +477,8 @@ public:
   /// is used by the raw and text profile readers.
   Error addFuncName(StringRef FuncName) {
     if (FuncName.empty())
-      return make_error<InstrProfError>(instrprof_error::malformed);
+      return make_error<InstrProfError>(instrprof_error::malformed,
+                                        "function name is empty");
     auto Ins = NameTab.insert(FuncName);
     if (Ins.second) {
       MD5NameMap.push_back(std::make_pair(
@@ -1104,6 +1108,8 @@ namespace RawInstrProf {
 // Version 5: Bit 60 of FuncHash is reserved for the flag for the context
 // sensitive records.
 // Version 6: Added binary id.
+// Version 7: Reorder binary id and include version in signature.
+// Version 8: Use relative counter pointer.
 const uint64_t Version = INSTR_PROF_RAW_VERSION;
 
 template <class IntPtrT> inline uint64_t getMagic();
@@ -1142,8 +1148,8 @@ void getMemOPSizeRangeFromOption(StringRef Str, int64_t &RangeStart,
 
 // Create a COMDAT variable INSTR_PROF_RAW_VERSION_VAR to make the runtime
 // aware this is an ir_level profile so it can set the version flag.
-void createIRLevelProfileFlagVar(Module &M, bool IsCS,
-                                 bool InstrEntryBBEnabled);
+GlobalVariable *createIRLevelProfileFlagVar(Module &M, bool IsCS,
+                                            bool InstrEntryBBEnabled);
 
 // Create the variable for the profile file name.
 void createProfileFileNameVar(Module &M, StringRef InstrProfileOutput);

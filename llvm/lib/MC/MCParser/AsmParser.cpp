@@ -749,6 +749,7 @@ namespace llvm {
 extern MCAsmParserExtension *createDarwinAsmParser();
 extern MCAsmParserExtension *createELFAsmParser();
 extern MCAsmParserExtension *createCOFFAsmParser();
+extern MCAsmParserExtension *createGOFFAsmParser();
 extern MCAsmParserExtension *createXCOFFAsmParser();
 extern MCAsmParserExtension *createWasmAsmParser();
 
@@ -783,7 +784,8 @@ AsmParser::AsmParser(SourceMgr &SM, MCContext &Ctx, MCStreamer &Out,
     PlatformParser.reset(createELFAsmParser());
     break;
   case MCContext::IsGOFF:
-    report_fatal_error("GOFFAsmParser support not implemented yet");
+    PlatformParser.reset(createGOFFAsmParser());
+    break;
   case MCContext::IsWasm:
     PlatformParser.reset(createWasmAsmParser());
     break;
@@ -950,7 +952,7 @@ bool AsmParser::Run(bool NoInitialTextSection, bool NoFinalize) {
 
   // Create the initial section, if requested.
   if (!NoInitialTextSection)
-    Out.InitSections(false);
+    Out.initSections(false, getTargetParser().getSTI());
 
   // Prime the lexer.
   Lex();
@@ -1052,18 +1054,21 @@ bool AsmParser::Run(bool NoInitialTextSection, bool NoFinalize) {
       }
     }
   }
-
   // Finalize the output stream if there are no errors and if the client wants
   // us to.
-  if (!HadError && !NoFinalize)
+  if (!HadError && !NoFinalize) {
+    if (auto *TS = Out.getTargetStreamer())
+      TS->emitConstantPools();
+
     Out.Finish(Lexer.getLoc());
+  }
 
   return HadError || getContext().hadError();
 }
 
 bool AsmParser::checkForValidSection() {
   if (!ParsingMSInlineAsm && !getStreamer().getCurrentSectionOnly()) {
-    Out.InitSections(false);
+    Out.initSections(false, getTargetParser().getSTI());
     return Error(getTok().getLoc(),
                  "expected section directive before assembly directive");
   }
@@ -3451,7 +3456,8 @@ bool AsmParser::parseDirectiveAlign(bool IsPow2, unsigned ValueSize) {
   bool UseCodeAlign = Section->UseCodeAlign();
   if ((!HasFillExpr || Lexer.getMAI().getTextAlignFillValue() == FillExpr) &&
       ValueSize == 1 && UseCodeAlign) {
-    getStreamer().emitCodeAlignment(Alignment, MaxBytesToFill);
+    getStreamer().emitCodeAlignment(Alignment, &getTargetParser().getSTI(),
+                                    MaxBytesToFill);
   } else {
     // FIXME: Target specific behavior about how the "extra" bytes are filled.
     getStreamer().emitValueToAlignment(Alignment, FillExpr, ValueSize,

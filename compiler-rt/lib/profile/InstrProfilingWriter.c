@@ -32,7 +32,7 @@ static uint32_t VPDataArraySize = sizeof(VPDataArray) / sizeof(*VPDataArray);
 COMPILER_RT_VISIBILITY uint8_t *DynamicBufferIOBuffer = 0;
 COMPILER_RT_VISIBILITY uint32_t VPBufferSize = 0;
 
-/* The buffer writer is reponsponsible in keeping writer state
+/* The buffer writer is responsible in keeping writer state
  * across the call.
  */
 COMPILER_RT_VISIBILITY uint32_t lprofBufferWriter(ProfDataWriter *This,
@@ -282,6 +282,12 @@ lprofWriteDataImpl(ProfDataWriter *Writer, const __llvm_profile_data *DataBegin,
 /* Initialize header structure.  */
 #define INSTR_PROF_RAW_HEADER(Type, Name, Init) Header.Name = Init;
 #include "profile/InstrProfData.inc"
+
+  /* On WIN64, label differences are truncated 32-bit values. Truncate
+   * CountersDelta to match. */
+#ifdef _WIN64
+  Header.CountersDelta = (uint32_t)Header.CountersDelta;
+#endif
 
   /* Write the profile header. */
   ProfDataIOVec IOVec[] = {{&Header, sizeof(__llvm_profile_header), 1, 0}};

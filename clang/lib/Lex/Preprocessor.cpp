@@ -723,11 +723,7 @@ IdentifierInfo *Preprocessor::LookUpIdentifierInfo(Token &Identifier) const {
   // is cleaned to tok::identifier "B". After cleaning the token's length is
   // still 3 and the SourceLocation refers to the location of the backslash.
   Identifier.setIdentifierInfo(II);
-  if (getLangOpts().MSVCCompat && II->isCPlusPlusOperatorKeyword() &&
-      getSourceManager().isInSystemHeader(Identifier.getLocation()))
-    Identifier.setKind(tok::identifier);
-  else
-    Identifier.setKind(II->getTokenID());
+  Identifier.setKind(II->getTokenID());
 
   return II;
 }
@@ -1387,7 +1383,7 @@ bool Preprocessor::parseSimpleIntegerLiteral(Token &Tok, uint64_t &Value) {
 
 void Preprocessor::addCommentHandler(CommentHandler *Handler) {
   assert(Handler && "NULL comment handler");
-  assert(llvm::find(CommentHandlers, Handler) == CommentHandlers.end() &&
+  assert(!llvm::is_contained(CommentHandlers, Handler) &&
          "Comment handler already registered");
   CommentHandlers.push_back(Handler);
 }
@@ -1411,6 +1407,48 @@ bool Preprocessor::HandleComment(Token &result, SourceRange Comment) {
     return false;
   Lex(result);
   return true;
+}
+
+void Preprocessor::emitMacroDeprecationWarning(const Token &Identifier) const {
+  const MacroAnnotations &A =
+      getMacroAnnotations(Identifier.getIdentifierInfo());
+  assert(A.DeprecationInfo &&
+         "Macro deprecation warning without recorded annotation!");
+  const MacroAnnotationInfo &Info = *A.DeprecationInfo;
+  if (Info.Message.empty())
+    Diag(Identifier, diag::warn_pragma_deprecated_macro_use)
+        << Identifier.getIdentifierInfo() << 0;
+  else
+    Diag(Identifier, diag::warn_pragma_deprecated_macro_use)
+        << Identifier.getIdentifierInfo() << 1 << Info.Message;
+  Diag(Info.Location, diag::note_pp_macro_annotation) << 0;
+}
+
+void Preprocessor::emitRestrictExpansionWarning(const Token &Identifier) const {
+  const MacroAnnotations &A =
+      getMacroAnnotations(Identifier.getIdentifierInfo());
+  assert(A.RestrictExpansionInfo &&
+         "Macro restricted expansion warning without recorded annotation!");
+  const MacroAnnotationInfo &Info = *A.RestrictExpansionInfo;
+  if (Info.Message.empty())
+    Diag(Identifier, diag::warn_pragma_restrict_expansion_macro_use)
+        << Identifier.getIdentifierInfo() << 0;
+  else
+    Diag(Identifier, diag::warn_pragma_restrict_expansion_macro_use)
+        << Identifier.getIdentifierInfo() << 1 << Info.Message;
+  Diag(Info.Location, diag::note_pp_macro_annotation) << 1;
+}
+
+void Preprocessor::emitFinalMacroWarning(const Token &Identifier,
+                                         bool IsUndef) const {
+  const MacroAnnotations &A =
+      getMacroAnnotations(Identifier.getIdentifierInfo());
+  assert(A.FinalAnnotationLoc &&
+         "Final macro warning without recorded annotation!");
+
+  Diag(Identifier, diag::warn_pragma_final_macro)
+      << Identifier.getIdentifierInfo() << (IsUndef ? 0 : 1);
+  Diag(*A.FinalAnnotationLoc, diag::note_pp_macro_annotation) << 2;
 }
 
 ModuleLoader::~ModuleLoader() = default;

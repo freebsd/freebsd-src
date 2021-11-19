@@ -67,6 +67,8 @@ StringRef Triple::getArchTypeName(ArchType Kind) {
   case sparcv9:        return "sparcv9";
   case spir64:         return "spir64";
   case spir:           return "spir";
+  case spirv32:        return "spirv32";
+  case spirv64:        return "spirv64";
   case systemz:        return "s390x";
   case tce:            return "tce";
   case tcele:          return "tcele";
@@ -147,6 +149,10 @@ StringRef Triple::getArchTypePrefix(ArchType Kind) {
 
   case spir:
   case spir64:      return "spir";
+
+  case spirv32:
+  case spirv64:     return "spirv";
+
   case kalimba:     return "kalimba";
   case lanai:       return "lanai";
   case shave:       return "shave";
@@ -323,6 +329,8 @@ Triple::ArchType Triple::getArchTypeForLLVMName(StringRef Name) {
     .Case("hsail64", hsail64)
     .Case("spir", spir)
     .Case("spir64", spir64)
+    .Case("spirv32", spirv32)
+    .Case("spirv64", spirv64)
     .Case("kalimba", kalimba)
     .Case("lanai", lanai)
     .Case("shave", shave)
@@ -456,6 +464,8 @@ static Triple::ArchType parseArch(StringRef ArchName) {
     .Case("hsail64", Triple::hsail64)
     .Case("spir", Triple::spir)
     .Case("spir64", Triple::spir64)
+    .Case("spirv32", Triple::spirv32)
+    .Case("spirv64", Triple::spirv64)
     .StartsWith("kalimba", Triple::kalimba)
     .Case("lanai", Triple::lanai)
     .Case("renderscript32", Triple::renderscript32)
@@ -653,6 +663,12 @@ static Triple::SubArchType parseSubArch(StringRef SubArchName) {
     return Triple::ARMSubArch_v8_6a;
   case ARM::ArchKind::ARMV8_7A:
     return Triple::ARMSubArch_v8_7a;
+  case ARM::ArchKind::ARMV9A:
+    return Triple::ARMSubArch_v9;
+  case ARM::ArchKind::ARMV9_1A:
+    return Triple::ARMSubArch_v9_1a;
+  case ARM::ArchKind::ARMV9_2A:
+    return Triple::ARMSubArch_v9_2a;
   case ARM::ArchKind::ARMV8R:
     return Triple::ARMSubArch_v8r;
   case ARM::ArchKind::ARMV8MBaseline:
@@ -753,6 +769,11 @@ static Triple::ObjectFormatType getDefaultFormat(const Triple &T) {
   case Triple::wasm32:
   case Triple::wasm64:
     return Triple::Wasm;
+
+  case Triple::spirv32:
+  case Triple::spirv64:
+    // TODO: In future this will be Triple::SPIRV.
+    return Triple::UnknownObjectFormat;
   }
   llvm_unreachable("unknown architecture");
 }
@@ -1024,6 +1045,30 @@ StringRef Triple::getArchName() const {
   return StringRef(Data).split('-').first;           // Isolate first component
 }
 
+StringRef Triple::getArchName(ArchType Kind, SubArchType SubArch) const {
+  switch (Kind) {
+  case Triple::mips:
+    if (SubArch == MipsSubArch_r6)
+      return "mipsisa32r6";
+    break;
+  case Triple::mipsel:
+    if (SubArch == MipsSubArch_r6)
+      return "mipsisa32r6el";
+    break;
+  case Triple::mips64:
+    if (SubArch == MipsSubArch_r6)
+      return "mipsisa64r6";
+    break;
+  case Triple::mips64el:
+    if (SubArch == MipsSubArch_r6)
+      return "mipsisa64r6el";
+    break;
+  default:
+    break;
+  }
+  return getArchTypeName(Kind);
+}
+
 StringRef Triple::getVendorName() const {
   StringRef Tmp = StringRef(Data).split('-').second; // Strip first component
   return Tmp.split('-').first;                       // Isolate second component
@@ -1205,8 +1250,8 @@ void Triple::setTriple(const Twine &Str) {
   *this = Triple(Str);
 }
 
-void Triple::setArch(ArchType Kind) {
-  setArchName(getArchTypeName(Kind));
+void Triple::setArch(ArchType Kind, SubArchType SubArch) {
+  setArchName(getArchName(Kind, SubArch));
 }
 
 void Triple::setVendor(VendorType Kind) {
@@ -1298,6 +1343,7 @@ static unsigned getArchPointerBitWidth(llvm::Triple::ArchType Arch) {
   case llvm::Triple::sparc:
   case llvm::Triple::sparcel:
   case llvm::Triple::spir:
+  case llvm::Triple::spirv32:
   case llvm::Triple::tce:
   case llvm::Triple::tcele:
   case llvm::Triple::thumb:
@@ -1324,6 +1370,7 @@ static unsigned getArchPointerBitWidth(llvm::Triple::ArchType Arch) {
   case llvm::Triple::riscv64:
   case llvm::Triple::sparcv9:
   case llvm::Triple::spir64:
+  case llvm::Triple::spirv64:
   case llvm::Triple::systemz:
   case llvm::Triple::ve:
   case llvm::Triple::wasm64:
@@ -1383,6 +1430,7 @@ Triple Triple::get32BitArchVariant() const {
   case Triple::sparc:
   case Triple::sparcel:
   case Triple::spir:
+  case Triple::spirv32:
   case Triple::tce:
   case Triple::tcele:
   case Triple::thumb:
@@ -1398,8 +1446,12 @@ Triple Triple::get32BitArchVariant() const {
   case Triple::amdil64:        T.setArch(Triple::amdil);   break;
   case Triple::hsail64:        T.setArch(Triple::hsail);   break;
   case Triple::le64:           T.setArch(Triple::le32);    break;
-  case Triple::mips64:         T.setArch(Triple::mips);    break;
-  case Triple::mips64el:       T.setArch(Triple::mipsel);  break;
+  case Triple::mips64:
+    T.setArch(Triple::mips, getSubArch());
+    break;
+  case Triple::mips64el:
+    T.setArch(Triple::mipsel, getSubArch());
+    break;
   case Triple::nvptx64:        T.setArch(Triple::nvptx);   break;
   case Triple::ppc64:          T.setArch(Triple::ppc);     break;
   case Triple::ppc64le:        T.setArch(Triple::ppcle);   break;
@@ -1407,6 +1459,7 @@ Triple Triple::get32BitArchVariant() const {
   case Triple::riscv64:        T.setArch(Triple::riscv32); break;
   case Triple::sparcv9:        T.setArch(Triple::sparc);   break;
   case Triple::spir64:         T.setArch(Triple::spir);    break;
+  case Triple::spirv64:        T.setArch(Triple::spirv32); break;
   case Triple::wasm64:         T.setArch(Triple::wasm32);  break;
   case Triple::x86_64:         T.setArch(Triple::x86);     break;
   }
@@ -1451,6 +1504,7 @@ Triple Triple::get64BitArchVariant() const {
   case Triple::riscv64:
   case Triple::sparcv9:
   case Triple::spir64:
+  case Triple::spirv64:
   case Triple::systemz:
   case Triple::ve:
   case Triple::wasm64:
@@ -1464,8 +1518,12 @@ Triple Triple::get64BitArchVariant() const {
   case Triple::armeb:           T.setArch(Triple::aarch64_be); break;
   case Triple::hsail:           T.setArch(Triple::hsail64);    break;
   case Triple::le32:            T.setArch(Triple::le64);       break;
-  case Triple::mips:            T.setArch(Triple::mips64);     break;
-  case Triple::mipsel:          T.setArch(Triple::mips64el);   break;
+  case Triple::mips:
+    T.setArch(Triple::mips64, getSubArch());
+    break;
+  case Triple::mipsel:
+    T.setArch(Triple::mips64el, getSubArch());
+    break;
   case Triple::nvptx:           T.setArch(Triple::nvptx64);    break;
   case Triple::ppc:             T.setArch(Triple::ppc64);      break;
   case Triple::ppcle:           T.setArch(Triple::ppc64le);    break;
@@ -1473,6 +1531,7 @@ Triple Triple::get64BitArchVariant() const {
   case Triple::riscv32:         T.setArch(Triple::riscv64);    break;
   case Triple::sparc:           T.setArch(Triple::sparcv9);    break;
   case Triple::spir:            T.setArch(Triple::spir64);     break;
+  case Triple::spirv32:         T.setArch(Triple::spirv64);    break;
   case Triple::thumb:           T.setArch(Triple::aarch64);    break;
   case Triple::thumbeb:         T.setArch(Triple::aarch64_be); break;
   case Triple::wasm32:          T.setArch(Triple::wasm64);     break;
@@ -1509,6 +1568,8 @@ Triple Triple::getBigEndianArchVariant() const {
   case Triple::shave:
   case Triple::spir64:
   case Triple::spir:
+  case Triple::spirv32:
+  case Triple::spirv64:
   case Triple::wasm32:
   case Triple::wasm64:
   case Triple::x86:
@@ -1526,8 +1587,12 @@ Triple Triple::getBigEndianArchVariant() const {
 
   case Triple::aarch64: T.setArch(Triple::aarch64_be); break;
   case Triple::bpfel:   T.setArch(Triple::bpfeb);      break;
-  case Triple::mips64el:T.setArch(Triple::mips64);     break;
-  case Triple::mipsel:  T.setArch(Triple::mips);       break;
+  case Triple::mips64el:
+    T.setArch(Triple::mips64, getSubArch());
+    break;
+  case Triple::mipsel:
+    T.setArch(Triple::mips, getSubArch());
+    break;
   case Triple::ppcle:   T.setArch(Triple::ppc);        break;
   case Triple::ppc64le: T.setArch(Triple::ppc64);      break;
   case Triple::sparcel: T.setArch(Triple::sparc);      break;
@@ -1559,8 +1624,12 @@ Triple Triple::getLittleEndianArchVariant() const {
 
   case Triple::aarch64_be: T.setArch(Triple::aarch64);  break;
   case Triple::bpfeb:      T.setArch(Triple::bpfel);    break;
-  case Triple::mips64:     T.setArch(Triple::mips64el); break;
-  case Triple::mips:       T.setArch(Triple::mipsel);   break;
+  case Triple::mips64:
+    T.setArch(Triple::mips64el, getSubArch());
+    break;
+  case Triple::mips:
+    T.setArch(Triple::mipsel, getSubArch());
+    break;
   case Triple::ppc:        T.setArch(Triple::ppcle);    break;
   case Triple::ppc64:      T.setArch(Triple::ppc64le);  break;
   case Triple::sparc:      T.setArch(Triple::sparcel);  break;
@@ -1604,6 +1673,8 @@ bool Triple::isLittleEndian() const {
   case Triple::sparcel:
   case Triple::spir64:
   case Triple::spir:
+  case Triple::spirv32:
+  case Triple::spirv64:
   case Triple::tcele:
   case Triple::thumb:
   case Triple::ve:
@@ -1709,6 +1780,7 @@ StringRef Triple::getARMCPUForArch(StringRef MArch) const {
   switch (getOS()) {
   case llvm::Triple::FreeBSD:
   case llvm::Triple::NetBSD:
+  case llvm::Triple::OpenBSD:
     if (!MArch.empty() && MArch == "v6")
       return "arm1176jzf-s";
     if (!MArch.empty() && MArch == "v7")

@@ -64,9 +64,9 @@ private:
       LGI.SymbolFlags[ES.intern(Sym->getName())] = Flags;
     }
 
-    if (G.getTargetTriple().isOSBinFormatMachO())
-      if (hasMachOInitSection(G))
-        LGI.InitSymbol = makeInitSymbol(ES, G);
+    if ((G.getTargetTriple().isOSBinFormatMachO() && hasMachOInitSection(G)) ||
+        (G.getTargetTriple().isOSBinFormatELF() && hasELFInitSection(G)))
+      LGI.InitSymbol = makeInitSymbol(ES, G);
 
     return LGI;
   }
@@ -77,7 +77,15 @@ private:
           Sec.getName() == "__DATA,__objc_classlist" ||
           Sec.getName() == "__TEXT,__swift5_protos" ||
           Sec.getName() == "__TEXT,__swift5_proto" ||
+          Sec.getName() == "__TEXT,__swift5_types" ||
           Sec.getName() == "__DATA,__mod_init_func")
+        return true;
+    return false;
+  }
+
+  static bool hasELFInitSection(LinkGraph &G) {
+    for (auto &Sec : G.sections())
+      if (Sec.getName() == ".init_array")
         return true;
     return false;
   }
@@ -272,8 +280,9 @@ public:
 
       // If there were missing symbols then report the error.
       if (!MissingSymbols.empty())
-        return make_error<MissingSymbolDefinitions>(G.getName(),
-                                                    std::move(MissingSymbols));
+        return make_error<MissingSymbolDefinitions>(
+            Layer.getExecutionSession().getSymbolStringPool(), G.getName(),
+            std::move(MissingSymbols));
 
       // If there are more definitions than expected, add them to the
       // ExtraSymbols vector.
@@ -286,8 +295,9 @@ public:
 
       // If there were extra definitions then report the error.
       if (!ExtraSymbols.empty())
-        return make_error<UnexpectedSymbolDefinitions>(G.getName(),
-                                                       std::move(ExtraSymbols));
+        return make_error<UnexpectedSymbolDefinitions>(
+            Layer.getExecutionSession().getSymbolStringPool(), G.getName(),
+            std::move(ExtraSymbols));
     }
 
     if (auto Err = MR->notifyResolved(InternedResult))
@@ -297,8 +307,7 @@ public:
     return Error::success();
   }
 
-  void notifyFinalized(
-      std::unique_ptr<JITLinkMemoryManager::Allocation> A) override {
+  void notifyFinalized(JITLinkMemoryManager::FinalizedAlloc A) override {
     if (auto Err = Layer.notifyEmitted(*MR, std::move(A))) {
       Layer.getExecutionSession().reportError(std::move(Err));
       MR->failMaterialization();
@@ -414,7 +423,8 @@ private:
     std::vector<std::pair<SymbolStringPtr, Symbol *>> NameToSym;
 
     auto ProcessSymbol = [&](Symbol *Sym) {
-      if (Sym->hasName() && Sym->getLinkage() == Linkage::Weak) {
+      if (Sym->hasName() && Sym->getLinkage() == Linkage::Weak &&
+          Sym->getScope() != Scope::Local) {
         auto Name = ES.intern(Sym->getName());
         if (!MR->getSymbols().count(ES.intern(Sym->getName()))) {
           JITSymbolFlags SF = JITSymbolFlags::Weak;
@@ -543,8 +553,7 @@ private:
 
     // Propagate block-level dependencies through the block-dependence graph.
     while (!WorkList.empty()) {
-      auto *B = WorkList.back();
-      WorkList.pop_back();
+      auto *B = WorkList.pop_back_val();
 
       auto &BI = BlockInfos[B];
       assert(BI.DependenciesChanged &&
@@ -672,7 +681,7 @@ void ObjectLinkingLayer::notifyLoaded(MaterializationResponsibility &MR) {
 }
 
 Error ObjectLinkingLayer::notifyEmitted(MaterializationResponsibility &MR,
-                                        AllocPtr Alloc) {
+                                        FinalizedAlloc FA) {
   Error Err = Error::success();
   for (auto &P : Plugins)
     Err = joinErrors(std::move(Err), P->notifyEmitted(MR));
@@ -681,17 +690,20 @@ Error ObjectLinkingLayer::notifyEmitted(MaterializationResponsibility &MR,
     return Err;
 
   return MR.withResourceKeyDo(
-      [&](ResourceKey K) { Allocs[K].push_back(std::move(Alloc)); });
+      [&](ResourceKey K) { Allocs[K].push_back(std::move(FA)); });
 }
 
 Error ObjectLinkingLayer::handleRemoveResources(ResourceKey K) {
 
-  Error Err = Error::success();
+  {
+    Error Err = Error::success();
+    for (auto &P : Plugins)
+      Err = joinErrors(std::move(Err), P->notifyRemovingResources(K));
+    if (Err)
+      return Err;
+  }
 
-  for (auto &P : Plugins)
-    Err = joinErrors(std::move(Err), P->notifyRemovingResources(K));
-
-  std::vector<AllocPtr> AllocsToRemove;
+  std::vector<FinalizedAlloc> AllocsToRemove;
   getExecutionSession().runSessionLocked([&] {
     auto I = Allocs.find(K);
     if (I != Allocs.end()) {
@@ -700,12 +712,10 @@ Error ObjectLinkingLayer::handleRemoveResources(ResourceKey K) {
     }
   });
 
-  while (!AllocsToRemove.empty()) {
-    Err = joinErrors(std::move(Err), AllocsToRemove.back()->deallocate());
-    AllocsToRemove.pop_back();
-  }
+  if (AllocsToRemove.empty())
+    return Error::success();
 
-  return Err;
+  return MemMgr.deallocate(std::move(AllocsToRemove));
 }
 
 void ObjectLinkingLayer::handleTransferResources(ResourceKey DstKey,

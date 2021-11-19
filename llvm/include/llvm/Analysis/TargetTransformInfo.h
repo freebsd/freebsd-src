@@ -21,7 +21,6 @@
 #ifndef LLVM_ANALYSIS_TARGETTRANSFORMINFO_H
 #define LLVM_ANALYSIS_TARGETTRANSFORMINFO_H
 
-#include "llvm/Analysis/IVDescriptors.h"
 #include "llvm/IR/InstrTypes.h"
 #include "llvm/IR/Operator.h"
 #include "llvm/IR/PassManager.h"
@@ -31,6 +30,7 @@
 #include "llvm/Support/DataTypes.h"
 #include "llvm/Support/InstructionCost.h"
 #include <functional>
+#include <utility>
 
 namespace llvm {
 
@@ -47,12 +47,14 @@ class ExtractElementInst;
 class Function;
 class GlobalValue;
 class InstCombiner;
+class OptimizationRemarkEmitter;
 class IntrinsicInst;
 class LoadInst;
 class LoopAccessInfo;
 class Loop;
 class LoopInfo;
 class ProfileSummaryInfo;
+class RecurrenceDescriptor;
 class SCEV;
 class ScalarEvolution;
 class StoreInst;
@@ -97,7 +99,7 @@ struct HardwareLoopInfo {
   Loop *L = nullptr;
   BasicBlock *ExitBlock = nullptr;
   BranchInst *ExitBranch = nullptr;
-  const SCEV *TripCount = nullptr;
+  const SCEV *ExitCount = nullptr;
   IntegerType *CountType = nullptr;
   Value *LoopDecrement = nullptr; // Decrement the loop counter by this
                                   // value in every iteration.
@@ -382,7 +384,14 @@ public:
 
   bool isNoopAddrSpaceCast(unsigned FromAS, unsigned ToAS) const;
 
+  /// Return true if globals in this address space can have initializers other
+  /// than `undef`.
+  bool canHaveNonUndefGlobalInitializerInAddressSpace(unsigned AS) const;
+
   unsigned getAssumedAddrSpace(const Value *V) const;
+
+  std::pair<const Value *, unsigned>
+  getPredicatedAddrSpace(const Value *V) const;
 
   /// Rewrite intrinsic call \p II such that \p OldV will be replaced with \p
   /// NewV, which has a different address space. This should happen for every
@@ -506,7 +515,8 @@ public:
   /// transformation. The caller will initialize UP with the current
   /// target-independent defaults.
   void getUnrollingPreferences(Loop *L, ScalarEvolution &,
-                               UnrollingPreferences &UP) const;
+                               UnrollingPreferences &UP,
+                               OptimizationRemarkEmitter *ORE) const;
 
   /// Query the target whether it would be profitable to convert the given loop
   /// into a hardware loop.
@@ -659,6 +669,9 @@ public:
   bool isLegalMaskedCompressStore(Type *DataType) const;
   /// Return true if the target supports masked expand load.
   bool isLegalMaskedExpandLoad(Type *DataType) const;
+
+  /// Return true if we should be enabling ordered reductions for the target.
+  bool enableOrderedReductions() const;
 
   /// Return true if the target has a unified operation to calculate division
   /// and remainder. If so, the additional implicit multiplication and
@@ -907,6 +920,9 @@ public:
   ///  architectural maximum vector length, and None otherwise.
   Optional<unsigned> getMaxVScale() const;
 
+  /// \return the value of vscale to tune the cost model for.
+  Optional<unsigned> getVScaleForTuning() const;
+
   /// \return True if the vectorization factor should be chosen to
   /// make the vector of the smallest element type match the size of a
   /// vector register. For wider element types, this could result in
@@ -1094,8 +1110,8 @@ public:
   /// is using a compare with the specified predicate as condition. When vector
   /// types are passed, \p VecPred must be used for all lanes.
   InstructionCost
-  getCmpSelInstrCost(unsigned Opcode, Type *ValTy, Type *CondTy = nullptr,
-                     CmpInst::Predicate VecPred = CmpInst::BAD_ICMP_PREDICATE,
+  getCmpSelInstrCost(unsigned Opcode, Type *ValTy, Type *CondTy,
+                     CmpInst::Predicate VecPred,
                      TTI::TargetCostKind CostKind = TTI::TCK_RecipThroughput,
                      const Instruction *I = nullptr) const;
 
@@ -1103,6 +1119,16 @@ public:
   /// Use -1 to indicate that there is no information on the index value.
   InstructionCost getVectorInstrCost(unsigned Opcode, Type *Val,
                                      unsigned Index = -1) const;
+
+  /// \return The cost of replication shuffle of \p VF elements typed \p EltTy
+  /// \p ReplicationFactor times.
+  ///
+  /// For example, the mask for \p ReplicationFactor=3 and \p VF=4 is:
+  ///   <0,0,0,1,1,1,2,2,2,3,3,3>
+  InstructionCost getReplicationShuffleCost(Type *EltTy, int ReplicationFactor,
+                                            int VF,
+                                            const APInt &DemandedDstElts,
+                                            TTI::TargetCostKind CostKind);
 
   /// \return The cost of Load and Store instructions.
   InstructionCost
@@ -1452,13 +1478,18 @@ public:
   virtual bool collectFlatAddressOperands(SmallVectorImpl<int> &OpIndexes,
                                           Intrinsic::ID IID) const = 0;
   virtual bool isNoopAddrSpaceCast(unsigned FromAS, unsigned ToAS) const = 0;
+  virtual bool
+  canHaveNonUndefGlobalInitializerInAddressSpace(unsigned AS) const = 0;
   virtual unsigned getAssumedAddrSpace(const Value *V) const = 0;
+  virtual std::pair<const Value *, unsigned>
+  getPredicatedAddrSpace(const Value *V) const = 0;
   virtual Value *rewriteIntrinsicWithAddressSpace(IntrinsicInst *II,
                                                   Value *OldV,
                                                   Value *NewV) const = 0;
   virtual bool isLoweredToCall(const Function *F) = 0;
   virtual void getUnrollingPreferences(Loop *L, ScalarEvolution &,
-                                       UnrollingPreferences &UP) = 0;
+                                       UnrollingPreferences &UP,
+                                       OptimizationRemarkEmitter *ORE) = 0;
   virtual void getPeelingPreferences(Loop *L, ScalarEvolution &SE,
                                      PeelingPreferences &PP) = 0;
   virtual bool isHardwareLoopProfitable(Loop *L, ScalarEvolution &SE,
@@ -1505,6 +1536,7 @@ public:
   virtual bool isLegalMaskedGather(Type *DataType, Align Alignment) = 0;
   virtual bool isLegalMaskedCompressStore(Type *DataType) = 0;
   virtual bool isLegalMaskedExpandLoad(Type *DataType) = 0;
+  virtual bool enableOrderedReductions() = 0;
   virtual bool hasDivRemOp(Type *DataType, bool IsSigned) = 0;
   virtual bool hasVolatileVariant(Instruction *I, unsigned AddrSpace) = 0;
   virtual bool prefersVectorizedAddressing() = 0;
@@ -1563,6 +1595,7 @@ public:
   virtual TypeSize getRegisterBitWidth(RegisterKind K) const = 0;
   virtual unsigned getMinVectorRegisterBitWidth() const = 0;
   virtual Optional<unsigned> getMaxVScale() const = 0;
+  virtual Optional<unsigned> getVScaleForTuning() const = 0;
   virtual bool shouldMaximizeVectorBandwidth() const = 0;
   virtual ElementCount getMinimumVF(unsigned ElemWidth,
                                     bool IsScalable) const = 0;
@@ -1623,6 +1656,12 @@ public:
                                              const Instruction *I) = 0;
   virtual InstructionCost getVectorInstrCost(unsigned Opcode, Type *Val,
                                              unsigned Index) = 0;
+
+  virtual InstructionCost
+  getReplicationShuffleCost(Type *EltTy, int ReplicationFactor, int VF,
+                            const APInt &DemandedDstElts,
+                            TTI::TargetCostKind CostKind) = 0;
+
   virtual InstructionCost getMemoryOpCost(unsigned Opcode, Type *Src,
                                           Align Alignment,
                                           unsigned AddressSpace,
@@ -1730,8 +1769,8 @@ public:
   InstructionCost
   getGEPCost(Type *PointeeType, const Value *Ptr,
              ArrayRef<const Value *> Operands,
-             enum TargetTransformInfo::TargetCostKind CostKind) override {
-    return Impl.getGEPCost(PointeeType, Ptr, Operands);
+             TargetTransformInfo::TargetCostKind CostKind) override {
+    return Impl.getGEPCost(PointeeType, Ptr, Operands, CostKind);
   }
   unsigned getInliningThresholdMultiplier() override {
     return Impl.getInliningThresholdMultiplier();
@@ -1775,8 +1814,18 @@ public:
     return Impl.isNoopAddrSpaceCast(FromAS, ToAS);
   }
 
+  bool
+  canHaveNonUndefGlobalInitializerInAddressSpace(unsigned AS) const override {
+    return Impl.canHaveNonUndefGlobalInitializerInAddressSpace(AS);
+  }
+
   unsigned getAssumedAddrSpace(const Value *V) const override {
     return Impl.getAssumedAddrSpace(V);
+  }
+
+  std::pair<const Value *, unsigned>
+  getPredicatedAddrSpace(const Value *V) const override {
+    return Impl.getPredicatedAddrSpace(V);
   }
 
   Value *rewriteIntrinsicWithAddressSpace(IntrinsicInst *II, Value *OldV,
@@ -1788,8 +1837,9 @@ public:
     return Impl.isLoweredToCall(F);
   }
   void getUnrollingPreferences(Loop *L, ScalarEvolution &SE,
-                               UnrollingPreferences &UP) override {
-    return Impl.getUnrollingPreferences(L, SE, UP);
+                               UnrollingPreferences &UP,
+                               OptimizationRemarkEmitter *ORE) override {
+    return Impl.getUnrollingPreferences(L, SE, UP, ORE);
   }
   void getPeelingPreferences(Loop *L, ScalarEvolution &SE,
                              PeelingPreferences &PP) override {
@@ -1885,6 +1935,9 @@ public:
   }
   bool isLegalMaskedExpandLoad(Type *DataType) override {
     return Impl.isLegalMaskedExpandLoad(DataType);
+  }
+  bool enableOrderedReductions() override {
+    return Impl.enableOrderedReductions();
   }
   bool hasDivRemOp(Type *DataType, bool IsSigned) override {
     return Impl.hasDivRemOp(DataType, IsSigned);
@@ -2015,6 +2068,9 @@ public:
   Optional<unsigned> getMaxVScale() const override {
     return Impl.getMaxVScale();
   }
+  Optional<unsigned> getVScaleForTuning() const override {
+    return Impl.getVScaleForTuning();
+  }
   bool shouldMaximizeVectorBandwidth() const override {
     return Impl.shouldMaximizeVectorBandwidth();
   }
@@ -2114,6 +2170,13 @@ public:
   InstructionCost getVectorInstrCost(unsigned Opcode, Type *Val,
                                      unsigned Index) override {
     return Impl.getVectorInstrCost(Opcode, Val, Index);
+  }
+  InstructionCost
+  getReplicationShuffleCost(Type *EltTy, int ReplicationFactor, int VF,
+                            const APInt &DemandedDstElts,
+                            TTI::TargetCostKind CostKind) override {
+    return Impl.getReplicationShuffleCost(EltTy, ReplicationFactor, VF,
+                                          DemandedDstElts, CostKind);
   }
   InstructionCost getMemoryOpCost(unsigned Opcode, Type *Src, Align Alignment,
                                   unsigned AddressSpace,

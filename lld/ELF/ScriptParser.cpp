@@ -131,7 +131,7 @@ private:
   std::pair<std::vector<SymbolVersion>, std::vector<SymbolVersion>>
   readSymbols();
 
-  // True if a script being read is in a subdirectory specified by -sysroot.
+  // True if a script being read is in the --sysroot directory.
   bool isUnderSysroot = false;
 
   // A set to detect an INCLUDE() cycle.
@@ -1429,8 +1429,9 @@ Expr ScriptParser::readPrimary() {
     return [=] { return *val; };
 
   // Tok is a symbol name.
-  tok = unquote(tok);
-  if (!isValidSymbolName(tok))
+  if (tok.startswith("\""))
+    tok = unquote(tok);
+  else if (!isValidSymbolName(tok))
     setError("malformed number: " + tok);
   script->referencedSymbols.push_back(tok);
   return [=] { return script->getSymbolValue(tok, location); };
@@ -1496,9 +1497,9 @@ void ScriptParser::readAnonymousDeclaration() {
   std::vector<SymbolVersion> globals;
   std::tie(locals, globals) = readSymbols();
   for (const SymbolVersion &pat : locals)
-    config->versionDefinitions[VER_NDX_LOCAL].patterns.push_back(pat);
+    config->versionDefinitions[VER_NDX_LOCAL].localPatterns.push_back(pat);
   for (const SymbolVersion &pat : globals)
-    config->versionDefinitions[VER_NDX_GLOBAL].patterns.push_back(pat);
+    config->versionDefinitions[VER_NDX_GLOBAL].nonLocalPatterns.push_back(pat);
 
   expect(";");
 }
@@ -1510,13 +1511,12 @@ void ScriptParser::readVersionDeclaration(StringRef verStr) {
   std::vector<SymbolVersion> locals;
   std::vector<SymbolVersion> globals;
   std::tie(locals, globals) = readSymbols();
-  for (const SymbolVersion &pat : locals)
-    config->versionDefinitions[VER_NDX_LOCAL].patterns.push_back(pat);
 
   // Create a new version definition and add that to the global symbols.
   VersionDefinition ver;
   ver.name = verStr;
-  ver.patterns = globals;
+  ver.nonLocalPatterns = std::move(globals);
+  ver.localPatterns = std::move(locals);
   ver.id = config->versionDefinitions.size();
   config->versionDefinitions.push_back(ver);
 

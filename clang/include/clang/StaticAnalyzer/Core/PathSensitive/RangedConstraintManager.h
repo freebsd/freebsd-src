@@ -48,6 +48,7 @@ public:
     ID.AddPointer(&To());
   }
   void dump(raw_ostream &OS) const;
+  void dump() const;
 
   // In order to keep non-overlapping ranges sorted, we can compare only From
   // points.
@@ -281,7 +282,27 @@ public:
   ///             where N = size(this)
   bool contains(llvm::APSInt Point) const { return containsImpl(Point); }
 
+  bool containsZero() const {
+    APSIntType T{getMinValue()};
+    return contains(T.getZeroValue());
+  }
+
+  /// Test if the range is the [0,0] range.
+  ///
+  /// Complexity: O(1)
+  bool encodesFalseRange() const {
+    const llvm::APSInt *Constant = getConcreteValue();
+    return Constant && Constant->isZero();
+  }
+
+  /// Test if the range doesn't contain zero.
+  ///
+  /// Complexity: O(logN)
+  ///             where N = size(this)
+  bool encodesTrueRange() const { return !containsZero(); }
+
   void dump(raw_ostream &OS) const;
+  void dump() const;
 
   bool operator==(const RangeSet &Other) const { return *Impl == *Other.Impl; }
   bool operator!=(const RangeSet &Other) const { return !(*this == Other); }
@@ -387,10 +408,21 @@ private:
   static void computeAdjustment(SymbolRef &Sym, llvm::APSInt &Adjustment);
 };
 
-/// Try to simplify a given symbolic expression's associated value based on the
-/// constraints in State. This is needed because the Environment bindings are
-/// not getting updated when a new constraint is added to the State.
+/// Try to simplify a given symbolic expression based on the constraints in
+/// State. This is needed because the Environment bindings are not getting
+/// updated when a new constraint is added to the State. If the symbol is
+/// simplified to a non-symbol (e.g. to a constant) then the original symbol
+/// is returned. We use this function in the family of assumeSymNE/EQ/LT/../GE
+/// functions where we can work only with symbols. Use the other function
+/// (simplifyToSVal) if you are interested in a simplification that may yield
+/// a concrete constant value.
 SymbolRef simplify(ProgramStateRef State, SymbolRef Sym);
+
+/// Try to simplify a given symbolic expression's associated `SVal` based on the
+/// constraints in State. This is very similar to `simplify`, but this function
+/// always returns the simplified SVal. The simplified SVal might be a single
+/// constant (i.e. `ConcreteInt`).
+SVal simplifyToSVal(ProgramStateRef State, SymbolRef Sym);
 
 } // namespace ento
 } // namespace clang

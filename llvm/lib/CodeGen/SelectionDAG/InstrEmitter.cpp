@@ -722,7 +722,7 @@ void InstrEmitter::AddDbgValueLocationOps(
       MIB.addFrameIndex(Op.getFrameIx());
       break;
     case SDDbgOperand::VREG:
-      MIB.addReg(Op.getVReg(), RegState::Debug);
+      MIB.addReg(Op.getVReg());
       break;
     case SDDbgOperand::SDNODE: {
       SDValue V = SDValue(Op.getSDNode(), Op.getResNo());
@@ -862,7 +862,7 @@ MachineInstr *InstrEmitter::EmitDbgNoLocation(SDDbgValue *SD) {
   DebugLoc DL = SD->getDebugLoc();
   auto MIB = BuildMI(*MF, DL, TII->get(TargetOpcode::DBG_VALUE));
   MIB.addReg(0U);
-  MIB.addReg(0U, RegState::Debug);
+  MIB.addReg(0U);
   MIB.addMetadata(Var);
   MIB.addMetadata(Expr);
   return &*MIB;
@@ -872,22 +872,33 @@ MachineInstr *
 InstrEmitter::EmitDbgValueFromSingleOp(SDDbgValue *SD,
                                        DenseMap<SDValue, Register> &VRBaseMap) {
   MDNode *Var = SD->getVariable();
-  MDNode *Expr = SD->getExpression();
+  DIExpression *Expr = SD->getExpression();
   DebugLoc DL = SD->getDebugLoc();
   const MCInstrDesc &II = TII->get(TargetOpcode::DBG_VALUE);
 
   assert(SD->getLocationOps().size() == 1 &&
          "Non variadic dbg_value should have only one location op");
 
+  // See about constant-folding the expression.
+  // Copy the location operand in case we replace it.
+  SmallVector<SDDbgOperand, 1> LocationOps(1, SD->getLocationOps()[0]);
+  if (Expr && LocationOps[0].getKind() == SDDbgOperand::CONST) {
+    const Value *V = LocationOps[0].getConst();
+    if (auto *C = dyn_cast<ConstantInt>(V)) {
+      std::tie(Expr, C) = Expr->constantFold(C);
+      LocationOps[0] = SDDbgOperand::fromConst(C);
+    }
+  }
+
   // Emit non-variadic dbg_value nodes as DBG_VALUE.
   // DBG_VALUE := "DBG_VALUE" loc, isIndirect, var, expr
   auto MIB = BuildMI(*MF, DL, II);
-  AddDbgValueLocationOps(MIB, II, SD->getLocationOps(), VRBaseMap);
+  AddDbgValueLocationOps(MIB, II, LocationOps, VRBaseMap);
 
   if (SD->isIndirect())
     MIB.addImm(0U);
   else
-    MIB.addReg(0U, RegState::Debug);
+    MIB.addReg(0U);
 
   return MIB.addMetadata(Var).addMetadata(Expr);
 }
@@ -1329,5 +1340,5 @@ InstrEmitter::InstrEmitter(const TargetMachine &TM, MachineBasicBlock *mbb,
       TRI(MF->getSubtarget().getRegisterInfo()),
       TLI(MF->getSubtarget().getTargetLowering()), MBB(mbb),
       InsertPos(insertpos) {
-  EmitDebugInstrRefs = TM.Options.ValueTrackingVariableLocations;
+  EmitDebugInstrRefs = MF->useDebugInstrRef();
 }

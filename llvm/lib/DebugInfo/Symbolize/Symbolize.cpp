@@ -280,10 +280,7 @@ bool getGNUDebuglinkContents(const ObjectFile *Obj, std::string &DebugName,
     return false;
   for (const SectionRef &Section : Obj->sections()) {
     StringRef Name;
-    if (Expected<StringRef> NameOrErr = Section.getName())
-      Name = *NameOrErr;
-    else
-      consumeError(NameOrErr.takeError());
+    consumeError(Section.getName().moveInto(Name));
 
     Name = Name.substr(Name.find_first_not_of("._"));
     if (Name == "gnu_debuglink") {
@@ -600,7 +597,9 @@ LLVMSymbolizer::getOrCreateModuleInfo(const std::string &ModuleName) {
     }
   }
   if (!Context)
-    Context = DWARFContext::create(*Objects.second, nullptr, Opts.DWPName);
+    Context = DWARFContext::create(
+        *Objects.second, DWARFContext::ProcessDebugRelocations::Process,
+        nullptr, Opts.DWPName);
   return createModuleInfo(Objects.first, std::move(Context), ModuleName);
 }
 
@@ -650,18 +649,9 @@ StringRef demanglePE32ExternCFunc(StringRef SymbolName) {
 std::string
 LLVMSymbolizer::DemangleName(const std::string &Name,
                              const SymbolizableModule *DbiModuleDescriptor) {
-  // We can spoil names of symbols with C linkage, so use an heuristic
-  // approach to check if the name should be demangled.
-  if (Name.substr(0, 2) == "_Z") {
-    int status = 0;
-    char *DemangledName =
-        itaniumDemangle(Name.c_str(), nullptr, nullptr, &status);
-    if (status != 0)
-      return Name;
-    std::string Result = DemangledName;
-    free(DemangledName);
+  std::string Result;
+  if (nonMicrosoftDemangle(Name.c_str(), Result))
     return Result;
-  }
 
   if (!Name.empty() && Name.front() == '?') {
     // Only do MSVC C++ demangling on symbols starting with '?'.
@@ -672,7 +662,7 @@ LLVMSymbolizer::DemangleName(const std::string &Name,
                         MSDF_NoMemberType | MSDF_NoReturnType));
     if (status != 0)
       return Name;
-    std::string Result = DemangledName;
+    Result = DemangledName;
     free(DemangledName);
     return Result;
   }

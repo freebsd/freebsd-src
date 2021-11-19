@@ -349,200 +349,6 @@ static Constant *ExtractConstantBytes(Constant *C, unsigned ByteStart,
   }
 }
 
-/// Wrapper around getFoldedSizeOfImpl() that adds caching.
-static Constant *getFoldedSizeOf(Type *Ty, Type *DestTy, bool Folded,
-                                 DenseMap<Type *, Constant *> &Cache);
-
-/// Return a ConstantExpr with type DestTy for sizeof on Ty, with any known
-/// factors factored out. If Folded is false, return null if no factoring was
-/// possible, to avoid endlessly bouncing an unfoldable expression back into the
-/// top-level folder.
-static Constant *getFoldedSizeOfImpl(Type *Ty, Type *DestTy, bool Folded,
-                                     DenseMap<Type *, Constant *> &Cache) {
-  // This is the actual implementation of getFoldedSizeOf(). To get the caching
-  // behavior, we need to call getFoldedSizeOf() when we recurse.
-
-  if (ArrayType *ATy = dyn_cast<ArrayType>(Ty)) {
-    Constant *N = ConstantInt::get(DestTy, ATy->getNumElements());
-    Constant *E = getFoldedSizeOf(ATy->getElementType(), DestTy, true, Cache);
-    return ConstantExpr::getNUWMul(E, N);
-  }
-
-  if (StructType *STy = dyn_cast<StructType>(Ty))
-    if (!STy->isPacked()) {
-      unsigned NumElems = STy->getNumElements();
-      // An empty struct has size zero.
-      if (NumElems == 0)
-        return ConstantExpr::getNullValue(DestTy);
-      // Check for a struct with all members having the same size.
-      Constant *MemberSize =
-          getFoldedSizeOf(STy->getElementType(0), DestTy, true, Cache);
-      bool AllSame = true;
-      for (unsigned i = 1; i != NumElems; ++i)
-        if (MemberSize !=
-            getFoldedSizeOf(STy->getElementType(i), DestTy, true, Cache)) {
-          AllSame = false;
-          break;
-        }
-      if (AllSame) {
-        Constant *N = ConstantInt::get(DestTy, NumElems);
-        return ConstantExpr::getNUWMul(MemberSize, N);
-      }
-    }
-
-  // Pointer size doesn't depend on the pointee type, so canonicalize them
-  // to an arbitrary pointee.
-  if (PointerType *PTy = dyn_cast<PointerType>(Ty))
-    if (!PTy->getElementType()->isIntegerTy(1))
-      return getFoldedSizeOf(
-          PointerType::get(IntegerType::get(PTy->getContext(), 1),
-                           PTy->getAddressSpace()),
-          DestTy, true, Cache);
-
-  // If there's no interesting folding happening, bail so that we don't create
-  // a constant that looks like it needs folding but really doesn't.
-  if (!Folded)
-    return nullptr;
-
-  // Base case: Get a regular sizeof expression.
-  Constant *C = ConstantExpr::getSizeOf(Ty);
-  C = ConstantExpr::getCast(CastInst::getCastOpcode(C, false,
-                                                    DestTy, false),
-                            C, DestTy);
-  return C;
-}
-
-static Constant *getFoldedSizeOf(Type *Ty, Type *DestTy, bool Folded,
-                                 DenseMap<Type *, Constant *> &Cache) {
-  // Check for previously generated folded size constant.
-  auto It = Cache.find(Ty);
-  if (It != Cache.end())
-    return It->second;
-  return Cache[Ty] = getFoldedSizeOfImpl(Ty, DestTy, Folded, Cache);
-}
-
-static Constant *getFoldedSizeOf(Type *Ty, Type *DestTy, bool Folded) {
-  DenseMap<Type *, Constant *> Cache;
-  return getFoldedSizeOf(Ty, DestTy, Folded, Cache);
-}
-
-/// Return a ConstantExpr with type DestTy for alignof on Ty, with any known
-/// factors factored out. If Folded is false, return null if no factoring was
-/// possible, to avoid endlessly bouncing an unfoldable expression back into the
-/// top-level folder.
-static Constant *getFoldedAlignOf(Type *Ty, Type *DestTy, bool Folded) {
-  // The alignment of an array is equal to the alignment of the
-  // array element. Note that this is not always true for vectors.
-  if (ArrayType *ATy = dyn_cast<ArrayType>(Ty)) {
-    Constant *C = ConstantExpr::getAlignOf(ATy->getElementType());
-    C = ConstantExpr::getCast(CastInst::getCastOpcode(C, false,
-                                                      DestTy,
-                                                      false),
-                              C, DestTy);
-    return C;
-  }
-
-  if (StructType *STy = dyn_cast<StructType>(Ty)) {
-    // Packed structs always have an alignment of 1.
-    if (STy->isPacked())
-      return ConstantInt::get(DestTy, 1);
-
-    // Otherwise, struct alignment is the maximum alignment of any member.
-    // Without target data, we can't compare much, but we can check to see
-    // if all the members have the same alignment.
-    unsigned NumElems = STy->getNumElements();
-    // An empty struct has minimal alignment.
-    if (NumElems == 0)
-      return ConstantInt::get(DestTy, 1);
-    // Check for a struct with all members having the same alignment.
-    Constant *MemberAlign =
-      getFoldedAlignOf(STy->getElementType(0), DestTy, true);
-    bool AllSame = true;
-    for (unsigned i = 1; i != NumElems; ++i)
-      if (MemberAlign != getFoldedAlignOf(STy->getElementType(i), DestTy, true)) {
-        AllSame = false;
-        break;
-      }
-    if (AllSame)
-      return MemberAlign;
-  }
-
-  // Pointer alignment doesn't depend on the pointee type, so canonicalize them
-  // to an arbitrary pointee.
-  if (PointerType *PTy = dyn_cast<PointerType>(Ty))
-    if (!PTy->getElementType()->isIntegerTy(1))
-      return
-        getFoldedAlignOf(PointerType::get(IntegerType::get(PTy->getContext(),
-                                                           1),
-                                          PTy->getAddressSpace()),
-                         DestTy, true);
-
-  // If there's no interesting folding happening, bail so that we don't create
-  // a constant that looks like it needs folding but really doesn't.
-  if (!Folded)
-    return nullptr;
-
-  // Base case: Get a regular alignof expression.
-  Constant *C = ConstantExpr::getAlignOf(Ty);
-  C = ConstantExpr::getCast(CastInst::getCastOpcode(C, false,
-                                                    DestTy, false),
-                            C, DestTy);
-  return C;
-}
-
-/// Return a ConstantExpr with type DestTy for offsetof on Ty and FieldNo, with
-/// any known factors factored out. If Folded is false, return null if no
-/// factoring was possible, to avoid endlessly bouncing an unfoldable expression
-/// back into the top-level folder.
-static Constant *getFoldedOffsetOf(Type *Ty, Constant *FieldNo, Type *DestTy,
-                                   bool Folded) {
-  if (ArrayType *ATy = dyn_cast<ArrayType>(Ty)) {
-    Constant *N = ConstantExpr::getCast(CastInst::getCastOpcode(FieldNo, false,
-                                                                DestTy, false),
-                                        FieldNo, DestTy);
-    Constant *E = getFoldedSizeOf(ATy->getElementType(), DestTy, true);
-    return ConstantExpr::getNUWMul(E, N);
-  }
-
-  if (StructType *STy = dyn_cast<StructType>(Ty))
-    if (!STy->isPacked()) {
-      unsigned NumElems = STy->getNumElements();
-      // An empty struct has no members.
-      if (NumElems == 0)
-        return nullptr;
-      // Check for a struct with all members having the same size.
-      Constant *MemberSize =
-        getFoldedSizeOf(STy->getElementType(0), DestTy, true);
-      bool AllSame = true;
-      for (unsigned i = 1; i != NumElems; ++i)
-        if (MemberSize !=
-            getFoldedSizeOf(STy->getElementType(i), DestTy, true)) {
-          AllSame = false;
-          break;
-        }
-      if (AllSame) {
-        Constant *N = ConstantExpr::getCast(CastInst::getCastOpcode(FieldNo,
-                                                                    false,
-                                                                    DestTy,
-                                                                    false),
-                                            FieldNo, DestTy);
-        return ConstantExpr::getNUWMul(MemberSize, N);
-      }
-    }
-
-  // If there's no interesting folding happening, bail so that we don't create
-  // a constant that looks like it needs folding but really doesn't.
-  if (!Folded)
-    return nullptr;
-
-  // Base case: Get a regular offsetof expression.
-  Constant *C = ConstantExpr::getOffsetOf(Ty, FieldNo);
-  C = ConstantExpr::getCast(CastInst::getCastOpcode(C, false,
-                                                    DestTy, false),
-                            C, DestTy);
-  return C;
-}
-
 Constant *llvm::ConstantFoldCastInstruction(unsigned opc, Constant *V,
                                             Type *DestTy) {
   if (isa<PoisonValue>(V))
@@ -666,53 +472,6 @@ Constant *llvm::ConstantFoldCastInstruction(unsigned opc, Constant *V,
     // Is it a null pointer value?
     if (V->isNullValue())
       return ConstantInt::get(DestTy, 0);
-    // If this is a sizeof-like expression, pull out multiplications by
-    // known factors to expose them to subsequent folding. If it's an
-    // alignof-like expression, factor out known factors.
-    if (ConstantExpr *CE = dyn_cast<ConstantExpr>(V))
-      if (CE->getOpcode() == Instruction::GetElementPtr &&
-          CE->getOperand(0)->isNullValue()) {
-        // FIXME: Looks like getFoldedSizeOf(), getFoldedOffsetOf() and
-        // getFoldedAlignOf() don't handle the case when DestTy is a vector of
-        // pointers yet. We end up in asserts in CastInst::getCastOpcode (see
-        // test/Analysis/ConstantFolding/cast-vector.ll). I've only seen this
-        // happen in one "real" C-code test case, so it does not seem to be an
-        // important optimization to handle vectors here. For now, simply bail
-        // out.
-        if (DestTy->isVectorTy())
-          return nullptr;
-        GEPOperator *GEPO = cast<GEPOperator>(CE);
-        Type *Ty = GEPO->getSourceElementType();
-        if (CE->getNumOperands() == 2) {
-          // Handle a sizeof-like expression.
-          Constant *Idx = CE->getOperand(1);
-          bool isOne = isa<ConstantInt>(Idx) && cast<ConstantInt>(Idx)->isOne();
-          if (Constant *C = getFoldedSizeOf(Ty, DestTy, !isOne)) {
-            Idx = ConstantExpr::getCast(CastInst::getCastOpcode(Idx, true,
-                                                                DestTy, false),
-                                        Idx, DestTy);
-            return ConstantExpr::getMul(C, Idx);
-          }
-        } else if (CE->getNumOperands() == 3 &&
-                   CE->getOperand(1)->isNullValue()) {
-          // Handle an alignof-like expression.
-          if (StructType *STy = dyn_cast<StructType>(Ty))
-            if (!STy->isPacked()) {
-              ConstantInt *CI = cast<ConstantInt>(CE->getOperand(2));
-              if (CI->isOne() &&
-                  STy->getNumElements() == 2 &&
-                  STy->getElementType(0)->isIntegerTy(1)) {
-                return getFoldedAlignOf(STy->getElementType(1), DestTy, false);
-              }
-            }
-          // Handle an offsetof-like expression.
-          if (Ty->isStructTy() || Ty->isArrayTy()) {
-            if (Constant *C = getFoldedOffsetOf(Ty, CE->getOperand(2),
-                                                DestTy, false))
-              return C;
-          }
-        }
-      }
     // Other pointer types cannot be casted
     return nullptr;
   case Instruction::UIToFP:
@@ -720,7 +479,7 @@ Constant *llvm::ConstantFoldCastInstruction(unsigned opc, Constant *V,
     if (ConstantInt *CI = dyn_cast<ConstantInt>(V)) {
       const APInt &api = CI->getValue();
       APFloat apf(DestTy->getFltSemantics(),
-                  APInt::getNullValue(DestTy->getPrimitiveSizeInBits()));
+                  APInt::getZero(DestTy->getPrimitiveSizeInBits()));
       apf.convertFromAPInt(api, opc==Instruction::SIToFP,
                            APFloat::rmNearestTiesToEven);
       return ConstantFP::get(V->getContext(), apf);
@@ -908,13 +667,16 @@ Constant *llvm::ConstantFoldExtractElementInstruction(Constant *Val,
     }
   }
 
+  if (Constant *C = Val->getAggregateElement(CIdx))
+    return C;
+
   // Lane < Splat minimum vector width => extractelt Splat(x), Lane -> x
   if (CIdx->getValue().ult(ValVTy->getElementCount().getKnownMinValue())) {
     if (Constant *SplatVal = Val->getSplatValue())
       return SplatVal;
   }
 
-  return Val->getAggregateElement(CIdx);
+  return nullptr;
 }
 
 Constant *llvm::ConstantFoldInsertElementInstruction(Constant *Val,
@@ -969,12 +731,16 @@ Constant *llvm::ConstantFoldShuffleVectorInstruction(Constant *V1, Constant *V2,
 
   // If the mask is all zeros this is a splat, no need to go through all
   // elements.
-  if (all_of(Mask, [](int Elt) { return Elt == 0; }) &&
-      !MaskEltCount.isScalable()) {
+  if (all_of(Mask, [](int Elt) { return Elt == 0; })) {
     Type *Ty = IntegerType::get(V1->getContext(), 32);
     Constant *Elt =
         ConstantExpr::getExtractElement(V1, ConstantInt::get(Ty, 0));
-    return ConstantVector::getSplat(MaskEltCount, Elt);
+
+    if (Elt->isNullValue()) {
+      auto *VTy = VectorType::get(EltTy, MaskEltCount);
+      return ConstantAggregateZero::get(VTy);
+    } else if (!MaskEltCount.isScalable())
+      return ConstantVector::getSplat(MaskEltCount, Elt);
   }
   // Do not iterate on scalable vector. The num of elements is unknown at
   // compile-time.
@@ -1379,7 +1145,7 @@ Constant *llvm::ConstantFoldBinaryInstruction(unsigned Opcode, Constant *C1,
         return ConstantInt::get(CI1->getContext(), C1V.udiv(C2V));
       case Instruction::SDiv:
         assert(!CI2->isZero() && "Div by zero handled above");
-        if (C2V.isAllOnesValue() && C1V.isMinSignedValue())
+        if (C2V.isAllOnes() && C1V.isMinSignedValue())
           return PoisonValue::get(CI1->getType());   // MIN_INT / -1 -> poison
         return ConstantInt::get(CI1->getContext(), C1V.sdiv(C2V));
       case Instruction::URem:
@@ -1387,7 +1153,7 @@ Constant *llvm::ConstantFoldBinaryInstruction(unsigned Opcode, Constant *C1,
         return ConstantInt::get(CI1->getContext(), C1V.urem(C2V));
       case Instruction::SRem:
         assert(!CI2->isZero() && "Div by zero handled above");
-        if (C2V.isAllOnesValue() && C1V.isMinSignedValue())
+        if (C2V.isAllOnes() && C1V.isMinSignedValue())
           return PoisonValue::get(CI1->getType());   // MIN_INT % -1 -> poison
         return ConstantInt::get(CI1->getContext(), C1V.srem(C2V));
       case Instruction::And:
@@ -2030,19 +1796,8 @@ Constant *llvm::ConstantFoldCompareInstruction(unsigned short pred,
   if (isa<ConstantInt>(C1) && isa<ConstantInt>(C2)) {
     const APInt &V1 = cast<ConstantInt>(C1)->getValue();
     const APInt &V2 = cast<ConstantInt>(C2)->getValue();
-    switch (pred) {
-    default: llvm_unreachable("Invalid ICmp Predicate");
-    case ICmpInst::ICMP_EQ:  return ConstantInt::get(ResultTy, V1 == V2);
-    case ICmpInst::ICMP_NE:  return ConstantInt::get(ResultTy, V1 != V2);
-    case ICmpInst::ICMP_SLT: return ConstantInt::get(ResultTy, V1.slt(V2));
-    case ICmpInst::ICMP_SGT: return ConstantInt::get(ResultTy, V1.sgt(V2));
-    case ICmpInst::ICMP_SLE: return ConstantInt::get(ResultTy, V1.sle(V2));
-    case ICmpInst::ICMP_SGE: return ConstantInt::get(ResultTy, V1.sge(V2));
-    case ICmpInst::ICMP_ULT: return ConstantInt::get(ResultTy, V1.ult(V2));
-    case ICmpInst::ICMP_UGT: return ConstantInt::get(ResultTy, V1.ugt(V2));
-    case ICmpInst::ICMP_ULE: return ConstantInt::get(ResultTy, V1.ule(V2));
-    case ICmpInst::ICMP_UGE: return ConstantInt::get(ResultTy, V1.uge(V2));
-    }
+    return ConstantInt::get(
+        ResultTy, ICmpInst::compare(V1, V2, (ICmpInst::Predicate)pred));
   } else if (isa<ConstantFP>(C1) && isa<ConstantFP>(C2)) {
     const APFloat &C1V = cast<ConstantFP>(C1)->getValueAPF();
     const APFloat &C2V = cast<ConstantFP>(C2)->getValueAPF();
@@ -2564,7 +2319,7 @@ Constant *llvm::ConstantFoldGetElementPtr(Type *PointeeTy, Constant *C,
       if (isIndexInRangeOfArrayType(STy->getNumElements(), CI))
         // It's in range, skip to the next index.
         continue;
-      if (CI->getSExtValue() < 0) {
+      if (CI->isNegative()) {
         // It's out of range and negative, don't try to factor it.
         Unknown = true;
         continue;
@@ -2575,7 +2330,7 @@ Constant *llvm::ConstantFoldGetElementPtr(Type *PointeeTy, Constant *C,
       for (unsigned I = 0, E = CV->getNumElements(); I != E; ++I) {
         auto *CI = cast<ConstantInt>(CV->getElementAsConstant(I));
         InRange &= isIndexInRangeOfArrayType(STy->getNumElements(), CI);
-        if (CI->getSExtValue() < 0) {
+        if (CI->isNegative()) {
           Unknown = true;
           break;
         }

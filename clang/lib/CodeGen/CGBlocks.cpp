@@ -2695,8 +2695,8 @@ const BlockByrefInfo &CodeGenFunction::getBlockByrefInfo(const VarDecl *D) {
     size = varOffset;
 
   // Conversely, we might have to prevent LLVM from inserting padding.
-  } else if (CGM.getDataLayout().getABITypeAlignment(varTy)
-               > varAlign.getQuantity()) {
+  } else if (CGM.getDataLayout().getABITypeAlignment(varTy) >
+             uint64_t(varAlign.getQuantity())) {
     packed = true;
   }
   types.push_back(varTy);
@@ -2910,8 +2910,8 @@ llvm::Constant *CodeGenModule::getNSConcreteGlobalBlock() {
   if (NSConcreteGlobalBlock)
     return NSConcreteGlobalBlock;
 
-  NSConcreteGlobalBlock =
-      GetOrCreateLLVMGlobal("_NSConcreteGlobalBlock", Int8PtrTy, 0, nullptr);
+  NSConcreteGlobalBlock = GetOrCreateLLVMGlobal(
+      "_NSConcreteGlobalBlock", Int8PtrTy, LangAS::Default, nullptr);
   configureBlocksRuntimeObject(*this, NSConcreteGlobalBlock);
   return NSConcreteGlobalBlock;
 }
@@ -2920,8 +2920,8 @@ llvm::Constant *CodeGenModule::getNSConcreteStackBlock() {
   if (NSConcreteStackBlock)
     return NSConcreteStackBlock;
 
-  NSConcreteStackBlock =
-      GetOrCreateLLVMGlobal("_NSConcreteStackBlock", Int8PtrTy, 0, nullptr);
+  NSConcreteStackBlock = GetOrCreateLLVMGlobal(
+      "_NSConcreteStackBlock", Int8PtrTy, LangAS::Default, nullptr);
   configureBlocksRuntimeObject(*this, NSConcreteStackBlock);
   return NSConcreteStackBlock;
 }

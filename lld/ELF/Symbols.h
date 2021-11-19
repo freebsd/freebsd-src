@@ -20,6 +20,7 @@
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/Object/Archive.h"
 #include "llvm/Object/ELF.h"
+#include <tuple>
 
 namespace lld {
 // Returns a string representation for a symbol for diagnostics.
@@ -162,10 +163,7 @@ public:
 
   // True if this is an undefined weak symbol. This only works once
   // all input files have been added.
-  bool isUndefWeak() const {
-    // See comment on lazy symbols for details.
-    return isWeak() && (isUndefined() || isLazy());
-  }
+  bool isUndefWeak() const { return isWeak() && isUndefined(); }
 
   StringRef getName() const {
     if (nameSize == (uint32_t)-1)
@@ -581,6 +579,11 @@ void reportBackrefs();
 extern llvm::DenseMap<const Symbol *,
                       std::pair<const InputFile *, const InputFile *>>
     backwardReferences;
+
+// A tuple of (reference, extractedFile, sym). Used by --why-extract=.
+extern SmallVector<std::tuple<std::string, const InputFile *, const Symbol &>,
+                   0>
+    whyExtract;
 
 } // namespace elf
 } // namespace lld

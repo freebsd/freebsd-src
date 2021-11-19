@@ -48,6 +48,10 @@ def: Flag<["-"], "P">,
   HelpText<"Alias for --python-path">,
   Group<grp_scripting>;
 
+def print_script_interpreter_info: F<"print-script-interpreter-info">,
+  HelpText<"Prints out a json dictionary with information about the scripting language interpreter.">,
+  Group<grp_scripting>;
+
 def script_language: Separate<["--", "-"], "script-language">,
   MetaVarName<"<language>">,
   HelpText<"Tells the debugger to use the specified scripting language for user-defined scripts.">,
@@ -110,7 +114,7 @@ def: Flag<["-"], "b">,
   Group<grp_command>;
 
 def source_quietly: F<"source-quietly">,
-  HelpText<"Tells the debugger to execute this one-line lldb command before any file has been loaded.">,
+  HelpText<"Tells the debugger not to echo commands while sourcing files or one-line commands provided on the command line.">,
   Group<grp_command>;
 def: Flag<["-"], "Q">,
   Alias<source_quietly>,

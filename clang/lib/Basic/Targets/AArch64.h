@@ -59,6 +59,7 @@ class LLVM_LIBRARY_VISIBILITY AArch64TargetInfo : public TargetInfo {
   static const Builtin::Info BuiltinInfo[];
 
   std::string ABI;
+  StringRef getArchProfile() const;
 
 public:
   AArch64TargetInfo(const llvm::Triple &Triple, const TargetOptions &Opts);
@@ -91,10 +92,19 @@ public:
                                MacroBuilder &Builder) const;
   void getTargetDefinesARMV87A(const LangOptions &Opts,
                                MacroBuilder &Builder) const;
+  void getTargetDefinesARMV9A(const LangOptions &Opts,
+                              MacroBuilder &Builder) const;
+  void getTargetDefinesARMV91A(const LangOptions &Opts,
+                               MacroBuilder &Builder) const;
+  void getTargetDefinesARMV92A(const LangOptions &Opts,
+                               MacroBuilder &Builder) const;
   void getTargetDefines(const LangOptions &Opts,
                         MacroBuilder &Builder) const override;
 
   ArrayRef<Builtin::Info> getTargetBuiltins() const override;
+
+  Optional<std::pair<unsigned, unsigned>>
+  getVScaleRange(const LangOptions &LangOpts) const override;
 
   bool hasFeature(StringRef Feature) const override;
   bool handleTargetFeatures(std::vector<std::string> &Features,

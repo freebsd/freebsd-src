@@ -64,9 +64,9 @@ class VersionTuple;
 /// constant references to global variables in the module.  When a global
 /// variable is destroyed, it should have no entries in the GlobalValueRefMap.
 /// The main container class for the LLVM Intermediate Representation.
-class Module {
-/// @name Types And Enumerations
-/// @{
+class LLVM_EXTERNAL_VISIBILITY Module {
+  /// @name Types And Enumerations
+  /// @{
 public:
   /// The type for the list of global variables.
   using GlobalListType = SymbolTableList<GlobalVariable>;
@@ -323,6 +323,9 @@ public:
   /// arbitrary type. This method returns null if a global with the specified
   /// name is not found.
   GlobalValue *getNamedValue(StringRef Name) const;
+
+  /// Return the number of global values in the module.
+  unsigned getNumNamedValues() const;
 
   /// Return a unique non-zero ID for the specified metadata kind. This ID is
   /// uniqued across modules in the current LLVMContext.

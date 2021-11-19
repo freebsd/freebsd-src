@@ -33,6 +33,7 @@
 #include "llvm/DebugInfo/DWARF/DWARFUnitIndex.h"
 #include "llvm/DebugInfo/DWARF/DWARFVerifier.h"
 #include "llvm/MC/MCRegisterInfo.h"
+#include "llvm/MC/TargetRegistry.h"
 #include "llvm/Object/Decompressor.h"
 #include "llvm/Object/MachO.h"
 #include "llvm/Object/ObjectFile.h"
@@ -44,7 +45,6 @@
 #include "llvm/Support/LEB128.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/Path.h"
-#include "llvm/Support/TargetRegistry.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
 #include <cstdint>
@@ -691,6 +691,18 @@ void DWARFContext::dump(
   if (shouldDump(Explicit, ".debug_names", DIDT_ID_DebugNames,
                  DObj->getNamesSection().Data))
     getDebugNames().dump(OS);
+}
+
+DWARFTypeUnit *DWARFContext::getTypeUnitForHash(uint16_t Version, uint64_t Hash,
+                                                bool IsDWO) {
+  // FIXME: Check for/use the tu_index here, if there is one.
+  for (const auto &U : IsDWO ? dwo_units() : normal_units()) {
+    if (DWARFTypeUnit *TU = dyn_cast<DWARFTypeUnit>(U.get())) {
+      if (TU->getTypeHash() == Hash)
+        return TU;
+    }
+  }
+  return nullptr;
 }
 
 DWARFCompileUnit *DWARFContext::getDWOCompileUnitForHash(uint64_t Hash) {
@@ -1411,7 +1423,8 @@ DWARFContext::getDWOContext(StringRef AbsolutePath) {
 
   auto S = std::make_shared<DWOFile>();
   S->File = std::move(Obj.get());
-  S->Context = DWARFContext::create(*S->File.getBinary());
+  S->Context = DWARFContext::create(*S->File.getBinary(),
+                                    ProcessDebugRelocations::Ignore);
   *Entry = S;
   auto *Ctxt = S->Context.get();
   return std::shared_ptr<DWARFContext>(std::move(S), Ctxt);
@@ -1652,7 +1665,9 @@ public:
     }
   }
   DWARFObjInMemory(const object::ObjectFile &Obj, const LoadedObjectInfo *L,
-                   function_ref<void(Error)> HandleError, function_ref<void(Error)> HandleWarning )
+                   function_ref<void(Error)> HandleError,
+                   function_ref<void(Error)> HandleWarning,
+                   DWARFContext::ProcessDebugRelocations RelocAction)
       : IsLittleEndian(Obj.isLittleEndian()),
         AddressSize(Obj.getBytesInAddress()), FileName(Obj.getFileName()),
         Obj(&Obj) {
@@ -1735,7 +1750,12 @@ public:
         S.Data = Data;
       }
 
-      if (RelocatedSection == Obj.section_end())
+      if (RelocatedSection != Obj.section_end() && Name.contains(".dwo"))
+        HandleWarning(
+            createError("Unexpected relocations for dwo section " + Name));
+
+      if (RelocatedSection == Obj.section_end() ||
+          (RelocAction == DWARFContext::ProcessDebugRelocations::Ignore))
         continue;
 
       StringRef RelSecName;
@@ -1772,18 +1792,10 @@ public:
         if (RelSecName == "debug_info")
           Map = &static_cast<DWARFSectionMap &>(InfoSections[*RelocatedSection])
                      .Relocs;
-        else if (RelSecName == "debug_info.dwo")
-          Map = &static_cast<DWARFSectionMap &>(
-                     InfoDWOSections[*RelocatedSection])
-                     .Relocs;
         else if (RelSecName == "debug_types")
           Map =
               &static_cast<DWARFSectionMap &>(TypesSections[*RelocatedSection])
                    .Relocs;
-        else if (RelSecName == "debug_types.dwo")
-          Map = &static_cast<DWARFSectionMap &>(
-                     TypesDWOSections[*RelocatedSection])
-                     .Relocs;
         else
           continue;
       }
@@ -1966,12 +1978,13 @@ public:
 } // namespace
 
 std::unique_ptr<DWARFContext>
-DWARFContext::create(const object::ObjectFile &Obj, const LoadedObjectInfo *L,
-                     std::string DWPName,
+DWARFContext::create(const object::ObjectFile &Obj,
+                     ProcessDebugRelocations RelocAction,
+                     const LoadedObjectInfo *L, std::string DWPName,
                      std::function<void(Error)> RecoverableErrorHandler,
                      std::function<void(Error)> WarningHandler) {
-  auto DObj =
-      std::make_unique<DWARFObjInMemory>(Obj, L, RecoverableErrorHandler, WarningHandler);
+  auto DObj = std::make_unique<DWARFObjInMemory>(
+      Obj, L, RecoverableErrorHandler, WarningHandler, RelocAction);
   return std::make_unique<DWARFContext>(std::move(DObj), std::move(DWPName),
                                         RecoverableErrorHandler,
                                         WarningHandler);

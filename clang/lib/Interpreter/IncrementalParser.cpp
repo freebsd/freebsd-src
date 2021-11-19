@@ -65,6 +65,8 @@ public:
           case frontend::ParseSyntaxOnly:
             Act = CreateFrontendAction(CI);
             break;
+          case frontend::PluginAction:
+            LLVM_FALLTHROUGH;
           case frontend::EmitAssembly:
             LLVM_FALLTHROUGH;
           case frontend::EmitObj:
@@ -289,4 +291,11 @@ IncrementalParser::Parse(llvm::StringRef input) {
 
   return PTU;
 }
+
+llvm::StringRef IncrementalParser::GetMangledName(GlobalDecl GD) const {
+  CodeGenerator *CG = getCodeGen(Act.get());
+  assert(CG);
+  return CG->GetMangledName(GD);
+}
+
 } // end namespace clang

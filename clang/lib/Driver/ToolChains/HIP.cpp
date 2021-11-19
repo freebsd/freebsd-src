@@ -16,6 +16,7 @@
 #include "clang/Driver/DriverDiagnostic.h"
 #include "clang/Driver/InputInfo.h"
 #include "clang/Driver/Options.h"
+#include "clang/Driver/SanitizerArgs.h"
 #include "llvm/Support/Alignment.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Path.h"
@@ -36,6 +37,43 @@ using namespace llvm::opt;
 namespace {
 const unsigned HIPCodeObjectAlign = 4096;
 } // namespace
+
+static bool shouldSkipSanitizeOption(const ToolChain &TC,
+                                     const llvm::opt::ArgList &DriverArgs,
+                                     StringRef TargetID,
+                                     const llvm::opt::Arg *A) {
+  // For actions without targetID, do nothing.
+  if (TargetID.empty())
+    return false;
+  Option O = A->getOption();
+  if (!O.matches(options::OPT_fsanitize_EQ))
+    return false;
+
+  if (!DriverArgs.hasFlag(options::OPT_fgpu_sanitize,
+                          -options::OPT_fno_gpu_sanitize))
+    return true;
+
+  auto &Diags = TC.getDriver().getDiags();
+
+  // For simplicity, we only allow -fsanitize=address
+  SanitizerMask K = parseSanitizerValue(A->getValue(), /*AllowGroups=*/false);
+  if (K != SanitizerKind::Address)
+    return true;
+
+  llvm::StringMap<bool> FeatureMap;
+  auto OptionalGpuArch = parseTargetID(TC.getTriple(), TargetID, &FeatureMap);
+
+  assert(OptionalGpuArch && "Invalid Target ID");
+  (void)OptionalGpuArch;
+  auto Loc = FeatureMap.find("xnack");
+  if (Loc == FeatureMap.end() || !Loc->second) {
+    Diags.Report(
+        clang::diag::warn_drv_unsupported_option_for_offload_arch_req_feature)
+        << A->getAsString(DriverArgs) << TargetID << "xnack+";
+    return true;
+  }
+  return false;
+}
 
 void AMDGCN::Linker::constructLldCommand(Compilation &C, const JobAction &JA,
                                           const InputInfoList &Inputs,
@@ -85,12 +123,6 @@ void AMDGCN::Linker::constructLldCommand(Compilation &C, const JobAction &JA,
   LldArgs.append({"-o", Output.getFilename()});
   for (auto Input : Inputs)
     LldArgs.push_back(Input.getFilename());
-
-  if (Args.hasFlag(options::OPT_fgpu_sanitize, options::OPT_fno_gpu_sanitize,
-                   false))
-    llvm::for_each(TC.getHIPDeviceLibs(Args), [&](StringRef BCFile) {
-      LldArgs.push_back(Args.MakeArgString(BCFile));
-    });
 
   const char *Lld = Args.MakeArgString(getToolChain().GetProgramPath("lld"));
   C.addCommand(std::make_unique<Command>(JA, *this, ResponseFileSupport::None(),
@@ -237,6 +269,14 @@ HIPToolChain::HIPToolChain(const Driver &D, const llvm::Triple &Triple,
   // Lookup binaries into the driver directory, this is used to
   // discover the clang-offload-bundler executable.
   getProgramPaths().push_back(getDriver().Dir);
+
+  // Diagnose unsupported sanitizer options only once.
+  for (auto A : Args.filtered(options::OPT_fsanitize_EQ)) {
+    SanitizerMask K = parseSanitizerValue(A->getValue(), /*AllowGroups=*/false);
+    if (K != SanitizerKind::Address)
+      D.getDiags().Report(clang::diag::warn_drv_unsupported_option_for_target)
+          << A->getAsString(Args) << getTriple().str();
+  }
 }
 
 void HIPToolChain::addClangTargetOptions(
@@ -276,9 +316,10 @@ void HIPToolChain::addClangTargetOptions(
     CC1Args.push_back("-fapply-global-visibility-to-externs");
   }
 
-  llvm::for_each(getHIPDeviceLibs(DriverArgs), [&](StringRef BCFile) {
-    CC1Args.push_back("-mlink-builtin-bitcode");
-    CC1Args.push_back(DriverArgs.MakeArgString(BCFile));
+  llvm::for_each(getHIPDeviceLibs(DriverArgs), [&](auto BCFile) {
+    CC1Args.push_back(BCFile.ShouldInternalize ? "-mlink-builtin-bitcode"
+                                               : "-mlink-bitcode-file");
+    CC1Args.push_back(DriverArgs.MakeArgString(BCFile.Path));
   });
 }
 
@@ -294,7 +335,8 @@ HIPToolChain::TranslateArgs(const llvm::opt::DerivedArgList &Args,
   const OptTable &Opts = getDriver().getOpts();
 
   for (Arg *A : Args) {
-    if (!shouldSkipArgument(A))
+    if (!shouldSkipArgument(A) &&
+        !shouldSkipSanitizeOption(*this, Args, BoundArch, A))
       DAL->append(A);
   }
 
@@ -359,9 +401,9 @@ VersionTuple HIPToolChain::computeMSVCVersion(const Driver *D,
   return HostTC.computeMSVCVersion(D, Args);
 }
 
-llvm::SmallVector<std::string, 12>
+llvm::SmallVector<ToolChain::BitCodeLibraryInfo, 12>
 HIPToolChain::getHIPDeviceLibs(const llvm::opt::ArgList &DriverArgs) const {
-  llvm::SmallVector<std::string, 12> BCLibs;
+  llvm::SmallVector<BitCodeLibraryInfo, 12> BCLibs;
   if (DriverArgs.hasArg(options::OPT_nogpulib))
     return {};
   ArgStringList LibraryPaths;
@@ -382,7 +424,7 @@ HIPToolChain::getHIPDeviceLibs(const llvm::opt::ArgList &DriverArgs) const {
         llvm::sys::path::append(Path, BCName);
         FullName = Path;
         if (llvm::sys::fs::exists(FullName)) {
-          BCLibs.push_back(FullName.str());
+          BCLibs.push_back(FullName);
           return;
         }
       }
@@ -395,37 +437,11 @@ HIPToolChain::getHIPDeviceLibs(const llvm::opt::ArgList &DriverArgs) const {
     }
     StringRef GpuArch = getGPUArch(DriverArgs);
     assert(!GpuArch.empty() && "Must have an explicit GPU arch.");
-    (void)GpuArch;
-    auto Kind = llvm::AMDGPU::parseArchAMDGCN(GpuArch);
-    const StringRef CanonArch = llvm::AMDGPU::getArchNameAMDGCN(Kind);
-
-    std::string LibDeviceFile = RocmInstallation.getLibDeviceFile(CanonArch);
-    if (LibDeviceFile.empty()) {
-      getDriver().Diag(diag::err_drv_no_rocm_device_lib) << 1 << GpuArch;
-      return {};
-    }
 
     // If --hip-device-lib is not set, add the default bitcode libraries.
-    // TODO: There are way too many flags that change this. Do we need to check
-    // them all?
-    bool DAZ = DriverArgs.hasFlag(options::OPT_fgpu_flush_denormals_to_zero,
-                                  options::OPT_fno_gpu_flush_denormals_to_zero,
-                                  getDefaultDenormsAreZeroForTarget(Kind));
-    bool FiniteOnly =
-        DriverArgs.hasFlag(options::OPT_ffinite_math_only,
-                           options::OPT_fno_finite_math_only, false);
-    bool UnsafeMathOpt =
-        DriverArgs.hasFlag(options::OPT_funsafe_math_optimizations,
-                           options::OPT_fno_unsafe_math_optimizations, false);
-    bool FastRelaxedMath = DriverArgs.hasFlag(
-        options::OPT_ffast_math, options::OPT_fno_fast_math, false);
-    bool CorrectSqrt = DriverArgs.hasFlag(
-        options::OPT_fhip_fp32_correctly_rounded_divide_sqrt,
-        options::OPT_fno_hip_fp32_correctly_rounded_divide_sqrt);
-    bool Wave64 = isWave64(DriverArgs, Kind);
-
     if (DriverArgs.hasFlag(options::OPT_fgpu_sanitize,
-                           options::OPT_fno_gpu_sanitize, false)) {
+                           options::OPT_fno_gpu_sanitize) &&
+        getSanitizerArgs(DriverArgs).needsAsanRt()) {
       auto AsanRTL = RocmInstallation.getAsanRTLPath();
       if (AsanRTL.empty()) {
         unsigned DiagID = getDriver().getDiags().getCustomDiagID(
@@ -436,16 +452,15 @@ HIPToolChain::getHIPDeviceLibs(const llvm::opt::ArgList &DriverArgs) const {
         getDriver().Diag(DiagID);
         return {};
       } else
-        BCLibs.push_back(AsanRTL.str());
+        BCLibs.push_back({AsanRTL.str(), /*ShouldInternalize=*/false});
     }
 
     // Add the HIP specific bitcode library.
-    BCLibs.push_back(RocmInstallation.getHIPPath().str());
+    BCLibs.push_back(RocmInstallation.getHIPPath());
 
-    // Add the generic set of libraries.
-    BCLibs.append(RocmInstallation.getCommonBitcodeLibs(
-        DriverArgs, LibDeviceFile, Wave64, DAZ, FiniteOnly, UnsafeMathOpt,
-        FastRelaxedMath, CorrectSqrt));
+    // Add common device libraries like ocml etc.
+    for (auto N : getCommonDeviceLibNames(DriverArgs, GpuArch.str()))
+      BCLibs.push_back(StringRef(N));
 
     // Add instrument lib.
     auto InstLib =
@@ -453,7 +468,7 @@ HIPToolChain::getHIPDeviceLibs(const llvm::opt::ArgList &DriverArgs) const {
     if (InstLib.empty())
       return BCLibs;
     if (llvm::sys::fs::exists(InstLib))
-      BCLibs.push_back(InstLib.str());
+      BCLibs.push_back(InstLib);
     else
       getDriver().Diag(diag::err_drv_no_such_file) << InstLib;
   }
@@ -466,22 +481,6 @@ void HIPToolChain::checkTargetID(const llvm::opt::ArgList &DriverArgs) const {
   if (PTID.OptionalTargetID && !PTID.OptionalGPUArch) {
     getDriver().Diag(clang::diag::err_drv_bad_target_id)
         << PTID.OptionalTargetID.getValue();
-    return;
   }
-
-  assert(PTID.OptionalFeatures && "Invalid return from getParsedTargetID");
-  auto &FeatureMap = PTID.OptionalFeatures.getValue();
-  // Sanitizer is not supported with xnack-.
-  if (DriverArgs.hasFlag(options::OPT_fgpu_sanitize,
-                         options::OPT_fno_gpu_sanitize, false)) {
-    auto Loc = FeatureMap.find("xnack");
-    if (Loc != FeatureMap.end() && !Loc->second) {
-      auto &Diags = getDriver().getDiags();
-      auto DiagID = Diags.getCustomDiagID(
-          DiagnosticsEngine::Error,
-          "'-fgpu-sanitize' is not compatible with offload arch '%0'. "
-          "Use an offload arch without 'xnack-' instead");
-      Diags.Report(DiagID) << PTID.OptionalTargetID.getValue();
-    }
-  }
+  return;
 }

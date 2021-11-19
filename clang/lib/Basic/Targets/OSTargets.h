@@ -179,6 +179,8 @@ protected:
     Builder.defineMacro("__KPRINTF_ATTRIBUTE__");
     Builder.defineMacro("__tune_i386__");
     DefineStd(Builder, "unix", Opts);
+    if (this->HasFloat128)
+      Builder.defineMacro("__FLOAT128__");
   }
 
 public:
@@ -188,6 +190,7 @@ public:
     default:
     case llvm::Triple::x86:
     case llvm::Triple::x86_64:
+      this->HasFloat128 = true;
       this->MCountName = ".mcount";
       break;
     }
@@ -460,6 +463,9 @@ protected:
       Builder.defineMacro("_REENTRANT");
     if (this->HasFloat128)
       Builder.defineMacro("__FLOAT128__");
+
+    if (Opts.C11)
+      Builder.defineMacro("__STDC_NO_THREADS__");
   }
 
 public:
@@ -673,9 +679,11 @@ protected:
     DefineStd(Builder, "unix", Opts);
     Builder.defineMacro("_IBMR2");
     Builder.defineMacro("_POWER");
+    Builder.defineMacro("__THW_BIG_ENDIAN__");
 
     Builder.defineMacro("_AIX");
     Builder.defineMacro("__TOS_AIX__");
+    Builder.defineMacro("__HOS_AIX__");
 
     if (Opts.C11) {
       Builder.defineMacro("__STDC_NO_ATOMICS__");
@@ -736,7 +744,6 @@ public:
 
   // AIX sets FLT_EVAL_METHOD to be 1.
   unsigned getFloatEvalMethod() const override { return 1; }
-  bool hasInt128Type() const override { return false; }
 
   bool defaultsToAIXPowerAlignment() const override { return true; }
 };
@@ -796,7 +803,6 @@ public:
     this->UseZeroLengthBitfieldAlignment = true;
     this->UseLeadingZeroLengthBitfield = false;
     this->ZeroLengthBitfieldBoundary = 32;
-    this->DefaultAlignForAttributeAligned = 128;
   }
 };
 
@@ -884,6 +890,9 @@ protected:
     // Required by the libc++ locale support.
     if (Opts.CPlusPlus)
       Builder.defineMacro("_GNU_SOURCE");
+    Builder.defineMacro("__Fuchsia_API_level__", Twine(Opts.FuchsiaAPILevel));
+    this->PlatformName = "fuchsia";
+    this->PlatformMinVersion = VersionTuple(Opts.FuchsiaAPILevel);
   }
 
 public:
@@ -943,6 +952,7 @@ class LLVM_LIBRARY_VISIBILITY EmscriptenTargetInfo
   void getOSDefines(const LangOptions &Opts, const llvm::Triple &Triple,
                     MacroBuilder &Builder) const final {
     WebAssemblyOSTargetInfo<Target>::getOSDefines(Opts, Triple, Builder);
+    DefineStd(Builder, "unix", Opts);
     Builder.defineMacro("__EMSCRIPTEN__");
     if (Opts.POSIXThreads)
       Builder.defineMacro("__EMSCRIPTEN_PTHREADS__");

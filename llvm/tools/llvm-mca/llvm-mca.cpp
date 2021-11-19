@@ -32,9 +32,6 @@
 #include "Views/SchedulerStatistics.h"
 #include "Views/SummaryView.h"
 #include "Views/TimelineView.h"
-#ifdef HAS_AMDGPU
-#include "lib/AMDGPU/AMDGPUCustomBehaviour.h"
-#endif
 #include "llvm/MC/MCAsmBackend.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCCodeEmitter.h"
@@ -43,6 +40,7 @@
 #include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/MC/MCSubtargetInfo.h"
 #include "llvm/MC/MCTargetOptionsCommandFlags.h"
+#include "llvm/MC/TargetRegistry.h"
 #include "llvm/MCA/CodeEmitter.h"
 #include "llvm/MCA/Context.h"
 #include "llvm/MCA/CustomBehaviour.h"
@@ -59,7 +57,6 @@
 #include "llvm/Support/InitLLVM.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/SourceMgr.h"
-#include "llvm/Support/TargetRegistry.h"
 #include "llvm/Support/TargetSelect.h"
 #include "llvm/Support/ToolOutputFile.h"
 #include "llvm/Support/WithColor.h"
@@ -293,39 +290,6 @@ static void processViewOptions(bool IsOutOfOrder) {
     processOptionImpl(PrintRetireStats, Default);
 }
 
-std::unique_ptr<mca::InstrPostProcess>
-createInstrPostProcess(const Triple &TheTriple, const MCSubtargetInfo &STI,
-                       const MCInstrInfo &MCII) {
-  // Might be a good idea to have a separate flag so that InstrPostProcess
-  // can be used with or without CustomBehaviour
-  if (DisableCustomBehaviour)
-    return std::make_unique<mca::InstrPostProcess>(STI, MCII);
-#ifdef HAS_AMDGPU
-  if (TheTriple.isAMDGPU())
-    return std::make_unique<mca::AMDGPUInstrPostProcess>(STI, MCII);
-#endif
-  return std::make_unique<mca::InstrPostProcess>(STI, MCII);
-}
-
-std::unique_ptr<mca::CustomBehaviour>
-createCustomBehaviour(const Triple &TheTriple, const MCSubtargetInfo &STI,
-                      const mca::SourceMgr &SrcMgr, const MCInstrInfo &MCII) {
-  // Build the appropriate CustomBehaviour object for the current target.
-  // The CustomBehaviour class should never depend on the source code,
-  // but it can depend on the list of mca::Instruction and any classes
-  // that can be built using just the target info. If you need extra
-  // information from the source code or the list of MCInst, consider
-  // adding that information to the mca::Instruction class and setting
-  // it during InstrBuilder::createInstruction().
-  if (DisableCustomBehaviour)
-    return std::make_unique<mca::CustomBehaviour>(STI, SrcMgr, MCII);
-#ifdef HAS_AMDGPU
-  if (TheTriple.isAMDGPU())
-    return std::make_unique<mca::AMDGPUCustomBehaviour>(STI, SrcMgr, MCII);
-#endif
-  return std::make_unique<mca::CustomBehaviour>(STI, SrcMgr, MCII);
-}
-
 // Returns true on success.
 static bool runPipeline(mca::Pipeline &P) {
   // Handle pipeline errors here.
@@ -344,6 +308,7 @@ int main(int argc, char **argv) {
   InitializeAllTargetInfos();
   InitializeAllTargetMCs();
   InitializeAllAsmParsers();
+  InitializeAllTargetMCAs();
 
   // Enable printing of available targets when flag --version is specified.
   cl::AddExtraVersionPrinter(TargetRegistry::printRegisteredTargetsForVersion);
@@ -532,8 +497,18 @@ int main(int argc, char **argv) {
     // Lower the MCInst sequence into an mca::Instruction sequence.
     ArrayRef<MCInst> Insts = Region->getInstructions();
     mca::CodeEmitter CE(*STI, *MAB, *MCE, Insts);
-    std::unique_ptr<mca::InstrPostProcess> IPP =
-        createInstrPostProcess(TheTriple, *STI, *MCII);
+
+    std::unique_ptr<mca::InstrPostProcess> IPP;
+    if (!DisableCustomBehaviour) {
+      IPP = std::unique_ptr<mca::InstrPostProcess>(
+          TheTarget->createInstrPostProcess(*STI, *MCII));
+    }
+    if (!IPP)
+      // If the target doesn't have its own IPP implemented (or the
+      // -disable-cb flag is set) then we use the base class
+      // (which does nothing).
+      IPP = std::make_unique<mca::InstrPostProcess>(*STI, *MCII);
+
     std::vector<std::unique_ptr<mca::Instruction>> LoweredSequence;
     for (const MCInst &MCI : Insts) {
       Expected<std::unique_ptr<mca::Instruction>> Inst =
@@ -602,13 +577,34 @@ int main(int argc, char **argv) {
     // the source code (but it can depend on the list of
     // mca::Instruction or any objects that can be reconstructed
     // from the target information).
-    std::unique_ptr<mca::CustomBehaviour> CB =
-        createCustomBehaviour(TheTriple, *STI, S, *MCII);
+    std::unique_ptr<mca::CustomBehaviour> CB;
+    if (!DisableCustomBehaviour)
+      CB = std::unique_ptr<mca::CustomBehaviour>(
+          TheTarget->createCustomBehaviour(*STI, S, *MCII));
+    if (!CB)
+      // If the target doesn't have its own CB implemented (or the -disable-cb
+      // flag is set) then we use the base class (which does nothing).
+      CB = std::make_unique<mca::CustomBehaviour>(*STI, S, *MCII);
 
     // Create a basic pipeline simulating an out-of-order backend.
     auto P = MCA.createDefaultPipeline(PO, S, *CB);
 
     mca::PipelinePrinter Printer(*P, *Region, RegionIdx, *STI, PO);
+
+    // Targets can define their own custom Views that exist within their
+    // /lib/Target/ directory so that the View can utilize their CustomBehaviour
+    // or other backend symbols / functionality that are not already exposed
+    // through one of the MC-layer classes. These Views will be initialized
+    // using the CustomBehaviour::getViews() variants.
+    // If a target makes a custom View that does not depend on their target
+    // CB or their backend, they should put the View within
+    // /tools/llvm-mca/Views/ instead.
+    if (!DisableCustomBehaviour) {
+      std::vector<std::unique_ptr<mca::View>> CBViews =
+          CB->getStartViews(*IP, Insts);
+      for (auto &CBView : CBViews)
+        Printer.addView(std::move(CBView));
+    }
 
     // When we output JSON, we add a view that contains the instructions
     // and CPU resource information.
@@ -635,6 +631,16 @@ int main(int argc, char **argv) {
       Printer.addView(std::make_unique<mca::InstructionInfoView>(
           *STI, *MCII, CE, ShowEncoding, Insts, *IP));
 
+    // Fetch custom Views that are to be placed after the InstructionInfoView.
+    // Refer to the comment paired with the CB->getStartViews(*IP, Insts); line
+    // for more info.
+    if (!DisableCustomBehaviour) {
+      std::vector<std::unique_ptr<mca::View>> CBViews =
+          CB->getPostInstrInfoViews(*IP, Insts);
+      for (auto &CBView : CBViews)
+        Printer.addView(std::move(CBView));
+    }
+
     if (PrintDispatchStats)
       Printer.addView(std::make_unique<mca::DispatchStatistics>());
 
@@ -657,6 +663,16 @@ int main(int argc, char **argv) {
       Printer.addView(std::make_unique<mca::TimelineView>(
           *STI, *IP, Insts, std::min(TimelineIterations, S.getNumIterations()),
           TimelineMaxCycles));
+    }
+
+    // Fetch custom Views that are to be placed after all other Views.
+    // Refer to the comment paired with the CB->getStartViews(*IP, Insts); line
+    // for more info.
+    if (!DisableCustomBehaviour) {
+      std::vector<std::unique_ptr<mca::View>> CBViews =
+          CB->getEndViews(*IP, Insts);
+      for (auto &CBView : CBViews)
+        Printer.addView(std::move(CBView));
     }
 
     if (!runPipeline(*P))

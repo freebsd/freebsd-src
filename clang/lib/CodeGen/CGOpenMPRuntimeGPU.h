@@ -17,7 +17,6 @@
 #include "CGOpenMPRuntime.h"
 #include "CodeGenFunction.h"
 #include "clang/AST/StmtOpenMP.h"
-#include "llvm/Frontend/OpenMP/OMPGridValues.h"
 
 namespace clang {
 namespace CodeGen {
@@ -177,13 +176,13 @@ public:
   /// and NVPTX.
 
   /// Get the GPU warp size.
-  virtual llvm::Value *getGPUWarpSize(CodeGenFunction &CGF) = 0;
+  llvm::Value *getGPUWarpSize(CodeGenFunction &CGF);
 
   /// Get the id of the current thread on the GPU.
-  virtual llvm::Value *getGPUThreadID(CodeGenFunction &CGF) = 0;
+  llvm::Value *getGPUThreadID(CodeGenFunction &CGF);
 
   /// Get the maximum number of threads in a block of the GPU.
-  virtual llvm::Value *getGPUNumThreads(CodeGenFunction &CGF) = 0;
+  llvm::Value *getGPUNumThreads(CodeGenFunction &CGF);
 
   /// Emit call to void __kmpc_push_proc_bind(ident_t *loc, kmp_int32
   /// global_tid, int proc_bind) to generate code for 'proc_bind' clause.

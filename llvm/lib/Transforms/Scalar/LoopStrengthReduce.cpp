@@ -136,6 +136,12 @@ using namespace llvm;
 /// worst cases before LSR burns too much compile time and stack space.
 static const unsigned MaxIVUsers = 200;
 
+/// Limit the size of expression that SCEV-based salvaging will attempt to
+/// translate into a DIExpression.
+/// Choose a maximum size such that debuginfo is not excessively increased and
+/// the salvaging is not too expensive for the compiler.
+static const unsigned MaxSCEVSalvageExpressionSize = 64;
+
 // Temporary flag to cleanup congruent phis after LSR phi expansion.
 // It's currently disabled until we can determine whether it's truly useful or
 // not. The flag should be removed after the v3.0 release.
@@ -689,7 +695,7 @@ static const SCEV *getExactSDiv(const SCEV *LHS, const SCEV *RHS,
     const APInt &RA = RC->getAPInt();
     // Handle x /s -1 as x * -1, to give ScalarEvolution a chance to do
     // some folding.
-    if (RA.isAllOnesValue()) {
+    if (RA.isAllOnes()) {
       if (LHS->getType()->isPointerTy())
         return nullptr;
       return SE.getMulExpr(LHS, RC);
@@ -2816,9 +2822,7 @@ static const SCEV *getExprBase(const SCEV *S) {
     // there's nothing more complex.
     // FIXME: not sure if we want to recognize negation.
     const SCEVAddExpr *Add = cast<SCEVAddExpr>(S);
-    for (std::reverse_iterator<SCEVAddExpr::op_iterator> I(Add->op_end()),
-           E(Add->op_begin()); I != E; ++I) {
-      const SCEV *SubExpr = *I;
+    for (const SCEV *SubExpr : reverse(Add->operands())) {
       if (SubExpr->getSCEVType() == scAddExpr)
         return getExprBase(SubExpr);
 
@@ -3150,7 +3154,7 @@ void LSRInstance::CollectChains() {
 void LSRInstance::FinalizeChain(IVChain &Chain) {
   assert(!Chain.Incs.empty() && "empty IV chains are not allowed");
   LLVM_DEBUG(dbgs() << "Final Chain: " << *Chain.Incs[0].UserInst << "\n");
-
+  
   for (const IVInc &Inc : Chain) {
     LLVM_DEBUG(dbgs() << "        Inc: " << *Inc.UserInst << "\n");
     auto UseI = find(Inc.UserInst->operands(), Inc.IVOperand);
@@ -3385,7 +3389,7 @@ void LSRInstance::CollectFixupsAndInitialFormulae() {
 void
 LSRInstance::InsertInitialFormula(const SCEV *S, LSRUse &LU, size_t LUIdx) {
   // Mark uses whose expressions cannot be expanded.
-  if (!isSafeToExpand(S, SE))
+  if (!isSafeToExpand(S, SE, /*CanonicalMode*/ false))
     LU.RigidFormula = true;
 
   Formula F;
@@ -3934,6 +3938,9 @@ void LSRInstance::GenerateICmpZeroScales(LSRUse &LU, unsigned LUIdx,
 
   // Check each interesting stride.
   for (int64_t Factor : Factors) {
+    // Check that Factor can be represented by IntTy
+    if (!ConstantInt::isValueValidForType(IntTy, Factor))
+      continue;
     // Check that the multiplication doesn't overflow.
     if (Base.BaseOffset == std::numeric_limits<int64_t>::min() && Factor == -1)
       continue;
@@ -4080,6 +4087,14 @@ void LSRInstance::GenerateTruncates(LSRUse &LU, unsigned LUIdx, Formula Base) {
   Type *DstTy = Base.getType();
   if (!DstTy) return;
   if (DstTy->isPointerTy())
+    return;
+
+  // It is invalid to extend a pointer type so exit early if ScaledReg or
+  // any of the BaseRegs are pointers.
+  if (Base.ScaledReg && Base.ScaledReg->getType()->isPointerTy())
+    return;
+  if (any_of(Base.BaseRegs,
+             [](const SCEV *S) { return S->getType()->isPointerTy(); }))
     return;
 
   for (Type *SrcTy : Types) {
@@ -5689,23 +5704,6 @@ LSRInstance::LSRInstance(Loop *L, IVUsers &IU, ScalarEvolution &SE,
     }
   }
 
-#ifndef NDEBUG
-  // All dominating loops must have preheaders, or SCEVExpander may not be able
-  // to materialize an AddRecExpr whose Start is an outer AddRecExpr.
-  //
-  // IVUsers analysis should only create users that are dominated by simple loop
-  // headers. Since this loop should dominate all of its users, its user list
-  // should be empty if this loop itself is not within a simple loop nest.
-  for (DomTreeNode *Rung = DT.getNode(L->getLoopPreheader());
-       Rung; Rung = Rung->getIDom()) {
-    BasicBlock *BB = Rung->getBlock();
-    const Loop *DomLoop = LI.getLoopFor(BB);
-    if (DomLoop && DomLoop->getHeader() == BB) {
-      assert(DomLoop->getLoopPreheader() && "LSR needs a simplified loop nest");
-    }
-  }
-#endif // DEBUG
-
   LLVM_DEBUG(dbgs() << "\nLSR on loop ";
              L->getHeader()->printAsOperand(dbgs(), /*PrintType=*/false);
              dbgs() << ":\n");
@@ -5870,6 +5868,7 @@ void LoopStrengthReduce::getAnalysisUsage(AnalysisUsage &AU) const {
   AU.addPreserved<MemorySSAWrapperPass>();
 }
 
+namespace {
 struct SCEVDbgValueBuilder {
   SCEVDbgValueBuilder() = default;
   SCEVDbgValueBuilder(const SCEVDbgValueBuilder &Base) {
@@ -5906,9 +5905,12 @@ struct SCEVDbgValueBuilder {
     pushValue(V);
   }
 
-  void pushConst(const SCEVConstant *C) {
+  bool pushConst(const SCEVConstant *C) {
+    if (C->getAPInt().getMinSignedBits() > 64)
+      return false;
     Expr.push_back(llvm::dwarf::DW_OP_consts);
     Expr.push_back(C->getAPInt().getSExtValue());
+    return true;
   }
 
   /// Several SCEV types are sequences of the same arithmetic operator applied
@@ -5947,10 +5949,10 @@ struct SCEVDbgValueBuilder {
   bool pushSCEV(const llvm::SCEV *S) {
     bool Success = true;
     if (const SCEVConstant *StartInt = dyn_cast<SCEVConstant>(S)) {
-      pushConst(StartInt);
+      Success &= pushConst(StartInt);
 
     } else if (const SCEVUnknown *U = dyn_cast<SCEVUnknown>(S)) {
-      if(!U->getValue())
+      if (!U->getValue())
         return false;
       pushValue(U->getValue());
 
@@ -6033,6 +6035,8 @@ struct SCEVDbgValueBuilder {
   /// SCEV constant value is an identity function.
   bool isIdentityFunction(uint64_t Op, const SCEV *S) {
     if (const SCEVConstant *C = dyn_cast<SCEVConstant>(S)) {
+      if (C->getAPInt().getMinSignedBits() > 64)
+        return false;
       int64_t I = C->getAPInt().getSExtValue();
       switch (Op) {
       case llvm::dwarf::DW_OP_plus:
@@ -6112,14 +6116,15 @@ struct DVIRecoveryRec {
   Metadata *LocationOp;
   const llvm::SCEV *SCEV;
 };
+} // namespace
 
-static bool RewriteDVIUsingIterCount(DVIRecoveryRec CachedDVI,
+static void RewriteDVIUsingIterCount(DVIRecoveryRec CachedDVI,
                                      const SCEVDbgValueBuilder &IterationCount,
                                      ScalarEvolution &SE) {
   // LSR may add locations to previously single location-op DVIs which
   // are currently not supported.
   if (CachedDVI.DVI->getNumVariableLocationOps() != 1)
-    return false;
+    return;
 
   // SCEVs for SSA values are most frquently of the form
   // {start,+,stride}, but sometimes they are ({start,+,stride} + %a + ..).
@@ -6127,45 +6132,70 @@ static bool RewriteDVIUsingIterCount(DVIRecoveryRec CachedDVI,
   // SCEVs have not been observed to result in debuginfo-lossy optimisations,
   // so its not expected this point will be reached.
   if (!isa<SCEVAddRecExpr>(CachedDVI.SCEV))
-    return false;
+    return;
 
   LLVM_DEBUG(dbgs() << "scev-salvage: Value to salvage SCEV: "
                     << *CachedDVI.SCEV << '\n');
 
   const auto *Rec = cast<SCEVAddRecExpr>(CachedDVI.SCEV);
   if (!Rec->isAffine())
-    return false;
+    return;
+
+  if (CachedDVI.SCEV->getExpressionSize() > MaxSCEVSalvageExpressionSize)
+    return;
 
   // Initialise a new builder with the iteration count expression. In
   // combination with the value's SCEV this enables recovery.
   SCEVDbgValueBuilder RecoverValue(IterationCount);
   if (!RecoverValue.SCEVToValueExpr(*Rec, SE))
-    return false;
+    return;
 
   LLVM_DEBUG(dbgs() << "scev-salvage: Updating: " << *CachedDVI.DVI << '\n');
   RecoverValue.applyExprToDbgValue(*CachedDVI.DVI, CachedDVI.Expr);
   LLVM_DEBUG(dbgs() << "scev-salvage: to: " << *CachedDVI.DVI << '\n');
-  return true;
 }
 
-static bool
+static void RewriteDVIUsingOffset(DVIRecoveryRec &DVIRec, llvm::PHINode &IV,
+                                  int64_t Offset) {
+  assert(!DVIRec.DVI->hasArgList() && "Expected single location-op dbg.value.");
+  DbgValueInst *DVI = DVIRec.DVI;
+  SmallVector<uint64_t, 8> Ops;
+  DIExpression::appendOffset(Ops, Offset);
+  DIExpression *Expr = DIExpression::prependOpcodes(DVIRec.Expr, Ops, true);
+  LLVM_DEBUG(dbgs() << "scev-salvage: Updating: " << *DVIRec.DVI << '\n');
+  DVI->setExpression(Expr);
+  llvm::Value *ValIV = dyn_cast<llvm::Value>(&IV);
+  DVI->replaceVariableLocationOp(
+      0u, llvm::MetadataAsValue::get(DVI->getContext(),
+                                     llvm::ValueAsMetadata::get(ValIV)));
+  LLVM_DEBUG(dbgs() << "scev-salvage: updated with offset to IV: "
+                    << *DVIRec.DVI << '\n');
+}
+
+static void
 DbgRewriteSalvageableDVIs(llvm::Loop *L, ScalarEvolution &SE,
                           llvm::PHINode *LSRInductionVar,
                           SmallVector<DVIRecoveryRec, 2> &DVIToUpdate) {
   if (DVIToUpdate.empty())
-    return false;
+    return;
 
   const llvm::SCEV *SCEVInductionVar = SE.getSCEV(LSRInductionVar);
   assert(SCEVInductionVar &&
          "Anticipated a SCEV for the post-LSR induction variable");
 
-  bool Changed = false;
   if (const SCEVAddRecExpr *IVAddRec =
           dyn_cast<SCEVAddRecExpr>(SCEVInductionVar)) {
+    if (!IVAddRec->isAffine())
+      return;
+
+    if (IVAddRec->getExpressionSize() > MaxSCEVSalvageExpressionSize)
+      return;
+
+    // The iteration count is required to recover location values.
     SCEVDbgValueBuilder IterCountExpr;
     IterCountExpr.pushValue(LSRInductionVar);
     if (!IterCountExpr.SCEVToIterCountExpr(*IVAddRec, SE))
-      return false;
+      return;
 
     LLVM_DEBUG(dbgs() << "scev-salvage: IV SCEV: " << *SCEVInductionVar
                       << '\n');
@@ -6180,20 +6210,34 @@ DbgRewriteSalvageableDVIs(llvm::Loop *L, ScalarEvolution &SE,
       // supported by SCEV salvaging. But, we can attempt a salvage by restoring
       // the pre-LSR single-op expression.
       if (DVIRec.DVI->hasArgList()) {
+        if (!DVIRec.DVI->getVariableLocationOp(0))
+          continue;
         llvm::Type *Ty = DVIRec.DVI->getVariableLocationOp(0)->getType();
         DVIRec.DVI->setRawLocation(
             llvm::ValueAsMetadata::get(UndefValue::get(Ty)));
         DVIRec.DVI->setExpression(DVIRec.Expr);
       }
 
-      Changed |= RewriteDVIUsingIterCount(DVIRec, IterCountExpr, SE);
+      LLVM_DEBUG(dbgs() << "scev-salvage: value to recover SCEV: "
+                        << *DVIRec.SCEV << '\n');
+
+      // Create a simple expression if the IV and value to salvage SCEVs
+      // start values differ by only a constant value.
+      if (Optional<APInt> Offset =
+              SE.computeConstantDifference(DVIRec.SCEV, SCEVInductionVar)) {
+        if (Offset.getValue().getMinSignedBits() <= 64)
+          RewriteDVIUsingOffset(DVIRec, *LSRInductionVar,
+                                Offset.getValue().getSExtValue());
+      } else {
+        RewriteDVIUsingIterCount(DVIRec, IterCountExpr, SE);
+      }
     }
   }
-  return Changed;
 }
 
 /// Identify and cache salvageable DVI locations and expressions along with the
-/// corresponding SCEV(s). Also ensure that the DVI is not deleted before
+/// corresponding SCEV(s). Also ensure that the DVI is not deleted between
+/// cacheing and salvaging.
 static void
 DbgGatherSalvagableDVI(Loop *L, ScalarEvolution &SE,
                        SmallVector<DVIRecoveryRec, 2> &SalvageableDVISCEVs,
@@ -6204,10 +6248,24 @@ DbgGatherSalvagableDVI(Loop *L, ScalarEvolution &SE,
       if (!DVI)
         continue;
 
+      if (DVI->isUndef())
+        continue;
+
       if (DVI->hasArgList())
         continue;
 
-      if (!SE.isSCEVable(DVI->getVariableLocationOp(0)->getType()))
+      if (!DVI->getVariableLocationOp(0) ||
+          !SE.isSCEVable(DVI->getVariableLocationOp(0)->getType()))
+        continue;
+
+      // SCEVUnknown wraps an llvm::Value, it does not have a start and stride.
+      // Therefore no translation to DIExpression is performed.
+      const SCEV *S = SE.getSCEV(DVI->getVariableLocationOp(0));
+      if (isa<SCEVUnknown>(S))
+        continue;
+
+      // Avoid wasting resources generating an expression containing undef.
+      if (SE.containsUndefs(S))
         continue;
 
       SalvageableDVISCEVs.push_back(
@@ -6223,34 +6281,32 @@ DbgGatherSalvagableDVI(Loop *L, ScalarEvolution &SE,
 /// surviving subsequent transforms.
 static llvm::PHINode *GetInductionVariable(const Loop &L, ScalarEvolution &SE,
                                            const LSRInstance &LSR) {
-  // For now, just pick the first IV generated and inserted. Ideally pick an IV
-  // that is unlikely to be optimised away by subsequent transforms.
+
+  auto IsSuitableIV = [&](PHINode *P) {
+    if (!SE.isSCEVable(P->getType()))
+      return false;
+    if (const SCEVAddRecExpr *Rec = dyn_cast<SCEVAddRecExpr>(SE.getSCEV(P)))
+      return Rec->isAffine() && !SE.containsUndefs(SE.getSCEV(P));
+    return false;
+  };
+
+  // For now, just pick the first IV that was generated and inserted by
+  // ScalarEvolution. Ideally pick an IV that is unlikely to be optimised away
+  // by subsequent transforms.
   for (const WeakVH &IV : LSR.getScalarEvolutionIVs()) {
     if (!IV)
       continue;
 
-    assert(isa<PHINode>(&*IV) && "Expected PhI node.");
-    if (SE.isSCEVable((*IV).getType())) {
-      PHINode *Phi = dyn_cast<PHINode>(&*IV);
-      LLVM_DEBUG(const llvm::SCEV *S = SE.getSCEV(Phi);
-                 dbgs() << "scev-salvage: IV : " << *IV << "with SCEV: " << *S
-                 << "\n");
-      return Phi;
-    }
+    // There should only be PHI node IVs.
+    PHINode *P = cast<PHINode>(&*IV);
+
+    if (IsSuitableIV(P))
+      return P;
   }
 
-  for (PHINode &Phi : L.getHeader()->phis()) {
-    if (!SE.isSCEVable(Phi.getType()))
-      continue;
-
-    const llvm::SCEV *PhiSCEV = SE.getSCEV(&Phi);
-    if (const llvm::SCEVAddRecExpr *Rec = dyn_cast<SCEVAddRecExpr>(PhiSCEV))
-      if (!Rec->isAffine())
-        continue;
-
-    LLVM_DEBUG(dbgs() << "scev-salvage: Selected IV from loop header: " << Phi
-                      << " with SCEV: " << *PhiSCEV << "\n");
-    return &Phi;
+  for (PHINode &P : L.getHeader()->phis()) {
+    if (IsSuitableIV(&P))
+      return &P;
   }
   return nullptr;
 }
