@@ -100,7 +100,6 @@ static struct timecounter *timecounters = &dummy_timecounter;
 
 /* Mutex to protect the timecounter list. */
 static struct mtx tc_lock;
-MTX_SYSINIT(tc_lock, &tc_lock, "tc", MTX_DEF);
 
 int tc_min_ticktock_freq = 1;
 
@@ -1982,6 +1981,8 @@ inittimehands(void *dummy)
 
 	TUNABLE_STR_FETCH("kern.timecounter.hardware", tc_from_tunable,
 	    sizeof(tc_from_tunable));
+
+	mtx_init(&tc_lock, "tc", NULL, MTX_DEF);
 }
 SYSINIT(timehands, SI_SUB_TUNABLES, SI_ORDER_ANY, inittimehands, NULL);
 
