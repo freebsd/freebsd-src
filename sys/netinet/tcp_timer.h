@@ -217,7 +217,6 @@ void tcp_inpinfo_lock_del(struct inpcb *inp, struct tcpcb *tp);
 
 void	tcp_timer_init(void);
 void	tcp_timer_2msl(void *xtp);
-void	tcp_timer_discard(void *);
 struct tcptw *
 	tcp_tw_2msl_scan(int reuse);	/* XXX temporary? */
 void	tcp_timer_keep(void *xtp);
