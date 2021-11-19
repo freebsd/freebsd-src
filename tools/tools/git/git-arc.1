@@ -67,6 +67,18 @@ The available verbs are:
 .Bl -tag -width "create"
 .It Cm create
 Create new Differential Revisions from the specified commits.
+Accepts options:
+.Bl -tag -width subscriber
+.It Fl l
+Before processing commit(s) display list of commits to be processed
+and wait for confirmation.
+.It Fl r Ar reviewer
+Add one or more reviewers, separated by commas, to revision(s) being created.
+Argument(s) must be existing Phabricator user or group.
+.It Fl r Ar subscriber
+Add one or more subscribers, separated by commas, to revision(s) being created.
+Argument(s) must be existing Phabricator user or group.
+.El
 .It Cm list
 Print the associated Differential Revisions for the specified commits.
 .It Cm patch
