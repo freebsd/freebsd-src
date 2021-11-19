@@ -3786,7 +3786,7 @@ enum iwm_sf_scenario {
 /**
  * Smart Fifo configuration command.
  * @state: smart fifo state, types listed in enum %iwm_sf_state.
- * @watermark: Minimum allowed availabe free space in RXF for transient state.
+ * @watermark: Minimum allowed available free space in RXF for transient state.
  * @long_delay_timeouts: aging and idle timer values for each scenario
  * in long delay state.
  * @full_on_timeouts: timer values for each scenario in full on state.
