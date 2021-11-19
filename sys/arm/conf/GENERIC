@@ -179,7 +179,7 @@ device		ti_adc
 device		pwm
 
 # Watchdog support
-# If we don't enable the watchdog driver, the BealeBone could potentially
+# If we don't enable the watchdog driver, the BeagleBone could potentially
 # reboot automatically because the boot loader might have enabled the
 # watchdog.
 device		ti_wdt
