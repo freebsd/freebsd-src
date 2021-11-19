@@ -2040,7 +2040,7 @@ tdq_trysteal(struct tdq *tdq)
 		/*
 		 * The data returned by sched_highest() is stale and
 		 * the chosen CPU no longer has an eligible thread.
-		 * At this point unconditonally exit the loop to bound
+		 * At this point unconditionally exit the loop to bound
 		 * the time spent in the critcal section.
 		 */
 		if (steal->tdq_load < steal_thresh ||
@@ -3083,7 +3083,7 @@ sched_fork_exit(struct thread *td)
 }
 
 /*
- * Create on first use to catch odd startup conditons.
+ * Create on first use to catch odd startup conditions.
  */
 char *
 sched_tdname(struct thread *td)
