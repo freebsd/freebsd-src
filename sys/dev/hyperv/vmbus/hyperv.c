@@ -247,15 +247,12 @@ hyperv_init(void *dummy __unused)
 	/* Set guest id */
 	wrmsr(MSR_HV_GUEST_OS_ID, MSR_HV_GUESTID_FREEBSD);
 
-}
-SYSINIT(hyperv_initialize, SI_SUB_HYPERVISOR, SI_ORDER_FIRST, hyperv_init,
-    NULL);
-
-static void
-hyperv_tc_init(void *arg __unused)
-{
 	if (hyperv_features & CPUID_HV_MSR_TIME_REFCNT) {
-		/* Register Hyper-V timecounter */
+		/*
+		 * Register Hyper-V timecounter.  This should be done as early
+		 * as possible to let DELAY() work, since the 8254 PIT is not
+		 * reliably emulated or even available.
+		 */
 		tc_init(&hyperv_timecounter);
 
 		/*
@@ -265,7 +262,8 @@ hyperv_tc_init(void *arg __unused)
 		hyperv_tc64 = hyperv_tc64_rdmsr;
 	}
 }
-SYSINIT(hyperv_tc_init, SI_SUB_DRIVERS, SI_ORDER_FIRST, hyperv_tc_init, NULL);
+SYSINIT(hyperv_initialize, SI_SUB_HYPERVISOR, SI_ORDER_FIRST, hyperv_init,
+    NULL);
 
 static void
 hypercall_memfree(void)
