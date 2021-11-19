@@ -44,7 +44,7 @@ __FBSDID("$FreeBSD$");
  */
 
 /*
- * Some define's useful for debuging.
+ * Some define's useful for debugging.
  * TRIGGERTEST_FNAME and DEBUGREADCF_FNAME, allow us to do testing on
  * a per-spool-directory basis.
  */
