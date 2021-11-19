@@ -9194,7 +9194,7 @@ complete_diradd(dap)
 
 /*
  * Cancel a diradd when a dirrem overlaps with it.  We must cancel the journal
- * add entries and conditonally journal the remove.
+ * add entries and conditionally journal the remove.
  */
 static void
 cancel_diradd(dap, dirrem, jremref, dotremref, dotdotremref)
