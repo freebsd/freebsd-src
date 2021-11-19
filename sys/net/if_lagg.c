@@ -1834,12 +1834,9 @@ lagg_snd_tag_alloc(struct ifnet *ifp,
 	struct epoch_tracker et;
 	const struct if_snd_tag_sw *sw;
 	struct lagg_snd_tag *lst;
-	struct lagg_softc *sc;
 	struct lagg_port *lp;
 	struct ifnet *lp_ifp;
 	int error;
-
-	sc = ifp->if_softc;
 
 	switch (params->hdr.type) {
 #ifdef RATELIMIT
