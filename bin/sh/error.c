@@ -74,7 +74,7 @@ static void exverror(int, const char *, va_list) __printf0like(2, 0) __dead2;
  * just do a longjmp to the exception handler.  The type of exception is
  * stored in the global variable "exception".
  *
- * Interrupts are disabled; they should be reenabled when the exception is
+ * Interrupts are disabled; they should be re-enabled when the exception is
  * caught.
  */
 
