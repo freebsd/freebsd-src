@@ -1188,6 +1188,10 @@ _ncpu_cmd=sysctl -n hw.ncpu 2>/dev/null || nproc 2>/dev/null || echo unknown
 buildworld_prologue: .PHONY
 	@echo "--------------------------------------------------------------"
 	@echo ">>> World build started on `LC_ALL=C date`"
+.if ${TARGET:Mmips}
+	@echo "--------------------------------------------------------------"
+	@echo "WARNING: MIPS architecture is gone in FreeBSD 14.0"
+.endif
 	@echo "--------------------------------------------------------------"
 
 buildworld_epilogue: .PHONY
@@ -1197,6 +1201,10 @@ buildworld_epilogue: .PHONY
 	@seconds=$$(($$(date '+%s') - ${_BUILDWORLD_START})); \
 	  echo -n ">>> World built in $$seconds seconds, "; \
 	  echo "ncpu: $$(${_ncpu_cmd})${.MAKE.JOBS:S/^/, make -j/}"
+.if ${TARGET:Mmips}
+	@echo "--------------------------------------------------------------"
+	@echo "WARNING: MIPS architecture is gone in FreeBSD 14.0"
+.endif
 	@echo "--------------------------------------------------------------"
 
 #
