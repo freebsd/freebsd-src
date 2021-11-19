@@ -358,7 +358,7 @@ newreno_cc_post_recovery(struct cc_var *ccv)
 		if (pipe < CCV(ccv, snd_ssthresh))
 			/*
 			 * Ensure that cwnd does not collapse to 1 MSS under
-			 * adverse conditons. Implements RFC6582
+			 * adverse conditions. Implements RFC6582
 			 */
 			CCV(ccv, snd_cwnd) = max(pipe, CCV(ccv, t_maxseg)) +
 			    CCV(ccv, t_maxseg);
