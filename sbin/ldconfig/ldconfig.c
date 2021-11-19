@@ -60,9 +60,9 @@ main(int argc, char **argv)
 {
 	const char *hints_file;
 	int c;
-	bool is_32, is_soft, justread, merge, nostd, rescan, verbose;
+	bool is_32, is_soft, justread, merge, rescan, verbose;
 
-	is_32 = is_soft = justread = merge = nostd = rescan = verbose = false;
+	is_32 = is_soft = justread = merge = rescan = verbose = false;
 
 	while (argc > 1) {
 		if (strcmp(argv[1], "-aout") == 0) {
@@ -109,7 +109,7 @@ main(int argc, char **argv)
 			justread = true;
 			break;
 		case 's':
-			nostd = true;
+			/* was nostd */
 			break;
 		case 'v':
 			verbose = true;
@@ -132,7 +132,7 @@ static void
 usage(void)
 {
 	fprintf(stderr,
-	    "usage: ldconfig [-32] [-elf] [-Rimrsv] [-f hints_file] "
+	    "usage: ldconfig [-32] [-elf] [-Rimrv] [-f hints_file] "
 	    "[directory | file ...]\n");
 	exit(1);
 }
