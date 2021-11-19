@@ -1797,12 +1797,9 @@ lagg_snd_tag_alloc(struct ifnet *ifp,
 {
 	struct epoch_tracker et;
 	struct lagg_snd_tag *lst;
-	struct lagg_softc *sc;
 	struct lagg_port *lp;
 	struct ifnet *lp_ifp;
 	int error;
-
-	sc = ifp->if_softc;
 
 	NET_EPOCH_ENTER(et);
 	lp = lookup_snd_tag_port(ifp, params->hdr.flowid,
