@@ -2392,11 +2392,6 @@ void
 tcp_discardcb(struct tcpcb *tp)
 {
 	struct inpcb *inp = tp->t_inpcb;
-	struct socket *so = inp->inp_socket;
-#ifdef INET6
-	int isipv6 = (inp->inp_vflag & INP_IPV6) != 0;
-#endif /* INET6 */
-	int released __unused;
 
 	INP_WLOCK_ASSERT(inp);
 
@@ -2458,121 +2453,100 @@ tcp_discardcb(struct tcpcb *tp)
 	CC_ALGO(tp) = NULL;
 	inp->inp_ppcb = NULL;
 	if (tp->t_timers->tt_draincnt == 0) {
-		/* We own the last reference on tcpcb, let's free it. */
-#ifdef TCP_BLACKBOX
-		tcp_log_tcpcbfini(tp);
-#endif
-		TCPSTATES_DEC(tp->t_state);
-		if (tp->t_fb->tfb_tcp_fb_fini)
-			(*tp->t_fb->tfb_tcp_fb_fini)(tp, 1);
+		bool released __diagused;
 
-		/*
-		 * If we got enough samples through the srtt filter,
-		 * save the rtt and rttvar in the routing entry.
-		 * 'Enough' is arbitrarily defined as 4 rtt samples.
-		 * 4 samples is enough for the srtt filter to converge
-		 * to within enough % of the correct value; fewer samples
-		 * and we could save a bogus rtt. The danger is not high
-		 * as tcp quickly recovers from everything.
-		 * XXX: Works very well but needs some more statistics!
-		 *
-		 * XXXRRS: Updating must be after the stack fini() since
-		 * that may be converting some internal representation of
-		 * say srtt etc into the general one used by other stacks.
-		 * Lets also at least protect against the so being NULL
-		 * as RW stated below.
-		 */
-		if ((tp->t_rttupdated >= 4) && (so != NULL)) {
-			struct hc_metrics_lite metrics;
-			uint32_t ssthresh;
-
-			bzero(&metrics, sizeof(metrics));
-			/*
-			 * Update the ssthresh always when the conditions below
-			 * are satisfied. This gives us better new start value
-			 * for the congestion avoidance for new connections.
-			 * ssthresh is only set if packet loss occurred on a session.
-			 *
-			 * XXXRW: 'so' may be NULL here, and/or socket buffer may be
-			 * being torn down.  Ideally this code would not use 'so'.
-			 */
-			ssthresh = tp->snd_ssthresh;
-			if (ssthresh != 0 && ssthresh < so->so_snd.sb_hiwat / 2) {
-				/*
-				 * convert the limit from user data bytes to
-				 * packets then to packet data bytes.
-				 */
-				ssthresh = (ssthresh + tp->t_maxseg / 2) / tp->t_maxseg;
-				if (ssthresh < 2)
-					ssthresh = 2;
-				ssthresh *= (tp->t_maxseg +
-#ifdef INET6
-					     (isipv6 ? sizeof (struct ip6_hdr) +
-					      sizeof (struct tcphdr) :
-#endif
-					      sizeof (struct tcpiphdr)
-#ifdef INET6
-						     )
-#endif
-					);
-			} else
-				ssthresh = 0;
-			metrics.rmx_ssthresh = ssthresh;
-
-			metrics.rmx_rtt = tp->t_srtt;
-			metrics.rmx_rttvar = tp->t_rttvar;
-			metrics.rmx_cwnd = tp->snd_cwnd;
-			metrics.rmx_sendpipe = 0;
-			metrics.rmx_recvpipe = 0;
-
-			tcp_hc_update(&inp->inp_inc, &metrics);
-		}
-		refcount_release(&tp->t_fb->tfb_refcnt);
-		tp->t_inpcb = NULL;
-		uma_zfree(V_tcpcb_zone, tp);
-		released = in_pcbrele_wlocked(inp);
+		released = tcp_freecb(tp);
 		KASSERT(!released, ("%s: inp %p should not have been released "
-			"here", __func__, inp));
+		    "here", __func__, inp));
 	}
 }
 
-void
-tcp_timer_discard(void *ptp)
+bool
+tcp_freecb(struct tcpcb *tp)
 {
-	struct inpcb *inp;
-	struct tcpcb *tp;
-	struct epoch_tracker et;
-
-	tp = (struct tcpcb *)ptp;
-	CURVNET_SET(tp->t_vnet);
-	NET_EPOCH_ENTER(et);
-	inp = tp->t_inpcb;
-	KASSERT(inp != NULL, ("%s: tp %p tp->t_inpcb == NULL",
-		__func__, tp));
-	INP_WLOCK(inp);
-	KASSERT((tp->t_timers->tt_flags & TT_STOPPED) != 0,
-		("%s: tcpcb has to be stopped here", __func__));
-	tp->t_timers->tt_draincnt--;
-	if (tp->t_timers->tt_draincnt == 0) {
-		/* We own the last reference on this tcpcb, let's free it. */
-#ifdef TCP_BLACKBOX
-		tcp_log_tcpcbfini(tp);
+	struct inpcb *inp = tp->t_inpcb;
+	struct socket *so = inp->inp_socket;
+#ifdef INET6
+	bool isipv6 = (inp->inp_vflag & INP_IPV6) != 0;
 #endif
-		TCPSTATES_DEC(tp->t_state);
-		if (tp->t_fb->tfb_tcp_fb_fini)
-			(*tp->t_fb->tfb_tcp_fb_fini)(tp, 1);
-		refcount_release(&tp->t_fb->tfb_refcnt);
-		tp->t_inpcb = NULL;
-		uma_zfree(V_tcpcb_zone, tp);
-		if (in_pcbrele_wlocked(inp)) {
-			NET_EPOCH_EXIT(et);
-			CURVNET_RESTORE();
-			return;
-		}
+
+	INP_WLOCK_ASSERT(inp);
+	MPASS(tp->t_timers->tt_draincnt == 0);
+
+	/* We own the last reference on tcpcb, let's free it. */
+#ifdef TCP_BLACKBOX
+	tcp_log_tcpcbfini(tp);
+#endif
+	TCPSTATES_DEC(tp->t_state);
+	if (tp->t_fb->tfb_tcp_fb_fini)
+		(*tp->t_fb->tfb_tcp_fb_fini)(tp, 1);
+
+	/*
+	 * If we got enough samples through the srtt filter,
+	 * save the rtt and rttvar in the routing entry.
+	 * 'Enough' is arbitrarily defined as 4 rtt samples.
+	 * 4 samples is enough for the srtt filter to converge
+	 * to within enough % of the correct value; fewer samples
+	 * and we could save a bogus rtt. The danger is not high
+	 * as tcp quickly recovers from everything.
+	 * XXX: Works very well but needs some more statistics!
+	 *
+	 * XXXRRS: Updating must be after the stack fini() since
+	 * that may be converting some internal representation of
+	 * say srtt etc into the general one used by other stacks.
+	 * Lets also at least protect against the so being NULL
+	 * as RW stated below.
+	 */
+	if ((tp->t_rttupdated >= 4) && (so != NULL)) {
+		struct hc_metrics_lite metrics;
+		uint32_t ssthresh;
+
+		bzero(&metrics, sizeof(metrics));
+		/*
+		 * Update the ssthresh always when the conditions below
+		 * are satisfied. This gives us better new start value
+		 * for the congestion avoidance for new connections.
+		 * ssthresh is only set if packet loss occurred on a session.
+		 *
+		 * XXXRW: 'so' may be NULL here, and/or socket buffer may be
+		 * being torn down.  Ideally this code would not use 'so'.
+		 */
+		ssthresh = tp->snd_ssthresh;
+		if (ssthresh != 0 && ssthresh < so->so_snd.sb_hiwat / 2) {
+			/*
+			 * convert the limit from user data bytes to
+			 * packets then to packet data bytes.
+			 */
+			ssthresh = (ssthresh + tp->t_maxseg / 2) / tp->t_maxseg;
+			if (ssthresh < 2)
+				ssthresh = 2;
+			ssthresh *= (tp->t_maxseg +
+#ifdef INET6
+			    (isipv6 ? sizeof (struct ip6_hdr) +
+			    sizeof (struct tcphdr) :
+#endif
+			    sizeof (struct tcpiphdr)
+#ifdef INET6
+			    )
+#endif
+			    );
+		} else
+			ssthresh = 0;
+		metrics.rmx_ssthresh = ssthresh;
+
+		metrics.rmx_rtt = tp->t_srtt;
+		metrics.rmx_rttvar = tp->t_rttvar;
+		metrics.rmx_cwnd = tp->snd_cwnd;
+		metrics.rmx_sendpipe = 0;
+		metrics.rmx_recvpipe = 0;
+
+		tcp_hc_update(&inp->inp_inc, &metrics);
 	}
-	INP_WUNLOCK(inp);
-	NET_EPOCH_EXIT(et);
-	CURVNET_RESTORE();
+
+	refcount_release(&tp->t_fb->tfb_refcnt);
+	uma_zfree(V_tcpcb_zone, tp);
+
+	return (in_pcbrele_wlocked(inp));
 }
 
 /*

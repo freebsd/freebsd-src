@@ -1042,6 +1042,29 @@ tcp_timers_unsuspend(struct tcpcb *tp, uint32_t timer_type)
 	}
 }
 
+static void
+tcp_timer_discard(void *ptp)
+{
+	struct inpcb *inp;
+	struct tcpcb *tp;
+	struct epoch_tracker et;
+
+	tp = (struct tcpcb *)ptp;
+	CURVNET_SET(tp->t_vnet);
+	NET_EPOCH_ENTER(et);
+	inp = tp->t_inpcb;
+	KASSERT(inp != NULL, ("%s: tp %p tp->t_inpcb == NULL",
+		__func__, tp));
+	INP_WLOCK(inp);
+	KASSERT((tp->t_timers->tt_flags & TT_STOPPED) != 0,
+		("%s: tcpcb has to be stopped here", __func__));
+	if (--tp->t_timers->tt_draincnt > 0 ||
+	    tcp_freecb(tp) == false)
+		INP_WUNLOCK(inp);
+	NET_EPOCH_EXIT(et);
+	CURVNET_RESTORE();
+}
+
 void
 tcp_timer_stop(struct tcpcb *tp, uint32_t timer_type)
 {
