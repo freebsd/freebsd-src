@@ -48,17 +48,17 @@
 #define MAXDIRS		1024		/* Maximum directories in path */
 #define MAXFILESIZE	(16*1024)	/* Maximum hints file size */
 
-static void	add_dir(const char *, const char *, int);
+static void	add_dir(const char *, const char *, bool);
 static void	read_dirs_from_file(const char *, const char *);
-static void	read_elf_hints(const char *, int);
+static void	read_elf_hints(const char *, bool);
 static void	write_elf_hints(const char *);
 
 static const char	*dirs[MAXDIRS];
 static int		 ndirs;
-int			 insecure;
+bool			 insecure;
 
 static void
-add_dir(const char *hintsfile, const char *name, int trusted)
+add_dir(const char *hintsfile, const char *name, bool trusted)
 {
 	struct stat 	stbuf;
 	int		i;
@@ -186,7 +186,7 @@ read_dirs_from_file(const char *hintsfile, const char *listfile)
 }
 
 static void
-read_elf_hints(const char *hintsfile, int must_exist)
+read_elf_hints(const char *hintsfile, bool must_exist)
 {
 	int	 		 fd;
 	struct stat		 s;
@@ -231,15 +231,14 @@ read_elf_hints(const char *hintsfile, int must_exist)
 }
 
 void
-update_elf_hints(const char *hintsfile, int argc, char **argv, int merge)
+update_elf_hints(const char *hintsfile, int argc, char **argv, bool merge)
 {
-	int	i;
+	struct stat s;
+	int i;
 
 	if (merge)
-		read_elf_hints(hintsfile, 0);
+		read_elf_hints(hintsfile, false);
 	for (i = 0;  i < argc;  i++) {
-		struct stat	s;
-
 		if (stat(argv[i], &s) == -1)
 			warn("warning: %s", argv[i]);
 		else if (S_ISREG(s.st_mode))
