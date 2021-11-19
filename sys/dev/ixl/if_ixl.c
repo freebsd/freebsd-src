@@ -236,7 +236,7 @@ TUNABLE_INT("hw.ixl.debug_recovery_mode",
     &ixl_debug_recovery_mode);
 SYSCTL_INT(_hw_ixl, OID_AUTO, debug_recovery_mode, CTLFLAG_RDTUN,
     &ixl_debug_recovery_mode, 0,
-    "Act like when FW entered recovery mode (for debuging)");
+    "Act like when FW entered recovery mode (for debugging)");
 #endif
 
 static int ixl_i2c_access_method = 0;
