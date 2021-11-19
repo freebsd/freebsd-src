@@ -90,9 +90,7 @@ main(int argc, char **argv)
 		hints_file = _PATH_ELF32_HINTS;
 	else
 		hints_file = _PATH_ELF_HINTS;
-	if (argc == 1)
-		rescan = true;
-	else while((c = getopt(argc, argv, "Rf:imrsv")) != -1) {
+	while((c = getopt(argc, argv, "Rf:imrsv")) != -1) {
 		switch (c) {
 		case 'R':
 			rescan = true;
@@ -121,11 +119,14 @@ main(int argc, char **argv)
 		}
 	}
 
-	if (justread)
+	if (justread) {
 		list_elf_hints(hints_file);
-	else
+	} else {
+		if (argc == optind)
+			rescan = true;
 		update_elf_hints(hints_file, argc - optind,
 		    argv + optind, merge || rescan);
+	}
 	exit(0);
 }
 
