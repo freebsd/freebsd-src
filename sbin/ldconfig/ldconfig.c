@@ -48,6 +48,7 @@
 #include <unistd.h>
 
 #include "ldconfig.h"
+#include "rtld_paths.h"
 
 #define	_PATH_LD32_HINTS	"/var/run/ld32.so.hints"
 #define	_PATH_ELF32_HINTS	"/var/run/ld-elf32.so.hints"
@@ -84,7 +85,7 @@ main(int argc, char **argv)
 	}
 
 	if (is_soft)
-		hints_file = _PATH_ELFSOFT_HINTS;
+		hints_file = _PATH_SOFT_ELF_HINTS;
 	else if (is_32)
 		hints_file = _PATH_ELF32_HINTS;
 	else
