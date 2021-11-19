@@ -309,6 +309,8 @@ struct vt_window {
 	struct vt_mode		 vw_smode;	/* switch mode */
 	struct callout		 vw_proc_dead_timer;
 	struct vt_window	*vw_switch_to;
+	int			 vw_bell_pitch;	/* (?) Bell pitch */
+	sbintime_t		 vw_bell_duration; /* (?) Bell duration */
 };
 
 #define	VT_AUTO		0		/* switching is automatic */

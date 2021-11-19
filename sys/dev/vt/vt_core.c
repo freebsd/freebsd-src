@@ -258,6 +258,8 @@ static struct vt_window	vt_conswindow = {
 	.vw_terminal = &vt_consterm,
 	.vw_kbdmode = K_XLATE,
 	.vw_grabbed = 0,
+	.vw_bell_pitch = VT_BELLPITCH,
+	.vw_bell_duration = VT_BELLDURATION,
 };
 struct terminal vt_consterm = {
 	.tm_class = &vt_termclass,
@@ -1101,7 +1103,11 @@ vtterm_bell(struct terminal *tm)
 	if (vd->vd_flags & VDF_QUIET_BELL)
 		return;
 
-	sysbeep(VT_BELLPITCH, VT_BELLDURATION);
+	if (vw->vw_bell_pitch == 0 ||
+	    vw->vw_bell_duration == 0)
+		return;
+
+	sysbeep(vw->vw_bell_pitch, vw->vw_bell_duration);
 }
 
 static void
@@ -1177,6 +1183,11 @@ vtterm_param(struct terminal *tm, int cmd, unsigned int arg)
 		break;
 	case TP_MOUSE:
 		vw->vw_mouse_level = arg;
+		break;
+	case TP_SETBELLPD:
+		vw->vw_bell_pitch = TP_SETBELLPD_PITCH(arg);
+		vw->vw_bell_duration =
+		    TICKS_2_MSEC(TP_SETBELLPD_DURATION(arg)) * SBT_1MS;
 		break;
 	}
 }
