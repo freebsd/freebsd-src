@@ -40,6 +40,12 @@ __FBSDID("$FreeBSD$");
 #include "sha512.h"
 #include "sha512t.h"
 #include "sha384.h"
+#include "sha512c_impl.h"
+
+#if defined(ARM64_SHA512)
+#include <sys/auxv.h>
+#include <machine/ifunc.h>
+#endif
 
 #if BYTE_ORDER == BIG_ENDIAN
 
@@ -158,7 +164,11 @@ static const uint64_t K[80] = {
  * the 512-bit input block to produce a new state.
  */
 static void
+#if defined(ARM64_SHA512)
+SHA512_Transform_c(uint64_t * state, const unsigned char block[SHA512_BLOCK_LENGTH])
+#else
 SHA512_Transform(uint64_t * state, const unsigned char block[SHA512_BLOCK_LENGTH])
+#endif
 {
 	uint64_t W[80];
 	uint64_t S[8];
@@ -213,6 +223,29 @@ SHA512_Transform(uint64_t * state, const unsigned char block[SHA512_BLOCK_LENGTH
 	for (i = 0; i < 8; i++)
 		state[i] += S[i];
 }
+
+#if defined(ARM64_SHA512)
+static void
+SHA512_Transform_arm64(uint64_t * state,
+    const unsigned char block[SHA512_BLOCK_LENGTH])
+{
+	SHA512_Transform_arm64_impl(state, block, K);
+}
+
+DEFINE_UIFUNC(static, void, SHA512_Transform,
+    (uint64_t * state, const unsigned char block[SHA512_BLOCK_LENGTH]))
+{
+	u_long hwcap;
+
+	if (elf_aux_info(AT_HWCAP, &hwcap, sizeof(hwcap)) == 0) {
+		if ((hwcap & HWCAP_SHA512) != 0) {
+			return (SHA512_Transform_arm64);
+		}
+	}
+
+	return (SHA512_Transform_c);
+}
+#endif
 
 static unsigned char PAD[SHA512_BLOCK_LENGTH] = {
 	0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
