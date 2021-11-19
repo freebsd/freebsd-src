@@ -12,6 +12,12 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20211119:
+	Bump __FreeBSD_version to 1300521 after merging LinuxKPI and
+	net80211 changes in order to support building various wireless
+	drivers.  This is to help other external consumers of LinuxKPI
+	and net80211 to deal accordingly.
+
 20211003:
 	Commit a599f9f7620b deleted the variable called nfs_maxcopyrange
 	from nfscommon.ko, since it no longer needs to be global.  As such,
