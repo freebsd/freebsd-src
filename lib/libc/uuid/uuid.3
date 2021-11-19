@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 1, 2012
+.Dd November 19, 2021
 .Dt UUID 3
 .Os
 .Sh NAME
@@ -68,20 +68,12 @@ The
 and
 .Fn uuid_create_nil
 functions create UUIDs.
-The
-.Fn uuid_compare ,
-.Fn uuid_equal
-and
-.Fn uuid_is_nil
-functions can be used to test UUIDs.
 To convert from the binary representation to the string representation or
 vice versa, use
 .Fn uuid_to_string
 or
 .Fn uuid_from_string
 respectively.
-A 16-bit hash value can be obtained by calling
-.Fn uuid_hash .
 .Pp
 The
 .Fn uuid_to_string
@@ -111,6 +103,49 @@ functions decode a UUID from an octet stream in little-endian and
 big-endian byte-order, respectively.
 These routines are not part of the DCE RPC API.
 They are provided for convenience.
+.Pp
+The
+.Fn uuid_compare
+and
+.Fn uuid_equal
+functions compare two UUIDs for equality.
+UUIDs are equal if pointers
+.Fa a
+and
+.Fa b
+are equal or both
+.Dv NULL ,
+or if the structures
+.Fa a
+and
+.Fa b
+point to are equal.
+.Fn uuid_compare
+returns 0 if the UUIDs are equal, -1 if
+.Fa a
+is less than
+.Fa b ,
+and 1 if
+.Fa a
+is greater than
+.Fa b .
+.Fn uuid_equal
+returns 1 if the UUIDs are equal, 0 if they are
+not equal.
+.Pp
+The
+.Fn uuid_is_nil
+function compares a UUID to
+.Dv NULL .
+The function returns 1 if
+.Fa u
+is
+.Dv NULL
+or if the UUID consists of all zeros, and zero otherwise.
+.Pp
+The
+.Fn uuid_hash
+function returns a 16-bit hash value for the specified UUID.
 .Sh RETURN VALUES
 The successful or unsuccessful completion of the function is returned in
 the
@@ -127,6 +162,16 @@ The string representation of an UUID is not valid.
 .It Dv uuid_s_no_memory
 The function can not allocate memory to store an UUID representation.
 .El
+.Pp
+.Fn uuid_compare ,
+.Fn uuid_equal ,
+.Fn uuid_is_nil ,
+and
+.Fn uuid_hash
+always set
+.Fa status
+to
+.Dv uuid_s_ok .
 .Sh SEE ALSO
 .Xr uuidgen 1 ,
 .Xr uuidgen 2
