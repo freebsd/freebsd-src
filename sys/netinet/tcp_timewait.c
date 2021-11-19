@@ -275,16 +275,17 @@ tcp_twstart(struct tcpcb *tp)
 		 * Reached limit on total number of TIMEWAIT connections
 		 * allowed. Remove a connection from TIMEWAIT queue in LRU
 		 * fashion to make room for this connection.
+		 * If that fails, use on stack tw at least to be able to
+		 * run through tcp_twrespond() and standard tcpcb discard
+		 * routine.
 		 *
 		 * XXX:  Check if it possible to always have enough room
 		 * in advance based on guarantees provided by uma_zalloc().
 		 */
 		tw = tcp_tw_2msl_scan(1);
 		if (tw == NULL) {
-			tp = tcp_close(tp);
-			if (tp != NULL)
-				INP_WUNLOCK(inp);
-			return;
+			tw = &twlocal;
+			local = true;
 		}
 	}
 	/*
