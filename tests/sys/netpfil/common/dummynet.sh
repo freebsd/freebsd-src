@@ -28,6 +28,53 @@
 . $(atf_get_srcdir)/utils.subr
 . $(atf_get_srcdir)/runner.subr
 
+interface_removal_head()
+{
+	atf_set descr 'Test removing interfaces with dummynet delayed traffic'
+	atf_set require.user root
+}
+
+interface_removal_body()
+{
+	fw=$1
+	firewall_init $fw
+	dummynet_init $fw
+
+	epair=$(vnet_mkepair)
+	vnet_mkjail alcatraz ${epair}b
+
+	ifconfig ${epair}a 192.0.2.1/24 up
+	jexec alcatraz ifconfig ${epair}b 192.0.2.2/24 up
+
+	# Sanity check
+	atf_check -s exit:0 -o ignore ping -i .1 -c 3 -s 1200 192.0.2.2
+
+	jexec alcatraz dnctl pipe 1 config delay 1500
+
+	firewall_config alcatraz ${fw} \
+		"ipfw"	\
+			"ipfw add 1000 pipe 1 ip from any to any" \
+		"pf"	\
+			"pass dnpipe 1"
+
+	# single ping succeeds just fine
+	atf_check -s exit:0 -o ignore ping -c 1 192.0.2.2
+
+	# Send traffic that'll still be pending when we remove the interface
+	ping -c 5 -s 1200 192.0.2.2 &
+	sleep 1 # Give ping the chance to start.
+
+	# Remove the interface, but keep the jail around for a bit
+	ifconfig ${epair}a destroy
+
+	sleep 3
+}
+
+interface_removal_cleanup()
+{
+	firewall_cleanup $1
+}
+
 pipe_head()
 {
 	atf_set descr 'Basic pipe test'
@@ -374,6 +421,9 @@ nat_cleanup()
 }
 
 setup_tests		\
+	interface_removal	\
+		ipfw	\
+		pf	\
 	pipe		\
 		ipfw	\
 		pf	\
