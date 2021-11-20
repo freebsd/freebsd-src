@@ -2816,32 +2816,6 @@ kernel_mount(struct mntarg *ma, uint64_t flags)
 	return (error);
 }
 
-/*
- * A printflike function to mount a filesystem.
- */
-int
-kernel_vmount(int flags, ...)
-{
-	struct mntarg *ma = NULL;
-	va_list ap;
-	const char *cp;
-	const void *vp;
-	int error;
-
-	va_start(ap, flags);
-	for (;;) {
-		cp = va_arg(ap, const char *);
-		if (cp == NULL)
-			break;
-		vp = va_arg(ap, const void *);
-		ma = mount_arg(ma, cp, vp, (vp != NULL ? -1 : 0));
-	}
-	va_end(ap);
-
-	error = kernel_mount(ma, flags);
-	return (error);
-}
-
 /* Map from mount options to printable formats. */
 static struct mntoptnames optnames[] = {
 	MNTOPT_NAMES

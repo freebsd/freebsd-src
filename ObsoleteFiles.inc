@@ -40,6 +40,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20211120
+OLD_FILES+=usr/share/man/man9/kernel_vmount.9.gz
+
 # 20211115: vm_page busy functions removed
 OLD_FILES+=share/man/man9/vm_page_sbusy.9.gz
 OLD_FILES+=share/man/man9/vm_page_xbusy.9.gz

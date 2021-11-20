@@ -25,13 +25,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 13, 2004
+.Dd November 20, 2021
 .Dt KERNEL_MOUNT 9
 .Os
 .Sh NAME
 .Nm free_mntarg ,
 .Nm kernel_mount ,
-.Nm kernel_vmount ,
 .Nm mount_arg ,
 .Nm mount_argb ,
 .Nm mount_argf ,
@@ -42,8 +41,6 @@
 .Fn free_mntarg "struct mntarg *ma"
 .Ft int
 .Fn kernel_mount "struct mntarg *ma" "int flags"
-.Ft int
-.Fn kernel_vmount "int flags" ...
 .Ft "struct mntarg *"
 .Fo mount_arg
 .Fa "struct mntarg *ma" "const char *name" "const void *val" "int len"
@@ -98,12 +95,6 @@ If
 contains any error code generated during the construction,
 that code will be called and the file system mount will
 not be attempted.
-.Pp
-The
-.Fn kernel_vmount
-is a function similar to
-.Xr printf 9
-which is used to mount a file system.
 .Pp
 The
 .Fn mount_arg
@@ -177,20 +168,6 @@ msdosfs_cmount(struct mntarg *ma, void *data, int flags, struct thread *td)
 
 	return (error);
 }
-.Ed
-.Pp
-When working with
-.Fn kernel_vmount ,
-.Fa varargs
-must come in pairs, e.g.,
-.Brq Va name , value .
-.Bd -literal
-	error = kernel_vmount(
-	    MNT_RDONLY,
-	    "fstype", vfsname,
-	    "fspath", "/",
-	    "from", path,
-	    NULL);
 .Ed
 .Sh SEE ALSO
 .Xr VFS 9 ,
