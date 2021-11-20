@@ -103,7 +103,12 @@
     something significant changes or if ssh_namespace.h is out of
     whack.
 
-12) Commit, and hunker down for the inevitable storm of complaints.
+12) Update nanobsd's copies of the ssh config files:
+
+    tools/tools/nanobsd/rescue/Files/etc/ssh/ssh_config
+    tools/tools/nanobsd/rescue/Files/etc/ssh/sshd_config
+
+13) Commit, and hunker down for the inevitable storm of complaints.
 
 
 
