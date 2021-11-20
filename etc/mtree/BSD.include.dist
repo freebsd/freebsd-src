@@ -19,6 +19,16 @@
         v1
             __algorithm
             ..
+            __bit
+            ..
+            __charconv
+            ..
+            __compare
+            ..
+            __concepts
+            ..
+            __coroutine
+            ..
             __format
             ..
             __functional
@@ -30,6 +40,8 @@
             __random
             ..
             __ranges
+            ..
+            __thread
             ..
             __utility
             ..
