@@ -4,6 +4,7 @@
 #
 
 # PROVIDE: rctl
+# REQUIRE: FILESYSTEMS
 # BEFORE: LOGIN
 # KEYWORD: nojail
 
