@@ -16,7 +16,6 @@ SRCS+=		Views/RetireControlUnitStatistics.cpp
 SRCS+=		Views/SchedulerStatistics.cpp
 SRCS+=		Views/SummaryView.cpp
 SRCS+=		Views/TimelineView.cpp
-SRCS+=		Views/View.cpp
 SRCS+=		llvm-mca.cpp
 
 CFLAGS+=	-I${LLVM_BASE}/${SRCDIR}

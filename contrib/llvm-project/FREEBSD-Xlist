@@ -105,6 +105,7 @@ clang/tools/clang-format/git-clang-format
 clang/tools/clang-format-vs/
 clang/tools/clang-fuzzer/
 clang/tools/clang-import-test/
+clang/tools/clang-nvlink-wrapper/
 clang/tools/clang-offload-bundler/
 clang/tools/clang-offload-wrapper/
 clang/tools/clang-refactor/
@@ -149,6 +150,7 @@ clang/utils/token-delta.py
 clang/utils/valgrind/
 clang/www/
 clang-tools-extra/
+cmake/
 compiler-rt/.gitignore
 compiler-rt/CMakeLists.txt
 compiler-rt/CODE_OWNERS.TXT
@@ -187,6 +189,7 @@ compiler-rt/lib/interception/tests/
 compiler-rt/lib/lsan/.clang-format
 compiler-rt/lib/lsan/CMakeLists.txt
 compiler-rt/lib/memprof/CMakeLists.txt
+compiler-rt/lib/memprof/tests/CMakeLists.txt
 compiler-rt/lib/msan/.clang-format
 compiler-rt/lib/msan/CMakeLists.txt
 compiler-rt/lib/msan/tests/
@@ -229,6 +232,7 @@ flang/
 libc/
 libclc/
 libcxx/.clang-format
+libcxx/.clang-tidy
 libcxx/.gitignore
 libcxx/CMakeLists.txt
 libcxx/TODO.TXT
@@ -280,6 +284,7 @@ lldb/CODE_OWNERS.txt
 lldb/bindings/CMakeLists.txt
 lldb/bindings/lua/CMakeLists.txt
 lldb/bindings/python/CMakeLists.txt
+lldb/bindings/python/get-python-config.py
 lldb/cmake/
 lldb/docs/.htaccess
 lldb/docs/CMakeLists.txt
@@ -379,6 +384,7 @@ lldb/source/Plugins/ObjectFile/CMakeLists.txt
 lldb/source/Plugins/ObjectFile/ELF/CMakeLists.txt
 lldb/source/Plugins/ObjectFile/JIT/CMakeLists.txt
 lldb/source/Plugins/ObjectFile/Mach-O/
+lldb/source/Plugins/ObjectFile/Minidump/CMakeLists.txt
 lldb/source/Plugins/ObjectFile/PDB/CMakeLists.txt
 lldb/source/Plugins/ObjectFile/PECOFF/
 lldb/source/Plugins/ObjectFile/wasm/CMakeLists.txt
@@ -407,6 +413,8 @@ lldb/source/Plugins/Process/gdb-remote/CMakeLists.txt
 lldb/source/Plugins/Process/mach-core/
 lldb/source/Plugins/Process/minidump/CMakeLists.txt
 lldb/source/Plugins/Process/scripted/CMakeLists.txt
+lldb/source/Plugins/REPL/CMakeLists.txt
+lldb/source/Plugins/REPL/Clang/CMakeLists.txt
 lldb/source/Plugins/ScriptInterpreter/CMakeLists.txt
 lldb/source/Plugins/ScriptInterpreter/Lua/CMakeLists.txt
 lldb/source/Plugins/ScriptInterpreter/None/CMakeLists.txt
@@ -428,6 +436,7 @@ lldb/source/Plugins/Trace/CMakeLists.txt
 lldb/source/Plugins/Trace/common/CMakeLists.txt
 lldb/source/Plugins/Trace/intel-pt/CMakeLists.txt
 lldb/source/Plugins/TraceExporter/CMakeLists.txt
+lldb/source/Plugins/TraceExporter/common/CMakeLists.txt
 lldb/source/Plugins/TraceExporter/ctf/CMakeLists.txt
 lldb/source/Plugins/TypeSystem/CMakeLists.txt
 lldb/source/Plugins/TypeSystem/Clang/CMakeLists.txt
@@ -555,6 +564,7 @@ llvm/lib/Target/AArch64/Utils/CMakeLists.txt
 llvm/lib/Target/AMDGPU/AsmParser/CMakeLists.txt
 llvm/lib/Target/AMDGPU/CMakeLists.txt
 llvm/lib/Target/AMDGPU/Disassembler/CMakeLists.txt
+llvm/lib/Target/AMDGPU/MCA/CMakeLists.txt
 llvm/lib/Target/AMDGPU/MCTargetDesc/CMakeLists.txt
 llvm/lib/Target/AMDGPU/TargetInfo/CMakeLists.txt
 llvm/lib/Target/AMDGPU/Utils/CMakeLists.txt
@@ -711,7 +721,9 @@ llvm/tools/llvm-cxxdump/CMakeLists.txt
 llvm/tools/llvm-cxxfilt/CMakeLists.txt
 llvm/tools/llvm-cxxmap/CMakeLists.txt
 llvm/tools/llvm-diff/CMakeLists.txt
+llvm/tools/llvm-diff/lib/CMakeLists.txt
 llvm/tools/llvm-dis/CMakeLists.txt
+llvm/tools/llvm-dlang-demangle-fuzzer/
 llvm/tools/llvm-dwarfdump/CMakeLists.txt
 llvm/tools/llvm-dwarfdump/fuzzer/
 llvm/tools/llvm-dwp/CMakeLists.txt
@@ -733,8 +745,6 @@ llvm/tools/llvm-mc/CMakeLists.txt
 llvm/tools/llvm-mc-assemble-fuzzer/
 llvm/tools/llvm-mc-disassemble-fuzzer/
 llvm/tools/llvm-mca/CMakeLists.txt
-llvm/tools/llvm-mca/lib/AMDGPU/CMakeLists.txt
-llvm/tools/llvm-mca/lib/CMakeLists.txt
 llvm/tools/llvm-microsoft-demangle-fuzzer/
 llvm/tools/llvm-ml/
 llvm/tools/llvm-modextract/CMakeLists.txt
@@ -761,6 +771,7 @@ llvm/tools/llvm-stress/CMakeLists.txt
 llvm/tools/llvm-strings/CMakeLists.txt
 llvm/tools/llvm-symbolizer/CMakeLists.txt
 llvm/tools/llvm-tapi-diff/CMakeLists.txt
+llvm/tools/llvm-tli-checker/CMakeLists.txt
 llvm/tools/llvm-undname/
 llvm/tools/llvm-xray/CMakeLists.txt
 llvm/tools/llvm-yaml-numeric-parser-fuzzer/
@@ -844,11 +855,16 @@ llvm/utils/llvmdo
 llvm/utils/llvmgrep
 llvm/utils/merge-stats.py
 llvm/utils/not/
+llvm/utils/pipeline.py
 llvm/utils/prepare-code-coverage-artifact.py
+llvm/utils/reduce_pipeline.py
+llvm/utils/reduce_pipeline_test/
 llvm/utils/release/
 llvm/utils/remote-exec.py
 llvm/utils/revert_checker.py
 llvm/utils/revert_checker_test.py
+llvm/utils/rsp_bisect.py
+llvm/utils/rsp_bisect_test/
 llvm/utils/sanitizers/
 llvm/utils/schedcover.py
 llvm/utils/shuffle_fuzz.py
@@ -877,6 +893,7 @@ openmp/CMakeLists.txt
 openmp/README.rst
 openmp/cmake/
 openmp/docs/
+openmp/libompd/
 openmp/libomptarget/
 openmp/runtime/.clang-format
 openmp/runtime/.clang-tidy
@@ -888,8 +905,6 @@ openmp/runtime/src/CMakeLists.txt
 openmp/runtime/test/
 openmp/runtime/tools/
 openmp/tools/
-openmp/www/
-parallel-libs/
 polly/
 pstl/
 runtimes/
