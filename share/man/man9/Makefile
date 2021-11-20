@@ -1313,7 +1313,6 @@ MLINKS+=ithread.9 ithread_add_handler.9 \
 	ithread.9 ithread_schedule.9
 MLINKS+=kernacc.9 useracc.9
 MLINKS+=kernel_mount.9 free_mntarg.9 \
-	kernel_mount.9 kernel_vmount.9 \
 	kernel_mount.9 mount_arg.9 \
 	kernel_mount.9 mount_argb.9 \
 	kernel_mount.9 mount_argf.9 \
