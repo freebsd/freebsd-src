@@ -51,6 +51,9 @@
 /* LLVM name for the native target MC init function, if available */
 /* #undef LLVM_NATIVE_TARGETMC */
 
+/* LLVM name for the native target MCA init function, if available */
+/* #undef LLVM_NATIVE_TARGETMCA */
+
 /* Define if this is Unixish platform */
 #define LLVM_ON_UNIX 1
 
@@ -64,7 +67,7 @@
 #define LLVM_USE_PERF 0
 
 /* Major version of the LLVM API */
-#define LLVM_VERSION_MAJOR 13
+#define LLVM_VERSION_MAJOR 14
 
 /* Minor version of the LLVM API */
 #define LLVM_VERSION_MINOR 0
@@ -73,7 +76,7 @@
 #define LLVM_VERSION_PATCH 0
 
 /* LLVM version string */
-#define LLVM_VERSION_STRING "13.0.0"
+#define LLVM_VERSION_STRING "14.0.0git"
 
 /* Whether LLVM records statistics for use with GetStatistics(),
  * PrintStatistics() or PrintStatisticsJSON()
@@ -99,13 +102,5 @@
 #if defined(__APPLE__)
 #define LLVM_HAVE_LIBXAR 1
 #endif
-
-/* Whether Timers signpost passes in Xcode Instruments */
-#if defined(__APPLE__)
-#define LLVM_SUPPORT_XCODE_SIGNPOSTS 1
-#else
-#define LLVM_SUPPORT_XCODE_SIGNPOSTS 0
-#endif
-
 
 #endif

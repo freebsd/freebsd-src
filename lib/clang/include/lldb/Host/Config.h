@@ -14,16 +14,11 @@
 
 #define LLDB_HAVE_EL_RFUNC_T 1
 
-
-#define HAVE_SYS_TYPES_H 1
-
 #define HAVE_SYS_EVENT_H 1
 
 #define HAVE_PPOLL 1
 
 #define HAVE_PTSNAME_R 1
-
-#define HAVE_SIGACTION 1
 
 #define HAVE_PROCESS_VM_READV 0
 

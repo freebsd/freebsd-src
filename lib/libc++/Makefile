@@ -37,6 +37,7 @@ SRCS+=		hash.cpp
 SRCS+=		ios.cpp
 SRCS+=		ios.instantiations.cpp
 SRCS+=		iostream.cpp
+SRCS+=		legacy_pointer_safety.cpp
 SRCS+=		locale.cpp
 SRCS+=		memory.cpp
 SRCS+=		mutex.cpp
@@ -104,6 +105,7 @@ STD_HEADERS+=	__functional_base
 STD_HEADERS+=	__hash_table
 STD_HEADERS+=	__libcpp_version
 STD_HEADERS+=	__locale
+STD_HEADERS+=	__mbstate_t.h
 STD_HEADERS+=	__mutex_base
 STD_HEADERS+=	__node_handle
 STD_HEADERS+=	__nullptr
@@ -140,6 +142,7 @@ STD_HEADERS+=	complex
 STD_HEADERS+=	complex.h
 STD_HEADERS+=	concepts
 STD_HEADERS+=	condition_variable
+STD_HEADERS+=	coroutine
 STD_HEADERS+=	csetjmp
 STD_HEADERS+=	csignal
 STD_HEADERS+=	cstdarg
@@ -342,10 +345,90 @@ ALG_HEADERS+=	upper_bound.h
 ALG+=		${HDRDIR}/__algorithm/${hdr}
 .endfor
 
+INCSGROUPS+=	BIT
+BITDIR=		${CXXINCLUDEDIR}/__bit
+BIT_HEADERS+=	bit_cast.h
+.for hdr in ${BIT_HEADERS}
+BIT+=		${HDRDIR}/__bit/${hdr}
+.endfor
+
+INCSGROUPS+=	CHC
+CHCDIR=		${CXXINCLUDEDIR}/__charconv
+CHC_HEADERS+=	chars_format.h
+CHC_HEADERS+=	from_chars_result.h
+CHC_HEADERS+=	to_chars_result.h
+.for hdr in ${CHC_HEADERS}
+CHC+=		${HDRDIR}/__charconv/${hdr}
+.endfor
+
+INCSGROUPS+=	CMP
+CMPDIR=		${CXXINCLUDEDIR}/__compare
+CMP_HEADERS+=	common_comparison_category.h
+CMP_HEADERS+=	compare_three_way.h
+CMP_HEADERS+=	compare_three_way_result.h
+CMP_HEADERS+=	is_eq.h
+CMP_HEADERS+=	ordering.h
+CMP_HEADERS+=	synth_three_way.h
+CMP_HEADERS+=	three_way_comparable.h
+.for hdr in ${CMP_HEADERS}
+CMP+=		${HDRDIR}/__compare/${hdr}
+.endfor
+
+INCSGROUPS+=	CON
+CONDIR=		${CXXINCLUDEDIR}/__concepts
+CON_HEADERS+=	arithmetic.h
+CON_HEADERS+=	assignable.h
+CON_HEADERS+=	boolean_testable.h
+CON_HEADERS+=	class_or_enum.h
+CON_HEADERS+=	common_reference_with.h
+CON_HEADERS+=	common_with.h
+CON_HEADERS+=	constructible.h
+CON_HEADERS+=	convertible_to.h
+CON_HEADERS+=	copyable.h
+CON_HEADERS+=	derived_from.h
+CON_HEADERS+=	destructible.h
+CON_HEADERS+=	different_from.h
+CON_HEADERS+=	equality_comparable.h
+CON_HEADERS+=	invocable.h
+CON_HEADERS+=	movable.h
+CON_HEADERS+=	predicate.h
+CON_HEADERS+=	regular.h
+CON_HEADERS+=	relation.h
+CON_HEADERS+=	same_as.h
+CON_HEADERS+=	semiregular.h
+CON_HEADERS+=	swappable.h
+CON_HEADERS+=	totally_ordered.h
+.for hdr in ${CON_HEADERS}
+CON+=		${HDRDIR}/__concepts/${hdr}
+.endfor
+
+INCSGROUPS+=	COR
+CORDIR=		${CXXINCLUDEDIR}/__coroutine
+COR_HEADERS+=	coroutine_handle.h
+COR_HEADERS+=	coroutine_traits.h
+COR_HEADERS+=	noop_coroutine_handle.h
+COR_HEADERS+=	trivial_awaitables.h
+.for hdr in ${COR_HEADERS}
+COR+=		${HDRDIR}/__coroutine/${hdr}
+.endfor
+
 INCSGROUPS+=	FMT
 FMTDIR=		${CXXINCLUDEDIR}/__format
+FMT_HEADERS+=	format_arg.h
+FMT_HEADERS+=	format_args.h
+FMT_HEADERS+=	format_context.h
 FMT_HEADERS+=	format_error.h
+FMT_HEADERS+=	format_fwd.h
 FMT_HEADERS+=	format_parse_context.h
+FMT_HEADERS+=	format_string.h
+FMT_HEADERS+=	format_to_n_result.h
+FMT_HEADERS+=	formatter.h
+FMT_HEADERS+=	formatter_bool.h
+FMT_HEADERS+=	formatter_char.h
+FMT_HEADERS+=	formatter_integer.h
+FMT_HEADERS+=	formatter_integral.h
+FMT_HEADERS+=	formatter_string.h
+FMT_HEADERS+=	parser_std_format_spec.h
 .for hdr in ${FMT_HEADERS}
 FMT+=		${HDRDIR}/__format/${hdr}
 .endfor
@@ -355,9 +438,11 @@ FUNDIR=		${CXXINCLUDEDIR}/__functional
 FUN_HEADERS+=	binary_function.h
 FUN_HEADERS+=	binary_negate.h
 FUN_HEADERS+=	bind.h
+FUN_HEADERS+=	bind_back.h
 FUN_HEADERS+=	bind_front.h
 FUN_HEADERS+=	binder1st.h
 FUN_HEADERS+=	binder2nd.h
+FUN_HEADERS+=	compose.h
 FUN_HEADERS+=	default_searcher.h
 FUN_HEADERS+=	function.h
 FUN_HEADERS+=	hash.h
@@ -413,6 +498,7 @@ IT_HEADERS+=	readable_traits.h
 IT_HEADERS+=	reverse_access.h
 IT_HEADERS+=	reverse_iterator.h
 IT_HEADERS+=	size.h
+IT_HEADERS+=	unreachable_sentinel.h
 IT_HEADERS+=	wrap_iter.h
 .for hdr in ${IT_HEADERS}
 IT+=		${HDRDIR}/__iterator/${hdr}
@@ -428,7 +514,6 @@ MEM_HEADERS+=	allocator_traits.h
 MEM_HEADERS+=	auto_ptr.h
 MEM_HEADERS+=	compressed_pair.h
 MEM_HEADERS+=	construct_at.h
-MEM_HEADERS+=	pointer_safety.h
 MEM_HEADERS+=	pointer_traits.h
 MEM_HEADERS+=	raw_storage_iterator.h
 MEM_HEADERS+=	shared_ptr.h
@@ -454,6 +539,7 @@ RNG_HEADERS+=	all.h
 RNG_HEADERS+=	common_view.h
 RNG_HEADERS+=	concepts.h
 RNG_HEADERS+=	copyable_box.h
+RNG_HEADERS+=	counted.h
 RNG_HEADERS+=	dangling.h
 RNG_HEADERS+=	data.h
 RNG_HEADERS+=	drop_view.h
@@ -461,21 +547,35 @@ RNG_HEADERS+=	empty.h
 RNG_HEADERS+=	empty_view.h
 RNG_HEADERS+=	enable_borrowed_range.h
 RNG_HEADERS+=	enable_view.h
+RNG_HEADERS+=	iota_view.h
+RNG_HEADERS+=	join_view.h
 RNG_HEADERS+=	non_propagating_cache.h
+RNG_HEADERS+=	range_adaptor.h
 RNG_HEADERS+=	ref_view.h
+RNG_HEADERS+=	reverse_view.h
+RNG_HEADERS+=	single_view.h
 RNG_HEADERS+=	size.h
 RNG_HEADERS+=	subrange.h
+RNG_HEADERS+=	take_view.h
 RNG_HEADERS+=	transform_view.h
 RNG_HEADERS+=	view_interface.h
 .for hdr in ${RNG_HEADERS}
 RNG+=		${HDRDIR}/__ranges/${hdr}
 .endfor
 
+
+INCSGROUPS+=	THR
+THRDIR=		${CXXINCLUDEDIR}/__thread
+THR_HEADERS+=	poll_with_backoff.h
+.for hdr in ${THR_HEADERS}
+THR+=		${HDRDIR}/__thread/${hdr}
+.endfor
+
 INCSGROUPS+=	UTL
 UTLDIR=		${CXXINCLUDEDIR}/__utility
-UTL_HEADERS+=	__decay_copy.h
 UTL_HEADERS+=	as_const.h
 UTL_HEADERS+=	cmp.h
+UTL_HEADERS+=	decay_copy.h
 UTL_HEADERS+=	declval.h
 UTL_HEADERS+=	exchange.h
 UTL_HEADERS+=	forward.h
