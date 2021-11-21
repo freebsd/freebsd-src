@@ -670,7 +670,7 @@ g_io_deliver(struct bio *bp, int error)
 	if ((g_collectstats & G_STATS_CONSUMERS) != 0 ||
 	    ((g_collectstats & G_STATS_PROVIDERS) != 0 && pp->stat != NULL))
 		binuptime(&now);
-	mtxp = mtx_pool_find(mtxpool_sleep, cp);
+	mtxp = mtx_pool_find(mtxpool_sleep, pp);
 	mtx_lock(mtxp);
 	if (g_collectstats & G_STATS_PROVIDERS)
 		devstat_end_transaction_bio_bt(pp->stat, bp, &now);
