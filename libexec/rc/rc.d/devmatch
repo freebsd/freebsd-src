@@ -64,7 +64,7 @@ devmatch_start()
 	# names with .ko
 
 	devctl freeze
-	x=$(echo '#'${devmatch_blocklist:-${devmatch_blacklist}}'#' | \
+	x=$(echo "#${devmatch_blocklist:-${devmatch_blacklist}}#$(kenv -q devmatch_blocklist)#" | \
 		sed -e "s/ /#/g;s/\.ko#/#/g")
 	for m in ${list}; do
 		m="${m%.ko}"

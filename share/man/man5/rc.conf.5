@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 18, 2021
+.Dd November 21, 2021
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -261,6 +261,12 @@ disable auto-loading of kernel modules with
 .Pq Vt str
 A whitespace-separated list of kernel modules to be ignored by
 .Xr devmatch 8 .
+In addition, the
+.Xr kenv 1
+.Va devmatch_blocklist
+is appended to this variable to allow disabling of
+.Xr devmatch 8
+loaded modules from the boot loader.
 .It Va devmatch_blacklist
 .Pq Vt str
 This variable is deprecated.
