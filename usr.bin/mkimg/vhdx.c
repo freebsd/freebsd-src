@@ -331,6 +331,7 @@ vhdx_write_metadata(int fd, uint64_t image_size)
 	memset(metadata, 0, SIZE_1MB);
 
 	memset(&header, 0, sizeof(header));
+	memset(&entry, 0, sizeof(entry));
 
 	le64enc(&header.signature, VHDX_METADATA_TABLE_HEADER_SIGNATURE);
 	le16enc(&header.entry_count, 5);
