@@ -248,7 +248,8 @@ mprsas_free_tm(struct mpr_softc *sc, struct mpr_command *tm)
 	 * INRESET flag as well or scsi I/O will not work.
 	 */
 	if (tm->cm_ccb) {
-		mpr_dprint(sc, MPR_XINFO, "Unfreezing devq for target ID %d\n",
+		mpr_dprint(sc, MPR_XINFO | MPR_RECOVERY,
+		    "Unfreezing devq for target ID %d\n",
 		    tm->cm_targ->tid);
 		tm->cm_targ->flags &= ~MPRSAS_TARGET_INRESET;
 		xpt_release_devq(tm->cm_ccb->ccb_h.path, 1, TRUE);
@@ -1924,6 +1925,9 @@ mprsas_action_scsiio(struct mprsas_softc *sassc, union ccb *ccb)
 	 */
 	if (targ->flags & MPRSAS_TARGET_INRESET) {
 		ccb->ccb_h.status = CAM_REQUEUE_REQ | CAM_DEV_QFRZN;
+		mpr_dprint(sc, MPR_XINFO | MPR_RECOVERY,
+		    "%s: Freezing devq for target ID %d\n",
+		    __func__, targ->tid);
 		xpt_freeze_devq(ccb->ccb_h.path, 1);
 		xpt_done(ccb);
 		return;
@@ -2513,8 +2517,8 @@ mprsas_scsiio_complete(struct mpr_softc *sc, struct mpr_command *cm)
 		if ((sassc->flags & MPRSAS_QUEUE_FROZEN) == 0) {
 			xpt_freeze_simq(sassc->sim, 1);
 			sassc->flags |= MPRSAS_QUEUE_FROZEN;
-			mpr_dprint(sc, MPR_XINFO, "Error sending command, "
-			    "freezing SIM queue\n");
+			mpr_dprint(sc, MPR_XINFO | MPR_RECOVERY,
+			    "Error sending command, freezing SIM queue\n");
 		}
 	}
 
@@ -2549,7 +2553,7 @@ mprsas_scsiio_complete(struct mpr_softc *sc, struct mpr_command *cm)
 			if (sassc->flags & MPRSAS_QUEUE_FROZEN) {
 				ccb->ccb_h.status |= CAM_RELEASE_SIMQ;
 				sassc->flags &= ~MPRSAS_QUEUE_FROZEN;
-				mpr_dprint(sc, MPR_XINFO,
+				mpr_dprint(sc, MPR_XINFO | MPR_RECOVERY,
 				    "Unfreezing SIM queue\n");
 			}
 		} 
@@ -2817,7 +2821,7 @@ mprsas_scsiio_complete(struct mpr_softc *sc, struct mpr_command *cm)
 	if (sassc->flags & MPRSAS_QUEUE_FROZEN) {
 		ccb->ccb_h.status |= CAM_RELEASE_SIMQ;
 		sassc->flags &= ~MPRSAS_QUEUE_FROZEN;
-		mpr_dprint(sc, MPR_XINFO, "Command completed, unfreezing SIM "
+		mpr_dprint(sc, MPR_INFO, "Command completed, unfreezing SIM "
 		    "queue\n");
 	}
 
@@ -3424,6 +3428,11 @@ mprsas_async(void *callback_arg, uint32_t code, struct cam_path *path,
  * the target until the reset has completed.  The CCB holds the path which
  * is used to release the devq.  The devq is released and the CCB is freed
  * when the TM completes.
+ * We only need to do this when we're entering reset, not at each time we
+ * need to send an abort (which will happen if multiple commands timeout
+ * while we're sending the abort). We do not release the queue for each
+ * command we complete (just at the end when we free the tm), so freezing
+ * it each time doesn't make sense.
  */
 void
 mprsas_prepare_for_tm(struct mpr_softc *sc, struct mpr_command *tm,
@@ -3439,13 +3448,15 @@ mprsas_prepare_for_tm(struct mpr_softc *sc, struct mpr_command *tm,
 		    target->tid, lun_id) != CAM_REQ_CMP) {
 			xpt_free_ccb(ccb);
 		} else {
-			mpr_dprint(sc, MPR_XINFO,
-			    "%s: Freezing devq for target ID %d\n",
-			    __func__, target->tid);
-			xpt_freeze_devq(ccb->ccb_h.path, 1);
 			tm->cm_ccb = ccb;
 			tm->cm_targ = target;
-			target->flags |= MPRSAS_TARGET_INRESET;
+			if ((target->flags & MPRSAS_TARGET_INRESET) == 0) {
+				mpr_dprint(sc, MPR_XINFO | MPR_RECOVERY,
+				    "%s: Freezing devq for target ID %d\n",
+				    __func__, target->tid);
+				xpt_freeze_devq(ccb->ccb_h.path, 1);
+				target->flags |= MPRSAS_TARGET_INRESET;
+			}
 		}
 	}
 }
