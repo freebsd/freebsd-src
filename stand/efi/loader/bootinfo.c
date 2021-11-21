@@ -393,11 +393,9 @@ bi_load_efi_data(struct preloaded_file *kfp, bool exit_bs)
 
 		if (!exit_bs)
 			break;
-		status = BS->ExitBootServices(IH, efi_mapkey);
-		if (!EFI_ERROR(status)) {
-			boot_services_active = false;
+		status = efi_exit_boot_services(efi_mapkey);
+		if (!EFI_ERROR(status))
 			break;
-		}
 	}
 
 	if (retry == 0) {
