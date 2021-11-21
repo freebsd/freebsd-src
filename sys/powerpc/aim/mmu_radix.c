@@ -2934,7 +2934,9 @@ retry:
 			    " asid=%lu curpid=%d name=%s origpte0x%lx\n",
 			    pmap, va, m, prot, flags, psind, pmap->pm_pid,
 			    curproc->p_pid, curproc->p_comm, origpte);
+#ifdef DDB
 			pmap_pte_walk(pmap->pm_pml1, va);
+#endif
 		}
 #endif
 		/*
@@ -3018,7 +3020,9 @@ retry:
 #ifdef INVARIANTS
 			else if (origpte & PG_MANAGED) {
 				if (pv == NULL) {
+#ifdef DDB
 					pmap_page_print_mappings(om);
+#endif
 					MPASS(pv != NULL);
 				}
 			}
