@@ -68,6 +68,10 @@ local config = {
 	abi_semid_t = "semid_t",
 	abi_ptr_array_t = "",
 	ptr_intptr_t_cast = "intptr_t",
+	syscall_abi_change = "",
+	sys_abi_change = {},
+	syscall_no_abi_change = "",
+	sys_no_abi_change = {},
 	obsol = "",
 	obsol_dict = {},
 	unimpl = "",
@@ -388,6 +392,18 @@ local function process_unimpl()
 	local unimpl = config["unimpl"]
 	for syscall in unimpl:gmatch("([^ ]+)") do
 		config["unimpl_dict"][syscall] = true
+	end
+end
+
+local function process_syscall_abi_change()
+	local changes_abi = config["syscall_abi_change"]
+	for syscall in changes_abi:gmatch("([^ ]+)") do
+		config["sys_abi_change"][syscall] = true
+	end
+
+	local no_changes = config["syscall_no_abi_change"]
+	for syscall in no_changes:gmatch("([^ ]+)") do
+		config["sys_no_abi_change"][syscall] = true
 	end
 end
 
@@ -1197,6 +1213,9 @@ process_syscall_def = function(line)
 	if args ~= nil then
 		funcargs, changes_abi = process_args(args)
 	end
+	if config["sys_no_abi_change"][funcname] then
+		changes_abi = false
+	end
 	local noproto = config["abi_flags"] ~= "" and not changes_abi
 
 	local argprefix = ''
@@ -1204,11 +1223,18 @@ process_syscall_def = function(line)
 	if abi_changes("pointer_args") then
 		for _, v in ipairs(funcargs) do
 			if isptrtype(v["type"]) then
+				if config["sys_no_abi_change"][funcname] then
+					print("WARNING: " .. funcname ..
+					    " in syscall_no_abi_change, but pointers args are present")
+				end
 				changes_abi = true
 				goto ptrfound
 			end
 		end
 		::ptrfound::
+	end
+	if config["sys_abi_change"][funcname] then
+		changes_abi = true
 	end
 	if changes_abi then
 		-- argalias should be:
@@ -1311,6 +1337,7 @@ elseif config["capenabled"] ~= "" then
 end
 process_compat()
 process_abi_flags()
+process_syscall_abi_change()
 process_obsol()
 process_unimpl()
 
