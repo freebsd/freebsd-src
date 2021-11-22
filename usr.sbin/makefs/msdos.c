@@ -150,7 +150,6 @@ msdos_makefs(const char *image, const char *dir, fsnode *root, fsinfo_t *fsopts)
 	struct m_vnode vp, rootvp;
 	struct timeval start;
 	struct msdosfsmount *pmp;
-	uint32_t flags;
 
 	assert(image != NULL);
 	assert(dir != NULL);
@@ -184,7 +183,6 @@ msdos_makefs(const char *image, const char *dir, fsnode *root, fsinfo_t *fsopts)
 	fsopts->fd = open(image, O_RDWR);
 	vp.fs = fsopts;
 
-	flags = 0;
 	if ((pmp = m_msdosfs_mount(&vp)) == NULL)
 		err(1, "msdosfs_mount");
 
