@@ -134,7 +134,7 @@ local known_abi_flags = {
 	},
 	time_t_size = {
 		value	= 0x00000002,
-		expr	= "_Contains[a-z_]*_timet_/",
+		expr	= "_Contains[a-z_]*_timet_",
 	},
 	pointer_args = {
 		value	= 0x00000004,
