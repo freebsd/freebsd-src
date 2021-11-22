@@ -62,6 +62,10 @@ local config = {
 	abi_flags_mask = 0,
 	abi_headers = "",
 	abi_intptr_t = "intptr_t",
+	abi_size_t = "size_t",
+	abi_u_long = "u_long",
+	abi_long = "long",
+	abi_semid_t = "semid_t",
 	ptr_intptr_t_cast = "intptr_t",
 }
 
@@ -134,6 +138,16 @@ local known_abi_flags = {
 		value	= 0x00000001,
 		exprs	= {
 			"_Contains[a-z_]*_long_",
+			"^long [a-z0-9_]+$",
+			"long [*]",
+			"size_t [*]",
+			-- semid_t is not included because it is only used
+			-- as an argument or written out individually and
+			-- said writes are handled by the ksem framework.
+			-- Technically a sign-extension issue exists for
+			-- arguments, but because semid_t is actually a file
+			-- descriptor negative 32-bit values are invalid
+			-- regardless of sign-extension.
 		},
 	},
 	time_t_size = {
@@ -603,6 +617,15 @@ local function process_args(args)
 		end
 
 		argtype = argtype:gsub("intptr_t", config["abi_intptr_t"])
+		argtype = argtype:gsub("semid_t", config["abi_semid_t"])
+		if isptrtype(argtype) then
+			argtype = argtype:gsub("size_t", config["abi_size_t"])
+			argtype = argtype:gsub("^long", config["abi_long"]);
+			argtype = argtype:gsub("^u_long", config["abi_u_long"]);
+			argtype = argtype:gsub("^const u_long", "const " .. config["abi_u_long"]);
+		elseif argtype:find("^long$") then
+			argtype = config["abi_long"]
+		end
 
 		-- XX TODO: Forward declarations? See: sysstubfwd in CheriBSD
 		if abi_change then
