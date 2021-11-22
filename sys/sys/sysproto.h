@@ -213,8 +213,8 @@ struct osigpending_args {
 	register_t dummy;
 };
 struct sigaltstack_args {
-	char ss_l_[PADL_(const stack_t *)]; const stack_t * ss; char ss_r_[PADR_(const stack_t *)];
-	char oss_l_[PADL_(stack_t *)]; stack_t * oss; char oss_r_[PADR_(stack_t *)];
+	char ss_l_[PADL_(const struct sigaltstack *)]; const struct sigaltstack * ss; char ss_r_[PADR_(const struct sigaltstack *)];
+	char oss_l_[PADL_(struct sigaltstack *)]; struct sigaltstack * oss; char oss_r_[PADR_(struct sigaltstack *)];
 };
 struct ioctl_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
