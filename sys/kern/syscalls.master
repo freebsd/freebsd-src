@@ -388,8 +388,8 @@
 	}
 53	AUE_SIGALTSTACK	STD|CAPENABLED {
 		int sigaltstack(
-		    _In_opt_ const stack_t *ss,
-		    _Out_opt_ stack_t *oss
+		    _In_opt_ const struct sigaltstack *ss,
+		    _Out_opt_ struct sigaltstack *oss
 		);
 	}
 54	AUE_IOCTL	STD|CAPENABLED {
