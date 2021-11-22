@@ -525,11 +525,11 @@
 276	AUE_LUTIMES	STD	{ int freebsd32_lutimes(const char *path, \
 				    const struct timeval32 *tptr); }
 277	AUE_NULL	OBSOL	netbsd_msync
-278	AUE_STAT  COMPAT11|NOPROTO { int nstat(const char *path, \
-				    struct nstat *ub); }
-279	AUE_FSTAT COMPAT11|NOPROTO { int nfstat(int fd, struct nstat *sb); }
-280	AUE_LSTAT COMPAT11|NOPROTO { int nlstat(const char *path, \
-				    struct nstat *ub); }
+278	AUE_STAT  COMPAT11	{ int freebsd32_nstat(const char *path, \
+				    struct nstat32 *ub); }
+279	AUE_FSTAT COMPAT11	{ int freebsd32_nfstat(int fd, struct nstat32 *sb); }
+280	AUE_LSTAT COMPAT11	{ int freebsd32_nlstat(const char *path, \
+				    struct nstat32 *ub); }
 281	AUE_NULL	RESERVED
 282	AUE_NULL	RESERVED
 283	AUE_NULL	RESERVED
