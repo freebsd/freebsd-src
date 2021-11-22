@@ -269,7 +269,7 @@
 				    const struct timezone *tzp); }
 123	AUE_FCHOWN	NOPROTO	{ int fchown(int fd, int uid, int gid); }
 124	AUE_FCHMOD	NOPROTO	{ int fchmod(int fd, mode_t mode); }
-125	AUE_RECVFROM	OBSOL	orecvfrom
+125	AUE_RECVFROM	COMPAT|NOPROTO { int recvfrom(int s, void *buf, size_t len, int flags, struct sockaddr *from, __socklen_t *fromlenaddr); } recvfrom recvfrom_args int
 126	AUE_SETREUID	NOPROTO	{ int setreuid(int ruid, int euid); }
 127	AUE_SETREGID	NOPROTO	{ int setregid(int rgid, int egid); }
 128	AUE_RENAME	NOPROTO	{ int rename(const char *from, \
