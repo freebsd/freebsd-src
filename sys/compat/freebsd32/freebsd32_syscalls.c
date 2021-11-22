@@ -6,9 +6,6 @@
  */
 
 const char *freebsd32_syscallnames[] = {
-#if !defined(PAD64_REQUIRED) && !defined(__amd64__)
-#define PAD64_REQUIRED
-#endif
 	"syscall",			/* 0 = syscall */
 	"exit",			/* 1 = exit */
 	"fork",			/* 2 = fork */
@@ -298,13 +295,8 @@ const char *freebsd32_syscallnames[] = {
 	"#286",			/* 286 = reserved for local use */
 	"#287",			/* 287 = reserved for local use */
 	"#288",			/* 288 = reserved for local use */
-#ifdef PAD64_REQUIRED
 	"freebsd32_preadv",			/* 289 = freebsd32_preadv */
 	"freebsd32_pwritev",			/* 290 = freebsd32_pwritev */
-#else
-	"freebsd32_preadv",			/* 289 = freebsd32_preadv */
-	"freebsd32_pwritev",			/* 290 = freebsd32_pwritev */
-#endif
 	"#291",			/* 291 = reserved for local use */
 	"#292",			/* 292 = reserved for local use */
 	"#293",			/* 293 = reserved for local use */
@@ -489,30 +481,17 @@ const char *freebsd32_syscallnames[] = {
 	"sctp_generic_sendmsg",			/* 472 = sctp_generic_sendmsg */
 	"sctp_generic_sendmsg_iov",			/* 473 = sctp_generic_sendmsg_iov */
 	"sctp_generic_recvmsg",			/* 474 = sctp_generic_recvmsg */
-#ifdef PAD64_REQUIRED
 	"freebsd32_pread",			/* 475 = freebsd32_pread */
 	"freebsd32_pwrite",			/* 476 = freebsd32_pwrite */
 	"freebsd32_mmap",			/* 477 = freebsd32_mmap */
 	"freebsd32_lseek",			/* 478 = freebsd32_lseek */
 	"freebsd32_truncate",			/* 479 = freebsd32_truncate */
 	"freebsd32_ftruncate",			/* 480 = freebsd32_ftruncate */
-#else
-	"freebsd32_pread",			/* 475 = freebsd32_pread */
-	"freebsd32_pwrite",			/* 476 = freebsd32_pwrite */
-	"freebsd32_mmap",			/* 477 = freebsd32_mmap */
-	"freebsd32_lseek",			/* 478 = freebsd32_lseek */
-	"freebsd32_truncate",			/* 479 = freebsd32_truncate */
-	"freebsd32_ftruncate",			/* 480 = freebsd32_ftruncate */
-#endif
 	"thr_kill2",			/* 481 = thr_kill2 */
 	"compat12.shm_open",		/* 482 = freebsd12 shm_open */
 	"shm_unlink",			/* 483 = shm_unlink */
 	"cpuset",			/* 484 = cpuset */
-#ifdef PAD64_REQUIRED
 	"freebsd32_cpuset_setid",			/* 485 = freebsd32_cpuset_setid */
-#else
-	"freebsd32_cpuset_setid",			/* 485 = freebsd32_cpuset_setid */
-#endif
 	"freebsd32_cpuset_getid",			/* 486 = freebsd32_cpuset_getid */
 	"freebsd32_cpuset_getaffinity",			/* 487 = freebsd32_cpuset_getaffinity */
 	"freebsd32_cpuset_setaffinity",			/* 488 = freebsd32_cpuset_setaffinity */
@@ -557,15 +536,9 @@ const char *freebsd32_syscallnames[] = {
 	"rctl_get_limits",			/* 527 = rctl_get_limits */
 	"rctl_add_rule",			/* 528 = rctl_add_rule */
 	"rctl_remove_rule",			/* 529 = rctl_remove_rule */
-#ifdef PAD64_REQUIRED
 	"freebsd32_posix_fallocate",			/* 530 = freebsd32_posix_fallocate */
 	"freebsd32_posix_fadvise",			/* 531 = freebsd32_posix_fadvise */
 	"freebsd32_wait6",			/* 532 = freebsd32_wait6 */
-#else
-	"freebsd32_posix_fallocate",			/* 530 = freebsd32_posix_fallocate */
-	"freebsd32_posix_fadvise",			/* 531 = freebsd32_posix_fadvise */
-	"freebsd32_wait6",			/* 532 = freebsd32_wait6 */
-#endif
 	"cap_rights_limit",			/* 533 = cap_rights_limit */
 	"freebsd32_cap_ioctls_limit",			/* 534 = freebsd32_cap_ioctls_limit */
 	"freebsd32_cap_ioctls_get",			/* 535 = freebsd32_cap_ioctls_get */
@@ -577,11 +550,7 @@ const char *freebsd32_syscallnames[] = {
 	"accept4",			/* 541 = accept4 */
 	"pipe2",			/* 542 = pipe2 */
 	"freebsd32_aio_mlock",			/* 543 = freebsd32_aio_mlock */
-#ifdef PAD64_REQUIRED
 	"freebsd32_procctl",			/* 544 = freebsd32_procctl */
-#else
-	"freebsd32_procctl",			/* 544 = freebsd32_procctl */
-#endif
 	"freebsd32_ppoll",			/* 545 = freebsd32_ppoll */
 	"freebsd32_futimens",			/* 546 = freebsd32_futimens */
 	"freebsd32_utimensat",			/* 547 = freebsd32_utimensat */
@@ -596,11 +565,7 @@ const char *freebsd32_syscallnames[] = {
 	"fstatfs",			/* 556 = fstatfs */
 	"freebsd32_getfsstat",			/* 557 = freebsd32_getfsstat */
 	"fhstatfs",			/* 558 = fhstatfs */
-#ifdef PAD64_REQUIRED
 	"freebsd32_mknodat",			/* 559 = freebsd32_mknodat */
-#else
-	"freebsd32_mknodat",			/* 559 = freebsd32_mknodat */
-#endif
 	"freebsd32_kevent",			/* 560 = freebsd32_kevent */
 	"freebsd32_cpuset_getdomain",			/* 561 = freebsd32_cpuset_getdomain */
 	"freebsd32_cpuset_setdomain",			/* 562 = freebsd32_cpuset_setdomain */
