@@ -4856,15 +4856,15 @@ sys__umtx_op(struct thread *td, struct _umtx_op_args *uap)
 #ifdef COMPAT_FREEBSD32
 #ifdef COMPAT_FREEBSD10
 int
-freebsd10_freebsd32_umtx_lock(struct thread *td,
-    struct freebsd10_freebsd32_umtx_lock_args *uap)
+freebsd10_freebsd32__umtx_lock(struct thread *td,
+    struct freebsd10_freebsd32__umtx_lock_args *uap)
 {
 	return (do_lock_umtx32(td, (uint32_t *)uap->umtx, td->td_tid, NULL));
 }
 
 int
-freebsd10_freebsd32_umtx_unlock(struct thread *td,
-    struct freebsd10_freebsd32_umtx_unlock_args *uap)
+freebsd10_freebsd32__umtx_unlock(struct thread *td,
+    struct freebsd10_freebsd32__umtx_unlock_args *uap)
 {
 	return (do_unlock_umtx32(td, (uint32_t *)uap->umtx, td->td_tid));
 }
