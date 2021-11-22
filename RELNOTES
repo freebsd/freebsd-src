@@ -10,6 +10,9 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+19dc64451179:
+	if_stf now supports 6rd (RFC5969).
+
 c1d255d3ffdb, 3968b47cd974, bd452dcbede6:
 	Add WiFi 6 support to wpa.
 
