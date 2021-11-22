@@ -2476,7 +2476,7 @@ struct freebsd4_sigaction_args {
 	char oact_l_[PADL_(struct sigaction *)]; struct sigaction * oact; char oact_r_[PADR_(struct sigaction *)];
 };
 struct freebsd4_sigreturn_args {
-	char sigcntxp_l_[PADL_(const struct ucontext4 *)]; const struct ucontext4 * sigcntxp; char sigcntxp_r_[PADR_(const struct ucontext4 *)];
+	char sigcntxp_l_[PADL_(const struct freebsd4_ucontext *)]; const struct freebsd4_ucontext * sigcntxp; char sigcntxp_r_[PADR_(const struct freebsd4_ucontext *)];
 };
 int	freebsd4_getfsstat(struct thread *, struct freebsd4_getfsstat_args *);
 int	freebsd4_statfs(struct thread *, struct freebsd4_statfs_args *);
