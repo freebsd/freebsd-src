@@ -82,7 +82,7 @@ s/\$//g
 		printf "struct msqid_ds_old;\n"
 		printf "struct shmid_ds_old;\n"
 		# TODO
-		printf "struct ucontext4;\n"
+		printf "struct freebsd4_ucontext;\n"
 		printf "struct sctp_sndrcvinfo;\n"
 		printf "\n"
 	}
