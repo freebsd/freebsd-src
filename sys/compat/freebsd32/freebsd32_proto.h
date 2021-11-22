@@ -1300,6 +1300,18 @@ struct freebsd11_freebsd32_getdirentries_args {
 	char count_l_[PADL_(u_int)]; u_int count; char count_r_[PADR_(u_int)];
 	char basep_l_[PADL_(int32_t *)]; int32_t * basep; char basep_r_[PADR_(int32_t *)];
 };
+struct freebsd11_freebsd32_nstat_args {
+	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
+	char ub_l_[PADL_(struct nstat32 *)]; struct nstat32 * ub; char ub_r_[PADR_(struct nstat32 *)];
+};
+struct freebsd11_freebsd32_nfstat_args {
+	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
+	char sb_l_[PADL_(struct nstat32 *)]; struct nstat32 * sb; char sb_r_[PADR_(struct nstat32 *)];
+};
+struct freebsd11_freebsd32_nlstat_args {
+	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
+	char ub_l_[PADL_(struct nstat32 *)]; struct nstat32 * ub; char ub_r_[PADR_(struct nstat32 *)];
+};
 #ifdef PAD64_REQUIRED
 #else
 #endif
@@ -1345,6 +1357,9 @@ int	freebsd11_freebsd32_stat(struct thread *, struct freebsd11_freebsd32_stat_ar
 int	freebsd11_freebsd32_fstat(struct thread *, struct freebsd11_freebsd32_fstat_args *);
 int	freebsd11_freebsd32_lstat(struct thread *, struct freebsd11_freebsd32_lstat_args *);
 int	freebsd11_freebsd32_getdirentries(struct thread *, struct freebsd11_freebsd32_getdirentries_args *);
+int	freebsd11_freebsd32_nstat(struct thread *, struct freebsd11_freebsd32_nstat_args *);
+int	freebsd11_freebsd32_nfstat(struct thread *, struct freebsd11_freebsd32_nfstat_args *);
+int	freebsd11_freebsd32_nlstat(struct thread *, struct freebsd11_freebsd32_nlstat_args *);
 int	freebsd11_freebsd32_fhstat(struct thread *, struct freebsd11_freebsd32_fhstat_args *);
 int	freebsd11_freebsd32_kevent(struct thread *, struct freebsd11_freebsd32_kevent_args *);
 int	freebsd11_freebsd32_getfsstat(struct thread *, struct freebsd11_freebsd32_getfsstat_args *);
@@ -1453,6 +1468,9 @@ int	freebsd11_freebsd32_fstatat(struct thread *, struct freebsd11_freebsd32_fsta
 #define	FREEBSD32_SYS_AUE_freebsd32_aio_write	AUE_AIO_WRITE
 #define	FREEBSD32_SYS_AUE_freebsd32_lio_listio	AUE_LIO_LISTIO
 #define	FREEBSD32_SYS_AUE_freebsd32_lutimes	AUE_LUTIMES
+#define	FREEBSD32_SYS_AUE_freebsd11_freebsd32_nstat	AUE_STAT
+#define	FREEBSD32_SYS_AUE_freebsd11_freebsd32_nfstat	AUE_FSTAT
+#define	FREEBSD32_SYS_AUE_freebsd11_freebsd32_nlstat	AUE_LSTAT
 #define	FREEBSD32_SYS_AUE_freebsd32_preadv	AUE_PREADV
 #define	FREEBSD32_SYS_AUE_freebsd32_pwritev	AUE_PWRITEV
 #define	FREEBSD32_SYS_AUE_freebsd32_preadv	AUE_PREADV
