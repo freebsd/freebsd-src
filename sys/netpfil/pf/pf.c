@@ -6873,6 +6873,7 @@ done:
 			if (ip_dn_io_ptr == NULL) {
 				m_freem(*m0);
 				*m0 = NULL;
+				action = PF_DROP;
 				REASON_SET(&reason, PFRES_MEMORY);
 			} else {
 				struct ip_fw_args dnflow;
@@ -6951,6 +6952,13 @@ pf_test6(int dir, int pflags, struct ifnet *ifp, struct mbuf **m0, struct inpcb 
 			}
 			pd.pf_mtag->flags |= PF_PACKET_LOOPED;
 			m_tag_delete(m, ipfwtag);
+			if (rr->info & IPFW_IS_DUMMYNET) {
+				/* Dummynet re-injects packets after they've
+				 * completed their delay. We've already
+				 * processed them, so pass unconditionally. */
+				PF_RULES_RUNLOCK();
+				return (PF_PASS);
+			}
 		}
 	} else if (pf_normalize_ip6(m0, dir, kif, &reason, &pd) != PF_PASS) {
 		action = PF_DROP;
@@ -7211,47 +7219,6 @@ done:
 	}
 #endif /* ALTQ */
 
-	if (s && (s->dnpipe || s->dnrpipe)) {
-		pd.act.dnpipe = s->dnpipe;
-		pd.act.dnrpipe = s->dnrpipe;
-		pd.act.flags = s->state_flags;
-	} else {
-		pd.act.dnpipe = r->dnpipe;
-		pd.act.dnrpipe = r->dnrpipe;
-		pd.act.flags = r->free_flags;
-	}
-	if ((pd.act.dnpipe || pd.act.dnrpipe) && !PACKET_LOOPED(&pd)) {
-		if (ip_dn_io_ptr == NULL) {
-			action = PF_DROP;
-			REASON_SET(&reason, PFRES_MEMORY);
-		} else {
-			struct ip_fw_args dnflow;
-
-			if (pd.pf_mtag == NULL &&
-			    ((pd.pf_mtag = pf_get_mtag(m)) == NULL)) {
-				action = PF_DROP;
-				REASON_SET(&reason, PFRES_MEMORY);
-				if (s)
-					PF_STATE_UNLOCK(s);
-				return (action);
-			}
-
-			if (pf_pdesc_to_dnflow(dir, &pd, r, s, &dnflow)) {
-				ip_dn_io_ptr(m0, &dnflow);
-
-				if (*m0 == NULL) {
-					if (s)
-						PF_STATE_UNLOCK(s);
-					return (action);
-				} else {
-					/* This is dummynet fast io processing */
-					m_tag_delete(*m0, m_tag_first(*m0));
-					pd.pf_mtag->flags &= ~PF_PACKET_LOOPED;
-				}
-			}
-		}
-	}
-
 	if (dir == PF_IN && action == PF_PASS && (pd.proto == IPPROTO_TCP ||
 	    pd.proto == IPPROTO_UDP) && s != NULL && s->nat_rule.ptr != NULL &&
 	    (s->nat_rule.ptr->action == PF_RDR ||
@@ -7347,6 +7314,44 @@ done:
 		if (r->rt) {
 			pf_route6(m0, r, dir, kif->pfik_ifp, s, &pd, inp);
 			return (action);
+		}
+		/* Dummynet processing. */
+		if (s && (s->dnpipe || s->dnrpipe)) {
+			pd.act.dnpipe = s->dnpipe;
+			pd.act.dnrpipe = s->dnrpipe;
+			pd.act.flags = s->state_flags;
+		} else {
+			pd.act.dnpipe = r->dnpipe;
+			pd.act.dnrpipe = r->dnrpipe;
+			pd.act.flags = r->free_flags;
+		}
+		if (pd.act.dnpipe || pd.act.dnrpipe) {
+			if (ip_dn_io_ptr == NULL) {
+				m_freem(*m0);
+				*m0 = NULL;
+				action = PF_DROP;
+				REASON_SET(&reason, PFRES_MEMORY);
+			} else {
+				struct ip_fw_args dnflow;
+
+				if (pd.pf_mtag == NULL &&
+				    ((pd.pf_mtag = pf_get_mtag(m)) == NULL)) {
+					m_freem(*m0);
+					*m0 = NULL;
+					action = PF_DROP;
+					REASON_SET(&reason, PFRES_MEMORY);
+					if (s)
+						PF_STATE_UNLOCK(s);
+					return (action);
+				}
+
+				if (pf_pdesc_to_dnflow(dir, &pd, r, s, &dnflow)) {
+					ip_dn_io_ptr(m0, &dnflow);
+
+					if (*m0 == NULL)
+						action = PF_DROP;
+				}
+			}
 		}
 		break;
 	}
