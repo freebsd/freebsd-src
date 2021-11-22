@@ -240,8 +240,6 @@
 #define	FREEBSD32_SYS_freebsd11_freebsd32_nlstat	280
 #define	FREEBSD32_SYS_freebsd32_preadv	289
 #define	FREEBSD32_SYS_freebsd32_pwritev	290
-#define	FREEBSD32_SYS_freebsd32_preadv	289
-#define	FREEBSD32_SYS_freebsd32_pwritev	290
 				/* 297 is freebsd4 freebsd32_fhstatfs */
 #define	FREEBSD32_SYS_fhopen	298
 #define	FREEBSD32_SYS_freebsd11_freebsd32_fhstat	299
@@ -402,17 +400,10 @@
 #define	FREEBSD32_SYS_freebsd32_lseek	478
 #define	FREEBSD32_SYS_freebsd32_truncate	479
 #define	FREEBSD32_SYS_freebsd32_ftruncate	480
-#define	FREEBSD32_SYS_freebsd32_pread	475
-#define	FREEBSD32_SYS_freebsd32_pwrite	476
-#define	FREEBSD32_SYS_freebsd32_mmap	477
-#define	FREEBSD32_SYS_freebsd32_lseek	478
-#define	FREEBSD32_SYS_freebsd32_truncate	479
-#define	FREEBSD32_SYS_freebsd32_ftruncate	480
 #define	FREEBSD32_SYS_thr_kill2	481
 #define	FREEBSD32_SYS_freebsd12_shm_open	482
 #define	FREEBSD32_SYS_shm_unlink	483
 #define	FREEBSD32_SYS_cpuset	484
-#define	FREEBSD32_SYS_freebsd32_cpuset_setid	485
 #define	FREEBSD32_SYS_freebsd32_cpuset_setid	485
 #define	FREEBSD32_SYS_freebsd32_cpuset_getid	486
 #define	FREEBSD32_SYS_freebsd32_cpuset_getaffinity	487
@@ -460,9 +451,6 @@
 #define	FREEBSD32_SYS_freebsd32_posix_fallocate	530
 #define	FREEBSD32_SYS_freebsd32_posix_fadvise	531
 #define	FREEBSD32_SYS_freebsd32_wait6	532
-#define	FREEBSD32_SYS_freebsd32_posix_fallocate	530
-#define	FREEBSD32_SYS_freebsd32_posix_fadvise	531
-#define	FREEBSD32_SYS_freebsd32_wait6	532
 #define	FREEBSD32_SYS_cap_rights_limit	533
 #define	FREEBSD32_SYS_freebsd32_cap_ioctls_limit	534
 #define	FREEBSD32_SYS_freebsd32_cap_ioctls_get	535
@@ -474,7 +462,6 @@
 #define	FREEBSD32_SYS_accept4	541
 #define	FREEBSD32_SYS_pipe2	542
 #define	FREEBSD32_SYS_freebsd32_aio_mlock	543
-#define	FREEBSD32_SYS_freebsd32_procctl	544
 #define	FREEBSD32_SYS_freebsd32_procctl	544
 #define	FREEBSD32_SYS_freebsd32_ppoll	545
 #define	FREEBSD32_SYS_freebsd32_futimens	546
@@ -490,7 +477,6 @@
 #define	FREEBSD32_SYS_fstatfs	556
 #define	FREEBSD32_SYS_freebsd32_getfsstat	557
 #define	FREEBSD32_SYS_fhstatfs	558
-#define	FREEBSD32_SYS_freebsd32_mknodat	559
 #define	FREEBSD32_SYS_freebsd32_mknodat	559
 #define	FREEBSD32_SYS_freebsd32_kevent	560
 #define	FREEBSD32_SYS_freebsd32_cpuset_getdomain	561
