@@ -3,6 +3,6 @@
 # $FreeBSD$
 
 GENERATED_PREFIX=	freebsd32_
-CAPABILITIES_CONF=	capabilities.conf
+SYSENT_FILE=		${SYSDIR}/kern/syscalls.master
 
 .include "../../conf/sysent.mk"
