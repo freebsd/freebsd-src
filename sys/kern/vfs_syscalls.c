@@ -44,6 +44,9 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#ifdef COMPAT_FREEBSD11
+#include <sys/abi_compat.h>
+#endif
 #include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/capsicum.h>
@@ -2475,27 +2478,34 @@ kern_statat(struct thread *td, int flag, int fd, const char *path,
 /*
  * Implementation of the NetBSD [l]stat() functions.
  */
-void
+int
 freebsd11_cvtnstat(struct stat *sb, struct nstat *nsb)
 {
+	struct freebsd11_stat sb11;
+	int error;
+
+	error = freebsd11_cvtstat(sb, &sb11);
+	if (error != 0)
+		return (error);
 
 	bzero(nsb, sizeof(*nsb));
-	nsb->st_dev = sb->st_dev;
-	nsb->st_ino = sb->st_ino;
-	nsb->st_mode = sb->st_mode;
-	nsb->st_nlink = sb->st_nlink;
-	nsb->st_uid = sb->st_uid;
-	nsb->st_gid = sb->st_gid;
-	nsb->st_rdev = sb->st_rdev;
-	nsb->st_atim = sb->st_atim;
-	nsb->st_mtim = sb->st_mtim;
-	nsb->st_ctim = sb->st_ctim;
-	nsb->st_size = sb->st_size;
-	nsb->st_blocks = sb->st_blocks;
-	nsb->st_blksize = sb->st_blksize;
-	nsb->st_flags = sb->st_flags;
-	nsb->st_gen = sb->st_gen;
-	nsb->st_birthtim = sb->st_birthtim;
+	CP(sb11, *nsb, st_dev);
+	CP(sb11, *nsb, st_ino);
+	CP(sb11, *nsb, st_mode);
+	CP(sb11, *nsb, st_nlink);
+	CP(sb11, *nsb, st_uid);
+	CP(sb11, *nsb, st_gid);
+	CP(sb11, *nsb, st_rdev);
+	CP(sb11, *nsb, st_atim);
+	CP(sb11, *nsb, st_mtim);
+	CP(sb11, *nsb, st_ctim);
+	CP(sb11, *nsb, st_size);
+	CP(sb11, *nsb, st_blocks);
+	CP(sb11, *nsb, st_blksize);
+	CP(sb11, *nsb, st_flags);
+	CP(sb11, *nsb, st_gen);
+	CP(sb11, *nsb, st_birthtim);
+	return (0);
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -2515,8 +2525,10 @@ freebsd11_nstat(struct thread *td, struct freebsd11_nstat_args *uap)
 	    &sb, NULL);
 	if (error != 0)
 		return (error);
-	freebsd11_cvtnstat(&sb, &nsb);
-	return (copyout(&nsb, uap->ub, sizeof (nsb)));
+	error = freebsd11_cvtnstat(&sb, &nsb);
+	if (error == 0)
+		error = copyout(&nsb, uap->ub, sizeof (nsb));
+	return (error);
 }
 
 /*
@@ -2539,8 +2551,10 @@ freebsd11_nlstat(struct thread *td, struct freebsd11_nlstat_args *uap)
 	    UIO_USERSPACE, &sb, NULL);
 	if (error != 0)
 		return (error);
-	freebsd11_cvtnstat(&sb, &nsb);
-	return (copyout(&nsb, uap->ub, sizeof (nsb)));
+	error = freebsd11_cvtnstat(&sb, &nsb);
+	if (error == 0)
+		error = copyout(&nsb, uap->ub, sizeof (nsb));
+	return (error);
 }
 #endif /* COMPAT_FREEBSD11 */
 
