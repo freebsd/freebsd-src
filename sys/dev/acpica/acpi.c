@@ -1849,9 +1849,10 @@ acpi_bus_get_prop(device_t bus, device_t child, const char *propname,
 			memcpy(propvalue, obj->Buffer.Pointer,
 			    MIN(size, obj->Buffer.Length));
 		return (obj->Buffer.Length);
-	}
 
-	return (-1);
+	default:
+		return (0);
+	}
 }
 
 int
