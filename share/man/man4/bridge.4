@@ -180,7 +180,7 @@ This situation is clearly against the description
 in Section 5,
 RFC 4007.
 Although it works in most cases,
-it can cause some counterintuitive or undesirable behaviour in some
+it can cause some counterintuitive or undesirable behavior in some
 edge cases when both, the
 .Nm
 interface and one of the member interfaces, have an IPv6 address
@@ -198,7 +198,7 @@ interface has IPv6 addresses,
 IPv6 addresses on the member interface will be automatically removed
 before the interface is added.
 .Pp
-This behaviour can be disabled by setting
+This behavior can be disabled by setting
 .Xr sysctl 8
 variable
 .Va net.link.bridge.allow_llz_overlap
@@ -250,7 +250,7 @@ When filtering is enabled, bridged packets will pass through the filter
 inbound on the originating interface, on the bridge interface and outbound on
 the appropriate interfaces.
 Either stage can be disabled.
-The filtering behaviour can be controlled using
+The filtering behavior can be controlled using
 .Xr sysctl 8 :
 .Bl -tag -width ".Va net.link.bridge.pfil_onlyip"
 .It Va net.link.bridge.pfil_onlyip
