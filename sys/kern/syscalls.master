@@ -235,21 +235,21 @@
 		);
 	}
 27	AUE_RECVMSG	STD|CAPENABLED {
-		int recvmsg(
+		ssize_t recvmsg(
 		    int s,
 		    _Inout_ struct msghdr *msg,
 		    int flags
 		);
 	}
 28	AUE_SENDMSG	STD|CAPENABLED {
-		int sendmsg(
+		ssize_t sendmsg(
 		    int s,
 		    _In_ const struct msghdr *msg,
 		    int flags
 		);
 	}
 29	AUE_RECVFROM	STD|CAPENABLED {
-		int recvfrom(
+		ssize_t recvfrom(
 		    int s,
 		    _Out_writes_bytes_(len) void *buf,
 		    size_t len,
@@ -841,7 +841,7 @@
 		);
 	}
 133	AUE_SENDTO	STD|CAPENABLED {
-		int sendto(
+		ssize_t sendto(
 		    int s,
 		    _In_reads_bytes_(len) const void *buf,
 		    size_t len,
