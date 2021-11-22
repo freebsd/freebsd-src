@@ -10,6 +10,9 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+0a6760a1de32, 3f3676a71266, 580c04df4db6:
+	Add WiFi 6 support.
+
 various:
 	Add support for the HiFive Unmatched RISC-V board.
 
