@@ -1192,25 +1192,29 @@ process_syscall_def = function(line)
 	end
 
 	local argprefix = ''
+	local funcprefix = ''
 	if abi_changes("pointer_args") then
 		for _, v in ipairs(funcargs) do
 			if isptrtype(v["type"]) then
 				-- argalias should be:
 				--   COMPAT_PREFIX + ABI Prefix + funcname
 				argprefix = config['abi_func_prefix']
-				funcalias = config['abi_func_prefix'] ..
-				    funcname
+				funcprefix = config['abi_func_prefix']
+				funcalias = funcprefix .. funcname
 				goto ptrfound
 			end
 		end
 		::ptrfound::
+	end
+	if funcname ~= nil then
+		funcname = funcprefix .. funcname
 	end
 	if funcalias == nil or funcalias == "" then
 		funcalias = funcname
 	end
 
 	if argalias == nil and funcname ~= nil then
-		argalias = argprefix .. funcname .. "_args"
+		argalias = funcname .. "_args"
 		for _, v in pairs(compat_options) do
 			local mask = v["mask"]
 			if (flags & mask) ~= 0 then
