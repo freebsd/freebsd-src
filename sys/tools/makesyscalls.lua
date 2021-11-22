@@ -68,6 +68,10 @@ local config = {
 	abi_semid_t = "semid_t",
 	abi_ptr_array_t = "",
 	ptr_intptr_t_cast = "intptr_t",
+	obsol = "",
+	obsol_dict = {},
+	unimpl = "",
+	unimpl_dict = {},
 }
 
 local config_modified = {}
@@ -371,6 +375,20 @@ local function process_abi_flags()
 	end
 
 	config["abi_flags_mask"] = mask
+end
+
+local function process_obsol()
+	local obsol = config["obsol"]
+	for syscall in obsol:gmatch("([^ ]+)") do
+		config["obsol_dict"][syscall] = true
+	end
+end
+
+local function process_unimpl()
+	local unimpl = config["unimpl"]
+	for syscall in unimpl:gmatch("([^ ]+)") do
+		config["unimpl_dict"][syscall] = true
+	end
 end
 
 local function abi_changes(name)
@@ -1134,6 +1152,24 @@ process_syscall_def = function(line)
 
 	funcname = trim(funcname)
 
+	if config["obsol_dict"][funcname] then
+		local compat_prefix = ""
+		for _, v in pairs(compat_options) do
+			if flags & v["mask"] ~= 0 then
+				compat_prefix = v["prefix"]
+				goto obsol_compat_done
+			end
+		end
+		::obsol_compat_done::
+		args = nil
+		flags = known_flags['OBSOL']
+		funcomment = compat_prefix .. funcname
+	end
+	if config["unimpl_dict"][funcname] then
+		flags = known_flags['UNIMPL']
+		funcomment = funcname
+	end
+
 	sysflags = "0"
 
 	-- NODEF events do not get audited
@@ -1192,8 +1228,13 @@ process_syscall_def = function(line)
 	local ncompatflags = get_mask({"STD", "NODEF", "NOARGS", "NOPROTO",
 	    "NOSTD"})
 	local compatflags = get_mask_pat("COMPAT.*")
-	-- Now try compat...
-	if flags & compatflags ~= 0 then
+	if flags & known_flags["OBSOL"] ~= 0 then
+		handle_obsol(sysnum, funcname, funcomment)
+	elseif flags & known_flags["RESERVED"] ~= 0 then
+		handle_reserved(sysnum, sysstart, sysend)
+	elseif flags & known_flags["UNIMPL"] ~= 0 then
+		handle_unimpl(sysnum, sysstart, sysend, funcomment)
+	elseif flags & compatflags ~= 0 then
 		if flags & known_flags['STD'] ~= 0 then
 			abort(1, "Incompatible COMPAT/STD: " .. line)
 		end
@@ -1203,12 +1244,6 @@ process_syscall_def = function(line)
 		handle_noncompat(sysnum, thr_flag, flags, sysflags, rettype,
 		    auditev, syscallret, funcname, funcalias, funcargs,
 		    argalias)
-	elseif flags & known_flags["OBSOL"] ~= 0 then
-		handle_obsol(sysnum, funcname, funcomment)
-	elseif flags & known_flags["RESERVED"] ~= 0 then
-		handle_reserved(sysnum, sysstart, sysend)
-	elseif flags & known_flags["UNIMPL"] ~= 0 then
-		handle_unimpl(sysnum, sysstart, sysend, funcomment)
 	else
 		abort(1, "Bad flags? " .. line)
 	end
@@ -1257,6 +1292,8 @@ elseif config["capenabled"] ~= "" then
 end
 process_compat()
 process_abi_flags()
+process_obsol()
+process_unimpl()
 
 if not lfs.mkdir(tmpspace) then
 	error("Failed to create tempdir " .. tmpspace)
