@@ -6450,13 +6450,25 @@ pf_test(int dir, int pflags, struct ifnet *ifp, struct mbuf **m0, struct inpcb *
 
 	pd.pf_mtag = pf_find_mtag(m);
 
+	if (ip_dn_io_ptr != NULL && pd.pf_mtag != NULL &&
+	    pd.pf_mtag->flags & PF_TAG_DUMMYNET) {
+		/* Dummynet re-injects packets after they've
+		 * completed their delay. We've already
+		 * processed them, so pass unconditionally. */
+
+		/* But only once. We may see the packet multiple times (e.g.
+		 * PFIL_IN/PFIL_OUT). */
+		pd.pf_mtag->flags &= ~PF_TAG_DUMMYNET;
+
+		return (PF_PASS);
+	}
+
 	PF_RULES_RLOCK();
 
-	if ((__predict_false(ip_divert_ptr != NULL) || ip_dn_io_ptr != NULL) &&
+	if (__predict_false(ip_divert_ptr != NULL) &&
 	    ((ipfwtag = m_tag_locate(m, MTAG_IPFW_RULE, 0, NULL)) != NULL)) {
 		struct ipfw_rule_ref *rr = (struct ipfw_rule_ref *)(ipfwtag+1);
-		if ((rr->info & IPFW_IS_DIVERT && rr->rulenum == 0) ||
-		    (rr->info & IPFW_IS_DUMMYNET)) {
+		if (rr->info & IPFW_IS_DIVERT && rr->rulenum == 0) {
 			if (pd.pf_mtag == NULL &&
 			    ((pd.pf_mtag = pf_get_mtag(m)) == NULL)) {
 				action = PF_DROP;
@@ -6464,13 +6476,6 @@ pf_test(int dir, int pflags, struct ifnet *ifp, struct mbuf **m0, struct inpcb *
 			}
 			pd.pf_mtag->flags |= PF_PACKET_LOOPED;
 			m_tag_delete(m, ipfwtag);
-			if (rr->info & IPFW_IS_DUMMYNET) {
-				/* Dummynet re-injects packets after they've
-				 * completed their delay. We've already
-				 * processed them, so pass unconditionally. */
-				PF_RULES_RUNLOCK();
-				return (PF_PASS);
-			}
 		}
 		if (pd.pf_mtag && pd.pf_mtag->flags & PF_FASTFWD_OURS_PRESENT) {
 			m->m_flags |= M_FASTFWD_OURS;
@@ -6870,19 +6875,29 @@ done:
 			pd.act.flags = r->free_flags;
 		}
 		if (pd.act.dnpipe || pd.act.dnrpipe) {
+			struct ip_fw_args dnflow;
 			if (ip_dn_io_ptr == NULL) {
 				m_freem(*m0);
 				*m0 = NULL;
 				action = PF_DROP;
 				REASON_SET(&reason, PFRES_MEMORY);
-			} else {
-				struct ip_fw_args dnflow;
+				break;
+			}
 
-				if (pf_pdesc_to_dnflow(dir, &pd, r, s, &dnflow)) {
-					ip_dn_io_ptr(m0, &dnflow);
-					if (*m0 == NULL)
-						action = PF_DROP;
-				}
+			if (pd.pf_mtag == NULL &&
+			    ((pd.pf_mtag = pf_get_mtag(m)) == NULL)) {
+				m_freem(*m0);
+				*m0 = NULL;
+				action = PF_DROP;
+				REASON_SET(&reason, PFRES_MEMORY);
+				break;
+			}
+
+			if (pf_pdesc_to_dnflow(dir, &pd, r, s, &dnflow)) {
+				pd.pf_mtag->flags |= PF_TAG_DUMMYNET;
+				ip_dn_io_ptr(m0, &dnflow);
+				if (*m0 == NULL)
+					action = PF_DROP;
 			}
 		}
 		break;
@@ -6905,7 +6920,6 @@ pf_test6(int dir, int pflags, struct ifnet *ifp, struct mbuf **m0, struct inpcb 
 	u_short			 action, reason = 0, log = 0;
 	struct mbuf		*m = *m0, *n = NULL;
 	struct m_tag		*mtag;
-	struct m_tag		*ipfwtag;
 	struct ip6_hdr		*h = NULL;
 	struct pf_krule		*a = NULL, *r = &V_pf_default_rule, *tr, *nr;
 	struct pf_kstate	*s = NULL;
@@ -6938,29 +6952,19 @@ pf_test6(int dir, int pflags, struct ifnet *ifp, struct mbuf **m0, struct inpcb 
 	if (m->m_flags & M_SKIP_FIREWALL)
 		return (PF_PASS);
 
+	if (ip_dn_io_ptr != NULL && pd.pf_mtag != NULL &&
+	    pd.pf_mtag->flags & PF_TAG_DUMMYNET) {
+		pd.pf_mtag->flags &= ~PF_TAG_DUMMYNET;
+		/* Dummynet re-injects packets after they've
+		 * completed their delay. We've already
+		 * processed them, so pass unconditionally. */
+		return (PF_PASS);
+	}
+
 	PF_RULES_RLOCK();
 
 	/* We do IP header normalization and packet reassembly here */
-	if (ip_dn_io_ptr != NULL &&
-	    ((ipfwtag = m_tag_locate(m, MTAG_IPFW_RULE, 0, NULL)) != NULL)) {
-		struct ipfw_rule_ref *rr = (struct ipfw_rule_ref *)(ipfwtag+1);
-		if (rr->info & IPFW_IS_DUMMYNET) {
-			if (pd.pf_mtag == NULL &&
-			    ((pd.pf_mtag = pf_get_mtag(m)) == NULL)) {
-				action = PF_DROP;
-				goto done;
-			}
-			pd.pf_mtag->flags |= PF_PACKET_LOOPED;
-			m_tag_delete(m, ipfwtag);
-			if (rr->info & IPFW_IS_DUMMYNET) {
-				/* Dummynet re-injects packets after they've
-				 * completed their delay. We've already
-				 * processed them, so pass unconditionally. */
-				PF_RULES_RUNLOCK();
-				return (PF_PASS);
-			}
-		}
-	} else if (pf_normalize_ip6(m0, dir, kif, &reason, &pd) != PF_PASS) {
+	if (pf_normalize_ip6(m0, dir, kif, &reason, &pd) != PF_PASS) {
 		action = PF_DROP;
 		goto done;
 	}
@@ -7326,31 +7330,30 @@ done:
 			pd.act.flags = r->free_flags;
 		}
 		if (pd.act.dnpipe || pd.act.dnrpipe) {
+			struct ip_fw_args dnflow;
+
 			if (ip_dn_io_ptr == NULL) {
 				m_freem(*m0);
 				*m0 = NULL;
 				action = PF_DROP;
 				REASON_SET(&reason, PFRES_MEMORY);
-			} else {
-				struct ip_fw_args dnflow;
+				break;
+			}
 
-				if (pd.pf_mtag == NULL &&
-				    ((pd.pf_mtag = pf_get_mtag(m)) == NULL)) {
-					m_freem(*m0);
-					*m0 = NULL;
+			if (pd.pf_mtag == NULL &&
+					((pd.pf_mtag = pf_get_mtag(m)) == NULL)) {
+				m_freem(*m0);
+				*m0 = NULL;
+				action = PF_DROP;
+				REASON_SET(&reason, PFRES_MEMORY);
+				break;
+			}
+
+			if (pf_pdesc_to_dnflow(dir, &pd, r, s, &dnflow)) {
+				pd.pf_mtag->flags |= PF_TAG_DUMMYNET;
+				ip_dn_io_ptr(m0, &dnflow);
+				if (*m0 == NULL)
 					action = PF_DROP;
-					REASON_SET(&reason, PFRES_MEMORY);
-					if (s)
-						PF_STATE_UNLOCK(s);
-					return (action);
-				}
-
-				if (pf_pdesc_to_dnflow(dir, &pd, r, s, &dnflow)) {
-					ip_dn_io_ptr(m0, &dnflow);
-
-					if (*m0 == NULL)
-						action = PF_DROP;
-				}
 			}
 		}
 		break;
