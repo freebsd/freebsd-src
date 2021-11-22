@@ -162,6 +162,7 @@ dev/if_ndis/if_ndis_pci.c	optional	ndis cardbus | ndis pci
 dev/if_ndis/if_ndis_usb.c	optional	ndis usb
 dev/imcsmb/imcsmb.c		optional	imcsmb
 dev/imcsmb/imcsmb_pci.c		optional	imcsmb pci
+dev/intel/pchtherm.c		optional	pchtherm
 dev/intel/spi.c			optional	intelspi
 dev/io/iodev.c			optional	io
 dev/iommu/busdma_iommu.c	optional	acpi iommu pci
