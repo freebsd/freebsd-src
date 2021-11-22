@@ -1317,10 +1317,10 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 167: {
 		struct linux_prctl_args *p = params;
 		iarg[0] = p->option; /* l_int */
-		iarg[1] = p->arg2; /* l_uintptr_t */
-		iarg[2] = p->arg3; /* l_uintptr_t */
-		iarg[3] = p->arg4; /* l_uintptr_t */
-		iarg[4] = p->arg5; /* l_uintptr_t */
+		uarg[1] = (intptr_t)p->arg2; /* l_uintptr_t */
+		uarg[2] = (intptr_t)p->arg3; /* l_uintptr_t */
+		uarg[3] = (intptr_t)p->arg4; /* l_uintptr_t */
+		uarg[4] = (intptr_t)p->arg5; /* l_uintptr_t */
 		*n_args = 5;
 		break;
 	}
@@ -1572,7 +1572,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		iarg[0] = p->domain; /* l_int */
 		iarg[1] = p->type; /* l_int */
 		iarg[2] = p->protocol; /* l_int */
-		iarg[3] = p->rsv; /* l_uintptr_t */
+		uarg[3] = (intptr_t)p->rsv; /* l_uintptr_t */
 		*n_args = 4;
 		break;
 	}
@@ -1580,7 +1580,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 200: {
 		struct linux_bind_args *p = params;
 		iarg[0] = p->s; /* l_int */
-		iarg[1] = p->name; /* l_uintptr_t */
+		uarg[1] = (intptr_t)p->name; /* l_uintptr_t */
 		iarg[2] = p->namelen; /* l_int */
 		*n_args = 3;
 		break;
@@ -1597,8 +1597,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 202: {
 		struct linux_accept_args *p = params;
 		iarg[0] = p->s; /* l_int */
-		iarg[1] = p->addr; /* l_uintptr_t */
-		iarg[2] = p->namelen; /* l_uintptr_t */
+		uarg[1] = (intptr_t)p->addr; /* l_uintptr_t */
+		uarg[2] = (intptr_t)p->namelen; /* l_uintptr_t */
 		*n_args = 3;
 		break;
 	}
@@ -1606,7 +1606,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 203: {
 		struct linux_connect_args *p = params;
 		iarg[0] = p->s; /* l_int */
-		iarg[1] = p->name; /* l_uintptr_t */
+		uarg[1] = (intptr_t)p->name; /* l_uintptr_t */
 		iarg[2] = p->namelen; /* l_int */
 		*n_args = 3;
 		break;
@@ -1615,8 +1615,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 204: {
 		struct linux_getsockname_args *p = params;
 		iarg[0] = p->s; /* l_int */
-		iarg[1] = p->addr; /* l_uintptr_t */
-		iarg[2] = p->namelen; /* l_uintptr_t */
+		uarg[1] = (intptr_t)p->addr; /* l_uintptr_t */
+		uarg[2] = (intptr_t)p->namelen; /* l_uintptr_t */
 		*n_args = 3;
 		break;
 	}
@@ -1624,8 +1624,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 205: {
 		struct linux_getpeername_args *p = params;
 		iarg[0] = p->s; /* l_int */
-		iarg[1] = p->addr; /* l_uintptr_t */
-		iarg[2] = p->namelen; /* l_uintptr_t */
+		uarg[1] = (intptr_t)p->addr; /* l_uintptr_t */
+		uarg[2] = (intptr_t)p->namelen; /* l_uintptr_t */
 		*n_args = 3;
 		break;
 	}
@@ -1633,10 +1633,10 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 206: {
 		struct linux_sendto_args *p = params;
 		iarg[0] = p->s; /* l_int */
-		iarg[1] = p->msg; /* l_uintptr_t */
+		uarg[1] = (intptr_t)p->msg; /* l_uintptr_t */
 		iarg[2] = p->len; /* l_size_t */
 		iarg[3] = p->flags; /* l_uint */
-		iarg[4] = p->to; /* l_uintptr_t */
+		uarg[4] = (intptr_t)p->to; /* l_uintptr_t */
 		iarg[5] = p->tolen; /* l_int */
 		*n_args = 6;
 		break;
@@ -1645,11 +1645,11 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 207: {
 		struct linux_recvfrom_args *p = params;
 		iarg[0] = p->s; /* l_int */
-		iarg[1] = p->buf; /* l_uintptr_t */
+		uarg[1] = (intptr_t)p->buf; /* l_uintptr_t */
 		iarg[2] = p->len; /* l_size_t */
 		iarg[3] = p->flags; /* l_uint */
-		iarg[4] = p->from; /* l_uintptr_t */
-		iarg[5] = p->fromlen; /* l_uintptr_t */
+		uarg[4] = (intptr_t)p->from; /* l_uintptr_t */
+		uarg[5] = (intptr_t)p->fromlen; /* l_uintptr_t */
 		*n_args = 6;
 		break;
 	}
@@ -1659,7 +1659,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		iarg[0] = p->s; /* l_int */
 		iarg[1] = p->level; /* l_int */
 		iarg[2] = p->optname; /* l_int */
-		iarg[3] = p->optval; /* l_uintptr_t */
+		uarg[3] = (intptr_t)p->optval; /* l_uintptr_t */
 		iarg[4] = p->optlen; /* l_int */
 		*n_args = 5;
 		break;
@@ -1670,8 +1670,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		iarg[0] = p->s; /* l_int */
 		iarg[1] = p->level; /* l_int */
 		iarg[2] = p->optname; /* l_int */
-		iarg[3] = p->optval; /* l_uintptr_t */
-		iarg[4] = p->optlen; /* l_uintptr_t */
+		uarg[3] = (intptr_t)p->optval; /* l_uintptr_t */
+		uarg[4] = (intptr_t)p->optlen; /* l_uintptr_t */
 		*n_args = 5;
 		break;
 	}
@@ -1687,7 +1687,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 211: {
 		struct linux_sendmsg_args *p = params;
 		iarg[0] = p->s; /* l_int */
-		iarg[1] = p->msg; /* l_uintptr_t */
+		uarg[1] = (intptr_t)p->msg; /* l_uintptr_t */
 		iarg[2] = p->flags; /* l_uint */
 		*n_args = 3;
 		break;
@@ -1696,7 +1696,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 212: {
 		struct linux_recvmsg_args *p = params;
 		iarg[0] = p->s; /* l_int */
-		iarg[1] = p->msg; /* l_uintptr_t */
+		uarg[1] = (intptr_t)p->msg; /* l_uintptr_t */
 		iarg[2] = p->flags; /* l_uint */
 		*n_args = 3;
 		break;
@@ -1909,8 +1909,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 242: {
 		struct linux_accept4_args *p = params;
 		iarg[0] = p->s; /* l_int */
-		iarg[1] = p->addr; /* l_uintptr_t */
-		iarg[2] = p->namelen; /* l_uintptr_t */
+		uarg[1] = (intptr_t)p->addr; /* l_uintptr_t */
+		uarg[2] = (intptr_t)p->namelen; /* l_uintptr_t */
 		iarg[3] = p->flags; /* l_int */
 		*n_args = 4;
 		break;
