@@ -241,9 +241,9 @@
 108	AUE_NULL	COMPAT	{ int freebsd32_sigvec(int signum, \
 				     struct sigvec32 *nsv, \
 				     struct sigvec32 *osv); }
-109	AUE_O_SIGBLOCK	COMPAT|NOPROTO	{ int sigblock(int mask); }
-110	AUE_O_SIGSETMASK	COMPAT|NOPROTO	{ int sigsetmask(int mask); }
-111	AUE_SIGSUSPEND	COMPAT|NOPROTO	{ int sigsuspend( int mask); }
+109	AUE_NULL	COMPAT|NOPROTO	{ int sigblock(int mask); }
+110	AUE_NULL	COMPAT|NOPROTO	{ int sigsetmask(int mask); }
+111	AUE_NULL	COMPAT|NOPROTO	{ int sigsuspend( int mask); }
 112	AUE_NULL	COMPAT	{ int freebsd32_sigstack( \
 				     struct sigstack32 *nss, \
 				     struct sigstack32 *oss); }
