@@ -90,7 +90,7 @@ struct freebsd32_getitimer_args {
 struct freebsd32_fcntl_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
 	char cmd_l_[PADL_(int)]; int cmd; char cmd_r_[PADR_(int)];
-	char arg_l_[PADL_(int)]; int arg; char arg_r_[PADR_(int)];
+	char arg_l_[PADL_(int32_t)]; int32_t arg; char arg_r_[PADR_(int32_t)];
 };
 struct freebsd32_select_args {
 	char nd_l_[PADL_(int)]; int nd; char nd_r_[PADR_(int)];
@@ -149,10 +149,10 @@ struct freebsd32_msgsys_args {
 	char a6_l_[PADL_(int)]; int a6; char a6_r_[PADR_(int)];
 };
 struct freebsd32_shmsys_args {
-	char which_l_[PADL_(uint32_t)]; uint32_t which; char which_r_[PADR_(uint32_t)];
-	char a2_l_[PADL_(uint32_t)]; uint32_t a2; char a2_r_[PADR_(uint32_t)];
-	char a3_l_[PADL_(uint32_t)]; uint32_t a3; char a3_r_[PADR_(uint32_t)];
-	char a4_l_[PADL_(uint32_t)]; uint32_t a4; char a4_r_[PADR_(uint32_t)];
+	char which_l_[PADL_(int)]; int which; char which_r_[PADR_(int)];
+	char a2_l_[PADL_(int)]; int a2; char a2_r_[PADR_(int)];
+	char a3_l_[PADL_(int)]; int a3; char a3_r_[PADR_(int)];
+	char a4_l_[PADL_(int)]; int a4; char a4_r_[PADR_(int)];
 };
 struct freebsd32_ntp_adjtime_args {
 	char tp_l_[PADL_(struct timex32 *)]; struct timex32 * tp; char tp_r_[PADR_(struct timex32 *)];
@@ -1250,10 +1250,10 @@ int	freebsd7_freebsd32_shmctl(struct thread *, struct freebsd7_freebsd32_shmctl_
 #ifdef PAD64_REQUIRED
 #else
 #endif
-struct freebsd10_freebsd32_umtx_lock_args {
+struct freebsd10_freebsd32__umtx_lock_args {
 	char umtx_l_[PADL_(struct umtx *)]; struct umtx * umtx; char umtx_r_[PADR_(struct umtx *)];
 };
-struct freebsd10_freebsd32_umtx_unlock_args {
+struct freebsd10_freebsd32__umtx_unlock_args {
 	char umtx_l_[PADL_(struct umtx *)]; struct umtx * umtx; char umtx_r_[PADR_(struct umtx *)];
 };
 #ifdef PAD64_REQUIRED
@@ -1271,8 +1271,8 @@ struct freebsd10_freebsd32_umtx_unlock_args {
 #ifdef PAD64_REQUIRED
 #else
 #endif
-int	freebsd10_freebsd32_umtx_lock(struct thread *, struct freebsd10_freebsd32_umtx_lock_args *);
-int	freebsd10_freebsd32_umtx_unlock(struct thread *, struct freebsd10_freebsd32_umtx_unlock_args *);
+int	freebsd10_freebsd32__umtx_lock(struct thread *, struct freebsd10_freebsd32__umtx_lock_args *);
+int	freebsd10_freebsd32__umtx_unlock(struct thread *, struct freebsd10_freebsd32__umtx_unlock_args *);
 
 #endif /* COMPAT_FREEBSD10 */
 
@@ -1486,8 +1486,8 @@ int	freebsd11_freebsd32_fstatat(struct thread *, struct freebsd11_freebsd32_fsta
 #define	FREEBSD32_SYS_AUE_freebsd32_getcontext	AUE_NULL
 #define	FREEBSD32_SYS_AUE_freebsd32_setcontext	AUE_NULL
 #define	FREEBSD32_SYS_AUE_freebsd32_swapcontext	AUE_NULL
-#define	FREEBSD32_SYS_AUE_freebsd10_freebsd32_umtx_lock	AUE_NULL
-#define	FREEBSD32_SYS_AUE_freebsd10_freebsd32_umtx_unlock	AUE_NULL
+#define	FREEBSD32_SYS_AUE_freebsd10_freebsd32__umtx_lock	AUE_NULL
+#define	FREEBSD32_SYS_AUE_freebsd10_freebsd32__umtx_unlock	AUE_NULL
 #define	FREEBSD32_SYS_AUE_freebsd32_ksem_timedwait	AUE_SEMWAIT
 #define	FREEBSD32_SYS_AUE_freebsd32_thr_suspend	AUE_NULL
 #define	FREEBSD32_SYS_AUE_freebsd32__umtx_op	AUE_NULL
