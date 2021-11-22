@@ -811,9 +811,9 @@
 431	AUE_THR_EXIT	NOPROTO	{ void thr_exit(int32_t *state); }
 432	AUE_NULL	NOPROTO	{ int thr_self(int32_t *id); }
 433	AUE_THR_KILL	NOPROTO	{ int thr_kill(int32_t id, int sig); }
-434	AUE_NULL	COMPAT10 { int freebsd32_umtx_lock( \
+434	AUE_NULL	COMPAT10 { int freebsd32__umtx_lock( \
 				    struct umtx *umtx); }
-435	AUE_NULL	COMPAT10 { int freebsd32_umtx_unlock( \
+435	AUE_NULL	COMPAT10 { int freebsd32__umtx_unlock( \
 				    struct umtx *umtx); }
 436	AUE_JAIL_ATTACH	NOPROTO	{ int jail_attach(int jid); }
 437	AUE_EXTATTR_LIST_FD	NOPROTO	{ ssize_t extattr_list_fd(int fd, \
