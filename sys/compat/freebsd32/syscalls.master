@@ -343,8 +343,8 @@
 				    int a3, int a4, int a5); }
 170	AUE_MSGSYS	NOSTD	{ int freebsd32_msgsys(int which, int a2, \
 				    int a3, int a4, int a5, int a6); }
-171	AUE_SHMSYS	NOSTD	{ int freebsd32_shmsys(uint32_t which, uint32_t a2, \
-				    uint32_t a3, uint32_t a4); }
+171	AUE_SHMSYS	NOSTD	{ int freebsd32_shmsys(int which, int a2, \
+				    int a3, int a4); }
 172	AUE_NULL	RESERVED
 173	AUE_PREAD	COMPAT6	{ ssize_t freebsd32_pread(int fd, void *buf, \
 				    size_t nbyte, int pad, \
