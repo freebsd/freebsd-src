@@ -336,8 +336,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	/* sigaltstack */
 	case 53: {
 		struct sigaltstack_args *p = params;
-		uarg[0] = (intptr_t)p->ss; /* const stack_t * */
-		uarg[1] = (intptr_t)p->oss; /* stack_t * */
+		uarg[0] = (intptr_t)p->ss; /* const struct sigaltstack * */
+		uarg[1] = (intptr_t)p->oss; /* struct sigaltstack * */
 		*n_args = 2;
 		break;
 	}
@@ -3924,10 +3924,10 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 53:
 		switch (ndx) {
 		case 0:
-			p = "userland const stack_t *";
+			p = "userland const struct sigaltstack *";
 			break;
 		case 1:
-			p = "userland stack_t *";
+			p = "userland struct sigaltstack *";
 			break;
 		default:
 			break;
