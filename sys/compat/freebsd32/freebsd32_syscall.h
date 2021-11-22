@@ -235,9 +235,9 @@
 				/* 275 is obsolete netbsd_lchown */
 #define	FREEBSD32_SYS_freebsd32_lutimes	276
 				/* 277 is obsolete netbsd_msync */
-#define	FREEBSD32_SYS_freebsd11_nstat	278
-#define	FREEBSD32_SYS_freebsd11_nfstat	279
-#define	FREEBSD32_SYS_freebsd11_nlstat	280
+#define	FREEBSD32_SYS_freebsd11_freebsd32_nstat	278
+#define	FREEBSD32_SYS_freebsd11_freebsd32_nfstat	279
+#define	FREEBSD32_SYS_freebsd11_freebsd32_nlstat	280
 #define	FREEBSD32_SYS_freebsd32_preadv	289
 #define	FREEBSD32_SYS_freebsd32_pwritev	290
 #define	FREEBSD32_SYS_freebsd32_preadv	289
