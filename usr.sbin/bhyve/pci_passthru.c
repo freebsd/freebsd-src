@@ -594,8 +594,8 @@ cfginit(struct vmctx *ctx, struct pci_devinst *pi, int bus, int slot, int func)
 		goto done;
 	}
 
-	pci_set_cfgdata16(pi, PCIR_COMMAND, read_config(&sc->psc_sel,
-	    PCIR_COMMAND, 2));
+	write_config(&sc->psc_sel, PCIR_COMMAND, 2,
+	    pci_get_cfgdata16(pi, PCIR_COMMAND));
 
 	/*
 	 * We need to do this after PCIR_COMMAND got possibly updated, e.g.,
