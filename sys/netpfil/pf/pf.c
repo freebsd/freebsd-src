@@ -4946,7 +4946,6 @@ pf_test_state_tcp(struct pf_kstate **state, int direction, struct pfi_kkif *kif,
 	int			 copyback = 0;
 	int			 action;
 	struct pf_state_peer	*src, *dst;
-	struct pf_state_key	*sk;
 
 	bzero(&key, sizeof(key));
 	key.af = pd->af;
@@ -4972,8 +4971,6 @@ pf_test_state_tcp(struct pf_kstate **state, int direction, struct pfi_kkif *kif,
 		src = &(*state)->dst;
 		dst = &(*state)->src;
 	}
-
-	sk = (*state)->key[pd->didx];
 
 	if ((action = pf_synproxy(pd, state, reason)) != PF_PASS)
 		return (action);
