@@ -60,6 +60,7 @@ local config = {
 	abi_type_suffix = "",
 	abi_flags = "",
 	abi_flags_mask = 0,
+	abi_headers = "",
 	ptr_intptr_t_cast = "intptr_t",
 }
 
@@ -436,6 +437,16 @@ local pattern_table = {
 			write_line_pfile('syscompat[0-9]*$', line)
 			write_line('sysnames', line)
 			write_line_pfile('systrace.*', line)
+		end,
+	},
+	{
+		dump_prevline = true,
+		pattern = "%%ABI_HEADERS%%",
+		process = function()
+			if config['abi_headers'] ~= "" then
+				line = config['abi_headers'] .. "\n"
+				write_line('sysinc', line)
+			end
 		end,
 	},
 	{
