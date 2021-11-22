@@ -9238,17 +9238,17 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	/* recvmsg */
 	case 27:
 		if (ndx == 0 || ndx == 1)
-			p = "int";
+			p = "ssize_t";
 		break;
 	/* sendmsg */
 	case 28:
 		if (ndx == 0 || ndx == 1)
-			p = "int";
+			p = "ssize_t";
 		break;
 	/* recvfrom */
 	case 29:
 		if (ndx == 0 || ndx == 1)
-			p = "int";
+			p = "ssize_t";
 		break;
 	/* accept */
 	case 30:
@@ -9361,7 +9361,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	/* umask */
 	case 60:
 		if (ndx == 0 || ndx == 1)
-			p = "int";
+			p = "mode_t";
 		break;
 	/* chroot */
 	case 61:
@@ -9562,7 +9562,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	/* sendto */
 	case 133:
 		if (ndx == 0 || ndx == 1)
-			p = "int";
+			p = "ssize_t";
 		break;
 	/* shutdown */
 	case 134:
@@ -10556,7 +10556,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	/* abort2 */
 	case 463:
 		if (ndx == 0 || ndx == 1)
-			p = "int";
+			p = "void";
 		break;
 	/* thr_set_name */
 	case 464:
