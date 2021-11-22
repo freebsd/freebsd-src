@@ -430,7 +430,7 @@
 		);
 	}
 60	AUE_UMASK	STD|CAPENABLED {
-		int umask(
+		mode_t umask(
 		    mode_t newmask
 		);
 	}
