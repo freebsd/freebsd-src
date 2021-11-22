@@ -42,6 +42,7 @@ typedef int     boolean_t;
 #include <nlist.h>
 #include <sys/user.h>
 #include <sys/socket.h>
+#define	_WANT_SOCKET
 #include <sys/socketvar.h>
 #include <sys/proc.h>
 # include <kvm.h>
