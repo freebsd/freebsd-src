@@ -115,6 +115,11 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 	/* Setup to release spin count in fork_exit(). */
 	td2->td_md.md_spinlock_count = 1;
 	td2->td_md.md_saved_daif = PSR_DAIF_DEFAULT;
+
+#if defined(PERTHREAD_SSP)
+	/* Set the new canary */
+	arc4random_buf(&td2->td_md.md_canary, sizeof(td2->td_md.md_canary));
+#endif
 }
 
 void
@@ -187,6 +192,11 @@ cpu_copy_thread(struct thread *td, struct thread *td0)
 	/* Setup to release spin count in fork_exit(). */
 	td->td_md.md_spinlock_count = 1;
 	td->td_md.md_saved_daif = PSR_DAIF_DEFAULT;
+
+#if defined(PERTHREAD_SSP)
+	/* Set the new canary */
+	arc4random_buf(&td->td_md.md_canary, sizeof(td->td_md.md_canary));
+#endif
 }
 
 /*

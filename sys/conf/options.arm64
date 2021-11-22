@@ -9,6 +9,10 @@ VFP				opt_global.h
 LINUX_BOOT_ABI			opt_global.h
 LSE_ATOMICS			opt_global.h
 
+# Per-thread stack smashing protection support
+# Needs clang >= 13
+PERTHREAD_SSP			opt_global.h
+
 # Binary compatibility
 COMPAT_FREEBSD32		opt_global.h
 

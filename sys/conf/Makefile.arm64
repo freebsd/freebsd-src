@@ -30,6 +30,20 @@ INCLUDES+= -I$S/contrib/libfdt -I$S/contrib/device-tree/include
 LINUX_DTS_VERSION!=	awk '/freebsd,dts-version/ { sub(/;$$/,"", $$NF); print $$NF }' $S/dts/freebsd-compatible.dts
 CFLAGS += -DLINUX_DTS_VERSION=\"${LINUX_DTS_VERSION}\"
 
+PERTHREAD_SSP_ENABLED!=	grep PERTHREAD_SSP opt_global.h || true ; echo
+.if !empty(PERTHREAD_SSP_ENABLED)
+. if ${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} >= 130000
+ARM64_SSP_CFLAGS = -mstack-protector-guard=sysreg
+ARM64_SSP_CFLAGS += -mstack-protector-guard-reg=sp_el0
+ARM64_SSP_CFLAGS += -mstack-protector-guard-offset=0
+. else
+ARM64_SSP_CFLAGS += -DPERTHREAD_SSP_WARNING
+.  warning "Compiler is too old to support PERTHREAD_SSP"
+. endif
+CFLAGS += ${ARM64_SSP_CFLAGS}
+ARCH_FLAGS += ${ARM64_SSP_CFLAGS}
+.endif
+
 # Use a custom SYSTEM_LD command to generate the elf kernel, so we can
 # set the text segment start address, and also strip the "arm mapping
 # symbols" which have names like $a.0 and $d.2; see the document
