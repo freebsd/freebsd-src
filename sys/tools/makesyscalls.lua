@@ -632,6 +632,7 @@ local function align_sysent_comment(col)
 end
 
 local function strip_arg_annotations(arg)
+	arg = arg:gsub("_Contains_[^ ]*[_)] ?", "")
 	arg = arg:gsub("_In[^ ]*[_)] ?", "")
 	arg = arg:gsub("_Out[^ ]*[_)] ?", "")
 	return trim(arg)
