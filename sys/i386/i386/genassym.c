@@ -171,8 +171,8 @@ ASSYM(SC_GS, offsetof(struct osigcontext, sc_gs));
 ASSYM(SC_TRAPNO, offsetof(struct osigcontext, sc_trapno));
 #endif
 #ifdef COMPAT_FREEBSD4
-ASSYM(UC4_EFLAGS, offsetof(struct ucontext4, uc_mcontext.mc_eflags));
-ASSYM(UC4_GS, offsetof(struct ucontext4, uc_mcontext.mc_gs));
+ASSYM(UC4_EFLAGS, offsetof(struct freebsd4_ucontext, uc_mcontext.mc_eflags));
+ASSYM(UC4_GS, offsetof(struct freebsd4_ucontext, uc_mcontext.mc_gs));
 #endif
 ASSYM(UC_EFLAGS, offsetof(ucontext_t, uc_mcontext.mc_eflags));
 ASSYM(UC_GS, offsetof(ucontext_t, uc_mcontext.mc_gs));

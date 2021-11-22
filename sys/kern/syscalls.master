@@ -1777,7 +1777,7 @@
 	}
 344	AUE_SIGRETURN	COMPAT4|CAPENABLED {
 		int sigreturn(
-		    _In_ const struct ucontext4 *sigcntxp
+		    _In_ const struct freebsd4_ucontext *sigcntxp
 		);
 	}
 345	AUE_SIGWAIT	STD|CAPENABLED {

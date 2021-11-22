@@ -85,7 +85,7 @@ struct sigframe4 {
 		__siginfohandler_t	*sf_action;
 		__sighandler_t		*sf_handler;
 	} sf_ahu;
-	struct ucontext4 sf_uc;		/* = *sf_ucontext */
+	struct freebsd4_ucontext sf_uc;		/* = *sf_ucontext */
 	siginfo_t	sf_si;		/* = *sf_siginfo (SA_SIGINFO case) */
 };
 #endif
