@@ -399,8 +399,8 @@ local function write_line_pfile(tmppat, line)
 end
 
 local function isptrtype(type)
-	return type:find("*") or type:find("caddr_t")
-	    -- XXX NOTYET: or type:find("intptr_t")
+	return type:find("*") or type:find("caddr_t") or
+	    type:find("intptr_t")
 end
 
 local process_syscall_def
