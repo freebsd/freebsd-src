@@ -834,7 +834,7 @@ struct ofreebsd32_mmap_args {
 	char pos_l_[PADL_(int32_t)]; int32_t pos; char pos_r_[PADR_(int32_t)];
 };
 struct ofreebsd32_sigreturn_args {
-	char sigcntxp_l_[PADL_(struct ia32_sigcontext3 *)]; struct ia32_sigcontext3 * sigcntxp; char sigcntxp_r_[PADR_(struct ia32_sigcontext3 *)];
+	char sigcntxp_l_[PADL_(struct osigcontext *)]; struct osigcontext * sigcntxp; char sigcntxp_r_[PADR_(struct osigcontext *)];
 };
 struct ofreebsd32_sigvec_args {
 	char signum_l_[PADL_(int)]; int signum; char signum_r_[PADR_(int)];
