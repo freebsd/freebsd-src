@@ -127,7 +127,7 @@
 #define	FREEBSD32_SYS_freebsd32_settimeofday	122
 #define	FREEBSD32_SYS_fchown	123
 #define	FREEBSD32_SYS_fchmod	124
-				/* 125 is obsolete orecvfrom */
+				/* 125 is old recvfrom */
 #define	FREEBSD32_SYS_setreuid	126
 #define	FREEBSD32_SYS_setregid	127
 #define	FREEBSD32_SYS_rename	128
@@ -359,8 +359,8 @@
 #define	FREEBSD32_SYS_thr_exit	431
 #define	FREEBSD32_SYS_thr_self	432
 #define	FREEBSD32_SYS_thr_kill	433
-#define	FREEBSD32_SYS_freebsd10_freebsd32_umtx_lock	434
-#define	FREEBSD32_SYS_freebsd10_freebsd32_umtx_unlock	435
+#define	FREEBSD32_SYS_freebsd10_freebsd32__umtx_lock	434
+#define	FREEBSD32_SYS_freebsd10_freebsd32__umtx_unlock	435
 #define	FREEBSD32_SYS_jail_attach	436
 #define	FREEBSD32_SYS_extattr_list_fd	437
 #define	FREEBSD32_SYS_extattr_list_file	438
