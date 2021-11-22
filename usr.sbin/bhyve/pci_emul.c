@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/linker_set.h>
 
 #include <ctype.h>
+#include <err.h>
 #include <errno.h>
 #include <pthread.h>
 #include <stdio.h>
