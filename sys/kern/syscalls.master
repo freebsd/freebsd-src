@@ -2455,7 +2455,7 @@
 		);
 	}
 463	AUE_NULL	STD|CAPENABLED {
-		int abort2(
+		void abort2(
 		    _In_z_ const char *why,
 		    int nargs,
 		    _In_reads_(nargs) void **args
