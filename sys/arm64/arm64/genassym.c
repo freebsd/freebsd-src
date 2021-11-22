@@ -73,6 +73,7 @@ ASSYM(TD_PCB, offsetof(struct thread, td_pcb));
 ASSYM(TD_FLAGS, offsetof(struct thread, td_flags));
 ASSYM(TD_FRAME, offsetof(struct thread, td_frame));
 ASSYM(TD_LOCK, offsetof(struct thread, td_lock));
+ASSYM(TD_MD_CANARY, offsetof(struct thread, td_md.md_canary));
 
 ASSYM(TF_SIZE, sizeof(struct trapframe));
 ASSYM(TF_SP, offsetof(struct trapframe, tf_sp));
