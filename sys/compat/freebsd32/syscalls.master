@@ -309,7 +309,7 @@
 148	AUE_QUOTACTL	NOPROTO	{ int quotactl(const char *path, int cmd, \
 				    int uid, void *arg); }
 149	AUE_O_QUOTA	COMPAT|NOPROTO { int quota(void); }
-150	AUE_GETSOCKNAME	COMPAT|NOPROTO getsockname
+150	AUE_GETSOCKNAME	COMPAT|NOPROTO { int getsockname(int fdec, struct sockaddr *asa, __socklen_t *alen); } getsockname getsockname_args int
 
 151	AUE_NULL	RESERVED
 152	AUE_NULL	RESERVED
