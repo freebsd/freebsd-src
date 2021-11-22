@@ -143,6 +143,7 @@ dev/hyperv/vmbus/vmbus_xact.c				optional	hyperv
 dev/ichwd/ichwd.c		optional	ichwd
 dev/imcsmb/imcsmb.c		optional	imcsmb
 dev/imcsmb/imcsmb_pci.c		optional	imcsmb pci
+dev/intel/pchtherm.c		optional	pchtherm
 dev/intel/spi.c			optional	intelspi
 dev/io/iodev.c			optional	io
 dev/iommu/busdma_iommu.c	optional	acpi iommu pci
