@@ -653,9 +653,9 @@ osigreturn(struct thread *td, struct osigreturn_args *uap)
 int
 freebsd4_sigreturn(struct thread *td, struct freebsd4_sigreturn_args *uap)
 {
-	struct ucontext4 uc;
+	struct freebsd4_ucontext uc;
 	struct trapframe *regs;
-	struct ucontext4 *ucp;
+	struct freebsd4_ucontext *ucp;
 	int cs, eflags, error;
 	ksiginfo_t ksi;
 
