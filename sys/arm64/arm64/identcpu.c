@@ -1743,7 +1743,7 @@ identify_cpu_sysinit(void *dummy __unused)
 
 	install_undef_handler(true, user_mrs_handler);
 }
-SYSINIT(identify_cpu, SI_SUB_CPU, SI_ORDER_ANY, identify_cpu_sysinit, NULL);
+SYSINIT(identify_cpu, SI_SUB_CPU, SI_ORDER_MIDDLE, identify_cpu_sysinit, NULL);
 
 static void
 cpu_features_sysinit(void *dummy __unused)
