@@ -967,7 +967,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	}
 	/* __sysctl */
 	case 202: {
-		struct sysctl_args *p = params;
+		struct __sysctl_args *p = params;
 		uarg[0] = (intptr_t)p->name; /* int * */
 		uarg[1] = p->namelen; /* u_int */
 		uarg[2] = (intptr_t)p->old; /* void * */
