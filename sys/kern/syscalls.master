@@ -74,6 +74,18 @@
 ;	    for an array of n elements.
 ;	_In_reads_bytes_(n), _Out_writes_bytes_(n), _Inout_updates_bytes(n):
 ;	    for a buffer of n-bytes.
+;
+;	In addition to SAL annotations, pointers are annotated to indicate
+;	that they point to types that change between ABIs.  That means that
+;	they contain long, pointer, or time_t types.  This is indicated with
+;	a _Contains_ annotation followed immediately by one or more of:
+;
+;	long_	Object contains a direct (or typedef'd) long value and varies
+;		between 32- and 64-bit ABIs.  This includes size_t.
+;	ptr_	Object contains pointers (or intptr_t) and varies between
+;		32- and 64-bit ABIs.
+;	timet_	Object contains a time_t and varies between i386 and other
+;		ABIs.
 
 ; Please copy any additions and changes to the following compatability tables:
 ; sys/compat/freebsd32/syscalls.master
@@ -128,7 +140,7 @@
 		    int pid,
 		    _Out_opt_ int *status,
 		    int options,
-		    _Out_opt_ struct rusage *rusage
+		    _Out_opt_ _Contains_long_timet_ struct rusage *rusage
 		);
 	}
 8	AUE_CREAT	COMPAT {
@@ -186,7 +198,7 @@
 	}
 18	AUE_GETFSSTAT	COMPAT4 {
 		int getfsstat(
-		    _Out_writes_bytes_opt_(bufsize) struct ostatfs *buf,
+		    _Out_writes_bytes_opt_(bufsize) _Contains_long_ struct ostatfs *buf,
 		    long bufsize,
 		    int mode
 		);
@@ -230,21 +242,21 @@
 		int ptrace(
 		    int req,
 		    pid_t pid,
-		    _Inout_opt_ caddr_t addr,
+		    _Inout_opt_ _Contains_long_ptr_ caddr_t addr,
 		    int data
 		);
 	}
 27	AUE_RECVMSG	STD|CAPENABLED {
 		ssize_t recvmsg(
 		    int s,
-		    _Inout_ struct msghdr *msg,
+		    _Inout_ _Contains_ptr_ struct msghdr *msg,
 		    int flags
 		);
 	}
 28	AUE_SENDMSG	STD|CAPENABLED {
 		ssize_t sendmsg(
 		    int s,
-		    _In_ const struct msghdr *msg,
+		    _In_ _Contains_ptr_ const struct msghdr *msg,
 		    int flags
 		);
 	}
@@ -309,7 +321,7 @@
 38	AUE_STAT	COMPAT {
 		int stat(
 		    _In_z_ const char *path,
-		    _Out_ struct ostat *ub
+		    _Out_ _Contains_timet_ struct ostat *ub
 		);
 	}
 39	AUE_GETPPID	STD|CAPENABLED {
@@ -318,7 +330,7 @@
 40	AUE_LSTAT	COMPAT {
 		int lstat(
 		    _In_z_ const char *path,
-		    _Out_ struct ostat *ub
+		    _Out_ _Contains_timet_ struct ostat *ub
 		);
 	}
 41	AUE_DUP		STD|CAPENABLED {
@@ -351,8 +363,8 @@
 46	AUE_SIGACTION	COMPAT|CAPENABLED {
 		int sigaction(
 		    int signum,
-		    _In_opt_ struct osigaction *nsa,
-		    _Out_opt_ struct osigaction *osa
+		    _In_opt_ _Contains_ptr_ struct osigaction *nsa,
+		    _Out_opt_ _Contains_ptr_ struct osigaction *osa
 		);
 	}
 47	AUE_GETGID	STD|CAPENABLED {
@@ -388,15 +400,15 @@
 	}
 53	AUE_SIGALTSTACK	STD|CAPENABLED {
 		int sigaltstack(
-		    _In_opt_ const struct sigaltstack *ss,
-		    _Out_opt_ struct sigaltstack *oss
+		    _In_opt_ _Contains_long_ptr_ const struct sigaltstack *ss,
+		    _Out_opt_ _Contains_long_ptr_ struct sigaltstack *oss
 		);
 	}
 54	AUE_IOCTL	STD|CAPENABLED {
 		int ioctl(
 		    int fd,
 		    u_long com,
-		    _Inout_opt_ char *data
+		    _Inout_opt_ _Contains_long_ptr_ char *data
 		);
 	}
 55	AUE_REBOOT	STD {
@@ -442,7 +454,7 @@
 62	AUE_FSTAT	COMPAT|CAPENABLED {
 		int fstat(
 		    int fd,
-		    _Out_ struct ostat *sb
+		    _Out_ _Contains_timet_ struct ostat *sb
 		);
 	}
 63	AUE_NULL	COMPAT {
@@ -546,8 +558,8 @@
 83	AUE_SETITIMER	STD|CAPENABLED {
 		int setitimer(
 		    int which,
-		    _In_ const struct itimerval *itv,
-		    _Out_opt_ struct itimerval *oitv
+		    _In_ _Contains_timet_ const struct itimerval *itv,
+		    _Out_opt_ _Contains_timet_ struct itimerval *oitv
 		);
 	}
 84	AUE_WAIT4	COMPAT {
@@ -561,7 +573,7 @@
 86	AUE_GETITIMER	STD|CAPENABLED {
 		int getitimer(
 		    int which,
-		    _Out_ struct itimerval *itv
+		    _Out_ _Contains_timet_ struct itimerval *itv
 		);
 	}
 87	AUE_SYSCTL	COMPAT|CAPENABLED {
@@ -601,7 +613,7 @@
 		    _Inout_opt_ fd_set *in,
 		    _Inout_opt_ fd_set *ou,
 		    _Inout_opt_ fd_set *ex,
-		    _In_opt_ struct timeval *tv
+		    _In_opt_ _Contains_long_timet_ struct timeval *tv
 		);
 	}
 94	AUE_NULL	RESERVED
@@ -691,8 +703,8 @@
 108	AUE_NULL	COMPAT|CAPENABLED {
 		int sigvec(
 		    int signum,
-		    _In_opt_ struct sigvec *nsv,
-		    _Out_opt_ struct sigvec *osv
+		    _In_opt_ _Contains_ptr_ struct sigvec *nsv,
+		    _Out_opt_ _Contains_ptr_ struct sigvec *osv
 		);
 	}
 109	AUE_NULL	COMPAT|CAPENABLED {
@@ -714,35 +726,35 @@
 ; us the mask, not a pointer to it.
 112	AUE_NULL	COMPAT|CAPENABLED {
 		int sigstack(
-		    _In_opt_ struct sigstack *nss,
-		    _Out_opt_ struct sigstack *oss
+		    _In_opt_ _Contains_ptr_ struct sigstack *nss,
+		    _Out_opt_ _Contains_ptr_ struct sigstack *oss
 		);
 	}
 113	AUE_RECVMSG	COMPAT|CAPENABLED {
 		int recvmsg(
 		    int s,
-		    _Inout_ struct omsghdr *msg,
+		    _Inout_ _Contains_ptr_ struct omsghdr *msg,
 		    int flags
 		);
 	}
 114	AUE_SENDMSG	COMPAT|CAPENABLED {
 		int sendmsg(
 		    int s,
-		    _In_ const struct omsghdr *msg,
+		    _In_ _Contains_ptr_ const struct omsghdr *msg,
 		    int flags
 		);
 	}
 115	AUE_NULL	OBSOL	vtrace
 116	AUE_GETTIMEOFDAY	STD|CAPENABLED {
 		int gettimeofday(
-		    _Out_ struct timeval *tp,
+		    _Out_ _Contains_long_timet_ struct timeval *tp,
 		    _Out_opt_ struct timezone *tzp
 		);
 	}
 117	AUE_GETRUSAGE	STD|CAPENABLED {
 		int getrusage(
 		    int who,
-		    _Out_ struct rusage *rusage
+		    _Out_ _Contains_long_ struct rusage *rusage
 		);
 	}
 118	AUE_GETSOCKOPT	STD|CAPENABLED {
@@ -758,20 +770,20 @@
 120	AUE_READV	STD|CAPENABLED {
 		int readv(
 		    int fd,
-		    _Inout_updates_(iovcnt) struct iovec *iovp,
+		    _Inout_updates_(iovcnt) _Contains_long_ptr_ struct iovec *iovp,
 		    u_int iovcnt
 		);
 	}
 121	AUE_WRITEV	STD|CAPENABLED {
 		int writev(
 		    int fd,
-		    _In_reads_opt_(iovcnt) struct iovec *iovp,
+		    _In_reads_opt_(iovcnt) _Contains_long_ptr_ struct iovec *iovp,
 		    u_int iovcnt
 		);
 	}
 122	AUE_SETTIMEOFDAY	STD {
 		int settimeofday(
-		    _In_ const struct timeval *tv,
+		    _In_ _Contains_long_timet_ const struct timeval *tv,
 		    _In_opt_ const struct timezone *tzp
 		);
 	}
@@ -878,14 +890,14 @@
 138	AUE_UTIMES	STD {
 		int utimes(
 		    _In_z_ const char *path,
-		    _In_ const struct timeval *tptr
+		    _In_ _Contains_long_timet_ const struct timeval *tptr
 		);
 	}
 139	AUE_NULL	OBSOL	4.2 sigreturn
 140	AUE_ADJTIME	STD {
 		int adjtime(
-		    _In_ const struct timeval *delta,
-		    _Out_opt_ struct timeval *olddelta
+		    _In_ _Contains_long_timet_ const struct timeval *delta,
+		    _Out_opt_ _Contains_long_timet_ struct timeval *olddelta
 		);
 	}
 141	AUE_GETPEERNAME	COMPAT|CAPENABLED {
@@ -970,13 +982,13 @@
 157	AUE_STATFS	COMPAT4 {
 		int statfs(
 		    _In_z_ const char *path,
-		    _Out_ struct ostatfs *buf
+		    _Out_ _Contains_long_ struct ostatfs *buf
 		);
 	}
 158	AUE_FSTATFS	COMPAT4|CAPENABLED {
 		int fstatfs(
 		    int fd,
-		    _Out_ struct ostatfs *buf
+		    _Out_ _Contains_long_ struct ostatfs *buf
 		);
 	}
 159	AUE_NULL	RESERVED
@@ -1079,7 +1091,7 @@
 	}
 176	AUE_NTP_ADJTIME	STD {
 		int ntp_adjtime(
-		    _Inout_ struct timex *tp
+		    _Inout_ _Contains_long_ struct timex *tp
 		);
 	}
 177-180	AUE_NULL	RESERVED
@@ -1105,19 +1117,19 @@
 188	AUE_STAT	COMPAT11 {
 		int stat(
 		    _In_z_ const char *path,
-		    _Out_ struct freebsd11_stat *ub
+		    _Out_ _Contains_timet_ struct freebsd11_stat *ub
 		);
 	}
 189	AUE_FSTAT	COMPAT11|CAPENABLED {
 		int fstat(
 		    int fd,
-		    _Out_ struct freebsd11_stat *sb
+		    _Out_ _Contains_timet_ struct freebsd11_stat *sb
 		);
 	}
 190	AUE_LSTAT	COMPAT11 {
 		int lstat(
 		    _In_z_ const char *path,
-		    _Out_ struct freebsd11_stat *ub
+		    _Out_ _Contains_timet_ struct freebsd11_stat *ub
 		);
 	}
 191	AUE_PATHCONF	STD {
@@ -1219,7 +1231,7 @@
 206	AUE_FUTIMES	STD|CAPENABLED {
 		int futimes(
 		    int fd,
-		    _In_reads_(2) const struct timeval *tptr
+		    _In_reads_(2) _Contains_long_timet_ const struct timeval *tptr
 		);
 	}
 207	AUE_GETPGID	STD|CAPENABLED {
@@ -1254,7 +1266,7 @@
 		    int semid,
 		    int semnum,
 		    int cmd,
-		    union semun_old *arg
+		    _Contains_ptr_ union semun_old *arg
 		);
 	}
 221	AUE_SEMGET	NOSTD {
@@ -1276,7 +1288,7 @@
 		int msgctl(
 		    int msqid,
 		    int cmd,
-		    struct msqid_ds_old *buf
+		    _Contains_long_ptr_timet_ struct msqid_ds_old *buf
 		);
 	}
 225	AUE_MSGGET	NOSTD {
@@ -1288,7 +1300,7 @@
 226	AUE_MSGSND	NOSTD {
 		int msgsnd(
 		    int msqid,
-		    _In_reads_bytes_(msgsz) const void *msgp,
+		    _In_reads_bytes_(msgsz) _Contains_long_ const void *msgp,
 		    size_t msgsz,
 		    int msgflg
 		);
@@ -1296,7 +1308,7 @@
 227	AUE_MSGRCV	NOSTD {
 		ssize_t msgrcv(
 		    int msqid,
-		    _Out_writes_bytes_(msgsz) void *msgp,
+		    _Out_writes_bytes_(msgsz) _Contains_long_ void *msgp,
 		    size_t msgsz,
 		    long msgtyp,
 		    int msgflg
@@ -1313,7 +1325,7 @@
 		int shmctl(
 		    int shmid,
 		    int cmd,
-		    struct shmid_ds_old *buf
+		    _Contains_long_ struct shmid_ds_old *buf
 		);
 	}
 230	AUE_SHMDT	NOSTD {
@@ -1331,25 +1343,25 @@
 232	AUE_NULL	STD|CAPENABLED {
 		int clock_gettime(
 		    clockid_t clock_id,
-		    _Out_ struct timespec *tp
+		    _Out_ _Contains_long_timet_ struct timespec *tp
 		);
 	}
 233	AUE_CLOCK_SETTIME	STD {
 		int clock_settime(
 		    clockid_t clock_id,
-		    _In_ const struct timespec *tp
+		    _In_ _Contains_long_timet_ const struct timespec *tp
 		);
 	}
 234	AUE_NULL	STD|CAPENABLED {
 		int clock_getres(
 		    clockid_t clock_id,
-		    _Out_ struct timespec *tp
+		    _Out_ _Contains_long_timet_ struct timespec *tp
 		);
 	}
 235	AUE_NULL	STD|CAPENABLED {
 		int ktimer_create(
 		    clockid_t clock_id,
-		    _In_ struct sigevent *evp,
+		    _In_ _Contains_long_ptr_ struct sigevent *evp,
 		    _Out_ int *timerid
 		);
 	}
@@ -1362,14 +1374,14 @@
 		int ktimer_settime(
 		    int timerid,
 		    int flags,
-		    _In_ const struct itimerspec *value,
-		    _Out_opt_ struct itimerspec *ovalue
+		    _In_ _Contains_long_timet_ const struct itimerspec *value,
+		    _Out_opt_ _Contains_long_timet_ struct itimerspec *ovalue
 		);
 	}
 238	AUE_NULL	STD|CAPENABLED {
 		int ktimer_gettime(
 		    int timerid,
-		    _Out_ struct itimerspec *value
+		    _Out_ _Contains_long_timet_ struct itimerspec *value
 		);
 	}
 239	AUE_NULL	STD|CAPENABLED {
@@ -1379,8 +1391,8 @@
 	}
 240	AUE_NULL	STD|CAPENABLED {
 		int nanosleep(
-		    _In_ const struct timespec *rqtp,
-		    _Out_opt_ struct timespec *rmtp
+		    _In_ _Contains_long_timet_ const struct timespec *rqtp,
+		    _Out_opt_ _Contains_long_timet_ struct timespec *rmtp
 		);
 	}
 241	AUE_NULL	STD {
@@ -1390,20 +1402,20 @@
 	}
 242	AUE_NULL	STD {
 		int ffclock_setestimate(
-		    _In_ struct ffclock_estimate *cest
+		    _In_ _Contains_timet_ struct ffclock_estimate *cest
 		);
 	}
 243	AUE_NULL	STD {
 		int ffclock_getestimate(
-		    _Out_ struct ffclock_estimate *cest
+		    _Out_ _Contains_timet_ struct ffclock_estimate *cest
 		);
 	}
 244	AUE_NULL	STD {
 		int clock_nanosleep(
 		    clockid_t clock_id,
 		    int flags,
-		    _In_ const struct timespec *rqtp,
-		    _Out_opt_ struct timespec *rmtp
+		    _In_ _Contains_long_timet_ const struct timespec *rqtp,
+		    _Out_opt_ _Contains_long_timet_ struct timespec *rmtp
 		);
 	}
 245-246	AUE_NULL	RESERVED
@@ -1416,7 +1428,7 @@
 	}
 248	AUE_NULL	STD|CAPENABLED {
 		int ntp_gettime(
-		    _Out_ struct ntptimeval *ntvp
+		    _Out_ _Contains_long_timet_ struct ntptimeval *ntvp
 		);
 	}
 249	AUE_NULL	RESERVED
@@ -1445,20 +1457,20 @@
 	}
 255	AUE_AIO_READ	STD|CAPENABLED {
 		int aio_read(
-		    _Inout_ struct aiocb *aiocbp
+		    _Inout_ _Contains_long_ptr_ struct aiocb *aiocbp
 		);
 	}
 256	AUE_AIO_WRITE	STD|CAPENABLED {
 		int aio_write(
-		    _Inout_ struct aiocb *aiocbp
+		    _Inout_ _Contains_long_ptr_ struct aiocb *aiocbp
 		);
 	}
 257	AUE_LIO_LISTIO	STD|CAPENABLED {
 		int lio_listio(
 		    int mode,
-		    _Inout_updates_(nent) struct aiocb * const *acb_list,
+		    _Inout_updates_(nent) _Contains_long_ptr_ struct aiocb * const *acb_list,
 		    int nent,
-		    _In_opt_ struct sigevent *sig
+		    _In_opt_ _Contains_long_ptr_ struct sigevent *sig
 		);
 	}
 258-271	AUE_NULL	RESERVED
@@ -1480,33 +1492,33 @@
 276	AUE_LUTIMES	STD {
 		int lutimes(
 		    _In_z_ const char *path,
-		    _In_ const struct timeval *tptr
+		    _In_ _Contains_long_timet_ const struct timeval *tptr
 		);
 	}
 277	AUE_NULL	OBSOL	netbsd_msync
 278	AUE_STAT	COMPAT11 {
 		int nstat(
 		    _In_z_ const char *path,
-		    _Out_ struct nstat *ub
+		    _Out_ _Contains_long_timet_ struct nstat *ub
 		);
 	}
 279	AUE_FSTAT	COMPAT11 {
 		int nfstat(
 		    int fd,
-		    _Out_ struct nstat *sb
+		    _Out_ _Contains_long_timet_ struct nstat *sb
 		);
 	}
 280	AUE_LSTAT	COMPAT11 {
 		int nlstat(
 		    _In_z_ const char *path,
-		    _Out_ struct nstat *ub
+		    _Out_ _Contains_long_timet_ struct nstat *ub
 		);
 	}
 281-288	AUE_NULL	RESERVED
 289	AUE_PREADV	STD|CAPENABLED {
 		ssize_t preadv(
 		    int fd,
-		    _In_reads_(iovcnt) struct iovec *iovp,
+		    _In_reads_(iovcnt) _Contains_long_ptr_ struct iovec *iovp,
 		    u_int iovcnt,
 		    off_t offset
 		);
@@ -1514,7 +1526,7 @@
 290	AUE_PWRITEV	STD|CAPENABLED {
 		ssize_t pwritev(
 		    int fd,
-		    _In_reads_(iovcnt) struct iovec *iovp,
+		    _In_reads_(iovcnt) _Contains_long_ptr_ struct iovec *iovp,
 		    u_int iovcnt,
 		    off_t offset
 		);
@@ -1523,7 +1535,7 @@
 297	AUE_FHSTATFS	COMPAT4 {
 		int fhstatfs(
 		    _In_ const struct fhandle *u_fhp,
-		    _Out_ struct ostatfs *buf
+		    _Out_ _Contains_long_ struct ostatfs *buf
 		);
 	}
 298	AUE_FHOPEN	STD {
@@ -1535,7 +1547,7 @@
 299	AUE_FHSTAT	COMPAT11 {
 		int fhstat(
 		    _In_ const struct fhandle *u_fhp,
-		    _Out_ struct freebsd11_stat *sb
+		    _Out_ _Contains_long_timet_ struct freebsd11_stat *sb
 		);
 	}
 300	AUE_NULL	STD {
@@ -1546,7 +1558,7 @@
 301	AUE_NULL	STD {
 		int modstat(
 		    int modid,
-		    _Out_ struct module_stat *stat
+		    _Out_ _Contains_long_ struct module_stat *stat
 		);
 	}
 302	AUE_NULL	STD {
@@ -1582,7 +1594,7 @@
 308	AUE_NULL	STD {
 		int kldstat(
 		    int fileid,
-		    _Out_ struct kld_file_stat *stat
+		    _Out_ _Contains_long_ptr_ struct kld_file_stat *stat
 		);
 	}
 309	AUE_NULL	STD {
@@ -1612,43 +1624,43 @@
 313	AUE_NULL	OBSOL	signanosleep
 314	AUE_AIO_RETURN	STD|CAPENABLED {
 		ssize_t aio_return(
-		    _Inout_ struct aiocb *aiocbp
+		    _Inout_ _Contains_long_ptr_ struct aiocb *aiocbp
 		);
 	}
 315	AUE_AIO_SUSPEND	STD|CAPENABLED {
 		int aio_suspend(
-		    _Inout_updates_(nent) struct aiocb * const * aiocbp,
+		    _Inout_updates_(nent) _Contains_long_ptr_ struct aiocb * const * aiocbp,
 		    int nent,
-		    _In_opt_ const struct timespec *timeout
+		    _In_opt_ _Contains_long_timet_ const struct timespec *timeout
 		);
 	}
 316	AUE_AIO_CANCEL	STD|CAPENABLED {
 		int aio_cancel(
 		    int fd,
-		    _In_opt_ struct aiocb *aiocbp
+		    _In_opt_ _Contains_long_ptr_ struct aiocb *aiocbp
 		);
 	}
 317	AUE_AIO_ERROR	STD|CAPENABLED {
 		int aio_error(
-		    _In_ struct aiocb *aiocbp
+		    _In_ _Contains_long_ptr_ struct aiocb *aiocbp
 		);
 	}
 318	AUE_AIO_READ	COMPAT6|CAPENABLED {
 		int aio_read(
-		    _Inout_  struct oaiocb *aiocbp
+		    _Inout_ _Contains_long_ptr_ struct oaiocb *aiocbp
 		);
 	}
 319	AUE_AIO_WRITE	COMPAT6|CAPENABLED {
 		int aio_write(
-		    _Inout_ struct oaiocb *aiocbp
+		    _Inout_ _Contains_long_ptr_ struct oaiocb *aiocbp
 		);
 	}
 320	AUE_LIO_LISTIO	COMPAT6|CAPENABLED {
 		int lio_listio(
 		    int mode,
-		    _Inout_updates_(nent) struct oaiocb * const *acb_list,
+		    _Inout_updates_(nent) _Contains_long_ptr_ struct oaiocb * const *acb_list,
 		    int nent,
-		    _In_opt_ struct osigevent *sig
+		    _In_opt_ _Contains_ptr_ struct osigevent *sig
 		);
 	}
 321	AUE_NULL	STD|CAPENABLED {
@@ -1710,7 +1722,7 @@
 334	AUE_NULL	STD|CAPENABLED {
 		int sched_rr_get_interval(
 		    pid_t pid,
-		    _Out_ struct timespec *interval
+		    _Out_ _Contains_long_timet_ struct timespec *interval
 		);
 	}
 335	AUE_NULL	STD|CAPENABLED {
@@ -1725,7 +1737,7 @@
 		    int s,
 		    off_t offset,
 		    size_t nbytes,
-		    _In_opt_ struct sf_hdtr *hdtr,
+		    _In_opt_ _Contains_ptr_ struct sf_hdtr *hdtr,
 		    _Out_opt_ off_t *sbytes,
 		    int flags
 		);
@@ -1734,12 +1746,12 @@
 		int kldsym(
 		    int fileid,
 		    int cmd,
-		    _In_ void *data
+		    _In_ _Contains_long_ptr_ void *data
 		);
 	}
 338	AUE_JAIL	STD {
 		int jail(
-		    _In_ struct jail *jail
+		    _In_ _Contains_ptr_ struct jail *jail
 		);
 	}
 339	AUE_NULL	NOSTD|NOTSTATIC {
@@ -1766,8 +1778,8 @@
 342	AUE_SIGACTION	COMPAT4|CAPENABLED {
 		int sigaction(
 		    int sig,
-		    _In_opt_ const struct sigaction *act,
-		    _Out_opt_ struct sigaction *oact
+		    _In_opt_ _Contains_ptr_ const struct sigaction *act,
+		    _Out_opt_ _Contains_ptr_ struct sigaction *oact
 		);
 	}
 343	AUE_SIGPENDING	STD|CAPENABLED {
@@ -1777,20 +1789,20 @@
 	}
 344	AUE_SIGRETURN	COMPAT4|CAPENABLED {
 		int sigreturn(
-		    _In_ const struct freebsd4_ucontext *sigcntxp
+		    _In_ _Contains_long_ptr_ const struct freebsd4_ucontext *sigcntxp
 		);
 	}
 345	AUE_SIGWAIT	STD|CAPENABLED {
 		int sigtimedwait(
 		    _In_ const sigset_t *set,
-		    _Out_opt_ struct siginfo *info,
-		    _In_opt_ const struct timespec *timeout
+		    _Out_opt_ _Contains_long_ptr_ struct siginfo *info,
+		    _In_opt_ _Contains_long_timet_ const struct timespec *timeout
 		);
 	}
 346	AUE_NULL	STD|CAPENABLED {
 		int sigwaitinfo(
 		    _In_ const sigset_t *set,
-		    _Out_opt_ struct siginfo *info
+		    _Out_opt_ _Contains_long_ptr_ struct siginfo *info
 		);
 	}
 347	AUE_ACL_GET_FILE	STD {
@@ -1884,7 +1896,7 @@
 359	AUE_AIO_WAITCOMPLETE	STD|CAPENABLED {
 		ssize_t aio_waitcomplete(
 		    _Outptr_result_maybenull_ struct aiocb **aiocbp,
-		    _In_opt_ struct timespec *timeout
+		    _In_opt_ _Contains_long_timet_ struct timespec *timeout
 		);
 	}
 360	AUE_GETRESUID	STD|CAPENABLED {
@@ -1907,11 +1919,11 @@
 363	AUE_KEVENT	COMPAT11|CAPENABLED {
 		int kevent(
 		    int fd,
-		    _In_reads_opt_(nchanges) const struct freebsd11_kevent *changelist,
+		    _In_reads_opt_(nchanges) _Contains_ptr_ const struct freebsd11_kevent *changelist,
 		    int nchanges,
-		    _Out_writes_opt_(nevents) struct freebsd11_kevent *eventlist,
+		    _Out_writes_opt_(nevents) _Contains_ptr_ struct freebsd11_kevent *eventlist,
 		    int nevents,
-		    _In_opt_ const struct timespec *timeout
+		    _In_opt_ _Contains_long_timet_ const struct timespec *timeout
 		);
 	}
 364	AUE_NULL	OBSOL	__cap_get_proc
@@ -1971,7 +1983,7 @@
 	}
 378	AUE_NMOUNT	STD {
 		int nmount(
-		    _In_reads_(iovcnt) struct iovec *iovp,
+		    _In_reads_(iovcnt) _Contains_long_ptr_ struct iovec *iovp,
 		    unsigned int iovcnt,
 		    int flags
 		);
@@ -1983,36 +1995,36 @@
 383	AUE_NULL	OBSOL	kse_release
 384	AUE_NULL	STD|CAPENABLED {
 		int __mac_get_proc(
-		    _In_ struct mac *mac_p
+		    _In_ _Contains_long_ptr_ struct mac *mac_p
 		);
 	}
 385	AUE_NULL	STD|CAPENABLED {
 		int __mac_set_proc(
-		    _In_ struct mac *mac_p
+		    _In_ _Contains_long_ptr_ struct mac *mac_p
 		);
 	}
 386	AUE_NULL	STD|CAPENABLED {
 		int __mac_get_fd(
 		    int fd,
-		    _In_ struct mac *mac_p
+		    _In_ _Contains_long_ptr_ struct mac *mac_p
 		);
 	}
 387	AUE_NULL	STD {
 		int __mac_get_file(
 		    _In_z_ const char *path_p,
-		    _In_ struct mac *mac_p
+		    _In_ _Contains_long_ptr_ struct mac *mac_p
 		);
 	}
 388	AUE_NULL	STD|CAPENABLED {
 		int __mac_set_fd(
 		    int fd,
-		    _In_ struct mac *mac_p
+		    _In_ _Contains_long_ptr_ struct mac *mac_p
 		);
 	}
 389	AUE_NULL	STD {
 		int __mac_set_file(
 		    _In_z_ const char *path_p,
-		    _In_ struct mac *mac_p
+		    _In_ _Contains_long_ptr_ struct mac *mac_p
 		);
 	}
 390	AUE_NULL	STD {
@@ -2041,7 +2053,7 @@
 		    int s,
 		    off_t offset,
 		    size_t nbytes,
-		    _In_opt_ struct sf_hdtr *hdtr,
+		    _In_opt_ _Contains_ptr_ struct sf_hdtr *hdtr,
 		    _Out_opt_ off_t *sbytes,
 		    int flags
 		);
@@ -2133,19 +2145,19 @@
 409	AUE_NULL	STD {
 		int __mac_get_pid(
 		    pid_t pid,
-		    _In_ struct mac *mac_p
+		    _In_ _Contains_long_ptr_ struct mac *mac_p
 		);
 	}
 410	AUE_NULL	STD {
 		int __mac_get_link(
 		    _In_z_ const char *path_p,
-		    _In_ struct mac *mac_p
+		    _In_ _Contains_long_ptr_ struct mac *mac_p
 		);
 	}
 411	AUE_NULL	STD {
 		int __mac_set_link(
 		    _In_z_ const char *path_p,
-		    _In_ struct mac *mac_p
+		    _In_ _Contains_long_ptr_ struct mac *mac_p
 		);
 	}
 412	AUE_EXTATTR_SET_LINK	STD {
@@ -2178,36 +2190,36 @@
 		    _In_z_ const char *fname,
 		    _In_ char **argv,
 		    _In_ char **envv,
-		    _In_ struct mac *mac_p
+		    _In_ _Contains_long_ptr_ struct mac *mac_p
 		);
 	}
 416	AUE_SIGACTION	STD|CAPENABLED {
 		int sigaction(
 		    int sig,
-		    _In_opt_ const struct sigaction *act,
-		    _Out_opt_ struct sigaction *oact
+		    _In_opt_ _Contains_ptr_ const struct sigaction *act,
+		    _Out_opt_ _Contains_ptr_ struct sigaction *oact
 		);
 	}
 417	AUE_SIGRETURN	STD|CAPENABLED {
 		int sigreturn(
-		    _In_ const struct __ucontext *sigcntxp
+		    _In_ _Contains_long_ptr_ const struct __ucontext *sigcntxp
 		);
 	}
 418-420	AUE_NULL	RESERVED
 421	AUE_NULL	STD|CAPENABLED {
 		int getcontext(
-		    _Out_ struct __ucontext *ucp
+		    _Out_ _Contains_long_ptr_ struct __ucontext *ucp
 		);
 	}
 422	AUE_NULL	STD|CAPENABLED {
 		int setcontext(
-		    _In_ const struct __ucontext *ucp
+		    _In_ _Contains_long_ptr_ const struct __ucontext *ucp
 		);
 	}
 423	AUE_NULL	STD {
 		int swapcontext(
-		    _Out_ struct __ucontext *oucp,
-		    _In_ const struct __ucontext *ucp
+		    _Out_ _Contains_long_ptr_ struct __ucontext *oucp,
+		    _In_ _Contains_long_ptr_ const struct __ucontext *ucp
 		);
 	}
 424	AUE_SWAPOFF	STD {
@@ -2250,7 +2262,7 @@
 	}
 430	AUE_THR_CREATE	STD|CAPENABLED {
 		int thr_create(
-		    _In_ ucontext_t *ctx,
+		    _In_ _Contains_long_ptr_ ucontext_t *ctx,
 		    _Out_ long *id,
 		    int flags
 		);
@@ -2318,12 +2330,12 @@
 441	AUE_SEMWAIT	NOSTD {
 		int ksem_timedwait(
 		    semid_t id,
-		    _In_opt_ const struct timespec *abstime
+		    _In_opt_ _Contains_long_timet_ const struct timespec *abstime
 		);
 	}
 442	AUE_NULL	STD|CAPENABLED {
 		int thr_suspend(
-		    _In_opt_ const struct timespec *timeout
+		    _In_opt_ _Contains_long_timet_ const struct timespec *timeout
 		);
 	}
 443	AUE_NULL	STD|CAPENABLED {
@@ -2398,7 +2410,7 @@
 	}
 455	AUE_THR_NEW	STD|CAPENABLED {
 		int thr_new(
-		    _In_ struct thr_param *param,
+		    _In_ _Contains_long_ptr_ struct thr_param *param,
 		    int param_size
 		);
 	}
@@ -2415,14 +2427,14 @@
 		    _In_z_ const char *path,
 		    int flags,
 		    mode_t mode,
-		    _In_opt_ const struct mq_attr *attr
+		    _In_opt_ _Contains_long_ const struct mq_attr *attr
 		);
 	}
 458	AUE_MQ_SETATTR	NOSTD|CAPENABLED {
 		int kmq_setattr(
 		    int mqd,
-		    _In_opt_ const struct mq_attr *attr,
-		    _Out_opt_ struct mq_attr *oattr
+		    _In_opt_ _Contains_long_ const struct mq_attr *attr,
+		    _Out_opt_ _Contains_long_ struct mq_attr *oattr
 		);
 	}
 459	AUE_MQ_TIMEDRECEIVE	NOSTD|CAPENABLED {
@@ -2431,7 +2443,7 @@
 		    _Out_writes_bytes_(msg_len) char *msg_ptr,
 		    size_t msg_len,
 		    _Out_opt_ unsigned *msg_prio,
-		    _In_opt_ const struct timespec *abs_timeout
+		    _In_opt_ _Contains_long_timet_ const struct timespec *abs_timeout
 		);
 	}
 460	AUE_MQ_TIMEDSEND	NOSTD|CAPENABLED {
@@ -2440,13 +2452,13 @@
 		    _In_reads_bytes_(msg_len) const char *msg_ptr,
 		    size_t msg_len,
 		    unsigned msg_prio,
-		    _In_opt_ const struct timespec *abs_timeout
+		    _In_opt_ _Contains_long_timet_ const struct timespec *abs_timeout
 		);
 	}
 461	AUE_MQ_NOTIFY	NOSTD|CAPENABLED {
 		int kmq_notify(
 		    int mqd,
-		    _In_opt_ const struct sigevent *sigev
+		    _In_opt_ _Contains_long_ptr_ const struct sigevent *sigev
 		);
 	}
 462	AUE_MQ_UNLINK	NOSTD {
@@ -2470,7 +2482,7 @@
 465	AUE_AIO_FSYNC	STD|CAPENABLED {
 		int aio_fsync(
 		    int op,
-		    _In_ struct aiocb *aiocbp
+		    _In_ _Contains_long_ptr_ struct aiocb *aiocbp
 		);
 	}
 466	AUE_RTPRIO	STD|CAPENABLED {
@@ -2501,7 +2513,7 @@
 473	AUE_SCTP_GENERIC_SENDMSG_IOV	NOSTD|CAPENABLED {
 		int sctp_generic_sendmsg_iov(
 		    int sd,
-		    _In_reads_(iovlen) struct iovec *iov,
+		    _In_reads_(iovlen) _Contains_long_ptr_ struct iovec *iov,
 		    int iovlen,
 		    _In_reads_bytes_(tolen) const struct sockaddr *to,
 		    __socklen_t tolen,
@@ -2512,7 +2524,7 @@
 474	AUE_SCTP_GENERIC_RECVMSG	NOSTD|CAPENABLED {
 		int sctp_generic_recvmsg(
 		    int sd,
-		    _In_reads_(iovlen) struct iovec *iov,
+		    _In_reads_(iovlen) _Contains_long_ptr_ struct iovec *iov,
 		    int iovlen,
 		    _Out_writes_bytes_(*fromlenaddr) struct sockaddr *from,
 		    _Out_ __socklen_t *fromlenaddr,
@@ -2658,7 +2670,7 @@
 		int fstatat(
 		    int fd,
 		    _In_z_ const char *path,
-		    _Out_ struct freebsd11_stat *buf,
+		    _Out_ _Contains_long_timet_ struct freebsd11_stat *buf,
 		    int flag
 		);
 	}
@@ -2666,7 +2678,7 @@
 		int futimesat(
 		    int fd,
 		    _In_z_ const char *path,
-		    _In_reads_(2) const struct timeval *times
+		    _In_reads_(2) _Contains_long_timet_ const struct timeval *times
 		);
 	}
 495	AUE_LINKAT	STD|CAPENABLED {
@@ -2752,14 +2764,14 @@
 	}
 506	AUE_JAIL_GET	STD {
 		int jail_get(
-		    _In_reads_(iovcnt) struct iovec *iovp,
+		    _In_reads_(iovcnt) _Contains_long_ptr_ struct iovec *iovp,
 		    unsigned int iovcnt,
 		    int flags
 		);
 	}
 507	AUE_JAIL_SET	STD {
 		int jail_set(
-		    _In_reads_(iovcnt) struct iovec *iovp,
+		    _In_reads_(iovcnt) _Contains_long_ptr_ struct iovec *iovp,
 		    unsigned int iovcnt,
 		    int flags
 		);
@@ -2779,21 +2791,21 @@
 		    int semid,
 		    int semnum,
 		    int cmd,
-		    _Inout_ union semun *arg
+		    _Inout_ _Contains_ptr_ union semun *arg
 		);
 	}
 511	AUE_MSGCTL	NOSTD {
 		int msgctl(
 		    int msqid,
 		    int cmd,
-		    _Inout_opt_ struct msqid_ds *buf
+		    _Inout_opt_ _Contains_long_ptr_ struct msqid_ds *buf
 		);
 	}
 512	AUE_SHMCTL	NOSTD {
 		int shmctl(
 		    int shmid,
 		    int cmd,
-		    _Inout_opt_ struct shmid_ds *buf
+		    _Inout_opt_ _Contains_long_ struct shmid_ds *buf
 		);
 	}
 513	AUE_LPATHCONF	STD {
@@ -2843,7 +2855,7 @@
 		    _Inout_opt_ fd_set *in,
 		    _Inout_opt_ fd_set *ou,
 		    _Inout_opt_ fd_set *ex,
-		    _In_opt_ const struct timespec *ts,
+		    _In_opt_ _Contains_long_timet_ const struct timespec *ts,
 		    _In_opt_ const sigset_t *sm
 		);
 	}
@@ -2919,8 +2931,8 @@
 		    id_t id,
 		    _Out_opt_ int *status,
 		    int options,
-		    _Out_opt_ struct __wrusage *wrusage,
-		    _Out_opt_ struct siginfo *info
+		    _Out_opt_ _Contains_long_ struct __wrusage *wrusage,
+		    _Out_opt_ _Contains_long_ptr_ struct siginfo *info
 		);
 	}
 533	AUE_CAP_RIGHTS_LIMIT	STD|CAPENABLED {
@@ -2995,7 +3007,7 @@
 	}
 543	AUE_AIO_MLOCK	STD {
 		int aio_mlock(
-		    _In_ struct aiocb *aiocbp
+		    _In_ _Contains_long_ptr_ struct aiocb *aiocbp
 		);
 	}
 544	AUE_PROCCTL	STD {
@@ -3010,21 +3022,21 @@
 		int ppoll(
 		    _Inout_updates_(nfds) struct pollfd *fds,
 		    u_int nfds,
-		    _In_opt_ const struct timespec *ts,
+		    _In_opt_ _Contains_long_timet_ const struct timespec *ts,
 		    _In_opt_ const sigset_t *set
 		);
 	}
 546	AUE_FUTIMES	STD|CAPENABLED {
 		int futimens(
 		    int fd,
-		    _In_reads_(2) const struct timespec *times
+		    _In_reads_(2) _Contains_long_timet_ const struct timespec *times
 		);
 	}
 547	AUE_FUTIMESAT	STD|CAPENABLED {
 		int utimensat(
 		    int fd,
 		    _In_z_ const char *path,
-		    _In_reads_(2) const struct timespec *times,
+		    _In_reads_(2) _Contains_long_timet_ const struct timespec *times,
 		    int flag
 		);
 	}
@@ -3038,21 +3050,21 @@
 551	AUE_FSTAT	STD|CAPENABLED {
 		int fstat(
 		    int fd,
-		    _Out_ struct stat *sb
+		    _Out_ _Contains_long_timet_ struct stat *sb
 		);
 	}
 552	AUE_FSTATAT	STD|CAPENABLED {
 		int fstatat(
 		    int fd,
 		    _In_z_ const char *path,
-		    _Out_ struct stat *buf,
+		    _Out_ _Contains_long_timet_ struct stat *buf,
 		    int flag
 		);
 	}
 553	AUE_FHSTAT	STD {
 		int fhstat(
 		    _In_ const struct fhandle *u_fhp,
-		    _Out_ struct stat *sb
+		    _Out_ _Contains_long_timet_ struct stat *sb
 		);
 	}
 554	AUE_GETDIRENTRIES STD|CAPENABLED {
@@ -3099,11 +3111,11 @@
 560	AUE_KEVENT	STD|CAPENABLED {
 		int kevent(
 		    int fd,
-		    _In_reads_opt_(nchanges) const struct kevent *changelist,
+		    _In_reads_opt_(nchanges) _Contains_ptr_ const struct kevent *changelist,
 		    int nchanges,
-		    _Out_writes_opt_(nevents) struct kevent *eventlist,
+		    _Out_writes_opt_(nevents) _Contains_ptr_ struct kevent *eventlist,
 		    int nevents,
-		    _In_opt_ const struct timespec *timeout
+		    _In_opt_ _Contains_long_timet_ const struct timespec *timeout
 		);
 	}
 561	AUE_NULL	STD|CAPENABLED {
@@ -3243,12 +3255,12 @@
 	}
 578	AUE_AIO_WRITEV	STD|CAPENABLED {
 		int aio_writev(
-		    _Inout_ struct aiocb *aiocbp
+		    _Inout_ _Contains_long_ptr_ struct aiocb *aiocbp
 		);
 	}
 579	AUE_AIO_READV	STD|CAPENABLED {
 		int aio_readv(
-		    _Inout_ struct aiocb *aiocbp
+		    _Inout_ _Contains_long_ptr_ struct aiocb *aiocbp
 		);
 	}
 580	AUE_FSPACECTL	STD|CAPENABLED {
