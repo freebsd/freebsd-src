@@ -295,6 +295,195 @@ CLEANFILES=	${ASM} ${SRCS:R:S/$/.s/}
 	env CC=cc perl ${PERLPATH} ${.IMPSRC} elf ${CFLAGS} ${.IMPSRC:R:S/$/.s/} ;\
 	cat ${.IMPSRC:R:S/$/.s/} ;\
 	echo '#endif' ) > ${.TARGET}
+
+.elif defined(ASM_powerpc)
+
+.PATH:	${LCRYPTO_SRC}/crypto \
+	${LCRYPTO_SRC}/crypto/aes/asm \
+	${LCRYPTO_SRC}/crypto/bn/asm \
+	${LCRYPTO_SRC}/crypto/chacha/asm \
+	${LCRYPTO_SRC}/crypto/modes/asm \
+	${LCRYPTO_SRC}/crypto/poly1305/asm \
+	${LCRYPTO_SRC}/crypto/sha/asm
+
+PERLPATH=	-I${LCRYPTO_SRC}/crypto/perlasm
+
+#cpuid
+SRCS=	ppccpuid.pl
+
+#bn
+SRCS+=	ppc.pl ppc-mont.pl
+
+#aes
+SRCS+=	aes-ppc.pl vpaes-ppc.pl aesp8-ppc.pl
+
+#sha1
+SRCS+=	sha1-ppc.pl sha512-ppc.pl sha512p8-ppc.pl
+
+#modes
+SRCS+=	ghashp8-ppc.pl
+
+#chacha
+SRCS+=	chacha-ppc.pl
+
+#poly1305
+SRCS+=	poly1305-ppc.pl poly1305-ppcfp.pl
+
+ASM=	${SRCS:R:S/$/.S/} sha256-ppc.S sha256p8-ppc.S
+
+all:	${ASM}
+
+CLEANFILES=	${ASM}
+.SUFFIXES:	.pl
+
+sha256-ppc.S:	sha512-ppc.pl
+	env CC=cc perl ${.ALLSRC} linux32 ${.TARGET:R:S/$/.s/}
+	( echo '/* $$'FreeBSD'$$ */' ;\
+	echo '/* Do not modify. This file is auto-generated from ${.ALLSRC:T:R:S/$/.pl/}. */' ;\
+	cat ${.TARGET:R:S/$/.s/}) > ${.TARGET}
+
+sha256p8-ppc.S:	sha512p8-ppc.pl
+	env CC=cc perl ${.ALLSRC} linux32 ${.TARGET:R:S/$/.s/}
+	( echo '/* $$'FreeBSD'$$ */' ;\
+	echo '/* Do not modify. This file is auto-generated from ${.ALLSRC:T:R:S/$/.pl/}. */' ;\
+	cat ${.TARGET:R:S/$/.s/}) > ${.TARGET}
+
+.pl.S:
+	env CC=cc perl ${.IMPSRC} linux32 ${.TARGET:R:S/$/.s/}
+	( echo '/* $$'FreeBSD'$$ */' ;\
+	echo '/* Do not modify. This file is auto-generated from ${.ALLSRC:T:R:S/$/.pl/}. */' ;\
+	cat ${.TARGET:R:S/$/.s/}) > ${.TARGET}
+
+.elif defined(ASM_powerpc64)
+
+.PATH:	${LCRYPTO_SRC}/crypto \
+	${LCRYPTO_SRC}/crypto/aes/asm \
+	${LCRYPTO_SRC}/crypto/bn/asm \
+	${LCRYPTO_SRC}/crypto/chacha/asm \
+	${LCRYPTO_SRC}/crypto/ec/asm \
+	${LCRYPTO_SRC}/crypto/modes/asm \
+	${LCRYPTO_SRC}/crypto/poly1305/asm \
+	${LCRYPTO_SRC}/crypto/sha/asm
+
+PERLPATH=	-I${LCRYPTO_SRC}/crypto/perlasm
+
+#cpuid
+SRCS=	ppccpuid.pl
+
+#bn
+SRCS+=	ppc.pl ppc-mont.pl
+
+#aes
+SRCS+=	aes-ppc.pl vpaes-ppc.pl aesp8-ppc.pl
+
+#sha1
+SRCS+=	sha1-ppc.pl sha512-ppc.pl sha512p8-ppc.pl
+
+#modes
+SRCS+=	ghashp8-ppc.pl
+
+#chacha
+SRCS+=	chacha-ppc.pl
+
+#poly1305
+SRCS+=	poly1305-ppc.pl poly1305-ppcfp.pl
+
+#ec
+SRCS+=	ecp_nistz256-ppc64.pl x25519-ppc64.pl
+
+#keccak1600
+SRCS+=	keccak1600-ppc64.pl
+
+ASM=	${SRCS:R:S/$/.S/} sha256-ppc.S sha256p8-ppc.S
+
+all:	${ASM}
+
+CLEANFILES=	${ASM}
+.SUFFIXES:	.pl
+
+sha256-ppc.S:	sha512-ppc.pl
+	env CC=cc perl ${.ALLSRC} linux64v2 ${.TARGET:R:S/$/.s/}
+	( echo '/* $$'FreeBSD'$$ */' ;\
+	echo '/* Do not modify. This file is auto-generated from ${.ALLSRC:T:R:S/$/.pl/}. */' ;\
+	cat ${.TARGET:R:S/$/.s/}) > ${.TARGET}
+
+sha256p8-ppc.S:	sha512p8-ppc.pl
+	env CC=cc perl ${.ALLSRC} linux64v2 ${.TARGET:R:S/$/.s/}
+	( echo '/* $$'FreeBSD'$$ */' ;\
+	echo '/* Do not modify. This file is auto-generated from ${.ALLSRC:T:R:S/$/.pl/}. */' ;\
+	cat ${.TARGET:R:S/$/.s/}) > ${.TARGET}
+
+.pl.S:
+	env CC=cc perl ${.IMPSRC} linux64v2 ${.TARGET:R:S/$/.s/}
+	( echo '/* $$'FreeBSD'$$ */' ;\
+	echo '/* Do not modify. This file is auto-generated from ${.ALLSRC:T:R:S/$/.pl/}. */' ;\
+	cat ${.TARGET:R:S/$/.s/}) > ${.TARGET}
+
+.elif defined(ASM_powerpc64le)
+
+.PATH:	${LCRYPTO_SRC}/crypto \
+	${LCRYPTO_SRC}/crypto/aes/asm \
+	${LCRYPTO_SRC}/crypto/bn/asm \
+	${LCRYPTO_SRC}/crypto/chacha/asm \
+	${LCRYPTO_SRC}/crypto/ec/asm \
+	${LCRYPTO_SRC}/crypto/modes/asm \
+	${LCRYPTO_SRC}/crypto/poly1305/asm \
+	${LCRYPTO_SRC}/crypto/sha/asm
+
+PERLPATH=	-I${LCRYPTO_SRC}/crypto/perlasm
+
+#cpuid
+SRCS=	ppccpuid.pl
+
+#bn
+SRCS+=	ppc.pl ppc-mont.pl
+
+#aes
+SRCS+=	aes-ppc.pl vpaes-ppc.pl aesp8-ppc.pl
+
+#sha1
+SRCS+=	sha1-ppc.pl sha512-ppc.pl sha512p8-ppc.pl
+
+#modes
+SRCS+=	ghashp8-ppc.pl
+
+#chacha
+SRCS+=	chacha-ppc.pl
+
+#poly1305
+SRCS+=	poly1305-ppc.pl poly1305-ppcfp.pl
+
+#ec
+SRCS+=	ecp_nistz256-ppc64.pl x25519-ppc64.pl
+
+#keccak1600
+SRCS+=	keccak1600-ppc64.pl
+
+ASM=	${SRCS:R:S/$/.S/} sha256-ppc.S sha256p8-ppc.S
+
+all:	${ASM}
+
+CLEANFILES=	${ASM}
+.SUFFIXES:	.pl
+
+sha256-ppc.S:	sha512-ppc.pl
+	env CC=cc perl ${.ALLSRC} linux64le ${.TARGET:R:S/$/.s/}
+	( echo '/* $$'FreeBSD'$$ */' ;\
+	echo '/* Do not modify. This file is auto-generated from ${.ALLSRC:T:R:S/$/.pl/}. */' ;\
+	cat ${.TARGET:R:S/$/.s/}) > ${.TARGET}
+
+sha256p8-ppc.S:	sha512p8-ppc.pl
+	env CC=cc perl ${.ALLSRC} linux64le ${.TARGET:R:S/$/.s/}
+	( echo '/* $$'FreeBSD'$$ */' ;\
+	echo '/* Do not modify. This file is auto-generated from ${.ALLSRC:T:R:S/$/.pl/}. */' ;\
+	cat ${.TARGET:R:S/$/.s/}) > ${.TARGET}
+
+.pl.S:
+	env CC=cc perl ${.IMPSRC} linux64le ${.TARGET:R:S/$/.s/}
+	( echo '/* $$'FreeBSD'$$ */' ;\
+	echo '/* Do not modify. This file is auto-generated from ${.ALLSRC:T:R:S/$/.pl/}. */' ;\
+	cat ${.TARGET:R:S/$/.s/}) > ${.TARGET}
+
 .endif
 
 .include <bsd.prog.mk>

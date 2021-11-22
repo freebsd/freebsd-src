@@ -28,6 +28,12 @@ SRCS+=	x86_64cpuid.S
 SRCS+=	armv4cpuid.S armcap.c
 .elif defined(ASM_i386)
 SRCS+=	x86cpuid.S
+.elif defined(ASM_powerpc)
+SRCS+=	ppccpuid.S ppccap.c
+.elif defined(ASM_powerpc64)
+SRCS+=	ppccpuid.S ppccap.c
+.elif defined(ASM_powerpc64le)
+SRCS+=	ppccpuid.S ppccap.c
 .else
 SRCS+=	mem_clr.c
 .endif
@@ -44,6 +50,12 @@ SRCS+=	aesni-x86_64.S vpaes-x86_64.S
 SRCS+=	aes-armv4.S aesv8-armx.S bsaes-armv7.S
 .elif defined(ASM_i386)
 SRCS+=	aes_core.c aesni-x86.S vpaes-x86.S
+.elif defined(ASM_powerpc)
+SRCS+=	aes_core.c aes-ppc.S vpaes-ppc.S aesp8-ppc.S
+.elif defined(ASM_powerpc64)
+SRCS+=	aes_core.c aes-ppc.S vpaes-ppc.S aesp8-ppc.S
+.elif defined(ASM_powerpc64le)
+SRCS+=	aes_core.c aes-ppc.S vpaes-ppc.S aesp8-ppc.S
 .else
 SRCS+=	aes_core.c
 .endif
@@ -99,6 +111,12 @@ SRCS+=	x86_64-mont.S x86_64-mont5.S
 SRCS+=	armv4-gf2m.S armv4-mont.S bn_asm.c
 .elif defined(ASM_i386)
 SRCS+=	bn-586.S co-586.S x86-gf2m.S x86-mont.S
+.elif defined(ASM_powerpc)
+SRCS+=	ppc.S ppc-mont.S
+.elif defined(ASM_powerpc64)
+SRCS+=	ppc.S ppc-mont.S
+.elif defined(ASM_powerpc64le)
+SRCS+=	ppc.S ppc-mont.S
 .else
 SRCS+=	bn_asm.c
 .endif
@@ -128,6 +146,12 @@ SRCS+=	chacha-x86_64.S
 SRCS+=	chacha-armv4.S
 .elif defined(ASM_i386)
 SRCS+=	chacha-x86.S
+.elif defined(ASM_powerpc)
+SRCS+=	chacha-ppc.S
+.elif defined(ASM_powerpc64)
+SRCS+=	chacha-ppc.S
+.elif defined(ASM_powerpc64le)
+SRCS+=	chacha-ppc.S
 .else
 SRCS+=	chacha_enc.c
 .endif
@@ -189,6 +213,10 @@ SRCS+=	ecp_nistz256-x86_64.S ecp_nistz256.c x25519-x86_64.S
 SRCS+=	ecp_nistz256-armv4.S ecp_nistz256.c
 .elif defined(ASM_i386)
 SRCS+=	ecp_nistz256-x86.S ecp_nistz256.c
+.elif defined(ASM_powerpc64)
+SRCS+=	ecp_nistz256-ppc64.S ecp_nistz256.c x25519-ppc64.S
+.elif defined(ASM_powerpc64le)
+SRCS+=	ecp_nistz256-ppc64.S ecp_nistz256.c x25519-ppc64.S
 .endif
 
 # engine
@@ -250,6 +278,12 @@ SRCS+=	aesni-gcm-x86_64.S ghash-x86_64.S
 SRCS+=	ghash-armv4.S ghashv8-armx.S
 .elif defined(ASM_i386)
 SRCS+=	ghash-x86.S
+.elif defined(ASM_powerpc)
+SRCS+=	ghashp8-ppc.S
+.elif defined(ASM_powerpc64)
+SRCS+=	ghashp8-ppc.S
+.elif defined(ASM_powerpc64le)
+SRCS+=	ghashp8-ppc.S
 .endif
 
 # objects
@@ -282,6 +316,12 @@ SRCS+=	poly1305-x86_64.S
 SRCS+=	poly1305-armv4.S
 .elif defined(ASM_i386)
 SRCS+=	poly1305-x86.S
+.elif defined(ASM_powerpc)
+SRCS+=	poly1305-ppc.S poly1305-ppcfp.S
+.elif defined(ASM_powerpc64)
+SRCS+=	poly1305-ppc.S poly1305-ppcfp.S
+.elif defined(ASM_powerpc64le)
+SRCS+=	poly1305-ppc.S poly1305-ppcfp.S
 .endif
 
 # rand
@@ -333,6 +373,12 @@ SRCS+=	sha256-mb-x86_64.S sha256-x86_64.S sha512-x86_64.S
 SRCS+=	keccak1600-armv4.S sha1-armv4-large.S sha256-armv4.S sha512-armv4.S
 .elif defined(ASM_i386)
 SRCS+=	keccak1600.c sha1-586.S sha256-586.S sha512-586.S
+.elif defined(ASM_powerpc)
+SRCS+=	keccak1600.c sha1-ppc.S sha256-ppc.S sha512-ppc.S sha256p8-ppc.S sha512p8-ppc.S
+.elif defined(ASM_powerpc64)
+SRCS+=	keccak1600-ppc64.S sha1-ppc.S sha256-ppc.S sha512-ppc.S sha256p8-ppc.S sha512p8-ppc.S
+.elif defined(ASM_powerpc64le)
+SRCS+=	keccak1600-ppc64.S sha1-ppc.S sha256-ppc.S sha512-ppc.S sha256p8-ppc.S sha512p8-ppc.S
 .else
 SRCS+=	keccak1600.c
 .endif
@@ -430,7 +476,7 @@ SRCS+=	buildinf.h
 CLEANDIRS=	openssl
 CLEANFILES=	buildinf.h opensslconf.h opensslconf.h.tmp
 
-.if defined(ASM_${MACHINE_CPUARCH})
+.if defined(ASM_${MACHINE_CPUARCH}) || defined(ASM_${MACHINE_ARCH})
 _cmd1=/%%NO_ASM%%/d
 .else
 _cmd1=s/%%NO_ASM%%//
@@ -471,6 +517,8 @@ PICFLAG+=	-DOPENSSL_PIC
 .if defined(ASM_amd64)
 .PATH:	${LCRYPTO_SRC}/crypto/bn/asm
 .endif
+.elif defined(ASM_${MACHINE_ARCH})
+.PATH:	${SRCTOP}/sys/crypto/openssl/${MACHINE_ARCH}
 .endif
 
 .PATH:	${LCRYPTO_SRC}/crypto \
