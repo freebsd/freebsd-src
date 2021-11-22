@@ -130,18 +130,24 @@ end
 local known_abi_flags = {
 	long_size = {
 		value	= 0x00000001,
-		expr	= "_Contains[a-z_]*_long_",
+		exprs	= {
+			"_Contains[a-z_]*_long_",
+		},
 	},
 	time_t_size = {
 		value	= 0x00000002,
-		expr	= "_Contains[a-z_]*_timet_",
+		exprs	= {
+			"_Contains[a-z_]*_timet_",
+		},
 	},
 	pointer_args = {
 		value	= 0x00000004,
 	},
 	pointer_size = {
 		value	= 0x00000008,
-		expr	= "_Contains[a-z_]*_ptr_",
+		exprs	= {
+			"_Contains[a-z_]*_ptr_",
+		},
 	},
 }
 
@@ -552,9 +558,13 @@ end
 
 local function check_abi_changes(arg)
 	for k, v in pairs(known_abi_flags) do
-		local expr = v["expr"]
-		if abi_changes(k) and expr ~= nil and arg:find(expr) then
-			return true
+		local exprs = v["exprs"]
+		if abi_changes(k) and exprs ~= nil then
+			for _, e in pairs(exprs) do
+				if arg:find(e) then
+					return true
+				end
+			end
 		end
 	end
 
