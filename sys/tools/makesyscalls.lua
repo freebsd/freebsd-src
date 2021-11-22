@@ -581,7 +581,6 @@ local function process_args(args)
 		-- XX TODO: Forward declarations? See: sysstubfwd in CheriBSD
 		if abi_change then
 			local abi_type_suffix = config["abi_type_suffix"]
-			argtype = argtype:gsub("_native ", "")
 			argtype = argtype:gsub("(struct [^ ]*)", "%1" ..
 			    abi_type_suffix)
 			argtype = argtype:gsub("(union [^ ]*)", "%1" ..
