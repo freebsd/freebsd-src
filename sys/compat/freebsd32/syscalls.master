@@ -187,9 +187,9 @@
 77	AUE_NULL	OBSOL	vlimit
 78	AUE_MINCORE	NOPROTO	{ int mincore(const void *addr, size_t len, \
 				    char *vec); }
-79	AUE_GETGROUPS	NOPROTO	{ int getgroups(u_int gidsetsize, \
+79	AUE_GETGROUPS	NOPROTO	{ int getgroups(int gidsetsize, \
 				    gid_t *gidset); }
-80	AUE_SETGROUPS	NOPROTO	{ int setgroups(u_int gidsetsize, \
+80	AUE_SETGROUPS	NOPROTO	{ int setgroups(int gidsetsize, \
 				    const gid_t *gidset); }
 81	AUE_GETPGRP	NOPROTO	{ int getpgrp(void); }
 82	AUE_SETPGRP	NOPROTO	{ int setpgid(int pid, int pgid); }
