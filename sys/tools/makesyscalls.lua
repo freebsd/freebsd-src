@@ -167,6 +167,14 @@ local known_abi_flags = {
 			"[*][*]",
 		},
 	},
+	pair_64bit = {
+		value	= 0x00000010,
+		exprs	= {
+			"^dev_t[ ]*$",
+			"^id_t[ ]*$",
+			"^off_t[ ]*$",
+		},
+	},
 }
 
 local known_flags = {
@@ -426,6 +434,11 @@ local function isptrarraytype(type)
 	return type:find("[*][*]") or type:find("[*][ ]*const[ ]*[*]")
 end
 
+-- Find types that are always 64-bits wide
+local function is64bittype(type)
+	return type:find("^dev_t[ ]*$") or type:find("^id_t[ ]*$") or type:find("^off_t[ ]*$")
+end
+
 local process_syscall_def
 
 -- These patterns are processed in order on any line that isn't empty.
@@ -648,10 +661,27 @@ local function process_args(args)
 			    abi_type_suffix)
 		end
 
-		funcargs[#funcargs + 1] = {
-			type = argtype,
-			name = argname,
-		}
+		if abi_changes("pair_64bit") and is64bittype(argtype) then
+			if #funcargs % 2 == 1 then
+				funcargs[#funcargs + 1] = {
+					type = "int",
+					name = "_pad",
+				}
+			end
+			funcargs[#funcargs + 1] = {
+				type = "uint32_t",
+				name = argname .. "1",
+			}
+			funcargs[#funcargs + 1] = {
+				type = "uint32_t",
+				name = argname .. "2",
+			}
+		else
+			funcargs[#funcargs + 1] = {
+				type = argtype,
+				name = argname,
+			}
+		end
 	end
 
 	::out::
@@ -686,45 +716,62 @@ local function handle_noncompat(sysnum, thr_flag, flags, sysflags, rettype,
 		write_line("systrace", string.format(
 		    "\t\tstruct %s *p = params;\n", argalias))
 
-		local argtype, argname
+
+		local argtype, argname, desc, padding
+		padding = ""
 		for idx, arg in ipairs(funcargs) do
 			argtype = arg["type"]
 			argname = arg["name"]
 
 			argtype = trim(argtype:gsub("__restrict$", ""), nil)
+			if argtype == "int" and argname == "_pad" and abi_changes("pair_64bit") then
+				write_line("systracetmp", "#ifdef PAD64_REQUIRED\n")
+			end
 			-- Pointer arg?
 			if argtype:find("*") then
-				write_line("systracetmp", string.format(
-				    "\t\tcase %d:\n\t\t\tp = \"userland %s\";\n\t\t\tbreak;\n",
-				    idx - 1, argtype))
+				desc = "userland " .. argtype
 			else
-				write_line("systracetmp", string.format(
-				    "\t\tcase %d:\n\t\t\tp = \"%s\";\n\t\t\tbreak;\n",
-				    idx - 1, argtype))
+				desc = argtype;
+			end
+			write_line("systracetmp", string.format(
+			    "\t\tcase %d%s:\n\t\t\tp = \"%s\";\n\t\t\tbreak;\n",
+			    idx - 1, padding, desc))
+			if argtype == "int" and argname == "_pad" and abi_changes("pair_64bit") then
+				padding = " - _P_"
+				write_line("systracetmp", "#define _P_ 0\n#else\n#define _P_ 1\n#endif\n")
 			end
 
 			if isptrtype(argtype) then
 				write_line("systrace", string.format(
-				    "\t\tuarg[%d] = (%s)p->%s; /* %s */\n",
-				    idx - 1, config["ptr_intptr_t_cast"],
+				    "\t\tuarg[a++] = (%s)p->%s; /* %s */\n",
+				    config["ptr_intptr_t_cast"],
 				    argname, argtype))
 			elseif argtype == "union l_semun" then
 				write_line("systrace", string.format(
-				    "\t\tuarg[%d] = p->%s.buf; /* %s */\n",
-				    idx - 1, argname, argtype))
+				    "\t\tuarg[a++] = p->%s.buf; /* %s */\n",
+				    argname, argtype))
 			elseif argtype:sub(1,1) == "u" or argtype == "size_t" then
 				write_line("systrace", string.format(
-				    "\t\tuarg[%d] = p->%s; /* %s */\n",
-				    idx - 1, argname, argtype))
+				    "\t\tuarg[a++] = p->%s; /* %s */\n",
+				    argname, argtype))
 			else
+				if argtype == "int" and argname == "_pad" and abi_changes("pair_64bit") then
+					write_line("systrace", "#ifdef PAD64_REQUIRED\n")
+				end
 				write_line("systrace", string.format(
-				    "\t\tiarg[%d] = p->%s; /* %s */\n",
-				    idx - 1, argname, argtype))
+				    "\t\tiarg[a++] = p->%s; /* %s */\n",
+				    argname, argtype))
+				if argtype == "int" and argname == "_pad" and abi_changes("pair_64bit") then
+					write_line("systrace", "#endif\n")
+				end
 			end
 		end
 
 		write_line("systracetmp",
 		    "\t\tdefault:\n\t\t\tbreak;\n\t\t};\n")
+		if padding ~= "" then
+			write_line("systracetmp", "#undef _P_\n\n")
+		end
 
 		write_line("systraceret", string.format([[
 		if (ndx == 0 || ndx == 1)
@@ -743,11 +790,17 @@ local function handle_noncompat(sysnum, thr_flag, flags, sysflags, rettype,
 			    argalias))
 			for _, v in ipairs(funcargs) do
 				local argname, argtype = v["name"], v["type"]
+				if argtype == "int" and argname == "_pad" and abi_changes("pair_64bit") then
+					write_line("sysarg", "#ifdef PAD64_REQUIRED\n")
+				end
 				write_line("sysarg", string.format(
 				    "\tchar %s_l_[PADL_(%s)]; %s %s; char %s_r_[PADR_(%s)];\n",
 				    argname, argtype,
 				    argtype, argname,
 				    argname, argtype))
+				if argtype == "int" and argname == "_pad" and abi_changes("pair_64bit") then
+					write_line("sysarg", "#endif\n")
+				end
 			end
 			write_line("sysarg", "};\n")
 		else
@@ -1284,6 +1337,20 @@ struct thread;
 
 ]], generated_tag, config['os_id_keyword'], config['sysproto_h'],
     config['sysproto_h']))
+if abi_changes("pair_64bit") then
+	write_line("sysarg", string.format([[
+#if !defined(PAD64_REQUIRED) && !defined(__amd64__)
+#define PAD64_REQUIRED
+#endif
+]]))
+end
+if abi_changes("pair_64bit") then
+	write_line("systrace", string.format([[
+#if !defined(PAD64_REQUIRED) && !defined(__amd64__)
+#define PAD64_REQUIRED
+#endif
+]]))
+end
 for _, v in pairs(compat_options) do
 	write_line(v["tmp"], string.format("\n#ifdef %s\n\n", v["definition"]))
 end
@@ -1324,6 +1391,7 @@ static void
 systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 {
 	int64_t *iarg = (int64_t *)uarg;
+	int a = 0;
 	switch (sysnum) {
 ]], generated_tag, config['os_id_keyword']))
 
