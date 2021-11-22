@@ -1481,7 +1481,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 316: {
 		struct aio_cancel_args *p = params;
 		iarg[0] = p->fd; /* int */
-		uarg[1] = (intptr_t)p->aiocbp; /* struct aiocb * */
+		uarg[1] = (intptr_t)p->aiocbp; /* struct aiocb32 * */
 		*n_args = 2;
 		break;
 	}
@@ -5816,7 +5816,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 1:
-			p = "userland struct aiocb *";
+			p = "userland struct aiocb32 *";
 			break;
 		default:
 			break;

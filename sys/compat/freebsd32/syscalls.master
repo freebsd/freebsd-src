@@ -598,7 +598,7 @@
 				    uint32_t * aiocbp, int nent, \
 				    const struct timespec32 *timeout); }
 316	AUE_AIO_CANCEL	NOPROTO	{ int aio_cancel(int fd, \
-				    struct aiocb *aiocbp); }
+				    struct aiocb32 *aiocbp); }
 317	AUE_AIO_ERROR	STD	{ int freebsd32_aio_error( \
 				    struct aiocb32 *aiocbp); }
 318	AUE_AIO_READ	COMPAT6	{ int freebsd32_aio_read( \
