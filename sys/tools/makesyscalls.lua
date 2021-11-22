@@ -66,6 +66,7 @@ local config = {
 	abi_u_long = "u_long",
 	abi_long = "long",
 	abi_semid_t = "semid_t",
+	abi_ptr_array_t = "",
 	ptr_intptr_t_cast = "intptr_t",
 }
 
@@ -163,6 +164,7 @@ local known_abi_flags = {
 		value	= 0x00000008,
 		exprs	= {
 			"_Contains[a-z_]*_ptr_",
+			"[*][*]",
 		},
 	},
 }
@@ -420,6 +422,10 @@ local function isptrtype(type)
 	    type:find("intptr_t") or type:find(config['abi_intptr_t'])
 end
 
+local function isptrarraytype(type)
+	return type:find("[*][*]") or type:find("[*][ ]*const[ ]*[*]")
+end
+
 local process_syscall_def
 
 -- These patterns are processed in order on any line that isn't empty.
@@ -625,6 +631,12 @@ local function process_args(args)
 			argtype = argtype:gsub("^const u_long", "const " .. config["abi_u_long"]);
 		elseif argtype:find("^long$") then
 			argtype = config["abi_long"]
+		end
+		if isptrarraytype(argtype) and config["abi_ptr_array_t"] ~= "" then
+			-- `* const *` -> `**`
+			argtype = argtype:gsub("[*][ ]*const[ ]*[*]", "**")
+			-- e.g., `struct aiocb **` -> `uint32_t *`
+			argtype = argtype:gsub("[^*]*[*]", config["abi_ptr_array_t"] .. " ", 1)
 		end
 
 		-- XX TODO: Forward declarations? See: sysstubfwd in CheriBSD
