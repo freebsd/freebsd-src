@@ -109,6 +109,14 @@ enum arm64_bus arm64_bus_method = ARM64_BUS_NONE;
  */
 struct pcpu pcpu0;
 
+#if defined(PERTHREAD_SSP)
+/*
+ * The boot SSP canary. Will be replaced with a per-thread canary when
+ * scheduling has started.
+ */
+uintptr_t boot_canary = 0x49a2d892bc05a0b1ul;
+#endif
+
 static struct trapframe proc0_tf;
 
 int early_boot = 1;
@@ -135,6 +143,16 @@ void pagezero_cache(void *);
 void (*pagezero)(void *p) = pagezero_simple;
 
 int (*apei_nmi)(void);
+
+#if defined(PERTHREAD_SSP_WARNING)
+static void
+print_ssp_warning(void *data __unused)
+{
+	printf("WARNING: Per-thread SSP is enabled but the compiler is too old to support it\n");
+}
+SYSINIT(ssp_warn, SI_SUB_COPYRIGHT, SI_ORDER_ANY, print_ssp_warning, NULL);
+SYSINIT(ssp_warn2, SI_SUB_LAST, SI_ORDER_ANY, print_ssp_warning, NULL);
+#endif
 
 static void
 pan_setup(void)
@@ -347,6 +365,9 @@ init_proc0(vm_offset_t kstack)
 	proc_linkup0(&proc0, &thread0);
 	thread0.td_kstack = kstack;
 	thread0.td_kstack_pages = KSTACK_PAGES;
+#if defined(PERTHREAD_SSP)
+	thread0.td_md.md_canary = boot_canary;
+#endif
 	thread0.td_pcb = (struct pcb *)(thread0.td_kstack +
 	    thread0.td_kstack_pages * PAGE_SIZE) - 1;
 	thread0.td_pcb->pcb_fpflags = 0;
@@ -781,6 +802,7 @@ initarm(struct arm64_bootparams *abp)
 	    "mov x18, %0 \n"
 	    "msr tpidr_el1, %0" :: "r"(pcpup));
 
+	/* locore.S sets sp_el0 to &thread0 so no need to set it here. */
 	PCPU_SET(curthread, &thread0);
 	PCPU_SET(midr, get_midr());
 

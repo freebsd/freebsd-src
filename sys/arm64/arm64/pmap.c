@@ -6619,6 +6619,10 @@ pmap_switch(struct thread *old __unused, struct thread *new)
 
 	/* Store the new curthread */
 	PCPU_SET(curthread, new);
+#if defined(PERTHREAD_SSP)
+	/* Set the new threads SSP canary */
+	__asm("msr	sp_el0, %0" :: "r"(&new->td_md.md_canary));
+#endif
 
 	/* And the new pcb */
 	pcb = new->td_pcb;

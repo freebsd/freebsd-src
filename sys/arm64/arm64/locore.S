@@ -116,6 +116,13 @@ virtdone:
 	cmp	x15, x14
 	b.lo	1b
 
+#if defined(PERTHREAD_SSP)
+	/* Set sp_el0 to the boot canary for early per-thread SSP to work */
+	adrp	x15, boot_canary
+	add	x15, x15, :lo12:boot_canary
+	msr	sp_el0, x15
+#endif
+
 	/* Backup the module pointer */
 	mov	x1, x0
 
@@ -199,6 +206,13 @@ mp_virtdone:
 	ldr	x4, =bootstack
 	ldr	x4, [x4]
 	mov	sp, x4
+
+#if defined(PERTHREAD_SSP)
+	/* Set sp_el0 to the boot canary for early per-thread SSP to work */
+	adrp	x15, boot_canary
+	add	x15, x15, :lo12:boot_canary
+	msr	sp_el0, x15
+#endif
 
 	/* Load the kernel ttbr0 pagetable */
 	msr	ttbr0_el1, x27
