@@ -1198,7 +1198,7 @@
 		    _In_reads_bytes_opt_(newlen) const void *new,
 		    size_t newlen
 		);
-	} __sysctl sysctl_args int
+	}
 203	AUE_MLOCK	STD|CAPENABLED {
 		int mlock(
 		    _In_ const void *addr,
