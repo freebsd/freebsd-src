@@ -710,6 +710,22 @@ if_free(struct ifnet *ifp)
 
 	ifp->if_flags |= IFF_DYING;			/* XXX: Locking */
 
+	/*
+	 * XXXGL: An interface index is really an alias to ifp pointer.
+	 * Why would we clear the alias now, and not in the deferred
+	 * context?  Indeed there is nothing wrong with some network
+	 * thread obtaining ifp via ifnet_byindex() inside the network
+	 * epoch and then dereferencing ifp while we peform if_free(),
+	 * and after if_free() finished, too.
+	 *
+	 * The reason is the VIMAGE.  For some reason it was designed
+	 * to require all sockets drained before destroying, but not all
+	 * ifnets.  A vnet destruction calls if_vmove() on ifnet, which
+	 * causes ID change.  But ID change and a possible misidentification
+	 * of an ifnet later is a lesser problem, as it doesn't crash kernel.
+	 * A worse problem is that removed interface may outlive the vnet it
+	 * belongs too!  The if_free_deferred() would see ifp->if_vnet freed.
+	 */
 	CURVNET_SET_QUIET(ifp->if_vnet);
 	IFNET_WLOCK();
 	KASSERT(ifp == ifnet_byindex(ifp->if_index),
