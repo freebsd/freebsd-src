@@ -962,7 +962,6 @@ static int
 mgb_isc_txd_encap(void *xsc , if_pkt_info_t ipi)
 {
 	struct mgb_softc *sc;
-	if_softc_ctx_t scctx;
 	struct mgb_ring_data *rdata;
 	struct mgb_ring_desc *txd;
 	bus_dma_segment_t *segs;
@@ -972,7 +971,6 @@ mgb_isc_txd_encap(void *xsc , if_pkt_info_t ipi)
 	KASSERT(ipi->ipi_qsidx == 0,
 	    ("tried to refill TX Channel %d.\n", ipi->ipi_qsidx));
 	sc = xsc;
-	scctx = iflib_get_softc_ctx(sc->ctx);
 	rdata = &sc->tx_ring_data;
 
 	pidx = ipi->ipi_pidx;
@@ -1057,7 +1055,6 @@ static int
 mgb_isc_rxd_available(void *xsc, uint16_t rxqid, qidx_t idx, qidx_t budget)
 {
 	struct mgb_softc *sc;
-	if_softc_ctx_t scctx;
 	struct mgb_ring_data *rdata;
 	int avail = 0;
 
@@ -1066,7 +1063,6 @@ mgb_isc_rxd_available(void *xsc, uint16_t rxqid, qidx_t idx, qidx_t budget)
 	    rxqid));
 
 	rdata = &sc->rx_ring_data;
-	scctx = iflib_get_softc_ctx(sc->ctx);
 	for (; idx != *(rdata->head_wb); idx = MGB_NEXT_RING_IDX(idx)) {
 		avail++;
 		/* XXX: Could verify desc is device owned here */
@@ -1135,7 +1131,6 @@ mgb_isc_rxd_pkt_get(void *xsc, if_rxd_info_t ri)
 static void
 mgb_isc_rxd_refill(void *xsc, if_rxd_update_t iru)
 {
-	if_softc_ctx_t scctx;
 	struct mgb_softc *sc;
 	struct mgb_ring_data *rdata;
 	struct mgb_ring_desc *rxd;
@@ -1152,7 +1147,6 @@ mgb_isc_rxd_refill(void *xsc, if_rxd_update_t iru)
 	    ("tried to refill RX Channel %d.\n", iru->iru_qsidx));
 
 	sc = xsc;
-	scctx = iflib_get_softc_ctx(sc->ctx);
 	rdata = &sc->rx_ring_data;
 
 	while (count > 0) {
@@ -1191,11 +1185,10 @@ mgb_isc_rxd_flush(void *xsc, uint16_t rxqid, uint8_t flid, qidx_t pidx)
 static int
 mgb_test_bar(struct mgb_softc *sc)
 {
-	uint32_t id_rev, dev_id, rev;
+	uint32_t id_rev, dev_id;
 
 	id_rev = CSR_READ_REG(sc, 0);
 	dev_id = id_rev >> 16;
-	rev = id_rev & 0xFFFF;
 	if (dev_id == MGB_LAN7430_DEVICE_ID ||
 	    dev_id == MGB_LAN7431_DEVICE_ID) {
 		return (0);
