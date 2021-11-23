@@ -5675,7 +5675,7 @@ bxe_tx_mq_start_locked(struct bxe_softc    *sc,
     }
 
     /* fetch the depth of the driver queue */
-    depth = drbr_inuse_drv(ifp, tx_br);
+    depth = drbr_inuse(ifp, tx_br);
     if (depth > fp->eth_q_stats.tx_max_drbr_queue_depth) {
         fp->eth_q_stats.tx_max_drbr_queue_depth = depth;
     }
