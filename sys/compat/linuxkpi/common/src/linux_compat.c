@@ -281,6 +281,36 @@ const struct kobj_type linux_kfree_type = {
 	.release = linux_kobject_kfree
 };
 
+static ssize_t
+lkpi_kobj_attr_show(struct kobject *kobj, struct attribute *attr, char *buf)
+{
+	struct kobj_attribute *ka =
+	    container_of(attr, struct kobj_attribute, attr);
+
+	if (ka->show == NULL)
+		return (-EIO);
+
+	return (ka->show(kobj, ka, buf));
+}
+
+static ssize_t
+lkpi_kobj_attr_store(struct kobject *kobj, struct attribute *attr,
+    const char *buf, size_t count)
+{
+	struct kobj_attribute *ka =
+	    container_of(attr, struct kobj_attribute, attr);
+
+	if (ka->store == NULL)
+		return (-EIO);
+
+	return (ka->store(kobj, ka, buf, count));
+}
+
+const struct sysfs_ops kobj_sysfs_ops = {
+	.show	= lkpi_kobj_attr_show,
+	.store	= lkpi_kobj_attr_store,
+};
+
 static void
 linux_device_release(struct device *dev)
 {

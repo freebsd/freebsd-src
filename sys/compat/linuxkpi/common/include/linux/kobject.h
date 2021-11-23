@@ -68,6 +68,8 @@ struct attribute {
 	mode_t		mode;
 };
 
+extern const struct sysfs_ops kobj_sysfs_ops;
+
 struct kobj_attribute {
 	struct attribute attr;
 	ssize_t (*show)(struct kobject *kobj, struct kobj_attribute *attr,
