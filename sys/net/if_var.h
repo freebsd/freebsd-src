@@ -776,12 +776,6 @@ void if_settransmitfn(if_t ifp, if_transmit_fn_t);
 void if_setqflushfn(if_t ifp, if_qflush_fn_t);
 void if_setgetcounterfn(if_t ifp, if_get_counter_t);
 
-/* Revisit the below. These are inline functions originally */
-int drbr_inuse_drv(if_t ifp, struct buf_ring *br);
-struct mbuf* drbr_dequeue_drv(if_t ifp, struct buf_ring *br);
-int drbr_needs_enqueue_drv(if_t ifp, struct buf_ring *br);
-int drbr_enqueue_drv(if_t ifp, struct buf_ring *br, struct mbuf *m);
-
 /* TSO */
 void if_hw_tsomax_common(if_t ifp, struct ifnet_hw_tsomax *);
 int if_hw_tsomax_update(if_t ifp, struct ifnet_hw_tsomax *);
