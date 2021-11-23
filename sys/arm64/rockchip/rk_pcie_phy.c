@@ -252,7 +252,6 @@ rk_pcie_phy_enable(struct phynode *phynode, bool enable)
 }
 
 /* Phy class and methods. */
-static int rk_pcie_phy_enable(struct phynode *phynode, bool enable);
 static phynode_method_t rk_pcie_phy_phynode_methods[] = {
 	PHYNODEMETHOD(phynode_enable,		 rk_pcie_phy_enable),
 
