@@ -406,7 +406,7 @@ ifindex_alloc(void **old)
 }
 
 static void
-ifindex_free_locked(u_short idx)
+ifindex_free(u_short idx)
 {
 
 	IFNET_WLOCK_ASSERT();
@@ -415,15 +415,6 @@ ifindex_free_locked(u_short idx)
 	while (V_if_index > 0 &&
 	    V_ifindex_table[V_if_index] == NULL)
 		V_if_index--;
-}
-
-static void
-ifindex_free(u_short idx)
-{
-
-	IFNET_WLOCK();
-	ifindex_free_locked(idx);
-	IFNET_WUNLOCK();
 }
 
 static void
@@ -636,11 +627,8 @@ if_alloc_domain(u_char type, int numa_domain)
 #endif
 	if (if_com_alloc[type] != NULL) {
 		ifp->if_l2com = if_com_alloc[type](type, ifp);
-		if (ifp->if_l2com == NULL) {
-			free(ifp, M_IFNET);
-			ifindex_free(idx);
-			return (NULL);
-		}
+		KASSERT(ifp->if_l2com, ("%s: if_com_alloc[%u] failed", __func__,
+		    type));
 	}
 
 	IF_ADDR_LOCK_INIT(ifp);
@@ -735,7 +723,7 @@ if_free(struct ifnet *ifp)
 	KASSERT(ifp == ifnet_byindex(ifp->if_index),
 	    ("%s: freeing unallocated ifnet", ifp->if_xname));
 
-	ifindex_free_locked(ifp->if_index);
+	ifindex_free(ifp->if_index);
 	IFNET_WUNLOCK();
 
 	if (refcount_release(&ifp->if_refcount))
@@ -1356,7 +1344,7 @@ if_vmove(struct ifnet *ifp, struct vnet *new_vnet)
 	 * or we'd lock on one vnet and unlock on another.
 	 */
 	IFNET_WLOCK();
-	ifindex_free_locked(ifp->if_index);
+	ifindex_free(ifp->if_index);
 	IFNET_WUNLOCK();
 
 	/*
