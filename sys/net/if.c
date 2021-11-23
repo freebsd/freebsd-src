@@ -602,7 +602,7 @@ if_grow(void)
  * common structure will also be allocated if an allocation routine is
  * registered for the passed type.
  */
-struct ifnet *
+static struct ifnet *
 if_alloc_domain(u_char type, int numa_domain)
 {
 	struct ifnet *ifp;
