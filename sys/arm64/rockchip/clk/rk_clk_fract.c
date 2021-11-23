@@ -180,9 +180,6 @@ rk_clk_fract_set_gate(struct clknode *clk, bool enable)
 }
 
 static int
-rk_clk_fract_set_freq(struct clknode *clk, uint64_t fin, uint64_t *fout,
-    int flags, int *stop);
-static int
 rk_clk_fract_recalc(struct clknode *clk, uint64_t *freq)
 {
 	struct rk_clk_fract_sc *sc;
