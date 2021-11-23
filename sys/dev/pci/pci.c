@@ -683,11 +683,12 @@ pci_read_device(device_t pcib, device_t bus, int d, int b, int s, int f)
 	uint16_t vid, did;
 
 	vid = REG(PCIR_VENDOR, 2);
-	did = REG(PCIR_DEVICE, 2);
-	if (vid != 0xffff)
-		return (pci_fill_devinfo(pcib, bus, d, b, s, f, vid, did));
+	if (vid == PCIV_INVALID)
+		return (NULL);
 
-	return (NULL);
+	did = REG(PCIR_DEVICE, 2);
+
+	return (pci_fill_devinfo(pcib, bus, d, b, s, f, vid, did));
 }
 
 struct pci_devinfo *
@@ -4141,6 +4142,10 @@ pci_add_children(device_t dev, int domain, int busno)
 		pcifunchigh = 0;
 		f = 0;
 		DELAY(1);
+
+		/* If function 0 is not present, skip to the next slot. */
+		if (REG(PCIR_VENDOR, 2) == PCIV_INVALID)
+			continue;
 		hdrtype = REG(PCIR_HDRTYPE, 1);
 		if ((hdrtype & PCIM_HDRTYPE) > PCI_MAXHDRTYPE)
 			continue;
@@ -4182,7 +4187,7 @@ pci_rescan_method(device_t dev)
 	for (s = 0; s <= maxslots; s++) {
 		/* If function 0 is not present, skip to the next slot. */
 		f = 0;
-		if (REG(PCIR_VENDOR, 2) == 0xffff)
+		if (REG(PCIR_VENDOR, 2) == PCIV_INVALID)
 			continue;
 		pcifunchigh = 0;
 		hdrtype = REG(PCIR_HDRTYPE, 1);
@@ -4191,7 +4196,7 @@ pci_rescan_method(device_t dev)
 		if (hdrtype & PCIM_MFDEV)
 			pcifunchigh = PCIB_MAXFUNCS(pcib);
 		for (f = 0; f <= pcifunchigh; f++) {
-			if (REG(PCIR_VENDOR, 2) == 0xffff)
+			if (REG(PCIR_VENDOR, 2) == PCIV_INVALID)
 				continue;
 
 			/*
