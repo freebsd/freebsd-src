@@ -671,15 +671,16 @@ if_alloc(u_char type)
 }
 /*
  * Do the actual work of freeing a struct ifnet, and layer 2 common
- * structure.  This call is made when the last reference to an
- * interface is released.
+ * structure.  This call is made when the network epoch guarantees
+ * us that nobody holds a pointer to the interface.
  */
 static void
-if_free_internal(struct ifnet *ifp)
+if_free_deferred(epoch_context_t ctx)
 {
+	struct ifnet *ifp = __containerof(ctx, struct ifnet, if_epoch_ctx);
 
 	KASSERT((ifp->if_flags & IFF_DYING),
-	    ("if_free_internal: interface not dying"));
+	    ("%s: interface not dying", __func__));
 
 	if (if_com_free[ifp->if_alloctype] != NULL)
 		if_com_free[ifp->if_alloctype](ifp->if_l2com,
@@ -700,15 +701,6 @@ if_free_internal(struct ifnet *ifp)
 	free(ifp, M_IFNET);
 }
 
-static void
-if_destroy(epoch_context_t ctx)
-{
-	struct ifnet *ifp;
-
-	ifp = __containerof(ctx, struct ifnet, if_epoch_ctx);
-	if_free_internal(ifp);
-}
-
 /*
  * Deregister an interface and free the associated storage.
  */
@@ -727,7 +719,7 @@ if_free(struct ifnet *ifp)
 	IFNET_WUNLOCK();
 
 	if (refcount_release(&ifp->if_refcount))
-		NET_EPOCH_CALL(if_destroy, &ifp->if_epoch_ctx);
+		NET_EPOCH_CALL(if_free_deferred, &ifp->if_epoch_ctx);
 	CURVNET_RESTORE();
 }
 
@@ -759,7 +751,7 @@ if_rele(struct ifnet *ifp)
 
 	if (!refcount_release(&ifp->if_refcount))
 		return;
-	NET_EPOCH_CALL(if_destroy, &ifp->if_epoch_ctx);
+	NET_EPOCH_CALL(if_free_deferred, &ifp->if_epoch_ctx);
 }
 
 void
