@@ -26,14 +26,14 @@ osrelease_start()
 	t=$(mktemp -t os-release)
 	cat > "$t" <<-__EOF__
 		NAME=FreeBSD
-		VERSION=$_version
-		VERSION_ID=$_version_id
+		VERSION="$_version"
+		VERSION_ID="$_version_id"
 		ID=freebsd
 		ANSI_COLOR="0;31"
 		PRETTY_NAME="FreeBSD $_version"
-		CPE_NAME=cpe:/o:freebsd:freebsd:$_version_id
-		HOME_URL=https://FreeBSD.org/
-		BUG_REPORT_URL=https://bugs.FreeBSD.org/
+		CPE_NAME="cpe:/o:freebsd:freebsd:$_version_id"
+		HOME_URL="https://FreeBSD.org/"
+		BUG_REPORT_URL="https://bugs.FreeBSD.org/"
 __EOF__
 	install -C -o root -g wheel -m ${osrelease_perms} "$t" "${osrelease_file}"
 	rm -f "$t"
