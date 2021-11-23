@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include "pci_emul.h"
 #include "pci_irq.h"
 #include "pci_lpc.h"
+#include "pci_passthru.h"
 #include "pctestdev.h"
 #include "uart_emul.h"
 
@@ -448,10 +449,35 @@ pci_lpc_read(struct pci_devinst *pi __unused, int baridx __unused,
 
 #define	LPC_DEV		0x7000
 #define	LPC_VENDOR	0x8086
+#define LPC_REVID	0x00
+#define LPC_SUBVEND_0	0x0000
+#define LPC_SUBDEV_0	0x0000
 
 static int
-pci_lpc_init(struct pci_devinst *pi, nvlist_t *nvl __unused)
+pci_lpc_get_sel(struct pcisel *const sel)
 {
+	assert(sel != NULL);
+
+	memset(sel, 0, sizeof(*sel));
+
+	for (uint8_t slot = 0; slot <= PCI_SLOTMAX; ++slot) {
+		sel->pc_dev = slot;
+		if ((read_config(sel, PCIR_CLASS, 1) == PCIC_BRIDGE) &&
+		    (read_config(sel, PCIR_SUBCLASS, 1) == PCIS_BRIDGE_ISA)) {
+			return (0);
+		}
+	}
+
+	return (-1);
+}
+
+static int
+pci_lpc_init(struct pci_devinst *pi, nvlist_t *nvl)
+{
+	struct pcisel sel = { 0 };
+	uint16_t device, subdevice, subvendor, vendor;
+	uint8_t revid;
+
 	/*
 	 * Do not allow more than one LPC bridge to be configured.
 	 */
@@ -473,11 +499,25 @@ pci_lpc_init(struct pci_devinst *pi, nvlist_t *nvl __unused)
 	if (lpc_init(pi->pi_vmctx) != 0)
 		return (-1);
 
+	if (pci_lpc_get_sel(&sel) != 0)
+		return (-1);
+
+	vendor = pci_config_read_reg(&sel, nvl, PCIR_VENDOR, 2, LPC_VENDOR);
+	device = pci_config_read_reg(&sel, nvl, PCIR_DEVICE, 2, LPC_DEV);
+	revid = pci_config_read_reg(&sel, nvl, PCIR_REVID, 1, LPC_REVID);
+	subvendor = pci_config_read_reg(&sel, nvl, PCIR_SUBVEND_0, 2,
+	    LPC_SUBVEND_0);
+	subdevice = pci_config_read_reg(&sel, nvl, PCIR_SUBDEV_0, 2,
+	    LPC_SUBDEV_0);
+
 	/* initialize config space */
-	pci_set_cfgdata16(pi, PCIR_DEVICE, LPC_DEV);
-	pci_set_cfgdata16(pi, PCIR_VENDOR, LPC_VENDOR);
+	pci_set_cfgdata16(pi, PCIR_VENDOR, vendor);
+	pci_set_cfgdata16(pi, PCIR_DEVICE, device);
 	pci_set_cfgdata8(pi, PCIR_CLASS, PCIC_BRIDGE);
 	pci_set_cfgdata8(pi, PCIR_SUBCLASS, PCIS_BRIDGE_ISA);
+	pci_set_cfgdata8(pi, PCIR_REVID, revid);
+	pci_set_cfgdata16(pi, PCIR_SUBVEND_0, subvendor);
+	pci_set_cfgdata16(pi, PCIR_SUBDEV_0, subdevice);
 
 	lpc_bridge = pi;
 

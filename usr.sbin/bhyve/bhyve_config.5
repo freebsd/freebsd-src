@@ -542,6 +542,20 @@ for fwctl and
 for fwcfg.
 .It Va pc-testdev Ta bool Ta false Ta
 Enable the PC debug/test device.
+.It Va pcir.* Ta integer Ta Ta
+Values of PCI register.
+It also accepts the value
+.Ar host
+to use the pci id of the host system.
+This value is required for the Intel GOP driver to work properly.
+.Bl -column "subvendor" "Default"
+.It Sy Name Ta Sy Default
+.It Va vendor Ta 0x8086
+.It Va device Ta 0x7000
+.It Va revid Ta 0
+.It Va subvendor Ta 0
+.It Va subdevice Ta 0
+.El
 .El
 .Ss NVMe Controller Settings
 Each NVMe controller supports a single storage device.
