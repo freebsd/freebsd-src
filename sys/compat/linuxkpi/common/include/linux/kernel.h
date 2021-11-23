@@ -466,6 +466,12 @@ kstrtou64(const char *cp, unsigned int base, u64 *res)
 }
 
 static inline int
+kstrtoull(const char *cp, unsigned int base, unsigned long long *res)
+{
+	return (kstrtou64(cp, base, (u64 *)res));
+}
+
+static inline int
 kstrtobool(const char *s, bool *res)
 {
 	int len;
