@@ -3057,9 +3057,12 @@ swapdev_strategy(struct buf *bp, struct swdevt *sp)
 static void
 swapdev_close(struct thread *td, struct swdevt *sp)
 {
+	struct vnode *vp;
 
-	VOP_CLOSE(sp->sw_vp, FREAD | FWRITE, td->td_ucred, td);
-	vrele(sp->sw_vp);
+	vp = sp->sw_vp;
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+	VOP_CLOSE(vp, FREAD | FWRITE, td->td_ucred, td);
+	vput(vp);
 }
 
 static int
