@@ -1,6 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-3-Clause
  *
+ * Copyright (c) 2010 Bjoern A. Zeeb <bz@FreeBSD.org>
  * Copyright (c) 1980, 1986, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -65,6 +66,10 @@
 #include <sys/domain.h>
 #include <sys/jail.h>
 #include <sys/priv.h>
+
+#ifdef DDB
+#include <ddb/ddb.h>
+#endif
 
 #include <machine/stdarg.h>
 #include <vm/uma.h>
@@ -308,7 +313,7 @@ VNET_DEFINE(struct ifgrouphead, ifg_head);
 VNET_DEFINE_STATIC(int, if_indexlim) = 8;
 
 /* Table of ifnet by index. */
-VNET_DEFINE(struct ifnet **, ifindex_table);
+VNET_DEFINE_STATIC(struct ifnet **, ifindex_table);
 
 #define	V_if_indexlim		VNET(if_indexlim)
 #define	V_ifindex_table		VNET(ifindex_table)
@@ -4591,3 +4596,90 @@ if_setgetcounterfn(if_t ifp, if_get_counter_t fn)
 
 	ifp->if_get_counter = fn;
 }
+
+#ifdef DDB
+static void
+if_show_ifnet(struct ifnet *ifp)
+{
+
+	if (ifp == NULL)
+		return;
+	db_printf("%s:\n", ifp->if_xname);
+#define	IF_DB_PRINTF(f, e)	db_printf("   %s = " f "\n", #e, ifp->e);
+	IF_DB_PRINTF("%s", if_dname);
+	IF_DB_PRINTF("%d", if_dunit);
+	IF_DB_PRINTF("%s", if_description);
+	IF_DB_PRINTF("%u", if_index);
+	IF_DB_PRINTF("%u", if_refcount);
+	IF_DB_PRINTF("%d", if_index_reserved);
+	IF_DB_PRINTF("%p", if_softc);
+	IF_DB_PRINTF("%p", if_l2com);
+	IF_DB_PRINTF("%p", if_llsoftc);
+	IF_DB_PRINTF("%d", if_amcount);
+	IF_DB_PRINTF("%p", if_addr);
+	IF_DB_PRINTF("%p", if_broadcastaddr);
+	IF_DB_PRINTF("%p", if_afdata);
+	IF_DB_PRINTF("%d", if_afdata_initialized);
+	IF_DB_PRINTF("%u", if_fib);
+	IF_DB_PRINTF("%p", if_vnet);
+	IF_DB_PRINTF("%p", if_home_vnet);
+	IF_DB_PRINTF("%p", if_vlantrunk);
+	IF_DB_PRINTF("%p", if_bpf);
+	IF_DB_PRINTF("%u", if_pcount);
+	IF_DB_PRINTF("%p", if_bridge);
+	IF_DB_PRINTF("%p", if_lagg);
+	IF_DB_PRINTF("%p", if_pf_kif);
+	IF_DB_PRINTF("%p", if_carp);
+	IF_DB_PRINTF("%p", if_label);
+	IF_DB_PRINTF("%p", if_netmap);
+	IF_DB_PRINTF("0x%08x", if_flags);
+	IF_DB_PRINTF("0x%08x", if_drv_flags);
+	IF_DB_PRINTF("0x%08x", if_capabilities);
+	IF_DB_PRINTF("0x%08x", if_capenable);
+	IF_DB_PRINTF("%p", if_snd.ifq_head);
+	IF_DB_PRINTF("%p", if_snd.ifq_tail);
+	IF_DB_PRINTF("%d", if_snd.ifq_len);
+	IF_DB_PRINTF("%d", if_snd.ifq_maxlen);
+	IF_DB_PRINTF("%p", if_snd.ifq_drv_head);
+	IF_DB_PRINTF("%p", if_snd.ifq_drv_tail);
+	IF_DB_PRINTF("%d", if_snd.ifq_drv_len);
+	IF_DB_PRINTF("%d", if_snd.ifq_drv_maxlen);
+	IF_DB_PRINTF("%d", if_snd.altq_type);
+	IF_DB_PRINTF("%x", if_snd.altq_flags);
+#undef IF_DB_PRINTF
+}
+
+DB_SHOW_COMMAND(ifnet, db_show_ifnet)
+{
+
+	if (!have_addr) {
+		db_printf("usage: show ifnet <struct ifnet *>\n");
+		return;
+	}
+
+	if_show_ifnet((struct ifnet *)addr);
+}
+
+DB_SHOW_ALL_COMMAND(ifnets, db_show_all_ifnets)
+{
+	VNET_ITERATOR_DECL(vnet_iter);
+	struct ifnet *ifp;
+	u_short idx;
+
+	VNET_FOREACH(vnet_iter) {
+		CURVNET_SET_QUIET(vnet_iter);
+#ifdef VIMAGE
+		db_printf("vnet=%p\n", curvnet);
+#endif
+		for (idx = 1; idx <= V_if_index; idx++) {
+			ifp = V_ifindex_table[idx].ife_ifnet;
+			if (ifp == NULL)
+				continue;
+			db_printf( "%20s ifp=%p\n", ifp->if_xname, ifp);
+			if (db_pager_quit)
+				break;
+		}
+		CURVNET_RESTORE();
+	}
+}
+#endif	/* DDB */
