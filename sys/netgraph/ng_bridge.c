@@ -695,6 +695,8 @@ ng_bridge_send_data(link_cp dst, int manycast, struct mbuf *m, item_p item) {
 		NG_SEND_DATA_ONLY(error, dst->hook, m);
 
 	if (error) {
+		if (error == ENOMEM)
+			counter_u64_add(dst->stats.memoryFailures, 1);
 		/* The packet is still ours */
 		if (item != NULL)
 			NG_FREE_ITEM(item);
