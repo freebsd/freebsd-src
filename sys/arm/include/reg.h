@@ -3,6 +3,8 @@
 #ifndef MACHINE_REG_H
 #define MACHINE_REG_H
 
+#include <sys/_types.h>
+
 struct reg {
 	unsigned int r[13];
 	unsigned int r_sp;
@@ -12,9 +14,9 @@ struct reg {
 };
 
 struct fp_extended_precision {
-	u_int32_t fp_exponent;
-	u_int32_t fp_mantissa_hi;
-	u_int32_t fp_mantissa_lo;
+	__uint32_t fp_exponent;
+	__uint32_t fp_mantissa_hi;
+	__uint32_t fp_mantissa_lo;
 };
 
 typedef struct fp_extended_precision fp_reg_t;
