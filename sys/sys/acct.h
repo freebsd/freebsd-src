@@ -42,6 +42,8 @@
 
 #ifdef _KERNEL
 #define float uint32_t
+#else
+#include <sys/types.h>
 #endif
 
 #define AC_COMM_LEN 16
