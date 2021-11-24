@@ -5,7 +5,7 @@ Release Notes, Errata: https://www.FreeBSD.org/releases/
 Security Advisories:   https://www.FreeBSD.org/security/
 FreeBSD Handbook:      https://www.FreeBSD.org/handbook/
 FreeBSD FAQ:           https://www.FreeBSD.org/faq/
-Questions List: https://lists.FreeBSD.org/mailman/listinfo/freebsd-questions/
+Questions List:        https://www.FreeBSD.org/lists/questions/
 FreeBSD Forums:        https://forums.FreeBSD.org/
 
 Documents installed with the system are in the /usr/local/share/doc/freebsd/
