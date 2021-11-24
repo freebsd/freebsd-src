@@ -181,7 +181,7 @@ again:
 	conf.title = title;
 	result = bsddialog_menu(conf, cprompt, height, width,
 	    menu_height, item_no, listitems, NULL);
-	for (int i = 0; i < item_no; i++)
+	for (i = 0; i < item_no; i++)
 		if (listitems[i].on)
 			choice = i;
 	switch (result) {
