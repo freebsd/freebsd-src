@@ -29,13 +29,12 @@
  */
 
 #include <sys/param.h>
-#include <errno.h>
-#include <libutil.h>
-#include <inttypes.h>
 
+#include <ctype.h>
 #include <libgeom.h>
-#include <dialog.h>
-#include <dlg_keys.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "partedit.h"
 
