@@ -29,6 +29,8 @@
 #ifndef _SYS_DISK_APM_H_
 #define	_SYS_DISK_APM_H_
 
+#include <sys/types.h>
+
 /* Driver Descriptor Record. */
 struct apm_ddr {
 	uint16_t	ddr_sig;

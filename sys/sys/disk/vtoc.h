@@ -29,6 +29,8 @@
 #ifndef _SYS_DISK_VTOC_H_
 #define	_SYS_DISK_VTOC_H_
 
+#include <sys/types.h>
+
 #define	VTOC_TAG_UNASSIGNED	0x00
 #define	VTOC_TAG_BOOT		0x01
 #define	VTOC_TAG_ROOT		0x02
