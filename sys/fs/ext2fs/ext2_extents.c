@@ -280,10 +280,7 @@ ext4_ext_in_cache(struct inode *ip, daddr_t lbn, struct ext4_extent *ep)
 static int
 ext4_ext_check_header(struct inode *ip, struct ext4_extent_header *eh)
 {
-	struct m_ext2fs *fs;
 	char *error_msg;
-
-	fs = ip->i_e2fs;
 
 	if (le16toh(eh->eh_magic) != EXT4_EXT_MAGIC) {
 		error_msg = "header: invalid magic";
@@ -418,14 +415,12 @@ int
 ext4_ext_find_extent(struct inode *ip, daddr_t block,
     struct ext4_extent_path **ppath)
 {
-	struct m_ext2fs *fs;
 	struct ext4_extent_header *eh;
 	struct ext4_extent_path *path;
 	struct buf *bp;
 	uint64_t blk;
 	int error, depth, i, ppos, alloc;
 
-	fs = ip->i_e2fs;
 	eh = ext4_ext_inode_header(ip);
 	depth = ext4_ext_inode_depth(ip);
 	ppos = 0;
@@ -690,11 +685,8 @@ static int
 ext4_ext_insert_index(struct inode *ip, struct ext4_extent_path *path,
     uint32_t lblk, e4fs_daddr_t blk)
 {
-	struct m_ext2fs *fs;
 	struct ext4_extent_index *idx;
 	int len;
-
-	fs = ip->i_e2fs;
 
 	if (lblk == le32toh(path->ep_index->ei_blk)) {
 		SDT_PROBE2(ext2fs, , trace, extents, 1,
