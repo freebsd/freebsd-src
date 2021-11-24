@@ -1292,11 +1292,6 @@ nat64_do_handle_ip4(struct mbuf *m, struct in6_addr *saddr,
 
 	/* Handle delayed checksums if needed. */
 	if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
-		m = mb_unmapped_to_ext(m);
-		if (m == NULL) {
-			NAT64STAT_INC(&cfg->stats, nomem);
-			return (NAT64RETURN);
-		}
 		in_delayed_cksum(m);
 		m->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA;
 	}
@@ -1674,11 +1669,6 @@ nat64_do_handle_ip6(struct mbuf *m, uint32_t aaddr, uint16_t aport,
 
 	/* Handle delayed checksums if needed. */
 	if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA_IPV6) {
-		m = mb_unmapped_to_ext(m);
-		if (m == NULL) {
-			NAT64STAT_INC(&cfg->stats, nomem);
-			return (NAT64RETURN);
-		}
 		in6_delayed_cksum(m, plen, hlen);
 		m->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA_IPV6;
 	}
