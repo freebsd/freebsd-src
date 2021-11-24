@@ -33,6 +33,8 @@
 #ifndef _SYS_DISK_BSD_H_
 #define	_SYS_DISK_BSD_H_
 
+#include <sys/types.h>
+
 /* The disk magic number */
 #define BSD_MAGIC		0x82564557U
 
