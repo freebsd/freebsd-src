@@ -421,15 +421,13 @@ static int
 g_journal_access(struct g_provider *pp, int acr, int acw, int ace)
 {
 	struct g_journal_softc *sc;
-	int dcr, dcw, dce;
+	int dcw;
 
 	g_topology_assert();
 	GJ_DEBUG(2, "Access request for %s: r%dw%de%d.", pp->name,
 	    acr, acw, ace);
 
-	dcr = pp->acr + acr;
 	dcw = pp->acw + acw;
-	dce = pp->ace + ace;
 
 	sc = pp->geom->softc;
 	if (sc == NULL || (sc->sc_flags & GJF_DEVICE_DESTROY)) {
