@@ -3932,7 +3932,6 @@ static void
 alc_init_locked(struct alc_softc *sc)
 {
 	struct ifnet *ifp;
-	struct mii_data *mii;
 	uint8_t eaddr[ETHER_ADDR_LEN];
 	bus_addr_t paddr;
 	uint32_t reg, rxf_hi, rxf_lo;
@@ -3940,7 +3939,6 @@ alc_init_locked(struct alc_softc *sc)
 	ALC_LOCK_ASSERT(sc);
 
 	ifp = sc->alc_ifp;
-	mii = device_get_softc(sc->alc_miibus);
 
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
 		return;
