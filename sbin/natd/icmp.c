@@ -30,7 +30,6 @@
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <netinet/ip_icmp.h>
-#include <machine/in_cksum.h>
 
 #include <alias.h>
 
