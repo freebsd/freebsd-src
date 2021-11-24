@@ -49,7 +49,9 @@ __FBSDID("$FreeBSD$");
 #include <machine/in_cksum.h>
 
 /*
- * These implementations may be overridden on a per-platform basis.
+ * These implementations may be overridden on a per-platform basis.  On
+ * platforms with a direct map, the implementation of in_cksum() must handle
+ * unmapped mbufs.
  */
 #ifndef HAVE_MD_IN_CKSUM
 
@@ -203,44 +205,43 @@ in_pseudo(u_int32_t a, u_int32_t b, u_int32_t c)
 	return (sum);
 }
 
+struct cksum_skip_partial_args {
+	uint64_t csum;
+	int clen;
+};
+
+static int
+in_cksum_skip_partial(void *arg, void *data, u_int len)
+{
+	struct cksum_skip_partial_args *a;
+
+	a = arg;
+        if (((uintptr_t)data ^ a->clen) & 1)
+                a->csum += in_cksumdata(data, len) << 8;
+        else
+                a->csum += in_cksumdata(data, len);
+	a->clen += len;
+	return (0);
+}
+
 u_short
 in_cksum_skip(struct mbuf *m, int len, int skip)
 {
-	u_int64_t sum = 0;
-	int mlen = 0;
-	int clen = 0;
-	caddr_t addr;
+	struct cksum_skip_partial_args a;
 	union q_util q_util;
 	union l_util l_util;
+	uint64_t sum;
 
 	len -= skip;
-	for (; skip && m; m = m->m_next) {
-		if (m->m_len > skip) {
-			mlen = m->m_len - skip;
-			addr = mtod(m, caddr_t) + skip;
-			goto skip_start;
-		} else {
-			skip -= m->m_len;
-		}
-	}
 
-	for (; m && len; m = m->m_next) {
-		if (m->m_len == 0)
-			continue;
-		mlen = m->m_len;
-		addr = mtod(m, caddr_t);
-skip_start:
-		if (len < mlen)
-			mlen = len;
-
-		if ((clen ^ (uintptr_t) addr) & 1)
-			sum += in_cksumdata(addr, mlen) << 8;
-		else
-			sum += in_cksumdata(addr, mlen);
-
-		clen += mlen;
-		len -= mlen;
-	}
+	/*
+	 * The use of m_apply() allows this routine to operate on unmapped
+	 * mbufs.
+	 */
+	a.csum = 0;
+	a.clen = 0;
+	(void)m_apply(m, skip, len, in_cksum_skip_partial, &a);
+	sum = a.csum;
 	REDUCE16;
 	return (~sum & 0xffff);
 }
