@@ -3036,16 +3036,19 @@ swapdev_strategy(struct buf *bp, struct swdevt *sp)
 	vp2 = sp->sw_id;
 	vhold(vp2);
 	if (bp->b_iocmd == BIO_WRITE) {
+		vn_lock(vp2, LK_EXCLUSIVE | LK_RETRY);
 		if (bp->b_bufobj)
 			bufobj_wdrop(bp->b_bufobj);
 		bufobj_wref(&vp2->v_bufobj);
+	} else {
+		vn_lock(vp2, LK_SHARED | LK_RETRY);
 	}
 	if (bp->b_bufobj != &vp2->v_bufobj)
 		bp->b_bufobj = &vp2->v_bufobj;
 	bp->b_vp = vp2;
 	bp->b_iooffset = dbtob(bp->b_blkno);
 	bstrategy(bp);
-	return;
+	VOP_UNLOCK(vp2);
 }
 
 static void
