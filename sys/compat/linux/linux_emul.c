@@ -363,11 +363,12 @@ void
 linux_schedtail(struct thread *td)
 {
 	struct linux_emuldata *em;
-	struct proc *p;
-	int error = 0;
+#ifdef KTR
+	int error;
+#else
+	int error __unused;
+#endif
 	int *child_set_tid;
-
-	p = td->td_proc;
 
 	em = em_find(td);
 	KASSERT(em != NULL, ("linux_schedtail: thread emuldata not found.\n"));
