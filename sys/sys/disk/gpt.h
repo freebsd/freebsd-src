@@ -29,6 +29,8 @@
 #ifndef _SYS_DISK_GPT_H_
 #define	_SYS_DISK_GPT_H_
 
+#include <sys/types.h>
+
 /*
  * Applications can define GPT_UUID_TYPE if they want the GPT structures
  * to use a particular type definition for UUIDs/GUIDs.  This header uses
