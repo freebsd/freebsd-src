@@ -342,11 +342,8 @@ static int
 aesni_newsession(device_t dev, crypto_session_t cses,
     const struct crypto_session_params *csp)
 {
-	struct aesni_softc *sc;
 	struct aesni_session *ses;
 	int error;
-
-	sc = device_get_softc(dev);
 
 	ses = crypto_get_driver_session(cses);
 
