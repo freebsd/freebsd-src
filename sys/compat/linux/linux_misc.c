@@ -1087,7 +1087,6 @@ linux_waitid(struct thread *td, struct linux_waitid_args *args)
 	siginfo_t siginfo;
 	l_siginfo_t lsi;
 	idtype_t idtype;
-	struct proc *p;
 	int error;
 
 	options = 0;
@@ -1127,7 +1126,6 @@ linux_waitid(struct thread *td, struct linux_waitid_args *args)
 			return (error);
 	}
 	if (args->info != NULL) {
-		p = td->td_proc;
 		bzero(&lsi, sizeof(lsi));
 		if (td->td_retval[0] != 0) {
 			sig = bsd_to_linux_signal(siginfo.si_signo);

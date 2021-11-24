@@ -615,7 +615,6 @@ linux_eventfd2(struct thread *td, struct linux_eventfd2_args *args)
 int
 linux_timerfd_create(struct thread *td, struct linux_timerfd_create_args *args)
 {
-	struct filedesc *fdp;
 	struct timerfd *tfd;
 	struct file *fp;
 	clockid_t clockid;
@@ -634,7 +633,6 @@ linux_timerfd_create(struct thread *td, struct linux_timerfd_create_args *args)
 	if ((args->flags & LINUX_TFD_CLOEXEC) != 0)
 		fflags |= O_CLOEXEC;
 
-	fdp = td->td_proc->p_fd;
 	error = falloc(td, &fp, &fd, fflags);
 	if (error != 0)
 		return (error);
