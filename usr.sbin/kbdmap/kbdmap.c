@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 
 #include <assert.h>
+#include <bsddialog.h>
 #include <ctype.h>
 #include <dirent.h>
 #include <limits.h>
@@ -350,19 +351,23 @@ do_vidfont(struct keymap *km)
 static void
 show_dialog(struct keymap **km_sorted, int num_keymaps)
 {
-	FILE *fp;
-	char *cmd, *dialog;
-	char tmp_name[] = "/tmp/_kbd_lang.XXXX";
-	int fd, i, size;
+	struct bsddialog_conf conf;
+	struct bsddialog_menuitem *listitems;
+	int i, result;
 
-	fd = mkstemp(tmp_name);
-	if (fd == -1) {
-		fprintf(stderr, "Could not open temporary file \"%s\"\n",
-		    tmp_name);
+	bsddialog_initconf(&conf);
+	conf.clear = true;
+	if (bsddialog_init() < 0) {
+		fprintf(stderr, "Failed to initialize bsddialog");
 		exit(1);
 	}
-	asprintf(&dialog, "/usr/bin/dialog --clear --title \"%s\" "
-			  "--menu \"%s\" 0 0 0", title, menu);
+	conf.title = __DECONST(char *, title);
+
+	listitems = calloc(num_keymaps + 1, sizeof(struct bsddialog_menuitem));
+	if (listitems == NULL) {
+		fprintf(stderr, "Failed to allocate memory in show_dialog");
+		exit(1);
+	}
 
 	/* start right font, assume that current font is equal
 	 * to default font in /etc/rc.conf
@@ -374,63 +379,38 @@ show_dialog(struct keymap **km_sorted, int num_keymaps)
 	if (font && strcmp(font, font_current))
 		vidcontrol(font);
 
-	/* Build up the command */
-	size = 0;
+	/* Build up the menu */
 	for (i=0; i<num_keymaps; i++) {
-		/*
-		 * Each 'font' is passed as ' "font" ""', so allow the
-		 * extra space
-		 */
-		size += strlen(km_sorted[i]->desc) + 6;
+		listitems[i].prefix = __DECONST(char *, "");
+		listitems[i].depth = 0;
+		listitems[i].bottomdesc = __DECONST(char *, "");
+		listitems[i].on = false;
+		listitems[i].name = km_sorted[i]->desc;
+		listitems[i].desc = __DECONST(char *, "");
 	}
-
-	/* Allow the space for '2> tmpfilename' redirection */
-	size += strlen(tmp_name) + 3;
-
-	cmd = (char *) malloc(strlen(dialog) + size + 1);
-	strcpy(cmd, dialog);
-
-	for (i=0; i<num_keymaps; i++) {
-		strcat(cmd, " \"");
-		strcat(cmd, km_sorted[i]->desc);
-		strcat(cmd, "\"");
-		strcat(cmd, " \"\"");
-	}
-
-	strcat(cmd, " 2>");
-	strcat(cmd, tmp_name);
-
-	/* Show the dialog.. */
-	system(cmd);
-
-	fp = fopen(tmp_name, "r");
-	if (fp) {
-		char choice[64];
-		if (fgets(choice, sizeof(choice), fp) != NULL) {
-			/* Find key for desc */
-			for (i=0; i<num_keymaps; i++) {
-				if (!strcmp(choice, km_sorted[i]->desc)) {
-					if (!strcmp(program, "kbdmap"))
-						do_kbdcontrol(km_sorted[i]);
-					else
-						do_vidfont(km_sorted[i]);
-					break;
-				}
+	result = bsddialog_menu(conf, __DECONST(char *, menu), 0, 0, 0,
+	    num_keymaps, listitems, NULL);
+	bsddialog_end();
+	switch (result) {
+	case BSDDIALOG_YESOK:
+		for (i = 0; i < num_keymaps; i++) {
+			if (listitems[i].on) {
+				printf("ici\n");
+				if (!strcmp(program, "kdbmap"))
+					do_kbdcontrol(km_sorted[i]);
+				else
+					do_vidfont(km_sorted[i]);
+				break;
 			}
-		} else {
-			if (font != NULL && strcmp(font, font_current))
-				/* Cancelled, restore old font */
-				vidcontrol(font_current);
 		}
-		fclose(fp);
-	} else
-		fprintf(stderr, "Failed to open temporary file");
-
-	/* Tidy up */
-	remove(tmp_name);
-	free(cmd);
-	free(dialog);
-	close(fd);
+		break;
+	default:
+		printf("la\n");
+		if (font != NULL && strcmp(font, font_current))
+			/* Cancelled, restore old font */
+			vidcontrol(font_current);
+		break;
+	}
 }
 
 /*
