@@ -37,6 +37,7 @@
 #ifndef _SYS_ALQ_H_
 #define	_SYS_ALQ_H_
 
+#ifdef _KERNEL
 /*
  * Opaque type for the Async. Logging Queue
  */
@@ -143,4 +144,5 @@ alq_post(struct alq *alq, struct ale *ale)
 	alq_post_flags(alq, ale, 0);
 }
 
+#endif	/* _KERNEL */
 #endif	/* _SYS_ALQ_H_ */
