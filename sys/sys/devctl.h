@@ -1,10 +1,7 @@
 /*-
  * Copyright 2020 M. Warner Losh <imp@FreeBSD.org>
  *
- * SPDX-License-Idnetifier: BSD-2-Clause
- *
- * $FreeBSD$
- *
+ * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #ifndef _SYS_DEVCTL_H_
