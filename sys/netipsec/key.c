@@ -5055,7 +5055,7 @@ key_do_getnewspi(struct sadb_spirange *spirange, struct secasindex *saidx)
 	}
 
 	if (min == max) {
-		if (!key_checkspidup(htonl(min))) {
+		if (key_checkspidup(htonl(min))) {
 			ipseclog((LOG_DEBUG, "%s: SPI %u exists already.\n",
 			    __func__, min));
 			return 0;
