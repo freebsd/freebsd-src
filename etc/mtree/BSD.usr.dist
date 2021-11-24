@@ -9,6 +9,8 @@
     ..
     include
         private
+            bsddialog
+            ..
             bsdstat
             ..
             event1
