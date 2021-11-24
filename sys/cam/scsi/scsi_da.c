@@ -4533,13 +4533,11 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 	struct bio *bp, *bp1;
 	struct da_softc *softc;
 	struct ccb_scsiio *csio;
-	u_int32_t  priority;
 	da_ccb_state state;
 
 	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("dadone\n"));
 
 	softc = (struct da_softc *)periph->softc;
-	priority = done_ccb->ccb_h.pinfo.priority;
 	csio = &done_ccb->csio;
 
 #if defined(BUF_TRACKING) || defined(FULL_BUF_TRACKING)
@@ -5304,7 +5302,6 @@ dadone_probeata(struct cam_periph *periph, union ccb *done_ccb)
 	u_int32_t  priority;
 	int continue_probe;
 	int error;
-	int16_t *ptr;
 
 	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("dadone_probeata\n"));
 
@@ -5312,7 +5309,6 @@ dadone_probeata(struct cam_periph *periph, union ccb *done_ccb)
 	priority = done_ccb->ccb_h.pinfo.priority;
 	csio = &done_ccb->csio;
 	ata_params = (struct ata_params *)csio->data_ptr;
-	ptr = (uint16_t *)ata_params;
 	continue_probe = 0;
 	error = 0;
 
@@ -5897,12 +5893,10 @@ static void
 dadone_tur(struct cam_periph *periph, union ccb *done_ccb)
 {
 	struct da_softc *softc;
-	struct ccb_scsiio *csio;
 
 	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("dadone_tur\n"));
 
 	softc = (struct da_softc *)periph->softc;
-	csio = &done_ccb->csio;
 
 	cam_periph_assert(periph, MA_OWNED);
 

@@ -1339,7 +1339,6 @@ ses_process_config(enc_softc_t *enc, struct enc_fsm_state *state,
     union ccb *ccb, uint8_t **bufp, int error, int xfer_len)
 {
 	struct ses_iterator iter;
-	ses_softc_t *ses;
 	enc_cache_t *enc_cache;
 	ses_cache_t *ses_cache;
 	uint8_t *buf;
@@ -1362,7 +1361,6 @@ ses_process_config(enc_softc_t *enc, struct enc_fsm_state *state,
 
 	CAM_DEBUG(enc->periph->path, CAM_DEBUG_SUBTRACE,
 	    ("entering %s(%p, %d)\n", __func__, bufp, xfer_len));
-	ses = enc->enc_private;
 	enc_cache = &enc->enc_daemon_cache;
 	ses_cache = enc_cache->private;
 	buf = *bufp;
@@ -2870,7 +2868,6 @@ ses_get_elm_devnames(enc_softc_t *enc, encioc_elm_devnames_t *elmdn)
 static int
 ses_handle_string(enc_softc_t *enc, encioc_string_t *sstr, int ioc)
 {
-	ses_softc_t *ses;
 	enc_cache_t *enc_cache;
 	ses_cache_t *ses_cache;
 	const struct ses_enc_desc *enc_desc;
@@ -2883,7 +2880,6 @@ ses_handle_string(enc_softc_t *enc, encioc_string_t *sstr, int ioc)
 	uint8_t *buf;
 	size_t size, rsize;
 
-	ses = enc->enc_private;
 	enc_cache = &enc->enc_daemon_cache;
 	ses_cache = enc_cache->private;
 

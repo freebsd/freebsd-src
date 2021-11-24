@@ -1202,7 +1202,7 @@ static int
 passcopysglist(struct cam_periph *periph, struct pass_io_req *io_req,
 	       ccb_flags direction)
 {
-	bus_size_t kern_watermark, user_watermark, len_copied, len_to_copy;
+	bus_size_t kern_watermark, user_watermark, len_to_copy;
 	bus_dma_segment_t *user_sglist, *kern_sglist;
 	int i, j, error;
 
@@ -1210,7 +1210,6 @@ passcopysglist(struct cam_periph *periph, struct pass_io_req *io_req,
 	kern_watermark = 0;
 	user_watermark = 0;
 	len_to_copy = 0;
-	len_copied = 0;
 	user_sglist = io_req->user_segptr;
 	kern_sglist = io_req->kern_segptr;
 
@@ -1248,8 +1247,6 @@ passcopysglist(struct cam_periph *periph, struct pass_io_req *io_req,
 				goto bailout;
 			}
 		}
-
-		len_copied += len_to_copy;
 
 		if (user_sglist[i].ds_len == user_watermark) {
 			i++;
@@ -2239,11 +2236,6 @@ passsendccb(struct cam_periph *periph, union ccb *ccb, union ccb *inccb)
 static int
 passerror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 {
-	struct cam_periph *periph;
-	struct pass_softc *softc;
-
-	periph = xpt_path_periph(ccb->ccb_h.path);
-	softc = (struct pass_softc *)periph->softc;
 
 	return(cam_periph_error(ccb, cam_flags, sense_flags));
 }
