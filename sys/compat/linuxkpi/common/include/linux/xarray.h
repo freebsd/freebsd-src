@@ -40,6 +40,7 @@
 
 #define	XA_FLAGS_ALLOC (1U << 0)
 #define	XA_FLAGS_LOCK_IRQ (1U << 1)
+#define	XA_FLAGS_ALLOC1 (1U << 2)
 
 #define	XA_ERROR(x) \
 	ERR_PTR(x)
@@ -53,6 +54,7 @@
 struct xarray {
 	struct radix_tree_root root;
 	struct mtx mtx;		/* internal mutex */
+	uint32_t flags;		/* see XA_FLAGS_XXX */
 };
 
 /*
