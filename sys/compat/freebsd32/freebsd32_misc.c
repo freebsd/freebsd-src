@@ -1357,12 +1357,11 @@ freebsd32_copy_msg_out(struct msghdr *msg, struct mbuf *control)
 	socklen_t clen, datalen, datalen_out, oldclen;
 	int error;
 	caddr_t ctlbuf;
-	int len, maxlen, copylen;
+	int len, copylen;
 	struct mbuf *m;
 	error = 0;
 
 	len    = msg->msg_controllen;
-	maxlen = msg->msg_controllen;
 	msg->msg_controllen = 0;
 
 	ctlbuf = msg->msg_control;
