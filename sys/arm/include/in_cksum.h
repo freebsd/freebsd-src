@@ -40,6 +40,9 @@
 #include <sys/cdefs.h>
 
 #ifdef _KERNEL
+
+#define	HAVE_MD_IN_CKSUM
+
 u_short in_cksum(struct mbuf *m, int len);
 u_short in_addword(u_short sum, u_short b);
 u_short in_cksum_skip(struct mbuf *m, int len, int skip);

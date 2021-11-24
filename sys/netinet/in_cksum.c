@@ -1,5 +1,3 @@
-/* $NetBSD: in_cksum.c,v 1.7 1997/09/02 13:18:15 thorpej Exp $ */
-
 /*-
  * SPDX-License-Identifier: BSD-4-Clause
  *
@@ -39,7 +37,7 @@
  *	@(#)in_cksum.c	8.1 (Berkeley) 6/10/93
  */
 
-#include <sys/cdefs.h>			/* RCS ID & Copyright macro defns */
+#include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
@@ -49,6 +47,11 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <machine/in_cksum.h>
+
+/*
+ * These implementations may be overridden on a per-platform basis.
+ */
+#ifndef HAVE_MD_IN_CKSUM
 
 /*
  * Checksum routine for Internet Protocol family headers
@@ -73,11 +76,19 @@ __FBSDID("$FreeBSD$");
     }
 
 static const u_int32_t in_masks[] = {
+#if _BYTE_ORDER == _LITTLE_ENDIAN
 	/*0 bytes*/ /*1 byte*/	/*2 bytes*/ /*3 bytes*/
 	0x00000000, 0x000000FF, 0x0000FFFF, 0x00FFFFFF,	/* offset 0 */
 	0x00000000, 0x0000FF00, 0x00FFFF00, 0xFFFFFF00,	/* offset 1 */
 	0x00000000, 0x00FF0000, 0xFFFF0000, 0xFFFF0000,	/* offset 2 */
 	0x00000000, 0xFF000000, 0xFF000000, 0xFF000000,	/* offset 3 */
+#else
+	/*0 bytes*/ /*1 byte*/	/*2 bytes*/ /*3 bytes*/
+	0x00000000, 0xFF000000, 0xFFFF0000, 0xFFFFFF00,	/* offset 0 */
+	0x00000000, 0x00FF0000, 0x00FFFF00, 0x00FFFFFF,	/* offset 1 */
+	0x00000000, 0x0000FF00, 0x0000FFFF, 0x0000FFFF,	/* offset 2 */
+	0x00000000, 0x000000FF, 0x000000FF, 0x000000FF,	/* offset 3 */
+#endif
 };
 
 union l_util {
@@ -100,9 +111,9 @@ in_cksumdata(const void *buf, int len)
 	union q_util q_util;
 
 	if ((3 & (long) lw) == 0 && len == 20) {
-	     sum = (u_int64_t) lw[0] + lw[1] + lw[2] + lw[3] + lw[4];
-	     REDUCE32;
-	     return sum;
+		sum = (u_int64_t) lw[0] + lw[1] + lw[2] + lw[3] + lw[4];
+		REDUCE32;
+		return sum;
 	}
 
 	if ((offset = 3 & (long) lw) != 0) {
@@ -186,7 +197,7 @@ in_pseudo(u_int32_t a, u_int32_t b, u_int32_t c)
 	u_int64_t sum;
 	union q_util q_util;
 	union l_util l_util;
-		    
+
 	sum = (u_int64_t) a + b + c;
 	REDUCE16;
 	return (sum);
@@ -202,16 +213,16 @@ in_cksum_skip(struct mbuf *m, int len, int skip)
 	union q_util q_util;
 	union l_util l_util;
 
-        len -= skip;
-        for (; skip && m; m = m->m_next) {
-                if (m->m_len > skip) {
-                        mlen = m->m_len - skip;
+	len -= skip;
+	for (; skip && m; m = m->m_next) {
+		if (m->m_len > skip) {
+			mlen = m->m_len - skip;
 			addr = mtod(m, caddr_t) + skip;
-                        goto skip_start;
-                } else {
-                        skip -= m->m_len;
-                }
-        }
+			goto skip_start;
+		} else {
+			skip -= m->m_len;
+		}
+	}
 
 	for (; m && len; m = m->m_next) {
 		if (m->m_len == 0)
@@ -221,10 +232,11 @@ in_cksum_skip(struct mbuf *m, int len, int skip)
 skip_start:
 		if (len < mlen)
 			mlen = len;
-		if ((clen ^ (long) addr) & 1)
-		    sum += in_cksumdata(addr, mlen) << 8;
+
+		if ((clen ^ (uintptr_t) addr) & 1)
+			sum += in_cksumdata(addr, mlen) << 8;
 		else
-		    sum += in_cksumdata(addr, mlen);
+			sum += in_cksumdata(addr, mlen);
 
 		clen += mlen;
 		len -= mlen;
@@ -235,9 +247,11 @@ skip_start:
 
 u_int in_cksum_hdr(const struct ip *ip)
 {
-    u_int64_t sum = in_cksumdata(ip, sizeof(struct ip));
-    union q_util q_util;
-    union l_util l_util;
-    REDUCE16;
-    return (~sum & 0xffff);
+	u_int64_t sum = in_cksumdata(ip, sizeof(struct ip));
+	union q_util q_util;
+	union l_util l_util;
+	REDUCE16;
+	return (~sum & 0xffff);
 }
+
+#endif /* !HAVE_MD_IN_CKSUM */
