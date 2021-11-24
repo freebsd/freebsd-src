@@ -2943,6 +2943,7 @@ _prebuild_libs=	${_kerberos5_lib_libasn1} \
 		${_lib_casper} \
 		lib/ncurses/tinfo \
 		lib/ncurses/ncurses \
+		lib/ncurses/form \
 		lib/libopie lib/libpam/libpam lib/libthr \
 		${_lib_libradius} lib/libsbuf lib/libtacplus \
 		lib/libgeom \
@@ -2982,6 +2983,7 @@ _lib_libradius=	lib/libradius
 .endif
 
 lib/ncurses/ncurses__L:	lib/ncurses/tinfo__L
+lib/ncurses/form__L: lib/ncurses/ncurses__L
 
 .if ${MK_OFED} != "no"
 _prebuild_libs+= \
