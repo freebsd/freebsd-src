@@ -2351,7 +2351,7 @@ ieee80211_addba_response(struct ieee80211_node *ni,
 	int status, int baparamset, int batimeout)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
-	int bufsiz, tid;
+	int bufsiz;
 
 	/* XXX locking */
 	addba_stop_timeout(tap);
@@ -2360,7 +2360,9 @@ ieee80211_addba_response(struct ieee80211_node *ni,
 		/* XXX override our request? */
 		tap->txa_wnd = (bufsiz == 0) ?
 		    IEEE80211_AGGR_BAWMAX : min(bufsiz, IEEE80211_AGGR_BAWMAX);
+#ifdef __notyet__
 		tid = _IEEE80211_MASKSHIFT(baparamset, IEEE80211_BAPS_TID);
+#endif
 		tap->txa_flags |= IEEE80211_AGGR_RUNNING;
 		tap->txa_attempts = 0;
 		/* TODO: this should be a vap flag */
@@ -2486,16 +2488,20 @@ ht_recv_action_ba_addba_response(struct ieee80211_node *ni,
 	struct ieee80211_tx_ampdu *tap;
 	uint8_t dialogtoken, policy;
 	uint16_t baparamset, batimeout, code;
-	int tid, bufsiz;
-	int amsdu;
+	int tid;
+#ifdef IEEE80211_DEBUG
+	int amsdu, bufsiz;
+#endif
 
 	dialogtoken = frm[2];
 	code = le16dec(frm+3);
 	baparamset = le16dec(frm+5);
 	tid = _IEEE80211_MASKSHIFT(baparamset, IEEE80211_BAPS_TID);
+#ifdef IEEE80211_DEBUG
 	bufsiz = _IEEE80211_MASKSHIFT(baparamset, IEEE80211_BAPS_BUFSIZ);
-	policy = _IEEE80211_MASKSHIFT(baparamset, IEEE80211_BAPS_POLICY);
 	amsdu = !! _IEEE80211_MASKSHIFT(baparamset, IEEE80211_BAPS_AMSDU);
+#endif
+	policy = _IEEE80211_MASKSHIFT(baparamset, IEEE80211_BAPS_POLICY);
 	batimeout = le16dec(frm+7);
 
 	tap = &ni->ni_tx_ampdu[tid];
@@ -2563,11 +2569,16 @@ ht_recv_action_ba_delba(struct ieee80211_node *ni,
 	struct ieee80211com *ic = ni->ni_ic;
 	struct ieee80211_rx_ampdu *rap;
 	struct ieee80211_tx_ampdu *tap;
-	uint16_t baparamset, code;
+	uint16_t baparamset;
+#ifdef IEEE80211_DEBUG
+	uint16_t code;
+#endif
 	int tid;
 
 	baparamset = le16dec(frm+2);
+#ifdef IEEE80211_DEBUG
 	code = le16dec(frm+4);
+#endif
 
 	tid = _IEEE80211_MASKSHIFT(baparamset, IEEE80211_DELBAPS_TID);
 
