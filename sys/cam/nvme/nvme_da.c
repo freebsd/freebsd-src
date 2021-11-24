@@ -1267,6 +1267,13 @@ ndadone(struct cam_periph *periph, union ccb *done_ccb)
 static int
 ndaerror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 {
+#ifdef CAM_IO_STATS
+	struct nda_softc *softc;
+	struct cam_periph *periph;
+
+	periph = xpt_path_periph(ccb->ccb_h.path);
+	softc = (struct nda_softc *)periph->softc;
+#endif
 
 	switch (ccb->ccb_h.status & CAM_STATUS_MASK) {
 	case CAM_CMD_TIMEOUT:
