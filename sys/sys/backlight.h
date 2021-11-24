@@ -30,6 +30,8 @@
 #ifndef __BACKLIGHT_H__
 #define	__BACKLIGHT_H__
 
+#include <sys/types.h>
+
 #define	BACKLIGHTMAXLEVELS 100
 
 struct backlight_props {
