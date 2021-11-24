@@ -1,0 +1,10 @@
+#!/bin/sh
+
+libpath=../lib
+examples="buildlist menu treeview checklist radiolist mixedlist theme \
+	infobox yesno msgbox ports"
+
+for e in $examples
+do
+	cc -g -Wall -I$libpath ${e}.c -o $e -L$libpath -lbsddialog -Wl,-rpath=$libpath
+done

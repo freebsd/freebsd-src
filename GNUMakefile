@@ -1,0 +1,28 @@
+# PUBLIC DOMAIN - NO WARRANTY, see:
+# 	<http://creativecommons.org/publicdomain/zero/1.0/>
+#
+# Written by Alfonso Sabato Siciliano
+
+OUTPUT=  bsddialog
+SOURCES= bsddialog.c
+OBJECTS= $(SOURCES:.c=.o)
+LIBPATH= ./lib
+LIBBSDDIALOG= $(LIBPATH)/libbsddialog.so
+CFLAGS= -g -Wall -I$(LIBPATH)
+LDFLAGS= -Wl,-rpath=$(LIBPATH) -L$(LIBPATH) -lbsddialog
+RM = rm -f
+
+all : $(OUTPUT)
+
+$(OUTPUT): $(LIBBSDDIALOG) $(OBJECTS)
+	$(CC) $^ -o $@ $(LDFLAGS)
+
+${LIBBSDDIALOG}:
+	make -C ${LIBPATH} -f GNUMakefile
+
+%.o: %.c $(LIBBSDDIALOG)
+	$(CC) $(CFLAGS) -c $<
+
+clean:
+	make -C ${LIBPATH} -f GNUMakefile clean
+	$(RM) $(OUTPUT) *.o *~
