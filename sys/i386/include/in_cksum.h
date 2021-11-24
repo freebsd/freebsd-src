@@ -83,14 +83,6 @@ in_cksum_hdr(const struct ip *ip)
 
 	return ~sum & 0xffff;
 }
-
-static __inline void
-in_cksum_update(struct ip *ip)
-{
-	int __tmpsum;
-	__tmpsum = (int)ntohs(ip->ip_sum) + 256;
-	ip->ip_sum = htons(__tmpsum + (__tmpsum >> 16));
-}
 #endif
 
 static __inline u_short
@@ -123,17 +115,6 @@ in_pseudo(u_int sum, u_int b, u_int c)
 		sum -= 0xffff;
 	return (sum);
 }
-
-#else
-#if defined(IPVERSION) && (IPVERSION == 4)
-#define	in_cksum_update(ip) \
-	do { \
-		int __tmpsum; \
-		__tmpsum = (int)ntohs(ip->ip_sum) + 256; \
-		ip->ip_sum = htons(__tmpsum + (__tmpsum >> 16)); \
-	} while(0)
-
-#endif
 #endif
 
 #ifdef _KERNEL
