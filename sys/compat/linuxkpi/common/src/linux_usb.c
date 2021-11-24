@@ -1185,15 +1185,14 @@ usb_linux_free_device(struct usb_device *dev)
 {
 	struct usb_host_endpoint *uhe;
 	struct usb_host_endpoint *uhe_end;
-	int err;
 
 	uhe = dev->linux_endpoint_start;
 	uhe_end = dev->linux_endpoint_end;
 	while (uhe != uhe_end) {
-		err = usb_setup_endpoint(dev, uhe, 0);
+		usb_setup_endpoint(dev, uhe, 0);
 		uhe++;
 	}
-	err = usb_setup_endpoint(dev, &dev->ep0, 0);
+	usb_setup_endpoint(dev, &dev->ep0, 0);
 	free(dev->linux_endpoint_start, M_USBDEV);
 }
 
@@ -1276,7 +1275,6 @@ usb_linux_cleanup_interface(struct usb_device *dev, struct usb_interface *iface)
 	struct usb_host_interface *uhi_end;
 	struct usb_host_endpoint *uhe;
 	struct usb_host_endpoint *uhe_end;
-	int err;
 
 	uhi = iface->altsetting;
 	uhi_end = iface->altsetting + iface->num_altsetting;
@@ -1284,7 +1282,7 @@ usb_linux_cleanup_interface(struct usb_device *dev, struct usb_interface *iface)
 		uhe = uhi->endpoint;
 		uhe_end = uhi->endpoint + uhi->desc.bNumEndpoints;
 		while (uhe != uhe_end) {
-			err = usb_setup_endpoint(dev, uhe, 0);
+			usb_setup_endpoint(dev, uhe, 0);
 			uhe++;
 		}
 		uhi++;
