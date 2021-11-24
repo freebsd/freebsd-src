@@ -14,6 +14,9 @@ nooptions	KCOV
 nooptions	MALLOC_DEBUG_MAXZONES
 nooptions	QUEUE_MACRO_DEBUG_TRASH
 
+# Net80211 debugging
+nooptions	IEEE80211_DEBUG
+
 # USB debugging
 nooptions	USB_DEBUG
 nooptions	HID_DEBUG
