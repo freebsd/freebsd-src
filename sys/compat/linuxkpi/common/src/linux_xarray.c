@@ -102,13 +102,13 @@ __xa_alloc(struct xarray *xa, uint32_t *pindex, void *ptr, uint32_t mask, gfp_t 
 
 	XA_ASSERT_LOCKED(xa);
 
-	/* mask cannot be zero */
-	MPASS(mask != 0);
+	/* mask should allow to allocate at least one item */
+	MPASS(mask > (xa->flags & XA_FLAGS_ALLOC1) != 0 ? 1 : 0);
 
 	/* mask can be any power of two value minus one */
 	MPASS((mask & (mask + 1)) == 0);
 
-	*pindex = 0;
+	*pindex = (xa->flags & XA_FLAGS_ALLOC1) != 0 ? 1 : 0;
 retry:
 	retval = radix_tree_insert(&xa->root, *pindex, ptr);
 
@@ -159,13 +159,13 @@ __xa_alloc_cyclic(struct xarray *xa, uint32_t *pindex, void *ptr, uint32_t mask,
 
 	XA_ASSERT_LOCKED(xa);
 
-	/* mask cannot be zero */
-	MPASS(mask != 0);
+	/* mask should allow to allocate at least one item */
+	MPASS(mask > (xa->flags & XA_FLAGS_ALLOC1) != 0 ? 1 : 0);
 
 	/* mask can be any power of two value minus one */
 	MPASS((mask & (mask + 1)) == 0);
 
-	*pnext_index = 0;
+	*pnext_index = (xa->flags & XA_FLAGS_ALLOC1) != 0 ? 1 : 0;
 retry:
 	retval = radix_tree_insert(&xa->root, *pnext_index, ptr);
 
@@ -177,6 +177,8 @@ retry:
 		}
 		(*pnext_index)++;
 		(*pnext_index) &= mask;
+		if (*pnext_index == 0 && (xa->flags & XA_FLAGS_ALLOC1) != 0)
+			(*pnext_index)++;
 		goto retry;
 	case -ENOMEM:
 		if (likely(gfp & M_WAITOK)) {
@@ -302,6 +304,7 @@ xa_init_flags(struct xarray *xa, uint32_t flags)
 
 	mtx_init(&xa->mtx, "lkpi-xarray", NULL, MTX_DEF | MTX_RECURSE);
 	xa->root.gfp_mask = GFP_NOWAIT;
+	xa->flags = flags;
 }
 
 /*
