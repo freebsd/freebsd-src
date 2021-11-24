@@ -255,7 +255,6 @@ powerpc/powerpc/elf64_machdep.c	optional	powerpc64 | powerpc64le
 powerpc/powerpc/exec_machdep.c	standard
 powerpc/powerpc/fpu.c		standard
 powerpc/powerpc/gdb_machdep.c	optional	gdb
-powerpc/powerpc/in_cksum.c	optional	inet | inet6
 powerpc/powerpc/interrupt.c	standard
 powerpc/powerpc/intr_machdep.c	standard
 powerpc/powerpc/iommu_if.m	standard

@@ -56,7 +56,6 @@ arm64/arm64/gic_v3.c				standard
 arm64/arm64/gic_v3_acpi.c			optional acpi
 arm64/arm64/gic_v3_fdt.c			optional fdt
 arm64/arm64/identcpu.c				standard
-arm64/arm64/in_cksum.c				optional inet | inet6
 arm64/arm64/locore.S				standard no-obj
 arm64/arm64/machdep.c				standard
 arm64/arm64/machdep_boot.c			standard

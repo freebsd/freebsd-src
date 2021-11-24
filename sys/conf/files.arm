@@ -34,8 +34,8 @@ arm/arm/generic_timer.c		optional	generic_timer
 arm/arm/gic.c			optional	gic
 arm/arm/gic_fdt.c		optional	gic fdt
 arm/arm/identcpu-v6.c		standard
-arm/arm/in_cksum.c		optional	inet | inet6
 arm/arm/in_cksum_arm.S		optional	inet | inet6
+arm/arm/in_cksum_machdep.c	optional	inet | inet6
 kern/subr_intr.c		standard
 arm/arm/locore.S		standard	no-obj
 arm/arm/hypervisor-stub.S	standard

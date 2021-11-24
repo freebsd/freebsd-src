@@ -118,6 +118,9 @@ in_pseudo(u_int sum, u_int b, u_int c)
 #endif
 
 #ifdef _KERNEL
+
+#define	HAVE_MD_IN_CKSUM
+
 #if !defined(__GNUCLIKE_ASM)
 #if defined(IPVERSION) && (IPVERSION == 4)
 u_int in_cksum_hdr(const struct ip *ip);

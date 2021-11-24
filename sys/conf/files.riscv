@@ -48,7 +48,6 @@ riscv/riscv/elf_machdep.c	standard
 riscv/riscv/exception.S		standard
 riscv/riscv/exec_machdep.c	standard
 riscv/riscv/intr_machdep.c	standard
-riscv/riscv/in_cksum.c		optional	inet | inet6
 riscv/riscv/identcpu.c		standard
 riscv/riscv/locore.S		standard	no-obj
 riscv/riscv/machdep.c		standard
