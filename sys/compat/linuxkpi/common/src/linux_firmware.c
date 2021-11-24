@@ -150,7 +150,6 @@ lkpi_fw_task(void *ctx, int pending)
 {
 	struct lkpi_fw_task *lfwt;
 	const struct linuxkpi_firmware *fw;
-	int error;
 
 	KASSERT(ctx != NULL && pending == 1, ("%s: lfwt %p, pending %d\n",
 	    __func__, ctx, pending));
@@ -159,7 +158,7 @@ lkpi_fw_task(void *ctx, int pending)
 	if (lfwt->cont == NULL)
 		goto out;
 
-	error = _linuxkpi_request_firmware(lfwt->fw_name, &fw, lfwt->dev,
+	_linuxkpi_request_firmware(lfwt->fw_name, &fw, lfwt->dev,
 	    lfwt->gfp, true, true);
 
 	/*
