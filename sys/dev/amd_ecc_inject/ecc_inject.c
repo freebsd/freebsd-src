@@ -237,9 +237,9 @@ tsc_modevent(module_t mod __unused, int type, void *data __unused)
 	case MOD_SHUTDOWN:
 		break;
 	default:
-		return (EOPNOTSUPP);
+		error = EOPNOTSUPP;
 	}
-	return (0);
+	return (error);
 }
 
 DEV_MODULE(tsc, tsc_modevent, NULL);
