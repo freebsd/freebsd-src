@@ -31,7 +31,7 @@
 #ifndef _SYS_UUID_H_
 #define	_SYS_UUID_H_
 
-#include <sys/cdefs.h>
+#include <sys/types.h>
 
 /* Length of a node address (an IEEE 802 address). */
 #define	_UUID_NODE_LEN		6
