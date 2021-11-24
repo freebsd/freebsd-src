@@ -1569,7 +1569,10 @@ sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0, int subtype,
 				int ix = aid / NBBY;
 				int min = tim->tim_bitctl &~ 1;
 				int max = tim->tim_len + min - 4;
-				int tim_ucast = 0, tim_mcast = 0;
+				int tim_ucast = 0;
+#ifdef __notyet__
+				int tim_mcast = 0;
+#endif
 
 				/*
 				 * Only do this for unicast traffic in the TIM
@@ -1582,6 +1585,7 @@ sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0, int subtype,
 					tim_ucast = 1;
 				}
 
+#ifdef __notyet__
 				/*
 				 * Do a separate notification
 				 * for the multicast bit being set.
@@ -1589,6 +1593,7 @@ sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0, int subtype,
 				if (tim->tim_bitctl & 1) {
 					tim_mcast = 1;
 				}
+#endif
 
 				/*
 				 * If the TIM indicates there's traffic for

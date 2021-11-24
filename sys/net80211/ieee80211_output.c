@@ -126,10 +126,12 @@ ieee80211_vap_pkt_send_dest(struct ieee80211vap *vap, struct mbuf *m,
 	struct ifnet *ifp = vap->iv_ifp;
 	int mcast;
 	int do_ampdu = 0;
+#ifdef IEEE80211_SUPPORT_SUPERG
 	int do_amsdu = 0;
 	int do_ampdu_amsdu = 0;
 	int no_ampdu = 1; /* Will be set to 0 if ampdu is active */
 	int do_ff = 0;
+#endif
 
 	if ((ni->ni_flags & IEEE80211_NODE_PWR_MGT) &&
 	    (m->m_flags & M_PWR_SAV) == 0) {
@@ -187,12 +189,14 @@ ieee80211_vap_pkt_send_dest(struct ieee80211vap *vap, struct mbuf *m,
 	 */
 	do_ampdu = ((ni->ni_flags & IEEE80211_NODE_AMPDU_TX) &&
 	    (vap->iv_flags_ht & IEEE80211_FHT_AMPDU_TX));
+#ifdef IEEE80211_SUPPORT_SUPERG
 	do_amsdu = ((ni->ni_flags & IEEE80211_NODE_AMSDU_TX) &&
 	    (vap->iv_flags_ht & IEEE80211_FHT_AMSDU_TX));
 	do_ff =
 	    ((ni->ni_flags & IEEE80211_NODE_HT) == 0) &&
 	    ((ni->ni_flags & IEEE80211_NODE_VHT) == 0) &&
 	    (IEEE80211_ATH_CAP(vap, ni, IEEE80211_NODE_FF));
+#endif
 
 	/*
 	 * Check if A-MPDU tx aggregation is setup or if we
@@ -246,9 +250,11 @@ ieee80211_vap_pkt_send_dest(struct ieee80211vap *vap, struct mbuf *m,
 			 * have also set or cleared the amsdu-in-ampdu txa_flags
 			 * combination so we can correctly do A-MPDU + A-MSDU.
 			 */
+#ifdef IEEE80211_SUPPORT_SUPERG
 			no_ampdu = (! IEEE80211_AMPDU_RUNNING(tap)
 			    || (IEEE80211_AMPDU_NACKED(tap)));
 			do_ampdu_amsdu = IEEE80211_AMPDU_RUNNING_AMSDU(tap);
+#endif
 		}
 	}
 

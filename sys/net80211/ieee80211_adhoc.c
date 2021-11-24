@@ -1009,7 +1009,6 @@ ahdemo_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 {
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211com *ic = ni->ni_ic;
-	struct ieee80211_frame *wh;
 
 	/*
 	 * Process management frames when scanning; useful for doing
@@ -1018,7 +1017,11 @@ ahdemo_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 	if (ic->ic_flags & IEEE80211_F_SCAN)
 		adhoc_recv_mgmt(ni, m0, subtype, rxs, rssi, nf);
 	else {
+#ifdef IEEE80211_DEBUG
+		struct ieee80211_frame *wh;
+
 		wh = mtod(m0, struct ieee80211_frame *);
+#endif
 		switch (subtype) {
 		case IEEE80211_FC0_SUBTYPE_ASSOC_REQ:
 		case IEEE80211_FC0_SUBTYPE_ASSOC_RESP:

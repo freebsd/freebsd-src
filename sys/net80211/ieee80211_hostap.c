@@ -997,7 +997,7 @@ hostap_auth_shared(struct ieee80211_node *ni, struct ieee80211_frame *wh,
 {
 	struct ieee80211vap *vap = ni->ni_vap;
 	uint8_t *challenge;
-	int allocbs, estatus;
+	int estatus;
 
 	KASSERT(vap->iv_state == IEEE80211_S_RUN, ("state %d", vap->iv_state));
 
@@ -1070,17 +1070,26 @@ hostap_auth_shared(struct ieee80211_node *ni, struct ieee80211_frame *wh,
 	}
 	switch (seq) {
 	case IEEE80211_AUTH_SHARED_REQUEST:
+	{
+#ifdef IEEE80211_DEBUG
+		bool allocbs;
+#endif
+
 		if (ni == vap->iv_bss) {
 			ni = ieee80211_dup_bss(vap, wh->i_addr2);
 			if (ni == NULL) {
 				/* NB: no way to return an error */
 				return;
 			}
+#ifdef IEEE80211_DEBUG
 			allocbs = 1;
+#endif
 		} else {
 			if ((ni->ni_flags & IEEE80211_NODE_AREF) == 0)
 				(void) ieee80211_ref_node(ni);
+#ifdef IEEE80211_DEBUG
 			allocbs = 0;
+#endif
 		}
 		/*
 		 * Mark the node as referenced to reflect that it's
@@ -1120,6 +1129,7 @@ hostap_auth_shared(struct ieee80211_node *ni, struct ieee80211_frame *wh,
 			return;
 		}
 		break;
+	}
 	case IEEE80211_AUTH_SHARED_RESPONSE:
 		if (ni == vap->iv_bss) {
 			IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_AUTH,
@@ -2299,7 +2309,9 @@ hostap_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 
 	case IEEE80211_FC0_SUBTYPE_DEAUTH:
 	case IEEE80211_FC0_SUBTYPE_DISASSOC: {
+#ifdef IEEE80211_DEBUG
 		uint16_t reason;
+#endif
 
 		if (vap->iv_state != IEEE80211_S_RUN ||
 		    /* NB: can happen when in promiscuous mode */
@@ -2312,7 +2324,9 @@ hostap_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 		 *	[2] reason
 		 */
 		IEEE80211_VERIFY_LENGTH(efrm - frm, 2, return);
+#ifdef IEEE80211_DEBUG
 		reason = le16toh(*(uint16_t *)frm);
+#endif
 		if (subtype == IEEE80211_FC0_SUBTYPE_DEAUTH) {
 			vap->iv_stats.is_rx_deauth++;
 			IEEE80211_NODE_STAT(ni, rx_deauth);

@@ -241,10 +241,7 @@ wep_decap(struct ieee80211_key *k, struct mbuf *m, int hdrlen)
 {
 	struct wep_ctx *ctx = k->wk_private;
 	struct ieee80211vap *vap = ctx->wc_vap;
-	struct ieee80211_frame *wh;
 	const struct ieee80211_rx_stats *rxs;
-
-	wh = mtod(m, struct ieee80211_frame *);
 
 	rxs = ieee80211_get_rx_params_ptr(m);
 
@@ -258,6 +255,11 @@ wep_decap(struct ieee80211_key *k, struct mbuf *m, int hdrlen)
 	 */
 	if ((k->wk_flags & IEEE80211_KEY_SWDECRYPT) &&
 	    !wep_decrypt(k, m, hdrlen)) {
+#ifdef IEEE80211_DEBUG
+		struct ieee80211_frame *wh;
+
+		wh = mtod(m, struct ieee80211_frame *);
+#endif
 		IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_CRYPTO, wh->i_addr2,
 		    "%s", "WEP ICV mismatch on decrypt");
 		vap->iv_stats.is_rx_wepfail++;
