@@ -631,7 +631,6 @@ static int
 unionfs_check_corrected_access(accmode_t accmode, struct vattr *va,
     struct ucred *cred)
 {
-	int		count;
 	uid_t		uid;	/* upper side vnode's uid */
 	gid_t		gid;	/* upper side vnode's gid */
 	u_short		vmode;	/* upper side vnode's mode */
@@ -654,7 +653,6 @@ unionfs_check_corrected_access(accmode_t accmode, struct vattr *va,
 	}
 
 	/* check group */
-	count = 0;
 	if (groupmember(gid, cred)) {
 		if (accmode & VEXEC)
 			mask |= S_IXGRP;
