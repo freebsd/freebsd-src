@@ -129,6 +129,7 @@ _LIBRARIES=	\
 		execinfo \
 		fetch \
 		figpar \
+		formw \
 		geom \
 		gpio \
 		gssapi \
@@ -381,6 +382,7 @@ _DP_stats=	sbuf pthread
 _DP_stdthreads=	pthread
 _DP_tacplus=	md
 _DP_ncursesw=	tinfow
+_DP_formw=	ncursesw
 _DP_nvpair=	spl
 _DP_panelw=	ncursesw
 _DP_rpcsec_gss=	gssapi
