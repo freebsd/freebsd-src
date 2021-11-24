@@ -343,10 +343,10 @@ usb_linux_suspend(device_t dev)
 	struct usb_driver *udrv = usb_linux_get_usb_driver(sc);
 	int err;
 
-	if (udrv && udrv->suspend) {
+	err = 0;
+	if (udrv && udrv->suspend)
 		err = (udrv->suspend) (sc->sc_ui, 0);
-	}
-	return (0);
+	return (-err);
 }
 
 /*------------------------------------------------------------------------*
@@ -361,10 +361,10 @@ usb_linux_resume(device_t dev)
 	struct usb_driver *udrv = usb_linux_get_usb_driver(sc);
 	int err;
 
-	if (udrv && udrv->resume) {
+	err = 0;
+	if (udrv && udrv->resume)
 		err = (udrv->resume) (sc->sc_ui);
-	}
-	return (0);
+	return (-err);
 }
 
 /*------------------------------------------------------------------------*
