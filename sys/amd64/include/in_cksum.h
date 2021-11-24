@@ -45,35 +45,6 @@
 
 #define in_cksum(m, len)	in_cksum_skip(m, len, 0)
 
-#if defined(IPVERSION) && (IPVERSION == 4)
-/*
- * It it useful to have an Internet checksum routine which is inlineable
- * and optimized specifically for the task of computing IP header checksums
- * in the normal case (where there are no options and the header length is
- * therefore always exactly five 32-bit words.
- */
-#ifdef __CC_SUPPORTS___INLINE
-
-static __inline void
-in_cksum_update(struct ip *ip)
-{
-	int __tmpsum;
-	__tmpsum = (int)ntohs(ip->ip_sum) + 256;
-	ip->ip_sum = htons(__tmpsum + (__tmpsum >> 16));
-}
-
-#else
-
-#define	in_cksum_update(ip) \
-	do { \
-		int __tmpsum; \
-		__tmpsum = (int)ntohs(ip->ip_sum) + 256; \
-		ip->ip_sum = htons(__tmpsum + (__tmpsum >> 16)); \
-	} while(0)
-
-#endif
-#endif
-
 #ifdef _KERNEL
 #if defined(IPVERSION) && (IPVERSION == 4)
 u_int in_cksum_hdr(const struct ip *ip);
