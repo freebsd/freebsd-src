@@ -345,11 +345,6 @@ enc_close(struct cdev *dev, int flag, int fmt, struct thread *td)
 int
 enc_error(union ccb *ccb, uint32_t cflags, uint32_t sflags)
 {
-	struct enc_softc *softc;
-	struct cam_periph *periph;
-
-	periph = xpt_path_periph(ccb->ccb_h.path);
-	softc = (struct enc_softc *)periph->softc;
 
 	return (cam_periph_error(ccb, cflags, sflags));
 }

@@ -735,11 +735,6 @@ chdone(struct cam_periph *periph, union ccb *done_ccb)
 static int
 cherror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 {
-	struct ch_softc *softc;
-	struct cam_periph *periph;
-
-	periph = xpt_path_periph(ccb->ccb_h.path);
-	softc = (struct ch_softc *)periph->softc;
 
 	return (cam_periph_error(ccb, cam_flags, sense_flags));
 }
