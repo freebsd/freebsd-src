@@ -102,7 +102,7 @@ main(int argc, char **argv)
 	}
 
 	if (is_soft)
-		hints_file = _PATH_ELFSOFT_HINTS;	/* Never will have a.out softfloat */
+		hints_file = _PATH_ELFSOFT_HINTS;
 	else if (is_32)
 		hints_file = _PATH_ELF32_HINTS;
 	else
