@@ -4,14 +4,16 @@
 #ifndef _POWERPC_REG_H_
 #define	_POWERPC_REG_H_
 
+#include <sys/_types.h>
+
 /* Must match struct trapframe */
 struct reg {
-	register_t fixreg[32];
-	register_t lr;
-	register_t cr;
-	register_t xer;
-	register_t ctr;
-	register_t pc;
+	__register_t fixreg[32];
+	__register_t lr;
+	__register_t cr;
+	__register_t xer;
+	__register_t ctr;
+	__register_t pc;
 };
 
 struct fpreg {
@@ -21,10 +23,10 @@ struct fpreg {
 
 /* Must match pcb.pcb_vec */
 struct vmxreg {
-	uint32_t vr[32][4];
-	uint32_t pad[2];
-	uint32_t vrsave;
-	uint32_t vscr;
+	__uint32_t vr[32][4];
+	__uint32_t pad[2];
+	__uint32_t vrsave;
+	__uint32_t vscr;
 };
 
 struct dbreg {
@@ -34,12 +36,12 @@ struct dbreg {
 #ifdef __LP64__
 /* Must match struct trapframe */
 struct reg32 {
-	int32_t fixreg[32];
-	int32_t lr;
-	int32_t cr;
-	int32_t xer;
-	int32_t ctr;
-	int32_t pc;
+	__int32_t fixreg[32];
+	__int32_t lr;
+	__int32_t cr;
+	__int32_t xer;
+	__int32_t ctr;
+	__int32_t pc;
 };
 
 struct fpreg32 {
