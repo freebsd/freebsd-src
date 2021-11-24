@@ -3146,12 +3146,10 @@ static int
 cdreadtoc(struct cam_periph *periph, u_int32_t mode, u_int32_t start,
 	  u_int8_t *data, u_int32_t len, u_int32_t sense_flags)
 {
-	u_int32_t ntoc;
         struct ccb_scsiio *csio;
 	union ccb *ccb;
 	int error;
 
-	ntoc = len;
 	error = 0;
 
 	ccb = cam_periph_getccb(periph, CAM_PRIORITY_NORMAL);
