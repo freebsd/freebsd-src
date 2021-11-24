@@ -170,9 +170,11 @@ SYMLINKS+=	libncursesw_p.a ${LIBDIR}/libcurses_p.a
 LIBADD+=	tinfow
 SHLIB_LDSCRIPT=	libncursesw.ldscript
 STATIC_LDSCRIPT= libncursesw.aldscript
+CLEANFILES+= libncursesw.ald
+# Keep this for a while to ensure the file is removed during make clean
 CLEANFILES+= libncursesw.a
 
-libncursesw.a: ${.CURDIR}/${STATIC_LDSCRIPT}
+libncursesw.ald: ${.CURDIR}/${STATIC_LDSCRIPT}
 	sed -e 's,@@LIB@@,${LIB},g' \
 	    -e 's,@@STATICLIB_SUFFIX@@,${_STATICLIB_SUFFIX},g' \
 	    ${.ALLSRC} > ${.TARGET}
@@ -184,11 +186,11 @@ lib_gen.c: MKlib_gen.sh ${.OBJDIR:H}/tinfo/curses.h ncurses_dll.h
 expanded.c: MKexpanded.sh
 	sh ${NCURSES_DIR}/ncurses/tty/MKexpanded.sh "${CC:N${CCACHE_BIN}} -E" ${CFLAGS} >expanded.c
 
-all: ${STATIC_LDSCRIPT} libncursesw.a
+all: ${STATIC_LDSCRIPT} libncursesw.ald
 
-install-libncursesw.a: libncursesw.a
+install-libncursesw.a: libncursesw.ald
 	${INSTALL} ${TAG_ARGS:D${TAG_ARGS},dev} -S -C -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
-	    ${_INSTALLFLAGS} libncursesw.a ${DESTDIR}${_LIBDIR}/lib${LIB}.a
+	    ${_INSTALLFLAGS} libncursesw.ald ${DESTDIR}${_LIBDIR}/lib${LIB}.a
 
 realinstall: install-libncursesw.a
 
