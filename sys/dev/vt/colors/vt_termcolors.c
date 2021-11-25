@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/libkern.h>
+#include <sys/fbio.h>
 
 #include <dev/vt/colors/vt_termcolors.h>
 
@@ -152,7 +153,7 @@ vt_palette_init(void)
 	}
 }
 
-int
+static int
 vt_generate_cons_palette(uint32_t *palette, int format, uint32_t rmax,
     int roffset, uint32_t gmax, int goffset, uint32_t bmax, int boffset)
 {
@@ -175,4 +176,19 @@ vt_generate_cons_palette(uint32_t *palette, int format, uint32_t rmax,
 	}
 
 	return (0);
+}
+
+int
+vt_config_cons_colors(struct fb_info *info, int format, uint32_t rmax,
+    int roffset, uint32_t gmax, int goffset, uint32_t bmax, int boffset)
+{
+	if (format == COLOR_FORMAT_RGB) {
+		info->fb_rgboffs.red = roffset;
+		info->fb_rgboffs.green = goffset;
+		info->fb_rgboffs.blue = boffset;
+	} else
+		memset(&info->fb_rgboffs, 0, sizeof(info->fb_rgboffs));
+
+	return (vt_generate_cons_palette(info->fb_cmap, format, rmax,
+	    roffset, gmax, goffset, bmax, boffset));
 }

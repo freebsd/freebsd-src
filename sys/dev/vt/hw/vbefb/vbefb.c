@@ -135,7 +135,7 @@ vt_vbefb_init(struct vt_device *vd)
 	roff = ffs(vbefb->fb_mask_red) - 1;
 	goff = ffs(vbefb->fb_mask_green) - 1;
 	boff = ffs(vbefb->fb_mask_blue) - 1;
-	vt_generate_cons_palette(info->fb_cmap, format,
+	vt_config_cons_colors(info, format,
 	    vbefb->fb_mask_red >> roff, roff,
 	    vbefb->fb_mask_green >> goff, goff,
 	    vbefb->fb_mask_blue >> boff, boff);

@@ -120,6 +120,14 @@ vt_fb_ioctl(struct vt_device *vd, u_long cmd, caddr_t data, struct thread *td)
 		vd->vd_driver->vd_blank(vd, TC_BLACK);
 		break;
 
+	case FBIO_GETRGBOFFS:	/* get RGB offsets */
+		if (info->fb_rgboffs.red == 0 && info->fb_rgboffs.green == 0 &&
+		    info->fb_rgboffs.blue == 0)
+			return (ENOTTY);
+		memcpy((struct fb_rgboffs *)data, &info->fb_rgboffs,
+		    sizeof(struct fb_rgboffs));
+		break;
+
 	default:
 		error = ENOIOCTL;
 		break;
@@ -432,22 +440,22 @@ vt_fb_postswitch(struct vt_device *vd)
 }
 
 static int
-vt_fb_init_cmap(uint32_t *cmap, int depth)
+vt_fb_init_colors(struct fb_info *info)
 {
 
-	switch (depth) {
+	switch (FBTYPE_GET_BPP(info)) {
 	case 8:
-		return (vt_generate_cons_palette(cmap, COLOR_FORMAT_RGB,
+		return (vt_config_cons_colors(info, COLOR_FORMAT_RGB,
 		    0x7, 5, 0x7, 2, 0x3, 0));
 	case 15:
-		return (vt_generate_cons_palette(cmap, COLOR_FORMAT_RGB,
+		return (vt_config_cons_colors(info, COLOR_FORMAT_RGB,
 		    0x1f, 10, 0x1f, 5, 0x1f, 0));
 	case 16:
-		return (vt_generate_cons_palette(cmap, COLOR_FORMAT_RGB,
+		return (vt_config_cons_colors(info, COLOR_FORMAT_RGB,
 		    0x1f, 11, 0x3f, 5, 0x1f, 0));
 	case 24:
 	case 32: /* Ignore alpha. */
-		return (vt_generate_cons_palette(cmap, COLOR_FORMAT_RGB,
+		return (vt_config_cons_colors(info, COLOR_FORMAT_RGB,
 		    0xff, 16, 0xff, 8, 0xff, 0));
 	default:
 		return (1);
@@ -478,7 +486,7 @@ vt_fb_init(struct vt_device *vd)
 		info->fb_flags |= FB_FLAG_NOMMAP;
 
 	if (info->fb_cmsize <= 0) {
-		err = vt_fb_init_cmap(info->fb_cmap, FBTYPE_GET_BPP(info));
+		err = vt_fb_init_colors(info);
 		if (err)
 			return (CN_DEAD);
 		info->fb_cmsize = 16;

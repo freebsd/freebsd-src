@@ -2559,6 +2559,7 @@ skip_thunk:
 	case FBIO_GETDISPSTART:	/* get display start address */
 	case FBIO_GETLINEWIDTH:	/* get scan line width in bytes */
 	case FBIO_BLANK:	/* blank display */
+	case FBIO_GETRGBOFFS:	/* get RGB offsets */
 		if (vd->vd_driver->vd_fb_ioctl)
 			return (vd->vd_driver->vd_fb_ioctl(vd, cmd, data, td));
 		break;

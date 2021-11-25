@@ -110,6 +110,15 @@ struct fbtype {
 #define	FBTYPE_GET_BPP(_fb)	((_fb)->fb_bpp)
 #define	FBTYPE_GET_BYTESPP(_fb)	((_fb)->fb_bpp / 8)
 
+/*
+ * RGB offsets as returned by FBIO_GETRGBOFFS.
+ */
+struct fb_rgboffs {
+	int		red;
+	int		green;
+	int		blue;
+};
+
 #ifdef	_KERNEL
 
 struct fb_info;
@@ -148,6 +157,8 @@ struct fb_info {
 	int		fb_stride;
 	int		fb_bpp;		/* bits per pixel */
 	uint32_t	fb_cmap[16];
+
+	struct fb_rgboffs fb_rgboffs;	/* RGB offsets */
 };
 
 int fbd_list(void);
@@ -618,5 +629,8 @@ typedef struct video_color_palette video_color_palette_t;
 #define V_DISPLAY_SUSPEND	3
 
 #define FBIO_BLANK	_IOW('F', 115, int)
+
+/* get RGB offsets */
+#define	FBIO_GETRGBOFFS	_IOR('F', 116, struct fb_rgboffs)
 
 #endif /* !_SYS_FBIO_H_ */
