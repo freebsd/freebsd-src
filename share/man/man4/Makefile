@@ -46,7 +46,6 @@ MAN=	aac.4 \
 	${_amdsmn.4} \
 	${_amdtemp.4} \
 	${_bxe.4} \
-	amr.4 \
 	${_aout.4} \
 	${_apic.4} \
 	arcmsr.4 \
