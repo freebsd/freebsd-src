@@ -541,12 +541,10 @@ mpr_print_sgl(struct mpr_softc *sc, struct mpr_command *cm, int offset)
 	MPI2_IEEE_SGE_SIMPLE64 *ieee_sge;
 	MPI25_IEEE_SGE_CHAIN64 *ieee_sgc;
 	MPI2_SGE_SIMPLE64 *sge;
-	MPI2_REQUEST_HEADER *req;
 	struct mpr_chain *chain = NULL;
 	char *frame;
 	u_int i = 0, flags, length;
 
-	req = (MPI2_REQUEST_HEADER *)cm->cm_req;
 	frame = (char *)cm->cm_req;
 	ieee_sge = (MPI2_IEEE_SGE_SIMPLE64 *)&frame[offset * 4];
 	sge = (MPI2_SGE_SIMPLE64 *)&frame[offset * 4];
