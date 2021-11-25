@@ -529,6 +529,7 @@ arm64/qoriq/clk/lx2160a_clkgen.c		optional clk SOC_NXP_LS
 arm64/qoriq/clk/qoriq_clk_pll.c			optional clk SOC_NXP_LS
 arm64/qoriq/clk/qoriq_clkgen.c			optional clk SOC_NXP_LS
 dev/ahci/ahci_fsl_fdt.c				optional SOC_NXP_LS ahci fdt
+dev/flash/flexspi/flex_spi.c    		optional clk flex_spi SOC_NXP_LS fdt
 
 # Qualcomm
 arm64/qualcomm/qcom_gcc.c			optional qcom_gcc fdt
