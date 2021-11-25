@@ -519,12 +519,10 @@ mps_print_sgl(struct mps_softc *sc, struct mps_command *cm, int offset)
 {
 	MPI2_SGE_SIMPLE64 *sge;
 	MPI2_SGE_CHAIN32 *sgc;
-	MPI2_REQUEST_HEADER *req;
 	struct mps_chain *chain = NULL;
 	char *frame;
 	u_int i = 0, flags;
 
-	req = (MPI2_REQUEST_HEADER *)cm->cm_req;
 	frame = (char *)cm->cm_req;
 	sge = (MPI2_SGE_SIMPLE64 *)&frame[offset * 4];
 	printf("SGL for command %p\n", cm);
