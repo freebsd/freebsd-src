@@ -1180,14 +1180,12 @@ static void
 mpssas_logical_unit_reset_complete(struct mps_softc *sc, struct mps_command *tm)
 {
 	MPI2_SCSI_TASK_MANAGE_REPLY *reply;
-	MPI2_SCSI_TASK_MANAGE_REQUEST *req;
 	unsigned int cm_count = 0;
 	struct mps_command *cm;
 	struct mpssas_target *targ;
 
 	callout_stop(&tm->cm_callout);
 
-	req = (MPI2_SCSI_TASK_MANAGE_REQUEST *)tm->cm_req;
 	reply = (MPI2_SCSI_TASK_MANAGE_REPLY *)tm->cm_reply;
 	targ = tm->cm_targ;
 

@@ -268,9 +268,6 @@ mpssas_fw_work(struct mps_softc *sc, struct mps_fw_event_work *fw_event)
 	}
 	case MPI2_EVENT_SAS_ENCL_DEVICE_STATUS_CHANGE:
 	{
-		Mpi2EventDataSasEnclDevStatusChange_t *data;
-		data = (Mpi2EventDataSasEnclDevStatusChange_t *)
-		    fw_event->event_data;
 		mps_mapping_enclosure_dev_status_change_event(sc,
 		    fw_event->event_data);
 		break;
