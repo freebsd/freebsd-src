@@ -3205,18 +3205,6 @@ dev/syscons/warp/warp_saver.c	optional warp_saver
 dev/tcp_log/tcp_log_dev.c	optional tcp_blackbox inet | tcp_blackbox inet6
 dev/tdfx/tdfx_pci.c		optional tdfx pci
 dev/ti/if_ti.c			optional ti pci
-dev/twa/tw_cl_init.c		optional twa \
-	compile-with "${NORMAL_C} -I$S/dev/twa"
-dev/twa/tw_cl_intr.c		optional twa \
-	compile-with "${NORMAL_C} -I$S/dev/twa"
-dev/twa/tw_cl_io.c		optional twa \
-	compile-with "${NORMAL_C} -I$S/dev/twa"
-dev/twa/tw_cl_misc.c		optional twa \
-	compile-with "${NORMAL_C} -I$S/dev/twa"
-dev/twa/tw_osl_cam.c		optional twa \
-	compile-with "${NORMAL_C} -I$S/dev/twa"
-dev/twa/tw_osl_freebsd.c	optional twa \
-	compile-with "${NORMAL_C} -I$S/dev/twa"
 dev/twe/twe.c			optional twe
 dev/twe/twe_freebsd.c		optional twe
 dev/tws/tws.c			optional tws

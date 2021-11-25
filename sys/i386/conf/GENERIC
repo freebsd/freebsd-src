@@ -156,7 +156,6 @@ device		ses			# Enclosure Services (SES and SAF-TE)
 device		arcmsr			# Areca SATA II RAID
 device		ciss			# Compaq Smart RAID 5*
 device		ips			# IBM (Adaptec) ServeRAID
-device		twa			# 3ware 9000 series PATA/SATA RAID
 device		tws			# LSI 3ware 9750 SATA+SAS 6Gb/s RAID controller
 
 # RAID controllers
