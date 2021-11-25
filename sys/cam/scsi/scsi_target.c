@@ -761,13 +761,11 @@ static void
 targdone(struct cam_periph *periph, union ccb *done_ccb)
 {
 	struct targ_softc *softc;
-	cam_status status;
 
 	CAM_DEBUG(periph->path, CAM_DEBUG_PERIPH, ("targdone %p\n", done_ccb));
 	softc = (struct targ_softc *)periph->softc;
 	TAILQ_REMOVE(&softc->pending_ccb_queue, &done_ccb->ccb_h,
 		     periph_links.tqe);
-	status = done_ccb->ccb_h.status & CAM_STATUS_MASK;
 
 	/* If we're no longer enabled, throw away CCB */
 	if ((softc->state & TARG_STATE_LUN_ENABLED) == 0) {
