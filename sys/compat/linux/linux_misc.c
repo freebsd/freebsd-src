@@ -279,7 +279,7 @@ linux_uselib(struct thread *td, struct linux_uselib_args *args)
 		    UIO_USERSPACE, args->library, td);
 		error = namei(&ni);
 	} else {
-		LCONVPATHEXIST(td, args->library, &library);
+		LCONVPATHEXIST(args->library, &library);
 		NDINIT(&ni, LOOKUP, ISOPEN | FOLLOW | LOCKLEAF | AUDITVNODE1,
 		    UIO_SYSSPACE, library, td);
 		error = namei(&ni);
@@ -759,7 +759,7 @@ linux_utime(struct thread *td, struct linux_utime_args *args)
 		error = kern_utimesat(td, AT_FDCWD, args->fname, UIO_USERSPACE,
 		    tvp, UIO_SYSSPACE);
 	} else {
-		LCONVPATHEXIST(td, args->fname, &fname);
+		LCONVPATHEXIST(args->fname, &fname);
 		error = kern_utimesat(td, AT_FDCWD, fname, UIO_SYSSPACE, tvp,
 		    UIO_SYSSPACE);
 		LFREEPATH(fname);
@@ -791,7 +791,7 @@ linux_utimes(struct thread *td, struct linux_utimes_args *args)
 		error = kern_utimesat(td, AT_FDCWD, args->fname, UIO_USERSPACE,
 		    tvp, UIO_SYSSPACE);
 	} else {
-		LCONVPATHEXIST(td, args->fname, &fname);
+		LCONVPATHEXIST(args->fname, &fname);
 		error = kern_utimesat(td, AT_FDCWD, fname, UIO_SYSSPACE,
 		    tvp, UIO_SYSSPACE);
 		LFREEPATH(fname);
@@ -859,7 +859,7 @@ linux_common_utimensat(struct thread *td, int ldfd, const char *pathname,
 	}
 
 	if (pathname != NULL)
-		LCONVPATHEXIST_AT(td, pathname, &path, dfd);
+		LCONVPATHEXIST_AT(pathname, &path, dfd);
 	else if (lflags != 0)
 		return (EINVAL);
 
@@ -978,7 +978,7 @@ linux_futimesat(struct thread *td, struct linux_futimesat_args *args)
 		error = kern_utimesat(td, dfd, args->filename, UIO_USERSPACE,
 		    tvp, UIO_SYSSPACE);
 	} else {
-		LCONVPATHEXIST_AT(td, args->filename, &fname, dfd);
+		LCONVPATHEXIST_AT(args->filename, &fname, dfd);
 		error = kern_utimesat(td, dfd, fname, UIO_SYSSPACE,
 		    tvp, UIO_SYSSPACE);
 		LFREEPATH(fname);
@@ -1152,7 +1152,7 @@ linux_mknod(struct thread *td, struct linux_mknod_args *args)
 		path = args->path;
 		seg = UIO_USERSPACE;
 	} else {
-		LCONVPATHCREAT(td, args->path, &path);
+		LCONVPATHCREAT(args->path, &path);
 		seg = UIO_SYSSPACE;
 	}
 
@@ -1208,7 +1208,7 @@ linux_mknodat(struct thread *td, struct linux_mknodat_args *args)
 		path = __DECONST(char *, args->filename);
 		seg = UIO_USERSPACE;
 	} else {
-		LCONVPATHCREAT_AT(td, args->filename, &path, dfd);
+		LCONVPATHCREAT_AT(args->filename, &path, dfd);
 		seg = UIO_SYSSPACE;
 	}
 
