@@ -1645,13 +1645,6 @@ device		ciss
 device		iir
 
 #
-# Mylex AcceleRAID and eXtremeRAID controllers with v6 and later
-# firmware.  These controllers have a SCSI-like interface, and require
-# the CAM infrastructure.
-#
-device		mly
-
-#
 # Compaq Smart RAID, Mylex DAC960 and AMI MegaRAID controllers.  Only
 # one entry is needed; the code will find and configure all supported
 # controllers.
