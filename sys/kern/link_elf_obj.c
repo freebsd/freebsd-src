@@ -1321,7 +1321,7 @@ findbase(elf_file_t ef, int sec)
 }
 
 static int
-relocate_file(elf_file_t ef)
+relocate_file1(elf_file_t ef, bool ifuncs)
 {
 	const Elf_Rel *rellim;
 	const Elf_Rel *rel;
@@ -1353,6 +1353,9 @@ relocate_file(elf_file_t ef)
 			sym = ef->ddbsymtab + symidx;
 			/* Local relocs are already done */
 			if (ELF_ST_BIND(sym->st_info) == STB_LOCAL)
+				continue;
+			if ((ELF_ST_TYPE(sym->st_info) == STT_GNU_IFUNC ||
+			    elf_is_ifunc_reloc(rel->r_info)) != ifuncs)
 				continue;
 			if (elf_reloc(&ef->lf, base, rel, ELF_RELOC_REL,
 			    elf_obj_lookup)) {
@@ -1386,6 +1389,9 @@ relocate_file(elf_file_t ef)
 			/* Local relocs are already done */
 			if (ELF_ST_BIND(sym->st_info) == STB_LOCAL)
 				continue;
+			if ((ELF_ST_TYPE(sym->st_info) == STT_GNU_IFUNC ||
+			    elf_is_ifunc_reloc(rela->r_info)) != ifuncs)
+				continue;
 			if (elf_reloc(&ef->lf, base, rela, ELF_RELOC_RELA,
 			    elf_obj_lookup)) {
 				symname = symbol_name(ef, rela->r_info);
@@ -1404,6 +1410,17 @@ relocate_file(elf_file_t ef)
 	elf_obj_cleanup_globals_cache(ef);
 
 	return (0);
+}
+
+static int
+relocate_file(elf_file_t ef)
+{
+	int error;
+
+	error = relocate_file1(ef, false);
+	if (error == 0)
+		error = relocate_file1(ef, true);
+	return (error);
 }
 
 static int
