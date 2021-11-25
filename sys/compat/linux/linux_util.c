@@ -95,7 +95,7 @@ linux_emul_convpath(const char *path, enum uio_seg pathseg,
 {
 	int retval;
 
-	retval = kern_alternate_path(curthread, linux_emul_path, path, pathseg, pbuf,
+	retval = kern_alternate_path(linux_emul_path, path, pathseg, pbuf,
 	    cflag, dfd);
 
 	return (retval);

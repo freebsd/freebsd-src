@@ -1673,14 +1673,16 @@ out_mismatch:
  * the M_TEMP bucket if one is returned.
  */
 int
-kern_alternate_path(struct thread *td, const char *prefix, const char *path,
-    enum uio_seg pathseg, char **pathbuf, int create, int dirfd)
+kern_alternate_path(const char *prefix, const char *path, enum uio_seg pathseg,
+    char **pathbuf, int create, int dirfd)
 {
+	struct thread *td;
 	struct nameidata nd, ndroot;
 	char *ptr, *buf, *cp;
 	size_t len, sz;
 	int error;
 
+	td = curthread;
 	buf = (char *) malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
 	*pathbuf = buf;
 
