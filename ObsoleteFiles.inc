@@ -40,6 +40,13 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20211125 Old SCSI drivers removed
+OLD_FILES+=usr/share/man/man4/amr.4.gz
+OLD_FILES+=usr/share/man/man4/esp.4.gz
+OLD_FILES+=usr/share/man/man4/iir.4.gz
+OLD_FILES+=usr/share/man/man4/mly.4.gz
+OLD_FILES+=usr/share/man/man4/twa.4.gz
+
 # 20211120
 OLD_FILES+=usr/share/man/man9/kernel_vmount.9.gz
 
