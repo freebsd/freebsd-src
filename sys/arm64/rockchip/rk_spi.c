@@ -90,6 +90,7 @@ __FBSDID("$FreeBSD$");
 #define	CS_MAX			1
 
 static struct ofw_compat_data compat_data[] = {
+	{ "rockchip,rk3328-spi",		1 },
 	{ "rockchip,rk3399-spi",		1 },
 	{ NULL,					0 }
 };
