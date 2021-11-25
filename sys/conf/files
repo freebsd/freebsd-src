@@ -890,10 +890,6 @@ dev/altera/pio/pio.c		optional altera_pio
 dev/altera/pio/pio_if.m		optional altera_pio
 dev/amdpm/amdpm.c		optional amdpm pci | nfpm pci
 dev/amdsmb/amdsmb.c		optional amdsmb pci
-dev/amr/amr.c			optional amr
-dev/amr/amr_cam.c		optional amrp amr
-dev/amr/amr_disk.c		optional amr
-dev/amr/amr_pci.c		optional amr pci
 #
 dev/ata/ata_if.m		optional ata | atacore
 dev/ata/ata-all.c		optional ata | atacore

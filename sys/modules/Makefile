@@ -38,7 +38,6 @@ SUBDIR=	\
 	${_amdsbwd} \
 	${_amdsmn} \
 	${_amdtemp} \
-	amr \
 	${_aout} \
 	${_arcmsr} \
 	${_allwinner} \

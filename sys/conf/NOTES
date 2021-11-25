@@ -1642,8 +1642,6 @@ device		ciss
 #
 device		ida		# Compaq Smart RAID
 device		mlx		# Mylex DAC960
-device		amr		# AMI MegaRAID
-device		amrp		# SCSI Passthrough interface (optional, CAM req.)
 device		mfi		# LSI MegaRAID SAS
 device		mfip		# LSI MegaRAID SAS passthrough, requires CAM
 options 	MFI_DEBUG
