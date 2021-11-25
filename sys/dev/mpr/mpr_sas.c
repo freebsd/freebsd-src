@@ -1229,14 +1229,12 @@ static void
 mprsas_logical_unit_reset_complete(struct mpr_softc *sc, struct mpr_command *tm)
 {
 	MPI2_SCSI_TASK_MANAGE_REPLY *reply;
-	MPI2_SCSI_TASK_MANAGE_REQUEST *req;
 	unsigned int cm_count = 0;
 	struct mpr_command *cm;
 	struct mprsas_target *targ;
 
 	callout_stop(&tm->cm_callout);
 
-	req = (MPI2_SCSI_TASK_MANAGE_REQUEST *)tm->cm_req;
 	reply = (MPI2_SCSI_TASK_MANAGE_REPLY *)tm->cm_reply;
 	targ = tm->cm_targ;
 
@@ -1839,10 +1837,11 @@ mprsas_build_nvme_unmap(struct mpr_softc *sc, struct mpr_command *cm,
 	mpr_build_nvme_prp(sc, cm, req,
 	    (void *)(uintptr_t)nvme_dsm_ranges_dma_handle, 0, data_length);
 	mpr_map_command(sc, cm);
+	res = 0;
 
 out:
 	free(plist, M_MPR);
-	return 0;
+	return (res);
 }
 
 static void
@@ -2919,11 +2918,9 @@ mprsas_send_smpcmd(struct mprsas_softc *sassc, union ccb *ccb, uint64_t sasaddr)
 	uint8_t *request, *response;
 	MPI2_SMP_PASSTHROUGH_REQUEST *req;
 	struct mpr_softc *sc;
-	struct sglist *sg;
 	int error;
 
 	sc = sassc->sc;
-	sg = NULL;
 	error = 0;
 
 	switch (ccb->ccb_h.flags & CAM_DATA_MASK) {
