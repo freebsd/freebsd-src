@@ -243,7 +243,6 @@ SUBDIR=	\
 	${_mlx5} \
 	${_mlx5en} \
 	${_mlx5ib} \
-	${_mly} \
 	mmc \
 	mmcsd \
 	${_mpr} \
@@ -710,7 +709,6 @@ _iwifw=		iwifw
 _iwmfw=		iwmfw
 _iwnfw=		iwnfw
 .endif
-_mly=		mly
 _nfe=		nfe
 _nvd=		nvd
 _nvme=		nvme

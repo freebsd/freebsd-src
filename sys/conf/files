@@ -2459,7 +2459,6 @@ dev/mlxfw/mlxfw_mfa2_tlv_multi.c	optional mlxfw \
 dev/mlx/mlx.c			optional mlx
 dev/mlx/mlx_disk.c		optional mlx
 dev/mlx/mlx_pci.c		optional mlx pci
-dev/mly/mly.c			optional mly
 dev/mmc/mmc_subr.c		optional mmc | mmcsd !mmccam
 dev/mmc/mmc.c			optional mmc !mmccam
 dev/mmc/mmcbr_if.m		standard
