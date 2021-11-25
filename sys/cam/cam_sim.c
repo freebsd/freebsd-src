@@ -144,7 +144,7 @@ void
 cam_sim_free(struct cam_sim *sim, int free_devq)
 {
 	struct mtx *mtx;
-	int error;
+	int error __diagused;
 
 	if (sim->mtx == NULL) {
 		mtx = &cam_sim_free_mtx;

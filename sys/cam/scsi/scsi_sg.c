@@ -405,7 +405,6 @@ sgdone(struct cam_periph *periph, union ccb *done_ccb)
 	case SG_CCB_RDWR_IO:
 	{
 		struct sg_rdwr *rdwr;
-		int state;
 
 		devstat_end_transaction(softc->device_stats,
 					csio->dxfer_len,
@@ -417,7 +416,6 @@ sgdone(struct cam_periph *periph, union ccb *done_ccb)
 					NULL, NULL);
 
 		rdwr = done_ccb->ccb_h.ccb_rdwr;
-		state = rdwr->state;
 		rdwr->state = SG_RDWR_DONE;
 		wakeup(rdwr);
 		break;
@@ -932,11 +930,6 @@ sgsendrdwr(struct cam_periph *periph, union ccb *ccb)
 static int
 sgerror(union ccb *ccb, uint32_t cam_flags, uint32_t sense_flags)
 {
-	struct cam_periph *periph;
-	struct sg_softc *softc;
-
-	periph = xpt_path_periph(ccb->ccb_h.path);
-	softc = (struct sg_softc *)periph->softc;
 
 	return (cam_periph_error(ccb, cam_flags, sense_flags));
 }

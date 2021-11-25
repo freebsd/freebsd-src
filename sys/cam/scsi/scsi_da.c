@@ -5921,7 +5921,7 @@ static void
 dareprobe(struct cam_periph *periph)
 {
 	struct da_softc	  *softc;
-	int status;
+	int status __diagused;
 
 	softc = (struct da_softc *)periph->softc;
 

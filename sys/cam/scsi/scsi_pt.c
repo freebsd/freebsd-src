@@ -560,11 +560,6 @@ ptdone(struct cam_periph *periph, union ccb *done_ccb)
 static int
 pterror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 {
-	struct pt_softc	  *softc;
-	struct cam_periph *periph;
-
-	periph = xpt_path_periph(ccb->ccb_h.path);
-	softc = (struct pt_softc *)periph->softc;
 
 	return(cam_periph_error(ccb, cam_flags, sense_flags));
 }
