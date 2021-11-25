@@ -792,8 +792,8 @@ _kvm_bitmap_next(struct kvm_bitmap *bm, u_long *idx)
 
 	/* Find the next valid idx. */
 	for (; *idx < first_invalid; (*idx)++) {
-		unsigned int mask = *idx % CHAR_BIT;
-		if ((bm->map[*idx * CHAR_BIT] & mask) == 0)
+		unsigned int mask = 1U << (*idx % CHAR_BIT);
+		if ((bm->map[*idx / CHAR_BIT] & mask) != 0)
 			break;
 	}
 
