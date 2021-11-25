@@ -238,9 +238,8 @@ linux_exec_imgact_try(struct image_params *imgp)
 		 * alternate path is found, use our stringspace to store it.
 		 */
 		if ((error = exec_shell_imgact(imgp)) == 0) {
-			linux_emul_convpath(FIRST_THREAD_IN_PROC(imgp->proc),
-			    imgp->interpreter_name, UIO_SYSSPACE, &rpath, 0,
-			    AT_FDCWD);
+			linux_emul_convpath(imgp->interpreter_name, UIO_SYSSPACE,
+			    &rpath, 0, AT_FDCWD);
 			if (rpath != NULL)
 				imgp->args->fname_buf =
 				    imgp->interpreter_name = rpath;

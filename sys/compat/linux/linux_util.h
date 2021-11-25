@@ -51,27 +51,27 @@ MALLOC_DECLARE(M_EPOLL);
 extern char linux_emul_path[];
 extern int linux_use_emul_path;
 
-int linux_emul_convpath(struct thread *, const char *, enum uio_seg, char **, int, int);
+int linux_emul_convpath(const char *, enum uio_seg, char **, int, int);
 
 #define LUSECONVPATH(td) atomic_load_int(&linux_use_emul_path)
 
-#define LCONVPATH_AT(td, upath, pathp, i, dfd)				\
+#define LCONVPATH_AT(upath, pathp, i, dfd)				\
 	do {								\
 		int _error;						\
 									\
-		_error = linux_emul_convpath(td, upath, UIO_USERSPACE,	\
+		_error = linux_emul_convpath(upath, UIO_USERSPACE,	\
 		    pathp, i, dfd);					\
 		if (*(pathp) == NULL)					\
 			return (_error);				\
 	} while (0)
 
-#define LCONVPATH(td, upath, pathp, i)	\
-   LCONVPATH_AT(td, upath, pathp, i, AT_FDCWD)
+#define LCONVPATH(upath, pathp, i)	\
+   LCONVPATH_AT(upath, pathp, i, AT_FDCWD)
 
-#define LCONVPATHEXIST(td, upath, pathp) LCONVPATH(td, upath, pathp, 0)
-#define LCONVPATHEXIST_AT(td, upath, pathp, dfd) LCONVPATH_AT(td, upath, pathp, 0, dfd)
-#define LCONVPATHCREAT(td, upath, pathp) LCONVPATH(td, upath, pathp, 1)
-#define LCONVPATHCREAT_AT(td, upath, pathp, dfd) LCONVPATH_AT(td, upath, pathp, 1, dfd)
+#define LCONVPATHEXIST(upath, pathp) LCONVPATH(upath, pathp, 0)
+#define LCONVPATHEXIST_AT(upath, pathp, dfd) LCONVPATH_AT(upath, pathp, 0, dfd)
+#define LCONVPATHCREAT(upath, pathp) LCONVPATH(upath, pathp, 1)
+#define LCONVPATHCREAT_AT(upath, pathp, dfd) LCONVPATH_AT(upath, pathp, 1, dfd)
 #define LFREEPATH(path)	free(path, M_TEMP)
 
 #define DUMMY(s)							\

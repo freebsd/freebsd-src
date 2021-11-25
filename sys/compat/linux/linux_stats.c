@@ -241,7 +241,7 @@ linux_newstat(struct thread *td, struct linux_newstat_args *args)
 	if (!LUSECONVPATH(td)) {
 		error = linux_kern_stat(td, args->path, UIO_USERSPACE, &buf);
 	} else {
-		LCONVPATHEXIST(td, args->path, &path);
+		LCONVPATHEXIST(args->path, &path);
 		error = linux_kern_stat(td, path, UIO_SYSSPACE, &buf);
 		LFREEPATH(path);
 	}
@@ -260,7 +260,7 @@ linux_newlstat(struct thread *td, struct linux_newlstat_args *args)
 	if (!LUSECONVPATH(td)) {
 		error = linux_kern_lstat(td, args->path, UIO_USERSPACE, &sb);
 	} else {
-		LCONVPATHEXIST(td, args->path, &path);
+		LCONVPATHEXIST(args->path, &path);
 		error = linux_kern_lstat(td, path, UIO_SYSSPACE, &sb);
 		LFREEPATH(path);
 	}
@@ -323,7 +323,7 @@ linux_stat(struct thread *td, struct linux_stat_args *args)
 	if (!LUSECONVPATH(td)) {
 		error = linux_kern_stat(td, args->path, UIO_USERSPACE, &buf);
 	} else {
-		LCONVPATHEXIST(td, args->path, &path);
+		LCONVPATHEXIST(args->path, &path);
 		error = linux_kern_stat(td, path, UIO_SYSSPACE, &buf);
 		LFREEPATH(path);
 	}
@@ -343,7 +343,7 @@ linux_lstat(struct thread *td, struct linux_lstat_args *args)
 	if (!LUSECONVPATH(td)) {
 		error = linux_kern_lstat(td, args->path, UIO_USERSPACE, &buf);
 	} else {
-		LCONVPATHEXIST(td, args->path, &path);
+		LCONVPATHEXIST(args->path, &path);
 		error = linux_kern_lstat(td, path, UIO_SYSSPACE, &buf);
 		LFREEPATH(path);
 	}
@@ -455,7 +455,7 @@ linux_statfs(struct thread *td, struct linux_statfs_args *args)
 		bsd_statfs = malloc(sizeof(struct statfs), M_STATFS, M_WAITOK);
 		error = kern_statfs(td, args->path, UIO_USERSPACE, bsd_statfs);
 	} else {
-		LCONVPATHEXIST(td, args->path, &path);
+		LCONVPATHEXIST(args->path, &path);
 		bsd_statfs = malloc(sizeof(struct statfs), M_STATFS, M_WAITOK);
 		error = kern_statfs(td, path, UIO_SYSSPACE, bsd_statfs);
 		LFREEPATH(path);
@@ -503,7 +503,7 @@ linux_statfs64(struct thread *td, struct linux_statfs64_args *args)
 		bsd_statfs = malloc(sizeof(struct statfs), M_STATFS, M_WAITOK);
 		error = kern_statfs(td, args->path, UIO_USERSPACE, bsd_statfs);
 	} else {
-		LCONVPATHEXIST(td, args->path, &path);
+		LCONVPATHEXIST(args->path, &path);
 		bsd_statfs = malloc(sizeof(struct statfs), M_STATFS, M_WAITOK);
 		error = kern_statfs(td, path, UIO_SYSSPACE, bsd_statfs);
 		LFREEPATH(path);
@@ -617,7 +617,7 @@ linux_stat64(struct thread *td, struct linux_stat64_args *args)
 	if (!LUSECONVPATH(td)) {
 		error = linux_kern_stat(td, args->filename, UIO_USERSPACE, &buf);
 	} else {
-		LCONVPATHEXIST(td, args->filename, &filename);
+		LCONVPATHEXIST(args->filename, &filename);
 		error = linux_kern_stat(td, filename, UIO_SYSSPACE, &buf);
 		LFREEPATH(filename);
 	}
@@ -636,7 +636,7 @@ linux_lstat64(struct thread *td, struct linux_lstat64_args *args)
 	if (!LUSECONVPATH(td)) {
 		error = linux_kern_lstat(td, args->filename, UIO_USERSPACE, &sb);
 	} else {
-		LCONVPATHEXIST(td, args->filename, &filename);
+		LCONVPATHEXIST(args->filename, &filename);
 		error = linux_kern_lstat(td, filename, UIO_SYSSPACE, &sb);
 		LFREEPATH(filename);
 	}
@@ -681,7 +681,7 @@ linux_fstatat64(struct thread *td, struct linux_fstatat64_args *args)
 		error = linux_kern_statat(td, flag, dfd, args->pathname,
 		    UIO_USERSPACE, &buf);
 	} else {
-		LCONVPATHEXIST_AT(td, args->pathname, &path, dfd);
+		LCONVPATHEXIST_AT(args->pathname, &path, dfd);
 		error = linux_kern_statat(td, flag, dfd, path, UIO_SYSSPACE, &buf);
 		LFREEPATH(path);
 	}
@@ -716,7 +716,7 @@ linux_newfstatat(struct thread *td, struct linux_newfstatat_args *args)
 		error = linux_kern_statat(td, flag, dfd, args->pathname,
 		    UIO_USERSPACE, &buf);
 	} else {
-		LCONVPATHEXIST_AT(td, args->pathname, &path, dfd);
+		LCONVPATHEXIST_AT(args->pathname, &path, dfd);
 		error = linux_kern_statat(td, flag, dfd, path, UIO_SYSSPACE, &buf);
 		LFREEPATH(path);
 	}
@@ -790,7 +790,7 @@ linux_statx(struct thread *td, struct linux_statx_args *args)
 		error = linux_kern_statat(td, flags, dirfd, args->pathname,
 		    UIO_USERSPACE, &buf);
 	} else {
-		LCONVPATHEXIST_AT(td, args->pathname, &path, dirfd);
+		LCONVPATHEXIST_AT(args->pathname, &path, dirfd);
 		error = linux_kern_statat(td, flags, dirfd, path, UIO_SYSSPACE, &buf);
 		LFREEPATH(path);
 	}
