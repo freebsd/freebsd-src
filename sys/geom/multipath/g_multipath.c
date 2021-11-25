@@ -582,7 +582,7 @@ static int
 g_multipath_add_disk(struct g_geom *gp, struct g_provider *pp)
 {
 	struct g_multipath_softc *sc;
-	struct g_consumer *cp, *nxtcp;
+	struct g_consumer *cp;
 	int error, acr, acw, ace;
 
 	g_topology_assert();
@@ -602,7 +602,6 @@ g_multipath_add_disk(struct g_geom *gp, struct g_provider *pp)
 		    pp->name, gp->name);
 		return (EEXIST);
 	}
-	nxtcp = LIST_FIRST(&gp->consumer);
 	cp = g_new_consumer(gp);
 	cp->flags |= G_CF_DIRECT_SEND | G_CF_DIRECT_RECEIVE;
 	cp->private = NULL;
@@ -1082,7 +1081,6 @@ g_multipath_ctl_prefer(struct gctl_req *req, struct g_class *mp)
 static void
 g_multipath_ctl_add(struct gctl_req *req, struct g_class *mp)
 {
-	struct g_multipath_softc *sc;
 	struct g_geom *gp;
 	const char *mpname, *name;
 
@@ -1096,7 +1094,6 @@ g_multipath_ctl_add(struct gctl_req *req, struct g_class *mp)
 		gctl_error(req, "Device %s not found", mpname);
 		return;
 	}
-	sc = gp->softc;
 
 	name = gctl_get_asciiparam(req, "arg1");
 	if (name == NULL) {
