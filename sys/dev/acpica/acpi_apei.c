@@ -131,6 +131,10 @@ apei_bus_write_8(struct resource *res, bus_size_t offset, uint64_t val)
 #define	WRITE8(r, o, v)	bus_write_8((r), (o), (v))
 #endif
 
+#define GED_SIZE(ged)	((ged)->Revision >= 0x300 ? \
+    sizeof(ACPI_HEST_GENERIC_DATA_V300) : sizeof(ACPI_HEST_GENERIC_DATA))
+#define GED_DATA(ged)	((uint8_t *)(ged) + GED_SIZE(ged))
+
 int apei_nmi_handler(void);
 
 static const char *
@@ -152,7 +156,7 @@ apei_severity(uint32_t s)
 static int
 apei_mem_handler(ACPI_HEST_GENERIC_DATA *ged)
 {
-	struct apei_mem_error *p = (struct apei_mem_error *)(ged + 1);
+	struct apei_mem_error *p = (struct apei_mem_error *)GED_DATA(ged);
 
 	printf("APEI %s Memory Error:\n", apei_severity(ged->ErrorSeverity));
 	if (p->ValidationBits & 0x01)
@@ -207,7 +211,7 @@ apei_mem_handler(ACPI_HEST_GENERIC_DATA *ged)
 static int
 apei_pcie_handler(ACPI_HEST_GENERIC_DATA *ged)
 {
-	struct apei_pcie_error *p = (struct apei_pcie_error *)(ged + 1);
+	struct apei_pcie_error *p = (struct apei_pcie_error *)GED_DATA(ged);
 	int h = 0, off;
 #ifdef DEV_PCI
 	device_t dev;
@@ -314,7 +318,7 @@ apei_ged_handler(ACPI_HEST_GENERIC_DATA *ged)
 		    t[3], t[2], t[1], t[0], t[5], t[4], t[7], t[6],
 		    t[8], t[9], t[10], t[11], t[12], t[13], t[14], t[15]);
 		printf(" Error Data:\n");
-		t = (uint8_t *)(ged + 1);
+		t = (uint8_t *)GED_DATA(ged);
 		for (off = 0; off < ged->ErrorDataLength; off++) {
 			printf(" %02x", t[off]);
 			if ((off % 16) == 15 || off + 1 == ged->ErrorDataLength)
@@ -334,7 +338,7 @@ apei_ged_handler(ACPI_HEST_GENERIC_DATA *ged)
 	}
 	if (ged->ValidationBits & ACPI_HEST_GEN_VALID_FRU_STRING)
 		printf(" FRU Text: %.20s\n", ged->FruText);
-	if (ged->Revision == 0x300 &&
+	if (ged->Revision >= 0x300 &&
 	    ged->ValidationBits & ACPI_HEST_GEN_VALID_TIMESTAMP)
 		printf(" Timestamp: %016jx\n", ged3->TimeStamp);
 }
@@ -358,7 +362,7 @@ apei_ge_handler(struct apei_ge *ge, bool copy)
 	for (off = i = 0; i < c && off + sizeof(*ged) <= ges->DataLength; i++) {
 		ged = (ACPI_HEST_GENERIC_DATA *)&buf[sizeof(*ges) + off];
 		apei_ged_handler(ged);
-		off += sizeof(*ged) + ged->ErrorDataLength;
+		off += GED_SIZE(ged) + ged->ErrorDataLength;
 	}
 
 	/* Acknowledge the error has been processed. */
