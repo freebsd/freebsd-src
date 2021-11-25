@@ -54,7 +54,7 @@ flip(void *ap, size_t len)
 {
 	unsigned char *cp;
 	int byte;
-	unsigned char bit, buf, mask, old;
+	unsigned char bit, buf, mask, old __unused;
 
 	cp = (unsigned char *)ap;
 	byte = random_long(0, len);
@@ -75,14 +75,19 @@ main(int argc, char *argv[])
 {
 	struct stat st;
 	off_t pos;
+	size_t size;
 	int fd, i, times;
 	char c;
 
 	times = 1;
-	while ((c = getopt(argc, argv, "n:")) != -1) {
+	size = 0;
+	while ((c = getopt(argc, argv, "n:s:")) != -1) {
 		switch (c) {
 			case 'n':
 				times = atoi(optarg);
+				break;
+			case 's':
+				size = atol(optarg);
 				break;
 			case '?':
 			default:
@@ -103,18 +108,23 @@ main(int argc, char *argv[])
 	if ((fd = open(argv[0], O_RDWR)) == -1)
 		err(1, "open(%s)", argv[0]);
 
-	if (fstat(fd, &st) == -1)
-		err(1, "stat %s", argv[0]);
+	if (size == 0) {
+		if (fstat(fd, &st) == -1)
+			err(1, "stat %s", argv[0]);
+		size = st.st_size;
+	}
 
 	for (i = 0; i < times; i++) {
-		pos = arc4random() % st.st_size;
+		pos = arc4random() % size;
 		if (lseek(fd, pos, SEEK_SET) == -1)
 			err(1, "lseek()");
-		read(fd, &c, 1);
+		if (read(fd, &c, 1) != 1)
+			err(1, "read()");
 		flip(&c, 1);
 		if (lseek(fd, pos, SEEK_SET) == -1)
 			err(1, "lseek()");
-		write(fd, &c, 1);
+		if (write(fd, &c, 1) != 1)
+			err(1, "write()");
 	}
 
 	return (0);
