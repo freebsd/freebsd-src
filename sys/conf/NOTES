@@ -1522,9 +1522,6 @@ options		TERMINAL_KERN_ATTR=(FG_LIGHTRED|BG_BLACK)
 # ahc: Adaptec 274x/284x/2910/293x/294x/394x/3950x/3960x/398X/4944/
 #      19160x/29160x, aic7770/aic78xx
 # ahd: Adaptec 29320/39320 Controllers.
-# esp: Emulex ESP, NCR 53C9x and QLogic FAS families based controllers
-#      including the AMD Am53C974 (found on devices such as the Tekram
-#      DC-390(T)) and the Sun ESP and FAS families of controllers
 # isp: Qlogic ISP 1020, 1040 and 1040B PCI SCSI host adapters,
 #      ISP 1240 Dual Ultra SCSI, ISP 1080 and 1280 (Dual) Ultra2,
 #      ISP 12160 Ultra3 SCSI,
@@ -1544,7 +1541,6 @@ options		TERMINAL_KERN_ATTR=(FG_LIGHTRED|BG_BLACK)
 device		aacraid
 device		ahc
 device		ahd
-device		esp
 device		isp
 envvar		hint.isp.0.disable="1"
 envvar		hint.isp.0.role="3"

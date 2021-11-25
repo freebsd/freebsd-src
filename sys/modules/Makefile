@@ -109,7 +109,6 @@ SUBDIR=	\
 	${_em} \
 	${_ena} \
 	${_enetc} \
-	esp \
 	${_et} \
 	evdev \
 	${_exca} \

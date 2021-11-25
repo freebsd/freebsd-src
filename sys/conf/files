@@ -1680,8 +1680,6 @@ dev/ena/ena_sysctl.c 		optional ena \
 	compile-with "${NORMAL_C} -I$S/contrib"
 contrib/ena-com/ena_com.c	optional ena
 contrib/ena-com/ena_eth_com.c	optional ena
-dev/esp/esp_pci.c		optional esp pci
-dev/esp/ncr53c9x.c		optional esp
 dev/etherswitch/arswitch/arswitch.c		optional arswitch
 dev/etherswitch/arswitch/arswitch_reg.c		optional arswitch
 dev/etherswitch/arswitch/arswitch_phy.c		optional arswitch
