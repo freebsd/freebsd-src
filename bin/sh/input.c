@@ -59,7 +59,9 @@ __FBSDID("$FreeBSD$");
 #include "error.h"
 #include "alias.h"
 #include "parser.h"
+#ifndef NO_HISTORY
 #include "myhistedit.h"
+#endif
 #include "trap.h"
 
 #define EOF_NLEFT -99		/* value of parsenleft when EOF pushed back */
