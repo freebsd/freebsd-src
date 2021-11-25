@@ -82,6 +82,9 @@ TOC_ENTRY(trapstk)
  */
 	.section ".text.kboot", "x", @progbits
 kbootentry:
+#ifdef __LITTLE_ENDIAN__
+	RETURN_TO_NATIVE_ENDIAN
+#endif
 	b __start
 . = kbootentry + 0x40	/* Magic address used in platform layer */
 	.global smp_spin_sem
