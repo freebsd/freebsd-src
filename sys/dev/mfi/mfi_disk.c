@@ -304,11 +304,6 @@ mfi_disk_strategy(struct bio *bio)
 void
 mfi_disk_complete(struct bio *bio)
 {
-	struct mfi_disk *sc;
-	struct mfi_frame_header *hdr;
-
-	sc = bio->bio_disk->d_drv1;
-	hdr = bio->bio_driver1;
 
 	if (bio->bio_flags & BIO_ERROR) {
 		bio->bio_resid = bio->bio_bcount;

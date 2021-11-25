@@ -660,7 +660,6 @@ mfi_tbolt_complete_cmd(struct mfi_softc *sc)
 	struct mfi_cmd_tbolt *cmd_tbolt;
 	uint16_t smid;
 	uint8_t reply_descript_type;
-	struct mfi_mpi2_request_raid_scsi_io  *scsi_io_req;
 	uint32_t status, extStatus;
 	uint16_t num_completed;
 	union desc_value val;
@@ -700,7 +699,6 @@ mfi_tbolt_complete_cmd(struct mfi_softc *sc)
 			goto next;
 		}
 		cmd_mfi = &sc->mfi_commands[cmd_tbolt->sync_cmd_idx];
-		scsi_io_req = cmd_tbolt->io_request;
 
 		status = cmd_mfi->cm_frame->dcmd.header.cmd_status;
 		extStatus = cmd_mfi->cm_frame->dcmd.header.scsi_status;
@@ -939,7 +937,7 @@ static int
 mfi_tbolt_make_sgl(struct mfi_softc *sc, struct mfi_command *mfi_cmd,
 		   pMpi25IeeeSgeChain64_t sgl_ptr, struct mfi_cmd_tbolt *cmd)
 {
-	uint8_t i, sg_processed, sg_to_process;
+	uint8_t i, sg_processed;
 	uint8_t sge_count, sge_idx;
 	union mfi_sgl *os_sgl;
 	pMpi25IeeeSgeChain64_t sgl_end;
@@ -997,7 +995,7 @@ mfi_tbolt_make_sgl(struct mfi_softc *sc, struct mfi_command *mfi_cmd,
 
 	if (sg_processed < sge_count) {
 		pMpi25IeeeSgeChain64_t sg_chain;
-		sg_to_process = sge_count - sg_processed;
+
 		cmd->io_request->ChainOffset =
 		    sc->chain_offset_value_for_main_message;
 		sg_chain = sgl_ptr;
@@ -1086,12 +1084,10 @@ int
 mfi_tbolt_send_frame(struct mfi_softc *sc, struct mfi_command *cm)
 {
 	struct mfi_frame_header *hdr;
-	uint8_t *cdb;
 	union mfi_mpi2_request_descriptor *req_desc = NULL;
 	int tm = mfi_polled_cmd_timeout * 1000;
 
 	hdr = &cm->cm_frame->header;
-	cdb = cm->cm_frame->pass.cdb;
 	if (sc->adpreset)
 		return 1;
 	if ((cm->cm_flags & MFI_CMD_POLLED) == 0) {
