@@ -2270,10 +2270,8 @@ mmc_switch_to_hs400(struct mmc_softc *sc, struct mmc_ivars *ivar,
 {
 	device_t dev;
 	int err;
-	uint16_t rca;
 
 	dev = sc->dev;
-	rca = ivar->rca;
 
 	/*
 	 * Both clock and timing must be set as appropriate for high speed
@@ -2313,10 +2311,8 @@ mmc_switch_to_hs200(struct mmc_softc *sc, struct mmc_ivars *ivar,
 {
 	device_t dev;
 	int err;
-	uint16_t rca;
 
 	dev = sc->dev;
-	rca = ivar->rca;
 
 	/*
 	 * Both clock and timing must initially be set as appropriate for
