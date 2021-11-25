@@ -82,37 +82,41 @@ the highest user address and grows down.
 .Pp
 .Fx
 architecture support varies by release.
-This table shows the first
+This table shows currently supported CPU architectures along with the first
 .Fx
-release to support each architecture, and, for discontinued
-architectures, the final release.
-.Bl -column -offset indent "Architecture" "Initial Release" "Final Release"
-.It Sy Architecture Ta Sy Initial Release Ta Sy Final Release
+release to support each architecture.
+.Bl -column -offset indent "Architecture" "Initial Release"
+.It Sy Architecture Ta Sy Initial Release
 .It aarch64     Ta 11.0
-.It alpha       Ta 3.2   Ta 6.4
 .It amd64       Ta 5.1
-.It arm         Ta 6.0   Ta 12.x
-.It armeb       Ta 8.0   Ta 11.4
 .It armv6       Ta 10.0
 .It armv7       Ta 12.0
-.It ia64        Ta 5.0   Ta 10.4
 .It i386        Ta 1.0
-.It mips        Ta 8.0 Ta 13.x
-.It mipsel      Ta 9.0 Ta 13.x
-.It mipselhf    Ta 12.0 Ta 13.x
-.It mipshf      Ta 12.0 Ta 13.x
-.It mipsn32     Ta 9.0 Ta 13.x
-.It mips64      Ta 9.0 Ta 13.x
-.It mips64el    Ta 9.0 Ta 13.x
-.It mips64elhf  Ta 12.0 Ta 13.x
-.It mips64hf    Ta 12.0 Ta 13.x
-.It pc98        Ta 2.2   Ta 11.4
 .It powerpc     Ta 6.0
 .It powerpcspe  Ta 12.0
 .It powerpc64   Ta 9.0
 .It powerpc64le Ta 13.0
 .It riscv64     Ta 12.0
 .It riscv64sf   Ta 12.0
+.El
+.Pp
+Discontinued architectures are shown in the following table.
+.Bl -column -offset indent "Architecture" "Initial Release" "Final Release"
+.It Sy Architecture Ta Sy Initial Release Ta Sy Final Release
+.It alpha       Ta 3.2   Ta 6.4
+.It arm         Ta 6.0   Ta 12.x
+.It armeb       Ta 8.0   Ta 11.4
+.It ia64        Ta 5.0   Ta 10.4
+.It mips        Ta 8.0   Ta 13.x
+.It mipsel      Ta 9.0   Ta 13.x
+.It mipselhf    Ta 12.0  Ta 13.x
+.It mipshf      Ta 12.0  Ta 13.x
+.It mipsn32     Ta 9.0   Ta 13.x
+.It mips64      Ta 9.0   Ta 13.x
+.It mips64el    Ta 9.0   Ta 13.x
+.It mips64elhf  Ta 12.0  Ta 13.x
+.It mips64hf    Ta 12.0  Ta 13.x
+.It pc98        Ta 2.2   Ta 11.4
 .It sparc64     Ta 5.0   Ta 12.x
 .El
 .Ss Type sizes
