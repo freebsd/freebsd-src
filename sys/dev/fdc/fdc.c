@@ -1182,9 +1182,7 @@ static void
 fd_enqueue(struct fd_data *fd, struct bio *bp)
 {
 	struct fdc_data *fdc;
-	int call;
 
-	call = 0;
 	fdc = fd->fdc;
 	mtx_lock(&fdc->fdc_mtx);
 	/* If we go from idle, cancel motor turnoff */
@@ -1468,11 +1466,9 @@ fd_access(struct g_provider *pp, int r, int w, int e)
 static void
 fd_start(struct bio *bp)
 {
- 	struct fdc_data *	fdc;
  	struct fd_data *	fd;
 
 	fd = bp->bio_to->geom->softc;
-	fdc = fd->fdc;
 	bp->bio_driver1 = fd;
 	if (bp->bio_cmd == BIO_GETATTR) {
 		if (g_handleattr_int(bp, "GEOM::fwsectors", fd->ft->sectrac))
