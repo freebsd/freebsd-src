@@ -3948,6 +3948,7 @@ product QUANTA RW6815R		0xf003	HP iPAQ rw6815 RNDIS
 
 /* Quectel products */
 product QUECTEL EC25		0x0125	LTE modem
+product QUECTEL EM05		0x0127	LTE modem
 
 /* Quickshot products */
 product QUICKSHOT STRIKEPAD	0x6238	USB StrikePad
