@@ -482,7 +482,7 @@ linprocfs_domtab(PFS_FILL_ARGS)
 	 * Ideally, this would use the current chroot rather than some
 	 * hardcoded path.
 	 */
-	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, linux_emul_path, td);
+	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, linux_emul_path);
 	flep = NULL;
 	error = namei(&nd);
 	lep = linux_emul_path;
@@ -539,7 +539,7 @@ linprocfs_doprocmountinfo(PFS_FILL_ARGS)
 	 * Ideally, this would use the current chroot rather than some
 	 * hardcoded path.
 	 */
-	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, linux_emul_path, td);
+	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, linux_emul_path);
 	flep = NULL;
 	error = namei(&nd);
 	lep = linux_emul_path;

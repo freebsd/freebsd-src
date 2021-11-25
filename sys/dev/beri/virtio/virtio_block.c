@@ -241,8 +241,7 @@ open_file(struct beri_vtblk_softc *sc, struct thread *td)
 	int flags;
 
 	flags = (FREAD | FWRITE);
-	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE,
-		sc->mdio->md_file, td);
+	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, sc->mdio->md_file);
 	error = vn_open(&nd, &flags, 0, NULL);
 	if (error != 0)
 		return (error);

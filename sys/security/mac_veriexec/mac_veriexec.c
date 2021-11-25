@@ -701,7 +701,7 @@ cleanup_file:
 		/* Look up the path to get the vnode */
 		NDINIT(&nd, LOOKUP,
 		    FOLLOW | LOCKLEAF | LOCKSHARED | AUDITVNODE1,
-		    UIO_USERSPACE, arg, td);
+		    UIO_USERSPACE, arg);
 		error = namei(&nd);
 		if (error != 0)
 			break;

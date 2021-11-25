@@ -276,12 +276,12 @@ linux_uselib(struct thread *td, struct linux_uselib_args *args)
 
 	if (!LUSECONVPATH(td)) {
 		NDINIT(&ni, LOOKUP, ISOPEN | FOLLOW | LOCKLEAF | AUDITVNODE1,
-		    UIO_USERSPACE, args->library, td);
+		    UIO_USERSPACE, args->library);
 		error = namei(&ni);
 	} else {
 		LCONVPATHEXIST(args->library, &library);
 		NDINIT(&ni, LOOKUP, ISOPEN | FOLLOW | LOCKLEAF | AUDITVNODE1,
-		    UIO_SYSSPACE, library, td);
+		    UIO_SYSSPACE, library);
 		error = namei(&ni);
 		LFREEPATH(library);
 	}

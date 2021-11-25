@@ -972,7 +972,7 @@ link_elf_load_file(linker_class_t cls, const char* filename,
 	lf = NULL;
 	shstrs = NULL;
 
-	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, filename, td);
+	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, filename);
 	flags = FREAD;
 	error = vn_open(&nd, &flags, 0, NULL);
 	if (error != 0)
