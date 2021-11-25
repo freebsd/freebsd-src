@@ -559,7 +559,6 @@ g_io_request(struct bio *bp, struct g_consumer *cp)
 	atomic_add_int(&cp->nstart, 1);
 #endif
 
-#ifdef GET_STACK_USAGE
 	direct = (cp->flags & G_CF_DIRECT_SEND) != 0 &&
 	    (pp->flags & G_PF_DIRECT_RECEIVE) != 0 &&
 	    !g_is_geom_thread(curthread) &&
@@ -573,9 +572,6 @@ g_io_request(struct bio *bp, struct g_consumer *cp)
 		if (su * 2 > st)
 			direct = 0;
 	}
-#else
-	direct = 0;
-#endif
 
 	if (direct) {
 		error = g_io_check(bp);
@@ -655,7 +651,6 @@ g_io_deliver(struct bio *bp, int error)
 	bp->bio_bcount = bp->bio_length;
 	bp->bio_resid = bp->bio_bcount - bp->bio_completed;
 
-#ifdef GET_STACK_USAGE
 	direct = (pp->flags & G_PF_DIRECT_SEND) &&
 		 (cp->flags & G_CF_DIRECT_RECEIVE) &&
 		 !g_is_geom_thread(curthread);
@@ -666,9 +661,6 @@ g_io_deliver(struct bio *bp, int error)
 		if (su * 2 > st)
 			direct = 0;
 	}
-#else
-	direct = 0;
-#endif
 
 	/*
 	 * The statistics collection is lockless, as such, but we

@@ -2281,7 +2281,7 @@ ng_snd_item(item_p item, int flags)
 		queue = 1;
 	} else {
 		queue = 0;
-#ifdef GET_STACK_USAGE
+
 		/*
 		 * Most of netgraph nodes have small stack consumption and
 		 * for them 25% of free stack space is more than enough.
@@ -2296,7 +2296,6 @@ ng_snd_item(item_p item, int flags)
 		    ((node->nd_flags & NGF_HI_STACK) || (hook &&
 		    (hook->hk_flags & HK_HI_STACK)))))
 			queue = 1;
-#endif
 	}
 
 	if (queue) {
