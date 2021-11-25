@@ -144,6 +144,26 @@ static int ig4iic_pci_detach(device_t dev);
 #define PCI_CHIP_GEMINILAKE_I2C_5	0x31b68086
 #define PCI_CHIP_GEMINILAKE_I2C_6	0x31b88086
 #define PCI_CHIP_GEMINILAKE_I2C_7	0x31ba8086
+#define PCI_CHIP_ALDERLAKE_P_I2C_0	0x51e88086
+#define PCI_CHIP_ALDERLAKE_P_I2C_1	0x51e98086
+#define PCI_CHIP_ALDERLAKE_P_I2C_2	0x51ea8086
+#define PCI_CHIP_ALDERLAKE_P_I2C_3	0x51eb8086
+#define PCI_CHIP_ALDERLAKE_P_I2C_4	0x51c58086
+#define PCI_CHIP_ALDERLAKE_P_I2C_5	0x51c68086
+#define PCI_CHIP_ALDERLAKE_P_I2C_6	0x51d88086
+#define PCI_CHIP_ALDERLAKE_P_I2C_7	0x51d98086
+#define PCI_CHIP_ALDERLAKE_S_I2C_0	0x7acc8086
+#define PCI_CHIP_ALDERLAKE_S_I2C_1	0x7acd8086
+#define PCI_CHIP_ALDERLAKE_S_I2C_2	0x7ace8086
+#define PCI_CHIP_ALDERLAKE_S_I2C_3	0x7acf8086
+#define PCI_CHIP_ALDERLAKE_S_I2C_4	0x7afc8086
+#define PCI_CHIP_ALDERLAKE_S_I2C_5	0x7afd8086
+#define PCI_CHIP_ALDERLAKE_M_I2C_0	0x54e88086
+#define PCI_CHIP_ALDERLAKE_M_I2C_1	0x54e98086
+#define PCI_CHIP_ALDERLAKE_M_I2C_2	0x54ea8086
+#define PCI_CHIP_ALDERLAKE_M_I2C_3	0x54eb8086
+#define PCI_CHIP_ALDERLAKE_M_I2C_4	0x54c58086
+#define PCI_CHIP_ALDERLAKE_M_I2C_5	0x54c68086
 
 struct ig4iic_pci_device {
 	uint32_t	devid;
@@ -230,6 +250,26 @@ static struct ig4iic_pci_device ig4iic_pci_devices[] = {
 	{ PCI_CHIP_GEMINILAKE_I2C_5, "Intel Gemini Lake I2C Controller-5", IG4_GEMINILAKE},
 	{ PCI_CHIP_GEMINILAKE_I2C_6, "Intel Gemini Lake I2C Controller-6", IG4_GEMINILAKE},
 	{ PCI_CHIP_GEMINILAKE_I2C_7, "Intel Gemini Lake I2C Controller-7", IG4_GEMINILAKE},
+	{ PCI_CHIP_ALDERLAKE_P_I2C_0, "Intel Alder Lake-P I2C Controller-0", IG4_TIGERLAKE},
+	{ PCI_CHIP_ALDERLAKE_P_I2C_1, "Intel Alder Lake-P I2C Controller-1", IG4_TIGERLAKE},
+	{ PCI_CHIP_ALDERLAKE_P_I2C_2, "Intel Alder Lake-P I2C Controller-2", IG4_TIGERLAKE},
+	{ PCI_CHIP_ALDERLAKE_P_I2C_3, "Intel Alder Lake-P I2C Controller-3", IG4_TIGERLAKE},
+	{ PCI_CHIP_ALDERLAKE_P_I2C_4, "Intel Alder Lake-P I2C Controller-4", IG4_TIGERLAKE},
+	{ PCI_CHIP_ALDERLAKE_P_I2C_5, "Intel Alder Lake-P I2C Controller-5", IG4_TIGERLAKE},
+	{ PCI_CHIP_ALDERLAKE_P_I2C_6, "Intel Alder Lake-P I2C Controller-6", IG4_TIGERLAKE},
+	{ PCI_CHIP_ALDERLAKE_P_I2C_7, "Intel Alder Lake-P I2C Controller-7", IG4_TIGERLAKE},
+	{ PCI_CHIP_ALDERLAKE_S_I2C_0, "Intel Alder Lake-S I2C Controller-0", IG4_TIGERLAKE},
+	{ PCI_CHIP_ALDERLAKE_S_I2C_1, "Intel Alder Lake-S I2C Controller-1", IG4_TIGERLAKE},
+	{ PCI_CHIP_ALDERLAKE_S_I2C_2, "Intel Alder Lake-S I2C Controller-2", IG4_TIGERLAKE},
+	{ PCI_CHIP_ALDERLAKE_S_I2C_3, "Intel Alder Lake-S I2C Controller-3", IG4_TIGERLAKE},
+	{ PCI_CHIP_ALDERLAKE_S_I2C_4, "Intel Alder Lake-S I2C Controller-4", IG4_TIGERLAKE},
+	{ PCI_CHIP_ALDERLAKE_S_I2C_5, "Intel Alder Lake-S I2C Controller-5", IG4_TIGERLAKE},
+	{ PCI_CHIP_ALDERLAKE_M_I2C_0, "Intel Alder Lake-M I2C Controller-0", IG4_TIGERLAKE},
+	{ PCI_CHIP_ALDERLAKE_M_I2C_1, "Intel Alder Lake-M I2C Controller-1", IG4_TIGERLAKE},
+	{ PCI_CHIP_ALDERLAKE_M_I2C_2, "Intel Alder Lake-M I2C Controller-2", IG4_TIGERLAKE},
+	{ PCI_CHIP_ALDERLAKE_M_I2C_3, "Intel Alder Lake-M I2C Controller-3", IG4_TIGERLAKE},
+	{ PCI_CHIP_ALDERLAKE_M_I2C_4, "Intel Alder Lake-M I2C Controller-4", IG4_TIGERLAKE},
+	{ PCI_CHIP_ALDERLAKE_M_I2C_5, "Intel Alder Lake-M I2C Controller-5", IG4_TIGERLAKE},
 };
 
 static int
