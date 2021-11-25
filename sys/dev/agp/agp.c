@@ -205,8 +205,9 @@ agp_set_aperture_resource(device_t dev, int rid)
 int
 agp_generic_attach(device_t dev)
 {
+	struct make_dev_args mdargs;
 	struct agp_softc *sc = device_get_softc(dev);
-	int i;
+	int error, i, unit;
 	u_int memsize;
 
 	/*
@@ -250,11 +251,31 @@ agp_generic_attach(device_t dev)
 	TAILQ_INIT(&sc->as_memory);
 	sc->as_nextid = 1;
 
-	sc->as_devnode = make_dev(&agp_cdevsw,
-	    0, UID_ROOT, GID_WHEEL, 0600, "agpgart");
-	sc->as_devnode->si_drv1 = dev;
+	sc->as_devalias = NULL;
 
-	return 0;
+	make_dev_args_init(&mdargs);
+	mdargs.mda_devsw = &agp_cdevsw;
+	mdargs.mda_uid = UID_ROOT;
+	mdargs.mda_gid = GID_WHEEL;
+	mdargs.mda_mode = 0600;
+	mdargs.mda_si_drv1 = sc;
+	mdargs.mda_si_drv2 = NULL;
+
+	unit = device_get_unit(dev);
+	error = make_dev_s(&mdargs, &sc->as_devnode, "agpgart%d", unit);
+	if (error == 0) {
+		/*
+		 * Create an alias for the first device that shows up.
+		 */
+		if (unit == 0) {
+			(void)make_dev_alias_p(MAKEDEV_CHECKNAME,
+			    &sc->as_devalias, sc->as_devnode, "agpgart");
+		}
+	} else {
+		agp_free_res(dev);
+	}
+
+	return error;
 }
 
 void
@@ -263,6 +284,8 @@ agp_free_cdev(device_t dev)
 	struct agp_softc *sc = device_get_softc(dev);
 
 	destroy_dev(sc->as_devnode);
+	if (sc->as_devalias != NULL)
+		destroy_dev(sc->as_devalias);
 }
 
 void
