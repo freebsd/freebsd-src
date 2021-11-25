@@ -234,7 +234,7 @@ unionfs_domount(struct mount *mp)
 	/*
 	 * Find upper node
 	 */
-	NDINIT(ndp, LOOKUP, FOLLOW | LOCKLEAF, UIO_SYSSPACE, target, td);
+	NDINIT(ndp, LOOKUP, FOLLOW | LOCKLEAF, UIO_SYSSPACE, target);
 	if ((error = namei(ndp)))
 		return (error);
 

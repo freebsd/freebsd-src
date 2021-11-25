@@ -100,7 +100,7 @@ link_elf_ctf_get(linker_file_t lf, linker_ctf_t *lc)
 	 */
 	ef->ctfcnt = -1;
 
-	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, lf->pathname, td);
+	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, lf->pathname);
 	flags = FREAD;
 	error = vn_open(&nd, &flags, 0, NULL);
 	if (error)

@@ -239,12 +239,11 @@ nfsrv_object_create(struct vnode *vp, struct thread *td)
  * Look up a file name. Basically just initialize stuff and call namei().
  */
 int
-nfsrv_lookupfilename(struct nameidata *ndp, char *fname, NFSPROC_T *p)
+nfsrv_lookupfilename(struct nameidata *ndp, char *fname, NFSPROC_T *p __unused)
 {
 	int error;
 
-	NDINIT(ndp, LOOKUP, FOLLOW | LOCKLEAF, UIO_USERSPACE, fname,
-	    p);
+	NDINIT(ndp, LOOKUP, FOLLOW | LOCKLEAF, UIO_USERSPACE, fname);
 	error = namei(ndp);
 	if (!error) {
 		NDFREE(ndp, NDF_ONLY_PNBUF);

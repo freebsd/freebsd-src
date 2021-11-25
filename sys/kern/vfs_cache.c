@@ -3127,7 +3127,7 @@ kern___realpathat(struct thread *td, int fd, const char *path, char *buf,
 	if (flags != 0)
 		return (EINVAL);
 	NDINIT_ATRIGHTS(&nd, LOOKUP, FOLLOW | SAVENAME | WANTPARENT | AUDITVNODE1,
-	    pathseg, path, fd, &cap_fstat_rights, td);
+	    pathseg, path, fd, &cap_fstat_rights);
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	error = vn_fullpath_hardlink(nd.ni_vp, nd.ni_dvp, nd.ni_cnd.cn_nameptr,
@@ -3772,8 +3772,7 @@ vn_path_to_global_path(struct thread *td, struct vnode *vp, char *path,
 	 * As a side effect, the vnode is relocked.
 	 * If vnode was renamed, return ENOENT.
 	 */
-	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | AUDITVNODE1,
-	    UIO_SYSSPACE, path, td);
+	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | AUDITVNODE1, UIO_SYSSPACE, path);
 	error = namei(&nd);
 	if (error != 0) {
 		vrele(vp);

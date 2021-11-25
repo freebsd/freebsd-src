@@ -2367,7 +2367,7 @@ sys_swapon(struct thread *td, struct swapon_args *uap)
 	}
 
 	NDINIT(&nd, LOOKUP, ISOPEN | FOLLOW | LOCKLEAF | AUDITVNODE1,
-	    UIO_USERSPACE, uap->name, td);
+	    UIO_USERSPACE, uap->name);
 	error = namei(&nd);
 	if (error)
 		goto done;
@@ -2506,8 +2506,7 @@ sys_swapoff(struct thread *td, struct swapoff_args *uap)
 
 	sx_xlock(&swdev_syscall_lock);
 
-	NDINIT(&nd, LOOKUP, FOLLOW | AUDITVNODE1, UIO_USERSPACE, uap->name,
-	    td);
+	NDINIT(&nd, LOOKUP, FOLLOW | AUDITVNODE1, UIO_USERSPACE, uap->name);
 	error = namei(&nd);
 	if (error)
 		goto done;

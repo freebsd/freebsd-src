@@ -499,7 +499,7 @@ interpret:
 		 */
 		NDINIT(&nd, LOOKUP, ISOPEN | LOCKLEAF | LOCKSHARED | FOLLOW |
 		    SAVENAME | AUDITVNODE1 | WANTPARENT, UIO_SYSSPACE,
-		    args->fname, td);
+		    args->fname);
 
 		error = namei(&nd);
 		if (error)

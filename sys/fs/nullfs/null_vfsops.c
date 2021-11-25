@@ -125,7 +125,7 @@ nullfs_mount(struct mount *mp)
 	 * Find lower node
 	 */
 	ndp = &nd;
-	NDINIT(ndp, LOOKUP, FOLLOW|LOCKLEAF, UIO_SYSSPACE, target, curthread);
+	NDINIT(ndp, LOOKUP, FOLLOW|LOCKLEAF, UIO_SYSSPACE, target);
 	error = namei(ndp);
 
 	/*

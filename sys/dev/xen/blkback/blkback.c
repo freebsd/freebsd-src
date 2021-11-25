@@ -2683,7 +2683,7 @@ xbb_open_backend(struct xbb_softc *xbb)
 	pwd_ensure_dirs();
 
  again:
-	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, xbb->dev_name, curthread);
+	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, xbb->dev_name);
 	error = vn_open(&nd, &flags, 0, NULL);
 	if (error) {
 		/*

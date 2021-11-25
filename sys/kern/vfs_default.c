@@ -846,7 +846,7 @@ vop_stdvptocnp(struct vop_vptocnp_args *ap)
 	locked = VOP_ISLOCKED(vp);
 	VOP_UNLOCK(vp);
 	NDINIT_ATVP(&nd, LOOKUP, FOLLOW | LOCKSHARED | LOCKLEAF, UIO_SYSSPACE,
-	    "..", vp, td);
+	    "..", vp);
 	flags = FREAD;
 	error = vn_open_cred(&nd, &flags, 0, VN_OPEN_NOAUDIT, cred, NULL);
 	if (error) {

@@ -512,7 +512,7 @@ quotaon(struct thread *td, struct mount *mp, int type, void *fname,
 	ump = VFSTOUFS(mp);
 	dq = NODQUOT;
 
-	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, fname, td);
+	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, fname);
 	flags = FREAD | FWRITE;
 	vfs_ref(mp);
 	KASSERT(*mp_busy, ("%s called without busied mount", __func__));

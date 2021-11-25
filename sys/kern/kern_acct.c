@@ -216,8 +216,8 @@ sys_acct(struct thread *td, struct acct_args *uap)
 	 * appending and make sure it's a 'normal'.
 	 */
 	if (uap->path != NULL) {
-		NDINIT(&nd, LOOKUP, NOFOLLOW | AUDITVNODE1,
-		    UIO_USERSPACE, uap->path, td);
+		NDINIT(&nd, LOOKUP, NOFOLLOW | AUDITVNODE1, UIO_USERSPACE,
+		    uap->path);
 		flags = FWRITE | O_APPEND;
 		error = vn_open(&nd, &flags, 0, NULL);
 		if (error)

@@ -1428,7 +1428,7 @@ mdcreate_vnode(struct md_s *sc, struct md_req *mdr, struct thread *td)
 	 */
 	flags = FREAD | ((mdr->md_options & MD_READONLY) ? 0 : FWRITE) \
 	    | ((mdr->md_options & MD_VERIFY) ? O_VERIFY : 0);
-	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, sc->file, td);
+	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, sc->file);
 	error = vn_open(&nd, &flags, 0, NULL);
 	if (error != 0)
 		return (error);
