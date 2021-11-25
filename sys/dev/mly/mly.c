@@ -336,7 +336,7 @@ mly_attach(device_t dev)
     if (error != 0)
 	mly_free(sc);
     else
-	gone_in_dev(dev, 13, "mly(4) removed");
+	gone_in_dev(dev, 14, "mly(4) removed");
     return(error);
 }
 

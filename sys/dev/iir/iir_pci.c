@@ -336,7 +336,7 @@ iir_pci_attach(device_t dev)
     }
 
     gdt_pci_enable_intr(gdt);
-    gone_in_dev(dev, 13, "iir(4) removed");
+    gone_in_dev(dev, 14, "iir(4) removed");
     return (0);
     
 err:

@@ -340,7 +340,7 @@ out:
     if (error)
 	amr_pci_free(sc);
     else
-	gone_in_dev(dev, 13, "amr(4) driver");
+	gone_in_dev(dev, 14, "amr(4) driver");
     return(error);
 }
 
