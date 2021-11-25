@@ -400,7 +400,7 @@ static void
 ofwfb_initialize(struct vt_device *vd)
 {
 	struct ofwfb_softc *sc = vd->vd_softc;
-	int i, err;
+	int i, err, r, g, b;
 	cell_t retval;
 
 	sc->fb.fb_cmsize = 16;
@@ -419,7 +419,7 @@ ofwfb_initialize(struct vt_device *vd)
 		 * No color format issues here, since we are passing the RGB
 		 * components separately to Open Firmware.
 		 */
-		vt_generate_cons_palette(sc->fb.fb_cmap, COLOR_FORMAT_RGB, 255,
+		vt_config_cons_colors(&sc->fb, COLOR_FORMAT_RGB, 255,
 		    16, 255, 8, 255, 0);
 
 		for (i = 0; i < 16; i++) {
@@ -457,19 +457,17 @@ ofwfb_initialize(struct vt_device *vd)
 		TUNABLE_INT_FETCH("hw.ofwfb.argb32_pixel", &sc->argb);
 		if (sc->endian_flip) {
 			if (sc->argb)
-				vt_generate_cons_palette(sc->fb.fb_cmap,
-				    COLOR_FORMAT_RGB, 255, 8, 255, 16, 255, 24);
+				r = 8, g = 16, b = 24;
 			else
-				vt_generate_cons_palette(sc->fb.fb_cmap,
-				    COLOR_FORMAT_RGB, 255, 24, 255, 16, 255, 8);
+				r = 24, g = 16, b = 8;
 		} else {
 			if (sc->argb)
-				vt_generate_cons_palette(sc->fb.fb_cmap,
-				    COLOR_FORMAT_RGB, 255, 16, 255, 8, 255, 0);
+				r = 16, g = 8, b = 0;
 			else
-				vt_generate_cons_palette(sc->fb.fb_cmap,
-				    COLOR_FORMAT_RGB, 255, 0, 255, 8, 255, 16);
+				r = 0, g = 8, b = 16;
 		}
+		vt_config_cons_colors(&sc->fb,
+		    COLOR_FORMAT_RGB, 255, r, 255, g, 255, b);
 		break;
 
 	default:

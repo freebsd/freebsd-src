@@ -30,6 +30,8 @@
  * $FreeBSD$
  */
 
+struct fb_info;
+
 enum vt_color_format {
 	COLOR_FORMAT_BW = 0,
 	COLOR_FORMAT_GRAY,
@@ -57,6 +59,6 @@ static const int cons_to_vga_colors[NCOLORS] = {
 	8, 12, 10, 14,  9, 13, 11, 15
 };
 
-/* Helper to fill color map used by driver */
-int vt_generate_cons_palette(uint32_t *palette, int format, uint32_t rmax,
+/* Helper to fill color map and set RGB offsets used by driver */
+int vt_config_cons_colors(struct fb_info *info, int format, uint32_t rmax,
     int roffset, uint32_t gmax, int goffset, uint32_t bmax, int boffset);

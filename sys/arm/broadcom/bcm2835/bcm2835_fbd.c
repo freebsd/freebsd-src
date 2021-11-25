@@ -137,12 +137,12 @@ bcm_fb_setup_fbd(struct bcmsc_softc *sc)
 	if (sc->fbswap) {
 		switch (sc->info.fb_bpp) {
 		case 24:
-			vt_generate_cons_palette(sc->info.fb_cmap,
+			vt_config_cons_colors(&sc->info,
 			    COLOR_FORMAT_RGB, 0xff, 0, 0xff, 8, 0xff, 16);
 			sc->info.fb_cmsize = 16;
 			break;
 		case 32:
-			vt_generate_cons_palette(sc->info.fb_cmap,
+			vt_config_cons_colors(&sc->info,
 			    COLOR_FORMAT_RGB, 0xff, 16, 0xff, 8, 0xff, 0);
 			sc->info.fb_cmsize = 16;
 			break;

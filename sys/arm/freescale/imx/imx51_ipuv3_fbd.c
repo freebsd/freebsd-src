@@ -156,22 +156,22 @@ ipu3_fb_init(struct ipu3sc_softc *sc)
 
 /* Use own color map, because of different RGB offset. */
 static int
-ipu3_fb_init_cmap(uint32_t *cmap, int bytespp)
+ipu3_fb_init_colors(struct fb_info *info)
 {
 
-	switch (bytespp) {
+	switch (info->fb_depth) {
 	case 8:
-		return (vt_generate_cons_palette(cmap, COLOR_FORMAT_RGB,
+		return (vt_config_cons_colors(info, COLOR_FORMAT_RGB,
 		    0x7, 5, 0x7, 2, 0x3, 0));
 	case 15:
-		return (vt_generate_cons_palette(cmap, COLOR_FORMAT_RGB,
+		return (vt_config_cons_colors(info, COLOR_FORMAT_RGB,
 		    0x1f, 10, 0x1f, 5, 0x1f, 0));
 	case 16:
-		return (vt_generate_cons_palette(cmap, COLOR_FORMAT_RGB,
+		return (vt_config_cons_colors(info, COLOR_FORMAT_RGB,
 		    0x1f, 11, 0x3f, 5, 0x1f, 0));
 	case 24:
 	case 32: /* Ignore alpha. */
-		return (vt_generate_cons_palette(cmap, COLOR_FORMAT_RGB,
+		return (vt_config_cons_colors(info, COLOR_FORMAT_RGB,
 		    0xff, 0, 0xff, 8, 0xff, 16));
 	default:
 		return (1);
@@ -303,7 +303,7 @@ ipu3_fb_attach(device_t dev)
 
 	sc->sc_info.fb_name = device_get_nameunit(dev);
 
-	ipu3_fb_init_cmap(sc->sc_info.fb_cmap, sc->sc_info.fb_depth);
+	ipu3_fb_init_colors(&sc->sc_info);
 	sc->sc_info.fb_cmsize = 16;
 
 	/* Ask newbus to attach framebuffer device to me. */
