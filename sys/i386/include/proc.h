@@ -70,13 +70,13 @@ struct syscall_args {
 
 #ifdef	_KERNEL
 
+#include <machine/md_var.h>
+
 /* Get the current kernel thread stack usage. */
 #define GET_STACK_USAGE(total, used) do {				\
 	struct thread	*td = curthread;				\
-	(total) = td->td_kstack_pages * PAGE_SIZE;			\
-	(used) = (char *)td->td_kstack +				\
-	    td->td_kstack_pages * PAGE_SIZE -				\
-	    (char *)&td;						\
+	(total) = (vm_offset_t)get_pcb_td(td) - td->td_kstack;		\
+	(used) = (vm_offset_t)get_pcb_td(td) - (vm_offset_t)&td;	\
 } while (0)
 
 void 	set_user_ldt(struct mdproc *);
