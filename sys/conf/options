@@ -43,8 +43,6 @@ AHD_DEBUG_OPTS		opt_aic79xx.h
 AHD_TMODE_ENABLE	opt_aic79xx.h	
 AHD_REG_PRETTY_PRINT	opt_aic79xx.h
 
-TWA_DEBUG		opt_twa.h
-
 # Debugging options.
 ALT_BREAK_TO_DEBUGGER	opt_kdb.h
 BREAK_TO_DEBUGGER	opt_kdb.h

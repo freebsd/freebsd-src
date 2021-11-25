@@ -552,7 +552,6 @@ MAN=	aac.4 \
 	${_tpm.4} \
 	tty.4 \
 	tun.4 \
-	twa.4 \
 	twe.4 \
 	tws.4 \
 	udp.4 \

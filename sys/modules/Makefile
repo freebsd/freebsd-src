@@ -361,7 +361,6 @@ SUBDIR=	\
 	tmpfs \
 	${_toecore} \
 	${_tpm} \
-	${_twa} \
 	twe \
 	tws \
 	uart \
@@ -719,7 +718,6 @@ _s3=		s3
 _sdhci_acpi=	sdhci_acpi
 _superio=	superio
 _tpm=		tpm
-_twa=		twa
 _vesa=		vesa
 _viawd=		viawd
 _vmd=		vmd
