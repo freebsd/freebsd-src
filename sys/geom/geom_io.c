@@ -584,7 +584,6 @@ g_io_request(struct bio *bp, struct g_consumer *cp)
 	else
 		getbinuptime(&bp->bio_t0);
 
-#ifdef GET_STACK_USAGE
 	direct = (cp->flags & G_CF_DIRECT_SEND) != 0 &&
 	    (pp->flags & G_PF_DIRECT_RECEIVE) != 0 &&
 	    !g_is_geom_thread(curthread) &&
@@ -598,9 +597,6 @@ g_io_request(struct bio *bp, struct g_consumer *cp)
 		if (su * 2 > st)
 			direct = 0;
 	}
-#else
-	direct = 0;
-#endif
 
 	if (!TAILQ_EMPTY(&g_classifier_tailq) && !bp->bio_classifier1) {
 		g_bioq_lock(&g_bio_run_down);
@@ -701,7 +697,6 @@ g_io_deliver(struct bio *bp, int error)
 	bp->bio_bcount = bp->bio_length;
 	bp->bio_resid = bp->bio_bcount - bp->bio_completed;
 
-#ifdef GET_STACK_USAGE
 	direct = (pp->flags & G_PF_DIRECT_SEND) &&
 		 (cp->flags & G_CF_DIRECT_RECEIVE) &&
 		 !g_is_geom_thread(curthread);
@@ -712,9 +707,6 @@ g_io_deliver(struct bio *bp, int error)
 		if (su * 2 > st)
 			direct = 0;
 	}
-#else
-	direct = 0;
-#endif
 
 	/*
 	 * The statistics collection is lockless, as such, but we
