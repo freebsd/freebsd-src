@@ -165,7 +165,6 @@ SUBDIR=	\
 	if_vxlan \
 	iflib \
 	${_igc} \
-	${_iir} \
 	imgact_binmisc \
 	${_intelspi} \
 	${_io} \
@@ -695,7 +694,6 @@ _hptrr=		hptrr
 _hyperv=	hyperv
 _ichwd=		ichwd
 _ida=		ida
-_iir=		iir
 _intelspi=	intelspi
 _ips=		ips
 _isci=		isci
