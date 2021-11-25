@@ -406,10 +406,8 @@ mfip_done(struct mfi_command *cm)
 	union ccb *ccb = cm->cm_private;
 	struct ccb_hdr *ccbh = &ccb->ccb_h;
 	struct ccb_scsiio *csio = &ccb->csio;
-	struct mfip_softc *sc;
 	struct mfi_pass_frame *pt;
 
-	sc = ccbh->ccb_mfip_ptr;
 	pt = &cm->cm_frame->pass;
 
 	switch (pt->header.cmd_status) {

@@ -2433,7 +2433,7 @@ mfi_data_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 	 * least 1 frame, so don't compensate for the modulo of the
 	 * following division.
 	 */
-	cm->cm_total_frame_size += (sc->mfi_sge_size * nsegs);
+	cm->cm_total_frame_size += (sge_size * nsegs);
 	cm->cm_extra_frames = (cm->cm_total_frame_size - 1) / MFI_FRAME_SIZE;
 
 	if ((error = mfi_send_frame(sc, cm)) != 0) {
@@ -3108,7 +3108,6 @@ mfi_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, struct thread *td
 	struct mfi_ioc_passthru iop_swab;
 #endif
 	int error, locked;
-	union mfi_sgl *sgl;
 	sc = dev->si_drv1;
 	error = 0;
 
@@ -3200,7 +3199,6 @@ mfi_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, struct thread *td
 			cm->cm_sg =
 			    (union mfi_sgl *)&cm->cm_frame->bytes[ioc->mfi_sgl_off];
 		}
-		sgl = cm->cm_sg;
 		cm->cm_flags = 0;
 		if (cm->cm_frame->header.flags & MFI_FRAME_DATAIN)
 			cm->cm_flags |= MFI_CMD_DATAIN;
