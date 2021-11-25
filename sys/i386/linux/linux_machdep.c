@@ -108,7 +108,7 @@ linux_execve(struct thread *td, struct linux_execve_args *args)
 		error = exec_copyin_args(&eargs, args->path, UIO_USERSPACE,
 		    args->argp, args->envp);
 	} else {
-		LCONVPATHEXIST(td, args->path, &newpath);
+		LCONVPATHEXIST(args->path, &newpath);
 		error = exec_copyin_args(&eargs, newpath, UIO_SYSSPACE,
 		    args->argp, args->envp);
 		LFREEPATH(newpath);

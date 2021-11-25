@@ -134,7 +134,7 @@ linux_execve(struct thread *td, struct linux_execve_args *args)
 	char *path;
 	int error;
 
-	LCONVPATHEXIST(td, args->path, &path);
+	LCONVPATHEXIST(args->path, &path);
 
 	error = freebsd32_exec_copyin_args(&eargs, path, UIO_SYSSPACE,
 	    args->argp, args->envp);
