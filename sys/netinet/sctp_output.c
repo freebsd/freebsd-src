@@ -5832,7 +5832,7 @@ do_a_abort:
 			itsn = sctp_select_initial_TSN(&inp->sctp_ep);
 			initack->init.initial_tsn = htonl(itsn);
 			SCTP_TCB_LOCK(stcb);
-			atomic_add_int(&asoc->refcnt, -1);
+			atomic_subtract_int(&asoc->refcnt, 1);
 		} else {
 			SCTP_INP_INCR_REF(inp);
 			SCTP_INP_RUNLOCK(inp);
@@ -6648,7 +6648,7 @@ sctp_sendall_iterator(struct sctp_inpcb *inp, struct sctp_tcb *stcb, void *ptr,
 		 * relock.. to unlock in the iterator timer :-0
 		 */
 		SCTP_TCB_LOCK(stcb);
-		atomic_add_int(&stcb->asoc.refcnt, -1);
+		atomic_subtract_int(&stcb->asoc.refcnt, 1);
 		goto no_chunk_output;
 	} else {
 		if (m) {
@@ -6720,7 +6720,7 @@ sctp_sendall_iterator(struct sctp_inpcb *inp, struct sctp_tcb *stcb, void *ptr,
 						atomic_add_int(&stcb->asoc.refcnt, 1);
 						sctp_abort_an_association(stcb->sctp_ep, stcb,
 						    op_err, false, SCTP_SO_NOT_LOCKED);
-						atomic_add_int(&stcb->asoc.refcnt, -1);
+						atomic_subtract_int(&stcb->asoc.refcnt, 1);
 						goto no_chunk_output;
 					}
 					sctp_timer_start(SCTP_TIMER_TYPE_SHUTDOWNGUARD, stcb->sctp_ep, stcb,
@@ -12980,7 +12980,7 @@ sctp_lower_sosend(struct socket *so,
 		if (hold_tcblock == 0) {
 			SCTP_TCB_LOCK(stcb);
 		}
-		atomic_add_int(&stcb->asoc.refcnt, -1);
+		atomic_subtract_int(&stcb->asoc.refcnt, 1);
 		free_cnt_applied = 0;
 		/* release this lock, otherwise we hang on ourselves */
 		NET_EPOCH_ENTER(et);
@@ -13552,7 +13552,7 @@ dataless_eof:
 
 			abort_anyway:
 					if (free_cnt_applied) {
-						atomic_add_int(&stcb->asoc.refcnt, -1);
+						atomic_subtract_int(&stcb->asoc.refcnt, 1);
 						free_cnt_applied = 0;
 					}
 					SCTP_SNPRINTF(msg, sizeof(msg),
@@ -13693,7 +13693,7 @@ out_unlocked:
 		SCTP_TCB_UNLOCK(stcb);
 	}
 	if (stcb && free_cnt_applied) {
-		atomic_add_int(&stcb->asoc.refcnt, -1);
+		atomic_subtract_int(&stcb->asoc.refcnt, 1);
 	}
 #ifdef INVARIANTS
 	if (stcb) {

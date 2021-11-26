@@ -1541,7 +1541,7 @@ select_a_new_ep:
 			if (sctp_it_ctl.iterator_flags) {
 				/* We won't be staying here */
 				SCTP_INP_DECR_REF(it->inp);
-				atomic_add_int(&it->stcb->asoc.refcnt, -1);
+				atomic_subtract_int(&it->stcb->asoc.refcnt, 1);
 				if (sctp_it_ctl.iterator_flags &
 				    SCTP_ITERATOR_STOP_CUR_IT) {
 					sctp_it_ctl.iterator_flags &= ~SCTP_ITERATOR_STOP_CUR_IT;
@@ -1560,7 +1560,7 @@ select_a_new_ep:
 			SCTP_INP_RLOCK(it->inp);
 			SCTP_INP_DECR_REF(it->inp);
 			SCTP_TCB_LOCK(it->stcb);
-			atomic_add_int(&it->stcb->asoc.refcnt, -1);
+			atomic_subtract_int(&it->stcb->asoc.refcnt, 1);
 			iteration_count = 0;
 		}
 		KASSERT(it->inp == it->stcb->sctp_ep,
@@ -1780,7 +1780,7 @@ sctp_timeout_handler(void *t)
 		 * necessary below. This is safe now that we have acquired
 		 * the lock.
 		 */
-		atomic_add_int(&stcb->asoc.refcnt, -1);
+		atomic_subtract_int(&stcb->asoc.refcnt, 1);
 		released_asoc_reference = true;
 		if ((type != SCTP_TIMER_TYPE_ASOCKILL) &&
 		    ((stcb->asoc.state == SCTP_STATE_EMPTY) ||
@@ -2116,7 +2116,7 @@ out_decr:
 		SCTP_INP_DECR_REF(inp);
 	}
 	if ((stcb != NULL) && !released_asoc_reference) {
-		atomic_add_int(&stcb->asoc.refcnt, -1);
+		atomic_subtract_int(&stcb->asoc.refcnt, 1);
 	}
 	if (net != NULL) {
 		sctp_free_remote_addr(net);
@@ -2873,7 +2873,7 @@ sctp_timer_stop(int t_type, struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 			tmr->ep = NULL;
 		}
 		if (tmr->tcb != NULL) {
-			atomic_add_int(&stcb->asoc.refcnt, -1);
+			atomic_subtract_int(&stcb->asoc.refcnt, 1);
 			tmr->tcb = NULL;
 		}
 		if (tmr->net != NULL) {
@@ -5501,7 +5501,7 @@ out:
 
 	SCTP_INP_DECR_REF(stcb->sctp_ep);
 no_lock:
-	atomic_add_int(&stcb->asoc.refcnt, -1);
+	atomic_subtract_int(&stcb->asoc.refcnt, 1);
 	return;
 }
 
@@ -6446,7 +6446,7 @@ out:
 		}
 		/* Save the value back for next time */
 		stcb->freed_by_sorcv_sincelast = freed_so_far;
-		atomic_add_int(&stcb->asoc.refcnt, -1);
+		atomic_subtract_int(&stcb->asoc.refcnt, 1);
 	}
 	if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_RECV_RWND_LOGGING_ENABLE) {
 		if (stcb) {
