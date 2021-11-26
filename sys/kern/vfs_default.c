@@ -1293,91 +1293,86 @@ static int
 vop_stdis_text(struct vop_is_text_args *ap)
 {
 
-	return (ap->a_vp->v_writecount < 0);
+	return (atomic_load_int(&ap->a_vp->v_writecount) < 0);
 }
 
 int
 vop_stdset_text(struct vop_set_text_args *ap)
 {
 	struct vnode *vp;
-	int error, n;
+	int n;
+	bool gotref;
 
 	vp = ap->a_vp;
 
-	/*
-	 * Avoid the interlock if execs are already present.
-	 */
 	n = atomic_load_int(&vp->v_writecount);
 	for (;;) {
-		if (n > -1) {
-			break;
+		if (__predict_false(n > 0)) {
+			return (ETXTBSY);
 		}
+
+		/*
+		 * Transition point, we may need to grab a reference on the vnode.
+		 *
+		 * Take the ref early As a safety measure against bogus calls
+		 * to vop_stdunset_text.
+		 */
+		if (n == 0) {
+			gotref = false;
+			if ((vn_irflag_read(vp) & VIRF_TEXT_REF) != 0) {
+				vref(vp);
+				gotref = true;
+			}
+			if (atomic_fcmpset_int(&vp->v_writecount, &n, -1)) {
+				return (0);
+			}
+			if (gotref) {
+				vunref(vp);
+			}
+			continue;
+		}
+
+		MPASS(n < 0);
 		if (atomic_fcmpset_int(&vp->v_writecount, &n, n - 1)) {
 			return (0);
 		}
 	}
-
-	VI_LOCK(vp);
-	if (vp->v_writecount > 0) {
-		error = ETXTBSY;
-	} else {
-		/*
-		 * If requested by fs, keep a use reference to the
-		 * vnode until the last text reference is released.
-		 */
-		if ((vn_irflag_read(vp) & VIRF_TEXT_REF) != 0) {
-			if (vp->v_writecount == 0) {
-				vrefl(vp);
-			}
-		}
-
-		atomic_subtract_int(&vp->v_writecount, 1);
-		error = 0;
-	}
-	VI_UNLOCK(vp);
-	return (error);
+	__assert_unreachable();
 }
 
 static int
 vop_stdunset_text(struct vop_unset_text_args *ap)
 {
 	struct vnode *vp;
-	int error, n;
-	bool last;
+	int n;
 
 	vp = ap->a_vp;
 
-	/*
-	 * Avoid the interlock if this is not the last exec.
-	 */
 	n = atomic_load_int(&vp->v_writecount);
 	for (;;) {
-		if (n >= -1) {
-			break;
+		if (__predict_false(n >= 0)) {
+			return (EINVAL);
 		}
+
+		/*
+		 * Transition point, we may need to release a reference on the vnode.
+		 */
+		if (n == -1) {
+			if (atomic_fcmpset_int(&vp->v_writecount, &n, 0)) {
+				if ((vn_irflag_read(vp) & VIRF_TEXT_REF) != 0) {
+					vunref(vp);
+				}
+				return (0);
+			}
+			continue;
+		}
+
+		MPASS(n < -1);
 		if (atomic_fcmpset_int(&vp->v_writecount, &n, n + 1)) {
 			return (0);
 		}
 	}
-
-	last = false;
-	VI_LOCK(vp);
-	if (vp->v_writecount < 0) {
-		if ((vn_irflag_read(vp) & VIRF_TEXT_REF) != 0) {
-			if (vp->v_writecount == -1) {
-				last = true;
-			}
-		}
-
-		atomic_add_int(&vp->v_writecount, 1);
-		error = 0;
-	} else {
-		error = EINVAL;
-	}
-	VI_UNLOCK(vp);
-	if (last)
-		vunref(vp);
-	return (error);
+	__assert_unreachable();
 }
 
 static int __always_inline
@@ -1385,7 +1380,7 @@ vop_stdadd_writecount_impl(struct vop_add_writecount_args *ap, bool handle_msync
 {
 	struct vnode *vp;
 	struct mount *mp __diagused;
-	int error;
+	int n;
 
 	vp = ap->a_vp;
 
@@ -1400,20 +1395,26 @@ vop_stdadd_writecount_impl(struct vop_add_writecount_args *ap, bool handle_msync
 	}
 #endif
 
-	VI_LOCK_FLAGS(vp, MTX_DUPOK);
-	if (__predict_false(vp->v_writecount < 0)) {
-		error = ETXTBSY;
-	} else {
-		VNASSERT(vp->v_writecount + ap->a_inc >= 0, vp,
-		    ("neg writecount increment %d", ap->a_inc));
-		if (handle_msync && vp->v_writecount == 0) {
-			vlazy(vp);
+	n = atomic_load_int(&vp->v_writecount);
+	for (;;) {
+		if (__predict_false(n < 0)) {
+			return (ETXTBSY);
 		}
-		vp->v_writecount += ap->a_inc;
-		error = 0;
+
+		VNASSERT(n + ap->a_inc >= 0, vp,
+		    ("neg writecount increment %d + %d = %d", n, ap->a_inc,
+		    n + ap->a_inc));
+		if (n == 0) {
+			if (handle_msync) {
+				vlazy(vp);
+			}
+		}
+
+		if (atomic_fcmpset_int(&vp->v_writecount, &n, n + ap->a_inc)) {
+			return (0);
+		}
 	}
-	VI_UNLOCK(vp);
-	return (error);
+	__assert_unreachable();
 }
 
 int
