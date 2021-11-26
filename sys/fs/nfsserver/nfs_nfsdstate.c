@@ -7301,7 +7301,7 @@ nfsrv_layoutreturn(struct nfsrv_descript *nd, vnode_t vp,
 			}
 			NFSDRECALLUNLOCK();
 		}
-		if (layouttype == NFSLAYOUT_FLEXFILE)
+		if (layouttype == NFSLAYOUT_FLEXFILE && layp != NULL)
 			nfsrv_flexlayouterr(nd, layp, maxcnt, p);
 	} else if (kind == NFSV4LAYOUTRET_FSID)
 		nfsrv_freelayouts(&nd->nd_clientid,
