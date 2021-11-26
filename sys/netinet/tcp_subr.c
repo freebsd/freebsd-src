@@ -101,6 +101,9 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include <netinet/tcp.h>
+#ifdef INVARIANTS
+#define TCPSTATES
+#endif
 #include <netinet/tcp_fsm.h>
 #include <netinet/tcp_seq.h>
 #include <netinet/tcp_timer.h>
@@ -1755,9 +1758,12 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 	int isipv6;
 #endif /* INET6 */
 	int optlen, tlen, win, ulen;
-	bool incl_opts, lock_upgraded;
+	bool incl_opts;
 	uint16_t port;
 	int output_ret;
+#ifdef INVARIANTS
+	int thflags = th->th_flags;
+#endif
 
 	KASSERT(tp != NULL || m != NULL, ("tcp_respond: tp and m both NULL"));
 	NET_EPOCH_ASSERT();
@@ -2088,18 +2094,12 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 	TCP_PROBE3(debug__output, tp, th, m);
 	if (flags & TH_RST)
 		TCP_PROBE5(accept__refused, NULL, NULL, m, tp, nth);
-	lock_upgraded = false;
 	lgb = NULL;
 	if ((tp != NULL) && (tp->t_logstate != TCP_LOG_STATE_OFF)) {
-		union tcp_log_stackspecific log;
-		struct timeval tv;
-
-		lock_upgraded = !INP_WLOCKED(inp) && INP_TRY_UPGRADE(inp);
-		/*
-		 *`If we don't already own the write lock and can't upgrade,
-		 * just don't log the event, but still send the response.
-		 */
 		if (INP_WLOCKED(inp)) {
+			union tcp_log_stackspecific log;
+			struct timeval tv;
+
 			memset(&log.u_bbr, 0, sizeof(log.u_bbr));
 			log.u_bbr.inhpts = tp->t_inpcb->inp_in_hpts;
 			log.u_bbr.ininput = tp->t_inpcb->inp_in_input;
@@ -2107,8 +2107,36 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 			log.u_bbr.pkts_out = tp->t_maxseg;
 			log.u_bbr.timeStamp = tcp_get_usecs(&tv);
 			log.u_bbr.delivered = 0;
-			lgb = tcp_log_event_(tp, nth, NULL, NULL, TCP_LOG_OUT, ERRNO_UNK,
-			                     0, &log, false, NULL, NULL, 0, &tv);
+			lgb = tcp_log_event_(tp, nth, NULL, NULL, TCP_LOG_OUT,
+			    ERRNO_UNK, 0, &log, false, NULL, NULL, 0, &tv);
+		} else {
+			/*
+			 * We can not log the packet, since we only own the
+			 * read lock, but a write lock is needed. The read lock
+			 * is not upgraded to a write lock, since only getting
+			 * the read lock was done intentionally to improve the
+			 * handling of SYN flooding attacks.
+			 * This happens only for pure SYN segments received in
+			 * the initial CLOSED state, or received in a more
+			 * advanced state than listen and the UDP encapsulation
+			 * port is unexpected.
+			 * The incoming SYN segments do not really belong to
+			 * the TCP connection and the handling does not change
+			 * the state of the TCP connection. Therefore, the
+			 * sending of the RST segments is not logged. Please
+			 * note that also the incoming SYN segments are not
+			 * logged.
+			 *
+			 * The following code ensures that the above description
+			 * is and stays correct.
+			 */
+			KASSERT((thflags & (TH_ACK|TH_SYN)) == TH_SYN &&
+			    (tp->t_state == TCPS_CLOSED ||
+			    (tp->t_state > TCPS_LISTEN && tp->t_port != port)),
+			    ("%s: Logging of TCP segment with flags 0x%b and "
+			    "UDP encapsulation port %u skipped in state %s",
+			    __func__, thflags, PRINT_TH_FLAGS,
+			    ntohs(port), tcpstates[tp->t_state]));
 		}
 	}
 
@@ -2129,8 +2157,6 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 #endif
 	if (lgb != NULL)
 		lgb->tlb_errno = output_ret;
-	if (lock_upgraded)
-		INP_DOWNGRADE(inp);
 }
 
 /*
