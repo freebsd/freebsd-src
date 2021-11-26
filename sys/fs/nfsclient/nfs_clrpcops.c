@@ -4879,6 +4879,10 @@ nfsrpc_createsession(struct nfsmount *nmp, struct nfsclsession *sep,
 		sep->nfsess_foreslots = fxdr_unsigned(uint16_t, *tl++);
 		NFSCL_DEBUG(4, "fore slots=%d\n", (int)sep->nfsess_foreslots);
 		irdcnt = fxdr_unsigned(int, *tl);
+		if (irdcnt < 0 || irdcnt > 1) {
+			error = NFSERR_BADXDR;
+			goto nfsmout;
+		}
 		if (irdcnt > 0)
 			NFSM_DISSECT(tl, uint32_t *, irdcnt * NFSX_UNSIGNED);
 
