@@ -591,7 +591,6 @@ twsi_intr(void *arg)
 		else
 			TWSI_WRITE(sc, sc->reg_data,
 			    sc->msgs[sc->msg_idx].slave & ~LSB);
-		TWSI_WRITE(sc, sc->reg_control, sc->control_val);
 		break;
 
 	case TWSI_STATUS_ADDR_W_ACK:
