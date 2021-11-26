@@ -765,6 +765,8 @@ iap_allocate_pmc(int cpu, int ri, struct pmc *pm,
 		break;
 	case PMC_CPU_INTEL_SKYLAKE:
 	case PMC_CPU_INTEL_SKYLAKE_XEON:
+	case PMC_CPU_INTEL_ICELAKE:
+	case PMC_CPU_INTEL_ICELAKE_XEON:
 	case PMC_CPU_INTEL_BROADWELL:
 	case PMC_CPU_INTEL_BROADWELL_XEON:
 	case PMC_CPU_INTEL_SANDYBRIDGE:
@@ -1267,7 +1269,7 @@ pmc_core_initialize(struct pmc_mdep *md, int maxcpu, int version_override)
 	PMCDBG3(MDP,INI,1,"core-init cputype=%d ncpu=%d ipa-version=%d",
 	    core_cputype, maxcpu, ipa_version);
 
-	if (ipa_version < 1 || ipa_version > 4 ||
+	if (ipa_version < 1 || ipa_version > 5 ||
 	    (core_cputype != PMC_CPU_INTEL_CORE && ipa_version == 1)) {
 		/* Unknown PMC architecture. */
 		printf("hwpc_core: unknown PMC architecture: %d\n",

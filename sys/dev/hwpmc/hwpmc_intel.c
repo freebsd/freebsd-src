@@ -169,11 +169,30 @@ pmc_intel_initialize(void)
 			/* Kabylake */
 		case 0x8E:	/* Per Intel document 325462-063US July 2017. */
 		case 0x9E:	/* Per Intel document 325462-063US July 2017. */
+			/* Cometlake */
+		case 0xA5:
+		case 0xA6:
 			cputype = PMC_CPU_INTEL_SKYLAKE;
 			nclasses = 3;
 			break;
 		case 0x55:	/* SDM rev 63 */
 			cputype = PMC_CPU_INTEL_SKYLAKE_XEON;
+			nclasses = 3;
+			break;
+			/* Icelake */
+		case 0x7D:
+		case 0x7E:
+			/* Tigerlake */
+		case 0x8C:
+		case 0x8D:
+			/* Rocketlake */
+		case 0xA7:
+			cputype = PMC_CPU_INTEL_ICELAKE;
+			nclasses = 3;
+			break;
+		case 0x6A:
+		case 0x6C:
+			cputype = PMC_CPU_INTEL_ICELAKE_XEON;
 			nclasses = 3;
 			break;
 		case 0x3D:
@@ -242,6 +261,8 @@ pmc_intel_initialize(void)
 	case PMC_CPU_INTEL_BROADWELL_XEON:
 	case PMC_CPU_INTEL_SKYLAKE_XEON:
 	case PMC_CPU_INTEL_SKYLAKE:
+	case PMC_CPU_INTEL_ICELAKE:
+	case PMC_CPU_INTEL_ICELAKE_XEON:
 	case PMC_CPU_INTEL_CORE:
 	case PMC_CPU_INTEL_CORE2:
 	case PMC_CPU_INTEL_CORE2EXTREME:
@@ -323,6 +344,8 @@ pmc_intel_finalize(struct pmc_mdep *md)
 	case PMC_CPU_INTEL_BROADWELL_XEON:
 	case PMC_CPU_INTEL_SKYLAKE_XEON:
 	case PMC_CPU_INTEL_SKYLAKE:
+	case PMC_CPU_INTEL_ICELAKE:
+	case PMC_CPU_INTEL_ICELAKE_XEON:
 	case PMC_CPU_INTEL_CORE:
 	case PMC_CPU_INTEL_CORE2:
 	case PMC_CPU_INTEL_CORE2EXTREME:
