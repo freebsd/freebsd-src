@@ -534,9 +534,9 @@ twsi_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 		debugf(sc, "Error: %d\n", sc->error);
 
 	/* Disable module and interrupts */
-	debugf(sc, "status=%x\n", TWSI_READ(sc, sc->reg_status));
+	debugf(sc, "status=0x%x\n", TWSI_READ(sc, sc->reg_status));
 	TWSI_WRITE(sc, sc->reg_control, 0);
-	debugf(sc, "status=%x\n", TWSI_READ(sc, sc->reg_status));
+	debugf(sc, "status=0x%x\n", TWSI_READ(sc, sc->reg_status));
 	error = sc->error;
 	mtx_unlock(&sc->mutex);
 
@@ -553,10 +553,11 @@ twsi_intr(void *arg)
 	sc = arg;
 
 	mtx_lock(&sc->mutex);
-	debugf(sc, "Got interrupt Current msg=%x\n", sc->msg_idx);
+	debugf(sc, "Got interrupt, current msg=%u\n", sc->msg_idx);
 
 	status = TWSI_READ(sc, sc->reg_status);
-	debugf(sc, "reg control=%x\n", TWSI_READ(sc, sc->reg_control));
+	debugf(sc, "reg control = 0x%x, status = 0x%x\n",
+	    TWSI_READ(sc, sc->reg_control), status);
 
 	if (sc->transfer == 0) {
 		device_printf(sc->dev, "interrupt without active transfer, "
@@ -570,7 +571,8 @@ twsi_intr(void *arg)
 	case TWSI_STATUS_START:
 	case TWSI_STATUS_RPTD_START:
 		/* Transmit the address */
-		debugf(sc, "Send the address (%x)", sc->msgs[sc->msg_idx].slave);
+		debugf(sc, "Send address 0x%x\n",
+		    sc->msgs[sc->msg_idx].slave);
 
 		if (sc->msgs[sc->msg_idx].flags & IIC_M_RD)
 			TWSI_WRITE(sc, sc->reg_data,
