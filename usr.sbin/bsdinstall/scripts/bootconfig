@@ -27,6 +27,9 @@
 #
 # $FreeBSD$
 
+
+FREEBSD_BOOTLABEL="FreeBSD"
+
 BSDCFG_SHARE="/usr/share/bsdconfig"
 . $BSDCFG_SHARE/common.subr || exit 1
 
@@ -41,8 +44,10 @@ if [ `uname -m` == powerpc ]; then
 	platform=`sysctl -n hw.platform`
 	if [ "$platform" == ps3 -o "$platform" == powernv ]; then
 		rootpart=$(awk '{ if($2 == "/") printf("%s:%s\n", $3, $1); }' $PATH_FSTAB)
+		kboot_conf=$BSDINSTALL_CHROOT/boot/etc/kboot.conf
 		mkdir -p $BSDINSTALL_CHROOT/boot/etc/
-		echo FreeBSD=\'/kernel/kernel kernelname=/boot/kernel/kernel vfs.root.mountfrom=${rootpart}\' > $BSDINSTALL_CHROOT/boot/etc/kboot.conf
+		echo default=$FREEBSD_BOOTLABEL > $kboot_conf
+		echo $FREEBSD_BOOTLABEL=\'/kernel/kernel kernelname=/boot/kernel/kernel vfs.root.mountfrom=${rootpart}\' >> $kboot_conf
 	fi
 fi
 
@@ -81,11 +86,9 @@ if [ -n "$(awk '{if ($2=="/boot/efi") printf("%s\n",$1);}' $PATH_FSTAB)" ]; then
 		cp "$BSDINSTALL_CHROOT/boot/loader.efi" "${mntpt}/${BOOTNAME}"
 	fi
 
-	bootlabel="FreeBSD"
-
 	if [ "$BSDINSTALL_CONFIGCURRENT" ]; then
 		f_dprintf "Creating UEFI boot entry"
-		efibootmgr --create --activate --label "$bootlabel" --loader "${mntpt}/${FREEBSD_BOOTNAME}" > /dev/null
+		efibootmgr --create --activate --label "$FREEBSD_BOOTLABEL" --loader "${mntpt}/${FREEBSD_BOOTNAME}" > /dev/null
 	fi
 
 	f_dprintf "Finished configuring ESP"
