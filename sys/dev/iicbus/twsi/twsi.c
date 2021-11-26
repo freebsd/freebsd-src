@@ -495,9 +495,6 @@ twsi_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 	KASSERT(sc->transfer == 0,
 	    ("starting a transfer while another is active"));
 
-	sc->control_val = TWSI_CONTROL_TWSIEN |
-		TWSI_CONTROL_INTEN | TWSI_CONTROL_ACK;
-	TWSI_WRITE(sc, sc->reg_control, sc->control_val);
 	debugf(sc, "transmitting %d messages\n", nmsgs);
 	debugf(sc, "status=%x\n", TWSI_READ(sc, sc->reg_status));
 	sc->nmsgs = nmsgs;
