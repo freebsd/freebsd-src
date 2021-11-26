@@ -15,11 +15,13 @@ MAN=	adb.4 \
 	snd_davbus.4 \
 	tsec.4
 
-# Link files to the parent directory
-.for _manpage in ${MAN}
-MLINKS+=${_manpage} ../${_manpage}
+# Link files to the architecture directory
+_ARCH_SUBDIR=powerpc
+.for _manpage _link in ${MLINKS}
+MLINKS+=${_link} ${_ARCH_SUBDIR}/${_link}
 .endfor
-
-MANSUBDIR=/powerpc
+.for _manpage in ${MAN}
+MLINKS+=${_manpage} ${_ARCH_SUBDIR}/${_manpage}
+.endfor
 
 .include <bsd.prog.mk>
