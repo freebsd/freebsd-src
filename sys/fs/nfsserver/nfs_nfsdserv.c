@@ -4959,6 +4959,12 @@ nfsrvd_layoutreturn(struct nfsrv_descript *nd, __unused int isdgram,
 		}
 
 		maxcnt = fxdr_unsigned(int, *tl);
+		/*
+		 * There is no fixed upper bound defined in the RFCs,
+		 * but 128Kbytes should be more than sufficient.
+		 */
+		if (maxcnt < 0 || maxcnt > 131072)
+			maxcnt = 0;
 		if (maxcnt > 0) {
 			layp = malloc(maxcnt + 1, M_TEMP, M_WAITOK);
 			error = nfsrv_mtostr(nd, (char *)layp, maxcnt);
