@@ -559,9 +559,12 @@ twsi_intr(void *arg)
 {
 	struct twsi_softc *sc;
 	uint32_t status;
-	int transfer_done = 0;
+	bool message_done;
+	bool send_start;
 
 	sc = arg;
+	message_done = false;
+	send_start = false;
 
 	mtx_lock(&sc->mutex);
 	debugf(sc, "Got interrupt, current msg=%u\n", sc->msg_idx);
@@ -578,6 +581,7 @@ twsi_intr(void *arg)
 		goto end;
 	}
 
+restart:
 	switch (status) {
 	case TWSI_STATUS_START:
 	case TWSI_STATUS_RPTD_START:
@@ -636,38 +640,30 @@ twsi_intr(void *arg)
 		twsi_error(sc, IIC_ENOACK);
 		break;
 	case TWSI_STATUS_DATA_WR_ACK:
-		debugf(sc, "Ack received after transmitting data\n");
+		KASSERT(sc->sent_bytes <= sc->msgs[sc->msg_idx].len,
+		    ("sent_bytes beyond message length"));
+		debugf(sc, "ACK received after transmitting data\n");
 		if (sc->sent_bytes == sc->msgs[sc->msg_idx].len) {
-			debugf(sc, "Done sending all the bytes for msg %d\n", sc->msg_idx);
+			debugf(sc, "Done TX data\n");
+
 			/* Send stop, no interrupts on stop */
 			if (!(sc->msgs[sc->msg_idx].flags & IIC_M_NOSTOP)) {
-				debugf(sc, "Done TX data, send stop\n");
 				TWSI_WRITE(sc, sc->reg_control,
 				    sc->control_val | TWSI_CONTROL_STOP);
 			} else {
-				debugf(sc, "Done TX data with NO_STOP\n");
-				TWSI_WRITE(sc, sc->reg_control, sc->control_val | TWSI_CONTROL_START);
+				debugf(sc, "NOSTOP flag\n");
 			}
-			sc->msg_idx++;
-			if (sc->msg_idx == sc->nmsgs) {
-				debugf(sc, "transfer_done=1\n");
-				transfer_done = 1;
-				sc->error = 0;
-			} else {
-				debugf(sc, "Send repeated start\n");
-				TWSI_WRITE(sc, sc->reg_control, sc->control_val | TWSI_CONTROL_START);
-			}
-		} else {
-			debugf(sc, "Sending byte %d (of %d) = %x\n",
-			    sc->sent_bytes,
-			    sc->msgs[sc->msg_idx].len,
-			    sc->msgs[sc->msg_idx].buf[sc->sent_bytes]);
-			TWSI_WRITE(sc, sc->reg_data,
-			    sc->msgs[sc->msg_idx].buf[sc->sent_bytes]);
-			TWSI_WRITE(sc, sc->reg_control,
-			    sc->control_val);
-			sc->sent_bytes++;
+			message_done = true;
+			break;
 		}
+
+		debugf(sc, "Sending byte %d (of %d) = 0x%x\n",
+		    sc->sent_bytes,
+		    sc->msgs[sc->msg_idx].len,
+		    sc->msgs[sc->msg_idx].buf[sc->sent_bytes]);
+		TWSI_WRITE(sc, sc->reg_data,
+		    sc->msgs[sc->msg_idx].buf[sc->sent_bytes]);
+		sc->sent_bytes++;
 		break;
 
 	case TWSI_STATUS_DATA_RD_ACK:
@@ -715,6 +711,7 @@ twsi_intr(void *arg)
 				TWSI_WRITE(sc, sc->reg_control,
 				    sc->control_val | TWSI_CONTROL_STOP);
 			}
+			message_done = true;
 		} else {
 			/*
 			 * We should not have NACK-ed yet.
@@ -723,9 +720,6 @@ twsi_intr(void *arg)
 			debugf(sc, "NACK-ed before receving all bytes?\n");
 			twsi_error(sc, IIC_ESTATUS);
 		}
-		sc->transfer = 0;
-		transfer_done = 1;
-		sc->error = 0;
 		break;
 
 	case TWSI_STATUS_BUS_ERROR:
@@ -741,17 +735,44 @@ twsi_intr(void *arg)
 		twsi_error(sc, IIC_ESTATUS);
 		break;
 	}
-	debugf(sc, "Refresh reg_control\n");
 
+	if (message_done) {
+		sc->msg_idx++;
+		if (sc->msg_idx == sc->nmsgs) {
+			debugf(sc, "All messages transmitted\n");
+			sc->transfer = 0;
+			sc->error = 0;
+		} else if ((sc->msgs[sc->msg_idx].flags & IIC_M_NOSTART) == 0) {
+			debugf(sc, "Send (repeated) start\n");
+			send_start = true;
+		} else {
+			/* Just keep transmitting data. */
+			KASSERT((sc->msgs[sc->msg_idx - 1].flags & IIC_M_NOSTOP) != 0,
+			    ("NOSTART message after STOP"));
+			KASSERT((sc->msgs[sc->msg_idx].flags & IIC_M_RD) ==
+			    (sc->msgs[sc->msg_idx - 1].flags & IIC_M_RD),
+			    ("change of transfer direction without a START"));
+			debugf(sc, "NOSTART message after NOSTOP\n");
+			sc->sent_bytes = 0;
+			sc->recv_bytes = 0;
+			if ((sc->msgs[sc->msg_idx].flags & IIC_M_RD) == 0) {
+				status = TWSI_STATUS_ADDR_W_ACK;
+				goto restart;
+			} else {
+				debugf(sc, "Read+NOSTART unsupported\n");
+				twsi_error(sc, IIC_ESTATUS);
+			}
+		}
+	}
 end:
 	/*
 	 * Newer Allwinner chips clear IFLG after writing 1 to it.
 	 */
+	debugf(sc, "Refresh reg_control\n");
 	TWSI_WRITE(sc, sc->reg_control, sc->control_val |
-	    (sc->iflag_w1c ? TWSI_CONTROL_IFLG : 0));
+	    (sc->iflag_w1c ? TWSI_CONTROL_IFLG : 0) |
+	    (send_start ? TWSI_CONTROL_START : 0));
 
-	if (transfer_done == 1)
-		sc->transfer = 0;
 	debugf(sc, "Done with interrupt, transfer = %d\n", sc->transfer);
 	if (sc->transfer == 0)
 		wakeup(sc);
