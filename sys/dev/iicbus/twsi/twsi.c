@@ -544,6 +544,19 @@ twsi_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 }
 
 static void
+twsi_error(struct twsi_softc *sc, int err)
+{
+	/*
+	 * Must send stop condition to abort the current transfer.
+	 */
+	debugf(sc, "Sending STOP condition for error %d\n", err);
+	sc->transfer = 0;
+	sc->error = err;
+	sc->control_val = 0;
+	TWSI_WRITE(sc, sc->reg_control, sc->control_val | TWSI_CONTROL_STOP);
+}
+
+static void
 twsi_intr(void *arg)
 {
 	struct twsi_softc *sc;
@@ -604,13 +617,13 @@ twsi_intr(void *arg)
 
 	case TWSI_STATUS_ADDR_W_NACK:
 	case TWSI_STATUS_ADDR_R_NACK:
-		debugf(sc, "No ack received after transmitting the address\n");
-		sc->transfer = 0;
-		sc->error = IIC_ENOACK;
-		sc->control_val = 0;
-		wakeup(sc);
+		debugf(sc, "Address NACK-ed\n");
+		twsi_error(sc, IIC_ENOACK);
 		break;
-
+	case TWSI_STATUS_DATA_WR_NACK:
+		debugf(sc, "Data byte NACK-ed\n");
+		twsi_error(sc, IIC_ENOACK);
+		break;
 	case TWSI_STATUS_DATA_WR_ACK:
 		debugf(sc, "Ack received after transmitting data\n");
 		if (sc->sent_bytes == sc->msgs[sc->msg_idx].len) {
@@ -684,12 +697,17 @@ twsi_intr(void *arg)
 		sc->error = 0;
 		break;
 
+	case TWSI_STATUS_BUS_ERROR:
+		debugf(sc, "Bus error\n");
+		twsi_error(sc, IIC_EBUSERR);
+		break;
+	case TWSI_STATUS_ARBITRATION_LOST:
+		debugf(sc, "Arbitration lost\n");
+		twsi_error(sc, IIC_EBUSBSY);
+		break;
 	default:
-		debugf(sc, "status=%x hot handled\n", status);
-		sc->transfer = 0;
-		sc->error = IIC_EBUSERR;
-		sc->control_val = 0;
-		wakeup(sc);
+		debugf(sc, "unexpected status 0x%x\n", status);
+		twsi_error(sc, IIC_ESTATUS);
 		break;
 	}
 	debugf(sc, "Refresh reg_control\n");
@@ -701,11 +719,11 @@ end:
 	TWSI_WRITE(sc, sc->reg_control, sc->control_val |
 	    (sc->iflag_w1c ? TWSI_CONTROL_IFLG : 0));
 
-	debugf(sc, "Done with interrupts\n\n");
-	if (transfer_done == 1) {
+	if (transfer_done == 1)
 		sc->transfer = 0;
+	debugf(sc, "Done with interrupt, transfer = %d\n", sc->transfer);
+	if (sc->transfer == 0)
 		wakeup(sc);
-	}
 	mtx_unlock(&sc->mutex);
 }
 
