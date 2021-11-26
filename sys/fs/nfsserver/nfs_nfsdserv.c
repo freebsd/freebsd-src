@@ -5990,10 +5990,12 @@ nfsrvd_listxattr(struct nfsrv_descript *nd, __unused int isdgram,
 		if (cookie2 < cookie)
 			nd->nd_repstat = NFSERR_BADXDR;
 	}
+	retlen = NFSX_HYPER + 2 * NFSX_UNSIGNED;
+	if (nd->nd_repstat == 0 && len2 < retlen)
+		nd->nd_repstat = NFSERR_TOOSMALL;
 	if (nd->nd_repstat == 0) {
 		/* Now copy the entries out. */
-		retlen = NFSX_HYPER + 2 * NFSX_UNSIGNED;
-		if (len == 0 && retlen <= len2) {
+		if (len == 0) {
 			/* The cookie was at eof. */
 			NFSM_BUILD(tl, uint32_t *, NFSX_HYPER + 2 *
 			    NFSX_UNSIGNED);
