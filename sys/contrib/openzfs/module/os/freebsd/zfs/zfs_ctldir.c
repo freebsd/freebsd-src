@@ -815,6 +815,7 @@ static struct vop_vector zfsctl_ops_root = {
 	.vop_vptocnp =	zfsctl_root_vptocnp,
 	.vop_pathconf =	zfsctl_common_pathconf,
 	.vop_getacl =	zfsctl_common_getacl,
+	.vop_add_writecount =	vop_stdadd_writecount_nomsync,
 };
 VFS_VOP_VECTOR_REGISTER(zfsctl_ops_root);
 
@@ -1134,6 +1135,7 @@ static struct vop_vector zfsctl_ops_snapdir = {
 	.vop_print =	zfsctl_common_print,
 	.vop_pathconf =	zfsctl_common_pathconf,
 	.vop_getacl =	zfsctl_common_getacl,
+	.vop_add_writecount =	vop_stdadd_writecount_nomsync,
 };
 VFS_VOP_VECTOR_REGISTER(zfsctl_ops_snapdir);
 
@@ -1238,6 +1240,7 @@ static struct vop_vector zfsctl_ops_snapshot = {
 	.vop_islocked =		vop_stdislocked,
 	.vop_advlockpurge =	vop_stdadvlockpurge, /* called by vgone */
 	.vop_print =		zfsctl_common_print,
+	.vop_add_writecount =	vop_stdadd_writecount_nomsync,
 };
 VFS_VOP_VECTOR_REGISTER(zfsctl_ops_snapshot);
 

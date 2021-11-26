@@ -1382,30 +1382,54 @@ vop_stdunset_text(struct vop_unset_text_args *ap)
 	return (error);
 }
 
-static int
-vop_stdadd_writecount(struct vop_add_writecount_args *ap)
+static int __always_inline
+vop_stdadd_writecount_impl(struct vop_add_writecount_args *ap, bool handle_msync)
 {
 	struct vnode *vp;
-	struct mount *mp;
+	struct mount *mp __diagused;
 	int error;
 
 	vp = ap->a_vp;
+
+#ifdef INVARIANTS
+	mp = vp->v_mount;
+	if (mp != NULL) {
+		if (handle_msync) {
+			VNPASS((mp->mnt_kern_flag & MNTK_NOMSYNC) == 0, vp);
+		} else {
+			VNPASS((mp->mnt_kern_flag & MNTK_NOMSYNC) != 0, vp);
+		}
+	}
+#endif
+
 	VI_LOCK_FLAGS(vp, MTX_DUPOK);
-	if (vp->v_writecount < 0) {
+	if (__predict_false(vp->v_writecount < 0)) {
 		error = ETXTBSY;
 	} else {
 		VNASSERT(vp->v_writecount + ap->a_inc >= 0, vp,
 		    ("neg writecount increment %d", ap->a_inc));
-		if (vp->v_writecount == 0) {
-			mp = vp->v_mount;
-			if (mp != NULL && (mp->mnt_kern_flag & MNTK_NOMSYNC) == 0)
-				vlazy(vp);
+		if (handle_msync && vp->v_writecount == 0) {
+			vlazy(vp);
 		}
 		vp->v_writecount += ap->a_inc;
 		error = 0;
 	}
 	VI_UNLOCK(vp);
 	return (error);
+}
+
+int
+vop_stdadd_writecount(struct vop_add_writecount_args *ap)
+{
+
+	return (vop_stdadd_writecount_impl(ap, true));
+}
+
+int
+vop_stdadd_writecount_nomsync(struct vop_add_writecount_args *ap)
+{
+
+	return (vop_stdadd_writecount_impl(ap, false));
 }
 
 int

@@ -1167,6 +1167,7 @@ struct vop_vector pfs_vnodeops = {
 	.vop_symlink =		VOP_EOPNOTSUPP,
 	.vop_vptocnp =		pfs_vptocnp,
 	.vop_write =		pfs_write,
+	.vop_add_writecount =	vop_stdadd_writecount_nomsync,
 	/* XXX I've probably forgotten a few that need VOP_EOPNOTSUPP */
 };
 VFS_VOP_VECTOR_REGISTER(pfs_vnodeops);
