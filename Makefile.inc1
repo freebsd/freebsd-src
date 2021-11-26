@@ -2995,6 +2995,8 @@ _cddl_lib_libavl= cddl/lib/libavl
 _cddl_lib_libuutil= cddl/lib/libuutil
 _cddl_lib_libspl= cddl/lib/libspl
 
+cddl/lib/libavl__L: cddl/lib/libspl__L
+cddl/lib/libnvpair__L: cddl/lib/libspl__L
 cddl/lib/libuutil__L: cddl/lib/libavl__L cddl/lib/libspl__L
 
 .if ${MK_ZFS} != "no"
@@ -3005,10 +3007,6 @@ _cddl_lib_libzutil= cddl/lib/libzutil
 _cddl_lib_libzfs_core= cddl/lib/libzfs_core
 _cddl_lib_libzfs= cddl/lib/libzfs
 _cddl_lib_libzfsbootenv= cddl/lib/libzfsbootenv
-
-cddl/lib/libavl__L: cddl/lib/libspl__L
-
-cddl/lib/libnvpair__L: cddl/lib/libspl__L
 
 cddl/lib/libtpool__L: cddl/lib/libspl__L
 
