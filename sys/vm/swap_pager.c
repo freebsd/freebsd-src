@@ -469,7 +469,8 @@ static bool	swp_pager_swblk_empty(struct swblk *sb, int start, int limit);
 static void	swp_pager_free_empty_swblk(vm_object_t, struct swblk *sb);
 static int	swapongeom(struct vnode *);
 static int	swaponvp(struct thread *, struct vnode *, u_long);
-static int	swapoff_one(struct swdevt *sp, struct ucred *cred);
+static int	swapoff_one(struct swdevt *sp, struct ucred *cred,
+		    bool ignore_check);
 
 /*
  * Swap bitmap functions
@@ -2518,14 +2519,14 @@ sys_swapoff(struct thread *td, struct swapoff_args *uap)
 		error = EINVAL;
 		goto done;
 	}
-	error = swapoff_one(sp, td->td_ucred);
+	error = swapoff_one(sp, td->td_ucred, false);
 done:
 	sx_xunlock(&swdev_syscall_lock);
 	return (error);
 }
 
 static int
-swapoff_one(struct swdevt *sp, struct ucred *cred)
+swapoff_one(struct swdevt *sp, struct ucred *cred, bool ignore_check)
 {
 	u_long nblks;
 #ifdef MAC
@@ -2547,8 +2548,16 @@ swapoff_one(struct swdevt *sp, struct ucred *cred)
 	 * available virtual memory in the system will fit the amount
 	 * of data we will have to page back in, plus an epsilon so
 	 * the system doesn't become critically low on swap space.
+	 * The vm_free_count() part does not account e.g. for clean
+	 * pages that can be immediately reclaimed without paging, so
+	 * this is a very rough estimation.
+	 *
+	 * On the other hand, not turning swap off on swapoff_all()
+	 * means that we can lose swap data when filesystems go away,
+	 * which is arguably worse.
 	 */
-	if (vm_free_count() + swap_pager_avail < nblks + nswap_lowat)
+	if (!ignore_check &&
+	    vm_free_count() + swap_pager_avail < nblks + nswap_lowat)
 		return (ENOMEM);
 
 	/*
@@ -2598,7 +2607,7 @@ swapoff_all(void)
 			devname = devtoname(sp->sw_vp->v_rdev);
 		else
 			devname = "[file]";
-		error = swapoff_one(sp, thread0.td_ucred);
+		error = swapoff_one(sp, thread0.td_ucred, true);
 		if (error != 0) {
 			printf("Cannot remove swap device %s (error=%d), "
 			    "skipping.\n", devname, error);
