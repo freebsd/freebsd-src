@@ -484,6 +484,7 @@ static int
 twsi_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 {
 	struct twsi_softc *sc;
+	uint32_t status;
 	int error;
 
 	sc = device_get_softc(dev);
@@ -496,7 +497,15 @@ twsi_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 	    ("starting a transfer while another is active"));
 
 	debugf(sc, "transmitting %d messages\n", nmsgs);
-	debugf(sc, "status=%x\n", TWSI_READ(sc, sc->reg_status));
+	status = TWSI_READ(sc, sc->reg_status);
+	debugf(sc, "status=0x%x\n", status);
+	if (status != TWSI_STATUS_IDLE) {
+		debugf(sc, "Bad status at start of transfer\n");
+		TWSI_WRITE(sc, sc->reg_control, TWSI_CONTROL_STOP);
+		mtx_unlock(&sc->mutex);
+		return (IIC_ESTATUS);
+	}
+
 	sc->nmsgs = nmsgs;
 	sc->msgs = msgs;
 	sc->msg_idx = 0;
