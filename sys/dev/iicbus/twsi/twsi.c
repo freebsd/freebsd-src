@@ -516,11 +516,9 @@ twsi_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 	for (int i = 0; i < nmsgs; i++)
 		debugf(sc, "msg %d is %d bytes long\n", i, msgs[i].len);
 #endif
+
 	/* Send start and re-enable interrupts */
-	sc->control_val = TWSI_CONTROL_TWSIEN |
-		TWSI_CONTROL_INTEN | TWSI_CONTROL_ACK;
-	if (sc->msgs[0].len == 1)
-		sc->control_val &= ~TWSI_CONTROL_ACK;
+	sc->control_val = TWSI_CONTROL_TWSIEN | TWSI_CONTROL_INTEN;
 	TWSI_WRITE(sc, sc->reg_control, sc->control_val | TWSI_CONTROL_START);
 	msleep_sbt(sc, &sc->mutex, 0, "twsi", 3000 * SBT_1MS, SBT_1MS, 0);
 	debugf(sc, "pause finish\n");
@@ -597,22 +595,36 @@ twsi_intr(void *arg)
 		break;
 
 	case TWSI_STATUS_ADDR_W_ACK:
-		debugf(sc, "Ack received after transmitting the address (write)\n");
-		/* Directly send the first byte */
-		sc->sent_bytes = 1;
-		debugf(sc, "Sending byte 0 (of %d) = %x\n",
-		    sc->msgs[sc->msg_idx].len,
-		    sc->msgs[sc->msg_idx].buf[0]);
-		TWSI_WRITE(sc, sc->reg_data, sc->msgs[sc->msg_idx].buf[0]);
+		debugf(sc, "Address ACK-ed (write)\n");
 
-		TWSI_WRITE(sc, sc->reg_control, sc->control_val);
+		if (sc->msgs[sc->msg_idx].len > 0) {
+			/* Directly send the first byte */
+			sc->sent_bytes = 1;
+			debugf(sc, "Sending byte 0 (of %d) = %x\n",
+			    sc->msgs[sc->msg_idx].len,
+			    sc->msgs[sc->msg_idx].buf[0]);
+			TWSI_WRITE(sc, sc->reg_data,
+			    sc->msgs[sc->msg_idx].buf[0]);
+		} else {
+			debugf(sc, "Zero-length write, sending STOP\n");
+			TWSI_WRITE(sc, sc->reg_control,
+			    sc->control_val | TWSI_CONTROL_STOP);
+		}
 		break;
 
 	case TWSI_STATUS_ADDR_R_ACK:
-		debugf(sc, "Ack received after transmitting the address (read)\n");
+		debugf(sc, "Address ACK-ed (read)\n");
 		sc->recv_bytes = 0;
 
-		TWSI_WRITE(sc, sc->reg_control, sc->control_val);
+		if (sc->msgs[sc->msg_idx].len == 0) {
+			debugf(sc, "Zero-length read, sending STOP\n");
+			TWSI_WRITE(sc, sc->reg_control,
+			    sc->control_val | TWSI_CONTROL_STOP);
+		} else if (sc->msgs[sc->msg_idx].len == 1) {
+			sc->control_val &= ~TWSI_CONTROL_ACK;
+		} else {
+			sc->control_val |= TWSI_CONTROL_ACK;
+		}
 		break;
 
 	case TWSI_STATUS_ADDR_W_NACK:
