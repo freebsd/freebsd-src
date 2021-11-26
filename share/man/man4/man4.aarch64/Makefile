@@ -4,13 +4,6 @@
 
 MAN=	\
 	armv8crypto.4 \
-	aw_gpio.4 \
-	aw_mmc.4 \
-	aw_rtc.4 \
-	aw_sid.4 \
-	aw_spi.4 \
-	aw_syscon.4 \
-	bcm283x_pwm.4 \
 	enetc.4 \
 	felix.4 \
 	rk_gpio.4 \
@@ -18,11 +11,24 @@ MAN=	\
 	rk_i2c.4 \
 	rk_pinctrl.4 \
 
-# Link files to the parent directory
-.for _manpage in ${MAN}
-MLINKS+=${_manpage} ../${_manpage}
-.endfor
+# Install manpages shared with arm only if not installing manpages
+# for all architectures, otherwise arm takes care of installing them.
+.if !empty(MAN_ARCH) && ${MAN_ARCH} != "all"
+MAN+=	\
+	aw_gpio.4 \
+	aw_mmc.4 \
+	aw_rtc.4 \
+	aw_sid.4 \
+	aw_spi.4 \
+	aw_syscon.4 \
+	bcm283x_pwm.4 \
 
-MANSUBDIR=/aarch64
+.endif
+
+# Link files to the architecture directory.
+_ARCH_SUBDIR=aarch64
+.for _manpage in ${MAN}
+MLINKS+=${_manpage} ${_ARCH_SUBDIR}/${_manpage}
+.endfor
 
 .include <bsd.prog.mk>

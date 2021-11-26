@@ -2,11 +2,16 @@
 
 # mptable: broken (not 64 bit clean)
 # pnpinfo: crashes (not really useful anyway)
+_ARCH_SUBDIR=amd64
 .if ${MK_ACPI} != "no"
 SUBDIR+=	acpi
 .endif
 .if ${MK_APM} != "no"
 SUBDIR+=	apm
+# Link files to the architecture directory
+.for _manpage in ${:!/bin/sh -c "/bin/ls ${_ARCH_SUBDIR}/.8"!:E}
+MLINKS+=${_manpage} ${_ARCH_SUBDIR}/${_manpage}
+.endfor
 .endif
 .if ${MK_BHYVE} != "no"
 SUBDIR+=	bhyve
