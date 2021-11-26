@@ -671,37 +671,57 @@ twsi_intr(void *arg)
 		break;
 
 	case TWSI_STATUS_DATA_RD_ACK:
-		debugf(sc, "Ack received after receiving data\n");
-		sc->msgs[sc->msg_idx].buf[sc->recv_bytes++] = TWSI_READ(sc, sc->reg_data);
-		debugf(sc, "msg_len=%d recv_bytes=%d\n", sc->msgs[sc->msg_idx].len, sc->recv_bytes);
+		debugf(sc, "Received and ACK-ed data\n");
+		KASSERT(sc->recv_bytes < sc->msgs[sc->msg_idx].len,
+		    ("receiving beyond the end of buffer"));
+
+		sc->msgs[sc->msg_idx].buf[sc->recv_bytes] =
+		    TWSI_READ(sc, sc->reg_data);
+		debugf(sc, "Received byte %d (of %d) = 0x%x\n",
+		    sc->recv_bytes,
+		    sc->msgs[sc->msg_idx].len,
+		    sc->msgs[sc->msg_idx].buf[sc->recv_bytes]);
+		sc->recv_bytes++;
 
 		/* If we only have one byte left, disable ACK */
-		if (sc->msgs[sc->msg_idx].len - sc->recv_bytes == 1)
+		if (sc->msgs[sc->msg_idx].len - sc->recv_bytes == 1) {
 			sc->control_val &= ~TWSI_CONTROL_ACK;
-		if (sc->msgs[sc->msg_idx].len == sc->recv_bytes) {
-			debugf(sc, "Done with msg %d\n", sc->msg_idx);
-			sc->msg_idx++;
-			if (sc->msg_idx == sc->nmsgs - 1) {
-				debugf(sc, "No more msgs\n");
-				transfer_done = 1;
-				sc->error = 0;
-			}
+		} else if (sc->msgs[sc->msg_idx].len == sc->recv_bytes) {
+			/*
+			 * We should not have ACK-ed the last byte.
+			 * The protocol state machine is in invalid state.
+			 */
+			debugf(sc, "RX all but asked for more?\n");
+			twsi_error(sc, IIC_ESTATUS);
 		}
-		TWSI_WRITE(sc, sc->reg_control, sc->control_val);
 		break;
 
 	case TWSI_STATUS_DATA_RD_NOACK:
-		if (sc->msgs[sc->msg_idx].len - sc->recv_bytes == 1) {
-			sc->msgs[sc->msg_idx].buf[sc->recv_bytes++] = TWSI_READ(sc, sc->reg_data);
-			debugf(sc, "Done RX data, send stop (2)\n");
-			if (!(sc->msgs[sc->msg_idx].flags & IIC_M_NOSTOP))
+		debugf(sc, "Received and NACK-ed data\n");
+		KASSERT(sc->recv_bytes == sc->msgs[sc->msg_idx].len - 1,
+		    ("sent NACK before receiving all requested data"));
+		sc->msgs[sc->msg_idx].buf[sc->recv_bytes] =
+		    TWSI_READ(sc, sc->reg_data);
+		debugf(sc, "Received byte %d (of %d) = 0x%x\n",
+		    sc->recv_bytes,
+		    sc->msgs[sc->msg_idx].len,
+		    sc->msgs[sc->msg_idx].buf[sc->recv_bytes]);
+		sc->recv_bytes++;
+
+		if (sc->msgs[sc->msg_idx].len == sc->recv_bytes) {
+			debugf(sc, "Done RX data\n");
+			if (!(sc->msgs[sc->msg_idx].flags & IIC_M_NOSTOP)) {
+				debugf(sc, "Send STOP\n");
 				TWSI_WRITE(sc, sc->reg_control,
 				    sc->control_val | TWSI_CONTROL_STOP);
+			}
 		} else {
-			debugf(sc, "No ack when receiving data, sending stop anyway\n");
-			if (!(sc->msgs[sc->msg_idx].flags & IIC_M_NOSTOP))
-				TWSI_WRITE(sc, sc->reg_control,
-				    sc->control_val | TWSI_CONTROL_STOP);
+			/*
+			 * We should not have NACK-ed yet.
+			 * The protocol state machine is in invalid state.
+			 */
+			debugf(sc, "NACK-ed before receving all bytes?\n");
+			twsi_error(sc, IIC_ESTATUS);
 		}
 		sc->transfer = 0;
 		transfer_done = 1;
