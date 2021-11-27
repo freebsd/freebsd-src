@@ -1322,13 +1322,18 @@ nfs_lookup(struct vop_lookup_args *ap)
 		cache_purge_negative(dvp);
 	}
 
+	openmode = 0;
+#if 0
+	/*
+	 * The use of LookupOpen breaks some builds.  It is disabled
+	 * until that is fixed.
+	 */
 	/*
 	 * If this an NFSv4.1/4.2 mount using the "oneopenown" mount
 	 * option, it is possible to do the Open operation in the same
 	 * compound as Lookup, so long as delegations are not being
 	 * issued.  This saves doing a separate RPC for Open.
 	 */
-	openmode = 0;
 	NFSLOCKMNT(nmp);
 	if (NFSHASNFSV4N(nmp) && NFSHASONEOPENOWN(nmp) &&
 	    (nmp->nm_privflag & NFSMNTP_DELEGISSUED) == 0 &&
@@ -1340,6 +1345,7 @@ nfs_lookup(struct vop_lookup_args *ap)
 			openmode |= NFSV4OPEN_ACCESSWRITE;
 	}
 	NFSUNLOCKMNT(nmp);
+#endif
 
 	newvp = NULLVP;
 	NFSINCRGLOBAL(nfsstatsv1.lookupcache_misses);
