@@ -436,6 +436,8 @@ FBSD_1.6 {
 };
 
 FBSD_1.7 {
+	 posix_spawn_file_actions_addchdir_np;
+	 posix_spawn_file_actions_addfchdir_np;
 	 sched_getaffinity;
 	 sched_setaffinity;
 	 sched_getcpu;
