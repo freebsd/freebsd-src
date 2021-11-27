@@ -213,7 +213,6 @@ device		psm			# PS/2 mouse
 device		kbdmux			# keyboard multiplexer
 
 device		vga			# VGA video card driver
-options 	VESA			# Add support for VESA BIOS Extensions (VBE)
 
 device		splash			# Splash screen and screen saver support
 
