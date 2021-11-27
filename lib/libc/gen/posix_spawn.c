@@ -62,7 +62,11 @@ struct __posix_spawn_file_actions {
 
 typedef struct __posix_spawn_file_actions_entry {
 	STAILQ_ENTRY(__posix_spawn_file_actions_entry) fae_list;
-	enum { FAE_OPEN, FAE_DUP2, FAE_CLOSE } fae_action;
+	enum {
+		FAE_OPEN,
+		FAE_DUP2,
+		FAE_CLOSE,
+	} fae_action;
 
 	int fae_fildes;
 	union {
