@@ -959,6 +959,18 @@ tryagain:
 					tl += NFSX_V4SESSIONID / NFSX_UNSIGNED;
 					retseq = fxdr_unsigned(uint32_t, *tl++);
 					slot = fxdr_unsigned(int, *tl++);
+					if ((nd->nd_flag & ND_HASSLOTID) != 0) {
+						if (slot != nd->nd_slotid) {
+							printf("newnfs_request:"
+							    " Wrong session "
+							    "slot=%d\n", slot);
+							slot = nd->nd_slotid;
+						}
+					} else if (slot != 0) {
+						printf("newnfs_request: Bad "
+						    "session slot=%d\n", slot);
+						slot = 0;
+					}
 					freeslot = slot;
 					if (retseq != sep->nfsess_slotseq[slot])
 						printf("retseq diff 0x%x\n",
