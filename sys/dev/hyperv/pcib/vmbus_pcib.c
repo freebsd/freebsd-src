@@ -1356,6 +1356,47 @@ _hv_pcifront_write_config(struct hv_pci_dev *hpdev, int where, int size,
 	}
 }
 
+/*
+ * The vPCI in some Hyper-V releases do not initialize the last 4
+ * bit of BAR registers. This could result weird problems causing PCI
+ * code fail to configure BAR correctly.
+ *
+ * Just write all 1's to those BARs whose probed values are not zero.
+ * This seems to make the Hyper-V vPCI and pci_write_bar() to cooperate
+ * correctly.
+ */
+
+static void
+vmbus_pcib_prepopulate_bars(struct hv_pcibus *hbus)
+{
+	struct hv_pci_dev *hpdev;
+	int i;
+
+	mtx_lock(&hbus->device_list_lock);
+	TAILQ_FOREACH(hpdev, &hbus->children, link) {
+		for (i = 0; i < 6; i++) {
+			/* Ignore empty bar */
+			if (hpdev->probed_bar[i] == 0)
+				continue;
+
+			uint32_t bar_val = 0;
+
+			_hv_pcifront_read_config(hpdev, PCIR_BAR(i),
+			    4, &bar_val);
+
+			if (hpdev->probed_bar[i] != bar_val) {
+				if (bootverbose)
+					printf("vmbus_pcib: initialize bar %d "
+					    "by writing all 1s\n", i);
+
+				_hv_pcifront_write_config(hpdev, PCIR_BAR(i),
+				    4, 0xffffffff);
+			}
+		}
+	}
+	mtx_unlock(&hbus->device_list_lock);
+}
+
 static void
 vmbus_pcib_set_detaching(void *arg, int pending __unused)
 {
@@ -1478,6 +1519,8 @@ vmbus_pcib_attach(device_t dev)
 	ret = hv_send_resources_allocated(hbus);
 	if (ret)
 		goto vmbus_close;
+
+	vmbus_pcib_prepopulate_bars(hbus);
 
 	hbus->pci_bus = device_add_child(dev, "pci", -1);
 	if (!hbus->pci_bus) {
