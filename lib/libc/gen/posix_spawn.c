@@ -353,7 +353,7 @@ posix_spawn(pid_t *pid, const char *path,
     const posix_spawnattr_t *sa,
     char * const argv[], char * const envp[])
 {
-	return do_posix_spawn(pid, path, fa, sa, argv, envp, 0);
+	return (do_posix_spawn(pid, path, fa, sa, argv, envp, 0));
 }
 
 int
@@ -362,7 +362,7 @@ posix_spawnp(pid_t *pid, const char *path,
     const posix_spawnattr_t *sa,
     char * const argv[], char * const envp[])
 {
-	return do_posix_spawn(pid, path, fa, sa, argv, envp, 1);
+	return (do_posix_spawn(pid, path, fa, sa, argv, envp, 1));
 }
 
 /*
