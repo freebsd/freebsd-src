@@ -66,6 +66,8 @@ typedef struct __posix_spawn_file_actions_entry {
 		FAE_OPEN,
 		FAE_DUP2,
 		FAE_CLOSE,
+		FAE_CHDIR,
+		FAE_FCHDIR,
 	} fae_action;
 
 	int fae_fildes;
@@ -179,6 +181,14 @@ process_file_actions_entry(posix_spawn_file_actions_entry_t *fae)
 	case FAE_CLOSE:
 		/* Perform a close(), do not fail if already closed */
 		(void)_close(fae->fae_fildes);
+		break;
+	case FAE_CHDIR:
+		if (chdir(fae->fae_path) != 0)
+			return (errno);
+		break;
+	case FAE_FCHDIR:
+		if (fchdir(fae->fae_fildes) != 0)
+			return (errno);
 		break;
 	}
 	return (0);
@@ -393,7 +403,8 @@ posix_spawn_file_actions_destroy(posix_spawn_file_actions_t *fa)
 		STAILQ_REMOVE_HEAD(&(*fa)->fa_list, fae_list);
 
 		/* Deallocate file action entry */
-		if (fae->fae_action == FAE_OPEN)
+		if (fae->fae_action == FAE_OPEN ||
+		    fae->fae_action == FAE_CHDIR)
 			free(fae->fae_path);
 		free(fae);
 	}
@@ -472,6 +483,50 @@ posix_spawn_file_actions_addclose(posix_spawn_file_actions_t *fa,
 
 	/* Set values and store in queue */
 	fae->fae_action = FAE_CLOSE;
+	fae->fae_fildes = fildes;
+
+	STAILQ_INSERT_TAIL(&(*fa)->fa_list, fae, fae_list);
+	return (0);
+}
+
+int
+posix_spawn_file_actions_addchdir_np(posix_spawn_file_actions_t *
+    __restrict fa, const char *__restrict path)
+{
+	posix_spawn_file_actions_entry_t *fae;
+	int error;
+
+	fae = malloc(sizeof(posix_spawn_file_actions_entry_t));
+	if (fae == NULL)
+		return (errno);
+
+	fae->fae_action = FAE_CHDIR;
+	fae->fae_path = strdup(path);
+	if (fae->fae_path == NULL) {
+		error = errno;
+		free(fae);
+		return (error);
+	}
+
+	STAILQ_INSERT_TAIL(&(*fa)->fa_list, fae, fae_list);
+	return (0);
+}
+
+int
+posix_spawn_file_actions_addfchdir_np(posix_spawn_file_actions_t *__restrict fa,
+    int fildes)
+{
+	posix_spawn_file_actions_entry_t *fae;
+
+	if (fildes < 0)
+		return (EBADF);
+
+	/* Allocate object */
+	fae = malloc(sizeof(posix_spawn_file_actions_entry_t));
+	if (fae == NULL)
+		return (errno);
+
+	fae->fae_action = FAE_FCHDIR;
 	fae->fae_fildes = fildes;
 
 	STAILQ_INSERT_TAIL(&(*fa)->fa_list, fae, fae_list);

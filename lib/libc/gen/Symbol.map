@@ -435,6 +435,11 @@ FBSD_1.6 {
 	tcsetwinsize;
 };
 
+FBSD_1.7 {
+	 posix_spawn_file_actions_addchdir_np;
+	 posix_spawn_file_actions_addfchdir_np;
+};
+
 FBSDprivate_1.0 {
 	/* needed by thread libraries */
 	__thr_jtable;
