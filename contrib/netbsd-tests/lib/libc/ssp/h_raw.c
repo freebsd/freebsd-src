@@ -35,6 +35,7 @@ __RCSID("$NetBSD: h_raw.c,v 1.6 2011/07/24 14:00:36 christos Exp $");
 #include <stdlib.h>
 
 void poke(int *, size_t);
+int y;
 
 void
 poke(int *b, size_t index)
@@ -45,6 +46,7 @@ poke(int *b, size_t index)
 	b[index] = 42;
 	for (i = 0; i < 10; i++) 
 		sum += b[i];
+	y = sum;
 }
 
 int
