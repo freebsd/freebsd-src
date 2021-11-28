@@ -153,7 +153,6 @@ send_credentials(struct cached_connection_ *connection, int type)
 	struct kevent eventlist;
 	int nevents;
 	ssize_t result;
-	int res;
 
 	memset(&cmsg, 0, sizeof(cmsg));
 	cmsg.hdr.cmsg_len = CMSG_LEN(sizeof(struct cmsgcred));
@@ -171,7 +170,7 @@ send_credentials(struct cached_connection_ *connection, int type)
 
 	EV_SET(&eventlist, connection->sockfd, EVFILT_WRITE, EV_ADD,
 	    NOTE_LOWAT, sizeof(int), NULL);
-	res = _kevent(connection->write_queue, &eventlist, 1, NULL, 0, NULL);
+	(void)_kevent(connection->write_queue, &eventlist, 1, NULL, 0, NULL);
 
 	nevents = _kevent(connection->write_queue, NULL, 0, &eventlist, 1,
 	    NULL);
@@ -474,10 +473,9 @@ int
 __close_cached_mp_write_session(struct cached_connection_ *ws)
 {
 	int notification;
-	int result;
 
 	notification = CET_MP_WRITE_SESSION_CLOSE_NOTIFICATION;
-	result = safe_write(ws, &notification, sizeof(int));
+	(void)safe_write(ws, &notification, sizeof(int));
 	__close_cached_connection(ws);
 	return (0);
 }
