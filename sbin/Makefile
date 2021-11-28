@@ -53,7 +53,6 @@ SUBDIR=adjkerntz \
 	nfsiod \
 	nos-tun \
 	pfilctl \
-	ping \
 	rcorder \
 	reboot \
 	recoverdisk \
@@ -68,6 +67,10 @@ SUBDIR=adjkerntz \
 	sysctl \
 	tunefs \
 	umount
+
+.if ${MK_INET} != "no" || ${MK_INET6} != "no"
+SUBDIR+=	ping
+.endif
 
 SUBDIR.${MK_CCD}+=	ccdconfig
 SUBDIR.${MK_CXX}+=	devd
