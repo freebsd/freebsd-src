@@ -257,11 +257,11 @@ static int
 pwd_marshal_func(char *buffer, size_t *buffer_size, void *retval, va_list ap,
     void *cache_mdata)
 {
-	char *name;
-	uid_t uid;
+	char *name __unused;
+	uid_t uid __unused;
 	struct passwd *pwd;
-	char *orig_buf;
-	size_t orig_buf_size;
+	char *orig_buf __unused;
+	size_t orig_buf_size __unused;
 
 	struct passwd new_pwd;
 	size_t desired_size, size;
@@ -361,8 +361,8 @@ static int
 pwd_unmarshal_func(char *buffer, size_t buffer_size, void *retval, va_list ap,
     void *cache_mdata)
 {
-	char *name;
-	uid_t uid;
+	char *name __unused;
+	uid_t uid __unused;
 	struct passwd *pwd;
 	char *orig_buf;
 	size_t orig_buf_size;
