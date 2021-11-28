@@ -39,14 +39,17 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <stdbool.h>
 
 #include <vmmapi.h>
+
 #include "bhyverun.h"
 #include "bootrom.h"
 #include "debug.h"
+#include "mem.h"
 
 #define	BOOTROM_SIZE	(16 * 1024 * 1024)	/* 16 MB */
 
@@ -63,6 +66,56 @@ static char *romptr;	/* Pointer to userspace-mapped bootrom region. */
 static vm_paddr_t gpa_base;	/* GPA of low end of region. */
 static vm_paddr_t gpa_allocbot;	/* Low GPA of free region. */
 static vm_paddr_t gpa_alloctop;	/* High GPA, minus 1, of free region. */
+
+#define CFI_BCS_WRITE_BYTE      0x10
+#define CFI_BCS_CLEAR_STATUS    0x50
+#define CFI_BCS_READ_STATUS     0x70
+#define CFI_BCS_READ_ARRAY      0xff
+
+static struct bootrom_var_state {
+	uint8_t		*mmap;
+	uint64_t	gpa;
+	off_t		size;
+	uint8_t		cmd;
+} var = { NULL, 0, 0, CFI_BCS_READ_ARRAY };
+
+/*
+ * Emulate just those CFI basic commands that will convince EDK II
+ * that the Firmware Volume area is writable and persistent.
+ */
+static int
+bootrom_var_mem_handler(struct vmctx *ctx, int vcpu, int dir, uint64_t addr,
+    int size, uint64_t *val, void *arg1, long arg2)
+{
+	off_t offset;
+
+	offset = addr - var.gpa;
+	if (offset + size > var.size || offset < 0 || offset + size <= offset)
+		return (EINVAL);
+
+	if (dir == MEM_F_WRITE) {
+		switch (var.cmd) {
+		case CFI_BCS_WRITE_BYTE:
+			memcpy(var.mmap + offset, val, size);
+			var.cmd = CFI_BCS_READ_ARRAY;
+			break;
+		default:
+			var.cmd = *(uint8_t *)val;
+		}
+	} else {
+		switch (var.cmd) {
+		case CFI_BCS_CLEAR_STATUS:
+		case CFI_BCS_READ_STATUS:
+			memset(val, 0, size);
+			var.cmd = CFI_BCS_READ_ARRAY;
+			break;
+		default:
+			memcpy(val, var.mmap + offset, size);
+			break;
+		}
+	}
+	return (0);
+}
 
 void
 init_bootrom(struct vmctx *ctx)
@@ -142,10 +195,16 @@ bootrom_loadrom(struct vmctx *ctx, const char *romfile)
 {
 	struct stat sbuf;
 	ssize_t rlen;
-	char *ptr;
-	int fd, i, rv;
+	off_t rom_size, var_size, total_size;
+	char *ptr, *varfile;
+	int fd, varfd, i, rv;
 
 	rv = -1;
+	varfd = -1;
+
+	varfile = strdup(romfile);
+	romfile = strsep(&varfile, ",");
+
 	fd = open(romfile, O_RDONLY);
 	if (fd < 0) {
 		EPRINTLN("Error opening bootrom \"%s\": %s",
@@ -153,19 +212,56 @@ bootrom_loadrom(struct vmctx *ctx, const char *romfile)
 		goto done;
 	}
 
-        if (fstat(fd, &sbuf) < 0) {
+	if (varfile != NULL) {
+		varfd = open(varfile, O_RDWR);
+		if (varfd < 0) {
+			fprintf(stderr, "Error opening bootrom variable file "
+			    "\"%s\": %s\n", varfile, strerror(errno));
+			goto done;
+		}
+	}
+
+	if (fstat(fd, &sbuf) < 0) {
 		EPRINTLN("Could not fstat bootrom file \"%s\": %s",
-		    romfile, strerror(errno));
+			romfile, strerror(errno));
 		goto done;
-        }
+	}
+
+	rom_size = sbuf.st_size;
+	if (varfd < 0) {
+		var_size = 0;
+	} else {
+		if (fstat(varfd, &sbuf) < 0) {
+			fprintf(stderr, "Could not fstat bootrom variable file \"%s\": %s\n",
+				varfile, strerror(errno));
+			goto done;
+		}
+		var_size = sbuf.st_size;
+	}
+
+	if (var_size > BOOTROM_SIZE ||
+	    (var_size != 0 && var_size < PAGE_SIZE)) {
+		fprintf(stderr, "Invalid bootrom variable size %ld\n",
+		    var_size);
+		goto done;
+	}
+
+	total_size = rom_size + var_size;
+
+	if (total_size > BOOTROM_SIZE) {
+		fprintf(stderr, "Invalid bootrom and variable aggregate size "
+		    "%ld\n", total_size);
+		goto done;
+	}
 
 	/* Map the bootrom into the guest address space */
-	if (bootrom_alloc(ctx, sbuf.st_size, PROT_READ | PROT_EXEC,
-	    BOOTROM_ALLOC_TOP, &ptr, NULL) != 0)
+	if (bootrom_alloc(ctx, rom_size, PROT_READ | PROT_EXEC,
+	    BOOTROM_ALLOC_TOP, &ptr, NULL) != 0) {
 		goto done;
+	}
 
 	/* Read 'romfile' into the guest address space */
-	for (i = 0; i < sbuf.st_size / PAGE_SIZE; i++) {
+	for (i = 0; i < rom_size / PAGE_SIZE; i++) {
 		rlen = read(fd, ptr + i * PAGE_SIZE, PAGE_SIZE);
 		if (rlen != PAGE_SIZE) {
 			EPRINTLN("Incomplete read of page %d of bootrom "
@@ -173,6 +269,26 @@ bootrom_loadrom(struct vmctx *ctx, const char *romfile)
 			goto done;
 		}
 	}
+
+	if (varfd >= 0) {
+		var.mmap = mmap(NULL, var_size, PROT_READ | PROT_WRITE,
+		    MAP_SHARED, varfd, 0);
+		if (var.mmap == MAP_FAILED)
+			goto done;
+		var.size = var_size;
+		var.gpa = (gpa_alloctop - var_size) + 1;
+		gpa_alloctop = var.gpa - 1;
+		rv = register_mem(&(struct mem_range){
+		    .name = "bootrom variable",
+		    .flags = MEM_F_RW,
+		    .handler = bootrom_var_mem_handler,
+		    .base = var.gpa,
+		    .size = var.size,
+		});
+		if (rv != 0)
+			goto done;
+	}
+
 	rv = 0;
 done:
 	if (fd >= 0)
