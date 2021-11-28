@@ -147,7 +147,7 @@ static const struct tsc_selector_tag tsc_selector[] = {
 static int
 tsc_selector_idx(u_int cpu_feature)
 {
-	u_int amd_feature, cpu_exthigh, cpu_id, p[4], v[3];
+	u_int amd_feature, cpu_exthigh, p[4], v[3];
 	static const char amd_id[] = "AuthenticAMD";
 	static const char hygon_id[] = "HygonGenuine";
 	bool amd_cpu;
@@ -161,9 +161,6 @@ tsc_selector_idx(u_int cpu_feature)
 	v[2] = p[2];
 	amd_cpu = memcmp(v, amd_id, sizeof(amd_id) - 1) == 0 ||
 	    memcmp(v, hygon_id, sizeof(hygon_id) - 1) == 0;
-
-	do_cpuid(1, p);
-	cpu_id = p[0];
 
 	if (cpu_feature != 0) {
 		do_cpuid(0x80000000, p);
