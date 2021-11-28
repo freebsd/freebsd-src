@@ -1,0 +1,442 @@
+Driver: iwlwifi - Intel Wireless Wifi
+
+File: iwlwifi-3945-2.ucode
+Version: 15.32.2.9
+
+File: iwlwifi-4965-2.ucode
+Version: 228.61.2.24
+
+File: iwlwifi-5000-1.ucode
+Version: 5.4.A.11 (aka 5.4.1.16)
+
+File: iwlwifi-5000-2.ucode
+Version: 8.24.2.12
+
+File: iwlwifi-5000-5.ucode
+Version: 8.83.5.1
+
+File: iwlwifi-5150-2.ucode
+Version: 8.24.2.2
+
+File: iwlwifi-1000-3.ucode
+Version: 128.50.3.1
+
+File: iwlwifi-1000-5.ucode
+Version: 39.31.5.1
+
+File: iwlwifi-6000-4.ucode
+Version: 9.221.4.1
+
+File: iwlwifi-6050-4.ucode
+Version: 9.201.4.1
+
+File: iwlwifi-6050-5.ucode
+Version: 41.28.5.1
+
+File: iwlwifi-6000g2a-5.ucode
+Version: 17.168.5.3
+
+File: iwlwifi-6000g2a-6.ucode
+Version: 18.168.6.1
+
+File: iwlwifi-6000g2b-5.ucode
+Version: 17.168.5.1
+
+File: iwlwifi-6000g2b-6.ucode
+Version: 18.168.6.1
+
+File: iwlwifi-135-6.ucode
+Version: 18.168.6.1
+
+File: iwlwifi-100-5.ucode
+Version: 39.31.5.1
+
+File: iwlwifi-105-6.ucode
+Version: 18.168.6.1
+
+File: iwlwifi-2030-6.ucode
+Version: 18.168.6.1
+
+File: iwlwifi-2000-6.ucode
+Version: 18.168.6.1
+
+File: iwlwifi-7260-7.ucode
+Version: 22.1.7.0
+
+File: iwlwifi-7260-8.ucode
+Version: 22.24.8.0
+
+File: iwlwifi-7260-9.ucode
+Version: 25.228.9.0
+
+File: iwlwifi-7260-10.ucode
+Version: 23.15.10.0
+
+File: iwlwifi-7260-12.ucode
+Version: 25.17.12.0
+
+File: iwlwifi-7260-13.ucode
+Version: 25.30.13.0
+
+File: iwlwifi-7260-16.ucode
+Version: 16.242414.0
+
+File: iwlwifi-7260-17.ucode
+Version: 17.bfb58538.0
+
+File: iwlwifi-3160-7.ucode
+Version: 22.1.7.0
+
+File: iwlwifi-3160-8.ucode
+Version: 22.24.8.0
+
+File: iwlwifi-3160-9.ucode
+Version: 25.228.9.0
+
+File: iwlwifi-3160-10.ucode
+Version: 23.15.10.0
+
+File: iwlwifi-3160-12.ucode
+Version: 25.17.12.0
+
+File: iwlwifi-3160-13.ucode
+Version: 25.30.13.0
+
+File: iwlwifi-3160-16.ucode
+Version: 16.242414.0
+
+File: iwlwifi-3160-17.ucode
+Version: 17.bfb58538.0
+
+File: iwlwifi-7265-8.ucode
+Version: 22.24.8.0
+
+File: iwlwifi-7265-9.ucode
+Version: 25.228.9.0
+
+File: iwlwifi-7265-10.ucode
+Version: 23.15.10.0
+
+File: iwlwifi-7265-12.ucode
+Version: 25.17.12.0
+
+File: iwlwifi-7265-13.ucode
+Version: 25.30.13.0
+
+File: iwlwifi-7265-16.ucode
+Version: 16.242414.0
+
+File: iwlwifi-7265-17.ucode
+Version: 17.bfb58538.0
+
+Link: iwlwifi-7265D-10.ucode -> iwlwifi-7265-10.ucode
+
+File: iwlwifi-7265D-12.ucode
+Version: 25.17.12.0
+
+File: iwlwifi-7265D-13.ucode
+Version: 25.30.13.0
+
+File: iwlwifi-7265D-16.ucode
+Version: 16.242414.0
+
+File: iwlwifi-7265D-17.ucode
+Version: 17.352738.0
+
+File: iwlwifi-7265D-21.ucode
+Version: 21.302800.0
+
+File: iwlwifi-7265D-22.ucode
+Version: 22.391740.0
+
+File: iwlwifi-7265D-27.ucode
+Version: 27.541033.0
+
+File: iwlwifi-7265D-29.ucode
+Version: 29.f2390aa8.0
+
+File: iwlwifi-3168-21.ucode
+Version: 21.302800.0
+
+File: iwlwifi-3168-22.ucode
+Version: 22.391740.0
+
+File: iwlwifi-3168-27.ucode
+Version: 27.541033.0
+
+File: iwlwifi-3168-29.ucode
+Version: 29.0bd893f3.0
+
+File: iwlwifi-8000C-13.ucode
+Version: 25.30.13.0
+
+File: iwlwifi-8000C-16.ucode
+Version: 16.242414.0
+
+File: iwlwifi-8000C-21.ucode
+Version: 21.302800.0
+
+File: iwlwifi-8000C-22.ucode
+Version: 22.391740.0
+
+File: iwlwifi-8000C-27.ucode
+Version: 27.541033.0
+
+File: iwlwifi-8000C-31.ucode
+Version: 31.560484.0
+
+File: iwlwifi-8000C-34.ucode
+Version: 34.610288.0
+
+File: iwlwifi-8000C-36.ucode
+Version: 36.ca7b901d.0
+
+File: iwlwifi-8265-21.ucode
+Version: 21.302800.0
+
+File: iwlwifi-8265-22.ucode
+Version: 22.391740.0
+
+File: iwlwifi-8265-27.ucode
+Version: 27.541033.0
+
+File: iwlwifi-8265-31.ucode
+Version: 31.560484.0
+
+File: iwlwifi-8265-34.ucode
+Version: 34.610288.0
+
+File: iwlwifi-8265-36.ucode
+Version: 36.ca7b901d.0
+
+File: iwlwifi-9000-pu-b0-jf-b0-33.ucode
+Version: 33.610294.0
+
+File: iwlwifi-9000-pu-b0-jf-b0-34.ucode
+Version: 34.ba501b11.0
+
+File: iwlwifi-9000-pu-b0-jf-b0-38.ucode
+Version: 38.755cfdd8.0
+
+File: iwlwifi-9000-pu-b0-jf-b0-41.ucode
+Version: 41.fc1a7aea.0
+
+File: iwlwifi-9000-pu-b0-jf-b0-43.ucode
+Version: 43.95eb4e97.0
+
+File: iwlwifi-9000-pu-b0-jf-b0-46.ucode
+Version: 46.5e069cbd.0
+
+File: iwlwifi-9260-th-b0-jf-b0-33.ucode
+Version: 33.610294.0
+
+File: iwlwifi-9260-th-b0-jf-b0-34.ucode
+Version: 34.ba501b11.0
+
+File: iwlwifi-9260-th-b0-jf-b0-38.ucode
+Version: 38.755cfdd8.0
+
+File: iwlwifi-9260-th-b0-jf-b0-41.ucode
+Version: 41.fc1a7aea.0
+
+File: iwlwifi-9260-th-b0-jf-b0-43.ucode
+Version: 43.95eb4e97.0
+
+File: iwlwifi-9260-th-b0-jf-b0-46.ucode
+Version: 46.5e069cbd.0
+
+File: iwlwifi-cc-a0-46.ucode
+Version: 46.3cfab8da.0
+
+File: iwlwifi-cc-a0-48.ucode
+Version: 48.4fa0041f.0
+
+File: iwlwifi-Qu-b0-hr-b0-48.ucode
+Version: 48.4fa0041f.0
+
+File: iwlwifi-Qu-b0-jf-b0-48.ucode
+Version: 48.4fa0041f.0
+
+File: iwlwifi-Qu-c0-hr-b0-48.ucode
+Version: 48.4fa0041f.0
+
+File: iwlwifi-Qu-c0-jf-b0-48.ucode
+Version: 48.4fa0041f.0
+
+File: iwlwifi-QuZ-a0-hr-b0-48.ucode
+Version: 48.4fa0041f.0
+
+File: iwlwifi-QuZ-a0-jf-b0-48.ucode
+Version: 48.4fa0041f.0
+
+File: iwlwifi-cc-a0-50.ucode
+Version: 50.3e391d3e.0
+
+File: iwlwifi-Qu-b0-hr-b0-50.ucode
+Version: 50.3e391d3e.0
+
+File: iwlwifi-Qu-b0-jf-b0-50.ucode
+Version: 50.3e391d3e.0
+
+File: iwlwifi-Qu-c0-hr-b0-50.ucode
+Version: 50.3e391d3e.0
+
+File: iwlwifi-Qu-c0-jf-b0-50.ucode
+Version: 50.3e391d3e.0
+
+File: iwlwifi-QuZ-a0-hr-b0-50.ucode
+Version: 50.3e391d3e.0
+
+File: iwlwifi-QuZ-a0-jf-b0-50.ucode
+Version: 50.3e391d3e.0
+
+File: iwlwifi-cc-a0-53.ucode
+Version: 53.c31ac674.0
+
+File: iwlwifi-Qu-b0-hr-b0-53.ucode
+Version: 53.c31ac674.0
+
+File: iwlwifi-Qu-b0-jf-b0-53.ucode
+Version: 53.c31ac674.0
+
+File: iwlwifi-Qu-c0-hr-b0-53.ucode
+Version: 53.c31ac674.0
+
+File: iwlwifi-Qu-c0-jf-b0-53.ucode
+Version: 53.c31ac674.0
+
+File: iwlwifi-QuZ-a0-hr-b0-53.ucode
+Version: 53.c31ac674.0
+
+File: iwlwifi-QuZ-a0-jf-b0-53.ucode
+Version: 53.c31ac674.0
+
+File: iwlwifi-cc-a0-55.ucode
+Version: 55.d9698065.0
+
+File: iwlwifi-Qu-b0-hr-b0-55.ucode
+Version: 55.d9698065.0
+
+File: iwlwifi-Qu-b0-jf-b0-55.ucode
+Version: 55.d9698065.0
+
+File: iwlwifi-Qu-c0-hr-b0-55.ucode
+Version: 55.d9698065.0
+
+File: iwlwifi-Qu-c0-jf-b0-55.ucode
+Version: 55.d9698065.0
+
+File: iwlwifi-QuZ-a0-hr-b0-55.ucode
+Version: 55.d9698065.0
+
+File: iwlwifi-QuZ-a0-jf-b0-55.ucode
+Version: 55.d9698065.0
+
+File: iwlwifi-cc-a0-59.ucode
+Version: 59.601f3a66.0
+
+File: iwlwifi-Qu-b0-hr-b0-59.ucode
+Version: 59.601f3a66.0
+
+File: iwlwifi-Qu-b0-jf-b0-59.ucode
+Version: 59.601f3a66.0
+
+File: iwlwifi-Qu-c0-hr-b0-59.ucode
+Version: 59.601f3a66.0
+
+File: iwlwifi-Qu-c0-jf-b0-59.ucode
+Version: 59.601f3a66.0
+
+File: iwlwifi-QuZ-a0-hr-b0-59.ucode
+Version: 59.601f3a66.0
+
+File: iwlwifi-QuZ-a0-jf-b0-59.ucode
+Version: 59.601f3a66.0
+
+File: iwlwifi-so-a0-gf-a0-64.ucode
+Version: 64.97bbee0a.0
+
+File: iwlwifi-so-a0-gf-a0-67.ucode
+Version: 67.8f59b80b.0
+
+File: iwlwifi-so-a0-gf4-a0-67.ucode
+Version: 67.8f59b80b.0
+
+File: iwlwifi-so-a0-gf-a0.pnvm
+
+File: iwlwifi-so-a0-gf4-a0.pnvm
+
+File: iwlwifi-so-a0-hr-b0-64.ucode
+Version: 64.97bbee0a.0
+
+File: iwlwifi-so-a0-jf-b0-64.ucode
+Version: 64.97bbee0a.0
+
+File: iwlwifi-ty-a0-gf-a0-59.ucode
+Version: 59.601f3a66.0
+
+File: iwlwifi-cc-a0-62.ucode
+Version: 62.49eeb572.0
+
+File: iwlwifi-Qu-b0-hr-b0-62.ucode
+Version: 62.49eeb572.0
+
+File: iwlwifi-Qu-b0-jf-b0-62.ucode
+Version: 62.49eeb572.0
+
+File: iwlwifi-Qu-c0-hr-b0-62.ucode
+Version: 62.49eeb572.0
+
+File: iwlwifi-Qu-c0-jf-b0-62.ucode
+Version: 62.49eeb572.0
+
+File: iwlwifi-QuZ-a0-hr-b0-62.ucode
+Version: 62.49eeb572.0
+
+File: iwlwifi-QuZ-a0-jf-b0-62.ucode
+Version: 62.49eeb572.0
+
+File: iwlwifi-ty-a0-gf-a0-62.ucode
+Version: 62.49eeb572.0
+
+File: iwlwifi-cc-a0-63.ucode
+Version: 63.c04f3485.0
+
+File: iwlwifi-cc-a0-67.ucode
+Version: 67.8f59b80b.0
+
+File: iwlwifi-Qu-b0-hr-b0-63.ucode
+Version: 63.c04f3485.0
+
+File: iwlwifi-Qu-b0-jf-b0-63.ucode
+Version: 63.c04f3485.0
+
+File: iwlwifi-Qu-c0-hr-b0-63.ucode
+Version: 63.c04f3485.0
+
+File: iwlwifi-Qu-c0-jf-b0-63.ucode
+Version: 63.c04f3485.0
+
+File: iwlwifi-QuZ-a0-hr-b0-63.ucode
+Version: 63.c04f3485.0
+
+File: iwlwifi-QuZ-a0-hr-b0-67.ucode
+Version: 67.8f59b80b.0
+
+File: iwlwifi-QuZ-a0-jf-b0-63.ucode
+Version: 63.c04f3485.0
+
+File: iwlwifi-ty-a0-gf-a0-63.ucode
+Version: 63.c04f3485.0
+
+File: iwlwifi-ty-a0-gf-a0-66.ucode
+Version: 66.55c64978.0
+
+File: iwlwifi-ty-a0-gf-a0-67.ucode
+Version: 67.8f59b80b.0
+
+File: iwlwifi-ty-a0-gf-a0.pnvm
+
+Licence: Redistributable. See LICENCE.iwlwifi_firmware for details
+
+Also available from http://wireless.kernel.org/en/users/Drivers/iwlwifi#Firmware
