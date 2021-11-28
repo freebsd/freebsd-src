@@ -268,7 +268,6 @@ convert_string(FILE *fp, char * mbp, int width, locale_t locale)
 static __inline int
 convert_wstring(FILE *fp, wchar_t *wcp, int width, locale_t locale)
 {
-	wchar_t *wcp0;
 	wint_t wi;
 	int nread;
 
@@ -280,7 +279,6 @@ convert_wstring(FILE *fp, wchar_t *wcp, int width, locale_t locale)
 		if (wi != WEOF)
 			__ungetwc(wi, fp, locale);
 	} else {
-		wcp0 = wcp;
 		while ((wi = __fgetwc(fp, locale)) != WEOF &&
 		    width-- != 0 && !iswspace(wi)) {
 			*wcp++ = (wchar_t)wi;
