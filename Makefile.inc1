@@ -502,11 +502,13 @@ SVNVERSION_CMD?=${_D}/svnliteversion
 .  endif
 . endfor
 .endif
+.if defined(SVNVERSION_CMD) && !empty(SVNVERSION_CMD)
 _VCS_REVISION?=	$$(eval ${SVNVERSION_CMD} ${SRCDIR})
 . if !empty(_VCS_REVISION)
 VCS_REVISION=	$$(echo r${_VCS_REVISION})
-. endif
 .export VCS_REVISION
+. endif
+.endif
 .endif
 
 .if !defined(GIT_CMD) || empty(GIT_CMD)
