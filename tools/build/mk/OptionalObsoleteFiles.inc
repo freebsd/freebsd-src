@@ -2573,6 +2573,11 @@ OLD_DIRS+=usr/share/i18n/csmapper/KS
 OLD_DIRS+=usr/share/i18n/csmapper/GB
 .endif
 
+.if ${MK_INET} == no && ${MK_INET6} == no
+OLD_FILES+=sbin/ping
+OLD_FILES+=usr/share/man/man8/ping.8.gz
+.endif
+
 .if ${MK_INET6} == no
 OLD_FILES+=sbin/ping6
 OLD_FILES+=sbin/rtsol
