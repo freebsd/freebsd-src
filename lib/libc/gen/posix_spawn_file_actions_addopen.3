@@ -47,11 +47,24 @@
 .Sh SYNOPSIS
 .In spawn.h
 .Ft int
-.Fn posix_spawn_file_actions_addopen "posix_spawn_file_actions_t * file_actions" "int fildes" "const char *restrict path" "int oflag" "mode_t mode"
+.Fo posix_spawn_file_actions_addopen
+.Fa "posix_spawn_file_actions_t * file_actions"
+.Fa "int fildes"
+.Fa "const char *restrict path"
+.Fa "int oflag"
+.Fa "mode_t mode"
+.Fc
 .Ft int
-.Fn posix_spawn_file_actions_adddup2 "posix_spawn_file_actions_t * file_actions" "int fildes" "int newfildes"
+.Fo posix_spawn_file_actions_adddup2
+.Fa "posix_spawn_file_actions_t * file_actions"
+.Fa "int fildes"
+.Fa "int newfildes"
+.Fc
 .Ft int
-.Fn posix_spawn_file_actions_addclose "posix_spawn_file_actions_t * file_actions" "int fildes"
+.Fo posix_spawn_file_actions_addclose
+.Fa "posix_spawn_file_actions_t * file_actions"
+.Fa "int fildes"
+.Fc
 .Sh DESCRIPTION
 These functions add an open, dup2 or close action to a spawn
 file actions object.
