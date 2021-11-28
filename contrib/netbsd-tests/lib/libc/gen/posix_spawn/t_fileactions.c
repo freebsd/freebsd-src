@@ -385,6 +385,79 @@ ATF_TC_BODY(t_spawn_empty_fileactions, tc)
 	ATF_REQUIRE(insize == outsize);
 }
 
+static const char bin_pwd[] = "/bin/pwd";
+
+static void
+t_spawn_chdir_impl(bool chdir)
+{
+	int status, err, tmpdir_fd;
+	pid_t pid;
+	char * const args[2] = { __UNCONST("pwd"), NULL };
+	posix_spawn_file_actions_t fa;
+	FILE *f;
+	char read_pwd[128];
+	size_t ss;
+	static const char tmp_path[] = "/tmp";
+
+	unlink(TESTFILE);
+
+	posix_spawn_file_actions_init(&fa);
+	posix_spawn_file_actions_addopen(&fa, fileno(stdout),
+	    TESTFILE, O_WRONLY | O_CREAT, 0600);
+	if (chdir) {
+		ATF_REQUIRE(posix_spawn_file_actions_addchdir_np(&fa,
+		    tmp_path) == 0);
+	} else {
+		tmpdir_fd = open(tmp_path, O_DIRECTORY | O_RDONLY);
+		ATF_REQUIRE(tmpdir_fd > 0);
+		ATF_REQUIRE(posix_spawn_file_actions_addfchdir_np(&fa,
+		    tmpdir_fd) == 0);
+	}
+	err = posix_spawn(&pid, bin_pwd, &fa, NULL, args, NULL);
+	posix_spawn_file_actions_destroy(&fa);
+	if (!chdir)
+		close(tmpdir_fd);
+
+	ATF_REQUIRE(err == 0);
+	waitpid(pid, &status, 0);
+	ATF_REQUIRE(WIFEXITED(status) && WEXITSTATUS(status) == EXIT_SUCCESS);
+
+	f = fopen(TESTFILE, "r");
+	ATF_REQUIRE(f != NULL);
+	ss = fread(read_pwd, 1, sizeof(read_pwd), f);
+	fclose(f);
+	ATF_REQUIRE(ss == strlen(tmp_path) + 1);
+	ATF_REQUIRE(strncmp(read_pwd, tmp_path, strlen(tmp_path)) == 0);
+}
+
+ATF_TC(t_spawn_chdir);
+
+ATF_TC_HEAD(t_spawn_chdir, tc)
+{
+	atf_tc_set_md_var(tc, "descr",
+	    "posix_spawn changes directory for the spawned program");
+	atf_tc_set_md_var(tc, "require.progs", bin_pwd);
+}
+
+ATF_TC_BODY(t_spawn_chdir, tc)
+{
+	t_spawn_chdir_impl(true);
+}
+
+ATF_TC(t_spawn_fchdir);
+
+ATF_TC_HEAD(t_spawn_fchdir, tc)
+{
+	atf_tc_set_md_var(tc, "descr",
+	    "posix_spawn changes directory for the spawned program");
+	atf_tc_set_md_var(tc, "require.progs", bin_pwd);
+}
+
+ATF_TC_BODY(t_spawn_fchdir, tc)
+{
+	t_spawn_chdir_impl(false);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, t_spawn_fileactions);
@@ -395,6 +468,8 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, t_spawn_reopen);
 	ATF_TP_ADD_TC(tp, t_spawn_openmode);
 	ATF_TP_ADD_TC(tp, t_spawn_empty_fileactions);
+	ATF_TP_ADD_TC(tp, t_spawn_chdir);
+	ATF_TP_ADD_TC(tp, t_spawn_fchdir);
 
 	return atf_no_error();
 }
