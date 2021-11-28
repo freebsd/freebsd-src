@@ -41,9 +41,10 @@
 .Nm posix_spawn_file_actions_addopen ,
 .Nm posix_spawn_file_actions_adddup2 ,
 .Nm posix_spawn_file_actions_addclose ,
+.Nm posix_spawn_file_actions_addclosefrom_np ,
 .Nm posix_spawn_file_actions_addchdir_np ,
 .Nm posix_spawn_file_actions_addfchdir_np
-.Nd "add open, dup2, close, or chdir/fchdir actions to spawn file actions object"
+.Nd "add open, dup2, close, closefrom, or chdir/fchdir actions to spawn file actions object"
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
@@ -66,6 +67,11 @@
 .Fo posix_spawn_file_actions_addclose
 .Fa "posix_spawn_file_actions_t * file_actions"
 .Fa "int fildes"
+.Fc
+.Ft int
+.Fo posix_spawn_file_actions_addclosefrom_np
+.Fa "posix_spawn_file_actions_t * file_actions"
+.Fa "int from"
 .Fc
 .Ft int
 .Fo posix_spawn_file_actions_addchdir_np
@@ -177,6 +183,14 @@ had been called) when a new process is spawned using this file actions
 object.
 .Pp
 The
+.Fn posix_spawn_file_actions_addclosefrom_np
+function adds a close action to close all file descriptors numerically
+equal or greater then the argument
+.Fa from .
+For each open file descriptor, logically the close action is performed,
+and any possible errors encountered are ignored.
+.Pp
+The
 .Fn posix_spawn_file_actions_addchdir_np
 and
 .Fn posix_spawn_file_actions_addfchdir_np
@@ -238,9 +252,10 @@ is equal to
 A future update of the Standard is expected to require this behavior.
 .Pp
 The
-.Fn posix_spawn_file_actions_addchdir_np
+.Fn posix_spawn_file_actions_addchdir_np ,
+.Fn posix_spawn_file_actions_addfchdir_np ,
 and
-.Fn posix_spawn_file_actions_addfchdir_np
+.Fn posix_spawn_file_actions_addclosefrom_np
 functions are non-standard functions implemented after the similar
 functionality provided by glibc.
 .Sh HISTORY
@@ -252,9 +267,10 @@ and
 functions first appeared in
 .Fx 8.0 .
 The
-.Fn posix_spawn_file_actions_addchdir_np
+.Fn posix_spawn_file_actions_addchdir_np ,
+.Fn posix_spawn_file_actions_addfchdir_np ,
 and
-.Fn posix_spawn_file_actions_addfchdir_np
+.Fn posix_spawn_file_actions_addclosefrom_np
 functions first appeared in
 .Fx 14.0 .
 .Sh AUTHORS
