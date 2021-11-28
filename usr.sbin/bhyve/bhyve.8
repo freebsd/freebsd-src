@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 13, 2021
+.Dd November 28, 2021
 .Dt BHYVE 8
 .Os
 .Sh NAME
@@ -500,10 +500,15 @@ Use the host TTY device for serial port I/O.
 .Pp
 Boot ROM device backends:
 .Bl -tag -width 10n
-.It Ar romfile
+.It Ar romfile Ns Op Cm \&, Ns Ar varfile
 Map
 .Ar romfile
 in the guest address space reserved for boot firmware.
+If
+.Ar varfile
+is provided, that file is also mapped in the boot firmware guest
+address space, and any modifications the guest makes will be saved
+to that file.
 .El
 .Pp
 Pass-through device backends:
@@ -914,6 +919,20 @@ bhyve -c 2 -m 4G -w -H \\
   -s 30,xhci,tablet \\
   -s 31,lpc -l com1,stdio \\
   -l bootrom,/usr/local/share/uefi-firmware/BHYVE_UEFI.fd \\
+   uefivm
+.Ed
+.Pp
+Run a UEFI virtual machine with a VARS file to save EFI variables.
+Note that
+.Nm
+will write guest modifications to the given VARS file.
+Be sure to create a per-guest copy of the template VARS file from
+.Pa /usr .
+.Bd -literal -offset indent
+bhyve -c 2 -m 4g -w -H \\
+  -s 0,hostbridge \\
+  -s 31,lpc -p com1,stdio \\
+  -l bootrom,/usr/local/share/uefi-firmware/BHYVE_UEFI_CODE.fd,BHYVE_UEFI_VARS.fd
    uefivm
 .Ed
 .Sh SEE ALSO
