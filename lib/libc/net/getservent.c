@@ -947,12 +947,12 @@ int
 serv_marshal_func(char *buffer, size_t *buffer_size, void *retval, va_list ap,
     void *cache_mdata)
 {
-	char *name;
-	char *proto;
-	int port;
+	char *name __unused;
+	char *proto __unused;
+	int port __unused;
 	struct servent *serv;
-	char *orig_buf;
-	size_t orig_buf_size;
+	char *orig_buf __unused;
+	size_t orig_buf_size __unused;
 
 	struct servent new_serv;
 	size_t desired_size;
@@ -1048,9 +1048,9 @@ int
 serv_unmarshal_func(char *buffer, size_t buffer_size, void *retval, va_list ap,
     void *cache_mdata)
 {
-	char *name;
-	char *proto;
-	int port;
+	char *name __unused;
+	char *proto __unused;
+	int port __unused;
 	struct servent *serv;
 	char *orig_buf;
 	char *p;
