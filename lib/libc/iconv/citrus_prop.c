@@ -79,7 +79,7 @@ static const char *xdigit = "0123456789ABCDEF";
 #define _CITRUS_PROP_READ_UINT_COMMON(_func_, _type_, _max_)		\
 static int								\
 _citrus_prop_read_##_func_##_common(struct _memstream * __restrict ms,	\
-    _type_ * __restrict result, int base)				\
+    _type_ * __restrict result, int base, int neg)			\
 {									\
 	_type_ acc, cutoff;						\
 	int ch, cutlim, n;						\
@@ -99,7 +99,7 @@ _citrus_prop_read_##_func_##_common(struct _memstream * __restrict ms,	\
 		acc += n;						\
 	}								\
 	_memstream_ungetc(ms, ch);					\
-	*result = acc;							\
+	*result = neg ? -acc : acc;					\
 	return (0);							\
 }
 _CITRUS_PROP_READ_UINT_COMMON(chr, int, UCHAR_MAX)
@@ -139,7 +139,7 @@ _citrus_prop_read_##_func_(struct _memstream * __restrict ms,	\
 		return (EINVAL);				\
 	_memstream_ungetc(ms, ch);				\
 	return (_citrus_prop_read_##_func_##_common		\
-	    (ms, &obj->u._func_, base));			\
+	    (ms, &obj->u._func_, base, neg));			\
 }
 _CITRUS_PROP_READ_INT(chr, int)
 _CITRUS_PROP_READ_INT(num, uint64_t)
@@ -185,7 +185,8 @@ _citrus_prop_read_character_common(struct _memstream * __restrict ms,
 			base -= 8;
 			/*FALLTHROUGH*/
 		case 'x':
-			return (_citrus_prop_read_chr_common(ms, result, base));
+			return (_citrus_prop_read_chr_common(ms, result,
+			    base, 0));
 			/*NOTREACHED*/
 		default:
 			/* unknown escape */
