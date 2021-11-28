@@ -144,11 +144,11 @@ int
 __proto_marshal_func(char *buffer, size_t *buffer_size, void *retval,
     va_list ap, void *cache_mdata)
 {
-	char *name;
-	int num;
+	char *name __unused;
+	int num __unused;
 	struct protoent *proto;
-	char *orig_buf;
-	size_t orig_buf_size;
+	char *orig_buf __unused;
+	size_t orig_buf_size __unused;
 
 	struct protoent new_proto;
 	size_t desired_size, size, aliases_size;
@@ -231,8 +231,8 @@ int
 __proto_unmarshal_func(char *buffer, size_t buffer_size, void *retval,
     va_list ap, void *cache_mdata)
 {
-	char *name;
-	int num;
+	char *name __unused;
+	int num __unused;
 	struct protoent *proto;
 	char *orig_buf;
 	size_t orig_buf_size;
