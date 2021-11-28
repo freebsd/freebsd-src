@@ -422,6 +422,11 @@ in addition to those described by
 This implementation ignores any errors from
 .Fn close ,
 including trying to close a descriptor that is not open.
+The ignore extends to any errors from individual file descriptors
+.Fn close
+executed as part of the
+.Fn closefrom
+action.
 .El
 .Sh SEE ALSO
 .Xr close 2 ,
@@ -434,6 +439,7 @@ including trying to close a descriptor that is not open.
 .Xr setpgid 2 ,
 .Xr vfork 2 ,
 .Xr posix_spawn_file_actions_addclose 3 ,
+.Xr posix_spawn_file_actions_addclosefrom_np 3 ,
 .Xr posix_spawn_file_actions_adddup2 3 ,
 .Xr posix_spawn_file_actions_addopen 3 ,
 .Xr posix_spawn_file_actions_addchdir_np 3 ,
