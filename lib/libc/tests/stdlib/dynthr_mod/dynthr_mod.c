@@ -51,6 +51,7 @@ mod_thread(void *ptr __unused)
 	char *volatile dummy;
 
 	dummy = malloc(500);
+	*dummy = 'a';
 	return (NULL);
 }
 
