@@ -1443,16 +1443,21 @@ bufshutdown(int show_busybufs)
 		 */
 		printf("Giving up on %d buffers\n", nbusy);
 		DELAY(5000000);	/* 5 seconds */
+		swapoff_all();
 	} else {
 		if (!first_buf_printf)
 			printf("Final sync complete\n");
+
 		/*
-		 * Unmount filesystems
+		 * Unmount filesystems.  Swapoff before unmount,
+		 * because file-backed swap is non-operational after unmount
+		 * of the underlying filesystem.
 		 */
-		if (!KERNEL_PANICKED())
+		if (!KERNEL_PANICKED()) {
+			swapoff_all();
 			vfs_unmountall();
+		}
 	}
-	swapoff_all();
 	DELAY(100000);		/* wait for console output to finish */
 }
 
