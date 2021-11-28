@@ -104,11 +104,9 @@ device		psm			# PS/2 mouse
 
 device		kbdmux			# keyboard multiplexer
 
-device		vga			# VGA video card driver
-
-device		splash			# Splash screen and screen saver support
-
 # syscons is the legacy console driver, resembling an SCO console
+device		vga			# VGA video card driver
+device		splash			# Splash screen and screen saver support
 device		sc
 options 	SC_PIXEL_MODE		# add support for the raster text mode
 
