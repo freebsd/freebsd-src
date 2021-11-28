@@ -550,6 +550,9 @@ ATF_TC_BODY(setrlimit_stack, tc)
 {
 	struct rlimit res;
 
+	if (atf_tc_get_config_var_as_bool_wd(tc, "ci", false))
+		atf_tc_skip("https://bugs.freebsd.org/259969");
+
 	/* Ensure soft limit is not bigger than hard limit */
 	res.rlim_cur = res.rlim_max = 4192256;
 	ATF_REQUIRE(setrlimit(RLIMIT_STACK, &res) == 0);
