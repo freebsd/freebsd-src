@@ -62,7 +62,7 @@ setproctitle_internal(const char *fmt, va_list ap)
 	static struct ps_strings *ps_strings;
 	static char *buf = NULL;
 	static char *obuf = NULL;
-	static char **oargv, *kbuf;
+	static char **oargv;
 	static int oargc = -1;
 	static char *nargv[2] = { NULL, NULL };
 	char **nargvp;
@@ -103,12 +103,10 @@ setproctitle_internal(const char *fmt, va_list ap)
 
 		nargvp = nargv;
 		nargc = 1;
-		kbuf = buf;
 	} else if (*obuf != '\0') {
 		/* Idea from NetBSD - reset the title on fmt == NULL */
 		nargvp = oargv;
 		nargc = oargc;
-		kbuf = obuf;
 	} else
 		/* Nothing to restore */
 		return (NULL);
