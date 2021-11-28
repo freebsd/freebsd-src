@@ -40,8 +40,10 @@
 .Sh NAME
 .Nm posix_spawn_file_actions_addopen ,
 .Nm posix_spawn_file_actions_adddup2 ,
-.Nm posix_spawn_file_actions_addclose
-.Nd "add open, dup2 or close action to spawn file actions object"
+.Nm posix_spawn_file_actions_addclose ,
+.Nm posix_spawn_file_actions_addchdir_np ,
+.Nm posix_spawn_file_actions_addfchdir_np
+.Nd "add open, dup2, close, or chdir/fchdir actions to spawn file actions object"
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
@@ -62,6 +64,16 @@
 .Fc
 .Ft int
 .Fo posix_spawn_file_actions_addclose
+.Fa "posix_spawn_file_actions_t * file_actions"
+.Fa "int fildes"
+.Fc
+.Ft int
+.Fo posix_spawn_file_actions_addchdir_np
+.Fa "posix_spawn_file_actions_t *restrict file_actions"
+.Fa "const char *restrict path"
+.Fc
+.Ft int
+.Fo posix_spawn_file_actions_addfchdir_np
 .Fa "posix_spawn_file_actions_t * file_actions"
 .Fa "int fildes"
 .Fc
@@ -163,6 +175,26 @@ close(fildes)
 .Pp
 had been called) when a new process is spawned using this file actions
 object.
+.Pp
+The
+.Fn posix_spawn_file_actions_addchdir_np
+and
+.Fn posix_spawn_file_actions_addfchdir_np
+functions add a change current directory action to the object
+referenced by
+.Fa file_actions
+that affects actions (opens with relative path) performed after the operation,
+in the order of insertion into the
+.Fa file_actions
+object.
+It also sets the working directory for the spawned program.
+The
+.Fn posix_spawn_file_actions_addchdir_np
+function takes the
+.Fa path
+to set as the working directory, while
+.Fn posix_spawn_file_actions_addfchdir_np
+takes the directory file descriptor.
 .Sh RETURN VALUES
 Upon successful completion, these functions return zero;
 otherwise, an error number is returned to indicate the error.
@@ -204,6 +236,13 @@ is equal to
 (clearing
 .Dv FD_CLOEXEC ) .
 A future update of the Standard is expected to require this behavior.
+.Pp
+The
+.Fn posix_spawn_file_actions_addchdir_np
+and
+.Fn posix_spawn_file_actions_addfchdir_np
+functions are non-standard functions implemented after the similar
+functionality provided by glibc.
 .Sh HISTORY
 The
 .Fn posix_spawn_file_actions_addopen ,
@@ -212,5 +251,11 @@ and
 .Fn posix_spawn_file_actions_addclose
 functions first appeared in
 .Fx 8.0 .
+The
+.Fn posix_spawn_file_actions_addchdir_np
+and
+.Fn posix_spawn_file_actions_addfchdir_np
+functions first appeared in
+.Fx 14.0 .
 .Sh AUTHORS
 .An \&Ed Schouten Aq Mt ed@FreeBSD.org

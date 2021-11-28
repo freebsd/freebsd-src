@@ -34,7 +34,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 5, 2016
+.Dd November 28, 2021
 .Dt POSIX_SPAWN 3
 .Os
 .Sh NAME
@@ -436,6 +436,8 @@ including trying to close a descriptor that is not open.
 .Xr posix_spawn_file_actions_addclose 3 ,
 .Xr posix_spawn_file_actions_adddup2 3 ,
 .Xr posix_spawn_file_actions_addopen 3 ,
+.Xr posix_spawn_file_actions_addchdir_np 3 ,
+.Xr posix_spawn_file_actions_addfchdir_np 3 ,
 .Xr posix_spawn_file_actions_destroy 3 ,
 .Xr posix_spawn_file_actions_init 3 ,
 .Xr posix_spawnattr_destroy 3 ,
