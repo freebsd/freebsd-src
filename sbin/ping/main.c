@@ -57,6 +57,8 @@ __FBSDID("$FreeBSD$");
 #define	OPTSTR PING4OPTS
 #elif defined(INET6)
 #define	OPTSTR PING6OPTS
+#else
+#error At least one of INET and INET6 is required
 #endif
 
 int
