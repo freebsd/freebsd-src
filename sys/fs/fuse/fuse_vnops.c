@@ -1286,7 +1286,6 @@ fuse_vnop_lookup(struct vop_lookup_args *ap)
 			break;
 
 		case ENOENT:		/* negative match */
-			getnanouptime(&now);
 			if (timespeccmp(&timeout, &now, <=)) {
 				/* Cache timeout */
 				cache_purge_negative(dvp);
