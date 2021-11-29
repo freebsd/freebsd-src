@@ -116,10 +116,10 @@
 		int nosys(void);
 	} syscall nosys_args int
 1	AUE_EXIT	STD|CAPENABLED {
-		void sys_exit(
+		void exit(
 		    int rval
 		);
-	} exit sys_exit_args void
+	}
 2	AUE_FORK	STD|CAPENABLED {
 		int fork(void);
 	}

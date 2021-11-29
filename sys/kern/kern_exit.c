@@ -205,12 +205,12 @@ exit_onexit(struct proc *p)
 /*
  * exit -- death of process.
  */
-void
-sys_sys_exit(struct thread *td, struct sys_exit_args *uap)
+int
+sys_exit(struct thread *td, struct exit_args *uap)
 {
 
 	exit1(td, uap->rval, 0);
-	/* NOTREACHED */
+	__unreachable();
 }
 
 /*
