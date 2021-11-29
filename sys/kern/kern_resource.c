@@ -592,13 +592,13 @@ ogetrlimit(struct thread *td, struct ogetrlimit_args *uap)
 #endif /* COMPAT_43 */
 
 #ifndef _SYS_SYSPROTO_H_
-struct __setrlimit_args {
+struct setrlimit_args {
 	u_int	which;
 	struct	rlimit *rlp;
 };
 #endif
 int
-sys_setrlimit(struct thread *td, struct __setrlimit_args *uap)
+sys_setrlimit(struct thread *td, struct setrlimit_args *uap)
 {
 	struct rlimit alim;
 	int error;
@@ -782,14 +782,14 @@ kern_proc_setrlimit(struct thread *td, struct proc *p, u_int which,
 }
 
 #ifndef _SYS_SYSPROTO_H_
-struct __getrlimit_args {
+struct getrlimit_args {
 	u_int	which;
 	struct	rlimit *rlp;
 };
 #endif
 /* ARGSUSED */
 int
-sys_getrlimit(struct thread *td, struct __getrlimit_args *uap)
+sys_getrlimit(struct thread *td, struct getrlimit_args *uap)
 {
 	struct rlimit rlim;
 	int error;
