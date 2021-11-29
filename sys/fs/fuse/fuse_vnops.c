@@ -807,6 +807,8 @@ fuse_vnop_copy_file_range(struct vop_copy_file_range_args *ap)
                         fuse_vnode_setsize(outvp, *ap->a_outoffp, false);
 			getnanouptime(&outfvdat->last_local_modify);
 		}
+		fuse_vnode_update(invp, FN_ATIMECHANGE);
+		fuse_vnode_update(outvp, FN_MTIMECHANGE | FN_CTIMECHANGE);
 	}
 	fdisp_destroy(&fdi);
 
