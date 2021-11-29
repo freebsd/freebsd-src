@@ -376,6 +376,8 @@ enetc_attach_pre(if_ctx_t ctx)
 	sc->shared = scctx;
 	ifp = iflib_get_ifp(ctx);
 
+	mtx_init(&sc->mii_lock, "enetc_mdio", NULL, MTX_DEF);
+
 	pci_save_state(sc->dev);
 	pcie_flr(sc->dev, 1000, false);
 	pci_restore_state(sc->dev);
@@ -470,6 +472,8 @@ enetc_detach(if_ctx_t ctx)
 
 	if (sc->ctrl_queue.dma.idi_size != 0)
 		iflib_dma_free(&sc->ctrl_queue.dma);
+
+	mtx_destroy(&sc->mii_lock);
 
 	return (error);
 }
@@ -1390,20 +1394,32 @@ static int
 enetc_miibus_readreg(device_t dev, int phy, int reg)
 {
 	struct enetc_softc *sc;
+	int val;
 
 	sc = iflib_get_softc(device_get_softc(dev));
-	return (enetc_mdio_read(sc->regs, ENETC_PORT_BASE + ENETC_EMDIO_BASE,
-	    phy, reg));
+
+	mtx_lock(&sc->mii_lock);
+	val = enetc_mdio_read(sc->regs, ENETC_PORT_BASE + ENETC_EMDIO_BASE,
+	    phy, reg);
+	mtx_unlock(&sc->mii_lock);
+
+	return (val);
 }
 
 static int
 enetc_miibus_writereg(device_t dev, int phy, int reg, int data)
 {
 	struct enetc_softc *sc;
+	int ret;
 
 	sc = iflib_get_softc(device_get_softc(dev));
-	return (enetc_mdio_write(sc->regs, ENETC_PORT_BASE + ENETC_EMDIO_BASE,
-	    phy, reg, data));
+
+	mtx_lock(&sc->mii_lock);
+	ret = enetc_mdio_write(sc->regs, ENETC_PORT_BASE + ENETC_EMDIO_BASE,
+	    phy, reg, data);
+	mtx_unlock(&sc->mii_lock);
+
+	return (ret);
 }
 
 static void

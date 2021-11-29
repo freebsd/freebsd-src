@@ -70,6 +70,8 @@ struct enetc_ctrl_queue {
 struct enetc_softc {
 	device_t	dev;
 
+	struct mtx	mii_lock;
+
 	if_ctx_t	ctx;
 	if_softc_ctx_t	shared;
 #define tx_num_queues	shared->isc_ntxqsets
