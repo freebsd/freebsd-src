@@ -816,7 +816,7 @@
 		    mode_t mode
 		);
 	}
-125	AUE_RECVFROM	COMPAT|NOARGS|CAPENABLED {
+125	AUE_RECVFROM	COMPAT|CAPENABLED {
 		int recvfrom(
 		    int s,
 		    _Out_writes_(len) void *buf,
@@ -825,7 +825,7 @@
 		    _Out_writes_bytes_(*fromlenaddr) struct sockaddr *from,
 		    _Inout_ __socklen_t *fromlenaddr
 		);
-	} recvfrom recvfrom_args int
+	}
 126	AUE_SETREUID	STD|CAPENABLED {
 		int setreuid(
 		    int ruid,
@@ -963,13 +963,13 @@
 149	AUE_O_QUOTA	COMPAT {
 		int quota(void);
 	}
-150	AUE_GETSOCKNAME	COMPAT|NOARGS|CAPENABLED {
+150	AUE_GETSOCKNAME	COMPAT|CAPENABLED {
 		int getsockname(
-		    int fdec,
+		    int fdes,
 		    _Out_writes_bytes_(*alen) struct sockaddr *asa,
 		    _Inout_ __socklen_t *alen
 		);
-	} getsockname getsockname_args int
+	}
 151-153	AUE_NULL	RESERVED
 ; 154 is initialised by the NLM code, if present.
 154	AUE_NULL	NOSTD {
