@@ -1341,7 +1341,7 @@
 		int shmctl(
 		    int shmid,
 		    int cmd,
-		    _Contains_long_ struct shmid_ds_old *buf
+		    _Inout_opt_ _Contains_long_ struct shmid_ds_old *buf
 		);
 	}
 230	AUE_SHMDT	NOSTD {
