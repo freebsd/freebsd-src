@@ -2012,7 +2012,9 @@ do_config(void *p, int l)
 	}
 	arg = NULL;
 	dn = NULL;
-	for (off = 0; l >= sizeof(o); memcpy(&o, (char *)p + off, sizeof(o))) {
+	off = 0;
+	while (l >= sizeof(o)) {
+		memcpy(&o, (char *)p + off, sizeof(o));
 		if (o.len < sizeof(o) || l < o.len) {
 			D("bad len o.len %d len %d", o.len, l);
 			err = EINVAL;
