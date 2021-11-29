@@ -192,6 +192,12 @@ extern struct sysentvec aout_sysvec;
 extern struct sysent sysent[];
 extern const char *syscallnames[];
 
+struct nosys_args {
+	register_t dummy;
+};
+
+int	nosys(struct thread *, struct nosys_args *);
+
 #define	NO_SYSCALL (-1)
 
 struct module;
