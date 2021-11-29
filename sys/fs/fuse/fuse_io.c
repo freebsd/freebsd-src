@@ -610,8 +610,10 @@ retry:
 		diff = fwi->size - fwo->size;
 		as_written_offset = uio->uio_offset - diff;
 
-		if (as_written_offset - diff > filesize)
+		if (as_written_offset - diff > filesize) {
 			fuse_vnode_setsize(vp, as_written_offset, false);
+			getnanouptime(&fvdat->last_local_modify);
+		}
 		if (as_written_offset - diff >= filesize)
 			fvdat->flag &= ~FN_SIZECHANGE;
 
@@ -757,6 +759,7 @@ again:
 			 */
 			err = fuse_vnode_setsize(vp, uio->uio_offset + n, false);
 			filesize = uio->uio_offset + n;
+			getnanouptime(&fvdat->last_local_modify);
 			fvdat->flag |= FN_SIZECHANGE;
 			if (err) {
 				brelse(bp);

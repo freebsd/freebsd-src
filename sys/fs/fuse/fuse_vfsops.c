@@ -536,6 +536,7 @@ fuse_vfsop_vget(struct mount *mp, ino_t ino, int flags, struct vnode **vpp)
 	struct fuse_dispatcher fdi;
 	struct fuse_entry_out *feo;
 	struct fuse_vnode_data *fvdat;
+	struct timespec now;
 	const char dot[] = ".";
 	enum vtype vtyp;
 	int error;
@@ -552,6 +553,8 @@ fuse_vfsop_vget(struct mount *mp, ino_t ino, int flags, struct vnode **vpp)
 	error = fuse_internal_get_cached_vnode(mp, ino, flags, vpp);
 	if (error || *vpp != NULL)
 		return error;
+
+	getnanouptime(&now);
 
 	/* Do a LOOKUP, using nodeid as the parent and "." as filename */
 	fdisp_init(&fdi, sizeof(dot));
@@ -575,8 +578,14 @@ fuse_vfsop_vget(struct mount *mp, ino_t ino, int flags, struct vnode **vpp)
 		goto out;
 	fvdat = VTOFUD(*vpp);
 
-	fuse_internal_cache_attrs(*vpp, &feo->attr, feo->attr_valid,
-		feo->attr_valid_nsec, NULL, true);
+	if (timespeccmp(&now, &fvdat->last_local_modify, >)) {
+		/*
+		 * Attributes from the server are definitely newer than the
+		 * last attributes we sent to the server, so cache them.
+		 */
+		fuse_internal_cache_attrs(*vpp, &feo->attr, feo->attr_valid,
+			feo->attr_valid_nsec, NULL, true);
+	}
 	fuse_validity_2_bintime(feo->entry_valid, feo->entry_valid_nsec,
 		&fvdat->entry_cache_timeout);
 out:

@@ -115,6 +115,12 @@ struct fuse_vnode_data {
 	 * by nodeid instead of pathname.
 	 */
 	struct bintime	entry_cache_timeout;
+	/*
+	 * Monotonic time of the last FUSE operation that modified the file
+	 * size.  Used to avoid races between mutator ops like VOP_SETATTR and
+	 * unlocked accessor ops like VOP_LOOKUP.
+	 */
+	struct timespec	last_local_modify;
 	struct vattr	cached_attrs;
 	uint64_t	nlookup;
 	enum vtype	vtype;

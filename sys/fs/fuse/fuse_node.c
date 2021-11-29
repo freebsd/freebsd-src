@@ -163,6 +163,7 @@ fuse_vnode_init(struct vnode *vp, struct fuse_vnode_data *fvdat,
 	}
 	vp->v_type = vtyp;
 	vp->v_data = fvdat;
+	timespecclear(&fvdat->last_local_modify);
 
 	counter_u64_add(fuse_node_count, 1);
 }
@@ -383,8 +384,10 @@ fuse_vnode_savesize(struct vnode *vp, struct ucred *cred, pid_t pid)
 	}
 	err = fdisp_wait_answ(&fdi);
 	fdisp_destroy(&fdi);
-	if (err == 0)
+	if (err == 0) {
+		getnanouptime(&fvdat->last_local_modify);
 		fvdat->flag &= ~FN_SIZECHANGE;
+	}
 
 	return err;
 }
