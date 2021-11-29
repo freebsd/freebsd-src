@@ -534,7 +534,7 @@
 	}
 74	AUE_MPROTECT	STD|CAPENABLED {
 		int mprotect(
-		    _In_ const void *addr,
+		    _In_ void *addr,
 		    size_t len,
 		    int prot
 		);
