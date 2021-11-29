@@ -78,7 +78,6 @@ __FBSDID("$FreeBSD$");
 #define	DP83822_MISR2_INT_STS_SHIFT	8
 
 static int dp_service(struct mii_softc*, struct mii_data*, int);
-static void dp_status(struct mii_softc*);
 
 struct dp83822_softc {
 	struct mii_softc mii_sc;
