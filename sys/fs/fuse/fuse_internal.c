@@ -925,6 +925,7 @@ fuse_internal_do_getattr(struct vnode *vp, struct vattr *vap,
 	struct fuse_getattr_in *fgai;
 	struct fuse_attr_out *fao;
 	off_t old_filesize = fvdat->cached_attrs.va_size;
+	struct timespec old_atime = fvdat->cached_attrs.va_atime;
 	struct timespec old_ctime = fvdat->cached_attrs.va_ctime;
 	struct timespec old_mtime = fvdat->cached_attrs.va_mtime;
 	enum vtype vtyp;
@@ -949,6 +950,10 @@ fuse_internal_do_getattr(struct vnode *vp, struct vattr *vap,
 	vtyp = IFTOVT(fao->attr.mode);
 	if (fvdat->flag & FN_SIZECHANGE)
 		fao->attr.size = old_filesize;
+	if (fvdat->flag & FN_ATIMECHANGE) {
+		fao->attr.atime = old_atime.tv_sec;
+		fao->attr.atimensec = old_atime.tv_nsec;
+	}
 	if (fvdat->flag & FN_CTIMECHANGE) {
 		fao->attr.ctime = old_ctime.tv_sec;
 		fao->attr.ctimensec = old_ctime.tv_nsec;
@@ -1208,6 +1213,10 @@ int fuse_internal_setattr(struct vnode *vp, struct vattr *vap,
 		fsai->valid |= FATTR_ATIME;
 		if (vap->va_vaflags & VA_UTIMES_NULL)
 			fsai->valid |= FATTR_ATIME_NOW;
+	} else if (fvdat->flag & FN_ATIMECHANGE) {
+		fsai->atime = fvdat->cached_attrs.va_atime.tv_sec;
+		fsai->atimensec = fvdat->cached_attrs.va_atime.tv_nsec;
+		fsai->valid |= FATTR_ATIME;
 	}
 	if (vap->va_mtime.tv_sec != VNOVAL) {
 		fsai->mtime = vap->va_mtime.tv_sec;
@@ -1256,7 +1265,7 @@ int fuse_internal_setattr(struct vnode *vp, struct vattr *vap,
 	}
 	if (err == 0) {
 		struct fuse_attr_out *fao = (struct fuse_attr_out*)fdi.answ;
-		fuse_vnode_undirty_cached_timestamps(vp);
+		fuse_vnode_undirty_cached_timestamps(vp, true);
 		fuse_internal_cache_attrs(vp, &fao->attr, fao->attr_valid,
 			fao->attr_valid_nsec, NULL, false);
 	}
