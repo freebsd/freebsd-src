@@ -17,9 +17,9 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 0;
 		break;
 	}
-	/* sys_exit */
+	/* exit */
 	case 1: {
-		struct sys_exit_args *p = params;
+		struct exit_args *p = params;
 		iarg[a++] = p->rval; /* int */
 		*n_args = 1;
 		break;
@@ -3429,7 +3429,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	/* nosys */
 	case 0:
 		break;
-	/* sys_exit */
+	/* exit */
 	case 1:
 		switch (ndx) {
 		case 0:
@@ -9143,7 +9143,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	switch (sysnum) {
 	/* nosys */
 	case 0:
-	/* sys_exit */
+	/* exit */
 	case 1:
 		if (ndx == 0 || ndx == 1)
 			p = "void";
