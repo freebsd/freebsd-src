@@ -323,6 +323,7 @@ CONFGROUPS+=	ZFS
 ZFS+=		zfs
 ZFS+=		zfsbe
 ZFS+=		zfsd
+ZFS+=		zfskeys
 ZFS+=		zpool
 ZFS+=		zvol
 ZFSPACKAGE=	rc
