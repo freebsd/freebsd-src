@@ -196,6 +196,7 @@ local known_flags = {
 	NOSTD		= 0x00000080,
 	NOTSTATIC	= 0x00000100,
 	CAPENABLED	= 0x00000200,
+	SYSMUX		= 0x00000400,
 
 	-- Compat flags start from here.  We have plenty of space.
 }
@@ -733,7 +734,9 @@ local function handle_noncompat(sysnum, thr_flag, flags, sysflags, rettype,
     auditev, syscallret, funcname, funcalias, funcargs, argalias)
 	local argssize
 
-	if #funcargs > 0 or flags & known_flags["NODEF"] ~= 0 then
+	if flags & known_flags["SYSMUX"] ~= 0 then
+		argssize = "0"
+	elseif #funcargs > 0 or flags & known_flags["NODEF"] ~= 0 then
 		argssize = "AS(" .. argalias .. ")"
 	else
 		argssize = "0"
@@ -752,7 +755,7 @@ local function handle_noncompat(sysnum, thr_flag, flags, sysflags, rettype,
 	case %d:
 ]], funcname, sysnum))
 
-	if #funcargs > 0 then
+	if #funcargs > 0 and flags & known_flags["SYSMUX"] == 0 then
 		write_line("systracetmp", "\t\tswitch (ndx) {\n")
 		write_line("systrace", string.format(
 		    "\t\tstruct %s *p = params;\n", argalias))
@@ -820,8 +823,12 @@ local function handle_noncompat(sysnum, thr_flag, flags, sysflags, rettype,
 		break;
 ]], syscallret))
 	end
+	local n_args = #funcargs
+	if flags & known_flags["SYSMUX"] ~= 0 then
+		n_args = 0
+	end
 	write_line("systrace", string.format(
-	    "\t\t*n_args = %d;\n\t\tbreak;\n\t}\n", #funcargs))
+	    "\t\t*n_args = %d;\n\t\tbreak;\n\t}\n", n_args))
 	write_line("systracetmp", "\t\tbreak;\n")
 
 	local nargflags = get_mask({"NOARGS", "NOPROTO", "NODEF"})
@@ -872,7 +879,13 @@ local function handle_noncompat(sysnum, thr_flag, flags, sysflags, rettype,
 	    string.format("\t{ .sy_narg = %s, .sy_call = (sy_call_t *)", argssize))
 	local column = 8 + 2 + #argssize + 15
 
-	if flags & known_flags["NOSTD"] ~= 0 then
+	if flags & known_flags["SYSMUX"] ~= 0 then
+		write_line("sysent", string.format(
+		    "nosys, .sy_auevent = AUE_NULL, " ..
+		    ".sy_flags = %s, .sy_thrcnt = SY_THR_STATIC },",
+		    sysflags))
+		column = column + #"nosys" + #"AUE_NULL" + 3
+	elseif flags & known_flags["NOSTD"] ~= 0 then
 		write_line("sysent", string.format(
 		    "lkmressys, .sy_auevent = AUE_NULL, " ..
 		    ".sy_flags = %s, .sy_thrcnt = SY_THR_ABSENT },",
@@ -1271,7 +1284,7 @@ process_syscall_def = function(line)
 	local ncompatflags = get_mask({"STD", "NODEF", "NOARGS", "NOPROTO",
 	    "NOSTD"})
 	local compatflags = get_mask_pat("COMPAT.*")
-	if noproto then
+	if noproto or flags & known_flags["SYSMUX"] ~= 0 then
 		flags = flags | known_flags["NOPROTO"];
 	end
 	if flags & known_flags["OBSOL"] ~= 0 then
