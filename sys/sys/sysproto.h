@@ -2356,6 +2356,14 @@ struct osendmsg_args {
 	char msg_l_[PADL_(const struct omsghdr *)]; const struct omsghdr * msg; char msg_r_[PADR_(const struct omsghdr *)];
 	char flags_l_[PADL_(int)]; int flags; char flags_r_[PADR_(int)];
 };
+struct orecvfrom_args {
+	char s_l_[PADL_(int)]; int s; char s_r_[PADR_(int)];
+	char buf_l_[PADL_(void *)]; void * buf; char buf_r_[PADR_(void *)];
+	char len_l_[PADL_(size_t)]; size_t len; char len_r_[PADR_(size_t)];
+	char flags_l_[PADL_(int)]; int flags; char flags_r_[PADR_(int)];
+	char from_l_[PADL_(struct sockaddr *)]; struct sockaddr * from; char from_r_[PADR_(struct sockaddr *)];
+	char fromlenaddr_l_[PADL_(__socklen_t *)]; __socklen_t * fromlenaddr; char fromlenaddr_r_[PADR_(__socklen_t *)];
+};
 struct otruncate_args {
 	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
 	char length_l_[PADL_(long)]; long length; char length_r_[PADR_(long)];
@@ -2383,6 +2391,11 @@ struct osetrlimit_args {
 struct okillpg_args {
 	char pgid_l_[PADL_(int)]; int pgid; char pgid_r_[PADR_(int)];
 	char signum_l_[PADL_(int)]; int signum; char signum_r_[PADR_(int)];
+};
+struct ogetsockname_args {
+	char fdes_l_[PADL_(int)]; int fdes; char fdes_r_[PADR_(int)];
+	char asa_l_[PADL_(struct sockaddr *)]; struct sockaddr * asa; char asa_r_[PADR_(struct sockaddr *)];
+	char alen_l_[PADL_(__socklen_t *)]; __socklen_t * alen; char alen_r_[PADR_(__socklen_t *)];
 };
 struct ogetdirentries_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
@@ -2415,7 +2428,7 @@ int	osigsuspend(struct thread *, struct osigsuspend_args *);
 int	osigstack(struct thread *, struct osigstack_args *);
 int	orecvmsg(struct thread *, struct orecvmsg_args *);
 int	osendmsg(struct thread *, struct osendmsg_args *);
-int	orecvfrom(struct thread *, struct recvfrom_args *);
+int	orecvfrom(struct thread *, struct orecvfrom_args *);
 int	otruncate(struct thread *, struct otruncate_args *);
 int	oftruncate(struct thread *, struct oftruncate_args *);
 int	ogetpeername(struct thread *, struct ogetpeername_args *);
@@ -2425,7 +2438,7 @@ int	ogetrlimit(struct thread *, struct ogetrlimit_args *);
 int	osetrlimit(struct thread *, struct osetrlimit_args *);
 int	okillpg(struct thread *, struct okillpg_args *);
 int	oquota(struct thread *, struct oquota_args *);
-int	ogetsockname(struct thread *, struct getsockname_args *);
+int	ogetsockname(struct thread *, struct ogetsockname_args *);
 int	ogetdirentries(struct thread *, struct ogetdirentries_args *);
 
 #endif /* COMPAT_43 */
