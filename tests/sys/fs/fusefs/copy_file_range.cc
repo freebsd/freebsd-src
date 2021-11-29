@@ -129,6 +129,14 @@ virtual void SetUp() {
 }
 };
 
+class CopyFileRangeNoAtime: public CopyFileRange {
+public:
+virtual void SetUp() {
+	m_noatime = true;
+	CopyFileRange::SetUp();
+}
+};
+
 TEST_F(CopyFileRange, eio)
 {
 	const char FULLPATH1[] = "mountpoint/src.txt";
@@ -432,6 +440,74 @@ TEST_F(CopyFileRange, same_file)
 }
 
 /*
+ * copy_file_range should update the destination's mtime and ctime, and
+ * the source's atime.
+ */
+TEST_F(CopyFileRange, timestamps)
+{
+	const char FULLPATH1[] = "mountpoint/src.txt";
+	const char RELPATH1[] = "src.txt";
+	const char FULLPATH2[] = "mountpoint/dst.txt";
+	const char RELPATH2[] = "dst.txt";
+	struct stat sb1a, sb1b, sb2a, sb2b;
+	const uint64_t ino1 = 42;
+	const uint64_t ino2 = 43;
+	const uint64_t fh1 = 0xdeadbeef1a7ebabe;
+	const uint64_t fh2 = 0xdeadc0de88c0ffee;
+	off_t fsize1 = 1 << 20;		/* 1 MiB */
+	off_t fsize2 = 1 << 19;		/* 512 KiB */
+	off_t start1 = 1 << 18;
+	off_t start2 = 3 << 17;
+	ssize_t len = 65536;
+	int fd1, fd2;
+
+	expect_lookup(RELPATH1, ino1, S_IFREG | 0644, fsize1, 1);
+	expect_lookup(RELPATH2, ino2, S_IFREG | 0644, fsize2, 1);
+	expect_open(ino1, 0, 1, fh1);
+	expect_open(ino2, 0, 1, fh2);
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in.header.opcode == FUSE_COPY_FILE_RANGE &&
+				in.header.nodeid == ino1 &&
+				in.body.copy_file_range.fh_in == fh1 &&
+				(off_t)in.body.copy_file_range.off_in == start1 &&
+				in.body.copy_file_range.nodeid_out == ino2 &&
+				in.body.copy_file_range.fh_out == fh2 &&
+				(off_t)in.body.copy_file_range.off_out == start2 &&
+				in.body.copy_file_range.len == (size_t)len &&
+				in.body.copy_file_range.flags == 0);
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
+		SET_OUT_HEADER_LEN(out, write);
+		out.body.write.size = len;
+	})));
+
+	fd1 = open(FULLPATH1, O_RDONLY);
+	ASSERT_GE(fd1, 0);
+	fd2 = open(FULLPATH2, O_WRONLY);
+	ASSERT_GE(fd2, 0);
+	ASSERT_EQ(0, fstat(fd1, &sb1a)) << strerror(errno);
+	ASSERT_EQ(0, fstat(fd2, &sb2a)) << strerror(errno);
+
+	nap();
+
+	ASSERT_EQ(len, copy_file_range(fd1, &start1, fd2, &start2, len, 0));
+	ASSERT_EQ(0, fstat(fd1, &sb1b)) << strerror(errno);
+	ASSERT_EQ(0, fstat(fd2, &sb2b)) << strerror(errno);
+
+	EXPECT_NE(sb1a.st_atime, sb1b.st_atime);
+	EXPECT_EQ(sb1a.st_mtime, sb1b.st_mtime);
+	EXPECT_EQ(sb1a.st_ctime, sb1b.st_ctime);
+	EXPECT_EQ(sb2a.st_atime, sb2b.st_atime);
+	EXPECT_NE(sb2a.st_mtime, sb2b.st_mtime);
+	EXPECT_NE(sb2a.st_ctime, sb2b.st_ctime);
+
+	leak(fd1);
+	leak(fd2);
+}
+
+/*
  * copy_file_range can extend the size of a file
  * */
 TEST_F(CopyFileRange, extend)
@@ -523,4 +599,70 @@ TEST_F(CopyFileRange_7_27, fallback)
 	ASSERT_EQ(len, copy_file_range(fd1, &start1, fd2, &start2, len, 0));
 }
 
+/*
+ * With -o noatime, copy_file_range should update the destination's mtime and
+ * ctime, but not the source's atime.
+ */
+TEST_F(CopyFileRangeNoAtime, timestamps)
+{
+	const char FULLPATH1[] = "mountpoint/src.txt";
+	const char RELPATH1[] = "src.txt";
+	const char FULLPATH2[] = "mountpoint/dst.txt";
+	const char RELPATH2[] = "dst.txt";
+	struct stat sb1a, sb1b, sb2a, sb2b;
+	const uint64_t ino1 = 42;
+	const uint64_t ino2 = 43;
+	const uint64_t fh1 = 0xdeadbeef1a7ebabe;
+	const uint64_t fh2 = 0xdeadc0de88c0ffee;
+	off_t fsize1 = 1 << 20;		/* 1 MiB */
+	off_t fsize2 = 1 << 19;		/* 512 KiB */
+	off_t start1 = 1 << 18;
+	off_t start2 = 3 << 17;
+	ssize_t len = 65536;
+	int fd1, fd2;
 
+	expect_lookup(RELPATH1, ino1, S_IFREG | 0644, fsize1, 1);
+	expect_lookup(RELPATH2, ino2, S_IFREG | 0644, fsize2, 1);
+	expect_open(ino1, 0, 1, fh1);
+	expect_open(ino2, 0, 1, fh2);
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in.header.opcode == FUSE_COPY_FILE_RANGE &&
+				in.header.nodeid == ino1 &&
+				in.body.copy_file_range.fh_in == fh1 &&
+				(off_t)in.body.copy_file_range.off_in == start1 &&
+				in.body.copy_file_range.nodeid_out == ino2 &&
+				in.body.copy_file_range.fh_out == fh2 &&
+				(off_t)in.body.copy_file_range.off_out == start2 &&
+				in.body.copy_file_range.len == (size_t)len &&
+				in.body.copy_file_range.flags == 0);
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
+		SET_OUT_HEADER_LEN(out, write);
+		out.body.write.size = len;
+	})));
+
+	fd1 = open(FULLPATH1, O_RDONLY);
+	ASSERT_GE(fd1, 0);
+	fd2 = open(FULLPATH2, O_WRONLY);
+	ASSERT_GE(fd2, 0);
+	ASSERT_EQ(0, fstat(fd1, &sb1a)) << strerror(errno);
+	ASSERT_EQ(0, fstat(fd2, &sb2a)) << strerror(errno);
+
+	nap();
+
+	ASSERT_EQ(len, copy_file_range(fd1, &start1, fd2, &start2, len, 0));
+	ASSERT_EQ(0, fstat(fd1, &sb1b)) << strerror(errno);
+	ASSERT_EQ(0, fstat(fd2, &sb2b)) << strerror(errno);
+
+	EXPECT_EQ(sb1a.st_atime, sb1b.st_atime);
+	EXPECT_EQ(sb1a.st_mtime, sb1b.st_mtime);
+	EXPECT_EQ(sb1a.st_ctime, sb1b.st_ctime);
+	EXPECT_EQ(sb2a.st_atime, sb2b.st_atime);
+	EXPECT_NE(sb2a.st_mtime, sb2b.st_mtime);
+	EXPECT_NE(sb2a.st_ctime, sb2b.st_ctime);
+
+	leak(fd1);
+	leak(fd2);
+}
