@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 11, 2020
+.Dd November 27, 2021
 .Dt ELF 5
 .Os
 .Sh NAME
@@ -795,6 +795,8 @@ The section contains executable machine instructions.
 .It Dv SHF_MASKPROC
 All bits included in this mask are reserved for processor-specific
 semantics.
+.It Dv SHF_COMPRESSED
+The section data is compressed.
 .El
 .Pp
 .It Dv sh_addr
@@ -1067,6 +1069,50 @@ This section holds information about Java classes that must
 be registered.
 .It .eh_frame
 This section holds information used for C++ exception-handling.
+.El
+.Pp
+A section with the
+.Dv SHF_COMPRESSED
+flag set contains a compressed copy of the section data.
+Compressed section data begins with an
+.Vt Elf64_Chdr
+or
+.Vt Elf32_Chdr structure
+which encodes the compression algorithm and some characteristics of the
+uncompressed data.
+.Bd -literal -offset indent
+typedef struct {
+	Elf32_Word    ch_type;
+	Elf32_Word    ch_size;
+	Elf32_Word    ch_addralign;
+} Elf32_Chdr;
+.Ed
+.Bd -literal -offset indent
+typedef struct {
+	Elf64_Word    ch_type;
+	Elf64_Word    ch_reserved;
+	Elf64_Xword   ch_size;
+	Elf64_Xword   ch_addralign;
+} Elf64_Chdr;
+.Ed
+.Pp
+.Bl -tag -width "ch_addralign" -compact
+.It Dv ch_type
+The compression algorithm used.
+A value of
+.Dv ELFCOMPRESS_ZLIB
+indicates that the data is compressed using
+.Xr zlib 3 .
+.It Dv ch_size
+The size, in bytes, of the uncompressed section data.
+This corresponds to the
+.Sy sh_size
+field of a section header containing uncompressed data.
+.It Dv ch_addralign
+The address alignment of the uncompressed section data.
+This corresponds to the
+.Sy sh_addralign
+field of a section header containing uncompressed data.
 .El
 .Pp
 String table sections hold null-terminated character sequences, commonly
@@ -1342,6 +1388,7 @@ writeable and executable.
 .Xr objdump 1 ,
 .Xr readelf 1 ,
 .Xr execve 2 ,
+.Xr zlib 3 ,
 .Xr ar 5 ,
 .Xr core 5
 .Rs
