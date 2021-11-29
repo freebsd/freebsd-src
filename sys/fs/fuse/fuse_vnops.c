@@ -803,8 +803,10 @@ fuse_vnop_copy_file_range(struct vop_copy_file_range_args *ap)
 		*ap->a_inoffp += fwo->size;
 		*ap->a_outoffp += fwo->size;
 		fuse_internal_clear_suid_on_write(outvp, outcred, td);
-		if (*ap->a_outoffp > outfvdat->cached_attrs.va_size)
-			fuse_vnode_setsize(outvp, *ap->a_outoffp, false);
+		if (*ap->a_outoffp > outfvdat->cached_attrs.va_size) {
+                        fuse_vnode_setsize(outvp, *ap->a_outoffp, false);
+			getnanouptime(&outfvdat->last_local_modify);
+		}
 	}
 	fdisp_destroy(&fdi);
 
@@ -1279,6 +1281,7 @@ fuse_vnop_lookup(struct vop_lookup_args *ap)
 	struct componentname *cnp = ap->a_cnp;
 	struct thread *td = curthread;
 	struct ucred *cred = cnp->cn_cred;
+	struct timespec now;
 
 	int nameiop = cnp->cn_nameiop;
 	int flags = cnp->cn_flags;
@@ -1330,7 +1333,7 @@ fuse_vnop_lookup(struct vop_lookup_args *ap)
 		vtyp = VDIR;
 		filesize = 0;
 	} else {
-		struct timespec now, timeout;
+		struct timespec timeout;
 		int ncpticks; /* here to accomodate for API contract */
 
 		err = cache_lookup(dvp, vpp, cnp, &timeout, &ncpticks);
@@ -1454,8 +1457,16 @@ fuse_vnop_lookup(struct vop_lookup_args *ap)
 			fvdat = VTOFUD(vp);
 
 			MPASS(feo != NULL);
-			fuse_internal_cache_attrs(*vpp, &feo->attr,
-				feo->attr_valid, feo->attr_valid_nsec, NULL, true);
+			if (timespeccmp(&now, &fvdat->last_local_modify, >)) {
+				/*
+				 * Attributes from the server are definitely
+				 * newer than the last attributes we sent to
+				 * the server, so cache them.
+				 */
+				fuse_internal_cache_attrs(*vpp, &feo->attr,
+					feo->attr_valid, feo->attr_valid_nsec,
+					NULL, true);
+			}
 			fuse_validity_2_bintime(feo->entry_valid,
 				feo->entry_valid_nsec,
 				&fvdat->entry_cache_timeout);
