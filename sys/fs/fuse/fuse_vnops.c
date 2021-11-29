@@ -650,6 +650,7 @@ fuse_vnop_copy_file_range(struct vop_copy_file_range_args *ap)
 	struct vnode *invp = ap->a_invp;
 	struct vnode *outvp = ap->a_outvp;
 	struct mount *mp = vnode_mount(invp);
+	struct fuse_vnode_data *outfvdat = VTOFUD(outvp);
 	struct fuse_dispatcher fdi;
 	struct fuse_filehandle *infufh, *outfufh;
 	struct fuse_copy_file_range_in *fcfri;
@@ -731,6 +732,8 @@ fuse_vnop_copy_file_range(struct vop_copy_file_range_args *ap)
 		*ap->a_inoffp += fwo->size;
 		*ap->a_outoffp += fwo->size;
 		fuse_internal_clear_suid_on_write(outvp, outcred, td);
+		if (*ap->a_outoffp > outfvdat->cached_attrs.va_size)
+			fuse_vnode_setsize(outvp, *ap->a_outoffp, false);
 	}
 	fdisp_destroy(&fdi);
 
