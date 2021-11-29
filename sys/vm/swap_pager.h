@@ -76,6 +76,8 @@ struct swapoff_new_args {
 	uintptr_t pad1[8];
 };
 
+#define	SWAPOFF_FORCE	0x00000001
+
 #ifdef _KERNEL
 
 extern int swap_pager_avail;
