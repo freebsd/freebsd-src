@@ -356,7 +356,8 @@ class MockFS {
 		bool default_permissions, bool push_symlinks_in, bool ro,
 		enum poll_method pm, uint32_t flags,
 		uint32_t kernel_minor_version, uint32_t max_write, bool async,
-		bool no_clusterr, unsigned time_gran, bool nointr);
+		bool no_clusterr, unsigned time_gran, bool nointr,
+		bool noatime);
 
 	virtual ~MockFS();
 

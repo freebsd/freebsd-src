@@ -236,6 +236,7 @@ fuse_io_dispatch(struct vnode *vp, struct uio *uio, int ioflag,
 
 	switch (uio->uio_rw) {
 	case UIO_READ:
+		fuse_vnode_update(vp, FN_ATIMECHANGE);
 		if (directio) {
 			SDT_PROBE2(fusefs, , io, trace, 1,
 				"direct read of vnode");
@@ -616,7 +617,7 @@ retry:
 	fdisp_destroy(&fdi);
 
 	if (wrote_anything)
-		fuse_vnode_undirty_cached_timestamps(vp);
+		fuse_vnode_undirty_cached_timestamps(vp, false);
 
 	return (err);
 }

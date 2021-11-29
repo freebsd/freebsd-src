@@ -64,6 +64,7 @@ class FuseTest : public ::testing::Test {
 	bool m_default_permissions;
 	uint32_t m_kernel_minor_version;
 	enum poll_method m_pm;
+	bool m_noatime;
 	bool m_push_symlinks_in;
 	bool m_ro;
 	bool m_async;
@@ -85,6 +86,7 @@ class FuseTest : public ::testing::Test {
 		m_default_permissions(false),
 		m_kernel_minor_version(FUSE_KERNEL_MINOR_VERSION),
 		m_pm(BLOCKING),
+		m_noatime(false),
 		m_push_symlinks_in(false),
 		m_ro(false),
 		m_async(false),
