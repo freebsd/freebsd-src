@@ -1103,7 +1103,7 @@ sys_recvfrom(struct thread *td, struct recvfrom_args *uap)
 
 #ifdef COMPAT_OLDSOCK
 int
-orecvfrom(struct thread *td, struct recvfrom_args *uap)
+orecvfrom(struct thread *td, struct orecvfrom_args *uap)
 {
 	return (kern_recvfrom(td, uap->s, uap->buf, uap->len,
 	    uap->flags | MSG_COMPAT, uap->from, uap->fromlenaddr));
@@ -1411,7 +1411,7 @@ sys_getsockname(struct thread *td, struct getsockname_args *uap)
 
 #ifdef COMPAT_OLDSOCK
 int
-ogetsockname(struct thread *td, struct getsockname_args *uap)
+ogetsockname(struct thread *td, struct ogetsockname_args *uap)
 {
 	return (user_getsockname(td, uap->fdes, uap->asa, uap->alen, true));
 }
