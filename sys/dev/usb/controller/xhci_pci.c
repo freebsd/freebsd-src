@@ -125,8 +125,20 @@ xhci_pci_match(device_t self)
 	case 0x11421b21:
 		return ("ASMedia ASM1042A USB 3.0 controller");
 
+	case 0x0b278086:
+		return ("Intel Goshen Ridge Thunderbolt 4 USB controller");
 	case 0x0f358086:
 		return ("Intel BayTrail USB 3.0 controller");
+	case 0x11388086:
+		return ("Intel Maple Ridge Thunderbolt 4 USB controller");
+	case 0x15c18086:
+	case 0x15d48086:
+	case 0x15db8086:
+		return ("Intel Alpine Ridge Thunderbolt 3 USB controller");
+	case 0x15e98086:
+	case 0x15ec8086:
+	case 0x15f08086:
+		return ("Intel Titan Ridge Thunderbolt 3 USB controller");
 	case 0x19d08086:
 		return ("Intel Denverton USB 3.0 controller");
 	case 0x9c318086:
