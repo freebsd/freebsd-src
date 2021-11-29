@@ -482,7 +482,7 @@ out:
 int
 linux_exit(struct thread *td, struct linux_exit_args *args)
 {
-	struct linux_emuldata *em;
+	struct linux_emuldata *em __diagused;
 
 	em = em_find(td);
 	KASSERT(em != NULL, ("exit: emuldata not found.\n"));
