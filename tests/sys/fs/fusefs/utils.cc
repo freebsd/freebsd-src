@@ -161,7 +161,7 @@ void FuseTest::SetUp() {
 			m_default_permissions, m_push_symlinks_in, m_ro,
 			m_pm, m_init_flags, m_kernel_minor_version,
 			m_maxwrite, m_async, m_noclusterr, m_time_gran,
-			m_nointr);
+			m_nointr, m_noatime);
 		/* 
 		 * FUSE_ACCESS is called almost universally.  Expecting it in
 		 * each test case would be super-annoying.  Instead, set a

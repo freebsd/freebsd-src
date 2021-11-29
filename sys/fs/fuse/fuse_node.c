@@ -475,11 +475,13 @@ fuse_vnode_size(struct vnode *vp, off_t *filesize, struct ucred *cred,
 }
 
 void
-fuse_vnode_undirty_cached_timestamps(struct vnode *vp)
+fuse_vnode_undirty_cached_timestamps(struct vnode *vp, bool atime)
 {
 	struct fuse_vnode_data *fvdat = VTOFUD(vp);
 
 	fvdat->flag &= ~(FN_MTIMECHANGE | FN_CTIMECHANGE);
+	if (atime)
+		fvdat->flag &= ~FN_ATIMECHANGE;
 }
 
 /* Update a fuse file's cached timestamps */
@@ -487,7 +489,8 @@ void
 fuse_vnode_update(struct vnode *vp, int flags)
 {
 	struct fuse_vnode_data *fvdat = VTOFUD(vp);
-	struct fuse_data *data = fuse_get_mpdata(vnode_mount(vp));
+	struct mount *mp = vnode_mount(vp);
+	struct fuse_data *data = fuse_get_mpdata(mp);
 	struct timespec ts;
 
 	vfs_timestamp(&ts);
@@ -495,6 +498,11 @@ fuse_vnode_update(struct vnode *vp, int flags)
 	if (data->time_gran > 1)
 		ts.tv_nsec = rounddown(ts.tv_nsec, data->time_gran);
 
+	if (mp->mnt_flag & MNT_NOATIME)
+		flags &= ~FN_ATIMECHANGE;
+
+	if (flags & FN_ATIMECHANGE)
+		fvdat->cached_attrs.va_atime = ts;
 	if (flags & FN_MTIMECHANGE)
 		fvdat->cached_attrs.va_mtime = ts;
 	if (flags & FN_CTIMECHANGE)

@@ -613,6 +613,7 @@ fuse_vnop_close(struct vop_close_args *ap)
 	int fflag = ap->a_fflag;
 	struct thread *td = ap->a_td;
 	pid_t pid = td->td_proc->p_pid;
+	struct fuse_vnode_data *fvdat = VTOFUD(vp);
 	int err = 0;
 
 	if (fuse_isdeadfs(vp))
@@ -623,8 +624,15 @@ fuse_vnop_close(struct vop_close_args *ap)
 		return 0;
 
 	err = fuse_flush(vp, cred, pid, fflag);
+	if (err == 0 && (fvdat->flag & FN_ATIMECHANGE)) {
+		struct vattr vap;
+
+		VATTR_NULL(&vap);
+		vap.va_atime = fvdat->cached_attrs.va_atime;
+		err = fuse_internal_setattr(vp, &vap, td, NULL);
+	}
 	/* TODO: close the file handle, if we're sure it's no longer used */
-	if ((VTOFUD(vp)->flag & FN_SIZECHANGE) != 0) {
+	if ((fvdat->flag & FN_SIZECHANGE) != 0) {
 		fuse_vnode_savesize(vp, cred, td->td_proc->p_pid);
 	}
 	return err;
