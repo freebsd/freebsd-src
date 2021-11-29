@@ -27,6 +27,7 @@ GTESTS+=	fsyncdir
 GTESTS+=	getattr
 GTESTS+=	interrupt
 GTESTS+=	io
+GTESTS+=	last_local_modify
 GTESTS+=	link
 GTESTS+=	locks
 GTESTS+=	lookup
