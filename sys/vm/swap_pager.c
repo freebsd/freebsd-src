@@ -2485,15 +2485,38 @@ sys_swapoff(struct thread *td, struct swapoff_args *uap)
 	struct vnode *vp;
 	struct nameidata nd;
 	struct swdevt *sp;
-	int error;
+	struct swapoff_new_args sa;
+	int error, probe_byte;
 
 	error = priv_check(td, PRIV_SWAPOFF);
 	if (error)
 		return (error);
 
+	/*
+	 * Detect old vs. new-style swapoff(2) syscall.  The first
+	 * pointer in the memory pointed to by uap->name is NULL for
+	 * the new variant.
+	 */
+	probe_byte = fubyte(uap->name);
+	switch (probe_byte) {
+	case -1:
+		return (EFAULT);
+	case 0:
+		error = copyin(uap->name, &sa, sizeof(sa));
+		if (error != 0)
+			return (error);
+		if (sa.flags != 0)
+			return (EINVAL);
+		break;
+	default:
+		bzero(&sa, sizeof(sa));
+		sa.name = uap->name;
+		break;
+	}
+
 	sx_xlock(&swdev_syscall_lock);
 
-	NDINIT(&nd, LOOKUP, FOLLOW | AUDITVNODE1, UIO_USERSPACE, uap->name,
+	NDINIT(&nd, LOOKUP, FOLLOW | AUDITVNODE1, UIO_USERSPACE, sa.name,
 	    td);
 	error = namei(&nd);
 	if (error)
