@@ -439,7 +439,6 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	struct l_sigframe *fp, frame;
 	struct sigacts *psp;
 	int onstack, sig;
-	uint32_t spsr;
 
 	td = curthread;
 	p = td->td_proc;
@@ -474,7 +473,6 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	/* Fill in the frame to copy out */
 	bzero(&frame, sizeof(frame));
 	get_mcontext(td, &frame.sf_uc.uc_mcontext, 0);
-	spsr = frame.sf_uc.uc_mcontext.mc_gpregs.gp_spsr;
 
 	/* Translate the signal. */
 	sig = bsd_to_linux_signal(sig);
