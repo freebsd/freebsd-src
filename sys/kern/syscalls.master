@@ -13,8 +13,8 @@
 ;		there is no audit event for the call at this time. For the
 ;		case where the event exists, but we don't want auditing, the
 ;		event should be #defined to AUE_NULL in audit_kevents.h.
-;	type	one of STD, OBSOL, RESERVED, UNIMPL, COMPAT, COMPAT4, COMPAT6,
-;		COMPAT7, COMPAT11, COMPAT12, NODEF, NOARGS, NOPROTO, NOSTD
+;	type	one of STD, OBSOL, RESERVED, UNIMPL, SYSMUX, COMPAT*,
+;		NODEF, NOARGS, NOPROTO, NOSTD
 ;		The COMPAT* options may be combined with one or more NO*
 ;		options separated by '|' with no spaces (e.g. COMPAT|NOARGS)
 ;		The CAPENABLED option may be ORed into a type.
@@ -48,6 +48,8 @@
 ;		function prototype in sys/sysproto.h.  Does add a
 ;		definition to syscall.h besides adding a sysent.
 ;	NOTSTATIC syscall is loadable
+;	SYSMUX	syscall multiplexer.  No prototype, argument struct, or
+;		handler is declared or used.  Handled in MD syscall code.
 ;	CAPENABLED syscall is allowed in capability mode
 ;
 ; To support programmatic generation of both the default ABI and 32-bit compat
