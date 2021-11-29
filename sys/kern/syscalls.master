@@ -114,9 +114,12 @@
 #include <sys/sysproto.h>
 %%ABI_HEADERS%%
 
-0	AUE_NULL	STD {
-		int nosys(void);
-	} syscall nosys_args int
+0	AUE_NULL	SYSMUX {
+		int syscall(
+		    int number,
+		    ...
+		);
+	}
 1	AUE_EXIT	STD|CAPENABLED {
 		void exit(
 		    int rval
@@ -1194,9 +1197,12 @@
 		    off_t pos
 		);
 	}
-198	AUE_NULL	NOPROTO {
-		int nosys(void);
-	} __syscall __syscall_args int
+198	AUE_NULL	SYSMUX {
+		int __syscall(
+		    int64_t number,
+		    ...
+		);
+	}
 199	AUE_LSEEK	COMPAT6|CAPENABLED {
 		off_t lseek(
 		    int fd,
