@@ -1991,7 +1991,7 @@ dummynet_flush(void)
  *   processed on a config_sched.
  */
 int
-do_config(void *p, int l)
+do_config(void *p, size_t l)
 {
 	struct dn_id o;
 	union {
@@ -2015,7 +2015,7 @@ do_config(void *p, int l)
 	while (l >= sizeof(o)) {
 		memcpy(&o, (char *)p + off, sizeof(o));
 		if (o.len < sizeof(o) || l < o.len) {
-			D("bad len o.len %d len %d", o.len, l);
+			D("bad len o.len %d len %zu", o.len, l);
 			err = EINVAL;
 			break;
 		}
@@ -2487,7 +2487,8 @@ ip_dn_ctl(struct sockopt *sopt)
 {
 	struct epoch_tracker et;
 	void *p = NULL;
-	int error, l;
+	size_t l;
+	int error;
 
 	error = priv_check(sopt->sopt_td, PRIV_NETINET_DUMMYNET);
 	if (error)
@@ -2516,14 +2517,14 @@ ip_dn_ctl(struct sockopt *sopt)
 		error = ip_dummynet_compat(sopt);
 		break;
 
-	case IP_DUMMYNET3 :
+	case IP_DUMMYNET3:
 		if (sopt->sopt_dir == SOPT_GET) {
 			error = dummynet_get(sopt, NULL);
 			break;
 		}
 		l = sopt->sopt_valsize;
 		if (l < sizeof(struct dn_id) || l > 12000) {
-			D("argument len %d invalid", l);
+			D("argument len %zu invalid", l);
 			break;
 		}
 		p = malloc(l, M_TEMP, M_NOWAIT);
@@ -2532,9 +2533,8 @@ ip_dn_ctl(struct sockopt *sopt)
 			break;
 		}
 		error = sooptcopyin(sopt, p, l, l);
-		if (error)
-			break ;
-		error = do_config(p, l);
+		if (error == 0)
+			error = do_config(p, l);
 		break;
 	}
 
