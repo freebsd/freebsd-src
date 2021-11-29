@@ -1449,9 +1449,16 @@ bufshutdown(int show_busybufs)
 			printf("Final sync complete\n");
 
 		/*
-		 * Unmount filesystems.  Swapoff before unmount,
-		 * because file-backed swap is non-operational after unmount
-		 * of the underlying filesystem.
+		 * Unmount filesystems and perform swapoff, to quiesce
+		 * the system as much as possible.  In particular, no
+		 * I/O should be initiated from top levels since it
+		 * might be abruptly terminated by reset, or otherwise
+		 * erronously handled because other parts of the
+		 * system are disabled.
+		 *
+		 * Swapoff before unmount, because file-backed swap is
+		 * non-operational after unmount of the underlying
+		 * filesystem.
 		 */
 		if (!KERNEL_PANICKED()) {
 			swapoff_all();
