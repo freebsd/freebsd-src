@@ -1166,13 +1166,13 @@
 		    u_int which,
 		    _Out_ struct rlimit *rlp
 		);
-	} getrlimit __getrlimit_args int
+	}
 195	AUE_SETRLIMIT	STD|CAPENABLED {
 		int setrlimit(
 		    u_int which,
 		    _In_ struct rlimit *rlp
 		);
-	} setrlimit __setrlimit_args int
+	}
 196	AUE_GETDIRENTRIES	COMPAT11|CAPENABLED {
 		int getdirentries(
 		    int fd,
