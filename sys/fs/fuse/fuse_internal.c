@@ -932,6 +932,8 @@ fuse_internal_do_getattr(struct vnode *vp, struct vattr *vap,
 	enum vtype vtyp;
 	int err;
 
+	ASSERT_VOP_LOCKED(vp, __func__);
+
 	fdisp_init(&fdi, sizeof(*fgai));
 	fdisp_make_vp(&fdi, FUSE_GETATTR, vp, td, cred);
 	fgai = fdi.indata;
@@ -1170,6 +1172,8 @@ int fuse_internal_setattr(struct vnode *vp, struct vattr *vap,
 	int sizechanged = -1;
 	uint64_t newsize = 0;
 
+	ASSERT_VOP_ELOCKED(vp, __func__);
+
 	mp = vnode_mount(vp);
 	fvdat = VTOFUD(vp);
 	data = fuse_get_mpdata(mp);
@@ -1272,6 +1276,7 @@ int fuse_internal_setattr(struct vnode *vp, struct vattr *vap,
 		fuse_vnode_undirty_cached_timestamps(vp, true);
 		fuse_internal_cache_attrs(vp, &fao->attr, fao->attr_valid,
 			fao->attr_valid_nsec, NULL, false);
+		getnanouptime(&fvdat->last_local_modify);
 	}
 
 out:
