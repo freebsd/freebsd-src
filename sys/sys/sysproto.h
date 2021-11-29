@@ -34,9 +34,6 @@ struct thread;
 #define	PADR_(t)	0
 #endif
 
-struct nosys_args {
-	register_t dummy;
-};
 struct exit_args {
 	char rval_l_[PADL_(int)]; int rval; char rval_r_[PADR_(int)];
 };
@@ -1857,7 +1854,6 @@ struct fspacectl_args {
 struct sched_getcpu_args {
 	register_t dummy;
 };
-int	nosys(struct thread *, struct nosys_args *);
 int	sys_exit(struct thread *, struct exit_args *);
 int	sys_fork(struct thread *, struct fork_args *);
 int	sys_read(struct thread *, struct read_args *);
@@ -2734,7 +2730,6 @@ int	freebsd12_closefrom(struct thread *, struct freebsd12_closefrom_args *);
 
 #endif /* COMPAT_FREEBSD12 */
 
-#define	SYS_AUE_syscall	AUE_NULL
 #define	SYS_AUE_exit	AUE_EXIT
 #define	SYS_AUE_fork	AUE_FORK
 #define	SYS_AUE_read	AUE_READ

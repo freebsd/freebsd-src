@@ -12,7 +12,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	int64_t *iarg = (int64_t *)uarg;
 	int a = 0;
 	switch (sysnum) {
-	/* nosys */
+	/* syscall */
 	case 0: {
 		*n_args = 0;
 		break;
@@ -961,7 +961,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 2;
 		break;
 	}
-	/* nosys */
+	/* __syscall */
 	case 198: {
 		*n_args = 0;
 		break;
@@ -3426,7 +3426,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 {
 	const char *p = NULL;
 	switch (sysnum) {
-	/* nosys */
+	/* syscall */
 	case 0:
 		break;
 	/* exit */
@@ -4962,7 +4962,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* nosys */
+	/* __syscall */
 	case 198:
 		break;
 	/* __sysctl */
@@ -9141,7 +9141,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 {
 	const char *p = NULL;
 	switch (sysnum) {
-	/* nosys */
+	/* syscall */
 	case 0:
 	/* exit */
 	case 1:
@@ -9692,7 +9692,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* nosys */
+	/* __syscall */
 	case 198:
 	/* __sysctl */
 	case 202:
