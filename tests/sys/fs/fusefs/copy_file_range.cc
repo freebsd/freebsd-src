@@ -353,6 +353,53 @@ TEST_F(CopyFileRange, same_file)
 	ASSERT_EQ(len, copy_file_range(fd, &off_in, fd, &off_out, len, 0));
 }
 
+/*
+ * copy_file_range can extend the size of a file
+ * */
+TEST_F(CopyFileRange, extend)
+{
+	const char FULLPATH[] = "mountpoint/src.txt";
+	const char RELPATH[] = "src.txt";
+	struct stat sb;
+	const uint64_t ino = 4;
+	const uint64_t fh = 0xdeadbeefa7ebabe;
+	off_t fsize = 65536;
+	off_t off_in = 0;
+	off_t off_out = 65536;
+	ssize_t len = 65536;
+	int fd;
+
+	expect_lookup(RELPATH, ino, S_IFREG | 0644, fsize, 1);
+	expect_open(ino, 0, 1, fh);
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in.header.opcode == FUSE_COPY_FILE_RANGE &&
+				in.header.nodeid == ino &&
+				in.body.copy_file_range.fh_in == fh &&
+				(off_t)in.body.copy_file_range.off_in == off_in &&
+				in.body.copy_file_range.nodeid_out == ino &&
+				in.body.copy_file_range.fh_out == fh &&
+				(off_t)in.body.copy_file_range.off_out == off_out &&
+				in.body.copy_file_range.len == (size_t)len &&
+				in.body.copy_file_range.flags == 0);
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
+		SET_OUT_HEADER_LEN(out, write);
+		out.body.write.size = len;
+	})));
+
+	fd = open(FULLPATH, O_RDWR);
+	ASSERT_GE(fd, 0);
+	ASSERT_EQ(len, copy_file_range(fd, &off_in, fd, &off_out, len, 0));
+
+	/* Check that cached attributes were updated appropriately */
+	ASSERT_EQ(0, fstat(fd, &sb)) << strerror(errno);
+	EXPECT_EQ(fsize + len, sb.st_size);
+
+	leak(fd);
+}
+
 /* With older protocol versions, no FUSE_COPY_FILE_RANGE should be attempted */
 TEST_F(CopyFileRange_7_27, fallback)
 {
