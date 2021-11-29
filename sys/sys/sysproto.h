@@ -37,7 +37,7 @@ struct thread;
 struct nosys_args {
 	register_t dummy;
 };
-struct sys_exit_args {
+struct exit_args {
 	char rval_l_[PADL_(int)]; int rval; char rval_r_[PADR_(int)];
 };
 struct fork_args {
@@ -1858,7 +1858,7 @@ struct sched_getcpu_args {
 	register_t dummy;
 };
 int	nosys(struct thread *, struct nosys_args *);
-void	sys_sys_exit(struct thread *, struct sys_exit_args *);
+int	sys_exit(struct thread *, struct exit_args *);
 int	sys_fork(struct thread *, struct fork_args *);
 int	sys_read(struct thread *, struct read_args *);
 int	sys_write(struct thread *, struct write_args *);
