@@ -947,7 +947,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	}
 	/* getrlimit */
 	case 194: {
-		struct __getrlimit_args *p = params;
+		struct getrlimit_args *p = params;
 		uarg[a++] = p->which; /* u_int */
 		uarg[a++] = (intptr_t)p->rlp; /* struct rlimit * */
 		*n_args = 2;
@@ -955,7 +955,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	}
 	/* setrlimit */
 	case 195: {
-		struct __setrlimit_args *p = params;
+		struct setrlimit_args *p = params;
 		uarg[a++] = p->which; /* u_int */
 		uarg[a++] = (intptr_t)p->rlp; /* struct rlimit * */
 		*n_args = 2;

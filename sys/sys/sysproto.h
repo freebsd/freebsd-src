@@ -547,11 +547,11 @@ struct fpathconf_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
 	char name_l_[PADL_(int)]; int name; char name_r_[PADR_(int)];
 };
-struct __getrlimit_args {
+struct getrlimit_args {
 	char which_l_[PADL_(u_int)]; u_int which; char which_r_[PADR_(u_int)];
 	char rlp_l_[PADL_(struct rlimit *)]; struct rlimit * rlp; char rlp_r_[PADR_(struct rlimit *)];
 };
-struct __setrlimit_args {
+struct setrlimit_args {
 	char which_l_[PADL_(u_int)]; u_int which; char which_r_[PADR_(u_int)];
 	char rlp_l_[PADL_(struct rlimit *)]; struct rlimit * rlp; char rlp_r_[PADR_(struct rlimit *)];
 };
@@ -1973,8 +1973,8 @@ int	sys_setegid(struct thread *, struct setegid_args *);
 int	sys_seteuid(struct thread *, struct seteuid_args *);
 int	sys_pathconf(struct thread *, struct pathconf_args *);
 int	sys_fpathconf(struct thread *, struct fpathconf_args *);
-int	sys_getrlimit(struct thread *, struct __getrlimit_args *);
-int	sys_setrlimit(struct thread *, struct __setrlimit_args *);
+int	sys_getrlimit(struct thread *, struct getrlimit_args *);
+int	sys_setrlimit(struct thread *, struct setrlimit_args *);
 int	sys___sysctl(struct thread *, struct __sysctl_args *);
 int	sys_mlock(struct thread *, struct mlock_args *);
 int	sys_munlock(struct thread *, struct munlock_args *);
