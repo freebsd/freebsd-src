@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 31, 2020
+.Dd November 29, 2021
 .Dt RC.SUBR 8
 .Os
 .Sh NAME
@@ -59,7 +59,7 @@
 .It
 .Ic load_kld Oo Fl e Ar regex Oc Oo Fl m Ar module Oc Ar file
 .It
-.Ic load_rc_config Ar name
+.Ic load_rc_config Op Ar service
 .It
 .Ic load_rc_config_var Ar name Ar var
 .It
@@ -279,14 +279,18 @@ regular expression matching the module name can be supplied via
 By default, the module is assumed to have the same name as
 .Ar file ,
 which is not always the case.
-.It Ic load_rc_config Ar name
-Source in the configuration files for
-.Ar name .
+.It Ic load_rc_config Op Ar service
+Source in the configuration file(s) for
+.Ar service .
+If no
+.Ar service
+is specified,
+only the global configuration file(s) will be loaded.
 First,
 .Pa /etc/rc.conf
 is sourced if it has not yet been read in.
 Then,
-.Pa /etc/rc.conf.d/ Ns Ar name
+.Pa /etc/rc.conf.d/ Ns Ar service
 is sourced if it is an existing file.
 The latter may also contain other variable assignments to override
 .Ic run_rc_command
