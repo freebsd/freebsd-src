@@ -28,7 +28,7 @@
 .\"     @(#)swapon.8	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd May 19, 2020
+.Dd November 29, 2021
 .Dt SWAPON 8
 .Os
 .Sh NAME
@@ -42,9 +42,9 @@
 .Nm swapoff
 .Oo Fl F Ar fstab
 .Oc
-.Fl aLq | Ar
+.Fl afLq | Ar
 .Nm swapctl
-.Op Fl AghklmsU
+.Op Fl AfghklmsU
 .Oo
 .Fl a Ar
 |
@@ -125,8 +125,14 @@ informational messages will not be
 written to standard output when a swap device is removed.
 Note that
 .Nm swapoff
-will fail and refuse to remove a swap device if there is insufficient
-VM (memory + remaining swap devices) to run the system.
+will fail and refuse to remove a swap device if a very conservative
+check does not conclude that there is sufficient VM (memory +
+remaining swap devices) to run the system.
+The
+.Fl f
+option turns off this check, which could deadlock the system
+if there is insufficient swap space remaining.
+.Pp
 The
 .Nm swapoff
 utility
