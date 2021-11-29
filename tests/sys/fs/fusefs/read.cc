@@ -432,7 +432,7 @@ TEST_F(Read, atime_during_close)
 				in.body.setattr.valid == valid &&
 				(time_t)in.body.setattr.atime ==
 					sb.st_atim.tv_sec &&
-				in.body.setattr.atimensec ==
+				(long)in.body.setattr.atimensec ==
 					sb.st_atim.tv_nsec);
 		}, Eq(true)),
 		_)
@@ -480,7 +480,7 @@ TEST_F(Read, atime_during_setattr)
 				in.body.setattr.valid == valid &&
 				(time_t)in.body.setattr.atime ==
 					sb.st_atim.tv_sec &&
-				in.body.setattr.atimensec ==
+				(long)in.body.setattr.atimensec ==
 					sb.st_atim.tv_nsec);
 		}, Eq(true)),
 		_)
