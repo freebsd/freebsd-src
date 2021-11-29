@@ -1743,7 +1743,7 @@
 	}
 335	AUE_NULL	STD|CAPENABLED {
 		int utrace(
-		   _In_reads_bytes_(len) const void *addr,
+		    _In_reads_bytes_(len) const void *addr,
 		    size_t len
 		);
 	}
@@ -2337,8 +2337,7 @@
 		ssize_t extattr_list_link(
 		    _In_z_ const char *path,
 		    int attrnamespace,
-		    _Out_writes_bytes_opt_(nbytes)
-		    void *data,
+		    _Out_writes_bytes_opt_(nbytes) void *data,
 		    size_t nbytes
 		);
 	}
