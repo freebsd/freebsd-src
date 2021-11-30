@@ -461,16 +461,21 @@ BcRand bc_rand_int(BcRNG *r) {
 
 	// Get the actual PRNG.
 	BcRNGData *rng = bc_vec_top(&r->v);
+	BcRand res;
 
 	// Make sure the PRNG is seeded.
 	if (BC_ERR(BC_RAND_ZERO(rng))) bc_rand_srand(rng);
 
-	// This is the important part of the PRNG. This is the stuff from PCG,
-	// including the return statement.
+	BC_SIG_LOCK;
+
+	// This is the important part of the PRNG. This is the stuff from PCG.
 	bc_rand_step(rng);
 	bc_rand_propagate(r, rng);
+	res = bc_rand_output(rng);
 
-	return bc_rand_output(rng);
+	BC_SIG_UNLOCK;
+
+	return res;
 }
 
 BcRand bc_rand_bounded(BcRNG *r, BcRand bound) {

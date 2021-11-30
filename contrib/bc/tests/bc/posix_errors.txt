@@ -7,6 +7,7 @@ halt
 define x(e) { return 0; }
 define x(e) { return 4*(e+e); }
 define x(e) { return (e+e)*4; }
+define a() { return (5); };define b() { return (6); }
 limits
 .
 if (q!=0) { x=3; } else { x=4; }

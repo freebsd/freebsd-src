@@ -77,10 +77,12 @@ $set 4
 22 "POSIX nie pozwala na porównywanie operatorów na zewn±trz, je¶li deklaracje lub pêtle"
 23 "POSIX wymaga 0 lub 1 operatora porównawczego na jeden warunek"
 24 "POSIX wymaga, aby wszystkie 3 czê¶ci pêtli nie by³y puste"
-25 "POSIX nie pozwala na notacjê wyk³adnicz±"
-26 "POSIX nie zezwala na odniesienia do tablicy jako parametrów funkcji"
-27 "POSIX wymaga, aby lewe usztywnienie znajdowa³o siê na tej samej linii co nag³ówek funkcji"
-28 "POSIX nie pozwala na przypisywanie ci±gów znaków do zmiennych lub tablic"
+25 "POSIX wymaga nowej linii pomiêdzy ¶rednikiem a definicj± funkcji"
+26 "POSIX nie pozwala na notacjê wyk³adnicz±"
+27 "POSIX nie zezwala na odniesienia do tablicy jako parametrów funkcji"
+28 "POSIX nie dopuszcza funkcji void"
+29 "POSIX wymaga, aby lewe usztywnienie znajdowa³o siê na tej samej linii co nag³ówek funkcji"
+30 "POSIX nie pozwala na przypisywanie ci±gów znaków do zmiennych lub tablic"
 
 $ B³êdy Runtime'u.
 $set 5

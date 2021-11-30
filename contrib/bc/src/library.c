@@ -77,9 +77,14 @@ BclError bcl_init(void) {
 
 	BclError e = BCL_ERROR_NONE;
 
+	BC_SIG_LOCK;
+
 	vm.refs += 1;
 
-	if (vm.refs > 1) return e;
+	if (vm.refs > 1) {
+		BC_SIG_UNLOCK;
+		return e;
+	}
 
 	// Setting these to NULL ensures that if an error occurs, we only free what
 	// is necessary.
@@ -88,8 +93,6 @@ BclError bcl_init(void) {
 	vm.out.v = NULL;
 
 	vm.abrt = false;
-
-	BC_SIG_LOCK;
 
 	// The jmp_bufs always has to be initialized first.
 	bc_vec_init(&vm.jmp_bufs, sizeof(sigjmp_buf), BC_DTOR_NONE);
@@ -146,11 +149,14 @@ void bcl_free(void) {
 
 	size_t i;
 
+	BC_SIG_LOCK;
+
 	vm.refs -= 1;
 
-	if (vm.refs) return;
-
-	BC_SIG_LOCK;
+	if (vm.refs) {
+		BC_SIG_UNLOCK;
+		return;
+	}
 
 	bc_rand_free(&vm.rng);
 	bc_vec_free(&vm.out);

@@ -58,8 +58,8 @@ system.
 This `bc` should build unmodified on any POSIX-compliant system or on Windows
 starting with Windows 10 (though earlier versions may work).
 
-For more complex build requirements than the ones below, see the
-[build manual][5].
+For more complex build requirements than the ones below, see the [build
+manual][5].
 
 ### Windows
 
@@ -76,38 +76,45 @@ support) disabled, with both calculators built.
 
 #### `bc`
 
-To build `bc`, you can open the `bc.sln` file in Visual Studio, select the
+To build `bc`, you can open the `vs/bc.sln` file in Visual Studio, select the
 configuration, and build.
 
 You can also build using MSBuild with the following from the root directory:
 
 ```
-msbuild -property:Configuration=<config> bc.sln
+msbuild -property:Configuration=<config> vs/bc.sln
 ```
 
 where `<config>` is either one of `Debug` or `Release`.
 
+On Windows, the calculators are built as `vs/bin/<platform>/<config>/bc.exe` and
+`vs/bin/<Platform>/<Config>/dc.exe`, where `<platform>` can be either `Win32` or
+`x64`, and `<config>` can be `Debug` or `Release`.
+
+**Note**: On Windows, `dc.exe` is just copied from `bc.exe`; it is not linked.
+Patches are welcome for a way to do that.
+
 #### `bcl` (Library)
 
-To build the library, you can open the `bcl.sln` file in Visual Studio, select
-the configuration, and build.
+To build the library, you can open the `vs/bcl.sln` file in Visual Studio,
+select the configuration, and build.
 
 You can also build using MSBuild with the following from the root directory:
 
 ```
-msbuild -property:Configuration=<config> bcl.sln
+msbuild -property:Configuration=<config> vs/bcl.sln
 ```
 
-where `<config>` is either one of `Debug` or `Release`.
+where `<config>` is either one of `Debug`, `ReleaseMD`, or `ReleaseMT`.
+
+On Windows, the library is built as `vs/lib/<platform>/<config>/bcl.lib`, where
+`<platform>` can be either `Win32` or `x64`, and `<config>` can be `Debug`,
+`ReleaseMD`, or `ReleaseMT`.
 
 ### POSIX-Compatible Systems
 
 On POSIX-compatible systems, `bc` is built as `bin/bc` and `dc` is built as
-`bin/dc` by default. On Windows, they are built as `Release/bc/bc.exe` and
-`Release/bc/dc.exe`.
-
-**Note**: On Windows, `dc.exe` is just copied from `bc.exe`; it is not linked.
-Patches are welcome for a way to do that.
+`bin/dc` by default.
 
 #### Default
 
@@ -176,6 +183,24 @@ The library is built as `bin/libbcl.a` on POSIX-compatible systems or as
 `Release/bcl/bcl.lib` on Windows.
 
 #### Package and Distro Maintainers
+
+This section is for package and distro maintainers.
+
+##### Out-of-Source Builds
+
+Out-of-source builds are supported; just call `configure.sh` from the directory
+where the actual build will happen.
+
+For example, if the source is in `bc`, the build should happen in `build`, then
+call `configure.sh` and `make` like so:
+
+```
+../bc/configure.sh
+make
+```
+
+***WARNING***: The path to `configure.sh` from the build directory must not have
+spaces because `make` does not support target names with spaces.
 
 ##### Recommended Compiler
 
@@ -373,16 +398,12 @@ Files:
 
 	.gitignore           The git ignore file (maintainer use only).
 	.gitattributes       The git attributes file (maintainer use only).
-	bc.sln               The Visual Studio solution file for bc.
-	bc.vcxproj           The Visual Studio project file for bc.
-	bc.vcxproj.filters   The Visual Studio filters file for bc.
-	bcl.sln              The Visual Studio solution file for bcl.
-	bcl.vcxproj          The Visual Studio project file for bcl.
-	bcl.vcxproj.filters  The Visual Studio filters file for bcl.
+	bcl.pc.in            A template pkg-config file for bcl.
 	configure            A symlink to configure.sh to make packaging easier.
 	configure.sh         The configure script.
 	LICENSE.md           A Markdown form of the BSD 2-clause License.
 	Makefile.in          The Makefile template.
+	NEWS.md              The changelog.
 	NOTICE.md            List of contributors and copyright owners.
 	RELEASE.md           A checklist for making a release (maintainer use only).
 
@@ -395,6 +416,7 @@ Folders:
 	src      All source code.
 	scripts  A bunch of shell scripts to help with development and building.
 	tests    All tests.
+	vs       Files needed for the build on Windows.
 
 [1]: https://www.gnu.org/software/bc/
 [4]: ./LICENSE.md

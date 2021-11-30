@@ -235,7 +235,7 @@ static bool bc_opt_longoptsMatch(const char *name, const char *option) {
 	// Can never match a NULL name.
 	if (name == NULL) return false;
 
-	// Loop through
+	// Loop through.
 	for (; *a && *n && *a != '='; ++a, ++n) {
 		if (*a != *n) return false;
 	}

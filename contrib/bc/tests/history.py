@@ -253,7 +253,7 @@ def test_sigint_sigquit(exe, args, env):
 		send(child, "\t")
 		expect(child, "        ")
 		send(child, "\x03")
-		send(child, "\x1c")
+		# send(child, "\x1c")
 		wait(child)
 	except pexpect.TIMEOUT:
 		traceback.print_tb(sys.exc_info()[2])
@@ -1044,6 +1044,7 @@ dc_tests = [
 	test_dc_utf8_1,
 	test_dc_utf8_2,
 	test_dc_utf8_3,
+	test_dc_utf8_4,
 	test_sigint_sigquit,
 	test_eof,
 	test_sigint,

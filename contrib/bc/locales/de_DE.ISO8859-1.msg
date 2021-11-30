@@ -77,10 +77,12 @@ $set 4
 22 "POSIX erlaubt keine Vergleichsoperatoren außerhalb von if-Anweisungen oder Schleifen"
 23 "POSIX benötigt 0 oder 1 Vergleichsoperatoren pro Bedingung"
 24 "POSIX erlaubt keinen leeren Ausdruck in einer for-Schleife"
-25 "POSIX erlaubt keine exponentielle Notation"
-26 "POSIX erlaubt keine Feld-Referenzen als Funktionsparameter"
-27 "POSIX erfordert, dass die linke Klammer auf der gleichen Linie wie der Funktionskopf steht"
-28 "POSIX erlaubt keine Zuweisung von Strings an Variablen oder Arrays"
+25 "POSIX verlangt einen Zeilenumbruch zwischen einem Semikolon und einer Funktionsdefinition"
+26 "POSIX erlaubt keine exponentielle Notation"
+27 "POSIX erlaubt keine Feld-Referenzen als Funktionsparameter"
+28 "POSIX erlaubt keine ungültigen Funktionen"
+29 "POSIX erfordert, dass die linke Klammer auf der gleichen Linie wie der Funktionskopf steht"
+30 "POSIX erlaubt keine Zuweisung von Strings an Variablen oder Arrays"
 
 $ Runtime errors.
 $set 5

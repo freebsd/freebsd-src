@@ -77,10 +77,12 @@ $set 4
 22 "POSIX no permite operadores de comparación aparte de \"if\" expresión o bucles"
 23 "POSIX requiere 0 o 1 operadores de comparisón para cada condición"
 24 "POSIX requiere todos 3 partes de una bucla que no esta vacío"
-25 "POSIX no permite una notación exponencial"
-26 "POSIX no permite una referencia a una matriz como un parámetro de función"
-27 "POSIX requiere el llave de la izquierda que sea en la misma línea que los parámetros de la función"
-28 "POSIX no permite asignar cadenas a variables o matrices"
+25 "POSIX requiere una nueva línea entre un punto y coma y una definición de función"
+26 "POSIX no permite una notación exponencial"
+27 "POSIX no permite una referencia a una matriz como un parámetro de función"
+28 "POSIX no permite funciones void"
+29 "POSIX requiere el llave de la izquierda que sea en la misma línea que los parámetros de la función"
+30 "POSIX no permite asignar cadenas a variables o matrices"
 
 $ Runtime errors.
 $set 5

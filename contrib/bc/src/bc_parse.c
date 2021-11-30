@@ -79,6 +79,7 @@ static bool bc_parse_inst_isLeaf(BcInst t) {
  * that can legally end a statement. In bc's case, it could be a newline, a
  * semicolon, and a brace in certain cases.
  * @param p  The parser.
+ * @return   True if the token is a legal delimiter.
  */
 static bool bc_parse_isDelimiter(const BcParse *p) {
 
@@ -125,6 +126,23 @@ static bool bc_parse_isDelimiter(const BcParse *p) {
 	}
 
 	return good;
+}
+
+/**
+ * Returns true if we are in top level of a function body. The POSIX grammar
+ * is defined such that anything is allowed after a function body, so we must
+ * use this function to detect that case when ending a function body.
+ * @param p  The parser.
+ * @return   True if we are in the top level of parsing a function body.
+ */
+static bool bc_parse_TopFunc(const BcParse *p) {
+
+	bool good = p->flags.len == 2;
+
+	uint16_t val = BC_PARSE_FLAG_BRACE | BC_PARSE_FLAG_FUNC_INNER;
+	val |= BC_PARSE_FLAG_FUNC;
+
+	return good && BC_PARSE_TOP_FLAG(p) == val;
 }
 
 /**
@@ -329,11 +347,7 @@ static void bc_parse_call(BcParse *p, const char *name, uint8_t flags) {
 	// not define it, it's a *runtime* error, not a parse error.
 	if (idx == BC_VEC_INVALID_IDX) {
 
-		BC_SIG_LOCK;
-
 		idx = bc_program_insertFunc(p->prog, name);
-
-		BC_SIG_UNLOCK;
 
 		assert(idx != BC_VEC_INVALID_IDX);
 
@@ -359,14 +373,12 @@ static void bc_parse_name(BcParse *p, BcInst *type,
 {
 	char *name;
 
-	BC_SIG_LOCK;
+	BC_SIG_ASSERT_LOCKED;
 
 	// We want a copy of the name since the lexer might overwrite its copy.
 	name = bc_vm_strdup(p->l.str.v);
 
 	BC_SETJMP_LOCKED(err);
-
-	BC_SIG_UNLOCK;
 
 	// We need the next token to see if it's just a variable or something more.
 	bc_lex_next(&p->l);
@@ -431,9 +443,9 @@ static void bc_parse_name(BcParse *p, BcInst *type,
 
 err:
 	// Need to make sure to unallocate the name.
-	BC_SIG_MAYLOCK;
 	free(name);
 	BC_LONGJMP_CONT;
+	BC_SIG_MAYLOCK;
 }
 
 /**
@@ -887,7 +899,7 @@ static void bc_parse_endBody(BcParse *p, bool brace) {
 		bc_lex_next(&p->l);
 
 		// If the next token is not a delimiter, that is a problem.
-		if (BC_ERR(!bc_parse_isDelimiter(p)))
+		if (BC_ERR(!bc_parse_isDelimiter(p) && !bc_parse_TopFunc(p)))
 			bc_parse_err(p, BC_ERR_PARSE_TOKEN);
 	}
 
@@ -1315,14 +1327,8 @@ static void bc_parse_func(BcParse *p) {
 	// Make sure the functions map and vector are synchronized.
 	assert(p->prog->fns.len == p->prog->fn_map.len);
 
-	// Must lock signals because vectors are changed, and the vector functions
-	// expect signals to be locked.
-	BC_SIG_LOCK;
-
 	// Insert the function by name into the map and vector.
 	idx = bc_program_insertFunc(p->prog, p->l.str.v);
-
-	BC_SIG_UNLOCK;
 
 	// Make sure the insert worked.
 	assert(idx);
@@ -1753,13 +1759,21 @@ static void bc_parse_stmt(BcParse *p) {
 
 	// Make sure semicolons are eaten.
 	while (p->l.t == BC_LEX_SCOLON) bc_lex_next(&p->l);
+
+	// POSIX's grammar does not allow a function definition after a semicolon
+	// without a newline, so check specifically for that case and error if
+	// the POSIX standard flag is set.
+	if (p->l.last == BC_LEX_SCOLON && p->l.t == BC_LEX_KW_DEFINE && BC_IS_POSIX)
+	{
+		bc_parse_err(p, BC_ERR_POSIX_FUNC_AFTER_SEMICOLON);
+	}
 }
 
 void bc_parse_parse(BcParse *p) {
 
 	assert(p);
 
-	BC_SETJMP(exit);
+	BC_SETJMP_LOCKED(exit);
 
 	// We should not let an EOF get here unless some partial parse was not
 	// completed, in which case, it's the user's fault.
@@ -1780,13 +1794,12 @@ void bc_parse_parse(BcParse *p) {
 
 exit:
 
-	BC_SIG_MAYLOCK;
-
 	// We need to reset on error.
 	if (BC_ERR(((vm.status && vm.status != BC_STATUS_QUIT) || vm.sig)))
 		bc_parse_reset(p);
 
 	BC_LONGJMP_CONT;
+	BC_SIG_MAYLOCK;
 }
 
 /**

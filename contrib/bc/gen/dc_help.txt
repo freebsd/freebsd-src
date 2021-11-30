@@ -142,3 +142,10 @@ Environment variables:
       If an integer and non-zero, enable prompt when TTY mode is possible.
 
       Overrides the default, which is prompt %s.
+
+  DC_EXPR_EXIT
+
+      If an integer and non-zero, exit when expressions or expression files are
+      given on the command-line, and does not exit when an integer and zero.
+
+      Overrides the default, which is %s.

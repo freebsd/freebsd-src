@@ -55,6 +55,7 @@
  * @param f  The new function.
  */
 static inline void bc_program_setVecs(BcProgram *p, BcFunc *f) {
+	BC_SIG_ASSERT_LOCKED;
 	p->consts = &f->consts;
 	p->strs = &f->strs;
 }
@@ -152,6 +153,8 @@ static void bc_program_popGlobals(BcProgram *p, bool reset) {
 
 	size_t i;
 
+	BC_SIG_ASSERT_LOCKED;
+
 	for (i = 0; i < BC_PROG_GLOBALS_LEN; ++i) {
 		BcVec *v = p->globals_v + i;
 		bc_vec_npop(v, reset ? v->len - 1 : 1);
@@ -238,11 +241,11 @@ size_t bc_program_search(BcProgram *p, const char *id, bool var) {
 	BcVec *v, *map;
 	size_t i;
 
+	BC_SIG_ASSERT_LOCKED;
+
 	// Grab the right vector and map.
 	v = var ? &p->vars : &p->arrs;
 	map = var ? &p->var_map : &p->arr_map;
-
-	BC_SIG_LOCK;
 
 	// We do an insert because the variable might not exist yet. This is because
 	// the parser calls this function. If the insert succeeds, we create a stack
@@ -252,8 +255,6 @@ size_t bc_program_search(BcProgram *p, const char *id, bool var) {
 		BcVec *temp = bc_vec_pushEmpty(v);
 		bc_array_init(temp, var);
 	}
-
-	BC_SIG_UNLOCK;
 
 	return ((BcId*) bc_vec_item(map, i))->idx;
 }
@@ -711,7 +712,9 @@ static void bc_program_read(BcProgram *p) {
 
 	// Parse *one* expression.
 	bc_parse_text(&vm.read_prs, vm.read_buf.v, false);
+	BC_SIG_LOCK;
 	vm.expr(&vm.read_prs, BC_PARSE_NOREAD | BC_PARSE_NEEDVAL);
+	BC_SIG_UNLOCK;
 
 	// We *must* have a valid expression. A semicolon cannot end an expression,
 	// although EOF can.
@@ -736,6 +739,9 @@ static void bc_program_read(BcProgram *p) {
 
 	// We want a return instruction to simplify things.
 	bc_vec_pushByte(&f->code, vm.read_ret);
+
+	// This lock is here to make sure dc's tail calls are the same length.
+	BC_SIG_LOCK;
 	bc_vec_push(&p->stack, &ip);
 
 #if DC_ENABLED
@@ -784,6 +790,9 @@ static void bc_program_printChars(const char *str) {
 
 	const char *nl;
 	size_t len = vm.nchars + strlen(str);
+	sig_atomic_t lock;
+
+	BC_SIG_TRYLOCK(lock);
 
 	bc_file_puts(&vm.fout, bc_flush_save, str);
 
@@ -794,6 +803,8 @@ static void bc_program_printChars(const char *str) {
 	if (nl != NULL) len = strlen(nl + 1);
 
 	vm.nchars = len > UINT16_MAX ? UINT16_MAX : (uint16_t) len;
+
+	BC_SIG_TRYUNLOCK(lock);
 }
 
 /**
@@ -830,7 +841,11 @@ static void bc_program_printString(const char *restrict str) {
 			if (ptr != NULL) {
 
 				// We need to specially handle a newline.
-				if (c == 'n') vm.nchars = UINT16_MAX;
+				if (c == 'n') {
+					BC_SIG_LOCK;
+					vm.nchars = UINT16_MAX;
+					BC_SIG_UNLOCK;
+				}
 
 				// Grab the actual character.
 				c = bc_program_esc_seqs[(size_t) (ptr - bc_program_esc_chars)];
@@ -1770,6 +1785,8 @@ static void bc_program_return(BcProgram *p, uchar inst) {
 		bc_vec_pop(v);
 	}
 
+	BC_SIG_LOCK;
+
 	// When we retire, pop all of the unused results.
 	bc_program_retire(p, 1, nresults);
 
@@ -1778,6 +1795,8 @@ static void bc_program_return(BcProgram *p, uchar inst) {
 
 	// Pop the stack. This is what causes the function to actually "return."
 	bc_vec_pop(&p->stack);
+
+	BC_SIG_UNLOCK;
 }
 #endif // BC_ENABLED
 
@@ -2184,8 +2203,10 @@ static void bc_program_nquit(BcProgram *p, uchar inst) {
 		// because these are for tail calls. That means that any executions that
 		// we would not have quit in that position on the stack would have quit
 		// anyway.
+		BC_SIG_LOCK;
 		bc_vec_npop(&p->stack, i);
 		bc_vec_npop(&p->tail_calls, i);
+		BC_SIG_UNLOCK;
 	}
 }
 
@@ -2311,9 +2332,9 @@ static void bc_program_execStr(BcProgram *p, const char *restrict code,
 
 		// Parse.
 		bc_parse_text(&vm.read_prs, str, false);
-		vm.expr(&vm.read_prs, BC_PARSE_NOCALL);
 
 		BC_SIG_LOCK;
+		vm.expr(&vm.read_prs, BC_PARSE_NOCALL);
 
 		BC_UNSETJMP;
 
@@ -2328,6 +2349,8 @@ static void bc_program_execStr(BcProgram *p, const char *restrict code,
 	ip.idx = 0;
 	ip.len = p->results.len;
 	ip.func = fidx;
+
+	BC_SIG_LOCK;
 
 	// Pop the operand.
 	bc_vec_pop(&p->results);
@@ -2351,6 +2374,8 @@ static void bc_program_execStr(BcProgram *p, const char *restrict code,
 
 	// Push the new function onto the execution stack and return.
 	bc_vec_push(&p->stack, &ip);
+
+	BC_SIG_UNLOCK;
 
 	return;
 
@@ -2678,7 +2703,9 @@ void bc_program_exec(BcProgram *p) {
 	code = func->code.v;
 
 	// Ensure the pointers are correct.
+	BC_SIG_LOCK;
 	bc_program_setVecs(p, func);
+	BC_SIG_UNLOCK;
 
 #if !BC_HAS_COMPUTED_GOTO
 
@@ -2759,10 +2786,12 @@ void bc_program_exec(BcProgram *p) {
 
 				// Because we changed the execution stack and where we are
 				// executing, we have to update all of this.
+				BC_SIG_LOCK;
 				ip = bc_vec_top(&p->stack);
 				func = bc_vec_item(&p->fns, ip->func);
 				code = func->code.v;
 				bc_program_setVecs(p, func);
+				BC_SIG_UNLOCK;
 
 				BC_PROG_JUMP(inst, code, ip);
 			}
@@ -2792,10 +2821,12 @@ void bc_program_exec(BcProgram *p) {
 
 				// Because we changed the execution stack and where we are
 				// executing, we have to update all of this.
+				BC_SIG_LOCK;
 				ip = bc_vec_top(&p->stack);
 				func = bc_vec_item(&p->fns, ip->func);
 				code = func->code.v;
 				bc_program_setVecs(p, func);
+				BC_SIG_UNLOCK;
 
 				BC_PROG_JUMP(inst, code, ip);
 			}
@@ -2824,10 +2855,12 @@ void bc_program_exec(BcProgram *p) {
 
 				// Because we changed the execution stack and where we are
 				// executing, we have to update all of this.
+				BC_SIG_LOCK;
 				ip = bc_vec_top(&p->stack);
 				func = bc_vec_item(&p->fns, ip->func);
 				code = func->code.v;
 				bc_program_setVecs(p, func);
+				BC_SIG_UNLOCK;
 
 				BC_PROG_JUMP(inst, code, ip);
 			}
@@ -2909,10 +2942,12 @@ void bc_program_exec(BcProgram *p) {
 
 				// Because we changed the execution stack and where we are
 				// executing, we have to update all of this.
+				BC_SIG_LOCK;
 				ip = bc_vec_top(&p->stack);
 				func = bc_vec_item(&p->fns, ip->func);
 				code = func->code.v;
 				bc_program_setVecs(p, func);
+				BC_SIG_UNLOCK;
 
 				BC_PROG_JUMP(inst, code, ip);
 			}
@@ -3086,10 +3121,12 @@ void bc_program_exec(BcProgram *p) {
 
 				// Because we changed the execution stack and where we are
 				// executing, we have to update all of this.
+				BC_SIG_LOCK;
 				ip = bc_vec_top(&p->stack);
 				func = bc_vec_item(&p->fns, ip->func);
 				code = func->code.v;
 				bc_program_setVecs(p, func);
+				BC_SIG_UNLOCK;
 
 				BC_PROG_JUMP(inst, code, ip);
 			}
@@ -3103,10 +3140,12 @@ void bc_program_exec(BcProgram *p) {
 
 				// Because we changed the execution stack and where we are
 				// executing, we have to update all of this.
+				BC_SIG_LOCK;
 				ip = bc_vec_top(&p->stack);
 				func = bc_vec_item(&p->fns, ip->func);
 				code = func->code.v;
 				bc_program_setVecs(p, func);
+				BC_SIG_UNLOCK;
 
 				BC_PROG_JUMP(inst, code, ip);
 			}
@@ -3179,10 +3218,12 @@ void bc_program_exec(BcProgram *p) {
 
 				// Because we changed the execution stack and where we are
 				// executing, we have to update all of this.
+				BC_SIG_LOCK;
 				ip = bc_vec_top(&p->stack);
 				func = bc_vec_item(&p->fns, ip->func);
 				code = func->code.v;
 				bc_program_setVecs(p, func);
+				BC_SIG_UNLOCK;
 
 				BC_PROG_JUMP(inst, code, ip);
 			}

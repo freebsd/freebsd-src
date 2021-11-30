@@ -94,8 +94,12 @@ static BcStatus bc_file_output(int fd, const char *buf, size_t n) {
 		ssize_t written = write(fd, buf + bytes, n - bytes);
 
 		// Check for error and return, if any.
-		if (BC_ERR(written == -1))
+		if (BC_ERR(written == -1)) {
+
+			BC_SIG_TRYUNLOCK(lock);
+
 			return errno == EPIPE ? BC_STATUS_EOF : BC_STATUS_ERROR_FATAL;
+		}
 
 		bytes += (size_t) written;
 	}
@@ -108,6 +112,8 @@ static BcStatus bc_file_output(int fd, const char *buf, size_t n) {
 BcStatus bc_file_flushErr(BcFile *restrict f, BcFlushType type)
 {
 	BcStatus s;
+
+	BC_SIG_ASSERT_LOCKED;
 
 	// If there is stuff to output...
 	if (f->len) {
@@ -151,7 +157,12 @@ BcStatus bc_file_flushErr(BcFile *restrict f, BcFlushType type)
 
 void bc_file_flush(BcFile *restrict f, BcFlushType type) {
 
-	BcStatus s = bc_file_flushErr(f, type);
+	BcStatus s;
+	sig_atomic_t lock;
+
+	BC_SIG_TRYLOCK(lock);
+
+	s = bc_file_flushErr(f, type);
 
 	// If we have an error...
 	if (BC_ERR(s)) {
@@ -159,16 +170,23 @@ void bc_file_flush(BcFile *restrict f, BcFlushType type) {
 		// For EOF, set it and jump.
 		if (s == BC_STATUS_EOF) {
 			vm.status = (sig_atomic_t) s;
+			BC_SIG_TRYUNLOCK(lock);
 			BC_JMP;
 		}
 		// Blow up on fatal error. Okay, not blow up, just quit.
 		else bc_vm_fatalError(BC_ERR_FATAL_IO_ERR);
 	}
+
+	BC_SIG_TRYUNLOCK(lock);
 }
 
 void bc_file_write(BcFile *restrict f, BcFlushType type,
                    const char *buf, size_t n)
 {
+	sig_atomic_t lock;
+
+	BC_SIG_TRYLOCK(lock);
+
 	// If we have enough to flush, do it.
 	if (n > f->cap - f->len) {
 		bc_file_flush(f, type);
@@ -182,15 +200,22 @@ void bc_file_write(BcFile *restrict f, BcFlushType type,
 		memcpy(f->buf + f->len, buf, n);
 		f->len += n;
 	}
+
+	BC_SIG_TRYUNLOCK(lock);
 }
 
 void bc_file_printf(BcFile *restrict f, const char *fmt, ...)
 {
 	va_list args;
+	sig_atomic_t lock;
+
+	BC_SIG_TRYLOCK(lock);
 
 	va_start(args, fmt);
 	bc_file_vprintf(f, fmt, args);
 	va_end(args);
+
+	BC_SIG_TRYUNLOCK(lock);
 }
 
 void bc_file_vprintf(BcFile *restrict f, const char *fmt, va_list args) {
@@ -198,6 +223,8 @@ void bc_file_vprintf(BcFile *restrict f, const char *fmt, va_list args) {
 	char *percent;
 	const char *ptr = fmt;
 	char buf[BC_FILE_ULL_LENGTH];
+
+	BC_SIG_ASSERT_LOCKED;
 
 	// This is a poor man's printf(). While I could look up algorithms to make
 	// it as fast as possible, and should when I write the standard library for
@@ -287,12 +314,18 @@ void bc_file_puts(BcFile *restrict f, BcFlushType type, const char *str) {
 
 void bc_file_putchar(BcFile *restrict f, BcFlushType type, uchar c) {
 
+	sig_atomic_t lock;
+
+	BC_SIG_TRYLOCK(lock);
+
 	if (f->len == f->cap) bc_file_flush(f, type);
 
 	assert(f->len < f->cap);
 
 	f->buf[f->len] = (char) c;
 	f->len += 1;
+
+	BC_SIG_TRYUNLOCK(lock);
 }
 
 void bc_file_init(BcFile *f, int fd, char *buf, size_t cap) {
