@@ -151,8 +151,10 @@ for (file_i = 0; file_i < num_files; file_i++) {
 printc("\nstatic int\n"\
 modname "_fw_modevent(module_t mod, int type, void *unused)\
 {\
-	const struct firmware *fp, *parent;\
-	int error;\
+	const struct firmware *fp;");
+if (num_files > 1)
+	printc("\tconst struct firmware *parent;");
+printc("\tint error;\
 	switch (type) {\
 	case MOD_LOAD:\n");
 
@@ -187,7 +189,7 @@ for (file_i = 0; file_i < num_files; file_i++) {
 
 	printc("\t\tif (fp == NULL)");
 	printc("\t\t\tgoto fail_" file_i ";");
-	if (file_i == 0)
+	if (file_i == 0 && num_files > 1)
 		printc("\t\tparent = fp;");
 }
 
