@@ -1134,6 +1134,11 @@ iichid_attach(device_t dev)
 		&sc->sampling_hysteresis, 0,
 		"number of missing samples before enabling of slow mode");
 	hid_add_dynamic_quirk(&sc->hw, HQ_IICHID_SAMPLING);
+
+	if (sc->sampling_rate_slow >= 0) {
+		pause("iichid", (hz + 999) / 1000);
+		(void)iichid_cmd_read(sc, NULL, 0, NULL);
+	}
 #endif /* IICHID_SAMPLING */
 
 	child = device_add_child(dev, "hidbus", -1);
