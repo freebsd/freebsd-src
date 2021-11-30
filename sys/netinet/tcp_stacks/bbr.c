@@ -309,7 +309,7 @@ int32_t bbr_sends_full_iwnd = 1;
  *
  * To implement BBR and RACK the original TCP stack was first decomposed
  * into a functional state machine with individual states
- * for each of the possible TCP connection states. The do_segement
+ * for each of the possible TCP connection states. The do_segment
  * functions role in life is to mandate the connection supports SACK
  * initially and then assure that the RACK state matches the conenction
  * state before calling the states do_segment function. Data processing
