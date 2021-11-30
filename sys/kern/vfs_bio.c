@@ -3480,7 +3480,7 @@ buf_daemon()
 static int flushwithdeps = 0;
 SYSCTL_INT(_vfs, OID_AUTO, flushwithdeps, CTLFLAG_RW | CTLFLAG_STATS,
     &flushwithdeps, 0,
-    "Number of buffers flushed with dependecies that require rollbacks");
+    "Number of buffers flushed with dependencies that require rollbacks");
 
 static int
 flushbufqueues(struct vnode *lvp, struct bufdomain *bd, int target,
