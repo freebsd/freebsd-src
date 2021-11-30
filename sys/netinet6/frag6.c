@@ -179,7 +179,7 @@ frag6_set_bucketsize(void)
 SYSCTL_INT(_net_inet6_ip6, IPV6CTL_MAXFRAGS, maxfrags,
 	CTLFLAG_RW, &ip6_maxfrags, 0,
 	"Maximum allowed number of outstanding IPv6 packet fragments. "
-	"A value of 0 means no fragmented packets will be accepted, while a "
+	"A value of 0 means no fragmented packets will be accepted, while "
 	"a value of -1 means no limit");
 
 static int
