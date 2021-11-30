@@ -342,7 +342,7 @@ pccard_detach_card(device_t dev)
 		if (pf->dev == NULL)
 			continue;
 		state = device_get_state(pf->dev);
-		if (state == DS_ATTACHED || state == DS_BUSY)
+		if (state == DS_ATTACHED)
 			device_detach(pf->dev);
 		if (pf->cfe != NULL)
 			pccard_function_disable(pf);
