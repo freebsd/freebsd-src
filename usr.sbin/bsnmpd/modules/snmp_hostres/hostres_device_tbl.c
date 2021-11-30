@@ -356,7 +356,6 @@ device_get_status(struct devinfo_dev *dev)
 	case DS_NOTPRESENT:		/* not probed or probe failed */
 		return (DS_DOWN);
 	case DS_ATTACHED:		/* attach method called */
-	case DS_BUSY:			/* device is open */
 		return (DS_RUNNING);
 	default:
 		return (DS_UNKNOWN);
