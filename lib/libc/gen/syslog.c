@@ -57,9 +57,6 @@ __FBSDID("$FreeBSD$");
 
 #include "libc_private.h"
 
-/* Maximum number of characters of syslog message */
-#define	MAXLINE		8192
-
 static int	LogFile = -1;		/* fd for log */
 static int	status;			/* connection status */
 static int	opened;			/* have done openlog() */
@@ -144,7 +141,7 @@ vsyslog1(int pri, const char *fmt, va_list ap)
 	char ch, *p;
 	long tz_offset;
 	int cnt, fd, saved_errno;
-	char hostname[MAXHOSTNAMELEN], *stdp, tbuf[MAXLINE], fmt_cpy[MAXLINE],
+	char hostname[MAXHOSTNAMELEN], *stdp, tbuf[2048], fmt_cpy[1024],
 	    errstr[64], tz_sign;
 	FILE *fp, *fmt_fp;
 	struct bufcookie tbuf_cookie;
@@ -399,19 +396,9 @@ connectlog(void)
 	struct sockaddr_un SyslogAddr;	/* AF_UNIX address of local logger */
 
 	if (LogFile == -1) {
-		socklen_t len;
-
 		if ((LogFile = _socket(AF_UNIX, SOCK_DGRAM | SOCK_CLOEXEC,
 		    0)) == -1)
 			return;
-		if (_getsockopt(LogFile, SOL_SOCKET, SO_SNDBUF, &len,
-		    &(socklen_t){sizeof(len)}) == 0) {
-			if (len < MAXLINE) {
-				len = MAXLINE;
-				(void)_setsockopt(LogFile, SOL_SOCKET, SO_SNDBUF,
-				    &len, sizeof(len));
-			}
-		}
 	}
 	if (LogFile != -1 && status == NOCONN) {
 		SyslogAddr.sun_len = sizeof(SyslogAddr);
