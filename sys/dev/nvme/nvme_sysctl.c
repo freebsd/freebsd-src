@@ -50,7 +50,7 @@ SYSCTL_INT(_hw_nvme, OID_AUTO, use_nvd, CTLFLAG_RDTUN,
     &nvme_use_nvd, 1, "1 = Create NVD devices, 0 = Create NDA devices");
 SYSCTL_BOOL(_hw_nvme, OID_AUTO, verbose_cmd_dump, CTLFLAG_RWTUN,
     &nvme_verbose_cmd_dump, 0,
-    "enable verbose command printting when a command fails");
+    "enable verbose command printing when a command fails");
 
 static void
 nvme_dump_queue(struct nvme_qpair *qpair)
