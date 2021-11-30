@@ -810,7 +810,7 @@ static void ToF(FICL_VM *pVM)
 
 /**************************************************************************
                      F l o a t P a r s e S t a t e
-** Enum to determine the current segement of a floating point number
+** Enum to determine the current segment of a floating point number
 ** being parsed.
 **************************************************************************/
 #define NUMISNEG 1
