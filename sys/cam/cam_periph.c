@@ -600,7 +600,7 @@ static u_int
 camperiphunit(struct periph_driver *p_drv, path_id_t pathid,
     target_id_t target, lun_id_t lun, const char *sn)
 {
-	bool	wired;
+	bool	wired = false;
 	u_int	unit;
 	int	i, val, dunit;
 	const char *dname, *strval;
