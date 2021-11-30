@@ -77,10 +77,12 @@ $set 4
 22 "POSIX laat geen vergelijking toe tussen operatoren buiten als verklaringen of lussen"
 23 "POSIX vereist 0 of 1 vergelijkingsoperator per conditie"
 24 "POSIX vereist dat alle 3 de delen van een lus niet leeg zijn"
-25 "POSIX laat geen exponentiële notatie toe"
-26 "POSIX staat geen arrayreferenties toe als functieparameters"
-27 "POSIX vereist dat de linkse beugel op dezelfde regel staat als de functiehoofding"
-28 "POSIX staat niet toe dat strings worden toegewezen aan variabelen of arrays"
+25 "POSIX vereist een nieuwe regel tussen een puntkomma en een functiedefinitie"
+26 "POSIX laat geen exponentiële notatie toe"
+27 "POSIX staat geen arrayreferenties toe als functieparameters"
+28 "POSIX staat geen lege functies toe"
+29 "POSIX vereist dat de linkse beugel op dezelfde regel staat als de functiehoofding"
+30 "POSIX staat niet toe dat strings worden toegewezen aan variabelen of arrays"
 
 $ Runtime fouten.
 $set 5

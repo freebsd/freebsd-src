@@ -29,6 +29,15 @@
 #
 .POSIX:
 
+ROOTDIR = %%ROOTDIR%%
+INCDIR = $(ROOTDIR)/include
+SRCDIR = $(ROOTDIR)/src
+TESTSDIR = $(ROOTDIR)/tests
+SCRIPTSDIR = $(ROOTDIR)/scripts
+GENDIR = $(ROOTDIR)/gen
+
+BUILDDIR = %%BUILDDIR%%
+
 SRC = %%SRC%%
 OBJ = %%OBJ%%
 GCDA = %%GCDA%%
@@ -39,46 +48,45 @@ BC_ENABLED = %%BC_ENABLED%%
 DC_ENABLED_NAME = DC_ENABLED
 DC_ENABLED = %%DC_ENABLED%%
 
-HEADERS = include/args.h include/file.h include/lang.h include/lex.h include/num.h include/opt.h include/parse.h include/program.h include/read.h include/status.h include/vector.h include/vm.h
-BC_HEADERS = include/bc.h
-DC_HEADERS = include/dc.h
-HISTORY_HEADERS = include/history.h
-EXTRA_MATH_HEADERS = include/rand.h
-LIBRARY_HEADERS = include/bcl.h include/library.h
+HEADERS = $(INCDIR)/args.h $(INCDIR)/file.h $(INCDIR)/lang.h $(INCDIR)/lex.h $(INCDIR)/num.h $(INCDIR)/opt.h $(INCDIR)/parse.h $(INCDIR)/program.h $(INCDIR)/read.h $(INCDIR)/status.h $(INCDIR)/vector.h $(INCDIR)/vm.h
+BC_HEADERS = $(INCDIR)/bc.h
+DC_HEADERS = $(INCDIR)/dc.h
+HISTORY_HEADERS = $(INCDIR)/history.h
+EXTRA_MATH_HEADERS = $(INCDIR)/rand.h
+LIBRARY_HEADERS = $(INCDIR)/bcl.h $(INCDIR)/library.h
 
 GEN_DIR = gen
 GEN = %%GEN%%
 GEN_EXEC = $(GEN_DIR)/$(GEN)
-GEN_C = $(GEN_DIR)/$(GEN).c
+GEN_C = $(GENDIR)/$(GEN).c
 
 GEN_EMU = %%GEN_EMU%%
 
-BC_LIB = $(GEN_DIR)/lib.bc
+BC_LIB = $(GENDIR)/lib.bc
 BC_LIB_C = $(GEN_DIR)/lib.c
 BC_LIB_O = %%BC_LIB_O%%
 BC_LIB_GCDA = $(GEN_DIR)/lib.gcda
 BC_LIB_GCNO = $(GEN_DIR)/lib.gcno
 
-BC_LIB2 = $(GEN_DIR)/lib2.bc
+BC_LIB2 = $(GENDIR)/lib2.bc
 BC_LIB2_C = $(GEN_DIR)/lib2.c
 BC_LIB2_O = %%BC_LIB2_O%%
 BC_LIB2_GCDA = $(GEN_DIR)/lib2.gcda
 BC_LIB2_GCNO = $(GEN_DIR)/lib2.gcno
 
-BC_HELP = $(GEN_DIR)/bc_help.txt
+BC_HELP = $(GENDIR)/bc_help.txt
 BC_HELP_C = $(GEN_DIR)/bc_help.c
 BC_HELP_O = %%BC_HELP_O%%
 BC_HELP_GCDA = $(GEN_DIR)/bc_help.gcda
 BC_HELP_GCNO = $(GEN_DIR)/bc_help.gcno
 
-DC_HELP = $(GEN_DIR)/dc_help.txt
+DC_HELP = $(GENDIR)/dc_help.txt
 DC_HELP_C = $(GEN_DIR)/dc_help.c
 DC_HELP_O = %%DC_HELP_O%%
 DC_HELP_GCDA = $(GEN_DIR)/dc_help.gcda
 DC_HELP_GCNO = $(GEN_DIR)/dc_help.gcno
 
 BIN = bin
-LOCALES = locales
 EXEC_SUFFIX = %%EXECSUFFIX%%
 EXEC_PREFIX = %%EXECPREFIX%%
 
@@ -97,7 +105,7 @@ LIB_NAME = $(LIB).a
 LIBBC = $(BIN)/$(LIB_NAME)
 BCL = bcl
 BCL_TEST = $(BIN)/$(BCL)
-BCL_TEST_C = tests/$(BCL).c
+BCL_TEST_C = $(TESTSDIR)/$(BCL).c
 
 MANUALS = manuals
 BC_MANPAGE_NAME = $(EXEC_PREFIX)$(BC)$(EXEC_SUFFIX).1
@@ -112,9 +120,13 @@ BCL_MD = $(BCL_MANPAGE).md
 
 MANPAGE_INSTALL_ARGS = -Dm644
 BINARY_INSTALL_ARGS = -Dm755
+PC_INSTALL_ARGS = $(MANPAGE_INSTALL_ARGS)
+
+BCL_PC = $(BCL).pc
+PC_PATH = %%PC_PATH%%
 
 BCL_HEADER_NAME = bcl.h
-BCL_HEADER = include/$(BCL_HEADER_NAME)
+BCL_HEADER = $(INCDIR)/$(BCL_HEADER_NAME)
 
 %%DESTDIR%%
 BINDIR = %%BINDIR%%
@@ -146,6 +158,8 @@ BC_DEFAULT_TTY_MODE = %%BC_DEFAULT_TTY_MODE%%
 DC_DEFAULT_TTY_MODE = %%DC_DEFAULT_TTY_MODE%%
 BC_DEFAULT_PROMPT = %%BC_DEFAULT_PROMPT%%
 DC_DEFAULT_PROMPT = %%DC_DEFAULT_PROMPT%%
+BC_DEFAULT_EXPR_EXIT = %%BC_DEFAULT_EXPR_EXIT%%
+DC_DEFAULT_EXPR_EXIT = %%DC_DEFAULT_EXPR_EXIT%%
 
 RM = rm
 MKDIR = mkdir
@@ -158,13 +172,13 @@ MINISTAT_EXEC = $(SCRIPTS)/$(MINISTAT)
 BITFUNCGEN = bitfuncgen
 BITFUNCGEN_EXEC = $(SCRIPTS)/$(BITFUNCGEN)
 
-INSTALL = $(SCRIPTS)/exec-install.sh
-SAFE_INSTALL = $(SCRIPTS)/safe-install.sh
-LINK = $(SCRIPTS)/link.sh
-MANPAGE = $(SCRIPTS)/manpage.sh
-KARATSUBA = $(SCRIPTS)/karatsuba.py
-LOCALE_INSTALL = $(SCRIPTS)/locale_install.sh
-LOCALE_UNINSTALL = $(SCRIPTS)/locale_uninstall.sh
+INSTALL = $(SCRIPTSDIR)/exec-install.sh
+SAFE_INSTALL = $(SCRIPTSDIR)/safe-install.sh
+LINK = $(SCRIPTSDIR)/link.sh
+MANPAGE = $(SCRIPTSDIR)/manpage.sh
+KARATSUBA = $(SCRIPTSDIR)/karatsuba.py
+LOCALE_INSTALL = $(SCRIPTSDIR)/locale_install.sh
+LOCALE_UNINSTALL = $(SCRIPTSDIR)/locale_uninstall.sh
 
 VALGRIND_ARGS = --error-exitcode=100 --leak-check=full --show-leak-kinds=all --errors-for-leak-kinds=all
 
@@ -176,14 +190,16 @@ BC_DEFS0 = -DBC_DEFAULT_BANNER=$(BC_DEFAULT_BANNER)
 BC_DEFS1 = -DBC_DEFAULT_SIGINT_RESET=$(BC_DEFAULT_SIGINT_RESET)
 BC_DEFS2 = -DBC_DEFAULT_TTY_MODE=$(BC_DEFAULT_TTY_MODE)
 BC_DEFS3 = -DBC_DEFAULT_PROMPT=$(BC_DEFAULT_PROMPT)
-BC_DEFS = $(BC_DEFS0) $(BC_DEFS1) $(BC_DEFS2) $(BC_DEFS3)
+BC_DEFS4 = -DBC_DEFAULT_EXPR_EXIT=$(BC_DEFAULT_EXPR_EXIT)
+BC_DEFS = $(BC_DEFS0) $(BC_DEFS1) $(BC_DEFS2) $(BC_DEFS3) $(BC_DEFS4)
 DC_DEFS1 = -DDC_DEFAULT_SIGINT_RESET=$(DC_DEFAULT_SIGINT_RESET)
 DC_DEFS2 = -DDC_DEFAULT_TTY_MODE=$(DC_DEFAULT_TTY_MODE)
 DC_DEFS3 = -DDC_DEFAULT_PROMPT=$(DC_DEFAULT_PROMPT)
-DC_DEFS = $(DC_DEFS1) $(DC_DEFS2) $(DC_DEFS3)
+DC_DEFS4 = -DDC_DEFAULT_EXPR_EXIT=$(DC_DEFAULT_EXPR_EXIT)
+DC_DEFS = $(DC_DEFS1) $(DC_DEFS2) $(DC_DEFS3) $(DC_DEFS4)
 
 CPPFLAGS1 = -D$(BC_ENABLED_NAME)=$(BC_ENABLED) -D$(DC_ENABLED_NAME)=$(DC_ENABLED)
-CPPFLAGS2 = $(CPPFLAGS1) -I./include/ -DBUILD_TYPE=$(BC_BUILD_TYPE) %%LONG_BIT_DEFINE%%
+CPPFLAGS2 = $(CPPFLAGS1) -I$(INCDIR)/ -DBUILD_TYPE=$(BC_BUILD_TYPE) %%LONG_BIT_DEFINE%%
 CPPFLAGS3 = $(CPPFLAGS2) -DEXECPREFIX=$(EXEC_PREFIX) -DMAINEXEC=$(MAIN_EXEC)
 CPPFLAGS4 = $(CPPFLAGS3) -D_POSIX_C_SOURCE=200809L -D_XOPEN_SOURCE=700 %%BSD%%
 CPPFLAGS5 = $(CPPFLAGS4) -DBC_NUM_KARATSUBA_LEN=$(BC_NUM_KARATSUBA_LEN)
@@ -212,7 +228,10 @@ all: %%DEFAULT_TARGET%%
 %%SECOND_TARGET%%: %%SECOND_TARGET_PREREQS%%
 	%%SECOND_TARGET_CMD%%
 
-$(GEN_EXEC):
+$(GEN_DIR):
+	mkdir -p $(GEN_DIR)
+
+$(GEN_EXEC): $(GEN_DIR)
 	%%GEN_EXEC_TARGET%%
 
 $(BC_LIB_C): $(GEN_EXEC) $(BC_LIB)
@@ -242,13 +261,18 @@ $(DC_HELP_O): $(DC_HELP_C)
 $(BIN):
 	$(MKDIR) -p $(BIN)
 
+src:
+	$(MKDIR) -p src
+
 headers: %%HEADERS%%
 
 $(MINISTAT):
-	$(HOSTCC) $(HOSTCFLAGS) -lm -o $(MINISTAT_EXEC) scripts/ministat.c
+	mkdir -p $(SCRIPTS)
+	$(HOSTCC) $(HOSTCFLAGS) -lm -o $(MINISTAT_EXEC) $(ROOTDIR)/scripts/ministat.c
 
 $(BITFUNCGEN):
-	$(HOSTCC) $(HOSTCFLAGS) -lm -o $(BITFUNCGEN_EXEC) scripts/bitfuncgen.c
+	mkdir -p $(SCRIPTS)
+	$(HOSTCC) $(HOSTCFLAGS) -lm -o $(BITFUNCGEN_EXEC) $(ROOTDIR)/scripts/bitfuncgen.c
 
 help:
 	@printf 'available targets:\n'
@@ -314,18 +338,18 @@ test_bc_tests:%%BC_TESTS%%
 test_bc_scripts:%%BC_SCRIPT_TESTS%%
 
 test_bc_stdin:
-	@sh tests/stdin.sh bc %%BC_TEST_EXEC%%
+	@export BC_TEST_OUTPUT_DIR="$(BUILDDIR)/tests"; sh $(TESTSDIR)/stdin.sh bc %%BC_TEST_EXEC%%
 
 test_bc_read:
-	@sh tests/read.sh bc %%BC_TEST_EXEC%%
+	@export BC_TEST_OUTPUT_DIR="$(BUILDDIR)/tests"; sh $(TESTSDIR)/read.sh bc %%BC_TEST_EXEC%%
 
 test_bc_errors: test_bc_error_lines%%BC_ERROR_TESTS%%
 
 test_bc_error_lines:
-	@sh tests/errors.sh bc %%BC_TEST_EXEC%%
+	@export BC_TEST_OUTPUT_DIR="$(BUILDDIR)/tests"; sh $(TESTSDIR)/errors.sh bc %%BC_TEST_EXEC%%
 
 test_bc_other:
-	@sh tests/other.sh bc $(BC_ENABLE_EXTRA_MATH) %%BC_TEST_EXEC%%
+	@export BC_TEST_OUTPUT_DIR="$(BUILDDIR)/tests"; sh $(TESTSDIR)/other.sh bc $(BC_ENABLE_EXTRA_MATH) %%BC_TEST_EXEC%%
 
 test_bc_header:
 	@printf '$(TEST_STARS)\n\nRunning bc tests...\n\n'
@@ -338,18 +362,18 @@ test_dc_tests:%%DC_TESTS%%
 test_dc_scripts:%%DC_SCRIPT_TESTS%%
 
 test_dc_stdin:
-	@sh tests/stdin.sh dc %%DC_TEST_EXEC%%
+	@export BC_TEST_OUTPUT_DIR="$(BUILDDIR)/tests"; sh $(TESTSDIR)/stdin.sh dc %%DC_TEST_EXEC%%
 
 test_dc_read:
-	@sh tests/read.sh dc %%DC_TEST_EXEC%%
+	@export BC_TEST_OUTPUT_DIR="$(BUILDDIR)/tests"; sh $(TESTSDIR)/read.sh dc %%DC_TEST_EXEC%%
 
 test_dc_errors: test_dc_error_lines%%DC_ERROR_TESTS%%
 
 test_dc_error_lines:
-	@sh tests/errors.sh dc %%DC_TEST_EXEC%%
+	@export BC_TEST_OUTPUT_DIR="$(BUILDDIR)/tests"; sh $(TESTSDIR)/errors.sh dc %%DC_TEST_EXEC%%
 
 test_dc_other:
-	@sh tests/other.sh dc $(BC_ENABLE_EXTRA_MATH) %%DC_TEST_EXEC%%
+	@export BC_TEST_OUTPUT_DIR="$(BUILDDIR)/tests"; sh $(TESTSDIR)/other.sh dc $(BC_ENABLE_EXTRA_MATH) %%DC_TEST_EXEC%%
 
 test_dc_header:
 	@printf '$(TEST_STARS)\n\nRunning dc tests...\n\n'
@@ -368,107 +392,110 @@ test_bc_history_skip:
 	@printf 'No bc history tests to run\n'
 
 test_bc_history0:
-	@sh tests/history.sh bc 0 %%BC_TEST_EXEC%%
+	@sh $(TESTSDIR)/history.sh bc 0 %%BC_TEST_EXEC%%
 
 test_bc_history1:
-	@sh tests/history.sh bc 1 %%BC_TEST_EXEC%%
+	@sh $(TESTSDIR)/history.sh bc 1 %%BC_TEST_EXEC%%
 
 test_bc_history2:
-	@sh tests/history.sh bc 2 %%BC_TEST_EXEC%%
+	@sh $(TESTSDIR)/history.sh bc 2 %%BC_TEST_EXEC%%
 
 test_bc_history3:
-	@sh tests/history.sh bc 3 %%BC_TEST_EXEC%%
+	@sh $(TESTSDIR)/history.sh bc 3 %%BC_TEST_EXEC%%
 
 test_bc_history4:
-	@sh tests/history.sh bc 4 %%BC_TEST_EXEC%%
+	@sh $(TESTSDIR)/history.sh bc 4 %%BC_TEST_EXEC%%
 
 test_bc_history5:
-	@sh tests/history.sh bc 5 %%BC_TEST_EXEC%%
+	@sh $(TESTSDIR)/history.sh bc 5 %%BC_TEST_EXEC%%
 
 test_bc_history6:
-	@sh tests/history.sh bc 6 %%BC_TEST_EXEC%%
+	@sh $(TESTSDIR)/history.sh bc 6 %%BC_TEST_EXEC%%
 
 test_bc_history7:
-	@sh tests/history.sh bc 7 %%BC_TEST_EXEC%%
+	@sh $(TESTSDIR)/history.sh bc 7 %%BC_TEST_EXEC%%
 
 test_bc_history8:
-	@sh tests/history.sh bc 8 %%BC_TEST_EXEC%%
+	@sh $(TESTSDIR)/history.sh bc 8 %%BC_TEST_EXEC%%
 
 test_bc_history9:
-	@sh tests/history.sh bc 9 %%BC_TEST_EXEC%%
+	@sh $(TESTSDIR)/history.sh bc 9 %%BC_TEST_EXEC%%
 
 test_bc_history10:
-	@sh tests/history.sh bc 10 %%BC_TEST_EXEC%%
+	@sh $(TESTSDIR)/history.sh bc 10 %%BC_TEST_EXEC%%
 
 test_bc_history11:
-	@sh tests/history.sh bc 11 %%BC_TEST_EXEC%%
+	@sh $(TESTSDIR)/history.sh bc 11 %%BC_TEST_EXEC%%
 
 test_bc_history12:
-	@sh tests/history.sh bc 12 %%BC_TEST_EXEC%%
+	@sh $(TESTSDIR)/history.sh bc 12 %%BC_TEST_EXEC%%
 
 test_bc_history13:
-	@sh tests/history.sh bc 13 %%BC_TEST_EXEC%%
+	@sh $(TESTSDIR)/history.sh bc 13 %%BC_TEST_EXEC%%
 
 test_bc_history14:
-	@sh tests/history.sh bc 14 %%BC_TEST_EXEC%%
+	@sh $(TESTSDIR)/history.sh bc 14 %%BC_TEST_EXEC%%
 
 test_bc_history15:
-	@sh tests/history.sh bc 15 %%BC_TEST_EXEC%%
+	@sh $(TESTSDIR)/history.sh bc 15 %%BC_TEST_EXEC%%
 
 test_bc_history16:
-	@sh tests/history.sh bc 16 %%BC_TEST_EXEC%%
+	@sh $(TESTSDIR)/history.sh bc 16 %%BC_TEST_EXEC%%
 
 test_bc_history17:
-	@sh tests/history.sh bc 17 %%BC_TEST_EXEC%%
+	@sh $(TESTSDIR)/history.sh bc 17 %%BC_TEST_EXEC%%
 
 test_bc_history18:
-	@sh tests/history.sh bc 18 %%BC_TEST_EXEC%%
+	@sh $(TESTSDIR)/history.sh bc 18 %%BC_TEST_EXEC%%
 
 test_bc_history19:
-	@sh tests/history.sh bc 19 %%BC_TEST_EXEC%%
+	@sh $(TESTSDIR)/history.sh bc 19 %%BC_TEST_EXEC%%
 
 test_bc_history20:
-	@sh tests/history.sh bc 20 %%BC_TEST_EXEC%%
+	@sh $(TESTSDIR)/history.sh bc 20 %%BC_TEST_EXEC%%
 
 test_bc_history21:
-	@sh tests/history.sh bc 21 %%BC_TEST_EXEC%%
+	@sh $(TESTSDIR)/history.sh bc 21 %%BC_TEST_EXEC%%
 
 test_dc_history:%%DC_HISTORY_TEST_PREREQS%%
 
-test_dc_history_all: test_dc_history0 test_dc_history1 test_dc_history2 test_dc_history3 test_dc_history4 test_dc_history5 test_dc_history6 test_dc_history7 test_dc_history8 test_dc_history9
+test_dc_history_all: test_dc_history0 test_dc_history1 test_dc_history2 test_dc_history3 test_dc_history4 test_dc_history5 test_dc_history6 test_dc_history7 test_dc_history8 test_dc_history9 test_dc_history10
 
 test_dc_history_skip:
 	@printf 'No dc history tests to run\n'
 
 test_dc_history0:
-	@sh tests/history.sh dc 0 %%DC_TEST_EXEC%%
+	@sh $(TESTSDIR)/history.sh dc 0 %%DC_TEST_EXEC%%
 
 test_dc_history1:
-	@sh tests/history.sh dc 1 %%DC_TEST_EXEC%%
+	@sh $(TESTSDIR)/history.sh dc 1 %%DC_TEST_EXEC%%
 
 test_dc_history2:
-	@sh tests/history.sh dc 2 %%DC_TEST_EXEC%%
+	@sh $(TESTSDIR)/history.sh dc 2 %%DC_TEST_EXEC%%
 
 test_dc_history3:
-	@sh tests/history.sh dc 3 %%DC_TEST_EXEC%%
+	@sh $(TESTSDIR)/history.sh dc 3 %%DC_TEST_EXEC%%
 
 test_dc_history4:
-	@sh tests/history.sh dc 4 %%DC_TEST_EXEC%%
+	@sh $(TESTSDIR)/history.sh dc 4 %%DC_TEST_EXEC%%
 
 test_dc_history5:
-	@sh tests/history.sh dc 5 %%DC_TEST_EXEC%%
+	@sh $(TESTSDIR)/history.sh dc 5 %%DC_TEST_EXEC%%
 
 test_dc_history6:
-	@sh tests/history.sh dc 6 %%DC_TEST_EXEC%%
+	@sh $(TESTSDIR)/history.sh dc 6 %%DC_TEST_EXEC%%
 
 test_dc_history7:
-	@sh tests/history.sh dc 7 %%DC_TEST_EXEC%%
+	@sh $(TESTSDIR)/history.sh dc 7 %%DC_TEST_EXEC%%
 
 test_dc_history8:
-	@sh tests/history.sh dc 8 %%DC_TEST_EXEC%%
+	@sh $(TESTSDIR)/history.sh dc 8 %%DC_TEST_EXEC%%
 
 test_dc_history9:
-	@sh tests/history.sh dc 9 %%DC_TEST_EXEC%%
+	@sh $(TESTSDIR)/history.sh dc 9 %%DC_TEST_EXEC%%
+
+test_dc_history10:
+	@sh $(TESTSDIR)/history.sh dc 10 %%DC_TEST_EXEC%%
 
 test_history_header:
 	@printf '$(TEST_STARS)\n\nRunning history tests...\n\n'
@@ -505,18 +532,17 @@ clean:%%CLEAN_PREREQS%%
 	@$(RM) -f $(BC_EXEC)
 	@$(RM) -f $(DC_EXEC)
 	@$(RM) -fr $(BIN)
-	@$(RM) -f $(LOCALES)/*.cat
 	@$(RM) -f $(BC_LIB_C) $(BC_LIB_O)
 	@$(RM) -f $(BC_LIB2_C) $(BC_LIB2_O)
 	@$(RM) -f $(BC_HELP_C) $(BC_HELP_O)
 	@$(RM) -f $(DC_HELP_C) $(DC_HELP_O)
-	@$(RM) -fr Debug/ Release/
+	@$(RM) -fr vs/bin/ vs/lib/
 
 clean_benchmarks:
 	@printf 'Cleaning benchmarks...\n'
 	@$(RM) -f $(MINISTAT_EXEC)
-	@$(RM) -f benchmarks/bc/*.txt
-	@$(RM) -f benchmarks/dc/*.txt
+	@$(RM) -f $(ROOTDIR)/benchmarks/bc/*.txt
+	@$(RM) -f $(ROOTDIR)/benchmarks/dc/*.txt
 
 clean_config: clean clean_benchmarks
 	@printf 'Cleaning config...\n'
@@ -544,19 +570,19 @@ clean_tests: clean clean_config clean_coverage
 	@printf 'Cleaning test files...\n'
 	@$(RM) -fr $(BC_TEST_OUTPUTS) $(DC_TEST_OUTPUTS)
 	@$(RM) -fr $(BC_FUZZ_OUTPUTS) $(DC_FUZZ_OUTPUTS)
-	@$(RM) -f tests/bc/parse.txt tests/bc/parse_results.txt
-	@$(RM) -f tests/bc/print.txt tests/bc/print_results.txt
-	@$(RM) -f tests/bc/bessel.txt tests/bc/bessel_results.txt
-	@$(RM) -f tests/bc/strings2.txt tests/bc/strings2_results.txt
-	@$(RM) -f tests/bc/scripts/bessel.txt
-	@$(RM) -f tests/bc/scripts/parse.txt
-	@$(RM) -f tests/bc/scripts/print.txt
-	@$(RM) -f tests/bc/scripts/add.txt
-	@$(RM) -f tests/bc/scripts/divide.txt
-	@$(RM) -f tests/bc/scripts/multiply.txt
-	@$(RM) -f tests/bc/scripts/subtract.txt
-	@$(RM) -f tests/bc/scripts/strings2.txt
-	@$(RM) -f tests/dc/scripts/prime.txt
+	@$(RM) -f $(TESTSDIR)/bc/parse.txt $(TESTSDIR)/bc/parse_results.txt
+	@$(RM) -f $(TESTSDIR)/bc/print.txt $(TESTSDIR)/bc/print_results.txt
+	@$(RM) -f $(TESTSDIR)/bc/bessel.txt $(TESTSDIR)/bc/bessel_results.txt
+	@$(RM) -f $(TESTSDIR)/bc/strings2.txt $(TESTSDIR)/bc/strings2_results.txt
+	@$(RM) -f $(TESTSDIR)/bc/scripts/bessel.txt
+	@$(RM) -f $(TESTSDIR)/bc/scripts/parse.txt
+	@$(RM) -f $(TESTSDIR)/bc/scripts/print.txt
+	@$(RM) -f $(TESTSDIR)/bc/scripts/add.txt
+	@$(RM) -f $(TESTSDIR)/bc/scripts/divide.txt
+	@$(RM) -f $(TESTSDIR)/bc/scripts/multiply.txt
+	@$(RM) -f $(TESTSDIR)/bc/scripts/subtract.txt
+	@$(RM) -f $(TESTSDIR)/bc/scripts/strings2.txt
+	@$(RM) -f $(TESTSDIR)/dc/scripts/prime.txt
 	@$(RM) -f .log_*.txt
 	@$(RM) -f .math.txt .results.txt .ops.txt
 	@$(RM) -f .test.txt
@@ -581,10 +607,11 @@ install_bcl_header:
 	$(SAFE_INSTALL) $(MANPAGE_INSTALL_ARGS) $(BCL_HEADER) $(DESTDIR)$(INCLUDEDIR)/$(BCL_HEADER_NAME)
 
 install_execs:
-	$(INSTALL) $(DESTDIR)$(BINDIR) "$(EXEC_SUFFIX)"
+	$(INSTALL) $(DESTDIR)$(BINDIR) "$(EXEC_SUFFIX)" "$(BUILDDIR)/bin"
 
-install_library:
+install_library: install_bcl_header
 	$(SAFE_INSTALL) $(BINARY_INSTALL_ARGS) $(LIBBC) $(DESTDIR)$(LIBDIR)/$(LIB_NAME)
+	%%PKG_CONFIG_INSTALL%%
 
 install:%%INSTALL_LOCALES_PREREQS%%%%INSTALL_MAN_PREREQS%%%%INSTALL_PREREQS%%
 
@@ -603,8 +630,9 @@ uninstall_dc_manpage:
 uninstall_dc:
 	$(RM) -f $(DESTDIR)$(BINDIR)/$(EXEC_PREFIX)$(DC)$(EXEC_SUFFIX)
 
-uninstall_library:
+uninstall_library: uninstall_bcl_header
 	$(RM) -f $(DESTDIR)$(LIBDIR)/$(LIB_NAME)
+	%%PKG_CONFIG_UNINSTALL%%
 
 uninstall_bcl_header:
 	$(RM) -f $(DESTDIR)$(INCLUDEDIR)/$(BCL_HEADER_NAME)

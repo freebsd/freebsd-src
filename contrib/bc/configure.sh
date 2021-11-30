@@ -31,9 +31,9 @@ script="$0"
 scriptdir=$(dirname "$script")
 script=$(basename "$script")
 
-. "$scriptdir/scripts/functions.sh"
+builddir=$(pwd)
 
-cd "$scriptdir"
+. "$scriptdir/scripts/functions.sh"
 
 # Simply prints the help message and quits based on the argument.
 # @param val  The value to pass to exit. Must be an integer.
@@ -52,13 +52,15 @@ usage() {
 	printf 'usage:\n'
 	printf '    %s -h\n' "$script"
 	printf '    %s --help\n' "$script"
-	printf '    %s [-a|-bD|-dB|-c] [-CEfgGHlmMNPtTvz] [-O OPT_LEVEL] [-k KARATSUBA_LEN]\n' "$script"
+	printf '    %s [-a|-bD|-dB|-c] [-CEfgGHlmMNtTvz] [-O OPT_LEVEL] [-k KARATSUBA_LEN]\\\n' "$script"
+	printf '       [-s SETTING] [-S SETTING]\n'
 	printf '    %s \\\n' "$script"
 	printf '       [--library|--bc-only --disable-dc|--dc-only --disable-bc|--coverage]  \\\n'
 	printf '       [--force --debug --disable-extra-math --disable-generated-tests]      \\\n'
 	printf '       [--disable-history --disable-man-pages --disable-nls --disable-strip] \\\n'
 	printf '       [--install-all-locales] [--opt=OPT_LEVEL]                             \\\n'
 	printf '       [--karatsuba-len=KARATSUBA_LEN]                                       \\\n'
+	printf '       [--set-default-on=SETTING] [--set-default-off=SETTING]                \\\n'
 	printf '       [--prefix=PREFIX] [--bindir=BINDIR] [--datarootdir=DATAROOTDIR]       \\\n'
 	printf '       [--datadir=DATADIR] [--mandir=MANDIR] [--man1dir=MAN1DIR]             \\\n'
 	printf '\n'
@@ -205,6 +207,9 @@ usage() {
 	printf '                 path (or contain one). This is treated the same as the POSIX\n'
 	printf '                 definition of $NLSPATH (see POSIX environment variables for\n'
 	printf '                 more information). Default is "/usr/share/locale/%%L/%%N".\n'
+	printf '    PC_PATH      The location to install pkg-config files to. Must be an\n'
+	printf '                 path or contain one. Default is the first path given by the\n'
+	printf '                 output of `pkg-config --variable=pc_path pkg-config`.\n'
 	printf '    EXECSUFFIX   The suffix to append to the executable names, used to not\n'
 	printf '                 interfere with other installed bc executables. Default is "".\n'
 	printf '    EXECPREFIX   The prefix to append to the executable names, used to not\n'
@@ -290,6 +295,18 @@ usage() {
 	printf '|                 | for dc should be on  |              |                      |\n'
 	printf '|                 | in tty mode.         |              |                      |\n'
 	printf '| --------------- | -------------------- | ------------ | -------------------- |\n'
+	printf '| bc.expr_exit    | Whether to exit bc   |            1 | BC_EXPR_EXIT         |\n'
+	printf '|                 | if an expression or  |              |                      |\n'
+	printf '|                 | expression file is   |              |                      |\n'
+	printf '|                 | given with the -e or |              |                      |\n'
+	printf '|                 | -f options.          |              |                      |\n'
+	printf '| --------------- | -------------------- | ------------ | -------------------- |\n'
+	printf '| dc.expr_exit    | Whether to exit dc   |            1 | DC_EXPR_EXIT         |\n'
+	printf '|                 | if an expression or  |              |                      |\n'
+	printf '|                 | expression file is   |              |                      |\n'
+	printf '|                 | given with the -e or |              |                      |\n'
+	printf '|                 | -f options.          |              |                      |\n'
+	printf '| --------------- | -------------------- | ------------ | -------------------- |\n'
 	printf '\n'
 	printf 'These settings are not meant to be changed on a whim. They are meant to ensure\n'
 	printf 'that this bc and dc will conform to the expectations of the user on each\n'
@@ -374,19 +391,34 @@ replace() {
 # the arguments are all assumed to be source files that should *not* be built.
 find_src_files() {
 
+	_find_src_files_args=""
+
 	if [ "$#" -ge 1 ] && [ "$1" != "" ]; then
 
 		while [ "$#" -ge 1 ]; do
 			_find_src_files_a="${1## }"
 			shift
-			_find_src_files_args="$_find_src_files_args ! -path src/${_find_src_files_a}"
+			_find_src_files_args=$(printf '%s\n%s/src/%s\n' "$_find_src_files_args" "$scriptdir" "${_find_src_files_a}")
 		done
 
-	else
-		_find_src_files_args="-print"
 	fi
 
-	printf '%s\n' $(find src/ -depth -name "*.c" $_find_src_files_args)
+	_find_src_files_files=$(find "$scriptdir/src/" -depth -name "*.c" -print)
+
+	_find_src_files_result=""
+
+	for _find_src_files_f in $_find_src_files_files; do
+
+		# If this is true, the file is part of args, and therefore, unneeded.
+		if [ "${_find_src_files_args##*$_find_src_files_f}" != "${_find_src_files_args}" ]; then
+			continue
+		fi
+
+		_find_src_files_result=$(printf '%s\n%s\n' "$_find_src_files_result" "$_find_src_files_f")
+
+	done
+
+	printf '%s\n' "$_find_src_files_result"
 }
 
 # This function generates a list of files to go into the Makefile. It generates
@@ -403,10 +435,6 @@ gen_file_list() {
 	_gen_file_list_contents="$1"
 	shift
 
-	p=$(pwd)
-
-	cd "$scriptdir"
-
 	if [ "$#" -ge 1 ]; then
 		_gen_file_list_unneeded="$@"
 	else
@@ -422,7 +450,14 @@ gen_file_list() {
 	_gen_file_list_contents=$(replace "$_gen_file_list_contents" \
 		"$_gen_file_list_needle_src" "$_gen_file_list_replacement")
 
-	_gen_file_list_replacement=$(replace_exts "$_gen_file_list_replacement" "c" "o")
+	_gen_file_list_cbases=""
+
+	for _gen_file_list_f in $_gen_file_list_replacement; do
+		_gen_file_list_b=$(basename "$_gen_file_list_f")
+		_gen_file_list_cbases="$_gen_file_list_cbases src/$_gen_file_list_b"
+	done
+
+	_gen_file_list_replacement=$(replace_exts "$_gen_file_list_cbases" "c" "o")
 	_gen_file_list_contents=$(replace "$_gen_file_list_contents" \
 		"$_gen_file_list_needle_obj" "$_gen_file_list_replacement")
 
@@ -433,8 +468,6 @@ gen_file_list() {
 	_gen_file_list_replacement=$(replace_exts "$_gen_file_list_replacement" "gcda" "gcno")
 	_gen_file_list_contents=$(replace "$_gen_file_list_contents" \
 		"$_gen_file_list_needle_gcno" "$_gen_file_list_replacement")
-
-	cd "$p"
 
 	printf '%s\n' "$_gen_file_list_contents"
 }
@@ -466,16 +499,16 @@ gen_std_tests() {
 			if [ -z "${_gen_std_tests_extra_required##*$_gen_std_tests_t*}" ]; then
 				printf 'test_%s_%s:\n\t@printf "Skipping %s %s\\n"\n\n' \
 					"$_gen_std_tests_name" "$_gen_std_tests_t" "$_gen_std_tests_name" \
-					"$_gen_std_tests_t" >> "$scriptdir/Makefile"
+					"$_gen_std_tests_t" >> "Makefile"
 				continue
 			fi
 
 		fi
 
-		printf 'test_%s_%s:\n\t@sh tests/test.sh %s %s %s %s %s\n\n' \
-			"$_gen_std_tests_name" "$_gen_std_tests_t" "$_gen_std_tests_name" \
+		printf 'test_%s_%s:\n\t@export BC_TEST_OUTPUT_DIR="%s/tests"; sh \$(TESTSDIR)/test.sh %s %s %s %s %s\n\n' \
+			"$_gen_std_tests_name" "$_gen_std_tests_t" "$builddir" "$_gen_std_tests_name" \
 			"$_gen_std_tests_t" "$generate_tests" "$time_tests" \
-			"$*" >> "$scriptdir/Makefile"
+			"$*" >> "Makefile"
 
 	done
 }
@@ -512,9 +545,9 @@ gen_err_tests() {
 
 	for _gen_err_tests_t in $_gen_err_tests_fs; do
 
-		printf 'test_%s_error_%s:\n\t@sh tests/error.sh %s %s %s\n\n' \
-			"$_gen_err_tests_name" "$_gen_err_tests_t" "$_gen_err_tests_name" \
-			"$_gen_err_tests_t" "$*" >> "$scriptdir/Makefile"
+		printf 'test_%s_error_%s:\n\t@export BC_TEST_OUTPUT_DIR="%s/tests"; sh \$(TESTSDIR)/error.sh %s %s %s\n\n' \
+			"$_gen_err_tests_name" "$_gen_err_tests_t" "$builddir" "$_gen_err_tests_name" \
+			"$_gen_err_tests_t" "$*" >> "Makefile"
 
 	done
 
@@ -566,10 +599,10 @@ gen_script_tests() {
 
 		_gen_script_tests_b=$(basename "$_gen_script_tests_f" ".${_gen_script_tests_name}")
 
-		printf 'test_%s_script_%s:\n\t@sh tests/script.sh %s %s %s 1 %s %s %s\n\n' \
-			"$_gen_script_tests_name" "$_gen_script_tests_b" "$_gen_script_tests_name" \
+		printf 'test_%s_script_%s:\n\t@export BC_TEST_OUTPUT_DIR="%s/tests"; sh \$(TESTSDIR)/script.sh %s %s %s 1 %s %s %s\n\n' \
+			"$_gen_script_tests_name" "$_gen_script_tests_b" "$builddir" "$_gen_script_tests_name" \
 			"$_gen_script_tests_f" "$_gen_script_tests_extra_math" "$_gen_script_tests_generate" \
-			"$_gen_script_tests_time" "$*" >> "$scriptdir/Makefile"
+			"$_gen_script_tests_time" "$*" >> "Makefile"
 	done
 }
 
@@ -594,6 +627,8 @@ set_default() {
 		dc.tty_mode) dc_default_tty_mode="$_set_default_on" ;;
 		bc.prompt) bc_default_prompt="$_set_default_on" ;;
 		dc.prompt) dc_default_prompt="$_set_default_on" ;;
+		bc.expr_exit) bc_default_expr_exit="$_set_default_on";;
+		dc.expr_exit) dc_default_expr_exit="$_set_default_on";;
 		?) usage "Invalid setting: $_set_default_name" ;;
 
 	esac
@@ -656,6 +691,8 @@ bc_default_tty_mode=1
 dc_default_tty_mode=0
 bc_default_prompt=""
 dc_default_prompt=""
+bc_default_expr_exit=1
+dc_default_expr_exit=1
 
 # getopts is a POSIX utility, but it cannot handle long options. Thus, the
 # handling of long options is done by hand, and that's the reason that short and
@@ -946,12 +983,12 @@ executable="BC_EXEC"
 
 tests="test_bc timeconst test_dc"
 
-bc_test="@tests/all.sh bc $extra_math 1 $generate_tests $time_tests \$(BC_EXEC)"
-bc_test_np="@tests/all.sh -n bc $extra_math 1 $generate_tests $time_tests \$(BC_EXEC)"
-dc_test="@tests/all.sh dc $extra_math 1 $generate_tests $time_tests \$(DC_EXEC)"
-dc_test_np="@tests/all.sh -n dc $extra_math 1 $generate_tests $time_tests \$(DC_EXEC)"
+bc_test="@export BC_TEST_OUTPUT_DIR=\"$builddir/tests\"; \$(TESTSDIR)/all.sh bc $extra_math 1 $generate_tests $time_tests \$(BC_EXEC)"
+bc_test_np="@export BC_TEST_OUTPUT_DIR=\"$builddir/tests\"; \$(TESTSDIR)/all.sh -n bc $extra_math 1 $generate_tests $time_tests \$(BC_EXEC)"
+dc_test="@export BC_TEST_OUTPUT_DIR=\"$builddir/tests\"; \$(TESTSDIR)/all.sh dc $extra_math 1 $generate_tests $time_tests \$(DC_EXEC)"
+dc_test_np="@export BC_TEST_OUTPUT_DIR=\"$builddir/tests\"; \$(TESTSDIR)/all.sh -n dc $extra_math 1 $generate_tests $time_tests \$(DC_EXEC)"
 
-timeconst="@tests/bc/timeconst.sh tests/bc/scripts/timeconst.bc \$(BC_EXEC)"
+timeconst="@export BC_TEST_OUTPUT_DIR=\"$builddir/tests\"; \$(TESTSDIR)/bc/timeconst.sh \$(TESTSDIR)/bc/scripts/timeconst.bc \$(BC_EXEC)"
 
 # In order to have cleanup at exit, we need to be in
 # debug mode, so don't run valgrind without that.
@@ -998,6 +1035,11 @@ if [ "$library" -ne 0 ]; then
 	tests="test_library"
 	test_bc_history_prereqs=" test_bc_history_skip"
 	test_dc_history_prereqs=" test_dc_history_skip"
+
+	install_prereqs=" install_library"
+	uninstall_prereqs=" uninstall_library"
+	install_man_prereqs=" install_bcl_manpage"
+	uninstall_man_prereqs=" uninstall_bcl_manpage"
 
 elif [ "$bc_only" -eq 1 ]; then
 
@@ -1151,6 +1193,24 @@ if [ -z "${LIBDIR+set}" ]; then
 	LIBDIR="$PREFIX/lib"
 fi
 
+if [ -z "${PC_PATH+set}" ]; then
+
+	set +e
+
+	command -v pkg-config > /dev/null
+	err=$?
+
+	set -e
+
+	if [ "$err" -eq 0 ]; then
+		PC_PATH=$(pkg-config --variable=pc_path pkg-config)
+		PC_PATH="${PC_PATH%%:*}"
+	else
+		PC_PATH=""
+	fi
+
+fi
+
 # Set a default for the DATAROOTDIR. This is done if either manpages will be
 # installed, or locales are enabled because that's probably where NLS_PATH
 # points.
@@ -1195,14 +1255,14 @@ if [ "$nls" -ne 0 ]; then
 
 	flags="-DBC_ENABLE_NLS=1 -DBC_ENABLED=$bc -DDC_ENABLED=$dc"
 	flags="$flags -DBC_ENABLE_HISTORY=$hist -DBC_ENABLE_LIBRARY=0 -DBC_ENABLE_AFL=0"
-	flags="$flags -DBC_ENABLE_EXTRA_MATH=$extra_math -I./include/"
+	flags="$flags -DBC_ENABLE_EXTRA_MATH=$extra_math -I$scriptdir/include/"
 	flags="$flags -D_POSIX_C_SOURCE=200809L -D_XOPEN_SOURCE=700"
 
-	"$CC" $CPPFLAGS $CFLAGS $flags -c "src/vm.c" -o "$scriptdir/vm.o" > /dev/null 2>&1
+	"$CC" $CPPFLAGS $CFLAGS $flags -c "$scriptdir/src/vm.c" -o "./vm.o" > /dev/null 2>&1
 
 	err="$?"
 
-	rm -rf "$scriptdir/vm.o"
+	rm -rf "./vm.o"
 
 	# If this errors, it is probably because of building on Windows,
 	# and NLS is not supported on Windows, so disable it.
@@ -1218,11 +1278,11 @@ if [ "$nls" -ne 0 ]; then
 		printf 'NLS works.\n\n'
 
 		printf 'Testing gencat...\n'
-		gencat "$scriptdir/en_US.cat" "$scriptdir/locales/en_US.msg" > /dev/null 2>&1
+		gencat "./en_US.cat" "$scriptdir/locales/en_US.msg" > /dev/null 2>&1
 
 		err="$?"
 
-		rm -rf "$scriptdir/en_US.cat"
+		rm -rf "./en_US.cat"
 
 		if [ "$err" -ne 0 ]; then
 			printf 'gencat does not work.\n'
@@ -1279,14 +1339,14 @@ if [ "$hist" -eq 1 ]; then
 
 	flags="-DBC_ENABLE_HISTORY=1 -DBC_ENABLED=$bc -DDC_ENABLED=$dc"
 	flags="$flags -DBC_ENABLE_NLS=$nls -DBC_ENABLE_LIBRARY=0 -DBC_ENABLE_AFL=0"
-	flags="$flags -DBC_ENABLE_EXTRA_MATH=$extra_math -I./include/"
+	flags="$flags -DBC_ENABLE_EXTRA_MATH=$extra_math -I$scriptdir/include/"
 	flags="$flags -D_POSIX_C_SOURCE=200809L -D_XOPEN_SOURCE=700"
 
-	"$CC" $CPPFLAGS $CFLAGS $flags -c "src/history.c" -o "$scriptdir/history.o" > /dev/null 2>&1
+	"$CC" $CPPFLAGS $CFLAGS $flags -c "$scriptdir/src/history.c" -o "./history.o" > /dev/null 2>&1
 
 	err="$?"
 
-	rm -rf "$scriptdir/history.o"
+	rm -rf "./history.o"
 
 	# If this errors, it is probably because of building on Windows,
 	# and history is not supported on Windows, so disable it.
@@ -1312,7 +1372,7 @@ if [ "$hist" -eq 0 ] || [ "$vg" -ne 0 ]; then
 	test_dc_history_prereqs=" test_dc_history_skip"
 	history_tests="@printf 'Skipping history tests...\\\\n'"
 else
-	history_tests="@printf '\$(TEST_STARS)\\\\n\\\\nRunning history tests...\\\\n\\\\n' \&\& tests/history.sh bc -a \&\& tests/history.sh dc -a \&\& printf '\\\\nAll history tests passed.\\\\n\\\\n\$(TEST_STARS)\\\\n'"
+	history_tests="@printf '\$(TEST_STARS)\\\\n\\\\nRunning history tests...\\\\n\\\\n' \&\& \$(TESTSDIR)/history.sh bc -a \&\& \$(TESTSDIR)/history.sh dc -a \&\& printf '\\\\nAll history tests passed.\\\\n\\\\n\$(TEST_STARS)\\\\n'"
 fi
 
 # Test OpenBSD. This is not in an if statement because regardless of whatever
@@ -1327,7 +1387,7 @@ set +e
 printf 'Testing for OpenBSD...\n'
 
 flags="-DBC_TEST_OPENBSD -DBC_ENABLE_AFL=0"
-"$CC" $CPPFLAGS $CFLAGS $flags -I./include -E "include/status.h" > /dev/null 2>&1
+"$CC" $CPPFLAGS $CFLAGS $flags "-I$scriptdir/include" -E "$scriptdir/include/status.h" > /dev/null 2>&1
 
 err="$?"
 
@@ -1403,14 +1463,46 @@ else
 	headers="$headers \$(DC_HEADERS)"
 fi
 
+# This convoluted mess does pull the version out. If you change the format of
+# include/version.h, you may have to change this line.
+version=$(cat "$scriptdir/include/version.h" | grep "VERSION " - | awk '{ print $3 }' -)
+
 if [ "$library" -ne 0 ]; then
+
 	unneeded="$unneeded args.c opt.c read.c file.c main.c"
 	unneeded="$unneeded lang.c lex.c parse.c program.c"
 	unneeded="$unneeded bc.c bc_lex.c bc_parse.c"
 	unneeded="$unneeded dc.c dc_lex.c dc_parse.c"
 	headers="$headers \$(LIBRARY_HEADERS)"
+
+	if [ "$PC_PATH" != "" ]; then
+
+		contents=$(cat "$scriptdir/bcl.pc.in")
+
+		contents=$(replace "$contents" "INCLUDEDIR" "$INCLUDEDIR")
+		contents=$(replace "$contents" "LIBDIR" "$LIBDIR")
+		contents=$(replace "$contents" "VERSION" "$version")
+
+		printf '%s\n' "$contents" > "./bcl.pc"
+
+		pkg_config_install="\$(SAFE_INSTALL) \$(PC_INSTALL_ARGS) \"\$(BCL_PC)\" \"\$(DESTDIR)\$(PC_PATH)/\$(BCL_PC)\""
+		pkg_config_uninstall="\$(RM) -f \"\$(DESTDIR)\$(PC_PATH)/\$(BCL_PC)\""
+
+	else
+
+		pkg_config_install=""
+		pkg_config_uninstall=""
+
+	fi
+
 else
+
 	unneeded="$unneeded library.c"
+
+	PC_PATH=""
+	pkg_config_install=""
+	pkg_config_uninstall=""
+
 fi
 
 # library.c is not needed under normal circumstances.
@@ -1444,6 +1536,8 @@ dc_script_tests=$(gen_script_test_targets dc)
 dc_err_tests=$(gen_err_test_targets dc)
 
 # Print out the values; this is for debugging.
+printf 'Version: %s\n' "$version"
+
 if [ "$bc" -ne 0 ]; then
 	printf 'Building bc\n'
 else
@@ -1479,6 +1573,7 @@ printf 'MANDIR=%s\n' "$MANDIR"
 printf 'MAN1DIR=%s\n' "$MAN1DIR"
 printf 'MAN3DIR=%s\n' "$MAN3DIR"
 printf 'NLSPATH=%s\n' "$NLSPATH"
+printf 'PC_PATH=%s\n' "$PC_PATH"
 printf 'EXECSUFFIX=%s\n' "$EXECSUFFIX"
 printf 'EXECPREFIX=%s\n' "$EXECPREFIX"
 printf 'DESTDIR=%s\n' "$DESTDIR"
@@ -1495,6 +1590,8 @@ printf 'bc.tty_mode=%s\n' "$bc_default_tty_mode"
 printf 'dc.tty_mode=%s\n' "$dc_default_tty_mode"
 printf 'bc.prompt=%s\n' "$bc_default_prompt"
 printf 'dc.prompt=%s\n' "$dc_default_prompt"
+printf 'bc.expr_exit=%s\n' "$bc_default_expr_exit"
+printf 'dc.expr_exit=%s\n' "$dc_default_expr_exit"
 
 # This is where the real work begins. This is the point at which the Makefile.in
 # template is edited and output to the Makefile.
@@ -1518,11 +1615,15 @@ src_files=$(find_src_files $unneeded)
 
 for f in $src_files; do
 	o=$(replace_ext "$f" "c" "o")
-	SRC_TARGETS=$(printf '%s\n\n%s: %s %s\n\t$(CC) $(CFLAGS) -o %s -c %s\n' \
+	o=$(basename "$o")
+	SRC_TARGETS=$(printf '%s\n\nsrc/%s: src %s %s\n\t$(CC) $(CFLAGS) -o src/%s -c %s\n' \
 		"$SRC_TARGETS" "$o" "$headers" "$f" "$o" "$f")
 done
 
 # Replace all the placeholders.
+contents=$(replace "$contents" "ROOTDIR" "$scriptdir")
+contents=$(replace "$contents" "BUILDDIR" "$builddir")
+
 contents=$(replace "$contents" "HEADERS" "$headers")
 
 contents=$(replace "$contents" "BC_ENABLED" "$bc")
@@ -1583,6 +1684,10 @@ contents=$(replace "$contents" "UNINSTALL_MAN_PREREQS" "$uninstall_man_prereqs")
 contents=$(replace "$contents" "UNINSTALL_PREREQS" "$uninstall_prereqs")
 contents=$(replace "$contents" "UNINSTALL_LOCALES_PREREQS" "$uninstall_locales_prereqs")
 
+contents=$(replace "$contents" "PC_PATH" "$PC_PATH")
+contents=$(replace "$contents" "PKG_CONFIG_INSTALL" "$pkg_config_install")
+contents=$(replace "$contents" "PKG_CONFIG_UNINSTALL" "$pkg_config_uninstall")
+
 contents=$(replace "$contents" "DEFAULT_TARGET" "$default_target")
 contents=$(replace "$contents" "DEFAULT_TARGET_PREREQS" "$default_target_prereqs")
 contents=$(replace "$contents" "DEFAULT_TARGET_CMD" "$default_target_cmd")
@@ -1630,9 +1735,11 @@ contents=$(replace "$contents" "BC_DEFAULT_TTY_MODE" "$bc_default_tty_mode")
 contents=$(replace "$contents" "DC_DEFAULT_TTY_MODE" "$dc_default_tty_mode")
 contents=$(replace "$contents" "BC_DEFAULT_PROMPT" "$bc_default_prompt")
 contents=$(replace "$contents" "DC_DEFAULT_PROMPT" "$dc_default_prompt")
+contents=$(replace "$contents" "BC_DEFAULT_EXPR_EXIT" "$bc_default_expr_exit")
+contents=$(replace "$contents" "DC_DEFAULT_EXPR_EXIT" "$dc_default_expr_exit")
 
 # Do the first print to the Makefile.
-printf '%s\n%s\n\n' "$contents" "$SRC_TARGETS" > "$scriptdir/Makefile"
+printf '%s\n%s\n\n' "$contents" "$SRC_TARGETS" > "Makefile"
 
 # Generate the individual test targets.
 if [ "$bc" -ne 0 ]; then
@@ -1647,12 +1754,11 @@ if [ "$dc" -ne 0 ]; then
 	gen_err_tests dc $dc_test_exec
 fi
 
-cd "$scriptdir"
-
 # Copy the correct manuals to the expected places.
-cp -f manuals/bc/$manpage_args.1.md manuals/bc.1.md
-cp -f manuals/bc/$manpage_args.1 manuals/bc.1
-cp -f manuals/dc/$manpage_args.1.md manuals/dc.1.md
-cp -f manuals/dc/$manpage_args.1 manuals/dc.1
+mkdir -p manuals
+cp -f "$scriptdir/manuals/bc/$manpage_args.1.md" manuals/bc.1.md
+cp -f "$scriptdir/manuals/bc/$manpage_args.1" manuals/bc.1
+cp -f "$scriptdir/manuals/dc/$manpage_args.1.md" manuals/dc.1.md
+cp -f "$scriptdir/manuals/dc/$manpage_args.1" manuals/dc.1
 
 make clean > /dev/null
