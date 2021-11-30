@@ -727,7 +727,7 @@ static int
 in_stf_input(struct mbuf *m, int off, int proto, void *arg)
 {
 	struct stf_softc *sc = arg;
-	struct ip *ip;
+	struct ip ip;
 	struct ip6_hdr *ip6;
 	u_int8_t otos, itos;
 	struct ifnet *ifp;
@@ -743,7 +743,7 @@ in_stf_input(struct mbuf *m, int off, int proto, void *arg)
 		return (IPPROTO_DONE);
 	}
 
-	ip = mtod(m, struct ip *);
+	m_copydata(m, 0, sizeof(struct ip), (caddr_t)&ip);
 	if (sc == NULL || (STF2IFP(sc)->if_flags & IFF_UP) == 0) {
 		m_freem(m);
 		SDT_PROBE2(if_stf, , stf_input, out, IPPROTO_DONE, __LINE__);
@@ -760,14 +760,14 @@ in_stf_input(struct mbuf *m, int off, int proto, void *arg)
 	 * perform sanity check against outer src/dst.
 	 * for source, perform ingress filter as well.
 	 */
-	if (stf_checkaddr4(sc, &ip->ip_dst, NULL) < 0 ||
-	    stf_checkaddr4(sc, &ip->ip_src, m->m_pkthdr.rcvif) < 0) {
+	if (stf_checkaddr4(sc, &ip.ip_dst, NULL) < 0 ||
+	    stf_checkaddr4(sc, &ip.ip_src, m->m_pkthdr.rcvif) < 0) {
 		m_freem(m);
 		SDT_PROBE2(if_stf, , stf_input, out, IPPROTO_DONE, __LINE__);
 		return (IPPROTO_DONE);
 	}
 
-	otos = ip->ip_tos;
+	otos = ip.ip_tos;
 	m_adj(m, off);
 
 	if (m->m_len < sizeof(*ip6)) {
@@ -795,8 +795,8 @@ in_stf_input(struct mbuf *m, int off, int proto, void *arg)
 	 * reject packets with private address range.
 	 * (requirement from RFC3056 section 2 1st paragraph)
 	 */
-	if ((IN6_IS_ADDR_6TO4(&ip6->ip6_src) && isrfc1918addr(&ip->ip_src)) ||
-	    (IN6_IS_ADDR_6TO4(&ip6->ip6_dst) && isrfc1918addr(&ip->ip_dst))) {
+	if ((IN6_IS_ADDR_6TO4(&ip6->ip6_src) && isrfc1918addr(&ip.ip_src)) ||
+	    (IN6_IS_ADDR_6TO4(&ip6->ip6_dst) && isrfc1918addr(&ip.ip_dst))) {
 		m_freem(m);
 		SDT_PROBE2(if_stf, , stf_input, out, IPPROTO_DONE, __LINE__);
 		return (IPPROTO_DONE);
