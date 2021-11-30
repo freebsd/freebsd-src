@@ -99,7 +99,7 @@ bzero(void *addr, size_t count)
 #define	mkptr(x)	((void *)(intptr_t)(int)(x))
 
 /*
- * Relocate PT_LOAD segements of kernel ELF image to their respective
+ * Relocate PT_LOAD segments of kernel ELF image to their respective
  * virtual addresses and return entry point
  */
 void *
