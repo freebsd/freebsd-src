@@ -480,6 +480,10 @@ typedef enum BcErr {
 	/// Empty statements in POSIX for loop error.
 	BC_ERR_POSIX_FOR,
 
+	/// POSIX's grammar does not allow a function definition right after a
+	/// semicolon.
+	BC_ERR_POSIX_FUNC_AFTER_SEMICOLON,
+
 	/// Non-POSIX exponential (scientific or engineering) number used error.
 	BC_ERR_POSIX_EXP_NUM,
 

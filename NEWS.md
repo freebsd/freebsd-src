@@ -1,5 +1,11 @@
 # News
 
+## 5.2.1
+
+This is a production release that fixes two parse bugs when in POSIX standard
+mode. One of these bugs was due to a quirk of the POSIX grammar, and the other
+was because `bc` was too strict.
+
 ## 5.2.0
 
 This is a production release that adds a new feature, fixes some bugs, and adds

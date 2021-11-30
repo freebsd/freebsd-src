@@ -52,13 +52,15 @@ usage() {
 	printf 'usage:\n'
 	printf '    %s -h\n' "$script"
 	printf '    %s --help\n' "$script"
-	printf '    %s [-a|-bD|-dB|-c] [-CEfgGHlmMNPtTvz] [-O OPT_LEVEL] [-k KARATSUBA_LEN]\n' "$script"
+	printf '    %s [-a|-bD|-dB|-c] [-CEfgGHlmMNtTvz] [-O OPT_LEVEL] [-k KARATSUBA_LEN]\\\n' "$script"
+	printf '       [-s SETTING] [-S SETTING]\n'
 	printf '    %s \\\n' "$script"
 	printf '       [--library|--bc-only --disable-dc|--dc-only --disable-bc|--coverage]  \\\n'
 	printf '       [--force --debug --disable-extra-math --disable-generated-tests]      \\\n'
 	printf '       [--disable-history --disable-man-pages --disable-nls --disable-strip] \\\n'
 	printf '       [--install-all-locales] [--opt=OPT_LEVEL]                             \\\n'
 	printf '       [--karatsuba-len=KARATSUBA_LEN]                                       \\\n'
+	printf '       [--set-default-on=SETTING] [--set-default-off=SETTING]                \\\n'
 	printf '       [--prefix=PREFIX] [--bindir=BINDIR] [--datarootdir=DATAROOTDIR]       \\\n'
 	printf '       [--datadir=DATADIR] [--mandir=MANDIR] [--man1dir=MAN1DIR]             \\\n'
 	printf '\n'
