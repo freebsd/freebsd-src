@@ -456,11 +456,11 @@ static void			hn_start_txeof_taskfunc(void *, int);
 SYSCTL_NODE(_hw, OID_AUTO, hn, CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
     "Hyper-V network interface");
 
-/* Trust tcp segements verification on host side. */
+/* Trust tcp segment verification on host side. */
 static int			hn_trust_hosttcp = 1;
 SYSCTL_INT(_hw_hn, OID_AUTO, trust_hosttcp, CTLFLAG_RDTUN,
     &hn_trust_hosttcp, 0,
-    "Trust tcp segement verification on host side, "
+    "Trust tcp segment verification on host side, "
     "when csum info is missing (global setting)");
 
 /* Trust udp datagrams verification on host side. */
@@ -5107,7 +5107,7 @@ hn_create_rx_data(struct hn_softc *sc, int ring_cnt)
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "trust_hosttcp",
 	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, sc, HN_TRUST_HCSUM_TCP,
 	    hn_trust_hcsum_sysctl, "I",
-	    "Trust tcp segement verification on host side, "
+	    "Trust tcp segment verification on host side, "
 	    "when csum info is missing");
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "trust_hostudp",
 	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, sc, HN_TRUST_HCSUM_UDP,
