@@ -77,10 +77,12 @@ $set 4
 22 "POSIX nie pozwala na porównywanie operatorów na zewnątrz, jeśli deklaracje lub pętle"
 23 "POSIX wymaga 0 lub 1 operatora porównawczego na jeden warunek"
 24 "POSIX wymaga, aby wszystkie 3 części pętli nie były puste"
-25 "POSIX nie pozwala na notację wykładniczą"
-26 "POSIX nie zezwala na odniesienia do tablicy jako parametrów funkcji"
-27 "POSIX wymaga, aby lewe usztywnienie znajdowało się na tej samej linii co nagłówek funkcji"
-28 "POSIX nie pozwala na przypisywanie ciągów znaków do zmiennych lub tablic"
+25 "POSIX wymaga nowej linii pomiędzy średnikiem a definicją funkcji"
+26 "POSIX nie pozwala na notację wykładniczą"
+27 "POSIX nie zezwala na odniesienia do tablicy jako parametrów funkcji"
+28 "POSIX nie dopuszcza funkcji void"
+29 "POSIX wymaga, aby lewe usztywnienie znajdowało się na tej samej linii co nagłówek funkcji"
+30 "POSIX nie pozwala na przypisywanie ciągów znaków do zmiennych lub tablic"
 
 $ Błędy Runtime'u.
 $set 5

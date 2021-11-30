@@ -77,10 +77,12 @@ $set 4
 22 "POSIX não permite operadores de comparação fora das expressões 'if' ou loops"
 23 "POSIX requer operadores 0 ou 1 de comparação por condição"
 24 "POSIX não permite uma expressão vazia em um loop 'for'"
-25 "POSIX não permite notação exponencial"
-26 "POSIX não permite referências de matriz como parâmetros de função"
-27 "POSIX requer que o cabeçalho da função '{' estejam na mesma linha"
-28 "POSIX não permite a atribuição de cadeias de caracteres a variáveis ou matrizes"
+25 "POSIX requer uma nova linha entre um ponto-e-vírgula e uma definição de função"
+26 "POSIX não permite notação exponencial"
+27 "POSIX não permite referências de matriz como parâmetros de função"
+28 "POSIX não permite funções nulas"
+29 "POSIX requer que o cabeçalho da função '{' estejam na mesma linha"
+30 "POSIX não permite a atribuição de cadeias de caracteres a variáveis ou matrizes"
 
 $ Runtime errors.
 $set 5

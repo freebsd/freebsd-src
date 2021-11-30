@@ -158,6 +158,8 @@ void bc_lex_token(BcLex *l) {
 	// character of every identifier would be missing.
 	char c = l->buf[l->i++], c2;
 
+	BC_SIG_ASSERT_LOCKED;
+
 	// This is the workhorse of the lexer.
 	switch (c) {
 

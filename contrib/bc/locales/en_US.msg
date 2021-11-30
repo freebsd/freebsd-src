@@ -77,10 +77,12 @@ $set 4
 22 "POSIX does not allow comparison operators outside if statements or loops"
 23 "POSIX requires 0 or 1 comparison operators per condition"
 24 "POSIX requires all 3 parts of a for loop to be non-empty"
-25 "POSIX does not allow exponential notation"
-26 "POSIX does not allow array references as function parameters"
-27 "POSIX requires the left brace be on the same line as the function header"
-28 "POSIX does not allow strings to be assigned to variables or arrays"
+25 "POSIX requires a newline between a semicolon and a function definition",
+26 "POSIX does not allow exponential notation"
+27 "POSIX does not allow array references as function parameters"
+28 "POSIX does not allow void functions",
+29 "POSIX requires the left brace be on the same line as the function header"
+30 "POSIX does not allow strings to be assigned to variables or arrays"
 
 $ Runtime errors.
 $set 5

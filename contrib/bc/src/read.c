@@ -196,12 +196,16 @@ BcStatus bc_read_chars(BcVec *vec, const char *prompt) {
 			return BC_STATUS_EOF;
 		}
 
+		BC_SIG_LOCK;
+
 		// Add to the buffer.
 		vm.buf_len += (size_t) r;
 		vm.buf[vm.buf_len] = '\0';
 
 		// Read from the buffer.
 		done = bc_read_buf(vec, vm.buf, &vm.buf_len);
+
+		BC_SIG_UNLOCK;
 	}
 
 	// Terminate the string.

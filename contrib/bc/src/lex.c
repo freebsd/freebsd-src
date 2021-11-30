@@ -258,6 +258,8 @@ void bc_lex_file(BcLex *l, const char *file) {
 
 void bc_lex_next(BcLex *l) {
 
+	BC_SIG_ASSERT_LOCKED;
+
 	assert(l != NULL);
 
 	l->last = l->t;
@@ -294,7 +296,15 @@ static void bc_lex_fixText(BcLex *l, const char *text, size_t len) {
 
 bool bc_lex_readLine(BcLex *l) {
 
-	bool good = bc_vm_readLine(false);
+	bool good;
+
+	// These are reversed because they should be already locked, but
+	// bc_vm_readLine() needs them to be unlocked.
+	BC_SIG_UNLOCK;
+
+	good = bc_vm_readLine(false);
+
+	BC_SIG_LOCK;
 
 	bc_lex_fixText(l, vm.buffer.v, vm.buffer.len - 1);
 
@@ -302,10 +312,15 @@ bool bc_lex_readLine(BcLex *l) {
 }
 
 void bc_lex_text(BcLex *l, const char *text, bool is_stdin) {
+
+	BC_SIG_ASSERT_LOCKED;
+
 	assert(l != NULL && text != NULL);
+
 	bc_lex_fixText(l, text, strlen(text));
 	l->i = 0;
 	l->t = l->last = BC_LEX_INVALID;
 	l->is_stdin = is_stdin;
+
 	bc_lex_next(l);
 }

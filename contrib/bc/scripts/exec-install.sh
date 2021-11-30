@@ -29,7 +29,7 @@
 
 # Print usage and exit with an error.
 usage() {
-	printf "usage: %s install_dir exec_suffix\n" "$0" 1>&2
+	printf "usage: %s install_dir exec_suffix [bindir]\n" "$0" 1>&2
 	exit 1
 }
 
@@ -49,7 +49,12 @@ shift
 exec_suffix="$1"
 shift
 
-bindir="$scriptdir/../bin"
+if [ "$#" -gt 0 ]; then
+	bindir="$1"
+	shift
+else
+	bindir="$scriptdir/../bin"
+fi
 
 # Install or symlink, depending on the type of file. If it's a file, install it.
 # If it's a symlink, create an equivalent in the install directory.

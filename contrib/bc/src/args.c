@@ -91,6 +91,8 @@ static void bc_args_redefine(const char *keyword) {
 
 	size_t i;
 
+	BC_SIG_ASSERT_LOCKED;
+
 	for (i = 0; i < bc_lex_kws_len; ++i) {
 
 		const BcLexKeyword *kw = bc_lex_kws + i;

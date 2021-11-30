@@ -1025,6 +1025,17 @@ dc(1) recognizes the following environment variables:
     override the default, which can be queried with the **-h** or **-\-help**
     options.
 
+**DC_EXPR_EXIT**
+
+:   If any expressions or expression files are given on the command-line with
+    **-e**, **-\-expression**, **-f**, or **-\-file**, then if this environment
+    variable exists and contains an integer, a non-zero value makes dc(1) exit
+    after executing the expressions and expression files, and a non-zero value
+    makes dc(1) not exit.
+
+    This environment variable overrides the default, which can be queried with
+    the **-h** or **-\-help** options.
+
 # EXIT STATUS
 
 dc(1) returns the following exit statuses:

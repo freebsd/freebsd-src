@@ -50,7 +50,6 @@ else
 	bc="$testdir/../../bin/bc"
 fi
 
-#
 out1="$outputdir/bc_outputs/bc_timeconst.txt"
 out2="$outputdir/bc_outputs/bc_timeconst_results.txt"
 
