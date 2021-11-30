@@ -3402,7 +3402,7 @@ mpr_add_chain(struct mpr_command *cm, int segsleft)
 	rem_segs = 0;
 	if (cm->cm_sglsize < (sgc_size * segsleft)) {
 		/*
-		 * rem_segs is the number of segements remaining after the
+		 * rem_segs is the number of segment remaining after the
 		 * segments that will go into the current frame.  Since it is
 		 * known that at least one more frame is required, account for
 		 * the chain element.  To know if more than one more frame is
