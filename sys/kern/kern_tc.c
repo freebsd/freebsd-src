@@ -208,6 +208,23 @@ tc_delta(struct timehands *th)
 	    tc->tc_counter_mask);
 }
 
+static __inline void
+bintime_add_tc_delta(struct bintime *bt, uint64_t scale,
+    uint64_t large_delta, uint64_t delta)
+{
+	uint64_t x;
+
+	if (__predict_false(delta >= large_delta)) {
+		/* Avoid overflow for scale * delta. */
+		x = (scale >> 32) * delta;
+		bt->sec += x >> 32;
+		bintime_addx(bt, x << 32);
+		bintime_addx(bt, (scale & 0xffffffff) * delta);
+	} else {
+		bintime_addx(bt, scale * delta);
+	}
+}
+
 /*
  * Functions for reading the time.  We have to loop until we are sure that
  * the timehands that we operated on was not updated under our feet.  See
@@ -219,7 +236,7 @@ bintime_off(struct bintime *bt, u_int off)
 {
 	struct timehands *th;
 	struct bintime *btp;
-	uint64_t scale, x;
+	uint64_t scale;
 	u_int delta, gen, large_delta;
 
 	do {
@@ -233,15 +250,7 @@ bintime_off(struct bintime *bt, u_int off)
 		atomic_thread_fence_acq();
 	} while (gen == 0 || gen != th->th_generation);
 
-	if (__predict_false(delta >= large_delta)) {
-		/* Avoid overflow for scale * delta. */
-		x = (scale >> 32) * delta;
-		bt->sec += x >> 32;
-		bintime_addx(bt, x << 32);
-		bintime_addx(bt, (scale & 0xffffffff) * delta);
-	} else {
-		bintime_addx(bt, scale * delta);
-	}
+	bintime_add_tc_delta(bt, scale, large_delta, delta);
 }
 #define	GETTHBINTIME(dst, member)					\
 do {									\
@@ -1385,17 +1394,8 @@ tc_windup(struct bintime *new_boottimebin)
 #endif
 	th->th_offset_count += delta;
 	th->th_offset_count &= th->th_counter->tc_counter_mask;
-	while (delta > th->th_counter->tc_frequency) {
-		/* Eat complete unadjusted seconds. */
-		delta -= th->th_counter->tc_frequency;
-		th->th_offset.sec++;
-	}
-	if ((delta > th->th_counter->tc_frequency / 2) &&
-	    (th->th_scale * delta < ((uint64_t)1 << 63))) {
-		/* The product th_scale * delta just barely overflows. */
-		th->th_offset.sec++;
-	}
-	bintime_addx(&th->th_offset, th->th_scale * delta);
+	bintime_add_tc_delta(&th->th_offset, th->th_scale,
+	    th->th_large_delta, delta);
 
 	/*
 	 * Hardware latching timecounters may not generate interrupts on
