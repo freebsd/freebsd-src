@@ -1647,8 +1647,6 @@ OLD_DIRS+=usr/include/fs/cuse
 .if ${MK_CXX} == no
 OLD_FILES+=usr/bin/CC
 OLD_FILES+=usr/bin/c++
-OLD_FILES+=usr/bin/g++
-OLD_FILES+=usr/libexec/cc1plus
 .endif
 
 .if ${MK_DEBUG_FILES} == no
