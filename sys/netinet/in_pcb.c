@@ -216,11 +216,11 @@ SYSCTL_INT(_net_inet_ip_portrange, OID_AUTO, randomized,
 SYSCTL_INT(_net_inet_ip_portrange, OID_AUTO, randomcps,
 	CTLFLAG_VNET | CTLFLAG_RW,
 	&VNET_NAME(ipport_randomcps), 0, "Maximum number of random port "
-	"allocations before switching to a sequental one");
+	"allocations before switching to a sequential one");
 SYSCTL_INT(_net_inet_ip_portrange, OID_AUTO, randomtime,
 	CTLFLAG_VNET | CTLFLAG_RW,
 	&VNET_NAME(ipport_randomtime), 0,
-	"Minimum time to keep sequental port "
+	"Minimum time to keep sequential port "
 	"allocation before switching to a random one");
 
 #ifdef RATELIMIT
