@@ -811,7 +811,7 @@ enetc_hash_mac(void *arg, struct sockaddr_dl *sdl, u_int cnt)
 	for (i = 0; i < 6; i++) {
 		bit = 0;
 		for (j = 0; j < 8; j++)
-			bit ^= address & BIT(i + j*6);
+			bit ^= !!(address & BIT(i + j*6));
 
 		hash |= bit << i;
 	}
@@ -852,7 +852,7 @@ enetc_hash_vid(uint16_t vid)
 
 	for (i = 0;i < 6;i++) {
 		bit = vid & BIT(i);
-		bit ^= vid & BIT(i + 6);
+		bit ^= !!(vid & BIT(i + 6));
 		hash |= bit << i;
 	}
 
