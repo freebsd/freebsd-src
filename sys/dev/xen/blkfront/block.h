@@ -40,7 +40,7 @@
  * \note This calculation assumes that all but the first and last segments 
  *       of the I/O are fully utilized.
  *
- * \note We reserve a segement from the maximum supported by the transport to
+ * \note We reserve a segment from the maximum supported by the transport to
  *       guarantee we can handle an unaligned transfer without the need to
  *       use a bounce buffer.
  */
@@ -54,7 +54,7 @@
  * \note This calculation assumes that all but the first and last segments
  *       of the I/O are fully utilized.
  *
- * \note We reserve a segement to guarantee we can handle an unaligned
+ * \note We reserve a segment to guarantee we can handle an unaligned
  *       transfer without the need to use a bounce buffer.
  */
 #define	XBD_SIZE_TO_SEGS(size)						\
