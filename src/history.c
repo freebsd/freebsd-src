@@ -375,7 +375,7 @@ static ssize_t bc_history_read(char *buf, size_t n) {
 
 	ssize_t ret;
 
-	BC_SIG_LOCK;
+	BC_SIG_ASSERT_LOCKED;
 
 #ifndef _WIN32
 
@@ -396,8 +396,6 @@ static ssize_t bc_history_read(char *buf, size_t n) {
 
 #endif // _WIN32
 
-	BC_SIG_UNLOCK;
-
 	return ret;
 }
 
@@ -416,8 +414,13 @@ static BcStatus bc_history_readCode(char *buf, size_t buf_len,
 
 	assert(buf_len >= 1);
 
+	BC_SIG_LOCK;
+
 	// Read a byte.
 	n = bc_history_read(buf, 1);
+
+	BC_SIG_UNLOCK;
+
 	if (BC_ERR(n <= 0)) goto err;
 
 	// Get the byte.
@@ -431,7 +434,11 @@ static BcStatus bc_history_readCode(char *buf, size_t buf_len,
 
 			assert(buf_len >= 2);
 
+			BC_SIG_LOCK;
+
 			n = bc_history_read(buf + 1, 1);
+
+			BC_SIG_UNLOCK;
 
 			if (BC_ERR(n <= 0)) goto err;
 		}
@@ -439,7 +446,11 @@ static BcStatus bc_history_readCode(char *buf, size_t buf_len,
 
 			assert(buf_len >= 3);
 
+			BC_SIG_LOCK;
+
 			n = bc_history_read(buf + 1, 2);
+
+			BC_SIG_UNLOCK;
 
 			if (BC_ERR(n <= 0)) goto err;
 		}
@@ -447,7 +458,11 @@ static BcStatus bc_history_readCode(char *buf, size_t buf_len,
 
 			assert(buf_len >= 3);
 
+			BC_SIG_LOCK;
+
 			n = bc_history_read(buf + 1, 3);
+
+			BC_SIG_UNLOCK;
 
 			if (BC_ERR(n <= 0)) goto err;
 		}
@@ -606,6 +621,8 @@ static size_t bc_history_cursorPos(void) {
 	char *ptr, *ptr2;
 	size_t cols, rows, i;
 
+	BC_SIG_ASSERT_LOCKED;
+
 	// Report cursor location.
 	bc_file_write(&vm.fout, bc_flush_none, "\x1b[6n", 4);
 	bc_file_flush(&vm.fout, bc_flush_none);
@@ -648,11 +665,7 @@ static size_t bc_history_columns(void) {
 	struct winsize ws;
 	int ret;
 
-	BC_SIG_LOCK;
-
 	ret = ioctl(vm.fout.fd, TIOCGWINSZ, &ws);
-
-	BC_SIG_UNLOCK;
 
 	if (BC_ERR(ret == -1 || !ws.ws_col)) {
 
@@ -721,6 +734,8 @@ static void bc_history_refresh(BcHistory *h) {
 	char* buf = h->buf.v;
 	size_t colpos, len = BC_HIST_BUF_LEN(h), pos = h->pos, extras_len = 0;
 
+	BC_SIG_ASSERT_LOCKED;
+
 	bc_file_flush(&vm.fout, bc_flush_none);
 
 	// Get to the prompt column position from the left.
@@ -783,6 +798,8 @@ static void bc_history_refresh(BcHistory *h) {
  */
 static void bc_history_edit_insert(BcHistory *h, const char *cbuf, size_t clen)
 {
+	BC_SIG_ASSERT_LOCKED;
+
 	bc_vec_grow(&h->buf, clen);
 
 	// If we are at the end of the line...
@@ -836,6 +853,8 @@ static void bc_history_edit_insert(BcHistory *h, const char *cbuf, size_t clen)
  */
 static void bc_history_edit_left(BcHistory *h) {
 
+	BC_SIG_ASSERT_LOCKED;
+
 	// Stop at the left end.
 	if (h->pos <= 0) return;
 
@@ -849,6 +868,8 @@ static void bc_history_edit_left(BcHistory *h) {
  * @param h  The history data.
 */
 static void bc_history_edit_right(BcHistory *h) {
+
+	BC_SIG_ASSERT_LOCKED;
 
 	// Stop at the right end.
 	if (h->pos == BC_HIST_BUF_LEN(h)) return;
@@ -865,6 +886,8 @@ static void bc_history_edit_right(BcHistory *h) {
 static void bc_history_edit_wordEnd(BcHistory *h) {
 
 	size_t len = BC_HIST_BUF_LEN(h);
+
+	BC_SIG_ASSERT_LOCKED;
 
 	// Don't overflow.
 	if (!len || h->pos >= len) return;
@@ -884,6 +907,8 @@ static void bc_history_edit_wordStart(BcHistory *h) {
 
 	size_t len = BC_HIST_BUF_LEN(h);
 
+	BC_SIG_ASSERT_LOCKED;
+
 	// Stop with no data.
 	if (!len) return;
 
@@ -900,6 +925,8 @@ static void bc_history_edit_wordStart(BcHistory *h) {
  */
 static void bc_history_edit_home(BcHistory *h) {
 
+	BC_SIG_ASSERT_LOCKED;
+
 	// Stop at the beginning.
 	if (!h->pos) return;
 
@@ -913,6 +940,8 @@ static void bc_history_edit_home(BcHistory *h) {
  * @param h  The history data.
  */
 static void bc_history_edit_end(BcHistory *h) {
+
+	BC_SIG_ASSERT_LOCKED;
 
 	// Stop at the end of the line.
 	if (h->pos == BC_HIST_BUF_LEN(h)) return;
@@ -932,10 +961,10 @@ static void bc_history_edit_next(BcHistory *h, bool dir) {
 
 	const char *dup, *str;
 
+	BC_SIG_ASSERT_LOCKED;
+
 	// Stop if there is no history.
 	if (h->history.len <= 1) return;
-
-	BC_SIG_LOCK;
 
 	// Duplicate the buffer.
 	if (h->buf.v[0]) dup = bc_vm_strdup(h->buf.v);
@@ -943,8 +972,6 @@ static void bc_history_edit_next(BcHistory *h, bool dir) {
 
 	// Update the current history entry before overwriting it with the next one.
 	bc_vec_replaceAt(&h->history, h->history.len - 1 - h->idx, &dup);
-
-	BC_SIG_UNLOCK;
 
 	// Show the new entry.
 	h->idx += (dir == BC_HIST_PREV ? 1 : SIZE_MAX);
@@ -980,6 +1007,8 @@ static void bc_history_edit_delete(BcHistory *h) {
 
 	size_t chlen, len = BC_HIST_BUF_LEN(h);
 
+	BC_SIG_ASSERT_LOCKED;
+
 	// If there is no character, skip.
 	if (!len || h->pos >= len) return;
 
@@ -1004,6 +1033,8 @@ static void bc_history_edit_delete(BcHistory *h) {
 static void bc_history_edit_backspace(BcHistory *h) {
 
 	size_t chlen, len = BC_HIST_BUF_LEN(h);
+
+	BC_SIG_ASSERT_LOCKED;
 
 	// If there are no characters, skip.
 	if (!h->pos || !len) return;
@@ -1030,6 +1061,8 @@ static void bc_history_edit_backspace(BcHistory *h) {
 static void bc_history_edit_deletePrevWord(BcHistory *h) {
 
 	size_t diff, old_pos = h->pos;
+
+	BC_SIG_ASSERT_LOCKED;
 
 	// If at the beginning of the line, skip.
 	if (!old_pos) return;
@@ -1059,6 +1092,8 @@ static void bc_history_edit_deleteNextWord(BcHistory *h) {
 
 	size_t next_end = h->pos, len = BC_HIST_BUF_LEN(h);
 
+	BC_SIG_ASSERT_LOCKED;
+
 	// If at the end of the line, skip.
 	if (next_end == len) return;
 
@@ -1083,6 +1118,8 @@ static void bc_history_swap(BcHistory *h) {
 
 	size_t pcl, ncl;
 	char auxb[5];
+
+	BC_SIG_ASSERT_LOCKED;
 
 	// Get the length of the previous and next characters.
 	pcl = bc_history_prevLen(h->buf.v, h->pos);
@@ -1125,6 +1162,8 @@ static void bc_history_raise(BcHistory *h, int sig) {
 static void bc_history_escape(BcHistory *h) {
 
 	char c, seq[3];
+
+	BC_SIG_ASSERT_LOCKED;
 
 	// Read a character into seq.
 	if (BC_ERR(BC_HIST_READ(seq, 1))) return;
@@ -1274,6 +1313,8 @@ static void bc_history_escape(BcHistory *h) {
  */
 static void bc_history_add(BcHistory *h, char *line) {
 
+	BC_SIG_ASSERT_LOCKED;
+
 	// If there is something already there...
 	if (h->history.len) {
 
@@ -1282,13 +1323,7 @@ static void bc_history_add(BcHistory *h, char *line) {
 
 		// Check for, and discard, duplicates.
 		if (!strcmp(s, line)) {
-
-			BC_SIG_LOCK;
-
 			free(line);
-
-			BC_SIG_UNLOCK;
-
 			return;
 		}
 	}
@@ -1302,6 +1337,8 @@ static void bc_history_add(BcHistory *h, char *line) {
  * @param h  The history data.
  */
 static void bc_history_add_empty(BcHistory *h) {
+
+	BC_SIG_ASSERT_LOCKED;
 
 	const char *line = "";
 
@@ -1324,6 +1361,8 @@ static void bc_history_add_empty(BcHistory *h) {
  */
 static void bc_history_reset(BcHistory *h) {
 
+	BC_SIG_ASSERT_LOCKED;
+
 	h->oldcolpos = h->pos = h->idx = 0;
 	h->cols = bc_history_columns();
 
@@ -1344,6 +1383,8 @@ static void bc_history_printCtrl(BcHistory *h, unsigned int c) {
 
 	char str[3] = "^A";
 	const char newline[2] = "\n";
+
+	BC_SIG_ASSERT_LOCKED;
 
 	// Set the correct character.
 	str[1] = (char) (c + 'A' - BC_ACTION_CTRL_A);
@@ -1378,6 +1419,8 @@ static void bc_history_printCtrl(BcHistory *h, unsigned int c) {
  */
 static BcStatus bc_history_edit(BcHistory *h, const char *prompt) {
 
+	BC_SIG_LOCK;
+
 	bc_history_reset(h);
 
 	// Don't write the saved output the first time. This is because it has
@@ -1404,9 +1447,13 @@ static BcStatus bc_history_edit(BcHistory *h, const char *prompt) {
 		unsigned int c = 0;
 		size_t nread = 0;
 
+		BC_SIG_UNLOCK;
+
 		// Read a code.
 		s = bc_history_readCode(cbuf, sizeof(cbuf), &c, &nread);
 		if (BC_ERR(s)) return s;
+
+		BC_SIG_LOCK;
 
 		switch (c) {
 
@@ -1415,6 +1462,7 @@ static BcStatus bc_history_edit(BcHistory *h, const char *prompt) {
 			{
 				// Return the line.
 				bc_vec_pop(&h->history);
+				BC_SIG_UNLOCK;
 				return s;
 			}
 
@@ -1434,6 +1482,7 @@ static BcStatus bc_history_edit(BcHistory *h, const char *prompt) {
 				// Quit if the user wants it.
 				if (!BC_SIGINT) {
 					vm.status = BC_STATUS_QUIT;
+					BC_SIG_UNLOCK;
 					BC_JMP;
 				}
 
@@ -1460,6 +1509,7 @@ static BcStatus bc_history_edit(BcHistory *h, const char *prompt) {
 			case BC_ACTION_CTRL_D:
 			{
 				bc_history_printCtrl(h, c);
+				BC_SIG_UNLOCK;
 				return BC_STATUS_EOF;
 			}
 #endif // _WIN32
@@ -1565,6 +1615,7 @@ static BcStatus bc_history_edit(BcHistory *h, const char *prompt) {
 						bc_history_raise(h, SIGQUIT);
 #else // _WIN32
 					vm.status = BC_STATUS_QUIT;
+					BC_SIG_UNLOCK;
 					BC_JMP;
 #endif // _WIN32
 				}
@@ -1574,6 +1625,8 @@ static BcStatus bc_history_edit(BcHistory *h, const char *prompt) {
 			}
 		}
 	}
+
+	BC_SIG_UNLOCK;
 
 	return BC_STATUS_SUCCESS;
 }
@@ -1611,21 +1664,21 @@ BcStatus bc_history_line(BcHistory *h, BcVec *vec, const char *prompt) {
 		bc_file_write(&vm.fout, bc_flush_none, "\n", 1);
 		bc_file_flush(&vm.fout, bc_flush_none);
 
+		BC_SIG_LOCK;
+
 		// If we actually have data...
 		if (h->buf.v[0]) {
 
-			BC_SIG_LOCK;
-
 			// Duplicate it.
 			line = bc_vm_strdup(h->buf.v);
-
-			BC_SIG_UNLOCK;
 
 			// Store it.
 			bc_history_add(h, line);
 		}
 		// Add an empty string.
 		else bc_history_add_empty(h);
+
+		BC_SIG_UNLOCK;
 
 		// Concatenate the line to the return vector.
 		bc_vec_concat(vec, h->buf.v);

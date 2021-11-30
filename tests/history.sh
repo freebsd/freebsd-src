@@ -92,7 +92,7 @@ for i in $(seq "$st" "$idx"); do
 
 	printf 'Running %s history test %d...' "$d" "$i"
 
-	for j in $(seq 1 3); do
+	for j in $(seq 1 5); do
 
 		"$py" "$testdir/history.py" "$d" "$i" "$exe" "$@"
 		err="$?"

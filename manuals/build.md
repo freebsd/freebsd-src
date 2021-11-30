@@ -83,6 +83,23 @@ where `<config>` is either one of `Debug`, `ReleaseMD`, or `ReleaseMT`.
 Building `bc`, `dc`, and `bcl` (the library) is more complex than on Windows
 because many build options are supported.
 
+### Out-of-Source Builds
+
+Out-of-source builds are done by calling `configure.sh` from the directory where
+the build will happen. The `Makefile` is generated into that directory, and the
+build can happen normally from there.
+
+For example, if the source is in `bc`, the build should happen in `build`, then
+call `configure.sh` and `make` like so:
+
+```
+../bc/configure.sh
+make
+```
+
+***WARNING***: The path to `configure.sh` from the build directory must not have
+spaces because `make` does not support target names with spaces.
+
 ### Cross Compiling
 
 To cross-compile this `bc`, an appropriate compiler must be present and assigned

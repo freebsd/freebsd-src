@@ -157,6 +157,8 @@ void dc_lex_token(BcLex *l) {
 	char c = l->buf[l->i++], c2;
 	size_t i;
 
+	BC_SIG_ASSERT_LOCKED;
+
 	// If the last token was a command that needs a register, we need to parse a
 	// register, so do so.
 	for (i = 0; i < dc_lex_regs_len; ++i) {

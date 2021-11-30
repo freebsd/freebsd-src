@@ -329,11 +329,7 @@ static void bc_parse_call(BcParse *p, const char *name, uint8_t flags) {
 	// not define it, it's a *runtime* error, not a parse error.
 	if (idx == BC_VEC_INVALID_IDX) {
 
-		BC_SIG_LOCK;
-
 		idx = bc_program_insertFunc(p->prog, name);
-
-		BC_SIG_UNLOCK;
 
 		assert(idx != BC_VEC_INVALID_IDX);
 
@@ -359,14 +355,12 @@ static void bc_parse_name(BcParse *p, BcInst *type,
 {
 	char *name;
 
-	BC_SIG_LOCK;
+	BC_SIG_ASSERT_LOCKED;
 
 	// We want a copy of the name since the lexer might overwrite its copy.
 	name = bc_vm_strdup(p->l.str.v);
 
 	BC_SETJMP_LOCKED(err);
-
-	BC_SIG_UNLOCK;
 
 	// We need the next token to see if it's just a variable or something more.
 	bc_lex_next(&p->l);
@@ -431,9 +425,9 @@ static void bc_parse_name(BcParse *p, BcInst *type,
 
 err:
 	// Need to make sure to unallocate the name.
-	BC_SIG_MAYLOCK;
 	free(name);
 	BC_LONGJMP_CONT;
+	BC_SIG_MAYLOCK;
 }
 
 /**
@@ -1315,14 +1309,8 @@ static void bc_parse_func(BcParse *p) {
 	// Make sure the functions map and vector are synchronized.
 	assert(p->prog->fns.len == p->prog->fn_map.len);
 
-	// Must lock signals because vectors are changed, and the vector functions
-	// expect signals to be locked.
-	BC_SIG_LOCK;
-
 	// Insert the function by name into the map and vector.
 	idx = bc_program_insertFunc(p->prog, p->l.str.v);
-
-	BC_SIG_UNLOCK;
 
 	// Make sure the insert worked.
 	assert(idx);
@@ -1759,7 +1747,7 @@ void bc_parse_parse(BcParse *p) {
 
 	assert(p);
 
-	BC_SETJMP(exit);
+	BC_SETJMP_LOCKED(exit);
 
 	// We should not let an EOF get here unless some partial parse was not
 	// completed, in which case, it's the user's fault.
@@ -1780,13 +1768,12 @@ void bc_parse_parse(BcParse *p) {
 
 exit:
 
-	BC_SIG_MAYLOCK;
-
 	// We need to reset on error.
 	if (BC_ERR(((vm.status && vm.status != BC_STATUS_QUIT) || vm.sig)))
 		bc_parse_reset(p);
 
 	BC_LONGJMP_CONT;
+	BC_SIG_MAYLOCK;
 }
 
 /**

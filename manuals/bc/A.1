@@ -2552,6 +2552,19 @@ This environment variable and the \f[B]BC_TTY_MODE\f[R] environment
 variable override the default, which can be queried with the
 \f[B]-h\f[R] or \f[B]--help\f[R] options.
 .RE
+.TP
+\f[B]BC_EXPR_EXIT\f[R]
+If any expressions or expression files are given on the command-line
+with \f[B]-e\f[R], \f[B]--expression\f[R], \f[B]-f\f[R], or
+\f[B]--file\f[R], then if this environment variable exists and contains
+an integer, a non-zero value makes bc(1) exit after executing the
+expressions and expression files, and a non-zero value makes bc(1) not
+exit.
+.RS
+.PP
+This environment variable overrides the default, which can be queried
+with the \f[B]-h\f[R] or \f[B]--help\f[R] options.
+.RE
 .SH EXIT STATUS
 .PP
 bc(1) returns the following exit statuses:

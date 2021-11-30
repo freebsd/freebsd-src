@@ -1,5 +1,19 @@
 # News
 
+## 5.2.0
+
+This is a production release that adds a new feature, fixes some bugs, and adds
+out-of-source builds and a `pkg-config` file for `bcl`.
+
+The new feature is the ability to turn off exiting on expressions. It is also
+possible to set the default using `configure.sh`. This behavior used to exist
+with the `BC_EXPR_EXIT` environment variable, which is now used again.
+
+Bugs fixed include:
+
+* Some possible race conditions with error handling.
+* Install and uninstall targets for `bcl` did not work.
+
 ## 5.1.1
 
 This is a production release that completes a bug fix from `5.1.0`. The bug

@@ -49,9 +49,6 @@ testdir = os.path.dirname(script)
 if testdir == "":
 	testdir = os.getcwd()
 
-# We want to be in the root directory.
-os.chdir(testdir + "/..")
-
 print("\nWARNING: This script is for distro and package maintainers.")
 print("It is for finding the optimal Karatsuba number.")
 print("Though it only needs to be run once per release/platform,")
@@ -116,7 +113,7 @@ try:
 except KeyError:
 	flags["CFLAGS"] = "-flto"
 
-p = run([ "./configure.sh", "-O3" ], flags)
+p = run([ "{}/../configure.sh".format(testdir), "-O3" ], flags)
 if p.returncode != 0:
 	print("configure.sh returned an error ({}); exiting...".format(p.returncode))
 	sys.exit(p.returncode)
@@ -161,7 +158,7 @@ try:
 		# Configure and compile.
 		print("\nCompiling...\n")
 
-		p = run([ "./configure.sh", "-O3", "-k{}".format(i) ], config_env)
+		p = run([ "{}/../configure.sh".format(testdir), "-O3", "-k{}".format(i) ], config_env)
 
 		if p.returncode != 0:
 			print("configure.sh returned an error ({}); exiting...".format(p.returncode))

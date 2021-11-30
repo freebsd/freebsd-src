@@ -268,6 +268,10 @@
 #define BC_DEFAULT_PROMPT BC_DEFAULT_TTY_MODE
 #endif // BC_DEFAULT_PROMPT
 
+#ifndef BC_DEFAULT_EXPR_EXIT
+#define BC_DEFAULT_EXPR_EXIT (1)
+#endif // BC_DEFAULT_EXPR_EXIT
+
 // All of these set defaults for settings.
 #ifndef DC_DEFAULT_SIGINT_RESET
 #define DC_DEFAULT_SIGINT_RESET (1)
@@ -284,6 +288,10 @@
 #ifndef DC_DEFAULT_PROMPT
 #define DC_DEFAULT_PROMPT DC_DEFAULT_TTY_MODE
 #endif // DC_DEFAULT_PROMPT
+
+#ifndef DC_DEFAULT_EXPR_EXIT
+#define DC_DEFAULT_EXPR_EXIT (1)
+#endif // DC_DEFAULT_EXPR_EXIT
 
 /// Statuses, which mark either which category of error happened, or some other
 /// status that matters.

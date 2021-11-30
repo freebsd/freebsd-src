@@ -70,15 +70,11 @@ void bc_parse_addString(BcParse *p) {
 
 	size_t idx;
 
-	BC_SIG_LOCK;
-
 	idx = bc_program_addString(p->prog, p->l.str.v, p->fidx);
 
 	// Push the string info.
 	bc_parse_update(p, BC_INST_STR, p->fidx);
 	bc_parse_pushIndex(p, idx);
-
-	BC_SIG_UNLOCK;
 }
 
 static void bc_parse_addNum(BcParse *p, const char *string) {
@@ -87,6 +83,8 @@ static void bc_parse_addNum(BcParse *p, const char *string) {
 	size_t idx;
 	BcConst *c;
 	BcVec *slabs;
+
+	BC_SIG_ASSERT_LOCKED;
 
 	// Special case 0.
 	if (bc_parse_zero[0] == string[0] && bc_parse_zero[1] == string[1]) {
@@ -103,8 +101,6 @@ static void bc_parse_addNum(BcParse *p, const char *string) {
 	// Get the index.
 	idx = consts->len;
 
-	BC_SIG_LOCK;
-
 	// Get the right slab.
 	slabs = p->fidx == BC_PROG_MAIN || p->fidx == BC_PROG_READ ?
 	        &vm.main_const_slab : &vm.other_slabs;
@@ -120,8 +116,6 @@ static void bc_parse_addNum(BcParse *p, const char *string) {
 	bc_num_clear(&c->num);
 
 	bc_parse_update(p, BC_INST_NUM, idx);
-
-	BC_SIG_UNLOCK;
 }
 
 void bc_parse_number(BcParse *p) {
@@ -158,9 +152,13 @@ void bc_parse_number(BcParse *p) {
 
 void bc_parse_text(BcParse *p, const char *text, bool is_stdin) {
 
+	BC_SIG_LOCK;
+
 	// Make sure the pointer isn't invalidated.
 	p->func = bc_vec_item(&p->prog->fns, p->fidx);
 	bc_lex_text(&p->l, text, is_stdin);
+
+	BC_SIG_UNLOCK;
 }
 
 void bc_parse_reset(BcParse *p) {
