@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 #include <machine/bus.h>
 #include <sys/random.h>
+#include <sys/refcount.h>
 #include <sys/rman.h>
 #include <sys/sbuf.h>
 #include <sys/selinfo.h>
@@ -140,7 +141,7 @@ struct _device {
 	int		unit;		/**< current unit number */
 	char*		nameunit;	/**< name+unit e.g. foodev0 */
 	char*		desc;		/**< driver specific description */
-	int		busy;		/**< count of calls to device_busy() */
+	u_int		busy;		/**< count of calls to device_busy() */
 	device_state_t	state;		/**< current device state  */
 	uint32_t	devflags;	/**< api level flags for device_get_flags() */
 	u_int		flags;		/**< internal device flags  */
@@ -2634,13 +2635,13 @@ device_disable(device_t dev)
 void
 device_busy(device_t dev)
 {
-	if (dev->state < DS_ATTACHING)
-		panic("device_busy: called for unattached device");
-	if (dev->busy == 0 && dev->parent)
+
+	/*
+	 * Mark the device as busy, recursively up the tree if this busy count
+	 * goes 0->1.
+	 */
+	if (refcount_acquire(&dev->busy) == 0 && dev->parent != NULL)
 		device_busy(dev->parent);
-	dev->busy++;
-	if (dev->state == DS_ATTACHED)
-		dev->state = DS_BUSY;
 }
 
 /**
@@ -2649,17 +2650,12 @@ device_busy(device_t dev)
 void
 device_unbusy(device_t dev)
 {
-	if (dev->busy != 0 && dev->state != DS_BUSY &&
-	    dev->state != DS_ATTACHING)
-		panic("device_unbusy: called for non-busy device %s",
-		    device_get_nameunit(dev));
-	dev->busy--;
-	if (dev->busy == 0) {
-		if (dev->parent)
-			device_unbusy(dev->parent);
-		if (dev->state == DS_BUSY)
-			dev->state = DS_ATTACHED;
-	}
+
+	/*
+	 * Mark the device as unbsy, recursively if this is the last busy count.
+	 */
+	if (refcount_release(&dev->busy) && dev->parent != NULL)
+		device_unbusy(dev->parent);
 }
 
 /**
@@ -3004,10 +3000,7 @@ device_attach(device_t dev)
 	attachentropy = (uint16_t)(get_cyclecount() - attachtime);
 	random_harvest_direct(&attachentropy, sizeof(attachentropy), RANDOM_ATTACH);
 	device_sysctl_update(dev);
-	if (dev->busy)
-		dev->state = DS_BUSY;
-	else
-		dev->state = DS_ATTACHED;
+	dev->state = DS_ATTACHED;
 	dev->flags &= ~DF_DONENOMATCH;
 	EVENTHANDLER_DIRECT_INVOKE(device_attach, dev);
 	devadded(dev);
@@ -3038,7 +3031,7 @@ device_detach(device_t dev)
 	GIANT_REQUIRED;
 
 	PDEBUG(("%s", DEVICENAME(dev)));
-	if (dev->state == DS_BUSY)
+	if (dev->busy > 0)
 		return (EBUSY);
 	if (dev->state == DS_ATTACHING) {
 		device_printf(dev, "device in attaching state! Deferring detach.\n");
@@ -3090,7 +3083,7 @@ int
 device_quiesce(device_t dev)
 {
 	PDEBUG(("%s", DEVICENAME(dev)));
-	if (dev->state == DS_BUSY)
+	if (dev->busy > 0)
 		return (EBUSY);
 	if (dev->state != DS_ATTACHED)
 		return (0);
