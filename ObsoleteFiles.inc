@@ -481,6 +481,20 @@ OLD_FILES+=usr/include/c++/v1/tr1/wchar.h
 OLD_FILES+=usr/include/c++/v1/tr1/wctype.h
 OLD_DIRS+=usr/include/c++/v1/tr1
 
+# 20211004: Removed sparc64 tests for lastcomm/sa
+OLD_FILES+=usr/tests/usr.bin/lastcomm/v1-sparc64-acct.in
+OLD_FILES+=usr/tests/usr.bin/lastcomm/v1-sparc64.out
+OLD_FILES+=usr/tests/usr.bin/lastcomm/v2-sparc64-acct.in
+OLD_FILES+=usr/tests/usr.bin/lastcomm/v2-sparc64.out
+OLD_FILES+=usr/tests/usr.sbin/sa/v1-sparc64-sav.in
+OLD_FILES+=usr/tests/usr.sbin/sa/v1-sparc64-sav.out
+OLD_FILES+=usr/tests/usr.sbin/sa/v1-sparc64-u.out
+OLD_FILES+=usr/tests/usr.sbin/sa/v1-sparc64-usr.in
+OLD_FILES+=usr/tests/usr.sbin/sa/v1-sparc64-usr.out
+OLD_FILES+=usr/tests/usr.sbin/sa/v2-sparc64-sav.in
+OLD_FILES+=usr/tests/usr.sbin/sa/v2-sparc64-u.out
+OLD_FILES+=usr/tests/usr.sbin/sa/v2-sparc64-usr.in
+
 # 20210906: stop installing {llvm,clang,lldb}-tblgen
 OLD_FILES+=usr/bin/llvm-tblgen
 OLD_FILES+=usr/bin/clang-tblgen
