@@ -504,6 +504,8 @@ OLD_FILES+=usr/share/man/man4/iscsi_initiator.4.gz
 OLD_FILES+=usr/share/man/man8/iscontrol.8.gz
 
 # 20211022
+OLD_FILES+=etc/rc.d/sppp
+OLD_FILES+=rescue/spppcontrol
 OLD_FILES+=sbin/spppcontrol
 .if ${TARGET_ARCH} == "i386"
 OLD_FILES+=usr/include/machine/cserial.h
@@ -519,6 +521,7 @@ OLD_FILES+=usr/sbin/hcseriald
 OLD_FILES+=usr/share/man/man8/hcseriald.8.gz
 
 # 20210929: Remove ng_h4
+OLD_FILES+=usr/include/netgraph/bluetooth/include/ng_h4.h
 OLD_FILES+=usr/share/man/man4/ng_h4.4.gz
 
 # 20210923: rename boot(9) to kern_reboot(9)
@@ -526,6 +529,8 @@ OLD_FILES+=usr/share/man/man9/boot.9.gz
 
 # 20210921: remove cloudabi
 OLD_FILES+=usr/share/man/man4/cloudabi.4.gz
+OLD_FILES+=usr/share/man/man4/cloudabi32.4.gz
+OLD_FILES+=usr/share/man/man4/cloudabi64.4.gz
 
 # 20210906: stop installing {llvm,clang,lldb}-tblgen
 OLD_FILES+=usr/bin/llvm-tblgen
