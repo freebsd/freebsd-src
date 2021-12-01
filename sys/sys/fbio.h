@@ -195,60 +195,6 @@ struct fbcmap {
 #define	FBIOPUTCMAP	_IOW('F', 3, struct fbcmap)
 #define	FBIOGETCMAP	_IOW('F', 4, struct fbcmap)
 
-/*
- * Video board information
- */
-struct brd_info {
-	u_short		accessible_width; /* accessible bytes in scanline */
-	u_short		accessible_height; /* number of accessible scanlines */
-	u_short		line_bytes;	/* number of bytes/scanline */
-	u_short		hdb_capable;	/* can this thing hardware db? */
-	u_short		vmsize;		/* video memory size */
-	u_char		boardrev;	/* board revision # */
-	u_char		pad0;
-	u_long		pad1;
-};
-#define	FBIOGXINFO	_IOR('F', 39, struct brd_info)
-
-/*
- * Monitor information
- */
-struct mon_info {
-	u_long		mon_type;	/* bit array */
-#define MON_TYPE_STEREO		0x8	/* stereo display */
-#define MON_TYPE_0_OFFSET	0x4	/* black level 0 ire instead of 7.5 */
-#define MON_TYPE_OVERSCAN	0x2	/* overscan */
-#define MON_TYPE_GRAY		0x1	/* greyscale monitor */
-	u_long		pixfreq;	/* pixel frequency in Hz */
-	u_long		hfreq;		/* horizontal freq in Hz */
-	u_long		vfreq;		/* vertical freq in Hz */
-	u_long		vsync;		/* vertical sync in scanlines */
-	u_long		hsync;		/* horizontal sync in pixels */
-	/* these are in pixel units */
-	u_short		hfporch;	/* horizontal front porch */
-	u_short		hbporch;	/* horizontal back porch */
-	u_short		vfporch;	/* vertical front porch */
-	u_short		vbporch;	/* vertical back porch */
-};
-#define	FBIOMONINFO	_IOR('F', 40, struct mon_info)
-
-/*
- * Color map I/O.
- */
-struct fbcmap_i {
-	unsigned int	flags;
-#define	FB_CMAP_BLOCK	(1 << 0)	/* wait for vertical refresh */
-#define	FB_CMAP_KERNEL	(1 << 1)	/* called within kernel */
-	int		id;		/* color map id */
-	int		index;		/* first element (0 origin) */
-	int		count;		/* number of elements */
-	u_char		*red;		/* red color map elements */
-	u_char		*green;		/* green color map elements */
-	u_char		*blue;		/* blue color map elements */
-};
-#define	FBIOPUTCMAPI	_IOW('F', 41, struct fbcmap_i)
-#define	FBIOGETCMAPI	_IOW('F', 42, struct fbcmap_i)
-
 /* The new style frame buffer ioctls. */
 
 /* video mode information block */
