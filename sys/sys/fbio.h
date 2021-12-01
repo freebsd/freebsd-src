@@ -91,7 +91,9 @@
 #define	FBTYPE_TCXCOLOR		29	/* SUNW,tcx */
 #define	FBTYPE_CREATOR		30
 
-#define	FBTYPE_LASTPLUSONE	31	/* max number of fbs (change as add) */
+#define	FBTYPE_EFIFB		31	/* EFI Graphical Output Protocol (GOP) */
+
+#define	FBTYPE_LASTPLUSONE	32	/* max number of fbs (change as add) */
 
 /*
  * Frame buffer descriptor as returned by FBIOGTYPE.
