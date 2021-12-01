@@ -195,9 +195,6 @@ struct fbcmap {
 #define	FBIOPUTCMAP	_IOW('F', 3, struct fbcmap)
 #define	FBIOGETCMAP	_IOW('F', 4, struct fbcmap)
 
-/* vertical retrace */
-#define	FBIOVERTICAL	_IO('F', 9)
-
 /*
  * Hardware cursor control (for, e.g., CG6).  A rather complex and icky
  * interface that smells like VMS, but there it is....
