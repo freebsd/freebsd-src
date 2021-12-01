@@ -171,22 +171,6 @@ unregister_framebuffer(struct fb_info *info)
 }
 #endif
 
-#ifdef notdef
-/*
- * General purpose structure for passing info in and out of frame buffers
- * (used for gp1) -- unsupported.
- */
-struct fbinfo {
-	int	fb_physaddr;	/* physical frame buffer address */
-	int	fb_hwwidth;	/* fb board width */
-	int	fb_hwheight;	/* fb board height */
-	int	fb_addrdelta;	/* phys addr diff between boards */
-	u_char	*fb_ropaddr;	/* fb virtual addr */
-	int	fb_unit;	/* minor devnum of fb */
-};
-#define	FBIOGINFO	_IOR('F', 2, struct fbinfo)
-#endif
-
 /*
  * Color map I/O.
  */
