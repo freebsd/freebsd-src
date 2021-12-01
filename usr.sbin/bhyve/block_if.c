@@ -548,7 +548,7 @@ blockif_open(nvlist_t *nvl, const char *ident)
 
 #ifndef WITHOUT_CAPSICUM
 	cap_rights_init(&rights, CAP_FSYNC, CAP_IOCTL, CAP_READ, CAP_SEEK,
-	    CAP_WRITE, CAP_FSTAT, CAP_EVENT);
+	    CAP_WRITE, CAP_FSTAT, CAP_EVENT, CAP_FPATHCONF);
 	if (ro)
 		cap_rights_clear(&rights, CAP_FSYNC, CAP_WRITE);
 
