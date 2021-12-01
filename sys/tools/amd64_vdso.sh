@@ -55,6 +55,13 @@ then
     exit 1
 fi
 
+if [ -n "$(${ELFDUMP} -d elf-vdso.so.1 | \
+  ${AWK} '/DT_REL.*SZ/{print "RELOCS"}')" ]
+then
+    echo "elf-vdso.so.1 contains runtime relocations" 1>&2
+    exit 1
+fi
+
 ${CC} -x assembler-with-cpp -DLOCORE -fPIC -nostdinc -c \
    -o elf-vdso.so.o -I. -I"${S}" -include opt_global.h \
    -DVDSO_NAME=elf_vdso_so_1 -DVDSO_FILE=elf-vdso.so.1 \
