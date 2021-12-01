@@ -7640,8 +7640,6 @@ OLD_FILES+=usr/lib/libzfs_core_p.a
 OLD_FILES+=usr/lib/libzfs_p.a
 OLD_FILES+=usr/lib/libzfsbootenv_p.a
 OLD_FILES+=usr/lib/libzutil_p.a
-OLD_FILES+=usr/lib/libprivateldns_p.a
-OLD_FILES+=usr/lib/libprivatessh_p.a
 .endif
 
 .if ${MK_QUOTAS} == no
