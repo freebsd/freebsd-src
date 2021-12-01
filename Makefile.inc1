@@ -2630,6 +2630,7 @@ _dtrace_tools= cddl/lib/libctf cddl/lib/libspl cddl/usr.bin/ctfconvert \
 _elftctools=	lib/libelftc \
 		lib/libpe \
 		usr.bin/elfctl \
+		usr.bin/elfdump \
 		usr.bin/objcopy \
 		usr.bin/nm \
 		usr.bin/size \
@@ -2644,6 +2645,7 @@ _elftctools+=	usr.bin/addr2line
 _elftctools=	lib/libelftc \
 		lib/libpe \
 		usr.bin/elfctl \
+		usr.bin/elfdump \
 		usr.bin/objcopy
 .endif
 
