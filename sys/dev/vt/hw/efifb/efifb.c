@@ -116,6 +116,7 @@ vt_efifb_init(struct vt_device *vd)
 	if (efifb == NULL)
 		return (CN_DEAD);
 
+	info->fb_type = FBTYPE_EFIFB;
 	info->fb_height = efifb->fb_height;
 	info->fb_width = efifb->fb_width;
 
