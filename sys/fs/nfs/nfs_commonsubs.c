@@ -1085,6 +1085,14 @@ nfsrv_dissectacl(struct nfsrv_descript *nd, NFSACL_T *aclp, int *aclerrp,
 	NFSM_DISSECT(tl, u_int32_t *, NFSX_UNSIGNED);
 	aclsize = NFSX_UNSIGNED;
 	acecnt = fxdr_unsigned(int, *tl);
+	/*
+	 * The RFCs do not define a fixed limit to the number of ACEs in
+	 * an ACL, but 10240 should be more than sufficient.
+	 */
+	if (acecnt < 0 || acecnt > 10240) {
+		error = NFSERR_BADXDR;
+		goto nfsmout;
+	}
 	if (acecnt > ACL_MAX_ENTRIES)
 		aceerr = NFSERR_ATTRNOTSUPP;
 	if (nfsrv_useacl == 0)
@@ -1468,6 +1476,8 @@ nfsv4_loadattr(struct nfsrv_descript *nd, vnode_t vp,
 			    } else {
 				error = nfsrv_dissectacl(nd, NULL, &aceerr,
 				    &cnt, p);
+				if (error)
+				    goto nfsmout;
 				*retcmpp = NFSERR_ATTRNOTSUPP;
 			    }
 			  }
