@@ -516,6 +516,20 @@ OLD_FILES+=usr/share/man/man4/ng_sppp.4.gz
 OLD_FILES+=usr/share/man/man4/sppp.4.gz
 OLD_FILES+=usr/share/man/man8/spppcontrol.8.gz
 
+# 20211004: Removed sparc64 tests for lastcomm/sa
+OLD_FILES+=usr/tests/usr.bin/lastcomm/v1-sparc64-acct.in
+OLD_FILES+=usr/tests/usr.bin/lastcomm/v1-sparc64.out
+OLD_FILES+=usr/tests/usr.bin/lastcomm/v2-sparc64-acct.in
+OLD_FILES+=usr/tests/usr.bin/lastcomm/v2-sparc64.out
+OLD_FILES+=usr/tests/usr.sbin/sa/v1-sparc64-sav.in
+OLD_FILES+=usr/tests/usr.sbin/sa/v1-sparc64-sav.out
+OLD_FILES+=usr/tests/usr.sbin/sa/v1-sparc64-u.out
+OLD_FILES+=usr/tests/usr.sbin/sa/v1-sparc64-usr.in
+OLD_FILES+=usr/tests/usr.sbin/sa/v1-sparc64-usr.out
+OLD_FILES+=usr/tests/usr.sbin/sa/v2-sparc64-sav.in
+OLD_FILES+=usr/tests/usr.sbin/sa/v2-sparc64-u.out
+OLD_FILES+=usr/tests/usr.sbin/sa/v2-sparc64-usr.in
+
 # 20210929:
 OLD_FILES+=usr/sbin/hcseriald
 OLD_FILES+=usr/share/man/man8/hcseriald.8.gz
