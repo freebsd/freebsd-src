@@ -1228,7 +1228,7 @@ sctp_fill_up_addresses(struct sctp_inpcb *inp,
     size_t limit,
     struct sockaddr *addr)
 {
-	size_t size = 0;
+	size_t size;
 
 	SCTP_IPI_ADDR_RLOCK();
 	/* fill up addresses for the endpoint's default vrf */
@@ -1238,17 +1238,17 @@ sctp_fill_up_addresses(struct sctp_inpcb *inp,
 	return (size);
 }
 
-static int
-sctp_count_max_addresses_vrf(struct sctp_inpcb *inp, uint32_t vrf_id)
+static size_t
+sctp_max_size_addresses_vrf(struct sctp_inpcb *inp, uint32_t vrf_id)
 {
-	int cnt = 0;
-	struct sctp_vrf *vrf = NULL;
+	struct sctp_vrf *vrf;
+	size_t size;
 
 	/*
-	 * In both sub-set bound an bound_all cases we return the MAXIMUM
-	 * number of addresses that you COULD get. In reality the sub-set
-	 * bound may have an exclusion list for a given TCB OR in the
-	 * bound-all case a TCB may NOT include the loopback or other
+	 * In both sub-set bound an bound_all cases we return the size of
+	 * the maximum number of addresses that you could get. In reality
+	 * the sub-set bound may have an exclusion list for a given TCB or
+	 * in the bound-all case a TCB may NOT include the loopback or other
 	 * addresses as well.
 	 */
 	SCTP_IPI_ADDR_LOCK_ASSERT();
@@ -1256,6 +1256,7 @@ sctp_count_max_addresses_vrf(struct sctp_inpcb *inp, uint32_t vrf_id)
 	if (vrf == NULL) {
 		return (0);
 	}
+	size = 0;
 	if (inp->sctp_flags & SCTP_PCB_FLAGS_BOUNDALL) {
 		struct sctp_ifn *sctp_ifn;
 		struct sctp_ifa *sctp_ifa;
@@ -1268,17 +1269,17 @@ sctp_count_max_addresses_vrf(struct sctp_inpcb *inp, uint32_t vrf_id)
 				case AF_INET:
 #ifdef INET6
 					if (sctp_is_feature_on(inp, SCTP_PCB_FLAGS_NEEDS_MAPPED_V4))
-						cnt += sizeof(struct sockaddr_in6);
+						size += sizeof(struct sockaddr_in6);
 					else
-						cnt += sizeof(struct sockaddr_in);
+						size += sizeof(struct sockaddr_in);
 #else
-					cnt += sizeof(struct sockaddr_in);
+					size += sizeof(struct sockaddr_in);
 #endif
 					break;
 #endif
 #ifdef INET6
 				case AF_INET6:
-					cnt += sizeof(struct sockaddr_in6);
+					size += sizeof(struct sockaddr_in6);
 					break;
 #endif
 				default:
@@ -1295,17 +1296,17 @@ sctp_count_max_addresses_vrf(struct sctp_inpcb *inp, uint32_t vrf_id)
 			case AF_INET:
 #ifdef INET6
 				if (sctp_is_feature_on(inp, SCTP_PCB_FLAGS_NEEDS_MAPPED_V4))
-					cnt += sizeof(struct sockaddr_in6);
+					size += sizeof(struct sockaddr_in6);
 				else
-					cnt += sizeof(struct sockaddr_in);
+					size += sizeof(struct sockaddr_in);
 #else
-				cnt += sizeof(struct sockaddr_in);
+				size += sizeof(struct sockaddr_in);
 #endif
 				break;
 #endif
 #ifdef INET6
 			case AF_INET6:
-				cnt += sizeof(struct sockaddr_in6);
+				size += sizeof(struct sockaddr_in6);
 				break;
 #endif
 			default:
@@ -1313,19 +1314,19 @@ sctp_count_max_addresses_vrf(struct sctp_inpcb *inp, uint32_t vrf_id)
 			}
 		}
 	}
-	return (cnt);
+	return (size);
 }
 
-static int
-sctp_count_max_addresses(struct sctp_inpcb *inp)
+static size_t
+sctp_max_size_addresses(struct sctp_inpcb *inp)
 {
-	int cnt = 0;
+	size_t size;
 
 	SCTP_IPI_ADDR_RLOCK();
-	/* count addresses for the endpoint's default VRF */
-	cnt = sctp_count_max_addresses_vrf(inp, inp->def_vrf_id);
+	/* Maximum size of all addresses for the endpoint's default VRF */
+	size = sctp_max_size_addresses_vrf(inp, inp->def_vrf_id);
 	SCTP_IPI_ADDR_RUNLOCK();
-	return (cnt);
+	return (size);
 }
 
 static int
@@ -2145,7 +2146,7 @@ flags_out:
 
 			SCTP_CHECK_AND_CAST(value, optval, uint32_t, *optsize);
 			SCTP_INP_RLOCK(inp);
-			*value = sctp_count_max_addresses(inp);
+			*value = (uint32_t)sctp_max_size_addresses(inp);
 			SCTP_INP_RUNLOCK(inp);
 			*optsize = sizeof(uint32_t);
 			break;
@@ -2153,14 +2154,14 @@ flags_out:
 	case SCTP_GET_REMOTE_ADDR_SIZE:
 		{
 			uint32_t *value;
-			size_t size;
 			struct sctp_nets *net;
+			size_t size;
 
 			SCTP_CHECK_AND_CAST(value, optval, uint32_t, *optsize);
 			/* FIXME MT: change to sctp_assoc_value? */
 			SCTP_FIND_STCB(inp, stcb, (sctp_assoc_t)*value);
 
-			if (stcb) {
+			if (stcb != NULL) {
 				size = 0;
 				/* Count the sizes */
 				TAILQ_FOREACH(net, &stcb->asoc.nets, sctp_next) {
@@ -2210,7 +2211,7 @@ flags_out:
 			SCTP_CHECK_AND_CAST(saddr, optval, struct sctp_getaddresses, *optsize);
 			SCTP_FIND_STCB(inp, stcb, saddr->sget_assoc_id);
 
-			if (stcb) {
+			if (stcb != NULL) {
 				left = *optsize - offsetof(struct sctp_getaddresses, addr);
 				*optsize = offsetof(struct sctp_getaddresses, addr);
 				addr = &saddr->addr[0].sa;
@@ -2281,7 +2282,7 @@ flags_out:
 
 			limit = *optsize - offsetof(struct sctp_getaddresses, addr);
 			actual = sctp_fill_up_addresses(inp, stcb, limit, &saddr->addr[0].sa);
-			if (stcb) {
+			if (stcb != NULL) {
 				SCTP_TCB_UNLOCK(stcb);
 			}
 			*optsize = offsetof(struct sctp_getaddresses, addr) + actual;
