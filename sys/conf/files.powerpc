@@ -74,7 +74,7 @@ dev/ice/ice_switch.c		optional	ice pci powerpc64 \
 dev/ice/ice_vlan_mode.c		optional	ice pci powerpc64 \
 	compile-with "${NORMAL_C} -I$S/dev/ice"
 ice_ddp.c			optional	ice_ddp powerpc64 \
-	compile-with	"${AWK} -f $S/tools/fw_stub.awk ice_ddp.fw:ice_ddp:0x01031800 -mice_ddp -c${.TARGET}"   \
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk ice_ddp.fw:ice_ddp:0x01031b00 -mice_ddp -c${.TARGET}"	\
 	no-ctfconvert no-implicit-rule before-depend local  \
 	clean		"ice_ddp.c"
 ice_ddp.fwo			optional	ice_ddp powerpc64 \
@@ -83,8 +83,8 @@ ice_ddp.fwo			optional	ice_ddp powerpc64 \
 	no-implicit-rule				\
 	clean		"ice_ddp.fwo"
 ice_ddp.fw			optional	ice_ddp powerpc64 \
-	dependency	"$S/contrib/dev/ice/ice-1.3.24.0.pkg" \
-	compile-with	"${CP} $S/contrib/dev/ice/ice-1.3.24.0.pkg ice_ddp.fw" \
+	dependency	"$S/contrib/dev/ice/ice-1.3.27.0.pkg" \
+	compile-with	"${CP} $S/contrib/dev/ice/ice-1.3.27.0.pkg ice_ddp.fw" \
 	no-obj no-implicit-rule				\
 	clean		"ice_ddp.fw"
 dev/ixl/if_ixl.c		optional	ixl pci powerpc64 \
