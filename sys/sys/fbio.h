@@ -196,31 +196,6 @@ struct fbcmap {
 #define	FBIOGETCMAP	_IOW('F', 4, struct fbcmap)
 
 /*
- * Set/get attributes.
- */
-#define	FB_ATTR_NDEVSPECIFIC	8	/* no. of device specific values */
-#define	FB_ATTR_NEMUTYPES	4	/* no. of emulation types */
-
-struct fbsattr {
-	int	flags;			/* flags; see below */
-	int	emu_type;		/* emulation type (-1 if unused) */
-	int	dev_specific[FB_ATTR_NDEVSPECIFIC];	/* catchall */
-};
-#define	FB_ATTR_AUTOINIT	1	/* emulation auto init flag */
-#define	FB_ATTR_DEVSPECIFIC	2	/* dev. specific stuff valid flag */
-
-struct fbgattr {
-	int	real_type;		/* real device type */
-	int	owner;			/* PID of owner, 0 if myself */
-	struct	fbtype fbtype;		/* fbtype info for real device */
-	struct	fbsattr sattr;		/* see above */
-	int	emu_types[FB_ATTR_NEMUTYPES];	/* possible emulations */
-						/* (-1 if unused) */
-};
-#define	FBIOSATTR	_IOW('F', 5, struct fbsattr)
-#define	FBIOGATTR	_IOR('F', 6, struct fbgattr)
-
-/*
  * Video control.
  */
 #define	FBVIDEO_OFF		0
