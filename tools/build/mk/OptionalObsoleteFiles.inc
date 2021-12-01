@@ -1645,7 +1645,6 @@ OLD_DIRS+=usr/include/fs/cuse
 
 # devd(8) not listed here on purpose
 .if ${MK_CXX} == no
-OLD_FILES+=usr/bin/CC
 OLD_FILES+=usr/bin/c++
 .endif
 
@@ -8899,6 +8898,7 @@ OLD_FILES+=usr/share/man/man8/tftpd.8.gz
 .endif
 
 .if ${MK_TOOLCHAIN} == no
+OLD_FILES+=usr/bin/CC
 OLD_FILES+=usr/bin/addr2line
 OLD_FILES+=usr/bin/as
 OLD_FILES+=usr/bin/byacc
