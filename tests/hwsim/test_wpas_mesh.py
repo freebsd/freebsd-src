@@ -270,6 +270,9 @@ def test_wpas_mesh_open(dev, apdev):
     if mode != "mesh":
         raise Exception("Unexpected mode: " + mode)
 
+    peer = dev[1].own_addr()
+    sta1 = dev[0].get_sta(peer)
+
     dev[0].scan(freq="2462")
     bss = dev[0].get_bss(dev[1].own_addr())
     if bss and 'ie' in bss and "ff0724" in bss['ie']:
@@ -279,6 +282,15 @@ def test_wpas_mesh_open(dev, apdev):
             raise Exception("Missing STA HE flag")
         if "[VHT]" in sta:
             raise Exception("Unexpected STA VHT flag")
+
+    time.sleep(1.1)
+    sta2 = dev[0].get_sta(peer)
+    if 'connected_time' not in sta1 or 'connected_time' not in sta2:
+        raise Exception("connected_time not reported for peer")
+    ct1 = int(sta1['connected_time'])
+    ct2 = int(sta2['connected_time'])
+    if ct2 <= ct1:
+        raise Exception("connected_time did not increment")
 
 def test_wpas_mesh_open_no_auto(dev, apdev):
     """wpa_supplicant open MESH network connectivity"""

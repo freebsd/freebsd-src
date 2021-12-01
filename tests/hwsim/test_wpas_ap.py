@@ -903,3 +903,25 @@ def test_wpas_ap_sae_and_psk_transition_disable(dev):
     dev[1].wait_disconnected()
     dev[1].request("RECONNECT")
     dev[1].wait_connected()
+
+def test_wpas_ap_vendor_elems(dev):
+    """wpa_supplicant AP mode - vendor elements"""
+    id = dev[0].add_network()
+    dev[0].set_network(id, "mode", "2")
+    dev[0].set_network_quoted(id, "ssid", "wpas-ap-open")
+    dev[0].set_network(id, "key_mgmt", "NONE")
+    dev[0].set_network(id, "frequency", "2412")
+    dev[0].set_network(id, "scan_freq", "2412")
+    dev[0].select_network(id)
+    wait_ap_ready(dev[0])
+
+    beacon_elems = "dd0411223301"
+    dev[0].set("ap_vendor_elements", beacon_elems)
+    dev[0].set("ap_assocresp_elements", "dd0411223302")
+    if "OK" not in dev[0].request("UPDATE_BEACON"):
+        raise Exception("UPDATE_BEACON failed")
+
+    dev[1].connect("wpas-ap-open", key_mgmt="NONE", scan_freq="2412")
+    bss = dev[1].get_bss(dev[0].own_addr())
+    if beacon_elems not in bss['ie']:
+        raise Exception("Vendor element not visible in scan results")

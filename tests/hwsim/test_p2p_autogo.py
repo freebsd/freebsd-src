@@ -378,7 +378,7 @@ def test_autogo_chan_switch_group_iface(dev):
 @remote_compatible
 def test_autogo_extra_cred(dev):
     """P2P autonomous GO sending two WPS credentials"""
-    if "FAIL" in dev[0].request("SET wps_testing_dummy_cred 1"):
+    if "FAIL" in dev[0].request("SET wps_testing_stub_cred 1"):
         raise Exception("Failed to enable test mode")
     autogo(dev[0], freq=2412)
     connect_cli(dev[0], dev[1], social=True, freq=2412)

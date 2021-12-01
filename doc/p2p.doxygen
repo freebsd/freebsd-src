@@ -274,8 +274,8 @@ for removing the group interface for the failed group.
 P2P protocol includes service discovery functionality that can be used
 to discover which services are provided by the peers before forming a
 group. This leverages the Generic Advertisement Service (GAS) protocol
-from IEEE 802.11u and P2P vendor-specific contents inside the Native
-GAS messages.
+from IEEE 802.11u and P2P vendor-specific contents inside the GAS
+messages.
 
 The P2P module takes care of GAS encapsulation, fragmentation, and
 actual transmission and reception of the Action frames needed for

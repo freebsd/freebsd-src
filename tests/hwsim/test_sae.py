@@ -2588,7 +2588,7 @@ def test_sae_okc_pmk_lifetime(dev, apdev):
         raise Exception("SAE authentication not used during roam to AP2 after reauth threshold")
 
 def test_sae_pmk_lifetime(dev, apdev):
-    """SAE and opportunistic key caching and PMK lifetime"""
+    """SAE and PMK lifetime"""
     check_sae_capab(dev[0])
     params = hostapd.wpa2_params(ssid="test-sae", passphrase="12345678")
     params['wpa_key_mgmt'] = 'SAE'
@@ -2632,19 +2632,8 @@ def test_sae_pmk_lifetime(dev, apdev):
     ev = dev[0].wait_event(["PMKSA-CACHE-REMOVED"], 11)
     if ev is None:
         raise Exception("PMKSA cache entry did not expire")
-    if bssid2 not in ev:
-        ev = dev[0].wait_event(["PMKSA-CACHE-REMOVED"], 11)
-        if ev is None:
-            raise Exception("PMKSA cache entry did not expire")
-        if bssid2 not in ev:
-            raise Exception("PMKSA cache entry for the current AP did not expire")
-    ev = dev[0].wait_event(["CTRL-EVENT-DISCONNECTED"], 1)
-    if ev is None:
-        raise Exception("Disconnection not reported after PMKSA cache entry expiration")
-
-    dev[0].wait_connected()
-    if "sae_group" not in dev[0].get_status():
-        raise Exception("SAE authentication not used after PMKSA cache entry expiration")
+    if bssid2 in ev:
+        raise Exception("Unexpected expiration of the current SAE PMKSA cache entry")
 
 def test_sae_and_psk_multiple_passwords(dev, apdev, params):
     """SAE and PSK with multiple passwords/passphrases"""

@@ -124,19 +124,25 @@ def check_ec_support(dev):
     if tls.startswith("internal"):
         raise HwsimSkip("EC not supported with this TLS library: " + tls)
 
-def read_pem(fname):
+def read_pem(fname, decode=True):
     with open(fname, "r") as f:
         lines = f.readlines()
         copy = False
         cert = ""
         for l in lines:
             if "-----END" in l:
+                if not decode:
+                    cert = cert + l
                 break
             if copy:
                 cert = cert + l
             if "-----BEGIN" in l:
                 copy = True
-    return base64.b64decode(cert)
+                if not decode:
+                    cert = cert + l
+    if decode:
+        return base64.b64decode(cert)
+    return cert.encode()
 
 def eap_connect(dev, hapd, method, identity,
                 sha256=False, expect_failure=False, local_error_report=False,
@@ -2243,6 +2249,24 @@ def test_ap_wpa2_eap_tls_blob(dev, apdev):
     eap_connect(dev[0], hapd, "TLS", "tls user", ca_cert="blob://cacert",
                 client_cert="blob://usercert",
                 private_key="blob://userkey")
+
+def test_ap_wpa2_eap_tls_blob_pem(dev, apdev):
+    """WPA2-Enterprise connection using EAP-TLS and config blobs (PEM)"""
+    params = hostapd.wpa2_eap_params(ssid="test-wpa2-eap")
+    hapd = hostapd.add_ap(apdev[0], params)
+    cert = read_pem("auth_serv/ca.pem", decode=False)
+    if "OK" not in dev[0].request("SET blob cacert " +  binascii.hexlify(cert).decode()):
+        raise Exception("Could not set cacert blob")
+    cert = read_pem("auth_serv/user.pem", decode=False)
+    if "OK" not in dev[0].request("SET blob usercert " + binascii.hexlify(cert).decode()):
+        raise Exception("Could not set usercert blob")
+    key = read_pem("auth_serv/user.key.pkcs8", decode=False)
+    if "OK" not in dev[0].request("SET blob userkey " + binascii.hexlify(key).decode()):
+        raise Exception("Could not set cacert blob")
+    eap_connect(dev[0], hapd, "TLS", "tls user", ca_cert="blob://cacert",
+                client_cert="blob://usercert",
+                private_key="blob://userkey",
+                private_key_passwd="whatever")
 
 def test_ap_wpa2_eap_tls_blob_missing(dev, apdev):
     """EAP-TLS and config blob missing"""

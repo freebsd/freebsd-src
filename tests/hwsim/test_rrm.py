@@ -241,9 +241,9 @@ def test_rrm_neighbor_rep_req(dev, apdev):
     nr2 = "00112233445600000000510107"
     nr3 = "dd112233445500000000510107"
 
-    params = {"ssid": "test"}
+    params = {"ssid": "test", "rnr": "1"}
     hostapd.add_ap(apdev[0]['ifname'], params)
-    params = {"ssid": "test2", "rrm_neighbor_report": "1"}
+    params = {"ssid": "test2", "rrm_neighbor_report": "1", "rnr": "1"}
     hapd = hostapd.add_ap(apdev[1]['ifname'], params)
 
     bssid1 = apdev[1]['bssid']
@@ -336,6 +336,11 @@ def test_rrm_neighbor_rep_req(dev, apdev):
     if "OK" not in dev[0].request("NEIGHBOR_REP_REQUEST ssid=\"test5\" lci civic"):
         raise Exception("Request failed")
     check_nr_results(dev[0], ["dd:11:22:33:44:55"], lci=True)
+
+    if "OK" not in hapd.request("UPDATE_BEACON"):
+        raise Exception("UPDATE_BEACON failed")
+    time.sleep(0.2)
+    dev[1].connect("test2", key_mgmt="NONE", scan_freq="2412")
 
 def test_rrm_neighbor_rep_oom(dev, apdev):
     """hostapd neighbor report OOM"""

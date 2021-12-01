@@ -378,41 +378,41 @@ def test_ap_vlan_tagged(dev, apdev):
         os.unlink(filename)
 
 def ap_vlan_iface_cleanup_multibss_cleanup():
-    subprocess.call(['ifconfig', 'dummy0', 'down'],
+    subprocess.call(['ifconfig', 'stub0', 'down'],
                     stderr=open('/dev/null', 'w'))
-    ifnames = ['wlan3.1', 'wlan3.2', 'wlan3-2.1', 'wlan3-2.2', 'dummy0.2',
-               'dummy0.1', 'dummy0', 'brvlan1', 'brvlan2']
+    ifnames = ['wlan3.1', 'wlan3.2', 'wlan3-2.1', 'wlan3-2.2', 'stub0.2',
+               'stub0.1', 'stub0', 'brvlan1', 'brvlan2']
     for ifname in ifnames:
         subprocess.call(['ip', 'link', 'del', ifname],
                         stderr=open('/dev/null', 'w'))
 
 def ap_vlan_iface_test_and_prepare_environ():
     ifaces = netifaces.interfaces()
-    if "dummy0" in ifaces:
-        raise Exception("dummy0 already exists before")
+    if "stub0" in ifaces:
+        raise Exception("stub0 already exists before")
     ifaces = netifaces.interfaces()
-    if "dummy0.1" in ifaces:
-        raise Exception("dummy0.1 already exists before")
+    if "stub0.1" in ifaces:
+        raise Exception("stub0.1 already exists before")
 
-    subprocess.call(['ip', 'link', 'add', 'dummy0', 'type', 'dummy'])
-    subprocess.call(['ifconfig', 'dummy0', 'up'])
+    subprocess.call(['ip', 'link', 'add', 'stub0', 'type', 'dummy'])
+    subprocess.call(['ifconfig', 'stub0', 'up'])
 
     ifaces = netifaces.interfaces()
-    if "dummy0" not in ifaces:
-        raise HwsimSkip("failed to add dummy0 - missing kernel config DUMMY ?")
+    if "stub0" not in ifaces:
+        raise HwsimSkip("failed to add stub0 - missing kernel config DUMMY ?")
 
-    subprocess.call(['ip', 'link', 'add', 'link', 'dummy0', 'name', 'dummy0.1',
+    subprocess.call(['ip', 'link', 'add', 'link', 'stub0', 'name', 'stub0.1',
                      'type', 'vlan', 'id', '1'])
 
     ifaces = netifaces.interfaces()
-    if "dummy0.1" not in ifaces:
-        raise HwsimSkip("failed to add dummy0.1 - missing kernel config VLAN_8021Q ?")
+    if "stub0.1" not in ifaces:
+        raise HwsimSkip("failed to add stub0.1 - missing kernel config VLAN_8021Q ?")
 
-    subprocess.call(['ip', 'link', 'del', 'dummy0.1'])
+    subprocess.call(['ip', 'link', 'del', 'stub0.1'])
 
     ifaces = netifaces.interfaces()
-    if "dummy0.1" in ifaces:
-        raise Exception("dummy0.1 was not removed before testing")
+    if "stub0.1" in ifaces:
+        raise Exception("stub0.1 was not removed before testing")
 
 def test_ap_vlan_iface_cleanup_multibss(dev, apdev):
     """AP VLAN operation in multi-BSS multi-VLAN case"""
@@ -464,8 +464,8 @@ def ap_vlan_iface_cleanup_multibss(dev, apdev, cfgfile):
             raise Exception("bridge brvlan1 was not created")
 
         hwsim_utils.test_connectivity_iface(dev[0], hapd, "brvlan1")
-        if not iface_is_in_bridge("brvlan1", "dummy0.1"):
-            raise Exception("dummy0.1 not in brvlan1")
+        if not iface_is_in_bridge("brvlan1", "stub0.1"):
+            raise Exception("stub0.1 not in brvlan1")
 
         dev[1].connect("bss-2", key_mgmt="WPA-EAP", eap="PAX",
                        identity="vlan1",
@@ -474,8 +474,8 @@ def ap_vlan_iface_cleanup_multibss(dev, apdev, cfgfile):
 
         hapd1.wait_sta()
         hwsim_utils.test_connectivity_iface(dev[1], hapd1, "brvlan1")
-        if not iface_is_in_bridge("brvlan1", "dummy0.1"):
-            raise Exception("dummy0.1 not in brvlan1")
+        if not iface_is_in_bridge("brvlan1", "stub0.1"):
+            raise Exception("stub0.1 not in brvlan1")
 
         authserv.disable()
         authserv.set('eap_user_file', "auth_serv/eap_user_vlan.conf")
@@ -502,13 +502,13 @@ def ap_vlan_iface_cleanup_multibss(dev, apdev, cfgfile):
         hwsim_utils.test_connectivity_iface(dev[0], hapd, "brvlan2",
                                             max_tries=5)
 
-        if not iface_is_in_bridge("brvlan2", "dummy0.2"):
-            raise Exception("dummy0.2 not in brvlan2")
+        if not iface_is_in_bridge("brvlan2", "stub0.2"):
+            raise Exception("stub0.2 not in brvlan2")
 
         logger.info("test wlan1 == VLAN 1")
         hwsim_utils.test_connectivity_iface(dev[1], hapd1, "brvlan1")
-        if not iface_is_in_bridge("brvlan1", "dummy0.1"):
-            raise Exception("dummy0.1 not in brvlan1")
+        if not iface_is_in_bridge("brvlan1", "stub0.1"):
+            raise Exception("stub0.1 not in brvlan1")
 
         logger.info("wlan1 -> VLAN 2")
 
@@ -530,8 +530,8 @@ def ap_vlan_iface_cleanup_multibss(dev, apdev, cfgfile):
         logger.info("test wlan0 == VLAN 2")
         hwsim_utils.test_connectivity_iface(dev[0], hapd, "brvlan2")
 
-        if not iface_is_in_bridge("brvlan2", "dummy0.2"):
-            raise Exception("dummy0.2 not in brvlan2")
+        if not iface_is_in_bridge("brvlan2", "stub0.2"):
+            raise Exception("stub0.2 not in brvlan2")
 
         ifaces = netifaces.interfaces()
         if "brvlan1" in ifaces:

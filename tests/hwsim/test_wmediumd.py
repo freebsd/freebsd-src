@@ -1,4 +1,4 @@
-# wmediumd sanity checks
+# wmediumd validity checks
 # Copyright (c) 2015, Intel Deutschland GmbH
 #
 # This software may be distributed under the terms of the BSD license.

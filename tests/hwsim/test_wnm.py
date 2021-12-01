@@ -797,7 +797,7 @@ def test_wnm_bss_tm(dev, apdev):
         dev[0].dump_monitor()
 
         logger.info("Neighbor list entry, but not claimed as Preferred Candidate List")
-        if "OK" not in hapd.request("BSS_TM_REQ " + addr + " neighbor=11:22:33:44:55:66,0x0000,81,3,7"):
+        if "OK" not in hapd.request("BSS_TM_REQ " + addr + " dialog_token=123 neighbor=11:22:33:44:55:66,0x0000,81,3,7"):
             raise Exception("BSS_TM_REQ command failed")
         ev = hapd.wait_event(['BSS-TM-RESP'], timeout=10)
         if ev is None:

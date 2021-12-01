@@ -72,7 +72,7 @@ class eapol_test:
                 break
         return None
 
-def run(ifname, count, no_fast_reauth, res):
+def run(ifname, count, no_fast_reauth, res, conf):
     et = eapol_test(ifname)
 
     et.request("AP_SCAN 0")
@@ -81,14 +81,20 @@ def run(ifname, count, no_fast_reauth, res):
     else:
         et.request("SET fast_reauth 1")
     id = et.add_network()
-    et.set_network(id, "key_mgmt", "IEEE8021X")
-    et.set_network(id, "eapol_flags", "0")
-    et.set_network(id, "eap", "TLS")
-    et.set_network_quoted(id, "identity", "user")
-    et.set_network_quoted(id, "ca_cert", 'ca.pem')
-    et.set_network_quoted(id, "client_cert", 'client.pem')
-    et.set_network_quoted(id, "private_key", 'client.key')
-    et.set_network_quoted(id, "private_key_passwd", 'whatever')
+
+    if len(conf):
+        for item in conf:
+            et.set_network(id, item, conf[item])
+    else:
+        et.set_network(id, "key_mgmt", "IEEE8021X")
+        et.set_network(id, "eapol_flags", "0")
+        et.set_network(id, "eap", "TLS")
+        et.set_network_quoted(id, "identity", "user")
+        et.set_network_quoted(id, "ca_cert", 'ca.pem')
+        et.set_network_quoted(id, "client_cert", 'client.pem')
+        et.set_network_quoted(id, "private_key", 'client.key')
+        et.set_network_quoted(id, "private_key_passwd", 'whatever')
+
     et.set_network(id, "disabled", "0")
 
     fail = False
@@ -114,6 +120,7 @@ def main():
     parser.add_argument('--no-fast-reauth', action='store_true',
                         dest='no_fast_reauth',
                         help='disable TLS session resumption')
+    parser.add_argument('--conf', help='file of network conf items')
     args = parser.parse_args()
 
     num = int(args.num)
@@ -122,12 +129,22 @@ def main():
         global wpas_ctrl
         wpas_ctrl = args.ctrl
 
+    conf = {}
+    if args.conf:
+        f = open(args.conf, "r")
+        for line in f:
+            confitem = line.split("=")
+            if len(confitem) == 2:
+                conf[confitem[0].strip()] = confitem[1].strip()
+        f.close()
+
     t = {}
     res = {}
     for i in range(num):
         res[i] = Queue.Queue()
         t[i] = threading.Thread(target=run, args=(str(i), iter,
-                                                  args.no_fast_reauth, res[i]))
+                                                  args.no_fast_reauth, res[i],
+                                                  conf))
     for i in range(num):
         t[i].start()
     for i in range(num):

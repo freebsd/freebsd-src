@@ -62,7 +62,7 @@ with with hostapd. The following C files are currently used:
 	Definitions shared by multiple files
 
 \ref l2_packet.h, \ref l2_packet_linux.c, and \ref l2_packet_pcap.c
-	Layer 2 (link) access wrapper (includes native Linux implementation
+	Layer 2 (link) access wrapper (includes Linux packet socket
 	and wrappers for libdnet/libpcap). A new l2_packet implementation
 	may need to be added when porting to new operating systems that are
 	not supported by libdnet/libpcap. Makefile can be used to select which
@@ -130,7 +130,7 @@ with with hostapd. The following C files are currently used:
 	Definition of TLS library wrapper
 
 \ref tls_none.c
-	Dummy implementation of TLS library wrapper for cases where TLS
+	Stub implementation of TLS library wrapper for cases where TLS
 	functionality is not included.
 
 \ref tls_openssl.c

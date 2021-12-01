@@ -24,13 +24,8 @@ fst_test_def_reg_domain = '00'
 
 class HapdRegCtrl:
     def __init__(self):
-        self.refcnt = 0
         self.ifname = None
         self.changed = False
-
-    def __del__(self):
-        if self.refcnt != 0 and self.changed == True:
-            self.restore_reg_domain()
 
     def start(self):
         if self.ifname != None:

@@ -102,6 +102,7 @@ int bss_add_pmk_from_passphrase(struct wlantest_bss *bss,
 		   " based on passphrase '%s'",
 		   MAC2STR(bss->bssid), passphrase);
 	wpa_hexdump(MSG_DEBUG, "Possible PMK", pmk->pmk, PMK_LEN);
+	pmk->pmk_len = PMK_LEN;
 	dl_list_add(&bss->pmk, &pmk->list);
 
 	return 0;

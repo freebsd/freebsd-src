@@ -111,7 +111,10 @@ class FstLauncher:
         self.reg_ctrl = fst_test_common.HapdRegCtrl()
         self.test_is_supported()
 
-    def __del__(self):
+    def __enter__(self):
+        return self
+
+    def __exit__(self, type, value, traceback):
         self.cleanup()
 
     @staticmethod
@@ -269,7 +272,7 @@ def parse_ies(iehex, el=-1):
     iel = [iehex[i:i + 2] for i in range(0, len(iehex), 2)]
     for i in range(0, len(iel)):
          iel[i] = int(iel[i], 16)
-    # Sanity check
+    # Validity check
     i = 0
     res = []
     while i < len(iel):
@@ -303,19 +306,19 @@ def run_test_ap_configuration(apdev, test_params,
     0 - no errors discovered, an error otherwise. The function is used for
     simplek "bad configuration" tests."""
     logdir = test_params['logdir']
-    fst_launcher = FstLauncher(logdir)
-    ap1 = FstLauncherConfigAP(apdev[0]['ifname'], 'fst_goodconf', 'a',
-                              fst_test_common.fst_test_def_chan_a,
-                              fst_test_common.fst_test_def_group,
-                              fst_test_common.fst_test_def_prio_low,
-                              fst_test_common.fst_test_def_llt)
-    ap2 = FstLauncherConfigAP(apdev[1]['ifname'], 'fst_badconf', 'b',
-                              fst_test_common.fst_test_def_chan_g, fst_group,
-                              fst_pri, fst_llt)
-    fst_launcher.add_cfg(ap1)
-    fst_launcher.add_cfg(ap2)
-    res = fst_launcher.run_hostapd()
-    return res
+    with FstLauncher(logdir) as fst_launcher:
+        ap1 = FstLauncherConfigAP(apdev[0]['ifname'], 'fst_goodconf', 'a',
+                                  fst_test_common.fst_test_def_chan_a,
+                                  fst_test_common.fst_test_def_group,
+                                  fst_test_common.fst_test_def_prio_low,
+                                  fst_test_common.fst_test_def_llt)
+        ap2 = FstLauncherConfigAP(apdev[1]['ifname'], 'fst_badconf', 'b',
+                                  fst_test_common.fst_test_def_chan_g, fst_group,
+                                  fst_pri, fst_llt)
+        fst_launcher.add_cfg(ap1)
+        fst_launcher.add_cfg(ap2)
+        res = fst_launcher.run_hostapd()
+        return res
 
 def run_test_sta_configuration(test_params,
                                fst_group=fst_test_common.fst_test_def_group,
@@ -326,16 +329,16 @@ def run_test_sta_configuration(test_params,
     the run: 0 - no errors discovered, an error otherwise. The function is used
     for simple "bad configuration" tests."""
     logdir = test_params['logdir']
-    fst_launcher = FstLauncher(logdir)
-    sta1 = FstLauncherConfigSTA('wlan5',
-                                fst_test_common.fst_test_def_group,
-                                fst_test_common.fst_test_def_prio_low,
-                                fst_test_common.fst_test_def_llt)
-    sta2 = FstLauncherConfigSTA('wlan6', fst_group, fst_pri, fst_llt)
-    fst_launcher.add_cfg(sta1)
-    fst_launcher.add_cfg(sta2)
-    res = fst_launcher.run_wpa_supplicant()
-    return res
+    with FstLauncher(logdir) as fst_launcher:
+        sta1 = FstLauncherConfigSTA('wlan5',
+                                    fst_test_common.fst_test_def_group,
+                                    fst_test_common.fst_test_def_prio_low,
+                                    fst_test_common.fst_test_def_llt)
+        sta2 = FstLauncherConfigSTA('wlan6', fst_group, fst_pri, fst_llt)
+        fst_launcher.add_cfg(sta1)
+        fst_launcher.add_cfg(sta2)
+        res = fst_launcher.run_wpa_supplicant()
+        return res
 
 def test_fst_ap_config_llt_neg(dev, apdev, test_params):
     """FST AP configuration negative LLT"""
@@ -481,21 +484,21 @@ def test_fst_scan_mb(dev, apdev, test_params):
     logdir = test_params['logdir']
 
     # Test valid MB IE in scan results
-    fst_launcher = FstLauncher(logdir)
-    ap1 = FstLauncherConfigAP(apdev[0]['ifname'], 'fst_11a', 'a',
-                              fst_test_common.fst_test_def_chan_a,
-                              fst_test_common.fst_test_def_group,
-                              fst_test_common.fst_test_def_prio_high)
-    ap2 = FstLauncherConfigAP(apdev[1]['ifname'], 'fst_11g', 'b',
-                              fst_test_common.fst_test_def_chan_g,
-                              fst_test_common.fst_test_def_group,
-                              fst_test_common.fst_test_def_prio_low)
-    fst_launcher.add_cfg(ap1)
-    fst_launcher.add_cfg(ap2)
-    res = fst_launcher.run_hostapd()
-    if res != 0:
-        raise Exception("hostapd didn't start properly")
-    try:
+    with FstLauncher(logdir) as fst_launcher:
+        ap1 = FstLauncherConfigAP(apdev[0]['ifname'], 'fst_11a', 'a',
+                                  fst_test_common.fst_test_def_chan_a,
+                                  fst_test_common.fst_test_def_group,
+                                  fst_test_common.fst_test_def_prio_high)
+        ap2 = FstLauncherConfigAP(apdev[1]['ifname'], 'fst_11g', 'b',
+                                  fst_test_common.fst_test_def_chan_g,
+                                  fst_test_common.fst_test_def_group,
+                                  fst_test_common.fst_test_def_prio_low)
+        fst_launcher.add_cfg(ap1)
+        fst_launcher.add_cfg(ap2)
+        res = fst_launcher.run_hostapd()
+        if res != 0:
+            raise Exception("hostapd didn't start properly")
+
         mbie1 = []
         flags1 = ''
         mbie2 = []
@@ -514,8 +517,6 @@ def test_fst_scan_mb(dev, apdev, test_params):
                 mbie2 = parse_ies(vals2['ie'], 0x9e)
             if 'flags' in vals2:
                 flags2 = vals2['flags']
-    finally:
-         fst_launcher.cleanup()
 
     if len(mbie1) == 0:
         raise Exception("No MB IE created by 1st AP")
@@ -527,16 +528,16 @@ def test_fst_scan_nomb(dev, apdev, test_params):
     logdir = test_params['logdir']
 
     # Test valid MB IE in scan results
-    fst_launcher = FstLauncher(logdir)
-    ap1 = FstLauncherConfigAP(apdev[0]['ifname'], 'fst_11a', 'a',
-                              fst_test_common.fst_test_def_chan_a,
-                              fst_test_common.fst_test_def_group,
-                              fst_test_common.fst_test_def_prio_high)
-    fst_launcher.add_cfg(ap1)
-    res = fst_launcher.run_hostapd()
-    if res != 0:
-        raise Exception("Hostapd didn't start properly")
-    try:
+    with FstLauncher(logdir) as fst_launcher:
+        ap1 = FstLauncherConfigAP(apdev[0]['ifname'], 'fst_11a', 'a',
+                                  fst_test_common.fst_test_def_chan_a,
+                                  fst_test_common.fst_test_def_group,
+                                  fst_test_common.fst_test_def_prio_high)
+        fst_launcher.add_cfg(ap1)
+        res = fst_launcher.run_hostapd()
+        if res != 0:
+            raise Exception("Hostapd didn't start properly")
+
         time.sleep(2)
         mbie1 = []
         flags1 = ''
@@ -546,8 +547,6 @@ def test_fst_scan_nomb(dev, apdev, test_params):
                 mbie1 = parse_ies(vals1['ie'], 0x9e)
             if 'flags' in vals1:
                 flags1 = vals1['flags']
-    finally:
-        fst_launcher.cleanup()
 
     if len(mbie1) != 0:
         raise Exception("MB IE exists with 1 AP")

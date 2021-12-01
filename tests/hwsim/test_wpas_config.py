@@ -191,6 +191,11 @@ def test_wpas_config_file(dev, apdev, params):
                 f.write("                    ")
             f.write("foo\n")
             f.write("device_name=name#foo\n")
+            f.write("network={\n")
+            f.write("\tkey_mgmt=NONE\n")
+            f.write('\tssid="hello"\n')
+            f.write('\tgroup=GCMP # "foo"\n')
+            f.write("}\n")
 
         wpas.interface_add("wlan5", config=config)
         capa = {}
@@ -242,9 +247,11 @@ def test_wpas_config_file(dev, apdev, params):
 
         wpas.interface_remove("wlan5")
         data1 = check_config(capa, config)
+        if "group=GCMP" not in data1:
+            raise Exception("Network block group parameter with a comment not present")
 
         wpas.interface_add("wlan5", config=config)
-        if len(wpas.list_networks()) != 1:
+        if len(wpas.list_networks()) != 2:
             raise Exception("Unexpected number of networks")
         if len(wpas.request("LIST_CREDS").splitlines()) != 2:
             raise Exception("Unexpected number of credentials")

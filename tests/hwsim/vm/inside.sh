@@ -38,6 +38,8 @@ TELNET=$(sed 's/.*TELNET=\([^ ]*\) .*/\1/' /proc/cmdline)
 ARGS=$(sed 's/.*ARGS=\([^ ]*\)\( \|$\).*/\1/' /proc/cmdline)
 LOGDIR=$(sed 's/.*LOGDIR=\([^ ]*\)\( \|$\).*/\1/' /proc/cmdline)
 
+mount --bind "$TESTDIR/vm/regdb/" /lib/firmware
+
 # create /dev entries we need
 mknod -m 660 /dev/ttyS0 c 4 64
 mknod -m 666 /dev/ptmx c 5 2
@@ -53,7 +55,7 @@ ln -s /proc/self/fd/2 /dev/stderr
 
 echo "VM has started up" > /dev/ttyS0
 
-# create dummy sudo - everything runs as uid 0
+# create stub sudo - everything runs as uid 0
 mkdir /tmp/bin
 cat > /tmp/bin/sudo << EOF
 #!/bin/bash

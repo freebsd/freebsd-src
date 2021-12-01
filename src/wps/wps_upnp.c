@@ -658,7 +658,7 @@ static int subscription_first_event(struct subscription *s)
 		/*
 		 * There has been no events before the subscription. However,
 		 * UPnP device architecture specification requires all the
-		 * evented variables to be included, so generate a dummy event
+		 * evented variables to be included, so generate a stub event
 		 * for this particular case using a WSC_ACK and all-zeros
 		 * nonces. The ER (UPnP control point) will ignore this, but at
 		 * least it will learn that WLANEvent variable will be used in
