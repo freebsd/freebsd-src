@@ -196,44 +196,6 @@ struct fbcmap {
 #define	FBIOGETCMAP	_IOW('F', 4, struct fbcmap)
 
 /*
- * Hardware cursor control (for, e.g., CG6).  A rather complex and icky
- * interface that smells like VMS, but there it is....
- */
-struct fbcurpos {
-	short	x;
-	short	y;
-};
-
-struct fbcursor {
-	short	set;		/* flags; see below */
-	short	enable;		/* nonzero => cursor on, 0 => cursor off */
-	struct	fbcurpos pos;	/* position on display */
-	struct	fbcurpos hot;	/* hot-spot within cursor */
-	struct	fbcmap cmap;	/* cursor color map */
-	struct	fbcurpos size;	/* number of valid bits in image & mask */
-	caddr_t	image;		/* cursor image bits */
-	caddr_t	mask;		/* cursor mask bits */
-};
-#define	FB_CUR_SETCUR	0x01	/* set on/off (i.e., obey fbcursor.enable) */
-#define	FB_CUR_SETPOS	0x02	/* set position */
-#define	FB_CUR_SETHOT	0x04	/* set hot-spot */
-#define	FB_CUR_SETCMAP	0x08	/* set cursor color map */
-#define	FB_CUR_SETSHAPE	0x10	/* set size & bits */
-#define	FB_CUR_SETALL	(FB_CUR_SETCUR | FB_CUR_SETPOS | FB_CUR_SETHOT | \
-			 FB_CUR_SETCMAP | FB_CUR_SETSHAPE)
-
-/* controls for cursor attributes & shape (including position) */
-#define	FBIOSCURSOR	_IOW('F', 24, struct fbcursor)
-#define	FBIOGCURSOR	_IOWR('F', 25, struct fbcursor)
-
-/* controls for cursor position only */
-#define	FBIOSCURPOS	_IOW('F', 26, struct fbcurpos)
-#define	FBIOGCURPOS	_IOW('F', 27, struct fbcurpos)
-
-/* get maximum cursor size */
-#define	FBIOGCURMAX	_IOR('F', 28, struct fbcurpos)
-
-/*
  * Video board information
  */
 struct brd_info {
