@@ -729,8 +729,6 @@ fb_commonioctl(video_adapter_t *adp, u_long cmd, caddr_t arg)
 
 	case FBIOPUTCMAP:
 	case FBIOGETCMAP:
-	case FBIOPUTCMAPI:
-	case FBIOGETCMAPI:
 		/* XXX */
 
 	case FBIO_SETWINORG:	/* set frame buffer window origin */
@@ -738,8 +736,6 @@ fb_commonioctl(video_adapter_t *adp, u_long cmd, caddr_t arg)
 	case FBIO_SETLINEWIDTH:	/* set scan line width in pixel */
 
 	case FBIOGTYPE:
-	case FBIOMONINFO:
-	case FBIOGXINFO:
 
 	default:
 		error = ENODEV;
