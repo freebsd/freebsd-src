@@ -1640,11 +1640,6 @@ OLD_FILES+=usr/share/man/man3/cuse_wait_and_process.3.gz
 OLD_DIRS+=usr/include/fs/cuse
 .endif
 
-# devd(8) not listed here on purpose
-.if ${MK_CXX} == no
-OLD_FILES+=usr/bin/c++
-.endif
-
 .if ${MK_DEBUG_FILES} == no
 .if exists(${DESTDIR}/usr/lib/debug)
 DEBUG_DIRS!=find ${DESTDIR}/usr/lib/debug -mindepth 1 \
