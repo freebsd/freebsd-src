@@ -614,11 +614,6 @@ sc_vid_ioctl(struct tty *tp, u_long cmd, caddr_t data, struct thread *td)
     case FBIOPUTCMAP:
     case FBIOGETCMAP:
     case FBIOGTYPE:
-    case FBIOSCURSOR:
-    case FBIOGCURSOR:
-    case FBIOSCURPOS:
-    case FBIOGCURPOS:
-    case FBIOGCURMAX:
 	if (scp != scp->sc->cur_scp)
 	    return ENODEV;	/* XXX */
 	return fb_ioctl(adp, cmd, data);

@@ -738,11 +738,6 @@ fb_commonioctl(video_adapter_t *adp, u_long cmd, caddr_t arg)
 	case FBIO_SETLINEWIDTH:	/* set scan line width in pixel */
 
 	case FBIOGTYPE:
-	case FBIOSCURSOR:
-	case FBIOGCURSOR:
-	case FBIOSCURPOS:
-	case FBIOGCURPOS:
-	case FBIOGCURMAX:
 	case FBIOMONINFO:
 	case FBIOGXINFO:
 
