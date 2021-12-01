@@ -462,10 +462,6 @@ sctp_getladdrs(int sd, sctp_assoc_t id, struct sockaddr **raddrs)
 	    &size_of_addresses, &opt_len) != 0) {
 		return (-1);
 	}
-	if (size_of_addresses == 0) {
-		errno = ENOTCONN;
-		return (-1);
-	}
 	opt_len = (socklen_t)((size_t)size_of_addresses + sizeof(struct sctp_getaddresses));
 	addrs = calloc(1, (size_t)opt_len);
 	if (addrs == NULL) {
@@ -478,6 +474,10 @@ sctp_getladdrs(int sd, sctp_assoc_t id, struct sockaddr **raddrs)
 	    &opt_len) != 0) {
 		free(addrs);
 		return (-1);
+	}
+	if (size_of_addresses == 0) {
+		free(addrs);
+		return (0);
 	}
 	*raddrs = &addrs->addr[0].sa;
 	cnt = 0;
