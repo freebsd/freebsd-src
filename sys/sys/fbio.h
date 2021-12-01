@@ -184,15 +184,6 @@ struct fbcmap {
 #define	FBIOPUTCMAP	_IOW('F', 3, struct fbcmap)
 #define	FBIOGETCMAP	_IOW('F', 4, struct fbcmap)
 
-/*
- * Video control.
- */
-#define	FBVIDEO_OFF		0
-#define	FBVIDEO_ON		1
-
-#define	FBIOSVIDEO	_IOW('F', 7, int)
-#define	FBIOGVIDEO	_IOR('F', 8, int)
-
 /* vertical retrace */
 #define	FBIOVERTICAL	_IO('F', 9)
 
