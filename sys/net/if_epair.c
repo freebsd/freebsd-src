@@ -625,6 +625,7 @@ epair_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 	ifp->if_dname = epairname;
 	ifp->if_dunit = unit;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
+	ifp->if_flags |= IFF_KNOWSEPOCH;
 	ifp->if_capabilities = IFCAP_VLAN_MTU;
 	ifp->if_capenable = IFCAP_VLAN_MTU;
 	ifp->if_start = epair_start;
