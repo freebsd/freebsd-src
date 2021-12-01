@@ -46,6 +46,7 @@ M=		${MACHINE}
 
 AWK?=		awk
 CP?=		cp
+ELFDUMP?=	elfdump
 NM?=		nm
 OBJCOPY?=	objcopy
 SIZE?=		size
