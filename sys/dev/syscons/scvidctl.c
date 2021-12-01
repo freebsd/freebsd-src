@@ -614,8 +614,6 @@ sc_vid_ioctl(struct tty *tp, u_long cmd, caddr_t data, struct thread *td)
     case FBIOPUTCMAP:
     case FBIOGETCMAP:
     case FBIOGTYPE:
-    case FBIOSVIDEO:
-    case FBIOGVIDEO:
     case FBIOSCURSOR:
     case FBIOGCURSOR:
     case FBIOSCURPOS:
