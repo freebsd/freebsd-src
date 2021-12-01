@@ -2187,8 +2187,13 @@ flags_out:
 				*value = (uint32_t)size;
 				*optsize = sizeof(uint32_t);
 			} else {
-				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, ENOTCONN);
-				error = ENOTCONN;
+				if ((inp->sctp_flags & SCTP_PCB_FLAGS_UDPTYPE) &&
+				    ((sctp_assoc_t)*value <= SCTP_ALL_ASSOC)) {
+					error = EINVAL;
+				} else {
+					error = ENOENT;
+				}
+				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, error);
 			}
 			break;
 		}
@@ -2262,8 +2267,13 @@ flags_out:
 				}
 				SCTP_TCB_UNLOCK(stcb);
 			} else {
-				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, ENOENT);
-				error = ENOENT;
+				if ((inp->sctp_flags & SCTP_PCB_FLAGS_UDPTYPE) &&
+				    (saddr->sget_assoc_id <= SCTP_ALL_ASSOC)) {
+					error = EINVAL;
+				} else {
+					error = ENOENT;
+				}
+				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, error);
 			}
 			break;
 		}
@@ -2275,12 +2285,18 @@ flags_out:
 			SCTP_CHECK_AND_CAST(saddr, optval, struct sctp_getaddresses, *optsize);
 			SCTP_FIND_STCB(inp, stcb, saddr->sget_assoc_id);
 
-			limit = *optsize - offsetof(struct sctp_getaddresses, addr);
-			actual = sctp_fill_up_addresses(inp, stcb, limit, &saddr->addr[0].sa);
+			if ((inp->sctp_flags & SCTP_PCB_FLAGS_UDPTYPE) &&
+			    ((saddr->sget_assoc_id == SCTP_CURRENT_ASSOC) ||
+			    (saddr->sget_assoc_id == SCTP_ALL_ASSOC))) {
+				error = EINVAL;
+			} else {
+				limit = *optsize - offsetof(struct sctp_getaddresses, addr);
+				actual = sctp_fill_up_addresses(inp, stcb, limit, &saddr->addr[0].sa);
+				*optsize = offsetof(struct sctp_getaddresses, addr) + actual;
+			}
 			if (stcb != NULL) {
 				SCTP_TCB_UNLOCK(stcb);
 			}
-			*optsize = offsetof(struct sctp_getaddresses, addr) + actual;
 			break;
 		}
 	case SCTP_PEER_ADDR_PARAMS:
