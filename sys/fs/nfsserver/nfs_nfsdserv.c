@@ -4566,9 +4566,10 @@ nfsrvd_sequence(struct nfsrv_descript *nd, __unused int isdgram,
 		cache_this = 1;
 	else
 		cache_this = 0;
-	nd->nd_flag |= ND_HASSEQUENCE;
 	nd->nd_repstat = nfsrv_checksequence(nd, sequenceid, &highest_slotid,
 	    &target_highest_slotid, cache_this, &sflags, p);
+	if (nd->nd_repstat != NFSERR_BADSLOT)
+		nd->nd_flag |= ND_HASSEQUENCE;
 	if (nd->nd_repstat == 0) {
 		NFSM_BUILD(tl, uint32_t *, NFSX_V4SESSIONID);
 		NFSBCOPY(nd->nd_sessionid, tl, NFSX_V4SESSIONID);
