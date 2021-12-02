@@ -629,7 +629,7 @@ in_pcballoc(struct socket *so, struct inpcbinfo *pcbinfo)
 	 * If using hpts lets drop a random number in so
 	 * not all new connections fall on the same CPU.
 	 */
-	inp->inp_hpts_cpu = inp->inp_input_cpu = hpts_random_cpu(inp);
+	inp->inp_hpts_cpu = inp->inp_dropq_cpu = hpts_random_cpu(inp);
 #endif
 	refcount_init(&inp->inp_refcount, 1);   /* Reference from socket. */
 	INP_WLOCK(inp);
@@ -1760,7 +1760,7 @@ in_pcbrele_rlocked(struct inpcb *inp)
 	MPASS(inp->inp_flags & INP_FREED);
 	MPASS(inp->inp_socket == NULL);
 	MPASS(inp->inp_in_hpts == 0);
-	MPASS(inp->inp_in_input == 0);
+	MPASS(inp->inp_in_dropq == 0);
 	INP_RUNLOCK(inp);
 	uma_zfree_smr(inp->inp_pcbinfo->ipi_zone, inp);
 	return (true);
@@ -1778,7 +1778,7 @@ in_pcbrele_wlocked(struct inpcb *inp)
 	MPASS(inp->inp_flags & INP_FREED);
 	MPASS(inp->inp_socket == NULL);
 	MPASS(inp->inp_in_hpts == 0);
-	MPASS(inp->inp_in_input == 0);
+	MPASS(inp->inp_in_dropq == 0);
 	INP_WUNLOCK(inp);
 	uma_zfree_smr(inp->inp_pcbinfo->ipi_zone, inp);
 	return (true);
