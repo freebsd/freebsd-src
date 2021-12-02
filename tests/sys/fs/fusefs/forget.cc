@@ -44,8 +44,6 @@ extern "C" {
 
 using namespace testing;
 
-const char reclaim_mib[] = "debug.try_reclaim_vnode";
-
 class Forget: public FuseTest {
 public:
 void SetUp() {
@@ -67,7 +65,6 @@ TEST_F(Forget, ok)
 	uint64_t ino = 42;
 	mode_t mode = S_IFREG | 0755;
 	sem_t sem;
-	int err;
 
 	ASSERT_EQ(0, sem_init(&sem, 0, 0)) << strerror(errno);
 
@@ -90,8 +87,7 @@ TEST_F(Forget, ok)
 	ASSERT_EQ(0, access(FULLPATH, F_OK)) << strerror(errno);
 	ASSERT_EQ(0, access(FULLPATH, F_OK)) << strerror(errno);
 
-	err = sysctlbyname(reclaim_mib, NULL, 0, FULLPATH, sizeof(FULLPATH));
-	ASSERT_EQ(0, err) << strerror(errno);
+	reclaim_vnode(FULLPATH);
 
 	sem_wait(&sem);
 	sem_destroy(&sem);
@@ -109,7 +105,6 @@ TEST_F(Forget, invalidate_names)
 	const char FNAME[] = "some_file.txt";
 	uint64_t dir_ino = 42;
 	uint64_t file_ino = 43;
-	int err;
 
 	EXPECT_LOOKUP(FUSE_ROOT_ID, DNAME)
 	.Times(2)
@@ -145,8 +140,7 @@ TEST_F(Forget, invalidate_names)
 	ASSERT_EQ(0, access(FULLFPATH, F_OK)) << strerror(errno);
 	
 	/* Reclaim the directory, invalidating its children from namecache */
-	err = sysctlbyname(reclaim_mib, NULL, 0, FULLDPATH, sizeof(FULLDPATH));
-	ASSERT_EQ(0, err) << strerror(errno);
+	reclaim_vnode(FULLDPATH);
 
 	/* Access the file again, causing another lookup */
 	ASSERT_EQ(0, access(FULLFPATH, F_OK)) << strerror(errno);
