@@ -49,7 +49,9 @@
 
 #ifdef _KERNEL
 #include <sys/lock.h>
+#include <sys/proc.h>
 #include <sys/rwlock.h>
+#include <sys/smr.h>
 #include <net/vnet.h>
 #include <vm/uma.h>
 #endif
@@ -133,32 +135,19 @@ struct in_conninfo {
  * struct inpcb captures the network layer state for TCP, UDP, and raw IPv4 and
  * IPv6 sockets.  In the case of TCP and UDP, further per-connection state is
  * hung off of inp_ppcb most of the time.  Almost all fields of struct inpcb
- * are static after creation or protected by a per-inpcb rwlock, inp_lock.  A
- * few fields are protected by multiple locks as indicated in the locking notes
- * below.  For these fields, all of the listed locks must be write-locked for
- * any modifications.  However, these fields can be safely read while any one of
- * the listed locks are read-locked.  This model can permit greater concurrency
- * for read operations.  For example, connections can be looked up while only
- * holding a read lock on the global pcblist lock.  This is important for
- * performance when attempting to find the connection for a packet given its IP
- * and port tuple.
+ * are static after creation or protected by a per-inpcb rwlock, inp_lock.
  *
- * One noteworthy exception is that the global pcbinfo lock follows a different
- * set of rules in relation to the inp_list field.  Rather than being
- * write-locked for modifications and read-locked for list iterations, it must
- * be read-locked during modifications and write-locked during list iterations.
- * This ensures that the relatively rare global list iterations safely walk a
- * stable snapshot of connections while allowing more common list modifications
- * to safely grab the pcblist lock just while adding or removing a connection
- * from the global list.
+ * A inpcb database is indexed by addresses/ports hash as well as list of
+ * all pcbs that belong to a certain proto. Database lookups or list traversals
+ * are be performed inside SMR section. Once desired PCB is found its own
+ * lock is to be obtained and SMR section exited.
  *
  * Key:
  * (b) - Protected by the hpts lock.
  * (c) - Constant after initialization
- * (e) - Protected by the net_epoch_prempt epoch
+ * (e) - Protected by the SMR section
  * (i) - Protected by the inpcb lock
  * (p) - Protected by the pcbinfo lock for the inpcb
- * (l) - Protected by the pcblist lock for the inpcb
  * (h) - Protected by the pcbhash lock for the inpcb
  * (s) - Protected by another subsystem's locks
  * (x) - Undefined locking
@@ -219,17 +208,13 @@ struct in_conninfo {
  * socket has been freed), or there may be close(2)-related races.
  *
  * The inp_vflag field is overloaded, and would otherwise ideally be (c).
- *
- * TODO:  Currently only the TCP stack is leveraging the global pcbinfo lock
- * read-lock usage during modification, this model can be applied to other
- * protocols (especially SCTP).
  */
 struct icmp6_filter;
 struct inpcbpolicy;
 struct m_snd_tag;
 struct inpcb {
 	/* Cache line #1 (amd64) */
-	CK_LIST_ENTRY(inpcb) inp_hash;	/* [w](h/i) [r](e/i)  hash list */
+	CK_LIST_ENTRY(inpcb) inp_hash;	/* (w:h/r:e)  hash list */
 	struct rwlock	inp_lock;
 	/* Cache line #2 (amd64) */
 #define	inp_start_zero	inp_hpts
@@ -311,8 +296,8 @@ struct inpcb {
 		int	in6p_cksum;
 		short	in6p_hops;
 	};
-	CK_LIST_ENTRY(inpcb) inp_portlist;	/* (i/h) */
-	struct	inpcbport *inp_phd;	/* (i/h) head of this list */
+	CK_LIST_ENTRY(inpcb) inp_portlist;	/* (r:e/w:h) port list */
+	struct	inpcbport *inp_phd;	/* (r:e/w:h) head of this list */
 	inp_gen_t	inp_gencnt;	/* (c) generation count */
 	void		*spare_ptr;	/* Spare pointer. */
 	rt_gen_t	inp_rt_cookie;	/* generation for route entry */
@@ -320,10 +305,7 @@ struct inpcb {
 		struct route inp_route;
 		struct route_in6 inp_route6;
 	};
-	CK_LIST_ENTRY(inpcb) inp_list;	/* (p/l) list for all PCBs for proto */
-	                                /* (e[r]) for list iteration */
-	                                /* (p[w]/l) for addition/removal */
-	struct epoch_context inp_epoch_ctx;
+	CK_LIST_ENTRY(inpcb) inp_list;	/* (r:e/w:p) all PCBs for proto */
 };
 #endif	/* _KERNEL */
 
@@ -396,80 +378,58 @@ void	in_pcbtoxinpcb(const struct inpcb *, struct xinpcb *);
 #endif
 #endif /* _SYS_SOCKETVAR_H_ */
 
-struct inpcbport {
-	struct epoch_context phd_epoch_ctx;
-	CK_LIST_ENTRY(inpcbport) phd_hash;
-	struct inpcbhead phd_pcblist;
-	u_short phd_port;
-};
-
-/*-
+#ifdef _KERNEL
+/*
  * Global data structure for each high-level protocol (UDP, TCP, ...) in both
  * IPv4 and IPv6.  Holds inpcb lists and information for managing them.
  *
- * Each pcbinfo is protected by three locks: ipi_lock, ipi_hash_lock and
- * ipi_list_lock:
- *  - ipi_lock covering the global pcb list stability during loop iteration,
- *  - ipi_hash_lock covering the hashed lookup tables,
- *  - ipi_list_lock covering mutable global fields (such as the global
- *    pcb list)
- *
- * The lock order is:
- *
- *    ipi_lock (before)
- *        inpcb locks (before)
- *            ipi_list locks (before)
+ * The pcbs are protected with SMR section and thus all lists in inpcbinfo
+ * are CK-lists.  Locking is required to insert a pcb into database. Two
+ * locks are provided: one for the hash and one for the global list of pcbs,
+ * as well as overall count and generation count.
  *
  * Locking key:
  *
  * (c) Constant or nearly constant after initialisation
- * (e) - Protected by the net_epoch_prempt epoch
+ * (e) Protected by SMR section
  * (g) Locked by ipi_lock
- * (l) Locked by ipi_list_lock
- * (h) Read using either net_epoch_preempt or inpcb lock; write requires both ipi_hash_lock and inpcb lock
- * (x) Synchronisation properties poorly defined
+ * (h) Locked by ipi_hash_lock
  */
 struct inpcbinfo {
 	/*
 	 * Global lock protecting inpcb list modification
 	 */
 	struct mtx		 ipi_lock;
-
-	/*
-	 * Global list of inpcbs on the protocol.
-	 */
-	struct inpcbhead	*ipi_listhead;		/* [r](e) [w](g/l) */
-	u_int			 ipi_count;		/* (l) */
+	struct inpcbhead	 ipi_listhead;		/* (r:e/w:g) */
+	u_int			 ipi_count;		/* (g) */
 
 	/*
 	 * Generation count -- incremented each time a connection is allocated
 	 * or freed.
 	 */
-	u_quad_t		 ipi_gencnt;		/* (l) */
+	u_quad_t		 ipi_gencnt;		/* (g) */
 
 	/*
 	 * Fields associated with port lookup and allocation.
 	 */
-	u_short			 ipi_lastport;		/* (x) */
-	u_short			 ipi_lastlow;		/* (x) */
-	u_short			 ipi_lasthi;		/* (x) */
+	u_short			 ipi_lastport;		/* (h) */
+	u_short			 ipi_lastlow;		/* (h) */
+	u_short			 ipi_lasthi;		/* (h) */
 
 	/*
 	 * UMA zone from which inpcbs are allocated for this protocol.
 	 */
-	struct	uma_zone	*ipi_zone;		/* (c) */
-
-	/*
-	 * Global lock protecting modification hash lookup tables.
-	 */
-	struct mtx		 ipi_hash_lock;
+	uma_zone_t		 ipi_zone;		/* (c) */
+	uma_zone_t		 ipi_portzone;		/* (c) */
+	smr_t			 ipi_smr;		/* (c) */
 
 	/*
 	 * Global hash of inpcbs, hashed by local and foreign addresses and
 	 * port numbers.
 	 */
-	struct inpcbhead	*ipi_hashbase;		/* (h) */
-	u_long			 ipi_hashmask;		/* (h) */
+	struct mtx		 ipi_hash_lock;
+	struct inpcbhead 	*ipi_hashbase;		/* (r:e/w:h) */
+	u_long			 ipi_hashmask;		/* (c) */
 
 	/*
 	 * Global hash of inpcbs, hashed by only local port number.
@@ -481,26 +441,15 @@ struct inpcbinfo {
 	 * Load balance groups used for the SO_REUSEPORT_LB option,
 	 * hashed by local port.
 	 */
-	struct	inpcblbgrouphead *ipi_lbgrouphashbase;	/* (h) */
+	struct	inpcblbgrouphead *ipi_lbgrouphashbase;	/* (r:e/w:h) */
 	u_long			 ipi_lbgrouphashmask;	/* (h) */
 
 	/*
 	 * Pointer to network stack instance
 	 */
 	struct vnet		*ipi_vnet;		/* (c) */
-
-	/*
-	 * general use 2
-	 */
-	void 			*ipi_pspare[2];
-
-	/*
-	 * Global lock protecting global inpcb list, inpcb count, etc.
-	 */
-	struct rwlock		 ipi_list_lock;
 };
 
-#ifdef _KERNEL
 /*
  * Load balance groups used for the SO_REUSEPORT_LB socket option. Each group
  * (or unique address:port combination) can be re-used at most
@@ -523,7 +472,7 @@ struct inpcblbgroup {
 };
 
 #define INP_LOCK_INIT(inp, d, t) \
-	rw_init_flags(&(inp)->inp_lock, (t), RW_RECURSE |  RW_DUPOK)
+	rw_init_flags(&(inp)->inp_lock, (t), RW_RECURSE | RW_DUPOK)
 #define INP_LOCK_DESTROY(inp)	rw_destroy(&(inp)->inp_lock)
 #define INP_RLOCK(inp)		rw_rlock(&(inp)->inp_lock)
 #define INP_WLOCK(inp)		rw_wlock(&(inp)->inp_lock)
@@ -571,51 +520,21 @@ int	inp_so_options(const struct inpcb *inp);
 
 #endif /* _KERNEL */
 
-#define INP_INFO_LOCK_INIT(ipi, d) \
-	mtx_init(&(ipi)->ipi_lock, (d), NULL, MTX_DEF| MTX_RECURSE)
-#define INP_INFO_LOCK_DESTROY(ipi)  mtx_destroy(&(ipi)->ipi_lock)
-#define INP_INFO_WLOCK(ipi) mtx_lock(&(ipi)->ipi_lock)
-#define INP_INFO_TRY_WLOCK(ipi)	mtx_trylock(&(ipi)->ipi_lock)
+#define INP_INFO_WLOCK(ipi)	mtx_lock(&(ipi)->ipi_lock)
 #define INP_INFO_WLOCKED(ipi)	mtx_owned(&(ipi)->ipi_lock)
 #define INP_INFO_WUNLOCK(ipi)	mtx_unlock(&(ipi)->ipi_lock)
-#define	INP_INFO_LOCK_ASSERT(ipi)	MPASS(in_epoch(net_epoch_preempt) || mtx_owned(&(ipi)->ipi_lock))
+#define	INP_INFO_LOCK_ASSERT(ipi)	MPASS(SMR_ENTERED((ipi)->ipi_smr) || \
+					mtx_owned(&(ipi)->ipi_lock))
 #define INP_INFO_WLOCK_ASSERT(ipi)	mtx_assert(&(ipi)->ipi_lock, MA_OWNED)
 #define INP_INFO_WUNLOCK_ASSERT(ipi)	\
-	mtx_assert(&(ipi)->ipi_lock, MA_NOTOWNED)
+				mtx_assert(&(ipi)->ipi_lock, MA_NOTOWNED)
 
-#define INP_LIST_LOCK_INIT(ipi, d) \
-        rw_init_flags(&(ipi)->ipi_list_lock, (d), 0)
-#define INP_LIST_LOCK_DESTROY(ipi)  rw_destroy(&(ipi)->ipi_list_lock)
-#define INP_LIST_RLOCK(ipi)     rw_rlock(&(ipi)->ipi_list_lock)
-#define INP_LIST_WLOCK(ipi)     rw_wlock(&(ipi)->ipi_list_lock)
-#define INP_LIST_TRY_RLOCK(ipi) rw_try_rlock(&(ipi)->ipi_list_lock)
-#define INP_LIST_TRY_WLOCK(ipi) rw_try_wlock(&(ipi)->ipi_list_lock)
-#define INP_LIST_TRY_UPGRADE(ipi)       rw_try_upgrade(&(ipi)->ipi_list_lock)
-#define INP_LIST_RUNLOCK(ipi)   rw_runlock(&(ipi)->ipi_list_lock)
-#define INP_LIST_WUNLOCK(ipi)   rw_wunlock(&(ipi)->ipi_list_lock)
-#define INP_LIST_LOCK_ASSERT(ipi) \
-	rw_assert(&(ipi)->ipi_list_lock, RA_LOCKED)
-#define INP_LIST_RLOCK_ASSERT(ipi) \
-	rw_assert(&(ipi)->ipi_list_lock, RA_RLOCKED)
-#define INP_LIST_WLOCK_ASSERT(ipi) \
-	rw_assert(&(ipi)->ipi_list_lock, RA_WLOCKED)
-#define INP_LIST_UNLOCK_ASSERT(ipi) \
-	rw_assert(&(ipi)->ipi_list_lock, RA_UNLOCKED)
-
-#define	INP_HASH_LOCK_INIT(ipi, d) mtx_init(&(ipi)->ipi_hash_lock, (d), NULL, MTX_DEF)
-#define	INP_HASH_LOCK_DESTROY(ipi)	mtx_destroy(&(ipi)->ipi_hash_lock)
 #define	INP_HASH_WLOCK(ipi)		mtx_lock(&(ipi)->ipi_hash_lock)
 #define	INP_HASH_WUNLOCK(ipi)		mtx_unlock(&(ipi)->ipi_hash_lock)
-#define	INP_HASH_LOCK_ASSERT(ipi)	MPASS(in_epoch(net_epoch_preempt) || mtx_owned(&(ipi)->ipi_hash_lock))
-#define	INP_HASH_WLOCK_ASSERT(ipi)	mtx_assert(&(ipi)->ipi_hash_lock, MA_OWNED);
-
-#define	INP_GROUP_LOCK_INIT(ipg, d)	mtx_init(&(ipg)->ipg_lock, (d), NULL, \
-					    MTX_DEF | MTX_DUPOK)
-#define	INP_GROUP_LOCK_DESTROY(ipg)	mtx_destroy(&(ipg)->ipg_lock)
-
-#define	INP_GROUP_LOCK(ipg)		mtx_lock(&(ipg)->ipg_lock)
-#define	INP_GROUP_LOCK_ASSERT(ipg)	mtx_assert(&(ipg)->ipg_lock, MA_OWNED)
-#define	INP_GROUP_UNLOCK(ipg)		mtx_unlock(&(ipg)->ipg_lock)
+#define	INP_HASH_LOCK_ASSERT(ipi)	MPASS(SMR_ENTERED((ipi)->ipi_smr) || \
+					mtx_owned(&(ipi)->ipi_hash_lock))
+#define	INP_HASH_WLOCK_ASSERT(ipi)	mtx_assert(&(ipi)->ipi_hash_lock, \
+					MA_OWNED)
 
 #define INP_PCBHASH(faddr, lport, fport, mask) \
 	(((faddr) ^ ((faddr) >> 16) ^ ntohs((lport) ^ (fport))) & (mask))
@@ -644,7 +563,7 @@ int	inp_so_options(const struct inpcb *inp);
 #define	INP_ANONPORT		0x00000040 /* port chosen for user */
 #define	INP_RECVIF		0x00000080 /* receive incoming interface */
 #define	INP_MTUDISC		0x00000100 /* user can do MTU discovery */
-				   	   /* 0x000200 unused: was INP_FAITH */
+/*	INP_FREED		0x00000200 private to in_pcb.c */
 #define	INP_RECVTTL		0x00000400 /* receive incoming IP TTL */
 #define	INP_DONTFRAG		0x00000800 /* don't fragment packet */
 #define	INP_BINDANY		0x00001000 /* allow bind to any address */
@@ -682,7 +601,7 @@ int	inp_so_options(const struct inpcb *inp);
 #define	INP_MBUF_ACKCMP		0x00000002 /* TCP mbuf ack compression ok */
 /*				0x00000004 */
 #define	INP_REUSEPORT		0x00000008 /* SO_REUSEPORT option is set */
-#define	INP_FREED		0x00000010 /* inp itself is not valid */
+/*				0x00000010 */
 #define	INP_REUSEADDR		0x00000020 /* SO_REUSEADDR option is set */
 #define	INP_BINDMULTI		0x00000040 /* IP_BINDMULTI option is set */
 #define	INP_RSS_BUCKET_SET	0x00000080 /* IP_RSS_LISTEN_BUCKET is set */
@@ -702,28 +621,25 @@ int	inp_so_options(const struct inpcb *inp);
 #define INP_2PCP_BASE	INP_2PCP_BIT0
 #define INP_2PCP_MASK	(INP_2PCP_BIT0 | INP_2PCP_BIT1 | INP_2PCP_BIT2)
 #define INP_2PCP_SHIFT		18         /* shift PCP field in/out of inp_flags2 */
+
 /*
- * Flags passed to in_pcblookup*() functions.
+ * Flags passed to in_pcblookup*(), inp_smr_lock() and inp_next().
  */
-#define	INPLOOKUP_WILDCARD	0x00000001	/* Allow wildcard sockets. */
-#define	INPLOOKUP_RLOCKPCB	0x00000002	/* Return inpcb read-locked. */
-#define	INPLOOKUP_WLOCKPCB	0x00000004	/* Return inpcb write-locked. */
+typedef	enum {
+	INPLOOKUP_WILDCARD = 0x00000001,	/* Allow wildcard sockets. */
+	INPLOOKUP_RLOCKPCB = 0x00000002,	/* Return inpcb read-locked. */
+	INPLOOKUP_WLOCKPCB = 0x00000004,	/* Return inpcb write-locked. */
+} inp_lookup_t;
 
 #define	INPLOOKUP_MASK	(INPLOOKUP_WILDCARD | INPLOOKUP_RLOCKPCB | \
 	    INPLOOKUP_WLOCKPCB)
+#define	INPLOOKUP_LOCKMASK	(INPLOOKUP_RLOCKPCB | INPLOOKUP_WLOCKPCB)
 
 #define	sotoinpcb(so)	((struct inpcb *)(so)->so_pcb)
 
 #define	INP_SOCKAF(so) so->so_proto->pr_domain->dom_family
 
 #define	INP_CHECK_SOCKAF(so, af)	(INP_SOCKAF(so) == af)
-
-/*
- * Constants for pcbinfo.ipi_hashfields.
- */
-#define	IPI_HASHFIELDS_NONE	0
-#define	IPI_HASHFIELDS_2TUPLE	1
-#define	IPI_HASHFIELDS_4TUPLE	2
 
 #ifdef _KERNEL
 VNET_DECLARE(int, ipport_reservedhigh);
@@ -755,8 +671,8 @@ VNET_DECLARE(int, ipport_tcpallocs);
 #define	V_ipport_tcpallocs	VNET(ipport_tcpallocs)
 
 void	in_pcbinfo_destroy(struct inpcbinfo *);
-void	in_pcbinfo_init(struct inpcbinfo *, const char *, struct inpcbhead *,
-	    int, int, char *, uma_init, u_int);
+void	in_pcbinfo_init(struct inpcbinfo *, const char *, u_int, int, char *,
+	    uma_init);
 
 int	in_pcbbind_check_bindmulti(const struct inpcb *ni,
 	    const struct inpcb *oi);
@@ -788,8 +704,37 @@ void	in_pcbnotifyall(struct inpcbinfo *pcbinfo, struct in_addr,
 	    int, struct inpcb *(*)(struct inpcb *, int));
 void	in_pcbref(struct inpcb *);
 void	in_pcbrehash(struct inpcb *);
-int	in_pcbrele_rlocked(struct inpcb *);
-int	in_pcbrele_wlocked(struct inpcb *);
+bool	in_pcbrele_rlocked(struct inpcb *);
+bool	in_pcbrele_wlocked(struct inpcb *);
+
+typedef bool inp_match_t(const struct inpcb *, void *);
+struct inpcb_iterator {
+	const struct inpcbinfo	*ipi;
+	struct inpcb		*inp;
+	inp_match_t		*match;
+	void			*ctx;
+	int			hash;
+#define	INP_ALL_LIST		-1
+	const inp_lookup_t	lock;
+};
+
+/* Note: sparse initializers guarantee .inp = NULL. */
+#define	INP_ITERATOR(_ipi, _lock, _match, _ctx)		\
+	{						\
+		.ipi = (_ipi),				\
+		.lock = (_lock),			\
+		.hash = INP_ALL_LIST,			\
+		.match = (_match),			\
+		.ctx = (_ctx),				\
+	}
+#define	INP_ALL_ITERATOR(_ipi, _lock)			\
+	{						\
+		.ipi = (_ipi),				\
+		.lock = (_lock),			\
+		.hash = INP_ALL_LIST,			\
+	}
+
+struct inpcb *inp_next(struct inpcb_iterator *);
 void	in_losing(struct inpcb *);
 void	in_pcbsetsolabel(struct socket *so);
 int	in_getpeeraddr(struct socket *so, struct sockaddr **nam);

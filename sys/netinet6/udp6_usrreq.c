@@ -207,6 +207,137 @@ udp6_append(struct inpcb *inp, struct mbuf *n, int off,
 	return (0);
 }
 
+struct udp6_multi_match_ctx {
+	struct ip6_hdr *ip6;
+	struct udphdr *uh;
+};
+
+static bool
+udp6_multi_match(const struct inpcb *inp, void *v)
+{
+	struct udp6_multi_match_ctx *ctx = v;
+
+	if ((inp->inp_vflag & INP_IPV6) == 0)
+		return(false);
+	if (inp->inp_lport != ctx->uh->uh_dport)
+		return(false);
+	if (inp->inp_fport != 0 && inp->inp_fport != ctx->uh->uh_sport)
+		return(false);
+	if (!IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_laddr) &&
+	    !IN6_ARE_ADDR_EQUAL(&inp->in6p_laddr, &ctx->ip6->ip6_dst))
+		return (false);
+	if (!IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_faddr) &&
+	    (!IN6_ARE_ADDR_EQUAL(&inp->in6p_faddr, &ctx->ip6->ip6_src) ||
+	    inp->inp_fport != ctx->uh->uh_sport))
+		return (false);
+
+	return (true);
+}
+
+static int
+udp6_multi_input(struct mbuf *m, int off, int proto,
+    struct sockaddr_in6 *fromsa)
+{
+	struct udp6_multi_match_ctx ctx;
+	struct inpcb_iterator inpi = INP_ITERATOR(udp_get_inpcbinfo(proto),
+	    INPLOOKUP_RLOCKPCB, udp6_multi_match, &ctx);
+	struct inpcb *inp;
+	struct ip6_moptions *imo;
+	struct mbuf *n;
+	int appends = 0;
+
+	/*
+	 * In the event that laddr should be set to the link-local
+	 * address (this happens in RIPng), the multicast address
+	 * specified in the received packet will not match laddr.  To
+	 * handle this situation, matching is relaxed if the
+	 * receiving interface is the same as one specified in the
+	 * socket and if the destination multicast address matches
+	 * one of the multicast groups specified in the socket.
+	 */
+
+	/*
+	 * KAME note: traditionally we dropped udpiphdr from mbuf
+	 * here.  We need udphdr for IPsec processing so we do that
+	 * later.
+	 */
+	ctx.ip6 = mtod(m, struct ip6_hdr *);
+	ctx.uh = (struct udphdr *)((char *)ctx.ip6 + off);
+	while ((inp = inp_next(&inpi)) != NULL) {
+		INP_RLOCK_ASSERT(inp);
+		/*
+		 * XXXRW: Because we weren't holding either the inpcb
+		 * or the hash lock when we checked for a match
+		 * before, we should probably recheck now that the
+		 * inpcb lock is (supposed to be) held.
+		 */
+		/*
+		 * Handle socket delivery policy for any-source
+		 * and source-specific multicast. [RFC3678]
+		 */
+		if ((imo = inp->in6p_moptions) != NULL) {
+			struct sockaddr_in6	 mcaddr;
+			int			 blocked;
+
+			bzero(&mcaddr, sizeof(struct sockaddr_in6));
+			mcaddr.sin6_len = sizeof(struct sockaddr_in6);
+			mcaddr.sin6_family = AF_INET6;
+			mcaddr.sin6_addr = ctx.ip6->ip6_dst;
+
+			blocked = im6o_mc_filter(imo, m->m_pkthdr.rcvif,
+				(struct sockaddr *)&mcaddr,
+				(struct sockaddr *)&fromsa[0]);
+			if (blocked != MCAST_PASS) {
+				if (blocked == MCAST_NOTGMEMBER)
+					IP6STAT_INC(ip6s_notmember);
+				if (blocked == MCAST_NOTSMEMBER ||
+				    blocked == MCAST_MUTED)
+					UDPSTAT_INC(udps_filtermcast);
+				continue;
+			}
+		}
+		if ((n = m_copym(m, 0, M_COPYALL, M_NOWAIT)) != NULL) {
+			if (proto == IPPROTO_UDPLITE)
+				UDPLITE_PROBE(receive, NULL, inp, ctx.ip6,
+				    inp, ctx.uh);
+			else
+				UDP_PROBE(receive, NULL, inp, ctx.ip6, inp,
+				    ctx.uh);
+			if (udp6_append(inp, n, off, fromsa)) {
+				INP_RUNLOCK(inp);
+				break;
+			} else
+				appends++;
+		}
+		/*
+		 * Don't look for additional matches if this one does
+		 * not have either the SO_REUSEPORT or SO_REUSEADDR
+		 * socket options set.  This heuristic avoids
+		 * searching through all pcbs in the common case of a
+		 * non-shared port.  It assumes that an application
+		 * will never clear these options after setting them.
+		 */
+		if ((inp->inp_socket->so_options &
+		     (SO_REUSEPORT|SO_REUSEPORT_LB|SO_REUSEADDR)) == 0) {
+			INP_RUNLOCK(inp);
+			break;
+		}
+	}
+	m_freem(m);
+
+	if (appends == 0) {
+		/*
+		 * No matching pcb found; discard datagram.  (No need
+		 * to send an ICMP Port Unreachable for a broadcast
+		 * or multicast datgram.)
+		 */
+		UDPSTAT_INC(udps_noport);
+		UDPSTAT_INC(udps_noportmcast);
+	}
+
+	return (IPPROTO_DONE);
+}
+
 int
 udp6_input(struct mbuf **mp, int *offp, int proto)
 {
@@ -311,144 +442,11 @@ skip_checksum:
 	fromsa[1].sin6_port = uh->uh_dport;
 
 	pcbinfo = udp_get_inpcbinfo(nxt);
-	if (IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst)) {
-		struct inpcb *last;
-		struct inpcbhead *pcblist;
-		struct ip6_moptions *imo;
-
-		/*
-		 * In the event that laddr should be set to the link-local
-		 * address (this happens in RIPng), the multicast address
-		 * specified in the received packet will not match laddr.  To
-		 * handle this situation, matching is relaxed if the
-		 * receiving interface is the same as one specified in the
-		 * socket and if the destination multicast address matches
-		 * one of the multicast groups specified in the socket.
-		 */
-
-		/*
-		 * KAME note: traditionally we dropped udpiphdr from mbuf
-		 * here.  We need udphdr for IPsec processing so we do that
-		 * later.
-		 */
-		pcblist = udp_get_pcblist(nxt);
-		last = NULL;
-		CK_LIST_FOREACH(inp, pcblist, inp_list) {
-			if ((inp->inp_vflag & INP_IPV6) == 0)
-				continue;
-			if (inp->inp_lport != uh->uh_dport)
-				continue;
-			if (inp->inp_fport != 0 &&
-			    inp->inp_fport != uh->uh_sport)
-				continue;
-			if (!IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_laddr)) {
-				if (!IN6_ARE_ADDR_EQUAL(&inp->in6p_laddr,
-							&ip6->ip6_dst))
-					continue;
-			}
-			if (!IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_faddr)) {
-				if (!IN6_ARE_ADDR_EQUAL(&inp->in6p_faddr,
-							&ip6->ip6_src) ||
-				    inp->inp_fport != uh->uh_sport)
-					continue;
-			}
-
-			INP_RLOCK(inp);
-
-			if (__predict_false(inp->inp_flags2 & INP_FREED)) {
-				INP_RUNLOCK(inp);
-				continue;
-			}
-
-			/*
-			 * XXXRW: Because we weren't holding either the inpcb
-			 * or the hash lock when we checked for a match 
-			 * before, we should probably recheck now that the 
-			 * inpcb lock is (supposed to be) held.
-			 */
-
-			/*
-			 * Handle socket delivery policy for any-source
-			 * and source-specific multicast. [RFC3678]
-			 */
-			imo = inp->in6p_moptions;
-			if (imo != NULL) {
-				struct sockaddr_in6	 mcaddr;
-				int			 blocked;
-
-				bzero(&mcaddr, sizeof(struct sockaddr_in6));
-				mcaddr.sin6_len = sizeof(struct sockaddr_in6);
-				mcaddr.sin6_family = AF_INET6;
-				mcaddr.sin6_addr = ip6->ip6_dst;
-
-				blocked = im6o_mc_filter(imo, ifp,
-					(struct sockaddr *)&mcaddr,
-					(struct sockaddr *)&fromsa[0]);
-				if (blocked != MCAST_PASS) {
-					if (blocked == MCAST_NOTGMEMBER)
-						IP6STAT_INC(ip6s_notmember);
-					if (blocked == MCAST_NOTSMEMBER ||
-					    blocked == MCAST_MUTED)
-						UDPSTAT_INC(udps_filtermcast);
-					INP_RUNLOCK(inp);
-					continue;
-				}
-			}
-
-			if (last != NULL) {
-				struct mbuf *n;
-
-				if ((n = m_copym(m, 0, M_COPYALL, M_NOWAIT)) !=
-				    NULL) {
-					if (nxt == IPPROTO_UDPLITE)
-						UDPLITE_PROBE(receive, NULL,
-						    last, ip6, last, uh);
-					else
-						UDP_PROBE(receive, NULL, last,
-						    ip6, last, uh);
-					if (udp6_append(last, n, off,
-					    fromsa)) {
-						INP_RUNLOCK(inp);
-						goto badunlocked;
-					}
-				}
-				/* Release PCB lock taken on previous pass. */
-				INP_RUNLOCK(last);
-			}
-			last = inp;
-			/*
-			 * Don't look for additional matches if this one does
-			 * not have either the SO_REUSEPORT or SO_REUSEADDR
-			 * socket options set.  This heuristic avoids
-			 * searching through all pcbs in the common case of a
-			 * non-shared port.  It assumes that an application
-			 * will never clear these options after setting them.
-			 */
-			if ((last->inp_socket->so_options &
-			     (SO_REUSEPORT|SO_REUSEPORT_LB|SO_REUSEADDR)) == 0)
-				break;
-		}
-
-		if (last == NULL) {
-			/*
-			 * No matching pcb found; discard datagram.  (No need
-			 * to send an ICMP Port Unreachable for a broadcast
-			 * or multicast datgram.)
-			 */
-			UDPSTAT_INC(udps_noport);
-			UDPSTAT_INC(udps_noportmcast);
-			goto badunlocked;
-		}
-
-		if (nxt == IPPROTO_UDPLITE)
-			UDPLITE_PROBE(receive, NULL, last, ip6, last, uh);
-		else
-			UDP_PROBE(receive, NULL, last, ip6, last, uh);
-		if (udp6_append(last, m, off, fromsa) == 0)
-			INP_RUNLOCK(last);
+	if (IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst))  {
 		*mp = NULL;
-		return (IPPROTO_DONE);
+		return (udp6_multi_input(m, off, proto, fromsa));
 	}
+
 	/*
 	 * Locate pcb for datagram.
 	 */
@@ -1043,12 +1041,9 @@ udp6_attach(struct socket *so, int proto, struct thread *td)
 		if (error)
 			return (error);
 	}
-	INP_INFO_WLOCK(pcbinfo);
 	error = in_pcballoc(so, pcbinfo);
-	if (error) {
-		INP_INFO_WUNLOCK(pcbinfo);
+	if (error)
 		return (error);
-	}
 	inp = (struct inpcb *)so->so_pcb;
 	inp->inp_vflag |= INP_IPV6;
 	if ((inp->inp_flags & IN6P_IPV6_V6ONLY) == 0)
@@ -1067,11 +1062,9 @@ udp6_attach(struct socket *so, int proto, struct thread *td)
 	if (error) {
 		in_pcbdetach(inp);
 		in_pcbfree(inp);
-		INP_INFO_WUNLOCK(pcbinfo);
 		return (error);
 	}
 	INP_WUNLOCK(inp);
-	INP_INFO_WUNLOCK(pcbinfo);
 	return (0);
 }
 
@@ -1275,13 +1268,11 @@ udp6_detach(struct socket *so)
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("udp6_detach: inp == NULL"));
 
-	INP_INFO_WLOCK(pcbinfo);
 	INP_WLOCK(inp);
 	up = intoudpcb(inp);
 	KASSERT(up != NULL, ("%s: up == NULL", __func__));
 	in_pcbdetach(inp);
 	in_pcbfree(inp);
-	INP_INFO_WUNLOCK(pcbinfo);
 	udp_discardcb(up);
 }
 

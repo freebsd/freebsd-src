@@ -673,13 +673,21 @@ in6_mapped_peeraddr(struct socket *so, struct sockaddr **nam)
  * Call the protocol specific routine (if any) to report
  * any errors for each matching socket.
  */
+static bool
+inp_match6(const struct inpcb *inp, void *v __unused)
+{
+
+	return ((inp->inp_vflag & INP_IPV6) != 0);
+}
 void
 in6_pcbnotify(struct inpcbinfo *pcbinfo, struct sockaddr *dst,
     u_int fport_arg, const struct sockaddr *src, u_int lport_arg,
     int cmd, void *cmdarg,
     struct inpcb *(*notify)(struct inpcb *, int))
 {
-	struct inpcb *inp, *inp_temp;
+	struct inpcb_iterator inpi = INP_ITERATOR(pcbinfo, INPLOOKUP_WLOCKPCB,
+	    inp_match6, NULL);
+	struct inpcb *inp;
 	struct sockaddr_in6 sa6_src, *sa6_dst;
 	u_short	fport = fport_arg, lport = lport_arg;
 	u_int32_t flowinfo;
@@ -715,14 +723,8 @@ in6_pcbnotify(struct inpcbinfo *pcbinfo, struct sockaddr *dst,
 			notify = in6_rtchange;
 	}
 	errno = inet6ctlerrmap[cmd];
-	INP_INFO_WLOCK(pcbinfo);
-	CK_LIST_FOREACH_SAFE(inp, pcbinfo->ipi_listhead, inp_list, inp_temp) {
-		INP_WLOCK(inp);
-		if ((inp->inp_vflag & INP_IPV6) == 0) {
-			INP_WUNLOCK(inp);
-			continue;
-		}
-
+	while ((inp = inp_next(&inpi)) != NULL) {
+		INP_WLOCK_ASSERT(inp);
 		/*
 		 * If the error designates a new path MTU for a destination
 		 * and the application (associated with this socket) wanted to
@@ -754,18 +756,13 @@ in6_pcbnotify(struct inpcbinfo *pcbinfo, struct sockaddr *dst,
 			  !IN6_ARE_ADDR_EQUAL(&inp->in6p_laddr,
 					      &sa6_src.sin6_addr)) ||
 			 (fport && inp->inp_fport != fport)) {
-			INP_WUNLOCK(inp);
 			continue;
 		}
 
 	  do_notify:
-		if (notify) {
-			if ((*notify)(inp, errno))
-				INP_WUNLOCK(inp);
-		} else
-			INP_WUNLOCK(inp);
+		if (notify)
+			(*notify)(inp, errno);
 	}
-	INP_INFO_WUNLOCK(pcbinfo);
 }
 
 /*
@@ -866,49 +863,54 @@ in6_pcblookup_local(struct inpcbinfo *pcbinfo, struct in6_addr *laddr,
 	}
 }
 
+static bool
+in6_multi_match(const struct inpcb *inp, void *v __unused)
+{
+
+	if ((inp->inp_vflag & INP_IPV6) && inp->in6p_moptions != NULL)
+		return (true);
+	else
+		return (false);
+}
+
 void
 in6_pcbpurgeif0(struct inpcbinfo *pcbinfo, struct ifnet *ifp)
 {
+	struct inpcb_iterator inpi = INP_ITERATOR(pcbinfo, INPLOOKUP_RLOCKPCB,
+	    in6_multi_match, NULL);
 	struct inpcb *inp;
 	struct in6_multi *inm;
 	struct in6_mfilter *imf;
 	struct ip6_moptions *im6o;
 
-	INP_INFO_WLOCK(pcbinfo);
-	CK_LIST_FOREACH(inp, pcbinfo->ipi_listhead, inp_list) {
-		INP_WLOCK(inp);
-		if (__predict_false(inp->inp_flags2 & INP_FREED)) {
-			INP_WUNLOCK(inp);
-			continue;
-		}
+	IN6_MULTI_LOCK_ASSERT();
+
+	while ((inp = inp_next(&inpi)) != NULL) {
+		INP_RLOCK_ASSERT(inp);
+
 		im6o = inp->in6p_moptions;
-		if ((inp->inp_vflag & INP_IPV6) && im6o != NULL) {
-			/*
-			 * Unselect the outgoing ifp for multicast if it
-			 * is being detached.
-			 */
-			if (im6o->im6o_multicast_ifp == ifp)
-				im6o->im6o_multicast_ifp = NULL;
-			/*
-			 * Drop multicast group membership if we joined
-			 * through the interface being detached.
-			 */
+		/*
+		 * Unselect the outgoing ifp for multicast if it
+		 * is being detached.
+		 */
+		if (im6o->im6o_multicast_ifp == ifp)
+			im6o->im6o_multicast_ifp = NULL;
+		/*
+		 * Drop multicast group membership if we joined
+		 * through the interface being detached.
+		 */
 restart:
-			IP6_MFILTER_FOREACH(imf, &im6o->im6o_head) {
-				if ((inm = imf->im6f_in6m) == NULL)
-					continue;
-				if (inm->in6m_ifp != ifp)
-					continue;
-				ip6_mfilter_remove(&im6o->im6o_head, imf);
-				IN6_MULTI_LOCK_ASSERT();
-				in6_leavegroup_locked(inm, NULL);
-				ip6_mfilter_free(imf);
-				goto restart;
-			}
+		IP6_MFILTER_FOREACH(imf, &im6o->im6o_head) {
+			if ((inm = imf->im6f_in6m) == NULL)
+				continue;
+			if (inm->in6m_ifp != ifp)
+				continue;
+			ip6_mfilter_remove(&im6o->im6o_head, imf);
+			in6_leavegroup_locked(inm, NULL);
+			ip6_mfilter_free(imf);
+			goto restart;
 		}
-		INP_WUNLOCK(inp);
 	}
-	INP_INFO_WUNLOCK(pcbinfo);
 }
 
 /*
@@ -1124,20 +1126,16 @@ in6_pcblookup_hash(struct inpcbinfo *pcbinfo, struct in6_addr *faddr,
 {
 	struct inpcb *inp;
 
+	smr_enter(pcbinfo->ipi_smr);
 	inp = in6_pcblookup_hash_locked(pcbinfo, faddr, fport, laddr, lport,
 	    lookupflags & INPLOOKUP_WILDCARD, ifp, numa_domain);
 	if (inp != NULL) {
-		if (lookupflags & INPLOOKUP_WLOCKPCB) {
-			INP_WLOCK(inp);
-		} else if (lookupflags & INPLOOKUP_RLOCKPCB) {
-			INP_RLOCK(inp);
-		} else
-			panic("%s: locking bug", __func__);
-		if (__predict_false(inp->inp_flags2 & INP_FREED)) {
-			INP_UNLOCK(inp);
+		if (__predict_false(inp_smr_lock(inp,
+		    (lookupflags & INPLOOKUP_LOCKMASK)) == false))
 			inp = NULL;
-		}
-	}
+	} else
+		smr_exit(pcbinfo->ipi_smr);
+
 	return (inp);
 }
 

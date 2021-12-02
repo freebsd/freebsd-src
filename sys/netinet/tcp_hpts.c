@@ -579,28 +579,10 @@ again:
 static void
 tcp_remove_hpts_ref(struct inpcb *inp, struct tcp_hpts_entry *hpts, int line)
 {
-	int32_t add_freed;
 	int32_t ret;
 
-	if (inp->inp_flags2 & INP_FREED) {
-		/*
-		 * Need to play a special trick so that in_pcbrele_wlocked
-		 * does not return 1 when it really should have returned 0.
-		 */
-		add_freed = 1;
-		inp->inp_flags2 &= ~INP_FREED;
-	} else {
-		add_freed = 0;
-	}
-#ifndef INP_REF_DEBUG
 	ret = in_pcbrele_wlocked(inp);
-#else
-	ret = __in_pcbrele_wlocked(inp, line);
-#endif
 	KASSERT(ret != 1, ("inpcb:%p release ret 1", inp));
-	if (add_freed) {
-		inp->inp_flags2 |= INP_FREED;
-	}
 }
 
 static void
@@ -1291,8 +1273,7 @@ tcp_input_data(struct tcp_hpts_entry *hpts, struct timeval *tv)
 #ifdef VIMAGE
 		CURVNET_SET(inp->inp_vnet);
 #endif
-		if ((inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) ||
-		    (inp->inp_flags2 & INP_FREED)) {
+		if ((inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED))) {
 out:
 			hpts->p_inp = NULL;
 			if (in_pcbrele_wlocked(inp) == 0) {
@@ -1593,8 +1574,7 @@ again:
 				hpts->p_inp = NULL;
 				continue;
 			}
-			if ((inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) ||
-			    (inp->inp_flags2 & INP_FREED)) {
+			if ((inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED))) {
 			out_now:
 				KASSERT(mtx_owned(&hpts->p_mtx) == 0,
 					("Hpts:%p owns mtx prior-to lock line:%d",
