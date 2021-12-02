@@ -1751,12 +1751,17 @@ pfsync_defer(struct pf_kstate *st, struct mbuf *m)
 		return (0);
 	}
 
+	PFSYNC_BUCKET_LOCK(b);
+	PFSYNC_UNLOCK(sc);
+
 	if (b->b_deferred >= 128)
 		pfsync_undefer(TAILQ_FIRST(&b->b_deferrals), 0);
 
 	pd = malloc(sizeof(*pd), M_PFSYNC, M_NOWAIT);
-	if (pd == NULL)
+	if (pd == NULL) {
+		PFSYNC_BUCKET_UNLOCK(b);
 		return (0);
+	}
 	b->b_deferred++;
 
 	m->m_flags |= M_SKIP_FIREWALL;
@@ -1773,6 +1778,7 @@ pfsync_defer(struct pf_kstate *st, struct mbuf *m)
 	callout_reset(&pd->pd_tmo, PFSYNC_DEFER_TIMEOUT, pfsync_defer_tmo, pd);
 
 	pfsync_push(b);
+	PFSYNC_BUCKET_UNLOCK(b);
 
 	return (1);
 }
@@ -1821,7 +1827,7 @@ pfsync_defer_tmo(void *arg)
 	pd->pd_st->state_flags &= ~PFSTATE_ACK;	/* XXX: locking! */
 	if (pd->pd_refs == 0)
 		free(pd, M_PFSYNC);
-	PFSYNC_UNLOCK(sc);
+	PFSYNC_BUCKET_UNLOCK(b);
 
 	ip_output(m, NULL, NULL, 0, NULL, NULL);
 
