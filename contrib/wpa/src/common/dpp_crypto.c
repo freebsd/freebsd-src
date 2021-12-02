@@ -8,6 +8,11 @@
  */
 
 #include "utils/includes.h"
+#include <openssl/opensslv.h>
+#include <openssl/err.h>
+#include <openssl/asn1.h>
+#include <openssl/asn1t.h>
+#include <openssl/pem.h>
 
 #include "utils/common.h"
 #include "utils/base64.h"
@@ -17,10 +22,41 @@
 #include "crypto/random.h"
 #include "crypto/sha384.h"
 #include "crypto/sha512.h"
-#include "tls/asn1.h"
 #include "dpp.h"
 #include "dpp_i.h"
 
+
+#if OPENSSL_VERSION_NUMBER < 0x10100000L || \
+	(defined(LIBRESSL_VERSION_NUMBER) && \
+	 LIBRESSL_VERSION_NUMBER < 0x20700000L)
+/* Compatibility wrappers for older versions. */
+
+static int ECDSA_SIG_set0(ECDSA_SIG *sig, BIGNUM *r, BIGNUM *s)
+{
+	sig->r = r;
+	sig->s = s;
+	return 1;
+}
+
+
+static void ECDSA_SIG_get0(const ECDSA_SIG *sig, const BIGNUM **pr,
+			   const BIGNUM **ps)
+{
+	if (pr)
+		*pr = sig->r;
+	if (ps)
+		*ps = sig->s;
+}
+
+
+static EC_KEY * EVP_PKEY_get0_EC_KEY(EVP_PKEY *pkey)
+{
+	if (pkey->type != EVP_PKEY_EC)
+		return NULL;
+	return pkey->pkey.ec;
+}
+
+#endif
 
 static const struct dpp_curve_params dpp_curves[] = {
 	/* The mandatory to support and the default NIST P-256 curve needs to
@@ -65,6 +101,36 @@ const struct dpp_curve_params * dpp_get_curve_jwk_crv(const char *name)
 }
 
 
+static const struct dpp_curve_params *
+dpp_get_curve_oid(const ASN1_OBJECT *poid)
+{
+	ASN1_OBJECT *oid;
+	int i;
+
+	for (i = 0; dpp_curves[i].name; i++) {
+		oid = OBJ_txt2obj(dpp_curves[i].name, 0);
+		if (oid && OBJ_cmp(poid, oid) == 0)
+			return &dpp_curves[i];
+	}
+	return NULL;
+}
+
+
+const struct dpp_curve_params * dpp_get_curve_nid(int nid)
+{
+	int i, tmp;
+
+	if (!nid)
+		return NULL;
+	for (i = 0; dpp_curves[i].name; i++) {
+		tmp = OBJ_txt2nid(dpp_curves[i].name);
+		if (tmp == nid)
+			return &dpp_curves[i];
+	}
+	return NULL;
+}
+
+
 const struct dpp_curve_params * dpp_get_curve_ike_group(u16 group)
 {
 	int i;
@@ -77,22 +143,90 @@ const struct dpp_curve_params * dpp_get_curve_ike_group(u16 group)
 }
 
 
-void dpp_debug_print_key(const char *title, struct crypto_ec_key *key)
+void dpp_debug_print_point(const char *title, const EC_GROUP *group,
+			   const EC_POINT *point)
 {
-	struct wpabuf *der = NULL;
+	BIGNUM *x, *y;
+	BN_CTX *ctx;
+	char *x_str = NULL, *y_str = NULL;
 
-	crypto_ec_key_debug_print(key, title);
+	if (!wpa_debug_show_keys)
+		return;
 
-	der = crypto_ec_key_get_ecprivate_key(key, true);
-	if (der) {
-		wpa_hexdump_buf_key(MSG_DEBUG, "DPP: ECPrivateKey", der);
-	} else {
-		der = crypto_ec_key_get_subject_public_key(key);
-		if (der)
-			wpa_hexdump_buf_key(MSG_DEBUG, "DPP: EC_PUBKEY", der);
+	ctx = BN_CTX_new();
+	x = BN_new();
+	y = BN_new();
+	if (!ctx || !x || !y ||
+	    EC_POINT_get_affine_coordinates_GFp(group, point, x, y, ctx) != 1)
+		goto fail;
+
+	x_str = BN_bn2hex(x);
+	y_str = BN_bn2hex(y);
+	if (!x_str || !y_str)
+		goto fail;
+
+	wpa_printf(MSG_DEBUG, "%s (%s,%s)", title, x_str, y_str);
+
+fail:
+	OPENSSL_free(x_str);
+	OPENSSL_free(y_str);
+	BN_free(x);
+	BN_free(y);
+	BN_CTX_free(ctx);
+}
+
+
+void dpp_debug_print_key(const char *title, EVP_PKEY *key)
+{
+	EC_KEY *eckey;
+	BIO *out;
+	size_t rlen;
+	char *txt;
+	int res;
+	unsigned char *der = NULL;
+	int der_len;
+	const EC_GROUP *group;
+	const EC_POINT *point;
+
+	out = BIO_new(BIO_s_mem());
+	if (!out)
+		return;
+
+	EVP_PKEY_print_private(out, key, 0, NULL);
+	rlen = BIO_ctrl_pending(out);
+	txt = os_malloc(rlen + 1);
+	if (txt) {
+		res = BIO_read(out, txt, rlen);
+		if (res > 0) {
+			txt[res] = '\0';
+			wpa_printf(MSG_DEBUG, "%s: %s", title, txt);
+		}
+		os_free(txt);
+	}
+	BIO_free(out);
+
+	eckey = EVP_PKEY_get1_EC_KEY(key);
+	if (!eckey)
+		return;
+
+	group = EC_KEY_get0_group(eckey);
+	point = EC_KEY_get0_public_key(eckey);
+	if (group && point)
+		dpp_debug_print_point(title, group, point);
+
+	der_len = i2d_ECPrivateKey(eckey, &der);
+	if (der_len > 0)
+		wpa_hexdump_key(MSG_DEBUG, "DPP: ECPrivateKey", der, der_len);
+	OPENSSL_free(der);
+	if (der_len <= 0) {
+		der = NULL;
+		der_len = i2d_EC_PUBKEY(eckey, &der);
+		if (der_len > 0)
+			wpa_hexdump(MSG_DEBUG, "DPP: EC_PUBKEY", der, der_len);
+		OPENSSL_free(der);
 	}
 
-	wpabuf_clear_free(der);
+	EC_KEY_free(eckey);
 }
 
 
@@ -229,65 +363,336 @@ int dpp_pbkdf2(size_t hash_len, const u8 *password, size_t password_len,
 #endif /* CONFIG_DPP2 */
 
 
-struct crypto_ec_key * dpp_set_pubkey_point(struct crypto_ec_key *group_key,
-					    const u8 *buf, size_t len)
+int dpp_bn2bin_pad(const BIGNUM *bn, u8 *pos, size_t len)
 {
-	int ike_group = crypto_ec_key_group(group_key);
+	int num_bytes, offset;
+
+	num_bytes = BN_num_bytes(bn);
+	if ((size_t) num_bytes > len)
+		return -1;
+	offset = len - num_bytes;
+	os_memset(pos, 0, offset);
+	BN_bn2bin(bn, pos + offset);
+	return 0;
+}
+
+
+struct wpabuf * dpp_get_pubkey_point(EVP_PKEY *pkey, int prefix)
+{
+	int len, res;
+	EC_KEY *eckey;
+	struct wpabuf *buf;
+	unsigned char *pos;
+
+	eckey = EVP_PKEY_get1_EC_KEY(pkey);
+	if (!eckey)
+		return NULL;
+	EC_KEY_set_conv_form(eckey, POINT_CONVERSION_UNCOMPRESSED);
+	len = i2o_ECPublicKey(eckey, NULL);
+	if (len <= 0) {
+		wpa_printf(MSG_ERROR,
+			   "DDP: Failed to determine public key encoding length");
+		EC_KEY_free(eckey);
+		return NULL;
+	}
+
+	buf = wpabuf_alloc(len);
+	if (!buf) {
+		EC_KEY_free(eckey);
+		return NULL;
+	}
+
+	pos = wpabuf_put(buf, len);
+	res = i2o_ECPublicKey(eckey, &pos);
+	EC_KEY_free(eckey);
+	if (res != len) {
+		wpa_printf(MSG_ERROR,
+			   "DDP: Failed to encode public key (res=%d/%d)",
+			   res, len);
+		wpabuf_free(buf);
+		return NULL;
+	}
+
+	if (!prefix) {
+		/* Remove 0x04 prefix to match DPP definition */
+		pos = wpabuf_mhead(buf);
+		os_memmove(pos, pos + 1, len - 1);
+		buf->used--;
+	}
+
+	return buf;
+}
+
+
+EVP_PKEY * dpp_set_pubkey_point_group(const EC_GROUP *group,
+				      const u8 *buf_x, const u8 *buf_y,
+				      size_t len)
+{
+	EC_KEY *eckey = NULL;
+	BN_CTX *ctx;
+	EC_POINT *point = NULL;
+	BIGNUM *x = NULL, *y = NULL;
+	EVP_PKEY *pkey = NULL;
+
+	ctx = BN_CTX_new();
+	if (!ctx) {
+		wpa_printf(MSG_ERROR, "DPP: Out of memory");
+		return NULL;
+	}
+
+	point = EC_POINT_new(group);
+	x = BN_bin2bn(buf_x, len, NULL);
+	y = BN_bin2bn(buf_y, len, NULL);
+	if (!point || !x || !y) {
+		wpa_printf(MSG_ERROR, "DPP: Out of memory");
+		goto fail;
+	}
+
+	if (!EC_POINT_set_affine_coordinates_GFp(group, point, x, y, ctx)) {
+		wpa_printf(MSG_ERROR,
+			   "DPP: OpenSSL: EC_POINT_set_affine_coordinates_GFp failed: %s",
+			   ERR_error_string(ERR_get_error(), NULL));
+		goto fail;
+	}
+
+	if (!EC_POINT_is_on_curve(group, point, ctx) ||
+	    EC_POINT_is_at_infinity(group, point)) {
+		wpa_printf(MSG_ERROR, "DPP: Invalid point");
+		goto fail;
+	}
+	dpp_debug_print_point("DPP: dpp_set_pubkey_point_group", group, point);
+
+	eckey = EC_KEY_new();
+	if (!eckey ||
+	    EC_KEY_set_group(eckey, group) != 1 ||
+	    EC_KEY_set_public_key(eckey, point) != 1) {
+		wpa_printf(MSG_ERROR,
+			   "DPP: Failed to set EC_KEY: %s",
+			   ERR_error_string(ERR_get_error(), NULL));
+		goto fail;
+	}
+	EC_KEY_set_asn1_flag(eckey, OPENSSL_EC_NAMED_CURVE);
+
+	pkey = EVP_PKEY_new();
+	if (!pkey || EVP_PKEY_set1_EC_KEY(pkey, eckey) != 1) {
+		wpa_printf(MSG_ERROR, "DPP: Could not create EVP_PKEY");
+		goto fail;
+	}
+
+out:
+	BN_free(x);
+	BN_free(y);
+	EC_KEY_free(eckey);
+	EC_POINT_free(point);
+	BN_CTX_free(ctx);
+	return pkey;
+fail:
+	EVP_PKEY_free(pkey);
+	pkey = NULL;
+	goto out;
+}
+
+
+EVP_PKEY * dpp_set_pubkey_point(EVP_PKEY *group_key, const u8 *buf, size_t len)
+{
+	const EC_KEY *eckey;
+	const EC_GROUP *group;
+	EVP_PKEY *pkey = NULL;
 
 	if (len & 1)
 		return NULL;
 
-	if (ike_group < 0) {
-		wpa_printf(MSG_ERROR, "DPP: Could not get EC group");
+	eckey = EVP_PKEY_get0_EC_KEY(group_key);
+	if (!eckey) {
+		wpa_printf(MSG_ERROR,
+			   "DPP: Could not get EC_KEY from group_key");
 		return NULL;
 	}
 
-	return crypto_ec_key_set_pub(ike_group, buf, buf + len / 2, len / 2);
+	group = EC_KEY_get0_group(eckey);
+	if (group)
+		pkey = dpp_set_pubkey_point_group(group, buf, buf + len / 2,
+						  len / 2);
+	else
+		wpa_printf(MSG_ERROR, "DPP: Could not get EC group");
+
+	return pkey;
 }
 
 
-struct crypto_ec_key * dpp_gen_keypair(const struct dpp_curve_params *curve)
+EVP_PKEY * dpp_gen_keypair(const struct dpp_curve_params *curve)
 {
-	struct crypto_ec_key *key;
+	EVP_PKEY_CTX *kctx = NULL;
+	EC_KEY *ec_params = NULL;
+	EVP_PKEY *params = NULL, *key = NULL;
+	int nid;
 
 	wpa_printf(MSG_DEBUG, "DPP: Generating a keypair");
 
-	key = crypto_ec_key_gen(curve->ike_group);
-	if (key && wpa_debug_show_keys)
-	    dpp_debug_print_key("Own generated key", key);
+	nid = OBJ_txt2nid(curve->name);
+	if (nid == NID_undef) {
+		wpa_printf(MSG_INFO, "DPP: Unsupported curve %s", curve->name);
+		return NULL;
+	}
 
+	ec_params = EC_KEY_new_by_curve_name(nid);
+	if (!ec_params) {
+		wpa_printf(MSG_ERROR,
+			   "DPP: Failed to generate EC_KEY parameters");
+		goto fail;
+	}
+	EC_KEY_set_asn1_flag(ec_params, OPENSSL_EC_NAMED_CURVE);
+	params = EVP_PKEY_new();
+	if (!params || EVP_PKEY_set1_EC_KEY(params, ec_params) != 1) {
+		wpa_printf(MSG_ERROR,
+			   "DPP: Failed to generate EVP_PKEY parameters");
+		goto fail;
+	}
+
+	kctx = EVP_PKEY_CTX_new(params, NULL);
+	if (!kctx ||
+	    EVP_PKEY_keygen_init(kctx) != 1 ||
+	    EVP_PKEY_keygen(kctx, &key) != 1) {
+		wpa_printf(MSG_ERROR, "DPP: Failed to generate EC key");
+		key = NULL;
+		goto fail;
+	}
+
+	if (wpa_debug_show_keys)
+		dpp_debug_print_key("Own generated key", key);
+
+fail:
+	EC_KEY_free(ec_params);
+	EVP_PKEY_free(params);
+	EVP_PKEY_CTX_free(kctx);
 	return key;
 }
 
 
-struct crypto_ec_key * dpp_set_keypair(const struct dpp_curve_params **curve,
-				       const u8 *privkey, size_t privkey_len)
+EVP_PKEY * dpp_set_keypair(const struct dpp_curve_params **curve,
+			   const u8 *privkey, size_t privkey_len)
 {
-	struct crypto_ec_key *key;
-	int group;
+	EVP_PKEY *pkey;
+	EC_KEY *eckey;
+	const EC_GROUP *group;
+	int nid;
 
-	key = crypto_ec_key_parse_priv(privkey, privkey_len);
-	if (!key) {
-		wpa_printf(MSG_INFO, "DPP: Failed to parse private key");
+	pkey = EVP_PKEY_new();
+	if (!pkey)
+		return NULL;
+	eckey = d2i_ECPrivateKey(NULL, &privkey, privkey_len);
+	if (!eckey) {
+		wpa_printf(MSG_INFO,
+			   "DPP: OpenSSL: d2i_ECPrivateKey() failed: %s",
+			   ERR_error_string(ERR_get_error(), NULL));
+		EVP_PKEY_free(pkey);
 		return NULL;
 	}
-
-	group = crypto_ec_key_group(key);
-	if (group < 0) {
-		crypto_ec_key_deinit(key);
+	group = EC_KEY_get0_group(eckey);
+	if (!group) {
+		EC_KEY_free(eckey);
+		EVP_PKEY_free(pkey);
 		return NULL;
 	}
-
-	*curve = dpp_get_curve_ike_group(group);
+	nid = EC_GROUP_get_curve_name(group);
+	*curve = dpp_get_curve_nid(nid);
 	if (!*curve) {
 		wpa_printf(MSG_INFO,
-			   "DPP: Unsupported curve (group=%d) in pre-assigned key",
-			   group);
-		crypto_ec_key_deinit(key);
+			   "DPP: Unsupported curve (nid=%d) in pre-assigned key",
+			   nid);
+		EC_KEY_free(eckey);
+		EVP_PKEY_free(pkey);
 		return NULL;
 	}
 
-	return key;
+	if (EVP_PKEY_assign_EC_KEY(pkey, eckey) != 1) {
+		EC_KEY_free(eckey);
+		EVP_PKEY_free(pkey);
+		return NULL;
+	}
+	return pkey;
+}
+
+
+typedef struct {
+	/* AlgorithmIdentifier ecPublicKey with optional parameters present
+	 * as an OID identifying the curve */
+	X509_ALGOR *alg;
+	/* Compressed format public key per ANSI X9.63 */
+	ASN1_BIT_STRING *pub_key;
+} DPP_BOOTSTRAPPING_KEY;
+
+ASN1_SEQUENCE(DPP_BOOTSTRAPPING_KEY) = {
+	ASN1_SIMPLE(DPP_BOOTSTRAPPING_KEY, alg, X509_ALGOR),
+	ASN1_SIMPLE(DPP_BOOTSTRAPPING_KEY, pub_key, ASN1_BIT_STRING)
+} ASN1_SEQUENCE_END(DPP_BOOTSTRAPPING_KEY);
+
+IMPLEMENT_ASN1_FUNCTIONS(DPP_BOOTSTRAPPING_KEY);
+
+
+static struct wpabuf * dpp_bootstrap_key_der(EVP_PKEY *key)
+{
+	unsigned char *der = NULL;
+	int der_len;
+	const EC_KEY *eckey;
+	struct wpabuf *ret = NULL;
+	size_t len;
+	const EC_GROUP *group;
+	const EC_POINT *point;
+	BN_CTX *ctx;
+	DPP_BOOTSTRAPPING_KEY *bootstrap = NULL;
+	int nid;
+
+	ctx = BN_CTX_new();
+	eckey = EVP_PKEY_get0_EC_KEY(key);
+	if (!ctx || !eckey)
+		goto fail;
+
+	group = EC_KEY_get0_group(eckey);
+	point = EC_KEY_get0_public_key(eckey);
+	if (!group || !point)
+		goto fail;
+	dpp_debug_print_point("DPP: bootstrap public key", group, point);
+	nid = EC_GROUP_get_curve_name(group);
+
+	bootstrap = DPP_BOOTSTRAPPING_KEY_new();
+	if (!bootstrap ||
+	    X509_ALGOR_set0(bootstrap->alg, OBJ_nid2obj(EVP_PKEY_EC),
+			    V_ASN1_OBJECT, (void *) OBJ_nid2obj(nid)) != 1)
+		goto fail;
+
+	len = EC_POINT_point2oct(group, point, POINT_CONVERSION_COMPRESSED,
+				 NULL, 0, ctx);
+	if (len == 0)
+		goto fail;
+
+	der = OPENSSL_malloc(len);
+	if (!der)
+		goto fail;
+	len = EC_POINT_point2oct(group, point, POINT_CONVERSION_COMPRESSED,
+				 der, len, ctx);
+
+	OPENSSL_free(bootstrap->pub_key->data);
+	bootstrap->pub_key->data = der;
+	der = NULL;
+	bootstrap->pub_key->length = len;
+	/* No unused bits */
+	bootstrap->pub_key->flags &= ~(ASN1_STRING_FLAG_BITS_LEFT | 0x07);
+	bootstrap->pub_key->flags |= ASN1_STRING_FLAG_BITS_LEFT;
+
+	der_len = i2d_DPP_BOOTSTRAPPING_KEY(bootstrap, &der);
+	if (der_len <= 0) {
+		wpa_printf(MSG_ERROR,
+			   "DDP: Failed to build DER encoded public key");
+		goto fail;
+	}
+
+	ret = wpabuf_alloc_copy(der, der_len);
+fail:
+	DPP_BOOTSTRAPPING_KEY_free(bootstrap);
+	OPENSSL_free(der);
+	BN_CTX_free(ctx);
+	return ret;
 }
 
 
@@ -296,7 +701,7 @@ int dpp_bootstrap_key_hash(struct dpp_bootstrap_info *bi)
 	struct wpabuf *der;
 	int res;
 
-	der = crypto_ec_key_get_subject_public_key(bi->pubkey);
+	der = dpp_bootstrap_key_der(bi->pubkey);
 	if (!der)
 		return -1;
 	wpa_hexdump_buf(MSG_DEBUG, "DPP: Compressed public key (DER)",
@@ -331,7 +736,7 @@ int dpp_keygen(struct dpp_bootstrap_info *bi, const char *curve,
 		goto fail;
 	bi->own = 1;
 
-	der = crypto_ec_key_get_subject_public_key(bi->pubkey);
+	der = dpp_bootstrap_key_der(bi->pubkey);
 	if (!der)
 		goto fail;
 	wpa_hexdump_buf(MSG_DEBUG, "DPP: Compressed public key (DER)",
@@ -478,48 +883,86 @@ int dpp_derive_bk_ke(struct dpp_authentication *auth)
 }
 
 
-int dpp_ecdh(struct crypto_ec_key *own, struct crypto_ec_key *peer,
-	     u8 *secret, size_t *secret_len)
+int dpp_ecdh(EVP_PKEY *own, EVP_PKEY *peer, u8 *secret, size_t *secret_len)
 {
-	struct crypto_ecdh *ecdh;
-	struct wpabuf *peer_pub, *secret_buf = NULL;
+	EVP_PKEY_CTX *ctx;
 	int ret = -1;
 
+	ERR_clear_error();
 	*secret_len = 0;
 
-	ecdh = crypto_ecdh_init2(crypto_ec_key_group(own), own);
-	if (!ecdh) {
-		wpa_printf(MSG_ERROR, "DPP: crypto_ecdh_init2() failed");
+	ctx = EVP_PKEY_CTX_new(own, NULL);
+	if (!ctx) {
+		wpa_printf(MSG_ERROR, "DPP: EVP_PKEY_CTX_new failed: %s",
+			   ERR_error_string(ERR_get_error(), NULL));
 		return -1;
 	}
 
-	peer_pub = crypto_ec_key_get_pubkey_point(peer, 0);
-	if (!peer_pub) {
+	if (EVP_PKEY_derive_init(ctx) != 1) {
+		wpa_printf(MSG_ERROR, "DPP: EVP_PKEY_derive_init failed: %s",
+			   ERR_error_string(ERR_get_error(), NULL));
+		goto fail;
+	}
+
+	if (EVP_PKEY_derive_set_peer(ctx, peer) != 1) {
 		wpa_printf(MSG_ERROR,
-			   "DPP: crypto_ec_key_get_pubkey_point() failed");
+			   "DPP: EVP_PKEY_derive_set_peet failed: %s",
+			   ERR_error_string(ERR_get_error(), NULL));
 		goto fail;
 	}
 
-	secret_buf = crypto_ecdh_set_peerkey(ecdh, 1, wpabuf_head(peer_pub),
-					     wpabuf_len(peer_pub));
-	if (!secret_buf) {
-		wpa_printf(MSG_ERROR, "DPP: crypto_ecdh_set_peerkey() failed");
+	if (EVP_PKEY_derive(ctx, NULL, secret_len) != 1) {
+		wpa_printf(MSG_ERROR, "DPP: EVP_PKEY_derive(NULL) failed: %s",
+			   ERR_error_string(ERR_get_error(), NULL));
 		goto fail;
 	}
 
-	if (wpabuf_len(secret_buf) > DPP_MAX_SHARED_SECRET_LEN) {
-		wpa_printf(MSG_ERROR, "DPP: ECDH secret longer than expected");
+	if (*secret_len > DPP_MAX_SHARED_SECRET_LEN) {
+		u8 buf[200];
+		int level = *secret_len > 200 ? MSG_ERROR : MSG_DEBUG;
+
+		/* It looks like OpenSSL can return unexpectedly large buffer
+		 * need for shared secret from EVP_PKEY_derive(NULL) in some
+		 * cases. For example, group 19 has shown cases where secret_len
+		 * is set to 72 even though the actual length ends up being
+		 * updated to 32 when EVP_PKEY_derive() is called with a buffer
+		 * for the value. Work around this by trying to fetch the value
+		 * and continue if it is within supported range even when the
+		 * initial buffer need is claimed to be larger. */
+		wpa_printf(level,
+			   "DPP: Unexpected secret_len=%d from EVP_PKEY_derive()",
+			   (int) *secret_len);
+		if (*secret_len > 200)
+			goto fail;
+		if (EVP_PKEY_derive(ctx, buf, secret_len) != 1) {
+			wpa_printf(MSG_ERROR, "DPP: EVP_PKEY_derive failed: %s",
+				   ERR_error_string(ERR_get_error(), NULL));
+			goto fail;
+		}
+		if (*secret_len > DPP_MAX_SHARED_SECRET_LEN) {
+			wpa_printf(MSG_ERROR,
+				   "DPP: Unexpected secret_len=%d from EVP_PKEY_derive()",
+				   (int) *secret_len);
+			goto fail;
+		}
+		wpa_hexdump_key(MSG_DEBUG, "DPP: Unexpected secret_len change",
+				buf, *secret_len);
+		os_memcpy(secret, buf, *secret_len);
+		forced_memzero(buf, sizeof(buf));
+		goto done;
+	}
+
+	if (EVP_PKEY_derive(ctx, secret, secret_len) != 1) {
+		wpa_printf(MSG_ERROR, "DPP: EVP_PKEY_derive failed: %s",
+			   ERR_error_string(ERR_get_error(), NULL));
 		goto fail;
 	}
 
-	*secret_len = wpabuf_len(secret_buf);
-	os_memcpy(secret, wpabuf_head(secret_buf), wpabuf_len(secret_buf));
+done:
 	ret = 0;
 
 fail:
-	wpabuf_clear_free(secret_buf);
-	wpabuf_free(peer_pub);
-	crypto_ecdh_deinit(ecdh);
+	EVP_PKEY_CTX_free(ctx);
 	return ret;
 }
 
@@ -553,32 +996,118 @@ int dpp_bi_pubkey_hash(struct dpp_bootstrap_info *bi,
 int dpp_get_subject_public_key(struct dpp_bootstrap_info *bi,
 			       const u8 *data, size_t data_len)
 {
-	struct crypto_ec_key *key;
+	EVP_PKEY *pkey;
+	const unsigned char *p;
+	int res;
+	X509_PUBKEY *pub = NULL;
+	ASN1_OBJECT *ppkalg;
+	const unsigned char *pk;
+	int ppklen;
+	X509_ALGOR *pa;
+#if OPENSSL_VERSION_NUMBER < 0x10100000L || \
+	(defined(LIBRESSL_VERSION_NUMBER) && \
+	 LIBRESSL_VERSION_NUMBER < 0x20800000L)
+	ASN1_OBJECT *pa_oid;
+#else
+	const ASN1_OBJECT *pa_oid;
+#endif
+	const void *pval;
+	int ptype;
+	const ASN1_OBJECT *poid;
+	char buf[100];
 
 	if (dpp_bi_pubkey_hash(bi, data, data_len) < 0) {
 		wpa_printf(MSG_DEBUG, "DPP: Failed to hash public key");
 		return -1;
 	}
 
-	key = crypto_ec_key_parse_pub(data, data_len);
-	if (!key) {
+	/* DER encoded ASN.1 SubjectPublicKeyInfo
+	 *
+	 * SubjectPublicKeyInfo  ::=  SEQUENCE  {
+	 *      algorithm            AlgorithmIdentifier,
+	 *      subjectPublicKey     BIT STRING  }
+	 *
+	 * AlgorithmIdentifier  ::=  SEQUENCE  {
+	 *      algorithm               OBJECT IDENTIFIER,
+	 *      parameters              ANY DEFINED BY algorithm OPTIONAL  }
+	 *
+	 * subjectPublicKey = compressed format public key per ANSI X9.63
+	 * algorithm = ecPublicKey (1.2.840.10045.2.1)
+	 * parameters = shall be present and shall be OBJECT IDENTIFIER; e.g.,
+	 *       prime256v1 (1.2.840.10045.3.1.7)
+	 */
+
+	p = data;
+	pkey = d2i_PUBKEY(NULL, &p, data_len);
+
+	if (!pkey) {
 		wpa_printf(MSG_DEBUG,
 			   "DPP: Could not parse URI public-key SubjectPublicKeyInfo");
 		return -1;
 	}
 
-	bi->curve = dpp_get_curve_ike_group(crypto_ec_key_group(key));
-	if (!bi->curve) {
+	if (EVP_PKEY_type(EVP_PKEY_id(pkey)) != EVP_PKEY_EC) {
 		wpa_printf(MSG_DEBUG,
-			   "DPP: Unsupported SubjectPublicKeyInfo curve: group %d",
-			   crypto_ec_key_group(key));
+			   "DPP: SubjectPublicKeyInfo does not describe an EC key");
+		EVP_PKEY_free(pkey);
+		return -1;
+	}
+
+	res = X509_PUBKEY_set(&pub, pkey);
+	if (res != 1) {
+		wpa_printf(MSG_DEBUG, "DPP: Could not set pubkey");
 		goto fail;
 	}
 
-	bi->pubkey = key;
+	res = X509_PUBKEY_get0_param(&ppkalg, &pk, &ppklen, &pa, pub);
+	if (res != 1) {
+		wpa_printf(MSG_DEBUG,
+			   "DPP: Could not extract SubjectPublicKeyInfo parameters");
+		goto fail;
+	}
+	res = OBJ_obj2txt(buf, sizeof(buf), ppkalg, 0);
+	if (res < 0 || (size_t) res >= sizeof(buf)) {
+		wpa_printf(MSG_DEBUG,
+			   "DPP: Could not extract SubjectPublicKeyInfo algorithm");
+		goto fail;
+	}
+	wpa_printf(MSG_DEBUG, "DPP: URI subjectPublicKey algorithm: %s", buf);
+	if (os_strcmp(buf, "id-ecPublicKey") != 0) {
+		wpa_printf(MSG_DEBUG,
+			   "DPP: Unsupported SubjectPublicKeyInfo algorithm");
+		goto fail;
+	}
+
+	X509_ALGOR_get0(&pa_oid, &ptype, (void *) &pval, pa);
+	if (ptype != V_ASN1_OBJECT) {
+		wpa_printf(MSG_DEBUG,
+			   "DPP: SubjectPublicKeyInfo parameters did not contain an OID");
+		goto fail;
+	}
+	poid = pval;
+	res = OBJ_obj2txt(buf, sizeof(buf), poid, 0);
+	if (res < 0 || (size_t) res >= sizeof(buf)) {
+		wpa_printf(MSG_DEBUG,
+			   "DPP: Could not extract SubjectPublicKeyInfo parameters OID");
+		goto fail;
+	}
+	wpa_printf(MSG_DEBUG, "DPP: URI subjectPublicKey parameters: %s", buf);
+	bi->curve = dpp_get_curve_oid(poid);
+	if (!bi->curve) {
+		wpa_printf(MSG_DEBUG,
+			   "DPP: Unsupported SubjectPublicKeyInfo curve: %s",
+			   buf);
+		goto fail;
+	}
+
+	wpa_hexdump(MSG_DEBUG, "DPP: URI subjectPublicKey", pk, ppklen);
+
+	X509_PUBKEY_free(pub);
+	bi->pubkey = pkey;
 	return 0;
 fail:
-	crypto_ec_key_deinit(key);
+	X509_PUBKEY_free(pub);
+	EVP_PKEY_free(pkey);
 	return -1;
 }
 
@@ -586,7 +1115,7 @@ fail:
 static struct wpabuf *
 dpp_parse_jws_prot_hdr(const struct dpp_curve_params *curve,
 		       const u8 *prot_hdr, u16 prot_hdr_len,
-		       int *hash_func)
+		       const EVP_MD **ret_md)
 {
 	struct json_token *root, *token;
 	struct wpabuf *kid = NULL;
@@ -632,16 +1161,17 @@ dpp_parse_jws_prot_hdr(const struct dpp_curve_params *curve,
 		goto fail;
 	}
 	if (os_strcmp(token->string, "ES256") == 0 ||
-	    os_strcmp(token->string, "BS256") == 0) {
-		*hash_func = CRYPTO_HASH_ALG_SHA256;
-	} else if (os_strcmp(token->string, "ES384") == 0 ||
-		   os_strcmp(token->string, "BS384") == 0) {
-		*hash_func = CRYPTO_HASH_ALG_SHA384;
-	} else if (os_strcmp(token->string, "ES512") == 0 ||
-		   os_strcmp(token->string, "BS512") == 0) {
-		*hash_func = CRYPTO_HASH_ALG_SHA512;
-	} else {
-		*hash_func = -1;
+	    os_strcmp(token->string, "BS256") == 0)
+		*ret_md = EVP_sha256();
+	else if (os_strcmp(token->string, "ES384") == 0 ||
+		 os_strcmp(token->string, "BS384") == 0)
+		*ret_md = EVP_sha384();
+	else if (os_strcmp(token->string, "ES512") == 0 ||
+		 os_strcmp(token->string, "BS512") == 0)
+		*ret_md = EVP_sha512();
+	else
+		*ret_md = NULL;
+	if (!*ret_md) {
 		wpa_printf(MSG_DEBUG,
 			   "DPP: Unsupported JWS Protected Header alg=%s",
 			   token->string);
@@ -662,8 +1192,7 @@ fail:
 }
 
 
-static int dpp_check_pubkey_match(struct crypto_ec_key *pub,
-				  struct wpabuf *r_hash)
+static int dpp_check_pubkey_match(EVP_PKEY *pub, struct wpabuf *r_hash)
 {
 	struct wpabuf *uncomp;
 	int res;
@@ -673,7 +1202,7 @@ static int dpp_check_pubkey_match(struct crypto_ec_key *pub,
 
 	if (wpabuf_len(r_hash) != SHA256_MAC_LEN)
 		return -1;
-	uncomp = crypto_ec_key_get_pubkey_point(pub, 1);
+	uncomp = dpp_get_pubkey_point(pub, 1);
 	if (!uncomp)
 		return -1;
 	addr[0] = wpabuf_head(uncomp);
@@ -697,19 +1226,33 @@ static int dpp_check_pubkey_match(struct crypto_ec_key *pub,
 
 enum dpp_status_error
 dpp_process_signed_connector(struct dpp_signed_connector_info *info,
-			     struct crypto_ec_key *csign_pub,
-			     const char *connector)
+			     EVP_PKEY *csign_pub, const char *connector)
 {
 	enum dpp_status_error ret = 255;
 	const char *pos, *end, *signed_start, *signed_end;
 	struct wpabuf *kid = NULL;
 	unsigned char *prot_hdr = NULL, *signature = NULL;
-	size_t prot_hdr_len = 0, signature_len = 0, signed_len;
-	int res, hash_func = -1;
+	size_t prot_hdr_len = 0, signature_len = 0;
+	const EVP_MD *sign_md = NULL;
+	unsigned char *der = NULL;
+	int der_len;
+	int res;
+	EVP_MD_CTX *md_ctx = NULL;
+	ECDSA_SIG *sig = NULL;
+	BIGNUM *r = NULL, *s = NULL;
 	const struct dpp_curve_params *curve;
-	u8 *hash = NULL;
+	const EC_KEY *eckey;
+	const EC_GROUP *group;
+	int nid;
 
-	curve = dpp_get_curve_ike_group(crypto_ec_key_group(csign_pub));
+	eckey = EVP_PKEY_get0_EC_KEY(csign_pub);
+	if (!eckey)
+		goto fail;
+	group = EC_KEY_get0_group(eckey);
+	if (!group)
+		goto fail;
+	nid = EC_GROUP_get_curve_name(group);
+	curve = dpp_get_curve_nid(nid);
 	if (!curve)
 		goto fail;
 	wpa_printf(MSG_DEBUG, "DPP: C-sign-key group: %s", curve->jwk_crv);
@@ -732,7 +1275,7 @@ dpp_process_signed_connector(struct dpp_signed_connector_info *info,
 	wpa_hexdump_ascii(MSG_DEBUG,
 			  "DPP: signedConnector - JWS Protected Header",
 			  prot_hdr, prot_hdr_len);
-	kid = dpp_parse_jws_prot_hdr(curve, prot_hdr, prot_hdr_len, &hash_func);
+	kid = dpp_parse_jws_prot_hdr(curve, prot_hdr, prot_hdr_len, &sign_md);
 	if (!kid) {
 		ret = DPP_STATUS_INVALID_CONNECTOR;
 		goto fail;
@@ -788,45 +1331,57 @@ dpp_process_signed_connector(struct dpp_signed_connector_info *info,
 		goto fail;
 	}
 
-	hash = os_malloc(curve->hash_len);
-	if (!hash)
+	/* JWS Signature encodes the signature (r,s) as two octet strings. Need
+	 * to convert that to DER encoded ECDSA_SIG for OpenSSL EVP routines. */
+	r = BN_bin2bn(signature, signature_len / 2, NULL);
+	s = BN_bin2bn(signature + signature_len / 2, signature_len / 2, NULL);
+	sig = ECDSA_SIG_new();
+	if (!r || !s || !sig || ECDSA_SIG_set0(sig, r, s) != 1)
+		goto fail;
+	r = NULL;
+	s = NULL;
+
+	der_len = i2d_ECDSA_SIG(sig, &der);
+	if (der_len <= 0) {
+		wpa_printf(MSG_DEBUG, "DPP: Could not DER encode signature");
+		goto fail;
+	}
+	wpa_hexdump(MSG_DEBUG, "DPP: DER encoded signature", der, der_len);
+	md_ctx = EVP_MD_CTX_create();
+	if (!md_ctx)
 		goto fail;
 
-	signed_len = signed_end - signed_start + 1;
-	if (hash_func == CRYPTO_HASH_ALG_SHA256)
-		res = sha256_vector(1, (const u8 **) &signed_start, &signed_len,
-				    hash);
-	else if (hash_func == CRYPTO_HASH_ALG_SHA384)
-		res = sha384_vector(1, (const u8 **) &signed_start, &signed_len,
-				    hash);
-	else if (hash_func == CRYPTO_HASH_ALG_SHA512)
-		res = sha512_vector(1, (const u8 **) &signed_start, &signed_len,
-				    hash);
-	else
+	ERR_clear_error();
+	if (EVP_DigestVerifyInit(md_ctx, NULL, sign_md, NULL, csign_pub) != 1) {
+		wpa_printf(MSG_DEBUG, "DPP: EVP_DigestVerifyInit failed: %s",
+			   ERR_error_string(ERR_get_error(), NULL));
 		goto fail;
-
-	if (res)
+	}
+	if (EVP_DigestVerifyUpdate(md_ctx, signed_start,
+				   signed_end - signed_start + 1) != 1) {
+		wpa_printf(MSG_DEBUG, "DPP: EVP_DigestVerifyUpdate failed: %s",
+			   ERR_error_string(ERR_get_error(), NULL));
 		goto fail;
-
-	res = crypto_ec_key_verify_signature_r_s(csign_pub,
-						 hash, curve->hash_len,
-						 signature, signature_len / 2,
-						 signature + signature_len / 2,
-						 signature_len / 2);
+	}
+	res = EVP_DigestVerifyFinal(md_ctx, der, der_len);
 	if (res != 1) {
 		wpa_printf(MSG_DEBUG,
-			   "DPP: signedConnector signature check failed (res=%d)",
-			   res);
+			   "DPP: EVP_DigestVerifyFinal failed (res=%d): %s",
+			   res, ERR_error_string(ERR_get_error(), NULL));
 		ret = DPP_STATUS_INVALID_CONNECTOR;
 		goto fail;
 	}
 
 	ret = DPP_STATUS_OK;
 fail:
-	os_free(hash);
+	EVP_MD_CTX_destroy(md_ctx);
 	os_free(prot_hdr);
 	wpabuf_free(kid);
 	os_free(signature);
+	ECDSA_SIG_free(sig);
+	BN_free(r);
+	BN_free(s);
+	OPENSSL_free(der);
 	return ret;
 }
 
@@ -836,11 +1391,13 @@ dpp_check_signed_connector(struct dpp_signed_connector_info *info,
 			   const u8 *csign_key, size_t csign_key_len,
 			   const u8 *peer_connector, size_t peer_connector_len)
 {
-	struct crypto_ec_key *csign;
+	const unsigned char *p;
+	EVP_PKEY *csign = NULL;
 	char *signed_connector = NULL;
 	enum dpp_status_error res = DPP_STATUS_INVALID_CONNECTOR;
 
-	csign = crypto_ec_key_parse_pub(csign_key, csign_key_len);
+	p = csign_key;
+	csign = d2i_PUBKEY(NULL, &p, csign_key_len);
 	if (!csign) {
 		wpa_printf(MSG_ERROR,
 			   "DPP: Failed to parse local C-sign-key information");
@@ -857,7 +1414,7 @@ dpp_check_signed_connector(struct dpp_signed_connector_info *info,
 	res = dpp_process_signed_connector(info, csign, signed_connector);
 fail:
 	os_free(signed_connector);
-	crypto_ec_key_deinit(csign);
+	EVP_PKEY_free(csign);
 	return res;
 }
 
@@ -876,25 +1433,21 @@ int dpp_gen_r_auth(struct dpp_authentication *auth, u8 *r_auth)
 	nonce_len = auth->curve->nonce_len;
 
 	if (auth->initiator) {
-		pix = crypto_ec_key_get_pubkey_point(auth->own_protocol_key, 0);
-		prx = crypto_ec_key_get_pubkey_point(auth->peer_protocol_key,
-						     0);
+		pix = dpp_get_pubkey_point(auth->own_protocol_key, 0);
+		prx = dpp_get_pubkey_point(auth->peer_protocol_key, 0);
 		if (auth->own_bi)
-			bix = crypto_ec_key_get_pubkey_point(
-				auth->own_bi->pubkey, 0);
+			bix = dpp_get_pubkey_point(auth->own_bi->pubkey, 0);
 		else
 			bix = NULL;
-		brx = crypto_ec_key_get_pubkey_point(auth->peer_bi->pubkey, 0);
+		brx = dpp_get_pubkey_point(auth->peer_bi->pubkey, 0);
 	} else {
-		pix = crypto_ec_key_get_pubkey_point(auth->peer_protocol_key,
-						     0);
-		prx = crypto_ec_key_get_pubkey_point(auth->own_protocol_key, 0);
+		pix = dpp_get_pubkey_point(auth->peer_protocol_key, 0);
+		prx = dpp_get_pubkey_point(auth->own_protocol_key, 0);
 		if (auth->peer_bi)
-			bix = crypto_ec_key_get_pubkey_point(
-				auth->peer_bi->pubkey, 0);
+			bix = dpp_get_pubkey_point(auth->peer_bi->pubkey, 0);
 		else
 			bix = NULL;
-		brx = crypto_ec_key_get_pubkey_point(auth->own_bi->pubkey, 0);
+		brx = dpp_get_pubkey_point(auth->own_bi->pubkey, 0);
 	}
 	if (!pix || !prx || !brx)
 		goto fail;
@@ -959,29 +1512,25 @@ int dpp_gen_i_auth(struct dpp_authentication *auth, u8 *i_auth)
 	nonce_len = auth->curve->nonce_len;
 
 	if (auth->initiator) {
-		pix = crypto_ec_key_get_pubkey_point(auth->own_protocol_key, 0);
-		prx = crypto_ec_key_get_pubkey_point(auth->peer_protocol_key,
-						     0);
+		pix = dpp_get_pubkey_point(auth->own_protocol_key, 0);
+		prx = dpp_get_pubkey_point(auth->peer_protocol_key, 0);
 		if (auth->own_bi)
-			bix = crypto_ec_key_get_pubkey_point(
-				auth->own_bi->pubkey, 0);
+			bix = dpp_get_pubkey_point(auth->own_bi->pubkey, 0);
 		else
 			bix = NULL;
 		if (!auth->peer_bi)
 			goto fail;
-		brx = crypto_ec_key_get_pubkey_point(auth->peer_bi->pubkey, 0);
+		brx = dpp_get_pubkey_point(auth->peer_bi->pubkey, 0);
 	} else {
-		pix = crypto_ec_key_get_pubkey_point(auth->peer_protocol_key,
-						     0);
-		prx = crypto_ec_key_get_pubkey_point(auth->own_protocol_key, 0);
+		pix = dpp_get_pubkey_point(auth->peer_protocol_key, 0);
+		prx = dpp_get_pubkey_point(auth->own_protocol_key, 0);
 		if (auth->peer_bi)
-			bix = crypto_ec_key_get_pubkey_point(
-				auth->peer_bi->pubkey, 0);
+			bix = dpp_get_pubkey_point(auth->peer_bi->pubkey, 0);
 		else
 			bix = NULL;
 		if (!auth->own_bi)
 			goto fail;
-		brx = crypto_ec_key_get_pubkey_point(auth->own_bi->pubkey, 0);
+		brx = dpp_get_pubkey_point(auth->own_bi->pubkey, 0);
 	}
 	if (!pix || !prx || !brx)
 		goto fail;
@@ -1034,83 +1583,122 @@ fail:
 
 int dpp_auth_derive_l_responder(struct dpp_authentication *auth)
 {
-	struct crypto_ec *ec;
-	struct crypto_ec_point *L = NULL;
-	const struct crypto_ec_point *BI;
-	const struct crypto_bignum *bR, *pR, *q;
-	struct crypto_bignum *sum = NULL, *lx = NULL;
+	const EC_GROUP *group;
+	EC_POINT *l = NULL;
+	const EC_KEY *BI, *bR, *pR;
+	const EC_POINT *BI_point;
+	BN_CTX *bnctx;
+	BIGNUM *lx, *sum, *q;
+	const BIGNUM *bR_bn, *pR_bn;
 	int ret = -1;
 
 	/* L = ((bR + pR) modulo q) * BI */
 
-	ec = crypto_ec_init(crypto_ec_key_group(auth->peer_bi->pubkey));
-	if (!ec)
+	bnctx = BN_CTX_new();
+	sum = BN_new();
+	q = BN_new();
+	lx = BN_new();
+	if (!bnctx || !sum || !q || !lx)
+		goto fail;
+	BI = EVP_PKEY_get0_EC_KEY(auth->peer_bi->pubkey);
+	if (!BI)
+		goto fail;
+	BI_point = EC_KEY_get0_public_key(BI);
+	group = EC_KEY_get0_group(BI);
+	if (!group)
 		goto fail;
 
-	q = crypto_ec_get_order(ec);
-	BI = crypto_ec_key_get_public_key(auth->peer_bi->pubkey);
-	bR = crypto_ec_key_get_private_key(auth->own_bi->pubkey);
-	pR = crypto_ec_key_get_private_key(auth->own_protocol_key);
-	sum = crypto_bignum_init();
-	L = crypto_ec_point_init(ec);
-	lx = crypto_bignum_init();
-	if (!q || !BI || !bR || !pR || !sum || !L || !lx ||
-	    crypto_bignum_addmod(bR, pR, q, sum) ||
-	    crypto_ec_point_mul(ec, BI, sum, L) ||
-	    crypto_ec_point_x(ec, L, lx) ||
-	    crypto_bignum_to_bin(lx, auth->Lx, sizeof(auth->Lx),
-				 auth->secret_len) < 0)
+	bR = EVP_PKEY_get0_EC_KEY(auth->own_bi->pubkey);
+	pR = EVP_PKEY_get0_EC_KEY(auth->own_protocol_key);
+	if (!bR || !pR)
 		goto fail;
+	bR_bn = EC_KEY_get0_private_key(bR);
+	pR_bn = EC_KEY_get0_private_key(pR);
+	if (!bR_bn || !pR_bn)
+		goto fail;
+	if (EC_GROUP_get_order(group, q, bnctx) != 1 ||
+	    BN_mod_add(sum, bR_bn, pR_bn, q, bnctx) != 1)
+		goto fail;
+	l = EC_POINT_new(group);
+	if (!l ||
+	    EC_POINT_mul(group, l, NULL, BI_point, sum, bnctx) != 1 ||
+	    EC_POINT_get_affine_coordinates_GFp(group, l, lx, NULL,
+						bnctx) != 1) {
+		wpa_printf(MSG_ERROR,
+			   "OpenSSL: failed: %s",
+			   ERR_error_string(ERR_get_error(), NULL));
+		goto fail;
+	}
 
+	if (dpp_bn2bin_pad(lx, auth->Lx, auth->secret_len) < 0)
+		goto fail;
 	wpa_hexdump_key(MSG_DEBUG, "DPP: L.x", auth->Lx, auth->secret_len);
 	auth->Lx_len = auth->secret_len;
 	ret = 0;
 fail:
-	crypto_bignum_deinit(lx, 1);
-	crypto_bignum_deinit(sum, 1);
-	crypto_ec_point_deinit(L, 1);
-	crypto_ec_deinit(ec);
+	EC_POINT_clear_free(l);
+	BN_clear_free(lx);
+	BN_clear_free(sum);
+	BN_free(q);
+	BN_CTX_free(bnctx);
 	return ret;
 }
 
 
 int dpp_auth_derive_l_initiator(struct dpp_authentication *auth)
 {
-	struct crypto_ec *ec;
-	struct crypto_ec_point *L = NULL, *sum = NULL;
-	const struct crypto_ec_point *BR, *PR;
-	const struct crypto_bignum *bI;
-	struct crypto_bignum *lx = NULL;
+	const EC_GROUP *group;
+	EC_POINT *l = NULL, *sum = NULL;
+	const EC_KEY *bI, *BR, *PR;
+	const EC_POINT *BR_point, *PR_point;
+	BN_CTX *bnctx;
+	BIGNUM *lx;
+	const BIGNUM *bI_bn;
 	int ret = -1;
 
 	/* L = bI * (BR + PR) */
 
-	ec = crypto_ec_init(crypto_ec_key_group(auth->peer_bi->pubkey));
-	if (!ec)
+	bnctx = BN_CTX_new();
+	lx = BN_new();
+	if (!bnctx || !lx)
 		goto fail;
-
-	BR = crypto_ec_key_get_public_key(auth->peer_bi->pubkey);
-	PR = crypto_ec_key_get_public_key(auth->peer_protocol_key);
-	bI = crypto_ec_key_get_private_key(auth->own_bi->pubkey);
-	sum = crypto_ec_point_init(ec);
-	L = crypto_ec_point_init(ec);
-	lx = crypto_bignum_init();
-	if (!BR || !PR || !bI || !sum || !L || !lx ||
-	    crypto_ec_point_add(ec, BR, PR, sum) ||
-	    crypto_ec_point_mul(ec, sum, bI, L) ||
-	    crypto_ec_point_x(ec, L, lx) ||
-	    crypto_bignum_to_bin(lx, auth->Lx, sizeof(auth->Lx),
-				 auth->secret_len) < 0)
+	BR = EVP_PKEY_get0_EC_KEY(auth->peer_bi->pubkey);
+	PR = EVP_PKEY_get0_EC_KEY(auth->peer_protocol_key);
+	if (!BR || !PR)
 		goto fail;
+	BR_point = EC_KEY_get0_public_key(BR);
+	PR_point = EC_KEY_get0_public_key(PR);
 
+	bI = EVP_PKEY_get0_EC_KEY(auth->own_bi->pubkey);
+	if (!bI)
+		goto fail;
+	group = EC_KEY_get0_group(bI);
+	bI_bn = EC_KEY_get0_private_key(bI);
+	if (!group || !bI_bn)
+		goto fail;
+	sum = EC_POINT_new(group);
+	l = EC_POINT_new(group);
+	if (!sum || !l ||
+	    EC_POINT_add(group, sum, BR_point, PR_point, bnctx) != 1 ||
+	    EC_POINT_mul(group, l, NULL, sum, bI_bn, bnctx) != 1 ||
+	    EC_POINT_get_affine_coordinates_GFp(group, l, lx, NULL,
+						bnctx) != 1) {
+		wpa_printf(MSG_ERROR,
+			   "OpenSSL: failed: %s",
+			   ERR_error_string(ERR_get_error(), NULL));
+		goto fail;
+	}
+
+	if (dpp_bn2bin_pad(lx, auth->Lx, auth->secret_len) < 0)
+		goto fail;
 	wpa_hexdump_key(MSG_DEBUG, "DPP: L.x", auth->Lx, auth->secret_len);
 	auth->Lx_len = auth->secret_len;
 	ret = 0;
 fail:
-	crypto_bignum_deinit(lx, 1);
-	crypto_ec_point_deinit(sum, 1);
-	crypto_ec_point_deinit(L, 1);
-	crypto_ec_deinit(ec);
+	EC_POINT_clear_free(l);
+	EC_POINT_clear_free(sum);
+	BN_clear_free(lx);
+	BN_CTX_free(bnctx);
 	return ret;
 }
 
@@ -1143,8 +1731,7 @@ int dpp_derive_pmk(const u8 *Nx, size_t Nx_len, u8 *pmk, unsigned int hash_len)
 
 
 int dpp_derive_pmkid(const struct dpp_curve_params *curve,
-		     struct crypto_ec_key *own_key,
-		     struct crypto_ec_key *peer_key, u8 *pmkid)
+		     EVP_PKEY *own_key, EVP_PKEY *peer_key, u8 *pmkid)
 {
 	struct wpabuf *nkx, *pkx;
 	int ret = -1, res;
@@ -1153,8 +1740,8 @@ int dpp_derive_pmkid(const struct dpp_curve_params *curve,
 	u8 hash[SHA256_MAC_LEN];
 
 	/* PMKID = Truncate-128(H(min(NK.x, PK.x) | max(NK.x, PK.x))) */
-	nkx = crypto_ec_key_get_pubkey_point(own_key, 0);
-	pkx = crypto_ec_key_get_pubkey_point(peer_key, 0);
+	nkx = dpp_get_pubkey_point(own_key, 0);
+	pkx = dpp_get_pubkey_point(peer_key, 0);
 	if (!nkx || !pkx)
 		goto fail;
 	addr[0] = wpabuf_head(nkx);
@@ -1394,10 +1981,13 @@ static const u8 pkex_resp_y_bp_p512r1[64] = {
 };
 
 
-static struct crypto_ec_key *
-dpp_pkex_get_role_elem(const struct dpp_curve_params *curve, int init)
+static EVP_PKEY * dpp_pkex_get_role_elem(const struct dpp_curve_params *curve,
+					 int init)
 {
+	EC_GROUP *group;
+	size_t len = curve->prime_len;
 	const u8 *x, *y;
+	EVP_PKEY *res;
 
 	switch (curve->ike_group) {
 	case 19:
@@ -1428,24 +2018,31 @@ dpp_pkex_get_role_elem(const struct dpp_curve_params *curve, int init)
 		return NULL;
 	}
 
-	return crypto_ec_key_set_pub(curve->ike_group, x, y, curve->prime_len);
+	group = EC_GROUP_new_by_curve_name(OBJ_txt2nid(curve->name));
+	if (!group)
+		return NULL;
+	res = dpp_set_pubkey_point_group(group, x, y, len);
+	EC_GROUP_free(group);
+	return res;
 }
 
 
-struct crypto_ec_point *
-dpp_pkex_derive_Qi(const struct dpp_curve_params *curve, const u8 *mac_init,
-		   const char *code, const char *identifier,
-		   struct crypto_ec **ret_ec)
+EC_POINT * dpp_pkex_derive_Qi(const struct dpp_curve_params *curve,
+			      const u8 *mac_init, const char *code,
+			      const char *identifier, BN_CTX *bnctx,
+			      EC_GROUP **ret_group)
 {
 	u8 hash[DPP_MAX_HASH_LEN];
 	const u8 *addr[3];
 	size_t len[3];
 	unsigned int num_elem = 0;
-	struct crypto_ec_point *Qi = NULL;
-	struct crypto_ec_key *Pi_key = NULL;
-	const struct crypto_ec_point *Pi = NULL;
-	struct crypto_bignum *hash_bn = NULL;
-	struct crypto_ec *ec = NULL;
+	EC_POINT *Qi = NULL;
+	EVP_PKEY *Pi = NULL;
+	const EC_KEY *Pi_ec;
+	const EC_POINT *Pi_point;
+	BIGNUM *hash_bn = NULL;
+	const EC_GROUP *group = NULL;
+	EC_GROUP *group2 = NULL;
 
 	/* Qi = H(MAC-Initiator | [identifier |] code) * Pi */
 
@@ -1469,55 +2066,66 @@ dpp_pkex_derive_Qi(const struct dpp_curve_params *curve, const u8 *mac_init,
 	wpa_hexdump_key(MSG_DEBUG,
 			"DPP: H(MAC-Initiator | [identifier |] code)",
 			hash, curve->hash_len);
-	Pi_key = dpp_pkex_get_role_elem(curve, 1);
-	if (!Pi_key)
+	Pi = dpp_pkex_get_role_elem(curve, 1);
+	if (!Pi)
 		goto fail;
-	dpp_debug_print_key("DPP: Pi", Pi_key);
-
-	ec = crypto_ec_init(curve->ike_group);
-	if (!ec)
+	dpp_debug_print_key("DPP: Pi", Pi);
+	Pi_ec = EVP_PKEY_get0_EC_KEY(Pi);
+	if (!Pi_ec)
 		goto fail;
+	Pi_point = EC_KEY_get0_public_key(Pi_ec);
 
-	Pi = crypto_ec_key_get_public_key(Pi_key);
-	Qi = crypto_ec_point_init(ec);
-	hash_bn = crypto_bignum_init_set(hash, curve->hash_len);
-	if (!Pi || !Qi || !hash_bn || crypto_ec_point_mul(ec, Pi, hash_bn, Qi))
+	group = EC_KEY_get0_group(Pi_ec);
+	if (!group)
 		goto fail;
-
-	if (crypto_ec_point_is_at_infinity(ec, Qi)) {
+	group2 = EC_GROUP_dup(group);
+	if (!group2)
+		goto fail;
+	Qi = EC_POINT_new(group2);
+	if (!Qi) {
+		EC_GROUP_free(group2);
+		goto fail;
+	}
+	hash_bn = BN_bin2bn(hash, curve->hash_len, NULL);
+	if (!hash_bn ||
+	    EC_POINT_mul(group2, Qi, NULL, Pi_point, hash_bn, bnctx) != 1)
+		goto fail;
+	if (EC_POINT_is_at_infinity(group, Qi)) {
 		wpa_printf(MSG_INFO, "DPP: Qi is the point-at-infinity");
 		goto fail;
 	}
-	crypto_ec_point_debug_print(ec, Qi, "DPP: Qi");
+	dpp_debug_print_point("DPP: Qi", group, Qi);
 out:
-	crypto_ec_key_deinit(Pi_key);
-	crypto_bignum_deinit(hash_bn, 1);
-	if (ret_ec && Qi)
-		*ret_ec = ec;
+	EVP_PKEY_free(Pi);
+	BN_clear_free(hash_bn);
+	if (ret_group && Qi)
+		*ret_group = group2;
 	else
-		crypto_ec_deinit(ec);
+		EC_GROUP_free(group2);
 	return Qi;
 fail:
-	crypto_ec_point_deinit(Qi, 1);
+	EC_POINT_free(Qi);
 	Qi = NULL;
 	goto out;
 }
 
 
-struct crypto_ec_point *
-dpp_pkex_derive_Qr(const struct dpp_curve_params *curve, const u8 *mac_resp,
-		   const char *code, const char *identifier,
-		   struct crypto_ec **ret_ec)
+EC_POINT * dpp_pkex_derive_Qr(const struct dpp_curve_params *curve,
+			      const u8 *mac_resp, const char *code,
+			      const char *identifier, BN_CTX *bnctx,
+			      EC_GROUP **ret_group)
 {
 	u8 hash[DPP_MAX_HASH_LEN];
 	const u8 *addr[3];
 	size_t len[3];
 	unsigned int num_elem = 0;
-	struct crypto_ec_point *Qr = NULL;
-	struct crypto_ec_key *Pr_key = NULL;
-	const struct crypto_ec_point *Pr = NULL;
-	struct crypto_bignum *hash_bn = NULL;
-	struct crypto_ec *ec = NULL;
+	EC_POINT *Qr = NULL;
+	EVP_PKEY *Pr = NULL;
+	const EC_KEY *Pr_ec;
+	const EC_POINT *Pr_point;
+	BIGNUM *hash_bn = NULL;
+	const EC_GROUP *group = NULL;
+	EC_GROUP *group2 = NULL;
 
 	/* Qr = H(MAC-Responder | | [identifier | ] code) * Pr */
 
@@ -1541,37 +2149,45 @@ dpp_pkex_derive_Qr(const struct dpp_curve_params *curve, const u8 *mac_resp,
 	wpa_hexdump_key(MSG_DEBUG,
 			"DPP: H(MAC-Responder | [identifier |] code)",
 			hash, curve->hash_len);
-	Pr_key = dpp_pkex_get_role_elem(curve, 0);
-	if (!Pr_key)
+	Pr = dpp_pkex_get_role_elem(curve, 0);
+	if (!Pr)
 		goto fail;
-	dpp_debug_print_key("DPP: Pr", Pr_key);
-
-	ec = crypto_ec_init(curve->ike_group);
-	if (!ec)
+	dpp_debug_print_key("DPP: Pr", Pr);
+	Pr_ec = EVP_PKEY_get0_EC_KEY(Pr);
+	if (!Pr_ec)
 		goto fail;
+	Pr_point = EC_KEY_get0_public_key(Pr_ec);
 
-	Pr = crypto_ec_key_get_public_key(Pr_key);
-	Qr = crypto_ec_point_init(ec);
-	hash_bn = crypto_bignum_init_set(hash, curve->hash_len);
-	if (!Pr || !Qr || !hash_bn || crypto_ec_point_mul(ec, Pr, hash_bn, Qr))
+	group = EC_KEY_get0_group(Pr_ec);
+	if (!group)
 		goto fail;
-
-	if (crypto_ec_point_is_at_infinity(ec, Qr)) {
+	group2 = EC_GROUP_dup(group);
+	if (!group2)
+		goto fail;
+	Qr = EC_POINT_new(group2);
+	if (!Qr) {
+		EC_GROUP_free(group2);
+		goto fail;
+	}
+	hash_bn = BN_bin2bn(hash, curve->hash_len, NULL);
+	if (!hash_bn ||
+	    EC_POINT_mul(group2, Qr, NULL, Pr_point, hash_bn, bnctx) != 1)
+		goto fail;
+	if (EC_POINT_is_at_infinity(group, Qr)) {
 		wpa_printf(MSG_INFO, "DPP: Qr is the point-at-infinity");
 		goto fail;
 	}
-	crypto_ec_point_debug_print(ec, Qr, "DPP: Qr");
-
+	dpp_debug_print_point("DPP: Qr", group, Qr);
 out:
-	crypto_ec_key_deinit(Pr_key);
-	crypto_bignum_deinit(hash_bn, 1);
-	if (ret_ec && Qr)
-		*ret_ec = ec;
+	EVP_PKEY_free(Pr);
+	BN_clear_free(hash_bn);
+	if (ret_group && Qr)
+		*ret_group = group2;
 	else
-		crypto_ec_deinit(ec);
+		EC_GROUP_free(group2);
 	return Qr;
 fail:
-	crypto_ec_point_deinit(Qr, 1);
+	EC_POINT_free(Qr);
 	Qr = NULL;
 	goto out;
 }
@@ -1641,12 +2257,15 @@ int dpp_reconfig_derive_ke_responder(struct dpp_authentication *auth,
 				     size_t net_access_key_len,
 				     struct json_token *peer_net_access_key)
 {
-	struct crypto_ec_key *own_key = NULL, *peer_key = NULL;
-	struct crypto_bignum *sum = NULL;
-	const struct crypto_bignum *q, *cR, *pR;
-	struct crypto_ec *ec = NULL;
-	struct crypto_ec_point *M = NULL;
-	const struct crypto_ec_point *CI;
+	BN_CTX *bnctx = NULL;
+	EVP_PKEY *own_key = NULL, *peer_key = NULL;
+	BIGNUM *sum = NULL, *q = NULL, *mx = NULL;
+	EC_POINT *m = NULL;
+	const EC_KEY *cR, *pR;
+	const EC_GROUP *group;
+	const BIGNUM *cR_bn, *pR_bn;
+	const EC_POINT *CI_point;
+	const EC_KEY *CI;
 	u8 Mx[DPP_MAX_SHARED_SECRET_LEN];
 	u8 prk[DPP_MAX_HASH_LEN];
 	const struct dpp_curve_params *curve;
@@ -1684,23 +2303,37 @@ int dpp_reconfig_derive_ke_responder(struct dpp_authentication *auth,
 			auth->e_nonce, auth->curve->nonce_len);
 
 	/* M = { cR + pR } * CI */
-	ec = crypto_ec_init(curve->ike_group);
-	if (!ec)
+	cR = EVP_PKEY_get0_EC_KEY(own_key);
+	pR = EVP_PKEY_get0_EC_KEY(auth->own_protocol_key);
+	if (!pR)
 		goto fail;
-
-	sum = crypto_bignum_init();
-	q = crypto_ec_get_order(ec);
-	M = crypto_ec_point_init(ec);
-	cR = crypto_ec_key_get_private_key(own_key);
-	pR = crypto_ec_key_get_private_key(auth->own_protocol_key);
-	CI = crypto_ec_key_get_public_key(peer_key);
-	if (!sum || !q || !M || !cR || !pR || !CI ||
-	    crypto_bignum_addmod(cR, pR, q, sum) ||
-	    crypto_ec_point_mul(ec, CI, sum, M) ||
-	    crypto_ec_point_to_bin(ec, M, Mx, NULL)) {
-		wpa_printf(MSG_ERROR, "DPP: Error during M computation");
+	group = EC_KEY_get0_group(pR);
+	bnctx = BN_CTX_new();
+	sum = BN_new();
+	mx = BN_new();
+	q = BN_new();
+	m = EC_POINT_new(group);
+	if (!cR || !bnctx || !sum || !mx || !q || !m)
+		goto fail;
+	cR_bn = EC_KEY_get0_private_key(cR);
+	pR_bn = EC_KEY_get0_private_key(pR);
+	if (!cR_bn || !pR_bn)
+		goto fail;
+	CI = EVP_PKEY_get0_EC_KEY(peer_key);
+	CI_point = EC_KEY_get0_public_key(CI);
+	if (EC_GROUP_get_order(group, q, bnctx) != 1 ||
+	    BN_mod_add(sum, cR_bn, pR_bn, q, bnctx) != 1 ||
+	    EC_POINT_mul(group, m, NULL, CI_point, sum, bnctx) != 1 ||
+	    EC_POINT_get_affine_coordinates_GFp(group, m, mx, NULL,
+						bnctx) != 1) {
+		wpa_printf(MSG_ERROR,
+			   "OpenSSL: failed: %s",
+			   ERR_error_string(ERR_get_error(), NULL));
 		goto fail;
 	}
+
+	if (dpp_bn2bin_pad(mx, Mx, curve->prime_len) < 0)
+		goto fail;
 	wpa_hexdump_key(MSG_DEBUG, "DPP: M.x", Mx, curve->prime_len);
 
 	/* ke = HKDF(C-nonce | E-nonce, "dpp reconfig key", M.x) */
@@ -1722,17 +2355,19 @@ int dpp_reconfig_derive_ke_responder(struct dpp_authentication *auth,
 			auth->ke, curve->hash_len);
 
 	res = 0;
-	crypto_ec_key_deinit(auth->reconfig_old_protocol_key);
+	EVP_PKEY_free(auth->reconfig_old_protocol_key);
 	auth->reconfig_old_protocol_key = own_key;
 	own_key = NULL;
 fail:
 	forced_memzero(prk, sizeof(prk));
 	forced_memzero(Mx, sizeof(Mx));
-	crypto_ec_point_deinit(M, 1);
-	crypto_bignum_deinit(sum, 1);
-	crypto_ec_key_deinit(own_key);
-	crypto_ec_key_deinit(peer_key);
-	crypto_ec_deinit(ec);
+	EC_POINT_clear_free(m);
+	BN_free(q);
+	BN_clear_free(mx);
+	BN_clear_free(sum);
+	EVP_PKEY_free(own_key);
+	EVP_PKEY_free(peer_key);
+	BN_CTX_free(bnctx);
 	return res;
 }
 
@@ -1741,11 +2376,14 @@ int dpp_reconfig_derive_ke_initiator(struct dpp_authentication *auth,
 				     const u8 *r_proto, u16 r_proto_len,
 				     struct json_token *net_access_key)
 {
-	struct crypto_ec_key *pr = NULL, *peer_key = NULL;
-	const struct crypto_ec_point *CR, *PR;
-	const struct crypto_bignum *cI;
-	struct crypto_ec *ec = NULL;
-	struct crypto_ec_point *sum = NULL, *M = NULL;
+	BN_CTX *bnctx = NULL;
+	EVP_PKEY *pr = NULL, *peer_key = NULL;
+	EC_POINT *sum = NULL, *m = NULL;
+	BIGNUM *mx = NULL;
+	const EC_KEY *cI, *CR, *PR;
+	const EC_GROUP *group;
+	const EC_POINT *CR_point, *PR_point;
+	const BIGNUM *cI_bn;
 	u8 Mx[DPP_MAX_SHARED_SECRET_LEN];
 	u8 prk[DPP_MAX_HASH_LEN];
 	int res = -1;
@@ -1759,7 +2397,7 @@ int dpp_reconfig_derive_ke_initiator(struct dpp_authentication *auth,
 		goto fail;
 	}
 	dpp_debug_print_key("Peer (Responder) Protocol Key", pr);
-	crypto_ec_key_deinit(auth->peer_protocol_key);
+	EVP_PKEY_free(auth->peer_protocol_key);
 	auth->peer_protocol_key = pr;
 	pr = NULL;
 
@@ -1775,22 +2413,24 @@ int dpp_reconfig_derive_ke_initiator(struct dpp_authentication *auth,
 	}
 
 	/* M = cI * { CR + PR } */
-	ec = crypto_ec_init(curve->ike_group);
-	if (!ec)
+	cI = EVP_PKEY_get0_EC_KEY(auth->conf->connector_key);
+	cI_bn = EC_KEY_get0_private_key(cI);
+	group = EC_KEY_get0_group(cI);
+	bnctx = BN_CTX_new();
+	sum = EC_POINT_new(group);
+	m = EC_POINT_new(group);
+	mx = BN_new();
+	CR = EVP_PKEY_get0_EC_KEY(peer_key);
+	PR = EVP_PKEY_get0_EC_KEY(auth->peer_protocol_key);
+	CR_point = EC_KEY_get0_public_key(CR);
+	PR_point = EC_KEY_get0_public_key(PR);
+	if (!bnctx || !sum || !m || !mx ||
+	    EC_POINT_add(group, sum, CR_point, PR_point, bnctx) != 1 ||
+	    EC_POINT_mul(group, m, NULL, sum, cI_bn, bnctx) != 1 ||
+	    EC_POINT_get_affine_coordinates_GFp(group, m, mx, NULL,
+						bnctx) != 1 ||
+	    dpp_bn2bin_pad(mx, Mx, curve->prime_len) < 0)
 		goto fail;
-
-	cI = crypto_ec_key_get_private_key(auth->conf->connector_key);
-	sum = crypto_ec_point_init(ec);
-	M = crypto_ec_point_init(ec);
-	CR = crypto_ec_key_get_public_key(peer_key);
-	PR = crypto_ec_key_get_public_key(auth->peer_protocol_key);
-	if (!cI || !sum || !M || !CR || !PR ||
-	    crypto_ec_point_add(ec, CR, PR, sum) ||
-	    crypto_ec_point_mul(ec, sum, cI, M) ||
-	    crypto_ec_point_to_bin(ec, M, Mx, NULL)) {
-		wpa_printf(MSG_ERROR, "DPP: Error during M computation");
-		goto fail;
-	}
 
 	wpa_hexdump_key(MSG_DEBUG, "DPP: M.x", Mx, curve->prime_len);
 
@@ -1816,11 +2456,12 @@ int dpp_reconfig_derive_ke_initiator(struct dpp_authentication *auth,
 fail:
 	forced_memzero(prk, sizeof(prk));
 	forced_memzero(Mx, sizeof(Mx));
-	crypto_ec_key_deinit(pr);
-	crypto_ec_key_deinit(peer_key);
-	crypto_ec_point_deinit(sum, 1);
-	crypto_ec_point_deinit(M, 1);
-	crypto_ec_deinit(ec);
+	EVP_PKEY_free(pr);
+	EVP_PKEY_free(peer_key);
+	EC_POINT_clear_free(sum);
+	EC_POINT_clear_free(m);
+	BN_clear_free(mx);
+	BN_CTX_free(bnctx);
 	return res;
 }
 
@@ -1856,56 +2497,78 @@ dpp_build_conn_signature(struct dpp_configurator *conf,
 			 size_t *signed3_len)
 {
 	const struct dpp_curve_params *curve;
-	struct wpabuf *sig = NULL;
 	char *signed3 = NULL;
+	unsigned char *signature = NULL;
+	const unsigned char *p;
+	size_t signature_len;
+	EVP_MD_CTX *md_ctx = NULL;
+	ECDSA_SIG *sig = NULL;
 	char *dot = ".";
-	const u8 *vector[3];
-	size_t vector_len[3];
-	u8 *hash;
-	int ret;
-
-	vector[0] = (const u8 *) signed1;
-	vector[1] = (const u8 *) dot;
-	vector[2] = (const u8 *) signed2;
-	vector_len[0] = signed1_len;
-	vector_len[1] = 1;
-	vector_len[2] = signed2_len;
+	const EVP_MD *sign_md;
+	const BIGNUM *r, *s;
 
 	curve = conf->curve;
-	hash = os_malloc(curve->hash_len);
-	if (!hash)
-		goto fail;
 	if (curve->hash_len == SHA256_MAC_LEN) {
-		ret = sha256_vector(3, vector, vector_len, hash);
+		sign_md = EVP_sha256();
 	} else if (curve->hash_len == SHA384_MAC_LEN) {
-		ret = sha384_vector(3, vector, vector_len, hash);
+		sign_md = EVP_sha384();
 	} else if (curve->hash_len == SHA512_MAC_LEN) {
-		ret = sha512_vector(3, vector, vector_len, hash);
+		sign_md = EVP_sha512();
 	} else {
 		wpa_printf(MSG_DEBUG, "DPP: Unknown signature algorithm");
 		goto fail;
 	}
-	if (ret) {
-		wpa_printf(MSG_DEBUG, "DPP: Hash computation failed");
+
+	md_ctx = EVP_MD_CTX_create();
+	if (!md_ctx)
+		goto fail;
+
+	ERR_clear_error();
+	if (EVP_DigestSignInit(md_ctx, NULL, sign_md, NULL, conf->csign) != 1) {
+		wpa_printf(MSG_DEBUG, "DPP: EVP_DigestSignInit failed: %s",
+			   ERR_error_string(ERR_get_error(), NULL));
 		goto fail;
 	}
-	wpa_hexdump(MSG_DEBUG, "DPP: Hash value for Connector signature",
-		    hash, curve->hash_len);
-
-	sig = crypto_ec_key_sign_r_s(conf->csign, hash, curve->hash_len);
-	if (!sig) {
-		wpa_printf(MSG_ERROR, "DPP: Signature computation failed");
+	if (EVP_DigestSignUpdate(md_ctx, signed1, signed1_len) != 1 ||
+	    EVP_DigestSignUpdate(md_ctx, dot, 1) != 1 ||
+	    EVP_DigestSignUpdate(md_ctx, signed2, signed2_len) != 1) {
+		wpa_printf(MSG_DEBUG, "DPP: EVP_DigestSignUpdate failed: %s",
+			   ERR_error_string(ERR_get_error(), NULL));
 		goto fail;
 	}
-
+	if (EVP_DigestSignFinal(md_ctx, NULL, &signature_len) != 1) {
+		wpa_printf(MSG_DEBUG, "DPP: EVP_DigestSignFinal failed: %s",
+			   ERR_error_string(ERR_get_error(), NULL));
+		goto fail;
+	}
+	signature = os_malloc(signature_len);
+	if (!signature)
+		goto fail;
+	if (EVP_DigestSignFinal(md_ctx, signature, &signature_len) != 1) {
+		wpa_printf(MSG_DEBUG, "DPP: EVP_DigestSignFinal failed: %s",
+			   ERR_error_string(ERR_get_error(), NULL));
+		goto fail;
+	}
+	wpa_hexdump(MSG_DEBUG, "DPP: signedConnector ECDSA signature (DER)",
+		    signature, signature_len);
+	/* Convert to raw coordinates r,s */
+	p = signature;
+	sig = d2i_ECDSA_SIG(NULL, &p, signature_len);
+	if (!sig)
+		goto fail;
+	ECDSA_SIG_get0(sig, &r, &s);
+	if (dpp_bn2bin_pad(r, signature, curve->prime_len) < 0 ||
+	    dpp_bn2bin_pad(s, signature + curve->prime_len,
+			   curve->prime_len) < 0)
+		goto fail;
+	signature_len = 2 * curve->prime_len;
 	wpa_hexdump(MSG_DEBUG, "DPP: signedConnector ECDSA signature (raw r,s)",
-		    wpabuf_head(sig), wpabuf_len(sig));
-	signed3 = base64_url_encode(wpabuf_head(sig), wpabuf_len(sig),
-				    signed3_len);
-
+		    signature, signature_len);
+	signed3 = base64_url_encode(signature, signature_len, signed3_len);
 fail:
-	os_free(hash);
-	wpabuf_free(sig);
+	EVP_MD_CTX_destroy(md_ctx);
+	ECDSA_SIG_free(sig);
+	os_free(signature);
 	return signed3;
 }
 
@@ -1955,7 +2618,7 @@ struct dpp_pfs * dpp_pfs_init(const u8 *net_access_key,
 			      size_t net_access_key_len)
 {
 	struct wpabuf *pub = NULL;
-	struct crypto_ec_key *own_key;
+	EVP_PKEY *own_key;
 	struct dpp_pfs *pfs;
 
 	pfs = os_zalloc(sizeof(*pfs));
@@ -1968,7 +2631,7 @@ struct dpp_pfs * dpp_pfs_init(const u8 *net_access_key,
 		wpa_printf(MSG_ERROR, "DPP: Failed to parse own netAccessKey");
 		goto fail;
 	}
-	crypto_ec_key_deinit(own_key);
+	EVP_PKEY_free(own_key);
 
 	pfs->ecdh = crypto_ecdh_init(pfs->curve->ike_group);
 	if (!pfs->ecdh)
@@ -2033,15 +2696,19 @@ void dpp_pfs_free(struct dpp_pfs *pfs)
 
 struct wpabuf * dpp_build_csr(struct dpp_authentication *auth, const char *name)
 {
-	struct crypto_csr *csr = NULL;
+	X509_REQ *req = NULL;
 	struct wpabuf *buf = NULL;
-	struct crypto_ec_key *key;
+	unsigned char *der;
+	int der_len;
+	EVP_PKEY *key;
+	const EVP_MD *sign_md;
 	unsigned int hash_len = auth->curve->hash_len;
-	struct wpabuf *priv_key;
+	EC_KEY *eckey;
+	BIO *out = NULL;
 	u8 cp[DPP_CP_LEN];
-	char *password = NULL;
+	char *password;
 	size_t password_len;
-	int hash_sign_algo;
+	int res;
 
 	/* TODO: use auth->csrattrs */
 
@@ -2049,18 +2716,35 @@ struct wpabuf * dpp_build_csr(struct dpp_authentication *auth, const char *name)
 	 * a specific group to be used */
 	key = auth->own_protocol_key;
 
-	priv_key = crypto_ec_key_get_ecprivate_key(key, true);
-	if (!priv_key)
+	eckey = EVP_PKEY_get1_EC_KEY(key);
+	if (!eckey)
+		goto fail;
+	der = NULL;
+	der_len = i2d_ECPrivateKey(eckey, &der);
+	if (der_len <= 0)
 		goto fail;
 	wpabuf_free(auth->priv_key);
-	auth->priv_key = priv_key;
-
-	csr = crypto_csr_init();
-	if (!csr || crypto_csr_set_ec_public_key(csr, key))
+	auth->priv_key = wpabuf_alloc_copy(der, der_len);
+	OPENSSL_free(der);
+	if (!auth->priv_key)
 		goto fail;
 
-	if (name && crypto_csr_set_name(csr, CSR_NAME_CN, name))
+	req = X509_REQ_new();
+	if (!req || !X509_REQ_set_pubkey(req, key))
 		goto fail;
+
+	if (name) {
+		X509_NAME *n;
+
+		n = X509_REQ_get_subject_name(req);
+		if (!n)
+			goto fail;
+
+		if (X509_NAME_add_entry_by_txt(
+			    n, "CN", MBSTRING_UTF8,
+			    (const unsigned char *) name, -1, -1, 0) != 1)
+			goto fail;
+	}
 
 	/* cp = HKDF-Expand(bk, "CSR challengePassword", 64) */
 	if (dpp_hkdf_expand(hash_len, auth->bk, hash_len,
@@ -2071,75 +2755,222 @@ struct wpabuf * dpp_build_csr(struct dpp_authentication *auth, const char *name)
 			cp, DPP_CP_LEN);
 	password = base64_encode_no_lf(cp, DPP_CP_LEN, &password_len);
 	forced_memzero(cp, DPP_CP_LEN);
-	if (!password ||
-	    crypto_csr_set_attribute(csr, CSR_ATTR_CHALLENGE_PASSWORD,
-				     ASN1_TAG_UTF8STRING, (const u8 *) password,
-				     password_len))
+	if (!password)
 		goto fail;
+
+	res = X509_REQ_add1_attr_by_NID(req, NID_pkcs9_challengePassword,
+					V_ASN1_UTF8STRING,
+					(const unsigned char *) password,
+					password_len);
+	bin_clear_free(password, password_len);
+	if (!res)
+		goto fail;
+
+	/* TODO */
 
 	/* TODO: hash func selection based on csrAttrs */
 	if (hash_len == SHA256_MAC_LEN) {
-		hash_sign_algo = CRYPTO_HASH_ALG_SHA256;
+		sign_md = EVP_sha256();
 	} else if (hash_len == SHA384_MAC_LEN) {
-		hash_sign_algo = CRYPTO_HASH_ALG_SHA384;
+		sign_md = EVP_sha384();
 	} else if (hash_len == SHA512_MAC_LEN) {
-		hash_sign_algo = CRYPTO_HASH_ALG_SHA512;
+		sign_md = EVP_sha512();
 	} else {
 		wpa_printf(MSG_DEBUG, "DPP: Unknown signature algorithm");
 		goto fail;
 	}
 
-	buf = crypto_csr_sign(csr, key, hash_sign_algo);
-	if (!buf)
+	if (!X509_REQ_sign(req, key, sign_md))
 		goto fail;
+
+	der = NULL;
+	der_len = i2d_X509_REQ(req, &der);
+	if (der_len < 0)
+		goto fail;
+	buf = wpabuf_alloc_copy(der, der_len);
+	OPENSSL_free(der);
+
 	wpa_hexdump_buf(MSG_DEBUG, "DPP: CSR", buf);
 
 fail:
-	bin_clear_free(password, password_len);
-	crypto_csr_deinit(csr);
+	BIO_free_all(out);
+	X509_REQ_free(req);
 	return buf;
 }
 
 
-int dpp_validate_csr(struct dpp_authentication *auth,
-		     const struct wpabuf *csrbuf)
+struct wpabuf * dpp_pkcs7_certs(const struct wpabuf *pkcs7)
 {
-	struct crypto_csr *csr;
-	const u8 *attr;
-	size_t attr_len;
-	int attr_type;
+#ifdef OPENSSL_IS_BORINGSSL
+	CBS pkcs7_cbs;
+#else /* OPENSSL_IS_BORINGSSL */
+	PKCS7 *p7 = NULL;
+	const unsigned char *p = wpabuf_head(pkcs7);
+#endif /* OPENSSL_IS_BORINGSSL */
+	STACK_OF(X509) *certs;
+	int i, num;
+	BIO *out = NULL;
+	size_t rlen;
+	struct wpabuf *pem = NULL;
+	int res;
+
+#ifdef OPENSSL_IS_BORINGSSL
+	certs = sk_X509_new_null();
+	if (!certs)
+		goto fail;
+	CBS_init(&pkcs7_cbs, wpabuf_head(pkcs7), wpabuf_len(pkcs7));
+	if (!PKCS7_get_certificates(certs, &pkcs7_cbs)) {
+		wpa_printf(MSG_INFO, "DPP: Could not parse PKCS#7 object: %s",
+			   ERR_error_string(ERR_get_error(), NULL));
+		goto fail;
+	}
+#else /* OPENSSL_IS_BORINGSSL */
+	p7 = d2i_PKCS7(NULL, &p, wpabuf_len(pkcs7));
+	if (!p7) {
+		wpa_printf(MSG_INFO, "DPP: Could not parse PKCS#7 object: %s",
+			   ERR_error_string(ERR_get_error(), NULL));
+		goto fail;
+	}
+
+	switch (OBJ_obj2nid(p7->type)) {
+	case NID_pkcs7_signed:
+		certs = p7->d.sign->cert;
+		break;
+	case NID_pkcs7_signedAndEnveloped:
+		certs = p7->d.signed_and_enveloped->cert;
+		break;
+	default:
+		certs = NULL;
+		break;
+	}
+#endif /* OPENSSL_IS_BORINGSSL */
+
+	if (!certs || ((num = sk_X509_num(certs)) == 0)) {
+		wpa_printf(MSG_INFO,
+			   "DPP: No certificates found in PKCS#7 object");
+		goto fail;
+	}
+
+	out = BIO_new(BIO_s_mem());
+	if (!out)
+		goto fail;
+
+	for (i = 0; i < num; i++) {
+		X509 *cert = sk_X509_value(certs, i);
+
+		PEM_write_bio_X509(out, cert);
+	}
+
+	rlen = BIO_ctrl_pending(out);
+	pem = wpabuf_alloc(rlen);
+	if (!pem)
+		goto fail;
+	res = BIO_read(out, wpabuf_put(pem, 0), rlen);
+	if (res <= 0) {
+		wpabuf_free(pem);
+		pem = NULL;
+		goto fail;
+	}
+	wpabuf_put(pem, res);
+
+fail:
+#ifdef OPENSSL_IS_BORINGSSL
+	if (certs)
+		sk_X509_pop_free(certs, X509_free);
+#else /* OPENSSL_IS_BORINGSSL */
+	PKCS7_free(p7);
+#endif /* OPENSSL_IS_BORINGSSL */
+	if (out)
+		BIO_free_all(out);
+
+	return pem;
+}
+
+
+int dpp_validate_csr(struct dpp_authentication *auth, const struct wpabuf *csr)
+{
+	X509_REQ *req;
+	const unsigned char *pos;
+	EVP_PKEY *pkey;
+	int res, loc, ret = -1;
+	X509_ATTRIBUTE *attr;
+	ASN1_TYPE *type;
+	ASN1_STRING *str;
+	unsigned char *utf8 = NULL;
 	unsigned char *cp = NULL;
 	size_t cp_len;
 	u8 exp_cp[DPP_CP_LEN];
 	unsigned int hash_len = auth->curve->hash_len;
-	int ret = -1;
 
-	csr = crypto_csr_verify(csrbuf);
-	if (!csr) {
-		wpa_printf(MSG_DEBUG,
-			   "DPP: CSR invalid or invalid signature");
+	pos = wpabuf_head(csr);
+	req = d2i_X509_REQ(NULL, &pos, wpabuf_len(csr));
+	if (!req) {
+		wpa_printf(MSG_DEBUG, "DPP: Failed to parse CSR");
+		return -1;
+	}
+
+	pkey = X509_REQ_get_pubkey(req);
+	if (!pkey) {
+		wpa_printf(MSG_DEBUG, "DPP: Failed to get public key from CSR");
 		goto fail;
 	}
 
-	attr = crypto_csr_get_attribute(csr, CSR_ATTR_CHALLENGE_PASSWORD,
-					&attr_len, &attr_type);
-	if (!attr) {
+	res = X509_REQ_verify(req, pkey);
+	EVP_PKEY_free(pkey);
+	if (res != 1) {
+		wpa_printf(MSG_DEBUG,
+			   "DPP: CSR does not have a valid signature");
+		goto fail;
+	}
+
+	loc = X509_REQ_get_attr_by_NID(req, NID_pkcs9_challengePassword, -1);
+	if (loc < 0) {
 		wpa_printf(MSG_DEBUG,
 			   "DPP: CSR does not include challengePassword");
 		goto fail;
 	}
-	/* This is supposed to be UTF8String, but allow other strings as well
-	 * since challengePassword is using ASCII (base64 encoded). */
-	if (attr_type != ASN1_TAG_UTF8STRING &&
-	    attr_type != ASN1_TAG_PRINTABLESTRING &&
-	    attr_type != ASN1_TAG_IA5STRING) {
+
+	attr = X509_REQ_get_attr(req, loc);
+	if (!attr) {
 		wpa_printf(MSG_DEBUG,
-			   "DPP: Unexpected challengePassword attribute type %d",
-			   attr_type);
+			   "DPP: Could not get challengePassword attribute");
 		goto fail;
 	}
 
-	cp = base64_decode((const char *) attr, attr_len, &cp_len);
+	type = X509_ATTRIBUTE_get0_type(attr, 0);
+	if (!type) {
+		wpa_printf(MSG_DEBUG,
+			   "DPP: Could not get challengePassword attribute type");
+		goto fail;
+	}
+
+	res = ASN1_TYPE_get(type);
+	/* This is supposed to be UTF8String, but allow other strings as well
+	 * since challengePassword is using ASCII (base64 encoded). */
+	if (res != V_ASN1_UTF8STRING && res != V_ASN1_PRINTABLESTRING &&
+	    res != V_ASN1_IA5STRING) {
+		wpa_printf(MSG_DEBUG,
+			   "DPP: Unexpected challengePassword attribute type %d",
+			   res);
+		goto fail;
+	}
+
+	str = X509_ATTRIBUTE_get0_data(attr, 0, res, NULL);
+	if (!str) {
+		wpa_printf(MSG_DEBUG,
+			   "DPP: Could not get ASN.1 string for challengePassword");
+		goto fail;
+	}
+
+	res = ASN1_STRING_to_UTF8(&utf8, str);
+	if (res < 0) {
+		wpa_printf(MSG_DEBUG,
+			   "DPP: Could not get UTF8 version of challengePassword");
+		goto fail;
+	}
+
+	cp = base64_decode((const char *) utf8, res, &cp_len);
+	OPENSSL_free(utf8);
 	if (!cp) {
 		wpa_printf(MSG_DEBUG,
 			   "DPP: Could not base64 decode challengePassword");
@@ -2170,7 +3001,7 @@ int dpp_validate_csr(struct dpp_authentication *auth,
 	ret = 0;
 fail:
 	os_free(cp);
-	crypto_csr_deinit(csr);
+	X509_REQ_free(req);
 	return ret;
 }
 
@@ -2180,46 +3011,50 @@ struct dpp_reconfig_id * dpp_gen_reconfig_id(const u8 *csign_key,
 					     const u8 *pp_key,
 					     size_t pp_key_len)
 {
-	struct crypto_ec_key *csign = NULL, *ppkey = NULL;
+	const unsigned char *p;
+	EVP_PKEY *csign = NULL, *ppkey = NULL;
 	struct dpp_reconfig_id *id = NULL;
-	struct crypto_ec *ec = NULL;
-	const struct crypto_bignum *q;
-	struct crypto_bignum *bn = NULL;
-	struct crypto_ec_point *e_id = NULL;
-	const struct crypto_ec_point *generator;
+	BN_CTX *ctx = NULL;
+	BIGNUM *bn = NULL, *q = NULL;
+	const EC_KEY *eckey;
+	const EC_GROUP *group;
+	EC_POINT *e_id = NULL;
 
-	csign = crypto_ec_key_parse_pub(csign_key, csign_key_len);
+	p = csign_key;
+	csign = d2i_PUBKEY(NULL, &p, csign_key_len);
 	if (!csign)
 		goto fail;
 
 	if (!pp_key)
 		goto fail;
-	ppkey = crypto_ec_key_parse_pub(pp_key, pp_key_len);
+	p = pp_key;
+	ppkey = d2i_PUBKEY(NULL, &p, pp_key_len);
 	if (!ppkey)
 		goto fail;
 
-	ec = crypto_ec_init(crypto_ec_key_group(csign));
-	if (!ec)
+	eckey = EVP_PKEY_get0_EC_KEY(csign);
+	if (!eckey)
+		goto fail;
+	group = EC_KEY_get0_group(eckey);
+	if (!group)
 		goto fail;
 
-	e_id = crypto_ec_point_init(ec);
-	bn = crypto_bignum_init();
-	q = crypto_ec_get_order(ec);
-	generator = crypto_ec_get_generator(ec);
-	if (!e_id || !bn || !q || !generator ||
-	    crypto_bignum_rand(bn, q) ||
-	    crypto_ec_point_mul(ec, generator, bn, e_id))
+	e_id = EC_POINT_new(group);
+	ctx = BN_CTX_new();
+	bn = BN_new();
+	q = BN_new();
+	if (!e_id || !ctx || !bn || !q ||
+	    !EC_GROUP_get_order(group, q, ctx) ||
+	    !BN_rand_range(bn, q) ||
+	    !EC_POINT_mul(group, e_id, bn, NULL, NULL, ctx))
 		goto fail;
 
-	crypto_ec_point_debug_print(ec, e_id,
-				    "DPP: Generated random point E-id");
+	dpp_debug_print_point("DPP: Generated random point E-id", group, e_id);
 
 	id = os_zalloc(sizeof(*id));
 	if (!id)
 		goto fail;
-
-	id->ec = ec;
-	ec = NULL;
+	id->group = group;
 	id->e_id = e_id;
 	e_id = NULL;
 	id->csign = csign;
@@ -2227,58 +3062,93 @@ struct dpp_reconfig_id * dpp_gen_reconfig_id(const u8 *csign_key,
 	id->pp_key = ppkey;
 	ppkey = NULL;
 fail:
-	crypto_ec_point_deinit(e_id, 1);
-	crypto_ec_key_deinit(csign);
-	crypto_ec_key_deinit(ppkey);
-	crypto_bignum_deinit(bn, 1);
-	crypto_ec_deinit(ec);
+	EC_POINT_free(e_id);
+	EVP_PKEY_free(csign);
+	EVP_PKEY_free(ppkey);
+	BN_clear_free(bn);
+	BN_CTX_free(ctx);
 	return id;
+}
+
+
+static EVP_PKEY * dpp_pkey_from_point(const EC_GROUP *group,
+				      const EC_POINT *point)
+{
+	EC_KEY *eckey;
+	EVP_PKEY *pkey = NULL;
+
+	eckey = EC_KEY_new();
+	if (!eckey ||
+	    EC_KEY_set_group(eckey, group) != 1 ||
+	    EC_KEY_set_public_key(eckey, point) != 1) {
+		wpa_printf(MSG_ERROR,
+			   "DPP: Failed to set EC_KEY: %s",
+			   ERR_error_string(ERR_get_error(), NULL));
+		goto fail;
+	}
+	EC_KEY_set_asn1_flag(eckey, OPENSSL_EC_NAMED_CURVE);
+
+	pkey = EVP_PKEY_new();
+	if (!pkey || EVP_PKEY_set1_EC_KEY(pkey, eckey) != 1) {
+		wpa_printf(MSG_ERROR, "DPP: Could not create EVP_PKEY");
+		EVP_PKEY_free(pkey);
+		pkey = NULL;
+		goto fail;
+	}
+
+fail:
+	EC_KEY_free(eckey);
+	return pkey;
 }
 
 
 int dpp_update_reconfig_id(struct dpp_reconfig_id *id)
 {
-	const struct crypto_bignum *q;
-	struct crypto_bignum *bn;
-	const struct crypto_ec_point *pp, *generator;
-	struct crypto_ec_point *e_prime_id, *a_nonce;
+	BN_CTX *ctx = NULL;
+	BIGNUM *bn = NULL, *q = NULL;
+	EC_POINT *e_prime_id = NULL, *a_nonce = NULL;
 	int ret = -1;
+	const EC_KEY *pp;
+	const EC_POINT *pp_point;
 
-	pp = crypto_ec_key_get_public_key(id->pp_key);
-	e_prime_id = crypto_ec_point_init(id->ec);
-	a_nonce = crypto_ec_point_init(id->ec);
-	bn = crypto_bignum_init();
-	q = crypto_ec_get_order(id->ec);
-	generator = crypto_ec_get_generator(id->ec);
-
+	pp = EVP_PKEY_get0_EC_KEY(id->pp_key);
+	if (!pp)
+		goto fail;
+	pp_point = EC_KEY_get0_public_key(pp);
+	e_prime_id = EC_POINT_new(id->group);
+	a_nonce = EC_POINT_new(id->group);
+	ctx = BN_CTX_new();
+	bn = BN_new();
+	q = BN_new();
 	/* Generate random 0 <= a-nonce < q
 	 * A-NONCE = a-nonce * G
 	 * E'-id = E-id + a-nonce * P_pk */
-	if (!pp || !e_prime_id || !a_nonce || !bn || !q || !generator ||
-	    crypto_bignum_rand(bn, q) || /* bn = a-nonce */
-	    crypto_ec_point_mul(id->ec, generator, bn, a_nonce) ||
-	    crypto_ec_point_mul(id->ec, pp, bn, e_prime_id) ||
-	    crypto_ec_point_add(id->ec, id->e_id, e_prime_id, e_prime_id))
+	if (!pp_point || !e_prime_id || !a_nonce || !ctx || !bn || !q ||
+	    !EC_GROUP_get_order(id->group, q, ctx) ||
+	    !BN_rand_range(bn, q) || /* bn = a-nonce */
+	    !EC_POINT_mul(id->group, a_nonce, bn, NULL, NULL, ctx) ||
+	    !EC_POINT_mul(id->group, e_prime_id, NULL, pp_point, bn, ctx) ||
+	    !EC_POINT_add(id->group, e_prime_id, id->e_id, e_prime_id, ctx))
 		goto fail;
 
-	crypto_ec_point_debug_print(id->ec, a_nonce,
-				    "DPP: Generated A-NONCE");
-	crypto_ec_point_debug_print(id->ec, e_prime_id,
-				    "DPP: Encrypted E-id to E'-id");
+	dpp_debug_print_point("DPP: Generated A-NONCE", id->group, a_nonce);
+	dpp_debug_print_point("DPP: Encrypted E-id to E'-id",
+			      id->group, e_prime_id);
 
-	crypto_ec_key_deinit(id->a_nonce);
-	crypto_ec_key_deinit(id->e_prime_id);
-	id->a_nonce = crypto_ec_key_set_pub_point(id->ec, a_nonce);
-	id->e_prime_id = crypto_ec_key_set_pub_point(id->ec, e_prime_id);
+	EVP_PKEY_free(id->a_nonce);
+	EVP_PKEY_free(id->e_prime_id);
+	id->a_nonce = dpp_pkey_from_point(id->group, a_nonce);
+	id->e_prime_id = dpp_pkey_from_point(id->group, e_prime_id);
 	if (!id->a_nonce || !id->e_prime_id)
 		goto fail;
 
 	ret = 0;
 
 fail:
-	crypto_ec_point_deinit(e_prime_id, 1);
-	crypto_ec_point_deinit(a_nonce, 1);
-	crypto_bignum_deinit(bn, 1);
+	EC_POINT_free(e_prime_id);
+	EC_POINT_free(a_nonce);
+	BN_clear_free(bn);
+	BN_CTX_free(ctx);
 	return ret;
 }
 
@@ -2286,50 +3156,55 @@ fail:
 void dpp_free_reconfig_id(struct dpp_reconfig_id *id)
 {
 	if (id) {
-		crypto_ec_point_deinit(id->e_id, 1);
-		crypto_ec_key_deinit(id->csign);
-		crypto_ec_key_deinit(id->a_nonce);
-		crypto_ec_key_deinit(id->e_prime_id);
-		crypto_ec_key_deinit(id->pp_key);
-		crypto_ec_deinit(id->ec);
+		EC_POINT_clear_free(id->e_id);
+		EVP_PKEY_free(id->csign);
+		EVP_PKEY_free(id->a_nonce);
+		EVP_PKEY_free(id->e_prime_id);
+		EVP_PKEY_free(id->pp_key);
 		os_free(id);
 	}
 }
 
 
-struct crypto_ec_point * dpp_decrypt_e_id(struct crypto_ec_key *ppkey,
-					  struct crypto_ec_key *a_nonce,
-					  struct crypto_ec_key *e_prime_id)
+EC_POINT * dpp_decrypt_e_id(EVP_PKEY *ppkey, EVP_PKEY *a_nonce,
+			    EVP_PKEY *e_prime_id)
 {
-	struct crypto_ec *ec;
-	const struct crypto_bignum *pp;
-	struct crypto_ec_point *e_id = NULL;
-	const struct crypto_ec_point *a_nonce_point, *e_prime_id_point;
+	const EC_KEY *pp_ec, *a_nonce_ec, *e_prime_id_ec;
+	const BIGNUM *pp_bn;
+	const EC_GROUP *group;
+	EC_POINT *e_id = NULL;
+	const EC_POINT *a_nonce_point, *e_prime_id_point;
+	BN_CTX *ctx = NULL;
 
 	if (!ppkey)
 		return NULL;
 
 	/* E-id = E'-id - s_C * A-NONCE */
-	ec = crypto_ec_init(crypto_ec_key_group(ppkey));
-	if (!ec)
+	pp_ec = EVP_PKEY_get0_EC_KEY(ppkey);
+	a_nonce_ec = EVP_PKEY_get0_EC_KEY(a_nonce);
+	e_prime_id_ec = EVP_PKEY_get0_EC_KEY(e_prime_id);
+	if (!pp_ec || !a_nonce_ec || !e_prime_id_ec)
 		return NULL;
-
-	pp = crypto_ec_key_get_private_key(ppkey);
-	a_nonce_point = crypto_ec_key_get_public_key(a_nonce);
-	e_prime_id_point = crypto_ec_key_get_public_key(e_prime_id);
-	e_id = crypto_ec_point_init(ec);
-	if (!pp || !a_nonce_point || !e_prime_id_point || !e_id ||
-	    crypto_ec_point_mul(ec, a_nonce_point, pp, e_id) ||
-	    crypto_ec_point_invert(ec, e_id) ||
-	    crypto_ec_point_add(ec, e_id, e_prime_id_point, e_id)) {
-		crypto_ec_point_deinit(e_id, 1);
+	pp_bn = EC_KEY_get0_private_key(pp_ec);
+	group = EC_KEY_get0_group(pp_ec);
+	a_nonce_point = EC_KEY_get0_public_key(a_nonce_ec);
+	e_prime_id_point = EC_KEY_get0_public_key(e_prime_id_ec);
+	ctx = BN_CTX_new();
+	if (!pp_bn || !group || !a_nonce_point || !e_prime_id_point || !ctx)
+		goto fail;
+	e_id = EC_POINT_new(group);
+	if (!e_id ||
+	    !EC_POINT_mul(group, e_id, NULL, a_nonce_point, pp_bn, ctx) ||
+	    !EC_POINT_invert(group, e_id, ctx) ||
+	    !EC_POINT_add(group, e_id, e_prime_id_point, e_id, ctx)) {
+		EC_POINT_clear_free(e_id);
 		goto fail;
 	}
 
-	crypto_ec_point_debug_print(ec, e_id, "DPP: Decrypted E-id");
+	dpp_debug_print_point("DPP: Decrypted E-id", group, e_id);
 
 fail:
-	crypto_ec_deinit(ec);
+	BN_CTX_free(ctx);
 	return e_id;
 }
 
@@ -2341,46 +3216,64 @@ fail:
 int dpp_test_gen_invalid_key(struct wpabuf *msg,
 			     const struct dpp_curve_params *curve)
 {
-	struct crypto_ec *ec;
-	struct crypto_ec_key *key = NULL;
-	const struct crypto_ec_point *pub_key;
-	struct crypto_ec_point *p = NULL;
-	u8 *x, *y;
+	BN_CTX *ctx;
+	BIGNUM *x, *y;
 	int ret = -1;
+	EC_GROUP *group;
+	EC_POINT *point;
 
-	ec = crypto_ec_init(curve->ike_group);
-	x = wpabuf_put(msg, curve->prime_len);
-	y = wpabuf_put(msg, curve->prime_len);
-	if (!ec)
+	group = EC_GROUP_new_by_curve_name(OBJ_txt2nid(curve->name));
+	if (!group)
+		return -1;
+
+	ctx = BN_CTX_new();
+	point = EC_POINT_new(group);
+	x = BN_new();
+	y = BN_new();
+	if (!ctx || !point || !x || !y)
 		goto fail;
 
-retry:
-	/* Generate valid key pair */
-	key = crypto_ec_key_gen(curve->ike_group);
-	if (!key)
+	if (BN_rand(x, curve->prime_len * 8, 0, 0) != 1)
 		goto fail;
 
-	/* Retrieve public key coordinates */
-	pub_key = crypto_ec_key_get_public_key(key);
-	if (!pub_key)
-		goto fail;
+	/* Generate a random y coordinate that results in a point that is not
+	 * on the curve. */
+	for (;;) {
+		if (BN_rand(y, curve->prime_len * 8, 0, 0) != 1)
+			goto fail;
 
-	crypto_ec_point_to_bin(ec, pub_key, x, y);
+		if (EC_POINT_set_affine_coordinates_GFp(group, point, x, y,
+							ctx) != 1) {
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L || defined(OPENSSL_IS_BORINGSSL)
+		/* Unlike older OpenSSL versions, OpenSSL 1.1.1 and BoringSSL
+		 * return an error from EC_POINT_set_affine_coordinates_GFp()
+		 * when the point is not on the curve. */
+			break;
+#else /* >=1.1.0 or OPENSSL_IS_BORINGSSL */
+			goto fail;
+#endif /* >= 1.1.0 or OPENSSL_IS_BORINGSSL */
+		}
 
-	/* And corrupt them */
-	y[curve->prime_len - 1] ^= 0x01;
-	p = crypto_ec_point_from_bin(ec, x);
-	if (p && crypto_ec_point_is_on_curve(ec, p)) {
-		crypto_ec_point_deinit(p, 0);
-		p = NULL;
-		goto retry;
+		if (!EC_POINT_is_on_curve(group, point, ctx))
+			break;
 	}
+
+	if (dpp_bn2bin_pad(x, wpabuf_put(msg, curve->prime_len),
+			   curve->prime_len) < 0 ||
+	    dpp_bn2bin_pad(y, wpabuf_put(msg, curve->prime_len),
+			   curve->prime_len) < 0)
+		goto fail;
 
 	ret = 0;
 fail:
-	crypto_ec_point_deinit(p, 0);
-	crypto_ec_key_deinit(key);
-	crypto_ec_deinit(ec);
+	if (ret < 0)
+		wpa_printf(MSG_INFO, "DPP: Failed to generate invalid key");
+	BN_free(x);
+	BN_free(y);
+	EC_POINT_free(point);
+	BN_CTX_free(ctx);
+	EC_GROUP_free(group);
+
 	return ret;
 }
 

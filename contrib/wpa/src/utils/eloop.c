@@ -785,15 +785,21 @@ int eloop_register_timeout(unsigned int secs, unsigned int usecs,
 	}
 	now_sec = timeout->time.sec;
 	timeout->time.sec += secs;
-	if (timeout->time.sec < now_sec)
-		goto overflow;
+	if (timeout->time.sec < now_sec) {
+		/*
+		 * Integer overflow - assume long enough timeout to be assumed
+		 * to be infinite, i.e., the timeout would never happen.
+		 */
+		wpa_printf(MSG_DEBUG, "ELOOP: Too long timeout (secs=%u) to "
+			   "ever happen - ignore it", secs);
+		os_free(timeout);
+		return 0;
+	}
 	timeout->time.usec += usecs;
 	while (timeout->time.usec >= 1000000) {
 		timeout->time.sec++;
 		timeout->time.usec -= 1000000;
 	}
-	if (timeout->time.sec < now_sec)
-		goto overflow;
 	timeout->eloop_data = eloop_data;
 	timeout->user_data = user_data;
 	timeout->handler = handler;
@@ -810,17 +816,6 @@ int eloop_register_timeout(unsigned int secs, unsigned int usecs,
 	}
 	dl_list_add_tail(&eloop.timeout, &timeout->list);
 
-	return 0;
-
-overflow:
-	/*
-	 * Integer overflow - assume long enough timeout to be assumed
-	 * to be infinite, i.e., the timeout would never happen.
-	 */
-	wpa_printf(MSG_DEBUG,
-		   "ELOOP: Too long timeout (secs=%u usecs=%u) to ever happen - ignore it",
-		   secs,usecs);
-	os_free(timeout);
 	return 0;
 }
 

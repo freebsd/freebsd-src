@@ -49,9 +49,9 @@
 static u32 pool[POOL_WORDS];
 static unsigned int input_rotate = 0;
 static unsigned int pool_pos = 0;
-static u8 stub_key[20];
+static u8 dummy_key[20];
 #ifdef __linux__
-static size_t stub_key_avail = 0;
+static size_t dummy_key_avail = 0;
 static int random_fd = -1;
 #endif /* __linux__ */
 static unsigned int own_pool_ready = 0;
@@ -109,13 +109,13 @@ static void random_extract(u8 *out)
 	u32 buf[POOL_WORDS / 2];
 
 	/* First, add hash back to pool to make backtracking more difficult. */
-	hmac_sha1(stub_key, sizeof(stub_key), (const u8 *) pool,
+	hmac_sha1(dummy_key, sizeof(dummy_key), (const u8 *) pool,
 		  sizeof(pool), hash);
 	random_mix_pool(hash, sizeof(hash));
 	/* Hash half the pool to extra data */
 	for (i = 0; i < POOL_WORDS / 2; i++)
 		buf[i] = pool[(pool_pos - i) & POOL_WORDS_MASK];
-	hmac_sha1(stub_key, sizeof(stub_key), (const u8 *) buf,
+	hmac_sha1(dummy_key, sizeof(dummy_key), (const u8 *) buf,
 		  sizeof(buf), hash);
 	/*
 	 * Fold the hash to further reduce any potential output pattern.
@@ -227,7 +227,7 @@ int random_pool_ready(void)
 	 * some key derivation operations to proceed.
 	 */
 
-	if (stub_key_avail == sizeof(stub_key))
+	if (dummy_key_avail == sizeof(dummy_key))
 		return 1; /* Already initialized - good to continue */
 
 	/*
@@ -238,8 +238,8 @@ int random_pool_ready(void)
 	 */
 
 #ifdef CONFIG_GETRANDOM
-	res = getrandom(stub_key + stub_key_avail,
-			sizeof(stub_key) - stub_key_avail, GRND_NONBLOCK);
+	res = getrandom(dummy_key + dummy_key_avail,
+			sizeof(dummy_key) - dummy_key_avail, GRND_NONBLOCK);
 	if (res < 0) {
 		if (errno == ENOSYS) {
 			wpa_printf(MSG_DEBUG,
@@ -263,8 +263,8 @@ int random_pool_ready(void)
 			return -1;
 		}
 
-		res = read(fd, stub_key + stub_key_avail,
-			   sizeof(stub_key) - stub_key_avail);
+		res = read(fd, dummy_key + dummy_key_avail,
+			   sizeof(dummy_key) - dummy_key_avail);
 		if (res < 0) {
 			wpa_printf(MSG_ERROR,
 				   "random: Cannot read from /dev/random: %s",
@@ -275,10 +275,10 @@ int random_pool_ready(void)
 	}
 
 	wpa_printf(MSG_DEBUG, "random: Got %u/%u random bytes", (unsigned) res,
-		   (unsigned) (sizeof(stub_key) - stub_key_avail));
-	stub_key_avail += res;
+		   (unsigned) (sizeof(dummy_key) - dummy_key_avail));
+	dummy_key_avail += res;
 
-	if (stub_key_avail == sizeof(stub_key)) {
+	if (dummy_key_avail == sizeof(dummy_key)) {
 		if (own_pool_ready < MIN_READY_MARK)
 			own_pool_ready = MIN_READY_MARK;
 		random_write_entropy();
@@ -287,7 +287,7 @@ int random_pool_ready(void)
 
 	wpa_printf(MSG_INFO, "random: Only %u/%u bytes of strong "
 		   "random data available",
-		   (unsigned) stub_key_avail, (unsigned) sizeof(stub_key));
+		   (unsigned) dummy_key_avail, (unsigned) sizeof(dummy_key));
 
 	if (own_pool_ready >= MIN_READY_MARK ||
 	    total_collected + 10 * own_pool_ready > MIN_COLLECT_ENTROPY) {
@@ -331,13 +331,13 @@ static void random_read_fd(int sock, void *eloop_ctx, void *sock_ctx)
 {
 	ssize_t res;
 
-	if (stub_key_avail == sizeof(stub_key)) {
+	if (dummy_key_avail == sizeof(dummy_key)) {
 		random_close_fd();
 		return;
 	}
 
-	res = read(sock, stub_key + stub_key_avail,
-		   sizeof(stub_key) - stub_key_avail);
+	res = read(sock, dummy_key + dummy_key_avail,
+		   sizeof(dummy_key) - dummy_key_avail);
 	if (res < 0) {
 		wpa_printf(MSG_ERROR, "random: Cannot read from /dev/random: "
 			   "%s", strerror(errno));
@@ -346,10 +346,10 @@ static void random_read_fd(int sock, void *eloop_ctx, void *sock_ctx)
 
 	wpa_printf(MSG_DEBUG, "random: Got %u/%u bytes from /dev/random",
 		   (unsigned) res,
-		   (unsigned) (sizeof(stub_key) - stub_key_avail));
-	stub_key_avail += res;
+		   (unsigned) (sizeof(dummy_key) - dummy_key_avail));
+	dummy_key_avail += res;
 
-	if (stub_key_avail == sizeof(stub_key)) {
+	if (dummy_key_avail == sizeof(dummy_key)) {
 		random_close_fd();
 		if (own_pool_ready < MIN_READY_MARK)
 			own_pool_ready = MIN_READY_MARK;
@@ -440,9 +440,9 @@ void random_init(const char *entropy_file)
 
 #ifdef CONFIG_GETRANDOM
 	{
-		u8 stub;
+		u8 dummy;
 
-		if (getrandom(&stub, 0, GRND_NONBLOCK) == 0 ||
+		if (getrandom(&dummy, 0, GRND_NONBLOCK) == 0 ||
 		    errno != ENOSYS) {
 			wpa_printf(MSG_DEBUG,
 				   "random: getrandom() support available");

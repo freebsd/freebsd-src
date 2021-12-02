@@ -747,7 +747,7 @@ bbr_start_hpts_timer(struct tcp_bbr *bbr, struct tcpcb *tp, uint32_t cts, int32_
 	uint32_t prev_delay = 0;
 
 	inp = tp->t_inpcb;
-	if (inp->inp_in_hpts) {
+	if (tcp_in_hpts(inp)) {
 		/* A previous call is already set up */
 		return;
 	}
@@ -1058,7 +1058,7 @@ bbr_timer_audit(struct tcpcb *tp, struct tcp_bbr *bbr, uint32_t cts, struct sock
 	 */
 wrong_timer:
 	if ((bbr->r_ctl.rc_hpts_flags & PACE_PKT_OUTPUT) == 0) {
-		if (inp->inp_in_hpts)
+		if (tcp_in_hpts(inp))
 			tcp_hpts_remove(inp, HPTS_REMOVE_OUTPUT);
 		bbr_timer_cancel(bbr, __LINE__, cts);
 		bbr_start_hpts_timer(bbr, tp, cts, 1, bbr->r_ctl.rc_last_delay_val,
@@ -1883,8 +1883,8 @@ bbr_fill_in_logging_data(struct tcp_bbr *bbr, struct tcp_log_bbr *l, uint32_t ct
 	l->lt_epoch = bbr->r_ctl.rc_lt_epoch;
 	l->pacing_gain = bbr->r_ctl.rc_bbr_hptsi_gain;
 	l->cwnd_gain = bbr->r_ctl.rc_bbr_cwnd_gain;
-	l->inhpts = bbr->rc_inp->inp_in_hpts;
-	l->ininput = bbr->rc_inp->inp_in_input;
+	l->inhpts = tcp_in_hpts(bbr->rc_inp);
+	l->ininput = bbr->rc_inp->inp_in_dropq;
 	l->use_lt_bw = bbr->rc_lt_use_bw;
 	l->pkts_out = bbr->r_ctl.rc_flight_at_input;
 	l->pkt_epoch = bbr->r_ctl.rc_pkt_epoch;
@@ -3969,7 +3969,7 @@ bbr_cong_signal(struct tcpcb *tp, struct tcphdr *th, uint32_t type, struct bbr_s
 			bbr->rc_tlp_rtx_out = 0;
 			bbr->r_ctl.recovery_lr = bbr->r_ctl.rc_pkt_epoch_loss_rate;
 			tcp_bbr_tso_size_check(bbr, bbr->r_ctl.rc_rcvtime);
-			if (bbr->rc_inp->inp_in_hpts &&
+			if (tcp_in_hpts(bbr->rc_inp) &&
 			    ((bbr->r_ctl.rc_hpts_flags & PACE_TMR_RACK) == 0)) {
 				/*
 				 * When we enter recovery, we need to restart
@@ -5264,7 +5264,7 @@ bbr_timer_cancel(struct tcp_bbr *bbr, int32_t line, uint32_t cts)
 	if (bbr->r_ctl.rc_hpts_flags & PACE_TMR_MASK) {
 		uint8_t hpts_removed = 0;
 
-		if (bbr->rc_inp->inp_in_hpts &&
+		if (tcp_in_hpts(bbr->rc_inp) &&
 		    (bbr->rc_timer_first == 1)) {
 			/*
 			 * If we are canceling timer's when we have the
@@ -7972,7 +7972,7 @@ bbr_exit_persist(struct tcpcb *tp, struct tcp_bbr *bbr, uint32_t cts, int32_t li
 	 * don't want to transfer forward the time
 	 * for our sum's calculations.
 	 */
-	if (bbr->rc_inp->inp_in_hpts) {
+	if (tcp_in_hpts(bbr->rc_inp)) {
 		tcp_hpts_remove(bbr->rc_inp, HPTS_REMOVE_OUTPUT);
 		bbr->rc_timer_first = 0;
 		bbr->r_ctl.rc_hpts_flags = 0;
@@ -11653,7 +11653,7 @@ bbr_do_segment_nounlock(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			 */
 			if ((tp->snd_max == tp->snd_una) &&
 			    ((tp->t_flags & TF_DELACK) == 0) &&
-			    (bbr->rc_inp->inp_in_hpts) &&
+			    (tcp_in_hpts(bbr->rc_inp)) &&
 			    (bbr->r_ctl.rc_hpts_flags & PACE_PKT_OUTPUT)) {
 				/*
 				 * keep alive not needed if we are hptsi
@@ -11661,7 +11661,7 @@ bbr_do_segment_nounlock(struct mbuf *m, struct tcphdr *th, struct socket *so,
 				 */
 				;
 			} else {
-				if (bbr->rc_inp->inp_in_hpts) {
+				if (tcp_in_hpts(bbr->rc_inp)) {
 					tcp_hpts_remove(bbr->rc_inp, HPTS_REMOVE_OUTPUT);
 					if ((bbr->r_ctl.rc_hpts_flags & PACE_PKT_OUTPUT) &&
 					    (TSTMP_GT(lcts, bbr->rc_pacer_started))) {
@@ -12011,7 +12011,7 @@ bbr_output_wtime(struct tcpcb *tp, const struct timeval *tv)
 	}
 #endif
 	if (((bbr->r_ctl.rc_hpts_flags & PACE_PKT_OUTPUT) == 0) &&
-	    inp->inp_in_hpts) {
+	    tcp_in_hpts(inp)) {
 		/*
 		 * We are on the hpts for some timer but not hptsi output.
 		 * Possibly remove from the hpts so we can send/recv etc.
@@ -12056,9 +12056,9 @@ bbr_output_wtime(struct tcpcb *tp, const struct timeval *tv)
 	if ((bbr->r_timer_override) ||
 	    (tp->t_state < TCPS_ESTABLISHED)) {
 		/* Timeouts or early states are exempt */
-		if (inp->inp_in_hpts)
+		if (tcp_in_hpts(inp))
 			tcp_hpts_remove(inp, HPTS_REMOVE_OUTPUT);
-	} else if (inp->inp_in_hpts) {
+	} else if (tcp_in_hpts(inp)) {
 		if ((bbr->r_ctl.rc_last_delay_val) &&
 		    (bbr->r_ctl.rc_hpts_flags & PACE_PKT_OUTPUT) &&
 		    delay_calc) {

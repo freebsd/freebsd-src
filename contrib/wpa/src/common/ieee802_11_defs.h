@@ -1337,7 +1337,6 @@ struct ieee80211_ampe_ie {
 #define CHANWIDTH_4320MHZ	5
 #define CHANWIDTH_6480MHZ	6
 #define CHANWIDTH_8640MHZ	7
-#define CHANWIDTH_40MHZ_6GHZ	8
 
 #define HE_NSS_MAX_STREAMS			    8
 
@@ -1361,10 +1360,6 @@ struct ieee80211_ampe_ie {
 #define DPP_CC_OUI_TYPE 0x1e
 #define SAE_PK_IE_VENDOR_TYPE 0x506f9a1f
 #define SAE_PK_OUI_TYPE 0x1f
-#define QM_IE_VENDOR_TYPE 0x506f9a22
-#define QM_IE_OUI_TYPE 0x22
-#define WFA_CAPA_IE_VENDOR_TYPE 0x506f9a23
-#define WFA_CAPA_OUI_TYPE 0x23
 
 #define MULTI_AP_SUB_ELEM_TYPE 0x06
 #define MULTI_AP_TEAR_DOWN BIT(4)
@@ -2346,26 +2341,6 @@ struct ieee80211_he_mu_edca_parameter_set {
 /* B7: Reserved if sent by an AP; More Data Ack if sent by a non-AP STA */
 #define HE_QOS_INFO_MORE_DATA_ACK ((u8) (BIT(7)))
 
-/*
- * IEEE Std 802.11-2020 and IEEE Std 802.11ax-2021
- * 9.4.2.170 Reduced Neighbor Report element
- */
-#define RNR_HEADER_LEN                              2
-#define RNR_TBTT_HEADER_LEN                         4
-#define RNR_TBTT_INFO_COUNT(x)                      (((x) & 0xf) << 4)
-#define RNR_TBTT_INFO_COUNT_MAX                     16
-#define RNR_TBTT_INFO_LEN                           13
-#define RNR_NEIGHBOR_AP_OFFSET_UNKNOWN              255
-/* Figure 9-632a - BSS Parameters subfield format */
-#define RNR_BSS_PARAM_OCT_RECOMMENDED               BIT(0)
-#define RNR_BSS_PARAM_SAME_SSID                     BIT(1)
-#define RNR_BSS_PARAM_MULTIPLE_BSSID                BIT(2)
-#define RNR_BSS_PARAM_TRANSMITTED_BSSID             BIT(3)
-#define RNR_BSS_PARAM_MEMBER_CO_LOCATED_ESS         BIT(4)
-#define RNR_BSS_PARAM_UNSOLIC_PROBE_RESP_ACTIVE     BIT(5)
-#define RNR_BSS_PARAM_CO_LOCATED                    BIT(6)
-#define RNR_20_MHZ_PSD_MAX_TXPOWER                  255 /* dBm */
-
 /* IEEE P802.11ay/D4.0, 9.4.2.251 - EDMG Operation element */
 #define EDMG_BSS_OPERATING_CHANNELS_OFFSET	6
 #define EDMG_OPERATING_CHANNEL_WIDTH_OFFSET	7
@@ -2469,36 +2444,5 @@ enum mscs_description_subelem {
  * IEEE P802.11ax/D8.0 26.17.2.3.2, AP behavior for fast passive scanning
  */
 #define FD_MAX_INTERVAL_6GHZ                  20 /* TUs */
-
-/* Protected Vendor-specific QoS Management Action frame identifiers - WFA */
-#define QM_ACTION_VENDOR_TYPE 0x506f9a1a
-#define QM_ACTION_OUI_TYPE 0x1a
-
-/* QoS Management Action frame OUI subtypes */
-#define QM_DSCP_POLICY_QUERY 0
-#define QM_DSCP_POLICY_REQ 1
-#define QM_DSCP_POLICY_RESP 2
-
-/* QoS Management attributes */
-enum qm_attr_id {
-	QM_ATTR_PORT_RANGE = 1,
-	QM_ATTR_DSCP_POLICY = 2,
-	QM_ATTR_TCLAS = 3,
-	QM_ATTR_DOMAIN_NAME = 4,
-};
-
-/* DSCP Policy attribute - Request Type */
-enum dscp_policy_request_type {
-	DSCP_POLICY_REQ_ADD = 0, /* ADD/UPDATE */
-	DSCP_POLICY_REQ_REMOVE = 1,
-};
-
-/* Request/Response Control field of DSCP Policy Request/Response frame */
-#define DSCP_POLICY_CTRL_MORE	BIT(0)
-#define DSCP_POLICY_CTRL_RESET	BIT(1)
-
-/* Wi-Fi Alliance Capabilities element - Capabilities field */
-#define WFA_CAPA_QM_DSCP_POLICY BIT(0)
-#define WFA_CAPA_QM_UNSOLIC_DSCP BIT(1)
 
 #endif /* IEEE802_11_DEFS_H */

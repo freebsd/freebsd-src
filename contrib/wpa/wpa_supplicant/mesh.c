@@ -437,37 +437,6 @@ static int wpa_supplicant_mesh_init(struct wpa_supplicant *wpa_s,
 	if (!conf)
 		goto out_free;
 
-	if (is_6ghz_freq(freq->freq)) {
-		/*
-		 * IEEE Std 802.11ax-2021, 12.12.2:
-		 * The STA shall use management frame protection (MFPR=1) when
-		 * using RSN.
-		 */
-		ssid->ieee80211w = MGMT_FRAME_PROTECTION_REQUIRED;
-
-		/* Set mandatory op_class parameter for setting up BSS */
-		switch (freq->bandwidth) {
-		case 20:
-			if (freq->freq == 5935)
-				conf->op_class = 136;
-			else
-				conf->op_class = 131;
-			break;
-		case 40:
-			conf->op_class = 132;
-			break;
-		case 80:
-			conf->op_class = 133;
-			break;
-		case 160:
-			conf->op_class = 134;
-			break;
-		default:
-			conf->op_class = 131;
-			break;
-		}
-	}
-
 	bss->conf = *conf->bss;
 	bss->conf->start_disabled = 1;
 	bss->conf->mesh = MESH_ENABLED;

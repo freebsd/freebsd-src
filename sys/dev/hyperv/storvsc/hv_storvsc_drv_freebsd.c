@@ -1006,12 +1006,15 @@ storvsc_sysctl(device_t dev)
 	ctx = device_get_sysctl_ctx(dev);
 	child = SYSCTL_CHILDREN(device_get_sysctl_tree(dev));
 
-	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "data_bio_cnt", CTLFLAG_RW,
-		&sc->sysctl_data.data_bio_cnt, "# of bio data block");
-	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "data_vaddr_cnt", CTLFLAG_RW,
-		&sc->sysctl_data.data_vaddr_cnt, "# of vaddr data block");
-	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "data_sg_cnt", CTLFLAG_RW,
-		&sc->sysctl_data.data_sg_cnt, "# of sg data block");
+	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "data_bio_cnt",
+		CTLFLAG_RW | CTLFLAG_STATS, &sc->sysctl_data.data_bio_cnt,
+		"# of bio data block");
+	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "data_vaddr_cnt",
+		CTLFLAG_RW | CTLFLAG_STATS, &sc->sysctl_data.data_vaddr_cnt,
+		"# of vaddr data block");
+	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "data_sg_cnt",
+		CTLFLAG_RW | CTLFLAG_STATS, &sc->sysctl_data.data_sg_cnt,
+		"# of sg data block");
 
 	/* dev.storvsc.UNIT.channel */
 	ch_tree = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "channel",

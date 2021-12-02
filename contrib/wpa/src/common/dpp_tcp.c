@@ -671,8 +671,10 @@ static int dpp_controller_rx_auth_req(struct dpp_connection *conn,
 	}
 
 	if (dpp_set_configurator(conn->auth,
-				 conn->ctrl->configurator_params) < 0)
+				 conn->ctrl->configurator_params) < 0) {
+		dpp_connection_remove(conn);
 		return -1;
+	}
 
 	return dpp_tcp_send_msg(conn, conn->auth->resp_msg);
 }
@@ -698,6 +700,7 @@ static int dpp_controller_rx_auth_resp(struct dpp_connection *conn,
 			return 0;
 		}
 		wpa_printf(MSG_DEBUG, "DPP: No confirm generated");
+		dpp_connection_remove(conn);
 		return -1;
 	}
 
@@ -859,6 +862,7 @@ static int dpp_controller_rx_presence_announcement(struct dpp_connection *conn,
 		return -1;
 	if (dpp_set_configurator(auth, conn->ctrl->configurator_params) < 0) {
 		dpp_auth_deinit(auth);
+		dpp_connection_remove(conn);
 		return -1;
 	}
 
@@ -1716,13 +1720,6 @@ void dpp_controller_stop(struct dpp_global *dpp)
 		dpp_controller_free(dpp->controller);
 		dpp->controller = NULL;
 	}
-}
-
-
-void dpp_controller_stop_for_ctx(struct dpp_global *dpp, void *cb_ctx)
-{
-	if (dpp && dpp->controller && dpp->controller->cb_ctx == cb_ctx)
-		dpp_controller_stop(dpp);
 }
 
 

@@ -2276,8 +2276,6 @@ void hostapd_dpp_deinit(struct hostapd_data *hapd)
 	eloop_cancel_timeout(hostapd_dpp_conn_status_result_wait_timeout, hapd,
 			     NULL);
 	hostapd_dpp_chirp_stop(hapd);
-	if (hapd->iface->interfaces)
-		dpp_controller_stop_for_ctx(hapd->iface->interfaces->dpp, hapd);
 #endif /* CONFIG_DPP2 */
 	dpp_auth_deinit(hapd->dpp_auth);
 	hapd->dpp_auth = NULL;
@@ -2389,7 +2387,6 @@ hostapd_dpp_chirp_scan_res_handler(struct hostapd_iface *iface)
 	unsigned int i;
 	struct hostapd_hw_modes *mode;
 	int c;
-	bool chan6 = hapd->iface->hw_features == NULL;
 
 	if (!bi)
 		return;
@@ -2409,21 +2406,7 @@ hostapd_dpp_chirp_scan_res_handler(struct hostapd_iface *iface)
 	}
 
 	/* Preferred chirping channels */
-	mode = dpp_get_mode(hapd, HOSTAPD_MODE_IEEE80211G);
-	if (mode) {
-		for (c = 0; c < mode->num_channels; c++) {
-			struct hostapd_channel_data *chan = &mode->channels[c];
-
-			if (chan->flag & (HOSTAPD_CHAN_DISABLED |
-					  HOSTAPD_CHAN_RADAR) ||
-			    chan->freq != 2437)
-				continue;
-			chan6 = true;
-			break;
-		}
-	}
-	if (chan6)
-		int_array_add_unique(&hapd->dpp_chirp_freqs, 2437);
+	int_array_add_unique(&hapd->dpp_chirp_freqs, 2437);
 
 	mode = dpp_get_mode(hapd, HOSTAPD_MODE_IEEE80211A);
 	if (mode) {

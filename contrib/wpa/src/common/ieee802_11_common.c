@@ -1011,8 +1011,8 @@ enum hostapd_hw_mode ieee80211_freq_to_channel_ext(unsigned int freq,
 		return HOSTAPD_MODE_IEEE80211A;
 	}
 
-	/* 5 GHz, channels 100..144 */
-	if (freq >= 5500 && freq <= 5720) {
+	/* 5 GHz, channels 100..140 */
+	if (freq >= 5000 && freq <= 5700) {
 		if ((freq - 5000) % 5)
 			return NUM_HOSTAPD_MODES;
 
@@ -1531,16 +1531,6 @@ int ieee80211_is_dfs(int freq, const struct hostapd_hw_modes *modes,
 }
 
 
-/*
- * 802.11-2020: Table E-4 - Global operating classes
- * DFS_50_100_Behavior: 118, 119, 120, 121, 122, 123
- */
-int is_dfs_global_op_class(u8 op_class)
-{
-    return (op_class >= 118) && (op_class <= 123);
-}
-
-
 static int is_11b(u8 rate)
 {
 	return rate == 0x02 || rate == 0x04 || rate == 0x0b || rate == 0x16;
@@ -1905,9 +1895,9 @@ const struct oper_class_map global_op_class[] = {
 	{ HOSTAPD_MODE_IEEE80211A, 128, 36, 177, 4, BW80, P2P_SUPP },
 	{ HOSTAPD_MODE_IEEE80211A, 129, 36, 177, 4, BW160, P2P_SUPP },
 	{ HOSTAPD_MODE_IEEE80211A, 131, 1, 233, 4, BW20, P2P_SUPP },
-	{ HOSTAPD_MODE_IEEE80211A, 132, 1, 233, 8, BW40, P2P_SUPP },
-	{ HOSTAPD_MODE_IEEE80211A, 133, 1, 233, 16, BW80, P2P_SUPP },
-	{ HOSTAPD_MODE_IEEE80211A, 134, 1, 233, 32, BW160, P2P_SUPP },
+	{ HOSTAPD_MODE_IEEE80211A, 132, 1, 233, 8, BW40, NO_P2P_SUPP },
+	{ HOSTAPD_MODE_IEEE80211A, 133, 1, 233, 16, BW80, NO_P2P_SUPP },
+	{ HOSTAPD_MODE_IEEE80211A, 134, 1, 233, 32, BW160, NO_P2P_SUPP },
 	{ HOSTAPD_MODE_IEEE80211A, 135, 1, 233, 16, BW80P80, NO_P2P_SUPP },
 	{ HOSTAPD_MODE_IEEE80211A, 136, 2, 2, 4, BW20, NO_P2P_SUPP },
 
@@ -2300,30 +2290,6 @@ bool is_6ghz_psc_frequency(int freq)
 		return true;
 
 	return false;
-}
-
-
-/**
- * get_6ghz_sec_channel - Get the relative position of the secondary channel
- * to the primary channel in 6 GHz
- * @channel: Primary channel to be checked for (in global op class 131)
- * Returns: 1 = secondary channel above, -1 = secondary channel below
- */
-
-int get_6ghz_sec_channel(int channel)
-{
-	/*
-	 * In the 6 GHz band, primary channels are numbered as 1, 5, 9, 13.., so
-	 * the 40 MHz channels are formed with the channel pairs as (1,5),
-	 * (9,13), (17,21)..
-	 * The secondary channel for a given primary channel is below the
-	 * primary channel for the channels 5, 13, 21.. and it is above the
-	 * primary channel for the channels 1, 9, 17..
-	 */
-
-	if (((channel - 1) / 4) % 2)
-		return -1;
-	return 1;
 }
 
 

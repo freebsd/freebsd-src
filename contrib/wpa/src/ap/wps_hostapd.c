@@ -1964,11 +1964,6 @@ int hostapd_wps_config_ap(struct hostapd_data *hapd, const char *ssid,
 		cred.key_len = len / 2;
 	}
 
-	if (!hapd->wps) {
-		wpa_printf(MSG_ERROR, "WPS: WPS config does not exist");
-		return -1;
-	}
-
 	return wps_registrar_config_ap(hapd->wps->registrar, &cred);
 }
 

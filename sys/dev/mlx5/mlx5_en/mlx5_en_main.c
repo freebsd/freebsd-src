@@ -1104,7 +1104,7 @@ static int mlx5e_fast_calibration = 1;
 static int mlx5e_normal_calibration = 30;
 
 static SYSCTL_NODE(_hw_mlx5, OID_AUTO, calibr, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
-    "MLX5 timestamp calibration parameteres");
+    "MLX5 timestamp calibration parameters");
 
 SYSCTL_INT(_hw_mlx5_calibr, OID_AUTO, duration, CTLFLAG_RWTUN,
     &mlx5e_calibration_duration, 0,

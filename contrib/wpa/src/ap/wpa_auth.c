@@ -2742,7 +2742,7 @@ static struct wpabuf * fils_prepare_plainbuf(struct wpa_state_machine *sm,
 	struct wpabuf *plain;
 	u8 *len, *tmp, *tmp2;
 	u8 hdr[2];
-	u8 *gtk, stub_gtk[32];
+	u8 *gtk, dummy_gtk[32];
 	size_t gtk_len;
 	struct wpa_group *gsm;
 	size_t plain_len;
@@ -2785,11 +2785,11 @@ static struct wpabuf * fils_prepare_plainbuf(struct wpa_state_machine *sm,
 		 * Provide unique random GTK to each STA to prevent use
 		 * of GTK in the BSS.
 		 */
-		if (random_get_bytes(stub_gtk, gtk_len) < 0) {
+		if (random_get_bytes(dummy_gtk, gtk_len) < 0) {
 			wpabuf_clear_free(plain);
 			return NULL;
 		}
-		gtk = stub_gtk;
+		gtk = dummy_gtk;
 	}
 	hdr[0] = gsm->GN & 0x03;
 	hdr[1] = 0;
@@ -3372,7 +3372,7 @@ static u8 * replace_ie(const char *name, const u8 *old_buf, size_t *len, u8 eid,
 
 SM_STATE(WPA_PTK, PTKINITNEGOTIATING)
 {
-	u8 rsc[WPA_KEY_RSC_LEN], *_rsc, *gtk, *kde = NULL, *pos, stub_gtk[32];
+	u8 rsc[WPA_KEY_RSC_LEN], *_rsc, *gtk, *kde = NULL, *pos, dummy_gtk[32];
 	size_t gtk_len, kde_len, wpa_ie_len;
 	struct wpa_group *gsm = sm->group;
 	u8 *wpa_ie;
@@ -3458,9 +3458,9 @@ SM_STATE(WPA_PTK, PTKINITNEGOTIATING)
 			 * Provide unique random GTK to each STA to prevent use
 			 * of GTK in the BSS.
 			 */
-			if (random_get_bytes(stub_gtk, gtk_len) < 0)
+			if (random_get_bytes(dummy_gtk, gtk_len) < 0)
 				goto done;
-			gtk = stub_gtk;
+			gtk = dummy_gtk;
 		}
 		gtkidx = gsm->GN;
 		_rsc = rsc;
@@ -3853,7 +3853,7 @@ SM_STATE(WPA_PTK_GROUP, REKEYNEGOTIATING)
 	const u8 *kde;
 	u8 *kde_buf = NULL, *pos, hdr[2];
 	size_t kde_len;
-	u8 *gtk, stub_gtk[32];
+	u8 *gtk, dummy_gtk[32];
 	struct wpa_auth_config *conf = &sm->wpa_auth->conf;
 
 	SM_ENTRY_MA(WPA_PTK_GROUP, REKEYNEGOTIATING, wpa_ptk_group);
@@ -3885,9 +3885,9 @@ SM_STATE(WPA_PTK_GROUP, REKEYNEGOTIATING)
 		 * Provide unique random GTK to each STA to prevent use
 		 * of GTK in the BSS.
 		 */
-		if (random_get_bytes(stub_gtk, gsm->GTK_len) < 0)
+		if (random_get_bytes(dummy_gtk, gsm->GTK_len) < 0)
 			return;
-		gtk = stub_gtk;
+		gtk = dummy_gtk;
 	}
 	if (sm->wpa == WPA_VERSION_WPA2) {
 		kde_len = 2 + RSN_SELECTOR_LEN + 2 + gsm->GTK_len +

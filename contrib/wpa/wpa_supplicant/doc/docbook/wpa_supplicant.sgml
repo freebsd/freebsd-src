@@ -46,7 +46,7 @@
     can be used to improve the network security, but even that has inherited
     security issues due to the use of WEP for encryption. Wi-Fi Protected
     Access and IEEE 802.11i amendment to the wireless LAN standard introduce
-    a much improved mechanism for securing wireless networks. IEEE 802.11i
+    a much improvement mechanism for securing wireless networks. IEEE 802.11i
     enabled networks that are using CCMP (encryption mechanism based on strong
     cryptographic algorithm AES) can finally be called secure used for
     applications which require efficient protection against unauthorized

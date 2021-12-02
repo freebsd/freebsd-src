@@ -88,7 +88,6 @@ static void handle_dhcp(void *ctx, const u8 *src_addr, const u8 *buf,
 		}
 	}
 
-#ifdef CONFIG_HS20
 	if (hapd->conf->disable_dgaf && is_broadcast_ether_addr(buf)) {
 		for (sta = hapd->sta_list; sta; sta = sta->next) {
 			if (!(sta->flags & WLAN_STA_AUTHORIZED))
@@ -97,7 +96,6 @@ static void handle_dhcp(void *ctx, const u8 *src_addr, const u8 *buf,
 							    (u8 *) buf, len);
 		}
 	}
-#endif /* CONFIG_HS20 */
 
 	if (msgtype == DHCPACK) {
 		if (b->your_ip == 0)

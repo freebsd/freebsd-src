@@ -13,7 +13,6 @@
 
 #include "utils/common.h"
 #include "utils/uuid.h"
-#include "utils/crc32.h"
 #include "common/ieee802_11_defs.h"
 #include "common/sae.h"
 #include "crypto/sha256.h"
@@ -2397,19 +2396,16 @@ static int hostapd_config_fill(struct hostapd_config *conf,
 		wpa_printf(MSG_INFO, "Line %d: DEPRECATED: 'dump_file' configuration variable is not used anymore",
 			   line);
 	} else if (os_strcmp(buf, "ssid") == 0) {
-		struct hostapd_ssid *ssid = &bss->ssid;
-
-		ssid->ssid_len = os_strlen(pos);
-		if (ssid->ssid_len > SSID_MAX_LEN || ssid->ssid_len < 1) {
+		bss->ssid.ssid_len = os_strlen(pos);
+		if (bss->ssid.ssid_len > SSID_MAX_LEN ||
+		    bss->ssid.ssid_len < 1) {
 			wpa_printf(MSG_ERROR, "Line %d: invalid SSID '%s'",
 				   line, pos);
 			return 1;
 		}
-		os_memcpy(ssid->ssid, pos, ssid->ssid_len);
-		ssid->ssid_set = 1;
-		ssid->short_ssid = crc32(ssid->ssid, ssid->ssid_len);
+		os_memcpy(bss->ssid.ssid, pos, bss->ssid.ssid_len);
+		bss->ssid.ssid_set = 1;
 	} else if (os_strcmp(buf, "ssid2") == 0) {
-		struct hostapd_ssid *ssid = &bss->ssid;
 		size_t slen;
 		char *str = wpa_config_parse_string(pos, &slen);
 		if (str == NULL || slen < 1 || slen > SSID_MAX_LEN) {
@@ -2418,10 +2414,9 @@ static int hostapd_config_fill(struct hostapd_config *conf,
 			os_free(str);
 			return 1;
 		}
-		os_memcpy(ssid->ssid, str, slen);
-		ssid->ssid_len = slen;
-		ssid->ssid_set = 1;
-		ssid->short_ssid = crc32(ssid->ssid, ssid->ssid_len);
+		os_memcpy(bss->ssid.ssid, str, slen);
+		bss->ssid.ssid_len = slen;
+		bss->ssid.ssid_set = 1;
 		os_free(str);
 	} else if (os_strcmp(buf, "utf8_ssid") == 0) {
 		bss->ssid.utf8_ssid = atoi(pos) > 0;
@@ -3520,8 +3515,6 @@ static int hostapd_config_fill(struct hostapd_config *conf,
 		conf->he_op.he_twt_responder = atoi(pos);
 	} else if (os_strcmp(buf, "he_rts_threshold") == 0) {
 		conf->he_op.he_rts_threshold = atoi(pos);
-	} else if (os_strcmp(buf, "he_er_su_disable") == 0) {
-		conf->he_op.he_er_su_disable = atoi(pos);
 	} else if (os_strcmp(buf, "he_basic_mcs_nss_set") == 0) {
 		conf->he_op.he_basic_mcs_nss_set = atoi(pos);
 	} else if (os_strcmp(buf, "he_mu_edca_qos_info_param_count") == 0) {
@@ -4712,8 +4705,6 @@ static int hostapd_config_fill(struct hostapd_config *conf,
 		if (get_hex_config(bss->ext_capa, EXT_CAPA_MAX_LEN,
 				   line, "ext_capa", pos))
 			return 1;
-	} else if (os_strcmp(buf, "rnr") == 0) {
-		bss->rnr = atoi(pos);
 	} else {
 		wpa_printf(MSG_ERROR,
 			   "Line %d: unknown configuration item '%s'",

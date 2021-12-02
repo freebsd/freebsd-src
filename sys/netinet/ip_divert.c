@@ -111,10 +111,7 @@ __FBSDID("$FreeBSD$");
  */
 
 /* Internal variables. */
-VNET_DEFINE_STATIC(struct inpcbhead, divcb);
 VNET_DEFINE_STATIC(struct inpcbinfo, divcbinfo);
-
-#define	V_divcb				VNET(divcb)
 #define	V_divcbinfo			VNET(divcbinfo)
 
 static u_long	div_sendspace = DIVSNDQ;	/* XXX sysctl ? */
@@ -154,8 +151,7 @@ div_init(void)
 	 * allocate one-entry hash lists than it is to check all over the
 	 * place for hashbase == NULL.
 	 */
-	in_pcbinfo_init(&V_divcbinfo, "div", &V_divcb, 1, 1, "divcb",
-	    div_inpcb_init, IPI_HASHFIELDS_NONE);
+	in_pcbinfo_init(&V_divcbinfo, "div", 1, 1, "divcb", div_inpcb_init);
 }
 
 static void
@@ -181,6 +177,14 @@ div_input(struct mbuf **mp, int *offp, int proto)
 	return (IPPROTO_DONE);
 }
 
+static bool
+div_port_match(const struct inpcb *inp, void *v)
+{
+	uint16_t nport = *(uint16_t *)v;
+
+	return (inp->inp_lport == nport);
+}
+
 /*
  * Divert a packet by passing it up to the divert socket at port 'port'.
  *
@@ -195,6 +199,8 @@ divert_packet(struct mbuf *m, bool incoming)
 	struct socket *sa;
 	u_int16_t nport;
 	struct sockaddr_in divsrc;
+	struct inpcb_iterator inpi = INP_ITERATOR(&V_divcbinfo,
+	    INPLOOKUP_RLOCKPCB, div_port_match, &nport);
 	struct m_tag *mtag;
 
 	NET_EPOCH_ASSERT();
@@ -288,27 +294,20 @@ divert_packet(struct mbuf *m, bool incoming)
 
 	/* Put packet on socket queue, if any */
 	sa = NULL;
+	/* nport is inp_next's context. */
 	nport = htons((u_int16_t)(((struct ipfw_rule_ref *)(mtag+1))->info));
-	CK_LIST_FOREACH(inp, &V_divcb, inp_list) {
+	while ((inp = inp_next(&inpi)) != NULL) {
+		sa = inp->inp_socket;
+		SOCKBUF_LOCK(&sa->so_rcv);
+		if (sbappendaddr_locked(&sa->so_rcv,
+		    (struct sockaddr *)&divsrc, m, NULL) == 0) {
+			soroverflow_locked(sa);
+			sa = NULL;	/* force mbuf reclaim below */
+		} else
+			sorwakeup_locked(sa);
 		/* XXX why does only one socket match? */
-		if (inp->inp_lport == nport) {
-			INP_RLOCK(inp);
-			if (__predict_false(inp->inp_flags2 & INP_FREED)) {
-				INP_RUNLOCK(inp);
-				continue;
-			}
-			sa = inp->inp_socket;
-			SOCKBUF_LOCK(&sa->so_rcv);
-			if (sbappendaddr_locked(&sa->so_rcv,
-			    (struct sockaddr *)&divsrc, m,
-			    (struct mbuf *)0) == 0) {
-				soroverflow_locked(sa);
-				sa = NULL;	/* force mbuf reclaim below */
-			} else
-				sorwakeup_locked(sa);
-			INP_RUNLOCK(inp);
-			break;
-		}
+		INP_RUNLOCK(inp);
+		break;
 	}
 	if (sa == NULL) {
 		m_freem(m);
@@ -603,14 +602,10 @@ div_attach(struct socket *so, int proto, struct thread *td)
 	error = soreserve(so, div_sendspace, div_recvspace);
 	if (error)
 		return error;
-	INP_INFO_WLOCK(&V_divcbinfo);
 	error = in_pcballoc(so, &V_divcbinfo);
-	if (error) {
-		INP_INFO_WUNLOCK(&V_divcbinfo);
+	if (error)
 		return error;
-	}
 	inp = (struct inpcb *)so->so_pcb;
-	INP_INFO_WUNLOCK(&V_divcbinfo);
 	inp->inp_ip_p = proto;
 	inp->inp_vflag |= INP_IPV4;
 	inp->inp_flags |= INP_HDRINCL;
@@ -625,11 +620,9 @@ div_detach(struct socket *so)
 
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("div_detach: inp == NULL"));
-	INP_INFO_WLOCK(&V_divcbinfo);
 	INP_WLOCK(inp);
 	in_pcbdetach(inp);
 	in_pcbfree(inp);
-	INP_INFO_WUNLOCK(&V_divcbinfo);
 }
 
 static int
@@ -652,13 +645,11 @@ div_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 	if (nam->sa_len != sizeof(struct sockaddr_in))
 		return EINVAL;
 	((struct sockaddr_in *)nam)->sin_addr.s_addr = INADDR_ANY;
-	INP_INFO_WLOCK(&V_divcbinfo);
 	INP_WLOCK(inp);
 	INP_HASH_WLOCK(&V_divcbinfo);
 	error = in_pcbbind(inp, nam, td->td_ucred);
 	INP_HASH_WUNLOCK(&V_divcbinfo);
 	INP_WUNLOCK(inp);
-	INP_INFO_WUNLOCK(&V_divcbinfo);
 	return error;
 }
 
@@ -697,8 +688,9 @@ div_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 static int
 div_pcblist(SYSCTL_HANDLER_ARGS)
 {
+	struct inpcb_iterator inpi = INP_ALL_ITERATOR(&V_divcbinfo,
+	    INPLOOKUP_RLOCKPCB);
 	struct xinpgen xig;
-	struct epoch_tracker et;
 	struct inpcb *inp;
 	int error;
 
@@ -726,21 +718,18 @@ div_pcblist(SYSCTL_HANDLER_ARGS)
 	if (error)
 		return error;
 
-	NET_EPOCH_ENTER(et);
-	for (inp = CK_LIST_FIRST(V_divcbinfo.ipi_listhead);
-	    inp != NULL;
-	    inp = CK_LIST_NEXT(inp, inp_list)) {
-		INP_RLOCK(inp);
+	while ((inp = inp_next(&inpi)) != NULL) {
 		if (inp->inp_gencnt <= xig.xig_gen) {
 			struct xinpcb xi;
 
 			in_pcbtoxinpcb(inp, &xi);
-			INP_RUNLOCK(inp);
 			error = SYSCTL_OUT(req, &xi, sizeof xi);
-		} else
-			INP_RUNLOCK(inp);
+			if (error) {
+				INP_RUNLOCK(inp);
+				break;
+			}
+		}
 	}
-	NET_EPOCH_EXIT(et);
 
 	if (!error) {
 		/*

@@ -3773,7 +3773,6 @@ static int tls_connection_private_key(struct tls_data *data,
 				      const u8 *private_key_blob,
 				      size_t private_key_blob_len)
 {
-	BIO *bio;
 	int ok;
 
 	if (private_key == NULL && private_key_blob == NULL)
@@ -3817,28 +3816,6 @@ static int tls_connection_private_key(struct tls_data *data,
 				   "SSL_use_RSAPrivateKey_ASN1 --> OK");
 			ok = 1;
 			break;
-		}
-
-		bio = BIO_new_mem_buf((u8 *) private_key_blob,
-				      private_key_blob_len);
-		if (bio) {
-			EVP_PKEY *pkey;
-
-			pkey = PEM_read_bio_PrivateKey(
-				bio, NULL, tls_passwd_cb,
-				(void *) private_key_passwd);
-			if (pkey) {
-				if (SSL_use_PrivateKey(conn->ssl, pkey) == 1) {
-					wpa_printf(MSG_DEBUG,
-						   "OpenSSL: SSL_use_PrivateKey --> OK");
-					ok = 1;
-					EVP_PKEY_free(pkey);
-					BIO_free(bio);
-					break;
-				}
-				EVP_PKEY_free(pkey);
-			}
-			BIO_free(bio);
 		}
 
 		if (tls_read_pkcs12_blob(data, conn->ssl, private_key_blob,

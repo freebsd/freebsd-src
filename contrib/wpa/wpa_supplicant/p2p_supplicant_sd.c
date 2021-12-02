@@ -826,7 +826,7 @@ static void wpas_sd_p2ps_serv_response(struct wpa_supplicant *wpa_s,
 		size_t buf_len;
 		u8 svc_len;
 
-		/* Validity check fixed length+svc_str */
+		/* Sanity check fixed length+svc_str */
 		if (6 >= tlv_end - pos)
 			break;
 		svc_len = pos[6];
@@ -854,7 +854,7 @@ static void wpas_sd_p2ps_serv_response(struct wpa_supplicant *wpa_s,
 		buf_len = WPA_GET_LE16(pos);
 		pos += sizeof(u16);
 
-		/* Validity check buffer length */
+		/* Sanity check buffer length */
 		if (buf_len > (unsigned int) (tlv_end - pos))
 			break;
 

@@ -66,20 +66,12 @@ char * wpa_config_get_line(char *s, int size, FILE *stream, int *line,
 		 * Remove # comments unless they are within a double quoted
 		 * string.
 		 */
-		sstart = pos;
+		sstart = os_strchr(pos, '"');
+		if (sstart)
+			sstart = os_strrchr(sstart + 1, '"');
+		if (!sstart)
+			sstart = pos;
 		end = os_strchr(sstart, '#');
-		while (end) {
-			sstart = os_strchr(sstart, '"');
-			if (!sstart || sstart > end)
-				break;
-			sstart = os_strchr(sstart + 1, '"');
-			if (!sstart)
-				break;
-			sstart++;
-			if (sstart > end)
-				end = os_strchr(sstart, '#');
-		}
-
 		if (end)
 			*end-- = '\0';
 		else

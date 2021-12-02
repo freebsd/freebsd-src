@@ -50,7 +50,6 @@ $(awk '1;/^#$/{exit}' $1)
 # Obtained from:	<If the change is from a third party.>
 # Fixes:	<Short hash and title line of commit fixed by this change>
 # MFC after:	<N [day[s]|week[s]|month[s]].  Request a reminder email>
-# MFH:		<Ports tree branch name.  Request approval for merge.>
 # Relnotes:	<Set to 'yes' for mention in release notes.>
 # Security:	<Vulnerability reference (one per line) or description.>
 # Sponsored by:	<If the change was sponsored by an organization.>

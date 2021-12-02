@@ -609,7 +609,7 @@ void crypto_cipher_deinit(struct crypto_cipher *ctx)
 #endif
 
 
-#ifdef CONFIG_WPS
+#ifdef CONFIG_WPS_NFC
 
 static const unsigned char RFC3526_PRIME_1536[] = {
 	0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xC9, 0x0F, 0xDA, 0xA2,
@@ -695,8 +695,6 @@ done:
 }
 
 
-#ifdef CONFIG_WPS_NFC
-
 void * dh5_init_fixed(const struct wpabuf *priv, const struct wpabuf *publ)
 {
 	DhKey *ret = NULL;
@@ -738,8 +736,6 @@ done:
 	return ret;
 }
 
-#endif /* CONFIG_WPS_NFC */
-
 
 struct wpabuf * dh5_derive_shared(void *ctx, const struct wpabuf *peer_public,
 				  const struct wpabuf *own_private)
@@ -776,7 +772,7 @@ void dh5_free(void *ctx)
 	XFREE(ctx, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 }
 
-#endif /* CONFIG_WPS */
+#endif /* CONFIG_WPS_NFC */
 
 
 int crypto_dh_init(u8 generator, const u8 *prime, size_t prime_len, u8 *privkey,
