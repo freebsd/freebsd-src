@@ -73,6 +73,7 @@ class FuseTest : public ::testing::Test {
 	unsigned m_time_gran;
 	MockFS *m_mock = NULL;
 	const static uint64_t FH = 0xdeadbeef1a7ebabe;
+	const char *reclaim_mib = "debug.try_reclaim_vnode";
 
 	public:
 	int m_maxbcachebuf;
@@ -256,4 +257,7 @@ class FuseTest : public ::testing::Test {
 	 * See comments for FuseTest::leak
 	 */
 	static void leakdir(DIR* dirp __unused) {}
+
+	/* Manually reclaim a vnode.  Requires root privileges. */
+	void reclaim_vnode(const char *fullpath);
 };

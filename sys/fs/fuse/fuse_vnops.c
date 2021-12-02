@@ -1320,9 +1320,15 @@ fuse_vnop_lookup(struct vop_lookup_args *ap)
 	else if ((err = fuse_internal_access(dvp, VEXEC, td, cred)))
 		return err;
 
-	if (flags & ISDOTDOT) {
-		KASSERT(VTOFUD(dvp)->flag & FN_PARENT_NID,
-			("Looking up .. is TODO"));
+	if ((flags & ISDOTDOT) && !(data->dataflags & FSESS_EXPORT_SUPPORT))
+	{
+		if (!(VTOFUD(dvp)->flag & FN_PARENT_NID)) {
+			/*
+			 * Since the file system doesn't support ".." lookups,
+			 * we have no way to find this entry.
+			 */
+			return ESTALE;
+		}
 		nid = VTOFUD(dvp)->parent_nid;
 		if (nid == 0)
 			return ENOENT;
@@ -1375,9 +1381,8 @@ fuse_vnop_lookup(struct vop_lookup_args *ap)
 			return err;
 		}
 
-		nid = VTOI(dvp);
 		fdisp_init(&fdi, cnp->cn_namelen + 1);
-		fdisp_make(&fdi, FUSE_LOOKUP, mp, nid, td, cred);
+		fdisp_make(&fdi, FUSE_LOOKUP, mp, VTOI(dvp), td, cred);
 
 		memcpy(fdi.indata, cnp->cn_nameptr, cnp->cn_namelen);
 		((char *)fdi.indata)[cnp->cn_namelen] = '\0';
@@ -1396,11 +1401,16 @@ fuse_vnop_lookup(struct vop_lookup_args *ap)
 				lookup_err = ENOENT;
 				if (cnp->cn_flags & MAKEENTRY) {
 					fuse_validity_2_timespec(feo, &timeout);
+					/* Use the same entry_time for .. as for
+					 * the file itself.  That doesn't honor
+					 * exactly what the fuse server tells
+					 * us, but to do otherwise would require
+					 * another cache lookup at this point.
+					 */
+					struct timespec *dtsp = NULL;
 					cache_enter_time(dvp, *vpp, cnp,
-						&timeout, NULL);
+						&timeout, dtsp);
 				}
-			} else if (nid == FUSE_ROOT_ID) {
-				lookup_err = EINVAL;
 			}
 			vtyp = IFTOVT(feo->attr.mode);
 			filesize = feo->attr.size;
