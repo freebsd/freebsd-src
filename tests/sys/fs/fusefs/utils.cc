@@ -623,6 +623,15 @@ out:
 	return;
 }
 
+void
+FuseTest::reclaim_vnode(const char *path)
+{
+	int err;
+
+	err = sysctlbyname(reclaim_mib, NULL, 0, path, strlen(path) + 1);
+	ASSERT_EQ(0, err) << strerror(errno);
+}
+
 static void usage(char* progname) {
 	fprintf(stderr, "Usage: %s [-v]\n\t-v increase verbosity\n", progname);
 	exit(2);
