@@ -28,7 +28,7 @@
 .\"     @(#)swapon.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd March 30, 2020
+.Dd December 2, 2021
 .Dt SWAPON 2
 .Os
 .Sh NAME
@@ -37,6 +37,8 @@
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
+.It vm/vm_param.h
+.It vm/swap_pager.h
 .In unistd.h
 .Ft int
 .Fn swapon "const char *special"
@@ -63,6 +65,40 @@ The
 system call disables paging and swapping on the given device.
 All associated swap metadata are deallocated, and the device
 is made available for other purposes.
+.Pp
+The
+.Fa special
+argument points to either the string that names the special device
+used for swapping or the following structure
+.Bd -literal
+struct swapoff_new_args {
+	const char *name_old_syscall;
+	const char *name;
+	u_int flags;
+};
+.Ed
+that extends swapoff's interface to include optional flags.
+The
+.Va name_old_syscall
+member must be initialized to
+.Dv NULL
+for the system to recognize the extended interface.
+It is recommended that the whole structure be zeroed for future
+compatibility, due to padding.
+.Pp
+The
+.Va name
+string is the special device name, same as legacy syscall argument.
+.The
+.Va flags
+argument takes the following flags:
+.Bl -tag -width SWAPOFF_FORCE
+.It Dv SWAPOFF_FORCE
+Overrides a very conservative check that prevents swapoff
+if the total amount of free memory and remaining swap
+devices space might be unsufficient for the system to continue
+operating.
+.El
 .Sh RETURN VALUES
 If an error has occurred, a value of -1 is returned and
 .Va errno
