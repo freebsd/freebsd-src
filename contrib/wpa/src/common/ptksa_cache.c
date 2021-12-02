@@ -269,7 +269,7 @@ struct ptksa_cache_entry * ptksa_cache_add(struct ptksa_cache *ptksa,
 					   u32 life_time,
 					   const struct wpa_ptk *ptk)
 {
-	struct ptksa_cache_entry *entry, *tmp;
+	struct ptksa_cache_entry *entry, *tmp, *tmp2 = NULL;
 	struct os_reltime now;
 
 	if (!ptksa || !ptk || !addr || !life_time || cipher == WPA_CIPHER_NONE)
@@ -296,21 +296,21 @@ struct ptksa_cache_entry * ptksa_cache_add(struct ptksa_cache *ptksa,
 	entry->expiration = now.sec + life_time;
 
 	dl_list_for_each(tmp, &ptksa->ptksa, struct ptksa_cache_entry, list) {
-		if (tmp->expiration > entry->expiration)
+		if (tmp->expiration > entry->expiration) {
+			tmp2 = tmp;
 			break;
+		}
 	}
 
 	/*
-	 * If the list was empty add to the head; otherwise if the expiration is
-	 * later then all other entries, add it to the end of the list;
+	 * If the expiration is later then all other or the list is empty
+	 * entries, add it to the end of the list;
 	 * otherwise add it before the relevant entry.
 	 */
-	if (!tmp)
-		dl_list_add(&ptksa->ptksa, &entry->list);
-	else if (tmp->expiration < entry->expiration)
-		dl_list_add(&tmp->list, &entry->list);
+	if (tmp2)
+		dl_list_add(&tmp2->list, &entry->list);
 	else
-		dl_list_add_tail(&tmp->list, &entry->list);
+		dl_list_add_tail(&ptksa->ptksa, &entry->list);
 
 	ptksa->n_ptksa++;
 	wpa_printf(MSG_DEBUG,

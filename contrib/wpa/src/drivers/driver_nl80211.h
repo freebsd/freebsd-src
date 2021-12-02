@@ -32,6 +32,7 @@ struct nl80211_global {
 	struct nl_cb *nl_cb;
 	struct nl_sock *nl;
 	int nl80211_id;
+	int nlctrl_id;
 	int ioctl_sock; /* socket for ioctl() use */
 
 	struct nl_sock *nl_event;

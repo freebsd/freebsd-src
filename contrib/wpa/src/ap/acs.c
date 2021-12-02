@@ -309,8 +309,6 @@ acs_survey_interference_factor(struct freq_survey *survey, s8 min_nf)
 	else if (survey->filled & SURVEY_HAS_CHAN_TIME_RX)
 		busy = survey->channel_time_rx;
 	else {
-		/* This shouldn't really happen as survey data is checked in
-		 * acs_sanity_check() */
 		wpa_printf(MSG_ERROR, "ACS: Survey data missing");
 		return 0;
 	}
@@ -392,7 +390,7 @@ static int acs_usable_bw40_chan(const struct hostapd_channel_data *chan)
 
 static int acs_usable_bw80_chan(const struct hostapd_channel_data *chan)
 {
-	const int allowed[] = { 5180, 5260, 5550, 5580, 5660, 5745, 5955, 6035,
+	const int allowed[] = { 5180, 5260, 5500, 5580, 5660, 5745, 5955, 6035,
 				6115, 6195, 6275, 6355, 6435, 6515, 6595, 6675,
 				6755, 6835, 6915, 6995 };
 	unsigned int i;
