@@ -865,8 +865,6 @@ procstat_getfiles_sysctl(struct procstat *procstat, struct kinfo_proc *kp,
 	cap_rights_t cap_rights;
 
 	assert(kp);
-	if (kp->ki_fd == NULL)
-		return (NULL);
 	switch (procstat->type) {
 	case PROCSTAT_SYSCTL:
 		files = kinfo_getfile(kp->ki_pid, &cnt);
