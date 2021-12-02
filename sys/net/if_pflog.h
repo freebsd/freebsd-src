@@ -31,6 +31,8 @@
 #ifndef _NET_IF_PFLOG_H_
 #define	_NET_IF_PFLOG_H_
 
+#include <net/bpf.h>
+
 #define	PFLOGIFS_MAX	16
 
 #define	PFLOG_RULESET_NAME_SIZE	16
@@ -51,11 +53,13 @@ struct pfloghdr {
 	u_int8_t	dir;
 	u_int8_t	pad[3];
 	u_int32_t	ridentifier;
+	u_int8_t	reserve;	/* Appease broken software like Wireshark. */
+	u_int8_t	pad2[3];
 };
 
-#define	PFLOG_HDRLEN		sizeof(struct pfloghdr)
+#define	PFLOG_HDRLEN		BPF_WORDALIGN(offsetof(struct pfloghdr, pad2))
 /* minus pad, also used as a signature */
-#define	PFLOG_REAL_HDRLEN	offsetof(struct pfloghdr, pad)
+#define	PFLOG_REAL_HDRLEN	offsetof(struct pfloghdr, pad2)
 
 #ifdef _KERNEL
 struct pf_rule;
