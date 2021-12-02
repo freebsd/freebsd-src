@@ -38,7 +38,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
-#include "opt_pcbgroup.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
