@@ -834,7 +834,7 @@ procstat_getfiles_sysctl(struct procstat *procstat, struct kinfo_proc *kp,
 	assert(kp);
 	if (kp->ki_fd == NULL)
 		return (NULL);
-	switch(procstat->type) {
+	switch (procstat->type) {
 	case PROCSTAT_SYSCTL:
 		files = kinfo_getfile(kp->ki_pid, &cnt);
 		break;
