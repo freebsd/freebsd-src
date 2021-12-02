@@ -61,6 +61,8 @@ struct epoch_tracker {
 	SLIST_ENTRY(epoch_tracker) et_tlink;
 	const char *et_file;
 	int et_line;
+	int et_flags;
+#define	ET_REPORT_EXIT	0x1
 #endif
 }  __aligned(sizeof(void *));
 typedef struct epoch_tracker *epoch_tracker_t;
@@ -86,6 +88,7 @@ void _epoch_enter_preempt(epoch_t epoch, epoch_tracker_t et EPOCH_FILE_LINE);
 void _epoch_exit_preempt(epoch_t epoch, epoch_tracker_t et EPOCH_FILE_LINE);
 #ifdef EPOCH_TRACE
 void epoch_trace_list(struct thread *);
+void epoch_where_report(epoch_t);
 #define	epoch_enter_preempt(epoch, et)	_epoch_enter_preempt(epoch, et, __FILE__, __LINE__)
 #define	epoch_exit_preempt(epoch, et)	_epoch_exit_preempt(epoch, et, __FILE__, __LINE__)
 #else
