@@ -246,14 +246,13 @@ cc_deregister_algo(struct cc_algo *remove_cc)
 	STAILQ_FOREACH_SAFE(funcs, &cc_list, entries, tmpfuncs) {
 		if (funcs == remove_cc) {
 			if (cc_check_default(remove_cc)) {
-				err = EBUSY;
-				break;
+				CC_LIST_WUNLOCK();
+				return(EBUSY);
 			}
-			/* Add a temp flag to stop new adds to it */
-			funcs->flags |= CC_MODULE_BEING_REMOVED;
 			break;
 		}
 	}
+	remove_cc->flags |= CC_MODULE_BEING_REMOVED;
 	CC_LIST_WUNLOCK();
 	err = tcp_ccalgounload(remove_cc);
 	/*
