@@ -66,13 +66,33 @@ struct apei_ge {
 	struct resource	*res2;
 	uint8_t		*buf, *copybuf;
 	TAILQ_ENTRY(apei_ge) link;
-	struct callout	 poll;
+	TAILQ_ENTRY(apei_ge) nlink;
+};
+
+/* NMI */
+struct apei_nges {
 	void		*swi_ih;
-} *apei_nmi_ge;
+	TAILQ_HEAD(, apei_ge) ges;
+} *apei_nmi_nges;
+
+/* Interrupt */
+struct apei_iges {
+	TAILQ_HEAD(, apei_ge) ges;
+};
+
+/* Polling */
+struct apei_pges {
+	sbintime_t	 interval;
+	struct callout	 poll;
+	TAILQ_HEAD(, apei_ge) ges;
+};
 
 struct apei_softc {
 	ACPI_TABLE_HEST *hest;
 	TAILQ_HEAD(, apei_ge) ges;
+	struct apei_nges nges;
+	struct apei_iges iges;
+	struct apei_pges pges[32];
 };
 
 struct apei_mem_error {
@@ -134,6 +154,8 @@ apei_bus_write_8(struct resource *res, bus_size_t offset, uint64_t val)
 #define GED_SIZE(ged)	((ged)->Revision >= 0x300 ? \
     sizeof(ACPI_HEST_GENERIC_DATA_V300) : sizeof(ACPI_HEST_GENERIC_DATA))
 #define GED_DATA(ged)	((uint8_t *)(ged) + GED_SIZE(ged))
+
+#define PGE_ID(ge)	(fls(MAX(1, (ge)->v1.Notify.PollInterval)) - 1)
 
 int apei_nmi_handler(void);
 
@@ -385,56 +407,66 @@ apei_ge_handler(struct apei_ge *ge, bool copy)
 static void
 apei_nmi_swi(void *arg)
 {
-	struct apei_ge *ge = arg;
+	struct apei_nges *nges = arg;
+	struct apei_ge *ge;
 
-	apei_ge_handler(ge, true);
+	TAILQ_FOREACH(ge, &nges->ges, nlink)
+		apei_ge_handler(ge, true);
 }
 
 int
 apei_nmi_handler(void)
 {
-	struct apei_ge *ge = apei_nmi_ge;
+	struct apei_nges *nges = apei_nmi_nges;
+	struct apei_ge *ge;
 	ACPI_HEST_GENERIC_STATUS *ges, *gesc;
+	int handled = 0;
 
-	if (ge == NULL)
+	if (nges == NULL)
 		return (0);
 
-	ges = (ACPI_HEST_GENERIC_STATUS *)ge->buf;
-	if (ges == NULL || ges->BlockStatus == 0)
-		return (0);
+	TAILQ_FOREACH(ge, &nges->ges, nlink) {
+		ges = (ACPI_HEST_GENERIC_STATUS *)ge->buf;
+		if (ges == NULL || ges->BlockStatus == 0)
+			continue;
 
-	/* If ACPI told the error is fatal -- make it so. */
-	if (ges->ErrorSeverity == ACPI_HEST_GEN_ERROR_FATAL)
-		panic("APEI Fatal Hardware Error!");
+		/* If ACPI told the error is fatal -- make it so. */
+		if (ges->ErrorSeverity == ACPI_HEST_GEN_ERROR_FATAL)
+			panic("APEI Fatal Hardware Error!");
 
-	/* Copy the buffer for later processing. */
-	gesc = (ACPI_HEST_GENERIC_STATUS *)ge->copybuf;
-	if (gesc->BlockStatus == 0)
-		memcpy(ge->copybuf, ge->buf, ge->v1.ErrorBlockLength);
+		/* Copy the buffer for later processing. */
+		gesc = (ACPI_HEST_GENERIC_STATUS *)ge->copybuf;
+		if (gesc->BlockStatus == 0)
+			memcpy(ge->copybuf, ge->buf, ge->v1.ErrorBlockLength);
 
-	/* Acknowledge the error has been processed. */
-	ges->BlockStatus = 0;
-	if (ge->v1.Header.Type == ACPI_HEST_TYPE_GENERIC_ERROR_V2 &&
-	    ge->res2) {
-		uint64_t val = READ8(ge->res2, 0);
-		val &= ge->v2.ReadAckPreserve;
-		val |= ge->v2.ReadAckWrite;
-		WRITE8(ge->res2, 0, val);
+		/* Acknowledge the error has been processed. */
+		ges->BlockStatus = 0;
+		if (ge->v1.Header.Type == ACPI_HEST_TYPE_GENERIC_ERROR_V2 &&
+		    ge->res2) {
+			uint64_t val = READ8(ge->res2, 0);
+			val &= ge->v2.ReadAckPreserve;
+			val |= ge->v2.ReadAckWrite;
+			WRITE8(ge->res2, 0, val);
+		}
+		handled = 1;
 	}
 
 	/* Schedule SWI for real handling. */
-	swi_sched(ge->swi_ih, SWI_FROMNMI);
+	if (handled)
+		swi_sched(nges->swi_ih, SWI_FROMNMI);
 
-	return (1);
+	return (handled);
 }
 
 static void
 apei_callout_handler(void *context)
 {
-	struct apei_ge *ge = context;
+	struct apei_pges *pges = context;
+	struct apei_ge *ge;
 
-	apei_ge_handler(ge, false);
-	callout_schedule(&ge->poll, ge->v1.Notify.PollInterval * hz / 1000);
+	TAILQ_FOREACH(ge, &pges->ges, nlink)
+		apei_ge_handler(ge, false);
+	callout_schedule_sbt(&pges->poll, pges->interval, pges->interval, 0);
 }
 
 static void
@@ -444,12 +476,8 @@ apei_notify_handler(ACPI_HANDLE h, UINT32 notify, void *context)
 	struct apei_softc *sc = device_get_softc(dev);
 	struct apei_ge *ge;
 
-	TAILQ_FOREACH(ge, &sc->ges, link) {
-		if (ge->v1.Notify.Type == ACPI_HEST_NOTIFY_SCI ||
-		    ge->v1.Notify.Type == ACPI_HEST_NOTIFY_GPIO ||
-		    ge->v1.Notify.Type == ACPI_HEST_NOTIFY_GSIV)
-			apei_ge_handler(ge, false);
-	}
+	TAILQ_FOREACH(ge, &sc->iges.ges, nlink)
+		apei_ge_handler(ge, false);
 }
 
 static int
@@ -614,11 +642,20 @@ static int
 apei_attach(device_t dev)
 {
 	struct apei_softc *sc = device_get_softc(dev);
+	struct apei_pges *pges;
 	struct apei_ge *ge;
 	ACPI_STATUS status;
 	int rid;
 
 	TAILQ_INIT(&sc->ges);
+	TAILQ_INIT(&sc->nges.ges);
+	TAILQ_INIT(&sc->iges.ges);
+	for (int i = 0; i < nitems(sc->pges); i++) {
+		pges = &sc->pges[i];
+		pges->interval = SBT_1MS << i;
+		callout_init(&pges->poll, 1);
+		TAILQ_INIT(&pges->ges);
+	}
 
 	/* Search and parse HEST table. */
 	status = AcpiGetTable(ACPI_SIG_HEST, 0, (ACPI_TABLE_HEADER **)&sc->hest);
@@ -646,17 +683,25 @@ apei_attach(device_t dev)
 				device_printf(dev, "Can't allocate ack resource.\n");
 		}
 		if (ge->v1.Notify.Type == ACPI_HEST_NOTIFY_POLLED) {
-			callout_init(&ge->poll, 1);
-			callout_reset(&ge->poll,
-			    ge->v1.Notify.PollInterval * hz / 1000,
-			    apei_callout_handler, ge);
+			pges = &sc->pges[PGE_ID(ge)];
+			TAILQ_INSERT_TAIL(&sc->pges[PGE_ID(ge)].ges, ge, nlink);
+			callout_reset_sbt(&pges->poll, pges->interval, pges->interval,
+			    apei_callout_handler, pges, 0);
+		} else if (ge->v1.Notify.Type == ACPI_HEST_NOTIFY_SCI ||
+		    ge->v1.Notify.Type == ACPI_HEST_NOTIFY_GPIO ||
+		    ge->v1.Notify.Type == ACPI_HEST_NOTIFY_GSIV) {
+			TAILQ_INSERT_TAIL(&sc->iges.ges, ge, nlink);
 		} else if (ge->v1.Notify.Type == ACPI_HEST_NOTIFY_NMI) {
 			ge->copybuf = malloc(ge->v1.ErrorBlockLength,
 			    M_DEVBUF, M_WAITOK | M_ZERO);
-			swi_add(&clk_intr_event, "apei", apei_nmi_swi, ge,
-			    SWI_CLOCK, INTR_MPSAFE, &ge->swi_ih);
-			apei_nmi_ge = ge;
-			apei_nmi = apei_nmi_handler;
+			TAILQ_INSERT_TAIL(&sc->nges.ges, ge, nlink);
+			if (sc->nges.swi_ih == NULL) {
+				swi_add(&clk_intr_event, "apei", apei_nmi_swi,
+				    &sc->nges, SWI_CLOCK, INTR_MPSAFE,
+				    &sc->nges.swi_ih);
+				apei_nmi_nges = &sc->nges;
+				apei_nmi = apei_nmi_handler;
+			}
 		}
 	}
 
@@ -674,11 +719,17 @@ apei_detach(device_t dev)
 	struct apei_ge *ge;
 
 	apei_nmi = NULL;
-	apei_nmi_ge = NULL;
+	apei_nmi_nges = NULL;
+	if (sc->nges.swi_ih != NULL) {
+		swi_remove(&sc->nges.swi_ih);
+		sc->nges.swi_ih = NULL;
+	}
 	if (acpi_get_handle(dev) != NULL) {
 		AcpiRemoveNotifyHandler(acpi_get_handle(dev),
 		    ACPI_DEVICE_NOTIFY, apei_notify_handler);
 	}
+	for (int i = 0; i < nitems(sc->pges); i++)
+		callout_drain(&sc->pges[i].poll);
 
 	while ((ge = TAILQ_FIRST(&sc->ges)) != NULL) {
 		TAILQ_REMOVE(&sc->ges, ge, link);
@@ -691,9 +742,13 @@ apei_detach(device_t dev)
 			    ge->res2_rid, ge->res2);
 		}
 		if (ge->v1.Notify.Type == ACPI_HEST_NOTIFY_POLLED) {
-			callout_drain(&ge->poll);
+			TAILQ_REMOVE(&sc->pges[PGE_ID(ge)].ges, ge, nlink);
+		} else if (ge->v1.Notify.Type == ACPI_HEST_NOTIFY_SCI ||
+		    ge->v1.Notify.Type == ACPI_HEST_NOTIFY_GPIO ||
+		    ge->v1.Notify.Type == ACPI_HEST_NOTIFY_GSIV) {
+			TAILQ_REMOVE(&sc->iges.ges, ge, nlink);
 		} else if (ge->v1.Notify.Type == ACPI_HEST_NOTIFY_NMI) {
-			swi_remove(&ge->swi_ih);
+			TAILQ_REMOVE(&sc->nges.ges, ge, nlink);
 			free(ge->copybuf, M_DEVBUF);
 		}
 		if (ge->buf) {
