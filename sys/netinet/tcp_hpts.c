@@ -55,7 +55,7 @@ __FBSDID("$FreeBSD$");
  * its top a check to prevent unwanted calls (from user land or the
  * arrival of incoming ack's). So it would add something like:
  *
- * if (inp->inp_in_hpts)
+ * if (tcp_in_hpts(inp))
  *    return;
  *
  * to prevent output processing until the time alotted has gone by.
