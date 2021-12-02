@@ -1072,8 +1072,8 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
  * then pick one.
  */
 int
-in_pcbconnect_mbuf(struct inpcb *inp, struct sockaddr *nam,
-    struct ucred *cred, struct mbuf *m, bool rehash)
+in_pcbconnect(struct inpcb *inp, struct sockaddr *nam, struct ucred *cred,
+    bool rehash)
 {
 	u_short lport, fport;
 	in_addr_t laddr, faddr;
@@ -1109,21 +1109,14 @@ in_pcbconnect_mbuf(struct inpcb *inp, struct sockaddr *nam,
 	inp->inp_faddr.s_addr = faddr;
 	inp->inp_fport = fport;
 	if (rehash) {
-		in_pcbrehash_mbuf(inp, m);
+		in_pcbrehash(inp);
 	} else {
-		in_pcbinshash_mbuf(inp, m);
+		in_pcbinshash(inp);
 	}
 
 	if (anonport)
 		inp->inp_flags |= INP_ANONPORT;
 	return (0);
-}
-
-int
-in_pcbconnect(struct inpcb *inp, struct sockaddr *nam, struct ucred *cred)
-{
-
-	return (in_pcbconnect_mbuf(inp, nam, cred, NULL, true));
 }
 
 /*
@@ -2285,8 +2278,8 @@ in_pcblookup_mbuf(struct inpcbinfo *pcbinfo, struct in_addr faddr,
 /*
  * Insert PCB onto various hash lists.
  */
-static int
-in_pcbinshash_internal(struct inpcb *inp, struct mbuf *m)
+int
+in_pcbinshash(struct inpcb *inp)
 {
 	struct inpcbhead *pcbhash;
 	struct inpcbporthead *pcbporthash;
@@ -2355,20 +2348,6 @@ in_pcbinshash_internal(struct inpcb *inp, struct mbuf *m)
 	return (0);
 }
 
-int
-in_pcbinshash(struct inpcb *inp)
-{
-
-	return (in_pcbinshash_internal(inp, NULL));
-}
-
-int
-in_pcbinshash_mbuf(struct inpcb *inp, struct mbuf *m)
-{
-
-	return (in_pcbinshash_internal(inp, m));
-}
-
 /*
  * Move PCB to the proper hash bucket when { faddr, fport } have  been
  * changed. NOTE: This does not handle the case of the lport changing (the
@@ -2376,7 +2355,7 @@ in_pcbinshash_mbuf(struct inpcb *inp, struct mbuf *m)
  * not change after in_pcbinshash() has been called.
  */
 void
-in_pcbrehash_mbuf(struct inpcb *inp, struct mbuf *m)
+in_pcbrehash(struct inpcb *inp)
 {
 	struct inpcbinfo *pcbinfo = inp->inp_pcbinfo;
 	struct inpcbhead *head;
@@ -2400,13 +2379,6 @@ in_pcbrehash_mbuf(struct inpcb *inp, struct mbuf *m)
 
 	CK_LIST_REMOVE(inp, inp_hash);
 	CK_LIST_INSERT_HEAD(head, inp, inp_hash);
-}
-
-void
-in_pcbrehash(struct inpcb *inp)
-{
-
-	in_pcbrehash_mbuf(inp, NULL);
 }
 
 /*

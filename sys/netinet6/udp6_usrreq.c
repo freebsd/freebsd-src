@@ -1215,7 +1215,7 @@ udp6_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 		NET_EPOCH_ENTER(et);
 		INP_HASH_WLOCK(pcbinfo);
 		error = in_pcbconnect(inp, (struct sockaddr *)&sin,
-		    td->td_ucred);
+		    td->td_ucred, true);
 		INP_HASH_WUNLOCK(pcbinfo);
 		NET_EPOCH_EXIT(et);
 		/*
