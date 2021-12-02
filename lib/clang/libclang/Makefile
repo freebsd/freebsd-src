@@ -348,6 +348,7 @@ SRCS_MIN+=	Driver/ToolChains/Myriad.cpp
 SRCS_MIN+=	Driver/ToolChains/NaCl.cpp
 SRCS_MIN+=	Driver/ToolChains/NetBSD.cpp
 SRCS_MIN+=	Driver/ToolChains/OpenBSD.cpp
+SRCS_MIN+=	Driver/ToolChains/PPCFreeBSD.cpp
 SRCS_MIN+=	Driver/ToolChains/PPCLinux.cpp
 SRCS_MIN+=	Driver/ToolChains/PS4CPU.cpp
 SRCS_MIN+=	Driver/ToolChains/RISCVToolchain.cpp

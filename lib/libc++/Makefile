@@ -346,6 +346,7 @@ ALG+=		${HDRDIR}/__algorithm/${hdr}
 INCSGROUPS+=	BIT
 BITDIR=		${CXXINCLUDEDIR}/__bit
 BIT_HEADERS+=	bit_cast.h
+BIT_HEADERS+=	byteswap.h
 .for hdr in ${BIT_HEADERS}
 BIT+=		${HDRDIR}/__bit/${hdr}
 .endfor
@@ -366,8 +367,11 @@ CMP_HEADERS+=	compare_three_way.h
 CMP_HEADERS+=	compare_three_way_result.h
 CMP_HEADERS+=	is_eq.h
 CMP_HEADERS+=	ordering.h
+CMP_HEADERS+=	partial_order.h
+CMP_HEADERS+=	strong_order.h
 CMP_HEADERS+=	synth_three_way.h
 CMP_HEADERS+=	three_way_comparable.h
+CMP_HEADERS+=	weak_order.h
 .for hdr in ${CMP_HEADERS}
 CMP+=		${HDRDIR}/__compare/${hdr}
 .endfor
@@ -523,9 +527,62 @@ MEM_HEADERS+=	uses_allocator.h
 MEM+=		${HDRDIR}/__memory/${hdr}
 .endfor
 
+INCSGROUPS+=    NUM
+NUMDIR=		${CXXINCLUDEDIR}/__numeric
+NUM_HEADERS+=	accumulate.h
+NUM_HEADERS+=	adjacent_difference.h
+NUM_HEADERS+=	exclusive_scan.h
+NUM_HEADERS+=	gcd_lcm.h
+NUM_HEADERS+=	inclusive_scan.h
+NUM_HEADERS+=	inner_product.h
+NUM_HEADERS+=	iota.h
+NUM_HEADERS+=	midpoint.h
+NUM_HEADERS+=	partial_sum.h
+NUM_HEADERS+=	reduce.h
+NUM_HEADERS+=	transform_exclusive_scan.h
+NUM_HEADERS+=	transform_inclusive_scan.h
+NUM_HEADERS+=	transform_reduce.h
+.for hdr in ${NUM_HEADERS}
+NUM+=		${HDRDIR}/__numeric/${hdr}
+.endfor
+
 INCSGROUPS+=	RND
 RNDDIR=		${CXXINCLUDEDIR}/__random
+RND_HEADERS+=	bernoulli_distribution.h
+RND_HEADERS+=	binomial_distribution.h
+RND_HEADERS+=	cauchy_distribution.h
+RND_HEADERS+=	chi_squared_distribution.h
+RND_HEADERS+=	default_random_engine.h
+RND_HEADERS+=	discard_block_engine.h
+RND_HEADERS+=	discrete_distribution.h
+RND_HEADERS+=	exponential_distribution.h
+RND_HEADERS+=	extreme_value_distribution.h
+RND_HEADERS+=	fisher_f_distribution.h
+RND_HEADERS+=	gamma_distribution.h
+RND_HEADERS+=	generate_canonical.h
+RND_HEADERS+=	geometric_distribution.h
+RND_HEADERS+=	independent_bits_engine.h
+RND_HEADERS+=	is_seed_sequence.h
+RND_HEADERS+=	knuth_b.h
+RND_HEADERS+=	linear_congruential_engine.h
+RND_HEADERS+=	log2.h
+RND_HEADERS+=	lognormal_distribution.h
+RND_HEADERS+=	mersenne_twister_engine.h
+RND_HEADERS+=	negative_binomial_distribution.h
+RND_HEADERS+=	normal_distribution.h
+RND_HEADERS+=	piecewise_constant_distribution.h
+RND_HEADERS+=	piecewise_linear_distribution.h
+RND_HEADERS+=	poisson_distribution.h
+RND_HEADERS+=	random_device.h
+RND_HEADERS+=	ranlux.h
+RND_HEADERS+=	seed_seq.h
+RND_HEADERS+=	shuffle_order_engine.h
+RND_HEADERS+=	student_t_distribution.h
+RND_HEADERS+=	subtract_with_carry_engine.h
 RND_HEADERS+=	uniform_int_distribution.h
+RND_HEADERS+=	uniform_random_bit_generator.h
+RND_HEADERS+=	uniform_real_distribution.h
+RND_HEADERS+=	weibull_distribution.h
 .for hdr in ${RND_HEADERS}
 RND+=		${HDRDIR}/__random/${hdr}
 .endfor
@@ -561,7 +618,6 @@ RNG_HEADERS+=	view_interface.h
 RNG+=		${HDRDIR}/__ranges/${hdr}
 .endfor
 
-
 INCSGROUPS+=	THR
 THRDIR=		${CXXINCLUDEDIR}/__thread
 THR_HEADERS+=	poll_with_backoff.h
@@ -582,6 +638,7 @@ UTL_HEADERS+=	integer_sequence.h
 UTL_HEADERS+=	move.h
 UTL_HEADERS+=	pair.h
 UTL_HEADERS+=	piecewise_construct.h
+UTL_HEADERS+=	priority_tag.h
 UTL_HEADERS+=	rel_ops.h
 UTL_HEADERS+=	swap.h
 UTL_HEADERS+=	to_underlying.h
@@ -590,8 +647,8 @@ UTL+=		${HDRDIR}/__utility/${hdr}
 .endfor
 
 INCSGROUPS+=	VAR
-VAR_HEADERS+=	monostate.h
 VARDIR=	${CXXINCLUDEDIR}/__variant
+VAR_HEADERS+=	monostate.h
 .for hdr in ${VAR_HEADERS}
 VAR+=		${HDRDIR}/__variant/${hdr}
 .endfor
