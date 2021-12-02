@@ -65,6 +65,8 @@
 #include "ice_sched.h"
 #include "ice_resmgr.h"
 
+#include "ice_rdma_internal.h"
+
 #include "ice_rss.h"
 
 /* Hide debug sysctls unless INVARIANTS is enabled */
