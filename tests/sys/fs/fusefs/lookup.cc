@@ -31,6 +31,10 @@
  */
 
 extern "C" {
+#include <sys/param.h>
+#include <sys/mount.h>
+
+#include <fcntl.h>
 #include <unistd.h>
 }
 
@@ -40,10 +44,19 @@ extern "C" {
 using namespace testing;
 
 class Lookup: public FuseTest {};
+
 class Lookup_7_8: public Lookup {
 public:
 virtual void SetUp() {
 	m_kernel_minor_version = 8;
+	Lookup::SetUp();
+}
+};
+
+class LookupExportable: public Lookup {
+public:
+virtual void SetUp() {
+	m_init_flags = FUSE_EXPORT_SUPPORT;
 	Lookup::SetUp();
 }
 };
@@ -179,6 +192,89 @@ TEST_F(Lookup, dotdot)
 	 * up a successful VOP_LOOKUP with another VOP.
 	 */
 	ASSERT_EQ(0, access(FULLPATH, F_OK)) << strerror(errno);
+}
+
+/*
+ * Lookup ".." when that vnode's entry cache has timed out, but its child's
+ * hasn't.  Since this file system doesn't set FUSE_EXPORT_SUPPORT, we have no
+ * choice but to use the cached entry, even though it expired.
+ */
+TEST_F(Lookup, dotdot_entry_cache_timeout)
+{
+	uint64_t foo_ino = 42;
+	uint64_t bar_ino = 43;
+
+	EXPECT_LOOKUP(FUSE_ROOT_ID, "foo")
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
+		SET_OUT_HEADER_LEN(out, entry);
+		out.body.entry.attr.mode = S_IFDIR | 0755;
+		out.body.entry.nodeid = foo_ino;
+		out.body.entry.attr_valid = UINT64_MAX;
+		out.body.entry.entry_valid = 0;	// immediate timeout
+	})));
+	EXPECT_LOOKUP(foo_ino, "bar")
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
+		SET_OUT_HEADER_LEN(out, entry);
+		out.body.entry.attr.mode = S_IFDIR | 0755;
+		out.body.entry.nodeid = bar_ino;
+		out.body.entry.attr_valid = UINT64_MAX;
+		out.body.entry.entry_valid = UINT64_MAX;
+	})));
+	expect_opendir(bar_ino);
+
+	int fd = open("mountpoint/foo/bar", O_EXEC| O_DIRECTORY);
+	ASSERT_LE(0, fd) << strerror(errno);
+	EXPECT_EQ(0, faccessat(fd, "../..", F_OK, 0)) << strerror(errno);
+}
+
+/*
+ * Lookup ".." for a vnode with no valid parent nid
+ * Regression test for https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=259974
+ * Since the file system is not exportable, we have no choice but to return an
+ * error.
+ */
+TEST_F(Lookup, dotdot_no_parent_nid)
+{
+	uint64_t foo_ino = 42;
+	uint64_t bar_ino = 43;
+	int fd;
+
+	EXPECT_LOOKUP(FUSE_ROOT_ID, "foo")
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
+		SET_OUT_HEADER_LEN(out, entry);
+		out.body.entry.attr.mode = S_IFDIR | 0755;
+		out.body.entry.nodeid = foo_ino;
+		out.body.entry.attr_valid = UINT64_MAX;
+		out.body.entry.entry_valid = UINT64_MAX;
+	})));
+	EXPECT_LOOKUP(foo_ino, "bar")
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
+		SET_OUT_HEADER_LEN(out, entry);
+		out.body.entry.attr.mode = S_IFDIR | 0755;
+		out.body.entry.nodeid = bar_ino;
+		out.body.entry.attr_valid = UINT64_MAX;
+		out.body.entry.entry_valid = UINT64_MAX;
+	})));
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in.header.opcode == FUSE_OPENDIR);
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
+		SET_OUT_HEADER_LEN(out, open);
+	})));
+	expect_forget(FUSE_ROOT_ID, 1, NULL);
+	expect_forget(foo_ino, 1, NULL);
+
+	fd = open("mountpoint/foo/bar", O_EXEC| O_DIRECTORY);
+	ASSERT_LE(0, fd) << strerror(errno);
+	// Try (and fail) to unmount the file system, to reclaim the mountpoint
+	// and foo vnodes.
+	ASSERT_NE(0, unmount("mountpoint", 0));
+	EXPECT_EQ(EBUSY, errno);
+	nap();		// Because vnode reclamation is asynchronous
+	EXPECT_NE(0, faccessat(fd, "../..", F_OK, 0));
+	EXPECT_EQ(ESTALE, errno);
 }
 
 TEST_F(Lookup, enoent)
@@ -398,4 +494,111 @@ TEST_F(Lookup_7_8, ok)
 	ASSERT_EQ(0, access(FULLPATH, F_OK)) << strerror(errno);
 }
 
+/*
+ * Lookup ".." when that vnode's entry cache has timed out, but its child's
+ * hasn't.
+ */
+TEST_F(LookupExportable, dotdot_entry_cache_timeout)
+{
+	uint64_t foo_ino = 42;
+	uint64_t bar_ino = 43;
 
+	EXPECT_LOOKUP(FUSE_ROOT_ID, "foo")
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
+		SET_OUT_HEADER_LEN(out, entry);
+		out.body.entry.attr.mode = S_IFDIR | 0755;
+		out.body.entry.nodeid = foo_ino;
+		out.body.entry.attr_valid = UINT64_MAX;
+		out.body.entry.entry_valid = 0;	// immediate timeout
+	})));
+	EXPECT_LOOKUP(foo_ino, "bar")
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
+		SET_OUT_HEADER_LEN(out, entry);
+		out.body.entry.attr.mode = S_IFDIR | 0755;
+		out.body.entry.nodeid = bar_ino;
+		out.body.entry.attr_valid = UINT64_MAX;
+		out.body.entry.entry_valid = UINT64_MAX;
+	})));
+	expect_opendir(bar_ino);
+	EXPECT_LOOKUP(foo_ino, "..")
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
+		SET_OUT_HEADER_LEN(out, entry);
+		out.body.entry.attr.mode = S_IFDIR | 0755;
+		out.body.entry.nodeid = FUSE_ROOT_ID;
+		out.body.entry.attr_valid = UINT64_MAX;
+		out.body.entry.entry_valid = UINT64_MAX;
+	})));
+
+	int fd = open("mountpoint/foo/bar", O_EXEC| O_DIRECTORY);
+	ASSERT_LE(0, fd) << strerror(errno);
+	/* FreeBSD's fusefs driver always uses the same cache expiration time
+	 * for ".." as for the directory itself.  So we need to look up two
+	 * levels to find an expired ".." cache entry.
+	 */
+	EXPECT_EQ(0, faccessat(fd, "../..", F_OK, 0)) << strerror(errno);
+}
+
+/*
+ * Lookup ".." for a vnode with no valid parent nid
+ * Regression test for https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=259974
+ * Since the file system is exportable, we should resolve the problem by
+ * sending a FUSE_LOOKUP for "..".
+ */
+TEST_F(LookupExportable, dotdot_no_parent_nid)
+{
+	uint64_t foo_ino = 42;
+	uint64_t bar_ino = 43;
+	int fd;
+
+	EXPECT_LOOKUP(FUSE_ROOT_ID, "foo")
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
+		SET_OUT_HEADER_LEN(out, entry);
+		out.body.entry.attr.mode = S_IFDIR | 0755;
+		out.body.entry.nodeid = foo_ino;
+		out.body.entry.attr_valid = UINT64_MAX;
+		out.body.entry.entry_valid = UINT64_MAX;
+	})));
+	EXPECT_LOOKUP(foo_ino, "bar")
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
+		SET_OUT_HEADER_LEN(out, entry);
+		out.body.entry.attr.mode = S_IFDIR | 0755;
+		out.body.entry.nodeid = bar_ino;
+		out.body.entry.attr_valid = UINT64_MAX;
+		out.body.entry.entry_valid = UINT64_MAX;
+	})));
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in.header.opcode == FUSE_OPENDIR);
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
+		SET_OUT_HEADER_LEN(out, open);
+	})));
+	expect_forget(FUSE_ROOT_ID, 1, NULL);
+	expect_forget(foo_ino, 1, NULL);
+	EXPECT_LOOKUP(bar_ino, "..")
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
+		SET_OUT_HEADER_LEN(out, entry);
+		out.body.entry.attr.mode = S_IFDIR | 0755;
+		out.body.entry.nodeid = foo_ino;
+		out.body.entry.attr_valid = UINT64_MAX;
+		out.body.entry.entry_valid = UINT64_MAX;
+	})));
+	EXPECT_LOOKUP(foo_ino, "..")
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
+		SET_OUT_HEADER_LEN(out, entry);
+		out.body.entry.attr.mode = S_IFDIR | 0755;
+		out.body.entry.nodeid = FUSE_ROOT_ID;
+		out.body.entry.attr_valid = UINT64_MAX;
+		out.body.entry.entry_valid = UINT64_MAX;
+	})));
+
+	fd = open("mountpoint/foo/bar", O_EXEC| O_DIRECTORY);
+	ASSERT_LE(0, fd) << strerror(errno);
+	// Try (and fail) to unmount the file system, to reclaim the mountpoint
+	// and foo vnodes.
+	ASSERT_NE(0, unmount("mountpoint", 0));
+	EXPECT_EQ(EBUSY, errno);
+	nap();		// Because vnode reclamation is asynchronous
+	EXPECT_EQ(0, faccessat(fd, "../..", F_OK, 0)) << strerror(errno);
+}
