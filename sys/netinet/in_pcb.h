@@ -234,22 +234,21 @@ struct inpcb {
 	 * fields can *not* be collapsed into a signal bit field.
 	 */
 #if defined(__amd64__) || defined(__i386__)
-	volatile uint8_t inp_in_hpts; /* on output hpts (lock b) */
-	volatile uint8_t inp_in_input; /* on input hpts (lock b) */
+	uint8_t inp_in_hpts; /* on output hpts (lock b) */
+	uint8_t inp_in_dropq; /* on input hpts (lock b) */
 #else
-	volatile uint32_t inp_in_hpts; /* on output hpts (lock b) */
-	volatile uint32_t inp_in_input; /* on input hpts (lock b) */
+	uint32_t inp_in_hpts; /* on output hpts (lock b) */
+	uint32_t inp_in_dropq; /* on input hpts (lock b) */
 #endif
 	volatile uint16_t  inp_hpts_cpu; /* Lock (i) */
 	volatile uint16_t  inp_irq_cpu;	/* Set by LRO in behalf of or the driver */
 	u_int	inp_refcount;		/* (i) refcount */
 	int	inp_flags;		/* (i) generic IP/datagram flags */
 	int	inp_flags2;		/* (i) generic IP/datagram flags #2*/
-	volatile uint16_t  inp_input_cpu; /* Lock (i) */
-	volatile uint8_t inp_hpts_cpu_set :1,  /* on output hpts (i) */
-			 inp_input_cpu_set : 1,	/* on input hpts (i) */
+	uint16_t  inp_dropq_cpu; /* Lock (i) */
+	uint8_t inp_hpts_cpu_set :1,  /* on output hpts (i) */
+			 inp_dropq_cpu_set : 1,	/* on input hpts (i) */
 			 inp_hpts_calls :1,	/* (i) from output hpts */
-			 inp_input_calls :1,	/* (i) from input hpts */
 			 inp_irq_cpu_set :1,	/* (i) from LRO/Driver */
 			 inp_spare_bits2 : 3;
 	uint8_t inp_numa_domain;	/* numa domain */
@@ -257,7 +256,8 @@ struct inpcb {
 	struct	socket *inp_socket;	/* (i) back pointer to socket */
 	uint32_t 	 inp_hptsslot;	/* Hpts wheel slot this tcb is Lock(i&b) */
 	uint32_t         inp_hpts_drop_reas;	/* reason we are dropping the PCB (lock i&b) */
-	TAILQ_ENTRY(inpcb) inp_input;	/* pacing in  queue next lock(b) */
+	uint32_t	inp_dropq_gencnt;
+	TAILQ_ENTRY(inpcb) inp_dropq;	/* hpts drop queue next lock(b) */
 	struct	inpcbinfo *inp_pcbinfo;	/* (c) PCB list info */
 	struct	ucred	*inp_cred;	/* (c) cache of socket cred */
 	u_int32_t inp_flow;		/* (i) IPv6 flow information */

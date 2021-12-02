@@ -1354,7 +1354,7 @@ tcp_lro_flush_tcphpts(struct lro_ctrl *lc, struct lro_entry *le)
 	if (le->m_head != NULL) {
 		counter_u64_add(tcp_inp_lro_direct_queue, 1);
 		tcp_lro_log(tp, lc, le, NULL, 22, 1,
-			    inp->inp_flags2, inp->inp_in_input, 1);
+			    inp->inp_flags2, inp->inp_in_dropq, 1);
 		tcp_queue_pkts(inp, tp, le);
 	}
 	if (should_wake) {

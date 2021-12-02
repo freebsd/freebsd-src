@@ -116,9 +116,9 @@ struct hpts_diag {
 #ifdef _KERNEL
 #define tcp_hpts_remove(a, b) __tcp_hpts_remove(a, b, __LINE__)
 void __tcp_hpts_remove(struct inpcb *inp, int32_t flags, int32_t line);
-#define HPTS_REMOVE_INPUT  0x01
+#define HPTS_REMOVE_DROPQ  0x01
 #define HPTS_REMOVE_OUTPUT 0x02
-#define HPTS_REMOVE_ALL    (HPTS_REMOVE_INPUT | HPTS_REMOVE_OUTPUT)
+#define HPTS_REMOVE_ALL    (HPTS_REMOVE_DROPQ | HPTS_REMOVE_OUTPUT)
 
 static inline bool
 tcp_in_hpts(struct inpcb *inp)
@@ -160,8 +160,7 @@ tcp_hpts_insert_diag(struct inpcb *inp, uint32_t slot, int32_t line, struct hpts
 void __tcp_set_hpts(struct inpcb *inp, int32_t line);
 #define tcp_set_hpts(a) __tcp_set_hpts(a, __LINE__)
 
-void __tcp_set_inp_to_drop(struct inpcb *inp, uint16_t reason, int32_t line);
-#define tcp_set_inp_to_drop(a, b) __tcp_set_inp_to_drop(a, b, __LINE__)
+void tcp_set_inp_to_drop(struct inpcb *inp, uint16_t reason);
 
 void tcp_run_hpts(void);
 

@@ -2096,7 +2096,7 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 
 			memset(&log.u_bbr, 0, sizeof(log.u_bbr));
 			log.u_bbr.inhpts = tp->t_inpcb->inp_in_hpts;
-			log.u_bbr.ininput = tp->t_inpcb->inp_in_input;
+			log.u_bbr.ininput = tp->t_inpcb->inp_in_dropq;
 			log.u_bbr.flex8 = 4;
 			log.u_bbr.pkts_out = tp->t_maxseg;
 			log.u_bbr.timeStamp = tcp_get_usecs(&tv);
