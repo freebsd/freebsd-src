@@ -65,7 +65,7 @@ static const struct {
 	.descsz = sizeof(int32_t),
 	.type = NT_FREEBSD_ABI_TAG,
 	.name = NOTE_FREEBSD_VENDOR,
-	.desc = __FreeBSD_version
+	.desc = 1203000
 };
 
 static const struct {
