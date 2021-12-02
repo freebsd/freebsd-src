@@ -310,8 +310,7 @@ ARMBaseInstrInfo::convertToThreeAddress(MachineInstr &MI, LiveVariables *LV,
 
   // Transfer LiveVariables states, kill / dead info.
   if (LV) {
-    for (unsigned i = 0, e = MI.getNumOperands(); i != e; ++i) {
-      MachineOperand &MO = MI.getOperand(i);
+    for (const MachineOperand &MO : MI.operands()) {
       if (MO.isReg() && Register::isVirtualRegister(MO.getReg())) {
         Register Reg = MO.getReg();
 
@@ -634,8 +633,7 @@ bool ARMBaseInstrInfo::ClobbersPredicate(MachineInstr &MI,
                                          std::vector<MachineOperand> &Pred,
                                          bool SkipDead) const {
   bool Found = false;
-  for (unsigned i = 0, e = MI.getNumOperands(); i != e; ++i) {
-    const MachineOperand &MO = MI.getOperand(i);
+  for (const MachineOperand &MO : MI.operands()) {
     bool ClobbersCPSR = MO.isRegMask() && MO.clobbersPhysReg(ARM::CPSR);
     bool IsCPSR = MO.isReg() && MO.isDef() && MO.getReg() == ARM::CPSR;
     if (ClobbersCPSR || IsCPSR) {
@@ -732,8 +730,7 @@ bool ARMBaseInstrInfo::isPredicable(const MachineInstr &MI) const {
 namespace llvm {
 
 template <> bool IsCPSRDead<MachineInstr>(const MachineInstr *MI) {
-  for (unsigned i = 0, e = MI->getNumOperands(); i != e; ++i) {
-    const MachineOperand &MO = MI->getOperand(i);
+  for (const MachineOperand &MO : MI->operands()) {
     if (!MO.isReg() || MO.isUndef() || MO.isUse())
       continue;
     if (MO.getReg() != ARM::CPSR)
@@ -1860,15 +1857,11 @@ bool ARMBaseInstrInfo::produceSameValue(const MachineInstr &MI0,
                                         const MachineInstr &MI1,
                                         const MachineRegisterInfo *MRI) const {
   unsigned Opcode = MI0.getOpcode();
-  if (Opcode == ARM::t2LDRpci ||
-      Opcode == ARM::t2LDRpci_pic ||
-      Opcode == ARM::tLDRpci ||
-      Opcode == ARM::tLDRpci_pic ||
-      Opcode == ARM::LDRLIT_ga_pcrel ||
-      Opcode == ARM::LDRLIT_ga_pcrel_ldr ||
-      Opcode == ARM::tLDRLIT_ga_pcrel ||
-      Opcode == ARM::MOV_ga_pcrel ||
-      Opcode == ARM::MOV_ga_pcrel_ldr ||
+  if (Opcode == ARM::t2LDRpci || Opcode == ARM::t2LDRpci_pic ||
+      Opcode == ARM::tLDRpci || Opcode == ARM::tLDRpci_pic ||
+      Opcode == ARM::LDRLIT_ga_pcrel || Opcode == ARM::LDRLIT_ga_pcrel_ldr ||
+      Opcode == ARM::tLDRLIT_ga_pcrel || Opcode == ARM::t2LDRLIT_ga_pcrel ||
+      Opcode == ARM::MOV_ga_pcrel || Opcode == ARM::MOV_ga_pcrel_ldr ||
       Opcode == ARM::t2MOV_ga_pcrel) {
     if (MI1.getOpcode() != Opcode)
       return false;
@@ -1880,11 +1873,9 @@ bool ARMBaseInstrInfo::produceSameValue(const MachineInstr &MI0,
     if (MO0.getOffset() != MO1.getOffset())
       return false;
 
-    if (Opcode == ARM::LDRLIT_ga_pcrel ||
-        Opcode == ARM::LDRLIT_ga_pcrel_ldr ||
-        Opcode == ARM::tLDRLIT_ga_pcrel ||
-        Opcode == ARM::MOV_ga_pcrel ||
-        Opcode == ARM::MOV_ga_pcrel_ldr ||
+    if (Opcode == ARM::LDRLIT_ga_pcrel || Opcode == ARM::LDRLIT_ga_pcrel_ldr ||
+        Opcode == ARM::tLDRLIT_ga_pcrel || Opcode == ARM::t2LDRLIT_ga_pcrel ||
+        Opcode == ARM::MOV_ga_pcrel || Opcode == ARM::MOV_ga_pcrel_ldr ||
         Opcode == ARM::t2MOV_ga_pcrel)
       // Ignore the PC labels.
       return MO0.getGlobal() == MO1.getGlobal();
@@ -2312,8 +2303,7 @@ ARMBaseInstrInfo::canFoldIntoMOVCC(Register Reg, const MachineRegisterInfo &MRI,
     return nullptr;
   // Check if MI has any non-dead defs or physreg uses. This also detects
   // predicated instructions which will be reading CPSR.
-  for (unsigned i = 1, e = MI->getNumOperands(); i != e; ++i) {
-    const MachineOperand &MO = MI->getOperand(i);
+  for (const MachineOperand &MO : llvm::drop_begin(MI->operands(), 1)) {
     // Reject frame index operands, PEI can't handle the predicated pseudos.
     if (MO.isFI() || MO.isCPI() || MO.isJTI())
       return nullptr;
@@ -4857,11 +4847,10 @@ bool ARMBaseInstrInfo::verifyInstruction(const MachineInstr &MI,
   if (MI.getOpcode() == ARM::tPUSH ||
       MI.getOpcode() == ARM::tPOP ||
       MI.getOpcode() == ARM::tPOP_RET) {
-    for (int i = 2, e = MI.getNumOperands(); i < e; ++i) {
-      if (MI.getOperand(i).isImplicit() ||
-          !MI.getOperand(i).isReg())
+    for (const MachineOperand &MO : llvm::drop_begin(MI.operands(), 2)) {
+      if (MO.isImplicit() || !MO.isReg())
         continue;
-      Register Reg = MI.getOperand(i).getReg();
+      Register Reg = MO.getReg();
       if (Reg < ARM::R0 || Reg > ARM::R7) {
         if (!(MI.getOpcode() == ARM::tPUSH && Reg == ARM::LR) &&
             !(MI.getOpcode() == ARM::tPOP_RET && Reg == ARM::PC)) {
@@ -5748,17 +5737,17 @@ enum MachineOutlinerMBBFlags {
 };
 
 struct OutlinerCosts {
-  const int CallTailCall;
-  const int FrameTailCall;
-  const int CallThunk;
-  const int FrameThunk;
-  const int CallNoLRSave;
-  const int FrameNoLRSave;
-  const int CallRegSave;
-  const int FrameRegSave;
-  const int CallDefault;
-  const int FrameDefault;
-  const int SaveRestoreLROnStack;
+  int CallTailCall;
+  int FrameTailCall;
+  int CallThunk;
+  int FrameThunk;
+  int CallNoLRSave;
+  int FrameNoLRSave;
+  int CallRegSave;
+  int FrameRegSave;
+  int CallDefault;
+  int FrameDefault;
+  int SaveRestoreLROnStack;
 
   OutlinerCosts(const ARMSubtarget &target)
       : CallTailCall(target.isThumb() ? 4 : 4),
@@ -5879,6 +5868,24 @@ outliner::OutlinedFunction ARMBaseInstrInfo::getOutliningCandidateInfo(
       return outliner::OutlinedFunction();
   }
 
+  // Partition the candidates in two sets: one with BTI enabled and one with BTI
+  // disabled. Remove the candidates from the smaller set. We expect the
+  // majority of the candidates to be in consensus with regard to branch target
+  // enforcement with just a few oddballs, but if they are the same number
+  // prefer the non-BTI ones for outlining, since they have less overhead.
+  auto NoBTI =
+      llvm::partition(RepeatedSequenceLocs, [](const outliner::Candidate &C) {
+        const ARMFunctionInfo &AFI = *C.getMF()->getInfo<ARMFunctionInfo>();
+        return AFI.branchTargetEnforcement();
+      });
+  if (std::distance(RepeatedSequenceLocs.begin(), NoBTI) >
+      std::distance(NoBTI, RepeatedSequenceLocs.end()))
+    RepeatedSequenceLocs.erase(NoBTI, RepeatedSequenceLocs.end());
+  else
+    RepeatedSequenceLocs.erase(RepeatedSequenceLocs.begin(), NoBTI);
+  if (RepeatedSequenceLocs.size() < 2)
+    return outliner::OutlinedFunction();
+
   // At this point, we have only "safe" candidates to outline. Figure out
   // frame + call instruction information.
 
@@ -5892,6 +5899,16 @@ outliner::OutlinedFunction ARMBaseInstrInfo::getOutliningCandidateInfo(
       };
 
   OutlinerCosts Costs(Subtarget);
+  const auto &SomeMFI =
+      *RepeatedSequenceLocs.front().getMF()->getInfo<ARMFunctionInfo>();
+  // Adjust costs to account for the BTI instructions.
+  if (SomeMFI.branchTargetEnforcement()) {
+    Costs.FrameDefault += 4;
+    Costs.FrameNoLRSave += 4;
+    Costs.FrameRegSave += 4;
+    Costs.FrameTailCall += 4;
+    Costs.FrameThunk += 4;
+  }
   unsigned FrameID = MachineOutlinerDefault;
   unsigned NumBytesToCreateFrame = Costs.FrameDefault;
 
@@ -6004,16 +6021,18 @@ bool ARMBaseInstrInfo::checkAndUpdateStackOffset(MachineInstr *MI,
 
   // Stack might be involved but addressing mode doesn't handle any offset.
   // Rq: AddrModeT1_[1|2|4] don't operate on SP
-  if (AddrMode == ARMII::AddrMode1        // Arithmetic instructions
-      || AddrMode == ARMII::AddrMode4     // Load/Store Multiple
-      || AddrMode == ARMII::AddrMode6     // Neon Load/Store Multiple
-      || AddrMode == ARMII::AddrModeT2_so // SP can't be used as based register
-      || AddrMode == ARMII::AddrModeT2_pc // PCrel access
-      || AddrMode == ARMII::AddrMode2     // Used by PRE and POST indexed LD/ST
-      || AddrMode == ARMII::AddrModeT2_i7 // v8.1-M MVE
-      || AddrMode == ARMII::AddrModeT2_i7s2 // v8.1-M MVE
-      || AddrMode == ARMII::AddrModeT2_i7s4 // v8.1-M sys regs VLDR/VSTR
-      || AddrMode == ARMII::AddrModeNone)
+  if (AddrMode == ARMII::AddrMode1 ||       // Arithmetic instructions
+      AddrMode == ARMII::AddrMode4 ||       // Load/Store Multiple
+      AddrMode == ARMII::AddrMode6 ||       // Neon Load/Store Multiple
+      AddrMode == ARMII::AddrModeT2_so ||   // SP can't be used as based register
+      AddrMode == ARMII::AddrModeT2_pc ||   // PCrel access
+      AddrMode == ARMII::AddrMode2 ||       // Used by PRE and POST indexed LD/ST
+      AddrMode == ARMII::AddrModeT2_i7 ||   // v8.1-M MVE
+      AddrMode == ARMII::AddrModeT2_i7s2 || // v8.1-M MVE
+      AddrMode == ARMII::AddrModeT2_i7s4 || // v8.1-M sys regs VLDR/VSTR
+      AddrMode == ARMII::AddrModeNone ||
+      AddrMode == ARMII::AddrModeT2_i8 ||   // Pre/Post inc instructions
+      AddrMode == ARMII::AddrModeT2_i8neg)  // Always negative imm
     return false;
 
   unsigned NumOps = MI->getDesc().getNumOperands();
@@ -6051,7 +6070,7 @@ bool ARMBaseInstrInfo::checkAndUpdateStackOffset(MachineInstr *MI,
     NumBits = 8;
     Scale = 2;
     break;
-  case ARMII::AddrModeT2_i8:
+  case ARMII::AddrModeT2_i8pos:
     NumBits = 8;
     break;
   case ARMII::AddrModeT2_i8s4:
@@ -6089,7 +6108,18 @@ bool ARMBaseInstrInfo::checkAndUpdateStackOffset(MachineInstr *MI,
   }
 
   return false;
+}
 
+void ARMBaseInstrInfo::mergeOutliningCandidateAttributes(
+    Function &F, std::vector<outliner::Candidate> &Candidates) const {
+  outliner::Candidate &C = Candidates.front();
+  // branch-target-enforcement is guaranteed to be consistent between all
+  // candidates, so we only need to look at one.
+  const Function &CFn = C.getMF()->getFunction();
+  if (CFn.hasFnAttribute("branch-target-enforcement"))
+    F.addFnAttr(CFn.getFnAttribute("branch-target-enforcement"));
+
+  ARMGenInstrInfo::mergeOutliningCandidateAttributes(F, Candidates);
 }
 
 bool ARMBaseInstrInfo::isFunctionSafeToOutlineFrom(

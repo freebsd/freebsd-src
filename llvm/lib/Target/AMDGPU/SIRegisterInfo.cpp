@@ -402,6 +402,62 @@ const uint32_t *SIRegisterInfo::getNoPreservedMask() const {
   return CSR_AMDGPU_NoRegs_RegMask;
 }
 
+const TargetRegisterClass *
+SIRegisterInfo::getLargestLegalSuperClass(const TargetRegisterClass *RC,
+                                          const MachineFunction &MF) const {
+  // FIXME: Should have a helper function like getEquivalentVGPRClass to get the
+  // equivalent AV class. If used one, the verifier will crash after
+  // RegBankSelect in the GISel flow. The aligned regclasses are not fully given
+  // until Instruction selection.
+  if (MF.getSubtarget<GCNSubtarget>().hasMAIInsts() &&
+      (isVGPRClass(RC) || isAGPRClass(RC))) {
+    if (RC == &AMDGPU::VGPR_32RegClass || RC == &AMDGPU::AGPR_32RegClass)
+      return &AMDGPU::AV_32RegClass;
+    if (RC == &AMDGPU::VReg_64RegClass || RC == &AMDGPU::AReg_64RegClass)
+      return &AMDGPU::AV_64RegClass;
+    if (RC == &AMDGPU::VReg_64_Align2RegClass ||
+        RC == &AMDGPU::AReg_64_Align2RegClass)
+      return &AMDGPU::AV_64_Align2RegClass;
+    if (RC == &AMDGPU::VReg_96RegClass || RC == &AMDGPU::AReg_96RegClass)
+      return &AMDGPU::AV_96RegClass;
+    if (RC == &AMDGPU::VReg_96_Align2RegClass ||
+        RC == &AMDGPU::AReg_96_Align2RegClass)
+      return &AMDGPU::AV_96_Align2RegClass;
+    if (RC == &AMDGPU::VReg_128RegClass || RC == &AMDGPU::AReg_128RegClass)
+      return &AMDGPU::AV_128RegClass;
+    if (RC == &AMDGPU::VReg_128_Align2RegClass ||
+        RC == &AMDGPU::AReg_128_Align2RegClass)
+      return &AMDGPU::AV_128_Align2RegClass;
+    if (RC == &AMDGPU::VReg_160RegClass || RC == &AMDGPU::AReg_160RegClass)
+      return &AMDGPU::AV_160RegClass;
+    if (RC == &AMDGPU::VReg_160_Align2RegClass ||
+        RC == &AMDGPU::AReg_160_Align2RegClass)
+      return &AMDGPU::AV_160_Align2RegClass;
+    if (RC == &AMDGPU::VReg_192RegClass || RC == &AMDGPU::AReg_192RegClass)
+      return &AMDGPU::AV_192RegClass;
+    if (RC == &AMDGPU::VReg_192_Align2RegClass ||
+        RC == &AMDGPU::AReg_192_Align2RegClass)
+      return &AMDGPU::AV_192_Align2RegClass;
+    if (RC == &AMDGPU::VReg_256RegClass || RC == &AMDGPU::AReg_256RegClass)
+      return &AMDGPU::AV_256RegClass;
+    if (RC == &AMDGPU::VReg_256_Align2RegClass ||
+        RC == &AMDGPU::AReg_256_Align2RegClass)
+      return &AMDGPU::AV_256_Align2RegClass;
+    if (RC == &AMDGPU::VReg_512RegClass || RC == &AMDGPU::AReg_512RegClass)
+      return &AMDGPU::AV_512RegClass;
+    if (RC == &AMDGPU::VReg_512_Align2RegClass ||
+        RC == &AMDGPU::AReg_512_Align2RegClass)
+      return &AMDGPU::AV_512_Align2RegClass;
+    if (RC == &AMDGPU::VReg_1024RegClass || RC == &AMDGPU::AReg_1024RegClass)
+      return &AMDGPU::AV_1024RegClass;
+    if (RC == &AMDGPU::VReg_1024_Align2RegClass ||
+        RC == &AMDGPU::AReg_1024_Align2RegClass)
+      return &AMDGPU::AV_1024_Align2RegClass;
+  }
+
+  return TargetRegisterInfo::getLargestLegalSuperClass(RC, MF);
+}
+
 Register SIRegisterInfo::getFrameRegister(const MachineFunction &MF) const {
   const SIFrameLowering *TFI =
       MF.getSubtarget<GCNSubtarget>().getFrameLowering();
@@ -994,10 +1050,22 @@ static MachineInstrBuilder spillVGPRtoAGPR(const GCNSubtarget &ST,
 
   unsigned Dst = IsStore ? Reg : ValueReg;
   unsigned Src = IsStore ? ValueReg : Reg;
-  unsigned Opc = (IsStore ^ TRI->isVGPR(MRI, Reg)) ? AMDGPU::V_ACCVGPR_WRITE_B32_e64
-                                                   : AMDGPU::V_ACCVGPR_READ_B32_e64;
+  bool IsVGPR = TRI->isVGPR(MRI, Reg);
+  DebugLoc DL = MI->getDebugLoc();
+  if (IsVGPR == TRI->isVGPR(MRI, ValueReg)) {
+    // Spiller during regalloc may restore a spilled register to its superclass.
+    // It could result in AGPR spills restored to VGPRs or the other way around,
+    // making the src and dst with identical regclasses at this point. It just
+    // needs a copy in such cases.
+    auto CopyMIB = BuildMI(MBB, MI, DL, TII->get(AMDGPU::COPY), Dst)
+                       .addReg(Src, getKillRegState(IsKill));
+    CopyMIB->setAsmPrinterFlag(MachineInstr::ReloadReuse);
+    return CopyMIB;
+  }
+  unsigned Opc = (IsStore ^ IsVGPR) ? AMDGPU::V_ACCVGPR_WRITE_B32_e64
+                                    : AMDGPU::V_ACCVGPR_READ_B32_e64;
 
-  auto MIB = BuildMI(MBB, MI, MI->getDebugLoc(), TII->get(Opc), Dst)
+  auto MIB = BuildMI(MBB, MI, DL, TII->get(Opc), Dst)
                  .addReg(Src, getKillRegState(IsKill));
   MIB->setAsmPrinterFlag(MachineInstr::ReloadReuse);
   return MIB;
@@ -1099,7 +1167,7 @@ void SIRegisterInfo::buildSpillLoadStore(
 
   const TargetRegisterClass *RC = getRegClassForReg(MF->getRegInfo(), ValueReg);
   // On gfx90a+ AGPR is a regular VGPR acceptable for loads and stores.
-  const bool IsAGPR = !ST.hasGFX90AInsts() && hasAGPRs(RC);
+  const bool IsAGPR = !ST.hasGFX90AInsts() && isAGPRClass(RC);
   const unsigned RegWidth = AMDGPU::getRegBitWidth(RC->getID()) / 8;
 
   // Always use 4 byte operations for AGPRs because we need to scavenge
@@ -2163,6 +2231,65 @@ SIRegisterInfo::getAGPRClassForBitWidth(unsigned BitWidth) const {
                                 : getAnyAGPRClassForBitWidth(BitWidth);
 }
 
+static const TargetRegisterClass *
+getAnyVectorSuperClassForBitWidth(unsigned BitWidth) {
+  if (BitWidth <= 64)
+    return &AMDGPU::AV_64RegClass;
+  if (BitWidth <= 96)
+    return &AMDGPU::AV_96RegClass;
+  if (BitWidth <= 128)
+    return &AMDGPU::AV_128RegClass;
+  if (BitWidth <= 160)
+    return &AMDGPU::AV_160RegClass;
+  if (BitWidth <= 192)
+    return &AMDGPU::AV_192RegClass;
+  if (BitWidth <= 224)
+    return &AMDGPU::AV_224RegClass;
+  if (BitWidth <= 256)
+    return &AMDGPU::AV_256RegClass;
+  if (BitWidth <= 512)
+    return &AMDGPU::AV_512RegClass;
+  if (BitWidth <= 1024)
+    return &AMDGPU::AV_1024RegClass;
+
+  return nullptr;
+}
+
+static const TargetRegisterClass *
+getAlignedVectorSuperClassForBitWidth(unsigned BitWidth) {
+  if (BitWidth <= 64)
+    return &AMDGPU::AV_64_Align2RegClass;
+  if (BitWidth <= 96)
+    return &AMDGPU::AV_96_Align2RegClass;
+  if (BitWidth <= 128)
+    return &AMDGPU::AV_128_Align2RegClass;
+  if (BitWidth <= 160)
+    return &AMDGPU::AV_160_Align2RegClass;
+  if (BitWidth <= 192)
+    return &AMDGPU::AV_192_Align2RegClass;
+  if (BitWidth <= 224)
+    return &AMDGPU::AV_224_Align2RegClass;
+  if (BitWidth <= 256)
+    return &AMDGPU::AV_256_Align2RegClass;
+  if (BitWidth <= 512)
+    return &AMDGPU::AV_512_Align2RegClass;
+  if (BitWidth <= 1024)
+    return &AMDGPU::AV_1024_Align2RegClass;
+
+  return nullptr;
+}
+
+const TargetRegisterClass *
+SIRegisterInfo::getVectorSuperClassForBitWidth(unsigned BitWidth) const {
+  if (BitWidth <= 16)
+    return &AMDGPU::VGPR_LO16RegClass;
+  if (BitWidth <= 32)
+    return &AMDGPU::AV_32RegClass;
+  return ST.needsAlignedVGPRs()
+             ? getAlignedVectorSuperClassForBitWidth(BitWidth)
+             : getAnyVectorSuperClassForBitWidth(BitWidth);
+}
+
 const TargetRegisterClass *
 SIRegisterInfo::getSGPRClassForBitWidth(unsigned BitWidth) {
   if (BitWidth <= 16)
@@ -2305,15 +2432,14 @@ const TargetRegisterClass *SIRegisterInfo::getSubRegClass(
 
   // We can assume that each lane corresponds to one 32-bit register.
   unsigned Size = getNumChannelsFromSubReg(SubIdx) * 32;
-  if (isSGPRClass(RC)) {
-    if (Size == 32)
-      RC = &AMDGPU::SGPR_32RegClass;
-    else
-      RC = getSGPRClassForBitWidth(Size);
-  } else if (hasAGPRs(RC)) {
+  if (isAGPRClass(RC)) {
     RC = getAGPRClassForBitWidth(Size);
-  } else {
+  } else if (isVGPRClass(RC)) {
     RC = getVGPRClassForBitWidth(Size);
+  } else if (isVectorSuperClass(RC)) {
+    RC = getVectorSuperClassForBitWidth(Size);
+  } else {
+    RC = getSGPRClassForBitWidth(Size);
   }
   assert(RC && "Invalid sub-register class size");
   return RC;
@@ -2626,10 +2752,13 @@ bool SIRegisterInfo::isProperlyAlignedRC(const TargetRegisterClass &RC) const {
   if (!ST.needsAlignedVGPRs())
     return true;
 
-  if (hasVGPRs(&RC))
+  if (isVGPRClass(&RC))
     return RC.hasSuperClassEq(getVGPRClassForBitWidth(getRegSizeInBits(RC)));
-  if (hasAGPRs(&RC))
+  if (isAGPRClass(&RC))
     return RC.hasSuperClassEq(getAGPRClassForBitWidth(getRegSizeInBits(RC)));
+  if (isVectorSuperClass(&RC))
+    return RC.hasSuperClassEq(
+        getVectorSuperClassForBitWidth(getRegSizeInBits(RC)));
 
   return true;
 }
