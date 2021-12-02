@@ -153,6 +153,7 @@ static inline u32 ice_round_to_num(u32 N, u32 R)
 #define ICE_DBG_SW		BIT_ULL(13)
 #define ICE_DBG_SCHED		BIT_ULL(14)
 
+#define ICE_DBG_RDMA		BIT_ULL(15)
 #define ICE_DBG_PKG		BIT_ULL(16)
 #define ICE_DBG_RES		BIT_ULL(17)
 #define ICE_DBG_AQ_MSG		BIT_ULL(24)
@@ -404,6 +405,7 @@ struct ice_hw_common_caps {
 	u8 dcb;
 	u8 iscsi;
 	u8 mgmt_cem;
+	u8 iwarp;
 
 	/* WoL and APM support */
 #define ICE_WOL_SUPPORT_M		BIT(0)
@@ -774,6 +776,7 @@ struct ice_sched_vsi_info {
 	struct ice_sched_node *vsi_node[ICE_MAX_TRAFFIC_CLASS];
 	struct ice_sched_node *ag_node[ICE_MAX_TRAFFIC_CLASS];
 	u16 max_lanq[ICE_MAX_TRAFFIC_CLASS];
+	u16 max_rdmaq[ICE_MAX_TRAFFIC_CLASS];
 	/* bw_t_info saves VSI BW information */
 	struct ice_bw_type_info bw_t_info[ICE_MAX_TRAFFIC_CLASS];
 };
