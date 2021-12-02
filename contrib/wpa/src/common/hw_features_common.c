@@ -114,7 +114,7 @@ int allowed_ht40_channel_pair(enum hostapd_hw_mode mode,
 {
 	int ok, first;
 	int allowed[] = { 36, 44, 52, 60, 100, 108, 116, 124, 132, 140,
-			  149, 157, 165, 184, 192 };
+			  149, 157, 165, 173, 184, 192 };
 	size_t k;
 	int ht40_plus, pri_chan, sec_chan;
 
@@ -405,7 +405,7 @@ int hostapd_set_freq_params(struct hostapd_freq_params *data,
 			    int center_segment1, u32 vht_caps,
 			    struct he_capabilities *he_cap)
 {
-	if (!he_cap)
+	if (!he_cap || !he_cap->he_supported)
 		he_enabled = 0;
 	os_memset(data, 0, sizeof(*data));
 	data->mode = mode;
@@ -417,7 +417,16 @@ int hostapd_set_freq_params(struct hostapd_freq_params *data,
 	data->sec_channel_offset = sec_channel_offset;
 	data->center_freq1 = freq + sec_channel_offset * 10;
 	data->center_freq2 = 0;
-	data->bandwidth = sec_channel_offset ? 40 : 20;
+	if (oper_chwidth == CHANWIDTH_80MHZ)
+		data->bandwidth = 80;
+	else if (oper_chwidth == CHANWIDTH_160MHZ ||
+		 oper_chwidth == CHANWIDTH_80P80MHZ)
+		data->bandwidth = 160;
+	else if (sec_channel_offset)
+		data->bandwidth = 40;
+	else
+		data->bandwidth = 20;
+
 
 	hostapd_encode_edmg_chan(enable_edmg, edmg_channel, channel,
 				 &data->edmg);
@@ -441,9 +450,8 @@ int hostapd_set_freq_params(struct hostapd_freq_params *data,
 					   "Segment 0 center frequency isn't set");
 				return -1;
 			}
-
-			data->center_freq1 = data->freq;
-			data->bandwidth = 20;
+			if (!sec_channel_offset)
+				data->center_freq1 = data->freq;
 		} else {
 			int freq1, freq2 = 0;
 			int bw = center_idx_to_bw_6ghz(center_segment0);
@@ -491,7 +499,10 @@ int hostapd_set_freq_params(struct hostapd_freq_params *data,
 
 	if (data->he_enabled) switch (oper_chwidth) {
 	case CHANWIDTH_USE_HT:
-		if (mode == HOSTAPD_MODE_IEEE80211G && sec_channel_offset) {
+		if (sec_channel_offset == 0)
+			break;
+
+		if (mode == HOSTAPD_MODE_IEEE80211G) {
 			if (!(he_cap->phy_cap[HE_PHYCAP_CHANNEL_WIDTH_SET_IDX] &
 			      HE_PHYCAP_CHANNEL_WIDTH_SET_40MHZ_IN_2G)) {
 				wpa_printf(MSG_ERROR,

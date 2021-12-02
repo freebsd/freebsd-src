@@ -788,8 +788,8 @@ int wnm_send_ess_disassoc_imminent(struct hostapd_data *hapd,
 
 int wnm_send_bss_tm_req(struct hostapd_data *hapd, struct sta_info *sta,
 			u8 req_mode, int disassoc_timer, u8 valid_int,
-			const u8 *bss_term_dur, const char *url,
-			const u8 *nei_rep, size_t nei_rep_len,
+			const u8 *bss_term_dur, u8 dialog_token,
+			const char *url, const u8 *nei_rep, size_t nei_rep_len,
 			const u8 *mbo_attrs, size_t mbo_len)
 {
 	u8 *buf, *pos;
@@ -797,8 +797,10 @@ int wnm_send_bss_tm_req(struct hostapd_data *hapd, struct sta_info *sta,
 	size_t url_len;
 
 	wpa_printf(MSG_DEBUG, "WNM: Send BSS Transition Management Request to "
-		   MACSTR " req_mode=0x%x disassoc_timer=%d valid_int=0x%x",
-		   MAC2STR(sta->addr), req_mode, disassoc_timer, valid_int);
+		   MACSTR
+		   " req_mode=0x%x disassoc_timer=%d valid_int=0x%x dialog_token=%u",
+		   MAC2STR(sta->addr), req_mode, disassoc_timer, valid_int,
+		   dialog_token);
 	buf = os_zalloc(1000 + nei_rep_len + mbo_len);
 	if (buf == NULL)
 		return -1;
@@ -810,7 +812,7 @@ int wnm_send_bss_tm_req(struct hostapd_data *hapd, struct sta_info *sta,
 	os_memcpy(mgmt->bssid, hapd->own_addr, ETH_ALEN);
 	mgmt->u.action.category = WLAN_ACTION_WNM;
 	mgmt->u.action.u.bss_tm_req.action = WNM_BSS_TRANS_MGMT_REQ;
-	mgmt->u.action.u.bss_tm_req.dialog_token = 1;
+	mgmt->u.action.u.bss_tm_req.dialog_token = dialog_token;
 	mgmt->u.action.u.bss_tm_req.req_mode = req_mode;
 	mgmt->u.action.u.bss_tm_req.disassoc_timer =
 		host_to_le16(disassoc_timer);

@@ -599,6 +599,7 @@ struct wpa_eapol_ie_parse {
 	const u8 *vht_capabilities;
 	const u8 *he_capabilities;
 	size_t he_capab_len;
+	const u8 *he_6ghz_capabilities;
 	const u8 *supp_channels;
 	size_t supp_channels_len;
 	const u8 *supp_oper_classes;

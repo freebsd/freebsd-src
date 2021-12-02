@@ -1077,3 +1077,87 @@ ext:test4@wlan0:0:0:9.679895
 OK
 <3>EXT-RADIO-WORK-START 7
 <3>EXT-RADIO-WORK-TIMEOUT 7
+
+
+DSCP policy procedures
+----------------------
+
+DSCP policy procedures defined in WFA QoS Management-R2 program
+facilitates AP devices to configure DSCP settings for specific uplink
+data streams.
+
+An AP may transmit a DSCP Policy Request frame containing zero or more
+QoS Management IEs to an associated STA which supports DSCP policy
+procedures. Each QoS Management element in a DSCP Policy Request frame
+represents one DSCP policy, and shall include one DSCP Policy attribute
+including a DSCP Policy ID, Request type, and a DSCP value.
+
+wpa_supplicant sends control interface event messages consisting details
+of DSCP policies requested by the AP through a DSCP Policy Request frame
+to external programs. The format of the control interface event messages
+is as shown below:
+
+- Control interface event message format to indicate DSCP request start
+
+  <3>CTRL-EVENT-DSCP-POLICY request_start [clear_all] [more]
+
+  clear_all - AP requested to clear all DSCP policies configured earlier
+  more      - AP may request to configure more DSCP policies with new DSCP
+              request
+
+- Control interface event message format to add new policy
+
+  <3>CTRL-EVENT-DSCP-POLICY add <policy_id> <dscp_value> <ip_version=0|4|6>
+  [protocol] [source ip] [destination_ip]/[domain name] [source port]
+  [[<start_port> <end_port>]/destination port]
+
+  ip_version = 0: Both IPv4 and IPv6
+             = 4: IPv4
+             = 6: IPv6
+  protocol: Internet Protocol Numbers as per IETF RFCs
+	 = 6: TCP
+	 = 17: UDP
+	 = 50: ESP
+
+- Control interface event message format to remove a particular policy,
+  identified by the policy_id attribute.
+
+  <3>CTRL-EVENT-DSCP-POLICY remove <policy_id>
+
+- DSCP policy may get rejected due to invalid policy parameters. Ccontrol
+  interface event message format for rejected policy.
+
+  <3>CTRL-EVENT-DSCP-POLICY reject <policy_id>
+
+- Control interface event message format to indicate end of DSCP request.
+
+  <3>CTRL-EVENT-DSCP-POLICY request_end
+
+- External applications shall clear active DSCP policies upon receiving
+  "CTRL-EVENT-DISCONNECTED" or "CTRL-EVENT-DSCP-POLICY clear_all" events.
+
+- Control interface event message format to indicate wpa_supplicant started
+  a timer to wait until the unsolicited DSCP request from the AP.
+
+  <3>CTRL-EVENT-DSCP-POLICY request_wait start
+
+- Control interface event message format to indicate timeout to receive the
+  unsolicited DSCP request. This event is expected only when an unsolicited
+  DSCP request is not received from the AP before timeout.
+
+  <3>CTRL-EVENT-DSCP-POLICY request_wait end
+
+DSCP Response:
+A QoS Management STA that enables DSCP Policy capability shall respond
+with DSCP response on receipt of a successful DSCP request from its
+associated AP.  wpa_supplicant sends DSCP policy response based on the
+control interface command received from the user is as below:
+
+DSCP_RESP <[reset]>/<[solicited] [policy_id=1 status=0...]> [more]
+
+DSCP Query:
+DSCP Policy Query enables a STA to query its associated AP for DSCP
+policies applicable to the STA. Currently, this includes support to send
+a wildcard DSCP query or a DSCP query with a single domain name
+attribute. The command format for the DSCP query command is as follows:
+DSCP_QUERY <wildcard>/<domain_name=<string>>

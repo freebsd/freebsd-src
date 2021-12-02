@@ -5977,7 +5977,7 @@ devctl2_init(void)
  */
 static int obsolete_panic = 0;
 SYSCTL_INT(_debug, OID_AUTO, obsolete_panic, CTLFLAG_RWTUN, &obsolete_panic, 0,
-    "Panic when obsolete features are used (0 = never, 1 = if obsolete, "
+    "Panic when obsolete features are used (0 = never, 1 = if osbolete, "
     "2 = if deprecated)");
 
 static void

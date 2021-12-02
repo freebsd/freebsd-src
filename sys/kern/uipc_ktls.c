@@ -854,6 +854,10 @@ ktls_try_toe(struct socket *so, struct ktls_session *tls, int direction)
 
 	inp = so->so_pcb;
 	INP_WLOCK(inp);
+	if (inp->inp_flags2 & INP_FREED) {
+		INP_WUNLOCK(inp);
+		return (ECONNRESET);
+	}
 	if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
 		INP_WUNLOCK(inp);
 		return (ECONNRESET);
@@ -905,6 +909,10 @@ ktls_alloc_snd_tag(struct inpcb *inp, struct ktls_session *tls, bool force,
 	int error;
 
 	INP_RLOCK(inp);
+	if (inp->inp_flags2 & INP_FREED) {
+		INP_RUNLOCK(inp);
+		return (ECONNRESET);
+	}
 	if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
 		INP_RUNLOCK(inp);
 		return (ECONNRESET);
@@ -2708,7 +2716,8 @@ ktls_disable_ifnet_help(void *context, int pending __unused)
 	INP_WLOCK(inp);
 	so = inp->inp_socket;
 	MPASS(so != NULL);
-	if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
+	if ((inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) ||
+	    (inp->inp_flags2 & INP_FREED)) {
 		goto out;
 	}
 
@@ -2720,6 +2729,7 @@ ktls_disable_ifnet_help(void *context, int pending __unused)
 		counter_u64_add(ktls_ifnet_disable_ok, 1);
 		/* ktls_set_tx_mode() drops inp wlock, so recheck flags */
 		if ((inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) == 0 &&
+		    (inp->inp_flags2 & INP_FREED) == 0 &&
 		    (tp = intotcpcb(inp)) != NULL &&
 		    tp->t_fb->tfb_hwtls_change != NULL)
 			(*tp->t_fb->tfb_hwtls_change)(tp, 0);

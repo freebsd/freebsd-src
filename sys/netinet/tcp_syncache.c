@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
+#include "opt_pcbgroup.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -943,8 +944,8 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 		laddr = inp->inp_laddr;
 		if (inp->inp_laddr.s_addr == INADDR_ANY)
 			inp->inp_laddr = sc->sc_inc.inc_laddr;
-		if ((error = in_pcbconnect(inp, (struct sockaddr *)&sin,
-		    thread0.td_ucred, false)) != 0) {
+		if ((error = in_pcbconnect_mbuf(inp, (struct sockaddr *)&sin,
+		    thread0.td_ucred, m, false)) != 0) {
 			inp->inp_laddr = laddr;
 			if ((s = tcp_log_addrs(&sc->sc_inc, NULL, NULL, NULL))) {
 				log(LOG_DEBUG, "%s; %s: in_pcbconnect failed "

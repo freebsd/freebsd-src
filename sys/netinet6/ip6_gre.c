@@ -216,15 +216,30 @@ static void
 in6_gre_udp_input(struct mbuf *m, int off, struct inpcb *inp,
     const struct sockaddr *sa, void *ctx)
 {
+	struct epoch_tracker et;
 	struct gre_socket *gs;
 	struct gre_softc *sc;
 	struct sockaddr_in6 dst;
 
-	NET_EPOCH_ASSERT();
+	NET_EPOCH_ENTER(et);
+	/*
+	 * udp_append() holds reference to inp, it is safe to check
+	 * inp_flags2 without INP_RLOCK().
+	 * If socket was closed before we have entered NET_EPOCH section,
+	 * INP_FREED flag should be set. Otherwise it should be safe to
+	 * make access to ctx data, because gre_so will be freed by
+	 * gre_sofree() via NET_EPOCH_CALL().
+	 */
+	if (__predict_false(inp->inp_flags2 & INP_FREED)) {
+		NET_EPOCH_EXIT(et);
+		m_freem(m);
+		return;
+	}
 
 	gs = (struct gre_socket *)ctx;
 	dst = *(const struct sockaddr_in6 *)sa;
 	if (sa6_embedscope(&dst, 0)) {
+		NET_EPOCH_EXIT(et);
 		m_freem(m);
 		return;
 	}
@@ -234,9 +249,11 @@ in6_gre_udp_input(struct mbuf *m, int off, struct inpcb *inp,
 	}
 	if (sc != NULL && (GRE2IFP(sc)->if_flags & IFF_UP) != 0){
 		gre_input(m, off + sizeof(struct udphdr), IPPROTO_UDP, sc);
+		NET_EPOCH_EXIT(et);
 		return;
 	}
 	m_freem(m);
+	NET_EPOCH_EXIT(et);
 }
 
 static int

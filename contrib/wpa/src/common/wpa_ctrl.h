@@ -126,6 +126,10 @@ extern "C" {
 #define WPA_EVENT_FREQ_CONFLICT "CTRL-EVENT-FREQ-CONFLICT "
 /** Frequency ranges that the driver recommends to avoid */
 #define WPA_EVENT_AVOID_FREQ "CTRL-EVENT-AVOID-FREQ "
+/** A new network profile was added (followed by network entry id) */
+#define WPA_EVENT_NETWORK_ADDED "CTRL-EVENT-NETWORK-ADDED "
+/** A network profile was removed (followed by prior network entry id) */
+#define WPA_EVENT_NETWORK_REMOVED "CTRL-EVENT-NETWORK-REMOVED "
 /** Result of MSCS setup */
 #define WPA_EVENT_MSCS_RESULT "CTRL-EVENT-MSCS-RESULT "
 /** WPS overlap detected in PBC mode */
@@ -157,6 +161,10 @@ extern "C" {
 #define WPS_EVENT_ENROLLEE_SEEN "WPS-ENROLLEE-SEEN "
 
 #define WPS_EVENT_OPEN_NETWORK "WPS-OPEN-NETWORK "
+/** Result of SCS setup */
+#define WPA_EVENT_SCS_RESULT "CTRL-EVENT-SCS-RESULT "
+/* Event indicating DSCP policy */
+#define WPA_EVENT_DSCP_POLICY "CTRL-EVENT-DSCP-POLICY "
 
 /* WPS ER events */
 #define WPS_EVENT_ER_AP_ADD "WPS-ER-AP-ADD "

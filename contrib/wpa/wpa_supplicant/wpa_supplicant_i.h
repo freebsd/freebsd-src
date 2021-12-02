@@ -524,6 +524,19 @@ struct robust_av_data {
 	bool valid_config;
 };
 
+struct dscp_policy_status {
+	u8 id;
+	u8 status;
+};
+
+struct dscp_resp_data {
+	bool more;
+	bool reset;
+	bool solicited;
+	struct dscp_policy_status *policy;
+	int num_policies;
+};
+
 #ifdef CONFIG_PASN
 
 struct pasn_fils {
@@ -575,6 +588,95 @@ struct wpas_pasn {
 #endif /* CONFIG_IEEE80211R */
 };
 #endif /* CONFIG_PASN */
+
+
+enum ip_version {
+	IPV4 = 4,
+	IPV6 = 6,
+};
+
+
+struct ipv4_params {
+	struct in_addr src_ip;
+	struct in_addr dst_ip;
+	u16 src_port;
+	u16 dst_port;
+	u8 dscp;
+	u8 protocol;
+	u8 param_mask;
+};
+
+
+struct ipv6_params {
+	struct in6_addr src_ip;
+	struct in6_addr dst_ip;
+	u16 src_port;
+	u16 dst_port;
+	u8 dscp;
+	u8 next_header;
+	u8 flow_label[3];
+	u8 param_mask;
+};
+
+
+struct type4_params {
+	u8 classifier_mask;
+	enum ip_version ip_version;
+	union {
+		struct ipv4_params v4;
+		struct ipv6_params v6;
+	} ip_params;
+};
+
+
+struct type10_params {
+	u8 prot_instance;
+	u8 prot_number;
+	u8 *filter_value;
+	u8 *filter_mask;
+	size_t filter_len;
+};
+
+
+struct tclas_element {
+	u8 user_priority;
+	u8 classifier_type;
+	union {
+		struct type4_params type4_param;
+		struct type10_params type10_param;
+	} frame_classifier;
+};
+
+
+struct scs_desc_elem {
+	u8 scs_id;
+	enum scs_request_type request_type;
+	u8 intra_access_priority;
+	bool scs_up_avail;
+	struct tclas_element *tclas_elems;
+	unsigned int num_tclas_elem;
+	u8 tclas_processing;
+};
+
+
+struct scs_robust_av_data {
+	struct scs_desc_elem *scs_desc_elems;
+	unsigned int num_scs_desc;
+};
+
+
+enum scs_response_status {
+	SCS_DESC_SENT = 0,
+	SCS_DESC_SUCCESS = 1,
+};
+
+
+struct active_scs_elem {
+	struct dl_list list;
+	u8 scs_id;
+	enum scs_response_status status;
+};
+
 
 /**
  * struct wpa_supplicant - Internal data for wpa_supplicant interface
@@ -1038,6 +1140,7 @@ struct wpa_supplicant {
 	unsigned int p2p_disable_ip_addr_req:1;
 	unsigned int p2ps_method_config_any:1;
 	unsigned int p2p_cli_probe:1;
+	unsigned int p2p_go_allow_dfs:1;
 	enum hostapd_hw_mode p2p_go_acs_band;
 	int p2p_persistent_go_freq;
 	int p2p_persistent_id;
@@ -1402,6 +1505,19 @@ struct wpa_supplicant {
 	struct wpas_pasn pasn;
 	struct wpa_radio_work *pasn_auth_work;
 #endif /* CONFIG_PASN */
+	struct scs_robust_av_data scs_robust_av_req;
+	u8 scs_dialog_token;
+#ifdef CONFIG_TESTING_OPTIONS
+	unsigned int disable_scs_support:1;
+	unsigned int disable_mscs_support:1;
+#endif /* CONFIG_TESTING_OPTIONS */
+	struct dl_list active_scs_ids;
+	bool ongoing_scs_req;
+	u8 dscp_req_dialog_token;
+	u8 dscp_query_dialog_token;
+	unsigned int enable_dscp_policy_capa:1;
+	unsigned int connection_dscp:1;
+	unsigned int wait_for_dscp_req:1;
 };
 
 
@@ -1427,6 +1543,8 @@ int wpa_supplicant_update_mac_addr(struct wpa_supplicant *wpa_s);
 int wpa_supplicant_driver_init(struct wpa_supplicant *wpa_s);
 int wpa_supplicant_update_bridge_ifname(struct wpa_supplicant *wpa_s,
 					const char *bridge_ifname);
+void wpas_set_mgmt_group_cipher(struct wpa_supplicant *wpa_s,
+				struct wpa_ssid *ssid, struct wpa_ie_data *ie);
 int wpa_supplicant_set_suites(struct wpa_supplicant *wpa_s,
 			      struct wpa_bss *bss, struct wpa_ssid *ssid,
 			      u8 *wpa_ie, size_t *wpa_ie_len);
@@ -1580,7 +1698,7 @@ void wpas_update_mbo_connect_params(struct wpa_supplicant *wpa_s);
 
 /* op_classes.c */
 enum chan_allowed {
-	NOT_ALLOWED, NO_IR, ALLOWED
+	NOT_ALLOWED, NO_IR, RADAR, ALLOWED
 };
 
 enum chan_allowed verify_channel(struct hostapd_hw_modes *mode, u8 op_class,
@@ -1667,6 +1785,7 @@ static inline int wpas_mode_to_ieee80211_mode(enum wpas_mode mode)
 
 int wpas_network_disabled(struct wpa_supplicant *wpa_s, struct wpa_ssid *ssid);
 int wpas_get_ssid_pmf(struct wpa_supplicant *wpa_s, struct wpa_ssid *ssid);
+int pmf_in_use(struct wpa_supplicant *wpa_s, const u8 *addr);
 
 int wpas_init_ext_pw(struct wpa_supplicant *wpa_s);
 
@@ -1734,6 +1853,23 @@ void wpas_handle_robust_av_recv_action(struct wpa_supplicant *wpa_s,
 				       size_t len);
 void wpas_handle_assoc_resp_mscs(struct wpa_supplicant *wpa_s, const u8 *bssid,
 				 const u8 *ies, size_t ies_len);
+int wpas_send_scs_req(struct wpa_supplicant *wpa_s);
+void free_up_tclas_elem(struct scs_desc_elem *elem);
+void free_up_scs_desc(struct scs_robust_av_data *data);
+void wpas_handle_robust_av_scs_recv_action(struct wpa_supplicant *wpa_s,
+					   const u8 *src, const u8 *buf,
+					   size_t len);
+void wpas_scs_deinit(struct wpa_supplicant *wpa_s);
+void wpas_handle_qos_mgmt_recv_action(struct wpa_supplicant *wpa_s,
+				      const u8 *src,
+				      const u8 *buf, size_t len);
+void wpas_dscp_deinit(struct wpa_supplicant *wpa_s);
+int wpas_send_dscp_response(struct wpa_supplicant *wpa_s,
+			    struct dscp_resp_data *resp_data);
+void wpas_handle_assoc_resp_qos_mgmt(struct wpa_supplicant *wpa_s,
+				     const u8 *ies, size_t ies_len);
+int wpas_send_dscp_query(struct wpa_supplicant *wpa_s, const char *domain_name,
+			 size_t domain_name_length);
 
 int wpas_pasn_auth_start(struct wpa_supplicant *wpa_s,
 			 const u8 *bssid, int akmp, int cipher,

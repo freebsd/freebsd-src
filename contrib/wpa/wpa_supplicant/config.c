@@ -2951,6 +2951,7 @@ void wpa_config_free(struct wpa_config *config)
 	os_free(config->ext_password_backend);
 	os_free(config->sae_groups);
 	wpabuf_free(config->ap_vendor_elements);
+	wpabuf_free(config->ap_assocresp_elements);
 	os_free(config->osu_dir);
 	os_free(config->bgscan);
 	os_free(config->wowlan_triggers);
@@ -3139,6 +3140,7 @@ void wpa_config_set_network_defaults(struct wpa_ssid *ssid)
 #endif /* CONFIG_VHT_OVERRIDES */
 	ssid->proactive_key_caching = -1;
 	ssid->ieee80211w = MGMT_FRAME_PROTECTION_DEFAULT;
+	ssid->sae_pwe = DEFAULT_SAE_PWE;
 #ifdef CONFIG_MACSEC
 	ssid->mka_priority = DEFAULT_PRIO_NOT_KEY_SERVER;
 #endif /* CONFIG_MACSEC */
@@ -4909,33 +4911,46 @@ static int wpa_config_process_ap_vendor_elements(
 	struct wpa_config *config, int line, const char *pos)
 {
 	struct wpabuf *tmp;
-	int len = os_strlen(pos) / 2;
-	u8 *p;
 
-	if (!len) {
+	if (!*pos) {
+		wpabuf_free(config->ap_vendor_elements);
+		config->ap_vendor_elements = NULL;
+		return 0;
+	}
+
+	tmp = wpabuf_parse_bin(pos);
+	if (!tmp) {
 		wpa_printf(MSG_ERROR, "Line %d: invalid ap_vendor_elements",
 			   line);
 		return -1;
 	}
+	wpabuf_free(config->ap_vendor_elements);
+	config->ap_vendor_elements = tmp;
 
-	tmp = wpabuf_alloc(len);
-	if (tmp) {
-		p = wpabuf_put(tmp, len);
+	return 0;
+}
 
-		if (hexstr2bin(pos, p, len)) {
-			wpa_printf(MSG_ERROR, "Line %d: invalid "
-				   "ap_vendor_elements", line);
-			wpabuf_free(tmp);
-			return -1;
-		}
 
-		wpabuf_free(config->ap_vendor_elements);
-		config->ap_vendor_elements = tmp;
-	} else {
-		wpa_printf(MSG_ERROR, "Cannot allocate memory for "
-			   "ap_vendor_elements");
+static int wpa_config_process_ap_assocresp_elements(
+	const struct global_parse_data *data,
+	struct wpa_config *config, int line, const char *pos)
+{
+	struct wpabuf *tmp;
+
+	if (!*pos) {
+		wpabuf_free(config->ap_assocresp_elements);
+		config->ap_assocresp_elements = NULL;
+		return 0;
+	}
+
+	tmp = wpabuf_parse_bin(pos);
+	if (!tmp) {
+		wpa_printf(MSG_ERROR, "Line %d: invalid ap_assocresp_elements",
+			   line);
 		return -1;
 	}
+	wpabuf_free(config->ap_assocresp_elements);
+	config->ap_assocresp_elements = tmp;
 
 	return 0;
 }
@@ -5155,6 +5170,7 @@ static const struct global_parse_data global_fields[] = {
 	{ INT_RANGE(sae_pmkid_in_assoc, 0, 1), 0 },
 	{ INT(dtim_period), 0 },
 	{ INT(beacon_int), 0 },
+	{ FUNC(ap_assocresp_elements), 0 },
 	{ FUNC(ap_vendor_elements), 0 },
 	{ INT_RANGE(ignore_old_scan_res, 0, 1), 0 },
 	{ FUNC(freq_list), 0 },

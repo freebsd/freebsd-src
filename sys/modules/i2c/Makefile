@@ -30,8 +30,7 @@ SUBDIR = \
 
 .if !empty(OPT_FDT)
 SUBDIR += rx8803 \
-	  tca6416 \
-	  tmp461
+	  tca6416
 .endif
 
 .if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "amd64" || \
