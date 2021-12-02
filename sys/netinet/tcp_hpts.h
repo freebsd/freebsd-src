@@ -201,6 +201,13 @@ struct tcp_hpts_entry *tcp_cur_hpts(struct inpcb *inp);
 #define tcp_hpts_remove(a, b) __tcp_hpts_remove(a, b, __LINE__)
 void __tcp_hpts_remove(struct inpcb *inp, int32_t flags, int32_t line);
 
+static inline bool
+tcp_in_hpts(struct inpcb *inp)
+{
+
+	return (inp->inp_in_hpts > 0);
+}
+
 /*
  * To insert a TCB on the hpts you *must* be holding the
  * INP_WLOCK(). The hpts insert code will then acqurire
