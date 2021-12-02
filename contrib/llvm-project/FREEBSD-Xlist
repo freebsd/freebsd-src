@@ -41,6 +41,7 @@ clang/lib/AST/CMakeLists.txt
 clang/lib/ASTMatchers/CMakeLists.txt
 clang/lib/ASTMatchers/Dynamic/CMakeLists.txt
 clang/lib/Analysis/CMakeLists.txt
+clang/lib/Analysis/FlowSensitive/CMakeLists.txt
 clang/lib/Analysis/plugins/CMakeLists.txt
 clang/lib/Analysis/plugins/CheckerDependencyHandling/CMakeLists.txt
 clang/lib/Analysis/plugins/CheckerOptionHandling/CMakeLists.txt
@@ -398,6 +399,7 @@ lldb/source/Plugins/Platform/MacOSX/
 lldb/source/Plugins/Platform/NetBSD/CMakeLists.txt
 lldb/source/Plugins/Platform/OpenBSD/CMakeLists.txt
 lldb/source/Plugins/Platform/POSIX/CMakeLists.txt
+lldb/source/Plugins/Platform/QemuUser/CMakeLists.txt
 lldb/source/Plugins/Platform/Windows/
 lldb/source/Plugins/Platform/gdb-server/CMakeLists.txt
 lldb/source/Plugins/Process/CMakeLists.txt
