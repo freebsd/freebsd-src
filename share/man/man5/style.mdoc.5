@@ -1,7 +1,7 @@
 .\"
 .\" SPDX-License-Identifier: BSD-2-Clause-FreeBSD
 .\"
-.\" Copyright (c) 2018-2019 Mateusz Piotrowski <0mp@FreeBSD.org>
+.\" Copyright (c) 2018-2021 Mateusz Piotrowski <0mp@FreeBSD.org>
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 30, 2020
+.Dd December 3, 2021
 .Dt STYLE.MDOC 5
 .Os
 .Sh NAME
@@ -45,13 +45,13 @@ source tree.
 Use literal formatting for examples and literal shell commands, e.g.:
 .Bd -literal -offset indent
 Then run
-\&.Dq Li make install clean .
+\&.Ql make install clean .
 .Ed
 .Pp
 which renders as:
 .Bd -filled -offset indent
 Then run
-.Dq Li make install clean .
+.Ql make install clean .
 .Ed
 .Pp
 The incorrect way would be to use macros like
@@ -59,14 +59,22 @@ The incorrect way would be to use macros like
 to stylize the command invocation:
 .Bd -literal -offset indent
 Then run
-\&.Dq Nm make Cm install Cm clean .
+\&.Ql Nm make Cm install Cm clean .
 .Ed
 .Pp
 which renders as:
 .Bd -filled -offset indent
 Then run
-.Dq Nm make Cm install Cm clean .
+.Ql Nm make Cm install Cm clean .
 .Ed
+.It
+The
+.Sy \&Ql
+macro is the preferred macro for formatting literal inline fragments.
+Historically,
+.Sy \&Dq \&Li
+was the preferred way before the deprecation of
+.Sy \&Li .
 .El
 .Ss EXAMPLES Section
 .Bl -dash -width ""
