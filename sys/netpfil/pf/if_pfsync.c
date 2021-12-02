@@ -1399,7 +1399,7 @@ pfsyncioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			    pfsyncr.pfsyncr_syncpeer.s_addr;
 
 		sc->sc_maxupdates = pfsyncr.pfsyncr_maxupdates;
-		if (pfsyncr.pfsyncr_defer) {
+		if (pfsyncr.pfsyncr_defer & PFSYNCF_DEFER) {
 			sc->sc_flags |= PFSYNCF_DEFER;
 			V_pfsync_defer_ptr = pfsync_defer;
 		} else {
