@@ -780,7 +780,6 @@ static int wpa_supplicant_tdls_peer_addset(
 	const struct ieee80211_vht_capabilities *vht_capab,
 	const struct ieee80211_he_capabilities *he_capab,
 	size_t he_capab_len,
-	const struct ieee80211_he_6ghz_band_cap *he_6ghz_he_capab,
 	u8 qosinfo, int wmm, const u8 *ext_capab, size_t ext_capab_len,
 	const u8 *supp_channels, size_t supp_channels_len,
 	const u8 *supp_oper_classes, size_t supp_oper_classes_len)
@@ -806,7 +805,6 @@ static int wpa_supplicant_tdls_peer_addset(
 	params.vht_capabilities = vht_capab;
 	params.he_capab = he_capab;
 	params.he_capab_len = he_capab_len;
-	params.he_6ghz_capab = he_6ghz_he_capab;
 	params.qosinfo = qosinfo;
 	params.listen_interval = 0;
 	params.supp_rates = supp_rates;

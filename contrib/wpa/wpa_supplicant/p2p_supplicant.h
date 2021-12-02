@@ -146,9 +146,8 @@ struct wpa_ssid * wpas_p2p_get_persistent(struct wpa_supplicant *wpa_s,
 void wpas_p2p_notify_ap_sta_authorized(struct wpa_supplicant *wpa_s,
 				       const u8 *addr);
 int wpas_p2p_scan_no_go_seen(struct wpa_supplicant *wpa_s);
-int wpas_p2p_get_sec_channel_offset_40mhz(struct wpa_supplicant *wpa_s,
-					  struct hostapd_hw_modes *mode,
-					  u8 channel);
+int wpas_p2p_get_ht40_mode(struct wpa_supplicant *wpa_s,
+			   struct hostapd_hw_modes *mode, u8 channel);
 int wpas_p2p_get_vht80_center(struct wpa_supplicant *wpa_s,
 			      struct hostapd_hw_modes *mode, u8 channel,
 			      u8 op_class);

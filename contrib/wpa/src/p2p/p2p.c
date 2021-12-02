@@ -1326,9 +1326,7 @@ void p2p_stop_find_for_freq(struct p2p_data *p2p, int freq)
 
 void p2p_stop_listen_for_freq(struct p2p_data *p2p, int freq)
 {
-	if (freq > 0 &&
-	    ((p2p->drv_in_listen == freq && p2p->in_listen) ||
-	     p2p->pending_listen_freq == (unsigned int) freq)) {
+	if (freq > 0 && p2p->drv_in_listen == freq && p2p->in_listen) {
 		p2p_dbg(p2p, "Skip stop_listen since we are on correct channel for response");
 		return;
 	}

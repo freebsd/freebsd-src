@@ -46,9 +46,6 @@
 #define DEFAULT_USER_SELECTED_SIM 1
 #define DEFAULT_MAX_OPER_CHWIDTH -1
 
-/* Consider global sae_pwe for SAE mechanism for PWE derivation */
-#define DEFAULT_SAE_PWE 4
-
 struct psk_list_entry {
 	struct dl_list list;
 	u8 addr[ETH_ALEN];
@@ -1159,19 +1156,6 @@ struct wpa_ssid {
 	 * configuration.
 	 */
 	bool was_recently_reconfigured;
-
-	/**
-	 * sae_pwe - SAE mechanism for PWE derivation
-	 *
-	 * Internally, special value 4 (DEFAULT_SAE_PWE) is used to indicate
-	 * that the parameter is not set and the global sae_pwe value needs to
-	 * be considered.
-	 *
-	 * 0 = hunting-and-pecking loop only
-	 * 1 = hash-to-element only
-	 * 2 = both hunting-and-pecking loop and hash-to-element enabled
-	 */
-	int sae_pwe;
 };
 
 #endif /* CONFIG_SSID_H */

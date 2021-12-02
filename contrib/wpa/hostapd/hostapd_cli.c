@@ -1048,7 +1048,7 @@ static char ** hostapd_complete_set(const char *str, int pos)
 	int arg = get_cmd_arg_num(str, pos);
 	const char *fields[] = {
 #ifdef CONFIG_WPS_TESTING
-		"wps_version_number", "wps_testing_stub_cred",
+		"wps_version_number", "wps_testing_dummy_cred",
 		"wps_corrupt_pkhash",
 #endif /* CONFIG_WPS_TESTING */
 #ifdef CONFIG_INTERWORKING

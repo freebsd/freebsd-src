@@ -1425,7 +1425,7 @@ void p2p_process_prov_disc_resp(struct p2p_data *p2p, const u8 *sa,
 		 * Save the reported channel list and operating frequency.
 		 * Note that the specification mandates that the responder
 		 * should include in the channel list only channels reported by
-		 * the initiator, so this is only a validity check, and if this
+		 * the initiator, so this is only a sanity check, and if this
 		 * fails the flow would continue, although it would probably
 		 * fail. Same is true for the operating channel.
 		 */

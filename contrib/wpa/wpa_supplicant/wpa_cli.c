@@ -499,7 +499,6 @@ static char ** wpa_cli_complete_set(const char *str, int pos)
 		"p2p_search_delay", "mac_addr", "rand_addr_lifetime",
 		"preassoc_mac_addr", "key_mgmt_offload", "passive_scan",
 		"reassoc_same_bss_optim", "wps_priority",
-		"ap_assocresp_elements",
 #ifdef CONFIG_TESTING_OPTIONS
 		"ignore_auth_resp",
 #endif /* CONFIG_TESTING_OPTIONS */
@@ -2038,13 +2037,6 @@ static int wpa_cli_cmd_chanswitch(struct wpa_ctrl *ctrl, int argc,
 	return wpa_cli_cmd(ctrl, "CHAN_SWITCH", 2, argc, argv);
 }
 
-
-static int wpa_cli_cmd_update_beacon(struct wpa_ctrl *ctrl, int argc,
-				     char *argv[])
-{
-	return wpa_ctrl_command(ctrl, "UPDATE_BEACON");
-}
-
 #endif /* CONFIG_AP */
 
 
@@ -3228,30 +3220,6 @@ static int wpa_cli_cmd_pasn_deauth(struct wpa_ctrl *ctrl, int argc,
 #endif /* CONFIG_PASN */
 
 
-static int wpa_cli_cmd_mscs(struct wpa_ctrl *ctrl, int argc, char *argv[])
-{
-	return wpa_cli_cmd(ctrl, "MSCS", 1, argc, argv);
-}
-
-
-static int wpa_cli_cmd_scs(struct wpa_ctrl *ctrl, int argc, char *argv[])
-{
-	return wpa_cli_cmd(ctrl, "SCS", 2, argc, argv);
-}
-
-
-static int wpa_cli_cmd_dscp_resp(struct wpa_ctrl *ctrl, int argc, char *argv[])
-{
-	return wpa_cli_cmd(ctrl, "DSCP_RESP", 1, argc, argv);
-}
-
-
-static int wpa_cli_cmd_dscp_query(struct wpa_ctrl *ctrl, int argc, char *argv[])
-{
-	return wpa_cli_cmd(ctrl, "DSCP_QUERY", 1, argc, argv);
-}
-
-
 enum wpa_cli_cmd_flags {
 	cli_cmd_flag_none		= 0x00,
 	cli_cmd_flag_sensitive		= 0x01
@@ -3595,9 +3563,6 @@ static const struct wpa_cli_cmd wpa_cli_commands[] = {
 	  "<cs_count> <freq> [sec_channel_offset=] [center_freq1=]"
 	  " [center_freq2=] [bandwidth=] [blocktx] [ht|vht]"
 	  " = CSA parameters" },
-	{ "update_beacon", wpa_cli_cmd_update_beacon, NULL,
-	  cli_cmd_flag_none,
-	  "= update Beacon frame contents"},
 #endif /* CONFIG_AP */
 	{ "suspend", wpa_cli_cmd_suspend, NULL, cli_cmd_flag_none,
 	  "= notification of suspend/hibernate" },
@@ -3959,18 +3924,6 @@ static const struct wpa_cli_cmd wpa_cli_commands[] = {
 	  cli_cmd_flag_none,
 	  "bssid=<BSSID> = Remove PASN PTKSA state" },
 #endif /* CONFIG_PASN */
-	{ "mscs", wpa_cli_cmd_mscs, NULL,
-	  cli_cmd_flag_none,
-	  "<add|remove|change> [up_bitmap=<hex byte>] [up_limit=<integer>] [stream_timeout=<in TUs>] [frame_classifier=<hex bytes>] = Configure MSCS request" },
-	{ "scs", wpa_cli_cmd_scs, NULL,
-	  cli_cmd_flag_none,
-	  "[scs_id=<decimal number>] <add|remove|change> [scs_up=<0-7>] [classifier_type=<4|10>] [classifier params based on classifier type] [tclas_processing=<0|1>] [scs_id=<decimal number>] ... = Send SCS request" },
-	{ "dscp_resp", wpa_cli_cmd_dscp_resp, NULL,
-	  cli_cmd_flag_none,
-	  "<[reset]>/<[solicited] [policy_id=1 status=0...]> [more] = Send DSCP response" },
-	{ "dscp_query", wpa_cli_cmd_dscp_query, NULL,
-	  cli_cmd_flag_none,
-	  "wildcard/domain_name=<string> = Send DSCP Query" },
 	{ NULL, NULL, NULL, cli_cmd_flag_none, NULL }
 };
 

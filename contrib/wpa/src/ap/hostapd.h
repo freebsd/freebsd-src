@@ -138,8 +138,6 @@ struct hostapd_neighbor_entry {
 	/* LCI update time */
 	struct os_time lci_date;
 	int stationary;
-	u32 short_ssid;
-	u8 bss_parameters;
 };
 
 struct hostapd_sae_commit_queue {

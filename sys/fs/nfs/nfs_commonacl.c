@@ -58,7 +58,11 @@ nfsrv_dissectace(struct nfsrv_descript *nd, struct acl_entry *acep,
 	flag = fxdr_unsigned(u_int32_t, *tl++);
 	mask = fxdr_unsigned(u_int32_t, *tl++);
 	len = fxdr_unsigned(int, *tl);
-	if (len < 0) {
+	/*
+	 * The RFCs do not specify a limit to the length of the "who", but
+	 * NFSV4_OPAQUELIMIT (1024) should be sufficient.
+	 */
+	if (len < 0 || len > NFSV4_OPAQUELIMIT) {
 		error = NFSERR_BADXDR;
 		goto nfsmout;
 	} else if (len == 0) {

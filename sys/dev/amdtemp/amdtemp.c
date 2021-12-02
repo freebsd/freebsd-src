@@ -263,8 +263,7 @@ amdtemp_identify(driver_t *driver, device_t parent)
 		return;
 
 	if (amdtemp_match(parent, NULL)) {
-		child = device_add_child(parent, "amdtemp",
-		    device_get_unit(parent));
+		child = device_add_child(parent, "amdtemp", -1);
 		if (child == NULL)
 			device_printf(parent, "add amdtemp child failed\n");
 	}

@@ -88,7 +88,6 @@ void wpas_ap_pmksa_cache_flush(struct wpa_supplicant *wpa_s);
 int wpas_ap_pmksa_cache_list_mesh(struct wpa_supplicant *wpa_s, const u8 *addr,
 				  char *buf, size_t len);
 int wpas_ap_pmksa_cache_add_external(struct wpa_supplicant *wpa_s, char *cmd);
-int wpas_ap_update_beacon(struct wpa_supplicant *wpa_s);
 
 void wpas_ap_event_dfs_radar_detected(struct wpa_supplicant *wpa_s,
 				      struct dfs_event *radar);

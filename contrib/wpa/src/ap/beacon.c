@@ -469,7 +469,6 @@ static u8 * hostapd_gen_probe_resp(struct hostapd_data *hapd,
 	}
 #endif /* CONFIG_IEEE80211AX */
 
-	buflen += hostapd_eid_rnr_len(hapd, WLAN_FC_STYPE_PROBE_RESP);
 	buflen += hostapd_mbo_ie_len(hapd);
 	buflen += hostapd_eid_owe_trans_len(hapd);
 	buflen += hostapd_eid_dpp_cc_len(hapd);
@@ -574,7 +573,6 @@ static u8 * hostapd_gen_probe_resp(struct hostapd_data *hapd,
 	    (hapd->iconf->ieee80211ax && !hapd->conf->disable_11ax))
 		pos = hostapd_eid_wb_chsw_wrapper(hapd, pos);
 
-	pos = hostapd_eid_rnr(hapd, pos, WLAN_FC_STYPE_PROBE_RESP);
 	pos = hostapd_eid_fils_indic(hapd, pos, 0);
 	pos = hostapd_get_rsnxe(hapd, pos, epos - pos);
 
@@ -644,8 +642,7 @@ static u8 * hostapd_gen_probe_resp(struct hostapd_data *hapd,
 enum ssid_match_result {
 	NO_SSID_MATCH,
 	EXACT_SSID_MATCH,
-	WILDCARD_SSID_MATCH,
-	CO_LOCATED_SSID_MATCH,
+	WILDCARD_SSID_MATCH
 };
 
 static enum ssid_match_result ssid_match(struct hostapd_data *hapd,
@@ -656,9 +653,7 @@ static enum ssid_match_result ssid_match(struct hostapd_data *hapd,
 					 size_t short_ssid_list_len)
 {
 	const u8 *pos, *end;
-	struct hostapd_iface *iface = hapd->iface;
 	int wildcard = 0;
-	size_t i, j;
 
 	if (ssid_len == 0)
 		wildcard = 1;
@@ -692,33 +687,7 @@ static enum ssid_match_result ssid_match(struct hostapd_data *hapd,
 		}
 	}
 
-	if (wildcard)
-		return WILDCARD_SSID_MATCH;
-
-	if (!iface->interfaces || iface->interfaces->count <= 1 ||
-	    is_6ghz_op_class(hapd->iconf->op_class))
-		return NO_SSID_MATCH;
-
-	for (i = 0; i < iface->interfaces->count; i++) {
-		struct hostapd_iface *colocated;
-
-		colocated = iface->interfaces->iface[i];
-
-		if (colocated == iface ||
-		    !is_6ghz_op_class(colocated->conf->op_class))
-			continue;
-
-		for (j = 0; j < colocated->num_bss; j++) {
-			struct hostapd_bss_config *conf;
-
-			conf = colocated->bss[j]->conf;
-			if (ssid_len == conf->ssid.ssid_len &&
-			    os_memcmp(ssid, conf->ssid.ssid, ssid_len) == 0)
-				return CO_LOCATED_SSID_MATCH;
-		}
-	}
-
-	return NO_SSID_MATCH;
+	return wildcard ? WILDCARD_SSID_MATCH : NO_SSID_MATCH;
 }
 
 
@@ -1315,8 +1284,6 @@ static u8 * hostapd_gen_fils_discovery(struct hostapd_data *hapd, size_t *len)
 		total_len += 3;
 	}
 
-	total_len += hostapd_eid_rnr_len(hapd, WLAN_FC_STYPE_ACTION);
-
 	pos = hostapd_eid_fils_indic(hapd, buf, 0);
 	buf_len = pos - buf;
 	total_len += buf_len;
@@ -1384,8 +1351,6 @@ static u8 * hostapd_gen_fils_discovery(struct hostapd_data *hapd, size_t *len)
 
 	/* Fill in the Length field value */
 	*length_pos = pos - (length_pos + 1);
-
-	pos = hostapd_eid_rnr(hapd, pos, WLAN_FC_STYPE_ACTION);
 
 	/* FILS Indication element */
 	if (buf_len) {
@@ -1473,7 +1438,6 @@ int ieee802_11_build_ap_params(struct hostapd_data *hapd,
 	}
 #endif /* CONFIG_IEEE80211AX */
 
-	tail_len += hostapd_eid_rnr_len(hapd, WLAN_FC_STYPE_BEACON);
 	tail_len += hostapd_mbo_ie_len(hapd);
 	tail_len += hostapd_eid_owe_trans_len(hapd);
 	tail_len += hostapd_eid_dpp_cc_len(hapd);
@@ -1598,7 +1562,6 @@ int ieee802_11_build_ap_params(struct hostapd_data *hapd,
 	    (hapd->iconf->ieee80211ax && !hapd->conf->disable_11ax))
 		tailpos = hostapd_eid_wb_chsw_wrapper(hapd, tailpos);
 
-	tailpos = hostapd_eid_rnr(hapd, tailpos, WLAN_FC_STYPE_BEACON);
 	tailpos = hostapd_eid_fils_indic(hapd, tailpos, 0);
 	tailpos = hostapd_get_rsnxe(hapd, tailpos, tailend - tailpos);
 
@@ -1780,7 +1743,7 @@ void ieee802_11_free_ap_params(struct wpa_driver_ap_params *params)
 }
 
 
-static int __ieee802_11_set_beacon(struct hostapd_data *hapd)
+int ieee802_11_set_beacon(struct hostapd_data *hapd)
 {
 	struct wpa_driver_ap_params params;
 	struct hostapd_freq_params freq;
@@ -1866,42 +1829,6 @@ static int __ieee802_11_set_beacon(struct hostapd_data *hapd)
 fail:
 	ieee802_11_free_ap_params(&params);
 	return ret;
-}
-
-
-int ieee802_11_set_beacon(struct hostapd_data *hapd)
-{
-	struct hostapd_iface *iface = hapd->iface;
-	int ret;
-	size_t i, j;
-	bool is_6g;
-
-	ret = __ieee802_11_set_beacon(hapd);
-	if (ret != 0)
-		return ret;
-
-	if (!iface->interfaces || iface->interfaces->count <= 1)
-		return 0;
-
-	/* Update Beacon frames in case of 6 GHz colocation */
-	is_6g = is_6ghz_op_class(iface->conf->op_class);
-	for (j = 0; j < iface->interfaces->count; j++) {
-		struct hostapd_iface *colocated;
-
-		colocated = iface->interfaces->iface[j];
-		if (colocated == iface || !colocated || !colocated->conf)
-			continue;
-
-		if (is_6g == is_6ghz_op_class(colocated->conf->op_class))
-			continue;
-
-		for (i = 0; i < colocated->num_bss; i++) {
-			if (colocated->bss[i] && colocated->bss[i]->started)
-				__ieee802_11_set_beacon(colocated->bss[i]);
-		}
-	}
-
-	return 0;
 }
 
 

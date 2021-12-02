@@ -3057,12 +3057,12 @@ int ieee802_1x_kay_enable_new_info(struct ieee802_1x_kay *kay)
 
 
 /**
- * ieee802_1x_kay_mkpdu_validity_check -
- * Validity checks specified in IEEE Std 802.1X-2010, 11.11.2 (Validation of
+ * ieee802_1x_kay_mkpdu_sanity_check -
+ * Sanity checks specified in IEEE Std 802.1X-2010, 11.11.2 (Validation of
  * MKPDUs)
  */
-static int ieee802_1x_kay_mkpdu_validity_check(struct ieee802_1x_kay *kay,
-					       const u8 *buf, size_t len)
+static int ieee802_1x_kay_mkpdu_sanity_check(struct ieee802_1x_kay *kay,
+					     const u8 *buf, size_t len)
 {
 	struct ieee8023_hdr *eth_hdr;
 	struct ieee802_1x_hdr *eapol_hdr;
@@ -3215,7 +3215,7 @@ static int ieee802_1x_kay_decode_mkpdu(struct ieee802_1x_kay *kay,
 
 	wpa_printf(MSG_DEBUG, "KaY: Decode received MKPDU (ifname=%s)",
 		   kay->if_name);
-	if (ieee802_1x_kay_mkpdu_validity_check(kay, buf, len))
+	if (ieee802_1x_kay_mkpdu_sanity_check(kay, buf, len))
 		return -1;
 
 	/* handle basic parameter set */

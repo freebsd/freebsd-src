@@ -111,7 +111,7 @@ void p2p_buf_add_operating_channel(struct wpabuf *buf, const char *country,
 
 
 void p2p_buf_add_pref_channel_list(struct wpabuf *buf,
-				   const unsigned int *preferred_freq_list,
+				   const u32 *preferred_freq_list,
 				   unsigned int size)
 {
 	unsigned int i, count = 0;

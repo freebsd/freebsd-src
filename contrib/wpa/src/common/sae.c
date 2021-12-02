@@ -286,7 +286,7 @@ static int sae_derive_pwe_ecc(struct sae_data *sae, const u8 *addr1,
 	u8 addrs[2 * ETH_ALEN];
 	const u8 *addr[2];
 	size_t len[2];
-	u8 *stub_password, *tmp_password;
+	u8 *dummy_password, *tmp_password;
 	int pwd_seed_odd = 0;
 	u8 prime[SAE_MAX_ECC_PRIME_LEN];
 	size_t prime_len;
@@ -301,10 +301,10 @@ static int sae_derive_pwe_ecc(struct sae_data *sae, const u8 *addr1,
 
 	os_memset(x_bin, 0, sizeof(x_bin));
 
-	stub_password = os_malloc(password_len);
+	dummy_password = os_malloc(password_len);
 	tmp_password = os_malloc(password_len);
-	if (!stub_password || !tmp_password ||
-	    random_get_bytes(stub_password, password_len) < 0)
+	if (!dummy_password || !tmp_password ||
+	    random_get_bytes(dummy_password, password_len) < 0)
 		goto fail;
 
 	prime_len = sae->tmp->prime_len;
@@ -354,7 +354,7 @@ static int sae_derive_pwe_ecc(struct sae_data *sae, const u8 *addr1,
 		}
 
 		wpa_printf(MSG_DEBUG, "SAE: counter = %03u", counter);
-		const_time_select_bin(found, stub_password, password,
+		const_time_select_bin(found, dummy_password, password,
 				      password_len, tmp_password);
 		if (hmac_sha256_vector(addrs, sizeof(addrs), 2,
 				       addr, len, pwd_seed) < 0)
@@ -415,7 +415,7 @@ static int sae_derive_pwe_ecc(struct sae_data *sae, const u8 *addr1,
 fail:
 	crypto_bignum_deinit(qr, 0);
 	crypto_bignum_deinit(qnr, 0);
-	os_free(stub_password);
+	os_free(dummy_password);
 	bin_clear_free(tmp_password, password_len);
 	crypto_bignum_deinit(x, 1);
 	os_memset(x_bin, 0, sizeof(x_bin));

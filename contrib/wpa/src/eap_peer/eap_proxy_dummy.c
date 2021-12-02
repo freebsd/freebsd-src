@@ -1,5 +1,5 @@
 /*
- * EAP proxy - stub implementation for build testing
+ * EAP proxy - dummy implementation for build testing
  * Copyright (c) 2013 Qualcomm Atheros, Inc.
  *
  * This software may be distributed under the terms of the BSD license.

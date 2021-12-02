@@ -257,33 +257,6 @@ static int macsec_qca_init_sockets(struct macsec_qca_data *drv, u8 *own_addr)
 }
 
 
-static int macsec_qca_secy_id_get(const char *ifname, u32 *secy_id)
-{
-#ifdef NSS_MACSEC_SECY_ID_GET_FUNC
-	/* Get secy id from nss macsec driver */
-	return nss_macsec_secy_id_get((u8 *) ifname, secy_id);
-#else /* NSS_MACSEC_SECY_ID_GET_FUNC */
-	/* Board specific settings */
-	if (os_strcmp(ifname, "eth2") == 0) {
-		*secy_id = 1;
-	} else if (os_strcmp(ifname, "eth3") == 0) {
-		*secy_id = 2;
-	} else if (os_strcmp(ifname, "eth4") == 0 ||
-		   os_strcmp(ifname, "eth0") == 0) {
-		*secy_id = 0;
-	} else if (os_strcmp(ifname, "eth5") == 0 ||
-		   os_strcmp(ifname, "eth1") == 0) {
-		*secy_id = 1;
-	} else {
-		*secy_id = -1;
-		return -1;
-	}
-
-	return 0;
-#endif /* NSS_MACSEC_SECY_ID_GET_FUNC */
-}
-
-
 static void * macsec_qca_init(void *ctx, const char *ifname)
 {
 	struct macsec_qca_data *drv;
@@ -292,12 +265,13 @@ static void * macsec_qca_init(void *ctx, const char *ifname)
 	if (drv == NULL)
 		return NULL;
 
-	if (macsec_qca_secy_id_get(ifname, &drv->secy_id)) {
-		wpa_printf(MSG_ERROR,
-			   "macsec_qca: Failed to get secy_id for %s", ifname);
-		os_free(drv);
-		return NULL;
-	}
+	/* Board specific settings */
+	if (os_memcmp("eth2", ifname, 4) == 0)
+		drv->secy_id = 1;
+	else if (os_memcmp("eth3", ifname, 4) == 0)
+		drv->secy_id = 2;
+	else
+		drv->secy_id = -1;
 
 	if (driver_wired_init_common(&drv->common, ifname, ctx) < 0) {
 		os_free(drv);
@@ -329,13 +303,17 @@ static void * macsec_qca_hapd_init(struct hostapd_data *hapd,
 		return NULL;
 	}
 
-	if (macsec_qca_secy_id_get(params->ifname, &drv->secy_id)) {
-		wpa_printf(MSG_ERROR,
-			   "macsec_qca: Failed to get secy_id for %s",
-			   params->ifname);
-		os_free(drv);
-		return NULL;
-	}
+	/* Board specific settings */
+	if (os_memcmp("eth2", params->ifname, 4) == 0)
+		drv->secy_id = 1;
+	else if (os_memcmp("eth3", params->ifname, 4) == 0)
+		drv->secy_id = 2;
+	else if (os_memcmp("eth4", params->ifname, 4) == 0)
+		drv->secy_id = 0;
+	else if (os_memcmp("eth5", params->ifname, 4) == 0)
+		drv->secy_id = 1;
+	else
+		drv->secy_id = -1;
 
 	drv->common.ctx = hapd;
 	os_strlcpy(drv->common.ifname, params->ifname,

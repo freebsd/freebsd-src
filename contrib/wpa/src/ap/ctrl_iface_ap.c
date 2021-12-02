@@ -50,35 +50,9 @@ static size_t hostapd_write_ht_mcs_bitmask(char *buf, size_t buflen,
 }
 
 
-static int hostapd_get_sta_conn_time(struct sta_info *sta,
-				     struct hostap_sta_driver_data *data,
-				     char *buf, size_t buflen)
-{
-	struct os_reltime age;
-	unsigned long secs;
-	int ret;
-
-	if (sta->connected_time.sec) {
-		/* Locally maintained time in AP mode */
-		os_reltime_age(&sta->connected_time, &age);
-		secs = (unsigned long) age.sec;
-	} else if (data->flags & STA_DRV_DATA_CONN_TIME) {
-		/* Time from the driver in mesh mode */
-		secs = data->connected_sec;
-	} else {
-		return 0;
-	}
-
-	ret = os_snprintf(buf, buflen, "connected_time=%lu\n", secs);
-	if (os_snprintf_error(buflen, ret))
-		return 0;
-	return ret;
-}
-
-
-static int hostapd_get_sta_info(struct hostapd_data *hapd,
-				struct sta_info *sta,
-				char *buf, size_t buflen)
+static int hostapd_get_sta_tx_rx(struct hostapd_data *hapd,
+				 struct sta_info *sta,
+				 char *buf, size_t buflen)
 {
 	struct hostap_sta_driver_data data;
 	int ret;
@@ -186,9 +160,26 @@ static int hostapd_get_sta_info(struct hostapd_data *hapd,
 			len += ret;
 	}
 
-	len += hostapd_get_sta_conn_time(sta, &data, buf + len, buflen - len);
-
 	return len;
+}
+
+
+static int hostapd_get_sta_conn_time(struct sta_info *sta,
+				     char *buf, size_t buflen)
+{
+	struct os_reltime age;
+	int ret;
+
+	if (!sta->connected_time.sec)
+		return 0;
+
+	os_reltime_age(&sta->connected_time, &age);
+
+	ret = os_snprintf(buf, buflen, "connected_time=%u\n",
+			  (unsigned int) age.sec);
+	if (os_snprintf_error(buflen, ret))
+		return 0;
+	return ret;
 }
 
 
@@ -272,7 +263,8 @@ static int hostapd_ctrl_iface_sta_mib(struct hostapd_data *hapd,
 	if (res >= 0)
 		len += res;
 
-	len += hostapd_get_sta_info(hapd, sta, buf + len, buflen - len);
+	len += hostapd_get_sta_tx_rx(hapd, sta, buf + len, buflen - len);
+	len += hostapd_get_sta_conn_time(sta, buf + len, buflen - len);
 
 #ifdef CONFIG_SAE
 	if (sta->sae && sta->sae->state == SAE_ACCEPTED) {

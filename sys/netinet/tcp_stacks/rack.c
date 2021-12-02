@@ -2294,8 +2294,8 @@ rack_log_retran_reason(struct tcp_rack *rack, struct rack_sendmap *rsm, uint32_t
 		log.u_bbr.flex5 = rsm->r_start;
 		log.u_bbr.flex6 = rsm->r_end;
 		log.u_bbr.flex8 = mod;
-		log.u_bbr.inhpts = rack->rc_inp->inp_in_hpts;
-		log.u_bbr.ininput = rack->rc_inp->inp_in_input;
+		log.u_bbr.inhpts = tcp_in_hpts(rack->rc_inp);
+		log.u_bbr.ininput = rack->rc_inp->inp_in_dropq;
 		log.u_bbr.timeStamp = tcp_get_usecs(&tv);
 		log.u_bbr.inflight = ctf_flight_size(rack->rc_tp, rack->r_ctl.rc_sacked);
 		log.u_bbr.pkts_out = rack->r_ctl.rc_out_at_rto;
@@ -2329,8 +2329,8 @@ rack_log_to_start(struct tcp_rack *rack, uint32_t cts, uint32_t to, int32_t slot
 			log.u_bbr.pkts_out = 0;
 		else
 			log.u_bbr.pkts_out = rack->r_ctl.rc_prr_sndcnt;
-		log.u_bbr.inhpts = rack->rc_inp->inp_in_hpts;
-		log.u_bbr.ininput = rack->rc_inp->inp_in_input;
+		log.u_bbr.inhpts = tcp_in_hpts(rack->rc_inp);
+		log.u_bbr.ininput = rack->rc_inp->inp_in_dropq;
 		log.u_bbr.timeStamp = tcp_get_usecs(&tv);
 		log.u_bbr.inflight = ctf_flight_size(rack->rc_tp, rack->r_ctl.rc_sacked);
 		log.u_bbr.pkts_out = rack->r_ctl.rc_out_at_rto;
@@ -2354,8 +2354,8 @@ rack_log_to_event(struct tcp_rack *rack, int32_t to_num, struct rack_sendmap *rs
 		struct timeval tv;
 
 		memset(&log.u_bbr, 0, sizeof(log.u_bbr));
-		log.u_bbr.inhpts = rack->rc_inp->inp_in_hpts;
-		log.u_bbr.ininput = rack->rc_inp->inp_in_input;
+		log.u_bbr.inhpts = tcp_in_hpts(rack->rc_inp);
+		log.u_bbr.ininput = rack->rc_inp->inp_in_dropq;
 		log.u_bbr.flex8 = to_num;
 		log.u_bbr.flex1 = rack->r_ctl.rc_rack_min_rtt;
 		log.u_bbr.flex2 = rack->rc_rack_rtt;
@@ -2393,8 +2393,8 @@ rack_log_map_chg(struct tcpcb *tp, struct tcp_rack *rack,
 
 		memset(&log.u_bbr, 0, sizeof(log.u_bbr));
 		log.u_bbr.flex8 = flag;
-		log.u_bbr.inhpts = rack->rc_inp->inp_in_hpts;
-		log.u_bbr.ininput = rack->rc_inp->inp_in_input;
+		log.u_bbr.inhpts = tcp_in_hpts(rack->rc_inp);
+		log.u_bbr.ininput = rack->rc_inp->inp_in_dropq;
 		log.u_bbr.cur_del_rate = (uint64_t)prev;
 		log.u_bbr.delRate = (uint64_t)rsm;
 		log.u_bbr.rttProp = (uint64_t)next;
@@ -2438,8 +2438,8 @@ rack_log_rtt_upd(struct tcpcb *tp, struct tcp_rack *rack, uint32_t t, uint32_t l
 		union tcp_log_stackspecific log;
 		struct timeval tv;
 		memset(&log.u_bbr, 0, sizeof(log.u_bbr));
-		log.u_bbr.inhpts = rack->rc_inp->inp_in_hpts;
-		log.u_bbr.ininput = rack->rc_inp->inp_in_input;
+		log.u_bbr.inhpts = tcp_in_hpts(rack->rc_inp);
+		log.u_bbr.ininput = rack->rc_inp->inp_in_dropq;
 		log.u_bbr.flex1 = t;
 		log.u_bbr.flex2 = len;
 		log.u_bbr.flex3 = rack->r_ctl.rc_rack_min_rtt;
@@ -2588,8 +2588,8 @@ rack_log_progress_event(struct tcp_rack *rack, struct tcpcb *tp, uint32_t tick, 
 		struct timeval tv;
 
 		memset(&log.u_bbr, 0, sizeof(log.u_bbr));
-		log.u_bbr.inhpts = rack->rc_inp->inp_in_hpts;
-		log.u_bbr.ininput = rack->rc_inp->inp_in_input;
+		log.u_bbr.inhpts = tcp_in_hpts(rack->rc_inp);
+		log.u_bbr.ininput = rack->rc_inp->inp_in_dropq;
 		log.u_bbr.flex1 = line;
 		log.u_bbr.flex2 = tick;
 		log.u_bbr.flex3 = tp->t_maxunacktime;
@@ -2615,8 +2615,8 @@ rack_log_type_bbrsnd(struct tcp_rack *rack, uint32_t len, uint32_t slot, uint32_
 		union tcp_log_stackspecific log;
 
 		memset(&log.u_bbr, 0, sizeof(log.u_bbr));
-		log.u_bbr.inhpts = rack->rc_inp->inp_in_hpts;
-		log.u_bbr.ininput = rack->rc_inp->inp_in_input;
+		log.u_bbr.inhpts = tcp_in_hpts(rack->rc_inp);
+		log.u_bbr.ininput = rack->rc_inp->inp_in_dropq;
 		log.u_bbr.flex1 = slot;
 		if (rack->rack_no_prr)
 			log.u_bbr.flex2 = 0;
@@ -2661,7 +2661,7 @@ rack_log_doseg_done(struct tcp_rack *rack, uint32_t cts, int32_t nxt_pkt, int32_
 		log.u_bbr.flex7 <<= 1;
 		log.u_bbr.flex7 |= rack->r_wanted_output;	/* Do we want output */
 		log.u_bbr.flex8 = rack->rc_in_persist;
-		log.u_bbr.inhpts = rack->rc_inp->inp_in_hpts;
+		log.u_bbr.inhpts = tcp_in_hpts(rack->rc_inp);
 		log.u_bbr.timeStamp = tcp_get_usecs(&tv);
 		log.u_bbr.inflight = ctf_flight_size(rack->rc_tp, rack->r_ctl.rc_sacked);
 		log.u_bbr.use_lt_bw = rack->r_ent_rec_ns;
@@ -2717,8 +2717,8 @@ rack_log_type_just_return(struct tcp_rack *rack, uint32_t cts, uint32_t tlen, ui
 		struct timeval tv;
 
 		memset(&log.u_bbr, 0, sizeof(log.u_bbr));
-		log.u_bbr.inhpts = rack->rc_inp->inp_in_hpts;
-		log.u_bbr.ininput = rack->rc_inp->inp_in_input;
+		log.u_bbr.inhpts = tcp_in_hpts(rack->rc_inp);
+		log.u_bbr.ininput = rack->rc_inp->inp_in_dropq;
 		log.u_bbr.flex1 = slot;
 		log.u_bbr.flex2 = rack->r_ctl.rc_hpts_flags;
 		log.u_bbr.flex4 = reason;
@@ -2750,8 +2750,8 @@ rack_log_to_cancel(struct tcp_rack *rack, int32_t hpts_removed, int line, uint32
 		union tcp_log_stackspecific log;
 
 		memset(&log.u_bbr, 0, sizeof(log.u_bbr));
-		log.u_bbr.inhpts = rack->rc_inp->inp_in_hpts;
-		log.u_bbr.ininput = rack->rc_inp->inp_in_input;
+		log.u_bbr.inhpts = tcp_in_hpts(rack->rc_inp);
+		log.u_bbr.ininput = rack->rc_inp->inp_in_dropq;
 		log.u_bbr.flex1 = line;
 		log.u_bbr.flex2 = rack->r_ctl.rc_last_output_to;
 		log.u_bbr.flex3 = flags_on_entry;
@@ -4466,7 +4466,7 @@ rack_do_goodput_measurement(struct tcpcb *tp, struct tcp_rack *rack,
 						   rack->r_ctl.rc_app_limited_cnt,
 						   0, 0, 10, __LINE__, NULL, quality);
 		}
-		if (rack->rc_inp->inp_in_hpts &&
+		if (tcp_in_hpts(rack->rc_inp) &&
 		    (rack->r_ctl.rc_hpts_flags & PACE_PKT_OUTPUT)) {
 			/*
 			 * Ok we can't trust the pacer in this case
@@ -5678,7 +5678,7 @@ rack_enter_persist(struct tcpcb *tp, struct tcp_rack *rack, uint32_t cts)
 static void
 rack_exit_persist(struct tcpcb *tp, struct tcp_rack *rack, uint32_t cts)
 {
-	if (rack->rc_inp->inp_in_hpts) {
+	if (tcp_in_hpts(rack->rc_inp)) {
 		tcp_hpts_remove(rack->rc_inp, HPTS_REMOVE_OUTPUT);
 		rack->r_ctl.rc_hpts_flags = 0;
 	}
@@ -5811,7 +5811,7 @@ rack_start_hpts_timer(struct tcp_rack *rack, struct tcpcb *tp, uint32_t cts,
 	    (tp->t_state == TCPS_LISTEN)) {
 		return;
 	}
-	if (inp->inp_in_hpts) {
+	if (tcp_in_hpts(inp)) {
 		/* Already on the pacer */
 		return;
 	}
@@ -7244,7 +7244,7 @@ rack_timer_cancel(struct tcpcb *tp, struct tcp_rack *rack, uint32_t cts, int lin
 	}
 	if (rack->r_ctl.rc_hpts_flags & PACE_TMR_MASK) {
 		rack->rc_tmr_stopped = rack->r_ctl.rc_hpts_flags & PACE_TMR_MASK;
-		if (rack->rc_inp->inp_in_hpts &&
+		if (tcp_in_hpts(rack->rc_inp) &&
 		    ((rack->r_ctl.rc_hpts_flags & PACE_PKT_OUTPUT) == 0)) {
 			/*
 			 * Canceling timer's when we have no output being
@@ -9983,7 +9983,7 @@ out:
 	    (entered_recovery == 0)) {
 		rack_update_prr(tp, rack, changed, th_ack);
 		if ((rsm && (rack->r_ctl.rc_prr_sndcnt >= ctf_fixed_maxseg(tp)) &&
-		     ((rack->rc_inp->inp_in_hpts == 0) &&
+		     ((tcp_in_hpts(rack->rc_inp) == 0) &&
 		      ((rack->r_ctl.rc_hpts_flags & PACE_PKT_OUTPUT) == 0)))) {
 			/*
 			 * If you are pacing output you don't want
@@ -13232,7 +13232,7 @@ rack_timer_audit(struct tcpcb *tp, struct tcp_rack *rack, struct sockbuf *sb)
 	 * We will force the hpts to be stopped if any, and restart
 	 * with the slot set to what was in the saved slot.
 	 */
-	if (rack->rc_inp->inp_in_hpts) {
+	if (tcp_in_hpts(rack->rc_inp)) {
 		if (rack->r_ctl.rc_hpts_flags & PACE_PKT_OUTPUT) {
 			uint32_t us_cts;
 
@@ -13328,8 +13328,8 @@ rack_log_input_packet(struct tcpcb *tp, struct tcp_rack *rack, struct tcp_ackent
 		}
 #endif
 		memset(&log.u_bbr, 0, sizeof(log.u_bbr));
-		log.u_bbr.inhpts = rack->rc_inp->inp_in_hpts;
-		log.u_bbr.ininput = rack->rc_inp->inp_in_input;
+		log.u_bbr.inhpts = tcp_in_hpts(rack->rc_inp);
+		log.u_bbr.ininput = rack->rc_inp->inp_in_dropq;
 		if (rack->rack_no_prr == 0)
 			log.u_bbr.flex1 = rack->r_ctl.rc_prr_sndcnt;
 		else
@@ -14320,8 +14320,8 @@ rack_do_segment_nounlock(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		}
 #endif
 		memset(&log.u_bbr, 0, sizeof(log.u_bbr));
-		log.u_bbr.inhpts = rack->rc_inp->inp_in_hpts;
-		log.u_bbr.ininput = rack->rc_inp->inp_in_input;
+		log.u_bbr.inhpts = tcp_in_hpts(rack->rc_inp);
+		log.u_bbr.ininput = rack->rc_inp->inp_in_dropq;
 		if (rack->rack_no_prr == 0)
 			log.u_bbr.flex1 = rack->r_ctl.rc_prr_sndcnt;
 		else
@@ -14679,13 +14679,13 @@ do_output_now:
 			/* We could not send (probably in the hpts but stopped the timer earlier)? */
 			if ((tp->snd_max == tp->snd_una) &&
 			    ((tp->t_flags & TF_DELACK) == 0) &&
-			    (rack->rc_inp->inp_in_hpts) &&
+			    (tcp_in_hpts(rack->rc_inp)) &&
 			    (rack->r_ctl.rc_hpts_flags & PACE_PKT_OUTPUT)) {
 				/* keep alive not needed if we are hptsi output yet */
 				;
 			} else {
 				int late = 0;
-				if (rack->rc_inp->inp_in_hpts) {
+				if (tcp_in_hpts(rack->rc_inp)) {
 					if (rack->r_ctl.rc_hpts_flags & PACE_PKT_OUTPUT) {
 						us_cts = tcp_get_usecs(NULL);
 						if (TSTMP_GT(rack->r_ctl.rc_last_output_to, us_cts)) {
@@ -15611,8 +15611,8 @@ rack_log_fsb(struct tcp_rack *rack, struct tcpcb *tp, struct socket *so, uint32_
 		struct timeval tv;
 
 		memset(&log.u_bbr, 0, sizeof(log.u_bbr));
-		log.u_bbr.inhpts = rack->rc_inp->inp_in_hpts;
-		log.u_bbr.ininput = rack->rc_inp->inp_in_input;
+		log.u_bbr.inhpts = tcp_in_hpts(rack->rc_inp);
+		log.u_bbr.ininput = rack->rc_inp->inp_in_dropq;
 		log.u_bbr.flex1 = error;
 		log.u_bbr.flex2 = flags;
 		log.u_bbr.flex3 = rsm_is_null;
@@ -16127,8 +16127,8 @@ rack_fast_rsm_output(struct tcpcb *tp, struct tcp_rack *rack, struct rack_sendma
 		union tcp_log_stackspecific log;
 
 		memset(&log.u_bbr, 0, sizeof(log.u_bbr));
-		log.u_bbr.inhpts = rack->rc_inp->inp_in_hpts;
-		log.u_bbr.ininput = rack->rc_inp->inp_in_input;
+		log.u_bbr.inhpts = tcp_in_hpts(rack->rc_inp);
+		log.u_bbr.ininput = rack->rc_inp->inp_in_dropq;
 		if (rack->rack_no_prr)
 			log.u_bbr.flex1 = 0;
 		else
@@ -16628,8 +16628,8 @@ again:
 		union tcp_log_stackspecific log;
 
 		memset(&log.u_bbr, 0, sizeof(log.u_bbr));
-		log.u_bbr.inhpts = rack->rc_inp->inp_in_hpts;
-		log.u_bbr.ininput = rack->rc_inp->inp_in_input;
+		log.u_bbr.inhpts = tcp_in_hpts(rack->rc_inp);
+		log.u_bbr.ininput = rack->rc_inp->inp_in_dropq;
 		if (rack->rack_no_prr)
 			log.u_bbr.flex1 = 0;
 		else
@@ -16867,7 +16867,7 @@ rack_output(struct tcpcb *tp)
 	cts = tcp_get_usecs(&tv);
 	ms_cts = tcp_tv_to_mssectick(&tv);
 	if (((rack->r_ctl.rc_hpts_flags & PACE_PKT_OUTPUT) == 0) &&
-	    rack->rc_inp->inp_in_hpts) {
+	    tcp_in_hpts(rack->rc_inp)) {
 		/*
 		 * We are on the hpts for some timer but not hptsi output.
 		 * Remove from the hpts unconditionally.
@@ -16893,7 +16893,7 @@ rack_output(struct tcpcb *tp)
 		}
 	}
 	if (rack->rc_in_persist) {
-		if (rack->rc_inp->inp_in_hpts == 0) {
+		if (tcp_in_hpts(rack->rc_inp) == 0) {
 			/* Timer is not running */
 			rack_start_hpts_timer(rack, tp, cts, 0, 0, 0);
 		}
@@ -16907,9 +16907,9 @@ rack_output(struct tcpcb *tp)
 	    (delayed) ||
 	    (tp->t_state < TCPS_ESTABLISHED)) {
 		rack->rc_ack_can_sendout_data = 0;
-		if (rack->rc_inp->inp_in_hpts)
+		if (tcp_in_hpts(rack->rc_inp))
 			tcp_hpts_remove(rack->rc_inp, HPTS_REMOVE_OUTPUT);
-	} else if (rack->rc_inp->inp_in_hpts) {
+	} else if (tcp_in_hpts(rack->rc_inp)) {
 		/*
 		 * On the hpts you can't pass even if ACKNOW is on, we will
 		 * when the hpts fires.
@@ -18800,8 +18800,8 @@ send:
 		union tcp_log_stackspecific log;
 
 		memset(&log.u_bbr, 0, sizeof(log.u_bbr));
-		log.u_bbr.inhpts = rack->rc_inp->inp_in_hpts;
-		log.u_bbr.ininput = rack->rc_inp->inp_in_input;
+		log.u_bbr.inhpts = tcp_in_hpts(rack->rc_inp);
+		log.u_bbr.ininput = rack->rc_inp->inp_in_dropq;
 		if (rack->rack_no_prr)
 			log.u_bbr.flex1 = 0;
 		else

@@ -82,6 +82,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_seq.h>
 #include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
+#include <netinet/tcp_hpts.h>
 #ifdef INET6
 #include <netinet6/tcp6_var.h>
 #endif
@@ -343,6 +344,9 @@ tcp_twstart(struct tcpcb *tp)
 	 * Note: soisdisconnected() call used to be made in tcp_discardcb(),
 	 * and might not be needed here any longer.
 	 */
+#ifdef TCPHPTS
+	tcp_hpts_remove(inp, HPTS_REMOVE_ALL);
+#endif
 	tcp_discardcb(tp);
 	soisdisconnected(so);
 	tw->tw_so_options = so->so_options;
