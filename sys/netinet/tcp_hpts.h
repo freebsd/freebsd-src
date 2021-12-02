@@ -119,13 +119,7 @@ void __tcp_hpts_remove(struct inpcb *inp, int32_t flags, int32_t line);
 #define HPTS_REMOVE_DROPQ  0x01
 #define HPTS_REMOVE_OUTPUT 0x02
 #define HPTS_REMOVE_ALL    (HPTS_REMOVE_DROPQ | HPTS_REMOVE_OUTPUT)
-
-static inline bool
-tcp_in_hpts(struct inpcb *inp)
-{
-
-	return (inp->inp_in_hpts > 0);
-}
+bool tcp_in_hpts(struct inpcb *);
 
 /*
  * To insert a TCB on the hpts you *must* be holding the
@@ -151,11 +145,10 @@ tcp_in_hpts(struct inpcb *inp)
  * that INP_WLOCK() or from destroying your TCB where again
  * you should already have the INP_WLOCK().
  */
-uint32_t __tcp_hpts_insert(struct inpcb *inp, uint32_t slot, int32_t line);
-#define tcp_hpts_insert(a, b) __tcp_hpts_insert(a, b, __LINE__)
-
-uint32_t
-tcp_hpts_insert_diag(struct inpcb *inp, uint32_t slot, int32_t line, struct hpts_diag *diag);
+uint32_t tcp_hpts_insert_diag(struct inpcb *inp, uint32_t slot, int32_t line,
+    struct hpts_diag *diag);
+#define	tcp_hpts_insert(inp, slot)	\
+	tcp_hpts_insert_diag((inp), (slot), __LINE__, NULL)
 
 void __tcp_set_hpts(struct inpcb *inp, int32_t line);
 #define tcp_set_hpts(a) __tcp_set_hpts(a, __LINE__)
@@ -163,6 +156,8 @@ void __tcp_set_hpts(struct inpcb *inp, int32_t line);
 void tcp_set_inp_to_drop(struct inpcb *inp, uint16_t reason);
 
 void tcp_run_hpts(void);
+
+uint16_t hpts_random_cpu(struct inpcb *inp);
 
 extern int32_t tcp_min_hptsi_time;
 
