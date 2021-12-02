@@ -178,7 +178,7 @@ setpfsync_defer(const char *val, int d, int s, const struct afswtch *rafp)
 	if (ioctl(s, SIOCGETPFSYNC, (caddr_t)&ifr) == -1)
 		err(1, "SIOCGETPFSYNC");
 
-	preq.pfsyncr_defer = d;
+	preq.pfsyncr_defer = d ? PFSYNCF_DEFER : 0;
 	if (ioctl(s, SIOCSETPFSYNC, (caddr_t)&ifr) == -1)
 		err(1, "SIOCSETPFSYNC");
 }
