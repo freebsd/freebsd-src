@@ -46,6 +46,15 @@
 #include <sys/sysctl.h>
 
 /**
+ * @var ice_enable_irdma
+ * @brief boolean indicating if the iRDMA client interface is enabled
+ *
+ * Global sysctl variable indicating whether the RDMA client interface feature
+ * is enabled.
+ */
+bool ice_enable_irdma = true;
+
+/**
  * @var ice_enable_tx_fc_filter
  * @brief boolean indicating if the Tx Flow Control filter should be enabled
  *
@@ -85,6 +94,15 @@ bool ice_enable_tx_lldp_filter = true;
  */
 bool ice_enable_health_events = true;
 
+/**
+ * @var ice_rdma_max_msix
+ * @brief maximum number of MSI-X vectors to reserve for RDMA interface
+ *
+ * Global sysctl variable indicating the maximum number of MSI-X vectors to
+ * reserve for a single RDMA interface.
+ */
+static uint16_t ice_rdma_max_msix = ICE_RDMA_MAX_MSIX;
+
 /* sysctls marked as tunable, (i.e. with the CTLFLAG_TUN set) will
  * automatically load tunable values, without the need to manually create the
  * TUNABLE definition.
@@ -104,6 +122,12 @@ static SYSCTL_NODE(_hw_ice, OID_AUTO, debug, ICE_CTLFLAG_DEBUG | CTLFLAG_RD, 0,
 SYSCTL_BOOL(_hw_ice, OID_AUTO, enable_health_events, CTLFLAG_RDTUN,
 	    &ice_enable_health_events, 0,
 	    "Enable FW health event reporting globally");
+
+SYSCTL_BOOL(_hw_ice, OID_AUTO, irdma, CTLFLAG_RDTUN, &ice_enable_irdma, 0,
+	    "Enable iRDMA client interface");
+
+SYSCTL_U16(_hw_ice, OID_AUTO, rdma_max_msix, CTLFLAG_RDTUN, &ice_rdma_max_msix,
+	   0, "Maximum number of MSI-X vectors to reserve per RDMA interface");
 
 SYSCTL_BOOL(_hw_ice_debug, OID_AUTO, enable_tx_fc_filter, CTLFLAG_RDTUN,
 	    &ice_enable_tx_fc_filter, 0,

@@ -236,6 +236,11 @@ struct ice_softc {
 	struct mtx admin_mtx; /* mutex to protect the admin timer */
 	struct callout admin_timer; /* timer to trigger admin task */
 
+	/* iRDMA peer interface */
+	struct ice_rdma_entry rdma_entry;
+	int irdma_vectors;
+	u16 *rdma_imap;
+
 	struct ice_vsi **all_vsi;	/* Array of VSI pointers */
 	u16 num_available_vsi;		/* Size of VSI array */
 

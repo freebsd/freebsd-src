@@ -76,6 +76,12 @@ dev/ice/ice_fw_logging.c	optional	ice pci powerpc64 \
 	compile-with "${NORMAL_C} -I$S/dev/ice"
 dev/ice/ice_fwlog.c		optional	ice pci powerpc64 \
 	compile-with "${NORMAL_C} -I$S/dev/ice"
+dev/ice/ice_rdma.c		optional	ice pci powerpc64 \
+	compile-with "${NORMAL_C} -I$S/dev/ice"
+dev/ice/irdma_if.m		optional	ice pci powerpc64 \
+	compile-with "${NORMAL_M} -I$S/dev/ice"
+dev/ice/irdma_di_if.m		optional	ice pci powerpc64 \
+	compile-with "${NORMAL_M} -I$S/dev/ice"
 ice_ddp.c			optional	ice_ddp powerpc64 \
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk ice_ddp.fw:ice_ddp:0x01031b00 -mice_ddp -c${.TARGET}"	\
 	no-ctfconvert no-implicit-rule before-depend local  \

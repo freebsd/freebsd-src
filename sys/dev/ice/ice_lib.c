@@ -3984,6 +3984,11 @@ ice_config_pfc(struct ice_softc *sc, u8 new_mode)
 	local_dcbx_cfg->pfc.willing = 0;
 	local_dcbx_cfg->pfc.mbc = 0;
 
+	/* Warn if PFC is being disabled with RoCE v2 in use */
+	if (new_mode == 0 && sc->rdma_entry.attached)
+		device_printf(dev,
+		    "WARNING: Recommended that Priority Flow Control is enabled when RoCEv2 is in use\n");
+
 	status = ice_set_dcb_cfg(pi);
 	if (status) {
 		device_printf(dev,
@@ -7800,6 +7805,8 @@ ice_do_dcb_reconfig(struct ice_softc *sc)
 	pi = sc->hw.port_info;
 	local_dcbx_cfg = &pi->qos_cfg.local_dcbx_cfg;
 
+	ice_rdma_notify_dcb_qos_change(sc);
+
 	/* Set state when there's more than one TC */
 	tc_map = ice_dcb_get_tc_map(local_dcbx_cfg);
 	if (ice_dcb_num_tc(tc_map) > 1) {
@@ -7825,6 +7832,9 @@ ice_do_dcb_reconfig(struct ice_softc *sc)
 
 	/* Change PF VSI configuration */
 	ice_dcb_recfg(sc);
+
+	/* Send new configuration to RDMA client driver */
+	ice_rdma_dcb_qos_update(sc, pi);
 
 	ice_request_stack_reinit(sc);
 }
@@ -8663,6 +8673,7 @@ ice_init_saved_phy_cfg(struct ice_softc *sc)
 static int
 ice_module_init(void)
 {
+	ice_rdma_init();
 	return (0);
 }
 
@@ -8679,6 +8690,7 @@ ice_module_init(void)
 static int
 ice_module_exit(void)
 {
+	ice_rdma_exit();
 	return (0);
 }
 
@@ -9029,8 +9041,17 @@ ice_alloc_intr_tracking(struct ice_softc *sc)
 		err = ENOMEM;
 		goto free_imgr;
 	}
+	if (!(sc->rdma_imap =
+	      (u16 *)malloc(sizeof(u16) * hw->func_caps.common_cap.num_msix_vectors,
+	      M_ICE, M_NOWAIT))) {
+		device_printf(dev, "Unable to allocate RDMA imap memory\n");
+		err = ENOMEM;
+		free(sc->pf_imap, M_ICE);
+		goto free_imgr;
+	}
 	for (u32 i = 0; i < hw->func_caps.common_cap.num_msix_vectors; i++) {
 		sc->pf_imap[i] = ICE_INVALID_RES_IDX;
+		sc->rdma_imap[i] = ICE_INVALID_RES_IDX;
 	}
 
 	return (0);
@@ -9057,6 +9078,12 @@ ice_free_intr_tracking(struct ice_softc *sc)
 				       sc->lan_vectors);
 		free(sc->pf_imap, M_ICE);
 		sc->pf_imap = NULL;
+	}
+	if (sc->rdma_imap) {
+		ice_resmgr_release_map(&sc->imgr, sc->rdma_imap,
+				       sc->lan_vectors);
+		free(sc->rdma_imap, M_ICE);
+		sc->rdma_imap = NULL;
 	}
 
 	ice_resmgr_destroy(&sc->imgr);

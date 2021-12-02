@@ -2547,6 +2547,57 @@ struct ice_aqc_move_txqs_data {
 	struct ice_aqc_move_txqs_elem txqs[STRUCT_HACK_VAR_LEN];
 };
 
+/* Add Tx RDMA Queue Set (indirect 0x0C33) */
+struct ice_aqc_add_rdma_qset {
+	u8 num_qset_grps;
+	u8 reserved[7];
+	__le32 addr_high;
+	__le32 addr_low;
+};
+
+/* This is the descriptor of each qset entry for the Add Tx RDMA Queue Set
+ * command (0x0C33). Only used within struct ice_aqc_add_rdma_qset.
+ */
+struct ice_aqc_add_tx_rdma_qset_entry {
+	__le16 tx_qset_id;
+	u8 rsvd[2];
+	__le32 qset_teid;
+	struct ice_aqc_txsched_elem info;
+};
+
+/* The format of the command buffer for Add Tx RDMA Queue Set(0x0C33)
+ * is an array of the following structs. Please note that the length of
+ * each struct ice_aqc_add_rdma_qset is variable due to the variable
+ * number of queues in each group!
+ */
+struct ice_aqc_add_rdma_qset_data {
+	__le32 parent_teid;
+	__le16 num_qsets;
+	u8 rsvd[2];
+	struct ice_aqc_add_tx_rdma_qset_entry rdma_qsets[STRUCT_HACK_VAR_LEN];
+};
+
+/* Move RDMA Queue Set (indirect 0x0C34) */
+struct ice_aqc_move_rdma_qset_cmd {
+	u8 num_rdma_qset;	/* Used by commands and response */
+	u8 flags;
+	u8 reserved[6];
+	__le32 addr_high;
+	__le32 addr_low;
+};
+
+/* Buffer */
+struct ice_aqc_move_rdma_qset_buffer_desc {
+	__le16 tx_qset_id;
+	__le16 qset_teid;
+};
+
+struct ice_aqc_move_rdma_qset_buffer {
+	__le32 src_parent_teid;
+	__le32 dest_parent_teid;
+	struct ice_aqc_move_rdma_qset_buffer_desc descs[STRUCT_HACK_VAR_LEN];
+};
+
 /* Download Package (indirect 0x0C40) */
 /* Also used for Update Package (indirect 0x0C42 and 0x0C41) */
 struct ice_aqc_download_pkg {
@@ -2897,6 +2948,7 @@ struct ice_aq_desc {
 		struct ice_aqc_add_txqs add_txqs;
 		struct ice_aqc_dis_txqs dis_txqs;
 		struct ice_aqc_move_txqs move_txqs;
+		struct ice_aqc_add_rdma_qset add_rdma_qset;
 		struct ice_aqc_txqs_cleanup txqs_cleanup;
 		struct ice_aqc_add_get_update_free_vsi vsi_cmd;
 		struct ice_aqc_add_update_free_vsi_resp add_update_free_vsi_res;
@@ -3156,6 +3208,8 @@ enum ice_adminq_opc {
 	ice_aqc_opc_dis_txqs				= 0x0C31,
 	ice_aqc_opc_txqs_cleanup			= 0x0C31,
 	ice_aqc_opc_move_recfg_txqs			= 0x0C32,
+	ice_aqc_opc_add_rdma_qset			= 0x0C33,
+	ice_aqc_opc_move_rdma_qset			= 0x0C34,
 
 	/* package commands */
 	ice_aqc_opc_download_pkg			= 0x0C40,
