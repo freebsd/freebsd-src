@@ -604,7 +604,7 @@ static int nl_get_multicast_id(struct nl80211_global *global,
 	msg = nlmsg_alloc();
 	if (!msg)
 		return -ENOMEM;
-	if (!genlmsg_put(msg, 0, 0, genl_ctrl_resolve(global->nl, "nlctrl"),
+	if (!genlmsg_put(msg, 0, 0, global->nlctrl_id,
 			 0, 0, CTRL_CMD_GETFAMILY, 0) ||
 	    nla_put_string(msg, CTRL_ATTR_FAMILY_NAME, family)) {
 		nlmsg_free(msg);
@@ -1883,6 +1883,13 @@ static int wpa_driver_nl80211_init_nl_global(struct nl80211_global *global)
 		goto err;
 	}
 
+	global->nlctrl_id = genl_ctrl_resolve(global->nl, "nlctrl");
+	if (global->nlctrl_id < 0) {
+		wpa_printf(MSG_ERROR,
+			   "nl80211: 'nlctrl' generic netlink not found");
+		goto err;
+	}
+
 	global->nl_event = nl_create_handle(global->nl_cb, "event");
 	if (global->nl_event == NULL)
 		goto err;
@@ -2505,8 +2512,17 @@ static int nl80211_mgmt_subscribe_non_ap(struct i802_bss *bss)
 	    (nl80211_register_action_frame(bss, (u8 *) "\x05\x02", 2) < 0))
 		ret = -1;
 
+	/* Robust AV SCS Response */
+	if (nl80211_register_action_frame(bss, (u8 *) "\x13\x01", 2) < 0)
+		ret = -1;
+
 	/* Robust AV MSCS Response */
 	if (nl80211_register_action_frame(bss, (u8 *) "\x13\x05", 2) < 0)
+		ret = -1;
+
+	/* Protected QoS Management Action frame */
+	if (nl80211_register_action_frame(bss, (u8 *) "\x7e\x50\x6f\x9a\x1a",
+					  5) < 0)
 		ret = -1;
 
 	nl80211_mgmt_handle_register_eloop(bss);
@@ -4072,7 +4088,7 @@ static int wpa_driver_nl80211_send_mlme(struct i802_bss *bss, const u8 *data,
 		freq = bss->freq;
 	}
 
-	if (drv->use_monitor) {
+	if (drv->use_monitor && is_ap_interface(drv->nlmode)) {
 		wpa_printf(MSG_DEBUG,
 			   "nl80211: send_frame(freq=%u bss->freq=%u) -> send_monitor",
 			   freq, bss->freq);
@@ -5144,7 +5160,7 @@ static int wpa_driver_nl80211_sta_add(void *priv,
 			/*
 			 * cfg80211 validates that AID is non-zero, so we have
 			 * to make this a non-zero value for the TDLS case where
-			 * a dummy STA entry is used for now and for a station
+			 * a stub STA entry is used for now and for a station
 			 * that is still not associated.
 			 */
 			wpa_printf(MSG_DEBUG, "  * aid=1 (%s workaround)",
@@ -7024,6 +7040,7 @@ static int get_sta_handler(struct nl_msg *msg, void *arg)
 		[NL80211_STA_INFO_ACK_SIGNAL] = { .type = NLA_U8 },
 		[NL80211_STA_INFO_RX_DURATION] = { .type = NLA_U64 },
 		[NL80211_STA_INFO_TX_DURATION] = { .type = NLA_U64 },
+		[NL80211_STA_INFO_CONNECTED_TIME] = { .type = NLA_U32 },
 	};
 	struct nlattr *rate[NL80211_RATE_INFO_MAX + 1];
 	static struct nla_policy rate_policy[NL80211_RATE_INFO_MAX + 1] = {
@@ -7096,6 +7113,12 @@ static int get_sta_handler(struct nl_msg *msg, void *arg)
 		data->last_ack_rssi =
 			nla_get_u8(stats[NL80211_STA_INFO_ACK_SIGNAL]);
 		data->flags |= STA_DRV_DATA_LAST_ACK_RSSI;
+	}
+
+	if (stats[NL80211_STA_INFO_CONNECTED_TIME]) {
+		data->connected_sec =
+			nla_get_u32(stats[NL80211_STA_INFO_CONNECTED_TIME]);
+		data->flags |= STA_DRV_DATA_CONN_TIME;
 	}
 
 	if (stats[NL80211_STA_INFO_TX_BITRATE] &&
