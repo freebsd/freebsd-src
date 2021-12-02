@@ -192,6 +192,9 @@ u8 * hostapd_eid_he_operation(struct hostapd_data *hapd, u8 *eid)
 		params |= (hapd->iface->conf->he_op.he_rts_threshold <<
 			   HE_OPERATION_RTS_THRESHOLD_OFFSET);
 
+	if (hapd->iface->conf->he_op.he_er_su_disable)
+		params |= HE_OPERATION_ER_SU_DISABLE;
+
 	if (hapd->iface->conf->he_op.he_bss_color_disabled)
 		params |= HE_OPERATION_BSS_COLOR_DISABLED;
 	if (hapd->iface->conf->he_op.he_bss_color_partial)

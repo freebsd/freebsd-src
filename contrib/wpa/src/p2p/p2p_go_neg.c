@@ -582,8 +582,8 @@ static void p2p_check_pref_chan_no_recv(struct p2p_data *p2p, int go,
 					&op_channel) < 0)
 			continue; /* cannot happen due to earlier check */
 		for (j = 0; j < msg->channel_list_len; j++) {
-
-			if (op_channel != msg->channel_list[j])
+			if (!msg->channel_list ||
+			    op_channel != msg->channel_list[j])
 				continue;
 
 			p2p->op_reg_class = op_class;

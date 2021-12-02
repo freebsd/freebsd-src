@@ -1242,6 +1242,17 @@ struct wpa_config {
 	struct wpabuf *ap_vendor_elements;
 
 	/**
+	 * ap_assocresp_elements: Vendor specific elements for (Re)Association
+	 * Response frames
+	 *
+	 * This parameter can be used to define additional vendor specific
+	 * elements for (Re)Association Response frames in AP/P2P GO mode. The
+	 * format for these element(s) is a hexdump of the raw information
+	 * elements (id+len+payload for one or more elements).
+	 */
+	struct wpabuf *ap_assocresp_elements;
+
+	/**
 	 * ignore_old_scan_res - Ignore scan results older than request
 	 *
 	 * The driver may have a cache of scan results that makes it return

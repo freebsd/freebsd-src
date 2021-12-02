@@ -1894,11 +1894,11 @@ struct wpa_driver_capa {
  */
 #define WPA_DRIVER_FLAGS_P2P_MGMT_AND_NON_P2P		0x00002000
 /**
- * Driver is known to use sane error codes, i.e., when it indicates that
+ * Driver is known to use valid error codes, i.e., when it indicates that
  * something (e.g., association) fails, there was indeed a failure and the
  * operation does not end up getting completed successfully later.
  */
-#define WPA_DRIVER_FLAGS_SANE_ERROR_CODES		0x00004000
+#define WPA_DRIVER_FLAGS_VALID_ERROR_CODES		0x00004000
 /** Driver supports off-channel TX */
 #define WPA_DRIVER_FLAGS_OFFCHANNEL_TX			0x00008000
 /** Driver indicates TX status events for EAPOL Data frames */
@@ -2151,6 +2151,7 @@ struct hostapd_data;
 #define STA_DRV_DATA_TX_SHORT_GI BIT(6)
 #define STA_DRV_DATA_RX_SHORT_GI BIT(7)
 #define STA_DRV_DATA_LAST_ACK_RSSI BIT(8)
+#define STA_DRV_DATA_CONN_TIME BIT(9)
 
 struct hostap_sta_driver_data {
 	unsigned long rx_packets, tx_packets;
@@ -2160,6 +2161,7 @@ struct hostap_sta_driver_data {
 	unsigned long current_tx_rate;
 	unsigned long current_rx_rate;
 	unsigned long inactive_msec;
+	unsigned long connected_sec;
 	unsigned long flags; /* bitfield of STA_DRV_DATA_* */
 	unsigned long num_ps_buf_frames;
 	unsigned long tx_retry_failed;

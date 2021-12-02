@@ -8,8 +8,6 @@
  */
 
 #include "utils/includes.h"
-#include <openssl/opensslv.h>
-#include <openssl/err.h>
 
 #include "utils/common.h"
 #include "common/wpa_ctrl.h"
@@ -27,30 +25,13 @@ u8 dpp_pkex_ephemeral_key_override[600];
 size_t dpp_pkex_ephemeral_key_override_len = 0;
 #endif /* CONFIG_TESTING_OPTIONS */
 
-#if OPENSSL_VERSION_NUMBER < 0x10100000L || \
-	(defined(LIBRESSL_VERSION_NUMBER) && \
-	 LIBRESSL_VERSION_NUMBER < 0x20700000L)
-/* Compatibility wrappers for older versions. */
-
-static EC_KEY * EVP_PKEY_get0_EC_KEY(EVP_PKEY *pkey)
-{
-	if (pkey->type != EVP_PKEY_EC)
-		return NULL;
-	return pkey->pkey.ec;
-}
-
-#endif
-
 
 static struct wpabuf * dpp_pkex_build_exchange_req(struct dpp_pkex *pkex)
 {
-	const EC_KEY *X_ec;
-	const EC_POINT *X_point;
-	BN_CTX *bnctx = NULL;
-	EC_GROUP *group = NULL;
-	EC_POINT *Qi = NULL, *M = NULL;
-	struct wpabuf *M_buf = NULL;
-	BIGNUM *Mx = NULL, *My = NULL;
+	struct crypto_ec *ec = NULL;
+	const struct crypto_ec_point *X;
+	struct crypto_ec_point *Qi = NULL, *M = NULL;
+	u8 *Mx, *My;
 	struct wpabuf *msg = NULL;
 	size_t attr_len;
 	const struct dpp_curve_params *curve = pkex->own_bi->curve;
@@ -58,11 +39,8 @@ static struct wpabuf * dpp_pkex_build_exchange_req(struct dpp_pkex *pkex)
 	wpa_printf(MSG_DEBUG, "DPP: Build PKEX Exchange Request");
 
 	/* Qi = H(MAC-Initiator | [identifier |] code) * Pi */
-	bnctx = BN_CTX_new();
-	if (!bnctx)
-		goto fail;
 	Qi = dpp_pkex_derive_Qi(curve, pkex->own_mac, pkex->code,
-				pkex->identifier, bnctx, &group);
+				pkex->identifier, &ec);
 	if (!Qi)
 		goto fail;
 
@@ -86,21 +64,15 @@ static struct wpabuf * dpp_pkex_build_exchange_req(struct dpp_pkex *pkex)
 		goto fail;
 
 	/* M = X + Qi */
-	X_ec = EVP_PKEY_get0_EC_KEY(pkex->x);
-	if (!X_ec)
+	X = crypto_ec_key_get_public_key(pkex->x);
+	M = crypto_ec_point_init(ec);
+	if (!X || !M)
 		goto fail;
-	X_point = EC_KEY_get0_public_key(X_ec);
-	if (!X_point)
+	crypto_ec_point_debug_print(ec, X, "DPP: X");
+
+	if (crypto_ec_point_add(ec, X, Qi, M))
 		goto fail;
-	dpp_debug_print_point("DPP: X", group, X_point);
-	M = EC_POINT_new(group);
-	Mx = BN_new();
-	My = BN_new();
-	if (!M || !Mx || !My ||
-	    EC_POINT_add(group, M, X_point, Qi, bnctx) != 1 ||
-	    EC_POINT_get_affine_coordinates_GFp(group, M, Mx, My, bnctx) != 1)
-		goto fail;
-	dpp_debug_print_point("DPP: M", group, M);
+	crypto_ec_point_debug_print(ec, M, "DPP: M");
 
 	/* Initiator -> Responder: group, [identifier,] M */
 	attr_len = 4 + 2;
@@ -154,21 +126,17 @@ skip_finite_cyclic_group:
 	}
 #endif /* CONFIG_TESTING_OPTIONS */
 
-	if (dpp_bn2bin_pad(Mx, wpabuf_put(msg, curve->prime_len),
-			   curve->prime_len) < 0 ||
-	    dpp_bn2bin_pad(Mx, pkex->Mx, curve->prime_len) < 0 ||
-	    dpp_bn2bin_pad(My, wpabuf_put(msg, curve->prime_len),
-			   curve->prime_len) < 0)
+	Mx = wpabuf_put(msg, curve->prime_len);
+	My = wpabuf_put(msg, curve->prime_len);
+	if (crypto_ec_point_to_bin(ec, M, Mx, My))
 		goto fail;
 
+	os_memcpy(pkex->Mx, Mx, curve->prime_len);
+
 out:
-	wpabuf_free(M_buf);
-	EC_POINT_free(M);
-	EC_POINT_free(Qi);
-	BN_clear_free(Mx);
-	BN_clear_free(My);
-	BN_CTX_free(bnctx);
-	EC_GROUP_free(group);
+	crypto_ec_point_deinit(M, 1);
+	crypto_ec_point_deinit(Qi, 1);
+	crypto_ec_deinit(ec);
 	return msg;
 fail:
 	wpa_printf(MSG_INFO, "DPP: Failed to build PKEX Exchange Request");
@@ -227,7 +195,7 @@ fail:
 static struct wpabuf *
 dpp_pkex_build_exchange_resp(struct dpp_pkex *pkex,
 			     enum dpp_status_error status,
-			     const BIGNUM *Nx, const BIGNUM *Ny)
+			     const u8 *Nx, const u8 *Ny)
 {
 	struct wpabuf *msg = NULL;
 	size_t attr_len;
@@ -291,12 +259,9 @@ skip_status:
 	}
 #endif /* CONFIG_TESTING_OPTIONS */
 
-	if (dpp_bn2bin_pad(Nx, wpabuf_put(msg, curve->prime_len),
-			   curve->prime_len) < 0 ||
-	    dpp_bn2bin_pad(Nx, pkex->Nx, curve->prime_len) < 0 ||
-	    dpp_bn2bin_pad(Ny, wpabuf_put(msg, curve->prime_len),
-			   curve->prime_len) < 0)
-		goto fail;
+	wpabuf_put_data(msg, Nx, curve->prime_len);
+	wpabuf_put_data(msg, Ny, curve->prime_len);
+	os_memcpy(pkex->Nx, Nx, curve->prime_len);
 
 skip_encrypted_key:
 	if (status == DPP_STATUS_BAD_GROUP) {
@@ -352,14 +317,11 @@ struct dpp_pkex * dpp_pkex_rx_exchange_req(void *msg_ctx,
 	const struct dpp_curve_params *curve = bi->curve;
 	u16 ike_group;
 	struct dpp_pkex *pkex = NULL;
-	EC_POINT *Qi = NULL, *Qr = NULL, *M = NULL, *X = NULL, *N = NULL;
-	BN_CTX *bnctx = NULL;
-	EC_GROUP *group = NULL;
-	BIGNUM *Mx = NULL, *My = NULL;
-	const EC_KEY *Y_ec;
-	EC_KEY *X_ec = NULL;
-	const EC_POINT *Y_point;
-	BIGNUM *Nx = NULL, *Ny = NULL;
+	struct crypto_ec_point *Qi = NULL, *Qr = NULL, *M = NULL, *X = NULL,
+		*N = NULL;
+	struct crypto_ec *ec = NULL;
+	const struct crypto_ec_point *Y;
+	u8 *x_coord = NULL, *y_coord = NULL;
 	u8 Kx[DPP_MAX_SHARED_SECRET_LEN];
 	size_t Kx_len;
 	int res;
@@ -424,34 +386,27 @@ struct dpp_pkex * dpp_pkex_rx_exchange_req(void *msg_ctx,
 	}
 
 	/* Qi = H(MAC-Initiator | [identifier |] code) * Pi */
-	bnctx = BN_CTX_new();
-	if (!bnctx)
-		goto fail;
-	Qi = dpp_pkex_derive_Qi(curve, peer_mac, code, identifier, bnctx,
-				&group);
+	Qi = dpp_pkex_derive_Qi(curve, peer_mac, code, identifier, &ec);
 	if (!Qi)
 		goto fail;
 
 	/* X' = M - Qi */
-	X = EC_POINT_new(group);
-	M = EC_POINT_new(group);
-	Mx = BN_bin2bn(attr_key, attr_key_len / 2, NULL);
-	My = BN_bin2bn(attr_key + attr_key_len / 2, attr_key_len / 2, NULL);
-	if (!X || !M || !Mx || !My ||
-	    EC_POINT_set_affine_coordinates_GFp(group, M, Mx, My, bnctx) != 1 ||
-	    EC_POINT_is_at_infinity(group, M) ||
-	    !EC_POINT_is_on_curve(group, M, bnctx) ||
-	    EC_POINT_invert(group, Qi, bnctx) != 1 ||
-	    EC_POINT_add(group, X, M, Qi, bnctx) != 1 ||
-	    EC_POINT_is_at_infinity(group, X) ||
-	    !EC_POINT_is_on_curve(group, X, bnctx)) {
+	X = crypto_ec_point_init(ec);
+	M = crypto_ec_point_from_bin(ec, attr_key);
+	if (!X || !M ||
+	    crypto_ec_point_is_at_infinity(ec, M) ||
+	    !crypto_ec_point_is_on_curve(ec, M) ||
+	    crypto_ec_point_invert(ec, Qi) ||
+	    crypto_ec_point_add(ec, M, Qi, X) ||
+	    crypto_ec_point_is_at_infinity(ec, X) ||
+	    !crypto_ec_point_is_on_curve(ec, X)) {
 		wpa_msg(msg_ctx, MSG_INFO, DPP_EVENT_FAIL
 			"Invalid Encrypted Key value");
 		bi->pkex_t++;
 		goto fail;
 	}
-	dpp_debug_print_point("DPP: M", group, M);
-	dpp_debug_print_point("DPP: X'", group, X);
+	crypto_ec_point_debug_print(ec, M, "DPP: M");
+	crypto_ec_point_debug_print(ec, X, "DPP: X'");
 
 	pkex = os_zalloc(sizeof(*pkex));
 	if (!pkex)
@@ -472,18 +427,19 @@ struct dpp_pkex * dpp_pkex_rx_exchange_req(void *msg_ctx,
 
 	os_memcpy(pkex->Mx, attr_key, attr_key_len / 2);
 
-	X_ec = EC_KEY_new();
-	if (!X_ec ||
-	    EC_KEY_set_group(X_ec, group) != 1 ||
-	    EC_KEY_set_public_key(X_ec, X) != 1)
+	x_coord = os_malloc(curve->prime_len);
+	y_coord = os_malloc(curve->prime_len);
+	if (!x_coord || !y_coord ||
+	    crypto_ec_point_to_bin(ec, X, x_coord, y_coord))
 		goto fail;
-	pkex->x = EVP_PKEY_new();
-	if (!pkex->x ||
-	    EVP_PKEY_set1_EC_KEY(pkex->x, X_ec) != 1)
+
+	pkex->x = crypto_ec_key_set_pub(curve->ike_group, x_coord,
+					y_coord, crypto_ec_prime_len(ec));
+	if (!pkex->x)
 		goto fail;
 
 	/* Qr = H(MAC-Responder | | [identifier | ] code) * Pr */
-	Qr = dpp_pkex_derive_Qr(curve, own_mac, code, identifier, bnctx, NULL);
+	Qr = dpp_pkex_derive_Qr(curve, own_mac, code, identifier, NULL);
 	if (!Qr)
 		goto fail;
 
@@ -507,24 +463,20 @@ struct dpp_pkex * dpp_pkex_rx_exchange_req(void *msg_ctx,
 		goto fail;
 
 	/* N = Y + Qr */
-	Y_ec = EVP_PKEY_get0_EC_KEY(pkex->y);
-	if (!Y_ec)
+	Y = crypto_ec_key_get_public_key(pkex->y);
+	if (!Y)
 		goto fail;
-	Y_point = EC_KEY_get0_public_key(Y_ec);
-	if (!Y_point)
+	crypto_ec_point_debug_print(ec, Y, "DPP: Y");
+
+	N = crypto_ec_point_init(ec);
+	if (!N ||
+	    crypto_ec_point_add(ec, Y, Qr, N) ||
+	    crypto_ec_point_to_bin(ec, N, x_coord, y_coord))
 		goto fail;
-	dpp_debug_print_point("DPP: Y", group, Y_point);
-	N = EC_POINT_new(group);
-	Nx = BN_new();
-	Ny = BN_new();
-	if (!N || !Nx || !Ny ||
-	    EC_POINT_add(group, N, Y_point, Qr, bnctx) != 1 ||
-	    EC_POINT_get_affine_coordinates_GFp(group, N, Nx, Ny, bnctx) != 1)
-		goto fail;
-	dpp_debug_print_point("DPP: N", group, N);
+	crypto_ec_point_debug_print(ec, N, "DPP: N");
 
 	pkex->exchange_resp = dpp_pkex_build_exchange_resp(pkex, DPP_STATUS_OK,
-							   Nx, Ny);
+							   x_coord, y_coord);
 	if (!pkex->exchange_resp)
 		goto fail;
 
@@ -548,18 +500,14 @@ struct dpp_pkex * dpp_pkex_rx_exchange_req(void *msg_ctx,
 	pkex->exchange_done = 1;
 
 out:
-	BN_CTX_free(bnctx);
-	EC_POINT_free(Qi);
-	EC_POINT_free(Qr);
-	BN_free(Mx);
-	BN_free(My);
-	BN_free(Nx);
-	BN_free(Ny);
-	EC_POINT_free(M);
-	EC_POINT_free(N);
-	EC_POINT_free(X);
-	EC_KEY_free(X_ec);
-	EC_GROUP_free(group);
+	os_free(x_coord);
+	os_free(y_coord);
+	crypto_ec_point_deinit(Qi, 1);
+	crypto_ec_point_deinit(Qr, 1);
+	crypto_ec_point_deinit(M, 1);
+	crypto_ec_point_deinit(N, 1);
+	crypto_ec_point_deinit(X, 1);
+	crypto_ec_deinit(ec);
 	return pkex;
 fail:
 	wpa_printf(MSG_DEBUG, "DPP: PKEX Exchange Request processing failed");
@@ -688,13 +636,11 @@ struct wpabuf * dpp_pkex_rx_exchange_resp(struct dpp_pkex *pkex,
 {
 	const u8 *attr_status, *attr_id, *attr_key, *attr_group;
 	u16 attr_status_len, attr_id_len, attr_key_len, attr_group_len;
-	EC_GROUP *group = NULL;
-	BN_CTX *bnctx = NULL;
+	struct crypto_ec *ec = NULL;
 	struct wpabuf *msg = NULL, *A_pub = NULL, *X_pub = NULL, *Y_pub = NULL;
 	const struct dpp_curve_params *curve = pkex->own_bi->curve;
-	EC_POINT *Qr = NULL, *Y = NULL, *N = NULL;
-	BIGNUM *Nx = NULL, *Ny = NULL;
-	EC_KEY *Y_ec = NULL;
+	struct crypto_ec_point *Qr = NULL, *Y = NULL, *N = NULL;
+	u8 *x_coord = NULL, *y_coord = NULL;
 	size_t Jx_len, Kx_len;
 	u8 Jx[DPP_MAX_SHARED_SECRET_LEN], Kx[DPP_MAX_SHARED_SECRET_LEN];
 	const u8 *addr[4];
@@ -765,45 +711,39 @@ struct wpabuf * dpp_pkex_rx_exchange_resp(struct dpp_pkex *pkex,
 	}
 
 	/* Qr = H(MAC-Responder | [identifier |] code) * Pr */
-	bnctx = BN_CTX_new();
-	if (!bnctx)
-		goto fail;
 	Qr = dpp_pkex_derive_Qr(curve, pkex->peer_mac, pkex->code,
-				pkex->identifier, bnctx, &group);
+				pkex->identifier, &ec);
 	if (!Qr)
 		goto fail;
 
 	/* Y' = N - Qr */
-	Y = EC_POINT_new(group);
-	N = EC_POINT_new(group);
-	Nx = BN_bin2bn(attr_key, attr_key_len / 2, NULL);
-	Ny = BN_bin2bn(attr_key + attr_key_len / 2, attr_key_len / 2, NULL);
-	if (!Y || !N || !Nx || !Ny ||
-	    EC_POINT_set_affine_coordinates_GFp(group, N, Nx, Ny, bnctx) != 1 ||
-	    EC_POINT_is_at_infinity(group, N) ||
-	    !EC_POINT_is_on_curve(group, N, bnctx) ||
-	    EC_POINT_invert(group, Qr, bnctx) != 1 ||
-	    EC_POINT_add(group, Y, N, Qr, bnctx) != 1 ||
-	    EC_POINT_is_at_infinity(group, Y) ||
-	    !EC_POINT_is_on_curve(group, Y, bnctx)) {
+	Y = crypto_ec_point_init(ec);
+	N = crypto_ec_point_from_bin(ec, attr_key);
+	if (!Y || !N ||
+	    crypto_ec_point_is_at_infinity(ec, N) ||
+	    !crypto_ec_point_is_on_curve(ec, N) ||
+	    crypto_ec_point_invert(ec, Qr) ||
+	    crypto_ec_point_add(ec, N, Qr, Y) ||
+	    crypto_ec_point_is_at_infinity(ec, Y) ||
+	    !crypto_ec_point_is_on_curve(ec, Y)) {
 		dpp_pkex_fail(pkex, "Invalid Encrypted Key value");
 		pkex->t++;
 		goto fail;
 	}
-	dpp_debug_print_point("DPP: N", group, N);
-	dpp_debug_print_point("DPP: Y'", group, Y);
+	crypto_ec_point_debug_print(ec, N, "DPP: N");
+	crypto_ec_point_debug_print(ec, Y, "DPP: Y'");
 
 	pkex->exchange_done = 1;
 
 	/* ECDH: J = a * Y' */
-	Y_ec = EC_KEY_new();
-	if (!Y_ec ||
-	    EC_KEY_set_group(Y_ec, group) != 1 ||
-	    EC_KEY_set_public_key(Y_ec, Y) != 1)
+	x_coord = os_malloc(curve->prime_len);
+	y_coord = os_malloc(curve->prime_len);
+	if (!x_coord || !y_coord ||
+	    crypto_ec_point_to_bin(ec, Y, x_coord, y_coord))
 		goto fail;
-	pkex->y = EVP_PKEY_new();
-	if (!pkex->y ||
-	    EVP_PKEY_set1_EC_KEY(pkex->y, Y_ec) != 1)
+	pkex->y = crypto_ec_key_set_pub(curve->ike_group, x_coord, y_coord,
+					curve->prime_len);
+	if (!pkex->y)
 		goto fail;
 	if (dpp_ecdh(pkex->own_bi->pubkey, pkex->y, Jx, &Jx_len) < 0)
 		goto fail;
@@ -812,9 +752,9 @@ struct wpabuf * dpp_pkex_rx_exchange_resp(struct dpp_pkex *pkex,
 			Jx, Jx_len);
 
 	/* u = HMAC(J.x, MAC-Initiator | A.x | Y'.x | X.x) */
-	A_pub = dpp_get_pubkey_point(pkex->own_bi->pubkey, 0);
-	Y_pub = dpp_get_pubkey_point(pkex->y, 0);
-	X_pub = dpp_get_pubkey_point(pkex->x, 0);
+	A_pub = crypto_ec_key_get_pubkey_point(pkex->own_bi->pubkey, 0);
+	Y_pub = crypto_ec_key_get_pubkey_point(pkex->y, 0);
+	X_pub = crypto_ec_key_get_pubkey_point(pkex->x, 0);
 	if (!A_pub || !Y_pub || !X_pub)
 		goto fail;
 	addr[0] = pkex->own_mac;
@@ -855,14 +795,12 @@ out:
 	wpabuf_free(A_pub);
 	wpabuf_free(X_pub);
 	wpabuf_free(Y_pub);
-	EC_POINT_free(Qr);
-	EC_POINT_free(Y);
-	EC_POINT_free(N);
-	BN_free(Nx);
-	BN_free(Ny);
-	EC_KEY_free(Y_ec);
-	BN_CTX_free(bnctx);
-	EC_GROUP_free(group);
+	os_free(x_coord);
+	os_free(y_coord);
+	crypto_ec_point_deinit(Qr, 1);
+	crypto_ec_point_deinit(Y, 1);
+	crypto_ec_point_deinit(N, 1);
+	crypto_ec_deinit(ec);
 	return msg;
 fail:
 	wpa_printf(MSG_DEBUG, "DPP: PKEX Exchange Response processing failed");
@@ -1078,9 +1016,9 @@ struct wpabuf * dpp_pkex_rx_commit_reveal_req(struct dpp_pkex *pkex,
 			Jx, Jx_len);
 
 	/* u' = HMAC(J'.x, MAC-Initiator | A'.x | Y.x | X'.x) */
-	A_pub = dpp_get_pubkey_point(pkex->peer_bootstrap_key, 0);
-	Y_pub = dpp_get_pubkey_point(pkex->y, 0);
-	X_pub = dpp_get_pubkey_point(pkex->x, 0);
+	A_pub = crypto_ec_key_get_pubkey_point(pkex->peer_bootstrap_key, 0);
+	Y_pub = crypto_ec_key_get_pubkey_point(pkex->y, 0);
+	X_pub = crypto_ec_key_get_pubkey_point(pkex->x, 0);
 	if (!A_pub || !Y_pub || !X_pub)
 		goto fail;
 	addr[0] = pkex->peer_mac;
@@ -1115,7 +1053,7 @@ struct wpabuf * dpp_pkex_rx_commit_reveal_req(struct dpp_pkex *pkex,
 			Lx, Lx_len);
 
 	/* v = HMAC(L.x, MAC-Responder | B.x | X'.x | Y.x) */
-	B_pub = dpp_get_pubkey_point(pkex->own_bi->pubkey, 0);
+	B_pub = crypto_ec_key_get_pubkey_point(pkex->own_bi->pubkey, 0);
 	if (!B_pub)
 		goto fail;
 	addr[0] = pkex->own_mac;
@@ -1240,9 +1178,9 @@ int dpp_pkex_rx_commit_reveal_resp(struct dpp_pkex *pkex, const u8 *hdr,
 			Lx, Lx_len);
 
 	/* v' = HMAC(L.x, MAC-Responder | B'.x | X.x | Y'.x) */
-	B_pub = dpp_get_pubkey_point(pkex->peer_bootstrap_key, 0);
-	X_pub = dpp_get_pubkey_point(pkex->x, 0);
-	Y_pub = dpp_get_pubkey_point(pkex->y, 0);
+	B_pub = crypto_ec_key_get_pubkey_point(pkex->peer_bootstrap_key, 0);
+	X_pub = crypto_ec_key_get_pubkey_point(pkex->x, 0);
+	Y_pub = crypto_ec_key_get_pubkey_point(pkex->y, 0);
 	if (!B_pub || !X_pub || !Y_pub)
 		goto fail;
 	addr[0] = pkex->peer_mac;
@@ -1315,9 +1253,9 @@ void dpp_pkex_free(struct dpp_pkex *pkex)
 
 	os_free(pkex->identifier);
 	os_free(pkex->code);
-	EVP_PKEY_free(pkex->x);
-	EVP_PKEY_free(pkex->y);
-	EVP_PKEY_free(pkex->peer_bootstrap_key);
+	crypto_ec_key_deinit(pkex->x);
+	crypto_ec_key_deinit(pkex->y);
+	crypto_ec_key_deinit(pkex->peer_bootstrap_key);
 	wpabuf_free(pkex->exchange_req);
 	wpabuf_free(pkex->exchange_resp);
 	os_free(pkex);

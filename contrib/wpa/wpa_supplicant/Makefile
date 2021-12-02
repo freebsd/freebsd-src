@@ -30,9 +30,9 @@ LIBS_p := $(LIBS)
 endif
 endif
 
-export LIBDIR ?= /usr/local/lib/
-export INCDIR ?= /usr/local/include/
-export BINDIR ?= /usr/local/sbin/
+export LIBDIR ?= /usr/local/lib
+export INCDIR ?= /usr/local/include
+export BINDIR ?= /usr/local/sbin
 PKG_CONFIG ?= pkg-config
 
 CFLAGS += $(EXTRA_CFLAGS)
@@ -389,11 +389,10 @@ CONFIG_AP=y
 ifdef CONFIG_P2P_STRICT
 CFLAGS += -DCONFIG_P2P_STRICT
 endif
-endif
-
 ifdef CONFIG_WIFI_DISPLAY
 CFLAGS += -DCONFIG_WIFI_DISPLAY
 OBJS += wifi_display.o
+endif
 endif
 
 ifdef CONFIG_PASN
@@ -1011,7 +1010,6 @@ ifdef CONFIG_PCSC
 # PC/SC interface for smartcards (USIM, GSM SIM)
 CFLAGS += -DPCSC_FUNCS -I/usr/include/PCSC
 OBJS += ../src/utils/pcsc_funcs.o
-# -lpthread may not be needed depending on how pcsc-lite was configured
 ifdef CONFIG_NATIVE_WINDOWS
 #Once MinGW gets support for WinScard, -lwinscard could be used instead of the
 #dynamic symbol loading that is now used in pcsc_funcs.c
@@ -1020,7 +1018,7 @@ else
 ifdef CONFIG_OSX
 LIBS += -framework PCSC
 else
-LIBS += -lpcsclite -lpthread
+LIBS += $(shell $(PKG_CONFIG) --libs libpcsclite)
 endif
 endif
 endif

@@ -675,6 +675,7 @@ static void wpa_config_write_network(FILE *f, struct wpa_ssid *ssid)
 	INT(mem_only_psk);
 	STR(sae_password);
 	STR(sae_password_id);
+	write_int(f, "sae_pwe", ssid->sae_pwe, DEFAULT_SAE_PWE);
 	write_proto(f, ssid);
 	write_key_mgmt(f, ssid);
 	INT_DEF(bg_scan_period, DEFAULT_BG_SCAN_PERIOD);
@@ -1358,6 +1359,18 @@ static void wpa_config_write_global(FILE *f, struct wpa_config *config)
 		const u8 *p = wpabuf_head_u8(config->ap_vendor_elements);
 		if (len > 0) {
 			fprintf(f, "ap_vendor_elements=");
+			for (i = 0; i < len; i++)
+				fprintf(f, "%02x", *p++);
+			fprintf(f, "\n");
+		}
+	}
+
+	if (config->ap_assocresp_elements) {
+		int i, len = wpabuf_len(config->ap_assocresp_elements);
+		const u8 *p = wpabuf_head_u8(config->ap_assocresp_elements);
+
+		if (len > 0) {
+			fprintf(f, "ap_assocresp_elements=");
 			for (i = 0; i < len; i++)
 				fprintf(f, "%02x", *p++);
 			fprintf(f, "\n");

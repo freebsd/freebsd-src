@@ -1864,7 +1864,8 @@ ChangeLog for wpa_supplicant
 	  generate, e.g., man pages
 	* l2_packet_linux: use socket type SOCK_DGRAM instead of SOCK_RAW for
 	  PF_PACKET in order to prepare for network devices that do not use
-	  Ethernet headers (e.g., network stack with native IEEE 802.11 frames)
+	  Ethernet headers (e.g., network stack that includes IEEE 802.11
+	  header in the frames)
 	* use receipt of EAPOL-Key frame as a lower layer success indication
 	  for EAP state machine to allow recovery from dropped EAP-Success
 	  frame

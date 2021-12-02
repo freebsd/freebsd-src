@@ -14,7 +14,7 @@
 #include "tls/pkcs1.h"
 #include "tls/pkcs8.h"
 
-/* Dummy structures; these are just typecast to struct crypto_rsa_key */
+/* Stub structures; these are just typecast to struct crypto_rsa_key */
 struct crypto_public_key;
 struct crypto_private_key;
 

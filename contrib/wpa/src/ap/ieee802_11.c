@@ -2398,7 +2398,7 @@ static int pasn_wd_handle_sae_commit(struct hostapd_data *hapd,
 	buf_len = wpabuf_len(wd);
 
 	if (buf_len < 6) {
-		wpa_printf(MSG_DEBUG, "PASN: SAE buffer too short. len=%lu",
+		wpa_printf(MSG_DEBUG, "PASN: SAE buffer too short. len=%zu",
 			   buf_len);
 		return -1;
 	}
@@ -2474,7 +2474,7 @@ static int pasn_wd_handle_sae_confirm(struct hostapd_data *hapd,
 	buf_len = wpabuf_len(wd);
 
 	if (buf_len < 6) {
-		wpa_printf(MSG_DEBUG, "PASN: SAE buffer too short. len=%lu",
+		wpa_printf(MSG_DEBUG, "PASN: SAE buffer too short. len=%zu",
 			   buf_len);
 		return -1;
 	}
@@ -2704,7 +2704,7 @@ static int pasn_wd_handle_fils(struct hostapd_data *hapd, struct sta_info *sta,
 	buf_len = wpabuf_len(wd);
 
 	if (buf_len < 6) {
-		wpa_printf(MSG_DEBUG, "PASN: FILS: Buffer too short. len=%lu",
+		wpa_printf(MSG_DEBUG, "PASN: FILS: Buffer too short. len=%zu",
 			   buf_len);
 		return -1;
 	}
@@ -7067,6 +7067,388 @@ u8 * hostapd_eid_wb_chsw_wrapper(struct hostapd_data *hapd, u8 *eid)
 	*eid++ = bw; /* New Channel Width */
 	*eid++ = chan1; /* New Channel Center Frequency Segment 0 */
 	*eid++ = chan2; /* New Channel Center Frequency Segment 1 */
+
+	return eid;
+}
+
+
+static size_t hostapd_eid_nr_db_len(struct hostapd_data *hapd,
+				    size_t *current_len)
+{
+	struct hostapd_neighbor_entry *nr;
+	size_t total_len = 0, len = *current_len;
+
+	dl_list_for_each(nr, &hapd->nr_db, struct hostapd_neighbor_entry,
+			 list) {
+		if (!nr->nr || wpabuf_len(nr->nr) < 12)
+			continue;
+
+		if (nr->short_ssid == hapd->conf->ssid.short_ssid)
+			continue;
+
+		/* Start a new element */
+		if (!len ||
+		    len + RNR_TBTT_HEADER_LEN + RNR_TBTT_INFO_LEN > 255) {
+			len = RNR_HEADER_LEN;
+			total_len += RNR_HEADER_LEN;
+		}
+
+		len += RNR_TBTT_HEADER_LEN + RNR_TBTT_INFO_LEN;
+		total_len += RNR_TBTT_HEADER_LEN + RNR_TBTT_INFO_LEN;
+	}
+
+	*current_len = len;
+	return total_len;
+}
+
+
+static size_t hostapd_eid_rnr_iface_len(struct hostapd_data *hapd,
+					struct hostapd_data *reporting_hapd,
+					size_t *current_len)
+{
+	size_t total_len = 0, len = *current_len;
+	int tbtt_count = 0;
+	size_t i, start = 0;
+
+	while (start < hapd->iface->num_bss) {
+		if (!len ||
+		    len + RNR_TBTT_HEADER_LEN + RNR_TBTT_INFO_LEN > 255) {
+			len = RNR_HEADER_LEN;
+			total_len += RNR_HEADER_LEN;
+		}
+
+		len += RNR_TBTT_HEADER_LEN;
+		total_len += RNR_TBTT_HEADER_LEN;
+
+		for (i = start; i < hapd->iface->num_bss; i++) {
+			struct hostapd_data *bss = hapd->iface->bss[i];
+
+			if (!bss || !bss->conf || !bss->started)
+				continue;
+
+			if (bss == reporting_hapd ||
+			    bss->conf->ignore_broadcast_ssid)
+				continue;
+
+			if (len + RNR_TBTT_INFO_LEN > 255 ||
+			    tbtt_count >= RNR_TBTT_INFO_COUNT_MAX)
+				break;
+
+			len += RNR_TBTT_INFO_LEN;
+			total_len += RNR_TBTT_INFO_LEN;
+			tbtt_count++;
+		}
+		start = i;
+	}
+
+	if (!tbtt_count)
+		total_len = 0;
+	else
+		*current_len = len;
+
+	return total_len;
+}
+
+
+enum colocation_mode {
+	NO_COLOCATED_6GHZ,
+	STANDALONE_6GHZ,
+	COLOCATED_6GHZ,
+	COLOCATED_LOWER_BAND,
+};
+
+static enum colocation_mode get_colocation_mode(struct hostapd_data *hapd)
+{
+	u8 i;
+	bool is_6ghz = is_6ghz_op_class(hapd->iconf->op_class);
+
+	if (!hapd->iface || !hapd->iface->interfaces)
+		return NO_COLOCATED_6GHZ;
+
+	if (is_6ghz && hapd->iface->interfaces->count == 1)
+		return STANDALONE_6GHZ;
+
+	for (i = 0; i < hapd->iface->interfaces->count; i++) {
+		struct hostapd_iface *iface;
+		bool is_colocated_6ghz;
+
+		iface = hapd->iface->interfaces->iface[i];
+		if (iface == hapd->iface || !iface || !iface->conf)
+			continue;
+
+		is_colocated_6ghz = is_6ghz_op_class(iface->conf->op_class);
+		if (!is_6ghz && is_colocated_6ghz)
+			return COLOCATED_LOWER_BAND;
+		if (is_6ghz && !is_colocated_6ghz)
+			return COLOCATED_6GHZ;
+	}
+
+	if (is_6ghz)
+		return STANDALONE_6GHZ;
+
+	return NO_COLOCATED_6GHZ;
+}
+
+
+static size_t hostapd_eid_rnr_colocation_len(struct hostapd_data *hapd,
+					     size_t *current_len)
+{
+	struct hostapd_iface *iface;
+	size_t len = 0;
+	size_t i;
+
+	if (!hapd->iface || !hapd->iface->interfaces)
+		return 0;
+
+	for (i = 0; i < hapd->iface->interfaces->count; i++) {
+		iface = hapd->iface->interfaces->iface[i];
+
+		if (iface == hapd->iface ||
+		    !is_6ghz_op_class(iface->conf->op_class))
+			continue;
+
+		len += hostapd_eid_rnr_iface_len(iface->bss[0], hapd,
+						 current_len);
+	}
+
+	return len;
+}
+
+
+size_t hostapd_eid_rnr_len(struct hostapd_data *hapd, u32 type)
+{
+	size_t total_len = 0, current_len = 0;
+	enum colocation_mode mode = get_colocation_mode(hapd);
+
+	switch (type) {
+	case WLAN_FC_STYPE_BEACON:
+		if (hapd->conf->rnr)
+			total_len += hostapd_eid_nr_db_len(hapd, &current_len);
+		/* fallthrough */
+
+	case WLAN_FC_STYPE_PROBE_RESP:
+		if (mode == COLOCATED_LOWER_BAND)
+			total_len += hostapd_eid_rnr_colocation_len(
+				hapd, &current_len);
+
+		if (hapd->conf->rnr && hapd->iface->num_bss > 1)
+			total_len += hostapd_eid_rnr_iface_len(hapd, hapd,
+							       &current_len);
+		break;
+
+	case WLAN_FC_STYPE_ACTION:
+		if (hapd->iface->num_bss > 1 && mode == STANDALONE_6GHZ)
+			total_len += hostapd_eid_rnr_iface_len(hapd, hapd,
+							       &current_len);
+		break;
+
+	default:
+		break;
+	}
+
+	return total_len;
+}
+
+
+static u8 * hostapd_eid_nr_db(struct hostapd_data *hapd, u8 *eid,
+			      size_t *current_len)
+{
+	struct hostapd_neighbor_entry *nr;
+	size_t len = *current_len;
+	u8 *size_offset = (eid - len) + 1;
+
+	dl_list_for_each(nr, &hapd->nr_db, struct hostapd_neighbor_entry,
+			 list) {
+		if (!nr->nr || wpabuf_len(nr->nr) < 12)
+			continue;
+
+		if (nr->short_ssid == hapd->conf->ssid.short_ssid)
+			continue;
+
+		/* Start a new element */
+		if (!len ||
+		    len + RNR_TBTT_HEADER_LEN + RNR_TBTT_INFO_LEN > 255) {
+			*eid++ = WLAN_EID_REDUCED_NEIGHBOR_REPORT;
+			size_offset = eid++;
+			len = RNR_HEADER_LEN;
+		}
+
+		/* TBTT Information Header subfield (2 octets) */
+		*eid++ = 0;
+		/* TBTT Information Length */
+		*eid++ = RNR_TBTT_INFO_LEN;
+		/* Operating Class */
+		*eid++ = wpabuf_head_u8(nr->nr)[10];
+		/* Channel Number */
+		*eid++ = wpabuf_head_u8(nr->nr)[11];
+		len += RNR_TBTT_HEADER_LEN;
+		/* TBTT Information Set */
+		/* TBTT Information field */
+		/* Neighbor AP TBTT Offset */
+		*eid++ = RNR_NEIGHBOR_AP_OFFSET_UNKNOWN;
+		/* BSSID */
+		os_memcpy(eid, nr->bssid, ETH_ALEN);
+		eid += ETH_ALEN;
+		/* Short SSID */
+		os_memcpy(eid, &nr->short_ssid, 4);
+		eid += 4;
+		/* BSS parameters */
+		*eid++ = nr->bss_parameters;
+		/* 20 MHz PSD */
+		*eid++ = RNR_20_MHZ_PSD_MAX_TXPOWER - 1;
+		len += RNR_TBTT_INFO_LEN;
+		*size_offset = (eid - size_offset) - 1;
+	}
+
+	*current_len = len;
+	return eid;
+}
+
+
+static u8 * hostapd_eid_rnr_iface(struct hostapd_data *hapd,
+				  struct hostapd_data *reporting_hapd,
+				  u8 *eid, size_t *current_len)
+{
+	struct hostapd_data *bss;
+	struct hostapd_iface *iface = hapd->iface;
+	size_t i, start = 0;
+	size_t len = *current_len;
+	u8 *tbtt_count_pos, *eid_start = eid, *size_offset = (eid - len) + 1;
+	u8 tbtt_count = 0, op_class, channel, bss_param;
+
+	if (!(iface->drv_flags & WPA_DRIVER_FLAGS_AP_CSA) || !iface->freq)
+		return eid;
+
+	if (ieee80211_freq_to_channel_ext(iface->freq,
+					  hapd->iconf->secondary_channel,
+					  hostapd_get_oper_chwidth(hapd->iconf),
+					  &op_class, &channel) ==
+	    NUM_HOSTAPD_MODES)
+		return eid;
+
+	while (start < iface->num_bss) {
+		if (!len ||
+		    len + RNR_TBTT_HEADER_LEN + RNR_TBTT_INFO_LEN > 255) {
+			eid_start = eid;
+			*eid++ = WLAN_EID_REDUCED_NEIGHBOR_REPORT;
+			size_offset = eid++;
+			len = RNR_HEADER_LEN;
+			tbtt_count = 0;
+		}
+
+		tbtt_count_pos = eid++;
+		*eid++ = RNR_TBTT_INFO_LEN;
+		*eid++ = op_class;
+		*eid++ = hapd->iconf->channel;
+		len += RNR_TBTT_HEADER_LEN;
+
+		for (i = start; i < iface->num_bss; i++) {
+			bss_param = 0;
+			bss = iface->bss[i];
+			if (!bss || !bss->conf || !bss->started)
+				continue;
+
+			if (bss == reporting_hapd ||
+			    bss->conf->ignore_broadcast_ssid)
+				continue;
+
+			if (len + RNR_TBTT_INFO_LEN > 255 ||
+			    tbtt_count >= RNR_TBTT_INFO_COUNT_MAX)
+				break;
+
+			*eid++ = RNR_NEIGHBOR_AP_OFFSET_UNKNOWN;
+			os_memcpy(eid, bss->conf->bssid, ETH_ALEN);
+			eid += ETH_ALEN;
+			os_memcpy(eid, &bss->conf->ssid.short_ssid, 4);
+			eid += 4;
+			if (bss->conf->ssid.short_ssid ==
+			    reporting_hapd->conf->ssid.short_ssid)
+				bss_param |= RNR_BSS_PARAM_SAME_SSID;
+
+			if (is_6ghz_op_class(hapd->iconf->op_class) &&
+			    bss->conf->unsol_bcast_probe_resp_interval)
+				bss_param |=
+					RNR_BSS_PARAM_UNSOLIC_PROBE_RESP_ACTIVE;
+
+			bss_param |= RNR_BSS_PARAM_CO_LOCATED;
+
+			*eid++ = bss_param;
+			*eid++ = RNR_20_MHZ_PSD_MAX_TXPOWER - 1;
+			len += RNR_TBTT_INFO_LEN;
+			tbtt_count += 1;
+		}
+
+		start = i;
+		*tbtt_count_pos = RNR_TBTT_INFO_COUNT(tbtt_count - 1);
+		*size_offset = (eid - size_offset) - 1;
+	}
+
+	if (tbtt_count == 0)
+		return eid_start;
+
+	*current_len = len;
+	return eid;
+}
+
+
+static u8 * hostapd_eid_rnr_colocation(struct hostapd_data *hapd, u8 *eid,
+				       size_t *current_len)
+{
+	struct hostapd_iface *iface;
+	size_t i;
+
+	if (!hapd->iface || !hapd->iface->interfaces)
+		return eid;
+
+	for (i = 0; i < hapd->iface->interfaces->count; i++) {
+		iface = hapd->iface->interfaces->iface[i];
+
+		if (iface == hapd->iface ||
+		    !is_6ghz_op_class(iface->conf->op_class))
+			continue;
+
+		eid = hostapd_eid_rnr_iface(iface->bss[0], hapd, eid,
+					    current_len);
+	}
+
+	return eid;
+}
+
+
+u8 * hostapd_eid_rnr(struct hostapd_data *hapd, u8 *eid, u32 type)
+{
+	u8 *eid_start = eid;
+	size_t current_len = 0;
+	enum colocation_mode mode = get_colocation_mode(hapd);
+
+	switch (type) {
+	case WLAN_FC_STYPE_BEACON:
+		if (hapd->conf->rnr)
+			eid = hostapd_eid_nr_db(hapd, eid, &current_len);
+		/* fallthrough */
+
+	case WLAN_FC_STYPE_PROBE_RESP:
+		if (mode == COLOCATED_LOWER_BAND)
+			eid = hostapd_eid_rnr_colocation(hapd, eid,
+							 &current_len);
+
+		if (hapd->conf->rnr && hapd->iface->num_bss > 1)
+			eid = hostapd_eid_rnr_iface(hapd, hapd, eid,
+						    &current_len);
+		break;
+
+	case WLAN_FC_STYPE_ACTION:
+		if (hapd->iface->num_bss > 1 && mode == STANDALONE_6GHZ)
+			eid = hostapd_eid_rnr_iface(hapd, hapd,	eid,
+						    &current_len);
+		break;
+
+	default:
+		return eid_start;
+	}
+
+	if (eid == eid_start + 2)
+		return eid_start;
 
 	return eid;
 }

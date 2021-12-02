@@ -840,7 +840,7 @@ static int hostapd_ctrl_iface_bss_tm_req(struct hostapd_data *hapd,
 	const char *pos, *end;
 	int disassoc_timer = 0;
 	struct sta_info *sta;
-	u8 req_mode = 0, valid_int = 0x01;
+	u8 req_mode = 0, valid_int = 0x01, dialog_token = 0x01;
 	u8 bss_term_dur[12];
 	char *url = NULL;
 	int ret;
@@ -876,6 +876,12 @@ static int hostapd_ctrl_iface_bss_tm_req(struct hostapd_data *hapd,
 	if (pos) {
 		pos += 11;
 		valid_int = atoi(pos);
+	}
+
+	pos = os_strstr(cmd, " dialog_token=");
+	if (pos) {
+		pos += 14;
+		dialog_token = atoi(pos);
 	}
 
 	pos = os_strstr(cmd, " bss_term=");
@@ -984,7 +990,7 @@ static int hostapd_ctrl_iface_bss_tm_req(struct hostapd_data *hapd,
 #endif /* CONFIG_MBO */
 
 	ret = wnm_send_bss_tm_req(hapd, sta, req_mode, disassoc_timer,
-				  valid_int, bss_term_dur, url,
+				  valid_int, bss_term_dur, dialog_token, url,
 				  nei_len ? nei_rep : NULL, nei_len,
 				  mbo_len ? mbo : NULL, mbo_len);
 #ifdef CONFIG_MBO
@@ -1455,10 +1461,10 @@ static int hostapd_ctrl_iface_set(struct hostapd_data *hapd, char *cmd)
 				   wps_version_number & 0x0f);
 			hostapd_wps_update_ie(hapd);
 		}
-	} else if (os_strcasecmp(cmd, "wps_testing_dummy_cred") == 0) {
-		wps_testing_dummy_cred = atoi(value);
-		wpa_printf(MSG_DEBUG, "WPS: Testing - dummy_cred=%d",
-			   wps_testing_dummy_cred);
+	} else if (os_strcasecmp(cmd, "wps_testing_stub_cred") == 0) {
+		wps_testing_stub_cred = atoi(value);
+		wpa_printf(MSG_DEBUG, "WPS: Testing - stub_cred=%d",
+			   wps_testing_stub_cred);
 	} else if (os_strcasecmp(cmd, "wps_corrupt_pkhash") == 0) {
 		wps_corrupt_pkhash = atoi(value);
 		wpa_printf(MSG_DEBUG, "WPS: Testing - wps_corrupt_pkhash=%d",
@@ -3185,8 +3191,9 @@ static int hostapd_ctrl_iface_set_neighbor(struct hostapd_data *hapd, char *buf)
 	u8 bssid[ETH_ALEN];
 	struct wpabuf *nr, *lci = NULL, *civic = NULL;
 	int stationary = 0;
+	int bss_parameters = 0;
 	char *tmp;
-	int ret;
+	int ret = -1;
 
 	if (!(hapd->conf->radio_measurements[0] &
 	      WLAN_RRM_CAPS_NEIGHBOR_REPORT)) {
@@ -3240,8 +3247,7 @@ static int hostapd_ctrl_iface_set_neighbor(struct hostapd_data *hapd, char *buf)
 		if (!lci) {
 			wpa_printf(MSG_ERROR,
 				   "CTRL: SET_NEIGHBOR: Bad LCI subelement");
-			wpabuf_free(nr);
-			return -1;
+			goto fail;
 		}
 	}
 
@@ -3257,9 +3263,7 @@ static int hostapd_ctrl_iface_set_neighbor(struct hostapd_data *hapd, char *buf)
 		if (!civic) {
 			wpa_printf(MSG_ERROR,
 				   "CTRL: SET_NEIGHBOR: Bad civic subelement");
-			wpabuf_free(nr);
-			wpabuf_free(lci);
-			return -1;
+			goto fail;
 		}
 	}
 
@@ -3269,10 +3273,21 @@ static int hostapd_ctrl_iface_set_neighbor(struct hostapd_data *hapd, char *buf)
 	if (os_strstr(buf, "stat"))
 		stationary = 1;
 
+	tmp = os_strstr(buf, "bss_parameter=");
+	if (tmp) {
+		bss_parameters = atoi(tmp + 14);
+		if (bss_parameters < 0 || bss_parameters > 0xff) {
+			wpa_printf(MSG_ERROR,
+				   "CTRL: SET_NEIGHBOR: Bad bss_parameters subelement");
+			goto fail;
+		}
+	}
+
 set:
 	ret = hostapd_neighbor_set(hapd, bssid, &ssid, nr, lci, civic,
-				   stationary);
+				   stationary, bss_parameters);
 
+fail:
 	wpabuf_free(nr);
 	wpabuf_free(lci);
 	wpabuf_free(civic);
@@ -4470,7 +4485,7 @@ static void hostapd_ctrl_iface_flush(struct hapd_interfaces *interfaces)
 {
 #ifdef CONFIG_WPS_TESTING
 	wps_version_number = 0x20;
-	wps_testing_dummy_cred = 0;
+	wps_testing_stub_cred = 0;
 	wps_corrupt_pkhash = 0;
 #endif /* CONFIG_WPS_TESTING */
 

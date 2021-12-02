@@ -1760,8 +1760,8 @@ static int eap_teap_process_start(struct eap_sm *sm,
 
 
 #ifdef CONFIG_TESTING_OPTIONS
-static struct wpabuf * eap_teap_add_dummy_outer_tlvs(struct eap_teap_data *data,
-						     struct wpabuf *resp)
+static struct wpabuf * eap_teap_add_stub_outer_tlvs(struct eap_teap_data *data,
+						    struct wpabuf *resp)
 {
 	struct wpabuf *resp2;
 	u16 len;
@@ -1775,11 +1775,11 @@ static struct wpabuf * eap_teap_add_dummy_outer_tlvs(struct eap_teap_data *data,
 		return NULL;
 	}
 
-	/* Outer TLVs (dummy Vendor-Specific TLV for testing) */
+	/* Outer TLVs (stub Vendor-Specific TLV for testing) */
 	wpabuf_put_be16(data->peer_outer_tlvs, TEAP_TLV_VENDOR_SPECIFIC);
 	wpabuf_put_be16(data->peer_outer_tlvs, 4);
 	wpabuf_put_be32(data->peer_outer_tlvs, EAP_VENDOR_HOSTAP);
-	wpa_hexdump_buf(MSG_DEBUG, "EAP-TEAP: TESTING - Add dummy Outer TLVs",
+	wpa_hexdump_buf(MSG_DEBUG, "EAP-TEAP: TESTING - Add stub Outer TLVs",
 			data->peer_outer_tlvs);
 
 	wpa_hexdump_buf(MSG_DEBUG,
@@ -1986,7 +1986,7 @@ static struct wpabuf * eap_teap_process(struct eap_sm *sm, void *priv,
 #ifdef CONFIG_TESTING_OPTIONS
 	if (data->test_outer_tlvs && res == 0 && resp &&
 	    (flags & EAP_TLS_FLAGS_START) && wpabuf_len(resp) >= 6)
-		resp = eap_teap_add_dummy_outer_tlvs(data, resp);
+		resp = eap_teap_add_stub_outer_tlvs(data, resp);
 #endif /* CONFIG_TESTING_OPTIONS */
 
 	return resp;
