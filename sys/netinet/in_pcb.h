@@ -156,7 +156,6 @@ struct in_conninfo {
  * (b) - Protected by the hpts lock.
  * (c) - Constant after initialization
  * (e) - Protected by the net_epoch_prempt epoch
- * (g) - Protected by the pcbgroup lock
  * (i) - Protected by the inpcb lock
  * (p) - Protected by the pcbinfo lock for the inpcb
  * (l) - Protected by the pcblist lock for the inpcb
@@ -231,7 +230,6 @@ struct m_snd_tag;
 struct inpcb {
 	/* Cache line #1 (amd64) */
 	CK_LIST_ENTRY(inpcb) inp_hash;	/* [w](h/i) [r](e/i)  hash list */
-	CK_LIST_ENTRY(inpcb) inp_pcbgrouphash;	/* (g/i) hash list */
 	struct rwlock	inp_lock;
 	/* Cache line #2 (amd64) */
 #define	inp_start_zero	inp_hpts
@@ -276,8 +274,6 @@ struct inpcb {
 	uint32_t         inp_hpts_drop_reas;	/* reason we are dropping the PCB (lock i&b) */
 	TAILQ_ENTRY(inpcb) inp_input;	/* pacing in  queue next lock(b) */
 	struct	inpcbinfo *inp_pcbinfo;	/* (c) PCB list info */
-	struct	inpcbgroup *inp_pcbgroup; /* (g/i) PCB group list */
-	CK_LIST_ENTRY(inpcb) inp_pcbgroup_wild; /* (g/i/h) group wildcard entry */
 	struct	ucred	*inp_cred;	/* (c) cache of socket cred */
 	u_int32_t inp_flow;		/* (i) IPv6 flow information */
 	u_char	inp_vflag;		/* (i) IP version flag (v4/v6) */
@@ -423,7 +419,6 @@ struct inpcbport {
  *    ipi_lock (before)
  *        inpcb locks (before)
  *            ipi_list locks (before)
- *                {ipi_hash_lock, pcbgroup locks}
  *
  * Locking key:
  *
@@ -432,7 +427,6 @@ struct inpcbport {
  * (g) Locked by ipi_lock
  * (l) Locked by ipi_list_lock
  * (h) Read using either net_epoch_preempt or inpcb lock; write requires both ipi_hash_lock and inpcb lock
- * (p) Protected by one or more pcbgroup locks
  * (x) Synchronisation properties poorly defined
  */
 struct inpcbinfo {
@@ -466,16 +460,7 @@ struct inpcbinfo {
 	struct	uma_zone	*ipi_zone;		/* (c) */
 
 	/*
-	 * Connection groups associated with this protocol.  These fields are
-	 * constant, but pcbgroup structures themselves are protected by
-	 * per-pcbgroup locks.
-	 */
-	struct inpcbgroup	*ipi_pcbgroups;		/* (c) */
-	u_int			 ipi_npcbgroups;	/* (c) */
-	u_int			 ipi_hashfields;	/* (c) */
-
-	/*
-	 * Global lock protecting modification non-pcbgroup hash lookup tables.
+	 * Global lock protecting modification hash lookup tables.
 	 */
 	struct mtx		 ipi_hash_lock;
 
@@ -491,14 +476,6 @@ struct inpcbinfo {
 	 */
 	struct inpcbporthead	*ipi_porthashbase;	/* (h) */
 	u_long			 ipi_porthashmask;	/* (h) */
-
-	/*
-	 * List of wildcard inpcbs for use with pcbgroups.  In the past, was
-	 * per-pcbgroup but is now global.  All pcbgroup locks must be held
-	 * to modify the list, so any is sufficient to read it.
-	 */
-	struct inpcbhead	*ipi_wildbase;		/* (p) */
-	u_long			 ipi_wildmask;		/* (p) */
 
 	/*
 	 * Load balance groups used for the SO_REUSEPORT_LB option,
@@ -524,31 +501,6 @@ struct inpcbinfo {
 };
 
 #ifdef _KERNEL
-/*
- * Connection groups hold sets of connections that have similar CPU/thread
- * affinity.  Each connection belongs to exactly one connection group.
- */
-struct inpcbgroup {
-	/*
-	 * Per-connection group hash of inpcbs, hashed by local and foreign
-	 * addresses and port numbers.
-	 */
-	struct inpcbhead	*ipg_hashbase;		/* (c) */
-	u_long			 ipg_hashmask;		/* (c) */
-
-	/*
-	 * Notional affinity of this pcbgroup.
-	 */
-	u_int			 ipg_cpu;		/* (p) */
-
-	/*
-	 * Per-connection group lock, not to be confused with ipi_lock.
-	 * Protects the hash table hung off the group, but also the global
-	 * wildcard list in inpcbinfo.
-	 */
-	struct mtx		 ipg_lock;
-} __aligned(CACHE_LINE_SIZE);
-
 /*
  * Load balance groups used for the SO_REUSEPORT_LB socket option. Each group
  * (or unique address:port combination) can be re-used at most
@@ -728,7 +680,7 @@ int	inp_so_options(const struct inpcb *inp);
  */
 #define	INP_MBUF_L_ACKS		0x00000001 /* We need large mbufs for ack compression */
 #define	INP_MBUF_ACKCMP		0x00000002 /* TCP mbuf ack compression ok */
-#define	INP_PCBGROUPWILD	0x00000004 /* in pcbgroup wildcard list */
+/*				0x00000004 */
 #define	INP_REUSEPORT		0x00000008 /* SO_REUSEPORT option is set */
 #define	INP_FREED		0x00000010 /* inp itself is not valid */
 #define	INP_REUSEADDR		0x00000020 /* SO_REUSEADDR option is set */
@@ -808,20 +760,6 @@ void	in_pcbinfo_init(struct inpcbinfo *, const char *, struct inpcbhead *,
 
 int	in_pcbbind_check_bindmulti(const struct inpcb *ni,
 	    const struct inpcb *oi);
-
-struct inpcbgroup *
-	in_pcbgroup_byhash(struct inpcbinfo *, u_int, uint32_t);
-struct inpcbgroup *
-	in_pcbgroup_byinpcb(struct inpcb *);
-struct inpcbgroup *
-	in_pcbgroup_bytuple(struct inpcbinfo *, struct in_addr, u_short,
-	    struct in_addr, u_short);
-void	in_pcbgroup_destroy(struct inpcbinfo *);
-int	in_pcbgroup_enabled(struct inpcbinfo *);
-void	in_pcbgroup_init(struct inpcbinfo *, u_int, int);
-void	in_pcbgroup_remove(struct inpcb *);
-void	in_pcbgroup_update(struct inpcb *);
-void	in_pcbgroup_update_mbuf(struct inpcb *, struct mbuf *);
 
 void	in_pcbpurgeif0(struct inpcbinfo *, struct ifnet *);
 int	in_pcballoc(struct socket *, struct inpcbinfo *);

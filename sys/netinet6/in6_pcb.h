@@ -71,16 +71,6 @@
 #define	sin6tosa(sin6)	((struct sockaddr *)(sin6))
 #define	ifatoia6(ifa)	((struct in6_ifaddr *)(ifa))
 
-struct	inpcbgroup *
-	in6_pcbgroup_byhash(struct inpcbinfo *, u_int, uint32_t);
-struct	inpcbgroup *
-	in6_pcbgroup_byinpcb(struct inpcb *);
-struct inpcbgroup *
-	in6_pcbgroup_bymbuf(struct inpcbinfo *, struct mbuf *);
-struct	inpcbgroup *
-	in6_pcbgroup_bytuple(struct inpcbinfo *, const struct in6_addr *,
-	    u_short, const struct in6_addr *, u_short);
-
 void	in6_pcbpurgeif0(struct inpcbinfo *, struct ifnet *);
 void	in6_losing(struct inpcb *);
 int	in6_pcbbind(struct inpcb *, struct sockaddr *, struct ucred *);
