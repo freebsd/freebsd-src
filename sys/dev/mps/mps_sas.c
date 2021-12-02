@@ -235,8 +235,6 @@ mpssas_alloc_tm(struct mps_softc *sc)
 void
 mpssas_free_tm(struct mps_softc *sc, struct mps_command *tm)
 {
-	int target_id = 0xFFFFFFFF;
-
 	if (tm == NULL)
 		return;
 
@@ -245,13 +243,11 @@ mpssas_free_tm(struct mps_softc *sc, struct mps_command *tm)
 	 * free the resources used for freezing the devq.  Must clear the
 	 * INRESET flag as well or scsi I/O will not work.
 	 */
-	if (tm->cm_targ != NULL) {
-		tm->cm_targ->flags &= ~MPSSAS_TARGET_INRESET;
-		target_id = tm->cm_targ->tid;
-	}
 	if (tm->cm_ccb) {
-		mps_dprint(sc, MPS_INFO, "Unfreezing devq for target ID %d\n",
-		    target_id);
+		mps_dprint(sc, MPS_XINFO | MPS_RECOVERY,
+		    "Unfreezing devq for target ID %d\n",
+		    tm->cm_targ->tid);
+		tm->cm_targ->flags &= ~MPSSAS_TARGET_INRESET;
 		xpt_release_devq(tm->cm_ccb->ccb_h.path, 1, TRUE);
 		xpt_free_path(tm->cm_ccb->ccb_h.path);
 		xpt_free_ccb(tm->cm_ccb);
@@ -1699,11 +1695,11 @@ mpssas_action_scsiio(struct mpssas_softc *sassc, union ccb *ccb)
 	}
 
 	/*
-	 * If target has a reset in progress, freeze the devq and return.  The
-	 * devq will be released when the TM reset is finished.
+	 * If target has a reset in progress, the devq should be frozen.
+	 * Geting here we likely hit a race, so just requeue.
 	 */
 	if (targ->flags & MPSSAS_TARGET_INRESET) {
-		ccb->ccb_h.status = CAM_BUSY | CAM_DEV_QFRZN;
+		ccb->ccb_h.status = CAM_REQUEUE_REQ | CAM_DEV_QFRZN;
 		mps_dprint(sc, MPS_INFO, "%s: Freezing devq for target ID %d\n",
 		    __func__, targ->tid);
 		xpt_freeze_devq(ccb->ccb_h.path, 1);
@@ -3243,11 +3239,15 @@ mpssas_async(void *callback_arg, uint32_t code, struct cam_path *path,
 }
 
 /*
- * Set the INRESET flag for this target so that no I/O will be sent to
- * the target until the reset has completed.  If an I/O request does
- * happen, the devq will be frozen.  The CCB holds the path which is
- * used to release the devq.  The devq is released and the CCB is freed
+ * Freeze the devq and set the INRESET flag so that no I/O will be sent to
+ * the target until the reset has completed.  The CCB holds the path which
+ * is used to release the devq.  The devq is released and the CCB is freed
  * when the TM completes.
+ * We only need to do this when we're entering reset, not at each time we
+ * need to send an abort (which will happen if multiple commands timeout
+ * while we're sending the abort). We do not release the queue for each
+ * command we complete (just at the end when we free the tm), so freezing
+ * it each time doesn't make sense.
  */
 void
 mpssas_prepare_for_tm(struct mps_softc *sc, struct mps_command *tm,
@@ -3265,7 +3265,13 @@ mpssas_prepare_for_tm(struct mps_softc *sc, struct mps_command *tm,
 		} else {
 			tm->cm_ccb = ccb;
 			tm->cm_targ = target;
-			target->flags |= MPSSAS_TARGET_INRESET;
+			if ((target->flags & MPSSAS_TARGET_INRESET) == 0) {
+				mps_dprint(sc, MPS_XINFO | MPS_RECOVERY,
+				    "%s: Freezing devq for target ID %d\n",
+				    __func__, target->tid);
+				xpt_freeze_devq(ccb->ccb_h.path, 1);
+				target->flags |= MPSSAS_TARGET_INRESET;
+			}
 		}
 	}
 }
