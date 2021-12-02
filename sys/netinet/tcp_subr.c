@@ -2587,6 +2587,9 @@ tcp_close(struct tcpcb *tp)
 		tcp_fastopen_decrement_counter(tp->t_tfo_pending);
 		tp->t_tfo_pending = NULL;
 	}
+#ifdef TCPHPTS
+	tcp_hpts_remove(inp, HPTS_REMOVE_ALL);
+#endif
 	in_pcbdrop(inp);
 	TCPSTAT_INC(tcps_closed);
 	if (tp->t_state != TCPS_CLOSED)

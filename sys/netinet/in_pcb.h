@@ -221,7 +221,7 @@ struct inpcb {
 #define	inp_zero_size	(sizeof(struct inpcb) - \
 			    offsetof(struct inpcb, inp_start_zero))
 	TAILQ_ENTRY(inpcb) inp_hpts;	/* pacing out queue next lock(b) */
-
+	uint32_t inp_hpts_gencnt;	/* XXXGL */
 	uint32_t inp_hpts_request;	/* Current hpts request, zero if
 					 * fits in the pacing window (i&b). */
 	/*
@@ -254,7 +254,7 @@ struct inpcb {
 	uint8_t inp_numa_domain;	/* numa domain */
 	void	*inp_ppcb;		/* (i) pointer to per-protocol pcb */
 	struct	socket *inp_socket;	/* (i) back pointer to socket */
-	uint32_t 	 inp_hptsslot;	/* Hpts wheel slot this tcb is Lock(i&b) */
+	int32_t 	 inp_hptsslot;	/* Hpts wheel slot this tcb is Lock(i&b) */
 	uint32_t         inp_hpts_drop_reas;	/* reason we are dropping the PCB (lock i&b) */
 	uint32_t	inp_dropq_gencnt;
 	TAILQ_ENTRY(inpcb) inp_dropq;	/* hpts drop queue next lock(b) */
