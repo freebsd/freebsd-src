@@ -316,6 +316,7 @@ static struct pfsync_bucket	*pfsync_get_bucket(struct pfsync_softc *,
 
 
 #define PFSYNC_MAX_BULKTRIES	12
+#define PFSYNC_DEFER_TIMEOUT	((20 * hz) / 1000)
 
 VNET_DEFINE(struct if_clone *, pfsync_cloner);
 #define	V_pfsync_cloner	VNET(pfsync_cloner)
@@ -1771,7 +1772,7 @@ pfsync_defer(struct pf_kstate *st, struct mbuf *m)
 
 	TAILQ_INSERT_TAIL(&b->b_deferrals, pd, pd_entry);
 	callout_init_mtx(&pd->pd_tmo, &b->b_mtx, CALLOUT_RETURNUNLOCKED);
-	callout_reset(&pd->pd_tmo, 10, pfsync_defer_tmo, pd);
+	callout_reset(&pd->pd_tmo, PFSYNC_DEFER_TIMEOUT, pfsync_defer_tmo, pd);
 
 	pfsync_push(b);
 
