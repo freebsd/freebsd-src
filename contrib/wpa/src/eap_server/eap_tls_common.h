@@ -68,7 +68,7 @@ struct eap_ssl_data {
  /* could be up to 128 bytes, but only the first 64 bytes are used */
 #define EAP_TLS_KEY_LEN 64
 
-/* dummy type used as a flag for UNAUTH-TLS */
+/* stub type used as a flag for UNAUTH-TLS */
 #define EAP_UNAUTH_TLS_TYPE 255
 #define EAP_WFA_UNAUTH_TLS_TYPE 254
 

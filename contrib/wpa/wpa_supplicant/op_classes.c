@@ -207,11 +207,15 @@ enum chan_allowed verify_channel(struct hostapd_hw_modes *mode, u8 op_class,
 		if (!(flag & HOSTAPD_CHAN_HT40MINUS))
 			return NOT_ALLOWED;
 		res2 = allow_channel(mode, op_class, channel - 4, NULL);
-	} else if (bw == BW40PLUS ||
-		   (bw == BW40 && !(((channel - 1) / 4) % 2))) {
+	} else if (bw == BW40PLUS) {
 		if (!(flag & HOSTAPD_CHAN_HT40PLUS))
 			return NOT_ALLOWED;
 		res2 = allow_channel(mode, op_class, channel + 4, NULL);
+	} else if (is_6ghz_op_class(op_class) && bw == BW40) {
+		if (get_6ghz_sec_channel(channel) < 0)
+			res2 = allow_channel(mode, op_class, channel - 4, NULL);
+		else
+			res2 = allow_channel(mode, op_class, channel + 4, NULL);
 	} else if (bw == BW80) {
 		/*
 		 * channel is a center channel and as such, not necessarily a

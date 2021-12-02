@@ -1,6 +1,7 @@
 [Unit]
 Description=WPA supplicant
 Before=network.target
+After=dbus.service
 Wants=network.target
 
 [Service]
