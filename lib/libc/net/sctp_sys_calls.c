@@ -405,11 +405,7 @@ sctp_getpaddrs(int sd, sctp_assoc_t id, struct sockaddr **raddrs)
 	opt_len = (socklen_t)sizeof(uint32_t);
 	if (getsockopt(sd, IPPROTO_SCTP, SCTP_GET_REMOTE_ADDR_SIZE,
 	    &size_of_addresses, &opt_len) != 0) {
-		if (errno == ENOENT) {
-			return (0);
-		} else {
-			return (-1);
-		}
+		return (-1);
 	}
 	opt_len = (socklen_t)((size_t)size_of_addresses + sizeof(struct sctp_getaddresses));
 	addrs = calloc(1, (size_t)opt_len);

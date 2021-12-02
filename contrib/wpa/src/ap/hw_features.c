@@ -838,6 +838,8 @@ static int hostapd_is_usable_edmg(struct hostapd_iface *iface)
 				       iface->freq, NULL,
 				       iface->hw_features,
 				       iface->num_hw_features);
+	if (!pri_chan)
+		return 0;
 	hostapd_encode_edmg_chan(iface->conf->enable_edmg,
 				 iface->conf->edmg_channel,
 				 pri_chan->chan,

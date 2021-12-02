@@ -124,12 +124,14 @@ VNET_PCPUSTAT_SYSUNINIT(icmp6stat);
 #endif /* VIMAGE */
 
 VNET_DECLARE(struct inpcbinfo, ripcbinfo);
+VNET_DECLARE(struct inpcbhead, ripcb);
 VNET_DECLARE(int, icmp6errppslim);
 VNET_DEFINE_STATIC(int, icmp6errpps_count) = 0;
 VNET_DEFINE_STATIC(struct timeval, icmp6errppslim_last);
 VNET_DECLARE(int, icmp6_nodeinfo);
 
 #define	V_ripcbinfo			VNET(ripcbinfo)
+#define	V_ripcb				VNET(ripcb)
 #define	V_icmp6errppslim		VNET(icmp6errppslim)
 #define	V_icmp6errpps_count		VNET(icmp6errpps_count)
 #define	V_icmp6errppslim_last		VNET(icmp6errppslim_last)
@@ -1873,39 +1875,21 @@ ni6_store_addrs(struct icmp6_nodeinfo *ni6, struct icmp6_nodeinfo *nni6,
 	return (copied);
 }
 
-static bool
-icmp6_rip6_match(const struct inpcb *inp, void *v)
-{
-	struct ip6_hdr *ip6 = v;
-
-	if ((inp->inp_vflag & INP_IPV6) == 0)
-		return (false);
-	if (inp->inp_ip_p != IPPROTO_ICMPV6)
-		return (false);
-	if (!IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_laddr) &&
-	   !IN6_ARE_ADDR_EQUAL(&inp->in6p_laddr, &ip6->ip6_dst))
-		return (false);
-	if (!IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_faddr) &&
-	   !IN6_ARE_ADDR_EQUAL(&inp->in6p_faddr, &ip6->ip6_src))
-		return (false);
-	return (true);
-}
-
 /*
  * XXX almost dup'ed code with rip6_input.
  */
 static int
 icmp6_rip6_input(struct mbuf **mp, int off)
 {
-	struct mbuf *n, *m = *mp;
+	struct mbuf *m = *mp;
 	struct ip6_hdr *ip6 = mtod(m, struct ip6_hdr *);
-	struct inpcb_iterator inpi = INP_ITERATOR(&V_ripcbinfo,
-	    INPLOOKUP_RLOCKPCB, icmp6_rip6_match, ip6);
 	struct inpcb *inp;
+	struct inpcb *last = NULL;
 	struct sockaddr_in6 fromsa;
 	struct icmp6_hdr *icmp6;
 	struct mbuf *opts = NULL;
-	int delivered = 0;
+
+	NET_EPOCH_ASSERT();
 
 	/* This is assumed to be safe; icmp6_input() does a pullup. */
 	icmp6 = (struct icmp6_hdr *)((caddr_t)ip6 + off);
@@ -1924,64 +1908,125 @@ icmp6_rip6_input(struct mbuf **mp, int off)
 		return (IPPROTO_DONE);
 	}
 
-	while ((inp = inp_next(&inpi)) != NULL) {
-		if (ICMP6_FILTER_WILLBLOCK(icmp6->icmp6_type,
-		    inp->in6p_icmp6filt))
+	CK_LIST_FOREACH(inp, &V_ripcb, inp_list) {
+		if ((inp->inp_vflag & INP_IPV6) == 0)
 			continue;
-		/*
-		 * Recent network drivers tend to allocate a single
-		 * mbuf cluster, rather than to make a couple of
-		 * mbufs without clusters.  Also, since the IPv6 code
-		 * path tries to avoid m_pullup(), it is highly
-		 * probable that we still have an mbuf cluster here
-		 * even though the necessary length can be stored in an
-		 * mbuf's internal buffer.
-		 * Meanwhile, the default size of the receive socket
-		 * buffer for raw sockets is not so large.  This means
-		 * the possibility of packet loss is relatively higher
-		 * than before.  To avoid this scenario, we copy the
-		 * received data to a separate mbuf that does not use
-		 * a cluster, if possible.
-		 * XXX: it is better to copy the data after stripping
-		 * intermediate headers.
-		 */
+		if (inp->inp_ip_p != IPPROTO_ICMPV6)
+			continue;
+		if (!IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_laddr) &&
+		   !IN6_ARE_ADDR_EQUAL(&inp->in6p_laddr, &ip6->ip6_dst))
+			continue;
+		if (!IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_faddr) &&
+		   !IN6_ARE_ADDR_EQUAL(&inp->in6p_faddr, &ip6->ip6_src))
+			continue;
+		INP_RLOCK(inp);
+		if (__predict_false(inp->inp_flags2 & INP_FREED)) {
+			INP_RUNLOCK(inp);
+			continue;
+		}
+		if (ICMP6_FILTER_WILLBLOCK(icmp6->icmp6_type,
+		    inp->in6p_icmp6filt)) {
+			INP_RUNLOCK(inp);
+			continue;
+		}
+		if (last != NULL) {
+			struct	mbuf *n = NULL;
+
+			/*
+			 * Recent network drivers tend to allocate a single
+			 * mbuf cluster, rather than to make a couple of
+			 * mbufs without clusters.  Also, since the IPv6 code
+			 * path tries to avoid m_pullup(), it is highly
+			 * probable that we still have an mbuf cluster here
+			 * even though the necessary length can be stored in an
+			 * mbuf's internal buffer.
+			 * Meanwhile, the default size of the receive socket
+			 * buffer for raw sockets is not so large.  This means
+			 * the possibility of packet loss is relatively higher
+			 * than before.  To avoid this scenario, we copy the
+			 * received data to a separate mbuf that does not use
+			 * a cluster, if possible.
+			 * XXX: it is better to copy the data after stripping
+			 * intermediate headers.
+			 */
+			if ((m->m_flags & M_EXT) && m->m_next == NULL &&
+			    m->m_len <= MHLEN) {
+				n = m_get(M_NOWAIT, m->m_type);
+				if (n != NULL) {
+					if (m_dup_pkthdr(n, m, M_NOWAIT)) {
+						bcopy(m->m_data, n->m_data,
+						      m->m_len);
+						n->m_len = m->m_len;
+					} else {
+						m_free(n);
+						n = NULL;
+					}
+				}
+			}
+			if (n != NULL ||
+			    (n = m_copym(m, 0, M_COPYALL, M_NOWAIT)) != NULL) {
+				if (last->inp_flags & INP_CONTROLOPTS)
+					ip6_savecontrol(last, n, &opts);
+				/* strip intermediate headers */
+				m_adj(n, off);
+				SOCKBUF_LOCK(&last->inp_socket->so_rcv);
+				if (sbappendaddr_locked(
+				    &last->inp_socket->so_rcv,
+				    (struct sockaddr *)&fromsa, n, opts)
+				    == 0) {
+					soroverflow_locked(last->inp_socket);
+					m_freem(n);
+					if (opts) {
+						m_freem(opts);
+					}
+				} else
+					sorwakeup_locked(last->inp_socket);
+				opts = NULL;
+			}
+			INP_RUNLOCK(last);
+		}
+		last = inp;
+	}
+	if (last != NULL) {
+		if (last->inp_flags & INP_CONTROLOPTS)
+			ip6_savecontrol(last, m, &opts);
+		/* strip intermediate headers */
+		m_adj(m, off);
+
+		/* avoid using mbuf clusters if possible (see above) */
 		if ((m->m_flags & M_EXT) && m->m_next == NULL &&
 		    m->m_len <= MHLEN) {
+			struct mbuf *n;
+
 			n = m_get(M_NOWAIT, m->m_type);
 			if (n != NULL) {
 				if (m_dup_pkthdr(n, m, M_NOWAIT)) {
 					bcopy(m->m_data, n->m_data, m->m_len);
 					n->m_len = m->m_len;
+
+					m_freem(m);
+					m = n;
 				} else {
-					m_free(n);
+					m_freem(n);
 					n = NULL;
 				}
 			}
-		} else
-			n = m_copym(m, 0, M_COPYALL, M_NOWAIT);
-		if (n == NULL)
-			continue;
-		if (inp->inp_flags & INP_CONTROLOPTS)
-			ip6_savecontrol(inp, n, &opts);
-		/* strip intermediate headers */
-		m_adj(n, off);
-		SOCKBUF_LOCK(&inp->inp_socket->so_rcv);
-		if (sbappendaddr_locked(&inp->inp_socket->so_rcv,
-		    (struct sockaddr *)&fromsa, n, opts) == 0) {
-			soroverflow_locked(inp->inp_socket);
-			m_freem(n);
+		}
+		SOCKBUF_LOCK(&last->inp_socket->so_rcv);
+		if (sbappendaddr_locked(&last->inp_socket->so_rcv,
+		    (struct sockaddr *)&fromsa, m, opts) == 0) {
+			m_freem(m);
 			if (opts)
 				m_freem(opts);
-		} else {
-			sorwakeup_locked(inp->inp_socket);
-			delivered++;
-		}
-		opts = NULL;
-	}
-	m_freem(m);
-	*mp = NULL;
-	if (delivered == 0)
+			soroverflow_locked(last->inp_socket);
+		} else
+			sorwakeup_locked(last->inp_socket);
+		INP_RUNLOCK(last);
+	} else {
+		m_freem(m);
 		IP6STAT_DEC(ip6s_delivered);
+	}
+	*mp = NULL;
 	return (IPPROTO_DONE);
 }
 

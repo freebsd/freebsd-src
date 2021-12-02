@@ -36,7 +36,6 @@
 #include "opt_bpf.h"
 #include "opt_inet6.h"
 #include "opt_inet.h"
-#include "opt_ddb.h"
 
 #include <sys/param.h>
 #include <sys/capsicum.h>
@@ -4669,7 +4668,7 @@ DB_SHOW_ALL_COMMAND(ifnets, db_show_all_ifnets)
 		db_printf("vnet=%p\n", curvnet);
 #endif
 		for (idx = 1; idx <= V_if_index; idx++) {
-			ifp = V_ifindex_table[idx];
+			ifp = V_ifindex_table[idx].ife_ifnet;
 			if (ifp == NULL)
 				continue;
 			db_printf( "%20s ifp=%p\n", ifp->if_xname, ifp);

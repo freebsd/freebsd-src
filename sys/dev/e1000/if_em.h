@@ -439,6 +439,7 @@ struct em_rx_queue {
 
 /* Our softc structure */
 struct e1000_softc {
+	struct ifnet 		*ifp;
 	struct e1000_hw		hw;
 
 	if_softc_ctx_t		shared;

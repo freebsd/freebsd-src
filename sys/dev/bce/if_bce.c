@@ -625,7 +625,7 @@ static int bce_rx_quick_cons_trip_int = DEFAULT_RX_QUICK_CONS_TRIP_INT;
 #endif
 SYSCTL_UINT(_hw_bce, OID_AUTO, rx_quick_cons_trip_int, CTLFLAG_RDTUN,
     &bce_rx_quick_cons_trip_int, 0,
-    "Receive BD trip point during interrupts");
+    "Receive BD trip point duirng interrupts");
 
 /* Allowable values are 1 ... 100 */
 #ifdef BCE_DEBUG

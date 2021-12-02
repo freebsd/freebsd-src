@@ -147,13 +147,6 @@ static struct sx epoch_sx;
 #define	EPOCH_LOCK() sx_xlock(&epoch_sx)
 #define	EPOCH_UNLOCK() sx_xunlock(&epoch_sx)
 
-static epoch_record_t
-epoch_currecord(epoch_t epoch)
-{
-
-	return (zpcpu_get(epoch->e_pcpu_record));
-}
-
 #ifdef EPOCH_TRACE
 struct stackentry {
 	RB_ENTRY(stackentry) se_node;
@@ -237,7 +230,6 @@ epoch_trace_enter(struct thread *td, epoch_t epoch, epoch_tracker_t et,
 	et->et_epoch = epoch;
 	et->et_file = file;
 	et->et_line = line;
-	et->et_flags = 0;
 	SLIST_INSERT_HEAD(&td->td_epochs, et, et_tlink);
 }
 
@@ -258,9 +250,6 @@ epoch_trace_exit(struct thread *td, epoch_t epoch, epoch_tracker_t et,
 		SLIST_REMOVE(&td->td_epochs, et, epoch_tracker, et_tlink);
 	} else
 		SLIST_REMOVE_HEAD(&td->td_epochs, et_tlink);
-	if (et->et_flags & ET_REPORT_EXIT)
-		printf("Td %p exiting epoch %s at %s:%d\n", td, epoch->e_name,
-		    file, line);
 }
 
 /* Used by assertions that check thread state before going to sleep. */
@@ -272,28 +261,6 @@ epoch_trace_list(struct thread *td)
 	SLIST_FOREACH(iet, &td->td_epochs, et_tlink)
 		printf("Epoch %s entered at %s:%d\n", iet->et_epoch->e_name,
 		    iet->et_file, iet->et_line);
-}
-
-void
-epoch_where_report(epoch_t epoch)
-{
-	epoch_record_t er;
-	struct epoch_tracker *tdwait;
-
-	MPASS(epoch != NULL);
-	MPASS((epoch->e_flags & EPOCH_PREEMPT) != 0);
-	MPASS(!THREAD_CAN_SLEEP());
-	critical_enter();
-	er = epoch_currecord(epoch);
-	TAILQ_FOREACH(tdwait, &er->er_tdlist, et_link)
-		if (tdwait->et_td == curthread)
-			break;
-	critical_exit();
-	if (tdwait != NULL) {
-		tdwait->et_flags |= ET_REPORT_EXIT;
-		printf("Td %p entered epoch %s at %s:%d\n", curthread,
-		    epoch->e_name, tdwait->et_file, tdwait->et_line);
-	}
 }
 #endif /* EPOCH_TRACE */
 
@@ -453,6 +420,13 @@ epoch_free(epoch_t epoch)
 	memset(epoch, 0, sizeof(*epoch));
 
 	EPOCH_UNLOCK();
+}
+
+static epoch_record_t
+epoch_currecord(epoch_t epoch)
+{
+
+	return (zpcpu_get(epoch->e_pcpu_record));
 }
 
 #define INIT_CHECK(epoch)					\

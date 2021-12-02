@@ -1,2 +1,4 @@
 .\" $FreeBSD$
-Build C++ headers and runtime libraries.
+Build
+.Xr c++ 1
+and related libraries.

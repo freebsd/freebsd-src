@@ -5055,25 +5055,21 @@ hn_create_rx_data(struct hn_softc *sc, int ring_cnt)
 			if (rxr->hn_rx_sysctl_tree != NULL) {
 				SYSCTL_ADD_ULONG(ctx,
 				    SYSCTL_CHILDREN(rxr->hn_rx_sysctl_tree),
-				    OID_AUTO, "packets",
-				    CTLFLAG_RW | CTLFLAG_STATS, &rxr->hn_pkts,
-				    "# of packets received");
+				    OID_AUTO, "packets", CTLFLAG_RW,
+				    &rxr->hn_pkts, "# of packets received");
 				SYSCTL_ADD_ULONG(ctx,
 				    SYSCTL_CHILDREN(rxr->hn_rx_sysctl_tree),
-				    OID_AUTO, "rss_pkts",
-				    CTLFLAG_RW | CTLFLAG_STATS,
+				    OID_AUTO, "rss_pkts", CTLFLAG_RW,
 				    &rxr->hn_rss_pkts,
 				    "# of packets w/ RSS info received");
 				SYSCTL_ADD_ULONG(ctx,
 				    SYSCTL_CHILDREN(rxr->hn_rx_sysctl_tree),
-				    OID_AUTO, "rsc_pkts",
-				    CTLFLAG_RW | CTLFLAG_STATS,
+				    OID_AUTO, "rsc_pkts", CTLFLAG_RW,
 				    &rxr->hn_rsc_pkts,
 				    "# of RSC packets received");
 				SYSCTL_ADD_ULONG(ctx,
 				    SYSCTL_CHILDREN(rxr->hn_rx_sysctl_tree),
-				    OID_AUTO, "rsc_drop",
-				    CTLFLAG_RW | CTLFLAG_STATS,
+				    OID_AUTO, "rsc_drop", CTLFLAG_RW,
 				    &rxr->hn_rsc_drop,
 				    "# of RSC fragments dropped");
 				SYSCTL_ADD_INT(ctx,
@@ -5086,7 +5082,7 @@ hn_create_rx_data(struct hn_softc *sc, int ring_cnt)
 	}
 
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "lro_queued",
-	    CTLTYPE_U64 | CTLFLAG_RW | CTLFLAG_MPSAFE | CTLFLAG_STATS , sc,
+	    CTLTYPE_U64 | CTLFLAG_RW | CTLFLAG_MPSAFE, sc,
 	    __offsetof(struct hn_rx_ring, hn_lro.lro_queued),
 #if __FreeBSD_version < 1100095
 	    hn_rx_stat_int_sysctl,
@@ -5095,7 +5091,7 @@ hn_create_rx_data(struct hn_softc *sc, int ring_cnt)
 #endif
 	    "LU", "LRO queued");
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "lro_flushed",
-	    CTLTYPE_U64 | CTLFLAG_RW | CTLFLAG_MPSAFE | CTLFLAG_STATS , sc,
+	    CTLTYPE_U64 | CTLFLAG_RW | CTLFLAG_MPSAFE, sc,
 	    __offsetof(struct hn_rx_ring, hn_lro.lro_flushed),
 #if __FreeBSD_version < 1100095
 	    hn_rx_stat_int_sysctl,
@@ -5104,7 +5100,7 @@ hn_create_rx_data(struct hn_softc *sc, int ring_cnt)
 #endif
 	    "LU", "LRO flushed");
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "lro_tried",
-	    CTLTYPE_ULONG | CTLFLAG_RW | CTLFLAG_MPSAFE | CTLFLAG_STATS , sc,
+	    CTLTYPE_ULONG | CTLFLAG_RW | CTLFLAG_MPSAFE, sc,
 	    __offsetof(struct hn_rx_ring, hn_lro_tried),
 	    hn_rx_stat_ulong_sysctl, "LU", "# of LRO tries");
 #if __FreeBSD_version >= 1100099
@@ -5133,15 +5129,15 @@ hn_create_rx_data(struct hn_softc *sc, int ring_cnt)
 	    "Trust ip packet verification on host side, "
 	    "when csum info is missing");
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "csum_ip",
-	    CTLTYPE_ULONG | CTLFLAG_RW | CTLFLAG_MPSAFE | CTLFLAG_STATS , sc,
+	    CTLTYPE_ULONG | CTLFLAG_RW | CTLFLAG_MPSAFE, sc,
 	    __offsetof(struct hn_rx_ring, hn_csum_ip),
 	    hn_rx_stat_ulong_sysctl, "LU", "RXCSUM IP");
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "csum_tcp",
-	    CTLTYPE_ULONG | CTLFLAG_RW | CTLFLAG_MPSAFE | CTLFLAG_STATS , sc,
+	    CTLTYPE_ULONG | CTLFLAG_RW | CTLFLAG_MPSAFE, sc,
 	    __offsetof(struct hn_rx_ring, hn_csum_tcp),
 	    hn_rx_stat_ulong_sysctl, "LU", "RXCSUM TCP");
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "csum_udp",
-	    CTLTYPE_ULONG | CTLFLAG_RW | CTLFLAG_MPSAFE | CTLFLAG_STATS , sc,
+	    CTLTYPE_ULONG | CTLFLAG_RW | CTLFLAG_MPSAFE, sc,
 	    __offsetof(struct hn_rx_ring, hn_csum_udp),
 	    hn_rx_stat_ulong_sysctl, "LU", "RXCSUM UDP");
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "csum_trusted",
@@ -5150,11 +5146,11 @@ hn_create_rx_data(struct hn_softc *sc, int ring_cnt)
 	    hn_rx_stat_ulong_sysctl, "LU",
 	    "# of packets that we trust host's csum verification");
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "small_pkts",
-	    CTLTYPE_ULONG | CTLFLAG_RW | CTLFLAG_MPSAFE | CTLFLAG_STATS , sc,
+	    CTLTYPE_ULONG | CTLFLAG_RW | CTLFLAG_MPSAFE, sc,
 	    __offsetof(struct hn_rx_ring, hn_small_pkts),
 	    hn_rx_stat_ulong_sysctl, "LU", "# of small packets received");
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "rx_ack_failed",
-	    CTLTYPE_ULONG | CTLFLAG_RW | CTLFLAG_MPSAFE | CTLFLAG_STATS , sc,
+	    CTLTYPE_ULONG | CTLFLAG_RW | CTLFLAG_MPSAFE, sc,
 	    __offsetof(struct hn_rx_ring, hn_ack_failed),
 	    hn_rx_stat_ulong_sysctl, "LU", "# of RXBUF ack failures");
 	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "rx_ring_cnt",
@@ -5395,11 +5391,10 @@ hn_tx_ring_create(struct hn_softc *sc, int id)
 				    "over active");
 			}
 			SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "packets",
-			    CTLFLAG_RW | CTLFLAG_STATS, &txr->hn_pkts,
+			    CTLFLAG_RW, &txr->hn_pkts,
 			    "# of packets transmitted");
 			SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "sends",
-			    CTLFLAG_RW | CTLFLAG_STATS, &txr->hn_sends,
-			    "# of sends");
+			    CTLFLAG_RW, &txr->hn_sends, "# of sends");
 		}
 	}
 
@@ -5522,32 +5517,32 @@ hn_create_tx_data(struct hn_softc *sc, int ring_cnt)
 	}
 
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "no_txdescs",
-	    CTLTYPE_ULONG | CTLFLAG_RW | CTLFLAG_MPSAFE | CTLFLAG_STATS, sc,
+	    CTLTYPE_ULONG | CTLFLAG_RW | CTLFLAG_MPSAFE, sc,
 	    __offsetof(struct hn_tx_ring, hn_no_txdescs),
 	    hn_tx_stat_ulong_sysctl, "LU", "# of times short of TX descs");
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "send_failed",
-	    CTLTYPE_ULONG | CTLFLAG_RW | CTLFLAG_MPSAFE | CTLFLAG_STATS, sc,
+	    CTLTYPE_ULONG | CTLFLAG_RW | CTLFLAG_MPSAFE, sc,
 	    __offsetof(struct hn_tx_ring, hn_send_failed),
 	    hn_tx_stat_ulong_sysctl, "LU", "# of hyper-v sending failure");
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "txdma_failed",
-	    CTLTYPE_ULONG | CTLFLAG_RW | CTLFLAG_MPSAFE | CTLFLAG_STATS, sc,
+	    CTLTYPE_ULONG | CTLFLAG_RW | CTLFLAG_MPSAFE, sc,
 	    __offsetof(struct hn_tx_ring, hn_txdma_failed),
 	    hn_tx_stat_ulong_sysctl, "LU", "# of TX DMA failure");
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "agg_flush_failed",
-	    CTLTYPE_ULONG | CTLFLAG_RW | CTLFLAG_MPSAFE | CTLFLAG_STATS, sc,
+	    CTLTYPE_ULONG | CTLFLAG_RW | CTLFLAG_MPSAFE, sc,
 	    __offsetof(struct hn_tx_ring, hn_flush_failed),
 	    hn_tx_stat_ulong_sysctl, "LU",
 	    "# of packet transmission aggregation flush failure");
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "tx_collapsed",
-	    CTLTYPE_ULONG | CTLFLAG_RW | CTLFLAG_MPSAFE | CTLFLAG_STATS, sc,
+	    CTLTYPE_ULONG | CTLFLAG_RW | CTLFLAG_MPSAFE, sc,
 	    __offsetof(struct hn_tx_ring, hn_tx_collapsed),
 	    hn_tx_stat_ulong_sysctl, "LU", "# of TX mbuf collapsed");
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "tx_chimney",
-	    CTLTYPE_ULONG | CTLFLAG_RW | CTLFLAG_MPSAFE | CTLFLAG_STATS, sc,
+	    CTLTYPE_ULONG | CTLFLAG_RW | CTLFLAG_MPSAFE, sc,
 	    __offsetof(struct hn_tx_ring, hn_tx_chimney),
 	    hn_tx_stat_ulong_sysctl, "LU", "# of chimney send");
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "tx_chimney_tried",
-	    CTLTYPE_ULONG | CTLFLAG_RW | CTLFLAG_MPSAFE | CTLFLAG_STATS, sc,
+	    CTLTYPE_ULONG | CTLFLAG_RW | CTLFLAG_MPSAFE, sc,
 	    __offsetof(struct hn_tx_ring, hn_tx_chimney_tried),
 	    hn_tx_stat_ulong_sysctl, "LU", "# of chimney send tries");
 	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "txdesc_cnt",
