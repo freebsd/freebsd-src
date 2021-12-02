@@ -516,9 +516,9 @@ in6_pcbconnect_mbuf(struct inpcb *inp, struct sockaddr *nam,
 		    (htonl(ip6_randomflowlabel()) & IPV6_FLOWLABEL_MASK);
 
 	if (rehash) {
-		in_pcbrehash_mbuf(inp, m);
+		in_pcbrehash(inp);
 	} else {
-		in_pcbinshash_mbuf(inp, m);
+		in_pcbinshash(inp);
 	}
 
 	return (0);
