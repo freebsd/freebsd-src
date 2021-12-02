@@ -187,6 +187,76 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_offload.h>
 #endif
 
+/*
+ * The hpts uses a 102400 wheel. The wheel
+ * defines the time in 10 usec increments (102400 x 10).
+ * This gives a range of 10usec - 1024ms to place
+ * an entry within. If the user requests more than
+ * 1.024 second, a remaineder is attached and the hpts
+ * when seeing the remainder will re-insert the
+ * inpcb forward in time from where it is until
+ * the remainder is zero.
+ */
+
+#define NUM_OF_HPTSI_SLOTS 102400
+
+/* Each hpts has its own p_mtx which is used for locking */
+#define	HPTS_MTX_ASSERT(hpts)	mtx_assert(&(hpts)->p_mtx, MA_OWNED)
+TAILQ_HEAD(hptsh, inpcb);
+struct tcp_hpts_entry {
+	/* Cache line 0x00 */
+	struct mtx p_mtx;	/* Mutex for hpts */
+	struct timeval p_mysleep;	/* Our min sleep time */
+	uint64_t syscall_cnt;
+	uint64_t sleeping;	/* What the actual sleep was (if sleeping) */
+	uint16_t p_hpts_active; /* Flag that says hpts is awake  */
+	uint8_t p_wheel_complete; /* have we completed the wheel arc walk? */
+	uint32_t p_curtick;	/* Tick in 10 us the hpts is going to */
+	uint32_t p_runningslot; /* Current tick we are at if we are running */
+	uint32_t p_prev_slot;	/* Previous slot we were on */
+	uint32_t p_cur_slot;	/* Current slot in wheel hpts is draining */
+	uint32_t p_nxt_slot;	/* The next slot outside the current range of
+				 * slots that the hpts is running on. */
+	int32_t p_on_queue_cnt;	/* Count on queue in this hpts */
+	uint32_t p_lasttick;	/* Last tick before the current one */
+	uint8_t p_direct_wake :1, /* boolean */
+		p_on_min_sleep:1, /* boolean */
+		p_hpts_wake_scheduled:1, /* boolean */
+		p_avail:5;
+	uint8_t p_fill[3];	  /* Fill to 32 bits */
+	/* Cache line 0x40 */
+	void *p_inp;
+	struct hptsh p_input;	/* For the tcp-input runner */
+	/* Hptsi wheel */
+	struct hptsh *p_hptss;
+	int32_t p_on_inqueue_cnt; /* Count on input queue in this hpts */
+	uint32_t p_hpts_sleep_time;	/* Current sleep interval having a max
+					 * of 255ms */
+	uint32_t overidden_sleep;	/* what was overrided by min-sleep for logging */
+	uint32_t saved_lasttick;	/* for logging */
+	uint32_t saved_curtick;		/* for logging */
+	uint32_t saved_curslot;		/* for logging */
+	uint32_t saved_prev_slot;       /* for logging */
+	uint32_t p_delayed_by;	/* How much were we delayed by */
+	/* Cache line 0x80 */
+	struct sysctl_ctx_list hpts_ctx;
+	struct sysctl_oid *hpts_root;
+	struct intr_event *ie;
+	void *ie_cookie;
+	uint16_t p_num;		/* The hpts number one per cpu */
+	uint16_t p_cpu;		/* The hpts CPU */
+	/* There is extra space in here */
+	/* Cache line 0x100 */
+	struct callout co __aligned(CACHE_LINE_SIZE);
+}               __aligned(CACHE_LINE_SIZE);
+
+struct tcp_hptsi {
+	struct proc *rp_proc;	/* Process structure for hpts */
+	struct tcp_hpts_entry **rp_ent;	/* Array of hptss */
+	uint32_t *cts_last_ran;
+	uint32_t rp_num_hptss;	/* Number of hpts threads */
+};
+
 MALLOC_DEFINE(M_TCPHPTS, "tcp_hpts", "TCP hpts");
 #ifdef RSS
 static int tcp_bind_threads = 1;
@@ -229,12 +299,10 @@ SYSCTL_NODE(_net_inet_tcp_hpts, OID_AUTO, stats, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
 
 static int32_t tcp_hpts_precision = 120;
 
-struct hpts_domain_info {
+static struct hpts_domain_info {
 	int count;
 	int cpu[MAXCPU];
-};
-
-struct hpts_domain_info hpts_domains[MAXMEMDOM];
+} hpts_domains[MAXMEMDOM];
 
 counter_u64_t hpts_hopelessly_behind;
 
@@ -525,18 +593,7 @@ hpts_sane_input_insert(struct tcp_hpts_entry *hpts, struct inpcb *inp, int line)
 	in_pcbref(inp);
 }
 
-struct tcp_hpts_entry *
-tcp_cur_hpts(struct inpcb *inp)
-{
-	int32_t hpts_num;
-	struct tcp_hpts_entry *hpts;
-
-	hpts_num = inp->inp_hpts_cpu;
-	hpts = tcp_pace.rp_ent[hpts_num];
-	return (hpts);
-}
-
-struct tcp_hpts_entry *
+static struct tcp_hpts_entry *
 tcp_hpts_lock(struct inpcb *inp)
 {
 	struct tcp_hpts_entry *hpts;
@@ -556,7 +613,7 @@ again:
 	return (hpts);
 }
 
-struct tcp_hpts_entry *
+static struct tcp_hpts_entry *
 tcp_input_lock(struct inpcb *inp)
 {
 	struct tcp_hpts_entry *hpts;
@@ -837,19 +894,6 @@ tcp_queue_to_hpts_immediate_locked(struct inpcb *inp, struct tcp_hpts_entry *hpt
 	return (need_wake);
 }
 
-int
-__tcp_queue_to_hpts_immediate(struct inpcb *inp, int32_t line)
-{
-	int32_t ret;
-	struct tcp_hpts_entry *hpts;
-
-	INP_WLOCK_ASSERT(inp);
-	hpts = tcp_hpts_lock(inp);
-	ret = tcp_queue_to_hpts_immediate_locked(inp, hpts, line, 0);
-	mtx_unlock(&hpts->p_mtx);
-	return (ret);
-}
-
 #ifdef INVARIANTS
 static void
 check_if_slot_would_be_wrong(struct tcp_hpts_entry *hpts, struct inpcb *inp, uint32_t inp_hptsslot, int line)
@@ -1052,46 +1096,6 @@ __tcp_hpts_insert(struct inpcb *inp, uint32_t slot, int32_t line){
 	return (tcp_hpts_insert_diag(inp, slot, line, NULL));
 }
 
-int
-__tcp_queue_to_input_locked(struct inpcb *inp, struct tcp_hpts_entry *hpts, int32_t line)
-{
-	int32_t retval = 0;
-
-	HPTS_MTX_ASSERT(hpts);
-	if (inp->inp_in_input == 0) {
-		/* Ok we need to set it on the hpts in the current slot */
-		hpts_sane_input_insert(hpts, inp, line);
-		retval = 1;
-		if ((hpts->p_hpts_active == 0) &&
-		    (hpts->p_on_min_sleep == 0)){
-			/*
-			 * Activate the hpts if it is sleeping.
-			 */
-			retval = 2;
-			hpts->p_direct_wake = 1;
-			tcp_wakehpts(hpts);
-		}
-	} else if ((hpts->p_hpts_active == 0) &&
-		   (hpts->p_on_min_sleep == 0)){
-		retval = 4;
-		hpts->p_direct_wake = 1;
-		tcp_wakehpts(hpts);
-	}
-	return (retval);
-}
-
-int32_t
-__tcp_queue_to_input(struct inpcb *inp, int line)
-{
-	struct tcp_hpts_entry *hpts;
-	int32_t ret;
-
-	hpts = tcp_input_lock(inp);
-	ret = __tcp_queue_to_input_locked(inp, hpts, line);
-	mtx_unlock(&hpts->p_mtx);
-	return (ret);
-}
-
 void
 __tcp_set_inp_to_drop(struct inpcb *inp, uint16_t reason, int32_t line)
 {
@@ -1120,7 +1124,7 @@ __tcp_set_inp_to_drop(struct inpcb *inp, uint16_t reason, int32_t line)
 	mtx_unlock(&hpts->p_mtx);
 }
 
-uint16_t
+static uint16_t
 hpts_random_cpu(struct inpcb *inp){
 	/*
 	 * No flow type set distribute the load randomly.
@@ -1818,11 +1822,6 @@ __tcp_set_hpts(struct inpcb *inp, int32_t line)
 			inp->inp_input_cpu_set = 1;
 	}
 	mtx_unlock(&hpts->p_mtx);
-}
-
-uint16_t
-tcp_hpts_delayedby(struct inpcb *inp){
-	return (tcp_pace.rp_ent[inp->inp_hpts_cpu]->p_delayed_by);
 }
 
 static void
