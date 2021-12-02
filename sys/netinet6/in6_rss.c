@@ -34,10 +34,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet6.h"
 #include "opt_pcbgroup.h"
 
-#ifndef PCBGROUP
-#error "options RSS depends on options PCBGROUP"
-#endif
-
 #include <sys/param.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
