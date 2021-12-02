@@ -52,10 +52,6 @@ void SetUp() {
 	if (geteuid() != 0)
 		GTEST_SKIP() << "Only root may use " << reclaim_mib;
 
-	if (-1 == sysctlbyname(reclaim_mib, NULL, 0, NULL, 0) &&
-	    errno == ENOENT)
-		GTEST_SKIP() << reclaim_mib << " is not available";
-
 	FuseTest::SetUp();
 }
 
