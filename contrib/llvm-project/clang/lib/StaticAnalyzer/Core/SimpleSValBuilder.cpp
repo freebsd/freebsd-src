@@ -372,6 +372,15 @@ SVal SimpleSValBuilder::evalBinOpNN(ProgramStateRef state,
   NonLoc InputLHS = lhs;
   NonLoc InputRHS = rhs;
 
+  // Constraints may have changed since the creation of a bound SVal. Check if
+  // the values can be simplified based on those new constraints.
+  SVal simplifiedLhs = simplifySVal(state, lhs);
+  SVal simplifiedRhs = simplifySVal(state, rhs);
+  if (auto simplifiedLhsAsNonLoc = simplifiedLhs.getAs<NonLoc>())
+    lhs = *simplifiedLhsAsNonLoc;
+  if (auto simplifiedRhsAsNonLoc = simplifiedRhs.getAs<NonLoc>())
+    rhs = *simplifiedRhsAsNonLoc;
+
   // Handle trivial case where left-side and right-side are the same.
   if (lhs == rhs)
     switch (op) {
@@ -618,16 +627,6 @@ SVal SimpleSValBuilder::evalBinOpNN(ProgramStateRef state,
           return MakeSymIntVal(symIntExpr, op, *RHSValue, resultTy);
         }
       }
-
-      // Does the symbolic expression simplify to a constant?
-      // If so, "fold" the constant by setting 'lhs' to a ConcreteInt
-      // and try again.
-      SVal simplifiedLhs = simplifySVal(state, lhs);
-      if (simplifiedLhs != lhs)
-        if (auto simplifiedLhsAsNonLoc = simplifiedLhs.getAs<NonLoc>()) {
-          lhs = *simplifiedLhsAsNonLoc;
-          continue;
-        }
 
       // Is the RHS a constant?
       if (const llvm::APSInt *RHSValue = getKnownValue(state, rhs))
@@ -1103,7 +1102,6 @@ const llvm::APSInt *SimpleSValBuilder::getKnownValue(ProgramStateRef state,
   if (SymbolRef Sym = V.getAsSymbol())
     return state->getConstraintManager().getSymVal(state, Sym);
 
-  // FIXME: Add support for SymExprs.
   return nullptr;
 }
 
@@ -1135,6 +1133,24 @@ SVal SimpleSValBuilder::simplifySVal(ProgramStateRef State, SVal V) {
       return cache(Sym, SVB.makeSymbolVal(Sym));
     }
 
+    // Return the known const value for the Sym if available, or return Undef
+    // otherwise.
+    SVal getConst(SymbolRef Sym) {
+      const llvm::APSInt *Const =
+          State->getConstraintManager().getSymVal(State, Sym);
+      if (Const)
+        return Loc::isLocType(Sym->getType()) ? (SVal)SVB.makeIntLocVal(*Const)
+                                              : (SVal)SVB.makeIntVal(*Const);
+      return UndefinedVal();
+    }
+
+    SVal getConstOrVisit(SymbolRef Sym) {
+      const SVal Ret = getConst(Sym);
+      if (Ret.isUndef())
+        return Visit(Sym);
+      return Ret;
+    }
+
   public:
     Simplifier(ProgramStateRef State)
         : State(State), SVB(State->getStateManager().getSValBuilder()) {}
@@ -1148,15 +1164,14 @@ SVal SimpleSValBuilder::simplifySVal(ProgramStateRef State, SVal V) {
       return SVB.makeSymbolVal(S);
     }
 
-    // TODO: Support SymbolCast. Support IntSymExpr when/if we actually
-    // start producing them.
+    // TODO: Support SymbolCast.
 
     SVal VisitSymIntExpr(const SymIntExpr *S) {
       auto I = Cached.find(S);
       if (I != Cached.end())
         return I->second;
 
-      SVal LHS = Visit(S->getLHS());
+      SVal LHS = getConstOrVisit(S->getLHS());
       if (isUnchanged(S->getLHS(), LHS))
         return skip(S);
 
@@ -1183,6 +1198,20 @@ SVal SimpleSValBuilder::simplifySVal(ProgramStateRef State, SVal V) {
           S, SVB.evalBinOp(State, S->getOpcode(), LHS, RHS, S->getType()));
     }
 
+    SVal VisitIntSymExpr(const IntSymExpr *S) {
+      auto I = Cached.find(S);
+      if (I != Cached.end())
+        return I->second;
+
+      SVal RHS = getConstOrVisit(S->getRHS());
+      if (isUnchanged(S->getRHS(), RHS))
+        return skip(S);
+
+      SVal LHS = SVB.makeIntVal(S->getLHS());
+      return cache(
+          S, SVB.evalBinOp(State, S->getOpcode(), LHS, RHS, S->getType()));
+    }
+
     SVal VisitSymSymExpr(const SymSymExpr *S) {
       auto I = Cached.find(S);
       if (I != Cached.end())
@@ -1196,8 +1225,9 @@ SVal SimpleSValBuilder::simplifySVal(ProgramStateRef State, SVal V) {
           Loc::isLocType(S->getRHS()->getType()))
         return skip(S);
 
-      SVal LHS = Visit(S->getLHS());
-      SVal RHS = Visit(S->getRHS());
+      SVal LHS = getConstOrVisit(S->getLHS());
+      SVal RHS = getConstOrVisit(S->getRHS());
+
       if (isUnchanged(S->getLHS(), LHS) && isUnchanged(S->getRHS(), RHS))
         return skip(S);
 

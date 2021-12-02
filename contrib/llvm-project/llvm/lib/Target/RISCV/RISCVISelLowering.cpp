@@ -335,17 +335,29 @@ RISCVTargetLowering::RISCVTargetLowering(const TargetMachine &TM,
     setOperationAction(ISD::SELECT_CC, MVT::f16, Expand);
     setOperationAction(ISD::SELECT, MVT::f16, Custom);
     setOperationAction(ISD::BR_CC, MVT::f16, Expand);
-    for (auto Op : FPOpToExpand)
-      setOperationAction(Op, MVT::f16, Expand);
 
     setOperationAction(ISD::FREM,       MVT::f16, Promote);
-    setOperationAction(ISD::FCEIL,      MVT::f16,  Promote);
-    setOperationAction(ISD::FFLOOR,     MVT::f16,  Promote);
-    setOperationAction(ISD::FNEARBYINT, MVT::f16,  Promote);
-    setOperationAction(ISD::FRINT,      MVT::f16,  Promote);
-    setOperationAction(ISD::FROUND,     MVT::f16,  Promote);
-    setOperationAction(ISD::FROUNDEVEN, MVT::f16,  Promote);
-    setOperationAction(ISD::FTRUNC,     MVT::f16,  Promote);
+    setOperationAction(ISD::FCEIL,      MVT::f16, Promote);
+    setOperationAction(ISD::FFLOOR,     MVT::f16, Promote);
+    setOperationAction(ISD::FNEARBYINT, MVT::f16, Promote);
+    setOperationAction(ISD::FRINT,      MVT::f16, Promote);
+    setOperationAction(ISD::FROUND,     MVT::f16, Promote);
+    setOperationAction(ISD::FROUNDEVEN, MVT::f16, Promote);
+    setOperationAction(ISD::FTRUNC,     MVT::f16, Promote);
+    setOperationAction(ISD::FPOW,       MVT::f16, Promote);
+    setOperationAction(ISD::FPOWI,      MVT::f16, Promote);
+    setOperationAction(ISD::FCOS,       MVT::f16, Promote);
+    setOperationAction(ISD::FSIN,       MVT::f16, Promote);
+    setOperationAction(ISD::FSINCOS,    MVT::f16, Promote);
+    setOperationAction(ISD::FEXP,       MVT::f16, Promote);
+    setOperationAction(ISD::FEXP2,      MVT::f16, Promote);
+    setOperationAction(ISD::FLOG,       MVT::f16, Promote);
+    setOperationAction(ISD::FLOG2,      MVT::f16, Promote);
+    setOperationAction(ISD::FLOG10,     MVT::f16, Promote);
+
+    // We need to custom promote this.
+    if (Subtarget.is64Bit())
+      setOperationAction(ISD::FPOWI, MVT::i32, Custom);
   }
 
   if (Subtarget.hasStdExtF()) {
@@ -676,6 +688,10 @@ RISCVTargetLowering::RISCVTargetLowering(const TargetMachine &TM,
       setOperationAction(ISD::FMINNUM, VT, Legal);
       setOperationAction(ISD::FMAXNUM, VT, Legal);
 
+      setOperationAction(ISD::FTRUNC, VT, Custom);
+      setOperationAction(ISD::FCEIL, VT, Custom);
+      setOperationAction(ISD::FFLOOR, VT, Custom);
+
       setOperationAction(ISD::VECREDUCE_FADD, VT, Custom);
       setOperationAction(ISD::VECREDUCE_SEQ_FADD, VT, Custom);
       setOperationAction(ISD::VECREDUCE_FMIN, VT, Custom);
@@ -924,6 +940,10 @@ RISCVTargetLowering::RISCVTargetLowering(const TargetMachine &TM,
         setOperationAction(ISD::FP_ROUND, VT, Custom);
         setOperationAction(ISD::FP_EXTEND, VT, Custom);
 
+        setOperationAction(ISD::FTRUNC, VT, Custom);
+        setOperationAction(ISD::FCEIL, VT, Custom);
+        setOperationAction(ISD::FFLOOR, VT, Custom);
+
         for (auto CC : VFPCCToExpand)
           setCondCodeAction(CC, VT, Expand);
 
@@ -1165,6 +1185,10 @@ bool RISCVTargetLowering::shouldSinkOperands(
     case Instruction::Shl:
     case Instruction::LShr:
     case Instruction::AShr:
+    case Instruction::UDiv:
+    case Instruction::SDiv:
+    case Instruction::URem:
+    case Instruction::SRem:
       return Operand == 1;
     case Instruction::Call:
       if (auto *II = dyn_cast<IntrinsicInst>(I)) {
@@ -1629,6 +1653,66 @@ static SDValue lowerFP_TO_INT_SAT(SDValue Op, SelectionDAG &DAG) {
 
   SDValue ZeroInt = DAG.getConstant(0, DL, DstVT);
   return DAG.getSelectCC(DL, Src, Src, ZeroInt, FpToInt, ISD::CondCode::SETUO);
+}
+
+// Expand vector FTRUNC, FCEIL, and FFLOOR by converting to the integer domain
+// and back. Taking care to avoid converting values that are nan or already
+// correct.
+// TODO: Floor and ceil could be shorter by changing rounding mode, but we don't
+// have FRM dependencies modeled yet.
+static SDValue lowerFTRUNC_FCEIL_FFLOOR(SDValue Op, SelectionDAG &DAG) {
+  MVT VT = Op.getSimpleValueType();
+  assert(VT.isVector() && "Unexpected type");
+
+  SDLoc DL(Op);
+
+  // Freeze the source since we are increasing the number of uses.
+  SDValue Src = DAG.getNode(ISD::FREEZE, DL, VT, Op.getOperand(0));
+
+  // Truncate to integer and convert back to FP.
+  MVT IntVT = VT.changeVectorElementTypeToInteger();
+  SDValue Truncated = DAG.getNode(ISD::FP_TO_SINT, DL, IntVT, Src);
+  Truncated = DAG.getNode(ISD::SINT_TO_FP, DL, VT, Truncated);
+
+  MVT SetccVT = MVT::getVectorVT(MVT::i1, VT.getVectorElementCount());
+
+  if (Op.getOpcode() == ISD::FCEIL) {
+    // If the truncated value is the greater than or equal to the original
+    // value, we've computed the ceil. Otherwise, we went the wrong way and
+    // need to increase by 1.
+    // FIXME: This should use a masked operation. Handle here or in isel?
+    SDValue Adjust = DAG.getNode(ISD::FADD, DL, VT, Truncated,
+                                 DAG.getConstantFP(1.0, DL, VT));
+    SDValue NeedAdjust = DAG.getSetCC(DL, SetccVT, Truncated, Src, ISD::SETOLT);
+    Truncated = DAG.getSelect(DL, VT, NeedAdjust, Adjust, Truncated);
+  } else if (Op.getOpcode() == ISD::FFLOOR) {
+    // If the truncated value is the less than or equal to the original value,
+    // we've computed the floor. Otherwise, we went the wrong way and need to
+    // decrease by 1.
+    // FIXME: This should use a masked operation. Handle here or in isel?
+    SDValue Adjust = DAG.getNode(ISD::FSUB, DL, VT, Truncated,
+                                 DAG.getConstantFP(1.0, DL, VT));
+    SDValue NeedAdjust = DAG.getSetCC(DL, SetccVT, Truncated, Src, ISD::SETOGT);
+    Truncated = DAG.getSelect(DL, VT, NeedAdjust, Adjust, Truncated);
+  }
+
+  // Restore the original sign so that -0.0 is preserved.
+  Truncated = DAG.getNode(ISD::FCOPYSIGN, DL, VT, Truncated, Src);
+
+  // Determine the largest integer that can be represented exactly. This and
+  // values larger than it don't have any fractional bits so don't need to
+  // be converted.
+  const fltSemantics &FltSem = DAG.EVTToAPFloatSemantics(VT);
+  unsigned Precision = APFloat::semanticsPrecision(FltSem);
+  APFloat MaxVal = APFloat(FltSem);
+  MaxVal.convertFromAPInt(APInt::getOneBitSet(Precision, Precision - 1),
+                          /*IsSigned*/ false, APFloat::rmNearestTiesToEven);
+  SDValue MaxValNode = DAG.getConstantFP(MaxVal, DL, VT);
+
+  // If abs(Src) was larger than MaxVal or nan, keep it.
+  SDValue Abs = DAG.getNode(ISD::FABS, DL, VT, Src);
+  SDValue Setcc = DAG.getSetCC(DL, SetccVT, Abs, MaxValNode, ISD::SETOLT);
+  return DAG.getSelect(DL, VT, Setcc, Truncated, Src);
 }
 
 static SDValue lowerSPLAT_VECTOR(SDValue Op, SelectionDAG &DAG,
@@ -2670,6 +2754,20 @@ SDValue RISCVTargetLowering::LowerOperation(SDValue Op,
                                  DAG.getConstant(3, DL, VT));
     return DAG.getNode(ISD::MUL, DL, VT, VScale, Op.getOperand(0));
   }
+  case ISD::FPOWI: {
+    // Custom promote f16 powi with illegal i32 integer type on RV64. Once
+    // promoted this will be legalized into a libcall by LegalizeIntegerTypes.
+    if (Op.getValueType() == MVT::f16 && Subtarget.is64Bit() &&
+        Op.getOperand(1).getValueType() == MVT::i32) {
+      SDLoc DL(Op);
+      SDValue Op0 = DAG.getNode(ISD::FP_EXTEND, DL, MVT::f32, Op.getOperand(0));
+      SDValue Powi =
+          DAG.getNode(ISD::FPOWI, DL, MVT::f32, Op0, Op.getOperand(1));
+      return DAG.getNode(ISD::FP_ROUND, DL, MVT::f16, Powi,
+                         DAG.getIntPtrConstant(0, DL));
+    }
+    return SDValue();
+  }
   case ISD::FP_EXTEND: {
     // RVV can only do fp_extend to types double the size as the source. We
     // custom-lower f16->f64 extensions to two hops of ISD::FP_EXTEND, going
@@ -2858,6 +2956,10 @@ SDValue RISCVTargetLowering::LowerOperation(SDValue Op,
   case ISD::FP_TO_SINT_SAT:
   case ISD::FP_TO_UINT_SAT:
     return lowerFP_TO_INT_SAT(Op, DAG);
+  case ISD::FTRUNC:
+  case ISD::FCEIL:
+  case ISD::FFLOOR:
+    return lowerFTRUNC_FCEIL_FFLOOR(Op, DAG);
   case ISD::VECREDUCE_ADD:
   case ISD::VECREDUCE_UMAX:
   case ISD::VECREDUCE_SMAX:
@@ -9832,6 +9934,23 @@ Value *RISCVTargetLowering::emitMaskedAtomicCmpXchgIntrinsic(
 
 bool RISCVTargetLowering::shouldRemoveExtendFromGSIndex(EVT VT) const {
   return false;
+}
+
+bool RISCVTargetLowering::shouldConvertFpToSat(unsigned Op, EVT FPVT,
+                                               EVT VT) const {
+  if (!isOperationLegalOrCustom(Op, VT) || !FPVT.isSimple())
+    return false;
+
+  switch (FPVT.getSimpleVT().SimpleTy) {
+  case MVT::f16:
+    return Subtarget.hasStdExtZfh();
+  case MVT::f32:
+    return Subtarget.hasStdExtF();
+  case MVT::f64:
+    return Subtarget.hasStdExtD();
+  default:
+    return false;
+  }
 }
 
 bool RISCVTargetLowering::isFMAFasterThanFMulAndFAdd(const MachineFunction &MF,

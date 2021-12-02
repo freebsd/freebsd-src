@@ -129,6 +129,43 @@ inline SpecificConstantMatch m_SpecificICst(int64_t RequestedValue) {
   return SpecificConstantMatch(RequestedValue);
 }
 
+/// Matcher for a specific constant splat.
+struct SpecificConstantSplatMatch {
+  int64_t RequestedVal;
+  SpecificConstantSplatMatch(int64_t RequestedVal)
+      : RequestedVal(RequestedVal) {}
+  bool match(const MachineRegisterInfo &MRI, Register Reg) {
+    return isBuildVectorConstantSplat(Reg, MRI, RequestedVal,
+                                      /* AllowUndef */ false);
+  }
+};
+
+/// Matches a constant splat of \p RequestedValue.
+inline SpecificConstantSplatMatch m_SpecificICstSplat(int64_t RequestedValue) {
+  return SpecificConstantSplatMatch(RequestedValue);
+}
+
+/// Matcher for a specific constant or constant splat.
+struct SpecificConstantOrSplatMatch {
+  int64_t RequestedVal;
+  SpecificConstantOrSplatMatch(int64_t RequestedVal)
+      : RequestedVal(RequestedVal) {}
+  bool match(const MachineRegisterInfo &MRI, Register Reg) {
+    int64_t MatchedVal;
+    if (mi_match(Reg, MRI, m_ICst(MatchedVal)) && MatchedVal == RequestedVal)
+      return true;
+    return isBuildVectorConstantSplat(Reg, MRI, RequestedVal,
+                                      /* AllowUndef */ false);
+  }
+};
+
+/// Matches a \p RequestedValue constant or a constant splat of \p
+/// RequestedValue.
+inline SpecificConstantOrSplatMatch
+m_SpecificICstOrSplat(int64_t RequestedValue) {
+  return SpecificConstantOrSplatMatch(RequestedValue);
+}
+
 ///{
 /// Convenience matchers for specific integer values.
 inline SpecificConstantMatch m_ZeroInt() { return SpecificConstantMatch(0); }
@@ -487,6 +524,11 @@ inline UnaryOp_match<SrcTy, TargetOpcode::G_FNEG> m_GFNeg(const SrcTy &Src) {
 template <typename SrcTy>
 inline UnaryOp_match<SrcTy, TargetOpcode::COPY> m_Copy(SrcTy &&Src) {
   return UnaryOp_match<SrcTy, TargetOpcode::COPY>(std::forward<SrcTy>(Src));
+}
+
+template <typename SrcTy>
+inline UnaryOp_match<SrcTy, TargetOpcode::G_FSQRT> m_GFSqrt(const SrcTy &Src) {
+  return UnaryOp_match<SrcTy, TargetOpcode::G_FSQRT>(Src);
 }
 
 // General helper for generic MI compares, i.e. G_ICMP and G_FCMP

@@ -34,6 +34,9 @@ extern "C" void __tsan_resume() {
   __tsan_resumed = 1;
 }
 
+SANITIZER_WEAK_DEFAULT_IMPL
+void __tsan_test_only_on_fork() {}
+
 namespace __tsan {
 
 #if !SANITIZER_GO
@@ -271,8 +274,39 @@ void DontNeedShadowFor(uptr addr, uptr size) {
 }
 
 #if !SANITIZER_GO
+// We call UnmapShadow before the actual munmap, at that point we don't yet
+// know if the provided address/size are sane. We can't call UnmapShadow
+// after the actual munmap becuase at that point the memory range can
+// already be reused for something else, so we can't rely on the munmap
+// return value to understand is the values are sane.
+// While calling munmap with insane values (non-canonical address, negative
+// size, etc) is an error, the kernel won't crash. We must also try to not
+// crash as the failure mode is very confusing (paging fault inside of the
+// runtime on some derived shadow address).
+static bool IsValidMmapRange(uptr addr, uptr size) {
+  if (size == 0)
+    return true;
+  if (static_cast<sptr>(size) < 0)
+    return false;
+  if (!IsAppMem(addr) || !IsAppMem(addr + size - 1))
+    return false;
+  // Check that if the start of the region belongs to one of app ranges,
+  // end of the region belongs to the same region.
+  const uptr ranges[][2] = {
+      {LoAppMemBeg(), LoAppMemEnd()},
+      {MidAppMemBeg(), MidAppMemEnd()},
+      {HiAppMemBeg(), HiAppMemEnd()},
+  };
+  for (auto range : ranges) {
+    if (addr >= range[0] && addr < range[1])
+      return addr + size <= range[1];
+  }
+  return false;
+}
+
 void UnmapShadow(ThreadState *thr, uptr addr, uptr size) {
-  if (size == 0) return;
+  if (size == 0 || !IsValidMmapRange(addr, size))
+    return;
   DontNeedShadowFor(addr, size);
   ScopedGlobalProcessor sgp;
   ctx->metamap.ResetRange(thr->proc(), addr, size);
@@ -491,6 +525,7 @@ void ForkBefore(ThreadState *thr, uptr pc) NO_THREAD_SAFETY_ANALYSIS {
   ctx->thread_registry.Lock();
   ctx->report_mtx.Lock();
   ScopedErrorReportLock::Lock();
+  AllocatorLock();
   // Suppress all reports in the pthread_atfork callbacks.
   // Reports will deadlock on the report_mtx.
   // We could ignore sync operations as well,
@@ -499,12 +534,20 @@ void ForkBefore(ThreadState *thr, uptr pc) NO_THREAD_SAFETY_ANALYSIS {
   thr->suppress_reports++;
   // On OS X, REAL(fork) can call intercepted functions (OSSpinLockLock), and
   // we'll assert in CheckNoLocks() unless we ignore interceptors.
+  // On OS X libSystem_atfork_prepare/parent/child callbacks are called
+  // after/before our callbacks and they call free.
   thr->ignore_interceptors++;
+  // Disables memory write in OnUserAlloc/Free.
+  thr->ignore_reads_and_writes++;
+
+  __tsan_test_only_on_fork();
 }
 
 void ForkParentAfter(ThreadState *thr, uptr pc) NO_THREAD_SAFETY_ANALYSIS {
   thr->suppress_reports--;  // Enabled in ForkBefore.
   thr->ignore_interceptors--;
+  thr->ignore_reads_and_writes--;
+  AllocatorUnlock();
   ScopedErrorReportLock::Unlock();
   ctx->report_mtx.Unlock();
   ctx->thread_registry.Unlock();
@@ -514,6 +557,8 @@ void ForkChildAfter(ThreadState *thr, uptr pc,
                     bool start_thread) NO_THREAD_SAFETY_ANALYSIS {
   thr->suppress_reports--;  // Enabled in ForkBefore.
   thr->ignore_interceptors--;
+  thr->ignore_reads_and_writes--;
+  AllocatorUnlock();
   ScopedErrorReportLock::Unlock();
   ctx->report_mtx.Unlock();
   ctx->thread_registry.Unlock();
@@ -747,14 +792,17 @@ using namespace __tsan;
 MutexMeta mutex_meta[] = {
     {MutexInvalid, "Invalid", {}},
     {MutexThreadRegistry, "ThreadRegistry", {}},
-    {MutexTypeTrace, "Trace", {MutexLeaf}},
-    {MutexTypeReport, "Report", {MutexTypeSyncVar}},
-    {MutexTypeSyncVar, "SyncVar", {}},
+    {MutexTypeTrace, "Trace", {}},
+    {MutexTypeReport,
+     "Report",
+     {MutexTypeSyncVar, MutexTypeGlobalProc, MutexTypeTrace}},
+    {MutexTypeSyncVar, "SyncVar", {MutexTypeTrace}},
     {MutexTypeAnnotations, "Annotations", {}},
     {MutexTypeAtExit, "AtExit", {MutexTypeSyncVar}},
     {MutexTypeFired, "Fired", {MutexLeaf}},
     {MutexTypeRacy, "Racy", {MutexLeaf}},
     {MutexTypeGlobalProc, "GlobalProc", {}},
+    {MutexTypeInternalAlloc, "InternalAlloc", {MutexLeaf}},
     {},
 };
 

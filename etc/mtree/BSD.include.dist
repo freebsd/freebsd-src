@@ -37,6 +37,8 @@
             ..
             __memory
             ..
+            __numeric
+            ..
             __random
             ..
             __ranges

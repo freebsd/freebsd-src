@@ -18003,6 +18003,36 @@ fail:
 }
 
 
+static int _wrap_SBDebugger_SetInputString(lua_State* L) {
+  int SWIG_arg = 0;
+  lldb::SBDebugger *arg1 = (lldb::SBDebugger *) 0 ;
+  char *arg2 = (char *) 0 ;
+  lldb::SBError result;
+  
+  SWIG_check_num_args("lldb::SBDebugger::SetInputString",2,2)
+  if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBDebugger::SetInputString",1,"lldb::SBDebugger *");
+  if(!SWIG_lua_isnilstring(L,2)) SWIG_fail_arg("lldb::SBDebugger::SetInputString",2,"char const *");
+  
+  if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBDebugger,0))){
+    SWIG_fail_ptr("SBDebugger_SetInputString",1,SWIGTYPE_p_lldb__SBDebugger);
+  }
+  
+  arg2 = (char *)lua_tostring(L, 2);
+  result = (arg1)->SetInputString((char const *)arg2);
+  {
+    lldb::SBError * resultptr = new lldb::SBError((const lldb::SBError &) result);
+    SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBError,1); SWIG_arg++;
+  }
+  return SWIG_arg;
+  
+  if(0) SWIG_fail;
+  
+fail:
+  lua_error(L);
+  return SWIG_arg;
+}
+
+
 static int _wrap_SBDebugger_SetInputFile__SWIG_0(lua_State* L) {
   int SWIG_arg = 0;
   lldb::SBDebugger *arg1 = (lldb::SBDebugger *) 0 ;
@@ -20899,6 +20929,7 @@ static swig_lua_method swig_SBDebugger_methods[]= {
     { "GetInputFileHandle", _wrap_SBDebugger_GetInputFileHandle},
     { "GetOutputFileHandle", _wrap_SBDebugger_GetOutputFileHandle},
     { "GetErrorFileHandle", _wrap_SBDebugger_GetErrorFileHandle},
+    { "SetInputString", _wrap_SBDebugger_SetInputString},
     { "SetInputFile", _wrap_SBDebugger_SetInputFile},
     { "SetOutputFile", _wrap_SBDebugger_SetOutputFile},
     { "SetErrorFile", _wrap_SBDebugger_SetErrorFile},
@@ -48909,6 +48940,30 @@ fail:
 }
 
 
+static int _wrap_SBTarget_GetMaximumNumberOfChildrenToDisplay(lua_State* L) {
+  int SWIG_arg = 0;
+  lldb::SBTarget *arg1 = (lldb::SBTarget *) 0 ;
+  uint32_t result;
+  
+  SWIG_check_num_args("lldb::SBTarget::GetMaximumNumberOfChildrenToDisplay",1,1)
+  if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::GetMaximumNumberOfChildrenToDisplay",1,"lldb::SBTarget const *");
+  
+  if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
+    SWIG_fail_ptr("SBTarget_GetMaximumNumberOfChildrenToDisplay",1,SWIGTYPE_p_lldb__SBTarget);
+  }
+  
+  result = (uint32_t)((lldb::SBTarget const *)arg1)->GetMaximumNumberOfChildrenToDisplay();
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
+  return SWIG_arg;
+  
+  if(0) SWIG_fail;
+  
+fail:
+  lua_error(L);
+  return SWIG_arg;
+}
+
+
 static int _wrap_SBTarget_SetSectionLoadAddress(lua_State* L) {
   int SWIG_arg = 0;
   lldb::SBTarget *arg1 = (lldb::SBTarget *) 0 ;
@@ -53819,6 +53874,7 @@ static swig_lua_method swig_SBTarget_methods[]= {
     { "GetTriple", _wrap_SBTarget_GetTriple},
     { "GetDataByteSize", _wrap_SBTarget_GetDataByteSize},
     { "GetCodeByteSize", _wrap_SBTarget_GetCodeByteSize},
+    { "GetMaximumNumberOfChildrenToDisplay", _wrap_SBTarget_GetMaximumNumberOfChildrenToDisplay},
     { "SetSectionLoadAddress", _wrap_SBTarget_SetSectionLoadAddress},
     { "ClearSectionLoadAddress", _wrap_SBTarget_ClearSectionLoadAddress},
     { "SetModuleLoadAddress", _wrap_SBTarget_SetModuleLoadAddress},
@@ -68965,6 +69021,36 @@ fail:
 }
 
 
+static int _wrap_SBValue_Clone(lua_State* L) {
+  int SWIG_arg = 0;
+  lldb::SBValue *arg1 = (lldb::SBValue *) 0 ;
+  char *arg2 = (char *) 0 ;
+  lldb::SBValue result;
+  
+  SWIG_check_num_args("lldb::SBValue::Clone",2,2)
+  if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBValue::Clone",1,"lldb::SBValue *");
+  if(!SWIG_lua_isnilstring(L,2)) SWIG_fail_arg("lldb::SBValue::Clone",2,"char const *");
+  
+  if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBValue,0))){
+    SWIG_fail_ptr("SBValue_Clone",1,SWIGTYPE_p_lldb__SBValue);
+  }
+  
+  arg2 = (char *)lua_tostring(L, 2);
+  result = (arg1)->Clone((char const *)arg2);
+  {
+    lldb::SBValue * resultptr = new lldb::SBValue((const lldb::SBValue &) result);
+    SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBValue,1); SWIG_arg++;
+  }
+  return SWIG_arg;
+  
+  if(0) SWIG_fail;
+  
+fail:
+  lua_error(L);
+  return SWIG_arg;
+}
+
+
 static int _wrap_SBValue_GetLoadAddress(lua_State* L) {
   int SWIG_arg = 0;
   lldb::SBValue *arg1 = (lldb::SBValue *) 0 ;
@@ -69455,6 +69541,7 @@ static swig_lua_method swig_SBValue_methods[]= {
     { "GetPointeeData", _wrap_SBValue_GetPointeeData},
     { "GetData", _wrap_SBValue_GetData},
     { "SetData", _wrap_SBValue_SetData},
+    { "Clone", _wrap_SBValue_Clone},
     { "GetLoadAddress", _wrap_SBValue_GetLoadAddress},
     { "GetAddress", _wrap_SBValue_GetAddress},
     { "Persist", _wrap_SBValue_Persist},
@@ -71078,6 +71165,17 @@ static swig_lua_class _wrap_class_SBWatchpoint = { "SBWatchpoint", "SBWatchpoint
 
 
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wreturn-type-c-linkage"
+
+// Disable warning C4190: 'LLDBSwigPythonBreakpointCallbackFunction' has
+// C-linkage specified, but returns UDT 'llvm::Expected<bool>' which is
+// incompatible with C
+#if _MSC_VER
+#pragma warning (push)
+#pragma warning (disable : 4190)
+#endif
+
 // This function is called from Lua::CallBreakpointCallback
 SWIGEXPORT llvm::Expected<bool>
 LLDBSwigLuaBreakpointCallbackFunction
@@ -71157,6 +71255,12 @@ LLDBSwigLuaWatchpointCallbackFunction
 
    return stop;
 }
+
+#if _MSC_VER
+#pragma warning (pop)
+#endif
+
+#pragma clang diagnostic pop
 
 SWIGEXPORT void
 LLDBSwigLuaCallLuaLogOutputCallback(const char *str, void *baton) {
