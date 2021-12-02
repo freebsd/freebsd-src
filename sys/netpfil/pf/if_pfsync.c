@@ -1741,9 +1741,12 @@ pfsync_defer(struct pf_kstate *st, struct mbuf *m)
 	if (m->m_flags & (M_BCAST|M_MCAST))
 		return (0);
 
+	if (sc == NULL)
+		return (0);
+
 	PFSYNC_LOCK(sc);
 
-	if (sc == NULL || !(sc->sc_ifp->if_flags & IFF_DRV_RUNNING) ||
+	if (!(sc->sc_ifp->if_flags & IFF_DRV_RUNNING) ||
 	    !(sc->sc_flags & PFSYNCF_DEFER)) {
 		PFSYNC_UNLOCK(sc);
 		return (0);
