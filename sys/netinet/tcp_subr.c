@@ -2303,8 +2303,6 @@ tcp_ccalgounload(struct cc_algo *unload_algo)
 	struct inpcb *inp;
 	struct tcpcb *tp;
 	VNET_ITERATOR_DECL(vnet_iter);
-	struct inpcb_iterator inpi = INP_ALL_ITERATOR(&V_tcbinfo,
-	    INPLOOKUP_WLOCKPCB);
 
 	/*
 	 * Check all active control blocks across all network stacks and change
@@ -2314,6 +2312,8 @@ tcp_ccalgounload(struct cc_algo *unload_algo)
 	VNET_LIST_RLOCK();
 	VNET_FOREACH(vnet_iter) {
 		CURVNET_SET(vnet_iter);
+		struct inpcb_iterator inpi = INP_ALL_ITERATOR(&V_tcbinfo,
+		    INPLOOKUP_WLOCKPCB);
 		/*
 		 * XXXGL: would new accept(2)d connections use algo being
 		 * unloaded?
