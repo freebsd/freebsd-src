@@ -43,6 +43,9 @@
 #include <sys/malloc.h>
 #include <machine/stdarg.h>
 #include <sys/sysctl.h>
+#ifdef RSS
+#include <net/rss_config.h>
+#endif
 
 #include "iavf_debug.h"
 #include "iavf_osdep.h"
