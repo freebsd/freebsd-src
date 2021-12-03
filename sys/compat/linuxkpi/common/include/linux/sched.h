@@ -162,8 +162,12 @@ linux_schedule_get_interrupt_value(struct task_struct *task)
 	return (value);
 }
 
-#define	schedule()					\
-	(void)linux_schedule_timeout(MAX_SCHEDULE_TIMEOUT)
+static inline void
+schedule(void)
+{
+	(void)linux_schedule_timeout(MAX_SCHEDULE_TIMEOUT);
+}
+
 #define	schedule_timeout(timeout)			\
 	linux_schedule_timeout(timeout)
 #define	schedule_timeout_killable(timeout)		\
