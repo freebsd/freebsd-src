@@ -2340,10 +2340,6 @@ struct swapon_args {
 };
 #endif
 
-/*
- * MPSAFE
- */
-/* ARGSUSED */
 int
 sys_swapon(struct thread *td, struct swapon_args *uap)
 {
@@ -2489,10 +2485,6 @@ struct swapoff_args {
 };
 #endif
 
-/*
- * MPSAFE
- */
-/* ARGSUSED */
 int
 sys_swapoff(struct thread *td, struct swapoff_args *uap)
 {
