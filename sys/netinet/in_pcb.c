@@ -2577,8 +2577,8 @@ ipport_tick(void *xtp)
 	VNET_LIST_RLOCK_NOSLEEP();
 	VNET_FOREACH(vnet_iter) {
 		CURVNET_SET(vnet_iter);	/* XXX appease INVARIANTS here */
-		if (V_ipport_tcpallocs <=
-		    V_ipport_tcplastcount + V_ipport_randomcps) {
+		if (V_ipport_tcpallocs - V_ipport_tcplastcount <=
+		    V_ipport_randomcps) {
 			if (V_ipport_stoprandom > 0)
 				V_ipport_stoprandom--;
 		} else
