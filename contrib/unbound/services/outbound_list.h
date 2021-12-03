@@ -79,7 +79,7 @@ void outbound_list_init(struct outbound_list* list);
  * Clear the user owner outbound list structure.
  * Deletes serviced queries.
  * @param list: the list structure. It is cleared, but the list struct itself
- * 	is callers responsability to delete.
+ * 	is callers responsibility to delete.
  */
 void outbound_list_clear(struct outbound_list* list);
 

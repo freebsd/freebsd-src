@@ -177,35 +177,6 @@ struct ctx_query {
 };
 
 /**
- * The error constants
- */
-enum ub_ctx_err {
-	/** no error */
-	UB_NOERROR = 0,
-	/** socket operation. Set to -1, so that if an error from _fd() is
-	 * passed (-1) it gives a socket error. */
-	UB_SOCKET = -1,
-	/** alloc failure */
-	UB_NOMEM = -2,
-	/** syntax error */
-	UB_SYNTAX = -3,
-	/** DNS service failed */
-	UB_SERVFAIL = -4,
-	/** fork() failed */
-	UB_FORKFAIL = -5,
-	/** cfg change after finalize() */
-	UB_AFTERFINAL = -6,
-	/** initialization failed (bad settings) */
-	UB_INITFAIL = -7,
-	/** error in pipe communication with async bg worker */
-	UB_PIPE = -8,
-	/** error reading from file (resolv.conf) */
-	UB_READFILE = -9,
-	/** error async_id does not exist or result already been delivered */
-	UB_NOID = -10
-};
-
-/**
  * Command codes for libunbound pipe.
  *
  * Serialization looks like this:

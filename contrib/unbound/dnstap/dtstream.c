@@ -251,7 +251,7 @@ dt_msg_queue_submit(struct dt_msg_queue* mq, void* buf, size_t len)
 	entry->buf = buf;
 	entry->len = len;
 
-	/* aqcuire lock */
+	/* acquire lock */
 	lock_basic_lock(&mq->lock);
 	/* if list was empty, start timer for (eventual) wakeup */
 	if(mq->first == NULL)
@@ -930,7 +930,7 @@ static int dtio_write_more_of_data(struct dt_io_thread* dtio)
 	return 1;
 }
 
-/** write more of the current messsage. false if incomplete, true if
+/** write more of the current message. false if incomplete, true if
  * the message is done */
 static int dtio_write_more(struct dt_io_thread* dtio)
 {
@@ -1181,7 +1181,7 @@ static int dtio_read_accept_frame(struct dt_io_thread* dtio)
 					goto close_connection;
 				return 1;
 			} else {
-				/* unknow content type */
+				/* unknown content type */
 				verbose(VERB_ALGO, "dnstap: ACCEPT frame "
 					"contains unknown content type, "
 					"closing connection");

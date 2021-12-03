@@ -294,4 +294,7 @@ respip_enter_rr(struct regional* region, struct resp_addr* raddr,
  */
 void
 respip_sockaddr_delete(struct respip_set* set, struct resp_addr* node);
+
+struct ub_packed_rrset_key*
+respip_copy_rrset(const struct ub_packed_rrset_key* key, struct regional* region);
 #endif	/* RESPIP_RESPIP_H */

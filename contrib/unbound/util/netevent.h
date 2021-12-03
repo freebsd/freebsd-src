@@ -743,7 +743,7 @@ struct comm_signal* comm_signal_create(struct comm_base* base,
 	void (*callback)(int, void*), void* cb_arg);
 
 /**
- * Bind signal struct to catch a signal. A signle comm_signal can be bound
+ * Bind signal struct to catch a signal. A single comm_signal can be bound
  * to multiple signals, calling comm_signal_bind multiple times.
  * @param comsig: the communication point, with callback information.
  * @param sig: signal number.
