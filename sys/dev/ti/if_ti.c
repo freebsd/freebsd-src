@@ -2220,10 +2220,10 @@ ti_gibinit(struct ti_softc *sc)
 	ti_hostaddr64(&rcb->ti_hostaddr, sc->ti_rdata.ti_rx_std_ring_paddr);
 	rcb->ti_max_len = TI_FRAMELEN;
 	rcb->ti_flags = 0;
-	if (sc->ti_ifp->if_capenable & IFCAP_RXCSUM)
+	if (ifp->if_capenable & IFCAP_RXCSUM)
 		rcb->ti_flags |= TI_RCB_FLAG_TCP_UDP_CKSUM |
 		     TI_RCB_FLAG_IP_CKSUM | TI_RCB_FLAG_NO_PHDR_CKSUM;
-	if (sc->ti_ifp->if_capenable & IFCAP_VLAN_HWTAGGING)
+	if (ifp->if_capenable & IFCAP_VLAN_HWTAGGING)
 		rcb->ti_flags |= TI_RCB_FLAG_VLAN_ASSIST;
 
 	/* Set up the jumbo receive ring. */
@@ -2237,10 +2237,10 @@ ti_gibinit(struct ti_softc *sc)
 	rcb->ti_max_len = PAGE_SIZE;
 	rcb->ti_flags = TI_RCB_FLAG_USE_EXT_RX_BD;
 #endif
-	if (sc->ti_ifp->if_capenable & IFCAP_RXCSUM)
+	if (ifp->if_capenable & IFCAP_RXCSUM)
 		rcb->ti_flags |= TI_RCB_FLAG_TCP_UDP_CKSUM |
 		     TI_RCB_FLAG_IP_CKSUM | TI_RCB_FLAG_NO_PHDR_CKSUM;
-	if (sc->ti_ifp->if_capenable & IFCAP_VLAN_HWTAGGING)
+	if (ifp->if_capenable & IFCAP_VLAN_HWTAGGING)
 		rcb->ti_flags |= TI_RCB_FLAG_VLAN_ASSIST;
 
 	/*
@@ -2255,10 +2255,10 @@ ti_gibinit(struct ti_softc *sc)
 		rcb->ti_flags = TI_RCB_FLAG_RING_DISABLED;
 	else
 		rcb->ti_flags = 0;
-	if (sc->ti_ifp->if_capenable & IFCAP_RXCSUM)
+	if (ifp->if_capenable & IFCAP_RXCSUM)
 		rcb->ti_flags |= TI_RCB_FLAG_TCP_UDP_CKSUM |
 		     TI_RCB_FLAG_IP_CKSUM | TI_RCB_FLAG_NO_PHDR_CKSUM;
-	if (sc->ti_ifp->if_capenable & IFCAP_VLAN_HWTAGGING)
+	if (ifp->if_capenable & IFCAP_VLAN_HWTAGGING)
 		rcb->ti_flags |= TI_RCB_FLAG_VLAN_ASSIST;
 
 	/*
@@ -2289,9 +2289,9 @@ ti_gibinit(struct ti_softc *sc)
 		rcb->ti_flags = 0;
 	else
 		rcb->ti_flags = TI_RCB_FLAG_HOST_RING;
-	if (sc->ti_ifp->if_capenable & IFCAP_VLAN_HWTAGGING)
+	if (ifp->if_capenable & IFCAP_VLAN_HWTAGGING)
 		rcb->ti_flags |= TI_RCB_FLAG_VLAN_ASSIST;
-	if (sc->ti_ifp->if_capenable & IFCAP_TXCSUM)
+	if (ifp->if_capenable & IFCAP_TXCSUM)
 		rcb->ti_flags |= TI_RCB_FLAG_TCP_UDP_CKSUM |
 		     TI_RCB_FLAG_IP_CKSUM | TI_RCB_FLAG_NO_PHDR_CKSUM;
 	rcb->ti_max_len = TI_TX_RING_CNT;
