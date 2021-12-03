@@ -5460,7 +5460,7 @@ out_reject:
  */
 static int sym_compute_residual(hcb_p np, ccb_p cp)
 {
-	int dp_sg, dp_sgmin, resid = 0;
+	int dp_sg, resid = 0;
 	int dp_ofs = 0;
 
 	/*
@@ -5507,7 +5507,6 @@ static int sym_compute_residual(hcb_p np, ccb_p cp)
 	 *  We are now full comfortable in the computation
 	 *  of the data residual (2's complement).
 	 */
-	dp_sgmin = SYM_CONF_MAX_SG - cp->segments;
 	resid = -cp->ext_ofs;
 	for (dp_sg = cp->ext_sg; dp_sg < SYM_CONF_MAX_SG; ++dp_sg) {
 		u_int tmp = scr_to_cpu(cp->phys.data[dp_sg].size);
