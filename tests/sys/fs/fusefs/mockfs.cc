@@ -290,6 +290,15 @@ void MockFS::debug_request(const mockfs_buf_in &in, ssize_t buflen)
 				in.body.release.flags,
 				in.body.release.lock_owner);
 			break;
+		case FUSE_RENAME:
+			{
+				const char *src = (const char*)in.body.bytes +
+					sizeof(fuse_rename_in);
+				const char *dst = src + strlen(src) + 1;
+				printf(" src=%s newdir=%" PRIu64 " dst=%s",
+					src, in.body.rename.newdir, dst);
+			}
+			break;
 		case FUSE_SETATTR:
 			if (verbosity <= 1) {
 				printf(" valid=%#x", in.body.setattr.valid);
