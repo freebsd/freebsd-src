@@ -1695,10 +1695,8 @@ static void
 udp_detach(struct socket *so)
 {
 	struct inpcb *inp;
-	struct inpcbinfo *pcbinfo;
 	struct udpcb *up;
 
-	pcbinfo = udp_get_inpcbinfo(so->so_proto->pr_protocol);
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("udp_detach: inp == NULL"));
 	KASSERT(inp->inp_faddr.s_addr == INADDR_ANY,
