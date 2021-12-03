@@ -1067,24 +1067,22 @@ tws_intr(void *arg)
 static void
 tws_intr_attn_aen(struct tws_softc *sc)
 {
-    u_int32_t db=0;
 
     /* maskoff db intrs until all the aens are fetched */
     /* tws_disable_db_intr(sc); */
     tws_fetch_aen((void *)sc);
     tws_write_reg(sc, TWS_I2O0_HOBDBC, TWS_BIT18, 4);
-    db = tws_read_reg(sc, TWS_I2O0_IOBDB, 4);
+    (void)tws_read_reg(sc, TWS_I2O0_IOBDB, 4);
 
 }
 
 static void
 tws_intr_attn_error(struct tws_softc *sc)
 {
-    u_int32_t db=0;
 
     TWS_TRACE(sc, "attn error", 0, 0);
     tws_write_reg(sc, TWS_I2O0_HOBDBC, ~0, 4);
-    db = tws_read_reg(sc, TWS_I2O0_IOBDB, 4);
+    (void)tws_read_reg(sc, TWS_I2O0_IOBDB, 4);
     device_printf(sc->tws_dev, "Micro controller error.\n");
     tws_reset(sc);
 }
