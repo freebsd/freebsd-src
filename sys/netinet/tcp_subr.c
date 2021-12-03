@@ -2613,8 +2613,6 @@ tcp_close(struct tcpcb *tp)
 void
 tcp_drain(void)
 {
-	struct inpcb_iterator inpi = INP_ALL_ITERATOR(&V_tcbinfo,
-	    INPLOOKUP_WLOCKPCB);
 	VNET_ITERATOR_DECL(vnet_iter);
 
 	if (!do_tcpdrain)
@@ -2623,6 +2621,8 @@ tcp_drain(void)
 	VNET_LIST_RLOCK_NOSLEEP();
 	VNET_FOREACH(vnet_iter) {
 		CURVNET_SET(vnet_iter);
+		struct inpcb_iterator inpi = INP_ALL_ITERATOR(&V_tcbinfo,
+		    INPLOOKUP_WLOCKPCB);
 		struct inpcb *inpb;
 		struct tcpcb *tcpb;
 
