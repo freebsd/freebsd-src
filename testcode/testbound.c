@@ -374,6 +374,7 @@ main(int argc, char* argv[])
 	(void)unsetenv("NOTIFY_SOCKET");
 #endif /* HAVE_SYSTEMD */
 
+	checklock_start();
 	log_init(NULL, 0, NULL);
 	/* determine commandline options for the daemon */
 	pass_argc = 1;
@@ -603,4 +604,14 @@ int tcp_connect_errno_needs_log(struct sockaddr* ATTR_UNUSED(addr),
 int squelch_err_ssl_handshake(unsigned long ATTR_UNUSED(err))
 {
 	return 0;
+}
+
+void listen_setup_locks(void)
+{
+	/* nothing */
+}
+
+void listen_desetup_locks(void)
+{
+	/* nothing */
 }

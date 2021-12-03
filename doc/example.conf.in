@@ -1,7 +1,7 @@
 #
 # Example configuration file.
 #
-# See unbound.conf(5) man page, version 1.13.2.
+# See unbound.conf(5) man page, version 1.14.0rc1.
 #
 # this is a comment.
 
@@ -163,6 +163,9 @@ server:
 
 	# perform connect for UDP sockets to mitigate ICMP side channel.
 	# udp-connect: yes
+
+	# The number of retries when a non-positive response is received.
+	# outbound-msg-retry: 5
 
 	# msec for waiting for an unknown server to reply.  Increase if you
 	# are behind a slow satellite link, to eg. 1128.
@@ -666,6 +669,7 @@ server:
 	# local-zone: "localhost." nodefault
 	# local-zone: "127.in-addr.arpa." nodefault
 	# local-zone: "1.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.ip6.arpa." nodefault
+	# local-zone: "home.arpa." nodefault
 	# local-zone: "onion." nodefault
 	# local-zone: "test." nodefault
 	# local-zone: "invalid." nodefault
@@ -987,6 +991,7 @@ remote-control:
 #	stub-addr: 192.0.2.68
 #	stub-prime: no
 #	stub-first: no
+#	stub-tcp-upstream: no
 #	stub-tls-upstream: no
 #	stub-no-cache: no
 # stub-zone:
@@ -1004,6 +1009,7 @@ remote-control:
 # 	forward-addr: 192.0.2.68
 # 	forward-addr: 192.0.2.73@5355  # forward to port 5355.
 # 	forward-first: no
+# 	forward-tcp-upstream: no
 # 	forward-tls-upstream: no
 #	forward-no-cache: no
 # forward-zone:
@@ -1150,10 +1156,11 @@ remote-control:
 # 	dnstap-log-forwarder-response-messages: no
 
 # Response Policy Zones
-# RPZ policies. Applied in order of configuration. QNAME and Response IP
-# Address trigger are the only supported triggers. Supported actions are:
-# NXDOMAIN, NODATA, PASSTHRU, DROP and Local Data. Policies can be loaded from
-# file, using zone transfer, or using HTTP. The respip module needs to be added
+# RPZ policies. Applied in order of configuration. QNAME, Response IP
+# Address, nsdname, nsip and clientip triggers are supported. Supported
+# actions are: NXDOMAIN, NODATA, PASSTHRU, DROP, Local Data, tcp-only
+# and drop.  Policies can be loaded from a file, or using zone
+# transfer, or using HTTP. The respip module needs to be added
 # to the module-config, e.g.: module-config: "respip validator iterator".
 # rpz:
 #     name: "rpz.example.com"

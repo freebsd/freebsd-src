@@ -363,7 +363,7 @@ Result: ['74.125.43.147', '74.125.43.99', '74.125.43.103', '74.125.43.104']
                     ctx.debuglevel(3)
                     ctx.debugout(fw)
 
-                  Another option is to print the debug informations to stderr output
+                  Another option is to print the debug information to stderr output
 
                   ::
 

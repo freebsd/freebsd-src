@@ -861,6 +861,7 @@ void ecdsa_evp_workaround_init(void);
 int 
 main(int argc, char* argv[])
 {
+	checklock_start();
 	log_init(NULL, 0, NULL);
 	if(argc != 1) {
 		printf("usage: %s\n", argv[0]);
@@ -888,7 +889,6 @@ main(int argc, char* argv[])
 	if(NSS_NoDB_Init(".") != SECSuccess)
 		fatal_exit("could not init NSS");
 #endif /* HAVE_SSL or HAVE_NSS*/
-	checklock_start();
 	authzone_test();
 	neg_test();
 	rnd_test();

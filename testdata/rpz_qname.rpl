@@ -38,6 +38,7 @@ d	TXT	"local data 2nd zone"
 e	CNAME	*.a.example.
 *.e	CNAME	*.b.example.
 drop	CNAME	rpz-drop.
+tcp	CNAME	rpz-tcp-only.
 TEMPFILE_END
 
 stub-zone:
@@ -46,12 +47,15 @@ stub-zone:
 stub-zone:
 	name: "example."
 	stub-addr: 10.20.30.50
+stub-zone:
+	name: "tcp."
+	stub-addr: 10.20.30.60
 CONFIG_END
 
 SCENARIO_BEGIN Test all support RPZ action for QNAME trigger
 
 ; a.
-RANGE_BEGIN 0 100
+RANGE_BEGIN 0 1000
 	ADDRESS 10.20.30.40
 ENTRY_BEGIN
 MATCH opcode qtype qname
@@ -88,7 +92,7 @@ ENTRY_END
 RANGE_END
 
 ; example.
-RANGE_BEGIN 0 100
+RANGE_BEGIN 0 1000
 	ADDRESS 10.20.30.50
 ENTRY_BEGIN
 MATCH opcode qtype qname
@@ -122,6 +126,42 @@ SECTION ANSWER
 something.e.b.example. IN TXT "*.b.example. answer from upstream ns"
 ENTRY_END
 
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+f.example. IN TXT
+SECTION ANSWER
+f.example. IN CNAME d.
+ENTRY_END
+
+RANGE_END
+
+; tcp.
+RANGE_BEGIN 0 1000
+	ADDRESS 10.20.30.60
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+tcp. IN NS
+SECTION ANSWER
+tcp. IN NS ns.example.
+SECTION ADDITIONAL
+ns.tcp IN A 10.20.30.60
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+tcp. IN TXT
+SECTION ANSWER
+tcp. IN TXT "tcp. answer from upstream ns"
+ENTRY_END
 RANGE_END
 
 STEP 10 QUERY
@@ -295,10 +335,66 @@ something.e.b.example.	IN	TXT	"*.b.example. answer from upstream ns"
 ENTRY_END
 
 ; deny zone
-STEP 90 QUERY
+;STEP 90 QUERY
+;ENTRY_BEGIN
+;SECTION QUESTION
+;drop. IN TXT
+;ENTRY_END
+
+; tcp-only action
+
+STEP 95 QUERY
 ENTRY_BEGIN
+REPLY RD
 SECTION QUESTION
-drop. IN TXT
+tcp. IN TXT
 ENTRY_END
+
+STEP 96 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA AA TC NOERROR
+SECTION QUESTION
+tcp. IN TXT
+SECTION ANSWER
+ENTRY_END
+
+STEP 97 QUERY
+ENTRY_BEGIN
+MATCH TCP
+REPLY RD
+SECTION QUESTION
+tcp.  IN TXT
+ENTRY_END
+
+STEP 98 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all TCP
+REPLY QR RD RA NOERROR
+SECTION QUESTION
+tcp.  IN TXT
+SECTION ANSWER
+tcp. IN TXT "tcp. answer from upstream ns"
+ENTRY_END
+
+; check if the name after the CNAME has the qname trigger applied to it.
+STEP 100 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+f.example.  IN TXT
+ENTRY_END
+
+STEP 101 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA AA NOERROR
+SECTION QUESTION
+f.example.	IN	TXT
+SECTION ANSWER
+f.example.	IN	CNAME	d.
+d.		IN	TXT	"local data 2nd zone"
+ENTRY_END
+
 ; no answer is checked at exit of testbound.
 SCENARIO_END

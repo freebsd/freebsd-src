@@ -59,7 +59,7 @@ REPLY RD
 SECTION QUESTION
 www.example.com. IN A
 ENTRY_END
-; unneccesary nothing steps.
+; unnecessary nothing steps.
 STEP 20 NOTHING
 STEP 30 CHECK_ANSWER
 ENTRY_BEGIN

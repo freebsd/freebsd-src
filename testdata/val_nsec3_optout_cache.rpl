@@ -138,7 +138,7 @@ b6fuorg741ufili49mg9j4328ig53sqg.example.com. IN NSEC3 1 1 123 aabb00123456bbccd
 b6fuorg741ufili49mg9j4328ig53sqg.example.com.   3600    IN      RRSIG   NSEC3 3 3 3600 20070926135752 20070829135752 2854 example.com. AKHQ0gnNP5WDab1yqbd+Bt12CSSff88sqeDR40dvhiWOcYA8mmyjYNA=
 
 ; span around sub.example.com., same span as foo.example.com, but it has
-; just changed and it is now larger to accomodate sub.example.com.
+; just changed and it is now larger to accommodate sub.example.com.
 6obgmo062d9935unjnnj2su5otaj9334.example.com. IN NSEC3 1 1 123 aabb00123456bbccdd 9r1f0ieoutlnjc03meng9e3bn2n0o9pd NS DS RRSIG
 6obgmo062d9935unjnnj2su5otaj9334.example.com.   3600    IN      RRSIG   NSEC3 3 3 3600 20070926135752 20070829135752 2854 example.com. ABzruSKUUcJRNlYDqZ4UmQH/WnzeXt9Gozp3chS4cR0sqsEeGjL54eQ=
 
@@ -164,7 +164,7 @@ b6fuorg741ufili49mg9j4328ig53sqg.example.com. IN NSEC3 1 1 123 aabb00123456bbccd
 b6fuorg741ufili49mg9j4328ig53sqg.example.com.   3600    IN      RRSIG   NSEC3 3 3 3600 20070926135752 20070829135752 2854 example.com. AKHQ0gnNP5WDab1yqbd+Bt12CSSff88sqeDR40dvhiWOcYA8mmyjYNA=
 
 ; span around sub.example.com., same span as foo.example.com, but it has
-; just changed and it is now larger to accomodate sub.example.com.
+; just changed and it is now larger to accommodate sub.example.com.
 6obgmo062d9935unjnnj2su5otaj9334.example.com. IN NSEC3 1 1 123 aabb00123456bbccdd 9r1f0ieoutlnjc03meng9e3bn2n0o9pd NS DS RRSIG
 6obgmo062d9935unjnnj2su5otaj9334.example.com.   3600    IN      RRSIG   NSEC3 3 3 3600 20070926135752 20070829135752 2854 example.com. ABzruSKUUcJRNlYDqZ4UmQH/WnzeXt9Gozp3chS4cR0sqsEeGjL54eQ=
 

@@ -781,6 +781,7 @@ main(int argc, char* argv[])
 	int cmdline_cfg = 0;
 #endif
 
+	checklock_start();
 	log_init(NULL, 0, NULL);
 	log_ident_default = strrchr(argv[0],'/')?strrchr(argv[0],'/')+1:argv[0];
 	log_ident_set_default(log_ident_default);

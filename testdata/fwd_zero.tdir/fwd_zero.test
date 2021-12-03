@@ -7,7 +7,7 @@
 PRE="../.."
 
 OPT="-i"
-if nc -h 2>&1 | grep -- "-w secs" >/dev/null; then
+if nc -h 2>&1 | grep -E -- "-w (timeout|secs)" >/dev/null; then
         OPT="-w"
 fi
 

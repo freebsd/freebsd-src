@@ -406,10 +406,10 @@ int main(int argc, char** argv)
 	struct lookinfo* lookups;
 	int i, r, cancel=0, blocking=0, ext=0;
 
+	checklock_start();
 	/* init log now because solaris thr_key_create() is not threadsafe */
 	log_init(0,0,0);
 	/* lock debug start (if any) */
-	checklock_start();
 
 	/* create context */
 	ctx = ub_ctx_create();

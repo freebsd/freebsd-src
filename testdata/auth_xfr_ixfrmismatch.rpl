@@ -182,7 +182,7 @@ example.com. IN SOA ns.example.com. hostmaster.example.com. 2 3600 900 86400 360
 example.com. IN SOA ns.example.com. hostmaster.example.com. 1 3600 900 86400 3600
 www.example.com. IN A	1.2.3.4
 mail.example.com.	3600	IN	A	1.2.3.6
-; this is the delete of the nonexistant entry
+; this is the delete of the nonexistent entry
 nonexist.example.com.	3600	IN	A	1.2.3.4
 example.com. IN SOA ns.example.com. hostmaster.example.com. 2 3600 900 86400 3600
 EXTRA_PACKET

@@ -21,7 +21,7 @@ almost every mail server supports DNS based blacklisting.
 
 DNS based Wake-On-Lan
 ---------------------
-Controled by secured queries secured with private key.
+Controlled by secured queries secured with private key.
 
 Dynamic translation service
 ---------------------------

@@ -42,7 +42,7 @@ SECTION ANSWER
 SECTION AUTHORITY
 nsecwc.nlnetlabs.nl.	3600	IN	SOA	ns.nlnetlabs.nl. ralph.nlnetlabs.nl. 1 14400 3600 604800 3600
 nsecwc.nlnetlabs.nl.	3600	IN	RRSIG	SOA 8 3 3600 20200101000000 20171108114635 565 nsecwc.nlnetlabs.nl. bYibpCDg1LgrnYJgVahgu94LBqLIcNs4iC0SW8LV7pTI1hhuFKbLkO2O ekPdkJAWmu/KTytf8D+cdcK6X/9VS8QCVIF5S0hraHtNezu0f1B5ztg3 7Rqy+uJSucNKoykueAsz2z43GMgO0rGH3bqM7+3ii8p2E2rhzqEtG/D3 qyY=
-; NSEC has a label lenght of 3, indication that the original owner name is:
+; NSEC has a label length of 3, indication that the original owner name is:
 ; *.nsecwc.nlnetlabs.nl. The NSEC therefore does no prove the NODATA answer.
 _25._tcp.mail.nsecwc.nlnetlabs.nl. 3600	IN NSEC	delegation.nsecwc.nlnetlabs.nl. TXT RRSIG NSEC
 _25._tcp.mail.nsecwc.nlnetlabs.nl. 3600	IN RRSIG NSEC 8 3 3600 20200101000000 20171108114635 565 nsecwc.nlnetlabs.nl. ddy1MRbshFuFJswlouNGHsZUF/tYu8BOCztY2JuHeTMyWL7rhRKp73q/ 1RAXMwywKsynT5ioY0bMtEQszeIEn29IYaPDHieLAobjF6BMu1kO7U2/ oEBrSHM/fx28BcaM5G4nfCIm3BlhQhWvk1NDHLn3Q26x4hF/dnmFOUet aXw=

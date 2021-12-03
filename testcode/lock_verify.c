@@ -387,6 +387,37 @@ static void check_order(rbtree_type* all_locks)
 	fprintf(stderr, "\n");
 }
 
+/** delete lock ref */
+static void dellockref(rbnode_type* node, void* ATTR_UNUSED(arg))
+{
+	struct lock_ref* o = (struct lock_ref*)node;
+	if(!o) return;
+	free(o->file);
+	free(o);
+}
+
+/** delete lock node */
+static void delnode(rbnode_type* node, void* ATTR_UNUSED(arg))
+{
+	struct order_lock* o = (struct order_lock*)node;
+	if(!o) return;
+	free(o->create_file);
+	if(o->smaller) {
+		traverse_postorder(o->smaller, &dellockref, NULL);
+		free(o->smaller);
+	}
+	free(o);
+}
+
+/** delete allocated memory */
+static void locks_free(rbtree_type* all_locks)
+{
+	if(!all_locks)
+		return;
+	traverse_postorder(all_locks, &delnode, NULL);
+	free(all_locks);
+}
+
 /** main program to verify all traces passed */
 int
 main(int argc, char* argv[])
@@ -403,6 +434,7 @@ main(int argc, char* argv[])
 		usage();
 		return 1;
 	}
+	checklock_start();
 	log_init(NULL, 0, NULL);
 	log_ident_set("lock-verify");
 	/* init */
@@ -421,6 +453,7 @@ main(int argc, char* argv[])
 	printf("checked %d locks in %d seconds with %d errors.\n", 
 		(int)all_locks->count, (int)(time(NULL)-starttime),
 		errors_detected);
+	locks_free(all_locks);
 	if(errors_detected) return 1;
 	return 0;
 }

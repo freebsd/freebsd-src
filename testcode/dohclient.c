@@ -358,7 +358,7 @@ static int http2_data_chunk_recv_cb(nghttp2_session* ATTR_UNUSED(session),
 	}
 
 	if(sldns_buffer_remaining(h2_stream->buf) < len) {
-		log_err("received data chunck does not fit into buffer");
+		log_err("received data chunk does not fit into buffer");
 		return NGHTTP2_ERR_CALLBACK_FAILURE;
 	}
 
@@ -531,7 +531,7 @@ run(struct http2_session* h2_session, int port, int no_tls, int count, char** q)
 
 	h2_session->block_select = 1;
 
-	/* hande query */
+	/* handle query */
 	for(i=0; i<count; i+=3) {
 		buf = make_query(q[i], q[i+1], q[i+2]);
 		submit_query(h2_session, buf);
@@ -571,8 +571,8 @@ int main(int argc, char** argv)
 		return 1;
 	}
 #endif
-	log_init(0, 0, 0);
 	checklock_start();
+	log_init(0, 0, 0);
 
 	h2_session = http2_session_create();
 	if(!h2_session) fatal_exit("out of memory");

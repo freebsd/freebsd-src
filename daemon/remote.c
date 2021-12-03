@@ -813,7 +813,7 @@ print_mem(RES* ssl, struct worker* worker, struct daemon* daemon,
 	iter = mod_get_mem(&worker->env, "iterator");
 	respip = mod_get_mem(&worker->env, "respip");
 #ifdef CLIENT_SUBNET
-	subnet = mod_get_mem(&worker->env, "subnet");
+	subnet = mod_get_mem(&worker->env, "subnetcache");
 #endif /* CLIENT_SUBNET */
 #ifdef USE_IPSECMOD
 	ipsecmod = mod_get_mem(&worker->env, "ipsecmod");

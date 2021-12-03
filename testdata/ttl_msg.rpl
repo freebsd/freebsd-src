@@ -411,7 +411,7 @@ ENTRY_END
 ; cause a lookup for nx1.example.com bypassing the cache.
 ; with bug; this causes msg ttl for nx1 to be time(NOW)+ttl.
 ; so 15+5 = 20
-; visiable in debug log as "msg ttl is %d"
+; visible in debug log as "msg ttl is %d"
 STEP 40 QUERY
 ENTRY_BEGIN
 REPLY RD

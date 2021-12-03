@@ -59,7 +59,7 @@ char* sldns_wire2str_pkt(uint8_t* data, size_t len);
 char* sldns_wire2str_rr(uint8_t* rr, size_t len);
 
 /**
- * Conver wire dname to a string.
+ * Convert wire dname to a string.
  * @param dname: the dname in uncompressed wireformat.
  * @param dname_len: length of the dname.
  * @return string or NULL on failure.

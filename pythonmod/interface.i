@@ -678,11 +678,14 @@ struct edns_data {
     uint8_t edns_version;
     uint16_t bits;
     uint16_t udp_size;
-    struct edns_option* opt_list;
+    struct edns_option* opt_list_in;
+    struct edns_option* opt_list_out;
+    struct edns_option* opt_list_inplace_cb_out;
+    uint16_t padding_block_size;
 };
 %inline %{
     struct edns_option** _edns_data_opt_list_get(struct edns_data* edns) {
-       return &edns->opt_list;
+       return &edns->opt_list_in;
     }
 %}
 %extend edns_data {
@@ -710,8 +713,8 @@ struct module_env {
     struct outbound_entry* (*send_query)(struct query_info* qinfo,
         uint16_t flags, int dnssec, int want_dnssec, int nocaps,
         struct sockaddr_storage* addr, socklen_t addrlen,
-        uint8_t* zone, size_t zonelen, int ssl_upstream, char* tls_auth_name,
-        struct module_qstate* q);
+        uint8_t* zone, size_t zonelen, int tcp_upstream, int ssl_upstream,
+        char* tls_auth_name, struct module_qstate* q);
     void (*detach_subs)(struct module_qstate* qstate);
     int (*attach_sub)(struct module_qstate* qstate,
         struct query_info* qinfo, uint16_t qflags, int prime,
@@ -1341,7 +1344,7 @@ int set_return_msg(struct module_qstate* qstate,
 %pythoncode %{
     class DNSMessage:
         def __init__(self, rr_name, rr_type, rr_class = RR_CLASS_IN, query_flags = 0, default_ttl = 0):
-            """Query flags is a combination of PKT_xx contants"""
+            """Query flags is a combination of PKT_xx constants"""
             self.rr_name = rr_name
             self.rr_type = rr_type
             self.rr_class = rr_class

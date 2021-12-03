@@ -382,6 +382,21 @@ struct reply_info* reply_info_copy(struct reply_info* rep,
 int reply_info_alloc_rrset_keys(struct reply_info* rep,
 	struct alloc_cache* alloc, struct regional* region);
 
+/*
+ * Create a new reply_info based on 'rep'.  The new info is based on
+ * the passed 'rep', but ignores any rrsets except for the first 'an_numrrsets'
+ * RRsets in the answer section.  These answer rrsets are copied to the
+ * new info, up to 'copy_rrsets' rrsets (which must not be larger than
+ * 'an_numrrsets').  If an_numrrsets > copy_rrsets, the remaining rrsets array
+ * entries will be kept empty so the caller can fill them later.  When rrsets
+ * are copied, they are shallow copied.  The caller must ensure that the
+ * copied rrsets are valid throughout its lifetime and must provide appropriate
+ * mutex if it can be shared by multiple threads.
+ */
+struct reply_info *
+make_new_reply_info(const struct reply_info* rep, struct regional* region,
+	size_t an_numrrsets, size_t copy_rrsets);
+
 /**
  * Copy a parsed rrset into given key, decompressing and allocating rdata.
  * @param pkt: packet for decompression
@@ -502,18 +517,6 @@ void log_reply_info(enum verbosity_value v, struct query_info *qinf,
  */
 void log_query_info(enum verbosity_value v, const char* str, 
 	struct query_info* qinf);
-
-/**
- * Append edns option to edns data structure
- * @param edns: the edns data structure to append the edns option to.
- * @param region: region to allocate the new edns option.
- * @param code: the edns option's code.
- * @param len: the edns option's length.
- * @param data: the edns option's data.
- * @return false on failure.
- */
-int edns_opt_append(struct edns_data* edns, struct regional* region,
-	uint16_t code, size_t len, uint8_t* data);
 
 /**
  * Append edns option to edns option list

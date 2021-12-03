@@ -90,7 +90,7 @@ We can also remove an EDNS option code from an EDNS option list.
         log_info("python: Option code {} was not found in the "
                  "list.".format(code))
 
-.. note:: All occurences of the EDNS option code will be removed from the list:
+.. note:: All occurrences of the EDNS option code will be removed from the list:
 
 
 Controlling other modules' cache behavior

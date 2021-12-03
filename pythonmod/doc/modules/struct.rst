@@ -12,7 +12,7 @@ module_qstate
 
     .. attribute:: qinfo
 
-        (:class:`query_info`) Informations about query being answered. Name, RR type, RR class.
+        (:class:`query_info`) Information about query being answered. Name, RR type, RR class.
 
     .. attribute:: query_flags
 
@@ -256,7 +256,7 @@ dns_msg
 
    .. attribute:: qinfo
    
-      (:class:`query_info`) Informations about query.
+      (:class:`query_info`) Information about query.
    
    .. attribute:: rep
    
@@ -440,7 +440,7 @@ DNSMessage
       
    .. method:: set_return_msg(self, qstate)
    
-      This method fills qstate return message according to the given informations. 
+      This method fills qstate return message according to the given information. 
 		It takes lists of RRs in each section of answer, created necessary RRsets in wire format and store the result in :attr:`qstate.return_msg`.
 		Returns 1 if OK.
    

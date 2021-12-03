@@ -17,7 +17,7 @@ CONFIG_END
 SCENARIO_BEGIN Test scrub of reversed DNAME and CNAME in answer section
 
 RANGE_BEGIN 0 100
-; all adresses
+; all addresses
 ENTRY_BEGIN
 MATCH opcode qtype qname
 ADJUST copy_id

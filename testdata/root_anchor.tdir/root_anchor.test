@@ -27,7 +27,7 @@ fi
 
 echo ""
 # test that unbound-anchor, the builtin certificate, works
-# so, force https with -F and the -c is a nonexistant file
+# so, force https with -F and the -c is a nonexistent file
 $PRE/unbound-anchor -a test.cert -c test.pem -v -F
 # check that the test.cert file is OK.
 if $PRE/unbound-host -f test.cert -t SOA -v . 2>&1 | grep "(secure)"; then
@@ -38,7 +38,7 @@ else
 fi
 
 # use curl to see if the PGP certificate has been updated.
-curl --time-cond "20170203 10:00:00" https://data.iana.org/root-anchors/icannbundle.pem > newcert
+curl --time-cond "20210908 17:00:00" https://data.iana.org/root-anchors/icannbundle.pem > newcert
 if test -n "`cat newcert`"; then
 	echo "icannbundle.pem has been updated"
 	cat newcert

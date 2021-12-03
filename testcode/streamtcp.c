@@ -437,8 +437,8 @@ int main(int argc, char** argv)
 #endif
 
 	/* lock debug start (if any) */
-	log_init(0, 0, 0);
 	checklock_start();
+	log_init(0, 0, 0);
 
 #ifdef SIGPIPE
 	if(signal(SIGPIPE, &sigh) == SIG_ERR) {

@@ -281,7 +281,7 @@ void shm_main_run(struct worker *worker)
 		shm_stat->mem.subnet = 0;
 #ifdef CLIENT_SUBNET
 		shm_stat->mem.subnet = (long long)mod_get_mem(&worker->env,
-			"subnet");
+			"subnetcache");
 #endif
 		/* ipsecmod mem value is available in shm, also when not enabled,
 		 * to make the struct easier to memmap by other applications,

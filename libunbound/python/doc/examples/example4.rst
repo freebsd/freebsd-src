@@ -31,6 +31,6 @@ Source code
         else:
             print "Result is insecure"
 
-More detailed informations can be seen in libUnbound DNSSEC tutorial `here`_.
+More detailed information can be seen in libUnbound DNSSEC tutorial `here`_.
 
 .. _here: http://www.unbound.net/documentation/libunbound-tutorial-6.html

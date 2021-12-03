@@ -48,6 +48,7 @@
 #include "services/cache/rrset.h"
 #include "services/cache/infra.h"
 #include "services/authzone.h"
+#include "services/listen_dnsport.h"
 #include "util/data/msgreply.h"
 #include "util/storage/slabhash.h"
 #include "util/edns.h"
@@ -73,6 +74,7 @@ context_finalize(struct ub_ctx* ctx)
 	config_apply(cfg);
 	if(!modstack_setup(&ctx->mods, cfg->module_conf, ctx->env))
 		return UB_INITFAIL;
+	listen_setup_locks();
 	log_edns_known_options(VERB_ALGO, ctx->env);
 	ctx->local_zones = local_zones_create();
 	if(!ctx->local_zones)

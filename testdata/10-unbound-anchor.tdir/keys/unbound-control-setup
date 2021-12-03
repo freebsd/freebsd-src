@@ -81,7 +81,7 @@ while test $# -ne 0; do
 	echo "	-d dir	use directory to store keys and certificates."
 	echo "		default: $DESTDIR"
 	echo "please run this command using the same user id that the "
-	echo "unboun daemon uses, it needs read privileges."
+	echo "unbound daemon uses, it needs read privileges."
 	exit 1
 	;;
 	esac

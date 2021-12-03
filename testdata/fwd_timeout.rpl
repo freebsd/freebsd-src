@@ -9,7 +9,7 @@ SECTION QUESTION
 www.example.com. IN A
 ENTRY_END
 ; But the pending query times out!
-; OUTBOUND_MSG_RETRY times timeout.
+; outbound-msg-retry times timeout.
 STEP 2 TIMEOUT
 STEP 3 TIMEOUT
 STEP 4 TIMEOUT

@@ -55,7 +55,7 @@
 #       Return True on success, False on failure.
 #
 #   edns_opt_list_remove(edns_opt_list, code):
-#       Remove all occurences of the given EDNS option code from the
+#       Remove all occurrences of the given EDNS option code from the
 #           edns_opt_list.
 #       Return True when at least one EDNS option was removed, False otherwise.
 #
