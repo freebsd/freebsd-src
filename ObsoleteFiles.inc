@@ -11396,8 +11396,7 @@ OLD_FILES+=usr/share/man/man4/pcii.4.gz
 OLD_FILES+=usr/share/man/man4/tnt4882.4.gz
 # 20141224: libxo moved to /lib
 OLD_LIBS+=usr/lib/libxo.so.0
-# 20141223: remove in6_gif.h, in_gif.h and if_stf.h
-OLD_FILES+=usr/include/net/if_stf.h
+# 20141223: remove in6_gif.h and in_gif.h
 OLD_FILES+=usr/include/netinet/in_gif.h
 OLD_FILES+=usr/include/netinet6/in6_gif.h
 # 20141209: pw tests broken into a file per command
