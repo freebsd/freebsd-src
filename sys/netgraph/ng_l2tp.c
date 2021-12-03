@@ -54,7 +54,10 @@
 #include <sys/mbuf.h>
 #include <sys/malloc.h>
 #include <sys/errno.h>
+#include <sys/epoch.h>
 #include <sys/libkern.h>
+
+#include <net/vnet.h>
 
 #include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
@@ -180,10 +183,8 @@ static int	ng_l2tp_seq_adjust(priv_p priv,
 static void	ng_l2tp_seq_reset(priv_p priv);
 static void	ng_l2tp_seq_failure(priv_p priv);
 static void	ng_l2tp_seq_recv_nr(priv_p priv, u_int16_t nr);
-static void	ng_l2tp_seq_xack_timeout(node_p node, hook_p hook,
-		    void *arg1, int arg2);
-static void	ng_l2tp_seq_rack_timeout(node_p node, hook_p hook,
-		    void *arg1, int arg2);
+static void	ng_l2tp_seq_xack_timeout(void *);
+static void	ng_l2tp_seq_rack_timeout(void *);
 
 static hookpriv_p	ng_l2tp_find_session(priv_p privp, u_int16_t sid);
 static ng_fn_eachhook	ng_l2tp_reset_session;
@@ -662,8 +663,8 @@ ng_l2tp_shutdown(node_p node)
 	SEQ_UNLOCK(seq);
 
 	/* Free private data if neither timer is running */
-	ng_uncallout_drain(&seq->rack_timer, node);
-	ng_uncallout_drain(&seq->xack_timer, node);
+	callout_drain(&seq->rack_timer);
+	callout_drain(&seq->xack_timer);
 
 	mtx_destroy(&seq->mtx);
 
@@ -961,9 +962,9 @@ ng_l2tp_rcvdata_lower(hook_p h, item_p item)
 			seq->nr++;
 			/* Start receive ack timer, if not already running */
 			if (!callout_active(&seq->xack_timer)) {
-				ng_callout(&seq->xack_timer, priv->node, NULL,
+				callout_reset(&seq->xack_timer,
 				    L2TP_DELAYED_ACK, ng_l2tp_seq_xack_timeout,
-				    NULL, 0);
+				    node);
 			}
 		}
 		SEQ_UNLOCK(seq);
@@ -1062,8 +1063,8 @@ ng_l2tp_rcvdata_ctrl(hook_p hook, item_p item)
 
 	/* Start retransmit timer if not already running */
 	if (!callout_active(&seq->rack_timer))
-		ng_callout(&seq->rack_timer, node, NULL,
-		    hz, ng_l2tp_seq_rack_timeout, NULL, 0);
+		callout_reset(&seq->rack_timer, hz, ng_l2tp_seq_rack_timeout,
+		    node);
 
 	ns = seq->ns++;
 
@@ -1268,8 +1269,8 @@ ng_l2tp_seq_reset(priv_p priv)
 	SEQ_LOCK_ASSERT(seq);
 
 	/* Stop timers */
-	ng_uncallout(&seq->rack_timer, priv->node);
-	ng_uncallout(&seq->xack_timer, priv->node);
+	(void )callout_stop(&seq->rack_timer);
+	(void )callout_stop(&seq->xack_timer);
 
 	/* Free retransmit queue */
 	for (i = 0; i < L2TP_MAX_XWIN; i++) {
@@ -1359,15 +1360,15 @@ ng_l2tp_seq_recv_nr(priv_p priv, u_int16_t nr)
 
 	/* Stop xmit timer */
 	if (callout_active(&seq->rack_timer))
-		ng_uncallout(&seq->rack_timer, priv->node);
+		(void )callout_stop(&seq->rack_timer);
 
 	/* If transmit queue is empty, we're done for now */
 	if (seq->xwin[0] == NULL)
 		return;
 
 	/* Start restransmit timer again */
-	ng_callout(&seq->rack_timer, priv->node, NULL,
-	    hz, ng_l2tp_seq_rack_timeout, NULL, 0);
+	callout_reset(&seq->rack_timer, hz, ng_l2tp_seq_rack_timeout,
+	    priv->node);
 
 	/*
 	 * Send more packets, trying to keep peer's receive window full.
@@ -1403,20 +1404,26 @@ ng_l2tp_seq_recv_nr(priv_p priv, u_int16_t nr)
  * were hoping to piggy-back, but haven't, so send a ZLB.
  */
 static void
-ng_l2tp_seq_xack_timeout(node_p node, hook_p hook, void *arg1, int arg2)
+ng_l2tp_seq_xack_timeout(void *arg)
 {
+	const node_p node = arg;
 	const priv_p priv = NG_NODE_PRIVATE(node);
+	struct epoch_tracker et;
 	struct l2tp_seq *const seq = &priv->seq;
 
 	SEQ_LOCK_ASSERT(seq);
 	MPASS(!callout_pending(&seq->xack_timer));
 	MPASS(callout_active(&seq->xack_timer));
 
+	NET_EPOCH_ENTER(et);
+	CURVNET_SET(node->nd_vnet);
 	/* Send a ZLB */
 	ng_l2tp_xmit_ctrl(priv, NULL, seq->ns);
+	CURVNET_RESTORE();
+	NET_EPOCH_EXIT(et);
 
 	/* callout_deactivate() is not needed here 
-	    as ng_uncallout() was called by ng_l2tp_xmit_ctrl() */
+	    as callout_stop() was called by ng_l2tp_xmit_ctrl() */
 }
 
 /* 
@@ -1424,9 +1431,11 @@ ng_l2tp_seq_xack_timeout(node_p node, hook_p hook, void *arg1, int arg2)
  * with an ack for our packet, so retransmit it.
  */
 static void
-ng_l2tp_seq_rack_timeout(node_p node, hook_p hook, void *arg1, int arg2)
+ng_l2tp_seq_rack_timeout(void *arg)
 {
+	const node_p node = arg;
 	const priv_p priv = NG_NODE_PRIVATE(node);
+	struct epoch_tracker et;
 	struct l2tp_seq *const seq = &priv->seq;
 	struct mbuf *m;
 	u_int delay;
@@ -1435,6 +1444,9 @@ ng_l2tp_seq_rack_timeout(node_p node, hook_p hook, void *arg1, int arg2)
 	MPASS(seq->xwin[0]);
 	MPASS(!callout_pending(&seq->rack_timer));
 	MPASS(callout_active(&seq->rack_timer));
+
+	NET_EPOCH_ENTER(et);
+	CURVNET_SET(node->nd_vnet);
 
 	priv->stats.xmitRetransmits++;
 
@@ -1446,8 +1458,8 @@ ng_l2tp_seq_rack_timeout(node_p node, hook_p hook, void *arg1, int arg2)
 	delay = (seq->rexmits > 12) ? (1 << 12) : (1 << seq->rexmits);
 	if (delay > priv->conf.rexmit_max_to)
 		delay = priv->conf.rexmit_max_to;
-	ng_callout(&seq->rack_timer, node, NULL,
-	    hz * delay, ng_l2tp_seq_rack_timeout, NULL, 0);
+	callout_reset(&seq->rack_timer, hz * delay, ng_l2tp_seq_rack_timeout,
+	    node);
 
 	/* Do slow-start/congestion algorithm windowing algorithm */
 	seq->ns = seq->rack;
@@ -1462,6 +1474,9 @@ ng_l2tp_seq_rack_timeout(node_p node, hook_p hook, void *arg1, int arg2)
 		priv->stats.memoryFailures++;
 	} else
 		ng_l2tp_xmit_ctrl(priv, m, seq->ns++);
+
+	CURVNET_RESTORE();
+	NET_EPOCH_EXIT(et);
 
 	/* callout_deactivate() is not needed here 
 	    as ng_callout() is getting called each time */
@@ -1485,7 +1500,7 @@ ng_l2tp_xmit_ctrl(priv_p priv, struct mbuf *m, u_int16_t ns)
 	/* Stop ack timer: we're sending an ack with this packet.
 	   Doing this before to keep state predictable after error. */
 	if (callout_active(&seq->xack_timer))
-		ng_uncallout(&seq->xack_timer, priv->node);
+		(void )callout_stop(&seq->xack_timer);
 
 	nr = seq->xack = seq->nr;
 
