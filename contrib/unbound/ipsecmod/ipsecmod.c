@@ -37,7 +37,7 @@
  * \file
  *
  * This file contains a module that facilitates opportunistic IPsec. It does so
- * by also quering for the IPSECKEY for A/AAAA queries and calling a
+ * by also querying for the IPSECKEY for A/AAAA queries and calling a
  * configurable hook (eg. signaling an IKE daemon) before replying.
  */
 

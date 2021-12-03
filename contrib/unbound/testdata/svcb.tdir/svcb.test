@@ -80,7 +80,7 @@ else
 fi
 
 
-# check all the succes and write them
+# check all the success and write them
 if ! $PRE/readzone svcb.success-cases.zone > svcb.success-cases.zone.out
 then
  	echo "Some particular success cases did not succeed to parse"

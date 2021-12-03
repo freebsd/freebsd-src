@@ -137,7 +137,7 @@ static void
 set_subnet_stats(struct worker* worker, struct ub_server_stats* svr,
 	int reset)
 {
-	int m = modstack_find(&worker->env.mesh->mods, "subnet");
+	int m = modstack_find(&worker->env.mesh->mods, "subnetcache");
 	struct subnet_env* sne;
 	if(m == -1)
 		return;

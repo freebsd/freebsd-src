@@ -435,7 +435,7 @@ dnscrypt_hrtime(void)
 
 /**
  * Add the server nonce part to once.
- * The nonce is made half of client nonce and the seconf half of the server
+ * The nonce is made half of client nonce and the second half of the server
  * nonce, both of them of size crypto_box_HALF_NONCEBYTES.
  * \param[in] nonce: a uint8_t* of size crypto_box_NONCEBYTES
  */
@@ -674,7 +674,7 @@ dnsc_find_cert(struct dnsc_env* dnscenv, struct sldns_buffer* buffer)
 /**
  * Insert local-zone and local-data into configuration.
  * In order to be able to serve certs over TXT, we can reuse the local-zone and
- * local-data config option. The zone and qname are infered from the
+ * local-data config option. The zone and qname are inferred from the
  * provider_name and the content of the TXT record from the certificate content.
  * returns the number of certificate TXT record that were loaded.
  * < 0 in case of error.

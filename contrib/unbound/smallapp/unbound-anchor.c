@@ -2037,13 +2037,13 @@ write_builtin_anchor(const char* file)
 	const char* builtin_root_anchor = get_builtin_ds();
 	FILE* out = fopen(file, "w");
 	if(!out) {
-		if(verb) printf("%s: %s\n", file, strerror(errno));
-		if(verb) printf("  could not write builtin anchor\n");
+		printf("could not write builtin anchor, to file %s: %s\n",
+			file, strerror(errno));
 		return;
 	}
 	if(!fwrite(builtin_root_anchor, strlen(builtin_root_anchor), 1, out)) {
-		if(verb) printf("%s: %s\n", file, strerror(errno));
-		if(verb) printf("  could not complete write builtin anchor\n");
+		printf("could not complete write builtin anchor, to file %s: %s\n",
+			file, strerror(errno));
 	}
 	fclose(out);
 }

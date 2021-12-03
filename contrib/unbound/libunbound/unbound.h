@@ -224,13 +224,42 @@ struct ub_result {
  * It is called with
  *	void* my_arg: your pointer to a (struct of) data of your choice, 
  *		or NULL.
- *	int err: if 0 all is OK, otherwise an error occured and no results
+ *	int err: if 0 all is OK, otherwise an error occurred and no results
  *	     are forthcoming.
  *	struct result: pointer to more detailed result structure.
  *		This structure is allocated on the heap and needs to be
  *		freed with ub_resolve_free(result);
  */
 typedef void (*ub_callback_type)(void*, int, struct ub_result*);
+
+/**
+ * The error constants
+ */
+enum ub_ctx_err {
+	/** no error */
+	UB_NOERROR = 0,
+	/** socket operation. Set to -1, so that if an error from _fd() is
+	 * passed (-1) it gives a socket error. */
+	UB_SOCKET = -1,
+	/** alloc failure */
+	UB_NOMEM = -2,
+	/** syntax error */
+	UB_SYNTAX = -3,
+	/** DNS service failed */
+	UB_SERVFAIL = -4,
+	/** fork() failed */
+	UB_FORKFAIL = -5,
+	/** cfg change after finalize() */
+	UB_AFTERFINAL = -6,
+	/** initialization failed (bad settings) */
+	UB_INITFAIL = -7,
+	/** error in pipe communication with async bg worker */
+	UB_PIPE = -8,
+	/** error reading from file (resolv.conf) */
+	UB_READFILE = -9,
+	/** error async_id does not exist or result already been delivered */
+	UB_NOID = -10
+};
 
 /**
  * Create a resolving and validation context.
@@ -563,6 +592,7 @@ void ub_resolve_free(struct ub_result* result);
 /** 
  * Convert error value to a human readable string.
  * @param err: error code from one of the libunbound functions.
+ * 	The error codes are from the type enum ub_ctx_err.
  * @return pointer to constant text string, zero terminated.
  */
 const char* ub_strerror(int err);

@@ -120,7 +120,7 @@ void rrset_cache_touch(struct rrset_cache* r, struct ub_packed_rrset_key* key,
  *	the new rrset. The reference may be changed if the cached rrset is
  *	superior.
  *	Before calling the rrset is presumed newly allocated and changeable.
- *	Afer calling you do not hold a lock, and the rrset is inserted in
+ *	After calling you do not hold a lock, and the rrset is inserted in
  *	the hashtable so you need a lock to change it.
  * @param alloc: how to allocate (and deallocate) the special rrset key.
  * @param timenow: current time (to see if ttl in cache is expired).
@@ -143,7 +143,7 @@ int rrset_cache_update(struct rrset_cache* r, struct rrset_ref* ref,
  * @param rrset: which rrset to cache as wildcard. This rrset is left 
  * 	untouched.
  * @param ce: the closest encloser, will be uses to generate the wildcard dname.
- * @param ce_len: the closest encloser lenght.
+ * @param ce_len: the closest encloser length.
  * @param alloc: how to allocate (and deallocate) the special rrset key.
  * @param timenow: current time (to see if ttl in cache is expired).
  */

@@ -2298,7 +2298,7 @@ processQueryTargets(struct module_qstate* qstate, struct iter_qstate* iq,
 		iq->minimise_count++;
 		iq->timeout_count = 0;
 
-		iter_dec_attempts(iq->dp, 1);
+		iter_dec_attempts(iq->dp, 1, ie->outbound_msg_retry);
 
 		/* Limit number of iterations for QNAMEs with more
 		 * than MAX_MINIMISE_COUNT labels. Send first MINIMISE_ONE_LAB
@@ -2500,7 +2500,7 @@ processQueryTargets(struct module_qstate* qstate, struct iter_qstate* iq,
 				(int)iq->caps_server+1, (int)naddr*3);
 			iq->response = iq->caps_response;
 			iq->caps_fallback = 0;
-			iter_dec_attempts(iq->dp, 3); /* space for fallback */
+			iter_dec_attempts(iq->dp, 3, ie->outbound_msg_retry); /* space for fallback */
 			iq->num_current_queries++; /* RespState decrements it*/
 			iq->referral_count++; /* make sure we don't loop */
 			iq->sent_count = 0;
@@ -2528,6 +2528,23 @@ processQueryTargets(struct module_qstate* qstate, struct iter_qstate* iq,
 
 	/* Add the current set of unused targets to our queue. */
 	delegpt_add_unused_targets(iq->dp);
+
+	if(qstate->env->auth_zones) {
+		/* apply rpz triggers at query time */
+		struct dns_msg* forged_response = rpz_callback_from_iterator_module(qstate, iq);
+		if(forged_response != NULL) {
+			qstate->ext_state[id] = module_finished;
+			qstate->return_rcode = FLAGS_GET_RCODE(forged_response->rep->flags);
+			qstate->return_msg = forged_response;
+			iq->response = forged_response;
+			next_state(iq, FINISHED_STATE);
+			if(!iter_prepend(iq, qstate->return_msg, qstate->region)) {
+				log_err("rpz, prepend rrsets: out of memory");
+				return error_response(qstate, id, LDNS_RCODE_SERVFAIL);
+			}
+			return 0;
+		}
+	}
 
 	/* Select the next usable target, filtering out unsuitable targets. */
 	target = iter_server_selection(ie, qstate->env, iq->dp, 
@@ -2588,7 +2605,7 @@ processQueryTargets(struct module_qstate* qstate, struct iter_qstate* iq,
 						(int)iq->caps_server+1);
 					iq->response = iq->caps_response;
 					iq->caps_fallback = 0;
-					iter_dec_attempts(iq->dp, 3); /* space for fallback */
+					iter_dec_attempts(iq->dp, 3, ie->outbound_msg_retry); /* space for fallback */
 					iq->num_current_queries++; /* RespState decrements it*/
 					iq->referral_count++; /* make sure we don't loop */
 					iq->sent_count = 0;
@@ -2666,6 +2683,7 @@ processQueryTargets(struct module_qstate* qstate, struct iter_qstate* iq,
 		iq->dnssec_expected, iq->caps_fallback || is_caps_whitelisted(
 		ie, iq), &target->addr, target->addrlen,
 		iq->dp->name, iq->dp->namelen,
+		(iq->dp->tcp_upstream || qstate->env->cfg->tcp_upstream),
 		(iq->dp->ssl_upstream || qstate->env->cfg->ssl_upstream),
 		target->tls_auth_name, qstate);
 	if(!outq) {
@@ -2707,6 +2725,7 @@ find_NS(struct reply_info* rep, size_t from, size_t to)
  * 
  * @param qstate: query state.
  * @param iq: iterator query state.
+ * @param ie: iterator shared global environment.
  * @param id: module id.
  * @return true if the event requires more immediate processing, false if
  *         not. This is generally only true when forwarding the request to
@@ -2714,10 +2733,11 @@ find_NS(struct reply_info* rep, size_t from, size_t to)
  */
 static int
 processQueryResponse(struct module_qstate* qstate, struct iter_qstate* iq,
-	int id)
+	struct iter_env* ie, int id)
 {
 	int dnsseclame = 0;
 	enum response_type type;
+
 	iq->num_current_queries--;
 
 	if(!inplace_cb_query_response_call(qstate->env, qstate, iq->response))
@@ -2983,7 +3003,8 @@ processQueryResponse(struct module_qstate* qstate, struct iter_qstate* iq,
 		}
 		if(iq->store_parent_NS && query_dname_compare(iq->dp->name,
 			iq->store_parent_NS->name) == 0)
-			iter_merge_retry_counts(iq->dp, iq->store_parent_NS);
+			iter_merge_retry_counts(iq->dp, iq->store_parent_NS,
+				ie->outbound_msg_retry);
 		delegpt_log(VERB_ALGO, iq->dp);
 		/* Count this as a referral. */
 		iq->referral_count++;
@@ -3061,6 +3082,39 @@ processQueryResponse(struct module_qstate* qstate, struct iter_qstate* iq,
 		/* set the current request's qname to the new value. */
 		iq->qchase.qname = sname;
 		iq->qchase.qname_len = snamelen;
+		if(qstate->env->auth_zones) {
+			/* apply rpz qname triggers after cname */
+			struct dns_msg* forged_response =
+				rpz_callback_from_iterator_cname(qstate, iq);
+			while(forged_response && reply_find_rrset_section_an(
+				forged_response->rep, iq->qchase.qname,
+				iq->qchase.qname_len, LDNS_RR_TYPE_CNAME,
+				iq->qchase.qclass)) {
+				/* another cname to follow */
+				if(!handle_cname_response(qstate, iq, forged_response,
+					&sname, &snamelen)) {
+					errinf(qstate, "malloc failure, CNAME info");
+					return error_response(qstate, id, LDNS_RCODE_SERVFAIL);
+				}
+				iq->qchase.qname = sname;
+				iq->qchase.qname_len = snamelen;
+				forged_response =
+					rpz_callback_from_iterator_cname(qstate, iq);
+			}
+			if(forged_response != NULL) {
+				qstate->ext_state[id] = module_finished;
+				qstate->return_rcode = FLAGS_GET_RCODE(forged_response->rep->flags);
+				qstate->return_msg = forged_response;
+				iq->response = forged_response;
+				next_state(iq, FINISHED_STATE);
+				if(!iter_prepend(iq, qstate->return_msg, qstate->region)) {
+					log_err("rpz after cname, prepend rrsets: out of memory");
+					return error_response(qstate, id, LDNS_RCODE_SERVFAIL);
+				}
+				qstate->return_msg->qinfo = qstate->qinfo;
+				return 0;
+			}
+		}
 		/* Clear the query state, since this is a query restart. */
 		iq->deleg_msg = NULL;
 		iq->dp = NULL;
@@ -3188,7 +3242,7 @@ prime_supers(struct module_qstate* qstate, int id, struct module_qstate* forq)
 	/* Convert our response to a delegation point */
 	dp = delegpt_from_message(qstate->return_msg, forq->region);
 	if(!dp) {
-		/* if there is no convertable delegation point, then 
+		/* if there is no convertible delegation point, then 
 		 * the ANSWER type was (presumably) a negative answer. */
 		verbose(VERB_ALGO, "prime response was not a positive "
 			"ANSWER; failing");
@@ -3694,7 +3748,7 @@ iter_handle(struct module_qstate* qstate, struct iter_qstate* iq,
 				cont = processQueryTargets(qstate, iq, ie, id);
 				break;
 			case QUERY_RESP_STATE:
-				cont = processQueryResponse(qstate, iq, id);
+				cont = processQueryResponse(qstate, iq, ie, id);
 				break;
 			case PRIME_RESP_STATE:
 				cont = processPrimeResponse(qstate, id);
@@ -3764,7 +3818,7 @@ process_response(struct module_qstate* qstate, struct iter_qstate* iq,
 			iq->num_current_queries--;
 			/* need fresh attempts for the 0x20 fallback, if
 			 * that was the cause for the failure */
-			iter_dec_attempts(iq->dp, 3);
+			iter_dec_attempts(iq->dp, 3, ie->outbound_msg_retry);
 			verbose(VERB_DETAIL, "Capsforid: timeouts, starting fallback");
 			goto handle_it;
 		}
@@ -3798,15 +3852,15 @@ process_response(struct module_qstate* qstate, struct iter_qstate* iq,
 		goto handle_it;
 	}
 	/* edns is not examined, but removed from message to help cache */
-	if(parse_extract_edns(prs, &edns, qstate->env->scratch) !=
+	if(parse_extract_edns_from_response_msg(prs, &edns, qstate->env->scratch) !=
 		LDNS_RCODE_NOERROR) {
 		iq->parse_failures++;
 		goto handle_it;
 	}
 
 	/* Copy the edns options we may got from the back end */
-	if(edns.opt_list) {
-		qstate->edns_opts_back_in = edns_opt_copy_region(edns.opt_list,
+	if(edns.opt_list_in) {
+		qstate->edns_opts_back_in = edns_opt_copy_region(edns.opt_list_in,
 			qstate->region);
 		if(!qstate->edns_opts_back_in) {
 			log_err("out of memory on incoming message");

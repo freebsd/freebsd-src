@@ -4,7 +4,7 @@
 #
 # unbound.conf:
 #  rpz:
-#    name: "spamhaus-drop.rpz.local."
+#    name: "drop.spamhaus.org.rpz.local."
 #    zonefile: "/path/tp/spamhaus-drop.rpz.local"
 #    rpz-log: yes
 #    rpz-log-name: "spamhaus-drop"

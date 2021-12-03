@@ -1,0 +1,27 @@
+; config options
+server:
+	outbound-msg-retry: 1
+
+forward-zone:
+	name: "."
+	forward-addr: 216.0.0.1
+CONFIG_END
+SCENARIO_BEGIN Test basic forwarding with servfail and retry of 1
+STEP 1 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+www.example.com. IN A
+ENTRY_END
+; query fails with servfail, now we make only outgoing-msg-retry=1 retries
+STEP 2 ERROR
+; returns servfail
+STEP 14 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH opcode qname qtype
+SECTION QUESTION
+REPLY SERVFAIL QR RD RA
+MATCH all
+www.example.com. IN A
+ENTRY_END
+SCENARIO_END

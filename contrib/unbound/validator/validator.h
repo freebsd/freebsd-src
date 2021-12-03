@@ -68,7 +68,7 @@ struct config_strlist;
 #define SENTINEL_IS		"root-key-sentinel-is-ta-"
 /** Root key sentinel is not ta preamble */
 #define SENTINEL_NOT		"root-key-sentinel-not-ta-"
-/** Root key sentinal keytag length */
+/** Root key sentinel keytag length */
 #define SENTINEL_KEYTAG_LEN	5
 
 /**

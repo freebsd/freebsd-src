@@ -1,4 +1,4 @@
-.TH "unbound.conf" "5" "Aug 12, 2021" "NLnet Labs" "unbound 1.13.2"
+.TH "unbound.conf" "5" "Dec  2, 2021" "NLnet Labs" "unbound 1.14.0rc1"
 .\"
 .\" unbound.conf.5 -- unbound.conf manual
 .\"
@@ -485,7 +485,9 @@ advertised timeout.
 .TP
 .B tcp\-upstream: \fI<yes or no>
 Enable or disable whether the upstream queries use TCP only for transport.
-Default is no.  Useful in tunneling scenarios.
+Default is no.  Useful in tunneling scenarios. If set to no you can specify
+TCP transport only for selected forward or stub zones using forward-tcp-upstream
+or stub-tcp-upstream respectively.
 .TP
 .B udp\-upstream\-without\-downstream: \fI<yes or no>
 Enable udp upstream even if do-udp is no.  Default is no, and this does not
@@ -1410,13 +1412,13 @@ has no other effect than turning off default contents for the
 given zone.  Use \fInodefault\fR if you use exactly that zone, if you want to
 use a subzone, use \fItransparent\fR.
 .P
-The default zones are localhost, reverse 127.0.0.1 and ::1, the onion, test,
-invalid and the AS112 zones. The AS112 zones are reverse DNS zones for
-private use and reserved IP addresses for which the servers on the internet
-cannot provide correct answers. They are configured by default to give
-nxdomain (no reverse information) answers. The defaults can be turned off
-by specifying your own local\-zone of that name, or using the 'nodefault'
-type. Below is a list of the default zone contents.
+The default zones are localhost, reverse 127.0.0.1 and ::1, the home.arpa,
+the onion, test, invalid and the AS112 zones. The AS112 zones are reverse
+DNS zones for private use and reserved IP addresses for which the servers
+on the internet cannot provide correct answers. They are configured by
+default to give nxdomain (no reverse information) answers. The defaults
+can be turned off by specifying your own local\-zone of that name, or
+using the 'nodefault' type. Below is a list of the default zone contents.
 .TP 10
 \h'5'\fIlocalhost\fR
 The IP4 and IP6 localhost information is given. NS and SOA records are provided
@@ -1455,6 +1457,15 @@ local\-data: "1.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.
 local\-data: "1.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.
     0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.ip6.arpa. 10800 IN
     PTR localhost."
+.fi
+.TP 10
+\h'5'\fIhome.arpa (RFC 8375)\fR
+Default content:
+.nf
+local\-zone: "home.arpa." static
+local\-data: "home.arpa. 10800 IN NS localhost."
+local\-data: "home.arpa. 10800 IN
+    SOA localhost. nobody.invalid. 1 3600 1200 604800 10800"
 .fi
 .TP 10
 \h'5'\fIonion (RFC 7686)\fR
@@ -1702,6 +1713,11 @@ This can make ordinary queries complete (if repeatedly queried for),
 and enter the cache, whilst also mitigating the traffic flow by the
 factor given.
 .TP 5
+.B outbound\-msg\-retry: \fI<number>
+The number of retries unbound will do in case of a non positive response is
+received. If a forward nameserver is used, this is the number of retries per
+forward nameserver in case of throwaway response.
+.TP 5
 .B fast\-server\-permil: \fI<number>
 Specify how many times out of 1000 to pick from the set of fastest servers.
 0 turns the feature off.  A value of 900 would pick from the fastest
@@ -1822,7 +1838,7 @@ zone.  The local zone nodefault (or \fItransparent\fR) clause makes the
 (reverse\-) zone bypass unbound's filtering of RFC1918 zones.
 .TP
 .B name: \fI<domain name>
-Name of the stub zone.
+Name of the stub zone. This is the full domain name of the zone.
 .TP
 .B stub\-host: \fI<domain name>
 Name of stub zone nameserver. Is itself resolved before it is used.
@@ -1853,6 +1869,10 @@ Default is no.
 .B stub\-ssl\-upstream: \fI<yes or no>
 Alternate syntax for \fBstub\-tls\-upstream\fR.
 .TP
+.B stub\-tcp\-upstream: \fI<yes or no>
+If it is set to "yes" then upstream queries use TCP only for transport regardless of global flag tcp-upstream.
+Default is no.
+.TP
 .B stub\-no\-cache: \fI<yes or no>
 Default is no.  If enabled, data inside the stub is not cached.  This is
 useful when you want immediate changes to be visible.
@@ -1875,7 +1895,7 @@ forward all queries to that other server (unless it can answer from
 the cache).
 .TP
 .B name: \fI<domain name>
-Name of the forward zone.
+Name of the forward zone. This is the full domain name of the zone.
 .TP
 .B forward\-host: \fI<domain name>
 Name of server to forward to. Is itself resolved before it is used.
@@ -1904,6 +1924,10 @@ load CA certs, otherwise the connections cannot be authenticated.
 .TP
 .B forward\-ssl\-upstream: \fI<yes or no>
 Alternate syntax for \fBforward\-tls\-upstream\fR.
+.TP
+.B forward\-tcp\-upstream: \fI<yes or no>
+If it is set to "yes" then upstream queries use TCP only for transport regardless of global flag tcp-upstream.
+Default is no.
 .TP
 .B forward\-no\-cache: \fI<yes or no>
 Default is no.  If enabled, data inside the forward is not cached.  This is
@@ -2391,7 +2415,7 @@ This option defaults to "default".
 .P
 The following
 .B cachedb
-otions are specific to the redis backend.
+options are specific to the redis backend.
 .TP
 .B redis-server-host: \fI<server address or name>\fR
 The IP (either v6 or v4) address or domain name of the Redis server.
@@ -2506,10 +2530,49 @@ with a different name. RPZ clauses are applied in order of configuration. The
 \fBrespip\fR module needs to be added to the \fBmodule-config\fR, e.g.:
 \fBmodule-config: "respip validator iterator"\fR.
 .P
-Only the QNAME and Response IP Address triggers are supported. The supported RPZ
-actions are: NXDOMAIN, NODATA, PASSTHRU, DROP and Local Data. RPZ QNAME triggers
-are applied after
-\fBlocal-zones\fR and before \fBauth-zones\fR.
+QNAME, Response IP Address, nsdname, nsip and clientip triggers are supported.
+Supported actions are: NXDOMAIN, NODATA, PASSTHRU, DROP, Local Data, tcp\-only
+and drop.  RPZ QNAME triggers are applied after \fBlocal\-zones\fR and
+before \fBauth\-zones\fR.
+.P
+The rpz zone is formatted with a SOA start record as usual.  The items in
+the zone are entries, that specify what to act on (the trigger) and what to
+do (the action).  The trigger to act on is recorded in the name, the action
+to do is recorded as the resource record.  The names all end in the zone
+name, so you could type the trigger names without a trailing dot in the
+zonefile.
+.P
+An example RPZ record, that answers example.com with NXDOMAIN
+.nf
+	example.com CNAME .
+.fi
+.P
+The triggers are encoded in the name on the left
+.nf
+	name                          query name
+	netblock.rpz-client-ip        client IP address
+	netblock.rpz-ip               response IP address in the answer
+	name.rpz-nsdname              nameserver name
+	netblock.rpz-nsip             nameserver IP address
+.fi
+The netblock is written as <netblocklen>.<ip address in reverse>.
+For IPv6 use 'zz' for '::'.  Specify individual addresses with scope length
+of 32 or 128.  For example, 24.10.100.51.198.rpz-ip is 198.51.100.10/24 and
+32.10.zz.db8.2001.rpz-ip is 2001:db8:0:0:0:0:0:10/32.
+.P
+The actions are specified with the record on the right
+.nf
+	CNAME .                      nxdomain reply
+	CNAME *.                     nodata reply
+	CNAME rpz-passthru.          do nothing, allow to continue
+	CNAME rpz-drop.              the query is dropped
+	CNAME rpz-tcp-only.          answer over TCP
+	A 192.0.2.1                  answer with this IP address
+.fi
+Other records like AAAA, TXT and other CNAMEs (not rpz-..) can also be used to
+answer queries with that content.
+.P
+The RPZ zones can be configured in the config file with these settings in the \fBrpz:\fR block.
 .TP
 .B name: \fI<zone name>
 Name of the authority zone.

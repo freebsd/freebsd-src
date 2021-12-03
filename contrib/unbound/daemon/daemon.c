@@ -210,7 +210,6 @@ daemon_init(void)
 	}
 #endif /* USE_WINSOCK */
 	signal_handling_record();
-	checklock_start();
 #ifdef HAVE_SSL
 #  ifdef HAVE_ERR_LOAD_CRYPTO_STRINGS
 	ERR_load_crypto_strings();
@@ -280,6 +279,7 @@ daemon_init(void)
 		free(daemon);
 		return NULL;
 	}
+	listen_setup_locks();
 	if(gettimeofday(&daemon->time_boot, NULL) < 0)
 		log_err("gettimeofday: %s", strerror(errno));
 	daemon->time_last_stat = daemon->time_boot;
@@ -781,6 +781,7 @@ daemon_delete(struct daemon* daemon)
 	alloc_clear(&daemon->superalloc);
 	acl_list_delete(daemon->acl);
 	tcl_list_delete(daemon->tcl);
+	listen_desetup_locks();
 	free(daemon->chroot);
 	free(daemon->pidfile);
 	free(daemon->env);

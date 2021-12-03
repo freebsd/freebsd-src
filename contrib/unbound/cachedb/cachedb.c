@@ -519,7 +519,7 @@ parse_data(struct module_qstate* qstate, struct sldns_buffer* buf)
 		sldns_buffer_set_limit(buf, lim);
 		return 0;
 	}
-	if(parse_extract_edns(prs, &edns, qstate->env->scratch) !=
+	if(parse_extract_edns_from_response_msg(prs, &edns, qstate->env->scratch) !=
 		LDNS_RCODE_NOERROR) {
 		sldns_buffer_set_limit(buf, lim);
 		return 0;

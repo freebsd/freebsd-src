@@ -25,6 +25,7 @@
 #include "respip/respip.h"
 #include "services/view.h"
 #include "sldns/rrdef.h"
+#include "util/data/dname.h"
 
 
 /** Subset of resp_addr.node, used for inform-variant logging */
@@ -483,8 +484,8 @@ respip_views_apply_cfg(struct views* vs, struct config_file* cfg,
  * This function returns the copied rrset key on success, and NULL on memory
  * allocation failure.
  */
-static struct ub_packed_rrset_key*
-copy_rrset(const struct ub_packed_rrset_key* key, struct regional* region)
+struct ub_packed_rrset_key*
+respip_copy_rrset(const struct ub_packed_rrset_key* key, struct regional* region)
 {
 	struct ub_packed_rrset_key* ck = regional_alloc(region,
 		sizeof(struct ub_packed_rrset_key));
@@ -602,7 +603,7 @@ rdata2sockaddr(const struct packed_rrset_data* rd, uint16_t rtype, size_t i,
  */
 static struct resp_addr*
 respip_addr_lookup(const struct reply_info *rep, struct respip_set* rs,
-	size_t* rrset_id)
+	size_t* rrset_id, size_t* rr_id)
 {
 	size_t i;
 	struct resp_addr* ra;
@@ -625,6 +626,7 @@ respip_addr_lookup(const struct reply_info *rep, struct respip_set* rs,
 				&ss, addrlen);
 			if(ra) {
 				*rrset_id = i;
+				*rr_id = j;
 				lock_rw_rdlock(&ra->lock);
 				lock_rw_unlock(&rs->lock);
 				return ra;
@@ -633,43 +635,6 @@ respip_addr_lookup(const struct reply_info *rep, struct respip_set* rs,
 	}
 	lock_rw_unlock(&rs->lock);
 	return NULL;
-}
-
-/*
- * Create a new reply_info based on 'rep'.  The new info is based on
- * the passed 'rep', but ignores any rrsets except for the first 'an_numrrsets'
- * RRsets in the answer section.  These answer rrsets are copied to the
- * new info, up to 'copy_rrsets' rrsets (which must not be larger than
- * 'an_numrrsets').  If an_numrrsets > copy_rrsets, the remaining rrsets array
- * entries will be kept empty so the caller can fill them later.  When rrsets
- * are copied, they are shallow copied.  The caller must ensure that the
- * copied rrsets are valid throughout its lifetime and must provide appropriate
- * mutex if it can be shared by multiple threads.
- */
-static struct reply_info *
-make_new_reply_info(const struct reply_info* rep, struct regional* region,
-	size_t an_numrrsets, size_t copy_rrsets)
-{
-	struct reply_info* new_rep;
-	size_t i;
-
-	/* create a base struct.  we specify 'insecure' security status as
-	 * the modified response won't be DNSSEC-valid.  In our faked response
-	 * the authority and additional sections will be empty (except possible
-	 * EDNS0 OPT RR in the additional section appended on sending it out),
-	 * so the total number of RRsets is an_numrrsets. */
-	new_rep = construct_reply_info_base(region, rep->flags,
-		rep->qdcount, rep->ttl, rep->prefetch_ttl,
-		rep->serve_expired_ttl, an_numrrsets, 0, 0, an_numrrsets,
-		sec_status_insecure);
-	if(!new_rep)
-		return NULL;
-	if(!reply_info_alloc_rrset_keys(new_rep, NULL, region))
-		return NULL;
-	for(i=0; i<copy_rrsets; i++)
-		new_rep->rrsets[i] = rep->rrsets[i];
-
-	return new_rep;
 }
 
 /**
@@ -730,7 +695,7 @@ respip_data_answer(enum respip_action action,
 				"response-ip redirect with tag data [%d] %s",
 				tag, (tag<num_tags?tagname[tag]:"null"));
 			/* use copy_rrset() to 'normalize' memory layout */
-			rp = copy_rrset(&r, region);
+			rp = respip_copy_rrset(&r, region);
 			if(!rp)
 				return -1;
 		}
@@ -743,7 +708,7 @@ respip_data_answer(enum respip_action action,
 	 * rename the dname for other actions than redirect.  This is because
 	 * response-ip-data isn't associated to any specific name. */
 	if(rp == data) {
-		rp = copy_rrset(rp, region);
+		rp = respip_copy_rrset(rp, region);
 		if(!rp)
 			return -1;
 		rp->rk.dname = rep->rrsets[rrset_id]->rk.dname;
@@ -807,7 +772,6 @@ respip_nodata_answer(uint16_t qtype, enum respip_action action,
 		 * is explicitly specified. */
 		int rcode = (action == respip_always_nxdomain)?
 			LDNS_RCODE_NXDOMAIN:LDNS_RCODE_NOERROR;
-
 		/* We should empty the answer section except for any preceding
 		 * CNAMEs (in that case rrset_id > 0).  Type-ANY case is
 		 * special as noted in respip_data_answer(). */
@@ -907,7 +871,7 @@ respip_rewrite_reply(const struct query_info* qinfo,
 	size_t tag_datas_size;
 	struct view* view = NULL;
 	struct respip_set* ipset = NULL;
-	size_t rrset_id = 0;
+	size_t rrset_id = 0, rr_id = 0;
 	enum respip_action action = respip_none;
 	int tag = -1;
 	struct resp_addr* raddr = NULL;
@@ -948,7 +912,7 @@ respip_rewrite_reply(const struct query_info* qinfo,
 		lock_rw_rdlock(&view->lock);
 		if(view->respip_set) {
 			if((raddr = respip_addr_lookup(rep,
-				view->respip_set, &rrset_id))) {
+				view->respip_set, &rrset_id, &rr_id))) {
 				/** for per-view respip directives the action
 				 * can only be direct (i.e. not tag-based) */
 				action = raddr->action;
@@ -962,7 +926,7 @@ respip_rewrite_reply(const struct query_info* qinfo,
 		}
 	}
 	if(!raddr && (raddr = respip_addr_lookup(rep, ipset,
-		&rrset_id))) {
+		&rrset_id, &rr_id))) {
 		action = (enum respip_action)local_data_find_tag_action(
 			raddr->taglist, raddr->taglen, ctaglist, ctaglen,
 			tag_actions, tag_actions_size,
@@ -976,7 +940,7 @@ respip_rewrite_reply(const struct query_info* qinfo,
 		if(!r->taglist || taglist_intersect(r->taglist, 
 			r->taglistlen, ctaglist, ctaglen)) {
 			if((raddr = respip_addr_lookup(rep,
-				r->respip_set, &rrset_id))) {
+				r->respip_set, &rrset_id, &rr_id))) {
 				if(!respip_use_rpz(raddr, r, &action, &data,
 					&rpz_log, &log_name, &rpz_cname_override,
 					region, &rpz_used)) {
@@ -987,6 +951,21 @@ respip_rewrite_reply(const struct query_info* qinfo,
 					return 0;
 				}
 				if(rpz_used) {
+					if(verbosity >= VERB_ALGO) {
+						struct sockaddr_storage ss;
+						socklen_t ss_len = 0;
+						char nm[256], ip[256];
+						char qn[255+1];
+						if(!rdata2sockaddr(rep->rrsets[rrset_id]->entry.data, ntohs(rep->rrsets[rrset_id]->rk.type), rr_id, &ss, &ss_len))
+							snprintf(ip, sizeof(ip), "invalidRRdata");
+						else
+							addr_to_str(&ss, ss_len, ip, sizeof(ip));
+						dname_str(qinfo->qname, qn);
+						addr_to_str(&raddr->node.addr,
+							raddr->node.addrlen,
+							nm, sizeof(nm));
+						verbose(VERB_ALGO, "respip: rpz response-ip trigger %s/%d on %s %s with action %s", nm, raddr->node.net, qn, ip, rpz_action_to_string(respip_action_to_rpz_action(action)));
+					}
 					/* break to make sure 'a' stays pointed
 					 * to used auth_zone, and keeps lock */
 					break;
@@ -1209,7 +1188,7 @@ respip_merge_cname(struct reply_info* base_rep,
 	if(!new_rep)
 		return 0;
 	for(i=0,j=base_rep->an_numrrsets; i<tgt_rep->an_numrrsets; i++,j++) {
-		new_rep->rrsets[j] = copy_rrset(tgt_rep->rrsets[i], region);
+		new_rep->rrsets[j] = respip_copy_rrset(tgt_rep->rrsets[i], region);
 		if(!new_rep->rrsets[j])
 			return 0;
 	}

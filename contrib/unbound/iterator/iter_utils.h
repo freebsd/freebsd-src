@@ -347,16 +347,19 @@ void iter_scrub_nxdomain(struct dns_msg* msg);
  * Remove query attempts from all available ips. For 0x20.
  * @param dp: delegpt.
  * @param d: decrease.
+ * @param outbound_msg_retry: number of retries of outgoing queries
  */
-void iter_dec_attempts(struct delegpt* dp, int d);
+void iter_dec_attempts(struct delegpt* dp, int d, int outbound_msg_retry);
 
 /**
  * Add retry counts from older delegpt to newer delegpt.
  * Does not waste time on timeout'd (or other failing) addresses.
  * @param dp: new delegationpoint.
  * @param old: old delegationpoint.
+ * @param outbound_msg_retry: number of retries of outgoing queries
  */
-void iter_merge_retry_counts(struct delegpt* dp, struct delegpt* old);
+void iter_merge_retry_counts(struct delegpt* dp, struct delegpt* old,
+	int outbound_msg_retry);
 
 /**
  * See if a DS response (type ANSWER) is too low: a nodata answer with 

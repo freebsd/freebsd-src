@@ -41,7 +41,7 @@
  *
  * Use ub_ctx_create_event_ub_base() to create an unbound context that uses
  * the user provided event base API.  Then, use the ub_resolve_event call
- * to add DNS resolve queries to the context.  Those then run whith the
+ * to add DNS resolve queries to the context.  Those then run with the
  * provided event_base, and when they are done you get a function callback.
  *
  * This method does not fork another process or create a thread, the effort

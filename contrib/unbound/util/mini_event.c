@@ -337,6 +337,15 @@ int event_del(struct event* ev)
 		FD_CLR(FD_SET_T ev->ev_fd, &ev->ev_base->writes);
 		FD_CLR(FD_SET_T ev->ev_fd, &ev->ev_base->ready);
 		FD_CLR(FD_SET_T ev->ev_fd, &ev->ev_base->content);
+		if(ev->ev_fd == ev->ev_base->maxfd) {
+                        int i = ev->ev_base->maxfd - 1;
+                        for (; i > 3; i--) {
+                                if (NULL != ev->ev_base->fds[i]) {
+                                        break;
+                                }
+                        }
+                        ev->ev_base->maxfd = i;
+                }
 	}
 	ev->added = 0;
 	return 0;

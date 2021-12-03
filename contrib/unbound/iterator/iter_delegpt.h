@@ -83,6 +83,8 @@ struct delegpt {
 	uint8_t dp_type_mlc;
 	/** use SSL for upstream query */
 	uint8_t ssl_upstream;
+	/** use TCP for upstream query */
+	uint8_t tcp_upstream;
 	/** delegpt from authoritative zone that is locally hosted */
 	uint8_t auth_dp;
 	/*** no cache */

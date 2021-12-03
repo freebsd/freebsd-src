@@ -140,7 +140,7 @@ val_apply_cfg(struct module_env* env, struct val_env* val_env,
 	val_env->max_restart = cfg->val_max_restart;
 	c = cfg_count_numbers(cfg->val_nsec3_key_iterations);
 	if(c < 1 || (c&1)) {
-		log_err("validator: unparseable or odd nsec3 key "
+		log_err("validator: unparsable or odd nsec3 key "
 			"iterations: %s", cfg->val_nsec3_key_iterations);
 		return 0;
 	}
@@ -484,7 +484,7 @@ generate_keytag_query(struct module_qstate* qstate, int id,
 		return 0;
 	}
 
-	/* Not interrested in subquery response. Restore the ext_state,
+	/* Not interested in subquery response. Restore the ext_state,
 	 * that might be changed by generate_request() */
 	qstate->ext_state[id] = ext_state;
 

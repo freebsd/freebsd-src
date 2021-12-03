@@ -1,5 +1,5 @@
 /*
- * util/ub_event.c - directly call libevent (compatability) functions
+ * util/ub_event.c - directly call libevent (compatibility) functions
  *
  * Copyright (c) 2007, NLnet Labs. All rights reserved.
  *

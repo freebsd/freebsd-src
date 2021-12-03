@@ -94,8 +94,6 @@ extern int UNKNOWN_SERVER_NICENESS;
  * Equals RTT_MAX_TIMEOUT
  */
 #define USEFUL_SERVER_TOP_TIMEOUT	120000
-/** number of retries on outgoing queries */
-#define OUTBOUND_MSG_RETRY 5
 /** RTT band, within this amount from the best, servers are chosen randomly.
  * Chosen so that the UNKNOWN_SERVER_NICENESS falls within the band of a 
  * fast server, this causes server exploration as a side benefit. msec. */
@@ -139,6 +137,9 @@ struct iter_env {
 	lock_basic_type queries_ratelimit_lock;
 	/** number of queries that have been ratelimited */
 	size_t num_queries_ratelimited;
+
+	/** number of retries on outgoing queries */
+	int outbound_msg_retry;
 };
 
 /**

@@ -61,6 +61,7 @@ PYTHON_CPPFLAGS=-I. @PYTHON_CPPFLAGS@
 CFLAGS=-DSRCDIR=$(srcdir) @CFLAGS@
 LDFLAGS=@LDFLAGS@
 LIBS=@LIBS@
+PYTHON_LIBS=@PYTHON_LIBS@
 LIBOBJS=@LIBOBJS@
 # filter out ctime_r from compat obj.
 LIBOBJ_WITHOUT_CTIME=@LIBOBJ_WITHOUT_CTIME@
@@ -85,6 +86,8 @@ LINTFLAGS+=@NETBSD_LINTFLAGS@
 LINTFLAGS+="-Dsigset_t=long"
 # FreeBSD
 LINTFLAGS+="-D__uint16_t=uint16_t" "-DEVP_PKEY_ASN1_METHOD=int" "-D_RuneLocale=int" "-D__va_list=va_list" "-D__uint32_t=uint32_t" "-D_Alignof(x)=x" "-D__aligned(x)=" "-D__requires_exclusive(x)=" "-D__requires_unlocked(x)=" "-D__locks_exclusive(x)=" "-D__trylocks_exclusive(x)="  "-D__unlocks(x)=" "-D__locks_shared(x)=" "-D__trylocks_shared(x)="
+# GCC Docker
+LINTFLAGS+=@GCC_DOCKER_LINTFLAGS@
 
 INSTALL=$(SHELL) $(srcdir)/install-sh
 
@@ -476,7 +479,7 @@ libunbound/python/libunbound_wrap.c:	$(srcdir)/libunbound/python/libunbound.i un
 
 # Pyunbound python unbound wrapper
 _unbound.la:	libunbound_wrap.lo libunbound.la
-	$(LIBTOOL) --tag=CC --mode=link $(CC) $(RUNTIME_PATH) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) -module -avoid-version -no-undefined -shared -o $@ libunbound_wrap.lo -rpath $(PYTHON_SITE_PKG) -L. -L.libs libunbound.la $(LIBS)
+	$(LIBTOOL) --tag=CC --mode=link $(CC) $(RUNTIME_PATH) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) -module -avoid-version -no-undefined -shared -o $@ libunbound_wrap.lo -rpath $(PYTHON_SITE_PKG) -L. -L.libs libunbound.la $(PYTHON_LIBS)
 
 util/config_file.c:	util/configparser.h
 util/configlexer.c:  $(srcdir)/util/configlexer.lex util/configparser.h

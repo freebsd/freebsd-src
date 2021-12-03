@@ -103,6 +103,8 @@ regional_create_custom_large_object(size_t size, size_t large_object_size)
 struct regional*
 regional_create_custom(size_t size)
 {
+	if(size < sizeof(struct regional))
+		size = sizeof(struct regional);
 	return regional_create_custom_large_object(size,
 		REGIONAL_LARGE_OBJECT_SIZE);
 }

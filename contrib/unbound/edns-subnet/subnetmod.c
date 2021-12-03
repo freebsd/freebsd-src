@@ -497,7 +497,7 @@ eval_response(struct module_qstate *qstate, int id, struct subnet_qstate *sq)
 	if (!s_in->subnet_validdata) {
 		/* The authority indicated no support for edns subnet. As a
 		 * consequence the answer ended up in the regular cache. It
-		 * is still usefull to put it in the edns subnet cache for
+		 * is still useful to put it in the edns subnet cache for
 		 * when a client explicitly asks for subnet specific answer. */
 		verbose(VERB_QUERY, "subnetcache: Authority indicates no support");
 		if(!sq->started_no_cache_store) {

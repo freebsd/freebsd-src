@@ -1,4 +1,4 @@
-.TH "unbound-control" "8" "Aug 12, 2021" "NLnet Labs" "unbound 1.13.2"
+.TH "unbound-control" "8" "Dec  2, 2021" "NLnet Labs" "unbound 1.14.0rc1"
 .\"
 .\" unbound-control.8 -- unbound remote control manual
 .\"
@@ -684,8 +684,8 @@ specific cache, after getting processed by the edns client subnet module.
 .TP
 .I num.rpz.action.<rpz_action>
 Number of queries answered using configured RPZ policy, per RPZ action type.
-Possible actions are: nxdomain, nodata, passthru, drop, local_data, disabled,
-and cname_override.
+Possible actions are: nxdomain, nodata, passthru, drop, tcp\-only, local\-data,
+disabled, and cname\-override.
 .SH "FILES"
 .TP
 .I @ub_conf_file@

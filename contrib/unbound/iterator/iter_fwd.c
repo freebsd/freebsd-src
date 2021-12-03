@@ -276,6 +276,8 @@ read_forwards(struct iter_forwards* fwd, struct config_file* cfg)
 		dp->no_cache = s->no_cache;
 		/* use SSL for queries to this forwarder */
 		dp->ssl_upstream = (uint8_t)s->ssl_upstream;
+		/* use TCP for queries to this forwarder */
+		dp->tcp_upstream = (uint8_t)s->tcp_upstream;
 		verbose(VERB_QUERY, "Forward zone server list:");
 		delegpt_log(VERB_QUERY, dp);
 		if(!forwards_insert(fwd, LDNS_RR_CLASS_IN, dp))
