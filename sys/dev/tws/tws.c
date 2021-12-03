@@ -349,7 +349,7 @@ tws_detach(device_t dev)
 {
     struct tws_softc *sc = device_get_softc(dev);
     int i;
-    u_int32_t reg;
+    u_int32_t reg __diagused;
 
     TWS_TRACE_DEBUG(sc, "entry", 0, 0);
 
@@ -452,11 +452,11 @@ tws_setup_intr(struct tws_softc *sc, int irqs)
 int
 tws_teardown_intr(struct tws_softc *sc)
 {
-    int i, error;
+    int i;
 
     for(i=0;i<sc->irqs;i++) {
         if (sc->intr_handle[i]) {
-            error = bus_teardown_intr(sc->tws_dev,
+            bus_teardown_intr(sc->tws_dev,
                                       sc->irq_res[i], sc->intr_handle[i]);
             sc->intr_handle[i] = NULL;
         }
@@ -509,7 +509,6 @@ tws_init(struct tws_softc *sc)
 
     u_int32_t max_sg_elements;
     u_int32_t dma_mem_size;
-    int error;
     u_int32_t reg;
 
     sc->seq_id = 0;
@@ -569,7 +568,7 @@ tws_init(struct tws_softc *sc)
 
     /* if bus_dmamem_alloc succeeds then bus_dmamap_load will succeed */
     sc->dma_mem_phys=0;
-    error = bus_dmamap_load(sc->cmd_tag, sc->cmd_map, sc->dma_mem,
+    bus_dmamap_load(sc->cmd_tag, sc->cmd_map, sc->dma_mem,
                     dma_mem_size, tws_dmamap_cmds_load_cbfn,
                     &sc->dma_mem_phys, 0);
 
