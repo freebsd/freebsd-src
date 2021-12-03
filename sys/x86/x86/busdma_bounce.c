@@ -268,7 +268,8 @@ bounce_bus_dma_tag_set_domain(bus_dma_tag_t dmat)
 static int
 bounce_bus_dma_tag_destroy(bus_dma_tag_t dmat)
 {
-	bus_dma_tag_t dmat_copy, parent;
+	bus_dma_tag_t dmat_copy __diagused;
+	bus_dma_tag_t parent;
 	int error;
 
 	error = 0;
