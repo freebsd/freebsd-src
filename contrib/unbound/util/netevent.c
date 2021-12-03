@@ -300,6 +300,7 @@ udp_send_errno_needs_log(struct sockaddr* addr, socklen_t addrlen)
 		case ENETDOWN:
 #  endif
 		case EPERM:
+		case EACCES:
 			if(verbosity < VERB_ALGO)
 				return 0;
 		default:
@@ -817,6 +818,7 @@ setup_tcp_handler(struct comm_point* c, int fd, int cur, int max)
 #endif
 	c->tcp_is_reading = 1;
 	c->tcp_byte_count = 0;
+	c->tcp_keepalive = 0;
 	/* if more than half the tcp handlers are in use, use a shorter
 	 * timeout for this TCP connection, we need to make space for
 	 * other connections to be able to get attention */
@@ -942,7 +944,16 @@ int comm_point_perform_accept(struct comm_point* c,
 
 #ifdef USE_WINSOCK
 static long win_bio_cb(BIO *b, int oper, const char* ATTR_UNUSED(argp),
-        int ATTR_UNUSED(argi), long argl, long retvalue)
+#ifdef HAVE_BIO_SET_CALLBACK_EX
+	size_t ATTR_UNUSED(len),
+#endif
+        int ATTR_UNUSED(argi), long argl,
+#ifndef HAVE_BIO_SET_CALLBACK_EX
+	long retvalue
+#else
+	int retvalue, size_t* ATTR_UNUSED(processed)
+#endif
+	)
 {
 	int wsa_err = WSAGetLastError(); /* store errcode before it is gone */
 	verbose(VERB_ALGO, "bio_cb %d, %s %s %s", oper,
@@ -972,9 +983,17 @@ comm_point_tcp_win_bio_cb(struct comm_point* c, void* thessl)
 {
 	SSL* ssl = (SSL*)thessl;
 	/* set them both just in case, but usually they are the same BIO */
+#ifdef HAVE_BIO_SET_CALLBACK_EX
+	BIO_set_callback_ex(SSL_get_rbio(ssl), &win_bio_cb);
+#else
 	BIO_set_callback(SSL_get_rbio(ssl), &win_bio_cb);
+#endif
 	BIO_set_callback_arg(SSL_get_rbio(ssl), (char*)c->ev->ev);
+#ifdef HAVE_BIO_SET_CALLBACK_EX
+	BIO_set_callback_ex(SSL_get_wbio(ssl), &win_bio_cb);
+#else
 	BIO_set_callback(SSL_get_wbio(ssl), &win_bio_cb);
+#endif
 	BIO_set_callback_arg(SSL_get_wbio(ssl), (char*)c->ev->ev);
 }
 #endif
@@ -1036,6 +1055,7 @@ comm_point_tcp_accept_callback(int fd, short event, void* arg)
 	/* clear leftover flags from previous use, and then set the
 	 * correct event base for the event structure for libevent */
 	ub_event_free(c_hdl->ev->ev);
+	c_hdl->ev->ev = NULL;
 	if((c_hdl->type == comm_tcp && c_hdl->tcp_req_info) ||
 		c_hdl->type == comm_local || c_hdl->type == comm_raw)
 		c_hdl->tcp_do_toggle_rw = 0;
@@ -1092,6 +1112,7 @@ comm_point_tcp_accept_callback(int fd, short event, void* arg)
 	/* grab the tcp handler buffers */
 	c->cur_tcp_count++;
 	c->tcp_free = c_hdl->tcp_free;
+	c_hdl->tcp_free = NULL;
 	if(!c->tcp_free) {
 		/* stop accepting incoming queries for now. */
 		comm_point_stop_listening(c);
@@ -1113,9 +1134,11 @@ reclaim_tcp_handler(struct comm_point* c)
 	}
 	comm_point_close(c);
 	if(c->tcp_parent) {
-		c->tcp_parent->cur_tcp_count--;
-		c->tcp_free = c->tcp_parent->tcp_free;
-		c->tcp_parent->tcp_free = c;
+		if(c != c->tcp_parent->tcp_free) {
+			c->tcp_parent->cur_tcp_count--;
+			c->tcp_free = c->tcp_parent->tcp_free;
+			c->tcp_parent->tcp_free = c;
+		}
 		if(!c->tcp_free) {
 			/* re-enable listening on accept socket */
 			comm_point_start_listening(c->tcp_parent, -1, -1);
@@ -1862,13 +1885,22 @@ comm_point_tcp_handle_write(int fd, struct comm_point* c)
 			if(errno == EINTR || errno == EAGAIN)
 				return 1;
 			/* Not handling EISCONN here as shouldn't ever hit that case.*/
-			if(errno != EPIPE && errno != 0 && verbosity < 2)
-				return 0; /* silence lots of chatter in the logs */
-			if(errno != EPIPE && errno != 0) {
+			if(errno != EPIPE
+#ifdef EOPNOTSUPP
+				/* if /proc/sys/net/ipv4/tcp_fastopen is
+				 * disabled on Linux, sendmsg may return
+				 * 'Operation not supported', if so
+				 * fallthrough to ordinary connect. */
+				&& errno != EOPNOTSUPP
+#endif
+				&& errno != 0) {
+				if(verbosity < 2)
+					return 0; /* silence lots of chatter in the logs */
 				log_err_addr("tcp sendmsg", strerror(errno),
 					&c->repinfo.addr, c->repinfo.addrlen);
 				return 0;
 			}
+			verbose(VERB_ALGO, "tcp sendmsg for fastopen failed (with %s), try normal connect", strerror(errno));
 			/* fallthrough to nonFASTOPEN
 			 * (MSG_FASTOPEN on Linux 3 produces EPIPE)
 			 * we need to perform connect() */
@@ -2201,9 +2233,11 @@ reclaim_http_handler(struct comm_point* c)
 	}
 	comm_point_close(c);
 	if(c->tcp_parent) {
-		c->tcp_parent->cur_tcp_count--;
-		c->tcp_free = c->tcp_parent->tcp_free;
-		c->tcp_parent->tcp_free = c;
+		if(c != c->tcp_parent->tcp_free) {
+			c->tcp_parent->cur_tcp_count--;
+			c->tcp_free = c->tcp_parent->tcp_free;
+			c->tcp_parent->tcp_free = c;
+		}
 		if(!c->tcp_free) {
 			/* re-enable listening on accept socket */
 			comm_point_start_listening(c->tcp_parent, -1, -1);
@@ -4140,6 +4174,10 @@ comm_point_start_listening(struct comm_point* c, int newfd, int msec)
 		c->timeout->tv_sec = msec/1000;
 		c->timeout->tv_usec = (msec%1000)*1000;
 #endif /* S_SPLINT_S */
+	} else {
+		if(msec == 0 || !c->timeout) {
+			ub_event_del_bits(c->ev->ev, UB_EV_TIMEOUT);
+		}
 	}
 	if(c->type == comm_tcp || c->type == comm_http) {
 		ub_event_del_bits(c->ev->ev, UB_EV_READ|UB_EV_WRITE);
@@ -4164,6 +4202,7 @@ comm_point_start_listening(struct comm_point* c, int newfd, int msec)
 	}
 	if(ub_event_add(c->ev->ev, msec==0?NULL:c->timeout) != 0) {
 		log_err("event_add failed. in cpsl.");
+		return;
 	}
 	c->event_added = 1;
 }
@@ -4177,11 +4216,15 @@ void comm_point_listen_for_rw(struct comm_point* c, int rd, int wr)
 		}
 		c->event_added = 0;
 	}
+	if(!c->timeout) {
+		ub_event_del_bits(c->ev->ev, UB_EV_TIMEOUT);
+	}
 	ub_event_del_bits(c->ev->ev, UB_EV_READ|UB_EV_WRITE);
 	if(rd) ub_event_add_bits(c->ev->ev, UB_EV_READ);
 	if(wr) ub_event_add_bits(c->ev->ev, UB_EV_WRITE);
 	if(ub_event_add(c->ev->ev, c->timeout) != 0) {
 		log_err("event_add failed. in cplf.");
+		return;
 	}
 	c->event_added = 1;
 }

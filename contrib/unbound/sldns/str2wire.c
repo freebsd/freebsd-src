@@ -1427,7 +1427,7 @@ sldns_str2wire_svcbparam_parse_next_unescaped_comma(const char *val)
 }
 
 /* The source is already properly unescaped, this double unescaping is purely to allow for
- * comma's in comma seperated alpn lists.
+ * comma's in comma separated alpn lists.
  * 
  * In draft-ietf-dnsop-svcb-https-06 Section 7:
  * To enable simpler parsing, this SvcParamValue MUST NOT contain escape sequences.
@@ -1565,7 +1565,7 @@ sldns_str2wire_svcparam_value(const char *key, size_t key_len,
 	return LDNS_WIREPARSE_ERR_GENERAL;
 }
 
-int sldns_str2wire_svcparam_buf(const char* str, uint8_t* rd, size_t* rd_len)
+static int sldns_str2wire_svcparam_buf(const char* str, uint8_t* rd, size_t* rd_len)
 {
 	const char* eq_pos;
 	char unescaped_val[LDNS_MAX_RDFLEN];

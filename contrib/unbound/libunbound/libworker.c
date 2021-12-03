@@ -600,7 +600,9 @@ setup_qinfo_edns(struct libworker* w, struct ctx_query* q,
 	edns->ext_rcode = 0;
 	edns->edns_version = 0;
 	edns->bits = EDNS_DO;
-	edns->opt_list = NULL;
+	edns->opt_list_in = NULL;
+	edns->opt_list_out = NULL;
+	edns->opt_list_inplace_cb_out = NULL;
 	edns->padding_block_size = 0;
 	if(sldns_buffer_capacity(w->back->udp_buff) < 65535)
 		edns->udp_size = (uint16_t)sldns_buffer_capacity(
@@ -881,7 +883,7 @@ void libworker_alloc_cleanup(void* arg)
 struct outbound_entry* libworker_send_query(struct query_info* qinfo,
 	uint16_t flags, int dnssec, int want_dnssec, int nocaps,
 	struct sockaddr_storage* addr, socklen_t addrlen, uint8_t* zone,
-	size_t zonelen, int ssl_upstream, char* tls_auth_name,
+	size_t zonelen, int tcp_upstream, int ssl_upstream, char* tls_auth_name,
 	struct module_qstate* q)
 {
 	struct libworker* w = (struct libworker*)q->env->worker;
@@ -891,7 +893,7 @@ struct outbound_entry* libworker_send_query(struct query_info* qinfo,
 		return NULL;
 	e->qstate = q;
 	e->qsent = outnet_serviced_query(w->back, qinfo, flags, dnssec,
-		want_dnssec, nocaps, q->env->cfg->tcp_upstream, ssl_upstream,
+		want_dnssec, nocaps, tcp_upstream, ssl_upstream,
 		tls_auth_name, addr, addrlen, zone, zonelen, q,
 		libworker_handle_service_reply, e, w->back->udp_buff, q->env);
 	if(!e->qsent) {
@@ -975,7 +977,7 @@ struct outbound_entry* worker_send_query(struct query_info* ATTR_UNUSED(qinfo),
 	uint16_t ATTR_UNUSED(flags), int ATTR_UNUSED(dnssec),
 	int ATTR_UNUSED(want_dnssec), int ATTR_UNUSED(nocaps),
 	struct sockaddr_storage* ATTR_UNUSED(addr), socklen_t ATTR_UNUSED(addrlen),
-	uint8_t* ATTR_UNUSED(zone), size_t ATTR_UNUSED(zonelen),
+	uint8_t* ATTR_UNUSED(zone), size_t ATTR_UNUSED(zonelen), int ATTR_UNUSED(tcp_upstream),
 	int ATTR_UNUSED(ssl_upstream), char* ATTR_UNUSED(tls_auth_name),
 	struct module_qstate* ATTR_UNUSED(q))
 {

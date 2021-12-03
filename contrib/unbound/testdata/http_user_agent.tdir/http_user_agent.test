@@ -81,12 +81,12 @@ echo "> cat logfiles"
 cat petal.log 
 cat unbound.log
 
-# check petal.log for the correct number of occurences.
+# check petal.log for the correct number of occurrences.
 # It should be 2 User-Agents, one being the custom.
-echo "> check User-Agent occurences"
-occurences=`grep "User-Agent:" petal.log | wc -l`
-echo $occurences
-if test $occurences -eq 2; then
+echo "> check User-Agent occurrences"
+occurrences=`grep "User-Agent:" petal.log | wc -l`
+echo $occurrences
+if test $occurrences -eq 2; then
 	echo "OK"
 else
 	echo "Not OK"

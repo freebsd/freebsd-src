@@ -64,7 +64,8 @@ ProtectClock=true
 ProtectControlGroups=true
 ProtectKernelLogs=true
 ProtectKernelModules=true
-ProtectKernelTunables=true
+# This breaks using socket options like 'so-rcvbuf'. Explicitly disable for visibility.
+ProtectKernelTunables=false
 ProtectProc=invisible
 ProtectSystem=strict
 RuntimeDirectory=unbound

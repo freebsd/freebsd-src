@@ -578,6 +578,8 @@ struct config_file {
 	struct config_str2list* ratelimit_below_domain;
 	/** ratelimit factor, 0 blocks all, 10 allows 1/10 of traffic */
 	int ratelimit_factor;
+	/** number of retries on outgoing queries */
+	int outbound_msg_retry;
 	/** minimise outgoing QNAME and hide original QTYPE if possible */
 	int qname_minimisation;
 	/** minimise QNAME in strict mode, minimise according to RFC.
@@ -697,6 +699,8 @@ struct config_stub {
 	int isprime;
 	/** if forward-first is set (failover to without if fails) */
 	int isfirst;
+	/** use tcp for queries to this stub */
+	int tcp_upstream;
 	/** use SSL for queries to this stub */
 	int ssl_upstream;
 	/*** no cache */
@@ -1106,7 +1110,7 @@ int cfg_count_numbers(const char* str);
 int cfg_parse_memsize(const char* str, size_t* res);
 
 /**
- * Parse nsid from string into binary nsid. nsid is either a hexidecimal
+ * Parse nsid from string into binary nsid. nsid is either a hexadecimal
  * string or an ascii string prepended with ascii_ in which case the
  * characters after ascii_ are simply copied.
  * @param str: the string to parse.

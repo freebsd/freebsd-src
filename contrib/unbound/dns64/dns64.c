@@ -685,8 +685,12 @@ dns64_operate(struct module_qstate* qstate, enum module_ev event, int id,
 	switch(event) {
 		case module_event_new:
 			/* Tag this query as being new and fall through. */
-			iq = (struct dns64_qstate*)regional_alloc(
-				qstate->region, sizeof(*iq));
+			if (!(iq = (struct dns64_qstate*)regional_alloc(
+				qstate->region, sizeof(*iq)))) {
+				log_err("out of memory");
+				qstate->ext_state[id] = module_error;
+				return;
+			}
 			qstate->minfo[id] = iq;
 			iq->state = DNS64_NEW_QUERY;
 			iq->started_no_cache_store = qstate->no_cache_store;
@@ -913,8 +917,9 @@ dns64_adjust_ptr(struct module_qstate* qstate, struct module_qstate* super)
                     sizeof(struct dns_msg))))
         return;
     super->return_msg->qinfo = super->qinfo;
-    super->return_msg->rep = reply_info_copy(qstate->return_msg->rep, NULL,
-            super->region);
+    if (!(super->return_msg->rep = reply_info_copy(qstate->return_msg->rep,
+                    NULL, super->region)))
+        return;
 
     /*
      * Adjust the domain name of the answer RR set so that it matches the
