@@ -4220,7 +4220,7 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 #endif
 			/* send it out.  table id is taken from stcb */
 			SCTP_PROBE5(send, NULL, stcb, ip, stcb, sctphdr);
-			SCTP_IP_OUTPUT(ret, o_pak, ro, stcb, vrf_id);
+			SCTP_IP_OUTPUT(ret, o_pak, ro, inp, vrf_id);
 			if (port) {
 				UDPSTAT_INC(udps_opackets);
 			}
@@ -4544,7 +4544,7 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 				sctp_packet_log(o_pak);
 #endif
 			SCTP_PROBE5(send, NULL, stcb, ip6h, stcb, sctphdr);
-			SCTP_IP6_OUTPUT(ret, o_pak, (struct route_in6 *)ro, &ifp, stcb, vrf_id);
+			SCTP_IP6_OUTPUT(ret, o_pak, (struct route_in6 *)ro, &ifp, inp, vrf_id);
 			if (net) {
 				/* for link local this must be done */
 				sin6->sin6_scope_id = prev_scope;
