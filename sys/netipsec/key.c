@@ -2039,7 +2039,7 @@ key_spdadd(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 				__func__, oldsp));
 			KEYDBG(KEY_DATA, kdebug_secpolicy(oldsp));
 		} else {
-			key_freesp(&newsp);
+			key_freesp(&oldsp);
 			ipseclog((LOG_DEBUG,
 			    "%s: a SP entry exists already.\n", __func__));
 			return (key_senderror(so, m, EEXIST));
