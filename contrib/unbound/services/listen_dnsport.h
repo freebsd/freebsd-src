@@ -199,6 +199,11 @@ listen_create(struct comm_base* base, struct listen_port* ports,
  */
 void listen_delete(struct listen_dnsport* listen);
 
+/** setup the locks for the listen ports */
+void listen_setup_locks(void);
+/** desetup the locks for the listen ports */
+void listen_desetup_locks(void);
+
 /**
  * delete listen_list of commpoints. Calls commpointdelete() on items.
  * This may close the fds or not depending on flags.

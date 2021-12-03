@@ -58,7 +58,7 @@ time_t sldns_mktime_from_utc(const struct tm *tm);
  * The function interprets time as the number of seconds since epoch
  * with respect to now using serial arithmetics (rfc1982).
  * That number of seconds is then converted to broken-out time information.
- * This is especially usefull when converting the inception and expiration
+ * This is especially useful when converting the inception and expiration
  * fields of RRSIG records.
  *
  * \param[in] time number of seconds since epoch (midnight, January 1st, 1970)

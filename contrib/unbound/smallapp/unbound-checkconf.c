@@ -54,6 +54,7 @@
 #include "iterator/iter_hints.h"
 #include "validator/validator.h"
 #include "services/localzone.h"
+#include "services/listen_dnsport.h"
 #include "services/view.h"
 #include "services/authzone.h"
 #include "respip/respip.h"
@@ -334,19 +335,64 @@ interfacechecks(struct config_file* cfg)
 	int d;
 	struct sockaddr_storage a;
 	socklen_t alen;
-	int i, j;
+	int i, j, i2, j2;
+	char*** resif = NULL;
+	int* num_resif = NULL;
+
+	if(cfg->num_ifs != 0) {
+		resif = (char***)calloc(cfg->num_ifs, sizeof(char**));
+		if(!resif) fatal_exit("malloc failure");
+		num_resif = (int*)calloc(cfg->num_ifs, sizeof(int));
+		if(!num_resif) fatal_exit("malloc failure");
+	}
 	for(i=0; i<cfg->num_ifs; i++) {
-		if(!extstrtoaddr(cfg->ifs[i], &a, &alen)) {
-			fatal_exit("cannot parse interface specified as '%s'",
-				cfg->ifs[i]);
-		}
-		for(j=0; j<cfg->num_ifs; j++) {
-			if(i!=j && strcmp(cfg->ifs[i], cfg->ifs[j])==0)
+		/* search for duplicates in IP or ifname arguments */
+		for(i2=0; i2<i; i2++) {
+			if(strcmp(cfg->ifs[i], cfg->ifs[i2]) == 0) {
 				fatal_exit("interface: %s present twice, "
 					"cannot bind same ports twice.",
 					cfg->ifs[i]);
+			}
+		}
+		if(!resolve_interface_names(&cfg->ifs[i], 1, NULL, &resif[i],
+			&num_resif[i])) {
+			fatal_exit("could not resolve interface names, for %s",
+				cfg->ifs[i]);
+		}
+		/* search for duplicates in the returned addresses */
+		for(j=0; j<num_resif[i]; j++) {
+			if(!extstrtoaddr(resif[i][j], &a, &alen)) {
+				if(strcmp(cfg->ifs[i], resif[i][j]) != 0)
+					fatal_exit("cannot parse interface address '%s' from the interface specified as '%s'",
+						resif[i][j], cfg->ifs[i]);
+				else
+					fatal_exit("cannot parse interface specified as '%s'",
+						cfg->ifs[i]);
+			}
+			for(i2=0; i2<i; i2++) {
+				for(j2=0; j2<num_resif[i2]; j2++) {
+					if(strcmp(resif[i][j], resif[i2][j2])
+						== 0) {
+						char info1[1024], info2[1024];
+						if(strcmp(cfg->ifs[i], resif[i][j]) != 0)
+							snprintf(info1, sizeof(info1), "address %s from interface: %s", resif[i][j], cfg->ifs[i]);
+						else	snprintf(info1, sizeof(info1), "interface: %s", cfg->ifs[i]);
+						if(strcmp(cfg->ifs[i2], resif[i2][j2]) != 0)
+							snprintf(info2, sizeof(info2), "address %s from interface: %s", resif[i2][j2], cfg->ifs[i2]);
+						else	snprintf(info2, sizeof(info2), "interface: %s", cfg->ifs[i2]);
+						fatal_exit("%s present twice, cannot bind the same ports twice. The first entry is %s and the second is %s", resif[i][j], info2, info1);
+					}
+				}
+			}
 		}
 	}
+
+	for(i=0; i<cfg->num_ifs; i++) {
+		config_del_strarray(resif[i], num_resif[i]);
+	}
+	free(resif);
+	free(num_resif);
+
 	for(i=0; i<cfg->num_out_ifs; i++) {
 		if(!ipstrtoaddr(cfg->out_ifs[i], UNBOUND_DNS_PORT, &a, &alen) &&
 		   !netblockstrtoaddr(cfg->out_ifs[i], UNBOUND_DNS_PORT, &a, &alen, &d)) {
@@ -909,9 +955,9 @@ int main(int argc, char* argv[])
 	const char* f;
 	const char* opt = NULL;
 	const char* cfgfile = CONFIGFILE;
+	checklock_start();
 	log_ident_set("unbound-checkconf");
 	log_init(NULL, 0, NULL);
-	checklock_start();
 #ifdef USE_WINSOCK
 	/* use registry config file in preference to compiletime location */
 	if(!(cfgfile=w_lookup_reg_str("Software\\Unbound", "ConfigFile")))

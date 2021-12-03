@@ -1264,9 +1264,9 @@ int main(int argc, char** argv)
 	memset(&tls_list, 0, sizeof(tls_list));
 
 	/* lock debug start (if any) */
+	checklock_start();
 	log_ident_set("unbound-dnstap-socket");
 	log_init(0, 0, 0);
-	checklock_start();
 
 #ifdef SIGPIPE
 	if(signal(SIGPIPE, SIG_IGN) == SIG_ERR) {
@@ -1415,8 +1415,9 @@ struct outbound_entry* worker_send_query(
 	int ATTR_UNUSED(dnssec), int ATTR_UNUSED(want_dnssec),
 	int ATTR_UNUSED(nocaps), struct sockaddr_storage* ATTR_UNUSED(addr),
 	socklen_t ATTR_UNUSED(addrlen), uint8_t* ATTR_UNUSED(zone),
-	size_t ATTR_UNUSED(zonelen), int ATTR_UNUSED(ssl_upstream),
-	char* ATTR_UNUSED(tls_auth_name), struct module_qstate* ATTR_UNUSED(q))
+	size_t ATTR_UNUSED(zonelen), int ATTR_UNUSED(tcp_upstream),
+	int ATTR_UNUSED(ssl_upstream), char* ATTR_UNUSED(tls_auth_name),
+	struct module_qstate* ATTR_UNUSED(q))
 {
 	log_assert(0);
 	return 0;
@@ -1447,8 +1448,9 @@ struct outbound_entry* libworker_send_query(
 	int ATTR_UNUSED(dnssec), int ATTR_UNUSED(want_dnssec),
 	int ATTR_UNUSED(nocaps), struct sockaddr_storage* ATTR_UNUSED(addr),
 	socklen_t ATTR_UNUSED(addrlen), uint8_t* ATTR_UNUSED(zone),
-	size_t ATTR_UNUSED(zonelen), int ATTR_UNUSED(ssl_upstream),
-	char* ATTR_UNUSED(tls_auth_name), struct module_qstate* ATTR_UNUSED(q))
+	size_t ATTR_UNUSED(zonelen), int ATTR_UNUSED(tcp_upstream),
+	int ATTR_UNUSED(ssl_upstream), char* ATTR_UNUSED(tls_auth_name),
+	struct module_qstate* ATTR_UNUSED(q))
 {
 	log_assert(0);
 	return 0;

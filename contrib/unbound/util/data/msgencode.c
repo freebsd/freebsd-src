@@ -796,7 +796,10 @@ calc_edns_field_size(struct edns_data* edns)
 	struct edns_option* opt;
 	if(!edns || !edns->edns_present)
 		return 0;
-	for(opt = edns->opt_list; opt; opt = opt->next) {
+	for(opt = edns->opt_list_inplace_cb_out; opt; opt = opt->next) {
+		rdatalen += 4 + opt->opt_len;
+	}
+	for(opt = edns->opt_list_out; opt; opt = opt->next) {
 		rdatalen += 4 + opt->opt_len;
 	}
 	/* domain root '.' + type + class + ttl + rdatalen */
@@ -827,7 +830,17 @@ attach_edns_record_max_msg_sz(sldns_buffer* pkt, struct edns_data* edns,
 	rdatapos = sldns_buffer_position(pkt);
 	sldns_buffer_write_u16(pkt, 0); /* rdatalen */
 	/* write rdata */
-	for(opt=edns->opt_list; opt; opt=opt->next) {
+	for(opt=edns->opt_list_inplace_cb_out; opt; opt=opt->next) {
+		if (opt->opt_code == LDNS_EDNS_PADDING) {
+			padding_option = opt;
+			continue;
+		}
+		sldns_buffer_write_u16(pkt, opt->opt_code);
+		sldns_buffer_write_u16(pkt, opt->opt_len);
+		if(opt->opt_len != 0)
+			sldns_buffer_write(pkt, opt->opt_data, opt->opt_len);
+	}
+	for(opt=edns->opt_list_out; opt; opt=opt->next) {
 		if (opt->opt_code == LDNS_EDNS_PADDING) {
 			padding_option = opt;
 			continue;
@@ -860,8 +873,7 @@ attach_edns_record_max_msg_sz(sldns_buffer* pkt, struct edns_data* edns,
 			sldns_buffer_skip(pkt, pad_sz);
 		}
 	}
-	if(edns->opt_list)
-		sldns_buffer_write_u16_at(pkt, rdatapos, 
+	sldns_buffer_write_u16_at(pkt, rdatapos, 
 			sldns_buffer_position(pkt)-rdatapos-2);
 	sldns_buffer_flip(pkt);
 }

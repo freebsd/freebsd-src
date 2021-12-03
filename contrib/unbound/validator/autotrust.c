@@ -2377,7 +2377,9 @@ probe_anchor(struct module_env* env, struct trust_anchor* tp)
 	edns.ext_rcode = 0;
 	edns.edns_version = 0;
 	edns.bits = EDNS_DO;
-	edns.opt_list = NULL;
+	edns.opt_list_in = NULL;
+	edns.opt_list_out = NULL;
+	edns.opt_list_inplace_cb_out = NULL;
 	edns.padding_block_size = 0;
 	if(sldns_buffer_capacity(buf) < 65535)
 		edns.udp_size = (uint16_t)sldns_buffer_capacity(buf);
