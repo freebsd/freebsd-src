@@ -421,7 +421,9 @@ udp_multi_input(struct mbuf *m, int proto, struct sockaddr_in *udp_in)
 	struct ip *ip = mtod(m, struct ip *);
 	struct inpcb_iterator inpi = INP_ITERATOR(udp_get_inpcbinfo(proto),
 	    INPLOOKUP_RLOCKPCB, udp_multi_match, ip);
+#ifdef KDTRACE_HOOKS
 	struct udphdr *uh = (struct udphdr *)(ip + 1);
+#endif
 	struct inpcb *inp;
 	struct mbuf *n;
 	int appends = 0;
