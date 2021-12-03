@@ -9465,7 +9465,7 @@ OLD_FILES+=usr/tests/sys/geom/class/gate/conf.sh
 OLD_FILES+=usr/lib/libbsnmptools.a
 OLD_FILES+=usr/lib/libbsnmptools_p.a
 OLD_LIBS+=usr/lib/libbsnmptools.so.0
-OLD_LIBS+=usr/lib/libbsnmptools.so
+OLD_FILES+=usr/lib/libbsnmptools.so
 # 20170102: sysdecode_getfsstat_flags() renamed to sysdecode_getfsstat_mode()
 OLD_FILES+=usr/share/man/man3/sysdecode_getfsstat_flags.3.gz
 # 20161230: libarchive ACL pax test renamed to test_acl_pax_posix1e.tar.uu
@@ -13719,7 +13719,7 @@ OLD_FILES+=usr/share/examples/atm/fore-microcode.txt
 OLD_FILES+=usr/share/examples/atm/sscf-design.txt
 OLD_FILES+=usr/share/examples/atm/sscop-design.txt
 OLD_LIBS+=lib/libatm.so.5
-OLD_LIBS+=usr/lib/libatm.so
+OLD_FILES+=usr/lib/libatm.so
 OLD_DIRS+=usr/include/netatm/sigpvc
 OLD_DIRS+=usr/include/netatm/spans
 OLD_DIRS+=usr/include/netatm/ipatm
@@ -15944,16 +15944,16 @@ OLD_LIBS+=usr/lib/libobjc.so.2
 OLD_LIBS+=usr/lib32/libgssapi.so.8
 OLD_LIBS+=usr/lib32/libobjc.so.2
 # 20070519: GCC 4.2
-OLD_LIBS+=usr/lib/libg2c.a
-OLD_LIBS+=usr/lib/libg2c.so
+OLD_FILES+=usr/lib/libg2c.a
+OLD_FILES+=usr/lib/libg2c.so
 OLD_LIBS+=usr/lib/libg2c.so.2
-OLD_LIBS+=usr/lib/libg2c_p.a
-OLD_LIBS+=usr/lib/libgcc_pic.a
-OLD_LIBS+=usr/lib32/libg2c.a
-OLD_LIBS+=usr/lib32/libg2c.so
+OLD_FILES+=usr/lib/libg2c_p.a
+OLD_FILES+=usr/lib/libgcc_pic.a
+OLD_FILES+=usr/lib32/libg2c.a
+OLD_FILES+=usr/lib32/libg2c.so
 OLD_LIBS+=usr/lib32/libg2c.so.2
-OLD_LIBS+=usr/lib32/libg2c_p.a
-OLD_LIBS+=usr/lib32/libgcc_pic.a
+OLD_FILES+=usr/lib32/libg2c_p.a
+OLD_FILES+=usr/lib32/libgcc_pic.a
 # 20060729: OpenSSL 0.9.7e -> 0.9.8b upgrade
 OLD_LIBS+=lib/libcrypto.so.4
 OLD_LIBS+=usr/lib/libssl.so.4
@@ -15976,14 +15976,14 @@ OLD_LIBS+=usr/lib/libpthread.so.2
 # 20060127: revert libdisk to static-only
 OLD_LIBS+=usr/lib/libdisk.so.3
 # 20051027: libc_r discontinued (removed 20101113)
-OLD_LIBS+=usr/lib/libc_r.a
-OLD_LIBS+=usr/lib/libc_r.so
+OLD_FILES+=usr/lib/libc_r.a
+OLD_FILES+=usr/lib/libc_r.so
 OLD_LIBS+=usr/lib/libc_r.so.7
-OLD_LIBS+=usr/lib/libc_r_p.a
-OLD_LIBS+=usr/lib32/libc_r.a
-OLD_LIBS+=usr/lib32/libc_r.so
+OLD_FILES+=usr/lib/libc_r_p.a
+OLD_FILES+=usr/lib32/libc_r.a
+OLD_FILES+=usr/lib32/libc_r.so
 OLD_LIBS+=usr/lib32/libc_r.so.7
-OLD_LIBS+=usr/lib32/libc_r_p.a
+OLD_FILES+=usr/lib32/libc_r_p.a
 # 20050722: bump for 6.0-RELEASE
 OLD_LIBS+=lib/libalias.so.4
 OLD_LIBS+=lib/libatm.so.2
@@ -16150,7 +16150,7 @@ OLD_LIBS+=usr/lib/libkafs.so.3
 OLD_LIBS+=usr/lib/libkafs5.so.5
 OLD_LIBS+=usr/lib/libkdb.so.3
 OLD_LIBS+=usr/lib/libkrb.so.3
-OLD_LIBS+=usr/lib/libroken.so.
+OLD_LIBS+=usr/lib/libroken.so.5
 OLD_LIBS+=usr/lib/libssl.so.2
 OLD_LIBS+=usr/lib/pam_kerberosIV.so
 # 200208XX
