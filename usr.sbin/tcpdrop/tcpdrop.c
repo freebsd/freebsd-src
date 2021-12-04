@@ -253,7 +253,7 @@ tcpdropall(const char *ca_name, const char *stack, int state)
 		 * Check protocol, support just v4 or v6, etc.
 		 */
 
-		/* Ignore PCBs which were freed during copyout.  */
+		/* Ignore PCBs which were freed during copyout. */
 		if (xip->inp_gencnt > head->xig_gen)
 			continue;
 
@@ -292,7 +292,7 @@ tcpdropbyname(const char *lhost, const char *lport, const char *fhost,
 {
 	static const struct addrinfo hints = {
 		/*
-		 * Look for streams in all domains.
+		 * Look for TCP streams in all domains.
 		 */
 		.ai_family = AF_UNSPEC,
 		.ai_socktype = SOCK_STREAM,
