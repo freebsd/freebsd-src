@@ -473,10 +473,6 @@ static void hptiop_drain_outbound_queue_itl(struct hpt_iop_hba *hba)
 		if (req & IOPMU_QUEUE_MASK_HOST_BITS)
 			hptiop_request_callback_itl(hba, req);
 		else {
-			struct hpt_iop_request_header *p;
-
-			p = (struct hpt_iop_request_header *)
-				((char *)hba->u.itl.mu + req);
 			temp = bus_space_read_4(hba->bar0t,
 					hba->bar0h,req +
 					offsetof(struct hpt_iop_request_header,
