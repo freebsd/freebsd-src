@@ -331,13 +331,6 @@ struct sx ifnet_detach_sxlock;
 SX_SYSINIT_FLAGS(ifnet_detach, &ifnet_detach_sxlock, "ifnet_detach_sx",
     SX_RECURSE);
 
-/*
- * The allocation of network interfaces is a rather non-atomic affair; we
- * need to select an index before we are ready to expose the interface for
- * use, so will use this pointer value to indicate reservation.
- */
-#define	IFNET_HOLD	(void *)(uintptr_t)(-1)
-
 #ifdef VIMAGE
 #define	VNET_IS_SHUTTING_DOWN(_vnet)					\
     ((_vnet)->vnet_shutdown && (_vnet)->vnet_state < SI_SUB_VNET_DONE)
@@ -353,13 +346,11 @@ MALLOC_DEFINE(M_IFMADDR, "ether_multi", "link-level multicast address");
 struct ifnet *
 ifnet_byindex(u_short idx)
 {
-	struct ifnet *ifp;
 
 	if (__predict_false(idx > V_if_index))
 		return (NULL);
 
-	ifp = *(struct ifnet * const volatile *)(V_ifindex_table + idx);
-	return (__predict_false(ifp == IFNET_HOLD) ? NULL : ifp);
+	return (V_ifindex_table[idx]);
 }
 
 struct ifnet *
@@ -422,6 +413,7 @@ static void
 ifnet_setbyindex(u_short idx, struct ifnet *ifp)
 {
 
+	ifp->if_index = idx;
 	V_ifindex_table[idx] = ifp;
 }
 
@@ -608,18 +600,6 @@ if_alloc_domain(u_char type, int numa_domain)
 	else
 		ifp = malloc_domainset(sizeof(struct ifnet), M_IFNET,
 		    DOMAINSET_PREF(numa_domain), M_WAITOK | M_ZERO);
- restart:
-	IFNET_WLOCK();
-	idx = ifindex_alloc(&old);
-	if (__predict_false(idx == USHRT_MAX)) {
-		IFNET_WUNLOCK();
-		epoch_wait_preempt(net_epoch_preempt);
-		free(old, M_IFNET);
-		goto restart;
-	}
-	ifnet_setbyindex(idx, IFNET_HOLD);
-	IFNET_WUNLOCK();
-	ifp->if_index = idx;
 	ifp->if_type = type;
 	ifp->if_alloctype = type;
 	ifp->if_numa_domain = numa_domain;
@@ -650,7 +630,19 @@ if_alloc_domain(u_char type, int numa_domain)
 		ifp->if_counters[i] = counter_u64_alloc(M_WAITOK);
 	ifp->if_get_counter = if_get_counter_default;
 	ifp->if_pcp = IFNET_PCP_NONE;
-	ifnet_setbyindex(ifp->if_index, ifp);
+
+restart:
+	IFNET_WLOCK();
+	idx = ifindex_alloc(&old);
+	if (__predict_false(idx == USHRT_MAX)) {
+		IFNET_WUNLOCK();
+		epoch_wait_preempt(net_epoch_preempt);
+		free(old, M_IFNET);
+		goto restart;
+	}
+	ifnet_setbyindex(idx, ifp);
+	IFNET_WUNLOCK();
+
 	return (ifp);
 }
 
