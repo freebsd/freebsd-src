@@ -143,7 +143,7 @@ struct sysentvec aout_sysvec = {
 	.sv_onexit	= exit_onexit,
 };
 #else
-#error "Port me"
+#error "Only ia32 arch is supported"
 #endif
 
 static int
