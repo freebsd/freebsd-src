@@ -171,7 +171,7 @@ static int	ieee80211_hwmp_net_diameter_traversaltime = -1;
 SYSCTL_PROC(_net_wlan_hwmp, OID_AUTO, net_diameter_traversal_time,
     CTLTYPE_INT | CTLFLAG_RW, &ieee80211_hwmp_net_diameter_traversaltime, 0,
     ieee80211_sysctl_msecs_ticks, "I",
-    "estimate travelse time across the MBSS (ms)");
+    "estimate traversal time across the MBSS (ms)");
 static int	ieee80211_hwmp_roottimeout = -1;
 SYSCTL_PROC(_net_wlan_hwmp, OID_AUTO, roottimeout, CTLTYPE_INT | CTLFLAG_RW,
     &ieee80211_hwmp_roottimeout, 0, ieee80211_sysctl_msecs_ticks, "I",
