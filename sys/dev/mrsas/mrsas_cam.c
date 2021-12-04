@@ -1188,7 +1188,6 @@ mrsas_build_ldio_nonrw(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd,
 	u_int32_t device_id, ld;
 	MR_DRV_RAID_MAP_ALL *map_ptr;
 	MR_LD_RAID *raid;
-	RAID_CONTEXT *pRAID_Context;
 	MRSAS_RAID_SCSI_IO_REQUEST *io_request;
 
 	io_request = cmd->io_request;
@@ -1197,8 +1196,6 @@ mrsas_build_ldio_nonrw(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd,
 	map_ptr = sc->ld_drv_map[(sc->map_id & 1)];
 	ld = MR_TargetIdToLdGet(device_id, map_ptr);
 	raid = MR_LdRaidGet(ld, map_ptr);
-	/* get RAID_Context pointer */
-	pRAID_Context = &io_request->RaidContext.raid_context;
 	/* Store the TM capability value in cmd */
 	cmd->tmCapable = raid->capability.tmCapable;
 
@@ -1248,12 +1245,9 @@ mrsas_build_syspdio(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd,
 	u_int32_t device_id;
 	MR_DRV_RAID_MAP_ALL *local_map_ptr;
 	MRSAS_RAID_SCSI_IO_REQUEST *io_request;
-	RAID_CONTEXT *pRAID_Context;
 	struct MR_PD_CFG_SEQ_NUM_SYNC *pd_sync;
 
 	io_request = cmd->io_request;
-	/* get RAID_Context pointer */
-	pRAID_Context = &io_request->RaidContext.raid_context;
 	device_id = ccb_h->target_id;
 	local_map_ptr = sc->ld_drv_map[(sc->map_id & 1)];
 	io_request->RaidContext.raid_context.RAIDFlags = MR_RAID_FLAGS_IO_SUB_TYPE_SYSTEM_PD
