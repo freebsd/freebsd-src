@@ -117,10 +117,10 @@ SYSCTL_PROC(_net_inet_tcp, TCPCTL_DELACKTIME, delacktime,
     &tcp_delacktime, 0, sysctl_msec_to_ticks, "I",
     "Time before a delayed ACK is sent");
 
-int	tcp_msl;
+VNET_DEFINE(int, tcp_msl);
 SYSCTL_PROC(_net_inet_tcp, OID_AUTO, msl,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
-    &tcp_msl, 0, sysctl_msec_to_ticks, "I",
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_VNET,
+    &VNET_NAME(tcp_msl), 0, sysctl_msec_to_ticks, "I",
     "Maximum segment lifetime");
 
 int	tcp_rexmit_initial;

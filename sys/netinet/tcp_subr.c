@@ -1451,19 +1451,20 @@ tcp_init(void)
 
 	tcp_fastopen_init();
 
+	V_tcp_msl = TCPTV_MSL;
+
 	/* Skip initialization of globals for non-default instances. */
 	if (!IS_DEFAULT_VNET(curvnet))
 		return;
 
 	tcp_reass_global_init();
 
-	/* XXX virtualize those bellow? */
+	/* XXX virtualize those below? */
 	tcp_delacktime = TCPTV_DELACK;
 	tcp_keepinit = TCPTV_KEEP_INIT;
 	tcp_keepidle = TCPTV_KEEP_IDLE;
 	tcp_keepintvl = TCPTV_KEEPINTVL;
 	tcp_maxpersistidle = TCPTV_KEEP_IDLE;
-	tcp_msl = TCPTV_MSL;
 	tcp_rexmit_initial = TCPTV_RTOBASE;
 	if (tcp_rexmit_initial < 1)
 		tcp_rexmit_initial = 1;
