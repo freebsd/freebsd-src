@@ -158,6 +158,7 @@ MAC_NONE	opt_dontuse.h
 MAC_NTPD	opt_dontuse.h
 MAC_PARTITION	opt_dontuse.h
 MAC_PORTACL	opt_dontuse.h
+MAC_PRIORITY	opt_dontuse.h
 MAC_SEEOTHERUIDS	opt_dontuse.h
 MAC_STATIC	opt_mac.h
 MAC_STUB	opt_dontuse.h

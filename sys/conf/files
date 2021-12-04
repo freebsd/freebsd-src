@@ -5096,6 +5096,7 @@ security/mac_none/mac_none.c	optional mac_none
 security/mac_ntpd/mac_ntpd.c	optional mac_ntpd
 security/mac_partition/mac_partition.c optional mac_partition
 security/mac_portacl/mac_portacl.c optional mac_portacl
+security/mac_priority/mac_priority.c	optional mac_priority
 security/mac_seeotheruids/mac_seeotheruids.c optional mac_seeotheruids
 security/mac_stub/mac_stub.c	optional mac_stub
 security/mac_test/mac_test.c	optional mac_test

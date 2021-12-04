@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 29, 2012
+.Dd November 29, 2021
 .Dt RTPRIO 1
 .Os
 .Sh NAME
@@ -113,6 +113,9 @@ highest priority
 of 0 means "the current process".
 .Pp
 Only root is allowed to set realtime or idle priority for a process.
+Exceptional privileges can be granted through the
+.Xr mac_priority 4
+policy and the realtime user group.
 A user may modify the idle priority of their own processes if the
 .Xr sysctl 8
 variable
@@ -162,6 +165,7 @@ To make depend while not disturbing other machine usage:
 .Xr rtprio 2 ,
 .Xr setpriority 2 ,
 .Xr nice 3 ,
+.Xr mac_priority 4 ,
 .Xr renice 8
 .Sh HISTORY
 The

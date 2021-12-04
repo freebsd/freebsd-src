@@ -227,6 +227,7 @@ SUBDIR=	\
 	mac_ntpd \
 	mac_partition \
 	mac_portacl \
+	mac_priority \
 	mac_seeotheruids \
 	mac_stub \
 	mac_test \
