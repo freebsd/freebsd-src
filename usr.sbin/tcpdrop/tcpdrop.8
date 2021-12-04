@@ -17,7 +17,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 15, 2017
+.Dd December 4, 2021
 .Dt TCPDROP 8
 .Os
 .Sh NAME
@@ -155,9 +155,9 @@ port 22, the port used by
 .Ed
 .Pp
 The following command will drop all connections using the TCP stack
-fastack:
+rack:
 .Bd -literal -offset indent
-# tcpdrop -S fastack
+# tcpdrop -S rack
 .Ed
 .Pp
 To drop all TCP connections in the LAST_ACK state use:
@@ -165,10 +165,10 @@ To drop all TCP connections in the LAST_ACK state use:
 # tcpdrop -s LAST_ACK
 .Ed
 .Pp
-To drop all TCP connections using the TCP stack fastack and being in the
+To drop all TCP connections using the TCP stack rack and being in the
 LAST_ACK state use:
 .Bd -literal -offset indent
-# tcpdrop -S fastack -s LAST_ACK
+# tcpdrop -S rack -s LAST_ACK
 .Ed
 .Sh SEE ALSO
 .Xr netstat 1 ,
