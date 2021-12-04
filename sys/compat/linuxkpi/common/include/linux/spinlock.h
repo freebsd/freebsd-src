@@ -41,6 +41,7 @@
 #include <linux/compiler.h>
 #include <linux/rwlock.h>
 #include <linux/bottom_half.h>
+#include <linux/lockdep.h>
 
 typedef struct {
 	struct mtx m;
