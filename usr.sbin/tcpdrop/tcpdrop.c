@@ -54,7 +54,7 @@ static char *findport(const char *);
 static struct xinpgen *getxpcblist(const char *);
 static void sockinfo(const struct sockaddr *, struct host_service *);
 static bool tcpdrop(const struct sockaddr *, const struct sockaddr *);
-static bool tcpdropall(const char *, int);
+static bool tcpdropall(const char *, const char *, int);
 static bool tcpdropbyname(const char *, const char *, const char *,
     const char *);
 static bool tcpdropconn(const struct in_conninfo *);
@@ -67,19 +67,25 @@ int
 main(int argc, char *argv[])
 {
 	char stack[TCP_FUNCTION_NAME_LEN_MAX];
+	char ca_name[TCP_CA_NAME_MAX];
 	char *lport, *fport;
 	bool dropall, dropspecific;
 	int ch, state;
 
 	dropall = false;
 	dropspecific = false;
+	ca_name[0] = '\0';
 	stack[0] = '\0';
 	state = -1;
 
-	while ((ch = getopt(argc, argv, "alS:s:")) != -1) {
+	while ((ch = getopt(argc, argv, "aC:lS:s:")) != -1) {
 		switch (ch) {
 		case 'a':
 			dropall = true;
+			break;
+		case 'C':
+			dropspecific = true;
+			strlcpy(ca_name, optarg, sizeof(ca_name));
 			break;
 		case 'l':
 			tcpdrop_list_commands = true;
@@ -111,7 +117,7 @@ main(int argc, char *argv[])
 	if (dropall || dropspecific) {
 		if (argc != 0)
 			usage();
-		if (!tcpdropall(stack, state))
+		if (!tcpdropall(ca_name, stack, state))
 			exit(1);
 		exit(0);
 	}
@@ -223,7 +229,7 @@ tcpdrop(const struct sockaddr *lsa, const struct sockaddr *fsa)
 }
 
 static bool
-tcpdropall(const char *stack, int state)
+tcpdropall(const char *ca_name, const char *stack, int state)
 {
 	struct xinpgen *head, *xinp;
 	struct xtcpcb *xtp;
@@ -257,6 +263,14 @@ tcpdropall(const char *stack, int state)
 
 		/* If requested, skip sockets not having the requested state. */
 		if ((state != -1) && (xtp->t_state != state))
+			continue;
+
+		/*
+		 * If requested, skip sockets not having the requested
+		 * congestion control algorithm.
+		 */
+		if (ca_name[0] != '\0' &&
+		    strncmp(xtp->xt_cc, ca_name, TCP_CA_NAME_MAX))
 			continue;
 
 		/* If requested, skip sockets not having the requested stack. */
@@ -379,8 +393,8 @@ usage(void)
 "       tcpdrop local-address:local-port foreign-address:foreign-port\n"
 "       tcpdrop local-address.local-port foreign-address.foreign-port\n"
 "       tcpdrop [-l] -a\n"
-"       tcpdrop [-l] -S stack\n"
-"       tcpdrop [-l] -s state\n"
-"       tcpdrop [-l] -S stack -s state\n");
+"       tcpdrop [-l] -C cc-algo [-S stack] [-s state]\n"
+"       tcpdrop [-l] [-C cc-algo] -S stack [-s state]\n"
+"       tcpdrop [-l] [-C cc-algo] [-S stack] -s state\n");
 	exit(1);
 }
