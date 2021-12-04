@@ -197,6 +197,7 @@ static int nfs_bigreply[NFSV41_NPROCS] = { 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0,
 /* local functions */
 static int nfsrv_skipace(struct nfsrv_descript *nd, int *acesizep);
 static void nfsv4_wanted(struct nfsv4lock *lp);
+static uint32_t nfsv4_filesavail(struct statfs *, struct mount *);
 static int nfsrv_cmpmixedcase(u_char *cp, u_char *cp2, int len);
 static int nfsrv_getuser(int procnum, uid_t uid, gid_t gid, char *name,
     NFSPROC_T *p);
@@ -1605,8 +1606,8 @@ nfsv4_loadattr(struct nfsrv_descript *nd, vnode_t vp,
 		case NFSATTRBIT_FILESAVAIL:
 			NFSM_DISSECT(tl, u_int32_t *, NFSX_HYPER);
 			if (compare) {
-				if (!(*retcmpp) &&
-				    sfp->sf_afiles != fxdr_hyper(tl))
+				uquad = nfsv4_filesavail(sbp, vp->v_mount);
+				if (!(*retcmpp) && uquad != fxdr_hyper(tl))
 					*retcmpp = NFSERR_NOTSAME;
 			} else if (sfp != NULL) {
 				sfp->sf_afiles = fxdr_hyper(tl);
@@ -1616,8 +1617,8 @@ nfsv4_loadattr(struct nfsrv_descript *nd, vnode_t vp,
 		case NFSATTRBIT_FILESFREE:
 			NFSM_DISSECT(tl, u_int32_t *, NFSX_HYPER);
 			if (compare) {
-				if (!(*retcmpp) &&
-				    sfp->sf_ffiles != fxdr_hyper(tl))
+				uquad = (uint64_t)sbp->f_ffree;
+				if (!(*retcmpp) && uquad != fxdr_hyper(tl))
 					*retcmpp = NFSERR_NOTSAME;
 			} else if (sfp != NULL) {
 				sfp->sf_ffiles = fxdr_hyper(tl);
@@ -1627,8 +1628,8 @@ nfsv4_loadattr(struct nfsrv_descript *nd, vnode_t vp,
 		case NFSATTRBIT_FILESTOTAL:
 			NFSM_DISSECT(tl, u_int32_t *, NFSX_HYPER);
 			if (compare) {
-				if (!(*retcmpp) &&
-				    sfp->sf_tfiles != fxdr_hyper(tl))
+				uquad = sbp->f_files;
+				if (!(*retcmpp) && uquad != fxdr_hyper(tl))
 					*retcmpp = NFSERR_NOTSAME;
 			} else if (sfp != NULL) {
 				sfp->sf_tfiles = fxdr_hyper(tl);
@@ -1978,8 +1979,13 @@ nfsv4_loadattr(struct nfsrv_descript *nd, vnode_t vp,
 		case NFSATTRBIT_SPACEAVAIL:
 			NFSM_DISSECT(tl, u_int32_t *, NFSX_HYPER);
 			if (compare) {
-				if (!(*retcmpp) &&
-				    sfp->sf_abytes != fxdr_hyper(tl))
+				if (priv_check_cred(cred,
+				    PRIV_VFS_BLOCKRESERVE))
+					uquad = sbp->f_bfree;
+				else
+					uquad = (uint64_t)sbp->f_bavail;
+				uquad *= sbp->f_bsize;
+				if (!(*retcmpp) && uquad != fxdr_hyper(tl))
 					*retcmpp = NFSERR_NOTSAME;
 			} else if (sfp != NULL) {
 				sfp->sf_abytes = fxdr_hyper(tl);
@@ -1989,8 +1995,9 @@ nfsv4_loadattr(struct nfsrv_descript *nd, vnode_t vp,
 		case NFSATTRBIT_SPACEFREE:
 			NFSM_DISSECT(tl, u_int32_t *, NFSX_HYPER);
 			if (compare) {
-				if (!(*retcmpp) &&
-				    sfp->sf_fbytes != fxdr_hyper(tl))
+				uquad = sbp->f_bfree;
+				uquad *= sbp->f_bsize;
+				if (!(*retcmpp) && uquad != fxdr_hyper(tl))
 					*retcmpp = NFSERR_NOTSAME;
 			} else if (sfp != NULL) {
 				sfp->sf_fbytes = fxdr_hyper(tl);
@@ -2000,8 +2007,9 @@ nfsv4_loadattr(struct nfsrv_descript *nd, vnode_t vp,
 		case NFSATTRBIT_SPACETOTAL:
 			NFSM_DISSECT(tl, u_int32_t *, NFSX_HYPER);
 			if (compare) {
-				if (!(*retcmpp) &&
-				    sfp->sf_tbytes != fxdr_hyper(tl))
+				uquad = sbp->f_blocks;
+				uquad *= sbp->f_bsize;
+				if (!(*retcmpp) && uquad != fxdr_hyper(tl))
 					*retcmpp = NFSERR_NOTSAME;
 			} else if (sfp != NULL) {
 				sfp->sf_tbytes = fxdr_hyper(tl);
@@ -2678,24 +2686,7 @@ nfsv4_fillattr(struct nfsrv_descript *nd, struct mount *mp, vnode_t vp,
 			retnum += NFSX_HYPER;
 			break;
 		case NFSATTRBIT_FILESAVAIL:
-			/*
-			 * Check quota and use min(quota, f_ffree).
-			 */
-			freenum = fs->f_ffree;
-#ifdef QUOTA
-			/*
-			 * ufs_quotactl() insists that the uid argument
-			 * equal p_ruid for non-root quota access, so
-			 * we'll just make sure that's the case.
-			 */
-			savuid = p->p_cred->p_ruid;
-			p->p_cred->p_ruid = cred->cr_uid;
-			if (!VFS_QUOTACTL(mp, QCMD(Q_GETQUOTA,USRQUOTA),
-			    cred->cr_uid, &dqb))
-			    freenum = min(dqb.dqb_isoftlimit-dqb.dqb_curinodes,
-				freenum);
-			p->p_cred->p_ruid = savuid;
-#endif	/* QUOTA */
+			freenum = nfsv4_filesavail(fs, mp);
 			NFSM_BUILD(tl, u_int32_t *, NFSX_HYPER);
 			*tl++ = 0;
 			*tl = txdr_unsigned(freenum);
@@ -3006,6 +2997,46 @@ nfsv4_fillattr(struct nfsrv_descript *nd, struct mount *mp, vnode_t vp,
 	free(fs, M_STATFS);
 	*retnump = txdr_unsigned(retnum);
 	return (retnum + prefixnum);
+}
+
+/*
+ * Calculate the files available attribute value.
+ */
+static uint32_t
+nfsv4_filesavail(struct statfs *fs, struct mount *mp)
+{
+	uint32_t freenum;
+#ifdef QUOTA
+	struct dqblk dqb;
+	uid_t savuid;
+	NFSPROC_T *p;
+#endif
+
+	/*
+	 * Check quota and use min(quota, f_ffree).
+	 */
+	freenum = fs->f_ffree;
+#ifdef QUOTA
+	/*
+	 * This is old OpenBSD code that does not build
+	 * for FreeBSD.  I do not know if doing this is
+	 * useful, so I will just leave the code here.
+	 */
+	p = curthread();
+	/*
+	 * ufs_quotactl() insists that the uid argument
+	 * equal p_ruid for non-root quota access, so
+	 * we'll just make sure that's the case.
+	 */
+	savuid = p->p_cred->p_ruid;
+	p->p_cred->p_ruid = cred->cr_uid;
+	if (!VFS_QUOTACTL(mp, QCMD(Q_GETQUOTA,USRQUOTA),
+	    cred->cr_uid, &dqb))
+	    freenum = min(dqb.dqb_isoftlimit-dqb.dqb_curinodes,
+		freenum);
+	p->p_cred->p_ruid = savuid;
+#endif	/* QUOTA */
+	return (freenum);
 }
 
 /*
