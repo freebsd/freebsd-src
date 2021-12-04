@@ -183,13 +183,13 @@ nhops_destroy_rib(struct rib_head *rh)
  * With that in mind, hash nexthops by the combination of the interface
  *  and GW IP address.
  *
- * To optimize hash calculation, ignore higher bytes of ifindex, as they
- *  give very little entropy.
+ * To optimize hash calculation, ignore lower bits of ifnet pointer,
+ * as they  give very little entropy.
  * Similarly, use lower 4 bytes of IPv6 address to distinguish between the
  *  neighbors.
  */
 struct _hash_data {
-	uint16_t	ifindex;
+	uint16_t	ifentropy;
 	uint8_t		family;
 	uint8_t		nh_type;
 	uint32_t	gw_addr;
@@ -210,21 +210,15 @@ djb_hash(const unsigned char *h, const int len)
 static uint32_t
 hash_priv(const struct nhop_priv *priv)
 {
-	struct nhop_object *nh;
-	uint16_t ifindex;
-	struct _hash_data key;
-
-	nh = priv->nh;
-	ifindex = nh->nh_ifp->if_index & 0xFFFF;
-	memset(&key, 0, sizeof(key));
-
-	key.ifindex = ifindex;
-	key.family = nh->gw_sa.sa_family;
-	key.nh_type = priv->nh_type & 0xFF;
-	if (nh->gw_sa.sa_family == AF_INET6)
-		memcpy(&key.gw_addr, &nh->gw6_sa.sin6_addr.s6_addr32[3], 4);
-	else if (nh->gw_sa.sa_family == AF_INET)
-		memcpy(&key.gw_addr, &nh->gw4_sa.sin_addr, 4);
+	struct nhop_object *nh = priv->nh;
+	struct _hash_data key = {
+	    .ifentropy = (uint16_t)((((uintptr_t)nh->nh_ifp) >> 6) & 0xFFFF),
+	    .family = nh->gw_sa.sa_family,
+	    .nh_type = priv->nh_type & 0xFF,
+	    .gw_addr = (nh->gw_sa.sa_family == AF_INET6) ?
+		nh->gw6_sa.sin6_addr.s6_addr32[3] :
+		nh->gw4_sa.sin_addr.s_addr
+	};
 
 	return (uint32_t)(djb_hash((const unsigned char *)&key, sizeof(key)));
 }
