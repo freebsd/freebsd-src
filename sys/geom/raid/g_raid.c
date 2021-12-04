@@ -726,7 +726,7 @@ u_int
 g_raid_nsubdisks(struct g_raid_volume *vol, int state)
 {
 	struct g_raid_subdisk *subdisk;
-	struct g_raid_softc *sc;
+	struct g_raid_softc *sc __diagused;
 	u_int i, n ;
 
 	sc = vol->v_softc;
@@ -751,7 +751,7 @@ struct g_raid_subdisk *
 g_raid_get_subdisk(struct g_raid_volume *vol, int state)
 {
 	struct g_raid_subdisk *sd;
-	struct g_raid_softc *sc;
+	struct g_raid_softc *sc __diagused;
 	u_int i;
 
 	sc = vol->v_softc;
@@ -1181,7 +1181,7 @@ g_raid_is_in_locked_range(struct g_raid_volume *vol, const struct bio *bp)
 static void
 g_raid_start_request(struct bio *bp)
 {
-	struct g_raid_softc *sc;
+	struct g_raid_softc *sc __diagused;
 	struct g_raid_volume *vol;
 
 	sc = bp->bio_to->geom->softc;
@@ -1258,7 +1258,7 @@ g_raid_finish_with_locked_ranges(struct g_raid_volume *vol, struct bio *bp)
 void
 g_raid_iodone(struct bio *bp, int error)
 {
-	struct g_raid_softc *sc;
+	struct g_raid_softc *sc __diagused;
 	struct g_raid_volume *vol;
 
 	sc = bp->bio_to->geom->softc;

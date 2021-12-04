@@ -362,7 +362,7 @@ g_disk_seg_limit(bus_dma_segment_t *seg, off_t *poffset,
 static off_t
 g_disk_vlist_limit(struct disk *dp, struct bio *bp, bus_dma_segment_t **pendseg)
 {
-	bus_dma_segment_t *seg, *end;
+	bus_dma_segment_t *seg, *end __diagused;
 	off_t residual;
 	off_t offset;
 	int pages;
