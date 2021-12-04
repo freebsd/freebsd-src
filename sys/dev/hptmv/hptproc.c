@@ -379,7 +379,6 @@ get_disk_name(char *name, PDevice pDev)
 static int
 hpt_copy_info(HPT_GET_INFO *pinfo, char *fmt, ...) 
 {
-	int printfretval;
 	va_list ap;
 	
 	if(fmt == NULL) {
@@ -389,7 +388,7 @@ hpt_copy_info(HPT_GET_INFO *pinfo, char *fmt, ...)
 	else 
 	{
 		va_start(ap, fmt);
-		printfretval = vsnprintf(hptproc_buffer, sizeof(hptproc_buffer), fmt, ap);
+		vsnprintf(hptproc_buffer, sizeof(hptproc_buffer), fmt, ap);
 		va_end(ap);
 		return(SYSCTL_OUT(pinfo, hptproc_buffer, strlen(hptproc_buffer)));
 	}

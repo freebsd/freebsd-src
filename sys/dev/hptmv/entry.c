@@ -2084,10 +2084,7 @@ hpt_detach(device_t dev)
 static void
 hpt_poll(struct cam_sim *sim)
 {
-	IAL_ADAPTER_T *pAdapter;
 
-	pAdapter = cam_sim_softc(sim);
-	
 	hpt_intr_locked((void *)cam_sim_softc(sim));
 }
 
