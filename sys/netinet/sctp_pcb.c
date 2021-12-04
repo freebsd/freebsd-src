@@ -2627,15 +2627,23 @@ sctp_move_pcb_and_assoc(struct sctp_inpcb *old_inp, struct sctp_inpcb *new_inp,
 	SCTP_TCB_LOCK(stcb);
 	atomic_subtract_int(&stcb->asoc.refcnt, 1);
 
+#ifdef INET6
 	if (old_inp->sctp_flags & SCTP_PCB_FLAGS_BOUND_V6) {
 		new_inp->ip_inp.inp.inp_flags |= old_inp->ip_inp.inp.inp_flags & INP_CONTROLOPTS;
 		if (old_inp->ip_inp.inp.in6p_outputopts) {
 			new_inp->ip_inp.inp.in6p_outputopts = ip6_copypktopts(old_inp->ip_inp.inp.in6p_outputopts, M_NOWAIT);
 		}
-	} else {
+	}
+#endif
+#if defined(INET) && defined(INET6)
+	else
+#endif
+#ifdef INET
+	{
 		new_inp->ip_inp.inp.inp_ip_tos = old_inp->ip_inp.inp.inp_ip_tos;
 		new_inp->ip_inp.inp.inp_ip_ttl = old_inp->ip_inp.inp.inp_ip_ttl;
 	}
+#endif
 	new_inp->sctp_ep.time_of_secret_change =
 	    old_inp->sctp_ep.time_of_secret_change;
 	memcpy(new_inp->sctp_ep.secret_key, old_inp->sctp_ep.secret_key,
