@@ -99,7 +99,7 @@
 #define OMAP44XX_MPU_SUBSYS_SIZE    0x00004000UL
 
 /*
- * MPU Subsystem addresss offsets
+ * MPU Subsystem address offsets
  */
 #define OMAP44XX_SCU_OFFSET                     0x00000000UL
 #define OMAP44XX_GIC_CPU_OFFSET                 0x00000100UL
@@ -132,7 +132,7 @@
 #define OMAP44XX_PL310_SIZE         0x00001000UL
 
 /*
- * L4-CORE Physical/Virtual addresss offsets
+ * L4-CORE Physical/Virtual address offsets
  */
 #define OMAP44XX_SCM_OFFSET         0x00002000UL
 #define OMAP44XX_CM_OFFSET          0x00004000UL
@@ -146,7 +146,7 @@
 #define OMAP44XX_SCM_PADCONF_OFFSET 0x00100000UL
 
 /*
- * L4-WAKEUP Physical/Virtual addresss offsets
+ * L4-WAKEUP Physical/Virtual address offsets
  */
 #define OMAP44XX_PRM_OFFSET         0x00006000UL
 #define OMAP44XX_SCRM_OFFSET        0x0000A000UL
@@ -154,7 +154,7 @@
 #define OMAP44XX_GPTIMER1_OFFSET    0x00018000UL
 
 /*
- * L4-PERIPH Physical/Virtual addresss offsets
+ * L4-PERIPH Physical/Virtual address offsets
  */
 #define OMAP44XX_UART3_OFFSET		0x00020000UL
 #define OMAP44XX_GPTIMER2_OFFSET	0x00032000UL
@@ -196,7 +196,7 @@
 // #define OMAP44XX_PL310_OFFSET		0x48242000	/* L2 Cache controller */
 
 /*
- * L4-ABE Physical/Virtual addresss offsets
+ * L4-ABE Physical/Virtual address offsets
  */
 #define OMAP44XX_GPTIMER5_OFFSET	0x00038000UL
 #define OMAP44XX_GPTIMER6_OFFSET	0x0003A000UL
