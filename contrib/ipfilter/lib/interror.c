@@ -358,7 +358,7 @@ log" },
 /* -------------------------------------------------------------------------- */
 	{	70001,	"incorrect object size to get pool stats" },
 	{	70002,	"could not malloc memory for new pool node" },
-	{	70003,	"invalid addresss length for new pool node" },
+	{	70003,	"invalid address length for new pool node" },
 	{	70004,	"invalid mask length for new pool node" },
 	{	70005,	"error adding node to pool" },
 	{	70006,	"pool already exists" },
