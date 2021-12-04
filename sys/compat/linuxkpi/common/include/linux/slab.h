@@ -39,6 +39,7 @@
 #include <linux/types.h>
 #include <linux/gfp.h>
 #include <linux/llist.h>
+#include <linux/overflow.h>
 
 MALLOC_DECLARE(M_KMALLOC);
 

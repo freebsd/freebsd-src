@@ -43,6 +43,8 @@
 #include <linux/semaphore.h>
 #include <linux/spinlock.h>
 #include <linux/dcache.h>
+#include <linux/capability.h>
+#include <linux/wait_bit.h>
 
 struct module;
 struct kiocb;
