@@ -2155,6 +2155,15 @@ nfsv4_loadattr(struct nfsrv_descript *nd, vnode_t vp,
 			NFSM_DISSECT(tl, u_int32_t *, NFSX_UNSIGNED);
 			attrsum += NFSX_UNSIGNED;
 			i = fxdr_unsigned(int, *tl);
+			/*
+			 * The RFCs do not define an upper limit for the
+			 * number of layout types, but 32 should be more
+			 * than enough.
+			 */
+			if (i < 0 || i > 32) {
+				error = NFSERR_BADXDR;
+				goto nfsmout;
+			}
 			if (i > 0) {
 				NFSM_DISSECT(tl, u_int32_t *, i *
 				    NFSX_UNSIGNED);
