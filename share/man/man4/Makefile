@@ -285,6 +285,7 @@ MAN=	aac.4 \
 	mac_ntpd.4 \
 	mac_partition.4 \
 	mac_portacl.4 \
+	mac_priority.4 \
 	mac_seeotheruids.4 \
 	mac_stub.4 \
 	mac_test.4 \

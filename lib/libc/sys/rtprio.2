@@ -53,7 +53,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 27, 2011
+.Dd November 29, 2021
 .Dt RTPRIO 2
 .Os
 .Sh NAME
@@ -169,7 +169,11 @@ was out of range.
 .It Bq Er EPERM
 The calling thread is not allowed to set the realtime priority.
 Only
-root is allowed to change the realtime priority of any thread, and non-root
+root is allowed to change the realtime priority of any thread,
+exceptional privileges can be granted through the
+.Xr mac_priority 4
+policy and the realtime user group.
+Non-root
 may only change the idle priority of threads the user owns,
 when the
 .Xr sysctl 8
@@ -185,6 +189,7 @@ The specified process or thread was not found or visible.
 .Xr rtprio 1 ,
 .Xr setpriority 2 ,
 .Xr nice 3 ,
+.Xr mac_priority 4 ,
 .Xr renice 8 ,
 .Xr p_cansee 9
 .Sh AUTHORS
