@@ -273,7 +273,6 @@ struct mbuf *(*tbr_dequeue_ptr)(struct ifaltq *, int) = NULL;
 static void	if_attachdomain(void *);
 static void	if_attachdomain1(struct ifnet *);
 static int	ifconf(u_long, caddr_t);
-static void	*if_grow(void);
 static void	if_input_default(struct ifnet *, struct mbuf *);
 static int	if_requestencap_default(struct ifnet *, struct if_encap_req *);
 static void	if_route(struct ifnet *, int flag, int fam);
@@ -369,15 +368,14 @@ ifnet_byindex_ref(u_short idx)
 }
 
 /*
- * Allocate an ifindex array entry; return 0 on success or an error on
- * failure.
+ * Allocate an ifindex array entry.
  */
-static u_short
-ifindex_alloc(void **old)
+static void
+ifindex_alloc(struct ifnet *ifp)
 {
 	u_short idx;
 
-	IFNET_WLOCK_ASSERT();
+	IFNET_WLOCK();
 	/*
 	 * Try to find an empty slot below V_if_index.  If we fail, take the
 	 * next slot.
@@ -389,12 +387,24 @@ ifindex_alloc(void **old)
 
 	/* Catch if_index overflow. */
 	if (idx >= V_if_indexlim) {
-		*old = if_grow();
-		return (USHRT_MAX);
+		struct ifnet **new, **old;
+		int newlim;
+
+		newlim = V_if_indexlim * 2;
+		new = malloc(newlim * sizeof(*new), M_IFNET, M_WAITOK | M_ZERO);
+		memcpy(new, V_ifindex_table, V_if_indexlim * sizeof(*new));
+		old = V_ifindex_table;
+		ck_pr_store_ptr(&V_ifindex_table, new);
+		V_if_indexlim = newlim;
+		epoch_wait_preempt(net_epoch_preempt);
+		free(old, M_IFNET);
 	}
 	if (idx > V_if_index)
 		V_if_index = idx;
-	return (idx);
+
+	ifp->if_index = idx;
+	ck_pr_store_ptr(&V_ifindex_table[idx], ifp);
+	IFNET_WUNLOCK();
 }
 
 static void
@@ -407,14 +417,6 @@ ifindex_free(u_short idx)
 	while (V_if_index > 0 &&
 	    V_ifindex_table[V_if_index] == NULL)
 		V_if_index--;
-}
-
-static void
-ifnet_setbyindex(u_short idx, struct ifnet *ifp)
-{
-
-	ifp->if_index = idx;
-	ck_pr_store_ptr(&V_ifindex_table[idx], ifp);
 }
 
 struct ifaddr *
@@ -549,34 +551,6 @@ VNET_SYSUNINIT(vnet_if_return, SI_SUB_VNET_DONE, SI_ORDER_ANY,
     vnet_if_return, NULL);
 #endif
 
-static void *
-if_grow(void)
-{
-	int oldlim;
-	u_int n;
-	struct ifnet **e;
-	void *old;
-
-	old = NULL;
-	IFNET_WLOCK_ASSERT();
-	oldlim = V_if_indexlim;
-	IFNET_WUNLOCK();
-	n = (oldlim << 1) * sizeof(*e);
-	e = malloc(n, M_IFNET, M_WAITOK | M_ZERO);
-	IFNET_WLOCK();
-	if (V_if_indexlim != oldlim) {
-		free(e, M_IFNET);
-		return (NULL);
-	}
-	if (V_ifindex_table != NULL) {
-		memcpy((caddr_t)e, (caddr_t)V_ifindex_table, n/2);
-		old = V_ifindex_table;
-	}
-	V_if_indexlim <<= 1;
-	V_ifindex_table = e;
-	return (old);
-}
-
 /*
  * Allocate a struct ifnet and an index for an interface.  A layer 2
  * common structure will also be allocated if an allocation routine is
@@ -586,8 +560,6 @@ static struct ifnet *
 if_alloc_domain(u_char type, int numa_domain)
 {
 	struct ifnet *ifp;
-	u_short idx;
-	void *old;
 
 	KASSERT(numa_domain <= IF_NODOM, ("numa_domain too large"));
 	if (numa_domain == IF_NODOM)
@@ -627,17 +599,7 @@ if_alloc_domain(u_char type, int numa_domain)
 	ifp->if_get_counter = if_get_counter_default;
 	ifp->if_pcp = IFNET_PCP_NONE;
 
-restart:
-	IFNET_WLOCK();
-	idx = ifindex_alloc(&old);
-	if (__predict_false(idx == USHRT_MAX)) {
-		IFNET_WUNLOCK();
-		epoch_wait_preempt(net_epoch_preempt);
-		free(old, M_IFNET);
-		goto restart;
-	}
-	ifnet_setbyindex(idx, ifp);
-	IFNET_WUNLOCK();
+	ifindex_alloc(ifp);
 
 	return (ifp);
 }
@@ -1301,9 +1263,6 @@ finish_vnet_shutdown:
 /*
  * if_vmove() performs a limited version of if_detach() in current
  * vnet and if_attach()es the ifnet to the vnet specified as 2nd arg.
- * An attempt is made to shrink if_index in current vnet, find an
- * unused if_index in target vnet and calls if_grow() if necessary,
- * and finally find an unused if_xname for the target vnet.
  */
 static int
 if_vmove(struct ifnet *ifp, struct vnet *new_vnet)
@@ -1312,7 +1271,6 @@ if_vmove(struct ifnet *ifp, struct vnet *new_vnet)
 #ifdef DEV_BPF
 	u_int bif_dlt, bif_hdrlen;
 #endif
-	void *old;
 	int rc;
 
 #ifdef DEV_BPF
@@ -1355,18 +1313,7 @@ if_vmove(struct ifnet *ifp, struct vnet *new_vnet)
 	 * Switch to the context of the target vnet.
 	 */
 	CURVNET_SET_QUIET(new_vnet);
- restart:
-	IFNET_WLOCK();
-	ifp->if_index = ifindex_alloc(&old);
-	if (__predict_false(ifp->if_index == USHRT_MAX)) {
-		IFNET_WUNLOCK();
-		epoch_wait_preempt(net_epoch_preempt);
-		free(old, M_IFNET);
-		goto restart;
-	}
-	ifnet_setbyindex(ifp->if_index, ifp);
-	IFNET_WUNLOCK();
-
+	ifindex_alloc(ifp);
 	if_attach_internal(ifp, 1, ifc);
 
 #ifdef DEV_BPF
