@@ -34,13 +34,18 @@
 .Fl a
 .Nm tcpdrop
 .Op Fl l
-.Fl S Ar stack
+.Fl C Ar cc-algo
+.Op Fl S Ar stack
+.Op Fl s Ar state
 .Nm tcpdrop
 .Op Fl l
-.Fl s Ar state
+.Op Fl C Ar cc-algo
+.Fl S Ar stack
+.Op Fl s Ar state
 .Nm tcpdrop
 .Op Fl l
-.Fl S Ar stack
+.Op Fl C Ar cc-algo
+.Op Fl S Ar stack
 .Fl s Ar state
 .Sh DESCRIPTION
 The
@@ -52,6 +57,13 @@ If
 is specified then
 .Nm
 will attempt to drop all TCP connections.
+.Pp
+If
+.Fl C Ar cc-algo
+is specified then
+.Nm
+will attempt to drop all connections using the TCP congestion control algorithm
+.Ar cc-algo .
 .Pp
 If
 .Fl S Ar stack
@@ -78,16 +90,20 @@ is one of
 .Dv FIN_WAIT_2 , or
 .Dv TIME_WAIT .
 .Pp
-If
-.Fl S Ar stack
+If multiple of
+.Fl C Ar cc-algo ,
+.Fl S Ar stack ,
 and
 .Fl s Ar state
 are specified,
 .Nm
-will attempt to drop all TCP connections being in the state
-.Ar state
+will attempt to drop all TCP connections using the congestion control algorithm
+.Ar cc-algo ,
+being in the state
+.Ar state ,
 and using the TCP stack
-.Ar stack .
+.Ar stack ,
+if specified.
 Since TCP connections in the
 .Dv TIME_WAIT
 state are not tied to any TCP stack, using the option
@@ -102,6 +118,7 @@ The
 .Fl l
 flag may be given in addition to the
 .Fl a ,
+.Fl C ,
 .Fl S ,
 or
 .Fl s
@@ -110,6 +127,7 @@ connections one at a time.
 .Pp
 If none of the
 .Fl a ,
+.Fl C ,
 .Fl S ,
 or
 .Fl s
@@ -154,6 +172,11 @@ port 22, the port used by
 # tcpdrop -l -a | grep -vw 22 | sh
 .Ed
 .Pp
+To drop all TCP connections using the new-reno congestion control algorithm use:
+.Bd -literal -offset indent
+# tcpdrop -C new-reno
+.Ed
+.Pp
 The following command will drop all connections using the TCP stack
 rack:
 .Bd -literal -offset indent
@@ -165,10 +188,10 @@ To drop all TCP connections in the LAST_ACK state use:
 # tcpdrop -s LAST_ACK
 .Ed
 .Pp
-To drop all TCP connections using the TCP stack rack and being in the
-LAST_ACK state use:
+To drop all TCP connections using the congestion control algorithm new-reno and
+the TCP stack rack and being in the LAST_ACK state use:
 .Bd -literal -offset indent
-# tcpdrop -S rack -s LAST_ACK
+# tcpdrop -C new-reno -S rack -s LAST_ACK
 .Ed
 .Sh SEE ALSO
 .Xr netstat 1 ,
