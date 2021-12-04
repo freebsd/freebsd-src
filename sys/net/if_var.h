@@ -613,12 +613,12 @@ extern	struct sx ifnet_sxlock;
 #define	IFNET_RUNLOCK()		sx_sunlock(&ifnet_sxlock)
 
 /*
- * Look up an ifnet given its index; the _ref variant also acquires a
- * reference that must be freed using if_rele().  It is almost always a bug
- * to call ifnet_byindex() instead of ifnet_byindex_ref().
+ * Look up an ifnet given its index.  The returned value protected from
+ * being freed by the network epoch.  The _ref variant also acquires a
+ * reference that must be freed using if_rele().
  */
-struct ifnet	*ifnet_byindex(u_short idx);
-struct ifnet	*ifnet_byindex_ref(u_short idx);
+struct ifnet	*ifnet_byindex(u_int);
+struct ifnet	*ifnet_byindex_ref(u_int);
 
 /*
  * Given the index, ifaddr_byindex() returns the one and only

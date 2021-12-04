@@ -4736,11 +4736,13 @@ hn_vflist_sysctl(SYSCTL_HANDLER_ARGS)
 
 	first = true;
 	for (i = 0; i < hn_vfmap_size; ++i) {
+		struct epoch_tracker et;
 		struct ifnet *ifp;
 
 		if (hn_vfmap[i] == NULL)
 			continue;
 
+		NET_EPOCH_ENTER(et);
 		ifp = ifnet_byindex(i);
 		if (ifp != NULL) {
 			if (first)
@@ -4749,6 +4751,7 @@ hn_vflist_sysctl(SYSCTL_HANDLER_ARGS)
 				sbuf_printf(sb, " %s", ifp->if_xname);
 			first = false;
 		}
+		NET_EPOCH_EXIT(et);
 	}
 
 	rm_runlock(&hn_vfmap_lock, &pt);
@@ -4778,12 +4781,14 @@ hn_vfmap_sysctl(SYSCTL_HANDLER_ARGS)
 
 	first = true;
 	for (i = 0; i < hn_vfmap_size; ++i) {
+		struct epoch_tracker et;
 		struct ifnet *ifp, *hn_ifp;
 
 		hn_ifp = hn_vfmap[i];
 		if (hn_ifp == NULL)
 			continue;
 
+		NET_EPOCH_ENTER(et);
 		ifp = ifnet_byindex(i);
 		if (ifp != NULL) {
 			if (first) {
@@ -4795,6 +4800,7 @@ hn_vfmap_sysctl(SYSCTL_HANDLER_ARGS)
 			}
 			first = false;
 		}
+		NET_EPOCH_EXIT(et);
 	}
 
 	rm_runlock(&hn_vfmap_lock, &pt);

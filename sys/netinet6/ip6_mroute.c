@@ -677,6 +677,7 @@ static struct sockaddr_in6 sin6 = { sizeof(sin6), AF_INET6 };
 static int
 add_m6if(struct mif6ctl *mifcp)
 {
+	struct epoch_tracker et;
 	struct mif6 *mifp;
 	struct ifnet *ifp;
 	int error;
@@ -692,12 +693,14 @@ add_m6if(struct mif6ctl *mifcp)
 		MIF6_UNLOCK();
 		return (EADDRINUSE); /* XXX: is it appropriate? */
 	}
-	if (mifcp->mif6c_pifi == 0 || mifcp->mif6c_pifi > V_if_index) {
+
+	NET_EPOCH_ENTER(et);
+	if ((ifp = ifnet_byindex(mifcp->mif6c_pifi)) == NULL) {
+		NET_EPOCH_EXIT(et);
 		MIF6_UNLOCK();
 		return (ENXIO);
 	}
-
-	ifp = ifnet_byindex(mifcp->mif6c_pifi);
+	NET_EPOCH_EXIT(et);	/* XXXGL: unsafe ifp */
 
 	if (mifcp->mif6c_flags & MIFF_REGISTER) {
 		if (reg_mif_num == (mifi_t)-1) {

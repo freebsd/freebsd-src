@@ -2819,8 +2819,8 @@ ip6_setpktopts(struct mbuf *control, struct ip6_pktopts *opt,
 		return (EINVAL);
 
 	/*
-	 * ip6_setpktopt can call ifnet_by_index(), so it's imperative that we are
-	 * in the net epoch here.
+	 * ip6_setpktopt can call ifnet_byindex(), so it's imperative that we
+	 * are in the network epoch here.
 	 */
 	NET_EPOCH_ASSERT();
 
@@ -2959,8 +2959,6 @@ ip6_setpktopt(int optname, u_char *buf, int len, struct ip6_pktopts *opt,
 		if (IN6_IS_ADDR_MULTICAST(&pktinfo->ipi6_addr))
 			return (EINVAL);
 		/* validate the interface index if specified. */
-		if (pktinfo->ipi6_ifindex > V_if_index)
-			 return (ENXIO);
 		if (pktinfo->ipi6_ifindex) {
 			ifp = ifnet_byindex(pktinfo->ipi6_ifindex);
 			if (ifp == NULL)

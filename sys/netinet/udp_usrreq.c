@@ -1100,15 +1100,16 @@ udp_v4mapped_pktinfo(struct cmsghdr *cm, struct sockaddr_in * src,
 		return (EINVAL);
 
 	/* Validate the interface index if specified. */
-	if (pktinfo->ipi6_ifindex > V_if_index)
-		return (ENXIO);
-
-	ifp = NULL;
 	if (pktinfo->ipi6_ifindex) {
+		struct epoch_tracker et;
+
+		NET_EPOCH_ENTER(et);
 		ifp = ifnet_byindex(pktinfo->ipi6_ifindex);
+		NET_EPOCH_EXIT(et);	/* XXXGL: unsafe ifp */
 		if (ifp == NULL)
 			return (ENXIO);
-	}
+	} else
+		ifp = NULL;
 	if (ifp != NULL && !IN6_IS_ADDR_UNSPECIFIED(&pktinfo->ipi6_addr)) {
 		ia.s_addr = pktinfo->ipi6_addr.s6_addr32[3];
 		if (in_ifhasaddr(ifp, ia) == 0)

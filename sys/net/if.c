@@ -343,8 +343,10 @@ MALLOC_DEFINE(M_IFADDR, "ifaddr", "interface address");
 MALLOC_DEFINE(M_IFMADDR, "ether_multi", "link-level multicast address");
 
 struct ifnet *
-ifnet_byindex(u_short idx)
+ifnet_byindex(u_int idx)
 {
+
+	NET_EPOCH_ASSERT();
 
 	if (__predict_false(idx > V_if_index))
 		return (NULL);
@@ -353,11 +355,9 @@ ifnet_byindex(u_short idx)
 }
 
 struct ifnet *
-ifnet_byindex_ref(u_short idx)
+ifnet_byindex_ref(u_int idx)
 {
 	struct ifnet *ifp;
-
-	NET_EPOCH_ASSERT();
 
 	ifp = ifnet_byindex(idx);
 	if (ifp == NULL || (ifp->if_flags & IFF_DYING))
@@ -679,9 +679,7 @@ if_free(struct ifnet *ifp)
 	 */
 	CURVNET_SET_QUIET(ifp->if_vnet);
 	IFNET_WLOCK();
-	KASSERT(ifp == ifnet_byindex(ifp->if_index),
-	    ("%s: freeing unallocated ifnet", ifp->if_xname));
-
+	MPASS(V_ifindex_table[ifp->if_index] == ifp);
 	ifindex_free(ifp->if_index);
 	IFNET_WUNLOCK();
 
@@ -831,9 +829,7 @@ if_attach_internal(struct ifnet *ifp, int vmove, struct if_clone *ifc)
 	struct sockaddr_dl *sdl;
 	struct ifaddr *ifa;
 
-	if (ifp->if_index == 0 || ifp != ifnet_byindex(ifp->if_index))
-		panic ("%s: BUG: if_attach called without if_alloc'd input()\n",
-		    ifp->if_xname);
+	MPASS(V_ifindex_table[ifp->if_index] == ifp);
 
 #ifdef VIMAGE
 	ifp->if_vnet = curvnet;
