@@ -145,7 +145,7 @@ struct sysentvec aout_sysvec = {
 	.sv_set_fork_retval = x86_set_fork_retval,
 };
 #else
-#error "Port me"
+#error "Only ia32 arch is supported"
 #endif
 
 static int
