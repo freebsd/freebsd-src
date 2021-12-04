@@ -296,6 +296,7 @@ tcpdropbyname(const char *lhost, const char *lport, const char *fhost,
 		 */
 		.ai_family = AF_UNSPEC,
 		.ai_socktype = SOCK_STREAM,
+		.ai_protocol = IPPROTO_TCP,
 	};
 	struct addrinfo *ail, *local, *aif, *foreign;
 	int error;
