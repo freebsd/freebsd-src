@@ -765,7 +765,7 @@ tcp_tw_2msl_reset(struct tcptw *tw, int rearm)
 	TW_WLOCK(V_tw_lock);
 	if (rearm)
 		TAILQ_REMOVE(&V_twq_2msl, tw, tw_2msl);
-	tw->tw_time = ticks + 2 * tcp_msl;
+	tw->tw_time = ticks + 2 * V_tcp_msl;
 	TAILQ_INSERT_TAIL(&V_twq_2msl, tw, tw_2msl);
 	TW_WUNLOCK(V_tw_lock);
 }
