@@ -350,7 +350,7 @@ ifnet_byindex(u_short idx)
 	if (__predict_false(idx > V_if_index))
 		return (NULL);
 
-	return (V_ifindex_table[idx]);
+	return (ck_pr_load_ptr(&V_ifindex_table[idx]));
 }
 
 struct ifnet *
@@ -403,7 +403,7 @@ ifindex_free(u_short idx)
 
 	IFNET_WLOCK_ASSERT();
 
-	V_ifindex_table[idx] = NULL;
+	ck_pr_store_ptr(&V_ifindex_table[idx], NULL);
 	while (V_if_index > 0 &&
 	    V_ifindex_table[V_if_index] == NULL)
 		V_if_index--;
@@ -414,7 +414,7 @@ ifnet_setbyindex(u_short idx, struct ifnet *ifp)
 {
 
 	ifp->if_index = idx;
-	V_ifindex_table[idx] = ifp;
+	ck_pr_store_ptr(&V_ifindex_table[idx], ifp);
 }
 
 struct ifaddr *
