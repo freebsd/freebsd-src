@@ -68,11 +68,11 @@ main(int argc, char *argv[])
 {
 	char stack[TCP_FUNCTION_NAME_LEN_MAX];
 	char *lport, *fport;
-	bool dropall, dropallstack;
+	bool dropall, dropspecific;
 	int ch, state;
 
 	dropall = false;
-	dropallstack = false;
+	dropspecific = false;
 	stack[0] = '\0';
 	state = -1;
 
@@ -85,11 +85,11 @@ main(int argc, char *argv[])
 			tcpdrop_list_commands = true;
 			break;
 		case 'S':
-			dropallstack = true;
+			dropspecific = true;
 			strlcpy(stack, optarg, sizeof(stack));
 			break;
 		case 's':
-			dropallstack = true;
+			dropspecific = true;
 			for (state = 0; state < TCP_NSTATES; state++) {
 				if (strcmp(tcpstates[state], optarg) == 0)
 					break;
@@ -106,9 +106,9 @@ main(int argc, char *argv[])
 	    state == TCPS_CLOSED ||
 	    state == TCPS_LISTEN)
 		usage();
-	if (dropall && dropallstack)
+	if (dropall && dropspecific)
 		usage();
-	if (dropall || dropallstack) {
+	if (dropall || dropspecific) {
 		if (argc != 0)
 			usage();
 		if (!tcpdropall(stack, state))
