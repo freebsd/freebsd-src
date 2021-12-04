@@ -84,6 +84,7 @@
 #include <net/if_types.h>
 #include <net/if_var.h>
 #include <net/if_media.h>
+#include <net/if_mib.h>
 #include <net/if_vlan_var.h>
 #include <net/radix.h>
 #include <net/route.h>
@@ -305,18 +306,24 @@ extern void	nd6_setmtu(struct ifnet *);
 VNET_DEFINE(struct hhook_head *, ipsec_hhh_in[HHOOK_IPSEC_COUNT]);
 VNET_DEFINE(struct hhook_head *, ipsec_hhh_out[HHOOK_IPSEC_COUNT]);
 
-VNET_DEFINE(int, if_index);
 int	ifqmaxlen = IFQ_MAXLEN;
 VNET_DEFINE(struct ifnethead, ifnet);	/* depend on static init XXX */
 VNET_DEFINE(struct ifgrouphead, ifg_head);
 
-VNET_DEFINE_STATIC(int, if_indexlim) = 8;
-
 /* Table of ifnet by index. */
-VNET_DEFINE_STATIC(struct ifnet **, ifindex_table);
-
+VNET_DEFINE_STATIC(int, if_index);
+#define	V_if_index		VNET(if_index)
+VNET_DEFINE_STATIC(int, if_indexlim) = 8;
 #define	V_if_indexlim		VNET(if_indexlim)
+VNET_DEFINE_STATIC(struct ifnet **, ifindex_table);
 #define	V_ifindex_table		VNET(ifindex_table)
+
+SYSCTL_NODE(_net_link_generic, IFMIB_SYSTEM, system,
+    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "Variables global to all interfaces");
+SYSCTL_INT(_net_link_generic_system, IFMIB_IFCOUNT, ifcount,
+    CTLFLAG_VNET | CTLFLAG_RD, &VNET_NAME(if_index), 0,
+    "Number of configured interfaces");
 
 /*
  * The global network interface list (V_ifnet) and related state (such as
