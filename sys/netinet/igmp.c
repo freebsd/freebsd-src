@@ -482,6 +482,7 @@ out_locked:
 static int
 sysctl_igmp_ifinfo(SYSCTL_HANDLER_ARGS)
 {
+	struct epoch_tracker	 et;
 	int			*name;
 	int			 error;
 	u_int			 namelen;
@@ -504,14 +505,11 @@ sysctl_igmp_ifinfo(SYSCTL_HANDLER_ARGS)
 	IN_MULTI_LIST_LOCK();
 	IGMP_LOCK();
 
-	if (name[0] <= 0 || name[0] > V_if_index) {
-		error = ENOENT;
-		goto out_locked;
-	}
-
 	error = ENOENT;
 
+	NET_EPOCH_ENTER(et);
 	ifp = ifnet_byindex(name[0]);
+	NET_EPOCH_EXIT(et);
 	if (ifp == NULL)
 		goto out_locked;
 

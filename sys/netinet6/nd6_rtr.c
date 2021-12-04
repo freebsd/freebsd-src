@@ -2425,18 +2425,21 @@ rt6_flush(struct in6_addr *gateway, struct ifnet *ifp)
 int
 nd6_setdefaultiface(int ifindex)
 {
-	int error = 0;
-
-	if (ifindex < 0 || V_if_index < ifindex)
-		return (EINVAL);
-	if (ifindex != 0 && !ifnet_byindex(ifindex))
-		return (EINVAL);
 
 	if (V_nd6_defifindex != ifindex) {
 		V_nd6_defifindex = ifindex;
-		if (V_nd6_defifindex > 0)
+		if (V_nd6_defifindex != 0) {
+			struct epoch_tracker et;
+
+			/*
+			 * XXXGL: this function should use ifnet_byindex_ref!
+			 */
+			NET_EPOCH_ENTER(et);
 			V_nd6_defifp = ifnet_byindex(V_nd6_defifindex);
-		else
+			NET_EPOCH_EXIT(et);
+			if (V_nd6_defifp == NULL)
+				return (EINVAL);
+		} else
 			V_nd6_defifp = NULL;
 
 		/*
@@ -2447,7 +2450,7 @@ nd6_setdefaultiface(int ifindex)
 		scope6_setdefault(V_nd6_defifp);
 	}
 
-	return (error);
+	return (0);
 }
 
 bool

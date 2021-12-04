@@ -356,13 +356,13 @@ out_locked:
  * Expose struct mld_ifsoftc to userland, keyed by ifindex.
  * For use by ifmcstat(8).
  *
- * SMPng: NOTE: Does an unlocked ifindex space read.
  * VIMAGE: Assume curvnet set by caller. The node handler itself
  * is not directly virtualized.
  */
 static int
 sysctl_mld_ifinfo(SYSCTL_HANDLER_ARGS)
 {
+	struct epoch_tracker	 et;
 	int			*name;
 	int			 error;
 	u_int			 namelen;
@@ -385,14 +385,9 @@ sysctl_mld_ifinfo(SYSCTL_HANDLER_ARGS)
 	IN6_MULTI_LOCK();
 	IN6_MULTI_LIST_LOCK();
 	MLD_LOCK();
-
-	if (name[0] <= 0 || name[0] > V_if_index) {
-		error = ENOENT;
-		goto out_locked;
-	}
+	NET_EPOCH_ENTER(et);
 
 	error = ENOENT;
-
 	ifp = ifnet_byindex(name[0]);
 	if (ifp == NULL)
 		goto out_locked;
@@ -415,6 +410,7 @@ sysctl_mld_ifinfo(SYSCTL_HANDLER_ARGS)
 	}
 
 out_locked:
+	NET_EPOCH_EXIT(et);
 	MLD_UNLOCK();
 	IN6_MULTI_LIST_UNLOCK();
 	IN6_MULTI_UNLOCK();

@@ -177,16 +177,22 @@ scope6_set(struct ifnet *ifp, struct scope6_id *idlist)
 				return (EINVAL);
 			}
 
-			if (i == IPV6_ADDR_SCOPE_LINKLOCAL &&
-			    idlist->s6id_list[i] > V_if_index) {
-				/*
-				 * XXX: theoretically, there should be no
-				 * relationship between link IDs and interface
-				 * IDs, but we check the consistency for
-				 * safety in later use.
-				 */
-				IF_AFDATA_WUNLOCK(ifp);
-				return (EINVAL);
+			if (i == IPV6_ADDR_SCOPE_LINKLOCAL) {
+				struct epoch_tracker et;
+
+				NET_EPOCH_ENTER(et);
+				if (!ifnet_byindex(idlist->s6id_list[i])) {
+					/*
+					 * XXX: theoretically, there should be
+					 * no relationship between link IDs and
+					 * interface IDs, but we check the
+					 * consistency for safety in later use.
+					 */
+					NET_EPOCH_EXIT(et);
+					IF_AFDATA_WUNLOCK(ifp);
+					return (EINVAL);
+				}
+				NET_EPOCH_EXIT(et);
 			}
 
 			/*
@@ -325,14 +331,20 @@ sa6_embedscope(struct sockaddr_in6 *sin6, int defaultok)
 	if (zoneid != 0 &&
 	    (IN6_IS_SCOPE_LINKLOCAL(&sin6->sin6_addr) ||
 	    IN6_IS_ADDR_MC_INTFACELOCAL(&sin6->sin6_addr))) {
+		struct epoch_tracker et;
+
 		/*
 		 * At this moment, we only check interface-local and
 		 * link-local scope IDs, and use interface indices as the
 		 * zone IDs assuming a one-to-one mapping between interfaces
 		 * and links.
 		 */
-		if (V_if_index < zoneid || ifnet_byindex(zoneid) == NULL)
+		NET_EPOCH_ENTER(et);
+		if (ifnet_byindex(zoneid) == NULL) {
+			NET_EPOCH_EXIT(et);
 			return (ENXIO);
+		}
+		NET_EPOCH_EXIT(et);
 
 		/* XXX assignment to 16bit from 32bit variable */
 		sin6->sin6_addr.s6_addr16[1] = htons(zoneid & 0xffff);
@@ -358,14 +370,15 @@ sa6_recoverscope(struct sockaddr_in6 *sin6)
 		 */
 		zoneid = ntohs(sin6->sin6_addr.s6_addr16[1]);
 		if (zoneid) {
+			struct epoch_tracker et;
+
+			NET_EPOCH_ENTER(et);
 			/* sanity check */
-			if (V_if_index < zoneid)
+			if (!ifnet_byindex(zoneid)) {
+				NET_EPOCH_EXIT(et);
 				return (ENXIO);
-#if 0
-			/* XXX: Disabled due to possible deadlock. */
-			if (!ifnet_byindex(zoneid))
-				return (ENXIO);
-#endif
+			}
+			NET_EPOCH_EXIT(et);
 			if (sin6->sin6_scope_id != 0 &&
 			    zoneid != sin6->sin6_scope_id) {
 				log(LOG_NOTICE,
