@@ -510,11 +510,9 @@ legacy_pcib_attach(device_t dev)
 {
 #ifdef __HAVE_PIR
 	device_t pir;
-#endif
 	int bus;
 
 	bus = pcib_get_bus(dev);
-#ifdef __HAVE_PIR
 	/*
 	 * Look for a PCI BIOS interrupt routing table as that will be
 	 * our method of routing interrupts if we have one.
