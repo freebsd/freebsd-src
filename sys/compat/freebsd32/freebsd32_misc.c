@@ -3716,6 +3716,7 @@ freebsd32_fcntl(struct thread *td, struct freebsd32_fcntl_args *uap)
 	case F_OGETLK:
 	case F_OSETLK:
 	case F_OSETLKW:
+	case F_KINFO:
 		tmp = (unsigned int)(uap->arg);
 		break;
 	default:
