@@ -1201,7 +1201,7 @@ vm_reserv_init(void)
 		 * partially populated reservation queues.
 		 */
 		rvd->marker.popcnt = VM_LEVEL_0_NPAGES;
-		for (j = 0; j < NBPOPMAP; j++)
+		for (j = 0; j < VM_LEVEL_0_NPAGES; j++)
 			popmap_set(rvd->marker.popmap, j);
 	}
 
