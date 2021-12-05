@@ -501,7 +501,7 @@ SYSCTL_INT(_vfs_ffs, OID_AUTO, dotrimcons, CTLFLAG_RWTUN, &dotrimcons, 0,
 
 static int maxclustersearch = 10;
 SYSCTL_INT(_vfs_ffs, OID_AUTO, maxclustersearch, CTLFLAG_RW, &maxclustersearch,
-0, "max number of cylinder group to search for continuous blocks");
+0, "max number of cylinder group to search for contigous blocks");
 
 #ifdef DIAGNOSTIC
 static int prtrealloc = 0;
