@@ -184,7 +184,7 @@ struct node_queue_opt {
 };
 
 #define QPRI_BITSET_SIZE	256
-BITSET_DEFINE(qpri_bitset, QPRI_BITSET_SIZE);
+__BITSET_DEFINE(qpri_bitset, QPRI_BITSET_SIZE);
 LIST_HEAD(gen_sc, segment);
 
 struct pfctl_altq {

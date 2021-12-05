@@ -7,6 +7,8 @@
  * the FreeBSD Foundation.
  */
 
+#define _WANT_FREEBSD_BITSET
+
 #include <sys/types.h>
 #include <sys/_bitset.h>
 #include <sys/bitset.h>
