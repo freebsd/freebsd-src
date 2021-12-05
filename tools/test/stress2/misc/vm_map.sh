@@ -44,7 +44,7 @@ rm -f vm_map.c
 pages=$((`sysctl -n hw.usermem` / `sysctl -n hw.pagesize`))
 [ `sysctl -n vm.swap_total` -eq 0 ] &&
     pages=$((pages / 10 * 8))
-/tmp/vm_map $pages
+proccontrol -m aslr -s disable /tmp/vm_map $pages
 
 rm -f /tmp/vm_map
 exit $s
