@@ -1122,7 +1122,7 @@ int
 cpufreq_unregister(device_t dev)
 {
 	device_t cf_dev;
-	struct cpufreq_softc *sc;
+	struct cpufreq_softc *sc __diagused;
 
 	/*
 	 * If this is the last cpufreq child device, remove the control
