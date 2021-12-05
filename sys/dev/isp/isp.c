@@ -3064,7 +3064,10 @@ isp_intr_respq(ispsoftc_t *isp)
 	isphdr_t *hp;
 	uint8_t *resp, *snsp, etype;
 	uint16_t scsi_status;
-	uint32_t iptr, cont = 0, cptr, optr, rlen, slen, sptr, totslen;
+	uint32_t iptr, cont = 0, cptr, optr, rlen, slen, totslen;
+#ifdef	ISP_TARGET_MODE
+	uint32_t sptr;
+#endif
 
 	/*
 	 * We can't be getting this now.
@@ -3077,7 +3080,10 @@ isp_intr_respq(ispsoftc_t *isp)
 	iptr = ISP_READ(isp, BIU2400_RSPINP);
 	optr = isp->isp_resodx;
 	while (optr != iptr) {
-		sptr = cptr = optr;
+		cptr = optr;
+#ifdef	ISP_TARGET_MODE
+		sptr = optr;
+#endif
 		hp = (isphdr_t *) ISP_QUEUE_ENTRY(isp->isp_result, cptr);
 		optr = ISP_NXT_QENTRY(optr, RESULT_QUEUE_LEN(isp));
 
