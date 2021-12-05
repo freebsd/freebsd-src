@@ -158,7 +158,6 @@ static int
 cvm_page_apply(vm_page_t *pages, int off, int len,
     int (*f)(void *, const void *, u_int), void *arg)
 {
-	int processed = 0;
 	unsigned count;
 	int rval;
 
@@ -170,7 +169,6 @@ cvm_page_apply(vm_page_t *pages, int off, int len,
 		if (rval)
 			return (rval);
 		len -= count;
-		processed += count;
 		off = 0;
 		pages++;
 	}
