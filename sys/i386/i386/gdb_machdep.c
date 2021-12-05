@@ -100,7 +100,7 @@ int
 gdb_cpu_signal(int type, int code)
 {
 
-	switch (type & ~T_USER) {
+	switch (type) {
 	case T_BPTFLT: return (SIGTRAP);
 	case T_ARITHTRAP: return (SIGFPE);
 	case T_PROTFLT: return (SIGSEGV);
