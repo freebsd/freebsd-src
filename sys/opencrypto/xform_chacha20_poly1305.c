@@ -68,7 +68,7 @@ static void
 chacha20_poly1305_crypt(void *vctx, const uint8_t *in, uint8_t *out)
 {
 	struct chacha20_poly1305_cipher_ctx *ctx = vctx;
-	int error;
+	int error __diagused;
 
 	if (ctx->ietf)
 		error = crypto_stream_chacha20_ietf_xor_ic(out, in,
@@ -86,7 +86,7 @@ chacha20_poly1305_crypt_last(void *vctx, const uint8_t *in, uint8_t *out,
 {
 	struct chacha20_poly1305_cipher_ctx *ctx = vctx;
 
-	int error;
+	int error __diagused;
 
 	if (ctx->ietf)
 		error = crypto_stream_chacha20_ietf_xor_ic(out, in, len,

@@ -1550,8 +1550,6 @@ swcr_newsession(device_t dev, crypto_session_t cses,
     const struct crypto_session_params *csp)
 {
 	struct swcr_session *ses;
-	struct swcr_encdec *swe;
-	struct swcr_auth *swa;
 	const struct comp_algo *cxf;
 	int error;
 
@@ -1559,8 +1557,6 @@ swcr_newsession(device_t dev, crypto_session_t cses,
 	mtx_init(&ses->swcr_lock, "swcr session lock", NULL, MTX_DEF);
 
 	error = 0;
-	swe = &ses->swcr_encdec;
-	swa = &ses->swcr_auth;
 	switch (csp->csp_mode) {
 	case CSP_MODE_COMPRESS:
 		switch (csp->csp_cipher_alg) {
