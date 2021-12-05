@@ -28,6 +28,8 @@
  * $FreeBSD$
  */
 
+#define _WANT_FREEBSD_BITSET
+
 #include <sys/param.h>
 #include <sys/counter.h>
 #include <sys/cpuset.h>

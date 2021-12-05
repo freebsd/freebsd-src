@@ -33,20 +33,16 @@
 #include <sys/types.h>
 #include <sys/sched.h>
 #if __BSD_VISIBLE
-#ifdef _WITH_CPU_SET_T
 #include <sys/cpuset.h>
 struct _cpuset;
 typedef struct _cpuset cpu_set_t;
-#endif /* _WITH_CPU_SET_T */
 #endif /* __BSD_VISIBLE */
 
 __BEGIN_DECLS
 #if __BSD_VISIBLE
-#ifdef _WITH_CPU_SET_T
 int sched_getaffinity(pid_t pid, size_t cpusetsz, cpuset_t *cpuset);
 int sched_setaffinity(int pid, size_t cpusetsz, const cpuset_t *cpuset);
 int sched_getcpu(void);
-#endif /* _WITH_CPU_SET_T */
 #endif /* __BSD_VISIBLE */
 __END_DECLS
 
