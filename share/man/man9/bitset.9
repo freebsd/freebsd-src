@@ -164,6 +164,7 @@
 .Fo BIT_COPY_STORE_REL
 .Fa "const SETSIZE" "struct STRUCTNAME *from" "struct STRUCTNAME *to"
 .Fc
+.Fd #define _WANT_FREEBSD_BITSET
 .Sh DESCRIPTION
 The
 .Nm
@@ -178,6 +179,16 @@ One example use of
 .In sys/bitset.h
 is
 .In sys/cpuset.h .
+.Pp
+These macros are meant to be used in the kernel and are visible if
+.Dv _KERNEL is defined when
+.In sys/_bitset.h
+or
+.In sys/bitset.h
+are included in a program.
+Userland programs must define 
+.Dv _WANT_FREEBSD_BITSET
+before including these files to make the macros visible.
 .Pp
 The
 .Fn BITSET_DEFINE
@@ -584,3 +595,17 @@ Unlike every other reference to individual set members, which are zero-indexed,
 and
 .Fn BIT_FLS
 return a one-indexed result (or zero if the set is empty).
+.Pp
+In order to use the macros defined in
+.In sys/bitset.h
+and
+.In sys/_bitset.h
+in userland programs,
+.Dv _WANT_FREEBSD_BITSET
+has to be defined before including the header files.
+This requirements exists to prevent a name space pollution due to macros defined in
+.Nm
+in programs that include
+.In sys/cpuset.h
+or
+.In sched.h .

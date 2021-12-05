@@ -43,7 +43,7 @@
 #define	DOMAINSET_SETSIZE	DOMAINSET_MAXSIZE
 #endif
 
-BITSET_DEFINE(_domainset, DOMAINSET_SETSIZE);
+__BITSET_DEFINE(_domainset, DOMAINSET_SETSIZE);
 typedef struct _domainset domainset_t;
 
 /*
