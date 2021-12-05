@@ -367,13 +367,13 @@ void FuseTest::expect_opendir(uint64_t ino)
 }
 
 void FuseTest::expect_read(uint64_t ino, uint64_t offset, uint64_t isize,
-	uint64_t osize, const void *contents, int flags)
+	uint64_t osize, const void *contents, int flags, uint64_t fh)
 {
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
 			return (in.header.opcode == FUSE_READ &&
 				in.header.nodeid == ino &&
-				in.body.read.fh == FH &&
+				in.body.read.fh == fh &&
 				in.body.read.offset == offset &&
 				in.body.read.size == isize &&
 				(flags == -1 ?
