@@ -135,6 +135,7 @@ static const struct {
 	{0x3b298086, 0x00, "Intel Ibex Peak-M",	0},
 	{0x3b2c8086, 0x00, "Intel Ibex Peak-M (RAID)",	0},
 	{0x3b2f8086, 0x00, "Intel Ibex Peak-M",	0},
+	{0x06d68086, 0x00, "Intel Comet Lake (RAID)", 0},
 	{0x19b08086, 0x00, "Intel Denverton",	0},
 	{0x19b18086, 0x00, "Intel Denverton",	0},
 	{0x19b28086, 0x00, "Intel Denverton",	0},
