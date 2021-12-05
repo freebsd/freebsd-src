@@ -270,6 +270,7 @@ typedef	__pid_t		pid_t;
 #define	F_ADD_SEALS	19
 #define	F_GET_SEALS	20
 #define	F_ISUNIONSTACK	21		/* Kludge for libc, don't use it. */
+#define	F_KINFO		22		/* Return kinfo_file for this fd */
 
 /* Seals (F_ADD_SEALS, F_GET_SEALS). */
 #define	F_SEAL_SEAL	0x0001		/* Prevent adding sealings */

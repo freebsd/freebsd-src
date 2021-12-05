@@ -28,7 +28,7 @@
 .\"     @(#)fcntl.2	8.2 (Berkeley) 1/12/94
 .\" $FreeBSD$
 .\"
-.Dd January 6, 2021
+.Dd December 7, 2021
 .Dt FCNTL 2
 .Os
 .Sh NAME
@@ -53,7 +53,7 @@ Depending on the value of
 .Fa cmd ,
 .Fn fcntl
 can take an additional third argument
-.Fa "int arg" .
+.Fa "long arg" .
 .Bl -tag -width F_DUP2FD_CLOEXEC
 .It Dv F_DUPFD
 Return a new descriptor as follows:
@@ -190,6 +190,19 @@ Check if the vnode is part of a union stack (either the "union" flag from
 .Xr mount 2
 or unionfs).
 This is a hack not intended to be used outside of libc.
+.It Dv F_KINFO
+Fills a
+.Vt struct kinfo_file
+for the file referenced by the specified file descriptor.
+The
+.Fa arg
+argument should point to the storage for
+.Vt struct kinfo_file .
+The
+.Va kf_structsize
+member of the passed structure must be initialized with the sizeof of
+.Vt struct kinfo_file ,
+to allow for the interface versioning and evolution.
 .El
 .Pp
 The flags for the

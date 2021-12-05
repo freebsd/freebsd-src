@@ -480,7 +480,8 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 	struct proc *p;
 	struct vnode *vp;
 	struct mount *mp;
-	int error, flg, seals, tmp;
+	struct kinfo_file *kif;
+	int error, flg, kif_sz, seals, tmp;
 	uint64_t bsize;
 	off_t foffset;
 
@@ -853,6 +854,41 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		    mp->mnt_flag & MNT_UNION)
 			td->td_retval[0] = 1;
 		fdrop(fp, td);
+		break;
+
+	case F_KINFO:
+#ifdef CAPABILITY_MODE
+		if (IN_CAPABILITY_MODE(td)) {
+			error = ECAPMODE;
+			break;
+		}
+#endif
+		error = copyin((void *)arg, &kif_sz, sizeof(kif_sz));
+		if (error != 0)
+			break;
+		if (kif_sz != sizeof(*kif)) {
+			error = EINVAL;
+			break;
+		}
+		kif = malloc(sizeof(*kif), M_TEMP, M_WAITOK | M_ZERO);
+		FILEDESC_SLOCK(fdp);
+		error = fget_cap_locked(fdp, fd, &cap_fcntl_rights, &fp, NULL);
+		if (error == 0 && fhold(fp)) {
+			export_file_to_kinfo(fp, fd, NULL, kif, fdp, 0);
+			FILEDESC_SUNLOCK(fdp);
+			fdrop(fp, td);
+			if ((kif->kf_status & KF_ATTR_VALID) != 0) {
+				kif->kf_structsize = sizeof(*kif);
+				error = copyout(kif, (void *)arg, sizeof(*kif));
+			} else {
+				error = EBADF;
+			}
+		} else {
+			FILEDESC_SUNLOCK(fdp);
+			if (error == 0)
+				error = EBADF;
+		}
+		free(kif, M_TEMP);
 		break;
 
 	default:
