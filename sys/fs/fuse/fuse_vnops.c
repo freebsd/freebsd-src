@@ -318,6 +318,59 @@ fuse_fifo_close(struct vop_close_args *ap)
 	return (fifo_specops.vop_close(ap));
 }
 
+/* Invalidate a range of cached data, whether dirty of not */
+static int
+fuse_inval_buf_range(struct vnode *vp, off_t filesize, off_t start, off_t end)
+{
+	struct buf *bp;
+	daddr_t left_lbn, end_lbn, right_lbn;
+	off_t new_filesize;
+	int iosize, left_on, right_on, right_blksize;
+
+	iosize = fuse_iosize(vp);
+	left_lbn = start / iosize;
+	end_lbn = howmany(end, iosize);
+	left_on = start & (iosize - 1);
+	if (left_on != 0) {
+		bp = getblk(vp, left_lbn, iosize, PCATCH, 0, 0);
+		if ((bp->b_flags & B_CACHE) != 0 && bp->b_dirtyend >= left_on) {
+			/*
+			 * Flush the dirty buffer, because we don't have a
+			 * byte-granular way to record which parts of the
+			 * buffer are valid.
+			 */
+			bwrite(bp);
+			if (bp->b_error)
+				return (bp->b_error);
+		} else {
+			brelse(bp);
+		}
+	}
+	right_on = end & (iosize - 1);
+	if (right_on != 0) {
+		right_lbn = end / iosize;
+		new_filesize = MAX(filesize, end);
+		right_blksize = MIN(iosize, new_filesize - iosize * right_lbn);
+		bp = getblk(vp, right_lbn, right_blksize, PCATCH, 0, 0);
+		if ((bp->b_flags & B_CACHE) != 0 && bp->b_dirtyoff < right_on) {
+			/*
+			 * Flush the dirty buffer, because we don't have a
+			 * byte-granular way to record which parts of the
+			 * buffer are valid.
+			 */
+			bwrite(bp);
+			if (bp->b_error)
+				return (bp->b_error);
+		} else {
+			brelse(bp);
+		}
+	}
+
+	v_inval_buf_range(vp, left_lbn, end_lbn, iosize);
+	return (0);
+}
+
+
 /* Send FUSE_LSEEK for this node */
 static int
 fuse_vnop_do_lseek(struct vnode *vp, struct thread *td, struct ucred *cred,
@@ -1587,6 +1640,8 @@ fuse_vnop_pathconf(struct vop_pathconf_args *ap)
 	}
 }
 
+SDT_PROBE_DEFINE3(fusefs, , vnops, filehandles_closed, "struct vnode*",
+    "struct uio*", "struct ucred*");
 /*
     struct vnop_read_args {
 	struct vnode *a_vp;
@@ -1603,6 +1658,11 @@ fuse_vnop_read(struct vop_read_args *ap)
 	int ioflag = ap->a_ioflag;
 	struct ucred *cred = ap->a_cred;
 	pid_t pid = curthread->td_proc->p_pid;
+	struct fuse_filehandle *fufh;
+	int err;
+	bool closefufh = false, directio;
+
+	MPASS(vp->v_type == VREG || vp->v_type == VDIR);
 
 	if (fuse_isdeadfs(vp)) {
 		return ENXIO;
@@ -1612,7 +1672,45 @@ fuse_vnop_read(struct vop_read_args *ap)
 		ioflag |= IO_DIRECT;
 	}
 
-	return fuse_io_dispatch(vp, uio, ioflag, cred, pid);
+	err = fuse_filehandle_getrw(vp, FREAD, &fufh, cred, pid);
+	if (err == EBADF && vnode_mount(vp)->mnt_flag & MNT_EXPORTED) {
+		/*
+		 * nfsd will do I/O without first doing VOP_OPEN.  We
+		 * must implicitly open the file here
+		 */
+		err = fuse_filehandle_open(vp, FREAD, &fufh, curthread, cred);
+		closefufh = true;
+	}
+	if (err) {
+		SDT_PROBE3(fusefs, , vnops, filehandles_closed, vp, uio, cred);
+		return err;
+	}
+
+	/*
+         * Ideally, when the daemon asks for direct io at open time, the
+         * standard file flag should be set according to this, so that would
+         * just change the default mode, which later on could be changed via
+         * fcntl(2).
+         * But this doesn't work, the O_DIRECT flag gets cleared at some point
+         * (don't know where). So to make any use of the Fuse direct_io option,
+         * we hardwire it into the file's private data (similarly to Linux,
+         * btw.).
+         */
+	directio = (ioflag & IO_DIRECT) || !fsess_opt_datacache(vnode_mount(vp));
+
+	fuse_vnode_update(vp, FN_ATIMECHANGE);
+	if (directio) {
+		SDT_PROBE2(fusefs, , vnops, trace, 1, "direct read of vnode");
+		err = fuse_read_directbackend(vp, uio, cred, fufh);
+	} else {
+		SDT_PROBE2(fusefs, , vnops, trace, 1, "buffered read of vnode");
+		err = fuse_read_biobackend(vp, uio, ioflag, cred, fufh, pid);
+	}
+
+	if (closefufh)
+		fuse_filehandle_close(vp, fufh, curthread, cred);
+
+	return (err);
 }
 
 /*
@@ -2165,6 +2263,11 @@ fuse_vnop_write(struct vop_write_args *ap)
 	int ioflag = ap->a_ioflag;
 	struct ucred *cred = ap->a_cred;
 	pid_t pid = curthread->td_proc->p_pid;
+	struct fuse_filehandle *fufh;
+	int err;
+	bool closefufh = false, directio;
+
+	MPASS(vp->v_type == VREG || vp->v_type == VDIR);
 
 	if (fuse_isdeadfs(vp)) {
 		return ENXIO;
@@ -2174,7 +2277,67 @@ fuse_vnop_write(struct vop_write_args *ap)
 		ioflag |= IO_DIRECT;
 	}
 
-	return fuse_io_dispatch(vp, uio, ioflag, cred, pid);
+	err = fuse_filehandle_getrw(vp, FWRITE, &fufh, cred, pid);
+	if (err == EBADF && vnode_mount(vp)->mnt_flag & MNT_EXPORTED) {
+		/*
+		 * nfsd will do I/O without first doing VOP_OPEN.  We
+		 * must implicitly open the file here
+		 */
+		err = fuse_filehandle_open(vp, FWRITE, &fufh, curthread, cred);
+		closefufh = true;
+	}
+	if (err) {
+		SDT_PROBE3(fusefs, , vnops, filehandles_closed, vp, uio, cred);
+		return err;
+	}
+
+	/*
+         * Ideally, when the daemon asks for direct io at open time, the
+         * standard file flag should be set according to this, so that would
+         * just change the default mode, which later on could be changed via
+         * fcntl(2).
+         * But this doesn't work, the O_DIRECT flag gets cleared at some point
+         * (don't know where). So to make any use of the Fuse direct_io option,
+         * we hardwire it into the file's private data (similarly to Linux,
+         * btw.).
+         */
+	directio = (ioflag & IO_DIRECT) || !fsess_opt_datacache(vnode_mount(vp));
+
+	fuse_vnode_update(vp, FN_MTIMECHANGE | FN_CTIMECHANGE);
+	if (directio) {
+		off_t start, end, filesize;
+		bool pages = (ioflag & IO_VMIO) != 0;
+
+		SDT_PROBE2(fusefs, , vnops, trace, 1, "direct write of vnode");
+
+		err = fuse_vnode_size(vp, &filesize, cred, curthread);
+		if (err)
+			goto out;
+
+		start = uio->uio_offset;
+		end = start + uio->uio_resid;
+		if (!pages) {
+			err = fuse_inval_buf_range(vp, filesize, start,
+			    end);
+			if (err)
+				goto out;
+		}
+		err = fuse_write_directbackend(vp, uio, cred, fufh,
+			filesize, ioflag, pages);
+	} else {
+		SDT_PROBE2(fusefs, , vnops, trace, 1,
+			"buffered write of vnode");
+		if (!fsess_opt_writeback(vnode_mount(vp)))
+			ioflag |= IO_SYNC;
+		err = fuse_write_biobackend(vp, uio, cred, fufh, ioflag, pid);
+	}
+	fuse_internal_clear_suid_on_write(vp, cred, uio->uio_td);
+
+out:
+	if (closefufh)
+		fuse_filehandle_close(vp, fufh, curthread, cred);
+
+	return (err);
 }
 
 static daddr_t

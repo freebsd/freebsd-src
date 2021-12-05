@@ -65,10 +65,17 @@
 #ifndef _FUSE_IO_H_
 #define _FUSE_IO_H_
 
-int fuse_io_dispatch(struct vnode *vp, struct uio *uio, int ioflag,
-    struct ucred *cred, pid_t pid);
 int fuse_io_strategy(struct vnode *vp, struct buf *bp);
 int fuse_io_flushbuf(struct vnode *vp, int waitfor, struct thread *td);
 int fuse_io_invalbuf(struct vnode *vp, struct thread *td);
+int fuse_read_directbackend(struct vnode *vp, struct uio *uio,
+    struct ucred *cred, struct fuse_filehandle *fufh);
+int fuse_read_biobackend(struct vnode *vp, struct uio *uio, int ioflag,
+    struct ucred *cred, struct fuse_filehandle *fufh, pid_t pid);
+int fuse_write_directbackend(struct vnode *vp, struct uio *uio,
+    struct ucred *cred, struct fuse_filehandle *fufh, off_t filesize,
+    int ioflag, bool pages);
+int fuse_write_biobackend(struct vnode *vp, struct uio *uio,
+    struct ucred *cred, struct fuse_filehandle *fufh, int ioflag, pid_t pid);
 
 #endif /* _FUSE_IO_H_ */
