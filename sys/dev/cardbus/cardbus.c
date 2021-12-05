@@ -317,10 +317,8 @@ static int
 cardbus_read_ivar(device_t cbdev, device_t child, int which, uintptr_t *result)
 {
 	struct cardbus_devinfo *dinfo;
-	pcicfgregs *cfg;
 
 	dinfo = device_get_ivars(child);
-	cfg = &dinfo->pci.cfg;
 
 	switch (which) {
 	case PCI_IVAR_ETHADDR:
