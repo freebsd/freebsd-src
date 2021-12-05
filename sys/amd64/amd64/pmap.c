@@ -6140,7 +6140,7 @@ pmap_remove_pde(pmap_t pmap, pd_entry_t *pdq, vm_offset_t sva,
 		if (mpte != NULL) {
 			KASSERT(mpte->valid == VM_PAGE_BITS_ALL,
 			    ("pmap_remove_pde: pte page not promoted"));
-			pmap_resident_count_adj(pmap, -1);
+			pmap_pt_page_count_adj(pmap, -1);
 			KASSERT(mpte->ref_count == NPTEPG,
 			    ("pmap_remove_pde: pte page ref count error"));
 			mpte->ref_count = 0;
@@ -8408,7 +8408,7 @@ pmap_remove_pages(pmap_t pmap)
 					if (mpte != NULL) {
 						KASSERT(mpte->valid == VM_PAGE_BITS_ALL,
 						    ("pmap_remove_pages: pte page not promoted"));
-						pmap_resident_count_adj(pmap, -1);
+						pmap_pt_page_count_adj(pmap, -1);
 						KASSERT(mpte->ref_count == NPTEPG,
 						    ("pmap_remove_pages: pte page reference count error"));
 						mpte->ref_count = 0;
