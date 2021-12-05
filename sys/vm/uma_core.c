@@ -331,7 +331,7 @@ static uma_keg_t uma_kcreate(uma_zone_t zone, size_t size, uma_init uminit,
 static int zone_import(void *, void **, int, int, int);
 static void zone_release(void *, void **, int);
 static bool cache_alloc(uma_zone_t, uma_cache_t, void *, int);
-static bool cache_free(uma_zone_t, uma_cache_t, void *, void *, int);
+static bool cache_free(uma_zone_t, uma_cache_t, void *, int);
 
 static int sysctl_vm_zone_count(SYSCTL_HANDLER_ARGS);
 static int sysctl_vm_zone_stats(SYSCTL_HANDLER_ARGS);
@@ -4410,7 +4410,7 @@ uma_zfree_smr(uma_zone_t zone, void *item)
 			critical_exit();
 			return;
 		}
-	} while (cache_free(zone, cache, NULL, item, itemdomain));
+	} while (cache_free(zone, cache, NULL, itemdomain));
 	critical_exit();
 
 	/*
@@ -4504,7 +4504,7 @@ uma_zfree_arg(uma_zone_t zone, void *item, void *udata)
 			critical_exit();
 			return;
 		}
-	} while (cache_free(zone, cache, udata, item, itemdomain));
+	} while (cache_free(zone, cache, udata, itemdomain));
 	critical_exit();
 
 	/*
@@ -4645,8 +4645,7 @@ zone_free_bucket(uma_zone_t zone, uma_bucket_t bucket, void *udata,
  * the caller should retry.
  */
 static __noinline bool
-cache_free(uma_zone_t zone, uma_cache_t cache, void *udata, void *item,
-    int itemdomain)
+cache_free(uma_zone_t zone, uma_cache_t cache, void *udata, int itemdomain)
 {
 	uma_cache_bucket_t cbucket;
 	uma_bucket_t newbucket, bucket;
