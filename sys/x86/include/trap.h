@@ -66,7 +66,4 @@
 #define	T_RESERVED	30	/* reserved (unknown) */
 #define	T_DTRACE_RET	32	/* DTrace pid return */
 
-/* Trap's coming from user mode */
-#define	T_USER	0x100
-
 #endif /* !_MACHINE_TRAP_H_ */
