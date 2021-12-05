@@ -720,6 +720,7 @@ fuse_vnop_copy_file_range(struct vop_copy_file_range_args *ap)
 	struct fuse_write_out *fwo;
 	struct thread *td;
 	struct uio io;
+	off_t outfilesize;
 	pid_t pid;
 	int err;
 
@@ -774,6 +775,15 @@ fuse_vnop_copy_file_range(struct vop_copy_file_range_args *ap)
 		if (err)
 			goto unlock;
 	}
+
+	err = fuse_vnode_size(outvp, &outfilesize, outcred, curthread);
+	if (err)
+		goto unlock;
+
+	err = fuse_inval_buf_range(outvp, outfilesize, *ap->a_outoffp,
+		*ap->a_outoffp + *ap->a_lenp);
+	if (err)
+		goto unlock;
 
 	fdisp_init(&fdi, sizeof(*fcfri));
 	fdisp_make_vp(&fdi, FUSE_COPY_FILE_RANGE, invp, td, incred);
