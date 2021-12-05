@@ -502,18 +502,6 @@ abort_with_hash_wlock:
 	return (err);
 }
 
-/*
- * Different protocols initialize their inpcbs differently - giving
- * different name to the lock.  But they all are disposed the same.
- */
-static void
-inpcb_fini(void *mem, int size)
-{
-	struct inpcb *inp = mem;
-
-	INP_LOCK_DESTROY(inp);
-}
-
 /* Make sure it is safe to use hashinit(9) on CK_LIST. */
 CTASSERT(sizeof(struct inpcbhead) == sizeof(LIST_HEAD(, inpcb)));
 
@@ -521,6 +509,8 @@ CTASSERT(sizeof(struct inpcbhead) == sizeof(LIST_HEAD(, inpcb)));
  * Initialize an inpcbinfo -- we should be able to reduce the number of
  * arguments in time.
  */
+static void inpcb_dtor(void *, int, void *);
+static void inpcb_fini(void *, int);
 void
 in_pcbinfo_init(struct inpcbinfo *pcbinfo, const char *name,
     u_int hash_nelements, int porthash_nelements, char *inpcbzone_name,
@@ -542,7 +532,7 @@ in_pcbinfo_init(struct inpcbinfo *pcbinfo, const char *name,
 	pcbinfo->ipi_lbgrouphashbase = hashinit(porthash_nelements, M_PCB,
 	    &pcbinfo->ipi_lbgrouphashmask);
 	pcbinfo->ipi_zone = uma_zcreate(inpcbzone_name, sizeof(struct inpcb),
-	    NULL, NULL, inpcbzone_init, inpcb_fini, UMA_ALIGN_PTR,
+	    NULL, inpcb_dtor, inpcbzone_init, inpcb_fini, UMA_ALIGN_PTR,
 	    UMA_ZONE_SMR);
 	uma_zone_set_max(pcbinfo->ipi_zone, maxsockets);
 	uma_zone_set_warning(pcbinfo->ipi_zone,
@@ -644,7 +634,6 @@ in_pcballoc(struct socket *so, struct inpcbinfo *pcbinfo)
 
 #if defined(IPSEC) || defined(IPSEC_SUPPORT) || defined(MAC)
 out:
-	crfree(inp->inp_cred);
 	uma_zfree_smr(pcbinfo->ipi_zone, inp);
 	return (error);
 #endif
@@ -1833,7 +1822,6 @@ in_pcbfree(struct inpcb *inp)
 		inp->inp_flags &= ~INP_INHASHLIST;
 	}
 
-	crfree(inp->inp_cred);
 	RO_INVALIDATE_CACHE(&inp->inp_route);
 #ifdef MAC
 	mac_inpcb_destroy(inp);
@@ -1864,6 +1852,30 @@ in_pcbfree(struct inpcb *inp)
 #ifdef INET
 	inp_freemoptions(imo);
 #endif
+	/* Destruction is finalized in inpcb_dtor(). */
+}
+
+static void
+inpcb_dtor(void *mem, int size, void *arg)
+{
+	struct inpcb *inp = mem;
+
+	crfree(inp->inp_cred);
+#ifdef INVARIANTS
+	inp->inp_cred = NULL;
+#endif
+}
+
+/*
+ * Different protocols initialize their inpcbs differently - giving
+ * different name to the lock.  But they all are disposed the same.
+ */
+static void
+inpcb_fini(void *mem, int size)
+{
+	struct inpcb *inp = mem;
+
+	INP_LOCK_DESTROY(inp);
 }
 
 /*
