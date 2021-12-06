@@ -61,6 +61,9 @@
 	(_cond) ? 0 : (-ETIMEDOUT);						\
 })
 
+#define readx_poll_timeout(_pollfp, _addr, _var, _cond, _us, _to)		\
+	read_poll_timeout(_pollfp, _var, _cond, _us, _to, false, _addr)
+
 #define	read_poll_timeout_atomic(_pollfp, _var, _cond, _us, _to, _early_sleep, ...)	\
 ({										\
 	struct timeval __now, __end;						\
