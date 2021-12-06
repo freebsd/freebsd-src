@@ -25,6 +25,7 @@
  */
 
 #include "_libdwarf.h"
+#include <zlib.h>
 
 ELFTC_VCSID("$Id: libdwarf_elf_init.c 3475 2016-05-18 18:11:26Z emaste $");
 
@@ -168,21 +169,28 @@ _dwarf_elf_relocate(Dwarf_Debug dbg, Elf *elf, Dwarf_Elf_Data *ed, size_t shndx,
 					return (DW_DLE_NONE);
 			}
 
-			ed->ed_alloc = malloc(ed->ed_data->d_size);
+			/*
+			 * A copy may already have been created if the section
+			 * is compressed.
+			 */
 			if (ed->ed_alloc == NULL) {
-				DWARF_SET_ERROR(dbg, error, DW_DLE_MEMORY);
-				return (DW_DLE_MEMORY);
+				ed->ed_alloc = malloc(ed->ed_size);
+				if (ed->ed_alloc == NULL) {
+					DWARF_SET_ERROR(dbg, error,
+					    DW_DLE_MEMORY);
+					return (DW_DLE_MEMORY);
+				}
+				memcpy(ed->ed_alloc, ed->ed_data->d_buf,
+				    ed->ed_size);
 			}
-			memcpy(ed->ed_alloc, ed->ed_data->d_buf,
-			    ed->ed_data->d_size);
 			if (sh.sh_type == SHT_REL)
 				_dwarf_elf_apply_rel_reloc(dbg,
-				    ed->ed_alloc, ed->ed_data->d_size,
+				    ed->ed_alloc, ed->ed_size,
 				    rel, symtab_data, eh.e_ident[EI_DATA]);
 			else
 				_dwarf_elf_apply_rela_reloc(dbg,
-				    ed->ed_alloc, ed->ed_data->d_size,
-				    rel, symtab_data, eh.e_ident[EI_DATA]);
+				    ed->ed_alloc, ed->ed_size, rel, symtab_data,
+				    eh.e_ident[EI_DATA]);
 
 			return (DW_DLE_NONE);
 		}
@@ -196,13 +204,58 @@ _dwarf_elf_relocate(Dwarf_Debug dbg, Elf *elf, Dwarf_Elf_Data *ed, size_t shndx,
 	return (DW_DLE_NONE);
 }
 
+static int
+_dwarf_elf_decompress(Dwarf_Debug dbg, Dwarf_Elf_Object *e, Elf_Scn *scn,
+    Dwarf_Elf_Data *ed, GElf_Shdr *shdr, Dwarf_Error *error)
+{
+	GElf_Chdr chdr;
+	size_t hsize;
+	unsigned long csize;
+
+	if (gelf_getchdr(scn, &chdr) == NULL) {
+		DWARF_SET_ELF_ERROR(dbg, error);
+		return (DW_DLE_ELF);
+	}
+
+	if (chdr.ch_type != ELFCOMPRESS_ZLIB) {
+		DWARF_SET_ERROR(dbg, error, DW_DLE_COMPRESSION);
+		return (DW_DLE_COMPRESSION);
+	}
+
+	if ((ed->ed_alloc = malloc(chdr.ch_size)) == NULL) {
+		DWARF_SET_ERROR(dbg, error, DW_DLE_MEMORY);
+		return (DW_DLE_MEMORY);
+	}
+
+	csize = chdr.ch_size;
+	hsize = e->eo_ehdr.e_ident[EI_CLASS] == ELFCLASS64 ?
+	    sizeof(Elf64_Chdr) : sizeof(Elf32_Chdr);
+	if (uncompress(ed->ed_alloc, &csize, (char *)ed->ed_data->d_buf + hsize,
+	    ed->ed_data->d_size - hsize) != Z_OK) {
+		DWARF_SET_ERROR(dbg, error, DW_DLE_COMPRESSION);
+		return (DW_DLE_COMPRESSION);
+	}
+	/* Sanity check. */
+	if (csize != chdr.ch_size) {
+		DWARF_SET_ERROR(dbg, error, DW_DLE_COMPRESSION);
+		return (DW_DLE_COMPRESSION);
+	}
+
+	ed->ed_size = chdr.ch_size;
+	shdr->sh_size = chdr.ch_size;
+	shdr->sh_addralign = chdr.ch_addralign;
+
+	return (DW_DLE_NONE);
+}
+
 int
 _dwarf_elf_init(Dwarf_Debug dbg, Elf *elf, Dwarf_Error *error)
 {
 	Dwarf_Obj_Access_Interface *iface;
+	Dwarf_Elf_Data *ed;
 	Dwarf_Elf_Object *e;
 	const char *name;
-	GElf_Shdr sh;
+	GElf_Shdr *es, sh;
 	Elf_Scn *scn;
 	Elf_Data *symtab_data;
 	size_t symtab_ndx;
@@ -319,8 +372,6 @@ _dwarf_elf_init(Dwarf_Debug dbg, Elf *elf, Dwarf_Error *error)
 		if (sh.sh_type == SHT_NOBITS)
 			continue;
 
-		memcpy(&e->eo_shdr[j], &sh, sizeof(sh));
-
 		if ((name = elf_strptr(elf, e->eo_strndx, sh.sh_name)) ==
 		    NULL) {
 			DWARF_SET_ELF_ERROR(dbg, error);
@@ -328,13 +379,15 @@ _dwarf_elf_init(Dwarf_Debug dbg, Elf *elf, Dwarf_Error *error)
 			goto fail_cleanup;
 		}
 
+		ed = &e->eo_data[j];
+		es = &e->eo_shdr[j];
+		memcpy(es, &sh, sizeof(sh));
 		for (i = 0; debug_name[i] != NULL; i++) {
 			if (strcmp(name, debug_name[i]))
 				continue;
 
 			(void) elf_errno();
-			if ((e->eo_data[j].ed_data = elf_getdata(scn, NULL)) ==
-			    NULL) {
+			if ((ed->ed_data = elf_getdata(scn, NULL)) == NULL) {
 				elferr = elf_errno();
 				if (elferr != 0) {
 					_DWARF_SET_ERROR(dbg, error,
@@ -342,6 +395,14 @@ _dwarf_elf_init(Dwarf_Debug dbg, Elf *elf, Dwarf_Error *error)
 					ret = DW_DLE_ELF;
 					goto fail_cleanup;
 				}
+			}
+
+			if ((sh.sh_flags & SHF_COMPRESSED) != 0) {
+				if (_dwarf_elf_decompress(dbg, e, scn, ed,
+				    es, error) != DW_DLE_NONE)
+					goto fail_cleanup;
+			} else {
+				ed->ed_size = ed->ed_data->d_size;
 			}
 
 			if (_libdwarf.applyreloc) {
