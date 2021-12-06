@@ -1752,7 +1752,7 @@ static gdb_term_f ucom_gdbterm;
 static gdb_getc_f ucom_gdbgetc;
 static gdb_putc_f ucom_gdbputc;
 
-GDB_DBGPORT(sio, ucom_gdbprobe, ucom_gdbinit, ucom_gdbterm, ucom_gdbgetc, ucom_gdbputc);
+GDB_DBGPORT(ucom, ucom_gdbprobe, ucom_gdbinit, ucom_gdbterm, ucom_gdbgetc, ucom_gdbputc);
 
 static int
 ucom_gdbprobe(void)
