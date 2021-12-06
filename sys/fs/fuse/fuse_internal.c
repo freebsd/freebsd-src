@@ -1232,12 +1232,15 @@ int fuse_internal_setattr(struct vnode *vp, struct vattr *vap,
 	                 * STALE vnode, ditch
 	                 *
 			 * The vnode has changed its type "behind our back".
+			 * This probably means that the file got deleted and
+			 * recreated on the server, with the same inode.
 			 * There's nothing really we can do, so let us just
-			 * force an internal revocation and tell the caller to
-			 * try again, if interested.
+			 * return ENOENT.  After all, the entry must not have
+			 * existed in the recent past.  If the user tries
+			 * again, it will work.
 	                 */
 			fuse_internal_vnode_disappear(vp);
-			err = EAGAIN;
+			err = ENOENT;
 		}
 	}
 	if (err == 0) {

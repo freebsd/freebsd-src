@@ -724,6 +724,53 @@ TEST_F(Setattr, utimensat_utime_now) {
 	EXPECT_EQ(now[1].tv_nsec, sb.st_mtim.tv_nsec);
 }
 
+/*
+ * FUSE_SETATTR returns a different file type, even though the entry cache
+ * hasn't expired.  This is a server bug!  It probably means that the server
+ * removed the file and recreated it with the same inode but a different vtyp.
+ * The best thing fusefs can do is return ENOENT to the caller.  After all, the
+ * entry must not have existed recently.
+ */
+TEST_F(Setattr, vtyp_conflict)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	const uint64_t ino = 42;
+	uid_t newuser = 12345;
+	sem_t sem;
+
+	ASSERT_EQ(0, sem_init(&sem, 0, 0)) << strerror(errno);
+
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELPATH)
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
+		SET_OUT_HEADER_LEN(out, entry);
+		out.body.entry.attr.mode = S_IFREG | 0777;
+		out.body.entry.nodeid = ino;
+		out.body.entry.entry_valid = UINT64_MAX;
+	})));
+
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([](auto in) {
+			return (in.header.opcode == FUSE_SETATTR &&
+				in.header.nodeid == ino);
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
+		SET_OUT_HEADER_LEN(out, attr);
+		out.body.attr.attr.ino = ino;
+		out.body.attr.attr.mode = S_IFDIR | 0777;	// Changed!
+		out.body.attr.attr.uid = newuser;
+	})));
+	// We should reclaim stale vnodes
+	expect_forget(ino, 1, &sem);
+
+	EXPECT_NE(0, chown(FULLPATH, newuser, -1));
+	EXPECT_EQ(ENOENT, errno);
+
+	sem_wait(&sem);
+	sem_destroy(&sem);
+}
+
 /* On a read-only mount, no attributes may be changed */
 TEST_F(RofsSetattr, erofs)
 {
