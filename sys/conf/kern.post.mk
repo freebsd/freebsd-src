@@ -50,6 +50,10 @@ MKMODULESENV+=	SAN_CFLAGS="${SAN_CFLAGS}"
 MKMODULESENV+=	GCOV_CFLAGS="${GCOV_CFLAGS}"
 .endif
 
+.if !empty(COMPAT_FREEBSD32_ENABLED)
+MKMODULESENV+=	COMPAT_FREEBSD32_ENABLED="yes"
+.endif
+
 # Allow overriding the kernel debug directory, so kernel and user debug may be
 # installed in different directories. Setting it to "" restores the historical
 # behavior of installing debug files in the kernel directory.
