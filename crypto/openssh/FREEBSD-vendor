@@ -1,6 +1,0 @@
-# $FreeBSD$
-Project:	Portable OpenSSH
-ProjectURL:	http://www.openssh.com/portable.html
-Version:	8.7p1
-License:	BSD
-Maintainer:	emaste
