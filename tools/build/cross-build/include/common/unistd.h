@@ -39,6 +39,11 @@
 #include_next <unistd.h>
 #include <getopt.h>
 
+struct crypt_data {
+	int	initialized;	/* For compatibility with glibc. */
+	char	__buf[256];	/* Buffer returned by crypt_r(). */
+};
+
 static inline int
 check_utility_compat(const char *utility __unused)
 {
