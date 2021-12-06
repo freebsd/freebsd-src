@@ -256,6 +256,56 @@ TEST_F(Getattr, ok)
 	//FUSE can't set st_blksize until protocol 7.9
 }
 
+/*
+ * FUSE_GETATTR returns a different file type, even though the entry cache
+ * hasn't expired.  This is a server bug!  It probably means that the server
+ * removed the file and recreated it with the same inode but a different vtyp.
+ * The best thing fusefs can do is return ENOENT to the caller.  After all, the
+ * entry must not have existed recently.
+ */
+TEST_F(Getattr, vtyp_conflict)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	const uint64_t ino = 42;
+	struct stat sb;
+	sem_t sem;
+
+	ASSERT_EQ(0, sem_init(&sem, 0, 0)) << strerror(errno);
+
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELPATH)
+	.WillOnce(Invoke(
+		ReturnImmediate([=](auto in __unused, auto& out) {
+		SET_OUT_HEADER_LEN(out, entry);
+		out.body.entry.attr.mode = S_IFREG | 0644;
+		out.body.entry.nodeid = ino;
+		out.body.entry.attr.nlink = 1;
+		out.body.entry.attr_valid = 0;
+		out.body.entry.entry_valid = UINT64_MAX;
+	})));
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([](auto in) {
+			return (in.header.opcode == FUSE_GETATTR &&
+				in.body.getattr.getattr_flags == 0 &&
+				in.header.nodeid == ino);
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke(ReturnImmediate([](auto i __unused, auto& out) {
+		SET_OUT_HEADER_LEN(out, attr);
+		out.body.attr.attr.ino = ino;	// Must match nodeid
+		out.body.attr.attr.mode = S_IFDIR | 0755;	// Changed!
+		out.body.attr.attr.nlink = 2;
+	})));
+	// We should reclaim stale vnodes
+	expect_forget(ino, 1, &sem);
+
+	ASSERT_NE(0, stat(FULLPATH, &sb));
+	EXPECT_EQ(errno, ENOENT);
+
+	sem_wait(&sem);
+	sem_destroy(&sem);
+}
+
 TEST_F(Getattr_7_8, ok)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";

@@ -213,24 +213,27 @@ fuse_vnode_alloc(struct mount *mp,
 		return (err);
 
 	if (*vpp) {
-		if ((*vpp)->v_type != vtyp) {
+		if ((*vpp)->v_type == vtyp) {
+			/* Reuse a vnode that hasn't yet been reclaimed */
+			MPASS((*vpp)->v_data != NULL);
+			MPASS(VTOFUD(*vpp)->nid == nodeid);
+			SDT_PROBE2(fusefs, , node, trace, 1,
+				"vnode taken from hash");
+			return (0);
+		} else {
 			/*
-			 * STALE vnode!  This probably indicates a buggy
-			 * server, but it could also be the result of a race
-			 * between FUSE_LOOKUP and another client's
-			 * FUSE_UNLINK/FUSE_CREATE
+			 * The inode changed types!  If we get here, we can't
+			 * tell whether the inode's entry cache had expired
+			 * yet.  So this could be the result of a buggy server,
+			 * but more likely the server just reused an inode
+			 * number following an entry cache expiration.
 			 */
 			SDT_PROBE3(fusefs, , node, stale_vnode, *vpp, vtyp,
 				nodeid);
 			fuse_internal_vnode_disappear(*vpp);
+			vgone(*vpp);
 			lockmgr((*vpp)->v_vnlock, LK_RELEASE, NULL);
-			*vpp = NULL;
-			return (EAGAIN);
 		}
-		MPASS((*vpp)->v_data != NULL);
-		MPASS(VTOFUD(*vpp)->nid == nodeid);
-		SDT_PROBE2(fusefs, , node, trace, 1, "vnode taken from hash");
-		return (0);
 	}
 	fvdat = malloc(sizeof(*fvdat), M_FUSEVN, M_WAITOK | M_ZERO);
 	switch (vtyp) {
