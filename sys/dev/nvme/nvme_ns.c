@@ -571,20 +571,14 @@ nvme_ns_construct(struct nvme_namespace *ns, uint32_t id,
 	 * that improves performance.  If present use for the stripe size.  NVMe
 	 * 1.3 standardized this as NOIOB, and newer Intel drives use that.
 	 */
-	switch (pci_get_devid(ctrlr->dev)) {
-	case 0x09538086:		/* Intel DC PC3500 */
-	case 0x0a538086:		/* Intel DC PC3520 */
-	case 0x0a548086:		/* Intel DC PC4500 */
-	case 0x0a558086:		/* Dell Intel P4600 */
+	if ((ctrlr->quirks & QUIRK_INTEL_ALIGNMENT) != 0) {
 		if (ctrlr->cdata.vs[3] != 0)
 			ns->boundary =
 			    (1 << ctrlr->cdata.vs[3]) * ctrlr->min_page_size;
 		else
 			ns->boundary = 0;
-		break;
-	default:
+	} else {
 		ns->boundary = ns->data.noiob * nvme_ns_get_sector_size(ns);
-		break;
 	}
 
 	if (nvme_ctrlr_has_dataset_mgmt(&ctrlr->cdata))
