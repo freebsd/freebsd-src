@@ -388,7 +388,7 @@ show_dialog(struct keymap **km_sorted, int num_keymaps)
 		listitems[i].name = km_sorted[i]->desc;
 		listitems[i].desc = __DECONST(char *, "");
 	}
-	result = bsddialog_menu(conf, __DECONST(char *, menu), 0, 0, 0,
+	result = bsddialog_menu(&conf, __DECONST(char *, menu), 0, 0, 0,
 	    num_keymaps, listitems, NULL);
 	bsddialog_end();
 	switch (result) {
