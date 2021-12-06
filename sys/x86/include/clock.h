@@ -27,6 +27,7 @@ extern int	smp_tsc;
 void	i8254_init(void);
 void	i8254_delay(int);
 void	clock_init(void);
+void	lapic_calibrate(void);
 
 /*
  * Driver to clock driver interface.
