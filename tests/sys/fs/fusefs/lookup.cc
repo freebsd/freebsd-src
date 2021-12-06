@@ -342,9 +342,10 @@ TEST_F(Lookup, subdir)
 	ASSERT_EQ(0, access(FULLPATH, F_OK)) << strerror(errno);
 }
 
-/* 
- * The server returns two different vtypes for the same nodeid.  This is a bad
- * server!  But we shouldn't crash.
+/*
+ * The server returns two different vtypes for the same nodeid.  This is
+ * technically allowed if the entry's cache has already expired.
+ * https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=258022
  */
 TEST_F(Lookup, vtype_conflict)
 {
@@ -354,12 +355,29 @@ TEST_F(Lookup, vtype_conflict)
 	const char SECONDRELPATH[] = "bar";
 	uint64_t ino = 42;
 
-	expect_lookup(FIRSTRELPATH, ino, S_IFREG | 0644, 0, 1, UINT64_MAX);
-	expect_lookup(SECONDRELPATH, ino, S_IFDIR | 0755, 0, 1, UINT64_MAX);
+	EXPECT_LOOKUP(FUSE_ROOT_ID, FIRSTRELPATH)
+	.WillOnce(Invoke(
+		ReturnImmediate([=](auto in __unused, auto& out) {
+		SET_OUT_HEADER_LEN(out, entry);
+		out.body.entry.attr.mode = S_IFDIR | 0644;
+		out.body.entry.nodeid = ino;
+		out.body.entry.attr.nlink = 1;
+	})));
+	expect_lookup(SECONDRELPATH, ino, S_IFREG | 0755, 0, 1, UINT64_MAX);
+	// VOP_FORGET happens asynchronously, so it may or may not arrive
+	// before the test completes.
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in.header.opcode == FUSE_FORGET &&
+				in.header.nodeid == ino &&
+				in.body.forget.nlookup == 1);
+		}, Eq(true)),
+		_)
+	).Times(AtMost(1))
+	.WillOnce(Invoke([=](auto in __unused, auto &out __unused) { }));
 
 	ASSERT_EQ(0, access(FIRSTFULLPATH, F_OK)) << strerror(errno);
-	ASSERT_EQ(-1, access(SECONDFULLPATH, F_OK));
-	ASSERT_EQ(EAGAIN, errno);
+	EXPECT_EQ(0, access(SECONDFULLPATH, F_OK)) << strerror(errno);
 }
 
 TEST_F(Lookup_7_8, ok)
