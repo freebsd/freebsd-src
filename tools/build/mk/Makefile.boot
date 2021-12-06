@@ -37,7 +37,7 @@ CFLAGS+=	-Werror=implicit-function-declaration -Werror=implicit-int \
 CFLAGS+=	-DHAVE_NBTOOL_CONFIG_H=1
 CFLAGS+=	-I${SRCTOP}/tools/build/cross-build/include/common
 # This is needed for code that compiles for pre-C11 C standards
-CWARNFLAGS+=	-Wno-typedef-redefinition
+CWARNFLAGS.clang+=-Wno-typedef-redefinition
 # bsd.sys.mk explicitly turns on -Wsystem-headers, but that's extremely
 # noisy when building on Linux.
 CWARNFLAGS+=	-Wno-system-headers
