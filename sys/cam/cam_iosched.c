@@ -112,7 +112,7 @@ SYSCTL_INT(_kern_cam_iosched, OID_AUTO, alpha_bits, CTLFLAG_RW | CTLFLAG_TUN,
  * of 5.2s which is safeily larger than 1s to help diagnose extreme outliers better.
  */
 #ifndef BUCKET_BASE
-#define BUCKET_BASE (SBT_1S / 50000)	/* 20us */
+#define BUCKET_BASE ((SBT_1S / 50000) + 1)	/* 20us */
 #endif
 static sbintime_t bucket_base = BUCKET_BASE;
 SYSCTL_SBINTIME_USEC(_kern_cam_iosched, OID_AUTO, bucket_base_us, CTLFLAG_RD,
