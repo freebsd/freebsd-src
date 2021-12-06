@@ -622,6 +622,9 @@ efi_find_framebuffer(teken_gfx_t *gfx_state)
 	gfx_state->tg_fb.fb_bpp = fls(efifb.fb_mask_red | efifb.fb_mask_green |
 	    efifb.fb_mask_blue | efifb.fb_mask_reserved);
 
+	free(gfx_state->tg_shadow_fb);
+	gfx_state->tg_shadow_fb = malloc(efifb.fb_height * efifb.fb_width *
+	    sizeof(EFI_GRAPHICS_OUTPUT_BLT_PIXEL));
 	return (0);
 }
 

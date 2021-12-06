@@ -741,6 +741,38 @@ gfxfb_blt_video_to_video(uint32_t SourceX, uint32_t SourceY,
 	return (0);
 }
 
+static void
+gfxfb_shadow_fill(uint32_t *BltBuffer,
+    uint32_t DestinationX, uint32_t DestinationY,
+    uint32_t Width, uint32_t Height)
+{
+	uint32_t fbX, fbY;
+
+	if (gfx_state.tg_shadow_fb == NULL)
+		return;
+
+	fbX = gfx_state.tg_fb.fb_width;
+	fbY = gfx_state.tg_fb.fb_height;
+
+	if (BltBuffer == NULL)
+		return;
+
+	if (DestinationX + Width > fbX)
+		Width = fbX - DestinationX;
+
+	if (DestinationY + Height > fbY)
+		Height = fbY - DestinationY;
+
+	uint32_t y2 = Height + DestinationY;
+	for (uint32_t y1 = DestinationY; y1 < y2; y1++) {
+		uint32_t off = y1 * fbX + DestinationX;
+
+		for (uint32_t x = 0; x < Width; x++) {
+			gfx_state.tg_shadow_fb[off + x] = *BltBuffer;
+		}
+	}
+}
+
 int
 gfxfb_blt(void *BltBuffer, GFXFB_BLT_OPERATION BltOperation,
     uint32_t SourceX, uint32_t SourceY,
@@ -764,6 +796,8 @@ gfxfb_blt(void *BltBuffer, GFXFB_BLT_OPERATION BltOperation,
 		tpl = BS->RaiseTPL(TPL_NOTIFY);
 		switch (BltOperation) {
 		case GfxFbBltVideoFill:
+			gfxfb_shadow_fill(BltBuffer, DestinationX,
+			    DestinationY, Width, Height);
 			status = gop->Blt(gop, BltBuffer, EfiBltVideoFill,
 			    SourceX, SourceY, DestinationX, DestinationY,
 			    Width, Height, Delta);
@@ -815,6 +849,8 @@ gfxfb_blt(void *BltBuffer, GFXFB_BLT_OPERATION BltOperation,
 
 	switch (BltOperation) {
 	case GfxFbBltVideoFill:
+		gfxfb_shadow_fill(BltBuffer, DestinationX, DestinationY,
+		    Width, Height);
 		rv = gfxfb_blt_fill(BltBuffer, DestinationX, DestinationY,
 		    Width, Height);
 		break;
@@ -984,7 +1020,6 @@ gfx_fb_fill(void *arg, const teken_rect_t *r, teken_char_t c,
 static void
 gfx_fb_cursor_draw(teken_gfx_t *state, const teken_pos_t *pos, bool on)
 {
-	unsigned x, y, width, height;
 	const uint8_t *glyph;
 	teken_pos_t p;
 	int idx;
@@ -997,42 +1032,6 @@ gfx_fb_cursor_draw(teken_gfx_t *state, const teken_pos_t *pos, bool on)
 	idx = p.tp_col + p.tp_row * state->tg_tp.tp_col;
 	if (idx >= state->tg_tp.tp_col * state->tg_tp.tp_row)
 		return;
-
-	width = state->tg_font.vf_width;
-	height = state->tg_font.vf_height;
-	x = state->tg_origin.tp_col + p.tp_col * width;
-	y = state->tg_origin.tp_row + p.tp_row * height;
-
-	/*
-	 * Save original display content to preserve image data.
-	 */
-	if (on) {
-		if (state->tg_cursor_image == NULL ||
-		    state->tg_cursor_size != width * height * 4) {
-			free(state->tg_cursor_image);
-			state->tg_cursor_size = width * height * 4;
-			state->tg_cursor_image = malloc(state->tg_cursor_size);
-		}
-		if (state->tg_cursor_image != NULL) {
-			if (gfxfb_blt(state->tg_cursor_image,
-			    GfxFbBltVideoToBltBuffer, x, y, 0, 0,
-			    width, height, 0) != 0) {
-				free(state->tg_cursor_image);
-				state->tg_cursor_image = NULL;
-			}
-		}
-	} else {
-		/*
-		 * Restore display from tg_cursor_image.
-		 * If there is no image, restore char from screen_buffer.
-		 */
-		if (state->tg_cursor_image != NULL &&
-		    gfxfb_blt(state->tg_cursor_image, GfxFbBltBufferToVideo,
-		    0, 0, x, y, width, height, 0) == 0) {
-			state->tg_cursor = p;
-			return;
-		}
-	}
 
 	glyph = font_lookup(&state->tg_font, screen_buffer[idx].c,
 	    &screen_buffer[idx].a);
@@ -1110,19 +1109,62 @@ gfx_fb_copy_area(teken_gfx_t *state, const teken_rect_t *s,
     const teken_pos_t *d)
 {
 	uint32_t sx, sy, dx, dy, width, height;
+	uint32_t pitch, bytes;
+	int step;
 
 	width = state->tg_font.vf_width;
 	height = state->tg_font.vf_height;
 
-	sx = state->tg_origin.tp_col + s->tr_begin.tp_col * width;
-	sy = state->tg_origin.tp_row + s->tr_begin.tp_row * height;
-	dx = state->tg_origin.tp_col + d->tp_col * width;
-	dy = state->tg_origin.tp_row + d->tp_row * height;
+	sx = s->tr_begin.tp_col * width;
+	sy = s->tr_begin.tp_row * height;
+	dx = d->tp_col * width;
+	dy = d->tp_row * height;
 
 	width *= (s->tr_end.tp_col - s->tr_begin.tp_col + 1);
 
-	(void) gfxfb_blt(NULL, GfxFbBltVideoToVideo, sx, sy, dx, dy,
+	/*
+	 * With no shadow fb, use video to video copy.
+	 */
+	if (state->tg_shadow_fb == NULL) {
+		(void) gfxfb_blt(NULL, GfxFbBltVideoToVideo,
+		    sx + state->tg_origin.tp_col,
+		    sy + state->tg_origin.tp_row,
+		    dx + state->tg_origin.tp_col,
+		    dy + state->tg_origin.tp_row,
 		    width, height, 0);
+		return;
+	}
+
+	/*
+	 * With shadow fb, we need to copy data on both shadow and video,
+	 * to preserve the consistency. We only read data from shadow fb.
+	 */
+
+	step = 1;
+	pitch = state->tg_fb.fb_width;
+	bytes = width * sizeof (*state->tg_shadow_fb);
+
+	/*
+	 * To handle overlapping areas, set up reverse copy here.
+	 */
+	if (dy * pitch + dx > sy * pitch + sx) {
+		sy += height;
+		dy += height;
+		step = -step;
+	}
+
+	while (height-- > 0) {
+		uint32_t *source = &state->tg_shadow_fb[sy * pitch + sx];
+		uint32_t *destination = &state->tg_shadow_fb[dy * pitch + dx];
+
+		bcopy(source, destination, bytes);
+		(void) gfxfb_blt(destination, GfxFbBltBufferToVideo,
+		    0, 0, dx + state->tg_origin.tp_col,
+		    dy + state->tg_origin.tp_row, width, 1, 0);
+
+		sy += step;
+		dy += step;
+	}
 }
 
 static void
@@ -1303,13 +1345,32 @@ gfx_fb_cons_display(uint32_t x, uint32_t y, uint32_t width, uint32_t height,
     void *data)
 {
 #if defined(EFI)
-	EFI_GRAPHICS_OUTPUT_BLT_PIXEL *buf;
+	EFI_GRAPHICS_OUTPUT_BLT_PIXEL *buf, *p;
 #else
-	struct paletteentry *buf;
+	struct paletteentry *buf, *p;
 #endif
 	size_t size;
 
-	size = width * height * sizeof(*buf);
+	/*
+	 * If we do have shadow fb, we will use shadow to render data,
+	 * and copy shadow to video.
+	 */
+	if (gfx_state.tg_shadow_fb != NULL) {
+		uint32_t pitch = gfx_state.tg_fb.fb_width;
+
+		/* Copy rectangle line by line. */
+		p = data;
+		for (uint32_t sy = 0; sy < height; sy++) {
+			buf = (void *)(gfx_state.tg_shadow_fb +
+			    (y - gfx_state.tg_origin.tp_row) * pitch +
+			    x - gfx_state.tg_origin.tp_col);
+			bitmap_cpy(buf, &p[sy * width], width);
+			(void) gfxfb_blt(buf, GfxFbBltBufferToVideo,
+			    0, 0, x, y, width, 1, 0);
+			y++;
+		}
+		return;
+	}
 
 	/*
 	 * Common data to display is glyph, use preallocated
@@ -1318,6 +1379,7 @@ gfx_fb_cons_display(uint32_t x, uint32_t y, uint32_t width, uint32_t height,
         if (gfx_state.tg_glyph_size != GlyphBufferSize)
                 (void) allocate_glyphbuffer(width, height);
 
+	size = width * height * sizeof(*buf);
 	if (size == GlyphBufferSize)
 		buf = GlyphBuffer;
 	else

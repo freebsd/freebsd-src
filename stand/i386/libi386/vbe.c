@@ -709,6 +709,10 @@ vbe_set_mode(int modenum)
 	gfx_state.tg_fb.fb_width = mi.XResolution;
 	gfx_state.tg_fb.fb_bpp = mi.BitsPerPixel;
 
+	free(gfx_state.tg_shadow_fb);
+	gfx_state.tg_shadow_fb = malloc(mi.YResolution * mi.XResolution *
+	    sizeof(struct paletteentry));
+
 	/* Bytes per pixel */
 	bpp = roundup2(mi.BitsPerPixel, NBBY) / NBBY;
 
