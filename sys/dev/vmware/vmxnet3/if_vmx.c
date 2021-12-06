@@ -1505,8 +1505,6 @@ vmxnet3_isc_rxd_pkt_get(void *vsc, if_rxd_info_t ri)
 	struct vmxnet3_rxqueue *rxq;
 	struct vmxnet3_comp_ring *rxc;
 	struct vmxnet3_rxcompdesc *rxcd;
-	struct vmxnet3_rxring *rxr;
-	struct vmxnet3_rxdesc *rxd;
 	if_rxd_frag_t frag;
 	int cqidx;
 	uint16_t total_len;
@@ -1606,16 +1604,19 @@ vmxnet3_isc_rxd_pkt_get(void *vsc, if_rxd_info_t ri)
 		rxcd = &rxc->vxcr_u.rxcd[cqidx];
 		KASSERT(rxcd->gen == rxc->vxcr_gen,
 		    ("%s: generation mismatch", __func__));
-		flid = (rxcd->qid >= scctx->isc_nrxqsets) ? 1 : 0;
-		rxr = &rxq->vxrxq_cmd_ring[flid];
-		rxd = &rxr->vxrxr_rxd[rxcd->rxd_idx];
-
-		frag = &ri->iri_frags[nfrags];
-		frag->irf_flid = flid;
-		frag->irf_idx = rxcd->rxd_idx;
-		frag->irf_len = rxcd->len;
-		total_len += rxcd->len;
-		nfrags++;
+		KASSERT(nfrags < IFLIB_MAX_RX_SEGS,
+		    ("%s: too many fragments", __func__));
+		if (__predict_true(rxcd->len != 0)) {
+			frag = &ri->iri_frags[nfrags];
+			flid = (rxcd->qid >= scctx->isc_nrxqsets) ? 1 : 0;
+			frag->irf_flid = flid;
+			frag->irf_idx = rxcd->rxd_idx;
+			frag->irf_len = rxcd->len;
+			total_len += rxcd->len;
+			nfrags++;
+		} else {
+			rxc->vcxr_zero_length_frag++;
+		}
 		if (++cqidx == rxc->vxcr_ndesc) {
 			cqidx = 0;
 			rxc->vxcr_gen ^= 1;
@@ -1887,6 +1888,7 @@ vmxnet3_rxinit(struct vmxnet3_softc *sc, struct vmxnet3_rxqueue *rxq)
 	rxc->vxcr_next = 0;
 	rxc->vxcr_gen = VMXNET3_INIT_GEN;
 	rxc->vxcr_zero_length = 0;
+	rxc->vcxr_zero_length_frag = 0;
 	rxc->vxcr_pkt_errors = 0;
 	/*
 	 * iflib has zeroed out the descriptor array during the prior attach
@@ -2370,6 +2372,9 @@ vmxnet3_setup_debug_sysctl(struct vmxnet3_softc *sc,
 		    &rxq->vxrxq_comp_ring.vxcr_gen, 0, "");
 		SYSCTL_ADD_U64(ctx, list, OID_AUTO, "comp_zero_length", CTLFLAG_RD,
 		    &rxq->vxrxq_comp_ring.vxcr_zero_length, 0, "");
+		SYSCTL_ADD_U64(ctx, list, OID_AUTO, "comp_zero_length_frag",
+		    CTLFLAG_RD, &rxq->vxrxq_comp_ring.vcxr_zero_length_frag,
+		    0, "");
 		SYSCTL_ADD_U64(ctx, list, OID_AUTO, "comp_pkt_errors", CTLFLAG_RD,
 		    &rxq->vxrxq_comp_ring.vxcr_pkt_errors, 0, "");
 	}
