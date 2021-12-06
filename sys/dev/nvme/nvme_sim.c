@@ -172,6 +172,13 @@ nvme_sim_action(struct cam_sim *sim, union ccb *ccb)
 		struct ccb_pathinq	*cpi = &ccb->cpi;
 		device_t		dev = ctrlr->dev;
 
+		/*
+		 * For devices that are reported as children of the AHCI
+		 * controller, which has no access to the config space for this
+		 * controller, report the AHCI controller's data.
+		 */
+		if (ctrlr->quirks & QUIRK_AHCI)
+			dev = device_get_parent(dev);
 		cpi->version_num = 1;
 		cpi->hba_inquiry = 0;
 		cpi->target_sprt = 0;
@@ -219,17 +226,20 @@ nvme_sim_action(struct cam_sim *sim, union ccb *ccb)
 		nvmex = &cts->xport_specific.nvme;
 		nvmep = &cts->proto_specific.nvme;
 
-		status = pcie_read_config(dev, PCIER_LINK_STA, 2);
-		caps = pcie_read_config(dev, PCIER_LINK_CAP, 2);
-		flags = pcie_read_config(dev, PCIER_FLAGS, 2);
 		nvmex->spec = nvme_mmio_read_4(ctrlr, vs);
 		nvmex->valid = CTS_NVME_VALID_SPEC;
-		if ((flags & PCIEM_FLAGS_TYPE) == PCIEM_TYPE_ENDPOINT) {
-			nvmex->valid |= CTS_NVME_VALID_LINK;
-			nvmex->speed = status & PCIEM_LINK_STA_SPEED;
-			nvmex->lanes = (status & PCIEM_LINK_STA_WIDTH) >> 4;
-			nvmex->max_speed = caps & PCIEM_LINK_CAP_MAX_SPEED;
-			nvmex->max_lanes = (caps & PCIEM_LINK_CAP_MAX_WIDTH) >> 4;
+		if ((ctrlr->quirks & QUIRK_AHCI) == 0) {
+			/* AHCI redirect makes it impossible to query */
+			status = pcie_read_config(dev, PCIER_LINK_STA, 2);
+			caps = pcie_read_config(dev, PCIER_LINK_CAP, 2);
+			flags = pcie_read_config(dev, PCIER_FLAGS, 2);
+			if ((flags & PCIEM_FLAGS_TYPE) == PCIEM_TYPE_ENDPOINT) {
+				nvmex->valid |= CTS_NVME_VALID_LINK;
+				nvmex->speed = status & PCIEM_LINK_STA_SPEED;
+				nvmex->lanes = (status & PCIEM_LINK_STA_WIDTH) >> 4;
+				nvmex->max_speed = caps & PCIEM_LINK_CAP_MAX_SPEED;
+				nvmex->max_lanes = (caps & PCIEM_LINK_CAP_MAX_WIDTH) >> 4;
+			}
 		}
 
 		/* XXX these should be something else maybe ? */
