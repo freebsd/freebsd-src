@@ -47,6 +47,6 @@ int fd_send(int sock, const int *fds, size_t nfds);
 int fd_recv(int sock, int *fds, size_t nfds);
 
 int buf_send(int sock, void *buf, size_t size);
-int buf_recv(int sock, void *buf, size_t size);
+int buf_recv(int sock, void *buf, size_t size, int flags);
 
 #endif	/* !_MSGIO_H_ */
