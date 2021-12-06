@@ -66,6 +66,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/intr_machdep.h>
 #include <machine/ppireg.h>
 #include <machine/timerreg.h>
+#include <x86/apicvar.h>
 #include <x86/init.h>
 
 #include <isa/rtc.h>
@@ -411,6 +412,8 @@ cpu_initclocks(void)
 	int i;
 
 	td = curthread;
+
+	lapic_calibrate_timer();
 	cpu_initclocks_bsp();
 	CPU_FOREACH(i) {
 		if (i == 0)
@@ -425,6 +428,7 @@ cpu_initclocks(void)
 		sched_unbind(td);
 	thread_unlock(td);
 #else
+	lapic_calibrate_timer();
 	cpu_initclocks_bsp();
 #endif
 }
