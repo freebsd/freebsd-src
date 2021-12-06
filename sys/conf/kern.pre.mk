@@ -93,6 +93,8 @@ CFLAGS+=	-fno-common
 # XXX LOCORE means "don't declare C stuff" not "for locore.s".
 ASM_CFLAGS= -x assembler-with-cpp -DLOCORE ${CFLAGS} ${ASM_CFLAGS.${.IMPSRC:T}}
 
+COMPAT_FREEBSD32_ENABLED!= grep COMPAT_FREEBSD32 opt_global.h || true ; echo
+
 KASAN_ENABLED!=	grep KASAN opt_global.h || true ; echo
 .if !empty(KASAN_ENABLED)
 SAN_CFLAGS+=	-DSAN_NEEDS_INTERCEPTORS -DSAN_INTERCEPTOR_PREFIX=kasan \
