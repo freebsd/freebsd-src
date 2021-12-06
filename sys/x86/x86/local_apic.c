@@ -214,7 +214,6 @@ SYSCTL_INT(_hw_apic, OID_AUTO, timer_tsc_deadline, CTLFLAG_RD,
     &lapic_timer_tsc_deadline, 0, "");
 
 static void lapic_calibrate_initcount(struct lapic *la);
-static void lapic_calibrate_deadline(struct lapic *la);
 
 /*
  * Use __nosanitizethread to exempt the LAPIC I/O accessors from KCSan
@@ -366,6 +365,7 @@ static void 	native_apic_enable_vector(u_int apic_id, u_int vector);
 static void 	native_apic_free_vector(u_int apic_id, u_int vector, u_int irq);
 static void 	native_lapic_set_logical_id(u_int apic_id, u_int cluster,
 		    u_int cluster_id);
+static void	native_lapic_calibrate_timer(void);
 static int 	native_lapic_enable_pmc(void);
 static void 	native_lapic_disable_pmc(void);
 static void 	native_lapic_reenable_pmc(void);
@@ -405,6 +405,7 @@ struct apic_ops apic_ops = {
 	.enable_vector		= native_apic_enable_vector,
 	.disable_vector		= native_apic_disable_vector,
 	.free_vector		= native_apic_free_vector,
+	.calibrate_timer	= native_lapic_calibrate_timer,
 	.enable_pmc		= native_lapic_enable_pmc,
 	.disable_pmc		= native_lapic_disable_pmc,
 	.reenable_pmc		= native_lapic_reenable_pmc,
@@ -797,21 +798,18 @@ native_lapic_setup(int boot)
 		    LAPIC_LVT_PCINT));
 	}
 
-	/* Program timer LVT. */
+	/*
+	 * Program the timer LVT.  Calibration is deferred until it is certain
+	 * that we have a reliable timecounter.
+	 */
 	la->lvt_timer_base = lvt_mode(la, APIC_LVT_TIMER,
 	    lapic_read32(LAPIC_LVT_TIMER));
 	la->lvt_timer_last = la->lvt_timer_base;
 	lapic_write32(LAPIC_LVT_TIMER, la->lvt_timer_base);
 
-	/* Calibrate the timer parameters using BSP. */
-	if (boot && IS_BSP()) {
-		lapic_calibrate_initcount(la);
-		if (lapic_timer_tsc_deadline)
-			lapic_calibrate_deadline(la);
-	}
-
-	/* Setup the timer if configured. */
-	if (la->la_timer_mode != LAT_MODE_UNDEF) {
+	if (boot)
+		la->la_timer_mode = LAT_MODE_UNDEF;
+	else if (la->la_timer_mode != LAT_MODE_UNDEF) {
 		KASSERT(la->la_timer_period != 0, ("lapic%u: zero divisor",
 		    lapic_id()));
 		switch (la->la_timer_mode) {
@@ -901,6 +899,25 @@ lapic_update_pmc(void *dummy)
 	    lapic_read32(LAPIC_LVT_PCINT)));
 }
 #endif
+
+static void
+native_lapic_calibrate_timer(void)
+{
+	struct lapic *la;
+	register_t intr;
+
+	intr = intr_disable();
+	la = &lapics[lapic_id()];
+
+	lapic_calibrate_initcount(la);
+
+	intr_restore(intr);
+
+	if (lapic_timer_tsc_deadline && bootverbose) {
+		printf("lapic: deadline tsc mode, Frequency %ju Hz\n",
+		    (uintmax_t)tsc_freq);
+	}
+}
 
 static int
 native_lapic_enable_pmc(void)
@@ -993,26 +1010,10 @@ lapic_calibrate_initcount(struct lapic *la)
 }
 
 static void
-lapic_calibrate_deadline(struct lapic *la __unused)
-{
-
-	if (bootverbose) {
-		printf("lapic: deadline tsc mode, Frequency %ju Hz\n",
-		    (uintmax_t)tsc_freq);
-	}
-}
-
-static void
 lapic_change_mode(struct eventtimer *et, struct lapic *la,
     enum lat_timer_mode newmode)
 {
-
-	/*
-	 * The TSC frequency may change during late calibration against other
-	 * timecounters (HPET or ACPI PMTimer).
-	 */
-	if (la->la_timer_mode == newmode &&
-	    (newmode != LAT_MODE_DEADLINE || et->et_frequency == tsc_freq))
+	if (la->la_timer_mode == newmode)
 		return;
 	switch (newmode) {
 	case LAT_MODE_PERIODIC:

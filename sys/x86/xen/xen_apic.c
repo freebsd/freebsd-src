@@ -224,6 +224,12 @@ xen_pv_apic_free_vector(u_int apic_id, u_int vector, u_int irq)
 }
 
 static void
+xen_pv_lapic_calibrate_timer(void)
+{
+
+}
+
+static void
 xen_pv_lapic_set_logical_id(u_int apic_id, u_int cluster, u_int cluster_id)
 {
 
@@ -420,6 +426,7 @@ struct apic_ops xen_apic_ops = {
 	.enable_vector		= xen_pv_apic_enable_vector,
 	.disable_vector		= xen_pv_apic_disable_vector,
 	.free_vector		= xen_pv_apic_free_vector,
+	.calibrate_timer	= xen_pv_lapic_calibrate_timer,
 	.enable_pmc		= xen_pv_lapic_enable_pmc,
 	.disable_pmc		= xen_pv_lapic_disable_pmc,
 	.reenable_pmc		= xen_pv_lapic_reenable_pmc,
