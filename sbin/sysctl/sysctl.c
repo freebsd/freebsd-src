@@ -981,9 +981,8 @@ show_var(int *oid, int nlen, bool honor_skip)
 	bzero(fmt, BUFSIZ);
 	bzero(name, BUFSIZ);
 	qoid[0] = CTL_SYSCTL;
-	memcpy(qoid + 2, oid, nlen * sizeof(int));
-
 	qoid[1] = CTL_SYSCTL_NAME;
+	memcpy(qoid + 2, oid, nlen * sizeof(int));
 	j = sizeof(name);
 	i = sysctl(qoid, nlen + 2, name, &j, 0, 0);
 	if (i || !j)
