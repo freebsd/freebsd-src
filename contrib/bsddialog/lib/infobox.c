@@ -44,7 +44,7 @@
 extern struct bsddialog_theme t;
 
 static int
-infobox_autosize(struct bsddialog_conf conf, int rows, int cols, int *h, int *w,
+infobox_autosize(struct bsddialog_conf *conf, int rows, int cols, int *h, int *w,
     char *text)
 {
 	int maxword, maxline, nlines;
@@ -54,7 +54,7 @@ infobox_autosize(struct bsddialog_conf conf, int rows, int cols, int *h, int *w,
 
 	if (cols == BSDDIALOG_AUTOSIZE) {
 		/* text size */
-		*w =  maxline + VBORDERS + t.texthmargin * 2;
+		*w =  maxline + VBORDERS + t.text.hmargin * 2;
 		/* avoid terminal overflow */
 		*w = MIN(*w, widget_max_width(conf));
 	}
@@ -74,7 +74,7 @@ infobox_autosize(struct bsddialog_conf conf, int rows, int cols, int *h, int *w,
 static int infobox_checksize(int rows, int cols)
 {
 
-	if (cols < HBORDERS + 1 + (int) t.texthmargin * 2)
+	if (cols < HBORDERS + 1 + (int) t.text.hmargin * 2)
 		RETURN_ERROR("Few cols, infobox needs at least width 3 + text "\
 		    "margins");
 
@@ -85,7 +85,7 @@ static int infobox_checksize(int rows, int cols)
 }
 
 int
-bsddialog_infobox(struct bsddialog_conf conf, char* text, int rows, int cols)
+bsddialog_infobox(struct bsddialog_conf *conf, char* text, int rows, int cols)
 {
 	WINDOW *shadow, *widget, *textpad;
 	int y, x, h, w, htextpad;
@@ -103,7 +103,7 @@ bsddialog_infobox(struct bsddialog_conf conf, char* text, int rows, int cols)
 	    &textpad, &htextpad, text, false) != 0)
 		return BSDDIALOG_ERROR;
 
-	pnoutrefresh(textpad, 0, 0, y+1, x+1+t.texthmargin, y+h-2, x+w-t.texthmargin);
+	pnoutrefresh(textpad, 0, 0, y+1, x+1+t.text.hmargin, y+h-2, x+w-t.text.hmargin);
 
 	doupdate();
 

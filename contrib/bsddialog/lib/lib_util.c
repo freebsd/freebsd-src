@@ -65,9 +65,9 @@ int hide_widget(int y, int x, int h, int w, bool withshadow)
 	WINDOW *clear;
 
 	/* no check: y, x, h and w are checked by the builders */
-	if ((clear = newwin(h, w, y + t.shadowrows, x + t.shadowcols)) == NULL)
+	if ((clear = newwin(h, w, y + t.shadow.h, x + t.shadow.w)) == NULL)
 		RETURN_ERROR("Cannot hide the widget");
-	wbkgd(clear, t.backgroundcolor);
+	wbkgd(clear, t.terminal.color);
 
 	if (withshadow)
 		wrefresh(clear);
@@ -81,23 +81,23 @@ int hide_widget(int y, int x, int h, int w, bool withshadow)
 }
 
 /* F1 help */
-int f1help(struct bsddialog_conf conf)
+int f1help(struct bsddialog_conf *conf)
 {
-	char *file = conf.hfile;
-	char *title = conf.title;
+	char *file = conf->hfile;
+	char *title = conf->title;
 	int output;
 
-	conf.hfile = NULL;
-	conf.clear = true;
-	conf.y = BSDDIALOG_CENTER;
-	conf.x = BSDDIALOG_CENTER;
-	conf.title = "HELP";
-	conf.sleep = 0;
+	conf->hfile = NULL;
+	conf->clear = true;
+	conf->y = BSDDIALOG_CENTER;
+	conf->x = BSDDIALOG_CENTER;
+	conf->title = "HELP";
+	conf->sleep = 0;
 
 	output = bsddialog_textbox(conf, file, BSDDIALOG_AUTOSIZE,
 	    BSDDIALOG_AUTOSIZE);
-	conf.hfile = file;
-	conf.title = title;
+	conf->hfile = file;
+	conf->title = title;
 
 	return output;
 }
@@ -110,24 +110,24 @@ draw_button(WINDOW *window, int y, int x, int size, char *text, bool selected,
 	int i, color_arrows, color_shortkey, color_button;
 
 	if (selected) {
-		color_arrows = t.currbuttdelimcolor;
-		color_shortkey = t.currshortkeycolor;
-		color_button = t.currbuttoncolor;
+		color_arrows = t.button.f_delimcolor;
+		color_shortkey = t.button.f_shortcutcolor;
+		color_button = t.button.f_color;
 	} else {
-		color_arrows = t.buttdelimcolor;
-		color_shortkey = t.shortkeycolor;
-		color_button = t.buttoncolor;
+		color_arrows = t.button.delimcolor;
+		color_shortkey = t.button.shortcutcolor;
+		color_button = t.button.color;
 	}
 
 	wattron(window, color_arrows);
-	mvwaddch(window, y, x, t.buttleftch);
+	mvwaddch(window, y, x, t.button.leftch);
 	wattroff(window, color_arrows);
 	wattron(window, color_button);
 	for(i = 1; i < size - 1; i++)
 		waddch(window, ' ');
 	wattroff(window, color_button);
 	wattron(window, color_arrows);
-	mvwaddch(window, y, x + i, t.buttrightchar);
+	mvwaddch(window, y, x + i, t.button.rightch);
 	wattroff(window, color_arrows);
 
 	x = x + 1 + ((size - 2 - strlen(text))/2);
@@ -147,18 +147,18 @@ draw_buttons(WINDOW *window, int y, int cols, struct buttons bs, bool shortkey)
 {
 	int i, x, start_x;
 
-	start_x = bs.sizebutton * bs.nbuttons + (bs.nbuttons - 1) * t.buttonspace;
+	start_x = bs.sizebutton * bs.nbuttons + (bs.nbuttons - 1) * t.button.space;
 	start_x = cols/2 - start_x/2;
 
 	for (i = 0; i < (int) bs.nbuttons; i++) {
-		x = i * (bs.sizebutton + t.buttonspace);
+		x = i * (bs.sizebutton + t.button.space);
 		draw_button(window, y, start_x + x, bs.sizebutton, bs.label[i],
 		    i == bs.curr, shortkey);
 	}
 }
 
 void
-get_buttons(struct bsddialog_conf conf, struct buttons *bs, char *yesoklabel,
+get_buttons(struct bsddialog_conf *conf, struct buttons *bs, char *yesoklabel,
     char *extralabel, char *nocancellabel, char *helplabel)
 {
 	int i;
@@ -171,29 +171,41 @@ get_buttons(struct bsddialog_conf conf, struct buttons *bs, char *yesoklabel,
 	bs->curr = 0;
 	bs->sizebutton = 0;
 
-	if (yesoklabel != NULL && conf.button.no_ok == false) {
+	if (yesoklabel != NULL && conf->button.no_ok == false) {
 		bs->label[0] = yesoklabel;
 		bs->value[0] = BSDDIALOG_YESOK;
 		bs->nbuttons += 1;
 	}
 
-	if (extralabel != NULL && conf.button.extra_button) {
+	if (extralabel != NULL && conf->button.extra_button) {
 		bs->label[bs->nbuttons] = extralabel;
 		bs->value[bs->nbuttons] = BSDDIALOG_EXTRA;
 		bs->nbuttons += 1;
 	}
 
-	if (nocancellabel != NULL && conf.button.no_cancel == false) {
+	if (nocancellabel != NULL && conf->button.no_cancel == false) {
 		bs->label[bs->nbuttons] = nocancellabel;
 		bs->value[bs->nbuttons] = BSDDIALOG_NOCANCEL;
-		if (conf.button.defaultno)
+		if (conf->button.defaultno)
 			bs->curr = bs->nbuttons;
 		bs->nbuttons += 1;
 	}
 
-	if (helplabel != NULL && conf.button.help_button) {
+	if (helplabel != NULL && conf->button.help_button) {
 		bs->label[bs->nbuttons] = helplabel;
 		bs->value[bs->nbuttons] = BSDDIALOG_HELP;
+		bs->nbuttons += 1;
+	}
+
+	if (conf->button.generic1_label != NULL) {
+		bs->label[bs->nbuttons] = conf->button.generic1_label;
+		bs->value[bs->nbuttons] = BSDDIALOG_GENERIC1;
+		bs->nbuttons += 1;
+	}
+
+	if (conf->button.generic2_label != NULL) {
+		bs->label[bs->nbuttons] = conf->button.generic2_label;
+		bs->value[bs->nbuttons] = BSDDIALOG_GENERIC2;
 		bs->nbuttons += 1;
 	}
 
@@ -203,9 +215,9 @@ get_buttons(struct bsddialog_conf conf, struct buttons *bs, char *yesoklabel,
 		bs->nbuttons = 1;
 	}
 
-	if (conf.button.default_label != NULL) {
+	if (conf->button.default_label != NULL) {
 		for (i=0; i<(int)bs->nbuttons; i++) {
-			if (strcmp(conf.button.default_label, bs->label[i]) == 0)
+			if (strcmp(conf->button.default_label, bs->label[i]) == 0)
 				bs->curr = i;
 		}
 	}
@@ -217,39 +229,29 @@ get_buttons(struct bsddialog_conf conf, struct buttons *bs, char *yesoklabel,
 }
 
 /* Text */
+static bool is_ncurses_attr(char *text)
+{
 
-// old text, to delete in the future
-enum token { TEXT, WS, END };
+	if (strnlen(text, 3) < 3)
+		return false;
+
+	if (text[0] != '\\' || text[1] != 'Z')
+		return false;
+
+	return (strchr("nbBrRuU01234567", text[2]) == NULL ? false : true);
+}
 
 static bool check_set_ncurses_attr(WINDOW *win, char *text)
 {
-	bool isattr;
-	int colors[8] = {
-	    COLOR_BLACK,
-	    COLOR_RED,
-	    COLOR_GREEN,
-	    COLOR_YELLOW,
-	    COLOR_BLUE,
-	    COLOR_MAGENTA,
-	    COLOR_CYAN,
-	    COLOR_WHITE
-	};
-
-	if (text[0] == '\0' || text[0] != '\\')
-		return false;
-	if (text[1] == '\0' || text[1] != 'Z')
-		return false;
-	if (text[2] == '\0')
+	
+	if (is_ncurses_attr(text) == false)
 		return false;
 
-	if ((text[2] - 48) >= 0 && (text[2] - 48) < 8) {
-		// tocheck: import BSD_COLOR
-		// tofix color background
-		wattron(win, COLOR_PAIR(colors[text[2] - 48] * 8 + COLOR_WHITE + 1));
+	if ((text[2] - '0') >= 0 && (text[2] - '0') < 8) {
+		wattron(win, bsddialog_color( text[2] - '0', COLOR_WHITE) );
 		return true;
 	}
 
-	isattr = true;
 	switch (text[2]) {
 	case 'n':
 		wattrset(win, A_NORMAL);
@@ -272,143 +274,9 @@ static bool check_set_ncurses_attr(WINDOW *win, char *text)
 	case 'U':
 		wattroff(win, A_UNDERLINE);
 		break;
-	default:
-		isattr = false;
 	}
 
-	return isattr;
-}
-
-static bool isws(int ch)
-{
-
-	return (ch == ' ' || ch == '\t' || ch == '\n');
-}
-
-static int
-next_token(char *text, char *valuestr)
-{
-	int i, j;
-	enum token tok;
-
-	i = j = 0;
-
-	if (text[0] == '\0')
-		return END;
-
-	while (text[i] != '\0') {
-		if (isws(text[i])) {
-			if (i == 0) {
-				valuestr[0] = text[i];
-				valuestr[1] = '\0';
-				tok = WS;
-			}
-			break;
-		}
-
-		valuestr[j] = text[i];
-		j++;
-		valuestr[j] = '\0';
-		i++;
-		tok = TEXT;
-	}
-
-	return tok;
-}
-
-static void
-print_string(WINDOW *win, int *y, int *x, int minx, int maxx, char *str, bool color)
-{
-	int i, j, len, reallen;
-
-	if(strlen(str) == 0)
-		return;
-
-	len = reallen = strlen(str);
-	if (color) {
-		i=0;
-		while (i < len) {
-			if (check_set_ncurses_attr(win, str+i))
-				reallen -= 3;
-			i++;
-		}
-	}
-
-	i = 0;
-	while (i < len) {
-		if (*x + reallen > maxx) {
-			*y = (*x != minx ? *y+1 : *y);
-			*x = minx;
-		}
-		j = *x;
-		while (j < maxx && i < len) {
-			if (color && check_set_ncurses_attr(win, str+i)) {
-				i += 3;
-			} else {
-				mvwaddch(win, *y, j, str[i]);
-				i++;
-				reallen--;
-				j++;
-				*x = j;
-			}
-		}
-	}
-}
-
-void
-print_text(struct bsddialog_conf conf, WINDOW *pad, int starty, int minx, int maxx,
-    char *text)
-{
-	char *valuestr;
-	int x, y;
-	bool loop;
-	enum token tok;
-
-	valuestr = malloc(strlen(text) + 1);
-
-	x = minx;
-	y = starty;
-	loop = true;
-	while (loop) {
-		tok = next_token(text, valuestr);
-		switch (tok) {
-		case END:
-			loop = false;
-			break;
-		case WS:
-			text += strlen(valuestr);
-			print_string(pad, &y, &x, minx, maxx, valuestr, false /*useless*/);
-			break;
-		case TEXT:
-			text += strlen(valuestr);
-			print_string(pad, &y, &x, minx, maxx, valuestr, conf.text.colors);
-			break;
-		}
-	}
-
-	free(valuestr);
-}
-
-// new text funcs
-
-static bool is_ncurses_attr(char *text)
-{
-	bool isattr;
-
-	if (strnlen(text, 3) < 3)
-		return false;
-
-	if (text[0] != '\\' || text[1] != 'Z')
-		return false;
-
-	if ((text[2] - '0') >= 0 && (text[2] - '0') < 8)
-		return true;
-
-	isattr = text[2] == 'n' || text[2] == 'b' || text[2] == 'B' ||
-	    text[2] == 'r' || text[2] == 'R' || text[2] == 'u' ||
-	    text[2] == 'U';
-
-	return isattr;
+	return true;
 }
 
 static void
@@ -454,7 +322,7 @@ print_str(WINDOW *win, int *rows, int *y, int *x, int cols, char *str, bool colo
 	}
 }
 
-static void prepare_text(struct bsddialog_conf conf, char *text, char *buf)
+static void prepare_text(struct bsddialog_conf *conf, char *text, char *buf)
 {
 	int i, j;
 
@@ -468,7 +336,7 @@ static void prepare_text(struct bsddialog_conf conf, char *text, char *buf)
 				i++;
 				break;
 			case 'n':
-				if (conf.text.no_nl_expand) {
+				if (conf->text.no_nl_expand) {
 					j++;
 					buf[j] = 'n';
 				} else
@@ -476,7 +344,7 @@ static void prepare_text(struct bsddialog_conf conf, char *text, char *buf)
 				i++;
 				break;
 			case 't':
-				if (conf.text.no_collapse) {
+				if (conf->text.no_collapse) {
 					j++;
 					buf[j] = 't';
 				} else
@@ -486,23 +354,23 @@ static void prepare_text(struct bsddialog_conf conf, char *text, char *buf)
 			}
 			break;
 		case '\n':
-			buf[j] = conf.text.cr_wrap ? ' ' : '\n';
+			buf[j] = conf->text.cr_wrap ? ' ' : '\n';
 			break;
 		case '\t':
-			buf[j] = conf.text.no_collapse ? '\t' : ' ';
+			buf[j] = conf->text.no_collapse ? '\t' : ' ';
 			break;
 		default:
 			buf[j] = text[i];
 		}
 		i++;
-		j += (buf[j] == ' ' && conf.text.trim && j > 0 && buf[j-1] == ' ') ?
+		j += (buf[j] == ' ' && conf->text.trim && j > 0 && buf[j-1] == ' ') ?
 		    0 : 1;
 	}
 	buf[j] = '\0';
 }
 
 int
-get_text_properties(struct bsddialog_conf conf, char *text, int *maxword,
+get_text_properties(struct bsddialog_conf *conf, char *text, int *maxword,
     int *maxline, int *nlines)
 {
 	char *buf;
@@ -524,7 +392,7 @@ get_text_properties(struct bsddialog_conf conf, char *text, int *maxword,
 				wordlen = 0;
 				continue;
 			}
-		if (conf.text.colors && is_ncurses_attr(buf + i))
+		if (conf->text.colors && is_ncurses_attr(buf + i))
 			i += 3;
 		else
 			wordlen++;
@@ -541,7 +409,7 @@ get_text_properties(struct bsddialog_conf conf, char *text, int *maxword,
 			linelen = 0;
 			break;
 		default:
-			if (conf.text.colors && is_ncurses_attr(buf + i))
+			if (conf->text.colors && is_ncurses_attr(buf + i))
 				i += 3;
 			else
 				linelen++;
@@ -555,8 +423,9 @@ get_text_properties(struct bsddialog_conf conf, char *text, int *maxword,
 	return 0;
 }
 
-static int
-print_textpad(struct bsddialog_conf conf, WINDOW *pad, int *rows, int cols, char *text)
+int
+print_textpad(struct bsddialog_conf *conf, WINDOW *pad, int *rows, int cols,
+    char *text)
 {
 	char *buf, *string;
 	int i, j, x, y;
@@ -580,7 +449,7 @@ print_textpad(struct bsddialog_conf conf, WINDOW *pad, int *rows, int cols, char
 		    string[j] == '\t' || string[j] == ' ') {
 			if (j != 0) {
 				string[j] = '\0';
-				print_str(pad, rows, &y, &x, cols, string, conf.text.colors);
+				print_str(pad, rows, &y, &x, cols, string, conf->text.colors);
 			}
 		}
 
@@ -633,15 +502,15 @@ print_textpad(struct bsddialog_conf conf, WINDOW *pad, int *rows, int cols, char
  * max y, that is from 0 to LINES - 1 - t.shadowrows,
  * could not be max height but avoids problems with checksize
  */
-int widget_max_height(struct bsddialog_conf conf)
+int widget_max_height(struct bsddialog_conf *conf)
 {
 	int maxheight;
 
-	if ((maxheight = conf.shadow ? LINES - 1 - t.shadowrows : LINES - 1) <= 0)
+	if ((maxheight = conf->shadow ? LINES - 1 - t.shadow.h : LINES - 1) <= 0)
 		RETURN_ERROR("Terminal too small, LINES - shadow <= 0");
 
-	if (conf.y > 0)
-		if ((maxheight -= conf.y) <=0)
+	if (conf->y > 0)
+		if ((maxheight -= conf->y) <=0)
 			RETURN_ERROR("Terminal too small, LINES - shadow - y <= 0");
 
 	return maxheight;
@@ -651,21 +520,21 @@ int widget_max_height(struct bsddialog_conf conf)
  * max x, that is from 0 to COLS - 1 - t.shadowcols,
  *  * could not be max height but avoids problems with checksize
  */
-int widget_max_width(struct bsddialog_conf conf)
+int widget_max_width(struct bsddialog_conf *conf)
 {
 	int maxwidth;
 
-	if ((maxwidth = conf.shadow ? COLS - 1 - t.shadowcols : COLS - 1)  <= 0)
+	if ((maxwidth = conf->shadow ? COLS - 1 - t.shadow.w : COLS - 1)  <= 0)
 		RETURN_ERROR("Terminal too small, COLS - shadow <= 0");
-	if (conf.x > 0)
-		if ((maxwidth -= conf.x) <=0)
+	if (conf->x > 0)
+		if ((maxwidth -= conf->x) <=0)
 			RETURN_ERROR("Terminal too small, COLS - shadow - x <= 0");
 
 	return maxwidth;
 }
 
 int
-set_widget_size(struct bsddialog_conf conf, int rows, int cols, int *h, int *w)
+set_widget_size(struct bsddialog_conf *conf, int rows, int cols, int *h, int *w)
 {
 	int maxheight, maxwidth;
 
@@ -700,33 +569,33 @@ set_widget_size(struct bsddialog_conf conf, int rows, int cols, int *h, int *w)
 }
 
 int
-set_widget_position(struct bsddialog_conf conf, int *y, int *x, int h, int w)
+set_widget_position(struct bsddialog_conf *conf, int *y, int *x, int h, int w)
 {
 
-	if (conf.y == BSDDIALOG_CENTER)
+	if (conf->y == BSDDIALOG_CENTER)
 		*y = LINES/2 - h/2;
-	else if (conf.y < BSDDIALOG_CENTER)
+	else if (conf->y < BSDDIALOG_CENTER)
 		RETURN_ERROR("Negative begin y (less than -1)");
-	else if (conf.y >= LINES)
+	else if (conf->y >= LINES)
 		RETURN_ERROR("Begin Y under the terminal");
 	else
-		*y = conf.y;
+		*y = conf->y;
 
-	if ((*y + h + (conf.shadow ? (int) t.shadowrows : 0)) > LINES)
+	if ((*y + h + (conf->shadow ? (int) t.shadow.h : 0)) > LINES)
 		RETURN_ERROR("The lower of the box under the terminal "\
 		    "(begin Y + height (+ shadow) > terminal lines)");
 
 
-	if (conf.x == BSDDIALOG_CENTER)
+	if (conf->x == BSDDIALOG_CENTER)
 		*x = COLS/2 - w/2;
-	else if (conf.x < BSDDIALOG_CENTER)
+	else if (conf->x < BSDDIALOG_CENTER)
 		RETURN_ERROR("Negative begin x (less than -1)");
-	else if (conf.x >= COLS)
+	else if (conf->x >= COLS)
 		RETURN_ERROR("Begin X over the right of the terminal");
 	else
-		*x = conf.x;
+		*x = conf->x;
 
-	if ((*x + w + (conf.shadow ? (int) t.shadowcols : 0)) > COLS)
+	if ((*x + w + (conf->shadow ? (int) t.shadow.w : 0)) > COLS)
 		RETURN_ERROR("The right of the box over the terminal "\
 		    "(begin X + width (+ shadow) > terminal cols)");
 
@@ -735,7 +604,7 @@ set_widget_position(struct bsddialog_conf conf, int *y, int *x, int h, int w)
 
 /* Widgets builders */
 void
-draw_borders(struct bsddialog_conf conf, WINDOW *win, int rows, int cols,
+draw_borders(struct bsddialog_conf *conf, WINDOW *win, int rows, int cols,
     enum elevation elev)
 {
 	int leftcolor, rightcolor;
@@ -751,14 +620,14 @@ draw_borders(struct bsddialog_conf conf, WINDOW *win, int rows, int cols,
 	ltee = ACS_LTEE;
 	rtee = ACS_RTEE;
 
-	if (conf.no_lines == false) {
-		if (conf.ascii_lines) {
+	if (conf->no_lines == false) {
+		if (conf->ascii_lines) {
 			ls = rs = '|';
 			ts = bs = '-';
 			tl = tr = bl = br = ltee = rtee = '+';
 		}
-		leftcolor  = elev == RAISED ? t.lineraisecolor : t.linelowercolor;
-		rightcolor = elev == RAISED ? t.linelowercolor : t.lineraisecolor;
+		leftcolor  = elev == RAISED ? t.widget.lineraisecolor : t.widget.linelowercolor;
+		rightcolor = elev == RAISED ? t.widget.linelowercolor : t.widget.lineraisecolor;
 		wattron(win, leftcolor);
 		wborder(win, ls, rs, ts, bs, tl, tr, bl, br);
 		wattroff(win, leftcolor);
@@ -773,7 +642,7 @@ draw_borders(struct bsddialog_conf conf, WINDOW *win, int rows, int cols,
 }
 
 WINDOW *
-new_boxed_window(struct bsddialog_conf conf, int y, int x, int rows, int cols,
+new_boxed_window(struct bsddialog_conf *conf, int y, int x, int rows, int cols,
     enum elevation elev)
 {
 	WINDOW *win;
@@ -783,7 +652,7 @@ new_boxed_window(struct bsddialog_conf conf, int y, int x, int rows, int cols,
 		return NULL;
 	}
 
-	wbkgd(win, t.widgetcolor);
+	wbkgd(win, t.widget.color);
 
 	draw_borders(conf, win, rows, cols, elev);
 
@@ -795,17 +664,17 @@ new_boxed_window(struct bsddialog_conf conf, int y, int x, int rows, int cols,
  * to check at the end.
  */
 static int
-draw_widget_withtextpad(struct bsddialog_conf conf, WINDOW *shadow,
+draw_widget_withtextpad(struct bsddialog_conf *conf, WINDOW *shadow,
     WINDOW *widget, int h, int w, enum elevation elev,
     WINDOW *textpad, int *htextpad, char *text, bool buttons)
 {
 	int ts, ltee, rtee;
 	int colorsurroundtitle;
 
-	ts = conf.ascii_lines ? '-' : ACS_HLINE;
-	ltee = conf.ascii_lines ? '+' : ACS_LTEE;
-	rtee = conf.ascii_lines ? '+' : ACS_RTEE;
-	colorsurroundtitle = elev == RAISED ? t.lineraisecolor : t.linelowercolor;
+	ts = conf->ascii_lines ? '-' : ACS_HLINE;
+	ltee = conf->ascii_lines ? '+' : ACS_LTEE;
+	rtee = conf->ascii_lines ? '+' : ACS_RTEE;
+	colorsurroundtitle = elev == RAISED ? t.widget.lineraisecolor : t.widget.linelowercolor;
 
 	if (shadow != NULL)
 		wnoutrefresh(shadow);
@@ -813,43 +682,43 @@ draw_widget_withtextpad(struct bsddialog_conf conf, WINDOW *shadow,
 	// move / resize now or the caller?
 	draw_borders(conf, widget, h, w, elev);
 
-	if (conf.title != NULL) {
-		if (t.surroundtitle && conf.no_lines == false) {
+	if (conf->title != NULL) {
+		if (t.widget.delimtitle && conf->no_lines == false) {
 			wattron(widget, colorsurroundtitle);
-			mvwaddch(widget, 0, w/2 - strlen(conf.title)/2 - 1, rtee);
+			mvwaddch(widget, 0, w/2 - strlen(conf->title)/2 - 1, rtee);
 			wattroff(widget, colorsurroundtitle);
 		}
-		wattron(widget, t.titlecolor);
-		mvwaddstr(widget, 0, w/2 - strlen(conf.title)/2, conf.title);
-		wattroff(widget, t.titlecolor);
-		if (t.surroundtitle && conf.no_lines == false) {
+		wattron(widget, t.widget.titlecolor);
+		mvwaddstr(widget, 0, w/2 - strlen(conf->title)/2, conf->title);
+		wattroff(widget, t.widget.titlecolor);
+		if (t.widget.delimtitle && conf->no_lines == false) {
 			wattron(widget, colorsurroundtitle);
 			waddch(widget, ltee);
 			wattroff(widget, colorsurroundtitle);
 		}
 	}
 
-	if (conf.hline != NULL) {
-		wattron(widget, t.bottomtitlecolor);
-		wmove(widget, h - 1, w/2 - strlen(conf.hline)/2 - 1);
+	if (conf->hline != NULL) {
+		wattron(widget, t.widget.bottomtitlecolor);
+		wmove(widget, h - 1, w/2 - strlen(conf->hline)/2 - 1);
 		waddch(widget, '[');
-		waddstr(widget, conf.hline);
+		waddstr(widget, conf->hline);
 		waddch(widget, ']');
-		wattroff(widget, t.bottomtitlecolor);
+		wattroff(widget, t.widget.bottomtitlecolor);
 	}
 
-	if (textpad == NULL && text != NULL) /* no pad, text null for textbox */
-		print_text(conf, widget, 1, 2, w-3, text);
+	//if (textpad == NULL && text != NULL) /* no pad, text null for textbox */
+	//	print_text(conf, widget, 1, 2, w-3, text);
 
-	if (buttons && conf.no_lines == false) {
-		wattron(widget, t.lineraisecolor);
+	if (buttons && conf->no_lines == false) {
+		wattron(widget, t.widget.lineraisecolor);
 		mvwaddch(widget, h-3, 0, ltee);
 		mvwhline(widget, h-3, 1, ts, w-2);
-		wattroff(widget, t.lineraisecolor);
+		wattroff(widget, t.widget.lineraisecolor);
 
-		wattron(widget, t.linelowercolor);
+		wattron(widget, t.widget.linelowercolor);
 		mvwaddch(widget, h-3, w-1, rtee);
-		wattroff(widget, t.linelowercolor);
+		wattroff(widget, t.widget.linelowercolor);
 	}
 
 	wnoutrefresh(widget);
@@ -859,7 +728,7 @@ draw_widget_withtextpad(struct bsddialog_conf conf, WINDOW *shadow,
 
 	if (text != NULL) /* programbox etc */
 		if (print_textpad(conf, textpad, htextpad,
-		    w - HBORDERS - t.texthmargin * 2, text) !=0)
+		    w - HBORDERS - t.text.hmargin * 2, text) !=0)
 			return BSDDIALOG_ERROR;
 
 	return 0;
@@ -870,7 +739,7 @@ draw_widget_withtextpad(struct bsddialog_conf conf, WINDOW *shadow,
  * to check at the end.
  */
 int
-update_widget_withtextpad(struct bsddialog_conf conf, WINDOW *shadow,
+update_widget_withtextpad(struct bsddialog_conf *conf, WINDOW *shadow,
     WINDOW *widget, int h, int w, enum elevation elev,
     WINDOW *textpad, int *htextpad, char *text, bool buttons)
 {
@@ -889,21 +758,21 @@ update_widget_withtextpad(struct bsddialog_conf conf, WINDOW *shadow,
  * to check at the end.
  */
 int
-new_widget_withtextpad(struct bsddialog_conf conf, WINDOW **shadow,
+new_widget_withtextpad(struct bsddialog_conf *conf, WINDOW **shadow,
     WINDOW **widget, int y, int x, int h, int w, enum elevation elev,
     WINDOW **textpad, int *htextpad, char *text, bool buttons)
 {
 	int error;
 
-	if (conf.shadow) {
-		*shadow = newwin(h, w, y + t.shadowrows, x + t.shadowcols);
+	if (conf->shadow) {
+		*shadow = newwin(h, w, y + t.shadow.h, x + t.shadow.w);
 		if (*shadow == NULL)
 			RETURN_ERROR("Cannot build shadow");
-		wbkgd(*shadow, t.shadowcolor);
+		wbkgd(*shadow, t.shadow.color);
 	}
 
 	if ((*widget = new_boxed_window(conf, y, x, h, w, elev)) == NULL) {
-		if (conf.shadow)
+		if (conf->shadow)
 			delwin(*shadow);
 		return BSDDIALOG_ERROR;
 	}
@@ -916,14 +785,14 @@ new_widget_withtextpad(struct bsddialog_conf conf, WINDOW **shadow,
 
 	if (text != NULL) { /* programbox etc */
 		*htextpad = 1;
-		*textpad = newpad(*htextpad, w - HBORDERS - t.texthmargin * 2);
+		*textpad = newpad(*htextpad, w - HBORDERS - t.text.hmargin * 2);
 		if (*textpad == NULL) {
 			delwin(*textpad);
-			if (conf.shadow)
+			if (conf->shadow)
 				delwin(*shadow);
 			RETURN_ERROR("Cannot build the pad window for text");
 		}
-		wbkgd(*textpad, t.widgetcolor);
+		wbkgd(*textpad, t.widget.color);
 	}
 
 	error =  draw_widget_withtextpad(conf, *shadow, *widget, h, w, elev,
@@ -932,65 +801,30 @@ new_widget_withtextpad(struct bsddialog_conf conf, WINDOW **shadow,
 	return error;
 }
 
-int
-new_widget(struct bsddialog_conf conf, WINDOW **widget, int *y, int *x,
-    char *text, int *h, int *w, WINDOW **shadow, bool buttons)
-{
-
-	// to delete (each widget has to check its x,y,h,w)
-	if (*h <= 0)
-		; /* todo */
-
-	if (*w <= 0)
-		; /* todo */
-
-	*y = (conf.y < 0) ? (LINES/2 - *h/2) : conf.y;
-	*x = (conf.x < 0) ? (COLS/2 - *w/2) : conf.x;
-
-	if (new_widget_withtextpad(conf, shadow, widget, *y, *x, *h, *w, RAISED,
-	    NULL, NULL, text, buttons) != 0)
-		return BSDDIALOG_ERROR;
-
-	if (conf.shadow)
-		wrefresh(*shadow);
-
-	wrefresh(*widget);
-
-	return 0;
-}
-
 void
-end_widget_withtextpad(struct bsddialog_conf conf, WINDOW *window, int h, int w,
+end_widget_withtextpad(struct bsddialog_conf *conf, WINDOW *window, int h, int w,
     WINDOW *textpad, WINDOW *shadow)
 {
 	int y, x;
 
 	getbegyx(window, y, x); /* for clear, add y & x to args? */
 
-	if (conf.sleep > 0)
-		sleep(conf.sleep);
+	if (conf->sleep > 0)
+		sleep(conf->sleep);
 
 	if (textpad != NULL)
 		delwin(textpad);
 
 	delwin(window);
 
-	if (conf.shadow)
+	if (conf->shadow)
 		delwin(shadow);
 
-	if (conf.clear)
+	if (conf->clear)
 		hide_widget(y, x, h, w, shadow != NULL);
 
-	if (conf.get_height != NULL)
-		*conf.get_height = h;
-	if (conf.get_width != NULL)
-		*conf.get_width = w;
-}
-
-void
-end_widget(struct bsddialog_conf conf, WINDOW *window, int h, int w,
-    WINDOW *shadow)
-{
-
-	end_widget_withtextpad(conf, window, h, w, NULL, shadow);
+	if (conf->get_height != NULL)
+		*conf->get_height = h;
+	if (conf->get_width != NULL)
+		*conf->get_width = w;
 }
