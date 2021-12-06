@@ -824,6 +824,9 @@ flex_spi_detach(device_t dev)
 	sc = device_get_softc(dev);
 	err = 0;
 
+	if (!device_is_attached(dev))
+		goto free_resources;
+
 	mtx_lock(&sc->disk_mtx);
 	if (sc->taskstate == TSTATE_RUNNING) {
 		sc->taskstate = TSTATE_STOPPING;
@@ -848,7 +851,7 @@ flex_spi_detach(device_t dev)
 	}
 
 	/* Disable hardware. */
-
+free_resources:
 	/* Release memory resource. */
 	if (sc->mem_res != NULL)
 		bus_release_resource(dev, SYS_RES_MEMORY,
