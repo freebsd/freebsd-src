@@ -1084,7 +1084,7 @@ e82545_transmit(struct e82545_softc *sc, uint16_t head, uint16_t tail,
 	struct ck_info ckinfo[2];
 	struct iovec *iov;
 	union  e1000_tx_udesc *dsc;
-	int desc, dtype, len, ntype, iovcnt, tlen, tcp, tso;
+	int desc, dtype, len, ntype, iovcnt, tcp, tso;
 	int mss, paylen, seg, tiovcnt, left, now, nleft, nnow, pv, pvoff;
 	unsigned hdrlen, vlen;
 	uint32_t tcpsum, tcpseq;
@@ -1092,7 +1092,6 @@ e82545_transmit(struct e82545_softc *sc, uint16_t head, uint16_t tail,
 
 	ckinfo[0].ck_valid = ckinfo[1].ck_valid = 0;
 	iovcnt = 0;
-	tlen = 0;
 	ntype = 0;
 	tso = 0;
 	ohead = head;
@@ -1150,7 +1149,6 @@ e82545_transmit(struct e82545_softc *sc, uint16_t head, uint16_t tail,
 			if ((dsc->td.lower.data & E1000_TXD_CMD_EOP) != 0 &&
 			    (dsc->td.lower.data & E1000_TXD_CMD_IFCS) == 0)
 				len -= 2;
-			tlen += len;
 			if (iovcnt < I82545_MAX_TXSEGS) {
 				iov[iovcnt].iov_base = paddr_guest2host(
 				    sc->esc_ctx, dsc->td.buffer_addr, len);
