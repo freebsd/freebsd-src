@@ -179,7 +179,7 @@ xdialog_menu(char *title, char *cprompt, int height, int width,
 again:
 	conf.menu.default_item = listitems[choice].name;
 	conf.title = title;
-	result = bsddialog_menu(conf, cprompt, height, width,
+	result = bsddialog_menu(&conf, cprompt, height, width,
 	    menu_height, item_no, listitems, NULL);
 	for (i = 0; i < item_no; i++)
 		if (listitems[i].on)
@@ -675,7 +675,7 @@ confirm_zone(const char *filename)
 	snprintf(prompt, sizeof(prompt),
 	    "Does the abbreviation `%s' look reasonable?", tm->tm_zone);
 	conf.title = "Confirmation";
-	rv = !bsddialog_yesno(conf, prompt, 5, 72);
+	rv = !bsddialog_yesno(&conf, prompt, 5, 72);
 	return (rv);
 }
 
@@ -735,7 +735,7 @@ install_zoneinfo_file(const char *zoneinfo_file)
 #ifdef HAVE_BSDDIALOG
 	if (usedialog)
 		conf.title = "Info";
-		bsddialog_msgbox(conf, prompt, 8, 72);
+		bsddialog_msgbox(&conf, prompt, 8, 72);
 	else
 #endif
 		fprintf(stderr, "%s\n", prompt);
@@ -751,7 +751,7 @@ install_zoneinfo_file(const char *zoneinfo_file)
 #ifdef HAVE_BSDDIALOG
 				if (usedialog) {
 					conf.title = "Error";
-					bsddialog_msgbox(conf, prompt, 8, 72);
+					bsddialog_msgbox(&conf, prompt, 8, 72);
 				} else
 #endif
 					fprintf(stderr, "%s\n", prompt);
@@ -765,7 +765,7 @@ install_zoneinfo_file(const char *zoneinfo_file)
 #ifdef HAVE_BSDDIALOG
 				if (usedialog) {
 					conf.title = "error";
-					bsddialog_msgbox(conf, prompt, 8, 72);
+					bsddialog_msgbox(&conf, prompt, 8, 72);
 				} else
 #endif
 					fprintf(stderr, "%s\n", prompt);
@@ -781,7 +781,7 @@ install_zoneinfo_file(const char *zoneinfo_file)
 #ifdef HAVE_BSDDIALOG
 				if (usedialog) {
 					conf.title = "Error";
-					bsddialog_msgbox(conf, prompt, 8, 72);
+					bsddialog_msgbox(&conf, prompt, 8, 72);
 				} else
 #endif
 					fprintf(stderr, "%s\n", prompt);
@@ -799,7 +799,7 @@ install_zoneinfo_file(const char *zoneinfo_file)
 #ifdef HAVE_BSDDIALOG
 				if (usedialog) {
 					conf.title = "Error";
-					bsddialog_msgbox(conf, prompt, 8, 72);
+					bsddialog_msgbox(&conf, prompt, 8, 72);
 				} else
 #endif
 					fprintf(stderr, "%s\n", prompt);
@@ -817,7 +817,7 @@ install_zoneinfo_file(const char *zoneinfo_file)
 #ifdef HAVE_BSDDIALOG
 				if (usedialog) {
 					conf.title = "Error";
-					bsddialog_msgbox(conf, prompt, 8, 72);
+					bsddialog_msgbox(&conf, prompt, 8, 72);
 				} else
 #endif
 					fprintf(stderr, "%s\n", prompt);
@@ -830,7 +830,7 @@ install_zoneinfo_file(const char *zoneinfo_file)
 #ifdef HAVE_BSDDIALOG
 				if (usedialog) {
 					conf.title = "Error";
-					bsddialog_msgbox(conf, prompt, 8, 72);
+					bsddialog_msgbox(&conf, prompt, 8, 72);
 				} else
 #endif
 					fprintf(stderr, "%s\n", prompt);
@@ -844,7 +844,7 @@ install_zoneinfo_file(const char *zoneinfo_file)
 #ifdef HAVE_BSDDIALOG
 				if (usedialog) {
 					conf.title = "Error";
-					bsddialog_msgbox(conf, prompt, 8, 72);
+					bsddialog_msgbox(&conf, prompt, 8, 72);
 				} else
 #endif
 					fprintf(stderr, "%s\n", prompt);
@@ -864,7 +864,7 @@ install_zoneinfo_file(const char *zoneinfo_file)
 #ifdef HAVE_BSDDIALOG
 		if (usedialog) {
 			conf.title = "Done";
-			bsddialog_msgbox(conf, prompt, 8, 72);
+			bsddialog_msgbox(&conf, prompt, 8, 72);
 		} else
 #endif
 			fprintf(stderr, "%s\n", prompt);
@@ -1030,7 +1030,7 @@ main(int argc, char **argv)
 
 		conf.button.defaultno = true;
 		conf.title = "Select local or UTC (Greenwich Mean Time) clock";
-		yesno = bsddialog_yesno(conf, prompt, 7, 73);
+		yesno = bsddialog_yesno(&conf, prompt, 7, 73);
 		conf.button.defaultno = false;
 		if (!yesno) {
 			if (reallydoit)
@@ -1053,7 +1053,7 @@ main(int argc, char **argv)
 		snprintf(prompt, sizeof(prompt),
 		    "\nUse the default `%s' zone?", argv[optind]);
 		conf.title = "Default timezone provided";
-		if (!bsddialog_yesno(conf, prompt, 7, 72)) {
+		if (!bsddialog_yesno(&conf, prompt, 7, 72)) {
 			rv = install_zoneinfo_file(argv[optind]);
 			bsddialog_end();
 			exit(rv & ~DITEM_LEAVE_MENU);

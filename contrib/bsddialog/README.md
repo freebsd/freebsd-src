@@ -55,19 +55,43 @@ Examples utility:
 % ./bsddialog --backtitle "TITLE" --title yesno --hline "bsddialog" --yesno "Hello World!" 5 25
 % ./bsddialog --extra-button --help-button --defaultno --yesno "Hello World!" 0 0
 ```
+and
+```
+% sh ./examples_utility/buildlist.sh
+% sh ./examples_utility/checklist.sh
+% sh ./examples_utility/form.sh
+% sh ./examples_utility/gauge.sh
+% sh ./examples_utility/infobox.sh
+% sh ./examples_utility/inputbox.sh
+% sh ./examples_utility/menu.sh
+% sh ./examples_utility/mixedform.sh
+% sh ./examples_utility/mixedgauge.sh
+% sh ./examples_utility/msgbox.sh
+% sh ./examples_utility/passwordbox.sh
+% sh ./examples_utility/passwordform.sh
+% sh ./examples_utility/radiolist.sh
+% sh ./examples_utility/treeview.sh
+% sh ./examples_utility/yesno.sh
+```
 
 Examples library:
 ```
-% cd library_examples
+% cd examples_library
 % sh compile
 % ./buildlist
+% ./compile
+% ./datebox
+% ./form
 % ./infobox
 % ./menu
 % ./mixedlist
 % ./msgbox
-% ./ports
+% ./pause
 % ./radiolist
+% ./rangebox
+% ./sade
 % ./theme
+% ./timebox
 % ./treeview
 % ./yesno
 ```
@@ -87,74 +111,63 @@ Use Cases:
 --colors, --date-format *format*, --default-button *string*, --defaultno,
 --default-item *string*, 
 --exit-label *string*, --extra-button, --extra-label *string*,
---hfile *filename* (for completed widgets), n--help-button,
+--hfile *filename* (for completed widgets), --help, --help-button,
 --help-label *string*, --help-status, --help-tags, --hline *string*, --ignore,
---item-help, --no-cancel, --nocancel, --no-label *string*, --no-items,
---no-lines, --no-ok,
+--insecure, --item-help, --max-input *size*, --no-cancel, --nocancel,
+--no-label *string*, --no-items, --no-lines, --no-ok,
 --nook, --no-shadow, --no-tags, --ok-label *string*, --output-fd *fd*,
 --output-separator *string*, --print-version,
 --print-size (todo move lib -> utility), --quoted (quotes all != dialog),
 --print-maxsize, --shadow, --single-quoted (add --quote-with *ch*?), 
 --separator *string* (alias --output-separator *string*),
 --separate-output (rename --separate-output-withnl?), --sleep *secs*, --stderr,
---stdout, --theme *string* ("bsddialog", "dialog", "blackwhite" and "magenta"),
+--stdout, --theme *string* ("bsddialog", "dialog", "blackwhite"),
 --time-format *format*, --title *title*, --version, --yes-label *string*.
 
 **Widgets:**
  
  infobox (do not clear the screen), msgbox,
  yesno (dialog renames "yes/no" -> "ok/cancel" with --extra-button --help-button).
- checklist, radiolist, menu, mixedlist, treeview and textbox.
+ checklist, radiolist, menu, mixedlist, treeview, textbox, mixedgauge, datebox,
+ timebox, gauge, rangebox, pause.
+
+
+ Without resize:
+
+ form, inputbox, mixedform, passwordbox, passwordform.
+
+
+ Without autosize, resize, F1:
+
+ buildlist
+
+
 
 ## TODO
+
 
 **Common Options:**
 
 |  Option                      | Status      | Note                            |
 | ---------------------------- | ----------- | ------------------------------- |
-| --cr-wrap                    | Coding      |                                 |
-| --help                       | In progress |                                 |
-| --input-fd *fd*              |             |                                 |
-| --insecure                   |             |                                 |
-| --keep-tite                  |             |                                 |
-| --keep-window                |             |                                 |
-| --last-key                   |             |                                 |
-| --max-input *size*           |             |                                 |
-| --no-collapse                | Coding      |                                 |
-| --no-kill                    |             |                                 |
-| --no-nl-expand               | Coding      |                                 |
-| --tab-correct                |             |                                 |
-| --tab-len *n*                |             |                                 |
-| --trim                       | Coding      |                                 |
+| --cr-wrap                    | In progress | text                            |
+| --no-collapse                | In progress | text                            |
+| --no-nl-expand               | In progress | text                            |
+| --trim                       | In progress | text                            |
 
 
-To evaluate / Not planned in the short term: --column-separator *string*,
+To evaluate / Not planned in the short term / not in bsdinstall:
+
 --create-rc *file*, --iso-week, --no-mouse, --print-text-only *str h w*,
 --print-text-size *str h w*, --reorder, -scrollbar, --separate-widget *string*,
 --size-err, --timeout *secs*,--trace *filename*, --visit-items,
---week-start *day*.
+--week-start *day*, --keep-tite, --keep-window, --last-key, --no-kill,
+--column-separator *string*, --input-fd *fd*, --tab-correct, --tab-len *n*
 
 
 **Widgets:**
 
-| Widget         | Status      | Note                                          |
-|--------------- | ----------- | ----------------------------------------------|
-| --buildlist    | In progress | todo autosize, resize, F1                     |
-| --calendar     | In progress | todo autosize, resize, F1, leap year, year <=0, month days |
-| --editbox      |             |                                               |
-| --form         | In progress | implemented via --mixedform                   |
-| --gauge        | In progress |                                               |
-| --inputbox     | In progress | implemented via --mixedform, todo \<init\>    |
-| --mixedform    | In progress | todo autosize, resize, F1                     |
-| --mixedgauge   | In progress | todo autosize, resize, F1                     |
-| --passwordbox  | In progress | implemented via --mixedform, todo \<init\>    |
-| --passwordform | In progress | implemented via --mixedform                   |
-| --pause        | In progress | todo autosize, resize, F1                     |
-| --prgbox       | In progress | add command opts                              |
-| --programbox   | Coding      |                                               |
-| --progressbox  |             |                                               |
-| --rangebox     | In progress | todo autosize, resize, F1, PAGE-UP/PAGE-DOWN/HOME/END keys |
-| --timebox      | In progress | todo autosize, resize, F1                     |
+To evaluate / Not planned in the short term:
 
-To evaluate / Not planned in the short term: tailbox (textbox/fseek), tailboxbg,
-dselect, fselect, inputmenu.
+tailbox (textbox/fseek), tailboxbg, dselect, fselect, inputmenu, editbox,
+calendar (use datebox), prgbox, programbox, progressbox.

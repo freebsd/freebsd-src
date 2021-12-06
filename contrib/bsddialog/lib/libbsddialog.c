@@ -46,14 +46,11 @@
  * Widgets implementation:
  *  infobox.c    infobox
  *  messgebox.c  msgbox - yesno
- *  menubox.c    buildlist - checklist - menu - mixedlist - radiolist - treeview
+ *  menubox.c    buildlist - checklist - menu - mixedlist - radiolist
  *  formbox.c    inputbox - passwordbox - form - passwordform - mixedform
- *  editorbox.c  editbox
  *  barbox.c     gauge - mixedgauge - rangebox - pause
+ *  textbox.c    textbox
  *  timebox.c    timebox - calendar
- *  commandbox.c prgbox - programbox - progressbox
- *  tailbox.c    tailbox - tailboxbg - textbox
- *  filebox.c    dselect - fselect
  */
 
 extern struct bsddialog_theme t;
@@ -103,12 +100,12 @@ int bsddialog_end(void)
 	return 0;
 }
 
-int bsddialog_backtitle(struct bsddialog_conf conf, char *backtitle)
+int bsddialog_backtitle(struct bsddialog_conf *conf, char *backtitle)
 {
 
 	mvaddstr(0, 1, backtitle);
-	if (conf.no_lines != true)
-		mvhline(1, 1, conf.ascii_lines ? '-' : ACS_HLINE, COLS-2);
+	if (conf->no_lines != true)
+		mvhline(1, 1, conf->ascii_lines ? '-' : ACS_HLINE, COLS-2);
 
 	refresh();
 
