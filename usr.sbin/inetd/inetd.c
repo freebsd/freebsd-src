@@ -394,9 +394,9 @@ main(int argc, char **argv)
 		case '?':
 		default:
 			syslog(LOG_ERR,
-				"usage: inetd [-dlwW] [-a address] [-R rate]"
-				" [-c maximum] [-C rate]"
-				" [-p pidfile] [conf-file]");
+				"usage: inetd [-dlWw] [-a address] [-C rate]"
+				" [-c maximum] [-p filename] [-R rate]"
+				" [-s maximum] [configuration_file]");
 			exit(EX_USAGE);
 		}
 	/*
