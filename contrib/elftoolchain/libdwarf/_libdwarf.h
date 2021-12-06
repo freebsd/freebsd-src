@@ -379,8 +379,9 @@ typedef struct _Dwarf_Rel_Section {
 } *Dwarf_Rel_Section;
 
 typedef struct {
-	Elf_Data *ed_data;
-	void *ed_alloc;
+	Elf_Data	*ed_data;
+	void		*ed_alloc;
+	size_t		ed_size;	/* Uncompressed size. */
 } Dwarf_Elf_Data;
 
 typedef struct {

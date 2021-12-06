@@ -335,6 +335,7 @@ enum {
 	DW_DLE_ARANGE_OFFSET_BAD,	/* Invalid arange offset. */
 	DW_DLE_DEBUG_MACRO_INCONSISTENT,/* Invalid macinfo data. */
 	DW_DLE_ELF_SECT_ERR,		/* Application callback failed. */
+	DW_DLE_COMPRESSION,		/* Section decompression error. */
 	DW_DLE_NUM			/* Max error number. */
 };
 
