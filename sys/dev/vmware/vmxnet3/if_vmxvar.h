@@ -81,6 +81,7 @@ struct vmxnet3_comp_ring {
 	int			 vxcr_gen;
 	bus_addr_t		 vxcr_paddr;
 	uint64_t		 vxcr_zero_length;
+	uint64_t		 vcxr_zero_length_frag;
 	uint64_t		 vxcr_pkt_errors;
 };
 
