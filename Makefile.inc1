@@ -2469,6 +2469,10 @@ _other_bootstrap_tools+=usr.bin/bmake
 # Avoid dependency on host bz2 headers:
 _other_bootstrap_tools+=lib/libbz2
 ${_bt}-usr.bin/grep: ${_bt}-lib/libbz2
+
+# libdwarf depends on libz
+_other_bootstrap_tools+=lib/libz
+${_bt}-lib/libdwarf: ${_bt}-lib/libz
 .else
 # All tools in _basic_bootstrap_tools have the same name as the subdirectory
 # so we can use :T to get the name of the symlinks that we need to create.

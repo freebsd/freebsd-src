@@ -16,7 +16,6 @@ NM:=	/usr/bin/nm
 
 # Avoid stale dependecy warnings:
 LIBC:=
-LIBZ:=
 LIBM:=
 LIBUTIL:=
 LIBCPLUSPLUS:=
@@ -30,6 +29,7 @@ LIBL:=${WORLDTMP}/legacy/usr/lib/libl.a
 LIBROKEN:=${WORLDTMP}/legacy/usr/lib/libroken.a
 LIBDWARF:=${WORLDTMP}/legacy/usr/lib/libdwarf.a
 LIBELF:=${WORLDTMP}/legacy/usr/lib/libelf.a
+LIBZ:=${WORLDTMP}/legacy/usr/lib/libz.a
 
 # Add various -Werror flags to catch missing function declarations
 CFLAGS+=	-Werror=implicit-function-declaration -Werror=implicit-int \
