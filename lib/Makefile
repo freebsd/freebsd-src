@@ -1,15 +1,14 @@
 # Any copyright is dedicated to the Public Domain, see:
 #     <http://creativecommons.org/publicdomain/zero/1.0/>
 #
-# Written by Alfonso Sabato Siciliano
+# Written in 2021 by Alfonso Sabato Siciliano
 
 VERSION = 0.1
 LIBRARY = bsddialog
 LIBRARY_SO = lib${LIBRARY:=.so}
 HEADERS = bsddialog.h bsddialog_theme.h
-SOURCES = barbox.c editorbox.c formbox.c lib_util.c menubox.c textbox.c \
-	timebox.c commandbox.c filebox.c infobox.c libbsddialog.c messagebox.c \
-	theme.c
+SOURCES = barbox.c formbox.c infobox.c libbsddialog.c lib_util.c menubox.c \
+	messagebox.c textbox.c theme.c timebox.c
 OBJECTS= ${SOURCES:.c=.o}
 FBSDFLAGS= -O2 -pipe -std=gnu99 -Wno-format-zero-length \
 	-fstack-protector-strong -Qunused-arguments

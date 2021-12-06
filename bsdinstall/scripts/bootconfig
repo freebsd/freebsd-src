@@ -1,0 +1,97 @@
+#!/bin/sh
+#-
+# Copyright (c) 2018 Rebecca Cran
+# Copyright (c) 2017 Nathan Whitehorn
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+
+
+FREEBSD_BOOTLABEL="FreeBSD"
+
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+
+: ${TMPDIR:="/tmp"}
+
+die() {
+	echo $*
+	exit 1
+}
+
+if [ `uname -m` == powerpc ]; then
+	platform=`sysctl -n hw.platform`
+	if [ "$platform" == ps3 -o "$platform" == powernv ]; then
+		rootpart=$(awk '{ if($2 == "/") printf("%s:%s\n", $3, $1); }' $PATH_FSTAB)
+		kboot_conf=$BSDINSTALL_CHROOT/boot/etc/kboot.conf
+		mkdir -p $BSDINSTALL_CHROOT/boot/etc/
+		echo default=$FREEBSD_BOOTLABEL > $kboot_conf
+		echo $FREEBSD_BOOTLABEL=\'/kernel/kernel kernelname=/boot/kernel/kernel vfs.root.mountfrom=${rootpart}\' >> $kboot_conf
+	fi
+fi
+
+# Update the ESP (EFI System Partition) with the new bootloader if we have an ESP
+if [ -n "$(awk '{if ($2=="/boot/efi") printf("%s\n",$1);}' $PATH_FSTAB)" ]; then
+	case $(uname -m) in
+	    arm64)	ARCHBOOTNAME=aa64 ;;
+	    amd64)	ARCHBOOTNAME=x64 ;;
+	    riscv)	ARCHBOOTNAME=riscv64 ;;
+    #	    arm)	ARCHBOOTNAME=arm ;; # No other support for arm install
+    #	    i386)	ARCHBOOTNAME=ia32 ;; # no support for this in i386 kernels, rare machines
+	    *)		die "Unsupported arch $(uname -m) for UEFI install"
+	esac
+	BOOTDIR="/efi/boot"
+	BOOTNAME="${BOOTDIR}/boot${ARCHBOOTNAME}.efi"
+	FREEBSD_BOOTDIR="/efi/freebsd"
+	FREEBSD_BOOTNAME="${FREEBSD_BOOTDIR}/loader.efi"
+	mntpt="$BSDINSTALL_CHROOT/boot/efi"
+
+	f_dprintf "Installing loader.efi onto ESP"
+	mkdir -p "${mntpt}/${FREEBSD_BOOTDIR}" "${mntpt}/${BOOTDIR}"
+	cp "$BSDINSTALL_CHROOT/boot/loader.efi" "${mntpt}/${FREEBSD_BOOTNAME}"
+
+	#
+	# The following shouldn't be necessary. UEFI defines a way to
+	# specifically select what to boot (which we do via
+	# efibootmgr). However, virtual environments often times lack
+	# support for the NV variables efibootmgr sets. In addition,
+	# some UEFI implementations have features that interfere with
+	# the setting of these variables. To combat that, we install the
+	# default removable media boot file as a fallback if it doesn't
+	# exist. We don't install it all the time since that can
+	# interfere with other installations on the drive (like rEFInd).
+	#
+	if [ ! -f "${mntpt}/${BOOTNAME}" ]; then
+		cp "$BSDINSTALL_CHROOT/boot/loader.efi" "${mntpt}/${BOOTNAME}"
+	fi
+
+	if [ "$BSDINSTALL_CONFIGCURRENT" ]; then
+		f_dprintf "Creating UEFI boot entry"
+		efibootmgr --create --activate --label "$FREEBSD_BOOTLABEL" --loader "${mntpt}/${FREEBSD_BOOTNAME}" > /dev/null
+	fi
+
+	f_dprintf "Finished configuring ESP"
+fi
+
+# Add boot0cfg for MBR BIOS booting?

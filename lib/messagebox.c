@@ -53,7 +53,7 @@
 extern struct bsddialog_theme t;
 
 static int
-message_autosize(struct bsddialog_conf conf, int rows, int cols, int *h, int *w,
+message_autosize(struct bsddialog_conf *conf, int rows, int cols, int *h, int *w,
     char *text, struct buttons bs)
 {
 	int maxword, maxline, nlines, line;
@@ -65,10 +65,10 @@ message_autosize(struct bsddialog_conf conf, int rows, int cols, int *h, int *w,
 		*w = VBORDERS;
 		/* buttons size */
 		*w += bs.nbuttons * bs.sizebutton;
-		*w += bs.nbuttons > 0 ? (bs.nbuttons-1) * t.buttonspace : 0;
+		*w += bs.nbuttons > 0 ? (bs.nbuttons-1) * t.button.space : 0;
 		/* text size */
-		line = MIN(maxline + VBORDERS + t.texthmargin * 2, AUTO_WIDTH);
-		line = MAX(line, (int) (maxword + VBORDERS + t.texthmargin * 2));
+		line = MIN(maxline + VBORDERS + t.text.hmargin * 2, AUTO_WIDTH);
+		line = MAX(line, (int) (maxword + VBORDERS + t.text.hmargin * 2));
 		*w = MAX(*w, line);
 		/* avoid terminal overflow */
 		*w = MIN(*w, widget_max_width(conf));
@@ -92,7 +92,7 @@ static int message_checksize(int rows, int cols, struct buttons bs)
 
 	mincols = VBORDERS;
 	mincols += bs.nbuttons * bs.sizebutton;
-	mincols += bs.nbuttons > 0 ? (bs.nbuttons-1) * t.buttonspace : 0;
+	mincols += bs.nbuttons > 0 ? (bs.nbuttons-1) * t.button.space : 0;
 
 	if (cols < mincols)
 		RETURN_ERROR("Few cols, Msgbox and Yesno need at least width "\
@@ -126,7 +126,7 @@ textupdate(WINDOW *widget, int y, int x, int h, int w, WINDOW *textpad,
 }
 
 static int
-do_widget(struct bsddialog_conf conf, char *text, int rows, int cols,
+do_widget(struct bsddialog_conf *conf, char *text, int rows, int cols,
     struct buttons bs, bool shortkey)
 {
 	WINDOW *widget, *textpad, *shadow;
@@ -167,13 +167,13 @@ do_widget(struct bsddialog_conf conf, char *text, int rows, int cols,
 			buttonsupdate(widget, h, w, bs, shortkey);
 			break;
 		case KEY_F(1):
-			if (conf.hfile == NULL)
+			if (conf->hfile == NULL)
 				break;
 			if (f1help(conf) != 0)
 				return BSDDIALOG_ERROR;
 			/* No break! the terminal size can change */
 		case KEY_RESIZE:
-			hide_widget(y, x, h, w,conf.shadow);
+			hide_widget(y, x, h, w,conf->shadow);
 
 			/*
 			 * Unnecessary, but, when the columns decrease the
@@ -191,7 +191,7 @@ do_widget(struct bsddialog_conf conf, char *text, int rows, int cols,
 				return BSDDIALOG_ERROR;
 
 			wclear(shadow);
-			mvwin(shadow, y + t.shadowrows, x + t.shadowcols);
+			mvwin(shadow, y + t.shadow.h, x + t.shadow.w);
 			wresize(shadow, h, w);
 
 			wclear(widget);
@@ -200,11 +200,11 @@ do_widget(struct bsddialog_conf conf, char *text, int rows, int cols,
 
 			htextpad = 1;
 			wclear(textpad);
-			wresize(textpad, 1, w - HBORDERS - t.texthmargin * 2);
+			wresize(textpad, 1, w - HBORDERS - t.text.hmargin * 2);
 
 			if(update_widget_withtextpad(conf, shadow, widget, h, w,
 			    RAISED, textpad, &htextpad, text, true) != 0)
-			return BSDDIALOG_ERROR;
+				return BSDDIALOG_ERROR;
 
 			buttonsupdate(widget, h, w, bs, shortkey);
 			textupdate(widget, y, x, h, w, textpad, htextpad, textrow);
@@ -256,7 +256,7 @@ do_widget(struct bsddialog_conf conf, char *text, int rows, int cols,
 /* API */
 
 int
-bsddialog_msgbox(struct bsddialog_conf conf, char* text, int rows, int cols)
+bsddialog_msgbox(struct bsddialog_conf *conf, char* text, int rows, int cols)
 {
 	struct buttons bs;
 
@@ -267,7 +267,7 @@ bsddialog_msgbox(struct bsddialog_conf conf, char* text, int rows, int cols)
 }
 
 int
-bsddialog_yesno(struct bsddialog_conf conf, char* text, int rows, int cols)
+bsddialog_yesno(struct bsddialog_conf *conf, char* text, int rows, int cols)
 {
 	struct buttons bs;
 
