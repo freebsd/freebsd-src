@@ -17139,6 +17139,7 @@ again:
 		len = cwin;
 	}
 	if (rack->r_must_retran &&
+	    (doing_tlp == 0) &&
 	    (rsm == NULL)) {
 		/*
 		 * Non-Sack and we had a RTO or Sack/non-Sack and a 
