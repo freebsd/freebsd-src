@@ -1277,10 +1277,16 @@ nvlist_recv(int sock, int flags)
 	struct nvlist_header nvlhdr;
 	nvlist_t *nvl, *ret;
 	unsigned char *buf;
-	size_t nfds, size, i;
-	int *fds;
+	size_t nfds, size, i, offset;
+	int *fds, soflags, sotype;
+	socklen_t solen;
 
-	if (buf_recv(sock, &nvlhdr, sizeof(nvlhdr), 0) == -1)
+	solen = sizeof(sotype);
+	if (getsockopt(sock, SOL_SOCKET, SO_TYPE, &sotype, &solen) != 0)
+		return (NULL);
+
+	soflags = sotype == SOCK_DGRAM ? MSG_PEEK : 0;
+	if (buf_recv(sock, &nvlhdr, sizeof(nvlhdr), soflags) == -1)
 		return (NULL);
 
 	if (!nvlist_check_header(&nvlhdr))
@@ -1293,12 +1299,17 @@ nvlist_recv(int sock, int flags)
 	if (buf == NULL)
 		return (NULL);
 
-	memcpy(buf, &nvlhdr, sizeof(nvlhdr));
-
 	ret = NULL;
 	fds = NULL;
 
-	if (buf_recv(sock, buf + sizeof(nvlhdr), size - sizeof(nvlhdr), 0) == -1)
+	if (sotype == SOCK_DGRAM)
+		offset = 0;
+	else {
+		memcpy(buf, &nvlhdr, sizeof(nvlhdr));
+		offset = sizeof(nvlhdr);
+	}
+
+	if (buf_recv(sock, buf + offset, size - offset, 0) == -1)
 		goto out;
 
 	if (nfds > 0) {

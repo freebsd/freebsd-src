@@ -337,13 +337,13 @@ send_nvlist_parent(int sock)
 	nvlist_destroy(nvl);
 }
 
-ATF_TC_WITHOUT_HEAD(nvlist_send_recv__send_nvlist);
-ATF_TC_BODY(nvlist_send_recv__send_nvlist, tc)
+static void
+nvlist_send_recv__send_nvlist(short sotype)
 {
 	int socks[2], status;
 	pid_t pid;
 
-	ATF_REQUIRE(socketpair(PF_UNIX, SOCK_STREAM, 0, socks) == 0);
+	ATF_REQUIRE(socketpair(PF_UNIX, sotype, 0, socks) == 0);
 
 	pid = fork();
 	ATF_REQUIRE(pid >= 0);
@@ -361,13 +361,13 @@ ATF_TC_BODY(nvlist_send_recv__send_nvlist, tc)
 	ATF_REQUIRE(status == 0);
 }
 
-ATF_TC_WITHOUT_HEAD(nvlist_send_recv__send_closed_fd);
-ATF_TC_BODY(nvlist_send_recv__send_closed_fd, tc)
+static void
+nvlist_send_recv__send_closed_fd(short sotype)
 {
 	nvlist_t *nvl;
 	int socks[2];
 
-	ATF_REQUIRE(socketpair(PF_UNIX, SOCK_STREAM, 0, socks) == 0);
+	ATF_REQUIRE(socketpair(PF_UNIX, sotype, 0, socks) == 0);
 
 	nvl = nvlist_create(0);
 	ATF_REQUIRE(nvl != NULL);
@@ -428,15 +428,15 @@ send_many_fds_child(int sock)
 	}
 }
 
-ATF_TC_WITHOUT_HEAD(nvlist_send_recv__send_many_fds);
-ATF_TC_BODY(nvlist_send_recv__send_many_fds, tc)
+static void
+nvlist_send_recv__send_many_fds(short sotype)
 {
 	char name[16];
 	nvlist_t *nvl;
 	int anfds, bnfds, fd, i, j, socks[2], status;
 	pid_t pid;
 
-	ATF_REQUIRE(socketpair(PF_UNIX, SOCK_STREAM, 0, socks) == 0);
+	ATF_REQUIRE(socketpair(PF_UNIX, sotype, 0, socks) == 0);
 
 	pid = fork();
 	ATF_REQUIRE(pid >= 0);
@@ -471,12 +471,88 @@ ATF_TC_BODY(nvlist_send_recv__send_many_fds, tc)
 	ATF_REQUIRE(status == 0);
 }
 
+/*
+ * This test needs to tune the following sysctl's:
+ *      net.local.dgram.maxdgram=16772
+ *      net.local.dgram.recvspace=524288-(ish)
+ */
+ATF_TC_WITHOUT_HEAD(nvlist_send_recv__send_many_fds__dgram);
+ATF_TC_BODY(nvlist_send_recv__send_many_fds__dgram, tc)
+{
+	u_long maxdgram, recvspace, temp_maxdgram, temp_recvspace;
+	size_t len;
+	int error;
+
+	/* size of the largest datagram to send */
+	temp_maxdgram = 16772;
+	len = sizeof(maxdgram);
+	error = sysctlbyname("net.local.dgram.maxdgram", &maxdgram,
+	    &len, &temp_maxdgram, sizeof(temp_maxdgram));
+	if (error != 0)
+		atf_tc_skip("cannot set net.local.dgram.maxdgram: %s", strerror(errno));
+
+	/*
+	 * The receive queue fills up quicker than it's being emptied,
+	 * bump it to a sufficiently large enough value, 512k.
+	 */
+	temp_recvspace = 524288;
+	len = sizeof(recvspace);
+	error = sysctlbyname("net.local.dgram.recvspace", &recvspace,
+	    &len, &temp_recvspace, sizeof(temp_recvspace));
+	if (error != 0)
+		atf_tc_skip("cannot set net.local.dgram.recvspace: %s", strerror(errno));
+
+	nvlist_send_recv__send_many_fds(SOCK_DGRAM);
+
+	/* restore original values */
+	error = sysctlbyname("net.local.dgram.maxdgram", NULL, NULL, &maxdgram, sizeof(maxdgram));
+	if (error != 0)
+		warn("failed to restore net.local.dgram.maxdgram");
+
+	error = sysctlbyname("net.local.dgram.recvspace", NULL, NULL, &recvspace, sizeof(recvspace));
+	if (error != 0)
+		warn("failed to restore net.local.dgram.recvspace");
+}
+
+ATF_TC_WITHOUT_HEAD(nvlist_send_recv__send_many_fds__stream);
+ATF_TC_BODY(nvlist_send_recv__send_many_fds__stream, tc)
+{
+	nvlist_send_recv__send_many_fds(SOCK_STREAM);
+}
+
+ATF_TC_WITHOUT_HEAD(nvlist_send_recv__send_nvlist__dgram);
+ATF_TC_BODY(nvlist_send_recv__send_nvlist__dgram, tc)
+{
+	nvlist_send_recv__send_nvlist(SOCK_DGRAM);
+}
+
+ATF_TC_WITHOUT_HEAD(nvlist_send_recv__send_nvlist__stream);
+ATF_TC_BODY(nvlist_send_recv__send_nvlist__stream, tc)
+{
+	nvlist_send_recv__send_nvlist(SOCK_STREAM);
+}
+
+ATF_TC_WITHOUT_HEAD(nvlist_send_recv__send_closed_fd__dgram);
+ATF_TC_BODY(nvlist_send_recv__send_closed_fd__dgram, tc)
+{
+	nvlist_send_recv__send_closed_fd(SOCK_DGRAM);
+}
+
+ATF_TC_WITHOUT_HEAD(nvlist_send_recv__send_closed_fd__stream);
+ATF_TC_BODY(nvlist_send_recv__send_closed_fd__stream, tc)
+{
+	nvlist_send_recv__send_closed_fd(SOCK_STREAM);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 
-	ATF_TP_ADD_TC(tp, nvlist_send_recv__send_nvlist);
-	ATF_TP_ADD_TC(tp, nvlist_send_recv__send_closed_fd);
-	ATF_TP_ADD_TC(tp, nvlist_send_recv__send_many_fds);
+	ATF_TP_ADD_TC(tp, nvlist_send_recv__send_nvlist__dgram);
+	ATF_TP_ADD_TC(tp, nvlist_send_recv__send_nvlist__stream);
+	ATF_TP_ADD_TC(tp, nvlist_send_recv__send_closed_fd__dgram);
+	ATF_TP_ADD_TC(tp, nvlist_send_recv__send_closed_fd__stream);
+	ATF_TP_ADD_TC(tp, nvlist_send_recv__send_many_fds__dgram);
+	ATF_TP_ADD_TC(tp, nvlist_send_recv__send_many_fds__stream);
 
 	return (atf_no_error());
 }
