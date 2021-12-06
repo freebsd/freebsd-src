@@ -1724,8 +1724,7 @@ envvar		hint.ata.1.port="0x170"
 envvar		hint.ata.1.irq="15"
 
 #
-# uart: newbusified driver for serial interfaces.  It consolidates the sio(4),
-#	sab(4) and zs(4) drivers.
+# uart: generic driver for serial interfaces.
 #
 device		uart
 
@@ -1748,15 +1747,14 @@ envvar		hint.uart.0.port="0x3f8"
 envvar		hint.uart.0.flags="0x10"
 envvar		hint.uart.0.baud="115200"
 
-# `flags' for serial drivers that support consoles like sio(4) and uart(4):
+# `flags' for serial drivers that support consoles, like uart(4):
 #	0x10	enable console support for this unit.  Other console flags
 #		(if applicable) are ignored unless this is set.  Enabling
 #		console support does not make the unit the preferred console.
-#		Boot with -h or set boot_serial=YES in the loader.  For sio(4)
-#		specifically, the 0x20 flag can also be set (see above).
+#		Boot with -h or set boot_serial=YES in the loader.
 #		Currently, at most one unit can have console support; the
 #		first one (in config file order) with this flag set is
-#		preferred.  Setting this flag for sio0 gives the old behavior.
+#		preferred.
 #	0x80	use this port for serial line gdb support in ddb.  Also known
 #		as debug port.
 #
