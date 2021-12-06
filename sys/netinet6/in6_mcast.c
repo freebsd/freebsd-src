@@ -2454,9 +2454,9 @@ in6p_set_multicast_if(struct inpcb *inp, struct sockopt *sopt)
 			return (EADDRNOTAVAIL);
 		}
 	}
+	NET_EPOCH_EXIT(et);	/* XXXGL: unsafe ifp */
 	imo = in6p_findmoptions(inp);
-	imo->im6o_multicast_ifp = ifp;	/* XXXGL: reference?! */
-	NET_EPOCH_EXIT(et);
+	imo->im6o_multicast_ifp = ifp;
 	INP_WUNLOCK(inp);
 
 	return (0);
