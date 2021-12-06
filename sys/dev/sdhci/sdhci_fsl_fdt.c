@@ -1,8 +1,8 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
- * Copyright (c) 2020 Alstom Group.
- * Copyright (c) 2020 Semihalf.
+ * Copyright (c) 2020 - 2021 Alstom Group.
+ * Copyright (c) 2020 - 2021 Semihalf.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -90,12 +90,18 @@ __FBSDID("$FreeBSD$");
 #define	SDHCI_FSL_TBCTL			0x120
 #define	SDHCI_FSL_TBCTL_TBEN		(1 << 2)
 
+#define SDHCI_FSL_DLLCFG1               0x164
+#define SDHCI_FSL_DLLCFG1_PULSE_STRETCH (1 << 31)
+
 #define	SDHCI_FSL_ESDHC_CTRL		0x40c
 #define	SDHCI_FSL_ESDHC_CTRL_SNOOP	(1 << 6)
 #define	SDHCI_FSL_ESDHC_CTRL_CLK_DIV2	(1 << 19)
 
 #define SDHCI_FSL_CAN_VDD_MASK		\
     (SDHCI_CAN_VDD_180 | SDHCI_CAN_VDD_300 | SDHCI_CAN_VDD_330)
+
+/* Some platforms do not detect pulse width correctly. */
+#define SDHCI_FSL_UNRELIABLE_PULSE_DET	(1 << 0)
 
 struct sdhci_fsl_fdt_softc {
 	device_t				dev;
@@ -120,12 +126,14 @@ struct sdhci_fsl_fdt_softc {
 struct sdhci_fsl_fdt_soc_data {
 	int quirks;
 	int baseclk_div;
+	uint8_t errata;
 };
 
 static const struct sdhci_fsl_fdt_soc_data sdhci_fsl_fdt_ls1028a_soc_data = {
 	.quirks = SDHCI_QUIRK_DONT_SET_HISPD_BIT |
 	    SDHCI_QUIRK_BROKEN_AUTO_STOP | SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK,
 	.baseclk_div = 2,
+	.errata = SDHCI_FSL_UNRELIABLE_PULSE_DET,
 };
 
 static const struct sdhci_fsl_fdt_soc_data sdhci_fsl_fdt_ls1046a_soc_data = {
@@ -729,6 +737,16 @@ sdhci_fsl_fdt_attach(device_t dev)
 	WR4(sc, SDHCI_FSL_ESDHC_CTRL, val | SDHCI_FSL_ESDHC_CTRL_CLK_DIV2);
 	sc->slot.max_clk = sc->maxclk_hz;
 	sc->gpio = sdhci_fdt_gpio_setup(dev, &sc->slot);
+
+	/*
+	 * Pulse width detection is not reliable on some boards. Perform
+	 * workaround by clearing register's bit according to errata.
+	 */
+	if (sc->soc_data->errata & SDHCI_FSL_UNRELIABLE_PULSE_DET) {
+		val = RD4(sc, SDHCI_FSL_DLLCFG1);
+		val &= ~SDHCI_FSL_DLLCFG1_PULSE_STRETCH;
+		WR4(sc, SDHCI_FSL_DLLCFG1, val);
+	}
 
 	/*
 	 * Set the buffer watermark level to 128 words (512 bytes) for both
