@@ -413,6 +413,7 @@ cpu_initclocks(void)
 
 	td = curthread;
 
+	tsc_calibrate();
 	lapic_calibrate_timer();
 	cpu_initclocks_bsp();
 	CPU_FOREACH(i) {
@@ -428,6 +429,7 @@ cpu_initclocks(void)
 		sched_unbind(td);
 	thread_unlock(td);
 #else
+	tsc_calibrate();
 	lapic_calibrate_timer();
 	cpu_initclocks_bsp();
 #endif

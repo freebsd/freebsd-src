@@ -28,6 +28,7 @@ void	i8254_init(void);
 void	i8254_delay(int);
 void	clock_init(void);
 void	lapic_calibrate(void);
+void	tsc_calibrate(void);
 
 /*
  * Driver to clock driver interface.
