@@ -693,23 +693,27 @@ tsc_update_freq(uint64_t new_freq)
 
 /*
  * Perform late calibration of the TSC frequency once ACPI-based timecounters
- * are available.
+ * are available.  At this point timehands are not set up, so we read the
+ * highest-quality timecounter directly rather than using (s)binuptime().
  */
-static void
-tsc_calib(void *arg __unused)
+void
+tsc_calibrate(void)
 {
-	sbintime_t t_start, t_end;
+	struct timecounter *tc;
 	uint64_t freq_khz, tsc_start, tsc_end;
+	u_int t_start, t_end;
 	register_t flags;
 	int cpu;
 
 	if (tsc_disabled)
 		return;
 
+	tc = atomic_load_ptr(&timecounter);
+
 	flags = intr_disable();
 	cpu = curcpu;
 	tsc_start = rdtsc_ordered();
-	t_start = sbinuptime();
+	t_start = tc->tc_get_timecount(tc) & tc->tc_counter_mask;
 	intr_restore(flags);
 
 	DELAY(1000000);
@@ -719,19 +723,23 @@ tsc_calib(void *arg __unused)
 
 	flags = intr_disable();
 	tsc_end = rdtsc_ordered();
-	t_end = sbinuptime();
+	t_end = tc->tc_get_timecount(tc) & tc->tc_counter_mask;
 	intr_restore(flags);
 
 	sched_unbind(curthread);
 	thread_unlock(curthread);
 
-	freq_khz = (SBT_1S / 1024) * (tsc_end - tsc_start) / (t_end - t_start);
+	if (t_end <= t_start) {
+		/* Assume that the counter has wrapped around at most once. */
+		t_end += (uint64_t)tc->tc_counter_mask + 1;
+	}
 
-	tsc_update_freq(freq_khz * 1024);
+	freq_khz = tc->tc_frequency * (tsc_end - tsc_start) / (t_end - t_start);
+
+	tsc_update_freq(freq_khz);
 	tc_init(&tsc_timecounter);
 	set_cputicker(rdtsc, tsc_freq, !tsc_is_invariant);
 }
-SYSINIT(tsc_calib, SI_SUB_CLOCKS + 1, SI_ORDER_ANY, tsc_calib, NULL);
 
 void
 resume_TSC(void)
