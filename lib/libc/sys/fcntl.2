@@ -53,7 +53,11 @@ Depending on the value of
 .Fa cmd ,
 .Fn fcntl
 can take an additional third argument
-.Fa "long arg" .
+.Fa arg .
+Unless otherwise noted below for a specific operation,
+.Fa arg
+has type
+.Vt int .
 .Bl -tag -width F_DUP2FD_CLOEXEC
 .It Dv F_DUPFD
 Return a new descriptor as follows:
@@ -286,7 +290,7 @@ and
 will fail and return
 .Dv EINVAL .
 .Pp
-Several commands are available for doing advisory file locking;
+Several operations are available for doing advisory file locking;
 they all operate on the following structure:
 .Bd -literal
 struct flock {
@@ -298,6 +302,10 @@ struct flock {
 	int	l_sysid;	/* remote system id or zero for local */
 };
 .Ed
+These advisory file locking operations take a pointer to
+.Vt struct flock
+as the third argument
+.Fa arg .
 The commands available for advisory record locking are as follows:
 .Bl -tag -width F_SETLKWX
 .It Dv F_GETLK
