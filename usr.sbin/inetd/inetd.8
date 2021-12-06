@@ -28,7 +28,7 @@
 .\"     from: @(#)inetd.8	8.3 (Berkeley) 4/13/94
 .\" $FreeBSD$
 .\"
-.Dd May 14, 2020
+.Dd December 6, 2021
 .Dt INETD 8
 .Os
 .Sh NAME
@@ -167,7 +167,7 @@ server-program-arguments
 .Ed
 .Pp
 To specify an
-.Tn "ONC RPC" Ns -based
+ONC RPC-based
 service, the entry would contain these fields:
 .Pp
 .Bd -unfilled -offset indent -compact
@@ -188,7 +188,7 @@ it may be a service that implements an official Internet standard or is a
 .Bx Ns -specific
 service.
 As described in
-.Tn RFC 1078 ,
+RFC 1078,
 TCPMUX services are nonstandard services that do not have a
 well-known port assigned to them.
 They are invoked from
@@ -218,7 +218,7 @@ should
 be the official name of the service (that is, the first entry in
 .Pa /etc/services ) .
 When used to specify an
-.Tn "ONC RPC" Ns -based
+ONC RPC-based
 service, this field is a valid RPC service name listed in
 the file
 .Pa /etc/rpc .
@@ -490,7 +490,7 @@ Instead of returning
 the user's name to the ident requester,
 report a
 username made up of random alphanumeric characters,
-e.g.\&
+e.g.,
 .Dq c0c993 .
 The
 .Fl g
@@ -550,7 +550,7 @@ request specifies a reply port corresponding to any internal service.
 is logged.)
 For details of these services, consult the
 appropriate
-.Tn RFC
+RFC
 document.
 .Pp
 The TCPMUX-demultiplexing service is also implemented as an internal service.
@@ -650,7 +650,7 @@ should be used as the daemon name for
 .Dq internal
 services.
 .Ss TCPMUX
-.Tn RFC 1078
+RFC 1078
 describes the TCPMUX protocol:
 ``A TCP client connects to a foreign host on TCP port 1.
 It sends the
@@ -725,7 +725,7 @@ The specification of the socket must be
 an absolute path name,
 optionally prefixed by an owner and mode
 of the form
-.Em :user:group:mode: .
+.Em ":user:group:mode\&:" .
 The specification:
 .Pp
 .Dl ":news:daemon:220:/var/run/sock"
@@ -957,10 +957,9 @@ utility appeared in
 .Bx 4.3 .
 TCPMUX is based on code and documentation by Mark Lottor.
 Support for
-.Tn "ONC RPC"
-based services is modeled after that
+ONC RPC-based services is modeled after that
 provided by
-.Tn SunOS
+SunOS
 4.1.
 The IPsec hack was contributed by the KAME project in 1999.
 The
