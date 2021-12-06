@@ -66,6 +66,7 @@ INTERPOSED = \
 	nanosleep \
 	open \
 	openat \
+	pdfork \
 	poll \
 	ppoll \
 	pselect \
