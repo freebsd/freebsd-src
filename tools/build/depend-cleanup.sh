@@ -30,7 +30,7 @@ clean_dep()
 {
 	if [ -e "$OBJTOP"/$1/.depend.$2.pico ] && \
 	    egrep -qw "$2\.$3" "$OBJTOP"/$1/.depend.$2.pico; then \
-		echo "Removing stale dependencies for $2.$3"; \
+		echo "Removing stale dependencies and objects for $2.$3"; \
 		rm -f \
 		    "$OBJTOP"/$1/.depend.$2.* \
 		    "$OBJTOP"/$1/$2.*o \
