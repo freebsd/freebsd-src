@@ -31,8 +31,11 @@ clean_dep()
 	if [ -e "$OBJTOP"/$1/.depend.$2.pico ] && \
 	    egrep -qw "$2\.$3" "$OBJTOP"/$1/.depend.$2.pico; then \
 		echo "Removing stale dependencies for $2.$3"; \
-		rm -f "$OBJTOP"/$1/.depend.$2.* \
-		    "$OBJTOP"/obj-lib32/$1/.depend.$2.*
+		rm -f \
+		    "$OBJTOP"/$1/.depend.$2.* \
+		    "$OBJTOP"/$1/$2.*o \
+		    "$OBJTOP"/obj-lib32/$1/.depend.$2.* \
+		    "$OBJTOP"/obj-lib32/$1/$2.*o
 	fi
 }
 
@@ -72,4 +75,6 @@ if [ -e "$OBJTOP"/lib/ncurses/ncursesw ]; then
 fi
 
 # 20210608  f20893853e8e    move from atomic.S to atomic.c
-clean_dep cddl/lib/libspl      atomic S
+clean_dep   cddl/lib/libspl atomic S
+# 20211207  cbdec8db18b5    switch to libthr-friendly pdfork
+clean_dep   lib/libc        pdfork S
