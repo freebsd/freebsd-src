@@ -308,12 +308,12 @@
 
 #define	__BITSET_SIZE(_s)	(__bitset_words((_s)) * sizeof(long))
 
+#if defined(_KERNEL) || defined(_WANT_FREEBSD_BITSET)
 /*
  * Dynamically allocate a bitset.
  */
 #define __BITSET_ALLOC(_s, mt, mf) malloc(__BITSET_SIZE((_s)), mt, (mf))
 
-#if defined(_KERNEL) || defined(_WANT_FREEBSD_BITSET)
 #define	BIT_AND(_s, d, s)			__BIT_AND(_s, d, s)
 #define	BIT_AND2(_s, d, s1, s2)			__BIT_AND2(_s, d, s1, s2)
 #define	BIT_ANDNOT(_s, d, s)			__BIT_ANDNOT(_s, d, s)
@@ -355,6 +355,6 @@
 #define	BITSET_FSET(n)				__BITSET_FSET(n)
 #define	BITSET_SIZE(_s)				__BITSET_SIZE(_s)
 #define	BITSET_T_INITIALIZER(x)			__BITSET_T_INITIALIZER(x)
-#endif
+#endif /* defined(_KERNEL) || defined(_WANT_FREEBSD_BITSET) */
 
 #endif /* !_SYS_BITSET_H_ */
