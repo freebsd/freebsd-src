@@ -185,7 +185,7 @@ SUBDIR.${MK_STATS}+=	libstats
     ${MACHINE_CPUARCH} == "arm" || ${MACHINE_CPUARCH} == "i386" || \
     ${MACHINE_CPUARCH} == "powerpc")
 _libclang_rt=	libclang_rt
-.elif ${MK_ASAN} != "no" || ${MK_UBSAN} != "no"
+.elif (${MK_ASAN} != "no" || ${MK_UBSAN} != "no") && make(all)
 .error "Requested build with sanitizers but cannot build runtime libraries!"
 .endif
 

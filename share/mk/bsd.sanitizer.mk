@@ -23,7 +23,7 @@ _use_sanitizers=	yes
 .endif # ${MK_UBSAN} == "yes"
 
 .if !defined(BOOTSTRAPPING) && ${_use_sanitizers} != "no" && \
-    ${COMPILER_TYPE} != "clang"
+    ${COMPILER_TYPE} != "clang" && make(all)
 .error "Sanitizer instrumentation currently only supported with clang"
 .endif
 
