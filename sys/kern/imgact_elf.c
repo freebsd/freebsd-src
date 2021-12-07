@@ -855,28 +855,34 @@ fail:
 	return (error);
 }
 
-static u_long
-__CONCAT(rnd_, __elfN(base))(vm_map_t map __unused, u_long minv, u_long maxv,
-    u_int align)
+static int
+__CONCAT(rnd_, __elfN(base))(vm_map_t map, u_long minv, u_long maxv,
+    u_int align, u_long *resp)
 {
 	u_long rbase, res;
 
 	MPASS(vm_map_min(map) <= minv);
-	MPASS(maxv <= vm_map_max(map));
-	MPASS(minv < maxv);
-	MPASS(minv + align < maxv);
+
+	if (minv >= maxv || minv + align >= maxv || maxv > vm_map_max(map)) {
+		uprintf("Invalid ELF segments layout\n");
+		return (ENOEXEC);
+	}
+
 	arc4rand(&rbase, sizeof(rbase), 0);
 	res = roundup(minv, (u_long)align) + rbase % (maxv - minv);
 	res &= ~((u_long)align - 1);
 	if (res >= maxv)
 		res -= align;
+
 	KASSERT(res >= minv,
 	    ("res %#lx < minv %#lx, maxv %#lx rbase %#lx",
 	    res, minv, maxv, rbase));
 	KASSERT(res < maxv,
 	    ("res %#lx > maxv %#lx, minv %#lx rbase %#lx",
 	    res, maxv, minv, rbase));
-	return (res);
+
+	*resp = res;
+	return (0);
 }
 
 static int
@@ -1255,13 +1261,13 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	imgp->proc->p_sysent = sv;
 
 	maxv = vm_map_max(map) - lim_max(td, RLIMIT_STACK);
-	if (et_dyn_addr == ET_DYN_ADDR_RAND) {
+	if (error == 0 && et_dyn_addr == ET_DYN_ADDR_RAND) {
 		KASSERT((map->flags & MAP_ASLR) != 0,
 		    ("ET_DYN_ADDR_RAND but !MAP_ASLR"));
-		et_dyn_addr = __CONCAT(rnd_, __elfN(base))(map,
+		error = __CONCAT(rnd_, __elfN(base))(map,
 		    vm_map_min(map) + mapsz + lim_max(td, RLIMIT_DATA),
 		    /* reserve half of the address space to interpreter */
-		    maxv / 2, 1UL << flsl(maxalign));
+		    maxv / 2, 1UL << flsl(maxalign), &et_dyn_addr);
 	}
 
 	vn_lock(imgp->vp, LK_SHARED | LK_RETRY);
@@ -1288,10 +1294,11 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	    RLIMIT_DATA));
 	if ((map->flags & MAP_ASLR) != 0) {
 		maxv1 = maxv / 2 + addr / 2;
-		MPASS(maxv1 >= addr);	/* No overflow */
-		map->anon_loc = __CONCAT(rnd_, __elfN(base))(map, addr, maxv1,
+		error = __CONCAT(rnd_, __elfN(base))(map, addr, maxv1,
 		    (MAXPAGESIZES > 1 && pagesizes[1] != 0) ?
-		    pagesizes[1] : pagesizes[0]);
+		    pagesizes[1] : pagesizes[0], &map->anon_loc);
+		if (error != 0)
+			goto ret;
 	} else {
 		map->anon_loc = addr;
 	}
@@ -1303,12 +1310,13 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 		if ((map->flags & MAP_ASLR) != 0) {
 			/* Assume that interpreter fits into 1/4 of AS */
 			maxv1 = maxv / 2 + addr / 2;
-			MPASS(maxv1 >= addr);	/* No overflow */
-			addr = __CONCAT(rnd_, __elfN(base))(map, addr,
-			    maxv1, PAGE_SIZE);
+			error = __CONCAT(rnd_, __elfN(base))(map, addr,
+			    maxv1, PAGE_SIZE, &addr);
 		}
-		error = __elfN(load_interp)(imgp, brand_info, interp, &addr,
-		    &imgp->entry_addr);
+		if (error == 0) {
+			error = __elfN(load_interp)(imgp, brand_info, interp,
+			    &addr, &imgp->entry_addr);
+		}
 		vn_lock(imgp->vp, LK_SHARED | LK_RETRY);
 		if (error != 0)
 			goto ret;
