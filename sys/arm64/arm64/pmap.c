@@ -5569,14 +5569,14 @@ retry:
 			}
 		}
 		va = pv->pv_va;
-		pde = pmap_pde(pmap, pv->pv_va, &lvl);
+		pde = pmap_pde(pmap, va, &lvl);
 		KASSERT(pde != NULL, ("pmap_ts_referenced: no l1 table found"));
 		KASSERT(lvl == 1,
 		    ("pmap_ts_referenced: invalid pde level %d", lvl));
 		tpde = pmap_load(pde);
 		KASSERT((tpde & ATTR_DESCR_MASK) == L1_TABLE,
 		    ("pmap_ts_referenced: found an invalid l1 table"));
-		pte = pmap_l1_to_l2(pde, pv->pv_va);
+		pte = pmap_l1_to_l2(pde, va);
 		tpte = pmap_load(pte);
 		if (pmap_pte_dirty(pmap, tpte)) {
 			/*
@@ -5606,11 +5606,11 @@ retry:
 			 * since the superpage is wired, the current state of
 			 * its reference bit won't affect page replacement.
 			 */
-			if ((((pa >> PAGE_SHIFT) ^ (pv->pv_va >> L2_SHIFT) ^
+			if ((((pa >> PAGE_SHIFT) ^ (va >> L2_SHIFT) ^
 			    (uintptr_t)pmap) & (Ln_ENTRIES - 1)) == 0 &&
 			    (tpte & ATTR_SW_WIRED) == 0) {
 				pmap_clear_bits(pte, ATTR_AF);
-				pmap_invalidate_page(pmap, pv->pv_va);
+				pmap_invalidate_page(pmap, va);
 				cleared++;
 			} else
 				not_cleared++;
