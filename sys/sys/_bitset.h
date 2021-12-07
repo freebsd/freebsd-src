@@ -61,13 +61,11 @@ struct _t {								\
  * Define a default type that can be used while manually specifying size
  * to every call.
  */
-__BITSET_DEFINE(__bitset, 1);
+__BITSET_DEFINE(bitset, 1);
 
 #if defined(_KERNEL) || defined(_WANT_FREEBSD_BITSET)
 #define	BITSET_DEFINE(_t, _s)	__BITSET_DEFINE(_t, _s)
 #define	BITSET_DEFINE_VAR(_t)	__BITSET_DEFINE_VAR(_t)
-
-#define	bitset			__bitset
 #endif
 
 #endif /* !_SYS__BITSET_H_ */
