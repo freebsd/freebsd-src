@@ -154,7 +154,7 @@ static ng_rcvdata_t	ng_ubt_rcvdata;
 
 static int ng_usb_isoc_enable = 1;
 
-SYSCTL_INT(_net_bluetooth, OID_AUTO, usb_isoc_enable, CTLFLAG_RDTUN | CTLFLAG_MPSAFE,
+SYSCTL_INT(_net_bluetooth, OID_AUTO, usb_isoc_enable, CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
     &ng_usb_isoc_enable, 0, "enable isochronous transfers");
 
 /* Queue length */
