@@ -289,14 +289,12 @@ MAN+=	abort2.2 \
 	revoke.2 \
 	rfork.2 \
 	rmdir.2 \
-	rtprio.2
-.if !defined(NO_P1003_1B)
-MAN+=	sched_get_priority_max.2 \
+	rtprio.2 \
+	sched_get_priority_max.2 \
 	sched_setparam.2 \
 	sched_setscheduler.2 \
-	sched_yield.2
-.endif
-MAN+=	sctp_generic_recvmsg.2 \
+	sched_yield.2 \
+	sctp_generic_recvmsg.2 \
 	sctp_generic_sendmsg.2 \
 	sctp_peeloff.2 \
 	select.2 \
@@ -465,12 +463,10 @@ MLINKS+=recv.2 recvfrom.2 \
 	recv.2 recvmsg.2
 MLINKS+=rename.2 renameat.2
 MLINKS+=rtprio.2 rtprio_thread.2
-.if !defined(NO_P1003_1B)
 MLINKS+=sched_get_priority_max.2 sched_get_priority_min.2 \
 	sched_get_priority_max.2 sched_rr_get_interval.2
 MLINKS+=sched_setparam.2 sched_getparam.2
 MLINKS+=sched_setscheduler.2 sched_getscheduler.2
-.endif
 MLINKS+=select.2 FD_CLR.3 \
 	select.2 FD_ISSET.3 \
 	select.2 FD_SET.3 \
