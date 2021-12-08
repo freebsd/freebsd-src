@@ -1605,7 +1605,7 @@ ATF_TC_BODY(swapoff_failure, tc)
 
 	FILE *pipefd = setup(fds, auclass);
 	/* Failure reason: Block device required */
-	ATF_REQUIRE_EQ(-1, swapoff(path));
+	ATF_REQUIRE_EQ(-1, swapoff(path, 0));
 	check_audit(fds, adregex, pipefd);
 }
 
