@@ -69,16 +69,6 @@ struct swdevt {
 #define	SW_UNMAPPED	0x01
 #define	SW_CLOSING	0x04
 
-struct swapoff_new_args {
-	const char *name_old_syscall;
-	const char *name;
-	u_int flags;
-	u_int pad0;
-	uintptr_t pad1[8];
-};
-
-#define	SWAPOFF_FORCE	0x00000001
-
 #ifdef _KERNEL
 
 extern int swap_pager_avail;
