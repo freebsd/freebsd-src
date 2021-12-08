@@ -985,7 +985,7 @@ cmci_setup(void)
 		cmc_state[i] = malloc(sizeof(struct cmc_state) * mca_banks,
 		    M_MCA, M_WAITOK | M_ZERO);
 	SYSCTL_ADD_PROC(NULL, SYSCTL_STATIC_CHILDREN(_hw_mca), OID_AUTO,
-	    "cmc_throttle", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
+	    "cmc_throttle", CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
 	    &cmc_throttle, 0, sysctl_positive_int, "I",
 	    "Interval in seconds to throttle corrected MC interrupts");
 }
@@ -1001,7 +1001,7 @@ amd_thresholding_setup(void)
 		amd_et_state[i] = malloc(sizeof(struct amd_et_state) *
 		    mca_banks, M_MCA, M_WAITOK | M_ZERO);
 	SYSCTL_ADD_PROC(NULL, SYSCTL_STATIC_CHILDREN(_hw_mca), OID_AUTO,
-	    "cmc_throttle", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
+	    "cmc_throttle", CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
 	    &cmc_throttle, 0, sysctl_positive_int, "I",
 	    "Interval in seconds to throttle corrected MC interrupts");
 }
@@ -1037,8 +1037,8 @@ mca_setup(uint64_t mcg_cap)
 	    &mca_maxcount, 0, sysctl_mca_maxcount, "I",
 	    "Maximum record count (-1 is unlimited)");
 	SYSCTL_ADD_PROC(NULL, SYSCTL_STATIC_CHILDREN(_hw_mca), OID_AUTO,
-	    "interval", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, &mca_ticks,
-	    0, sysctl_positive_int, "I",
+	    "interval", CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
+	    &mca_ticks, 0, sysctl_positive_int, "I",
 	    "Periodic interval in seconds to scan for machine checks");
 	SYSCTL_ADD_NODE(NULL, SYSCTL_STATIC_CHILDREN(_hw_mca), OID_AUTO,
 	    "records", CTLFLAG_RD | CTLFLAG_MPSAFE, sysctl_mca_records,
