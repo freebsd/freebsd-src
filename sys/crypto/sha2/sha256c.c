@@ -138,7 +138,11 @@ static const uint32_t K[64] = {
  * the 512-bit input block to produce a new state.
  */
 static void
+#if defined(ARM64_SHA2)
 SHA256_Transform_c(uint32_t * state, const unsigned char block[64])
+#else
+SHA256_Transform(uint32_t * state, const unsigned char block[64])
+#endif
 {
 	uint32_t W[64];
 	uint32_t S[8];
@@ -212,12 +216,6 @@ DEFINE_UIFUNC(static, void, SHA256_Transform,
 	}
 
 	return (SHA256_Transform_c);
-}
-#else
-static void
-SHA256_Transform(uint32_t * state, const unsigned char block[64])
-{
-	SHA256_Transform_c(state, block);
 }
 #endif
 
