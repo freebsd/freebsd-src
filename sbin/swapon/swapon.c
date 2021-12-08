@@ -789,18 +789,12 @@ swapon_trim(const char *name)
 static const char *
 swap_on_off_sfile(const char *name, int doingall)
 {
-	struct swapoff_new_args sa;
 	int error;
 
 	if (which_prog == SWAPON)
 		error = Eflag ? swapon_trim(name) : swapon(name);
-	else { /* SWAPOFF */
-		bzero(&sa, sizeof(sa));
-		sa.name = name;
-		if (fflag)
-			sa.flags |= SWAPOFF_FORCE;
-		error = swapoff((const char *)&sa);
-	}
+	else /* SWAPOFF */
+		error = swapoff(name, fflag ? SWAPOFF_FORCE : 0);
 
 	if (error == -1) {
 		switch (errno) {
