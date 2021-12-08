@@ -1135,9 +1135,6 @@ struct swapcontext_args {
 	char oucp_l_[PADL_(struct __ucontext *)]; struct __ucontext * oucp; char oucp_r_[PADR_(struct __ucontext *)];
 	char ucp_l_[PADL_(const struct __ucontext *)]; const struct __ucontext * ucp; char ucp_r_[PADR_(const struct __ucontext *)];
 };
-struct swapoff_args {
-	char name_l_[PADL_(const char *)]; const char * name; char name_r_[PADR_(const char *)];
-};
 struct __acl_get_link_args {
 	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
 	char type_l_[PADL_(acl_type_t)]; acl_type_t type; char type_r_[PADR_(acl_type_t)];
@@ -1854,6 +1851,10 @@ struct fspacectl_args {
 struct sched_getcpu_args {
 	register_t dummy;
 };
+struct swapoff_args {
+	char name_l_[PADL_(const char *)]; const char * name; char name_r_[PADR_(const char *)];
+	char flags_l_[PADL_(u_int)]; u_int flags; char flags_r_[PADR_(u_int)];
+};
 int	sys_exit(struct thread *, struct exit_args *);
 int	sys_fork(struct thread *, struct fork_args *);
 int	sys_read(struct thread *, struct read_args *);
@@ -2106,7 +2107,6 @@ int	sys_sigreturn(struct thread *, struct sigreturn_args *);
 int	sys_getcontext(struct thread *, struct getcontext_args *);
 int	sys_setcontext(struct thread *, struct setcontext_args *);
 int	sys_swapcontext(struct thread *, struct swapcontext_args *);
-int	sys_swapoff(struct thread *, struct swapoff_args *);
 int	sys___acl_get_link(struct thread *, struct __acl_get_link_args *);
 int	sys___acl_set_link(struct thread *, struct __acl_set_link_args *);
 int	sys___acl_delete_link(struct thread *, struct __acl_delete_link_args *);
@@ -2249,6 +2249,7 @@ int	sys_aio_writev(struct thread *, struct aio_writev_args *);
 int	sys_aio_readv(struct thread *, struct aio_readv_args *);
 int	sys_fspacectl(struct thread *, struct fspacectl_args *);
 int	sys_sched_getcpu(struct thread *, struct sched_getcpu_args *);
+int	sys_swapoff(struct thread *, struct swapoff_args *);
 
 #ifdef COMPAT_43
 
@@ -2730,6 +2731,16 @@ int	freebsd12_closefrom(struct thread *, struct freebsd12_closefrom_args *);
 
 #endif /* COMPAT_FREEBSD12 */
 
+
+#ifdef COMPAT_FREEBSD13
+
+struct freebsd13_swapoff_args {
+	char name_l_[PADL_(const char *)]; const char * name; char name_r_[PADR_(const char *)];
+};
+int	freebsd13_swapoff(struct thread *, struct freebsd13_swapoff_args *);
+
+#endif /* COMPAT_FREEBSD13 */
+
 #define	SYS_AUE_exit	AUE_EXIT
 #define	SYS_AUE_fork	AUE_FORK
 #define	SYS_AUE_read	AUE_READ
@@ -3058,7 +3069,7 @@ int	freebsd12_closefrom(struct thread *, struct freebsd12_closefrom_args *);
 #define	SYS_AUE_getcontext	AUE_NULL
 #define	SYS_AUE_setcontext	AUE_NULL
 #define	SYS_AUE_swapcontext	AUE_NULL
-#define	SYS_AUE_swapoff	AUE_SWAPOFF
+#define	SYS_AUE_freebsd13_swapoff	AUE_SWAPOFF
 #define	SYS_AUE___acl_get_link	AUE_ACL_GET_LINK
 #define	SYS_AUE___acl_set_link	AUE_ACL_SET_LINK
 #define	SYS_AUE___acl_delete_link	AUE_ACL_DELETE_LINK
@@ -3207,6 +3218,7 @@ int	freebsd12_closefrom(struct thread *, struct freebsd12_closefrom_args *);
 #define	SYS_AUE_aio_readv	AUE_AIO_READV
 #define	SYS_AUE_fspacectl	AUE_FSPACECTL
 #define	SYS_AUE_sched_getcpu	AUE_NULL
+#define	SYS_AUE_swapoff	AUE_SWAPOFF
 
 #undef PAD_
 #undef PADL_

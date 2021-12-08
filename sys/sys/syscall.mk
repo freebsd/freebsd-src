@@ -276,7 +276,7 @@ MIASM =  \
 	getcontext.o \
 	setcontext.o \
 	swapcontext.o \
-	swapoff.o \
+	freebsd13_swapoff.o \
 	__acl_get_link.o \
 	__acl_set_link.o \
 	__acl_delete_link.o \
@@ -424,4 +424,5 @@ MIASM =  \
 	aio_writev.o \
 	aio_readv.o \
 	fspacectl.o \
-	sched_getcpu.o
+	sched_getcpu.o \
+	swapoff.o

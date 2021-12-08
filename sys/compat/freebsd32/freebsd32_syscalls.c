@@ -430,7 +430,7 @@ const char *freebsd32_syscallnames[] = {
 	"freebsd32_getcontext",			/* 421 = freebsd32_getcontext */
 	"freebsd32_setcontext",			/* 422 = freebsd32_setcontext */
 	"freebsd32_swapcontext",			/* 423 = freebsd32_swapcontext */
-	"swapoff",			/* 424 = swapoff */
+	"compat13.swapoff",		/* 424 = freebsd13 swapoff */
 	"__acl_get_link",			/* 425 = __acl_get_link */
 	"__acl_set_link",			/* 426 = __acl_set_link */
 	"__acl_delete_link",			/* 427 = __acl_delete_link */
@@ -588,4 +588,5 @@ const char *freebsd32_syscallnames[] = {
 	"freebsd32_aio_readv",			/* 579 = freebsd32_aio_readv */
 	"fspacectl",			/* 580 = fspacectl */
 	"sched_getcpu",			/* 581 = sched_getcpu */
+	"swapoff",			/* 582 = swapoff */
 };
