@@ -2231,7 +2231,7 @@
 		);
 	}
 424	AUE_SWAPOFF	STD {
-		int swapoff(
+		int freebsd13_swapoff(
 		    _In_z_ const char *name
 		);
 	}
@@ -3271,6 +3271,14 @@
 579	AUE_AIO_READV	STD {
 		int aio_readv(
 		    _Inout_ struct aiocb *aiocbp
+		);
+	}
+580	AUE_NULL	UNIMPL	fspacectl
+581	AUE_NULL	UNIMPL	sched_getcpu
+582	AUE_SWAPOFF	STD {
+		int swapoff(
+		    _In_z_ const char *name,
+		    u_int flags,
 		);
 	}
 

@@ -774,7 +774,7 @@
 423	AUE_NULL	STD	{ int freebsd32_swapcontext( \
 				    struct freebsd32_ucontext *oucp, \
 				    const struct freebsd32_ucontext *ucp); }
-424	AUE_SWAPOFF	UNIMPL	swapoff
+424	AUE_SWAPOFF	UNIMPL	freebsd13_swapoff
 425	AUE_ACL_GET_LINK	NOPROTO	{ int __acl_get_link(const char *path, \
 				    acl_type_t type, struct acl *aclp); }
 426	AUE_ACL_SET_LINK	NOPROTO	{ int __acl_set_link(const char *path, \
@@ -1176,5 +1176,7 @@
 				    struct aiocb32 *aiocbp); }
 579	AUE_AIO_READV	STD	{ int freebsd32_aio_readv( \
 				    struct aiocb32 *aiocbp); }
-
+580	AUE_NULL	UNIMPL	fspacectl
+581	AUE_NULL	UNIMPL	sched_getcpu
+582	AUE_NULL	UNIMPL	swapoff
 ; vim: syntax=off

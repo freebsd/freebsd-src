@@ -100,6 +100,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysproto.h>
 #include <sys/systm.h>
 #include <sys/sx.h>
+#include <sys/unistd.h>
 #include <sys/user.h>
 #include <sys/vmmeter.h>
 #include <sys/vnode.h>
@@ -2473,51 +2474,24 @@ swaponsomething(struct vnode *vp, void *id, u_long nblks,
  * rather than filename as specification.  We keep sw_vp around
  * only to make this work.
  */
-#ifndef _SYS_SYSPROTO_H_
-struct swapoff_args {
-	char *name;
-};
-#endif
-
-int
-sys_swapoff(struct thread *td, struct swapoff_args *uap)
+static int
+kern_swapoff(struct thread *td, const char *name, enum uio_seg name_seg,
+    u_int flags)
 {
 	struct vnode *vp;
 	struct nameidata nd;
 	struct swdevt *sp;
-	struct swapoff_new_args sa;
-	int error, probe_byte;
+	int error;
 
 	error = priv_check(td, PRIV_SWAPOFF);
-	if (error)
+	if (error != 0)
 		return (error);
-
-	/*
-	 * Detect old vs. new-style swapoff(2) syscall.  The first
-	 * pointer in the memory pointed to by uap->name is NULL for
-	 * the new variant.
-	 */
-	probe_byte = fubyte(uap->name);
-	switch (probe_byte) {
-	case -1:
-		return (EFAULT);
-	case 0:
-		error = copyin(uap->name, &sa, sizeof(sa));
-		if (error != 0)
-			return (error);
-		if ((sa.flags & ~(SWAPOFF_FORCE)) != 0)
-			return (EINVAL);
-		break;
-	default:
-		bzero(&sa, sizeof(sa));
-		sa.name = uap->name;
-		break;
-	}
+	if ((flags & ~(SWAPOFF_FORCE)) != 0)
+		return (EINVAL);
 
 	sx_xlock(&swdev_syscall_lock);
 
-	NDINIT(&nd, LOOKUP, FOLLOW | AUDITVNODE1, UIO_USERSPACE, sa.name,
-	    td);
+	NDINIT(&nd, LOOKUP, FOLLOW | AUDITVNODE1, name_seg, name, td);
 	error = namei(&nd);
 	if (error)
 		goto done;
@@ -2534,10 +2508,22 @@ sys_swapoff(struct thread *td, struct swapoff_args *uap)
 		error = EINVAL;
 		goto done;
 	}
-	error = swapoff_one(sp, td->td_ucred, sa.flags);
+	error = swapoff_one(sp, td->td_ucred, flags);
 done:
 	sx_xunlock(&swdev_syscall_lock);
 	return (error);
+}
+
+int
+freebsd13_swapoff(struct thread *td, struct freebsd13_swapoff_args *uap)
+{
+	return (kern_swapoff(td, uap->name, UIO_USERSPACE, 0));
+}
+
+int
+sys_swapoff(struct thread *td, struct swapoff_args *uap)
+{
+	return (kern_swapoff(td, uap->name, UIO_USERSPACE, uap->flags));
 }
 
 static int
