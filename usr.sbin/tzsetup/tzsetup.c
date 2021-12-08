@@ -1028,10 +1028,9 @@ main(int argc, char **argv)
 		    "If it is set to local time,\n"
 		    "or you don't know, please choose NO here!");
 
-		conf.button.defaultno = true;
+		conf.button.defaultno = false;
 		conf.title = "Select local or UTC (Greenwich Mean Time) clock";
 		yesno = bsddialog_yesno(&conf, prompt, 7, 73);
-		conf.button.defaultno = false;
 		if (!yesno) {
 			if (reallydoit)
 				unlink(path_wall_cmos_clock);
