@@ -52,7 +52,7 @@ struct _t {								\
 /*
  * Helper to declare a bitset without it's size being a constant.
  *
- * Sadly we cannot declare a bitset struct with '__bits[]', because it's
+ * Sadly we cannot declare a bitset struct with 'bits[]', because it's
  * the only member of the struct and the compiler complains.
  */
 #define __BITSET_DEFINE_VAR(_t)	__BITSET_DEFINE(_t, 1)
@@ -61,11 +61,12 @@ struct _t {								\
  * Define a default type that can be used while manually specifying size
  * to every call.
  */
-__BITSET_DEFINE(bitset, 1);
 
 #if defined(_KERNEL) || defined(_WANT_FREEBSD_BITSET)
+__BITSET_DEFINE(bitset, 1);
+
 #define	BITSET_DEFINE(_t, _s)	__BITSET_DEFINE(_t, _s)
 #define	BITSET_DEFINE_VAR(_t)	__BITSET_DEFINE_VAR(_t)
-#endif
+#endif /* defined(_KERNEL) || defined(_WANT_FREEBSD_BITSET) */
 
 #endif /* !_SYS__BITSET_H_ */
