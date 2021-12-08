@@ -1182,6 +1182,11 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 			}
 			if (phdr[i].p_align > maxalign)
 				maxalign = phdr[i].p_align;
+			if (mapsz + phdr[i].p_memsz < mapsz) {
+				uprintf("Mapsize overflow\n");
+				error = ENOEXEC;
+				goto ret;
+			}
 			mapsz += phdr[i].p_memsz;
 			n++;
 
@@ -1311,6 +1316,11 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	imgp->proc->p_elf_brandinfo = brand_info;
 
 	maxv = vm_map_max(map) - lim_max(td, RLIMIT_STACK);
+	if (mapsz >= maxv - vm_map_min(map)) {
+		uprintf("Excessive mapping size\n");
+		error = ENOEXEC;
+	}
+
 	if (error == 0 && et_dyn_addr == ET_DYN_ADDR_RAND) {
 		KASSERT((map->flags & MAP_ASLR) != 0,
 		    ("ET_DYN_ADDR_RAND but !MAP_ASLR"));
