@@ -45,14 +45,6 @@ struct mdproc {
 
 #define	KINFO_PROC_SIZE	1088
 
-#define	MAXARGS		8
-struct syscall_args {
-	u_int code;
-	u_int original_code;
-	struct sysent *callp;
-	register_t args[MAXARGS];
-};
-
 #ifdef _KERNEL
 #include <machine/pcb.h>
 

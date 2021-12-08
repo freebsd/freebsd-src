@@ -91,13 +91,6 @@ struct mdproc {
 #define	KINFO_PROC_SIZE 1088
 #define	KINFO_PROC32_SIZE 768
 
-struct syscall_args {
-	u_int code;
-	u_int original_code;
-	struct sysent *callp;
-	register_t args[8];
-};
-
 #ifdef	_KERNEL
 
 /* Get the current kernel thread stack usage. */

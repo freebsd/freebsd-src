@@ -193,7 +193,6 @@ struct racct;
 struct sbuf;
 struct sleepqueue;
 struct socket;
-struct syscall_args;
 struct td_sched;
 struct thread;
 struct trapframe;
@@ -201,6 +200,14 @@ struct turnstile;
 struct vm_map;
 struct vm_map_entry;
 struct epoch_tracker;
+
+#define MAXARGS	8
+struct syscall_args {
+	u_int code;
+	u_int original_code;
+	struct sysent *callp;
+	register_t args[MAXARGS];
+};
 
 /*
  * XXX: Does this belong in resource.h or resourcevar.h instead?
