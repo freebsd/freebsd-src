@@ -28,7 +28,7 @@
 .\"     @(#)swapon.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd December 2, 2021
+.Dd December 8, 2021
 .Dt SWAPON 2
 .Os
 .Sh NAME
@@ -43,7 +43,7 @@
 .Ft int
 .Fn swapon "const char *special"
 .Ft int
-.Fn swapoff "const char *special"
+.Fn swapoff "const char *special" "u_int flags"
 .Sh DESCRIPTION
 The
 .Fn swapon
@@ -68,27 +68,7 @@ is made available for other purposes.
 .Pp
 The
 .Fa special
-argument points to either the string that names the special device
-used for swapping or the following structure
-.Bd -literal
-struct swapoff_new_args {
-	const char *name_old_syscall;
-	const char *name;
-	u_int flags;
-};
-.Ed
-that extends swapoff's interface to include optional flags.
-The
-.Va name_old_syscall
-member must be initialized to
-.Dv NULL
-for the system to recognize the extended interface.
-It is recommended that the whole structure be zeroed for future
-compatibility, due to padding.
-.Pp
-The
-.Va name
-string is the special device name, same as legacy syscall argument.
+argument points to the name of the device or file used for swapping.
 .The
 .Va flags
 argument takes the following flags:
