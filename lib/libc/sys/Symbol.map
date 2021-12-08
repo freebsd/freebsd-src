@@ -260,7 +260,6 @@ FBSD_1.0 {
 	sigwaitinfo;
 	socket;
 	socketpair;
-	swapoff;
 	swapon;
 	symlink;
 	sync;
@@ -420,6 +419,7 @@ FBSD_1.6 {
 FBSD_1.7 {
 	_Fork;
 	fspacectl;
+	swapoff;
 };
 
 FBSDprivate_1.0 {

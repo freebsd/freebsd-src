@@ -579,7 +579,7 @@ int	 setruid(uid_t);
 void	 setusershell(void);
 int	 strtofflags(char **, u_long *, u_long *);
 int	 swapon(const char *);
-int	 swapoff(const char *);
+int	 swapoff(const char *, u_int);
 int	 syscall(int, ...);
 off_t	 __syscall(quad_t, ...);
 int	 undelete(const char *);
