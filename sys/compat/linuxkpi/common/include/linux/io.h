@@ -482,4 +482,12 @@ memunmap(void *addr)
 	iounmap(addr);
 }
 
+#define	__MTRR_ID_BASE	1
+int lkpi_arch_phys_wc_add(unsigned long, unsigned long);
+void lkpi_arch_phys_wc_del(int);
+#define	arch_phys_wc_add(...)	lkpi_arch_phys_wc_add(__VA_ARGS__)
+#define	arch_phys_wc_del(...)	lkpi_arch_phys_wc_del(__VA_ARGS__)
+#define	arch_phys_wc_index(x)	\
+	(((x) < __MTRR_ID_BASE) ? -1 : ((x) - __MTRR_ID_BASE))
+
 #endif	/* _LINUX_IO_H_ */
