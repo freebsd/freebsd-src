@@ -2086,6 +2086,13 @@ int	linux_mount_setattr(struct thread *, struct linux_mount_setattr_args *);
 
 #endif /* COMPAT_FREEBSD12 */
 
+
+#ifdef COMPAT_FREEBSD13
+
+#define	nosys	linux_nosys
+
+#endif /* COMPAT_FREEBSD13 */
+
 #define	LINUX32_SYS_AUE_linux_exit	AUE_EXIT
 #define	LINUX32_SYS_AUE_linux_fork	AUE_FORK
 #define	LINUX32_SYS_AUE_linux_open	AUE_OPEN_RWTC

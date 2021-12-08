@@ -1733,6 +1733,13 @@ int	linux_mount_setattr(struct thread *, struct linux_mount_setattr_args *);
 
 #endif /* COMPAT_FREEBSD12 */
 
+
+#ifdef COMPAT_FREEBSD13
+
+#define	nosys	linux_nosys
+
+#endif /* COMPAT_FREEBSD13 */
+
 #define	LINUX_SYS_AUE_linux_open	AUE_OPEN_RWTC
 #define	LINUX_SYS_AUE_linux_newstat	AUE_STAT
 #define	LINUX_SYS_AUE_linux_newfstat	AUE_FSTAT
