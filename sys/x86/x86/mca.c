@@ -227,6 +227,26 @@ cmci_supported(uint64_t mcg_cap)
 	return ((mcg_cap & MCG_CAP_CMCI_P) != 0);
 }
 
+static inline bool
+tes_supported(uint64_t mcg_cap)
+{
+
+	/*
+	 * MCG_CAP_TES_P bit is reserved in AMD documentation.  Until
+	 * it is defined, do not use it to check for TES support.
+	 */
+	if (cpu_vendor_id != CPU_VENDOR_INTEL)
+		return (false);
+	return ((mcg_cap & MCG_CAP_TES_P) != 0);
+}
+
+static inline bool
+ser_supported(uint64_t mcg_cap)
+{
+
+	return (tes_supported(mcg_cap) && (mcg_cap & MCG_CAP_SER_P) != 0);
+}
+
 static int
 sysctl_positive_int(SYSCTL_HANDLER_ARGS)
 {
@@ -352,6 +372,25 @@ mca_error_mmtype(uint16_t mca_error)
 	return ("???");
 }
 
+static const char *
+mca_addres_mode(uint64_t mca_misc)
+{
+
+	switch ((mca_misc & MC_MISC_ADDRESS_MODE) >> 6) {
+	case 0x0:
+		return ("Segment Offset");
+	case 0x1:
+		return ("Linear Address");
+	case 0x2:
+		return ("Physical Address");
+	case 0x3:
+		return ("Memory Address");
+	case 0x7:
+		return ("Generic");
+	}
+	return ("???");
+}
+
 static int
 mca_mute(const struct mca_record *rec)
 {
@@ -403,9 +442,25 @@ mca_log(const struct mca_record *rec)
 		if (cmci_supported(rec->mr_mcg_cap))
 			printf("(%lld) ", ((long long)rec->mr_status &
 			    MC_STATUS_COR_COUNT) >> 38);
+		if (tes_supported(rec->mr_mcg_cap)) {
+			switch ((rec->mr_status & MC_STATUS_TES_STATUS) >> 53) {
+			case 0x1:
+				printf("(Green) ");
+			case 0x2:
+				printf("(Yellow) ");
+			}
+		}
 	}
+	if (rec->mr_status & MC_STATUS_EN)
+		printf("EN ");
 	if (rec->mr_status & MC_STATUS_PCC)
 		printf("PCC ");
+	if (ser_supported(rec->mr_mcg_cap)) {
+		if (rec->mr_status & MC_STATUS_S)
+			printf("S ");
+		if (rec->mr_status & MC_STATUS_AR)
+			printf("AR ");
+	}
 	if (rec->mr_status & MC_STATUS_OVER)
 		printf("OVER ");
 	mca_error = rec->mr_status & MC_STATUS_MCA_ERROR;
@@ -429,8 +484,22 @@ mca_log(const struct mca_record *rec)
 	case 0x0005:
 		printf("internal parity error");
 		break;
+	case 0x0006:
+		printf("SMM handler code access violation");
+		break;
 	case 0x0400:
 		printf("internal timer error");
+		break;
+	case 0x0e0b:
+		printf("generic I/O error");
+		if (rec->mr_cpu_vendor_id == CPU_VENDOR_INTEL &&
+		    (rec->mr_status & MC_STATUS_MISCV)) {
+			printf(" (pci%d:%d:%d:%d)",
+			    (int)((rec->mr_misc & MC_MISC_PCIE_SEG) >> 32),
+			    (int)((rec->mr_misc & MC_MISC_PCIE_BUS) >> 24),
+			    (int)((rec->mr_misc & MC_MISC_PCIE_SLOT) >> 19),
+			    (int)((rec->mr_misc & MC_MISC_PCIE_FUNC) >> 16));
+		}
 		break;
 	default:
 		if ((mca_error & 0xfc00) == 0x0400) {
@@ -463,7 +532,7 @@ mca_log(const struct mca_record *rec)
 			printf(" memory error");
 			break;
 		}
-		
+
 		/* Cache error. */
 		if ((mca_error & 0xef00) == 0x0100) {
 			printf("%sCACHE %s %s error",
@@ -473,8 +542,19 @@ mca_log(const struct mca_record *rec)
 			break;
 		}
 
+		/* Extended memory error. */
+		if ((mca_error & 0xef80) == 0x0280) {
+			printf("%s channel ", mca_error_mmtype(mca_error));
+			if ((mca_error & 0x000f) != 0x000f)
+				printf("%d", mca_error & 0x000f);
+			else
+				printf("??");
+			printf(" extended memory error");
+			break;
+		}
+
 		/* Bus and/or Interconnect error. */
-		if ((mca_error & 0xe800) == 0x0800) {			
+		if ((mca_error & 0xe800) == 0x0800) {
 			printf("BUS%s ", mca_error_level(mca_error));
 			switch ((mca_error & 0x0600) >> 9) {
 			case 0:
@@ -514,8 +594,16 @@ mca_log(const struct mca_record *rec)
 		break;
 	}
 	printf("\n");
-	if (rec->mr_status & MC_STATUS_ADDRV)
-		printf("MCA: Address 0x%llx\n", (long long)rec->mr_addr);
+	if (rec->mr_status & MC_STATUS_ADDRV) {
+		printf("MCA: Address 0x%llx", (long long)rec->mr_addr);
+		if (ser_supported(rec->mr_mcg_cap) &&
+		    (rec->mr_status & MC_STATUS_MISCV)) {
+			printf(" (Mode: %s, LSB: %d)",
+			    mca_addres_mode(rec->mr_misc),
+			    (int)(rec->mr_misc & MC_MISC_RA_LSB));
+		}
+		printf("\n");
+	}
 	if (rec->mr_status & MC_STATUS_MISCV)
 		printf("MCA: Misc 0x%llx\n", (long long)rec->mr_misc);
 }
