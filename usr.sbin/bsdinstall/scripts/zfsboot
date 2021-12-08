@@ -1573,6 +1573,28 @@ dialog_menu_diskinfo()
 	return $SUCCESS
 }
 
+dialog_zpool_name()
+{
+	local prompt="$* is already taken, please enter a name for the ZFS pool \
+	(Or confirm using the same name by just pressing enter)"
+	local hline=
+	local value="$*"
+	local height width
+
+	f_dialog_inputbox_size height width \
+		"$DIALOG_TITLE" "$DIALOG_BACKTITLE" "$prompt" "$value" "$hline"
+
+	$DIALOG \
+		--title "$DIALOG_TITLE"         \
+		--backtitle "$DIALOG_BACKTITLE" \
+		--hline "$hline"                \
+		--ok-label "Ok"                 \
+		--no-cancel                     \
+		--inputbox "$prompt"            \
+		$height $width "$value"         \
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+}
+
 ############################################################ MAIN
 
 #
@@ -1590,6 +1612,16 @@ f_dialog_backtitle "$msg_freebsd_installer"
 f_dprintf "BSDINSTALL_CHROOT=[%s]" "$BSDINSTALL_CHROOT"
 f_dprintf "BSDINSTALL_TMPETC=[%s]" "$BSDINSTALL_TMPETC"
 f_dprintf "FSTAB_FMT=[%s]" "$FSTAB_FMT"
+
+pools=$(zpool import | awk '$1 == "pool:" { print $2}')
+for pool in ${pools}; do
+	f_dprintf "Checking ${pool} against ${ZFSBOOT_POOL_NAME}"
+	if [ "${pool}" = "${ZFSBOOT_POOL_NAME}" ]; then
+		f_dprintf "Pool ${pool} already taken"
+		ZFSBOOT_POOL_NAME=$(dialog_zpool_name "${ZFSBOOT_POOL_NAME}")
+		break;
+	fi
+done
 
 #
 # Determine default boot type
