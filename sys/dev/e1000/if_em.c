@@ -297,12 +297,12 @@ static void	em_if_debug(if_ctx_t);
 static void	em_update_stats_counters(struct e1000_softc *);
 static void	em_add_hw_stats(struct e1000_softc *);
 static int	em_if_set_promisc(if_ctx_t, int);
-static bool	em_if_vlan_filter_capable(struct e1000_softc *);
-static bool	em_if_vlan_filter_used(struct e1000_softc *);
+static bool	em_if_vlan_filter_capable(if_ctx_t);
+static bool	em_if_vlan_filter_used(if_ctx_t);
 static void	em_if_vlan_filter_enable(struct e1000_softc *);
 static void	em_if_vlan_filter_disable(struct e1000_softc *);
 static void	em_if_vlan_filter_write(struct e1000_softc *);
-static void	em_setup_vlan_hw_support(struct e1000_softc *);
+static void	em_setup_vlan_hw_support(if_ctx_t ctx);
 static int	em_sysctl_nvm_info(SYSCTL_HANDLER_ARGS);
 static void	em_print_nvm_info(struct e1000_softc *);
 static void	em_fw_version_locked(if_ctx_t);
@@ -916,14 +916,15 @@ em_if_attach_pre(if_ctx_t ctx)
 		scctx->isc_rxd_size[0] = sizeof(struct e1000_rx_desc);
 		scctx->isc_tx_csum_flags = CSUM_TCP | CSUM_UDP;
 		scctx->isc_txrx = &lem_txrx;
-		scctx->isc_capabilities = scctx->isc_capenable = LEM_CAPS;
+		scctx->isc_capabilities = LEM_CAPS;
 		if (hw->mac.type < e1000_82543)
-			scctx->isc_capenable &= ~(IFCAP_HWCSUM|IFCAP_VLAN_HWCSUM);
+			scctx->isc_capabilities &= ~(IFCAP_HWCSUM|IFCAP_VLAN_HWCSUM);
 		/* 82541ER doesn't do HW tagging */
 		if (hw->device_id == E1000_DEV_ID_82541ER || hw->device_id == E1000_DEV_ID_82541ER_LOM)
-			scctx->isc_capenable &= ~IFCAP_VLAN_HWTAGGING;
+			scctx->isc_capabilities &= ~IFCAP_VLAN_HWTAGGING;
 		/* INTx only */
 		scctx->isc_msix_bar = 0;
+		scctx->isc_capenable = scctx->isc_capabilities;
 	}
 
 	/* Setup PCI resources */
@@ -1357,7 +1358,7 @@ em_if_init(if_ctx_t ctx)
 	em_initialize_receive_unit(ctx);
 
 	/* Set up VLAN support and filter */
-	em_setup_vlan_hw_support(sc);
+	em_setup_vlan_hw_support(ctx);
 
 	/* Don't lose promiscuous settings */
 	em_if_set_promisc(ctx, if_getflags(ifp));
@@ -1684,7 +1685,7 @@ em_if_set_promisc(if_ctx_t ctx, int flags)
 			reg_rctl &= ~E1000_RCTL_UPE;
 			E1000_WRITE_REG(&sc->hw, E1000_RCTL, reg_rctl);
 		}
-		if (em_if_vlan_filter_used(sc))
+		if (em_if_vlan_filter_used(ctx))
 			em_if_vlan_filter_enable(sc);
 	}
 	return (0);
@@ -3230,12 +3231,12 @@ em_initialize_receive_unit(if_ctx_t ctx)
 
 	/* Set up L3 and L4 csum Rx descriptor offloads */
 	rxcsum = E1000_READ_REG(hw, E1000_RXCSUM);
-	if (scctx->isc_capenable & IFCAP_RXCSUM) {
+	if (if_getcapenable(ifp) & IFCAP_RXCSUM) {
 		rxcsum |= E1000_RXCSUM_TUOFL | E1000_RXCSUM_IPOFL;
 		if (hw->mac.type > e1000_82575)
 			rxcsum |= E1000_RXCSUM_CRCOFL;
 		else if (hw->mac.type < em_mac_min &&
-		    scctx->isc_capenable & IFCAP_HWCSUM_IPV6)
+		    if_getcapenable(ifp) & IFCAP_HWCSUM_IPV6)
 			rxcsum |= E1000_RXCSUM_IPV6OFL;
 	} else {
 		rxcsum &= ~(E1000_RXCSUM_IPOFL | E1000_RXCSUM_TUOFL);
@@ -3429,11 +3430,11 @@ em_if_vlan_unregister(if_ctx_t ctx, u16 vtag)
 }
 
 static bool
-em_if_vlan_filter_capable(struct e1000_softc *sc)
+em_if_vlan_filter_capable(if_ctx_t ctx)
 {
-	if_softc_ctx_t scctx = sc->shared;
+	if_t ifp = iflib_get_ifp(ctx);
 
-	if ((scctx->isc_capenable & IFCAP_VLAN_HWFILTER) &&
+	if ((if_getcapenable(ifp) & IFCAP_VLAN_HWFILTER) &&
 	    !em_disable_crc_stripping)
 		return (true);
 
@@ -3441,9 +3442,11 @@ em_if_vlan_filter_capable(struct e1000_softc *sc)
 }
 
 static bool
-em_if_vlan_filter_used(struct e1000_softc *sc)
+em_if_vlan_filter_used(if_ctx_t ctx)
 {
-	if (!em_if_vlan_filter_capable(sc))
+	struct e1000_softc *sc = iflib_get_softc(ctx);
+
+	if (!em_if_vlan_filter_capable(ctx))
 		return (false);
 
 	for (int i = 0; i < EM_VFTA_SIZE; i++)
@@ -3503,10 +3506,11 @@ em_if_vlan_filter_write(struct e1000_softc *sc)
 }
 
 static void
-em_setup_vlan_hw_support(struct e1000_softc *sc)
+em_setup_vlan_hw_support(if_ctx_t ctx)
 {
-	if_softc_ctx_t scctx = sc->shared;
+	struct e1000_softc *sc = iflib_get_softc(ctx);
 	struct e1000_hw *hw = &sc->hw;
+	struct ifnet *ifp = iflib_get_ifp(ctx);
 	u32 reg;
 
 	/* XXXKB: Return early if we are a VF until VF decap and filter management
@@ -3515,7 +3519,7 @@ em_setup_vlan_hw_support(struct e1000_softc *sc)
 	if (sc->vf_ifp)
 		return;
 
-	if (scctx->isc_capenable & IFCAP_VLAN_HWTAGGING &&
+	if (if_getcapenable(ifp) & IFCAP_VLAN_HWTAGGING &&
 	    !em_disable_crc_stripping) {
 		reg = E1000_READ_REG(hw, E1000_CTRL);
 		reg |= E1000_CTRL_VME;
@@ -3527,7 +3531,7 @@ em_setup_vlan_hw_support(struct e1000_softc *sc)
 	}
 
 	/* If we aren't doing HW filtering, we're done */
-	if (!em_if_vlan_filter_capable(sc))  {
+	if (!em_if_vlan_filter_capable(ctx))  {
 		em_if_vlan_filter_disable(sc);
 		return;
 	}
