@@ -1157,8 +1157,8 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 			 * a PT_PHDR entry.
 			 */
 			if (phdr[i].p_offset == 0 &&
-			    hdr->e_phoff + hdr->e_phnum * hdr->e_phentsize
-				<= phdr[i].p_filesz)
+			    hdr->e_phoff + hdr->e_phnum * hdr->e_phentsize <=
+			    phdr[i].p_filesz)
 				proghdr = phdr[i].p_vaddr + hdr->e_phoff;
 			break;
 		case PT_INTERP:
