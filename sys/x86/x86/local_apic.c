@@ -1479,8 +1479,6 @@ native_lapic_enable_cmc(void)
 	    ("%s: missing APIC %u", __func__, apic_id));
 	lapics[apic_id].la_lvts[APIC_LVT_CMCI].lvt_masked = 0;
 	lapics[apic_id].la_lvts[APIC_LVT_CMCI].lvt_active = 1;
-	if (bootverbose)
-		printf("lapic%u: CMCI unmasked\n", apic_id);
 }
 
 static int
@@ -1510,8 +1508,6 @@ native_lapic_enable_mca_elvt(void)
 	}
 	lapics[apic_id].la_elvts[APIC_ELVT_MCA].lvt_masked = 0;
 	lapics[apic_id].la_elvts[APIC_ELVT_MCA].lvt_active = 1;
-	if (bootverbose)
-		printf("lapic%u: MCE Thresholding ELVT unmasked\n", apic_id);
 	return (APIC_ELVT_MCA);
 }
 
