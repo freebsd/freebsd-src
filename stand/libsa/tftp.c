@@ -122,7 +122,7 @@ struct tftprecv_extra {
 
 #define	TFTP_MAX_ERRCODE EOPTNEG
 static const int tftperrors[TFTP_MAX_ERRCODE + 1] = {
-	0,			/* ??? */
+	0,			/* NAK */
 	ENOENT,
 	EPERM,
 	ENOSPC,
@@ -188,6 +188,7 @@ recvtftp(struct iodesc *d, void **pkt, void **payload, time_t tleft,
 	struct tftphdr *t;
 	void *ptr = NULL;
 	ssize_t len;
+	int tftp_error;
 
 	errno = 0;
 	extra = recv_extra;
@@ -234,16 +235,20 @@ recvtftp(struct iodesc *d, void **pkt, void **payload, time_t tleft,
 		return (got);
 	}
 	case ERROR:
-		if ((unsigned)ntohs(t->th_code) > TFTP_MAX_ERRCODE) {
-			printf("illegal tftp error %d\n", ntohs(t->th_code));
+		tftp_error = ntohs(t->th_code);
+		if ((unsigned)tftp_error > TFTP_MAX_ERRCODE) {
+			printf("illegal tftp error %d\n", tftp_error);
 			errno = EIO;
 		} else {
 #ifdef TFTP_DEBUG
-			printf("tftp-error %d\n", ntohs(t->th_code));
+			printf("tftp-error %d\n", tftp_error);
 #endif
-			errno = tftperrors[ntohs(t->th_code)];
+			errno = tftperrors[tftp_error];
 		}
 		free(ptr);
+		/* If we got a NAK return 0, it's usually a directory */
+		if (tftp_error == 0)
+			return (0);
 		return (-1);
 	case OACK: {
 		struct udphdr *uh;
