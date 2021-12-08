@@ -1223,11 +1223,6 @@ amd_thresholding_monitor(int i)
 		return;
 	}
 
-	/* Re-use Intel CMC support infrastructure. */
-	if (bootverbose)
-		printf("%s: Starting AMD thresholding on bank %d\n", __func__,
-		    i);
-
 	cc = &amd_et_state[PCPU_GET(cpuid)][i];
 	cc->cur_threshold = 1;
 	amd_thresholding_start(cc, i);
