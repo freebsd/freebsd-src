@@ -226,6 +226,7 @@ local compat_options = {
 	{ stdcompat = "FREEBSD10" },
 	{ stdcompat = "FREEBSD11" },
 	{ stdcompat = "FREEBSD12" },
+	{ stdcompat = "FREEBSD13" },
 }
 
 local function trim(s, char)
