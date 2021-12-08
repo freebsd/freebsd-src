@@ -126,10 +126,10 @@ static STAILQ_HEAD(, mca_internal) mca_freelist;
 static int mca_freecount;
 static STAILQ_HEAD(, mca_internal) mca_records;
 static STAILQ_HEAD(, mca_internal) mca_pending;
-static struct callout mca_timer;
 static int mca_ticks = 3600;	/* Check hourly by default. */
 static struct taskqueue *mca_tq;
-static struct task mca_resize_task, mca_scan_task;
+static struct task mca_resize_task;
+static struct timeout_task mca_scan_task;
 static struct mtx mca_lock;
 
 static unsigned int
@@ -978,14 +978,8 @@ mca_scan_cpus(void *context, int pending)
 	thread_unlock(td);
 	if (count != 0)
 		mca_process_records(POLLED);
-}
-
-static void
-mca_periodic_scan(void *arg)
-{
-
-	taskqueue_enqueue(mca_tq, &mca_scan_task);
-	callout_reset(&mca_timer, mca_ticks * hz, mca_periodic_scan, NULL);
+	taskqueue_enqueue_timeout_sbt(mca_tq, &mca_scan_task,
+	    mca_ticks * SBT_1S, 0, C_PREL(1));
 }
 
 static int
@@ -998,7 +992,8 @@ sysctl_mca_scan(SYSCTL_HANDLER_ARGS)
 	if (error)
 		return (error);
 	if (i)
-		taskqueue_enqueue(mca_tq, &mca_scan_task);
+		taskqueue_enqueue_timeout_sbt(mca_tq, &mca_scan_task,
+		    0, 0, 0);
 	return (0);
 }
 
@@ -1032,28 +1027,18 @@ sysctl_mca_maxcount(SYSCTL_HANDLER_ARGS)
 }
 
 static void
-mca_createtq(void *dummy)
-{
-	if (mca_banks <= 0)
-		return;
-
-	mca_tq = taskqueue_create_fast("mca", M_WAITOK,
-	    taskqueue_thread_enqueue, &mca_tq);
-	taskqueue_start_threads(&mca_tq, 1, PI_SWI(SWI_TQ), "mca taskq");
-
-	/* CMCIs during boot may have claimed items from the freelist. */
-	mca_resize_freelist();
-}
-SYSINIT(mca_createtq, SI_SUB_CONFIGURE, SI_ORDER_ANY, mca_createtq, NULL);
-
-static void
 mca_startup(void *dummy)
 {
 
 	if (mca_banks <= 0)
 		return;
 
-	callout_reset(&mca_timer, mca_ticks * hz, mca_periodic_scan, NULL);
+	/* CMCIs during boot may have claimed items from the freelist. */
+	mca_resize_freelist();
+
+	taskqueue_start_threads(&mca_tq, 1, PI_SWI(SWI_TQ), "mca taskq");
+	taskqueue_enqueue_timeout_sbt(mca_tq, &mca_scan_task,
+	    mca_ticks * SBT_1S, 0, C_PREL(1));
 }
 #ifdef EARLY_AP_STARTUP
 SYSINIT(mca_startup, SI_SUB_KICK_SCHEDULER, SI_ORDER_ANY, mca_startup, NULL);
@@ -1112,8 +1097,9 @@ mca_setup(uint64_t mcg_cap)
 	mtx_init(&mca_lock, "mca", NULL, MTX_SPIN);
 	STAILQ_INIT(&mca_records);
 	STAILQ_INIT(&mca_pending);
-	TASK_INIT(&mca_scan_task, 0, mca_scan_cpus, NULL);
-	callout_init(&mca_timer, 1);
+	mca_tq = taskqueue_create_fast("mca", M_WAITOK,
+	    taskqueue_thread_enqueue, &mca_tq);
+	TIMEOUT_TASK_INIT(mca_tq, &mca_scan_task, 0, mca_scan_cpus, NULL);
 	STAILQ_INIT(&mca_freelist);
 	TASK_INIT(&mca_resize_task, 0, mca_resize, NULL);
 	mca_resize_freelist();
