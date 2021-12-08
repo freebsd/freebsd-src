@@ -160,9 +160,10 @@ linux_fetch_syscall_args(struct thread *td)
 	else
 		sa->callp = &p->p_sysent->sv_table[sa->code];
 
-	if (sa->callp->sy_narg > MAXARGS)
-		panic("ARM64TODO: Could we have more than %d args?", MAXARGS);
-	memcpy(sa->args, ap, MAXARGS * sizeof(register_t));
+	if (sa->callp->sy_narg > nitems(sa->args))
+		panic("ARM64TODO: Could we have more than %zu args?",
+		    nitems(sa->args));
+	memcpy(sa->args, ap, nitems(sa->args) * sizeof(register_t));
 
 	td->td_retval[0] = 0;
 	return (0);
