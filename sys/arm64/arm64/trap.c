@@ -159,7 +159,7 @@ cpu_fetch_syscall_args(struct thread *td)
 	KASSERT(sa->callp->sy_narg <= nitems(sa->args),
 	    ("Syscall %d takes too many arguments", sa->code));
 
-	memcpy(dst_ap, ap, (MAXARGS - 1) * sizeof(register_t));
+	memcpy(dst_ap, ap, (nitems(sa->args) - 1) * sizeof(register_t));
 
 	td->td_retval[0] = 0;
 	td->td_retval[1] = 0;
