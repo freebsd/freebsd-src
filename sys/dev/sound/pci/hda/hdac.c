@@ -1387,12 +1387,20 @@ sysctl_hdac_pindump(SYSCTL_HANDLER_ARGS)
 		return (0);
 	}
 
-	if ((err = device_get_children(dev, &devlist, &devcount)) != 0)
+	bus_topo_lock();
+
+	if ((err = device_get_children(dev, &devlist, &devcount)) != 0) {
+		bus_topo_unlock();
 		return (err);
+	}
+
 	hdac_lock(sc);
 	for (i = 0; i < devcount; i++)
 		HDAC_PINDUMP(devlist[i]);
 	hdac_unlock(sc);
+
+	bus_topo_unlock();
+
 	free(devlist, M_TEMP);
 	return (0);
 }
@@ -1607,11 +1615,11 @@ hdac_attach2(void *arg)
 
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(sc->dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(sc->dev)), OID_AUTO,
-	    "pindump", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, sc->dev,
+	    "pindump", CTLTYPE_INT | CTLFLAG_RW, sc->dev,
 	    sizeof(sc->dev), sysctl_hdac_pindump, "I", "Dump pin states/data");
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(sc->dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(sc->dev)), OID_AUTO,
-	    "polling", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, sc->dev,
+	    "polling", CTLTYPE_INT | CTLFLAG_RW, sc->dev,
 	    sizeof(sc->dev), sysctl_hdac_polling, "I", "Enable polling mode");
 }
 
