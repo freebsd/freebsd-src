@@ -2200,7 +2200,9 @@ nfsrpc_createv4(vnode_t dvp, char *name, int namelen, struct vattr *vap,
 		stateid.other[1] = *tl++;
 		stateid.other[2] = *tl;
 		rflags = fxdr_unsigned(u_int32_t, *(tl + 6));
-		(void) nfsrv_getattrbits(nd, &attrbits, NULL, NULL);
+		error = nfsrv_getattrbits(nd, &attrbits, NULL, NULL);
+		if (error)
+			goto nfsmout;
 		NFSM_DISSECT(tl, u_int32_t *, NFSX_UNSIGNED);
 		deleg = fxdr_unsigned(int, *tl);
 		if (deleg == NFSV4OPEN_DELEGATEREAD ||
@@ -7458,7 +7460,9 @@ nfsrpc_createlayout(vnode_t dvp, char *name, int namelen, struct vattr *vap,
 		stateid.other[0] = *tl++;
 		stateid.other[1] = *tl++;
 		stateid.other[2] = *tl;
-		nfsrv_getattrbits(nd, &attrbits, NULL, NULL);
+		error = nfsrv_getattrbits(nd, &attrbits, NULL, NULL);
+		if (error != 0)
+			goto nfsmout;
 		NFSM_DISSECT(tl, u_int32_t *, NFSX_UNSIGNED);
 		deleg = fxdr_unsigned(int, *tl);
 		if (deleg == NFSV4OPEN_DELEGATEREAD ||
