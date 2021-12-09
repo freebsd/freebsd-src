@@ -709,7 +709,6 @@ ifunc_init(Elf_Auxinfo aux_info[__min_size(AT_COUNT)] __unused)
 void
 allocate_initial_tls(Obj_Entry *list)
 {
-	Elf_Addr **tp;
 
 	/*
 	* Fix the size of the static TLS block by using the maximum
@@ -719,21 +718,17 @@ allocate_initial_tls(Obj_Entry *list)
 
 	tls_static_space = tls_last_offset + tls_last_size + RTLD_STATIC_TLS_EXTRA;
 
-	tp = (Elf_Addr **)((char *)allocate_tls(list, NULL, TLS_TCB_SIZE, 16)
-	    + TLS_TP_OFFSET + TLS_TCB_SIZE);
-
-	__asm __volatile("mr 13,%0" :: "r"(tp));
+	_tcb_set(allocate_tls(list, NULL, TLS_TCB_SIZE, TLS_TCB_ALIGN));
 }
 
 void*
 __tls_get_addr(tls_index* ti)
 {
-	Elf_Addr **tp;
+	uintptr_t **dtvp;
 	char *p;
 
-	__asm __volatile("mr %0,13" : "=r"(tp));
-	p = tls_get_addr_common((Elf_Addr**)((Elf_Addr)tp - TLS_TP_OFFSET 
-	    - TLS_TCB_SIZE), ti->ti_module, ti->ti_offset);
+	dtvp = &_tcb_get()->tcb_dtv;
+	p = tls_get_addr_common(dtvp, ti->ti_module, ti->ti_offset);
 
 	return (p + TLS_DTV_OFFSET);
 }
