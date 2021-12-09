@@ -517,7 +517,8 @@ vnet_if_return(const void *unused __unused)
 {
 	struct ifnet *ifp, *nifp;
 	struct ifnet **pending;
-	int found, i;
+	int found __diagused;
+	int i;
 
 	i = 0;
 
@@ -1337,7 +1338,7 @@ if_vmove_loan(struct thread *td, struct ifnet *ifp, char *ifname, int jid)
 	struct prison *pr;
 	struct ifnet *difp;
 	int error;
-	bool found;
+	bool found __diagused;
 	bool shutdown;
 
 	/* Try to find the prison within our visibility. */
@@ -1394,7 +1395,7 @@ if_vmove_reclaim(struct thread *td, char *ifname, int jid)
 	struct prison *pr;
 	struct vnet *vnet_dst;
 	struct ifnet *ifp;
-	int error, found;
+	int error, found __diagused;
  	bool shutdown;
 
 	/* Try to find the prison within our visibility. */
