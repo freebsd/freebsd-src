@@ -591,7 +591,7 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, int flags,
 			if (!defobj->tls_done && !allocate_tls_offset(obj))
 				return -1;
 
-			val += (Elf_Addr)def->st_value - TLS_DTP_OFFSET;
+			val += (Elf_Addr)def->st_value - TLS_DTV_OFFSET;
 			store_ptr(where, val, rlen);
 
 			dbg("DTPREL %s in %s %p --> %p in %s",
@@ -784,7 +784,7 @@ __tls_get_addr(tls_index* ti)
 
 	tls = _get_tp();
 	p = tls_get_addr_common(tls, ti->ti_module, ti->ti_offset +
-	    TLS_DTP_OFFSET);
+	    TLS_DTV_OFFSET);
 
 	return (p);
 }
