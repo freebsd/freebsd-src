@@ -4,7 +4,7 @@
 __<${_this:T}>__:
 
 # Makefile for the compatibility libraries.
-# - 32-bit compat libraries on MIPS, PowerPC, and AMD64.
+# - 32-bit compat libraries on PowerPC, and AMD64.
 
 .include <bsd.compat.mk>
 
