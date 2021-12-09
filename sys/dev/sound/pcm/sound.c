@@ -595,7 +595,7 @@ pcm_chn_create(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t c
 int
 pcm_chn_destroy(struct pcm_channel *ch)
 {
-	struct snddev_info *d;
+	struct snddev_info *d __diagused;
 	int err;
 
 	d = ch->parentsnddev;
@@ -1171,9 +1171,7 @@ pcm_unregister(device_t dev)
 {
 	struct snddev_info *d;
 	struct pcm_channel *ch;
-	struct thread *td;
 
-	td = curthread;
 	d = device_get_softc(dev);
 
 	if (!PCM_ALIVE(d)) {
