@@ -1308,9 +1308,6 @@ swcr_setup_gcm(struct swcr_session *ses,
 	struct swcr_auth *swa;
 	const struct auth_hash *axf;
 
-	if (csp->csp_ivlen != AES_GCM_IV_LEN)
-		return (EINVAL);
-
 	/* First, setup the auth side. */
 	swa = &ses->swcr_auth;
 	switch (csp->csp_cipher_klen * 8) {

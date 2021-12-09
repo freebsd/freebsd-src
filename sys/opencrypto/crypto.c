@@ -851,7 +851,10 @@ check_csp(const struct crypto_session_params *csp)
 				return (false);
 			break;
 		case CRYPTO_AES_NIST_GCM_16:
-			if (csp->csp_auth_mlen > 16)
+			if (csp->csp_auth_mlen > AES_GMAC_HASH_LEN)
+				return (false);
+
+			if (csp->csp_ivlen != AES_GCM_IV_LEN)
 				return (false);
 			break;
 		case CRYPTO_CHACHA20_POLY1305:
