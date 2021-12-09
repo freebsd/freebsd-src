@@ -482,18 +482,7 @@ kboot_kseg_get(int *nseg, void **ptr)
 void
 _start(int argc, const char **argv, char **env)
 {
-// This makes error "variable 'sp' is uninitialized" be just a warning on clang.
-// Initializing 'sp' is not desired here as it would overwrite "r1" original value
-#if defined(__clang__)
-#pragma clang diagnostic push
-#pragma clang diagnostic warning "-Wuninitialized"
-#endif
-	register volatile void **sp asm("r1");
-	main((int)sp[0], (const char **)&sp[1]);
-#if defined(__clang__)
-#pragma clang diagnostic pop
-#endif
-
+	main(argc, argv);
 }
 
 /*
