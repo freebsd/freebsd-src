@@ -3531,8 +3531,9 @@ nfscl_docb(struct nfsrv_descript *nd, NFSPROC_T *p)
 	nfsrvd_rephead(nd);
 	NFSM_DISSECT(tl, u_int32_t *, NFSX_UNSIGNED);
 	taglen = fxdr_unsigned(int, *tl);
-	if (taglen < 0) {
+	if (taglen < 0 || taglen > NFSV4_OPAQUELIMIT) {
 		error = EBADRPC;
+		taglen = -1;
 		goto nfsmout;
 	}
 	if (taglen <= NFSV4_SMALLSTR)
