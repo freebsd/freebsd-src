@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 
 #include <string.h>
 
+#include <bootstrap.h>
 #include "stand.h"
 #include "net.h"
 #include "netif.h"
