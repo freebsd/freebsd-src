@@ -742,8 +742,6 @@ ipu3fb_ioctl(video_adapter_t *adp, u_long cmd, caddr_t data)
 			fb->fb_cmsize = 1 << sc->depth;
 		fb->fb_size = sc->fb_size;
 		break;
-	case FBIOSCURSOR:
-		return (ENODEV);
 	default:
 		return (fb_commonioctl(adp, cmd, data));
 	}
