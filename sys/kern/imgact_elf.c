@@ -1174,7 +1174,8 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 		case PT_LOAD:
 			if (n == 0)
 				baddr = phdr[i].p_vaddr;
-			if (phdr[i].p_align > maxsalign) {
+			if (!powerof2(phdr[i].p_align) ||
+			    phdr[i].p_align > maxsalign) {
 				uprintf("Invalid segment alignment\n");
 				error = ENOEXEC;
 				goto ret;
@@ -1316,7 +1317,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 		error = __CONCAT(rnd_, __elfN(base))(map,
 		    vm_map_min(map) + mapsz + lim_max(td, RLIMIT_DATA),
 		    /* reserve half of the address space to interpreter */
-		    maxv / 2, 1UL << flsl(maxalign), &et_dyn_addr);
+		    maxv / 2, maxalign, &et_dyn_addr);
 	}
 
 	vn_lock(imgp->vp, LK_SHARED | LK_RETRY);
