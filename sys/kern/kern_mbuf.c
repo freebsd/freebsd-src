@@ -680,7 +680,7 @@ static void
 mb_dtor_mbuf(void *mem, int size, void *arg)
 {
 	struct mbuf *m;
-	unsigned long flags;
+	unsigned long flags __diagused;
 
 	m = (struct mbuf *)mem;
 	flags = (unsigned long)arg;
