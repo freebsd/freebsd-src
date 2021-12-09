@@ -387,8 +387,7 @@ exec_sysvec_init_secondary(struct sysentvec *sv, struct sysentvec *sv2)
 	MPASS((sv2->sv_flags & SV_ABI_MASK) == (sv->sv_flags & SV_ABI_MASK));
 	MPASS((sv2->sv_flags & SV_TIMEKEEP) == (sv->sv_flags & SV_TIMEKEEP));
 	MPASS((sv2->sv_flags & SV_SHP) != 0 && (sv->sv_flags & SV_SHP) != 0);
-	MPASS((sv2->sv_flags & SV_DSO_SIG) != 0 &&
-	    (sv->sv_flags & SV_DSO_SIG) != 0);
+	MPASS((sv2->sv_flags & SV_DSO_SIG) == (sv->sv_flags & SV_DSO_SIG));
 	MPASS((sv2->sv_flags & SV_RNG_SEED_VER) ==
 	    (sv->sv_flags & SV_RNG_SEED_VER));
 
