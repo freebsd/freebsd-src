@@ -38,10 +38,8 @@
 #include <sys/types.h>
 #include <machine/sysarch.h>
 #include <machine/tls.h>
-#include <stddef.h>
 
 #define	CPU_SPINWAIT
-#define	DTV_OFFSET		offsetof(struct tcb, tcb_dtv)
 
 /*
  * Variant I tcb. The structure layout is fixed, don't blindly

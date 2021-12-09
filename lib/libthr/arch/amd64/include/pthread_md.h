@@ -41,8 +41,6 @@
 
 #define	CPU_SPINWAIT		__asm __volatile("pause")
 
-#define	DTV_OFFSET		offsetof(struct tcb, tcb_dtv)
-
 /*
  * Variant II tcb, first two members are required by rtld,
  * %fs points to the structure.
