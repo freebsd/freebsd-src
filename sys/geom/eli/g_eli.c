@@ -657,7 +657,7 @@ g_eli_worker(void *arg)
 	struct g_eli_softc *sc;
 	struct g_eli_worker *wr;
 	struct bio *bp;
-	int error;
+	int error __diagused;
 
 	wr = arg;
 	sc = wr->w_softc;
@@ -824,7 +824,7 @@ g_eli_last_close(void *arg, int flags __unused)
 {
 	struct g_geom *gp;
 	char gpname[64];
-	int error;
+	int error __diagused;
 
 	g_topology_assert();
 	gp = arg;

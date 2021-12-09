@@ -456,7 +456,7 @@ g_eli_auth_run(struct g_eli_worker *wr, struct bio *bp)
 	u_int i, lsec, nsec, data_secsize, decr_secsize, encr_secsize;
 	off_t dstoff;
 	u_char *p, *data, *authkey, *plaindata;
-	int error;
+	int error __diagused;
 	bool batch;
 
 	G_ELI_LOGREQ(3, bp, "%s", __func__);
