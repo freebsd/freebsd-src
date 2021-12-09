@@ -855,6 +855,16 @@ fail:
 	return (error);
 }
 
+/*
+ * Select randomized valid address in the map map, between minv and
+ * maxv, with specified alignment.  The [minv, maxv) range must belong
+ * to the map.  Note that function only allocates the address, it is
+ * up to caller to clamp maxv in a way that the final allocation
+ * length fit into the map.
+ *
+ * Result is returned in *resp, error code indicates that arguments
+ * did not pass sanity checks for overflow and range correctness.
+ */
 static int
 __CONCAT(rnd_, __elfN(base))(vm_map_t map, u_long minv, u_long maxv,
     u_int align, u_long *resp)
