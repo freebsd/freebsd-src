@@ -867,6 +867,13 @@ static kobj_method_t null_methods[] = {
 
 DEFINE_CLASS(null, null_methods, 0);
 
+void
+bus_topo_assert()
+{
+
+	GIANT_REQUIRED;	
+}
+
 struct mtx *
 bus_topo_mtx(void)
 {
@@ -2102,7 +2109,7 @@ device_probe_child(device_t dev, device_t child)
 	/* We should preserve the devclass (or lack of) set by the bus. */
 	int hasclass = (child->devclass != NULL);
 
-	GIANT_REQUIRED;
+	bus_topo_assert();
 
 	dc = dev->devclass;
 	if (!dc)
@@ -2920,7 +2927,7 @@ device_probe(device_t dev)
 {
 	int error;
 
-	GIANT_REQUIRED;
+	bus_topo_assert();
 
 	if (dev->state >= DS_ALIVE)
 		return (-1);
@@ -2954,7 +2961,7 @@ device_probe_and_attach(device_t dev)
 {
 	int error;
 
-	GIANT_REQUIRED;
+	bus_topo_assert();
 
 	error = device_probe(dev);
 	if (error == -1)
@@ -3052,7 +3059,7 @@ device_detach(device_t dev)
 {
 	int error;
 
-	GIANT_REQUIRED;
+	bus_topo_assert();
 
 	PDEBUG(("%s", DEVICENAME(dev)));
 	if (dev->busy > 0)

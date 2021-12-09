@@ -2185,8 +2185,7 @@ bhnd_bus_generic_get_nvram_var(device_t dev, device_t child, const char *name,
 	device_t	nvram;
 	device_t	parent;
 
-        /* Make sure we're holding Giant for newbus */
-	GIANT_REQUIRED;
+	bus_topo_assert();
 
 	/* Look for a directly-attached NVRAM child */
 	if ((nvram = device_find_child(dev, "bhnd_nvram", -1)) != NULL)

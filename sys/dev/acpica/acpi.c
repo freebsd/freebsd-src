@@ -755,7 +755,7 @@ acpi_suspend(device_t dev)
 {
     int error;
 
-    GIANT_REQUIRED;
+    bus_topo_assert();
 
     error = bus_generic_suspend(dev);
     if (error == 0)
@@ -768,7 +768,7 @@ static int
 acpi_resume(device_t dev)
 {
 
-    GIANT_REQUIRED;
+    bus_topo_assert();
 
     acpi_set_power_children(dev, ACPI_STATE_D0);
 
@@ -779,7 +779,7 @@ static int
 acpi_shutdown(device_t dev)
 {
 
-    GIANT_REQUIRED;
+    bus_topo_assert();
 
     /* Allow children to shutdown first. */
     bus_generic_shutdown(dev);

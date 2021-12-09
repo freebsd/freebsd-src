@@ -544,7 +544,7 @@ hidbus_find_child(device_t bus, int32_t usage)
 	device_t *children, child;
 	int ccount, i;
 
-	GIANT_REQUIRED;
+	bus_topo_assert();
 
 	/* Get a list of all hidbus children */
 	if (device_get_children(bus, &children, &ccount) != 0)
@@ -724,7 +724,7 @@ hid_set_report_descr(device_t dev, const void *data, hid_size_t len)
 	bool is_bus;
 	int error;
 
-	GIANT_REQUIRED;
+	bus_topo_assert();
 
 	is_bus = device_get_devclass(dev) == hidbus_devclass;
 	bus = is_bus ? dev : device_get_parent(dev);

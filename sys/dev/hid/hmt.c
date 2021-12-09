@@ -869,7 +869,7 @@ hmt_set_input_mode(struct hmt_softc *sc, enum hconf_input_mode mode)
 	device_t hconf;
 	int  err;
 
-	GIANT_REQUIRED;
+	bus_topo_assert();
 
 	/* Find touchpad's configuration TLC */
 	hconf = hidbus_find_child(device_get_parent(sc->dev),
@@ -886,7 +886,7 @@ hmt_set_input_mode(struct hmt_softc *sc, enum hconf_input_mode mode)
 	if (device_get_devclass(hconf) != hconf_devclass)
 		return (ENXIO);
 
-	/* hconf_set_input_mode can drop the Giant while sleeping */
+	/* hconf_set_input_mode can drop the the topo lock while sleeping */
 	device_busy(hconf);
 	err = hconf_set_input_mode(hconf, mode);
 	device_unbusy(hconf);

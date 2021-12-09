@@ -745,6 +745,7 @@ void	bus_set_pass(int pass);
 void bus_topo_lock(void);
 void bus_topo_unlock(void);
 struct mtx * bus_topo_mtx(void);
+void bus_topo_assert(void);
 
 /**
  * Shorthands for constructing method tables.

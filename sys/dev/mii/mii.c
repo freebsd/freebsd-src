@@ -377,6 +377,8 @@ mii_attach(device_t dev, device_t *miibus, if_t ifp,
 	int bmsr, first, i, nchildren, phymax, phymin, rv;
 	uint32_t phymask;
 
+	bus_topo_assert();
+
 	if (phyloc != MII_PHY_ANY && offloc != MII_OFFSET_ANY) {
 		printf("%s: phyloc and offloc specified\n", __func__);
 		return (EINVAL);
