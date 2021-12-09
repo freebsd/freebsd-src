@@ -107,7 +107,8 @@ swcr_encdec(struct swcr_session *ses, struct cryptop *crp)
 	unsigned char *ivp, *nivp, iv2[EALG_MAX_BLOCK_LEN];
 	const struct crypto_session_params *csp;
 	const struct enc_xform *exf;
-	struct swcr_encdec *sw;
+	const struct swcr_encdec *sw;
+	void *ctx;
 	size_t inlen, outlen;
 	int i, blks, resid;
 	struct crypto_buffer_cursor cc_in, cc_out;
@@ -135,12 +136,14 @@ swcr_encdec(struct swcr_session *ses, struct cryptop *crp)
 	    (crp->crp_flags & CRYPTO_F_IV_SEPARATE) == 0)
 		return (EINVAL);
 
+	ctx = __builtin_alloca(exf->ctxsize);
 	if (crp->crp_cipher_key != NULL) {
-		error = exf->setkey(sw->sw_ctx,
-		    crp->crp_cipher_key, csp->csp_cipher_klen);
+		error = exf->setkey(ctx, crp->crp_cipher_key,
+		    csp->csp_cipher_klen);
 		if (error)
 			return (error);
-	}
+	} else
+		memcpy(ctx, sw->sw_ctx, exf->ctxsize);
 
 	crypto_read_iv(crp, iv);
 
@@ -149,7 +152,7 @@ swcr_encdec(struct swcr_session *ses, struct cryptop *crp)
 		 * xforms that provide a reinit method perform all IV
 		 * handling themselves.
 		 */
-		exf->reinit(sw->sw_ctx, iv, csp->csp_ivlen);
+		exf->reinit(ctx, iv, csp->csp_ivlen);
 	}
 
 	ivp = iv;
@@ -192,15 +195,15 @@ swcr_encdec(struct swcr_session *ses, struct cryptop *crp)
 		 */
 		if (exf->reinit != NULL) {
 			if (encrypting)
-				exf->encrypt(sw->sw_ctx, inblk, outblk);
+				exf->encrypt(ctx, inblk, outblk);
 			else
-				exf->decrypt(sw->sw_ctx, inblk, outblk);
+				exf->decrypt(ctx, inblk, outblk);
 		} else if (encrypting) {
 			/* XOR with previous block */
 			for (i = 0; i < blks; i++)
 				outblk[i] = inblk[i] ^ ivp[i];
 
-			exf->encrypt(sw->sw_ctx, outblk, outblk);
+			exf->encrypt(ctx, outblk, outblk);
 
 			/*
 			 * Keep encrypted block for XOR'ing
@@ -216,7 +219,7 @@ swcr_encdec(struct swcr_session *ses, struct cryptop *crp)
 			nivp = (ivp == iv) ? iv2 : iv;
 			memcpy(nivp, inblk, blks);
 
-			exf->decrypt(sw->sw_ctx, inblk, outblk);
+			exf->decrypt(ctx, inblk, outblk);
 
 			/* XOR with previous block */
 			for (i = 0; i < blks; i++)
@@ -264,15 +267,16 @@ swcr_encdec(struct swcr_session *ses, struct cryptop *crp)
 		if (outlen < resid)
 			outblk = blk;
 		if (encrypting)
-			exf->encrypt_last(sw->sw_ctx, inblk, outblk,
+			exf->encrypt_last(ctx, inblk, outblk,
 			    resid);
 		else
-			exf->decrypt_last(sw->sw_ctx, inblk, outblk,
+			exf->decrypt_last(ctx, inblk, outblk,
 			    resid);
 		if (outlen < resid)
 			crypto_cursor_copyback(&cc_out, resid, blk);
 	}
 
+	explicit_bzero(ctx, exf->ctxsize);
 	explicit_bzero(blk, sizeof(blk));
 	explicit_bzero(iv, sizeof(iv));
 	explicit_bzero(iv2, sizeof(iv2));
@@ -466,9 +470,10 @@ swcr_gcm(struct swcr_session *ses, struct cryptop *crp)
 	struct crypto_buffer_cursor cc_in, cc_out;
 	const u_char *inblk;
 	u_char *outblk;
-	struct swcr_auth *swa;
-	struct swcr_encdec *swe;
+	const struct swcr_auth *swa;
+	const struct swcr_encdec *swe;
 	const struct enc_xform *exf;
+	void *ctx;
 	uint32_t *blkp;
 	size_t len;
 	int blksz, error, ivlen, r, resid;
@@ -485,22 +490,24 @@ swcr_gcm(struct swcr_session *ses, struct cryptop *crp)
 
 	ivlen = AES_GCM_IV_LEN;
 
-	/* Supply cipher with nonce. */
+	ctx = __builtin_alloca(exf->ctxsize);
 	if (crp->crp_cipher_key != NULL)
-		exf->setkey(swe->sw_ctx, crp->crp_cipher_key,
+		exf->setkey(ctx, crp->crp_cipher_key,
 		    crypto_get_params(crp->crp_session)->csp_cipher_klen);
-	exf->reinit(swe->sw_ctx, crp->crp_iv, ivlen);
+	else
+		memcpy(ctx, swe->sw_ctx, exf->ctxsize);
+	exf->reinit(ctx, crp->crp_iv, ivlen);
 
 	/* Supply MAC with AAD */
 	if (crp->crp_aad != NULL) {
 		len = rounddown(crp->crp_aad_length, blksz);
 		if (len != 0)
-			exf->update(swe->sw_ctx, crp->crp_aad, len);
+			exf->update(ctx, crp->crp_aad, len);
 		if (crp->crp_aad_length != len) {
 			memset(blk, 0, blksz);
 			memcpy(blk, (char *)crp->crp_aad + len,
 			    crp->crp_aad_length - len);
-			exf->update(swe->sw_ctx, blk, blksz);
+			exf->update(ctx, blk, blksz);
 		}
 	} else {
 		crypto_cursor_init(&cc_in, &crp->crp_buf);
@@ -516,12 +523,12 @@ swcr_gcm(struct swcr_session *ses, struct cryptop *crp)
 				crypto_cursor_copydata(&cc_in, len, blk);
 				inblk = blk;
 			}
-			exf->update(swe->sw_ctx, inblk, len);
+			exf->update(ctx, inblk, len);
 		}
 		if (resid > 0) {
 			memset(blk, 0, blksz);
 			crypto_cursor_copydata(&cc_in, resid, blk);
-			exf->update(swe->sw_ctx, blk, blksz);
+			exf->update(ctx, blk, blksz);
 		}
 	}
 
@@ -545,23 +552,23 @@ swcr_gcm(struct swcr_session *ses, struct cryptop *crp)
 			outblk = crypto_cursor_segment(&cc_out, &len);
 			if (len < blksz)
 				outblk = blk;
-			exf->encrypt(swe->sw_ctx, inblk, outblk);
-			exf->update(swe->sw_ctx, outblk, blksz);
+			exf->encrypt(ctx, inblk, outblk);
+			exf->update(ctx, outblk, blksz);
 			if (outblk == blk)
 				crypto_cursor_copyback(&cc_out, blksz, blk);
 			else
 				crypto_cursor_advance(&cc_out, blksz);
 		} else {
-			exf->update(swe->sw_ctx, inblk, blksz);
+			exf->update(ctx, inblk, blksz);
 		}
 	}
 	if (resid > 0) {
 		crypto_cursor_copydata(&cc_in, resid, blk);
 		if (CRYPTO_OP_IS_ENCRYPT(crp->crp_op)) {
-			exf->encrypt_last(swe->sw_ctx, blk, blk, resid);
+			exf->encrypt_last(ctx, blk, blk, resid);
 			crypto_cursor_copyback(&cc_out, resid, blk);
 		}
-		exf->update(swe->sw_ctx, blk, resid);
+		exf->update(ctx, blk, resid);
 	}
 
 	/* length block */
@@ -570,10 +577,10 @@ swcr_gcm(struct swcr_session *ses, struct cryptop *crp)
 	*blkp = htobe32(crp->crp_aad_length * 8);
 	blkp = (uint32_t *)blk + 3;
 	*blkp = htobe32(crp->crp_payload_length * 8);
-	exf->update(swe->sw_ctx, blk, blksz);
+	exf->update(ctx, blk, blksz);
 
 	/* Finalize MAC */
-	exf->final(tag, swe->sw_ctx);
+	exf->final(tag, ctx);
 
 	/* Validate tag */
 	error = 0;
@@ -603,7 +610,7 @@ swcr_gcm(struct swcr_session *ses, struct cryptop *crp)
 			outblk = crypto_cursor_segment(&cc_out, &len);
 			if (len < blksz)
 				outblk = blk;
-			exf->decrypt(swe->sw_ctx, inblk, outblk);
+			exf->decrypt(ctx, inblk, outblk);
 			if (outblk == blk)
 				crypto_cursor_copyback(&cc_out, blksz, blk);
 			else
@@ -611,7 +618,7 @@ swcr_gcm(struct swcr_session *ses, struct cryptop *crp)
 		}
 		if (resid > 0) {
 			crypto_cursor_copydata(&cc_in, resid, blk);
-			exf->decrypt_last(swe->sw_ctx, blk, blk, resid);
+			exf->decrypt_last(ctx, blk, blk, resid);
 			crypto_cursor_copyback(&cc_out, resid, blk);
 		}
 	} else {
@@ -620,6 +627,7 @@ swcr_gcm(struct swcr_session *ses, struct cryptop *crp)
 	}
 
 out:
+	explicit_bzero(ctx, exf->ctxsize);
 	explicit_bzero(blkbuf, sizeof(blkbuf));
 	explicit_bzero(tag, sizeof(tag));
 
@@ -746,9 +754,10 @@ swcr_ccm(struct swcr_session *ses, struct cryptop *crp)
 	struct crypto_buffer_cursor cc_in, cc_out;
 	const u_char *inblk;
 	u_char *outblk;
-	struct swcr_auth *swa;
-	struct swcr_encdec *swe;
+	const struct swcr_auth *swa;
+	const struct swcr_encdec *swe;
 	const struct enc_xform *exf;
+	void *ctx;
 	size_t len;
 	int blksz, error, ivlen, r, resid;
 
@@ -768,36 +777,37 @@ swcr_ccm(struct swcr_session *ses, struct cryptop *crp)
 
 	ivlen = csp->csp_ivlen;
 
+	ctx = __builtin_alloca(exf->ctxsize);
 	if (crp->crp_cipher_key != NULL)
-		exf->setkey(swe->sw_ctx, crp->crp_cipher_key,
+		exf->setkey(ctx, crp->crp_cipher_key,
 		    crypto_get_params(crp->crp_session)->csp_cipher_klen);
-	exf->reinit(swe->sw_ctx, crp->crp_iv, ivlen);
+	else
+		memcpy(ctx, swe->sw_ctx, exf->ctxsize);
+	exf->reinit(ctx, crp->crp_iv, ivlen);
 
 	/* Supply MAC with b0. */
 	_Static_assert(sizeof(blkbuf) >= CCM_CBC_BLOCK_LEN,
 	    "blkbuf too small for b0");
 	build_ccm_b0(crp->crp_iv, ivlen, crp->crp_aad_length,
 	    crp->crp_payload_length, swa->sw_mlen, blk);
-	exf->update(swe->sw_ctx, blk, CCM_CBC_BLOCK_LEN);
+	exf->update(ctx, blk, CCM_CBC_BLOCK_LEN);
 
 	/* Supply MAC with AAD */
 	if (crp->crp_aad_length != 0) {
 		len = build_ccm_aad_length(crp->crp_aad_length, blk);
-		exf->update(swe->sw_ctx, blk, len);
+		exf->update(ctx, blk, len);
 		if (crp->crp_aad != NULL)
-			exf->update(swe->sw_ctx, crp->crp_aad,
-			    crp->crp_aad_length);
+			exf->update(ctx, crp->crp_aad, crp->crp_aad_length);
 		else
 			crypto_apply(crp, crp->crp_aad_start,
-			    crp->crp_aad_length, exf->update,
-			    swe->sw_ctx);
+			    crp->crp_aad_length, exf->update, ctx);
 
 		/* Pad the AAD (including length field) to a full block. */
 		len = (len + crp->crp_aad_length) % CCM_CBC_BLOCK_LEN;
 		if (len != 0) {
 			len = CCM_CBC_BLOCK_LEN - len;
 			memset(blk, 0, CCM_CBC_BLOCK_LEN);
-			exf->update(swe->sw_ctx, blk, len);
+			exf->update(ctx, blk, len);
 		}
 	}
 
@@ -820,8 +830,8 @@ swcr_ccm(struct swcr_session *ses, struct cryptop *crp)
 			outblk = crypto_cursor_segment(&cc_out, &len);
 			if (len < blksz)
 				outblk = blk;
-			exf->update(swe->sw_ctx, inblk, blksz);
-			exf->encrypt(swe->sw_ctx, inblk, outblk);
+			exf->update(ctx, inblk, blksz);
+			exf->encrypt(ctx, inblk, outblk);
 			if (outblk == blk)
 				crypto_cursor_copyback(&cc_out, blksz, blk);
 			else
@@ -835,24 +845,24 @@ swcr_ccm(struct swcr_session *ses, struct cryptop *crp)
 			 * the tag and a second time after the tag is
 			 * verified.
 			 */
-			exf->decrypt(swe->sw_ctx, inblk, blk);
-			exf->update(swe->sw_ctx, blk, blksz);
+			exf->decrypt(ctx, inblk, blk);
+			exf->update(ctx, blk, blksz);
 		}
 	}
 	if (resid > 0) {
 		crypto_cursor_copydata(&cc_in, resid, blk);
 		if (CRYPTO_OP_IS_ENCRYPT(crp->crp_op)) {
-			exf->update(swe->sw_ctx, blk, resid);
-			exf->encrypt_last(swe->sw_ctx, blk, blk, resid);
+			exf->update(ctx, blk, resid);
+			exf->encrypt_last(ctx, blk, blk, resid);
 			crypto_cursor_copyback(&cc_out, resid, blk);
 		} else {
-			exf->decrypt_last(swe->sw_ctx, blk, blk, resid);
-			exf->update(swe->sw_ctx, blk, resid);
+			exf->decrypt_last(ctx, blk, blk, resid);
+			exf->update(ctx, blk, resid);
 		}
 	}
 
 	/* Finalize MAC */
-	exf->final(tag, swe->sw_ctx);
+	exf->final(tag, ctx);
 
 	/* Validate tag */
 	error = 0;
@@ -870,7 +880,7 @@ swcr_ccm(struct swcr_session *ses, struct cryptop *crp)
 		}
 
 		/* tag matches, decrypt data */
-		exf->reinit(swe->sw_ctx, crp->crp_iv, ivlen);
+		exf->reinit(ctx, crp->crp_iv, ivlen);
 		crypto_cursor_init(&cc_in, &crp->crp_buf);
 		crypto_cursor_advance(&cc_in, crp->crp_payload_start);
 		for (resid = crp->crp_payload_length; resid > blksz;
@@ -884,7 +894,7 @@ swcr_ccm(struct swcr_session *ses, struct cryptop *crp)
 			outblk = crypto_cursor_segment(&cc_out, &len);
 			if (len < blksz)
 				outblk = blk;
-			exf->decrypt(swe->sw_ctx, inblk, outblk);
+			exf->decrypt(ctx, inblk, outblk);
 			if (outblk == blk)
 				crypto_cursor_copyback(&cc_out, blksz, blk);
 			else
@@ -892,7 +902,7 @@ swcr_ccm(struct swcr_session *ses, struct cryptop *crp)
 		}
 		if (resid > 0) {
 			crypto_cursor_copydata(&cc_in, resid, blk);
-			exf->decrypt_last(swe->sw_ctx, blk, blk, resid);
+			exf->decrypt_last(ctx, blk, blk, resid);
 			crypto_cursor_copyback(&cc_out, resid, blk);
 		}
 	} else {
@@ -901,6 +911,7 @@ swcr_ccm(struct swcr_session *ses, struct cryptop *crp)
 	}
 
 out:
+	explicit_bzero(ctx, exf->ctxsize);
 	explicit_bzero(blkbuf, sizeof(blkbuf));
 	explicit_bzero(tag, sizeof(tag));
 	return (error);
@@ -917,9 +928,10 @@ swcr_chacha20_poly1305(struct swcr_session *ses, struct cryptop *crp)
 	const u_char *inblk;
 	u_char *outblk;
 	uint64_t *blkp;
-	struct swcr_auth *swa;
-	struct swcr_encdec *swe;
+	const struct swcr_auth *swa;
+	const struct swcr_encdec *swe;
 	const struct enc_xform *exf;
+	void *ctx;
 	size_t len;
 	int blksz, error, r, resid;
 
@@ -934,23 +946,24 @@ swcr_chacha20_poly1305(struct swcr_session *ses, struct cryptop *crp)
 
 	csp = crypto_get_params(crp->crp_session);
 
+	ctx = __builtin_alloca(exf->ctxsize);
 	if (crp->crp_cipher_key != NULL)
-		exf->setkey(swe->sw_ctx, crp->crp_cipher_key,
+		exf->setkey(ctx, crp->crp_cipher_key,
 		    csp->csp_cipher_klen);
-	exf->reinit(swe->sw_ctx, crp->crp_iv, csp->csp_ivlen);
+	else
+		memcpy(ctx, swe->sw_ctx, exf->ctxsize);
+	exf->reinit(ctx, crp->crp_iv, csp->csp_ivlen);
 
 	/* Supply MAC with AAD */
 	if (crp->crp_aad != NULL)
-		exf->update(swe->sw_ctx, crp->crp_aad,
-		    crp->crp_aad_length);
+		exf->update(ctx, crp->crp_aad, crp->crp_aad_length);
 	else
-		crypto_apply(crp, crp->crp_aad_start,
-		    crp->crp_aad_length, exf->update, swe->sw_ctx);
+		crypto_apply(crp, crp->crp_aad_start, crp->crp_aad_length,
+		    exf->update, ctx);
 	if (crp->crp_aad_length % 16 != 0) {
 		/* padding1 */
 		memset(blk, 0, 16);
-		exf->update(swe->sw_ctx, blk,
-		    16 - crp->crp_aad_length % 16);
+		exf->update(ctx, blk, 16 - crp->crp_aad_length % 16);
 	}
 
 	/* Do encryption with MAC */
@@ -972,27 +985,27 @@ swcr_chacha20_poly1305(struct swcr_session *ses, struct cryptop *crp)
 			outblk = crypto_cursor_segment(&cc_out, &len);
 			if (len < blksz)
 				outblk = blk;
-			exf->encrypt(swe->sw_ctx, inblk, outblk);
-			exf->update(swe->sw_ctx, outblk, blksz);
+			exf->encrypt(ctx, inblk, outblk);
+			exf->update(ctx, outblk, blksz);
 			if (outblk == blk)
 				crypto_cursor_copyback(&cc_out, blksz, blk);
 			else
 				crypto_cursor_advance(&cc_out, blksz);
 		} else {
-			exf->update(swe->sw_ctx, inblk, blksz);
+			exf->update(ctx, inblk, blksz);
 		}
 	}
 	if (resid > 0) {
 		crypto_cursor_copydata(&cc_in, resid, blk);
 		if (CRYPTO_OP_IS_ENCRYPT(crp->crp_op)) {
-			exf->encrypt_last(swe->sw_ctx, blk, blk, resid);
+			exf->encrypt_last(ctx, blk, blk, resid);
 			crypto_cursor_copyback(&cc_out, resid, blk);
 		}
-		exf->update(swe->sw_ctx, blk, resid);
+		exf->update(ctx, blk, resid);
 		if (resid % 16 != 0) {
 			/* padding2 */
 			memset(blk, 0, 16);
-			exf->update(swe->sw_ctx, blk, 16 - resid % 16);
+			exf->update(ctx, blk, 16 - resid % 16);
 		}
 	}
 
@@ -1000,10 +1013,10 @@ swcr_chacha20_poly1305(struct swcr_session *ses, struct cryptop *crp)
 	blkp = (uint64_t *)blk;
 	blkp[0] = htole64(crp->crp_aad_length);
 	blkp[1] = htole64(crp->crp_payload_length);
-	exf->update(swe->sw_ctx, blk, sizeof(uint64_t) * 2);
+	exf->update(ctx, blk, sizeof(uint64_t) * 2);
 
 	/* Finalize MAC */
-	exf->final(tag, swe->sw_ctx);
+	exf->final(tag, ctx);
 
 	/* Validate tag */
 	error = 0;
@@ -1033,7 +1046,7 @@ swcr_chacha20_poly1305(struct swcr_session *ses, struct cryptop *crp)
 			outblk = crypto_cursor_segment(&cc_out, &len);
 			if (len < blksz)
 				outblk = blk;
-			exf->decrypt(swe->sw_ctx, inblk, outblk);
+			exf->decrypt(ctx, inblk, outblk);
 			if (outblk == blk)
 				crypto_cursor_copyback(&cc_out, blksz, blk);
 			else
@@ -1041,7 +1054,7 @@ swcr_chacha20_poly1305(struct swcr_session *ses, struct cryptop *crp)
 		}
 		if (resid > 0) {
 			crypto_cursor_copydata(&cc_in, resid, blk);
-			exf->decrypt_last(swe->sw_ctx, blk, blk, resid);
+			exf->decrypt_last(ctx, blk, blk, resid);
 			crypto_cursor_copyback(&cc_out, resid, blk);
 		}
 	} else {
@@ -1050,6 +1063,7 @@ swcr_chacha20_poly1305(struct swcr_session *ses, struct cryptop *crp)
 	}
 
 out:
+	explicit_bzero(ctx, exf->ctxsize);
 	explicit_bzero(blkbuf, sizeof(blkbuf));
 	explicit_bzero(tag, sizeof(tag));
 	return (error);
@@ -1171,13 +1185,13 @@ swcr_setup_cipher(struct swcr_session *ses,
 
 	swe = &ses->swcr_encdec;
 	txf = crypto_cipher(csp);
-	if (txf->ctxsize != 0) {
-		swe->sw_ctx = malloc(txf->ctxsize, M_CRYPTO_DATA,
-		    M_NOWAIT);
-		if (swe->sw_ctx == NULL)
-			return (ENOMEM);
-	}
 	if (csp->csp_cipher_key != NULL) {
+		if (txf->ctxsize != 0) {
+			swe->sw_ctx = malloc(txf->ctxsize, M_CRYPTO_DATA,
+			    M_NOWAIT);
+			if (swe->sw_ctx == NULL)
+				return (ENOMEM);
+		}
 		error = txf->setkey(swe->sw_ctx,
 		    csp->csp_cipher_key, csp->csp_cipher_klen);
 		if (error)
