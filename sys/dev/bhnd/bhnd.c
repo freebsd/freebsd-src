@@ -374,7 +374,7 @@ bhnd_generic_alloc_pmu(device_t dev, device_t child)
 	u_int				 max_latency;
 	int				 error;
 
-	GIANT_REQUIRED;	/* for newbus */
+	bus_topo_assert();
 
 	if (device_get_parent(child) != dev)
 		return (EINVAL);
@@ -490,7 +490,7 @@ bhnd_generic_release_pmu(device_t dev, device_t child)
 	struct bhnd_resource	*r;
 	device_t		 pmu_dev;
 
-	GIANT_REQUIRED;	/* for newbus */
+	bus_topo_assert();
 
 	sc = device_get_softc(dev);
 
