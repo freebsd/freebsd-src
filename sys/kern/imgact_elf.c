@@ -1343,6 +1343,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	imgp->proc->p_elf_flags = hdr->e_flags;
 
 ret:
+	ASSERT_VOP_LOCKED(imgp->vp, "skipped relock");
 	if (free_interp)
 		free(interp, M_TEMP);
 	return (error);
