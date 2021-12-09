@@ -108,6 +108,7 @@ pfs_vncache_unload(void)
 	KASSERT(pfs_vncache_entries == 0,
 	    ("%d vncache entries remaining", pfs_vncache_entries));
 	mtx_destroy(&pfs_vncache_mutex);
+	hashdestroy(pfs_vncache_hashtbl, M_PFSVNCACHE, pfs_vncache_hash);
 }
 
 /*
