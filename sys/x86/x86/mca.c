@@ -126,7 +126,7 @@ static STAILQ_HEAD(, mca_internal) mca_freelist;
 static int mca_freecount;
 static STAILQ_HEAD(, mca_internal) mca_records;
 static STAILQ_HEAD(, mca_internal) mca_pending;
-static int mca_ticks = 3600;	/* Check hourly by default. */
+static int mca_ticks = 300;
 static struct taskqueue *mca_tq;
 static struct task mca_resize_task;
 static struct timeout_task mca_scan_task;
@@ -608,15 +608,59 @@ mca_log(const struct mca_record *rec)
 		printf("MCA: Misc 0x%llx\n", (long long)rec->mr_misc);
 }
 
+static bool
+mca_is_mce(uint64_t mcg_cap, uint64_t status, bool *recoverablep)
+{
+
+	/* Corrected error. */
+	if ((status & MC_STATUS_UC) == 0)
+		return (0);
+
+	/* Spurious MCA error. */
+	if ((status & MC_STATUS_EN) == 0)
+		return (0);
+
+	/* The processor does not support software error recovery. */
+	if (!ser_supported(mcg_cap)) {
+		*recoverablep = false;
+		return (1);
+	}
+
+	/* Context might have been corrupted. */
+	if (status & MC_STATUS_PCC) {
+		*recoverablep = false;
+		return (1);
+	}
+
+	/* Uncorrected software recoverable. */
+	if (status & MC_STATUS_S) {
+		/* Action required vs optional. */
+		if (status & MC_STATUS_AR)
+			*recoverablep = false;
+		return (1);
+	}
+
+	/* Uncorrected no action required. */
+	return (0);
+}
+
 static int
-mca_check_status(int bank, struct mca_record *rec)
+mca_check_status(enum scan_mode mode, uint64_t mcg_cap, int bank,
+    struct mca_record *rec, bool *recoverablep)
 {
 	uint64_t status;
 	u_int p[4];
+	bool mce, recover;
 
 	status = rdmsr(mca_msr_ops.status(bank));
 	if (!(status & MC_STATUS_VAL))
 		return (0);
+
+	recover = *recoverablep;
+	mce = mca_is_mce(mcg_cap, status, &recover);
+	if (mce != (mode == MCE))
+		return (0);
+	*recoverablep = recover;
 
 	/* Save exception information. */
 	rec->mr_status = status;
@@ -639,7 +683,7 @@ mca_check_status(int bank, struct mca_record *rec)
 	 * Clear machine check.  Don't do this for uncorrectable
 	 * errors so that the BIOS can see them.
 	 */
-	if (!(rec->mr_status & (MC_STATUS_PCC | MC_STATUS_UC))) {
+	if (!mce || recover) {
 		wrmsr(mca_msr_ops.status(bank), 0);
 		do_cpuid(0, p);
 	}
@@ -837,24 +881,15 @@ amd_thresholding_update(enum scan_mode mode, int bank, int valid)
  * reported immediately via mca_log().  The current thread must be
  * pinned when this is called.  The 'mode' parameter indicates if we
  * are being called from the MC exception handler, the CMCI handler,
- * or the periodic poller.  In the MC exception case this function
- * returns true if the system is restartable.  Otherwise, it returns a
- * count of the number of valid MC records found.
+ * or the periodic poller.
  */
 static int
-mca_scan(enum scan_mode mode, int *recoverablep)
+mca_scan(enum scan_mode mode, bool *recoverablep)
 {
 	struct mca_record rec;
-	uint64_t mcg_cap, ucmask;
-	int count, i, recoverable, valid;
+	uint64_t mcg_cap;
+	int count = 0, i, valid;
 
-	count = 0;
-	recoverable = 1;
-	ucmask = MC_STATUS_UC | MC_STATUS_PCC;
-
-	/* When handling a MCE#, treat the OVER flag as non-restartable. */
-	if (mode == MCE)
-		ucmask |= MC_STATUS_OVER;
 	mcg_cap = rdmsr(MSR_MCG_CAP);
 	for (i = 0; i < (mcg_cap & MCG_CAP_COUNT); i++) {
 #ifdef DEV_APIC
@@ -866,16 +901,13 @@ mca_scan(enum scan_mode mode, int *recoverablep)
 			continue;
 #endif
 
-		valid = mca_check_status(i, &rec);
+		valid = mca_check_status(mode, mcg_cap, i, &rec, recoverablep);
 		if (valid) {
 			count++;
-			if (rec.mr_status & ucmask) {
-				recoverable = 0;
-				mtx_lock_spin(&mca_lock);
+			if (*recoverablep)
+				mca_record_entry(mode, &rec);
+			else
 				mca_log(&rec);
-				mtx_unlock_spin(&mca_lock);
-			}
-			mca_record_entry(mode, &rec);
 		}
 
 #ifdef DEV_APIC
@@ -891,8 +923,6 @@ mca_scan(enum scan_mode mode, int *recoverablep)
 		}
 #endif
 	}
-	if (recoverablep != NULL)
-		*recoverablep = recoverable;
 	return (count);
 }
 
@@ -962,21 +992,21 @@ static void
 mca_scan_cpus(void *context, int pending)
 {
 	struct thread *td;
-	int count, cpu;
+	int cpu;
+	bool recoverable = true;
 
 	mca_resize_freelist();
 	td = curthread;
-	count = 0;
 	thread_lock(td);
 	CPU_FOREACH(cpu) {
 		sched_bind(td, cpu);
 		thread_unlock(td);
-		count += mca_scan(POLLED, NULL);
+		mca_scan(POLLED, &recoverable);
 		thread_lock(td);
 		sched_unbind(td);
 	}
 	thread_unlock(td);
-	if (count != 0)
+	if (!STAILQ_EMPTY(&mca_pending))
 		mca_process_records(POLLED);
 	taskqueue_enqueue_timeout_sbt(mca_tq, &mca_scan_task,
 	    mca_ticks * SBT_1S, 0, C_PREL(1));
@@ -1371,6 +1401,13 @@ _mca_init(int boot)
 			mca_msr_ops.misc = mca_smca_misc_reg;
 		}
 
+		/* Enable local MCE if supported. */
+		if (cpu_vendor_id == CPU_VENDOR_INTEL &&
+		    (mcg_cap & MCG_CAP_LMCE_P) &&
+		    (rdmsr(MSR_IA32_FEATURE_CONTROL) &
+		     IA32_FEATURE_CONTROL_LMCE_EN))
+			wrmsr(MSR_MCG_EXT_CTL, rdmsr(MSR_MCG_EXT_CTL) | 1);
+
 		/*
 		 * The cmci_monitor() must not be executed
 		 * simultaneously by several CPUs.
@@ -1422,7 +1459,7 @@ _mca_init(int boot)
 			mtx_unlock_spin(&mca_lock);
 
 #ifdef DEV_APIC
-		if (!amd_thresholding_supported() &&
+		if (cmci_supported(mcg_cap) &&
 		    PCPU_GET(cmci_mask) != 0 && boot)
 			lapic_enable_cmc();
 #endif
@@ -1465,7 +1502,8 @@ void
 mca_intr(void)
 {
 	uint64_t mcg_status;
-	int recoverable, count;
+	int count;
+	bool lmcs, recoverable;
 
 	if (!(cpu_feature & CPUID_MCA)) {
 		/*
@@ -1475,14 +1513,15 @@ mca_intr(void)
 		printf("MC Type: 0x%jx  Address: 0x%jx\n",
 		    (uintmax_t)rdmsr(MSR_P5_MC_TYPE),
 		    (uintmax_t)rdmsr(MSR_P5_MC_ADDR));
-		panic("Machine check");
+		panic("Machine check exception");
 	}
 
 	/* Scan the banks and check for any non-recoverable errors. */
-	count = mca_scan(MCE, &recoverable);
 	mcg_status = rdmsr(MSR_MCG_STATUS);
-	if (!(mcg_status & MCG_STATUS_RIPV))
-		recoverable = 0;
+	recoverable = (mcg_status & MCG_STATUS_RIPV) != 0;
+	lmcs = (cpu_vendor_id != CPU_VENDOR_INTEL ||
+	    (mcg_status & MCG_STATUS_LMCS));
+	count = mca_scan(MCE, &recoverable);
 
 	if (!recoverable) {
 		/*
@@ -1490,7 +1529,7 @@ mca_intr(void)
 		 * Some errors will assert a machine check on all CPUs, but
 		 * only certain CPUs will find a valid bank to log.
 		 */
-		while (count == 0)
+		while (!lmcs && count == 0)
 			cpu_spinwait();
 
 		panic("Unrecoverable machine check exception");
@@ -1505,6 +1544,7 @@ mca_intr(void)
 void
 cmc_intr(void)
 {
+	bool recoverable = true;
 
 	/*
 	 * Serialize MCA bank scanning to prevent collisions from
@@ -1512,7 +1552,7 @@ cmc_intr(void)
 	 *
 	 * If we found anything, log them to the console.
 	 */
-	if (mca_scan(CMCI, NULL) != 0)
+	if (mca_scan(CMCI, &recoverable) != 0)
 		mca_process_records(CMCI);
 }
 #endif
