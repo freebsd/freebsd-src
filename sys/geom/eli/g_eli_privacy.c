@@ -263,7 +263,7 @@ g_eli_crypto_run(struct g_eli_worker *wr, struct bio *bp)
 	u_int i, nsec, secsize;
 	off_t dstoff;
 	u_char *data = NULL;
-	int error, pages_offset;
+	int error __diagused, pages_offset;
 	bool batch;
 
 	G_ELI_LOGREQ(3, bp, "%s", __func__);
