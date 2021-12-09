@@ -34,6 +34,7 @@
 #include <sys/types.h>
 #include <machine/atomic.h>
 #include <machine/acle-compat.h>
+#include <machine/tls.h>
 
 struct Struct_Obj_Entry;
 
@@ -56,7 +57,6 @@ Elf_Addr reloc_jmpslot(Elf_Addr *where, Elf_Addr target,
 #define	call_ifunc_resolver(ptr) \
 	(((Elf_Addr (*)(void))ptr)())
 
-#define	TLS_TCB_SIZE	8
 typedef struct {
 	unsigned long ti_module;
 	unsigned long ti_offset;
@@ -83,8 +83,5 @@ extern void arm_abi_variant_hook(Elf_Auxinfo **);
 #else
 #define md_abi_variant_hook(x)
 #endif
-
-#define	TLS_VARIANT_I	1
-#define	TLS_DTV_OFFSET	0
 
 #endif

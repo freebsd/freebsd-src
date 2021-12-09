@@ -67,8 +67,6 @@ _libc_other_objects+=syncicache abs
 _libc_other_objects+=syncicache
 .endif
 
-_libc_other_objects+=_get_tp
-
 # Extract all the .o files from libc_nossp_pic.a. This ensures that
 # we don't accidentally pull in the interposing table or similar by linking
 # directly against libc_nossp_pic.a
