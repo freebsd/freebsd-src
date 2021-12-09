@@ -44,11 +44,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/random.h>
 #include <sys/kernel.h>
 #include <sys/uio.h>
-#include <sys/lock.h>
-#include <sys/rwlock.h>
 #include <sys/endian.h>
 #include <sys/limits.h>
-#include <sys/mutex.h>
 
 #include <crypto/sha1.h>
 #include <opencrypto/rmd160.h>
@@ -78,8 +75,7 @@ struct swcr_compdec {
 };
 
 struct swcr_session {
-	struct mtx	swcr_lock;
-	int	(*swcr_process)(struct swcr_session *, struct cryptop *);
+	int	(*swcr_process)(const struct swcr_session *, struct cryptop *);
 
 	struct swcr_auth swcr_auth;
 	struct swcr_encdec swcr_encdec;
@@ -92,7 +88,7 @@ static	void swcr_freesession(device_t dev, crypto_session_t cses);
 
 /* Used for CRYPTO_NULL_CBC. */
 static int
-swcr_null(struct swcr_session *ses, struct cryptop *crp)
+swcr_null(const struct swcr_session *ses, struct cryptop *crp)
 {
 
 	return (0);
@@ -102,7 +98,7 @@ swcr_null(struct swcr_session *ses, struct cryptop *crp)
  * Apply a symmetric encryption/decryption algorithm.
  */
 static int
-swcr_encdec(struct swcr_session *ses, struct cryptop *crp)
+swcr_encdec(const struct swcr_session *ses, struct cryptop *crp)
 {
 	unsigned char iv[EALG_MAX_BLOCK_LEN], blk[EALG_MAX_BLOCK_LEN];
 	unsigned char *ivp, *nivp, iv2[EALG_MAX_BLOCK_LEN];
@@ -288,7 +284,7 @@ swcr_encdec(struct swcr_session *ses, struct cryptop *crp)
  * Compute or verify hash.
  */
 static int
-swcr_authcompute(struct swcr_session *ses, struct cryptop *crp)
+swcr_authcompute(const struct swcr_session *ses, struct cryptop *crp)
 {
 	u_char aalg[HASH_MAX_LEN];
 	const struct crypto_session_params *csp;
@@ -368,7 +364,7 @@ CTASSERT(INT_MAX <= (1ll<<39) - 256);	/* GCM: plain text < 2^39-256 */
 CTASSERT(INT_MAX <= (uint64_t)-1);	/* GCM: associated data <= 2^64-1 */
 
 static int
-swcr_gmac(struct swcr_session *ses, struct cryptop *crp)
+swcr_gmac(const struct swcr_session *ses, struct cryptop *crp)
 {
 	uint32_t blkbuf[howmany(AES_BLOCK_LEN, sizeof(uint32_t))];
 	u_char *blk = (u_char *)blkbuf;
@@ -450,7 +446,7 @@ swcr_gmac(struct swcr_session *ses, struct cryptop *crp)
 }
 
 static int
-swcr_gcm(struct swcr_session *ses, struct cryptop *crp)
+swcr_gcm(const struct swcr_session *ses, struct cryptop *crp)
 {
 	uint32_t blkbuf[howmany(AES_BLOCK_LEN, sizeof(uint32_t))];
 	u_char *blk = (u_char *)blkbuf;
@@ -675,7 +671,7 @@ build_ccm_aad_length(u_int aad_length, uint8_t *blk)
 }
 
 static int
-swcr_ccm_cbc_mac(struct swcr_session *ses, struct cryptop *crp)
+swcr_ccm_cbc_mac(const struct swcr_session *ses, struct cryptop *crp)
 {
 	u_char iv[AES_BLOCK_LEN];
 	u_char blk[CCM_CBC_BLOCK_LEN];
@@ -737,7 +733,7 @@ swcr_ccm_cbc_mac(struct swcr_session *ses, struct cryptop *crp)
 }
 
 static int
-swcr_ccm(struct swcr_session *ses, struct cryptop *crp)
+swcr_ccm(const struct swcr_session *ses, struct cryptop *crp)
 {
 	const struct crypto_session_params *csp;
 	uint32_t blkbuf[howmany(AES_BLOCK_LEN, sizeof(uint32_t))];
@@ -910,7 +906,7 @@ out:
 }
 
 static int
-swcr_chacha20_poly1305(struct swcr_session *ses, struct cryptop *crp)
+swcr_chacha20_poly1305(const struct swcr_session *ses, struct cryptop *crp)
 {
 	const struct crypto_session_params *csp;
 	uint64_t blkbuf[howmany(CHACHA20_NATIVE_BLOCK_LEN, sizeof(uint64_t))];
@@ -1065,7 +1061,7 @@ out:
  * Apply a cipher and a digest to perform EtA.
  */
 static int
-swcr_eta(struct swcr_session *ses, struct cryptop *crp)
+swcr_eta(const struct swcr_session *ses, struct cryptop *crp)
 {
 	int error;
 
@@ -1085,7 +1081,7 @@ swcr_eta(struct swcr_session *ses, struct cryptop *crp)
  * Apply a compression/decompression algorithm
  */
 static int
-swcr_compdec(struct swcr_session *ses, struct cryptop *crp)
+swcr_compdec(const struct swcr_session *ses, struct cryptop *crp)
 {
 	const struct comp_algo *cxf;
 	uint8_t *data, *out;
@@ -1455,7 +1451,6 @@ swcr_newsession(device_t dev, crypto_session_t cses,
 	int error;
 
 	ses = crypto_get_driver_session(cses);
-	mtx_init(&ses->swcr_lock, "swcr session lock", NULL, MTX_DEF);
 
 	error = 0;
 	switch (csp->csp_mode) {
@@ -1559,8 +1554,6 @@ swcr_freesession(device_t dev, crypto_session_t cses)
 
 	ses = crypto_get_driver_session(cses);
 
-	mtx_destroy(&ses->swcr_lock);
-
 	zfree(ses->swcr_encdec.sw_ctx, M_CRYPTO_DATA);
 	zfree(ses->swcr_auth.sw_ictx, M_CRYPTO_DATA);
 	zfree(ses->swcr_auth.sw_octx, M_CRYPTO_DATA);
@@ -1575,11 +1568,9 @@ swcr_process(device_t dev, struct cryptop *crp, int hint)
 	struct swcr_session *ses;
 
 	ses = crypto_get_driver_session(crp->crp_session);
-	mtx_lock(&ses->swcr_lock);
 
 	crp->crp_etype = ses->swcr_process(ses, crp);
 
-	mtx_unlock(&ses->swcr_lock);
 	crypto_done(crp);
 	return (0);
 }
