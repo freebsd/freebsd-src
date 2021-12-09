@@ -3732,7 +3732,8 @@ pmap_flush_cache_phys_range(vm_paddr_t spa, vm_paddr_t epa, vm_memattr_t mattr)
 {
 	pt_entry_t *pte;
 	vm_offset_t vaddr;
-	int error, pte_bits;
+	int error __diagused;
+	int pte_bits;
 
 	KASSERT((spa & PAGE_MASK) == 0,
 	    ("pmap_flush_cache_phys_range: spa not page-aligned"));
@@ -7729,7 +7730,7 @@ pmap_unwire(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	pml4_entry_t *pml4e;
 	pdp_entry_t *pdpe;
 	pd_entry_t *pde;
-	pt_entry_t *pte, PG_V, PG_G;
+	pt_entry_t *pte, PG_V, PG_G __diagused;
 
 	PG_V = pmap_valid_bit(pmap);
 	PG_G = pmap_global_bit(pmap);
