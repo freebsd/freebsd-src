@@ -645,12 +645,8 @@ cse_create(struct fcrypt *fcr, struct session2_op *sop)
 		cse->hashsize = sop->maclen;
 	else if (thash != NULL)
 		cse->hashsize = thash->hashsize;
-	else if (csp.csp_cipher_alg == CRYPTO_AES_NIST_GCM_16)
-		cse->hashsize = AES_GMAC_HASH_LEN;
-	else if (csp.csp_cipher_alg == CRYPTO_AES_CCM_16)
-		cse->hashsize = AES_CBC_MAC_HASH_LEN;
-	else if (csp.csp_cipher_alg == CRYPTO_CHACHA20_POLY1305)
-		cse->hashsize = POLY1305_HASH_LEN;
+	else if (csp.csp_mode == CSP_MODE_AEAD)
+		cse->hashsize = txform->macsize;
 	cse->ivsize = csp.csp_ivlen;
 
 	mtx_lock(&fcr->lock);

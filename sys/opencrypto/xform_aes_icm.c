@@ -50,14 +50,32 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <opencrypto/cbc_mac.h>
+#include <opencrypto/gmac.h>
 #include <opencrypto/xform_enc.h>
+
+struct aes_gcm_ctx {
+	struct aes_icm_ctx cipher;
+	struct aes_gmac_ctx gmac;
+};
+
+struct aes_ccm_ctx {
+	struct aes_icm_ctx cipher;
+	struct aes_cbc_mac_ctx cbc_mac;
+};
 
 static	int aes_icm_setkey(void *, const uint8_t *, int);
 static	void aes_icm_crypt(void *, const uint8_t *, uint8_t *);
 static	void aes_icm_crypt_last(void *, const uint8_t *, uint8_t *, size_t);
 static	void aes_icm_reinit(void *, const uint8_t *, size_t);
+static	int aes_gcm_setkey(void *, const uint8_t *, int);
 static	void aes_gcm_reinit(void *, const uint8_t *, size_t);
+static	int aes_gcm_update(void *, const void *, u_int);
+static	void aes_gcm_final(uint8_t *, void *);
+static	int aes_ccm_setkey(void *, const uint8_t *, int);
 static	void aes_ccm_reinit(void *, const uint8_t *, size_t);
+static	int aes_ccm_update(void *, const void *, u_int);
+static	void aes_ccm_final(uint8_t *, void *);
 
 /* Encryption instances */
 const struct enc_xform enc_xform_aes_icm = {
@@ -80,34 +98,40 @@ const struct enc_xform enc_xform_aes_icm = {
 const struct enc_xform enc_xform_aes_nist_gcm = {
 	.type = CRYPTO_AES_NIST_GCM_16,
 	.name = "AES-GCM",
-	.ctxsize = sizeof(struct aes_icm_ctx),
+	.ctxsize = sizeof(struct aes_gcm_ctx),
 	.blocksize = 1,
 	.native_blocksize = AES_BLOCK_LEN,
 	.ivsize = AES_GCM_IV_LEN,
 	.minkey = AES_MIN_KEY,
 	.maxkey = AES_MAX_KEY,
+	.macsize = AES_GMAC_HASH_LEN,
 	.encrypt = aes_icm_crypt,
 	.decrypt = aes_icm_crypt,
-	.setkey = aes_icm_setkey,
+	.setkey = aes_gcm_setkey,
 	.reinit = aes_gcm_reinit,
 	.encrypt_last = aes_icm_crypt_last,
 	.decrypt_last = aes_icm_crypt_last,
+	.update = aes_gcm_update,
+	.final = aes_gcm_final,
 };
 
 const struct enc_xform enc_xform_ccm = {
 	.type = CRYPTO_AES_CCM_16,
 	.name = "AES-CCM",
-	.ctxsize = sizeof(struct aes_icm_ctx),
+	.ctxsize = sizeof(struct aes_ccm_ctx),
 	.blocksize = 1,
 	.native_blocksize = AES_BLOCK_LEN,
 	.ivsize = AES_CCM_IV_LEN,
 	.minkey = AES_MIN_KEY, .maxkey = AES_MAX_KEY,
+	.macsize = AES_CBC_MAC_HASH_LEN,
 	.encrypt = aes_icm_crypt,
 	.decrypt = aes_icm_crypt,
-	.setkey = aes_icm_setkey,
+	.setkey = aes_ccm_setkey,
 	.reinit = aes_ccm_reinit,
 	.encrypt_last = aes_icm_crypt_last,
 	.decrypt_last = aes_icm_crypt_last,
+	.update = aes_ccm_update,
+	.final = aes_ccm_final,
 };
 
 /*
@@ -125,34 +149,36 @@ aes_icm_reinit(void *key, const uint8_t *iv, size_t ivlen)
 }
 
 static void
-aes_gcm_reinit(void *key, const uint8_t *iv, size_t ivlen)
+aes_gcm_reinit(void *vctx, const uint8_t *iv, size_t ivlen)
 {
-	struct aes_icm_ctx *ctx;
+	struct aes_gcm_ctx *ctx = vctx;
 
 	KASSERT(ivlen == AES_GCM_IV_LEN,
 	    ("%s: invalid IV length", __func__));
-	aes_icm_reinit(key, iv, ivlen);
+	aes_icm_reinit(&ctx->cipher, iv, ivlen);
 
-	ctx = key;
 	/* GCM starts with 2 as counter 1 is used for final xor of tag. */
-	bzero(&ctx->ac_block[AESICM_BLOCKSIZE - 4], 4);
-	ctx->ac_block[AESICM_BLOCKSIZE - 1] = 2;
+	bzero(&ctx->cipher.ac_block[AESICM_BLOCKSIZE - 4], 4);
+	ctx->cipher.ac_block[AESICM_BLOCKSIZE - 1] = 2;
+
+	AES_GMAC_Reinit(&ctx->gmac, iv, ivlen);
 }
 
 static void
-aes_ccm_reinit(void *key, const uint8_t *iv, size_t ivlen)
+aes_ccm_reinit(void *vctx, const uint8_t *iv, size_t ivlen)
 {
-	struct aes_icm_ctx *ctx;
+	struct aes_ccm_ctx *ctx = vctx;
 
 	KASSERT(ivlen >= 7 && ivlen <= 13,
 	    ("%s: invalid IV length", __func__));
-	ctx = key;
 
 	/* CCM has flags, then the IV, then the counter, which starts at 1 */
-	bzero(ctx->ac_block, sizeof(ctx->ac_block));
-	ctx->ac_block[0] = (15 - ivlen) - 1;
-	bcopy(iv, ctx->ac_block + 1, ivlen);
-	ctx->ac_block[AESICM_BLOCKSIZE - 1] = 1;
+	bzero(ctx->cipher.ac_block, sizeof(ctx->cipher.ac_block));
+	ctx->cipher.ac_block[0] = (15 - ivlen) - 1;
+	bcopy(iv, ctx->cipher.ac_block + 1, ivlen);
+	ctx->cipher.ac_block[AESICM_BLOCKSIZE - 1] = 1;
+
+	AES_CBC_MAC_Reinit(&ctx->cbc_mac, iv, ivlen);
 }
 
 static void
@@ -196,4 +222,64 @@ aes_icm_setkey(void *sched, const uint8_t *key, int len)
 	ctx = sched;
 	ctx->ac_nr = rijndaelKeySetupEnc(ctx->ac_ek, key, len * 8);
 	return (0);
+}
+
+static int
+aes_gcm_setkey(void *vctx, const uint8_t *key, int len)
+{
+	struct aes_gcm_ctx *ctx = vctx;
+	int error;
+
+	error = aes_icm_setkey(&ctx->cipher, key, len);
+	if (error != 0)
+		return (error);
+
+	AES_GMAC_Setkey(&ctx->gmac, key, len);
+	return (0);
+}
+
+static int
+aes_ccm_setkey(void *vctx, const uint8_t *key, int len)
+{
+	struct aes_ccm_ctx *ctx = vctx;
+	int error;
+
+	error = aes_icm_setkey(&ctx->cipher, key, len);
+	if (error != 0)
+		return (error);
+
+	AES_CBC_MAC_Setkey(&ctx->cbc_mac, key, len);
+	return (0);
+}
+
+static int
+aes_gcm_update(void *vctx, const void *buf, u_int len)
+{
+	struct aes_gcm_ctx *ctx = vctx;
+
+	return (AES_GMAC_Update(&ctx->gmac, buf, len));
+}
+
+static int
+aes_ccm_update(void *vctx, const void *buf, u_int len)
+{
+	struct aes_ccm_ctx *ctx = vctx;
+
+	return (AES_CBC_MAC_Update(&ctx->cbc_mac, buf, len));
+}
+
+static void
+aes_gcm_final(uint8_t *tag, void *vctx)
+{
+	struct aes_gcm_ctx *ctx = vctx;
+
+	AES_GMAC_Final(tag, &ctx->gmac);
+}
+
+static void
+aes_ccm_final(uint8_t *tag, void *vctx)
+{
+	struct aes_ccm_ctx *ctx = vctx;
+
+	AES_CBC_MAC_Final(tag, &ctx->cbc_mac);
 }
