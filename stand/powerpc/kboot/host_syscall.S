@@ -21,15 +21,6 @@ ENTRY(host_write)
 	blr
 END(host_write)
 
-ENTRY(host_seek)
-	mr %r4,%r5
-	mr %r5,%r6
-	mr %r6,%r7
-	li %r0, 140 # SYS_llseek
-	sc
-	blr
-END(host_seek)
-
 ENTRY(host_llseek)
 	li %r0, 140 # SYS_llseek
 	sc
