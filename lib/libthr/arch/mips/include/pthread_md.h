@@ -36,89 +36,9 @@
 #define	_PTHREAD_MD_H_
 
 #include <sys/types.h>
-#include <machine/sysarch.h>
 #include <machine/tls.h>
 
 #define	CPU_SPINWAIT
-
-/*
- * Variant I tcb. The structure layout is fixed, don't blindly
- * change it!
- */
-struct tcb {
-	void			*tcb_dtv;
-	struct pthread		*tcb_thread;
-};
-
-/* Called from the thread to set its private data. */
-static __inline void
-_tcb_set(struct tcb *tcb)
-{
-
-	sysarch(MIPS_SET_TLS, tcb);
-}
-
-/*
- * Get the current tcb.
- */
-#ifdef TLS_USE_SYSARCH
-static __inline struct tcb *
-_tcb_get(void)
-{
-	struct tcb *tcb;
-
-	sysarch(MIPS_GET_TLS, &tcb);
-	return tcb;
-}
-
-#else /* ! TLS_USE_SYSARCH */
-
-#  if defined(__mips_n64)
-static __inline struct tcb *
-_tcb_get(void)
-{
-	uint64_t _rv;
-
-	__asm__ __volatile__ (
-	    ".set\tpush\n\t"
-	    ".set\tmips64r2\n\t"
-	    "rdhwr\t%0, $29\n\t"
-	    ".set\tpop"
-	    : "=r" (_rv));
-
-	/*
-	 * XXXSS See 'git show c6be4f4d2d1b71c04de5d3bbb6933ce2dbcdb317'
-	 *
-	 * Remove the offset since this really a request to get the TLS
-	 * pointer via sysarch() (in theory).  Of course, this may go away
-	 * once the TLS code is rewritten.
-	 */
-	return (struct tcb *)(_rv - TLS_TP_OFFSET - TLS_TCB_SIZE);
-}
-#  else /* mips 32 */
-static __inline struct tcb *
-_tcb_get(void)
-{
-	uint32_t _rv;
-
-	__asm__ __volatile__ (
-	    ".set\tpush\n\t"
-	    ".set\tmips32r2\n\t"
-	    "rdhwr\t%0, $29\n\t"
-	    ".set\tpop"
-	    : "=r" (_rv));
-
-	/*
-	 * XXXSS See 'git show c6be4f4d2d1b71c04de5d3bbb6933ce2dbcdb317'
-	 *
-	 * Remove the offset since this really a request to get the TLS
-	 * pointer via sysarch() (in theory).  Of course, this may go away
-	 * once the TLS code is rewritten.
-	 */
-	return (struct tcb *)(_rv - TLS_TP_OFFSET - TLS_TCB_SIZE);
-}
-#  endif /* ! __mips_n64 */
-#endif /* ! TLS_USE_SYSARCH */
 
 static __inline struct pthread *
 _get_curthread(void)

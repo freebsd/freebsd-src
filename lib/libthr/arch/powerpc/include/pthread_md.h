@@ -36,50 +36,9 @@
 #define	_PTHREAD_MD_H_
 
 #include <sys/types.h>
+#include <machine/tls.h>
 
 #define	CPU_SPINWAIT
-
-#ifdef __powerpc64__
-#define	TP_OFFSET		0x7010
-#else
-#define	TP_OFFSET		0x7008
-#endif
-
-/*
- * Variant I tcb. The structure layout is fixed, don't blindly
- * change it.
- * %r2 (32-bit) or %r13 (64-bit) points to end of the structure.
- */
-struct tcb {
-	void			*tcb_dtv;
-	struct pthread		*tcb_thread;
-};
-
-static __inline void
-_tcb_set(struct tcb *tcb)
-{
-#ifdef __powerpc64__
-	__asm __volatile("mr 13,%0" ::
-	    "r"((uint8_t *)tcb + TP_OFFSET));
-#else
-	__asm __volatile("mr 2,%0" ::
-	    "r"((uint8_t *)tcb + TP_OFFSET));
-#endif
-}
-
-static __inline struct tcb *
-_tcb_get(void)
-{
-        register struct tcb *tcb;
-
-#ifdef __powerpc64__
-	__asm __volatile("addi %0,13,%1" : "=r"(tcb) : "i"(-TP_OFFSET));
-#else
-	__asm __volatile("addi %0,2,%1" : "=r"(tcb) : "i"(-TP_OFFSET));
-#endif
-
-	return (tcb);
-}
 
 static __inline struct pthread *
 _get_curthread(void)

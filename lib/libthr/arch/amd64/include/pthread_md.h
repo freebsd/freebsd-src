@@ -37,62 +37,18 @@
 
 #include <stddef.h>
 #include <sys/types.h>
-#include <machine/sysarch.h>
+#include <machine/tls.h>
 
 #define	CPU_SPINWAIT		__asm __volatile("pause")
-
-/*
- * Variant II tcb, first two members are required by rtld,
- * %fs points to the structure.
- */
-struct tcb {
-	struct tcb		*tcb_self;	/* required by rtld */
-	void			*tcb_dtv;	/* required by rtld */
-	struct pthread		*tcb_thread;
-	void			*tcb_spare[1];
-};
-
-/*
- * Evaluates to the byte offset of the per-tcb variable name.
- */
-#define	__tcb_offset(name)	__offsetof(struct tcb, name)
-
-/*
- * Evaluates to the type of the per-tcb variable name.
- */
-#define	__tcb_type(name)	__typeof(((struct tcb *)0)->name)
-
-/*
- * Evaluates to the value of the per-tcb variable name.
- */
-#define	TCB_GET64(name) ({					\
-	__tcb_type(name) __result;				\
-								\
-	u_long __i;						\
-	__asm __volatile("movq %%fs:%1, %0"			\
-	    : "=r" (__i)					\
-	    : "m" (*(volatile u_long *)(__tcb_offset(name))));  \
-	__result = (__tcb_type(name))__i;			\
-								\
-	__result;						\
-})
-
-static __inline void
-_tcb_set(struct tcb *tcb)
-{
-	amd64_set_fsbase(tcb);
-}
-
-static __inline struct tcb *
-_tcb_get(void)
-{
-	return (TCB_GET64(tcb_self));
-}
 
 static __inline struct pthread *
 _get_curthread(void)
 {
-	return (TCB_GET64(tcb_thread));
+	struct pthread *thr;
+
+	__asm __volatile("movq %%fs:%1, %0" : "=r" (thr)
+	    : "m" (*(volatile u_long *)offsetof(struct tcb, tcb_thread)));
+	return (thr);
 }
 
 #define	HAS__UMTX_OP_ERR	1
