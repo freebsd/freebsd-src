@@ -35,12 +35,10 @@
 #ifndef _PTHREAD_MD_H_
 #define	_PTHREAD_MD_H_
 
-#include <stddef.h>
 #include <sys/types.h>
 
 #define	CPU_SPINWAIT
 
-#define	DTV_OFFSET		offsetof(struct tcb, tcb_dtv)
 #ifdef __powerpc64__
 #define	TP_OFFSET		0x7010
 #else

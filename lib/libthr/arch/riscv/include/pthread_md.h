@@ -42,10 +42,8 @@
 #define	_PTHREAD_MD_H_
 
 #include <sys/types.h>
-#include <stddef.h>
 
 #define	CPU_SPINWAIT
-#define	DTV_OFFSET		offsetof(struct tcb, tcb_dtv)
 #define	TP_OFFSET		sizeof(struct tcb)
 
 /*
