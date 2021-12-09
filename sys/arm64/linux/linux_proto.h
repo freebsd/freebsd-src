@@ -1445,62 +1445,6 @@ int	linux_faccessat2(struct thread *, struct linux_faccessat2_args *);
 int	linux_process_madvise(struct thread *, struct linux_process_madvise_args *);
 int	linux_epoll_pwait2(struct thread *, struct linux_epoll_pwait2_args *);
 int	linux_mount_setattr(struct thread *, struct linux_mount_setattr_args *);
-
-#ifdef COMPAT_43
-
-#define	nosys	linux_nosys
-
-#endif /* COMPAT_43 */
-
-
-#ifdef COMPAT_FREEBSD4
-
-#define	nosys	linux_nosys
-
-#endif /* COMPAT_FREEBSD4 */
-
-
-#ifdef COMPAT_FREEBSD6
-
-#define	nosys	linux_nosys
-
-#endif /* COMPAT_FREEBSD6 */
-
-
-#ifdef COMPAT_FREEBSD7
-
-#define	nosys	linux_nosys
-
-#endif /* COMPAT_FREEBSD7 */
-
-
-#ifdef COMPAT_FREEBSD10
-
-#define	nosys	linux_nosys
-
-#endif /* COMPAT_FREEBSD10 */
-
-
-#ifdef COMPAT_FREEBSD11
-
-#define	nosys	linux_nosys
-
-#endif /* COMPAT_FREEBSD11 */
-
-
-#ifdef COMPAT_FREEBSD12
-
-#define	nosys	linux_nosys
-
-#endif /* COMPAT_FREEBSD12 */
-
-
-#ifdef COMPAT_FREEBSD13
-
-#define	nosys	linux_nosys
-
-#endif /* COMPAT_FREEBSD13 */
-
 #define	LINUX_SYS_AUE_linux_setxattr	AUE_NULL
 #define	LINUX_SYS_AUE_linux_lsetxattr	AUE_NULL
 #define	LINUX_SYS_AUE_linux_fsetxattr	AUE_NULL
