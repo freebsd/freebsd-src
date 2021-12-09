@@ -530,7 +530,7 @@ allocate_initial_tls(Obj_Entry *objs)
 	 */
 	tls_static_space = tls_last_offset + RTLD_STATIC_TLS_EXTRA;
 
-	addr = allocate_tls(objs, 0, 3 * sizeof(Elf_Addr), sizeof(Elf_Addr));
+	addr = allocate_tls(objs, 0, 3 * sizeof(Elf_Addr), 16);
 	if (__getosreldate() >= P_OSREL_WRFSBASE &&
 	    (cpu_stdext_feature & CPUID_STDEXT_FSGSBASE) != 0)
 		wrfsbase((uintptr_t)addr);
