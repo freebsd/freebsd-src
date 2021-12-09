@@ -35,46 +35,9 @@
 #define	_PTHREAD_MD_H_
 
 #include <sys/types.h>
-#include <machine/sysarch.h>
+#include <machine/tls.h>
 
 #define	CPU_SPINWAIT
-
-/*
- * Variant I tcb. The structure layout is fixed, don't blindly
- * change it.
- */
-struct tcb {
-	void			*tcb_dtv;	/* required by rtld */
-	struct pthread		*tcb_thread;	/* our hook */
-};
-
-/* Called from the thread to set its private data. */
-static __inline void
-_tcb_set(struct tcb *tcb)
-{
-#ifdef ARM_TP_ADDRESS
-	*((struct tcb **)ARM_TP_ADDRESS) = tcb;	/* avoids a system call */
-#else
-	sysarch(ARM_SET_TP, tcb);
-#endif
-}
-
-/*
- * Get the current tcb.
- */
-static __inline struct tcb *
-_tcb_get(void)
-{
-#ifdef ARM_TP_ADDRESS
-	return (*((struct tcb **)ARM_TP_ADDRESS));
-#else
-	struct tcb *tcb;
-
-	__asm __volatile("mrc  p15, 0, %0, c13, c0, 3"		\
-	   		 : "=r" (tcb));
-	return (tcb);
-#endif
-}
 
 static __inline struct pthread *
 _get_curthread(void)
