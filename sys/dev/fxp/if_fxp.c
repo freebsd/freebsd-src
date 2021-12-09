@@ -1408,7 +1408,6 @@ fxp_start_body(if_t ifp)
 static int
 fxp_encap(struct fxp_softc *sc, struct mbuf **m_head)
 {
-	if_t ifp;
 	struct mbuf *m;
 	struct fxp_tx *txp;
 	struct fxp_cb_tx *cbp;
@@ -1417,7 +1416,6 @@ fxp_encap(struct fxp_softc *sc, struct mbuf **m_head)
 	int error, i, nseg, tcp_payload;
 
 	FXP_LOCK_ASSERT(sc, MA_OWNED);
-	ifp = sc->ifp;
 
 	tcp_payload = 0;
 	tcp = NULL;
