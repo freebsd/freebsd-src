@@ -3,6 +3,4 @@
 .PATH: ${LIBC_SRCTOP}/powerpc/gen
 
 SRCS += _ctx_start.S eabi.S infinity.c ldexp.c makecontext.c \
-	signalcontext.c syncicache.c _get_tp.c _set_tp.c trivial-getcontextx.c
-
-CFLAGS._get_tp.c+= ${RTLD_HDRS}
+	signalcontext.c syncicache.c trivial-getcontextx.c
