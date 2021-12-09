@@ -40,5 +40,10 @@ all:
 .ORDER: ${GENERATED}
 sysent: ${GENERATED}
 
+# We slap a .PHONY on makesyscalls.lua so that we regenerate every single time,
+# for now, which can be less painful across rebases or other things that may
+# have odd effects on mtimes.
+${MAKESYSCALLS_SCRIPT}: .PHONY
+
 ${GENERATED}: ${MAKESYSCALLS_SCRIPT} ${SRCS}
 	${MAKESYSCALLS} ${SYSENT_FILE} ${SYSENT_CONF}
