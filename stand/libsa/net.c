@@ -101,10 +101,9 @@ sendrecv(struct iodesc *d,
 	tmo = MINTMO;
 	tlast = 0;
 	tleft = 0;
-	tref = getsecs();
-	t = getsecs();
+	tref = t = getsecs();
 	for (;;) {
-		if (MAXWAIT > 0 && (getsecs() - tref) >= MAXWAIT) {
+		if (MAXWAIT > 0 && (t - tref) >= MAXWAIT) {
 			errno = ETIMEDOUT;
 			return -1;
 		}
