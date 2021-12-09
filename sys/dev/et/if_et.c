@@ -1050,7 +1050,6 @@ et_dma_free(struct et_softc *sc)
 	struct et_rxdesc_ring *rx_ring;
 	struct et_txstatus_data *txsd;
 	struct et_rxstat_ring *rxst_ring;
-	struct et_rxstatus_data *rxsd;
 	struct et_rxbuf_data *rbd;
         struct et_txbuf_data *tbd;
 	int i;
@@ -1118,7 +1117,6 @@ et_dma_free(struct et_softc *sc)
 	et_dma_ring_free(sc, &rxst_ring->rsr_dtag, (void *)&rxst_ring->rsr_stat,
 	    rxst_ring->rsr_dmap, &rxst_ring->rsr_paddr);
 	/* Destroy RX status block. */
-	rxsd = &sc->sc_rx_status;
 	et_dma_ring_free(sc, &rxst_ring->rsr_dtag, (void *)&rxst_ring->rsr_stat,
 	    rxst_ring->rsr_dmap, &rxst_ring->rsr_paddr);
 	/* Destroy TX ring. */
@@ -1504,13 +1502,11 @@ et_stop_txdma(struct et_softc *sc)
 static void
 et_free_tx_ring(struct et_softc *sc)
 {
-	struct et_txdesc_ring *tx_ring;
 	struct et_txbuf_data *tbd;
 	struct et_txbuf *tb;
 	int i;
 
 	tbd = &sc->sc_tx_data;
-	tx_ring = &sc->sc_tx_ring;
 	for (i = 0; i < ET_TX_NDESC; ++i) {
 		tb = &tbd->tbd_buf[i];
 		if (tb->tb_mbuf != NULL) {
@@ -2308,12 +2304,10 @@ static void
 et_tick(void *xsc)
 {
 	struct et_softc *sc;
-	struct ifnet *ifp;
 	struct mii_data *mii;
 
 	sc = xsc;
 	ET_LOCK_ASSERT(sc);
-	ifp = sc->ifp;
 	mii = device_get_softc(sc->sc_miibus);
 
 	mii_tick(mii);
