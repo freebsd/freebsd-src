@@ -2304,9 +2304,6 @@ safexcel_probesession(device_t dev, const struct crypto_session_params *csp)
 	case CSP_MODE_AEAD:
 		switch (csp->csp_cipher_alg) {
 		case CRYPTO_AES_NIST_GCM_16:
-			if (csp->csp_ivlen != AES_GCM_IV_LEN)
-				return (EINVAL);
-			break;
 		case CRYPTO_AES_CCM_16:
 			break;
 		default:
