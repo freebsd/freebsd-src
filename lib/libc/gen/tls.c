@@ -72,18 +72,6 @@ void _rtld_free_tls(void *tls, size_t tcbsize, size_t tcbalign);
 void *__libc_allocate_tls(void *oldtls, size_t tcbsize, size_t tcbalign);
 void __libc_free_tls(void *tls, size_t tcbsize, size_t tcbalign);
 
-#if defined(__amd64__) || defined(__aarch64__) || defined(__riscv)
-#define TLS_TCB_ALIGN 16
-#elif defined(__arm__) || defined(__mips__)
-#define TLS_TCB_ALIGN 8
-#elif defined(__powerpc__)
-#define TLS_TCB_ALIGN TLS_TCB_SIZE
-#elif defined(__i386__)
-#define TLS_TCB_ALIGN 4
-#else
-#error TLS_TCB_ALIGN undefined for target architecture
-#endif
-
 #ifndef PIC
 
 static size_t libc_tls_static_space;
@@ -95,11 +83,10 @@ static void *libc_tls_init;
 void *
 __libc_tls_get_addr(void *vti)
 {
-	Elf_Addr **dtvp, *dtv;
+	uintptr_t *dtv;
 	tls_index *ti;
 
-	dtvp = _get_tp();
-	dtv = *dtvp;
+	dtv = _tcb_get()->tcb_dtv;
 	ti = vti;
 	return ((char *)(dtv[ti->ti_module + 1] + ti->ti_offset) +
 	    TLS_DTV_OFFSET);
@@ -165,7 +152,7 @@ libc_free_aligned(void *ptr)
  *   described in [3] where TP points (with bias) to TLS and TCB immediately
  *   precedes TLS without any alignment gap[4]. Only TLS should be aligned.
  *   The TCB[0] points to DTV vector and DTV values are biased by constant
- *   value (0x8000) from real addresses[5].
+ *   value (TLS_DTV_OFFSET) from real addresses[5].
  *
  * [1] Ulrich Drepper: ELF Handling for Thread-Local Storage
  *     www.akkadia.org/drepper/tls.pdf
@@ -178,7 +165,7 @@ libc_free_aligned(void *ptr)
  *     https://members.openpowerfoundation.org/document/dl/576
  *
  * [4] Its unclear if "without any alignment gap" is hard ABI requirement,
- *     but we must follow this rule due to suboptimal _set_tp()
+ *     but we must follow this rule due to suboptimal _tcb_set()
  *     (aka <ARCH>_SET_TP) implementation. This function doesn't expect TP but
  *     TCB as argument.
  *
@@ -309,8 +296,6 @@ __libc_allocate_tls(void *oldtcb, size_t tcbsize, size_t tcbalign)
 #endif
 
 #ifdef TLS_VARIANT_II
-
-#define	TLS_TCB_SIZE	(3 * sizeof(Elf_Addr))
 
 /*
  * Free Static TLS using the Variant II method.
@@ -465,6 +450,6 @@ _init_tls(void)
 	}
 	tls = _rtld_allocate_tls(NULL, TLS_TCB_SIZE, TLS_TCB_ALIGN);
 
-	_set_tp(tls);
+	_tcb_set(tls);
 #endif
 }

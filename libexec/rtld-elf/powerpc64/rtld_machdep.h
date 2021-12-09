@@ -33,6 +33,7 @@
 
 #include <sys/types.h>
 #include <machine/atomic.h>
+#include <machine/tls.h>
 
 struct Struct_Obj_Entry;
 
@@ -64,11 +65,6 @@ extern u_long cpu_features2; /* r4 */
 /*
  * TLS
  */
-
-#define	TLS_VARIANT_I	1
-#define TLS_TP_OFFSET	0x7000
-#define TLS_DTV_OFFSET	0x8000
-#define TLS_TCB_SIZE	16
 
 #define round(size, align) \
     (((size) + (align) - 1) & ~((align) - 1))

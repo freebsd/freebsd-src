@@ -513,8 +513,8 @@ allocate_initial_tls(Obj_Entry *objs)
      * use.
      */
     tls_static_space = tls_last_offset + RTLD_STATIC_TLS_EXTRA;
-    tls = allocate_tls(objs, NULL, 3*sizeof(Elf_Addr), sizeof(Elf_Addr));
-    i386_set_gsbase(tls);
+    tls = allocate_tls(objs, NULL, TLS_TCB_SIZE, TLS_TCB_ALIGN);
+    _tcb_set(tls);
 }
 
 /* GNU ABI */
@@ -522,9 +522,9 @@ __attribute__((__regparm__(1)))
 void *
 ___tls_get_addr(tls_index *ti)
 {
-	Elf_Addr **dtvp;
+	uintptr_t **dtvp;
 
-	dtvp = _get_tp();
+	dtvp = &_tcb_get()->tcb_dtv;
 	return (tls_get_addr_common(dtvp, ti->ti_module, ti->ti_offset));
 }
 
@@ -532,9 +532,9 @@ ___tls_get_addr(tls_index *ti)
 void *
 __tls_get_addr(tls_index *ti)
 {
-	Elf_Addr **dtvp;
+	uintptr_t **dtvp;
 
-	dtvp = _get_tp();
+	dtvp = &_tcb_get()->tcb_dtv;
 	return (tls_get_addr_common(dtvp, ti->ti_module, ti->ti_offset));
 }
 

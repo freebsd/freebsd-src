@@ -491,9 +491,6 @@ ifunc_init(Elf_Auxinfo aux_info[__min_size(AT_COUNT)] __unused)
 void
 allocate_initial_tls(Obj_Entry *objs)
 {
-#ifdef ARM_TP_ADDRESS
-	void **_tp = (void **)ARM_TP_ADDRESS;
-#endif
 
 	/*
 	* Fix the size of the static TLS block by using the maximum
@@ -503,27 +500,14 @@ allocate_initial_tls(Obj_Entry *objs)
 
 	tls_static_space = tls_last_offset + tls_last_size + RTLD_STATIC_TLS_EXTRA;
 
-#ifdef ARM_TP_ADDRESS
-	(*_tp) = (void *) allocate_tls(objs, NULL, TLS_TCB_SIZE, 8);
-#else
-	sysarch(ARM_SET_TP, allocate_tls(objs, NULL, TLS_TCB_SIZE, 8));
-#endif
+	_tcb_set(allocate_tls(objs, NULL, TLS_TCB_SIZE, TLS_TCB_ALIGN));
 }
 
 void *
 __tls_get_addr(tls_index* ti)
 {
-	char *p;
-#ifdef ARM_TP_ADDRESS
-	void **_tp = (void **)ARM_TP_ADDRESS;
+	uintptr_t **dtvp;
 
-	p = tls_get_addr_common((Elf_Addr **)(*_tp), ti->ti_module, ti->ti_offset);
-#else
-	void *_tp;
-	__asm __volatile("mrc  p15, 0, %0, c13, c0, 3"		\
-	    : "=r" (_tp));
-	p = tls_get_addr_common((Elf_Addr **)(_tp), ti->ti_module, ti->ti_offset);
-#endif
-
-	return (p);
+	dtvp = &_tcb_get()->tcb_dtv;
+	return (tls_get_addr_common(dtvp, ti->ti_module, ti->ti_offset));
 }

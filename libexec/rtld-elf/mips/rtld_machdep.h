@@ -77,6 +77,4 @@ extern void *__tls_get_addr(tls_index *ti);
 
 #define md_abi_variant_hook(x)
 
-#define	TLS_VARIANT_I	1
-
 #endif
