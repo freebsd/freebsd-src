@@ -744,7 +744,7 @@ amdtemp_gettemp15hm60h(device_t dev, amdsensor_t sensor)
 {
 	struct amdtemp_softc *sc = device_get_softc(dev);
 	uint32_t val;
-	int error;
+	int error __diagused;
 
 	error = amdsmn_read(sc->sc_smn, AMDTEMP_15H_M60H_REPTMP_CTRL, &val);
 	KASSERT(error == 0, ("amdsmn_read"));
@@ -756,7 +756,7 @@ amdtemp_gettemp17h(device_t dev, amdsensor_t sensor)
 {
 	struct amdtemp_softc *sc = device_get_softc(dev);
 	uint32_t val;
-	int error;
+	int error __diagused;
 
 	switch (sensor) {
 	case CORE0_SENSOR0:
