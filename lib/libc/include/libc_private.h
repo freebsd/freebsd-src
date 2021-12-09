@@ -261,12 +261,6 @@ void _init_tls(void);
 int _once(pthread_once_t *, void (*)(void));
 
 /*
- * Get/set the TLS thread pointer
- */
-void *_get_tp(void);
-void _set_tp(void *tp);
-
-/*
  * This is a pointer in the C run-time startup code. It is used
  * by getprogname() and setprogname().
  */
