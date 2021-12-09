@@ -32,7 +32,6 @@
 
 ssize_t host_read(int fd, void *buf, size_t nbyte);
 ssize_t host_write(int fd, const void *buf, size_t nbyte);
-ssize_t host_seek(int fd, int64_t offset, int whence);
 int host_open(const char *path, int flags, int mode);
 ssize_t host_llseek(int fd, int32_t offset_high, int32_t offset_lo, uint64_t *result, int whence);
 int host_close(int fd);
