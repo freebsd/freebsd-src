@@ -340,11 +340,11 @@ mlx5_fw_reset(struct mlx5_core_dev *mdev)
 	error = -mlx5_set_mfrl_reg(mdev, MLX5_FRL_LEVEL3);
 	if (error == 0) {
 		dev = mdev->pdev->dev.bsddev;
-		mtx_lock(&Giant);
+		bus_topo_lock();
 		bus = device_get_parent(dev);
 		error = BUS_RESET_CHILD(device_get_parent(bus), bus,
 		    DEVF_RESET_DETACH);
-		mtx_unlock(&Giant);
+		bus_topo_unlock();
 	}
 	return (error);
 }

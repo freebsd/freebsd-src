@@ -560,14 +560,14 @@ hv_pci_delete_device(struct hv_pci_dev *hpdev)
 
 	devfn = wslot_to_devfn(hpdev->desc.wslot.val);
 
-	mtx_lock(&Giant);
+	bus_topo_lock();
 
 	pci_dev = pci_find_dbsf(hbus->pci_domain,
 	    0, PCI_SLOT(devfn), PCI_FUNC(devfn));
 	if (pci_dev)
 		device_delete_child(hbus->pci_bus, pci_dev);
 
-	mtx_unlock(&Giant);
+	bus_topo_unlock();
 
 	mtx_lock(&hbus->device_list_lock);
 	TAILQ_REMOVE(&hbus->children, hpdev, link);

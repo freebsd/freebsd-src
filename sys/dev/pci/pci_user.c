@@ -1059,8 +1059,11 @@ pci_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *t
 		}
 	}
 
-	/* Giant because newbus is Giant locked revisit with newbus locking */
-	mtx_lock(&Giant);
+	/*
+	 * Use bus topology lock to ensure that the pci list of devies doesn't
+	 * change while we're traversing the list, in some cases multiple times.
+	 */
+	bus_topo_lock();
 
 	switch (cmd) {
 	case PCIOCGETCONF:
@@ -1412,7 +1415,7 @@ getconfexit:
 		break;
 	}
 
-	mtx_unlock(&Giant);
+	bus_topo_unlock();
 
 	return (error);
 }

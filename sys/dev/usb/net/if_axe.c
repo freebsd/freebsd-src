@@ -904,11 +904,11 @@ axe_attach_post_sub(struct usb_ether *ue)
 		adv_pause = MIIF_DOPAUSE;
 	else
 		adv_pause = 0;
-	mtx_lock(&Giant);
+	bus_topo_lock();
 	error = mii_attach(ue->ue_dev, &ue->ue_miibus, ifp,
 	    uether_ifmedia_upd, ue->ue_methods->ue_mii_sts,
 	    BMSR_DEFCAPMASK, sc->sc_phyno, MII_OFFSET_ANY, adv_pause);
-	mtx_unlock(&Giant);
+	bus_topo_unlock();
 
 	return (error);
 }
