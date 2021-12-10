@@ -2767,7 +2767,7 @@ bxe_tpa_start(struct bxe_softc            *sc,
     struct bxe_sw_rx_bd tmp_bd;
     struct bxe_sw_rx_bd *rx_buf;
     struct eth_rx_bd *rx_bd;
-    int max_agg_queues;
+    int max_agg_queues __diagused;
     struct bxe_sw_tpa_info *tpa_info = &fp->rx_tpa_info[queue];
     uint16_t index;
 
@@ -4794,9 +4794,7 @@ bxe_chktso_window(struct bxe_softc  *sc,
     uint32_t num_wnds, wnd_size, wnd_sum;
     int32_t frag_idx, wnd_idx;
     unsigned short lso_mss;
-    int defrag;
 
-    defrag = 0;
     wnd_sum = 0;
     wnd_size = 10;
     num_wnds = nsegs - wnd_size;
@@ -6084,10 +6082,7 @@ bxe_alloc_mem(struct bxe_softc *sc)
 static void
 bxe_free_rx_bd_chain(struct bxe_fastpath *fp)
 {
-    struct bxe_softc *sc;
     int i;
-
-    sc = fp->sc;
 
     if (fp->rx_mbuf_tag == NULL) {
         return;
@@ -6146,10 +6141,7 @@ bxe_free_tpa_pool(struct bxe_fastpath *fp)
 static void
 bxe_free_sge_chain(struct bxe_fastpath *fp)
 {
-    struct bxe_softc *sc;
     int i;
-
-    sc = fp->sc;
 
     if (fp->rx_sge_mbuf_tag == NULL) {
         return;
@@ -19288,7 +19280,6 @@ bxe_eioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 {
     struct bxe_softc    *sc;
     int                 rval = 0;
-    device_t            pci_dev;
     bxe_grcdump_t       *dump = NULL;
     int grc_dump_size;
     bxe_drvinfo_t   *drv_infop = NULL;
@@ -19302,8 +19293,6 @@ bxe_eioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 
     if ((sc = (struct bxe_softc *)dev->si_drv1) == NULL)
         return ENXIO;
-
-    pci_dev= sc->dev;
 
     dump = (bxe_grcdump_t *)data;
 
