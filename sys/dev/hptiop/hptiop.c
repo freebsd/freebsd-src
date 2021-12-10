@@ -214,8 +214,6 @@ static int hptiop_ioctl(ioctl_dev_t dev, u_long cmd, caddr_t data,
 	int ret = EFAULT;
 	struct hpt_iop_hba *hba = hba_from_dev(dev);
 
-	mtx_lock(&Giant);
-
 	switch (cmd) {
 	case HPT_DO_IOCONTROL:
 		ret = hba->ops->do_ioctl(hba,
@@ -225,9 +223,6 @@ static int hptiop_ioctl(ioctl_dev_t dev, u_long cmd, caddr_t data,
 		ret = hptiop_rescan_bus(hba);
 		break;
 	}
-
-	mtx_unlock(&Giant);
-
 	return ret;
 }
 
