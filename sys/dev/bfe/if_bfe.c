@@ -652,7 +652,10 @@ bfe_miibus_statchg(device_t dev)
 {
 	struct bfe_softc *sc;
 	struct mii_data *mii;
-	u_int32_t val, flow;
+	u_int32_t val;
+#ifdef notyet
+	u_int32_t flow;
+#endif
 
 	sc = device_get_softc(dev);
 	mii = device_get_softc(sc->bfe_miibus);
@@ -675,7 +678,6 @@ bfe_miibus_statchg(device_t dev)
 	val &= ~BFE_TX_DUPLEX;
 	if ((IFM_OPTIONS(mii->mii_media_active) & IFM_FDX) != 0) {
 		val |= BFE_TX_DUPLEX;
-		flow = 0;
 #ifdef notyet
 		flow = CSR_READ_4(sc, BFE_RXCONF);
 		flow &= ~BFE_RXCONF_FLOW;
