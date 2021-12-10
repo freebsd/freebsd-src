@@ -186,10 +186,6 @@ CFLAGS+=	-mno-relax
 DD_NOSTATUS!=(dd status=none count=0 2> /dev/null && echo status=none) || true
 DD=dd ${DD_NOSTATUS}
 
-.if ${MACHINE_CPUARCH} == "mips"
-CFLAGS+=	-G0 -fno-pic -mno-abicalls
-.endif
-
 #
 # Have a sensible default
 #
