@@ -2178,7 +2178,7 @@ static void
 native_lapic_ipi_free(int vector)
 {
 	struct gate_descriptor *ip;
-	long func;
+	long func __diagused;
 
 	KASSERT(vector >= IPI_DYN_FIRST && vector <= IPI_DYN_LAST,
 	    ("%s: invalid vector %d", __func__, vector));
