@@ -324,11 +324,8 @@ xchan_seg_done(xdma_channel_t *xchan,
     struct xdma_transfer_status *st)
 {
 	struct xdma_request *xr;
-	xdma_controller_t *xdma;
 	struct xchan_buf *b;
 	bus_addr_t addr;
-
-	xdma = xchan->xdma;
 
 	xr = TAILQ_FIRST(&xchan->processing);
 	if (xr == NULL)
@@ -487,14 +484,11 @@ static int
 _xdma_load_data(xdma_channel_t *xchan, struct xdma_request *xr,
     struct bus_dma_segment *seg)
 {
-	xdma_controller_t *xdma;
 	struct mbuf *m;
 	uint32_t nsegs;
 	vm_offset_t va, addr;
 	bus_addr_t pa;
 	vm_prot_t prot;
-
-	xdma = xchan->xdma;
 
 	m = xr->m;
 
@@ -548,13 +542,8 @@ static int
 xdma_load_data(xdma_channel_t *xchan,
     struct xdma_request *xr, struct bus_dma_segment *seg)
 {
-	xdma_controller_t *xdma;
-	int error;
 	int nsegs;
 
-	xdma = xchan->xdma;
-
-	error = 0;
 	nsegs = 0;
 
 	if (xchan->caps & XCHAN_CAP_BUSDMA)
