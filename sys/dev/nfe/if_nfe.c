@@ -1408,17 +1408,15 @@ nfe_free_jrx_ring(struct nfe_softc *sc, struct nfe_jrx_ring *ring)
 {
 	struct nfe_rx_data *data;
 	void *desc;
-	int i, descsize;
+	int i;
 
 	if ((sc->nfe_flags & NFE_JUMBO_SUP) == 0)
 		return;
 
 	if (sc->nfe_flags & NFE_40BIT_ADDR) {
 		desc = ring->jdesc64;
-		descsize = sizeof (struct nfe_desc64);
 	} else {
 		desc = ring->jdesc32;
-		descsize = sizeof (struct nfe_desc32);
 	}
 
 	for (i = 0; i < NFE_JUMBO_RX_RING_COUNT; i++) {
@@ -1567,14 +1565,12 @@ nfe_free_tx_ring(struct nfe_softc *sc, struct nfe_tx_ring *ring)
 {
 	struct nfe_tx_data *data;
 	void *desc;
-	int i, descsize;
+	int i;
 
 	if (sc->nfe_flags & NFE_40BIT_ADDR) {
 		desc = ring->desc64;
-		descsize = sizeof (struct nfe_desc64);
 	} else {
 		desc = ring->desc32;
-		descsize = sizeof (struct nfe_desc32);
 	}
 
 	for (i = 0; i < NFE_TX_RING_COUNT; i++) {
