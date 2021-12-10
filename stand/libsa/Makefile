@@ -132,7 +132,7 @@ CLEANFILES+= ${SAFE_INCS} ${STAND_H_INC} ${OTHER_INC}
 
 # io routines
 SRCS+=	closeall.c dev.c ioctl.c nullfs.c stat.c mount.c \
-	fstat.c close.c lseek.c open.c read.c write.c readdir.c
+	fstat.c close.c lseek.c open.c read.c write.c readdir.c preload.c
 
 # SMBios routines
 SRCS+=	smbios.c
