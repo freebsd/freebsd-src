@@ -40,20 +40,11 @@
  */
 #define	API_SIG_SEARCH_MASK	~0x000fffff
 
-#ifdef __mips__
-/*
- * On MIPS, U-Boot passes us a hint address, which is very close to the end of
- * RAM (less than 1MiB), so searching for the API signature within more than
- * that leads to exception.
- */
-#define	API_SIG_SEARCH_LEN	0x00100000
-#else
 /*
  * Search for the API signature within 3MiB of the 1MiB-aligned address that
  * U-Boot has hinted us.
  */
 #define	API_SIG_SEARCH_LEN	0x00300000
-#endif
 
 int syscall(int, int *, ...);
 extern void *syscall_ptr;
