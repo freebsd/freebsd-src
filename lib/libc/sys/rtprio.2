@@ -53,7 +53,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 29, 2021
+.Dd December 8, 2021
 .Dt RTPRIO 2
 .Os
 .Sh NAME
@@ -167,19 +167,19 @@ The specified
 .Fa prio
 was out of range.
 .It Bq Er EPERM
-The calling thread is not allowed to set the realtime priority.
+The calling thread is not allowed to set the priority.
 Only
-root is allowed to change the realtime priority of any thread,
-exceptional privileges can be granted through the
+root is allowed to change the realtime or idle priority of any thread.
+Exceptional privileges can be granted through the
 .Xr mac_priority 4
-policy and the realtime user group.
-Non-root
-may only change the idle priority of threads the user owns,
-when the
+policy and the realtime and idletime user groups.
+The
 .Xr sysctl 8
 variable
 .Va security.bsd.unprivileged_idprio
-is set to non-zero.
+is deprecated.
+If set to non-zero, it lets any user change the idle priority of threads
+they own.
 .It Bq Er ESRCH
 The specified process or thread was not found or visible.
 .El
