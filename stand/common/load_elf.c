@@ -272,6 +272,7 @@ __elfN(load_elf_header)(char *filename, elf_file_t ef)
 		close(ef->fd);
 		return (ENOMEM);
 	}
+	preload(ef->fd);
 #ifdef LOADER_VERIEXEC_VECTX
 	{
 		int verror;
