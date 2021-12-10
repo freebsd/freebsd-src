@@ -165,11 +165,9 @@ set_fpcontext32(struct thread *td, mcontext32_vfp_t *mcp)
 static void
 get_mcontext32(struct thread *td, mcontext32_t *mcp, int flags)
 {
-	struct pcb *pcb;
 	struct trapframe *tf;
 	int i;
 
-	pcb = td->td_pcb;
 	tf = td->td_frame;
 
 	if ((flags & GET_MC_CLEAR_RET) != 0) {
@@ -315,14 +313,12 @@ freebsd32_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	struct sysentvec *sysent;
 	int onstack;
 	int sig;
-	int code;
 
 	siginfo_to_siginfo32(&ksi->ksi_info, &siginfo);
 	td = curthread;
 	p = td->td_proc;
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	sig = ksi->ksi_signo;
-	code = ksi->ksi_code;
 	psp = p->p_sigacts;
 	mtx_assert(&psp->ps_mtx, MA_OWNED);
 	tf = td->td_frame;
