@@ -419,9 +419,7 @@ must_bounce(bus_dma_tag_t dmat, bus_dmamap_t map, bus_addr_t paddr,
 
 /*
  * Convenience function for manipulating driver locks from busdma (during
- * busdma_swi, for example).  Drivers that don't provide their own locks
- * should specify &Giant to dmat->lockfuncarg.  Drivers that use their own
- * non-mutex locking scheme don't have to use this at all.
+ * busdma_swi, for example).
  */
 void
 busdma_lock_mutex(void *arg, bus_dma_lock_op_t op)

@@ -298,9 +298,7 @@ _bus_dma_can_bounce(vm_offset_t lowaddr, vm_offset_t highaddr)
 
 /*
  * Convenience function for manipulating driver locks from busdma (during
- * busdma_swi, for example).  Drivers that don't provide their own locks
- * should specify &Giant to dmat->lockfuncarg.  Drivers that use their own
- * non-mutex locking scheme don't have to use this at all.
+ * busdma_swi, for example).
  */
 void
 busdma_lock_mutex(void *arg, bus_dma_lock_op_t op)
