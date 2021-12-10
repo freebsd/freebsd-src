@@ -82,9 +82,6 @@ xdma_enqueue_mbuf(xdma_channel_t *xchan, struct mbuf **mp,
     enum xdma_direction dir)
 {
 	struct xdma_request *xr;
-	xdma_controller_t *xdma;
-
-	xdma = xchan->xdma;
 
 	xr = xchan_bank_get(xchan);
 	if (xr == NULL)
