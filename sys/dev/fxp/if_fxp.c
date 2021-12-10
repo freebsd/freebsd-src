@@ -667,8 +667,7 @@ fxp_attach(device_t dev)
 	error = bus_dma_tag_create(bus_get_dma_tag(dev), 2, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
 	    sc->maxsegsize * sc->maxtxseg + sizeof(struct ether_vlan_header),
-	    sc->maxtxseg, sc->maxsegsize, 0,
-	    busdma_lock_mutex, &Giant, &sc->fxp_txmtag);
+	    sc->maxtxseg, sc->maxsegsize, 0, NULL, NULL, &sc->fxp_txmtag);
 	if (error) {
 		device_printf(dev, "could not create TX DMA tag\n");
 		goto fail;
@@ -676,8 +675,7 @@ fxp_attach(device_t dev)
 
 	error = bus_dma_tag_create(bus_get_dma_tag(dev), 2, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
-	    MCLBYTES, 1, MCLBYTES, 0,
-	    busdma_lock_mutex, &Giant, &sc->fxp_rxmtag);
+	    MCLBYTES, 1, MCLBYTES, 0, NULL, NULL, &sc->fxp_rxmtag);
 	if (error) {
 		device_printf(dev, "could not create RX DMA tag\n");
 		goto fail;
@@ -686,7 +684,7 @@ fxp_attach(device_t dev)
 	error = bus_dma_tag_create(bus_get_dma_tag(dev), 4, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
 	    sizeof(struct fxp_stats), 1, sizeof(struct fxp_stats), 0,
-	    busdma_lock_mutex, &Giant, &sc->fxp_stag);
+	    NULL, NULL, &sc->fxp_stag);
 	if (error) {
 		device_printf(dev, "could not create stats DMA tag\n");
 		goto fail;
@@ -708,8 +706,7 @@ fxp_attach(device_t dev)
 
 	error = bus_dma_tag_create(bus_get_dma_tag(dev), 4, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
-	    FXP_TXCB_SZ, 1, FXP_TXCB_SZ, 0,
-	    busdma_lock_mutex, &Giant, &sc->cbl_tag);
+	    FXP_TXCB_SZ, 1, FXP_TXCB_SZ, 0, NULL, NULL, &sc->cbl_tag);
 	if (error) {
 		device_printf(dev, "could not create TxCB DMA tag\n");
 		goto fail;
@@ -733,7 +730,7 @@ fxp_attach(device_t dev)
 	error = bus_dma_tag_create(bus_get_dma_tag(dev), 4, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
 	    sizeof(struct fxp_cb_mcs), 1, sizeof(struct fxp_cb_mcs), 0,
-	    busdma_lock_mutex, &Giant, &sc->mcs_tag);
+	    NULL, NULL, &sc->mcs_tag);
 	if (error) {
 		device_printf(dev,
 		    "could not create multicast setup DMA tag\n");
