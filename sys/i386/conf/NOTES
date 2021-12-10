@@ -526,9 +526,6 @@ device		cp
 envvar		hint.cs.0.at="isa"
 envvar		hint.cs.0.port="0x300"
 #options 	NETGRAPH_CRONYX		# Enable NETGRAPH support for Cronyx adapter(s)
-options 	ED_3C503
-options 	ED_HPP
-options 	ED_SIC
 envvar		hint.ed.0.at="isa"
 envvar		hint.ed.0.port="0x280"
 envvar		hint.ed.0.irq="5"
