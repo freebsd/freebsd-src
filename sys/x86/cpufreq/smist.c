@@ -205,8 +205,7 @@ set_ownership(device_t dev)
 	    /*alignment*/ PAGE_SIZE, /*no boundary*/ 0,
 	    /*lowaddr*/ BUS_SPACE_MAXADDR_32BIT, /*highaddr*/ BUS_SPACE_MAXADDR,
 	    NULL, NULL, /*maxsize*/ PAGE_SIZE, /*segments*/ 1,
-	    /*maxsegsize*/ PAGE_SIZE, 0, busdma_lock_mutex, &Giant,
-	    &tag) != 0) {
+	    /*maxsegsize*/ PAGE_SIZE, 0, NULL, NULL, &tag) != 0) {
 		device_printf(dev, "can't create mem tag\n");
 		return (ENXIO);
 	}
