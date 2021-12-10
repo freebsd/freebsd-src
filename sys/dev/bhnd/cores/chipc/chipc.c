@@ -1164,13 +1164,13 @@ chipc_should_enable_muxed_sprom(struct chipc_softc *sc)
 	if (!CHIPC_QUIRK(sc, MUX_SPROM))
 		return (true);
 
-	mtx_lock(&Giant);	/* for newbus */
+	bus_topo_lock();
 
 	parent = device_get_parent(sc->dev);
 	hostb = bhnd_bus_find_hostb_device(parent);
 
 	if ((error = device_get_children(parent, &devs, &devcount))) {
-		mtx_unlock(&Giant);
+		bus_topo_unlock();
 		return (false);
 	}
 
@@ -1193,7 +1193,7 @@ chipc_should_enable_muxed_sprom(struct chipc_softc *sc)
 	}
 
 	free(devs, M_TEMP);
-	mtx_unlock(&Giant);
+	bus_topo_unlock();
 	return (result);
 }
 

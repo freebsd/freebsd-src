@@ -193,9 +193,9 @@ acpi_dock_attach_later(void *context)
 	if (!device_is_enabled(dev))
 		device_enable(dev);
 
-	mtx_lock(&Giant);
+	bus_topo_lock();
 	device_probe_and_attach(dev);
-	mtx_unlock(&Giant);
+	bus_topo_unlock();
 }
 
 static ACPI_STATUS
@@ -306,9 +306,9 @@ acpi_dock_eject_child(ACPI_HANDLE handle, UINT32 level, void *context,
 
 	dev = acpi_get_device(handle);
 	if (dev != NULL && device_is_attached(dev)) {
-		mtx_lock(&Giant);
+		bus_topo_lock();
 		device_detach(dev);
-		mtx_unlock(&Giant);
+		bus_topo_unlock();
 	}
 
 	acpi_SetInteger(handle, "_EJ0", 0);

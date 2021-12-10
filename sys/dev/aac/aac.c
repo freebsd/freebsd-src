@@ -3305,10 +3305,10 @@ aac_handle_aif(struct aac_softc *sc, struct aac_fib *fib)
 			while (co != NULL) {
 				if (co->co_found == 0) {
 					mtx_unlock(&sc->aac_io_lock);
-					mtx_lock(&Giant);
+					bus_topo_lock();
 					device_delete_child(sc->aac_dev,
 							    co->co_disk);
-					mtx_unlock(&Giant);
+					bus_topo_unlock();
 					mtx_lock(&sc->aac_io_lock);
 					co_next = TAILQ_NEXT(co, co_link);
 					mtx_lock(&sc->aac_container_lock);
@@ -3326,9 +3326,9 @@ aac_handle_aif(struct aac_softc *sc, struct aac_fib *fib)
 			/* Attach the newly created containers */
 			if (added) {
 				mtx_unlock(&sc->aac_io_lock);
-				mtx_lock(&Giant);
+				bus_topo_lock();
 				bus_generic_attach(sc->aac_dev);
-				mtx_unlock(&Giant);
+				bus_topo_unlock();
 				mtx_lock(&sc->aac_io_lock);
 			}
 

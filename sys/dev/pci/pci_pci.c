@@ -1397,7 +1397,7 @@ pcib_setup_hotplug(struct pcib_softc *sc)
 	    pcib_pcie_cc_timeout, sc);
 	TIMEOUT_TASK_INIT(taskqueue_pci_hp, &sc->pcie_dll_task, 0,
 	    pcib_pcie_dll_timeout, sc);
-	sc->pcie_hp_lock = &Giant;
+	sc->pcie_hp_lock = bus_topo_mtx();
 
 	/* Allocate IRQ. */
 	if (pcib_alloc_pcie_irq(sc) != 0)
