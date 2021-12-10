@@ -3151,11 +3151,11 @@ fxp_sysctl_node(struct fxp_softc *sc)
 	child = SYSCTL_CHILDREN(device_get_sysctl_tree(sc->dev));
 
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "int_delay",
-	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
 	    &sc->tunable_int_delay, 0, sysctl_hw_fxp_int_delay, "I",
 	    "FXP driver receive interrupt microcode bundling delay");
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "bundle_max",
-	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
 	    &sc->tunable_bundle_max, 0, sysctl_hw_fxp_bundle_max, "I",
 	    "FXP driver receive interrupt microcode bundle size limit");
 	SYSCTL_ADD_INT(ctx, child,OID_AUTO, "rnr", CTLFLAG_RD, &sc->rnr, 0,
