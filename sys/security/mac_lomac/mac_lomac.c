@@ -1743,6 +1743,7 @@ lomac_priv_check(struct ucred *cred, int priv)
 	case PRIV_SCHED_SETPOLICY:
 	case PRIV_SCHED_SET:
 	case PRIV_SCHED_SETPARAM:
+	case PRIV_SCHED_IDPRIO:
 
 	/*
 	 * More IPC privileges.
