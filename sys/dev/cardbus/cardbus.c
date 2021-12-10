@@ -199,7 +199,7 @@ cardbus_attach_card(device_t cbdev)
 	domain = pcib_get_domain(cbdev);
 	bus = pcib_get_bus(cbdev);
 	slot = 0;
-	mtx_lock(&Giant);
+	bus_topo_lock();
 	/* For each function, set it up and try to attach a driver to it */
 	for (func = 0; func <= cardbusfunchigh; func++) {
 		struct cardbus_devinfo *dinfo;
@@ -233,7 +233,7 @@ cardbus_attach_card(device_t cbdev)
 		else
 			pci_cfg_save(dinfo->pci.cfg.dev, &dinfo->pci, 1);
 	}
-	mtx_unlock(&Giant);
+	bus_topo_unlock();
 	if (cardattached > 0)
 		return (0);
 /*	POWER_DISABLE_SOCKET(brdev, cbdev); */
@@ -256,11 +256,11 @@ cardbus_detach_card(device_t cbdev)
 {
 	int err = 0;
 
-	mtx_lock(&Giant);
+	bus_topo_lock();
 	err = bus_generic_detach(cbdev);
 	if (err == 0)
 		err = device_delete_children(cbdev);
-	mtx_unlock(&Giant);
+	bus_topo_unlock();
 	if (err)
 		return (err);
 

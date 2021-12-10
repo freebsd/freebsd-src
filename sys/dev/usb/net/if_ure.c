@@ -1014,7 +1014,6 @@ ure_attach_post_sub(struct usb_ether *ue)
 #endif
 	if_setcapenable(ifp, if_getcapabilities(ifp));
 
-	mtx_lock(&Giant);
 	if (sc->sc_flags & (URE_FLAG_8156 | URE_FLAG_8156B)) {
 		ifmedia_init(&sc->sc_ifmedia, IFM_IMASK, ure_ifmedia_upd,
 		    ure_ifmedia_sts);
@@ -1024,11 +1023,12 @@ ure_attach_post_sub(struct usb_ether *ue)
 		sc->sc_ifmedia.ifm_media = IFM_ETHER | IFM_AUTO;
 		error = 0;
 	} else {
+		bus_topo_lock();
 		error = mii_attach(ue->ue_dev, &ue->ue_miibus, ifp,
 		    uether_ifmedia_upd, ue->ue_methods->ue_mii_sts,
 		    BMSR_DEFCAPMASK, sc->sc_phyno, MII_OFFSET_ANY, 0);
+		bus_topo_unlock();
 	}
-	mtx_unlock(&Giant);
 
 	sctx = device_get_sysctl_ctx(sc->sc_ue.ue_dev);
 	soid = device_get_sysctl_tree(sc->sc_ue.ue_dev);

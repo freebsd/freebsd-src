@@ -1425,9 +1425,9 @@ mfi_syspdprobe(struct mfi_softc *sc)
 		if (found == 0) {
 			printf("DELETE\n");
 			mtx_unlock(&sc->mfi_io_lock);
-			mtx_lock(&Giant);
+			bus_topo_lock();
 			device_delete_child(sc->mfi_dev, syspd->pd_dev);
-			mtx_unlock(&Giant);
+			bus_topo_unlock();
 			mtx_lock(&sc->mfi_io_lock);
 		}
 	}
@@ -1585,9 +1585,9 @@ mfi_decode_evt(struct mfi_softc *sc, struct mfi_evt_detail *detail)
 			KASSERT(ld != NULL, ("volume dissappeared"));
 			*/
 			if (ld != NULL) {
-				mtx_lock(&Giant);
+				bus_topo_lock();
 				device_delete_child(sc->mfi_dev, ld->ld_dev);
-				mtx_unlock(&Giant);
+				bus_topo_unlock();
 			}
 		}
 		break;
@@ -1602,11 +1602,11 @@ mfi_decode_evt(struct mfi_softc *sc, struct mfi_evt_detail *detail)
 				    pd_link) {
 					if (syspd->pd_id ==
 					    detail->args.pd.device_id) {
-						mtx_lock(&Giant);
+						bus_topo_lock();
 						device_delete_child(
 						    sc->mfi_dev,
 						    syspd->pd_dev);
-						mtx_unlock(&Giant);
+						bus_topo_unlock();
 						break;
 					}
 				}
@@ -1923,11 +1923,11 @@ mfi_add_ld_complete(struct mfi_command *cm)
 	mfi_release_command(cm);
 
 	mtx_unlock(&sc->mfi_io_lock);
-	mtx_lock(&Giant);
+	bus_topo_lock();
 	if ((child = device_add_child(sc->mfi_dev, "mfid", -1)) == NULL) {
 		device_printf(sc->mfi_dev, "Failed to add logical disk\n");
 		free(ld_info, M_MFIBUF);
-		mtx_unlock(&Giant);
+		bus_topo_unlock();
 		mtx_lock(&sc->mfi_io_lock);
 		return;
 	}
@@ -1935,7 +1935,7 @@ mfi_add_ld_complete(struct mfi_command *cm)
 	device_set_ivars(child, ld_info);
 	device_set_desc(child, "MFI Logical Disk");
 	bus_generic_attach(sc->mfi_dev);
-	mtx_unlock(&Giant);
+	bus_topo_unlock();
 	mtx_lock(&sc->mfi_io_lock);
 }
 
@@ -2011,11 +2011,11 @@ mfi_add_sys_pd_complete(struct mfi_command *cm)
 	mfi_release_command(cm);
 
 	mtx_unlock(&sc->mfi_io_lock);
-	mtx_lock(&Giant);
+	bus_topo_lock();
 	if ((child = device_add_child(sc->mfi_dev, "mfisyspd", -1)) == NULL) {
 		device_printf(sc->mfi_dev, "Failed to add system pd\n");
 		free(pd_info, M_MFIBUF);
-		mtx_unlock(&Giant);
+		bus_topo_unlock();
 		mtx_lock(&sc->mfi_io_lock);
 		return;
 	}
@@ -2023,7 +2023,7 @@ mfi_add_sys_pd_complete(struct mfi_command *cm)
 	device_set_ivars(child, pd_info);
 	device_set_desc(child, "MFI System PD");
 	bus_generic_attach(sc->mfi_dev);
-	mtx_unlock(&Giant);
+	bus_topo_unlock();
 	mtx_lock(&sc->mfi_io_lock);
 }
 
@@ -2832,9 +2832,9 @@ mfi_check_command_post(struct mfi_softc *sc, struct mfi_command *cm)
 		KASSERT(ld != NULL, ("volume dissappeared"));
 		if (cm->cm_frame->header.cmd_status == MFI_STAT_OK) {
 			mtx_unlock(&sc->mfi_io_lock);
-			mtx_lock(&Giant);
+			bus_topo_lock();
 			device_delete_child(sc->mfi_dev, ld->ld_dev);
-			mtx_unlock(&Giant);
+			bus_topo_unlock();
 			mtx_lock(&sc->mfi_io_lock);
 		} else
 			mfi_disk_enable(ld);
@@ -2842,11 +2842,11 @@ mfi_check_command_post(struct mfi_softc *sc, struct mfi_command *cm)
 	case MFI_DCMD_CFG_CLEAR:
 		if (cm->cm_frame->header.cmd_status == MFI_STAT_OK) {
 			mtx_unlock(&sc->mfi_io_lock);
-			mtx_lock(&Giant);
+			bus_topo_lock();
 			TAILQ_FOREACH_SAFE(ld, &sc->mfi_ld_tqh, ld_link, ldn) {
 				device_delete_child(sc->mfi_dev, ld->ld_dev);
 			}
-			mtx_unlock(&Giant);
+			bus_topo_unlock();
 			mtx_lock(&sc->mfi_io_lock);
 		} else {
 			TAILQ_FOREACH(ld, &sc->mfi_ld_tqh, ld_link)

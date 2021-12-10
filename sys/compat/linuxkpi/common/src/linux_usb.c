@@ -1166,7 +1166,9 @@ repeat:
 	LIST_FOREACH(sc, &usb_linux_attached_list, sc_attached_list) {
 		if (sc->sc_udrv == drv) {
 			mtx_unlock(&Giant);
+			bus_topo_lock();
 			device_detach(sc->sc_fbsd_dev);
+			bus_topo_unlock();
 			goto repeat;
 		}
 	}

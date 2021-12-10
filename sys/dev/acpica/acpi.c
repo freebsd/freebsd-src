@@ -3233,10 +3233,9 @@ acpi_EnterSleepState(struct acpi_softc *sc, int state)
 #endif
 
     /*
-     * Be sure to hold Giant across DEVICE_SUSPEND/RESUME since non-MPSAFE
-     * drivers need this.
+     * Be sure to hold Giant across DEVICE_SUSPEND/RESUME
      */
-    mtx_lock(&Giant);
+    bus_topo_lock();
 
     slp_state = ACPI_SS_NONE;
 
@@ -3362,7 +3361,7 @@ backout:
     }
     sc->acpi_next_sstate = 0;
 
-    mtx_unlock(&Giant);
+    bus_topo_unlock();
 
 #ifdef EARLY_AP_STARTUP
     thread_lock(curthread);

@@ -232,12 +232,11 @@ xctrl_suspend()
 	KASSERT((PCPU_GET(cpuid) == 0), ("Not running on CPU#0"));
 
 	/*
-	 * Be sure to hold Giant across DEVICE_SUSPEND/RESUME since non-MPSAFE
-	 * drivers need this.
+	 * Be sure to hold Giant across DEVICE_SUSPEND/RESUME.
 	 */
-	mtx_lock(&Giant);
+	bus_topo_lock();
 	if (DEVICE_SUSPEND(root_bus) != 0) {
-		mtx_unlock(&Giant);
+		bus_topo_unlock();
 		printf("%s: device_suspend failed\n", __func__);
 		return;
 	}
@@ -310,7 +309,7 @@ xctrl_suspend()
 	 * similar.
 	 */
 	DEVICE_RESUME(root_bus);
-	mtx_unlock(&Giant);
+	bus_topo_unlock();
 
 	/*
 	 * Warm up timecounter again and reset system clock.

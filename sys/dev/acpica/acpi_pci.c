@@ -340,9 +340,9 @@ acpi_pci_bus_notify_handler(ACPI_HANDLE h, UINT32 notify, void *context)
 
 	switch (notify) {
 	case ACPI_NOTIFY_BUS_CHECK:
-		mtx_lock(&Giant);
+		bus_topo_lock();
 		BUS_RESCAN(dev);
-		mtx_unlock(&Giant);
+		bus_topo_unlock();
 		break;
 	default:
 		device_printf(dev, "unknown notify %#x\n", notify);
@@ -361,9 +361,9 @@ acpi_pci_device_notify_handler(ACPI_HANDLE h, UINT32 notify, void *context)
 
 	switch (notify) {
 	case ACPI_NOTIFY_DEVICE_CHECK:
-		mtx_lock(&Giant);
+		bus_topo_lock();
 		BUS_RESCAN(dev);
-		mtx_unlock(&Giant);
+		bus_topo_unlock();
 		break;
 	case ACPI_NOTIFY_EJECT_REQUEST:
 		child = acpi_get_device(h);
@@ -372,23 +372,23 @@ acpi_pci_device_notify_handler(ACPI_HANDLE h, UINT32 notify, void *context)
 			    acpi_name(h));
 			return;
 		}
-		mtx_lock(&Giant);
+		bus_topo_lock();
 		error = device_detach(child);
 		if (error) {
-			mtx_unlock(&Giant);
+			bus_topo_unlock();
 			device_printf(dev, "failed to detach %s: %d\n",
 			    device_get_nameunit(child), error);
 			return;
 		}
 		status = acpi_SetInteger(h, "_EJ0", 1);
 		if (ACPI_FAILURE(status)) {
-			mtx_unlock(&Giant);
+			bus_topo_unlock();
 			device_printf(dev, "failed to eject %s: %s\n",
 			    acpi_name(h), AcpiFormatException(status));
 			return;
 		}
 		BUS_RESCAN(dev);
-		mtx_unlock(&Giant);
+		bus_topo_unlock();
 		break;
 	default:
 		device_printf(dev, "unknown notify %#x for %s\n", notify,

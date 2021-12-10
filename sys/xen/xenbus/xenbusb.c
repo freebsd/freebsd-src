@@ -533,12 +533,9 @@ xenbusb_probe_children_cb(void *arg, int pending __unused)
 {
 	device_t dev = (device_t)arg;
 
-	/*
-	 * Hold Giant until the Giant free newbus changes are committed.
-	 */
-	mtx_lock(&Giant);
+	bus_topo_lock();
 	xenbusb_probe_children(dev);
-	mtx_unlock(&Giant);
+	bus_topo_unlock();
 }
 
 /**

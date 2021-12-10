@@ -583,10 +583,10 @@ twe_attach_drive(struct twe_softc *sc, struct twe_drive *dr)
     char	buf[80];
     int		error;
 
-    mtx_lock(&Giant);
+    bus_topo_lock();
     dr->td_disk =  device_add_child(sc->twe_dev, NULL, -1);
     if (dr->td_disk == NULL) {
-	mtx_unlock(&Giant);
+	    bus_topo_unlock();
 	twe_printf(sc, "Cannot add unit\n");
 	return (EIO);
     }
@@ -603,7 +603,7 @@ twe_attach_drive(struct twe_softc *sc, struct twe_drive *dr)
     device_set_desc_copy(dr->td_disk, buf);
 
     error = device_probe_and_attach(dr->td_disk);
-    mtx_unlock(&Giant);
+    bus_topo_unlock();
     if (error != 0) {
 	twe_printf(sc, "Cannot attach unit to controller. error = %d\n", error);
 	return (EIO);
@@ -622,9 +622,9 @@ twe_detach_drive(struct twe_softc *sc, int unit)
     int error = 0;
 
     TWE_CONFIG_ASSERT_LOCKED(sc);
-    mtx_lock(&Giant);
+    bus_topo_lock();
     error = device_delete_child(sc->twe_dev, sc->twe_drive[unit].td_disk);
-    mtx_unlock(&Giant);
+    bus_topo_unlock();
     if (error != 0) {
 	twe_printf(sc, "failed to delete unit %d\n", unit);
 	return(error);

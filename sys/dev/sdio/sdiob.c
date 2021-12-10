@@ -945,10 +945,10 @@ sdio_newbus_sim_add(struct sdiob_softc *sc)
 		return (ENXIO);
 	}
 
-	mtx_lock(&Giant);
+	bus_topo_lock();
 	error = devclass_add_driver(bus_devclass, &sdiob_driver,
 	    BUS_PASS_DEFAULT, &sdiob_devclass);
-	mtx_unlock(&Giant);
+	bus_topo_unlock();
 	if (error != 0) {
 		printf("%s: Failed to add driver to devclass: %d.\n",
 		    __func__, error);
