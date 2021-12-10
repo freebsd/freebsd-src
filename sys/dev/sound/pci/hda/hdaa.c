@@ -6475,7 +6475,6 @@ hdaa_sysctl_reconfig(SYSCTL_HANDLER_ARGS)
 	hdaa_configure(dev);
 	hdaa_unlock(devinfo);
 	bus_generic_attach(dev);
-	bus_topo_unlock();
 	HDA_BOOTHVERBOSE(
 		device_printf(dev, "Reconfiguration done\n");
 	);
