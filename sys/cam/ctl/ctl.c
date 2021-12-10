@@ -10899,7 +10899,7 @@ ctl_seq_check(union ctl_io *io1, union ctl_io *io2)
 {
 	uint64_t lba1, lba2;
 	uint64_t len1, len2;
-	int retval;
+	int retval __diagused;
 
 	if (io1->io_hdr.flags & CTL_FLAG_SERSEQ_DONE)
 		return (CTL_ACTION_PASS);
