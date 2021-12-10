@@ -147,14 +147,17 @@ pcf85063_get_time(device_t dev, struct timespec *ts)
 	bcd.nsec = 0;
 	bcd.sec = data.sec & 0x7F;
 	bcd.min = data.min & 0x7F;
-	bcd.ispm = data.hour & 0x20;
 
-	if (control_reg & PCF85063_CTRL1_TIME_FORMAT)
+	if (control_reg & PCF85063_CTRL1_TIME_FORMAT) {
 		/* 12 hour mode */
 		bcd.hour = data.hour & 0x1F;
-	 else
+		/* Check if hour is pm */
+		bcd.ispm = data.hour & 0x20;
+	} else {
 		/* 24 hour mode */
 		bcd.hour = data.hour & 0x3F;
+		bcd.ispm = false;
+	}
 
 	bcd.dow = (data.dow & 0x7) + 1;
 	bcd.day = data.day & 0x3F;
@@ -162,7 +165,8 @@ pcf85063_get_time(device_t dev, struct timespec *ts)
 	bcd.year = data.year;
 
 	clock_dbgprint_bcd(dev, CLOCK_DBG_READ, &bcd);
-	error = clock_bcd_to_ts(&bcd, ts, true);
+	error = clock_bcd_to_ts(&bcd, ts,
+	    control_reg & PCF85063_CTRL1_TIME_FORMAT);
 
 	return (error);
 }
@@ -175,8 +179,11 @@ pcf85063_set_time(device_t dev, struct timespec *ts)
 	struct bcd_clocktime bcd;
 	int error;
 
+	error = iicdev_readfrom(dev, PCF85063_TIME_REG, &ctrl_reg,
+	    sizeof(uint8_t), IIC_WAIT);
+
 	ts->tv_sec -= utc_offset();
-	clock_ts_to_bcd(ts, &bcd, true);
+	clock_ts_to_bcd(ts, &bcd, ctrl_reg & PCF85063_CTRL1_TIME_FORMAT);
 	clock_dbgprint_bcd(dev, CLOCK_DBG_WRITE, &bcd);
 
 	data.sec = bcd.sec;
@@ -186,6 +193,11 @@ pcf85063_set_time(device_t dev, struct timespec *ts)
 	data.day = bcd.day;
 	data.mon = bcd.mon;
 	data.year = bcd.year;
+
+	/* Set this bit in case of 12-hour mode and pm hour. */
+	if (!(ctrl_reg & PCF85063_CTRL1_TIME_FORMAT))
+		if (bcd.ispm)
+			data.hour |= 0x20;
 
 	if (ts->tv_nsec > PCF85063_HALF_OF_SEC_NS)
 		data.sec++;
