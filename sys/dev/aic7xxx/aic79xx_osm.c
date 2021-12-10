@@ -165,7 +165,7 @@ ahd_sysctl(struct ahd_softc *ahd)
 		ahd_sysctl_node_descriptions[AHD_SYSCTL_ROOT]);
 	    SYSCTL_ADD_PROC(&ahd->sysctl_ctx[AHD_SYSCTL_ROOT],
 	        SYSCTL_CHILDREN(ahd->sysctl_tree[AHD_SYSCTL_ROOT]), OID_AUTO,
-		"clear", CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, ahd,
+		"clear", CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_MPSAFE, ahd,
 		0, ahd_clear_allcounters, "IU", "Clear all counters");
 
 	for (i = AHD_SYSCTL_SUMMARY; i < AHD_SYSCTL_NUMBER; i++)
@@ -185,7 +185,7 @@ ahd_sysctl(struct ahd_softc *ahd)
 		SYSCTL_ADD_PROC(&ahd->sysctl_ctx[AHD_SYSCTL_DEBUG],
 		    SYSCTL_CHILDREN(ahd->sysctl_tree[AHD_SYSCTL_DEBUG]),
 		    OID_AUTO, ahd_sysctl_errors_elements[i],
-		    CTLFLAG_RW | CTLTYPE_UINT | CTLFLAG_NEEDGIANT, ahd, i,
+		    CTLFLAG_RW | CTLTYPE_UINT | CTLFLAG_MPSAFE, ahd, i,
 		    ahd_set_debugcounters, "IU",
 		    ahd_sysctl_errors_descriptions[i]);
 	}
