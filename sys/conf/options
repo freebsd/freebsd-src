@@ -732,11 +732,6 @@ DEV_PFSYNC		opt_pf.h
 DEV_SPLASH		opt_splash.h
 DEV_VLAN		opt_vlan.h
 
-# ed driver
-ED_HPP			opt_ed.h
-ED_3C503		opt_ed.h
-ED_SIC			opt_ed.h
-
 # bce driver
 BCE_DEBUG		opt_bce.h
 BCE_NVRAM_WRITE_SUPPORT	opt_bce.h

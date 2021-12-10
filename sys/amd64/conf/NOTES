@@ -307,9 +307,6 @@ device		cpufreq
 #   Requires the miibus module
 
 device		bxe		# Broadcom NetXtreme II BCM5771X/BCM578XX 10GbE
-options 	ED_3C503
-options 	ED_HPP
-options 	ED_SIC
 device		igc		# Intel I225 2.5G Ethernet
 device		ipw		# Intel 2100 wireless NICs.
 device		iwi		# Intel 2200BG/2225BG/2915ABG wireless NICs.
