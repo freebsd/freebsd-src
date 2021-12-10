@@ -2710,7 +2710,7 @@ hn_txdesc_put(struct hn_tx_ring *txr, struct hn_txdesc *txd)
 		struct hn_txdesc *tmp_txd;
 
 		while ((tmp_txd = STAILQ_FIRST(&txd->agg_list)) != NULL) {
-			int freed;
+			int freed __diagused;
 
 			KASSERT(STAILQ_EMPTY(&tmp_txd->agg_list),
 			    ("resursive aggregation on aggregated txdesc"));
@@ -3209,7 +3209,7 @@ hn_encap(struct ifnet *ifp, struct hn_tx_ring *txr, struct hn_txdesc *txd,
 
 	error = hn_txdesc_dmamap_load(txr, txd, &m_head, segs, &nsegs);
 	if (__predict_false(error)) {
-		int freed;
+		int freed __diagused;
 
 		/*
 		 * This mbuf is not linked w/ the txd yet, so free it now.
@@ -3313,7 +3313,7 @@ again:
 		hn_txdesc_put(txr, txd);
 
 	if (__predict_false(error)) {
-		int freed;
+		int freed __diagused;
 
 		/*
 		 * This should "really rarely" happen.
@@ -5435,7 +5435,7 @@ hn_txdesc_gc(struct hn_tx_ring *txr, struct hn_txdesc *txd)
 
 	/* Aggregated txds will be freed by their aggregating txd. */
 	if (txd->refs > 0 && (txd->flags & HN_TXD_FLAG_ONAGG) == 0) {
-		int freed;
+		int freed __diagused;
 
 		freed = hn_txdesc_put(txr, txd);
 		KASSERT(freed, ("can't free txdesc"));
