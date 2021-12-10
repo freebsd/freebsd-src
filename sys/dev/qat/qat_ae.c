@@ -2173,7 +2173,6 @@ static int
 qat_aefw_uof_parse_images(struct qat_softc *sc)
 {
 	struct uof_chunk_hdr *uch = NULL;
-	u_int assigned_ae;
 	int i, error;
 
 	for (i = 0; i < MAX_NUM_AE * MAX_AE_CTX; i++) {
@@ -2189,11 +2188,6 @@ qat_aefw_uof_parse_images(struct qat_softc *sc)
 			return error;
 
 		sc->sc_aefw_uof.qafu_num_imgs++;
-	}
-
-	assigned_ae = 0;
-	for (i = 0; i < sc->sc_aefw_uof.qafu_num_imgs; i++) {
-		assigned_ae |= sc->sc_aefw_uof.qafu_imgs[i].qui_image->ui_ae_assigned;
 	}
 
 	return 0;
@@ -3273,7 +3267,7 @@ qat_aefw_do_pagein(struct qat_softc *sc, u_char ae, struct qat_uof_page *qup)
 {
 	struct qat_ae *qae = &(QAT_AE(sc, ae));
 	uint64_t fill, *ucode_cpybuf;
-	u_int error, i, upaddr, uraddr, ninst, cpylen;
+	u_int error, i, upaddr, ninst, cpylen;
 
 	if (qup->qup_num_uc_var || qup->qup_num_neigh_reg ||
 	    qup->qup_num_imp_var || qup->qup_num_imp_expr) {
@@ -3289,7 +3283,6 @@ qat_aefw_do_pagein(struct qat_softc *sc, u_char ae, struct qat_uof_page *qup)
 	    sizeof(uint64_t));
 
 	upaddr = qup->qup_beg_paddr;
-	uraddr = 0;
 	ninst = qup->qup_num_micro_words;
 	while (ninst > 0) {
 		cpylen = min(ninst, UWORD_CPYBUF_SIZE);
@@ -3338,7 +3331,6 @@ qat_aefw_do_pagein(struct qat_softc *sc, u_char ae, struct qat_uof_page *qup)
 			return ENOTSUP;
 		}
 		upaddr += cpylen;
-		uraddr += cpylen;
 		ninst -= cpylen;
 	}
 
