@@ -487,14 +487,17 @@ struct mntoptnames {
 #define	MNTK_RECURSE		0x00000200 /* pending recursive unmount */
 #define	MNTK_UPPER_WAITER	0x00000400 /* waiting to drain MNTK_UPPER_PENDING */
 #define	MNTK_LOOKUP_EXCL_DOTDOT	0x00000800
+/* UNUSED			0x00001000 */
 #define	MNTK_UNMAPPED_BUFS	0x00002000
 #define	MNTK_USES_BCACHE	0x00004000 /* FS uses the buffer cache. */
-#define	MNTK_UNUSED0		0x00008000 /* unused */
+/* UNUSED			0x00008000 */
 #define	MNTK_VMSETSIZE_BUG	0x00010000
 #define	MNTK_UNIONFS	0x00020000	/* A hack for F_ISUNIONSTACK */
 #define	MNTK_FPLOOKUP	0x00040000	/* fast path lookup is supported */
 #define	MNTK_SUSPEND_ALL	0x00080000 /* Suspended by all-fs suspension */
 #define	MNTK_TASKQUEUE_WAITER	0x00100000 /* Waiting on unmount taskqueue */
+/* UNUSED			0x00200000 */
+/* UNUSED			0x00400000 */
 #define	MNTK_NOASYNC	0x00800000	/* disable async */
 #define	MNTK_UNMOUNT	0x01000000	/* unmount in progress */
 #define	MNTK_MWAIT	0x02000000	/* waiting for unmount to finish */
@@ -504,7 +507,7 @@ struct mntoptnames {
 #define	MNTK_NULL_NOCACHE	0x20000000 /* auto disable cache for nullfs
 					      mounts over this fs */
 #define MNTK_LOOKUP_SHARED	0x40000000 /* FS supports shared lock lookups */
-#define	MNTK_UNUSED1	0x80000000	/* unused */
+/* UNUSED			0x80000000 */
 
 #ifdef _KERNEL
 static inline int
