@@ -72,6 +72,7 @@ static int tftp_read(struct open_file *, void *, size_t, size_t *);
 static off_t tftp_seek(struct open_file *, off_t, int);
 static int tftp_set_blksize(struct tftp_handle *, const char *);
 static int tftp_stat(struct open_file *, struct stat *);
+static int tftp_preload(struct open_file *);
 
 struct fs_ops tftp_fsops = {
 	.fs_name = "tftp",
@@ -81,6 +82,7 @@ struct fs_ops tftp_fsops = {
 	.fo_write = null_write,
 	.fo_seek = tftp_seek,
 	.fo_stat = tftp_stat,
+	.fo_preload = tftp_preload,
 	.fo_readdir = null_readdir
 };
 
@@ -518,6 +520,16 @@ tftp_read(struct open_file *f, void *addr, size_t size,
 		size = tftpfile->tftp_tsize - tftpfile->off;
 	}
 
+	if (tftpfile->tftp_cache != NULL) {
+		bcopy(tftpfile->tftp_cache + tftpfile->off,
+		    addr, size);
+
+		addr = (char *)addr + size;
+		tftpfile->off += size;
+		res -= size;
+		goto out;
+	}
+
 	while (size > 0) {
 		int needblock, count;
 
@@ -583,6 +595,7 @@ tftp_read(struct open_file *f, void *addr, size_t size,
 
 	}
 
+out:
 	if (resid != NULL)
 		*resid = res;
 	return (rc);
@@ -600,6 +613,7 @@ tftp_close(struct open_file *f)
 	if (tftpfile) {
 		free(tftpfile->path);
 		free(tftpfile->pkt);
+		free(tftpfile->tftp_cache);
 		free(tftpfile);
 	}
 	is_open = 0;
@@ -638,6 +652,52 @@ tftp_seek(struct open_file *f, off_t offset, int where)
 		return (-1);
 	}
 	return (tftpfile->off);
+}
+
+static int
+tftp_preload(struct open_file *f)
+{
+	struct tftp_handle *tftpfile;
+	char *cache;
+	int rc;
+#ifdef TFTP_DEBUG
+	time_t start, end;
+#endif
+
+	tftpfile = f->f_fsdata;
+	cache = malloc(sizeof(char) * tftpfile->tftp_tsize);
+	if (cache == NULL) {
+		printf("Couldn't allocate %ju bytes for preload caching"
+		    ", disabling caching\n",
+		    (uintmax_t)sizeof(char) * tftpfile->tftp_tsize);
+		return (-1);
+	}
+
+#ifdef TFTP_DEBUG
+	start = getsecs();
+	printf("Preloading %s ", tftpfile->path);
+#endif
+	while (tftpfile->islastblock == 0) {
+		twiddle(32);
+		rc = tftp_getnextblock(tftpfile);
+		if (rc) {
+			free(cache);
+			printf("Got TFTP error %d, disabling caching\n", rc);
+			return (rc);
+		}
+		bcopy(tftpfile->tftp_hdr->th_data,
+		    cache + (tftpfile->tftp_blksize * (tftpfile->currblock - 1)),
+		    tftpfile->validsize);
+	}
+#ifdef TFTP_DEBUG
+	end = getsecs();
+	printf("\nPreloaded %s (%ju bytes) during %jd seconds\n",
+	    tftpfile->path, (intmax_t)tftpfile->tftp_tsize,
+	    (intmax_t)end - start);
+#endif
+
+	tftpfile->tftp_cache = cache;
+	return (0);
 }
 
 static int
