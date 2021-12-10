@@ -4674,7 +4674,7 @@ sysctl_hw_alc_int_mod(SYSCTL_HANDLER_ARGS)
 static void
 alc_debugnet_init(struct ifnet *ifp, int *nrxr, int *ncl, int *clsize)
 {
-	struct alc_softc *sc;
+	struct alc_softc *sc __diagused;
 
 	sc = if_getsoftc(ifp);
 	KASSERT(sc->alc_buf_size <= MCLBYTES, ("incorrect cluster size"));
