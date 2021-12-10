@@ -404,13 +404,14 @@ rk_i2s_dai_intr(device_t dev, struct snd_dbuf *play_buf, struct snd_dbuf *rec_bu
 		uint8_t *samples;
 		uint32_t count, size, readyptr, written;
 		count = sndbuf_getready(play_buf);
+		if (count > FIFO_SIZE - 1)
+			count = FIFO_SIZE - 1;
 		size = sndbuf_getsize(play_buf);
 		readyptr = sndbuf_getreadyptr(play_buf);
 
-		/* FIXME: check actual count size */
 		samples = (uint8_t*)sndbuf_getbuf(play_buf);
 		written = 0;
-		for (; level < FIFO_SIZE - 1; level++) {
+		for (; level < count; level++) {
 			val  = (samples[readyptr++ % size] << 0);
 			val |= (samples[readyptr++ % size] << 8);
 			val |= (samples[readyptr++ % size] << 16);
