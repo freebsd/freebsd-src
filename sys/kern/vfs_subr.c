@@ -1814,8 +1814,6 @@ getnewvnode(const char *tag, struct mount *mp, struct vop_vector *vops,
 #endif
 	if (mp != NULL) {
 		vp->v_bufobj.bo_bsize = mp->mnt_stat.f_iosize;
-		if ((mp->mnt_kern_flag & MNTK_NOKNOTE) != 0)
-			vp->v_vflag |= VV_NOKNOTE;
 	}
 
 	/*
@@ -4147,8 +4145,6 @@ vn_printf(struct vnode *vp, const char *fmt, ...)
 		strlcat(buf, "|VV_SYSTEM", sizeof(buf));
 	if (vp->v_vflag & VV_PROCDEP)
 		strlcat(buf, "|VV_PROCDEP", sizeof(buf));
-	if (vp->v_vflag & VV_NOKNOTE)
-		strlcat(buf, "|VV_NOKNOTE", sizeof(buf));
 	if (vp->v_vflag & VV_DELETED)
 		strlcat(buf, "|VV_DELETED", sizeof(buf));
 	if (vp->v_vflag & VV_MD)
@@ -4159,8 +4155,7 @@ vn_printf(struct vnode *vp, const char *fmt, ...)
 		strlcat(buf, "|VV_READLINK", sizeof(buf));
 	flags = vp->v_vflag & ~(VV_ROOT | VV_ISTTY | VV_NOSYNC | VV_ETERNALDEV |
 	    VV_CACHEDLABEL | VV_VMSIZEVNLOCK | VV_COPYONWRITE | VV_SYSTEM |
-	    VV_PROCDEP | VV_NOKNOTE | VV_DELETED | VV_MD | VV_FORCEINSMQ |
-	    VV_READLINK);
+	    VV_PROCDEP | VV_DELETED | VV_MD | VV_FORCEINSMQ | VV_READLINK);
 	if (flags != 0) {
 		snprintf(buf2, sizeof(buf2), "|VV(0x%lx)", flags);
 		strlcat(buf, buf2, sizeof(buf));
@@ -4358,7 +4353,6 @@ DB_SHOW_COMMAND(mount, db_show_mount)
 	MNT_KERN_FLAG(MNTK_SUSPEND2);
 	MNT_KERN_FLAG(MNTK_SUSPENDED);
 	MNT_KERN_FLAG(MNTK_LOOKUP_SHARED);
-	MNT_KERN_FLAG(MNTK_NOKNOTE);
 #undef MNT_KERN_FLAG
 	if (flags != 0) {
 		if (buf[0] != '\0')

@@ -504,7 +504,7 @@ struct mntoptnames {
 #define	MNTK_NULL_NOCACHE	0x20000000 /* auto disable cache for nullfs
 					      mounts over this fs */
 #define MNTK_LOOKUP_SHARED	0x40000000 /* FS supports shared lock lookups */
-#define	MNTK_NOKNOTE	0x80000000	/* Don't send KNOTEs from VOP hooks */
+#define	MNTK_UNUSED1	0x80000000	/* unused */
 
 #ifdef _KERNEL
 static inline int
@@ -928,14 +928,12 @@ vfs_statfs_t	__vfs_statfs;
 
 #define VFS_KNOTE_LOCKED(vp, hint) do					\
 {									\
-	if (((vp)->v_vflag & VV_NOKNOTE) == 0)				\
-		VN_KNOTE((vp), (hint), KNF_LISTLOCKED);			\
+	VN_KNOTE((vp), (hint), KNF_LISTLOCKED);				\
 } while (0)
 
 #define VFS_KNOTE_UNLOCKED(vp, hint) do					\
 {									\
-	if (((vp)->v_vflag & VV_NOKNOTE) == 0)				\
-		VN_KNOTE((vp), (hint), 0);				\
+	VN_KNOTE((vp), (hint), 0);					\
 } while (0)
 
 #define	VFS_NOTIFY_UPPER_RECLAIM	1
