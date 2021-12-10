@@ -284,7 +284,8 @@ donice(struct thread *td, struct proc *p, int n)
 
 static int unprivileged_idprio;
 SYSCTL_INT(_security_bsd, OID_AUTO, unprivileged_idprio, CTLFLAG_RW,
-    &unprivileged_idprio, 0, "Allow non-root users to set an idle priority");
+    &unprivileged_idprio, 0,
+    "Allow non-root users to set an idle priority (deprecated)");
 
 /*
  * Set realtime priority for LWP.

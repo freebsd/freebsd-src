@@ -44,12 +44,22 @@ static SYSCTL_NODE(_security_mac, OID_AUTO, priority,
 static int realtime_enabled = 1;
 SYSCTL_INT(_security_mac_priority, OID_AUTO, realtime, CTLFLAG_RWTUN,
     &realtime_enabled, 0,
-    "Enable realtime policy for group realtime_gid");
+    "Enable realtime priority scheduling for group realtime_gid");
 
 static int realtime_gid = GID_RT_PRIO;
 SYSCTL_INT(_security_mac_priority, OID_AUTO, realtime_gid, CTLFLAG_RWTUN,
     &realtime_gid, 0,
     "Group id of the realtime privilege group");
+
+static int idletime_enabled = 1;
+SYSCTL_INT(_security_mac_priority, OID_AUTO, idletime, CTLFLAG_RWTUN,
+    &idletime_enabled, 0,
+    "Enable idle priority scheduling for group idletime_gid");
+
+static int idletime_gid = GID_ID_PRIO;
+SYSCTL_INT(_security_mac_priority, OID_AUTO, idletime_gid, CTLFLAG_RWTUN,
+    &idletime_gid, 0,
+    "Group id of the idletime privilege group");
 
 static int
 priority_priv_grant(struct ucred *cred, int priv)
@@ -57,6 +67,11 @@ priority_priv_grant(struct ucred *cred, int priv)
 	if (priv == PRIV_SCHED_RTPRIO && realtime_enabled &&
 	    groupmember(realtime_gid, cred))
 		return (0);
+
+	if (priv == PRIV_SCHED_IDPRIO && idletime_enabled &&
+	    groupmember(idletime_gid, cred))
+		return (0);
+
 	return (EPERM);
 }
 
