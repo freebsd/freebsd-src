@@ -847,12 +847,16 @@ asmc_wait_ack(device_t dev, uint8_t val, int amount)
 static int
 asmc_wait(device_t dev, uint8_t val)
 {
+#ifdef DEBUG
 	struct asmc_softc *sc;
+#endif
 
 	if (asmc_wait_ack(dev, val, 1000) == 0)
 		return (0);
 
+#ifdef DEBUG
 	sc = device_get_softc(dev);
+#endif
 	val = val & ASMC_STATUS_MASK;
 
 #ifdef DEBUG
