@@ -204,6 +204,8 @@ freebsd32_fetch_syscall_args(struct thread *td)
 			panic("Too many system call arguiments");
 		error = copyin((void *)td->td_frame->tf_x[13], args,
 		    (narg - nap) * sizeof(int));
+		if (error != 0)
+			return (error);
 		for (i = 0; i < (narg - nap); i++)
 			sa->args[i + nap] = args[i];
 	}

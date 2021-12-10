@@ -489,10 +489,6 @@ gic_v3_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 static int
 gic_v3_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
 {
-	struct gic_v3_softc *sc;
-
-	sc = device_get_softc(dev);
-
 	switch(which) {
 	case GICV3_IVAR_NIRQS:
 	case GICV3_IVAR_REDIST:

@@ -211,11 +211,9 @@ set_dbregs(struct thread *td, struct dbreg *regs)
 	struct debug_monitor_state *monitor;
 	uint64_t addr;
 	uint32_t ctrl;
-	int count;
 	int i;
 
 	monitor = &td->td_pcb->pcb_dbg_regs;
-	count = 0;
 	monitor->dbg_enable_count = 0;
 
 	for (i = 0; i < DBG_BRP_MAX; i++) {

@@ -710,12 +710,10 @@ cpu_mp_announce(void)
 static void
 cpu_count_acpi_handler(ACPI_SUBTABLE_HEADER *entry, void *arg)
 {
-	ACPI_MADT_GENERIC_INTERRUPT *intr;
 	u_int *cores = arg;
 
 	switch(entry->Type) {
 	case ACPI_MADT_TYPE_GENERIC_INTERRUPT:
-		intr = (ACPI_MADT_GENERIC_INTERRUPT *)entry;
 		(*cores)++;
 		break;
 	default:
