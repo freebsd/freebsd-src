@@ -247,7 +247,7 @@ rk_clk_composite_find_best(struct rk_clk_composite_sc *sc, uint64_t fparent,
 			break;
 		}
 	}
-	*reg = div_reg;
+	*reg = best_div_reg;
 	return (best_div);
 }
 

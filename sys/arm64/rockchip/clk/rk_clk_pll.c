@@ -373,10 +373,6 @@ rk3066_clk_pll_register(struct clkdom *clkdom, struct rk_clk_pll_def *clkdef)
 static int
 rk3328_clk_pll_init(struct clknode *clk, device_t dev)
 {
-	struct rk_clk_pll_sc *sc;
-
-	sc = clknode_get_softc(clk);
-
 	clknode_init_parent_idx(clk, 0);
 
 	return (0);
@@ -585,9 +581,6 @@ rk3328_clk_pll_register(struct clkdom *clkdom, struct rk_clk_pll_def *clkdef)
 static int
 rk3399_clk_pll_init(struct clknode *clk, device_t dev)
 {
-	struct rk_clk_pll_sc *sc;
-
-	sc = clknode_get_softc(clk);
 	clknode_init_parent_idx(clk, 0);
 
 	return (0);

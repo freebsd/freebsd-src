@@ -1117,7 +1117,7 @@ rk_pinctrl_get_flags(device_t pinctrl, device_t gpio, uint32_t pin,
 {
 	struct rk_pinctrl_softc *sc;
 	struct syscon *syscon;
-	uint32_t reg, mask, bit;
+	uint32_t reg, bit;
 	uint32_t bias;
 	int bank;
 	int rv = 0;
@@ -1141,7 +1141,6 @@ rk_pinctrl_get_flags(device_t pinctrl, device_t gpio, uint32_t pin,
 	reg = sc->conf->get_pd_offset(sc, bank);
 	reg += bank * 0x10 + ((pin / 8) * 0x4);
 	bit = (pin % 8) * 2;
-	mask = (0x3 << bit) << 16;
 	reg = SYSCON_READ_4(syscon, reg);
 	reg = (reg >> bit) & 0x3;
 	bias = sc->conf->resolv_bias_value(bank, reg);
