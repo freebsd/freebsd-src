@@ -50,6 +50,7 @@ struct msgbuf {
 	int	   msg_lastpri;		/* saved priority value */
 	u_int      msg_flags;
 #define MSGBUF_NEEDNL	0x01	/* set when newline needed */
+#define MSGBUF_WRAP	0x02	/* buffer has wrapped around */
 	struct mtx msg_lock;		/* mutex to protect the buffer */
 };
 
@@ -57,8 +58,10 @@ struct msgbuf {
 #define	MSGBUF_SEQNORM(mbp, seq)	(((seq) + (mbp)->msg_seqmod) % \
     (mbp)->msg_seqmod)
 #define	MSGBUF_SEQ_TO_POS(mbp, seq)	((seq) % (mbp)->msg_size)
-/* Subtract sequence numbers.  Note that only positive values result. */
-#define	MSGBUF_SEQSUB(mbp, seq1, seq2)	(MSGBUF_SEQNORM((mbp), (seq1) - (seq2)))
+/* Add/subtract normalized sequence numbers.  Normalized values result. */
+#define	MSGBUF_SEQADD(mbp, seq1, seq2)	(((seq1) + (seq2)) % (mbp)->msg_seqmod)
+#define	MSGBUF_SEQSUB(mbp, seq1, seq2)	((seq1) >= (seq2) ? (seq1) - (seq2) : \
+    (seq1) + (mbp)->msg_seqmod - (seq2))
 
 #ifdef _KERNEL
 extern int	msgbufsize;
