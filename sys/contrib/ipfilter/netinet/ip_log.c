@@ -666,7 +666,7 @@ ipf_log_read(softc, unit, uio)
 	struct uio *uio;
 {
 	ipf_log_softc_t *softl = softc->ipf_log_soft;
-	size_t dlen, copied;
+	size_t dlen;
 	int error = 0;
 	iplog_t *ipl;
 	SPL_INT(s);
@@ -738,7 +738,7 @@ ipf_log_read(softc, unit, uio)
 	uio->uio_rw = UIO_READ;
 # endif
 
-	for (copied = 0; (ipl = softl->iplt[unit]) != NULL; copied += dlen) {
+	for (; (ipl = softl->iplt[unit]) != NULL;) {
 		dlen = ipl->ipl_dsize;
 		if (dlen > uio->uio_resid)
 			break;
