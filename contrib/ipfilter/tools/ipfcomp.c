@@ -65,7 +65,6 @@ static	FILE	*cfile = NULL;
 void printc(fr)
 	frentry_t *fr;
 {
-	fripf_t *ipf;
 	u_long *ulp;
 	char *and;
 	FILE *fp;
@@ -78,7 +77,6 @@ void printc(fr)
 	if ((fr->fr_type == FR_T_IPF) &&
 	    ((fr->fr_datype != FRI_NORMAL) || (fr->fr_satype != FRI_NORMAL)))
 		return;
-	ipf = fr->fr_ipf;
 
 	if (cfile == NULL)
 		cfile = fopen("ip_rules.c", "w");
