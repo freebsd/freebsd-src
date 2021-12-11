@@ -76,7 +76,7 @@ usage(prog)
 	fprintf(stderr, "\t-l [-dv] [-m <name>] [-t <type>] [-o <role>] [-M <core>] [-N <namelist>]\n");
 	fprintf(stderr, "\t-r [-dnv] [-m <name>] [-o <role>] [-t type] -i <ipaddr>[/netmask]\n");
 	fprintf(stderr, "\t-R [-dnv] [-m <name>] [-o <role>] [-t <type>]\n");
-	fprintf(stderr, "\t-s [-dtv] [-M <core>] [-N <namelist>]\n");
+	fprintf(stderr, "\t-s [-dtv]\n");
 	exit(1);
 }
 
@@ -431,16 +431,12 @@ poolstats(argc, argv)
 	int argc;
 	char *argv[];
 {
-	int c, type, role, live_kernel;
+	int c, type, role;
 	ipf_pool_stat_t plstat;
 	ipf_dstl_stat_t dlstat;
-	char *kernel, *core;
 	iphtstat_t htstat;
 	iplookupop_t op;
 
-	core = NULL;
-	kernel = NULL;
-	live_kernel = 1;
 	type = IPLT_ALL;
 	role = IPL_LOGALL;
 
@@ -451,14 +447,6 @@ poolstats(argc, argv)
 		{
 		case 'd' :
 			opts |= OPT_DEBUG;
-			break;
-		case 'M' :
-			live_kernel = 0;
-			core = optarg;
-			break;
-		case 'N' :
-			live_kernel = 0;
-			kernel = optarg;
 			break;
 		case 'o' :
 			role = getrole(optarg);
