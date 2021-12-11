@@ -54,7 +54,7 @@ mount /dev/md$mdstart $mntpoint
 set +e
 
 for i in `jot 128`; do
-	$dir/mmap39 &
+	proccontrol -m aslr -s disable $dir/mmap39 &
 	pids="$pids $!"
 done
 s=0
