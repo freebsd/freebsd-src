@@ -138,16 +138,13 @@ static	int	ipcap_read_rec(rec)
 	packetheader_t *rec;
 {
 	int	n, p, i;
-	char	*s;
 
-	s = (char *)rec;
 	n = sizeof(*rec);
 
 	while (n > 0) {
 		i = read(pfd, (char *)rec, sizeof(*rec));
 		if (i <= 0)
 			return -2;
-		s += i;
 		n -= i;
 	}
 
