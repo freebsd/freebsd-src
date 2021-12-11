@@ -65,10 +65,8 @@ static	int	hex_readip(mb, ifn, dir)
 	char	line[513];
 	ip_t	*ip;
 	char	*buf;
-	int	cnt;
 
 	buf = (char *)mb->mb_buf;
-	cnt = sizeof(mb->mb_buf);
 	/*
 	 * interpret start of line as possibly "[ifname]" or
 	 * "[in/out,ifname]".
