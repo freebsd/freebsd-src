@@ -37,11 +37,13 @@
 
 dir=/tmp
 odir=`pwd`
+save=/tmp/elf.sh.img
+[ -f $save ] && { echo "$save exists"; exit 0; }
 cc -o /tmp/flip -Wall -Wextra -O2 ../tools/flip.c || exit 1
 
 set -e
 mount | grep "on $mntpoint " | grep -q /dev/md && umount -f $mntpoint
-[ -c /dev/md$mdstart ] &&  mdconfig -d -u $mdstart
+[ -c /dev/md$mdstart ] && mdconfig -d -u $mdstart
 mdconfig -a -t swap -s 2g -u $mdstart
 newfs $newfs_flags md$mdstart > /dev/null
 mount /dev/md$mdstart $mntpoint
@@ -54,6 +56,7 @@ while [ $((`date +%s` - start)) -lt 180 ]; do
 	cp /bin/ps ./elf
 	for j in `jot 10`; do
 		/tmp/flip -n 1 ./elf
+		cp elf $save; fsync $save; sync
 		timeout -s SIGKILL 2 ./elf aux > /dev/null 2>&1 || break
 		rm -f *.core
 	done
@@ -67,5 +70,5 @@ for i in `jot 6`; do
 	    { echo FATAL; fstat -mf $mntpoint; exit 1; }
 done
 mdconfig -d -u $mdstart
-rm /tmp/flip
+rm /tmp/flip $save
 exit 0
