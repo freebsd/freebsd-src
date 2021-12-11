@@ -122,10 +122,8 @@ static	int	text_readip(mb, ifn, dir)
 	char	line[513];
 	ip_t	*ip;
 	char	*buf;
-	int	cnt;
 
 	buf = (char *)mb->mb_buf;
-	cnt = sizeof(mb->mb_buf);
 
 	*ifn = NULL;
 	while (fgets(line, sizeof(line)-1, tfp)) {
