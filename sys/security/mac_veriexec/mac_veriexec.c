@@ -50,6 +50,11 @@
 #include <sys/stat.h>
 #include <sys/sysctl.h>
 #include <sys/vnode.h>
+#ifdef COMPAT_FREEBSD32
+#include <sys/sysent.h>
+#include <sys/stdint.h>
+#include <sys/abi_compat.h>
+#endif
 #include <fs/nullfs/null.h>
 #include <security/mac/mac_framework.h>
 #include <security/mac/mac_policy.h>
@@ -805,6 +810,24 @@ mac_veriexec_init(struct mac_policy_conf *mpc __unused)
 		mac_veriexec_ops.mpo_vnode_check_unlink = NULL;
 }
 
+#ifdef COMPAT_FREEBSD32
+struct mac_veriexec_syscall_params32  {
+	char fp_type[VERIEXEC_FPTYPELEN];
+	unsigned char fingerprint[MAXFINGERPRINTLEN];
+	char label[MAXLABELLEN];
+	uint32_t labellen;
+	unsigned char flags;
+};
+
+struct mac_veriexec_syscall_params_args32 {
+	union {
+		pid_t pid;
+		uint32_t filename;
+	} u;				  /* input only */
+	uint32_t params;		  /* result */
+};
+#endif
+
 /**
  * @internal
  * @brief MAC policy-specific syscall for mac_veriexec
@@ -830,6 +853,10 @@ mac_veriexec_syscall(struct thread *td, int call, void *arg)
 	struct file *fp;
 	struct mac_veriexec_syscall_params_args pargs;
 	struct mac_veriexec_syscall_params result;
+#ifdef COMPAT_FREEBSD32
+	struct mac_veriexec_syscall_params_args32 pargs32;
+	struct mac_veriexec_syscall_params32 result32;
+#endif
 	struct mac_veriexec_file_info *ip;
 	struct proc *proc;
 	struct vnode *textvp;
@@ -841,6 +868,23 @@ mac_veriexec_syscall(struct thread *td, int call, void *arg)
 	switch (call) {
 	case MAC_VERIEXEC_GET_PARAMS_PID_SYSCALL:
 	case MAC_VERIEXEC_GET_PARAMS_PATH_SYSCALL:
+#ifdef COMPAT_FREEBSD32
+		if (SV_PROC_FLAG(td->td_proc, SV_ILP32)) {
+			error = copyin(arg, &pargs32, sizeof(pargs32));
+			if (error)
+				return error;
+			bzero(&pargs, sizeof(pargs));
+			switch (call) {
+			case MAC_VERIEXEC_GET_PARAMS_PID_SYSCALL:
+				CP(pargs32, pargs, u.pid);
+				break;
+			case MAC_VERIEXEC_GET_PARAMS_PATH_SYSCALL:
+				PTRIN_CP(pargs32, pargs, u.filename);
+				break;
+			}
+			PTRIN_CP(pargs32, pargs, params);
+		} else
+#endif
 		error = copyin(arg, &pargs, sizeof(pargs));
 		if (error)
 			return error;
@@ -941,6 +985,24 @@ cleanup_file:
 		if (error != 0)
 			break;
 
+#ifdef COMPAT_FREEBSD32
+		if (SV_PROC_FLAG(td->td_proc, SV_ILP32)) {
+			bzero(&result32, sizeof(result32));
+			result32.flags = ip->flags;
+			strlcpy(result32.fp_type, ip->ops->type, sizeof(result32.fp_type));
+			result.labellen = ip->labellen;
+			CP(result, result32, labellen);
+			if (ip->labellen > 0)
+				strlcpy(result32.label, ip->label, sizeof(result32.label));
+			result32.label[result.labellen] = '\0';
+			memcpy(result32.fingerprint, ip->fingerprint,
+			    ip->ops->digest_len);
+
+			error = copyout(&result32, pargs.params, sizeof(result32));
+			break;		/* yes */
+		}
+#endif
+		bzero(&result, sizeof(result));
 		result.flags = ip->flags;
 		strlcpy(result.fp_type, ip->ops->type, sizeof(result.fp_type));
 		result.labellen = ip->labellen;
