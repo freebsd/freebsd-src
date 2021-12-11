@@ -70,12 +70,9 @@ syzkaller40.sh		WiP								20210607
 syzkaller41.sh		WiP								20210607
 syzkaller42.sh		WiP								20210613
 syzkaller43.sh		WiP								20210906
-syzkaller46.sh		WiP								20211026
-syzkaller47.sh		WiP								20211026
+syzkaller46.sh		WiP								20210925
+syzkaller47.sh		WiP								20210925
 truss3.sh		WiP								20200915
-unionfs4.sh		WiP								20210916
-unionfs6.sh		WiP								20211115
-zfs14.sh		WiP								20211110
 
 # Test not to run for other reasons:
 
