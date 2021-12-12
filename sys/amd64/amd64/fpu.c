@@ -480,7 +480,7 @@ fpuinitstate(void *arg __unused)
 		xsave_area_desc[0].size = 160;
 		/* XMM */
 		xsave_area_desc[1].offset = 160;
-		xsave_area_desc[1].size = 288 - 160;
+		xsave_area_desc[1].size = 416 - 160;
 
 		for (i = 2; i < max_ext_n; i++) {
 			cpuid_count(0xd, i, cp);
