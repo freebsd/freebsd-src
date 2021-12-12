@@ -38,7 +38,7 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
-# 2020mmdd: new clang import which bumps version from 10.0.1 to 11.0.0.
+# 20211214: new clang import which bumps version from 10.0.1 to 11.0.0.
 OLD_FILES+=usr/lib/clang/10.0.1/include/cuda_wrappers/algorithm
 OLD_FILES+=usr/lib/clang/10.0.1/include/cuda_wrappers/complex
 OLD_FILES+=usr/lib/clang/10.0.1/include/cuda_wrappers/new
