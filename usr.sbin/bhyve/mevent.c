@@ -175,7 +175,14 @@ mevent_kq_filter(struct mevent *mevp)
 static int
 mevent_kq_flags(struct mevent *mevp)
 {
-	return (mevp->me_state);
+	int retval;
+
+	retval = mevp->me_state;
+
+	if (mevp->me_type == EVF_VNODE)
+		retval |= EV_CLEAR;
+
+	return (retval);
 }
 
 static int
