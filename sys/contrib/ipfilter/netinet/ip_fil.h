@@ -358,7 +358,11 @@ typedef enum ipf_cksum_e {
 
 typedef	struct	fr_info	{
 	void	*fin_main_soft;
+#ifdef __FreeBSD__
+	struct ifnet	*fin_ifp;	/* interface packet is `on' */
+#else
 	void	*fin_ifp;		/* interface packet is `on' */
+#endif
 	struct	frentry *fin_fr;	/* last matching rule */
 	int	fin_out;		/* in or out ? 1 == out, 0 == in */
 	fr_ip_t	fin_fi;			/* IP Packet summary */
