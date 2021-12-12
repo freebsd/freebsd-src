@@ -6253,6 +6253,10 @@ nfscl_doiods(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 					    timo);
 				if (error == 0 && tdrpc->err != 0)
 					error = tdrpc->err;
+				if (rwaccess != NFSV4OPEN_ACCESSREAD &&
+				    docommit == 0 && *must_commit == 0 &&
+				    tdrpc->must_commit == 1)
+					*must_commit = 1;
 			}
 			free(drpc, M_TEMP);
 			if (error == 0) {
@@ -7001,8 +7005,8 @@ nfsio_writedsmir(vnode_t vp, int *iomode, int *must_commit,
 		NFSCL_DEBUG(4, "nfsio_writedsmir: nfs_pnfsio=%d\n", ret);
 	}
 	if (ret != 0)
-		error = nfsrpc_writedsmir(vp, iomode, must_commit, stateidp,
-		    dsp, off, len, fhp, m, vers, minorvers, cred, p);
+		error = nfsrpc_writedsmir(vp, iomode, &drpc->must_commit,
+		    stateidp, dsp, off, len, fhp, m, vers, minorvers, cred, p);
 	NFSCL_DEBUG(4, "nfsio_writedsmir: error=%d\n", error);
 	return (error);
 }
