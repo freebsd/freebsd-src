@@ -1112,7 +1112,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	Elf_Brandinfo *brand_info;
 	struct sysentvec *sv;
 	u_long addr, baddr, et_dyn_addr, entry, proghdr;
-	u_long maxalign, maxsalign, mapsz, maxv, maxv1;
+	u_long maxalign, maxsalign, mapsz, maxv, maxv1, anon_loc;
 	uint32_t fctl0;
 	int32_t osrel;
 	bool free_interp;
@@ -1356,9 +1356,10 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 		maxv1 = maxv / 2 + addr / 2;
 		error = __CONCAT(rnd_, __elfN(base))(map, addr, maxv1,
 		    (MAXPAGESIZES > 1 && pagesizes[1] != 0) ?
-		    pagesizes[1] : pagesizes[0], &map->anon_loc);
+		    pagesizes[1] : pagesizes[0], &anon_loc);
 		if (error != 0)
 			goto ret;
+		map->anon_loc = anon_loc;
 	} else {
 		map->anon_loc = addr;
 	}
