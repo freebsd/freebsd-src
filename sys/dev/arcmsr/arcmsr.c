@@ -85,6 +85,8 @@
 ** 1.50.00.01   02/26/2021  Ching Huang     Fixed no action of hot plugging device on type_F adapter
 ** 1.50.00.02   04/16/2021  Ching Huang     Fixed scsi command timeout on ARC-1886 when
 **                                          scatter-gather count large than some number
+** 1.50.00.03   05/04/2021  Ching Huang     Fixed doorbell status arrived late on ARC-1886
+** 1.50.00.04   12/08/2021  Ching Huang     Fixed boot up hung under ARC-1886 with no volume created
 ******************************************************************************************
 */
 
@@ -142,7 +144,7 @@ __FBSDID("$FreeBSD$");
 
 #define arcmsr_callout_init(a)	callout_init(a, /*mpsafe*/1);
 
-#define ARCMSR_DRIVER_VERSION	"arcmsr version 1.50.00.02 2021-04-16"
+#define ARCMSR_DRIVER_VERSION	"arcmsr version 1.50.00.04 2021-12-08"
 #include <dev/arcmsr/arcmsr.h>
 /*
 **************************************************************************
@@ -2028,6 +2030,39 @@ static void arcmsr_hbe_doorbell_isr(struct AdapterControlBlock *acb)
 **************************************************************************
 **************************************************************************
 */
+static void arcmsr_hbf_doorbell_isr(struct AdapterControlBlock *acb)
+{
+	u_int32_t doorbell_status, in_doorbell;
+
+	/*
+	*******************************************************************
+	**  Maybe here we need to check wrqbuffer_lock is lock or not
+	**  DOORBELL: din! don!
+	**  check if there are any mail need to pack from firmware
+	*******************************************************************
+	*/
+	while(1) {
+		in_doorbell = CHIP_REG_READ32(HBE_MessageUnit, 0, iobound_doorbell);
+		if ((in_doorbell != 0) && (in_doorbell != 0xFFFFFFFF))
+			break;
+	}
+	CHIP_REG_WRITE32(HBE_MessageUnit, 0, host_int_status, 0); /* clear doorbell interrupt */
+	doorbell_status = in_doorbell ^ acb->in_doorbell;
+	if(doorbell_status & ARCMSR_HBEMU_IOP2DRV_DATA_WRITE_OK) {
+		arcmsr_iop2drv_data_wrote_handle(acb);
+	}
+	if(doorbell_status & ARCMSR_HBEMU_IOP2DRV_DATA_READ_OK) {
+		arcmsr_iop2drv_data_read_handle(acb);
+	}
+	if(doorbell_status & ARCMSR_HBEMU_IOP2DRV_MESSAGE_CMD_DONE) {
+		arcmsr_hbe_message_isr(acb);    /* messenger of "driver to iop commands" */
+	}
+	acb->in_doorbell = in_doorbell;
+}
+/*
+**************************************************************************
+**************************************************************************
+*/
 static void arcmsr_hba_postqueue_isr(struct AdapterControlBlock *acb)
 {
 	u_int32_t flag_srb;
@@ -2401,7 +2436,7 @@ static void arcmsr_handle_hbf_isr( struct AdapterControlBlock *acb)
 	do {
 		/* MU doorbell interrupts*/
 		if(host_interrupt_status & ARCMSR_HBEMU_OUTBOUND_DOORBELL_ISR) {
-			arcmsr_hbe_doorbell_isr(acb);
+			arcmsr_hbf_doorbell_isr(acb);
 		}
 		/* MU post queue interrupts*/
 		if(host_interrupt_status & ARCMSR_HBEMU_OUTBOUND_POSTQUEUE_ISR) {
@@ -4827,9 +4862,9 @@ static u_int32_t arcmsr_initialize(device_t dev)
 		acb->in_doorbell = 0;
 		acb->out_doorbell = 0;
 		acb->rid[0] = rid0;
-		arcmsr_wait_firmware_ready(acb);
 		CHIP_REG_WRITE32(HBF_MessageUnit, 0, host_int_status, 0); /*clear interrupt*/
 		CHIP_REG_WRITE32(HBF_MessageUnit, 0, iobound_doorbell, ARCMSR_HBEMU_DOORBELL_SYNC); /* synchronize doorbell to 0 */
+		arcmsr_wait_firmware_ready(acb);
 		host_buffer_dma = acb->completeQ_phys + COMPLETION_Q_POOL_SIZE;
 		CHIP_REG_WRITE32(HBF_MessageUnit, 0, inbound_msgaddr0, (u_int32_t)(host_buffer_dma | 1));  /* host buffer low addr, bit0:1 all buffer active */
 		CHIP_REG_WRITE32(HBF_MessageUnit, 0, inbound_msgaddr1, (u_int32_t)((host_buffer_dma >> 16) >> 16));/* host buffer high addr */
