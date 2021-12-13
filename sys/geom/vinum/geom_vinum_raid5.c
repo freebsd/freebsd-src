@@ -345,14 +345,11 @@ static int
 gv_raid5_request(struct gv_plex *p, struct gv_raid5_packet *wp,
     struct bio *bp, caddr_t addr, off_t boff, off_t bcount, int *delay)
 {
-	struct g_geom *gp;
 	struct gv_sd *broken, *original, *parity, *s;
 	struct gv_bioq *bq;
 	struct bio *cbp;
 	int i, psdno, sdno, type, grow;
 	off_t real_len, real_off;
-
-	gp = bp->bio_to->geom;
 
 	if (p == NULL || LIST_EMPTY(&p->subdisks))
 		return (ENXIO);

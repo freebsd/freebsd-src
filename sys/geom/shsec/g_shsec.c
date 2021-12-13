@@ -249,11 +249,9 @@ g_shsec_xor1(uint32_t *src, uint32_t *dst, ssize_t len)
 static void
 g_shsec_done(struct bio *bp)
 {
-	struct g_shsec_softc *sc;
 	struct bio *pbp;
 
 	pbp = bp->bio_parent;
-	sc = pbp->bio_to->geom->softc;
 	if (bp->bio_error == 0)
 		G_SHSEC_LOGREQ(2, bp, "Request done.");
 	else {

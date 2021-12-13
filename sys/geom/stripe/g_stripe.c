@@ -203,7 +203,7 @@ static int
 g_stripe_access(struct g_provider *pp, int dr, int dw, int de)
 {
 	struct g_consumer *cp1, *cp2, *tmp;
-	struct g_stripe_softc *sc;
+	struct g_stripe_softc *sc __diagused;
 	struct g_geom *gp;
 	int error;
 

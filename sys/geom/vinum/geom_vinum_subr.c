@@ -1124,7 +1124,7 @@ int
 gv_attach_plex(struct gv_plex *p, struct gv_volume *v, int rename)
 {
 	struct gv_sd *s;
-	struct gv_softc *sc;
+	struct gv_softc *sc __diagused;
 
 	g_topology_assert();
 
