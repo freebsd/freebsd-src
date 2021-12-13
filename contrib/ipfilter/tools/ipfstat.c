@@ -1531,7 +1531,7 @@ static void topipstates(saddr, daddr, sport, dport, protocol, ver,
 		attron(A_BOLD);
 		winy = 0;
 		move(winy,0);
-		sprintf(str1, "%s - %s - state top", hostnm, IPL_VERSION);
+		snprintf(str1, sizeof(str1), "%s - %s - state top", hostnm, IPL_VERSION);
 		for (j = 0 ; j < (maxx - 8 - strlen(str1)) / 2; j++)
 			printw(" ");
 		printw("%s", str1);
@@ -1549,50 +1549,50 @@ static void topipstates(saddr, daddr, sport, dport, protocol, ver,
 		 * while the programming is running :-)
 		 */
 		if (sport >= 0)
-			sprintf(str1, "%s,%d", getip(ver, &saddr), sport);
+			snprintf(str1, sizeof(str1), "%s,%d", getip(ver, &saddr), sport);
 		else
-			sprintf(str1, "%s", getip(ver, &saddr));
+			snprintf(str1, sizeof(str1), "%s", getip(ver, &saddr));
 
 		if (dport >= 0)
-			sprintf(str2, "%s,%d", getip(ver, &daddr), dport);
+			snprintf(str2, sizeof(str2), "%s,%d", getip(ver, &daddr), dport);
 		else
-			sprintf(str2, "%s", getip(ver, &daddr));
+			snprintf(str2, sizeof(str2), "%s", getip(ver, &daddr));
 
 		if (protocol < 0)
 			strcpy(str3, "any");
 		else if ((proto = getprotobynumber(protocol)) != NULL)
-			sprintf(str3, "%s", proto->p_name);
+			snprintf(str3, sizeof(str3), "%s", proto->p_name);
 		else
-			sprintf(str3, "%d", protocol);
+			snprintf(str3, sizeof(str3), "%d", protocol);
 
 		switch (sorting)
 		{
 		case STSORT_PR:
-			sprintf(str4, "proto");
+			snprintf(str4, sizeof(str4), "proto");
 			break;
 		case STSORT_PKTS:
-			sprintf(str4, "# pkts");
+			snprintf(str4, sizeof(str4), "# pkts");
 			break;
 		case STSORT_BYTES:
-			sprintf(str4, "# bytes");
+			snprintf(str4, sizeof(str4), "# bytes");
 			break;
 		case STSORT_TTL:
-			sprintf(str4, "ttl");
+			snprintf(str4, sizeof(str4), "ttl");
 			break;
 		case STSORT_SRCIP:
-			sprintf(str4, "src ip");
+			snprintf(str4, sizeof(str4), "src ip");
 			break;
 		case STSORT_SRCPT:
-			sprintf(str4, "src port");
+			snprintf(str4, sizeof(str4), "src port");
 			break;
 		case STSORT_DSTIP:
-			sprintf(str4, "dest ip");
+			snprintf(str4, sizeof(str4), "dest ip");
 			break;
 		case STSORT_DSTPT:
-			sprintf(str4, "dest port");
+			snprintf(str4, sizeof(str4), "dest port");
 			break;
 		default:
-			sprintf(str4, "unknown");
+			snprintf(str4, sizeof(str4), "unknown");
 			break;
 		}
 
@@ -1639,16 +1639,16 @@ static void topipstates(saddr, daddr, sport, dport, protocol, ver,
 			/* print src/dest and port */
 			if ((tp->st_p == IPPROTO_TCP) ||
 			    (tp->st_p == IPPROTO_UDP)) {
-				sprintf(str1, "%s,%hu",
+				snprintf(str1, sizeof(str1), "%s,%hu",
 					getip(tp->st_v, &tp->st_src),
 					ntohs(tp->st_sport));
-				sprintf(str2, "%s,%hu",
+				snprintf(str2, sizeof(str2), "%s,%hu",
 					getip(tp->st_v, &tp->st_dst),
 					ntohs(tp->st_dport));
 			} else {
-				sprintf(str1, "%s", getip(tp->st_v,
+				snprintf(str1, sizeof(str1), "%s", getip(tp->st_v,
 				    &tp->st_src));
-				sprintf(str2, "%s", getip(tp->st_v,
+				snprintf(str2, sizeof(str2), "%s", getip(tp->st_v,
 				    &tp->st_dst));
 			}
 			winy++;
@@ -1656,7 +1656,7 @@ static void topipstates(saddr, daddr, sport, dport, protocol, ver,
 			printw("%-*s %-*s", srclen + 6, str1, dstlen + 6, str2);
 
 			/* print state */
-			sprintf(str1, "%X/%X", tp->st_state[0],
+			snprintf(str1, sizeof(str1), "%X/%X", tp->st_state[0],
 				tp->st_state[1]);
 			printw(" %3s", str1);
 
@@ -1666,7 +1666,7 @@ static void topipstates(saddr, daddr, sport, dport, protocol, ver,
 				strncpy(str1, proto->p_name, 4);
 				str1[4] = '\0';
 			} else {
-				sprintf(str1, "%d", tp->st_p);
+				snprintf(str1, sizeof(str1), "%d", tp->st_p);
 			}
 			/* just print icmp for IPv6-ICMP */
 			if (tp->st_p == IPPROTO_ICMPV6)
@@ -2015,9 +2015,9 @@ static char *ttl_to_string(ttl)
 	seconds = ttl % 60;
 
 	if (hours > 0)
-		sprintf(ttlbuf, "%2d:%02d:%02d", hours, minutes, seconds);
+		snprintf(ttlbuf, sizeof(ttlbuf), "%2d:%02d:%02d", hours, minutes, seconds);
 	else
-		sprintf(ttlbuf, "%2d:%02d", minutes, seconds);
+		snprintf(ttlbuf, sizeof(ttlbuf), "%2d:%02d", minutes, seconds);
 	return ttlbuf;
 }
 
