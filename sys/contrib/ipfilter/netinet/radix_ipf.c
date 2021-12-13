@@ -1421,11 +1421,11 @@ add_addr(rnh, n, item)
 	stp->next = myst_top;
 	myst_top = stp;
 #ifdef RDX_DEBUG
-	(void) sprintf(rn[0].name, "_BORN.0");
-	(void) sprintf(rn[1].name, "_BORN.1");
+	(void) snprintf(rn[0].name, sizeof(ipf_rdx_node.name), "_BORN.0");
+	(void) snprintf(rn[1].name, sizeof(ipf_rdx_node.name), "_BORN.1");
 	rn = ipf_rx_addroute(rnh, &stp->dst, &stp->mask, stp->nodes);
-	(void) sprintf(rn[0].name, "%d_NODE.0", item);
-	(void) sprintf(rn[1].name, "%d_NODE.1", item);
+	(void) snprintf(rn[0].name, sizeof(ipf_rdx_node.name), "%d_NODE.0", item);
+	(void) snprintf(rn[1].name, sizeof(ipf_rdx_node.name), "%d_NODE.1", item);
 	printf("ADD %d/%d %s/%s\n", n, item, rn[0].name, rn[1].name);
 #endif
 	nodecount++;

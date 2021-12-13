@@ -789,7 +789,7 @@ ipf_p_rpcb_modreq(fin, nat, rm, m, off)
 
 	/* Form new string. */
 	bzero(uaddr, sizeof(uaddr)); /* Just in case we need padding. */
-	(void) sprintf(uaddr,
+	(void) snprintf(uaddr, sizeof(uaddr),
 		       "%u.%u.%u.%u.%u.%u", i[0] & 0xff, i[1] & 0xff,
 		       i[2] & 0xff, i[3] & 0xff, p[0] & 0xff, p[1] & 0xff);
 	len = strlen(uaddr);
@@ -1322,7 +1322,7 @@ ipf_p_rpcb_modv3(fin, nat, rm, m, off)
 
 	/* Form new string. */
 	bzero(uaddr, sizeof(uaddr)); /* Just in case we need padding. */
-	(void) sprintf(uaddr,
+	(void) snprintf(uaddr, sizeof(uaddr),
 		       "%u.%u.%u.%u.%u.%u", i[0] & 0xff, i[1] & 0xff,
 		       i[2] & 0xff, i[3] & 0xff, p[0] & 0xff, p[1] & 0xff);
 	len = strlen(uaddr);
@@ -1398,7 +1398,7 @@ ipf_p_rpcb_modv4(fin, nat, rm, m, off)
 		/* Form new string. */
 		bzero(uaddr, sizeof(uaddr)); /* Just in case we need
 						padding. */
-		(void) sprintf(uaddr,
+		(void) snprintf(uaddr, sizeof(uaddr),
 			       "%u.%u.%u.%u.%u.%u", i[0] & 0xff,
 			       i[1] & 0xff, i[2] & 0xff, i[3] & 0xff,
 			       p[0] & 0xff, p[1] & 0xff);

@@ -4305,7 +4305,7 @@ ipf_getstat(softc, fiop, rev)
 	fiop->f_features = ipf_features;
 
 #ifdef IPFILTER_COMPAT
-	sprintf(fiop->f_version, "IP Filter: v%d.%d.%d",
+	snprintf(fiop->f_version, sizeof(friostat.f_version), "IP Filter: v%d.%d.%d",
 		(rev / 1000000) % 100,
 		(rev / 10000) % 100,
 		(rev / 100) % 100);
@@ -5611,7 +5611,7 @@ ipf_grpmapinit(softc, fr)
 	char name[FR_GROUPLEN];
 	iphtable_t *iph;
 
-	(void) sprintf(name, "%d", fr->fr_arg);
+	(void) snprintf(name, sizeof(name), "%d", fr->fr_arg);
 	iph = ipf_lookup_find_htable(softc, IPL_LOGIPF, name);
 	if (iph == NULL) {
 		IPFERROR(38);
@@ -6168,7 +6168,7 @@ ipf_getifname(ifp, buffer)
 	unit = ifp->if_unit;
 	space = LIFNAMSIZ - (s - buffer);
 	if ((space > 0) && (unit >= 0)) {
-		(void) sprintf(temp, "%d", unit);
+		(void) snprintf(temp, sizeof(name), "%d", unit);
 		(void) strncpy(s, temp, space);
 	}
 # endif
