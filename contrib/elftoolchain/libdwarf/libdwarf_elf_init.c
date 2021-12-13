@@ -398,17 +398,17 @@ _dwarf_elf_init(Dwarf_Debug dbg, Elf *elf, Dwarf_Error *error)
 			}
 
 			if ((sh.sh_flags & SHF_COMPRESSED) != 0) {
-				if (_dwarf_elf_decompress(dbg, e, scn, ed,
-				    es, error) != DW_DLE_NONE)
+				if ((ret = _dwarf_elf_decompress(dbg, e, scn,
+				    ed, es, error)) != DW_DLE_NONE)
 					goto fail_cleanup;
 			} else {
 				ed->ed_size = ed->ed_data->d_size;
 			}
 
 			if (_libdwarf.applyreloc) {
-				if (_dwarf_elf_relocate(dbg, elf,
+				if ((ret = _dwarf_elf_relocate(dbg, elf,
 				    &e->eo_data[j], elf_ndxscn(scn), symtab_ndx,
-				    symtab_data, error) != DW_DLE_NONE)
+				    symtab_data, error)) != DW_DLE_NONE)
 					goto fail_cleanup;
 			}
 
