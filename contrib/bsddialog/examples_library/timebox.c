@@ -30,7 +30,7 @@ int main()
 
 	bsddialog_initconf(&conf);
 	conf.title = "timebox";
-	conf.hline = "Press TAB and arrows";
+	conf.bottomtitle = "Press TAB and arrows";
 	
 	if (bsddialog_init() < 0)
 		return -1;
@@ -40,13 +40,13 @@ int main()
 	bsddialog_end();
 
 	switch (output) {
-	case BSDDIALOG_YESOK:
+	case BSDDIALOG_OK:
 		printf("Time: [%u:%u:%u]\n", hh, mm, ss);
 		break;
 	case BSDDIALOG_ESC:
 		printf("ESC\n");
 		break;
-	case BSDDIALOG_NOCANCEL:
+	case BSDDIALOG_CANCEL:
 		printf("Cancel\n");
 		break;
 	case BSDDIALOG_ERROR:

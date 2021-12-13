@@ -27,7 +27,7 @@ int main()
 
 	bsddialog_initconf(&conf);
 	conf.title = "radiolist";
-	conf.menu.no_tags = true;
+	conf.menu.no_name = true;
 	conf.menu.align_left = true;
 	
 	if (bsddialog_init() < 0)

@@ -31,9 +31,9 @@
 #include <string.h>
 
 #ifdef PORTNCURSES
-#include <ncurses/curses.h>
+#include <ncurses/ncurses.h>
 #else
-#include <curses.h>
+#include <ncurses.h>
 #endif
 
 #include "bsddialog.h"
@@ -271,6 +271,61 @@ getfastprev(int menurows, struct bsddialog_menugroup *groups, int *abs,
 	} while (*abs != a && *abs > start - menurows && i > 0);
 }
 
+static bool
+getnextshortcut(struct bsddialog_conf *conf, enum menumode mode, int ngroups,
+    struct bsddialog_menugroup *groups, int *abs, int *group, int *rel,
+    int key)
+{
+	int i, j, a, ch, ng, nr, na;
+	bool mainloop;
+
+	if (*abs < 0 || ngroups < 0 || *rel < 0 || mode == BUILDLISTMODE)
+		return false;
+
+	na = a = -1;
+	mainloop = true;
+	for (i = 0; i < ngroups && mainloop; i++) {
+		if (groups[i].type == BSDDIALOG_SEPARATOR) {
+			a += groups[i].nitems;
+			continue;
+		}
+		for (j = 0; j < (int)groups[i].nitems; j++) {
+			a++;
+			if (a == *abs)
+				continue;
+
+			if (conf->menu.no_name)
+				ch = groups[i].items[j].desc[0];
+			else
+				ch = groups[i].items[j].name[0];
+	
+			if (ch == key) {
+				if (a < *abs && na == -1) {
+					na = a;
+					ng = i;
+					nr = j;
+				}
+				if (a > *abs) {
+					na = a;
+					ng = i;
+					nr = j;
+					mainloop = false;
+					break;
+				}
+			}
+		}
+	}
+
+	if (na != -1) {
+		*abs = na;
+		*group = ng;
+		*rel = nr;
+		return (true);
+	}
+
+	return (false);
+}
+
 static enum menumode
 getmode(enum menumode mode, struct bsddialog_menugroup group)
 {
@@ -292,10 +347,8 @@ drawitem(struct bsddialog_conf *conf, WINDOW *pad, int y,
     struct bsddialog_menuitem item, enum menumode mode, struct lineposition pos,
     bool curr)
 {
-	int color, colorname, linech;
-
-	color = curr ? t.menu.f_desccolor : t.menu.desccolor;
-	colorname = curr ? t.menu.f_namecolor : t.menu.namecolor;
+	int colordesc, colorname, colorshortcut, linech;
+	char *shortcut;
 
 	if (mode == SEPARATORMODE) {
 		if (conf->no_lines == false) {
@@ -322,14 +375,15 @@ drawitem(struct bsddialog_conf *conf, WINDOW *pad, int y,
 
 	/* selector */
 	wmove(pad, y, pos.xselector);
-	wattron(pad, color);
+	wattron(pad, t.menu.selectorcolor);
 	if (mode == CHECKLISTMODE)
 		wprintw(pad, "[%c]", item.on ? 'X' : ' ');
 	if (mode == RADIOLISTMODE)
 		wprintw(pad, "(%c)", item.on ? '*' : ' ');
-	wattroff(pad, color);
+	wattroff(pad, t.menu.selectorcolor);
 
 	/* name */
+	colorname = curr ? t.menu.f_namecolor : t.menu.namecolor;
 	if (mode != BUILDLISTMODE && conf->menu.no_name == false) {
 		wattron(pad, colorname);
 		mvwaddstr(pad, y, pos.xname + item.depth * DEPTHSPACE, item.name);
@@ -337,23 +391,47 @@ drawitem(struct bsddialog_conf *conf, WINDOW *pad, int y,
 	}
 
 	/* description */
-	if (conf->menu.no_desc == false) {
-		if ((mode == BUILDLISTMODE || conf->menu.no_name) && curr == false)
-			color = item.on ? t.menu.namecolor : t.menu.desccolor;
-		wattron(pad, color);
+	if (mode == BUILDLISTMODE) {
+		if (curr == false)
+			colordesc = item.on ? t.menu.namecolor : t.menu.desccolor;
+		else
+			colordesc = t.menu.f_namecolor;
+	}
+	else {
+		if (conf->menu.no_name)
+			colordesc = curr ? t.menu.f_namecolor : t.menu.namecolor;
+		else
+			colordesc = curr ? t.menu.f_desccolor : t.menu.desccolor;
+	}
+	if (mode == BUILDLISTMODE || conf->menu.no_desc == false) {
+		wattron(pad, colordesc);
 		if (conf->menu.no_name)
 			mvwaddstr(pad, y, pos.xname + item.depth * DEPTHSPACE, item.desc);
 		else
 			mvwaddstr(pad, y, pos.xdesc, item.desc);
-		wattroff(pad, color);
+		wattroff(pad, colordesc);
 	}
 
-	/* bottom desc (item help) */
-	if (item.bottomdesc != NULL && item.bottomdesc[0] != '\0') {
-		move(LINES-1, 2);
-		clrtoeol();
-		addstr(item.bottomdesc);
+	/* shortcut */
+	if (mode != BUILDLISTMODE && conf->menu.shortcut_buttons == false) {
+		colorshortcut = curr ? t.menu.f_shortcutcolor : t.menu.shortcutcolor;
+		wattron(pad, colorshortcut);
 
+		if (conf->menu.no_name)
+			shortcut = item.desc;
+		else
+			shortcut = item.name;
+		wmove(pad, y, pos.xname + item.depth * DEPTHSPACE);
+		if (shortcut != NULL && shortcut[0] != '\0')
+			waddch(pad, shortcut[0]);
+	wattroff(pad, colorshortcut);
+}
+
+	/* bottom description */
+	move(LINES-1, 2);
+	clrtoeol();
+	if (item.bottomdesc != NULL) {
+		addstr(item.bottomdesc);
 		refresh();
 	}
 }
@@ -374,6 +452,8 @@ menu_autosize(struct bsddialog_conf *conf, int rows, int cols, int *h, int *w,
 		*w += bs.nbuttons > 0 ? (bs.nbuttons-1) * t.button.space : 0;
 		/* line size */
 		*w = MAX(*w, linelen + 6);
+		/* conf.auto_minwidth */
+		*w = MAX(*w, (int)conf->auto_minwidth);
 		/*
 		* avoid terminal overflow,
 		* -1 fix false negative with big menu over the terminal and
@@ -395,8 +475,13 @@ menu_autosize(struct bsddialog_conf *conf, int rows, int cols, int *h, int *w,
 		else /* h autosize with a fixed menurows */
 			*h = *h + *menurows + 2;
 
+		/* conf.auto_minheight */
+		*h = MAX(*h, (int)conf->auto_minheight);
 		/* avoid terminal overflow */
 		*h = MIN(*h, widget_max_height(conf));
+		/* avoid menurows overflow */
+		/* manual: with rows=autosize menurows!=0 is maxmenurows */
+		*menurows = MIN(*h - 6 - textrow, (int)*menurows);
 	}
 	else {
 		if (*menurows == 0)
@@ -440,9 +525,9 @@ update_menuwin(struct bsddialog_conf *conf, WINDOW *menuwin, int h, int w,
     int totnitems, unsigned int menurows, int ymenupad)
 {
 
-	if (totnitems > (int) menurows) {
-		draw_borders(conf, menuwin, h, w, LOWERED);
+	draw_borders(conf, menuwin, h, w, LOWERED);
 
+	if (totnitems > (int) menurows) {
 		wattron(menuwin, t.menu.arrowcolor);
 
 		if (ymenupad > 0)
@@ -466,12 +551,14 @@ do_mixedlist(struct bsddialog_conf *conf, char* text, int rows, int cols,
 	WINDOW  *shadow, *widget, *textpad, *menuwin, *menupad;
 	int i, j, y, x, h, w, htextpad, output, input;
 	int ymenupad, ys, ye, xs, xe, abs, g, rel, totnitems;
-	bool loop, automenurows;
+	bool loop, automenurows, shortcut_buttons;
 	struct buttons bs;
 	struct bsddialog_menuitem *item;
 	enum menumode currmode;
 	struct lineposition pos = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-	
+
+	shortcut_buttons = conf->menu.shortcut_buttons;
+
 	automenurows = menurows == BSDDIALOG_AUTOSIZE ? true : false;
 
 	totnitems = 0;
@@ -497,7 +584,7 @@ do_mixedlist(struct bsddialog_conf *conf, char* text, int rows, int cols,
 			}
 
 			pos.maxprefix = MAX(pos.maxprefix, strlen(item->prefix));
-			pos.maxdepth  = MAX((int) pos.maxdepth, item->depth);
+			pos.maxdepth  = MAX(pos.maxdepth, item->depth);
 			pos.maxname   = MAX(pos.maxname, strlen(item->name));
 			pos.maxdesc   = MAX(pos.maxdesc, strlen(item->desc));
 		}
@@ -536,19 +623,22 @@ do_mixedlist(struct bsddialog_conf *conf, char* text, int rows, int cols,
 	    menurows+2, w-4, LOWERED);
 
 	menupad = newpad(totnitems, pos.line);
-	wbkgd(menupad, t.widget.color);
+	wbkgd(menupad, t.dialog.color);
 
-	getfirst_with_default(conf, ngroups, groups, &abs, &g, &rel);
 	ymenupad = 0;
 	for (i=0; i<ngroups; i++) {
 		currmode = getmode(mode, groups[i]);
 		for (j=0; j < (int) groups[i].nitems; j++) {
 			item = &groups[i].items[j];
-			drawitem(conf, menupad, ymenupad, *item, currmode,
-			    pos, ymenupad == abs);
+			drawitem(conf, menupad, ymenupad, *item, currmode, pos,
+			    false);
 			ymenupad++;
 		}
 	}
+	getfirst_with_default(conf, ngroups, groups, &abs, &g, &rel);
+	currmode = getmode(mode, groups[g]);
+	item = &groups[g].items[rel];
+	drawitem(conf, menupad, abs, *item, currmode, pos, true);
 
 	ys = y + h - 5 - menurows + 1;
 	ye = y + h - 5 ;
@@ -568,11 +658,9 @@ do_mixedlist(struct bsddialog_conf *conf, char* text, int rows, int cols,
 	wrefresh(menuwin);
 	prefresh(menupad, ymenupad, 0, ys, xs, ye, xe);
 	
-	draw_buttons(widget, h-2, w, bs, true);
+	draw_buttons(widget, h-2, w, bs, shortcut_buttons);
 	wrefresh(widget);
 
-	item = &groups[g].items[rel];
-	currmode = getmode(mode, groups[g]);
 	loop = true;
 	while(loop) {
 		input = getch();
@@ -590,26 +678,26 @@ do_mixedlist(struct bsddialog_conf *conf, char* text, int rows, int cols,
 			break;
 		case '\t': /* TAB */
 			bs.curr = (bs.curr + 1) % bs.nbuttons;
-			draw_buttons(widget, h-2, w, bs, true);
+			draw_buttons(widget, h-2, w, bs, shortcut_buttons);
 			wrefresh(widget);
 			break;
 		case KEY_LEFT:
 			if (bs.curr > 0) {
 				bs.curr--;
-				draw_buttons(widget, h-2, w, bs, true);
+				draw_buttons(widget, h-2, w, bs, shortcut_buttons);
 				wrefresh(widget);
 			}
 			break;
 		case KEY_RIGHT:
 			if (bs.curr < (int) bs.nbuttons - 1) {
 				bs.curr++;
-				draw_buttons(widget, h-2, w, bs, true);
+				draw_buttons(widget, h-2, w, bs, shortcut_buttons);
 				wrefresh(widget);
 			}
 			break;
 		case KEY_CTRL('E'): /* add conf->menu.extrahelpkey ? */
 		case KEY_F(1):
-			if (conf->hfile == NULL)
+			if (conf->f1_file == NULL && conf->f1_message == NULL)
 				break;
 			if (f1help(conf) != 0)
 				return BSDDIALOG_ERROR;
@@ -649,7 +737,7 @@ do_mixedlist(struct bsddialog_conf *conf, char* text, int rows, int cols,
 			    RAISED, textpad, &htextpad, text, true) != 0)
 			return BSDDIALOG_ERROR;
 			
-			draw_buttons(widget, h-2, w, bs, true);
+			draw_buttons(widget, h-2, w, bs, shortcut_buttons);
 			wrefresh(widget);
 
 			prefresh(textpad, 0, 0, y + 1, x + 1 + t.text.hmargin,
@@ -680,12 +768,6 @@ do_mixedlist(struct bsddialog_conf *conf, char* text, int rows, int cols,
 			refresh();
 
 			break;
-		default:
-			for (i = 0; i < (int) bs.nbuttons; i++)
-				if (tolower(input) == tolower((bs.label[i])[0])) {
-					output = bs.value[i];
-					loop = false;
-			}
 		}
 
 		if (abs < 0)
@@ -751,6 +833,32 @@ do_mixedlist(struct bsddialog_conf *conf, char* text, int rows, int cols,
 				item->on = !item->on;
 			}
 			drawitem(conf, menupad, abs, *item, currmode, pos, true);
+			prefresh(menupad, ymenupad, 0, ys, xs, ye, xe);
+		default:
+			if (shortcut_buttons) {
+				for (i = 0; i < (int) bs.nbuttons; i++)
+					if (tolower(input) == tolower((bs.label[i])[0])) {
+						output = bs.value[i];
+						if (currmode == MENUMODE)
+							item->on = true;
+						loop = false;
+					}
+				break;
+			}
+
+			drawitem(conf, menupad, abs, *item, currmode, pos, false);
+			getnextshortcut(conf, currmode, ngroups, groups, &abs,
+			    &g, &rel, input);
+			item = &groups[g].items[rel];
+			currmode = getmode(mode, groups[g]);
+			drawitem(conf, menupad, abs, *item, currmode, pos, true);
+			if (ymenupad > abs && ymenupad > 0)
+				ymenupad = abs;
+			if ((int)(ymenupad + menurows) <= abs)
+				ymenupad = abs - menurows + 1;
+			update_menuwin(conf, menuwin, menurows+2, w-4, totnitems,
+			    menurows, ymenupad);
+			wrefresh(menuwin);
 			prefresh(menupad, ymenupad, 0, ys, xs, ye, xe);
 		}
 	}
@@ -926,8 +1034,8 @@ bsddialog_buildlist(struct bsddialog_conf *conf, char* text, int rows, int cols,
 	padscols = (w-5)/2 - 2;
 	leftpad  = newpad(nitems, pos.line);
 	rightpad = newpad(nitems, pos.line);
-	wbkgd(leftpad, t.widget.color);
-	wbkgd(rightpad, t.widget.color);
+	wbkgd(leftpad, t.dialog.color);
+	wbkgd(rightpad, t.dialog.color);
 
 	currH = 0;
 	currV = startleft ? LEFT : RIGHT;

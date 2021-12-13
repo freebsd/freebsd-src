@@ -31,9 +31,9 @@
 #include <string.h>
 
 #ifdef PORTNCURSES
-#include <ncurses/curses.h>
+#include <ncurses/ncurses.h>
 #else
-#include <curses.h>
+#include <ncurses.h>
 #endif
 
 #include "bsddialog.h"
@@ -70,6 +70,8 @@ message_autosize(struct bsddialog_conf *conf, int rows, int cols, int *h, int *w
 		line = MIN(maxline + VBORDERS + t.text.hmargin * 2, AUTO_WIDTH);
 		line = MAX(line, (int) (maxword + VBORDERS + t.text.hmargin * 2));
 		*w = MAX(*w, line);
+		/* conf.auto_minwidth */
+		*w = MAX(*w, (int)conf->auto_minwidth);
 		/* avoid terminal overflow */
 		*w = MIN(*w, widget_max_width(conf));
 	}
@@ -77,8 +79,10 @@ message_autosize(struct bsddialog_conf *conf, int rows, int cols, int *h, int *w
 	if (rows == BSDDIALOG_AUTOSIZE) {
 		*h = MIN_HEIGHT - 1;
 		if (maxword > 0)
-			*h += MAX(nlines, (*w / GET_ASPECT_RATIO(conf)));
+			*h += MAX(nlines, (int)(*w / GET_ASPECT_RATIO(conf)));
 		*h = MAX(*h, MIN_HEIGHT);
+		/* conf.auto_minheight */
+		*h = MAX(*h, (int)conf->auto_minheight);
 		/* avoid terminal overflow */
 		*h = MIN(*h, widget_max_height(conf));
 	}
@@ -167,7 +171,7 @@ do_widget(struct bsddialog_conf *conf, char *text, int rows, int cols,
 			buttonsupdate(widget, h, w, bs, shortkey);
 			break;
 		case KEY_F(1):
-			if (conf->hfile == NULL)
+			if (conf->f1_file == NULL && conf->f1_message == NULL)
 				break;
 			if (f1help(conf) != 0)
 				return BSDDIALOG_ERROR;
@@ -271,8 +275,11 @@ bsddialog_yesno(struct bsddialog_conf *conf, char* text, int rows, int cols)
 {
 	struct buttons bs;
 
-	get_buttons(conf, &bs, BUTTONLABEL(yes_label), BUTTONLABEL(extra_label),
-	    BUTTONLABEL(no_label), BUTTONLABEL(help_label));
+	get_buttons(conf, &bs,
+	    conf->button.ok_label == NULL ? "Yes" : conf->button.ok_label,
+	    BUTTONLABEL(extra_label),
+	    conf->button.cancel_label == NULL ? "No" : conf->button.cancel_label,
+	    BUTTONLABEL(help_label));
 
 	return (do_widget(conf, text, rows, cols, bs, true));
 }

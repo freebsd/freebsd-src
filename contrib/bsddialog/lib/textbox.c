@@ -31,9 +31,9 @@
 #include <string.h>
 
 #ifdef PORTNCURSES
-#include <ncurses/curses.h>
+#include <ncurses/ncurses.h>
 #else
-#include <curses.h>
+#include <ncurses.h>
 #endif
 
 #include "bsddialog.h"
@@ -42,7 +42,7 @@
 
 /* "Text": textbox */
 
-#define BUTTON_TEXTBOX "HELP"
+#define BUTTON_TEXTBOX "EXIT"
 
 extern struct bsddialog_theme t;
 
@@ -57,12 +57,16 @@ textbox_autosize(struct bsddialog_conf *conf, int rows, int cols, int *h, int *w
 		*w += strlen(BUTTON_TEXTBOX) + 2 /* text delims*/;
 		/* text size */
 		*w = MAX(*w, wpad + VBORDERS);
+		/* conf.auto_minwidth */
+		*w = MAX(*w, (int)conf->auto_minwidth);
 		/* avoid terminal overflow */
 		*w = MIN(*w, widget_max_width(conf)-1); /* again -1, fix util.c */
 	}
 
 	if (rows == BSDDIALOG_AUTOSIZE) {
 		*h = hpad + 4; /* HBORDERS + button border */
+		/* conf.auto_minheight */
+		*h = MAX(*h, (int)conf->auto_minheight);
 		/* avoid terminal overflow */
 		*h = MIN(*h, widget_max_height(conf));
 	}
@@ -99,7 +103,7 @@ bsddialog_textbox(struct bsddialog_conf *conf, char* file, int rows, int cols)
 	hpad = 1;
 	wpad = 1;
 	pad = newpad(hpad, wpad);
-	wbkgd(pad, t.widget.color);
+	wbkgd(pad, t.dialog.color);
 	i = 0;
 	while(fgets(buf, BUFSIZ, fp) != NULL) {
 		if ((int) strlen(buf) > wpad) {
@@ -146,7 +150,7 @@ bsddialog_textbox(struct bsddialog_conf *conf, char* file, int rows, int cols)
 		switch(input) {
 		case KEY_ENTER:
 		case 10: /* Enter */
-			output = BSDDIALOG_YESOK;
+			output = BSDDIALOG_OK;
 			loop = false;
 			break;
 		case 27: /* Esc */
@@ -187,7 +191,7 @@ bsddialog_textbox(struct bsddialog_conf *conf, char* file, int rows, int cols)
 			ypad = ypad + printrows <= hpad -1 ? ypad + 1 : ypad;
 			break;
 		case KEY_F(1):
-			if (conf->hfile == NULL)
+			if (conf->f1_file == NULL && conf->f1_message == NULL)
 				break;
 			if (f1help(conf) != 0)
 				return BSDDIALOG_ERROR;

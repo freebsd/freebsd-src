@@ -30,7 +30,7 @@ int main()
 
 	bsddialog_initconf(&conf);
 	conf.title = "datebox";
-	conf.hline = "Press TAB and arrows";
+	conf.bottomtitle = "Press TAB and arrows";
 	
 	if (bsddialog_init() < 0)
 		return -1;
@@ -40,13 +40,13 @@ int main()
 	bsddialog_end();
 
 	switch (output) {
-	case BSDDIALOG_YESOK:
+	case BSDDIALOG_OK:
 		printf("Date: %u/%u/%u", yy, mm, dd);
 		break;
 	case BSDDIALOG_ESC:
 		printf("ESC\n");
 		break;
-	case BSDDIALOG_NOCANCEL:
+	case BSDDIALOG_CANCEL:
 		printf("Cancel");
 		break;
 	case BSDDIALOG_ERROR:
