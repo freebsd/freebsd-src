@@ -113,6 +113,8 @@ struct tftp_handle {
 	unsigned long	tftp_tsize;
 	void		*pkt;
 	struct tftphdr	*tftp_hdr;
+	char		*tftp_cache;
+	bool		lastacksent;
 };
 
 struct tftprecv_extra {
@@ -377,6 +379,7 @@ tftp_makereq(struct tftp_handle *h)
 			if (res < h->tftp_blksize) {
 				h->islastblock = 1;	/* very short file */
 				tftp_sendack(h, h->currblock);
+				h->lastacksent = true;
 			}
 			return (0);
 		}
@@ -591,7 +594,8 @@ tftp_close(struct open_file *f)
 	struct tftp_handle *tftpfile;
 	tftpfile = f->f_fsdata;
 
-	/* let it time out ... */
+	if (tftpfile->lastacksent == false)
+		tftp_senderr(tftpfile, 0, "No error: file closed");
 
 	if (tftpfile) {
 		free(tftpfile->path);
