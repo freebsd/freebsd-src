@@ -403,14 +403,8 @@ ipf_p_ftp_port(softf, fin, ip, nat, ftp, dlen)
 	a4 = a1 & 0xff;
 	a1 >>= 24;
 	olen = s - f->ftps_rptr;
-	/* DO NOT change this to snprintf! */
-#if defined(SNPRINTF) && defined(_KERNEL)
-	SNPRINTF(newbuf, sizeof(newbuf), "%s %u,%u,%u,%u,%u,%u\r\n",
-		 "PORT", a1, a2, a3, a4, a5, a6);
-#else
 	(void) sprintf(newbuf, "%s %u,%u,%u,%u,%u,%u\r\n",
 		       "PORT", a1, a2, a3, a4, a5, a6);
-#endif
 
 	nlen = strlen(newbuf);
 	inc = nlen - olen;
@@ -834,15 +828,9 @@ ipf_p_ftp_pasv(softf, fin, ip, nat, ftp, dlen)
 	a4 = a1 & 0xff;
 	a1 >>= 24;
 
-#if defined(SNPRINTF) && defined(_KERNEL)
-	SNPRINTF(newbuf, sizeof(newbuf), "%s %s%u,%u,%u,%u,%u,%u%s\r\n",
-		"227 Entering Passive Mode", brackets[0], a1, a2, a3, a4,
-		a5, a6, brackets[1]);
-#else
 	(void) sprintf(newbuf, "%s %s%u,%u,%u,%u,%u,%u%s\r\n",
 		"227 Entering Passive Mode", brackets[0], a1, a2, a3, a4,
 		a5, a6, brackets[1]);
-#endif
 	return ipf_p_ftp_pasvreply(softf, fin, ip, nat, ftp, (a5 << 8 | a6),
 				   newbuf, s);
 }
@@ -1849,14 +1837,9 @@ ipf_p_ftp_eprt4(softf, fin, ip, nat, ftp, dlen)
 	 * sense to preserve whatever character is being used by the systems
 	 * involved in the communication.
 	 */
-#if defined(SNPRINTF) && defined(_KERNEL)
-	SNPRINTF(newbuf, sizeof(newbuf), "%s %c1%c%u.%u.%u.%u%c%u%c\r\n",
-		 "EPRT", delim, delim, a1, a2, a3, a4, delim, port, delim);
-#else
 	(void) sprintf(newbuf, "%s %c1%c%u.%u.%u.%u%c%u%c\r\n",
 		       "EPRT", delim, delim, a1, a2, a3, a4, delim, port,
 			delim);
-#endif
 
 	nlen = strlen(newbuf);
 	inc = nlen - olen;
@@ -1955,13 +1938,8 @@ ipf_p_ftp_epsv(softf, fin, ip, nat, ftp, dlen)
 	}
 	s += 2;
 
-#if defined(SNPRINTF) && defined(_KERNEL)
-	SNPRINTF(newbuf, sizeof(newbuf), "%s (|||%u|)\r\n",
-		 "229 Entering Extended Passive Mode", ap);
-#else
 	(void) sprintf(newbuf, "%s (|||%u|)\r\n",
 		       "229 Entering Extended Passive Mode", ap);
-#endif
 
 	return ipf_p_ftp_pasvreply(softf, fin, ip, nat, ftp, (u_int)ap,
 				   newbuf, s);
@@ -2106,28 +2084,6 @@ ipf_p_ftp_eprt6(softf, fin, ip, nat, ftp, dlen)
 	 */
 	s = newbuf;
 	left = sizeof(newbuf);
-#if defined(SNPRINTF) && defined(_KERNEL)
-	SNPRINTF(newbuf, left, "EPRT %c2%c", delim, delim);
-	left -= strlen(s) + 1;
-	s += strlen(s);
-	a = ntohl(a6->i6[0]);
-	SNPRINTF(s, left, "%x:%x:", a >> 16, a & 0xffff);
-	left -= strlen(s);
-	s += strlen(s);
-	a = ntohl(a6->i6[1]);
-	SNPRINTF(s, left, "%x:%x:", a >> 16, a & 0xffff);
-	left -= strlen(s);
-	s += strlen(s);
-	a = ntohl(a6->i6[2]);
-	SNPRINTF(s, left, "%x:%x:", a >> 16, a & 0xffff);
-	left -= strlen(s);
-	s += strlen(s);
-	a = ntohl(a6->i6[3]);
-	SNPRINTF(s, left, "%x:%x", a >> 16, a & 0xffff);
-	left -= strlen(s);
-	s += strlen(s);
-	SNPRINTF(s, left, "|%d|\r\n", port);
-#else
 	(void) sprintf(s, "EPRT %c2%c", delim, delim);
 	s += strlen(s);
 	a = ntohl(a6->i6[0]);
@@ -2146,7 +2102,6 @@ ipf_p_ftp_eprt6(softf, fin, ip, nat, ftp, dlen)
 	left -= strlen(s);
 	s += strlen(s);
 	sprintf(s, "|%d|\r\n", port);
-#endif
 	nlen = strlen(newbuf);
 	inc = nlen - olen;
 	if ((inc + fin->fin_plen) > 65535) {

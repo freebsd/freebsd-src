@@ -845,11 +845,7 @@ ipf_lookup_res_num(softc, unit, type, number, funcptr)
 {
 	char name[FR_GROUPLEN];
 
-#if defined(SNPRINTF) && defined(_KERNEL)
-	SNPRINTF(name, sizeof(name), "%u", number);
-#else
 	(void) sprintf(name, "%u", number);
-#endif
 
 	return ipf_lookup_res_name(softc, unit, type, name, funcptr);
 }
