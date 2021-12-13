@@ -60,7 +60,7 @@ load_hashnode(unit, name, node, ttl, iocfunc)
 		if (!(opts & OPT_DONOTHING)) {
 			char msg[80];
 
-			sprintf(msg, "%s node from lookup hash table", what);
+			snprintf(msg, sizeof(msg), "%s node from lookup hash table", what);
 			return ipf_perror_fd(pool_fd(), iocfunc, msg);
 		}
 	return 0;

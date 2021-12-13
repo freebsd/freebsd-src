@@ -497,7 +497,7 @@ strgetmsg(fd, ctlp, datap, flagsp, caller)
 	 */
 	(void) signal(SIGALRM, sigalrm);
 	if (alarm(MAXWAIT) < 0) {
-		(void) sprintf(errmsg, "%s:  alarm", caller);
+		(void) snprintf(errmsg, sizeof(errmsg), "%s:  alarm", caller);
 		syserr(errmsg);
 	}
 
@@ -506,7 +506,7 @@ strgetmsg(fd, ctlp, datap, flagsp, caller)
 	 */
 	*flagsp = 0;
 	if ((rc = getmsg(fd, ctlp, datap, flagsp)) < 0) {
-		(void) sprintf(errmsg, "%s:  getmsg", caller);
+		(void) snprintf(errmsg, sizeof(errmsg), "%s:  getmsg", caller);
 		syserr(errmsg);
 	}
 
@@ -514,7 +514,7 @@ strgetmsg(fd, ctlp, datap, flagsp, caller)
 	 * Stop timer.
 	 */
 	if (alarm(0) < 0) {
-		(void) sprintf(errmsg, "%s:  alarm", caller);
+		(void) snprintf(errmsg, sizeof(errmsg), "%s:  alarm", caller);
 		syserr(errmsg);
 	}
 
@@ -1188,7 +1188,7 @@ dlprim(prim)
 		CASERET(DL_RESET_RES);
 		CASERET(DL_RESET_CON);
 		default:
-			(void) sprintf(primbuf, "unknown primitive 0x%x", prim);
+			(void) snprintf(primbuf, sizeof(primbuf), "unknown primitive 0x%x", prim);
 			return (primbuf);
 	}
 }
@@ -1223,7 +1223,7 @@ dlstate(state)
 		CASERET(DL_DISCON13_PENDING);
 		CASERET(DL_SUBS_BIND_PND);
 		default:
-			(void) sprintf(statebuf, "unknown state 0x%x", state);
+			(void) snprintf(statebuf, sizeof(statebuf), "unknown state 0x%x", state);
 			return (statebuf);
 	}
 }
@@ -1265,7 +1265,7 @@ dlerrno(errno)
 		CASERET(DL_PENDING);
 
 		default:
-			(void) sprintf(errnobuf, "unknown dlpi errno 0x%x", errno);
+			(void) snprintf(errnobuf, sizeof(errnobuf), "unknown dlpi errno 0x%x", errno);
 			return (errnobuf);
 	}
 }
@@ -1281,7 +1281,7 @@ dlpromisclevel(level)
 		CASERET(DL_PROMISC_SAP);
 		CASERET(DL_PROMISC_MULTI);
 		default:
-			(void) sprintf(levelbuf, "unknown promisc level 0x%x", level);
+			(void) snprintf(levelbuf, sizeof(levelbuf), "unknown promisc level 0x%x", level);
 			return (levelbuf);
 	}
 }
@@ -1297,7 +1297,7 @@ dlservicemode(servicemode)
 		CASERET(DL_CLDLS);
 		CASERET(DL_CODLS|DL_CLDLS);
 		default:
-			(void) sprintf(servicemodebuf,
+			(void) snprintf(servicemodebuf, sizeof(servicemodebuf),
 				"unknown provider service mode 0x%x", servicemode);
 			return (servicemodebuf);
 	}
@@ -1313,7 +1313,7 @@ dlstyle(style)
 		CASERET(DL_STYLE1);
 		CASERET(DL_STYLE2);
 		default:
-			(void) sprintf(stylebuf, "unknown provider style 0x%x", style);
+			(void) snprintf(stylebuf, sizeof(stylebuf), "unknown provider style 0x%x", style);
 			return (stylebuf);
 	}
 }
@@ -1334,7 +1334,7 @@ dlmactype(media)
 		CASERET(DL_CHAR);
 		CASERET(DL_CTCA);
 		default:
-			(void) sprintf(mediabuf, "unknown media type 0x%x", media);
+			(void) snprintf(mediabuf, sizeof(mediabuf), "unknown media type 0x%x", media);
 			return (mediabuf);
 	}
 }

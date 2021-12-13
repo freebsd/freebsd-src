@@ -218,7 +218,7 @@ ipfgroup:
 					{ $$ = $3; }
 	;
 
-number:	IPT_NUM '=' YY_NUMBER			{ sprintf(poolname, "%u", $3);
+number:	IPT_NUM '=' YY_NUMBER			{ snprintf(poolname, sizeof(poolname), "%u", $3);
 						  $$ = poolname;
 						}
 	| IPT_NAME '=' YY_STR			{ strncpy(poolname, $3,
@@ -237,7 +237,7 @@ setgroup:
 					  free($3);
 					}
 	| IPT_GROUP '=' YY_NUMBER	{ char tmp[FR_GROUPLEN+1];
-					  sprintf(tmp, "%u", $3);
+					  snprintf(tmp, sizeof(tmp), "%u", $3);
 					  $$ = strdup(tmp);
 					}
 	;
@@ -516,7 +516,7 @@ poolline:
 
 name:	IPT_NAME YY_STR			{ $$ = $2; }
 	| IPT_NUM YY_NUMBER		{ char name[80];
-					  sprintf(name, "%d", $2);
+					  snprintf(name, sizeof(name), "%d", $2);
 					  $$ = strdup(name);
 					}
 	;

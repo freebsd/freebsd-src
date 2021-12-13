@@ -74,7 +74,7 @@ int	initdevice(device, tout)
 
 	for (i = 0; i < 16; i++)
 	    {
-		(void) sprintf(bpfname, "/dev/bpf%d", i);
+		(void) snprintf(bpfname, sizeof(bpfname), "/dev/bpf%d", i);
 		if ((fd = open(bpfname, O_RDWR)) >= 0)
 			break;
 	    }

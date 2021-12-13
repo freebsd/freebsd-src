@@ -97,7 +97,7 @@ parseipfexpr(line, errorptr)
 		if (e->ipoe_word == NULL) {
 			error = malloc(32);
 			if (error != NULL) {
-				sprintf(error, "keyword (%.10s) not found",
+				snprintf(error, sizeof(error), "keyword (%.10s) not found",
 					ops);
 			}
 			goto parseerror;

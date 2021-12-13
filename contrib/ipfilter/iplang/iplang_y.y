@@ -1595,7 +1595,7 @@ void *ptr;
 
 	if (state == IL_IPO_RR || state == IL_IPO_SATID) {
 		if (param)
-			sprintf(numbuf, "%d", *(int *)param);
+			snprintf(numbuf, sizeof(numbuf), "%d", *(int *)param);
 		else
 			strcpy(numbuf, "0");
 		arg = numbuf;

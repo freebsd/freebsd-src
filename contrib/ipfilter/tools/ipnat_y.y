@@ -1507,7 +1507,7 @@ ipnat_addrule(fd, ioctlfunc, ptr)
 			if ((opts & OPT_DONOTHING) == 0) {
 				char msg[80];
 
-				sprintf(msg, "%d:ioctl(zero nat rule)",
+				snprintf(msg, sizeof(msg), "%d:ioctl(zero nat rule)",
 					ipn->in_flineno);
 				return ipf_perror_fd(fd, ioctlfunc, msg);
 			}
@@ -1527,7 +1527,7 @@ ipnat_addrule(fd, ioctlfunc, ptr)
 			if ((opts & OPT_DONOTHING) == 0) {
 				char msg[80];
 
-				sprintf(msg, "%d:ioctl(delete nat rule)",
+				snprintf(msg, sizeof(msg), "%d:ioctl(delete nat rule)",
 					ipn->in_flineno);
 				return ipf_perror_fd(fd, ioctlfunc, msg);
 			}
@@ -1537,10 +1537,11 @@ ipnat_addrule(fd, ioctlfunc, ptr)
 			if ((opts & OPT_DONOTHING) == 0) {
 				char msg[80];
 
-				sprintf(msg, "%d:ioctl(add/insert nat rule)",
+				snprintf(msg, sizeof(msg), "%d:ioctl(add/insert nat rule)",
 					ipn->in_flineno);
 				if (errno == EEXIST) {
-					sprintf(msg + strlen(msg), "(line %d)",
+					int strlen_msg = strlen(msg);
+					snprintf(msg + strlen_msg, sizeof(msg) -strlen_msg, "(line %d)",
 						ipn->in_flineno);
 				}
 				return ipf_perror_fd(fd, ioctlfunc, msg);
@@ -1717,7 +1718,7 @@ proxy_loadconfig(fd, ioctlfunc, proxy, proto, conf, list)
                         if ((opts & OPT_DONOTHING) == 0) {
                                 char msg[80];
 
-                                sprintf(msg, "%d:ioctl(add/remove proxy rule)",
+                                snprintf(msg, sizeof(msg), "%d:ioctl(add/remove proxy rule)",
 					yylineNum);
                                 ipf_perror_fd(fd, ioctlfunc, msg);
 				return;

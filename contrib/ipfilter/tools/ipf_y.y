@@ -2448,7 +2448,7 @@ void *ptr;
 			if ((opts & OPT_DONOTHING) == 0) {
 				char msg[80];
 
-				sprintf(msg, "%d:ioctl(zero rule)",
+				snprintf(msg, sizeof(msg), "%d:ioctl(zero rule)",
 					fr->fr_flineno);
 				return ipf_perror_fd(fd, ioctlfunc, msg);
 			}
@@ -2468,7 +2468,7 @@ void *ptr;
 			if ((opts & OPT_DONOTHING) == 0) {
 				char msg[80];
 
-				sprintf(msg, "%d:ioctl(delete rule)",
+				snprintf(msg, sizeof(msg), "%d:ioctl(delete rule)",
 					fr->fr_flineno);
 				return ipf_perror_fd(fd, ioctlfunc, msg);
 			}
@@ -2478,7 +2478,7 @@ void *ptr;
 			if ((opts & OPT_DONOTHING) == 0) {
 				char msg[80];
 
-				sprintf(msg, "%d:ioctl(add/insert rule)",
+				snprintf(msg, sizeof(msg), "%d:ioctl(add/insert rule)",
 					fr->fr_flineno);
 				return ipf_perror_fd(fd, ioctlfunc, msg);
 			}
@@ -2572,7 +2572,7 @@ int value;
 	strncpy(buffer, varname, 60);
 	buffer[59] = '\0';
 	strcat(buffer, "=");
-	sprintf(buffer, "%u", value);
+	snprintf(buffer, sizeof(buffer), "%u", value);
 	ipf_dotuning(ipffd, buffer, ioctl);
 }
 

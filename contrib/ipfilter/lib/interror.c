@@ -557,9 +557,9 @@ ipf_geterror(fd, func)
 		ie = find_error(errnum);
 		if (ie != NULL)
 			return ie->iee_text;
-		sprintf(text, "unknown error %d", errnum);
+		snprintf(text, sizeof(text), "unknown error %d", errnum);
 	} else {
-		sprintf(text, "retrieving error number failed (%d)", errno);
+		snprintf(text, sizeof(text), "retrieving error number failed (%d)", errno);
 	}
 	return text;
 }
@@ -577,6 +577,6 @@ ipf_strerror(errnum)
 	if (ie != NULL)
 		return ie->iee_text;
 
-	sprintf(text, "unknown error %d", errnum);
+	snprintf(text, sizeof(text), "unknown error %d", errnum);
 	return text;
 }

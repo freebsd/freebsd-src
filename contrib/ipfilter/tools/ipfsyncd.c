@@ -385,7 +385,7 @@ buildsocket(nicname, sinp)
 			       (char *)&mreq, sizeof(mreq)) == -1) {
 			char buffer[80];
 
-			sprintf(buffer, "%s,", inet_ntoa(sinp->sin_addr));
+			snprintf(buffer, sizeof(buffer), "%s,", inet_ntoa(sinp->sin_addr));
 			strcat(buffer, inet_ntoa(reqip->sin_addr));
 
 			syslog(LOG_ERR,
