@@ -28,8 +28,39 @@
 
 . $(atf_get_srcdir)/../../common/vnet.subr
 
+pft_onerror()
+{
+	status=$?
+
+	echo "Debug log."
+	echo "=========="
+	echo "Test exit status: $?"
+	echo
+
+	if [ -f created_jails.lst ]; then
+		for jailname in `cat created_jails.lst`
+		do
+			echo "Jail ${jailname}"
+			echo "----------------"
+			jexec ${jailname} ifconfig
+			jexec ${jailname} netstat -rn
+			jexec ${jailname} pfctl -sa -v
+		done
+	fi
+
+	echo "Created interfaces:"
+	echo "-------------------"
+	cat created_interfaces.lst
+
+	echo "Host interfaces:"
+	echo "----------------"
+	ifconfig
+}
+
 pft_init()
 {
+	trap pft_onerror EXIT
+
 	vnet_init
 
 	if [ ! -c /dev/pf ]; then
