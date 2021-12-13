@@ -112,7 +112,9 @@ command_load(int argc, char *argv[])
 {
 	struct preloaded_file *fp;
 	char	*typestr;
+#ifdef LOADER_VERIEXEC
 	char	*prefix;
+#endif
 	char	*skip;
 	int		dflag, dofile, dokld, ch, error;
 
@@ -124,7 +126,10 @@ command_load(int argc, char *argv[])
 		command_errmsg = "no filename specified";
 		return (CMD_CRIT);
 	}
-	prefix = skip = NULL;
+#ifdef LOADER_VERIEXEC
+	prefix = NULL;
+#endif
+	skip = NULL;
 	while ((ch = getopt(argc, argv, "dkp:s:t:")) != -1) {
 		switch(ch) {
 		case 'd':
@@ -133,9 +138,11 @@ command_load(int argc, char *argv[])
 		case 'k':
 			dokld = 1;
 			break;
+#ifdef LOADER_VERIEXEC
 		case 'p':
 			prefix = optarg;
 			break;
+#endif
 		case 's':
 			skip = optarg;
 			break;
