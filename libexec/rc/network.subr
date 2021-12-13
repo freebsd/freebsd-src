@@ -1746,7 +1746,7 @@ network6_getladdr()
 	_if=$1
 	_flag=$2
 
-	${IFCONFIG_CMD} $_if 2>/dev/null | while read proto addr rest; do
+	${IFCONFIG_CMD} $_if inet6 2>/dev/null | while read proto addr rest; do
 		case "${proto}/${addr}/${_flag}/${rest}" in
 		inet6/fe80::*//*)
 			echo ${addr}
