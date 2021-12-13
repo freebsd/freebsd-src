@@ -408,7 +408,7 @@ bcache_strategy(void *devdata, int rw, daddr_t blk, size_t size,
     /* bypass large requests, or when the cache is inactive */
     if (bc == NULL ||
 	((size * 2 / bcache_blksize) > bcache_nblks)) {
-	DPRINTF("bypass %zu from %qu", size / bcache_blksize, blk);
+	DPRINTF("bypass %zu from %jd", size / bcache_blksize, blk);
 	bcache_bypasses++;
 	rw &= F_MASK;
 	return (dd->dv_strategy(dd->dv_devdata, rw, blk, size, buf, rsize));
@@ -481,7 +481,7 @@ bcache_insert(struct bcache *bc, daddr_t blkno)
     
     cand = BHASH(bc, blkno);
 
-    DPRINTF("insert blk %llu -> %u # %d", blkno, cand, bcache_bcount);
+    DPRINTF("insert blk %jd -> %u # %d", blkno, cand, bcache_bcount);
     bc->bcache_ctl[cand].bc_blkno = blkno;
     bc->bcache_ctl[cand].bc_count = bcache_bcount++;
 }
@@ -498,7 +498,7 @@ bcache_invalidate(struct bcache *bc, daddr_t blkno)
     if (bc->bcache_ctl[i].bc_blkno == blkno) {
 	bc->bcache_ctl[i].bc_count = -1;
 	bc->bcache_ctl[i].bc_blkno = -1;
-	DPRINTF("invalidate blk %llu", blkno);
+	DPRINTF("invalidate blk %ju", blkno);
     }
 }
 
