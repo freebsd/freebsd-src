@@ -98,38 +98,6 @@ typedef struct dialogMenuItem {
 } dialogMenuItem;
 
 static int
-xdialog_count_rows(const char *p)
-{
-	int rows = 0;
-
-	while ((p = strchr(p, '\n')) != NULL) {
-		p++;
-		if (*p == '\0')
-			break;
-		rows++;
-	}
-
-	return (rows ? rows : 1);
-}
-
-static int
-xdialog_count_columns(const char *p)
-{
-	int len;
-	int max_len = 0;
-	const char *q;
-
-	for (; (q = strchr(p, '\n')) != NULL; p = q + 1) {
-		len = q - p;
-		max_len = MAX(max_len, len);
-	}
-
-	len = strlen(p);
-	max_len = MAX(max_len, len);
-	return (max_len);
-}
-
-static int
 xdialog_menu(char *title, char *cprompt, int height, int width,
 	     int menu_height, int item_no, dialogMenuItem *ditems)
 {
@@ -149,32 +117,13 @@ xdialog_menu(char *title, char *cprompt, int height, int width,
 		listitems[i].desc = ditems[i].title;
 	}
 
-	/* calculate height */
 	if (height < 0)
-		height = xdialog_count_rows(cprompt) + menu_height + 4 + 2;
-	if (height > bsddialog_terminalheight())
-		height = bsddialog_terminalheight() - 2;
+		height = BSDDIALOG_AUTOSIZE;
 
-	/* calculate width */
 	if (width < 0) {
-		int tag_x = 0;
-
-		for (i = 0; i < item_no; i++) {
-			int j, l;
-
-			l = strlen(listitems[i].name);
-			for (j = 0; j < item_no; j++) {
-				int k = strlen(listitems[j].desc);
-				tag_x = MAX(tag_x, l + k + 2);
-			}
-		}
-		width = MAX(xdialog_count_columns(cprompt), title != NULL ?
-		    xdialog_count_columns(title) : 0);
-		width = MAX(width, tag_x + 4) + 4;
+		width = BSDDIALOG_AUTOSIZE;
+		conf.auto_minwidth = 24;
 	}
-	width = MAX(width, 24);
-	if (width > bsddialog_terminalwidth())
-		width = bsddialog_terminalwidth() - 3;
 
 again:
 	conf.menu.default_item = listitems[choice].name;
@@ -188,7 +137,7 @@ again:
 	case BSDDIALOG_ESC:
 		result = -1;
 		break;
-	case BSDDIALOG_YESOK:
+	case BSDDIALOG_OK:
 		if (ditems[choice].fire != NULL) {
 			int status;
 
@@ -199,7 +148,7 @@ again:
 		}
 		result = 0;
 		break;
-	case BSDDIALOG_NOCANCEL:
+	case BSDDIALOG_CANCEL:
 	default:
 		result = 1;
 		break;
@@ -1028,7 +977,7 @@ main(int argc, char **argv)
 		    "If it is set to local time,\n"
 		    "or you don't know, please choose NO here!");
 
-		conf.button.defaultno = false;
+		conf.button.default_cancel = false;
 		conf.title = "Select local or UTC (Greenwich Mean Time) clock";
 		yesno = bsddialog_yesno(&conf, prompt, 7, 73);
 		if (!yesno) {
