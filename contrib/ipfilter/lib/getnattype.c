@@ -61,7 +61,7 @@ getnattype(nat)
 		which = "ENC-MAP";
 		break;
 	default :
-		sprintf(unknownbuf, "unknown(%04x)",
+		snprintf(unknownbuf, sizeof(unknownbuf), "unknown(%04x)",
 			nat->nat_redir & 0xffffffff);
 		which = unknownbuf;
 		break;

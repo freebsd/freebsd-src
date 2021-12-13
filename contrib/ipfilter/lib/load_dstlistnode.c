@@ -61,7 +61,7 @@ load_dstlistnode(role, name, node, iocfunc)
 		if ((opts & OPT_DONOTHING) == 0) {
 			char msg[80];
 
-			(void) sprintf(msg, "%s lookup node", what);
+			(void) snprintf(msg, sizeof(msg), "%s lookup node", what);
 			return ipf_perror_fd(pool_fd(), iocfunc, msg);
 		}
 	}
