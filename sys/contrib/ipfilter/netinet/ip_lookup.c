@@ -845,7 +845,7 @@ ipf_lookup_res_num(softc, unit, type, number, funcptr)
 {
 	char name[FR_GROUPLEN];
 
-	(void) sprintf(name, "%u", number);
+	(void) snprintf(name, sizeof(name), "%u", number);
 
 	return ipf_lookup_res_name(softc, unit, type, name, funcptr);
 }

@@ -982,13 +982,13 @@ ipf_pool_create(softc, softp, op)
 		h->ipo_flags |= IPOOL_ANON;
 		poolnum = LOOKUP_ANON;
 
-		(void)sprintf(name, "%x", poolnum);
+		(void)snprintf(name, sizeof(name), "%x", poolnum);
 
 		for (p = softp->ipf_pool_list[unit + 1]; p != NULL; ) {
 			if (strncmp(name, p->ipo_name,
 				    sizeof(p->ipo_name)) == 0) {
 				poolnum++;
-				(void)sprintf(name, "%x", poolnum);
+				(void)snprintf(name, sizeof(name), "%x", poolnum);
 				p = softp->ipf_pool_list[unit + 1];
 			} else
 				p = p->ipo_next;

@@ -310,7 +310,7 @@ ipf_p_irc_send(fin, nat)
 	i++;
 	(void) strncpy(newbuf, ctcpbuf, i);
 	/* DO NOT change these! */
-	(void) sprintf(newbuf, "%u %u\001\r\n", a1, a5);
+	(void) snprintf(newbuf, sizeof(newbuf), "%u %u\001\r\n", a1, a5);
 
 	nlen = strlen(newbuf);
 	inc = nlen - olen;
