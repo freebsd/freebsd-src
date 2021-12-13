@@ -538,10 +538,8 @@ gv_normal_parity(struct gv_plex *p, struct bio *bp, struct gv_raid5_packet *wp)
 static void
 gv_plex_flush(struct gv_plex *p)
 {
-	struct gv_softc *sc;
 	struct bio *bp;
 
-	sc = p->vinumconf;
 	bp = bioq_takefirst(p->rqueue);
 	while (bp != NULL) {
 		gv_plex_start(p, bp);

@@ -2961,7 +2961,7 @@ next:
 static void
 g_journal_start_switcher(struct g_class *mp)
 {
-	int error;
+	int error __diagused;
 
 	g_topology_assert();
 	MPASS(g_journal_switcher_proc == NULL);

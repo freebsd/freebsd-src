@@ -233,7 +233,7 @@ gv_find_good_plex(struct gv_volume *v)
 static int
 gv_sync(struct gv_volume *v)
 {
-	struct gv_softc *sc;
+	struct gv_softc *sc __diagused;
 	struct gv_plex *p, *up;
 	int error;
 

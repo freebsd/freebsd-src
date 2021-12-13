@@ -57,6 +57,11 @@
 /* This just needs to be "large enough" */
 #define G_BDE_KEYBYTES	304
 
+/* This file is being included by userspace. */
+#ifndef __diagused
+#define	__diagused
+#endif
+
 struct g_bde_work;
 struct g_bde_softc;
 
@@ -176,7 +181,7 @@ void g_bde_worker(void *arg);
 static __inline void
 AES_init(cipherInstance *ci)
 {
-	int error;
+	int error __diagused;
 
 	error = rijndael_cipherInit(ci, MODE_CBC, NULL);
 	KASSERT(error > 0, ("rijndael_cipherInit %d", error));
@@ -185,7 +190,7 @@ AES_init(cipherInstance *ci)
 static __inline void
 AES_makekey(keyInstance *ki, int dir, u_int len, const void *key)
 {
-	int error;
+	int error __diagused;
 
 	error = rijndael_makeKey(ki, dir, len, key);
 	KASSERT(error > 0, ("rijndael_makeKey %d", error));
@@ -194,7 +199,7 @@ AES_makekey(keyInstance *ki, int dir, u_int len, const void *key)
 static __inline void
 AES_encrypt(cipherInstance *ci, keyInstance *ki, const void *in, void *out, u_int len)
 {
-	int error;
+	int error __diagused;
 
 	error = rijndael_blockEncrypt(ci, ki, in, len * 8, out);
 	KASSERT(error > 0, ("rijndael_blockEncrypt %d", error));
@@ -203,7 +208,7 @@ AES_encrypt(cipherInstance *ci, keyInstance *ki, const void *in, void *out, u_in
 static __inline void
 AES_decrypt(cipherInstance *ci, keyInstance *ki, const void *in, void *out, u_int len)
 {
-	int error;
+	int error __diagused;
 
 	error = rijndael_blockDecrypt(ci, ki, in, len * 8, out);
 	KASSERT(error > 0, ("rijndael_blockDecrypt %d", error));

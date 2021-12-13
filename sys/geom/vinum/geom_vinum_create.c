@@ -552,11 +552,10 @@ gv_stripe(struct g_geom *gp, struct gctl_req *req)
 	struct gv_plex *p;
 	struct gv_softc *sc;
 	char *drive, buf[30], *vol;
-	int *drives, *flags, dcount, pcount;
+	int *drives, *flags, dcount;
 
 	sc = gp->softc;
 	dcount = 0;
-	pcount = 0;
 	vol = gctl_get_param(req, "name", NULL);
 	if (vol == NULL) {
 		gctl_error(req, "volume name not given");	

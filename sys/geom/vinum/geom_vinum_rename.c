@@ -226,7 +226,7 @@ int
 gv_rename_vol(struct gv_softc *sc, struct gv_volume *v, char *newname,
     int flags)
 {
-	struct g_provider *pp;
+	struct g_provider *pp __diagused;
 	struct gv_plex *p;
 	char newplex[GV_MAXPLEXNAME], *ptr;
 	int err;

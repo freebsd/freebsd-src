@@ -1528,11 +1528,9 @@ g_virstor_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 static void
 g_virstor_done(struct bio *b)
 {
-	struct g_virstor_softc *sc;
 	struct bio *parent_b;
 
 	parent_b = b->bio_parent;
-	sc = parent_b->bio_to->geom->softc;
 
 	if (b->bio_error != 0) {
 		LOG_MSG(LVL_ERROR, "Error %d for offset=%ju, length=%ju, %s",

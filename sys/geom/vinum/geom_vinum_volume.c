@@ -59,12 +59,10 @@ gv_volume_flush(struct gv_volume *v)
 void
 gv_volume_start(struct gv_softc *sc, struct bio *bp)
 {
-	struct g_geom *gp;
 	struct gv_volume *v;
 	struct gv_plex *p, *lp;
 	int numwrites;
 
-	gp = sc->geom;
 	v = bp->bio_to->private;
 	if (v == NULL || v->state != GV_VOL_UP) {
 		g_io_deliver(bp, ENXIO);
@@ -143,7 +141,7 @@ gv_volume_start(struct gv_softc *sc, struct bio *bp)
 void
 gv_bio_done(struct gv_softc *sc, struct bio *bp)
 {
-	struct gv_volume *v;
+	struct gv_volume *v __diagused;
 	struct gv_plex *p;
 	struct gv_sd *s;
 
