@@ -141,14 +141,12 @@ pcf8591_select_channel(device_t dev, int channel)
 static int
 pcf8591_channel_sysctl(SYSCTL_HANDLER_ARGS)
 {
-	struct pcf8591_softc *sc;
 	device_t dev;
 	int error, channel, val;
 	uint8_t reading;
 
 	dev = arg1;
 	channel = arg2;
-	sc = device_get_softc(dev);
 
 	if (req->oldptr != NULL) {
 		error = pcf8591_select_channel(dev, channel);
@@ -173,7 +171,6 @@ pcf8591_start(void *arg)
 	struct sysctl_oid_list *tree;
 	struct sysctl_oid *inputs_node;
 	struct sysctl_oid_list *inputs;
-	int error;
 
 	sc = arg;
 	dev = sc->sc_dev;
@@ -188,7 +185,7 @@ pcf8591_start(void *arg)
 	sc->sc_cfg = 0;
 	sc->sc_output = 0;
 	sc->sc_ch_count = 4;
-	error = pcf8591_set_config(dev);
+	(void)pcf8591_set_config(dev);
 
 	ctx = device_get_sysctl_ctx(dev);
 	tree_node = device_get_sysctl_tree(dev);
