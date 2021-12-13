@@ -1433,13 +1433,13 @@ nfsrv_fillattr(struct nfsrv_descript *nd, struct nfsvattr *nvap)
 	if (nd->nd_flag & ND_NFSV3) {
 		fp->fa_type = vtonfsv34_type(nvap->na_type);
 		fp->fa_mode = vtonfsv34_mode(nvap->na_mode);
-		txdr_hyper(nvap->na_size, &fp->fa3_size);
-		txdr_hyper(nvap->na_bytes, &fp->fa3_used);
+		txdr_hyper(nvap->na_size, (uint32_t*)&fp->fa3_size);
+		txdr_hyper(nvap->na_bytes, (uint32_t*)&fp->fa3_used);
 		fp->fa3_rdev.specdata1 = txdr_unsigned(NFSMAJOR(nvap->na_rdev));
 		fp->fa3_rdev.specdata2 = txdr_unsigned(NFSMINOR(nvap->na_rdev));
 		fp->fa3_fsid.nfsuquad[0] = 0;
 		fp->fa3_fsid.nfsuquad[1] = txdr_unsigned(nvap->na_fsid);
-		txdr_hyper(nvap->na_fileid, &fp->fa3_fileid);
+		txdr_hyper(nvap->na_fileid, (uint32_t*)&fp->fa3_fileid);
 		txdr_nfsv3time(&nvap->na_atime, &fp->fa3_atime);
 		txdr_nfsv3time(&nvap->na_mtime, &fp->fa3_mtime);
 		txdr_nfsv3time(&nvap->na_ctime, &fp->fa3_ctime);
