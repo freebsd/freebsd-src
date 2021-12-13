@@ -38,6 +38,6 @@ portname(int pr, int port)
 		}
 	}
 
-	(void) sprintf(buf, "%d", port);
+	(void) snprintf(buf, sizeof(buf), "%d", port);
 	return (buf);
 }

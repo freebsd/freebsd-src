@@ -368,7 +368,7 @@ build_action(olist, todo)
 			if (o->o_str != NULL)
 				strncpy(a->ac_group, o->o_str, FR_GROUPLEN);
 			else
-				sprintf(a->ac_group, "%d", o->o_num);
+				snprintf(a->ac_group, FR_GROUPLEN, "%d", o->o_num);
 			break;
 		case IPM_LOGTAG :
 			a->ac_logtag = o->o_num;

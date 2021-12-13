@@ -59,7 +59,7 @@ load_poolnode(role, name, node, ttl, iocfunc)
 		if ((opts & OPT_DONOTHING) == 0) {
 			char msg[80];
 
-			sprintf(msg, "%s pool node(%s/", what,
+			snprintf(msg, sizeof(msg), "%s pool node(%s/", what,
 				inet_ntoa(pn.ipn_addr.adf_addr.in4));
 			strcat(msg, inet_ntoa(pn.ipn_mask.adf_addr.in4));
 			return ipf_perror_fd(pool_fd(), iocfunc, msg);

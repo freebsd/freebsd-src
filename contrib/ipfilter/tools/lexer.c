@@ -447,7 +447,7 @@ buildipv6:
 		oc = c;
 
 		if (prior == YY_NUMBER && c == ':') {
-			sprintf(s, "%d", priornum);
+			snprintf(s, sizeof(s), "%d", priornum);
 			s += strlen(s);
 		}
 
