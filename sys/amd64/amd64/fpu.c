@@ -472,7 +472,8 @@ fpuinitstate(void *arg __unused)
 
 	/*
 	 * Create a table describing the layout of the CPU Extended
-	 * Save Area.
+	 * Save Area.  See Intel SDM rev. 075 Vol. 1 13.4.1 "Legacy
+	 * Region of an XSAVE Area" for the source of offsets/sizes.
 	 */
 	if (use_xsave) {
 		xstate_bv = (uint64_t *)((char *)(fpu_initialstate + 1) +
