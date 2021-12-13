@@ -310,11 +310,7 @@ ipf_p_irc_send(fin, nat)
 	i++;
 	(void) strncpy(newbuf, ctcpbuf, i);
 	/* DO NOT change these! */
-#if defined(SNPRINTF) && defined(KERNEL)
-	SNPRINTF(newbuf, sizeof(newbuf) - i, "%u %u\001\r\n", a1, a5);
-#else
 	(void) sprintf(newbuf, "%u %u\001\r\n", a1, a5);
-#endif
 
 	nlen = strlen(newbuf);
 	inc = nlen - olen;

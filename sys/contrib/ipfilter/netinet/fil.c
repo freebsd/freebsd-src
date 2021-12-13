@@ -5611,11 +5611,7 @@ ipf_grpmapinit(softc, fr)
 	char name[FR_GROUPLEN];
 	iphtable_t *iph;
 
-#if defined(SNPRINTF) && defined(_KERNEL)
-	SNPRINTF(name, sizeof(name), "%d", fr->fr_arg);
-#else
 	(void) sprintf(name, "%d", fr->fr_arg);
-#endif
 	iph = ipf_lookup_find_htable(softc, IPL_LOGIPF, name);
 	if (iph == NULL) {
 		IPFERROR(38);
@@ -6172,11 +6168,7 @@ ipf_getifname(ifp, buffer)
 	unit = ifp->if_unit;
 	space = LIFNAMSIZ - (s - buffer);
 	if ((space > 0) && (unit >= 0)) {
-#  if defined(SNPRINTF) && defined(_KERNEL)
-		SNPRINTF(temp, sizeof(temp), "%d", unit);
-#  else
 		(void) sprintf(temp, "%d", unit);
-#  endif
 		(void) strncpy(s, temp, space);
 	}
 # endif
