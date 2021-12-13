@@ -3761,6 +3761,7 @@ nfs_allocate(struct vop_allocate_args *ap)
 	off_t alen;
 	int attrflag, error, ret;
 	struct timespec ts;
+	struct uio io;
 
 	attrflag = 0;
 	nmp = VFSTONFS(vp->v_mount);
@@ -3769,18 +3770,24 @@ nfs_allocate(struct vop_allocate_args *ap)
 	if (NFSHASNFSV4(nmp) && nmp->nm_minorvers >= NFSV42_MINORVERSION &&
 	    (nmp->nm_privflag & NFSMNTP_NOALLOCATE) == 0) {
 		mtx_unlock(&nmp->nm_mtx);
+		alen = *ap->a_len;
+		if ((uint64_t)alen > nfs_maxalloclen)
+			alen = nfs_maxalloclen;
+
+		/* Check the file size limit. */
+		io.uio_offset = *ap->a_offset;
+		io.uio_resid = alen;
+		error = vn_rlimit_fsize(vp, &io, td);
+
 		/*
 		 * Flush first to ensure that the allocate adds to the
 		 * file's allocation on the server.
 		 */
-		error = ncl_flush(vp, MNT_WAIT, td, 1, 0);
-		if (error == 0) {
-			alen = *ap->a_len;
-			if ((uint64_t)alen > nfs_maxalloclen)
-				alen = nfs_maxalloclen;
+		if (error == 0)
+			error = ncl_flush(vp, MNT_WAIT, td, 1, 0);
+		if (error == 0)
 			error = nfsrpc_allocate(vp, *ap->a_offset, alen,
 			    &nfsva, &attrflag, ap->a_cred, td, NULL);
-		}
 		if (error == 0) {
 			*ap->a_offset += alen;
 			*ap->a_len -= alen;
