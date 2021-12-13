@@ -7001,14 +7001,25 @@ nfsrv_flexlayouterr(struct nfsrv_descript *nd, uint32_t *layp, int maxcnt,
 	char devid[NFSX_V4DEVICEID];
 
 	tl = layp;
-	cnt = fxdr_unsigned(int, *tl++);
+	maxcnt -= NFSX_UNSIGNED;
+	if (maxcnt > 0)
+		cnt = fxdr_unsigned(int, *tl++);
+	else
+		cnt = 0;
 	NFSD_DEBUG(4, "flexlayouterr cnt=%d\n", cnt);
 	for (i = 0; i < cnt; i++) {
+		maxcnt -= NFSX_STATEID + 2 * NFSX_HYPER +
+		    NFSX_UNSIGNED;
+		if (maxcnt <= 0)
+			break;
 		/* Skip offset, length and stateid for now. */
 		tl += (4 + NFSX_STATEID / NFSX_UNSIGNED);
 		errcnt = fxdr_unsigned(int, *tl++);
 		NFSD_DEBUG(4, "flexlayouterr errcnt=%d\n", errcnt);
 		for (j = 0; j < errcnt; j++) {
+			maxcnt -= NFSX_V4DEVICEID + 2 * NFSX_UNSIGNED;
+			if (maxcnt < 0)
+				break;
 			NFSBCOPY(tl, devid, NFSX_V4DEVICEID);
 			tl += (NFSX_V4DEVICEID / NFSX_UNSIGNED);
 			stat = fxdr_unsigned(int, *tl++);
