@@ -32,9 +32,9 @@
 #include <string.h>
 
 #ifdef PORTNCURSES
-#include <ncurses/curses.h>
+#include <ncurses/ncurses.h>
 #else
-#include <curses.h>
+#include <ncurses.h>
 #endif
 
 #include "bsddialog.h"
@@ -105,6 +105,8 @@ bar_autosize(struct bsddialog_conf *conf, int rows, int cols, int *h, int *w,
 		*w = MAX(*w, MINWIDTH);
 		/* text size*/
 		*w = MAX((int)(maxline + VBORDERS + t.text.hmargin * 2), *w);
+		/* conf.auto_minwidth */
+		*w = MAX(*w, (int)conf->auto_minwidth);
 		/* avoid terminal overflow */
 		*w = MIN(*w, widget_max_width(conf));
 	}
@@ -113,6 +115,8 @@ bar_autosize(struct bsddialog_conf *conf, int rows, int cols, int *h, int *w,
 		*h = MINHEIGHT;
 		if (maxword > 0)
 			*h += 1;
+		/* conf.auto_minheight */
+		*h = MAX(*h, (int)conf->auto_minheight);
 		/* avoid terminal overflow */
 		*h = MIN(*h, widget_max_height(conf));
 	}
@@ -211,36 +215,35 @@ bsddialog_gauge(struct bsddialog_conf *conf, char* text, int rows, int cols,
 	delwin(bar);
 	end_widget_withtextpad(conf, widget, h, w, textpad, shadow);
 
-	return BSDDIALOG_YESOK;
+	return BSDDIALOG_OK;
 }
 
 int
-bsddialog_mixedgauge(struct bsddialog_conf *conf, char* text, int rows, int cols,
-    unsigned int mainperc, unsigned int nminbars, char **minibars)
+bsddialog_mixedgauge(struct bsddialog_conf *conf, char* text, int rows,
+    int cols, unsigned int mainperc, unsigned int nminibars, char **minilabels,
+    int *minipercs)
 {
 	WINDOW *widget, *textpad, *bar, *shadow;
 	int i, output, miniperc, y, x, h, w, max_minbarlen;
 	int maxword, maxline, nlines, htextpad, ypad;
-	char states[11][16] = {
-	    "[  Succeeded  ]",
-	    "[   Failed    ]",
-	    "[   Passed    ]",
-	    "[  Completed  ]",
-	    "[   Checked   ]",
-	    "[    Done     ]",
-	    "[   Skipped   ]",
-	    "[ In Progress ]",
-	    "!!!  BLANK  !!!",
-	    "[     N/A     ]",
-	    "[   UNKNOWN   ]",
+	char states[12][16] = {
+	    "[  Succeeded  ]", /*  0  */
+	    "[   Failed    ]", /*  1  */
+	    "[   Passed    ]", /*  2  */
+	    "[  Completed  ]", /*  3  */
+	    "[   Checked   ]", /*  4  */
+	    "[    Done     ]", /*  5  */
+	    "[   Skipped   ]", /*  6  */
+	    "[ In Progress ]", /*  7  */
+	    "(blank)        ", /*  8  */
+	    "[     N/A     ]", /*  9  */
+	    "[   Pending   ]", /* 10  */
+	    "[   UNKNOWN   ]", /* 10+ */
 	};
 
-	if (nminbars % 2 !=0)
-		RETURN_ERROR("Mixedgauge wants a pair name/perc");
-
 	max_minbarlen = 0;
-	for (i=0; i < (int)(nminbars/2); i++)
-		max_minbarlen = MAX(max_minbarlen, (int) strlen(minibars[i*2]));
+	for (i=0; i < (int)nminibars; i++)
+		max_minbarlen = MAX(max_minbarlen, (int)strlen(minilabels[i]));
 	max_minbarlen += 3 + 16 /* seps + [...] or mainbar */;
 
 	if (set_widget_size(conf, rows, cols, &h, &w) != 0)
@@ -253,19 +256,21 @@ bsddialog_mixedgauge(struct bsddialog_conf *conf, char* text, int rows, int cols
 	if (cols == BSDDIALOG_AUTOSIZE) {
 		w = max_minbarlen + HBORDERS;
 		w = MAX(max_minbarlen, maxline + 4);
+		w = MAX(w, (int)conf->auto_minwidth);
 		w = MIN(w, widget_max_width(conf) - 1);
 	}
 	if (rows == BSDDIALOG_AUTOSIZE) {
 		h = 5; /* borders + mainbar */
-		h += nminbars/2;
+		h += nminibars;
 		h += (strlen(text) > 0 ? 3 : 0);
+		h = MAX(h, (int)conf->auto_minheight);
 		h = MIN(h, widget_max_height(conf) -1);
 	}
 
 	/* mixedgauge checksize */
 	if (w < max_minbarlen + 2)
 		RETURN_ERROR("Few cols for this mixedgauge");
-	if (h < 5 + (int)nminbars/2 + (strlen(text) > 0 ? 1 : 0))
+	if (h < 5 + (int)nminibars + (strlen(text) > 0 ? 1 : 0))
 		RETURN_ERROR("Few rows for this mixedgauge");
 
 	if (set_widget_position(conf, &y, &x, h, w) != 0)
@@ -277,16 +282,16 @@ bsddialog_mixedgauge(struct bsddialog_conf *conf, char* text, int rows, int cols
 		return output;
 
 	/* mini bars */
-	for (i=0; i < (int)nminbars/2; i++) {
-		miniperc = atol(minibars[i*2 + 1]);
+	for (i=0; i < (int)nminibars; i++) {
+		miniperc = minipercs[i];
 		if (miniperc == 8)
 			continue;
-		mvwaddstr(widget, i+1, 2, minibars[i*2]);
-		if (miniperc > 9)
-			mvwaddstr(widget, i+1, w-2-15, states[10]);
-		else if (miniperc >= 0 && miniperc <= 9)
+		mvwaddstr(widget, i+1, 2, minilabels[i]);
+		if (miniperc > 10)
+			mvwaddstr(widget, i+1, w-2-15, states[11]);
+		else if (miniperc >= 0 && miniperc <= 10)
 			mvwaddstr(widget, i+1, w-2-15, states[miniperc]);
-		else { //miniperc < 0
+		else { /* miniperc < 0 */
 			miniperc = abs(miniperc);
 			mvwaddstr(widget, i+1, w-2-15, "[             ]");
 			draw_perc_bar(widget, i+1, 1+w-2-15, 13, miniperc,
@@ -296,7 +301,7 @@ bsddialog_mixedgauge(struct bsddialog_conf *conf, char* text, int rows, int cols
 
 	wrefresh(widget);
 	ypad =  y + h - 5 - htextpad;
-	ypad = ypad < y+(int)nminbars/2 ? y+nminbars/2 : ypad;
+	ypad = ypad < y+(int)nminibars ? y+nminibars : ypad;
 	prefresh(textpad, 0, 0, ypad, x+2, y+h-4, x+w-2);
 	
 	/* main bar */
@@ -315,7 +320,7 @@ bsddialog_mixedgauge(struct bsddialog_conf *conf, char* text, int rows, int cols
 	delwin(bar);
 	end_widget_withtextpad(conf, widget, h, w, textpad, shadow);
 
-	return BSDDIALOG_YESOK;
+	return BSDDIALOG_OK;
 }
 
 int
@@ -438,7 +443,7 @@ bsddialog_rangebox(struct bsddialog_conf *conf, char* text, int rows, int cols,
 			}
 			break;
 		case KEY_F(1):
-			if (conf->hfile == NULL)
+			if (conf->f1_file == NULL && conf->f1_message == NULL)
 				break;
 			if (f1help(conf) != 0)
 				return BSDDIALOG_ERROR;
@@ -597,7 +602,7 @@ bsddialog_pause(struct bsddialog_conf *conf, char* text, int rows, int cols,
 			}
 			break;
 		case KEY_F(1):
-			if (conf->hfile == NULL)
+			if (conf->f1_file == NULL && conf->f1_message == NULL)
 				break;
 			if (f1help(conf) != 0)
 				return BSDDIALOG_ERROR;

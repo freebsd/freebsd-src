@@ -30,9 +30,9 @@
 #include <unistd.h>
 
 #ifdef PORTNCURSES
-#include <ncurses/curses.h>
+#include <ncurses/ncurses.h>
 #else
-#include <curses.h>
+#include <ncurses.h>
 #endif
 
 #include "bsddialog.h"
@@ -40,10 +40,10 @@
 #include "bsddialog_theme.h"
 
 /*
- * This file implements some public function not related to a specific widget.
- * utils.h/c provides private functions to implement the library.
- * theme.h/c is public API related to theme.
- * Widgets implementation:
+ * This file implements public functions not related to a specific dialog.
+ * utils.h/c: private functions to implement the library.
+ * theme.h/c: public API related to themes.
+ * Dialogs implementation:
  *  infobox.c    infobox
  *  messgebox.c  msgbox - yesno
  *  menubox.c    buildlist - checklist - menu - mixedlist - radiolist
@@ -85,10 +85,12 @@ int bsddialog_init(void)
 		RETURN_ERROR("Cannot init ncurses (colors)");
 	}
 
-	if (bsddialog_set_default_theme(BSDDIALOG_THEME_DIALOG) != 0)
-		error = BSDDIALOG_ERROR;
+	if (bsddialog_set_default_theme(BSDDIALOG_THEME_DEFAULT) != 0) {
+		bsddialog_end();
+		return (BSDDIALOG_ERROR);
+	}
 
-	return error;
+	return (0);
 }
 
 int bsddialog_end(void)
@@ -97,7 +99,7 @@ int bsddialog_end(void)
 	if (endwin() != OK)
 		RETURN_ERROR("Cannot end ncurses (endwin)");
 
-	return 0;
+	return (0);
 }
 
 int bsddialog_backtitle(struct bsddialog_conf *conf, char *backtitle)
@@ -109,31 +111,37 @@ int bsddialog_backtitle(struct bsddialog_conf *conf, char *backtitle)
 
 	refresh();
 
-	return 0;
+	return (0);
 }
 
 const char *bsddialog_geterror(void)
 {
 
-	return get_error_string();
+	return (get_error_string());
 }
 
-int bsddialog_terminalheight(void)
+int bsddialog_initconf(struct bsddialog_conf *conf)
 {
 
-	return LINES;
-}
-
-int bsddialog_terminalwidth(void)
-{
-
-	return COLS;
-}
-
-void bsddialog_initconf(struct bsddialog_conf *conf)
-{
+	if (conf == NULL)
+		RETURN_ERROR("conf is NULL");
+	if (sizeof(*conf) != sizeof(struct bsddialog_conf))
+		RETURN_ERROR("Bad conf size");
 
 	memset(conf, 0, sizeof(struct bsddialog_conf));
-	conf->x = conf->y = BSDDIALOG_CENTER;
+	conf->y = BSDDIALOG_CENTER;
+	conf->x = BSDDIALOG_CENTER;
 	conf->shadow = true;
+
+	return (0);
+}
+
+int bsddialog_clearterminal(void)
+{
+
+	if (clear() != OK)
+		RETURN_ERROR("Cannot clear the terminal");
+	refresh();
+
+	return (0);
 }

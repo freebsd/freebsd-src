@@ -22,4 +22,4 @@ lib/libbsddialog.so*
 BSDDIALOG.geany
 BSDDIALOG.tags
 *.core
-bsdinstall/partedit/sade
+bsdinstall/*

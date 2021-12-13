@@ -28,9 +28,9 @@
 #include <sys/param.h>
 
 #ifdef PORTNCURSES
-#include <ncurses/curses.h>
+#include <ncurses/ncurses.h>
 #else
-#include <curses.h>
+#include <ncurses.h>
 #endif
 
 #include "bsddialog.h"
@@ -55,6 +55,8 @@ infobox_autosize(struct bsddialog_conf *conf, int rows, int cols, int *h, int *w
 	if (cols == BSDDIALOG_AUTOSIZE) {
 		/* text size */
 		*w =  maxline + VBORDERS + t.text.hmargin * 2;
+		/* conf.auto_minwidth */
+		*w = MAX(*w, (int)conf->auto_minwidth);
 		/* avoid terminal overflow */
 		*w = MIN(*w, widget_max_width(conf));
 	}
@@ -62,8 +64,10 @@ infobox_autosize(struct bsddialog_conf *conf, int rows, int cols, int *h, int *w
 	if (rows == BSDDIALOG_AUTOSIZE) {
 		*h = MIN_HEIGHT - 1;
 		if (maxword > 0)
-			*h += MIN(nlines, (*w / GET_ASPECT_RATIO(conf)));
+			*h += MIN(nlines, (int)(*w / GET_ASPECT_RATIO(conf)));
 		*h = MAX(*h, MIN_HEIGHT);
+		/* conf.auto_minheight */
+		*h = MAX(*h, (int)conf->auto_minheight);
 		/* avoid terminal overflow */
 		*h = MIN(*h, widget_max_height(conf));
 	}
@@ -109,6 +113,6 @@ bsddialog_infobox(struct bsddialog_conf *conf, char* text, int rows, int cols)
 
 	end_widget_withtextpad(conf, widget, h, w, textpad, shadow);
 
-	return (BSDDIALOG_YESOK);
+	return (BSDDIALOG_OK);
 }
 

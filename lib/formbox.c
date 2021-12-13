@@ -57,6 +57,7 @@ struct myfield {
 	int size;
 	bool secure;
 	int securech;
+	char *bottomdesc;
 };
 #define GETMYFIELD(field) ((struct myfield*)field_userptr(field))
 #define GETMYFIELD2(form) ((struct myfield*)field_userptr(current_field(form)))
@@ -91,6 +92,17 @@ static void shiftleft(struct myfield *mf)
 		mf->len = last;
 }
 
+static void print_bottomdesc(struct myfield *mf)
+{
+
+	move(LINES-1, 2);
+	clrtoeol();
+	if (mf->bottomdesc != NULL) {
+		addstr(mf->bottomdesc);
+		refresh();
+	}
+}
+
 static int
 form_handler(struct bsddialog_conf *conf, WINDOW *widget, int y, int cols,
     struct buttons bs, WINDOW *formwin, FORM *form, FIELD **cfield, int nitems,
@@ -107,6 +119,7 @@ form_handler(struct bsddialog_conf *conf, WINDOW *widget, int y, int cols,
 	form_driver(form, REQ_END_LINE);
 	form_driver(form, REQ_END_LINE);
 	mf = GETMYFIELD2(form);
+	print_bottomdesc(mf);
 	mf->pos = mf->len;
 	while(loop) {
 		if (buttupdate) {
@@ -121,16 +134,31 @@ form_handler(struct bsddialog_conf *conf, WINDOW *widget, int y, int cols,
 		case 10: /* Enter */
 			if (informwin)
 				break;
-			output = bs.value[bs.curr];
-			if (output == BSDDIALOG_YESOK) {
-				form_driver(form, REQ_NEXT_FIELD);
-				form_driver(form, REQ_PREV_FIELD);
-				for (i=0; i<nitems; i++) {
-					mf = GETMYFIELD(cfield[i]);
-					items[i].value = strdup(mf->buf);
-				}
-			}
 			loop = false;
+			output = bs.value[bs.curr];
+			if (output == BSDDIALOG_HELP &&
+			    conf->form.value_withhelp == false)
+				break;
+	    		if (output == BSDDIALOG_EXTRA &&
+			    conf->form.value_withextra == false)
+				break;
+	    		if (output == BSDDIALOG_CANCEL &&
+			    conf->form.value_withcancel == false)
+				break;
+			if (output == BSDDIALOG_GENERIC1 ||
+			    output == BSDDIALOG_GENERIC2)
+				break;
+			
+			/* BSDDIALOG_OK */
+			form_driver(form, REQ_NEXT_FIELD);
+			form_driver(form, REQ_PREV_FIELD);
+			for (i=0; i<nitems; i++) {
+				mf = GETMYFIELD(cfield[i]);
+				items[i].value = strdup(mf->buf);
+				if (items[i].value == NULL)
+					RETURN_ERROR("Cannot allocate memory "
+					    "for form value");
+			}
 			break;
 		case 27: /* Esc */
 			output = BSDDIALOG_ESC;
@@ -187,6 +215,7 @@ form_handler(struct bsddialog_conf *conf, WINDOW *widget, int y, int cols,
 			form_driver(form, REQ_PREV_FIELD);
 			form_driver(form, REQ_END_LINE);
 			mf = GETMYFIELD2(form);
+			print_bottomdesc(mf);
 			mf->pos = mf->len;
 			set_field_fore(current_field(form), t.form.f_fieldcolor);
 			set_field_back(current_field(form), t.form.f_fieldcolor);
@@ -199,6 +228,7 @@ form_handler(struct bsddialog_conf *conf, WINDOW *widget, int y, int cols,
 			form_driver(form, REQ_NEXT_FIELD);
 			form_driver(form, REQ_END_LINE);
 			mf = GETMYFIELD2(form);
+			print_bottomdesc(mf);
 			mf->pos = mf->len;
 			set_field_fore(current_field(form), t.form.f_fieldcolor);
 			set_field_back(current_field(form), t.form.f_fieldcolor);
@@ -220,7 +250,7 @@ form_handler(struct bsddialog_conf *conf, WINDOW *widget, int y, int cols,
 				shiftleft(mf);
 			break;
 		case KEY_F(1):
-			if (conf->hfile == NULL)
+			if (conf->f1_file == NULL && conf->f1_message == NULL)
 				break;
 			if (f1help(conf) != 0)
 				return BSDDIALOG_ERROR;
@@ -275,6 +305,8 @@ form_autosize(struct bsddialog_conf *conf, int rows, int cols, int *h, int *w,
 		*w += bs.nbuttons > 0 ? (bs.nbuttons-1) * t.button.space : 0;
 		/* line size */
 		*w = MAX(*w, linelen + 3);
+		/* conf.auto_minwidth */
+		*w = MAX(*w, (int)conf->auto_minwidth);
 		/*
 		* avoid terminal overflow,
 		* -1 fix false negative with big menu over the terminal and
@@ -296,6 +328,8 @@ form_autosize(struct bsddialog_conf *conf, int rows, int cols, int *h, int *w,
 		else /* h autosize with a fixed formheight */
 			*h = *h + *formheight + 2;
 
+		/* conf.auto_minheight */
+		*h = MAX(*h, (int)conf->auto_minheight);
 		/* avoid terminal overflow */
 		*h = MIN(*h, widget_max_height(conf));
 	}
@@ -368,6 +402,7 @@ bsddialog_form(struct bsddialog_conf *conf, char* text, int rows, int cols,
 		myfields[i].buf  = malloc(myfields[i].size);
 		memset(myfields[i].buf, 0, myfields[i].size);
 		strcpy(myfields[i].buf, items[i].init);
+		myfields[i].bottomdesc = items[i].bottomdesc;
 		set_field_userptr(cfield[i], &myfields[i]);
 
 		field_opts_off(cfield[i], O_AUTOSKIP);
@@ -401,8 +436,8 @@ bsddialog_form(struct bsddialog_conf *conf, char* text, int rows, int cols,
 	 /* disable focus with 1 item (inputbox or passwordbox) */
 	if (formheight == 1 && nitems == 1 && strlen(items[0].label) == 0 &&
 	    items[0].xfield == 1 ) {
-		set_field_fore(cfield[0], t.widget.color);
-		set_field_back(cfield[0], t.widget.color);
+		set_field_fore(cfield[0], t.dialog.color);
+		set_field_back(cfield[0], t.dialog.color);
 	}
 	
 	get_buttons(conf, &bs, BUTTONLABEL(ok_label), BUTTONLABEL(extra_label),

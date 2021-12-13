@@ -3,7 +3,7 @@
 #
 # Written in 2021 by Alfonso Sabato Siciliano
 
-VERSION = 0.1
+VERSION = 0.0.1
 LIBRARY = bsddialog
 LIBRARY_SO = lib${LIBRARY:=.so}
 HEADERS = bsddialog.h bsddialog_theme.h
@@ -12,7 +12,12 @@ SOURCES = barbox.c formbox.c infobox.c libbsddialog.c lib_util.c menubox.c \
 OBJECTS= ${SOURCES:.c=.o}
 FBSDFLAGS= -O2 -pipe -std=gnu99 -Wno-format-zero-length \
 	-fstack-protector-strong -Qunused-arguments
-CFLAGS = -I/usr/local/include -fPIC -Wall -Wextra ${FBSDFLAGS}
+CFLAGS = -fPIC -Wall -Wextra
+.if defined(DEBUG)
+CFLAGS += -g
+.else
+CFLAGS += ${FBSDFLAGS}
+.endif
 LDFLAGS = -fstack-protector-strong -shared -Wl,-x -Wl,--fatal-warnings \
 	-Wl,--warn-shared-textrel -Wl,-soname,${LIBRARY_SO}.${VERSION} 
 
@@ -24,7 +29,7 @@ GZIP = gzip -cn
 LDCONFIG = /sbin/ldconfig -m
 
 .if defined(PORTNCURSES)
-# PORT ncurses `make -DPORTNCURSES` or `make -D PORTNCURSES`
+# PORT ncurses `make -DPORTNCURSES` 
 CFLAGS += -DPORTNCURSES -I/usr/local/include
 LDFLAGS += -L/usr/local/lib -lform -lncurses -ltinfo
 .else

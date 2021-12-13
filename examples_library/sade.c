@@ -35,12 +35,12 @@ int main()
 
 	conf.button.ok_label = "Create";
 	
-	conf.button.extra_button = true;
+	conf.button.with_extra = true;
 	conf.button.extra_label = "Delete";
 	
-	conf.button.no_label = "Cancel";
+	conf.button.cancel_label = "Cancel";
 	
-	conf.button.help_button = true;
+	conf.button.with_help = true;
 	conf.button.help_label = "Revert";
 	
 	conf.button.generic1_label = "Auto";

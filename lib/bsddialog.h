@@ -30,12 +30,14 @@
 
 #include <stdbool.h>
 
-#define LIBBSDDIALOG_VERSION    "0.1-devel"
+#define LIBBSDDIALOG_VERSION    "0.0.1"
 
 /* Exit status */
 #define BSDDIALOG_ERROR		-1
-#define BSDDIALOG_YESOK		 0
-#define BSDDIALOG_NOCANCEL	 1
+#define BSDDIALOG_OK             0
+#define BSDDIALOG_YES            BSDDIALOG_OK
+#define BSDDIALOG_CANCEL         1
+#define BSDDIALOG_NO             BSDDIALOG_CANCEL
 #define BSDDIALOG_HELP		 2
 #define BSDDIALOG_EXTRA		 3
 #define BSDDIALOG_ITEM_HELP	 4
@@ -51,62 +53,58 @@
 
 struct bsddialog_conf {
 	bool ascii_lines;
-	int  aspect_ratio;
-	int  x;
-	int  y;
+	unsigned int aspect_ratio;
+	unsigned int auto_minheight;
+	unsigned int auto_minwidth;
+	char *bottomtitle;
 	bool clear;
+	char *f1_file;
+	char *f1_message;
 	int  *get_height;
 	int  *get_width;
-	char *hfile;
-	char *hline;
 	bool no_lines;
 	bool shadow;
-	int  sleep;
+	unsigned int sleep;
 	char *title;
-
+	int  y;
+	int  x;
 	struct {
 		bool colors;
-		/* following members could be deleted in the future */
-		bool cr_wrap;
-		bool no_collapse;
-		bool no_nl_expand;
-		bool trim;
 	} text;
-
 	struct {
 		bool align_left;
 		char *default_item;
 		bool no_desc;
 		bool no_name;
+		bool shortcut_buttons;
 	} menu;
-
 	struct {
-		int securech;
+		int  securech;
+		bool value_withcancel;
+		bool value_withextra;
+		bool value_withhelp;
 	} form;
-
 	struct {
-		char *cancel_label;
-		bool defaultno;
-		char *default_label;
-		char *exit_label;
-		bool extra_button;
+		bool without_ok;
+		char *ok_label;
+		bool with_extra;
 		char *extra_label;
+		bool without_cancel;
+		char *cancel_label;
+		bool default_cancel;
+		bool with_help;
+		char *help_label;
+		char *exit_label;
 		char *generic1_label;
 		char *generic2_label;
-		bool help_button;
-		char *help_label;
-		bool no_cancel;
-		char *no_label;
-		bool no_ok;
-		char *ok_label;
-		char *yes_label;
+		char *default_label;
 	} button;
 };
 
 struct bsddialog_menuitem {
 	char *prefix;
 	bool on;
-	int  depth;
+	unsigned int depth;
 	char *name;
 	char *desc;
 	char *bottomdesc;
@@ -135,21 +133,19 @@ struct bsddialog_formitem {
 	unsigned int fieldlen;
 	unsigned int maxvaluelen;
 	char *value; /* allocated memory */
-#define BSDDIALOG_FIELDHIDDEN   0x1
-#define BSDDIALOG_FIELDREADONLY 0x2
+#define BSDDIALOG_FIELDHIDDEN    1U
+#define BSDDIALOG_FIELDREADONLY  2U
 	unsigned int flags;
 
-	char *bottomdesc; /* unimplemented for now */
+	char *bottomdesc;
 };
 
 int bsddialog_init(void);
 int bsddialog_end(void);
 int bsddialog_backtitle(struct bsddialog_conf *conf, char *backtitle);
+int bsddialog_initconf(struct bsddialog_conf *conf);
+int bsddialog_clearterminal(void);
 const char *bsddialog_geterror(void);
-void bsddialog_initconf(struct bsddialog_conf *conf);
-/* funcs for tzsetup(8), they will be deleted */
-int bsddialog_terminalheight(void);
-int bsddialog_terminalwidth(void);
 
 /* widgets */
 int
@@ -184,8 +180,9 @@ bsddialog_menu(struct bsddialog_conf *conf, char* text, int rows, int cols,
     int *focusitem);
 
 int
-bsddialog_mixedgauge(struct bsddialog_conf *conf, char* text, int rows, int cols,
-    unsigned int mainperc, unsigned int nminbars, char **minibars);
+bsddialog_mixedgauge(struct bsddialog_conf *conf, char* text, int rows,
+    int cols, unsigned int mainperc, unsigned int nminibars, char **minilabels,
+    int *minipercs);
 
 int
 bsddialog_mixedlist(struct bsddialog_conf *conf, char* text, int rows, int cols,
@@ -215,6 +212,7 @@ int
 bsddialog_timebox(struct bsddialog_conf *conf, char* text, int rows, int cols,
     unsigned int *hh, unsigned int *mm, unsigned int *ss);
 
-int bsddialog_yesno(struct bsddialog_conf *conf, char* text, int rows, int cols);
+int
+bsddialog_yesno(struct bsddialog_conf *conf, char* text, int rows, int cols);
 
 #endif

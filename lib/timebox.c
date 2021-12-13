@@ -28,9 +28,9 @@
 #include <sys/param.h>
 
 #ifdef PORTNCURSES
-#include <ncurses/curses.h>
+#include <ncurses/ncurses.h>
 #else
-#include <curses.h>
+#include <ncurses.h>
 #endif
 
 #include <ctype.h>
@@ -68,6 +68,8 @@ datetime_autosize(struct bsddialog_conf *conf, int rows, int cols, int *h,
 		*w = MAX(*w, line);
 		/* date windows */
 		*w = MAX(*w, minw);
+		/* conf.auto_minwidth */
+		*w = MAX(*w, (int)conf->auto_minwidth);
 		/* avoid terminal overflow */
 		*w = MIN(*w, widget_max_width(conf) -1);
 	}
@@ -75,7 +77,9 @@ datetime_autosize(struct bsddialog_conf *conf, int rows, int cols, int *h,
 	if (rows == BSDDIALOG_AUTOSIZE) {
 		*h = MINHEIGHT;
 		if (maxword > 0)
-			*h += MAX(nlines, (*w / GET_ASPECT_RATIO(conf)));
+			*h += MAX(nlines, (int)(*w / GET_ASPECT_RATIO(conf)));
+		/* conf.auto_minheight */
+		*h = MAX(*h, (int)conf->auto_minheight);
 		/* avoid terminal overflow */
 		*h = MIN(*h, widget_max_height(conf) -1);
 	}
@@ -175,7 +179,7 @@ int bsddialog_timebox(struct bsddialog_conf *conf, char* text, int rows, int col
 		case KEY_ENTER:
 		case 10: /* Enter */
 			output = bs.value[bs.curr];
-			if (output == BSDDIALOG_YESOK) {
+			if (output == BSDDIALOG_OK) {
 				*hh = c[0].value;
 				*mm = c[1].value;
 				*ss = c[2].value;
@@ -210,7 +214,7 @@ int bsddialog_timebox(struct bsddialog_conf *conf, char* text, int rows, int col
 			c[sel].value = c[sel].value > 0 ? c[sel].value - 1 : c[sel].max;
 			break;
 		case KEY_F(1):
-			if (conf->hfile == NULL)
+			if (conf->f1_file == NULL && conf->f1_message == NULL)
 				break;
 			curs_set(0);
 			if (f1help(conf) != 0)
@@ -393,7 +397,7 @@ bsddialog_datebox(struct bsddialog_conf *conf, char* text, int rows, int cols,
 		case KEY_ENTER:
 		case 10: /* Enter */
 			output = bs.value[bs.curr];
-			if (output == BSDDIALOG_YESOK) {
+			if (output == BSDDIALOG_OK) {
 				*yy = c[0].value;
 				*mm = c[1].value;
 				*dd = c[2].value;
@@ -444,7 +448,7 @@ bsddialog_datebox(struct bsddialog_conf *conf, char* text, int rows, int cols,
 				c[2].value = c[2].max;
 			break;
 		case KEY_F(1):
-			if (conf->hfile == NULL)
+			if (conf->f1_file == NULL && conf->f1_message == NULL)
 				break;
 			curs_set(0);
 			if (f1help(conf) != 0)
