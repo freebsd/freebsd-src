@@ -8,6 +8,9 @@ library to build scripts and tools with *TUI Widgets*.
 Description:
 <https://www.freebsd.org/status/report-2021-04-2021-06/#_bsddialog_tui_widgets>
 
+Screenshots:
+<https://www.flickr.com/photos/alfonsosiciliano/albums/72157720215006074>
+
 
 ## Getting Started
 
@@ -28,15 +31,6 @@ If you are using XFCE install
 % git clone https://gitlab.com/alfix/bsddialog.git
 % cd bsddialog
 % make -DPORTNCURSES
-% ./bsddialog --msgbox "Hello World!" 8 20
-```
-
-Linux:
-
-```
-% git clone https://gitlab.com/alfix/bsddialog.git
-% cd bsddialog
-% make -GNUMakefile
 % ./bsddialog --msgbox "Hello World!" 8 20
 ```
 

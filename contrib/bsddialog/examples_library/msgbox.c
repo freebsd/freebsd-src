@@ -34,7 +34,7 @@ int main()
 	printf("User input: ");
 	switch (input) {
 	case BSDDIALOG_ERROR: printf("Error %s\n", bsddialog_geterror()); break;
-	case BSDDIALOG_YESOK: printf("OK\n");  break;
+	case BSDDIALOG_OK: printf("OK\n");  break;
 	case BSDDIALOG_ESC:   printf("ESC\n"); break;
 	}
 

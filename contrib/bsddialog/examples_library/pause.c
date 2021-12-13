@@ -29,13 +29,13 @@ int main()
 	bsddialog_end();
 
 	switch (output) {
-	case BSDDIALOG_YESOK:
+	case BSDDIALOG_OK:
 		printf("OK\n");
 		break;
 	case BSDDIALOG_ESC:
 		printf("ESC\n");
 		break;
-	case BSDDIALOG_NOCANCEL:
+	case BSDDIALOG_CANCEL:
 		printf("Cancel\n");
 		break;
 	case BSDDIALOG_ERROR:
