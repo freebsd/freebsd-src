@@ -499,4 +499,3 @@ command_fdt(int argc, char *argv[])
 }
         
 COMMAND_SET(fdt, "fdt", "flattened device tree handling", command_fdt);
-
