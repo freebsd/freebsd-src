@@ -325,11 +325,7 @@ ipf_htable_create(softc, arg, op)
 		i = IPHASH_ANON;
 		do {
 			i++;
-#if defined(SNPRINTF) && defined(_KERNEL)
-			SNPRINTF(name, sizeof(name), "%u", i);
-#else
 			(void)sprintf(name, "%u", i);
-#endif
 			for (oiph = softh->ipf_htables[unit + 1]; oiph != NULL;
 			     oiph = oiph->iph_next)
 				if (strncmp(oiph->iph_name, name,
