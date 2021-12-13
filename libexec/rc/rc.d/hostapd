@@ -12,6 +12,13 @@
 name="hostapd"
 desc="Authenticator for IEEE 802.11 networks"
 command=${hostapd_program}
+start_postcmd="hostapd_poststart"
+
+hostapd_poststart() {
+	ifconfig ${ifn} down
+	sleep 2
+	ifconfig ${ifn} up
+}
 
 ifn="$2"
 if [ -z "$ifn" ]; then
