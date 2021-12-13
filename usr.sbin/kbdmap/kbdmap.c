@@ -392,7 +392,7 @@ show_dialog(struct keymap **km_sorted, int num_keymaps)
 	    num_keymaps, listitems, NULL);
 	bsddialog_end();
 	switch (result) {
-	case BSDDIALOG_YESOK:
+	case BSDDIALOG_OK:
 		for (i = 0; i < num_keymaps; i++) {
 			if (listitems[i].on) {
 				printf("ici\n");
