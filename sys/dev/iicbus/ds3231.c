@@ -364,8 +364,9 @@ ds3231_probe(device_t dev)
 	if (ofw_bus_is_compatible(dev, "maxim,ds3231"))
 		rc = BUS_PROBE_DEFAULT;
 	else
-		rc = BUS_PROBE_NOWILDCARD;
 #endif
+		rc = BUS_PROBE_NOWILDCARD;
+
 	device_set_desc(dev, "Maxim DS3231 RTC");
 
 	return (rc);
