@@ -965,8 +965,8 @@ clknode_get_freq(struct clknode *clknode, uint64_t *freq)
 	return (0);
 }
 
-int
-clknode_set_freq(struct clknode *clknode, uint64_t freq, int flags,
+static int
+_clknode_set_freq(struct clknode *clknode, uint64_t *freq, int flags,
     int enablecnt)
 {
 	int rv, done;
@@ -976,7 +976,7 @@ clknode_set_freq(struct clknode *clknode, uint64_t freq, int flags,
 	CLK_TOPO_XASSERT();
 
 	/* Check for no change */
-	if (clknode->freq == freq)
+	if (clknode->freq == *freq)
 		return (0);
 
 	parent_freq = 0;
@@ -1003,7 +1003,7 @@ clknode_set_freq(struct clknode *clknode, uint64_t freq, int flags,
 	}
 
 	/* Set frequency for this clock. */
-	rv = CLKNODE_SET_FREQ(clknode, parent_freq, &freq, flags, &done);
+	rv = CLKNODE_SET_FREQ(clknode, parent_freq, freq, flags, &done);
 	if (rv != 0) {
 		printf("Cannot set frequency for clk: %s, error: %d\n",
 		    clknode->name, rv);
@@ -1015,7 +1015,7 @@ clknode_set_freq(struct clknode *clknode, uint64_t freq, int flags,
 	if (done) {
 		/* Success - invalidate frequency cache for all children. */
 		if ((flags & CLK_SET_DRYRUN) == 0) {
-			clknode->freq = freq;
+			clknode->freq = *freq;
 			/* Clock might have reparent during set_freq */
 			if (clknode->parent_cnt > 0) {
 				rv = clknode_get_freq(clknode->parent,
@@ -1028,13 +1028,36 @@ clknode_set_freq(struct clknode *clknode, uint64_t freq, int flags,
 		}
 	} else if (clknode->parent != NULL) {
 		/* Nothing changed, pass request to parent. */
-		rv = clknode_set_freq(clknode->parent, freq, flags, enablecnt);
+		rv = _clknode_set_freq(clknode->parent, freq, flags,
+		    enablecnt);
 	} else {
 		/* End of chain without action. */
 		printf("Cannot set frequency for clk: %s, end of chain\n",
 		    clknode->name);
 		rv = ENXIO;
 	}
+
+	return (rv);
+}
+
+int
+clknode_set_freq(struct clknode *clknode, uint64_t freq, int flags,
+    int enablecnt)
+{
+
+	return (_clknode_set_freq(clknode, &freq, flags, enablecnt));
+}
+
+int
+clknode_try_freq(struct clknode *clknode, uint64_t freq, int flags,
+    int enablecnt, uint64_t *out_freq)
+{
+	int rv;
+
+	rv = _clknode_set_freq(clknode, &freq, flags | CLK_SET_DRYRUN,
+	    enablecnt);
+	if (out_freq != NULL)
+		*out_freq = freq;
 
 	return (rv);
 }

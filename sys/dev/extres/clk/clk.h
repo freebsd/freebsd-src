@@ -115,6 +115,8 @@ struct clknode *clknode_find_by_id(struct clkdom *clkdom, intptr_t id);
 int clknode_get_freq(struct clknode *clknode, uint64_t *freq);
 int clknode_set_freq(struct clknode *clknode, uint64_t freq, int flags,
     int enablecnt);
+int clknode_try_freq(struct clknode *clknode, uint64_t freq, int flags,
+    int enablecnt, uint64_t *out_freq);
 int clknode_enable(struct clknode *clknode);
 int clknode_disable(struct clknode *clknode);
 int clknode_stop(struct clknode *clknode, int depth);
