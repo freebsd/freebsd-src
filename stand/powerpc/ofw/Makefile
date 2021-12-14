@@ -18,10 +18,9 @@ INSTALLFLAGS=	-b
 
 # Architecture-specific loader code
 SRCS=		conf.c vers.c main.c elf_freebsd.c ppc64_elf_freebsd.c start.c
-SRCS+=		ucmpdi2.c gfx_fb.c
+SRCS+=		ucmpdi2.c gfx_fb_stub.c
 
-CFLAGS.gfx_fb.c += -I${SRCTOP}/contrib/pnglite
-CFLAGS.gfx_fb.c += -I${SRCTOP}/sys/teken
+CFLAGS.gfx_fb_stub.c += -I${SRCTOP}/contrib/pnglite -I${SRCTOP}/sys/teken
 
 .include	"${BOOTSRC}/fdt.mk"
 .if ${MK_FDT} == "yes"

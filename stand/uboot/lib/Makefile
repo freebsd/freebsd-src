@@ -8,10 +8,9 @@ LIB=		uboot
 WARNS?=		2
 
 SRCS=	console.c copy.c devicename.c elf_freebsd.c glue.c
-SRCS+=	module.c net.c reboot.c time.c gfx_fb.c
+SRCS+=	module.c net.c reboot.c time.c gfx_fb_stub.c
 
-CFLAGS.gfx_fb.c += -I${SRCTOP}/contrib/pnglite
-CFLAGS.gfx_fb.c += -I${SRCTOP}/sys/teken
+CFLAGS.gfx_fb_stub.c += -I${SRCTOP}/contrib/pnglite -I${SRCTOP}/sys/teken
 CFLAGS.glue.c+=	-DHAVE_MEMCPY -I${SRCTOP}/sys/contrib/zlib
 
 .if ${LOADER_DISK_SUPPORT:Uyes} == "yes"
