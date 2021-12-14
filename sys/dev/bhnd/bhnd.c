@@ -485,14 +485,11 @@ bhnd_generic_alloc_pmu(device_t dev, device_t child)
 int
 bhnd_generic_release_pmu(device_t dev, device_t child)
 {
-	struct bhnd_softc	*sc;
 	struct bhnd_core_clkctl	*clkctl;
 	struct bhnd_resource	*r;
 	device_t		 pmu_dev;
 
 	bus_topo_assert();
-
-	sc = device_get_softc(dev);
 
 	if (device_get_parent(child) != dev)
 		return (EINVAL);
@@ -577,13 +574,10 @@ bhnd_generic_get_clock_freq(device_t dev, device_t child, bhnd_clock clock,
 int
 bhnd_generic_request_clock(device_t dev, device_t child, bhnd_clock clock)
 {
-	struct bhnd_softc	*sc;
 	struct bhnd_core_clkctl	*clkctl;
 	uint32_t		 avail;
 	uint32_t		 req;
 	int			 error;
-
-	sc = device_get_softc(dev);
 
 	if (device_get_parent(child) != dev)
 		return (EINVAL);
@@ -696,13 +690,10 @@ bhnd_generic_enable_clocks(device_t dev, device_t child, uint32_t clocks)
 int
 bhnd_generic_request_ext_rsrc(device_t dev, device_t child, u_int rsrc)
 {
-	struct bhnd_softc	*sc;
 	struct bhnd_core_clkctl	*clkctl;
 	uint32_t		 req;
 	uint32_t		 avail;
 	int			 error;
-
-	sc = device_get_softc(dev);
 
 	if (device_get_parent(child) != dev)
 		return (EINVAL);
@@ -711,8 +702,6 @@ bhnd_generic_request_ext_rsrc(device_t dev, device_t child, u_int rsrc)
 		panic("no active PMU allocation");
 
 	BHND_ASSERT_CLKCTL_AVAIL(clkctl);
-
-	sc = device_get_softc(dev);
 
 	if (rsrc > BHND_CCS_ERSRC_MAX)
 		return (EINVAL);
@@ -739,11 +728,8 @@ bhnd_generic_request_ext_rsrc(device_t dev, device_t child, u_int rsrc)
 int
 bhnd_generic_release_ext_rsrc(device_t dev, device_t child, u_int rsrc)
 {
-	struct bhnd_softc	*sc;
 	struct bhnd_core_clkctl	*clkctl;
 	uint32_t		 mask;
-
-	sc = device_get_softc(dev);
 
 	if (device_get_parent(child) != dev)
 		return (EINVAL);
@@ -752,8 +738,6 @@ bhnd_generic_release_ext_rsrc(device_t dev, device_t child, u_int rsrc)
 		panic("no active PMU allocation");
 
 	BHND_ASSERT_CLKCTL_AVAIL(clkctl);
-
-	sc = device_get_softc(dev);
 
 	if (rsrc > BHND_CCS_ERSRC_MAX)
 		return (EINVAL);
@@ -801,11 +785,8 @@ int
 bhnd_generic_get_nvram_var(device_t dev, device_t child, const char *name,
     void *buf, size_t *size, bhnd_nvram_type type)
 {
-	struct bhnd_softc	*sc;
 	device_t		 nvram, parent;
 	int			 error;
-
-	sc = device_get_softc(dev);
 
 	/* If a NVRAM device is available, consult it first */
 	nvram = bhnd_retain_provider(child, BHND_SERVICE_NVRAM);
@@ -938,9 +919,6 @@ bhnd_child_location(device_t dev, device_t child, struct sbuf *sb)
 void
 bhnd_generic_child_deleted(device_t dev, device_t child)
 {
-	struct bhnd_softc	*sc;
-
-	sc = device_get_softc(dev);
 
 	/* Free device info */
 	if (bhnd_get_pmu_info(child) != NULL) {
