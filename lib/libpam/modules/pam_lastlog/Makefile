@@ -24,6 +24,8 @@
 #
 # $FreeBSD$
 
+PACKAGE=	runtime
+
 LIB=	pam_lastlog
 SRCS=	pam_lastlog.c
 MAN=	pam_lastlog.8

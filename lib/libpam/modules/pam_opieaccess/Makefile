@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+PACKAGE=	runtime
+
 LIB=	pam_opieaccess
 SRCS=	${LIB}.c
 MAN=	pam_opieaccess.8

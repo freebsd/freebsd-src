@@ -25,6 +25,8 @@
 #
 # $FreeBSD$
 
+PACKAGE=	runtime
+
 LIB=	pam_opie
 SRCS=	pam_opie.c
 MAN=	pam_opie.8

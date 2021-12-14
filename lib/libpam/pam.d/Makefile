@@ -2,6 +2,8 @@
 
 .include <src.opts.mk>
 
+PACKAGE=	runtime
+
 NO_OBJ=
 
 CONFGROUPS=	CONFS

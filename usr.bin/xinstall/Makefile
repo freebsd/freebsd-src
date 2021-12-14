@@ -3,6 +3,8 @@
 
 .include <src.opts.mk>
 
+PACKAGE=	runtime
+
 PROG=		xinstall
 PROGNAME=	install
 SRCS=		xinstall.c getid.c

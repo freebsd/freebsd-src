@@ -3,6 +3,8 @@
 
 .include <src.opts.mk>
 
+PACKAGE=	runtime
+
 PROG=	xargs
 SRCS=	xargs.c strnsubst.c
 

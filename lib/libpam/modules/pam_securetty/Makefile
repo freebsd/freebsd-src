@@ -24,6 +24,8 @@
 #
 # $FreeBSD$
 
+PACKAGE=	runtime
+
 LIB=	pam_securetty
 SRCS=	pam_securetty.c
 MAN=	pam_securetty.8

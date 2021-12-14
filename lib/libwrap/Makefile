@@ -4,6 +4,8 @@
 
 .include <src.opts.mk>
 
+PACKAGE=	runtime
+
 CONFS=	hosts.allow
 LIB=	wrap
 SHLIB_MAJOR= 6

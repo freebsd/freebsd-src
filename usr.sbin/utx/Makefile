@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+PACKAGE=	runtime
+
 PROG=	utx
 MAN=	utx.8
 

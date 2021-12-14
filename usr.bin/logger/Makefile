@@ -3,6 +3,8 @@
 
 .include <src.opts.mk>
 
+PACKAGE=	runtime
+
 PROG=	logger
 
 .if ${MK_INET6_SUPPORT} != "no"
