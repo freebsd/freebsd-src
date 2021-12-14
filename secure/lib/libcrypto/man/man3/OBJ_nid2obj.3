@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "OBJ_NID2OBJ 3"
-.TH OBJ_NID2OBJ 3 "2021-08-24" "1.1.1l" "OpenSSL"
+.TH OBJ_NID2OBJ 3 "2021-12-14" "1.1.1m" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -181,26 +181,26 @@ Deprecated:
 The \s-1ASN1\s0 object utility functions process \s-1ASN1_OBJECT\s0 structures which are
 a representation of the \s-1ASN1 OBJECT IDENTIFIER\s0 (\s-1OID\s0) type.
 For convenience, OIDs are usually represented in source code as numeric
-identifiers, or \fB\s-1NID\s0\fRs.  OpenSSL has an internal table of OIDs that
+identifiers, or \fI\s-1NID\s0\fRs.  OpenSSL has an internal table of OIDs that
 are generated when the library is built, and their corresponding NIDs
 are available as defined constants.  For the functions below, application
 code should treat all returned values \*(-- OIDs, NIDs, or names \*(-- as
 constants.
 .PP
-\&\fBOBJ_nid2obj()\fR, \fBOBJ_nid2ln()\fR and \fBOBJ_nid2sn()\fR convert the \s-1NID\s0 \fBn\fR to
+\&\fBOBJ_nid2obj()\fR, \fBOBJ_nid2ln()\fR and \fBOBJ_nid2sn()\fR convert the \s-1NID\s0 \fIn\fR to
 an \s-1ASN1_OBJECT\s0 structure, its long name and its short name respectively,
 or \fB\s-1NULL\s0\fR if an error occurred.
 .PP
 \&\fBOBJ_obj2nid()\fR, \fBOBJ_ln2nid()\fR, \fBOBJ_sn2nid()\fR return the corresponding \s-1NID\s0
-for the object \fBo\fR, the long name <ln> or the short name <sn> respectively
+for the object \fIo\fR, the long name <ln> or the short name <sn> respectively
 or NID_undef if an error occurred.
 .PP
-\&\fBOBJ_txt2nid()\fR returns \s-1NID\s0 corresponding to text string <s>. \fBs\fR can be
+\&\fBOBJ_txt2nid()\fR returns \s-1NID\s0 corresponding to text string \fIs\fR. \fIs\fR can be
 a long name, a short name or the numerical representation of an object.
 .PP
-\&\fBOBJ_txt2obj()\fR converts the text string \fBs\fR into an \s-1ASN1_OBJECT\s0 structure.
-If \fBno_name\fR is 0 then long names and short names will be interpreted
-as well as numerical forms. If \fBno_name\fR is 1 only the numerical form
+\&\fBOBJ_txt2obj()\fR converts the text string \fIs\fR into an \s-1ASN1_OBJECT\s0 structure.
+If \fIno_name\fR is 0 then long names and short names will be interpreted
+as well as numerical forms. If \fIno_name\fR is 1 only the numerical form
 is acceptable.
 .PP
 \&\fBOBJ_obj2txt()\fR converts the \fB\s-1ASN1_OBJECT\s0\fR \fBa\fR into a textual representation.
@@ -211,20 +211,20 @@ if the object has a long or short name then that will be used, otherwise
 the numerical form will be used. If \fBno_name\fR is 1 then the numerical
 form will always be used.
 .PP
-\&\fBi2t_ASN1_OBJECT()\fR is the same as \fBOBJ_obj2txt()\fR with the \fBno_name\fR set to zero.
+\&\fBi2t_ASN1_OBJECT()\fR is the same as \fBOBJ_obj2txt()\fR with the \fIno_name\fR set to zero.
 .PP
-\&\fBOBJ_cmp()\fR compares \fBa\fR to \fBb\fR. If the two are identical 0 is returned.
+\&\fBOBJ_cmp()\fR compares \fIa\fR to \fIb\fR. If the two are identical 0 is returned.
 .PP
-\&\fBOBJ_dup()\fR returns a copy of \fBo\fR.
+\&\fBOBJ_dup()\fR returns a copy of \fIo\fR.
 .PP
-\&\fBOBJ_create()\fR adds a new object to the internal table. \fBoid\fR is the
-numerical form of the object, \fBsn\fR the short name and \fBln\fR the
+\&\fBOBJ_create()\fR adds a new object to the internal table. \fIoid\fR is the
+numerical form of the object, \fIsn\fR the short name and \fIln\fR the
 long name. A new \s-1NID\s0 is returned for the created object in case of
 success and NID_undef in case of failure.
 .PP
-\&\fBOBJ_length()\fR returns the size of the content octets of \fBobj\fR.
+\&\fBOBJ_length()\fR returns the size of the content octets of \fIobj\fR.
 .PP
-\&\fBOBJ_get0_data()\fR returns a pointer to the content octets of \fBobj\fR.
+\&\fBOBJ_get0_data()\fR returns a pointer to the content octets of \fIobj\fR.
 The returned pointer is an internal pointer which \fBmust not\fR be freed.
 .PP
 \&\fBOBJ_cleanup()\fR releases any resources allocated by creating new objects.
@@ -319,7 +319,7 @@ than enough to handle any \s-1OID\s0 encountered in practice.
 and should not be used.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2002\-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2002\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy

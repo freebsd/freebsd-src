@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "ENGINE_ADD 3"
-.TH ENGINE_ADD 3 "2021-08-24" "1.1.1l" "OpenSSL"
+.TH ENGINE_ADD 3 "2021-12-14" "1.1.1m" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -702,8 +702,7 @@ global table flags which are used to control the registration behaviour of
 .PP
 All \fBENGINE_register_TYPE()\fR functions return 1 on success or 0 on error.
 .PP
-\&\fBENGINE_register_complete()\fR and \fBENGINE_register_all_complete()\fR return 1 on success
-or 0 on error.
+\&\fBENGINE_register_complete()\fR and \fBENGINE_register_all_complete()\fR always return 1.
 .PP
 \&\fBENGINE_ctrl()\fR returns a positive value on success or others on error.
 .PP
@@ -714,7 +713,7 @@ or 0 on error.
 \&\fBENGINE_new()\fR returns a valid \fB\s-1ENGINE\s0\fR structure on success or \s-1NULL\s0 if an error
 occurred.
 .PP
-\&\fBENGINE_free()\fR returns 1 on success or 0 on error.
+\&\fBENGINE_free()\fR always returns 1.
 .PP
 \&\fBENGINE_up_ref()\fR returns 1 on success or 0 on error.
 .PP
@@ -759,7 +758,7 @@ done by \fBOPENSSL_cleanup()\fR
 and should not be used.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2002\-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2002\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy

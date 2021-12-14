@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "BN_RAND 3"
-.TH BN_RAND 3 "2021-08-24" "1.1.1l" "OpenSSL"
+.TH BN_RAND 3 "2021-12-14" "1.1.1m" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -173,7 +173,7 @@ the number will be set to 1, so that the product of two such random
 numbers will always have 2*\fBbits\fR length.
 If \fBbottom\fR is \fB\s-1BN_RAND_BOTTOM_ODD\s0\fR, the number will be odd; if it
 is \fB\s-1BN_RAND_BOTTOM_ANY\s0\fR it can be odd or even.
-If \fBbits\fR is 1 then \fBtop\fR cannot also be \fB\s-1BN_RAND_FLG_TOPTWO\s0\fR.
+If \fBbits\fR is 1 then \fBtop\fR cannot also be \fB\s-1BN_RAND_TOP_TWO\s0\fR.
 .PP
 \&\fBBN_rand_range()\fR generates a cryptographically strong pseudo-random
 number \fBrnd\fR in the range 0 <= \fBrnd\fR < \fBrange\fR.
@@ -212,7 +212,7 @@ The
 \&\fBBN_priv_rand()\fR and \fBBN_priv_rand_range()\fR functions were added in OpenSSL 1.1.1.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2000\-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
