@@ -4,6 +4,8 @@
 
 .PATH: ${SRCTOP}/contrib/tcp_wrappers
 
+PACKAGE=	tcpd
+
 PROG=	tcpd
 MAN=	tcpd.8
 CSTD?=	c89
