@@ -413,16 +413,22 @@ static inline int
 virtio_net_tx_offload_ctx(struct mbuf *m, int *etype, int *proto, int *start)
 {
 	struct ether_vlan_header *evh;
+#if defined(INET) || defined(INET6)
 	int offset;
+#endif
 
 	evh = mtod(m, struct ether_vlan_header *);
 	if (evh->evl_encap_proto == htons(ETHERTYPE_VLAN)) {
 		/* BMV: We should handle nested VLAN tags too. */
 		*etype = ntohs(evh->evl_proto);
+#if defined(INET) || defined(INET6)
 		offset = sizeof(struct ether_vlan_header);
+#endif
 	} else {
 		*etype = ntohs(evh->evl_encap_proto);
+#if defined(INET) || defined(INET6)
 		offset = sizeof(struct ether_header);
+#endif
 	}
 
 	switch (*etype) {
