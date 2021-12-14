@@ -21,7 +21,7 @@ Source Roadmap:
 | contrib | Packages contributed by 3rd parties. |
 | crypto | Cryptography stuff (see [crypto/README](crypto/README)). |
 | etc | Template files for /etc. |
-| gnu | Various commands and libraries under the GNU Public License. Please see [gnu/COPYING](gnu/COPYING) and [gnu/COPYING.LIB](gnu/COPYING.LIB) for more information. |
+| gnu | Various commands and libraries under the GNU General Public License. Please see [gnu/COPYING](gnu/COPYING) and [gnu/COPYING.LIB](gnu/COPYING.LIB) for more information. |
 | include | System include files. |
 | kerberos5 | Kerberos5 (Heimdal) package. |
 | lib | System libraries. |
