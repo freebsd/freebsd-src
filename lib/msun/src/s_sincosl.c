@@ -50,11 +50,10 @@ void
 sincosl(long double x, long double *sn, long double *cs)
 {
 	union IEEEl2bits z;
-	int e0, sgn;
+	int e0;
 	long double y[2];
 
 	z.e = x;
-	sgn = z.bits.sign;
 	z.bits.sign = 0;
 
 	ENTERV();
