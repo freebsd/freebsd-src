@@ -156,7 +156,7 @@ kobj_class_compile1(kobj_class_t cls, int mflags)
 void
 kobj_class_compile(kobj_class_t cls)
 {
-	int error;
+	int error __diagused;
 
 	error = kobj_class_compile1(cls, M_WAITOK);
 	KASSERT(error == 0, ("kobj_class_compile1 returned %d", error));
