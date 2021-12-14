@@ -1,6 +1,8 @@
 #	from: @(#)Makefile	8.1 (Berkeley) 6/4/93
 # $FreeBSD$
 
+PACKAGE=	runtime
+
 CONFS=	gettytab
 PROG=	getty
 SRCS=	main.c init.c subr.c chat.c

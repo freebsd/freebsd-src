@@ -4,6 +4,8 @@
 
 .include <src.opts.mk>
 
+PACKAGE=	runtime
+
 PROG=	grep
 MAN1=	grep.1 zgrep.1
 

@@ -3,6 +3,8 @@
 
 .include <src.opts.mk>
 
+PACKAGE=	runtime
+
 PROG=	id
 LINKS=	${BINDIR}/id ${BINDIR}/groups
 LINKS+=	${BINDIR}/id ${BINDIR}/whoami
