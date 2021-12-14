@@ -6148,6 +6148,7 @@ pmap_change_props_locked(vm_offset_t va, vm_size_t size, vm_prot_t prot,
 {
 	vm_offset_t base, offset, tmpva;
 	vm_size_t pte_size;
+	vm_paddr_t pa;
 	pt_entry_t pte, *ptep, *newpte;
 	pt_entry_t bits, mask;
 	int lvl, rv;
@@ -6261,12 +6262,13 @@ pmap_change_props_locked(vm_offset_t va, vm_size_t size, vm_prot_t prot,
 			pmap_update_entry(kernel_pmap, ptep, pte, tmpva,
 			    pte_size);
 
-			if (!VIRT_IN_DMAP(tmpva)) {
+			pa = pte & ~ATTR_MASK;
+			if (!VIRT_IN_DMAP(tmpva) && PHYS_IN_DMAP(pa)) {
 				/*
 				 * Keep the DMAP memory in sync.
 				 */
 				rv = pmap_change_props_locked(
-				    PHYS_TO_DMAP(pte & ~ATTR_MASK), pte_size,
+				    PHYS_TO_DMAP(pa), pte_size,
 				    prot, mode);
 				if (rv != 0)
 					return (rv);
