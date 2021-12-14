@@ -559,7 +559,7 @@ fuse_internal_readdir(struct vnode *vp,
     struct fuse_filehandle *fufh,
     struct fuse_iov *cookediov,
     int *ncookies,
-    u_long *cookies)
+    uint64_t *cookies)
 {
 	int err = 0;
 	struct fuse_dispatcher fdi;
@@ -625,7 +625,7 @@ fuse_internal_readdir_processdata(struct uio *uio,
     size_t bufsize,
     struct fuse_iov *cookediov,
     int *ncookies,
-    u_long **cookiesp)
+    uint64_t **cookiesp)
 {
 	int err = 0;
 	int oreclen;
@@ -633,7 +633,7 @@ fuse_internal_readdir_processdata(struct uio *uio,
 
 	struct dirent *de;
 	struct fuse_dirent *fudge;
-	u_long *cookies;
+	uint64_t *cookies;
 
 	cookies = *cookiesp;
 	if (bufsize < FUSE_NAME_OFFSET)

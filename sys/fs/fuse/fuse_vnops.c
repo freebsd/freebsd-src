@@ -1730,7 +1730,7 @@ fuse_vnop_read(struct vop_read_args *ap)
 	struct ucred *a_cred;
 	int *a_eofflag;
 	int *a_ncookies;
-	u_long **a_cookies;
+	uint64_t **a_cookies;
     };
 */
 static int
@@ -1742,7 +1742,7 @@ fuse_vnop_readdir(struct vop_readdir_args *ap)
 	struct fuse_filehandle *fufh = NULL;
 	struct fuse_iov cookediov;
 	int err = 0;
-	u_long *cookies;
+	uint64_t *cookies;
 	off_t startoff;
 	ssize_t tresid;
 	int ncookies;

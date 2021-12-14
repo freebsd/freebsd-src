@@ -1527,7 +1527,7 @@ tmpfs_dir_getdotdotdent(struct tmpfs_mount *tm, struct tmpfs_node *node,
  */
 int
 tmpfs_dir_getdents(struct tmpfs_mount *tm, struct tmpfs_node *node,
-    struct uio *uio, int maxcookies, u_long *cookies, int *ncookies)
+    struct uio *uio, int maxcookies, uint64_t *cookies, int *ncookies)
 {
 	struct tmpfs_dir_cursor dc;
 	struct tmpfs_dirent *de, *nde;

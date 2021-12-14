@@ -2047,7 +2047,7 @@ nfsrvd_readdir(struct nfsrv_descript *nd, int isdgram,
 	int nlen, error = 0, getret = 1;
 	int siz, cnt, fullsiz, eofflag, ncookies;
 	u_int64_t off, toff, verf __unused;
-	u_long *cookies = NULL, *cookiep;
+	uint64_t *cookies = NULL, *cookiep;
 	struct uio io;
 	struct iovec iv;
 	int is_ufs;
@@ -2309,7 +2309,7 @@ nfsrvd_readdirplus(struct nfsrv_descript *nd, int isdgram,
 	int siz, cnt, fullsiz, eofflag, ncookies, entrycnt;
 	caddr_t bpos0, bpos1;
 	u_int64_t off, toff, verf __unused;
-	u_long *cookies = NULL, *cookiep;
+	uint64_t *cookies = NULL, *cookiep;
 	nfsattrbit_t attrbits, rderrbits, savbits;
 	struct uio io;
 	struct iovec iv;

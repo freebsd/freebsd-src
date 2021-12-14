@@ -1509,7 +1509,7 @@ unionfs_readdir(struct vop_readdir_args *ap)
 	struct thread  *td;
 	struct vattr    va;
 
-	u_long         *cookies_bk;
+	uint64_t	*cookies_bk;
 	int		error;
 	int		eofflag;
 	int		locked;
@@ -1660,17 +1660,17 @@ unionfs_readdir(struct vop_readdir_args *ap)
 	if (cookies_bk != NULL) {
 		/* merge cookies */
 		int		size;
-		u_long         *newcookies, *pos;
+		uint64_t         *newcookies, *pos;
 
 		size = *(ap->a_ncookies) + ncookies_bk;
-		newcookies = (u_long *) malloc(size * sizeof(u_long),
+		newcookies = (uint64_t *) malloc(size * sizeof(*newcookies),
 		    M_TEMP, M_WAITOK);
 		pos = newcookies;
 
-		memcpy(pos, cookies_bk, ncookies_bk * sizeof(u_long));
+		memcpy(pos, cookies_bk, ncookies_bk * sizeof(*newcookies));
 		pos += ncookies_bk;
 		memcpy(pos, *(ap->a_cookies),
-		    *(ap->a_ncookies) * sizeof(u_long));
+		    *(ap->a_ncookies) * sizeof(*newcookies));
 		free(cookies_bk, M_TEMP);
 		free(*(ap->a_cookies), M_TEMP);
 		*(ap->a_ncookies) = size;

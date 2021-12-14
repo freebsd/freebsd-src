@@ -252,10 +252,10 @@ struct pseudo_dirent {
 };
 int fuse_internal_readdir(struct vnode *vp, struct uio *uio, off_t startoff,
     struct fuse_filehandle *fufh, struct fuse_iov *cookediov, int *ncookies,
-    u_long *cookies);
+    uint64_t *cookies);
 int fuse_internal_readdir_processdata(struct uio *uio, off_t startoff,
     int *fnd_start, size_t reqsize, void *buf, size_t bufsize,
-    struct fuse_iov *cookediov, int *ncookies, u_long **cookiesp);
+    struct fuse_iov *cookediov, int *ncookies, uint64_t **cookiesp);
 
 /* remove */
 

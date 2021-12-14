@@ -2336,7 +2336,7 @@ ufs_readdir(ap)
 		struct ucred *a_cred;
 		int *a_eofflag;
 		int *a_ncookies;
-		u_long **a_cookies;
+		uint64_t **a_cookies;
 	} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
@@ -2344,7 +2344,7 @@ ufs_readdir(ap)
 	struct buf *bp;
 	struct inode *ip;
 	struct direct *dp, *edp;
-	u_long *cookies;
+	uint64_t *cookies;
 	struct dirent dstdp;
 	off_t offset, startoffset;
 	size_t readcnt, skipcnt;
