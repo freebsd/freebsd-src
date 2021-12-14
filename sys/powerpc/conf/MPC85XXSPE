@@ -11,7 +11,7 @@ ident		MPC85XXSPE
 machine		powerpc	powerpcspe
 
 include 	"dpaa/config.dpaa"
-makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
+makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
 makeoptions	WITH_CTF=1
 
 options 	FPU_EMU
