@@ -1689,9 +1689,7 @@ sdhci_req_done(struct sdhci_slot *slot)
 static void
 sdhci_req_wakeup(struct mmc_request *req)
 {
-	struct sdhci_slot *slot;
 
-	slot = req->done_data;
 	req->flags |= MMC_REQ_DONE;
 	wakeup(req);
 }
