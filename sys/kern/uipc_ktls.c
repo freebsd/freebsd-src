@@ -1308,7 +1308,7 @@ int
 ktls_get_rx_mode(struct socket *so, int *modep)
 {
 	struct ktls_session *tls;
-	struct inpcb *inp;
+	struct inpcb *inp __diagused;
 
 	if (SOLISTENING(so))
 		return (EINVAL);
@@ -1328,7 +1328,7 @@ int
 ktls_get_tx_mode(struct socket *so, int *modep)
 {
 	struct ktls_session *tls;
-	struct inpcb *inp;
+	struct inpcb *inp __diagused;
 
 	if (SOLISTENING(so))
 		return (EINVAL);
@@ -1646,7 +1646,7 @@ ktls_frame(struct mbuf *top, struct ktls_session *tls, int *enq_cnt,
 	struct mbuf *m;
 	uint64_t *noncep;
 	uint16_t tls_len;
-	int maxlen;
+	int maxlen __diagused;
 
 	maxlen = tls->params.max_frame_len;
 	*enq_cnt = 0;
