@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "OSSL_STORE 7"
-.TH OSSL_STORE 7 "2021-08-24" "1.1.1l" "OpenSSL"
+.TH OSSL_STORE 7 "2021-12-14" "1.1.1m" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -189,7 +189,7 @@ other encoding is undefined.
 \&      * here just one example
 \&      */
 \&     switch (OSSL_STORE_INFO_get_type(info)) {
-\&     case OSSL_STORE_INFO_X509:
+\&     case OSSL_STORE_INFO_CERT:
 \&         /* Print the X.509 certificate text */
 \&         X509_print_fp(stdout, OSSL_STORE_INFO_get0_CERT(info));
 \&         /* Print the X.509 certificate PEM output */
@@ -207,7 +207,7 @@ other encoding is undefined.
 \&\s-1\fBOSSL_STORE_SEARCH\s0\fR\|(3)
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2016\-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2016\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy

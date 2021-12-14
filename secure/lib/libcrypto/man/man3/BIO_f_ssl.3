@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "BIO_F_SSL 3"
-.TH BIO_F_SSL 3 "2021-08-24" "1.1.1l" "OpenSSL"
+.TH BIO_F_SSL 3 "2021-12-14" "1.1.1m" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -184,26 +184,26 @@ The \s-1SSL BIO\s0 is then reset to the initial accept or connect state.
 If the close flag is set when an \s-1SSL BIO\s0 is freed then the internal
 \&\s-1SSL\s0 structure is also freed using \fBSSL_free()\fR.
 .PP
-\&\fBBIO_set_ssl()\fR sets the internal \s-1SSL\s0 pointer of \s-1BIO\s0 \fBb\fR to \fBssl\fR using
+\&\fBBIO_set_ssl()\fR sets the internal \s-1SSL\s0 pointer of \s-1SSL BIO\s0 \fBb\fR to \fBssl\fR using
 the close flag \fBc\fR.
 .PP
-\&\fBBIO_get_ssl()\fR retrieves the \s-1SSL\s0 pointer of \s-1BIO\s0 \fBb\fR, it can then be
+\&\fBBIO_get_ssl()\fR retrieves the \s-1SSL\s0 pointer of \s-1SSL BIO\s0 \fBb\fR, it can then be
 manipulated using the standard \s-1SSL\s0 library functions.
 .PP
 \&\fBBIO_set_ssl_mode()\fR sets the \s-1SSL BIO\s0 mode to \fBclient\fR. If \fBclient\fR
 is 1 client mode is set. If \fBclient\fR is 0 server mode is set.
 .PP
-\&\fBBIO_set_ssl_renegotiate_bytes()\fR sets the renegotiate byte count
+\&\fBBIO_set_ssl_renegotiate_bytes()\fR sets the renegotiate byte count of \s-1SSL BIO\s0 \fBb\fR
 to \fBnum\fR. When set after every \fBnum\fR bytes of I/O (read and write)
 the \s-1SSL\s0 session is automatically renegotiated. \fBnum\fR must be at
 least 512 bytes.
 .PP
-\&\fBBIO_set_ssl_renegotiate_timeout()\fR sets the renegotiate timeout to
-\&\fBseconds\fR. When the renegotiate timeout elapses the session is
-automatically renegotiated.
+\&\fBBIO_set_ssl_renegotiate_timeout()\fR sets the renegotiate timeout of \s-1SSL BIO\s0 \fBb\fR
+to \fBseconds\fR.
+When the renegotiate timeout elapses the session is automatically renegotiated.
 .PP
 \&\fBBIO_get_num_renegotiates()\fR returns the total number of session
-renegotiations due to I/O or timeout.
+renegotiations due to I/O or timeout of \s-1SSL BIO\s0 \fBb\fR.
 .PP
 \&\fBBIO_new_ssl()\fR allocates an \s-1SSL BIO\s0 using \s-1SSL_CTX\s0 \fBctx\fR and using
 client mode if \fBclient\fR is non zero.
@@ -212,8 +212,7 @@ client mode if \fBclient\fR is non zero.
 \&\s-1SSL BIO\s0 (using \fBctx\fR) followed by a connect \s-1BIO.\s0
 .PP
 \&\fBBIO_new_buffer_ssl_connect()\fR creates a new \s-1BIO\s0 chain consisting
-of a buffering \s-1BIO,\s0 an \s-1SSL BIO\s0 (using \fBctx\fR) and a connect
-\&\s-1BIO.\s0
+of a buffering \s-1BIO,\s0 an \s-1SSL BIO\s0 (using \fBctx\fR), and a connect \s-1BIO.\s0
 .PP
 \&\fBBIO_ssl_copy_session_id()\fR copies an \s-1SSL\s0 session id between
 \&\s-1BIO\s0 chains \fBfrom\fR and \fBto\fR. It does this by locating the

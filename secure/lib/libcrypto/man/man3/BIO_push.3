@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "BIO_PUSH 3"
-.TH BIO_PUSH 3 "2021-08-24" "1.1.1l" "OpenSSL"
+.TH BIO_PUSH 3 "2021-12-14" "1.1.1m" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -145,22 +145,27 @@ BIO_push, BIO_pop, BIO_set_next \- add and remove BIOs from a chain
 .Vb 1
 \& #include <openssl/bio.h>
 \&
-\& BIO *BIO_push(BIO *b, BIO *append);
+\& BIO *BIO_push(BIO *b, BIO *next);
 \& BIO *BIO_pop(BIO *b);
 \& void BIO_set_next(BIO *b, BIO *next);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
-The \fBBIO_push()\fR function appends the \s-1BIO\s0 \fBappend\fR to \fBb\fR, it returns
-\&\fBb\fR.
+\&\fBBIO_push()\fR pushes \fIb\fR on \fInext\fR.
+If \fIb\fR is \s-1NULL\s0 the function does nothing and returns \fInext\fR.
+Otherwise it prepends \fIb\fR, which may be a single \s-1BIO\s0 or a chain of BIOs,
+to \fInext\fR (unless \fInext\fR is \s-1NULL\s0).
+It then makes a control call on \fIb\fR and returns \fIb\fR.
 .PP
-\&\fBBIO_pop()\fR removes the \s-1BIO\s0 \fBb\fR from a chain and returns the next \s-1BIO\s0
-in the chain, or \s-1NULL\s0 if there is no next \s-1BIO.\s0 The removed \s-1BIO\s0 then
-becomes a single \s-1BIO\s0 with no association with the original chain,
-it can thus be freed or attached to a different chain.
+\&\fBBIO_pop()\fR removes the \s-1BIO\s0 \fIb\fR from any chain is is part of.
+If \fIb\fR is \s-1NULL\s0 the function does nothing and returns \s-1NULL.\s0
+Otherwise it makes a control call on \fIb\fR and
+returns the next \s-1BIO\s0 in the chain, or \s-1NULL\s0 if there is no next \s-1BIO.\s0
+The removed \s-1BIO\s0 becomes a single \s-1BIO\s0 with no association with
+the original chain, it can thus be freed or be made part of a different chain.
 .PP
 \&\fBBIO_set_next()\fR replaces the existing next \s-1BIO\s0 in a chain with the \s-1BIO\s0 pointed to
-by \fBnext\fR. The new chain may include some of the same BIOs from the old chain
+by \fInext\fR. The new chain may include some of the same BIOs from the old chain
 or it may be completely different.
 .SH "NOTES"
 .IX Header "NOTES"
@@ -169,18 +174,19 @@ joins two \s-1BIO\s0 chains whereas \fBBIO_pop()\fR deletes a single \s-1BIO\s0 
 the deleted \s-1BIO\s0 does not need to be at the end of a chain.
 .PP
 The process of calling \fBBIO_push()\fR and \fBBIO_pop()\fR on a \s-1BIO\s0 may have additional
-consequences (a control call is made to the affected BIOs) any effects will
-be noted in the descriptions of individual BIOs.
+consequences (a control call is made to the affected BIOs).
+Any effects will be noted in the descriptions of individual BIOs.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
-\&\fBBIO_push()\fR returns the end of the chain, \fBb\fR.
+\&\fBBIO_push()\fR returns the head of the chain,
+which usually is \fIb\fR, or \fInext\fR if \fIb\fR is \s-1NULL.\s0
 .PP
-\&\fBBIO_pop()\fR returns the next \s-1BIO\s0 in the chain, or \s-1NULL\s0 if there is no next
-\&\s-1BIO.\s0
+\&\fBBIO_pop()\fR returns the next \s-1BIO\s0 in the chain,
+or \s-1NULL\s0 if there is no next \s-1BIO.\s0
 .SH "EXAMPLES"
 .IX Header "EXAMPLES"
-For these examples suppose \fBmd1\fR and \fBmd2\fR are digest BIOs, \fBb64\fR is
-a base64 \s-1BIO\s0 and \fBf\fR is a file \s-1BIO.\s0
+For these examples suppose \fImd1\fR and \fImd2\fR are digest BIOs,
+\&\fIb64\fR is a base64 \s-1BIO\s0 and \fIf\fR is a file \s-1BIO.\s0
 .PP
 If the call:
 .PP
@@ -188,26 +194,29 @@ If the call:
 \& BIO_push(b64, f);
 .Ve
 .PP
-is made then the new chain will be \fBb64\-f\fR. After making the calls
+is made then the new chain will be \fIb64\-f\fR. After making the calls
 .PP
 .Vb 2
 \& BIO_push(md2, b64);
 \& BIO_push(md1, md2);
 .Ve
 .PP
-the new chain is \fBmd1\-md2\-b64\-f\fR. Data written to \fBmd1\fR will be digested
-by \fBmd1\fR and \fBmd2\fR, \fBbase64\fR encoded and written to \fBf\fR.
+the new chain is \fImd1\-md2\-b64\-f\fR. Data written to \fImd1\fR will be digested
+by \fImd1\fR and \fImd2\fR, base64 encoded, and finally written to \fIf\fR.
 .PP
 It should be noted that reading causes data to pass in the reverse
-direction, that is data is read from \fBf\fR, \fBbase64\fR decoded and digested
-by \fBmd2\fR and \fBmd1\fR. If the call:
+direction, that is data is read from \fIf\fR, base64 decoded,
+and digested by \fImd2\fR and then \fImd1\fR.
+.PP
+The call:
 .PP
 .Vb 1
 \& BIO_pop(md2);
 .Ve
 .PP
-The call will return \fBb64\fR and the new chain will be \fBmd1\-b64\-f\fR data can
-be written to \fBmd1\fR as before.
+will return \fIb64\fR and the new chain will be \fImd1\-b64\-f\fR.
+Data can be written to and read from \fImd1\fR as before,
+except that \fImd2\fR will no more be applied.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 bio
