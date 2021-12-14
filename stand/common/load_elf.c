@@ -39,7 +39,6 @@ __FBSDID("$FreeBSD$");
 #include <stand.h>
 #define FREEBSD_ELF
 #include <sys/link_elf.h>
-#include <gfx_fb.h>
 
 #include "bootstrap.h"
 
@@ -90,8 +89,6 @@ static int __elfN(lookup_symbol)(elf_file_t ef, const char* name,
 static int __elfN(reloc_ptr)(struct preloaded_file *mp, elf_file_t ef,
     Elf_Addr p, void *val, size_t len);
 static int __elfN(parse_modmetadata)(struct preloaded_file *mp, elf_file_t ef,
-    Elf_Addr p_start, Elf_Addr p_end);
-static bool __elfN(parse_vt_drv_set)(struct preloaded_file *mp, elf_file_t ef,
     Elf_Addr p_start, Elf_Addr p_end);
 static symaddr_fn __elfN(symaddr);
 static char	*fake_modname(const char *name);
@@ -216,6 +213,43 @@ is_kernphys_relocatable(elf_file_t ef)
 
 	return (__elfN(lookup_symbol)(ef, "kernphys", &sym, STT_OBJECT) == 0 &&
 	    sym.st_size == 8);
+}
+#endif
+
+#ifdef __i386__
+static bool
+is_tg_kernel_support(struct preloaded_file *fp, elf_file_t ef)
+{
+	Elf_Sym		sym;
+	Elf_Addr	p_start, p_end, v, p;
+	char		vd_name[16];
+	int		error;
+
+	if (__elfN(lookup_symbol)(ef, "__start_set_vt_drv_set", &sym, STT_NOTYPE) != 0)
+		return (false);
+	p_start = sym.st_value + ef->off;
+	if (__elfN(lookup_symbol)(ef, "__stop_set_vt_drv_set", &sym, STT_NOTYPE) != 0)
+		return (false);
+	p_end = sym.st_value + ef->off;
+
+	/*
+	 * Walk through vt_drv_set, each vt driver structure starts with
+	 * static 16 chars for driver name. If we have "vbefb", return true.
+	 */
+	for (p = p_start; p < p_end; p += sizeof(Elf_Addr)) {
+		COPYOUT(p, &v, sizeof(v));
+
+		error = __elfN(reloc_ptr)(fp, ef, p, &v, sizeof(v));
+		if (error == EOPNOTSUPP)
+			v += ef->off;
+		else if (error != 0)
+			return (false);
+		COPYOUT(v, &vd_name, sizeof(vd_name));
+		if (strncmp(vd_name, "vbefb", sizeof(vd_name)) == 0)
+			return (true);
+	}
+
+	return (false);
 }
 #endif
 
@@ -448,6 +482,9 @@ __elfN(loadfile_raw)(char *filename, uint64_t dest,
 	err = 0;
 #ifdef __amd64__
 	fp->f_kernphys_relocatable = multiboot || is_kernphys_relocatable(&ef);
+#endif
+#ifdef __i386__
+	fp->f_tg_kernel_support = is_tg_kernel_support(fp, &ef);
 #endif
 	goto out;
 
@@ -872,18 +909,6 @@ nosyms:
 	ef->buckets = ef->hashtab + 2;
 	ef->chains = ef->buckets + ef->nbuckets;
 
-	if (!gfx_state.tg_kernel_supported &&
-	    __elfN(lookup_symbol)(ef, "__start_set_vt_drv_set", &sym,
-	    STT_NOTYPE) == 0) {
-		p_start = sym.st_value + ef->off;
-		if (__elfN(lookup_symbol)(ef, "__stop_set_vt_drv_set", &sym,
-		    STT_NOTYPE) == 0) {
-			p_end = sym.st_value + ef->off;
-			gfx_state.tg_kernel_supported =
-			    __elfN(parse_vt_drv_set)(fp, ef, p_start, p_end);
-		}
-	}
-
 	if (__elfN(lookup_symbol)(ef, "__start_set_modmetadata_set", &sym,
 	    STT_NOTYPE) != 0)
 		return 0;
@@ -1082,36 +1107,6 @@ out:
 		close(ef.fd);
 	}
 	return (err);
-}
-
-/*
- * Walk through vt_drv_set, each vt driver structure starts with
- * static 16 chars for driver name. If we have "vbefb", return true.
- */
-static bool
-__elfN(parse_vt_drv_set)(struct preloaded_file *fp, elf_file_t ef,
-    Elf_Addr p_start, Elf_Addr p_end)
-{
-	Elf_Addr v, p;
-	char vd_name[16];
-	int error;
-
-	p = p_start;
-	while (p < p_end) {
-		COPYOUT(p, &v, sizeof(v));
-
-		error = __elfN(reloc_ptr)(fp, ef, p, &v, sizeof(v));
-		if (error == EOPNOTSUPP)
-			v += ef->off;
-		else if (error != 0)
-			return (false);
-		COPYOUT(v, &vd_name, sizeof(vd_name));
-		if (strncmp(vd_name, "vbefb", sizeof(vd_name)) == 0)
-			return (true);
-		p += sizeof(Elf_Addr);
-	}
-
-	return (false);
 }
 
 int

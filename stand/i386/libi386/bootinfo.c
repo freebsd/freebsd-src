@@ -41,7 +41,7 @@ __FBSDID("$FreeBSD$");
 void
 bi_load_vbe_data(struct preloaded_file *kfp)
 {
-	if (!gfx_state.tg_kernel_supported) {
+	if (!kfp->f_tg_kernel_support) {
 		/*
 		 * Loaded kernel does not have vt/vbe backend,
 		 * switch console to text mode.

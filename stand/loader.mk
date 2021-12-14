@@ -29,9 +29,6 @@ SRCS+=	metadata.c
 SRCS+=	load_elf64.c reloc_elf64.c
 SRCS+=	metadata.c
 .endif
-# elf loaders set frame buffer things, so add includes for that.
-CFLAGS.load_elf32.c += -I$(SRCTOP)/sys/teken -I${SRCTOP}/contrib/pnglite
-CFLAGS.load_elf64.c += -I$(SRCTOP)/sys/teken -I${SRCTOP}/contrib/pnglite
 
 .if ${LOADER_DISK_SUPPORT:Uyes} == "yes"
 CFLAGS.part.c+= -DHAVE_MEMCPY -I${SRCTOP}/sys/contrib/zlib
