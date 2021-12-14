@@ -383,7 +383,7 @@ static void pmap_abort_ptp(pmap_t pmap, vm_offset_t va, vm_page_t mpte);
 static bool pmap_activate_int(pmap_t pmap);
 static void pmap_alloc_asid(pmap_t pmap);
 static int pmap_change_props_locked(vm_offset_t va, vm_size_t size,
-    vm_prot_t prot, int mode);
+    vm_prot_t prot, int mode, bool skip_unmapped);
 static pt_entry_t *pmap_demote_l1(pmap_t pmap, pt_entry_t *l1, vm_offset_t va);
 static pt_entry_t *pmap_demote_l2_locked(pmap_t pmap, pt_entry_t *l2,
     vm_offset_t va, struct rwlock **lockp);
@@ -5937,7 +5937,7 @@ pmap_change_attr(vm_offset_t va, vm_size_t size, int mode)
 	int error;
 
 	PMAP_LOCK(kernel_pmap);
-	error = pmap_change_props_locked(va, size, PROT_NONE, mode);
+	error = pmap_change_props_locked(va, size, PROT_NONE, mode, false);
 	PMAP_UNLOCK(kernel_pmap);
 	return (error);
 }
@@ -5959,14 +5959,14 @@ pmap_change_prot(vm_offset_t va, vm_size_t size, vm_prot_t prot)
 		return (EINVAL);
 
 	PMAP_LOCK(kernel_pmap);
-	error = pmap_change_props_locked(va, size, prot, -1);
+	error = pmap_change_props_locked(va, size, prot, -1, false);
 	PMAP_UNLOCK(kernel_pmap);
 	return (error);
 }
 
 static int
 pmap_change_props_locked(vm_offset_t va, vm_size_t size, vm_prot_t prot,
-    int mode)
+    int mode, bool skip_unmapped)
 {
 	vm_offset_t base, offset, tmpva;
 	vm_size_t pte_size;
@@ -6018,13 +6018,14 @@ pmap_change_props_locked(vm_offset_t va, vm_size_t size, vm_prot_t prot,
 
 	for (tmpva = base; tmpva < base + size; ) {
 		ptep = pmap_pte(kernel_pmap, tmpva, &lvl);
-		if (ptep == NULL)
+		if (ptep == NULL && !skip_unmapped) {
 			return (EINVAL);
-
-		if ((pmap_load(ptep) & mask) == bits) {
+		} else if ((ptep == NULL && skip_unmapped) ||
+		    (pmap_load(ptep) & mask) == bits) {
 			/*
-			 * We already have the correct attribute,
-			 * ignore this entry.
+			 * We already have the correct attribute or there
+			 * is no memory mapped at this address and we are
+			 * skipping unmapped memory.
 			 */
 			switch (lvl) {
 			default:
@@ -6091,7 +6092,7 @@ pmap_change_props_locked(vm_offset_t va, vm_size_t size, vm_prot_t prot,
 				 */
 				rv = pmap_change_props_locked(
 				    PHYS_TO_DMAP(pa), pte_size,
-				    prot, mode);
+				    prot, mode, true);
 				if (rv != 0)
 					return (rv);
 			}
