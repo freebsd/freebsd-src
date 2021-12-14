@@ -1,0 +1,52 @@
+#
+# A number of header files in sys/* have, going back to 7th Edition Unix in
+# 1979, reqiured other files (like sys/types.h) to compile. Likewise the 4BSD
+# networking code has had prerequisites. However, going back to around the turn
+# of the century, other systems have made them be independently includable
+# (wide-spread header include protection post-dates 7th edition Unix by maybe 4
+# or 5 years judging from netnews sources). Start down the path of making them
+# all independently includable by creating this test that fails buildworld when
+# they are not.
+#
+# The _foo.h files are excluded as they are internal-only headers and/or have
+# special requirements. Since the purpose of this is to allow autoconfig
+# programs to detect FreeBSD has different headers, omitting internal
+# headers cuts down on the noise w/o causing problems for the goal.
+#
+PROG=	test-includes
+SRCS=	test-includes.c
+INTERNALPROG=	This is a compile-only test
+MAN=
+HDRS!=	(cd ${SRCTOP}/sys; ls sys/[^_]*.h net*/[^_]*.h)
+
+# Some files have to be clean for extra defines too...
+CFLAGS.event.c=	-D_WANT_KEVENT32 -D_WANT_FREEBSD11_KEVENT
+
+.include "badfiles.inc"
+
+.for h in ${HDRS}
+.if !${BADHDRS:M${h}}
+SRCS+=	${h:R}.c
+CLEANFILES+=${h:R}.c
+${h:R}.c:
+	echo "#include <$h>" > ${.TARGET}
+.endif
+.endfor
+
+#
+# Target to make the current known bad list. In general, this list should only
+# ever shrink and never grow.
+#
+.PHONY:	badfiles.inc
+badfiles.inc:
+	@(cd ${SRCTOP}/sys;							\
+	echo "# DO NOT EDIT-- this file is automatically @""generated.";	\
+	echo "BADHDRS= \\";							\
+	for i in sys/*.h net*/*.h; do						\
+		echo "#include <$$i>" |						\
+			${CC} ${CFLAGS} -xc - -c -o /dev/null 2> /dev/null ||	\
+			echo "	$$i \\";					\
+	done;									\
+	echo) > ${.CURDIR}/badfiles.inc
+
+.include <bsd.prog.mk>
