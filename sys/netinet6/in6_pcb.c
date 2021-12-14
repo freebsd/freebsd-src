@@ -1079,8 +1079,8 @@ in6_pcblookup_hash_locked(struct inpcbinfo *pcbinfo, struct in6_addr *faddr,
 
 			injail = prison_flag(inp->inp_cred, PR_IP6);
 			if (injail) {
-				if (prison_check_ip6(inp->inp_cred,
-				    laddr) != 0)
+				if (prison_check_ip6_locked(
+				    inp->inp_cred->cr_prison, laddr) != 0)
 					continue;
 			} else {
 				if (local_exact != NULL)

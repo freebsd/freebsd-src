@@ -2330,8 +2330,8 @@ in_pcblookup_hash_locked(struct inpcbinfo *pcbinfo, struct in_addr faddr,
 
 			injail = prison_flag(inp->inp_cred, PR_IP4);
 			if (injail) {
-				if (prison_check_ip4(inp->inp_cred,
-				    &laddr) != 0)
+				if (prison_check_ip4_locked(
+				    inp->inp_cred->cr_prison, &laddr) != 0)
 					continue;
 			} else {
 				if (local_exact != NULL)
