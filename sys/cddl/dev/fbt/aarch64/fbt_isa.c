@@ -56,16 +56,21 @@ fbt_invop(uintptr_t addr, struct trapframe *frame, uintptr_t rval)
 	fbt = fbt_probetab[FBT_ADDR2NDX(addr)];
 
 	for (; fbt != NULL; fbt = fbt->fbtp_hashnext) {
-		if ((uintptr_t)fbt->fbtp_patchpoint == addr) {
-			cpu->cpu_dtrace_caller = addr;
+		if ((uintptr_t)fbt->fbtp_patchpoint != addr)
+			continue;
 
+		cpu->cpu_dtrace_caller = addr;
+
+		if (fbt->fbtp_roffset == 0) {
 			dtrace_probe(fbt->fbtp_id, frame->tf_x[0],
 			    frame->tf_x[1], frame->tf_x[2],
 			    frame->tf_x[3], frame->tf_x[4]);
-
-			cpu->cpu_dtrace_caller = 0;
-			return (fbt->fbtp_savedval);
+		} else {
+			dtrace_probe(fbt->fbtp_id, fbt->fbtp_roffset, rval,
+			    0, 0, 0);
 		}
+		cpu->cpu_dtrace_caller = 0;
+		return (fbt->fbtp_savedval);
 	}
 
 	return (0);
@@ -199,6 +204,7 @@ again:
 		fbt->fbtp_rval = DTRACE_INVOP_B;
 	else
 		fbt->fbtp_rval = DTRACE_INVOP_RET;
+	fbt->fbtp_roffset = (uintptr_t)instr - (uintptr_t)symval->value;
 	fbt->fbtp_savedval = *instr;
 	fbt->fbtp_patchval = FBT_PATCHVAL;
 	fbt->fbtp_hashnext = fbt_probetab[FBT_ADDR2NDX(instr)];
