@@ -232,6 +232,9 @@ struct preloaded_file
 #ifdef __amd64__
 	bool			f_kernphys_relocatable;
 #endif
+#if defined(__i386__)
+	bool			f_tg_kernel_support;
+#endif
 };
 
 struct file_format
