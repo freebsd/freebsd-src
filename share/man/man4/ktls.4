@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 26, 2021
+.Dd December 14, 2021
 .Dt KTLS 4
 .Os
 .Sh NAME
@@ -77,10 +77,10 @@ The available modes are:
 is not enabled.
 .It Dv TCP_TLS_MODE_SW
 TLS records are encrypted or decrypted in the kernel in the socket
-layer.
-Typically the encryption or decryption is performed in software,
-but it may also be performed by co-processors via
+layer via
 .Xr crypto 9 .
+Typically the encryption or decryption is performed in software,
+but it may also be performed by co-processors.
 .It Dv TCP_TLS_MODE_IFNET
 TLS records are encrypted or decrypted by the network interface card (NIC).
 In this mode, the network stack does not work with encrypted data.
@@ -204,16 +204,7 @@ The
 .Va kern.ipc.mb_use_ext_pgs
 sysctl controls whether the kernel may use unmapped mbufs.
 They are required for TLS transmit.
-.Ss Backends
-The base system includes a software backend for the
-.Dv TCP_TLS_MODE_SW
-mode which uses
-.Xr crypto 9
-to encrypt and decrypt TLS records.
-This backend can be enabled by loading the
-.Pa ktls_ocf.ko
-kernel module.
-.Pp
+.Ss Supported Hardware
 The
 .Xr cxgbe 4
 and
