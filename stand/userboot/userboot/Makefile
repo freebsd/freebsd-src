@@ -32,15 +32,15 @@ SRCS+=		main.c
 SRCS+=		userboot_cons.c
 SRCS+=		userboot_disk.c
 SRCS+=		vers.c
-SRCS+=		gfx_fb.c
+SRCS+=		gfx_fb_stub.c
 
 CFLAGS+=	-Wall
 CFLAGS+=	-I${BOOTSRC}/userboot
 CFLAGS.main.c+=	-I${BOOTSRC}/libsa/zfs
 CFLAGS.main.c+=	-I${SYSDIR}/contrib/openzfs/include
 CFLAGS.main.c+=	-I${SYSDIR}/contrib/openzfs/include/os/freebsd/zfs
-CFLAGS.gfx_fb.c+= -I$(SRCTOP)/sys/teken -I${SRCTOP}/contrib/pnglite
 CWARNFLAGS.main.c += -Wno-implicit-function-declaration
+CFLAGS.gfx_fb_stub.c += -I${SRCTOP}/contrib/pnglite -I${SRCTOP}/sys/teken
 
 NEWVERSWHAT=	"User boot ${LOADER_INTERP}" ${MACHINE_CPUARCH}
 VERSION_FILE=	${.CURDIR}/../userboot/version
