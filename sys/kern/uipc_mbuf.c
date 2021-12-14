@@ -625,7 +625,7 @@ m_copyfromunmapped(const struct mbuf *m, int off, int len, caddr_t cp)
 {
 	struct iovec iov;
 	struct uio uio;
-	int error;
+	int error __diagused;
 
 	KASSERT(off >= 0, ("m_copyfromunmapped: negative off %d", off));
 	KASSERT(len >= 0, ("m_copyfromunmapped: negative len %d", len));
@@ -1155,7 +1155,7 @@ m_copytounmapped(const struct mbuf *m, int off, int len, c_caddr_t cp)
 {
 	struct iovec iov;
 	struct uio uio;
-	int error;
+	int error __diagused;
 
 	KASSERT(off >= 0, ("m_copytounmapped: negative off %d", off));
 	KASSERT(len >= 0, ("m_copytounmapped: negative len %d", len));
