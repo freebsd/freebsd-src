@@ -367,7 +367,7 @@ struct isoreaddir {
 	struct uio *uio;
 	off_t uio_off;
 	int eofflag;
-	u_long *cookies;
+	uint64_t *cookies;
 	int ncookies;
 };
 
@@ -464,7 +464,7 @@ cd9660_readdir(ap)
 		struct ucred *a_cred;
 		int *a_eofflag;
 		int *a_ncookies;
-		u_long **a_cookies;
+		uint64_t **a_cookies;
 	} */ *ap;
 {
 	struct uio *uio = ap->a_uio;
@@ -481,7 +481,7 @@ cd9660_readdir(ap)
 	int reclen;
 	u_short namelen;
 	u_int ncookies = 0;
-	u_long *cookies = NULL;
+	uint64_t *cookies = NULL;
 	cd_ino_t ino;
 
 	dp = VTOI(vdp);
@@ -504,8 +504,7 @@ cd9660_readdir(ap)
 		 * Guess the number of cookies needed.
 		 */
 		ncookies = uio->uio_resid / 16;
-		cookies = malloc(ncookies * sizeof(u_long),
-		    M_TEMP, M_WAITOK);
+		cookies = malloc(ncookies * sizeof(*cookies), M_TEMP, M_WAITOK);
 		idp->cookies = cookies;
 		idp->ncookies = ncookies;
 	}

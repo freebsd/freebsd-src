@@ -155,7 +155,7 @@ ext2_readdir(struct vop_readdir_args *ap)
 	struct buf *bp;
 	struct inode *ip;
 	struct ext2fs_direct_2 *dp, *edp;
-	u_long *cookies;
+	uint64_t *cookies;
 	struct dirent dstdp;
 	off_t offset, startoffset;
 	size_t readcnt, skipcnt;

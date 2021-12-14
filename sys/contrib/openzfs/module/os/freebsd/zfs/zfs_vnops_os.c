@@ -1665,7 +1665,7 @@ zfs_rmdir(znode_t *dzp, const char *name, znode_t *cwd, cred_t *cr, int flags)
 /* ARGSUSED */
 static int
 zfs_readdir(vnode_t *vp, zfs_uio_t *uio, cred_t *cr, int *eofp,
-    int *ncookies, ulong_t **cookies)
+    int *ncookies, uint64_t **cookies)
 {
 	znode_t		*zp = VTOZ(vp);
 	iovec_t		*iovp;
@@ -1687,7 +1687,7 @@ zfs_readdir(vnode_t *vp, zfs_uio_t *uio, cred_t *cr, int *eofp,
 	boolean_t	check_sysattrs;
 	uint8_t		type;
 	int		ncooks;
-	ulong_t		*cooks = NULL;
+	uint64_t	*cooks = NULL;
 	int		flags = 0;
 
 	ZFS_ENTER(zfsvfs);
@@ -1764,7 +1764,7 @@ zfs_readdir(vnode_t *vp, zfs_uio_t *uio, cred_t *cr, int *eofp,
 		 */
 		ncooks = zfs_uio_resid(uio) / (sizeof (struct dirent) -
 		    sizeof (((struct dirent *)NULL)->d_name) + 1);
-		cooks = malloc(ncooks * sizeof (ulong_t), M_TEMP, M_WAITOK);
+		cooks = malloc(ncooks * sizeof (*cooks), M_TEMP, M_WAITOK);
 		*cookies = cooks;
 		*ncookies = ncooks;
 	}
@@ -4720,7 +4720,7 @@ struct vop_readdir_args {
 	struct ucred *a_cred;
 	int *a_eofflag;
 	int *a_ncookies;
-	ulong_t **a_cookies;
+	uint64_t **a_cookies;
 };
 #endif
 

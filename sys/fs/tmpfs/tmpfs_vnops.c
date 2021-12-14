@@ -1389,7 +1389,7 @@ tmpfs_readdir(struct vop_readdir_args *va)
 	struct uio *uio;
 	struct tmpfs_mount *tm;
 	struct tmpfs_node *node;
-	u_long **cookies;
+	uint64_t **cookies;
 	int *eofflag, *ncookies;
 	ssize_t startresid;
 	int error, maxcookies;

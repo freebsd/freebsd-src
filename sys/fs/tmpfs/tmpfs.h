@@ -455,7 +455,7 @@ struct tmpfs_dirent *	tmpfs_dir_lookup(struct tmpfs_node *node,
 			    struct tmpfs_node *f,
 			    struct componentname *cnp);
 int	tmpfs_dir_getdents(struct tmpfs_mount *, struct tmpfs_node *,
-	    struct uio *, int, u_long *, int *);
+	    struct uio *, int, uint64_t *, int *);
 int	tmpfs_dir_whiteout_add(struct vnode *, struct componentname *);
 void	tmpfs_dir_whiteout_remove(struct vnode *, struct componentname *);
 int	tmpfs_reg_resize(struct vnode *, off_t, boolean_t);

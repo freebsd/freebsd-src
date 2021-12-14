@@ -1517,7 +1517,7 @@ msdosfs_readdir(struct vop_readdir_args *ap)
 	struct direntry *dentp;
 	struct dirent dirbuf;
 	struct uio *uio = ap->a_uio;
-	u_long *cookies = NULL;
+	uint64_t *cookies = NULL;
 	int ncookies = 0;
 	off_t offset, off;
 	int chksum = -1;
@@ -1553,7 +1553,7 @@ msdosfs_readdir(struct vop_readdir_args *ap)
 
 	if (ap->a_ncookies) {
 		ncookies = uio->uio_resid / 16;
-		cookies = malloc(ncookies * sizeof(u_long), M_TEMP,
+		cookies = malloc(ncookies * sizeof(*cookies), M_TEMP,
 		       M_WAITOK);
 		*ap->a_cookies = cookies;
 		*ap->a_ncookies = ncookies;

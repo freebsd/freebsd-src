@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 30, 2020
+.Dd December 13, 2021
 .Dt VOP_READDIR 9
 .Os
 .Sh NAME
@@ -39,7 +39,7 @@
 .In sys/dirent.h
 .In sys/vnode.h
 .Ft int
-.Fn VOP_READDIR "struct vnode *vp" "struct uio *uio" "struct ucred *cred" "int *eofflag" "int *ncookies" "u_long **cookies"
+.Fn VOP_READDIR "struct vnode *vp" "struct uio *uio" "struct ucred *cred" "int *eofflag" "int *ncookies" "uint64_t **cookies"
 .Sh DESCRIPTION
 Read directory entries.
 .Bl -tag -width ncookies
@@ -92,7 +92,7 @@ Memory for the cookies should be allocated using:
 .Bd -literal
 	...;
 	*ncookies = number of entries read;
-	*cookies = malloc(*ncookies * sizeof(u_long), M_TEMP, M_WAITOK);
+	*cookies = malloc(*ncookies * sizeof(**cookies), M_TEMP, M_WAITOK);
 .Ed
 .Sh ERRORS
 .Bl -tag -width Er

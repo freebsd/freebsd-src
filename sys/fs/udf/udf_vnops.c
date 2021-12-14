@@ -607,7 +607,7 @@ udf_cmpname(char *cs0string, char *cmpname, int cs0len, int cmplen, struct udf_m
 
 struct udf_uiodir {
 	struct dirent *dirent;
-	u_long *cookies;
+	uint64_t *cookies;
 	int ncookies;
 	int acookies;
 	int eofflag;
@@ -787,7 +787,7 @@ udf_readdir(struct vop_readdir_args *a)
 	struct fileid_desc *fid;
 	struct udf_uiodir uiodir;
 	struct udf_dirstream *ds;
-	u_long *cookies = NULL;
+	uint64_t *cookies = NULL;
 	int ncookies;
 	int error = 0;
 
@@ -804,8 +804,7 @@ udf_readdir(struct vop_readdir_args *a)
 		 * it left off.
 		 */
 		ncookies = uio->uio_resid / 8;
-		cookies = malloc(sizeof(u_long) * ncookies,
-		    M_TEMP, M_WAITOK);
+		cookies = malloc(sizeof(*cookies) * ncookies, M_TEMP, M_WAITOK);
 		if (cookies == NULL)
 			return (ENOMEM);
 		uiodir.ncookies = ncookies;

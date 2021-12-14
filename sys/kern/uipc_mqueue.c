@@ -1369,7 +1369,7 @@ struct vop_readdir_args {
 	struct ucred *a_cred;
 	int *a_eofflag;
 	int *a_ncookies;
-	u_long **a_cookies;
+	uint64_t **a_cookies;
 };
 #endif
 
