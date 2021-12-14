@@ -598,7 +598,7 @@ soaio_process_job(struct socket *so, struct sockbuf *sb, struct kaiocb *job)
 	struct ucred *td_savedcred;
 	struct thread *td;
 	struct file *fp;
-	size_t cnt, done, job_total_nbytes;
+	size_t cnt, done, job_total_nbytes __diagused;
 	long ru_before;
 	int error, flags;
 
