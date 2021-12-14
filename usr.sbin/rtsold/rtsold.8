@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 12, 2021
+.Dd December 15, 2021
 .Dt RTSOLD 8
 .Os
 .\"
@@ -309,8 +309,8 @@ is now integrated into
 .Xr rtsold 8 .
 .\"
 .Sh BUGS
-In some operating systems, when a PCMCIA network card is removed
-and reinserted, the corresponding interface index is changed.
+When a network card is removed and reinserted, the corresponding interface index
+may change.
 However,
 .Nm
 assumes such changes will not occur, and always uses the index that
