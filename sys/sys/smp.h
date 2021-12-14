@@ -213,7 +213,7 @@ cpu_next(int i)
 
 	for (;;) {
 		i++;
-		if (i > mp_maxid)
+		if ((u_int)i > mp_maxid)
 			i = 0;
 		if (!CPU_ABSENT(i))
 			return (i);
