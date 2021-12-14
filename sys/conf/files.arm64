@@ -68,6 +68,7 @@ arm64/arm64/nexus.c				standard
 arm64/arm64/ofw_machdep.c			optional fdt
 arm64/arm64/pmap.c				standard
 arm64/arm64/ptrace_machdep.c			standard
+arm64/arm64/sigtramp.S				standard
 arm64/arm64/stack_machdep.c			optional ddb | stack
 arm64/arm64/support.S				standard
 arm64/arm64/swtch.S				standard
