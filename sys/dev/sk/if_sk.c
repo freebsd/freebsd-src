@@ -3036,10 +3036,8 @@ static void
 sk_intr_xmac(sc_if)
 	struct sk_if_softc	*sc_if;
 {
-	struct sk_softc		*sc;
 	u_int16_t		status;
 
-	sc = sc_if->sk_softc;
 	status = SK_XM_READ_2(sc_if, XM_ISR);
 
 	/*
