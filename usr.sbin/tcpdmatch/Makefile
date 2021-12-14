@@ -4,6 +4,8 @@
 
 .PATH: ${SRCTOP}/contrib/tcp_wrappers
 
+PACKAGE=	tcpd
+
 PROG=	tcpdmatch
 MAN=	tcpdmatch.8
 SRCS=	tcpdmatch.c fakelog.c inetcf.c scaffold.c
