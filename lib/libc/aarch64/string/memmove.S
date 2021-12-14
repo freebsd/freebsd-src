@@ -1,5 +1,0 @@
-/*
- * memmove is implemented in memcpy.S. Having this file simplifies the build
- * as it stops MISRCS from picking up the C implementation and rtld expects
- * to copy the memmove object file into its object directory.
- */
