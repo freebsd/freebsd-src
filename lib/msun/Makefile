@@ -59,7 +59,7 @@ SHLIBDIR?= /lib
 SHLIB_MAJOR= 5
 WARNS?=	1
 IGNORE_PRAGMA=
-COMMON_SRCS= b_exp.c b_log.c b_tgamma.c \
+COMMON_SRCS= b_tgamma.c \
 	e_acos.c e_acosf.c e_acosh.c e_acoshf.c e_asin.c e_asinf.c \
 	e_atan2.c e_atan2f.c e_atanh.c e_atanhf.c e_cosh.c e_coshf.c e_exp.c \
 	e_expf.c e_fmod.c e_fmodf.c e_gamma.c e_gamma_r.c e_gammaf.c \
