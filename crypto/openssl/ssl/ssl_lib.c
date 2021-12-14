@@ -2026,7 +2026,8 @@ ossl_ssize_t SSL_sendfile(SSL *s, int fd, off_t offset, size_t size, int flags)
     }
 
 #ifdef OPENSSL_NO_KTLS
-    ERR_raise_data(ERR_LIB_SYS, ERR_R_INTERNAL_ERROR, "calling sendfile()");
+    SYSerr(SSL_F_SSL_SENDFILE, ERR_R_INTERNAL_ERROR);
+    ERR_add_error_data(1, "calling sendfile()");
     return -1;
 #else
     ret = ktls_sendfile(SSL_get_wfd(s), fd, offset, size, flags);
