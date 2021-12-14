@@ -2372,12 +2372,10 @@ sis_add_sysctls(struct sis_softc *sc)
 {
 	struct sysctl_ctx_list *ctx;
 	struct sysctl_oid_list *children;
-	int unit;
 
 	ctx = device_get_sysctl_ctx(sc->sis_dev);
 	children = SYSCTL_CHILDREN(device_get_sysctl_tree(sc->sis_dev));
 
-	unit = device_get_unit(sc->sis_dev);
 	/*
 	 * Unlike most other controllers, NS DP83815/DP83816 controllers
 	 * seem to pad with 0xFF when it encounter short frames.  According
