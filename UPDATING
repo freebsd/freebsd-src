@@ -27,6 +27,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 14.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20211214:
+	A number of the kernel include files are able to be included by
+	themselves.  A test has been added to buildworld to enforce this.
+
 20211209:
 	Remove mips as a recognized target. This starts the decommissioning of
 	mips support in FreeBSD. mips related items will be removed wholesale in
