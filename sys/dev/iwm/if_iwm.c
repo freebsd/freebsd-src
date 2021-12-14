@@ -2513,15 +2513,12 @@ static int
 iwm_pcie_load_cpu_sections(struct iwm_softc *sc,
 	const struct iwm_fw_img *image, int cpu, int *first_ucode_section)
 {
-	int shift_param;
 	int i, ret = 0;
 	uint32_t last_read_idx = 0;
 
 	if (cpu == 1) {
-		shift_param = 0;
 		*first_ucode_section = 0;
 	} else {
-		shift_param = 16;
 		(*first_ucode_section)++;
 	}
 
@@ -3153,7 +3150,6 @@ iwm_rx_rx_mpdu(struct iwm_softc *sc, struct mbuf *m, uint32_t offset,
 {
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
-	struct ieee80211_frame *wh;
 	struct ieee80211_rx_stats rxs;
 	struct iwm_rx_phy_info *phy_info;
 	struct iwm_rx_mpdu_res_start *rx_res;
@@ -3164,7 +3160,6 @@ iwm_rx_rx_mpdu(struct iwm_softc *sc, struct mbuf *m, uint32_t offset,
 
 	phy_info = &sc->sc_last_phy_info;
 	rx_res = (struct iwm_rx_mpdu_res_start *)pkt->data;
-	wh = (struct ieee80211_frame *)(pkt->data + sizeof(*rx_res));
 	len = le16toh(rx_res->byte_count);
 	rx_pkt_status = le32toh(*(uint32_t *)(pkt->data + sizeof(*rx_res) + len));
 
@@ -5480,8 +5475,6 @@ iwm_handle_rxb(struct iwm_softc *sc, struct mbuf *m)
 			break;
 
 		case IWM_SCAN_ITERATION_COMPLETE: {
-			struct iwm_lmac_scan_complete_notif *notif;
-			notif = (void *)pkt->data;
 			break;
 		}
 
