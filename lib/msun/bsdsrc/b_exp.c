@@ -33,7 +33,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-
 /* EXP(X)
  * RETURN THE EXPONENTIAL OF X
  * DOUBLE PRECISION (IEEE 53 bits, VAX D FORMAT 56 BITS)
@@ -41,14 +40,14 @@ __FBSDID("$FreeBSD$");
  * REVISED BY K.C. NG on 2/6/85, 2/15/85, 3/7/85, 3/24/85, 4/16/85, 6/14/86.
  *
  * Required system supported functions:
- *	scalb(x,n)
+ *	ldexp(x,n)
  *	copysign(x,y)
- *	finite(x)
+ *	isfinite(x)
  *
  * Method:
  *	1. Argument Reduction: given the input x, find r and integer k such
  *	   that
- *	                   x = k*ln2 + r,  |r| <= 0.5*ln2 .
+ *	        x = k*ln2 + r,  |r| <= 0.5*ln2.
  *	   r will be represented as r := z+c for better accuracy.
  *
  *	2. Compute exp(r) by
@@ -69,105 +68,59 @@ __FBSDID("$FreeBSD$");
  *	with 1,156,000 random arguments on a VAX, the maximum observed
  *	error was 0.869 ulps (units in the last place).
  */
+static const double
+    p1 =  1.6666666666666660e-01, /* 0x3fc55555, 0x55555553 */
+    p2 = -2.7777777777564776e-03, /* 0xbf66c16c, 0x16c0ac3c */
+    p3 =  6.6137564717940088e-05, /* 0x3f11566a, 0xb5c2ba0d */
+    p4 = -1.6534060280704225e-06, /* 0xbebbbd53, 0x273e8fb7 */
+    p5 =  4.1437773411069054e-08; /* 0x3e663f2a, 0x09c94b6c */
 
-#include "mathimpl.h"
+static const double
+    ln2hi = 0x1.62e42fee00000p-1,   /* High 32 bits round-down. */
+    ln2lo = 0x1.a39ef35793c76p-33;  /* Next 53 bits round-to-nearst. */
 
-static const double p1 = 0x1.555555555553ep-3;
-static const double p2 = -0x1.6c16c16bebd93p-9;
-static const double p3 = 0x1.1566aaf25de2cp-14;
-static const double p4 = -0x1.bbd41c5d26bf1p-20;
-static const double p5 = 0x1.6376972bea4d0p-25;
-static const double ln2hi = 0x1.62e42fee00000p-1;
-static const double ln2lo = 0x1.a39ef35793c76p-33;
-static const double lnhuge = 0x1.6602b15b7ecf2p9;
-static const double lntiny = -0x1.77af8ebeae354p9;
-static const double invln2 = 0x1.71547652b82fep0;
-
-#if 0
-double exp(x)
-double x;
-{
-	double  z,hi,lo,c;
-	int k;
-
-#if !defined(vax)&&!defined(tahoe)
-	if(x!=x) return(x);	/* x is NaN */
-#endif	/* !defined(vax)&&!defined(tahoe) */
-	if( x <= lnhuge ) {
-		if( x >= lntiny ) {
-
-		    /* argument reduction : x --> x - k*ln2 */
-
-			k=invln2*x+copysign(0.5,x);	/* k=NINT(x/ln2) */
-
-		    /* express x-k*ln2 as hi-lo and let x=hi-lo rounded */
-
-			hi=x-k*ln2hi;
-			x=hi-(lo=k*ln2lo);
-
-		    /* return 2^k*[1+x+x*c/(2+c)]  */
-			z=x*x;
-			c= x - z*(p1+z*(p2+z*(p3+z*(p4+z*p5))));
-			return  scalb(1.0+(hi-(lo-(x*c)/(2.0-c))),k);
-
-		}
-		/* end of x > lntiny */
-
-		else
-		     /* exp(-big#) underflows to zero */
-		     if(finite(x))  return(scalb(1.0,-5000));
-
-		     /* exp(-INF) is zero */
-		     else return(0.0);
-	}
-	/* end of x < lnhuge */
-
-	else
-	/* exp(INF) is INF, exp(+big#) overflows to INF */
-	    return( finite(x) ?  scalb(1.0,5000)  : x);
-}
-#endif
+static const double
+    lnhuge =  0x1.6602b15b7ecf2p9,  /* (DBL_MAX_EXP + 9) * log(2.) */
+    lntiny = -0x1.77af8ebeae354p9,  /* (DBL_MIN_EXP - 53 - 10) * log(2.) */
+    invln2 =  0x1.71547652b82fep0;  /* 1 / log(2.) */
 
 /* returns exp(r = x + c) for |c| < |x| with no overlap.  */
 
-double __exp__D(x, c)
-double x, c;
+static double
+__exp__D(double x, double c)
 {
-	double  z,hi,lo;
+	double hi, lo, z;
 	int k;
 
-	if (x != x)	/* x is NaN */
+	if (x != x)	/* x is NaN. */
 		return(x);
-	if ( x <= lnhuge ) {
-		if ( x >= lntiny ) {
 
-		    /* argument reduction : x --> x - k*ln2 */
-			z = invln2*x;
-			k = z + copysign(.5, x);
+	if (x <= lnhuge) {
+		if (x >= lntiny) {
+			/* argument reduction: x --> x - k*ln2 */
+			z = invln2 * x;
+			k = z + copysign(0.5, x);
 
-		    /* express (x+c)-k*ln2 as hi-lo and let x=hi-lo rounded */
+		    	/*
+			 * Express (x + c) - k * ln2 as hi - lo.
+			 * Let x = hi - lo rounded.
+			 */
+			hi = x - k * ln2hi;	/* Exact. */
+			lo = k * ln2lo - c;
+			x = hi - lo;
 
-			hi=(x-k*ln2hi);			/* Exact. */
-			x= hi - (lo = k*ln2lo-c);
-		    /* return 2^k*[1+x+x*c/(2+c)]  */
-			z=x*x;
-			c= x - z*(p1+z*(p2+z*(p3+z*(p4+z*p5))));
-			c = (x*c)/(2.0-c);
+			/* Return 2^k*[1+x+x*c/(2+c)]  */
+			z = x * x;
+			c = x - z * (p1 + z * (p2 + z * (p3 + z * (p4 +
+			    z * p5))));
+			c = (x * c) / (2 - c);
 
-			return  scalb(1.+(hi-(lo - c)), k);
+			return (ldexp(1 + (hi - (lo - c)), k));
+		} else {
+			/* exp(-INF) is 0. exp(-big) underflows to 0.  */
+			return (isfinite(x) ? ldexp(1., -5000) : 0);
 		}
-		/* end of x > lntiny */
-
-		else
-		     /* exp(-big#) underflows to zero */
-		     if(finite(x))  return(scalb(1.0,-5000));
-
-		     /* exp(-INF) is zero */
-		     else return(0.0);
-	}
-	/* end of x < lnhuge */
-
-	else
+	} else
 	/* exp(INF) is INF, exp(+big#) overflows to INF */
-	    return( finite(x) ?  scalb(1.0,5000)  : x);
+		return (isfinite(x) ? ldexp(1., 5000) : x);
 }
