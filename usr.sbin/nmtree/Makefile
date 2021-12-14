@@ -4,6 +4,8 @@
 
 .PATH: ${SRCTOP}/contrib/mtree
 
+PACKAGE=	mtree
+
 PROG=		mtree
 MAN=		mtree.5 mtree.8
 SRCS=		compare.c crc.c create.c excludes.c getid.c misc.c mtree.c \
