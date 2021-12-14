@@ -33,10 +33,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <math.h>
-
-#include "mathimpl.h"
-
 /* Table-driven natural logarithm.
  *
  * This code was derived, with minor modifications, from:
@@ -44,25 +40,27 @@ __FBSDID("$FreeBSD$");
  *	Logarithm in IEEE Floating-Point arithmetic." ACM Trans.
  *	Math Software, vol 16. no 4, pp 378-400, Dec 1990).
  *
- * Calculates log(2^m*F*(1+f/F)), |f/j| <= 1/256,
+ * Calculates log(2^m*F*(1+f/F)), |f/F| <= 1/256,
  * where F = j/128 for j an integer in [0, 128].
  *
  * log(2^m) = log2_hi*m + log2_tail*m
- * since m is an integer, the dominant term is exact.
+ * The leading term is exact, because m is an integer,
  * m has at most 10 digits (for subnormal numbers),
  * and log2_hi has 11 trailing zero bits.
  *
- * log(F) = logF_hi[j] + logF_lo[j] is in tabular form in log_table.h
+ * log(F) = logF_hi[j] + logF_lo[j] is in table below.
  * logF_hi[] + 512 is exact.
  *
  * log(1+f/F) = 2*f/(2*F + f) + 1/12 * (2*f/(2*F + f))**3 + ...
- * the leading term is calculated to extra precision in two
+ *
+ * The leading term is calculated to extra precision in two
  * parts, the larger of which adds exactly to the dominant
  * m and F terms.
+ *
  * There are two cases:
- *	1. when m, j are non-zero (m | j), use absolute
+ *	1. When m and j are non-zero (m | j), use absolute
  *	   precision for the leading term.
- *	2. when m = j = 0, |1-x| < 1/256, and log(x) ~= (x-1).
+ *	2. When m = j = 0, |1-x| < 1/256, and log(x) ~= (x-1).
  *	   In this case, use a relative precision of 24 bits.
  * (This is done differently in the original paper)
  *
@@ -70,11 +68,21 @@ __FBSDID("$FreeBSD$");
  *	0	return signalling -Inf
  *	neg	return signalling NaN
  *	+Inf	return +Inf
-*/
+ */
 
 #define N 128
 
-/* Table of log(Fj) = logF_head[j] + logF_tail[j], for Fj = 1+j/128.
+/*
+ * Coefficients in the polynomial approximation of log(1+f/F).
+ * Domain of x is [0,1./256] with 2**(-64.187) precision.
+ */
+static const double
+    A1 =  8.3333333333333329e-02, /* 0x3fb55555, 0x55555555 */
+    A2 =  1.2499999999943598e-02, /* 0x3f899999, 0x99991a98 */
+    A3 =  2.2321527525957776e-03; /* 0x3f624929, 0xe24e70be */
+
+/*
+ * Table of log(Fj) = logF_head[j] + logF_tail[j], for Fj = 1+j/128.
  * Used for generation of extend precision logarithms.
  * The constant 35184372088832 is 2^45, so the divide is exact.
  * It ensures correct reading of logF_head, even for inaccurate
@@ -82,12 +90,7 @@ __FBSDID("$FreeBSD$");
  * right answer for integers less than 2^53.)
  * Values for log(F) were generated using error < 10^-57 absolute
  * with the bc -l package.
-*/
-static double	A1 = 	  .08333333333333178827;
-static double	A2 = 	  .01250000000377174923;
-static double	A3 =	 .002232139987919447809;
-static double	A4 =	.0004348877777076145742;
-
+ */
 static double logF_head[N+1] = {
 	0.,
 	.007782140442060381246,
@@ -351,118 +354,51 @@ static double logF_tail[N+1] = {
 	 .00000000000025144230728376072,
 	-.00000000000017239444525614834
 };
-
-#if 0
-double
-#ifdef _ANSI_SOURCE
-log(double x)
-#else
-log(x) double x;
-#endif
-{
-	int m, j;
-	double F, f, g, q, u, u2, v, zero = 0.0, one = 1.0;
-	volatile double u1;
-
-	/* Catch special cases */
-	if (x <= 0)
-		if (x == zero)	/* log(0) = -Inf */
-			return (-one/zero);
-		else		/* log(neg) = NaN */
-			return (zero/zero);
-	else if (!finite(x))
-		return (x+x);		/* x = NaN, Inf */
-
-	/* Argument reduction: 1 <= g < 2; x/2^m = g;	*/
-	/* y = F*(1 + f/F) for |f| <= 2^-8		*/
-
-	m = logb(x);
-	g = ldexp(x, -m);
-	if (m == -1022) {
-		j = logb(g), m += j;
-		g = ldexp(g, -j);
-	}
-	j = N*(g-1) + .5;
-	F = (1.0/N) * j + 1;	/* F*128 is an integer in [128, 512] */
-	f = g - F;
-
-	/* Approximate expansion for log(1+f/F) ~= u + q */
-	g = 1/(2*F+f);
-	u = 2*f*g;
-	v = u*u;
-	q = u*v*(A1 + v*(A2 + v*(A3 + v*A4)));
-
-    /* case 1: u1 = u rounded to 2^-43 absolute.  Since u < 2^-8,
-     * 	       u1 has at most 35 bits, and F*u1 is exact, as F has < 8 bits.
-     *         It also adds exactly to |m*log2_hi + log_F_head[j] | < 750
-    */
-	if (m | j)
-		u1 = u + 513, u1 -= 513;
-
-    /* case 2:	|1-x| < 1/256. The m- and j- dependent terms are zero;
-     * 		u1 = u to 24 bits.
-    */
-	else
-		u1 = u, TRUNC(u1);
-	u2 = (2.0*(f - F*u1) - u1*f) * g;
-			/* u1 + u2 = 2f/(2F+f) to extra precision.	*/
-
-	/* log(x) = log(2^m*F*(1+f/F)) =				*/
-	/* (m*log2_hi+logF_head[j]+u1) + (m*log2_lo+logF_tail[j]+q);	*/
-	/* (exact) + (tiny)						*/
-
-	u1 += m*logF_head[N] + logF_head[j];		/* exact */
-	u2 = (u2 + logF_tail[j]) + q;			/* tiny */
-	u2 += logF_tail[N]*m;
-	return (u1 + u2);
-}
-#endif
-
 /*
  * Extra precision variant, returning struct {double a, b;};
- * log(x) = a+b to 63 bits, with a rounded to 26 bits.
+ * log(x) = a+b to 63 bits, with 'a' rounded to 24 bits.
  */
-struct Double
-#ifdef _ANSI_SOURCE
+static struct Double
 __log__D(double x)
-#else
-__log__D(x) double x;
-#endif
 {
 	int m, j;
-	double F, f, g, q, u, v, u2;
-	volatile double u1;
+	double F, f, g, q, u, v, u1, u2;
 	struct Double r;
 
-	/* Argument reduction: 1 <= g < 2; x/2^m = g;	*/
-	/* y = F*(1 + f/F) for |f| <= 2^-8		*/
-
-	m = logb(x);
-	g = ldexp(x, -m);
+	/*
+	 * Argument reduction: 1 <= g < 2; x/2^m = g;
+	 * y = F*(1 + f/F) for |f| <= 2^-8
+	 */
+	g = frexp(x, &m);
+	g *= 2;
+	m--;
 	if (m == -1022) {
-		j = logb(g), m += j;
+		j = ilogb(g);
+		m += j;
 		g = ldexp(g, -j);
 	}
-	j = N*(g-1) + .5;
-	F = (1.0/N) * j + 1;
+	j = N * (g - 1) + 0.5;
+	F = (1. / N) * j + 1;
 	f = g - F;
 
-	g = 1/(2*F+f);
-	u = 2*f*g;
-	v = u*u;
-	q = u*v*(A1 + v*(A2 + v*(A3 + v*A4)));
-	if (m | j)
-		u1 = u + 513, u1 -= 513;
-	else
-		u1 = u, TRUNC(u1);
-	u2 = (2.0*(f - F*u1) - u1*f) * g;
+	g = 1 / (2 * F + f);
+	u = 2 * f * g;
+	v = u * u;
+	q = u * v * (A1 + v * (A2 + v * A3));
+	if (m | j) {
+		u1 = u + 513;
+		u1 -= 513;
+	} else {
+		u1 = (float)u;
+	}
+	u2 = (2 * (f - F * u1) - u1 * f) * g;
 
-	u1 += m*logF_head[N] + logF_head[j];
+	u1 += m * logF_head[N] + logF_head[j];
 
-	u2 +=  logF_tail[j]; u2 += q;
-	u2 += logF_tail[N]*m;
-	r.a = u1 + u2;			/* Only difference is here */
-	TRUNC(r.a);
+	u2 += logF_tail[j];
+	u2 += q;
+	u2 += logF_tail[N] * m;
+	r.a = (float)(u1 + u2);		/* Only difference is here. */
 	r.b = (u1 - r.a) + u2;
 	return (r);
 }
