@@ -24,6 +24,8 @@
 #
 # $FreeBSD$
 
+PACKAGE=	runtime
+
 LIB=	pam_self
 SRCS=	pam_self.c
 MAN=	pam_self.8

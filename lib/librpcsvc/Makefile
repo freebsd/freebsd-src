@@ -5,6 +5,8 @@
 
 .PATH: ${SRCTOP}/include/rpcsvc
 
+PACKAGE=	runtime
+
 LIB=    rpcsvc
 
 RPCSRCS= klm_prot.x mount.x nfs_prot.x nlm_prot.x rex.x rnusers.x \
