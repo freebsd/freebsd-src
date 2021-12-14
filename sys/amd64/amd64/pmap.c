@@ -2329,45 +2329,19 @@ pmap_invalidate_ept(pmap_t pmap)
 static cpuset_t
 pmap_invalidate_cpu_mask(pmap_t pmap)
 {
-
 	return (pmap == kernel_pmap ? all_cpus : pmap->pm_active);
 }
 
 static inline void
-pmap_invalidate_page_pcid(pmap_t pmap, vm_offset_t va,
-    const bool invpcid_works1)
+pmap_invalidate_preipi_pcid(pmap_t pmap)
 {
-	struct invpcid_descr d;
-	uint64_t kcr3, ucr3;
-	uint32_t pcid;
 	u_int cpuid, i;
 
+	sched_pin();
+
 	cpuid = PCPU_GET(cpuid);
-	if (pmap == PCPU_GET(curpmap)) {
-		if (pmap->pm_ucr3 != PMAP_NO_CR3) {
-			/*
-			 * Because pm_pcid is recalculated on a
-			 * context switch, we must disable switching.
-			 * Otherwise, we might use a stale value
-			 * below.
-			 */
-			critical_enter();
-			pcid = pmap->pm_pcids[cpuid].pm_pcid;
-			if (invpcid_works1) {
-				d.pcid = pcid | PMAP_PCID_USER_PT;
-				d.pad = 0;
-				d.addr = va;
-				invpcid(&d, INVPCID_ADDR);
-			} else {
-				kcr3 = pmap->pm_cr3 | pcid | CR3_PCID_SAVE;
-				ucr3 = pmap->pm_ucr3 | pcid |
-				    PMAP_PCID_USER_PT | CR3_PCID_SAVE;
-				pmap_pti_pcid_invlpg(ucr3, kcr3, va);
-			}
-			critical_exit();
-		}
-	} else
-		pmap->pm_pcids[cpuid].pm_gen = 0;
+	if (pmap != PCPU_GET(curpmap))
+		cpuid = 0xffffffff;	/* An impossible value */
 
 	CPU_FOREACH(i) {
 		if (cpuid != i)
@@ -2388,52 +2362,96 @@ pmap_invalidate_page_pcid(pmap_t pmap, vm_offset_t va,
 }
 
 static void
-pmap_invalidate_page_pcid_invpcid(pmap_t pmap, vm_offset_t va)
+pmap_invalidate_preipi_nopcid(pmap_t pmap __unused)
 {
+	sched_pin();
+}
 
-	pmap_invalidate_page_pcid(pmap, va, true);
+DEFINE_IFUNC(static, void, pmap_invalidate_preipi, (pmap_t), static)
+{
+	return (pmap_pcid_enabled ? pmap_invalidate_preipi_pcid :
+	    pmap_invalidate_preipi_nopcid);
+}
+
+static inline void
+pmap_invalidate_page_pcid_cb(pmap_t pmap, vm_offset_t va,
+    const bool invpcid_works1)
+{
+	struct invpcid_descr d;
+	uint64_t kcr3, ucr3;
+	uint32_t pcid;
+	u_int cpuid;
+
+	/*
+	 * Because pm_pcid is recalculated on a context switch, we
+	 * must ensure there is no preemption, not just pinning.
+	 * Otherwise, we might use a stale value below.
+	 */
+	CRITICAL_ASSERT(curthread);
+
+	/*
+	 * No need to do anything with user page tables invalidation
+	 * if there is no user page table.
+	 */
+	if (pmap->pm_ucr3 == PMAP_NO_CR3)
+		return;
+
+	cpuid = PCPU_GET(cpuid);
+
+	pcid = pmap->pm_pcids[cpuid].pm_pcid;
+	if (invpcid_works1) {
+		d.pcid = pcid | PMAP_PCID_USER_PT;
+		d.pad = 0;
+		d.addr = va;
+		invpcid(&d, INVPCID_ADDR);
+	} else {
+		kcr3 = pmap->pm_cr3 | pcid | CR3_PCID_SAVE;
+		ucr3 = pmap->pm_ucr3 | pcid | PMAP_PCID_USER_PT | CR3_PCID_SAVE;
+		pmap_pti_pcid_invlpg(ucr3, kcr3, va);
+	}
 }
 
 static void
-pmap_invalidate_page_pcid_noinvpcid(pmap_t pmap, vm_offset_t va)
+pmap_invalidate_page_pcid_invpcid_cb(pmap_t pmap, vm_offset_t va)
 {
-
-	pmap_invalidate_page_pcid(pmap, va, false);
+	pmap_invalidate_page_pcid_cb(pmap, va, true);
 }
 
 static void
-pmap_invalidate_page_nopcid(pmap_t pmap, vm_offset_t va)
+pmap_invalidate_page_pcid_noinvpcid_cb(pmap_t pmap, vm_offset_t va)
+{
+	pmap_invalidate_page_pcid_cb(pmap, va, false);
+}
+
+static void
+pmap_invalidate_page_nopcid_cb(pmap_t pmap __unused, vm_offset_t va __unused)
 {
 }
 
-DEFINE_IFUNC(static, void, pmap_invalidate_page_mode, (pmap_t, vm_offset_t),
+DEFINE_IFUNC(static, void, pmap_invalidate_page_cb, (pmap_t, vm_offset_t),
     static)
 {
-
 	if (pmap_pcid_enabled)
-		return (invpcid_works ? pmap_invalidate_page_pcid_invpcid :
-		    pmap_invalidate_page_pcid_noinvpcid);
-	return (pmap_invalidate_page_nopcid);
+		return (invpcid_works ? pmap_invalidate_page_pcid_invpcid_cb :
+		    pmap_invalidate_page_pcid_noinvpcid_cb);
+	return (pmap_invalidate_page_nopcid_cb);
 }
 
 static void
 pmap_invalidate_page_curcpu_cb(pmap_t pmap, vm_offset_t va,
     vm_offset_t addr2 __unused)
 {
-
 	if (pmap == kernel_pmap) {
 		invlpg(va);
-	} else {
-		if (pmap == PCPU_GET(curpmap))
-			invlpg(va);
-		pmap_invalidate_page_mode(pmap, va);
+	} else if (pmap == PCPU_GET(curpmap)) {
+		invlpg(va);
+		pmap_invalidate_page_cb(pmap, va);
 	}
 }
 
 void
 pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
 {
-
 	if (pmap_type_guest(pmap)) {
 		pmap_invalidate_ept(pmap);
 		return;
@@ -2442,6 +2460,7 @@ pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
 	KASSERT(pmap->pm_type == PT_X86,
 	    ("pmap_invalidate_page: invalid type %d", pmap->pm_type));
 
+	pmap_invalidate_preipi(pmap);
 	smp_masked_invlpg(pmap_invalidate_cpu_mask(pmap), va, pmap,
 	    pmap_invalidate_page_curcpu_cb);
 }
@@ -2450,73 +2469,62 @@ pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
 #define	PMAP_INVLPG_THRESHOLD	(4 * 1024 * PAGE_SIZE)
 
 static void
-pmap_invalidate_range_pcid(pmap_t pmap, vm_offset_t sva, vm_offset_t eva,
+pmap_invalidate_range_pcid_cb(pmap_t pmap, vm_offset_t sva, vm_offset_t eva,
     const bool invpcid_works1)
 {
 	struct invpcid_descr d;
 	uint64_t kcr3, ucr3;
 	uint32_t pcid;
-	u_int cpuid, i;
+	u_int cpuid;
+
+	CRITICAL_ASSERT(curthread);
+
+	if (pmap != PCPU_GET(curpmap) ||
+	    pmap->pm_ucr3 == PMAP_NO_CR3)
+		return;
 
 	cpuid = PCPU_GET(cpuid);
-	if (pmap == PCPU_GET(curpmap)) {
-		if (pmap->pm_ucr3 != PMAP_NO_CR3) {
-			critical_enter();
-			pcid = pmap->pm_pcids[cpuid].pm_pcid;
-			if (invpcid_works1) {
-				d.pcid = pcid | PMAP_PCID_USER_PT;
-				d.pad = 0;
-				d.addr = sva;
-				for (; d.addr < eva; d.addr += PAGE_SIZE)
-					invpcid(&d, INVPCID_ADDR);
-			} else {
-				kcr3 = pmap->pm_cr3 | pcid | CR3_PCID_SAVE;
-				ucr3 = pmap->pm_ucr3 | pcid |
-				    PMAP_PCID_USER_PT | CR3_PCID_SAVE;
-				pmap_pti_pcid_invlrng(ucr3, kcr3, sva, eva);
-			}
-			critical_exit();
-		}
-	} else
-		pmap->pm_pcids[cpuid].pm_gen = 0;
 
-	CPU_FOREACH(i) {
-		if (cpuid != i)
-			pmap->pm_pcids[i].pm_gen = 0;
+	pcid = pmap->pm_pcids[cpuid].pm_pcid;
+	if (invpcid_works1) {
+		d.pcid = pcid | PMAP_PCID_USER_PT;
+		d.pad = 0;
+		for (d.addr = sva; d.addr < eva; d.addr += PAGE_SIZE)
+			invpcid(&d, INVPCID_ADDR);
+	} else {
+		kcr3 = pmap->pm_cr3 | pcid | CR3_PCID_SAVE;
+		ucr3 = pmap->pm_ucr3 | pcid | PMAP_PCID_USER_PT | CR3_PCID_SAVE;
+		pmap_pti_pcid_invlrng(ucr3, kcr3, sva, eva);
 	}
-	/* See the comment in pmap_invalidate_page_pcid(). */
-	atomic_thread_fence_seq_cst();
 }
 
 static void
-pmap_invalidate_range_pcid_invpcid(pmap_t pmap, vm_offset_t sva,
+pmap_invalidate_range_pcid_invpcid_cb(pmap_t pmap, vm_offset_t sva,
     vm_offset_t eva)
 {
-
-	pmap_invalidate_range_pcid(pmap, sva, eva, true);
+	pmap_invalidate_range_pcid_cb(pmap, sva, eva, true);
 }
 
 static void
-pmap_invalidate_range_pcid_noinvpcid(pmap_t pmap, vm_offset_t sva,
+pmap_invalidate_range_pcid_noinvpcid_cb(pmap_t pmap, vm_offset_t sva,
     vm_offset_t eva)
 {
-
-	pmap_invalidate_range_pcid(pmap, sva, eva, false);
+	pmap_invalidate_range_pcid_cb(pmap, sva, eva, false);
 }
 
 static void
-pmap_invalidate_range_nopcid(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
+pmap_invalidate_range_nopcid_cb(pmap_t pmap __unused, vm_offset_t sva __unused,
+    vm_offset_t eva __unused)
 {
 }
 
-DEFINE_IFUNC(static, void, pmap_invalidate_range_mode, (pmap_t, vm_offset_t,
+DEFINE_IFUNC(static, void, pmap_invalidate_range_cb, (pmap_t, vm_offset_t,
     vm_offset_t), static)
 {
-
 	if (pmap_pcid_enabled)
-		return (invpcid_works ? pmap_invalidate_range_pcid_invpcid :
-		    pmap_invalidate_range_pcid_noinvpcid);
-	return (pmap_invalidate_range_nopcid);
+		return (invpcid_works ? pmap_invalidate_range_pcid_invpcid_cb :
+		    pmap_invalidate_range_pcid_noinvpcid_cb);
+	return (pmap_invalidate_range_nopcid_cb);
 }
 
 static void
@@ -2527,19 +2535,16 @@ pmap_invalidate_range_curcpu_cb(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	if (pmap == kernel_pmap) {
 		for (addr = sva; addr < eva; addr += PAGE_SIZE)
 			invlpg(addr);
-	} else {
-		if (pmap == PCPU_GET(curpmap)) {
-			for (addr = sva; addr < eva; addr += PAGE_SIZE)
-				invlpg(addr);
-		}
-		pmap_invalidate_range_mode(pmap, sva, eva);
+	} else if (pmap == PCPU_GET(curpmap)) {
+		for (addr = sva; addr < eva; addr += PAGE_SIZE)
+			invlpg(addr);
+		pmap_invalidate_range_cb(pmap, sva, eva);
 	}
 }
 
 void
 pmap_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 {
-
 	if (eva - sva >= PMAP_INVLPG_THRESHOLD) {
 		pmap_invalidate_all(pmap);
 		return;
@@ -2553,17 +2558,18 @@ pmap_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	KASSERT(pmap->pm_type == PT_X86,
 	    ("pmap_invalidate_range: invalid type %d", pmap->pm_type));
 
+	pmap_invalidate_preipi(pmap);
 	smp_masked_invlpg_range(pmap_invalidate_cpu_mask(pmap), sva, eva, pmap,
 	    pmap_invalidate_range_curcpu_cb);
 }
 
 static inline void
-pmap_invalidate_all_pcid(pmap_t pmap, bool invpcid_works1)
+pmap_invalidate_all_pcid_cb(pmap_t pmap, bool invpcid_works1)
 {
 	struct invpcid_descr d;
 	uint64_t kcr3, ucr3;
 	uint32_t pcid;
-	u_int cpuid, i;
+	u_int cpuid;
 
 	if (pmap == kernel_pmap) {
 		if (invpcid_works1) {
@@ -2572,87 +2578,72 @@ pmap_invalidate_all_pcid(pmap_t pmap, bool invpcid_works1)
 		} else {
 			invltlb_glob();
 		}
-	} else {
+	} else if (pmap == PCPU_GET(curpmap)) {
+		CRITICAL_ASSERT(curthread);
 		cpuid = PCPU_GET(cpuid);
-		if (pmap == PCPU_GET(curpmap)) {
-			critical_enter();
-			pcid = pmap->pm_pcids[cpuid].pm_pcid;
-			if (invpcid_works1) {
-				d.pcid = pcid;
-				d.pad = 0;
-				d.addr = 0;
+
+		pcid = pmap->pm_pcids[cpuid].pm_pcid;
+		if (invpcid_works1) {
+			d.pcid = pcid;
+			d.pad = 0;
+			d.addr = 0;
+			invpcid(&d, INVPCID_CTX);
+			if (pmap->pm_ucr3 != PMAP_NO_CR3) {
+				d.pcid |= PMAP_PCID_USER_PT;
 				invpcid(&d, INVPCID_CTX);
-				if (pmap->pm_ucr3 != PMAP_NO_CR3) {
-					d.pcid |= PMAP_PCID_USER_PT;
-					invpcid(&d, INVPCID_CTX);
-				}
-			} else {
-				kcr3 = pmap->pm_cr3 | pcid;
-				ucr3 = pmap->pm_ucr3;
-				if (ucr3 != PMAP_NO_CR3) {
-					ucr3 |= pcid | PMAP_PCID_USER_PT;
-					pmap_pti_pcid_invalidate(ucr3, kcr3);
-				} else {
-					load_cr3(kcr3);
-				}
 			}
-			critical_exit();
-		} else
-			pmap->pm_pcids[cpuid].pm_gen = 0;
-		CPU_FOREACH(i) {
-			if (cpuid != i)
-				pmap->pm_pcids[i].pm_gen = 0;
+		} else {
+			kcr3 = pmap->pm_cr3 | pcid;
+			ucr3 = pmap->pm_ucr3;
+			if (ucr3 != PMAP_NO_CR3) {
+				ucr3 |= pcid | PMAP_PCID_USER_PT;
+				pmap_pti_pcid_invalidate(ucr3, kcr3);
+			} else {
+				load_cr3(kcr3);
+			}
 		}
 	}
-	/* See the comment in pmap_invalidate_page_pcid(). */
-	atomic_thread_fence_seq_cst();
 }
 
 static void
-pmap_invalidate_all_pcid_invpcid(pmap_t pmap)
+pmap_invalidate_all_pcid_invpcid_cb(pmap_t pmap)
 {
-
-	pmap_invalidate_all_pcid(pmap, true);
+	pmap_invalidate_all_pcid_cb(pmap, true);
 }
 
 static void
-pmap_invalidate_all_pcid_noinvpcid(pmap_t pmap)
+pmap_invalidate_all_pcid_noinvpcid_cb(pmap_t pmap)
 {
-
-	pmap_invalidate_all_pcid(pmap, false);
+	pmap_invalidate_all_pcid_cb(pmap, false);
 }
 
 static void
-pmap_invalidate_all_nopcid(pmap_t pmap)
+pmap_invalidate_all_nopcid_cb(pmap_t pmap)
 {
-
 	if (pmap == kernel_pmap)
 		invltlb_glob();
 	else if (pmap == PCPU_GET(curpmap))
 		invltlb();
 }
 
-DEFINE_IFUNC(static, void, pmap_invalidate_all_mode, (pmap_t), static)
+DEFINE_IFUNC(static, void, pmap_invalidate_all_cb, (pmap_t), static)
 {
-
 	if (pmap_pcid_enabled)
-		return (invpcid_works ? pmap_invalidate_all_pcid_invpcid :
-		    pmap_invalidate_all_pcid_noinvpcid);
-	return (pmap_invalidate_all_nopcid);
+		return (invpcid_works ? pmap_invalidate_all_pcid_invpcid_cb :
+		    pmap_invalidate_all_pcid_noinvpcid_cb);
+	return (pmap_invalidate_all_nopcid_cb);
 }
 
 static void
 pmap_invalidate_all_curcpu_cb(pmap_t pmap, vm_offset_t addr1 __unused,
     vm_offset_t addr2 __unused)
 {
-
-	pmap_invalidate_all_mode(pmap);
+	pmap_invalidate_all_cb(pmap);
 }
 
 void
 pmap_invalidate_all(pmap_t pmap)
 {
-
 	if (pmap_type_guest(pmap)) {
 		pmap_invalidate_ept(pmap);
 		return;
@@ -2661,6 +2652,7 @@ pmap_invalidate_all(pmap_t pmap)
 	KASSERT(pmap->pm_type == PT_X86,
 	    ("pmap_invalidate_all: invalid type %d", pmap->pm_type));
 
+	pmap_invalidate_preipi(pmap);
 	smp_masked_invltlb(pmap_invalidate_cpu_mask(pmap), pmap,
 	    pmap_invalidate_all_curcpu_cb);
 }
@@ -2669,14 +2661,13 @@ static void
 pmap_invalidate_cache_curcpu_cb(pmap_t pmap __unused, vm_offset_t va __unused,
     vm_offset_t addr2 __unused)
 {
-
 	wbinvd();
 }
 
 void
 pmap_invalidate_cache(void)
 {
-
+	sched_pin();
 	smp_cache_flush(pmap_invalidate_cache_curcpu_cb);
 }
 
