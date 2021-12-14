@@ -82,11 +82,8 @@
 
 #define DN_SCHED_FQ_PIE 7
 
-VNET_DECLARE(unsigned long, io_pkt_drop);
-#define V_io_pkt_drop VNET(io_pkt_drop)
-
 /* list of queues */
-STAILQ_HEAD(fq_pie_list, fq_pie_flow) ;
+STAILQ_HEAD(fq_pie_list, fq_pie_flow);
 
 /* FQ_PIE parameters including PIE */
 struct dn_sch_fq_pie_parms {
@@ -379,10 +376,8 @@ fq_calculate_drop_prob(void *x)
 	struct pie_status *pst = &q->pst;
 	struct dn_aqm_pie_parms *pprms; 
 	int64_t p, prob, oldprob;
-	aqm_time_t now;
 	int p_isneg;
 
-	now = AQM_UNOW;
 	pprms = pst->parms;
 	prob = pst->drop_prob;
 
