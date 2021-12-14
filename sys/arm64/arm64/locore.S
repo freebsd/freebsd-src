@@ -790,30 +790,7 @@ initstack:
 initstack_end:
 
 
-ENTRY(sigcode)
-	mov	x0, sp
-	add	x0, x0, #SF_UC
-
-1:
-	mov	x8, #SYS_sigreturn
-	svc	0
-
-	/* sigreturn failed, exit */
-	mov	x8, #SYS_exit
-	svc	0
-
-	b	1b
-END(sigcode)
-	/* This may be copied to the stack, keep it 16-byte aligned */
-	.align	3
-esigcode:
-
-	.data
-	.align	3
-	.global	szsigcode
-szsigcode:
-	.quad	esigcode - sigcode
-
+.text
 EENTRY(aarch32_sigcode)
 	.word 0xe1a0000d	// mov r0, sp
 	.word 0xe2800040	// add r0, r0, #SIGF_UC
