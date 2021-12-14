@@ -404,7 +404,6 @@ static struct mbuf *
 aqm_pie_dequeue(struct dn_queue *q)
 {
 	struct mbuf *m;
-	struct dn_flow *ni;	/* stats for scheduler instance */	
 	struct dn_aqm_pie_parms *pprms;
 	struct pie_status *pst;
 	aqm_time_t now;
@@ -413,7 +412,6 @@ aqm_pie_dequeue(struct dn_queue *q)
 
 	pst  = q->aqm_status;
 	pprms = pst->parms;
-	ni = &q->_si->ni;
 
 	/*we extarct packet ts only when Departure Rate Estimation dis not used*/
 	m = pie_extract_head(q, &pkt_ts, !(pprms->flags & PIE_DEPRATEEST_ENABLED));
