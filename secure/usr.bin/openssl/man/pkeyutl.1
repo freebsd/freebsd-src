@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "PKEYUTL 1"
-.TH PKEYUTL 1 "2021-08-24" "1.1.1l" "OpenSSL"
+.TH PKEYUTL 1 "2021-12-14" "1.1.1m" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -341,6 +341,10 @@ values are supported: \*(L"digest\*(R" sets the salt length to the digest length
 .IX Item "rsa_mgf1_md:digest"
 For \s-1PSS\s0 and \s-1OAEP\s0 padding sets the \s-1MGF1\s0 digest. If the \s-1MGF1\s0 digest is not
 explicitly set in \s-1PSS\s0 mode then the signing digest is used.
+.IP "\fBrsa_oaep_md:\fR\fIdigest\fR" 4
+.IX Item "rsa_oaep_md:digest"
+Sets the digest used for the \s-1OAEP\s0 hash function. If not explicitly set then
+\&\s-1SHA1\s0 is used.
 .SH "RSA-PSS ALGORITHM"
 .IX Header "RSA-PSS ALGORITHM"
 The RSA-PSS algorithm is a restricted version of the \s-1RSA\s0 algorithm which only
@@ -412,6 +416,13 @@ seed consisting of the single byte 0xFF:
 .Vb 2
 \& openssl pkeyutl \-kdf TLS1\-PRF \-kdflen 48 \-pkeyopt md:SHA256 \e
 \&    \-pkeyopt hexsecret:ff \-pkeyopt hexseed:ff \-hexdump
+.Ve
+.PP
+Decrypt some data using a private key with \s-1OAEP\s0 padding using \s-1SHA256:\s0
+.PP
+.Vb 2
+\& openssl pkeyutl \-decrypt \-in file \-inkey key.pem \-out secret \e
+\&    \-pkeyopt rsa_padding_mode:oaep \-pkeyopt rsa_oaep_md:sha256
 .Ve
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
