@@ -7672,12 +7672,7 @@ isp_read_nvram_2400(ispsoftc_t *isp, uint8_t *nvram_data)
 	int retval = 0;
 	uint32_t addr, csum, lwrds, *dptr;
 
-	if (isp->isp_port) {
-		addr = ISP2400_NVRAM_PORT1_ADDR;
-	} else {
-		addr = ISP2400_NVRAM_PORT0_ADDR;
-	}
-
+	addr = ISP2400_NVRAM_PORT_ADDR(isp->isp_port);
 	dptr = (uint32_t *) nvram_data;
 	for (lwrds = 0; lwrds < ISP2400_NVRAM_SIZE >> 2; lwrds++) {
 		isp_rd_2400_nvram(isp, addr++, dptr++);
