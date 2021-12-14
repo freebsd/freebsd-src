@@ -1643,13 +1643,16 @@ volatile uint32_t smp_tlb_generation;
  * Used by pmap to request invalidation of TLB or cache on local and
  * remote processors.  Mask provides the set of remote CPUs which are
  * to be signalled with the IPI specified by vector.  The curcpu_cb
- * callback is invoked on the calling CPU while waiting for remote
- * CPUs to complete the operation.
+ * callback is invoked on the calling CPU in a critical section while
+ * waiting for remote CPUs to complete the operation.
  *
  * The callback function is called unconditionally on the caller's
  * underlying processor, even when this processor is not set in the
  * mask.  So, the callback function must be prepared to handle such
  * spurious invocations.
+ *
+ * This function must be called with the thread pinned, and it unpins on
+ * completion.
  */
 static void
 smp_targeted_tlb_shootdown(cpuset_t mask, u_int vector, pmap_t pmap,
@@ -1664,23 +1667,21 @@ smp_targeted_tlb_shootdown(cpuset_t mask, u_int vector, pmap_t pmap,
 	 * It is not necessary to signal other CPUs while booting or
 	 * when in the debugger.
 	 */
-	if (kdb_active || panicstr != NULL || !smp_started) {
-		curcpu_cb(pmap, addr1, addr2);
-		return;
-	}
+	if (kdb_active || panicstr != NULL || !smp_started)
+		goto local_cb;
 
-	sched_pin();
+	KASSERT(curthread->td_pinned > 0, ("curthread not pinned"));
 
 	/*
 	 * Check for other cpus.  Return if none.
 	 */
 	if (CPU_ISFULLSET(&mask)) {
 		if (mp_ncpus <= 1)
-			goto nospinexit;
+			goto local_cb;
 	} else {
 		CPU_CLR(PCPU_GET(cpuid), &mask);
 		if (CPU_EMPTY(&mask))
-			goto nospinexit;
+			goto local_cb;
 	}
 
 	if (!(read_eflags() & PSL_I))
@@ -1712,13 +1713,22 @@ smp_targeted_tlb_shootdown(cpuset_t mask, u_int vector, pmap_t pmap,
 		while (*p_cpudone != generation)
 			ia32_pause();
 	}
-	mtx_unlock_spin(&smp_ipi_mtx);
+
+	/*
+	 * Unpin before unlocking smp_ipi_mtx.  If the thread owes
+	 * preemption, this allows scheduler to select thread on any
+	 * CPU from its cpuset.
+	 */
 	sched_unpin();
+	mtx_unlock_spin(&smp_ipi_mtx);
+
 	return;
 
-nospinexit:
+local_cb:
+	critical_enter();
 	curcpu_cb(pmap, addr1, addr2);
 	sched_unpin();
+	critical_exit();
 }
 
 void
