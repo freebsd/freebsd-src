@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "ERR_LOAD_STRINGS 3"
-.TH ERR_LOAD_STRINGS 3 "2021-08-24" "1.1.1l" "OpenSSL"
+.TH ERR_LOAD_STRINGS 3 "2021-12-14" "1.1.1m" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -145,7 +145,7 @@ ERR_load_strings, ERR_PACK, ERR_get_next_error_library \- load arbitrary error s
 .Vb 1
 \& #include <openssl/err.h>
 \&
-\& void ERR_load_strings(int lib, ERR_STRING_DATA str[]);
+\& int ERR_load_strings(int lib, ERR_STRING_DATA *str);
 \&
 \& int ERR_get_next_error_library(void);
 \&
@@ -175,7 +175,7 @@ The last entry in the array is {0,0}.
 to user libraries at runtime.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
-\&\fBERR_load_strings()\fR returns no value. \s-1\fBERR_PACK\s0()\fR return the error code.
+\&\fBERR_load_strings()\fR returns 1 for success and 0 for failure. \s-1\fBERR_PACK\s0()\fR returns the error code.
 \&\fBERR_get_next_error_library()\fR returns zero on failure, otherwise a new
 library number.
 .SH "SEE ALSO"
@@ -183,7 +183,7 @@ library number.
 \&\fBERR_load_strings\fR\|(3)
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2000\-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
