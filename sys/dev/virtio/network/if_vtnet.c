@@ -1811,10 +1811,14 @@ static int
 vtnet_rxq_csum_data_valid(struct vtnet_rxq *rxq, struct mbuf *m,
     uint16_t etype, int hoff, struct virtio_net_hdr *hdr __unused)
 {
+#if 0
 	struct vtnet_softc *sc;
+#endif
 	int protocol;
 
+#if 0
 	sc = rxq->vtnrx_sc;
+#endif
 
 	switch (etype) {
 #if defined(INET)
@@ -1905,7 +1909,7 @@ vtnet_rxq_discard_merged_bufs(struct vtnet_rxq *rxq, int nbufs)
 static void
 vtnet_rxq_discard_buf(struct vtnet_rxq *rxq, struct mbuf *m)
 {
-	int error;
+	int error __diagused;
 
 	/*
 	 * Requeue the discarded mbuf. This should always be successful
@@ -3392,11 +3396,9 @@ vtnet_update_rx_offloads(struct vtnet_softc *sc)
 static int
 vtnet_reinit(struct vtnet_softc *sc)
 {
-	device_t dev;
 	struct ifnet *ifp;
 	int error;
 
-	dev = sc->vtnet_dev;
 	ifp = sc->vtnet_ifp;
 
 	bcopy(IF_LLADDR(ifp), sc->vtnet_hwaddr, ETHER_ADDR_LEN);
@@ -3431,10 +3433,8 @@ vtnet_reinit(struct vtnet_softc *sc)
 static void
 vtnet_init_locked(struct vtnet_softc *sc, int init_mode)
 {
-	device_t dev;
 	struct ifnet *ifp;
 
-	dev = sc->vtnet_dev;
 	ifp = sc->vtnet_ifp;
 
 	VTNET_CORE_LOCK_ASSERT(sc);
