@@ -597,21 +597,23 @@ vm_fault_populate(struct faultstate *fs)
 		    (psind > 0 && rv == KERN_PROTECTION_FAILURE));
 		if (__predict_false(psind > 0 &&
 		    rv == KERN_PROTECTION_FAILURE)) {
+			MPASS(!fs->wired);
 			for (i = 0; i < npages; i++) {
 				rv = pmap_enter(fs->map->pmap, vaddr + ptoa(i),
-				    &m[i], fs->prot, fs->fault_type |
-				    (fs->wired ? PMAP_ENTER_WIRED : 0), 0);
+				    &m[i], fs->prot, fs->fault_type, 0);
 				MPASS(rv == KERN_SUCCESS);
 			}
 		}
 
 		VM_OBJECT_WLOCK(fs->first_object);
 		for (i = 0; i < npages; i++) {
-			if ((fs->fault_flags & VM_FAULT_WIRE) != 0)
+			if ((fs->fault_flags & VM_FAULT_WIRE) != 0 &&
+			    m[i].pindex == fs->first_pindex)
 				vm_page_wire(&m[i]);
 			else
 				vm_page_activate(&m[i]);
-			if (fs->m_hold != NULL && m[i].pindex == fs->first_pindex) {
+			if (fs->m_hold != NULL &&
+			    m[i].pindex == fs->first_pindex) {
 				(*fs->m_hold) = &m[i];
 				vm_page_wire(&m[i]);
 			}
