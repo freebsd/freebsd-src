@@ -1382,7 +1382,7 @@ net_limit(const nvlist_t *oldlimits, const nvlist_t *newlimits)
 	 */
 	if (oldlimits == NULL)
 		return (0);
-	if (!hasconnect && nvlist_exists(oldlimits, LIMIT_NV_BIND))
+	if (!hasbind && nvlist_exists(oldlimits, LIMIT_NV_BIND))
 		return (ENOTCAPABLE);
 	if (!hasconnect && nvlist_exists(oldlimits, LIMIT_NV_CONNECT))
 		return (ENOTCAPABLE);
