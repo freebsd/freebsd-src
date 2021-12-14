@@ -278,8 +278,6 @@ unload(void)
 	}
 	loadaddr = 0;
 	unsetenv("kernelname");
-	/* Reset tg_kernel_supported to allow next load to check it again. */
-	gfx_state.tg_kernel_supported = false;
 }
 
 COMMAND_SET(unload, "unload", "unload all modules", command_unload);
