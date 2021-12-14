@@ -520,9 +520,9 @@ vmbus_scan_done_task(void *xsc, int pending __unused)
 {
 	struct vmbus_softc *sc = xsc;
 
-	mtx_lock(&Giant);
+	bus_topo_lock();
 	sc->vmbus_scandone = true;
-	mtx_unlock(&Giant);
+	bus_topo_unlock();
 	wakeup(&sc->vmbus_scandone);
 }
 
@@ -577,9 +577,9 @@ vmbus_scan(struct vmbus_softc *sc)
 	 * Wait for all vmbus devices from the initial channel offers to be
 	 * attached.
 	 */
-	GIANT_REQUIRED;
+	bus_topo_assert();
 	while (!sc->vmbus_scandone)
-		mtx_sleep(&sc->vmbus_scandone, &Giant, 0, "vmbusdev", 0);
+		mtx_sleep(&sc->vmbus_scandone, bus_topo_mtx(), 0, "vmbusdev", 0);
 
 	if (bootverbose) {
 		device_printf(sc->vmbus_dev, "device scan, probe and attach "
@@ -592,17 +592,17 @@ static void
 vmbus_scan_teardown(struct vmbus_softc *sc)
 {
 
-	GIANT_REQUIRED;
+	bus_topo_assert();
 	if (sc->vmbus_devtq != NULL) {
-		mtx_unlock(&Giant);
+		bus_topo_unlock();
 		taskqueue_free(sc->vmbus_devtq);
-		mtx_lock(&Giant);
+		bus_topo_lock();
 		sc->vmbus_devtq = NULL;
 	}
 	if (sc->vmbus_subchtq != NULL) {
-		mtx_unlock(&Giant);
+		bus_topo_unlock();
 		taskqueue_free(sc->vmbus_subchtq);
-		mtx_lock(&Giant);
+		bus_topo_lock();
 		sc->vmbus_subchtq = NULL;
 	}
 }
@@ -1070,19 +1070,18 @@ vmbus_add_child(struct vmbus_channel *chan)
 	struct vmbus_softc *sc = chan->ch_vmbus;
 	device_t parent = sc->vmbus_dev;
 
-	mtx_lock(&Giant);
-
+	bus_topo_lock();
 	chan->ch_dev = device_add_child(parent, NULL, -1);
 	if (chan->ch_dev == NULL) {
-		mtx_unlock(&Giant);
+		bus_topo_unlock();
 		device_printf(parent, "device_add_child for chan%u failed\n",
 		    chan->ch_id);
 		return (ENXIO);
 	}
 	device_set_ivars(chan->ch_dev, chan);
 	device_probe_and_attach(chan->ch_dev);
+	bus_topo_unlock();
 
-	mtx_unlock(&Giant);
 	return (0);
 }
 
@@ -1091,13 +1090,13 @@ vmbus_delete_child(struct vmbus_channel *chan)
 {
 	int error = 0;
 
-	mtx_lock(&Giant);
+	bus_topo_lock();
 	if (chan->ch_dev != NULL) {
 		error = device_delete_child(chan->ch_vmbus->vmbus_dev,
 		    chan->ch_dev);
 		chan->ch_dev = NULL;
 	}
-	mtx_unlock(&Giant);
+	bus_topo_unlock();
 	return (error);
 }
 
