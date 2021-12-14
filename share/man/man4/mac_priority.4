@@ -21,7 +21,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd December 7, 2021
+.Dd December 14, 2021
 .Dt MAC_PRIORITY 4
 .Os
 .Sh NAME
@@ -79,13 +79,16 @@ priority through the
 .Xr rtprio 2
 system calls.
 .Ss Privileges Granted
-The kernel privileges granted to any process running
-with the corresponding group gid is:
-.Bl -tag -width ".Dv PRIV_SCHED_RTPRIO" -offset indent
+The realtime policy grants the following kernel privileges to any process
+running with the realtime group id:
+.Bl -inset -offset indent -compact
 .It Dv PRIV_SCHED_RTPRIO
-If it is a member of the realtime group.
+.It Dv PRIV_SCHED_SETPOLICY
+.El
+.Pp
+The kernel privilege granted by the idletime policy is:
+.Bl -inset -offset indent -compact
 .It Dv PRIV_SCHED_IDPRIO
-If it is a member of the idletime group.
 .El
 .Ss Runtime Configuration
 The following

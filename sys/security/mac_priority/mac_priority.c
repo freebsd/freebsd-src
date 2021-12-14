@@ -64,8 +64,8 @@ SYSCTL_INT(_security_mac_priority, OID_AUTO, idletime_gid, CTLFLAG_RWTUN,
 static int
 priority_priv_grant(struct ucred *cred, int priv)
 {
-	if (priv == PRIV_SCHED_RTPRIO && realtime_enabled &&
-	    groupmember(realtime_gid, cred))
+	if ((priv == PRIV_SCHED_RTPRIO || priv == PRIV_SCHED_SETPOLICY) &&
+	    realtime_enabled && groupmember(realtime_gid, cred))
 		return (0);
 
 	if (priv == PRIV_SCHED_IDPRIO && idletime_enabled &&
