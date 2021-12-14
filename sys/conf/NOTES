@@ -2162,10 +2162,10 @@ options		SND_PCM_64
 options		SND_OLDSTEREO
 
 #
-# PC Card/PCMCIA and Cardbus
+# Cardbus
 #
-# cbb: pci/cardbus bridge implementing YENTA interface
-# cardbus: cardbus slots
+# cbb: pci/CardBus bridge implementing YENTA interface
+# cardbus: CardBus slots
 device		cbb
 device		cardbus
 
