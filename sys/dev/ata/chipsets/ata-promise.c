@@ -1086,7 +1086,7 @@ ata_promise_sx4_command(struct ata_request *request)
     struct ata_dma_prdentry *prd;
     caddr_t window = rman_get_virtual(ctlr->r_res1);
     u_int32_t *wordp;
-    int i, idx, length = 0;
+    int i, idx;
 
     /* XXX SOS add ATAPI commands support later */
     switch (request->u.ata.command) {    
@@ -1134,7 +1134,6 @@ ata_promise_sx4_command(struct ata_request *request)
 	do {
 	    wordp[idx++] = prd[i].addr;
 	    wordp[idx++] = prd[i].count;
-	    length += (prd[i].count & ~ATA_DMA_EOT);
 	} while (!(prd[i++].count & ATA_DMA_EOT));
 
 	wordp = (u_int32_t *)
