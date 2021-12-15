@@ -8,6 +8,8 @@
 #ifndef _NET_ETHERNET_H_
 #define	_NET_ETHERNET_H_
 
+#include <sys/types.h>
+
 /*
  * Some basic Ethernet constants.
  */
