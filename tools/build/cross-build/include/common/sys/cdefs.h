@@ -109,6 +109,9 @@
 #define __predict_false(exp) __builtin_expect((exp), 0)
 #endif
 
+#ifndef __weak_symbol
+#define __weak_symbol __attribute__((__weak__))
+#endif
 #ifndef __weak_reference
 #ifdef __ELF__
 #define __weak_reference(sym, alias) \
