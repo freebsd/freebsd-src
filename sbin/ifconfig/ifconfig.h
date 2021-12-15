@@ -202,6 +202,8 @@ extern	int printifname;
 extern	int exit_code;
 
 void	setifcap(const char *, int value, int s, const struct afswtch *);
+void	setifcapnv(const char *vname, const char *arg, int s,
+	    const struct afswtch *afp);
 
 void	Perror(const char *cmd);
 void	printb(const char *s, unsigned value, const char *bits);
