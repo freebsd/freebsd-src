@@ -296,6 +296,7 @@ struct pci_nvme_softc {
 	struct nvme_error_information_entry err_log;
 	struct nvme_health_information_page health_log;
 	struct nvme_firmware_page fw_log;
+	struct nvme_ns_list ns_log;
 
 	struct pci_nvme_blockstore nvstore;
 
@@ -598,15 +599,23 @@ crc16(uint16_t crc, const void *buffer, unsigned int len)
 }
 
 static void
-pci_nvme_init_nsdata(struct pci_nvme_softc *sc,
-    struct nvme_namespace_data *nd, uint32_t nsid,
-    struct pci_nvme_blockstore *nvstore)
+pci_nvme_init_nsdata_size(struct pci_nvme_blockstore *nvstore,
+    struct nvme_namespace_data *nd)
 {
 
 	/* Get capacity and block size information from backing store */
 	nd->nsze = nvstore->size / nvstore->sectsz;
 	nd->ncap = nd->nsze;
 	nd->nuse = nd->nsze;
+}
+
+static void
+pci_nvme_init_nsdata(struct pci_nvme_softc *sc,
+    struct nvme_namespace_data *nd, uint32_t nsid,
+    struct pci_nvme_blockstore *nvstore)
+{
+
+	pci_nvme_init_nsdata_size(nvstore, nd);
 
 	if (nvstore->type == NVME_STOR_BLOCKIF)
 		nvstore->deallocate = blockif_candelete(nvstore->ctx);
@@ -642,6 +651,7 @@ pci_nvme_init_logpages(struct pci_nvme_softc *sc)
 	memset(&sc->err_log, 0, sizeof(sc->err_log));
 	memset(&sc->health_log, 0, sizeof(sc->health_log));
 	memset(&sc->fw_log, 0, sizeof(sc->fw_log));
+	memset(&sc->ns_log, 0, sizeof(sc->ns_log));
 
 	/* Set read/write remainder to round up according to spec */
 	sc->read_dunits_remainder = 999;
@@ -1362,6 +1372,13 @@ nvme_opc_get_log_page(struct pci_nvme_softc* sc, struct nvme_command* command,
 		    command->prp2, (uint8_t *)&sc->fw_log,
 		    MIN(logsize, sizeof(sc->fw_log)),
 		    NVME_COPY_TO_PRP);
+		break;
+	case NVME_LOG_CHANGED_NAMESPACE:
+		nvme_prp_memcpy(sc->nsc_pi->pi_vmctx, command->prp1,
+		    command->prp2, (uint8_t *)&sc->ns_log,
+		    MIN(logsize, sizeof(sc->ns_log)),
+		    NVME_COPY_TO_PRP);
+		memset(&sc->ns_log, 0, sizeof(sc->ns_log));
 		break;
 	default:
 		DPRINTF("%s get log page %x command not supported",
@@ -2970,6 +2987,28 @@ pci_nvme_parse_config(struct pci_nvme_softc *sc, nvlist_t *nvl)
 	return (0);
 }
 
+static void
+pci_nvme_resized(struct blockif_ctxt *bctxt, void *arg, size_t new_size)
+{
+	struct pci_nvme_softc *sc;
+	struct pci_nvme_blockstore *nvstore;
+	struct nvme_namespace_data *nd;
+
+	sc = arg;
+	nvstore = &sc->nvstore;
+	nd = &sc->nsdata;
+
+	nvstore->size = new_size;
+	pci_nvme_init_nsdata_size(nvstore, nd);
+
+	/* Add changed NSID to list */
+	sc->ns_log.ns[0] = 1;
+	sc->ns_log.ns[1] = 0;
+
+	pci_nvme_aen_post(sc, PCI_NVME_AE_TYPE_NOTICE,
+	    PCI_NVME_AE_INFO_NS_ATTR_CHANGED);
+}
+
 static int
 pci_nvme_init(struct vmctx *ctx, struct pci_devinst *pi, nvlist_t *nvl)
 {
@@ -3035,6 +3074,7 @@ pci_nvme_init(struct vmctx *ctx, struct pci_devinst *pi, nvlist_t *nvl)
 
 	pthread_mutex_init(&sc->mtx, NULL);
 	sem_init(&sc->iosemlock, 0, sc->ioslots);
+	blockif_register_resize_callback(sc->nvstore.ctx, pci_nvme_resized, sc);
 
 	pci_nvme_init_queues(sc, sc->max_queues, sc->max_queues);
 	/*
