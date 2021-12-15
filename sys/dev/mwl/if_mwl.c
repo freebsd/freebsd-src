@@ -3077,7 +3077,7 @@ mwl_tx_start(struct mwl_softc *sc, struct ieee80211_node *ni, struct mwl_txbuf *
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211vap *vap = ni->ni_vap;
 	int error, iswep, ismcast;
-	int hdrlen, copyhdrlen, pktlen;
+	int hdrlen, pktlen;
 	struct mwl_txdesc *ds;
 	struct mwl_txq *txq;
 	struct ieee80211_frame *wh;
@@ -3092,12 +3092,9 @@ mwl_tx_start(struct mwl_softc *sc, struct ieee80211_node *ni, struct mwl_txbuf *
 	iswep = wh->i_fc[1] & IEEE80211_FC1_PROTECTED;
 	ismcast = IEEE80211_IS_MULTICAST(wh->i_addr1);
 	hdrlen = ieee80211_anyhdrsize(wh);
-	copyhdrlen = hdrlen;
 	pktlen = m0->m_pkthdr.len;
 	if (IEEE80211_QOS_HAS_SEQ(wh)) {
 		qos = *(uint16_t *)ieee80211_getqos(wh);
-		if (IEEE80211_IS_DSTODS(wh))
-			copyhdrlen -= sizeof(qos);
 	} else
 		qos = 0;
 
@@ -3330,7 +3327,6 @@ mwl_tx_processq(struct mwl_softc *sc, struct mwl_txq *txq)
 	struct mwl_txbuf *bf;
 	struct mwl_txdesc *ds;
 	struct ieee80211_node *ni;
-	struct mwl_node *an;
 	int nreaped;
 	uint32_t status;
 
@@ -3358,7 +3354,6 @@ mwl_tx_processq(struct mwl_softc *sc, struct mwl_txq *txq)
 #endif
 		ni = bf->bf_node;
 		if (ni != NULL) {
-			an = MWL_NODE(ni);
 			status = le32toh(ds->Status);
 			if (status & EAGLE_TXD_STATUS_OK) {
 				uint16_t Format = le16toh(ds->Format);
