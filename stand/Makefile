@@ -81,6 +81,11 @@ SUBDIR_DEPEND_efi+=	${INTERP_DEPENDS}
 SUBDIR_DEPEND_efi+=	fdt
 .endif
 
+SUBDIR_DEPEND_uboot+=	${INTERP_DEPENDS}
+.if ${MK_FDT} != "no"
+SUBDIR_DEPEND_uboot+=	fdt
+.endif
+
 SUBDIR_PARALLEL=	yes
 
 .include <bsd.subdir.mk>
