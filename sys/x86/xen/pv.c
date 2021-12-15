@@ -255,10 +255,7 @@ xen_pvh_parse_symtab(void)
 {
 	Elf_Ehdr *ehdr;
 	Elf_Shdr *shdr;
-	uint32_t size;
 	int i, j;
-
-	size = end;
 
 	ehdr = (Elf_Ehdr *)(&end + 1);
 	if (memcmp(ehdr->e_ident, ELFMAG, SELFMAG) ||

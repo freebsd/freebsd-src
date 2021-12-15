@@ -639,7 +639,7 @@ static int
 xnb_disconnect(struct xnb_softc *xnb)
 {
 	struct gnttab_unmap_grant_ref gnts[XNB_NUM_RING_TYPES];
-	int error;
+	int error __diagused;
 	int i;
 
 	if (xnb->xen_intr_handle != NULL)
