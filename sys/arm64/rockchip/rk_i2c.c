@@ -265,7 +265,7 @@ rk_i2c_drain_rx(struct rk_i2c_softc *sc)
 
 	for (i = 0; i < len; i++) {
 		if (i % 4 == 0)
-			buf32 = RK_I2C_READ(sc, RK_I2C_RXDATA_BASE + (i / 4) * 4);
+			buf32 = RK_I2C_READ(sc, RK_I2C_RXDATA_BASE + i);
 
 		buf8 = (buf32 >> ((i % 4) * 8)) & 0xFF;
 		sc->msg->buf[sc->cnt++] = buf8;
