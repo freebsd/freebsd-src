@@ -2,12 +2,17 @@
 
 .include <src.opts.mk>
 
+PACKAGE=	newsyslog
 CONFSDIR=	/etc/newsyslog.conf.d
 
+CONFGROUPS=	CONFS
 CONFS=
 
 .if ${MK_FTP} != "no"
-CONFS+=		ftp.conf
+CONFGROUPS+=	FTP
+FTP+=		ftp.conf
+FTPPACKAGE=	ftpd
+FTPDIR=		/etc/newsyslog.conf.d
 .endif
 
 .if ${MK_LPR} != "no"
@@ -19,15 +24,24 @@ CONFS+=		opensm.conf
 .endif
 
 .if ${MK_PF} != "no"
-CONFS+=		pf.conf
+CONFGROUPS+=	PF
+PF+=		pf.conf
+PFPACKAGE=	pf
+PFDIR=		/etc/newsyslog.conf.d
 .endif
 
 .if ${MK_PPP} != "no"
-CONFS+=		ppp.conf
+CONFGROUPS+=	PPP
+PPP+=		ppp.conf
+PPPPACKAGE=	ppp
+PPPDIR=		/etc/newsyslog.conf.d
 .endif
 
 .if ${MK_SENDMAIL} != "no"
-CONFS+=		sendmail.conf
+CONFGROUPS+=		SENDMAIL
+SENDMAIL+=		sendmail.conf
+SENDMAILPACKAGE=	sendmail
+SENDMAILDIR=		/etc/newsyslog.conf.d
 .endif
 
 .include <bsd.prog.mk>
