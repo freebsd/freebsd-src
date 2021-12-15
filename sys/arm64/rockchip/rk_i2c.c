@@ -480,7 +480,7 @@ rk_i2c_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 		/* Validate parameters. */
 		if (msgs == NULL || msgs[i].buf == NULL ||
 		    msgs[i].len == 0) {
-			err = EINVAL;
+			err = IIC_ENOTSUPP;
 			break;
 		}
 		/*
@@ -492,7 +492,7 @@ rk_i2c_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 			    ((msgs[i].flags & IIC_M_RD) !=
 			    (msgs[i + 1].flags & IIC_M_RD) ||
 			    (msgs[i].slave !=  msgs[i + 1].slave))) {
-				err = EINVAL;
+				err = IIC_ENOTSUPP;
 				break;
 			}
 		}
@@ -551,7 +551,7 @@ rk_i2c_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 				DELAY(1000);
 			}
 			if (timeout <= 0)
-				err = ETIMEDOUT;
+				err = IIC_ETIMEOUT;
 		} else {
 			while (err == 0 && sc->transfer_done != 1) {
 				err = msleep(sc, &sc->mtx, PZERO, "rk_i2c",
