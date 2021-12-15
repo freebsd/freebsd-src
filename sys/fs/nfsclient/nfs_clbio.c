@@ -1001,8 +1001,12 @@ ncl_write(struct vop_write_args *ap)
 	if (uio->uio_resid == 0)
 		return (0);
 
-	if (newnfs_directio_enable && (ioflag & IO_DIRECT) && vp->v_type == VREG)
+	if (vp->v_type == VREG && ((newnfs_directio_enable && (ioflag &
+	    IO_DIRECT)) || (ioflag & IO_APPEND))) {
+		if ((ioflag & IO_APPEND) != 0)
+			ioflag |= IO_SYNC;
 		return nfs_directio_write(vp, uio, cred, ioflag);
+	}
 
 	/*
 	 * Maybe this should be above the vnode op call, but so long as
