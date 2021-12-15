@@ -40,6 +40,7 @@
 #ifndef _SYS__CALLOUT_H
 #define	_SYS__CALLOUT_H
 
+#include <sys/_types.h>
 #include <sys/queue.h>
 
 struct lock_object;
@@ -56,8 +57,8 @@ struct callout {
 		SLIST_ENTRY(callout) sle;
 		TAILQ_ENTRY(callout) tqe;
 	} c_links;
-	sbintime_t c_time;			/* ticks to the event */
-	sbintime_t c_precision;			/* delta allowed wrt opt */
+	__sbintime_t c_time;			/* ticks to the event */
+	__sbintime_t c_precision;		/* delta allowed wrt opt */
 	void	*c_arg;				/* function argument */
 	callout_func_t *c_func;			/* function to call */
 	struct lock_object *c_lock;		/* lock to handle */
