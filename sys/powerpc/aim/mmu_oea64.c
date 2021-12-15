@@ -1162,7 +1162,7 @@ moea64_late_bootstrap(vm_offset_t kernelstart, vm_offset_t kernelend)
 	 * Calculate the last available physical address.
 	 */
 	Maxmem = 0;
-	for (i = 0; phys_avail[i + 2] != 0; i += 2)
+	for (i = 0; phys_avail[i + 1] != 0; i += 2)
 		Maxmem = MAX(Maxmem, powerpc_btop(phys_avail[i + 1]));
 
 	/*
