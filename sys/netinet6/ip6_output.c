@@ -2546,7 +2546,9 @@ static int
 ip6_pcbopt(int optname, u_char *buf, int len, struct ip6_pktopts **pktopt,
     struct ucred *cred, int uproto)
 {
+	struct epoch_tracker et;
 	struct ip6_pktopts *opt;
+	int ret;
 
 	if (*pktopt == NULL) {
 		*pktopt = malloc(sizeof(struct ip6_pktopts), M_IP6OPT,
@@ -2557,7 +2559,11 @@ ip6_pcbopt(int optname, u_char *buf, int len, struct ip6_pktopts **pktopt,
 	}
 	opt = *pktopt;
 
-	return (ip6_setpktopt(optname, buf, len, opt, cred, 1, 0, uproto));
+	NET_EPOCH_ENTER(et);
+	ret = ip6_setpktopt(optname, buf, len, opt, cred, 1, 0, uproto);
+	NET_EPOCH_EXIT(et);
+
+	return (ret);
 }
 
 #define GET_PKTOPT_VAR(field, lenexpr) do {					\
@@ -2885,6 +2891,8 @@ ip6_setpktopt(int optname, u_char *buf, int len, struct ip6_pktopts *opt,
 {
 	int minmtupolicy, preftemp;
 	int error;
+
+	NET_EPOCH_ASSERT();
 
 	if (!sticky && !cmsg) {
 #ifdef DIAGNOSTIC
