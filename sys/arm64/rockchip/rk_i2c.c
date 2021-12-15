@@ -130,7 +130,6 @@ struct rk_i2c_softc {
 	uint32_t	ipd;
 	struct iic_msg	*msg;
 	size_t		cnt;
-	int		msg_len;
 	bool		transfer_done;
 	bool		nak_recv;
 	bool		tx_slave_addr;
@@ -417,13 +416,11 @@ rk_i2c_start_xfer(struct rk_i2c_softc *sc, struct iic_msg *msg, boolean_t last)
 	sc->cnt = 0;
 	sc->state = STATE_IDLE;
 	sc->msg = msg;
-	sc->msg_len = sc->msg->len;
 
 	reg = RK_I2C_READ(sc, RK_I2C_CON) & ~RK_I2C_CON_CTRL_MASK;
 	if (!(sc->msg->flags & IIC_M_NOSTART)) {
 		/* Stadard message */
 		if (sc->mode == RK_I2C_CON_MODE_TX) {
-			sc->msg_len++;	/* Take slave address in account. */
 			sc->tx_slave_addr = true;
 		}
 		sc->state = STATE_START;
