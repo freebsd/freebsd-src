@@ -585,7 +585,7 @@ ipf_pr_ipv6hdr(fin)
 
 	/*
 	 * IPv6 fragment case 1 - see comment for ipf_pr_fragment6().
-	 * "go != 0" imples the above loop hasn't arrived at a layer 4 header.
+	 * "go != 0" implies the above loop hasn't arrived at a layer 4 header.
 	 */
 	if ((go != 0) && (fin->fin_flx & FI_FRAG) && (fin->fin_off == 0)) {
 		ipf_main_softc_t *softc = fin->fin_main_soft;
@@ -2376,7 +2376,7 @@ ipf_check_ipf(fin, fr, portcmp)
 /* If a match is found, the value of fr_flags from the rule becomes the     */
 /* return value and fin->fin_fr points to the matched rule.                 */
 /*                                                                          */
-/* This function may be called recusively upto 16 times (limit inbuilt.)    */
+/* This function may be called recursively upto 16 times (limit inbuilt.)   */
 /* When unwinding, it should finish up with fin_depth as 0.                 */
 /*                                                                          */
 /* Could be per interface, but this gets real nasty when you don't have,    */
