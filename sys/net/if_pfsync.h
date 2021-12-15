@@ -50,6 +50,12 @@
 #ifndef _NET_IF_PFSYNC_H_
 #define	_NET_IF_PFSYNC_H_
 
+#include <sys/types.h>
+
+#include <net/if.h>
+#include <net/pfvar.h>
+#include <netpfil/pf/pf.h>
+
 #define	PFSYNC_VERSION		5
 #define	PFSYNC_DFLTTL		255
 
