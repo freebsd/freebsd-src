@@ -8,13 +8,16 @@
 
 .include <src.opts.mk>
 
+PACKAGE=	csh
+
 CONFGROUPS=	ETC ROOT
+ETCPACKAGE=	csh
+ROOTPACKAGE=	csh
 ETC=	csh.cshrc csh.login csh.logout
 ROOT=	dot.cshrc dot.login
 ROOTDIR=	/root
 ROOTNAME_dot.cshrc=	.cshrc
 ROOTNAME_dot.login=	.login
-PACKAGE=runtime
 TCSHDIR= ${SRCTOP}/contrib/tcsh
 .PATH: ${TCSHDIR}
 
