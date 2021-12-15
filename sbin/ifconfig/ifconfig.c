@@ -1425,8 +1425,12 @@ status(const struct afswtch *afp, const struct sockaddr_dl *sdl,
 	struct ifaddrs *ifa)
 {
 	struct ifaddrs *ift;
-	int allfamilies, s;
 	struct ifstat ifs;
+	nvlist_t *nvcap;
+	const char *nvname;
+	void *buf, *cookie;
+	int allfamilies, s, type;
+	bool first, val;
 
 	if (afp == NULL) {
 		allfamilies = 1;
@@ -1471,13 +1475,62 @@ status(const struct afswtch *afp, const struct sockaddr_dl *sdl,
 	}
 
 	if (ioctl(s, SIOCGIFCAP, (caddr_t)&ifr) == 0) {
-		if (ifr.ifr_curcap != 0) {
+		if ((ifr.ifr_curcap & IFCAP_NV) != 0) {
+			buf = malloc(IFR_CAP_NV_MAXBUFSIZE);
+			if (buf == NULL)
+				Perror("malloc");
+			ifr.ifr_cap_nv.buffer = buf;
+			ifr.ifr_cap_nv.buf_length = IFR_CAP_NV_MAXBUFSIZE;
+			if (ioctl(s, SIOCGIFCAPNV, (caddr_t)&ifr) != 0)
+				Perror("ioctl (SIOCGIFCAPNV)");
+			nvcap = nvlist_unpack(ifr.ifr_cap_nv.buffer,
+			    ifr.ifr_cap_nv.length, 0);
+			if (nvcap == NULL)
+				Perror("nvlist_unpack");
+			printf("\toptions");
+			cookie = NULL;
+			for (first = true;; first = false) {
+				nvname = nvlist_next(nvcap, &type, &cookie);
+				if (nvname == NULL) {
+					printf("\n");
+					break;
+				}
+				if (type == NV_TYPE_BOOL) {
+					val = nvlist_get_bool(nvcap, nvname);
+					if (val) {
+						printf("%c%s",
+						    first ? ' ' : ',', nvname);
+					}
+				}
+			}
+			if (supmedia) {
+				printf("\tcapabilities");
+				cookie = NULL;
+				for (first = true;; first = false) {
+					nvname = nvlist_next(nvcap, &type,
+					    &cookie);
+					if (nvname == NULL) {
+						printf("\n");
+						break;
+					}
+					if (type == NV_TYPE_BOOL)
+						printf("%c%s", first ? ' ' :
+						    ',', nvname);
+				}
+			}
+			nvlist_destroy(nvcap);
+			free(buf);
+
+			if (ioctl(s, SIOCGIFCAP, (caddr_t)&ifr) != 0)
+				Perror("ioctl (SIOCGIFCAP)");
+		} else if (ifr.ifr_curcap != 0) {
 			printb("\toptions", ifr.ifr_curcap, IFCAPBITS);
 			putchar('\n');
-		}
-		if (supmedia && ifr.ifr_reqcap != 0) {
-			printb("\tcapabilities", ifr.ifr_reqcap, IFCAPBITS);
-			putchar('\n');
+			if (supmedia && ifr.ifr_reqcap != 0) {
+				printb("\tcapabilities", ifr.ifr_reqcap,
+				    IFCAPBITS);
+				putchar('\n');
+			}
 		}
 	}
 
