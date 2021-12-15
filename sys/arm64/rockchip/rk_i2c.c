@@ -516,7 +516,7 @@ rk_i2c_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 			}
 		}
 		/* last message ? */
-		last_msg = (i > nmsgs - 1) ||
+		last_msg = (i >= nmsgs - 1) ||
 		    !(msgs[i + 1].flags & IIC_M_NOSTART);
 		rk_i2c_start_xfer(sc, msgs + i, last_msg);
 
