@@ -9,7 +9,7 @@ NO_WARRAY_BOUNDS=
 CFLAGS+=	-I${SRCTOP}/contrib/ipfilter
 CFLAGS+=	-I${SRCTOP}/contrib/ipfilter/tools
 CFLAGS+=	-I${SRCTOP}/sys
-CFLAGS+=	-I${SRCTOP}/sys/contrib/ipfilter
+CFLAGS+=	-I${SRCTOP}/sys/netpfil/ipfilter
 CFLAGS+=	-DSTATETOP -D__UIO_EXPOSE
 
 .if ${MK_INET6_SUPPORT} != "no"

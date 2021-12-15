@@ -20,7 +20,7 @@ CFLAGS+=	-DIPFILTER_LOG -DIPFILTER_COMPILED -DIPFILTER_LOOKUP \
 # XXX CFLAGS+=		-DIPFILTER_SCAN
 
 
-.PATH:		${SRCTOP}/sys/contrib/ipfilter/netinet
+.PATH:		${SRCTOP}/sys/netpfil/ipfilter/netinet
 
 GENHDRS=	ipnat_l.h ipnat_y.h ippool_l.h ippool_y.h ipf_l.h ipf_y.h
 
