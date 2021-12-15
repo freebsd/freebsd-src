@@ -304,9 +304,9 @@ rk_i2c_intr_locked(struct rk_i2c_softc *sc)
 	if (sc->ipd & RK_I2C_IPD_NAKRCVIPD) {
 		/* NACK received */
 		sc->ipd &= ~RK_I2C_IPD_NAKRCVIPD;
-		sc->nak_recv = 1;
+		sc->nak_recv = true;
 		/* XXXX last byte !!!, signal error !!! */
-		sc->transfer_done = 1;
+		sc->transfer_done = true;
 		sc->state = STATE_IDLE;
 		goto err;
 	}
@@ -546,14 +546,14 @@ rk_i2c_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 		if (cold) {
 			for(timeout = 10000; timeout > 0; timeout--)  {
 				rk_i2c_intr_locked(sc);
-				if (sc->transfer_done != 0)
+				if (sc->transfer_done)
 					break;
 				DELAY(1000);
 			}
 			if (timeout <= 0)
 				err = IIC_ETIMEOUT;
 		} else {
-			while (err == 0 && sc->transfer_done != 1) {
+			while (err == 0 && !sc->transfer_done) {
 				err = msleep(sc, &sc->mtx, PZERO, "rk_i2c",
 				    10 * hz);
 			}
