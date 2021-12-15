@@ -111,6 +111,9 @@ __FBSDID("$FreeBSD$");
 
 #define	RK_I2C_RXDATA_BASE	0x200
 
+/* 8 data registers, 4 bytes each. */
+#define	RK_I2C_MAX_RXTX_LEN	32
+
 enum rk_i2c_state {
 	STATE_IDLE = 0,
 	STATE_START,
@@ -215,37 +218,40 @@ rk_i2c_fill_tx(struct rk_i2c_softc *sc)
 	uint8_t buf;
 	int i, j, len;
 
-	if (sc->msg == NULL || sc->msg->len == sc->cnt)
-		return (0);
-
 	len = sc->msg->len - sc->cnt;
-	if (len > 8)
-		len = 8;
+	if (sc->tx_slave_addr) {
+		KASSERT(sc->cnt == 0, ("tx_slave_addr in the middle of data"));
+		len++;
+	}
 
-	for (i = 0; i < len; i++) {
+	if (len > RK_I2C_MAX_RXTX_LEN)
+		len = RK_I2C_MAX_RXTX_LEN;
+
+	for (i = 0; i < len; ) {
 		buf32 = 0;
-		for (j = 0; j < 4 ; j++) {
-			if (sc->cnt == sc->msg->len)
-				break;
 
+		/* Process next 4 bytes or whatever remains. */
+		for (j = 0; j < MIN(len - i, 4); j++) {
 			/* Fill the addr if needed */
-			if (sc->cnt == 0 && sc->tx_slave_addr) {
+			if (sc->tx_slave_addr) {
 				buf = sc->msg->slave;
 				sc->tx_slave_addr = false;
 			} else {
+				KASSERT(sc->cnt < sc->msg->len,
+				    ("%s: data buffer overrun", __func__));
 				buf = sc->msg->buf[sc->cnt];
 				sc->cnt++;
 			}
-			buf32 |= buf << (j * 8);
-
+			buf32 |= (uint32_t)buf << (j * 8);
 		}
-		RK_I2C_WRITE(sc, RK_I2C_TXDATA_BASE + 4 * i, buf32);
 
-		if (sc->cnt == sc->msg->len)
-			break;
+		KASSERT(i % 4 == 0, ("%s: misaligned write offset", __func__));
+		RK_I2C_WRITE(sc, RK_I2C_TXDATA_BASE + i, buf32);
+
+		i += j;
 	}
 
-	return (uint8_t)len;
+	return (len);
 }
 
 static void
@@ -262,8 +268,8 @@ rk_i2c_drain_rx(struct rk_i2c_softc *sc)
 	}
 
 	len = sc->msg->len - sc->cnt;
-	if (len > 32)
-		len = 32;
+	if (len > RK_I2C_MAX_RXTX_LEN)
+		len = RK_I2C_MAX_RXTX_LEN;
 
 	for (i = 0; i < len; i++) {
 		if (i % 4 == 0)
@@ -335,9 +341,8 @@ rk_i2c_intr_locked(struct rk_i2c_softc *sc)
 			RK_I2C_WRITE(sc, RK_I2C_IEN, RK_I2C_IEN_MBTFIEN |
 			    RK_I2C_IEN_NAKRCVIEN);
 
-			sc->msg->len += 1;
-			rk_i2c_fill_tx(sc);
-			RK_I2C_WRITE(sc, RK_I2C_MTXCNT, sc->msg->len);
+			transfer_len = rk_i2c_fill_tx(sc);
+			RK_I2C_WRITE(sc, RK_I2C_MTXCNT, transfer_len);
 		}
 		break;
 	case STATE_READ:
