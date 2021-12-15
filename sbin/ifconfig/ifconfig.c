@@ -1280,7 +1280,12 @@ setifcapnv(const char *vname, const char *arg, int s, const struct afswtch *afp)
 		neg = *mopt == '-';
 		if (neg)
 			mopt++;
-		nvlist_add_bool(nvcap, mopt, !neg);
+		if (strcmp(mopt, "rxtls") == 0) {
+			nvlist_add_bool(nvcap, "rxtls4", !neg);
+			nvlist_add_bool(nvcap, "rxtls6", !neg);
+		} else {
+			nvlist_add_bool(nvcap, mopt, !neg);
+		}
 	}
 	buf = nvlist_pack(nvcap, &nvbuflen);
 	if (buf == NULL) {
@@ -1739,6 +1744,10 @@ static struct cmd basic_cmds[] = {
 	DEF_CMD("-lro",		-IFCAP_LRO,	setifcap),
 	DEF_CMD("txtls",	IFCAP_TXTLS,	setifcap),
 	DEF_CMD("-txtls",	-IFCAP_TXTLS,	setifcap),
+	DEF_CMD_SARG("rxtls",	IFCAP2_RXTLS4_NAME "," IFCAP2_RXTLS6_NAME,
+	    setifcapnv),
+	DEF_CMD_SARG("-rxtls",	"-"IFCAP2_RXTLS4_NAME ",-" IFCAP2_RXTLS6_NAME,
+	    setifcapnv),
 	DEF_CMD("wol",		IFCAP_WOL,	setifcap),
 	DEF_CMD("-wol",		-IFCAP_WOL,	setifcap),
 	DEF_CMD("wol_ucast",	IFCAP_WOL_UCAST,	setifcap),
