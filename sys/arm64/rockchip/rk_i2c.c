@@ -369,8 +369,14 @@ rk_i2c_intr_locked(struct rk_i2c_softc *sc)
 
 		break;
 	case STATE_WRITE:
-		if (sc->cnt == sc->msg->len &&
-		     !(sc->msg->flags & IIC_M_NOSTOP)) {
+		if (sc->cnt < sc->msg->len) {
+			/* Keep writing. */
+			RK_I2C_WRITE(sc, RK_I2C_IEN, RK_I2C_IEN_MBTFIEN |
+			    RK_I2C_IEN_NAKRCVIEN);
+			transfer_len = rk_i2c_fill_tx(sc);
+			RK_I2C_WRITE(sc, RK_I2C_MTXCNT, transfer_len);
+			break;
+		} else if (!(sc->msg->flags & IIC_M_NOSTOP)) {
 			rk_i2c_send_stop(sc);
 			break;
 		}
