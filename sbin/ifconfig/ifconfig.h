@@ -48,6 +48,8 @@ struct cmd;
 typedef	void c_func(const char *cmd, int arg, int s, const struct afswtch *afp);
 typedef	void c_func2(const char *arg1, const char *arg2, int s,
     const struct afswtch *afp);
+typedef	void c_func3(const char *cmd, const char *arg, int s,
+    const struct afswtch *afp);
 
 struct cmd {
 	const char *c_name;
@@ -55,9 +57,12 @@ struct cmd {
 #define	NEXTARG		0xffffff	/* has following arg */
 #define	NEXTARG2	0xfffffe	/* has 2 following args */
 #define	OPTARG		0xfffffd	/* has optional following arg */
+#define	SPARAM		0xfffffc	/* parameter is string c_sparameter */
+	const char *c_sparameter;
 	union {
 		c_func	*c_func;
 		c_func2	*c_func2;
+		c_func3	*c_func3;
 	} c_u;
 	int	c_iscloneop;
 	struct cmd *c_next;
@@ -81,7 +86,7 @@ void	callback_register(callback_func *, void *);
     .c_parameter = (param),			\
     .c_u = { .c_func = (func) },		\
     .c_iscloneop = 0,				\
-    .c_next = NULL,
+    .c_next = NULL,				\
 }
 #define	DEF_CMD_ARG(name, func) {		\
     .c_name = (name),				\
@@ -101,6 +106,14 @@ void	callback_register(callback_func *, void *);
     .c_name = (name),				\
     .c_parameter = NEXTARG2,			\
     .c_u = { .c_func2 = (func) },		\
+    .c_iscloneop = 0,				\
+    .c_next = NULL,				\
+}
+#define	DEF_CMD_SARG(name, sparam, func) {	\
+    .c_name = (name),				\
+    .c_parameter = SPARAM,			\
+    .c_sparameter = (sparam),			\
+    .c_u = { .c_func3 = (func) },		\
     .c_iscloneop = 0,				\
     .c_next = NULL,				\
 }

@@ -991,6 +991,8 @@ top:
 				    p->c_name);
 			p->c_u.c_func2(argv[1], argv[2], s, afp);
 			argc -= 2, argv += 2;
+		} else if (p->c_parameter == SPARAM && p->c_u.c_func3) {
+			p->c_u.c_func3(*argv, p->c_sparameter, s, afp);
 		} else if (p->c_u.c_func)
 			p->c_u.c_func(*argv, p->c_parameter, s, afp);
 		argc--, argv++;
