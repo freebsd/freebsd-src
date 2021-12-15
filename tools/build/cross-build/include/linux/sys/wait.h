@@ -27,5 +27,21 @@
 
 #pragma once
 
+/*
+ * glibc's sys/wait.h and stdlib.h both define various wait-related constants,
+ * depending on __USE_XOPEN(2K8) and if the other header has been included.
+ * Since they each probe the other's include guard to determine that, there is
+ * a window between a header defining its include guard and checking for the
+ * other's within which, if the other is included for the first time, they both
+ * believe the other has already defined the relevant macros etc, and so
+ * neither ends up doing so. This was not previously hit, and is still not hit
+ * when using glibc normally (though seems extremely fragile). However, as of
+ * glibc 2.34, signal.h, included by sys/wait, includes a new bits/sigstksz,
+ * which in turn includes unistd.h (when _SC_SIGSTKSZ_SOURCE is defined, which
+ * is implied by _GNU_SOURCE), which we wrap and include stdlib.h from,
+ * creating the exact aforementioned situation that breaks. Thus, forcefully
+ * include stdlib.h first whenever sys/wait.h is as a workaround, since that
+ * way round still works.
+ */
 #include <stdlib.h>
 #include_next <sys/wait.h>
