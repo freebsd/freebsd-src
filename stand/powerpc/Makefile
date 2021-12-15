@@ -6,10 +6,6 @@ NO_OBJ=t
 
 SUBDIR.yes=		boot1.chrp ofw
 
-.if "${MACHINE_ARCH}" != "powerpc64le"
-SUBDIR.${MK_FDT}+=	uboot
-.endif
-
 .if "${MACHINE_ARCH}" == "powerpc64"
 SUBDIR.${MK_FDT}+=	kboot
 .endif
