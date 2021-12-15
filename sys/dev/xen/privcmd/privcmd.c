@@ -121,7 +121,7 @@ privcmd_pg_dtor(void *handle)
 {
 	struct xen_remove_from_physmap rm = { .domid = DOMID_SELF };
 	struct privcmd_map *map = handle;
-	int error;
+	int error __diagused;
 	vm_size_t i;
 	vm_page_t m;
 

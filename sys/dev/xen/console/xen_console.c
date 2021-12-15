@@ -701,7 +701,7 @@ static struct ttydevsw xencons_ttydevsw = {
 static void
 xencons_identify(driver_t *driver, device_t parent)
 {
-	device_t child;
+	device_t child __unused;
 
 	if (main_cons.ops == NULL)
 		return;

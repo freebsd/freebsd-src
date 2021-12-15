@@ -491,7 +491,7 @@ xen_intr_active_ports(struct xen_intr_pcpu_data *pcpu, shared_info_t *sh,
 void
 xen_intr_handle_upcall(struct trapframe *trap_frame)
 {
-	u_int l1i, l2i, port, cpu;
+	u_int l1i, l2i, port, cpu __diagused;
 	u_long masked_l1, masked_l2;
 	struct xenisrc *isrc;
 	shared_info_t *s;

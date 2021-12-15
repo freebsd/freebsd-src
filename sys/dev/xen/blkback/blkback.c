@@ -1087,7 +1087,7 @@ xbb_unmap_reqlist(struct xbb_xen_reqlist *reqlist)
 	struct gnttab_unmap_grant_ref unmap[XBB_MAX_SEGMENTS_PER_REQLIST];
 	u_int			      i;
 	u_int			      invcount;
-	int			      error;
+	int			      error __diagused;
 
 	invcount = 0;
 	for (i = 0; i < reqlist->nr_segments; i++) {
@@ -1645,11 +1645,9 @@ xbb_dispatch_io(struct xbb_softc *xbb, struct xbb_xen_reqlist *reqlist)
 
 	STAILQ_FOREACH(nreq, &reqlist->contig_req_list, links) {
 		blkif_request_t		*ring_req;
-		RING_IDX		 req_ring_idx;
 		u_int			 req_seg_idx;
 
 		ring_req	      = nreq->ring_req;
-		req_ring_idx	      = nreq->req_ring_idx;
 		nr_sects              = 0;
 		nseg                  = ring_req->nr_segments;
 		nreq->nr_pages        = nseg;

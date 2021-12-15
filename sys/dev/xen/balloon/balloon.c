@@ -177,7 +177,7 @@ increase_reservation(unsigned long nr_pages)
 		XENMEM_populate_physmap, &reservation);
 	if (rc < nr_pages) {
 		if (rc > 0) {
-			int ret;
+			int ret __diagused;
 
 			/* We hit the Xen hard limit: reprobe. */
 			reservation.nr_extents = rc;
@@ -215,7 +215,7 @@ decrease_reservation(unsigned long nr_pages)
 	unsigned long  i;
 	vm_page_t      page;
 	int            need_sleep = 0;
-	int ret;
+	int ret __diagused;
 	struct xen_memory_reservation reservation = {
 		.address_bits = 0,
 		.extent_order = 0,
