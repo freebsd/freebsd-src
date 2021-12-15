@@ -1219,7 +1219,6 @@ swcr_setup_auth(struct swcr_session *ses,
 	case CRYPTO_SHA2_256_HMAC:
 	case CRYPTO_SHA2_384_HMAC:
 	case CRYPTO_SHA2_512_HMAC:
-	case CRYPTO_NULL_HMAC:
 	case CRYPTO_RIPEMD160_HMAC:
 		swa->sw_hmac = true;
 		if (csp->csp_auth_key != NULL) {
@@ -1238,6 +1237,7 @@ swcr_setup_auth(struct swcr_session *ses,
 	case CRYPTO_SHA2_256:
 	case CRYPTO_SHA2_384:
 	case CRYPTO_SHA2_512:
+	case CRYPTO_NULL_HMAC:
 		axf->Init(swa->sw_ictx);
 		break;
 	case CRYPTO_AES_NIST_GMAC:
