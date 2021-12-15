@@ -17329,6 +17329,7 @@ again:
 				} else {
 					len = rack->r_ctl.rc_tlp_new_data;
 				}
+				rack->r_ctl.rc_tlp_new_data = 0;
 			}  else {
 				len = rack_what_can_we_send(tp, rack, cwnd_to_use, avail, sb_offset);
 			}
@@ -18971,10 +18972,6 @@ out:
 				/* Set we sent in SS */
 				rack->rc_gp_saw_ss = 1;
 			}
-		}
-		if (doing_tlp && (rsm == NULL)) {
-			/* Make sure new data TLP cnt is clear */
-			rack->r_ctl.rc_tlp_new_data = 0;
 		}
 		if (TCPS_HAVEESTABLISHED(tp->t_state) &&
 		    (tp->t_flags & TF_SACK_PERMIT) &&
