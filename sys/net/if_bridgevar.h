@@ -76,9 +76,13 @@
  * Data structure and control definitions for bridge interfaces.
  */
 
+#include <sys/types.h>
 #include <sys/callout.h>
 #include <sys/queue.h>
 #include <sys/condvar.h>
+
+#include <net/ethernet.h>
+#include <net/if.h>
 
 /*
  * Commands used in the SIOCSDRVSPEC ioctl.  Note the lookup of the
