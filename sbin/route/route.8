@@ -28,7 +28,7 @@
 .\"     @(#)route.8	8.3 (Berkeley) 3/19/94
 .\" $FreeBSD$
 .\"
-.Dd April 11, 2021
+.Dd December 15, 2021
 .Dt ROUTE 8
 .Os
 .Sh NAME
@@ -143,8 +143,6 @@ command is specified,
 .Nm
 will ``flush'' the routing tables of all gateway entries.
 When the address family may is specified by any of the
-.Fl osi ,
-.Fl xns ,
 .Fl inet6 ,
 or
 .Fl inet
@@ -263,20 +261,6 @@ indicating the interface to be used for transmission.
 Alternately, if the interface is point to point the name of the interface
 itself may be given, in which case the route remains valid even
 if the local or remote addresses change.
-.Pp
-The optional modifiers
-.Fl xns ,
-.Fl osi ,
-and
-.Fl link
-specify that all subsequent addresses are in the
-.Tn XNS
-or
-.Tn OSI
-address families,
-or are specified as link-level addresses,
-and the names must be numeric specifications rather than
-symbolic names.
 .Pp
 The optional
 .Fl netmask
@@ -502,7 +486,6 @@ The next-hop gateway should be reachable through a different route.
 .Xr route 4 ,
 .Xr arp 8 ,
 .Xr routed 8
-.\".Xr XNSrouted 8
 .Sh HISTORY
 The
 .Nm
