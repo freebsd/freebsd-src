@@ -524,7 +524,7 @@ rk_i2c_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 			/* Write slave register address */
 			reg = 0;
 			for (j = 0; j < msgs[i].len ; j++) {
-				reg |= (msgs[i].buf[j] & 0xff) << (j * 8);
+				reg |= (uint32_t)msgs[i].buf[j] << (j * 8);
 				reg |= RK_I2C_MRXADDR_VALID(j);
 			}
 			RK_I2C_WRITE(sc, RK_I2C_MRXRADDR, reg);
