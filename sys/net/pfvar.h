@@ -51,6 +51,7 @@
 #include <sys/seqc.h>
 #include <vm/uma.h>
 
+#include <net/if.h>
 #include <net/radix.h>
 #include <netinet/in.h>
 #ifdef _KERNEL
