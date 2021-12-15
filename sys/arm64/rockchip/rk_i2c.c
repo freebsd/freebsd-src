@@ -432,6 +432,7 @@ rk_i2c_start_xfer(struct rk_i2c_softc *sc, struct iic_msg *msg, boolean_t last)
 			    RK_I2C_IEN_NAKRCVIEN);
 		}
 	}
+	reg |= RK_I2C_CON_NAKSTOP;
 	reg |= sc->mode << RK_I2C_CON_MODE_SHIFT;
 	reg |= RK_I2C_CON_EN;
 	RK_I2C_WRITE(sc, RK_I2C_CON, reg);
@@ -550,6 +551,9 @@ rk_i2c_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 	RK_I2C_WRITE(sc, RK_I2C_IEN, 0);
 
 	sc->busy = 0;
+
+	if (sc->nak_recv)
+		err = IIC_ENOACK;
 
 	RK_I2C_UNLOCK(sc);
 	return (err);
