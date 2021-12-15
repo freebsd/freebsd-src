@@ -1128,6 +1128,7 @@ _includes:
 .if !empty(SUBDIR_OVERRIDE) && make(buildworld)
 	${_+_}cd ${.CURDIR}; ${WMAKE} MK_INCLUDES=yes SHARED=symlinks includes
 .endif
+	${_+_}cd ${.CURDIR};  ${WMAKE} test-includes
 _libraries:
 	@echo
 	@echo "--------------------------------------------------------------"
