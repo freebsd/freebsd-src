@@ -44,6 +44,7 @@ static const char rcsid[] =
 #include <sys/ioctl.h>
 #include <sys/module.h>
 #include <sys/linker.h>
+#include <sys/nv.h>
 #include <sys/queue.h>
 #include <sys/socket.h>
 #include <sys/time.h>
@@ -1251,6 +1252,48 @@ setifcap(const char *vname, int value, int s, const struct afswtch *afp)
 	ifr.ifr_reqcap = flags;
 	if (ioctl(s, SIOCSIFCAP, (caddr_t)&ifr) < 0)
 		Perror(vname);
+}
+
+void
+setifcapnv(const char *vname, const char *arg, int s, const struct afswtch *afp)
+{
+	nvlist_t *nvcap;
+	void *buf;
+	char *marg, *mopt;
+	size_t nvbuflen;
+	bool neg;
+
+	if (ioctl(s, SIOCGIFCAP, (caddr_t)&ifr) < 0)
+		Perror("ioctl (SIOCGIFCAP)");
+	if ((ifr.ifr_curcap & IFCAP_NV) == 0) {
+		warnx("IFCAP_NV not supported");
+		return; /* Not exit() */
+	}
+
+	marg = strdup(arg);
+	if (marg == NULL)
+		Perror("strdup");
+	nvcap = nvlist_create(0);
+	if (nvcap == NULL)
+		Perror("nvlist_create");
+	while ((mopt = strsep(&marg, ",")) != NULL) {
+		neg = *mopt == '-';
+		if (neg)
+			mopt++;
+		nvlist_add_bool(nvcap, mopt, !neg);
+	}
+	buf = nvlist_pack(nvcap, &nvbuflen);
+	if (buf == NULL) {
+		errx(1, "nvlist_pack error");
+		exit(1);
+	}
+	ifr.ifr_cap_nv.buf_length = ifr.ifr_cap_nv.length = nvbuflen;
+	ifr.ifr_cap_nv.buffer = buf;
+	if (ioctl(s, SIOCSIFCAPNV, (caddr_t)&ifr) < 0)
+		Perror(vname);
+	free(buf);
+	nvlist_destroy(nvcap);
+	free(marg);
 }
 
 static void
