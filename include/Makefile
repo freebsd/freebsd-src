@@ -204,7 +204,7 @@ copies: .PHONY .META
 	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
 	    ${SDESTDIR}${INCLUDEDIR}/isofs/cd9660
 .if ${MK_IPFILTER} != "no"
-	cd ${SRCTOP}/sys/contrib/ipfilter/netinet; \
+	cd ${SRCTOP}/sys/netpfil/ipfilter/netinet; \
 	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
 	    ${SDESTDIR}${INCLUDEDIR}/netinet
 .endif
@@ -328,9 +328,9 @@ symlinks: .PHONY .META
 	done
 .endfor
 .if ${MK_IPFILTER} != "no"
-	cd ${SRCTOP}/sys/contrib/ipfilter/netinet; \
+	cd ${SRCTOP}/sys/netpfil/ipfilter/netinet; \
 	for h in *.h; do \
-		${INSTALL_SYMLINK} ${TAG_ARGS} ../../../sys/contrib/ipfilter/netinet/$$h \
+		${INSTALL_SYMLINK} ${TAG_ARGS} ../../../sys/netpfil/ipfilter/netinet/$$h \
 		    ${SDESTDIR}${INCLUDEDIR}/netinet; \
 	done
 .endif
