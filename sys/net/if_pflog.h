@@ -31,7 +31,10 @@
 #ifndef _NET_IF_PFLOG_H_
 #define	_NET_IF_PFLOG_H_
 
+#include <sys/types.h>
+
 #include <net/bpf.h>
+#include <net/if.h>
 
 #define	PFLOGIFS_MAX	16
 
