@@ -32,6 +32,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 14.x IS SLOW:
 	mips support in FreeBSD. mips related items will be removed wholesale in
 	the coming days and weeks.
 
+	This broke the NO_CLEAN build for some people. Either do a clean build
+	or touch
+		lib/clang/include/llvm/Config/Targets.def
+		lib/clang/include/llvm/Config/AsmParsers.def
+		lib/clang/include/llvm/Config/Disassemblers.def
+		lib/clang/include/llvm/Config/AsmPrinters.def
+	before the build to force everything to rebuild that needs to.
+
 20211110:
 	Commit b8d60729deef changed the TCP congestion control framework so
 	that any of the included congestion control modules could be
