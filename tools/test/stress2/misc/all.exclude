@@ -73,6 +73,7 @@ syzkaller43.sh		WiP								20210906
 syzkaller46.sh		WiP								20210925
 syzkaller47.sh		WiP								20210925
 truss3.sh		WiP								20200915
+unionfs7.sh		https://people.freebsd.org/~pho/stress/log/log0202.txt		20211215
 
 # Test not to run for other reasons:
 
