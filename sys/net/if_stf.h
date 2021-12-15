@@ -30,6 +30,8 @@
 #ifndef _NET_IF_STF_H_
 #define _NET_IF_STF_H_
 
+#include <netinet/in.h>
+
 struct stfv4args {
 	struct in_addr srcv4_addr;	/* Our IPv4 src/WAN address */
 	struct in_addr braddr;		/* The border relay IPv4 address */
