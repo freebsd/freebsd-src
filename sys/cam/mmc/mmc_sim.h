@@ -33,6 +33,7 @@
 struct mmc_sim {
 	struct mmc_cam_sim_softc	*sc;
 	struct mtx			mtx;
+	char				name[16];
 	struct cam_devq			*devq;
 	struct cam_sim			*sim;
 	device_t			dev;
