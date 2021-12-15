@@ -3,6 +3,8 @@
 
 .include <src.opts.mk>
 
+PACKAGE=	ftpd
+
 CONFS=	ftpusers
 PROG=	ftpd
 MAN=	ftpd.8 ftpchroot.5
