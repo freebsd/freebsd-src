@@ -709,8 +709,8 @@ nfs_open(struct vop_open_args *ap)
 	/*
 	 * If the object has >= 1 O_DIRECT active opens, we disable caching.
 	 */
-	if (newnfs_directio_enable && (fmode & O_DIRECT) &&
-	    (vp->v_type == VREG)) {
+	if (vp->v_type == VREG && ((newnfs_directio_enable && (fmode &
+	    O_DIRECT)) || (fmode & O_APPEND))) {
 		if (np->n_directio_opens == 0) {
 			NFSUNLOCKNODE(np);
 			if (VOP_ISLOCKED(vp) != LK_EXCLUSIVE) {
@@ -967,11 +967,11 @@ nfs_close(struct vop_close_args *ap)
 			error = nfscl_maperr(ap->a_td, error, (uid_t)0,
 			    (gid_t)0);
 	}
-	if (newnfs_directio_enable)
+	if (vp->v_type == VREG && ((newnfs_directio_enable && (fmode &
+	    O_DIRECT)) || (fmode & O_APPEND))) {
 		KASSERT((np->n_directio_asyncwr == 0),
 			("nfs_close: dirty unflushed (%d) directio buffers\n",
 			 np->n_directio_asyncwr));
-	if (newnfs_directio_enable && (fmode & O_DIRECT) && (vp->v_type == VREG)) {
 		NFSLOCKNODE(np);
 		KASSERT((np->n_directio_opens > 0), 
 			("nfs_close: unexpectedly value (0) of n_directio_opens\n"));
