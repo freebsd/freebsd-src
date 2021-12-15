@@ -2,6 +2,8 @@
 
 .include <src.opts.mk>
 
+PACKAGE=	periodic
+
 CONFS=	340.noid \
 	450.status-security \
 	999.local

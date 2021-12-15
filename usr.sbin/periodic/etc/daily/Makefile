@@ -2,6 +2,8 @@
 
 .include <src.opts.mk>
 
+PACKAGE=	periodic
+
 CONFGROUPS=	CONFS
 
 CONFS=	100.clean-disks \
@@ -49,10 +51,12 @@ CONFS+=	480.status-ntpd \
 .endif
 
 .if ${MK_SENDMAIL} != "no"
-CONFS+=	150.clean-hoststat \
-	440.status-mailq \
-	460.status-mail-rejects \
-	500.queuerun
+CONFGROUPS+=		SENDMAIL
+SENDMAIL+=		150.clean-hoststat \
+			440.status-mailq \
+			460.status-mail-rejects \
+			500.queuerun
+SENDMAILPACKAGE=	sendmail
 .endif
 
 .if ${MK_ZFS} != "no"
