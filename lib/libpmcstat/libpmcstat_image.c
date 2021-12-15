@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <fcntl.h>
 #include <pmc.h>
 #include <pmclog.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -295,6 +296,7 @@ pmcstat_image_get_elf_params(struct pmcstat_image *image,
 	size_t i, nph, nsh;
 	const char *path, *elfbase;
 	char *p, *endp;
+	bool first_exec_segment;
 	uintfptr_t minva, maxva;
 	Elf *e;
 	Elf_Scn *scn;
@@ -384,7 +386,7 @@ pmcstat_image_get_elf_params(struct pmcstat_image *image,
 	 * loaded.  Additionally, for dynamically linked executables,
 	 * save the pathname to the runtime linker.
 	 */
-	if (eh.e_type == ET_EXEC) {
+	if (eh.e_type != ET_REL) {
 		if (elf_getphnum(e, &nph) == 0) {
 			warnx(
 "WARNING: Could not determine the number of program headers in \"%s\": %s.",
@@ -392,6 +394,7 @@ pmcstat_image_get_elf_params(struct pmcstat_image *image,
 			    elf_errmsg(-1));
 			goto done;
 		}
+		first_exec_segment = true;
 		for (i = 0; i < eh.e_phnum; i++) {
 			if (gelf_getphdr(e, i, &ph) != &ph) {
 				warnx(
@@ -416,8 +419,10 @@ pmcstat_image_get_elf_params(struct pmcstat_image *image,
 				break;
 			case PT_LOAD:
 				if ((ph.p_flags & PF_X) != 0 &&
-				    (ph.p_offset & (-ph.p_align)) == 0)
+				    first_exec_segment) {
 					image->pi_vaddr = ph.p_vaddr & (-ph.p_align);
+					first_exec_segment = false;
+				}
 				break;
 			}
 		}
