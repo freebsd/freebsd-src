@@ -226,7 +226,7 @@ rk_i2c_fill_tx(struct rk_i2c_softc *sc)
 	if (len > RK_I2C_MAX_RXTX_LEN)
 		len = RK_I2C_MAX_RXTX_LEN;
 
-	while (i < len) {
+	for (i = 0; i < len; ) {
 		buf32 = 0;
 
 		/* Process next 4 bytes or whatever remains. */
