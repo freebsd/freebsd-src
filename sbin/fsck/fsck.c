@@ -254,6 +254,9 @@ isok(struct fstab *fs)
 		return (0);
 	if (!selected(fs->fs_vfstype))
 		return (0);
+	/* If failok, always check now */
+	if (getfsopt(fs, "failok"))
+		return (1);
 	/*
 	 * If the -B flag has been given, then process the needed
 	 * background checks. Background checks cannot be run on
