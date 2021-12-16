@@ -527,7 +527,8 @@ vdev_raidz_exp2(uint8_t a, int exp)
 static void
 vdev_raidz_generate_parity_p(raidz_map_t *rm)
 {
-	uint64_t *p, *src, pcount, ccount, i;
+	uint64_t *p, *src, ccount, i;
+	uint64_t pcount __unused;
 	int c;
 
 	pcount = rm->rm_col[VDEV_RAIDZ_P].rc_size / sizeof (src[0]);
