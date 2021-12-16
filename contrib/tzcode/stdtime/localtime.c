@@ -1278,7 +1278,7 @@ recheck_tzdata()
 	 * We want to recheck the timezone file every 61 sec.
 	 */
 	error = clock_gettime(CLOCK_MONOTONIC, &now);
-	if (error <= 0) {
+	if (error < 0) {
 		/* XXX: Can we somehow report this? */
 		return 0;
 	}
