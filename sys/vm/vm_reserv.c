@@ -1391,8 +1391,8 @@ vm_reserv_reclaim_contig(int domain, u_long npages, vm_paddr_t low,
 			    ("%s: adjusted address does not align to %lx",
 			    __func__, alignment));
 			KASSERT(((pa ^ (pa + size - 1)) & -boundary) == 0,
-			    ("%s: adjusted address spans boundary to %lx",
-			    __func__, boundary));
+			    ("%s: adjusted address spans boundary to %jx",
+			    __func__, (uintmax_t)boundary));
 
 			vm_reserv_domain_scan_unlock(domain);
 			vm_reserv_reclaim(rv);
