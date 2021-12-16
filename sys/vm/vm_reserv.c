@@ -1233,25 +1233,29 @@ vm_reserv_reclaim_inactive(int domain)
 /*
  * Determine whether this reservation has free pages that satisfy the given
  * request for contiguous physical memory.  Start searching from the lower
- * bound, defined by low_index.
+ * bound, defined by lo, and stop at the upper bound, hi.  Return the index
+ * of the first satisfactory free page, or -1 if none is found.
  */
-static bool
-vm_reserv_test_contig(vm_reserv_t rv, u_long npages, vm_paddr_t low,
-    vm_paddr_t high, u_long alignment, vm_paddr_t boundary)
+static int
+vm_reserv_find_contig(vm_reserv_t rv, int npages, int lo,
+    int hi, int ppn_align, int ppn_bound)
 {
-	vm_paddr_t pa, size;
 	u_long changes;
-	int bitpos, bits_left, i, hi, lo, n;
+	int bitpos, bits_left, i, n;
 
 	vm_reserv_assert_locked(rv);
-	size = npages << PAGE_SHIFT;
-	pa = VM_PAGE_TO_PHYS(&rv->pages[0]);
-	lo = (pa < low) ?
-	    ((low + PAGE_MASK - pa) >> PAGE_SHIFT) : 0;
+	KASSERT(npages <= VM_LEVEL_0_NPAGES - 1,
+	    ("%s: Too many pages", __func__));
+	KASSERT(ppn_bound <= VM_LEVEL_0_NPAGES,
+	    ("%s: Too big a boundary for reservation size", __func__));
+	KASSERT(npages <= ppn_bound,
+	    ("%s: Too many pages for given boundary", __func__));
+	KASSERT(ppn_align != 0 && powerof2(ppn_align),
+	    ("ppn_align is not a positive power of 2"));
+	KASSERT(ppn_bound != 0 && powerof2(ppn_bound),
+	    ("ppn_bound is not a positive power of 2"));
 	i = lo / NBPOPMAP;
 	changes = rv->popmap[i] | ((1UL << (lo % NBPOPMAP)) - 1);
-	hi = (pa + VM_LEVEL_0_SIZE > high) ?
-	    ((high + PAGE_MASK - pa) >> PAGE_SHIFT) : VM_LEVEL_0_NPAGES;
 	n = hi / NBPOPMAP;
 	bits_left = hi % NBPOPMAP;
 	hi = lo = -1;
@@ -1276,25 +1280,20 @@ vm_reserv_test_contig(vm_reserv_t rv, u_long npages, vm_paddr_t low,
 				continue;
 			}
 			hi = NBPOPMAP * i + bitpos;
-			pa = VM_PAGE_TO_PHYS(&rv->pages[lo]);
-			if ((pa & (alignment - 1)) != 0) {
+			if (lo < roundup2(lo, ppn_align)) {
 				/* Skip to next aligned page. */
-				lo += (((pa - 1) | (alignment - 1)) + 1) >>
-				    PAGE_SHIFT;
+				lo = roundup2(lo, ppn_align);
 				if (lo >= VM_LEVEL_0_NPAGES)
-					return (false);
-				pa = VM_PAGE_TO_PHYS(&rv->pages[lo]);
+					return (-1);
 			}
-			if (((pa ^ (pa + size - 1)) & ~(boundary - 1)) != 0) {
+			if (lo + npages > roundup2(lo, ppn_bound)) {
 				/* Skip to next boundary-matching page. */
-				lo += (((pa - 1) | (boundary - 1)) + 1) >>
-				    PAGE_SHIFT;
+				lo = roundup2(lo, ppn_bound);
 				if (lo >= VM_LEVEL_0_NPAGES)
-					return (false);
-				pa = VM_PAGE_TO_PHYS(&rv->pages[lo]);
+					return (-1);
 			}
-			if (lo * PAGE_SIZE + size <= hi * PAGE_SIZE)
-				return (true);
+			if (lo + npages <= hi)
+				return (lo);
 			lo = hi;
 		}
 		if (++i < n)
@@ -1303,7 +1302,7 @@ vm_reserv_test_contig(vm_reserv_t rv, u_long npages, vm_paddr_t low,
 			changes = bits_left == 0 ? -1UL :
 			    (rv->popmap[n] | (-1UL << bits_left));
 		else
-			return (false);
+			return (-1);
 	}
 }
 
@@ -1320,12 +1319,32 @@ vm_reserv_reclaim_contig(int domain, u_long npages, vm_paddr_t low,
 	struct vm_reserv_queue *queue;
 	vm_paddr_t pa, size;
 	vm_reserv_t marker, rv, rvn;
+	int hi, lo, posn, ppn_align, ppn_bound;
 
+	KASSERT(npages > 0, ("npages is 0"));
+	KASSERT(powerof2(alignment), ("alignment is not a power of 2"));
+	KASSERT(powerof2(boundary), ("boundary is not a power of 2"));
 	if (npages > VM_LEVEL_0_NPAGES - 1)
+		return (false);
+	size = npages << PAGE_SHIFT;
+	/* 
+	 * Ensure that a free range starting at a boundary-multiple
+	 * doesn't include a boundary-multiple within it.  Otherwise,
+	 * no boundary-constrained allocation is possible.
+	 */
+	if (size > boundary)
 		return (false);
 	marker = &vm_rvd[domain].marker;
 	queue = &vm_rvd[domain].partpop;
-	size = npages << PAGE_SHIFT;
+	/*
+	 * Compute shifted alignment, boundary values for page-based
+	 * calculations.  Constrain to range [1, VM_LEVEL_0_NPAGES] to
+	 * avoid overflow.
+	 */
+	ppn_align = (int)(ulmin(ulmax(PAGE_SIZE, alignment),
+	    VM_LEVEL_0_SIZE) >> PAGE_SHIFT);
+	ppn_bound = (int)(MIN(MAX(PAGE_SIZE, boundary),
+            VM_LEVEL_0_SIZE) >> PAGE_SHIFT);
 
 	vm_reserv_domain_scan_lock(domain);
 	vm_reserv_domain_lock(domain);
@@ -1337,6 +1356,10 @@ vm_reserv_reclaim_contig(int domain, u_long npages, vm_paddr_t low,
 		}
 		if (pa + size > high) {
 			/* This entire reservation is too high; go to next. */
+			continue;
+		}
+		if ((pa & (alignment - 1)) != 0) {
+			/* This entire reservation is unaligned; go to next. */
 			continue;
 		}
 
@@ -1356,8 +1379,21 @@ vm_reserv_reclaim_contig(int domain, u_long npages, vm_paddr_t low,
 			TAILQ_REMOVE(queue, marker, partpopq);
 		}
 		vm_reserv_domain_unlock(domain);
-		if (vm_reserv_test_contig(rv, npages, low, high,
-		    alignment, boundary)) {
+		lo = (pa >= low) ? 0 :
+		    (int)((low + PAGE_MASK - pa) >> PAGE_SHIFT);
+		hi = (pa + VM_LEVEL_0_SIZE <= high) ? VM_LEVEL_0_NPAGES :
+		    (int)((high - pa) >> PAGE_SHIFT);
+		posn = vm_reserv_find_contig(rv, (int)npages, lo, hi,
+		    ppn_align, ppn_bound);
+		if (posn >= 0) {
+			pa = VM_PAGE_TO_PHYS(&rv->pages[posn]);
+			KASSERT((pa & (alignment - 1)) == 0,
+			    ("%s: adjusted address does not align to %lx",
+			    __func__, alignment));
+			KASSERT(((pa ^ (pa + size - 1)) & -boundary) == 0,
+			    ("%s: adjusted address spans boundary to %lx",
+			    __func__, boundary));
+
 			vm_reserv_domain_scan_unlock(domain);
 			vm_reserv_reclaim(rv);
 			vm_reserv_unlock(rv);
