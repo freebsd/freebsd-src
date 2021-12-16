@@ -102,7 +102,7 @@ netif_match(struct netif *nif, void *machdep_hint)
 struct netif *
 netif_select(void *machdep_hint)
 {
-	int d, u, unit_done, s;
+	int d, u, s;
 	struct netif_driver *drv;
 	struct netif cur_if;
 	static struct netif best_if;
@@ -118,7 +118,6 @@ netif_select(void *machdep_hint)
 
 		for (u = 0; u < drv->netif_nifs; u++) {
 			cur_if.nif_unit = u;
-			unit_done = 0;
 
 #ifdef NETIF_DEBUG
 			if (netif_debug)
