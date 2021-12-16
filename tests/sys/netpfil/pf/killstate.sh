@@ -113,6 +113,10 @@ v6_body()
 {
 	pft_init
 
+	if [ "$(atf_config_get ci false)" = "true" ]; then
+		atf_skip "https://bugs.freebsd.org/260458"
+	fi
+
 	epair=$(vnet_mkepair)
 	ifconfig ${epair}a inet6 2001:db8::1/64 up no_dad
 
