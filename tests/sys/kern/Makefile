@@ -23,6 +23,7 @@ TEST_METADATA.ptrace_test+=		timeout="15"
 ATF_TESTS_C+=	reaper
 ATF_TESTS_C+=	sigaltstack
 PLAIN_TESTS_C+=	subr_unit_test
+ATF_TESTS_C+=	sysctl_kern_proc
 ATF_TESTS_C+=	sys_getrandom
 ATF_TESTS_C+=	unix_passfd_test
 ATF_TESTS_C+=	unix_seqpacket_test
