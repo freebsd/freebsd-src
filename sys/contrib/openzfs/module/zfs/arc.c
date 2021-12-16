@@ -2070,7 +2070,6 @@ arc_buf_fill(arc_buf_t *buf, spa_t *spa, const zbookmark_phys_t *zb,
 	} else {
 		ASSERT(hdr_compressed);
 		ASSERT(!compressed);
-		ASSERT3U(HDR_GET_LSIZE(hdr), !=, HDR_GET_PSIZE(hdr));
 
 		/*
 		 * If the buf is sharing its data with the hdr, unlink it and
@@ -5682,17 +5681,20 @@ arc_read_done(zio_t *zio)
 		zio_crypt_decode_params_bp(bp, hdr->b_crypt_hdr.b_salt,
 		    hdr->b_crypt_hdr.b_iv);
 
-		if (BP_GET_TYPE(bp) == DMU_OT_INTENT_LOG) {
-			void *tmpbuf;
+		if (zio->io_error == 0) {
+			if (BP_GET_TYPE(bp) == DMU_OT_INTENT_LOG) {
+				void *tmpbuf;
 
-			tmpbuf = abd_borrow_buf_copy(zio->io_abd,
-			    sizeof (zil_chain_t));
-			zio_crypt_decode_mac_zil(tmpbuf,
-			    hdr->b_crypt_hdr.b_mac);
-			abd_return_buf(zio->io_abd, tmpbuf,
-			    sizeof (zil_chain_t));
-		} else {
-			zio_crypt_decode_mac_bp(bp, hdr->b_crypt_hdr.b_mac);
+				tmpbuf = abd_borrow_buf_copy(zio->io_abd,
+				    sizeof (zil_chain_t));
+				zio_crypt_decode_mac_zil(tmpbuf,
+				    hdr->b_crypt_hdr.b_mac);
+				abd_return_buf(zio->io_abd, tmpbuf,
+				    sizeof (zil_chain_t));
+			} else {
+				zio_crypt_decode_mac_bp(bp,
+				    hdr->b_crypt_hdr.b_mac);
+			}
 		}
 	}
 
