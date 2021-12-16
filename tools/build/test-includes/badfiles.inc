@@ -14,7 +14,6 @@ BADHDRS= \
 	sys/bus_dma_internal.h \
 	sys/bus_san.h \
 	sys/busdma_bufalloc.h \
-	sys/callout.h \
 	sys/caprights.h \
 	sys/cdrio.h \
 	sys/cfictl.h \
@@ -32,8 +31,6 @@ BADHDRS= \
 	sys/domainset.h \
 	sys/dtrace_bsd.h \
 	sys/dvdio.h \
-	sys/efi.h \
-	sys/efiio.h \
 	sys/elf32.h \
 	sys/elf64.h \
 	sys/elf_common.h \
@@ -45,7 +42,6 @@ BADHDRS= \
 	sys/exec.h \
 	sys/extattr.h \
 	sys/fail.h \
-	sys/filedesc.h \
 	sys/firmware.h \
 	sys/fnv_hash.h \
 	sys/font.h \
@@ -98,14 +94,11 @@ BADHDRS= \
 	sys/pctrie.h \
 	sys/physmem.h \
 	sys/pipe.h \
-	sys/pmc.h \
 	sys/pmckern.h \
-	sys/pmclog.h \
 	sys/posix4.h \
 	sys/power.h \
 	sys/priority.h \
 	sys/prng.h \
-	sys/proc.h \
 	sys/qmath.h \
 	sys/racct.h \
 	sys/refcount.h \
@@ -155,12 +148,9 @@ BADHDRS= \
 	net/bpf_jitter.h \
 	net/bpf_zerocopy.h \
 	net/bpfdesc.h \
-	net/bridgestp.h \
 	net/debugnet_int.h \
-	net/ethernet.h \
 	net/firewire.h \
 	net/if_arp.h \
-	net/if_bridgevar.h \
 	net/if_dl.h \
 	net/if_enc.h \
 	net/if_lagg.h \
@@ -168,10 +158,6 @@ BADHDRS= \
 	net/if_llc.h \
 	net/if_media.h \
 	net/if_mib.h \
-	net/if_pflog.h \
-	net/if_pfsync.h \
-	net/if_sppp.h \
-	net/if_stf.h \
 	net/if_tap.h \
 	net/if_tun.h \
 	net/if_var.h \
@@ -188,7 +174,6 @@ BADHDRS= \
 	net/paravirt.h \
 	net/pfil.h \
 	net/pfkeyv2.h \
-	net/pfvar.h \
 	net/radix.h \
 	net/raw_cb.h \
 	net/rndis.h \
