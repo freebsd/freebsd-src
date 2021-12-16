@@ -35,6 +35,7 @@
 #ifndef _SYS_FILEDESC_H_
 #define	_SYS_FILEDESC_H_
 
+#include <sys/types.h>
 #include <sys/caprights.h>
 #include <sys/queue.h>
 #include <sys/event.h>
