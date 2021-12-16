@@ -152,9 +152,6 @@ idad_dump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t l
 void
 idad_intr(struct bio *bp)
 {
-	struct idad_softc *drv;
-
-	drv = bp->bio_disk->d_drv1;
 
 	if (bp->bio_flags & BIO_ERROR)
 		bp->bio_error = EIO;
