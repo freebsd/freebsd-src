@@ -183,7 +183,7 @@ pcf85063_set_time(device_t dev, struct timespec *ts)
 	    sizeof(uint8_t), IIC_WAIT);
 
 	ts->tv_sec -= utc_offset();
-	clock_ts_to_bcd(ts, &bcd, ctrl_reg & PCF85063_CTRL1_TIME_FORMAT);
+	clock_ts_to_bcd(ts, &bcd, false);
 	clock_dbgprint_bcd(dev, CLOCK_DBG_WRITE, &bcd);
 
 	data.sec = bcd.sec;
@@ -193,11 +193,6 @@ pcf85063_set_time(device_t dev, struct timespec *ts)
 	data.day = bcd.day;
 	data.mon = bcd.mon;
 	data.year = bcd.year;
-
-	/* Set this bit in case of 12-hour mode and pm hour. */
-	if (!(ctrl_reg & PCF85063_CTRL1_TIME_FORMAT))
-		if (bcd.ispm)
-			data.hour |= 0x20;
 
 	if (ts->tv_nsec > PCF85063_HALF_OF_SEC_NS)
 		data.sec++;
@@ -209,6 +204,8 @@ pcf85063_set_time(device_t dev, struct timespec *ts)
 		return (error);
 
 	ctrl_reg |= PCF85063_CTRL1_RTC_CLK_STOP;
+	/* Explicitly set 24-hour mode. */
+	ctrl_reg &= ~PCF85063_CTRL1_TIME_FORMAT;
 
 	error = iicdev_writeto(dev, PCF85063_CTRL1_REG, &ctrl_reg,
 	    sizeof(uint8_t), IIC_WAIT);
