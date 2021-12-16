@@ -14,6 +14,7 @@ CTASSERT(sizeof(union authctx) >= sizeof(struct poly1305_xform_ctx));
 
 CTASSERT(POLY1305_KEY_LEN == crypto_onetimeauth_poly1305_KEYBYTES);
 CTASSERT(POLY1305_HASH_LEN == crypto_onetimeauth_poly1305_BYTES);
+CTASSERT(POLY1305_BLOCK_LEN == crypto_onetimeauth_poly1305_BYTES);
 
 static void
 xform_Poly1305_Init(void *polyctx)
@@ -64,7 +65,7 @@ const struct auth_hash auth_hash_poly1305 = {
 	.keysize = POLY1305_KEY_LEN,
 	.hashsize = POLY1305_HASH_LEN,
 	.ctxsize = sizeof(struct poly1305_xform_ctx),
-	.blocksize = crypto_onetimeauth_poly1305_BYTES,
+	.blocksize = POLY1305_BLOCK_LEN,
 	.Init = xform_Poly1305_Init,
 	.Setkey = xform_Poly1305_Setkey,
 	.Update = xform_Poly1305_Update,
