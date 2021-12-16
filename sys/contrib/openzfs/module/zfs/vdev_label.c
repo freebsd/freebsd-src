@@ -496,6 +496,10 @@ vdev_config_generate(spa_t *spa, vdev_t *vd, boolean_t getstats,
 		fnvlist_add_uint64(nv, ZPOOL_CONFIG_ASIZE,
 		    vd->vdev_asize);
 		fnvlist_add_uint64(nv, ZPOOL_CONFIG_IS_LOG, vd->vdev_islog);
+		if (vd->vdev_noalloc) {
+			fnvlist_add_uint64(nv, ZPOOL_CONFIG_NONALLOCATING,
+			    vd->vdev_noalloc);
+		}
 		if (vd->vdev_removing) {
 			fnvlist_add_uint64(nv, ZPOOL_CONFIG_REMOVING,
 			    vd->vdev_removing);
@@ -665,7 +669,7 @@ vdev_config_generate(spa_t *spa, vdev_t *vd, boolean_t getstats,
 
 		if (idx) {
 			fnvlist_add_nvlist_array(nv, ZPOOL_CONFIG_CHILDREN,
-			    child, idx);
+			    (const nvlist_t * const *)child, idx);
 		}
 
 		for (c = 0; c < idx; c++)

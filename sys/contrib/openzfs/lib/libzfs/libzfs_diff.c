@@ -51,9 +51,9 @@
 #define	ZDIFF_PREFIX		"zfs-diff-%d"
 
 #define	ZDIFF_ADDED	'+'
-#define	ZDIFF_MODIFIED	'M'
+#define	ZDIFF_MODIFIED	"M"
 #define	ZDIFF_REMOVED	'-'
-#define	ZDIFF_RENAMED	'R'
+#define	ZDIFF_RENAMED	"R"
 
 
 /*
@@ -122,62 +122,54 @@ stream_bytes(FILE *fp, const char *string)
 
 	while ((c = *string++) != '\0') {
 		if (c > ' ' && c != '\\' && c < '\177') {
-			(void) fprintf(fp, "%c", c);
+			(void) fputc(c, fp);
 		} else {
-			(void) fprintf(fp, "\\%04o", (uint8_t)c);
+			(void) fprintf(fp, "\\%04hho", (uint8_t)c);
 		}
 	}
 }
 
-static void
-print_what(FILE *fp, mode_t what)
+static char
+get_what(mode_t what)
 {
-	char symbol;
-
 	switch (what & S_IFMT) {
 	case S_IFBLK:
-		symbol = 'B';
-		break;
+		return ('B');
 	case S_IFCHR:
-		symbol = 'C';
-		break;
+		return ('C');
 	case S_IFDIR:
-		symbol = '/';
-		break;
+		return ('/');
 #ifdef S_IFDOOR
 	case S_IFDOOR:
-		symbol = '>';
-		break;
+		return ('>');
 #endif
 	case S_IFIFO:
-		symbol = '|';
-		break;
+		return ('|');
 	case S_IFLNK:
-		symbol = '@';
-		break;
+		return ('@');
 #ifdef S_IFPORT
 	case S_IFPORT:
-		symbol = 'P';
-		break;
+		return ('P');
 #endif
 	case S_IFSOCK:
-		symbol = '=';
-		break;
+		return ('=');
 	case S_IFREG:
-		symbol = 'F';
-		break;
+		return ('F');
 	default:
-		symbol = '?';
-		break;
+		return ('?');
 	}
-	(void) fprintf(fp, "%c", symbol);
 }
 
 static void
 print_cmn(FILE *fp, differ_info_t *di, const char *file)
 {
-	stream_bytes(fp, di->dsmnt);
-	stream_bytes(fp, file);
+	if (!di->no_mangle) {
+		stream_bytes(fp, di->dsmnt);
+		stream_bytes(fp, file);
+	} else {
+		(void) fputs(di->dsmnt, fp);
+		(void) fputs(file, fp);
+	}
 }
 
 static void
@@ -188,18 +180,13 @@ print_rename(FILE *fp, differ_info_t *di, const char *old, const char *new,
 		(void) fprintf(fp, "%10lld.%09lld\t",
 		    (longlong_t)isb->zs_ctime[0],
 		    (longlong_t)isb->zs_ctime[1]);
-	(void) fprintf(fp, "%c\t", ZDIFF_RENAMED);
-	if (di->classify) {
-		print_what(fp, isb->zs_mode);
-		(void) fprintf(fp, "\t");
-	}
+	(void) fputs(ZDIFF_RENAMED "\t", fp);
+	if (di->classify)
+		(void) fprintf(fp, "%c\t", get_what(isb->zs_mode));
 	print_cmn(fp, di, old);
-	if (di->scripted)
-		(void) fprintf(fp, "\t");
-	else
-		(void) fprintf(fp, " -> ");
+	(void) fputs(di->scripted ? "\t" : " -> ", fp);
 	print_cmn(fp, di, new);
-	(void) fprintf(fp, "\n");
+	(void) fputc('\n', fp);
 }
 
 static void
@@ -210,14 +197,11 @@ print_link_change(FILE *fp, differ_info_t *di, int delta, const char *file,
 		(void) fprintf(fp, "%10lld.%09lld\t",
 		    (longlong_t)isb->zs_ctime[0],
 		    (longlong_t)isb->zs_ctime[1]);
-	(void) fprintf(fp, "%c\t", ZDIFF_MODIFIED);
-	if (di->classify) {
-		print_what(fp, isb->zs_mode);
-		(void) fprintf(fp, "\t");
-	}
+	(void) fputs(ZDIFF_MODIFIED "\t", fp);
+	if (di->classify)
+		(void) fprintf(fp, "%c\t", get_what(isb->zs_mode));
 	print_cmn(fp, di, file);
-	(void) fprintf(fp, "\t(%+d)", delta);
-	(void) fprintf(fp, "\n");
+	(void) fprintf(fp, "\t(%+d)\n", delta);
 }
 
 static void
@@ -229,12 +213,10 @@ print_file(FILE *fp, differ_info_t *di, char type, const char *file,
 		    (longlong_t)isb->zs_ctime[0],
 		    (longlong_t)isb->zs_ctime[1]);
 	(void) fprintf(fp, "%c\t", type);
-	if (di->classify) {
-		print_what(fp, isb->zs_mode);
-		(void) fprintf(fp, "\t");
-	}
+	if (di->classify)
+		(void) fprintf(fp, "%c\t", get_what(isb->zs_mode));
 	print_cmn(fp, di, file);
-	(void) fprintf(fp, "\n");
+	(void) fputc('\n', fp);
 }
 
 static int
@@ -327,7 +309,7 @@ write_inuse_diffs_one(FILE *fp, differ_info_t *di, uint64_t dobj)
 			print_link_change(fp, di, change,
 			    change > 0 ? fobjname : tobjname, &tsb);
 		} else if (strcmp(fobjname, tobjname) == 0) {
-			print_file(fp, di, ZDIFF_MODIFIED, fobjname, &tsb);
+			print_file(fp, di, *ZDIFF_MODIFIED, fobjname, &tsb);
 		} else {
 			print_rename(fp, di, fobjname, tobjname, &tsb);
 		}
@@ -752,6 +734,7 @@ zfs_show_diffs(zfs_handle_t *zhp, int outfd, const char *fromsnap,
 	di.scripted = (flags & ZFS_DIFF_PARSEABLE);
 	di.classify = (flags & ZFS_DIFF_CLASSIFY);
 	di.timestamped = (flags & ZFS_DIFF_TIMESTAMP);
+	di.no_mangle = (flags & ZFS_DIFF_NO_MANGLE);
 
 	di.outputfd = outfd;
 	di.datafd = pipefd[0];
