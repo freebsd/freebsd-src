@@ -19,8 +19,4 @@ SRCS=	descr.c descr_compat.c parse.c usage.c data.c
 
 INCS=	usbhid.h
 
-.if defined(COMPAT_32BIT)
-CFLAGS+=	-DCOMPAT_32BIT
-.endif
-
 .include <bsd.lib.mk>
