@@ -491,7 +491,6 @@ udp_multi_input(struct mbuf *m, int proto, struct sockaddr_in *udp_in)
 			break;
 		}
 	}
-	m_freem(m);
 
 	if (appends == 0) {
 		/*
@@ -505,6 +504,7 @@ udp_multi_input(struct mbuf *m, int proto, struct sockaddr_in *udp_in)
 		else
 			UDPSTAT_INC(udps_noportbcast);
 	}
+	m_freem(m);
 
 	return (IPPROTO_DONE);
 }
@@ -637,7 +637,7 @@ udp_input(struct mbuf **mp, int *offp, int proto)
 
 	if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr)) ||
 	    in_broadcast(ip->ip_dst, ifp))
-			return (udp_multi_input(m, proto, udp_in));
+		return (udp_multi_input(m, proto, udp_in));
 
 	pcbinfo = udp_get_inpcbinfo(proto);
 
