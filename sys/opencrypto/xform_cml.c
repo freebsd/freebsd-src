@@ -53,15 +53,21 @@ __FBSDID("$FreeBSD$");
 #include <crypto/camellia/camellia.h>
 #include <opencrypto/xform_enc.h>
 
+struct camellia_cbc_ctx {
+	camellia_ctx state;
+	char iv[CAMELLIA_BLOCK_LEN];
+};
+
 static	int cml_setkey(void *, const uint8_t *, int);
 static	void cml_encrypt(void *, const uint8_t *, uint8_t *);
 static	void cml_decrypt(void *, const uint8_t *, uint8_t *);
+static	void cml_reinit(void *, const uint8_t *, size_t);
 
 /* Encryption instances */
 const struct enc_xform enc_xform_camellia = {
 	.type = CRYPTO_CAMELLIA_CBC,
 	.name = "Camellia-CBC",
-	.ctxsize = sizeof(camellia_ctx),
+	.ctxsize = sizeof(struct camellia_cbc_ctx),
 	.blocksize = CAMELLIA_BLOCK_LEN,
 	.ivsize = CAMELLIA_BLOCK_LEN,
 	.minkey = CAMELLIA_MIN_KEY,
@@ -69,30 +75,54 @@ const struct enc_xform enc_xform_camellia = {
 	.encrypt = cml_encrypt,
 	.decrypt = cml_decrypt,
 	.setkey = cml_setkey,
+	.reinit = cml_reinit,
 };
 
 /*
  * Encryption wrapper routines.
  */
 static void
-cml_encrypt(void *ctx, const uint8_t *in, uint8_t *out)
+cml_encrypt(void *vctx, const uint8_t *in, uint8_t *out)
 {
-	camellia_encrypt(ctx, in, out);
+	struct camellia_cbc_ctx *ctx = vctx;
+
+	for (u_int i = 0; i < CAMELLIA_BLOCK_LEN; i++)
+		out[i] = in[i] ^ ctx->iv[i];
+	camellia_encrypt(&ctx->state, in, out);
+	memcpy(ctx->iv, out, CAMELLIA_BLOCK_LEN);
 }
 
 static void
-cml_decrypt(void *ctx, const uint8_t *in, uint8_t *out)
+cml_decrypt(void *vctx, const uint8_t *in, uint8_t *out)
 {
-	camellia_decrypt(ctx, in, out);
+	struct camellia_cbc_ctx *ctx = vctx;
+	char block[CAMELLIA_BLOCK_LEN];
+
+	memcpy(block, in, CAMELLIA_BLOCK_LEN);
+	camellia_decrypt(&ctx->state, in, out);
+	for (u_int i = 0; i < CAMELLIA_BLOCK_LEN; i++)
+		out[i] ^= ctx->iv[i];
+	memcpy(ctx->iv, block, CAMELLIA_BLOCK_LEN);
+	explicit_bzero(block, sizeof(block));
 }
 
 static int
-cml_setkey(void *ctx, const uint8_t *key, int len)
+cml_setkey(void *vctx, const uint8_t *key, int len)
 {
+	struct camellia_cbc_ctx *ctx = vctx;
 
 	if (len != 16 && len != 24 && len != 32)
 		return (EINVAL);
 
-	camellia_set_key(ctx, key, len * 8);
+	camellia_set_key(&ctx->state, key, len * 8);
 	return (0);
+}
+
+static void
+cml_reinit(void *vctx, const uint8_t *iv, size_t iv_len)
+{
+	struct camellia_cbc_ctx *ctx = vctx;
+
+	KASSERT(iv_len == sizeof(ctx->iv), ("%s: bad IV length", __func__));
+	memcpy(ctx->iv, iv, sizeof(ctx->iv));
 }
