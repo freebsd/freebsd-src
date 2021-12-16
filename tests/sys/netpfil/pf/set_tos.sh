@@ -130,6 +130,10 @@ v6_body()
 {
 	pft_init
 
+	if [ "$(atf_config_get ci false)" = "true" ]; then
+            atf_skip "https://bugs.freebsd.org/260459"
+	fi
+
 	epair=$(vnet_mkepair)
 	ifconfig ${epair}a inet6 add 2001:db8:192::1
 	vnet_mkjail alcatraz ${epair}b
