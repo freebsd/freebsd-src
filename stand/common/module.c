@@ -113,9 +113,8 @@ command_load(int argc, char *argv[])
 	struct preloaded_file *fp;
 	char	*typestr;
 #ifdef LOADER_VERIEXEC
-	char	*prefix;
+	char	*prefix, *skip;
 #endif
-	char	*skip;
 	int		dflag, dofile, dokld, ch, error;
 
 	dflag = dokld = dofile = 0;
@@ -128,8 +127,8 @@ command_load(int argc, char *argv[])
 	}
 #ifdef LOADER_VERIEXEC
 	prefix = NULL;
-#endif
 	skip = NULL;
+#endif
 	while ((ch = getopt(argc, argv, "dkp:s:t:")) != -1) {
 		switch(ch) {
 		case 'd':
@@ -142,10 +141,10 @@ command_load(int argc, char *argv[])
 		case 'p':
 			prefix = optarg;
 			break;
-#endif
 		case 's':
 			skip = optarg;
 			break;
+#endif
 		case 't':
 			typestr = optarg;
 			dofile = 1;
