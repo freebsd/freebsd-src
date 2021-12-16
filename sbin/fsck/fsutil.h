@@ -28,6 +28,7 @@
  * $FreeBSD$
  */
 
+struct fstab;
 int checkfstab(int, int (*)(struct fstab *), 
     int (*) (const char *, const char *, const char *, const char *, pid_t *));
 int getfsopt(struct fstab *, const char *);
