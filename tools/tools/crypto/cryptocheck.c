@@ -86,6 +86,7 @@
  *			tests
  *
  * Hashes:
+ *	ripemd160	160-bit RIPEMD
  *	sha1		SHA-1
  *	sha224		224-bit SHA-2
  *	sha256		256-bit SHA-2
@@ -95,6 +96,7 @@
  *	blake2s		Blake2-S
  *
  * MACs:
+ *	ripemd160hmac	160-bit RIPEMD HMAC
  *	sha1hmac	SHA-1 HMAC
  *	sha224hmac	224-bit SHA-2 HMAC
  *	sha256hmac	256-bit SHA-2 HMAC
@@ -114,6 +116,9 @@
  *	aes-ctr256	256-bit AES-CTR
  *	aes-xts		128-bit AES-XTS
  *	aes-xts256	256-bit AES-XTS
+ *	camellia-cbc	128-bit Camellia-CBC
+ *	camellia-cbc192	192-bit	Camellia-CBC
+ *	camellia-cbc256	256-bit Camellia-CBC
  *	chacha20
  *
  * Encrypt then Authenticate:
@@ -173,6 +178,8 @@ static const struct alg {
 	  .evp_md = EVP_sha384 },
 	{ .name = "sha512", .mac = CRYPTO_SHA2_512, .type = T_HASH,
 	  .evp_md = EVP_sha512 },
+	{ .name = "ripemd160hmac", .mac = CRYPTO_RIPEMD160_HMAC, .type = T_HMAC,
+	  .evp_md = EVP_ripemd160 },
 	{ .name = "sha1hmac", .mac = CRYPTO_SHA1_HMAC, .type = T_HMAC,
 	  .evp_md = EVP_sha1 },
 	{ .name = "sha224hmac", .mac = CRYPTO_SHA2_224_HMAC, .type = T_HMAC,
@@ -211,6 +218,12 @@ static const struct alg {
 	  .evp_cipher = EVP_aes_128_xts },
 	{ .name = "aes-xts256", .cipher = CRYPTO_AES_XTS, .type = T_CIPHER,
 	  .evp_cipher = EVP_aes_256_xts },
+	{ .name = "camellia-cbc", .cipher = CRYPTO_CAMELLIA_CBC,
+	  .type = T_CIPHER, .evp_cipher = EVP_camellia_128_cbc },
+	{ .name = "camellia-cbc192", .cipher = CRYPTO_CAMELLIA_CBC,
+	  .type = T_CIPHER, .evp_cipher = EVP_camellia_192_cbc },
+	{ .name = "camellia-cbc256", .cipher = CRYPTO_CAMELLIA_CBC,
+	  .type = T_CIPHER, .evp_cipher = EVP_camellia_256_cbc },
 	{ .name = "chacha20", .cipher = CRYPTO_CHACHA20, .type = T_CIPHER,
 	  .evp_cipher = EVP_chacha20 },
 	{ .name = "aes-gcm", .cipher = CRYPTO_AES_NIST_GCM_16, .type = T_AEAD,
