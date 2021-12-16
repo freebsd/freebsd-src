@@ -559,8 +559,8 @@ crypto_cipher(const struct crypto_session_params *csp)
 {
 
 	switch (csp->csp_cipher_alg) {
-	case CRYPTO_RIJNDAEL128_CBC:
-		return (&enc_xform_rijndael128);
+	case CRYPTO_AES_CBC:
+		return (&enc_xform_aes_cbc);
 	case CRYPTO_AES_XTS:
 		return (&enc_xform_aes_xts);
 	case CRYPTO_AES_ICM:

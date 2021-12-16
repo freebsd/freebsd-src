@@ -53,41 +53,41 @@ __FBSDID("$FreeBSD$");
 #include <crypto/rijndael/rijndael.h>
 #include <opencrypto/xform_enc.h>
 
-static	int rijndael128_setkey(void *, const uint8_t *, int);
-static	void rijndael128_encrypt(void *, const uint8_t *, uint8_t *);
-static	void rijndael128_decrypt(void *, const uint8_t *, uint8_t *);
+static	int aes_cbc_setkey(void *, const uint8_t *, int);
+static	void aes_cbc_encrypt(void *, const uint8_t *, uint8_t *);
+static	void aes_cbc_decrypt(void *, const uint8_t *, uint8_t *);
 
 /* Encryption instances */
-const struct enc_xform enc_xform_rijndael128 = {
-	.type = CRYPTO_RIJNDAEL128_CBC,
-	.name = "Rijndael-128/AES",
+const struct enc_xform enc_xform_aes_cbc = {
+	.type = CRYPTO_AES_CBC,
+	.name = "AES-CBC",
 	.ctxsize = sizeof(rijndael_ctx),
-	.blocksize = RIJNDAEL128_BLOCK_LEN,
-	.ivsize = RIJNDAEL128_BLOCK_LEN,
-	.minkey = RIJNDAEL_MIN_KEY,
-	.maxkey = RIJNDAEL_MAX_KEY,
-	.encrypt = rijndael128_encrypt,
-	.decrypt = rijndael128_decrypt,
-	.setkey = rijndael128_setkey,
+	.blocksize = AES_BLOCK_LEN,
+	.ivsize = AES_BLOCK_LEN,
+	.minkey = AES_MIN_KEY,
+	.maxkey = AES_MAX_KEY,
+	.encrypt = aes_cbc_encrypt,
+	.decrypt = aes_cbc_decrypt,
+	.setkey = aes_cbc_setkey,
 };
 
 /*
  * Encryption wrapper routines.
  */
 static void
-rijndael128_encrypt(void *key, const uint8_t *in, uint8_t *out)
+aes_cbc_encrypt(void *key, const uint8_t *in, uint8_t *out)
 {
 	rijndael_encrypt(key, in, out);
 }
 
 static void
-rijndael128_decrypt(void *key, const uint8_t *in, uint8_t *out)
+aes_cbc_decrypt(void *key, const uint8_t *in, uint8_t *out)
 {
 	rijndael_decrypt(key, in, out);
 }
 
 static int
-rijndael128_setkey(void *sched, const uint8_t *key, int len)
+aes_cbc_setkey(void *sched, const uint8_t *key, int len)
 {
 
 	if (len != 16 && len != 24 && len != 32)

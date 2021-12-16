@@ -73,7 +73,7 @@ MALLOC_DEFINE(M_XDATA, "xform", "xform data buffers");
 
 /* Include the encryption algorithms */
 #include "xform_null.c"
-#include "xform_rijndael.c"
+#include "xform_aes_cbc.c"
 #include "xform_aes_icm.c"
 #include "xform_aes_xts.c"
 #include "xform_cml.c"

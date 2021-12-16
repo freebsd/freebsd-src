@@ -81,7 +81,7 @@ struct enc_xform {
 
 
 extern const struct enc_xform enc_xform_null;
-extern const struct enc_xform enc_xform_rijndael128;
+extern const struct enc_xform enc_xform_aes_cbc;
 extern const struct enc_xform enc_xform_aes_icm;
 extern const struct enc_xform enc_xform_aes_nist_gcm;
 extern const struct enc_xform enc_xform_aes_nist_gmac;
