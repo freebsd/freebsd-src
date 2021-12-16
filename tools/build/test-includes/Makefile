@@ -16,7 +16,7 @@
 LIB=	test-includes
 INTERNALLIB=	This is a compile-only test
 MAN=
-HDRS!=	(cd ${SRCTOP}/sys; ls sys/[^_]*.h net*/[^_]*.h)
+HDRS!=	(cd ${SRCTOP}/sys; ls sys/[^_]*.h | sort ; ls net*/[^_]*.h | sort)
 NO_PIC=	yes
 
 # Some files have to be clean for extra defines too...
@@ -44,7 +44,7 @@ badfiles.inc:
 	@(cd ${SRCTOP}/sys;							\
 	echo "# DO NOT EDIT-- this file is automatically @""generated.";	\
 	echo "BADHDRS= \\";							\
-	for i in sys/*.h net*/*.h; do						\
+	for i in ${HDRS}; do						\
 		echo "#include <$$i>" |						\
 			${CC} ${CFLAGS} -xc - -c -o /dev/null 2> /dev/null ||	\
 			echo "	$$i \\";					\
