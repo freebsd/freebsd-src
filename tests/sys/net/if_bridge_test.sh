@@ -275,6 +275,10 @@ span_body()
 	set -x
 	vnet_init
 
+	if [ "$(atf_config_get ci false)" = "true" ]; then
+		atf_skip "https://bugs.freebsd.org/260461"
+	fi
+
 	epair=$(vnet_mkepair)
 	epair_span=$(vnet_mkepair)
 	bridge=$(vnet_mkbridge)
