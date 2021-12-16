@@ -800,24 +800,24 @@ rip6_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	if ((error = sa6_embedscope(addr, V_ip6_use_defzone)) != 0)
 		return (error);
 
-	INP_INFO_WLOCK(&V_ripcbinfo);
 	INP_WLOCK(inp);
+	INP_INFO_WLOCK(&V_ripcbinfo);
 	/* Source address selection. XXX: need pcblookup? */
 	NET_EPOCH_ENTER(et);
 	error = in6_selectsrc_socket(addr, inp->in6p_outputopts,
 	    inp, so->so_cred, scope_ambiguous, &in6a, NULL);
 	NET_EPOCH_EXIT(et);
 	if (error) {
-		INP_WUNLOCK(inp);
 		INP_INFO_WUNLOCK(&V_ripcbinfo);
+		INP_WUNLOCK(inp);
 		return (error);
 	}
 
 	inp->in6p_faddr = addr->sin6_addr;
 	inp->in6p_laddr = in6a;
 	soisconnected(so);
-	INP_WUNLOCK(inp);
 	INP_INFO_WUNLOCK(&V_ripcbinfo);
+	INP_WUNLOCK(inp);
 	return (0);
 }
 
