@@ -559,6 +559,7 @@ in_pcbinfo_destroy(struct inpcbinfo *pcbinfo)
 	hashdestroy(pcbinfo->ipi_lbgrouphashbase, M_PCB,
 	    pcbinfo->ipi_lbgrouphashmask);
 	uma_zdestroy(pcbinfo->ipi_zone);
+	uma_zdestroy(pcbinfo->ipi_portzone);
 	mtx_destroy(&pcbinfo->ipi_hash_lock);
 	mtx_destroy(&pcbinfo->ipi_lock);
 }
