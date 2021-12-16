@@ -567,21 +567,33 @@ efi_find_framebuffer(teken_gfx_t *gfx_state)
 	/*
 	 * Search for ConOut protocol, if not found, use first handle.
 	 */
-	gop_handle = *hlist;
+	gop_handle = NULL;
 	for (i = 0; i < nhandles; i++) {
-		void *dummy = NULL;
+		EFI_GRAPHICS_OUTPUT *tgop;
+		void *dummy;
+
+		status = OpenProtocolByHandle(hlist[i], &gop_guid, (void **)&tgop);
+		if (status != EFI_SUCCESS)
+			continue;
+
+		if (tgop->Mode->Info->PixelFormat == PixelBltOnly ||
+		    tgop->Mode->Info->PixelFormat >= PixelFormatMax)
+			continue;
 
 		status = OpenProtocolByHandle(hlist[i], &conout_guid, &dummy);
 		if (status == EFI_SUCCESS) {
 			gop_handle = hlist[i];
+			gop = tgop;
 			break;
+		} else if (gop_handle == NULL) {
+			gop_handle = hlist[i];
+			gop = tgop;
 		}
 	}
 
-	status = OpenProtocolByHandle(gop_handle, &gop_guid, (void **)&gop);
 	free(hlist);
 
-	if (status == EFI_SUCCESS) {
+	if (gop_handle != NULL) {
 		gfx_state->tg_fb_type = FB_GOP;
 		gfx_state->tg_private = gop;
 		if (edid_info == NULL)
