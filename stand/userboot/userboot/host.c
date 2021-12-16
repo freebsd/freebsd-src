@@ -135,12 +135,6 @@ host_dev_print(int verbose)
 static int
 host_dev_open(struct open_file *f, ...)
 {
-	va_list		args;
-	struct devdesc	*dev;
-
-	va_start(args, f);
-	dev = va_arg(args, struct devdesc*);
-	va_end(args);
 
 	return (0);
 }
