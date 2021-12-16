@@ -4748,9 +4748,11 @@ kern_proc_cwd_out(struct proc *p,  struct sbuf *sb, ssize_t maxlen)
 		return (EINVAL);
 
 	efbuf = malloc(sizeof(*efbuf), M_TEMP, M_WAITOK);
+	efbuf->fdp = NULL;
 	efbuf->pdp = pdp;
 	efbuf->sb = sb;
 	efbuf->remainder = maxlen;
+	efbuf->flags = 0;
 
 	PWDDESC_XLOCK(pdp);
 	pwd = PWDDESC_XLOCKED_LOAD_PWD(pdp);
