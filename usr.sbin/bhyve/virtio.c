@@ -895,6 +895,9 @@ vi_pci_snapshot_queues(struct virtio_softc *vs, struct vm_snapshot_meta *meta)
 
 		SNAPSHOT_VAR_OR_LEAVE(vq->vq_pfn, meta, ret, done);
 
+		if (!vq_ring_ready(vq))
+			continue;
+
 		addr_size = vq->vq_qsize * sizeof(struct vring_desc);
 		SNAPSHOT_GUEST2HOST_ADDR_OR_LEAVE(vq->vq_desc, addr_size,
 			false, meta, ret, done);
