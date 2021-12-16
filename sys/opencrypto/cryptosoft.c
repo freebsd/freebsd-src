@@ -100,14 +100,13 @@ swcr_null(const struct swcr_session *ses, struct cryptop *crp)
 static int
 swcr_encdec(const struct swcr_session *ses, struct cryptop *crp)
 {
-	unsigned char iv[EALG_MAX_BLOCK_LEN], blk[EALG_MAX_BLOCK_LEN];
-	unsigned char *ivp, *nivp, iv2[EALG_MAX_BLOCK_LEN];
+	unsigned char blk[EALG_MAX_BLOCK_LEN];
 	const struct crypto_session_params *csp;
 	const struct enc_xform *exf;
 	const struct swcr_encdec *sw;
 	void *ctx;
 	size_t inlen, outlen;
-	int i, blks, resid;
+	int blks, resid;
 	struct crypto_buffer_cursor cc_in, cc_out;
 	const unsigned char *inblk;
 	unsigned char *outblk;
@@ -142,17 +141,8 @@ swcr_encdec(const struct swcr_session *ses, struct cryptop *crp)
 	} else
 		memcpy(ctx, sw->sw_ctx, exf->ctxsize);
 
-	crypto_read_iv(crp, iv);
-
-	if (exf->reinit) {
-		/*
-		 * xforms that provide a reinit method perform all IV
-		 * handling themselves.
-		 */
-		exf->reinit(ctx, iv, csp->csp_ivlen);
-	}
-
-	ivp = iv;
+	crypto_read_iv(crp, blk);
+	exf->reinit(ctx, blk, csp->csp_ivlen);
 
 	crypto_cursor_init(&cc_in, &crp->crp_buf);
 	crypto_cursor_advance(&cc_in, crp->crp_payload_start);
@@ -186,44 +176,10 @@ swcr_encdec(const struct swcr_session *ses, struct cryptop *crp)
 		if (outlen < blks)
 			outblk = blk;
 
-		/*
-		 * Ciphers without a 'reinit' hook are assumed to be
-		 * used in CBC mode where the chaining is done here.
-		 */
-		if (exf->reinit != NULL) {
-			if (encrypting)
-				exf->encrypt(ctx, inblk, outblk);
-			else
-				exf->decrypt(ctx, inblk, outblk);
-		} else if (encrypting) {
-			/* XOR with previous block */
-			for (i = 0; i < blks; i++)
-				outblk[i] = inblk[i] ^ ivp[i];
-
-			exf->encrypt(ctx, outblk, outblk);
-
-			/*
-			 * Keep encrypted block for XOR'ing
-			 * with next block
-			 */
-			memcpy(iv, outblk, blks);
-			ivp = iv;
-		} else {	/* decrypt */
-			/*
-			 * Keep encrypted block for XOR'ing
-			 * with next block
-			 */
-			nivp = (ivp == iv) ? iv2 : iv;
-			memcpy(nivp, inblk, blks);
-
+		if (encrypting)
+			exf->encrypt(ctx, inblk, outblk);
+		else
 			exf->decrypt(ctx, inblk, outblk);
-
-			/* XOR with previous block */
-			for (i = 0; i < blks; i++)
-				outblk[i] ^= ivp[i];
-
-			ivp = nivp;
-		}
 
 		if (inlen < blks) {
 			inblk = crypto_cursor_segment(&cc_in, &inlen);
@@ -249,10 +205,7 @@ swcr_encdec(const struct swcr_session *ses, struct cryptop *crp)
 	if (resid > 0) {
 		KASSERT(exf->native_blocksize != 0,
 		    ("%s: partial block of %d bytes for cipher %s",
-		    __func__, i, exf->name));
-		KASSERT(exf->reinit != NULL,
-		    ("%s: partial block cipher %s without reinit hook",
-		    __func__, exf->name));
+		    __func__, resid, exf->name));
 		KASSERT(resid < blks, ("%s: partial block too big", __func__));
 
 		inblk = crypto_cursor_segment(&cc_in, &inlen);
@@ -275,8 +228,6 @@ swcr_encdec(const struct swcr_session *ses, struct cryptop *crp)
 
 	explicit_bzero(ctx, exf->ctxsize);
 	explicit_bzero(blk, sizeof(blk));
-	explicit_bzero(iv, sizeof(iv));
-	explicit_bzero(iv2, sizeof(iv2));
 	return (0);
 }
 
