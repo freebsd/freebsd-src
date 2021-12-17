@@ -1662,6 +1662,45 @@ ATF_TC_BODY(ktls_receive_unsupported_##name, tc)			\
 AES_CBC_TESTS(GEN_UNSUPPORTED_RECEIVE_TEST);
 TLS_13_TESTS(GEN_UNSUPPORTED_RECEIVE_TEST);
 
+/*
+ * Try to perform an invalid sendto(2) on a TXTLS-enabled socket, to exercise
+ * KTLS error handling in the socket layer.
+ */
+ATF_TC_WITHOUT_HEAD(ktls_sendto_baddst);
+ATF_TC_BODY(ktls_sendto_baddst, tc)
+{
+	char buf[32];
+	struct sockaddr_in dst;
+	struct tls_enable en;
+	ssize_t n;
+	int s;
+
+	ATF_REQUIRE_KTLS();
+
+	s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+	ATF_REQUIRE(s >= 0);
+
+	build_tls_enable(CRYPTO_AES_NIST_GCM_16, 128 / 8, 0,
+	    TLS_MINOR_VER_THREE, (uint64_t)random(), &en);
+
+	ATF_REQUIRE(setsockopt(s, IPPROTO_TCP, TCP_TXTLS_ENABLE, &en,
+	    sizeof(en)) == 0);
+
+	memset(&dst, 0, sizeof(dst));
+	dst.sin_family = AF_INET;
+	dst.sin_len = sizeof(dst);
+	dst.sin_addr.s_addr = htonl(INADDR_BROADCAST);
+	dst.sin_port = htons(12345);
+
+	memset(buf, 0, sizeof(buf));
+	n = sendto(s, buf, sizeof(buf), 0, (struct sockaddr *)&dst,
+	    sizeof(dst));
+
+	/* Can't transmit to the broadcast address over TCP. */
+	ATF_REQUIRE_ERRNO(EACCES, n == -1);
+	ATF_REQUIRE(close(s) == 0);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 	/* Transmit tests */
@@ -1677,6 +1716,9 @@ ATF_TP_ADD_TCS(tp)
 	TLS_12_TESTS(ADD_RECEIVE_TESTS);
 	TLS_13_TESTS(ADD_UNSUPPORTED_RECEIVE_TEST);
 	INVALID_CIPHER_SUITES(ADD_INVALID_RECEIVE_TEST);
+
+	/* Miscellaneous */
+	ATF_TP_ADD_TC(tp, ktls_sendto_baddst);
 
 	return (atf_no_error());
 }
