@@ -624,7 +624,6 @@ build_ccm_aad_length(u_int aad_length, uint8_t *blk)
 static int
 swcr_ccm_cbc_mac(const struct swcr_session *ses, struct cryptop *crp)
 {
-	u_char iv[AES_BLOCK_LEN];
 	u_char blk[CCM_CBC_BLOCK_LEN];
 	u_char tag[AES_CBC_MAC_HASH_LEN];
 	union authctx ctx;
@@ -645,7 +644,6 @@ swcr_ccm_cbc_mac(const struct swcr_session *ses, struct cryptop *crp)
 
 	/* Initialize the IV */
 	ivlen = csp->csp_ivlen;
-	crypto_read_iv(crp, iv);
 
 	/* Supply MAC with IV */
 	axf->Reinit(&ctx, crp->crp_iv, ivlen);
@@ -679,7 +677,6 @@ swcr_ccm_cbc_mac(const struct swcr_session *ses, struct cryptop *crp)
 	}
 	explicit_bzero(tag, sizeof(tag));
 	explicit_bzero(blk, sizeof(blk));
-	explicit_bzero(iv, sizeof(iv));
 	return (error);
 }
 
