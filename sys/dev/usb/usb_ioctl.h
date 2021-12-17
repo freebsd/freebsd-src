@@ -346,4 +346,61 @@ struct usb_gen_quirk {
 #define	USB_DEV_QUIRK_ADD	_IOW ('Q', 2, struct usb_gen_quirk)
 #define	USB_DEV_QUIRK_REMOVE	_IOW ('Q', 3, struct usb_gen_quirk)
 
+#ifdef _KERNEL
+#ifdef COMPAT_FREEBSD32
+
+struct usb_read_dir32 {
+	uint32_t urd_data;
+	uint32_t urd_startentry;
+	uint32_t urd_maxlen;
+};
+#define	USB_READ_DIR32 \
+    _IOC_NEWTYPE(USB_READ_DIR, struct usb_read_dir32)
+
+struct usb_ctl_request32 {
+	uint32_t ucr_data;
+	uint16_t ucr_flags;
+	uint16_t ucr_actlen;
+	uint8_t ucr_addr;
+	struct usb_device_request ucr_request;
+};
+#define	USB_REQUEST32		_IOC_NEWTYPE(USB_REQUEST, struct usb_ctl_request32)
+#define	USB_DO_REQUEST32	_IOC_NEWTYPE(USB_DO_REQUEST, struct usb_ctl_request32)
+
+struct usb_gen_descriptor32 {
+	uint32_t ugd_data;	/* void * */
+	uint16_t ugd_lang_id;
+	uint16_t ugd_maxlen;
+	uint16_t ugd_actlen;
+	uint16_t ugd_offset;
+	uint8_t	ugd_config_index;
+	uint8_t	ugd_string_index;
+	uint8_t	ugd_iface_index;
+	uint8_t	ugd_altif_index;
+	uint8_t	ugd_endpt_index;
+	uint8_t	ugd_report_type;
+	uint8_t	reserved[8];
+};
+
+#define	USB_GET_REPORT_DESC32 \
+    _IOC_NEWTYPE(USB_GET_REPORT_DESC, struct usb_gen_descriptor32)
+#define	USB_GET_REPORT32 \
+    _IOC_NEWTYPE(USB_GET_REPORT, struct usb_gen_descriptor32)
+#define	USB_SET_REPORT32 \
+    _IOC_NEWTYPE(USB_SET_REPORT, struct usb_gen_descriptor32)
+#define	USB_GET_FULL_DESC32 \
+    _IOC_NEWTYPE(USB_GET_FULL_DESC, struct usb_gen_descriptor32)
+#define	USB_GET_STRING_DESC32 \
+    _IOC_NEWTYPE(USB_GET_STRING_DESC, struct usb_gen_descriptor32)
+#define	USB_GET_IFACE_DRIVER32 \
+    _IOC_NEWTYPE(USB_GET_IFACE_DRIVER, struct usb_gen_descriptor32)
+
+void	usb_gen_descriptor_from32(struct usb_gen_descriptor *ugd,
+    const struct usb_gen_descriptor32 *ugd32);
+void	update_usb_gen_descriptor32(struct usb_gen_descriptor32 *ugd32,
+    struct usb_gen_descriptor *ugd);
+
+#endif	/* COMPAT_FREEBSD32 */
+#endif	/* _KERNEL */
+
 #endif					/* _USB_IOCTL_H_ */

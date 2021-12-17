@@ -29,6 +29,9 @@
 #ifdef USB_GLOBAL_INCLUDE_FILE
 #include USB_GLOBAL_INCLUDE_FILE
 #else
+#ifdef COMPAT_FREEBSD32
+#include <sys/abi_compat.h>
+#endif
 #include <sys/stdint.h>
 #include <sys/stddef.h>
 #include <sys/param.h>
@@ -109,6 +112,9 @@ static int	ugen_set_interface(struct usb_fifo *, uint8_t, uint8_t);
 static int	ugen_get_cdesc(struct usb_fifo *, struct usb_gen_descriptor *);
 static int	ugen_get_sdesc(struct usb_fifo *, struct usb_gen_descriptor *);
 static int	ugen_get_iface_driver(struct usb_fifo *f, struct usb_gen_descriptor *ugd);
+#ifdef COMPAT_FREEBSD32
+static int	ugen_get32(u_long cmd, struct usb_fifo *f, struct usb_gen_descriptor32 *ugd32);
+#endif
 static int	ugen_re_enumerate(struct usb_fifo *);
 static int	ugen_iface_ioctl(struct usb_fifo *, u_long, void *, int);
 static uint8_t	ugen_fs_get_complete(struct usb_fifo *, uint8_t *);
@@ -894,6 +900,31 @@ ugen_do_request(struct usb_fifo *f, struct usb_ctl_request *ur)
 	}
 	return (error);
 }
+
+#ifdef COMPAT_FREEBSD32
+static int
+ugen_do_request32(struct usb_fifo *f, struct usb_ctl_request32 *ur32)
+{
+	struct usb_ctl_request ur;
+	int error;
+
+	PTRIN_CP(*ur32, ur, ucr_data);
+	CP(*ur32, ur, ucr_flags);
+	CP(*ur32, ur, ucr_actlen);
+	CP(*ur32, ur, ucr_addr);
+	CP(*ur32, ur, ucr_request);
+
+	error = ugen_do_request(f, &ur);
+
+	/* Don't update ucr_data pointer */
+	CP(ur, *ur32, ucr_flags);
+	CP(ur, *ur32, ucr_actlen);
+	CP(ur, *ur32, ucr_addr);
+	CP(ur, *ur32, ucr_request);
+
+	return (error);
+}
+#endif
 
 /*------------------------------------------------------------------------
  *	ugen_re_enumerate
@@ -2144,6 +2175,14 @@ ugen_ioctl_post(struct usb_fifo *f, u_long cmd, void *addr, int fflags)
 		error = ugen_get_iface_driver(f, addr);
 		break;
 
+#ifdef COMPAT_FREEBSD32
+	case USB_GET_FULL_DESC32:
+	case USB_GET_STRING_DESC32:
+	case USB_GET_IFACE_DRIVER32:
+		error = ugen_get32(cmd, f, addr);
+		break;
+#endif
+
 	case USB_REQUEST:
 	case USB_DO_REQUEST:
 		if (!(fflags & FWRITE)) {
@@ -2152,6 +2191,17 @@ ugen_ioctl_post(struct usb_fifo *f, u_long cmd, void *addr, int fflags)
 		}
 		error = ugen_do_request(f, addr);
 		break;
+
+#ifdef COMPAT_FREEBSD32
+	case USB_REQUEST32:
+	case USB_DO_REQUEST32:
+		if (!(fflags & FWRITE)) {
+			error = EPERM;
+			break;
+		}
+		error = ugen_do_request32(f, addr);
+		break;
+#endif
 
 	case USB_DEVICEINFO:
 	case USB_GET_DEVICEINFO:
@@ -2315,4 +2365,72 @@ ugen_ctrl_fs_callback(struct usb_xfer *xfer, usb_error_t error)
 		break;
 	}
 }
+
+#ifdef COMPAT_FREEBSD32
+void
+usb_gen_descriptor_from32(struct usb_gen_descriptor *ugd,
+    const struct usb_gen_descriptor32 *ugd32)
+{
+	PTRIN_CP(*ugd32, *ugd, ugd_data);
+	CP(*ugd32, *ugd, ugd_lang_id);
+	CP(*ugd32, *ugd, ugd_maxlen);
+	CP(*ugd32, *ugd, ugd_actlen);
+	CP(*ugd32, *ugd, ugd_offset);
+	CP(*ugd32, *ugd, ugd_config_index);
+	CP(*ugd32, *ugd, ugd_string_index);
+	CP(*ugd32, *ugd, ugd_iface_index);
+	CP(*ugd32, *ugd, ugd_altif_index);
+	CP(*ugd32, *ugd, ugd_endpt_index);
+	CP(*ugd32, *ugd, ugd_report_type);
+	/* Don't copy reserved */
+}
+
+void
+update_usb_gen_descriptor32(struct usb_gen_descriptor32 *ugd32,
+    struct usb_gen_descriptor *ugd)
+{
+	/* Don't update ugd_data pointer */
+	CP(*ugd32, *ugd, ugd_lang_id);
+	CP(*ugd32, *ugd, ugd_maxlen);
+	CP(*ugd32, *ugd, ugd_actlen);
+	CP(*ugd32, *ugd, ugd_offset);
+	CP(*ugd32, *ugd, ugd_config_index);
+	CP(*ugd32, *ugd, ugd_string_index);
+	CP(*ugd32, *ugd, ugd_iface_index);
+	CP(*ugd32, *ugd, ugd_altif_index);
+	CP(*ugd32, *ugd, ugd_endpt_index);
+	CP(*ugd32, *ugd, ugd_report_type);
+	/* Don't update reserved */
+}
+
+static int
+ugen_get32(u_long cmd, struct usb_fifo *f, struct usb_gen_descriptor32 *ugd32)
+{
+	struct usb_gen_descriptor ugd;
+	int error;
+
+	usb_gen_descriptor_from32(&ugd, ugd32);
+	switch (cmd) {
+	case USB_GET_FULL_DESC32:
+		error = ugen_get_cdesc(f, &ugd);
+		break;
+
+	case USB_GET_STRING_DESC32:
+		error = ugen_get_sdesc(f, &ugd);
+		break;
+
+	case USB_GET_IFACE_DRIVER32:
+		error = ugen_get_iface_driver(f, &ugd);
+		break;
+	default:
+		/* Can't happen except by programmer error */
+		panic("%s: called with invalid cmd %lx", __func__, cmd);
+	}
+	update_usb_gen_descriptor32(ugd32, &ugd);
+
+	return (error);
+}
+
+#endif /* COMPAT_FREEBSD32 */
+
 #endif	/* USB_HAVE_UGEN */
