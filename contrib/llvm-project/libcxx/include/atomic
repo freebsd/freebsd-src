@@ -1480,7 +1480,7 @@ struct __cxx_atomic_impl : public _Base {
     : _Base(value) {}
 };
 
-#if defined(__linux__) || (defined(__FreeBSD__) && defined(__mips__))
+#if defined(__linux__) || (defined(__FreeBSD__) && ((defined(__arm__) && __ARM_ARCH < 6) || defined(__mips__)))
     using __cxx_contention_t = int32_t;
 #else
     using __cxx_contention_t = int64_t;
