@@ -32,6 +32,6 @@
 int
 sched_getaffinity(pid_t pid, size_t cpusetsz, cpuset_t *cpuset)
 {
-	return (cpuset_getaffinity(CPU_LEVEL_WHICH, CPU_WHICH_PID, pid,
-	    cpusetsz, cpuset));
+	return (cpuset_getaffinity(CPU_LEVEL_WHICH, CPU_WHICH_PID,
+	    pid == 0 ? -1 : pid, cpusetsz, cpuset));
 }
