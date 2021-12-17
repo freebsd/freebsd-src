@@ -32,20 +32,29 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 
 #include <machine/armreg.h>
+#include <machine/atomic.h>
 
 #include <stand.h>
 #include <efi.h>
 
 #include "cache.h"
 
-static unsigned int
-get_dcache_line_size(void)
+static bool
+get_cache_dic(uint64_t ctr)
 {
-	uint64_t ctr;
-	unsigned int dcl_size;
+	return (CTR_DIC_VAL(ctr) != 0);
+}
 
-	/* Accessible from all security levels */
-	ctr = READ_SPECIALREG(ctr_el0);
+static bool
+get_cache_idc(uint64_t ctr)
+{
+	return (CTR_IDC_VAL(ctr) != 0);
+}
+
+static unsigned int
+get_dcache_line_size(uint64_t ctr)
+{
+	unsigned int dcl_size;
 
 	/*
 	 * Relevant field [19:16] is LOG2
@@ -60,36 +69,46 @@ get_dcache_line_size(void)
 void
 cpu_flush_dcache(const void *ptr, size_t len)
 {
-
-	uint64_t cl_size;
+	uint64_t cl_size, ctr;
 	vm_offset_t addr, end;
 
-	cl_size = get_dcache_line_size();
+	/* Accessible from all security levels */
+	ctr = READ_SPECIALREG(ctr_el0);
 
-	/* Calculate end address to clean */
-	end = (vm_offset_t)ptr + (vm_offset_t)len;
-	/* Align start address to cache line */
-	addr = (vm_offset_t)ptr;
-	addr = rounddown2(addr, cl_size);
+	if (get_cache_idc(ctr)) {
+		dsb(ishst);
+	} else {
+		cl_size = get_dcache_line_size(ctr);
 
-	for (; addr < end; addr += cl_size)
-		__asm __volatile("dc	civac, %0" : : "r" (addr) : "memory");
-	/* Full system DSB */
-	__asm __volatile("dsb	sy" : : : "memory");
+		/* Calculate end address to clean */
+		end = (vm_offset_t)ptr + (vm_offset_t)len;
+		/* Align start address to cache line */
+		addr = (vm_offset_t)ptr;
+		addr = rounddown2(addr, cl_size);
+
+		for (; addr < end; addr += cl_size)
+			__asm __volatile("dc	civac, %0" : : "r" (addr) :
+			    "memory");
+		/* Full system DSB */
+		dsb(ish);
+	}
 }
 
 void
-cpu_inval_icache(const void *ptr, size_t len)
+cpu_inval_icache(void)
 {
+	uint64_t ctr;
 
-	/* NULL ptr or 0 len means all */
-	if (ptr == NULL || len == 0) {
+	/* Accessible from all security levels */
+	ctr = READ_SPECIALREG(ctr_el0);
+
+	if (get_cache_dic(ctr)) {
+		isb();
+	} else {
 		__asm __volatile(
 		    "ic		ialluis	\n"
 		    "dsb	ish	\n"
+		    "isb		\n"
 		    : : : "memory");
-		return;
 	}
-
-	/* TODO: Other cache ranges if necessary */
 }
