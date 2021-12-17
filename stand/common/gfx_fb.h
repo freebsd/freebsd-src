@@ -217,6 +217,7 @@ typedef struct teken_gfx {
 	struct vt_font	tg_font;
 	struct gen_fb	tg_fb;
 	uint32_t	*tg_shadow_fb;		/* units of 4 bytes */
+	size_t		tg_shadow_sz;		/* units of pages */
 	teken_funcs_t	*tg_functions;
 	void		*tg_private;
 	bool		tg_kernel_supported;	/* Loaded kernel is supported */
