@@ -198,9 +198,9 @@ vm_object_zdtor(void *mem, int size, void *arg)
 	KASSERT(object->resident_page_count == 0,
 	    ("object %p resident_page_count = %d",
 	    object, object->resident_page_count));
-	KASSERT(object->shadow_count == 0,
+	KASSERT(atomic_load_int(&object->shadow_count) == 0,
 	    ("object %p shadow_count = %d",
-	    object, object->shadow_count));
+	    object, atomic_load_int(&object->shadow_count)));
 	KASSERT(object->type == OBJT_DEAD,
 	    ("object %p has non-dead type %d",
 	    object, object->type));
@@ -222,7 +222,7 @@ vm_object_zinit(void *mem, int size, int flags)
 	blockcount_init(&object->paging_in_progress);
 	blockcount_init(&object->busy);
 	object->resident_page_count = 0;
-	object->shadow_count = 0;
+	atomic_store_int(&object->shadow_count, 0);
 	object->flags = OBJ_DEAD;
 
 	mtx_lock(&vm_object_list_mtx);
@@ -574,9 +574,11 @@ vm_object_deallocate_anon(vm_object_t backing_object)
 
 	/* Fetch the final shadow.  */
 	object = LIST_FIRST(&backing_object->shadow_head);
-	KASSERT(object != NULL && backing_object->shadow_count == 1,
+	KASSERT(object != NULL &&
+	    atomic_load_int(&backing_object->shadow_count) == 1,
 	    ("vm_object_anon_deallocate: ref_count: %d, shadow_count: %d",
-	    backing_object->ref_count, backing_object->shadow_count));
+	    backing_object->ref_count,
+	    atomic_load_int(&backing_object->shadow_count)));
 	KASSERT((object->flags & OBJ_ANON) != 0,
 	    ("invalid shadow object %p", object));
 
@@ -660,7 +662,7 @@ vm_object_deallocate(vm_object_t object)
 		 */
 		if (!refcount_release(&object->ref_count)) {
 			if (object->ref_count > 1 ||
-			    object->shadow_count == 0) {
+			    atomic_load_int(&object->shadow_count) == 0) {
 				if ((object->flags & OBJ_ANON) != 0 &&
 				    object->ref_count == 1)
 					vm_object_set_flag(object,
@@ -720,6 +722,14 @@ vm_object_destroy(vm_object_t object)
 }
 
 static void
+vm_object_sub_shadow(vm_object_t object)
+{
+	KASSERT(object->shadow_count >= 1,
+	    ("object %p sub_shadow count zero", object));
+	atomic_subtract_int(&object->shadow_count, 1);
+}
+
+static void
 vm_object_backing_remove_locked(vm_object_t object)
 {
 	vm_object_t backing_object;
@@ -731,9 +741,9 @@ vm_object_backing_remove_locked(vm_object_t object)
 	KASSERT((object->flags & OBJ_COLLAPSING) == 0,
 	    ("vm_object_backing_remove: Removing collapsing object."));
 
+	vm_object_sub_shadow(backing_object);
 	if ((object->flags & OBJ_SHADOWLIST) != 0) {
 		LIST_REMOVE(object, shadow_list);
-		backing_object->shadow_count--;
 		object->flags &= ~OBJ_SHADOWLIST;
 	}
 	object->backing_object = NULL;
@@ -746,13 +756,15 @@ vm_object_backing_remove(vm_object_t object)
 
 	VM_OBJECT_ASSERT_WLOCKED(object);
 
+	backing_object = object->backing_object;
 	if ((object->flags & OBJ_SHADOWLIST) != 0) {
-		backing_object = object->backing_object;
 		VM_OBJECT_WLOCK(backing_object);
 		vm_object_backing_remove_locked(object);
 		VM_OBJECT_WUNLOCK(backing_object);
-	} else
+	} else {
 		object->backing_object = NULL;
+		vm_object_sub_shadow(backing_object);
+	}
 }
 
 static void
@@ -761,11 +773,11 @@ vm_object_backing_insert_locked(vm_object_t object, vm_object_t backing_object)
 
 	VM_OBJECT_ASSERT_WLOCKED(object);
 
+	atomic_add_int(&backing_object->shadow_count, 1);
 	if ((backing_object->flags & OBJ_ANON) != 0) {
 		VM_OBJECT_ASSERT_WLOCKED(backing_object);
 		LIST_INSERT_HEAD(&backing_object->shadow_head, object,
 		    shadow_list);
-		backing_object->shadow_count++;
 		object->flags |= OBJ_SHADOWLIST;
 	}
 	object->backing_object = backing_object;
@@ -781,8 +793,10 @@ vm_object_backing_insert(vm_object_t object, vm_object_t backing_object)
 		VM_OBJECT_WLOCK(backing_object);
 		vm_object_backing_insert_locked(object, backing_object);
 		VM_OBJECT_WUNLOCK(backing_object);
-	} else
+	} else {
 		object->backing_object = backing_object;
+		atomic_add_int(&backing_object->shadow_count, 1);
+	}
 }
 
 /*
@@ -805,6 +819,7 @@ vm_object_backing_insert_ref(vm_object_t object, vm_object_t backing_object)
 		VM_OBJECT_WUNLOCK(backing_object);
 	} else {
 		vm_object_reference(backing_object);
+		atomic_add_int(&backing_object->shadow_count, 1);
 		object->backing_object = backing_object;
 	}
 }
@@ -831,6 +846,11 @@ vm_object_backing_transfer(vm_object_t object, vm_object_t backing_object)
 		vm_object_backing_insert_locked(object, new_backing_object);
 		VM_OBJECT_WUNLOCK(new_backing_object);
 	} else {
+		/*
+		 * shadow_count for new_backing_object is left
+		 * unchanged, its reference provided by backing_object
+		 * is replaced by object.
+		 */
 		object->backing_object = new_backing_object;
 		backing_object->backing_object = NULL;
 	}
@@ -1924,9 +1944,9 @@ vm_object_collapse(vm_object_t object)
 			return;
 
 		KASSERT(object->ref_count > 0 &&
-		    object->ref_count > object->shadow_count,
+		    object->ref_count > atomic_load_int(&object->shadow_count),
 		    ("collapse with invalid ref %d or shadow %d count.",
-		    object->ref_count, object->shadow_count));
+		    object->ref_count, atomic_load_int(&object->shadow_count)));
 		KASSERT((backing_object->flags &
 		    (OBJ_COLLAPSING | OBJ_DEAD)) == 0,
 		    ("vm_object_collapse: Backing object already collapsing."));
@@ -1940,9 +1960,10 @@ vm_object_collapse(vm_object_t object)
 		 * all the resident pages in the entire backing object.
 		 */
 		if (backing_object->ref_count == 1) {
-			KASSERT(backing_object->shadow_count == 1,
+			KASSERT(atomic_load_int(&backing_object->shadow_count)
+			    == 1,
 			    ("vm_object_collapse: shadow_count: %d",
-			    backing_object->shadow_count));
+			    atomic_load_int(&backing_object->shadow_count)));
 			vm_object_pip_add(object, 1);
 			vm_object_set_flag(object, OBJ_COLLAPSING);
 			vm_object_pip_add(backing_object, 1);
@@ -2510,7 +2531,7 @@ bool
 vm_object_is_active(vm_object_t obj)
 {
 
-	return (obj->ref_count > obj->shadow_count);
+	return (obj->ref_count > atomic_load_int(&obj->shadow_count));
 }
 
 static int
@@ -2565,7 +2586,7 @@ vm_object_list_handler(struct sysctl_req *req, bool swap_only)
 		kvo->kvo_size = ptoa(obj->size);
 		kvo->kvo_resident = obj->resident_page_count;
 		kvo->kvo_ref_count = obj->ref_count;
-		kvo->kvo_shadow_count = obj->shadow_count;
+		kvo->kvo_shadow_count = atomic_load_int(&obj->shadow_count);
 		kvo->kvo_memattr = obj->memattr;
 		kvo->kvo_active = 0;
 		kvo->kvo_inactive = 0;
@@ -2779,7 +2800,7 @@ DB_SHOW_COMMAND(object, vm_object_print_static)
 	    object->resident_page_count, object->ref_count, object->flags,
 	    object->cred ? object->cred->cr_ruid : -1, (uintmax_t)object->charge);
 	db_iprintf(" sref=%d, backing_object(%d)=(%p)+0x%jx\n",
-	    object->shadow_count, 
+	    atomic_load_int(&object->shadow_count),
 	    object->backing_object ? object->backing_object->ref_count : 0,
 	    object->backing_object, (uintmax_t)object->backing_object_offset);
 
