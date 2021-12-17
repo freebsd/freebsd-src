@@ -1503,6 +1503,9 @@ tcp_init(void)
 
 	tcp_fastopen_init();
 
+	COUNTER_ARRAY_ALLOC(V_tcps_states, TCP_NSTATES, M_WAITOK);
+	VNET_PCPUSTAT_ALLOC(tcpstat, M_WAITOK);
+
 	/* Skip initialization of globals for non-default instances. */
 	if (!IS_DEFAULT_VNET(curvnet))
 		return;
@@ -1613,6 +1616,9 @@ tcp_destroy(void *unused __unused)
 	 * the allocations to them.
 	 */
 	tcp_fastopen_destroy();
+
+	COUNTER_ARRAY_FREE(V_tcps_states, TCP_NSTATES);
+	VNET_PCPUSTAT_FREE(tcpstat);
 
 #ifdef TCP_HHOOK
 	error = hhook_head_deregister(V_tcp_hhh[HHOOK_TCP_EST_IN]);
