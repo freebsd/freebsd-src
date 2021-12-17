@@ -127,7 +127,7 @@ elf64_exec(struct preloaded_file *fp)
 	clean_size = (vm_offset_t)efi_translate(kernendp) - clean_addr;
 
 	cpu_flush_dcache((void *)clean_addr, clean_size);
-	cpu_inval_icache(NULL, 0);
+	cpu_inval_icache();
 
 	(*entry)(modulep);
 	panic("exec returned");
