@@ -44,7 +44,7 @@ __BEGIN_DECLS
 #if __BSD_VISIBLE
 #ifdef _WITH_CPU_SET_T
 int sched_getaffinity(pid_t pid, size_t cpusetsz, cpuset_t *cpuset);
-int sched_setaffinity(int pid, size_t cpusetsz, const cpuset_t *cpuset);
+int sched_setaffinity(pid_t pid, size_t cpusetsz, const cpuset_t *cpuset);
 int sched_getcpu(void);
 #endif /* _WITH_CPU_SET_T */
 #endif /* __BSD_VISIBLE */
