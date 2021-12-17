@@ -400,6 +400,24 @@ void	usb_gen_descriptor_from32(struct usb_gen_descriptor *ugd,
 void	update_usb_gen_descriptor32(struct usb_gen_descriptor32 *ugd32,
     struct usb_gen_descriptor *ugd);
 
+struct usb_fs_endpoint32 {
+	uint32_t ppBuffer;		/* void ** */
+	uint32_t pLength;		/* uint32_t * */
+	uint32_t nFrames;
+	uint32_t aFrames;
+	uint16_t flags;
+	uint16_t timeout;
+	uint16_t isoc_time_complete;
+	int	status;
+};
+
+struct usb_fs_init32 {
+	uint32_t pEndpoints;		/* struct usb_fs_endpoint32 * */
+	uint8_t	ep_index_max;
+};
+
+#define	USB_FS_INIT32	_IOC_NEWTYPE(USB_FS_INIT, struct usb_fs_init32)
+
 #endif	/* COMPAT_FREEBSD32 */
 #endif	/* _KERNEL */
 

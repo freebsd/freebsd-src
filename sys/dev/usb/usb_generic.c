@@ -119,6 +119,7 @@ static int	ugen_re_enumerate(struct usb_fifo *);
 static int	ugen_iface_ioctl(struct usb_fifo *, u_long, void *, int);
 static uint8_t	ugen_fs_get_complete(struct usb_fifo *, uint8_t *);
 static int	ugen_fs_uninit(struct usb_fifo *f);
+static int	ugen_fs_copyin(struct usb_fifo *, uint8_t, struct usb_fs_endpoint*);
 
 /* structures */
 
@@ -1019,6 +1020,38 @@ ugen_fs_set_complete(struct usb_fifo *f, uint8_t index)
 }
 
 static int
+ugen_fs_getbuffer(void **uptrp, struct usb_fifo *f, void *buffer,
+    usb_frcount_t n)
+{
+	union {
+		void **ppBuffer;
+#ifdef COMPAT_FREEBSD32
+		uint32_t *ppBuffer32;
+#endif
+	} u;
+#ifdef COMPAT_FREEBSD32
+	uint32_t uptr32;
+#endif
+
+	u.ppBuffer = buffer;
+	switch (f->fs_ep_sz) {
+	case sizeof(struct usb_fs_endpoint):
+		if (fueword(u.ppBuffer + n, (long *)uptrp) != 0)
+			return (EFAULT);
+		return (0);
+#ifdef COMPAT_FREEBSD32
+	case sizeof(struct usb_fs_endpoint32):
+		if (fueword32(u.ppBuffer32 + n, &uptr32) != 0)
+			return (EFAULT);
+		*uptrp = PTRIN(uptr32);
+		return (0);
+#endif
+	default:
+		panic("%s: unhandled fs_ep_sz %#x", __func__, f->fs_ep_sz);
+	}
+}
+
+static int
 ugen_fs_copy_in(struct usb_fifo *f, uint8_t ep_index)
 {
 	struct usb_device_request *req;
@@ -1047,8 +1080,7 @@ ugen_fs_copy_in(struct usb_fifo *f, uint8_t ep_index)
 	}
 	mtx_unlock(f->priv_mtx);
 
-	error = copyin(f->fs_ep_ptr +
-	    ep_index, &fs_ep, sizeof(fs_ep));
+	error = ugen_fs_copyin(f, ep_index, &fs_ep);
 	if (error) {
 		return (error);
 	}
@@ -1062,8 +1094,7 @@ ugen_fs_copy_in(struct usb_fifo *f, uint8_t ep_index)
 		xfer->error = USB_ERR_INVAL;
 		goto complete;
 	}
-	error = copyin(fs_ep.ppBuffer,
-	    &uaddr, sizeof(uaddr));
+	error = ugen_fs_getbuffer(&uaddr, f, fs_ep.ppBuffer, 0);
 	if (error) {
 		return (error);
 	}
@@ -1073,10 +1104,8 @@ ugen_fs_copy_in(struct usb_fifo *f, uint8_t ep_index)
 	if (xfer->flags_int.control_xfr) {
 		req = xfer->frbuffers[0].buffer;
 
-		error = copyin(fs_ep.pLength,
-		    &length, sizeof(length));
-		if (error) {
-			return (error);
+		if (fueword32(fs_ep.pLength, &length) != 0) {
+			return (EFAULT);
 		}
 		if (length != sizeof(*req)) {
 			xfer->error = USB_ERR_INVAL;
@@ -1142,9 +1171,7 @@ ugen_fs_copy_in(struct usb_fifo *f, uint8_t ep_index)
 		xfer->flags.stall_pipe = 0;
 
 	for (; n != xfer->nframes; n++) {
-		error = copyin(fs_ep.pLength + n,
-		    &length, sizeof(length));
-		if (error) {
+		if (fueword32(fs_ep.pLength + n, &length) != 0) {
 			break;
 		}
 		usbd_xfer_set_frame_len(xfer, n, length);
@@ -1157,8 +1184,7 @@ ugen_fs_copy_in(struct usb_fifo *f, uint8_t ep_index)
 
 		if (!isread) {
 			/* we need to know the source buffer */
-			error = copyin(fs_ep.ppBuffer + n,
-			    &uaddr, sizeof(uaddr));
+			error = ugen_fs_getbuffer(&uaddr, f, fs_ep.ppBuffer, n);
 			if (error) {
 				break;
 			}
@@ -1191,13 +1217,109 @@ complete:
 	return (0);
 }
 
+static struct usb_fs_endpoint *
+ugen_fs_ep_uptr(struct usb_fifo *f, uint8_t ep_index)
+{
+	return ((struct usb_fs_endpoint *)
+	    ((char *)f->fs_ep_ptr + (ep_index * f->fs_ep_sz)));
+}
+
 static int
-ugen_fs_copy_out_cancelled(struct usb_fs_endpoint *fs_ep_uptr)
+ugen_fs_copyin(struct usb_fifo *f, uint8_t ep_index,
+    struct usb_fs_endpoint* fs_ep)
+{
+#ifdef COMPAT_FREEBSD32
+	struct usb_fs_endpoint32 fs_ep32;
+#endif
+	int error;
+
+	switch (f->fs_ep_sz) {
+	case sizeof(struct usb_fs_endpoint):
+		error = copyin(ugen_fs_ep_uptr(f, ep_index), fs_ep,
+		    f->fs_ep_sz);
+		if (error != 0)
+			return (error);
+		break;
+
+#ifdef COMPAT_FREEBSD32
+	case sizeof(struct usb_fs_endpoint32):
+		error = copyin(ugen_fs_ep_uptr(f, ep_index), &fs_ep32,
+		    f->fs_ep_sz);
+		if (error != 0)
+			return (error);
+		PTRIN_CP(fs_ep32, *fs_ep, ppBuffer);
+		PTRIN_CP(fs_ep32, *fs_ep, pLength);
+		CP(fs_ep32, *fs_ep, nFrames);
+		CP(fs_ep32, *fs_ep, aFrames);
+		CP(fs_ep32, *fs_ep, flags);
+		CP(fs_ep32, *fs_ep, timeout);
+		CP(fs_ep32, *fs_ep, isoc_time_complete);
+		CP(fs_ep32, *fs_ep, status);
+		break;
+#endif
+	default:
+		panic("%s: unhandled fs_ep_sz %#x", __func__, f->fs_ep_sz);
+	}
+
+	return (0);
+}
+
+static int
+ugen_fs_update(const struct usb_fs_endpoint *fs_ep,
+    struct usb_fifo *f, uint8_t ep_index)
+{
+	union {
+		struct usb_fs_endpoint *fs_ep_uptr;
+#ifdef COMPAT_FREEBSD32
+		struct usb_fs_endpoint32 *fs_ep_uptr32;
+#endif
+	} u;
+	uint32_t *aFrames_uptr;
+	uint16_t *isoc_time_complete_uptr;
+	int *status_uptr;
+
+	switch (f->fs_ep_sz) {
+	case sizeof(struct usb_fs_endpoint):
+		u.fs_ep_uptr = ugen_fs_ep_uptr(f, ep_index);
+		aFrames_uptr = &u.fs_ep_uptr->aFrames;
+		isoc_time_complete_uptr = &u.fs_ep_uptr->isoc_time_complete;
+		status_uptr = &u.fs_ep_uptr->status;
+		break;
+#ifdef COMPAT_FREEBSD32
+	case sizeof(struct usb_fs_endpoint32):
+		u.fs_ep_uptr32 = (struct usb_fs_endpoint32 *)
+		    ugen_fs_ep_uptr(f, ep_index);
+		aFrames_uptr = &u.fs_ep_uptr32->aFrames;
+		isoc_time_complete_uptr = &u.fs_ep_uptr32->isoc_time_complete;
+		status_uptr = &u.fs_ep_uptr32->status;
+		break;
+#endif
+	default:
+		panic("%s: unhandled fs_ep_sz %#x", __func__, f->fs_ep_sz);
+	}
+
+	/* update "aFrames" */
+	if (suword32(aFrames_uptr, fs_ep->aFrames) != 0)
+		return (EFAULT);
+
+	/* update "isoc_time_complete" */
+	if (suword16(isoc_time_complete_uptr, fs_ep->isoc_time_complete) != 0)
+		return (EFAULT);
+
+	/* update "status" */
+	if (suword32(status_uptr, fs_ep->status) != 0)
+		return (EFAULT);
+
+	return (0);
+}
+
+static int
+ugen_fs_copy_out_cancelled(struct usb_fifo *f, uint8_t ep_index)
 {
 	struct usb_fs_endpoint fs_ep;
 	int error;
 
-	error = copyin(fs_ep_uptr, &fs_ep, sizeof(fs_ep));
+	error = ugen_fs_copyin(f, ep_index, &fs_ep);
 	if (error)
 		return (error);
 
@@ -1205,24 +1327,7 @@ ugen_fs_copy_out_cancelled(struct usb_fs_endpoint *fs_ep_uptr)
 	fs_ep.aFrames = 0;
 	fs_ep.isoc_time_complete = 0;
 
-	/* update "aFrames" */
-	error = copyout(&fs_ep.aFrames, &fs_ep_uptr->aFrames,
-	    sizeof(fs_ep.aFrames));
-	if (error)
-		goto done;
-
-	/* update "isoc_time_complete" */
-	error = copyout(&fs_ep.isoc_time_complete,
-	    &fs_ep_uptr->isoc_time_complete,
-	    sizeof(fs_ep.isoc_time_complete));
-	if (error)
-		goto done;
-
-	/* update "status" */
-	error = copyout(&fs_ep.status, &fs_ep_uptr->status,
-	    sizeof(fs_ep.status));
-done:
-	return (error);
+	return (ugen_fs_update(&fs_ep, f, ep_index));
 }
 
 static int
@@ -1231,7 +1336,6 @@ ugen_fs_copy_out(struct usb_fifo *f, uint8_t ep_index)
 	struct usb_device_request *req;
 	struct usb_xfer *xfer;
 	struct usb_fs_endpoint fs_ep;
-	struct usb_fs_endpoint *fs_ep_uptr;	/* userland ptr */
 	void *uaddr;			/* userland ptr */
 	void *kaddr;
 	usb_frlength_t offset;
@@ -1254,18 +1358,18 @@ ugen_fs_copy_out(struct usb_fifo *f, uint8_t ep_index)
 	    !xfer->flags_int.started) {
 		mtx_unlock(f->priv_mtx);
 		DPRINTF("Returning fake cancel event\n");
-		return (ugen_fs_copy_out_cancelled(f->fs_ep_ptr + ep_index));
+		return (ugen_fs_copy_out_cancelled(f, ep_index));
 	} else if (usbd_transfer_pending(xfer)) {
 		mtx_unlock(f->priv_mtx);
 		return (EBUSY);		/* should not happen */
 	}
 	mtx_unlock(f->priv_mtx);
 
-	fs_ep_uptr = f->fs_ep_ptr + ep_index;
-	error = copyin(fs_ep_uptr, &fs_ep, sizeof(fs_ep));
+	error = ugen_fs_copyin(f, ep_index, &fs_ep);
 	if (error) {
 		return (error);
 	}
+
 	fs_ep.status = xfer->error;
 	fs_ep.aFrames = xfer->aframes;
 	fs_ep.isoc_time_complete = xfer->isoc_time_complete;
@@ -1302,10 +1406,8 @@ ugen_fs_copy_out(struct usb_fifo *f, uint8_t ep_index)
 
 	for (; n != xfer->nframes; n++) {
 		/* get initial length into "temp" */
-		error = copyin(fs_ep.pLength + n,
-		    &temp, sizeof(temp));
-		if (error) {
-			return (error);
+		if (fueword32(fs_ep.pLength + n, &temp) != 0) {
+			return (EFAULT);
 		}
 		if (temp > rem) {
 			/* the userland length has been corrupted */
@@ -1327,8 +1429,7 @@ ugen_fs_copy_out(struct usb_fifo *f, uint8_t ep_index)
 		}
 		if (isread) {
 			/* we need to know the destination buffer */
-			error = copyin(fs_ep.ppBuffer + n,
-			    &uaddr, sizeof(uaddr));
+			error = ugen_fs_getbuffer(&uaddr, f, fs_ep.ppBuffer, n);
 			if (error) {
 				return (error);
 			}
@@ -1344,7 +1445,7 @@ ugen_fs_copy_out(struct usb_fifo *f, uint8_t ep_index)
 			/* move data */
 			error = copyout(kaddr, uaddr, length);
 			if (error) {
-				return (error);
+				goto complete;
 			}
 		}
 		/*
@@ -1354,31 +1455,13 @@ ugen_fs_copy_out(struct usb_fifo *f, uint8_t ep_index)
 		offset += temp;
 
 		/* update length */
-		error = copyout(&length,
-		    fs_ep.pLength + n, sizeof(length));
-		if (error) {
-			return (error);
-		}
+		if (suword32(fs_ep.pLength + n, length) != 0)
+			goto complete;
 	}
 
 complete:
-	/* update "aFrames" */
-	error = copyout(&fs_ep.aFrames, &fs_ep_uptr->aFrames,
-	    sizeof(fs_ep.aFrames));
-	if (error)
-		goto done;
-
-	/* update "isoc_time_complete" */
-	error = copyout(&fs_ep.isoc_time_complete,
-	    &fs_ep_uptr->isoc_time_complete,
-	    sizeof(fs_ep.isoc_time_complete));
-	if (error)
-		goto done;
-
-	/* update "status" */
-	error = copyout(&fs_ep.status, &fs_ep_uptr->status,
-	    sizeof(fs_ep.status));
-done:
+	if (error == 0)
+		error = ugen_fs_update(&fs_ep, f, ep_index);
 	return (error);
 }
 
@@ -2078,6 +2161,9 @@ ugen_iface_ioctl(struct usb_fifo *f, u_long cmd, void *addr, int fflags)
 static int
 ugen_ioctl_post(struct usb_fifo *f, u_long cmd, void *addr, int fflags)
 {
+#ifdef COMPAT_FREEBSD32
+	struct usb_fs_init local_pinit;
+#endif
 	union {
 		struct usb_interface_descriptor *idesc;
 		struct usb_alt_interface *ai;
@@ -2085,6 +2171,9 @@ ugen_ioctl_post(struct usb_fifo *f, u_long cmd, void *addr, int fflags)
 		struct usb_config_descriptor *cdesc;
 		struct usb_device_stats *stat;
 		struct usb_fs_init *pinit;
+#ifdef COMPAT_FREEBSD32
+		struct usb_fs_init32 *pinit32;
+#endif
 		struct usb_fs_uninit *puninit;
 		struct usb_device_port_path *dpp;
 		uint32_t *ptime;
@@ -2094,12 +2183,25 @@ ugen_ioctl_post(struct usb_fifo *f, u_long cmd, void *addr, int fflags)
 	struct usb_device_descriptor *dtemp;
 	struct usb_config_descriptor *ctemp;
 	struct usb_interface *iface;
+	size_t usb_fs_endpoint_sz = sizeof(struct usb_fs_endpoint);
 	int error = 0;
 	uint8_t n;
 
 	u.addr = addr;
 
 	DPRINTFN(6, "cmd=0x%08lx\n", cmd);
+
+#ifdef COMPAT_FREEBSD32
+	switch (cmd) {
+	case USB_FS_INIT32:
+		PTRIN_CP(*u.pinit32, local_pinit, pEndpoints);
+		CP(*u.pinit32, local_pinit, ep_index_max);
+		u.addr = &local_pinit;
+		cmd = _IOC_NEWTYPE(USB_FS_INIT, struct usb_fs_init);
+		usb_fs_endpoint_sz = sizeof(struct usb_fs_endpoint32);
+		break;
+	}
+#endif
 
 	switch (cmd) {
 	case USB_DISCOVER:
@@ -2328,6 +2430,7 @@ ugen_ioctl_post(struct usb_fifo *f, u_long cmd, void *addr, int fflags)
 		    u.pinit->ep_index_max, M_USB, M_WAITOK | M_ZERO);
 		f->fs_ep_max = u.pinit->ep_index_max;
 		f->fs_ep_ptr = u.pinit->pEndpoints;
+		f->fs_ep_sz = usb_fs_endpoint_sz;
 		break;
 
 	case USB_FS_UNINIT:

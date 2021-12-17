@@ -123,6 +123,7 @@ struct usb_fifo {
 	void   *priv_sc0;		/* client data */
 	void   *priv_sc1;		/* client data */
 	void   *queue_data;
+	usb_size_t fs_ep_sz;
 	usb_timeout_t timeout;		/* timeout in milliseconds */
 	usb_frlength_t bufsize;		/* BULK and INTERRUPT buffer size */
 	usb_frcount_t nframes;		/* for isochronous mode */
