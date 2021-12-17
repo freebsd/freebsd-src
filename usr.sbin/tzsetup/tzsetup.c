@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 
 #ifdef HAVE_BSDDIALOG
 #include <bsddialog.h>
+#include <locale.h>
 #endif
 
 #define	_PATH_ZONETAB		"/usr/share/zoneinfo/zone1970.tab"
@@ -867,6 +868,10 @@ main(int argc, char **argv)
 	size_t		len = sizeof(vm_guest);
 
 	skiputc = 0;
+
+#ifdef HAVE_BSDDIALOG
+	setlocale(LC_ALL, "");
+#endif
 
 	/* Default skiputc to 1 for VM guests */
 	if (sysctlbyname("kern.vm_guest", vm_guest, &len, NULL, 0) == 0 &&
