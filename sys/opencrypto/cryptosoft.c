@@ -320,7 +320,6 @@ swcr_gmac(const struct swcr_session *ses, struct cryptop *crp)
 	uint32_t blkbuf[howmany(AES_BLOCK_LEN, sizeof(uint32_t))];
 	u_char *blk = (u_char *)blkbuf;
 	u_char tag[GMAC_DIGEST_LEN];
-	u_char iv[AES_BLOCK_LEN];
 	struct crypto_buffer_cursor cc;
 	const u_char *inblk;
 	union authctx ctx;
@@ -345,9 +344,9 @@ swcr_gmac(const struct swcr_session *ses, struct cryptop *crp)
 
 	/* Initialize the IV */
 	ivlen = AES_GCM_IV_LEN;
-	crypto_read_iv(crp, iv);
+	crypto_read_iv(crp, blk);
 
-	axf->Reinit(&ctx, iv, ivlen);
+	axf->Reinit(&ctx, blk, ivlen);
 	crypto_cursor_init(&cc, &crp->crp_buf);
 	crypto_cursor_advance(&cc, crp->crp_payload_start);
 	for (resid = crp->crp_payload_length; resid >= blksz; resid -= len) {
@@ -392,7 +391,6 @@ swcr_gmac(const struct swcr_session *ses, struct cryptop *crp)
 	}
 	explicit_bzero(blkbuf, sizeof(blkbuf));
 	explicit_bzero(tag, sizeof(tag));
-	explicit_bzero(iv, sizeof(iv));
 	return (error);
 }
 
