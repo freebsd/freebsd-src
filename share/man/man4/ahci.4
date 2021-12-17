@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 21, 2019
+.Dd December 17, 2021
 .Dt AHCI 4
 .Os
 .Sh NAME
@@ -73,6 +73,10 @@ controls whether the driver should use direct command completion from
 interrupt thread(s), or queue them to CAM completion threads.
 Default value depends on number of MSI interrupts supported and number of
 implemented SATA ports.
+.It Va hint.ahci. Ns Ar X Ns Va .em
+controls whether the driver should implement virtual enclosure management
+device on top of SGPIO or other interface.
+Default value depends on controller capabilities.
 .It Va hint.ahcich. Ns Ar X Ns Va .pm_level
 controls SATA interface Power Management for the specified channel,
 allowing some power to be saved at the cost of additional command
