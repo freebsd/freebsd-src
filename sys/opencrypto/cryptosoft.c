@@ -894,10 +894,11 @@ swcr_chacha20_poly1305(const struct swcr_session *ses, struct cryptop *crp)
 	else
 		crypto_apply(crp, crp->crp_aad_start, crp->crp_aad_length,
 		    exf->update, ctx);
-	if (crp->crp_aad_length % 16 != 0) {
+	if (crp->crp_aad_length % POLY1305_BLOCK_LEN != 0) {
 		/* padding1 */
-		memset(blk, 0, 16);
-		exf->update(ctx, blk, 16 - crp->crp_aad_length % 16);
+		memset(blk, 0, POLY1305_BLOCK_LEN);
+		exf->update(ctx, blk, POLY1305_BLOCK_LEN -
+		    crp->crp_aad_length % POLY1305_BLOCK_LEN);
 	}
 
 	/* Do encryption with MAC */
@@ -936,10 +937,11 @@ swcr_chacha20_poly1305(const struct swcr_session *ses, struct cryptop *crp)
 			crypto_cursor_copyback(&cc_out, resid, blk);
 		}
 		exf->update(ctx, blk, resid);
-		if (resid % 16 != 0) {
+		if (resid % POLY1305_BLOCK_LEN != 0) {
 			/* padding2 */
-			memset(blk, 0, 16);
-			exf->update(ctx, blk, 16 - resid % 16);
+			memset(blk, 0, POLY1305_BLOCK_LEN);
+			exf->update(ctx, blk, POLY1305_BLOCK_LEN -
+			    resid % POLY1305_BLOCK_LEN);
 		}
 	}
 
