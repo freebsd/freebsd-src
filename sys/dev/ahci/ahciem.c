@@ -86,17 +86,18 @@ ahci_em_attach(device_t dev)
 	enc->ichannels = ctlr->ichannels;
 	mtx_init(&enc->mtx, "AHCI enclosure lock", NULL, MTX_DEF);
 	rid = 0;
-	if (!(enc->r_memc = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
-	    &rid, RF_ACTIVE))) {
-		mtx_destroy(&enc->mtx);
-		return (ENXIO);
-	}
-	enc->capsem = ATA_INL(enc->r_memc, 0);
-	rid = 1;
-	if (!(enc->r_memt = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
-	    &rid, RF_ACTIVE))) {
-		error = ENXIO;
-		goto err0;
+	if ((enc->r_memc = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
+	    &rid, RF_ACTIVE)) != NULL) {
+		enc->capsem = ATA_INL(enc->r_memc, 0);
+		rid = 1;
+		if (!(enc->r_memt = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
+		    &rid, RF_ACTIVE))) {
+			error = ENXIO;
+			goto err0;
+		}
+	} else {
+		enc->capsem = AHCI_EM_XMT | AHCI_EM_SMB | AHCI_EM_LED;
+		enc->r_memt = NULL;
 	}
 	if ((enc->capsem & (AHCI_EM_XMT | AHCI_EM_SMB)) == 0) {
 		rid = 2;
@@ -194,7 +195,8 @@ err1:
 err0:
 	if (enc->r_memt)
 		bus_release_resource(dev, SYS_RES_MEMORY, 1, enc->r_memt);
-	bus_release_resource(dev, SYS_RES_MEMORY, 0, enc->r_memc);
+	if (enc->r_memc)
+		bus_release_resource(dev, SYS_RES_MEMORY, 0, enc->r_memc);
 	mtx_destroy(&enc->mtx);
 	return (error);
 }
@@ -216,8 +218,10 @@ ahci_em_detach(device_t dev)
 	cam_sim_free(enc->sim, /*free_devq*/TRUE);
 	mtx_unlock(&enc->mtx);
 
-	bus_release_resource(dev, SYS_RES_MEMORY, 0, enc->r_memc);
-	bus_release_resource(dev, SYS_RES_MEMORY, 1, enc->r_memt);
+	if (enc->r_memc)
+		bus_release_resource(dev, SYS_RES_MEMORY, 0, enc->r_memc);
+	if (enc->r_memt)
+		bus_release_resource(dev, SYS_RES_MEMORY, 1, enc->r_memt);
 	if (enc->r_memr)
 		bus_release_resource(dev, SYS_RES_MEMORY, 2, enc->r_memr);
 	mtx_destroy(&enc->mtx);
@@ -231,6 +235,8 @@ ahci_em_reset(device_t dev)
 	int i, timeout;
 
 	enc = device_get_softc(dev);
+	if (enc->r_memc == NULL)
+		return (0);
 	ATA_OUTL(enc->r_memc, 0, AHCI_EM_RST);
 	timeout = 1000;
 	while ((ATA_INL(enc->r_memc, 0) & AHCI_EM_RST) &&
@@ -292,6 +298,8 @@ ahci_em_setleds(device_t dev, int c)
 	int16_t val;
 
 	enc = device_get_softc(dev);
+	if (enc->r_memc == NULL)
+		return;
 
 	val = 0;
 	if (enc->status[c][2] & SESCTL_RQSACT)		/* Activity */
