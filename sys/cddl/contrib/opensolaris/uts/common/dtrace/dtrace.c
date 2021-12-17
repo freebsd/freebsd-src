@@ -10014,6 +10014,9 @@ dtrace_difo_validate(dtrace_difo_t *dp, dtrace_vstate_t *vstate, uint_t nregs,
 			}
 
 			if (subr == DIF_SUBR_GETF) {
+#ifdef __FreeBSD__
+				err += efunc(pc, "getf() not supported");
+#else
 				/*
 				 * If we have a getf() we need to record that
 				 * in our state.  Note that our state can be
@@ -10024,6 +10027,7 @@ dtrace_difo_validate(dtrace_difo_t *dp, dtrace_vstate_t *vstate, uint_t nregs,
 				 */
 				if (vstate->dtvs_state != NULL)
 					vstate->dtvs_state->dts_getf++;
+#endif
 			}
 
 			break;
