@@ -251,7 +251,7 @@ ugen20_readdir(struct ugen20_urd_state *st)
 repeat:
 	if (st->ptr == NULL) {
 		st->urd.urd_startentry += st->nparsed;
-		st->urd.urd_data = libusb20_pass_ptr(st->buf);
+		st->urd.urd_data = st->buf;
 		st->urd.urd_maxlen = sizeof(st->buf);
 		st->nparsed = 0;
 
@@ -364,7 +364,7 @@ ugen20_tr_renew(struct libusb20_device *pdev)
 
 	memset(&fs_init, 0, sizeof(fs_init));
 
-	fs_init.pEndpoints = libusb20_pass_ptr(pdev->privBeData);
+	fs_init.pEndpoints = pdev->privBeData;
 	fs_init.ep_index_max = nMaxTransfer;
 
 	if (ioctl(pdev->file, IOUSB(USB_FS_INIT), &fs_init)) {
@@ -478,7 +478,7 @@ ugen20_get_config_desc_full(struct libusb20_device *pdev,
 	memset(&cdesc, 0, sizeof(cdesc));
 	memset(&gen_desc, 0, sizeof(gen_desc));
 
-	gen_desc.ugd_data = libusb20_pass_ptr(&cdesc);
+	gen_desc.ugd_data = &cdesc;
 	gen_desc.ugd_maxlen = sizeof(cdesc);
 	gen_desc.ugd_config_index = cfg_index;
 
@@ -499,7 +499,7 @@ ugen20_get_config_desc_full(struct libusb20_device *pdev,
 	/* make sure memory is initialised */
 	memset(ptr, 0, len);
 
-	gen_desc.ugd_data = libusb20_pass_ptr(ptr);
+	gen_desc.ugd_data = ptr;
 	gen_desc.ugd_maxlen = len;
 
 	error = ioctl(pdev->file_ctrl, IOUSB(USB_GET_FULL_DESC), &gen_desc);
@@ -726,7 +726,7 @@ ugen20_do_request_sync(struct libusb20_device *pdev,
 
 	memset(&req, 0, sizeof(req));
 
-	req.ucr_data = libusb20_pass_ptr(data);
+	req.ucr_data = data;
 	if (!(flags & LIBUSB20_TRANSFER_SINGLE_SHORT_NOT_OK)) {
 		req.ucr_flags |= USB_SHORT_XFER_OK;
 	}
@@ -835,8 +835,8 @@ ugen20_tr_open(struct libusb20_transfer *xfer, uint32_t MaxBufSize,
 	xfer->maxPacketLen = temp.fs_open.max_packet_length;
 
 	/* setup buffer and length lists using zero copy */
-	fsep->ppBuffer = libusb20_pass_ptr(xfer->ppBuffer);
-	fsep->pLength = libusb20_pass_ptr(xfer->pLength);
+	fsep->ppBuffer = xfer->ppBuffer;
+	fsep->pLength = xfer->pLength;
 
 	return (0);			/* success */
 }
@@ -956,7 +956,7 @@ ugen20_dev_get_iface_desc(struct libusb20_device *pdev,
 
 	memset(&ugd, 0, sizeof(ugd));
 
-	ugd.ugd_data = libusb20_pass_ptr(buf);
+	ugd.ugd_data = buf;
 	ugd.ugd_maxlen = len;
 	ugd.ugd_iface_index = iface_index;
 

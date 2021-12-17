@@ -105,7 +105,7 @@ hid_get_report_desc(int fd)
 	memset(&ugd, 0, sizeof(ugd));
 
 	/* get actual length first */
-	ugd.ugd_data = hid_pass_ptr(NULL);
+	ugd.ugd_data = NULL;
 	ugd.ugd_maxlen = 65535;
 	if (ioctl(fd, USB_GET_REPORT_DESC, &ugd) < 0) {
 #ifdef HID_COMPAT7
@@ -126,7 +126,7 @@ hid_get_report_desc(int fd)
 		return (NULL);
 
 	/* fetch actual descriptor */
-	ugd.ugd_data = hid_pass_ptr(data);
+	ugd.ugd_data = data;
 	ugd.ugd_maxlen = ugd.ugd_actlen;
 	if (ioctl(fd, USB_GET_REPORT_DESC, &ugd) < 0) {
 		/* could not read descriptor */
