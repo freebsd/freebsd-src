@@ -28,7 +28,7 @@
 .\"	@(#)hier.7	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd February 22, 2021
+.Dd December 11, 2021
 .Dt HIER 7
 .Os
 .Sh NAME
@@ -282,7 +282,8 @@ machine-specific C include files
 miscellaneous network C include files
 .Bl -tag -width Fl -compact
 .It Pa altq/
-C include files for alternate queueing
+C include files for alternate packet queueing; see
+.Xr altq 4
 .El
 .It Pa net80211/
 C include files for 802.11 wireless networking;
@@ -429,10 +430,9 @@ architecture-specific target tree produced by building the
 .Pa /usr/src
 tree
 .It Pa ports/
-.Xr ports 7 ,
-the
 .Fx
-ports collection
+ports collection; see
+.Xr ports 7
 .It Pa sbin/
 system daemons & system utilities (executed by users)
 .It Pa share/
@@ -497,7 +497,7 @@ firmware images loaded by userland programs
 .It Pa games/
 ASCII text files used by various games
 .It Pa keys/
-known trusted and revoked keys.
+known trusted and revoked keys
 .Bl -tag -width Fl -compact
 .It Pa pkg/
 fingerprints for
@@ -538,7 +538,7 @@ example
 .Pa .\&
 (dot) files for new accounts
 .It Pa snmp/
-MIBs, example files and tree definitions for the SNMP daemon.
+MIBs, example files and tree definitions for the SNMP daemon
 .Bl -tag -width Fl -compact
 .It Pa defs/
 tree definition files for use with
@@ -602,7 +602,8 @@ see
 .Pp
 .It Pa src/
 .Fx
-source code
+source code; see
+.Xr development 7
 .Pp
 .Bl -tag -width "kerberos5/" -compact
 .It Pa bin/
@@ -794,7 +795,7 @@ miscellaneous automatically generated system-specific database files
 empty directory for use by programs that need a specifically empty directory.
 Used for instance by
 .Xr sshd 8
-for privilege separation.
+for privilege separation
 .It Pa games/
 miscellaneous game status and score files
 .It Pa heimdal/
@@ -879,7 +880,8 @@ the directory where recovery files are stored
 .El
 .Pp
 .It Pa yp/
-the NIS maps
+the NIS maps; see
+.Xr yp 8
 .El
 .El
 .Sh NOTES
@@ -893,15 +895,10 @@ this document.
 .Sh SEE ALSO
 .Xr apropos 1 ,
 .Xr find 1 ,
-.Xr finger 1 ,
 .Xr grep 1 ,
 .Xr ls 1 ,
-.Xr whatis 1 ,
 .Xr whereis 1 ,
-.Xr which 1 ,
-.Xr fd 4 ,
-.Xr devfs 5 ,
-.Xr fsck 8
+.Xr which 1
 .Sh HISTORY
 A
 .Nm
