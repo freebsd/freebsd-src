@@ -33,7 +33,7 @@
 .Nd statistics utility
 .Sh SYNOPSIS
 .Nm
-.Op Fl Ans
+.Op Fl Anqs
 .Op Fl C Ar column
 .Op Fl c Ar confidence_level
 .Op Fl d Ar delimiter
@@ -53,6 +53,10 @@ suppress the ASCII-art plot.
 .It Fl n
 Just report the raw statistics of the input, suppress the ASCII-art plot
 and the relative comparisons.
+.It Fl q
+Suppress printing of summary statistics and data-set names; typically for use
+alongside
+.Fl n .
 .It Fl s
 Print the average/median/stddev bars on separate lines in the ASCII-art
 plot, to avoid overlap.
