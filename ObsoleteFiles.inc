@@ -40,6 +40,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20211218 meteor.4 removed, see also 20200301 entry below
+OLD_FILES+=usr/share/man/man4/meteor.4.gz
+
 # 20211125 Old SCSI drivers removed
 OLD_FILES+=usr/share/man/man4/amr.4.gz
 OLD_FILES+=usr/share/man/man4/esp.4.gz
