@@ -2039,14 +2039,17 @@ exit_rq_handler_lro:
 uint16_t
 oce_rq_handler(void *arg)
 {
+	struct epoch_tracker et;
 	struct oce_rq *rq = (struct oce_rq *)arg;
 	struct oce_cq *cq = rq->cq;
 	POCE_SOFTC sc = rq->parent;
 	struct oce_nic_rx_cqe *cqe;
 	int num_cqes = 0;
 
+	NET_EPOCH_ENTER(et);
 	if(rq->islro) {
 		oce_rq_handler_lro(arg);
+		NET_EPOCH_EXIT(et);
 		return 0;
 	}
 	LOCK(&rq->rx_lock);
@@ -2090,6 +2093,7 @@ oce_rq_handler(void *arg)
 
 	oce_check_rx_bufs(sc, num_cqes, rq);
 	UNLOCK(&rq->rx_lock);
+	NET_EPOCH_EXIT(et);
 	return 0;
 
 }
@@ -2110,7 +2114,7 @@ oce_attach_ifp(POCE_SOFTC sc)
 	ifmedia_add(&sc->media, IFM_ETHER | IFM_AUTO, 0, NULL);
 	ifmedia_set(&sc->media, IFM_ETHER | IFM_AUTO);
 
-	sc->ifp->if_flags = IFF_BROADCAST | IFF_MULTICAST;
+	sc->ifp->if_flags = IFF_BROADCAST | IFF_MULTICAST | IFF_KNOWSEPOCH;
 	sc->ifp->if_ioctl = oce_ioctl;
 	sc->ifp->if_start = oce_start;
 	sc->ifp->if_init = oce_init;
