@@ -1907,8 +1907,9 @@ fw_rcv(struct fw_rcv_buf *rb)
 	struct fw_pkt *fp, *resfp;
 	struct fw_bind *bind;
 	int tcode;
-	int i, len, oldstate;
+	int oldstate;
 #if 0
+	int i, len;
 	{
 		uint32_t *qld;
 		int i;
@@ -2035,9 +2036,11 @@ fw_rcv(struct fw_rcv_buf *rb)
 				fw_xfer_free(rb->xfer);
 			return;
 		}
+#if 0
 		len = 0;
 		for (i = 0; i < rb->nvec; i++)
 			len += rb->vec[i].iov_len;
+#endif
 		rb->xfer = STAILQ_FIRST(&bind->xferlist);
 		if (rb->xfer == NULL) {
 			device_printf(rb->fc->bdev, "%s: "
