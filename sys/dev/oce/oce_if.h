@@ -42,6 +42,7 @@
 
 #include <sys/param.h>
 #include <sys/endian.h>
+#include <sys/epoch.h>
 #include <sys/eventhandler.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
