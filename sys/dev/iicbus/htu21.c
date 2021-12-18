@@ -300,13 +300,11 @@ htu21_set_cfg(device_t dev, uint8_t cfg)
 static int
 htu21_heater_sysctl(SYSCTL_HANDLER_ARGS)
 {
-	struct htu21_softc *sc;
 	device_t dev;
 	uint8_t cfg;
 	int error, heater;
 
 	dev = arg1;
-	sc = device_get_softc(dev);
 
 	if (req->oldptr != NULL) {
 		error = htu21_get_cfg(dev, &cfg);
@@ -327,13 +325,11 @@ htu21_heater_sysctl(SYSCTL_HANDLER_ARGS)
 static int
 htu21_power_sysctl(SYSCTL_HANDLER_ARGS)
 {
-	struct htu21_softc *sc;
 	device_t dev;
 	uint8_t cfg;
 	int error, power;
 
 	dev = arg1;
-	sc = device_get_softc(dev);
 
 	if (req->oldptr != NULL) {
 		error = htu21_get_cfg(dev, &cfg);
