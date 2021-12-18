@@ -2279,10 +2279,7 @@ static int
 ta_prepare_del_ifidx(struct ip_fw_chain *ch, struct tentry_info *tei,
     void *ta_buf)
 {
-	struct ta_buf_ifidx *tb;
 	char *ifname;
-
-	tb = (struct ta_buf_ifidx *)ta_buf;
 
 	/* Check if string is terminated */
 	ifname = (char *)tei->paddr;
@@ -2305,7 +2302,7 @@ ta_del_ifidx(void *ta_state, struct table_info *ti, struct tentry_info *tei,
 	struct ta_buf_ifidx *tb;
 	char *ifname;
 	uint16_t ifindex;
-	int res;
+	int res __diagused;
 
 	tb = (struct ta_buf_ifidx *)ta_buf;
 	ifname = (char *)tei->paddr;
@@ -2371,7 +2368,7 @@ if_notifier(struct ip_fw_chain *ch, void *cbdata, uint16_t ifindex)
 	struct ifidx ifi;
 	struct iftable_cfg *icfg;
 	struct table_info *ti;
-	int res;
+	int res __diagused;
 
 	ife = (struct ifentry *)cbdata;
 	icfg = ife->icfg;
@@ -2781,7 +2778,7 @@ ta_add_numarray(void *ta_state, struct table_info *ti, struct tentry_info *tei,
 	struct numarray_cfg *cfg;
 	struct ta_buf_numarray *tb;
 	struct numarray *ri;
-	int res;
+	int res __diagused;
 	uint32_t value;
 
 	tb = (struct ta_buf_numarray *)ta_buf;
@@ -2831,7 +2828,7 @@ ta_del_numarray(void *ta_state, struct table_info *ti, struct tentry_info *tei,
 	struct numarray_cfg *cfg;
 	struct ta_buf_numarray *tb;
 	struct numarray *ri;
-	int res;
+	int res __diagused;
 
 	tb = (struct ta_buf_numarray *)ta_buf;
 	cfg = (struct numarray_cfg *)ta_state;
@@ -2981,10 +2978,7 @@ static int
 ta_find_numarray_tentry(void *ta_state, struct table_info *ti,
     ipfw_obj_tentry *tent)
 {
-	struct numarray_cfg *cfg;
 	struct numarray *ri;
-
-	cfg = (struct numarray_cfg *)ta_state;
 
 	ri = numarray_find(ti, &tent->k.key);
 
@@ -3343,7 +3337,6 @@ static int
 ta_dump_fhash_tentry(void *ta_state, struct table_info *ti, void *e,
     ipfw_obj_tentry *tent)
 {
-	struct fhash_cfg *cfg;
 	struct fhashentry *ent;
 	struct fhashentry4 *fe4;
 #ifdef INET6
@@ -3351,7 +3344,6 @@ ta_dump_fhash_tentry(void *ta_state, struct table_info *ti, void *e,
 #endif
 	struct tflow_entry *tfe;
 
-	cfg = (struct fhash_cfg *)ta_state;
 	ent = (struct fhashentry *)e;
 	tfe = &tent->k.flow;
 

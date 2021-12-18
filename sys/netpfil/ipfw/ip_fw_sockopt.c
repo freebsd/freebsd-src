@@ -2833,7 +2833,6 @@ rewrite_rule_uidx(struct ip_fw_chain *chain, struct rule_check_info *ci)
 {
 	int error;
 	ipfw_insn *cmd;
-	uint8_t type;
 	struct obj_idx *p, *pidx_first, *pidx_last;
 	struct tid_info ti;
 
@@ -2850,7 +2849,6 @@ rewrite_rule_uidx(struct ip_fw_chain *chain, struct rule_check_info *ci)
 		    M_IPFW, M_WAITOK | M_ZERO);
 
 	error = 0;
-	type = 0;
 	memset(&ti, 0, sizeof(ti));
 
 	/* Use set rule is assigned to. */
@@ -3792,7 +3790,7 @@ ipfw_ctl(struct sockopt *sopt)
 {
 #define	RULE_MAXSIZE	(512*sizeof(u_int32_t))
 	int error;
-	size_t size, valsize;
+	size_t size;
 	struct ip_fw *buf;
 	struct ip_fw_rule0 *rule;
 	struct ip_fw_chain *chain;
@@ -3804,8 +3802,6 @@ ipfw_ctl(struct sockopt *sopt)
 	chain = &V_layer3_chain;
 	error = 0;
 
-	/* Save original valsize before it is altered via sooptcopyin() */
-	valsize = sopt->sopt_valsize;
 	opt = sopt->sopt_name;
 
 	/*
