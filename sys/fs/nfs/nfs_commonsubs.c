@@ -1980,7 +1980,7 @@ nfsv4_loadattr(struct nfsrv_descript *nd, vnode_t vp,
 			NFSM_DISSECT(tl, u_int32_t *, NFSX_HYPER);
 			if (compare) {
 				if (priv_check_cred(cred,
-				    PRIV_VFS_BLOCKRESERVE))
+				    PRIV_VFS_BLOCKRESERVE, 0))
 					uquad = sbp->f_bfree;
 				else
 					uquad = (uint64_t)sbp->f_bavail;
