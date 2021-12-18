@@ -99,7 +99,7 @@ static void
 linux_set_default_openfiles(struct thread *td, struct proc *p)
 {
 	struct rlimit rlim;
-	int error;
+	int error __diagused;
 
 	if (linux_default_openfiles < 0)
 		return;
@@ -122,7 +122,7 @@ static void
 linux_set_default_stacksize(struct thread *td, struct proc *p)
 {
 	struct rlimit rlim;
-	int error;
+	int error __diagused;
 
 	if (linux_default_stacksize < 0)
 		return;

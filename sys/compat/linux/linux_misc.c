@@ -205,7 +205,7 @@ linux_alarm(struct thread *td, struct linux_alarm_args *args)
 {
 	struct itimerval it, old_it;
 	u_int secs;
-	int error;
+	int error __diagused;
 
 	secs = args->secs;
 	/*
