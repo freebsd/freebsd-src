@@ -52,6 +52,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20230806 meteor.4 removed, see also 20200301 entry below
+OLD_FILES+=usr/share/man/man4/meteor.4.gz
+
 # 20230806: remove bt(4) man page
 OLD_FILES+=usr/share/man/man4/bt.4.gz
 
