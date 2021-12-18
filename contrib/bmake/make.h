@@ -1,4 +1,4 @@
-/*	$NetBSD: make.h,v 1.263 2021/06/21 10:33:11 rillig Exp $	*/
+/*	$NetBSD: make.h,v 1.270 2021/11/28 23:12:51 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -136,25 +136,38 @@
 #endif
 
 #define MAKE_INLINE static inline MAKE_ATTR_UNUSED
+
+/* MAKE_STATIC marks a function that may or may not be inlined. */
+#if defined(lint)
+/* As of 2021-07-31, NetBSD lint ignores __attribute__((unused)). */
+#define MAKE_STATIC MAKE_INLINE
+#else
 #define MAKE_STATIC static MAKE_ATTR_UNUSED
+#endif
 
 #if __STDC_VERSION__ >= 199901L || defined(lint) || defined(USE_C99_BOOLEAN)
 #include <stdbool.h>
+#elif defined(__bool_true_false_are_defined)
+/*
+ * All files of make must be compiled with the same definition of bool.
+ * Since one of the files includes <stdbool.h>, that means the header is
+ * available on this platform.  Recompile everything with -DUSE_C99_BOOLEAN.
+ */
+#error "<stdbool.h> is included in pre-C99 mode"
+#elif defined(bool) || defined(true) || defined(false)
+/*
+ * In pre-C99 mode, make does not expect that bool is already defined.
+ * You need to ensure that all translation units use the same definition for
+ * bool.
+ */
+#error "bool/true/false is defined in pre-C99 mode"
 #else
-#ifndef bool
-typedef unsigned int Boolean;
-#define bool	Boolean
-#endif
-#ifndef true
+typedef unsigned char bool;
 #define true	1
-#endif
-#ifndef false
 #define false	0
-#endif
 #endif
 
 #include "lst.h"
-#include "enum.h"
 #include "make_malloc.h"
 #include "str.h"
 #include "hash.h"
@@ -324,26 +337,25 @@ typedef enum GNodeType {
 	OP_NOTARGET	= OP_NOTMAIN | OP_USE | OP_EXEC | OP_TRANSFORM
 } GNodeType;
 
-typedef enum GNodeFlags {
-	GNF_NONE	= 0,
+typedef struct GNodeFlags {
 	/* this target needs to be (re)made */
-	REMAKE		= 1 << 0,
+	bool remake:1;
 	/* children of this target were made */
-	CHILDMADE	= 1 << 1,
+	bool childMade:1;
 	/* children don't exist, and we pretend made */
-	FORCE		= 1 << 2,
+	bool force:1;
 	/* Set by Make_ProcessWait() */
-	DONE_WAIT	= 1 << 3,
+	bool doneWait:1;
 	/* Build requested by .ORDER processing */
-	DONE_ORDER	= 1 << 4,
+	bool doneOrder:1;
 	/* Node created from .depend */
-	FROM_DEPEND	= 1 << 5,
+	bool fromDepend:1;
 	/* We do it once only */
-	DONE_ALLSRC	= 1 << 6,
+	bool doneAllsrc:1;
 	/* Used by MakePrintStatus */
-	CYCLE		= 1 << 12,
+	bool cycle:1;
 	/* Used by MakePrintStatus */
-	DONECYCLE	= 1 << 13
+	bool doneCycle:1;
 } GNodeFlags;
 
 typedef struct List StringList;
@@ -583,7 +595,7 @@ void debug_printf(const char *, ...) MAKE_ATTR_PRINTFLIKE(1, 2);
 	do { \
 		if (DEBUG(module)) \
 			debug_printf args; \
-	} while (/*CONSTCOND*/false)
+	} while (false)
 
 #define DEBUG0(module, text) \
 	DEBUG_IMPL(module, ("%s", text))
@@ -710,7 +722,7 @@ bool GNode_ShouldExecute(GNode *gn);
 MAKE_INLINE bool
 GNode_IsTarget(const GNode *gn)
 {
-	return (gn->type & OP_OPMASK) != 0;
+	return (gn->type & OP_OPMASK) != OP_NONE;
 }
 
 MAKE_INLINE const char *
@@ -722,7 +734,7 @@ GNode_Path(const GNode *gn)
 MAKE_INLINE bool
 GNode_IsWaitingFor(const GNode *gn)
 {
-	return (gn->flags & REMAKE) && gn->made <= REQUESTED;
+	return gn->flags.remake && gn->made <= REQUESTED;
 }
 
 MAKE_INLINE bool
@@ -758,16 +770,13 @@ GNode_VarArchive(GNode *gn) { return GNode_ValueDirect(gn, ARCHIVE); }
 MAKE_INLINE const char *
 GNode_VarMember(GNode *gn) { return GNode_ValueDirect(gn, MEMBER); }
 
-#if defined(__GNUC__) && __STDC_VERSION__ >= 199901L
-#define UNCONST(ptr)	({		\
-    union __unconst {			\
-	const void *__cp;		\
-	void *__p;			\
-    } __d;				\
-    __d.__cp = ptr, __d.__p; })
-#else
-#define UNCONST(ptr)	(void *)(ptr)
-#endif
+MAKE_INLINE void *
+UNCONST(const void *ptr)
+{
+	void *ret;
+	memcpy(&ret, &ptr, sizeof(ret));
+	return ret;
+}
 
 /* At least GNU/Hurd systems lack hardcoded MAXPATHLEN/PATH_MAX */
 #ifdef HAVE_LIMITS_H
@@ -833,6 +842,16 @@ pp_skip_hspace(char **pp)
 # define MAKE_RCSID(id) extern void do_not_define_rcsid(void)
 #elif defined(MAKE_NATIVE)
 # include <sys/cdefs.h>
+# ifndef __IDSTRING
+#   define __IDSTRING(name,string) \
+	static const char name[] MAKE_ATTR_UNUSED = string
+# endif
+# ifndef __RCSID
+#   define __RCSID(s) __IDSTRING(rcsid,s)
+# endif
+# ifndef __COPYRIGHT
+#   define __COPYRIGHT(s) __IDSTRING(copyright,s)
+# endif
 # define MAKE_RCSID(id) __RCSID(id)
 #elif defined(MAKE_ALL_IN_ONE) && defined(__COUNTER__)
 # define MAKE_RCSID_CONCAT(x, y) CONCAT(x, y)

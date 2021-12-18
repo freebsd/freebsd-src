@@ -757,6 +757,8 @@ BMAKE(1)                FreeBSD General Commands Manual               BMAKE(1)
      .SHELL          The pathname of the shell used to run target scripts.  It
                      is read-only.
 
+     .SUFFIXES       The list of known suffixes.  It is read-only.
+
      .TARGETS        The list of targets explicitly specified on the command
                      line, if any.
 
@@ -809,7 +811,15 @@ BMAKE(1)                FreeBSD General Commands Manual               BMAKE(1)
 
      [1m:O   [22mOrders every word in variable alphabetically.
 
+     [1m:On  [22mOrders every word in variable numerically.  A number followed by one
+          of `k', `M' or `G' is multiplied by the appropriate factor (1024
+          (k), 1048576 (M), or 1073741824 (G)).  Both upper- and lower-case
+          letters are accepted.
+
      [1m:Or  [22mOrders every word in variable in reverse alphabetical order.
+
+     [1m:Orn[0m
+          Orders every word in variable in reverse numerical order.
 
      [1m:Ox  [22mShuffles the words in variable.  The results will be different each
           time you are referring to the modified variable; use the assignment
@@ -1581,4 +1591,4 @@ BMAKE(1)                FreeBSD General Commands Manual               BMAKE(1)
 
      There is no way of escaping a space character in a filename.
 
-FreeBSD 13.0                   December 22, 2020                  FreeBSD 13.0
+FreeBSD 13.0                   December 12, 2021                  FreeBSD 13.0

@@ -1,5 +1,5 @@
 make warning: TMPDIR/roobj: Permission denied.
-/tmp
+TMPDIR
 TMPDIR/roobj
 TMPDIR/roobj
 exit status 0

@@ -3,7 +3,7 @@
 # Tests for the :localtime variable modifier, which formats a timestamp
 # using strftime(3) in local time.
 
-.if ${TZ} != "Europe/Berlin"	# see unit-tests/Makefile
+.if ${TZ:Uno:NEurope/Berlin:NUTC-1} != ""	# see unit-tests/Makefile
 .  error
 .endif
 

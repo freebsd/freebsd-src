@@ -26,6 +26,7 @@ option_parsing() {
 	*=*) eval "$1"; shift;;
 	--) shift; break;;
 	-a) TARBALL=$2; shift 2;;
+	-d) RM=echo; shift;;
 	-n) ECHO=echo; shift;;
 	-P) PR=$2; shift 2;;
 	-r) REVIEWER=$2; shift 2;;
@@ -55,6 +56,7 @@ TF=/tmp/.$USER.$$
 Cd `dirname $0`
 test -s ${TARBALL:-/dev/null} || Error need TARBALL
 here=`pwd`
+SB=${SB:-`dirname $here`}
 # thing should match what the TARBALL contains
 thing=`basename $here`
 
@@ -66,7 +68,7 @@ esac
 VERSION=`grep '^_MAKE_VERSION' VERSION | sed 's,.*=[[:space:]]*,,'`
 
 rm -f *~
-mkdir -p ../tmp
+mkdir -p $SB/tmp
 
 # new files are handled automatically
 # but we need to rm if needed
@@ -81,12 +83,15 @@ comm -13 $TF.adds $TF.rms > $TF.rm
 if [ -z "$ECHO" ]; then
     test -s $TF.rm && xargs rm -f < $TF.rm
     $GIT add -A
-    $GIT diff --staged | tee ../tmp/bmake-import.diff
-    echo "$GIT tag -a vendor/NetBSD/bmake/$VERSION" > ../tmp/bmake-post.sh
-    echo "After you commit, run $here/../tmp/bmake-post.sh"
+    $GIT diff --staged | tee $SB/tmp/bmake-import.diff
+    { echo "$GIT tag -a vendor/NetBSD/bmake/$VERSION"
+      echo "echo \"When ready do: $GIT push --follow-tags\""
+    } > $SB/tmp/bmake-post.sh
+    echo "After you commit, run $SB/tmp/bmake-post.sh"
 else
     comm -23 $TF.adds $TF.rms > $TF.add
     test -s $TF.rm && { echo Removing:; cat $TF.rm; }
     test -s $TF.add && { echo Adding:; cat $TF.add; }
     $GIT diff
 fi
+${RM:-rm} -f $TF.*

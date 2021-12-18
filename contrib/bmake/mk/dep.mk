@@ -1,7 +1,7 @@
-# $Id: dep.mk,v 1.17 2014/08/04 05:12:27 sjg Exp $
+# $Id: dep.mk,v 1.18 2021/12/08 05:56:50 sjg Exp $
 
 .if !target(__${.PARSEFILE}__)
-__${.PARSEFILE}__:
+__${.PARSEFILE}__: .NOTMAIN
 
 # handle Proc*C as well...
 .if defined(SRCS)

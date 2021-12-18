@@ -1,4 +1,4 @@
-# $Id: obj.mk,v 1.16 2020/08/19 17:51:53 sjg Exp $
+# $Id: obj.mk,v 1.17 2021/12/08 05:56:50 sjg Exp $
 #
 #	@(#) Copyright (c) 1999-2010, Simon J. Gerraty
 #
@@ -14,7 +14,7 @@
 #
 
 .if !target(__${.PARSEFILE:S,bsd.,,}__)
-__${.PARSEFILE:S,bsd.,,}__:
+__${.PARSEFILE:S,bsd.,,}__: .NOTMAIN
 
 .include <init.mk>
 

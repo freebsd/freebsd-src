@@ -1,37 +1,53 @@
 dnl
 dnl RCSid:
-dnl	$Id: configure.in,v 1.70 2021/02/01 18:29:26 sjg Exp $
+dnl	$Id: configure.in,v 1.85 2021/10/23 20:57:08 sjg Exp $
 dnl
 dnl Process this file with autoconf to produce a configure script
 dnl
 AC_PREREQ(2.50)
-AC_INIT([bmake], [20210201], [sjg@NetBSD.org])
+AC_INIT([bmake], [20211020], [sjg@NetBSD.org])
 AC_CONFIG_HEADERS(config.h)
 
 dnl make srcdir absolute
 case "$srcdir" in
 /*) ;;
-*) srcdir=`cd $srcdir && pwd`;;
+*) srcdir=`cd $srcdir && 'pwd'`;;
 esac
 
 dnl get _MAKE_VERSION
 . $srcdir/VERSION
 OS=`uname -s`
 
+dnl function to set DEFSHELL_INDEX
+use_defshell() {
+	case "$defshell_path$DEFSHELL_INDEX" in
+	"") ;;
+	*) return 0;;
+	esac
+	case "$1" in
+	*csh) # we must be desperate
+		DEFSHELL_INDEX=DEFSHELL_INDEX_CSH;;
+	*ksh)
+		DEFSHELL_INDEX=DEFSHELL_INDEX_KSH;;
+	sh|/bin/sh)
+		DEFSHELL_INDEX=DEFSHELL_INDEX_SH;;
+	*)	DEFSHELL_INDEX=DEFSHELL_INDEX_CUSTOM
+		defshell_path=$1
+		;;
+	esac
+	case "$1" in
+	/bin/*) ;;
+	*/*) defshell_path=$1;;
+	esac
+}
 dnl
 AC_ARG_WITH(defshell,
 [  --with-defshell=SHELL  use SHELL by default - must be sh compatible, use sh or ksh to pick the internal definitions],
 [case "${withval}" in
 yes)   AC_MSG_ERROR(bad value ${withval} given for bmake DEFSHELL) ;;
 no)    ;;
-*)     case "$with_defshell" in
-       sh)  DEFSHELL_INDEX=DEFSHELL_INDEX_SH;;	# it's the default anyway
-       ksh) DEFSHELL_INDEX=DEFSHELL_INDEX_KSH;;
-       csh) DEFSHELL_INDEX=DEFSHELL_INDEX_CSH;;	# kidding right?
-       *)   defshell_path=$with_defshell;;	# better be sh compatible!
-       esac
-       ;;
-       esac])
+*)     use_defshell $with_defshell;;
+esac])
 dnl
 case "$OS" in
 CYGWIN*|MINGW*) use_makefile=no;;
@@ -97,6 +113,45 @@ yes)
 esac
 dnl
 dnl Check for OS problems
+dnl
+dnl Minix 3 at least has bugs in headers where _NETBSD_SOURCE
+dnl is needed for compilation
+case "$OS" in
+Minix)	CPPFLAGS="${CPPFLAGS} -D_NETBSD_SOURCE"
+	test -x /usr/pkg/bin/clang && CC=${CC:-clang}
+	;;
+SCO_SV)	# /bin/sh is not usable
+	ALT_DEF_SHELLS="/bin/lsh /usr/bin/bash /bin/ksh"
+	CPPFLAGS="${CPPFLAGS} -DFORCE_USE_SHELL"
+	;;
+esac
+dnl
+dnl Not everyone groks TZ=Europe/Berlin
+dnl which is used by the localtime tests
+echo $ECHO_N "checking whether system has timezone Europe/Berlin... $ECHO_C" >&6
+if test -f /usr/share/zoneinfo/Europe/Berlin; then
+	echo yes  >&6
+	# seems a safe bet
+	UTC_1=Europe/Berlin
+else
+	utcH=`TZ=UTC date +%H 2> /dev/null`
+	utc_1H=`TZ=UTC-1 date +%H 2> /dev/null`
+	if test ${utcH-0} -lt ${utc_1H-0}; then
+		UTC_1=UTC-1
+		echo no, using UTC-1 >&6
+	else
+		echo no >&6
+	fi
+fi
+dnl
+dnl Add some places to look for compilers
+oldPATH=$PATH
+for d in /usr/gnu/bin
+do
+	test -d $d || continue
+	PATH=$PATH:$d
+done
+export PATH	
 dnl Solaris's signal.h only privides sigset_t etc if one of
 dnl _EXTENSIONS_ _POSIX_C_SOURCE or _XOPEN_SOURCE are defined.
 dnl The later two seem to cause more problems than they solve so if we
@@ -126,7 +181,33 @@ AC_SUBST(bmake_path_max)dnl
 dnl
 dnl AC_C_CROSS
 dnl
-
+dnl if type does not work which(1) had better!
+dnl note we cannot rely on type returning non-zero on failure
+if (type cat) > /dev/null 2>&1; then
+: which
+which() {
+	type "$@" | sed 's,[[()]],,g;s,^[[^/]][[^/]]*,,;q'
+}
+fi
+dnl if CC is somewhere that was not in PATH we need its full path
+dnl watch out for included flags!
+case "$CC" in
+/*) ;;
+*)
+    for x in $CC
+    do
+        _cc=`which $x`
+        break
+    done
+    if test -x ${_cc:-/dev/null}; then
+        _cc_dir=`dirname $_cc`
+        case ":$oldPATH:" in
+        *:$_cc_dir:*) ;;
+        *) CC=$_cc_dir/$CC;;
+        esac
+    fi
+    ;;
+esac
 dnl Checks for header files.
 AC_HEADER_SYS_WAIT
 AC_HEADER_DIRENT
@@ -158,24 +239,16 @@ AC_CHECK_HEADERS( \
 
 dnl Both *BSD and Linux have sys/cdefs.h, most do not.
 dnl If it is missing, we add -I${srcdir}/missing to CFLAGS
-dnl also if sys/cdefs.h does not have __RCSID we need to use ours
-dnl but we need to include the host's one too *sigh*
-AC_CHECK_HEADER(sys/cdefs.h,
-echo $ECHO_N "checking whether sys/cdefs.h is compatible... $ECHO_C" >&6
-AC_EGREP_CPP(yes,
-[#include <sys/cdefs.h>
-#ifdef __RCSID
-yes
-#endif
-],
-echo yes  >&6,
-echo no  >&6; CPPFLAGS="${CPPFLAGS} -I`cd ${srcdir}/missing && pwd` -DNEED_HOST_CDEFS_H"),
+AC_CHECK_HEADER(sys/cdefs.h,,
 CPPFLAGS="${CPPFLAGS} -I`cd ${srcdir}/missing && pwd`")
 
 dnl Checks for typedefs, structures, and compiler characteristics.
 AC_C___ATTRIBUTE__
 AC_C_BIGENDIAN
 AC_C_CONST
+AC_C_INLINE
+AC_TYPE_INT64_T
+AC_TYPE_LONG_LONG_INT
 AC_TYPE_MODE_T
 AC_TYPE_OFF_T
 AC_TYPE_PID_T
@@ -187,9 +260,8 @@ AC_STRUCT_TM
 
 dnl we need sig_atomic_t
 AH_TEMPLATE([sig_atomic_t],[type that signal handlers can safely frob])
-AC_CHECK_TYPE(sig_atomic_t,,[
-AC_DEFINE([sig_atomic_t],[int],)
-],[
+AC_CHECK_TYPES([sig_atomic_t],[],[],
+[
 #ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
 #endif
@@ -207,7 +279,6 @@ AC_CHECK_FUNCS( \
 	errx \
 	getcwd \
 	getenv \
-	getopt \
 	getwd \
 	killpg \
 	mmap \
@@ -215,15 +286,23 @@ AC_CHECK_FUNCS( \
 	select \
 	setenv \
 	setpgid \
+	setrlimit \
 	setsid \
-	sigaction \
+	sigaddset \
+	sigpending \
+	sigprocmask \
+	sigsetmask \
+	sigsuspend \
 	sigvec \
 	snprintf \
 	strerror \
+	stresep \
 	strftime \
 	strsep \
 	strtod \
 	strtol \
+	strtoll \
+	strtoul \
 	sysctl \
 	unsetenv \
 	vsnprintf \
@@ -236,8 +315,10 @@ AC_CHECK_FUNCS( \
 
 dnl functions which we may need to provide
 AC_REPLACE_FUNCS( \
+	getopt \
 	realpath \
 	dirname \
+	sigaction \
 	stresep \
 	strlcpy \
 	)
@@ -261,13 +342,20 @@ AC_COMPILE_IFELSE([AC_LANG_PROGRAM([],[[const char *func = __func__;]])],,
 	AC_DEFINE(__func__, __FUNCTION__, C99 function name))
 dnl
 dnl we want this for unit-tests/Makefile
-echo $ECHO_N "checking if diff -u works... $ECHO_C" >&6
-if diff -u /dev/null /dev/null > /dev/null 2>&1; then
-   diff_u=-u
-   echo yes >&6
+dnl GNU diff is known to support -u
+if test -x /usr/gnu/bin/diff; then
+	diff=/usr/gnu/bin/diff
+	diff_u=-u
 else
-   diff_u=
-   echo no >&6
+	diff=${diff:-diff}
+	echo $ECHO_N "checking if $diff -u works... $ECHO_C" >&6
+	if $diff -u /dev/null /dev/null > /dev/null 2>&1; then
+		diff_u=-u
+		echo yes >&6
+	else
+		diff_u=
+		echo no >&6
+	fi
 fi
 dnl
 dnl AC_* don't quite cut it.
@@ -404,16 +492,28 @@ done
 mksrc=`echo $mksrc | sed "s,$srcdir,\\\${srcdir},"`
 echo "Using: MKSRC=$mksrc" 1>&6
 dnl On some systems we want a different default shell by default
-if test -x /usr/xpg4/bin/sh; then
-        defshell_path=${defshell_path:-/usr/xpg4/bin/sh}
-fi
-if test -n "$defshell_path"; then
+for sh in /usr/xpg4/bin/sh $ALT_DEF_SHELLS
+do
+	test -x $sh || continue
+	use_defshell $sh
+	break
+done
+case "$defshell_path$DEFSHELL_INDEX" in
+"")	;;
+*DEFSHELL_INDEX_CUSTOM)
 	echo "Using: SHELL=$defshell_path"  >&6
 	AC_DEFINE_UNQUOTED(DEFSHELL_CUSTOM, "$defshell_path", Path of default shell)
-fi
-if test -n "$DEFSHELL_INDEX"; then
-       AC_DEFINE_UNQUOTED(DEFSHELL_INDEX, $DEFSHELL_INDEX, Shell spec to use by default)
-fi        
+	;;
+/*INDEX*)
+	echo "Using: SHELL=$DEFSHELL_INDEX ($defshell_path)" | sed 's,DEFSHELL_INDEX_,,' >&6
+	AC_DEFINE_UNQUOTED(DEFSHELL_INDEX, $DEFSHELL_INDEX, Shell spec to use by default)
+AC_DEFINE_UNQUOTED(DEFSHELL_PATH, "$defshell_path", Path of default shell)
+	;;
+*)
+	echo "Using: SHELL=$DEFSHELL_INDEX" | sed 's,DEFSHELL_INDEX_,,' >&6
+	AC_DEFINE_UNQUOTED(DEFSHELL_INDEX, $DEFSHELL_INDEX, Shell spec to use by default)
+	;;
+esac
 dnl
 AC_SUBST(machine)
 AC_SUBST(force_machine)
@@ -423,15 +523,29 @@ AC_SUBST(mksrc)
 AC_SUBST(default_sys_path)
 AC_SUBST(INSTALL)
 AC_SUBST(GCC)
+AC_SUBST(diff)
 AC_SUBST(diff_u)
 AC_SUBST(use_meta)
 AC_SUBST(use_filemon)
 AC_SUBST(filemon_h)
 AC_SUBST(_MAKE_VERSION)
+AC_SUBST(UTC_1)
 bm_outfiles="Makefile.config unit-tests/Makefile.config make-bootstrap.sh"
 if test $use_makefile = yes; then
    bm_outfiles="makefile $bm_outfiles"
 fi
+
+here=`'pwd'`
+: srcdir=$srcdir
+: here=  $here
+case "$here" in
+$srcdir/obj*) # make sure we put unit-tests/Makefile.config in the right place
+	obj=`basename $here`
+	mkdir -p $srcdir/unit-tests/$obj
+	test -d unit-tests || ln -s ../unit-tests/$obj unit-tests
+	;;
+esac
+
 AC_OUTPUT($bm_outfiles)
 cat <<EOF
 

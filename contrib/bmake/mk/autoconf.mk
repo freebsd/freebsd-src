@@ -1,4 +1,4 @@
-# $Id: autoconf.mk,v 1.10 2020/08/19 17:51:53 sjg Exp $
+# $Id: autoconf.mk,v 1.16 2021/10/19 17:36:06 sjg Exp $
 #
 #	@(#) Copyright (c) 1996-2009, Simon J. Gerraty
 #
@@ -13,32 +13,37 @@
 #	sjg@crufty.net
 #
 
-.NOPATH:	config.h config.status
+.NOPATH:	config.h config.gen config.recheck config.status 
 
 CONFIGURE_DEPS += ${.CURDIR}/config.h.in ${.CURDIR}/configure
 
 .if !target(config.h)
-config.h:	${CONFIGURE_DEPS} config.status
+config.h:	.NOTMAIN ${CONFIGURE_DEPS} config.status
 	./config.status
+.if !empty(AUTOCONF_GENERATED_MAKEFILE) && ${AUTOCONF_GENERATED_MAKEFILE:T:@m@${"${.MAKE.MAKEFILES:T:M$m}":?yes:no}@:Mno} != ""
+	@echo Generated ${AUTOCONF_GENERATED_MAKEFILE}, you need to restart; exit 1
+.endif
 .endif
 
 .if !target(config.status)
 # avoid the targets behaving differently
+config.status:	.NOTMAIN
 .if exists(${.OBJDIR}/config.status)
 config.status:	config.recheck
 .else
 config.status:  config.gen
 .endif
 
-config.recheck: ${CONFIGURE_DEPS}
+config.recheck: .NOTMAIN ${CONFIGURE_DEPS} config.gen
 	./config.status --recheck
 	@touch $@
 
-config.gen: ${CONFIGURE_DEPS}
+config.gen: .NOTMAIN ${CONFIGURE_DEPS}
 	CC="${CC} ${CCMODE}" ${.CURDIR}/configure --no-create ${CONFIGURE_ARGS}
 	@touch $@ config.recheck
 
-CLEANFILES+= config.recheck config.gen config.status *.meta
+CLEANFILES+= config.recheck config.gen config.status *.meta \
+	${AUTOCONF_GENERATED_MAKEFILE:U}
 .endif
 
 # avoid things blowing up if these are not here...
@@ -67,14 +72,14 @@ ACLOCAL += aclocal.m4
 ACCONFIG += acconfig.h
 .endif
 
-config.h.in:	${.CURDIR}/configure.in ${ACCONFIG}
+config.h.in:	.NOTMAIN ${.CURDIR}/configure.in ${ACCONFIG}
 	(cd ${.CURDIR} && ${AUTOHEADER})
 
-configure:	${.CURDIR}/configure.in ${ACLOCAL}
+configure:	.NOTMAIN ${.CURDIR}/configure.in ${ACLOCAL}
 	(cd ${.CURDIR} && ${AUTOCONF})
 
 AUTOCONF_INPUTS += configure
-autoconf-input:	${AUTOCONF_INPUTS}
+autoconf-input:	.NOTMAIN ${AUTOCONF_INPUTS}
 
 .endif
 .endif

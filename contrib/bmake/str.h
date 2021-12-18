@@ -1,4 +1,4 @@
-/*	$NetBSD: str.h,v 1.9 2021/05/30 21:16:54 rillig Exp $	*/
+/*	$NetBSD: str.h,v 1.12 2021/12/12 13:43:47 rillig Exp $	*/
 
 /*
  Copyright (c) 2021 Roland Illig <rillig@NetBSD.org>
@@ -60,7 +60,6 @@ typedef struct LazyBuf {
 	size_t len;
 	size_t cap;
 	const char *expected;
-	void *freeIt;
 } LazyBuf;
 
 /* The result of splitting a string into words. */
@@ -182,6 +181,14 @@ Substring_Equals(Substring sub, const char *str)
 	       memcmp(sub.start, str, len) == 0;
 }
 
+MAKE_INLINE bool
+Substring_Eq(Substring sub, Substring str)
+{
+	size_t len = Substring_Length(sub);
+	return len == Substring_Length(str) &&
+	       memcmp(sub.start, str.start, len) == 0;
+}
+
 MAKE_STATIC Substring
 Substring_Sub(Substring sub, size_t start, size_t end)
 {
@@ -266,13 +273,12 @@ LazyBuf_Init(LazyBuf *buf, const char *expected)
 	buf->len = 0;
 	buf->cap = 0;
 	buf->expected = expected;
-	buf->freeIt = NULL;
 }
 
 MAKE_INLINE void
 LazyBuf_Done(LazyBuf *buf)
 {
-	free(buf->freeIt);
+	free(buf->data);
 }
 
 MAKE_STATIC void
@@ -329,6 +335,11 @@ LazyBuf_Get(const LazyBuf *buf)
 	return Substring_Init(start, start + buf->len);
 }
 
+/*
+ * Returns the content of the buffer as a newly allocated string.
+ *
+ * See LazyBuf_Get to avoid unnecessary memory allocations.
+ */
 MAKE_STATIC FStr
 LazyBuf_DoneGet(LazyBuf *buf)
 {
@@ -351,6 +362,14 @@ Words_Free(Words w)
 
 
 SubstringWords Substring_Words(const char *, bool);
+
+MAKE_INLINE void
+SubstringWords_Init(SubstringWords *w)
+{
+	w->words = NULL;
+	w->len = 0;
+	w->freeIt = NULL;
+}
 
 MAKE_INLINE void
 SubstringWords_Free(SubstringWords w)

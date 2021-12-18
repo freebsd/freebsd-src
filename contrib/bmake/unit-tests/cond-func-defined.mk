@@ -1,4 +1,4 @@
-# $NetBSD: cond-func-defined.mk,v 1.7 2020/11/15 14:07:53 rillig Exp $
+# $NetBSD: cond-func-defined.mk,v 1.8 2021/12/12 08:55:28 rillig Exp $
 #
 # Tests for the defined() function in .if conditions.
 
@@ -29,7 +29,7 @@ ${:UA B}=	variable name with spaces
 .  error
 .endif
 
-# Parse error: missing closing parenthesis; see ParseFuncArg.
+# Parse error: missing closing parenthesis; see ParseWord.
 .if defined(DEF
 .  error
 .else

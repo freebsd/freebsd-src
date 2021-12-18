@@ -1,6 +1,6 @@
 #
 # RCSid:
-#	$Id: java.mk,v 1.15 2020/08/19 17:51:53 sjg Exp $
+#	$Id: java.mk,v 1.16 2021/12/08 05:56:50 sjg Exp $
 
 #	@(#) Copyright (c) 1998-2001, Simon J. Gerraty
 #
@@ -16,7 +16,7 @@
 #
 
 .if !target(__${.PARSEFILE}__)
-__${.PARSEFILE}__:
+__${.PARSEFILE}__: .NOTMAIN
 
 .include <init.mk>
 

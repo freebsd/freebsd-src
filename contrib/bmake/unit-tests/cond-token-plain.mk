@@ -1,17 +1,18 @@
-# $NetBSD: cond-token-plain.mk,v 1.10 2021/01/21 14:08:09 rillig Exp $
+# $NetBSD: cond-token-plain.mk,v 1.14 2021/12/12 09:36:00 rillig Exp $
 #
 # Tests for plain tokens (that is, string literals without quotes)
-# in .if conditions.
+# in .if conditions.  These are also called bare words.
 
 .MAKEFLAGS: -dc
 
+# The word 'value' after the '!=' is a bare word.
 .if ${:Uvalue} != value
 .  error
 .endif
 
-# Malformed condition since comment parsing is done in an early phase
-# and removes the '#' and everything behind it long before the condition
-# parser gets to see it.
+# Using a '#' in a string literal in a condition leads to a malformed
+# condition since comment parsing is done in an early phase and removes the
+# '#' and everything after it long before the condition parser gets to see it.
 #
 # XXX: The error message is missing for this malformed condition.
 # The right-hand side of the comparison is just a '"', before unescaping.
@@ -32,7 +33,10 @@
 # in a very early parsing phase.
 #
 # See https://gnats.netbsd.org/19596 for example makefiles demonstrating the
-# original problems.  This workaround is probably not needed anymore.
+# original problems.  At that time, the parser didn't recognize the comment in
+# the line '.else # comment3'.  This workaround is not needed anymore since
+# comments are stripped in an earlier phase.  See "case '#'" in
+# CondParser_Token.
 #
 # XXX: Missing error message for the malformed condition. The right-hand
 # side before unescaping is double-quotes, backslash, backslash.
@@ -152,7 +156,7 @@ VAR=	defined
 .endif
 
 # The '\\' is not a line continuation.  Neither is it an unquoted string
-# literal.  Instead, it is parsed as a function argument (ParseFuncArg),
+# literal.  Instead, it is parsed as a bare word (ParseWord),
 # and in that context, the backslash is just an ordinary character. The
 # function argument thus stays '\\' (2 backslashes).  This string is passed
 # to FuncDefined, and since there is no variable named '\\', the condition
@@ -183,6 +187,23 @@ ${:U\\\\}=	backslash
 .  error
 .else
 .  error
+.endif
+
+# In a condition in an .if directive, the left-hand side must not be an
+# unquoted string literal.
+# expect+1: Malformed conditional (left == right)
+.if left == right
+.endif
+# Before cond.c 1.276 from 2021-09-21, a variable expression containing the
+# modifier ':?:' allowed unquoted string literals for the rest of the
+# condition.  This was an unintended implementation mistake.
+# expect+1: Malformed conditional (${0:?:} || left == right)
+.if ${0:?:} || left == right
+.endif
+# This affected only the comparisons after the expression, so the following
+# was still a syntax error.
+# expect+1: Malformed conditional (left == right || ${0:?:})
+.if left == right || ${0:?:}
 .endif
 
 # See cond-token-string.mk for similar tests where the condition is enclosed

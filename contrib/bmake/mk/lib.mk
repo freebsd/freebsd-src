@@ -1,7 +1,7 @@
-# $Id: lib.mk,v 1.71 2020/08/19 17:51:53 sjg Exp $
+# $Id: lib.mk,v 1.73 2021/12/08 05:56:50 sjg Exp $
 
 .if !target(__${.PARSEFILE}__)
-__${.PARSEFILE}__:
+__${.PARSEFILE}__: .NOTMAIN
 
 .include <init.mk>
 
@@ -170,7 +170,7 @@ LD_solib= lib${LIB}_pic.a
 .elif ${TARGET_OSNAME} == "Linux"
 SHLIB_LD = ${CC}
 # this is ambiguous of course
-LD_shared=-shared -Wl,"-soname lib${LIB}.so.${SHLIB_MAJOR}"
+LD_shared=-shared -Wl,-soname,lib${LIB}.so.${SHLIB_MAJOR}
 LD_solib= -Wl,--whole-archive lib${LIB}_pic.a -Wl,--no-whole-archive
 .if ${COMPILER_TYPE} == "gcc"
 # Linux uses GNU ld, which is a multi-pass linker

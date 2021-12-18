@@ -1,4 +1,4 @@
-/*	$NetBSD: str.c,v 1.85 2021/05/30 21:16:54 rillig Exp $	*/
+/*	$NetBSD: str.c,v 1.86 2021/06/21 16:59:18 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -71,7 +71,7 @@
 #include "make.h"
 
 /*	"@(#)str.c	5.8 (Berkeley) 6/1/90"	*/
-MAKE_RCSID("$NetBSD: str.c,v 1.85 2021/05/30 21:16:54 rillig Exp $");
+MAKE_RCSID("$NetBSD: str.c,v 1.86 2021/06/21 16:59:18 rillig Exp $");
 
 /* Return the concatenation of s1 and s2, freshly allocated. */
 char *
@@ -188,10 +188,9 @@ Substring_Words(const char *str, bool expand)
 
 			*word_end++ = '\0';
 			if (words_len == words_cap) {
-				size_t new_size;
 				words_cap *= 2;
-				new_size = (words_cap + 1) * sizeof(words[0]);
-				words = bmake_realloc(words, new_size);
+				words = bmake_realloc(words,
+				    (words_cap + 1) * sizeof(words[0]));
 			}
 			words[words_len++] =
 			    Substring_Init(word_start, word_end - 1);

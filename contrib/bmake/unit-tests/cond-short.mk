@@ -1,4 +1,4 @@
-# $NetBSD: cond-short.mk,v 1.16 2021/03/14 11:49:37 rillig Exp $
+# $NetBSD: cond-short.mk,v 1.18 2021/12/12 09:49:09 rillig Exp $
 #
 # Demonstrates that in conditions, the right-hand side of an && or ||
 # is only evaluated if it can actually influence the result.
@@ -12,7 +12,20 @@
 # possible to skip evaluation of irrelevant variable expressions and only
 # parse them.  They were still evaluated though, the only difference to
 # relevant variable expressions was that in the irrelevant variable
-# expressions, undefined variables were allowed.
+# expressions, undefined variables were allowed.  This allowed for conditions
+# like 'defined(VAR) && ${VAR:S,from,to,} != ""', which no longer produced an
+# error message 'Malformed conditional', but it still evaluated the
+# expression, even though the expression was irrelevant.
+#
+# Since the initial commit on 1993-03-21, the manual page has been saying that
+# make 'will only evaluate a conditional as far as is necessary to determine',
+# but that was wrong.  The code in cond.c 1.1 from 1993-03-21 looks good since
+# it calls Var_Parse(condExpr, VAR_CMD, doEval,&varSpecLen,&doFree), but the
+# definition of Var_Parse does not call the third parameter 'doEval', as would
+# be expected, but instead 'err', accompanied by the comment 'TRUE if
+# undefined variables are an error'.  This subtle difference between 'do not
+# evaluate at all' and 'allow undefined variables' led to the unexpected
+# evaluation.
 #
 # See also:
 #	var-eval-short.mk, for short-circuited variable modifiers
@@ -210,5 +223,57 @@ x!=	echo '0 || $${iV2:U2} < $${V42}: $x' >&2; echo
 .if defined(UNDEF) && ${UNDEF} != "undefined"
 .  error
 .endif
+
+
+# Ensure that irrelevant conditions do not influence the result of the whole
+# condition.  As of cond.c 1.302 from 2021-12-11, an irrelevant function call
+# evaluates to true (see CondParser_FuncCall and CondParser_FuncCallEmpty), an
+# irrelevant comparison evaluates to false (see CondParser_Comparison).
+#
+# An irrelevant true bubbles up to the outermost CondParser_And, where it is
+# ignored.  An irrelevant false bubbles up to the outermost CondParser_Or,
+# where it is ignored.
+#
+# If the condition parser should ever be restructured, the bubbling up of the
+# irrelevant evaluation results might show up accidentally.  Prevent this.
+DEF=	defined
+.undef UNDEF
+
+.if 0 && defined(DEF)
+.  error
+.endif
+
+.if 1 && defined(DEF)
+.else
+.  error
+.endif
+
+.if 0 && defined(UNDEF)
+.  error
+.endif
+
+.if 1 && defined(UNDEF)
+.  error
+.endif
+
+.if 0 || defined(DEF)
+.else
+.  error
+.endif
+
+.if 1 || defined(DEF)
+.else
+.  error
+.endif
+
+.if 0 || defined(UNDEF)
+.  error
+.endif
+
+.if 1 || defined(UNDEF)
+.else
+.  error
+.endif
+
 
 all:

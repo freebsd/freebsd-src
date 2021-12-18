@@ -1,4 +1,4 @@
-# $NetBSD: varmod-order-shuffle.mk,v 1.6 2020/11/09 20:16:33 rillig Exp $
+# $NetBSD: varmod-order-shuffle.mk,v 1.7 2021/08/03 04:46:49 rillig Exp $
 #
 # Tests for the :Ox variable modifier, which returns the words of the
 # variable, shuffled.
@@ -11,7 +11,7 @@
 #
 # Tags: probabilistic
 
-NUMBERS=	one two three four five six seven eight nine ten
+WORDS=		one two three four five six seven eight nine ten
 
 # Note that 1 in every 10! trials two independently generated
 # randomized orderings will be the same.  The test framework doesn't
@@ -20,24 +20,23 @@ NUMBERS=	one two three four five six seven eight nine ten
 # lets the whole test fail once in 1.209.600 runs, on average.
 
 # Create two shuffles using the := assignment operator.
-shuffled1:=	${NUMBERS:Ox}
-shuffled2:=	${NUMBERS:Ox}
+shuffled1:=	${WORDS:Ox}
+shuffled2:=	${WORDS:Ox}
 .if ${shuffled1} == ${shuffled2}
 .  error ${shuffled1} == ${shuffled2}
 .endif
 
 # Sorting the list before shuffling it has no effect.
-shuffled1:=	${NUMBERS:O:Ox}
-shuffled2:=	${NUMBERS:O:Ox}
+shuffled1:=	${WORDS:O:Ox}
+shuffled2:=	${WORDS:O:Ox}
 .if ${shuffled1} == ${shuffled2}
 .  error ${shuffled1} == ${shuffled2}
 .endif
 
 # Sorting after shuffling must produce the original numbers.
-sorted:=	${NUMBERS:Ox:O}
-.if ${sorted} != ${NUMBERS:O}
-.  error ${sorted} != ${NUMBERS:O}
+sorted:=	${WORDS:Ox:O}
+.if ${sorted} != ${WORDS:O}
+.  error ${sorted} != ${WORDS:O}
 .endif
 
 all:
-	@:;

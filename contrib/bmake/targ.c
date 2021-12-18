@@ -1,4 +1,4 @@
-/*	$NetBSD: targ.c,v 1.168 2021/04/03 12:01:00 rillig Exp $	*/
+/*	$NetBSD: targ.c,v 1.173 2021/11/28 19:51:06 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -113,7 +113,7 @@
 #include "dir.h"
 
 /*	"@(#)targ.c	8.2 (Berkeley) 3/19/94"	*/
-MAKE_RCSID("$NetBSD: targ.c,v 1.168 2021/04/03 12:01:00 rillig Exp $");
+MAKE_RCSID("$NetBSD: targ.c,v 1.173 2021/11/28 19:51:06 rillig Exp $");
 
 /*
  * All target nodes that appeared on the left-hand side of one of the
@@ -187,7 +187,7 @@ GNode_New(const char *name)
 	gn->uname = NULL;
 	gn->path = NULL;
 	gn->type = name[0] == '-' && name[1] == 'l' ? OP_LIB : OP_NONE;
-	gn->flags = GNF_NONE;
+	memset(&gn->flags, 0, sizeof(gn->flags));
 	gn->made = UNMADE;
 	gn->unmade = 0;
 	gn->mtime = 0;
@@ -309,7 +309,7 @@ Targ_NewInternalNode(const char *name)
 	Lst_Append(&allTargets, gn);
 	DEBUG1(TARG, "Adding \"%s\" to all targets.\n", gn->name);
 	if (doing_depend)
-		gn->flags |= FROM_DEPEND;
+		gn->flags.fromDepend = true;
 	return gn;
 }
 
@@ -416,36 +416,37 @@ Targ_FmtTime(time_t tm)
 
 /* Print out a type field giving only those attributes the user can set. */
 void
-Targ_PrintType(int type)
+Targ_PrintType(GNodeType type)
 {
-	int tbit;
+	static const struct {
+		GNodeType bit;
+		bool internal;
+		const char name[10];
+	} names[] = {
+		{ OP_MEMBER,	true,	"MEMBER"	},
+		{ OP_LIB,	true,	"LIB"		},
+		{ OP_ARCHV,	true,	"ARCHV"		},
+		{ OP_PHONY,	true,	"PHONY"		},
+		{ OP_NOTMAIN,	false,	"NOTMAIN"	},
+		{ OP_INVISIBLE,	false,	"INVISIBLE"	},
+		{ OP_MADE,	true,	"MADE"		},
+		{ OP_JOIN,	false,	"JOIN"		},
+		{ OP_MAKE,	false,	"MAKE"		},
+		{ OP_SILENT,	false,	"SILENT"	},
+		{ OP_PRECIOUS,	false,	"PRECIOUS"	},
+		{ OP_IGNORE,	false,	"IGNORE"	},
+		{ OP_EXEC,	false,	"EXEC"		},
+		{ OP_USE,	false,	"USE"		},
+		{ OP_OPTIONAL,	false,	"OPTIONAL"	},
+	};
+	size_t i;
 
-	type &= ~OP_OPMASK;
-
-	while (type != 0) {
-		tbit = 1 << (ffs(type) - 1);
-		type &= ~tbit;
-
-		switch (tbit) {
-#define PRINTBIT(bit, attr) case bit: debug_printf(" " attr); break
-#define PRINTDBIT(bit, attr) case bit: DEBUG0(TARG, " " attr); break
-		PRINTBIT(OP_OPTIONAL, ".OPTIONAL");
-		PRINTBIT(OP_USE, ".USE");
-		PRINTBIT(OP_EXEC, ".EXEC");
-		PRINTBIT(OP_IGNORE, ".IGNORE");
-		PRINTBIT(OP_PRECIOUS, ".PRECIOUS");
-		PRINTBIT(OP_SILENT, ".SILENT");
-		PRINTBIT(OP_MAKE, ".MAKE");
-		PRINTBIT(OP_JOIN, ".JOIN");
-		PRINTBIT(OP_INVISIBLE, ".INVISIBLE");
-		PRINTBIT(OP_NOTMAIN, ".NOTMAIN");
-		PRINTDBIT(OP_LIB, ".LIB");
-		PRINTDBIT(OP_MEMBER, ".MEMBER");
-		PRINTDBIT(OP_ARCHV, ".ARCHV");
-		PRINTDBIT(OP_MADE, ".MADE");
-		PRINTDBIT(OP_PHONY, ".PHONY");
-#undef PRINTBIT
-#undef PRINTDBIT
+	for (i = 0; i < sizeof(names) / sizeof(names[0]); i++) {
+		if (type & names[i].bit) {
+			if (names[i].internal)
+				DEBUG1(TARG, " .%s", names[i].name);
+			else
+				debug_printf(" .%s", names[i].name);
 		}
 	}
 }
@@ -480,13 +481,27 @@ GNode_OpName(const GNode *gn)
 	return "";
 }
 
+static bool
+GNodeFlags_IsNone(GNodeFlags flags)
+{
+	return !flags.remake
+	       && !flags.childMade
+	       && !flags.force
+	       && !flags.doneWait
+	       && !flags.doneOrder
+	       && !flags.fromDepend
+	       && !flags.doneAllsrc
+	       && !flags.cycle
+	       && !flags.doneCycle;
+}
+
 /* Print the contents of a node. */
 void
 Targ_PrintNode(GNode *gn, int pass)
 {
 	debug_printf("# %s%s", gn->name, gn->cohort_num);
 	GNode_FprintDetails(opts.debug_file, ", ", gn, "\n");
-	if (gn->flags == 0)
+	if (GNodeFlags_IsNone(gn->flags))
 		return;
 
 	if (!GNode_IsTarget(gn))

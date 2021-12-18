@@ -1,4 +1,4 @@
-# $Id: init.mk,v 1.25 2020/11/27 17:59:46 sjg Exp $
+# $Id: init.mk,v 1.26 2021/12/08 05:56:50 sjg Exp $
 #
 #	@(#) Copyright (c) 2002, Simon J. Gerraty
 #
@@ -14,7 +14,7 @@
 #
 
 .if !target(__${.PARSEFILE}__)
-__${.PARSEFILE}__:
+__${.PARSEFILE}__: .NOTMAIN
 
 .if ${MAKE_VERSION:U0} > 20100408
 _this_mk_dir := ${.PARSEDIR:tA}

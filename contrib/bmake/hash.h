@@ -1,4 +1,4 @@
-/*	$NetBSD: hash.h,v 1.40 2021/04/11 12:46:54 rillig Exp $	*/
+/*	$NetBSD: hash.h,v 1.41 2021/12/07 21:58:01 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -118,6 +118,15 @@ MAKE_INLINE void
 HashEntry_Set(HashEntry *h, void *datum)
 {
 	h->value = datum;
+}
+
+/* Set things up for iterating over all entries in the hash table. */
+MAKE_INLINE void
+HashIter_Init(HashIter *hi, HashTable *t)
+{
+	hi->table = t;
+	hi->nextBucket = 0;
+	hi->entry = NULL;
 }
 
 void HashTable_Init(HashTable *);

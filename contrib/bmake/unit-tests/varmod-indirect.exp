@@ -20,7 +20,7 @@ Indirect modifier "S,a,a," from "${:US,a,a,}"
 Evaluating modifier ${UNDEF:S...} on value "" (eval-keep-dollar-and-undefined, undefined)
 Modifier part: "a"
 Modifier part: "a"
-ModifyWords: split "" into 1 words
+ModifyWords: split "" into 1 word
 Result of ${UNDEF:S,a,a,} is "" (eval-keep-dollar-and-undefined, undefined)
 Global: _ = before ${UNDEF:S,a,a,} after
 ParseReadLine (179): '_:=	before ${UNDEF:${:U}} after'

@@ -1,4 +1,4 @@
-# $NetBSD: deptgt-makeflags.mk,v 1.6 2020/11/15 20:20:58 rillig Exp $
+# $NetBSD: deptgt-makeflags.mk,v 1.7 2021/11/29 00:17:10 rillig Exp $
 #
 # Tests for the special target .MAKEFLAGS in dependency declarations,
 # which adds command line options later, at parse time.
@@ -65,7 +65,7 @@
 .endif
 
 # Next try at defining another newline variable.  Since whitespace around the
-# variable value is trimmed, two empty variable expressions surround the
+# variable value is trimmed, two empty variable expressions ${:U} surround the
 # literal newline now.  This prevents the newline from being skipped during
 # parsing.  The ':=' assignment operator expands the empty variable
 # expressions, leaving only the newline as the variable value.
@@ -80,6 +80,31 @@
 .  error
 .endif
 #.MAKEFLAGS: -d0
+
+# Now do the same for the other escape sequences; see Substring_Words.
+.MAKEFLAGS: CHAR_BS:="$${:U}\b$${:U}"
+.MAKEFLAGS: CHAR_FF:="$${:U}\f$${:U}"
+.MAKEFLAGS: CHAR_NL:="$${:U}\n$${:U}"
+.MAKEFLAGS: CHAR_CR:="$${:U}\r$${:U}"
+.MAKEFLAGS: CHAR_TAB:="$${:U}\t$${:U}"
+
+# Note: backspace is not whitespace, it is a control character.
+.if ${CHAR_BS:C,^[[:cntrl:]]$,found,W} != "found"
+.  error
+.endif
+.if ${CHAR_FF:C,^[[:space:]]$,found,W} != "found"
+.  error
+.endif
+.if ${CHAR_NL:C,^[[:space:]]$,found,W} != "found"
+.  error
+.endif
+.if ${CHAR_CR:C,^[[:space:]]$,found,W} != "found"
+.  error
+.endif
+.if ${CHAR_TAB:C,^[[:space:]]$,found,W} != "found"
+.  error
+.endif
+
 
 # Unbalanced quotes produce an error message.  If they occur anywhere in the
 # command line, the whole command line is skipped.

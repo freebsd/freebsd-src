@@ -1,4 +1,4 @@
-# $Id: compiler.mk,v 1.7 2020/08/19 17:51:53 sjg Exp $
+# $Id: compiler.mk,v 1.10 2021/12/08 05:56:50 sjg Exp $
 #
 #	@(#) Copyright (c) 2019, Simon J. Gerraty
 #
@@ -14,7 +14,7 @@
 #
 
 .if !target(__${.PARSEFILE}__)
-__${.PARSEFILE}__:
+__${.PARSEFILE}__: .NOTMAIN
 
 .if ${MACHINE} == "common"
 COMPILER_TYPE = none
@@ -22,12 +22,12 @@ COMPILER_VERSION = 0
 .endif
 .if empty(COMPILER_TYPE) || empty(COMPILER_VERSION)
 # gcc does not always say gcc
-_v != ${CC} --version 2> /dev/null | \
-	egrep -i 'clang|cc|[1-9]\.[0-9]|Free Software Foundation'
+_v != (${CC} --version) 2> /dev/null | \
+	egrep -i 'clang|cc|[1-9]\.[0-9]|Free Software Foundation'; echo
 .if empty(COMPILER_TYPE)
 .if ${_v:Mclang} != ""
 COMPILER_TYPE = clang
-.elif ${_v:M[Gg][Cc][Cc]} != "" || ${_v:MFoundation*} != ""
+.elif ${_v:M[Gg][Cc][Cc]} != "" || ${_v:MFoundation*} != "" || ${CC:T:M*gcc*} != ""
 COMPILER_TYPE = gcc
 .endif
 .endif

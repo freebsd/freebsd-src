@@ -1,4 +1,4 @@
-# $NetBSD: cond-op.mk,v 1.13 2021/01/19 18:20:30 rillig Exp $
+# $NetBSD: cond-op.mk,v 1.15 2021/12/10 23:12:44 rillig Exp $
 #
 # Tests for operators like &&, ||, ! in .if conditions.
 #
@@ -58,25 +58,34 @@
 .  error
 .endif
 
-# As soon as the parser sees the '$', it knows that the condition will
-# be malformed.  Therefore there is no point in evaluating it.
+# In the following malformed conditions, as soon as the parser sees the '$'
+# after the '0' or the '1', it knows that the condition will be malformed.
+# Therefore there is no point in evaluating the misplaced expression.
 #
-# As of 2021-01-20, that part of the condition is evaluated nevertheless,
-# since CondParser_Or just requests the next token, without restricting
-# the token to the expected tokens.  If the parser were to restrict the
-# valid follow tokens for the token "0" to those that can actually produce
-# a correct condition (which in this case would be comparison operators,
-# TOK_AND, TOK_OR or TOK_RPAREN), the variable expression would not have
-# to be evaluated.
+# Before cond.c 1.286 from 2021-12-10, the extra expression was evaluated
+# nevertheless, since CondParser_Or and CondParser_And asked for the expanded
+# next token, even though in this position of the condition, only comparison
+# operators, TOK_AND, TOK_OR or TOK_RPAREN are allowed.
 #
-# This would add a good deal of complexity to the code though, for almost
-# no benefit, especially since most expressions and conditions are side
-# effect free.
+#
+#
+#
+#
+#
+.undef ERR
 .if 0 ${ERR::=evaluated}
 .  error
 .endif
-.if ${ERR:Uundefined} == evaluated
-.  info After detecting a parse error, the rest is evaluated.
+.if ${ERR:Uundefined} == undefined
+.  info A misplaced expression after 0 is not evaluated.
+.endif
+
+.undef ERR
+.if 1 ${ERR::=evaluated}
+.  error
+.endif
+.if ${ERR:Uundefined} == undefined
+.  info A misplaced expression after 1 is not evaluated.
 .endif
 
 # Just in case that parsing should ever stop on the first error.

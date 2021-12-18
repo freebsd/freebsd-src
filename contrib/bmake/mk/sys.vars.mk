@@ -1,4 +1,4 @@
-# $Id: sys.vars.mk,v 1.6 2020/10/28 20:50:04 sjg Exp $
+# $Id: sys.vars.mk,v 1.7 2021/12/08 05:56:50 sjg Exp $
 #
 #	@(#) Copyright (c) 2003-2009, Simon J. Gerraty
 #
@@ -19,7 +19,7 @@
 #
 # _this ?= ${.PARSEFILE}
 # .if !target(__${_this}__)
-# __${_this}__:
+# __${_this}__: .NOTMAIN
 #
 .if ${MAKE_VERSION:U0} > 20100408
 _this = ${.PARSEDIR:tA}/${.PARSEFILE}

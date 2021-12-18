@@ -1,6 +1,6 @@
 #
 # RCSid:
-#	$Id: autodep.mk,v 1.38 2020/08/19 17:51:53 sjg Exp $
+#	$Id: autodep.mk,v 1.40 2021/12/08 05:56:50 sjg Exp $
 #
 #	@(#) Copyright (c) 1999-2010, Simon J. Gerraty
 #
@@ -20,7 +20,7 @@
 # dependencies are normally updated as part of compilation.
 
 .if !target(__${.PARSEFILE}__)
-__${.PARSEFILE}__:
+__${.PARSEFILE}__: .NOTMAIN
 
 DEPENDFILE?= .depend
 .for d in ${DEPENDFILE:N.depend}
@@ -67,6 +67,9 @@ __dependsrcs= ${__dependsrcsx:O:u}
 CFLAGS_MD?=-MD
 # -MF etc not available on all gcc versions.
 # we "fix" the .o later
+.if ${COMPILER_TYPE:Ugcc} == "gcc" && ${COMPILER_VERSION:U0} < 30000
+CFLAGS_MF=
+.endif
 CFLAGS_MF?=-MF ${.TARGET:T:R}.d -MT ${.TARGET:T:R}.o
 CFLAGS+= ${CFLAGS_MD} ${CFLAGS_MF}
 RM?= rm

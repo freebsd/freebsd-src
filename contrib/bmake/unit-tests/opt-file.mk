@@ -1,6 +1,7 @@
-# $NetBSD: opt-file.mk,v 1.12 2021/04/04 10:13:09 rillig Exp $
+# $NetBSD: opt-file.mk,v 1.14 2021/12/09 20:47:33 rillig Exp $
 #
-# Tests for the -f command line option.
+# Tests for the -f command line option, which adds a makefile to the list of
+# files that are parsed.
 
 # TODO: Implementation
 
@@ -10,7 +11,8 @@ all: file-ending-in-backslash-mmap
 all: line-with-trailing-whitespace
 all: file-containing-null-byte
 
-# Passing '-' as the filename reads from stdin.  This is unusual but possible.
+# When the filename is '-', the input comes from stdin.  This is unusual but
+# possible.
 #
 # In the unlikely case where a file ends in a backslash instead of a newline,
 # that backslash is trimmed.  See ParseGetLine.
@@ -19,7 +21,9 @@ all: file-containing-null-byte
 # outside of the file buffer.
 #
 #	printf '%s' 'VAR=value\' \
-#	| MALLOC_OPTIONS=JA make-2014.01.01.00.00.00 -r -f - -V VAR -dA 2>&1 \
+#	| MALLOC_OPTIONS="JA" \
+#	  MALLOC_CONF="junk:true" \
+#	  make-2014.01.01.00.00.00 -r -f - -V VAR -dA 2>&1 \
 #	| less
 #
 # The debug output shows how make happily uses freshly allocated memory (the
