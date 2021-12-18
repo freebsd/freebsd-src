@@ -1,8 +1,14 @@
-# $NetBSD: var-op-expand.mk,v 1.11 2021/01/01 23:07:48 sjg Exp $
+# $NetBSD: var-op-expand.mk,v 1.15 2021/11/30 23:52:19 rillig Exp $
 #
 # Tests for the := variable assignment operator, which expands its
 # right-hand side.
+#
+# See also:
+#	varname-dot-make-save_dollars.mk
 
+# Force the test results to be independent of the default value of this
+# setting, which is 'yes' for NetBSD's usr.bin/make but 'no' for the bmake
+# distribution and pkgsrc/devel/bmake.
 .MAKE.SAVE_DOLLARS:=      yes
 
 # If the right-hand side does not contain a dollar sign, the ':=' assignment
@@ -173,6 +179,103 @@ VAR_SUBST_${UNDEF}:=	assigned by ':='
 .if ${VAR_SUBST_} != "assigned by ':='"
 .  error
 .endif
+
+
+# The following test case demonstrates that the variable 'LATER' is preserved
+# in the ':=' assignment since the variable 'LATER' is not yet defined.
+# After the assignment to 'LATER', evaluating the variable 'INDIRECT'
+# evaluates 'LATER' as well.
+#
+.undef LATER
+INDIRECT:=	${LATER:S,value,replaced,}
+.if ${INDIRECT} != ""
+.  error
+.endif
+LATER=	late-value
+.if ${INDIRECT} != "late-replaced"
+.  error
+.endif
+
+
+# Same as the test case above, except for the additional modifier ':tl' when
+# evaluating the variable 'INDIRECT'.  Nothing surprising here.
+.undef LATER
+.undef later
+INDIRECT:=	${LATER:S,value,replaced,}
+.if ${INDIRECT:tl} != ""
+.  error
+.endif
+LATER=	uppercase-value
+later=	lowercase-value
+.if ${INDIRECT:tl} != "uppercase-replaced"
+.  error
+.endif
+
+
+# Similar to the two test cases above, the situation gets a bit more involved
+# here, due to the double indirection.  The variable 'indirect' is supposed to
+# be the lowercase version of the variable 'INDIRECT'.
+#
+# The assignment operator ':=' for the variable 'INDIRECT' could be a '=' as
+# well, it wouldn't make a difference in this case.  The crucial detail is the
+# assignment operator ':=' for the variable 'indirect'.  During this
+# assignment, the variable modifier ':S,value,replaced,' is converted to
+# lowercase, which turns 'S' into 's', thus producing an unknown modifier.
+# In this case, make issues a warning, but in cases where the modifier
+# includes a '=', the modifier would be interpreted as a SysV-style
+# substitution like '.c=.o', and make would not issue a warning, leading to
+# silent unexpected behavior.
+#
+# As of 2021-11-20, the actual behavior is unexpected.  Fixing it is not
+# trivial.  When the assignment to 'indirect' takes place, the expressions
+# from the nested expression could be preserved, like this:
+#
+#	Start with:
+#
+#		indirect:=	${INDIRECT:tl}
+#
+#	Since INDIRECT is defined, expand it, remembering that the modifier
+#	':tl' must still be applied to the final result.
+#
+#		indirect:=	${LATER:S,value,replaced,} \
+#				OK \
+#				${LATER:value=sysv}
+#
+#	The variable 'LATER' is not defined.  An idea may be to append the
+#	remaining modifier ':tl' to each expression that is starting with an
+#	undefined variable, resulting in:
+#
+#		indirect:=	${LATER:S,value,replaced,:tl} \
+#				OK \
+#				${LATER:value=sysv:tl}
+#
+#	This would work for the first expression.  The second expression ends
+#	with the SysV modifier ':from=to', and when this modifier is parsed,
+#	it consumes all characters until the end of the expression, which in
+#	this case would replace the suffix 'value' with the literal 'sysv:tl',
+#	ignoring that the ':tl' was intended to be an additional modifier.
+#
+# Due to all of this, this surprising behavior is not easy to fix.
+#
+.undef LATER
+.undef later
+INDIRECT:=	${LATER:S,value,replaced,} OK ${LATER:value=sysv}
+indirect:=	${INDIRECT:tl}
+# expect+1: Unknown modifier "s,value,replaced,"
+.if ${indirect} != " ok "
+.  error
+.else
+.  warning	XXX Neither branch should be taken.
+.endif
+LATER=	uppercase-value
+later=	lowercase-value
+# expect+1: Unknown modifier "s,value,replaced,"
+.if ${indirect} != "uppercase-replaced ok uppercase-sysv"
+.  warning	XXX Neither branch should be taken.
+.else
+.  error
+.endif
+
 
 all:
 	@:;

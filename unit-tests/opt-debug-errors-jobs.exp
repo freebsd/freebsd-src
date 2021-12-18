@@ -24,6 +24,8 @@ line2
 *** Failed target: fail-newline
 *** Failed commands:
 	echo 'line1${.newline}line2'; false
+	=> echo 'line1
+line2'; false
 *** [fail-newline] Error code 1
 
 make: stopped in unit-tests
@@ -43,6 +45,14 @@ word1 word2
 *** Failed commands:
 	echo	'word1'							 'word2'; false
 *** [fail-multiline-intention] Error code 1
+
+make: stopped in unit-tests
+
+*** Failed target: fail-vars
+*** Failed commands:
+	@${COMPILE_C} ${COMPILE_C_FLAGS}
+	=> @false c-compiler flag1 -macro="several words"
+*** [fail-vars] Error code 1
 
 make: stopped in unit-tests
 exit status 1

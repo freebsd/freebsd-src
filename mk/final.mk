@@ -1,7 +1,7 @@
-# $Id: final.mk,v 1.9 2018/01/24 22:57:11 sjg Exp $
+# $Id: final.mk,v 1.10 2021/12/08 05:56:50 sjg Exp $
 
 .if !target(__${.PARSEFILE}__)
-__${.PARSEFILE}__:
+__${.PARSEFILE}__: .NOTMAIN
 
 # provide a hook for folk who want to do scary stuff
 .-include <${.CURDIR:H}/Makefile-final.inc>

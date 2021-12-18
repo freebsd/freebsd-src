@@ -1,1 +1,7 @@
-exit status 0
+make: "var-op-expand.mk" line 265: Unknown modifier "s,value,replaced,"
+make: "var-op-expand.mk" line 268: warning: XXX Neither branch should be taken.
+make: "var-op-expand.mk" line 273: Unknown modifier "s,value,replaced,"
+make: "var-op-expand.mk" line 274: warning: XXX Neither branch should be taken.
+make: Fatal errors encountered -- cannot continue
+make: stopped in unit-tests
+exit status 1

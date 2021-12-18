@@ -1,5 +1,5 @@
-# $Id: varmisc.mk,v 1.23 2021/02/05 20:02:30 sjg Exp $
-# $NetBSD: varmisc.mk,v 1.30 2021/02/04 21:42:47 rillig Exp $
+# $Id: varmisc.mk,v 1.25 2021/12/07 00:03:11 sjg Exp $
+# $NetBSD: varmisc.mk,v 1.32 2021/12/05 10:02:51 rillig Exp $
 #
 # Miscellaneous variable tests.
 
@@ -66,7 +66,7 @@ cmpv:
 	@echo Literal=3.4.5 == ${3.4.5:L:${M_cmpv}}
 	@echo We have ${${.TARGET:T}.only}
 
-# catch misshandling of nested vars in .for loop
+# catch mishandling of nested variables in .for loop
 MAN=
 MAN1=	make.1
 .for s in 1 2
@@ -78,12 +78,15 @@ MAN+=	${MAN$s}
 manok:
 	@echo MAN=${MAN}
 
+# Test parsing of boolean values.
 # begin .MAKE.SAVE_DOLLARS; see Var_SetWithFlags and ParseBoolean.
 SD_VALUES=	0 1 2 False True false true Yes No yes no On Off ON OFF on off
 SD_4_DOLLARS=	$$$$
 
 .for val in ${SD_VALUES}
-.MAKE.SAVE_DOLLARS:=	${val}	# Must be := since a simple = has no effect.
+# The assignment must be done using ':=' since a simple '=' would be
+# interpreted as 'yes', due to the leading '$'; see ParseBoolean.
+.MAKE.SAVE_DOLLARS:=	${val}
 SD.${val}:=		${SD_4_DOLLARS}
 .endfor
 .MAKE.SAVE_DOLLARS:=	yes
@@ -92,6 +95,7 @@ save-dollars:
 .for val in ${SD_VALUES}
 	@printf '%s: %-8s = %s\n' $@ ${val} ${SD.${val}:Q}
 .endfor
+# end .MAKE.SAVE_DOLLARS
 
 # Appending to an undefined variable does not add a space in front.
 .undef APPENDED

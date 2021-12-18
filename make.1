@@ -1,4 +1,4 @@
-.\"	$NetBSD: make.1,v 1.296 2021/02/04 21:42:46 rillig Exp $
+.\"	$NetBSD: make.1,v 1.300 2021/12/12 20:45:48 sjg Exp $
 .\"
 .\" Copyright (c) 1990, 1993
 .\"	The Regents of the University of California.  All rights reserved.
@@ -29,7 +29,7 @@
 .\"
 .\"	from: @(#)make.1	8.4 (Berkeley) 3/19/94
 .\"
-.Dd December 22, 2020
+.Dd December 12, 2021
 .Dt MAKE 1
 .Os
 .Sh NAME
@@ -1163,6 +1163,9 @@ executes.
 .It Ev .SHELL
 The pathname of the shell used to run target scripts.
 It is read-only.
+.It Ev .SUFFIXES
+The list of known suffixes.
+It is read-only.
 .It Ev .TARGETS
 The list of targets explicitly specified on the command line, if any.
 .It Ev VPATH
@@ -1233,8 +1236,20 @@ but selects all words which do not match
 .Ar pattern .
 .It Cm \&:O
 Orders every word in variable alphabetically.
+.It Cm \&:On
+Orders every word in variable numerically.
+A number followed by one of
+.Ql k ,
+.Ql M
+or
+.Ql G
+is multiplied by the appropriate factor (1024 (k), 1048576 (M), or
+1073741824 (G)).
+Both upper- and lower-case letters are accepted.
 .It Cm \&:Or
 Orders every word in variable in reverse alphabetical order.
+.It Cm \&:Orn
+Orders every word in variable in reverse numerical order.
 .It Cm \&:Ox
 Shuffles the words in variable.
 The results will be different each time you are referring to the

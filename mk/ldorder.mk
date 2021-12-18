@@ -1,4 +1,4 @@
-# $Id: ldorder.mk,v 1.25 2018/04/24 23:50:26 sjg Exp $
+# $Id: ldorder.mk,v 1.26 2021/12/08 05:56:50 sjg Exp $
 #
 #	@(#) Copyright (c) 2015, Simon J. Gerraty
 #
@@ -130,7 +130,7 @@ ${_ldorder}: ${_ldorders}
 # it can also add to CFLAGS etc.
 .for __inc in ${LDORDER_LIBS:S,$,.${LDORDER_INC},}
 .if !target(__${__inc}__)
-__${__inc}__:
+__${__inc}__: .NOTMAIN
 # make sure this is reset
 LDORDER_LIBS =
 _ldorders =

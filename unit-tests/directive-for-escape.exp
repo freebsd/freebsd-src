@@ -11,45 +11,45 @@ make: "directive-for-escape.mk" line 29: !"\\
 For: end for 1
 For: loop body:
 .  info ${:U\$}
-make: "directive-for-escape.mk" line 41: $
+make: "directive-for-escape.mk" line 43: $
 For: loop body:
 .  info ${:U${V}}
-make: "directive-for-escape.mk" line 41: value
+make: "directive-for-escape.mk" line 43: value
 For: loop body:
 .  info ${:U${V:=-with-modifier}}
-make: "directive-for-escape.mk" line 41: value-with-modifier
+make: "directive-for-escape.mk" line 43: value-with-modifier
 For: loop body:
 .  info ${:U$(V)}
-make: "directive-for-escape.mk" line 41: value
+make: "directive-for-escape.mk" line 43: value
 For: loop body:
 .  info ${:U$(V:=-with-modifier)}
-make: "directive-for-escape.mk" line 41: value-with-modifier
+make: "directive-for-escape.mk" line 43: value-with-modifier
 For: end for 1
 For: loop body:
 .  info ${:U\${UNDEF\:U\\$\\$}
-make: "directive-for-escape.mk" line 55: ${UNDEF:U\$
+make: "directive-for-escape.mk" line 57: ${UNDEF:U\$
 For: loop body:
 .  info ${:U{{\}\}}
-make: "directive-for-escape.mk" line 55: {{}}
+make: "directive-for-escape.mk" line 57: {{}}
 For: loop body:
 .  info ${:Uend\}}
-make: "directive-for-escape.mk" line 55: end}
+make: "directive-for-escape.mk" line 57: end}
 For: end for 1
 For: loop body:
 .  info ${:Ubegin<${UNDEF:Ufallback:N{{{}}}}>end}
-make: "directive-for-escape.mk" line 67: begin<fallback>end
+make: "directive-for-escape.mk" line 69: begin<fallback>end
 For: end for 1
 For: loop body:
 .  info ${:U\$}
-make: "directive-for-escape.mk" line 75: $
+make: "directive-for-escape.mk" line 77: $
 For: end for 1
 For: loop body:
 .  info ${NUMBERS} ${:Ureplaced}
-make: "directive-for-escape.mk" line 83: one two three replaced
+make: "directive-for-escape.mk" line 85: one two three replaced
 For: end for 1
 For: loop body:
 .  info ${:Ureplaced}
-make: "directive-for-escape.mk" line 93: replaced
+make: "directive-for-escape.mk" line 95: replaced
 For: end for 1
 For: loop body:
 .  info .        $$i: ${:Uinner}
@@ -62,14 +62,31 @@ For: loop body:
 .  info .     $${i2}: ${i2}
 .  info .     $${i,}: ${i,}
 .  info .  adjacent: ${:Uinner}${:Uinner}${:Uinner:M*}${:Uinner}
-make: "directive-for-escape.mk" line 101: .        $i: inner
-make: "directive-for-escape.mk" line 102: .      ${i}: inner
-make: "directive-for-escape.mk" line 103: .   ${i:M*}: inner
-make: "directive-for-escape.mk" line 104: .      $(i): inner
-make: "directive-for-escape.mk" line 105: .   $(i:M*): inner
-make: "directive-for-escape.mk" line 106: . ${i${:U}}: outer
-make: "directive-for-escape.mk" line 107: .    ${i\}}: inner}
-make: "directive-for-escape.mk" line 108: .     ${i2}: two
-make: "directive-for-escape.mk" line 109: .     ${i,}: comma
-make: "directive-for-escape.mk" line 110: .  adjacent: innerinnerinnerinner
-exit status 0
+make: "directive-for-escape.mk" line 103: .        $i: inner
+make: "directive-for-escape.mk" line 104: .      ${i}: inner
+make: "directive-for-escape.mk" line 105: .   ${i:M*}: inner
+make: "directive-for-escape.mk" line 106: .      $(i): inner
+make: "directive-for-escape.mk" line 107: .   $(i:M*): inner
+make: "directive-for-escape.mk" line 108: . ${i${:U}}: outer
+make: "directive-for-escape.mk" line 109: .    ${i\}}: inner}
+make: "directive-for-escape.mk" line 110: .     ${i2}: two
+make: "directive-for-escape.mk" line 111: .     ${i,}: comma
+make: "directive-for-escape.mk" line 112: .  adjacent: innerinnerinnerinner
+For: end for 1
+For: loop body:
+.  info eight $$$$$$$$ and no cents.
+.  info eight ${:Udollar}${:Udollar}${:Udollar}${:Udollar} and no cents.
+make: "directive-for-escape.mk" line 120: eight $$$$ and no cents.
+make: "directive-for-escape.mk" line 121: eight dollardollardollardollar and no cents.
+make: "directive-for-escape.mk" line 130: eight  and no cents.
+For: end for 1
+make: "directive-for-escape.mk" line 137: newline in .for value
+make: "directive-for-escape.mk" line 137: newline in .for value
+For: loop body:
+.  info short: ${:U" "}
+.  info long: ${:U" "}
+make: "directive-for-escape.mk" line 138: short: " "
+make: "directive-for-escape.mk" line 139: long: " "
+make: Fatal errors encountered -- cannot continue
+make: stopped in unit-tests
+exit status 1

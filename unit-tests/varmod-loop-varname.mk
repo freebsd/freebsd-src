@@ -1,8 +1,11 @@
-# $NetBSD: varmod-loop-varname.mk,v 1.2 2021/04/04 13:35:26 rillig Exp $
+# $NetBSD: varmod-loop-varname.mk,v 1.4 2021/12/05 15:01:04 rillig Exp $
 #
 # Tests for the first part of the variable modifier ':@var@...@', which
 # contains the variable name to use during the loop.
 
+# Force the test results to be independent of the default value of this
+# setting, which is 'yes' for NetBSD's usr.bin/make but 'no' for the bmake
+# distribution and pkgsrc/devel/bmake.
 .MAKE.SAVE_DOLLARS=	yes
 
 
@@ -11,6 +14,8 @@
 # Since var.c 1.907 from 2021-04-04, a '$' is no longer allowed in the
 # variable name.
 .if ${:Uone two three:@${:Ubar:S,b,v,}@+${var}+@} != "+one+ +two+ +three+"
+.  error
+.else
 .  error
 .endif
 

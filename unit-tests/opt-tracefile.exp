@@ -1,1 +1,12 @@
+Making dependency1 from <nothing>.
+Making dependency2 from <nothing>.
+Making trace from dependency1 dependency2.
+0 BEG
+1 JOB
+1 DON
+1 JOB
+1 DON
+1 JOB
+1 DON
+0 END
 exit status 0

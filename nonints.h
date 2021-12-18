@@ -1,4 +1,4 @@
-/*	$NetBSD: nonints.h,v 1.213 2021/04/11 13:35:56 rillig Exp $	*/
+/*	$NetBSD: nonints.h,v 1.217 2021/12/12 20:45:48 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -165,9 +165,9 @@ bool Parse_IsVar(const char *, VarAssign *out_var);
 void Parse_Var(VarAssign *, GNode *);
 void Parse_AddIncludeDir(const char *);
 void Parse_File(const char *, int);
-void Parse_SetInput(const char *, int, int, ReadMoreProc, void *);
+void Parse_PushInput(const char *, int, int, ReadMoreProc, void *);
 void Parse_MainName(GNodeList *);
-int Parse_GetFatals(void);
+int Parse_NumErrors(void);
 
 
 #ifndef HAVE_STRLCPY
@@ -192,6 +192,7 @@ void Suff_FindDeps(GNode *);
 SearchPath *Suff_FindPath(GNode *);
 void Suff_SetNull(const char *);
 void Suff_PrintAll(void);
+const char *Suff_NamesStr(void);
 
 /* targ.c */
 void Targ_Init(void);
@@ -211,7 +212,7 @@ void Targ_PrintCmds(GNode *);
 void Targ_PrintNode(GNode *, int);
 void Targ_PrintNodes(GNodeList *, int);
 const char *Targ_FmtTime(time_t);
-void Targ_PrintType(int);
+void Targ_PrintType(GNodeType);
 void Targ_PrintGraph(int);
 void Targ_Propagate(void);
 const char *GNodeMade_Name(GNodeMade);

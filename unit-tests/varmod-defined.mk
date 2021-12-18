@@ -1,8 +1,11 @@
-# $NetBSD: varmod-defined.mk,v 1.11 2021/04/11 13:35:56 rillig Exp $
+# $NetBSD: varmod-defined.mk,v 1.12 2021/11/30 23:52:19 rillig Exp $
 #
 # Tests for the :D variable modifier, which returns the given string
 # if the variable is defined.  It is closely related to the :U modifier.
 
+# Force the test results to be independent of the default value of this
+# setting, which is 'yes' for NetBSD's usr.bin/make but 'no' for the bmake
+# distribution and pkgsrc/devel/bmake.
 .MAKE.SAVE_DOLLARS=	yes
 
 DEF=	defined

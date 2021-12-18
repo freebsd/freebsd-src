@@ -1,16 +1,18 @@
-#	$Id: UnixWare.mk,v 1.7 2020/08/19 17:51:53 sjg Exp $
+#	$Id: UnixWare.mk,v 1.8 2021/10/13 16:45:52 sjg Exp $
 #	based on "Id: SunOS.5.sys.mk,v 1.6 2003/09/30 16:42:23 sjg Exp "
 #	$NetBSD: sys.mk,v 1.19.2.1 1994/07/26 19:58:31 cgd Exp $
 #	@(#)sys.mk	5.11 (Berkeley) 3/13/91
 
 OS ?=		UnixWare
+OS_DEF_FLAG ?= -DUNIXWARE
 unix ?=		We run ${OS}.
 ROOT_GROUP ?=	root
+DEV_TOOLS_PREFIX ?= /usr/local
 
-# can't fine one anywhere, so just stop the dependency
+# can't find one anywhere, so just stop the dependency
 LIBCRT0 ?= /dev/null
 
-PATH ?=/usr/sbin:/usr/bin:/usr/ccs/bin:/usr/ccs/lib:/usr/ucb:/usr/local/bin
+PATH ?= /usr/sbin:/usr/bin:/usr/ccs/bin:/usr/ccs/lib:/usr/ucb:${DEV_TOOLS_PREFIX}/bin
 
 .SUFFIXES: .out .a .ln .o .c ${CXX_SUFFIXES} .F .f .r .y .l .s .S .cl .p .h .sh .m4
 
@@ -32,8 +34,8 @@ COMPILE.S ?=	${CC} ${AFLAGS} ${CPPFLAGS} -c
 LINK.S ?=	${CC} ${AFLAGS} ${CPPFLAGS} ${LDFLAGS}
 
 # at least gcc 2.95 on UnixWare has no internal macro to identify the system
-.if exists(/usr/local/bin/gcc)
-CC ?=		gcc -pipe -DUNIXWARE
+.if exists(${DEV_TOOLS_PREFIX}/bin/gcc)
+CC ?=		gcc -pipe ${OS_DEF_FLAG}
 DBG ?=		-O -g
 STATIC ?=	-static
 .else
@@ -45,8 +47,8 @@ CFLAGS ?=	${DBG}
 COMPILE.c ?=	${CC} ${CFLAGS} ${CPPFLAGS} -c
 LINK.c ?=	${CC} ${CFLAGS} ${CPPFLAGS} ${LDFLAGS}
 
-.if exists(/usr/local/bin/g++)
-CXX ?=		g++ -DUNIXWARE
+.if exists(${DEV_TOOLS_PREFIX}/bin/g++)
+CXX ?=		g++ ${OS_DEF_FLAG}
 .else
 CXX ?=		c++ # XXX: don't know about UDK compilers
 .endif
@@ -54,13 +56,17 @@ CXXFLAGS ?=	${CFLAGS}
 COMPILE.cc ?=	${CXX} ${CXXFLAGS} ${CPPFLAGS} -c
 LINK.cc ?=	${CXX} ${CXXFLAGS} ${CPPFLAGS} ${LDFLAGS}
 
+.if exists(${DEV_TOOLS_PREFIX}/bin/cpp)
+CPP ?=		cpp
+.else
 CPP ?=		/usr/ccs/lib/cpp
+.endif
 .if defined(DESTDIR)
 CPPFLAGS+=	-nostdinc -idirafter ${DESTDIR}/usr/include
 .endif
 
 MK_DEP ?=	mkdeps.sh -N
-.if exists(/usr/local/bin/g77)
+.if exists(${DEV_TOOLS_PREFIX}/bin/g77)
 FC ?=		g77
 .else
 FC ?=		f77 # XXX: don't know about UDK compilers
@@ -125,7 +131,7 @@ SIZE ?=		size
 
 TSORT ?=		tsort
 
-.if exists(/usr/local/bin/bison)
+.if exists(${DEV_TOOLS_PREFIX}/bin/bison)
 YACC ?=		bison -y
 .else
 YACC ?=		yacc

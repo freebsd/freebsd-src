@@ -43,11 +43,11 @@ Result of ${:Uvalue} is "value" (eval-defined, defined)
 Indirect modifier "M*e" from "${:UM*e}"
 Evaluating modifier ${:M...} on value "value" (eval-defined, defined)
 Pattern for ':M' is "*e"
-ModifyWords: split "value" into 1 words
+ModifyWords: split "value" into 1 word
 Result of ${:M*e} is "value" (eval-defined, defined)
 Evaluating modifier ${:M...} on value "value" (eval-defined, defined)
 Pattern for ':M' is "valu[e]"
-ModifyWords: split "value" into 1 words
+ModifyWords: split "value" into 1 word
 Result of ${:Mvalu[e]} is "value" (eval-defined, defined)
 Global:delete VAR
 Var_Parse: ${:Uvariable:unknown} (eval-defined)

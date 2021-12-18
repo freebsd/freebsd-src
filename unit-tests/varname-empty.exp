@@ -2,10 +2,6 @@ Var_SetExpand: variable name "${:U}" expands to empty string, with value "cmdlin
 Var_SetExpand: variable name "" expands to empty string, with value "cmdline-plain" - ignored
 Global: .CURDIR = <curdir>
 Var_Parse: ${MAKE_OBJDIR_CHECK_WRITABLE} (eval)
-Global: .OBJDIR = <curdir>
-Global:delete .PATH (not found)
-Global: .PATH = .
-Global: .PATH = . <curdir>
 Global: .TARGETS = 
 Internal: MAKEFILE = varname-empty.mk
 Global: .MAKE.MAKEFILES = varname-empty.mk

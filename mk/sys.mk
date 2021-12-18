@@ -1,4 +1,4 @@
-# $Id: sys.mk,v 1.52 2020/12/22 20:44:24 sjg Exp $
+# $Id: sys.mk,v 1.53 2021/12/13 05:50:13 sjg Exp $
 #
 #	@(#) Copyright (c) 2003-2009, Simon J. Gerraty
 #
@@ -81,11 +81,10 @@ OPTIONS_DEFAULT_DEPENDENT += \
 
 .-include <options.mk>
 
-.if ${MK_DIRDEPS_BUILD:Uno} == "yes"
-MK_META_MODE = yes
+# :Uno incase options.mk not installed
+.if ${MK_META_MODE:Uno} == "yes"
 .-include <meta.sys.mk>
-.elif ${MK_META_MODE:Uno} == "yes"
-.MAKE.MODE = meta verbose ${META_MODE}
+.MAKE.MODE ?= meta verbose {META_MODE}
 .endif
 # make sure we have a harmless value
 .MAKE.MODE ?= normal

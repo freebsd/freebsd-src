@@ -1,3 +1,234 @@
+2021-12-15  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* cond.c: fix mem leak in CondParser_Leaf
+
+2021-12-12  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20211212
+	Merge with NetBSD make, pick up
+	o rename Parse_SetInput to Parse_PushInput
+	o remove remove period from end of error messages and warnings
+	to be more consistent
+	o arch.c: use simpler memory management for parsing archive members
+	o cond.c: rework and reduce recursion
+	o for.c: rename some functions to better reflect purpose
+	o suff.c: add Suff_NamesStr to provide .SUFFIXES as a string.
+	o var.c: in parse errors, mark whitespace more clearly
+	inline ParseEmptyArg into CondParser_FuncCallEmpty
+	minimize calls to LazyBuf_Get in ParseVarnameLong
+	treat .SUFFIXES as a read-only variable
+
+2021-12-07  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20211207
+	Merge with NetBSD make, pick up
+	o inline HashIter_Init
+	o parse.c: inline common subexpression in ParseRawLine
+	o var.c: merge branches for modifiers ':D' and ':U'
+	extract common code into Expr_Words
+	extract common code into Expr_Str
+	move low-level implementation details out of Var_Parse
+	
+2021-12-06  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20211206
+	Merge with NetBSD make, pick up
+	o add unit-tests/varmod-loop-delete
+	o for.c: inline Str_Words - reduce memory allocation
+	o parse.c: do not try to expand fixed variable names
+	only allocate the name of an included file if necessary
+	clean up ParseInclude
+	o var.c: fix use-after-free in modifier ':@'
+	save a memory allocation in each modifier ':O' and ':u'
+	save a memory allocation in the modifier ':[...]'
+	in UnexportVars, replace Str_Words with Substring_Words to
+	reduce allocations and copying.
+	
+2021-12-04  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20211204
+	Merge with NetBSD make, pick up
+	o flesh out a number of tests
+	o replace enums with bitfields, this simplifies a lot of code.
+	o var.c: refactor ParseModifierPartSubst
+
+2021-10-24  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20211024
+	Merge with NetBSD make, pick up
+	o Punt on write errors - ENOSPC etc.
+
+2021-10-22  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* configure.in: use_defshell, set both DEFSHELL_INDEX
+	and defshell_path if appropriate.
+	This makes it easier to use say the KSH specification with
+	and alternate path for the shell.
+	
+	* configure.in compat.c: for SCO we need to force UseShell
+
+	* configure.in: SCO /bin/sh is not usable, provide a list of
+	alternatives for use as .SHELL.
+	We still have to mark some tests as broken, plus more if we end up
+	with ksh as .SHELL.
+	Issue a warning about skipped tests.
+
+	* boot-strap: leave TOOL_DIFF to configure
+
+	* configure.in: on SCO native cc is not usable,
+	gcc is to be found in /usr/gnu/bin
+	and while ancient is at least able to compile bmake.
+	Thus we add /usr/gnu/bin to PATH if it exists, and later
+	check if $CC would have been found via $PATH.
+	If not we set CC to the full path of $CC.
+	Also gnu diff is known to support -u, so if it exists use it.
+
+	* configure.in: move getopt to AC_REPLACE_FUNCS
+	also add AC_C_INLINE - in an attempt to compile using
+	native cc on SCO.
+
+	* configure.in: check for stresep as well as strsep, since we
+	define the later to the former if necessary, and if we have to
+	provide stresep we also need to provide a prototype.
+
+	* configure.in: we no longer need to worry about
+	sys/cdefs.h providing __RCSID which simplifies things quite a bit.
+
+	* make.h: make sure we have __RCSID
+
+	* unit-tests/Makefile.config.in: add TOOL_DIFF so configure
+	can control it.
+
+2021-10-20  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION: 20211020
+	Merge with NetBSD make, pick up
+	o confirm sync of unit-tests
+
+2021-10-18  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* configure.in: check if timezone Europe/Berlin is supported
+	if not try UTC-1
+	* configure.in: if .OBJDIR is $srcdir/obj we need to create a
+	symlink unit-tests -> ../unit-tests/obj so that
+	unit-tests/Makefile.config is put in the right place.
+	* refine filtering of .OBJDIR in unit-tests
+	
+2021-10-16  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* Fix unit-tests on Minix 3.2.0
+	o job.c: do not punt if read of token pipe fails for EAGAIN.
+	On Minix at least, we are not ready to read the childExitJob pipe
+	when poll says we are.
+	There should actually be no reason for this pipe to be
+	non-blocking, but while that works fine on {Net,Free}BSD it
+	breaks another test case on Minix.
+	o unit-tests/Makefile: deal with variants of error messages
+	  and use of obj as .OBJDIR
+
+2021-10-14  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* configure.in: add sigaction to AC_REPLACE_FUNCS
+	we also need to check for sigaddset etc just for the benefit of
+	sigact.c
+
+	* Add sigact.c as sigaction.c so this "just works".
+	This should have been done back when bmake_signal started using
+	sigaction (I only just noticed that sigact.c wasn't here ;-)
+	Note: I no longer have access to any system where this would matter.
+
+2021-10-13  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20211011
+
+	* Makefile: cleanup a little
+
+	* configure.in: check for sigsetmask
+
+2021-10-01  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20211001
+	Merge with NetBSD make, pick up
+	o reduce locations reducing text size
+	o remove unnecessary const
+	o cond.c: fix lint warning on i386
+	do not allow unquoted 'left == right' after modifier ':?'
+	o hash.c: fix build for DEBUG_HASH_LOOKUP
+	o var.c: fix memory leak in error case of the ':?' modifier
+	
+2021-09-11  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20210911
+	Merge with NetBSD make, pick up
+	o var.c: replace remaining ModChain_ShouldEval with Expr_ShouldEval
+
+2021-09-08  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20210906
+	Merge with NetBSD make, pick up
+	o more unit tests
+	o lint cleanup
+	o rename some functions to better fit purpose
+	o for.c: cleanup - remove unnecessary optimization
+	  fix embedded newlines
+	o parse.c: correct case for CVS/RCS
+	
+2021-08-11  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20210808
+	Merge with NetBSD make, pick up
+	o var.c: remove redundant initialization in ApplyModifier_Order
+
+	* mk/options.mk: issue warning for incorrect usage
+
+2021-08-03  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* var.c: use long for :On if we don't have a 64bit int type 
+
+	* VERSION (_MAKE_VERSION): 20210803
+	Merge with NetBSD make, pick up
+	o rework varmod-order tests to avoid qsort instability
+	o make.1: clarify :On entry
+
+2021-07-31  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20210731
+	Merge with NetBSD make, pick up
+	o fix some lint issues
+	o more unit tests
+	o var.c: rework of ApplyModifier_Order
+
+2021-07-30  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* util.c: add strto*l if HAVE_STRTO*L not defined
+
+	* VERSION (_MAKE_VERSION): 20210730
+	Merge with NetBSD make, pick up
+	o var.c: add :On and :Orn for numeric sort
+	  disabled if no 64bit type available.
+	o _strtol.h: to implement strto*l functions
+
+2021-07-04  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20210704
+	Merge with NetBSD make, pick up
+	o unit-tests: fix some tests to be more portable
+	- job-output-null not all shells do the same number of write calls
+	- objdir-writable if TMPDIR is set; /tmp may not be usable
+
+2021-07-01  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20210701
+	Merge with NetBSD make, pick up
+	o unit-tests: allow for BROKEN_TESTS to list TESTS to be skipped;
+	some tests just cannot work in some environments.
+	o buf.c: simpler upper bound for length in Buf_AddInt
+	o cond.c: fix grammar in error message for malformed conditional
+	o for.c: prevent newline injection (from ${.newline}) in .for loops
+	o var.c: use more practical data type in RegexReplace
+	(avoid need for %zu)
+	extract RegexReplace from ModifyWord_SubstRegex
+	
 2021-06-21  Simon J Gerraty  <sjg@beast.crufty.net>
 
 	* VERSION (_MAKE_VERSION): 20210621

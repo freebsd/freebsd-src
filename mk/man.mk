@@ -1,9 +1,12 @@
-# $Id: man.mk,v 1.20 2012/12/13 01:51:01 sjg Exp $
+# $Id: man.mk,v 1.25 2021/10/31 03:03:14 sjg Exp $
 
 .if !target(__${.PARSEFILE}__)
-__${.PARSEFILE}__:
+__${.PARSEFILE}__: .NOTMAIN
+
+OPTIONS_DEFAULT_NO += CMT2DOC
 
 .include <init.mk>
+.include <options.mk>
 
 # unlike bsd.man.mk we handle 3 approaches
 # 1. install unformated nroff (default)
@@ -21,45 +24,38 @@ NROFF?=		nroff
 MANDIR?=	/usr/share/man
 MANDOC?= man
 
-.SUFFIXES: .1 .2 .3 .4 .5 .6 .7 .8 .9 .cat1 .cat2 .cat3 .cat4 .cat5 .cat6 \
-	.cat7 .cat8 .cat9
+MAN_SUFFIXES?= .1 .2 .3 .4 .5 .6 .7 .8 .9
+.SUFFIXES: ${MAN_SUFFIXES}
+.if ${MANTARGET} == "cat"
+.SUFFIXES: ${MAN_SUFFIXES:S,.,.cat,}
+.endif
 
-.9.cat9 .8.cat8 .7.cat7 .6.cat6 .5.cat5 .4.cat4 .3.cat3 .2.cat2 .1.cat1:
+${MAN_SUFFIXES:@s@$s${s:S,.,.cat,}@}:
 	@echo "${NROFF} -${MANDOC} ${.IMPSRC} > ${.TARGET:T}"
-	@${NROFF} -${MANDOC} ${.IMPSRC} > ${.TARGET:T} || ( rm -f ${.TARGET:T} ; false )
+	@${NROFF} -${MANDOC} ${.IMPSRC} > ${.TARGET:T}.new && \
+	mv ${.TARGET:T}.new ${.TARGET:T}
 
 .if defined(MAN) && !empty(MAN)
 
-# we use cmt2doc.pl to extract manpages from source
-# this is triggered by the setting of EXTRACT_MAN or MAN being set but
-# not existsing.
-
-.if !exists(${MAN:[1]}) && !target(${MAN:[1]})
-.if defined(EXTRACT_MAN) && ${EXTRACT_MAN} == "no"
-MAN=
-.else
-.if exists(/usr/local/share/bin/cmt2doc.pl)
-CMT2DOC?= cmt2doc.pl
+.if ${MK_CMT2DOC} == "yes"
+# use cmt2doc.py to extract manpages from source
+CMT2DOC?= cmt2doc.py
 CMT2DOC_OPTS?=  ${CMT2DOC_ORGOPT} -pmS${.TARGET:E}
-.endif
-.ifdef CMT2DOC
-.c.8 .c.5 .c.3 .c.4 .c.1 \
-	.cc.8 .cc.5 .cc.3 .cc.4 .cc.1 \
-	.h.8 .h.5 .h.3 .h.4 .h.1 \
-	.sh.8 .sh.5 .sh.3 .sh.4 .sh.1 \
-	.pl.8 .pl.5 .pl.3 .pl.4 .pl.1:
+CMT2DOC_SUFFIXES+= .c .h .sh .pl .py
+
+.SUFFIXES: ${CMT2DOC_SUFFIXES}
+
+${CMT2DOC_SUFFIXES:@s@${MAN_SUFFIXES:@m@$s$m@}@}:
 	@echo "${CMT2DOC} ${.IMPSRC} > ${.TARGET:T}"
-	@${CMT2DOC} ${CMT2DOC_OPTS} ${.IMPSRC} > ${.TARGET:T} || ( rm -f ${.TARGET:T} ; false )
-.else
-MAN=
-.endif
-.endif
+	@${CMT2DOC} ${CMT2DOC_OPTS} ${.IMPSRC} > ${.TARGET:T}.new && \
+	mv ${.TARGET:T}.new ${.TARGET:T}
+
 .endif
 
 _mandir=${DESTDIR}${MANDIR}/${MANTARGET}`echo $$page | sed -e 's/.*\.cat/./' -e 's/.*\.//'`
 .if ${MANTARGET} == "cat"
 _mfromdir?=.
-MANALL=	${MAN:S/.1$/.cat1/g:S/.2$/.cat2/g:S/.3$/.cat3/g:S/.4$/.cat4/g:S/.5$/.cat5/g:S/.6$/.cat6/g:S/.7$/.cat7/g:S/.8$/.cat8/g:S/.9$/.cat9/g}
+MANALL=	${MAN:${MAN_SUFFIXES:S,.,,:@m@S/.$m/.cat$m/@:ts:}}
 .if ${MCATEXT} == ""
 _minstpage=`echo $$page | sed 's/\.cat/./'`
 .else

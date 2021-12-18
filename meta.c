@@ -1,4 +1,4 @@
-/*      $NetBSD: meta.c,v 1.181 2021/04/04 10:05:08 rillig Exp $ */
+/*      $NetBSD: meta.c,v 1.185 2021/11/27 22:04:02 rillig Exp $ */
 
 /*
  * Implement 'meta' mode.
@@ -98,6 +98,9 @@ extern char    **environ;
 #if !defined(HAVE_STRSEP)
 # define strsep(s, d) stresep((s), (d), '\0')
 #endif
+#if !defined(HAVE_STRESEP)
+char * stresep(char **, const char *, int);
+#endif
 
 /*
  * Filemon is a kernel module which snoops certain syscalls.
@@ -149,11 +152,11 @@ meta_open_filemon(BuildMon *pbm)
     else
 	pbm->mon_fd = mkTempFile("filemon.XXXXXX", NULL, 0);
     if ((dupfd = dup(pbm->mon_fd)) == -1) {
-	err(1, "Could not dup filemon output!");
+	Punt("Could not dup filemon output: %s", strerror(errno));
     }
     (void)fcntl(dupfd, F_SETFD, FD_CLOEXEC);
     if (filemon_setfd(pbm->filemon, dupfd) == -1) {
-	err(1, "Could not set filemon file descriptor!");
+	Punt("Could not set filemon file descriptor: %s", strerror(errno));
     }
     /* we don't need these once we exec */
     (void)fcntl(pbm->mon_fd, F_SETFD, FD_CLOEXEC);
@@ -191,7 +194,9 @@ filemon_read(FILE *mfp, int fd)
 		error = EIO;
 	}
     }
-    fflush(mfp);
+    if (fflush(mfp) != 0)
+	Punt("Cannot write filemon data to meta file: %s",
+	    strerror(errno));
     if (close(fd) < 0)
 	error = errno;
     return error;
@@ -248,8 +253,8 @@ meta_name(char *mname, size_t mnamelen,
 	  const char *cwd)
 {
     char buf[MAXPATHLEN];
-    char *rp;
-    char *cp;
+    char *rp, *cp;
+    const char *tname_base;
     char *tp;
     char *dtp;
     size_t ldname;
@@ -261,13 +266,13 @@ meta_name(char *mname, size_t mnamelen,
      * So we use realpath() just to get the dirname, and leave the
      * basename as given to us.
      */
-    if ((cp = strrchr(tname, '/')) != NULL) {
+    if ((tname_base = strrchr(tname, '/')) != NULL) {
 	if (cached_realpath(tname, buf) != NULL) {
 	    if ((rp = strrchr(buf, '/')) != NULL) {
 		rp++;
-		cp++;
-		if (strcmp(cp, rp) != 0)
-		    strlcpy(rp, cp, sizeof buf - (size_t)(rp - buf));
+		tname_base++;
+		if (strcmp(tname_base, rp) != 0)
+		    strlcpy(rp, tname_base, sizeof buf - (size_t)(rp - buf));
 	    }
 	    tname = buf;
 	} else {
@@ -325,8 +330,7 @@ is_submake(const char *cmd, GNode *gn)
     static const char *p_make = NULL;
     static size_t p_len;
     char *mp = NULL;
-    char *cp;
-    char *cp2;
+    const char *cp, *cp2;
     bool rc = false;
 
     if (p_make == NULL) {
@@ -412,7 +416,7 @@ printCMDs(GNode *gn, FILE *fp)
 	} \
 	return false; \
     } \
-} while (/*CONSTCOND*/false)
+} while (false)
 
 
 /*
@@ -523,7 +527,7 @@ meta_create(BuildMon *pbm, GNode *gn)
 #endif
 
     if ((fp = fopen(fname, "w")) == NULL)
-	err(1, "Could not open meta file '%s'", fname);
+	Punt("Could not open meta file '%s': %s", fname, strerror(errno));
 
     fprintf(fp, "# Meta data file %s\n", fname);
 
@@ -541,7 +545,9 @@ meta_create(BuildMon *pbm, GNode *gn)
     }
 
     fprintf(fp, "-- command output --\n");
-    fflush(fp);
+    if (fflush(fp) != 0)
+	Punt("Cannot write expanded command to meta file: %s",
+	    strerror(errno));
 
     Global_Append(".MAKE.META.FILES", fname);
     Global_Append(".MAKE.META.CREATED", fname);
@@ -557,9 +563,9 @@ meta_create(BuildMon *pbm, GNode *gn)
 }
 
 static bool
-boolValue(char *s)
+boolValue(const char *s)
 {
-    switch(*s) {
+    switch (*s) {
     case '0':
     case 'N':
     case 'n':
@@ -594,7 +600,7 @@ void
 meta_mode_init(const char *make_mode)
 {
     static bool once = false;
-    char *cp;
+    const char *cp;
     FStr value;
 
     useMeta = true;
@@ -715,7 +721,7 @@ meta_job_child(Job *job)
 
 	    pid = getpid();
 	    if (filemon_setpid_child(pbm->filemon, pid) == -1) {
-		err(1, "Could not set filemon pid!");
+		Punt("Could not set filemon pid: %s", strerror(errno));
 	    }
 	}
     }
@@ -855,8 +861,10 @@ meta_cmd_finish(void *pbmp)
     if (pbm->filemon != NULL) {
 	while (filemon_process(pbm->filemon) > 0)
 	    continue;
-	if (filemon_close(pbm->filemon) == -1)
+	if (filemon_close(pbm->filemon) == -1) {
 	    error = errno;
+	    Punt("filemon failed: %s", strerror(errno));
+	}
 	x = filemon_read(pbm->mfp, pbm->mon_fd);
 	if (error == 0 && x != 0)
 	    error = x;
@@ -1710,7 +1718,7 @@ meta_compat_parent(pid_t child)
 	    fflush(stdout);
 	    buf[nread] = '\0';
 	    meta_job_output(NULL, buf, "");
-	} while (/*CONSTCOND*/false);
+	} while (false);
 	if (metafd != -1 && FD_ISSET(metafd, &readfds) != 0) {
 	    if (meta_job_event(NULL) <= 0)
 		metafd = -1;

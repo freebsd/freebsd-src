@@ -1,4 +1,4 @@
-/*	$NetBSD: job.c,v 1.435 2021/06/16 09:47:51 rillig Exp $	*/
+/*	$NetBSD: job.c,v 1.440 2021/11/28 19:51:06 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -155,7 +155,7 @@
 #include "trace.h"
 
 /*	"@(#)job.c	8.2 (Berkeley) 3/19/94"	*/
-MAKE_RCSID("$NetBSD: job.c,v 1.435 2021/06/16 09:47:51 rillig Exp $");
+MAKE_RCSID("$NetBSD: job.c,v 1.440 2021/11/28 19:51:06 rillig Exp $");
 
 /*
  * A shell defines how the commands are run.  All commands for a target are
@@ -778,8 +778,8 @@ ShellWriter_WriteFmt(ShellWriter *wr, const char *fmt, const char *arg)
 	DEBUG1(JOB, fmt, arg);
 
 	(void)fprintf(wr->f, fmt, arg);
-	/* XXX: Is flushing needed in any case, or only if f == stdout? */
-	(void)fflush(wr->f);
+	if (wr->f == stdout)
+		(void)fflush(wr->f);
 }
 
 static void
@@ -1081,10 +1081,20 @@ DebugFailedJob(const Job *job)
 	if (!DEBUG(ERROR))
 		return;
 
-	debug_printf("\n*** Failed target: %s\n*** Failed commands:\n",
-	    job->node->name);
-	for (ln = job->node->commands.first; ln != NULL; ln = ln->next)
-		debug_printf("\t%s\n", (const char *)ln->datum);
+	debug_printf("\n");
+	debug_printf("*** Failed target: %s\n", job->node->name);
+	debug_printf("*** Failed commands:\n");
+	for (ln = job->node->commands.first; ln != NULL; ln = ln->next) {
+		const char *cmd = ln->datum;
+		debug_printf("\t%s\n", cmd);
+
+		if (strchr(cmd, '$') != NULL) {
+			char *xcmd;
+			(void)Var_Subst(cmd, job->node, VARE_WANTRES, &xcmd);
+			debug_printf("\t=> %s\n", xcmd);
+			free(xcmd);
+		}
+	}
 }
 
 static void
@@ -1176,7 +1186,9 @@ JobFinish (Job *job, WAIT_T status)
 
 		JobClosePipes(job);
 		if (job->cmdFILE != NULL && job->cmdFILE != stdout) {
-			(void)fclose(job->cmdFILE);
+			if (fclose(job->cmdFILE) != 0)
+				Punt("Cannot write shell script for '%s': %s",
+				    job->node->name, strerror(errno));
 			job->cmdFILE = NULL;
 		}
 		done = true;
@@ -1368,7 +1380,7 @@ Job_CheckCommands(GNode *gn, void (*abortProc)(const char *, ...))
 	 * this node's parents so they never get examined.
 	 */
 
-	if (gn->flags & FROM_DEPEND) {
+	if (gn->flags.fromDepend) {
 		if (!Job_RunTarget(".STALE", gn->fname))
 			fprintf(stdout,
 			    "%s: %s, %d: ignoring stale %s for %s\n",
@@ -1541,7 +1553,9 @@ JobExec(Job *job, char **argv)
 	watchfd(job);
 
 	if (job->cmdFILE != NULL && job->cmdFILE != stdout) {
-		(void)fclose(job->cmdFILE);
+		if (fclose(job->cmdFILE) != 0)
+			Punt("Cannot write shell script for '%s': %s",
+			    job->node->name, strerror(errno));
 		job->cmdFILE = NULL;
 	}
 
@@ -2111,7 +2125,7 @@ Job_CatchOutput(void)
 				JobRestartJobs();
 		} else if (count == 0)
 			Punt("unexpected eof on token pipe");
-		else
+		else if (errno != EAGAIN)
 			Punt("token pipe read: %s", strerror(errno));
 		nready--;
 	}
@@ -2165,8 +2179,11 @@ InitShellNameAndPath(void)
 		return;
 	}
 #endif
-
+#ifdef DEFSHELL_PATH
+	shellPath = DEFSHELL_PATH;
+#else
 	shellPath = str_concat3(_PATH_DEFSHELLDIR, "/", shellName);
+#endif
 }
 
 void

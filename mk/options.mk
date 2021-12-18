@@ -1,4 +1,4 @@
-# $Id: options.mk,v 1.13 2020/08/19 17:51:53 sjg Exp $
+# $Id: options.mk,v 1.19 2021/10/03 16:29:51 sjg Exp $
 #
 #	@(#) Copyright (c) 2012, Simon J. Gerraty
 #
@@ -26,8 +26,8 @@
 # User sets WITH_* and WITHOUT_* to indicate what they want.
 # We set ${OPTION_PREFIX:UMK_}* which is then all we need care about.
 OPTIONS_DEFAULT_VALUES += \
-	${OPTIONS_DEFAULT_NO:O:u:S,$,/no,} \
-	${OPTIONS_DEFAULT_YES:O:u:S,$,/yes,}
+	${OPTIONS_DEFAULT_NO:U:O:u:S,$,/no,} \
+	${OPTIONS_DEFAULT_YES:U:O:u:S,$,/yes,}
 
 OPTION_PREFIX ?= MK_
 
@@ -36,6 +36,10 @@ OPTION_PREFIX ?= MK_
 # DOMINANT_* is set to "yes"
 # Otherwise WITH_* and WITHOUT_* override the default.
 .for o in ${OPTIONS_DEFAULT_VALUES:M*/*}
+.if defined(WITH_${o:H}) && ${WITH_${o:H}} == "no"
+# a common miss-use - point out correct usage
+.warning use WITHOUT_${o:H}=1 not WITH_${o:H}=no
+.endif
 .if defined(NO_${o:H}) || defined(NO${o:H})
 # we cannot do it
 ${OPTION_PREFIX}${o:H} ?= no
@@ -77,6 +81,32 @@ ${OPTION_PREFIX}${o:H} ?= no
 ${OPTION_PREFIX}${o:H} ?= ${${OPTION_PREFIX}${o:T}}
 .endif
 .endfor
-.undef OPTIONS_DEFAULT_VALUES
+
+# allow displaying/describing set options
+.set_options := ${.set_options} \
+	${OPTIONS_DEFAULT_VALUES:H:N.} \
+	${OPTIONS_DEFAULT_DEPENDENT:U:H:N.} \
+
+# this can be used in .info as well as target below
+OPTIONS_SHOW ?= ${.set_options:O:u:@o@${OPTION_PREFIX}$o=${${OPTION_PREFIX}$o}@}
+# prefix for variables describing options
+OPTION_DESCRIPTION_PREFIX ?= DESCRIPTION_
+OPTION_DESCRIPTION_SEPARATOR ?= ==
+
+OPTIONS_DESCRIBE ?= ${.set_options:O:u:@o@${OPTION_PREFIX}$o=${${OPTION_PREFIX}$o}${${OPTION_DESCRIPTION_PREFIX}$o:S,^, ${OPTION_DESCRIPTION_SEPARATOR} ,1}${.newline}@}
+
+.if !commands(show-options)
+show-options: .NOTMAIN .PHONY
+	@echo; echo "${OPTIONS_SHOW:ts\n}"; echo
+.endif
+
+.if !commands(describe-options)
+describe-options: .NOTMAIN .PHONY
+	@echo; echo "${OPTIONS_DESCRIBE}"; echo
+.endif
+
+# we expect to be included more than once
+.undef OPTIONS_DEFAULT_DEPENDENT
 .undef OPTIONS_DEFAULT_NO
+.undef OPTIONS_DEFAULT_VALUES
 .undef OPTIONS_DEFAULT_YES
