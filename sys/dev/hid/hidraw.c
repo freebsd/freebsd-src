@@ -579,8 +579,9 @@ hidraw_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 	if (sc == NULL)
 		return (EIO);
 
-#ifdef COMPAT_FREEBSD32
 	hgd = (struct hidraw_gen_descriptor *)addr;
+
+#ifdef COMPAT_FREEBSD32
 	switch (cmd) {
 	case HIDRAW_GET_REPORT_DESC32:
 	case HIDRAW_GET_REPORT32:
