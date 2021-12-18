@@ -1,7 +1,7 @@
-# $Id: doc.mk,v 1.7 2019/06/09 16:22:08 sjg Exp $
+# $Id: doc.mk,v 1.8 2021/12/08 05:56:50 sjg Exp $
 
 .if !target(__${.PARSEFILE}__)
-__${.PARSEFILE}__:
+__${.PARSEFILE}__: .NOTMAIN
 
 .include <init.mk>
 

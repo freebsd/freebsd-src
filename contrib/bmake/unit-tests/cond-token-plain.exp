@@ -27,28 +27,35 @@ lhs = "var&&name", rhs = "var&&name", op = !=
 CondParser_Eval: ${:Uvar}||name != "var||name"
 lhs = "var||name", rhs = "var||name", op = !=
 CondParser_Eval: bare
-make: "cond-token-plain.mk" line 102: A bare word is treated like defined(...), and the variable 'bare' is not defined.
+make: "cond-token-plain.mk" line 106: A bare word is treated like defined(...), and the variable 'bare' is not defined.
 CondParser_Eval: VAR
-make: "cond-token-plain.mk" line 107: A bare word is treated like defined(...).
+make: "cond-token-plain.mk" line 111: A bare word is treated like defined(...).
 CondParser_Eval: V${:UA}R
-make: "cond-token-plain.mk" line 114: ok
+make: "cond-token-plain.mk" line 118: ok
 CondParser_Eval: V${UNDEF}AR
-make: "cond-token-plain.mk" line 122: Undefined variables in bare words expand to an empty string.
+make: "cond-token-plain.mk" line 126: Undefined variables in bare words expand to an empty string.
 CondParser_Eval: 0${:Ux00}
-make: "cond-token-plain.mk" line 130: Numbers can be composed from literals and variable expressions.
-CondParser_Eval: 0${:Ux01}
 make: "cond-token-plain.mk" line 134: Numbers can be composed from literals and variable expressions.
+CondParser_Eval: 0${:Ux01}
+make: "cond-token-plain.mk" line 138: Numbers can be composed from literals and variable expressions.
 CondParser_Eval: "" ==
-make: "cond-token-plain.mk" line 140: Missing right-hand-side of operator '=='
+make: "cond-token-plain.mk" line 144: Missing right-hand side of operator '=='
 CondParser_Eval: == ""
-make: "cond-token-plain.mk" line 148: Malformed conditional (== "")
+make: "cond-token-plain.mk" line 152: Malformed conditional (== "")
 CondParser_Eval: \\
-make: "cond-token-plain.mk" line 163: The variable '\\' is not defined.
+make: "cond-token-plain.mk" line 167: The variable '\\' is not defined.
 CondParser_Eval: \\
-make: "cond-token-plain.mk" line 168: Now the variable '\\' is defined.
+make: "cond-token-plain.mk" line 172: Now the variable '\\' is defined.
 CondParser_Eval: "unquoted\"quoted" != unquoted"quoted
 lhs = "unquoted"quoted", rhs = "unquoted"quoted", op = !=
 CondParser_Eval: $$$$$$$$ != ""
+CondParser_Eval: left == right
+make: "cond-token-plain.mk" line 195: Malformed conditional (left == right)
+CondParser_Eval: ${0:?:} || left == right
+CondParser_Eval: 0
+make: "cond-token-plain.mk" line 201: Malformed conditional (${0:?:} || left == right)
+CondParser_Eval: left == right || ${0:?:}
+make: "cond-token-plain.mk" line 206: Malformed conditional (left == right || ${0:?:})
 make: Fatal errors encountered -- cannot continue
 make: stopped in unit-tests
 exit status 1

@@ -6,7 +6,7 @@ make: "cond-func.mk" line 102: A plain function name is parsed as !empty(...).
 make: "cond-func.mk" line 109: A plain function name is parsed as !empty(...).
 make: "cond-func.mk" line 119: Symbols may start with a function name.
 make: "cond-func.mk" line 124: Symbols may start with a function name.
-make: "cond-func.mk" line 130: Malformed conditional (defined()
+make: "cond-func.mk" line 130: Missing closing parenthesis for defined()
 make: Fatal errors encountered -- cannot continue
 make: stopped in unit-tests
 exit status 1

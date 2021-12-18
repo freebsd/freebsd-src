@@ -54,6 +54,7 @@ sys/Linux.mk
 sys/NetBSD.mk
 sys/OSF1.mk
 sys/OpenBSD.mk
+sys/SCO_SV.mk
 sys/SunOS.mk
 sys/UnixWare.mk
 target-flags.mk

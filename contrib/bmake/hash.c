@@ -1,4 +1,4 @@
-/*	$NetBSD: hash.c,v 1.64 2021/04/11 12:46:54 rillig Exp $	*/
+/*	$NetBSD: hash.c,v 1.66 2021/12/07 21:58:01 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -74,7 +74,7 @@
 #include "make.h"
 
 /*	"@(#)hash.c	8.1 (Berkeley) 6/6/93"	*/
-MAKE_RCSID("$NetBSD: hash.c,v 1.64 2021/04/11 12:46:54 rillig Exp $");
+MAKE_RCSID("$NetBSD: hash.c,v 1.66 2021/12/07 21:58:01 rillig Exp $");
 
 /*
  * The ratio of # entries to # buckets at which we rebuild the table to
@@ -152,7 +152,7 @@ HashTable_FindEntryBySubstring(HashTable *t, Substring key, unsigned int h)
 	unsigned int chainlen = 0;
 
 #ifdef DEBUG_HASH_LOOKUP
-	DEBUG4(HASH, "%s: %p h=%08x key=%.*s\n", __func__, t, h,
+	DEBUG5(HASH, "%s: %p h=%08x key=%.*s\n", __func__, t, h,
 	    (int)Substring_Length(key), key.start);
 #endif
 
@@ -331,15 +331,6 @@ HashTable_DeleteEntry(HashTable *t, HashEntry *he)
 		}
 	}
 	abort();
-}
-
-/* Set things up for iterating over all entries in the hash table. */
-void
-HashIter_Init(HashIter *hi, HashTable *t)
-{
-	hi->table = t;
-	hi->nextBucket = 0;
-	hi->entry = NULL;
 }
 
 /*

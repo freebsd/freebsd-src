@@ -37,7 +37,7 @@
 #
 
 # RCSid:
-#	$Id: stage-install.sh,v 1.9 2020/08/28 01:04:13 sjg Exp $
+#	$Id: stage-install.sh,v 1.10 2021/11/17 07:06:31 sjg Exp $
 #
 #	@(#) Copyright (c) 2013-2020, Simon J. Gerraty
 #
@@ -117,8 +117,12 @@ StageDirdep() {
   t=$1
   if [ -s $t.dirdep ]; then
       cmp -s $_DIRDEP $t.dirdep && return
-      echo "ERROR: $t installed by `cat $t.dirdep` not `cat $_DIRDEP`" >&2
-      exit 1
+      case "${STAGE_CONFLICT:-error}" in
+      [Ee]*) STAGE_CONFLICT=ERROR action=exit;;
+      *) STAGE_CONFLICT=WARNING action=: ;;
+      esac
+      echo "$STAGE_CONFLICT: $t installed by `cat $t.dirdep` not `cat $_DIRDEP`" >&2
+      $action 1
   fi
   LnCp $_DIRDEP $t.dirdep || exit 1
 }

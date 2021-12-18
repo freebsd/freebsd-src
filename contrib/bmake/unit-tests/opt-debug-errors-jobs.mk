@@ -1,4 +1,4 @@
-# $NetBSD: opt-debug-errors-jobs.mk,v 1.1 2021/04/27 16:20:06 rillig Exp $
+# $NetBSD: opt-debug-errors-jobs.mk,v 1.2 2021/11/27 23:56:11 rillig Exp $
 #
 # Tests for the -de command line option, which adds debug logging for
 # failed commands and targets; since 2021-04-27 also in jobs mode.
@@ -10,6 +10,7 @@ all: fail-escaped-space
 all: fail-newline
 all: fail-multiline
 all: fail-multiline-intention
+all: fail-vars
 
 fail-spaces:
 	echo '3   spaces'; false
@@ -34,3 +35,14 @@ fail-multiline:
 fail-multiline-intention:
 	echo	'word1'							\
 		'word2'; false
+
+# In makefiles that rely heavily on abstracted variables, it is not possible
+# to determine the actual command from the unexpanded command alone. To help
+# debugging these issues (for example in NetBSD's build.sh), output the
+# expanded command as well whenever it differs from the unexpanded command.
+# Since 2021-11-28.
+COMPILE_C=	false c-compiler
+COMPILE_C_DEFS=	macro="several words"
+COMPILE_C_FLAGS=flag1 ${COMPILE_C_DEFS:@def@-${def}@}
+fail-vars:
+	@${COMPILE_C} ${COMPILE_C_FLAGS}

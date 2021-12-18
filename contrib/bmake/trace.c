@@ -1,4 +1,4 @@
-/*	$NetBSD: trace.c,v 1.28 2021/02/05 05:15:12 rillig Exp $	*/
+/*	$NetBSD: trace.c,v 1.29 2021/09/21 23:06:18 rillig Exp $	*/
 
 /*
  * Copyright (c) 2000 The NetBSD Foundation, Inc.
@@ -48,13 +48,13 @@
 #include "job.h"
 #include "trace.h"
 
-MAKE_RCSID("$NetBSD: trace.c,v 1.28 2021/02/05 05:15:12 rillig Exp $");
+MAKE_RCSID("$NetBSD: trace.c,v 1.29 2021/09/21 23:06:18 rillig Exp $");
 
 static FILE *trfile;
 static pid_t trpid;
 const char *trwd;
 
-static const char *evname[] = {
+static const char evname[][4] = {
 	"BEG",
 	"END",
 	"ERR",

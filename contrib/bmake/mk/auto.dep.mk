@@ -1,8 +1,8 @@
 #
 # RCSid:
-#	$Id: auto.dep.mk,v 1.6 2020/08/19 17:51:53 sjg Exp $
+#	$Id: auto.dep.mk,v 1.10 2021/12/11 18:57:41 sjg Exp $
 #
-#	@(#) Copyright (c) 2010, Simon J. Gerraty
+#	@(#) Copyright (c) 2010-2021, Simon J. Gerraty
 #
 #	This file is provided in the hope that it will
 #	be of use.  There is absolutely NO WARRANTY.
@@ -30,45 +30,59 @@
 # dep.mk will handle that itself.
 #
 .if !target(__${.PARSEFILE}__)
-__${.PARSEFILE}__:
-
-# this what bmake > 20100401 will look for
-.MAKE.DEPENDFILE ?= .depend
+__${.PARSEFILE}__: .NOTMAIN
 
 # set this to -MMD to ignore /usr/include
 # actually it ignores <> so may not be a great idea
 CFLAGS_MD ?= -MD
 # -MF etc not available on all gcc versions.
+.if ${COMPILER_TYPE:Ugcc} == "gcc" && ${COMPILER_VERSION:U0} < 30000
+CFLAGS_MF=
+.endif
 CFLAGS_MF ?= -MF ${.TARGET:T}.d -MT ${.TARGET:T}
 CFLAGS += ${CFLAGS_MD} ${CFLAGS_MF}
 CXXFLAGS += ${CFLAGS_MD} ${CFLAGS_MF}
 
-CLEANFILES += .depend ${.MAKE.DEPENDFILE} *.d
+CLEANFILES += .depend *.d
 
-.if ${MAKE_VERSION} < 20160218
-# skip generating dependfile for misc targets
-.if ${.TARGETS:Uall:M*all} != ""
-.END:	${.MAKE.DEPENDFILE}
-.endif
+.if ${MAKE_VERSION} >= 20160218
 
-# doing 'make depend' isn't a big win with this model
-.if !target(depend)
-depend: ${.MAKE.DEPENDFILE}
-.endif
-
-# this is trivial
-${.MAKE.DEPENDFILE}: ${OBJS} ${POBJS} ${SOBJS}
-	-@for f in ${.ALLSRC:M*o:T:O:u:%=%.d}; do \
-		echo ".-include \"$$f\""; \
-	done > $@
-.else
-# we have .dinclude
+# we have .dinclude and this is all that is required
 .if empty(_SKIP_BUILD)
 _all_objs = ${OBJS} ${POBJS} ${SOBJS}
 .for d in ${_all_objs:M*o:T:O:u:%=%.d}
 .dinclude <$d>
 .endfor
 .endif
+
+.else				# we lack .dinclude
+
+.if ${.MAKE.MODE:Unormal:Mmeta} != ""
+# ignore .MAKE.DEPENDFILE
+DEPENDFILE = .depend
+.else
+# this what bmake > 20100401 will look for
+.MAKE.DEPENDFILE ?= .depend
+DEPENDFILE ?= ${.MAKE.DEPENDFILE}
+.endif
+
+CLEANFILES += ${DEPENDFILE}
+
+# skip generating dependfile for misc targets
+.if ${.TARGETS:Uall:M*all} != ""
+.END:	${DEPENDFILE}
+.endif
+
+# doing 'make depend' isn't a big win with this model
+.if !target(depend)
+depend: ${DEPENDFILE}
+.endif
+
+# this is trivial
+${DEPENDFILE}: ${OBJS} ${POBJS} ${SOBJS}
+	-@for f in ${.ALLSRC:M*o:T:O:u:%=%.d}; do \
+		echo ".-include \"$$f\""; \
+	done > $@
 
 .endif
 .endif

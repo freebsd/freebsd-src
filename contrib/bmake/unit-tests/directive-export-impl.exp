@@ -7,7 +7,7 @@ Var_Parse: ${UT_VAR:N*} (eval-defined)
 Var_Parse: ${REF}> (eval-defined)
 Evaluating modifier ${UT_VAR:N...} on value "<>"
 Pattern for ':N' is "*"
-ModifyWords: split "<>" into 1 words
+ModifyWords: split "<>" into 1 word
 Result of ${UT_VAR:N*} is ""
 ParseDependency(: )
 CondParser_Eval: ${:!echo "\$UT_VAR"!} != "<>"
@@ -28,7 +28,7 @@ Var_Parse: ${UT_VAR:N*} (eval-defined)
 Var_Parse: ${REF}> (eval-defined)
 Evaluating modifier ${UT_VAR:N...} on value "<>"
 Pattern for ':N' is "*"
-ModifyWords: split "<>" into 1 words
+ModifyWords: split "<>" into 1 word
 Result of ${UT_VAR:N*} is ""
 ParseDependency(: )
 ParseReadLine (54): 'REF=		defined'

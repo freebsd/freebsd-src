@@ -1,4 +1,4 @@
-# $NetBSD: cond-cmp-string.mk,v 1.14 2021/01/19 19:54:57 rillig Exp $
+# $NetBSD: cond-cmp-string.mk,v 1.15 2021/12/11 09:53:53 rillig Exp $
 #
 # Tests for string comparisons in .if conditions.
 
@@ -26,7 +26,7 @@
 # starting point for variable expressions.  Applying the :U modifier to such
 # an undefined expression turns it into a defined expression.
 #
-# See ApplyModifier_Defined and VEF_DEF.
+# See ApplyModifier_Defined and DEF_DEFINED.
 .if ${:Ustr} != "str"
 .  error
 .endif

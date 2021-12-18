@@ -1,7 +1,10 @@
-# $NetBSD: varmod-loop.mk,v 1.15 2021/04/11 13:35:56 rillig Exp $
+# $NetBSD: varmod-loop.mk,v 1.18 2021/12/05 15:20:13 rillig Exp $
 #
 # Tests for the :@var@...${var}...@ variable modifier.
 
+# Force the test results to be independent of the default value of this
+# setting, which is 'yes' for NetBSD's usr.bin/make but 'no' for the bmake
+# distribution and pkgsrc/devel/bmake.
 .MAKE.SAVE_DOLLARS=	yes
 
 all: varname-overwriting-target
@@ -183,7 +186,4 @@ CMDLINE=	global		# needed for deleting the environment
 .  error			# 'CMDLINE' is gone now from all scopes
 .endif
 
-
-# TODO: Actually trigger the undefined behavior (use after free) that was
-#  already suspected in Var_Parse, in the comment 'the value of the variable
-#  must not change'.
+all: .PHONY

@@ -119,7 +119,7 @@
 #	Simon J. Gerraty <sjg@crufty.net>
 
 # RCSid:
-#	$Id: boot-strap,v 1.54 2020/11/13 21:47:25 sjg Exp $
+#	$Id: boot-strap,v 1.57 2021/10/22 20:32:21 sjg Exp $
 #
 #	@(#) Copyright (c) 2001 Simon J. Gerraty
 #
@@ -405,17 +405,6 @@ Bmake() {
     )
 }
 
-# there is actually a shell where type is not a builtin
-# if type is missing, which(1) had better exists!
-if (type cat) > /dev/null 2>&1; then
-which() {
-        type "$@" | sed 's,[()],,g;s,^[^/][^/]*,,;q'
-}
-fi
-# make sure test below uses the same diff that configure did
-TOOL_DIFF=`which diff`
-export TOOL_DIFF
-
 op_configure() {
 	$srcdir/configure $CONFIGURE_ARGS || exit 1
 }
@@ -431,7 +420,7 @@ op_build() {
 
 op_test() {
 	[ -x bmake ] || op_build
-	Bmake test || exit 1
+	Bmake test "$@" || exit 1
 }
 
 op_clean() {
@@ -483,5 +472,5 @@ You may need the -r or -R option to more/less to view it correctly.
 EOM
 }
 
-op_$op
+op_$op "$@"
 exit 0

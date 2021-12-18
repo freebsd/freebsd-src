@@ -1,4 +1,4 @@
-# $Id: dpadd.mk,v 1.29 2021/04/20 02:30:44 sjg Exp $
+# $Id: dpadd.mk,v 1.30 2021/12/08 05:56:50 sjg Exp $
 #
 #	@(#) Copyright (c) 2004, Simon J. Gerraty
 #
@@ -77,7 +77,7 @@
 #
 
 .if !target(__${.PARSEFILE}__)
-__${.PARSEFILE}__:
+__${.PARSEFILE}__: .NOTMAIN
 
 # sometimes we play games with .CURDIR etc
 # _* hold the original values of .*

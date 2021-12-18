@@ -7,6 +7,7 @@ PSD.doc/Makefile
 PSD.doc/tutorial.ms
 README
 VERSION
+_strtol.h
 aclocal.m4
 arch.c
 bmake.1
@@ -23,8 +24,6 @@ configure.in
 dir.c
 dir.h
 dirname.c
-enum.c
-enum.h
 filemon/filemon.h
 filemon/filemon_dev.c
 filemon/filemon_ktrace.c
@@ -61,6 +60,8 @@ pathnames.h
 ranlib.h
 realpath.c
 setenv.c
+sigact.h
+sigaction.c
 sigcompat.c
 str.c
 str.h
@@ -322,6 +323,8 @@ unit-tests/directive-for-escape.exp
 unit-tests/directive-for-escape.mk
 unit-tests/directive-for-generating-endif.exp
 unit-tests/directive-for-generating-endif.mk
+unit-tests/directive-for-if.exp
+unit-tests/directive-for-if.mk
 unit-tests/directive-for-lines.exp
 unit-tests/directive-for-lines.mk
 unit-tests/directive-for-null.exp
@@ -684,6 +687,8 @@ unit-tests/varmod-l-name-to-value.exp
 unit-tests/varmod-l-name-to-value.mk
 unit-tests/varmod-localtime.exp
 unit-tests/varmod-localtime.mk
+unit-tests/varmod-loop-delete.exp
+unit-tests/varmod-loop-delete.mk
 unit-tests/varmod-loop-varname.exp
 unit-tests/varmod-loop-varname.mk
 unit-tests/varmod-loop.exp
@@ -694,10 +699,14 @@ unit-tests/varmod-match.exp
 unit-tests/varmod-match.mk
 unit-tests/varmod-no-match.exp
 unit-tests/varmod-no-match.mk
+unit-tests/varmod-order-numeric.exp
+unit-tests/varmod-order-numeric.mk
 unit-tests/varmod-order-reverse.exp
 unit-tests/varmod-order-reverse.mk
 unit-tests/varmod-order-shuffle.exp
 unit-tests/varmod-order-shuffle.mk
+unit-tests/varmod-order-string.exp
+unit-tests/varmod-order-string.mk
 unit-tests/varmod-order.exp
 unit-tests/varmod-order.mk
 unit-tests/varmod-path.exp
@@ -814,6 +823,8 @@ unit-tests/varname-dot-path.exp
 unit-tests/varname-dot-path.mk
 unit-tests/varname-dot-shell.exp
 unit-tests/varname-dot-shell.mk
+unit-tests/varname-dot-suffixes.exp
+unit-tests/varname-dot-suffixes.mk
 unit-tests/varname-dot-targets.exp
 unit-tests/varname-dot-targets.mk
 unit-tests/varname-empty.exp

@@ -59,7 +59,7 @@ do_link() {
 	${CC} ${LDSTATIC} ${LDFLAGS} -o "$output" "$@" ${LIBS}
 }
 
-BASE_OBJECTS="arch.o buf.o compat.o cond.o dir.o enum.o for.o getopt hash.o \
+BASE_OBJECTS="arch.o buf.o compat.o cond.o dir.o for.o hash.o \
 lst.o make.o make_malloc.o metachar.o parse.o sigcompat.o str.o \
 suff.o targ.o trace.o var.o util.o"
 

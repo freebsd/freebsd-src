@@ -1,4 +1,4 @@
-# $NetBSD: varmod-subst.mk,v 1.8 2021/05/14 19:37:16 rillig Exp $
+# $NetBSD: varmod-subst.mk,v 1.9 2021/09/06 21:18:55 rillig Exp $
 #
 # Tests for the :S,from,to, variable modifier.
 
@@ -84,6 +84,19 @@ WORDS=		sequences of letters
 
 .if ${WORDS:S,.,replacement,} != ${WORDS}
 .  error The '.' seems to be interpreted as a wildcard of some kind.
+.endif
+
+.if ${:Uvalue:S,^val,&,} != "value"
+.  error
+.endif
+.if ${:Uvalue:S,ue$,&,} != "value"
+.  error
+.endif
+.if ${:Uvalue:S,^val,&-&-&,} != "val-val-value"
+.  error
+.endif
+.if ${:Uvalue:S,ue$,&-&-&,} != "value-ue-ue"
+.  error
 .endif
 
 mod-subst:

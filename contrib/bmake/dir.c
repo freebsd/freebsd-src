@@ -1,4 +1,4 @@
-/*	$NetBSD: dir.c,v 1.272 2021/04/04 10:13:09 rillig Exp $	*/
+/*	$NetBSD: dir.c,v 1.275 2021/11/28 21:46:17 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -138,7 +138,7 @@
 #include "job.h"
 
 /*	"@(#)dir.c	8.2 (Berkeley) 1/2/94"	*/
-MAKE_RCSID("$NetBSD: dir.c,v 1.272 2021/04/04 10:13:09 rillig Exp $");
+MAKE_RCSID("$NetBSD: dir.c,v 1.275 2021/11/28 21:46:17 rillig Exp $");
 
 /*
  * A search path is a list of CachedDir structures. A CachedDir has in it the
@@ -245,12 +245,6 @@ typedef struct OpenDirs {
 	CachedDirList list;
 	HashTable /* of CachedDirListNode */ table;
 } OpenDirs;
-
-typedef enum CachedStatsFlags {
-	CST_NONE	= 0,
-	CST_LSTAT	= 1 << 0,	/* call lstat(2) instead of stat(2) */
-	CST_UPDATE	= 1 << 1	/* ignore existing cached entry */
-} CachedStatsFlags;
 
 
 SearchPath dirSearchPath = { LST_INIT }; /* main search path */
@@ -419,9 +413,9 @@ OpenDirs_Remove(OpenDirs *odirs, const char *name)
  */
 static int
 cached_stats(const char *pathname, struct cached_stat *out_cst,
-	     CachedStatsFlags flags)
+	     bool useLstat, bool forceRefresh)
 {
-	HashTable *tbl = flags & CST_LSTAT ? &lmtimes : &mtimes;
+	HashTable *tbl = useLstat ? &lmtimes : &mtimes;
 	struct stat sys_st;
 	struct cached_stat *cst;
 	int rc;
@@ -430,14 +424,14 @@ cached_stats(const char *pathname, struct cached_stat *out_cst,
 		return -1;	/* This can happen in meta mode. */
 
 	cst = HashTable_FindValue(tbl, pathname);
-	if (cst != NULL && !(flags & CST_UPDATE)) {
+	if (cst != NULL && !forceRefresh) {
 		*out_cst = *cst;
 		DEBUG2(DIR, "Using cached time %s for %s\n",
 		    Targ_FmtTime(cst->cst_mtime), pathname);
 		return 0;
 	}
 
-	rc = (flags & CST_LSTAT ? lstat : stat)(pathname, &sys_st);
+	rc = (useLstat ? lstat : stat)(pathname, &sys_st);
 	if (rc == -1)
 		return -1;	/* don't cache negative lookups */
 
@@ -462,13 +456,13 @@ cached_stats(const char *pathname, struct cached_stat *out_cst,
 int
 cached_stat(const char *pathname, struct cached_stat *cst)
 {
-	return cached_stats(pathname, cst, CST_NONE);
+	return cached_stats(pathname, cst, false, false);
 }
 
 int
 cached_lstat(const char *pathname, struct cached_stat *cst)
 {
-	return cached_stats(pathname, cst, CST_LSTAT);
+	return cached_stats(pathname, cst, true, false);
 }
 
 /* Initialize the directories module. */
@@ -1127,9 +1121,8 @@ found:
 }
 
 static bool
-FindFileAbsolute(SearchPath *path, bool const seenDotLast,
-		 const char *const name, const char *const base,
-		 char **out_file)
+FindFileAbsolute(SearchPath *path, bool seenDotLast,
+		 const char *name, const char *base, char **out_file)
 {
 	char *file;
 	SearchPathNode *ln;
@@ -1448,7 +1441,7 @@ ResolveFullName(GNode *gn)
 
 		fullName = Dir_FindFile(gn->name, Suff_FindPath(gn));
 
-		if (fullName == NULL && gn->flags & FROM_DEPEND &&
+		if (fullName == NULL && gn->flags.fromDepend &&
 		    !Lst_IsEmpty(&gn->implicitParents))
 			fullName = ResolveMovedDepends(gn);
 
@@ -1471,7 +1464,7 @@ ResolveFullName(GNode *gn)
  * The found file is stored in gn->path, unless the node already had a path.
  */
 void
-Dir_UpdateMTime(GNode *gn, bool recheck)
+Dir_UpdateMTime(GNode *gn, bool forceRefresh)
 {
 	char *fullName;
 	struct cached_stat cst;
@@ -1488,7 +1481,7 @@ Dir_UpdateMTime(GNode *gn, bool recheck)
 
 	fullName = ResolveFullName(gn);
 
-	if (cached_stats(fullName, &cst, recheck ? CST_UPDATE : CST_NONE) < 0) {
+	if (cached_stats(fullName, &cst, false, forceRefresh) < 0) {
 		if (gn->type & OP_MEMBER) {
 			if (fullName != gn->path)
 				free(fullName);

@@ -1,10 +1,10 @@
-ParseReadLine (75): 'USE_8_DOLLARS=	${:U1:@var@${8_DOLLARS}@} ${8_DOLLARS} $$$$$$$$'
+ParseReadLine (78): 'USE_8_DOLLARS=	${:U1:@var@${8_DOLLARS}@} ${8_DOLLARS} $$$$$$$$'
 CondParser_Eval: ${USE_8_DOLLARS} != "\$\$\$\$ \$\$\$\$ \$\$\$\$"
 lhs = "$$$$ $$$$ $$$$", rhs = "$$$$ $$$$ $$$$", op = !=
-ParseReadLine (80): 'SUBST_CONTAINING_LOOP:= ${USE_8_DOLLARS}'
+ParseReadLine (83): 'SUBST_CONTAINING_LOOP:= ${USE_8_DOLLARS}'
 CondParser_Eval: ${SUBST_CONTAINING_LOOP} != "\$\$ \$\$\$\$ \$\$\$\$"
 lhs = "$$ $$$$ $$$$", rhs = "$$ $$$$ $$$$", op = !=
-ParseReadLine (105): '.MAKEFLAGS: -d0'
+ParseReadLine (108): '.MAKEFLAGS: -d0'
 ParseDependency(.MAKEFLAGS: -d0)
 :varname-overwriting-target: :x1y x2y x3y: ::
 mod-loop-dollar:1:

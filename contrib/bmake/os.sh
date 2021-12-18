@@ -17,7 +17,7 @@
 #	Simon J. Gerraty <sjg@crufty.net>
 
 # RCSid:
-#	$Id: os.sh,v 1.56 2020/08/05 23:25:22 sjg Exp $
+#	$Id: os.sh,v 1.59 2021/11/14 04:18:00 sjg Exp $
 #
 #	@(#) Copyright (c) 1994 Simon J. Gerraty
 #
@@ -172,7 +172,7 @@ Interix)
 	MACHINE=i386
 	MACHINE_ARCH=i386
 	;;
-UnixWare)
+UnixWare|SCO_SV)
 	OSREL=`uname -v`
 	OSMAJOR=`IFS=.; set $OSREL; echo $1`
 	MACHINE_ARCH=`uname -m`
