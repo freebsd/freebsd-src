@@ -1,8 +1,8 @@
 # $FreeBSD$
-# $Id: meta.sys.mk,v 1.38 2020/08/19 17:51:53 sjg Exp $
+# $Id: meta.sys.mk,v 1.42 2021/12/13 05:50:55 sjg Exp $
 
 #
-#	@(#) Copyright (c) 2010-2020, Simon J. Gerraty
+#	@(#) Copyright (c) 2010-2021, Simon J. Gerraty
 #
 #	This file is provided in the hope that it will
 #	be of use.  There is absolutely NO WARRANTY.
@@ -31,19 +31,29 @@ SYS_MK_DIR := ${_PARSEDIR}
 .endif
 
 META_MODE += meta verbose
+.if ${MAKE_VERSION:U0} > 20130323 && empty(.MAKE.PATH_FILEMON)
+# we do not support filemon
+META_MODE += nofilemon
+MKDEP_MK ?= auto.dep.mk
+.endif
+
 .MAKE.MODE ?= ${META_MODE}
 
-.if ${.MAKE.LEVEL} == 0
+_filemon := ${.MAKE.PATH_FILEMON:U/dev/filemon}
+
+.if empty(UPDATE_DEPENDFILE)
 _make_mode := ${.MAKE.MODE} ${META_MODE}
 .if ${_make_mode:M*read*} != "" || ${_make_mode:M*nofilemon*} != ""
 # tell everyone we are not updating Makefile.depend*
 UPDATE_DEPENDFILE = NO
 .export UPDATE_DEPENDFILE
 .endif
-.if ${UPDATE_DEPENDFILE:Uyes:tl} == "no" && !exists(/dev/filemon)
+.if ${_filemon:T:Mfilemon} == "filemon"
+.if ${UPDATE_DEPENDFILE:Uyes:tl} == "no" && !exists(${_filemon})
 # we should not get upset
 META_MODE += nofilemon
 .export META_MODE
+.endif
 .endif
 .endif
 
@@ -107,7 +117,7 @@ _metaError: .NOMETA .NOTMAIN
 
 # Are we, after all, in meta mode?
 .if ${.MAKE.MODE:Uno:Mmeta*} != ""
-MKDEP_MK = meta.autodep.mk
+MKDEP_MK ?= meta.autodep.mk
 
 .if ${.MAKE.MAKEFILES:M*sys.dependfile.mk} == ""
 # this does all the smarts of setting .MAKE.DEPENDFILE
@@ -141,12 +151,13 @@ META_NOECHO= :
 .warning Setting UPDATE_DEPENDFILE=NO due to -k
 UPDATE_DEPENDFILE= NO
 .export UPDATE_DEPENDFILE
-.elif !exists(/dev/filemon)
-.error ${.newline}ERROR: The filemon module (/dev/filemon) is not loaded.
+.elif ${_filemon:T} == "filemon" && !exists(${_filemon})
+.error ${.newline}ERROR: The filemon module (${_filemon}) is not loaded.
 .endif
 .endif
 
 .if ${.MAKE.LEVEL} == 0
+.if ${MK_DIRDEPS_BUILD:Uyes} == "yes"
 # make sure dirdeps target exists and do it first
 all: dirdeps .WAIT
 dirdeps:
@@ -156,6 +167,7 @@ dirdeps:
 # the first .MAIN: is what counts
 # by default dirdeps is all we want at level0
 .MAIN: dirdeps
+.endif
 .endif
 
 .endif
