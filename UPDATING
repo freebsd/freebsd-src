@@ -12,6 +12,16 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20211218:
+	Commit 18f5b477ee66 adds two arguments to VOP_ALLOCATE().
+	Normally changes to VOP calls are not MFC'd, but a
+	discussion on freebsd-current@ seemed to agree that
+	it was acceptable in this case, to fix the NFSv4.2 server.
+	Any out of source tree file system with a custom
+	VOP_ALLOCATE() call will need to be modified.
+	Bump __FreeBSD_version to 1300523 since the NFS modules need
+	to be rebuilt from sources.
+
 20211124:
 	Commit 6e8e261f0d4e changed the internal KAPI between the NFS
 	modules.  As such, all the modules must be rebuilt from sources.
