@@ -1,6 +1,6 @@
 # $FreeBSD$
 # RCSid:
-#       $Id: dirdeps-targets.mk,v 1.22 2020/08/15 18:00:11 sjg Exp $
+#       $Id: dirdeps-targets.mk,v 1.24 2020/12/11 18:15:43 sjg Exp $
 #
 #       @(#) Copyright (c) 2019-2020 Simon J. Gerraty
 #
@@ -42,6 +42,7 @@
 .-include <local.dirdeps-targets.mk>
 
 # for DIRDEPS_BUILD this is how we prime the pump
+# include . to allow any directory to work as a target
 DIRDEPS_TARGETS_DIRS ?= targets targets/pseudo
 # these prefixes can modify how we behave
 # they need to be stripped when looking for target dirs
@@ -77,7 +78,7 @@ DIRDEPS_TARGETS_MACHINE_LIST += \
 DIRDEPS_TARGETS_MACHINE_LIST := ${DIRDEPS_TARGETS_MACHINE_LIST:O:u}
 
 # raw Makefile.depend* list
-tdeps != 'cd' ${SRCTOP} && 'ls' -1 ${tdirs:O:u:@d@$d/${.MAKE.DEPENDFILE_PREFIX}*@} 2> /dev/null; echo
+tdeps != 'cd' ${SRCTOP} && 'ls' -1 ${tdirs:O:u:@d@$d/${.MAKE.DEPENDFILE_PREFIX}*@:S,^./,,} 2> /dev/null; echo
 .if ${DEBUG_DIRDEPS_TARGETS:U:Mdep*} != ""
 .info tdeps=${tdeps}
 .endif
@@ -136,7 +137,7 @@ DIRDEPS := ${DIRDEPS:O:u}
 # if we got DIRDEPS get to work
 .if !empty(DIRDEPS)
 DIRDEPS.dirs := ${DIRDEPS:S,^,${SRCTOP}/,:@d@${exists($d):?$d:${d:R}}@}
-# some targets what to tweak options we might want to process now
+# some targets want to tweak options we might want to process now
 .for m in ${DIRDEPS.dirs:S,$,/Makefile.dirdeps.options,}
 .-include <$m>
 .endfor
