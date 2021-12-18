@@ -1084,7 +1084,7 @@ ugen_fs_getbuffer(void **uptrp, struct usb_fifo *f, void *buffer,
 	u.ppBuffer = buffer;
 	switch (f->fs_ep_sz) {
 	case sizeof(struct usb_fs_endpoint):
-		if (fueword(u.ppBuffer + n, (uintptr_t *)uptrp) != 0)
+		if (fueword(u.ppBuffer + n, (long *)uptrp) != 0)
 			return (EFAULT);
 		return (0);
 #ifdef COMPAT_FREEBSD32
