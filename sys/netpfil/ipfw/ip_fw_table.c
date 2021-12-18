@@ -355,7 +355,7 @@ rollback_added_entries(struct ip_fw_chain *ch, struct table_config *tc,
 	struct tentry_info *ptei;
 	caddr_t v, vv;
 	size_t ta_buf_sz;
-	int error, i;
+	int error __diagused, i;
 	uint32_t num;
 
 	IPFW_UH_WLOCK_ASSERT(ch);
@@ -482,7 +482,7 @@ flush_batch_buffer(struct ip_fw_chain *ch, struct table_algo *ta,
 static void
 rollback_add_entry(void *object, struct op_state *_state)
 {
-	struct ip_fw_chain *ch;
+	struct ip_fw_chain *ch __diagused;
 	struct tableop_state *ts;
 
 	ts = (struct tableop_state *)_state;
@@ -1537,7 +1537,7 @@ roundup2p(uint32_t v)
 int
 ipfw_resize_tables(struct ip_fw_chain *ch, unsigned int ntables)
 {
-	unsigned int ntables_old, tbl;
+	unsigned int tbl;
 	struct namedobj_instance *ni;
 	void *new_idx, *old_tablestate, *tablestate;
 	struct table_info *ti;
@@ -1583,7 +1583,6 @@ ipfw_resize_tables(struct ip_fw_chain *ch, unsigned int ntables)
 	ch->tablestate = tablestate;
 	ipfw_objhash_bitmap_swap(ni, &new_idx, &new_blocks);
 
-	ntables_old = V_fw_tables_max;
 	V_fw_tables_max = ntables;
 
 	IPFW_WUNLOCK(ch);
