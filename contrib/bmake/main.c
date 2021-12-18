@@ -1,4 +1,4 @@
-/*	$NetBSD: main.c,v 1.540 2021/06/18 12:54:17 rillig Exp $	*/
+/*	$NetBSD: main.c,v 1.541 2021/08/14 13:32:12 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -111,7 +111,7 @@
 #include "trace.h"
 
 /*	"@(#)main.c	8.3 (Berkeley) 3/19/94"	*/
-MAKE_RCSID("$NetBSD: main.c,v 1.540 2021/06/18 12:54:17 rillig Exp $");
+MAKE_RCSID("$NetBSD: main.c,v 1.541 2021/08/14 13:32:12 rillig Exp $");
 #if defined(MAKE_NATIVE) && !defined(lint)
 __COPYRIGHT("@(#) Copyright (c) 1988, 1989, 1990, 1993 "
 	    "The Regents of the University of California.  "
@@ -1127,7 +1127,7 @@ InitObjdir(const char *machine, const char *machine_arch)
 static void
 UnlimitFiles(void)
 {
-#if defined(MAKE_NATIVE) || (defined(HAVE_SETRLIMIT) && defined(RLIMIT_NOFILE))
+#if defined(HAVE_SETRLIMIT) && defined(RLIMIT_NOFILE)
 	struct rlimit rl;
 	if (getrlimit(RLIMIT_NOFILE, &rl) != -1 &&
 	    rl.rlim_cur != rl.rlim_max) {
@@ -1685,7 +1685,7 @@ main_CleanUp(void)
 static int
 main_Exit(bool outOfDate)
 {
-	if (opts.strict && (main_errors > 0 || Parse_GetFatals() > 0))
+	if (opts.strict && (main_errors > 0 || Parse_NumErrors() > 0))
 		return 2;	/* Not 1 so -q can distinguish error */
 	return outOfDate ? 1 : 0;
 }

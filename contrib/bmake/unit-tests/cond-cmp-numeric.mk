@@ -1,4 +1,4 @@
-# $NetBSD: cond-cmp-numeric.mk,v 1.4 2020/11/08 22:56:16 rillig Exp $
+# $NetBSD: cond-cmp-numeric.mk,v 1.5 2021/07/29 06:31:18 rillig Exp $
 #
 # Tests for numeric comparisons in .if conditions.
 
@@ -32,6 +32,22 @@
 #
 # XXX: The warning message does not mention the actual operator.
 .if 123 ! 123
+.  error
+.else
+.  error
+.endif
+
+# Leading spaces are allowed for numbers.
+# See EvalCompare and TryParseNumber.
+.if ${:U 123} < 124
+.else
+.  error
+.endif
+
+# Trailing spaces are NOT allowed for numbers.
+# See EvalCompare and TryParseNumber.
+# expect+1: String comparison operator must be either == or !=
+.if ${:U123 } < 124
 .  error
 .else
 .  error

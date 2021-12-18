@@ -1,4 +1,4 @@
-# $Id: prlist.mk,v 1.4 2020/08/19 17:51:53 sjg Exp $
+# $Id: prlist.mk,v 1.5 2021/12/08 05:56:50 sjg Exp $
 #
 #	@(#) Copyright (c) 2006, Simon J. Gerraty
 #
@@ -14,7 +14,7 @@
 #
 
 .if !target(__${.PARSEFILE}__)
-__${.PARSEFILE}__:
+__${.PARSEFILE}__: .NOTMAIN
 
 # this needs to be included after all the lists it will process
 # are defined - which is why it is a separate file.

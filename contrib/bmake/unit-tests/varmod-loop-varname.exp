@@ -1,11 +1,11 @@
-make: "varmod-loop-varname.mk" line 13: In the :@ modifier of "", the variable name "${:Ubar:S,b,v,}" must not contain a dollar.
-make: "varmod-loop-varname.mk" line 13: Malformed conditional (${:Uone two three:@${:Ubar:S,b,v,}@+${var}+@} != "+one+ +two+ +three+")
-make: "varmod-loop-varname.mk" line 80: In the :@ modifier of "1 2 3", the variable name "v$" must not contain a dollar.
-make: "varmod-loop-varname.mk" line 80: Malformed conditional (${1 2 3:L:@v$@($v)@} != "(1) (2) (3)")
-make: "varmod-loop-varname.mk" line 85: In the :@ modifier of "1 2 3", the variable name "v$$" must not contain a dollar.
-make: "varmod-loop-varname.mk" line 85: Malformed conditional (${1 2 3:L:@v$$@($v)@} != "() () ()")
-make: "varmod-loop-varname.mk" line 90: In the :@ modifier of "1 2 3", the variable name "v$$$" must not contain a dollar.
-make: "varmod-loop-varname.mk" line 90: Malformed conditional (${1 2 3:L:@v$$$@($v)@} != "() () ()")
+make: "varmod-loop-varname.mk" line 16: In the :@ modifier of "", the variable name "${:Ubar:S,b,v,}" must not contain a dollar
+make: "varmod-loop-varname.mk" line 16: Malformed conditional (${:Uone two three:@${:Ubar:S,b,v,}@+${var}+@} != "+one+ +two+ +three+")
+make: "varmod-loop-varname.mk" line 85: In the :@ modifier of "1 2 3", the variable name "v$" must not contain a dollar
+make: "varmod-loop-varname.mk" line 85: Malformed conditional (${1 2 3:L:@v$@($v)@} != "(1) (2) (3)")
+make: "varmod-loop-varname.mk" line 90: In the :@ modifier of "1 2 3", the variable name "v$$" must not contain a dollar
+make: "varmod-loop-varname.mk" line 90: Malformed conditional (${1 2 3:L:@v$$@($v)@} != "() () ()")
+make: "varmod-loop-varname.mk" line 95: In the :@ modifier of "1 2 3", the variable name "v$$$" must not contain a dollar
+make: "varmod-loop-varname.mk" line 95: Malformed conditional (${1 2 3:L:@v$$$@($v)@} != "() () ()")
 make: Fatal errors encountered -- cannot continue
 make: stopped in unit-tests
 exit status 1

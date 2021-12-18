@@ -1,5 +1,5 @@
 make: "(stdin)" line 2: Zero byte read from file
-make: "(stdin)" line 2: Unexpected end of file in for loop.
+make: "(stdin)" line 2: Unexpected end of file in .for loop
 make: "(stdin)" line 3: Zero byte read from file
 make: Fatal errors encountered -- cannot continue
 make: stopped in unit-tests

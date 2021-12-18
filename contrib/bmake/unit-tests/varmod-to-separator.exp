@@ -1,6 +1,6 @@
-make: "varmod-to-separator.mk" line 107: Invalid character number: 400:tu}
+make: "varmod-to-separator.mk" line 107: Invalid character number at "400:tu}"
 make: "varmod-to-separator.mk" line 107: Malformed conditional (${WORDS:[1..3]:ts\400:tu})
-make: "varmod-to-separator.mk" line 121: Invalid character number: 100:tu}
+make: "varmod-to-separator.mk" line 121: Invalid character number at "100:tu}"
 make: "varmod-to-separator.mk" line 121: Malformed conditional (${WORDS:[1..3]:ts\x100:tu})
 make: Bad modifier ":ts\-300" for variable "WORDS"
 make: "varmod-to-separator.mk" line 128: Malformed conditional (${WORDS:[1..3]:ts\-300:tu})

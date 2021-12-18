@@ -1,4 +1,4 @@
-/*	$NetBSD: suff.c,v 1.350 2021/04/04 10:05:08 rillig Exp $	*/
+/*	$NetBSD: suff.c,v 1.357 2021/12/12 20:45:48 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -115,7 +115,7 @@
 #include "dir.h"
 
 /*	"@(#)suff.c	8.4 (Berkeley) 3/21/94"	*/
-MAKE_RCSID("$NetBSD: suff.c,v 1.350 2021/04/04 10:05:08 rillig Exp $");
+MAKE_RCSID("$NetBSD: suff.c,v 1.357 2021/12/12 20:45:48 sjg Exp $");
 
 typedef List SuffixList;
 typedef ListNode SuffixListNode;
@@ -142,37 +142,6 @@ static GNodeList transforms = LST_INIT;
  */
 static int sNum = 0;
 
-typedef enum SuffixFlags {
-	SUFF_NONE	= 0,
-
-	/*
-	 * This suffix marks include files.  Their search path ends up in the
-	 * undocumented special variable '.INCLUDES'.
-	 */
-	SUFF_INCLUDE	= 1 << 0,
-
-	/*
-	 * This suffix marks library files.  Their search path ends up in the
-	 * undocumented special variable '.LIBS'.
-	 */
-	SUFF_LIBRARY	= 1 << 1,
-
-	/*
-	 * The empty suffix.
-	 *
-	 * XXX: What is the difference between the empty suffix and the null
-	 * suffix?
-	 *
-	 * XXX: Why is SUFF_NULL needed at all? Wouldn't nameLen == 0 mean
-	 * the same?
-	 */
-	SUFF_NULL	= 1 << 2
-
-} SuffixFlags;
-
-ENUM_FLAGS_RTTI_3(SuffixFlags,
-    SUFF_INCLUDE, SUFF_LIBRARY, SUFF_NULL);
-
 typedef List SuffixListList;
 
 /*
@@ -184,24 +153,45 @@ typedef struct Suffix {
 	char *name;
 	/* Length of the name, to avoid strlen calls */
 	size_t nameLen;
-	/* Type of suffix */
-	SuffixFlags flags;
+	/*
+	 * This suffix marks include files.  Their search path ends up in the
+	 * undocumented special variable '.INCLUDES'.
+	 */
+	bool include:1;
+	/*
+	 * This suffix marks library files.  Their search path ends up in the
+	 * undocumented special variable '.LIBS'.
+	 */
+	bool library:1;
+	/*
+	 * The empty suffix.
+	 *
+	 * XXX: What is the difference between the empty suffix and the null
+	 * suffix?
+	 *
+	 * XXX: Why is SUFF_NULL needed at all? Wouldn't nameLen == 0 mean
+	 * the same?
+	 */
+	bool isNull:1;
 	/* The path along which files of this suffix may be found */
 	SearchPath *searchPath;
+
 	/* The suffix number; TODO: document the purpose of this number */
 	int sNum;
 	/* Reference count of list membership and several other places */
 	int refCount;
+
 	/* Suffixes we have a transformation to */
 	SuffixList parents;
 	/* Suffixes we have a transformation from */
 	SuffixList children;
-
-	/* Lists in which this suffix is referenced.
+	/*
+	 * Lists in which this suffix is referenced.
 	 *
 	 * XXX: These lists are used nowhere, they are just appended to, for
 	 * no apparent reason.  They do have the side effect of increasing
-	 * refCount though. */
+	 * refCount though.
+	 */
 	SuffixListList ref;
 } Suffix;
 
@@ -475,7 +465,9 @@ Suffix_New(const char *name)
 	Lst_Init(&suff->parents);
 	Lst_Init(&suff->ref);
 	suff->sNum = sNum++;
-	suff->flags = SUFF_NONE;
+	suff->include = false;
+	suff->library = false;
+	suff->isNull = false;
 	suff->refCount = 1; /* XXX: why 1? It's not assigned anywhere yet. */
 
 	return suff;
@@ -502,7 +494,9 @@ Suff_ClearSuffixes(void)
 	emptySuff = nullSuff = Suffix_New("");
 
 	SearchPath_AddAll(nullSuff->searchPath, &dirSearchPath);
-	nullSuff->flags = SUFF_NULL;
+	nullSuff->include = false;
+	nullSuff->library = false;
+	nullSuff->isNull = true;
 }
 
 /*
@@ -619,6 +613,7 @@ Suff_AddTransform(const char *name)
 		/* TODO: Avoid the redundant parsing here. */
 		bool ok = ParseTransform(name, &srcSuff, &targSuff);
 		assert(ok);
+		/* LINTED 129 *//* expression has null effect */
 		(void)ok;
 	}
 
@@ -888,12 +883,12 @@ Suff_ExtendPaths(void)
 		Suffix *suff = ln->datum;
 		if (!Lst_IsEmpty(&suff->searchPath->dirs)) {
 #ifdef INCLUDES
-			if (suff->flags & SUFF_INCLUDE)
+			if (suff->include)
 				SearchPath_AddAll(includesPath,
 				    suff->searchPath);
 #endif
 #ifdef LIBRARIES
-			if (suff->flags & SUFF_LIBRARY)
+			if (suff->library)
 				SearchPath_AddAll(libsPath, suff->searchPath);
 #endif
 			SearchPath_AddAll(suff->searchPath, &dirSearchPath);
@@ -926,7 +921,7 @@ Suff_AddInclude(const char *suffName)
 {
 	Suffix *suff = FindSuffixByName(suffName);
 	if (suff != NULL)
-		suff->flags |= SUFF_INCLUDE;
+		suff->include = true;
 }
 
 /*
@@ -940,7 +935,7 @@ Suff_AddLib(const char *suffName)
 {
 	Suffix *suff = FindSuffixByName(suffName);
 	if (suff != NULL)
-		suff->flags |= SUFF_LIBRARY;
+		suff->library = true;
 }
 
 /********** Implicit Source Search Functions *********/
@@ -1043,7 +1038,7 @@ CandidateList_AddCandidatesFor(CandidateList *list, Candidate *cand)
 	for (ln = cand->suff->children.first; ln != NULL; ln = ln->next) {
 		Suffix *suff = ln->datum;
 
-		if ((suff->flags & SUFF_NULL) && suff->name[0] != '\0') {
+		if (suff->isNull && suff->name[0] != '\0') {
 			/*
 			 * If the suffix has been marked as the NULL suffix,
 			 * also create a candidate for a file with no suffix
@@ -1918,7 +1913,7 @@ FindDepsRegular(GNode *gn, CandidateSearcher *cs)
 	 * If the suffix indicates that the target is a library, mark that in
 	 * the node's type field.
 	 */
-	if (targ->suff->flags & SUFF_LIBRARY)
+	if (targ->suff->library)
 		gn->type |= OP_LIB;
 
 	/*
@@ -2077,14 +2072,14 @@ Suff_SetNull(const char *name)
 	Suffix *suff = FindSuffixByName(name);
 	if (suff == NULL) {
 		Parse_Error(PARSE_WARNING,
-		    "Desired null suffix %s not defined.",
+		    "Desired null suffix %s not defined",
 		    name);
 		return;
 	}
 
 	if (nullSuff != NULL)
-		nullSuff->flags &= ~(unsigned)SUFF_NULL;
-	suff->flags |= SUFF_NULL;
+		nullSuff->isNull = false;
+	suff->isNull = true;
 	/* XXX: Here's where the transformation mangling would take place. */
 	nullSuff = suff;
 }
@@ -2117,30 +2112,35 @@ Suff_End(void)
 
 
 static void
-PrintSuffNames(const char *prefix, SuffixList *suffs)
+PrintSuffNames(const char *prefix, const SuffixList *suffs)
 {
 	SuffixListNode *ln;
 
 	debug_printf("#\t%s: ", prefix);
 	for (ln = suffs->first; ln != NULL; ln = ln->next) {
-		Suffix *suff = ln->datum;
+		const Suffix *suff = ln->datum;
 		debug_printf("%s ", suff->name);
 	}
 	debug_printf("\n");
 }
 
 static void
-Suffix_Print(Suffix *suff)
+Suffix_Print(const Suffix *suff)
 {
+	Buffer buf;
+
+	Buf_InitSize(&buf, 16);
+	Buf_AddFlag(&buf, suff->include, "SUFF_INCLUDE");
+	Buf_AddFlag(&buf, suff->library, "SUFF_LIBRARY");
+	Buf_AddFlag(&buf, suff->isNull, "SUFF_NULL");
+
 	debug_printf("# \"%s\" (num %d, ref %d)",
 	    suff->name, suff->sNum, suff->refCount);
-	if (suff->flags != 0) {
-		char flags_buf[SuffixFlags_ToStringSize];
-
-		debug_printf(" (%s)",
-		    SuffixFlags_ToString(flags_buf, suff->flags));
-	}
+	if (buf.len > 0)
+		debug_printf(" (%s)", buf.data);
 	debug_printf("\n");
+
+	Buf_Done(&buf);
 
 	PrintSuffNames("To", &suff->parents);
 	PrintSuffNames("From", &suff->children);
@@ -2176,4 +2176,21 @@ Suff_PrintAll(void)
 		for (ln = transforms.first; ln != NULL; ln = ln->next)
 			PrintTransformation(ln->datum);
 	}
+}
+
+const char *
+Suff_NamesStr(void)
+{
+	Buffer buf;
+	SuffixListNode *ln;
+	Suffix *suff;
+
+	Buf_InitSize(&buf, 16);
+	for (ln = sufflist.first; ln != NULL; ln = ln->next) {
+		suff = ln->datum;
+		if (ln != sufflist.first)
+			Buf_AddByte(&buf, ' ');
+		Buf_AddStr(&buf, suff->name);
+	}
+	return Buf_DoneData(&buf);
 }

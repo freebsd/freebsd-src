@@ -1,4 +1,4 @@
-/*	$NetBSD: filemon_ktrace.c,v 1.14 2021/02/01 21:34:41 rillig Exp $	*/
+/*	$NetBSD: filemon_ktrace.c,v 1.15 2021/07/31 09:30:17 rillig Exp $	*/
 
 /*
  * Copyright (c) 2019 The NetBSD Foundation, Inc.
@@ -227,7 +227,6 @@ filemon_open(void)
 	/* Success!  */
 	return F;
 
-	(void)fclose(F->in);
 fail1:	(void)close(ktrpipe[0]);
 	(void)close(ktrpipe[1]);
 fail0:	free(F);

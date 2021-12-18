@@ -1,3 +1,107 @@
+2021-12-12  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* sys.mk: simplify; include meta.sys.mk if MK_META_MODE is yes.
+
+	* meta.sys.mk: do not check for /dev/filemon if .MAKE.PATH_FILEMON
+	is something else.
+
+	* meta.autodep.mk: we can now reference ${.SUFFIXES}
+
+	* meta2deps.py: derive a list of dirdep extensions from
+	TARGET_SPEC to trim from dirdeps.
+
+	* dirdeps.mk: flip the computation of qualified vs unqualified
+	dirdeps - it is much simpler to check for unqualified first.
+
+2021-12-11  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20211212
+
+	* auto.dep.mk: rearrange so that the trivial implementation
+	for recent bmake is more obvious.
+
+2021-12-07  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20211207
+
+	* Ensure guard targets are .NOTMAIN
+
+	* meta.sys.mk: check for nofilemon support when we skip level 0
+
+	* auto.dep.mk: make this usable in meta mode
+	for platforms that cannot use meta.autodep.mk
+
+	* meta2deps.py: avoid confusion if MACHINE and another
+	TARGET_SPEC_VAR have same value.
+	
+2021-11-27  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* dirdeps.mk: when building dirdeps.cache, minimize the amount of
+	data put into env, by stripping ${SRCTOP}/ from each entry.
+	A long sandbox name can double the amount of memory consumed and
+	in extreme cases cause failure.
+	While we are at it, strip ${SRCTOP}/ from a lot of the debug output.
+
+2021-11-11  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20211111
+
+	* meta.stage.mk (LN_CP_SCRIPT): if staging to NFS cp -p can fail
+	so fallback to cp if necessary.
+
+2021-10-30  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* man.mk (CMT2DOC): use cmt2doc.py rather than the 30 year
+	old cmt2doc.pl
+
+2021-10-24  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* meta.stage.mk: stage_as_and_symlink use ${STAGE_LINK_AS_$f:U$f}
+	as the symlink (rare)
+
+2021-10-16  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* autoconf.mk: if AUTOCONF_GENERATED_MAKEFILE is set and has not
+	been read, throw an error after running configure telling user to
+	restart.
+
+2021-10-13  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20211011
+
+	* Add support for SCO_SV
+
+2021-10-01  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20211001
+
+	* man.mk: use MAN_SUFFIXES and CMT2DOC_SUFFIXES for more
+	flexibility
+
+2021-09-13  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* options.mk (describe-options): print options and their values
+	  and optional description
+
+2021-09-11  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20210911
+	
+	* options.mk (show-options): print options and their values
+
+2021-09-08  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20210909
+
+	* lib.mk: apply patch from <daniel@octaforge.org>
+	to fix shared libs on Linux
+
+2021-08-08  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20210808
+
+	* options.mk: issue warning for WITH_*=no
+
 2021-06-16  Simon J Gerraty  <sjg@beast.crufty.net>
 
 	* install-mk (MK_VERSION): 20210616

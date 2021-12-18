@@ -1,7 +1,7 @@
-# $Id: own.mk,v 1.42 2020/11/27 18:00:08 sjg Exp $
+# $Id: own.mk,v 1.44 2021/12/08 05:56:50 sjg Exp $
 
 .if !target(__${.PARSEFILE}__)
-__${.PARSEFILE}__:
+__${.PARSEFILE}__: .NOTMAIN
 
 .if !target(__init.mk__)
 .include "init.mk"
@@ -257,10 +257,12 @@ MK_NLS=		no
 .if ${MK_META_MODE:Uno} == "yes"
 # should all be set by sys.mk if not default
 TARGET_SPEC_VARS ?= MACHINE
+.if ${MAKE_VERSION} >= 20120325
 .if ${TARGET_SPEC_VARS:[#]} > 1
 TARGET_SPEC_VARS_REV := ${TARGET_SPEC_VARS:[-1..1]}
 .else
 TARGET_SPEC_VARS_REV = ${TARGET_SPEC_VARS}
+.endif
 .endif
 .if ${MK_STAGING} == "yes"
 STAGE_ROOT?= ${OBJROOT}/stage
