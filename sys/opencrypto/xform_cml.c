@@ -88,7 +88,7 @@ cml_encrypt(void *vctx, const uint8_t *in, uint8_t *out)
 
 	for (u_int i = 0; i < CAMELLIA_BLOCK_LEN; i++)
 		out[i] = in[i] ^ ctx->iv[i];
-	camellia_encrypt(&ctx->state, in, out);
+	camellia_encrypt(&ctx->state, out, out);
 	memcpy(ctx->iv, out, CAMELLIA_BLOCK_LEN);
 }
 
