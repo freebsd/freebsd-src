@@ -99,6 +99,8 @@ int copyout_remap(const void *kaddr, void *udaddr, size_t len);
 int copyout_direct(const void *kaddr, void *udaddr, size_t len);
 int copyin_remap(const void *uaddr, void *kaddr, size_t len);
 int copyin_direct(const void *uaddr, void *kaddr, size_t len);
+int suword16_remap(volatile void *addr, int word);
+int suword16_direct(volatile void *addr, int word);
 int suword32_remap(volatile void *addr, int word);
 int suword32_direct(volatile void *addr, int word);
 int suword_remap(volatile void *addr, long word);
@@ -139,6 +141,7 @@ DEFINE_COPY_FUNC(int, copyinstr, (const void *, void *, size_t, size_t *))
 DEFINE_COPY_FUNC(int, copyin, (const void *, void *, size_t))
 DEFINE_COPY_FUNC(int, copyout, (const void *, void *, size_t))
 DEFINE_COPY_FUNC(int, suword, (volatile void *, long))
+DEFINE_COPY_FUNC(int, suword16, (volatile void *, int))
 DEFINE_COPY_FUNC(int, suword32, (volatile void *, int))
 DEFINE_COPY_FUNC(int, suword64, (volatile void *, int64_t))
 DEFINE_COPY_FUNC(int, fubyte, (volatile const void *))
@@ -309,6 +312,34 @@ REMAP(subyte)(volatile void *addr, int byte)
 	}
 
 	*p = (char)byte;
+
+	td->td_pcb->pcb_onfault = NULL;
+	return (0);
+}
+
+int
+REMAP(suword16)(volatile void *addr, int word)
+{
+	struct		thread *td;
+	pmap_t		pm;
+	jmp_buf		env;
+	int16_t		*p;
+
+	td = curthread;
+	pm = &td->td_proc->p_vmspace->vm_pmap;
+
+	td->td_pcb->pcb_onfault = &env;
+	if (setjmp(env)) {
+		td->td_pcb->pcb_onfault = NULL;
+		return (-1);
+	}
+
+	if (pmap_map_user_ptr(pm, addr, (void **)&p, sizeof(*p), NULL)) {
+		td->td_pcb->pcb_onfault = NULL;
+		return (-1);
+	}
+
+	*p = (int16_t)word;
 
 	td->td_pcb->pcb_onfault = NULL;
 	return (0);
