@@ -272,6 +272,19 @@ LEAF(fubyte)
 	PTR_S	zero, U_PCB_ONFAULT(v1)
 END(fubyte)
 
+LEAF(suword16)
+	PTR_LA	v0, fswberr
+	blt	a0, zero, fswberr	# make sure address is in user space
+	nop
+	GET_CPU_PCPU(v1)
+	PTR_L	v1, PC_CURPCB(v1)
+	PTR_S	v0, U_PCB_ONFAULT(v1)
+	sh	a1, 0(a0)		# store short
+	PTR_S	zero, U_PCB_ONFAULT(v1)
+	j	ra
+	move	v0, zero
+END(suword16)
+
 LEAF(suword32)
 #ifndef __mips_n64
 XLEAF(suword)
