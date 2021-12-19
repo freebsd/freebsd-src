@@ -85,6 +85,9 @@
 /* bdev_check_media_change() exists */
 /* #undef HAVE_BDEV_CHECK_MEDIA_CHANGE */
 
+/* block_device_operations->submit_bio() returns void */
+/* #undef HAVE_BDEV_SUBMIT_BIO_RETURNS_VOID */
+
 /* bdev_whole() is available */
 /* #undef HAVE_BDEV_WHOLE */
 
@@ -112,8 +115,14 @@
 /* bio_set_dev() GPL-only */
 /* #undef HAVE_BIO_SET_DEV_GPL_ONLY */
 
+/* bio_set_dev() is a macro */
+/* #undef HAVE_BIO_SET_DEV_MACRO */
+
 /* bio_set_op_attrs is available */
 /* #undef HAVE_BIO_SET_OP_ATTRS */
+
+/* blkdev_get_by_path() handles ERESTARTSYS */
+/* #undef HAVE_BLKDEV_GET_ERESTARTSYS */
 
 /* blkdev_reread_part() exists */
 /* #undef HAVE_BLKDEV_REREAD_PART */
@@ -353,6 +362,9 @@
 /* iov_iter_revert() is available */
 /* #undef HAVE_IOV_ITER_REVERT */
 
+/* iov_iter_type() is available */
+/* #undef HAVE_IOV_ITER_TYPE */
+
 /* iov_iter types are available */
 /* #undef HAVE_IOV_ITER_TYPES */
 
@@ -370,6 +382,9 @@
 
 /* kernel fpu internal */
 /* #undef HAVE_KERNEL_FPU_INTERNAL */
+
+/* kernel has asm/fpu/xcr.h */
+/* #undef HAVE_KERNEL_FPU_XCR_HEADER */
 
 /* uncached_acl_sentinel() exists */
 /* #undef HAVE_KERNEL_GET_ACL_HANDLE_CACHE */
@@ -410,9 +425,6 @@
 /* kvmalloc exists */
 /* #undef HAVE_KVMALLOC */
 
-/* kernel has large stacks */
-/* #undef HAVE_LARGE_STACKS */
-
 /* Define if you have [aio] */
 /* #undef HAVE_LIBAIO */
 
@@ -430,6 +442,9 @@
 
 /* Define if you have [uuid] */
 /* #undef HAVE_LIBUUID */
+
+/* linux/blk-cgroup.h exists */
+/* #undef HAVE_LINUX_BLK_CGROUP_HEADER */
 
 /* lseek_execute() is available */
 /* #undef HAVE_LSEEK_EXECUTE */
@@ -463,6 +478,9 @@
 
 /* new_sync_read()/new_sync_write() are available */
 /* #undef HAVE_NEW_SYNC_READ */
+
+/* folio_wait_bit() exists */
+/* #undef HAVE_PAGEMAP_FOLIO_WAIT_BIT */
 
 /* iops->getattr() takes a path */
 /* #undef HAVE_PATH_IOPS_GETATTR */
@@ -812,7 +830,7 @@
 /* #undef ZFS_IS_GPL_COMPATIBLE */
 
 /* Define the project alias string. */
-#define ZFS_META_ALIAS "zfs-2.1.1-FreeBSD_g71c609852"
+#define ZFS_META_ALIAS "zfs-2.1.2-FreeBSD_gaf88d47f1"
 
 /* Define the project author. */
 #define ZFS_META_AUTHOR "OpenZFS"
@@ -821,7 +839,7 @@
 /* #undef ZFS_META_DATA */
 
 /* Define the maximum compatible kernel version. */
-#define ZFS_META_KVER_MAX "5.14"
+#define ZFS_META_KVER_MAX "5.15"
 
 /* Define the minimum compatible kernel version. */
 #define ZFS_META_KVER_MIN "3.10"
@@ -842,10 +860,10 @@
 #define ZFS_META_NAME "zfs"
 
 /* Define the project release. */
-#define ZFS_META_RELEASE "FreeBSD_g71c609852"
+#define ZFS_META_RELEASE "FreeBSD_gaf88d47f1"
 
 /* Define the project version. */
-#define ZFS_META_VERSION "2.1.1"
+#define ZFS_META_VERSION "2.1.2"
 
 /* count is located in percpu_ref.data */
 /* #undef ZFS_PERCPU_REF_COUNT_IN_DATA */

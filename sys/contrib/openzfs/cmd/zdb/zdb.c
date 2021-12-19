@@ -4096,7 +4096,7 @@ cksum_record_compare(const void *x1, const void *x2)
 	const cksum_record_t *l = (cksum_record_t *)x1;
 	const cksum_record_t *r = (cksum_record_t *)x2;
 	int arraysize = ARRAY_SIZE(l->cksum.zc_word);
-	int difference;
+	int difference = 0;
 
 	for (int i = 0; i < arraysize; i++) {
 		difference = TREE_CMP(l->cksum.zc_word[i], r->cksum.zc_word[i]);
@@ -4573,7 +4573,7 @@ dump_path_impl(objset_t *os, uint64_t obj, char *name, uint64_t *retobj)
 	case DMU_OT_DIRECTORY_CONTENTS:
 		if (s != NULL && *(s + 1) != '\0')
 			return (dump_path_impl(os, child_obj, s + 1, retobj));
-		/*FALLTHROUGH*/
+		fallthrough;
 	case DMU_OT_PLAIN_FILE_CONTENTS:
 		if (retobj != NULL) {
 			*retobj = child_obj;
