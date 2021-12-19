@@ -202,6 +202,7 @@
 #define ciphers_valid				Fssh_ciphers_valid
 #define cleanhostname				Fssh_cleanhostname
 #define cleanup_exit				Fssh_cleanup_exit
+#define client_converse				Fssh_client_converse
 #define colon					Fssh_colon
 #define compare					Fssh_compare
 #define compare_gps				Fssh_compare_gps

@@ -17,26 +17,6 @@ PIDFILE=$piddir/sshd.pid
 PidFile=`grep "^PidFile" ${sysconfdir}/sshd_config | tr "=" " " | awk '{print $2}'`
 [ X$PidFile = X ]  ||  PIDFILE=$PidFile
 SSH_KEYGEN=$prefix/bin/ssh-keygen
-HOST_KEY_DSA=$sysconfdir/ssh_host_dsa_key
-HOST_KEY_RSA=$sysconfdir/ssh_host_rsa_key
-@COMMENT_OUT_ECC@HOST_KEY_ECDSA=$sysconfdir/ssh_host_ecdsa_key
-HOST_KEY_ED25519=$sysconfdir/ssh_host_ed25519_key
-
-
-checkkeys() {
-    if [ ! -f $HOST_KEY_DSA ]; then
-	${SSH_KEYGEN} -t dsa -f ${HOST_KEY_DSA} -N ""
-    fi
-    if [ ! -f $HOST_KEY_RSA ]; then
-	${SSH_KEYGEN} -t rsa -f ${HOST_KEY_RSA} -N ""
-    fi
-@COMMENT_OUT_ECC@    if [ ! -f $HOST_KEY_ECDSA ]; then
-@COMMENT_OUT_ECC@	${SSH_KEYGEN} -t ecdsa -f ${HOST_KEY_ECDSA} -N ""
-@COMMENT_OUT_ECC@    fi
-    if [ ! -f $HOST_KEY_ED25519 ]; then
-	${SSH_KEYGEN} -t ed25519 -f ${HOST_KEY_ED25519} -N ""
-    fi
-}
 
 stop_service() {
     if [  -r $PIDFILE  -a  ! -z ${PIDFILE}  ]; then
@@ -54,7 +34,7 @@ start_service() {
     # XXX we will opt out at this time. - Bal
 
     # Check to see if we have keys that need to be made
-    checkkeys
+    ${SSH_KEYGEN} -A
 
     # Start SSHD
     echo "starting $SSHD... \c"         ; $SSHD

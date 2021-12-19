@@ -1,4 +1,4 @@
-/* $OpenBSD: clientloop.c,v 1.369 2021/07/23 04:04:52 djm Exp $ */
+/* $OpenBSD: clientloop.c,v 1.370 2021/08/29 23:44:07 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -1405,7 +1405,8 @@ client_loop(struct ssh *ssh, int have_pty, int escape_char_arg,
 	 * exit status to be returned.  In that case, clear error code if the
 	 * connection was deliberately terminated at this end.
 	 */
-	if (options.session_type == SESSION_TYPE_NONE && received_signal == SIGTERM) {
+	if (options.session_type == SESSION_TYPE_NONE &&
+	    received_signal == SIGTERM) {
 		received_signal = 0;
 		exit_status = 0;
 	}

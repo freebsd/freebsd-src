@@ -188,7 +188,7 @@ pselect(int nfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds,
 	if (unmasked) {
 		pselect_notify_setup();
 		pselect_notify_prepare(readfds);
-		nfds = MAX(nfds, notify_pipe[0]);
+		nfds = MAX(nfds, notify_pipe[0] + 1);
 	}
 
 	/* Unmask signals, call select then restore signal mask. */
