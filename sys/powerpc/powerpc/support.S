@@ -401,6 +401,14 @@ ENTRY_DIRECT(suword)
 END_DIRECT(suword)
 #endif	
 
+ENTRY_DIRECT(suword16)
+	PROLOGUE
+	SET_FUSUFAULT(%r3, %r7)
+	sth  %r4, 0(%r3)
+	CLEAR_FAULT(%r7)
+	EPILOGUE
+END_DIRECT(suword16)
+
 ENTRY_DIRECT(suword32)
 	PROLOGUE
 	SET_FUSUFAULT(%r3, %r7)
