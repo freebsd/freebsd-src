@@ -528,18 +528,13 @@ struct tcptw {
 		t_unused:16;
 	tcp_seq		snd_nxt;
 	tcp_seq		rcv_nxt;
-	tcp_seq		iss;
-	tcp_seq		irs;
 	u_short		last_win;	/* cached window value */
 	short		tw_so_options;	/* copy of so_options */
 	struct ucred	*tw_cred;	/* user credentials */
 	u_int32_t	t_recent;
 	u_int32_t	ts_offset;	/* our timestamp offset */
-	u_int		t_starttime;
 	int		tw_time;
 	TAILQ_ENTRY(tcptw) tw_2msl;
-	void		*tw_pspare;	/* TCP_SIGNATURE */
-	u_int		*tw_spare;	/* TCP_SIGNATURE */
 };
 
 #define	intotcpcb(ip)	((struct tcpcb *)(ip)->inp_ppcb)
