@@ -234,7 +234,7 @@ ENTRY(suword16)
 	adr	r3, .Lfusufault
 	str	r3, [r2, #PCB_ONFAULT]
 
-	strht	r1, [r0]
+	strht	r1, [r0], #0
 
 	mov	r0, #0x00000000
 	str	r0, [r2, #PCB_ONFAULT]
