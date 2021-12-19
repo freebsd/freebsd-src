@@ -1,4 +1,4 @@
-/* $OpenBSD: readconf.h,v 1.144 2021/07/23 04:04:52 djm Exp $ */
+/* $OpenBSD: readconf.h,v 1.145 2021/09/15 06:56:01 djm Exp $ */
 /* $FreeBSD$ */
 
 /*
@@ -231,6 +231,7 @@ int	 parse_jump(const char *, Options *, int);
 int	 parse_ssh_uri(const char *, char **, char **, int *);
 int	 default_ssh_port(void);
 int	 option_clear_or_none(const char *);
+int	 config_has_permitted_cnames(Options *);
 void	 dump_client_config(Options *o, const char *host);
 
 void	 add_local_forward(Options *, const struct Forward *);

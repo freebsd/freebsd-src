@@ -1,4 +1,4 @@
-#	$OpenBSD: keys-command.sh,v 1.6 2019/07/25 08:48:11 dtucker Exp $
+#	$OpenBSD: keys-command.sh,v 1.7 2021/09/01 00:50:27 dtucker Exp $
 #	Placed in the Public Domain.
 
 tid="authorized keys from command"
@@ -77,5 +77,5 @@ if [ -x $KEY_COMMAND ]; then
 		fail "connect failed"
 	fi
 else
-	echo "SKIPPED: $KEY_COMMAND not executable (/var/run mounted noexec?)"
+	skip "$KEY_COMMAND not executable (/var/run mounted noexec?)"
 fi

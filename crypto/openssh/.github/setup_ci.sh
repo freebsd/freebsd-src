@@ -11,6 +11,7 @@ TARGETS=$@
 
 PACKAGES=""
 INSTALL_FIDO_PPA="no"
+export DEBIAN_FRONTEND=noninteractive
 
 #echo "Setting up for '$TARGETS'"
 
@@ -54,6 +55,7 @@ for TARGET in $TARGETS; do
     openssl-*)
         INSTALL_OPENSSL=$(echo ${TARGET} | cut -f2 -d-)
         case ${INSTALL_OPENSSL} in
+          1.1.1_stable)	INSTALL_OPENSSL="OpenSSL_1_1_1-stable" ;;
           1.*)	INSTALL_OPENSSL="OpenSSL_$(echo ${INSTALL_OPENSSL} | tr . _)" ;;
           3.*)	INSTALL_OPENSSL="openssl-${INSTALL_OPENSSL}" ;;
         esac
@@ -78,8 +80,8 @@ done
 
 if [ "yes" = "$INSTALL_FIDO_PPA" ]; then
     sudo apt update -qq
-    sudo apt install software-properties-common
-    sudo apt-add-repository ppa:yubico/stable
+    sudo apt install -qy software-properties-common
+    sudo apt-add-repository -y ppa:yubico/stable
 fi
 
 if [ "x" != "x$PACKAGES" ]; then 
