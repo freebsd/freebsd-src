@@ -706,6 +706,11 @@ struct	tcpstat {
 	uint64_t tcps_dsack_bytes;	/* Number of bytes DSACK'ed no TLP */
 	uint64_t tcps_dsack_tlp_bytes;	/* Number of bytes DSACK'ed due to TLPs */
 
+	/* TCPS_TIME_WAIT usage stats */
+	uint64_t tcps_tw_recycles;	/* Times time-wait was recycled. */
+	uint64_t tcps_tw_resets;	/* Times time-wait sent a reset. */
+	uint64_t tcps_tw_responds;	/* Times time-wait sent a valid ack. */
+
 	uint64_t _pad[6];		/* 3 UTO, 3 TBD */
 };
 

@@ -462,6 +462,7 @@ tcp_twcheck(struct inpcb *inp, struct tcpopt *to, struct tcphdr *th,
 		    INP_TRY_UPGRADE(inp) == 0)
 			goto drop;
 		tcp_twclose(tw, 0);
+		TCPSTAT_INC(tcps_tw_recycles);
 		return (1);
 	}
 
@@ -481,6 +482,7 @@ tcp_twcheck(struct inpcb *inp, struct tcpopt *to, struct tcphdr *th,
 			    th->th_seq+tlen, (tcp_seq)0, TH_RST|TH_ACK);
 		}
 		INP_UNLOCK(inp);
+		TCPSTAT_INC(tcps_tw_resets);
 		return (0);
 	}
 
@@ -519,6 +521,7 @@ tcp_twcheck(struct inpcb *inp, struct tcpopt *to, struct tcphdr *th,
 	    th->th_seq != tw->rcv_nxt || th->th_ack != tw->snd_nxt) {
 		TCP_PROBE5(receive, NULL, NULL, m, NULL, th);
 		tcp_twrespond(tw, TH_ACK);
+		TCPSTAT_INC(tcps_tw_responds);
 		goto dropnoprobe;
 	}
 drop:
