@@ -854,6 +854,13 @@ static void
 carp_send_ad_error(struct carp_softc *sc, int error)
 {
 
+	/*
+	 * We track errors and successfull sends with this logic:
+	 * - Any error resets success counter to 0.
+	 * - MAX_ERRORS triggers demotion.
+	 * - MIN_SUCCESS successes resets error counter to 0.
+	 * - MIN_SUCCESS reverts demotion, if it was triggered before.
+	 */
 	if (error) {
 		if (sc->sc_sendad_errors < INT_MAX)
 			sc->sc_sendad_errors++;
@@ -865,17 +872,17 @@ carp_send_ad_error(struct carp_softc *sc, int error)
 			carp_demote_adj(V_carp_senderr_adj, msg);
 		}
 		sc->sc_sendad_success = 0;
-	} else {
-		if (sc->sc_sendad_errors >= CARP_SENDAD_MAX_ERRORS &&
-		    ++sc->sc_sendad_success >= CARP_SENDAD_MIN_SUCCESS) {
-			static const char fmt[] = "send ok on %s";
-			char msg[sizeof(fmt) + IFNAMSIZ];
+	} else if (sc->sc_sendad_errors > 0) {
+		if (++sc->sc_sendad_success >= CARP_SENDAD_MIN_SUCCESS) {
+			if (sc->sc_sendad_errors >= CARP_SENDAD_MAX_ERRORS) {
+				static const char fmt[] = "send ok on %s";
+				char msg[sizeof(fmt) + IFNAMSIZ];
 
-			sprintf(msg, fmt, sc->sc_carpdev->if_xname);
-			carp_demote_adj(-V_carp_senderr_adj, msg);
+				sprintf(msg, fmt, sc->sc_carpdev->if_xname);
+				carp_demote_adj(-V_carp_senderr_adj, msg);
+			}
 			sc->sc_sendad_errors = 0;
-		} else
-			sc->sc_sendad_errors = 0;
+		}
 	}
 }
 
