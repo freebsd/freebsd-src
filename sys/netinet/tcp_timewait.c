@@ -324,9 +324,6 @@ tcp_twstart(struct tcpcb *tp)
 	tw->snd_nxt = tp->snd_nxt;
 	tw->t_port = tp->t_port;
 	tw->rcv_nxt = tp->rcv_nxt;
-	tw->iss     = tp->iss;
-	tw->irs     = tp->irs;
-	tw->t_starttime = tp->t_starttime;
 	tw->tw_time = 0;
 
 /* XXX
