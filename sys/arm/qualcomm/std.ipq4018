@@ -8,3 +8,8 @@ arm/qualcomm/qcom_gcc_ipq4018.c		optional qcom_gcc_ipq4018
 arm/qualcomm/qcom_gcc_ipq4018_reset.c	optional qcom_gcc_ipq4018
 arm/qualcomm/qcom_gcc_ipq4018_clock.c	optional qcom_gcc_ipq4018
 
+dev/qcom_tlmm/qcom_tlmm_debug.c		optional qcom_tlmm_ipq4018
+dev/qcom_tlmm/qcom_tlmm_ipq4018.c	optional qcom_tlmm_ipq4018
+dev/qcom_tlmm/qcom_tlmm_ipq4018_hw.c	optional qcom_tlmm_ipq4018
+dev/qcom_tlmm/qcom_tlmm_pin.c		optional qcom_tlmm_ipq4018
+dev/qcom_tlmm/qcom_tlmm_pinmux.c	optional qcom_tlmm_ipq4018
