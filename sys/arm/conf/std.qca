@@ -40,6 +40,11 @@ device 		psci
 # Clock/Reset provider
 device 		qcom_gcc_ipq4018
 
+# TLMM (gpio/pinmux)
+device 		gpio
+device 		qcom_tlmm_ipq4018
+device 		fdt_pinctrl
+
 options 	FDT
 
 # Disable CP14 work in DDB as TZ won't let us by default
