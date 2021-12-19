@@ -563,7 +563,6 @@ twsi_intr(void *arg)
 	bool send_start;
 
 	sc = arg;
-	message_done = false;
 	send_start = false;
 
 	mtx_lock(&sc->mutex);
@@ -582,6 +581,8 @@ twsi_intr(void *arg)
 	}
 
 restart:
+	message_done = false;
+
 	switch (status) {
 	case TWSI_STATUS_START:
 	case TWSI_STATUS_RPTD_START:
