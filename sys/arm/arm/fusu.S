@@ -213,6 +213,35 @@ fusupcbfaulttext:
 #endif
 
 /*
+ * suword16(caddr_t uaddr, int x);
+ * Store an uint16_t in the user's address space.
+ */
+
+ENTRY(suword16)
+	ldr	r3, =(VM_MAXUSER_ADDRESS-3)
+	cmp	r0, r3
+	mvncs	r0, #0
+	RETc(cs)
+
+	GET_PCB(r2)
+	ldr	r2, [r2]
+
+#ifdef DIAGNOSTIC
+	teq	r2, #0x00000000
+	beq	.Lfusupcbfault
+#endif
+
+	adr	r3, .Lfusufault
+	str	r3, [r2, #PCB_ONFAULT]
+
+	strht	r1, [r0], #0
+
+	mov	r0, #0x00000000
+	str	r0, [r2, #PCB_ONFAULT]
+	RET
+END(suword16)
+
+/*
  * suword(caddr_t uaddr, int x);
  * Store an int in the user's address space.
  */
