@@ -51,7 +51,9 @@ Limit device range to the given USB device index.
 Should only be used in conjunction with the unit argument.
 .It Fl d Ar [ugen]<unit>.<addr>
 Limit device range to USB devices connected to the given unit and address.
-The unit and address coordinates may be prefixed by the lowercased word "ugen".
+The unit and address coordinates may be prefixed by the lowercased word "ugen",
+or the full path name
+.Pa /dev/ugen .
 .It Fl i Ar interface_index
 Specify interface index as indicated by the command description.
 If this argument is not specified a value of zero will be used for the interface index.
