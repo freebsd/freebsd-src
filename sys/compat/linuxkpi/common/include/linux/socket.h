@@ -28,8 +28,8 @@
  *
  * $FreeBSD$
  */
-#ifndef	_LINUX_SOCKET_H_
-#define	_LINUX_SOCKET_H_
+#ifndef	_LINUXKPI_LINUX_SOCKET_H_
+#define	_LINUXKPI_LINUX_SOCKET_H_
 
 #include <sys/socket.h>
 
@@ -66,4 +66,4 @@ memcpy_fromiovec(unsigned char *kdata, struct iovec *iov, int len)
 }
 #endif
 
-#endif	/* _LINUX_SOCKET_H_ */
+#endif	/* _LINUXKPI_LINUX_SOCKET_H_ */

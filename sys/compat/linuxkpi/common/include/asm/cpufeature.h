@@ -1,7 +1,7 @@
 /* Public domain. */
 
-#ifndef _ASM_CPUFEATURE_H
-#define _ASM_CPUFEATURE_H
+#ifndef _LINUXKPI_ASM_CPUFEATURE_H
+#define _LINUXKPI_ASM_CPUFEATURE_H
 
 #if defined(__amd64__) || defined(__i386__)
 

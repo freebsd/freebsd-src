@@ -26,8 +26,8 @@
  * $FreeBSD$
  */
 
-#ifndef _ASM_SMP_H_
-#define	_ASM_SMP_H_
+#ifndef _LINUXKPI_ASM_SMP_H_
+#define	_LINUXKPI_ASM_SMP_H_
 
 #if defined(__i386__) || defined(__amd64__)
 
@@ -45,4 +45,4 @@ int	linux_wbinvd_on_all_cpus(void);
 #define	put_cpu()			\
 	critical_exit()
 
-#endif /* _ASM_SMP_H_ */
+#endif /* _LINUXKPI_ASM_SMP_H_ */

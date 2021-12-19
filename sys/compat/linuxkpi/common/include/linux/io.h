@@ -28,8 +28,8 @@
  *
  * $FreeBSD$
  */
-#ifndef	_LINUX_IO_H_
-#define	_LINUX_IO_H_
+#ifndef	_LINUXKPI_LINUX_IO_H_
+#define	_LINUXKPI_LINUX_IO_H_
 
 #include <sys/endian.h>
 #include <sys/types.h>
@@ -490,4 +490,4 @@ void lkpi_arch_phys_wc_del(int);
 #define	arch_phys_wc_index(x)	\
 	(((x) < __MTRR_ID_BASE) ? -1 : ((x) - __MTRR_ID_BASE))
 
-#endif	/* _LINUX_IO_H_ */
+#endif	/* _LINUXKPI_LINUX_IO_H_ */

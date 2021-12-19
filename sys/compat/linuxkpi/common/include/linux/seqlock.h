@@ -26,8 +26,8 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _LINUX_SEQLOCK_H__
-#define	_LINUX_SEQLOCK_H__
+#ifndef _LINUXKPI_LINUX_SEQLOCK_H__
+#define	_LINUXKPI_LINUX_SEQLOCK_H__
 
 #include <sys/param.h>
 #include <sys/lock.h>
@@ -134,4 +134,4 @@ read_seqbegin(const struct seqlock *seqlock)
 #define	read_seqretry(seqlock, gen)	\
 	read_seqcount_retry(&(seqlock)->seql_count, gen)
 
-#endif	/* _LINUX_SEQLOCK_H__ */
+#endif	/* _LINUXKPI_LINUX_SEQLOCK_H__ */

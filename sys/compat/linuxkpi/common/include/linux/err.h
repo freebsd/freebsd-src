@@ -28,8 +28,8 @@
  *
  * $FreeBSD$
  */
-#ifndef	_LINUX_ERR_H_
-#define	_LINUX_ERR_H_
+#ifndef	_LINUXKPI_LINUX_ERR_H_
+#define	_LINUXKPI_LINUX_ERR_H_
 
 #include <sys/types.h>
 
@@ -80,4 +80,4 @@ PTR_ERR_OR_ZERO(const void *ptr)
 
 #define PTR_RET(p) PTR_ERR_OR_ZERO(p)
 
-#endif	/* _LINUX_ERR_H_ */
+#endif	/* _LINUXKPI_LINUX_ERR_H_ */

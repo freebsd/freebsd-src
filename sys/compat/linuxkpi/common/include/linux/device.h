@@ -28,8 +28,8 @@
  *
  * $FreeBSD$
  */
-#ifndef	_LINUX_DEVICE_H_
-#define	_LINUX_DEVICE_H_
+#ifndef	_LINUXKPI_LINUX_DEVICE_H_
+#define	_LINUXKPI_LINUX_DEVICE_H_
 
 #include <linux/err.h>
 #include <linux/types.h>
@@ -653,4 +653,4 @@ devm_kmalloc(struct device *dev, size_t size, gfp_t gfp)
 #define	devm_kcalloc(_dev, _sizen, _size, _gfp)			\
     devm_kmalloc((_dev), ((_sizen) * (_size)), (_gfp) | __GFP_ZERO)
 
-#endif	/* _LINUX_DEVICE_H_ */
+#endif	/* _LINUXKPI_LINUX_DEVICE_H_ */

@@ -25,8 +25,8 @@
  *
  * $FreeBSD$
  */
-#ifndef	_ASM_ATOMIC64_H_
-#define	_ASM_ATOMIC64_H_
+#ifndef	_LINUXKPI_ASM_ATOMIC64_H_
+#define	_LINUXKPI_ASM_ATOMIC64_H_
 
 #include <linux/compiler.h>
 #include <sys/types.h>
@@ -145,4 +145,4 @@ atomic64_cmpxchg(atomic64_t *v, int64_t old, int64_t new)
 	return (ret);
 }
 
-#endif					/* _ASM_ATOMIC64_H_ */
+#endif					/* _LINUXKPI_ASM_ATOMIC64_H_ */

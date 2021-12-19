@@ -1,7 +1,7 @@
 /* Public domain. */
 
-#ifndef _LINUX_LLIST_H
-#define _LINUX_LLIST_H
+#ifndef _LINUXKPI_LINUX_LLIST_H
+#define _LINUXKPI_LINUX_LLIST_H
 
 #include <sys/types.h>
 #include <machine/atomic.h>

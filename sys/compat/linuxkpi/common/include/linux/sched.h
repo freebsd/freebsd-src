@@ -28,8 +28,8 @@
  *
  * $FreeBSD$
  */
-#ifndef	_LINUX_SCHED_H_
-#define	_LINUX_SCHED_H_
+#ifndef	_LINUXKPI_LINUX_SCHED_H_
+#define	_LINUXKPI_LINUX_SCHED_H_
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -201,4 +201,4 @@ get_task_comm(char *buf, struct task_struct *task)
 	return (task->comm);
 }
 
-#endif	/* _LINUX_SCHED_H_ */
+#endif	/* _LINUXKPI_LINUX_SCHED_H_ */

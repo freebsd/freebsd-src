@@ -26,8 +26,8 @@
  * $FreeBSD$
  */
 
-#ifndef _LINUX_PFN_T_H_
-#define	_LINUX_PFN_T_H_
+#ifndef _LINUXKPI_LINUX_PFN_T_H_
+#define	_LINUXKPI_LINUX_PFN_T_H_
 
 #include <linux/mm.h>
 
@@ -53,4 +53,4 @@ pfn_to_pfn_t(unsigned long pfn)
 	return (__pfn_to_pfn_t (pfn, 0));
 }
 
-#endif					/* _LINUX_PFN_T_H_ */
+#endif					/* _LINUXKPI_LINUX_PFN_T_H_ */

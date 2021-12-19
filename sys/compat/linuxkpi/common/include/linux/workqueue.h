@@ -28,8 +28,8 @@
  *
  * $FreeBSD$
  */
-#ifndef	_LINUX_WORKQUEUE_H_
-#define	_LINUX_WORKQUEUE_H_
+#ifndef	_LINUXKPI_LINUX_WORKQUEUE_H_
+#define	_LINUXKPI_LINUX_WORKQUEUE_H_
 
 #include <linux/types.h>
 #include <linux/kernel.h>
@@ -256,4 +256,4 @@ extern struct work_struct *linux_current_work(void);
 extern bool linux_queue_rcu_work(struct workqueue_struct *wq, struct rcu_work *rwork);
 extern bool linux_flush_rcu_work(struct rcu_work *rwork);
 
-#endif					/* _LINUX_WORKQUEUE_H_ */
+#endif					/* _LINUXKPI_LINUX_WORKQUEUE_H_ */

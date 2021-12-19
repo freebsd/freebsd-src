@@ -30,8 +30,8 @@
  * $FreeBSD$
  */
 
-#ifndef _LINUX_WAIT_H_
-#define	_LINUX_WAIT_H_
+#ifndef _LINUXKPI_LINUX_WAIT_H_
+#define	_LINUXKPI_LINUX_WAIT_H_
 
 #include <linux/compiler.h>
 #include <linux/list.h>
@@ -310,4 +310,4 @@ bool linux_wake_up_state(struct task_struct *, unsigned int);
 #define	wake_up_process(task)		linux_wake_up_state(task, TASK_NORMAL)
 #define	wake_up_state(task, state)	linux_wake_up_state(task, state)
 
-#endif /* _LINUX_WAIT_H_ */
+#endif /* _LINUXKPI_LINUX_WAIT_H_ */

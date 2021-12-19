@@ -29,8 +29,8 @@
  * $FreeBSD$
  */
 
-#ifndef _LINUX_GCD_H_
-#define _LINUX_GCD_H_
+#ifndef _LINUXKPI_LINUX_GCD_H_
+#define _LINUXKPI_LINUX_GCD_H_
 
 static inline unsigned long
 gcd(unsigned long a, unsigned long b)

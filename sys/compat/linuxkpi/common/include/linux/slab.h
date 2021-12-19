@@ -28,8 +28,8 @@
  *
  * $FreeBSD$
  */
-#ifndef	_LINUX_SLAB_H_
-#define	_LINUX_SLAB_H_
+#ifndef	_LINUXKPI_LINUX_SLAB_H_
+#define	_LINUXKPI_LINUX_SLAB_H_
 
 #include <sys/types.h>
 #include <sys/malloc.h>
@@ -207,4 +207,4 @@ extern void *lkpi_kmem_cache_zalloc(struct linux_kmem_cache *, gfp_t);
 extern void lkpi_kmem_cache_free(struct linux_kmem_cache *, void *);
 extern void linux_kmem_cache_destroy(struct linux_kmem_cache *);
 
-#endif					/* _LINUX_SLAB_H_ */
+#endif					/* _LINUXKPI_LINUX_SLAB_H_ */

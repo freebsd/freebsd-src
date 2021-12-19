@@ -26,8 +26,8 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _LINUX_ANON_INODES_H_
-#define _LINUX_ANON_INODES_H_
+#ifndef _LINUXKPI_LINUX_ANON_INODES_H_
+#define _LINUXKPI_LINUX_ANON_INODES_H_
 
 #include <linux/fs.h>
 #include <linux/file.h>
@@ -45,4 +45,4 @@ anon_inode_getfile(const char *name __unused,
 	return (file);
 }
 
-#endif	/* _LINUX_ANON_INODES_H_ */
+#endif	/* _LINUXKPI_LINUX_ANON_INODES_H_ */

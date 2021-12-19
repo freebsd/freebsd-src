@@ -26,8 +26,8 @@
  * $FreeBSD$
  */
 
-#ifndef	_LINUX_SWAP_H_
-#define	_LINUX_SWAP_H_
+#ifndef	_LINUXKPI_LINUX_SWAP_H_
+#define	_LINUXKPI_LINUX_SWAP_H_
 
 #include <vm/swap_pager.h>
 #include <vm/vm_pageout.h>

@@ -28,8 +28,8 @@
  * $FreeBSD$
  */
 
-#ifndef _LINUX_BACKLIGHT_H_
-#define _LINUX_BACKLIGHT_H_
+#ifndef _LINUXKPI_LINUX_BACKLIGHT_H_
+#define _LINUXKPI_LINUX_BACKLIGHT_H_
 
 #include <linux/notifier.h>
 
@@ -109,4 +109,4 @@ backlight_disable(struct backlight_device *bd)
 	return (backlight_update_status(bd));
 }
 
-#endif	/* _LINUX_BACKLIGHT_H_ */
+#endif	/* _LINUXKPI_LINUX_BACKLIGHT_H_ */

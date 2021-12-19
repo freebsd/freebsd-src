@@ -27,8 +27,8 @@
  * $FreeBSD$
  */
 
-#ifndef _LINUX_SEQ_FILE_H_
-#define _LINUX_SEQ_FILE_H_
+#ifndef _LINUXKPI_LINUX_SEQ_FILE_H_
+#define _LINUXKPI_LINUX_SEQ_FILE_H_
 
 #include <linux/types.h>
 #include <linux/fs.h>
@@ -85,4 +85,4 @@ int single_release(struct inode *, struct linux_file *);
 
 #define	file			linux_file
 
-#endif	/* _LINUX_SEQ_FILE_H_ */
+#endif	/* _LINUXKPI_LINUX_SEQ_FILE_H_ */

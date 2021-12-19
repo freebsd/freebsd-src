@@ -25,8 +25,8 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _LINUX_EFI_H_
-#define	_LINUX_EFI_H_
+#ifndef _LINUXKPI_LINUX_EFI_H_
+#define	_LINUXKPI_LINUX_EFI_H_
 
 #include <sys/param.h>
 #include <sys/linker.h>
@@ -70,4 +70,4 @@ __efi_enabled(int feature)
 	__efi_enabled(x);					\
 })
 
-#endif	/* _LINUX_EFI_H_ */
+#endif	/* _LINUXKPI_LINUX_EFI_H_ */

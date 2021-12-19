@@ -29,8 +29,8 @@
  * $FreeBSD$
  */
 
-#ifndef _ASM_ATOMIC_H_
-#define	_ASM_ATOMIC_H_
+#ifndef _LINUXKPI_ASM_ATOMIC_H_
+#define	_LINUXKPI_ASM_ATOMIC_H_
 
 #include <linux/compiler.h>
 #include <sys/types.h>
@@ -317,4 +317,4 @@ LINUX_ATOMIC_FETCH_OP(and, &)
 LINUX_ATOMIC_FETCH_OP(andnot, &~)
 LINUX_ATOMIC_FETCH_OP(xor, ^)
 
-#endif					/* _ASM_ATOMIC_H_ */
+#endif					/* _LINUXKPI_ASM_ATOMIC_H_ */

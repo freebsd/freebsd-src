@@ -28,8 +28,8 @@
  *
  * $FreeBSD$
  */
-#ifndef	_LINUX_JIFFIES_H_
-#define	_LINUX_JIFFIES_H_
+#ifndef	_LINUXKPI_LINUX_JIFFIES_H_
+#define	_LINUXKPI_LINUX_JIFFIES_H_
 
 #include <linux/types.h>
 #include <linux/time.h>
@@ -164,4 +164,4 @@ linux_timer_jiffies_until(int expires)
 	return (delta);
 }
 
-#endif	/* _LINUX_JIFFIES_H_ */
+#endif	/* _LINUXKPI_LINUX_JIFFIES_H_ */

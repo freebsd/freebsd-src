@@ -29,8 +29,8 @@
  *
  * $FreeBSD$
  */
-#ifndef	_LINUX_COMPILER_H_
-#define	_LINUX_COMPILER_H_
+#ifndef	_LINUXKPI_LINUX_COMPILER_H_
+#define	_LINUXKPI_LINUX_COMPILER_H_
 
 #include <sys/cdefs.h>
 
@@ -111,4 +111,4 @@
 #define	__same_type(a, b)	__builtin_types_compatible_p(typeof(a), typeof(b))
 #define	__must_be_array(a)	__same_type(a, &(a)[0])
 
-#endif	/* _LINUX_COMPILER_H_ */
+#endif	/* _LINUXKPI_LINUX_COMPILER_H_ */

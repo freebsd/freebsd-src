@@ -25,8 +25,8 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _ASM_BARRIER_H_
-#define	_ASM_BARRIER_H_
+#ifndef _LINUXKPI_ASM_BARRIER_H_
+#define	_LINUXKPI_ASM_BARRIER_H_
 
 #include <sys/types.h>
 #include <machine/atomic.h>
@@ -55,4 +55,4 @@
 #define	smp_store_mb(x, v)	do { WRITE_ONCE(x, v); smp_mb(); } while (0)
 #endif
 
-#endif	/* _ASM_BARRIER_H_ */
+#endif	/* _LINUXKPI_ASM_BARRIER_H_ */

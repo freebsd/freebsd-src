@@ -1,7 +1,7 @@
 /* Public domain. */
 
-#ifndef _LINUX_RATELIMIT_H
-#define _LINUX_RATELIMIT_H
+#ifndef _LINUXKPI_LINUX_RATELIMIT_H
+#define _LINUXKPI_LINUX_RATELIMIT_H
 
 struct ratelimit_state {
 };

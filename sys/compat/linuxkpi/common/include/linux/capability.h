@@ -32,8 +32,8 @@
  * Simple capable() priv_check helper
  */
 
-#ifndef _LINUX_CAPABILITY_H
-#define	_LINUX_CAPABILITY_H
+#ifndef _LINUXKPI_LINUX_CAPABILITY_H
+#define	_LINUXKPI_LINUX_CAPABILITY_H
 
 #include <sys/types.h>
 #include <sys/proc.h>
@@ -48,4 +48,4 @@ capable(const int tryme)
 	return (priv_check(curthread, tryme) == 0);
 }
 
-#endif /* _LINUX_CAPABILITY_H */
+#endif /* _LINUXKPI_LINUX_CAPABILITY_H */

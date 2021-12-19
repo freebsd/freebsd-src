@@ -28,8 +28,8 @@
  *
  * $FreeBSD$
  */
-#ifndef	_LINUX_PAGE_H_
-#define _LINUX_PAGE_H_
+#ifndef	_LINUXKPI_LINUX_PAGE_H_
+#define _LINUXKPI_LINUX_PAGE_H_
 
 #include <linux/types.h>
 
@@ -128,4 +128,4 @@ clflush_cache_range(void *addr, unsigned int size)
 }
 #endif
 
-#endif	/* _LINUX_PAGE_H_ */
+#endif	/* _LINUXKPI_LINUX_PAGE_H_ */

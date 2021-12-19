@@ -28,9 +28,9 @@
  *
  * $FreeBSD$
  */
-#ifndef _ASM_IO_H_
-#define _ASM_IO_H_
+#ifndef _LINUXKPI_ASM_IO_H_
+#define _LINUXKPI_ASM_IO_H_
 
 #include <linux/io.h>
 
-#endif	/* _ASM_IO_H_ */
+#endif	/* _LINUXKPI_ASM_IO_H_ */

@@ -26,8 +26,8 @@
  * $FreeBSD$
  */
 
-#ifndef _LINUX_SMP_H_
-#define	_LINUX_SMP_H_
+#ifndef _LINUXKPI_LINUX_SMP_H_
+#define	_LINUXKPI_LINUX_SMP_H_
 
 #define	on_each_cpu(cb, data, wait) ({				\
 	CTASSERT(wait);						\
@@ -36,4 +36,4 @@
 
 extern int	linux_on_each_cpu(void (*)(void *), void *);
 
-#endif /* _LINUX_SMP_H_ */
+#endif /* _LINUXKPI_LINUX_SMP_H_ */

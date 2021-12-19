@@ -28,8 +28,8 @@
  *
  * $FreeBSD$
  */
-#ifndef	_LINUX_FS_H_
-#define	_LINUX_FS_H_
+#ifndef	_LINUXKPI_LINUX_FS_H_
+#define	_LINUXKPI_LINUX_FS_H_
 
 #include <sys/cdefs.h>
 #include <sys/param.h>
@@ -318,4 +318,4 @@ call_mmap(struct linux_file *file, struct vm_area_struct *vma)
 	return (file->f_op->mmap(file, vma));
 }
 
-#endif /* _LINUX_FS_H_ */
+#endif /* _LINUXKPI_LINUX_FS_H_ */

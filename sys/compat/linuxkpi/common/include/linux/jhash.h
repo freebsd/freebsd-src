@@ -1,5 +1,5 @@
-#ifndef	_LINUX_JHASH_H_
-#define	_LINUX_JHASH_H_
+#ifndef	_LINUXKPI_LINUX_JHASH_H_
+#define	_LINUXKPI_LINUX_JHASH_H_
 
 #include <asm/types.h>
 
@@ -143,4 +143,4 @@ static inline u32 jhash_1word(u32 a, u32 initval)
 	return jhash_3words(a, 0, 0, initval);
 }
 
-#endif	/* _LINUX_JHASH_H_ */
+#endif	/* _LINUXKPI_LINUX_JHASH_H_ */

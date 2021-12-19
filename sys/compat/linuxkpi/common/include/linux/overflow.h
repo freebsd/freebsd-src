@@ -28,8 +28,8 @@
  * $FreeBSD$
  */
 
-#ifndef __LINUX_OVERFLOW_H__
-#define	__LINUX_OVERFLOW_H__
+#ifndef __LINUXKPI_LINUX_OVERFLOW_H__
+#define	__LINUXKPI_LINUX_OVERFLOW_H__
 
 #include <sys/stdint.h>
 #include <sys/types.h>
@@ -50,4 +50,4 @@ array_size(size_t x, size_t y)
 	return (retval);
 }
 
-#endif	/* __LINUX_OVERFLOW_H__ */
+#endif	/* __LINUXKPI_LINUX_OVERFLOW_H__ */

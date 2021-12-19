@@ -25,8 +25,8 @@
  * SUCH DAMAGE.
  */
 
-#ifndef	_FPU_API_H_
-#define	_FPU_API_H_
+#ifndef	_LINUXKPI_ASM_FPU_API_H_
+#define	_LINUXKPI_ASM_FPU_API_H_
 
 #define	kernel_fpu_begin() \
    lkpi_kernel_fpu_begin()
@@ -37,4 +37,4 @@
 extern void lkpi_kernel_fpu_begin(void);
 extern void lkpi_kernel_fpu_end(void);
 
-#endif /* _FPU_API_H_ */
+#endif /* _LINUXKPI_ASM_FPU_API_H_ */
