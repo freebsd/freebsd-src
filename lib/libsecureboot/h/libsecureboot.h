@@ -66,9 +66,6 @@ int  ve_self_tests(void);
 void fingerprint_info_add(const char *, const char *, const char *,
     const char *, struct stat *);
 
-int ve_check_hash(br_hash_compat_context *, const br_hash_class *,
-    const char *, const char *, size_t);
-
 char * hexdigest(char *, size_t, unsigned char *, size_t);
 int  verify_fd(int, const char *, off_t, struct stat *);
 int  verify_open(const char *, int);
