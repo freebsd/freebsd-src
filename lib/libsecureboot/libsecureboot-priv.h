@@ -38,6 +38,9 @@ typedef struct {
 	size_t		hash_size;
 } hash_data;
 
+int ve_check_hash(br_hash_compat_context *, const br_hash_class *,
+    const char *, const char *, size_t);
+
 size_t ve_trust_anchors_add(br_x509_certificate *, size_t);
 size_t ve_forbidden_anchors_add(br_x509_certificate *, size_t);
 void   ve_forbidden_digest_add(hash_data *digest, size_t);
