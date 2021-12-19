@@ -17,6 +17,9 @@
 #include "includes.h"
 
 #include <sys/types.h>
+#ifdef HAVE_SYS_PROCCTL_H
+#include <sys/procctl.h>
+#endif
 #if defined(HAVE_SYS_PRCTL_H)
 #include <sys/prctl.h>	/* For prctl() and PR_SET_DUMPABLE */
 #endif
@@ -27,12 +30,20 @@
 #include <priv.h> /* For setpflags() and __PROC_PROTECT  */
 #endif
 #include <stdarg.h>
+#include <unistd.h>
 
 #include "log.h"
 
 void
 platform_disable_tracing(int strict)
 {
+#if defined(HAVE_PROCCTL) && defined(PROC_TRACE_CTL)
+	/* On FreeBSD, we should make this process untraceable */
+	int disable_trace = PROC_TRACE_CTL_DISABLE;
+
+	if (procctl(P_PID, getpid(), PROC_TRACE_CTL, &disable_trace) && strict)
+		fatal("unable to make the process untraceable");
+#endif
 #if defined(HAVE_PRCTL) && defined(PR_SET_DUMPABLE)
 	/* Disable ptrace on Linux without sgid bit */
 	if (prctl(PR_SET_DUMPABLE, 0) != 0 && strict)

@@ -206,6 +206,7 @@
 #define ciphers_valid				Fssh_ciphers_valid
 #define cleanhostname				Fssh_cleanhostname
 #define cleanup_exit				Fssh_cleanup_exit
+#define client_converse				Fssh_client_converse
 #define colon					Fssh_colon
 #define compare					Fssh_compare
 #define compare_gps				Fssh_compare_gps
@@ -877,11 +878,8 @@
 #define sshpkt_start				Fssh_sshpkt_start
 #define sshpkt_vfatal				Fssh_sshpkt_vfatal
 #define sshsigdie				Fssh_sshsigdie
-#define sshsk_add_option			Fssh_sshsk_add_option
 #define sshsk_enroll				Fssh_sshsk_enroll
-#define sshsk_key_from_response			Fssh_sshsk_key_from_response
 #define sshsk_load_resident			Fssh_sshsk_load_resident
-#define sshsk_open				Fssh_sshsk_open
 #define sshsk_sign				Fssh_sshsk_sign
 #define start_progress_meter			Fssh_start_progress_meter
 #define stdfd_devnull				Fssh_stdfd_devnull

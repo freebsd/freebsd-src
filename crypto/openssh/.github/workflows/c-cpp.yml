@@ -31,7 +31,9 @@ jobs:
           - { os: ubuntu-latest, configs: libressl-2.2.9 }
           - { os: ubuntu-latest, configs: libressl-2.8.3 }
           - { os: ubuntu-latest, configs: libressl-3.0.2 }
-          - { os: ubuntu-latest, configs: libressl-3.2.5 }
+          - { os: ubuntu-latest, configs: libressl-3.2.6 }
+          - { os: ubuntu-latest, configs: libressl-3.3.4 }
+          - { os: ubuntu-latest, configs: libressl-3.4.0 }
           - { os: ubuntu-latest, configs: openssl-master }
           - { os: ubuntu-latest, configs: openssl-noec }
           - { os: ubuntu-latest, configs: openssl-1.0.1 }
@@ -40,6 +42,9 @@ jobs:
           - { os: ubuntu-latest, configs: openssl-1.1.0h }
           - { os: ubuntu-latest, configs: openssl-1.1.1 }
           - { os: ubuntu-latest, configs: openssl-1.1.1k }
+          - { os: ubuntu-latest, configs: openssl-3.0.0 }
+          - { os: ubuntu-latest, configs: openssl-1.1.1_stable } # stable branch
+          - { os: ubuntu-latest, configs: openssl-3.0 }          # stable branch
           - { os: ubuntu-18.04, configs: pam }
           - { os: ubuntu-18.04, configs: kerberos5 }
           - { os: ubuntu-18.04, configs: libedit }
