@@ -27,8 +27,8 @@
  * $FreeBSD$
  */
 
-#ifndef	__LINUXKPI_LINUX_IOPOLL_H
-#define	__LINUXKPI_LINUX_IOPOLL_H
+#ifndef	_LINUXKPI_LINUX_IOPOLL_H
+#define	_LINUXKPI_LINUX_IOPOLL_H
 
 #include <sys/types.h>
 #include <sys/time.h>
@@ -91,4 +91,4 @@
 	(_cond) ? 0 : (-ETIMEDOUT);						\
 })
 
-#endif	/* __LINUXKPI_LINUX_IOPOLL_H */
+#endif	/* _LINUXKPI_LINUX_IOPOLL_H */

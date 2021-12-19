@@ -28,8 +28,8 @@
  *
  * $FreeBSD$
  */
-#ifndef	_LINUX_KOBJECT_H_
-#define	_LINUX_KOBJECT_H_
+#ifndef	_LINUXKPI_LINUX_KOBJECT_H_
+#define	_LINUXKPI_LINUX_KOBJECT_H_
 
 #include <machine/stdarg.h>
 
@@ -167,4 +167,4 @@ kobject_uevent_env(struct kobject *kobj, int action, char *envp[])
 	 */
 }
 
-#endif /* _LINUX_KOBJECT_H_ */
+#endif /* _LINUXKPI_LINUX_KOBJECT_H_ */

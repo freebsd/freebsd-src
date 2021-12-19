@@ -28,8 +28,8 @@
  * $FreeBSD$
  */
 
-#ifndef __LINUX_IRQ_WORK_H__
-#define	__LINUX_IRQ_WORK_H__
+#ifndef _LINUXKPI_LINUX_IRQ_WORK_H_
+#define	_LINUXKPI_LINUX_IRQ_WORK_H_
 
 #include <sys/param.h>
 #include <sys/taskqueue.h>
@@ -70,4 +70,4 @@ irq_work_sync(struct irq_work *irqw)
 	taskqueue_drain(linux_irq_work_tq, &irqw->irq_task);
 }
 
-#endif /* __LINUX_IRQ_WORK_H__ */
+#endif /* _LINUXKPI_LINUX_IRQ_WORK_H_ */

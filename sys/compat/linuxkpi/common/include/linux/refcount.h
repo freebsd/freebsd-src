@@ -28,8 +28,8 @@
  * $FreeBSD$
  */
 
-#ifndef _LINUX_REFCOUNT_H
-#define _LINUX_REFCOUNT_H
+#ifndef _LINUXKPI_LINUX_REFCOUNT_H
+#define _LINUXKPI_LINUX_REFCOUNT_H
 
 #include <linux/atomic.h>
 
@@ -79,4 +79,4 @@ refcount_dec_and_lock_irqsave(refcount_t *ref, spinlock_t *lock,
 	return (false);
 }
 
-#endif /* __LINUX_REFCOUNT_H__ */
+#endif /* __LINUXKPI_LINUX_REFCOUNT_H__ */

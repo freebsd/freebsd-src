@@ -25,8 +25,8 @@
  *
  * $FreeBSD$
  */
-#ifndef	_LINUX_XARRAY_H_
-#define	_LINUX_XARRAY_H_
+#ifndef	_LINUXKPI_LINUX_XARRAY_H_
+#define	_LINUXKPI_LINUX_XARRAY_H_
 
 #include <linux/gfp.h>
 #include <linux/radix-tree.h>
@@ -122,4 +122,4 @@ xa_to_value(const void *e)
 
 	return (v >> 1);
 }
-#endif		/* _LINUX_XARRAY_H_ */
+#endif		/* _LINUXKPI_LINUX_XARRAY_H_ */

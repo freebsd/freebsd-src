@@ -30,8 +30,8 @@
  * $FreeBSD$
  */
 
-#ifndef	__LKPI_LINUX_CPU_H
-#define	__LKPI_LINUX_CPU_H
+#ifndef	_LINUXKPI_LINUX_CPU_H
+#define	_LINUXKPI_LINUX_CPU_H
 
 #include <sys/types.h>
 #include <sys/systm.h>
@@ -73,4 +73,4 @@ cpumask_set_cpu(int cpu, cpumask_t *mask)
 	CPU_SET(cpu, mask);
 }
 
-#endif	/* __LKPI_LINUX_CPU_H */
+#endif	/* _LINUXKPI_LINUX_CPU_H */

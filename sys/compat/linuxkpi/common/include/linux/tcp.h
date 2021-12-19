@@ -30,8 +30,8 @@
  * $FreeBSD$
  */
 
-#ifndef	__LKPI_LINUX_TCP_H
-#define	__LKPI_LINUX_TCP_H
+#ifndef	_LINUXKPI_LINUX_TCP_H
+#define	_LINUXKPI_LINUX_TCP_H
 
 #include <sys/types.h>
 #include <linux/skbuff.h>
@@ -69,4 +69,4 @@ tcp_hdrlen(struct sk_buff *skb)
 	return (4 * th->doff);
 }
 
-#endif	/* __LKPI_LINUX_TCP_H */
+#endif	/* _LINUXKPI_LINUX_TCP_H */

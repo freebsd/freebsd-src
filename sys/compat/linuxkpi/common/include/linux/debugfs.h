@@ -27,8 +27,8 @@
  * $FreeBSD$
  */
 
-#ifndef _LINUX_DEBUGFS_H_
-#define _LINUX_DEBUGFS_H_
+#ifndef _LINUXKPI_LINUX_DEBUGFS_H_
+#define _LINUXKPI_LINUX_DEBUGFS_H_
 
 #include <linux/fs.h>
 #include <linux/seq_file.h>

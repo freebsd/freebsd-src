@@ -29,8 +29,8 @@
  * $FreeBSD$
  */
 
-#ifndef _LINUX_LOCKDEP_H_
-#define	_LINUX_LOCKDEP_H_
+#ifndef _LINUXKPI_LINUX_LOCKDEP_H_
+#define	_LINUXKPI_LINUX_LOCKDEP_H_
 
 #include <sys/types.h>
 #include <sys/lock.h>
@@ -99,4 +99,4 @@ lockdep_is_held(void *__m)
 #define	lock_map_acquire_read(_map) do { } while (0)
 #define	lock_map_release(_map) do { } while (0)
 
-#endif /* _LINUX_LOCKDEP_H_ */
+#endif /* _LINUXKPI_LINUX_LOCKDEP_H_ */

@@ -28,8 +28,8 @@
  *
  * $FreeBSD$
  */
-#ifndef	_ASM_TYPES_H_
-#define	_ASM_TYPES_H_
+#ifndef	_LINUXKPI_ASM_TYPES_H_
+#define	_LINUXKPI_ASM_TYPES_H_
 
 #if defined(_KERNEL) || defined(_STANDALONE)
 
@@ -61,4 +61,4 @@ typedef unsigned short umode_t;
 
 #endif	/* _KERNEL || _STANDALONE */
 
-#endif	/* _ASM_TYPES_H_ */
+#endif	/* _LINUXKPI_ASM_TYPES_H_ */

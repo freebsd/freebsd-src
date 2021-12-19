@@ -29,8 +29,8 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _LINUX_HIGHMEM_H_
-#define _LINUX_HIGHMEM_H_
+#ifndef _LINUXKPI_LINUX_HIGHMEM_H_
+#define _LINUXKPI_LINUX_HIGHMEM_H_
 
 #include <sys/types.h>
 #include <sys/lock.h>
@@ -115,4 +115,4 @@ kunmap_atomic(void *vaddr)
 		kunmap(virt_to_page(vaddr));
 }
 
-#endif	/* _LINUX_HIGHMEM_H_ */
+#endif	/* _LINUXKPI_LINUX_HIGHMEM_H_ */

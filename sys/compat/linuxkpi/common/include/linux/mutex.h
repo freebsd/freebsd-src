@@ -28,8 +28,8 @@
  *
  * $FreeBSD$
  */
-#ifndef	_LINUX_MUTEX_H_
-#define	_LINUX_MUTEX_H_
+#ifndef	_LINUXKPI_LINUX_MUTEX_H_
+#define	_LINUXKPI_LINUX_MUTEX_H_
 
 #include <sys/param.h>
 #include <sys/proc.h>
@@ -173,4 +173,4 @@ linux_mutex_destroy(mutex_t *m)
 
 extern int linux_mutex_lock_interruptible(mutex_t *m);
 
-#endif					/* _LINUX_MUTEX_H_ */
+#endif					/* _LINUXKPI_LINUX_MUTEX_H_ */

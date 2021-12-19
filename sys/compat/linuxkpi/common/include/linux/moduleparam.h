@@ -28,8 +28,8 @@
  *
  * $FreeBSD$
  */
-#ifndef	_LINUX_MODULEPARAM_H_
-#define	_LINUX_MODULEPARAM_H_
+#ifndef	_LINUXKPI_LINUX_MODULEPARAM_H_
+#define	_LINUXKPI_LINUX_MODULEPARAM_H_
 
 #include <sys/types.h>
 #include <sys/sysctl.h>
@@ -136,4 +136,4 @@
 
 SYSCTL_DECL(_compat_linuxkpi);
 
-#endif					/* _LINUX_MODULEPARAM_H_ */
+#endif					/* _LINUXKPI_LINUX_MODULEPARAM_H_ */

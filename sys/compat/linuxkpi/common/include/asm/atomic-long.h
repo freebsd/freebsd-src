@@ -28,8 +28,8 @@
  *
  * $FreeBSD$
  */
-#ifndef	_ATOMIC_LONG_H_
-#define	_ATOMIC_LONG_H_
+#ifndef	_LINUXKPI_ASM_ATOMIC_LONG_H_
+#define	_LINUXKPI_ASM_ATOMIC_LONG_H_
 
 #include <linux/compiler.h>
 #include <sys/types.h>
@@ -130,4 +130,4 @@ atomic_long_dec_and_test(atomic_long_t *v)
 	return i == 0 ;
 }
 
-#endif	/* _ATOMIC_LONG_H_ */
+#endif	/* _LINUXKPI_ASM_ATOMIC_LONG_H_ */

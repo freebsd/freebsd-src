@@ -28,8 +28,8 @@
  *
  * $FreeBSD$
  */
-#ifndef	_LINUX_KTHREAD_H_
-#define	_LINUX_KTHREAD_H_
+#ifndef	_LINUXKPI_LINUX_KTHREAD_H_
+#define	_LINUXKPI_LINUX_KTHREAD_H_
 
 #include <linux/sched.h>
 
@@ -70,4 +70,4 @@ int linux_in_atomic(void);
 
 #define	in_atomic()			linux_in_atomic()
 
-#endif /* _LINUX_KTHREAD_H_ */
+#endif /* _LINUXKPI_LINUX_KTHREAD_H_ */

@@ -30,8 +30,8 @@
  *
  * $FreeBSD$
  */
-#ifndef	_LINUX_SCATTERLIST_H_
-#define	_LINUX_SCATTERLIST_H_
+#ifndef	_LINUXKPI_LINUX_SCATTERLIST_H_
+#define	_LINUXKPI_LINUX_SCATTERLIST_H_
 
 #include <sys/types.h>
 #include <sys/sf_buf.h>
@@ -592,4 +592,4 @@ sg_pcopy_to_buffer(struct scatterlist *sgl, unsigned int nents,
 	return (total);
 }
 
-#endif					/* _LINUX_SCATTERLIST_H_ */
+#endif					/* _LINUXKPI_LINUX_SCATTERLIST_H_ */

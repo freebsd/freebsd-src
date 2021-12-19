@@ -29,8 +29,8 @@
  * $FreeBSD$
  */
 
-#ifndef _LINUX_RANDOM_H_
-#define	_LINUX_RANDOM_H_
+#ifndef _LINUXKPI_LINUX_RANDOM_H_
+#define	_LINUXKPI_LINUX_RANDOM_H_
 
 #include <linux/types.h>
 #include <sys/random.h>
@@ -78,4 +78,4 @@ prandom_u32_max(u32 max)
 	return (arc4random_uniform(max));
 }
 
-#endif /* _LINUX_RANDOM_H_ */
+#endif /* _LINUXKPI_LINUX_RANDOM_H_ */

@@ -29,8 +29,8 @@
  *
  * $FreeBSD$
  */
-#ifndef _LINUX_DELAY_H_
-#define	_LINUX_DELAY_H_
+#ifndef _LINUXKPI_LINUX_DELAY_H_
+#define	_LINUXKPI_LINUX_DELAY_H_
 
 #include <linux/jiffies.h>
 #include <sys/systm.h>
@@ -83,4 +83,4 @@ fsleep(unsigned long us)
 		usleep_range(us, us);
 }
 
-#endif	/* _LINUX_DELAY_H_ */
+#endif	/* _LINUXKPI_LINUX_DELAY_H_ */

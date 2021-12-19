@@ -28,8 +28,8 @@
  *
  * $FreeBSD$
  */
-#ifndef	_LINUX_IF_ETHER_H_
-#define	_LINUX_IF_ETHER_H_
+#ifndef	_LINUXKPI_LINUX_IF_ETHER_H_
+#define	_LINUXKPI_LINUX_IF_ETHER_H_
 
 #include <linux/types.h>
 
@@ -64,4 +64,4 @@ struct ethhdr {
 	uint16_t	h_proto;
 } __packed;
 
-#endif	/* _LINUX_IF_ETHER_H_ */
+#endif	/* _LINUXKPI_LINUX_IF_ETHER_H_ */

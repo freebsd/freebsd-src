@@ -30,8 +30,8 @@
  * $FreeBSD$
  */
 
-#ifndef	__LKPI_LINUX_UDP_H
-#define	__LKPI_LINUX_UDP_H
+#ifndef	_LINUXKPI_LINUX_UDP_H
+#define	_LINUXKPI_LINUX_UDP_H
 
 #include <sys/types.h>
 #include <linux/skbuff.h>
@@ -51,4 +51,4 @@ udp_hdr(struct sk_buff *skb)
 	return (struct udphdr *)skb_transport_header(skb);
 }
 
-#endif	/* __LKPI_LINUX_UDP_H */
+#endif	/* _LINUXKPI_LINUX_UDP_H */

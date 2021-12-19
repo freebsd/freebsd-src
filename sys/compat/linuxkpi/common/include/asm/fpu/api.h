@@ -25,8 +25,8 @@
  * SUCH DAMAGE.
  */
 
-#ifndef	_FPU_API_H_
-#define	_FPU_API_H_
+#ifndef	_LINUXKPI_ASM_FPU_API_H_
+#define	_LINUXKPI_ASM_FPU_API_H_
 
 #if defined(__aarch64__) || defined(__amd64__) || defined(__i386__)
 
@@ -65,4 +65,4 @@ kernel_fpu_end()
 
 #endif
 
-#endif /* _FPU_API_H_ */
+#endif /* _LINUXKPI_ASM_FPU_API_H_ */

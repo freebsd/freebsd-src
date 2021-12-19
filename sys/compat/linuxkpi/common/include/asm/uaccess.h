@@ -28,8 +28,8 @@
  *
  * $FreeBSD$
  */
-#ifndef _ASM_UACCESS_H_
-#define _ASM_UACCESS_H_
+#ifndef _LINUXKPI_ASM_UACCESS_H_
+#define _LINUXKPI_ASM_UACCESS_H_
 
 #include <linux/uaccess.h>
 
@@ -65,4 +65,4 @@ copy_from_user(void *to, const void *from, unsigned long n)
 		goto err; \
 } while (0)
 
-#endif	/* _ASM_UACCESS_H_ */
+#endif	/* _LINUXKPI_ASM_UACCESS_H_ */

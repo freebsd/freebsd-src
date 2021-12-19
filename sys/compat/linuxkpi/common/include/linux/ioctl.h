@@ -28,8 +28,8 @@
  *
  * $FreeBSD$
  */
-#ifndef	_LINUX_IOCTL_H_
-#define	_LINUX_IOCTL_H_
+#ifndef	_LINUXKPI_LINUX_IOCTL_H_
+#define	_LINUXKPI_LINUX_IOCTL_H_
 
 #include <sys/ioccom.h>
 
@@ -37,4 +37,4 @@
 #define	_IOC_TYPE(cmd)	IOCGROUP(cmd)
 #define	_IOC_NR(cmd)	((cmd) & 0xff)
 
-#endif	/* _LINUX_IOCTL_H_ */
+#endif	/* _LINUXKPI_LINUX_IOCTL_H_ */

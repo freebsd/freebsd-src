@@ -26,8 +26,8 @@
  * $FreeBSD$
  */
 
-#ifndef _LINUX_IRQRETURN_H
-#define	_LINUX_IRQRETURN_H
+#ifndef _LINUXKPI_LINUX_IRQRETURN_H
+#define	_LINUXKPI_LINUX_IRQRETURN_H
 
 typedef enum irqreturn {
 	IRQ_NONE = 0,
@@ -37,4 +37,4 @@ typedef enum irqreturn {
 
 #define	IRQ_RETVAL(x) ((x) ? IRQ_HANDLED : IRQ_NONE)
 
-#endif /* _LINUX_IRQRETURN_H */
+#endif /* _LINUXKPI_LINUX_IRQRETURN_H */

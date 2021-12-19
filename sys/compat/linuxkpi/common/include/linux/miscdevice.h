@@ -28,8 +28,8 @@
  *
  * $FreeBSD$
  */
-#ifndef	_LINUX_MISCDEVICE_H_
-#define	_LINUX_MISCDEVICE_H_
+#ifndef	_LINUXKPI_LINUX_MISCDEVICE_H_
+#define	_LINUXKPI_LINUX_MISCDEVICE_H_
 
 #define	MISC_DYNAMIC_MINOR	-1
 
@@ -73,4 +73,4 @@ misc_deregister(struct miscdevice *misc)
 	return (0);
 }
 
-#endif	/* _LINUX_MISCDEVICE_H_ */
+#endif	/* _LINUXKPI_LINUX_MISCDEVICE_H_ */

@@ -26,12 +26,12 @@
  * $FreeBSD$
  */
 
-#ifndef	__LKPI_LINUX_STRINGIFY_H_
-#define	__LKPI_LINUX_STRINGIFY_H_
+#ifndef	_LINUXKPI_LINUX_STRINGIFY_H_
+#define	_LINUXKPI_LINUX_STRINGIFY_H_
 
 #include <sys/cdefs.h>
 
 #define	___stringify(...)		#__VA_ARGS__
 #define	__stringify(...)		___stringify(__VA_ARGS__)
 
-#endif	/* __LKPI_LINUX_STRINGIFY_H_ */
+#endif	/* _LINUXKPI_LINUX_STRINGIFY_H_ */

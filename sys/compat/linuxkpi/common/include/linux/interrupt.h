@@ -28,8 +28,8 @@
  *
  * $FreeBSD$
  */
-#ifndef	_LINUX_INTERRUPT_H_
-#define	_LINUX_INTERRUPT_H_
+#ifndef	_LINUXKPI_LINUX_INTERRUPT_H_
+#define	_LINUXKPI_LINUX_INTERRUPT_H_
 
 #include <linux/cpu.h>
 #include <linux/device.h>
@@ -158,4 +158,4 @@ extern int tasklet_trylock(struct tasklet_struct *);
 extern void tasklet_unlock(struct tasklet_struct *);
 extern void tasklet_unlock_wait(struct tasklet_struct *ts);
 
-#endif	/* _LINUX_INTERRUPT_H_ */
+#endif	/* _LINUXKPI_LINUX_INTERRUPT_H_ */

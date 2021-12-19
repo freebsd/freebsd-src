@@ -26,8 +26,8 @@
  * $FreeBSD$
  */
 
-#ifndef _LINUX_BITMAP_H_
-#define	_LINUX_BITMAP_H_
+#ifndef _LINUXKPI_LINUX_BITMAP_H_
+#define	_LINUXKPI_LINUX_BITMAP_H_
 
 #include <linux/bitops.h>
 #include <linux/slab.h>
@@ -351,4 +351,4 @@ bitmap_free(const unsigned long *bitmap)
 	kfree(bitmap);
 }
 
-#endif					/* _LINUX_BITMAP_H_ */
+#endif					/* _LINUXKPI_LINUX_BITMAP_H_ */

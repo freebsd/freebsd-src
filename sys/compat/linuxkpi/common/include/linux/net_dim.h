@@ -37,8 +37,8 @@
 
 /* This file implements Dynamic Interrupt Moderation, DIM */
 
-#ifndef NET_DIM_H
-#define	NET_DIM_H
+#ifndef _LINUXKPI_LINUX_NET_DIM_H
+#define	_LINUXKPI_LINUX_NET_DIM_H
 
 #include <asm/types.h>
 
@@ -407,4 +407,4 @@ net_dim(struct net_dim *dim,
 	}
 }
 
-#endif					/* NET_DIM_H */
+#endif					/* _LINUXKPI_LINUX_NET_DIM_H */

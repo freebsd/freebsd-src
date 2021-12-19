@@ -28,8 +28,8 @@
  *
  * $FreeBSD$
  */
-#ifndef	_LINUX_KMOD_H_
-#define	_LINUX_KMOD_H_
+#ifndef	_LINUXKPI_LINUX_KMOD_H_
+#define	_LINUXKPI_LINUX_KMOD_H_
 
 #include <sys/types.h>
 #include <sys/syscallsubr.h>
@@ -48,4 +48,4 @@
 
 #define request_module_nowait request_module
 
-#endif /* _LINUX_KMOD_H_ */
+#endif /* _LINUXKPI_LINUX_KMOD_H_ */

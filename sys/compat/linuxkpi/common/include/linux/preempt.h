@@ -26,8 +26,8 @@
  * $FreeBSD$
  */
 
-#ifndef _LINUX_PREEMPT_H_
-#define	_LINUX_PREEMPT_H_
+#ifndef _LINUXKPI_LINUX_PREEMPT_H_
+#define	_LINUXKPI_LINUX_PREEMPT_H_
 
 #include <linux/hardirq.h>
 #include <linux/list.h>
@@ -40,4 +40,4 @@
 #define	preempt_disable()	critical_enter()
 #define	preempt_enable()	critical_exit()
 
-#endif					/* _LINUX_PREEMPT_H_ */
+#endif					/* _LINUXKPI_LINUX_PREEMPT_H_ */

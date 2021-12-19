@@ -28,8 +28,8 @@
  *
  * $FreeBSD$
  */
-#ifndef	_ASM_BYTEORDER_H_
-#define	_ASM_BYTEORDER_H_
+#ifndef	_LINUXKPI_ASM_BYTEORDER_H_
+#define	_LINUXKPI_ASM_BYTEORDER_H_
 
 #include <sys/types.h>
 #include <sys/endian.h>
@@ -157,4 +157,4 @@ le16_add_cpu(uint16_t *var, uint16_t val)
 	*var = cpu_to_le16(le16_to_cpu(*var) + val);
 }
 
-#endif	/* _ASM_BYTEORDER_H_ */
+#endif	/* _LINUXKPI_ASM_BYTEORDER_H_ */
