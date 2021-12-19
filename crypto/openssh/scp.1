@@ -8,9 +8,9 @@
 .\"
 .\" Created: Sun May  7 00:14:37 1995 ylo
 .\"
-.\" $OpenBSD: scp.1,v 1.100 2021/08/11 14:07:54 naddy Exp $
+.\" $OpenBSD: scp.1,v 1.105 2021/09/20 06:53:56 djm Exp $
 .\"
-.Dd $Mdocdate: August 11 2021 $
+.Dd $Mdocdate: September 20 2021 $
 .Dt SCP 1
 .Os
 .Sh NAME
@@ -37,9 +37,6 @@ It uses
 .Xr ssh 1
 for data transfer, and uses the same authentication and provides the
 same security as a login session.
-The scp protocol requires execution of the remote user's shell to perform
-.Xr glob 3
-pattern matching.
 .Pp
 .Nm
 will ask for passwords or passphrases if they are needed for
@@ -79,7 +76,7 @@ The options are as follows:
 Copies between two remote hosts are transferred through the local host.
 Without this option the data is copied directly between the two remote
 hosts.
-Note that, when using the legacy SCP protocol (the default), this option
+Note that, when using the original SCP protocol (the default), this option
 selects batch mode for the second host as
 .Nm
 cannot ask for passwords or passphrases for both hosts.
@@ -112,7 +109,7 @@ This option is directly passed to
 .Xr ssh 1 .
 .It Fl D Ar sftp_server_path
 When using the SFTP protocol support via
-.Fl M ,
+.Fl s ,
 connect directly to a local SFTP server program rather than a
 remote one via
 .Xr ssh 1 .
@@ -144,10 +141,12 @@ This option is directly passed to
 .It Fl l Ar limit
 Limits the used bandwidth, specified in Kbit/s.
 .It Fl O
-Use the legacy SCP protocol for file transfers instead of the SFTP protocol.
+Use the original SCP protocol for file transfers instead of the SFTP protocol.
 Forcing the use of the SCP protocol may be necessary for servers that do
-not implement SFTP or for backwards-compatibility for particular filename
-wildcard patterns.
+not implement SFTP, for backwards-compatibility for particular filename
+wildcard patterns and for expanding paths with a
+.Sq ~
+prefix for older SFTP servers.
 This mode is the default.
 .It Fl o Ar ssh_option
 Can be used to pass options to
@@ -229,10 +228,10 @@ Note that this option is written with a capital
 .Sq P ,
 because
 .Fl p
-is already reserved for preserving the times and modes of the file.
+is already reserved for preserving the times and mode bits of the file.
 .It Fl p
-Preserves modification times, access times, and modes from the
-original file.
+Preserves modification times, access times, and file mode bits from the
+source file.
 .It Fl q
 Quiet mode: disables the progress meter as well as warning and diagnostic
 messages from
@@ -259,15 +258,7 @@ The program must understand
 .Xr ssh 1
 options.
 .It Fl s
-Use the SFTP protocol for file transfers instead of the legacy SCP protocol.
-Using SFTP avoids invoking a shell on the remote side and provides
-more predictable filename handling, as the SCP protocol
-relied on the remote shell for expanding
-.Xr glob 3
-wildcards.
-.Pp
-A near-future release of OpenSSH will make the SFTP protocol the default.
-This option will be deleted before the end of 2022.
+Use the SFTP protocol for transfers rather than the original scp protocol.
 .It Fl T
 Disable strict filename checking.
 By default when copying files from a remote host to a local directory
@@ -307,3 +298,10 @@ source code from the Regents of the University of California.
 .Sh AUTHORS
 .An Timo Rinne Aq Mt tri@iki.fi
 .An Tatu Ylonen Aq Mt ylo@cs.hut.fi
+.Sh CAVEATS
+The original SCP protocol (used by default) requires execution of the
+remote user's shell to perform
+.Xr glob 3
+pattern matching.
+This requires careful quoting of any characters that have special meaning to
+the remote shell, such as quote characters.

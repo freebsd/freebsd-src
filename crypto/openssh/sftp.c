@@ -1,4 +1,4 @@
-/* $OpenBSD: sftp.c,v 1.211 2021/08/12 09:59:00 schwarze Exp $ */
+/* $OpenBSD: sftp.c,v 1.212 2021/09/11 09:05:50 schwarze Exp $ */
 /*
  * Copyright (c) 2001-2004 Damien Miller <djm@openbsd.org>
  *
@@ -2204,28 +2204,31 @@ interactive_loop(struct sftp_conn *conn, char *file1, char *file2)
 	interactive = !batchmode && isatty(STDIN_FILENO);
 	err = 0;
 	for (;;) {
+		struct sigaction sa;
+
+		interrupted = 0;
+		memset(&sa, 0, sizeof(sa));
+		sa.sa_handler = interactive ? read_interrupt : killchild;
+		if (sigaction(SIGINT, &sa, NULL) == -1) {
+			debug3("sigaction(%s): %s", strsignal(SIGINT),
+			    strerror(errno));
+			break;
+		}
 		if (el == NULL) {
 			if (interactive)
 				printf("sftp> ");
 			if (fgets(cmd, sizeof(cmd), infile) == NULL) {
 				if (interactive)
 					printf("\n");
+				if (interrupted)
+					continue;
 				break;
 			}
 		} else {
 #ifdef USE_LIBEDIT
 			const char *line;
 			int count = 0;
-			struct sigaction sa;
 
-			interrupted = 0;
-			memset(&sa, 0, sizeof(sa));
-			sa.sa_handler = read_interrupt;
-			if (sigaction(SIGINT, &sa, NULL) == -1) {
-				debug3("sigaction(%s): %s",
-				    strsignal(SIGINT), strerror(errno));
-				break;
-			}
 			if ((line = el_gets(el, &count)) == NULL ||
 			    count <= 0) {
 				printf("\n");

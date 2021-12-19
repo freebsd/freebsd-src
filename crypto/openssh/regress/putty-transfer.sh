@@ -1,11 +1,17 @@
-#	$OpenBSD: putty-transfer.sh,v 1.7 2020/01/23 11:19:12 dtucker Exp $
+#	$OpenBSD: putty-transfer.sh,v 1.11 2021/09/01 03:16:06 dtucker Exp $
 #	Placed in the Public Domain.
 
 tid="putty transfer data"
 
 if test "x$REGRESS_INTEROP_PUTTY" != "xyes" ; then
-	echo "putty interop tests not enabled"
-	exit 0
+	skip "putty interop tests not enabled"
+fi
+
+# Re-enable ssh-rsa on older PuTTY versions.
+oldver="`${PLINK} --version | awk '/plink: Release/{if ($3<0.76)print "yes"}'`"
+if [ "x$oldver" = "xyes" ]; then
+	echo "HostKeyAlgorithms +ssh-rsa" >> ${OBJ}/sshd_proxy
+	echo "PubkeyAcceptedKeyTypes +ssh-rsa" >> ${OBJ}/sshd_proxy
 fi
 
 if [ "`${SSH} -Q compression`" = "none" ]; then

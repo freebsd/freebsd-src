@@ -1068,6 +1068,9 @@
 /* Define to 1 if you have the <priv.h> header file. */
 /* #undef HAVE_PRIV_H */
 
+/* Define to 1 if you have the `procctl' function. */
+#define HAVE_PROCCTL 1
+
 /* Define if you have /proc/$pid/fd */
 /* #undef HAVE_PROC_PID */
 
@@ -1491,6 +1494,9 @@
 
 /* Define to 1 if you have the <sys/prctl.h> header file. */
 /* #undef HAVE_SYS_PRCTL_H */
+
+/* Define to 1 if you have the <sys/procctl.h> header file. */
+#define HAVE_SYS_PROCCTL_H 1
 
 /* Define to 1 if you have the <sys/pstat.h> header file. */
 /* #undef HAVE_SYS_PSTAT_H */

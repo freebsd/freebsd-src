@@ -1,4 +1,4 @@
-#	$OpenBSD: sftp-chroot.sh,v 1.7 2018/11/22 08:48:32 dtucker Exp $
+#	$OpenBSD: sftp-chroot.sh,v 1.8 2021/09/01 00:50:27 dtucker Exp $
 #	Placed in the Public Domain.
 
 tid="sftp in chroot"
@@ -9,14 +9,11 @@ PRIVDATA=${CHROOT}/${FILENAME}
 trap "${SUDO} rm -f ${PRIVDATA}" 0
 
 if [ -z "$SUDO" -a ! -w /var/run ]; then
-	echo "need SUDO to create file in /var/run, test won't work without"
-	echo SKIPPED
-	exit 0
+	skip "need SUDO to create file in /var/run, test won't work without"
 fi
 
 if ! $OBJ/check-perm -m chroot "$CHROOT" ; then
-  echo "skipped: $CHROOT is unsuitable as ChrootDirectory"
-  exit 0
+  skip "$CHROOT is unsuitable as ChrootDirectory"
 fi
 
 $SUDO sh -c "echo mekmitastdigoat > $PRIVDATA" || \

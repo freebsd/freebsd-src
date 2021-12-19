@@ -887,6 +887,7 @@ sshpam_query(void *ctx, char **name, char **info,
 		case PAM_AUTH_ERR:
 			debug3("PAM: %s", pam_strerror(sshpam_handle, type));
 			if (**prompts != NULL && strlen(**prompts) != 0) {
+				free(*info);
 				*info = **prompts;
 				**prompts = NULL;
 				*num = 0;

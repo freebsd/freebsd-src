@@ -1,4 +1,4 @@
-#	$OpenBSD: test-exec.sh,v 1.86 2021/08/08 08:27:28 dtucker Exp $
+#	$OpenBSD: test-exec.sh,v 1.87 2021/09/01 00:50:27 dtucker Exp $
 #	Placed in the Public Domain.
 
 #SUDO=sudo
@@ -458,6 +458,14 @@ fatal ()
 	save_debug_log "FATAL: $@"
 	printf "FATAL: "
 	fail "$@"
+	cleanup
+	exit $RESULT
+}
+
+# Skip remaining tests in script.
+skip ()
+{
+	echo "SKIPPED: $@"
 	cleanup
 	exit $RESULT
 }

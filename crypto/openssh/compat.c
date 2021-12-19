@@ -1,4 +1,4 @@
-/* $OpenBSD: compat.c,v 1.118 2021/06/06 03:40:39 djm Exp $ */
+/* $OpenBSD: compat.c,v 1.119 2021/09/10 05:46:09 djm Exp $ */
 /*
  * Copyright (c) 1999, 2000, 2001, 2002 Markus Friedl.  All rights reserved.
  *
@@ -69,7 +69,6 @@ compat_banner(struct ssh *ssh, const char *version)
 		  "OpenSSH_7.1*,"
 		  "OpenSSH_7.2*,"
 		  "OpenSSH_7.3*,"
-		  "OpenSSH_7.4*,"
 		  "OpenSSH_7.5*,"
 		  "OpenSSH_7.6*,"
 		  "OpenSSH_7.7*",	SSH_NEW_OPENSSH|SSH_BUG_SIGTYPE},

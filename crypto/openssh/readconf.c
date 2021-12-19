@@ -1,4 +1,4 @@
-/* $OpenBSD: readconf.c,v 1.361 2021/07/23 04:04:52 djm Exp $ */
+/* $OpenBSD: readconf.c,v 1.363 2021/09/16 05:36:03 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -2038,11 +2038,23 @@ parse_pubkey_algos:
 
 	case oCanonicalizePermittedCNAMEs:
 		value = options->num_permitted_cnames != 0;
+		i = 0;
 		while ((arg = argv_next(&ac, &av)) != NULL) {
-			/* Either '*' for everything or 'list:list' */
-			if (strcmp(arg, "*") == 0)
+			/*
+			 * Either 'none' (only in first position), '*' for
+			 * everything or 'list:list'
+			 */
+			if (strcasecmp(arg, "none") == 0) {
+				if (i > 0 || ac > 0) {
+					error("%s line %d: keyword %s \"none\" "
+					    "argument must appear alone.",
+					    filename, linenum, keyword);
+					goto out;
+				}
+				arg2 = "";
+			} else if (strcmp(arg, "*") == 0) {
 				arg2 = arg;
-			else {
+			} else {
 				lowercase(arg);
 				if ((arg2 = strchr(arg, ':')) == NULL ||
 				    arg2[1] == '\0') {
@@ -2054,6 +2066,7 @@ parse_pubkey_algos:
 				*arg2 = '\0';
 				arg2++;
 			}
+			i++;
 			if (!*activep || value)
 				continue;
 			if (options->num_permitted_cnames >=
@@ -2305,6 +2318,20 @@ int
 option_clear_or_none(const char *o)
 {
 	return o == NULL || strcasecmp(o, "none") == 0;
+}
+
+/*
+ * Returns 1 if CanonicalizePermittedCNAMEs have been specified, 0 otherwise.
+ * Allowed to be called on non-final configuration.
+ */
+int
+config_has_permitted_cnames(Options *options)
+{
+	if (options->num_permitted_cnames == 1 &&
+	    strcasecmp(options->permitted_cnames[0].source_list, "none") == 0 &&
+	    strcmp(options->permitted_cnames[0].target_list, "") == 0)
+		return 0;
+	return options->num_permitted_cnames > 0;
 }
 
 /*
@@ -2681,6 +2708,15 @@ fill_default_options(Options * options)
 	    options->jump_port == 0 && options->jump_user == NULL) {
 		free(options->jump_host);
 		options->jump_host = NULL;
+	}
+	if (options->num_permitted_cnames == 1 &&
+	    !config_has_permitted_cnames(options)) {
+		/* clean up CanonicalizePermittedCNAMEs=none */
+		free(options->permitted_cnames[0].source_list);
+		free(options->permitted_cnames[0].target_list);
+		memset(options->permitted_cnames, '\0',
+		    sizeof(*options->permitted_cnames));
+		options->num_permitted_cnames = 0;
 	}
 	/* options->identity_agent distinguishes NULL from 'none' */
 	/* options->user will be set in the main program if appropriate */
@@ -3399,14 +3435,14 @@ dump_client_config(Options *o, const char *host)
 	printf("\n");
 
 	/* oCanonicalizePermittedCNAMEs */
-	if ( o->num_permitted_cnames > 0) {
-		printf("canonicalizePermittedcnames");
-		for (i = 0; i < o->num_permitted_cnames; i++) {
-			printf(" %s:%s", o->permitted_cnames[i].source_list,
-			    o->permitted_cnames[i].target_list);
-		}
-		printf("\n");
+	printf("canonicalizePermittedcnames");
+	if (o->num_permitted_cnames == 0)
+		printf(" none");
+	for (i = 0; i < o->num_permitted_cnames; i++) {
+		printf(" %s:%s", o->permitted_cnames[i].source_list,
+		    o->permitted_cnames[i].target_list);
 	}
+	printf("\n");
 
 	/* oControlPersist */
 	if (o->control_persist == 0 || o->control_persist_timeout == 0)

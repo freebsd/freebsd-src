@@ -454,6 +454,7 @@ AC_CHECK_HEADERS([ \
 	sys/ndir.h \
 	sys/poll.h \
 	sys/prctl.h \
+	sys/procctl.h \
 	sys/pstat.h \
 	sys/ptrace.h \
 	sys/random.h \
@@ -1925,6 +1926,7 @@ AC_CHECK_FUNCS([ \
 	pledge \
 	poll \
 	prctl \
+	procctl \
 	pselect \
 	pstat \
 	raise \
@@ -2818,7 +2820,8 @@ if test "x$openssl" = "xyes" ; then
 				;;
 			101*)   ;; # 1.1.x
 			200*)   ;; # LibreSSL
-			300*)   ;; # OpenSSL development branch.
+			300*)   ;; # OpenSSL 3
+			301*)   ;; # OpenSSL development branch.
 		        *)
 				AC_MSG_ERROR([Unknown/unsupported OpenSSL version ("$ssl_library_ver")])
 		                ;;
@@ -3157,7 +3160,6 @@ if test "x$openssl" = "xyes" ; then
 		AC_MSG_RESULT([no])
 	)
 
-	COMMENT_OUT_ECC="#no ecc#"
 	TEST_SSH_ECC=no
 
 	if test x$enable_nistp256 = x1 || test x$enable_nistp384 = x1 || \
@@ -3172,7 +3174,6 @@ if test "x$openssl" = "xyes" ; then
 		AC_DEFINE([OPENSSL_HAS_NISTP256], [1],
 		    [libcrypto has NID_X9_62_prime256v1])
 		TEST_SSH_ECC=yes
-		COMMENT_OUT_ECC=""
 	else
 		unsupported_algorithms="$unsupported_algorithms \
 			ecdsa-sha2-nistp256 \
@@ -3182,7 +3183,6 @@ if test "x$openssl" = "xyes" ; then
 	if test x$enable_nistp384 = x1; then
 		AC_DEFINE([OPENSSL_HAS_NISTP384], [1], [libcrypto has NID_secp384r1])
 		TEST_SSH_ECC=yes
-		COMMENT_OUT_ECC=""
 	else
 		unsupported_algorithms="$unsupported_algorithms \
 			ecdsa-sha2-nistp384 \
@@ -3192,7 +3192,6 @@ if test "x$openssl" = "xyes" ; then
 	if test x$enable_nistp521 = x1; then
 		AC_DEFINE([OPENSSL_HAS_NISTP521], [1], [libcrypto has NID_secp521r1])
 		TEST_SSH_ECC=yes
-		COMMENT_OUT_ECC=""
 	else
 		unsupported_algorithms="$unsupported_algorithms \
 			ecdh-sha2-nistp521 \
@@ -3201,7 +3200,6 @@ if test "x$openssl" = "xyes" ; then
 	fi
 
 	AC_SUBST([TEST_SSH_ECC])
-	AC_SUBST([COMMENT_OUT_ECC])
 else
 	AC_CHECK_LIB([crypt], [crypt], [LIBS="$LIBS -lcrypt"])
 	AC_CHECK_FUNCS([crypt])
