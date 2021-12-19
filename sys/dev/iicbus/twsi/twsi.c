@@ -480,6 +480,19 @@ out:
 	return (rv);
 }
 
+static void
+twsi_error(struct twsi_softc *sc, int err)
+{
+	/*
+	 * Must send stop condition to abort the current transfer.
+	 */
+	debugf(sc, "Sending STOP condition for error %d\n", err);
+	sc->transfer = 0;
+	sc->error = err;
+	sc->control_val = 0;
+	TWSI_WRITE(sc, sc->reg_control, sc->control_val | TWSI_CONTROL_STOP);
+}
+
 static int
 twsi_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 {
@@ -501,9 +514,8 @@ twsi_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 	debugf(sc, "status=0x%x\n", status);
 	if (status != TWSI_STATUS_IDLE) {
 		debugf(sc, "Bad status at start of transfer\n");
-		TWSI_WRITE(sc, sc->reg_control, TWSI_CONTROL_STOP);
-		mtx_unlock(&sc->mutex);
-		return (IIC_ESTATUS);
+		twsi_error(sc, IIC_ESTATUS);
+		goto end;
 	}
 
 	sc->nmsgs = nmsgs;
@@ -531,6 +543,7 @@ twsi_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 	if (sc->error != 0)
 		debugf(sc, "Error: %d\n", sc->error);
 
+end:
 	/* Disable module and interrupts */
 	debugf(sc, "status=0x%x\n", TWSI_READ(sc, sc->reg_status));
 	TWSI_WRITE(sc, sc->reg_control, 0);
@@ -539,19 +552,6 @@ twsi_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 	mtx_unlock(&sc->mutex);
 
 	return (error);
-}
-
-static void
-twsi_error(struct twsi_softc *sc, int err)
-{
-	/*
-	 * Must send stop condition to abort the current transfer.
-	 */
-	debugf(sc, "Sending STOP condition for error %d\n", err);
-	sc->transfer = 0;
-	sc->error = err;
-	sc->control_val = 0;
-	TWSI_WRITE(sc, sc->reg_control, sc->control_val | TWSI_CONTROL_STOP);
 }
 
 static void
