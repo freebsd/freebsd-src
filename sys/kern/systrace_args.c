@@ -2128,9 +2128,9 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 2;
 		break;
 	}
-	/* swapoff */
+	/* freebsd13_swapoff */
 	case 424: {
-		struct swapoff_args *p = params;
+		struct freebsd13_swapoff_args *p = params;
 		uarg[0] = (intptr_t)p->name; /* const char * */
 		*n_args = 1;
 		break;
@@ -3397,6 +3397,14 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct aio_readv_args *p = params;
 		uarg[0] = (intptr_t)p->aiocbp; /* struct aiocb * */
 		*n_args = 1;
+		break;
+	}
+	/* swapoff */
+	case 582: {
+		struct swapoff_args *p = params;
+		uarg[0] = (intptr_t)p->name; /* const char * */
+		uarg[1] = p->flags; /* u_int */
+		*n_args = 2;
 		break;
 	}
 	default:
@@ -6827,7 +6835,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* swapoff */
+	/* freebsd13_swapoff */
 	case 424:
 		switch (ndx) {
 		case 0:
@@ -9088,6 +9096,19 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
+	/* swapoff */
+	case 582:
+		switch (ndx) {
+		case 0:
+			p = "userland const char *";
+			break;
+		case 1:
+			p = "u_int";
+			break;
+		default:
+			break;
+		};
+		break;
 	default:
 		break;
 	};
@@ -10332,7 +10353,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* swapoff */
+	/* freebsd13_swapoff */
 	case 424:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
@@ -11031,6 +11052,11 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* aio_readv */
 	case 579:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* swapoff */
+	case 582:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
