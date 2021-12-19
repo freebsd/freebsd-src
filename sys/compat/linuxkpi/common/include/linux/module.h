@@ -28,8 +28,8 @@
  *
  * $FreeBSD$
  */
-#ifndef	_LINUX_MODULE_H_
-#define	_LINUX_MODULE_H_
+#ifndef	_LINUXKPI_LINUX_MODULE_H_
+#define	_LINUXKPI_LINUX_MODULE_H_
 
 #include <sys/cdefs.h>
 #include <sys/types.h>
@@ -105,4 +105,4 @@ _module_run(void *arg)
 
 #define	postcore_initcall(fn)	module_init(fn)
 
-#endif	/* _LINUX_MODULE_H_ */
+#endif	/* _LINUXKPI_LINUX_MODULE_H_ */

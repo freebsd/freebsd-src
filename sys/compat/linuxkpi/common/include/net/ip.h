@@ -28,8 +28,8 @@
  *
  * $FreeBSD$
  */
-#ifndef _LINUX_NET_IP_H_
-#define	_LINUX_NET_IP_H_
+#ifndef _LINUXKPI_NET_IP_H_
+#define	_LINUXKPI_NET_IP_H_
 
 #include "opt_inet.h"
 
@@ -100,4 +100,4 @@ ip_ib_mc_map(uint32_t addr, const unsigned char *bcast, char *buf)
 	buf[19] = addr & 0xff;
 }
 
-#endif	/* _LINUX_NET_IP_H_ */
+#endif	/* _LINUXKPI_NET_IP_H_ */

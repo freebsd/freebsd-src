@@ -28,8 +28,8 @@
  *
  * $FreeBSD$
  */
-#ifndef	_LINUX_DMA_MAPPING_H_
-#define _LINUX_DMA_MAPPING_H_
+#ifndef	_LINUXKPI_LINUX_DMA_MAPPING_H_
+#define _LINUXKPI_LINUX_DMA_MAPPING_H_
 
 #include <linux/types.h>
 #include <linux/device.h>
@@ -275,4 +275,4 @@ static inline unsigned int dma_set_max_seg_size(struct device *dev,
 extern int uma_align_cache;
 #define	dma_get_cache_alignment()	uma_align_cache
 
-#endif	/* _LINUX_DMA_MAPPING_H_ */
+#endif	/* _LINUXKPI_LINUX_DMA_MAPPING_H_ */

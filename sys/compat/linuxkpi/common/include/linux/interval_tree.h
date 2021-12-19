@@ -25,8 +25,8 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _LINUX_INTERVAL_TREE_H
-#define _LINUX_INTERVAL_TREE_H
+#ifndef _LINUXKPI_LINUX_INTERVAL_TREE_H
+#define _LINUXKPI_LINUX_INTERVAL_TREE_H
 
 #include <linux/rbtree.h>
 
@@ -52,4 +52,4 @@ void lkpi_interval_tree_insert(struct interval_tree_node *,
 void lkpi_interval_tree_remove(struct interval_tree_node *,
     struct rb_root_cached *);
 
-#endif	/* _LINUX_INTERVAL_TREE_H */
+#endif	/* _LINUXKPI_LINUX_INTERVAL_TREE_H */

@@ -28,9 +28,9 @@
  *
  * $FreeBSD$
  */
-#ifndef	_LINUX_IN6_H_
-#define	_LINUX_IN6_H_
+#ifndef	_LINUXKPI_LINUX_IN6_H_
+#define	_LINUXKPI_LINUX_IN6_H_
 
 #include "opt_inet6.h"
 
-#endif	/* _LINUX_IN6_H_ */
+#endif	/* _LINUXKPI_LINUX_IN6_H_ */

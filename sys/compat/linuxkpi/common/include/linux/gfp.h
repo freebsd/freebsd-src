@@ -28,8 +28,8 @@
  *
  * $FreeBSD$
  */
-#ifndef	_LINUX_GFP_H_
-#define	_LINUX_GFP_H_
+#ifndef	_LINUXKPI_LINUX_GFP_H_
+#define	_LINUXKPI_LINUX_GFP_H_
 
 #include <sys/cdefs.h>
 #include <sys/types.h>
@@ -184,4 +184,4 @@ gfpflags_allow_blocking(const gfp_t gfp_flags)
 #define	SetPageReserved(page)	do { } while (0)	/* NOP */
 #define	ClearPageReserved(page)	do { } while (0)	/* NOP */
 
-#endif	/* _LINUX_GFP_H_ */
+#endif	/* _LINUXKPI_LINUX_GFP_H_ */

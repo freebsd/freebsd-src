@@ -24,8 +24,8 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _LINUX_JUMP_LABEL_H_
-#define _LINUX_JUMP_LABEL_H_
+#ifndef _LINUXKPI_LINUX_JUMP_LABEL_H_
+#define _LINUXKPI_LINUX_JUMP_LABEL_H_
 
 #include <linux/types.h>
 #include <linux/compiler.h>
@@ -45,4 +45,4 @@ static_branch_likely(bool *flag)
 	return *flag;
 }
 
-#endif	/* _LINUX_JUMP_LABEL_H_ */
+#endif	/* _LINUXKPI_LINUX_JUMP_LABEL_H_ */

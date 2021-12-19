@@ -28,8 +28,8 @@
  *
  * $FreeBSD$
  */
-#ifndef _LINUX_TIMER_H_
-#define	_LINUX_TIMER_H_
+#ifndef _LINUXKPI_LINUX_TIMER_H_
+#define	_LINUXKPI_LINUX_TIMER_H_
 
 #include <linux/types.h>
 
@@ -91,4 +91,4 @@ extern int del_timer_sync(struct timer_list *);
 #define	round_jiffies_up(j)	round_jiffies(j)
 #define	round_jiffies_up_relative(j) round_jiffies_up(j)
 
-#endif					/* _LINUX_TIMER_H_ */
+#endif					/* _LINUXKPI_LINUX_TIMER_H_ */

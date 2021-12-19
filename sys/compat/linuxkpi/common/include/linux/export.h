@@ -24,8 +24,8 @@
  *
  * $FreeBSD$
  */
-#ifndef	_LINUX_EXPORT_H
-#define	_LINUX_EXPORT_H
+#ifndef	_LINUXKPI_LINUX_EXPORT_H
+#define	_LINUXKPI_LINUX_EXPORT_H
 
 #define	EXPORT_SYMBOL(name)
 #define	EXPORT_SYMBOL_GPL(name)

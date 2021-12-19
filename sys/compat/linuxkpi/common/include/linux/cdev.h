@@ -28,8 +28,8 @@
  *
  * $FreeBSD$
  */
-#ifndef	_LINUX_CDEV_H_
-#define	_LINUX_CDEV_H_
+#ifndef	_LINUXKPI_LINUX_CDEV_H_
+#define	_LINUXKPI_LINUX_CDEV_H_
 
 #include <linux/kobject.h>
 #include <linux/sysfs.h>
@@ -154,4 +154,4 @@ void linux_cdev_device_del(struct linux_cdev *, struct device *);
 
 #define	cdev	linux_cdev
 
-#endif	/* _LINUX_CDEV_H_ */
+#endif	/* _LINUXKPI_LINUX_CDEV_H_ */

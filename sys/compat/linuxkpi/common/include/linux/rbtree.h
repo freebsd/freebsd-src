@@ -28,8 +28,8 @@
  *
  * $FreeBSD$
  */
-#ifndef	_LINUX_RBTREE_H_
-#define	_LINUX_RBTREE_H_
+#ifndef	_LINUXKPI_LINUX_RBTREE_H_
+#define	_LINUXKPI_LINUX_RBTREE_H_
 
 #ifndef _STANDALONE
 #include <sys/stddef.h>
@@ -175,4 +175,4 @@ rb_replace_node_cached(struct rb_node *old, struct rb_node *new,
 #define RB_ROOT		(struct rb_root) { NULL }
 #define	RB_ROOT_CACHED	(struct rb_root_cached) { RB_ROOT, NULL }
 
-#endif	/* _LINUX_RBTREE_H_ */
+#endif	/* _LINUXKPI_LINUX_RBTREE_H_ */

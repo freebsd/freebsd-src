@@ -28,8 +28,8 @@
  * $FreeBSD$
  */
 
-#ifndef _LINUX_KTIME_H
-#define	_LINUX_KTIME_H
+#ifndef _LINUXKPI_LINUX_KTIME_H
+#define	_LINUXKPI_LINUX_KTIME_H
 
 #include <linux/types.h>
 #include <linux/time.h>
@@ -263,4 +263,4 @@ ktime_get_raw_ns(void)
 	return (ktime_to_ns(timespec_to_ktime(ts)));
 }
 
-#endif /* _LINUX_KTIME_H */
+#endif /* _LINUXKPI_LINUX_KTIME_H */

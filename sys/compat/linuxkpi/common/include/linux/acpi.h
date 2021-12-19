@@ -28,8 +28,8 @@
  * $FreeBSD$
  */
 
-#ifndef _LINUX_ACPI_H_
-#define _LINUX_ACPI_H_
+#ifndef _LINUXKPI_LINUX_ACPI_H_
+#define _LINUXKPI_LINUX_ACPI_H_
 
 #include <linux/device.h>
 #include <linux/uuid.h>
@@ -44,4 +44,4 @@
 
 #endif
 
-#endif /* _LINUX_ACPI_H_ */
+#endif /* _LINUXKPI_LINUX_ACPI_H_ */

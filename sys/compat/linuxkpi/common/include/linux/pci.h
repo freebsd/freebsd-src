@@ -32,8 +32,8 @@
  *
  * $FreeBSD$
  */
-#ifndef	_LINUX_PCI_H_
-#define	_LINUX_PCI_H_
+#ifndef	_LINUXKPI_LINUX_PCI_H_
+#define	_LINUXKPI_LINUX_PCI_H_
 
 #define	CONFIG_PCI_MSI
 
@@ -1585,4 +1585,4 @@ linuxkpi_pcim_want_to_use_bus_functions(struct pci_dev *pdev)
 	pdev->want_iomap_res = true;
 }
 
-#endif	/* _LINUX_PCI_H_ */
+#endif	/* _LINUXKPI_LINUX_PCI_H_ */

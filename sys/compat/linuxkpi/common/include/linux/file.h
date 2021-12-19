@@ -28,8 +28,8 @@
  *
  * $FreeBSD$
  */
-#ifndef	_LINUX_FILE_H_
-#define	_LINUX_FILE_H_
+#ifndef	_LINUXKPI_LINUX_FILE_H_
+#define	_LINUXKPI_LINUX_FILE_H_
 
 #include <sys/param.h>
 #include <sys/file.h>
@@ -187,4 +187,4 @@ static inline struct fd fdget(unsigned int fd)
 #define	file		linux_file
 #define	fget(...)	linux_fget(__VA_ARGS__)
 
-#endif	/* _LINUX_FILE_H_ */
+#endif	/* _LINUXKPI_LINUX_FILE_H_ */

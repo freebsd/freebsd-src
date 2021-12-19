@@ -28,8 +28,8 @@
  *
  * $FreeBSD$
  */
-#ifndef	_LINUX_SHMEM_FS_H_
-#define	_LINUX_SHMEM_FS_H_
+#ifndef	_LINUXKPI_LINUX_SHMEM_FS_H_
+#define	_LINUXKPI_LINUX_SHMEM_FS_H_
 
 /* Shared memory support */
 unsigned long linux_invalidate_mapping_pages(vm_object_t, pgoff_t, pgoff_t);
@@ -52,4 +52,4 @@ void linux_shmem_truncate_range(vm_object_t, loff_t, loff_t);
 #define	shmem_truncate_range(...) \
   linux_shmem_truncate_range(__VA_ARGS__)
 
-#endif /* _LINUX_SHMEM_FS_H_ */
+#endif /* _LINUXKPI_LINUX_SHMEM_FS_H_ */

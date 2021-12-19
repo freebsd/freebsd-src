@@ -28,8 +28,8 @@
  *
  * $FreeBSD$
  */
-#ifndef _LINUX_DMAPOOL_H_
-#define	_LINUX_DMAPOOL_H_
+#ifndef _LINUXKPI_LINUX_DMAPOOL_H_
+#define	_LINUXKPI_LINUX_DMAPOOL_H_
 
 #include <linux/types.h>
 #include <linux/io.h>
@@ -102,4 +102,4 @@ dma_pool_free(struct dma_pool *pool, void *vaddr, dma_addr_t dma_addr)
 	linux_dma_pool_free(pool, vaddr, dma_addr);
 }
 
-#endif /* _LINUX_DMAPOOL_H_ */
+#endif /* _LINUXKPI_LINUX_DMAPOOL_H_ */

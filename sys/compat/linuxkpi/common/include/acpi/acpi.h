@@ -29,8 +29,8 @@
  * $FreeBSD$
  */
 
-#ifndef _ACPI_ACPI_H_
-#define _ACPI_ACPI_H_
+#ifndef _LINUXKPI_ACPI_ACPI_H_
+#define _LINUXKPI_ACPI_ACPI_H_
 
 /*
  * FreeBSD import of ACPICA has a typedef for BOOLEAN which conflicts with
@@ -97,4 +97,4 @@ acpi_get_table(ACPI_STRING Signature, UINT32 Instance,
 	return (AcpiGetTable(Signature, Instance, OutTable));
 }
 
-#endif /* _ACPI_ACPI_H_ */
+#endif /* _LINUXKPI_ACPI_ACPI_H_ */

@@ -28,9 +28,9 @@
  * $FreeBSD$
  */
 
-#ifndef _LINUX_PREFETCH_H_
-#define	_LINUX_PREFETCH_H_
+#ifndef _LINUXKPI_LINUX_PREFETCH_H_
+#define	_LINUXKPI_LINUX_PREFETCH_H_
 
 #define prefetchw(x) __builtin_prefetch(x,1)
 
-#endif /* _LINUX_PREFETCH_H_ */
+#endif /* _LINUXKPI_LINUX_PREFETCH_H_ */

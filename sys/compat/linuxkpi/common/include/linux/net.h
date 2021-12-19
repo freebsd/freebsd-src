@@ -28,8 +28,8 @@
  *
  * $FreeBSD$
  */
-#ifndef	_LINUX_NET_H_
-#define	_LINUX_NET_H_
+#ifndef	_LINUXKPI_LINUX_NET_H_
+#define	_LINUXKPI_LINUX_NET_H_
 
 #include <sys/types.h>
 #include <sys/malloc.h>
@@ -86,4 +86,4 @@ net_ratelimit(void)
 	return (linuxkpi_net_ratelimit());
 }
 
-#endif	/* _LINUX_NET_H_ */
+#endif	/* _LINUXKPI_LINUX_NET_H_ */

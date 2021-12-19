@@ -25,8 +25,8 @@
  *
  * $FreeBSD$
  */
-#ifndef	_LINUX_RCUPDATE_H_
-#define	_LINUX_RCUPDATE_H_
+#ifndef	_LINUXKPI_LINUX_RCUPDATE_H_
+#define	_LINUXKPI_LINUX_RCUPDATE_H_
 
 #include <linux/compiler.h>
 #include <linux/types.h>
@@ -127,4 +127,4 @@ extern void linux_synchronize_rcu(unsigned type);
 #define	init_rcu_head_on_stack(...)
 #define	destroy_rcu_head_on_stack(...)
 
-#endif					/* _LINUX_RCUPDATE_H_ */
+#endif					/* _LINUXKPI_LINUX_RCUPDATE_H_ */

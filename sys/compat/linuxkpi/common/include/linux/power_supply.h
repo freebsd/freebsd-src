@@ -28,8 +28,8 @@
  * $FreeBSD$
  */
 
-#ifndef _LINUX_POWER_SUPPLY_H_
-#define _LINUX_POWER_SUPPLY_H_
+#ifndef _LINUXKPI_LINUX_POWER_SUPPLY_H_
+#define _LINUXKPI_LINUX_POWER_SUPPLY_H_
 
 #include <sys/types.h>
 #include <sys/power.h>

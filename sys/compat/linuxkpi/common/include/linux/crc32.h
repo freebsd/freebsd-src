@@ -30,8 +30,8 @@
  * $FreeBSD$
  */
 
-#ifndef __LKPI_LINUX_CRC32_H
-#define __LKPI_LINUX_CRC32_H
+#ifndef _LINUXKPI_LINUX_CRC32_H
+#define _LINUXKPI_LINUX_CRC32_H
 
 #include <sys/gsb_crc32.h>
 
@@ -42,4 +42,4 @@ crc32_le(uint32_t crc, const void *data, size_t len)
 	return (crc32_raw(data, len, crc));
 }
 
-#endif /* __LKPI_LINUX_CRC32_H */
+#endif /* _LINUXKPI_LINUX_CRC32_H */

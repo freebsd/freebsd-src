@@ -29,8 +29,8 @@
  *
  * $FreeBSD$
  */
-#ifndef	_LINUX_KERNEL_H_
-#define	_LINUX_KERNEL_H_
+#ifndef	_LINUXKPI_LINUX_KERNEL_H_
+#define	_LINUXKPI_LINUX_KERNEL_H_
 
 #include <sys/cdefs.h>
 #include <sys/types.h>
@@ -728,4 +728,4 @@ hex2bin(uint8_t *bindst, const char *hexsrc, size_t binlen)
 #define	IS_REACHABLE(_x)	(IS_BUILTIN(_x) || \
 				    (IS_MODULE(_x) && IS_BUILTIN(MODULE)))
 
-#endif	/* _LINUX_KERNEL_H_ */
+#endif	/* _LINUXKPI_LINUX_KERNEL_H_ */

@@ -30,8 +30,8 @@
  * $FreeBSD$
  */
 
-#ifndef	__LKPI_LINUX_DEVCOREDUMP_H
-#define	__LKPI_LINUX_DEVCOREDUMP_H
+#ifndef	_LINUXKPI_LINUX_DEVCOREDUMP_H
+#define	_LINUXKPI_LINUX_DEVCOREDUMP_H
 
 #include <linux/slab.h>
 #include <linux/scatterlist.h>
@@ -73,4 +73,4 @@ dev_coredumpsg(struct device *dev __unused, struct scatterlist *table,
 	_lkpi_dev_coredumpsg_free(table);
 }
 
-#endif	/* __LKPI_LINUX_DEVCOREDUMP_H */
+#endif	/* _LINUXKPI_LINUX_DEVCOREDUMP_H */

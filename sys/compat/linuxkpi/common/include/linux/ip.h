@@ -30,8 +30,8 @@
  * $FreeBSD$
  */
 
-#ifndef	__LKPI_LINUX_IP_H
-#define	__LKPI_LINUX_IP_H
+#ifndef	_LINUXKPI_LINUX_IP_H
+#define	_LINUXKPI_LINUX_IP_H
 
 #include <sys/types.h>
 
@@ -72,4 +72,4 @@ ip_send_check(struct iphdr *iph)
 	iph->check = in_cksum_hdr((const void *)iph);
 }
 
-#endif	/* __LKPI_LINUX_IP_H */
+#endif	/* _LINUXKPI_LINUX_IP_H */

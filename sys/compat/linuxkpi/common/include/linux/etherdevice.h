@@ -24,8 +24,8 @@
  *
  * $FreeBSD$
  */
-#ifndef _LINUX_ETHERDEVICE
-#define	_LINUX_ETHERDEVICE
+#ifndef _LINUXKPI_LINUX_ETHERDEVICE_H_
+#define	_LINUXKPI_LINUX_ETHERDEVICE_H_
 
 #include <linux/types.h>
 
@@ -115,4 +115,4 @@ random_ether_addr(u8 * dst)
 	dst[0] |= 0x02;
 }
 
-#endif					/* _LINUX_ETHERDEVICE */
+#endif					/* _LINUXKPI_LINUX_ETHERDEVICE_H_ */

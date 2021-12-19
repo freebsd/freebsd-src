@@ -30,8 +30,8 @@
  * $FreeBSD$
  */
 
-#ifndef __LKPI_LINUX_AVERAGE_H
-#define __LKPI_LINUX_AVERAGE_H
+#ifndef _LINUXKPI_LINUX_AVERAGE_H
+#define _LINUXKPI_LINUX_AVERAGE_H
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -89,4 +89,4 @@
 		return (ewma->zt >> (_p));					\
 	}									\
 
-#endif /* __LKPI_LINUX_AVERAGE_H */
+#endif /* _LINUXKPI_LINUX_AVERAGE_H */

@@ -28,8 +28,8 @@
  * $FreeBSD$
  */
 
-#ifndef _LINUX_PAGEMAP_H_
-#define _LINUX_PAGEMAP_H_
+#ifndef _LINUXKPI_LINUX_PAGEMAP_H_
+#define _LINUXKPI_LINUX_PAGEMAP_H_
 
 #include <linux/mm.h>
 

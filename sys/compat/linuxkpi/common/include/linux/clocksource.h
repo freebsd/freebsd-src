@@ -28,11 +28,11 @@
  *
  * $FreeBSD$
  */
-#ifndef _LINUX_CLOCKSOURCE_H
-#define	_LINUX_CLOCKSOURCE_H
+#ifndef _LINUXKPI_LINUX_CLOCKSOURCE_H
+#define	_LINUXKPI_LINUX_CLOCKSOURCE_H
 
 #include <asm/types.h>
 
 #define	CLOCKSOURCE_MASK(x) ((u64)(-1ULL >> ((-(x)) & 63)))
 
-#endif					/* _LINUX_CLOCKSOURCE_H */
+#endif					/* _LINUXKPI_LINUX_CLOCKSOURCE_H */

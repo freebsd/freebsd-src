@@ -29,8 +29,8 @@
  * $FreeBSD$
  */
 
-#ifndef _LINUX_IO_MAPPING_H_
-#define	_LINUX_IO_MAPPING_H_
+#ifndef _LINUXKPI_LINUX_IO_MAPPING_H_
+#define	_LINUXKPI_LINUX_IO_MAPPING_H_
 
 #include <sys/types.h>
 #include <machine/vm.h>
@@ -114,4 +114,4 @@ io_mapping_unmap(void *vaddr)
 {
 }
 
-#endif /* _LINUX_IO_MAPPING_H_ */
+#endif /* _LINUXKPI_LINUX_IO_MAPPING_H_ */

@@ -28,8 +28,8 @@
  * $FreeBSD$
  */
 
-#ifndef __LINUX_SIZES_H__
-#define	__LINUX_SIZES_H__
+#ifndef _LINUXKPI_LINUX_SIZES_H_
+#define	_LINUXKPI_LINUX_SIZES_H_
 
 #define SZ_1K	(1024 * 1)
 #define SZ_4K	(1024 * 4)

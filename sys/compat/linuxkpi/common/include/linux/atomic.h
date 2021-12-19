@@ -26,12 +26,12 @@
  * $FreeBSD$
  */
 
-#ifndef _LINUX_ATOMIC_H_
-#define	_LINUX_ATOMIC_H_
+#ifndef _LINUXKPI_LINUX_ATOMIC_H_
+#define	_LINUXKPI_LINUX_ATOMIC_H_
 
 #include <asm/atomic.h>
 #include <asm/atomic64.h>
 #include <asm/atomic-long.h>
 #include <asm/barrier.h>
 
-#endif /* _LINUX_ATOMIC_H_ */
+#endif /* _LINUXKPI_LINUX_ATOMIC_H_ */

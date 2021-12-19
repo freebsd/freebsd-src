@@ -29,8 +29,8 @@
  * $FreeBSD$
  */
 
-#ifndef _LINUX_LOCKDEP_H_
-#define	_LINUX_LOCKDEP_H_
+#ifndef _LINUXKPI_LINUX_LOCKDEP_H_
+#define	_LINUXKPI_LINUX_LOCKDEP_H_
 
 #include <sys/types.h>
 #include <sys/lock.h>
@@ -99,4 +99,4 @@ lockdep_is_held(void *__m)
 #define	lockdep_repin_lock(l,c) do { (void)(l); (void)(c); } while (0)
 #define	lockdep_unpin_lock(l,c) do { (void)(l); (void)(c); } while (0)
 
-#endif /* _LINUX_LOCKDEP_H_ */
+#endif /* _LINUXKPI_LINUX_LOCKDEP_H_ */

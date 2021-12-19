@@ -30,8 +30,8 @@
  * $FreeBSD$
  */
 
-#ifndef	_LINUX_BITFIELD_H
-#define	_LINUX_BITFIELD_H
+#ifndef	_LINUXKPI_LINUX_BITFIELD_H
+#define	_LINUXKPI_LINUX_BITFIELD_H
 
 #include <linux/types.h>
 #include <asm/byteorder.h>
@@ -133,4 +133,4 @@ _uX_replace_bits(8)
 #define	FIELD_GET(_mask, _value)					\
 	((typeof(_mask))(((_value) & (_mask)) >> __bf_shf(_mask)))
 
-#endif	/* _LINUX_BITFIELD_H */
+#endif	/* _LINUXKPI_LINUX_BITFIELD_H */

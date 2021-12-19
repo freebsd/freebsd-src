@@ -27,8 +27,8 @@
  * $FreeBSD$
  */
 
-#ifndef _LINUX_MATH64_H
-#define	_LINUX_MATH64_H
+#ifndef _LINUXKPI_LINUX_MATH64_H
+#define	_LINUXKPI_LINUX_MATH64_H
 
 #include <sys/stdint.h>
 
@@ -100,4 +100,4 @@ div64_u64_round_up(uint64_t dividend, uint64_t divisor)
 #define	DIV64_U64_ROUND_UP(...) \
 	div64_u64_round_up(__VA_ARGS__)
 
-#endif /* _LINUX_MATH64_H */
+#endif /* _LINUXKPI_LINUX_MATH64_H */

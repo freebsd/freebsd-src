@@ -28,8 +28,8 @@
  *
  * $FreeBSD$
  */
-#ifndef	_LINUX_RWSEM_H_
-#define	_LINUX_RWSEM_H_
+#ifndef	_LINUXKPI_LINUX_RWSEM_H_
+#define	_LINUXKPI_LINUX_RWSEM_H_
 
 #include <sys/param.h>
 #include <sys/lock.h>
@@ -81,4 +81,4 @@ linux_init_rwsem(struct rw_semaphore *rw, const char *name)
 
 extern int linux_down_write_killable(struct rw_semaphore *);
 
-#endif					/* _LINUX_RWSEM_H_ */
+#endif					/* _LINUXKPI_LINUX_RWSEM_H_ */

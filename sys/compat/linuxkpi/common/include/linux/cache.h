@@ -28,8 +28,8 @@
  *
  * $FreeBSD$
  */
-#ifndef	_LINUX_CACHE_H_
-#define _LINUX_CACHE_H_
+#ifndef	_LINUXKPI_LINUX_CACHE_H_
+#define _LINUXKPI_LINUX_CACHE_H_
 
 #include <sys/param.h>
 
@@ -38,4 +38,4 @@
 
 #define	SMP_CACHE_BYTES		L1_CACHE_BYTES
 
-#endif	/* _LINUX_CACHE_H_ */
+#endif	/* _LINUXKPI_LINUX_CACHE_H_ */

@@ -25,8 +25,8 @@
  * $FreeBSD$
  */
 
-#ifndef __LINUX_SHRINKER_H__
-#define	__LINUX_SHRINKER_H__
+#ifndef _LINUXKPI_LINUX_SHRINKER_H_
+#define	_LINUXKPI_LINUX_SHRINKER_H_
 
 #include <sys/queue.h>
 
@@ -53,4 +53,4 @@ void	linuxkpi_unregister_shrinker(struct shrinker *s);
 #define	register_shrinker(s)	linuxkpi_register_shrinker(s)
 #define	unregister_shrinker(s)	linuxkpi_unregister_shrinker(s)
 
-#endif	/* __LINUX_SHRINKER_H__ */
+#endif	/* _LINUXKPI_LINUX_SHRINKER_H_ */

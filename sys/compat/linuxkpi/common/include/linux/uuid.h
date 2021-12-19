@@ -30,11 +30,11 @@
  * $FreeBSD$
  */
 
-#ifndef	__LKPI_LINUX_UUID_H
-#define	__LKPI_LINUX_UUID_H
+#ifndef	_LINUXKPI_LINUX_UUID_H
+#define	_LINUXKPI_LINUX_UUID_H
 
 typedef struct {
 	char	x[16];
 } guid_t;
 
-#endif	/* __LKPI_LINUX_UUID_H */
+#endif	/* _LINUXKPI_LINUX_UUID_H */

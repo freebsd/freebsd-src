@@ -28,8 +28,8 @@
  *
  * $FreeBSD$
  */
-#ifndef	_LINUX_STRING_H_
-#define	_LINUX_STRING_H_
+#ifndef	_LINUXKPI_LINUX_STRING_H_
+#define	_LINUXKPI_LINUX_STRING_H_
 
 #include <sys/ctype.h>
 
@@ -196,4 +196,4 @@ strscpy(char* dst, const char* src, size_t len)
 	return (-E2BIG);
 }
 
-#endif					/* _LINUX_STRING_H_ */
+#endif					/* _LINUXKPI_LINUX_STRING_H_ */

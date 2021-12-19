@@ -28,8 +28,8 @@
  *
  * $FreeBSD$
  */
-#ifndef _LINUX_NET_IPV6_H_
-#define	_LINUX_NET_IPV6_H_
+#ifndef _LINUXKPI_NET_IPV6_H_
+#define	_LINUXKPI_NET_IPV6_H_
 
 #include <sys/types.h>
 #include <netinet/in.h>
@@ -116,4 +116,4 @@ static inline int ipv6_addr_cmp(const struct in6_addr *a1, const struct in6_addr
 	return memcmp(a1, a2, sizeof(struct in6_addr));
 }
 
-#endif	/* _LINUX_NET_IPV6_H_ */
+#endif	/* _LINUXKPI_NET_IPV6_H_ */
