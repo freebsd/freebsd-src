@@ -43,9 +43,7 @@
 #include "ocs.h"
 #include "ocs_els.h"
 #include "ocs_scsi.h"
-#if defined(OCS_ENABLE_VPD_SUPPORT)
 #include "ocs_vpd.h"
-#endif
 #include "ocs_utils.h"
 #include "ocs_device.h"
 
@@ -2808,7 +2806,6 @@ void *ocs_scsi_get_property_ptr(ocs_t *ocs, ocs_scsi_property_e prop)
 	case OCS_SCSI_BIOS_VERSION_STRING:
 		rc = ocs_hw_get_ptr(&ocs->hw, OCS_HW_BIOS_VERSION_STRING);
 		break;
-#if defined(OCS_ENABLE_VPD_SUPPORT)
 	case OCS_SCSI_SERIALNUMBER:
 	{
 		uint8_t *pvpd;
@@ -2859,7 +2856,6 @@ void *ocs_scsi_get_property_ptr(ocs_t *ocs, ocs_scsi_property_e prop)
 		}
 		break;
 	}
-#endif
 	default:
 		break;
 	}
