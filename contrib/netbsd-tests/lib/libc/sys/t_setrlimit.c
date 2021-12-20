@@ -554,11 +554,7 @@ ATF_TC_BODY(setrlimit_stack, tc)
 		atf_tc_skip("https://bugs.freebsd.org/259969");
 
 	/* Ensure soft limit is not bigger than hard limit */
-#ifdef __FreeBSD__
-	res.rlim_cur = res.rlim_max = 20971520;
-#else
 	res.rlim_cur = res.rlim_max = 4192256;
-#endif
 	ATF_REQUIRE(setrlimit(RLIMIT_STACK, &res) == 0);
 	ATF_REQUIRE(getrlimit(RLIMIT_STACK, &res) == 0);
 	ATF_CHECK(res.rlim_cur <= res.rlim_max);
