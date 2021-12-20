@@ -303,7 +303,7 @@ usage(int exitcode)
 	    "  list" "\n"
 	    "  do_request <bmReqTyp> <bReq> <wVal> <wIdx> <wLen> <data...>" "\n"
 	);
-	exit(1);
+	exit(exitcode);
 }
 
 static void
