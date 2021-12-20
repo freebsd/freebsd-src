@@ -986,6 +986,7 @@ vfs_mountroot_wait(void)
 
 	curfail = 0;
 	lastfail.tv_sec = 0;
+	ppsratecheck(&lastfail, &curfail, 1);
 	while (1) {
 		g_waitidle();
 		mtx_lock(&root_holds_mtx);
