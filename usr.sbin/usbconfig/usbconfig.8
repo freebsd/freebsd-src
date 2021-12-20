@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd December 27, 2019
+.Dd December 20, 2021
 .Dt USBCONFIG 8
 .Os
 .Sh NAME
@@ -33,9 +33,11 @@
 .Nm
 .Op Fl u Ar unit
 .Op Fl a Ar addr
+.Op Fl i Ar interface_index
 .Op cmds...
 .Nm
-.Op Oo Fl d Oc Ar [ugen]<unit>.<addr>
+.Fl d Ar [[/dev/]ugen]<unit>.<addr>
+.Op Fl i Ar interface_index
 .Op cmds...
 .Sh DESCRIPTION
 The
@@ -49,7 +51,7 @@ Limit device range to USB devices connected to the given USBUS unit.
 .It Fl a Ar addr
 Limit device range to the given USB device index.
 Should only be used in conjunction with the unit argument.
-.It Fl d Ar [ugen]<unit>.<addr>
+.It Fl d Ar [[/dev/]ugen]<unit>.<addr>
 Limit device range to USB devices connected to the given unit and address.
 The unit and address coordinates may be prefixed by the lowercased word "ugen",
 or the full path name
@@ -83,6 +85,9 @@ in
 .Cm dump_curr_config_desc
 output.
 Usually there is no need to adjust this setting.
+This command uses the
+.Fl i Ar interface_index
+option.
 .It Cm set_template Ar template
 Set the global USB device side template.
 See
@@ -128,6 +133,9 @@ or
 currently attached to the device.
 .It Cm detach_kernel_driver
 Detach kernel driver for the selected interface and USB device.
+This command uses the
+.Fl i Ar interface_index
+option.
 .It Cm suspend
 Force the device to suspend.
 .It Cm resume
