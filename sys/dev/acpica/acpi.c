@@ -673,7 +673,7 @@ acpi_attach(device_t dev)
 
     /* Register our shutdown handler. */
     EVENTHANDLER_REGISTER(shutdown_final, acpi_shutdown_final, sc,
-	SHUTDOWN_PRI_LAST);
+	SHUTDOWN_PRI_LAST + 150);
 
     /*
      * Register our acpi event handlers.
