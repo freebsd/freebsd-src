@@ -46,7 +46,8 @@ struct afswtch;
 struct cmd;
 
 typedef	void c_func(const char *cmd, int arg, int s, const struct afswtch *afp);
-typedef	void c_func2(const char *arg1, const char *arg2, int s, const struct afswtch *afp);
+typedef	void c_func2(const char *arg1, const char *arg2, int s,
+    const struct afswtch *afp);
 
 struct cmd {
 	const char *c_name;
@@ -72,7 +73,8 @@ void	callback_register(callback_func *, void *);
 #define	DECL_CMD_FUNC(name, cmd, arg) \
 	void name(const char *cmd, int arg, int s, const struct afswtch *afp)
 #define	DECL_CMD_FUNC2(name, arg1, arg2) \
-	void name(const char *arg1, const char *arg2, int s, const struct afswtch *afp)
+	void name(const char *arg1, const char *arg2, int s, \
+	    const struct afswtch *afp)
 
 #define	DEF_CMD(name, param, func)	{ name, param, { .c_func = func }, 0, NULL }
 #define	DEF_CMD_ARG(name, func)		{ name, NEXTARG, { .c_func = func }, 0, NULL }
