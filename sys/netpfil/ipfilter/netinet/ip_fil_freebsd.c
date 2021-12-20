@@ -112,9 +112,7 @@ VNET_DEFINE_STATIC(eventhandler_tag, ipf_clonetag);
 
 static void ipf_ifevent(void *arg, struct ifnet *ifp);
 
-static void ipf_ifevent(arg, ifp)
-	void *arg;
-	struct ifnet *ifp;
+static void ipf_ifevent(void *arg, struct ifnet *ifp)
 {
 
 	CURVNET_SET(ifp->if_vnet);
@@ -168,8 +166,7 @@ ipf_check_wrapper6(void *arg, struct mbuf **mp, struct ifnet *ifp, int dir)
 }
 # endif
 #if	defined(IPFILTER_LKM)
-int ipf_identify(s)
-	char *s;
+int ipf_identify(char *s)
 {
 	if (strcmp(s, "ipl") == 0)
 		return 1;
@@ -179,8 +176,7 @@ int ipf_identify(s)
 
 
 static void
-ipf_timer_func(arg)
-	void *arg;
+ipf_timer_func(void *arg)
 {
 	ipf_main_softc_t *softc = arg;
 	SPL_INT(s);
@@ -206,8 +202,7 @@ ipf_timer_func(arg)
 
 
 int
-ipfattach(softc)
-	ipf_main_softc_t *softc;
+ipfattach(ipf_main_softc_t *softc)
 {
 #ifdef USE_SPL
 	int s;
@@ -248,8 +243,7 @@ ipfattach(softc)
  * stream.
  */
 int
-ipfdetach(softc)
-	ipf_main_softc_t *softc;
+ipfdetach(ipf_main_softc_t *softc)
 {
 #ifdef USE_SPL
 	int s;
@@ -281,14 +275,10 @@ ipfdetach(softc)
  * Filter ioctl interface.
  */
 int
-ipfioctl(dev, cmd, data, mode, p)
-	struct thread *p;
+ipfioctl(struct cdev *dev, ioctlcmd_t cmd, caddr_t data,
+	int mode, struct thread *p)
 #define	p_cred	td_ucred
 #define	p_uid	td_ucred->cr_ruid
-	struct cdev *dev;
-	ioctlcmd_t cmd;
-	caddr_t data;
-	int mode;
 {
 	int error = 0, unit = 0;
 	SPL_INT(s);
@@ -344,8 +334,7 @@ ipfioctl(dev, cmd, data, mode, p)
  * requires a large amount of setting up and isn't any more efficient.
  */
 int
-ipf_send_reset(fin)
-	fr_info_t *fin;
+ipf_send_reset(fr_info_t *fin)
 {
 	struct tcphdr *tcp, *tcp2;
 	int tlen = 0, hlen;
@@ -442,9 +431,7 @@ ipf_send_reset(fin)
  * ip_len must be in network byte order when called.
  */
 static int
-ipf_send_ip(fin, m)
-	fr_info_t *fin;
-	mb_t *m;
+ipf_send_ip(fr_info_t *fin, mb_t *m)
 {
 	fr_info_t fnew;
 	ip_t *ip, *oip;
@@ -506,10 +493,7 @@ ipf_send_ip(fin, m)
 
 
 int
-ipf_send_icmp_err(type, fin, dst)
-	int type;
-	fr_info_t *fin;
-	int dst;
+ipf_send_icmp_err(int type, fr_info_t *fin, int dst)
 {
 	int err, hlen, xtra, iclen, ohlen, avail, code;
 	struct in_addr dst4;
@@ -690,10 +674,7 @@ ipf_send_icmp_err(type, fin, dst)
  * mpp - pointer to the mbuf pointer that is the start of the mbuf chain
  */
 int
-ipf_fastroute(m0, mpp, fin, fdp)
-	mb_t *m0, **mpp;
-	fr_info_t *fin;
-	frdest_t *fdp;
+ipf_fastroute(mb_t *m0, mb_t **mpp, fr_info_t *fin, frdest_t *fdp)
 {
 	register struct ip *ip, *mhip;
 	register struct mbuf *m = *mpp;
@@ -958,11 +939,8 @@ ipf_verifysrc(fin)
  * return the first IP Address associated with an interface
  */
 int
-ipf_ifpaddr(softc, v, atype, ifptr, inp, inpmask)
-	ipf_main_softc_t *softc;
-	int v, atype;
-	void *ifptr;
-	i6addr_t *inp, *inpmask;
+ipf_ifpaddr(ipf_main_softc_t *softc, int v, int atype, void *ifptr,
+	i6addr_t *inp, i6addr_t *inpmask)
 {
 #ifdef USE_INET6
 	struct in6_addr *ia6 = NULL;
@@ -1040,8 +1018,7 @@ ipf_newisn(fin)
 
 
 INLINE int
-ipf_checkv4sum(fin)
-	fr_info_t *fin;
+ipf_checkv4sum(fr_info_t *fin)
 {
 #ifdef CSUM_DATA_VALID
 	int manual = 0;
@@ -1140,8 +1117,7 @@ skipauto:
 
 #ifdef USE_INET6
 INLINE int
-ipf_checkv6sum(fin)
-	fr_info_t *fin;
+ipf_checkv6sum(fr_info_t *fin)
 {
 	if ((fin->fin_flx & FI_NOCKSUM) != 0) {
 		DT(ipf_checkv6sum_fi_nocksum);
@@ -1169,8 +1145,7 @@ ipf_checkv6sum(fin)
 
 
 size_t
-mbufchainlen(m0)
-	struct mbuf *m0;
+mbufchainlen(struct mbuf *m0)
 {
 	size_t len;
 
@@ -1204,10 +1179,7 @@ mbufchainlen(m0)
 /* of buffers that starts at *fin->fin_mp.                                  */
 /* ------------------------------------------------------------------------ */
 void *
-ipf_pullup(xmin, fin, len)
-	mb_t *xmin;
-	fr_info_t *fin;
-	int len;
+ipf_pullup(mb_t *xmin, fr_info_t *fin, int len)
 {
 	int dpoff, ipoff;
 	mb_t *m = xmin;
@@ -1305,9 +1277,7 @@ ipf_pullup(xmin, fin, len)
 
 
 int
-ipf_inject(fin, m)
-	fr_info_t *fin;
-	mb_t *m;
+ipf_inject(fr_info_t *fin, mb_t *m)
 {
 	int error = 0;
 
@@ -1404,17 +1374,14 @@ ipf_event_dereg(void)
 
 
 u_32_t
-ipf_random()
+ipf_random(void)
 {
 	return arc4random();
 }
 
 
 u_int
-ipf_pcksum(fin, hlen, sum)
-	fr_info_t *fin;
-	int hlen;
-	u_int sum;
+ipf_pcksum(fr_info_t *fin, int hlen, u_int sum)
 {
 	struct mbuf *m;
 	u_int sum2;
@@ -1440,11 +1407,7 @@ ipf_pcksum(fin, hlen, sum)
 
 #ifdef	USE_INET6
 u_int
-ipf_pcksum6(m, ip6, off, len)
-	struct mbuf *m;
-	ip6_t *ip6;
-	u_int32_t off;
-	u_int32_t len;
+ipf_pcksum6(struct mbuf *m, ip6_t *ip6, u_int32_t off, u_int32_t len)
 {
 #ifdef	_KERNEL
 	int sum;

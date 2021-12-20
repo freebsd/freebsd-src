@@ -80,7 +80,7 @@ static int	ipf_scan_inited = 0;
 
 
 int
-ipf_scan_init()
+ipf_scan_init(void)
 {
 	RWLOCK_INIT(&ipf_scan_rwlock, "ip scan rwlock");
 	ipf_scan_inited = 1;
@@ -99,8 +99,7 @@ ipf_scan_unload(ipf_main_softc_t *arg)
 
 
 int
-ipf_scan_add(data)
-	caddr_t data;
+ipf_scan_add(caddr_t data)
 {
 	ipscan_t *i, *isc;
 	int err;
@@ -150,8 +149,7 @@ ipf_scan_add(data)
 
 
 int
-ipf_scan_remove(data)
-	caddr_t data;
+ipf_scan_remove(caddr_t data)
 {
 	ipscan_t isc, *i;
 	int err;
@@ -191,8 +189,7 @@ ipf_scan_remove(data)
 
 
 struct ipscan *
-ipf_scan_lookup(tag)
-	char *tag;
+ipf_scan_lookup(char *tag)
 {
 	ipscan_t *i;
 
@@ -204,8 +201,7 @@ ipf_scan_lookup(tag)
 
 
 int
-ipf_scan_attachfr(fr)
-	struct frentry *fr;
+ipf_scan_attachfr(struct frentry *fr)
 {
 	ipscan_t *i;
 
@@ -227,8 +223,7 @@ ipf_scan_attachfr(fr)
 
 
 int
-ipf_scan_attachis(is)
-	struct ipstate *is;
+ipf_scan_attachis(struct ipstate *is)
 {
 	frentry_t *fr;
 	ipscan_t *i;
@@ -256,8 +251,7 @@ ipf_scan_attachis(is)
 
 
 int
-ipf_scan_detachfr(fr)
-	struct frentry *fr;
+ipf_scan_detachfr(struct frentry *fr)
 {
 	ipscan_t *i;
 
@@ -290,10 +284,7 @@ ipf_scan_detachis(is)
  * 'string' compare for scanning
  */
 int
-ipf_scan_matchstr(sp, str, n)
-	sinfo_t *sp;
-	char *str;
-	int n;
+ipf_scan_matchstr(sinfo_t *sp, char *str, int n)
 {
 	char *s, *t, *up;
 	int i = n;
@@ -325,10 +316,7 @@ ipf_scan_matchstr(sp, str, n)
  * 1 if just client
  */
 int
-ipf_scan_matchisc(isc, is, cl, sl, maxm)
-	ipscan_t *isc;
-	ipstate_t *is;
-	int cl, sl, maxm[2];
+ipf_scan_matchisc(ipscan_t *isc, ipstate_t *is, int cl, int sl, int maxm[2])
 {
 	int i, j, k, n, ret = 0, flags;
 
@@ -393,8 +381,7 @@ ipf_scan_matchisc(isc, is, cl, sl, maxm)
 
 
 int
-ipf_scan_match(is)
-	ipstate_t *is;
+ipf_scan_match(ipstate_t *is)
 {
 	int i, j, k, n, cl, sl, maxm[2];
 	ipscan_t *isc, *lm;
@@ -521,9 +508,7 @@ ipf_scan_match(is)
  * check if a packet matches what we're scanning for
  */
 int
-ipf_scan_packet(fin, is)
-	fr_info_t *fin;
-	ipstate_t *is;
+ipf_scan_packet(fr_info_t *fin, ipstate_t *is)
 {
 	int i, j, rv, dlen, off, thoff;
 	u_32_t seq, s0;
@@ -581,11 +566,7 @@ ipf_scan_packet(fin, is)
 
 
 int
-ipf_scan_ioctl(data, cmd, mode, uid, ctx)
-	caddr_t data;
-	ioctlcmd_t cmd;
-	int mode, uid;
-	void *ctx;
+ipf_scan_ioctl(caddr_t data, ioctlcmd_t cmd, int mode, int uid, void *ctx)
 {
 	ipscanstat_t ipscs;
 	int err = 0;

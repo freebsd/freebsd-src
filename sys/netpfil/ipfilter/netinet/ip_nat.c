@@ -264,7 +264,7 @@ static	void	ipf_nat_tabmove(ipf_nat_softc_t *, nat_t *);
 /* rule that is used with blocking packets.                                 */
 /* ------------------------------------------------------------------------ */
 int
-ipf_nat_main_load()
+ipf_nat_main_load(void)
 {
 
 	return 0;
@@ -280,7 +280,7 @@ ipf_nat_main_load()
 /* other functions is obvious.                                              */
 /* ------------------------------------------------------------------------ */
 int
-ipf_nat_main_unload()
+ipf_nat_main_unload(void)
 {
 	return 0;
 }
@@ -296,8 +296,7 @@ ipf_nat_main_unload()
 /* that sizes can be changed before we get under way.                       */
 /* ------------------------------------------------------------------------ */
 void *
-ipf_nat_soft_create(softc)
-	ipf_main_softc_t *softc;
+ipf_nat_soft_create(ipf_main_softc_t *softc)
 {
 	ipf_nat_softc_t *softn;
 
@@ -357,9 +356,7 @@ ipf_nat_soft_create(softc)
 /*                                                                          */
 /* ------------------------------------------------------------------------ */
 void
-ipf_nat_soft_destroy(softc, arg)
-	ipf_main_softc_t *softc;
-	void *arg;
+ipf_nat_soft_destroy(ipf_main_softc_t *softc, void *arg)
 {
 	ipf_nat_softc_t *softn = arg;
 
@@ -381,9 +378,7 @@ ipf_nat_soft_destroy(softc, arg)
 /* Initialise all of the NAT locks, tables and other structures.            */
 /* ------------------------------------------------------------------------ */
 int
-ipf_nat_soft_init(softc, arg)
-	ipf_main_softc_t *softc;
-	void *arg;
+ipf_nat_soft_init(ipf_main_softc_t *softc, void *arg)
 {
 	ipf_nat_softc_t *softn = arg;
 	ipftq_t *tq;
@@ -528,9 +523,7 @@ ipf_nat_soft_init(softc, arg)
 /* Free all memory used by NAT structures allocated at runtime.             */
 /* ------------------------------------------------------------------------ */
 int
-ipf_nat_soft_fini(softc, arg)
-	ipf_main_softc_t *softc;
-	void *arg;
+ipf_nat_soft_fini(ipf_main_softc_t *softc, void *arg)
 {
 	ipf_nat_softc_t *softn = arg;
 	ipftq_t *ifq, *ifqnext;
@@ -615,9 +608,7 @@ ipf_nat_soft_fini(softc, arg)
 /* Set the "lock status" of NAT to the value in tmp.                        */
 /* ------------------------------------------------------------------------ */
 void
-ipf_nat_setlock(arg, tmp)
-	void *arg;
-	int tmp;
+ipf_nat_setlock(void *arg, int tmp)
 {
 	ipf_nat_softc_t *softn = arg;
 
@@ -635,9 +626,7 @@ ipf_nat_setlock(arg, tmp)
 /* use by redirect rules.                                                   */
 /* ------------------------------------------------------------------------ */
 static void
-ipf_nat_addrdr(softn, n)
-	ipf_nat_softc_t *softn;
-	ipnat_t *n;
+ipf_nat_addrdr(ipf_nat_softc_t *softn, ipnat_t *n)
 {
 	ipnat_t **np;
 	u_32_t j;
@@ -677,9 +666,7 @@ ipf_nat_addrdr(softn, n)
 /* redirect rules.                                                          */
 /* ------------------------------------------------------------------------ */
 static void
-ipf_nat_addmap(softn, n)
-	ipf_nat_softc_t *softn;
-	ipnat_t *n;
+ipf_nat_addmap(ipf_nat_softc_t *softn, ipnat_t *n)
 {
 	ipnat_t **np;
 	u_32_t j;
@@ -717,9 +704,7 @@ ipf_nat_addmap(softn, n)
 /* Removes a redirect rule from the hash table of redirect rules.           */
 /* ------------------------------------------------------------------------ */
 void
-ipf_nat_delrdr(softn, n)
-	ipf_nat_softc_t *softn;
-	ipnat_t *n;
+ipf_nat_delrdr(ipf_nat_softc_t *softn, ipnat_t *n)
 {
 	if (n->in_odstatype == FRI_NORMAL) {
 		int k = count4bits(n->in_odstmsk);
@@ -742,9 +727,7 @@ ipf_nat_delrdr(softn, n)
 /* Removes a NAT map rule from the hash table of NAT map rules.             */
 /* ------------------------------------------------------------------------ */
 void
-ipf_nat_delmap(softn, n)
-	ipf_nat_softc_t *softn;
-	ipnat_t *n;
+ipf_nat_delmap(ipf_nat_softc_t *softn, ipnat_t *n)
 {
 	if (n->in_osrcatype == FRI_NORMAL) {
 		int k = count4bits(n->in_osrcmsk);
@@ -774,13 +757,8 @@ ipf_nat_delmap(softn, n)
 /* create a new entry if a non-NULL NAT rule pointer has been supplied.     */
 /* ------------------------------------------------------------------------ */
 static struct hostmap *
-ipf_nat_hostmap(softn, np, src, dst, map, port)
-	ipf_nat_softc_t *softn;
-	ipnat_t *np;
-	struct in_addr src;
-	struct in_addr dst;
-	struct in_addr map;
-	u_32_t port;
+ipf_nat_hostmap(ipf_nat_softc_t *softn, ipnat_t *np, struct in_addr src,
+	struct in_addr dst, struct in_addr map, u_32_t port)
 {
 	hostmap_t *hm;
 	u_int hv, rhv;
@@ -845,9 +823,7 @@ ipf_nat_hostmap(softn, np, src, dst, map, port)
 /* reaches zero then remove it and free it.                                 */
 /* ------------------------------------------------------------------------ */
 void
-ipf_nat_hostmapdel(softc, hmp)
-	ipf_main_softc_t *softc;
-	struct hostmap **hmp;
+ipf_nat_hostmapdel(ipf_main_softc_t *softc, struct hostmap **hmp)
 {
 	struct hostmap *hm;
 
@@ -879,10 +855,7 @@ ipf_nat_hostmapdel(softc, hmp)
 /* Adjusts the 16bit checksum by "n" for packets going out.                 */
 /* ------------------------------------------------------------------------ */
 void
-ipf_fix_outcksum(cksum, sp, n, partial)
-	int cksum;
-	u_short *sp;
-	u_32_t n, partial;
+ipf_fix_outcksum(int cksum, u_short *sp, u_32_t n, u_32_t partial)
 {
 	u_short sumshort;
 	u_32_t sum1;
@@ -921,10 +894,7 @@ ipf_fix_outcksum(cksum, sp, n, partial)
 /* Adjusts the 16bit checksum by "n" for packets going in.                  */
 /* ------------------------------------------------------------------------ */
 void
-ipf_fix_incksum(cksum, sp, n, partial)
-	int cksum;
-	u_short *sp;
-	u_32_t n, partial;
+ipf_fix_incksum(int cksum, u_short *sp, u_32_t n, u_32_t partial)
 {
 	u_short sumshort;
 	u_32_t sum1;
@@ -972,9 +942,7 @@ ipf_fix_incksum(cksum, sp, n, partial)
 /* kernel on the data section.                                              */
 /* ------------------------------------------------------------------------ */
 void
-ipf_fix_datacksum(sp, n)
-	u_short *sp;
-	u_32_t n;
+ipf_fix_datacksum(u_short *sp, u_32_t n)
 {
 	u_short sumshort;
 	u_32_t sum1;
@@ -1005,12 +973,8 @@ ipf_fix_datacksum(sp, n)
 /* Processes an ioctl call made to operate on the IP Filter NAT device.     */
 /* ------------------------------------------------------------------------ */
 int
-ipf_nat_ioctl(softc, data, cmd, mode, uid, ctx)
-	ipf_main_softc_t *softc;
-	ioctlcmd_t cmd;
-	caddr_t data;
-	int mode, uid;
-	void *ctx;
+ipf_nat_ioctl(ipf_main_softc_t *softc, caddr_t data, ioctlcmd_t cmd,
+	int mode, int uid, void *ctx)
 {
 	ipf_nat_softc_t *softn = softc->ipf_nat_soft;
 	int error = 0, ret, arg, getlock;
@@ -1441,11 +1405,8 @@ done:
 /* NAT rule table(s).                                                       */
 /* ------------------------------------------------------------------------ */
 static int
-ipf_nat_siocaddnat(softc, softn, n, getlock)
-	ipf_main_softc_t *softc;
-	ipf_nat_softc_t *softn;
-	ipnat_t *n;
-	int getlock;
+ipf_nat_siocaddnat(ipf_main_softc_t *softc, ipf_nat_softc_t *softn, ipnat_t *n,
+	int getlock)
 {
 	int error = 0;
 
@@ -1548,10 +1509,8 @@ ipf_nat_siocaddnat(softc, softn, n, getlock)
 /* Initialise all of the NAT address structures in a NAT rule.              */
 /* ------------------------------------------------------------------------ */
 static int
-ipf_nat_ruleaddrinit(softc, softn, n)
-	ipf_main_softc_t *softc;
-	ipf_nat_softc_t *softn;
-	ipnat_t *n;
+ipf_nat_ruleaddrinit(ipf_main_softc_t *softc, ipf_nat_softc_t *softn,
+	ipnat_t *n)
 {
 	int idx, error;
 
@@ -1619,9 +1578,7 @@ ipf_nat_ruleaddrinit(softc, softn, n)
 /* NAT rule table(s).                                                       */
 /* ------------------------------------------------------------------------ */
 static int
-ipf_nat_resolverule(softc, n)
-	ipf_main_softc_t *softc;
-	ipnat_t *n;
+ipf_nat_resolverule(ipf_main_softc_t *softc, ipnat_t *n)
 {
 	char *base;
 
@@ -1668,11 +1625,8 @@ ipf_nat_resolverule(softc, n)
 /* NAT rule table(s).                                                       */
 /* ------------------------------------------------------------------------ */
 static void
-ipf_nat_siocdelnat(softc, softn, n, getlock)
-	ipf_main_softc_t *softc;
-	ipf_nat_softc_t *softn;
-	ipnat_t *n;
-	int getlock;
+ipf_nat_siocdelnat(ipf_main_softc_t *softc, ipf_nat_softc_t *softn, ipnat_t *n,
+	int getlock)
 {
 	if (getlock) {
 		WRITE_ENTER(&softc->ipf_nat);
@@ -1701,10 +1655,7 @@ ipf_nat_siocdelnat(softc, softn, n, getlock)
 /* structure is copied back to the user.                                    */
 /* ------------------------------------------------------------------------ */
 static int
-ipf_nat_getsz(softc, data, getlock)
-	ipf_main_softc_t *softc;
-	caddr_t data;
-	int getlock;
+ipf_nat_getsz(ipf_main_softc_t *softc, caddr_t data, int getlock)
 {
 	ipf_nat_softc_t *softn = softc->ipf_nat_soft;
 	ap_session_t *aps;
@@ -1795,10 +1746,7 @@ ipf_nat_getsz(softc, data, getlock)
 /* proxy is also copied, as to is the NAT rule which was responsible for it */
 /* ------------------------------------------------------------------------ */
 static int
-ipf_nat_getent(softc, data, getlock)
-	ipf_main_softc_t *softc;
-	caddr_t data;
-	int getlock;
+ipf_nat_getent(ipf_main_softc_t *softc, caddr_t data, int getlock)
 {
 	ipf_nat_softc_t *softn = softc->ipf_nat_soft;
 	int error, outsize;
@@ -1930,10 +1878,7 @@ finished:
 /* firewall rule data structures, if pointers to them indicate so.          */
 /* ------------------------------------------------------------------------ */
 static int
-ipf_nat_putent(softc, data, getlock)
-	ipf_main_softc_t *softc;
-	caddr_t data;
-	int getlock;
+ipf_nat_putent(ipf_main_softc_t *softc, caddr_t data, int getlock)
 {
 	ipf_nat_softc_t *softn = softc->ipf_nat_soft;
 	nat_save_t ipn, *ipnn;
@@ -2275,10 +2220,7 @@ junkput:
 /* enabled then generate a NAT log record for this event.                   */
 /* ------------------------------------------------------------------------ */
 void
-ipf_nat_delete(softc, nat, logtype)
-	ipf_main_softc_t *softc;
-	struct nat *nat;
-	int logtype;
+ipf_nat_delete(ipf_main_softc_t *softc, struct nat *nat, int logtype)
 {
 	ipf_nat_softc_t *softn = softc->ipf_nat_soft;
 	int madeorphan = 0, bkt, removed = 0;
@@ -2451,9 +2393,7 @@ ipf_nat_delete(softc, nat, logtype)
  * nat_flushtable - clear the NAT table of all mapping entries.
  */
 static int
-ipf_nat_flushtable(softc, softn)
-	ipf_main_softc_t *softc;
-	ipf_nat_softc_t *softn;
+ipf_nat_flushtable(ipf_main_softc_t *softc, ipf_nat_softc_t *softn)
 {
 	nat_t *nat;
 	int j = 0;
@@ -2491,9 +2431,7 @@ ipf_nat_flushtable(softc, softn)
 /* clear out the tables used for hashed NAT rule lookups.                   */
 /* ------------------------------------------------------------------------ */
 static int
-ipf_nat_clearlist(softc, softn)
-	ipf_main_softc_t *softc;
-	ipf_nat_softc_t *softn;
+ipf_nat_clearlist(ipf_main_softc_t *softc, ipf_nat_softc_t *softn)
 {
 	ipnat_t *n;
 	int i = 0;
@@ -2535,11 +2473,8 @@ ipf_nat_clearlist(softc, softn)
 /* hit, on the order of O(N^2).                                             */
 /* ------------------------------------------------------------------------ */
 static void
-ipf_nat_delrule(softc, softn, np, purge)
-	ipf_main_softc_t *softc;
-	ipf_nat_softc_t *softn;
-	ipnat_t *np;
-	int purge;
+ipf_nat_delrule(ipf_main_softc_t *softc, ipf_nat_softc_t *softn, ipnat_t *np,
+	int purge)
 {
 
 	if (np->in_pnext != NULL) {
@@ -2609,10 +2544,7 @@ ipf_nat_delrule(softc, softn, np, purge)
 /* to the new IP address for the translation.                               */
 /* ------------------------------------------------------------------------ */
 static int
-ipf_nat_newmap(fin, nat, ni)
-	fr_info_t *fin;
-	nat_t *nat;
-	natinfo_t *ni;
+ipf_nat_newmap(fr_info_t *fin, nat_t *nat, natinfo_t *ni)
 {
 	ipf_main_softc_t *softc = fin->fin_main_soft;
 	ipf_nat_softc_t *softn = softc->ipf_nat_soft;
@@ -2876,10 +2808,7 @@ ipf_nat_newmap(fin, nat, ni)
 /* to the new IP address for the translation.                               */
 /* ------------------------------------------------------------------------ */
 static int
-ipf_nat_newrdr(fin, nat, ni)
-	fr_info_t *fin;
-	nat_t *nat;
-	natinfo_t *ni;
+ipf_nat_newrdr(fr_info_t *fin, nat_t *nat, natinfo_t *ni)
 {
 	ipf_main_softc_t *softc = fin->fin_main_soft;
 	ipf_nat_softc_t *softn = softc->ipf_nat_soft;
@@ -3090,12 +3019,8 @@ ipf_nat_newrdr(fin, nat, ni)
 /*       as it can result in memory being corrupted.                        */
 /* ------------------------------------------------------------------------ */
 nat_t *
-ipf_nat_add(fin, np, natsave, flags, direction)
-	fr_info_t *fin;
-	ipnat_t *np;
-	nat_t **natsave;
-	u_int flags;
-	int direction;
+ipf_nat_add(fr_info_t *fin, ipnat_t *np, nat_t **natsave, u_int flags,
+	int direction)
 {
 	ipf_main_softc_t *softc = fin->fin_main_soft;
 	ipf_nat_softc_t *softn = softc->ipf_nat_soft;
@@ -3290,9 +3215,7 @@ done:
 /* ------------------------------------------------------------------------ */
 /*ARGSUSED*/
 static int
-ipf_nat_finalise(fin, nat)
-	fr_info_t *fin;
-	nat_t *nat;
+ipf_nat_finalise(fr_info_t *fin, nat_t *nat)
 {
 	ipf_main_softc_t *softc = fin->fin_main_soft;
 	ipf_nat_softc_t *softn = softc->ipf_nat_soft;
@@ -3406,10 +3329,7 @@ ipf_nat_finalise(fin, nat)
 /* list of active NAT entries.  Adjust global counters when complete.       */
 /* ------------------------------------------------------------------------ */
 int
-ipf_nat_insert(softc, softn, nat)
-	ipf_main_softc_t *softc;
-	ipf_nat_softc_t *softn;
-	nat_t *nat;
+ipf_nat_insert(ipf_main_softc_t *softc, ipf_nat_softc_t *softn, nat_t *nat)
 {
 	u_int hv0, hv1;
 	u_int sp, dp;
@@ -3514,10 +3434,8 @@ ipf_nat_insert(softc, softn, nat)
 /* Handle the insertion of a NAT entry into the table/list.                 */
 /* ------------------------------------------------------------------------ */
 int
-ipf_nat_hashtab_add(softc, softn, nat)
-	ipf_main_softc_t *softc;
-	ipf_nat_softc_t *softn;
-	nat_t *nat;
+ipf_nat_hashtab_add(ipf_main_softc_t *softc, ipf_nat_softc_t *softn,
+	nat_t *nat)
 {
 	nat_t **natp;
 	u_int hv0;
@@ -3616,9 +3534,7 @@ ipf_nat_hashtab_add(softc, softn, nat)
 /* the required length.                                                     */
 /* ------------------------------------------------------------------------ */
 nat_t *
-ipf_nat_icmperrorlookup(fin, dir)
-	fr_info_t *fin;
-	int dir;
+ipf_nat_icmperrorlookup(fr_info_t *fin, int dir)
 {
 	ipf_main_softc_t *softc = fin->fin_main_soft;
 	ipf_nat_softc_t *softn = softc->ipf_nat_soft;
@@ -3773,10 +3689,7 @@ ipf_nat_icmperrorlookup(fin, dir)
 /* a NAT'd ICMP packet gets correctly recognised.                           */
 /* ------------------------------------------------------------------------ */
 nat_t *
-ipf_nat_icmperror(fin, nflags, dir)
-	fr_info_t *fin;
-	u_int *nflags;
-	int dir;
+ipf_nat_icmperror(fr_info_t *fin, u_int *nflags, int dir)
 {
 	ipf_main_softc_t *softc = fin->fin_main_soft;
 	ipf_nat_softc_t *softn = softc->ipf_nat_soft;
@@ -4080,10 +3993,8 @@ ipf_nat_icmperror(fin, nflags, dir)
 /*            the packet is of said protocol                                */
 /* ------------------------------------------------------------------------ */
 nat_t *
-ipf_nat_inlookup(fin, flags, p, src, mapdst)
-	fr_info_t *fin;
-	u_int flags, p;
-	struct in_addr src , mapdst;
+ipf_nat_inlookup(fr_info_t *fin, u_int flags, u_int p,
+	struct in_addr src , struct in_addr mapdst)
 {
 	ipf_main_softc_t *softc = fin->fin_main_soft;
 	ipf_nat_softc_t *softn = softc->ipf_nat_soft;
@@ -4320,9 +4231,7 @@ find_in_wild_ports:
 /* want to include hashing on port numbers.                                 */
 /* ------------------------------------------------------------------------ */
 static void
-ipf_nat_tabmove(softn, nat)
-	ipf_nat_softc_t *softn;
-	nat_t *nat;
+ipf_nat_tabmove(ipf_nat_softc_t *softn, nat_t *nat)
 {
 	u_int hv0, hv1, rhv0, rhv1;
 	natstat_t *nsp;
@@ -4415,10 +4324,8 @@ ipf_nat_tabmove(softn, nat)
 /*            the packet is of said protocol                                */
 /* ------------------------------------------------------------------------ */
 nat_t *
-ipf_nat_outlookup(fin, flags, p, src, dst)
-	fr_info_t *fin;
-	u_int flags, p;
-	struct in_addr src , dst;
+ipf_nat_outlookup(fr_info_t *fin, u_int flags, u_int p,
+	struct in_addr src , struct in_addr dst)
 {
 	ipf_main_softc_t *softc = fin->fin_main_soft;
 	ipf_nat_softc_t *softn = softc->ipf_nat_soft;
@@ -4650,8 +4557,7 @@ find_out_wild_ports:
 /*     nl_out* = destination information (translated)                       */
 /* ------------------------------------------------------------------------ */
 nat_t *
-ipf_nat_lookupredir(np)
-	natlookup_t *np;
+ipf_nat_lookupredir(natlookup_t *np)
 {
 	fr_info_t fi;
 	nat_t *nat;
@@ -4722,9 +4628,7 @@ ipf_nat_lookupredir(np)
 /* loop inside ipf_nat_checkin() and lay it out properly in its own function. */
 /* ------------------------------------------------------------------------ */
 static int
-ipf_nat_match(fin, np)
-	fr_info_t *fin;
-	ipnat_t *np;
+ipf_nat_match(fr_info_t *fin, ipnat_t *np)
 {
 	ipf_main_softc_t *softc = fin->fin_main_soft;
 	frtuc_t *ft;
@@ -4786,9 +4690,7 @@ ipf_nat_match(fin, np)
 /* already be set.                                                          */
 /* ------------------------------------------------------------------------ */
 void
-ipf_nat_update(fin, nat)
-	fr_info_t *fin;
-	nat_t *nat;
+ipf_nat_update(fr_info_t *fin, nat_t *nat)
 {
 	ipf_main_softc_t *softc = fin->fin_main_soft;
 	ipf_nat_softc_t *softn = softc->ipf_nat_soft;
@@ -4848,9 +4750,7 @@ ipf_nat_update(fin, nat)
 /* packet header(s) as required.                                            */
 /* ------------------------------------------------------------------------ */
 int
-ipf_nat_checkout(fin, passp)
-	fr_info_t *fin;
-	u_32_t *passp;
+ipf_nat_checkout(fr_info_t *fin, u_32_t *passp)
 {
 	ipnat_t *np = NULL, *npnext;
 	struct ifnet *ifp, *sifp;
@@ -5072,11 +4972,7 @@ outmatchfail:
 /* Translate a packet coming "out" on an interface.                         */
 /* ------------------------------------------------------------------------ */
 int
-ipf_nat_out(fin, nat, natadd, nflags)
-	fr_info_t *fin;
-	nat_t *nat;
-	int natadd;
-	u_32_t nflags;
+ipf_nat_out(fr_info_t *fin, nat_t *nat, int natadd, u_32_t nflags)
 {
 	ipf_main_softc_t *softc = fin->fin_main_soft;
 	ipf_nat_softc_t *softn = softc->ipf_nat_soft;
@@ -5345,9 +5241,7 @@ ipf_nat_out(fin, nat, natadd, nflags)
 /* packet header(s) as required.                                            */
 /* ------------------------------------------------------------------------ */
 int
-ipf_nat_checkin(fin, passp)
-	fr_info_t *fin;
-	u_32_t *passp;
+ipf_nat_checkin(fr_info_t *fin, u_32_t *passp)
 {
 	ipf_main_softc_t *softc;
 	ipf_nat_softc_t *softn;
@@ -5565,11 +5459,7 @@ inmatchfail:
 /* Translate a packet coming "in" on an interface.                          */
 /* ------------------------------------------------------------------------ */
 int
-ipf_nat_in(fin, nat, natadd, nflags)
-	fr_info_t *fin;
-	nat_t *nat;
-	int natadd;
-	u_32_t nflags;
+ipf_nat_in(fr_info_t *fin, nat_t *nat, int natadd, u_32_t nflags)
 {
 	ipf_main_softc_t *softc = fin->fin_main_soft;
 	ipf_nat_softc_t *softn = softc->ipf_nat_soft;
@@ -5799,10 +5689,7 @@ ipf_nat_in(fin, nat, natadd, nflags)
 /* TCP down to a specific value, then do it from here.                      */
 /* ------------------------------------------------------------------------ */
 u_short *
-ipf_nat_proto(fin, nat, nflags)
-	fr_info_t *fin;
-	nat_t *nat;
-	u_int nflags;
+ipf_nat_proto(fr_info_t *fin, nat_t *nat, u_int nflags)
 {
 	icmphdr_t *icmp;
 	u_short *csump;
@@ -5879,8 +5766,7 @@ ipf_nat_proto(fin, nat, nflags)
 /* expired.                                                                 */
 /* ------------------------------------------------------------------------ */
 void
-ipf_nat_expire(softc)
-	ipf_main_softc_t *softc;
+ipf_nat_expire(ipf_main_softc_t *softc)
 {
 	ipf_nat_softc_t *softn = softc->ipf_nat_soft;
 	ipftq_t *ifq, *ifqnext;
@@ -5938,9 +5824,7 @@ ipf_nat_expire(softc)
 /* which need to have their translated address updated.                     */
 /* ------------------------------------------------------------------------ */
 void
-ipf_nat_sync(softc, ifp)
-	ipf_main_softc_t *softc;
-	void *ifp;
+ipf_nat_sync(ipf_main_softc_t *softc, void *ifp)
 {
 	ipf_nat_softc_t *softn = softc->ipf_nat_soft;
 	u_32_t sum1, sum2, sumd;
@@ -6095,8 +5979,7 @@ ipf_nat_sync(softc, ifp)
 /* not.                                                                     */
 /* ------------------------------------------------------------------------ */
 static int
-ipf_nat_icmpquerytype(icmptype)
-	int icmptype;
+ipf_nat_icmpquerytype(int icmptype)
 {
 
 	/*
@@ -6138,11 +6021,8 @@ ipf_nat_icmpquerytype(icmptype)
 /* Creates a NAT log entry.                                                 */
 /* ------------------------------------------------------------------------ */
 void
-ipf_nat_log(softc, softn, nat, action)
-	ipf_main_softc_t *softc;
-	ipf_nat_softc_t *softn;
-	struct nat *nat;
-	u_int action;
+ipf_nat_log(ipf_main_softc_t *softc, ipf_nat_softc_t *softn, struct nat *nat,
+	u_int action)
 {
 #ifdef	IPFILTER_LOG
 	struct ipnat *np;
@@ -6214,9 +6094,7 @@ ipf_nat_log(softc, softn, nat, action)
 /* be released and the rule itself free'd.                                  */
 /* ------------------------------------------------------------------------ */
 void
-ipf_nat_rule_deref(softc, inp)
-	ipf_main_softc_t *softc;
-	ipnat_t **inp;
+ipf_nat_rule_deref(ipf_main_softc_t *softc, ipnat_t **inp)
 {
 	ipf_nat_softc_t *softn = softc->ipf_nat_soft;
 	ipnat_t *n;
@@ -6288,9 +6166,7 @@ ipf_nat_rule_deref(softc, inp)
 /* called from a NAT flush ioctl with a deref happening because of a packet.*/
 /* ------------------------------------------------------------------------ */
 void
-ipf_nat_deref(softc, natp)
-	ipf_main_softc_t *softc;
-	nat_t **natp;
+ipf_nat_deref(ipf_main_softc_t *softc, nat_t **natp)
 {
 	nat_t *nat;
 
@@ -6323,9 +6199,7 @@ ipf_nat_deref(softc, natp)
 /* Create a "duplcate" state table entry from the master.                   */
 /* ------------------------------------------------------------------------ */
 nat_t *
-ipf_nat_clone(fin, nat)
-	fr_info_t *fin;
-	nat_t *nat;
+ipf_nat_clone(fr_info_t *fin, nat_t *nat)
 {
 	ipf_main_softc_t *softc = fin->fin_main_soft;
 	ipf_nat_softc_t *softn = softc->ipf_nat_soft;
@@ -6408,9 +6282,7 @@ ipf_nat_clone(fin, nat)
 /* wildcard flags should be used.                                           */
 /* ------------------------------------------------------------------------ */
 int
-ipf_nat_wildok(nat, sport, dport, flags, dir)
-	nat_t *nat;
-	int sport, dport, flags, dir;
+ipf_nat_wildok(nat_t *nat, int sport, int dport, int flags, int dir)
 {
 	/*
 	 * When called by       dir is set to
@@ -6472,11 +6344,7 @@ ipf_nat_wildok(nat, sport, dport, flags, dir)
 /* the MSS.                                                                 */
 /* ------------------------------------------------------------------------ */
 static void
-ipf_nat_mssclamp(tcp, maxmss, fin, csump)
-	tcphdr_t *tcp;
-	u_32_t maxmss;
-	fr_info_t *fin;
-	u_short *csump;
+ipf_nat_mssclamp(tcphdr_t *tcp, u_32_t maxmss, fr_info_t *fin, u_short *csump)
 {
 	u_char *cp, *ep, opt;
 	int hlen, advance;
@@ -6537,10 +6405,7 @@ ipf_nat_mssclamp(tcp, maxmss, fin, csump)
 /* determining which queue it should be placed on.                          */
 /* ------------------------------------------------------------------------ */
 void
-ipf_nat_setqueue(softc, softn, nat)
-	ipf_main_softc_t *softc;
-	ipf_nat_softc_t *softn;
-	nat_t *nat;
+ipf_nat_setqueue(ipf_main_softc_t *softc, ipf_nat_softc_t *softn, nat_t *nat)
 {
 	ipftq_t *oifq, *nifq;
 	int rev = nat->nat_rev;
@@ -6594,11 +6459,8 @@ ipf_nat_setqueue(softc, softn, nat)
 /* in the list to look at is put back in the ipftoken struture.             */
 /* ------------------------------------------------------------------------ */
 static int
-ipf_nat_getnext(softc, t, itp, objp)
-	ipf_main_softc_t *softc;
-	ipftoken_t *t;
-	ipfgeniter_t *itp;
-	ipfobj_t *objp;
+ipf_nat_getnext(ipf_main_softc_t *softc, ipftoken_t *t, ipfgeniter_t *itp,
+	ipfobj_t *objp)
 {
 	ipf_nat_softc_t *softn = softc->ipf_nat_soft;
 	hostmap_t *hm, *nexthm = NULL, zerohm;
@@ -6745,10 +6607,7 @@ ipf_nat_getnext(softc, t, itp, objp)
 /*            for the last 30 minutes to at worst 30 seconds idle.          */
 /* ------------------------------------------------------------------------ */
 static int
-ipf_nat_extraflush(softc, softn, which)
-	ipf_main_softc_t *softc;
-	ipf_nat_softc_t *softn;
-	int which;
+ipf_nat_extraflush(ipf_main_softc_t *softc, ipf_nat_softc_t *softn, int which)
 {
 	nat_t *nat, **natp;
 	ipftqent_t *tqn;
@@ -6903,9 +6762,7 @@ ipf_nat_extraflush(softc, softn, which)
 /* we translate that to mean it always succeeds in deleting something.      */
 /* ------------------------------------------------------------------------ */
 static int
-ipf_nat_flush_entry(softc, entry)
-	ipf_main_softc_t *softc;
-	void *entry;
+ipf_nat_flush_entry(ipf_main_softc_t *softc, void *entry)
 {
 	ipf_nat_delete(softc, entry, NL_FLUSH);
 	return 0;
@@ -6926,11 +6783,8 @@ ipf_nat_flush_entry(softc, entry)
 /* NAT mappings and the NAT fragment cache.                                 */
 /* ------------------------------------------------------------------------ */
 static int
-ipf_nat_iterator(softc, token, itp, obj)
-	ipf_main_softc_t *softc;
-	ipftoken_t *token;
-	ipfgeniter_t *itp;
-	ipfobj_t *obj;
+ipf_nat_iterator(ipf_main_softc_t *softc, ipftoken_t *token, ipfgeniter_t *itp,
+	ipfobj_t *obj)
 {
 	int error;
 
@@ -6974,9 +6828,7 @@ ipf_nat_iterator(softc, token, itp, obj)
 /* by nat_me) is no longer interested in it.                                */
 /* ------------------------------------------------------------------------ */
 void
-ipf_nat_setpending(softc, nat)
-	ipf_main_softc_t *softc;
-	nat_t *nat;
+ipf_nat_setpending(ipf_main_softc_t *softc, nat_t *nat)
 {
 	ipf_nat_softc_t *softn = softc->ipf_nat_soft;
 	ipftq_t *oifq;
@@ -7017,10 +6869,7 @@ ipf_nat_setpending(softc, nat)
 /* This is done to try and exhaustively use the translation space available.*/
 /* ------------------------------------------------------------------------ */
 static int
-ipf_nat_newrewrite(fin, nat, nai)
-	fr_info_t *fin;
-	nat_t *nat;
-	natinfo_t *nai;
+ipf_nat_newrewrite(fr_info_t *fin, nat_t *nat, natinfo_t *nai)
 {
 	int src_search = 1;
 	int dst_search = 1;
@@ -7244,10 +7093,7 @@ ipf_nat_newrewrite(fin, nat, nai)
 /* for a unique mapping, however, a complimentary duplicate check is made.  */
 /* ------------------------------------------------------------------------ */
 static int
-ipf_nat_newdivert(fin, nat, nai)
-	fr_info_t *fin;
-	nat_t *nat;
-	natinfo_t *nai;
+ipf_nat_newdivert(fr_info_t *fin, nat_t *nat, natinfo_t *nai)
 {
 	ipf_main_softc_t *softc = fin->fin_main_soft;
 	ipf_nat_softc_t *softn = softc->ipf_nat_soft;
@@ -7330,9 +7176,7 @@ ipf_nat_newdivert(fin, nat, nai)
 /* here because it is expected that divert will be used for localhost.      */
 /* ------------------------------------------------------------------------ */
 static int
-ipf_nat_builddivertmp(softn, np)
-	ipf_nat_softc_t *softn;
-	ipnat_t *np;
+ipf_nat_builddivertmp(ipf_nat_softc_t *softn, ipnat_t *np)
 {
 	udphdr_t *uh;
 	size_t len;
@@ -7399,9 +7243,7 @@ ipf_nat_builddivertmp(softn, np)
 /* need to back a backup copy of "fin" - expensive.                         */
 /* ------------------------------------------------------------------------ */
 static int
-ipf_nat_decap(fin, nat)
-	fr_info_t *fin;
-	nat_t *nat;
+ipf_nat_decap(fr_info_t *fin, nat_t *nat)
 {
 	ipf_main_softc_t *softc = fin->fin_main_soft;
 	ipf_nat_softc_t *softn = softc->ipf_nat_soft;
@@ -7506,10 +7348,7 @@ ipf_nat_decap(fin, nat)
 /* possible uses of "na" will result in a new address.                      */
 /* ------------------------------------------------------------------------ */
 static int
-ipf_nat_nextaddr(fin, na, old, dst)
-	fr_info_t *fin;
-	nat_addr_t *na;
-	u_32_t *old, *dst;
+ipf_nat_nextaddr(fr_info_t *fin, nat_addr_t *na, u_32_t *old, u_32_t *dst)
 {
 	ipf_main_softc_t *softc = fin->fin_main_soft;
 	ipf_nat_softc_t *softn = softc->ipf_nat_soft;
@@ -7615,12 +7454,8 @@ ipf_nat_nextaddr(fin, na, old, dst)
 /* come out of ipf_nat_nextaddr() will be.                                  */
 /* ------------------------------------------------------------------------ */
 static int
-ipf_nat_nextaddrinit(softc, base, na, initial, ifp)
-	ipf_main_softc_t *softc;
-	char *base;
-	nat_addr_t *na;
-	int initial;
-	void *ifp;
+ipf_nat_nextaddrinit(ipf_main_softc_t *softc, char *base, nat_addr_t *na,
+	int initial, void *ifp)
 {
 
 	switch (na->na_atype)
@@ -7704,10 +7539,8 @@ ipf_nat_nextaddrinit(softc, base, na, initial, ifp)
 /*                                                                          */
 /* ------------------------------------------------------------------------ */
 static int
-ipf_nat_matchflush(softc, softn, data)
-	ipf_main_softc_t *softc;
-	ipf_nat_softc_t *softn;
-	caddr_t data;
+ipf_nat_matchflush(ipf_main_softc_t *softc, ipf_nat_softc_t *softn,
+	caddr_t data)
 {
 	int *array, flushed, error;
 	nat_t *nat, *natnext;
@@ -7744,10 +7577,7 @@ ipf_nat_matchflush(softc, softn, data)
 /*                                                                          */
 /* ------------------------------------------------------------------------ */
 static int
-ipf_nat_matcharray(nat, array, ticks)
-	nat_t *nat;
-	int *array;
-	u_long ticks;
+ipf_nat_matcharray(nat_t *nat, int *array, u_long ticks)
 {
 	int i, n, *x, e, p;
 
@@ -7940,10 +7770,7 @@ ipf_nat_matcharray(nat, array, ticks)
 /* At present the only table it deals with is the hash bucket statistics.   */
 /* ------------------------------------------------------------------------ */
 static int
-ipf_nat_gettable(softc, softn, data)
-	ipf_main_softc_t *softc;
-	ipf_nat_softc_t *softn;
-	char *data;
+ipf_nat_gettable(ipf_main_softc_t *softc, ipf_nat_softc_t *softn, char *data)
 {
 	ipftable_t table;
 	int error;
@@ -7989,10 +7816,8 @@ ipf_nat_gettable(softc, softn, data)
 /* Apply the timeout change to the NAT timeout queues.                      */
 /* ------------------------------------------------------------------------ */
 int
-ipf_nat_settimeout(softc, t, p)
-	struct ipf_main_softc_s *softc;
-	ipftuneable_t *t;
-	ipftuneval_t *p;
+ipf_nat_settimeout(struct ipf_main_softc_s *softc, ipftuneable_t *t,
+	ipftuneval_t *p)
 {
 	ipf_nat_softc_t *softn = softc->ipf_nat_soft;
 
@@ -8031,10 +7856,7 @@ ipf_nat_settimeout(softc, t, p)
 /* and an outbound one.  Each NAT entry goes into each table once.          */
 /* ------------------------------------------------------------------------ */
 int
-ipf_nat_rehash(softc, t, p)
-	ipf_main_softc_t *softc;
-	ipftuneable_t *t;
-	ipftuneval_t *p;
+ipf_nat_rehash(ipf_main_softc_t *softc, ipftuneable_t *t, ipftuneval_t *p)
 {
 	ipf_nat_softc_t *softn = softc->ipf_nat_soft;
 	nat_t **newtab[2], *nat, **natp;
@@ -8218,10 +8040,8 @@ badrehash:
 /* affect one of these two tables.                                          */
 /* ------------------------------------------------------------------------ */
 int
-ipf_nat_rehash_rules(softc, t, p)
-	ipf_main_softc_t *softc;
-	ipftuneable_t *t;
-	ipftuneval_t *p;
+ipf_nat_rehash_rules(ipf_main_softc_t *softc, ipftuneable_t *t,
+	ipftuneval_t *p)
 {
 	ipf_nat_softc_t *softn = softc->ipf_nat_soft;
 	ipnat_t **newtab, *np, ***old, **npp;
@@ -8305,10 +8125,8 @@ ipf_nat_rehash_rules(softc, t, p)
 /* all of the active IP# translations currently in place.                   */
 /* ------------------------------------------------------------------------ */
 int
-ipf_nat_hostmap_rehash(softc, t, p)
-	ipf_main_softc_t *softc;
-	ipftuneable_t *t;
-	ipftuneval_t *p;
+ipf_nat_hostmap_rehash(ipf_main_softc_t *softc, ipftuneable_t *t,
+	ipftuneval_t *p)
 {
 	ipf_nat_softc_t *softn = softc->ipf_nat_soft;
 	hostmap_t *hm, **newtab;
@@ -8358,9 +8176,7 @@ ipf_nat_hostmap_rehash(softc, t, p)
 /*                                                                          */
 /* ------------------------------------------------------------------------ */
 ipftq_t *
-ipf_nat_add_tq(softc, ttl)
-	ipf_main_softc_t *softc;
-	int ttl;
+ipf_nat_add_tq(ipf_main_softc_t *softc, int ttl)
 {
 	ipf_nat_softc_t *softs = softc->ipf_nat_soft;
 
@@ -8381,8 +8197,7 @@ ipf_nat_add_tq(softc, ttl)
 /* traffic patterns.                                                        */
 /* ------------------------------------------------------------------------ */
 void
-ipf_nat_uncreate(fin)
-	fr_info_t *fin;
+ipf_nat_uncreate(fr_info_t *fin)
 {
 	ipf_main_softc_t *softc = fin->fin_main_soft;
 	ipf_nat_softc_t *softn = softc->ipf_nat_soft;
@@ -8436,8 +8251,7 @@ ipf_nat_uncreate(fin)
 /* this function should simply care if the result is zero or not.           */
 /* ------------------------------------------------------------------------ */
 static int
-ipf_nat_cmp_rules(n1, n2)
-	ipnat_t *n1, *n2;
+ipf_nat_cmp_rules(ipnat_t *n1, ipnat_t *n2)
 {
 	if (n1->in_size != n2->in_size)
 		return 1;
@@ -8490,10 +8304,8 @@ ipf_nat_cmp_rules(n1, n2)
 /*                                                                          */
 /* ------------------------------------------------------------------------ */
 static int
-ipf_nat_rule_init(softc, softn, n)
-	ipf_main_softc_t *softc;
-	ipf_nat_softc_t *softn;
-	ipnat_t *n;
+ipf_nat_rule_init(ipf_main_softc_t *softc, ipf_nat_softc_t *softn,
+	ipnat_t *n)
 {
 	int error = 0;
 
@@ -8561,9 +8373,7 @@ ipf_nat_rule_init(softc, softn, n)
 /* actually use them after the ioctl processing has finished.               */
 /* ------------------------------------------------------------------------ */
 static void
-ipf_nat_rule_fini(softc, n)
-	ipf_main_softc_t *softc;
-	ipnat_t *n;
+ipf_nat_rule_fini(ipf_main_softc_t *softc, ipnat_t *n)
 {
 	if (n->in_odst.na_atype == FRI_LOOKUP && n->in_odst.na_ptr != NULL)
 		ipf_lookup_deref(softc, n->in_odst.na_type, n->in_odst.na_ptr);
