@@ -12,9 +12,7 @@
 
 
 void
-printmask(family, mask)
-	int	family;
-	u_32_t	*mask;
+printmask(int family, u_32_t *mask)
 {
 	struct in_addr ipa;
 	int ones;

@@ -1,6 +1,7 @@
 #include "ipf.h"
 
-const char *familyname(int family)
+const char *
+familyname(int family)
 {
 	if (family == AF_INET)
 		return "inet";

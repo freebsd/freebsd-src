@@ -8,8 +8,8 @@
 
 #include "ipf.h"
 
-void assigndefined(env)
-	char *env;
+void
+assigndefined(char *env)
 {
 	char *s, *t;
 

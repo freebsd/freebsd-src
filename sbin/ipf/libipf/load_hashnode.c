@@ -16,12 +16,8 @@
 
 
 int
-load_hashnode(unit, name, node, ttl, iocfunc)
-	int unit;
-	char *name;
-	iphtent_t *node;
-	int ttl;
-	ioctlfunc_t iocfunc;
+load_hashnode(int unit, char *name, iphtent_t *node, int ttl,
+	ioctlfunc_t iocfunc)
 {
 	iplookupop_t op;
 	iphtent_t ipe;

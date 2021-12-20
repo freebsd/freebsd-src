@@ -80,17 +80,16 @@ int		opts;
 int		nohdrfields = 0;
 wordtab_t	*nat_fields = NULL;
 
-void usage(name)
-	char *name;
+void
+usage(char *name)
 {
 	fprintf(stderr, "Usage: %s [-CFhlnrRsv] [-f filename]\n", name);
 	exit(1);
 }
 
 
-int main(argc, argv)
-	int argc;
-	char *argv[];
+int
+main(int argc, char *argv[])
 {
 	int fd, c, mode, *natfilter;
 	char *file, *core, *kernel;
@@ -234,9 +233,8 @@ int main(argc, argv)
  * Read NAT statistic information in using a symbol table and memory file
  * rather than doing ioctl's.
  */
-void natstat_dead(nsp, kernel)
-	natstat_t *nsp;
-	char *kernel;
+void
+natstat_dead(natstat_t *nsp, char *kernel)
 {
 	struct nlist nat_nlist[10] = {
 		{ "nat_table" },		/* 0 */
@@ -286,8 +284,8 @@ void natstat_dead(nsp, kernel)
  * Issue an ioctl to flush either the NAT rules table or the active mapping
  * table or both.
  */
-void flushtable(fd, opts, match)
-	int fd, opts, *match;
+void
+flushtable(int fd, int opts, int *match)
 {
 	int n = 0;
 
@@ -329,9 +327,8 @@ void flushtable(fd, opts, match)
 /*
  * Display NAT statistics.
  */
-void dostats_dead(nsp, opts, filter)
-	natstat_t *nsp;
-	int opts, *filter;
+void
+dostats_dead(natstat_t *nsp, int opts, int *filter)
 {
 	nat_t *np, nat;
 	ipnat_t	ipn;
@@ -395,10 +392,8 @@ void dostats_dead(nsp, opts, filter)
 }
 
 
-void dotable(nsp, fd, alive, which, side)
-	natstat_t *nsp;
-	int fd, alive, which;
-	char *side;
+void
+dotable(natstat_t *nsp, int fd, int alive, int which, char *side)
 {
 	int sz, i, used, maxlen, minlen, totallen;
 	ipftable_t table;
@@ -466,9 +461,8 @@ void dotable(nsp, fd, alive, which, side)
 }
 
 
-void dostats(fd, nsp, opts, alive, filter)
-	natstat_t *nsp;
-	int fd, opts, alive, *filter;
+void
+dostats(int fd, natstat_t *nsp, int opts, int alive, int *filter)
 {
 	/*
 	 * Show statistics ?
@@ -521,9 +515,8 @@ void dostats(fd, nsp, opts, alive, filter)
 /*
  * Display NAT statistics.
  */
-void dostats_live(fd, nsp, opts, filter)
-	natstat_t *nsp;
-	int fd, opts, *filter;
+void
+dostats_live(int fd, natstat_t *nsp, int opts, int *filter)
 {
 	ipfgeniter_t iter;
 	char buffer[2000];
@@ -616,8 +609,8 @@ void dostats_live(fd, nsp, opts, filter)
 /*
  * Display the active host mapping table.
  */
-void showhostmap_dead(nsp)
-	natstat_t *nsp;
+void
+showhostmap_dead(natstat_t *nsp)
 {
 	hostmap_t hm, *hmp, **maptable;
 	u_int hv;
@@ -652,9 +645,8 @@ void showhostmap_dead(nsp)
 /*
  * Display the active host mapping table.
  */
-void showhostmap_live(fd, nsp)
-	int fd;
-	natstat_t *nsp;
+void
+showhostmap_live(int fd, natstat_t *nsp)
 {
 	ipfgeniter_t iter;
 	hostmap_t hm;
@@ -685,9 +677,8 @@ void showhostmap_live(fd, nsp)
 }
 
 
-int nat_matcharray(nat, array)
-	nat_t *nat;
-	int *array;
+int
+nat_matcharray(nat_t *nat, int *array)
 {
 	int i, n, *x, rv, p;
 	ipfexp_t *e;

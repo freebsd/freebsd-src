@@ -14,10 +14,7 @@ extern	char	flagset[];
 extern	u_char	flags[];
 
 
-u_char tcp_flags(flgs, mask, linenum)
-char *flgs;
-u_char *mask;
-int    linenum;
+u_char tcp_flags(char *flgs, u_char *mask, int linenum)
 {
 	u_char tcpf = 0, tcpfm = 0;
 	char *s;

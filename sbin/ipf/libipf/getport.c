@@ -11,10 +11,8 @@
 #include "ipf.h"
 #include <ctype.h>
 
-int getport(fr, name, port, proto)
-	frentry_t *fr;
-	char *name, *proto;
-	u_short *port;
+int
+getport(frentry_t *fr, char *name, u_short *port, char *proto)
 {
 	struct protoent *p;
 	struct servent *s;

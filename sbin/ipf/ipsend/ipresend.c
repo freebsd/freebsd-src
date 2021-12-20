@@ -64,9 +64,8 @@ static void usage(prog)
 }
 
 
-int main(argc, argv)
-	int	argc;
-	char	**argv;
+int
+main(int argc, char **argv)
 {
 	struct	in_addr	gwip;
 	struct	ipread	*ipr = NULL;

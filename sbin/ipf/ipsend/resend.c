@@ -33,8 +33,8 @@ extern	int	opts;
 void	dumppacket(ip_t *);
 
 
-void dumppacket(ip)
-	ip_t	*ip;
+void
+dumppacket(ip_t *ip)
 {
 	tcphdr_t *t;
 	int i, j;
@@ -63,12 +63,9 @@ void dumppacket(ip)
 }
 
 
-int	ip_resend(dev, mtu, r, gwip, datain)
-	char	*dev;
-	int	mtu;
-	struct	in_addr	gwip;
-	struct	ipread	*r;
-	char	*datain;
+int
+ip_resend(char *dev, int mtu, struct  ipread  *r, struct  in_addr gwip,
+	char *datain)
 {
 	ether_header_t	*eh;
 	char	dhost[6];

@@ -38,17 +38,14 @@ nothing_parse(char **strings)
 
 
 static void
-nothing_destroy(ctx)
-	void *ctx;
+nothing_destroy(void *ctx)
 {
 	free(ctx);
 }
 
 
 static int
-nothing_send(ctx, msg)
-	void *ctx;
-	ipmon_msg_t *msg;
+nothing_send(void *ctx, ipmon_msg_t *msg)
 {
 #if 0
 	ctx = ctx;	/* gcc -Wextra */

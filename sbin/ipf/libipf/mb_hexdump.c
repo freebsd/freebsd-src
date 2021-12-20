@@ -9,9 +9,7 @@
 #include "ipf.h"
 
 void
-mb_hexdump(m, fp)
-	mb_t *m;
-	FILE *fp;
+mb_hexdump(mb_t *m, FILE *fp)
 {
 	u_char *s;
 	int len;

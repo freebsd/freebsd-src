@@ -10,9 +10,8 @@
 #include "ipf.h"
 
 
-void optprint(sec, optmsk, optbits)
-	u_short *sec;
-	u_long optmsk, optbits;
+void
+optprint(u_short *sec, u_long optmsk, u_long optbits)
 {
 	u_short secmsk = sec[0], secbits = sec[1];
 	struct ipopt_names *io, *so;

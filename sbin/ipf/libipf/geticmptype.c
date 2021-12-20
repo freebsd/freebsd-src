@@ -7,9 +7,8 @@
  */
 #include "ipf.h"
 
-int geticmptype(family, name)
-	int family;
-	char *name;
+int
+geticmptype(int family, char *name)
 {
 	icmptype_t *i;
 
