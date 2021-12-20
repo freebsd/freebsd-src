@@ -399,19 +399,19 @@ _ATOMIC_READANDCLEAR_PROTO(t, )						\
 _ATOMIC_SWAP_IMPL(32, w, wzr)
 _ATOMIC_SWAP_IMPL(64,  , xzr)
 
-#define	_ATOMIC_TEST_OP_PROTO(t, op, flav)				\
+#define	_ATOMIC_TEST_OP_PROTO(t, op, bar, flav)				\
 static __inline int							\
-atomic_testand##op##_##t##flav(volatile uint##t##_t *p, u_int val)
+atomic_testand##op##_##bar##t##flav(volatile uint##t##_t *p, u_int val)
 
-#define	_ATOMIC_TEST_OP_IMPL(t, w, op, llsc_asm_op, lse_asm_op)		\
-_ATOMIC_TEST_OP_PROTO(t, op, _llsc)					\
+#define	_ATOMIC_TEST_OP_IMPL(t, w, op, llsc_asm_op, lse_asm_op, bar, a)	\
+_ATOMIC_TEST_OP_PROTO(t, op, bar, _llsc)				\
 {									\
 	uint##t##_t mask, old, tmp;					\
 	int res;							\
 									\
 	mask = ((uint##t##_t)1) << (val & (t - 1));			\
 	__asm __volatile(						\
-	    "1: ldxr		%"#w"2, [%3]\n"				\
+	    "1: ld"#a"xr	%"#w"2, [%3]\n"				\
 	    "  "#llsc_asm_op"	%"#w"0, %"#w"2, %"#w"4\n"		\
 	    "   stxr		%w1, %"#w"0, [%3]\n"			\
 	    "   cbnz		%w1, 1b\n"				\
@@ -423,14 +423,14 @@ _ATOMIC_TEST_OP_PROTO(t, op, _llsc)					\
 	return ((old & mask) != 0);					\
 }									\
 									\
-_ATOMIC_TEST_OP_PROTO(t, op, _lse)					\
+_ATOMIC_TEST_OP_PROTO(t, op, bar, _lse)					\
 {									\
 	uint##t##_t mask, old;						\
 									\
 	mask = ((uint##t##_t)1) << (val & (t - 1));			\
 	__asm __volatile(						\
 	    ".arch_extension lse\n"					\
-	    "ld"#lse_asm_op"	%"#w"2, %"#w"0, [%1]\n"			\
+	    "ld"#lse_asm_op#a"	%"#w"2, %"#w"0, [%1]\n"			\
 	    ".arch_extension nolse\n"					\
 	    : "=r" (old)						\
 	    : "r" (p), "r" (mask)					\
@@ -440,17 +440,19 @@ _ATOMIC_TEST_OP_PROTO(t, op, _lse)					\
 	return ((old & mask) != 0);					\
 }									\
 									\
-_ATOMIC_TEST_OP_PROTO(t, op, )						\
+_ATOMIC_TEST_OP_PROTO(t, op, bar, )					\
 {									\
 	if (_ATOMIC_LSE_SUPPORTED)					\
-		return (atomic_testand##op##_##t##_lse(p, val));	\
+		return (atomic_testand##op##_##bar##t##_lse(p, val));	\
 	else								\
-		return (atomic_testand##op##_##t##_llsc(p, val));	\
+		return (atomic_testand##op##_##bar##t##_llsc(p, val));	\
 }
 
 #define	_ATOMIC_TEST_OP(op, llsc_asm_op, lse_asm_op)			\
-	_ATOMIC_TEST_OP_IMPL(32, w, op, llsc_asm_op, lse_asm_op)	\
-	_ATOMIC_TEST_OP_IMPL(64,  , op, llsc_asm_op, lse_asm_op)
+	_ATOMIC_TEST_OP_IMPL(32, w, op, llsc_asm_op, lse_asm_op,     ,  ) \
+	_ATOMIC_TEST_OP_IMPL(32, w, op, llsc_asm_op, lse_asm_op, acq_, a) \
+	_ATOMIC_TEST_OP_IMPL(64,  , op, llsc_asm_op, lse_asm_op,     ,  ) \
+	_ATOMIC_TEST_OP_IMPL(64,  , op, llsc_asm_op, lse_asm_op, acq_, a)
 
 _ATOMIC_TEST_OP(clear, bic, clr)
 _ATOMIC_TEST_OP(set,   orr, set)
@@ -512,6 +514,7 @@ _ATOMIC_STORE_REL_IMPL(64,  ,  )
 #define	atomic_load_acq_int		atomic_load_acq_32
 #define	atomic_set_acq_int		atomic_set_acq_32
 #define	atomic_subtract_acq_int		atomic_subtract_acq_32
+#define	atomic_testandset_acq_int	atomic_testandset_acq_32
 
 #define	atomic_add_rel_int		atomic_add_rel_32
 #define	atomic_fcmpset_rel_int		atomic_fcmpset_rel_32
@@ -550,6 +553,7 @@ _ATOMIC_STORE_REL_IMPL(64,  ,  )
 #define	atomic_load_acq_long		atomic_load_acq_64
 #define	atomic_set_acq_long		atomic_set_acq_64
 #define	atomic_subtract_acq_long	atomic_subtract_acq_64
+#define	atomic_testandset_acq_long	atomic_testandset_acq_64
 
 #define	atomic_add_acq_ptr		atomic_add_acq_64
 #define	atomic_fcmpset_acq_ptr		atomic_fcmpset_acq_64
@@ -602,8 +606,6 @@ atomic_thread_fence_seq_cst(void)
 
 	dmb(sy);
 }
-
-#include <sys/_atomic_subword.h>
 
 #endif /* KCSAN && !KCSAN_RUNTIME */
 #endif /* _MACHINE_ATOMIC_H_ */
