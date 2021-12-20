@@ -529,6 +529,9 @@ ocs_pci_attach(device_t dev)
 
 	ocs->pci_vendor = pci_get_vendor(dev);
 	ocs->pci_device = pci_get_device(dev);
+	ocs->pci_subsystem_vendor = pci_get_subvendor(dev);
+	ocs->pci_subsystem_device = pci_get_subdevice(dev);
+
 	snprintf(ocs->businfo, sizeof(ocs->businfo), "%02X:%02X:%02X",
 		pci_get_bus(dev), pci_get_slot(dev), pci_get_function(dev));
 
