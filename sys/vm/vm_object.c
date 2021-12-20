@@ -2498,6 +2498,21 @@ vm_object_busy_wait(vm_object_t obj, const char *wmesg)
 	(void)blockcount_sleep(&obj->busy, NULL, wmesg, PVM);
 }
 
+/*
+ * This function aims to determine if the object is mapped,
+ * specifically, if it is referenced by a vm_map_entry.  Because
+ * objects occasionally acquire transient references that do not
+ * represent a mapping, the method used here is inexact.  However, it
+ * has very low overhead and is good enough for the advisory
+ * vm.vmtotal sysctl.
+ */
+bool
+vm_object_is_active(vm_object_t obj)
+{
+
+	return (obj->ref_count > obj->shadow_count);
+}
+
 static int
 vm_object_list_handler(struct sysctl_req *req, bool swap_only)
 {

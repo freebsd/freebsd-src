@@ -142,21 +142,6 @@ SYSCTL_PROC(_vm, VM_LOADAVG, loadavg, CTLTYPE_STRUCT | CTLFLAG_RD |
     CTLFLAG_MPSAFE, NULL, 0, sysctl_vm_loadavg, "S,loadavg",
     "Machine loadaverage history");
 
-/*
- * This function aims to determine if the object is mapped,
- * specifically, if it is referenced by a vm_map_entry.  Because
- * objects occasionally acquire transient references that do not
- * represent a mapping, the method used here is inexact.  However, it
- * has very low overhead and is good enough for the advisory
- * vm.vmtotal sysctl.
- */
-static bool
-is_object_active(vm_object_t obj)
-{
-
-	return (obj->ref_count > obj->shadow_count);
-}
-
 #if defined(COMPAT_FREEBSD11)
 struct vmtotal11 {
 	int16_t	t_rq;
@@ -268,7 +253,7 @@ vmtotal(SYSCTL_HANDLER_ARGS)
 		}
 		total.t_vm += object->size;
 		total.t_rm += object->resident_page_count;
-		if (is_object_active(object)) {
+		if (vm_object_is_active(object)) {
 			total.t_avm += object->size;
 			total.t_arm += object->resident_page_count;
 		}
@@ -276,7 +261,7 @@ vmtotal(SYSCTL_HANDLER_ARGS)
 			/* shared object */
 			total.t_vmshr += object->size;
 			total.t_rmshr += object->resident_page_count;
-			if (is_object_active(object)) {
+			if (vm_object_is_active(object)) {
 				total.t_avmshr += object->size;
 				total.t_armshr += object->resident_page_count;
 			}
