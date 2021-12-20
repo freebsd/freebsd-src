@@ -538,7 +538,7 @@ struct tcptw {
 	int		tw_time;
 	TAILQ_ENTRY(tcptw) tw_2msl;
 	void		*tw_pspare;	/* TCP_SIGNATURE */
-	u_int		*tw_spare;	/* TCP_SIGNATURE */
+	u_int		tw_flags;	/* tcpcb t_flags */
 };
 
 #define	intotcpcb(ip)	((struct tcpcb *)(ip)->inp_ppcb)
