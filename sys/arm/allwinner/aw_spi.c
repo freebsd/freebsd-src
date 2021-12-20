@@ -84,7 +84,7 @@ __FBSDID("$FreeBSD$");
 #define	 AW_SPI_IER_TF_ERQ	(1 << 4)	/* TXFIFO Empty Request */
 #define	 AW_SPI_IER_RF_FULL	(1 << 2)	/* RXFIFO Full */
 #define	 AW_SPI_IER_RF_EMP	(1 << 1)	/* RXFIFO Empty */
-#define	 AW_SPI_IER_RF_ERQ	(1 << 0)	/* RXFIFO Empty Request */
+#define	 AW_SPI_IER_RF_RDY	(1 << 0)	/* RXFIFO Ready Request */
 
 #define	AW_SPI_ISR		0x14		/* Interrupt Status Register */
 
@@ -169,7 +169,7 @@ struct aw_spi_softc {
 static int aw_spi_probe(device_t dev);
 static int aw_spi_attach(device_t dev);
 static int aw_spi_detach(device_t dev);
-static void aw_spi_intr(void *arg);
+static int aw_spi_intr(void *arg);
 
 static int
 aw_spi_probe(device_t dev)
@@ -202,7 +202,7 @@ aw_spi_attach(device_t dev)
 	}
 
 	if (bus_setup_intr(dev, sc->res[1],
-	    INTR_TYPE_MISC | INTR_MPSAFE, NULL, aw_spi_intr, sc,
+	    INTR_TYPE_MISC | INTR_MPSAFE, aw_spi_intr, NULL, sc,
 	    &sc->intrhand)) {
 		bus_release_resources(dev, aw_spi_spec, sc->res);
 		device_printf(dev, "cannot setup interrupt handler\n");
@@ -424,7 +424,7 @@ aw_spi_read_rxfifo(struct aw_spi_softc *sc)
 	}
 }
 
-static void
+static int
 aw_spi_intr(void *arg)
 {
 	struct aw_spi_softc *sc;
@@ -434,18 +434,19 @@ aw_spi_intr(void *arg)
 
 	intr = AW_SPI_READ_4(sc, AW_SPI_ISR);
 
-	if (intr & AW_SPI_IER_RF_FULL)
+	if (intr & AW_SPI_IER_RF_RDY)
 		aw_spi_read_rxfifo(sc);
 
-	if (intr & AW_SPI_IER_TF_EMP) {
+	if (intr & AW_SPI_IER_TF_ERQ) {
 		aw_spi_fill_txfifo(sc);
-		/* 
-		 * If we don't have anything else to write 
+
+		/*
+		 * If we don't have anything else to write
 		 * disable TXFifo interrupts
 		 */
 		if (sc->txcnt == sc->txlen)
 			AW_SPI_WRITE_4(sc, AW_SPI_IER, AW_SPI_IER_TC |
-			    AW_SPI_IER_RF_FULL);
+			    AW_SPI_IER_RF_RDY);
 	}
 
 	if (intr & AW_SPI_IER_TC) {
@@ -460,6 +461,7 @@ aw_spi_intr(void *arg)
 
 	/* Clear Interrupts */
 	AW_SPI_WRITE_4(sc, AW_SPI_ISR, intr);
+	return (intr != 0 ? FILTER_HANDLED : FILTER_STRAY);
 }
 
 static int
@@ -488,6 +490,14 @@ aw_spi_xfer(struct aw_spi_softc *sc, void *rxbuf, void *txbuf, uint32_t txlen, u
 		return (EIO);
 	}
 
+	/*
+	 * Set the TX FIFO threshold to 3/4-th the size and
+	 * the RX FIFO one to 1/4-th.
+	 */
+	AW_SPI_WRITE_4(sc, AW_SPI_FCR,
+	    ((3 * AW_SPI_FIFO_SIZE / 4) << AW_SPI_FCR_TX_TRIG_SHIFT) |
+	    ((AW_SPI_FIFO_SIZE / 4) << AW_SPI_FCR_RX_TRIG_SHIFT));
+
 	/* Write the counters */
 	AW_SPI_WRITE_4(sc, AW_SPI_MBC, txlen);
 	AW_SPI_WRITE_4(sc, AW_SPI_MTC, txlen);
@@ -501,14 +511,14 @@ aw_spi_xfer(struct aw_spi_softc *sc, void *rxbuf, void *txbuf, uint32_t txlen, u
 	reg |= AW_SPI_TCR_XCH;
 	AW_SPI_WRITE_4(sc, AW_SPI_TCR, reg);
 
-	/* 
+	/*
 	 * Enable interrupts for :
 	 * Transmit complete
-	 * TX Fifo empty
-	 * RX Fifo full
+	 * TX Fifo is below its trigger threshold
+	 * RX Fifo is above its trigger threshold
 	 */
 	AW_SPI_WRITE_4(sc, AW_SPI_IER, AW_SPI_IER_TC |
-	    AW_SPI_IER_TF_EMP | AW_SPI_IER_RF_FULL);
+	    AW_SPI_IER_TF_ERQ | AW_SPI_IER_RF_RDY);
 
 	sc->transfer = 1;
 
