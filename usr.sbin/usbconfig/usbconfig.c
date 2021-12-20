@@ -65,7 +65,6 @@ struct options {
 	uint8_t	got_list:1;
 	uint8_t	got_bus:1;
 	uint8_t	got_addr:1;
-	uint8_t	got_iface:1;
 	uint8_t	got_set_config:1;
 	uint8_t	got_set_alt:1;
 	uint8_t	got_set_template:1;
@@ -272,8 +271,8 @@ usage(void)
 {
 	fprintf(stderr, ""
 	    "usbconfig - configure the USB subsystem" "\n"
-	    "usage: usbconfig -u <busnum> -a <devaddr> -i <ifaceindex> [cmds...]" "\n"
-	    "usage: usbconfig -d [ugen]<busnum>.<devaddr> -i <ifaceindex> [cmds...]" "\n"
+	    "usage: usbconfig [-u <busnum>] [-a <devaddr>] [-i <ifaceindex>] [cmds...]" "\n"
+	    "usage: usbconfig -d [ugen]<busnum>.<devaddr> [-i <ifaceindex>] [cmds...]" "\n"
 	    "commands:" "\n"
 	    "  set_config <cfg_index>" "\n"
 	    "  set_alt <alt_index>" "\n"
@@ -576,7 +575,7 @@ main(int argc, char **argv)
 			if (strncmp(optarg, "ugen", strlen("ugen")) == 0) {
 				ptr = optarg + strlen("ugen");
 			} else if (strncmp(optarg, "/dev/ugen",
-					 strlen("/dev/ugen")) == 0) {
+			   strlen("/dev/ugen")) == 0) {
 				ptr = optarg + strlen("/dev/ugen");
 			} else {
 				ptr = optarg;
@@ -596,7 +595,6 @@ main(int argc, char **argv)
 
 		case 'i':
 			opt->iface = num_id(optarg, "iface");
-			opt->got_iface = 1;
 			break;
 
 		case 'u':
