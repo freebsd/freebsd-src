@@ -149,10 +149,8 @@ static int ipf_nat6_insert(ipf_main_softc_t *, ipf_nat_softc_t *,
 /* IPv6 specific actions can also be taken care of here.                    */
 /* ------------------------------------------------------------------------ */
 int
-ipf_nat6_ruleaddrinit(softc, softn, n)
-	ipf_main_softc_t *softc;
-	ipf_nat_softc_t *softn;
-	ipnat_t *n;
+ipf_nat6_ruleaddrinit(ipf_main_softc_t *softc, ipf_nat_softc_t *softn,
+	ipnat_t *n)
 {
 	int idx, error;
 
@@ -207,9 +205,7 @@ ipf_nat6_ruleaddrinit(softc, softn, n)
 /* use by redirect rules.                                                   */
 /* ------------------------------------------------------------------------ */
 void
-ipf_nat6_addrdr(softn, n)
-	ipf_nat_softc_t *softn;
-	ipnat_t *n;
+ipf_nat6_addrdr(ipf_nat_softc_t *softn, ipnat_t *n)
 {
 	i6addr_t *mask;
 	ipnat_t **np;
@@ -256,9 +252,7 @@ ipf_nat6_addrdr(softn, n)
 /* redirect rules.                                                          */
 /* ------------------------------------------------------------------------ */
 void
-ipf_nat6_addmap(softn, n)
-	ipf_nat_softc_t *softn;
-	ipnat_t *n;
+ipf_nat6_addmap(ipf_nat_softc_t *softn, ipnat_t *n)
 {
 	i6addr_t *mask;
 	ipnat_t **np;
@@ -297,9 +291,7 @@ ipf_nat6_addmap(softn, n)
 /* Removes a NAT rdr rule from the hash table of NAT rdr rules.             */
 /* ------------------------------------------------------------------------ */
 void
-ipf_nat6_delrdr(softn, n)
-	ipf_nat_softc_t *softn;
-	ipnat_t *n;
+ipf_nat6_delrdr(ipf_nat_softc_t *softn, ipnat_t *n)
 {
 	i6addr_t *mask;
 	int k;
@@ -331,9 +323,7 @@ ipf_nat6_delrdr(softn, n)
 /* Removes a NAT map rule from the hash table of NAT map rules.             */
 /* ------------------------------------------------------------------------ */
 void
-ipf_nat6_delmap(softn, n)
-	ipf_nat_softc_t *softn;
-	ipnat_t *n;
+ipf_nat6_delmap(ipf_nat_softc_t *softn, ipnat_t *n)
 {
 	i6addr_t *mask;
 	int k;
@@ -369,11 +359,8 @@ ipf_nat6_delmap(softn, n)
 /* create a new entry if a non-NULL NAT rule pointer has been supplied.     */
 /* ------------------------------------------------------------------------ */
 static struct hostmap *
-ipf_nat6_hostmap(softn, np, src, dst, map, port)
-	ipf_nat_softc_t *softn;
-	ipnat_t *np;
-	i6addr_t *src, *dst, *map;
-	u_32_t port;
+ipf_nat6_hostmap(ipf_nat_softc_t *softn, ipnat_t *np,
+	i6addr_t *src, i6addr_t *dst, i6addr_t *map, u_32_t port)
 {
 	hostmap_t *hm;
 	u_int hv;
@@ -453,10 +440,7 @@ ipf_nat6_hostmap(softn, np, src, dst, map, port)
 /* to the new IP address for the translation.                               */
 /* ------------------------------------------------------------------------ */
 int
-ipf_nat6_newmap(fin, nat, ni)
-	fr_info_t *fin;
-	nat_t *nat;
-	natinfo_t *ni;
+ipf_nat6_newmap(fr_info_t *fin, nat_t *nat, natinfo_t *ni)
 {
 	ipf_main_softc_t *softc = fin->fin_main_soft;
 	ipf_nat_softc_t *softn = softc->ipf_nat_soft;
@@ -734,10 +718,7 @@ ipf_nat6_newmap(fin, nat, ni)
 /* to the new IP address for the translation.                               */
 /* ------------------------------------------------------------------------ */
 int
-ipf_nat6_newrdr(fin, nat, ni)
-	fr_info_t *fin;
-	nat_t *nat;
-	natinfo_t *ni;
+ipf_nat6_newrdr(fr_info_t *fin, nat_t *nat, natinfo_t *ni)
 {
 	ipf_main_softc_t *softc = fin->fin_main_soft;
 	ipf_nat_softc_t *softn = softc->ipf_nat_soft;
@@ -949,12 +930,8 @@ ipf_nat6_newrdr(fin, nat, ni)
 /*       as it can result in memory being corrupted.                        */
 /* ------------------------------------------------------------------------ */
 nat_t *
-ipf_nat6_add(fin, np, natsave, flags, direction)
-	fr_info_t *fin;
-	ipnat_t *np;
-	nat_t **natsave;
-	u_int flags;
-	int direction;
+ipf_nat6_add(fr_info_t *fin, ipnat_t *np, nat_t **natsave, u_int flags,
+	int direction)
 {
 	ipf_main_softc_t *softc = fin->fin_main_soft;
 	ipf_nat_softc_t *softn = softc->ipf_nat_soft;
@@ -1150,9 +1127,7 @@ done:
 /* ------------------------------------------------------------------------ */
 /*ARGSUSED*/
 int
-ipf_nat6_finalise(fin, nat)
-	fr_info_t *fin;
-	nat_t *nat;
+ipf_nat6_finalise(fr_info_t *fin, nat_t *nat)
 {
 	ipf_main_softc_t *softc = fin->fin_main_soft;
 	ipf_nat_softc_t *softn = softc->ipf_nat_soft;
@@ -1271,10 +1246,7 @@ ipf_nat6_finalise(fin, nat)
 /* list of active NAT entries.  Adjust global counters when complete.       */
 /* ------------------------------------------------------------------------ */
 static int
-ipf_nat6_insert(softc, softn, nat)
-	ipf_main_softc_t *softc;
-	ipf_nat_softc_t *softn;
-	nat_t *nat;
+ipf_nat6_insert(ipf_main_softc_t *softc, ipf_nat_softc_t *softn, nat_t *nat)
 {
 	u_int hv1, hv2;
 	u_32_t sp, dp;
@@ -1382,9 +1354,7 @@ ipf_nat6_insert(softc, softn, nat)
 /* the required length.                                                     */
 /* ------------------------------------------------------------------------ */
 nat_t *
-ipf_nat6_icmperrorlookup(fin, dir)
-	fr_info_t *fin;
-	int dir;
+ipf_nat6_icmperrorlookup(fr_info_t *fin, int dir)
 {
 	ipf_main_softc_t *softc = fin->fin_main_soft;
 	ipf_nat_softc_t *softn = softc->ipf_nat_soft;
@@ -1528,8 +1498,7 @@ ipf_nat6_icmperrorlookup(fin, dir)
 
 /* result = ip1 - ip2 */
 u_32_t
-ipf_nat6_ip6subtract(ip1, ip2)
-	i6addr_t *ip1, *ip2;
+ipf_nat6_ip6subtract(i6addr_t *ip1, i6addr_t *ip2)
 {
 	i6addr_t l1, l2, d;
 	u_short *s1, *s2, *ds;
@@ -1580,10 +1549,7 @@ ipf_nat6_ip6subtract(ip1, ip2)
 /* a NAT'd ICMP packet gets correctly recognised.                           */
 /* ------------------------------------------------------------------------ */
 nat_t *
-ipf_nat6_icmperror(fin, nflags, dir)
-	fr_info_t *fin;
-	u_int *nflags;
-	int dir;
+ipf_nat6_icmperror(fr_info_t *fin, u_int *nflags, int dir)
 {
 	ipf_main_softc_t *softc = fin->fin_main_soft;
 	ipf_nat_softc_t *softn = softc->ipf_nat_soft;
@@ -1900,10 +1866,8 @@ ipf_nat6_icmperror(fin, nflags, dir)
 /*            the packet is of said protocol                                */
 /* ------------------------------------------------------------------------ */
 nat_t *
-ipf_nat6_inlookup(fin, flags, p, src, mapdst)
-	fr_info_t *fin;
-	u_int flags, p;
-	struct in6_addr *src , *mapdst;
+ipf_nat6_inlookup(fr_info_t *fin, u_int flags, u_int p,
+	struct in6_addr *src , struct in6_addr *mapdst)
 {
 	ipf_main_softc_t *softc = fin->fin_main_soft;
 	ipf_nat_softc_t *softn = softc->ipf_nat_soft;
@@ -2134,9 +2098,7 @@ find_in_wild_ports:
 /* want to include hashing on port numbers.                                 */
 /* ------------------------------------------------------------------------ */
 static void
-ipf_nat6_tabmove(softn, nat)
-	ipf_nat_softc_t *softn;
-	nat_t *nat;
+ipf_nat6_tabmove(ipf_nat_softc_t *softn, nat_t *nat)
 {
 	nat_t **natp;
 	u_int hv0, hv1;
@@ -2222,10 +2184,8 @@ ipf_nat6_tabmove(softn, nat)
 /*            the packet is of said protocol                                */
 /* ------------------------------------------------------------------------ */
 nat_t *
-ipf_nat6_outlookup(fin, flags, p, src, dst)
-	fr_info_t *fin;
-	u_int flags, p;
-	struct in6_addr *src , *dst;
+ipf_nat6_outlookup(fr_info_t *fin, u_int flags, u_int p,
+	struct in6_addr *src, struct in6_addr *dst)
 {
 	ipf_main_softc_t *softc = fin->fin_main_soft;
 	ipf_nat_softc_t *softn = softc->ipf_nat_soft;
@@ -2459,8 +2419,7 @@ find_out_wild_ports:
 /*     nl_out* = destination information (translated)                       */
 /* ------------------------------------------------------------------------ */
 nat_t *
-ipf_nat6_lookupredir(np)
-	natlookup_t *np;
+ipf_nat6_lookupredir(natlookup_t *np)
 {
 	fr_info_t fi;
 	nat_t *nat;
@@ -2535,9 +2494,7 @@ ipf_nat6_lookupredir(np)
 /* function.                                                                */
 /* ------------------------------------------------------------------------ */
 static int
-ipf_nat6_match(fin, np)
-	fr_info_t *fin;
-	ipnat_t *np;
+ipf_nat6_match(fr_info_t *fin, ipnat_t *np)
 {
 	frtuc_t *ft;
 	int match;
@@ -2603,9 +2560,7 @@ ipf_nat6_match(fin, np)
 /* packet header(s) as required.                                            */
 /* ------------------------------------------------------------------------ */
 int
-ipf_nat6_checkout(fin, passp)
-	fr_info_t *fin;
-	u_32_t *passp;
+ipf_nat6_checkout(fr_info_t *fin, u_32_t *passp)
 {
 	ipf_main_softc_t *softc = fin->fin_main_soft;
 	ipf_nat_softc_t *softn = softc->ipf_nat_soft;
@@ -2803,11 +2758,7 @@ outmatchfail:
 /* Translate a packet coming "out" on an interface.                         */
 /* ------------------------------------------------------------------------ */
 static int
-ipf_nat6_out(fin, nat, natadd, nflags)
-	fr_info_t *fin;
-	nat_t *nat;
-	int natadd;
-	u_32_t nflags;
+ipf_nat6_out(fr_info_t *fin, nat_t *nat, int natadd, u_32_t nflags)
 {
 	ipf_main_softc_t *softc = fin->fin_main_soft;
 	ipf_nat_softc_t *softn = softc->ipf_nat_soft;
@@ -3003,9 +2954,7 @@ ipf_nat6_out(fin, nat, natadd, nflags)
 /* packet header(s) as required.                                            */
 /* ------------------------------------------------------------------------ */
 int
-ipf_nat6_checkin(fin, passp)
-	fr_info_t *fin;
-	u_32_t *passp;
+ipf_nat6_checkin(fr_info_t *fin, u_32_t *passp)
 {
 	ipf_main_softc_t *softc = fin->fin_main_soft;
 	ipf_nat_softc_t *softn = softc->ipf_nat_soft;
@@ -3203,11 +3152,7 @@ inmatchfail:
 /* Translate a packet coming "in" on an interface.                          */
 /* ------------------------------------------------------------------------ */
 static int
-ipf_nat6_in(fin, nat, natadd, nflags)
-	fr_info_t *fin;
-	nat_t *nat;
-	int natadd;
-	u_32_t nflags;
+ipf_nat6_in(fr_info_t *fin, nat_t *nat, int natadd, u_32_t nflags)
 {
 	ipf_main_softc_t *softc = fin->fin_main_soft;
 	ipf_nat_softc_t *softn = softc->ipf_nat_soft;
@@ -3408,10 +3353,7 @@ ipf_nat6_in(fin, nat, natadd, nflags)
 /* This is done to try and exhaustively use the translation space available.*/
 /* ------------------------------------------------------------------------ */
 int
-ipf_nat6_newrewrite(fin, nat, nai)
-	fr_info_t *fin;
-	nat_t *nat;
-	natinfo_t *nai;
+ipf_nat6_newrewrite(fr_info_t *fin, nat_t *nat, natinfo_t *nai)
 {
 	int src_search = 1;
 	int dst_search = 1;
@@ -3637,10 +3579,7 @@ ipf_nat6_newrewrite(fin, nat, nai)
 /* for a unique mapping, however, a complimentary duplicate check is made.  */
 /* ------------------------------------------------------------------------ */
 int
-ipf_nat6_newdivert(fin, nat, nai)
-	fr_info_t *fin;
-	nat_t *nat;
-	natinfo_t *nai;
+ipf_nat6_newdivert(fr_info_t *fin, nat_t *nat, natinfo_t *nai)
 {
 	ipf_main_softc_t *softc = fin->fin_main_soft;
 	ipf_nat_softc_t *softn = softc->ipf_nat_soft;
@@ -3714,9 +3653,7 @@ ipf_nat6_newdivert(fin, nat, nai)
 /* here because it is expected that divert will be used for localhost.      */
 /* ------------------------------------------------------------------------ */
 static int
-ipf_nat6_builddivertmp(softn, np)
-	ipf_nat_softc_t *softn;
-	ipnat_t *np;
+ipf_nat6_builddivertmp(ipf_nat_softc_t *softn, ipnat_t *np)
 {
 	udphdr_t *uh;
 	size_t len;
@@ -3777,9 +3714,7 @@ ipf_nat6_builddivertmp(softn, np)
 /* need to back a backup copy of "fin" - expensive.                         */
 /* ------------------------------------------------------------------------ */
 static int
-ipf_nat6_decap(fin, nat)
-	fr_info_t *fin;
-	nat_t *nat;
+ipf_nat6_decap(fr_info_t *fin, nat_t *nat)
 {
 	ipf_main_softc_t *softc = fin->fin_main_soft;
 	ipf_nat_softc_t *softn = softc->ipf_nat_soft;
@@ -3860,10 +3795,7 @@ ipf_nat6_decap(fin, nat)
 /* possible uses of "na" will result in a new address.                      */
 /* ------------------------------------------------------------------------ */
 static int
-ipf_nat6_nextaddr(fin, na, old, dst)
-	fr_info_t *fin;
-	nat_addr_t *na;
-	i6addr_t *old, *dst;
+ipf_nat6_nextaddr(fr_info_t *fin, nat_addr_t *na, i6addr_t *old, i6addr_t *dst)
 {
 	ipf_main_softc_t *softc = fin->fin_main_soft;
 	ipf_nat_softc_t *softn = softc->ipf_nat_soft;
@@ -3968,12 +3900,8 @@ ipf_nat6_nextaddr(fin, na, old, dst)
 /* come out of ipf_nat6_nextaddr() will be.                                 */
 /* ------------------------------------------------------------------------ */
 static int
-ipf_nat6_nextaddrinit(softc, base, na, initial, ifp)
-	ipf_main_softc_t *softc;
-	char *base;
-	nat_addr_t *na;
-	int initial;
-	void *ifp;
+ipf_nat6_nextaddrinit(ipf_main_softc_t *softc, char *base, nat_addr_t *na,
+	int initial, void *ifp)
 {
 	switch (na->na_atype)
 	{
@@ -4055,8 +3983,7 @@ ipf_nat6_nextaddrinit(softc, base, na, initial, ifp)
 /* not.                                                                     */
 /* ------------------------------------------------------------------------ */
 static int
-ipf_nat6_icmpquerytype(icmptype)
-	int icmptype;
+ipf_nat6_icmpquerytype(int icmptype)
 {
 
 	/*

@@ -163,14 +163,14 @@ static ipftuneable_t ipf_log_tuneables[] = {
 
 
 int
-ipf_log_main_load()
+ipf_log_main_load(void)
 {
 	return 0;
 }
 
 
 int
-ipf_log_main_unload()
+ipf_log_main_unload(void)
 {
 	return 0;
 }
@@ -184,8 +184,7 @@ ipf_log_main_unload()
 /* secret for use in calculating the "last log checksum".                   */
 /* ------------------------------------------------------------------------ */
 void *
-ipf_log_soft_create(softc)
-	ipf_main_softc_t *softc;
+ipf_log_soft_create(ipf_main_softc_t *softc)
 {
 	ipf_log_softc_t *softl;
 	int i;
@@ -230,9 +229,7 @@ ipf_log_soft_create(softc)
 /* secret for use in calculating the "last log checksum".                   */
 /* ------------------------------------------------------------------------ */
 int
-ipf_log_soft_init(softc, arg)
-	ipf_main_softc_t *softc;
-	void *arg;
+ipf_log_soft_init(ipf_main_softc_t *softc, void *arg)
 {
 	ipf_log_softc_t *softl = arg;
 	int i;
@@ -263,9 +260,7 @@ ipf_log_soft_init(softc, arg)
 /* Clean up any log data that has accumulated without being read.           */
 /* ------------------------------------------------------------------------ */
 int
-ipf_log_soft_fini(softc, arg)
-	ipf_main_softc_t *softc;
-	void *arg;
+ipf_log_soft_fini(ipf_main_softc_t *softc, void *arg)
 {
 	ipf_log_softc_t *softl = arg;
 	int i;
@@ -312,9 +307,7 @@ ipf_log_soft_fini(softc, arg)
 /* any threads active in the reading code path or the logging code path.    */
 /* ------------------------------------------------------------------------ */
 void
-ipf_log_soft_destroy(softc, arg)
-	ipf_main_softc_t *softc;
-	void *arg;
+ipf_log_soft_destroy(ipf_main_softc_t *softc, void *arg)
 {
 	ipf_log_softc_t *softl = arg;
 	int i;
@@ -349,9 +342,7 @@ ipf_log_soft_destroy(softc, arg)
 /* requested.                                                               */
 /* ------------------------------------------------------------------------ */
 int
-ipf_log_pkt(fin, flags)
-	fr_info_t *fin;
-	u_int flags;
+ipf_log_pkt(fr_info_t *fin, u_int flags)
 {
 	ipf_main_softc_t *softc = fin->fin_main_soft;
 	ipf_log_softc_t *softl = softc->ipf_log_soft;
@@ -526,13 +517,8 @@ ipf_log_pkt(fin, flags)
 /* from the log device.                                                     */
 /* ------------------------------------------------------------------------ */
 int
-ipf_log_items(softc, unit, fin, items, itemsz, types, cnt)
-	ipf_main_softc_t *softc;
-	int unit;
-	fr_info_t *fin;
-	void **items;
-	size_t *itemsz;
-	int *types, cnt;
+ipf_log_items(ipf_main_softc_t *softc, int unit, fr_info_t *fin, void **items,
+	size_t *itemsz, int *types, int cnt)
 {
 	ipf_log_softc_t *softl = softc->ipf_log_soft;
 	caddr_t buf, ptr;
@@ -660,10 +646,7 @@ ipf_log_items(softc, unit, fin, items, itemsz, types, cnt)
 /* there is none present.  Asynchronous I/O is not implemented.             */
 /* ------------------------------------------------------------------------ */
 int
-ipf_log_read(softc, unit, uio)
-	ipf_main_softc_t *softc;
-	minor_t unit;
-	struct uio *uio;
+ipf_log_read(ipf_main_softc_t *softc, minor_t unit, struct uio *uio)
 {
 	ipf_log_softc_t *softl = softc->ipf_log_soft;
 	size_t dlen;
@@ -785,9 +768,7 @@ ipf_log_read(softc, unit, uio)
 /* Deletes all queued up log records for a given output device.             */
 /* ------------------------------------------------------------------------ */
 int
-ipf_log_clear(softc, unit)
-	ipf_main_softc_t *softc;
-	minor_t unit;
+ipf_log_clear(ipf_main_softc_t *softc, minor_t unit)
 {
 	ipf_log_softc_t *softl = softc->ipf_log_soft;
 	iplog_t *ipl;
@@ -821,9 +802,7 @@ ipf_log_clear(softc, unit)
 /* current buffer for the selected ipf device.                              */
 /* ------------------------------------------------------------------------ */
 int
-ipf_log_canread(softc, unit)
-	ipf_main_softc_t *softc;
-	int unit;
+ipf_log_canread(ipf_main_softc_t *softc, int unit)
 {
 	ipf_log_softc_t *softl = softc->ipf_log_soft;
 
@@ -841,9 +820,7 @@ ipf_log_canread(softc, unit)
 /* selected ipf device.                                                     */
 /* ------------------------------------------------------------------------ */
 int
-ipf_log_bytesused(softc, unit)
-	ipf_main_softc_t *softc;
-	int unit;
+ipf_log_bytesused(ipf_main_softc_t *softc, int unit)
 {
 	ipf_log_softc_t *softl = softc->ipf_log_soft;
 
@@ -864,9 +841,7 @@ ipf_log_bytesused(softc, unit)
 /* for the selected ipf device.                                             */
 /* ------------------------------------------------------------------------ */
 u_long
-ipf_log_failures(softc, unit)
-	ipf_main_softc_t *softc;
-	int unit;
+ipf_log_failures(ipf_main_softc_t *softc, int unit)
 {
 	ipf_log_softc_t *softl = softc->ipf_log_soft;
 
@@ -887,9 +862,7 @@ ipf_log_failures(softc, unit)
 /* selected ipf device.                                                     */
 /* ------------------------------------------------------------------------ */
 u_long
-ipf_log_logok(softc, unit)
-	ipf_main_softc_t *softc;
-	int unit;
+ipf_log_logok(ipf_main_softc_t *softc, int unit)
 {
 	ipf_log_softc_t *softl = softc->ipf_log_soft;
 

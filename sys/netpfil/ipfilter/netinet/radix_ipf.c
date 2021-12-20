@@ -61,9 +61,7 @@ static ipf_rdx_node_t *ipf_rx_match(ipf_rdx_head_t *, addrfamily_t *);
 /* as the guide for which bit is the most significant bit.                  */
 /* ------------------------------------------------------------------------ */
 static int
-count_mask_bits(mask, lastp)
-	addrfamily_t *mask;
-	u_32_t **lastp;
+count_mask_bits(addrfamily_t *mask, u_32_t **lastp)
 {
 	u_32_t *mp = (u_32_t *)&mask->adf_addr;
 	u_32_t m;
@@ -98,9 +96,7 @@ count_mask_bits(mask, lastp)
 /* the middle are not handled by this implementation.                       */
 /* ------------------------------------------------------------------------ */
 static void
-buildnodes(addr, mask, nodes)
-	addrfamily_t *addr, *mask;
-	ipf_rdx_node_t nodes[2];
+buildnodes(addrfamily_t *addr, addrfamily_t *mask, ipf_rdx_node_t nodes[2])
 {
 	u_32_t maskbits;
 	u_32_t lastmask;
@@ -147,9 +143,7 @@ buildnodes(addr, mask, nodes)
 /* match for the address given by "addr".                                   */
 /* ------------------------------------------------------------------------ */
 static ipf_rdx_node_t *
-ipf_rx_find_addr(tree, addr)
-	ipf_rdx_node_t *tree;
-	u_32_t *addr;
+ipf_rx_find_addr(ipf_rdx_node_t *tree, u_32_t *addr)
 {
 	ipf_rdx_node_t *cur;
 
@@ -178,9 +172,7 @@ ipf_rx_find_addr(tree, addr)
 /* them are considered to be part of the tree of data being stored.         */
 /* ------------------------------------------------------------------------ */
 static ipf_rdx_node_t *
-ipf_rx_match(head, addr)
-	ipf_rdx_head_t *head;
-	addrfamily_t *addr;
+ipf_rx_match(ipf_rdx_head_t *head, addrfamily_t *addr)
 {
 	ipf_rdx_mask_t *masknode;
 	ipf_rdx_node_t *prev;
@@ -249,9 +241,7 @@ ipf_rx_match(head, addr)
 /* is to see if a given key is in the tree, not to see if a route exists.   */
 /* ------------------------------------------------------------------------ */
 ipf_rdx_node_t *
-ipf_rx_lookup(head, addr, mask)
-	ipf_rdx_head_t *head;
-	addrfamily_t *addr, *mask;
+ipf_rx_lookup(ipf_rdx_head_t *head, addrfamily_t *addr, addrfamily_t *mask)
 {
 	ipf_rdx_node_t *found;
 	ipf_rdx_node_t *node;
@@ -298,9 +288,7 @@ ipf_rx_lookup(head, addr, mask)
 /* netmask is at the top of the list.                                       */
 /* ------------------------------------------------------------------------ */
 static void
-ipf_rx_attach_mask(node, mask)
-	ipf_rdx_node_t *node;
-	ipf_rdx_mask_t *mask;
+ipf_rx_attach_mask(ipf_rdx_node_t *node, ipf_rdx_mask_t *mask)
 {
 	ipf_rdx_mask_t **pm;
 	ipf_rdx_mask_t *m;
@@ -328,10 +316,7 @@ ipf_rx_attach_mask(node, mask)
 /* by the netmask.                                                          */
 /* ------------------------------------------------------------------------ */
 static ipf_rdx_node_t *
-ipf_rx_insert(head, nodes, dup)
-	ipf_rdx_head_t *head;
-	ipf_rdx_node_t nodes[2];
-	int *dup;
+ipf_rx_insert(ipf_rdx_head_t *head, ipf_rdx_node_t *nodes, int *dup)
 {
 	ipf_rdx_mask_t **pmask;
 	ipf_rdx_node_t *node;
@@ -508,10 +493,8 @@ ipf_rx_insert(head, nodes, dup)
 /* where the data to be inserted is a duplicate.                            */
 /* ------------------------------------------------------------------------ */
 ipf_rdx_node_t *
-ipf_rx_addroute(head, addr, mask, nodes)
-	ipf_rdx_head_t *head;
-	addrfamily_t *addr, *mask;
-	ipf_rdx_node_t *nodes;
+ipf_rx_addroute(ipf_rdx_head_t *head, addrfamily_t *addr, addrfamily_t *mask,
+	ipf_rdx_node_t *nodes)
 {
 	ipf_rdx_node_t *node;
 	ipf_rdx_node_t *prev;
@@ -581,9 +564,7 @@ ipf_rx_addroute(head, addr, mask, nodes)
 /* of duplicate keys.                                                       */
 /* ------------------------------------------------------------------------ */
 ipf_rdx_node_t *
-ipf_rx_delete(head, addr, mask)
-        ipf_rdx_head_t *head;
-        addrfamily_t *addr, *mask;
+ipf_rx_delete(ipf_rdx_head_t *head, addrfamily_t *addr, addrfamily_t *mask)
 {
 	ipf_rdx_mask_t **pmask;
 	ipf_rdx_node_t *parent;
@@ -763,10 +744,7 @@ ipf_rx_delete(head, addr, mask)
 /* in the validity of the data found at either the left or right child.     */
 /* ------------------------------------------------------------------------ */
 void
-ipf_rx_walktree(head, walker, arg)
-	ipf_rdx_head_t *head;
-	radix_walk_func_t walker;
-	void *arg;
+ipf_rx_walktree(ipf_rdx_head_t *head, radix_walk_func_t walker, void *arg)
 {
 	ipf_rdx_node_t *next;
 	ipf_rdx_node_t *node = head->root;
@@ -810,9 +788,7 @@ ipf_rx_walktree(head, walker, arg)
 /* the zeroes and ones data rather than have one per head.                  */
 /* ------------------------------------------------------------------------ */
 int
-ipf_rx_inithead(softr, headp)
-	radix_softc_t *softr;
-	ipf_rdx_head_t **headp;
+ipf_rx_inithead(radix_softc_t *softr, ipf_rdx_head_t **headp)
 {
 	ipf_rdx_head_t *ptr;
 	ipf_rdx_node_t *node;
@@ -866,8 +842,7 @@ ipf_rx_inithead(softr, headp)
 /* this function, it is expected that the tree will have been emptied.      */
 /* ------------------------------------------------------------------------ */
 void
-ipf_rx_freehead(head)
-	ipf_rdx_head_t *head;
+ipf_rx_freehead(ipf_rdx_head_t *head)
 {
 	KFREE(head);
 }
@@ -879,7 +854,7 @@ ipf_rx_freehead(head)
 /*                                                                          */
 /* ------------------------------------------------------------------------ */
 void *
-ipf_rx_create()
+ipf_rx_create(void)
 {
 	radix_softc_t *softr;
 
@@ -905,8 +880,7 @@ ipf_rx_create()
 /*                                                                          */
 /* ------------------------------------------------------------------------ */
 int
-ipf_rx_init(ctx)
-	void *ctx;
+ipf_rx_init(void *ctx)
 {
 	radix_softc_t *softr = ctx;
 
@@ -923,8 +897,7 @@ ipf_rx_init(ctx)
 /*                                                                          */
 /* ------------------------------------------------------------------------ */
 void
-ipf_rx_destroy(ctx)
-	void *ctx;
+ipf_rx_destroy(void *ctx)
 {
 	radix_softc_t *softr = ctx;
 
@@ -1031,9 +1004,7 @@ void test_addr(ipf_rdx_head_t *rnh, int pref, addrfamily_t *, int);
 
 
 static void
-ipf_rx_freenode(node, arg)
-	ipf_rdx_node_t *node;
-	void *arg;
+ipf_rx_freenode(ipf_rdx_node_t *node, void *arg)
 {
 	ipf_rdx_head_t *head = arg;
 	ipf_rdx_node_t *rv;
@@ -1048,8 +1019,7 @@ ipf_rx_freenode(node, arg)
 
 
 const char *
-addrname(ap)
-	addrfamily_t *ap;
+addrname(addrfamily_t *ap)
 {
 	static char name[80];
 	const char *txt;
@@ -1062,9 +1032,7 @@ addrname(ap)
 
 
 void
-fill6bits(bits, msk)
-	int bits;
-	u_int *msk;
+fill6bits(int bits, u_int *msk)
 {
 	if (bits == 0) {
 		msk[0] = 0;
@@ -1100,9 +1068,7 @@ fill6bits(bits, msk)
 
 
 void
-setaddr(afp, str)
-	addrfamily_t *afp;
-	char *str;
+setaddr(addrfamily_t *afp, char *str)
 {
 
 	bzero((char *)afp, sizeof(*afp));
@@ -1119,9 +1085,7 @@ setaddr(afp, str)
 
 
 void
-setmask(afp, str)
-	addrfamily_t *afp;
-	char *str;
+setmask(addrfamily_t *afp, char *str)
 {
 	if (strchr(str, '.') != NULL) {
 		afp->adf_addr.in4.s_addr = inet_addr(str);
@@ -1137,9 +1101,7 @@ setmask(afp, str)
 
 
 void
-nodeprinter(node, arg)
-	ipf_rdx_node_t *node;
-	void *arg;
+nodeprinter(ipf_rdx_node_t *node, void *arg)
 {
 	myst_t *stp = (myst_t *)node;
 
@@ -1156,8 +1118,7 @@ nodeprinter(node, arg)
 
 
 void
-printnode(stp)
-	myst_t *stp;
+printnode(myst_t *stp)
 {
 	ipf_rdx_node_t *node = &stp->nodes[0];
 
@@ -1209,8 +1170,7 @@ buildtab(void)
 
 
 void
-printroots(rnh)
-	ipf_rdx_head_t *rnh;
+printroots(ipf_rdx_head_t *rnh)
 {
 	printf("Root.0.%s b %3d p %-9.9s l %-9.9s r %-9.9s\n",
 		GNAME(&rnh->nodes[0]),
@@ -1307,8 +1267,7 @@ main(int argc, char *argv[])
 
 
 void
-dumptree(rnh)
-	ipf_rdx_head_t *rnh;
+dumptree(ipf_rdx_head_t *rnh)
 {
 	myst_t *stp;
 
@@ -1321,10 +1280,7 @@ dumptree(rnh)
 
 
 void
-test_addr(rnh, pref, addr, limit)
-	ipf_rdx_head_t *rnh;
-	int pref, limit;
-	addrfamily_t *addr;
+test_addr(ipf_rdx_head_t *rnh, int pref, addrfamily_t *addr, int limit)
 {
 	static int extras[14] = { 0, -1, 1, 3, 5, 8, 9,
 				  15, 16, 19, 255, 256, 65535, 65536
@@ -1362,9 +1318,7 @@ test_addr(rnh, pref, addr, limit)
 
 
 void
-delete_addr(rnh, item)
-	ipf_rdx_head_t *rnh;
-	int item;
+delete_addr(ipf_rdx_head_t *rnh, int item)
 {
 	ipf_rdx_node_t *rn;
 	addrfamily_t mask;
@@ -1406,9 +1360,7 @@ delete_addr(rnh, item)
 
 
 void
-add_addr(rnh, n, item)
-	ipf_rdx_head_t *rnh;
-	int n, item;
+add_addr(ipf_rdx_head_t *rnh, int n, int item)
 {
 	ipf_rdx_node_t *rn;
 	myst_t *stp;
@@ -1496,8 +1448,7 @@ randomize(int *pnitems)
 
 
 void
-random_add(rnh)
-	ipf_rdx_head_t *rnh;
+random_add(ipf_rdx_head_t *rnh)
 {
 	int *order;
 	int nitems;
@@ -1515,8 +1466,7 @@ random_add(rnh)
 
 
 void
-random_delete(rnh)
-	ipf_rdx_head_t *rnh;
+random_delete(ipf_rdx_head_t *rnh)
 {
 	int *order;
 	int nitems;
