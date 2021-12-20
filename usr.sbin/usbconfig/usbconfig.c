@@ -30,6 +30,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <err.h>
+#include <sysexits.h>
 #include <string.h>
 #include <unistd.h>
 #include <pwd.h>
@@ -267,12 +268,12 @@ duplicate_option(const char *ptr)
 }
 
 static void
-usage(void)
+usage(int exitcode)
 {
 	fprintf(stderr, ""
 	    "usbconfig - configure the USB subsystem" "\n"
-	    "usage: usbconfig [-u <busnum>] [-a <devaddr>] [-i <ifaceindex>] [cmds...]" "\n"
-	    "usage: usbconfig -d [ugen]<busnum>.<devaddr> [-i <ifaceindex>] [cmds...]" "\n"
+	    "usage: usbconfig [-u <busnum>] [-a <devaddr>] [-i <ifaceindex>] [-v] [cmds...]" "\n"
+	    "usage: usbconfig -d [ugen]<busnum>.<devaddr> [-i <ifaceindex>] [-v] [cmds...]" "\n"
 	    "commands:" "\n"
 	    "  set_config <cfg_index>" "\n"
 	    "  set_alt <alt_index>" "\n"
@@ -558,13 +559,13 @@ main(int argc, char **argv)
 	int ch;
 
 	if (argc < 1) {
-		usage();
+		usage(EX_USAGE);
 	}
 	pbe = libusb20_be_alloc_default();
 	if (pbe == NULL)
 		err(1, "could not access USB backend\n");
 
-	while ((ch = getopt(argc, argv, "a:d:i:u:")) != -1) {
+	while ((ch = getopt(argc, argv, "a:d:hi:u:v")) != -1) {
 		switch (ch) {
 		case 'a':
 			opt->addr = num_id(optarg, "addr");
@@ -593,6 +594,10 @@ main(int argc, char **argv)
 			opt->got_addr = 1;
 			break;
 
+		case 'h':
+			usage(EX_OK);
+			break;
+
 		case 'i':
 			opt->iface = num_id(optarg, "iface");
 			break;
@@ -602,8 +607,15 @@ main(int argc, char **argv)
 			opt->got_bus = 1;
 			break;
 
+		case 'v':
+			opt->got_dump_device_desc = 1;
+			opt->got_dump_curr_config = 1;
+			opt->got_show_iface_driver = 1;
+			opt->got_any += 2; /* only the dump options count */
+			break;
+
 		default:
-			usage();
+			usage(EX_USAGE);
 		}
 	}
 	argc -= optind;
@@ -856,7 +868,7 @@ main(int argc, char **argv)
 				    &unit, &addr) != 2) ||
 				    (unit < 0) || (unit > 65535) ||
 				    (addr < 0) || (addr > 65535)) {
-					usage();
+					usage(EX_USAGE);
 					break;
 				}
 
@@ -866,7 +878,7 @@ main(int argc, char **argv)
 				opt->got_addr = 1;
 				break;
 			}
-			usage();
+			usage(EX_USAGE);
 			break;
 		}
 	}
