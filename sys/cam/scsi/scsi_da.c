@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/cons.h>
 #include <sys/endian.h>
 #include <sys/proc.h>
+#include <sys/reboot.h>
 #include <sys/sbuf.h>
 #include <geom/geom.h>
 #include <geom/geom_disk.h>
@@ -6244,6 +6245,9 @@ dashutdown(void * arg, int howto)
 	struct da_softc *softc;
 	union ccb *ccb;
 	int error;
+
+	if ((howto & RB_NOSYNC) != 0)
+		return;
 
 	CAM_PERIPH_FOREACH(periph, &dadriver) {
 		softc = (struct da_softc *)periph->softc;
