@@ -48,7 +48,7 @@ void		hexdump(void *p, size_t len);
 struct ip *	ip_packet(u_char protocol, size_t len);
 struct udphdr * set_udp(struct ip *p, u_short sport, u_short dport);
 
-inline int
+static inline int
 addr_eq(struct in_addr a, struct in_addr b)
 {
 	return a.s_addr == b.s_addr;
@@ -56,7 +56,7 @@ addr_eq(struct in_addr a, struct in_addr b)
 
 #define a2h(a)	ntohl(a.s_addr)
 
-inline int
+static inline int
 rand_range(int min, int max)
 {
 	return min + rand()%(max - min);
