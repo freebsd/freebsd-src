@@ -592,7 +592,7 @@ crypto_use_output_uio(struct cryptop *crp, struct uio *uio)
 
 uint32_t crypto_ses2hid(crypto_session_t crypto_session);
 uint32_t crypto_ses2caps(crypto_session_t crypto_session);
-void *crypto_get_driver_session(crypto_session_t crypto_session);
+void	*crypto_get_driver_session(crypto_session_t crypto_session);
 const struct crypto_session_params *crypto_get_params(
     crypto_session_t crypto_session);
 const struct auth_hash *crypto_auth_hash(const struct crypto_session_params *csp);
@@ -600,33 +600,32 @@ const struct enc_xform *crypto_cipher(const struct crypto_session_params *csp);
 
 MALLOC_DECLARE(M_CRYPTO_DATA);
 
-extern	int crypto_newsession(crypto_session_t *cses,
-    const struct crypto_session_params *params, int hard);
-extern	void crypto_freesession(crypto_session_t cses);
+int	crypto_newsession(crypto_session_t *cses,
+    const struct crypto_session_params *params, int crid);
+void	crypto_freesession(crypto_session_t cses);
 #define	CRYPTOCAP_F_HARDWARE	CRYPTO_FLAG_HARDWARE
 #define	CRYPTOCAP_F_SOFTWARE	CRYPTO_FLAG_SOFTWARE
 #define	CRYPTOCAP_F_SYNC	0x04000000	/* operates synchronously */
 #define	CRYPTOCAP_F_ACCEL_SOFTWARE 0x08000000
 #define	CRYPTO_SESS_SYNC(sess)	\
 	((crypto_ses2caps(sess) & CRYPTOCAP_F_SYNC) != 0)
-extern	int32_t crypto_get_driverid(device_t dev, size_t session_size,
-    int flags);
-extern	int crypto_find_driver(const char *);
-extern	device_t crypto_find_device_byhid(int hid);
-extern	int crypto_getcaps(int hid);
-extern	int crypto_unregister_all(uint32_t driverid);
-extern	int crypto_dispatch(struct cryptop *crp);
+int32_t	crypto_get_driverid(device_t dev, size_t session_size, int flags);
+int	crypto_find_driver(const char *);
+device_t crypto_find_device_byhid(int hid);
+int	crypto_getcaps(int hid);
+int	crypto_unregister_all(uint32_t driverid);
+int	crypto_dispatch(struct cryptop *crp);
 #define	CRYPTO_ASYNC_ORDERED	0x1	/* complete in order dispatched */
-extern	int crypto_dispatch_async(struct cryptop *crp, int flags);
-extern	void crypto_dispatch_batch(struct cryptopq *crpq, int flags);
+int	crypto_dispatch_async(struct cryptop *crp, int flags);
+void	crypto_dispatch_batch(struct cryptopq *crpq, int flags);
 #define	CRYPTO_SYMQ	0x1
-extern	int crypto_unblock(uint32_t, int);
-extern	void crypto_done(struct cryptop *crp);
+int	crypto_unblock(uint32_t, int);
+void	crypto_done(struct cryptop *crp);
 
-extern	void crypto_destroyreq(struct cryptop *crp);
-extern	void crypto_initreq(struct cryptop *crp, crypto_session_t cses);
-extern	void crypto_freereq(struct cryptop *crp);
-extern	struct cryptop *crypto_getreq(crypto_session_t cses, int how);
+void	crypto_destroyreq(struct cryptop *crp);
+void	crypto_initreq(struct cryptop *crp, crypto_session_t cses);
+void	crypto_freereq(struct cryptop *crp);
+struct cryptop *crypto_getreq(crypto_session_t cses, int how);
 
 extern	int crypto_usercrypto;		/* userland may do crypto requests */
 extern	int crypto_devallowsoft;	/* only use hardware crypto */
