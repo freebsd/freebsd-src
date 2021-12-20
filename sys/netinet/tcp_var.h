@@ -535,6 +535,7 @@ struct tcptw {
 	u_int32_t	ts_offset;	/* our timestamp offset */
 	int		tw_time;
 	TAILQ_ENTRY(tcptw) tw_2msl;
+	u_int		tw_flags;	/* tcpcb t_flags */
 };
 
 #define	intotcpcb(ip)	((struct tcpcb *)(ip)->inp_ppcb)
