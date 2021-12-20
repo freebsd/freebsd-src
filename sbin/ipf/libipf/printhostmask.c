@@ -12,9 +12,7 @@
 
 
 void
-printhostmask(family, addr, mask)
-	int	family;
-	u_32_t	*addr, *mask;
+printhostmask( int family, u_32_t *addr, u_32_t *mask)
 {
 #ifdef  USE_INET6
 	char ipbuf[64];

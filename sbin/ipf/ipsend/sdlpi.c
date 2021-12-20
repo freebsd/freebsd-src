@@ -52,9 +52,8 @@ static const char rcsid[] = "@(#)$Id$";
  * Be careful to only include those defined in the flags option for the
  * interface are included in the header size.
  */
-int	initdevice(device, tout)
-	char	*device;
-	int	tout;
+int
+initdevice(char *device, int tout)
 {
 	char	devname[16], *s, buf[256];
 	int	i, fd;
@@ -127,7 +126,8 @@ int	initdevice(device, tout)
 /*
  * output an IP packet onto a fd opened for /dev/nit
  */
-int	sendip(fd, pkt, len)
+int
+sendip(int fd, char *pkt, int len)
 	int	fd, len;
 	char	*pkt;
 {

@@ -38,8 +38,7 @@ typedef	unsigned long	ulong;
 
 
 void
-dlinforeq(fd)
-	int	fd;
+dlinforeq(int fd)
 {
 	dl_info_req_t	info_req;
 	struct	strbuf	ctl;
@@ -58,9 +57,7 @@ dlinforeq(fd)
 }
 
 void
-dlinfoack(fd, bufp)
-	int	fd;
-	char	*bufp;
+dlinfoack(int fd, char *bufp)
 {
 	union	DL_primitives	*dlp;
 	struct	strbuf	ctl;
@@ -87,9 +84,7 @@ dlinfoack(fd, bufp)
 }
 
 void
-dlattachreq(fd, ppa)
-	int	fd;
-	u_long	ppa;
+dlattachreq(int fd, u_long ppa)
 {
 	dl_attach_req_t	attach_req;
 	struct	strbuf	ctl;
@@ -109,10 +104,7 @@ dlattachreq(fd, ppa)
 }
 
 void
-dlenabmultireq(fd, addr, length)
-	int	fd;
-	char	*addr;
-	int	length;
+dlenabmultireq(int fd, char *addr, int length)
 {
 	long	buf[MAXDLBUF];
 	union	DL_primitives	*dlp;
@@ -138,10 +130,7 @@ dlenabmultireq(fd, addr, length)
 }
 
 void
-dldisabmultireq(fd, addr, length)
-	int	fd;
-	char	*addr;
-	int	length;
+dldisabmultireq(int fd, char *addr, int length)
 {
 	long	buf[MAXDLBUF];
 	union	DL_primitives	*dlp;
@@ -167,9 +156,7 @@ dldisabmultireq(fd, addr, length)
 }
 
 void
-dlpromisconreq(fd, level)
-	int	fd;
-	u_long	level;
+dlpromisconreq(int fd, u_long level)
 {
 	dl_promiscon_req_t	promiscon_req;
 	struct	strbuf	ctl;
@@ -190,9 +177,7 @@ dlpromisconreq(fd, level)
 }
 
 void
-dlpromiscoff(fd, level)
-	int	fd;
-	u_long	level;
+dlpromiscoff(int fd, u_long level)
 {
 	dl_promiscoff_req_t	promiscoff_req;
 	struct	strbuf	ctl;
@@ -212,9 +197,7 @@ dlpromiscoff(fd, level)
 }
 
 void
-dlphysaddrreq(fd, addrtype)
-	int	fd;
-	u_long	addrtype;
+dlphysaddrreq(int fd, u_long addrtype)
 {
 	dl_phys_addr_req_t	phys_addr_req;
 	struct	strbuf	ctl;
@@ -234,10 +217,7 @@ dlphysaddrreq(fd, addrtype)
 }
 
 void
-dlsetphysaddrreq(fd, addr, length)
-	int	fd;
-	char	*addr;
-	int	length;
+dlsetphysaddrreq(int fd, char *addr, int length)
 {
 	long	buf[MAXDLBUF];
 	union	DL_primitives	*dlp;
@@ -263,8 +243,7 @@ dlsetphysaddrreq(fd, addr, length)
 }
 
 void
-dldetachreq(fd)
-	int	fd;
+dldetachreq(int fd)
 {
 	dl_detach_req_t	detach_req;
 	struct	strbuf	ctl;
@@ -283,13 +262,8 @@ dldetachreq(fd)
 }
 
 void
-dlbindreq(fd, sap, max_conind, service_mode, conn_mgmt, xidtest)
-	int	fd;
-	u_long	sap;
-	u_long	max_conind;
-	u_long	service_mode;
-	u_long	conn_mgmt;
-	u_long	xidtest;
+dlbindreq(int fd, u_long sap, u_long max_conind, u_long service_mode,
+	u_long conn_mgmt, u_long xidtest)
 {
 	dl_bind_req_t	bind_req;
 	struct	strbuf	ctl;
@@ -313,13 +287,8 @@ dlbindreq(fd, sap, max_conind, service_mode, conn_mgmt, xidtest)
 }
 
 void
-dlunitdatareq(fd, addrp, addrlen, minpri, maxpri, datap, datalen)
-	int	fd;
-	u_char	*addrp;
-	int	addrlen;
-	u_long	minpri, maxpri;
-	u_char	*datap;
-	int	datalen;
+dlunitdatareq(int fd, u_char *addrp, int addrlen, u_long minpri,
+	u_long maxpri, u_char *datap, int datalen)
 {
 	long	buf[MAXDLBUF];
 	union	DL_primitives	*dlp;
@@ -348,8 +317,7 @@ dlunitdatareq(fd, addrp, addrlen, minpri, maxpri, datap, datalen)
 }
 
 void
-dlunbindreq(fd)
-	int	fd;
+dlunbindreq(int fd)
 {
 	dl_unbind_req_t	unbind_req;
 	struct	strbuf	ctl;
@@ -368,9 +336,7 @@ dlunbindreq(fd)
 }
 
 void
-dlokack(fd, bufp)
-	int	fd;
-	char	*bufp;
+dlokack(int fd, char *bufp)
 {
 	union	DL_primitives	*dlp;
 	struct	strbuf	ctl;
@@ -397,9 +363,7 @@ dlokack(fd, bufp)
 }
 
 void
-dlerrorack(fd, bufp)
-	int	fd;
-	char	*bufp;
+dlerrorack(int fd, char *bufp)
 {
 	union	DL_primitives	*dlp;
 	struct	strbuf	ctl;
@@ -426,9 +390,7 @@ dlerrorack(fd, bufp)
 }
 
 void
-dlbindack(fd, bufp)
-	int	fd;
-	char	*bufp;
+dlbindack(int fd, char *bufp)
 {
 	union	DL_primitives	*dlp;
 	struct	strbuf	ctl;
@@ -452,9 +414,7 @@ dlbindack(fd, bufp)
 }
 
 void
-dlphysaddrack(fd, bufp)
-	int	fd;
-	char	*bufp;
+dlphysaddrack(int fd, char *bufp)
 {
 	union	DL_primitives	*dlp;
 	struct	strbuf	ctl;
@@ -478,16 +438,13 @@ dlphysaddrack(fd, bufp)
 }
 
 void
-sigalrm()
+sigalrm(void)
 {
 	(void) err("sigalrm:  TIMEOUT");
 }
 
-strgetmsg(fd, ctlp, datap, flagsp, caller)
-	int	fd;
-	struct	strbuf	*ctlp, *datap;
-	int	*flagsp;
-	char	*caller;
+strgetmsg(int fd, struct strbuf *ctlp, struct strbuf *datap, int *flagsp,
+	char *caller)
 {
 	int	rc;
 	static	char	errmsg[80];
@@ -535,9 +492,7 @@ strgetmsg(fd, ctlp, datap, flagsp, caller)
 		err("getmsg:  control portion length < sizeof (long):  %d", ctlp->len);
 }
 
-expecting(prim, dlp)
-	int	prim;
-	union	DL_primitives	*dlp;
+expecting(int prim, union DL_primitives *dlp)
 {
 	if (dlp->dl_primitive != (u_long)prim) {
 		printdlprim(dlp);
@@ -550,8 +505,7 @@ expecting(prim, dlp)
 /*
  * Print any DLPI msg in human readable format.
  */
-printdlprim(dlp)
-	union	DL_primitives	*dlp;
+printdlprim(union DL_primitives *dlp)
 {
 	switch (dlp->dl_primitive) {
 		case DL_INFO_REQ:
@@ -654,14 +608,12 @@ printdlprim(dlp)
 }
 
 /* ARGSUSED */
-printdlinforeq(dlp)
-	union	DL_primitives	*dlp;
+printdlinforeq(union DL_primitives *dlp)
 {
 	(void) printf("DL_INFO_REQ\n");
 }
 
-printdlinfoack(dlp)
-	union	DL_primitives	*dlp;
+printdlinfoack(union DL_primitives *dlp)
 {
 	u_char	addr[MAXDLADDR];
 	u_char	brdcst[MAXDLADDR];
@@ -697,22 +649,20 @@ printdlinfoack(dlp)
 	(void) printf("brdcst_addr %s\n", brdcst);
 }
 
-printdlattachreq(dlp)
-	union	DL_primitives	*dlp;
+printdlattachreq(union DL_primitives *dlp)
 {
 	(void) printf("DL_ATTACH_REQ:  ppa %d\n",
 		dlp->attach_req.dl_ppa);
 }
 
-printdlokack(dlp)
+printdlokack(union DL_primitives* dlp)
 	union	DL_primitives	*dlp;
 {
 	(void) printf("DL_OK_ACK:  correct_primitive %s\n",
 		dlprim(dlp->ok_ack.dl_correct_primitive));
 }
 
-printdlerrorack(dlp)
-	union	DL_primitives	*dlp;
+printdlerrorack(union DL_primitives *dlp)
 {
 	(void) printf("DL_ERROR_ACK:  error_primitive %s errno %s unix_errno %d: %s\n",
 		dlprim(dlp->error_ack.dl_error_primitive),
@@ -721,8 +671,7 @@ printdlerrorack(dlp)
 		strerror(dlp->error_ack.dl_unix_errno));
 }
 
-printdlenabmultireq(dlp)
-	union	DL_primitives	*dlp;
+printdlenabmultireq(union DL_primitives *dlp)
 {
 	u_char	addr[MAXDLADDR];
 
@@ -735,8 +684,7 @@ printdlenabmultireq(dlp)
 	(void) printf("addr %s\n", addr);
 }
 
-printdldisabmultireq(dlp)
-	union	DL_primitives	*dlp;
+printdldisabmultireq(union DL_primitives *dlp)
 {
 	u_char	addr[MAXDLADDR];
 
@@ -749,29 +697,25 @@ printdldisabmultireq(dlp)
 	(void) printf("addr %s\n", addr);
 }
 
-printdlpromisconreq(dlp)
-	union	DL_primitives	*dlp;
+printdlpromisconreq(union DL_primitives *dlp)
 {
 	(void) printf("DL_PROMISCON_REQ:  level %s\n",
 		dlpromisclevel(dlp->promiscon_req.dl_level));
 }
 
-printdlpromiscoffreq(dlp)
-	union	DL_primitives	*dlp;
+printdlpromiscoffreq(union DL_primitives *dlp)
 {
 	(void) printf("DL_PROMISCOFF_REQ:  level %s\n",
 		dlpromisclevel(dlp->promiscoff_req.dl_level));
 }
 
-printdlphysaddrreq(dlp)
-	union	DL_primitives	*dlp;
+printdlphysaddrreq(union DL_primitives *dlp)
 {
 	(void) printf("DL_PHYS_ADDR_REQ:  addr_type 0x%x\n",
 		dlp->physaddr_req.dl_addr_type);
 }
 
-printdlphysaddrack(dlp)
-	union	DL_primitives	*dlp;
+printdlphysaddrack(union DL_primitives *dlp)
 {
 	u_char	addr[MAXDLADDR];
 
@@ -784,8 +728,7 @@ printdlphysaddrack(dlp)
 	(void) printf("addr %s\n", addr);
 }
 
-printdlsetphysaddrreq(dlp)
-	union	DL_primitives	*dlp;
+printdlsetphysaddrreq(union DL_primitives *dlp)
 {
 	u_char	addr[MAXDLADDR];
 
@@ -799,14 +742,12 @@ printdlsetphysaddrreq(dlp)
 }
 
 /* ARGSUSED */
-printdldetachreq(dlp)
-	union	DL_primitives	*dlp;
+printdldetachreq(union DL_primitives *dlp)
 {
 	(void) printf("DL_DETACH_REQ\n");
 }
 
-printdlbindreq(dlp)
-	union	DL_primitives	*dlp;
+printdlbindreq(union DL_primitives *dlp)
 {
 	(void) printf("DL_BIND_REQ:  sap %d max_conind %d\n",
 		dlp->bind_req.dl_sap,
@@ -817,8 +758,7 @@ printdlbindreq(dlp)
 		dlp->bind_req.dl_xidtest_flg);
 }
 
-printdlbindack(dlp)
-	union	DL_primitives	*dlp;
+printdlbindack(union DL_primitives *dlp)
 {
 	u_char	addr[MAXDLADDR];
 
@@ -836,14 +776,12 @@ printdlbindack(dlp)
 }
 
 /* ARGSUSED */
-printdlunbindreq(dlp)
-	union	DL_primitives	*dlp;
+printdlunbindreq(union DL_primitives *dlp)
 {
 	(void) printf("DL_UNBIND_REQ\n");
 }
 
-printdlsubsbindreq(dlp)
-	union	DL_primitives	*dlp;
+printdlsubsbindreq(union DL_primitives *dlp)
 {
 	u_char	sap[MAXDLADDR];
 
@@ -856,8 +794,7 @@ printdlsubsbindreq(dlp)
 	(void) printf("sap %s\n", sap);
 }
 
-printdlsubsbindack(dlp)
-	union	DL_primitives	*dlp;
+printdlsubsbindack(union DL_primitives *dlp)
 {
 	u_char	sap[MAXDLADDR];
 
@@ -870,8 +807,7 @@ printdlsubsbindack(dlp)
 	(void) printf("sap %s\n", sap);
 }
 
-printdlsubsunbindreq(dlp)
-	union	DL_primitives	*dlp;
+printdlsubsunbindreq(union DL_primitives *dlp)
 {
 	u_char	sap[MAXDLADDR];
 
@@ -884,8 +820,7 @@ printdlsubsunbindreq(dlp)
 	(void) printf("sap %s\n", sap);
 }
 
-printdlunitdatareq(dlp)
-	union	DL_primitives	*dlp;
+printdlunitdatareq(union DL_primitives *dlp)
 {
 	u_char	addr[MAXDLADDR];
 
@@ -901,8 +836,7 @@ printdlunitdatareq(dlp)
 	(void) printf("addr %s\n", addr);
 }
 
-printdlunitdataind(dlp)
-	union	DL_primitives	*dlp;
+printdlunitdataind(union DL_primitives *dlp)
 {
 	u_char	dest[MAXDLADDR];
 	u_char	src[MAXDLADDR];
@@ -924,8 +858,7 @@ printdlunitdataind(dlp)
 	(void) printf("src %s\n", src);
 }
 
-printdluderrorind(dlp)
-	union	DL_primitives	*dlp;
+printdluderrorind(union DL_primitives *dlp)
 {
 	u_char	addr[MAXDLADDR];
 
@@ -941,8 +874,7 @@ printdluderrorind(dlp)
 	(void) printf("addr %s\n", addr);
 }
 
-printdltestreq(dlp)
-	union	DL_primitives	*dlp;
+printdltestreq(union DL_primitives *dlp)
 {
 	u_char	addr[MAXDLADDR];
 
@@ -956,8 +888,7 @@ printdltestreq(dlp)
 	(void) printf("dest_addr %s\n", addr);
 }
 
-printdltestind(dlp)
-	union	DL_primitives	*dlp;
+printdltestind(union DL_primitives *dlp)
 {
 	u_char	dest[MAXDLADDR];
 	u_char	src[MAXDLADDR];
@@ -978,8 +909,7 @@ printdltestind(dlp)
 	(void) printf("src_addr %s\n", src);
 }
 
-printdltestres(dlp)
-	union	DL_primitives	*dlp;
+printdltestres(union DL_primitives *dlp)
 {
 	u_char	dest[MAXDLADDR];
 
@@ -993,8 +923,7 @@ printdltestres(dlp)
 	(void) printf("dest_addr %s\n", dest);
 }
 
-printdltestcon(dlp)
-	union	DL_primitives	*dlp;
+printdltestcon(union DL_primitives *dlp)
 {
 	u_char	dest[MAXDLADDR];
 	u_char	src[MAXDLADDR];
@@ -1015,8 +944,7 @@ printdltestcon(dlp)
 	(void) printf("src_addr %s\n", src);
 }
 
-printdlxidreq(dlp)
-	union	DL_primitives	*dlp;
+printdlxidreq(union DL_primitives *dlp)
 {
 	u_char	dest[MAXDLADDR];
 
@@ -1030,8 +958,7 @@ printdlxidreq(dlp)
 	(void) printf("dest_addr %s\n", dest);
 }
 
-printdlxidind(dlp)
-	union	DL_primitives	*dlp;
+printdlxidind(dlpunion DL_primitives *)
 {
 	u_char	dest[MAXDLADDR];
 	u_char	src[MAXDLADDR];
@@ -1052,8 +979,7 @@ printdlxidind(dlp)
 	(void) printf("src_addr %s\n", src);
 }
 
-printdlxidres(dlp)
-	union	DL_primitives	*dlp;
+printdlxidres(union DL_primitives *dlp)
 {
 	u_char	dest[MAXDLADDR];
 
@@ -1067,8 +993,7 @@ printdlxidres(dlp)
 	(void) printf("dest_addr %s\n", dest);
 }
 
-printdlxidcon(dlp)
-	union	DL_primitives	*dlp;
+printdlxidcon(union DL_primitives *dlp)
 {
 	u_char	dest[MAXDLADDR];
 	u_char	src[MAXDLADDR];
@@ -1089,8 +1014,7 @@ printdlxidcon(dlp)
 	(void) printf("src_addr %s\n", src);
 }
 
-printdludqosreq(dlp)
-	union	DL_primitives	*dlp;
+printdludqosreq(union DL_primitives *dlp)
 {
 	(void) printf("DL_UDQOS_REQ:  qos_length %d qos_offset %d\n",
 		dlp->udqos_req.dl_qos_length,
@@ -1100,10 +1024,7 @@ printdludqosreq(dlp)
 /*
  * Return string.
  */
-addrtostring(addr, length, s)
-	u_char	*addr;
-	u_long	length;
-	u_char	*s;
+addrtostring(u_char *addr, u_long length, u_char *s)
 {
 	int	i;
 
@@ -1118,9 +1039,7 @@ addrtostring(addr, length, s)
 /*
  * Return length
  */
-stringtoaddr(sp, addr)
-	char	*sp;
-	char	*addr;
+stringtoaddr(char *sp, char *addr)
 {
 	int	n = 0;
 	char	*p;
@@ -1142,8 +1061,7 @@ stringtoaddr(sp, addr)
 
 
 static char
-hexnibble(c)
-	char	c;
+hexnibble(char c)
 {
 	static	char	hextab[] = {
 		'0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
@@ -1154,8 +1072,7 @@ hexnibble(c)
 }
 
 char*
-dlprim(prim)
-	u_long	prim;
+dlprim(u_long prim)
 {
 	static	char	primbuf[80];
 
@@ -1195,8 +1112,7 @@ dlprim(prim)
 
 
 char*
-dlstate(state)
-	u_long	state;
+dlstate(u_long state)
 {
 	static	char	statebuf[80];
 
@@ -1229,8 +1145,7 @@ dlstate(state)
 }
 
 char*
-dlerrno(errno)
-	u_long	errno;
+dlerrno(u_long errno)
 {
 	static	char	errnobuf[80];
 
@@ -1271,8 +1186,7 @@ dlerrno(errno)
 }
 
 char*
-dlpromisclevel(level)
-	u_long	level;
+dlpromisclevel(u_long level)
 {
 	static	char	levelbuf[80];
 
@@ -1287,8 +1201,7 @@ dlpromisclevel(level)
 }
 
 char*
-dlservicemode(servicemode)
-	u_long	servicemode;
+dlservicemode(u_long servicemode)
 {
 	static	char	servicemodebuf[80];
 
@@ -1304,8 +1217,7 @@ dlservicemode(servicemode)
 }
 
 char*
-dlstyle(style)
-	long	style;
+dlstyle(long style)
 {
 	static	char	stylebuf[80];
 
@@ -1319,8 +1231,7 @@ dlstyle(style)
 }
 
 char*
-dlmactype(media)
-	u_long	media;
+dlmactype(u_long media)
 {
 	static	char	mediabuf[80];
 
@@ -1340,28 +1251,21 @@ dlmactype(media)
 }
 
 /*VARARGS1*/
-err(fmt, a1, a2, a3, a4)
-	char	*fmt;
-	char	*a1, *a2, *a3, *a4;
+err(char *fmt, char *a1, char *a2, char *a3, char *a4)
 {
 	(void) fprintf(stderr, fmt, a1, a2, a3, a4);
 	(void) fprintf(stderr, "\n");
 	(void) exit(1);
 }
 
-syserr(s)
+syserr(char *s)
 	char	*s;
 {
 	(void) perror(s);
 	exit(1);
 }
 
-strioctl(fd, cmd, timout, len, dp)
-	int	fd;
-	int	cmd;
-	int	timout;
-	int	len;
-	char	*dp;
+strioctl(int fd, int cmd, int timout, int len, char *dp)
 {
 	struct	strioctl	sioc;
 	int	rc;

@@ -520,8 +520,7 @@ log" },
 
 
 static ipf_error_entry_t *
-find_error(errnum)
-	int errnum;
+find_error(int errnum)
 {
 	ipf_error_entry_t *ie;
 
@@ -544,9 +543,7 @@ find_error(errnum)
 }
 
 char *
-ipf_geterror(fd, func)
-	int fd;
-	ioctlfunc_t *func;
+ipf_geterror(int fd, ioctlfunc_t *func)
 {
 	static char text[80];
 	ipf_error_entry_t *ie;
@@ -566,8 +563,7 @@ ipf_geterror(fd, func)
 
 
 char *
-ipf_strerror(errnum)
-	int errnum;
+ipf_strerror(int errnum)
 {
 	static char text[80];
 	ipf_error_entry_t *ie;

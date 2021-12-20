@@ -17,10 +17,7 @@ static	FILE	*mutex_file = NULL;
 static	int	initcount = 0;
 
 void
-eMmutex_enter(mtx, file, line)
-	eMmutex_t *mtx;
-	char *file;
-	int line;
+eMmutex_enter(eMmutex_t *mtx, char *file, int line)
 {
 	if (mutex_debug & 2)
 		fprintf(mutex_file, "%s:%d:eMmutex_enter(%s)\n", file, line,
@@ -42,10 +39,7 @@ eMmutex_enter(mtx, file, line)
 
 
 void
-eMmutex_exit(mtx, file, line)
-	eMmutex_t *mtx;
-	char *file;
-	int line;
+eMmutex_exit(eMmutex_t *mtx, char *file, int line)
 {
 	if (mutex_debug & 2)
 		fprintf(mutex_file, "%s:%d:eMmutex_exit(%s)\n", file, line,
@@ -67,11 +61,7 @@ eMmutex_exit(mtx, file, line)
 
 
 void
-eMmutex_init(mtx, who, file, line)
-	eMmutex_t *mtx;
-	char *who;
-	char *file;
-	int line;
+eMmutex_init(eMmutex_t *mtx, char *who, char *file, int line)
 {
 	if (mutex_file == NULL && mutex_debug)
 		mutex_file = fopen("ipf_mutex_log", "w");
@@ -123,7 +113,7 @@ eMmutex_destroy(mtx, file, line)
 
 
 void
-ipf_mutex_clean()
+ipf_mutex_clean(void)
 {
 	if (initcount != 0) {
 		if (mutex_file)

@@ -21,10 +21,7 @@ wordtab_t poolfields[] = {
 
 
 void
-printpoolfield(p, ptype, fieldnum)
-	void *p;
-	int ptype;
-	int fieldnum;
+printpoolfield(void *p, int ptype, int fieldnum)
 {
 	addrfamily_t *a;
 	char abuf[80];

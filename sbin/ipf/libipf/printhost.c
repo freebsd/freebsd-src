@@ -10,9 +10,7 @@
 
 
 void
-printhost(family, addr)
-	int	family;
-	u_32_t	*addr;
+printhost(int family, u_32_t *addr)
 {
 #ifdef  USE_INET6
 	char ipbuf[64];

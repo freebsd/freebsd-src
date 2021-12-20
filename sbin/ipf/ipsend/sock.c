@@ -98,10 +98,8 @@ struct	proc	*proc;
 static	struct	kinfo_proc	*getproc(void);
 
 
-int	kmemcpy(buf, pos, n)
-	char	*buf;
-	void	*pos;
-	int	n;
+int
+kmemcpy(char *buf, void *pos, int n)
 {
 	static	int	kfd = -1;
 	off_t	offset = (u_long)pos;
@@ -129,7 +127,8 @@ struct	nlist	names[4] = {
 	{ NULL }
 	};
 
-static struct kinfo_proc *getproc()
+static struct
+kinfo_proc *getproc(void)
 {
 	static	struct	kinfo_proc kp;
 	pid_t	pid = getpid();
@@ -151,9 +150,8 @@ static struct kinfo_proc *getproc()
 }
 
 
-struct	tcpcb	*find_tcp(tfd, ti)
-	int	tfd;
-	struct	tcpiphdr *ti;
+struct tcpcb *
+find_tcp(int tfd, struct  tcpiphdr *ti)
 {
 	struct	tcpcb	*t;
 	struct	inpcb	*i;
@@ -246,11 +244,8 @@ finderror:
 	return NULL;
 }
 
-int	do_socket(dev, mtu, ti, gwip)
-	char	*dev;
-	int	mtu;
-	struct	tcpiphdr *ti;
-	struct	in_addr	gwip;
+int
+do_socket(char *dev, int mtu, struct  tcpiphdr *ti, struct  in_addr gwip)
 {
 	struct	sockaddr_in	rsin, lsin;
 	struct	tcpcb	*t, tcb;

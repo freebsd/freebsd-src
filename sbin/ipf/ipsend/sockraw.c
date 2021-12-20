@@ -34,7 +34,8 @@ static	char	sirix[] = "@(#)sirix.c	1.0 10/9/97 (C)1997 Marc Boucher";
 #endif
 
 
-int	initdevice(char *device, int tout)
+int
+initdevice(char *device, int tout)
 {
 	struct sockaddr s;
 	struct ifreq ifr;

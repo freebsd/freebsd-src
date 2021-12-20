@@ -12,10 +12,7 @@ Microsoft Corp MICROSOFT19 (NET-198-136-97-0-1) 198.137.97.0 - 198.137.97.255
 Microsoft Corp SAVV-S233053-6 (NET-206-79-74-32-1) 206.79.74.32 - 206.79.74.47
  */
 int
-parsewhoisline(line, addrp, maskp)
-	char *line;
-	addrfamily_t *addrp;
-	addrfamily_t *maskp;
+parsewhoisline(char *line, addrfamily_t *addrp, addrfamily_t *maskp)
 {
 	struct in_addr a1, a2;
 	char *src = line;

@@ -16,8 +16,8 @@
  * Given a pointer to an interface in the kernel, return a pointer to a
  * string which is the interface name.
  */
-char *getifname(ptr)
-	struct ifnet *ptr;
+char *
+getifname(struct ifnet *ptr)
 {
 #if SOLARIS
 #  include <sys/mutex.h>

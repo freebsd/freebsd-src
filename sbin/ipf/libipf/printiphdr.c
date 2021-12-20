@@ -10,8 +10,7 @@
 
 
 void
-printiphdr(ip)
-	ip_t *ip;
+printiphdr(ip_t *ip)
 {
 	PRINTF("ip(v=%d,hl=%d,len=%d,tos=%#x,off=%#x,sum=%#x,src=%#x,dst=%#x",
 	       ip->ip_v, ip->ip_hl, ntohs(ip->ip_len), ip->ip_tos,

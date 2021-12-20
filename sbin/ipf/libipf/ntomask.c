@@ -10,9 +10,8 @@
 
 #include "ipf.h"
 
-int ntomask(family, nbits, ap)
-	int family, nbits;
-	u_32_t *ap;
+int
+ntomask(int family, int nbits, u_32_t *ap)
 {
 	u_32_t mask;
 

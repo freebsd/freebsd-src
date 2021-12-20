@@ -9,9 +9,7 @@
 
 
 void
-printpooldata(pool, opts)
-	ip_pool_t *pool;
-	int opts;
+printpooldata(ip_pool_t *pool, int opts)
 {
 
 	if ((opts & OPT_DEBUG) == 0) {

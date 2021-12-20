@@ -27,8 +27,8 @@ struct	ipread	iphex = { hex_open, hex_close, hex_readip, 0 };
 static	FILE	*tfp = NULL;
 static	int	tfd = -1;
 
-static	int	hex_open(fname)
-	char	*fname;
+static int
+hex_open(char *fname)
 {
 	if (tfp && tfd != -1) {
 		rewind(tfp);
@@ -47,7 +47,8 @@ static	int	hex_open(fname)
 }
 
 
-static	int	hex_close()
+static int
+hex_close(void)
 {
 	int	cfd = tfd;
 
@@ -56,10 +57,8 @@ static	int	hex_close()
 }
 
 
-static	int	hex_readip(mb, ifn, dir)
-	mb_t	*mb;
-	char	**ifn;
-	int	*dir;
+static int
+hex_readip(mb_t *mb, char **ifn, int *dir)
 {
 	register char *s, *t, *u;
 	char	line[513];
@@ -153,8 +152,8 @@ static	int	hex_readip(mb, ifn, dir)
 }
 
 
-static	char	*readhex(src, dst)
-register char	*src, *dst;
+static char
+*readhex(register char *src, register char *dst)
 {
 	int	state = 0;
 	char	c;

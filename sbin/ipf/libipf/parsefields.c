@@ -3,9 +3,7 @@
 
 extern int nohdrfields;
 
-wordtab_t *parsefields(table, arg)
-	wordtab_t *table;
-	char *arg;
+wordtab_t *parsefields(wordtab_t *table, char *arg)
 {
 	wordtab_t *f, *fields;
 	char *s, *t;

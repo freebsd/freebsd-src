@@ -14,10 +14,7 @@
 
 
 int
-load_dstlist(dst, iocfunc, nodes)
-	ippool_dst_t *dst;
-	ioctlfunc_t iocfunc;
-	ipf_dstnode_t *nodes;
+load_dstlist(ippool_dst_t *dst, ioctlfunc_t iocfunc, ipf_dstnode_t *nodes)
 {
 	iplookupop_t op;
 	ipf_dstnode_t *a;

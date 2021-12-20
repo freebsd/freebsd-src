@@ -609,10 +609,8 @@ static	wordtab_t	yywords[] = {
 };
 
 
-int ippool_parsefile(fd, filename, iocfunc)
-int fd;
-char *filename;
-ioctlfunc_t iocfunc;
+int
+ippool_parsefile(int fd, char *filename, ioctlfunc_t iocfunc)
 {
 	FILE *fp = NULL;
 	char *s;
@@ -644,10 +642,8 @@ ioctlfunc_t iocfunc;
 }
 
 
-int ippool_parsesome(fd, fp, iocfunc)
-int fd;
-FILE *fp;
-ioctlfunc_t iocfunc;
+int
+ippool_parsesome(int fd, FILE *fp, ioctlfunc_t iocfunc)
 {
 	char *s;
 	int i;
@@ -676,8 +672,7 @@ ioctlfunc_t iocfunc;
 
 
 static iphtent_t *
-add_htablehosts(url)
-char *url;
+add_htablehosts(char *url)
 {
 	iphtent_t *htop, *hbot, *h;
 	alist_t *a, *hlist;
@@ -722,8 +717,7 @@ char *url;
 
 
 static ip_pool_node_t *
-add_poolhosts(url)
-char *url;
+add_poolhosts(char *url)
 {
 	ip_pool_node_t *ptop, *pbot, *p;
 	alist_t *a, *hlist;
@@ -777,8 +771,7 @@ char *url;
 
 
 ip_pool_node_t *
-read_whoisfile(file)
-	char *file;
+read_whoisfile(char *file)
 {
 	ip_pool_node_t *ntop, *ipn, node, *last;
 	char line[1024];
@@ -812,8 +805,7 @@ read_whoisfile(file)
 
 
 static void
-setadflen(afp)
-	addrfamily_t *afp;
+setadflen(addrfamily_t *afp)
 {
 	afp->adf_len = offsetof(addrfamily_t, adf_addr);
 	switch (afp->adf_family)

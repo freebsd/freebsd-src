@@ -10,10 +10,7 @@
 
 
 ip_pool_node_t *
-printpoolnode(np, opts, fields)
-	ip_pool_node_t *np;
-	int opts;
-	wordtab_t *fields;
+printpoolnode(ip_pool_node_t *np, int opts, wordtab_t *fields)
 {
 	int i;
 

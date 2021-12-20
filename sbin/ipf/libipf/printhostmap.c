@@ -11,9 +11,7 @@
 #include "ipf.h"
 
 void
-printhostmap(hmp, hv)
-	hostmap_t *hmp;
-	u_int hv;
+printhostmap(hostmap_t *hmp, u_int hv)
 {
 
 	printactiveaddress(hmp->hm_v, "%s", &hmp->hm_osrcip6, NULL);

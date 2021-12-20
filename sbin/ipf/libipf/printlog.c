@@ -14,8 +14,7 @@
 
 
 void
-printlog(fp)
-	frentry_t *fp;
+printlog(frentry_t *fp)
 {
 	char *s, *u;
 

@@ -1294,11 +1294,8 @@ static	wordtab_t	yywords[] = {
 
 
 int
-ipnat_parsefile(fd, addfunc, ioctlfunc, filename)
-	int fd;
-	addfunc_t addfunc;
-	ioctlfunc_t ioctlfunc;
-	char *filename;
+ipnat_parsefile(int fd, addfunc_t addfunc, ioctlfunc_t ioctlfunc,
+	char *filename)
 {
 	FILE *fp = NULL;
 	int rval;
@@ -1337,11 +1334,8 @@ ipnat_parsefile(fd, addfunc, ioctlfunc, filename)
 
 
 int
-ipnat_parsesome(fd, addfunc, ioctlfunc, fp)
-	int fd;
-	addfunc_t addfunc;
-	ioctlfunc_t ioctlfunc;
-	FILE *fp;
+ipnat_parsesome(int fd, addfunc_t addfunc, ioctlfunc_t ioctlfunc,
+	FILE *fp)
 {
 	char *s;
 	int i;
@@ -1373,7 +1367,7 @@ ipnat_parsesome(fd, addfunc, ioctlfunc, fp)
 
 
 static void
-newnatrule()
+newnatrule(void)
 {
 	ipnat_t *n;
 
@@ -1402,8 +1396,7 @@ newnatrule()
 
 
 static void
-setnatproto(p)
-	int p;
+setnatproto(int p)
 {
 	nat->in_pr[0] = p;
 	nat->in_pr[1] = p;
@@ -1466,10 +1459,7 @@ setnatproto(p)
 
 
 int
-ipnat_addrule(fd, ioctlfunc, ptr)
-	int fd;
-	ioctlfunc_t ioctlfunc;
-	void *ptr;
+ipnat_addrule(int fd, ioctlfunc_t ioctlfunc, void *ptr)
 {
 	ioctlcmd_t add, del;
 	ipfobj_t obj;
@@ -1571,7 +1561,7 @@ setmapifnames()
 
 
 static void
-setrdrifnames()
+setrdrifnames(void)
 {
 	if ((suggest_port == 1) && (nat->in_flags & IPN_TCPUDP) == 0)
 		nat->in_flags |= IPN_TCPUDP;
@@ -1586,8 +1576,7 @@ setrdrifnames()
 
 
 static void
-proxy_setconfig(proxy)
-	int proxy;
+proxy_setconfig(int proxy)
 {
 	if (proxy == IPNY_DNS) {
 		yysetfixeddict(dnswords);
@@ -1596,15 +1585,14 @@ proxy_setconfig(proxy)
 
 
 static void
-proxy_unsetconfig()
+proxy_unsetconfig(void)
 {
 	yyresetdict();
 }
 
 
 static namelist_t *
-proxy_dns_add_pass(prefix, name)
-	char *prefix, *name;
+proxy_dns_add_pass(char *prefix, char *name)
 {
 	namelist_t *n;
 
@@ -1623,8 +1611,7 @@ proxy_dns_add_pass(prefix, name)
 
 
 static namelist_t *
-proxy_dns_add_block(prefix, name)
-	char *prefix, *name;
+proxy_dns_add_block(char *prefix, char *name)
 {
 	namelist_t *n;
 
@@ -1644,10 +1631,7 @@ proxy_dns_add_block(prefix, name)
 
 
 static void
-proxy_addconfig(proxy, proto, conf, list)
-	char *proxy, *conf;
-	int proto;
-	namelist_t *list;
+proxy_addconfig(char *proxy, int proto, char *conf, namelist_t *list)
 {
 	proxyrule_t *pr;
 
@@ -1664,10 +1648,7 @@ proxy_addconfig(proxy, proto, conf, list)
 
 
 static void
-proxy_loadrules(fd, ioctlfunc, rules)
-	int fd;
-	ioctlfunc_t ioctlfunc;
-	proxyrule_t *rules;
+proxy_loadrules(int fd, ioctlfunc_t ioctlfunc, proxyrule_t *rules)
 {
 	proxyrule_t *pr;
 
@@ -1682,12 +1663,8 @@ proxy_loadrules(fd, ioctlfunc, rules)
 
 
 static void
-proxy_loadconfig(fd, ioctlfunc, proxy, proto, conf, list)
-	int fd;
-	ioctlfunc_t ioctlfunc;
-	char *proxy, *conf;
-	int proto;
-	namelist_t *list;
+proxy_loadconfig(int fd, ioctlfunc_t ioctlfunc, char *proxy, int proto,
+	char *conf, namelist_t *list)
 {
 	namelist_t *na;
 	ipfobj_t obj;
@@ -1733,10 +1710,7 @@ proxy_loadconfig(fd, ioctlfunc, proxy, proto, conf, list)
 
 
 static void
-setifname(np, idx, name)
-	ipnat_t **np;
-	int idx;
-	char *name;
+setifname(ipnat_t **np, int idx, char *name)
 {
 	int pos;
 
@@ -1748,9 +1722,7 @@ setifname(np, idx, name)
 
 
 static int
-addname(np, name)
-	ipnat_t **np;
-	char *name;
+addname(ipnat_t **np, char *name)
 {
 	ipnat_t *n;
 	int nlen;
