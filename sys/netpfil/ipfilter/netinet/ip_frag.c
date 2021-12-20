@@ -129,7 +129,7 @@ static ipftuneable_t ipf_frag_tuneables[] = {
 /* use it.                                                                  */
 /* ------------------------------------------------------------------------ */
 int
-ipf_frag_main_load()
+ipf_frag_main_load(void)
 {
 	bzero((char *)&ipfr_block, sizeof(ipfr_block));
 	ipfr_block.fr_flags = FR_BLOCK|FR_QUICK;
@@ -148,7 +148,7 @@ ipf_frag_main_load()
 /* other functions is obvious.                                              */
 /* ------------------------------------------------------------------------ */
 int
-ipf_frag_main_unload()
+ipf_frag_main_unload(void)
 {
 	return 0;
 }
@@ -163,8 +163,7 @@ ipf_frag_main_unload()
 /* ------------------------------------------------------------------------ */
 /*ARGSUSED*/
 void *
-ipf_frag_soft_create(softc)
-	ipf_main_softc_t *softc;
+ipf_frag_soft_create(ipf_main_softc_t *softc)
 {
 	ipf_frag_softc_t *softf;
 
@@ -210,9 +209,7 @@ ipf_frag_soft_create(softc)
 /* Initialise the hash tables for the fragment cache lookups.               */
 /* ------------------------------------------------------------------------ */
 void
-ipf_frag_soft_destroy(softc, arg)
-	ipf_main_softc_t *softc;
-	void *arg;
+ipf_frag_soft_destroy(ipf_main_softc_t *softc, void *arg)
 {
 	ipf_frag_softc_t *softf = arg;
 
@@ -240,9 +237,7 @@ ipf_frag_soft_destroy(softc, arg)
 /* ------------------------------------------------------------------------ */
 /*ARGSUSED*/
 int
-ipf_frag_soft_init(softc, arg)
-	ipf_main_softc_t *softc;
-	void *arg;
+ipf_frag_soft_init(ipf_main_softc_t *softc, void *arg)
 {
 	ipf_frag_softc_t *softf = arg;
 
@@ -284,9 +279,7 @@ ipf_frag_soft_init(softc, arg)
 /* Free all memory allocated whilst running and from initialisation.        */
 /* ------------------------------------------------------------------------ */
 int
-ipf_frag_soft_fini(softc, arg)
-	ipf_main_softc_t *softc;
-	void *arg;
+ipf_frag_soft_fini(ipf_main_softc_t *softc, void *arg)
 {
 	ipf_frag_softc_t *softf = arg;
 
@@ -326,9 +319,7 @@ ipf_frag_soft_fini(softc, arg)
 /* Stub function that allows for external manipulation of ipfr_lock         */
 /* ------------------------------------------------------------------------ */
 void
-ipf_frag_setlock(arg, tmp)
-	void *arg;
-	int tmp;
+ipf_frag_setlock(void *arg, int tmp)
 {
 	ipf_frag_softc_t *softf = arg;
 
@@ -344,8 +335,7 @@ ipf_frag_setlock(arg, tmp)
 /* Updates ipfr_stats with current information and returns a pointer to it  */
 /* ------------------------------------------------------------------------ */
 ipfrstat_t *
-ipf_frag_stats(arg)
-	void *arg;
+ipf_frag_stats(void *arg)
 {
 	ipf_frag_softc_t *softf = arg;
 
@@ -369,19 +359,12 @@ ipf_frag_stats(arg)
 /* If it fails, no lock is held on return.                                  */
 /* ------------------------------------------------------------------------ */
 static ipfr_t *
-ipfr_frag_new(softc, softf, fin, pass, table
+ipfr_frag_new(ipf_main_softc_t *softc, ipf_frag_softc_t *softf,
+	fr_info_t *fin, u_32_t pass, ipfr_t *table[]
 #ifdef USE_MUTEXES
-, lock
+, ipfrwlock_t *lock
 #endif
 )
-	ipf_main_softc_t *softc;
-	ipf_frag_softc_t *softf;
-	fr_info_t *fin;
-	u_32_t pass;
-	ipfr_t *table[];
-#ifdef USE_MUTEXES
-	ipfrwlock_t *lock;
-#endif
 {
 	ipfr_t *fra, frag, *fran;
 	u_int idx, off;
@@ -519,10 +502,7 @@ ipfr_frag_new(softc, softf, fin, pass, table
 /* Add a new entry to the fragment cache table based on the current packet  */
 /* ------------------------------------------------------------------------ */
 int
-ipf_frag_new(softc, fin, pass)
-	ipf_main_softc_t *softc;
-	u_32_t pass;
-	fr_info_t *fin;
+ipf_frag_new(ipf_main_softc_t *softc, fr_info_t *fin, u_32_t pass)
 {
 	ipf_frag_softc_t *softf = softc->ipf_frag_soft;
 	ipfr_t	*fra;
@@ -556,11 +536,8 @@ ipf_frag_new(softc, fin, pass)
 /* the NAT structure for this "session".                                    */
 /* ------------------------------------------------------------------------ */
 int
-ipf_frag_natnew(softc, fin, pass, nat)
-	ipf_main_softc_t *softc;
-	fr_info_t *fin;
-	u_32_t pass;
-	nat_t *nat;
+ipf_frag_natnew(ipf_main_softc_t *softc, fr_info_t *fin, u_32_t pass,
+	nat_t *nat)
 {
 	ipf_frag_softc_t *softf = softc->ipf_frag_soft;
 	ipfr_t	*fra;
@@ -598,9 +575,7 @@ ipf_frag_natnew(softc, fin, pass, nat)
 /* pointer, the new IP ID value.                                            */
 /* ------------------------------------------------------------------------ */
 int
-ipf_frag_ipidnew(fin, ipid)
-	fr_info_t *fin;
-	u_32_t ipid;
+ipf_frag_ipidnew(fr_info_t *fin, u_32_t ipid)
 {
 	ipf_main_softc_t *softc = fin->fin_main_soft;
 	ipf_frag_softc_t *softf = softc->ipf_frag_soft;
@@ -640,18 +615,12 @@ ipf_frag_ipidnew(fin, ipid)
 /* If it fails, no lock is held on return.                                  */
 /* ------------------------------------------------------------------------ */
 static ipfr_t *
-ipf_frag_lookup(softc, softf, fin, table
+ipf_frag_lookup(ipf_main_softc_t *softc, ipf_frag_softc_t *softf,
+	fr_info_t *fin, ipfr_t *table[]
 #ifdef USE_MUTEXES
-, lock
+, ipfrwlock_t *lock
 #endif
 )
-	ipf_main_softc_t *softc;
-	ipf_frag_softc_t *softf;
-	fr_info_t *fin;
-	ipfr_t *table[];
-#ifdef USE_MUTEXES
-	ipfrwlock_t *lock;
-#endif
 {
 	ipfr_t *f, frag;
 	u_int idx;
@@ -813,8 +782,7 @@ ipf_frag_lookup(softc, softf, fin, table
 /* Functional interface for NAT lookups of the NAT fragment cache           */
 /* ------------------------------------------------------------------------ */
 nat_t *
-ipf_frag_natknown(fin)
-	fr_info_t *fin;
+ipf_frag_natknown(fr_info_t *fin)
 {
 	ipf_main_softc_t *softc = fin->fin_main_soft;
 	ipf_frag_softc_t *softf = softc->ipf_frag_soft;
@@ -854,8 +822,7 @@ ipf_frag_natknown(fin)
 /* Functional interface for IP ID lookups of the IP ID fragment cache       */
 /* ------------------------------------------------------------------------ */
 u_32_t
-ipf_frag_ipidknown(fin)
-	fr_info_t *fin;
+ipf_frag_ipidknown(fr_info_t *fin)
 {
 	ipf_main_softc_t *softc = fin->fin_main_soft;
 	ipf_frag_softc_t *softf = softc->ipf_frag_soft;
@@ -892,9 +859,7 @@ ipf_frag_ipidknown(fin)
 /* that if FR_LOGFIRST is set, reset FR_LOG.                                */
 /* ------------------------------------------------------------------------ */
 frentry_t *
-ipf_frag_known(fin, passp)
-	fr_info_t *fin;
-	u_32_t *passp;
+ipf_frag_known(fr_info_t *fin, u_32_t *passp)
 {
 	ipf_main_softc_t *softc = fin->fin_main_soft;
 	ipf_frag_softc_t *softf = softc->ipf_frag_soft;
@@ -952,9 +917,7 @@ ipf_frag_known(fin, passp)
 /* pointer  is found to match ptr, reset it to NULL.                        */
 /* ------------------------------------------------------------------------ */
 void
-ipf_frag_natforget(softc, ptr)
-	ipf_main_softc_t *softc;
-	void *ptr;
+ipf_frag_natforget(ipf_main_softc_t *softc, void *ptr)
 {
 	ipf_frag_softc_t *softf = softc->ipf_frag_soft;
 	ipfr_t	*fr;
@@ -980,9 +943,7 @@ ipf_frag_natforget(softc, ptr)
 /* result of decreasing the reference count.                                */
 /* ------------------------------------------------------------------------ */
 static void
-ipf_frag_delete(softc, fra, tail)
-	ipf_main_softc_t *softc;
-	ipfr_t *fra, ***tail;
+ipf_frag_delete(ipf_main_softc_t *softc, ipfr_t *fra, ipfr_t ***tail)
 {
 	ipf_frag_softc_t *softf = softc->ipf_frag_soft;
 
@@ -1014,9 +975,7 @@ ipf_frag_delete(softc, fra, tail)
 /* Free up a fragment cache entry and bump relevent statistics.             */
 /* ------------------------------------------------------------------------ */
 static void
-ipf_frag_free(softf, fra)
-	ipf_frag_softc_t *softf;
-	ipfr_t *fra;
+ipf_frag_free(ipf_frag_softc_t *softf, ipfr_t *fra)
 {
 	KFREE(fra);
 	FBUMP(ifs_expire);
@@ -1033,8 +992,7 @@ ipf_frag_free(softf, fra)
 /* fragment state stuff first and then the NAT-fragment table.              */
 /* ------------------------------------------------------------------------ */
 void
-ipf_frag_clear(softc)
-	ipf_main_softc_t *softc;
+ipf_frag_clear(ipf_main_softc_t *softc)
 {
 	ipf_frag_softc_t *softf = softc->ipf_frag_soft;
 	ipfr_t	*fra;
@@ -1073,8 +1031,7 @@ ipf_frag_clear(softc)
 /* Expire entries in the fragment cache table that have been there too long */
 /* ------------------------------------------------------------------------ */
 void
-ipf_frag_expire(softc)
-	ipf_main_softc_t *softc;
+ipf_frag_expire(ipf_main_softc_t *softc)
 {
 	ipf_frag_softc_t *softf = softc->ipf_frag_soft;
 	ipfr_t	**fp, *fra;
@@ -1149,10 +1106,8 @@ ipf_frag_expire(softc)
 /* filter rules. The hard work is done by the more generic ipf_frag_next.   */
 /* ------------------------------------------------------------------------ */
 int
-ipf_frag_pkt_next(softc, token, itp)
-	ipf_main_softc_t *softc;
-	ipftoken_t *token;
-	ipfgeniter_t *itp;
+ipf_frag_pkt_next(ipf_main_softc_t *softc, ipftoken_t *token,
+	ipfgeniter_t *itp)
 {
 	ipf_frag_softc_t *softf = softc->ipf_frag_soft;
 
@@ -1176,10 +1131,8 @@ ipf_frag_pkt_next(softc, token, itp)
 /* NAT. The hard work is done by the more generic ipf_frag_next.            */
 /* ------------------------------------------------------------------------ */
 int
-ipf_frag_nat_next(softc, token, itp)
-	ipf_main_softc_t *softc;
-	ipftoken_t *token;
-	ipfgeniter_t *itp;
+ipf_frag_nat_next(ipf_main_softc_t *softc, ipftoken_t *token,
+	ipfgeniter_t *itp)
 {
 	ipf_frag_softc_t *softf = softc->ipf_frag_soft;
 
@@ -1208,18 +1161,12 @@ ipf_frag_nat_next(softc, token, itp)
 /* fragment cache - hence the reason for passing in top and lock.           */
 /* ------------------------------------------------------------------------ */
 static int
-ipf_frag_next(softc, token, itp, top
+ipf_frag_next(ipf_main_softc_t *softc, ipftoken_t *token, ipfgeniter_t *itp,
+	ipfr_t **top
 #ifdef USE_MUTEXES
-, lock
+, ipfrwlock_t *lock
 #endif
 )
-	ipf_main_softc_t *softc;
-	ipftoken_t *token;
-	ipfgeniter_t *itp;
-	ipfr_t **top;
-#ifdef USE_MUTEXES
-	ipfrwlock_t *lock;
-#endif
 {
 	ipfr_t *frag, *next, zero;
 	int error = 0;
@@ -1281,9 +1228,7 @@ ipf_frag_next(softc, token, itp, top
 /* fragment cache entry used by filter rules.                               */
 /* ------------------------------------------------------------------------ */
 void
-ipf_frag_pkt_deref(softc, data)
-	ipf_main_softc_t *softc;
-	void *data;
+ipf_frag_pkt_deref(ipf_main_softc_t *softc, void *data)
 {
 	ipfr_t **frp = data;
 
@@ -1307,9 +1252,7 @@ ipf_frag_pkt_deref(softc, data)
 /* fragment cache entry used by NAT table entries.                          */
 /* ------------------------------------------------------------------------ */
 void
-ipf_frag_nat_deref(softc, data)
-	ipf_main_softc_t *softc;
-	void *data;
+ipf_frag_nat_deref(ipf_main_softc_t *softc, void *data)
 {
 	ipfr_t **frp = data;
 
@@ -1335,16 +1278,11 @@ ipf_frag_nat_deref(softc, data)
 /* to use the pointer it is dropping the reference to.                      */
 /* ------------------------------------------------------------------------ */
 static void
-ipf_frag_deref(arg, frp
+ipf_frag_deref(void *arg, ipfr_t **frp
 #ifdef USE_MUTEXES
-, lock
+, ipfrwlock_t *lock
 #endif
 )
-	void *arg;
-	ipfr_t **frp;
-#ifdef USE_MUTEXES
-	ipfrwlock_t *lock;
-#endif
 {
 	ipf_frag_softc_t *softf = arg;
 	ipfr_t *fra;

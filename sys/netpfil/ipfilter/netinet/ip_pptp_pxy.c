@@ -78,7 +78,7 @@ static	int	ipf_p_pptp_gretimeout = IPF_TTLVAL(120);	/* 2 minutes */
  * PPTP application proxy initialization.
  */
 void
-ipf_p_pptp_main_load()
+ipf_p_pptp_main_load(void)
 {
 	bzero((char *)&pptpfr, sizeof(pptpfr));
 	pptpfr.fr_ref = 1;
@@ -91,7 +91,7 @@ ipf_p_pptp_main_load()
 
 
 void
-ipf_p_pptp_main_unload()
+ipf_p_pptp_main_unload(void)
 {
 	if (pptp_proxy_init == 1) {
 		MUTEX_DESTROY(&pptpfr.fr_lock);
@@ -107,11 +107,7 @@ ipf_p_pptp_main_unload()
  * optimised into puts statements on FreeBSD (this doesn't exist in the kernel)
  */
 int
-ipf_p_pptp_new(arg, fin, aps, nat)
-	void *arg;
-	fr_info_t *fin;
-	ap_session_t *aps;
-	nat_t *nat;
+ipf_p_pptp_new(void *arg, fr_info_t *fin, ap_session_t *aps, nat_t *nat)
 {
 	pptp_pxy_t *pptp;
 	ipnat_t *ipn;
@@ -191,10 +187,7 @@ ipf_p_pptp_new(arg, fin, aps, nat)
 
 
 void
-ipf_p_pptp_donatstate(fin, nat, pptp)
-	fr_info_t *fin;
-	nat_t *nat;
-	pptp_pxy_t *pptp;
+ipf_p_pptp_donatstate(fr_info_t *fin, nat_t *nat, pptp_pxy_t *pptp)
 {
 	ipf_main_softc_t *softc = fin->fin_main_soft;
 	fr_info_t fi;
@@ -279,11 +272,7 @@ ipf_p_pptp_donatstate(fin, nat, pptp)
  * parsing function.
  */
 int
-ipf_p_pptp_nextmessage(fin, nat, pptp, rev)
-	fr_info_t *fin;
-	nat_t *nat;
-	pptp_pxy_t *pptp;
-	int rev;
+ipf_p_pptp_nextmessage(fr_info_t *fin, nat_t *nat, pptp_pxy_t *pptp, int rev)
 {
 	static const char *funcname = "ipf_p_pptp_nextmessage";
 	pptp_side_t *pptps;
@@ -404,11 +393,8 @@ ipf_p_pptp_nextmessage(fin, nat, pptp, rev)
  * handle a complete PPTP message
  */
 int
-ipf_p_pptp_message(fin, nat, pptp, pptps)
-	fr_info_t *fin;
-	nat_t *nat;
-	pptp_pxy_t *pptp;
-	pptp_side_t *pptps;
+ipf_p_pptp_message(fr_info_t *fin, nat_t *nat, pptp_pxy_t *pptp,
+	pptp_side_t *pptps)
 {
 	pptp_hdr_t *hdr = (pptp_hdr_t *)pptps->pptps_buffer;
 
@@ -429,11 +415,8 @@ ipf_p_pptp_message(fin, nat, pptp, pptps)
  * handle a complete PPTP control message
  */
 int
-ipf_p_pptp_mctl(fin, nat, pptp, pptps)
-	fr_info_t *fin;
-	nat_t *nat;
-	pptp_pxy_t *pptp;
-	pptp_side_t *pptps;
+ipf_p_pptp_mctl(fr_info_t *fin, nat_t *nat, pptp_pxy_t *pptp,
+	pptp_side_t *pptps)
 {
 	u_short *buffer = (u_short *)(pptps->pptps_buffer);
 	pptp_side_t *pptpo;
@@ -518,11 +501,7 @@ ipf_p_pptp_mctl(fin, nat, pptp, pptps)
  * we can.  If they have disappeared, recreate them.
  */
 int
-ipf_p_pptp_inout(arg, fin, aps, nat)
-	void *arg;
-	fr_info_t *fin;
-	ap_session_t *aps;
-	nat_t *nat;
+ipf_p_pptp_inout(void *arg, fr_info_t *fin, ap_session_t *aps, nat_t *nat)
 {
 	pptp_pxy_t *pptp;
 	tcphdr_t *tcp;
@@ -552,9 +531,7 @@ ipf_p_pptp_inout(arg, fin, aps, nat)
  * clean up after ourselves.
  */
 void
-ipf_p_pptp_del(softc, aps)
-	ipf_main_softc_t *softc;
-	ap_session_t *aps;
+ipf_p_pptp_del(ipf_main_softc_t *softc, ap_session_t *aps)
 {
 	pptp_pxy_t *pptp;
 

@@ -28,7 +28,7 @@ int	irc_proxy_init = 0;
  * Initialize local structures.
  */
 void
-ipf_p_irc_main_load()
+ipf_p_irc_main_load(void)
 {
 	bzero((char *)&ircnatfr, sizeof(ircnatfr));
 	ircnatfr.fr_ref = 1;
@@ -39,7 +39,7 @@ ipf_p_irc_main_load()
 
 
 void
-ipf_p_irc_main_unload()
+ipf_p_irc_main_unload(void)
 {
 	if (irc_proxy_init == 1) {
 		MUTEX_DESTROY(&ircnatfr.fr_lock);
@@ -65,10 +65,7 @@ const char *ipf_p_irc_dcctypes[] = {
 
 
 int
-ipf_p_irc_complete(ircp, buf, len)
-	ircinfo_t *ircp;
-	char *buf;
-	size_t len;
+ipf_p_irc_complete(ircinfo_t *ircp, char *buf, size_t len)
 {
 	register char *s, c;
 	register size_t i;
@@ -224,11 +221,7 @@ ipf_p_irc_complete(ircp, buf, len)
 
 
 int
-ipf_p_irc_new(arg, fin, aps, nat)
-	void *arg;
-	fr_info_t *fin;
-	ap_session_t *aps;
-	nat_t *nat;
+ipf_p_irc_new(void *arg, fr_info_t *fin, ap_session_t *aps, nat_t *nat)
 {
 	ircinfo_t *irc;
 
@@ -250,9 +243,7 @@ ipf_p_irc_new(arg, fin, aps, nat)
 
 
 int
-ipf_p_irc_send(fin, nat)
-	fr_info_t *fin;
-	nat_t *nat;
+ipf_p_irc_send(fr_info_t *fin, nat_t *nat)
 {
 	char ctcpbuf[IPF_IRCBUFSZ], newbuf[IPF_IRCBUFSZ];
 	tcphdr_t *tcp, tcph, *tcp2 = &tcph;
@@ -431,11 +422,7 @@ ipf_p_irc_send(fin, nat)
 
 
 int
-ipf_p_irc_out(arg, fin, aps, nat)
-	void *arg;
-	fr_info_t *fin;
-	ap_session_t *aps;
-	nat_t *nat;
+ipf_p_irc_out(void *arg, fr_info_t *fin, ap_session_t *aps, nat_t *nat)
 {
 	aps = aps;	/* LINT */
 	return ipf_p_irc_send(fin, nat);
