@@ -10,12 +10,8 @@
 
 
 iphtable_t *
-printhash(hp, copyfunc, name, opts, fields)
-	iphtable_t *hp;
-	copyfunc_t copyfunc;
-	char *name;
-	int opts;
-	wordtab_t *fields;
+printhash( iphtable_t *hp, copyfunc_t copyfunc, char *name, int opts,
+	wordtab_t *fields)
 {
 	iphtent_t *ipep, **table;
 	iphtable_t iph;

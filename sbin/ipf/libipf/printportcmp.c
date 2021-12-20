@@ -12,9 +12,7 @@
 
 
 void
-printportcmp(pr, frp)
-	int	pr;
-	frpcmp_t	*frp;
+printportcmp(int pr, frpcmp_t *frp)
 {
 	static char *pcmp1[] = { "*", "=", "!=", "<", ">", "<=", ">=",
 				 "<>", "><", ":" };

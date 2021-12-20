@@ -15,10 +15,7 @@ static const char rcsid[] = "@(#)$Id: printactiveaddr.c,v 1.3.2.2 2012/07/22 08:
 
 
 void
-printactiveaddress(v, fmt, addr, ifname)
-	int v;
-	char *fmt, *ifname;
-	i6addr_t *addr;
+printactiveaddress(int v, char *fmt, i6addr_t *addr, char *ifname)
 {
 	switch (v)
 	{

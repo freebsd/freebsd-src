@@ -57,9 +57,8 @@ static const char rcsid[] = "@(#)$Id$";
 static	int	timeout;
 
 
-int	initdevice(device, tout)
-	char	*device;
-	int	tout;
+int
+initdevice(char *device, int tout)
 {
 	struct	strioctl si;
 	struct	timeval to;
@@ -114,7 +113,8 @@ int	initdevice(device, tout)
 /*
  * output an IP packet onto a fd opened for /dev/nit
  */
-int	sendip(fd, pkt, len)
+int
+sendip(int fd, char *pkt, int len)
 	int	fd, len;
 	char	*pkt;
 {

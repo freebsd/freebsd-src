@@ -9,10 +9,8 @@
 #include "ipf.h"
 
 void
-printaddr(family, type, base, ifidx, addr, mask)
-	int family, type, ifidx;
-	char *base;
-	u_32_t *addr, *mask;
+printaddr(int family, int type, char *base, int ifidx, u_32_t *addr,
+	u_32_t *mask)
 {
 	char *suffix;
 

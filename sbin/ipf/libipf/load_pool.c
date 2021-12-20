@@ -16,9 +16,7 @@
 
 
 int
-load_pool(plp, iocfunc)
-	ip_pool_t *plp;
-	ioctlfunc_t iocfunc;
+load_pool(ip_pool_t *plp, ioctlfunc_t iocfunc)
 {
 	iplookupop_t op;
 	ip_pool_node_t *a;

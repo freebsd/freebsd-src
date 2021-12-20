@@ -48,9 +48,7 @@ wordtab_t natfields[] = {
 
 
 void
-printnatfield(n, fieldnum)
-	nat_t *n;
-	int fieldnum;
+printnatfield( nat_t *n, int fieldnum)
 {
 	int i;
 

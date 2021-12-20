@@ -1983,11 +1983,8 @@ static	struct	wordtab logwords[] = {
 
 
 
-int ipf_parsefile(fd, addfunc, iocfuncs, filename)
-int fd;
-addfunc_t addfunc;
-ioctlfunc_t *iocfuncs;
-char *filename;
+int
+ipf_parsefile(int fd, addfunc_t addfunc, ioctlfunc_t *iocfuncs, char *filename)
 {
 	FILE *fp = NULL;
 	char *s;
@@ -2019,11 +2016,8 @@ char *filename;
 }
 
 
-int ipf_parsesome(fd, addfunc, iocfuncs, fp)
-int fd;
-addfunc_t addfunc;
-ioctlfunc_t *iocfuncs;
-FILE *fp;
+int
+ipf_parsesome(int fd, addfunc_t addfunc, ioctlfunc_t *iocfuncs, FILE *fp)
 {
 	char *s;
 	int i;
@@ -2054,7 +2048,8 @@ FILE *fp;
 }
 
 
-static void newrule()
+static void
+newrule(void)
 {
 	frentry_t *frn;
 
@@ -2086,7 +2081,8 @@ static void newrule()
 }
 
 
-static void setipftype()
+static void
+setipftype(void)
 {
 	for (fr = frc; fr != NULL; fr = fr->fr_next) {
 		if (fr->fr_type == FR_T_NONE) {
@@ -2111,7 +2107,8 @@ static void setipftype()
 }
 
 
-static frentry_t *addrule()
+static frentry_t *
+addrule(void)
 {
 	frentry_t *f, *f1, *f2;
 	int count;
@@ -2141,9 +2138,7 @@ static frentry_t *addrule()
 
 
 static int
-lookuphost(name, addrp)
-	char *name;
-	i6addr_t *addrp;
+lookuphost(char *name, i6addr_t *addrp)
 {
 	int i;
 
@@ -2169,9 +2164,8 @@ lookuphost(name, addrp)
 }
 
 
-static void dobpf(v, phrase)
-int v;
-char *phrase;
+static void
+dobpf(int v, char *phrase)
 {
 #ifdef IPFILTER_BPF
 	struct bpf_program bpf;
@@ -2264,7 +2258,8 @@ char *phrase;
 }
 
 
-static void resetaddr()
+static void
+resetaddr(void)
 {
 	hashed = 0;
 	pooled = 0;
@@ -2272,8 +2267,8 @@ static void resetaddr()
 }
 
 
-static alist_t *newalist(ptr)
-alist_t *ptr;
+static alist_t *
+newalist(alist_t *ptr)
 {
 	alist_t *al;
 
@@ -2287,8 +2282,7 @@ alist_t *ptr;
 
 
 static int
-makepool(list)
-	alist_t *list;
+makepool(alist_t *list)
 {
 	ip_pool_node_t *n, *top;
 	ip_pool_t pool;
@@ -2344,8 +2338,8 @@ makepool(list)
 }
 
 
-static u_int makehash(list)
-alist_t *list;
+static u_int
+makehash(alist_t *list)
 {
 	iphtent_t *n, *top;
 	iphtable_t iph;
@@ -2393,10 +2387,8 @@ alist_t *list;
 }
 
 
-int ipf_addrule(fd, ioctlfunc, ptr)
-int fd;
-ioctlfunc_t ioctlfunc;
-void *ptr;
+int
+ipf_addrule(int fd, ioctlfunc_t ioctlfunc, void *ptr)
 {
 	ioctlcmd_t add, del;
 	frentry_t *fr;
@@ -2487,22 +2479,24 @@ void *ptr;
 	return 0;
 }
 
-static void setsyslog()
+static void
+setsyslog(void)
 {
 	yysetdict(logwords);
 	yybreakondot = 1;
 }
 
 
-static void unsetsyslog()
+static void
+unsetsyslog(void)
 {
 	yyresetdict();
 	yybreakondot = 0;
 }
 
 
-static void fillgroup(fr)
-frentry_t *fr;
+static void
+fillgroup(frentry_t *fr)
 {
 	frentry_t *f;
 
@@ -2544,8 +2538,8 @@ frentry_t *fr;
 }
 
 
-static void doipfexpr(line)
-char *line;
+static void
+doipfexpr(char *line)
 {
 	int *array;
 	char *error;
@@ -2563,9 +2557,8 @@ char *line;
 }
 
 
-static void do_tuneint(varname, value)
-char *varname;
-int value;
+static void
+do_tuneint(char *varname, int value)
 {
 	char buffer[80];
 
@@ -2577,8 +2570,8 @@ int value;
 }
 
 
-static void do_tunestr(varname, value)
-char *varname, *value;
+static void
+do_tunestr(char *varname, char *value)
 {
 
 	if (!strcasecmp(value, "true")) {
@@ -2591,10 +2584,8 @@ char *varname, *value;
 }
 
 
-static void setifname(frp, idx, name)
-frentry_t **frp;
-int idx;
-char *name;
+static void
+setifname(frentry_t **frp, int idx, char *name)
 {
 	int pos;
 
@@ -2605,9 +2596,8 @@ char *name;
 }
 
 
-static int addname(frp, name)
-frentry_t **frp;
-char *name;
+static int
+addname(frentry_t **frp, char *name)
 {
 	frentry_t *f;
 	int nlen;
@@ -2631,7 +2621,8 @@ char *name;
 }
 
 
-static frentry_t *allocfr()
+static frentry_t *
+allocfr(void)
 {
 	frentry_t *fr;
 
@@ -2654,9 +2645,8 @@ static frentry_t *allocfr()
 }
 
 
-static void setgroup(frp, name)
-frentry_t **frp;
-char *name;
+static void
+setgroup(frentry_t **frp, char *name)
 {
 	int pos;
 
@@ -2667,9 +2657,8 @@ char *name;
 }
 
 
-static void setgrhead(frp, name)
-frentry_t **frp;
-char *name;
+static void
+setgrhead(frentry_t **frp, char *name)
 {
 	int pos;
 
@@ -2680,9 +2669,8 @@ char *name;
 }
 
 
-static void seticmphead(frp, name)
-frentry_t **frp;
-char *name;
+static void
+seticmphead(frentry_t **frp, char *name)
 {
 	int pos;
 
@@ -2694,9 +2682,7 @@ char *name;
 
 
 static void
-build_dstaddr_af(fp, ptr)
-	frentry_t *fp;
-	void *ptr;
+build_dstaddr_af(frentry_t *fp, void *ptr)
 {
 	struct ipp_s *ipp = ptr;
 	frentry_t *f = fp;
@@ -2725,9 +2711,7 @@ build_dstaddr_af(fp, ptr)
 
 
 static void
-build_srcaddr_af(fp, ptr)
-	frentry_t *fp;
-	void *ptr;
+build_srcaddr_af(frentry_t *fp, void *ptr)
 {
 	struct ipp_s *ipp = ptr;
 	frentry_t *f = fp;

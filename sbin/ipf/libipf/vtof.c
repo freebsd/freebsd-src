@@ -1,8 +1,7 @@
 #include "ipf.h"
 
 int
-vtof(version)
-	int version;
+vtof(int version)
 {
 #ifdef USE_INET6
 	if (version == 6)

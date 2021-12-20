@@ -8,8 +8,7 @@
 
 
 void
-printunit(unit)
-	int unit;
+printunit(int unit)
 {
 
 	switch (unit)

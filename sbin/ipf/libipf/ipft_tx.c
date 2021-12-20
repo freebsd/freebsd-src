@@ -44,9 +44,8 @@ int parseipv6(char **, ip6_t *, char **, int *);
  * returns an ip address as a long var as a result of either a DNS lookup or
  * straight inet_addr() call
  */
-static	u_32_t	tx_hostnum(host, resolved)
-	char	*host;
-	int	*resolved;
+static u_32_t
+tx_hostnum(char *host, int *resolved)
 {
 	i6addr_t	ipa;
 
@@ -69,8 +68,8 @@ static	u_32_t	tx_hostnum(host, resolved)
  * find the port number given by the name, either from getservbyname() or
  * straight atoi()
  */
-static	u_short	tx_portnum(name)
-	char	*name;
+static u_short
+tx_portnum(char *name)
 {
 	struct	servent	*sp;
 
@@ -84,8 +83,8 @@ static	u_short	tx_portnum(name)
 }
 
 
-static	int	text_open(fname)
-	char	*fname;
+static int
+text_open(char *fname)
 {
 	if (tfp && tfd != -1) {
 		rewind(tfp);
@@ -104,7 +103,8 @@ static	int	text_open(fname)
 }
 
 
-static	int	text_close()
+static int
+text_close(void)
 {
 	int	cfd = tfd;
 
@@ -113,10 +113,8 @@ static	int	text_close()
 }
 
 
-static	int	text_readip(mb, ifn, dir)
-	mb_t	*mb;
-	char	**ifn;
-	int	*dir;
+static int
+text_readip(mb_t *mb, char **ifn, int *dir)
 {
 	register char *s;
 	char	line[513];
@@ -159,11 +157,8 @@ static	int	text_readip(mb, ifn, dir)
 	return -1;
 }
 
-static	int	parseline(line, ip, ifn, out)
-	char	*line;
-	ip_t	*ip;
-	char	**ifn;
-	int	*out;
+static int
+parseline(char *line, ip_t *ip, char **ifn, int *out)
 {
 	tcphdr_t	th, *tcp = &th;
 	struct	icmp	icmp, *ic = &icmp;
@@ -337,11 +332,8 @@ static	int	parseline(line, ip, ifn, out)
 
 
 #ifdef USE_INET6
-int parseipv6(cpp, ip6, ifn, out)
-	char **cpp;
-	ip6_t *ip6;
-	char **ifn;
-	int *out;
+int
+parseipv6(char **cpp, ip6_t *ip6, char **ifn, int *out)
 {
 	tcphdr_t th, *tcp = &th;
 	struct icmp6_hdr icmp, *ic6 = &icmp;

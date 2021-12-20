@@ -10,12 +10,8 @@
 
 
 iphtent_t *
-printhashnode(iph, ipep, copyfunc, opts, fields)
-	iphtable_t *iph;
-	iphtent_t *ipep;
-	copyfunc_t copyfunc;
-	int opts;
-	wordtab_t *fields;
+printhashnode(iphtable_t *iph, iphtent_t *ipep, copyfunc_t copyfunc, int opts,
+	wordtab_t *fields)
 {
 	iphtent_t ipe;
 	u_int hv;

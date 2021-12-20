@@ -10,9 +10,7 @@
 
 
 void
-printlookup(base, addr, mask)
-	char *base;
-	i6addr_t *addr, *mask;
+printlookup(char *base, i6addr_t *addr, i6addr_t *mask)
 {
 	char name[32];
 

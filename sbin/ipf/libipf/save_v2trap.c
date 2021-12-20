@@ -50,8 +50,7 @@ ipmon_saver_t snmpv2saver = {
 
 
 static int
-snmpv2_match(ctx1, ctx2)
-	void *ctx1, *ctx2;
+snmpv2_match(void *ctx1, void *ctx2)
 {
 	snmpv2_opts_t *s1 = ctx1, *s2 = ctx2;
 
@@ -77,8 +76,7 @@ snmpv2_match(ctx1, ctx2)
 
 
 static void *
-snmpv2_dup(ctx)
-	void *ctx;
+snmpv2_dup(void *ctx)
 {
 	snmpv2_opts_t *s = ctx;
 
@@ -88,8 +86,7 @@ snmpv2_dup(ctx)
 
 
 static void
-snmpv2_print(ctx)
-        void *ctx;
+snmpv2_print(void *ctx)
 {
 	snmpv2_opts_t *snmpv2 = ctx;
 
@@ -205,8 +202,7 @@ snmpv2_parse(char **strings)
 
 
 static void
-snmpv2_destroy(ctx)
-	void *ctx;
+snmpv2_destroy(void *ctx)
 {
 	snmpv2_opts_t *v2 = ctx;
 
@@ -223,9 +219,7 @@ snmpv2_destroy(ctx)
 
 
 static int
-snmpv2_send(ctx, msg)
-	void *ctx;
-	ipmon_msg_t *msg;
+snmpv2_send(void *ctx, ipmon_msg_t *msg)
 {
 	snmpv2_opts_t *v2 = ctx;
 
@@ -233,9 +227,7 @@ snmpv2_send(ctx, msg)
 			     msg->imm_msg, msg->imm_msglen);
 }
 static int
-writelength(buffer, value)
-	u_char *buffer;
-	u_int value;
+writelength(u_char *buffer, u_int value)
 {
 	u_int n = htonl(value);
 	int len;
@@ -262,9 +254,7 @@ writelength(buffer, value)
 
 
 static int
-writeint(buffer, value)
-	u_char *buffer;
-	int value;
+writeint(u_char *buffer, int value)
 {
 	u_char *s = buffer;
 	u_int n = value;
@@ -298,12 +288,8 @@ writeint(buffer, value)
  * 1.3.6.1.4.1.9932.1.1
  */
 static int
-maketrap_v2(community, buffer, bufsize, msg, msglen)
-	char *community;
-	u_char *buffer;
-	int bufsize;
-	u_char *msg;
-	int msglen;
+maketrap_v2(char *community, u_char *buffer, int bufsize, u_char *msg,
+	int msglen)
 {
 	u_char *s = buffer, *t, *pdulen;
 	u_char *varlen;
@@ -442,10 +428,7 @@ maketrap_v2(community, buffer, bufsize, msg, msglen)
 
 
 int
-sendtrap_v2_0(fd, community, msg, msglen)
-	int fd;
-	char *community, *msg;
-	int msglen;
+sendtrap_v2_0(int fd, char *community, char *msg, int msglen)
 {
 
 	u_char buffer[1500];

@@ -9,9 +9,7 @@
 
 
 void
-printhashdata(hp, opts)
-	iphtable_t *hp;
-	int opts;
+printhashdata(iphtable_t *hp, int opts)
 {
 
 	if ((opts & OPT_DEBUG) == 0) {

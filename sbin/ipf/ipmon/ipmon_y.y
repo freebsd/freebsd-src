@@ -302,8 +302,7 @@ static int macflags[17][2] = {
 };
 
 static opt_t *
-new_opt(type)
-	int type;
+new_opt(int type)
 {
 	opt_t *o;
 
@@ -316,9 +315,7 @@ new_opt(type)
 }
 
 static void
-build_action(olist, todo)
-	opt_t *olist;
-	ipmon_doing_t *todo;
+build_action(opt_t *olist, ipmon_doing_t *todo)
 {
 	ipmon_action_t *a;
 	opt_t *o;
@@ -430,9 +427,7 @@ build_action(olist, todo)
 
 
 int
-check_action(buf, log, opts, lvl)
-	char *buf, *log;
-	int opts, lvl;
+check_action(char *buf, char *log, int opts, int lvl)
 {
 	ipmon_action_t *a;
 	struct timeval tv;
@@ -630,8 +625,7 @@ check_action(buf, log, opts, lvl)
 
 
 static void
-free_action(a)
-	ipmon_action_t *a;
+free_action(ipmon_action_t *a)
 {
 	ipmon_doing_t *d;
 
@@ -651,8 +645,7 @@ free_action(a)
 
 
 int
-load_config(file)
-	char *file;
+load_config(char *file)
 {
 	FILE *fp;
 	char *s;
@@ -683,7 +676,7 @@ load_config(file)
 
 
 void
-unload_config()
+unload_config(void)
 {
 	ipmon_saver_int_t *sav, **imsip;
 	ipmon_saver_t *is;
@@ -716,7 +709,7 @@ unload_config()
 
 
 void
-dump_config()
+dump_config(void)
 {
 	ipmon_action_t *a;
 
@@ -729,8 +722,7 @@ dump_config()
 
 
 static void
-print_action(a)
-	ipmon_action_t *a;
+print_action(ipmon_action_t *a)
 {
 	ipmon_doing_t *d;
 
@@ -752,8 +744,7 @@ print_action(a)
 
 
 void *
-add_doing(saver)
-	ipmon_saver_t *saver;
+add_doing(ipmon_saver_t *saver)
 {
 	ipmon_saver_int_t *it;
 
@@ -771,8 +762,7 @@ add_doing(saver)
 
 
 static int
-find_doing(string)
-	char *string;
+find_doing(char *string)
 {
 	ipmon_saver_int_t *it;
 
@@ -785,9 +775,7 @@ find_doing(string)
 
 
 static ipmon_doing_t *
-build_doing(target, options)
-	char *target;
-	char *options;
+build_doing(char *target, char *options)
 {
 	ipmon_saver_int_t *it;
 	char *strarray[2];
@@ -844,8 +832,7 @@ build_doing(target, options)
 
 
 static void
-print_match(a)
-	ipmon_action_t *a;
+print_match(ipmon_action_t *a)
 {
 	char *coma = "";
 
@@ -980,8 +967,7 @@ print_match(a)
 
 
 static int
-install_saver(name, path)
-	char *name, *path;
+install_saver(char *name, char *path)
 {
 	ipmon_saver_int_t *isi;
 	ipmon_saver_t *is;

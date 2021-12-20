@@ -3,9 +3,7 @@
 #include "ipf.h"
 
 void
-ipf_perror(err, string)
-	int err;
-	char *string;
+ipf_perror(int err, char *string)
 {
 	if (err == 0)
 		fprintf(stderr, "%s\n", string);
@@ -14,10 +12,7 @@ ipf_perror(err, string)
 }
 
 int
-ipf_perror_fd(fd, iocfunc, string)
-	int fd;
-	ioctlfunc_t iocfunc;
-	char *string;
+ipf_perror_fd( int fd, ioctlfunc_t iocfunc, char *string)
 {
 	int save;
 	int realerr;
@@ -34,9 +29,7 @@ ipf_perror_fd(fd, iocfunc, string)
 }
 
 void
-ipferror(fd, msg)
-	int fd;
-	char *msg;
+ipferror(int fd, char *msg)
 {
 	if (fd >= 0) {
 		ipf_perror_fd(fd, ioctl, msg);

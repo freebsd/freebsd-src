@@ -63,9 +63,7 @@ static	ipf_main_softc_t	*softc = NULL;
 
 
 int
-main(argc,argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	char	*datain, *iface, *ifname, *logout;
 	int	fd, i, dir, c, loaded, dump, hlen;
@@ -354,7 +352,8 @@ int ipftestioctl(int dev, ioctlcmd_t cmd, ...)
 }
 
 
-int ipnattestioctl(int dev, ioctlcmd_t cmd, ...)
+int
+ipnattestioctl(int dev, ioctlcmd_t cmd, ...)
 {
 	caddr_t data;
 	va_list ap;
@@ -377,7 +376,8 @@ int ipnattestioctl(int dev, ioctlcmd_t cmd, ...)
 }
 
 
-int ipstatetestioctl(int dev, ioctlcmd_t cmd, ...)
+int
+ipstatetestioctl(int dev, ioctlcmd_t cmd, ...)
 {
 	caddr_t data;
 	va_list ap;
@@ -400,7 +400,8 @@ int ipstatetestioctl(int dev, ioctlcmd_t cmd, ...)
 }
 
 
-int ipauthtestioctl(int dev, ioctlcmd_t cmd, ...)
+int
+ipauthtestioctl(int dev, ioctlcmd_t cmd, ...)
 {
 	caddr_t data;
 	va_list ap;
@@ -423,7 +424,8 @@ int ipauthtestioctl(int dev, ioctlcmd_t cmd, ...)
 }
 
 
-int ipscantestioctl(int dev, ioctlcmd_t cmd, ...)
+int
+ipscantestioctl(int dev, ioctlcmd_t cmd, ...)
 {
 	caddr_t data;
 	va_list ap;
@@ -446,7 +448,8 @@ int ipscantestioctl(int dev, ioctlcmd_t cmd, ...)
 }
 
 
-int ipsynctestioctl(int dev, ioctlcmd_t cmd, ...)
+int
+ipsynctestioctl(int dev, ioctlcmd_t cmd, ...)
 {
 	caddr_t data;
 	va_list ap;
@@ -469,7 +472,8 @@ int ipsynctestioctl(int dev, ioctlcmd_t cmd, ...)
 }
 
 
-int ipooltestioctl(int dev, ioctlcmd_t cmd, ...)
+int
+ipooltestioctl(int dev, ioctlcmd_t cmd, ...)
 {
 	caddr_t data;
 	va_list ap;
@@ -492,20 +496,16 @@ int ipooltestioctl(int dev, ioctlcmd_t cmd, ...)
 }
 
 
-int kmemcpy(addr, offset, size)
-	char *addr;
-	long offset;
-	int size;
+int
+kmemcpy(char *addr, long offset, int size)
 {
 	bcopy((char *)offset, addr, size);
 	return 0;
 }
 
 
-int kstrncpy(buf, pos, n)
-	char *buf;
-	long pos;
-	int n;
+int
+kstrncpy(char *buf, long pos, int n)
 {
 	char *ptr;
 
@@ -520,8 +520,8 @@ int kstrncpy(buf, pos, n)
 /*
  * Display the built up NAT table rules and mapping entries.
  */
-void dumpnat(arg)
-	void *arg;
+void
+dumpnat(void *arg)
 {
 	ipf_nat_softc_t *softn = arg;
 	hostmap_t *hm;
@@ -544,8 +544,8 @@ void dumpnat(arg)
 }
 
 
-void dumpgroups(softc)
-	ipf_main_softc_t *softc;
+void
+dumpgroups(ipf_main_softc_t *softc)
 {
 	frgroup_t *fg;
 	int i;
@@ -587,8 +587,8 @@ void dumpgroups(softc)
 	dumprules(softc->ipf_acct[1][1]);
 }
 
-void dumprules(rulehead)
-	frentry_t *rulehead;
+void
+dumprules(frentry_t *rulehead)
 {
 	frentry_t *fr;
 
@@ -603,8 +603,8 @@ void dumprules(rulehead)
 }
 
 
-void drain_log(filename)
-	char *filename;
+void
+drain_log(char *filename)
 {
 	char buffer[DEFAULT_IPFLOGSIZE];
 	struct iovec iov;
@@ -645,9 +645,8 @@ void drain_log(filename)
 }
 
 
-void fixv4sums(m, ip)
-	mb_t *m;
-	ip_t *ip;
+void
+fixv4sums(mb_t *m, ip_t *ip)
 {
 	u_char *csump, *hdr, p;
 	fr_info_t tmp;

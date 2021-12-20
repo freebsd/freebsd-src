@@ -8,13 +8,8 @@
 
 
 ippool_dst_t *
-printdstlist(pp, copyfunc, name, opts, nodes, fields)
-	ippool_dst_t *pp;
-	copyfunc_t copyfunc;
-	char *name;
-	int opts;
-	ipf_dstnode_t *nodes;
-	wordtab_t *fields;
+printdstlist( ippool_dst_t *pp, copyfunc_t copyfunc, char *name, int opts,
+	ipf_dstnode_t *nodes, wordtab_t *fields)
 {
 	ipf_dstnode_t *node;
 	ippool_dst_t dst;

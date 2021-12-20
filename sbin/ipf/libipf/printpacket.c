@@ -16,9 +16,7 @@
 
 
 void
-printpacket(dir, m)
-	int dir;
-	mb_t *m;
+printpacket(int dir, mb_t *m)
 {
 	u_short len, off;
 	tcphdr_t *tcp;

@@ -8,8 +8,7 @@
 #include "ipf.h"
 
 void
-alist_free(hosts)
-	alist_t *hosts;
+alist_free(alist_t *hosts)
 {
 	alist_t *a, *next;
 

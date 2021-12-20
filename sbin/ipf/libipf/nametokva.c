@@ -13,9 +13,8 @@
 #include <sys/ioctl.h>
 #include <fcntl.h>
 
-ipfunc_t nametokva(name, iocfunc)
-	char *name;
-	ioctlfunc_t iocfunc;
+ipfunc_t
+nametokva(char *name, ioctlfunc_t iocfunc)
 {
 	ipfunc_resolve_t res;
 	int fd;

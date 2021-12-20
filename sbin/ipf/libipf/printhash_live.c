@@ -10,12 +10,7 @@
 
 
 iphtable_t *
-printhash_live(hp, fd, name, opts, fields)
-	iphtable_t *hp;
-	int fd;
-	char *name;
-	int opts;
-	wordtab_t *fields;
+printhash_live(iphtable_t *hp, int fd, char *name, int opts, wordtab_t *fields)
 {
 	iphtent_t entry, zero;
 	ipflookupiter_t iter;

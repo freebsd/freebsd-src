@@ -60,8 +60,8 @@ static	char		*yytexttostr(int, int);
 static	void		yystrtotext(char *);
 static	char		*yytexttochar(void);
 
-static int yygetc(docont)
-	int docont;
+static int
+yygetc(int docont)
 {
 	int c;
 
@@ -98,8 +98,8 @@ static int yygetc(docont)
 }
 
 
-static void yyunputc(c)
-	int c;
+static void
+yyunputc(int c)
 {
 	if (c == '\n')
 		yylineNum--;
@@ -107,8 +107,8 @@ static void yyunputc(c)
 }
 
 
-static int yyswallow(last)
-	int last;
+static int
+yyswallow(int last)
 {
 	int c;
 
@@ -123,7 +123,8 @@ static int yyswallow(last)
 }
 
 
-static char *yytexttochar()
+static char *
+yytexttochar(void)
 {
 	int i;
 
@@ -134,8 +135,8 @@ static char *yytexttochar()
 }
 
 
-static void yystrtotext(str)
-	char *str;
+static void
+yystrtotext(char *str)
 {
 	int len;
 	char *s;
@@ -150,8 +151,8 @@ static void yystrtotext(str)
 }
 
 
-static char *yytexttostr(offset, max)
-	int offset, max;
+static char *
+yytexttostr(int offset, int max)
 {
 	char *str;
 	int i;
@@ -174,7 +175,8 @@ static char *yytexttostr(offset, max)
 }
 
 
-int yylex()
+int
+yylex(void)
 {
 	static int prior = 0;
 	static int priornum = 0;
@@ -616,8 +618,8 @@ static wordtab_t *yyfindkey(key)
 }
 
 
-char *yykeytostr(num)
-	int num;
+char *
+yykeytostr(int num)
 {
 	wordtab_t *w;
 
@@ -631,8 +633,8 @@ char *yykeytostr(num)
 }
 
 
-wordtab_t *yysettab(words)
-	wordtab_t *words;
+wordtab_t *
+yysettab(wordtab_t *words)
 {
 	wordtab_t *save;
 
@@ -642,8 +644,8 @@ wordtab_t *yysettab(words)
 }
 
 
-void yyerror(msg)
-	char *msg;
+void
+yyerror(char *msg)
 {
 	char *txt, letter[2];
 	int freetxt = 0;
@@ -669,8 +671,8 @@ void yyerror(msg)
 }
 
 
-void yysetfixeddict(newdict)
-	wordtab_t *newdict;
+void
+yysetfixeddict(wordtab_t *newdict)
 {
 	if (yydebug)
 		printf("yysetfixeddict(%lx)\n", (u_long)newdict);
@@ -688,8 +690,8 @@ void yysetfixeddict(newdict)
 }
 
 
-void yysetdict(newdict)
-	wordtab_t *newdict;
+void
+yysetdict(wordtab_t *newdict)
 {
 	if (yydebug)
 		printf("yysetdict(%lx)\n", (u_long)newdict);
@@ -705,7 +707,8 @@ void yysetdict(newdict)
 		printf("yysavedepth++ => %d\n", yysavedepth);
 }
 
-void yyresetdict()
+void
+yyresetdict(void)
 {
 	if (yydebug)
 		printf("yyresetdict(%d)\n", yysavedepth);
@@ -720,9 +723,8 @@ void yyresetdict()
 
 
 #ifdef	TEST_LEXER
-int main(argc, argv)
-	int argc;
-	char *argv[];
+int
+main(int argc, char *argv[])
 {
 	int n;
 

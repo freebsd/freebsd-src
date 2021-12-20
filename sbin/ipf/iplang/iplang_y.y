@@ -615,9 +615,7 @@ char *pr, *name;
 }
 
 
-struct ether_addr *geteaddr(arg, buf)
-char *arg;
-struct ether_addr *buf;
+struct ether_addr *geteaddr(char *arg, struct ether_addr *buf)
 {
 	struct ether_addr *e;
 
@@ -635,8 +633,7 @@ struct ether_addr *buf;
 }
 
 
-void *new_header(type)
-int type;
+void *new_header(int type)
 {
 	aniphdr_t *aip, *oip = canip;
 	int	sz = 0;
@@ -676,7 +673,7 @@ int type;
 }
 
 
-void free_aniplist()
+void free_aniplist(void)
 {
 	aniphdr_t *aip, **aipp = &aniphead;
 
@@ -688,8 +685,7 @@ void free_aniplist()
 }
 
 
-void inc_anipheaders(inc)
-int inc;
+void inc_anipheaders(int inc)
 {
 	aniphdr_t *aip;
 
@@ -703,15 +699,14 @@ int inc;
 }
 
 
-void new_data()
+void new_data(void)
 {
 	(void) new_header(-1);
 	canip->ah_len = 0;
 }
 
 
-void set_datalen(arg)
-char **arg;
+void set_datalen(char **arg)
 {
 	int	len;
 
@@ -722,8 +717,7 @@ char **arg;
 }
 
 
-void set_data(arg)
-char **arg;
+void set_data(char **arg)
 {
 	u_char *s = (u_char *)*arg, *t = (u_char *)canip->ah_data, c;
 	int len = 0, todo = 0, quote = 0, val = 0;
@@ -793,8 +787,7 @@ char **arg;
 }
 
 
-void set_datafile(arg)
-char **arg;
+void set_datafile(char **arg)
 {
 	struct stat sb;
 	char *file = *arg;
@@ -826,7 +819,7 @@ char **arg;
 }
 
 
-void new_packet()
+void new_packet(void)
 {
 	static	u_short	id = 0;
 
@@ -857,8 +850,7 @@ char **arg;
 }
 
 
-void set_ipv4src(arg)
-char **arg;
+void set_ipv4src(char **arg)
 {
 	ip->ip_src = getipv4addr(*arg);
 	free(*arg);
@@ -866,8 +858,7 @@ char **arg;
 }
 
 
-void set_ipv4dst(arg)
-char **arg;
+void set_ipv4dst(char **arg)
 {
 	ip->ip_dst = getipv4addr(*arg);
 	free(*arg);
@@ -875,8 +866,7 @@ char **arg;
 }
 
 
-void set_ipv4off(arg)
-char **arg;
+void set_ipv4off(char **arg)
 {
 	ip->ip_off = htons(strtol(*arg, NULL, 0));
 	free(*arg);
@@ -884,8 +874,7 @@ char **arg;
 }
 
 
-void set_ipv4v(arg)
-char **arg;
+void set_ipv4v(char **arg)
 {
 	ip->ip_v = strtol(*arg, NULL, 0);
 	free(*arg);
@@ -893,8 +882,7 @@ char **arg;
 }
 
 
-void set_ipv4hl(arg)
-char **arg;
+void set_ipv4hl(char **arg)
 {
 	int newhl, inc;
 
@@ -908,8 +896,7 @@ char **arg;
 }
 
 
-void set_ipv4ttl(arg)
-char **arg;
+void set_ipv4ttl(char **arg)
 {
 	ip->ip_ttl = strtol(*arg, NULL, 0);
 	free(*arg);
@@ -917,8 +904,7 @@ char **arg;
 }
 
 
-void set_ipv4tos(arg)
-char **arg;
+void set_ipv4tos(char **arg)
 {
 	ip->ip_tos = strtol(*arg, NULL, 0);
 	free(*arg);
@@ -926,8 +912,7 @@ char **arg;
 }
 
 
-void set_ipv4id(arg)
-char **arg;
+void set_ipv4id(char **arg)
 {
 	ip->ip_id = htons(strtol(*arg, NULL, 0));
 	free(*arg);
@@ -935,8 +920,7 @@ char **arg;
 }
 
 
-void set_ipv4sum(arg)
-char **arg;
+void set_ipv4sum(char **arg)
 {
 	ip->ip_sum = strtol(*arg, NULL, 0);
 	free(*arg);
@@ -944,8 +928,7 @@ char **arg;
 }
 
 
-void set_ipv4len(arg)
-char **arg;
+void set_ipv4len(char **arg)
 {
 	int len;
 
@@ -957,7 +940,7 @@ char **arg;
 }
 
 
-void new_tcpheader()
+void new_tcpheader(void)
 {
 
 	if ((ip->ip_p) && (ip->ip_p != IPPROTO_TCP)) {
@@ -972,8 +955,7 @@ void new_tcpheader()
 }
 
 
-void set_tcpsport(arg)
-char **arg;
+void set_tcpsport(char **arg)
 {
 	u_short *port;
 	char *pr;
@@ -992,8 +974,7 @@ char **arg;
 }
 
 
-void set_tcpdport(arg)
-char **arg;
+void set_tcpdport(char **arg)
 {
 	u_short *port;
 	char *pr;
@@ -1012,8 +993,7 @@ char **arg;
 }
 
 
-void set_tcpseq(arg)
-char **arg;
+void set_tcpseq(char **arg)
 {
 	tcp->th_seq = htonl(strtol(*arg, NULL, 0));
 	free(*arg);
@@ -1021,8 +1001,7 @@ char **arg;
 }
 
 
-void set_tcpack(arg)
-char **arg;
+void set_tcpack(char **arg)
 {
 	tcp->th_ack = htonl(strtol(*arg, NULL, 0));
 	free(*arg);
@@ -1030,8 +1009,7 @@ char **arg;
 }
 
 
-void set_tcpoff(arg)
-char **arg;
+void set_tcpoff(char **arg)
 {
 	int	off;
 
@@ -1043,8 +1021,7 @@ char **arg;
 }
 
 
-void set_tcpurp(arg)
-char **arg;
+void set_tcpurp(char **arg)
 {
 	tcp->th_urp = htons(strtol(*arg, NULL, 0));
 	free(*arg);
@@ -1052,8 +1029,7 @@ char **arg;
 }
 
 
-void set_tcpwin(arg)
-char **arg;
+void set_tcpwin(char **arg)
 {
 	tcp->th_win = htons(strtol(*arg, NULL, 0));
 	free(*arg);
@@ -1061,8 +1037,7 @@ char **arg;
 }
 
 
-void set_tcpsum(arg)
-char **arg;
+void set_tcpsum(char **arg)
 {
 	tcp->th_sum = strtol(*arg, NULL, 0);
 	free(*arg);
@@ -1070,8 +1045,7 @@ char **arg;
 }
 
 
-void set_tcpflags(arg)
-char **arg;
+void set_tcpflags(char **arg)
 {
 	static	char	flags[] = "ASURPF";
 	static	int	flagv[] = { TH_ACK, TH_SYN, TH_URG, TH_RST, TH_PUSH,
@@ -1093,9 +1067,7 @@ char **arg;
 }
 
 
-void set_tcpopt(state, arg)
-int state;
-char **arg;
+void set_tcpopt(int state, char **arg)
 {
 	u_char *s;
 	int val, len, val2, pad, optval;
@@ -1173,7 +1145,7 @@ char **arg;
 }
 
 
-void end_tcpopt()
+void end_tcpopt(void)
 {
 	int pad;
 	char *s = (char *)tcp;
@@ -1205,7 +1177,7 @@ void end_tcpopt()
 }
 
 
-void new_udpheader()
+void new_udpheader(void)
 {
 	if ((ip->ip_p) && (ip->ip_p != IPPROTO_UDP)) {
 		fprintf(stderr, "protocol %d specified with UDP!\n", ip->ip_p);
@@ -1231,8 +1203,7 @@ char **arg;
 }
 
 
-void set_udpsum(arg)
-char **arg;
+void set_udpsum(char **arg)
 {
 	udp->uh_sum = strtol(*arg, NULL, 0);
 	free(*arg);
@@ -1240,7 +1211,7 @@ char **arg;
 }
 
 
-void prep_packet()
+void prep_packet(void)
 {
 	iface_t *ifp;
 	struct in_addr gwip;
@@ -1265,7 +1236,7 @@ void prep_packet()
 }
 
 
-void packet_done()
+void packet_done(void)
 {
 	char    outline[80];
 	int     i, j, k;
@@ -1321,7 +1292,7 @@ void packet_done()
 }
 
 
-void new_interface()
+void new_interface(void)
 {
 	cifp = (iface_t *)calloc(1, sizeof(iface_t));
 	*iftail = cifp;
@@ -1330,7 +1301,7 @@ void new_interface()
 }
 
 
-void check_interface()
+void check_interface(void)
 {
 	if (!cifp->if_name || !*cifp->if_name)
 		fprintf(stderr, "No interface name given!\n");
@@ -1340,23 +1311,20 @@ void check_interface()
 }
 
 
-void set_ifname(arg)
-char **arg;
+void set_ifname(char **arg)
 {
 	cifp->if_name = *arg;
 	*arg = NULL;
 }
 
 
-void set_ifmtu(arg)
-int arg;
+void set_ifmtu(int arg)
 {
 	cifp->if_MTU = arg;
 }
 
 
-void set_ifv4addr(arg)
-char **arg;
+void set_ifv4addr(char **arg)
 {
 	cifp->if_addr = getipv4addr(*arg);
 	free(*arg);
@@ -1364,8 +1332,7 @@ char **arg;
 }
 
 
-void set_ifeaddr(arg)
-char **arg;
+void set_ifeaddr(char **arg)
 {
 	(void) geteaddr(*arg, &cifp->if_eaddr);
 	free(*arg);
@@ -1373,7 +1340,7 @@ char **arg;
 }
 
 
-void new_arp()
+void new_arp(void)
 {
 	carp = (arp_t *)calloc(1, sizeof(arp_t));
 	*arptail = carp;
@@ -1381,8 +1348,7 @@ void new_arp()
 }
 
 
-void set_arpeaddr(arg)
-char **arg;
+void set_arpeaddr(char **arg)
 {
 	(void) geteaddr(*arg, &carp->arp_eaddr);
 	free(*arg);
@@ -1390,8 +1356,7 @@ char **arg;
 }
 
 
-void set_arpv4addr(arg)
-char **arg;
+void set_arpv4addr(char **arg)
 {
 	carp->arp_addr = getipv4addr(*arg);
 	free(*arg);
@@ -1399,9 +1364,7 @@ char **arg;
 }
 
 
-int arp_getipv4(ip, addr)
-char *ip;
-char *addr;
+int arp_getipv4(char *ip, char *addr)
 {
 	arp_t *a;
 
@@ -1414,15 +1377,14 @@ char *addr;
 }
 
 
-void reset_send()
+void reset_send(void)
 {
 	sending.snd_if = iflist;
 	sending.snd_gw = defrouter;
 }
 
 
-void set_sendif(arg)
-char **arg;
+void set_sendif(char **arg)
 {
 	iface_t	*ifp;
 
@@ -1437,8 +1399,7 @@ char **arg;
 }
 
 
-void set_sendvia(arg)
-char **arg;
+void set_sendvia(char **arg)
 {
 	sending.snd_gw = getipv4addr(*arg);
 	free(*arg);
@@ -1446,8 +1407,7 @@ char **arg;
 }
 
 
-void set_defaultrouter(arg)
-char **arg;
+void set_defaultrouter(char **arg)
 {
 	defrouter = getipv4addr(*arg);
 	free(*arg);
@@ -1455,7 +1415,7 @@ char **arg;
 }
 
 
-void new_icmpheader()
+void new_icmpheader(void)
 {
 	if ((ip->ip_p) && (ip->ip_p != IPPROTO_ICMP)) {
 		fprintf(stderr, "protocol %d specified with ICMP!\n",
@@ -1467,22 +1427,19 @@ void new_icmpheader()
 }
 
 
-void set_icmpcode(code)
-int code;
+void set_icmpcode(int code)
 {
 	icmp->icmp_code = code;
 }
 
 
-void set_icmptype(type)
-int type;
+void set_icmptype(int type)
 {
 	icmp->icmp_type = type;
 }
 
 
-void set_icmpcodetok(code)
-char **code;
+void set_icmpcodetok(char **code)
 {
 	char	*s;
 	int	i;
@@ -1499,8 +1456,7 @@ char **code;
 }
 
 
-void set_icmptypetok(type)
-char **type;
+void set_icmptypetok(char **type)
 {
 	char	*s;
 	int	i, done = 0;
@@ -1518,51 +1474,43 @@ char **type;
 }
 
 
-void set_icmpid(arg)
-int arg;
+void set_icmpid(int arg)
 {
 	icmp->icmp_id = htons(arg);
 }
 
 
-void set_icmpseq(arg)
-int arg;
+void set_icmpseq(int arg)
 {
 	icmp->icmp_seq = htons(arg);
 }
 
 
-void set_icmpotime(arg)
-int arg;
+void set_icmpotime(int arg)
 {
 	icmp->icmp_otime = htonl(arg);
 }
 
 
-void set_icmprtime(arg)
-int arg;
+void set_icmprtime(int arg)
 {
 	icmp->icmp_rtime = htonl(arg);
 }
 
 
-void set_icmpttime(arg)
-int arg;
+void set_icmpttime(int arg)
 {
 	icmp->icmp_ttime = htonl(arg);
 }
 
 
-void set_icmpmtu(arg)
-int arg;
+void set_icmpmtu(int arg)
 {
 	icmp->icmp_nextmtu = htons(arg);
 }
 
 
-void set_redir(redir, arg)
-int redir;
-char **arg;
+void set_redir(int redir, char **arg)
 {
 	icmp->icmp_code = redir;
 	icmp->icmp_gwaddr = getipv4addr(*arg);
@@ -1571,22 +1519,19 @@ char **arg;
 }
 
 
-void set_icmppprob(num)
-int num;
+void set_icmppprob(int num)
 {
 	icmp->icmp_pptr = num;
 }
 
 
-void new_ipv4opt()
+void new_ipv4opt(void)
 {
 	new_header(-2);
 }
 
 
-void add_ipopt(state, ptr)
-int state;
-void *ptr;
+void add_ipopt(int state, void *ptr)
 {
 	struct ipopt_names *io;
 	struct statetoopt *sto;
@@ -1644,7 +1589,7 @@ void *ptr;
 }
 
 
-void end_ipopt()
+void end_ipopt(void)
 {
 	int pad;
 	char *s, *buf = (char *)ip;
@@ -1679,15 +1624,14 @@ void end_ipopt()
 }
 
 
-void set_secclass(arg)
-char **arg;
+void set_secclass(char **arg)
 {
 	sclass = *arg;
 	*arg = NULL;
 }
 
 
-void free_anipheader()
+void free_anipheader(void)
 {
 	aniphdr_t *aip;
 
@@ -1702,7 +1646,7 @@ void free_anipheader()
 }
 
 
-void end_ipv4()
+void end_ipv4(void)
 {
 	aniphdr_t *aip;
 
@@ -1717,7 +1661,7 @@ void end_ipv4()
 }
 
 
-void end_icmp()
+void end_icmp(void)
 {
 	aniphdr_t *aip;
 
@@ -1730,7 +1674,7 @@ void end_icmp()
 }
 
 
-void end_udp()
+void end_udp(void)
 {
 	u_long	sum;
 	aniphdr_t *aip;
@@ -1751,7 +1695,7 @@ void end_udp()
 }
 
 
-void end_tcp()
+void end_tcp(void)
 {
 	u_long	sum;
 	aniphdr_t *aip;
@@ -1772,14 +1716,13 @@ void end_tcp()
 }
 
 
-void end_data()
+void end_data(void)
 {
 	free_anipheader();
 }
 
 
-void iplang(fp)
-FILE *fp;
+void iplang(FILE *fp)
 {
 	yyin = fp;
 
@@ -1790,10 +1733,7 @@ FILE *fp;
 }
 
 
-u_short	c_chksum(buf, len, init)
-u_short	*buf;
-u_int	len;
-u_long	init;
+u_short	c_chksum(u_short *buf, u_int len, u_long init)
 {
 	u_long	sum = init;
 	int	nwords = len >> 1;
@@ -1806,9 +1746,7 @@ u_long	init;
 }
 
 
-u_long	p_chksum(buf,len)
-u_short	*buf;
-u_int	len;
+u_long	p_chksum(u_short *buf, u_int len)
 {
 	u_long	sum = 0;
 	int	nwords = len >> 1;

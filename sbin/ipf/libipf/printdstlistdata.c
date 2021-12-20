@@ -9,9 +9,7 @@
 
 
 void
-printdstlistdata(pool, opts)
-	ippool_dst_t *pool;
-	int opts;
+printdstlistdata( ippool_dst_t *pool, int opts)
 {
 
 	if ((opts & OPT_DEBUG) == 0) {

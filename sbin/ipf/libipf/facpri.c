@@ -74,8 +74,7 @@ table_t	facs[] = {
  * map a facility number to its name
  */
 char *
-fac_toname(facpri)
-	int facpri;
+fac_toname(int facpri)
 {
 	int	i, j, fac;
 
@@ -97,8 +96,7 @@ fac_toname(facpri)
  * map a facility name to its number
  */
 int
-fac_findname(name)
-	char *name;
+fac_findname(char *name)
 {
 	int     i;
 
@@ -122,8 +120,7 @@ table_t	pris[] = {
  * map a facility name to its number
  */
 int
-pri_findname(name)
-	char *name;
+pri_findname(char *name)
 {
 	int     i;
 
@@ -138,8 +135,7 @@ pri_findname(name)
  * map a priority number to its name
  */
 char *
-pri_toname(facpri)
-	int facpri;
+pri_toname(int facpri)
 {
 	int	i, pri;
 

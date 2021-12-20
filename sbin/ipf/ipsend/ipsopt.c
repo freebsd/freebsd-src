@@ -72,11 +72,8 @@ u_short ipseclevel(slevel)
 }
 
 
-int addipopt(op, io, len, class)
-	char *op;
-	struct ipopt_names *io;
-	int len;
-	char *class;
+int
+addipopt(char *op, struct ipopt_names *io, int len, char *class)
 {
 	struct in_addr ipadr;
 	int olen = len, srr = 0;
@@ -143,7 +140,8 @@ int addipopt(op, io, len, class)
 }
 
 
-u_32_t buildopts(cp, op, len)
+u_32_t
+buildopts(char *cp, char *op, int len)
 	char *cp, *op;
 	int len;
 {

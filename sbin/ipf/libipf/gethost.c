@@ -10,10 +10,8 @@
 
 #include "ipf.h"
 
-int gethost(family, name, hostp)
-	int family;
-	char *name;
-	i6addr_t *hostp;
+int
+gethost(int family, char *name, i6addr_t *hostp)
 {
 	struct hostent *h;
 	struct netent *n;

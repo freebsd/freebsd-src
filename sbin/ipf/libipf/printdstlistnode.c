@@ -8,11 +8,8 @@
 
 
 ipf_dstnode_t *
-printdstlistnode(inp, copyfunc, opts, fields)
-	ipf_dstnode_t *inp;
-	copyfunc_t copyfunc;
-	int opts;
-	wordtab_t *fields;
+printdstlistnode(ipf_dstnode_t *inp, copyfunc_t copyfunc, int opts,
+	wordtab_t *fields)
 {
 	ipf_dstnode_t node, *np;
 	int i;

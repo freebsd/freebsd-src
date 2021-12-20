@@ -11,8 +11,10 @@
 #include "ipf.h"
 #include <ctype.h>
 
-int getproto(name)
-	char *name;
+int getproto(char *name);
+
+int
+getproto(char *name)
 {
 	struct protoent *p;
 	char *s;

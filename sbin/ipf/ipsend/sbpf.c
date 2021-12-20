@@ -52,9 +52,8 @@ static	u_char	*buf = NULL;
 static	int	bufsize = 0, timeout = 1;
 
 
-int	initdevice(device, tout)
-	char	*device;
-	int	tout;
+int
+initdevice(char *device, int tout)
 {
 	struct	bpf_version bv;
 	struct	timeval to;
@@ -136,9 +135,8 @@ int	initdevice(device, tout)
 /*
  * output an IP packet onto a fd opened for /dev/bpf
  */
-int	sendip(fd, pkt, len)
-	int	fd, len;
-	char	*pkt;
+int
+sendip(int fd, char *pkt, int len)
 {
 	if (write(fd, pkt, len) == -1)
 	    {

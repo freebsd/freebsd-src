@@ -12,9 +12,7 @@
 
 
 void
-printifname(format, name, ifp)
-	char *format, *name;
-	void *ifp;
+printifname(char *format, char *name, void *ifp)
 {
 	PRINTF("%s%s", format, name);
 	if ((ifp == NULL) && strcmp(name, "-") && strcmp(name, "*"))

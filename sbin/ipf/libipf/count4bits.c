@@ -16,8 +16,8 @@
  * consecutive 1's is different to that passed, return -1, else return #
  * of bits.
  */
-int	count4bits(ip)
-	u_int	ip;
+int
+count4bits(u_int ip)
 {
 	int cnt = 0, i, j;
 	u_int ipn;

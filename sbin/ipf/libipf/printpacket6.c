@@ -15,9 +15,7 @@
  * the inet_ntop() library.
  */
 void
-printpacket6(dir, m)
-	int dir;
-	mb_t *m;
+printpacket6(int dir, mb_t *m)
 {
 	u_char *buf, p;
 	u_short plen, *addrs;

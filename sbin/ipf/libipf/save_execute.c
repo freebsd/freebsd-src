@@ -41,8 +41,7 @@ execute_parse(char **strings)
 
 
 static void
-execute_print(ctx)
-	void *ctx;
+execute_print(void *ctx)
 {
 	execute_opts_t *exe = ctx;
 
@@ -51,8 +50,7 @@ execute_print(ctx)
 
 
 static void
-execute_destroy(ctx)
-	void *ctx;
+execute_destroy(void *ctx)
 {
 	execute_opts_t *exe = ctx;
 
@@ -63,9 +61,7 @@ execute_destroy(ctx)
 
 
 static int
-execute_send(ctx, msg)
-	void *ctx;
-	ipmon_msg_t *msg;
+execute_send(void *ctx, ipmon_msg_t *msg)
 {
 	execute_opts_t *exe = ctx;
 	FILE *fp;

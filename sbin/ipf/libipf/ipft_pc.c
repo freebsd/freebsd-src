@@ -67,8 +67,8 @@ struct	ipread	pcap = { ipcap_open, ipcap_close, ipcap_readip, 0 };
 #define	SWAPSHORT(y)	\
 	( (((y)&0xff)<<8) | (((y)&0xff00)>>8) )
 
-static	void	iswap_hdr(p)
-	fileheader_t	*p;
+static void
+iswap_hdr(fileheader_t *p)
 {
 	p->major = SWAPSHORT(p->major);
 	p->minor = SWAPSHORT(p->minor);
@@ -78,8 +78,8 @@ static	void	iswap_hdr(p)
 	p->type = SWAPLONG(p->type);
 }
 
-static	int	ipcap_open(fname)
-	char	*fname;
+static int
+ipcap_open(char *fname)
 {
 	fileheader_t ph;
 	int fd, i;
@@ -124,7 +124,8 @@ static	int	ipcap_open(fname)
 }
 
 
-static	int	ipcap_close()
+static int
+ipcap_close(void)
 {
 	return close(pfd);
 }
@@ -134,8 +135,8 @@ static	int	ipcap_close()
  * read in the header (and validate) which should be the first record
  * in a pcap file.
  */
-static	int	ipcap_read_rec(rec)
-	packetheader_t *rec;
+static int
+ipcap_read_rec(packetheader_t *rec)
 {
 	int	n, p, i;
 
@@ -170,9 +171,8 @@ static	int	ipcap_read_rec(rec)
  * read an entire pcap packet record.  only the data part is copied into
  * the available buffer, with the number of bytes copied returned.
  */
-static	int	ipcap_read(buf, cnt)
-	char	*buf;
-	int	cnt;
+static int
+ipcap_read(char *buf, int cnt)
 {
 	packetheader_t rec;
 	static	char	*bufp = NULL;
@@ -199,10 +199,8 @@ static	int	ipcap_read(buf, cnt)
 /*
  * return only an IP packet read into buf
  */
-static	int	ipcap_readip(mb, ifn, dir)
-	mb_t	*mb;
-	char	**ifn;
-	int	*dir;
+static int
+ipcap_readip(mb_t *mb, char **ifn, int *dir)
 {
 	static	char	*bufp = NULL;
 	packetheader_t	rec;

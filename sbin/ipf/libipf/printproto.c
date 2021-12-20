@@ -13,10 +13,7 @@ static const char rcsid[] = "@(#)$Id$";
 
 
 void
-printproto(pr, p, np)
-	struct protoent *pr;
-	int p;
-	ipnat_t *np;
+printproto(struct protoent *pr, int p, ipnat_t *np)
 {
 	if (np != NULL) {
 		if ((np->in_flags & IPN_TCPUDP) == IPN_TCPUDP)

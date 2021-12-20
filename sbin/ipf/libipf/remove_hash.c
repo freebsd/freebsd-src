@@ -16,9 +16,7 @@
 
 
 int
-remove_hash(iphp, iocfunc)
-	iphtable_t *iphp;
-	ioctlfunc_t iocfunc;
+remove_hash(iphtable_t *iphp, ioctlfunc_t iocfunc)
 {
 	iplookupop_t op;
 	iphtable_t iph;

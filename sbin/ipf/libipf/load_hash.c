@@ -16,10 +16,7 @@
 
 
 int
-load_hash(iphp, list, iocfunc)
-	iphtable_t *iphp;
-	iphtent_t *list;
-	ioctlfunc_t iocfunc;
+load_hash(iphtable_t *iphp, iphtent_t *list, ioctlfunc_t iocfunc)
 {
 	iplookupop_t op;
 	iphtable_t iph;

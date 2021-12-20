@@ -12,11 +12,7 @@
 
 
 void
-print_toif(family, tag, base, fdp)
-	int family;
-	char *tag;
-	char *base;
-	frdest_t *fdp;
+print_toif(int family, char *tag, char *base, frdest_t *fdp)
 {
 	switch (fdp->fd_type)
 	{

@@ -11,9 +11,8 @@
 #include "ipf.h"
 
 
-void fill6bits(bits, msk)
-	int bits;
-	u_int *msk;
+void
+fill6bits(int bits, u_int *msk)
 {
 	if (bits == 0) {
 		msk[0] = 0;

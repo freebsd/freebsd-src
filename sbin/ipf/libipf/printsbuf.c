@@ -16,8 +16,7 @@
 #include "netinet/ip_scan.h"
 
 void
-printsbuf(buf)
-	char *buf;
+printsbuf(char *buf)
 {
 	u_char *s;
 	int i;
@@ -32,8 +31,7 @@ printsbuf(buf)
 #else
 void printsbuf(char *buf);
 
-void printsbuf(buf)
-	char *buf;
+void printsbuf(char *buf)
 {
 #if 0
 	buf = buf;	/* gcc -Wextra */
