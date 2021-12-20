@@ -37,17 +37,30 @@ __FBSDID("$FreeBSD$");
 #include <stand.h>
 #include <efi.h>
 
+#include "bootstrap.h"
 #include "cache.h"
+
+static long cache_flags;
+#define	CACHE_FLAG_DIC_OFF	(1<<0)
+#define	CACHE_FLAG_IDC_OFF	(1<<1)
 
 static bool
 get_cache_dic(uint64_t ctr)
 {
+	if ((cache_flags & CACHE_FLAG_DIC_OFF) != 0) {
+		return (false);
+	}
+
 	return (CTR_DIC_VAL(ctr) != 0);
 }
 
 static bool
 get_cache_idc(uint64_t ctr)
 {
+	if ((cache_flags & CACHE_FLAG_IDC_OFF) != 0) {
+		return (false);
+	}
+
 	return (CTR_IDC_VAL(ctr) != 0);
 }
 
@@ -112,3 +125,28 @@ cpu_inval_icache(void)
 		    : : : "memory");
 	}
 }
+
+static int
+command_cache_flags(int argc, char *argv[])
+{
+	char *cp;
+	long new_flags;
+
+	if (argc == 3) {
+		if (strcmp(argv[1], "set") == 0) {
+			new_flags = strtol(argv[2], &cp, 0);
+			if (cp[0] != '\0') {
+				printf("Invalid flags\n");
+			} else {
+				printf("Setting cache flags to %#lx\n",
+				    new_flags);
+				cache_flags = new_flags;
+				return (CMD_OK);
+			}
+		}
+	}
+
+	printf("usage: cache_flags set <value>\n");
+	return (CMD_ERROR);
+}
+COMMAND_SET(cache_flags, "cache_flags", "Set cache flags", command_cache_flags);
