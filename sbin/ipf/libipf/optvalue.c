@@ -10,8 +10,8 @@
 #include "ipf.h"
 
 
-u_32_t getoptbyname(optname)
-	char *optname;
+u_32_t
+getoptbyname(char *optname)
 {
 	struct ipopt_names *io;
 
@@ -22,8 +22,8 @@ u_32_t getoptbyname(optname)
 }
 
 
-u_32_t getoptbyvalue(optval)
-	int optval;
+u_32_t
+getoptbyvalue(int optval)
 {
 	struct ipopt_names *io;
 

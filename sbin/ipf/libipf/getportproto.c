@@ -11,9 +11,8 @@
 #include <ctype.h>
 #include "ipf.h"
 
-int getportproto(name, proto)
-	char *name;
-	int proto;
+int
+getportproto(char *name, int proto)
 {
 	struct servent *s;
 	struct protoent *p;

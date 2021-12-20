@@ -40,8 +40,8 @@ static const char rcsid[] = "@(#)$Id$";
 static	kvm_t	*kvm_f = NULL;
 
 
-int	openkmem(kern, core)
-	char	*kern, *core;
+int
+openkmem(char *kern, char *core)
 {
 	kvm_f = kvm_open(kern, core, NULL, O_RDONLY, NULL);
 	if (kvm_f == NULL)
@@ -52,10 +52,8 @@ int	openkmem(kern, core)
 	return kvm_f != NULL;
 }
 
-int	kmemcpy(buf, pos, n)
-	register char	*buf;
-	long	pos;
-	register int	n;
+int
+kmemcpy(register char *buf, long pos, register int n)
 {
 	register int	r;
 
@@ -82,10 +80,8 @@ int	kmemcpy(buf, pos, n)
 	return 0;
 }
 
-int	kstrncpy(buf, pos, n)
-	register char	*buf;
-	long	pos;
-	register int	n;
+int
+kstrncpy(register char *buf, long pos, register int n)
 {
 	register int	r;
 

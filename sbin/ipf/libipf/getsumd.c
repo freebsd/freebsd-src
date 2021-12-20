@@ -10,8 +10,8 @@
 
 #include "ipf.h"
 
-char *getsumd(sum)
-	u_32_t sum;
+char *
+getsumd(u_32_t sum)
 {
 	static char sumdbuf[17];
 

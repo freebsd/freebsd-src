@@ -16,11 +16,7 @@
 
 
 int
-remove_hashnode(unit, name, node, iocfunc)
-	int unit;
-	char *name;
-	iphtent_t *node;
-	ioctlfunc_t iocfunc;
+remove_hashnode(int unit, char *name, iphtent_t *node, ioctlfunc_t iocfunc)
 {
 	iplookupop_t op;
 	iphtent_t ipe;

@@ -24,8 +24,8 @@ struct	ipopt_names	secclass[] = {
 };
 
 
-u_char seclevel(slevel)
-	char *slevel;
+u_char
+seclevel(char *slevel)
 {
 	struct ipopt_names *so;
 
@@ -44,8 +44,8 @@ u_char seclevel(slevel)
 }
 
 
-u_char secbit(class)
-	int class;
+u_char
+secbit(int class)
 {
 	struct ipopt_names *so;
 

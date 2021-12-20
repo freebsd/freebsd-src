@@ -14,12 +14,8 @@
  * the size may be larger than just sizeof().
  */
 ippool_dst_t *
-printdstl_live(d, fd, name, opts, fields)
-	ippool_dst_t *d;
-	int fd;
-	char *name;
-	int opts;
-	wordtab_t *fields;
+printdstl_live( ippool_dst_t *d, int fd, char *name, int opts,
+	wordtab_t *fields)
 {
 	ipf_dstnode_t *entry, *zero;
 	ipflookupiter_t iter;

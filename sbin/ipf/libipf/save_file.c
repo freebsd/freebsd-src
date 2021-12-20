@@ -27,8 +27,7 @@ ipmon_saver_t filesaver = {
 
 
 static void *
-file_parse(strings)
-	char **strings;
+file_parse(char **strings)
 {
 	file_opts_t *ctx;
 
@@ -59,8 +58,7 @@ file_parse(strings)
 
 
 static int
-file_match(ctx1, ctx2)
-	void *ctx1, *ctx2;
+file_match(void *ctx1, void *ctx2)
 {
 	file_opts_t *f1 = ctx1, *f2 = ctx2;
 
@@ -73,8 +71,7 @@ file_match(ctx1, ctx2)
 
 
 static void *
-file_dup(ctx)
-	void *ctx;
+file_dup(void *ctx)
 {
 	file_opts_t *f = ctx;
 
@@ -84,8 +81,7 @@ file_dup(ctx)
 
 
 static void
-file_print(ctx)
-	void *ctx;
+file_print(void *ctx)
 {
 	file_opts_t *file = ctx;
 
@@ -98,8 +94,7 @@ file_print(ctx)
 
 
 static void
-file_destroy(ctx)
-	void *ctx;
+file_destroy(void *ctx)
 {
 	file_opts_t *file = ctx;
 
@@ -114,9 +109,7 @@ file_destroy(ctx)
 
 
 static int
-file_send(ctx, msg)
-	void *ctx;
-	ipmon_msg_t *msg;
+file_send(void *ctx, ipmon_msg_t *msg)
 {
 	file_opts_t *file = ctx;
 

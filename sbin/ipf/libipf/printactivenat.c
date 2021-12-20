@@ -17,10 +17,7 @@ static const char rcsid[] = "@(#)$Id$";
 
 
 void
-printactivenat(nat, opts, ticks)
-	nat_t *nat;
-	int opts;
-	u_long ticks;
+printactivenat(nat_t *nat, int opts, u_long ticks)
 {
 
 	PRINTF("%s", getnattype(nat));

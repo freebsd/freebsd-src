@@ -11,8 +11,7 @@
 #include "ipf.h"
 
 void
-printtunable(tup)
-	ipftune_t *tup;
+printtunable(ipftune_t *tup)
 {
 	PRINTF("%s\tmin %lu\tmax %lu\tcurrent ",
 		tup->ipft_name, tup->ipft_min, tup->ipft_max);

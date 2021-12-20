@@ -185,7 +185,7 @@ char    *msg;
 }
 
 
-void push_proto()
+void push_proto(void)
 {
 	numpr++;
 	if (!prstack)
@@ -197,7 +197,7 @@ void push_proto()
 }
 
 
-void pop_proto()
+void pop_proto(void)
 {
 	numpr--;
 	ipproto = prstack[numpr];
@@ -210,7 +210,7 @@ void pop_proto()
 }
 
 
-int save_token()
+int save_token(void)
 {
 
 	yylval.str = strdup((char *)yytext);
@@ -218,8 +218,7 @@ int save_token()
 }
 
 
-int next_item(nstate)
-int nstate;
+int next_item(int nstate)
 {
 	struct	lwordtab	*wt;
 
@@ -244,8 +243,7 @@ int nstate;
 }
 
 
-int next_state(nstate, fornext)
-int nstate, fornext;
+int next_state(int nstate, int fornext)
 {
 	next = fornext;
 
@@ -304,7 +302,7 @@ int nstate, fornext;
 }
 
 
-void swallow()
+void swallow(void)
 {
 	int c;
 

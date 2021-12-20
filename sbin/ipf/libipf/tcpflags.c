@@ -25,8 +25,7 @@ extern	char	flagset[];
 extern	u_char	flags[];
 
 
-u_char tcpflags(flgs)
-	char *flgs;
+u_char tcpflags(char *flgs)
 {
 	u_char tcpf = 0;
 	char *s, *t;

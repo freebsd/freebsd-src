@@ -16,7 +16,7 @@ char	*string_val = NULL;
 long	pos = 0;
 
 
-void resetlexer()
+void resetlexer(void)
 {
 	string_start = -1;
 	string_end = -1;

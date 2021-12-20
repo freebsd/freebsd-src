@@ -16,12 +16,8 @@
 
 
 int
-load_poolnode(role, name, node, ttl, iocfunc)
-	int role;
-	char *name;
-	ip_pool_node_t *node;
-	int ttl;
-	ioctlfunc_t iocfunc;
+load_poolnode(int role, char *name, ip_pool_node_t *node, int ttl,
+	ioctlfunc_t iocfunc)
 {
 	ip_pool_node_t pn;
 	iplookupop_t op;

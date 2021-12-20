@@ -8,7 +8,8 @@
 
 #include "ipf.h"
 
-mb_t *allocmbt(size_t len)
+mb_t *
+allocmbt(size_t len)
 {
 	mb_t *m;
 

@@ -14,11 +14,8 @@
 
 
 int
-load_dstlistnode(role, name, node, iocfunc)
-	int role;
-	char *name;
-	ipf_dstnode_t *node;
-	ioctlfunc_t iocfunc;
+load_dstlistnode(int role, char *name, ipf_dstnode_t *node,
+	ioctlfunc_t iocfunc)
 {
 	iplookupop_t op;
 	frdest_t *dst;
