@@ -2172,7 +2172,6 @@ dontblock:
 			else
 				m_freem(cm);
 			if (controlp != NULL) {
-				orig_resid = 0;
 				while (*controlp != NULL)
 					controlp = &(*controlp)->m_next;
 			}
