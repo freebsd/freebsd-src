@@ -19,6 +19,7 @@ CRT1OBJS+=	crtbrand.o feature_note.o ignore_init_note.o
 
 ACFLAGS+=	-DLOCORE
 
+CFLAGS+=	-DSTRIP_FBSDID
 CFLAGS+=	-fno-asynchronous-unwind-tables
 CFLAGS+=	-fno-omit-frame-pointer
 CFLAGS+=	-I${.CURDIR:H}/common \
