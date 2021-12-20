@@ -133,9 +133,7 @@ ipf_lookup_t ipf_pool_backend = {
 void treeprint(ip_pool_t *);
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	ip_pool_node_t node;
 	addrfamily_t a, b;
@@ -235,8 +233,7 @@ main(argc, argv)
 
 
 void
-treeprint(ipo)
-	ip_pool_t *ipo;
+treeprint(ip_pool_t *ipo)
 {
 	ip_pool_node_t *c;
 
@@ -257,8 +254,7 @@ treeprint(ipo)
 /* Initialise the routing table data structures where required.             */
 /* ------------------------------------------------------------------------ */
 static void *
-ipf_pool_soft_create(softc)
-	ipf_main_softc_t *softc;
+ipf_pool_soft_create(ipf_main_softc_t *softc)
 {
 	ipf_pool_softc_t *softp;
 
@@ -290,9 +286,7 @@ ipf_pool_soft_create(softc)
 /* Initialise the routing table data structures where required.             */
 /* ------------------------------------------------------------------------ */
 static int
-ipf_pool_soft_init(softc, arg)
-	ipf_main_softc_t *softc;
-	void *arg;
+ipf_pool_soft_init(ipf_main_softc_t *softc, void *arg)
 {
 	ipf_pool_softc_t *softp = arg;
 
@@ -314,9 +308,7 @@ ipf_pool_soft_init(softc, arg)
 /* used to delete the pools one by one to ensure they're properly freed up. */
 /* ------------------------------------------------------------------------ */
 static void
-ipf_pool_soft_fini(softc, arg)
-	ipf_main_softc_t *softc;
-	void *arg;
+ipf_pool_soft_fini(ipf_main_softc_t *softc, void *arg)
 {
 	ipf_pool_softc_t *softp = arg;
 	ip_pool_t *p, *q;
@@ -343,9 +335,7 @@ ipf_pool_soft_fini(softc, arg)
 /* up the pool context too.                                                 */
 /* ------------------------------------------------------------------------ */
 static void
-ipf_pool_soft_destroy(softc, arg)
-	ipf_main_softc_t *softc;
-	void *arg;
+ipf_pool_soft_destroy(ipf_main_softc_t *softc, void *arg)
 {
 	ipf_pool_softc_t *softp = arg;
 
@@ -367,11 +357,8 @@ ipf_pool_soft_destroy(softc, arg)
 /* the address prior to calling for the pair to be added.                   */
 /* ------------------------------------------------------------------------ */
 static int
-ipf_pool_node_add(softc, arg, op, uid)
-	ipf_main_softc_t *softc;
-	void *arg;
-	iplookupop_t *op;
-	int uid;
+ipf_pool_node_add(ipf_main_softc_t *softc, void *arg, iplookupop_t *op,
+	int uid)
 {
 	ip_pool_node_t node, *m;
 	ip_pool_t *p;
@@ -462,11 +449,8 @@ ipf_pool_node_add(softc, arg, op, uid)
 /*                                                                          */
 /* ------------------------------------------------------------------------ */
 static int
-ipf_pool_node_del(softc, arg, op, uid)
-	ipf_main_softc_t *softc;
-	void *arg;
-	iplookupop_t *op;
-	int uid;
+ipf_pool_node_del(ipf_main_softc_t *softc, void *arg, iplookupop_t *op,
+	int uid)
 {
 	ip_pool_node_t node, *m;
 	ip_pool_t *p;
@@ -538,10 +522,7 @@ ipf_pool_node_del(softc, arg, op, uid)
 /*                                                                          */
 /* ------------------------------------------------------------------------ */
 static int
-ipf_pool_table_add(softc, arg, op)
-	ipf_main_softc_t *softc;
-	void *arg;
-	iplookupop_t *op;
+ipf_pool_table_add(ipf_main_softc_t *softc, void *arg, iplookupop_t *op)
 {
 	int err;
 
@@ -566,10 +547,7 @@ ipf_pool_table_add(softc, arg, op)
 /*                                                                          */
 /* ------------------------------------------------------------------------ */
 static int
-ipf_pool_table_del(softc, arg, op)
-	ipf_main_softc_t *softc;
-	void *arg;
-	iplookupop_t *op;
+ipf_pool_table_del(ipf_main_softc_t *softc, void *arg, iplookupop_t *op)
 {
 	return ipf_pool_destroy(softc, arg, op->iplo_unit, op->iplo_name);
 }
@@ -586,10 +564,7 @@ ipf_pool_table_del(softc, arg, op)
 /* pointers as appropriate for later use.                                   */
 /* ------------------------------------------------------------------------ */
 static int
-ipf_pool_stats_get(softc, arg, op)
-	ipf_main_softc_t *softc;
-	void *arg;
-	iplookupop_t *op;
+ipf_pool_stats_get(ipf_main_softc_t *softc, void *arg, iplookupop_t *op)
 {
 	ipf_pool_softc_t *softp = arg;
 	ipf_pool_stat_t stats;
@@ -638,10 +613,7 @@ ipf_pool_stats_get(softc, arg, op)
 /* device, indicated by the unit number.                                    */
 /* ------------------------------------------------------------------------ */
 static void *
-ipf_pool_exists(softp, unit, name)
-	ipf_pool_softc_t *softp;
-	int unit;
-	char *name;
+ipf_pool_exists(ipf_pool_softc_t *softp, int unit, char *name)
 {
 	ip_pool_t *p;
 	int i;
@@ -680,10 +652,7 @@ ipf_pool_exists(softp, unit, name)
 /* pretend it does not exist.                                               */
 /* ------------------------------------------------------------------------ */
 static void *
-ipf_pool_find(arg, unit, name)
-	void *arg;
-	int unit;
-	char *name;
+ipf_pool_find(void *arg, int unit, char *name)
 {
 	ipf_pool_softc_t *softp = arg;
 	ip_pool_t *p;
@@ -705,10 +674,7 @@ ipf_pool_find(arg, unit, name)
 /*                                                                          */
 /* ------------------------------------------------------------------------ */
 static void *
-ipf_pool_select_add_ref(arg, unit, name)
-	void *arg;
-	int unit;
-	char *name;
+ipf_pool_select_add_ref(void *arg, int unit, char *name)
 {
 	ip_pool_t *p;
 
@@ -734,10 +700,8 @@ ipf_pool_select_add_ref(arg, unit, name)
 /* ------------------------------------------------------------------------ */
 extern void printhostmask(int, u_32_t *, u_32_t *);
 static ip_pool_node_t *
-ipf_pool_findeq(softp, ipo, addr, mask)
-	ipf_pool_softc_t *softp;
-	ip_pool_t *ipo;
-	addrfamily_t *addr, *mask;
+ipf_pool_findeq(ipf_pool_softc_t *softp, ip_pool_t *ipo, addrfamily_t *addr,
+	addrfamily_t *mask)
 {
 	ipf_rdx_node_t *n;
 
@@ -758,12 +722,8 @@ ipf_pool_findeq(softp, ipo, addr, mask)
 /* Search the pool for a given address and return a search result.          */
 /* ------------------------------------------------------------------------ */
 static int
-ipf_pool_search(softc, tptr, ipversion, dptr, bytes)
-	ipf_main_softc_t *softc;
-	void *tptr;
-	int ipversion;
-	void *dptr;
-	u_int bytes;
+ipf_pool_search(ipf_main_softc_t *softc, void *tptr, int ipversion, void *dptr,
+	u_int bytes)
 {
 	ipf_rdx_node_t *rn;
 	ip_pool_node_t *m;
@@ -825,11 +785,8 @@ ipf_pool_search(softc, tptr, ipversion, dptr, bytes)
 /* in (addr, mask, info) shold all be stored in the node.                   */
 /* ------------------------------------------------------------------------ */
 static int
-ipf_pool_insert_node(softc, softp, ipo, node)
-	ipf_main_softc_t *softc;
-	ipf_pool_softc_t *softp;
-	ip_pool_t *ipo;
-	struct ip_pool_node *node;
+ipf_pool_insert_node(ipf_main_softc_t *softc, ipf_pool_softc_t *softp,
+	ip_pool_t *ipo, struct ip_pool_node *node)
 {
 	ipf_rdx_node_t *rn;
 	ip_pool_node_t *x;
@@ -940,10 +897,8 @@ ipf_pool_insert_node(softc, softp, ipo, node)
 /* and now want to repopulate it with "new" data.                           */
 /* ------------------------------------------------------------------------ */
 static int
-ipf_pool_create(softc, softp, op)
-	ipf_main_softc_t *softc;
-	ipf_pool_softc_t *softp;
-	iplookupop_t *op;
+ipf_pool_create(ipf_main_softc_t *softc, ipf_pool_softc_t *softp,
+	iplookupop_t *op)
 {
 	char name[FR_GROUPLEN];
 	int poolnum, unit;
@@ -1028,11 +983,8 @@ ipf_pool_create(softc, softp, op)
 /* Remove a node from the pool given by ipo.                                */
 /* ------------------------------------------------------------------------ */
 static int
-ipf_pool_remove_node(softc, softp, ipo, ipe)
-	ipf_main_softc_t *softc;
-	ipf_pool_softc_t *softp;
-	ip_pool_t *ipo;
-	ip_pool_node_t *ipe;
+ipf_pool_remove_node(ipf_main_softc_t *softc, ipf_pool_softc_t *softp,
+	ip_pool_t *ipo, ip_pool_node_t *ipe)
 {
 	void *ptr;
 
@@ -1079,11 +1031,8 @@ ipf_pool_remove_node(softc, softp, ipo, ipe)
 /* assertion that one of the two (ipf_poolrw,ipf_global) is held.           */
 /* ------------------------------------------------------------------------ */
 static int
-ipf_pool_destroy(softc, softp, unit, name)
-	ipf_main_softc_t *softc;
-	ipf_pool_softc_t *softp;
-	int unit;
-	char *name;
+ipf_pool_destroy(ipf_main_softc_t *softc, ipf_pool_softc_t *softp,
+	int unit, char *name)
 {
 	ip_pool_t *ipo;
 
@@ -1120,10 +1069,7 @@ ipf_pool_destroy(softc, softp, unit, name)
 /* assertion that one of the two (ipf_poolrw,ipf_global) is held.           */
 /* ------------------------------------------------------------------------ */
 static size_t
-ipf_pool_flush(softc, arg, fp)
-	ipf_main_softc_t *softc;
-	void *arg;
-	iplookupflush_t *fp;
+ipf_pool_flush(ipf_main_softc_t *softc, void *arg, iplookupflush_t *fp)
 {
 	ipf_pool_softc_t *softp = arg;
 	int i, num = 0, unit, err;
@@ -1161,10 +1107,7 @@ ipf_pool_flush(softc, arg, fp)
 /* assertion that one of the two (ipf_poolrw,ipf_global) is held.           */
 /* ------------------------------------------------------------------------ */
 static void
-ipf_pool_free(softc, softp, ipo)
-	ipf_main_softc_t *softc;
-	ipf_pool_softc_t *softp;
-	ip_pool_t *ipo;
+ipf_pool_free(ipf_main_softc_t *softc, ipf_pool_softc_t *softp, ip_pool_t *ipo)
 {
 
 	ipf_pool_clearnodes(softc, softp, ipo);
@@ -1190,10 +1133,8 @@ ipf_pool_free(softc, softp, ipo)
 /* Deletes all nodes stored in a pool structure.                            */
 /* ------------------------------------------------------------------------ */
 static void
-ipf_pool_clearnodes(softc, softp, ipo)
-	ipf_main_softc_t *softc;
-	ipf_pool_softc_t *softp;
-	ip_pool_t *ipo;
+ipf_pool_clearnodes(ipf_main_softc_t *softc, ipf_pool_softc_t *softp,
+	ip_pool_t *ipo)
 {
 	ip_pool_node_t *n, **next;
 
@@ -1216,9 +1157,7 @@ ipf_pool_clearnodes(softc, softp, ipo)
 /* we arrive at zero known references, free it.                             */
 /* ------------------------------------------------------------------------ */
 static int
-ipf_pool_deref(softc, arg, pool)
-	ipf_main_softc_t *softc;
-	void *arg, *pool;
+ipf_pool_deref(ipf_main_softc_t *softc, void *arg, void *pool)
 {
 	ip_pool_t *ipo = pool;
 
@@ -1245,9 +1184,7 @@ ipf_pool_deref(softc, arg, pool)
 /* it all up and adjust the stats accordingly.                              */
 /* ------------------------------------------------------------------------ */
 static void
-ipf_pool_node_deref(softp, ipn)
-	ipf_pool_softc_t *softp;
-	ip_pool_node_t *ipn;
+ipf_pool_node_deref(ipf_pool_softc_t *softp, ip_pool_node_t *ipn)
 {
 
 	ipn->ipn_ref--;
@@ -1269,11 +1206,8 @@ ipf_pool_node_deref(softp, ipn)
 /*                                                                          */
 /* ------------------------------------------------------------------------ */
 static int
-ipf_pool_iter_next(softc, arg, token, ilp)
-	ipf_main_softc_t *softc;
-	void *arg;
-	ipftoken_t *token;
-	ipflookupiter_t *ilp;
+ipf_pool_iter_next(ipf_main_softc_t *softc, void *arg, ipftoken_t *token,
+	ipflookupiter_t *ilp)
 {
 	ipf_pool_softc_t *softp = arg;
 	ip_pool_node_t *node, zn, *nextnode;
@@ -1393,12 +1327,8 @@ ipf_pool_iter_next(softc, arg, token, ilp)
 /*                                                                          */
 /* ------------------------------------------------------------------------ */
 static int
-ipf_pool_iter_deref(softc, arg, otype, unit, data)
-	ipf_main_softc_t *softc;
-	void *arg;
-	int otype;
-	int unit;
-	void *data;
+ipf_pool_iter_deref(ipf_main_softc_t *softc, void *arg, int otype, int unit,
+	void *data)
 {
 	ipf_pool_softc_t *softp = arg;
 
@@ -1435,9 +1365,7 @@ ipf_pool_iter_deref(softc, arg, otype, unit, data)
 /* nodes to the address pool.                                               */
 /* ------------------------------------------------------------------------ */
 static void
-ipf_pool_expire(softc, arg)
-	ipf_main_softc_t *softc;
-	void *arg;
+ipf_pool_expire(ipf_main_softc_t *softc, void *arg)
 {
 	ipf_pool_softc_t *softp = arg;
 	ip_pool_node_t *n;

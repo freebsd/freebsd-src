@@ -41,8 +41,7 @@ int ipf_p_ipsec_match(fr_info_t *, ap_session_t *, nat_t *);
  * IPSec application proxy initialization.
  */
 void *
-ipf_p_ipsec_soft_create(softc)
-	ipf_main_softc_t *softc;
+ipf_p_ipsec_soft_create(ipf_main_softc_t *softc)
 {
 	ipf_ipsec_softc_t *softi;
 
@@ -62,9 +61,7 @@ ipf_p_ipsec_soft_create(softc)
 
 
 int
-ipf_p_ipsec_soft_init(softc, arg)
-	ipf_main_softc_t *softc;
-	void *arg;
+ipf_p_ipsec_soft_init(ipf_main_softc_t *softc, void *arg)
 {
 	ipf_ipsec_softc_t *softi = arg;
 
@@ -88,9 +85,7 @@ ipf_p_ipsec_soft_init(softc, arg)
 
 
 void
-ipf_p_ipsec_soft_fini(softc, arg)
-	ipf_main_softc_t *softc;
-	void *arg;
+ipf_p_ipsec_soft_fini(ipf_main_softc_t *softc, void *arg)
 {
 	ipf_ipsec_softc_t *softi = arg;
 
@@ -111,9 +106,7 @@ ipf_p_ipsec_soft_fini(softc, arg)
 
 
 void
-ipf_p_ipsec_soft_destroy(softc, arg)
-	ipf_main_softc_t *softc;
-	void *arg;
+ipf_p_ipsec_soft_destroy(ipf_main_softc_t *softc, void *arg)
 {
 	ipf_ipsec_softc_t *softi = arg;
 
@@ -130,11 +123,7 @@ ipf_p_ipsec_soft_destroy(softc, arg)
  * Setup for a new IPSEC proxy.
  */
 int
-ipf_p_ipsec_new(arg, fin, aps, nat)
-	void *arg;
-	fr_info_t *fin;
-	ap_session_t *aps;
-	nat_t *nat;
+ipf_p_ipsec_new(void *arg, fr_info_t *fin, ap_session_t *aps, nat_t *nat)
 {
 	ipf_ipsec_softc_t *softi = arg;
 	ipf_main_softc_t *softc = fin->fin_main_soft;
@@ -266,11 +255,7 @@ ipf_p_ipsec_new(arg, fin, aps, nat)
  * we can.  If they have disappeared, recreate them.
  */
 int
-ipf_p_ipsec_inout(arg, fin, aps, nat)
-	void *arg;
-	fr_info_t *fin;
-	ap_session_t *aps;
-	nat_t *nat;
+ipf_p_ipsec_inout(void *arg, fr_info_t *fin, ap_session_t *aps, nat_t *nat)
 {
 	ipf_ipsec_softc_t *softi = arg;
 	ipf_main_softc_t *softc = fin->fin_main_soft;
@@ -356,10 +341,7 @@ ipf_p_ipsec_inout(arg, fin, aps, nat)
  * UDP/TCP port numbers).
  */
 int
-ipf_p_ipsec_match(fin, aps, nat)
-	fr_info_t *fin;
-	ap_session_t *aps;
-	nat_t *nat;
+ipf_p_ipsec_match(fr_info_t *fin, ap_session_t *aps, nat_t *nat)
 {
 	ipsec_pxy_t *ipsec;
 	u_32_t cookies[4];
@@ -401,9 +383,7 @@ ipf_p_ipsec_match(fin, aps, nat)
  * clean up after ourselves.
  */
 void
-ipf_p_ipsec_del(softc, aps)
-	ipf_main_softc_t *softc;
-	ap_session_t *aps;
+ipf_p_ipsec_del(ipf_main_softc_t *softc, ap_session_t *aps)
 {
 	ipsec_pxy_t *ipsec;
 

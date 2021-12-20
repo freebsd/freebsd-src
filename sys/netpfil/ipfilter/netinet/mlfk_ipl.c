@@ -246,7 +246,7 @@ VNET_SYSINIT(vnet_ipf_init, SI_SUB_PROTO_FIREWALL, SI_ORDER_THIRD,
     vnet_ipf_init, NULL);
 
 static int
-ipf_modload()
+ipf_modload(void)
 {
 	char *c, *str;
 	int i, j, error;
@@ -305,7 +305,7 @@ VNET_SYSUNINIT(vnet_ipf_uninit, SI_SUB_PROTO_FIREWALL, SI_ORDER_THIRD,
     vnet_ipf_uninit, NULL);
 
 static int
-ipf_modunload()
+ipf_modunload(void)
 {
 	int error, i;
 
@@ -473,17 +473,12 @@ ipfpoll(dev_t dev, int events, struct proc *td)
 /*
  * routines below for saving IP headers to buffer
  */
-static int ipfopen(dev, flags
+static int
 #ifdef __FreeBSD__
-, devtype, p)
-	int devtype;
-	struct thread *p;
-	struct cdev *dev;
+ipfopen(struct cdev *dev, int flags, int devtype, struct thread *p)
 #else
-)
-	dev_t dev;
+ipfopen(dev_t dev, int flags)
 #endif
-	int flags;
 {
 	int unit = GET_MINOR(dev);
 	int error;
@@ -513,17 +508,12 @@ static int ipfopen(dev, flags
 }
 
 
-static int ipfclose(dev, flags
+static int
 #ifdef __FreeBSD__
-, devtype, p)
-	int devtype;
-	struct thread *p;
-	struct cdev *dev;
+ipfclose(struct cdev *dev, int flags, int devtype, struct thread *p)
 #else
-)
-	dev_t dev;
+ipfclose(dev_t dev, int flags)
 #endif
-	int flags;
 {
 	int	unit = GET_MINOR(dev);
 

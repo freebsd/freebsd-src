@@ -104,7 +104,7 @@ u_32_t *passp;
 }
 static frentry_t ipfrule_out_;
 
-int ipfrule_add_out_()
+int ipfrule_add_out_(void)
 {
 	int i, j, err = 0, max;
 	frentry_t *fp;
@@ -141,7 +141,7 @@ int ipfrule_add_out_()
 }
 
 
-int ipfrule_remove_out_()
+int ipfrule_remove_out_(void)
 {
 	int err = 0, i;
 	frentry_t *fp;
@@ -173,7 +173,7 @@ int ipfrule_remove_out_()
 }
 static frentry_t ipfrule_in_;
 
-int ipfrule_add_in_()
+int ipfrule_add_in_(void)
 {
 	int i, j, err = 0, max;
 	frentry_t *fp;
@@ -210,7 +210,7 @@ int ipfrule_add_in_()
 }
 
 
-int ipfrule_remove_in_()
+int ipfrule_remove_in_(void)
 {
 	int err = 0, i;
 	frentry_t *fp;
@@ -241,7 +241,7 @@ int ipfrule_remove_in_()
 	return err;
 }
 
-int ipfrule_add()
+int ipfrule_add(void)
 {
 	int err;
 
@@ -255,7 +255,7 @@ int ipfrule_add()
 }
 
 
-int ipfrule_remove()
+int ipfrule_remove(void)
 {
 	int err;
 
