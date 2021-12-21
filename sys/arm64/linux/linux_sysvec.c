@@ -123,10 +123,6 @@ LIN_SDT_PROBE_DEFINE2(sysvec, linux_translate_traps, todo, "int", "int");
 LIN_SDT_PROBE_DEFINE0(sysvec, linux_exec_setregs, todo);
 LIN_SDT_PROBE_DEFINE0(sysvec, linux_copyout_auxargs, todo);
 LIN_SDT_PROBE_DEFINE0(sysvec, linux_elf_fixup, todo);
-LIN_SDT_PROBE_DEFINE0(sysvec, linux_rt_sigreturn, todo);
-LIN_SDT_PROBE_DEFINE0(sysvec, linux_rt_sendsig, todo);
-LIN_SDT_PROBE_DEFINE0(sysvec, linux_vdso_install, todo);
-LIN_SDT_PROBE_DEFINE0(sysvec, linux_vdso_deinstall, todo);
 
 LINUX_VDSO_SYM_CHAR(linux_platform);
 LINUX_VDSO_SYM_INTPTR(kern_timekeep_base);
