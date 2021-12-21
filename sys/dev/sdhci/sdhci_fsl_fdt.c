@@ -219,6 +219,13 @@ static const struct sdhci_fsl_fdt_soc_data sdhci_fsl_fdt_ls1046a_soc_data = {
 	.errata = SDHCI_FSL_UNSUPP_1_8V | SDHCI_FSL_TUNING_ERRATUM_TYPE2,
 };
 
+static const struct sdhci_fsl_fdt_soc_data sdhci_fsl_fdt_lx2160a_soc_data = {
+	.quirks = 0,
+	.baseclk_div = 2,
+	.errata = SDHCI_FSL_UNRELIABLE_PULSE_DET |
+	    SDHCI_FSL_HS400_LIMITED_CLK_DIV,
+};
+
 static const struct sdhci_fsl_fdt_soc_data sdhci_fsl_fdt_gen_data = {
 	.quirks = 0,
 	.baseclk_div = 1,
@@ -790,13 +797,23 @@ sdhci_fsl_fdt_attach(device_t dev)
 	sc = device_get_softc(dev);
 	ocd_data = ofw_bus_search_compatible(dev,
 	    sdhci_fsl_fdt_compat_data)->ocd_data;
-	sc->soc_data = (struct sdhci_fsl_fdt_soc_data *)ocd_data;
 	sc->dev = dev;
-	sc->slot.quirks = sc->soc_data->quirks;
 	sc->flags = 0;
 	host = &sc->slot.host;
-
 	rid = 0;
+
+	/*
+	 * LX2160A needs its own soc_data in order to apply SoC
+	 * specific quriks. Since the controller is identified
+	 * only with a generic compatible string we need to do this dance here.
+	 */
+	if (ofw_bus_node_is_compatible(OF_finddevice("/"), "fsl,lx2160a"))
+		sc->soc_data = &sdhci_fsl_fdt_lx2160a_soc_data;
+	else
+		sc->soc_data = (struct sdhci_fsl_fdt_soc_data *)ocd_data;
+
+	sc->slot.quirks = sc->soc_data->quirks;
+
 	sc->mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
 	    RF_ACTIVE);
 	if (sc->mem_res == NULL) {
