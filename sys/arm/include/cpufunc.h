@@ -54,7 +54,7 @@
 static __inline void
 breakpoint(void)
 {
-	__asm("udf        0xffff");
+	__asm(".word      0xe7ffffff"); /* udf 0xffff */
 }
 
 struct cpu_functions {
@@ -369,7 +369,7 @@ breakpoint(void)
 	 * This matches the instruction used by GDB for software
 	 * breakpoints.
 	 */
-	__asm("udf        0xfdee");
+	__asm(".word      0xe7ffdefe"); /* udf 0xfdee */
 }
 
 #endif	/* _KERNEL */
