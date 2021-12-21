@@ -459,7 +459,7 @@ Do not build
 .Xr cxgbetool 8
 .Pp
 This is a default setting on
-arm/armv6, arm/armv7, powerpc/powerpc, riscv/riscv64 and riscv/riscv64sf.
+arm/armv6, arm/armv7, powerpc/powerpc, powerpc/powerpc64le, riscv/riscv64 and riscv/riscv64sf.
 .It Va WITH_CXGBETOOL
 Build
 .Xr cxgbetool 8
@@ -628,7 +628,7 @@ and
 .Xr efivar 8 .
 .Pp
 This is a default setting on
-powerpc/powerpc and powerpc/powerpc64.
+powerpc/powerpc, powerpc/powerpc64 and powerpc/powerpc64le.
 .It Va WITH_EFI
 Build
 .Xr efivar 3
@@ -719,7 +719,7 @@ Do not build HTML docs.
 Do not build or install HyperV utilities.
 .Pp
 This is a default setting on
-arm/armv6, arm/armv7, arm64/aarch64, powerpc/powerpc, powerpc/powerpc64, riscv/riscv64 and riscv/riscv64sf.
+arm/armv6, arm/armv7, arm64/aarch64, powerpc/powerpc, powerpc/powerpc64, powerpc/powerpc64le, riscv/riscv64 and riscv/riscv64sf.
 .It Va WITH_HYPERV
 Build or install HyperV utilities.
 .Pp
@@ -879,7 +879,7 @@ On 64-bit platforms, do not build 32-bit library set and a
 runtime linker.
 .Pp
 This is a default setting on
-arm/armv6, arm/armv7, arm64/aarch64, i386/i386, powerpc/powerpc, riscv/riscv64 and riscv/riscv64sf.
+arm/armv6, arm/armv7, arm64/aarch64, i386/i386, powerpc/powerpc, powerpc/powerpc64le, riscv/riscv64 and riscv/riscv64sf.
 .It Va WITH_LIBSOFT
 On armv6 only, enable soft float ABI compatibility libraries.
 This option is for transitioning to the new hard float ABI.
@@ -889,7 +889,7 @@ Do not build LLVM's lld linker.
 Do not build the LLDB debugger.
 .Pp
 This is a default setting on
-arm/armv6, arm/armv7, powerpc/powerpc, powerpc/powerpc64, riscv/riscv64 and riscv/riscv64sf.
+arm/armv6, arm/armv7, powerpc/powerpc, powerpc/powerpc64, powerpc/powerpc64le, riscv/riscv64 and riscv/riscv64sf.
 .It Va WITH_LLDB
 Build the LLDB debugger.
 .Pp
@@ -986,7 +986,7 @@ This option is a nop on all other platforms.
 Disable inclusion of GELI crypto support in the boot chain binaries.
 .Pp
 This is a default setting on
-powerpc/powerpc and powerpc/powerpc64.
+powerpc/powerpc, powerpc/powerpc64 and powerpc/powerpc64le.
 .It Va WITH_LOADER_GELI
 Build GELI bootloader support.
 .Pp
@@ -996,7 +996,7 @@ amd64/amd64, arm/armv6, arm/armv7, arm64/aarch64, i386/i386, riscv/riscv64 and r
 Do not build LUA bindings for the boot loader.
 .Pp
 This is a default setting on
-powerpc/powerpc and powerpc/powerpc64.
+powerpc/powerpc, powerpc/powerpc64 and powerpc/powerpc64le.
 .It Va WITH_LOADER_LUA
 Build LUA bindings for the boot loader.
 .Pp
@@ -1011,12 +1011,12 @@ amd64/amd64, arm/armv6, arm/armv7, arm64/aarch64, i386/i386, riscv/riscv64 and r
 Build openfirmware bootloader components.
 .Pp
 This is a default setting on
-powerpc/powerpc and powerpc/powerpc64.
+powerpc/powerpc, powerpc/powerpc64 and powerpc/powerpc64le.
 .It Va WITHOUT_LOADER_UBOOT
 Disable building of ubldr.
 .Pp
 This is a default setting on
-amd64/amd64, arm64/aarch64, i386/i386, riscv/riscv64 and riscv/riscv64sf.
+amd64/amd64, arm64/aarch64, i386/i386, powerpc/powerpc64le, riscv/riscv64 and riscv/riscv64sf.
 .It Va WITH_LOADER_UBOOT
 Build ubldr.
 .Pp
@@ -1188,7 +1188,7 @@ Do not build
 .Xr mlx5tool 8
 .Pp
 This is a default setting on
-arm/armv6, arm/armv7, powerpc/powerpc, riscv/riscv64 and riscv/riscv64sf.
+arm/armv6, arm/armv7, powerpc/powerpc, powerpc/powerpc64le, riscv/riscv64 and riscv/riscv64sf.
 .It Va WITH_MLX5TOOL
 Build
 .Xr mlx5tool 8
@@ -1261,7 +1261,7 @@ arm/armv6, arm/armv7, powerpc/powerpc, riscv/riscv64 and riscv/riscv64sf.
 Build nvme related tools and kernel modules.
 .Pp
 This is a default setting on
-amd64/amd64, arm64/aarch64, i386/i386 and powerpc/powerpc64.
+amd64/amd64, arm64/aarch64, i386/i386, powerpc/powerpc64 and powerpc/powerpc64le.
 .It Va WITHOUT_OFED
 Disable the build of the
 .Dq "OpenFabrics Enterprise Distribution"
@@ -1287,7 +1287,7 @@ arm/armv6, arm/armv7 and powerpc/powerpc.
 Build LLVM's OpenMP runtime.
 .Pp
 This is a default setting on
-amd64/amd64, arm64/aarch64, i386/i386, powerpc/powerpc64, riscv/riscv64 and riscv/riscv64sf.
+amd64/amd64, arm64/aarch64, i386/i386, powerpc/powerpc64, powerpc/powerpc64le, riscv/riscv64 and riscv/riscv64sf.
 .It Va WITHOUT_OPENSSH
 Do not build OpenSSH.
 .It Va WITHOUT_OPENSSL
@@ -1329,7 +1329,7 @@ is set explicitly)
 Do not include kernel TLS support in OpenSSL.
 .Pp
 This is a default setting on
-arm/armv6, arm/armv7, i386/i386, powerpc/powerpc, powerpc/powerpc64, riscv/riscv64 and riscv/riscv64sf.
+arm/armv6, arm/armv7, i386/i386, powerpc/powerpc, powerpc/powerpc64, powerpc/powerpc64le, riscv/riscv64 and riscv/riscv64sf.
 .It Va WITH_OPENSSL_KTLS
 Include kernel TLS support in OpenSSL.
 .Pp
