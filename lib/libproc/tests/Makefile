@@ -14,4 +14,6 @@ LIBADD=	elf proc rtld_db util
 STRIP=
 CFLAGS.target_prog.c+= -O0
 
+CFLAGS.gcc+=	-fdollars-in-identifiers
+
 .include <bsd.test.mk>
