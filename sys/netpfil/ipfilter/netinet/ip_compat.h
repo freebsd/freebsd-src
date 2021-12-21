@@ -282,14 +282,6 @@ typedef union {
 #define	ipf_isw		ipf_lkun_s.ipf_sw
 #define	ipf_magic	ipf_lkun_s.ipf_magic
 
-#if !defined(__GNUC__) || defined(__FreeBSD__)
-# ifndef	INLINE
-#  define	INLINE
-# endif
-#else
-# define	INLINE	__inline__
-#endif
-
 #if defined(__FreeBSD__) && defined(_KERNEL)
      CTASSERT(sizeof(ipfrwlock_t) == KRWLOCK_FILL_SZ);
      CTASSERT(sizeof(ipfmutex_t) == KMUTEX_FILL_SZ);

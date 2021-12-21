@@ -563,7 +563,7 @@ ipf_newisn(fin)
 /*                                                                          */
 /* Returns the next IPv4 ID to use for this packet.                         */
 /* ------------------------------------------------------------------------ */
-INLINE u_short
+inline u_short
 ipf_nextipid(fin)
 	fr_info_t *fin;
 {
@@ -586,7 +586,7 @@ ipf_nextipid(fin)
 }
 
 
-INLINE int
+inline int
 ipf_checkv4sum(fin)
 	fr_info_t *fin;
 {
@@ -603,7 +603,7 @@ ipf_checkv4sum(fin)
 
 
 #ifdef	USE_INET6
-INLINE int
+inline int
 ipf_checkv6sum(fin)
 	fr_info_t *fin;
 {

@@ -120,7 +120,7 @@ extern	int	blockreason;
 #define	LBUMP(x)	softc->x++
 #define	LBUMPD(x, y)	do { softc->x.y++; DT(y); } while (0)
 
-static	INLINE int	ipf_check_ipf(fr_info_t *, frentry_t *, int);
+static	inline int	ipf_check_ipf(fr_info_t *, frentry_t *, int);
 static	u_32_t		ipf_checkcipso(fr_info_t *, u_char *, int);
 static	u_32_t		ipf_checkripso(u_char *);
 static	u_32_t		ipf_decaps(fr_info_t *, u_32_t, int);
@@ -152,16 +152,16 @@ static	int		ipf_grpmapinit(struct ipf_main_softc_s *,
 static	frentry_t	*ipf_nextrule(ipf_main_softc_t *, int, int,
 					   frentry_t *, int);
 static	int		ipf_portcheck(frpcmp_t *, u_32_t);
-static	INLINE int	ipf_pr_ah(fr_info_t *);
-static	INLINE void	ipf_pr_esp(fr_info_t *);
-static	INLINE void	ipf_pr_gre(fr_info_t *);
-static	INLINE void	ipf_pr_udp(fr_info_t *);
-static	INLINE void	ipf_pr_tcp(fr_info_t *);
-static	INLINE void	ipf_pr_icmp(fr_info_t *);
-static	INLINE void	ipf_pr_ipv4hdr(fr_info_t *);
-static	INLINE void	ipf_pr_short(fr_info_t *, int);
-static	INLINE int	ipf_pr_tcpcommon(fr_info_t *);
-static	INLINE int	ipf_pr_udpcommon(fr_info_t *);
+static	inline int	ipf_pr_ah(fr_info_t *);
+static	inline void	ipf_pr_esp(fr_info_t *);
+static	inline void	ipf_pr_gre(fr_info_t *);
+static	inline void	ipf_pr_udp(fr_info_t *);
+static	inline void	ipf_pr_tcp(fr_info_t *);
+static	inline void	ipf_pr_icmp(fr_info_t *);
+static	inline void	ipf_pr_ipv4hdr(fr_info_t *);
+static	inline void	ipf_pr_short(fr_info_t *, int);
+static	inline int	ipf_pr_tcpcommon(fr_info_t *);
+static	inline int	ipf_pr_udpcommon(fr_info_t *);
 static	void		ipf_rule_delete(ipf_main_softc_t *, frentry_t *f,
 					     int, int);
 static	void		ipf_rule_expire_insert(ipf_main_softc_t *,
@@ -392,20 +392,20 @@ static ipftuneable_t ipf_main_tuneables[] = {
  * adding more code to a growing switch statement.
  */
 #ifdef USE_INET6
-static	INLINE int	ipf_pr_ah6(fr_info_t *);
-static	INLINE void	ipf_pr_esp6(fr_info_t *);
-static	INLINE void	ipf_pr_gre6(fr_info_t *);
-static	INLINE void	ipf_pr_udp6(fr_info_t *);
-static	INLINE void	ipf_pr_tcp6(fr_info_t *);
-static	INLINE void	ipf_pr_icmp6(fr_info_t *);
-static	INLINE void	ipf_pr_ipv6hdr(fr_info_t *);
-static	INLINE void	ipf_pr_short6(fr_info_t *, int);
-static	INLINE int	ipf_pr_hopopts6(fr_info_t *);
-static	INLINE int	ipf_pr_mobility6(fr_info_t *);
-static	INLINE int	ipf_pr_routing6(fr_info_t *);
-static	INLINE int	ipf_pr_dstopts6(fr_info_t *);
-static	INLINE int	ipf_pr_fragment6(fr_info_t *);
-static	INLINE struct ip6_ext *ipf_pr_ipv6exthdr(fr_info_t *, int, int);
+static	inline int	ipf_pr_ah6(fr_info_t *);
+static	inline void	ipf_pr_esp6(fr_info_t *);
+static	inline void	ipf_pr_gre6(fr_info_t *);
+static	inline void	ipf_pr_udp6(fr_info_t *);
+static	inline void	ipf_pr_tcp6(fr_info_t *);
+static	inline void	ipf_pr_icmp6(fr_info_t *);
+static	inline void	ipf_pr_ipv6hdr(fr_info_t *);
+static	inline void	ipf_pr_short6(fr_info_t *, int);
+static	inline int	ipf_pr_hopopts6(fr_info_t *);
+static	inline int	ipf_pr_mobility6(fr_info_t *);
+static	inline int	ipf_pr_routing6(fr_info_t *);
+static	inline int	ipf_pr_dstopts6(fr_info_t *);
+static	inline int	ipf_pr_fragment6(fr_info_t *);
+static	inline struct ip6_ext *ipf_pr_ipv6exthdr(fr_info_t *, int, int);
 
 
 /* ------------------------------------------------------------------------ */
@@ -419,7 +419,7 @@ static	INLINE struct ip6_ext *ipf_pr_ipv6exthdr(fr_info_t *, int, int);
 /* for IPv6 and marks the packet with FI_SHORT if so.  See function comment */
 /* for ipf_pr_short() for more details.                                     */
 /* ------------------------------------------------------------------------ */
-static INLINE void
+static inline void
 ipf_pr_short6(fr_info_t *fin, int xmin)
 {
 
@@ -439,7 +439,7 @@ ipf_pr_short6(fr_info_t *fin, int xmin)
 /* analyzer may pullup or free the packet itself so we need to be vigiliant */
 /* of that possibility arising.                                             */
 /* ------------------------------------------------------------------------ */
-static INLINE void
+static inline void
 ipf_pr_ipv6hdr(fr_info_t *fin)
 {
 	ip6_t *ip6 = (ip6_t *)fin->fin_ip;
@@ -610,7 +610,7 @@ ipf_pr_ipv6hdr(fr_info_t *fin)
 /* big enough for it to be in, checking if it is repeated and setting a     */
 /* flag to indicate its presence.                                           */
 /* ------------------------------------------------------------------------ */
-static INLINE struct ip6_ext *
+static inline struct ip6_ext *
 ipf_pr_ipv6exthdr(fr_info_t *fin, int multiple, int proto)
 {
 	ipf_main_softc_t *softc = fin->fin_main_soft;
@@ -687,7 +687,7 @@ ipf_pr_ipv6exthdr(fr_info_t *fin, int multiple, int proto)
 /* IPv6 Only                                                                */
 /* This is function checks pending hop by hop options extension header      */
 /* ------------------------------------------------------------------------ */
-static INLINE int
+static inline int
 ipf_pr_hopopts6(fr_info_t *fin)
 {
 	struct ip6_ext *hdr;
@@ -707,7 +707,7 @@ ipf_pr_hopopts6(fr_info_t *fin)
 /* IPv6 Only                                                                */
 /* This is function checks the IPv6 mobility extension header               */
 /* ------------------------------------------------------------------------ */
-static INLINE int
+static inline int
 ipf_pr_mobility6(fr_info_t *fin)
 {
 	struct ip6_ext *hdr;
@@ -727,7 +727,7 @@ ipf_pr_mobility6(fr_info_t *fin)
 /* IPv6 Only                                                                */
 /* This is function checks pending routing extension header                 */
 /* ------------------------------------------------------------------------ */
-static INLINE int
+static inline int
 ipf_pr_routing6(fr_info_t *fin)
 {
 	struct ip6_routing *hdr;
@@ -790,7 +790,7 @@ ipf_pr_routing6(fr_info_t *fin)
 /* headers must always be in a packet that has the offset field set to 0    */
 /* and no packet is allowed to overlay that where offset = 0.               */
 /* ------------------------------------------------------------------------ */
-static INLINE int
+static inline int
 ipf_pr_fragment6(fr_info_t *fin)
 {
 	ipf_main_softc_t *softc = fin->fin_main_soft;
@@ -848,7 +848,7 @@ ipf_pr_fragment6(fr_info_t *fin)
 /* IPv6 Only                                                                */
 /* This is function checks pending destination options extension header     */
 /* ------------------------------------------------------------------------ */
-static INLINE int
+static inline int
 ipf_pr_dstopts6(fr_info_t *fin)
 {
 	ipf_main_softc_t *softc = fin->fin_main_soft;
@@ -872,7 +872,7 @@ ipf_pr_dstopts6(fr_info_t *fin)
 /* This routine is mainly concerned with determining the minimum valid size */
 /* for an ICMPv6 packet.                                                    */
 /* ------------------------------------------------------------------------ */
-static INLINE void
+static inline void
 ipf_pr_icmp6(fr_info_t *fin)
 {
 	int minicmpsz = sizeof(struct icmp6_hdr);
@@ -959,7 +959,7 @@ ipf_pr_icmp6(fr_info_t *fin)
 /* Analyse the packet for IPv6/UDP properties.                              */
 /* Is not expected to be called for fragmented packets.                     */
 /* ------------------------------------------------------------------------ */
-static INLINE void
+static inline void
 ipf_pr_udp6(fr_info_t *fin)
 {
 
@@ -982,7 +982,7 @@ ipf_pr_udp6(fr_info_t *fin)
 /* Analyse the packet for IPv6/TCP properties.                              */
 /* Is not expected to be called for fragmented packets.                     */
 /* ------------------------------------------------------------------------ */
-static INLINE void
+static inline void
 ipf_pr_tcp6(fr_info_t *fin)
 {
 
@@ -1008,7 +1008,7 @@ ipf_pr_tcp6(fr_info_t *fin)
 /* is 32bits as well, it is not possible(?) to determine the version from a */
 /* simple packet header.                                                    */
 /* ------------------------------------------------------------------------ */
-static INLINE void
+static inline void
 ipf_pr_esp6(fr_info_t *fin)
 {
 
@@ -1031,7 +1031,7 @@ ipf_pr_esp6(fr_info_t *fin)
 /* The minimum length is taken to be the combination of all fields in the   */
 /* header being present and no authentication data (null algorithm used.)   */
 /* ------------------------------------------------------------------------ */
-static INLINE int
+static inline int
 ipf_pr_ah6(fr_info_t *fin)
 {
 	authhdr_t *ah;
@@ -1063,7 +1063,7 @@ ipf_pr_ah6(fr_info_t *fin)
 /*                                                                          */
 /* Analyse the packet for GRE properties.                                   */
 /* ------------------------------------------------------------------------ */
-static INLINE void
+static inline void
 ipf_pr_gre6(fr_info_t *fin)
 {
 	grehdr_t *gre;
@@ -1147,7 +1147,7 @@ ipf_pr_pullup(fr_info_t *fin, int plen)
 /* start within the layer 4 header (hdrmin) or if it is at offset 0, the    */
 /* entire layer 4 header must be present (min).                             */
 /* ------------------------------------------------------------------------ */
-static INLINE void
+static inline void
 ipf_pr_short(fr_info_t *fin, int xmin)
 {
 
@@ -1173,7 +1173,7 @@ ipf_pr_short(fr_info_t *fin, int xmin)
 /*                                                                          */
 /* XXX - other ICMP sanity checks?                                          */
 /* ------------------------------------------------------------------------ */
-static INLINE void
+static inline void
 ipf_pr_icmp(fr_info_t *fin)
 {
 	ipf_main_softc_t *softc = fin->fin_main_soft;
@@ -1292,7 +1292,7 @@ ipf_pr_icmp(fr_info_t *fin)
 /* If compiled with IPFILTER_CKSUM, check to see if the TCP checksum is     */
 /* valid and mark the packet as bad if not.                                 */
 /* ------------------------------------------------------------------------ */
-static INLINE int
+static inline int
 ipf_pr_tcpcommon(fr_info_t *fin)
 {
 	ipf_main_softc_t *softc = fin->fin_main_soft;
@@ -1468,7 +1468,7 @@ ipf_pr_tcpcommon(fr_info_t *fin)
 /* Extract the UDP source and destination ports, if present.  If compiled   */
 /* with IPFILTER_CKSUM, check to see if the UDP checksum is valid.          */
 /* ------------------------------------------------------------------------ */
-static INLINE int
+static inline int
 ipf_pr_udpcommon(fr_info_t *fin)
 {
 	udphdr_t *udp;
@@ -1502,7 +1502,7 @@ ipf_pr_udpcommon(fr_info_t *fin)
 /* IPv4 Only                                                                */
 /* Analyse the packet for IPv4/TCP properties.                              */
 /* ------------------------------------------------------------------------ */
-static INLINE void
+static inline void
 ipf_pr_tcp(fr_info_t *fin)
 {
 
@@ -1521,7 +1521,7 @@ ipf_pr_tcp(fr_info_t *fin)
 /* IPv4 Only                                                                */
 /* Analyse the packet for IPv4/UDP properties.                              */
 /* ------------------------------------------------------------------------ */
-static INLINE void
+static inline void
 ipf_pr_udp(fr_info_t *fin)
 {
 
@@ -1543,7 +1543,7 @@ ipf_pr_udp(fr_info_t *fin)
 /* is 32bits as well, it is not possible(?) to determine the version from a */
 /* simple packet header.                                                    */
 /* ------------------------------------------------------------------------ */
-static INLINE void
+static inline void
 ipf_pr_esp(fr_info_t *fin)
 {
 
@@ -1567,7 +1567,7 @@ ipf_pr_esp(fr_info_t *fin)
 /* The minimum length is taken to be the combination of all fields in the   */
 /* header being present and no authentication data (null algorithm used.)   */
 /* ------------------------------------------------------------------------ */
-static INLINE int
+static inline int
 ipf_pr_ah(fr_info_t *fin)
 {
 	ipf_main_softc_t *softc = fin->fin_main_soft;
@@ -1615,7 +1615,7 @@ ipf_pr_ah(fr_info_t *fin)
 /*                                                                          */
 /* Analyse the packet for GRE properties.                                   */
 /* ------------------------------------------------------------------------ */
-static INLINE void
+static inline void
 ipf_pr_gre(fr_info_t *fin)
 {
 	ipf_main_softc_t *softc = fin->fin_main_soft;
@@ -1648,7 +1648,7 @@ ipf_pr_gre(fr_info_t *fin)
 /* Analyze the IPv4 header and set fields in the fr_info_t structure.       */
 /* Check all options present and flag their presence if any exist.          */
 /* ------------------------------------------------------------------------ */
-static INLINE void
+static inline void
 ipf_pr_ipv4hdr(fr_info_t *fin)
 {
 	u_short optmsk = 0, secmsk = 0, auth = 0;
@@ -2042,7 +2042,7 @@ ipf_makefrip(int hlen, ip_t *ip, fr_info_t *fin)
 /* Perform a comparison of a port number against some other(s), using a     */
 /* structure with compare information stored in it.                         */
 /* ------------------------------------------------------------------------ */
-static INLINE int
+static inline int
 ipf_portcheck(frpcmp_t *frp, u_32_t pop)
 {
 	int err = 1;
@@ -2162,7 +2162,7 @@ ipf_tcpudpchk(fr_ip_t *fi, frtuc_t *ft)
 /* port numbers, etc, for "standard" IPFilter rules are all orchestrated in */
 /* this function.                                                           */
 /* ------------------------------------------------------------------------ */
-static INLINE int
+static inline int
 ipf_check_ipf(fr_info_t *fin, frentry_t *fr, int portcmp)
 {
 	u_32_t	*ld, *lm, *lip;
@@ -6466,7 +6466,7 @@ ipf_outobjk(ipf_main_softc_t *softc, ipfobj_t *obj, void *ptr)
 /* way that is ditinguishable. This function should only be called by the   */
 /* ipf_checkv6sum() for each platform.                                      */
 /* ------------------------------------------------------------------------ */
-INLINE int
+inline int
 ipf_checkl4sum(fr_info_t *fin)
 {
 	u_short sum, hdrsum, *csump;
