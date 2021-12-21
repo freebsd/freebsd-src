@@ -3,23 +3,33 @@
 #
 # Written in 2021 by Alfonso Sabato Siciliano
 
-VERSION = 0.0.1
+VERSION = 0.0.2
 LIBRARY = bsddialog
 LIBRARY_SO = lib${LIBRARY:=.so}
-HEADERS = bsddialog.h bsddialog_theme.h
+HEADERS = bsddialog.h bsddialog_theme.h bsddialog_progressview.h
 SOURCES = barbox.c formbox.c infobox.c libbsddialog.c lib_util.c menubox.c \
 	messagebox.c textbox.c theme.c timebox.c
 OBJECTS= ${SOURCES:.c=.o}
-FBSDFLAGS= -O2 -pipe -std=gnu99 -Wno-format-zero-length \
-	-fstack-protector-strong -Qunused-arguments
-CFLAGS = -fPIC -Wall -Wextra
-.if defined(DEBUG)
-CFLAGS += -g
-.else
-CFLAGS += ${FBSDFLAGS}
-.endif
+CFLAGS = -I/usr/local/include -fPIC -Wall -Wextra
 LDFLAGS = -fstack-protector-strong -shared -Wl,-x -Wl,--fatal-warnings \
 	-Wl,--warn-shared-textrel -Wl,-soname,${LIBRARY_SO}.${VERSION} 
+
+.if defined(DEBUG)
+# `make -DDEBUG`
+CFLAGS += -g
+.else
+CFLAGS += -O2 -pipe -std=gnu99 -Wno-format-zero-length \
+	-fstack-protector-strong -Qunused-arguments
+.endif
+
+.if defined(PORTNCURSES)
+# PORT ncurses `make -DPORTNCURSES`
+CFLAGS += -DPORTNCURSES -I/usr/local/include
+LDFLAGS += -L/usr/local/lib -lformw -lncursesw -ltinfow
+.else
+# BASE ncurses
+LDFLAGS += -L/usr/lib -lformw -lncursesw -ltinfow
+.endif
 
 INSTALL_PREFIX=/usr/local
 LN = ln -s -f
@@ -27,20 +37,9 @@ RM = rm -f
 CP = cp
 GZIP = gzip -cn
 LDCONFIG = /sbin/ldconfig -m
-
-.if defined(PORTNCURSES)
-# PORT ncurses `make -DPORTNCURSES` 
-CFLAGS += -DPORTNCURSES -I/usr/local/include
-LDFLAGS += -L/usr/local/lib -lform -lncurses -ltinfo
-.else
-# BASE ncurses
-LDFLAGS += -L/usr/lib -lform -lncurses -ltinfo
-.endif
-
 MAN= ${OUTPUT}.3
 GZIP= gzip -cn
 MANDIR= /usr/local/share/man/man3
-
 INSTALL= install
 RM= rm -f
 

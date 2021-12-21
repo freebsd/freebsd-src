@@ -27,15 +27,25 @@
 .Os
 .Sh NAME
 .Nm bsddialog
-.Nd build dialogs and widgets with a TUI
+.Nd terminal dialogs and widgets
 .Sh SYNOPSIS
 .Nm bsddialog
-.Op Fl options
-.Ar
+.Fl -help
+.Nm bsddialog
+.Fl -version
+.Nm bsddialog
+.Op Fl Ar -common-opts
+.Fl Ar -widget
+.Fl Artext
+.Fl Arheight
+.Fl Arwidth
+.Op Fl Ar -widget-opts
 .Sh DESCRIPTION
 The
-.Nm
-utility processes files ...
+.Nm BSDDialog
+is an utility to write a script with a Text User Interface. It can build
+dialogs and widgets: to show messages, to get input and to inform about a
+computation status.
 .\" .Sh ENVIRONMENT
 .\" For sections 1, 6, 7, and 8 only.
 .\" .Sh FILES
@@ -44,9 +54,13 @@ utility processes files ...
 .\" .Sh EXAMPLES
 .\" .Sh DIAGNOSTICS
 .\" For sections 1, 4, 6, 7, 8, and 9 printf/stderr messages only.
-.\" .Sh SEE ALSO
-.\" .Xr foobar 1
+.Sh SEE ALSO
+.Xr bsddialog 3
 .\" .Sh HISTORY
 .\" .Sh AUTHORS
-.\" .Sh CAVEATS
-.\" .Sh BUGS
+.Sh CAVEATS
+autosize
+compatibility text
+.Sh BUGS
+buildlist
+forms

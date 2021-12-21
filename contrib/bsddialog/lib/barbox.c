@@ -28,16 +28,17 @@
 #include <sys/param.h>
 
 #include <ctype.h>
-#include <stdlib.h>
-#include <string.h>
-
 #ifdef PORTNCURSES
 #include <ncurses/ncurses.h>
 #else
 #include <ncurses.h>
 #endif
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
 
 #include "bsddialog.h"
+#include "bsddialog_progressview.h"
 #include "lib_util.h"
 #include "bsddialog_theme.h"
 
@@ -46,7 +47,11 @@
 #define MINWIDTH	(VBORDERS + MINBARWIDTH + BARMARGIN * 2)
 #define MINHEIGHT	7 /* without text */
 
-/* "Bar": gauge - mixedgauge - rangebox - pause */
+/* "Bar": gauge - mixedgauge - rangebox - pause - progressview */
+
+bool bsddialog_interruptprogview;
+bool bsddialog_abortprogview;
+int  bsddialog_total_progview;
 
 extern struct bsddialog_theme t;
 
@@ -218,28 +223,34 @@ bsddialog_gauge(struct bsddialog_conf *conf, char* text, int rows, int cols,
 	return BSDDIALOG_OK;
 }
 
-int
-bsddialog_mixedgauge(struct bsddialog_conf *conf, char* text, int rows,
-    int cols, unsigned int mainperc, unsigned int nminibars, char **minilabels,
-    int *minipercs)
+
+/* Mixedgauge */
+static int
+mixedgauge(struct bsddialog_conf *conf, char* text, int rows, int cols,
+    unsigned int mainperc, unsigned int nminibars, char **minilabels,
+    int *minipercs, bool color)
 {
 	WINDOW *widget, *textpad, *bar, *shadow;
 	int i, output, miniperc, y, x, h, w, max_minbarlen;
 	int maxword, maxline, nlines, htextpad, ypad;
-	char states[12][16] = {
-	    "[  Succeeded  ]", /*  0  */
-	    "[   Failed    ]", /*  1  */
-	    "[   Passed    ]", /*  2  */
-	    "[  Completed  ]", /*  3  */
-	    "[   Checked   ]", /*  4  */
-	    "[    Done     ]", /*  5  */
-	    "[   Skipped   ]", /*  6  */
-	    "[ In Progress ]", /*  7  */
-	    "(blank)        ", /*  8  */
-	    "[     N/A     ]", /*  9  */
-	    "[   Pending   ]", /* 10  */
-	    "[   UNKNOWN   ]", /* 10+ */
+	int colorperc, red, green;
+	char states[12][14] = {
+	    "  Succeeded  ", /*  0  */
+	    "   Failed    ", /*  1  */
+	    "   Passed    ", /*  2  */
+	    "  Completed  ", /*  3  */
+	    "   Checked   ", /*  4  */
+	    "    Done     ", /*  5  */
+	    "   Skipped   ", /*  6  */
+	    " In Progress ", /*  7  */
+	    "(blank)      ", /*  8  */
+	    "     N/A     ", /*  9  */
+	    "   Pending   ", /* 10  */
+	    "   UNKNOWN   ", /* 10+ */
 	};
+
+	red   = bsddialog_color(BSDDIALOG_WHITE,BSDDIALOG_RED,  BSDDIALOG_BOLD);
+	green = bsddialog_color(BSDDIALOG_WHITE,BSDDIALOG_GREEN,BSDDIALOG_BOLD);
 
 	max_minbarlen = 0;
 	for (i=0; i < (int)nminibars; i++)
@@ -255,7 +266,7 @@ bsddialog_mixedgauge(struct bsddialog_conf *conf, char* text, int rows,
 
 	if (cols == BSDDIALOG_AUTOSIZE) {
 		w = max_minbarlen + HBORDERS;
-		w = MAX(max_minbarlen, maxline + 4);
+		w = MAX(w, maxline + 4);
 		w = MAX(w, (int)conf->auto_minwidth);
 		w = MIN(w, widget_max_width(conf) - 1);
 	}
@@ -286,11 +297,26 @@ bsddialog_mixedgauge(struct bsddialog_conf *conf, char* text, int rows,
 		miniperc = minipercs[i];
 		if (miniperc == 8)
 			continue;
+		/* label */
+		if (color && (miniperc == 7 || miniperc < 0))
+			wattron(widget, A_BOLD);
 		mvwaddstr(widget, i+1, 2, minilabels[i]);
+			wattroff(widget, A_BOLD);
+		/* perc */
 		if (miniperc > 10)
 			mvwaddstr(widget, i+1, w-2-15, states[11]);
-		else if (miniperc >= 0 && miniperc <= 10)
-			mvwaddstr(widget, i+1, w-2-15, states[miniperc]);
+		else if (miniperc >= 0 && miniperc <= 10) {
+			mvwaddstr(widget, i+1, w-2-15, "[             ]");
+			if (color && miniperc == 1) /* Failed */
+				colorperc = red;
+			if (color && miniperc == 5) /* Done */
+				colorperc = green;
+			if (color && (miniperc == 1 || miniperc == 5))
+				wattron(widget, colorperc);
+			mvwaddstr(widget, i+1, 1+w-2-15, states[miniperc]);
+			if (color && (miniperc == 1 || miniperc == 5))
+				wattroff(widget, colorperc);
+		}
 		else { /* miniperc < 0 */
 			miniperc = abs(miniperc);
 			mvwaddstr(widget, i+1, w-2-15, "[             ]");
@@ -321,6 +347,101 @@ bsddialog_mixedgauge(struct bsddialog_conf *conf, char* text, int rows,
 	end_widget_withtextpad(conf, widget, h, w, textpad, shadow);
 
 	return BSDDIALOG_OK;
+}
+
+int
+bsddialog_mixedgauge(struct bsddialog_conf *conf, char* text, int rows,
+    int cols, unsigned int mainperc, unsigned int nminibars, char **minilabels,
+    int *minipercs)
+{
+	int output;
+
+	output = mixedgauge(conf, text, rows, cols, mainperc, nminibars,
+	    minilabels, minipercs, false);
+
+	return (output);
+}
+
+int
+bsddialog_progressview (struct bsddialog_conf *conf, char * text, int rows,
+    int cols, struct bsddialog_progviewconf *pvconf, unsigned int nminibar,
+    struct bsddialog_fileminibar *minibar)
+{
+	int perc, output;
+	int *minipercs;
+	unsigned int i;
+	char **minilabels;
+	unsigned int mainperc, totaltodo;
+	time_t tstart, told, tnew, refresh;
+	bool update;
+	float readforsec;
+
+	if ((minilabels = calloc(nminibar, sizeof(char*))) == NULL)
+		RETURN_ERROR("Cannot allocate memory for minilabels\n");
+	if ((minipercs = calloc(nminibar, sizeof(int))) == NULL)
+		RETURN_ERROR("Cannot allocate memory for minipercs\n");
+
+	totaltodo = 0;
+	for(i=0; i<nminibar; i++) {
+		totaltodo     += minibar[i].size;
+		minilabels[i] = minibar[i].label;
+		minipercs[i]  = 10; /*Pending*/
+	}
+
+	refresh = pvconf->refresh == 0 ? 0 : pvconf->refresh - 1;
+	output = BSDDIALOG_OK;
+	i = 0;
+	update = true;
+	time(&told);
+	tstart = told;
+	while (!(bsddialog_interruptprogview || bsddialog_abortprogview)) {
+		if (bsddialog_total_progview == 0 || totaltodo == 0)
+			mainperc = 0;
+		else
+			mainperc = (bsddialog_total_progview * 100) / totaltodo;
+
+		time(&tnew);
+		if (update || tnew > told + refresh) {
+			output = mixedgauge(conf, text, rows, cols, mainperc,
+			    nminibar, minilabels, minipercs, true);
+			if (output == BSDDIALOG_ERROR)
+				return BSDDIALOG_ERROR;
+
+			move(LINES-1, 2);
+			clrtoeol();
+			readforsec = ((tnew - tstart) == 0) ?
+			    0 : bsddialog_total_progview / (float)(tnew - tstart);
+			printw(pvconf->fmtbottomstr, bsddialog_total_progview,
+			    readforsec);
+			refresh();
+
+			time(&told);
+			update = false;
+		}
+
+		if (i >= nminibar)
+			break;
+		if (minibar[i].status == 1) /* Failed*/
+			break;
+
+		perc = pvconf->callback(&minibar[i]);
+
+		if (minibar[i].status == 5) {/* ||prec >= 100) Done */
+			minipercs[i] = 5;
+			update = true;
+			i++;
+		} else if (minibar[i].status == 1 || perc < 0) { /* Failed */
+			minipercs[i] = 1;
+			update = true;
+		} else if (perc == 0)
+			minipercs[i] = 7; /* In progress */
+		else /* perc > 0 */
+			minipercs[i] = -(perc);
+	}
+
+	free(minilabels);
+	free(minipercs);
+	return (output);
 }
 
 int

@@ -1,6 +1,7 @@
 bsddialog
 *.o
 *~
+*.a
 examples_library/buildlist
 examples_library/checklist
 examples_library/datebox
@@ -22,4 +23,4 @@ lib/libbsddialog.so*
 BSDDIALOG.geany
 BSDDIALOG.tags
 *.core
-bsdinstall/*
+freebsd-lab/

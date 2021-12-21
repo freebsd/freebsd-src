@@ -17,8 +17,9 @@ SRCS=	barbox.c \
 	theme.c \
 	timebox.c
 INCS=	bsddialog.h \
-	bsddialog_theme.h
-MAN=
+	bsddialog_theme.h \
+	bsddialog_progressview.h
+MAN=	bsddialog.3
 
 LIBADD=	ncursesw tinfow formw
 

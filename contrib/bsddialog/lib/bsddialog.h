@@ -30,7 +30,7 @@
 
 #include <stdbool.h>
 
-#define LIBBSDDIALOG_VERSION    "0.0.1"
+#define LIBBSDDIALOG_VERSION    "0.0.2"
 
 /* Exit status */
 #define BSDDIALOG_ERROR		-1
@@ -40,13 +40,12 @@
 #define BSDDIALOG_NO             BSDDIALOG_CANCEL
 #define BSDDIALOG_HELP		 2
 #define BSDDIALOG_EXTRA		 3
-#define BSDDIALOG_ITEM_HELP	 4
-#define BSDDIALOG_TIMEOUT        5
-#define BSDDIALOG_ESC		 6
-#define BSDDIALOG_GENERIC1       7
-#define BSDDIALOG_GENERIC2       8
+#define BSDDIALOG_TIMEOUT        4
+#define BSDDIALOG_ESC		 5
+#define BSDDIALOG_GENERIC1       6
+#define BSDDIALOG_GENERIC2       7
 
-/* size and position */
+/* Size and position */
 #define BSDDIALOG_FULLSCREEN	-1
 #define BSDDIALOG_AUTOSIZE	 0
 #define BSDDIALOG_CENTER	-1
@@ -132,7 +131,7 @@ struct bsddialog_formitem {
 	unsigned int xfield;
 	unsigned int fieldlen;
 	unsigned int maxvaluelen;
-	char *value; /* allocated memory */
+	char *value;
 #define BSDDIALOG_FIELDHIDDEN    1U
 #define BSDDIALOG_FIELDREADONLY  2U
 	unsigned int flags;
@@ -147,7 +146,7 @@ int bsddialog_initconf(struct bsddialog_conf *conf);
 int bsddialog_clearterminal(void);
 const char *bsddialog_geterror(void);
 
-/* widgets */
+/* Dialogs */
 int
 bsddialog_buildlist(struct bsddialog_conf *conf, char* text, int rows, int cols,
     unsigned int menurows, int nitems, struct bsddialog_menuitem *items,

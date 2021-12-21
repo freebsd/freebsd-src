@@ -106,8 +106,8 @@ enum bsddialog_color {
 #define BSDDIALOG_UNDERLINE    4U
 
 int
-bsddialog_color(enum bsddialog_color background,
-    enum bsddialog_color foreground, unsigned int flags);
+bsddialog_color(enum bsddialog_color foreground,
+    enum bsddialog_color background, unsigned int flags);
 int bsddialog_get_theme(struct bsddialog_theme *theme);
 int bsddialog_set_default_theme(enum bsddialog_default_theme theme);
 int bsddialog_set_theme(struct bsddialog_theme *theme);
