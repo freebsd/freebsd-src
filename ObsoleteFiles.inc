@@ -36,6 +36,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20211221 efi_set_variables_supported.3 should be efi_variables_supported.3
+OLD_FILES+=usr/share/man/man3/efi_set_variables_supported.3.gz
+
 # 20211113: new clang import which bumps version from 12.0.1 to 13.0.0.
 OLD_FILES+=usr/lib/clang/12.0.1/include/cuda_wrappers/algorithm
 OLD_FILES+=usr/lib/clang/12.0.1/include/cuda_wrappers/complex
