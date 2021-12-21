@@ -111,7 +111,7 @@ SDT_PROBE_DEFINE1_XLATE(tcp, , , siftr,
 SDT_PROBE_DEFINE3_XLATE(tcp, , , debug__input,
     "struct tcpcb *", "tcpsinfo_t *" ,
     "struct tcphdr *", "tcpinfoh_t *",
-    "uint8_t *", "ipinfo_t *");
+    "struct mbuf *", "ipinfo_t *");
 
 SDT_PROBE_DEFINE3_XLATE(tcp, , , debug__output,
     "struct tcpcb *", "tcpsinfo_t *" ,
