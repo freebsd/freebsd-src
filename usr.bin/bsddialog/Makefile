@@ -3,10 +3,10 @@ BSDDIALOG=	${SRCTOP}/contrib/bsddialog
 
 PROG=	bsddialog
 SRCS=	bsddialog.c
-MAN=
+MAN=	bsddialog.1
 CFLAGS+=	-I${BSDDIALOG}/lib
 LIBADD=	bsddialog
 
-WARNS=	2
+WARNS=	3
 
 .include <bsd.prog.mk>

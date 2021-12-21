@@ -32,8 +32,11 @@
  * Utils to implement widgets - Internal library  API - Dafult values
  */
 
-#define HBORDERS	2
-#define VBORDERS	2
+#define HBORDER		1
+#define HBORDERS	(HBORDER + HBORDER)
+#define VBORDER		1
+#define VBORDERS	(VBORDER + VBORDER)
+#define PADDING(p)	(p)
 
 /* ncurses has not a Ctrl key macro */
 #define KEY_CTRL(x) ((x) & 0x1f)

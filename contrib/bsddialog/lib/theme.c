@@ -87,8 +87,8 @@ static struct bsddialog_theme bsddialogtheme = {
 };
 
 static struct bsddialog_theme blackwhite = {
-#define bk  COLOR_BLACK
 #define fg  COLOR_WHITE
+#define bk  COLOR_BLACK
 	.terminal.color = GET_COLOR(fg, bk),
 
 	.shadow.color   = GET_COLOR(COLOR_BLACK, COLOR_BLACK),
@@ -272,8 +272,8 @@ int bsddialog_set_default_theme(enum bsddialog_default_theme newtheme)
 }
 
 int
-bsddialog_color(enum bsddialog_color background,
-    enum bsddialog_color foreground, unsigned int flags)
+bsddialog_color(enum bsddialog_color foreground,
+    enum bsddialog_color background, unsigned int flags)
 {
 	unsigned int cursesflags = 0;
 
@@ -284,5 +284,5 @@ bsddialog_color(enum bsddialog_color background,
 	if (flags & BSDDIALOG_UNDERLINE)
 		cursesflags |= A_UNDERLINE;
 
-	return (GET_COLOR(background, foreground) | cursesflags);
+	return (GET_COLOR(foreground, background) | cursesflags);
 }

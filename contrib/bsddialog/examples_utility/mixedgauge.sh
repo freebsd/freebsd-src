@@ -28,7 +28,7 @@ do
 		"Label   8"   7	\
 		"Label   9"   9	\
 		"Label  10"  10	\
-		"Label X" " -$perc"
+		"Label   X"  " -$perc"
 	#sleep 1
 done
 

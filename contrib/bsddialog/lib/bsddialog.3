@@ -1,42 +1,530 @@
-.Dd $Mdocdate$
-.Dt PROGNAME section
+.\"
+.\" Copyright (c) 2021 Alfonso Sabato Siciliano
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd December 16, 2021
+.Dt BSDDIALOG 3
 .Os
 .Sh NAME
-.Nm progname
-.Nd one line about what it does
-.\" .Sh LIBRARY
-.\" For sections 2, 3, and 9 only.
-.\" Not used in OpenBSD.
+.Nm bsddialog_backtitle ,
+.Nm bsddialog_clearterminal ,
+.Nm bsddialog_color ,
+.Nm bsddialog_buildlist ,
+.Nm bsddialog_checklist ,
+.Nm bsddialog_datebox ,
+.Nm bsddialog_end ,
+.Nm bsddialog_form ,
+.Nm bsddialog_gauge ,
+.Nm bsddialog_geterror ,
+.Nm bsddialog_get_theme
+.Nm bsddialog_infobox ,
+.Nm bsddialog_init ,
+.Nm bsddialog_initconf ,
+.Nm bsddialog_menu ,
+.Nm bsddialog_mixedgauge ,
+.Nm bsddialog_mixedlist ,
+.Nm bsddialog_msgbox ,
+.Nm bsddialog_pause ,
+.Nm bsddialog_radiolist ,
+.Nm bsddialog_rangebox ,
+.Nm bsddialog_set_theme ,
+.Nm bsddialog_set_default_theme ,
+.Nm bsddialog_textbox ,
+.Nm bsddialog_timebox ,
+.Nm bsddialog_yesno
+.Nd terminal dialogs and widgets
+.Sh LIBRARY
+.Lb libbsddialog
 .Sh SYNOPSIS
-.Nm progname
-.Op Fl options
-.Ar
+.In bsddialog.h
+
+.Fd #define LIBBSDDIALOG_VERSION
+
+.Fd #define BSDDIALOG_ERROR
+.Fd #define BSDDIALOG_OK
+.Fd #define BSDDIALOG_YES
+.Fd #define BSDDIALOG_CANCEL
+.Fd #define BSDDIALOG_NO
+.Fd #define BSDDIALOG_HELP
+.Fd #define BSDDIALOG_EXTRA
+.Fd #define BSDDIALOG_ITEM_HELP
+.Fd #define BSDDIALOG_TIMEOUT
+.Fd #define BSDDIALOG_ESC
+.Fd #define BSDDIALOG_GENERIC1
+.Fd #define BSDDIALOG_GENERIC2
+
+.Fd #define BSDDIALOG_FULLSCREEN
+.Fd #define BSDDIALOG_AUTOSIZE
+.Fd #define BSDDIALOG_CENTER
+
+.Fd struct bsddialog_conf
+.Fd struct bsddialog_menuitem
+.Fd enum bsddialog_grouptype
+.Fd struct bsddialog_menugroup
+.Fd struct bsddialog_formitem
+
+.Ft int
+.Fn bsddialog_backtitle "struct bsddialog_conf *conf" "char *backtitle"
+.Ft int
+.Fo bsddialog_buildlist
+.Fa "struct bsddialog_conf *conf"
+.Fa "char* text"
+.Fa "int rows"
+.Fa "int cols"
+.Fa "unsigned int menurows"
+.Fa "int nitems"
+.Fa "struct bsddialog_menuitem *items"
+.Fa "int *focusitem"
+.Fc
+.Ft int
+.Fo bsddialog_checklist
+.Fa "struct bsddialog_conf *conf"
+.Fa "char* text"
+.Fa "int rows"
+.Fa "int cols"
+.Fa "unsigned int menurows"
+.Fa "int nitems"
+.Fa "struct bsddialog_menuitem *items"
+.Fa "int *focusitem"
+.Fc
+.Ft int
+.Fn bsddialog_clearterminal "void"
+.Ft int
+.Fo bsddialog_datebox"
+.Fa "struct bsddialog_conf *conf"
+.Fa "char* text"
+.Fa "int rows"
+.Fa "int cols"
+.Fa "unsigned int *yy"
+.Fa "unsigned int *mm"
+.Fa "unsigned int *dd"
+.Fc
+.Ft int
+.Fn bsddialog_end "void"
+.Ft int
+.Fo bsddialog_form
+.Fa "struct bsddialog_conf *conf"
+.Fa "char* text"
+.Fa "int rows"
+.Fa "int cols"
+.Fa "unsigned int formheight"
+.Fa "unsigned int nitems"
+.Fa "struct bsddialog_formitem *items"
+.Fc
+.Ft int
+.Fo bsddialog_gauge
+.Fa "struct bsddialog_conf *conf"
+.Fa "char* text"
+.Fa "int rows"
+.Fa "int cols"
+.Fa "unsigned int perc"
+.Fc
+.Ft const char *
+.Fn bsddialog_geterror "void"
+.Ft int
+.Fo bsddialog_infobox
+.Fa "struct bsddialog_conf *conf"
+.Fa "char* text"
+.Fa "int rows"
+.Fa "int cols"
+.Fc
+.Ft int
+.Fn bsddialog_init "void"
+.Ft int
+.Fn bsddialog_initconf "struct bsddialog_conf *conf"
+.Ft int
+.Fo bsddialog_menu
+.Fa "struct bsddialog_conf *conf"
+.Fa "char* text"
+.Fa "int rows"
+.Fa "int cols"
+.Fa "unsigned int menurows"
+.Fa "int nitems"
+.Fa "struct bsddialog_menuitem *items"
+.Fa "int *focusitem"
+.Fc
+.Ft int
+.Fo bsddialog_mixedgauge
+.Fa "struct bsddialog_conf *conf"
+.Fa "char* text"
+.Fa "int rows"
+.Fa "int cols"
+.Fa "unsigned int mainperc"
+.Fa "unsigned int nminibars"
+.Fa "char **minilabels"
+.Fa "int *minipercs"
+.Fc
+.Ft int
+.Fo bsddialog_mixedlist
+.Fa "struct bsddialog_conf *conf"
+.Fa "char* text"
+.Fa "int rows"
+.Fa "int cols"
+.Fa "unsigned int menurows"
+.Fa "int ngroups"
+.Fa "struct bsddialog_menugroup *groups"
+.Fa "int *focuslist"
+.Fa "int *focusitem"
+.Fc
+.Ft int
+.Fo bsddialog_msgbox
+.Fa "struct bsddialog_conf *conf"
+.Fa "char* text"
+.Fa "int rows"
+.Fa "int cols"
+.Fc
+.Ft int
+.Fo bsddialog_pause
+.Fa "struct bsddialog_conf *conf"
+.Fa "char* text"
+.Fa "int rows"
+.Fa "int cols"
+.Fa "unsigned int sec"
+.Fc
+.Ft int
+.Fo bsddialog_radiolist
+.Fa "struct bsddialog_conf *conf"
+.Fa "char* text"
+.Fa "int rows"
+.Fa "int cols"
+.Fa "unsigned int menurows"
+.Fa "int nitems"
+.Fa "struct bsddialog_menuitem *items"
+.Fa "int *focusitem"
+.Fc
+.Ft int
+.Fo bsddialog_rangebox
+.Fa "struct bsddialog_conf *conf"
+.Fa "char* text"
+.Fa "int rows"
+.Fa "int cols"
+.Fa "int min"
+.Fa "int max"
+.Fa "int *value"
+.Fc
+.Ft int
+.Fo bsddialog_textbox
+.Fa "struct bsddialog_conf *conf"
+.Fa "char* file"
+.Fa "int rows"
+.Fa "int cols"
+.Fc
+.Ft int
+.Fo bsddialog_timebox
+.Fa "struct bsddialog_conf *conf"
+.Fa "char* text"
+.Fa "int rows"
+.Fa "int cols"
+.Fa "unsigned int *hh"
+.Fa "unsigned int *mm"
+.Fa "unsigned int *ss"
+.Fc
+.Ft int
+.Fo bsddialog_yesno
+.Fa "struct bsddialog_conf *conf"
+.Fa "char* text"
+.Fa "int rows"
+.Fa "int cols"
+.Fc
+
+.In bsddialog_theme.h
+
+.Fd #define BSDDIALOG_BOLD
+.Fd #define BSDDIALOG_REVERSE
+.Fd #define BSDDIALOG_UNDERLINE
+
+.Fd enum bsddialog_color
+.Fd enum bsddialog_default_theme
+.Fd struct bsddialog_theme
+
+.Ft int
+.Fo bsddialog_color
+.Fa "enum bsddialog_color background"
+.Fa "enum bsddialog_color foreground"
+.Fa "unsigned int flags"
+.Fc
+.Ft int
+.Fn bsddialog_get_theme "struct bsddialog_theme *theme"
+.Ft int
+.Fn bsddialog_set_default_theme "enum bsddialog_default_theme theme"
+.Ft int
+.Fn bsddialog_set_theme "struct bsddialog_theme *theme"
 .Sh DESCRIPTION
 The
-.Nm
-utility processes files ...
-.\" .Sh CONTEXT
-.\" For section 9 functions only.
-.\" .Sh IMPLEMENTATION NOTES
-.\" Not used in OpenBSD.
-.\" .Sh RETURN VALUES
-.\" For sections 2, 3, and 9 function return values only.
-.\" .Sh ENVIRONMENT
-.\" For sections 1, 6, 7, and 8 only.
-.\" .Sh FILES
-.\" .Sh EXIT STATUS
-.\" For sections 1, 6, and 8 only.
-.\" .Sh EXAMPLES
-.\" .Sh DIAGNOSTICS
-.\" For sections 1, 4, 6, 7, 8, and 9 printf/stderr messages only.
-.\" .Sh ERRORS
-.\" For sections 2, 3, 4, and 9 errno settings only.
-.\" .Sh SEE ALSO
-.\" .Xr foobar 1
-.\" .Sh STANDARDS
-.\" .Sh HISTORY
-.\" .Sh AUTHORS
-.\" .Sh CAVEATS
-.\" .Sh BUGS
-.\" .Sh SECURITY CONSIDERATIONS
-.\" Not used in OpenBSD.
+.Nm BSDDialog
+library is an API to write a tools with a Text User Interface. It can build
+dialogs and widgets: to show messages, to get input and to inform about a
+computation status.
+.Pp
+.Bd -literal -offset indent -compact
+/* size and position */
+#define BSDDIALOG_FULLSCREEN	-1
+#define BSDDIALOG_AUTOSIZE	 0
+#define BSDDIALOG_CENTER	-1
+
+struct bsddialog_conf {
+	bool ascii_lines;
+	unsigned int aspect_ratio;
+	unsigned int auto_minheight;
+	unsigned int auto_minwidth;
+	char *bottomtitle;
+	bool clear;
+	char *f1_file;
+	char *f1_message;
+	int  *get_height;
+	int  *get_width;
+	bool no_lines;
+	bool shadow;
+	unsigned int sleep;
+	char *title;
+	int  y;
+	int  x;
+	struct {
+		bool colors;
+	} text;
+	struct {
+		bool align_left;
+		char *default_item;
+		bool no_desc;
+		bool no_name;
+		bool shortcut_buttons;
+	} menu;
+	struct {
+		int  securech;
+		bool value_withcancel;
+		bool value_withextra;
+		bool value_withhelp;
+	} form;
+	struct {
+		bool without_ok;
+		char *ok_label;
+		bool with_extra;
+		char *extra_label;
+		bool without_cancel;
+		char *cancel_label;
+		bool default_cancel;
+		bool with_help;
+		char *help_label;
+		char *exit_label;
+		char *generic1_label;
+		char *generic2_label;
+		char *default_label;
+	} button;
+};
+.Ed
+.Pp
+
+.Ss Dialogs
+.Pp
+.Bd -literal -offset indent -compact
+struct bsddialog_menuitem {
+	char *prefix;
+	bool on;
+	unsigned int depth;
+	char *name;
+	char *desc;
+	char *bottomdesc;
+};
+
+enum bsddialog_grouptype {
+	BSDDIALOG_CHECKLIST,
+	BSDDIALOG_RADIOLIST,
+	BSDDIALOG_SEPARATOR,
+};
+
+struct bsddialog_menugroup {
+	enum bsddialog_grouptype type;
+	unsigned int nitems;
+	struct bsddialog_menuitem *items;
+};
+
+struct bsddialog_formitem {
+	char *label;
+	unsigned int ylabel;
+	unsigned int xlabel;
+
+	char *init;
+	unsigned int yfield;
+	unsigned int xfield;
+	unsigned int fieldlen;
+	unsigned int maxvaluelen;
+	char *value; /* allocated memory */
+#define BSDDIALOG_FIELDHIDDEN    1U
+#define BSDDIALOG_FIELDREADONLY  2U
+	unsigned int flags;
+
+	char *bottomdesc;
+};
+.Ed
+.Pp
+
+.Ss Theme
+.Pp
+.Bd -literal -offset indent -compact
+/* f_ focus/active element */
+struct bsddialog_theme {
+	struct {
+		int color;
+	} terminal;
+	struct {
+		int color;
+		unsigned int h;
+		unsigned int w;
+	} shadow;
+	struct {
+		int  color;
+		bool delimtitle;
+		int  titlecolor;
+		int  lineraisecolor;
+		int  linelowercolor;
+		int  bottomtitlecolor;
+	} dialog;
+	struct {
+		unsigned int hmargin;
+	} text;
+	struct {
+		int arrowcolor;
+		int selectorcolor;
+		int f_namecolor;
+		int namecolor;
+		int f_desccolor;
+		int desccolor;
+		int namesepcolor;
+		int descsepcolor;
+		int f_shortcutcolor;
+		int shortcutcolor;
+	} menu;
+	struct {
+		int f_fieldcolor;
+		int fieldcolor;
+		int readonlycolor;
+	} form;
+	struct {
+		int f_color;
+		int color;
+	} bar;
+	struct {
+		unsigned int space;
+		int leftch;
+		int rightch;
+		int delimcolor;
+		int f_delimcolor;
+		int color;
+		int f_color;
+		int shortcutcolor;
+		int f_shortcutcolor;
+	} button;
+};
+
+enum bsddialog_default_theme {
+	BSDDIALOG_THEME_BLACKWHITE,
+	BSDDIALOG_THEME_BSDDIALOG,
+	BSDDIALOG_THEME_DEFAULT,
+	BSDDIALOG_THEME_DIALOG,
+};
+
+enum bsddialog_color {
+	BSDDIALOG_BLACK = 0,
+	BSDDIALOG_RED,
+	BSDDIALOG_GREEN,
+	BSDDIALOG_YELLOW,
+	BSDDIALOG_BLUE,
+	BSDDIALOG_MAGENTA,
+	BSDDIALOG_CYAN,
+	BSDDIALOG_WHITE,
+};
+
+#define BSDDIALOG_BOLD         1U
+#define BSDDIALOG_REVERSE      2U
+#define BSDDIALOG_UNDERLINE    4U
+.Ed
+.Pp
+
+.Sh RETURN VALUES
+The sysctlmif_oidbyname(),	sysctlmif_oidextendedbyname(),
+     sysctlmif_name(), sysctlmif_desc(), sysctlmif_descbyname(),
+     sysctlmif_label(),	sysctlmif_labelbyname(), sysctlmif_fmt(),
+     sysctlmif_fmtbyname(), sysctlmif_oidbyname0(), sysctlmif_oidbyname1(),
+     sysctlmif_oidbyname2(), sysctlmif_oidbyname3(), sysctlmif_oidbyname4(),
+     sysctlmif_oidbyname5(), sysctlmif_oidbyname6(), and
+     sysctlmif_oidbyname7() functions return the value 0 if successful;	other-
+     wise the value -1 is returned and the global variable errno is set	to in-
+     dicate the	error.
+     
+     
+functions return NULL upon	error or a pointer to allo-
+     cated memory for success.
+     
+.Sh EXAMPLES
+Complete set of examples:
+.Lk https://gitlab.com/alfix/bsddialog/-/blob/main/examples_library/
+.Pp
+If installed:
+.Dl /usr/local/share/examples/libbsddialog
+.Pp
+"Yes-No Question" Example:
+.Pp
+.Bd -literal -offset indent -compact
+int output;
+struct bsddialog_conf conf;
+
+bsddialog_initconf(&conf);
+conf.title = "yesno";
+if (bsddialog_init() == BSDDIALOG_ERROR)
+	return (1);
+
+output = bsddialog_yesno(&conf, "Example", 7, 25);
+
+bsddialog_end();
+
+switch (output) {
+case BSDDIALOG_YES:
+	printf("OK\\n");
+	break;
+case BSDDIALOG_NO
+	printf("NO\\n");
+	break;
+case BSDDIALOG_ESC;
+	printf("ESC\\n");
+	break;
+case BSDDIALOG_ERROR:
+	printf("Error: %s\\n", bsddialog_geterror());
+}
+.Ed
+.Sh SEE ALSO
+.Xr bsddialog 1
+.Sh HISTORY
+The
+.Nm bsddialog
+library first appeared in
+.Fx 14.0 .
+.Sh AUTHORS
+.Nm bsddialog
+was written by
+.An Alfonso Sabato Siciliano Aq Mt alf.siciliano@gmail.com .
+.Sh CAVEATS
+See
+.Xr bsddialog 
+.Sh BUGS
+See
+.Xr bsddialog 1

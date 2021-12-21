@@ -27,15 +27,14 @@
 
 #include <sys/param.h>
 
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-
 #ifdef PORTNCURSES
 #include <ncurses/ncurses.h>
 #else
 #include <ncurses.h>
 #endif
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 #include "bsddialog.h"
 #include "lib_util.h"

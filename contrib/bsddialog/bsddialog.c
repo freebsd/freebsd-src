@@ -66,6 +66,7 @@ enum OPTS {
 	HLINE,
 	IGNORE,
 	INSECURE,
+	ITEM_DEPTH,
 	ITEM_HELP,
 	ITEM_PREFIX,
 	MAX_INPUT,
@@ -128,7 +129,7 @@ static char *nostring = "";
 /* Menus flags and options */
 static bool item_prefix_flag, item_bottomdesc_flag, item_output_sepnl_flag;
 static bool item_singlequote_flag, list_items_on_flag, item_tag_help_flag;
-static bool item_always_quote_flag;
+static bool item_always_quote_flag, item_depth_flag;
 static char *item_output_sep_flag;
 /* Time and calendar options */
 static char *date_fmt_flag, *time_fmt_flag;
@@ -227,8 +228,9 @@ void usage(void)
 		"--exit-label <label>, --extra-button, --extra-label <label>,"
 		"--hfile <filename>, --help-button, --help-label <label>, "
 		"--help-status, --help-tags, --hline string, --ignore, "
-		"--insecure, --item-help, --items-prefix, --max-input <size>, "
-		"--no-cancel, --nocancel, --no-label <label>, --no-items, "
+		"--insecure, --item-depth, --item-help, --items-prefix, "
+		"--max-input <size>, --no-cancel, --nocancel, "
+		"--no-label <label>, --no-items, "
 		"--no-lines, --no-ok, --nook, --no-shadow, --no-tags, "
 		"--ok-label <label>, --output-fd <fd>, "
 		"--output-separator <sep>, --print-version, --print-size, "
@@ -271,8 +273,6 @@ void usage(void)
 		"--treeview <text> <rows> <cols> <menurows> [<depth> <name> "
 		    "<desc> <on|off> ...]\n"
 		"--yesno <text> <rows> <cols>\n");
-		
-	
 }
 
 int main(int argc, char *argv[argc])
@@ -297,7 +297,7 @@ int main(int argc, char *argv[argc])
 	cr_wrap_flag = no_collapse_flag = no_nl_expand_flag = trim_flag = false;
 
 	item_output_sepnl_flag = item_singlequote_flag = false;
-	item_prefix_flag = item_bottomdesc_flag = false;
+	item_prefix_flag = item_bottomdesc_flag = item_depth_flag = false;
 	list_items_on_flag = item_tag_help_flag = false;
 	item_always_quote_flag = false;
 	item_output_sep_flag = NULL;
@@ -334,6 +334,7 @@ int main(int argc, char *argv[argc])
 	    {"hline",           required_argument, NULL, HLINE },
 	    {"ignore",          no_argument,       NULL, IGNORE },
 	    {"insecure",        no_argument,       NULL, INSECURE },
+	    {"item-depth",      no_argument,       NULL, ITEM_DEPTH },
 	    {"item-help",       no_argument,       NULL, ITEM_HELP },
 	    {"item-prefix",     no_argument,       NULL, ITEM_PREFIX },
 	    {"max-input",       required_argument, NULL, MAX_INPUT },
@@ -484,6 +485,9 @@ int main(int argc, char *argv[argc])
 			break;
 		case INSECURE:
 			conf.form.securech = '*';
+			break;
+		case ITEM_DEPTH:
+			item_depth_flag = true;
 			break;
 		case ITEM_HELP:
 			item_bottomdesc_flag = true;
@@ -1080,8 +1084,9 @@ int checklist_builder(BUILDER_ARGS)
 
 	menurows = atoi(argv[0]);
 
-	output = get_menu_items(errbuf, argc-1, argv+1, item_prefix_flag, false,
-	    true, true, true, item_bottomdesc_flag, &nitems, items);
+	output = get_menu_items(errbuf, argc-1, argv+1, item_prefix_flag,
+	    item_depth_flag, true, true, true, item_bottomdesc_flag, &nitems,
+	    items);
 	if (output != 0)
 		return (output);
 
@@ -1105,8 +1110,9 @@ int menu_builder(BUILDER_ARGS)
 
 	menurows = atoi(argv[0]);
 
-	output = get_menu_items(errbuf, argc-1, argv+1, item_prefix_flag, false,
-	    true, true, false, item_bottomdesc_flag, &nitems, items);
+	output = get_menu_items(errbuf, argc-1, argv+1, item_prefix_flag,
+	    item_depth_flag, true, true, false, item_bottomdesc_flag, &nitems,
+	    items);
 	if (output != 0)
 		return (output);
 
@@ -1130,8 +1136,9 @@ int radiolist_builder(BUILDER_ARGS)
 
 	menurows = atoi(argv[0]);
 
-	output = get_menu_items(errbuf, argc-1, argv+1, item_prefix_flag, false,
-	    true, true, true, item_bottomdesc_flag, &nitems, items);
+	output = get_menu_items(errbuf, argc-1, argv+1, item_prefix_flag,
+	    item_depth_flag, true, true, true, item_bottomdesc_flag, &nitems,
+	    items);
 	if (output != 0)
 		return (output);
 
@@ -1220,6 +1227,8 @@ int form_builder(BUILDER_ARGS)
 
 		flags |= (fieldlen < 0 ? BSDDIALOG_FIELDREADONLY : 0);
 		items[i].flags = flags;
+
+		items[i].bottomdesc = nostring;
 	}
 
 	output = bsddialog_form(&conf, text, rows, cols, formheight, nitems,
@@ -1243,6 +1252,7 @@ int inputbox_builder(BUILDER_ARGS)
 	item.fieldlen    = cols > 4 ? cols-4 : 25;
 	item.maxvaluelen = max_input_form_flag > 0 ? max_input_form_flag : 2048;
 	item.flags	 = 0;
+	item.bottomdesc = nostring;
 
 	output = bsddialog_form(&conf, text, rows, cols, 1, 1, &item);
 	print_form_items(&conf, output, 1, &item);
@@ -1276,6 +1286,7 @@ int mixedform_builder(BUILDER_ARGS)
 		items[i].fieldlen    = atoi(argv[9*i+6]);
 		items[i].maxvaluelen = atoi(argv[9*i+7]);
 		items[i].flags       = atoi(argv[9*i+8]);
+		items[i].bottomdesc = nostring;
 	}
 
 	output = bsddialog_form(&conf, text, rows, cols, formheight, nitems,
@@ -1299,6 +1310,7 @@ int passwordbox_builder(BUILDER_ARGS)
 	item.fieldlen	 = cols > 4 ? cols-4 : 25;
 	item.maxvaluelen = max_input_form_flag > 0 ? max_input_form_flag : 2048;
 	item.flags       = BSDDIALOG_FIELDHIDDEN;
+	item.bottomdesc = nostring;
 
 	output = bsddialog_form(&conf, text, rows, cols, 1, 1, &item);
 	print_form_items(&conf, output, 1, &item);
@@ -1339,6 +1351,8 @@ int passwordform_builder(BUILDER_ARGS)
 
 		flags |= (fieldlen < 0 ? BSDDIALOG_FIELDREADONLY : 0);
 		items[i].flags = flags;
+
+		items[i].bottomdesc = nostring;
 	}
 
 	output = bsddialog_form(&conf, text, rows, cols, formheight,

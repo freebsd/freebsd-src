@@ -28,14 +28,13 @@
 #include <sys/param.h>
 
 #include <ctype.h>
-#include <stdlib.h>
-#include <string.h>
-
 #ifdef PORTNCURSES
 #include <ncurses/form.h>
 #else
 #include <form.h>
 #endif
+#include <stdlib.h>
+#include <string.h>
 
 #include "bsddialog.h"
 #include "lib_util.h"
@@ -51,10 +50,10 @@ extern struct bsddialog_theme t;
 
 /* util struct for private buffer and view options */
 struct myfield {
-	int len;
+	int buflen;
 	char *buf;
 	int pos;
-	int size;
+	int maxpos;
 	bool secure;
 	int securech;
 	char *bottomdesc;
@@ -66,30 +65,32 @@ static void insertch(struct myfield *mf, int ch)
 {
 	int i;
 
-	if (mf->len == mf->size)
+	if (mf->buflen > mf->maxpos)
 		return;
 
-	for (i=mf->len-1; i>=mf->pos; i--) {
+	for (i = mf->buflen; i >= mf->pos; i--) {
 		mf->buf[i+1] = mf->buf[i];
 	}
 
 	mf->buf[mf->pos] = ch;
 	mf->pos += 1;
-	mf->len += 1;
-	mf->buf[mf->len] = '\0';
+	if (mf->pos > mf->maxpos)
+		mf->pos = mf->maxpos;
+	mf->buflen += 1;
+	mf->buf[mf->buflen] = '\0';
 }
 
 static void shiftleft(struct myfield *mf)
 {
 	int i, last;
 
-	for (i=mf->pos; i<mf->len; i++) {
+	for (i = mf->pos; i < mf->buflen -1; i++) {
 		mf->buf[i] = mf->buf[i+1];
 	}
 
-	last = mf->len > 0 ? mf->len -1 : 0;
+	last = mf->buflen > 0 ? mf->buflen -1 : 0;
 	mf->buf[last] = '\0';
-		mf->len = last;
+		mf->buflen = last;
 }
 
 static void print_bottomdesc(struct myfield *mf)
@@ -103,6 +104,36 @@ static void print_bottomdesc(struct myfield *mf)
 	}
 }
 
+int
+return_values(struct bsddialog_conf *conf, struct buttons bs, int nitems,
+    struct bsddialog_formitem *items, FORM *form, FIELD **cfield)
+{
+	int i, output;
+	struct myfield *mf;
+
+	output = bs.value[bs.curr];
+	if (output == BSDDIALOG_HELP && conf->form.value_withhelp == false)
+		return output;
+	if (output == BSDDIALOG_EXTRA && conf->form.value_withextra == false)
+		return output;
+	if (output == BSDDIALOG_CANCEL && conf->form.value_withcancel == false)
+		return output;
+	if (output == BSDDIALOG_GENERIC1 || output == BSDDIALOG_GENERIC2)
+		return output;
+
+	/* BSDDIALOG_OK */
+	form_driver(form, REQ_NEXT_FIELD);
+	form_driver(form, REQ_PREV_FIELD);
+	for (i=0; i<nitems; i++) {
+		mf = GETMYFIELD(cfield[i]);
+		items[i].value = strdup(mf->buf);
+		if (items[i].value == NULL)
+			RETURN_ERROR("Cannot allocate memory for form value");
+	}
+
+	return (output);
+}
+
 static int
 form_handler(struct bsddialog_conf *conf, WINDOW *widget, int y, int cols,
     struct buttons bs, WINDOW *formwin, FORM *form, FIELD **cfield, int nitems,
@@ -112,15 +143,14 @@ form_handler(struct bsddialog_conf *conf, WINDOW *widget, int y, int cols,
 	int i, input, output;
 	struct myfield *mf;
 
-	curs_set(2);
-	pos_form_cursor(form);
-	loop = buttupdate = true;
-	bs.curr = -1;
-	form_driver(form, REQ_END_LINE);
-	form_driver(form, REQ_END_LINE);
 	mf = GETMYFIELD2(form);
 	print_bottomdesc(mf);
-	mf->pos = mf->len;
+	pos_form_cursor(form);
+	form_driver(form, REQ_END_LINE);
+	mf->pos = MIN(mf->buflen, mf->maxpos);
+	curs_set(2);
+	bs.curr = -1;
+	loop = buttupdate = true;
 	while(loop) {
 		if (buttupdate) {
 			draw_buttons(widget, y, cols, bs, !informwin);
@@ -135,30 +165,7 @@ form_handler(struct bsddialog_conf *conf, WINDOW *widget, int y, int cols,
 			if (informwin)
 				break;
 			loop = false;
-			output = bs.value[bs.curr];
-			if (output == BSDDIALOG_HELP &&
-			    conf->form.value_withhelp == false)
-				break;
-	    		if (output == BSDDIALOG_EXTRA &&
-			    conf->form.value_withextra == false)
-				break;
-	    		if (output == BSDDIALOG_CANCEL &&
-			    conf->form.value_withcancel == false)
-				break;
-			if (output == BSDDIALOG_GENERIC1 ||
-			    output == BSDDIALOG_GENERIC2)
-				break;
-			
-			/* BSDDIALOG_OK */
-			form_driver(form, REQ_NEXT_FIELD);
-			form_driver(form, REQ_PREV_FIELD);
-			for (i=0; i<nitems; i++) {
-				mf = GETMYFIELD(cfield[i]);
-				items[i].value = strdup(mf->buf);
-				if (items[i].value == NULL)
-					RETURN_ERROR("Cannot allocate memory "
-					    "for form value");
-			}
+			output = return_values(conf, bs, nitems, items, form, cfield);
 			break;
 		case 27: /* Esc */
 			output = BSDDIALOG_ESC;
@@ -196,7 +203,7 @@ form_handler(struct bsddialog_conf *conf, WINDOW *widget, int y, int cols,
 		case KEY_RIGHT:
 			if (informwin) {
 				mf = GETMYFIELD2(form);
-				if (mf->pos >= mf->len)
+				if (mf->pos >= mf->buflen)
 					break;
 				mf->pos += 1;
 				form_driver(form, REQ_NEXT_CHAR);
@@ -216,7 +223,7 @@ form_handler(struct bsddialog_conf *conf, WINDOW *widget, int y, int cols,
 			form_driver(form, REQ_END_LINE);
 			mf = GETMYFIELD2(form);
 			print_bottomdesc(mf);
-			mf->pos = mf->len;
+			mf->pos = MIN(mf->buflen, mf->maxpos);
 			set_field_fore(current_field(form), t.form.f_fieldcolor);
 			set_field_back(current_field(form), t.form.f_fieldcolor);
 			break;
@@ -229,7 +236,7 @@ form_handler(struct bsddialog_conf *conf, WINDOW *widget, int y, int cols,
 			form_driver(form, REQ_END_LINE);
 			mf = GETMYFIELD2(form);
 			print_bottomdesc(mf);
-			mf->pos = mf->len;
+			mf->pos = MIN(mf->buflen, mf->maxpos);
 			set_field_fore(current_field(form), t.form.f_fieldcolor);
 			set_field_back(current_field(form), t.form.f_fieldcolor);
 			break;
@@ -239,14 +246,16 @@ form_handler(struct bsddialog_conf *conf, WINDOW *widget, int y, int cols,
 			if (mf->pos <= 0)
 				break;
 			form_driver(form, REQ_DEL_PREV);
-			mf = GETMYFIELD2(form);
-			mf->pos -= 1;
+			form_driver(form, REQ_BEG_LINE);
+			mf->pos = mf->pos - 1;
+			for (i=0; i<mf->pos; i++)
+				form_driver(form, REQ_NEXT_CHAR);
 			shiftleft(mf);
 			break;
 		case KEY_DC:
 			form_driver(form, REQ_DEL_CHAR);
 			mf = GETMYFIELD2(form);
-			if (mf->len-1 >= mf->pos)
+			if (mf->pos < mf->buflen)
 				shiftleft(mf);
 			break;
 		case KEY_F(1):
@@ -275,7 +284,9 @@ form_handler(struct bsddialog_conf *conf, WINDOW *widget, int y, int cols,
 				for (i = 0; i < (int) bs.nbuttons; i++) {
 					if (tolower(input) ==
 					    tolower((bs.label[i])[0])) {
-						output = bs.value[i];
+						bs.curr = i;
+						output = return_values(conf, bs,
+						    nitems, items, form, cfield);
 						loop = false;
 					}
 				}
@@ -386,6 +397,15 @@ bsddialog_form(struct bsddialog_conf *conf, char* text, int rows, int cols,
 	if (formheight < nitems)
 		formheight = nitems;
 
+	for (i = 0; i < (int)nitems; i++) {
+		if (items[i].maxvaluelen == 0)
+			RETURN_ERROR("maxvaluelen cannot be zero");
+		if (items[i].fieldlen == 0)
+			RETURN_ERROR("fieldlen cannot be zero");
+		if (items[i].fieldlen > items[i].maxvaluelen)
+			RETURN_ERROR("fieldlen cannot be > maxvaluelen");
+	}
+
 	maxline = 0;
 	myfields = malloc(nitems * sizeof(struct myfield));
 	cfield = calloc(nitems + 1, sizeof(FIELD*));
@@ -396,12 +416,15 @@ bsddialog_form(struct bsddialog_conf *conf, char* text, int rows, int cols,
 		set_max_field(cfield[i], items[i].maxvaluelen);
 		set_field_buffer(cfield[i], 0, items[i].init);
 
-		myfields[i].pos  = strlen(items[i].init);
-		myfields[i].len  = strlen(items[i].init);
-		myfields[i].size = items[i].maxvaluelen;
-		myfields[i].buf  = malloc(myfields[i].size);
-		memset(myfields[i].buf, 0, myfields[i].size);
-		strcpy(myfields[i].buf, items[i].init);
+		myfields[i].buf = malloc(items[i].maxvaluelen + 1);
+		memset(myfields[i].buf, 0, items[i].maxvaluelen + 1); // end with '\0' for strdup
+		strncpy(myfields[i].buf, items[i].init, items[i].maxvaluelen);
+
+		myfields[i].buflen = strlen(myfields[i].buf);
+
+		myfields[i].maxpos = items[i].maxvaluelen -1;
+		myfields[i].pos = MIN(myfields[i].buflen, myfields[i].maxpos);
+
 		myfields[i].bottomdesc = items[i].bottomdesc;
 		set_field_userptr(cfield[i], &myfields[i]);
 
