@@ -61,6 +61,8 @@
 
 #include <fs/unionfs/union.h>
 
+#include <machine/atomic.h>
+
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_object.h>
@@ -2523,26 +2525,28 @@ unionfs_add_writecount(struct vop_add_writecount_args *ap)
 {
 	struct vnode *tvp, *vp;
 	struct unionfs_node *unp;
-	int error;
+	int error, writerefs;
 
 	vp = ap->a_vp;
 	unp = VTOUNIONFS(vp);
-	tvp = unp->un_uppervp != NULL ? unp->un_uppervp : unp->un_lowervp;
-	VI_LOCK(vp);
+	tvp = unp->un_uppervp;
+	KASSERT(tvp != NULL,
+	    ("%s: adding write ref without upper vnode", __func__));
+	error = VOP_ADD_WRITECOUNT(tvp, ap->a_inc);
+	if (error != 0)
+		return (error);
+	/*
+	 * We need to track the write refs we've passed to the underlying
+	 * vnodes so that we can undo them in case we are forcibly unmounted.
+	 */
+	writerefs = atomic_fetchadd_int(&vp->v_writecount, ap->a_inc);
 	/* text refs are bypassed to lowervp */
-	VNASSERT(vp->v_writecount >= 0, vp, ("wrong null writecount"));
-	VNASSERT(vp->v_writecount + ap->a_inc >= 0, vp,
-	    ("wrong writecount inc %d", ap->a_inc));
-	if (tvp != NULL)
-		error = VOP_ADD_WRITECOUNT(tvp, ap->a_inc);
-	else if (vp->v_writecount < 0)
-		error = ETXTBSY;
-	else
-		error = 0;
-	if (error == 0)
-		vp->v_writecount += ap->a_inc;
-	VI_UNLOCK(vp);
-	return (error);
+	VNASSERT(writerefs >= 0, vp,
+	    ("%s: invalid write count %d", __func__, writerefs));
+	VNASSERT(writerefs + ap->a_inc >= 0, vp,
+	    ("%s: invalid write count inc %d + %d", __func__,
+	    writerefs, ap->a_inc));
+	return (0);
 }
 
 static int
