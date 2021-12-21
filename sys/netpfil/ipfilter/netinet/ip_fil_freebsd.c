@@ -1017,7 +1017,7 @@ ipf_newisn(fin)
 }
 
 
-INLINE int
+inline int
 ipf_checkv4sum(fr_info_t *fin)
 {
 #ifdef CSUM_DATA_VALID
@@ -1116,7 +1116,7 @@ skipauto:
 
 
 #ifdef USE_INET6
-INLINE int
+inline int
 ipf_checkv6sum(fr_info_t *fin)
 {
 	if ((fin->fin_flx & FI_NOCKSUM) != 0) {
