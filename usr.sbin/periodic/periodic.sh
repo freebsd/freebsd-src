@@ -30,6 +30,10 @@ if [ $# -lt 1 ] ; then
     usage
 fi
 
+# Use a deterministic path to match the preset from /etc/crontab in case
+# periodic is run interactively.
+export PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin
+
 # If possible, check the global system configuration file,
 # to see if there are additional dirs to check
 if [ -r /etc/defaults/periodic.conf ]; then
