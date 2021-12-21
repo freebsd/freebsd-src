@@ -45,7 +45,7 @@ CFLAGS+=	-I${EFIBOOT}/include
 CFLAGS+=	-I${.CURDIR} -I${EDK2INC}
 CFLAGS+=	-fno-strict-aliasing
 
-MLINKS+=efivar.3 efi_set_variables_supported.3 \
+MLINKS+=efivar.3 efi_variables_supported.3 \
 	efivar.3 efi_del_variable.3 \
 	efivar.3 efi_get_variable.3 \
 	efivar.3 efi_get_variable_attributes.3 \
