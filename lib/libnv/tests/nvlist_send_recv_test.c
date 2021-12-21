@@ -473,8 +473,8 @@ nvlist_send_recv__send_many_fds(short sotype)
 
 /*
  * This test needs to tune the following sysctl's:
- *      net.local.dgram.maxdgram=16772
- *      net.local.dgram.recvspace=524288-(ish)
+ *      net.local.dgram.maxdgram
+ *      net.local.dgram.recvspace
  */
 ATF_TC_WITHOUT_HEAD(nvlist_send_recv__send_many_fds__dgram);
 ATF_TC_BODY(nvlist_send_recv__send_many_fds__dgram, tc)
@@ -493,9 +493,9 @@ ATF_TC_BODY(nvlist_send_recv__send_many_fds__dgram, tc)
 
 	/*
 	 * The receive queue fills up quicker than it's being emptied,
-	 * bump it to a sufficiently large enough value, 512k.
+	 * bump it to a sufficiently large enough value, 1M.
 	 */
-	temp_recvspace = 524288;
+	temp_recvspace = 1048576;
 	len = sizeof(recvspace);
 	error = sysctlbyname("net.local.dgram.recvspace", &recvspace,
 	    &len, &temp_recvspace, sizeof(temp_recvspace));
