@@ -509,13 +509,13 @@ worlds: .PHONY
 #
 .if defined(EXTRA_TARGETS)
 # powerpcspe excluded from main list until clang fixed
-EXTRA_ARCHES_powerpc=	powerpcspe powerpc64le
+EXTRA_ARCHES_powerpc=	powerpcspe
 .endif
 TARGETS?=amd64 arm arm64 i386 powerpc riscv
 _UNIVERSE_TARGETS=	${TARGETS}
 TARGET_ARCHES_arm?=	armv6 armv7
 TARGET_ARCHES_arm64?=	aarch64
-TARGET_ARCHES_powerpc?=	powerpc powerpc64 ${EXTRA_ARCHES_powerpc}
+TARGET_ARCHES_powerpc?=	powerpc powerpc64 powerpc64le ${EXTRA_ARCHES_powerpc}
 TARGET_ARCHES_riscv?=	riscv64 riscv64sf
 .for target in ${TARGETS}
 TARGET_ARCHES_${target}?= ${target}
