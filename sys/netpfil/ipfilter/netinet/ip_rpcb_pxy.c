@@ -151,7 +151,7 @@ ipf_p_rpcb_new(void *arg, fr_info_t *fin, ap_session_t *aps, nat_t *nat)
 	nat = nat;	/* LINT */
 
 	if (fin->fin_v != 4)
-		return -1;
+		return(-1);
 
 	KMALLOC(rs, rpcb_session_t *);
 	if (rs == NULL)
@@ -722,7 +722,7 @@ ipf_p_rpcb_atoi(char *ptr)
 		i *= 10;
 		i += c - '0';
 	}
-	return i;
+	return(i);
 }
 
 /* --------------------------------------------------------------------	*/

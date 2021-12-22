@@ -78,7 +78,7 @@ count_mask_bits(addrfamily_t *mask, u_32_t **lastp)
 			count++;
 	}
 
-	return count;
+	return(count);
 }
 
 
@@ -155,7 +155,7 @@ ipf_rx_find_addr(ipf_rdx_node_t *tree, u_32_t *addr)
 		}
 	}
 
-	return (cur);
+	return(cur);
 }
 
 
@@ -201,7 +201,7 @@ ipf_rx_match(ipf_rdx_head_t *head, addrfamily_t *addr)
 			if ((*key & *mask) != *data)
 				break;
 		if ((end == key) && (cur->root == 0))
-			return (cur);	/* Equal keys */
+			return(cur);	/* Equal keys */
 	}
 	prev = node->parent;
 	key = (u_32_t *)addr;
@@ -220,12 +220,12 @@ ipf_rx_match(ipf_rdx_head_t *head, addrfamily_t *addr)
 			for (i = ADF_OFF >> 2; i <= node->offset; i++) {
 				if ((key[i] & masknode->mask[i]) ==
 				    cur->addrkey[i])
-					return (cur);
+					return(cur);
 			}
 		}
 	}
 
-	return NULL;
+	return(NULL);
 }
 
 
@@ -250,31 +250,31 @@ ipf_rx_lookup(ipf_rdx_head_t *head, addrfamily_t *addr, addrfamily_t *mask)
 
 	found = ipf_rx_find_addr(head->root, (u_32_t *)addr);
 	if (found->root == 1)
-		return NULL;
+		return(NULL);
 
 	/*
 	 * It is possible to find a matching address in the tree but for the
 	 * netmask to not match. If the netmask does not match and there is
-	 * no list of alternatives present at dupkey, return a failure.
+	* no list of alternatives present at dupkey, return a failure.
 	 */
 	count = count_mask_bits(mask, NULL);
 	if (count != found->maskbitcount && found->dupkey == NULL)
-		return (NULL);
+		return(NULL);
 
 	akey = (u_32_t *)addr;
 	if ((found->addrkey[found->offset] & found->maskkey[found->offset]) !=
 	    akey[found->offset])
-		return NULL;
+		return(NULL);
 
 	if (found->dupkey != NULL) {
 		node = found;
 		while (node != NULL && node->maskbitcount != count)
 			node = node->dupkey;
 		if (node == NULL)
-			return (NULL);
+			return(NULL);
 		found = node;
 	}
-	return found;
+	return(found);
 }
 
 
@@ -347,7 +347,7 @@ ipf_rx_insert(ipf_rdx_head_t *head, ipf_rdx_node_t *nodes, int *dup)
 			break;
 	if (end == data) {
 		*dup = 1;
-		return (node);	/* Equal keys */
+		return(node);	/* Equal keys */
 	}
 	*dup = 0;
 
@@ -416,7 +416,7 @@ ipf_rx_insert(ipf_rdx_head_t *head, ipf_rdx_node_t *nodes, int *dup)
 
 	KMALLOC(mask, ipf_rdx_mask_t *);
 	if (mask == NULL)
-		return NULL;
+		return(NULL);
 	bzero(mask, sizeof(*mask));
 	mask->next = NULL;
 	mask->node = &nodes[0];
@@ -467,7 +467,7 @@ ipf_rx_insert(ipf_rdx_head_t *head, ipf_rdx_node_t *nodes, int *dup)
 			}
 		}
 	}
-	return (&nodes[0]);
+	return(&nodes[0]);
 }
 
 /* ------------------------------------------------------------------------ */
@@ -504,7 +504,7 @@ ipf_rx_addroute(ipf_rdx_head_t *head, addrfamily_t *addr, addrfamily_t *mask,
 	buildnodes(addr, mask, nodes);
 	x = ipf_rx_insert(head, nodes, &dup);
 	if (x == NULL)
-		return NULL;
+		return(NULL);
 
 	if (dup == 1) {
 		node = &nodes[0];
@@ -521,12 +521,12 @@ ipf_rx_addroute(ipf_rdx_head_t *head, addrfamily_t *addr, addrfamily_t *mask,
 		}
 
 		/*
-		 * Is it a complete duplicate? If so, return NULL and
+		* Is it a complete duplicate? If so, return NULL and
 		 * fail the insert. Otherwise, insert it into the list
 		 * of netmasks active for this key.
 		 */
 		if ((x != NULL) && (x->maskbitcount == node->maskbitcount))
-			return (NULL);
+			return(NULL);
 
 		if (prev != NULL) {
 			nodes[0].dupkey = x;
@@ -546,7 +546,7 @@ ipf_rx_addroute(ipf_rdx_head_t *head, addrfamily_t *addr, addrfamily_t *mask,
 		}
 	}
 
-	return &nodes[0];
+	return(&nodes[0]);
 }
 
 
@@ -577,9 +577,9 @@ ipf_rx_delete(ipf_rdx_head_t *head, addrfamily_t *addr, addrfamily_t *mask)
 
 	found = ipf_rx_find_addr(head->root, (u_32_t *)addr);
 	if (found == NULL)
-		return NULL;
+		return(NULL);
 	if (found->root == 1)
-		return NULL;
+		return(NULL);
 	count = count_mask_bits(mask, NULL);
 	parent = found->parent;
 	if (found->dupkey != NULL) {
@@ -587,7 +587,7 @@ ipf_rx_delete(ipf_rdx_head_t *head, addrfamily_t *addr, addrfamily_t *mask)
 		while (node != NULL && node->maskbitcount != count)
 			node = node->dupkey;
 		if (node == NULL)
-			return (NULL);
+			return(NULL);
 		if (node != found) {
 			/*
 			 * Remove from the dupkey list. Here, "parent" is
@@ -618,7 +618,7 @@ ipf_rx_delete(ipf_rdx_head_t *head, addrfamily_t *addr, addrfamily_t *mask)
 		}
 	} else {
 		if (count != found->maskbitcount)
-			return (NULL);
+			return(NULL);
 		/*
 		 * Remove the node from the tree and reconnect the subtree
 		 * below.
@@ -725,7 +725,7 @@ ipf_rx_delete(ipf_rdx_head_t *head, addrfamily_t *addr, addrfamily_t *mask)
 		}
 	}
 
-	return (found);
+	return(found);
 }
 
 
@@ -796,7 +796,7 @@ ipf_rx_inithead(radix_softc_t *softr, ipf_rdx_head_t **headp)
 	KMALLOC(ptr, ipf_rdx_head_t *);
 	*headp = ptr;
 	if (ptr == NULL)
-		return -1;
+		return(-1);
 	bzero(ptr, sizeof(*ptr));
 	node = ptr->nodes;
 	ptr->root = node + 1;
@@ -829,7 +829,7 @@ ipf_rx_inithead(radix_softc_t *softr, ipf_rdx_head_t **headp)
 	ptr->lookup = ipf_rx_lookup;
 	ptr->matchaddr = ipf_rx_match;
 	ptr->walktree = ipf_rx_walktree;
-	return 0;
+	return(0);
 }
 
 
@@ -860,17 +860,17 @@ ipf_rx_create(void)
 
 	KMALLOC(softr, radix_softc_t *);
 	if (softr == NULL)
-		return NULL;
+		return(NULL);
 	bzero((char *)softr, sizeof(*softr));
 
 	KMALLOCS(softr->zeros, u_char *, 3 * sizeof(addrfamily_t));
 	if (softr->zeros == NULL) {
 		KFREE(softr);
-		return (NULL);
+		return(NULL);
 	}
 	softr->ones = softr->zeros + sizeof(addrfamily_t);
 
-	return softr;
+	return(softr);
 }
 
 
@@ -887,7 +887,7 @@ ipf_rx_init(void *ctx)
 	memset(softr->zeros, 0, 3 * sizeof(addrfamily_t));
 	memset(softr->ones, 0xff, sizeof(addrfamily_t));
 
-	return (0);
+	return(0);
 }
 
 
@@ -1027,7 +1027,7 @@ addrname(addrfamily_t *ap)
 	bzero((char *)name, sizeof(name));
 	txt =  inet_ntop(ap->adf_family, &ap->adf_addr, name,
 			 sizeof(name));
-	return txt;
+	return(txt);
 }
 
 
@@ -1262,7 +1262,7 @@ main(int argc, char *argv[])
 
 	ipf_rx_walktree(rnh, ipf_rx_freenode, rnh);
 
-	return 0;
+	return(0);
 }
 
 
@@ -1443,7 +1443,7 @@ randomize(int *pnitems)
 		order[i] = choice;
 	}
 
-	return order;
+	return(order);
 }
 
 

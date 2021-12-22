@@ -84,7 +84,7 @@ ipf_p_netbios_out(void *arg, fr_info_t *fin, ap_session_t *aps, nat_t *nat)
 	 * no net bios datagram could possibly be shorter than this
 	 */
 	if (dlen < 11)
-		return 0;
+		return(0);
 
 	ip = fin->fin_ip;
 	udp = (udphdr_t *)fin->fin_dp;
@@ -112,5 +112,5 @@ ipf_p_netbios_out(void *arg, fr_info_t *fin, ap_session_t *aps, nat_t *nat)
 	/* replace data in packet */
 	COPYBACK(m, off, sizeof(dgmbuf), dgmbuf);
 
-	return 0;
+	return(0);
 }
