@@ -118,6 +118,14 @@ fbt_provide_module_function(linker_file_t lf, int symindx,
 	instr = (uint32_t *)(symval->value);
 	limit = (uint32_t *)(symval->value + symval->size);
 
+	/*
+	 * Ignore any bti instruction at the start of the function
+	 * we need to keep it there for any indirect branches calling
+	 * the function on Armv8.5+
+	 */
+	if ((*instr & BTI_MASK) == BTI_INSTR)
+		instr++;
+
 	/* Look for stp (pre-indexed) operation */
 	found = false;
 	/*

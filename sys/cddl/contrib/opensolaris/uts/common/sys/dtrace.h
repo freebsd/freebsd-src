@@ -2466,6 +2466,9 @@ extern void dtrace_helpers_destroy(proc_t *);
 #define	B_DATA_MASK	0x00ffffff
 #define	B_INSTR		0x14000000
 
+#define	BTI_MASK	0xffffff3f
+#define	BTI_INSTR	0xd503241f
+
 #define	NOP_INSTR	0xd503201f
 
 #define	RET_INSTR	0xd65f03c0
