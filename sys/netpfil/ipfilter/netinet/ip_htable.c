@@ -505,8 +505,8 @@ static int
 ipf_htable_node_del(ipf_main_softc_t *softc, void *arg, iplookupop_t *op,
 	int uid)
 {
-        iphtable_t *iph;
-        iphtent_t hte, *ent;
+	iphtable_t *iph;
+	iphtent_t hte, *ent;
 	int err;
 
 	if (op->iplo_size != sizeof(hte)) {

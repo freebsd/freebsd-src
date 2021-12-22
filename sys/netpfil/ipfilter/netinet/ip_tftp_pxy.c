@@ -9,7 +9,7 @@
 #define IPF_TFTP_PROXY
 
 typedef struct ipf_tftp_softc_s {
-        int     	ipf_p_tftp_readonly;
+	int     	ipf_p_tftp_readonly;
 	ipftuneable_t	*ipf_p_tftp_tune;
 } ipf_tftp_softc_t;
 

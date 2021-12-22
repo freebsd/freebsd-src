@@ -1234,7 +1234,7 @@ ipf_sync_ioctl(ipf_main_softc_t *softc, caddr_t data, ioctlcmd_t cmd,
 
 	switch (cmd)
 	{
-        case SIOCIPFFL:
+	case SIOCIPFFL:
 		error = BCOPYIN(data, &i, sizeof(i));
 		if (error != 0) {
 			IPFERROR(110023);

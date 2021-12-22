@@ -4613,7 +4613,7 @@ frrequest(ipf_main_softc_t *softc, int unit, ioctlcmd_t req, caddr_t data,
 	ftail = NULL;
 	fprev = NULL;
 	if (unit == IPL_LOGAUTH) {
-                if ((fp->fr_tifs[0].fd_ptr != NULL) ||
+		if ((fp->fr_tifs[0].fd_ptr != NULL) ||
 		    (fp->fr_tifs[1].fd_ptr != NULL) ||
 		    (fp->fr_dif.fd_ptr != NULL) ||
 		    (fp->fr_flags & FR_FASTROUTE)) {

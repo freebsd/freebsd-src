@@ -490,9 +490,9 @@ ipf_proxy_soft_destroy(ipf_main_softc_t *softc, void *arg)
 	}
 
 	if (softp->ipf_proxy_tune != NULL) {
-                ipf_tune_array_unlink(softc, softp->ipf_proxy_tune);
-                KFREES(softp->ipf_proxy_tune, sizeof(ipf_proxy_tuneables));
-                softp->ipf_proxy_tune = NULL;
+		ipf_tune_array_unlink(softc, softp->ipf_proxy_tune);
+		KFREES(softp->ipf_proxy_tune, sizeof(ipf_proxy_tuneables));
+		softp->ipf_proxy_tune = NULL;
 	}
 
 	KFREE(softp);

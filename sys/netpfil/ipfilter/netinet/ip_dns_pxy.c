@@ -189,7 +189,7 @@ ipf_p_dns_new(void *arg, fr_info_t *fin, ap_session_t *aps, nat_t *nat)
 	if (di == NULL) {
 		printf("ipf_dns_new:KMALLOCS(%d) failed\n", sizeof(*di));
 		return(-1);
-        }
+	}
 
 	MUTEX_INIT(&di->dnsi_lock, "dns lock");
 
