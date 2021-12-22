@@ -53,7 +53,7 @@ ipfrule_modevent(module_t mod, int type, void *unused)
 		error = EINVAL;
 		break;
 	}
-	return error;
+	return(error);
 }
 
 static moduledata_t ipfrulemod = {

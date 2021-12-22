@@ -60,37 +60,37 @@ int relay(ifd, ofd, rfd)
 		{
 		case -1 :
 		case 0 :
-			return -1;
+			return(-1);
 		default :
 			if (FD_ISSET(ifd, &rfds)) {
 				rw = read(ifd, irh, ibuff + RELAY_BUFSZ - irh);
 				if (rw == -1)
-					return -1;
+					return(-1);
 				if (rw == 0)
-					return 0;
+					return(0);
 				irh += rw;
 				n--;
 			}
 			if (n && FD_ISSET(ofd, &wfds)) {
 				rw = write(ofd, iwt, iwh  - iwt);
 				if (rw == -1)
-					return -1;
+					return(-1);
 				iwt += rw;
 				n--;
 			}
 			if (n && FD_ISSET(rfd, &rfds)) {
 				rw = read(rfd, iwh, obuff + RELAY_BUFSZ - iwh);
 				if (rw == -1)
-					return -1;
+					return(-1);
 				if (rw == 0)
-					return 0;
+					return(0);
 				iwh += rw;
 				n--;
 			}
 			if (n && FD_ISSET(rfd, &wfds)) {
 				rw = write(rfd, irt, irh  - irt);
 				if (rw == -1)
-					return -1;
+					return(-1);
 				irt += rw;
 				n--;
 			}

@@ -92,7 +92,7 @@ copystr(char *dst, char *src)
 		else
 			esc = 1;
 	*t = '\0';
-	return dst;
+	return(dst);
 }
 
 void
@@ -372,7 +372,7 @@ runconfig(void)
 	i = select(mfd + 1, &rfd, &wfd, NULL, &tv);
 	if (i == -1) {
 		perror("select");
-		return -1;
+		return(-1);
 	}
 
 	now1 = time(NULL);
@@ -396,7 +396,7 @@ runconfig(void)
 			i--;
 		}
 	}
-	return 0;
+	return(0);
 }
 
 
@@ -424,7 +424,7 @@ gethostport(char *str, int lnum, u_32_t *ipp, u_short *portp)
 		if (!(hp = gethostbyname(host))) {
 			fprintf(stderr, "%d: can't resolve hostname: %s\n",
 				lnum, host);
-			return 0;
+			return(0);
 		}
 		*ipp = *(u_32_t *)hp->h_addr;
 	}
@@ -439,12 +439,12 @@ gethostport(char *str, int lnum, u_32_t *ipp, u_short *portp)
 			else {
 				fprintf(stderr, "%d: unknown service %s\n",
 					lnum, port);
-				return 0;
+				return(0);
 			}
 		}
 	} else
 		*portp = 0;
-	return 1;
+	return(1);
 }
 
 
@@ -458,24 +458,24 @@ mapfile(char *file, size_t *sizep)
 	fd = open(file, O_RDONLY);
 	if (fd == -1) {
 		perror("open(mapfile)");
-		return NULL;
+		return(NULL);
 	}
 
 	if (fstat(fd, &sb) == -1) {
 		perror("fstat(mapfile)");
 		close(fd);
-		return NULL;
+		return(NULL);
 	}
 
 	addr = mmap(NULL, sb.st_size, PROT_READ, MAP_SHARED, fd, 0);
 	if (addr == (caddr_t)-1) {
 		perror("mmap(mapfile)");
 		close(fd);
-		return NULL;
+		return(NULL);
 	}
 	close(fd);
 	*sizep = sb.st_size;
-	return (char *)addr;
+	return(char *)addr;
 }
 
 
@@ -491,7 +491,7 @@ readconfig(char *filename)
 	fp = fopen(filename, "r");
 	if (!fp) {
 		perror("open(configfile)");
-		return -1;
+		return(-1);
 	}
 
 	bzero((char *)&template, sizeof(template));
@@ -507,7 +507,7 @@ readconfig(char *filename)
 		if  (!s) {
 			fprintf(stderr, "%d: line too long\n", num);
 			fclose(fp);
-			return -1;
+			return(-1);
 		}
 
 		*s = '\0';
@@ -743,7 +743,7 @@ readconfig(char *filename)
 	if (errtxt)
 		fprintf(stderr, "%d: syntax error at \"%s\"\n", num, errtxt);
 	fclose(fp);
-	return err;
+	return(err);
 }
 
 
