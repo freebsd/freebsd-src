@@ -23,7 +23,7 @@ remove_poolnode(int unit, char *name, ip_pool_node_t *node,
 	iplookupop_t op;
 
 	if (pool_open() == -1)
-		return -1;
+		return(-1);
 
 	op.iplo_unit = unit;
 	op.iplo_type = IPLT_POOL;
@@ -42,10 +42,10 @@ remove_poolnode(int unit, char *name, ip_pool_node_t *node,
 
 	if (pool_ioctl(iocfunc, SIOCLOOKUPDELNODE, &op)) {
 		if ((opts & OPT_DONOTHING) == 0) {
-			return ipf_perror_fd(pool_fd(), iocfunc,
-					     "remove lookup pool node");
+			return(ipf_perror_fd(pool_fd(), iocfunc,
+					     "remove lookup pool node"));
 		}
 	}
 
-	return 0;
+	return(0);
 }

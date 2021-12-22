@@ -18,7 +18,7 @@ findword(wordtab_t *words, char *name)
 		if (!strcmp(name, w->w_word))
 			break;
 	if (w->w_word == NULL)
-		return NULL;
+		return(NULL);
 
-	return w;
+	return(w);
 }

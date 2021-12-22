@@ -36,7 +36,7 @@ buildopts(char *cp, char *op, int len)
 		}
 		if (!io->on_name) {
 			fprintf(stderr, "unknown IP option name %s\n", s);
-			return 0;
+			return(0);
 		}
 	}
 	while ((len & 3) != 3) {
@@ -45,5 +45,5 @@ buildopts(char *cp, char *op, int len)
 	}
 	*op++ = IPOPT_EOL;
 	len++;
-	return len;
+	return(len);
 }

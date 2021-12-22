@@ -18,9 +18,9 @@ u_32_t getv6optbyname(char *optname)
 
 	for (io = v6ionames; io->on_name; io++)
 		if (!strcasecmp(optname, io->on_name))
-			return io->on_bit;
+			return(io->on_bit);
 #endif
-	return -1;
+	return(-1);
 }
 
 
@@ -31,7 +31,7 @@ u_32_t getv6optbyvalue(int optval)
 
 	for (io = v6ionames; io->on_name; io++)
 		if (io->on_value == optval)
-			return io->on_bit;
+			return(io->on_bit);
 #endif
-	return -1;
+	return(-1);
 }

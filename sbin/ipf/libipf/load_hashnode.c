@@ -25,7 +25,7 @@ load_hashnode(int unit, char *name, iphtent_t *node, int ttl,
 	int err;
 
 	if (pool_open() == -1)
-		return -1;
+		return(-1);
 
 	op.iplo_type = IPLT_HASH;
 	op.iplo_unit = unit;
@@ -57,7 +57,7 @@ load_hashnode(int unit, char *name, iphtent_t *node, int ttl,
 			char msg[80];
 
 			snprintf(msg, sizeof(msg), "%s node from lookup hash table", what);
-			return ipf_perror_fd(pool_fd(), iocfunc, msg);
+			return(ipf_perror_fd(pool_fd(), iocfunc, msg));
 		}
-	return 0;
+	return(0);
 }

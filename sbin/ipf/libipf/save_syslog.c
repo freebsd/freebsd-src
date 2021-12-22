@@ -33,7 +33,7 @@ syslog_parse(char **strings)
 
 	ctx = calloc(1, sizeof(*ctx));
 	if (ctx == NULL)
-		return NULL;
+		return(NULL);
 
 	ctx->facpri = -1;
 
@@ -51,7 +51,7 @@ syslog_parse(char **strings)
 				if (fac == -1) {
 					free(str);
 					free(ctx);
-					return NULL;
+					return(NULL);
 				}
 			}
 
@@ -60,7 +60,7 @@ syslog_parse(char **strings)
 				if (pri == -1) {
 					free(str);
 					free(ctx);
-					return NULL;
+					return(NULL);
 				}
 			}
 			free(str);
@@ -81,7 +81,7 @@ syslog_parse(char **strings)
 		}
 	}
 
-	return ctx;
+	return(ctx);
 }
 
 
@@ -129,5 +129,5 @@ syslog_send(void *ctx, ipmon_msg_t *msg)
 		}
 	}
 	syslog(facpri, "%s", msg->imm_msg);
-	return 0;
+	return(0);
 }

@@ -243,7 +243,7 @@ typeopt:
 ipv4:   YY_NUMBER '.' YY_NUMBER '.' YY_NUMBER '.' YY_NUMBER
 		{ if ($1 > 255 || $3 > 255 || $5 > 255 || $7 > 255) {
 			yyerror("Invalid octet string for IP address");
-			return 0;
+			return(0);
 		  }
 		  $$.s_addr = ($1 << 24) | ($3 << 16) | ($5 << 8) | $7;
 		  $$.s_addr = htonl($$.s_addr);
@@ -311,7 +311,7 @@ new_opt(int type)
 	o->o_line = yylineNum;
 	o->o_logfac = -1;
 	o->o_logpri = -1;
-	return o;
+	return(o);
 }
 
 static void
@@ -620,7 +620,7 @@ check_action(char *buf, char *log, int opts, int lvl)
 			(*d->ipmd_store)(d->ipmd_token, &msg);
 	}
 
-	return matched;
+	return(matched);
 }
 
 
@@ -665,13 +665,13 @@ load_config(char *file)
 	fp = fopen(file, "r");
 	if (!fp) {
 		perror("load_config:fopen:");
-		return -1;
+		return(-1);
 	}
 	yyin = fp;
 	while (!feof(fp))
 		yyparse();
 	fclose(fp);
-	return 0;
+	return(0);
 }
 
 
@@ -749,15 +749,15 @@ add_doing(ipmon_saver_t *saver)
 	ipmon_saver_int_t *it;
 
 	if (find_doing(saver->ims_name) == IPM_DOING)
-		return NULL;
+		return(NULL);
 
 	it = calloc(1, sizeof(*it));
 	if (it == NULL)
-		return NULL;
+		return(NULL);
 	it->imsi_stor = saver;
 	it->imsi_next = saverlist;
 	saverlist = it;
-	return it;
+	return(it);
 }
 
 
@@ -768,9 +768,9 @@ find_doing(char *string)
 
 	for (it = saverlist; it != NULL; it = it->imsi_next) {
 		if (!strcmp(it->imsi_stor->ims_name, string))
-			return IPM_DOING;
+			return(IPM_DOING);
 	}
-	return 0;
+	return(0);
 }
 
 
@@ -785,7 +785,7 @@ build_doing(char *target, char *options)
 
 	d = calloc(1, sizeof(*d));
 	if (d == NULL)
-		return NULL;
+		return(NULL);
 
 	for (it = saverlist; it != NULL; it = it->imsi_next) {
 		if (!strcmp(it->imsi_stor->ims_name, target))
@@ -793,7 +793,7 @@ build_doing(char *target, char *options)
 	}
 	if (it == NULL) {
 		free(d);
-		return NULL;
+		return(NULL);
 	}
 
 	strarray[0] = options;
@@ -802,7 +802,7 @@ build_doing(char *target, char *options)
 	d->ipmd_token = (*it->imsi_stor->ims_parse)(strarray);
 	if (d->ipmd_token == NULL) {
 		free(d);
-		return NULL;
+		return(NULL);
 	}
 
 	save = it->imsi_stor;
@@ -827,7 +827,7 @@ build_doing(char *target, char *options)
 		}
 	}
 
-	return d;
+	return(d);
 }
 
 
@@ -974,11 +974,11 @@ install_saver(char *name, char *path)
 	char nbuf[80];
 
 	if (find_doing(name) == IPM_DOING)
-		return -1;
+		return(-1);
 
 	isi = calloc(1, sizeof(*isi));
 	if (isi == NULL)
-		return -1;
+		return(-1);
 
 	is = calloc(1, sizeof(*is));
 	if (is == NULL)
@@ -1026,7 +1026,7 @@ install_saver(char *name, char *path)
 	isi->imsi_next = saverlist;
 	saverlist = isi;
 
-	return 0;
+	return(0);
 
 loaderror:
 	if (isi->imsi_handle != NULL)
@@ -1034,5 +1034,5 @@ loaderror:
 	free(isi);
 	if (is != NULL)
 		free(is);
-	return -1;
+	return(-1);
 }

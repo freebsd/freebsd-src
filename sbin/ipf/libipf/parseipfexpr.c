@@ -268,7 +268,7 @@ parseipfexpr(char *line, char **errorptr)
 	oplist[0] = asize + 2;
 	oplist[asize + 1] = IPF_EXP_END;
 
-	return oplist;
+	return(oplist);
 
 parseerror:
 	if (errorptr != NULL)
@@ -277,5 +277,5 @@ parseerror:
 		free(oplist);
 	if (temp != NULL)
 		free(temp);
-	return NULL;
+	return(NULL);
 }

@@ -192,5 +192,5 @@ main(int argc, char **argv)
 		ip_test7(dev, mtu, (ip_t *)ti, gwip, pointtest);
 		break;
 	}
-	return 0;
+	return(0);
 }

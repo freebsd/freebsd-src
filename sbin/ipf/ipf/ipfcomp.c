@@ -62,8 +62,8 @@ static	FILE	*cfile = NULL;
  * This is called once per filter rule being loaded to emit data structures
  * required.
  */
-void
-printc(frentry_t *fr)
+void printc(fr)
+	frentry_t *fr;
 {
 	u_long *ulp;
 	char *and;
@@ -162,8 +162,9 @@ printc(frentry_t *fr)
 static frgroup_t *groups = NULL;
 
 
-static void
-addrule(FILE *fp, frentry_t *fr)
+static void addrule(fp, fr)
+	FILE *fp;
+	frentry_t *fr;
 {
 	frentry_t *f, **fpp;
 	frgroup_t *g;
@@ -242,27 +243,30 @@ static u_long ipf%s_rule_data_%s_%u[] = {\n",
 }
 
 
-int
-intcmp(const void *c1, const void *c2)
+int intcmp(c1, c2)
+	const void *c1, *c2;
 {
 	const mc_t *i1 = (const mc_t *)c1, *i2 = (const mc_t *)c2;
 
 	if (i1->n == i2->n) {
-		return i1->c - i2->c;
+		return(i1->c - i2->c);
 	}
-	return i2->n - i1->n;
+	return(i2->n - i1->n);
 }
 
 
-static void
-indent(FILE *fp, int in)
+static void indent(fp, in)
+	FILE *fp;
+	int in;
 {
 	for (; in; in--)
 		fputc('\t', fp);
 }
 
-static void
-printeq(FILE *fp, char *var, int m, int max, int v)
+static void printeq(fp, var, m, max, v)
+	FILE *fp;
+	char *var;
+	int m, max, v;
 {
 	if (m == max)
 		fprintf(fp, "%s == %#x) {\n", var, v);
@@ -276,8 +280,10 @@ printeq(FILE *fp, char *var, int m, int max, int v)
  *             m - netmask
  *             v - required address
  */
-static void
-printipeq(FILE *fp, char *var, int fl, int m, int v)
+static void printipeq(fp, var, fl, m, v)
+	FILE *fp;
+	char *var;
+	int fl, m, v;
 {
 	if (m == 0xffffffff)
 		fprintf(fp, "%s ", var);
@@ -288,8 +294,10 @@ printipeq(FILE *fp, char *var, int fl, int m, int v)
 }
 
 
-void
-emit(int num, int dir, void *v, frentry_t *fr)
+void emit(num, dir, v, fr)
+	int num, dir;
+	void *v;
+	frentry_t *fr;
 {
 	u_int incnt, outcnt;
 	frgroup_t *g;
@@ -338,8 +346,9 @@ emit(int num, int dir, void *v, frentry_t *fr)
 }
 
 
-static void
-emitheader(frgroup_t *grp, u_int incount, u_int outcount)
+static void emitheader(grp, incount, outcount)
+	frgroup_t *grp;
+	u_int incount, outcount;
 {
 	static FILE *fph = NULL;
 	frgroup_t *g;
@@ -392,8 +401,7 @@ extern int ipfrule_remove_out_%s(void));\n",
 	}
 }
 
-static void
-emittail(void)
+static void emittail()
 {
 	frgroup_t *g;
 
@@ -406,10 +414,10 @@ int ipfrule_add()\n\
 		fprintf(cfile, "\
 	err = ipfrule_add_%s_%s();\n\
 	if (err != 0)\n\
-		return err;\n",
+		return(err);\n",
 			(g->fg_flags & FR_INQUE) ? "in" : "out", g->fg_name);
 	fprintf(cfile, "\
-	return 0;\n");
+	return(0);\n");
 	fprintf(cfile, "}\n\
 \n");
 
@@ -422,17 +430,20 @@ int ipfrule_remove()\n\
 		fprintf(cfile, "\
 	err = ipfrule_remove_%s_%s();\n\
 	if (err != 0)\n\
-		return err;\n",
+		return(err);\n",
 			(g->fg_flags & FR_INQUE) ? "in" : "out", g->fg_name);
 	fprintf(cfile, "\
-	return 0;\n");
+	return(0);\n");
 	fprintf(cfile, "}\n");
 }
 
 
-static void
-emitGroup(int num, int dir, void *v, frentry_t *fr, char *group,
-	u_int incount, u_int outcount)
+static void emitGroup(num, dir, v, fr, group, incount, outcount)
+	int num, dir;
+	void *v;
+	frentry_t *fr;
+	char *group;
+	u_int incount, outcount;
 {
 	static FILE *fp = NULL;
 	static int header[2] = { 0, 0 };
@@ -456,7 +467,7 @@ emitGroup(int num, int dir, void *v, frentry_t *fr, char *group,
 			fprintf(fp, "}\n");
 		}
 		if (openfunc == 1) {
-			fprintf(fp, "\treturn fr;\n}\n");
+			fprintf(fp, "\treturn(fr);\n}\n");
 			openfunc = 0;
 			if (n != NULL) {
 				free(n);
@@ -477,7 +488,7 @@ emitGroup(int num, int dir, void *v, frentry_t *fr, char *group,
 			fprintf(fp, "}\n");
 		}
 		if (openfunc == 1) {
-			fprintf(fp, "\treturn fr;\n}\n");
+			fprintf(fp, "\treturn(fr);\n}\n");
 			openfunc = 0;
 		}
 	}
@@ -930,7 +941,7 @@ emitGroup(int num, int dir, void *v, frentry_t *fr, char *group,
 
 	indent(fp, in);
 	if (fr->fr_flags & FR_QUICK) {
-		fprintf(fp, "return (frentry_t *)&%s_rule_%s_%d;\n",
+		fprintf(fp, "return((frentry_t *)&%s_rule_%s_%d);\n",
 			fr->fr_flags & FR_INQUE ? "in" : "out",
 			FR_NAME(fr, fr_group), num);
 	} else {
@@ -945,8 +956,8 @@ emitGroup(int num, int dir, void *v, frentry_t *fr, char *group,
 }
 
 
-void
-printC(int dir)
+void printC(dir)
+	int dir;
 {
 	static mc_t *m = NULL;
 	frgroup_t *g;
@@ -968,8 +979,11 @@ printC(int dir)
 /*
  * Now print out code to implement all of the rules.
  */
-static void
-printCgroup(int dir, frentry_t *top, mc_t *m, char *group)
+static void printCgroup(dir, top, m, group)
+	int dir;
+	frentry_t *top;
+	mc_t *m;
+	char *group;
 {
 	frentry_t *fr, *fr1;
 	int i, n, rn;
@@ -1215,8 +1229,11 @@ printCgroup(int dir, frentry_t *top, mc_t *m, char *group)
 	}
 }
 
-static void
-printhooks(FILE *fp, int in, int out, frgroup_t *grp)
+static void printhooks(fp, in, out, grp)
+	FILE *fp;
+	int in;
+	int out;
+	frgroup_t *grp;
 {
 	frentry_t *fr;
 	char *group;
@@ -1311,7 +1328,7 @@ int ipfrule_add_%s_%s()\n", instr, group);
 	err = frrequest(&ipfmain, IPL_LOGIPF, SIOCADDFR, (caddr_t)fp,\n\
 			ipfmain.ipf_active, 0);\n",
 			instr, group);
-	fprintf(fp, "\treturn err;\n}\n");
+	fprintf(fp, "\treturn(err);\n}\n");
 
 	fprintf(fp, "\n\n\
 int ipfrule_remove_%s_%s()\n", instr, group);
@@ -1348,8 +1365,8 @@ int ipfrule_remove_%s_%s()\n", instr, group);
 		instr, group, instr, group, instr, group);
 	fprintf(fp, "\
 	if (err)\n\
-		return err;\n\
+		return(err);\n\
 \n\n");
 
-	fprintf(fp, "\treturn err;\n}\n");
+	fprintf(fp, "\treturn(err);\n}\n");
 }

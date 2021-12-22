@@ -35,10 +35,10 @@ u_char tcpflags(char *flgs)
 			tcpf |= TH_CWR;
 		else {
 			if (!(t = strchr(flagset, *s))) {
-				return 0;
+				return(0);
 			}
 			tcpf |= flags[t - flagset];
 		}
 	}
-	return tcpf;
+	return(tcpf);
 }

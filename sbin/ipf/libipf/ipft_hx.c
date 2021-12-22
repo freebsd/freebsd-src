@@ -32,7 +32,7 @@ hex_open(char *fname)
 {
 	if (tfp && tfd != -1) {
 		rewind(tfp);
-		return tfd;
+		return(tfd);
 	}
 
 	if (!strcmp(fname, "-")) {
@@ -43,7 +43,7 @@ hex_open(char *fname)
 		if (tfd != -1)
 			tfp = fdopen(tfd, "r");
 	}
-	return tfd;
+	return(tfd);
 }
 
 
@@ -53,7 +53,7 @@ hex_close(void)
 	int	cfd = tfd;
 
 	tfd = -1;
-	return close(cfd);
+	return(close(cfd));
 }
 
 
@@ -79,7 +79,7 @@ hex_readip(mb_t *mb, char **ifn, int *dir)
 		if ((s = strchr(line, '\n'))) {
 			if (s == line) {
 				mb->mb_len = (char *)ip - buf;
-				return mb->mb_len;
+				return(mb->mb_len);
 			}
 			*s = '\0';
 		}
@@ -147,8 +147,8 @@ hex_readip(mb_t *mb, char **ifn, int *dir)
 		}
 	}
 	if (feof(tfp))
-		return 0;
-	return -1;
+		return(0);
+	return(-1);
 }
 
 
@@ -178,5 +178,5 @@ static char
 		} else
 			break;
 	}
-	return dst;
+	return(dst);
 }

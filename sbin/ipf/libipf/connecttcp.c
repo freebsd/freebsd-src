@@ -25,24 +25,24 @@ connecttcp(char *server, int port)
 
 	if (ISDIGIT(*server)) {
 		if (inet_aton(server, &sin.sin_addr) == -1) {
-			return -1;
+			return(-1);
 		}
 	} else {
 		host = gethostbyname(server);
 		if (host == NULL)
-			return -1;
+			return(-1);
 		memcpy(&sin.sin_addr, host->h_addr_list[0],
 		       sizeof(sin.sin_addr));
 	}
 
 	fd = socket(AF_INET, SOCK_STREAM, 0);
 	if (fd == -1)
-		return -1;
+		return(-1);
 
 	if (connect(fd, (struct sockaddr *)&sin, sizeof(sin)) == -1) {
 		close(fd);
-		return -1;
+		return(-1);
 	}
 
-	return fd;
+	return(fd);
 }

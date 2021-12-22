@@ -600,7 +600,7 @@ char *arg;
 		bcopy(hp->h_addr, &in.s_addr, sizeof(struct in_addr));
 	else
 		in.s_addr = inet_addr(arg);
-	return in;
+	return(in);
 }
 
 
@@ -610,8 +610,8 @@ char *pr, *name;
 	struct servent *sp;
 
 	if (!(sp = getservbyname(name, pr)))
-		return htons(atoi(name));
-	return sp->s_port;
+		return(htons(atoi(name)));
+	return(sp->s_port);
 }
 
 
@@ -629,7 +629,7 @@ struct ether_addr *geteaddr(char *arg, struct ether_addr *buf)
 		bcopy(e->ether_addr_octet, buf->ether_addr_octet,
 		      sizeof(e->ether_addr_octet));
 # endif
-	return e;
+	return(e);
 }
 
 
@@ -669,7 +669,7 @@ void *new_header(int type)
 		else if (aip->ah_p == IPPROTO_UDP)
 			aip->ah_udp->uh_ulen += sz;
 	}
-	return (void *)canip->ah_data;
+	return(void *)canip->ah_data;
 }
 
 
@@ -1371,9 +1371,9 @@ int arp_getipv4(char *ip, char *addr)
 	for (a = arplist; a; a = a->arp_next)
 		if (!bcmp(ip, (char *)&a->arp_addr, 4)) {
 			bcopy((char *)&a->arp_eaddr, addr, 6);
-			return 0;
+			return(0);
 		}
-	return -1;
+	return(-1);
 }
 
 
@@ -1742,7 +1742,7 @@ u_short	c_chksum(u_short *buf, u_int len, u_long init)
 		sum += *buf++;
 	sum = (sum>>16) + (sum & 0xffff);
 	sum += (sum >>16);
-	return (~sum);
+	return(~sum);
 }
 
 
@@ -1753,5 +1753,5 @@ u_long	p_chksum(u_short *buf, u_int len)
 
 	for(; nwords > 0; nwords--)
 		sum += *buf++;
-	return sum;
+	return(sum);
 }

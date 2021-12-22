@@ -31,8 +31,8 @@ static variable_t *find_var(name)
 
 	for (v = vtop; v != NULL; v = v->v_next)
 		if (!strcmp(name, v->v_name))
-			return v;
-	return NULL;
+			return(v);
+	return(NULL);
 }
 
 
@@ -50,7 +50,7 @@ char *get_variable(char *string, char **after, int line)
 				break;
 		if (*t == '\0') {
 			fprintf(stderr, "%d: { without }\n", line);
-			return NULL;
+			return(NULL);
 		}
 	} else if (ISALPHA(*s)) {
 		for (t = s + 1; *t != '\0'; t++)
@@ -59,7 +59,7 @@ char *get_variable(char *string, char **after, int line)
 	} else {
 		fprintf(stderr, "%d: variables cannot start with '%c'\n",
 			line, *s);
-		return NULL;
+		return(NULL);
 	}
 
 	if (after != NULL)
@@ -70,14 +70,14 @@ char *get_variable(char *string, char **after, int line)
 	*t = c;
 	if (v == NULL) {
 		fprintf(stderr, "%d: unknown variable '%s'\n", line, s);
-		return NULL;
+		return(NULL);
 	}
 
 	s = strdup(v->v_value);
 	value = expand_string(s, line);
 	if (value != s)
 		free(s);
-	return value;
+	return(value);
 }
 
 
@@ -102,15 +102,15 @@ static char *expand_string(char *oldstring, int line)
 			default :
 				c = *s;
 				if (c == '\0')
-					return newstring;
+					return(newstring);
 
 				value = get_variable(s, &p3, line);
 				if (value == NULL)
-					return NULL;
+					return(NULL);
 
 				p2 = expand_string(value, line);
 				if (p2 == NULL)
-					return NULL;
+					return(NULL);
 
 				len = strlen(newstring) + strlen(p2);
 				if (p3 != NULL) {
@@ -120,7 +120,7 @@ static char *expand_string(char *oldstring, int line)
 				}
 				p1 = malloc(len + 1);
 				if (p1 == NULL)
-					return NULL;
+					return(NULL);
 
 				*(s - 1) = '\0';
 				strcpy(p1, newstring);
@@ -135,7 +135,7 @@ static char *expand_string(char *oldstring, int line)
 				break;
 			}
 		}
-	return newstring;
+	return(newstring);
 }
 
 

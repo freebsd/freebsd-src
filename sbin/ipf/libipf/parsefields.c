@@ -47,5 +47,5 @@ wordtab_t *parsefields(wordtab_t *table, char *arg)
 		fields[num].w_value = 0;
 	}
 
-	return fields;
+	return(fields);
 }

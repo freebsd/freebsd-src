@@ -22,7 +22,7 @@ remove_hash(iphtable_t *iphp, ioctlfunc_t iocfunc)
 	iphtable_t iph;
 
 	if (pool_open() == -1)
-		return -1;
+		return(-1);
 
 	op.iplo_type = IPLT_HASH;
 	op.iplo_unit = iphp->iph_unit;
@@ -40,9 +40,9 @@ remove_hash(iphtable_t *iphp, ioctlfunc_t iocfunc)
 
 	if (pool_ioctl(iocfunc, SIOCLOOKUPDELTABLE, &op)) {
 		if ((opts & OPT_DONOTHING) == 0) {
-			return ipf_perror_fd(pool_fd(), iocfunc,
-					     "remove lookup hash table");
+			return(ipf_perror_fd(pool_fd(), iocfunc,
+					     "remove lookup hash table"));
 		}
 	}
-	return 0;
+	return(0);
 }
