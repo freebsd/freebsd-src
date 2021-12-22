@@ -1487,7 +1487,7 @@ static void topipstates(i6addr_t saddr, i6addr_t daddr, int sport, int dport,
 			getmaxyx(stdscr, maxy, maxx);
 			redraw = 1;
 			handle_resize = 0;
-                }
+		}
 
 		/* stop program? */
 		if (handle_break)
