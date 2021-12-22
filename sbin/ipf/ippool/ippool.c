@@ -1080,7 +1080,7 @@ setnodeaddr(int type, int role, void *ptr, char *arg)
 			node->ipn_addr.adf_len = offsetof(addrfamily_t,
 							  adf_addr) +
 						 sizeof(struct in6_addr);
-			inet_pton(AF_INET6, arg, 
+			inet_pton(AF_INET6, arg,
 				&node->ipn_addr.adf_addr.in6.s6_addr);
 		}
 #endif
@@ -1099,12 +1099,12 @@ setnodeaddr(int type, int role, void *ptr, char *arg)
 			node->ipe_mask.in4.s_addr = mask.s_addr;
 #ifdef USE_INET6
 		} else {
-			inet_pton(AF_INET6, arg, 
+			inet_pton(AF_INET6, arg,
 				&node->ipe_addr.in6.__u6_addr.__u6_addr32);
 			node->ipe_mask.in6.__u6_addr.__u6_addr32[0] =
 				mask.s_addr;
 			node->ipe_mask.in6.__u6_addr.__u6_addr32[1] =
-			node->ipe_mask.in6.__u6_addr.__u6_addr32[2] = 
+			node->ipe_mask.in6.__u6_addr.__u6_addr32[2] =
 			node->ipe_mask.in6.__u6_addr.__u6_addr32[3] = 0;
 		}
 #endif
