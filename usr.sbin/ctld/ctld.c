@@ -54,6 +54,13 @@ __FBSDID("$FreeBSD$");
 #include "ctld.h"
 #include "isns.h"
 
+static bool	timed_out(void);
+#ifdef ICL_KERNEL_PROXY
+static void	pdu_receive_proxy(struct pdu *pdu);
+static void	pdu_send_proxy(struct pdu *pdu);
+#endif /* ICL_KERNEL_PROXY */
+static void	pdu_fail(const struct connection *conn, const char *reason);
+
 bool proxy_mode = false;
 
 static volatile bool sighup_received = false;
@@ -63,6 +70,15 @@ static volatile bool sigalrm_received = false;
 static int nchildren = 0;
 static uint16_t last_portal_group_tag = 0xff;
 
+static struct connection_ops conn_ops = {
+	.timed_out = timed_out,
+#ifdef ICL_KERNEL_PROXY
+	.pdu_receive_proxy = pdu_receive_proxy,
+	.pdu_send_proxy = pdu_send_proxy,
+#endif
+	.fail = pdu_fail,
+};
+
 static void
 usage(void)
 {
@@ -70,17 +86,6 @@ usage(void)
 	fprintf(stderr, "usage: ctld [-d][-u][-f config-file]\n");
 	fprintf(stderr, "       ctld -t [-u][-f config-file]\n");
 	exit(1);
-}
-
-char *
-checked_strdup(const char *s)
-{
-	char *c;
-
-	c = strdup(s);
-	if (c == NULL)
-		log_err(1, "strdup");
-	return (c);
 }
 
 struct conf *
@@ -1632,28 +1637,59 @@ option_set(struct option *o, const char *value)
 	o->o_value = checked_strdup(value);
 }
 
-static struct connection *
+#ifdef ICL_KERNEL_PROXY
+
+static void
+pdu_receive_proxy(struct pdu *pdu)
+{
+	struct connection *conn;
+	size_t len;
+
+	assert(proxy_mode);
+	conn = pdu->pdu_connection;
+
+	kernel_receive(pdu);
+
+	len = pdu_ahs_length(pdu);
+	if (len > 0)
+		log_errx(1, "protocol error: non-empty AHS");
+
+	len = pdu_data_segment_length(pdu);
+	assert(len <= (size_t)conn->conn_max_recv_data_segment_length);
+	pdu->pdu_data_len = len;
+}
+
+static void
+pdu_send_proxy(struct pdu *pdu)
+{
+
+	assert(proxy_mode);
+
+	pdu_set_data_segment_length(pdu, pdu->pdu_data_len);
+	kernel_send(pdu);
+}
+
+#endif /* ICL_KERNEL_PROXY */
+
+static void
+pdu_fail(const struct connection *conn __unused, const char *reason __unused)
+{
+}
+
+static struct ctld_connection *
 connection_new(struct portal *portal, int fd, const char *host,
     const struct sockaddr *client_sa)
 {
-	struct connection *conn;
+	struct ctld_connection *conn;
 
 	conn = calloc(1, sizeof(*conn));
 	if (conn == NULL)
 		log_err(1, "calloc");
+	connection_init(&conn->conn, &conn_ops, proxy_mode);
+	conn->conn.conn_socket = fd;
 	conn->conn_portal = portal;
-	conn->conn_socket = fd;
 	conn->conn_initiator_addr = checked_strdup(host);
 	memcpy(&conn->conn_initiator_sa, client_sa, client_sa->sa_len);
-
-	/*
-	 * Default values, from RFC 3720, section 12.
-	 */
-	conn->conn_max_recv_data_segment_length = 8192;
-	conn->conn_max_send_data_segment_length = 8192;
-	conn->conn_max_burst_length = 262144;
-	conn->conn_first_burst_length = 65536;
-	conn->conn_immediate_data = true;
 
 	return (conn);
 }
@@ -2296,7 +2332,7 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 	return (cumulated_error);
 }
 
-bool
+static bool
 timed_out(void)
 {
 
@@ -2407,7 +2443,7 @@ static void
 handle_connection(struct portal *portal, int fd,
     const struct sockaddr *client_sa, bool dont_fork)
 {
-	struct connection *conn;
+	struct ctld_connection *conn;
 	int error;
 	pid_t pid;
 	char host[NI_MAXHOST + 1];

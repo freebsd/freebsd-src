@@ -35,26 +35,22 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/uio.h>
 #include <assert.h>
+#include <errno.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
-#include "ctld.h"
-#include "iscsi_proto.h"
+#include <iscsi_proto.h>
+#include "libiscsiutil.h"
 
-#ifdef ICL_KERNEL_PROXY
-#include <sys/ioctl.h>
-#endif
-
-extern bool proxy_mode;
-
-static int
+int
 pdu_ahs_length(const struct pdu *pdu)
 {
 
 	return (pdu->pdu_bhs->bhs_total_ahs_len * 4);
 }
 
-static int
+int
 pdu_data_segment_length(const struct pdu *pdu)
 {
 	uint32_t len = 0;
@@ -68,7 +64,7 @@ pdu_data_segment_length(const struct pdu *pdu)
 	return (len);
 }
 
-static void
+void
 pdu_set_data_segment_length(struct pdu *pdu, uint32_t len)
 {
 
@@ -102,40 +98,6 @@ pdu_new_response(struct pdu *request)
 	return (pdu_new(request->pdu_connection));
 }
 
-#ifdef ICL_KERNEL_PROXY
-
-static void
-pdu_receive_proxy(struct pdu *pdu)
-{
-	struct connection *conn;
-	size_t len;
-
-	assert(proxy_mode);
-	conn = pdu->pdu_connection;
-
-	kernel_receive(pdu);
-
-	len = pdu_ahs_length(pdu);
-	if (len > 0)
-		log_errx(1, "protocol error: non-empty AHS");
-
-	len = pdu_data_segment_length(pdu);
-	assert(len <= (size_t)conn->conn_max_recv_data_segment_length);
-	pdu->pdu_data_len = len;
-}
-
-static void
-pdu_send_proxy(struct pdu *pdu)
-{
-
-	assert(proxy_mode);
-
-	pdu_set_data_segment_length(pdu, pdu->pdu_data_len);
-	kernel_send(pdu);
-}
-
-#endif /* ICL_KERNEL_PROXY */
-
 static size_t
 pdu_padding(const struct pdu *pdu)
 {
@@ -147,18 +109,24 @@ pdu_padding(const struct pdu *pdu)
 }
 
 static void
-pdu_read(int fd, char *data, size_t len)
+pdu_read(const struct connection *conn, char *data, size_t len)
 {
 	ssize_t ret;
 
 	while (len > 0) {
-		ret = read(fd, data, len);
+		ret = read(conn->conn_socket, data, len);
 		if (ret < 0) {
-			if (timed_out())
+			if (conn->conn_ops->timed_out()) {
+				conn->conn_ops->fail(conn,
+				    "Login Phase timeout");
 				log_errx(1, "exiting due to timeout");
+			}
+			conn->conn_ops->fail(conn, strerror(errno));
 			log_err(1, "read");
-		} else if (ret == 0)
+		} else if (ret == 0) {
+			conn->conn_ops->fail(conn, "connection lost");
 			log_errx(1, "read: connection lost");
+		}
 		len -= ret;
 		data += ret;
 	}
@@ -171,16 +139,11 @@ pdu_receive(struct pdu *pdu)
 	size_t len, padding;
 	char dummy[4];
 
-#ifdef ICL_KERNEL_PROXY
-	if (proxy_mode)
-		return (pdu_receive_proxy(pdu));
-#endif
-
-	assert(proxy_mode == false);
 	conn = pdu->pdu_connection;
+	if (conn->conn_use_proxy)
+		return (conn->conn_ops->pdu_receive_proxy(pdu));
 
-	pdu_read(conn->conn_socket, (char *)pdu->pdu_bhs,
-	    sizeof(*pdu->pdu_bhs));
+	pdu_read(conn, (char *)pdu->pdu_bhs, sizeof(*pdu->pdu_bhs));
 
 	len = pdu_ahs_length(pdu);
 	if (len > 0)
@@ -199,13 +162,12 @@ pdu_receive(struct pdu *pdu)
 		if (pdu->pdu_data == NULL)
 			log_err(1, "malloc");
 
-		pdu_read(conn->conn_socket, (char *)pdu->pdu_data,
-		    pdu->pdu_data_len);
+		pdu_read(conn, (char *)pdu->pdu_data, pdu->pdu_data_len);
 
 		padding = pdu_padding(pdu);
 		if (padding != 0) {
 			assert(padding < sizeof(dummy));
-			pdu_read(conn->conn_socket, (char *)dummy, padding);
+			pdu_read(conn, (char *)dummy, padding);
 		}
 	}
 }
@@ -213,18 +175,16 @@ pdu_receive(struct pdu *pdu)
 void
 pdu_send(struct pdu *pdu)
 {
+	struct connection *conn;
 	ssize_t ret, total_len;
 	size_t padding;
 	uint32_t zero = 0;
 	struct iovec iov[3];
 	int iovcnt;
 
-#ifdef ICL_KERNEL_PROXY
-	if (proxy_mode)
-		return (pdu_send_proxy(pdu));
-#endif
-
-	assert(proxy_mode == false);
+	conn = pdu->pdu_connection;
+	if (conn->conn_use_proxy)
+		return (conn->conn_ops->pdu_send_proxy(pdu));
 
 	pdu_set_data_segment_length(pdu, pdu->pdu_data_len);
 	iov[0].iov_base = pdu->pdu_bhs;
@@ -248,9 +208,9 @@ pdu_send(struct pdu *pdu)
 		}
 	}
 
-	ret = writev(pdu->pdu_connection->conn_socket, iov, iovcnt);
+	ret = writev(conn->conn_socket, iov, iovcnt);
 	if (ret < 0) {
-		if (timed_out())
+		if (conn->conn_ops->timed_out())
 			log_errx(1, "exiting due to timeout");
 		log_err(1, "writev");
 	}

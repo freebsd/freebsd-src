@@ -211,7 +211,7 @@ discovery_add_target(struct keys *response_keys, const struct target *targ)
 }
 
 static bool
-discovery_target_filtered_out(const struct connection *conn,
+discovery_target_filtered_out(const struct ctld_connection *conn,
     const struct port *port)
 {
 	const struct auth_group *ag;
@@ -274,7 +274,7 @@ discovery_target_filtered_out(const struct connection *conn,
 }
 
 void
-discovery(struct connection *conn)
+discovery(struct ctld_connection *conn)
 {
 	struct pdu *request, *response;
 	struct keys *request_keys, *response_keys;
@@ -285,7 +285,7 @@ discovery(struct connection *conn)
 	pg = conn->conn_portal->p_portal_group;
 
 	log_debugx("beginning discovery session; waiting for Text PDU");
-	request = text_receive(conn);
+	request = text_receive(&conn->conn);
 	request_keys = keys_new();
 	keys_load(request_keys, request);
 
@@ -326,7 +326,7 @@ discovery(struct connection *conn)
 	keys_delete(request_keys);
 
 	log_debugx("done sending targets; waiting for Logout PDU");
-	request = logout_receive(conn);
+	request = logout_receive(&conn->conn);
 	response = logout_new_response(request);
 
 	pdu_send(response);

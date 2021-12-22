@@ -26,11 +26,7 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
  */
-
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
 
 #include <errno.h>
 #include <stdarg.h>
@@ -40,7 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <syslog.h>
 #include <vis.h>
 
-#include "ctld.h"
+#include "libiscsiutil.h"
 
 static int log_level = 0;
 static char *peer_name = NULL;
