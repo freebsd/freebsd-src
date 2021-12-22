@@ -1089,11 +1089,9 @@ icl_cxgbei_conn_task_setup(struct icl_conn *ic, struct icl_pdu *ip,
 	MPASS(arg != NULL);
 	MPASS(*arg == NULL);
 
-	if (ic->ic_disconnecting || ic->ic_socket == NULL)
-		return (ECONNRESET);
-
 	if ((csio->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_IN ||
-	    csio->dxfer_len < ci->ddp_threshold) {
+	    csio->dxfer_len < ci->ddp_threshold || ic->ic_disconnecting ||
+	    ic->ic_socket == NULL) {
 no_ddp:
 		/*
 		 * No DDP for this I/O.	 Allocate an ITT (based on the one
@@ -1151,7 +1149,7 @@ no_ddp:
 		mbufq_drain(&mq);
 		t4_free_page_pods(prsv);
 		free(ddp, M_CXGBEI);
-		return (ECONNRESET);
+		goto no_ddp;
 	}
 	mbufq_concat(&toep->ulp_pduq, &mq);
 	INP_WUNLOCK(inp);
