@@ -104,7 +104,7 @@ ipf_lookup_soft_create(ipf_main_softc_t *softc)
 
 	KMALLOC(softl, ipf_lookup_softc_t *);
 	if (softl == NULL)
-		return NULL;
+		return(NULL);
 
 	bzero((char *)softl, sizeof(*softl));
 
@@ -112,11 +112,11 @@ ipf_lookup_soft_create(ipf_main_softc_t *softc)
 		softl->ipf_back[i] = (*(*l)->ipfl_create)(softc);
 		if (softl->ipf_back[i] == NULL) {
 			ipf_lookup_soft_destroy(softc, softl);
-			return NULL;
+			return(NULL);
 		}
 	}
 
-	return softl;
+	return(softl);
 }
 
 
@@ -141,7 +141,7 @@ ipf_lookup_soft_init(ipf_main_softc_t *softc, void *arg)
 			break;
 	}
 
-	return err;
+	return(err);
 }
 
 
@@ -165,7 +165,7 @@ ipf_lookup_soft_fini(ipf_main_softc_t *softc, void *arg)
 						  softl->ipf_back[i]);
 	}
 
-	return 0;
+	return(0);
 }
 
 
@@ -298,7 +298,7 @@ ipf_lookup_ioctl(ipf_main_softc_t *softc, caddr_t data, ioctlcmd_t cmd,
 		break;
 	}
 	SPL_X(s);
-	return err;
+	return(err);
 }
 
 
@@ -324,13 +324,13 @@ ipf_lookup_addnode(ipf_main_softc_t *softc, caddr_t data, int uid)
 	err = BCOPYIN(data, &op, sizeof(op));
 	if (err != 0) {
 		IPFERROR(50002);
-		return EFAULT;
+		return(EFAULT);
 	}
 
 	if ((op.iplo_unit < 0 || op.iplo_unit > IPL_LOGMAX) &&
 	    (op.iplo_unit != IPLT_ALL)) {
 		IPFERROR(50003);
-		return EINVAL;
+		return(EINVAL);
 	}
 
 	op.iplo_name[sizeof(op.iplo_name) - 1] = '\0';
@@ -349,7 +349,7 @@ ipf_lookup_addnode(ipf_main_softc_t *softc, caddr_t data, int uid)
 		err = EINVAL;
 	}
 
-	return err;
+	return(err);
 }
 
 
@@ -374,13 +374,13 @@ ipf_lookup_delnode(ipf_main_softc_t *softc, caddr_t data, int uid)
 	err = BCOPYIN(data, &op, sizeof(op));
 	if (err != 0) {
 		IPFERROR(50042);
-		return EFAULT;
+		return(EFAULT);
 	}
 
 	if ((op.iplo_unit < 0 || op.iplo_unit > IPL_LOGMAX) &&
 	    (op.iplo_unit != IPLT_ALL)) {
 		IPFERROR(50013);
-		return EINVAL;
+		return(EINVAL);
 	}
 
 	op.iplo_name[sizeof(op.iplo_name) - 1] = '\0';
@@ -397,7 +397,7 @@ ipf_lookup_delnode(ipf_main_softc_t *softc, caddr_t data, int uid)
 		IPFERROR(50021);
 		err = EINVAL;
 	}
-	return err;
+	return(err);
 }
 
 
@@ -421,13 +421,13 @@ ipf_lookup_addtable(ipf_main_softc_t *softc, caddr_t data)
 	err = BCOPYIN(data, &op, sizeof(op));
 	if (err != 0) {
 		IPFERROR(50022);
-		return EFAULT;
+		return(EFAULT);
 	}
 
 	if ((op.iplo_unit < 0 || op.iplo_unit > IPL_LOGMAX) &&
 	    (op.iplo_unit != IPLT_ALL)) {
 		IPFERROR(50023);
-		return EINVAL;
+		return(EINVAL);
 	}
 
 	op.iplo_name[sizeof(op.iplo_name) - 1] = '\0';
@@ -458,7 +458,7 @@ ipf_lookup_addtable(ipf_main_softc_t *softc, caddr_t data)
 		}
 	}
 
-	return err;
+	return(err);
 }
 
 
@@ -482,13 +482,13 @@ ipf_lookup_deltable(ipf_main_softc_t *softc, caddr_t data)
 	err = BCOPYIN(data, &op, sizeof(op));
 	if (err != 0) {
 		IPFERROR(50028);
-		return EFAULT;
+		return(EFAULT);
 	}
 
 	if ((op.iplo_unit < 0 || op.iplo_unit > IPL_LOGMAX) &&
 	    (op.iplo_unit != IPLT_ALL)) {
 		IPFERROR(50029);
-		return EINVAL;
+		return(EINVAL);
 	}
 
 	op.iplo_name[sizeof(op.iplo_name) - 1] = '\0';
@@ -506,7 +506,7 @@ ipf_lookup_deltable(ipf_main_softc_t *softc, caddr_t data)
 		IPFERROR(50030);
 		err = EINVAL;
 	}
-	return err;
+	return(err);
 }
 
 
@@ -530,13 +530,13 @@ ipf_lookup_stats(ipf_main_softc_t *softc, caddr_t data)
 	err = BCOPYIN(data, &op, sizeof(op));
 	if (err != 0) {
 		IPFERROR(50031);
-		return EFAULT;
+		return(EFAULT);
 	}
 
 	if ((op.iplo_unit < 0 || op.iplo_unit > IPL_LOGMAX) &&
 	    (op.iplo_unit != IPLT_ALL)) {
 		IPFERROR(50032);
-		return EINVAL;
+		return(EINVAL);
 	}
 
 	for (i = 0, l = backends; i < MAX_BACKENDS; i++, l++) {
@@ -553,7 +553,7 @@ ipf_lookup_stats(ipf_main_softc_t *softc, caddr_t data)
 		err = EINVAL;
 	}
 
-	return err;
+	return(err);
 }
 
 
@@ -577,13 +577,13 @@ ipf_lookup_flush(ipf_main_softc_t *softc, caddr_t data)
 	err = BCOPYIN(data, &flush, sizeof(flush));
 	if (err != 0) {
 		IPFERROR(50034);
-		return EFAULT;
+		return(EFAULT);
 	}
 
 	unit = flush.iplf_unit;
 	if ((unit < 0 || unit > IPL_LOGMAX) && (unit != IPLT_ALL)) {
 		IPFERROR(50035);
-		return EINVAL;
+		return(EINVAL);
 	}
 
 	flush.iplf_name[sizeof(flush.iplf_name) - 1] = '\0';
@@ -610,7 +610,7 @@ ipf_lookup_flush(ipf_main_softc_t *softc, caddr_t data)
 			err = EFAULT;
 		}
 	}
-	return err;
+	return(err);
 }
 
 
@@ -667,16 +667,16 @@ ipf_lookup_iterate(ipf_main_softc_t *softc, void *data, int uid, void *ctx)
 
 	err = ipf_inobj(softc, data, NULL, &iter, IPFOBJ_LOOKUPITER);
 	if (err != 0)
-		return err;
+		return(err);
 
 	if (iter.ili_unit < IPL_LOGALL && iter.ili_unit > IPL_LOGMAX) {
 		IPFERROR(50038);
-		return EINVAL;
+		return(EINVAL);
 	}
 
 	if (iter.ili_ival != IPFGENITER_LOOKUP) {
 		IPFERROR(50039);
-		return EINVAL;
+		return(EINVAL);
 	}
 
 	SPL_SCHED(s);
@@ -684,7 +684,7 @@ ipf_lookup_iterate(ipf_main_softc_t *softc, void *data, int uid, void *ctx)
 	if (token == NULL) {
 		SPL_X(s);
 		IPFERROR(50040);
-		return ESRCH;
+		return(ESRCH);
 	}
 
 	for (i = 0; i < MAX_BACKENDS; i++) {
@@ -706,7 +706,7 @@ ipf_lookup_iterate(ipf_main_softc_t *softc, void *data, int uid, void *ctx)
 	ipf_token_deref(softc, token);
 	RWLOCK_EXIT(&softc->ipf_tokens);
 
-	return err;
+	return(err);
 }
 
 
@@ -776,7 +776,7 @@ ipf_lookup_deltok(ipf_main_softc_t *softc, void *data, int uid, void *ctx)
 	if (error == 0)
 		error = ipf_token_del(softc, key, uid, ctx);
 	SPL_X(s);
-	return error;
+	return(error);
 }
 
 
@@ -803,7 +803,7 @@ ipf_lookup_res_num(ipf_main_softc_t *softc, int unit, u_int type, u_int number,
 
 	(void) snprintf(name, sizeof(name), "%u", number);
 
-	return ipf_lookup_res_name(softc, unit, type, name, funcptr);
+	return(ipf_lookup_res_name(softc, unit, type, name, funcptr));
 }
 
 
@@ -852,7 +852,7 @@ ipf_lookup_res_name(ipf_main_softc_t *softc, int unit, u_int type, char *name,
 
 	RWLOCK_EXIT(&softc->ipf_poolrw);
 
-	return ptr;
+	return(ptr);
 }
 
 
@@ -885,7 +885,7 @@ ipf_lookup_find_htable(ipf_main_softc_t *softc, int unit, char *name)
 
 	RWLOCK_EXIT(&softc->ipf_poolrw);
 
-	return tab;
+	return(tab);
 }
 
 
