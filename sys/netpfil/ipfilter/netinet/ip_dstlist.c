@@ -150,14 +150,14 @@ ipf_dstlist_soft_create(ipf_main_softc_t *softc)
 	KMALLOC(softd, ipf_dstl_softc_t *);
 	if (softd == NULL) {
 		IPFERROR(120028);
-		return NULL;
+		return(NULL);
 	}
 
 	bzero((char *)softd, sizeof(*softd));
 	for (i = 0; i <= IPL_LOGMAX; i++)
 		softd->tails[i] = &softd->dstlist[i];
 
-	return softd;
+	return(softd);
 }
 
 
@@ -190,7 +190,7 @@ ipf_dstlist_soft_destroy(ipf_main_softc_t *softc, void *arg)
 static int
 ipf_dstlist_soft_init(ipf_main_softc_t *softc, void *arg)
 {
-	return 0;
+	return(0);
 }
 
 
@@ -239,7 +239,7 @@ static int
 ipf_dstlist_addr_find(ipf_main_softc_t *softc, void *arg1, int arg2,
 	void *arg3, u_int arg4)
 {
-	return -1;
+	return(-1);
 }
 
 
@@ -276,7 +276,7 @@ ipf_dstlist_flush(ipf_main_softc_t *softc, void *arg, iplookupflush_t *fop)
 			n++;
 		}
 	}
-	return n;
+	return(n);
 }
 
 
@@ -299,12 +299,12 @@ ipf_dstlist_iter_deref(ipf_main_softc_t *softc, void *arg, int otype,
 {
 	if (data == NULL) {
 		IPFERROR(120001);
-		return EINVAL;
+		return(EINVAL);
 	}
 
 	if (unit < -1 || unit > IPL_LOGMAX) {
 		IPFERROR(120002);
-		return EINVAL;
+		return(EINVAL);
 	}
 
 	switch (otype)
@@ -318,7 +318,7 @@ ipf_dstlist_iter_deref(ipf_main_softc_t *softc, void *arg, int otype,
 		break;
 	}
 
-	return 0;
+	return(0);
 }
 
 
@@ -406,7 +406,7 @@ ipf_dstlist_iter_next(ipf_main_softc_t *softc, void *arg,
 	}
 
 	if (err != 0)
-		return err;
+		return(err);
 
 	switch (iter->ili_otype)
 	{
@@ -434,7 +434,7 @@ ipf_dstlist_iter_next(ipf_main_softc_t *softc, void *arg,
 	if (hint == NULL)
 		ipf_token_mark_complete(token);
 
-	return err;
+	return(err);
 }
 
 
@@ -469,19 +469,19 @@ ipf_dstlist_node_add(ipf_main_softc_t *softc, void *arg,
 
 	if (op->iplo_size < sizeof(frdest_t)) {
 		IPFERROR(120007);
-		return EINVAL;
+		return(EINVAL);
 	}
 
 	err = COPYIN(op->iplo_struct, &dest, sizeof(dest));
 	if (err != 0) {
 		IPFERROR(120009);
-		return EFAULT;
+		return(EFAULT);
 	}
 
 	d = ipf_dstlist_table_find(arg, op->iplo_unit, op->iplo_name);
 	if (d == NULL) {
 		IPFERROR(120010);
-		return ESRCH;
+		return(ESRCH);
 	}
 
 	switch (dest.fd_addr.adf_family)
@@ -491,19 +491,19 @@ ipf_dstlist_node_add(ipf_main_softc_t *softc, void *arg,
 		break;
 	default :
 		IPFERROR(120019);
-		return EINVAL;
+		return(EINVAL);
 	}
 
 	if (dest.fd_name < -1 || dest.fd_name > 128) {
 		IPFERROR(120018);
-		return EINVAL;
+		return(EINVAL);
 	}
 
 	KMALLOCS(node, ipf_dstnode_t *, sizeof(*node) + dest.fd_name);
 	if (node == NULL) {
 		softd->stats.ipls_nomem++;
 		IPFERROR(120008);
-		return ENOMEM;
+		return(ENOMEM);
 	}
 	bzero((char *)node, sizeof(*node) + dest.fd_name);
 
@@ -521,7 +521,7 @@ ipf_dstlist_node_add(ipf_main_softc_t *softc, void *arg,
 		if (err != 0) {
 			IPFERROR(120017);
 			KFREES(node, node->ipfd_size);
-			return EFAULT;
+			return(EFAULT);
 		}
 		node->ipfd_dest.fd_name = 0;
 	} else {
@@ -535,7 +535,7 @@ ipf_dstlist_node_add(ipf_main_softc_t *softc, void *arg,
 			softd->stats.ipls_nomem++;
 			IPFERROR(120022);
 			KFREES(node, node->ipfd_size);
-			return ENOMEM;
+			return(ENOMEM);
 		}
 		if (d->ipld_dests != NULL) {
 			bcopy(d->ipld_dests, nodes,
@@ -571,7 +571,7 @@ ipf_dstlist_node_add(ipf_main_softc_t *softc, void *arg,
 
 	softd->stats.ipls_numnodes++;
 
-	return 0;
+	return(0);
 }
 
 
@@ -597,7 +597,7 @@ ipf_dstlist_node_deref(void *arg, ipf_dstnode_t *node)
 	MUTEX_EXIT(&node->ipfd_lock);
 
 	if (ref > 0)
-		return 0;
+		return(0);
 
 	if ((node->ipfd_flags & IPDST_DELETE) != 0)
 		softd->stats.ipls_numderefnodes--;
@@ -605,7 +605,7 @@ ipf_dstlist_node_deref(void *arg, ipf_dstnode_t *node)
 	KFREES(node, node->ipfd_size);
 	softd->stats.ipls_numnodes--;
 
-	return 0;
+	return(0);
 }
 
 
@@ -635,13 +635,13 @@ ipf_dstlist_node_del(ipf_main_softc_t *softc, void *arg, iplookupop_t *op,
 	d = ipf_dstlist_table_find(arg, op->iplo_unit, op->iplo_name);
 	if (d == NULL) {
 		IPFERROR(120012);
-		return ESRCH;
+		return(ESRCH);
 	}
 
 	err = COPYIN(op->iplo_struct, &frd, sizeof(frd));
 	if (err != 0) {
 		IPFERROR(120011);
-		return EFAULT;
+		return(EFAULT);
 	}
 
 	size = sizeof(*temp) + frd.fd_name;
@@ -649,14 +649,14 @@ ipf_dstlist_node_del(ipf_main_softc_t *softc, void *arg, iplookupop_t *op,
 	if (temp == NULL) {
 		softd->stats.ipls_nomem++;
 		IPFERROR(120026);
-		return ENOMEM;
+		return(ENOMEM);
 	}
 
 	err = COPYIN(op->iplo_struct, temp, size);
 	if (err != 0) {
 		IPFERROR(120027);
 		KFREES(temp, size);
-		return EFAULT;
+		return(EFAULT);
 	}
 
 	MUTEX_ENTER(&d->ipld_lock);
@@ -670,13 +670,13 @@ ipf_dstlist_node_del(ipf_main_softc_t *softc, void *arg, iplookupop_t *op,
 			ipf_dstlist_node_free(softd, d, node);
 			MUTEX_EXIT(&d->ipld_lock);
 			KFREES(temp, size);
-			return 0;
+			return(0);
 		}
 	}
 	MUTEX_EXIT(&d->ipld_lock);
 	KFREES(temp, size);
 
-	return ESRCH;
+	return(ESRCH);
 }
 
 
@@ -748,7 +748,7 @@ ipf_dstlist_stats_get(ipf_main_softc_t *softc, void *arg, iplookupop_t *op)
 
 	if (op->iplo_size != sizeof(ipf_dstl_stat_t)) {
 		IPFERROR(120023);
-		return EINVAL;
+		return(EINVAL);
 	}
 
 	stats = softd->stats;
@@ -774,10 +774,10 @@ ipf_dstlist_stats_get(ipf_main_softc_t *softc, void *arg, iplookupop_t *op)
 		err = COPYOUT(&stats, op->iplo_struct, sizeof(stats));
 		if (err != 0) {
 			IPFERROR(120025);
-			return EFAULT;
+			return(EFAULT);
 		}
 	}
-	return 0;
+	return(0);
 }
 
 
@@ -802,20 +802,20 @@ ipf_dstlist_table_add(ipf_main_softc_t *softc, void *arg, iplookupop_t *op)
 	d = ipf_dstlist_table_find(arg, op->iplo_unit, op->iplo_name);
 	if (d != NULL) {
 		IPFERROR(120013);
-		return EEXIST;
+		return(EEXIST);
 	}
 
 	err = COPYIN(op->iplo_struct, &user, sizeof(user));
 	if (err != 0) {
 		IPFERROR(120021);
-		return EFAULT;
+		return(EFAULT);
 	}
 
 	KMALLOC(new, ippool_dst_t *);
 	if (new == NULL) {
 		softd->stats.ipls_nomem++;
 		IPFERROR(120014);
-		return ENOMEM;
+		return(ENOMEM);
 	}
 	bzero((char *)new, sizeof(*new));
 
@@ -833,7 +833,7 @@ ipf_dstlist_table_add(ipf_main_softc_t *softc, void *arg, iplookupop_t *op)
 	softd->tails[unit + 1] = &new->ipld_next;
 	softd->stats.ipls_numlists++;
 
-	return 0;
+	return(0);
 }
 
 
@@ -855,17 +855,17 @@ ipf_dstlist_table_del(ipf_main_softc_t *softc, void *arg, iplookupop_t *op)
 	d = ipf_dstlist_table_find(arg, op->iplo_unit, op->iplo_name);
 	if (d == NULL) {
 		IPFERROR(120015);
-		return ESRCH;
+		return(ESRCH);
 	}
 
 	if (d->ipld_dests != NULL) {
 		IPFERROR(120016);
-		return EBUSY;
+		return(EBUSY);
 	}
 
 	ipf_dstlist_table_remove(softc, arg, d);
 
-	return 0;
+	return(0);
 }
 
 
@@ -953,11 +953,11 @@ ipf_dstlist_table_deref(ipf_main_softc_t *softc, void *arg, void *table)
 
 	d->ipld_ref--;
 	if (d->ipld_ref > 0)
-		return d->ipld_ref;
+		return(d->ipld_ref);
 
 	ipf_dstlist_table_free(arg, d);
 
-	return 0;
+	return(0);
 }
 
 
@@ -1002,11 +1002,11 @@ ipf_dstlist_table_find(void *arg, int unit, char *name)
 	for (d = softd->dstlist[unit + 1]; d != NULL; d = d->ipld_next) {
 		if ((d->ipld_unit == unit) &&
 		    !strncmp(d->ipld_name, name, FR_GROUPLEN)) {
-			return d;
+			return(d);
 		}
 	}
 
-	return NULL;
+	return(NULL);
 }
 
 
@@ -1032,7 +1032,7 @@ ipf_dstlist_select_ref(void *arg, int unit, char *name)
 		d->ipld_ref++;
 		MUTEX_EXIT(&d->ipld_lock);
 	}
-	return d;
+	return(d);
 }
 
 
@@ -1073,7 +1073,7 @@ ipf_dstlist_select(fr_info_t *fin, ippool_dst_t *d)
 	int x;
 
 	if (d == NULL || d->ipld_dests == NULL || *d->ipld_dests == NULL)
-		return NULL;
+		return(NULL);
 
 	family = fin->fin_family;
 
@@ -1166,7 +1166,7 @@ ipf_dstlist_select(fr_info_t *fin, ippool_dst_t *d)
 
 	MUTEX_EXIT(&d->ipld_lock);
 
-	return sel;
+	return(sel);
 }
 
 
@@ -1199,7 +1199,7 @@ ipf_dstlist_select_node(fr_info_t *fin, void *group, u_32_t *addr,
 	node = ipf_dstlist_select(fin, d);
 	if (node == NULL) {
 		RWLOCK_EXIT(&softc->ipf_poolrw);
-		return -1;
+		return(-1);
 	}
 
 	if (pfdp != NULL) {
@@ -1225,7 +1225,7 @@ ipf_dstlist_select_node(fr_info_t *fin, void *group, u_32_t *addr,
 
 	RWLOCK_EXIT(&softc->ipf_poolrw);
 
-	return 0;
+	return(0);
 }
 
 

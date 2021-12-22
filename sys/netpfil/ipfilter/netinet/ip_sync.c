@@ -147,7 +147,7 @@ ipf_sync_soft_create(ipf_main_softc_t *softc)
 	KMALLOC(softs, ipf_sync_softc_t *);
 	if (softs == NULL) {
 		IPFERROR(110024);
-		return NULL;
+		return(NULL);
 	}
 
 	bzero((char *)softs, sizeof(*softs));
@@ -158,7 +158,7 @@ ipf_sync_soft_create(ipf_main_softc_t *softc)
 	softs->ipf_sync_event_high_wm = SYNCLOG_SZ * 100 / 90;	/* 90% */
 	softs->ipf_sync_queue_high_wm = SYNCLOG_SZ * 100 / 90;	/* 90% */
 
-	return softs;
+	return(softs);
 }
 
 
@@ -178,28 +178,28 @@ ipf_sync_soft_init(ipf_main_softc_t *softc, void *arg)
 	KMALLOCS(softs->synclog, synclogent_t *,
 		 softs->ipf_sync_log_sz * sizeof(*softs->synclog));
 	if (softs->synclog == NULL)
-		return -1;
+		return(-1);
 	bzero((char *)softs->synclog,
 	      softs->ipf_sync_log_sz * sizeof(*softs->synclog));
 
 	KMALLOCS(softs->syncupd, syncupdent_t *,
 		 softs->ipf_sync_log_sz * sizeof(*softs->syncupd));
 	if (softs->syncupd == NULL)
-		return -2;
+		return(-2);
 	bzero((char *)softs->syncupd,
 	      softs->ipf_sync_log_sz * sizeof(*softs->syncupd));
 
 	KMALLOCS(softs->syncstatetab, synclist_t **,
 		 softs->ipf_sync_state_tab_sz * sizeof(*softs->syncstatetab));
 	if (softs->syncstatetab == NULL)
-		return -3;
+		return(-3);
 	bzero((char *)softs->syncstatetab,
 	      softs->ipf_sync_state_tab_sz * sizeof(*softs->syncstatetab));
 
 	KMALLOCS(softs->syncnattab, synclist_t **,
 		 softs->ipf_sync_nat_tab_sz * sizeof(*softs->syncnattab));
 	if (softs->syncnattab == NULL)
-		return -3;
+		return(-3);
 	bzero((char *)softs->syncnattab,
 	      softs->ipf_sync_nat_tab_sz * sizeof(*softs->syncnattab));
 
@@ -223,7 +223,7 @@ ipf_sync_soft_init(ipf_main_softc_t *softc, void *arg)
 
 	softs->ipf_sync_inited = 1;
 
-	return 0;
+	return(0);
 }
 
 
@@ -277,7 +277,7 @@ ipf_sync_soft_fini(ipf_main_softc_t *softc, void *arg)
 		softs->ipf_sync_inited = 0;
 	}
 
-	return 0;
+	return(0);
 }
 
 void
@@ -437,7 +437,7 @@ ipf_sync_write(ipf_main_softc_t *softc, struct uio *uio)
 				if (softs->ipf_sync_debug > 2)
 					printf("uiomove(header) failed: %d\n",
 						err);
-				return err;
+				return(err);
 			}
 
 			/* convert to host order */
@@ -456,7 +456,7 @@ ipf_sync_write(ipf_main_softc_t *softc, struct uio *uio)
 					printf("uiomove(header) invalid %s\n",
 						"magic");
 				IPFERROR(110001);
-				return EINVAL;
+				return(EINVAL);
 			}
 
 			if (sh.sm_v != 4 && sh.sm_v != 6) {
@@ -464,7 +464,7 @@ ipf_sync_write(ipf_main_softc_t *softc, struct uio *uio)
 					printf("uiomove(header) invalid %s\n",
 						"protocol");
 				IPFERROR(110002);
-				return EINVAL;
+				return(EINVAL);
 			}
 
 			if (sh.sm_cmd > SMC_MAXCMD) {
@@ -472,7 +472,7 @@ ipf_sync_write(ipf_main_softc_t *softc, struct uio *uio)
 					printf("uiomove(header) invalid %s\n",
 						"command");
 				IPFERROR(110003);
-				return EINVAL;
+				return(EINVAL);
 			}
 
 
@@ -481,7 +481,7 @@ ipf_sync_write(ipf_main_softc_t *softc, struct uio *uio)
 					printf("uiomove(header) invalid %s\n",
 						"table");
 				IPFERROR(110004);
-				return EINVAL;
+				return(EINVAL);
 			}
 
 		} else {
@@ -489,7 +489,7 @@ ipf_sync_write(ipf_main_softc_t *softc, struct uio *uio)
 			if (softs->ipf_sync_debug > 2)
 				printf("uiomove(header) insufficient data");
 			IPFERROR(110005);
-			return EAGAIN;
+			return(EAGAIN);
 	 	}
 
 
@@ -504,7 +504,7 @@ ipf_sync_write(ipf_main_softc_t *softc, struct uio *uio)
 				printf("uiomove(data zero length %s\n",
 					"not supported");
 			IPFERROR(110006);
-			return EINVAL;
+			return(EINVAL);
 		}
 
 		if (uio->uio_resid >= sh.sm_len) {
@@ -515,7 +515,7 @@ ipf_sync_write(ipf_main_softc_t *softc, struct uio *uio)
 				if (softs->ipf_sync_debug > 2)
 					printf("uiomove(data) failed: %d\n",
 						err);
-				return err;
+				return(err);
 			}
 
 			if (softs->ipf_sync_debug > 7)
@@ -537,12 +537,12 @@ ipf_sync_write(ipf_main_softc_t *softc, struct uio *uio)
 					"insufficient data, need",
 					sh.sm_len, (int)uio->uio_resid);
 			IPFERROR(110007);
-			return EAGAIN;
+			return(EAGAIN);
 		}
 	}
 
 	/* no more data */
-	return 0;
+	return(0);
 }
 
 
@@ -565,7 +565,7 @@ ipf_sync_read(ipf_main_softc_t *softc, struct uio *uio)
 
 	if ((uio->uio_resid & 3) || (uio->uio_resid < 8)) {
 		IPFERROR(110008);
-		return EINVAL;
+		return(EINVAL);
 	}
 
 #  if defined(__NetBSD__) || defined(__FreeBSD__)
@@ -580,14 +580,14 @@ ipf_sync_read(ipf_main_softc_t *softc, struct uio *uio)
 		if (!cv_wait_sig(&softs->ipslwait, &softs->ipsl_mutex.ipf_lk)) {
 			MUTEX_EXIT(&softs->ipsl_mutex);
 			IPFERROR(110009);
-			return EINTR;
+			return(EINTR);
 		}
 #   else
 		MUTEX_EXIT(&softs->ipsl_mutex);
 		err = SLEEP(&softs->sl_tail, "ipl sleep");
 		if (err) {
 			IPFERROR(110012);
-			return EINTR;
+			return(EINTR);
 		}
 		MUTEX_ENTER(&softs->ipsl_mutex);
 #   endif /* SOLARIS */
@@ -622,7 +622,7 @@ ipf_sync_read(ipf_main_softc_t *softc, struct uio *uio)
 		softs->su_tail = softs->su_idx = 0;
 	MUTEX_EXIT(&softs->ipsl_mutex);
 goterror:
-	return err;
+	return(err);
 }
 
 
@@ -794,7 +794,7 @@ ipf_sync_state(ipf_main_softc_t *softc, synchdr_t *sp, void *data)
 		printf("[%d] Update completed with error %d\n",
 			sp->sm_num, err);
 
-	return err;
+	return(err);
 }
 
 
@@ -951,7 +951,7 @@ ipf_sync_nat(ipf_main_softc_t *softc, synchdr_t *sp, void *data)
 	}
 
 	RWLOCK_EXIT(&softs->ipf_syncnat);
-	return err;
+	return(err);
 }
 
 
@@ -975,10 +975,10 @@ ipf_sync_new(ipf_main_softc_t *softc, int tab, fr_info_t *fin, void *ptr)
 	u_int hv, sz;
 
 	if (softs->sl_idx == softs->ipf_sync_log_sz)
-		return NULL;
+		return(NULL);
 	KMALLOC(sl, synclist_t *);
 	if (sl == NULL)
-		return NULL;
+		return(NULL);
 
 	MUTEX_ENTER(&softs->ipf_syncadd);
 	/*
@@ -1083,7 +1083,7 @@ ipf_sync_new(ipf_main_softc_t *softc, int tab, fr_info_t *fin, void *ptr)
 	MUTEX_EXIT(&softs->ipf_syncadd);
 
 	ipf_sync_wakeup(softc);
-	return sl;
+	return(sl);
 }
 
 
@@ -1210,7 +1210,7 @@ ipf_sync_flush_table(ipf_sync_softc_t *softs, int tabsize, synclist_t **table)
 		}
 	}
 
-	return items;
+	return(items);
 }
 
 
@@ -1289,7 +1289,7 @@ ipf_sync_ioctl(ipf_main_softc_t *softc, caddr_t data, ioctlcmd_t cmd,
 		break;
 	}
 
-	return error;
+	return(error);
 }
 
 
@@ -1305,8 +1305,8 @@ int
 ipf_sync_canread(void *arg)
 {
 	ipf_sync_softc_t *softs = arg;
-	return !((softs->sl_tail == softs->sl_idx) &&
-		 (softs->su_tail == softs->su_idx));
+	return (!((softs->sl_tail == softs->sl_idx) &&
+		 (softs->su_tail == softs->su_idx)));
 }
 
 
@@ -1322,7 +1322,7 @@ ipf_sync_canread(void *arg)
 int
 ipf_sync_canwrite(void *arg)
 {
-	return 1;
+	return(1);
 }
 
 
