@@ -1293,7 +1293,7 @@ enetc_isc_rxd_refill(void *data, if_rxd_update_t iru)
 	 * After enabling the queue NIC will prefetch the first
 	 * 8 descriptors. It probably assumes that the RX is fully
 	 * refilled when cidx == pidx.
-	 * Enable it only if we have enough decriptors ready on the ring.
+	 * Enable it only if we have enough descriptors ready on the ring.
 	 */
 	if (!queue->enabled && pidx >= 8) {
 		ENETC_RXQ_WR4(sc, iru->iru_qsidx, ENETC_RBMR, sc->rbmr);
