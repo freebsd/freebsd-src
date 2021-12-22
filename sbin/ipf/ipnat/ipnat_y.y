@@ -819,7 +819,7 @@ to:	IPNY_TO				{ yyexpectaddr = 1; }
 	;
 
 ifnames:
-	ifname family			{ yyexpectaddr = 1; } 
+	ifname family			{ yyexpectaddr = 1; }
 	| ifname ',' otherifname family	{ yyexpectaddr = 1; }
 	;
 

@@ -376,7 +376,7 @@ addrmask:
 					       sizeof($$[1].adf_addr.in6));
 				  else
 #endif
-					memset(&$$[1].adf_addr, 0xff, 
+					memset(&$$[1].adf_addr, 0xff,
 					       sizeof($$[1].adf_addr.in4));
 				}
 	;
