@@ -116,7 +116,7 @@ ipf_p_pptp_new(void *arg, fr_info_t *fin, ap_session_t *aps, nat_t *nat)
 	ip_t *ip;
 
 	if (fin->fin_v != 4)
-		return -1;
+		return(-1);
 
 	ip = fin->fin_ip;
 	np = nat->nat_ptr;
@@ -126,19 +126,19 @@ ipf_p_pptp_new(void *arg, fr_info_t *fin, ap_session_t *aps, nat_t *nat)
 			  ip->ip_dst) != NULL) {
 		if (ipf_p_pptp_debug > 0)
 			printf("ipf_p_pptp_new: GRE session already exists\n");
-		return -1;
+		return(-1);
 	}
 
 	KMALLOC(pptp, pptp_pxy_t *);
 	if (pptp == NULL) {
 		if (ipf_p_pptp_debug > 0)
 			printf("ipf_p_pptp_new: malloc for aps_data failed\n");
-		return -1;
+		return(-1);
 	}
 	KMALLOCS(ipn, ipnat_t *, size);
 	if (ipn == NULL) {
 		KFREE(pptp);
-		return -1;
+		return(-1);
 	}
 
 	aps->aps_data = pptp;
@@ -182,7 +182,7 @@ ipf_p_pptp_new(void *arg, fr_info_t *fin, ap_session_t *aps, nat_t *nat)
 
 	pptp->pptp_side[0].pptps_wptr = pptp->pptp_side[0].pptps_buffer;
 	pptp->pptp_side[1].pptps_wptr = pptp->pptp_side[1].pptps_buffer;
-	return 0;
+	return(0);
 }
 
 
@@ -291,7 +291,7 @@ ipf_p_pptp_nextmessage(fr_info_t *fin, nat_t *nat, pptp_pxy_t *pptp, int rev)
 	      fin->fin_ipoff;
 
 	if (dlen <= 0)
-		return 0;
+		return(0);
 	/*
 	 * If the complete data packet is before what we expect to see
 	 * "next", just ignore it as the chances are we've already seen it.
@@ -301,13 +301,13 @@ ipf_p_pptp_nextmessage(fr_info_t *fin, nat_t *nat, pptp_pxy_t *pptp, int rev)
 	 */
 	end = start + dlen;
 	if (pptps->pptps_next > end && pptps->pptps_next > start)
-		return 0;
+		return(0);
 
 	if (pptps->pptps_next != start) {
 		if (ipf_p_pptp_debug > 5)
 			printf("%s: next (%x) != start (%x)\n", funcname,
 				pptps->pptps_next, start);
-		return -1;
+		return(-1);
 	}
 
 	msg = (char *)fin->fin_dp + (TCP_OFF(tcp) << 2);
@@ -333,7 +333,7 @@ ipf_p_pptp_nextmessage(fr_info_t *fin, nat_t *nat, pptp_pxy_t *pptp, int rev)
 						printf("%s: bad cookie (%x)\n",
 						       funcname,
 						       hdr->pptph_cookie);
-					return -1;
+					return(-1);
 				}
 			}
 			dlen -= len;
@@ -385,7 +385,7 @@ ipf_p_pptp_nextmessage(fr_info_t *fin, nat_t *nat, pptp_pxy_t *pptp, int rev)
 		dlen -= len;
 	}
 
-	return 0;
+	return(0);
 }
 
 
@@ -407,7 +407,7 @@ ipf_p_pptp_message(fr_info_t *fin, nat_t *nat, pptp_pxy_t *pptp,
 	default :
 		break;
 	}
-	return 0;
+	return(0);
 }
 
 
@@ -492,7 +492,7 @@ ipf_p_pptp_mctl(fr_info_t *fin, nat_t *nat, pptp_pxy_t *pptp,
 		break;
 	}
 
-	return 0;
+	return(0);
 }
 
 
@@ -522,8 +522,8 @@ ipf_p_pptp_inout(void *arg, fr_info_t *fin, ap_session_t *aps, nat_t *nat)
 		pptp->pptp_side[rev].pptps_next = ntohl(tcp->th_seq) + 1;
 		pptp->pptp_side[rev].pptps_nexthdr = ntohl(tcp->th_seq) + 1;
 	}
-	return ipf_p_pptp_nextmessage(fin, nat, (pptp_pxy_t *)aps->aps_data,
-				     rev);
+	return(ipf_p_pptp_nextmessage(fin, nat, (pptp_pxy_t *)aps->aps_data,
+				     rev));
 }
 
 

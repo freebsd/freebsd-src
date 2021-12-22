@@ -135,7 +135,7 @@ ipf_frag_main_load(void)
 	ipfr_block.fr_flags = FR_BLOCK|FR_QUICK;
 	ipfr_block.fr_ref = 1;
 
-	return 0;
+	return(0);
 }
 
 
@@ -150,7 +150,7 @@ ipf_frag_main_load(void)
 int
 ipf_frag_main_unload(void)
 {
-	return 0;
+	return(0);
 }
 
 
@@ -169,7 +169,7 @@ ipf_frag_soft_create(ipf_main_softc_t *softc)
 
 	KMALLOC(softf, ipf_frag_softc_t *);
 	if (softf == NULL)
-		return NULL;
+		return(NULL);
 
 	bzero((char *)softf, sizeof(*softf));
 
@@ -182,11 +182,11 @@ ipf_frag_soft_create(ipf_main_softc_t *softc)
 						   ipf_frag_tuneables);
 	if (softf->ipf_frag_tune == NULL) {
 		ipf_frag_soft_destroy(softc, softf);
-		return NULL;
+		return(NULL);
 	}
 	if (ipf_tune_array_link(softc, softf->ipf_frag_tune) == -1) {
 		ipf_frag_soft_destroy(softc, softf);
-		return NULL;
+		return(NULL);
 	}
 
 	softf->ipfr_size = IPFT_SIZE;
@@ -196,7 +196,7 @@ ipf_frag_soft_create(ipf_main_softc_t *softc)
 	softf->ipfr_nattail = &softf->ipfr_natlist;
 	softf->ipfr_ipidtail = &softf->ipfr_ipidlist;
 
-	return softf;
+	return(softf);
 }
 
 
@@ -244,21 +244,21 @@ ipf_frag_soft_init(ipf_main_softc_t *softc, void *arg)
 	KMALLOCS(softf->ipfr_heads, ipfr_t **,
 		 softf->ipfr_size * sizeof(ipfr_t *));
 	if (softf->ipfr_heads == NULL)
-		return -1;
+		return(-1);
 
 	bzero((char *)softf->ipfr_heads, softf->ipfr_size * sizeof(ipfr_t *));
 
 	KMALLOCS(softf->ipfr_nattab, ipfr_t **,
 		 softf->ipfr_size * sizeof(ipfr_t *));
 	if (softf->ipfr_nattab == NULL)
-		return -2;
+		return(-2);
 
 	bzero((char *)softf->ipfr_nattab, softf->ipfr_size * sizeof(ipfr_t *));
 
 	KMALLOCS(softf->ipfr_ipidtab, ipfr_t **,
 		 softf->ipfr_size * sizeof(ipfr_t *));
 	if (softf->ipfr_ipidtab == NULL)
-		return -3;
+		return(-3);
 
 	bzero((char *)softf->ipfr_ipidtab,
 	      softf->ipfr_size * sizeof(ipfr_t *));
@@ -266,7 +266,7 @@ ipf_frag_soft_init(ipf_main_softc_t *softc, void *arg)
 	softf->ipfr_lock = 0;
 	softf->ipfr_inited = 1;
 
-	return 0;
+	return(0);
 }
 
 
@@ -306,7 +306,7 @@ ipf_frag_soft_fini(ipf_main_softc_t *softc, void *arg)
 		       softf->ipfr_size * sizeof(ipfr_t *));
 	softf->ipfr_ipidtab = NULL;
 
-	return 0;
+	return(0);
 }
 
 
@@ -341,7 +341,7 @@ ipf_frag_stats(void *arg)
 
 	softf->ipfr_stats.ifs_table = softf->ipfr_heads;
 	softf->ipfr_stats.ifs_nattab = softf->ipfr_nattab;
-	return &softf->ipfr_stats;
+	return(&softf->ipfr_stats);
 }
 
 
@@ -372,18 +372,18 @@ ipfr_frag_new(ipf_main_softc_t *softc, ipf_frag_softc_t *softf,
 
 	if (softf->ipfr_stats.ifs_inuse >= softf->ipfr_size) {
 		FBUMPD(ifs_maximum);
-		return NULL;
+		return(NULL);
 	}
 
 	if ((fin->fin_flx & (FI_FRAG|FI_BAD)) != FI_FRAG) {
 		FBUMPD(ifs_newbad);
-		return NULL;
+		return(NULL);
 	}
 
 	if (pass & FR_FRSTRICT) {
 		if (fin->fin_off != 0) {
 			FBUMPD(ifs_newrestrictnot0);
-			return NULL;
+			return(NULL);
 		}
 	}
 
@@ -434,7 +434,7 @@ ipfr_frag_new(ipf_main_softc_t *softc, ipf_frag_softc_t *softf,
 	KMALLOC(fran, ipfr_t *);
 	if (fran == NULL) {
 		FBUMPD(ifs_nomem);
-		return NULL;
+		return(NULL);
 	}
 	memset(fran, 0, sizeof(*fran));
 
@@ -449,7 +449,7 @@ ipfr_frag_new(ipf_main_softc_t *softc, ipf_frag_softc_t *softf,
 			RWLOCK_EXIT(lock);
 			FBUMPD(ifs_exists);
 			KFREE(fran);
-			return NULL;
+			return(NULL);
 		}
 
 	fra = fran;
@@ -490,7 +490,7 @@ ipfr_frag_new(ipf_main_softc_t *softc, ipf_frag_softc_t *softf,
 	fra->ipfr_bytes = fin->fin_plen;
 	FBUMP(ifs_inuse);
 	FBUMP(ifs_new);
-	return fra;
+	return(fra);
 }
 
 
@@ -508,7 +508,7 @@ ipf_frag_new(ipf_main_softc_t *softc, fr_info_t *fin, u_32_t pass)
 	ipfr_t	*fra;
 
 	if (softf->ipfr_lock != 0)
-		return -1;
+		return(-1);
 
 #ifdef USE_MUTEXES
 	fra = ipfr_frag_new(softc, softf, fin, pass, softf->ipfr_heads, &softc->ipf_frag);
@@ -522,7 +522,7 @@ ipf_frag_new(ipf_main_softc_t *softc, fr_info_t *fin, u_32_t pass)
 		fra->ipfr_next = NULL;
 		RWLOCK_EXIT(&softc->ipf_frag);
 	}
-	return fra ? 0 : -1;
+	return(fra ? 0 : -1);
 }
 
 
@@ -543,7 +543,7 @@ ipf_frag_natnew(ipf_main_softc_t *softc, fr_info_t *fin, u_32_t pass,
 	ipfr_t	*fra;
 
 	if (softf->ipfr_lock != 0)
-		return 0;
+		return(0);
 
 #ifdef USE_MUTEXES
 	fra = ipfr_frag_new(softc, softf, fin, pass, softf->ipfr_nattab,
@@ -559,9 +559,9 @@ ipf_frag_natnew(ipf_main_softc_t *softc, fr_info_t *fin, u_32_t pass,
 		softf->ipfr_nattail = &fra->ipfr_next;
 		fra->ipfr_next = NULL;
 		RWLOCK_EXIT(&softf->ipfr_natfrag);
-		return 0;
+		return(0);
 	}
-	return -1;
+	return(-1);
 }
 
 
@@ -582,7 +582,7 @@ ipf_frag_ipidnew(fr_info_t *fin, u_32_t ipid)
 	ipfr_t	*fra;
 
 	if (softf->ipfr_lock)
-		return 0;
+		return(0);
 
 #ifdef USE_MUTEXES
 	fra = ipfr_frag_new(softc, softf, fin, 0, softf->ipfr_ipidtab, &softf->ipfr_ipidfrag);
@@ -597,7 +597,7 @@ ipf_frag_ipidnew(fr_info_t *fin, u_32_t ipid)
 		fra->ipfr_next = NULL;
 		RWLOCK_EXIT(&softf->ipfr_ipidfrag);
 	}
-	return fra ? 0 : -1;
+	return(fra ? 0 : -1);
 }
 
 
@@ -635,12 +635,12 @@ ipf_frag_lookup(ipf_main_softc_t *softc, ipf_frag_softc_t *softf,
 	 */
 	if (fin->fin_flx & FI_SHORT) {
 		FBUMPD(ifs_short);
-		return NULL;
+		return(NULL);
 	}
 
 	if ((fin->fin_flx & FI_BAD) != 0) {
 		FBUMPD(ifs_bad);
-		return NULL;
+		return(NULL);
 	}
 
 	/*
@@ -763,13 +763,13 @@ ipf_frag_lookup(ipf_main_softc_t *softc, ipf_frag_softc_t *softf,
 			f->ipfr_pkts++;
 			f->ipfr_bytes += fin->fin_plen;
 			FBUMP(ifs_hits);
-			return f;
+			return(f);
 		}
 	}
 
 	RWLOCK_EXIT(lock);
 	FBUMP(ifs_miss);
-	return NULL;
+	return(NULL);
 }
 
 
@@ -790,7 +790,7 @@ ipf_frag_natknown(fr_info_t *fin)
 	ipfr_t	*ipf;
 
 	if ((softf->ipfr_lock) || !softf->ipfr_natlist)
-		return NULL;
+		return(NULL);
 #ifdef USE_MUTEXES
 	ipf = ipf_frag_lookup(softc, softf, fin, softf->ipfr_nattab,
 			      &softf->ipfr_natfrag);
@@ -809,7 +809,7 @@ ipf_frag_natknown(fr_info_t *fin)
 		RWLOCK_EXIT(&softf->ipfr_natfrag);
 	} else
 		nat = NULL;
-	return nat;
+	return(nat);
 }
 
 
@@ -830,7 +830,7 @@ ipf_frag_ipidknown(fr_info_t *fin)
 	u_32_t	id;
 
 	if (softf->ipfr_lock || !softf->ipfr_ipidlist)
-		return 0xffffffff;
+		return(0xffffffff);
 
 #ifdef USE_MUTEXES
 	ipf = ipf_frag_lookup(softc, softf, fin, softf->ipfr_ipidtab,
@@ -843,7 +843,7 @@ ipf_frag_ipidknown(fr_info_t *fin)
 		RWLOCK_EXIT(&softf->ipfr_ipidfrag);
 	} else
 		id = 0xffffffff;
-	return id;
+	return(id);
 }
 
 
@@ -868,7 +868,7 @@ ipf_frag_known(fr_info_t *fin, u_32_t *passp)
 	u_32_t pass;
 
 	if ((softf->ipfr_lock) || (softf->ipfr_list == NULL))
-		return NULL;
+		return(NULL);
 
 #ifdef USE_MUTEXES
 	fra = ipf_frag_lookup(softc, softf, fin, softf->ipfr_heads,
@@ -903,7 +903,7 @@ ipf_frag_known(fr_info_t *fin, u_32_t *passp)
 		}
 		RWLOCK_EXIT(&softc->ipf_frag);
 	}
-	return fr;
+	return(fr);
 }
 
 
@@ -1112,10 +1112,10 @@ ipf_frag_pkt_next(ipf_main_softc_t *softc, ipftoken_t *token,
 	ipf_frag_softc_t *softf = softc->ipf_frag_soft;
 
 #ifdef USE_MUTEXES
-	return ipf_frag_next(softc, token, itp, &softf->ipfr_list,
-			     &softf->ipfr_frag);
+	return(ipf_frag_next(softc, token, itp, &softf->ipfr_list,
+			     &softf->ipfr_frag));
 #else
-	return ipf_frag_next(softc, token, itp, &softf->ipfr_list);
+	return(ipf_frag_next(softc, token, itp, &softf->ipfr_list));
 #endif
 }
 
@@ -1137,10 +1137,10 @@ ipf_frag_nat_next(ipf_main_softc_t *softc, ipftoken_t *token,
 	ipf_frag_softc_t *softf = softc->ipf_frag_soft;
 
 #ifdef USE_MUTEXES
-	return ipf_frag_next(softc, token, itp, &softf->ipfr_natlist, 
-			     &softf->ipfr_natfrag);
+	return(ipf_frag_next(softc, token, itp, &softf->ipfr_natlist,
+			     &softf->ipfr_natfrag));
 #else
-	return ipf_frag_next(softc, token, itp, &softf->ipfr_natlist);
+	return(ipf_frag_next(softc, token, itp, &softf->ipfr_natlist));
 #endif
 }
 
@@ -1173,12 +1173,12 @@ ipf_frag_next(ipf_main_softc_t *softc, ipftoken_t *token, ipfgeniter_t *itp,
 
 	if (itp->igi_data == NULL) {
 		IPFERROR(20001);
-		return EFAULT;
+		return(EFAULT);
 	}
 
 	if (itp->igi_nitems != 1) {
 		IPFERROR(20003);
-		return EFAULT;
+		return(EFAULT);
 	}
 
 	frag = token->ipt_data;
@@ -1214,7 +1214,7 @@ ipf_frag_next(ipf_main_softc_t *softc, ipftoken_t *token, ipfgeniter_t *itp,
 		ipf_frag_deref(softc, &frag);
 #endif
         }
-        return error;
+        return(error);
 }
 
 

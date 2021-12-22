@@ -141,12 +141,12 @@ ipf_htable_soft_create(ipf_main_softc_t *softc)
 	KMALLOC(softh, ipf_htable_softc_t *);
 	if (softh == NULL) {
 		IPFERROR(30026);
-		return NULL;
+		return(NULL);
 	}
 
 	bzero((char *)softh, sizeof(*softh));
 
-	return softh;
+	return(softh);
 }
 
 
@@ -185,7 +185,7 @@ ipf_htable_soft_init(softc, arg)
 
 	bzero((char *)softh, sizeof(*softh));
 
-	return 0;
+	return(0);
 }
 
 
@@ -233,7 +233,7 @@ ipf_htable_stats_get(ipf_main_softc_t *softc, void *arg, iplookupop_t *op)
 
 	if (op->iplo_size != sizeof(stats)) {
 		IPFERROR(30001);
-		return EINVAL;
+		return(EINVAL);
 	}
 
 	stats.iphs_tables = softh->ipf_htables[op->iplo_unit + 1];
@@ -244,9 +244,9 @@ ipf_htable_stats_get(ipf_main_softc_t *softc, void *arg, iplookupop_t *op)
 	err = COPYOUT(&stats, op->iplo_struct, sizeof(stats));
 	if (err != 0) {
 		IPFERROR(30013);
-		return EFAULT;
+		return(EFAULT);
 	}
-	return 0;
+	return(0);
 
 }
 
@@ -270,22 +270,22 @@ ipf_htable_create(ipf_main_softc_t *softc, void *arg, iplookupop_t *op)
 
 	if (op->iplo_size != sizeof(htab)) {
 		IPFERROR(30024);
-		return EINVAL;
+		return(EINVAL);
 	}
 	err = COPYIN(op->iplo_struct, &htab, sizeof(htab));
 	if (err != 0) {
 		IPFERROR(30003);
-		return EFAULT;
+		return(EFAULT);
 	}
 
 	unit = op->iplo_unit;
 	if (htab.iph_unit != unit) {
 		IPFERROR(30005);
-		return EINVAL;
+		return(EINVAL);
 	}
 	if (htab.iph_size < 1) {
 		IPFERROR(30025);
-		return EINVAL;
+		return(EINVAL);
 	}
 
 
@@ -294,11 +294,11 @@ ipf_htable_create(ipf_main_softc_t *softc, void *arg, iplookupop_t *op)
 		if (iph != NULL) {
 			if ((iph->iph_flags & IPHASH_DELETE) == 0) {
 				IPFERROR(30004);
-				return EEXIST;
+				return(EEXIST);
 			}
 			iph->iph_flags &= ~IPHASH_DELETE;
 			iph->iph_ref++;
-			return 0;
+			return(0);
 		}
 	}
 
@@ -306,7 +306,7 @@ ipf_htable_create(ipf_main_softc_t *softc, void *arg, iplookupop_t *op)
 	if (iph == NULL) {
 		softh->ipht_nomem[op->iplo_unit + 1]++;
 		IPFERROR(30002);
-		return ENOMEM;
+		return(ENOMEM);
 	}
 	*iph = htab;
 
@@ -337,7 +337,7 @@ ipf_htable_create(ipf_main_softc_t *softc, void *arg, iplookupop_t *op)
 		KFREE(iph);
 		softh->ipht_nomem[unit + 1]++;
 		IPFERROR(30006);
-		return ENOMEM;
+		return(ENOMEM);
 	}
 
 	bzero((char *)iph->iph_table, iph->iph_size * sizeof(*iph->iph_table));
@@ -357,7 +357,7 @@ ipf_htable_create(ipf_main_softc_t *softc, void *arg, iplookupop_t *op)
 
 	softh->ipf_nhtables[unit + 1]++;
 
-	return 0;
+	return(0);
 }
 
 
@@ -372,7 +372,7 @@ ipf_htable_create(ipf_main_softc_t *softc, void *arg, iplookupop_t *op)
 static int
 ipf_htable_table_del(ipf_main_softc_t *softc, void *arg, iplookupop_t *op)
 {
-	return ipf_htable_destroy(softc, arg, op->iplo_unit, op->iplo_name);
+	return(ipf_htable_destroy(softc, arg, op->iplo_unit, op->iplo_name));
 }
 
 
@@ -396,23 +396,23 @@ ipf_htable_destroy(ipf_main_softc_t *softc, void *arg, int unit, char *name)
 	iph = ipf_htable_find(arg, unit, name);
 	if (iph == NULL) {
 		IPFERROR(30007);
-		return ESRCH;
+		return(ESRCH);
 	}
 
 	if (iph->iph_unit != unit) {
 		IPFERROR(30008);
-		return EINVAL;
+		return(EINVAL);
 	}
 
 	if (iph->iph_ref != 0) {
 		ipf_htable_clear(softc, arg, iph);
 		iph->iph_flags |= IPHASH_DELETE;
-		return 0;
+		return(0);
 	}
 
 	ipf_htable_remove(softc, arg, iph);
 
-	return 0;
+	return(0);
 }
 
 
@@ -433,8 +433,8 @@ ipf_htable_clear(ipf_main_softc_t *softc, void *arg, iphtable_t *iph)
 
 	while ((ipe = iph->iph_list) != NULL)
 		if (ipf_htent_remove(softc, arg, iph, ipe) != 0)
-			return 1;
-	return 0;
+			return(1);
+	return(0);
 }
 
 
@@ -479,7 +479,7 @@ ipf_htable_remove(ipf_main_softc_t *softc, void *arg, iphtable_t *iph)
 {
 
 	if (ipf_htable_clear(softc, arg, iph) != 0)
-		return 1;
+		return(1);
 
 	if (iph->iph_pnext != NULL)
 		*iph->iph_pnext = iph->iph_next;
@@ -488,7 +488,7 @@ ipf_htable_remove(ipf_main_softc_t *softc, void *arg, iphtable_t *iph)
 	iph->iph_pnext = NULL;
 	iph->iph_next = NULL;
 
-	return ipf_htable_deref(softc, arg, iph);
+	return(ipf_htable_deref(softc, arg, iph));
 }
 
 
@@ -511,35 +511,35 @@ ipf_htable_node_del(ipf_main_softc_t *softc, void *arg, iplookupop_t *op,
 
 	if (op->iplo_size != sizeof(hte)) {
 		IPFERROR(30014);
-		return EINVAL;
+		return(EINVAL);
 	}
 
 	err = COPYIN(op->iplo_struct, &hte, sizeof(hte));
 	if (err != 0) {
 		IPFERROR(30015);
-		return EFAULT;
+		return(EFAULT);
 	}
 
 	iph = ipf_htable_find(arg, op->iplo_unit, op->iplo_name);
 	if (iph == NULL) {
 		IPFERROR(30016);
-		return ESRCH;
+		return(ESRCH);
 	}
 
 	ent = ipf_htent_find(iph, &hte);
 	if (ent == NULL) {
 		IPFERROR(30022);
-		return ESRCH;
+		return(ESRCH);
 	}
 
 	if ((uid != 0) && (ent->ipe_uid != uid)) {
 		IPFERROR(30023);
-		return EACCES;
+		return(EACCES);
 	}
 
 	err = ipf_htent_remove(softc, arg, iph, ent);
 
-	return err;
+	return(err);
 }
 
 
@@ -563,7 +563,7 @@ ipf_htable_table_add(ipf_main_softc_t *softc, void *arg, iplookupop_t *op)
 		err = ipf_htable_create(softc, arg, op);
 	}
 
-	return err;
+	return(err);
 }
 
 
@@ -619,7 +619,7 @@ ipf_htent_remove(ipf_main_softc_t *softc, void *arg, iphtable_t *iph,
 		break;
 	}
 
-	return ipf_htent_deref(arg, ipe);
+	return(ipf_htent_deref(arg, ipe));
 }
 
 
@@ -645,7 +645,7 @@ ipf_htable_deref(ipf_main_softc_t *softc, void *arg, void *object)
 		ipf_htable_free(softh, iph);
 	}
 
-	return refs;
+	return(refs);
 }
 
 
@@ -665,10 +665,10 @@ ipf_htent_deref(void *arg, iphtent_t *ipe)
 		softh->ipf_nhtnodes[ipe->ipe_unit + 1]--;
 		KFREE(ipe);
 
-		return 0;
+		return(0);
 	}
 
-	return ipe->ipe_ref;
+	return(ipe->ipe_ref);
 }
 
 
@@ -704,7 +704,7 @@ ipf_htable_exists(void *arg, int unit, char *name)
 				break;
 		}
 	}
-	return iph;
+	return(iph);
 }
 
 
@@ -725,7 +725,7 @@ ipf_htable_select_add_ref(void *arg, int unit, char *name)
 	if (iph != NULL) {
 		ATOMIC_INC32(iph->iph_ref);
 	}
-	return iph;
+	return(iph);
 }
 
 
@@ -745,9 +745,9 @@ ipf_htable_find(void *arg, int unit, char *name)
 
 	iph = ipf_htable_exists(arg, unit, name);
 	if ((iph != NULL) && (iph->iph_flags & IPHASH_DELETE) == 0)
-		return iph;
+		return(iph);
 
-	return NULL;
+	return(NULL);
 }
 
 
@@ -781,7 +781,7 @@ ipf_htable_flush(ipf_main_softc_t *softc, void *arg, iplookupflush_t *op)
 		}
 	}
 
-	return freed;
+	return(freed);
 }
 
 
@@ -804,30 +804,30 @@ ipf_htable_node_add(ipf_main_softc_t *softc, void *arg, iplookupop_t *op,
 
 	if (op->iplo_size != sizeof(hte)) {
 		IPFERROR(30018);
-		return EINVAL;
+		return(EINVAL);
 	}
 
 	err = COPYIN(op->iplo_struct, &hte, sizeof(hte));
 	if (err != 0) {
 		IPFERROR(30019);
-		return EFAULT;
+		return(EFAULT);
 	}
 	hte.ipe_uid = uid;
 
 	iph = ipf_htable_find(arg, op->iplo_unit, op->iplo_name);
 	if (iph == NULL) {
 		IPFERROR(30020);
-		return ESRCH;
+		return(ESRCH);
 	}
 
 	if (ipf_htent_find(iph, &hte) != NULL) {
 		IPFERROR(30021);
-		return EEXIST;
+		return(EEXIST);
 	}
 
 	err = ipf_htent_insert(softc, arg, iph, &hte);
 
-	return err;
+	return(err);
 }
 
 
@@ -852,7 +852,7 @@ ipf_htent_insert(ipf_main_softc_t *softc, void *arg, iphtable_t *iph,
 
 	KMALLOC(ipe, iphtent_t *);
 	if (ipe == NULL)
-		return -1;
+		return(-1);
 
 	bcopy((char *)ipeo, (char *)ipe, sizeof(*ipe));
 	ipe->ipe_addr.i6[0] &= ipe->ipe_mask.i6[0];
@@ -880,7 +880,7 @@ ipf_htent_insert(ipf_main_softc_t *softc, void *arg, iphtable_t *iph,
 #endif
 	{
 		KFREE(ipe);
-		return -1;
+		return(-1);
 	}
 
 	ipe->ipe_owner = iph;
@@ -960,7 +960,7 @@ ipf_htent_insert(ipf_main_softc_t *softc, void *arg, iphtable_t *iph,
 	ipe->ipe_unit = iph->iph_unit;
 	softh->ipf_nhtnodes[ipe->ipe_unit + 1]++;
 
-	return 0;
+	return(0);
 }
 
 
@@ -1004,7 +1004,7 @@ ipf_htent_find(iphtable_t *iph, iphtent_t *ipeo)
 				    ipe.ipe_mask.i6, iph->iph_size);
 	} else
 #endif
-		return NULL;
+		return(NULL);
 
 	for (ent = iph->iph_table[hv]; ent != NULL; ent = ent->ipe_hnext) {
 		if (ent->ipe_family != ipe.ipe_family)
@@ -1016,7 +1016,7 @@ ipf_htent_find(iphtable_t *iph, iphtent_t *ipeo)
 		break;
 	}
 
-	return ent;
+	return(ent);
 }
 
 
@@ -1050,7 +1050,7 @@ ipf_iphmfindgroup(ipf_main_softc_t *softc, void *tptr, void *aptr)
 	else
 		rval = NULL;
 	RWLOCK_EXIT(&softc->ipf_poolrw);
-	return rval;
+	return(rval);
 }
 
 
@@ -1075,7 +1075,7 @@ ipf_iphmfindip(ipf_main_softc_t *softc, void *tptr, int ipversion, void *aptr,
 	int rval;
 
 	if (tptr == NULL || aptr == NULL)
-		return -1;
+		return(-1);
 
 	iph = tptr;
 	addr = aptr;
@@ -1099,7 +1099,7 @@ ipf_iphmfindip(ipf_main_softc_t *softc, void *tptr, int ipversion, void *aptr,
 		rval = 1;
 	}
 	RWLOCK_EXIT(&softc->ipf_poolrw);
-	return rval;
+	return(rval);
 }
 
 
@@ -1137,7 +1137,7 @@ maskloop:
 		if (i < iph->iph_v4_masks.imt4_max)
 			goto maskloop;
 	}
-	return ipe;
+	return(ipe);
 }
 
 
@@ -1224,7 +1224,7 @@ ipf_htable_iter_next(ipf_main_softc_t *softc, void *arg, ipftoken_t *token,
 
 	RWLOCK_EXIT(&softc->ipf_poolrw);
 	if (err != 0)
-		return err;
+		return(err);
 
 	switch (ilp->ili_otype)
 	{
@@ -1258,7 +1258,7 @@ ipf_htable_iter_next(ipf_main_softc_t *softc, void *arg, ipftoken_t *token,
 	if (hnext == NULL)
 		ipf_token_mark_complete(token);
 
-	return err;
+	return(err);
 }
 
 
@@ -1278,10 +1278,10 @@ ipf_htable_iter_deref(ipf_main_softc_t *softc, void *arg, int otype, int unit,
 {
 
 	if (data == NULL)
-		return EFAULT;
+		return(EFAULT);
 
 	if (unit < -1 || unit > IPL_LOGMAX)
-		return EINVAL;
+		return(EINVAL);
 
 	switch (otype)
 	{
@@ -1296,7 +1296,7 @@ ipf_htable_iter_deref(ipf_main_softc_t *softc, void *arg, int otype, int unit,
 		break;
 	}
 
-	return 0;
+	return(0);
 }
 
 
@@ -1338,7 +1338,7 @@ maskloop:
 		if (i < iph->iph_v6_masks.imt6_max)
 			goto maskloop;
 	}
-	return ipe;
+	return(ipe);
 }
 #endif
 
