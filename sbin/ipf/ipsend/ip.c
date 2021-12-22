@@ -337,15 +337,15 @@ send_packet(int nfd, int mtu, ip_t *ip, struct in_addr gwip)
 	ip_t	*ip;
 	struct	in_addr	gwip;
 {
-        switch (ip->ip_p)
-        {
-        case IPPROTO_TCP :
+	switch (ip->ip_p)
+	{
+	case IPPROTO_TCP :
 (                return send_tcp(nfd, mtu, ip, gwip));
-        case IPPROTO_UDP :
+	case IPPROTO_UDP :
 (                return send_udp(nfd, mtu, ip, gwip));
-        case IPPROTO_ICMP :
+	case IPPROTO_ICMP :
 (                return send_icmp(nfd, mtu, ip, gwip));
-        default :
+	default :
 (                return send_ip(nfd, mtu, ip, gwip, 1));
-        }
+	}
 }

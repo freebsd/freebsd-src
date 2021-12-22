@@ -1089,7 +1089,7 @@ setnodeaddr(int type, int role, void *ptr, char *arg)
 	} else if (type == IPLT_HASH) {
 		iphtent_t *node = ptr;
 
-        	node->ipe_family = family;
+		node->ipe_family = family;
 		node->ipe_unit = role;
 
 #ifdef USE_INET6
