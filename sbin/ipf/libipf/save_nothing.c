@@ -33,7 +33,7 @@ nothing_parse(char **strings)
 
 	ctx = calloc(1, sizeof(void *));
 
-	return ctx;
+	return(ctx);
 }
 
 
@@ -54,6 +54,6 @@ nothing_send(void *ctx, ipmon_msg_t *msg)
 	/*
 	 * Do nothing
 	 */
-	return 0;
+	return(0);
 }
 

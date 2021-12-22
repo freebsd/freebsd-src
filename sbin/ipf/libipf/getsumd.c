@@ -19,5 +19,5 @@ getsumd(u_32_t sum)
 		snprintf(sumdbuf, sizeof(sumdbuf), "hw(%#0x)", sum & 0xffff);
 	else
 		snprintf(sumdbuf, sizeof(sumdbuf), "%#0x", sum);
-	return sumdbuf;
+	return(sumdbuf);
 }

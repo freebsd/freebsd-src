@@ -69,11 +69,11 @@ yygetc(int docont)
 		c = yytext[yypos++];
 		if (c == '\n')
 			yylineNum++;
-		return c;
+		return(c);
 	}
 
 	if (yypos == YYBUFSIZ)
-		return TOOLONG;
+		return(TOOLONG);
 
 	if (pos >= string_start && pos <= string_end) {
 		c = string_val[pos - string_start];
@@ -94,7 +94,7 @@ yygetc(int docont)
 	yylast = yypos;
 	yytext[yypos] = '\0';
 
-	return c;
+	return(c);
 }
 
 
@@ -118,8 +118,8 @@ yyswallow(int last)
 	if (c != EOF)
 		yyunputc(c);
 	if (c == last)
-		return 0;
-	return -1;
+		return(0);
+	return(-1);
 }
 
 
@@ -131,7 +131,7 @@ yytexttochar(void)
 	for (i = 0; i < yypos; i++)
 		yychars[i] = (char)(yytext[i] & 0xff);
 	yychars[i] = '\0';
-	return yychars;
+	return(yychars);
 }
 
 
@@ -171,7 +171,7 @@ yytexttostr(int offset, int max)
 			str[i - offset] = (char)(yytext[i] & 0xff);
 		str[i - offset] = '\0';
 	}
-	return str;
+	return(str);
 }
 
 
@@ -242,7 +242,7 @@ nextchar:
 		lnext = 0;
 		if ((isbuilding == 0) && !ISALNUM(c)) {
 			prior = c;
-			return c;
+			return(c);
 		}
 		goto nextchar;
 	}
@@ -333,7 +333,7 @@ nextchar:
 		if (yydebug)
 			fprintf(stderr, "reset at EOF\n");
 		prior = 0;
-		return 0;
+		return(0);
 	}
 
 	if (strchr("=,/;{}()@", c) != NULL) {
@@ -599,7 +599,7 @@ done:
 	if (rval == YY_NUMBER)
 		priornum = yylval.num;
 	prior = rval;
-	return rval;
+	return(rval);
 }
 
 
@@ -609,12 +609,12 @@ static wordtab_t *yyfindkey(key)
 	wordtab_t *w;
 
 	if (yywordtab == NULL)
-		return NULL;
+		return(NULL);
 
 	for (w = yywordtab; w->w_word != 0; w++)
 		if (strcasecmp(key, w->w_word) == 0)
-			return w;
-	return NULL;
+			return(w);
+	return(NULL);
 }
 
 
@@ -624,12 +624,12 @@ yykeytostr(int num)
 	wordtab_t *w;
 
 	if (yywordtab == NULL)
-		return "<unknown>";
+		return("<unknown>");
 
 	for (w = yywordtab; w->w_word; w++)
 		if (w->w_value == num)
-			return w->w_word;
-	return "<unknown>";
+			return(w->w_word);
+	return("<unknown>");
 }
 
 
@@ -640,7 +640,7 @@ yysettab(wordtab_t *words)
 
 	save = yywordtab;
 	yywordtab = words;
-	return save;
+	return(save);
 }
 
 

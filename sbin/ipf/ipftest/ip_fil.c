@@ -38,7 +38,7 @@ int
 ipfattach(softc)
 	ipf_main_softc_t *softc;
 {
-	return 0;
+	return(0);
 }
 
 
@@ -46,7 +46,7 @@ int
 ipfdetach(softc)
 	ipf_main_softc_t *softc;
 {
-	return 0;
+	return(0);
 }
 
 
@@ -71,10 +71,10 @@ ipfioctl(softc, dev, cmd, data, mode)
 	error = ipf_ioctlswitch(softc, unit, data, cmd, mode, uid, NULL);
 	if (error != -1) {
 		SPL_X(s);
-		return error;
+		return(error);
 	}
 	SPL_X(s);
-	return error;
+	return(error);
 }
 
 
@@ -115,7 +115,7 @@ no_output(ifp, m, s, rt)
 	struct mbuf *m;
 	struct sockaddr *s;
 {
-	return 0;
+	return(0);
 }
 
 
@@ -143,11 +143,11 @@ write_output(ifp, m, s, rt)
 	fd = open(fname, O_WRONLY|O_APPEND);
 	if (fd == -1) {
 		perror("open");
-		return -1;
+		return(-1);
 	}
 	write(fd, (char *)ip, ntohs(ip->ip_len));
 	close(fd);
-	return 0;
+	return(0);
 }
 
 
@@ -217,7 +217,7 @@ get_unit(name, family)
     defined(__FreeBSD__)
 
 	if (!*name)
-		return NULL;
+		return(NULL);
 
 	if (name == NULL)
 		name = "anon0";
@@ -230,7 +230,7 @@ get_unit(name, family)
 		if (!strcmp(name, ifp->if_xname)) {
 			if (addr != NULL)
 				ipf_setifpaddr(ifp, addr);
-			return ifp;
+			return(ifp);
 		}
 	}
 #else
@@ -248,7 +248,7 @@ get_unit(name, family)
 		if (!strcmp(name, ifname)) {
 			if (addr != NULL)
 				ipf_setifpaddr(ifp, addr);
-			return ifp;
+			return(ifp);
 		}
 	}
 #endif
@@ -256,12 +256,12 @@ get_unit(name, family)
 	if (!ifneta) {
 		ifneta = (struct ifnet **)malloc(sizeof(ifp) * 2);
 		if (!ifneta)
-			return NULL;
+			return(NULL);
 		ifneta[1] = NULL;
 		ifneta[0] = (struct ifnet *)calloc(1, sizeof(*ifp));
 		if (!ifneta[0]) {
 			free(ifneta);
-			return NULL;
+			return(NULL);
 		}
 		nifs = 1;
 	} else {
@@ -272,13 +272,13 @@ get_unit(name, family)
 		if (!ifneta) {
 			free(old_ifneta);
 			nifs = 0;
-			return NULL;
+			return(NULL);
 		}
 		ifneta[nifs] = NULL;
 		ifneta[nifs - 1] = (struct ifnet *)malloc(sizeof(*ifp));
 		if (!ifneta[nifs - 1]) {
 			nifs--;
-			return NULL;
+			return(NULL);
 		}
 	}
 	ifp = ifneta[nifs - 1];
@@ -314,7 +314,7 @@ get_unit(name, family)
 		ipf_setifpaddr(ifp, addr);
 	}
 
-	return ifp;
+	return(ifp);
 }
 
 
@@ -332,7 +332,7 @@ get_ifname(ifp)
 	else
 		strcpy(ifname, ifp->if_name);
 #endif
-	return ifname;
+	return(ifname);
 }
 
 
@@ -398,7 +398,7 @@ ipf_fastroute(m, mpp, fin, fdp)
 	ifp = fdp->fd_ptr;
 
 	if (ifp == NULL)
-		return 0;	/* no routing table out here */
+		return(0;	/* no routing table out here */);
 
 	if (fin->fin_out == 0) {
 		fin->fin_ifp = ifp;
@@ -433,7 +433,7 @@ ipf_fastroute(m, mpp, fin, fdp)
 done:
 	fin->fin_ifp = sifp;
 	fin->fin_out = sout;
-	return error;
+	return(error);
 }
 
 
@@ -442,7 +442,7 @@ ipf_send_reset(fin)
 	fr_info_t *fin;
 {
 	ipfkverbose("- TCP RST sent\n");
-	return 0;
+	return(0);
 }
 
 
@@ -453,7 +453,7 @@ ipf_send_icmp_err(type, fin, dst)
 	int dst;
 {
 	ipfkverbose("- ICMP unreachable sent\n");
-	return 0;
+	return(0);
 }
 
 
@@ -510,9 +510,9 @@ ipfuiomove(buf, len, rwflag, uio)
 				ioc++;
 		}
 		if (left > 0)
-			return EFAULT;
+			return(EFAULT);
 	}
-	return 0;
+	return(0);
 }
 
 
@@ -552,7 +552,7 @@ ipf_newisn(fin)
 	 */
 	iss_seq_off += 0x00010000;
 	newiss += iss_seq_off;
-	return newiss;
+	return(newiss);
 }
 
 
@@ -582,7 +582,7 @@ ipf_nextipid(fin)
 		id = ipid++;
 	MUTEX_EXIT(&softc->ipf_rw);
 
-	return id;
+	return(id);
 }
 
 
@@ -592,13 +592,13 @@ ipf_checkv4sum(fin)
 {
 
 	if (fin->fin_flx & FI_SHORT)
-		return 1;
+		return(1);
 
 	if (ipf_checkl4sum(fin) == -1) {
 		fin->fin_flx |= FI_BAD;
-		return -1;
+		return(-1);
 	}
-	return 0;
+	return(0);
 }
 
 
@@ -608,13 +608,13 @@ ipf_checkv6sum(fin)
 	fr_info_t *fin;
 {
 	if (fin->fin_flx & FI_SHORT)
-		return 1;
+		return(1);
 
 	if (ipf_checkl4sum(fin) == -1) {
 		fin->fin_flx |= FI_BAD;
-		return -1;
+		return(-1);
 	}
-	return 0;
+	return(0);
 }
 #endif
 
@@ -632,7 +632,7 @@ copyoutptr(softc, src, dst, size)
 
 	bcopy(dst, (char *)&ca, sizeof(ca));
 	bcopy(src, ca, size);
-	return 0;
+	return(0);
 }
 
 
@@ -648,13 +648,13 @@ copyinptr(src, dst, size)
 
 	bcopy(src, (char *)&ca, sizeof(ca));
 	bcopy(ca, dst, size);
-	return 0;
+	return(0);
 }
 #endif
 
 
 /*
- * return the first IP Address associated with an interface
+* return the first IP Address associated with an interface
  */
 int
 ipf_ifpaddr(softc, v, atype, ifptr, inp, inpmask)
@@ -679,8 +679,8 @@ ipf_ifpaddr(softc, v, atype, ifptr, inp, inpmask)
 
 			sin = (struct sockaddr_in *)&ifa->ifa_addr;
 
-			return ipf_ifpfillv4addr(atype, sin, &mask,
-						 &inp->in4, &inpmask->in4);
+			return(ipf_ifpfillv4addr(atype, sin, &mask,
+						 &inp->in4, &inpmask->in4));
 		}
 #ifdef USE_INET6
 		if (v == 6) {
@@ -691,12 +691,12 @@ ipf_ifpaddr(softc, v, atype, ifptr, inp, inpmask)
 			((i6addr_t *)&mask.sin6_addr)->i6[1] = 0xffffffff;
 			((i6addr_t *)&mask.sin6_addr)->i6[2] = 0xffffffff;
 			((i6addr_t *)&mask.sin6_addr)->i6[3] = 0xffffffff;
-			return ipf_ifpfillv6addr(atype, sin6, &mask,
-						 inp, inpmask);
+			return(ipf_ifpfillv6addr(atype, sin6, &mask,
+						 inp, inpmask));
 		}
 #endif
 	}
-	return 0;
+	return(0);
 }
 
 
@@ -744,7 +744,7 @@ ipf_random()
 		number ^= last;
 		break;
 	}
-	return number;
+	return(number);
 }
 
 
@@ -752,7 +752,7 @@ int
 ipf_verifysrc(fin)
 	fr_info_t *fin;
 {
-	return 1;
+	return(1);
 }
 
 
@@ -763,7 +763,7 @@ ipf_inject(fin, m)
 {
 	FREE_MB_T(m);
 
-	return 0;
+	return(0);
 }
 
 
@@ -788,7 +788,7 @@ ipf_pcksum(fin, hlen, sum)
 		sum = (sum & 0xffff) + (sum >> 16);
 	sum2 = (u_short)(~sum & 0xffff);
 
-	return sum2;
+	return(sum2);
 }
 
 
@@ -799,7 +799,7 @@ ipf_pullup(m, fin, plen)
 	int plen;
 {
 	if (M_LEN(m) >= plen)
-		return fin->fin_ip;
+		return(fin->fin_ip);
 
 	/*
 	 * Fake ipf_pullup failing
@@ -808,5 +808,5 @@ ipf_pullup(m, fin, plen)
 	*fin->fin_mp = NULL;
 	fin->fin_m = NULL;
 	fin->fin_ip = NULL;
-	return NULL;
+	return(NULL);
 }

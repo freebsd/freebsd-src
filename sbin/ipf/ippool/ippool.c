@@ -122,7 +122,7 @@ main(int argc, char *argv[])
 
 	if (err != 0)
 		exit(1);
-	return 0;
+	return(0);
 }
 
 
@@ -161,23 +161,23 @@ poolnodecommand(int remove, int argc, char *argv[])
 			if (ipset == 1) {
 				fprintf(stderr,
 					"cannot set role after ip address\n");
-				return -1;
+				return(-1);
 			}
 			role = getrole(optarg);
 			if (role == IPL_LOGNONE)
-				return -1;
+				return(-1);
 			break;
 		case 't' :
 			if (ipset == 1) {
 				fprintf(stderr,
 					"cannot set type after ip address\n");
-				return -1;
+				return(-1);
 			}
 			type = gettype(optarg, NULL);
 			switch (type) {
 			case IPLT_NONE :
 				fprintf(stderr, "unknown type '%s'\n", optarg);
-				return -1;
+				return(-1);
 			case IPLT_HASH :
 				ptr = &hnode;
 				break;
@@ -191,7 +191,7 @@ poolnodecommand(int remove, int argc, char *argv[])
 				ttl = atoi(optarg);
 				if (ttl < 0) {
 					fprintf(stderr, "cannot set negative ttl\n");
-					return -1;
+					return(-1);
 				}
 			} else {
 				usage(argv[0]);
@@ -218,12 +218,12 @@ poolnodecommand(int remove, int argc, char *argv[])
 
 	if (ipset == 0) {
 		fprintf(stderr, "no IP address given with -i\n");
-		return -1;
+		return(-1);
 	}
 
 	if (poolname == NULL) {
 		fprintf(stderr, "poolname not given with add/remove node\n");
-		return -1;
+		return(-1);
 	}
 
 	switch (type) {
@@ -242,7 +242,7 @@ poolnodecommand(int remove, int argc, char *argv[])
 	default :
 		break;
 	}
-	return err;
+	return(err);
 }
 
 
@@ -279,7 +279,7 @@ poolcommand(int remove, int argc, char *argv[])
 			role = getrole(optarg);
 			if (role == IPL_LOGNONE) {
 				fprintf(stderr, "unknown role '%s'\n", optarg);
-				return -1;
+				return(-1);
 			}
 			break;
 		case 'S' :
@@ -308,7 +308,7 @@ poolcommand(int remove, int argc, char *argv[])
 
 	if (poolname == NULL) {
 		fprintf(stderr, "poolname not given with add/remove pool\n");
-		return -1;
+		return(-1);
 	}
 
 	if (type == IPLT_NONE && remove == 0) {
@@ -318,7 +318,7 @@ poolcommand(int remove, int argc, char *argv[])
 		} else {
 			fprintf(stderr, "unknown type '%s'\n", typearg);
 		}
-		return -1;
+		return(-1);
 	}
 
 	if (type == IPLT_HASH || (type == IPLT_NONE && remove == 1)) {
@@ -363,7 +363,7 @@ poolcommand(int remove, int argc, char *argv[])
 			break;
 		}
 	}
-	return err;
+	return(err);
 }
 
 
@@ -412,8 +412,8 @@ loadpoolfile(int argc, char *argv[], char *infile)
 	}
 
 	if (ippool_parsefile(fd, infile, ioctl) != 0)
-		return -1;
-	return 0;
+		return(-1);
+	return(0);
 }
 
 
@@ -441,7 +441,7 @@ poolstats(int argc, char *argv[])
 			role = getrole(optarg);
 			if (role == IPL_LOGNONE) {
 				fprintf(stderr, "unknown role '%s'\n", optarg);
-				return -1;
+				return(-1);
 			}
 			break;
 		case 't' :
@@ -449,7 +449,7 @@ poolstats(int argc, char *argv[])
 			if (type != IPLT_POOL) {
 				fprintf(stderr,
 					"-s not supported for this type yet\n");
-				return -1;
+				return(-1);
 			}
 			break;
 		case 'v' :
@@ -482,7 +482,7 @@ poolstats(int argc, char *argv[])
 			c = ioctl(fd, SIOCLOOKUPSTAT, &op);
 			if (c == -1) {
 				ipferror(fd, "ioctl(S0IOCLOOKUPSTAT)");
-				return -1;
+				return(-1);
 			}
 			printf("%lu\taddress pools\n", plstat.ipls_pools);
 			printf("%lu\taddress pool nodes\n", plstat.ipls_nodes);
@@ -497,7 +497,7 @@ poolstats(int argc, char *argv[])
 			c = ioctl(fd, SIOCLOOKUPSTAT, &op);
 			if (c == -1) {
 				ipferror(fd, "ioctl(SIOCLOOKUPSTAT)");
-				return -1;
+				return(-1);
 			}
 			printf("%lu\thash tables\n", htstat.iphs_numtables);
 			printf("%lu\thash table nodes\n", htstat.iphs_numnodes);
@@ -514,7 +514,7 @@ poolstats(int argc, char *argv[])
 			c = ioctl(fd, SIOCLOOKUPSTAT, &op);
 			if (c == -1) {
 				ipferror(fd, "ioctl(SIOCLOOKUPSTAT)");
-				return -1;
+				return(-1);
 			}
 			printf("%u\tdestination lists\n",
 			       dlstat.ipls_numlists);
@@ -528,7 +528,7 @@ poolstats(int argc, char *argv[])
 			       dlstat.ipls_numderefnodes);
 		}
 	}
-	return 0;
+	return(0);
 }
 
 
@@ -552,14 +552,14 @@ poolflush(int argc, char *argv[])
 			role = getrole(optarg);
 			if (role == IPL_LOGNONE) {
 				fprintf(stderr, "unknown role '%s'\n", optarg);
-				return -1;
+				return(-1);
 			}
 			break;
 		case 't' :
 			type = gettype(optarg, NULL);
 			if (type == IPLT_NONE) {
 				fprintf(stderr, "unknown type '%s'\n", optarg);
-				return -1;
+				return(-1);
 			}
 			break;
 		case 'v' :
@@ -599,7 +599,7 @@ poolflush(int argc, char *argv[])
 	printf("%u object%s flushed\n", flush.iplf_count,
 	       (flush.iplf_count == 1) ? "" : "s");
 
-	return 0;
+	return(0);
 }
 
 
@@ -630,7 +630,7 @@ getrole(char *rolename)
 		role = IPL_LOGNONE;
 	}
 
-	return role;
+	return(role);
 }
 
 
@@ -652,7 +652,7 @@ gettype(char *typename, u_int *minor)
 	} else {
 		type = IPLT_NONE;
 	}
-	return type;
+	return(type);
 }
 
 
@@ -691,7 +691,7 @@ poollist(int argc, char *argv[])
 			role = getrole(optarg);
 			if (role == IPL_LOGNONE) {
 				fprintf(stderr, "unknown role '%s'\n", optarg);
-				return -1;
+				return(-1);
 			}
 			break;
 #if 0
@@ -708,7 +708,7 @@ poollist(int argc, char *argv[])
 			type = gettype(optarg, NULL);
 			if (type == IPLT_NONE) {
 				fprintf(stderr, "unknown type '%s'\n", optarg);
-				return -1;
+				return(-1);
 			}
 			break;
 		case 'v' :
@@ -744,7 +744,7 @@ poollist(int argc, char *argv[])
 		poollist_live(role, poolname, type, fd);
 	else
 		poollist_dead(role, poolname, type, kernel, core);
-	return 0;
+	return(0);
 }
 
 
@@ -1044,7 +1044,7 @@ setnodeaddr(int type, int role, void *ptr, char *arg)
 			mask.s_addr = 0xffffffff;
 		else if (strchr(s, '.') == NULL) {
 			if (ntomask(AF_INET, atoi(s + 1), &mask.s_addr) != 0)
-				return -1;
+				return(-1);
 		} else {
 			mask.s_addr = inet_addr(s + 1);
 		}
@@ -1110,5 +1110,5 @@ setnodeaddr(int type, int role, void *ptr, char *arg)
 #endif
 	}
 
-	return 0;
+	return(0);
 }

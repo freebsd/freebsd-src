@@ -23,7 +23,7 @@ hostname(int family, void *ip)
 	if (family == AF_INET) {
 		ipa.s_addr = *(u_32_t *)ip;
 		if (ipa.s_addr == htonl(0xfedcba98))
-			return ("test.host.dots");
+			return("test.host.dots");
 	}
 
 	if ((opts & OPT_NORESOLVE) == 0) {
@@ -33,7 +33,7 @@ hostname(int family, void *ip)
 			    *hp->h_name != '\0') {
 				strncpy(hostbuf, hp->h_name, sizeof(hostbuf));
 				hostbuf[sizeof(hostbuf) - 1] = '\0';
-				return (hostbuf);
+				return(hostbuf);
 			}
 
 			np = getnetbyaddr(ipa.s_addr, AF_INET);
@@ -41,19 +41,19 @@ hostname(int family, void *ip)
 			    *np->n_name != '\0') {
 				strncpy(hostbuf, np->n_name, sizeof(hostbuf));
 				hostbuf[sizeof(hostbuf) - 1] = '\0';
-				return (hostbuf);
+				return(hostbuf);
 			}
 		}
 	}
 
 	if (family == AF_INET) {
-		return (inet_ntoa(ipa));
+		return(inet_ntoa(ipa));
 	}
 #ifdef  USE_INET6
 	(void) inet_ntop(AF_INET6, ip, hostbuf, sizeof(hostbuf) - 1);
 	hostbuf[MAXHOSTNAMELEN] = '\0';
-	return (hostbuf);
+	return(hostbuf);
 #else
-	return ("IPv6");
+	return("IPv6");
 #endif
 }
