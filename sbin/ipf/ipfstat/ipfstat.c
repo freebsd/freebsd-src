@@ -15,7 +15,7 @@
 #endif
 #include "ipf.h"
 #include "netinet/ipl.h"
-#if defined(STATETOP) 
+#if defined(STATETOP)
 # if defined(sun) && defined(__SVR4)
 #   include <sys/select.h>
 # endif
