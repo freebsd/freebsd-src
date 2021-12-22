@@ -36,8 +36,8 @@ static const char rcsid[] = "@(#)$Id$";
  */
 int	resolve(char *host, char *address)
 {
-        struct	hostent	*hp;
-        u_long	add;
+	struct	hostent	*hp;
+	u_long	add;
 
 	add = inet_addr(host);
 	if (add == -1)
