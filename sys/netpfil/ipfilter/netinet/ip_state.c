@@ -5260,7 +5260,7 @@ ipf_state_add_tq(ipf_main_softc_t *softc, int ttl)
 {
 	ipf_state_softc_t *softs = softc->ipf_state_soft;
 
-        return(ipf_addtimeoutqueue(softc, &softs->ipf_state_usertq, ttl));
+	return(ipf_addtimeoutqueue(softc, &softs->ipf_state_usertq, ttl));
 }
 
 
