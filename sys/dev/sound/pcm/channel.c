@@ -1627,7 +1627,7 @@ round_blksz(u_int32_t v, int round)
  * balanced performance for typical workload. Anything below 5 will
  * eat up CPU to keep up with increasing context switches because of
  * shorter buffer space and usually require the application to handle it
- * aggresively through possibly real time programming technique.
+ * aggressively through possibly real time programming technique.
  *
  */
 #define CHN_LATENCY_PBLKCNT_REF				\
