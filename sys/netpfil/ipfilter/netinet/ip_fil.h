@@ -694,7 +694,7 @@ typedef	struct	frentry {
 	int	fr_group;	/* group to which this rule belongs */
 	int	fr_grhead;	/* group # which this rule starts */
 	int	fr_isctag;
-	int	fr_rpc;		/* XID Filtering */ 
+	int	fr_rpc;		/* XID Filtering */
 	ipftag_t fr_nattag;
 	/*
 	 * These are all options related to stateful filtering
