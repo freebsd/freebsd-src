@@ -307,11 +307,11 @@ ipf_p_rpcb_out(void *arg, fr_info_t *fin, ap_session_t *aps, nat_t *nat)
 	switch(rv)
 	{
 	case -1: /* Bad packet */
-                if (rx != NULL) {
-                        MUTEX_ENTER(&rs->rs_rxlock);
-                        ipf_p_rpcb_deref(rs, rx);
-                        MUTEX_EXIT(&rs->rs_rxlock);
-                }
+		if (rx != NULL) {
+		        MUTEX_ENTER(&rs->rs_rxlock);
+		        ipf_p_rpcb_deref(rs, rx);
+		        MUTEX_EXIT(&rs->rs_rxlock);
+		}
 		return(APR_ERR(1));
 		/*NOTREACHED*/
 		break;
@@ -338,16 +338,16 @@ ipf_p_rpcb_out(void *arg, fr_info_t *fin, ap_session_t *aps, nat_t *nat)
 	}
 
 	if (rx != NULL) {
-                MUTEX_ENTER(&rs->rs_rxlock);
-                /* XXX Gross hack - I'm overloading the reference
-                 * counter to deal with both threads and retransmitted
-                 * requests.  One deref signals that this thread is
-                 * finished with rx, and the other signals that we've
-                 * processed its reply.
-                 */
-                ipf_p_rpcb_deref(rs, rx);
-                ipf_p_rpcb_deref(rs, rx);
-                MUTEX_EXIT(&rs->rs_rxlock);
+		MUTEX_ENTER(&rs->rs_rxlock);
+		/* XXX Gross hack - I'm overloading the reference
+		 * counter to deal with both threads and retransmitted
+		 * requests.  One deref signals that this thread is
+		 * finished with rx, and the other signals that we've
+		 * processed its reply.
+		 */
+		ipf_p_rpcb_deref(rs, rx);
+		ipf_p_rpcb_deref(rs, rx);
+		MUTEX_EXIT(&rs->rs_rxlock);
 	}
 
 	return(diff);
@@ -492,12 +492,12 @@ ipf_p_rpcb_decodereq(fr_info_t *fin, nat_t *nat, rpcb_session_t *rs,
 		return(-1);
 	}
 
-        MUTEX_ENTER(&rs->rs_rxlock);
+	MUTEX_ENTER(&rs->rs_rxlock);
 	if (ipf_p_rpcb_insert(rs, &rx) != 0) {
-                MUTEX_EXIT(&rs->rs_rxlock);
+		MUTEX_EXIT(&rs->rs_rxlock);
 		return(-1);
 	}
-        MUTEX_EXIT(&rs->rs_rxlock);
+	MUTEX_EXIT(&rs->rs_rxlock);
 
 	return(mod);
 }
@@ -556,9 +556,9 @@ ipf_p_rpcb_insert(rpcb_session_t *rs, rpcb_xact_t *rx)
 
 	rxp = ipf_p_rpcb_lookup(rs, rx->rx_xid);
 	if (rxp != NULL) {
-                ++rxp->rx_ref;
+		++rxp->rx_ref;
 		return(0);
-        }
+	}
 
 	if (V_rpcbcnt == RPCB_MAXREQS)
 		return(-1);
@@ -837,13 +837,13 @@ ipf_p_rpcb_decoderep(fr_info_t *fin, nat_t *nat, rpcb_session_t *rs,
 	xdr = B(p++);		/* Record this message's XID. */
 
 	/* Lookup XID */
-        MUTEX_ENTER(&rs->rs_rxlock);
+	MUTEX_ENTER(&rs->rs_rxlock);
 	if ((rx = ipf_p_rpcb_lookup(rs, xdr)) == NULL) {
-                MUTEX_EXIT(&rs->rs_rxlock);
+		MUTEX_EXIT(&rs->rs_rxlock);
 		return(-1);
-        }
-        ++rx->rx_ref;        /* per thread reference */
-        MUTEX_EXIT(&rs->rs_rxlock);
+	}
+	++rx->rx_ref;        /* per thread reference */
+	MUTEX_EXIT(&rs->rs_rxlock);
 
 	*rxp = rx;
 
@@ -1392,13 +1392,13 @@ ipf_p_rpcb_modv4(fr_info_t *fin, nat_t *nat, rpc_msg_t *rm, mb_t *m,
 static void
 ipf_p_rpcb_fixlen(fr_info_t *fin, int len)
 {
-        udphdr_t *udp;
+	udphdr_t *udp;
 
-        udp = fin->fin_dp;
-        udp->uh_ulen = htons(ntohs(udp->uh_ulen) + len);
-        fin->fin_plen += len;
-        fin->fin_ip->ip_len = htons(fin->fin_plen);
-        fin->fin_dlen += len;
+	udp = fin->fin_dp;
+	udp->uh_ulen = htons(ntohs(udp->uh_ulen) + len);
+	fin->fin_plen += len;
+	fin->fin_ip->ip_len = htons(fin->fin_plen);
+	fin->fin_dlen += len;
 }
 
 #undef B

@@ -216,7 +216,7 @@ typedef	struct	ircinfo {
  * For the DNS "proxy"
  */
 typedef struct dnsinfo {
-        ipfmutex_t	dnsi_lock;
+	ipfmutex_t	dnsi_lock;
 	u_short		dnsi_id;
 	char		dnsi_buffer[512];
 } dnsinfo_t;
@@ -286,10 +286,10 @@ typedef	struct	msnrpcinfo	{
  */
 #define RPCB_BUF_END(r) (char *)((r)->rm_msgbuf + (r)->rm_buflen)
 #define RPCB_BUF_GEQ(r, p, l)   \
-        ((RPCB_BUF_END((r)) > (char *)(p)) &&           \
-         ((RPCB_BUF_END((r)) - (char *)(p)) >= (l)))
+	((RPCB_BUF_END((r)) > (char *)(p)) &&           \
+	 ((RPCB_BUF_END((r)) - (char *)(p)) >= (l)))
 #define	RPCB_BUF_EQ(r, p, l)                            \
-        (RPCB_BUF_END((r)) == ((char *)(p) + (l)))
+	(RPCB_BUF_END((r)) == ((char *)(p) + (l)))
 
 /*
  * The following correspond to RPC(B) detailed in RFC183[13].
@@ -428,7 +428,7 @@ typedef struct rpcb_xact {
 } rpcb_xact_t;
 
 typedef struct rpcb_session {
-        ipfmutex_t	rs_rxlock;
+	ipfmutex_t	rs_rxlock;
 	rpcb_xact_t	*rs_rxlist;
 } rpcb_session_t;
 
