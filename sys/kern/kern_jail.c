@@ -239,6 +239,8 @@ prison0_init(void)
 {
 	uint8_t *file, *data;
 	size_t size;
+	char buf[sizeof(prison0.pr_hostuuid)];
+	bool valid;
 
 	prison0.pr_cpuset = cpuset_ref(thread0.td_cpuset);
 	prison0.pr_osreldate = osreldate;
@@ -258,10 +260,31 @@ prison0_init(void)
 			while (size > 0 && data[size - 1] <= 0x20) {
 				size--;
 			}
-			if (validate_uuid(data, size, NULL, 0) == 0) {
-				(void)strlcpy(prison0.pr_hostuuid, data,
-				    size + 1);
-			} else if (bootverbose) {
+
+			valid = false;
+
+			/*
+			 * Not NUL-terminated when passed from loader, but
+			 * validate_uuid requires that due to using sscanf (as
+			 * does the subsequent strlcpy, since it still reads
+			 * past the given size to return the true length);
+			 * bounce to a temporary buffer to fix.
+			 */
+			if (size >= sizeof(buf))
+				goto done;
+
+			memcpy(buf, data, size);
+			buf[size] = '\0';
+
+			if (validate_uuid(buf, size, NULL, 0) != 0)
+				goto done;
+
+			valid = true;
+			(void)strlcpy(prison0.pr_hostuuid, buf,
+			    sizeof(prison0.pr_hostuuid));
+
+done:
+			if (bootverbose && !valid) {
 				printf("hostuuid: preload data malformed: '%.*s'\n",
 				    (int)size, data);
 			}
