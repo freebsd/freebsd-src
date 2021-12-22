@@ -44,6 +44,7 @@ _INTERNALLIBS=	\
 		fifolog \
 		ifconfig \
 		ipf \
+		iscsiutil \
 		lpr \
 		lua \
 		lutok \
@@ -555,6 +556,9 @@ LIBIFCONFIG?=	${LIBIFCONFIGDIR}/libifconfig${PIE_SUFFIX}.a
 
 LIBIPFDIR=	${_LIB_OBJTOP}/sbin/ipf/libipf
 LIBIPF?=	${LIBIPFDIR}/libipf${PIE_SUFFIX}.a
+
+LIBISCSIUTILDIR=	${_LIB_OBJTOP}/lib/libiscsiutil
+LIBISCSIUTIL?=	${LIBISCSIUTILDIR}/libiscsiutil${PIE_SUFFIX}.a
 
 LIBTELNETDIR=	${_LIB_OBJTOP}/lib/libtelnet
 LIBTELNET?=	${LIBTELNETDIR}/libtelnet${PIE_SUFFIX}.a
