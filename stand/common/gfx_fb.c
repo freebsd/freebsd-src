@@ -2774,7 +2774,7 @@ gfx_get_edid_resolution(struct vesa_edid_info *edid, edid_res_list_t *res)
 		/* Walk detailed timing descriptors (4) */
 		for (int i = 0; i < DET_TIMINGS; i++) {
 			/*
-			 * Reserved value 0 is not used for display decriptor.
+			 * Reserved value 0 is not used for display descriptor.
 			 */
 			if (edid->detailed_timings[i].pixel_clock == 0)
 				continue;
