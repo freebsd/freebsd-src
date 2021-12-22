@@ -15,10 +15,10 @@ printdstlist( ippool_dst_t *pp, copyfunc_t copyfunc, char *name, int opts,
 	ippool_dst_t dst;
 
 	if ((*copyfunc)(pp, &dst, sizeof(dst)))
-		return NULL;
+		return(NULL);
 
 	if ((name != NULL) && strncmp(name, dst.ipld_name, FR_GROUPLEN))
-		return dst.ipld_next;
+		return(dst.ipld_next);
 
 	if (fields == NULL)
 		printdstlistdata(&dst, opts);
@@ -39,7 +39,7 @@ printdstlist( ippool_dst_t *pp, copyfunc_t copyfunc, char *name, int opts,
 				break;
 			if ((*copyfunc)(node, n, node->ipfd_size)) {
 				free(n);
-				return NULL;
+				return(NULL);
 			}
 
 			node = printdstlistnode(n, bcopywrap, opts, fields);
@@ -51,5 +51,5 @@ printdstlist( ippool_dst_t *pp, copyfunc_t copyfunc, char *name, int opts,
 	if ((opts & OPT_DEBUG) == 0)
 		PRINTF(" };\n");
 
-	return dst.ipld_next;
+	return(dst.ipld_next);
 }

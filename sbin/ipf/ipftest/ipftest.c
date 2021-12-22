@@ -143,7 +143,7 @@ main(int argc, char *argv[])
 		case 'N' :
 			if (ipnat_parsefile(-1, ipnat_addrule, ipnattestioctl,
 					    optarg) == -1)
-				return -1;
+				return(-1);
 			loaded = 1;
 			opts |= OPT_NAT;
 			break;
@@ -152,13 +152,13 @@ main(int argc, char *argv[])
 			break;
 		case 'P' :
 			if (ippool_parsefile(-1, optarg, ipooltestioctl) == -1)
-				return -1;
+				return(-1);
 			loaded = 1;
 			break;
 		case 'r' :
 			if (ipf_parsefile(-1, ipf_addrule, iocfunctions,
 					  optarg) == -1)
-				return -1;
+				return(-1);
 			loaded = 1;
 			break;
 		case 'S' :
@@ -256,7 +256,7 @@ main(int argc, char *argv[])
 				(void)printf("block return-icmp-as-dest");
 				break;
 			default :
-				(void)printf("recognised return %#x\n", i);
+				(void)printf("recognised( return %#x\n", i));
 				break;
 			}
 
@@ -325,7 +325,7 @@ main(int argc, char *argv[])
 		fflush(stdout);
 		abort();
 	}
-	return 0;
+	return(0);
 }
 
 
@@ -346,9 +346,9 @@ int ipftestioctl(int dev, ioctlcmd_t cmd, ...)
 			(u_int)cmd, data, i, softc->ipf_interror);
 	if (i != 0) {
 		errno = i;
-		return -1;
+		return(-1);
 	}
-	return 0;
+	return(0);
 }
 
 
@@ -370,9 +370,9 @@ ipnattestioctl(int dev, ioctlcmd_t cmd, ...)
 			(u_int)cmd, data, i);
 	if (i != 0) {
 		errno = i;
-		return -1;
+		return(-1);
 	}
-	return 0;
+	return(0);
 }
 
 
@@ -394,9 +394,9 @@ ipstatetestioctl(int dev, ioctlcmd_t cmd, ...)
 			(u_int)cmd, data, i);
 	if (i != 0) {
 		errno = i;
-		return -1;
+		return(-1);
 	}
-	return 0;
+	return(0);
 }
 
 
@@ -418,9 +418,9 @@ ipauthtestioctl(int dev, ioctlcmd_t cmd, ...)
 			(u_int)cmd, data, i);
 	if (i != 0) {
 		errno = i;
-		return -1;
+		return(-1);
 	}
-	return 0;
+	return(0);
 }
 
 
@@ -442,9 +442,9 @@ ipscantestioctl(int dev, ioctlcmd_t cmd, ...)
 			(u_int)cmd, data, i);
 	if (i != 0) {
 		errno = i;
-		return -1;
+		return(-1);
 	}
-	return 0;
+	return(0);
 }
 
 
@@ -466,9 +466,9 @@ ipsynctestioctl(int dev, ioctlcmd_t cmd, ...)
 			(u_int)cmd, data, i);
 	if (i != 0) {
 		errno = i;
-		return -1;
+		return(-1);
 	}
-	return 0;
+	return(0);
 }
 
 
@@ -490,9 +490,9 @@ ipooltestioctl(int dev, ioctlcmd_t cmd, ...)
 			(u_int)cmd, data, i, softc->ipf_interror);
 	if (i != 0) {
 		errno = i;
-		return -1;
+		return(-1);
 	}
-	return 0;
+	return(0);
 }
 
 
@@ -500,7 +500,7 @@ int
 kmemcpy(char *addr, long offset, int size)
 {
 	bcopy((char *)offset, addr, size);
-	return 0;
+	return(0);
 }
 
 
@@ -513,7 +513,7 @@ kstrncpy(char *buf, long pos, int n)
 
 	while ((n > 0) && (*buf++ = *ptr++))
 		;
-	return 0;
+	return(0);
 }
 
 

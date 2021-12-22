@@ -426,7 +426,7 @@ seed:	IPT_SEED '=' YY_NUMBER		{ ipht.iph_seed = $3; }
 ipv4:	YY_NUMBER '.' YY_NUMBER '.' YY_NUMBER '.' YY_NUMBER
 		{ if ($1 > 255 || $3 > 255 || $5 > 255 || $7 > 255) {
 			yyerror("Invalid octet string for IP address");
-			return 0;
+			return(0);
 		  }
 		  $$.s_addr = ($1 << 24) | ($3 << 16) | ($5 << 8) | $7;
 		  $$.s_addr = htonl($$.s_addr);
@@ -629,7 +629,7 @@ ippool_parsefile(int fd, char *filename, ioctlfunc_t iocfunc)
 		if (!fp) {
 			fprintf(stderr, "fopen(%s) failed: %s\n", filename,
 				STRERROR(errno));
-			return -1;
+			return(-1);
 		}
 	} else
 		fp = stdin;
@@ -638,7 +638,7 @@ ippool_parsefile(int fd, char *filename, ioctlfunc_t iocfunc)
 		;
 	if (fp != NULL)
 		fclose(fp);
-	return 0;
+	return(0);
 }
 
 
@@ -651,14 +651,14 @@ ippool_parsesome(int fd, FILE *fp, ioctlfunc_t iocfunc)
 	poolioctl = iocfunc;
 
 	if (feof(fp))
-		return 0;
+		return(0);
 	i = fgetc(fp);
 	if (i == EOF)
-		return 0;
+		return(0);
 	if (ungetc(i, fp) == EOF)
-		return 0;
+		return(0);
 	if (feof(fp))
-		return 0;
+		return(0);
 	s = getenv("YYDEBUG");
 	if (s)
 		yydebug = atoi(s);
@@ -667,7 +667,7 @@ ippool_parsesome(int fd, FILE *fp, ioctlfunc_t iocfunc)
 
 	yyin = fp;
 	yyparse();
-	return 1;
+	return(1);
 }
 
 
@@ -684,7 +684,7 @@ add_htablehosts(char *url)
 
 		hlist = calloc(1, sizeof(*hlist));
 		if (hlist == NULL)
-			return NULL;
+			return(NULL);
 
 		if (gethost(hlist->al_family, url, &hlist->al_i6addr) == -1) {
 			yyerror("Unknown hostname");
@@ -712,7 +712,7 @@ add_htablehosts(char *url)
 
 	alist_free(hlist);
 
-	return htop;
+	return(htop);
 }
 
 
@@ -729,7 +729,7 @@ add_poolhosts(char *url)
 
 		hlist = calloc(1, sizeof(*hlist));
 		if (hlist == NULL)
-			return NULL;
+			return(NULL);
 
 		if (gethost(hlist->al_family, url, &hlist->al_i6addr) == -1) {
 			yyerror("Unknown hostname");
@@ -766,7 +766,7 @@ add_poolhosts(char *url)
 
 	alist_free(hlist);
 
-	return ptop;
+	return(ptop);
 }
 
 
@@ -779,7 +779,7 @@ read_whoisfile(char *file)
 
 	fp = fopen(file, "r");
 	if (fp == NULL)
-		return NULL;
+		return(NULL);
 
 	last = NULL;
 	ntop = NULL;
@@ -800,7 +800,7 @@ read_whoisfile(char *file)
 		last = ipn;
 	}
 	fclose(fp);
-	return ntop;
+	return(ntop);
 }
 
 

@@ -29,18 +29,18 @@ checkrev(char *ipfname)
 
 	if ((vfd == -1) && ((vfd = open(ipfname, O_RDONLY)) == -1)) {
 		perror("open device");
-		return -1;
+		return(-1);
 	}
 
 	if (ioctl(vfd, SIOCGETFS, &obj)) {
 		ipferror(vfd, "ioctl(SIOCGETFS)");
 		close(vfd);
 		vfd = -1;
-		return -1;
+		return(-1);
 	}
 
 	if (strncmp(IPL_VERSION, fio.f_version, sizeof(fio.f_version))) {
-		return -1;
+		return(-1);
 	}
-	return 0;
+	return(0);
 }

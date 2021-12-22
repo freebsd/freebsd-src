@@ -66,9 +66,9 @@ u_short ipseclevel(slevel)
 
 	if (!so->on_name) {
 		fprintf(stderr, "no such security level: %s\n", slevel);
-		return 0;
+		return(0);
 	}
-	return so->on_value;
+	return(so->on_value);
 }
 
 
@@ -83,7 +83,7 @@ addipopt(char *op, struct ipopt_names *io, int len, char *class)
 
 	if ((len + io->on_siz) > 48) {
 		fprintf(stderr, "options too long\n");
-		return 0;
+		return(0);
 	}
 	len += io->on_siz;
 	*op++ = io->on_value;
@@ -136,7 +136,7 @@ addipopt(char *op, struct ipopt_names *io, int len, char *class)
 		else
 			op += io->on_siz - 3;
 	}
-	return len - olen;
+	return(len - olen);
 }
 
 
@@ -166,7 +166,7 @@ buildopts(char *cp, char *op, int len)
 		}
 		if (!io->on_name) {
 			fprintf(stderr, "unknown IP option name %s\n", s);
-			return 0;
+			return(0);
 		}
 	}
 
@@ -188,5 +188,5 @@ buildopts(char *cp, char *op, int len)
 			}
 		}
 	}
-	return len;
+	return(len);
 }

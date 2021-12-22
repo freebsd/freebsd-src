@@ -1712,7 +1712,7 @@ ipv4_16:
 	YY_NUMBER '.' YY_NUMBER
 		{ if ($1 > 255 || $3 > 255) {
 			yyerror("Invalid octet string for IP address");
-			return 0;
+			return(0);
 		  }
 		  $$.s_addr = ($1 << 24) | ($3 << 16);
 		  $$.s_addr = htonl($$.s_addr);
@@ -1723,7 +1723,7 @@ ipv4_24:
 	ipv4_16 '.' YY_NUMBER
 		{ if ($3 > 255) {
 			yyerror("Invalid octet string for IP address");
-			return 0;
+			return(0);
 		  }
 		  $$.s_addr |= htonl($3 << 8);
 		}
@@ -1732,7 +1732,7 @@ ipv4_24:
 ipv4:	ipv4_24 '.' YY_NUMBER
 		{ if ($3 > 255) {
 			yyerror("Invalid octet string for IP address");
-			return 0;
+			return(0);
 		  }
 		  $$.s_addr |= htonl($3);
 		}
@@ -2003,7 +2003,7 @@ ipf_parsefile(int fd, addfunc_t addfunc, ioctlfunc_t *iocfuncs, char *filename)
 		if (fp == NULL) {
 			fprintf(stderr, "fopen(%s) failed: %s\n", filename,
 				STRERROR(errno));
-			return -1;
+			return(-1);
 		}
 	} else
 		fp = stdin;
@@ -2012,7 +2012,7 @@ ipf_parsefile(int fd, addfunc_t addfunc, ioctlfunc_t *iocfuncs, char *filename)
 		;
 	if (fp != NULL)
 		fclose(fp);
-	return 0;
+	return(0);
 }
 
 
@@ -2028,14 +2028,14 @@ ipf_parsesome(int fd, addfunc_t addfunc, ioctlfunc_t *iocfuncs, FILE *fp)
 	ipfaddfunc = addfunc;
 
 	if (feof(fp))
-		return 0;
+		return(0);
 	i = fgetc(fp);
 	if (i == EOF)
-		return 0;
+		return(0);
 	if (ungetc(i, fp) == 0)
-		return 0;
+		return(0);
 	if (feof(fp))
-		return 0;
+		return(0);
 	s = getenv("YYDEBUG");
 	if (s != NULL)
 		yydebug = atoi(s);
@@ -2044,7 +2044,7 @@ ipf_parsesome(int fd, addfunc_t addfunc, ioctlfunc_t *iocfuncs, FILE *fp)
 
 	yyin = fp;
 	yyparse();
-	return 1;
+	return(1);
 }
 
 
@@ -2121,7 +2121,7 @@ addrule(void)
 	for (f1 = frc; count > 0; count--, f1 = f1->fr_next) {
 		f->fr_next = allocfr();
 		if (f->fr_next == NULL)
-			return NULL;
+			return(NULL);
 		f->fr_next->fr_pnext = &f->fr_next;
 		added++;
 		f = f->fr_next;
@@ -2133,7 +2133,7 @@ addrule(void)
 		}
 	}
 
-	return f2->fr_next;
+	return(f2->fr_next);
 }
 
 
@@ -2152,15 +2152,15 @@ lookuphost(char *name, i6addr_t *addrp)
 		if (strcmp(name, fr->fr_names + fr->fr_ifnames[i]) == 0) {
 			ifpflag = FRI_DYNAMIC;
 			dynamic = addname(&fr, name);
-			return 1;
+			return(1);
 		}
 	}
 
 	if (gethost(AF_INET, name, addrp) == -1) {
 		fprintf(stderr, "unknown name \"%s\"\n", name);
-		return -1;
+		return(-1);
 	}
-	return 0;
+	return(0);
 }
 
 
@@ -2274,10 +2274,10 @@ newalist(alist_t *ptr)
 
 	al = malloc(sizeof(*al));
 	if (al == NULL)
-		return NULL;
+		return(NULL);
 	al->al_not = 0;
 	al->al_next = ptr;
-	return al;
+	return(al);
 }
 
 
@@ -2290,10 +2290,10 @@ makepool(alist_t *list)
 	int num;
 
 	if (list == NULL)
-		return 0;
+		return(0);
 	top = calloc(1, sizeof(*top));
 	if (top == NULL)
-		return 0;
+		return(0);
 
 	for (n = top, a = list; (n != NULL) && (a != NULL); a = a->al_next) {
 		if (use_inet6 == 1) {
@@ -2334,7 +2334,7 @@ makepool(alist_t *list)
 		top = n->ipn_next;
 		free(n);
 	}
-	return num;
+	return(num);
 }
 
 
@@ -2347,10 +2347,10 @@ makehash(alist_t *list)
 	int num;
 
 	if (list == NULL)
-		return 0;
+		return(0);
 	top = calloc(1, sizeof(*top));
 	if (top == NULL)
-		return 0;
+		return(0);
 
 	for (n = top, a = list; (n != NULL) && (a != NULL); a = a->al_next) {
 		if (a->al_family == AF_INET6) {
@@ -2383,7 +2383,7 @@ makehash(alist_t *list)
 		top = n->ipe_next;
 		free(n);
 	}
-	return num;
+	return(num);
 }
 
 
@@ -2395,7 +2395,7 @@ ipf_addrule(int fd, ioctlfunc_t ioctlfunc, void *ptr)
 	ipfobj_t obj;
 
 	if (ptr == NULL)
-		return 0;
+		return(0);
 
 	fr = ptr;
 	add = 0;
@@ -2442,7 +2442,7 @@ ipf_addrule(int fd, ioctlfunc_t ioctlfunc, void *ptr)
 
 				snprintf(msg, sizeof(msg), "%d:ioctl(zero rule)",
 					fr->fr_flineno);
-				return ipf_perror_fd(fd, ioctlfunc, msg);
+				return(ipf_perror_fd(fd, ioctlfunc, msg));
 			}
 		} else {
 #ifdef	USE_QUAD_T
@@ -2462,7 +2462,7 @@ ipf_addrule(int fd, ioctlfunc_t ioctlfunc, void *ptr)
 
 				snprintf(msg, sizeof(msg), "%d:ioctl(delete rule)",
 					fr->fr_flineno);
-				return ipf_perror_fd(fd, ioctlfunc, msg);
+				return(ipf_perror_fd(fd, ioctlfunc, msg));
 			}
 		}
 	} else {
@@ -2472,11 +2472,11 @@ ipf_addrule(int fd, ioctlfunc_t ioctlfunc, void *ptr)
 
 				snprintf(msg, sizeof(msg), "%d:ioctl(add/insert rule)",
 					fr->fr_flineno);
-				return ipf_perror_fd(fd, ioctlfunc, msg);
+				return(ipf_perror_fd(fd, ioctlfunc, msg));
 			}
 		}
 	}
-	return 0;
+	return(0);
 }
 
 static void
@@ -2609,7 +2609,7 @@ addname(frentry_t **frp, char *name)
 		frc = f;
 	*frp = f;
 	if (f == NULL)
-		return -1;
+		return(-1);
 	if (f->fr_pnext != NULL)
 		*f->fr_pnext = f;
 	f->fr_size += nlen;
@@ -2617,7 +2617,7 @@ addname(frentry_t **frp, char *name)
 	f->fr_namelen += nlen;
 	strcpy(f->fr_names + pos, name);
 	f->fr_names[f->fr_namelen] = '\0';
-	return pos;
+	return(pos);
 }
 
 
@@ -2641,7 +2641,7 @@ allocfr(void)
 		fr->fr_rif.fd_name = -1;
 		fr->fr_dif.fd_name = -1;
 	}
-	return fr;
+	return(fr);
 }
 
 

@@ -29,7 +29,7 @@ optname(char ***cp, u_short *sp, int linenum)
 		if (!io->on_name) {
 			fprintf(stderr, "%d: unknown IP option name %s\n",
 				linenum, s);
-			return 0;
+			return(0);
 		}
 		if (!strcasecmp(s, "sec-class"))
 			sec = 1;
@@ -38,7 +38,7 @@ optname(char ***cp, u_short *sp, int linenum)
 	if (sec && !*(*cp + 1)) {
 		fprintf(stderr, "%d: missing security level after sec-class\n",
 			linenum);
-		return 0;
+		return(0);
 	}
 
 	if (sec) {
@@ -53,11 +53,11 @@ optname(char ***cp, u_short *sp, int linenum)
 				fprintf(stderr,
 					"%d: no such security level: %s\n",
 					linenum, s);
-				return 0;
+				return(0);
 			}
 		}
 		if (smsk)
 			*sp = smsk;
 	}
-	return msk;
+	return(msk);
 }

@@ -1213,7 +1213,7 @@ ipaddr:	ipv4				{ $$ = $1; }
 ipv4:	YY_NUMBER '.' YY_NUMBER '.' YY_NUMBER '.' YY_NUMBER
 		{ if ($1 > 255 || $3 > 255 || $5 > 255 || $7 > 255) {
 			yyerror("Invalid octet string for IP address");
-			return 0;
+			return(0);
 		  }
 		  bzero((char *)&$$, sizeof($$));
 		  $$.a.in4.s_addr = ($1 << 24) | ($3 << 16) | ($5 << 8) | $7;
@@ -1316,7 +1316,7 @@ ipnat_parsefile(int fd, addfunc_t addfunc, ioctlfunc_t ioctlfunc,
 		if (!fp) {
 			FPRINTF(stderr, "fopen(%s) failed: %s\n", filename,
 				STRERROR(errno));
-			return -1;
+			return(-1);
 		}
 	} else
 		fp = stdin;
@@ -1329,7 +1329,7 @@ ipnat_parsefile(int fd, addfunc_t addfunc, ioctlfunc_t ioctlfunc,
 		rval = 0;
 	else if (rval != 0)
 		rval = 1;
-	return rval;
+	return(rval);
 }
 
 
@@ -1346,14 +1346,14 @@ ipnat_parsesome(int fd, addfunc_t addfunc, ioctlfunc_t ioctlfunc,
 	natioctlfunc = ioctlfunc;
 
 	if (feof(fp))
-		return -1;
+		return(-1);
 	i = fgetc(fp);
 	if (i == EOF)
-		return -1;
+		return(-1);
 	if (ungetc(i, fp) == EOF)
-		return -1;
+		return(-1);
 	if (feof(fp))
-		return -1;
+		return(-1);
 	s = getenv("YYDEBUG");
 	if (s)
 		yydebug = atoi(s);
@@ -1362,7 +1362,7 @@ ipnat_parsesome(int fd, addfunc_t addfunc, ioctlfunc_t ioctlfunc,
 
 	yyin = fp;
 	yyparse();
-	return parser_error;
+	return(parser_error);
 }
 
 
@@ -1499,7 +1499,7 @@ ipnat_addrule(int fd, ioctlfunc_t ioctlfunc, void *ptr)
 
 				snprintf(msg, sizeof(msg), "%d:ioctl(zero nat rule)",
 					ipn->in_flineno);
-				return ipf_perror_fd(fd, ioctlfunc, msg);
+				return(ipf_perror_fd(fd, ioctlfunc, msg));
 			}
 		} else {
 			PRINTF("hits %lu ", ipn->in_hits);
@@ -1519,7 +1519,7 @@ ipnat_addrule(int fd, ioctlfunc_t ioctlfunc, void *ptr)
 
 				snprintf(msg, sizeof(msg), "%d:ioctl(delete nat rule)",
 					ipn->in_flineno);
-				return ipf_perror_fd(fd, ioctlfunc, msg);
+				return(ipf_perror_fd(fd, ioctlfunc, msg));
 			}
 		}
 	} else {
@@ -1534,11 +1534,11 @@ ipnat_addrule(int fd, ioctlfunc_t ioctlfunc, void *ptr)
 					snprintf(msg + strlen_msg, sizeof(msg) -strlen_msg, "(line %d)",
 						ipn->in_flineno);
 				}
-				return ipf_perror_fd(fd, ioctlfunc, msg);
+				return(ipf_perror_fd(fd, ioctlfunc, msg));
 			}
 		}
 	}
-	return 0;
+	return(0);
 }
 
 
@@ -1606,7 +1606,7 @@ proxy_dns_add_pass(char *prefix, char *name)
 			strcat(n->na_name, name);
 		}
 	}
-	return n;
+	return(n);
 }
 
 
@@ -1626,7 +1626,7 @@ proxy_dns_add_block(char *prefix, char *name)
 		}
 		n->na_value = 1;
 	}
-	return n;
+	return(n);
 }
 
 
@@ -1734,7 +1734,7 @@ addname(ipnat_t **np, char *name)
 		nattop = n;
 	*np = n;
 	if (n == NULL)
-		return -1;
+		return(-1);
 	if (n->in_pnext != NULL)
 		*n->in_pnext = n;
 	n->in_size += nlen;
@@ -1742,5 +1742,5 @@ addname(ipnat_t **np, char *name)
 	n->in_namelen += nlen;
 	strcpy(n->in_names + pos, name);
 	n->in_names[n->in_namelen] = '\0';
-	return pos;
+	return(pos);
 }
