@@ -198,7 +198,7 @@ login_handle_redirection(struct iscsid_connection *conn, struct pdu *response)
 	assert (bhslr->bhslr_status_class == 1);
 
 	response_keys = keys_new();
-	keys_load(response_keys, response);
+	keys_load_pdu(response_keys, response);
 
 	target_address = keys_find(response_keys, "TargetAddress");
 	if (target_address == NULL)
@@ -543,7 +543,7 @@ login_negotiate(struct iscsid_connection *conn)
 	keys_add(request_keys, "DefaultTime2Wait", "0");
 	keys_add(request_keys, "DefaultTime2Retain", "0");
 	keys_add(request_keys, "ErrorRecoveryLevel", "0");
-	keys_save(request_keys, request);
+	keys_save_pdu(request_keys, request);
 	keys_delete(request_keys);
 	request_keys = NULL;
 	pdu_send(request);
@@ -552,7 +552,7 @@ login_negotiate(struct iscsid_connection *conn)
 
 	response = login_receive(&conn->conn);
 	response_keys = keys_new();
-	keys_load(response_keys, response);
+	keys_load_pdu(response_keys, response);
 	for (i = 0; i < KEYS_MAX; i++) {
 		if (response_keys->keys_names[i] == NULL)
 			break;
@@ -607,7 +607,7 @@ login_send_chap_a(struct connection *conn)
 	request = login_new_request(conn, BHSLR_STAGE_SECURITY_NEGOTIATION);
 	request_keys = keys_new();
 	keys_add(request_keys, "CHAP_A", "5");
-	keys_save(request_keys, request);
+	keys_save_pdu(request_keys, request);
 	keys_delete(request_keys);
 	pdu_send(request);
 	pdu_delete(request);
@@ -636,7 +636,7 @@ login_send_chap_r(struct pdu *response)
 	conn = (struct iscsid_connection *)response->pdu_connection;
 
 	response_keys = keys_new();
-	keys_load(response_keys, response);
+	keys_load_pdu(response_keys, response);
 
 	/*
 	 * First, compute the response.
@@ -693,7 +693,7 @@ login_send_chap_r(struct pdu *response)
 		free(mutual_chap_c);
 	}
 
-	keys_save(request_keys, request);
+	keys_save_pdu(request_keys, request);
 	keys_delete(request_keys);
 	pdu_send(request);
 	pdu_delete(request);
@@ -710,7 +710,7 @@ login_verify_mutual(const struct pdu *response)
 	conn = (struct iscsid_connection *)response->pdu_connection;
 
 	response_keys = keys_new();
-	keys_load(response_keys, response);
+	keys_load_pdu(response_keys, response);
 
         chap_n = keys_find(response_keys, "CHAP_N");
         if (chap_n == NULL)
@@ -816,7 +816,7 @@ login(struct iscsid_connection *conn)
 	} else {
 		keys_add(request_keys, "SessionType", "Discovery");
 	}
-	keys_save(request_keys, request);
+	keys_save_pdu(request_keys, request);
 	keys_delete(request_keys);
 	pdu_send(request);
 	pdu_delete(request);
@@ -824,7 +824,7 @@ login(struct iscsid_connection *conn)
 	response = login_receive(&conn->conn);
 
 	response_keys = keys_new();
-	keys_load(response_keys, response);
+	keys_load_pdu(response_keys, response);
 
 	for (i = 0; i < KEYS_MAX; i++) {
 		if (response_keys->keys_names[i] == NULL)

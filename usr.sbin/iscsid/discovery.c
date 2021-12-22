@@ -177,7 +177,7 @@ discovery(struct iscsid_connection *conn)
 	request = text_new_request(&conn->conn);
 	request_keys = keys_new();
 	keys_add(request_keys, "SendTargets", "All");
-	keys_save(request_keys, request);
+	keys_save_pdu(request_keys, request);
 	keys_delete(request_keys);
 	request_keys = NULL;
 	pdu_send(request);
@@ -187,7 +187,7 @@ discovery(struct iscsid_connection *conn)
 	log_debugx("waiting for Text Response");
 	response = text_receive(&conn->conn);
 	response_keys = keys_new();
-	keys_load(response_keys, response);
+	keys_load_pdu(response_keys, response);
 	for (i = 0; i < KEYS_MAX; i++) {
 		if (response_keys->keys_names[i] == NULL)
 			break;

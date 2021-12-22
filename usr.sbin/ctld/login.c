@@ -236,7 +236,7 @@ login_receive_chap_a(struct connection *conn)
 
 	request = login_receive(conn, false);
 	request_keys = keys_new();
-	keys_load(request_keys, request);
+	keys_load_pdu(request_keys, request);
 
 	chap_a = keys_find(request_keys, "CHAP_A");
 	if (chap_a == NULL) {
@@ -270,7 +270,7 @@ login_send_chap_c(struct pdu *request, struct chap *chap)
 	keys_add(response_keys, "CHAP_C", chap_c);
 	free(chap_i);
 	free(chap_c);
-	keys_save(response_keys, response);
+	keys_save_pdu(response_keys, response);
 	pdu_send(response);
 	pdu_delete(response);
 	keys_delete(response_keys);
@@ -288,7 +288,7 @@ login_receive_chap_r(struct connection *conn, struct auth_group *ag,
 
 	request = login_receive(conn, false);
 	request_keys = keys_new();
-	keys_load(request_keys, request);
+	keys_load_pdu(request_keys, request);
 
 	chap_n = keys_find(request_keys, "CHAP_N");
 	if (chap_n == NULL) {
@@ -352,7 +352,7 @@ login_send_chap_success(struct pdu *request,
 	 * Actually, one more thing: mutual authentication.
 	 */
 	request_keys = keys_new();
-	keys_load(request_keys, request);
+	keys_load_pdu(request_keys, request);
 	chap_i = keys_find(request_keys, "CHAP_I");
 	chap_c = keys_find(request_keys, "CHAP_C");
 	if (chap_i != NULL || chap_c != NULL) {
@@ -389,7 +389,7 @@ login_send_chap_success(struct pdu *request,
 		keys_add(response_keys, "CHAP_N", auth->a_mutual_user);
 		keys_add(response_keys, "CHAP_R", chap_r);
 		free(chap_r);
-		keys_save(response_keys, response);
+		keys_save_pdu(response_keys, response);
 		keys_delete(response_keys);
 	} else {
 		log_debugx("initiator did not request target authentication");
@@ -635,7 +635,7 @@ login_redirect(struct pdu *request, const char *target_address)
 	response_keys = keys_new();
 	keys_add(response_keys, "TargetAddress", target_address);
 
-	keys_save(response_keys, response);
+	keys_save_pdu(response_keys, response);
 	pdu_send(response);
 	pdu_delete(response);
 	keys_delete(response_keys);
@@ -753,7 +753,7 @@ login_negotiate(struct ctld_connection *conn, struct pdu *request)
 	}
 
 	request_keys = keys_new();
-	keys_load(request_keys, request);
+	keys_load_pdu(request_keys, request);
 
 	response = login_new_response(request);
 	bhslr2 = (struct iscsi_bhs_login_response *)response->pdu_bhs;
@@ -801,7 +801,7 @@ login_negotiate(struct ctld_connection *conn, struct pdu *request)
 	log_debugx("operational parameter negotiation done; "
 	    "transitioning to Full Feature Phase");
 
-	keys_save(response_keys, response);
+	keys_save_pdu(response_keys, response);
 	pdu_send(response);
 	pdu_delete(response);
 	keys_delete(response_keys);
@@ -867,7 +867,7 @@ login(struct ctld_connection *conn)
 	 * XXX: Implement the C flag some day.
 	 */
 	request_keys = keys_new();
-	keys_load(request_keys, request);
+	keys_load_pdu(request_keys, request);
 
 	assert(conn->conn_initiator_name == NULL);
 	initiator_name = keys_find(request_keys, "InitiatorName");
@@ -1036,7 +1036,7 @@ login(struct ctld_connection *conn)
 		keys_add_int(response_keys,
 		    "TargetPortalGroupTag", pg->pg_tag);
 	}
-	keys_save(response_keys, response);
+	keys_save_pdu(response_keys, response);
 
 	pdu_send(response);
 	pdu_delete(response);

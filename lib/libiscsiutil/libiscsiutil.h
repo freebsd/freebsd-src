@@ -109,13 +109,27 @@ void			rchap_delete(struct rchap *rchap);
 
 struct keys		*keys_new(void);
 void			keys_delete(struct keys *key);
-void			keys_load(struct keys *keys, const struct pdu *pdu);
-void			keys_save(struct keys *keys, struct pdu *pdu);
+void			keys_load(struct keys *keys, const char *data,
+			    size_t len);
+void			keys_save(struct keys *keys, char **datap,
+			    size_t *lenp);
 const char		*keys_find(struct keys *keys, const char *name);
 void			keys_add(struct keys *keys,
 			    const char *name, const char *value);
 void			keys_add_int(struct keys *keys,
 			    const char *name, int value);
+
+static __inline void
+keys_load_pdu(struct keys *keys, const struct pdu *pdu)
+{
+	keys_load(keys, pdu->pdu_data, pdu->pdu_data_len);
+}
+
+static __inline void
+keys_save_pdu(struct keys *keys, struct pdu *pdu)
+{
+	keys_save(keys, &pdu->pdu_data, &pdu->pdu_data_len);
+}
 
 struct pdu		*pdu_new(struct connection *ic);
 struct pdu		*pdu_new_response(struct pdu *request);
