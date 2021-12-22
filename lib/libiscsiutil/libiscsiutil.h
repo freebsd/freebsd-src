@@ -75,8 +75,6 @@ struct connection_ops {
 struct keys {
 	char		*keys_names[KEYS_MAX];
 	char		*keys_values[KEYS_MAX];
-	char		*keys_data;
-	size_t		keys_data_len;
 };
 
 #define	CHAP_CHALLENGE_LEN	1024
