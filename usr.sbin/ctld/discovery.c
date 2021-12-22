@@ -287,7 +287,7 @@ discovery(struct ctld_connection *conn)
 	log_debugx("beginning discovery session; waiting for Text PDU");
 	request = text_receive(&conn->conn);
 	request_keys = keys_new();
-	keys_load(request_keys, request);
+	keys_load_pdu(request_keys, request);
 
 	send_targets = keys_find(request_keys, "SendTargets");
 	if (send_targets == NULL)
@@ -317,7 +317,7 @@ discovery(struct ctld_connection *conn)
 			}
 		}
 	}
-	keys_save(response_keys, response);
+	keys_save_pdu(response_keys, response);
 
 	pdu_send(response);
 	pdu_delete(response);

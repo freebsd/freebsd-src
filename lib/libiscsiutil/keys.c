@@ -59,22 +59,22 @@ keys_delete(struct keys *keys)
 }
 
 void
-keys_load(struct keys *keys, const struct pdu *pdu)
+keys_load(struct keys *keys, const char *data, size_t len)
 {
 	int i;
 	char *keys_data, *name, *pair, *value;
 	size_t pair_len;
 
-	if (pdu->pdu_data_len == 0)
+	if (len == 0)
 		return;
 
-	if (pdu->pdu_data[pdu->pdu_data_len - 1] != '\0')
+	if (data[len - 1] != '\0')
 		log_errx(1, "protocol error: key not NULL-terminated\n");
 
-	keys_data = malloc(pdu->pdu_data_len);
+	keys_data = malloc(len);
 	if (keys_data == NULL)
 		log_err(1, "malloc");
-	memcpy(keys_data, pdu->pdu_data, pdu->pdu_data_len);
+	memcpy(keys_data, data, len);
 
 	/*
 	 * XXX: Review this carefully.
@@ -96,15 +96,15 @@ keys_load(struct keys *keys, const struct pdu *pdu)
 		    keys->keys_names[i], keys->keys_values[i]);
 
 		pair += pair_len + 1; /* +1 to skip the terminating '\0'. */
-		if (pair == keys_data + pdu->pdu_data_len)
+		if (pair == keys_data + len)
 			break;
-		assert(pair < keys_data + pdu->pdu_data_len);
+		assert(pair < keys_data + len);
 	}
 	free(keys_data);
 }
 
 void
-keys_save(struct keys *keys, struct pdu *pdu)
+keys_save(struct keys *keys, char **datap, size_t *lenp)
 {
 	FILE *fp;
 	char *data;
@@ -131,8 +131,8 @@ keys_save(struct keys *keys, struct pdu *pdu)
 		data = NULL;
 	}
 
-	pdu->pdu_data = data;
-	pdu->pdu_data_len = len;
+	*datap = data;
+	*lenp = len;
 }
 
 const char *
