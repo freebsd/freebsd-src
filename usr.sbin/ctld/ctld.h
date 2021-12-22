@@ -39,6 +39,7 @@
 #endif
 #include <sys/socket.h>
 #include <stdbool.h>
+#include <libiscsiutil.h>
 #include <libutil.h>
 
 #define	DEFAULT_CONFIG_PATH		"/etc/ctl.conf"
@@ -229,82 +230,24 @@ struct conf {
 #define	CONN_SESSION_TYPE_DISCOVERY	1
 #define	CONN_SESSION_TYPE_NORMAL	2
 
-#define	CONN_DIGEST_NONE		0
-#define	CONN_DIGEST_CRC32C		1
-
-struct connection {
+struct ctld_connection {
+	struct connection	conn;
 	struct portal		*conn_portal;
 	struct port		*conn_port;
 	struct target		*conn_target;
-	int			conn_socket;
 	int			conn_session_type;
 	char			*conn_initiator_name;
 	char			*conn_initiator_addr;
 	char			*conn_initiator_alias;
 	uint8_t			conn_initiator_isid[6];
 	struct sockaddr_storage	conn_initiator_sa;
-	uint32_t		conn_cmdsn;
-	uint32_t		conn_statsn;
 	int			conn_max_recv_data_segment_limit;
 	int			conn_max_send_data_segment_limit;
 	int			conn_max_burst_limit;
 	int			conn_first_burst_limit;
-	int			conn_max_recv_data_segment_length;
-	int			conn_max_send_data_segment_length;
-	int			conn_max_burst_length;
-	int			conn_first_burst_length;
-	int			conn_immediate_data;
-	int			conn_header_digest;
-	int			conn_data_digest;
 	const char		*conn_user;
 	struct chap		*conn_chap;
 };
-
-struct pdu {
-	struct connection	*pdu_connection;
-	struct iscsi_bhs	*pdu_bhs;
-	char			*pdu_data;
-	size_t			pdu_data_len;
-};
-
-#define	KEYS_MAX	1024
-
-struct keys {
-	char		*keys_names[KEYS_MAX];
-	char		*keys_values[KEYS_MAX];
-	char		*keys_data;
-	size_t		keys_data_len;
-};
-
-#define	CHAP_CHALLENGE_LEN	1024
-#define	CHAP_DIGEST_LEN		16 /* Equal to MD5 digest size. */
-
-struct chap {
-	unsigned char	chap_id;
-	char		chap_challenge[CHAP_CHALLENGE_LEN];
-	char		chap_response[CHAP_DIGEST_LEN];
-};
-
-struct rchap {
-	char		*rchap_secret;
-	unsigned char	rchap_id;
-	void		*rchap_challenge;
-	size_t		rchap_challenge_len;
-};
-
-struct chap		*chap_new(void);
-char			*chap_get_id(const struct chap *chap);
-char			*chap_get_challenge(const struct chap *chap);
-int			chap_receive(struct chap *chap, const char *response);
-int			chap_authenticate(struct chap *chap,
-			    const char *secret);
-void			chap_delete(struct chap *chap);
-
-struct rchap		*rchap_new(const char *secret);
-int			rchap_receive(struct rchap *rchap,
-			    const char *id, const char *challenge);
-char			*rchap_get_response(struct rchap *rchap);
-void			rchap_delete(struct rchap *rchap);
 
 int			parse_conf(struct conf *conf, const char *path);
 int			uclparse_conf(struct conf *conf, const char *path);
@@ -412,7 +355,7 @@ void			kernel_init(void);
 int			kernel_lun_add(struct lun *lun);
 int			kernel_lun_modify(struct lun *lun);
 int			kernel_lun_remove(struct lun *lun);
-void			kernel_handoff(struct connection *conn);
+void			kernel_handoff(struct ctld_connection *conn);
 void			kernel_limits(const char *offload,
 			    int *max_recv_data_segment_length,
 			    int *max_send_data_segment_length,
@@ -433,40 +376,11 @@ void			kernel_send(struct pdu *pdu);
 void			kernel_receive(struct pdu *pdu);
 #endif
 
-struct keys		*keys_new(void);
-void			keys_delete(struct keys *keys);
-void			keys_load(struct keys *keys, const struct pdu *pdu);
-void			keys_save(struct keys *keys, struct pdu *pdu);
-const char		*keys_find(struct keys *keys, const char *name);
-void			keys_add(struct keys *keys,
-			    const char *name, const char *value);
-void			keys_add_int(struct keys *keys,
-			    const char *name, int value);
+void			login(struct ctld_connection *conn);
 
-struct pdu		*pdu_new(struct connection *conn);
-struct pdu		*pdu_new_response(struct pdu *request);
-void			pdu_delete(struct pdu *pdu);
-void			pdu_receive(struct pdu *request);
-void			pdu_send(struct pdu *response);
+void			discovery(struct ctld_connection *conn);
 
-void			login(struct connection *conn);
-
-void			discovery(struct connection *conn);
-
-void			log_init(int level);
-void			log_set_peer_name(const char *name);
-void			log_set_peer_addr(const char *addr);
-void			log_err(int, const char *, ...)
-			    __dead2 __printflike(2, 3);
-void			log_errx(int, const char *, ...)
-			    __dead2 __printflike(2, 3);
-void			log_warn(const char *, ...) __printflike(1, 2);
-void			log_warnx(const char *, ...) __printflike(1, 2);
-void			log_debugx(const char *, ...) __printflike(1, 2);
-
-char			*checked_strdup(const char *);
 bool			valid_iscsi_name(const char *name);
 void			set_timeout(int timeout, int fatal);
-bool			timed_out(void);
 
 #endif /* !CTLD_H */

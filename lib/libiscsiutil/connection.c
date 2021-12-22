@@ -26,40 +26,28 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
-#ifndef ISCSID_H
-#define	ISCSID_H
+#include <string.h>
 
-#include <stdbool.h>
-#include <stdint.h>
+#include "libiscsiutil.h"
 
-#include <iscsi_ioctl.h>
-#include <libiscsiutil.h>
+void
+connection_init(struct connection *conn, const struct connection_ops *ops,
+	bool use_proxy)
+{
+	memset(conn, 0, sizeof(*conn));
+	conn->conn_ops = ops;
+	conn->conn_use_proxy = use_proxy;
 
-#define	DEFAULT_PIDFILE			"/var/run/iscsid.pid"
-
-#define	CONN_MUTUAL_CHALLENGE_LEN	1024
-#define	SOCKBUF_SIZE			1048576
-
-struct iscsid_connection {
-	struct connection	conn;
-	int			conn_iscsi_fd;
-	unsigned int		conn_session_id;
-	struct iscsi_session_conf	conn_conf;
-	struct iscsi_session_limits	conn_limits;
-	char			conn_target_alias[ISCSI_ADDR_LEN];
-	int			conn_protocol_level;
-	bool			conn_initial_r2t;
-	struct chap		*conn_mutual_chap;
-};
-
-void			login(struct iscsid_connection *ic);
-
-void			discovery(struct iscsid_connection *ic);
-
-void			fail(const struct connection *, const char *);
-
-#endif /* !ISCSID_H */
+	/*
+	 * Default values, from RFC 3720, section 12.
+	 */
+	conn->conn_header_digest = CONN_DIGEST_NONE;
+	conn->conn_data_digest = CONN_DIGEST_NONE;
+	conn->conn_immediate_data = true;
+	conn->conn_max_recv_data_segment_length = 8192;
+	conn->conn_max_send_data_segment_length = 8192;
+	conn->conn_max_burst_length = 262144;
+	conn->conn_first_burst_length = 65536;
+}

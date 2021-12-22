@@ -138,7 +138,7 @@ logout_new_request(struct connection *conn)
 }
 
 static void
-kernel_add(const struct connection *conn, const char *target)
+kernel_add(const struct iscsid_connection *conn, const char *target)
 {
 	struct iscsi_session_add isa;
 	int error;
@@ -154,7 +154,7 @@ kernel_add(const struct connection *conn, const char *target)
 }
 
 static void
-kernel_remove(const struct connection *conn)
+kernel_remove(const struct iscsid_connection *conn)
 {
 	struct iscsi_session_remove isr;
 	int error;
@@ -167,14 +167,14 @@ kernel_remove(const struct connection *conn)
 }
 
 void
-discovery(struct connection *conn)
+discovery(struct iscsid_connection *conn)
 {
 	struct pdu *request, *response;
 	struct keys *request_keys, *response_keys;
 	int i;
 
 	log_debugx("beginning discovery session");
-	request = text_new_request(conn);
+	request = text_new_request(&conn->conn);
 	request_keys = keys_new();
 	keys_add(request_keys, "SendTargets", "All");
 	keys_save(request_keys, request);
@@ -185,7 +185,7 @@ discovery(struct connection *conn)
 	request = NULL;
 
 	log_debugx("waiting for Text Response");
-	response = text_receive(conn);
+	response = text_receive(&conn->conn);
 	response_keys = keys_new();
 	keys_load(response_keys, response);
 	for (i = 0; i < KEYS_MAX; i++) {
@@ -220,13 +220,13 @@ discovery(struct connection *conn)
 #endif
 
 	log_debugx("discovery done; logging out");
-	request = logout_new_request(conn);
+	request = logout_new_request(&conn->conn);
 	pdu_send(request);
 	pdu_delete(request);
 	request = NULL;
 
 	log_debugx("waiting for Logout Response");
-	response = logout_receive(conn);
+	response = logout_receive(&conn->conn);
 	pdu_delete(response);
 
 	log_debugx("discovery session done");

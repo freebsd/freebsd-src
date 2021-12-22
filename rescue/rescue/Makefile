@@ -236,6 +236,9 @@ CRUNCH_LIBS+= -lm
 .if ${MK_ISCSI} != "no"
 CRUNCH_PROGS_usr.bin+=	iscsictl
 CRUNCH_PROGS_usr.sbin+=	iscsid
+
+CRUNCH_LIBS+=		${OBJTOP}/lib/libiscsiutil/libiscsiutil.a
+CRUNCH_BUILDOPTS+=	CRUNCH_CFLAGS+=-I${OBJTOP}/lib/libiscsiutil
 .endif
 
 .include <bsd.crunchgen.mk>

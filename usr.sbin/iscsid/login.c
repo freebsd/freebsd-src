@@ -160,7 +160,7 @@ login_target_error_str(int class, int detail)
 }
 
 static void
-kernel_modify(const struct connection *conn, const char *target_address)
+kernel_modify(const struct iscsid_connection *conn, const char *target_address)
 {
 	struct iscsi_session_modify ism;
 	int error;
@@ -188,7 +188,7 @@ kernel_modify(const struct connection *conn, const char *target_address)
  *	as described in draft.
  */
 static void
-login_handle_redirection(struct connection *conn, struct pdu *response)
+login_handle_redirection(struct iscsid_connection *conn, struct pdu *response)
 {
 	struct iscsi_bhs_login_response *bhslr;
 	struct keys *response_keys;
@@ -241,7 +241,8 @@ login_receive(struct connection *conn)
 		log_errx(1, "received Login PDU with unsupported "
 		    "Version-active 0x%x", bhslr->bhslr_version_active);
 	if (bhslr->bhslr_status_class == 1) {
-		login_handle_redirection(conn, response);
+		login_handle_redirection((struct iscsid_connection *)conn,
+		    response);
 		log_debugx("redirection handled; exiting");
 		exit(0);
 	}
@@ -328,7 +329,7 @@ login_list_prefers(const char *list,
 }
 
 static void
-login_negotiate_key(struct connection *conn, const char *name,
+login_negotiate_key(struct iscsid_connection *conn, const char *name,
     const char *value)
 {
 	struct iscsi_session_limits *isl;
@@ -351,7 +352,7 @@ login_negotiate_key(struct connection *conn, const char *name,
 		case 1:
 			log_debugx("target prefers CRC32C "
 			    "for header digest; we'll use it");
-			conn->conn_header_digest = CONN_DIGEST_CRC32C;
+			conn->conn.conn_header_digest = CONN_DIGEST_CRC32C;
 			break;
 		case 2:
 			log_debugx("target prefers not to do "
@@ -368,7 +369,7 @@ login_negotiate_key(struct connection *conn, const char *name,
 		case 1:
 			log_debugx("target prefers CRC32C "
 			    "for data digest; we'll use it");
-			conn->conn_data_digest = CONN_DIGEST_CRC32C;
+			conn->conn.conn_data_digest = CONN_DIGEST_CRC32C;
 			break;
 		case 2:
 			log_debugx("target prefers not to do "
@@ -388,9 +389,9 @@ login_negotiate_key(struct connection *conn, const char *name,
 			conn->conn_initial_r2t = false;
 	} else if (strcmp(name, "ImmediateData") == 0) {
 		if (strcmp(value, "Yes") == 0)
-			conn->conn_immediate_data = true;
+			conn->conn.conn_immediate_data = true;
 		else
-			conn->conn_immediate_data = false;
+			conn->conn.conn_immediate_data = false;
 	} else if (strcmp(name, "MaxRecvDataSegmentLength") == 0) {
 		tmp = strtoul(value, NULL, 10);
 		if (tmp <= 0)
@@ -402,7 +403,7 @@ login_negotiate_key(struct connection *conn, const char *name,
 			    isl->isl_max_send_data_segment_length);
 			tmp = isl->isl_max_send_data_segment_length;
 		}
-		conn->conn_max_send_data_segment_length = tmp;
+		conn->conn.conn_max_send_data_segment_length = tmp;
 	} else if (strcmp(name, "MaxBurstLength") == 0) {
 		tmp = strtoul(value, NULL, 10);
 		if (tmp <= 0)
@@ -412,7 +413,7 @@ login_negotiate_key(struct connection *conn, const char *name,
 			    "from %d to %d", tmp, isl->isl_max_burst_length);
 			tmp = isl->isl_max_burst_length;
 		}
-		conn->conn_max_burst_length = tmp;
+		conn->conn.conn_max_burst_length = tmp;
 	} else if (strcmp(name, "FirstBurstLength") == 0) {
 		tmp = strtoul(value, NULL, 10);
 		if (tmp <= 0)
@@ -422,7 +423,7 @@ login_negotiate_key(struct connection *conn, const char *name,
 			    "from %d to %d", tmp, isl->isl_first_burst_length);
 			tmp = isl->isl_first_burst_length;
 		}
-		conn->conn_first_burst_length = tmp;
+		conn->conn.conn_first_burst_length = tmp;
 	} else if (strcmp(name, "DefaultTime2Wait") == 0) {
 		/* Ignore */
 	} else if (strcmp(name, "DefaultTime2Retain") == 0) {
@@ -455,7 +456,7 @@ login_negotiate_key(struct connection *conn, const char *name,
 			    isl->isl_max_recv_data_segment_length);
 			tmp = isl->isl_max_recv_data_segment_length;
 		}
-		conn->conn_max_recv_data_segment_length = tmp;
+		conn->conn.conn_max_recv_data_segment_length = tmp;
 	} else if (strcmp(name, "TargetPortalGroupTag") == 0) {
 		/* Ignore */
 	} else if (strcmp(name, "TargetRecvDataSegmentLength") == 0) {
@@ -470,14 +471,14 @@ login_negotiate_key(struct connection *conn, const char *name,
 			    isl->isl_max_send_data_segment_length);
 			tmp = isl->isl_max_send_data_segment_length;
 		}
-		conn->conn_max_send_data_segment_length = tmp;
+		conn->conn.conn_max_send_data_segment_length = tmp;
 	} else {
 		log_debugx("unknown key \"%s\"; ignoring",  name);
 	}
 }
 
 static void
-login_negotiate(struct connection *conn)
+login_negotiate(struct iscsid_connection *conn)
 {
 	struct pdu *request, *response;
 	struct keys *request_keys, *response_keys;
@@ -486,7 +487,8 @@ login_negotiate(struct connection *conn)
 	struct iscsi_session_limits *isl;
 
 	log_debugx("beginning operational parameter negotiation");
-	request = login_new_request(conn, BHSLR_STAGE_OPERATIONAL_NEGOTIATION);
+	request = login_new_request(&conn->conn,
+	    BHSLR_STAGE_OPERATIONAL_NEGOTIATION);
 	request_keys = keys_new();
 
 	isl = &conn->conn_limits;
@@ -535,7 +537,7 @@ login_negotiate(struct connection *conn)
 		    isl->isl_max_recv_data_segment_length);
 	}
 
-	conn->conn_max_recv_data_segment_length =
+	conn->conn.conn_max_recv_data_segment_length =
 	    isl->isl_max_recv_data_segment_length;
 
 	keys_add(request_keys, "DefaultTime2Wait", "0");
@@ -548,7 +550,7 @@ login_negotiate(struct connection *conn)
 	pdu_delete(request);
 	request = NULL;
 
-	response = login_receive(conn);
+	response = login_receive(&conn->conn);
 	response_keys = keys_new();
 	keys_load(response_keys, response);
 	for (i = 0; i < KEYS_MAX; i++) {
@@ -579,12 +581,12 @@ login_negotiate(struct connection *conn)
 
 		pdu_delete(response);
 
-		request = login_new_request(conn,
+		request = login_new_request(&conn->conn,
 		    BHSLR_STAGE_OPERATIONAL_NEGOTIATION);
 		pdu_send(request);
 		pdu_delete(request);
 
-		response = login_receive(conn);
+		response = login_receive(&conn->conn);
 	}
 
 	if (login_nsg(response) != BHSLR_STAGE_FULL_FEATURE_PHASE)
@@ -614,7 +616,7 @@ login_send_chap_a(struct connection *conn)
 static void
 login_send_chap_r(struct pdu *response)
 {
-	struct connection *conn;
+	struct iscsid_connection *conn;
 	struct pdu *request;
 	struct keys *request_keys, *response_keys;
 	struct rchap *rchap;
@@ -631,7 +633,7 @@ login_send_chap_r(struct pdu *response)
 	 * CHAP challenge; our CHAP response goes into 'request'.
 	 */
 
-	conn = response->pdu_connection;
+	conn = (struct iscsid_connection *)response->pdu_connection;
 
 	response_keys = keys_new();
 	keys_load(response_keys, response);
@@ -665,7 +667,8 @@ login_send_chap_r(struct pdu *response)
 
 	keys_delete(response_keys);
 
-	request = login_new_request(conn, BHSLR_STAGE_SECURITY_NEGOTIATION);
+	request = login_new_request(&conn->conn,
+	    BHSLR_STAGE_SECURITY_NEGOTIATION);
 	request_keys = keys_new();
 	keys_add(request_keys, "CHAP_N", conn->conn_conf.isc_user);
 	keys_add(request_keys, "CHAP_R", chap_r);
@@ -699,12 +702,12 @@ login_send_chap_r(struct pdu *response)
 static void
 login_verify_mutual(const struct pdu *response)
 {
-	struct connection *conn;
+	struct iscsid_connection *conn;
 	struct keys *response_keys;
 	const char *chap_n, *chap_r;
 	int error;
 
-	conn = response->pdu_connection;
+	conn = (struct iscsid_connection *)response->pdu_connection;
 
 	response_keys = keys_new();
 	keys_load(response_keys, response);
@@ -721,14 +724,14 @@ login_verify_mutual(const struct pdu *response)
                 log_errx(1, "received CHAP Response PDU with invalid CHAP_R");
 
 	if (strcmp(chap_n, conn->conn_conf.isc_mutual_user) != 0) {
-		fail(conn, "Mutual CHAP failed");
+		fail(&conn->conn, "Mutual CHAP failed");
 		log_errx(1, "mutual CHAP authentication failed: wrong user");
 	}
 
 	error = chap_authenticate(conn->conn_mutual_chap,
 	    conn->conn_conf.isc_mutual_secret);
 	if (error != 0) {
-		fail(conn, "Mutual CHAP failed");
+		fail(&conn->conn, "Mutual CHAP failed");
                 log_errx(1, "mutual CHAP authentication failed: wrong secret");
 	}
 
@@ -740,15 +743,15 @@ login_verify_mutual(const struct pdu *response)
 }
 
 static void
-login_chap(struct connection *conn)
+login_chap(struct iscsid_connection *conn)
 {
 	struct pdu *response;
 
 	log_debugx("beginning CHAP authentication; sending CHAP_A");
-	login_send_chap_a(conn);
+	login_send_chap_a(&conn->conn);
 
 	log_debugx("waiting for CHAP_A/CHAP_C/CHAP_I");
-	response = login_receive(conn);
+	response = login_receive(&conn->conn);
 
 	log_debugx("sending CHAP_N/CHAP_R");
 	login_send_chap_r(response);
@@ -759,7 +762,7 @@ login_chap(struct connection *conn)
 	 */
 
 	log_debugx("waiting for CHAP result");
-	response = login_receive(conn);
+	response = login_receive(&conn->conn);
 	if (conn->conn_conf.isc_mutual_user[0] != '\0')
 		login_verify_mutual(response);
 	pdu_delete(response);
@@ -768,7 +771,7 @@ login_chap(struct connection *conn)
 }
 
 void
-login(struct connection *conn)
+login(struct iscsid_connection *conn)
 {
 	struct pdu *request, *response;
 	struct keys *request_keys, *response_keys;
@@ -777,7 +780,8 @@ login(struct connection *conn)
 	int i;
 
 	log_debugx("beginning Login phase; sending Login PDU");
-	request = login_new_request(conn, BHSLR_STAGE_SECURITY_NEGOTIATION);
+	request = login_new_request(&conn->conn,
+	    BHSLR_STAGE_SECURITY_NEGOTIATION);
 	request_keys = keys_new();
 	if (conn->conn_conf.isc_mutual_user[0] != '\0') {
 		keys_add(request_keys, "AuthMethod", "CHAP");
@@ -817,7 +821,7 @@ login(struct connection *conn)
 	pdu_send(request);
 	pdu_delete(request);
 
-	response = login_receive(conn);
+	response = login_receive(&conn->conn);
 
 	response_keys = keys_new();
 	keys_load(response_keys, response);
@@ -875,14 +879,14 @@ login(struct connection *conn)
 	}
 
 	if (strcmp(auth_method, "CHAP") != 0) {
-		fail(conn, "Unsupported AuthMethod");
+		fail(&conn->conn, "Unsupported AuthMethod");
 		log_errx(1, "received response "
 		    "with unsupported AuthMethod \"%s\"", auth_method);
 	}
 
 	if (conn->conn_conf.isc_user[0] == '\0' ||
 	    conn->conn_conf.isc_secret[0] == '\0') {
-		fail(conn, "Authentication required");
+		fail(&conn->conn, "Authentication required");
 		log_errx(1, "target requests CHAP authentication, but we don't "
 		    "have user and secret");
 	}
