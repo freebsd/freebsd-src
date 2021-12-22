@@ -456,7 +456,7 @@ extern	struct vnode *rootvnode;	/* root (i.e. "/") vnode */
 extern	struct mount *rootdevmp;	/* "/dev" mount */
 extern	u_long desiredvnodes;		/* number of vnodes desired */
 extern	struct uma_zone *namei_zone;
-extern	struct vattr va_null;		/* predefined null vattr structure */
+extern	const struct vattr va_null;	/* predefined null vattr structure */
 
 extern	u_int vn_lock_pair_pause_max;
 

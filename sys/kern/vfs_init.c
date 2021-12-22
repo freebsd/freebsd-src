@@ -84,10 +84,31 @@ SYSCTL_INT(_vfs, OID_AUTO, typenumhash, CTLFLAG_RDTUN, &vfs_typenumhash, 0,
 
 /*
  * A Zen vnode attribute structure.
- *
- * Initialized when the first filesystem registers by vfs_register().
  */
-struct vattr va_null;
+const struct vattr va_null = {
+	.va_type = 	VNON,
+	.va_mode = 	VNOVAL,
+	.va_uid = 	VNOVAL,
+	.va_gid = 	VNOVAL,
+	.va_nlink = 	VNOVAL,
+	.va_fsid = 	VNOVAL,
+	.va_fileid = 	VNOVAL,
+	.va_size = 	VNOVAL,
+	.va_blocksize =	VNOVAL,
+	.va_gen = 	VNOVAL,
+	.va_flags = 	VNOVAL,
+	.va_rdev = 	VNOVAL,
+	.va_bytes = 	VNOVAL,
+	.va_vaflags = 	0,
+	.va_atime.tv_sec =	VNOVAL,
+	.va_atime.tv_nsec =	VNOVAL,
+	.va_mtime.tv_sec =	VNOVAL,
+	.va_mtime.tv_nsec =	VNOVAL,
+	.va_ctime.tv_sec =	VNOVAL,
+	.va_ctime.tv_nsec =	VNOVAL,
+	.va_birthtime.tv_sec =	VNOVAL,
+	.va_birthtime.tv_nsec =	VNOVAL,
+};
 
 /*
  * vfs_init.c
@@ -378,15 +399,9 @@ vfs_register(struct vfsconf *vfc)
 {
 	struct sysctl_oid *oidp;
 	struct vfsops *vfsops;
-	static int once;
 	struct vfsconf *tvfc;
 	uint32_t hashval;
 	int secondpass;
-
-	if (!once) {
-		vattr_null(&va_null);
-		once = 1;
-	}
 
 	if (vfc->vfc_version != VFS_VERSION) {
 		printf("ERROR: filesystem %s, unsupported ABI version %x\n",
