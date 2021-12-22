@@ -420,7 +420,7 @@ ipf_p_tftp_client(ipf_tftp_softc_t *softt, fr_info_t *fin, ap_session_t *aps,
 	switch (opcode)
 	{
 	case TFTP_CMD_WRITE :
-		if (softt->ipf_p_tftp_readonly != 0) 
+		if (softt->ipf_p_tftp_readonly != 0)
 			break;
 		/* FALLTHROUGH */
 	case TFTP_CMD_READ :

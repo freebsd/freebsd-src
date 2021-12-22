@@ -1265,7 +1265,7 @@ ipf_proxy_fixseqack(fr_info_t *fin, ip_t *ip, ap_session_t *aps, int inc)
 /*                                                                          */
 /* This function creates a NAT rule that is based upon the reverse packet   */
 /* flow associated with this NAT session. Thus if this NAT session was      */
-/* created with a map rule then this function will create a rdr rule.       */ 
+/* created with a map rule then this function will create a rdr rule.       */
 /* Only address fields and network interfaces are assigned in this function */
 /* and the address fields are formed such that an exact is required. If the */
 /* original rule had a netmask, that is not replicated here not is it       */
@@ -1275,7 +1275,7 @@ ipf_proxy_fixseqack(fr_info_t *fin, ip_t *ip, ap_session_t *aps, int inc)
 /* to be setup, based on the addresses used for the control connection. In  */
 /* that case, this function is used to handle creating NAT rules to support */
 /* data connections with the PORT and EPRT commands.                        */
-/* ------------------------------------------------------------------------ */ 
+/* ------------------------------------------------------------------------ */
 ipnat_t *
 ipf_proxy_rule_rev(nat_t *nat)
 {
@@ -1358,11 +1358,11 @@ ipf_proxy_rule_rev(nat_t *nat)
 /*                                                                          */
 /* The purpose and rationale of this function is much the same as the above */
 /* function, ipf_proxy_rule_rev, except that a rule is created that matches */
-/* the same direction as that of the existing NAT session. Thus if this NAT */ 
+/* the same direction as that of the existing NAT session. Thus if this NAT */
 /* session was created with a map rule then this function will also create  */
 /* a data structure to represent a map rule. Whereas ipf_proxy_rule_rev is  */
 /* used to support PORT/EPRT, this function supports PASV/EPSV.             */
-/* ------------------------------------------------------------------------ */ 
+/* ------------------------------------------------------------------------ */
 ipnat_t *
 ipf_proxy_rule_fwd(nat_t *nat)
 {

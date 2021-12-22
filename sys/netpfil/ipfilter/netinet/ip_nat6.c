@@ -313,8 +313,8 @@ ipf_nat6_delrdr(ipf_nat_softc_t *softn, ipnat_t *n)
 	*n->in_prnext = n->in_rnext;
 	n->in_use--;
 }
-                                        
-                       
+
+
 /* ------------------------------------------------------------------------ */
 /* Function:    ipf_nat6_delmap                                             */
 /* Returns:     Nil                                                         */
