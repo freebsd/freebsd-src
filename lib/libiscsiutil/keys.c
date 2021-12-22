@@ -106,41 +106,33 @@ keys_load(struct keys *keys, const struct pdu *pdu)
 void
 keys_save(struct keys *keys, struct pdu *pdu)
 {
+	FILE *fp;
 	char *data;
 	size_t len;
 	int i;
 
-	/*
-	 * XXX: Not particularly efficient.
-	 */
-	len = 0;
+	fp = open_memstream(&data, &len);
+	if (fp == NULL)
+		log_err(1, "open_memstream");
 	for (i = 0; i < KEYS_MAX; i++) {
 		if (keys->keys_names[i] == NULL)
 			break;
-		/*
-		 * +1 for '=', +1 for '\0'.
-		 */
-		len += strlen(keys->keys_names[i]) +
-		    strlen(keys->keys_values[i]) + 2;
+
+		fprintf(fp, "%s=%s", keys->keys_names[i], keys->keys_values[i]);
+
+		/* Append a '\0' after each key pair. */
+		fputc('\0', fp);
 	}
+	if (fclose(fp) != 0)
+		log_err(1, "fclose");
 
-	if (len == 0)
-		return;
-
-	data = malloc(len);
-	if (data == NULL)
-		log_err(1, "malloc");
+	if (len == 0) {
+		free(data);
+		data = NULL;
+	}
 
 	pdu->pdu_data = data;
 	pdu->pdu_data_len = len;
-
-	for (i = 0; i < KEYS_MAX; i++) {
-		if (keys->keys_names[i] == NULL)
-			break;
-		data += sprintf(data, "%s=%s",
-		    keys->keys_names[i], keys->keys_values[i]);
-		data += 1; /* for '\0'. */
-	}
 }
 
 const char *
