@@ -128,5 +128,5 @@ main(int argc, char **argv)
 	printf("Gateway: %s\n", inet_ntoa(gwip));
 	printf("mtu:     %d\n", mtu);
 
-	return ip_resend(dev, mtu, ipr, gwip, resend);
+	return(ip_resend(dev, mtu, ipr, gwip, resend));
 }

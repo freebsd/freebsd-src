@@ -74,7 +74,7 @@ ip_resend(char *dev, int mtu, struct  ipread  *r, struct  in_addr gwip,
 	mb_t	mb;
 
 	if (wfd == -1)
-		return -1;
+		return(-1);
 
 	if (datain)
 		fd = (*r->r_open)(datain);
@@ -89,7 +89,7 @@ ip_resend(char *dev, int mtu, struct  ipread  *r, struct  in_addr gwip,
 	if(!eh)
 	    {
 		perror("malloc failed");
-		return -2;
+		return(-2);
 	    }
 
 	bzero((char *) &eh->ether_shost, sizeof(eh->ether_shost));
@@ -97,7 +97,7 @@ ip_resend(char *dev, int mtu, struct  ipread  *r, struct  in_addr gwip,
 	    {
 		perror("arp");
 		free(eh);
-		return -2;
+		return(-2);
 	    }
 
 	while ((i = (*r->r_readip)(&mb, NULL, NULL)) > 0)
@@ -134,5 +134,5 @@ ip_resend(char *dev, int mtu, struct  ipread  *r, struct  in_addr gwip,
 	    }
 	(*r->r_close)();
 	free(eh);
-	return 0;
+	return(0);
 }

@@ -33,10 +33,10 @@ execute_parse(char **strings)
 
 	} else {
 		free(ctx);
-		return NULL;
+		return(NULL);
 	}
 
-	return ctx;
+	return(ctx);
 }
 
 
@@ -71,6 +71,6 @@ execute_send(void *ctx, ipmon_msg_t *msg)
 		fwrite(msg->imm_msg, msg->imm_msglen, 1, fp);
 		pclose(fp);
 	}
-	return 0;
+	return(0);
 }
 

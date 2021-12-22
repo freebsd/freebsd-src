@@ -251,7 +251,7 @@ cram(char *dst, char *src)
 		} else
 			*u++ = c, i++;
 	}
-	return i;
+	return(i);
 }
 
 
@@ -411,7 +411,7 @@ makepair(char *s1, char *s2)
 	a = malloc(sizeof(char *) * 2);
 	a[0] = s1;
 	a[1] = s2;
-	return a;
+	return(a);
 }
 
 
@@ -429,7 +429,7 @@ combine(int a1, int a2, int a3, int a4)
 	a4 &= 0xff;
 	in.s_addr |= a4;
 	in.s_addr = htonl(in.s_addr);
-	return in;
+	return(in);
 }
 
 
@@ -443,9 +443,9 @@ gethostip(char *host)
 
 	hp = gethostbyname(host);
 	if (!hp)
-		return in;
+		return(in);
 	bcopy(hp->h_addr, (char *)&in, sizeof(in));
-	return in;
+	return(in);
 }
 
 
@@ -456,8 +456,8 @@ getportnum(char *port)
 
 	s = getservbyname(port, "tcp");
 	if (s == NULL)
-		return -1;
-	return s->s_port;
+		return(-1);
+	return(s->s_port);
 }
 
 

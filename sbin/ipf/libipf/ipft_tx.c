@@ -51,16 +51,16 @@ tx_hostnum(char *host, int *resolved)
 
 	*resolved = 0;
 	if (!strcasecmp("any", host))
-		return 0L;
+		return(0L);
 	if (ISDIGIT(*host))
-		return inet_addr(host);
+		return(inet_addr(host));
 
 	if (gethost(AF_INET, host, &ipa) == -1) {
 		*resolved = -1;
 		fprintf(stderr, "can't resolve hostname: %s\n", host);
-		return 0;
+		return(0);
 	}
-	return ipa.in4.s_addr;
+	return(ipa.in4.s_addr);
 }
 
 
@@ -74,12 +74,12 @@ tx_portnum(char *name)
 	struct	servent	*sp;
 
 	if (ISDIGIT(*name))
-		return (u_short)atoi(name);
+		return(u_short)atoi(name);
 	sp = getservbyname(name, tx_proto);
 	if (sp)
-		return ntohs(sp->s_port);
+		return(ntohs(sp->s_port));
 	(void) fprintf(stderr, "unknown service \"%s\".\n", name);
-	return 0;
+	return(0);
 }
 
 
@@ -88,7 +88,7 @@ text_open(char *fname)
 {
 	if (tfp && tfd != -1) {
 		rewind(tfp);
-		return tfd;
+		return(tfd);
 	}
 
 	if (!strcmp(fname, "-")) {
@@ -99,7 +99,7 @@ text_open(char *fname)
 		if (tfd != -1)
 			tfp = fdopen(tfd, "r");
 	}
-	return tfd;
+	return(tfd);
 }
 
 
@@ -109,7 +109,7 @@ text_close(void)
 	int	cfd = tfd;
 
 	tfd = -1;
-	return close(cfd);
+	return(close(cfd));
 }
 
 
@@ -149,12 +149,12 @@ text_readip(mb_t *mb, char **ifn, int *dir)
 			} else {
 				mb->mb_len = ntohs(ip->ip_len);
 			}
-			return mb->mb_len;
+			return(mb->mb_len);
 		}
 	}
 	if (feof(tfp))
-		return 0;
-	return -1;
+		return(0);
+	return(-1);
 }
 
 static int
@@ -179,32 +179,32 @@ parseline(char *line, ip_t *ip, char **ifn, int *out)
 
 	cpp = cps;
 	if (!*cpp)
-		return 1;
+		return(1);
 
 	c = **cpp;
 	if (!ISALPHA(c) || (TOLOWER(c) != 'o' && TOLOWER(c) != 'i')) {
 		fprintf(stderr, "bad direction \"%s\"\n", *cpp);
-		return 1;
+		return(1);
 	}
 
 #ifdef USE_INET6
 	if (!strcasecmp(*cpp, "out6") || !strcasecmp(*cpp, "in6")) {
-		return parseipv6(cpp, (ip6_t *)ip, ifn, out);
+		return(parseipv6(cpp, (ip6_t *)ip, ifn, out));
 	}
 #endif
 
 	*out = (TOLOWER(c) == 'o') ? 1 : 0;
 	cpp++;
 	if (!*cpp)
-		return 1;
+		return(1);
 
 	if (!strcasecmp(*cpp, "on")) {
 		cpp++;
 		if (!*cpp)
-			return 1;
+			return(1);
 		*ifn = strdup(*cpp++);
 		if (!*cpp)
-			return 1;
+			return(1);
 	}
 
 	c = **cpp;
@@ -232,14 +232,14 @@ parseline(char *line, ip_t *ip, char **ifn, int *out)
 		ip->ip_p = IPPROTO_IP;
 
 	if (!*cpp)
-		return 1;
+		return(1);
 	if (ip->ip_p == IPPROTO_TCP || ip->ip_p == IPPROTO_UDP) {
 		char	*last;
 
 		last = strchr(*cpp, ',');
 		if (!last) {
 			fprintf(stderr, "tcp/udp with no source port\n");
-			return 1;
+			return(1);
 		}
 		*last++ = '\0';
 		tcp->th_sport = htons(tx_portnum(last));
@@ -251,7 +251,7 @@ parseline(char *line, ip_t *ip, char **ifn, int *out)
 	ip->ip_src.s_addr = tx_hostnum(*cpp, &r);
 	cpp++;
 	if (!*cpp)
-		return 1;
+		return(1);
 
 	if (ip->ip_p == IPPROTO_TCP || ip->ip_p == IPPROTO_UDP) {
 		char	*last;
@@ -259,7 +259,7 @@ parseline(char *line, ip_t *ip, char **ifn, int *out)
 		last = strchr(*cpp, ',');
 		if (!last) {
 			fprintf(stderr, "tcp/udp with no destination port\n");
-			return 1;
+			return(1);
 		}
 		*last++ = '\0';
 		tcp->th_dport = htons(tx_portnum(last));
@@ -327,7 +327,7 @@ parseline(char *line, ip_t *ip, char **ifn, int *out)
 		bcopy((char *)ic, ((char *)ip) + (IP_HL(ip) << 2),
 			sizeof(*ic));
 	ip->ip_len = htons(ip->ip_len);
-	return 0;
+	return(0);
 }
 
 
@@ -346,15 +346,15 @@ parseipv6(char **cpp, ip6_t *ip6, char **ifn, int *out)
 	*out = (**cpp == 'o') ? 1 : 0;
 	cpp++;
 	if (!*cpp)
-		return 1;
+		return(1);
 
 	if (!strcasecmp(*cpp, "on")) {
 		cpp++;
 		if (!*cpp)
-			return 1;
+			return(1);
 		*ifn = strdup(*cpp++);
 		if (!*cpp)
-			return 1;
+			return(1);
 	}
 
 	if (!strcasecmp(*cpp, "tcp")) {
@@ -376,7 +376,7 @@ parseipv6(char **cpp, ip6_t *ip6, char **ifn, int *out)
 		ip6->ip6_nxt = IPPROTO_IPV6;
 
 	if (!*cpp)
-		return 1;
+		return(1);
 
 	switch (ip6->ip6_nxt)
 	{
@@ -399,7 +399,7 @@ parseipv6(char **cpp, ip6_t *ip6, char **ifn, int *out)
 		last = strchr(*cpp, ',');
 		if (!last) {
 			fprintf(stderr, "tcp/udp with no source port\n");
-			return 1;
+			return(1);
 		}
 		*last++ = '\0';
 		tcp->th_sport = htons(tx_portnum(last));
@@ -411,12 +411,12 @@ parseipv6(char **cpp, ip6_t *ip6, char **ifn, int *out)
 
 	if (inet_pton(AF_INET6, *cpp, &ip6->ip6_src) != 1) {
 		fprintf(stderr, "cannot parse source address '%s'\n", *cpp);
-		return 1;
+		return(1);
 	}
 
 	cpp++;
 	if (!*cpp)
-		return 1;
+		return(1);
 
 	if (ip6->ip6_nxt == IPPROTO_TCP || ip6->ip6_nxt == IPPROTO_UDP) {
 		char *last;
@@ -424,7 +424,7 @@ parseipv6(char **cpp, ip6_t *ip6, char **ifn, int *out)
 		last = strchr(*cpp, ',');
 		if (!last) {
 			fprintf(stderr, "tcp/udp with no destination port\n");
-			return 1;
+			return(1);
 		}
 		*last++ = '\0';
 		tcp->th_dport = htons(tx_portnum(last));
@@ -433,7 +433,7 @@ parseipv6(char **cpp, ip6_t *ip6, char **ifn, int *out)
 	if (inet_pton(AF_INET6, *cpp, &ip6->ip6_dst) != 1) {
 		fprintf(stderr, "cannot parse destination address '%s'\n",
 			*cpp);
-		return 1;
+		return(1);
 	}
 
 	cpp++;
@@ -495,6 +495,6 @@ parseipv6(char **cpp, ip6_t *ip6, char **ifn, int *out)
 		ip6->ip6_plen++;
 	}
 	ip6->ip6_plen = htons(ip6->ip6_plen);
-	return 0;
+	return(0);
 }
 #endif

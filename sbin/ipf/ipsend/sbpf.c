@@ -65,7 +65,7 @@ initdevice(char *device, int tout)
 	if ((fd = open(bpfname, O_RDWR)) < 0)
 	    {
 		fprintf(stderr, "no bpf devices available as /dev/bpfxx\n");
-		return -1;
+		return(-1);
 	    }
 #else
 	char	bpfname[16];
@@ -80,14 +80,14 @@ initdevice(char *device, int tout)
 	if (i == 16)
 	    {
 		fprintf(stderr, "no bpf devices available as /dev/bpfxx\n");
-		return -1;
+		return(-1);
 	    }
 #endif
 
 	if (ioctl(fd, BIOCVERSION, (caddr_t)&bv) < 0)
 	    {
 		perror("BIOCVERSION");
-		return -1;
+		return(-1);
 	    }
 	if (bv.bv_major != BPF_MAJOR_VERSION ||
 	    bv.bv_minor < BPF_MINOR_VERSION)
@@ -96,7 +96,7 @@ initdevice(char *device, int tout)
 			bv.bv_major, bv.bv_minor);
 		fprintf(stderr, "current version: %d.%d\n",
 			BPF_MAJOR_VERSION, BPF_MINOR_VERSION);
-		return -1;
+		return(-1);
 	    }
 
 	(void) strncpy(ifr.ifr_name, device, sizeof(ifr.ifr_name));
@@ -128,7 +128,7 @@ initdevice(char *device, int tout)
 	    }
 
 	(void) ioctl(fd, BIOCFLUSH, 0);
-	return fd;
+	return(fd);
 }
 
 
@@ -141,8 +141,8 @@ sendip(int fd, char *pkt, int len)
 	if (write(fd, pkt, len) == -1)
 	    {
 		perror("send");
-		return -1;
+		return(-1);
 	    }
 
-	return len;
+	return(len);
 }
