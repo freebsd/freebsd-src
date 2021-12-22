@@ -280,7 +280,8 @@ CLEANFILES+=	${SOBJS}
 _LIBS+=		${SHLIB_NAME}
 
 SOLINKOPTS+=	-shared -Wl,-x
-.if defined(LD_FATAL_WARNINGS) && ${LD_FATAL_WARNINGS} == "no"
+.if (defined(LD_FATAL_WARNINGS) && ${LD_FATAL_WARNINGS} == "no") || \
+    (!defined(LD_FATAL_WARNINGS) && ${MACHINE_ARCH} == "arm")
 SOLINKOPTS+=	-Wl,--no-fatal-warnings
 .else
 SOLINKOPTS+=	-Wl,--fatal-warnings
