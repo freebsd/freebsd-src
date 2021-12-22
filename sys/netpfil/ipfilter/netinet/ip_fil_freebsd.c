@@ -184,7 +184,7 @@ ipf_timer_func(void *arg)
 	SPL_NET(s);
 	READ_ENTER(&softc->ipf_global);
 
-        if (softc->ipf_running > 0)
+	if (softc->ipf_running > 0)
 		ipf_slowtimer(softc);
 
 	if (softc->ipf_running == -1 || softc->ipf_running == 1) {
@@ -284,7 +284,7 @@ ipfioctl(struct cdev *dev, ioctlcmd_t cmd, caddr_t data,
 	SPL_INT(s);
 
 	CURVNET_SET(TD_TO_VNET(p));
-        if (securelevel_ge(p->p_cred, 3) && (mode & FWRITE))
+	if (securelevel_ge(p->p_cred, 3) && (mode & FWRITE))
 	{
 		V_ipfmain.ipf_interror = 130001;
 		CURVNET_RESTORE();

@@ -1207,14 +1207,14 @@ ipf_frag_next(ipf_main_softc_t *softc, ipftoken_t *token, ipfgeniter_t *itp,
 	if (error != 0)
 		IPFERROR(20002);
 
-        if (frag != NULL) {
+	if (frag != NULL) {
 #ifdef USE_MUTEXES
 		ipf_frag_deref(softc, &frag, lock);
 #else
 		ipf_frag_deref(softc, &frag);
 #endif
-        }
-        return(error);
+	}
+	return(error);
 }
 
 

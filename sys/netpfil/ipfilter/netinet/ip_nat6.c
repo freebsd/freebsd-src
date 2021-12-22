@@ -606,18 +606,18 @@ ipf_nat6_newmap(fr_info_t *fin, nat_t *nat, natinfo_t *ni)
 
 		} else if (((np->in_redir & NAT_MAPBLK) == 0) &&
 			   (flags & IPN_TCPUDPICMP) && (np->in_spnext != 0)) {
-                        /*
-                         * Standard port translation.  Select next port.
-                         */
-                        if (np->in_flags & IPN_SEQUENTIAL) {
-                                port = np->in_spnext;
-                        } else {
+		        /*
+		         * Standard port translation.  Select next port.
+		         */
+		        if (np->in_flags & IPN_SEQUENTIAL) {
+		                port = np->in_spnext;
+		        } else {
 				port = ipf_random() % (np->in_spmax -
 						       np->in_spmin + 1);
-                                port += np->in_spmin;
-                        }
-                        port = htons(port);
-                        np->in_spnext++;
+		                port += np->in_spmin;
+		        }
+		        port = htons(port);
+		        np->in_spnext++;
 
 			if (np->in_spnext > np->in_spmax) {
 				np->in_spnext = np->in_spmin;
