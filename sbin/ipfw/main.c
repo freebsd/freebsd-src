@@ -519,62 +519,79 @@ ipfw_readfile(int ac, char *av[])
 	FILE	*f = NULL;
 	pid_t	preproc = 0;
 
-	while ((c = getopt(ac, av, "cfNnp:qS")) != -1) {
-		switch(c) {
-		case 'c':
-			g_co.do_compact = 1;
-			break;
+	if (is_ipfw()) {
+		while ((c = getopt(ac, av, "cfNnp:qS")) != -1) {
+			switch(c) {
+			case 'c':
+				g_co.do_compact = 1;
+				break;
 
-		case 'f':
-			g_co.do_force = 1;
-			break;
+			case 'f':
+				g_co.do_force = 1;
+				break;
 
-		case 'N':
-			g_co.do_resolv = 1;
-			break;
+			case 'N':
+				g_co.do_resolv = 1;
+				break;
 
-		case 'n':
-			g_co.test_only = 1;
-			break;
+			case 'n':
+				g_co.test_only = 1;
+				break;
 
-		case 'p':
-			/*
-			 * ipfw -p cmd [args] filename
-			 *
-			 * We are done with getopt(). All arguments
-			 * except the filename go to the preprocessor,
-			 * so we need to do the following:
-			 * - check that a filename is actually present;
-			 * - advance av by optind-1 to skip arguments
-			 *   already processed;
-			 * - decrease ac by optind, to remove the args
-			 *   already processed and the final filename;
-			 * - set the last entry in av[] to NULL so
-			 *   popen() can detect the end of the array;
-			 * - set optind=ac to let getopt() terminate.
-			 */
-			if (optind == ac)
-				errx(EX_USAGE, "no filename argument");
-			cmd = optarg;
-			av[ac-1] = NULL;
-			av += optind - 1;
-			ac -= optind;
-			optind = ac;
-			break;
+			case 'p':
+				/*
+				 * ipfw -p cmd [args] filename
+				 *
+				 * We are done with getopt(). All arguments
+				 * except the filename go to the preprocessor,
+				 * so we need to do the following:
+				 * - check that a filename is actually present;
+				 * - advance av by optind-1 to skip arguments
+				 *   already processed;
+				 * - decrease ac by optind, to remove the args
+				 *   already processed and the final filename;
+				 * - set the last entry in av[] to NULL so
+				 *   popen() can detect the end of the array;
+				 * - set optind=ac to let getopt() terminate.
+				 */
+				if (optind == ac)
+					errx(EX_USAGE, "no filename argument");
+				cmd = optarg;
+				av[ac-1] = NULL;
+				av += optind - 1;
+				ac -= optind;
+				optind = ac;
+				break;
 
-		case 'q':
-			g_co.do_quiet = 1;
-			break;
+			case 'q':
+				g_co.do_quiet = 1;
+				break;
 
-		case 'S':
-			g_co.show_sets = 1;
-			break;
+			case 'S':
+				g_co.show_sets = 1;
+				break;
 
-		default:
-			errx(EX_USAGE, "bad arguments, for usage"
-			     " summary ``ipfw''");
+			default:
+				errx(EX_USAGE, "bad arguments, for usage"
+				     " summary ``ipfw''");
+			}
 		}
+	} else {
+		while ((c = getopt(ac, av, "nq")) != -1) {
+			switch(c) {
+			case 'n':
+				g_co.test_only = 1;
+				break;
 
+			case 'q':
+				g_co.do_quiet = 1;
+				break;
+
+			default:
+				errx(EX_USAGE, "bad arguments, for usage"
+				     " summary ``dnctl''");
+			}
+		}
 	}
 
 	if (cmd == NULL && ac != optind + 1)
@@ -676,10 +693,6 @@ main(int ac, char *av[])
 	 */
 
 	if (ac > 1 && av[ac - 1][0] == '/') {
-		if (! is_ipfw())
-			errx(EX_USAGE, "usage: dnctl [options]\n"
-			    "do \"dnctl -h\" for details");
-
 		if (access(av[ac - 1], R_OK) == 0)
 			ipfw_readfile(ac, av);
 		else
