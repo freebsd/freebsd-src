@@ -420,7 +420,7 @@ msix_table_write(struct vmctx *ctx, int vcpu, struct passthru_softc *sc,
 }
 
 static int
-init_msix_table(struct vmctx *ctx, struct passthru_softc *sc, uint64_t base)
+init_msix_table(struct vmctx *ctx, struct passthru_softc *sc)
 {
 	struct pci_devinst *pi = sc->psc_pi;
 	struct pci_bar_mmap pbm;
@@ -538,13 +538,6 @@ cfginitbar(struct vmctx *ctx, struct passthru_softc *sc)
 		if (error)
 			return (-1);
 
-		/* The MSI-X table needs special handling */
-		if (i == pci_msix_table_bar(pi)) {
-			error = init_msix_table(ctx, sc, base);
-			if (error) 
-				return (-1);
-		}
-
 		/*
 		 * 64-bit BAR takes up two slots so skip the next one.
 		 */
@@ -585,6 +578,20 @@ cfginit(struct vmctx *ctx, struct pci_devinst *pi, int bus, int slot, int func)
 
 	pci_set_cfgdata16(pi, PCIR_COMMAND, read_config(&sc->psc_sel,
 	    PCIR_COMMAND, 2));
+
+	/*
+	 * We need to do this after PCIR_COMMAND got possibly updated, e.g.,
+	 * a BAR was enabled, as otherwise the PCIOCBARMMAP might fail on us.
+	 */
+	if (pci_msix_table_bar(pi) >= 0) {
+		error = init_msix_table(ctx, sc);
+		if (error != 0) {
+			warnx(
+			    "failed to initialize MSI-X table for PCI %d/%d/%d: %d",
+			    bus, slot, func, error);
+			goto done;
+		}
+	}
 
 	error = 0;				/* success */
 done:
