@@ -4056,10 +4056,15 @@ nfsvno_testexp(struct nfsrv_descript *nd, struct nfsexstuff *exp)
 	      (nd->nd_flag & ND_TLSCERTUSER) == 0))) {
 		if ((nd->nd_flag & ND_NFSV4) != 0)
 			return (NFSERR_WRONGSEC);
+#ifdef notnow
+		/* There is currently no auth_stat for this. */
 		else if ((nd->nd_flag & ND_TLS) == 0)
 			return (NFSERR_AUTHERR | AUTH_NEEDS_TLS);
 		else
 			return (NFSERR_AUTHERR | AUTH_NEEDS_TLS_MUTUAL_HOST);
+#endif
+		else
+			return (NFSERR_AUTHERR | AUTH_TOOWEAK);
 	}
 
 	/*

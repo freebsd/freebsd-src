@@ -138,7 +138,6 @@ enum auth_stat {
 	/*
 	 * kerberos errors
 	 */
-	,
 	AUTH_KERB_GENERIC = 8,		/* kerberos generic error */
 	AUTH_TIMEEXPIRE = 9,		/* time of credential expired */
 	AUTH_TKT_FILE = 10,		/* something wrong with ticket file */
@@ -150,11 +149,6 @@ enum auth_stat {
 	 */
 	RPCSEC_GSS_CREDPROBLEM = 13,
 	RPCSEC_GSS_CTXPROBLEM = 14,
-	/*
-	 * RPC-over-TLS errors
-	 */
-	AUTH_NEEDS_TLS = 15,
-	AUTH_NEEDS_TLS_MUTUAL_HOST = 16,
 	/* Also used by RPCSEC_TLS for the same purpose */
 	RPCSEC_GSS_NODISPATCH = 0x8000000
 };
