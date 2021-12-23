@@ -55,6 +55,11 @@
 #define wmb()  dmb()
 #define rmb()  dmb()
 
+#if defined(__clang_major__) && __clang_major__ >= 12
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wcompound-token-split-by-macro"
+#endif
+
 #define __with_interrupts_disabled(expr) \
 	do {						\
 		u_int cpsr_save, tmp;			\
@@ -565,6 +570,10 @@ atomic_swap_32(volatile u_int32_t *p, u_int32_t v)
 #define atomic_cmpset_rel_long		atomic_cmpset_long
 #define atomic_load_acq_long		atomic_load_long
 #undef __with_interrupts_disabled
+
+#if defined(__clang_major__) && __clang_major__ >= 12
+#pragma clang diagnostic pop
+#endif
 
 static __inline void
 atomic_add_long(volatile u_long *p, u_long v)
