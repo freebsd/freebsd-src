@@ -216,6 +216,7 @@ powerpc/powermac/pswitch.c	optional	powermac pswitch
 powerpc/powermac/pmu.c		optional	powermac pmu 
 powerpc/powermac/smu.c		optional	powermac smu 
 powerpc/powermac/smusat.c	optional	powermac smu
+powerpc/powermac/tbgpio.c	optional	powermac pci smp
 powerpc/powermac/uninorth.c	optional	powermac
 powerpc/powermac/uninorthpci.c	optional	powermac pci
 powerpc/powermac/vcoregpio.c	optional	powermac 

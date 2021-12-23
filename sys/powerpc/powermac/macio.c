@@ -54,6 +54,7 @@
 #include <dev/ofw/openfirm.h>
 
 #include <powerpc/powermac/maciovar.h>
+#include <powerpc/powermac/platform_powermac.h>
 
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
@@ -70,6 +71,9 @@ struct macio_softc {
 	/* FCR registers */
 	int          sc_memrid;
 	struct resource	*sc_memr;
+
+	/* GPIO offsets */
+	int          sc_timebase;
 };
 
 static MALLOC_DEFINE(M_MACIO, "macio", "macio device information");
@@ -89,6 +93,9 @@ static int  macio_release_resource(device_t, device_t, int, int,
 				   struct resource *);
 static struct resource_list *macio_get_resource_list (device_t, device_t);
 static ofw_bus_get_devinfo_t macio_get_devinfo;
+#if !defined(__powerpc64__) && defined(SMP)
+static void macio_freeze_timebase(device_t, bool);
+#endif
 
 /*
  * Bus interface definition
@@ -430,6 +437,26 @@ macio_attach(device_t dev)
 		}
 	}
 
+#if !defined(__powerpc64__) && defined(SMP)
+	/*
+	 * Detect an SMP G4 machine.
+	 *
+	 * On SMP G4, timebase freeze is via a GPIO on macio.
+	 *
+	 * When we are on an SMP G4, we need to install a handler to
+	 * perform timebase freeze/unfreeze on behalf of the platform.
+	 */
+	if ((child = OF_finddevice("/cpus/PowerPC,G4@0")) != -1 &&
+	    OF_peer(child) != -1) {
+		if (OF_getprop(child, "timebase-enable", &sc->sc_timebase,
+		    sizeof(sc->sc_timebase)) <= 0)
+			sc->sc_timebase = KEYLARGO_GPIO_BASE + 0x09;
+		powermac_register_timebase(dev, macio_freeze_timebase);
+                device_printf(dev, "GPIO timebase control at 0x%x\n",
+		    sc->sc_timebase);
+	}
+#endif
+
 	return (bus_generic_attach(dev));
 }
 
@@ -693,3 +720,18 @@ macio_enable_wireless(device_t dev, bool enable)
 
 	return (0);
 }
+
+#if !defined(__powerpc64__) && defined(SMP)
+static void
+macio_freeze_timebase(device_t dev, bool freeze)
+{
+	struct macio_softc *sc = device_get_softc(dev);
+
+	if (freeze) {
+		bus_write_1(sc->sc_memr, sc->sc_timebase, 4);
+	} else {
+		bus_write_1(sc->sc_memr, sc->sc_timebase, 0);
+	}
+	bus_read_1(sc->sc_memr, sc->sc_timebase);
+}
+#endif
