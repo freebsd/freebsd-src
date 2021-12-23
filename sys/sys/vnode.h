@@ -440,13 +440,7 @@ extern int		vttoif_tab[];
 				   filesystem is being unmounted */
 
 #define	VREF(vp)	vref(vp)
-
-#ifdef DIAGNOSTIC
-#define	VATTR_NULL(vap)	vattr_null(vap)
-#else
 #define	VATTR_NULL(vap)	(*(vap) = va_null)	/* initialize a vattr */
-#endif /* DIAGNOSTIC */
-
 #define	NULLVP	((struct vnode *)NULL)
 
 /*
