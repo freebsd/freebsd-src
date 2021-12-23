@@ -3094,10 +3094,7 @@ re_init_locked(struct rl_softc *sc)
 	struct mii_data		*mii;
 	uint32_t		reg;
 	uint16_t		cfg;
-	union {
-		uint32_t align_dummy;
-		u_char eaddr[ETHER_ADDR_LEN];
-        } eaddr;
+	uint32_t		idr[2];
 
 	RL_LOCK_ASSERT(sc);
 
@@ -3196,12 +3193,11 @@ re_init_locked(struct rl_softc *sc)
 	 * register write enable" mode to modify the ID registers.
 	 */
 	/* Copy MAC address on stack to align. */
-	bcopy(IF_LLADDR(ifp), eaddr.eaddr, ETHER_ADDR_LEN);
+	bzero(idr, sizeof(idr));
+	bcopy(IF_LLADDR(ifp), idr, ETHER_ADDR_LEN);
 	CSR_WRITE_1(sc, RL_EECMD, RL_EEMODE_WRITECFG);
-	CSR_WRITE_4(sc, RL_IDR0,
-	    htole32(*(u_int32_t *)(&eaddr.eaddr[0])));
-	CSR_WRITE_4(sc, RL_IDR4,
-	    htole32(*(u_int32_t *)(&eaddr.eaddr[4])));
+	CSR_WRITE_4(sc, RL_IDR0, htole32(idr[0]));
+	CSR_WRITE_4(sc, RL_IDR4, htole32(idr[1]));
 	CSR_WRITE_1(sc, RL_EECMD, RL_EEMODE_OFF);
 
 	/*
