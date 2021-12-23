@@ -29,7 +29,7 @@
 .\"	@(#)getfh.2	8.1 (Berkeley) 6/9/93
 .\" $FreeBSD$
 .\"
-.Dd February 23, 2021
+.Dd December 23, 2021
 .Dt GETFH 2
 .Os
 .Sh NAME
@@ -130,6 +130,7 @@ is called with an absolute
 it ignores the
 .Fa fd
 argument.
+.Pp
 These system calls are restricted to the superuser.
 .Sh RETURN VALUES
 .Rv -std
@@ -141,6 +142,8 @@ and
 system calls
 fail if one or more of the following are true:
 .Bl -tag -width Er
+.It Bq Er EPERM
+The caller does not have appropriate privilege to perform the operation.
 .It Bq Er ENOTDIR
 A component of the path prefix of
 .Fa path
