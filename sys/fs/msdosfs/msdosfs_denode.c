@@ -142,9 +142,23 @@ deget(struct msdosfsmount *pmp, u_long dirclust, u_long diroffset,
 		return (error);
 	if (nvp != NULL) {
 		*depp = VTODE(nvp);
-		KASSERT((*depp)->de_dirclust == dirclust, ("wrong dirclust"));
-		KASSERT((*depp)->de_diroffset == diroffset, ("wrong diroffset"));
+		if ((*depp)->de_dirclust != dirclust) {
+			printf("%s: wrong dir cluster %lu %lu\n",
+			    pmp->pm_mountp->mnt_stat.f_mntonname,
+			    (*depp)->de_dirclust, dirclust);
+			goto badoff;
+		}
+		if ((*depp)->de_diroffset != diroffset) {
+			printf("%s: wrong dir offset %lu %lu\n",
+			    pmp->pm_mountp->mnt_stat.f_mntonname,
+			    (*depp)->de_diroffset,  diroffset);
+			goto badoff;
+		}
 		return (0);
+badoff:
+		vgone(nvp);
+		vput(nvp);
+		return (EBADF);
 	}
 	ldep = malloc(sizeof(struct denode), M_MSDOSFSNODE, M_WAITOK | M_ZERO);
 
