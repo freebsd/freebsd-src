@@ -236,7 +236,7 @@ _db_show_sta(const struct ieee80211_node *ni)
 {
 	int i;
 
-	db_printf("0x%p: mac %s refcnt %d\n", ni,
+	db_printf("%p: mac %s refcnt %d\n", ni,
 		ether_sprintf(ni->ni_macaddr), ieee80211_node_refcnt(ni));
 	db_printf("\tvap %p wdsvap %p ic %p table %p\n",
 		ni->ni_vap, ni->ni_wdsvap, ni->ni_ic, ni->ni_table);
