@@ -2145,9 +2145,13 @@ checktls:
 	if ((nd->nd_flag & (ND_TLS | ND_EXTLSCERTUSER | ND_EXTLSCERT)) ==
 	    ND_TLS)
 		return (0);
+#ifdef notnow
+	/* There is currently no auth_stat for this. */
 	if ((nd->nd_flag & ND_TLS) == 0)
 		return (NFSERR_AUTHERR | AUTH_NEEDS_TLS);
 	return (NFSERR_AUTHERR | AUTH_NEEDS_TLS_MUTUAL_HOST);
+#endif
+	return (NFSERR_AUTHERR | AUTH_TOOWEAK);
 }
 
 /*
