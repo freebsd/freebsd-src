@@ -2186,11 +2186,11 @@ vm_page_find_contig_domain(int domain, int req, u_long npages, vm_paddr_t low,
 	vm_page_t m_ret;
 
 	vmd = VM_DOMAIN(domain);
-	if (!vm_domain_allocate(vmd, req, npages))
-		return (NULL);
 #if VM_NRESERVLEVEL > 0
 again:
 #endif
+	if (!vm_domain_allocate(vmd, req, npages))
+		return (NULL);
 	/*
 	 * Try to allocate the pages from the free page queues.
 	 */
