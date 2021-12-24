@@ -185,6 +185,7 @@ enum clknode_sysctl_type {
 	CLKNODE_SYSCTL_PARENT,
 	CLKNODE_SYSCTL_PARENTS_LIST,
 	CLKNODE_SYSCTL_CHILDREN_LIST,
+	CLKNODE_SYSCTL_FREQUENCY,
 };
 
 static int clknode_sysctl(SYSCTL_HANDLER_ARGS);
@@ -403,7 +404,7 @@ clkdom_create(device_t dev)
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
 	    OID_AUTO, "clocks",
-	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
+	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
 	    clkdom, 0, clkdom_sysctl, "A",
 	    "Clock list for the domain");
 
@@ -624,7 +625,7 @@ clknode_create(struct clkdom * clkdom, clknode_class_t clknode_class,
 	clknode->parent_idx = CLKNODE_IDX_NONE;
 
 	if (replaced)
-			return (clknode);
+		return (clknode);
 
 	sysctl_ctx_init(&clknode->sysctl_ctx);
 	clknode_oid = SYSCTL_ADD_NODE(&clknode->sysctl_ctx,
@@ -632,28 +633,31 @@ clknode_create(struct clkdom * clkdom, clknode_class_t clknode_class,
 	    OID_AUTO, clknode->name,
 	    CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "A clock node");
 
-	SYSCTL_ADD_U64(&clknode->sysctl_ctx,
+	SYSCTL_ADD_PROC(&clknode->sysctl_ctx,
 	    SYSCTL_CHILDREN(clknode_oid),
 	    OID_AUTO, "frequency",
-	    CTLFLAG_RD, &clknode->freq, 0, "The clock frequency");
+	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
+	    clknode, CLKNODE_SYSCTL_FREQUENCY, clknode_sysctl,
+	    "A",
+	    "The clock frequency");
 	SYSCTL_ADD_PROC(&clknode->sysctl_ctx,
 	    SYSCTL_CHILDREN(clknode_oid),
 	    OID_AUTO, "parent",
-	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
+	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
 	    clknode, CLKNODE_SYSCTL_PARENT, clknode_sysctl,
 	    "A",
 	    "The clock parent");
 	SYSCTL_ADD_PROC(&clknode->sysctl_ctx,
 	    SYSCTL_CHILDREN(clknode_oid),
 	    OID_AUTO, "parents",
-	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
+	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
 	    clknode, CLKNODE_SYSCTL_PARENTS_LIST, clknode_sysctl,
 	    "A",
 	    "The clock parents list");
 	SYSCTL_ADD_PROC(&clknode->sysctl_ctx,
 	    SYSCTL_CHILDREN(clknode_oid),
 	    OID_AUTO, "childrens",
-	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
+	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
 	    clknode, CLKNODE_SYSCTL_CHILDREN_LIST, clknode_sysctl,
 	    "A",
 	    "The clock childrens list");
@@ -1612,6 +1616,7 @@ clknode_sysctl(SYSCTL_HANDLER_ARGS)
 	enum clknode_sysctl_type type = arg2;
 	struct sbuf *sb;
 	const char **parent_names;
+	uint64_t freq;
 	int ret, i;
 
 	clknode = arg1;
@@ -1634,6 +1639,13 @@ clknode_sysctl(SYSCTL_HANDLER_ARGS)
 		TAILQ_FOREACH(children, &(clknode->children), sibling_link) {
 			sbuf_printf(sb, "%s ", children->name);
 		}
+		break;
+	case CLKNODE_SYSCTL_FREQUENCY:
+		ret = clknode_get_freq(clknode, &freq);
+		if (ret == 0)
+			sbuf_printf(sb, "%ju ", (uintmax_t)freq);
+		else
+			sbuf_printf(sb, "Error: %d ", ret);
 		break;
 	}
 	CLK_TOPO_UNLOCK();
