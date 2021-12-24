@@ -3611,6 +3611,7 @@ adaspindown(uint8_t cmd, int flags)
 	struct ada_softc *softc;
 	struct ccb_ataio local_ccb;
 	int error;
+	int mode;
 
 	CAM_PERIPH_FOREACH(periph, &adadriver) {
 		/* If we paniced with lock held - not recurse here. */
@@ -3624,6 +3625,52 @@ adaspindown(uint8_t cmd, int flags)
 		if ((softc->flags & ADA_FLAG_CAN_POWERMGT) == 0) {
 			cam_periph_unlock(periph);
 			continue;
+		}
+
+		/*
+		 * Additionally check if we would spin up the drive instead of
+		 * spinning it down.
+		 */
+		if (cmd == ATA_IDLE_IMMEDIATE) {
+			memset(&local_ccb, 0, sizeof(local_ccb));
+			xpt_setup_ccb(&local_ccb.ccb_h, periph->path,
+			    CAM_PRIORITY_NORMAL);
+			local_ccb.ccb_h.ccb_state = ADA_CCB_DUMP;
+
+			cam_fill_ataio(&local_ccb, 0, NULL, CAM_DIR_NONE,
+			    0, NULL, 0, ada_default_timeout * 1000);
+			ata_28bit_cmd(&local_ccb, ATA_CHECK_POWER_MODE,
+			    0, 0, 0);
+			local_ccb.cmd.flags |= CAM_ATAIO_NEEDRESULT;
+
+			error = cam_periph_runccb((union ccb *)&local_ccb,
+			    adaerror, /*cam_flags*/0,
+			    /*sense_flags*/ SF_NO_RECOVERY | SF_NO_RETRY,
+			    softc->disk->d_devstat);
+			if (error != 0) {
+				xpt_print(periph->path,
+				    "Failed to read current power mode\n");
+			} else {
+				mode = local_ccb.res.sector_count;
+#ifdef DIAGNOSTIC
+				if (bootverbose) {
+					xpt_print(periph->path,
+					    "disk power mode 0x%02x\n", mode);
+				}
+#endif
+				switch (mode) {
+				case 0x00:
+				case 0x01:
+					if (bootverbose) {
+						xpt_print(periph->path,
+						    "already spun down\n");
+					}
+					cam_periph_unlock(periph);
+					continue;
+				default:
+					break;
+				}
+			}
 		}
 
 		if (bootverbose)
