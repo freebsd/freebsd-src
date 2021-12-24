@@ -71,6 +71,17 @@ METHOD int set_gate {
 };
 
 #
+# Get gate status
+#   Return: ENXIO - method is not implemented
+#	    ENOENT - HW doesn't support reading of gate enable
+#	    0 - success
+#
+METHOD int get_gate {
+	struct clknode	*clk;
+	bool		*enabled;
+};
+
+#
 # Set multiplexer
 #
 METHOD int set_mux {

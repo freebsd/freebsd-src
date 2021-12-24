@@ -186,6 +186,7 @@ enum clknode_sysctl_type {
 	CLKNODE_SYSCTL_PARENTS_LIST,
 	CLKNODE_SYSCTL_CHILDREN_LIST,
 	CLKNODE_SYSCTL_FREQUENCY,
+	CLKNODE_SYSCTL_GATE,
 };
 
 static int clknode_sysctl(SYSCTL_HANDLER_ARGS);
@@ -531,6 +532,8 @@ clknode_create(struct clkdom * clkdom, clknode_class_t clknode_class,
 	struct clknode *clknode;
 	struct sysctl_oid *clknode_oid;
 	bool replaced;
+	kobjop_desc_t kobj_desc;
+	kobj_method_t *kobj_method;
 
 	KASSERT(def->name != NULL, ("clock name is NULL"));
 	KASSERT(def->name[0] != '\0', ("clock name is empty"));
@@ -640,6 +643,22 @@ clknode_create(struct clkdom * clkdom, clknode_class_t clknode_class,
 	    clknode, CLKNODE_SYSCTL_FREQUENCY, clknode_sysctl,
 	    "A",
 	    "The clock frequency");
+
+	/* Install gate handler only if clknode have 'set_gate' method */
+	kobj_desc = &clknode_set_gate_desc;
+	kobj_method = kobj_lookup_method(((kobj_t)clknode)->ops->cls, NULL,
+	    kobj_desc);
+	if (kobj_method != &kobj_desc->deflt &&
+	    kobj_method->func != (kobjop_t)clknode_method_set_gate) {
+		SYSCTL_ADD_PROC(&clknode->sysctl_ctx,
+		    SYSCTL_CHILDREN(clknode_oid),
+		    OID_AUTO, "gate",
+		    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
+		    clknode, CLKNODE_SYSCTL_GATE, clknode_sysctl,
+		    "A",
+		    "The clock gate status");
+	}
+
 	SYSCTL_ADD_PROC(&clknode->sysctl_ctx,
 	    SYSCTL_CHILDREN(clknode_oid),
 	    OID_AUTO, "parent",
@@ -1617,6 +1636,7 @@ clknode_sysctl(SYSCTL_HANDLER_ARGS)
 	struct sbuf *sb;
 	const char **parent_names;
 	uint64_t freq;
+	bool enable;
 	int ret, i;
 
 	clknode = arg1;
@@ -1644,6 +1664,17 @@ clknode_sysctl(SYSCTL_HANDLER_ARGS)
 		ret = clknode_get_freq(clknode, &freq);
 		if (ret == 0)
 			sbuf_printf(sb, "%ju ", (uintmax_t)freq);
+		else
+			sbuf_printf(sb, "Error: %d ", ret);
+		break;
+	case CLKNODE_SYSCTL_GATE:
+		ret = CLKNODE_GET_GATE(clknode, &enable);
+		if (ret == 0)
+			sbuf_printf(sb, enable ? "enabled": "disabled");
+		else if (ret == ENXIO)
+			sbuf_printf(sb, "unimplemented");
+		else if (ret == ENOENT)
+			sbuf_printf(sb, "unreadable");
 		else
 			sbuf_printf(sb, "Error: %d ", ret);
 		break;
