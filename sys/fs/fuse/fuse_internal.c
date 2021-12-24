@@ -330,7 +330,7 @@ fuse_internal_cache_attrs(struct vnode *vp, struct fuse_attr *attr,
 	else
 		return;
 
-	vattr_null(vp_cache_at);
+	VATTR_NULL(vp_cache_at);
 	vp_cache_at->va_fsid = mp->mnt_stat.f_fsid.val[0];
 	vp_cache_at->va_fileid = attr->ino;
 	vp_cache_at->va_mode = attr->mode & ~S_IFMT;
@@ -1302,7 +1302,7 @@ fuse_internal_clear_suid_on_write(struct vnode *vp, struct ucred *cred,
 			if (va.va_mode & (S_ISUID | S_ISGID)) {
 				mode_t mode = va.va_mode & ~(S_ISUID | S_ISGID);
 				/* Clear all vattr fields except mode */
-				vattr_null(&va);
+				VATTR_NULL(&va);
 				va.va_mode = mode;
 
 				/*

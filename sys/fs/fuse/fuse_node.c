@@ -158,7 +158,7 @@ fuse_vnode_init(struct vnode *vp, struct fuse_vnode_data *fvdat,
 {
 	fvdat->nid = nodeid;
 	LIST_INIT(&fvdat->handles);
-	vattr_null(&fvdat->cached_attrs);
+	VATTR_NULL(&fvdat->cached_attrs);
 	if (nodeid == FUSE_ROOT_ID) {
 		vp->v_vflag |= VV_ROOT;
 	}
