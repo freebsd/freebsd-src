@@ -709,7 +709,6 @@ int	vaccess_acl_nfs4(enum vtype type, uid_t file_uid, gid_t file_gid,
 int	vaccess_acl_posix1e(enum vtype type, uid_t file_uid,
 	    gid_t file_gid, struct acl *acl, accmode_t accmode,
 	    struct ucred *cred);
-void	vattr_null(struct vattr *vap);
 void	vlazy(struct vnode *);
 void	vdrop(struct vnode *);
 void	vdropl(struct vnode *);

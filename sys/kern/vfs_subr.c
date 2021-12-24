@@ -1076,37 +1076,6 @@ vfs_timestamp(struct timespec *tsp)
 }
 
 /*
- * Set vnode attributes to VNOVAL
- */
-void
-vattr_null(struct vattr *vap)
-{
-
-	vap->va_type = VNON;
-	vap->va_size = VNOVAL;
-	vap->va_bytes = VNOVAL;
-	vap->va_mode = VNOVAL;
-	vap->va_nlink = VNOVAL;
-	vap->va_uid = VNOVAL;
-	vap->va_gid = VNOVAL;
-	vap->va_fsid = VNOVAL;
-	vap->va_fileid = VNOVAL;
-	vap->va_blocksize = VNOVAL;
-	vap->va_rdev = VNOVAL;
-	vap->va_atime.tv_sec = VNOVAL;
-	vap->va_atime.tv_nsec = VNOVAL;
-	vap->va_mtime.tv_sec = VNOVAL;
-	vap->va_mtime.tv_nsec = VNOVAL;
-	vap->va_ctime.tv_sec = VNOVAL;
-	vap->va_ctime.tv_nsec = VNOVAL;
-	vap->va_birthtime.tv_sec = VNOVAL;
-	vap->va_birthtime.tv_nsec = VNOVAL;
-	vap->va_flags = VNOVAL;
-	vap->va_gen = VNOVAL;
-	vap->va_vaflags = 0;
-}
-
-/*
  * Try to reduce the total number of vnodes.
  *
  * This routine (and its user) are buggy in at least the following ways:
