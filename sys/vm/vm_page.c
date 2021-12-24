@@ -2186,9 +2186,6 @@ vm_page_find_contig_domain(int domain, int req, u_long npages, vm_paddr_t low,
 	vm_page_t m_ret;
 
 	vmd = VM_DOMAIN(domain);
-#if VM_NRESERVLEVEL > 0
-again:
-#endif
 	if (!vm_domain_allocate(vmd, req, npages))
 		return (NULL);
 	/*
@@ -2200,18 +2197,19 @@ again:
 	vm_domain_free_unlock(vmd);
 	if (m_ret != NULL)
 		return (m_ret);
-	vm_domain_freecnt_inc(vmd, npages);
 #if VM_NRESERVLEVEL > 0
 	/*
-	 * Try to break a reservation to replenish free page queues
-	 * in a way that allows the allocation to succeed.
+	 * Try to break a reservation to allocate the pages.
 	 */
-	if ((req & VM_ALLOC_NORECLAIM) == 0 &&
-	    vm_reserv_reclaim_contig(domain, npages, low,
-	    high, alignment, boundary))
-		goto again;
+	if ((req & VM_ALLOC_NORECLAIM) == 0) {
+		m_ret = vm_reserv_reclaim_contig(domain, npages, low,
+	            high, alignment, boundary);
+		if (m_ret != NULL)
+			return (m_ret);
+	}
 #endif
-	return (m_ret);
+	vm_domain_freecnt_inc(vmd, npages);
+	return (NULL);
 }
 
 vm_page_t

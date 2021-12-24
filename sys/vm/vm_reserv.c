@@ -1312,12 +1312,13 @@ vm_reserv_find_contig(vm_reserv_t rv, int npages, int lo,
  * contiguous physical memory.  If a satisfactory reservation is found, it is
  * broken.  Returns true if a reservation is broken and false otherwise.
  */
-bool
+vm_page_t
 vm_reserv_reclaim_contig(int domain, u_long npages, vm_paddr_t low,
     vm_paddr_t high, u_long alignment, vm_paddr_t boundary)
 {
 	struct vm_reserv_queue *queue;
 	vm_paddr_t pa, size;
+	vm_page_t m_ret;
 	vm_reserv_t marker, rv, rvn;
 	int hi, lo, posn, ppn_align, ppn_bound;
 
@@ -1333,7 +1334,7 @@ vm_reserv_reclaim_contig(int domain, u_long npages, vm_paddr_t low,
 	 * no boundary-constrained allocation is possible.
 	 */
 	if (size > boundary)
-		return (false);
+		return (NULL);
 	marker = &vm_rvd[domain].marker;
 	queue = &vm_rvd[domain].partpop;
 	/*
@@ -1386,18 +1387,22 @@ vm_reserv_reclaim_contig(int domain, u_long npages, vm_paddr_t low,
 		posn = vm_reserv_find_contig(rv, (int)npages, lo, hi,
 		    ppn_align, ppn_bound);
 		if (posn >= 0) {
-			pa = VM_PAGE_TO_PHYS(&rv->pages[posn]);
+			vm_reserv_domain_scan_unlock(domain);
+			/* Allocate requested space */
+			rv->popcnt += npages;
+			while (npages-- > 0)
+				popmap_set(rv->popmap, posn + npages);
+			vm_reserv_reclaim(rv);
+			vm_reserv_unlock(rv);
+			m_ret = &rv->pages[posn];
+			pa = VM_PAGE_TO_PHYS(m_ret);
 			KASSERT((pa & (alignment - 1)) == 0,
 			    ("%s: adjusted address does not align to %lx",
 			    __func__, alignment));
 			KASSERT(((pa ^ (pa + size - 1)) & -boundary) == 0,
 			    ("%s: adjusted address spans boundary to %jx",
 			    __func__, (uintmax_t)boundary));
-
-			vm_reserv_domain_scan_unlock(domain);
-			vm_reserv_reclaim(rv);
-			vm_reserv_unlock(rv);
-			return (true);
+			return (m_ret);
 		}
 		vm_reserv_domain_lock(domain);
 		rvn = TAILQ_NEXT(rv, partpopq);
@@ -1405,7 +1410,7 @@ vm_reserv_reclaim_contig(int domain, u_long npages, vm_paddr_t low,
 	}
 	vm_reserv_domain_unlock(domain);
 	vm_reserv_domain_scan_unlock(domain);
-	return (false);
+	return (NULL);
 }
 
 /*
