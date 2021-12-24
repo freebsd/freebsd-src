@@ -94,7 +94,7 @@ CLEAN+=	${KERNEL_KO}.bin
 ${KERNEL_KO}.bin: ${FULLKERNEL}
 	@${OBJCOPY} --wildcard --strip-symbol='$$[adtx]*' \
 	    --output-target=binary ${.ALLSRC} ${.TARGET}.temp
-	@{ readelf -s ${.ALLSRC} | \
+	@{ ${NM} ${.ALLSRC} | \
 	    ${AWK} -f $S/tools/arm_kernel_boothdr.awk -v hdrtype=v8booti && \
 	    cat ${.TARGET}.temp; \
 	 } > ${.TARGET}

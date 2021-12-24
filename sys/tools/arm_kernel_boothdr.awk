@@ -144,22 +144,22 @@ function write_v8booti() {
 
 /kernbase/ {
 	# If the symbol name is exactly "kernbase" save its address.
-	if ($8 == "kernbase") {
-		gKernbase = hexstr_to_num($2)
+	if ($3 == "kernbase") {
+		gKernbase = hexstr_to_num($1)
 	}
 }
 
 /_start/ {
 	# If the symbol name is exactly "_start" save its address.
-	if ($8 == "_start") {
-		gStart = hexstr_to_num($2)
+	if ($3 == "_start") {
+		gStart = hexstr_to_num($1)
 	}
 }
 
 /_end/ {
 	# If the symbol name is exactly "_end" remember its value.
-	if ($8 == "_end") {
-		gEnd = hexstr_to_num($2)
+	if ($3 == "_end") {
+		gEnd = hexstr_to_num($1)
 	}
 }
 
