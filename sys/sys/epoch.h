@@ -30,6 +30,8 @@
 #ifndef _SYS_EPOCH_H_
 #define _SYS_EPOCH_H_
 
+#include <sys/cdefs.h>
+
 struct epoch_context {
 	void   *data[2];
 } __aligned(sizeof(void *));

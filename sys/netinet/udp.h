@@ -36,6 +36,8 @@
 #ifndef _NETINET_UDP_H_
 #define	_NETINET_UDP_H_
 
+#include <sys/types.h>
+
 /*
  * UDP protocol header.
  * Per RFC 768, September, 1981.
