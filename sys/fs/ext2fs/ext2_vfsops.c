@@ -465,13 +465,6 @@ ext2_compute_sb_data(struct vnode *devvp, struct ext2fs *es,
 	int g_count = 0;
 	int error;
 
-	/* Check if first dblock is valid */
-	if (fs->e2fs->e2fs_bcount >= 1024 && fs->e2fs->e2fs_first_dblock) {
-		SDT_PROBE1(ext2fs, , vfsops, ext2_compute_sb_data_error,
-		    "first dblock is invalid");
-		return (EINVAL);
-	}
-
 	/* Check checksum features */
 	if (EXT2_HAS_RO_COMPAT_FEATURE(fs, EXT2F_ROCOMPAT_GDT_CSUM) &&
 	    EXT2_HAS_RO_COMPAT_FEATURE(fs, EXT2F_ROCOMPAT_METADATA_CKSUM)) {
