@@ -382,6 +382,7 @@ static struct clk_pll_def pll_clks[] = {
 
 static int tegra124_pll_init(struct clknode *clk, device_t dev);
 static int tegra124_pll_set_gate(struct clknode *clk, bool enable);
+static int tegra124_pll_get_gate(struct clknode *clk, bool *enabled);
 static int tegra124_pll_recalc(struct clknode *clk, uint64_t *freq);
 static int tegra124_pll_set_freq(struct clknode *clknode, uint64_t fin,
     uint64_t *fout, int flags, int *stop);
@@ -403,6 +404,7 @@ static clknode_method_t tegra124_pll_methods[] = {
 	/* Device interface */
 	CLKNODEMETHOD(clknode_init,		tegra124_pll_init),
 	CLKNODEMETHOD(clknode_set_gate,		tegra124_pll_set_gate),
+	CLKNODEMETHOD(clknode_get_gate,		tegra124_pll_get_gate),
 	CLKNODEMETHOD(clknode_recalc_freq,	tegra124_pll_recalc),
 	CLKNODEMETHOD(clknode_set_freq,		tegra124_pll_set_freq),
 	CLKNODEMETHOD_END
@@ -686,6 +688,19 @@ tegra124_pll_set_gate(struct clknode *clknode, bool enable)
 	else
 		rv = pll_enable(sc);
 	return (rv);
+}
+
+static int
+tegra124_pll_get_gate(struct clknode *clknode, bool *enabled)
+{
+	uint32_t reg;
+	struct pll_sc *sc;
+
+	sc = clknode_get_softc(clknode);
+	RD4(sc, sc->base_reg, &reg);
+	*enabled = reg & PLL_BASE_ENABLE ? true: false;
+	WR4(sc, sc->base_reg, reg);
+	return (0);
 }
 
 static int

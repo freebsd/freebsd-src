@@ -697,6 +697,7 @@ periph_register(struct clkdom *clkdom, struct periph_def *clkdef)
 /* -------------------------------------------------------------------------- */
 static int pgate_init(struct clknode *clk, device_t dev);
 static int pgate_set_gate(struct clknode *clk, bool enable);
+static int pgate_get_gate(struct clknode *clk, bool *enableD);
 
 struct pgate_sc {
 	device_t		clkdev;
@@ -710,6 +711,7 @@ static clknode_method_t pgate_methods[] = {
 	/* Device interface */
 	CLKNODEMETHOD(clknode_init,		pgate_init),
 	CLKNODEMETHOD(clknode_set_gate,		pgate_set_gate),
+	CLKNODEMETHOD(clknode_get_gate,		pgate_get_gate),
 	CLKNODEMETHOD_END
 };
 DEFINE_CLASS_1(tegra124_pgate, tegra124_pgate_class, pgate_methods,
@@ -771,6 +773,23 @@ pgate_set_gate(struct clknode *clk, bool enable)
 	return(0);
 }
 
+static int
+pgate_get_gate(struct clknode *clk, bool *enabled)
+{
+	struct pgate_sc *sc;
+	uint32_t reg, mask, base_reg;
+
+	sc = clknode_get_softc(clk);
+	mask = 1 << (sc->idx % 32);
+	base_reg = get_enable_reg(sc->idx);
+
+	DEVICE_LOCK(sc);
+	RD4(sc, base_reg, &reg);
+	DEVICE_UNLOCK(sc);
+	*enabled = reg & mask ? true: false;
+
+	return(0);
+}
 int
 tegra124_hwreset_by_idx(struct tegra124_car_softc *sc, intptr_t idx, bool reset)
 {
