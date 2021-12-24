@@ -77,7 +77,6 @@ Without link level error recovery, an initiator cannot, for instance, tell wheth
 command that has timed out resulted in all, part, or none of the data going to
 the tape drive.
 FC-Tape is automatically enabled when both the controller and target support it.
-
 .Sh HARDWARE
 The
 .Nm
@@ -92,6 +91,10 @@ LPe160XX FC Host Bus Adapters
 .Bd -literal -offset indent
 LPe3100X FC Host Bus Adapters
 LPe3200X FC Host Bus Adapters
+.Ed
+.It Emulex 64/32G FC GEN 7 HBAS
+.Bd -literal -offset indent
+LPe3500X FC Host Bus Adapters
 .Ed
 .El
 .Sh UPDATING FIRMWARE
@@ -129,7 +132,6 @@ Check kernel messages regarding status of the operation
 .It
 Reboot the machine
 .El
-.Pp
 .Sh BOOT OPTIONS
 Options are controlled by setting values in
 .Pa /boot/device.hints .
@@ -183,7 +185,7 @@ For general information and support,
 go to the Broadcom website at:
 .Pa http://www.broadcom.com/
 or E-Mail at
-.Pa ocs-driver-team.pdl@broadcom.com.
+.Pa ocs-driver-team.pdl@broadcom.com .
 .Sh SEE ALSO
 .Xr ifconfig 8
 .Sh AUTHORS
@@ -191,4 +193,4 @@ or E-Mail at
 The
 .Nm
 driver was written by
-.An Broadcom.
+.An Broadcom .
