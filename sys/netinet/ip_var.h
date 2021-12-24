@@ -35,8 +35,11 @@
 #ifndef _NETINET_IP_VAR_H_
 #define	_NETINET_IP_VAR_H_
 
-#include <sys/queue.h>
 #include <sys/epoch.h>
+#include <sys/queue.h>
+#include <sys/types.h>
+
+#include <netinet/in.h>
 
 /*
  * Overlay for ip header used by other protocols (tcp, udp).
