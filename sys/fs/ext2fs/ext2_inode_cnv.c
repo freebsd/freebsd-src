@@ -65,11 +65,11 @@ ext2_print_inode(struct inode *in)
 	    in->i_uid, in->i_gid, (uintmax_t)in->i_size);
 	printf("Links: %3d Blockcount: %ju\n",
 	    in->i_nlink, (uintmax_t)in->i_blocks);
-	printf("ctime: 0x%x ", in->i_ctime);
-	printf("atime: 0x%x ", in->i_atime);
-	printf("mtime: 0x%x ", in->i_mtime);
+	printf("ctime: 0x%llx ", (unsigned long long)in->i_ctime);
+	printf("atime: 0x%llx ", (unsigned long long)in->i_atime);
+	printf("mtime: 0x%llx ", (unsigned long long)in->i_mtime);
 	if (E2DI_HAS_XTIME(in))
-		printf("crtime %#x\n", in->i_birthtime);
+		printf("crtime %llx\n", (unsigned long long)in->i_birthtime);
 	else
 		printf("\n");
 	if (in->i_flag & IN_E4EXTENTS) {
