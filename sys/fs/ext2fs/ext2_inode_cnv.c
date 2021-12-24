@@ -157,9 +157,17 @@ ext2_ei2i(struct ext2fs_dinode *ei, struct inode *ip)
 		return (EINVAL);
 	}
 
+	/*
+	 * Godmar thinks - if the link count is zero, then the inode is
+	 * unused - according to ext2 standards. Ufs marks this fact by
+	 * setting i_mode to zero - why ? I can see that this might lead to
+	 * problems in an undelete.
+	 */
 	ip->i_nlink = le16toh(ei->e2di_nlink);
-	if (ip->i_number == EXT2_ROOTINO && ip->i_nlink == 0) {
-		SDT_PROBE2(ext2fs, , trace, inode_cnv, 1, "root inode unallocated");
+	ip->i_mode = ip->i_nlink ? le16toh(ei->e2di_mode) : 0;
+	if (ip->i_number == EXT2_ROOTINO &&
+	    (ip->i_nlink < 2 || !S_ISDIR(ip->i_mode))) {
+		SDT_PROBE2(ext2fs, , trace, inode_cnv, 1, "root inode invalid");
 		return (EINVAL);
 	}
 
@@ -174,13 +182,6 @@ ext2_ei2i(struct ext2fs_dinode *ei, struct inode *ip)
 		}
 	}
 
-	/*
-	 * Godmar thinks - if the link count is zero, then the inode is
-	 * unused - according to ext2 standards. Ufs marks this fact by
-	 * setting i_mode to zero - why ? I can see that this might lead to
-	 * problems in an undelete.
-	 */
-	ip->i_mode = ip->i_nlink ? le16toh(ei->e2di_mode) : 0;
 	ip->i_size = le32toh(ei->e2di_size);
 	if (S_ISREG(ip->i_mode))
 		ip->i_size |= (uint64_t)le32toh(ei->e2di_size_high) << 32;
