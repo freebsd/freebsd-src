@@ -47,15 +47,13 @@ static int sv[2];
 
 static void
 reader(void) {
-	int n, t, *buf;
+	int n, *buf;
 
-	t = 0;
 	if ((buf = malloc(bufsize)) == NULL)
 			err(1, "malloc(%d), %s:%d", bufsize, __FILE__, __LINE__);
 	while (done_testing == 0) {
 		if ((n = read(sv[0], buf, bufsize)) < 0)
 			err(1, "read(), %s:%d", __FILE__, __LINE__);
-		t += n;
 		if (n == 0) break;
 	}
 	close(sv[0]);
