@@ -23,7 +23,7 @@ typedef long long CMP_RESULT;
 typedef long CMP_RESULT;
 #endif
 
-#if !defined(__clang__) && defined(__GNUC__)
+#if !defined(__clang__) && defined(__GNUC__) && (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ > 2))
 // GCC uses a special __libgcc_cmp_return__ mode to define the return type, so
 // check that we are ABI-compatible when compiling the builtins with GCC.
 typedef int GCC_CMP_RESULT __attribute__((__mode__(__libgcc_cmp_return__)));

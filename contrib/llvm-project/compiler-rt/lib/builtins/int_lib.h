@@ -82,13 +82,14 @@
 // back on the latter if not available since NetBSD only has
 // the latter.
 //
-#if defined(__has_include) && __has_include(<sys/limits.h>)
+#if defined(__FreeBSD__) // defined(__has_include) && __has_include(<sys/limits.h>)
 #include <sys/limits.h>
 #else
 #include <machine/limits.h>
 #endif
 #include <sys/stdint.h>
 #include <sys/types.h>
+#include <stdbool.h>
 #else
 // Include the standard compiler builtin headers we use functionality from.
 #include <float.h>
@@ -156,6 +157,10 @@ int __inline __builtin_clzll(uint64_t value) {
 
 #define __builtin_clzl __builtin_clzll
 
+#endif // defined(_MSC_VER) && !defined(__clang__)
+
+#if !defined(__clang__) && (defined(_MSC_VER) || defined(__GNUC__) && __GNUC__ < 5)
+
 bool __inline __builtin_sadd_overflow(int x, int y, int *result) {
   if ((x < 0) != (y < 0)) {
     *result = x + y;
@@ -168,6 +173,6 @@ bool __inline __builtin_sadd_overflow(int x, int y, int *result) {
   return false;
 }
 
-#endif // defined(_MSC_VER) && !defined(__clang__)
+#endif // !defined(__clang__) && (defined(_MSC_VER) || defined(__GNUC__) && __GNUC__ < 5)
 
 #endif // INT_LIB_H
