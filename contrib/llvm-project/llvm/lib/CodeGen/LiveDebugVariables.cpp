@@ -822,9 +822,6 @@ bool LDVImpl::handleDebugValue(MachineInstr &MI, SlotIndex Idx) {
   // register that hasn't been defined yet. If we do not remove those here, then
   // the re-insertion of the DBG_VALUE instruction after register allocation
   // will be incorrect.
-  // TODO: If earlier passes are corrected to generate sane debug information
-  // (and if the machine verifier is improved to catch this), then these checks
-  // could be removed or replaced by asserts.
   bool Discard = false;
   for (const MachineOperand &Op : MI.debug_operands()) {
     if (Op.isReg() && Register::isVirtualRegister(Op.getReg())) {
@@ -1341,8 +1338,8 @@ UserValue::splitLocation(unsigned OldLocNo, ArrayRef<Register> NewRegs,
   bool DidChange = false;
   LocMap::iterator LocMapI;
   LocMapI.setMap(locInts);
-  for (unsigned i = 0; i != NewRegs.size(); ++i) {
-    LiveInterval *LI = &LIS.getInterval(NewRegs[i]);
+  for (Register NewReg : NewRegs) {
+    LiveInterval *LI = &LIS.getInterval(NewReg);
     if (LI->empty())
       continue;
 
@@ -1500,8 +1497,8 @@ void LDVImpl::splitRegister(Register OldReg, ArrayRef<Register> NewRegs) {
 
   // Map all of the new virtual registers.
   UserValue *UV = lookupVirtReg(OldReg);
-  for (unsigned i = 0; i != NewRegs.size(); ++i)
-    mapVirtReg(NewRegs[i], UV);
+  for (Register NewReg : NewRegs)
+    mapVirtReg(NewReg, UV);
 }
 
 void LiveDebugVariables::

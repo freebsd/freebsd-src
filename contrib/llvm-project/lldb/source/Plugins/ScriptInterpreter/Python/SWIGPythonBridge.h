@@ -57,20 +57,20 @@ void *LLDBSWIGPython_CastPyObjectToSBMemoryRegionInfo(PyObject *data);
 void *LLDBSwigPythonCreateScriptedProcess(const char *python_class_name,
                                           const char *session_dictionary_name,
                                           const lldb::TargetSP &target_sp,
-                                          StructuredDataImpl *args_impl,
+                                          const StructuredDataImpl &args_impl,
                                           std::string &error_string);
 
 void *LLDBSwigPythonCreateScriptedThread(const char *python_class_name,
                                          const char *session_dictionary_name,
                                          const lldb::ProcessSP &process_sp,
-                                         StructuredDataImpl *args_impl,
+                                         const StructuredDataImpl &args_impl,
                                          std::string &error_string);
 
 llvm::Expected<bool> LLDBSwigPythonBreakpointCallbackFunction(
     const char *python_function_name, const char *session_dictionary_name,
     const lldb::StackFrameSP &sb_frame,
     const lldb::BreakpointLocationSP &sb_bp_loc,
-    lldb_private::StructuredDataImpl *args_impl);
+    const lldb_private::StructuredDataImpl &args_impl);
 
 bool LLDBSwigPythonWatchpointCallbackFunction(
     const char *python_function_name, const char *session_dictionary_name,
@@ -90,11 +90,11 @@ LLDBSwigPythonCreateSyntheticProvider(const char *python_class_name,
 
 void *LLDBSwigPythonCreateCommandObject(const char *python_class_name,
                                         const char *session_dictionary_name,
-                                        const lldb::DebuggerSP debugger_sp);
+                                        lldb::DebuggerSP debugger_sp);
 
 void *LLDBSwigPythonCreateScriptedThreadPlan(
     const char *python_class_name, const char *session_dictionary_name,
-    lldb_private::StructuredDataImpl *args_data, std::string &error_string,
+    const StructuredDataImpl &args_data, std::string &error_string,
     const lldb::ThreadPlanSP &thread_plan_sp);
 
 bool LLDBSWIGPythonCallThreadPlan(void *implementor, const char *method_name,
@@ -103,16 +103,17 @@ bool LLDBSWIGPythonCallThreadPlan(void *implementor, const char *method_name,
 
 void *LLDBSwigPythonCreateScriptedBreakpointResolver(
     const char *python_class_name, const char *session_dictionary_name,
-    lldb_private::StructuredDataImpl *args, const lldb::BreakpointSP &bkpt_sp);
+    const StructuredDataImpl &args, const lldb::BreakpointSP &bkpt_sp);
 
 unsigned int
 LLDBSwigPythonCallBreakpointResolver(void *implementor, const char *method_name,
                                      lldb_private::SymbolContext *sym_ctx);
 
-void *LLDBSwigPythonCreateScriptedStopHook(
-    lldb::TargetSP target_sp, const char *python_class_name,
-    const char *session_dictionary_name, lldb_private::StructuredDataImpl *args,
-    lldb_private::Status &error);
+void *LLDBSwigPythonCreateScriptedStopHook(lldb::TargetSP target_sp,
+                                           const char *python_class_name,
+                                           const char *session_dictionary_name,
+                                           const StructuredDataImpl &args,
+                                           lldb_private::Status &error);
 
 bool LLDBSwigPythonStopHookCallHandleStop(void *implementor,
                                           lldb::ExecutionContextRefSP exc_ctx,
@@ -136,18 +137,18 @@ PyObject *LLDBSwigPython_GetValueSynthProviderInstance(PyObject *implementor);
 
 bool LLDBSwigPythonCallCommand(const char *python_function_name,
                                const char *session_dictionary_name,
-                               lldb::DebuggerSP &debugger, const char *args,
+                               lldb::DebuggerSP debugger, const char *args,
                                lldb_private::CommandReturnObject &cmd_retobj,
                                lldb::ExecutionContextRefSP exe_ctx_ref_sp);
 
 bool LLDBSwigPythonCallCommandObject(
-    PyObject *implementor, lldb::DebuggerSP &debugger, const char *args,
+    PyObject *implementor, lldb::DebuggerSP debugger, const char *args,
     lldb_private::CommandReturnObject &cmd_retobj,
     lldb::ExecutionContextRefSP exe_ctx_ref_sp);
 
 bool LLDBSwigPythonCallModuleInit(const char *python_module_name,
                                   const char *session_dictionary_name,
-                                  lldb::DebuggerSP &debugger);
+                                  lldb::DebuggerSP debugger);
 
 void *LLDBSWIGPythonCreateOSPlugin(const char *python_class_name,
                                    const char *session_dictionary_name,
@@ -165,20 +166,20 @@ bool LLDBSWIGPythonRunScriptKeywordProcess(const char *python_function_name,
                                            const lldb::ProcessSP &process,
                                            std::string &output);
 
-bool LLDBSWIGPythonRunScriptKeywordThread(const char *python_function_name,
-                                          const char *session_dictionary_name,
-                                          lldb::ThreadSP &thread,
-                                          std::string &output);
+llvm::Optional<std::string>
+LLDBSWIGPythonRunScriptKeywordThread(const char *python_function_name,
+                                     const char *session_dictionary_name,
+                                     lldb::ThreadSP thread);
 
 bool LLDBSWIGPythonRunScriptKeywordTarget(const char *python_function_name,
                                           const char *session_dictionary_name,
                                           const lldb::TargetSP &target,
                                           std::string &output);
 
-bool LLDBSWIGPythonRunScriptKeywordFrame(const char *python_function_name,
-                                         const char *session_dictionary_name,
-                                         lldb::StackFrameSP &frame,
-                                         std::string &output);
+llvm::Optional<std::string>
+LLDBSWIGPythonRunScriptKeywordFrame(const char *python_function_name,
+                                    const char *session_dictionary_name,
+                                    lldb::StackFrameSP frame);
 
 bool LLDBSWIGPythonRunScriptKeywordValue(const char *python_function_name,
                                          const char *session_dictionary_name,

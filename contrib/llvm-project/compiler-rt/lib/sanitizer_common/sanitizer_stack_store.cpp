@@ -10,6 +10,10 @@
 
 #include "sanitizer_atomic.h"
 #include "sanitizer_common.h"
+#include "sanitizer_internal_defs.h"
+#include "sanitizer_leb128.h"
+#include "sanitizer_lzw.h"
+#include "sanitizer_placement_new.h"
 #include "sanitizer_stacktrace.h"
 
 namespace __sanitizer {
@@ -52,7 +56,7 @@ StackTrace StackStore::Load(Id id) {
   uptr idx = IdToOffset(id);
   uptr block_idx = GetBlockIdx(idx);
   CHECK_LT(block_idx, ARRAY_SIZE(blocks_));
-  const uptr *stack_trace = blocks_[block_idx].GetOrUnpack();
+  const uptr *stack_trace = blocks_[block_idx].GetOrUnpack(this);
   if (!stack_trace)
     return {};
   stack_trace += GetInBlockIdx(idx);
@@ -61,11 +65,7 @@ StackTrace StackStore::Load(Id id) {
 }
 
 uptr StackStore::Allocated() const {
-  uptr next_block = GetBlockIdx(
-      RoundUpTo(atomic_load_relaxed(&total_frames_), kBlockSizeFrames));
-  uptr res = 0;
-  for (uptr i = 0; i < next_block; ++i) res += blocks_[i].Allocated();
-  return res + sizeof(*this);
+  return atomic_load_relaxed(&allocated_) + sizeof(*this);
 }
 
 uptr *StackStore::Alloc(uptr count, uptr *idx, uptr *pack) {
@@ -79,7 +79,7 @@ uptr *StackStore::Alloc(uptr count, uptr *idx, uptr *pack) {
       // Fits into the a single block.
       CHECK_LT(block_idx, ARRAY_SIZE(blocks_));
       *idx = start;
-      return blocks_[block_idx].GetOrCreate() + GetInBlockIdx(start);
+      return blocks_[block_idx].GetOrCreate(this) + GetInBlockIdx(start);
     }
 
     // Retry. We can't use range allocated in two different blocks.
@@ -92,43 +92,157 @@ uptr *StackStore::Alloc(uptr count, uptr *idx, uptr *pack) {
   }
 }
 
+void *StackStore::Map(uptr size, const char *mem_type) {
+  atomic_fetch_add(&allocated_, size, memory_order_relaxed);
+  return MmapNoReserveOrDie(size, mem_type);
+}
+
+void StackStore::Unmap(void *addr, uptr size) {
+  atomic_fetch_sub(&allocated_, size, memory_order_relaxed);
+  UnmapOrDie(addr, size);
+}
+
 uptr StackStore::Pack(Compression type) {
   uptr res = 0;
-  for (BlockInfo &b : blocks_) res += b.Pack(type);
+  for (BlockInfo &b : blocks_) res += b.Pack(type, this);
   return res;
 }
 
+void StackStore::LockAll() {
+  for (BlockInfo &b : blocks_) b.Lock();
+}
+
+void StackStore::UnlockAll() {
+  for (BlockInfo &b : blocks_) b.Unlock();
+}
+
 void StackStore::TestOnlyUnmap() {
-  for (BlockInfo &b : blocks_) b.TestOnlyUnmap();
+  for (BlockInfo &b : blocks_) b.TestOnlyUnmap(this);
   internal_memset(this, 0, sizeof(*this));
 }
 
 uptr *StackStore::BlockInfo::Get() const {
   // Idiomatic double-checked locking uses memory_order_acquire here. But
-  // relaxed is find for us, justification is similar to
+  // relaxed is fine for us, justification is similar to
   // TwoLevelMap::GetOrCreate.
   return reinterpret_cast<uptr *>(atomic_load_relaxed(&data_));
 }
 
-uptr *StackStore::BlockInfo::Create() {
+uptr *StackStore::BlockInfo::Create(StackStore *store) {
   SpinMutexLock l(&mtx_);
   uptr *ptr = Get();
   if (!ptr) {
-    ptr = reinterpret_cast<uptr *>(
-        MmapNoReserveOrDie(kBlockSizeBytes, "StackStore"));
+    ptr = reinterpret_cast<uptr *>(store->Map(kBlockSizeBytes, "StackStore"));
     atomic_store(&data_, reinterpret_cast<uptr>(ptr), memory_order_release);
   }
   return ptr;
 }
 
-uptr *StackStore::BlockInfo::GetOrCreate() {
+uptr *StackStore::BlockInfo::GetOrCreate(StackStore *store) {
   uptr *ptr = Get();
   if (LIKELY(ptr))
     return ptr;
-  return Create();
+  return Create(store);
 }
 
-uptr *StackStore::BlockInfo::GetOrUnpack() {
+class SLeb128Encoder {
+ public:
+  SLeb128Encoder(u8 *begin, u8 *end) : begin(begin), end(end) {}
+
+  bool operator==(const SLeb128Encoder &other) const {
+    return begin == other.begin;
+  }
+
+  bool operator!=(const SLeb128Encoder &other) const {
+    return begin != other.begin;
+  }
+
+  SLeb128Encoder &operator=(uptr v) {
+    sptr diff = v - previous;
+    begin = EncodeSLEB128(diff, begin, end);
+    previous = v;
+    return *this;
+  }
+  SLeb128Encoder &operator*() { return *this; }
+  SLeb128Encoder &operator++() { return *this; }
+
+  u8 *base() const { return begin; }
+
+ private:
+  u8 *begin;
+  u8 *end;
+  uptr previous = 0;
+};
+
+class SLeb128Decoder {
+ public:
+  SLeb128Decoder(const u8 *begin, const u8 *end) : begin(begin), end(end) {}
+
+  bool operator==(const SLeb128Decoder &other) const {
+    return begin == other.begin;
+  }
+
+  bool operator!=(const SLeb128Decoder &other) const {
+    return begin != other.begin;
+  }
+
+  uptr operator*() {
+    sptr diff;
+    begin = DecodeSLEB128(begin, end, &diff);
+    previous += diff;
+    return previous;
+  }
+  SLeb128Decoder &operator++() { return *this; }
+
+  SLeb128Decoder operator++(int) { return *this; }
+
+ private:
+  const u8 *begin;
+  const u8 *end;
+  uptr previous = 0;
+};
+
+static u8 *CompressDelta(const uptr *from, const uptr *from_end, u8 *to,
+                         u8 *to_end) {
+  SLeb128Encoder encoder(to, to_end);
+  for (; from != from_end; ++from, ++encoder) *encoder = *from;
+  return encoder.base();
+}
+
+static uptr *UncompressDelta(const u8 *from, const u8 *from_end, uptr *to,
+                             uptr *to_end) {
+  SLeb128Decoder decoder(from, from_end);
+  SLeb128Decoder end(from_end, from_end);
+  for (; decoder != end; ++to, ++decoder) *to = *decoder;
+  CHECK_EQ(to, to_end);
+  return to;
+}
+
+static u8 *CompressLzw(const uptr *from, const uptr *from_end, u8 *to,
+                       u8 *to_end) {
+  SLeb128Encoder encoder(to, to_end);
+  encoder = LzwEncode<uptr>(from, from_end, encoder);
+  return encoder.base();
+}
+
+static uptr *UncompressLzw(const u8 *from, const u8 *from_end, uptr *to,
+                           uptr *to_end) {
+  SLeb128Decoder decoder(from, from_end);
+  SLeb128Decoder end(from_end, from_end);
+  to = LzwDecode<uptr>(decoder, end, to);
+  CHECK_EQ(to, to_end);
+  return to;
+}
+
+namespace {
+struct PackedHeader {
+  uptr size;
+  StackStore::Compression type;
+  u8 data[];
+};
+}  // namespace
+
+uptr *StackStore::BlockInfo::GetOrUnpack(StackStore *store) {
   SpinMutexLock l(&mtx_);
   switch (state) {
     case State::Storing:
@@ -140,15 +254,43 @@ uptr *StackStore::BlockInfo::GetOrUnpack() {
       break;
   }
 
-  uptr *ptr = Get();
+  u8 *ptr = reinterpret_cast<u8 *>(Get());
   CHECK_NE(nullptr, ptr);
-  // Fake unpacking.
-  for (uptr i = 0; i < kBlockSizeFrames; ++i) ptr[i] = ~ptr[i];
+  const PackedHeader *header = reinterpret_cast<const PackedHeader *>(ptr);
+  CHECK_LE(header->size, kBlockSizeBytes);
+  CHECK_GE(header->size, sizeof(PackedHeader));
+
+  uptr packed_size_aligned = RoundUpTo(header->size, GetPageSizeCached());
+
+  uptr *unpacked =
+      reinterpret_cast<uptr *>(store->Map(kBlockSizeBytes, "StackStoreUnpack"));
+
+  uptr *unpacked_end;
+  switch (header->type) {
+    case Compression::Delta:
+      unpacked_end = UncompressDelta(header->data, ptr + header->size, unpacked,
+                                     unpacked + kBlockSizeFrames);
+      break;
+    case Compression::LZW:
+      unpacked_end = UncompressLzw(header->data, ptr + header->size, unpacked,
+                                   unpacked + kBlockSizeFrames);
+      break;
+    default:
+      UNREACHABLE("Unexpected type");
+      break;
+  }
+
+  CHECK_EQ(kBlockSizeFrames, unpacked_end - unpacked);
+
+  MprotectReadOnly(reinterpret_cast<uptr>(unpacked), kBlockSizeBytes);
+  atomic_store(&data_, reinterpret_cast<uptr>(unpacked), memory_order_release);
+  store->Unmap(ptr, packed_size_aligned);
+
   state = State::Unpacked;
   return Get();
 }
 
-uptr StackStore::BlockInfo::Pack(Compression type) {
+uptr StackStore::BlockInfo::Pack(Compression type, StackStore *store) {
   if (type == Compression::None)
     return 0;
 
@@ -165,26 +307,55 @@ uptr StackStore::BlockInfo::Pack(Compression type) {
   if (!ptr || !Stored(0))
     return 0;
 
-  // Fake packing.
-  for (uptr i = 0; i < kBlockSizeFrames; ++i) ptr[i] = ~ptr[i];
-  state = State::Packed;
-  return kBlockSizeBytes - kBlockSizeBytes / 10;
-}
+  u8 *packed =
+      reinterpret_cast<u8 *>(store->Map(kBlockSizeBytes, "StackStorePack"));
+  PackedHeader *header = reinterpret_cast<PackedHeader *>(packed);
+  u8 *alloc_end = packed + kBlockSizeBytes;
 
-uptr StackStore::BlockInfo::Allocated() const {
-  SpinMutexLock l(&mtx_);
-  switch (state) {
-    case State::Packed:
-      return kBlockSizeBytes / 10;
-    case State::Unpacked:
-    case State::Storing:
-      return kBlockSizeBytes;
+  u8 *packed_end = nullptr;
+  switch (type) {
+    case Compression::Delta:
+      packed_end =
+          CompressDelta(ptr, ptr + kBlockSizeFrames, header->data, alloc_end);
+      break;
+    case Compression::LZW:
+      packed_end =
+          CompressLzw(ptr, ptr + kBlockSizeFrames, header->data, alloc_end);
+      break;
+    default:
+      UNREACHABLE("Unexpected type");
+      break;
   }
+
+  header->type = type;
+  header->size = packed_end - packed;
+
+  VPrintf(1, "Packed block of %zu KiB to %zu KiB\n", kBlockSizeBytes >> 10,
+          header->size >> 10);
+
+  if (kBlockSizeBytes - header->size < kBlockSizeBytes / 8) {
+    VPrintf(1, "Undo and keep block unpacked\n");
+    MprotectReadOnly(reinterpret_cast<uptr>(ptr), kBlockSizeBytes);
+    store->Unmap(packed, kBlockSizeBytes);
+    state = State::Unpacked;
+    return 0;
+  }
+
+  uptr packed_size_aligned = RoundUpTo(header->size, GetPageSizeCached());
+  store->Unmap(packed + packed_size_aligned,
+               kBlockSizeBytes - packed_size_aligned);
+  MprotectReadOnly(reinterpret_cast<uptr>(packed), packed_size_aligned);
+
+  atomic_store(&data_, reinterpret_cast<uptr>(packed), memory_order_release);
+  store->Unmap(ptr, kBlockSizeBytes);
+
+  state = State::Packed;
+  return kBlockSizeBytes - packed_size_aligned;
 }
 
-void StackStore::BlockInfo::TestOnlyUnmap() {
+void StackStore::BlockInfo::TestOnlyUnmap(StackStore *store) {
   if (uptr *ptr = Get())
-    UnmapOrDie(ptr, StackStore::kBlockSizeBytes);
+    store->Unmap(ptr, kBlockSizeBytes);
 }
 
 bool StackStore::BlockInfo::Stored(uptr n) {

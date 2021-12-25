@@ -2499,7 +2499,8 @@ bool SelectionDAG::MaskedValueIsAllOnes(SDValue V, const APInt &Mask,
 /// sense to specify which elements are demanded or undefined, therefore
 /// they are simply ignored.
 bool SelectionDAG::isSplatValue(SDValue V, const APInt &DemandedElts,
-                                APInt &UndefElts, unsigned Depth) {
+                                APInt &UndefElts, unsigned Depth) const {
+  unsigned Opcode = V.getOpcode();
   EVT VT = V.getValueType();
   assert(VT.isVector() && "Vector type expected");
 
@@ -2511,7 +2512,7 @@ bool SelectionDAG::isSplatValue(SDValue V, const APInt &DemandedElts,
 
   // Deal with some common cases here that work for both fixed and scalable
   // vector types.
-  switch (V.getOpcode()) {
+  switch (Opcode) {
   case ISD::SPLAT_VECTOR:
     UndefElts = V.getOperand(0).isUndef()
                     ? APInt::getAllOnes(DemandedElts.getBitWidth())
@@ -2537,7 +2538,12 @@ bool SelectionDAG::isSplatValue(SDValue V, const APInt &DemandedElts,
   case ISD::SIGN_EXTEND:
   case ISD::ZERO_EXTEND:
     return isSplatValue(V.getOperand(0), DemandedElts, UndefElts, Depth + 1);
-  }
+  default:
+    if (Opcode >= ISD::BUILTIN_OP_END || Opcode == ISD::INTRINSIC_WO_CHAIN ||
+        Opcode == ISD::INTRINSIC_W_CHAIN || Opcode == ISD::INTRINSIC_VOID)
+      return TLI->isSplatValueForTargetNode(V, DemandedElts, UndefElts, Depth);
+    break;
+}
 
   // We don't support other cases than those above for scalable vectors at
   // the moment.
@@ -2548,7 +2554,7 @@ bool SelectionDAG::isSplatValue(SDValue V, const APInt &DemandedElts,
   assert(NumElts == DemandedElts.getBitWidth() && "Vector size mismatch");
   UndefElts = APInt::getZero(NumElts);
 
-  switch (V.getOpcode()) {
+  switch (Opcode) {
   case ISD::BUILD_VECTOR: {
     SDValue Scl;
     for (unsigned i = 0; i != NumElts; ++i) {
@@ -2600,13 +2606,30 @@ bool SelectionDAG::isSplatValue(SDValue V, const APInt &DemandedElts,
     }
     break;
   }
+  case ISD::ANY_EXTEND_VECTOR_INREG:
+  case ISD::SIGN_EXTEND_VECTOR_INREG:
+  case ISD::ZERO_EXTEND_VECTOR_INREG: {
+    // Widen the demanded elts by the src element count.
+    SDValue Src = V.getOperand(0);
+    // We don't support scalable vectors at the moment.
+    if (Src.getValueType().isScalableVector())
+      return false;
+    unsigned NumSrcElts = Src.getValueType().getVectorNumElements();
+    APInt UndefSrcElts;
+    APInt DemandedSrcElts = DemandedElts.zextOrSelf(NumSrcElts);
+    if (isSplatValue(Src, DemandedSrcElts, UndefSrcElts, Depth + 1)) {
+      UndefElts = UndefSrcElts.truncOrSelf(NumElts);
+      return true;
+    }
+    break;
+  }
   }
 
   return false;
 }
 
 /// Helper wrapper to main isSplatValue function.
-bool SelectionDAG::isSplatValue(SDValue V, bool AllowUndefs) {
+bool SelectionDAG::isSplatValue(SDValue V, bool AllowUndefs) const {
   EVT VT = V.getValueType();
   assert(VT.isVector() && "Vector type expected");
 
@@ -5291,9 +5314,10 @@ SDValue SelectionDAG::FoldConstantArithmetic(unsigned Opcode, const SDLoc &DL,
   if (isUndef(Opcode, Ops))
     return getUNDEF(VT);
 
-  // Handle the case of two scalars.
+  // Handle binops special cases.
   if (NumOps == 2) {
-    // TODO: Move foldConstantFPMath here?
+    if (SDValue CFP = foldConstantFPMath(Opcode, DL, VT, Ops[0], Ops[1]))
+      return CFP;
 
     if (auto *C1 = dyn_cast<ConstantSDNode>(Ops[0])) {
       if (auto *C2 = dyn_cast<ConstantSDNode>(Ops[1])) {
@@ -5463,10 +5487,11 @@ SDValue SelectionDAG::foldConstantFPMath(unsigned Opcode, const SDLoc &DL,
   //       should. That will require dealing with a potentially non-default
   //       rounding mode, checking the "opStatus" return value from the APFloat
   //       math calculations, and possibly other variations.
-  auto *N1CFP = dyn_cast<ConstantFPSDNode>(N1.getNode());
-  auto *N2CFP = dyn_cast<ConstantFPSDNode>(N2.getNode());
+  ConstantFPSDNode *N1CFP = isConstOrConstSplatFP(N1, /*AllowUndefs*/ false);
+  ConstantFPSDNode *N2CFP = isConstOrConstSplatFP(N2, /*AllowUndefs*/ false);
   if (N1CFP && N2CFP) {
-    APFloat C1 = N1CFP->getValueAPF(), C2 = N2CFP->getValueAPF();
+    APFloat C1 = N1CFP->getValueAPF(); // make copy
+    const APFloat &C2 = N2CFP->getValueAPF();
     switch (Opcode) {
     case ISD::FADD:
       C1.add(C2, APFloat::rmNearestTiesToEven);
@@ -5486,6 +5511,14 @@ SDValue SelectionDAG::foldConstantFPMath(unsigned Opcode, const SDLoc &DL,
     case ISD::FCOPYSIGN:
       C1.copySign(C2);
       return getConstantFP(C1, DL, VT);
+    case ISD::FMINNUM:
+      return getConstantFP(minnum(C1, C2), DL, VT);
+    case ISD::FMAXNUM:
+      return getConstantFP(maxnum(C1, C2), DL, VT);
+    case ISD::FMINIMUM:
+      return getConstantFP(minimum(C1, C2), DL, VT);
+    case ISD::FMAXIMUM:
+      return getConstantFP(maximum(C1, C2), DL, VT);
     default: break;
     }
   }
@@ -5502,8 +5535,9 @@ SDValue SelectionDAG::foldConstantFPMath(unsigned Opcode, const SDLoc &DL,
   switch (Opcode) {
   case ISD::FSUB:
     // -0.0 - undef --> undef (consistent with "fneg undef")
-    if (N1CFP && N1CFP->getValueAPF().isNegZero() && N2.isUndef())
-      return getUNDEF(VT);
+    if (ConstantFPSDNode *N1C = isConstOrConstSplatFP(N1, /*AllowUndefs*/ true))
+      if (N1C && N1C->getValueAPF().isNegZero() && N2.isUndef())
+        return getUNDEF(VT);
     LLVM_FALLTHROUGH;
 
   case ISD::FADD:
@@ -5961,9 +5995,6 @@ SDValue SelectionDAG::getNode(unsigned Opcode, const SDLoc &DL, EVT VT,
   // Perform trivial constant folding.
   if (SDValue SV = FoldConstantArithmetic(Opcode, DL, VT, {N1, N2}))
     return SV;
-
-  if (SDValue V = foldConstantFPMath(Opcode, DL, VT, N1, N2))
-    return V;
 
   // Canonicalize an UNDEF to the RHS, even over a constant.
   if (N1.isUndef()) {

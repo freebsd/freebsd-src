@@ -211,6 +211,8 @@ def FPCXTS  : ARMReg<15, "fpcxts">;
 
 def ZR  : ARMReg<15, "zr">,  DwarfRegNum<[15]>;
 
+def RA_AUTH_CODE : ARMReg<12, "ra_auth_code">, DwarfRegNum<[143]>;
+
 // Register classes.
 //
 // pc  == Program Counter
@@ -395,7 +397,7 @@ def CCR : RegisterClass<"ARM", [i32], 32, (add CPSR)> {
 }
 
 // MVE Condition code register.
-def VCCR : RegisterClass<"ARM", [i32, v16i1, v8i1, v4i1], 32, (add VPR)> {
+def VCCR : RegisterClass<"ARM", [i32, v16i1, v8i1, v4i1, v2i1], 32, (add VPR)> {
 //  let CopyCost = -1;  // Don't allow copying of status registers.
 }
 

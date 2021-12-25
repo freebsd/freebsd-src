@@ -25,7 +25,8 @@ class StackStore {
  public:
   enum class Compression : u8 {
     None = 0,
-    Test,
+    Delta,
+    LZW,
   };
 
   constexpr StackStore() = default;
@@ -44,6 +45,9 @@ class StackStore {
   // and stay unpacked after that.
   // Returns the number of released bytes.
   uptr Pack(Compression type);
+
+  void LockAll();
+  void UnlockAll();
 
   void TestOnlyUnmap();
 
@@ -71,8 +75,14 @@ class StackStore {
 
   uptr *Alloc(uptr count, uptr *idx, uptr *pack);
 
+  void *Map(uptr size, const char *mem_type);
+  void Unmap(void *addr, uptr size);
+
   // Total number of allocated frames.
   atomic_uintptr_t total_frames_ = {};
+
+  // Tracks total allocated memory in bytes.
+  atomic_uintptr_t allocated_ = {};
 
   // Each block will hold pointer to exactly kBlockSizeFrames.
   class BlockInfo {
@@ -89,17 +99,18 @@ class StackStore {
     };
     State state GUARDED_BY(mtx_);
 
-    uptr *Create();
+    uptr *Create(StackStore *store);
 
    public:
     uptr *Get() const;
-    uptr *GetOrCreate();
-    uptr *GetOrUnpack();
-    uptr Pack(Compression type);
-    uptr Allocated() const;
-    void TestOnlyUnmap();
+    uptr *GetOrCreate(StackStore *store);
+    uptr *GetOrUnpack(StackStore *store);
+    uptr Pack(Compression type, StackStore *store);
+    void TestOnlyUnmap(StackStore *store);
     bool Stored(uptr n);
     bool IsPacked() const;
+    void Lock() NO_THREAD_SAFETY_ANALYSIS { mtx_.Lock(); }
+    void Unlock() NO_THREAD_SAFETY_ANALYSIS { mtx_.Unlock(); }
   };
 
   BlockInfo blocks_[kBlockCount] = {};

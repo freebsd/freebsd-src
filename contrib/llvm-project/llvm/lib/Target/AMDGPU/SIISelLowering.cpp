@@ -24,6 +24,7 @@
 #include "llvm/CodeGen/Analysis.h"
 #include "llvm/CodeGen/FunctionLoweringInfo.h"
 #include "llvm/CodeGen/GlobalISel/GISelKnownBits.h"
+#include "llvm/CodeGen/GlobalISel/MIPatternMatch.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineLoopInfo.h"
 #include "llvm/IR/DiagnosticInfo.h"
@@ -2062,33 +2063,30 @@ void SITargetLowering::allocateSpecialInputSGPRs(
   SIMachineFunctionInfo &Info) const {
   auto &ArgInfo = Info.getArgInfo();
 
-  // We need to allocate these in place regardless of their use.
-  const bool IsFixed = AMDGPUTargetMachine::EnableFixedFunctionABI;
-
   // TODO: Unify handling with private memory pointers.
-  if (IsFixed || Info.hasDispatchPtr())
+  if (Info.hasDispatchPtr())
     allocateSGPR64Input(CCInfo, ArgInfo.DispatchPtr);
 
-  if (IsFixed || Info.hasQueuePtr())
+  if (Info.hasQueuePtr())
     allocateSGPR64Input(CCInfo, ArgInfo.QueuePtr);
 
   // Implicit arg ptr takes the place of the kernarg segment pointer. This is a
   // constant offset from the kernarg segment.
-  if (IsFixed || Info.hasImplicitArgPtr())
+  if (Info.hasImplicitArgPtr())
     allocateSGPR64Input(CCInfo, ArgInfo.ImplicitArgPtr);
 
-  if (IsFixed || Info.hasDispatchID())
+  if (Info.hasDispatchID())
     allocateSGPR64Input(CCInfo, ArgInfo.DispatchID);
 
   // flat_scratch_init is not applicable for non-kernel functions.
 
-  if (IsFixed || Info.hasWorkGroupIDX())
+  if (Info.hasWorkGroupIDX())
     allocateSGPR32Input(CCInfo, ArgInfo.WorkGroupIDX);
 
-  if (IsFixed || Info.hasWorkGroupIDY())
+  if (Info.hasWorkGroupIDY())
     allocateSGPR32Input(CCInfo, ArgInfo.WorkGroupIDY);
 
-  if (IsFixed || Info.hasWorkGroupIDZ())
+  if (Info.hasWorkGroupIDZ())
     allocateSGPR32Input(CCInfo, ArgInfo.WorkGroupIDZ);
 }
 
@@ -2419,10 +2417,9 @@ SDValue SITargetLowering::LowerFormalArguments(
   if (IsEntryFunc) {
     allocateSpecialEntryInputVGPRs(CCInfo, MF, *TRI, *Info);
     allocateHSAUserSGPRs(CCInfo, MF, *TRI, *Info);
-  } else {
+  } else if (!IsGraphics) {
     // For the fixed ABI, pass workitem IDs in the last argument register.
-    if (AMDGPUTargetMachine::EnableFixedFunctionABI)
-      allocateSpecialInputVGPRsFixed(CCInfo, MF, *TRI, *Info);
+    allocateSpecialInputVGPRsFixed(CCInfo, MF, *TRI, *Info);
   }
 
   if (IsKernel) {
@@ -2549,17 +2546,13 @@ SDValue SITargetLowering::LowerFormalArguments(
     InVals.push_back(Val);
   }
 
-  if (!IsEntryFunc && !AMDGPUTargetMachine::EnableFixedFunctionABI) {
-    // Special inputs come after user arguments.
-    allocateSpecialInputVGPRs(CCInfo, MF, *TRI, *Info);
-  }
-
   // Start adding system SGPRs.
   if (IsEntryFunc) {
     allocateSystemSGPRs(CCInfo, MF, *Info, CallConv, IsGraphics);
   } else {
     CCInfo.AllocateReg(Info->getScratchRSrcReg());
-    allocateSpecialInputSGPRs(CCInfo, MF, *TRI, *Info);
+    if (!IsGraphics)
+      allocateSpecialInputSGPRs(CCInfo, MF, *TRI, *Info);
   }
 
   auto &ArgUsageInfo =
@@ -3123,8 +3116,7 @@ SDValue SITargetLowering::LowerCall(CallLoweringInfo &CLI,
   CCState CCInfo(CallConv, IsVarArg, MF, ArgLocs, *DAG.getContext());
   CCAssignFn *AssignFn = CCAssignFnForCall(CallConv, IsVarArg);
 
-  if (AMDGPUTargetMachine::EnableFixedFunctionABI &&
-      CallConv != CallingConv::AMDGPU_Gfx) {
+  if (CallConv != CallingConv::AMDGPU_Gfx) {
     // With a fixed ABI, allocate fixed registers before user arguments.
     passSpecialInputs(CLI, CCInfo, *Info, RegsToPass, MemOpChains, Chain);
   }
@@ -3261,12 +3253,6 @@ SDValue SITargetLowering::LowerCall(CallLoweringInfo &CLI,
         MemOpChains.push_back(Store);
       }
     }
-  }
-
-  if (!AMDGPUTargetMachine::EnableFixedFunctionABI &&
-      CallConv != CallingConv::AMDGPU_Gfx) {
-    // Copy special input registers after user input arguments.
-    passSpecialInputs(CLI, CCInfo, *Info, RegsToPass, MemOpChains, Chain);
   }
 
   if (!MemOpChains.empty())
@@ -6282,10 +6268,6 @@ SDValue SITargetLowering::lowerImage(SDValue Op,
     }
   }
 
-  // Push back extra arguments.
-  for (unsigned I = Intr->VAddrStart; I < Intr->GradientStart; I++)
-    VAddrs.push_back(Op.getOperand(ArgOffset + I));
-
   // Check for 16 bit addresses or derivatives and pack if true.
   MVT VAddrVT =
       Op.getOperand(ArgOffset + Intr->GradientStart).getSimpleValueType();
@@ -6297,6 +6279,17 @@ SDValue SITargetLowering::lowerImage(SDValue Op,
   VAddrScalarVT = VAddrVT.getScalarType();
   MVT AddrPackVectorVT = VAddrScalarVT == MVT::f16 ? MVT::v2f16 : MVT::v2i16;
   IsA16 = VAddrScalarVT == MVT::f16 || VAddrScalarVT == MVT::i16;
+
+  // Push back extra arguments.
+  for (unsigned I = Intr->VAddrStart; I < Intr->GradientStart; I++) {
+    if (IsA16 && (Op.getOperand(ArgOffset + I).getValueType() == MVT::f16)) {
+      // Special handling of bias when A16 is on. Bias is of type half but
+      // occupies full 32-bit.
+      SDValue bias = DAG.getBuildVector( MVT::v2f16, DL, {Op.getOperand(ArgOffset + I), DAG.getUNDEF(MVT::f16)});
+      VAddrs.push_back(bias);
+    } else
+      VAddrs.push_back(Op.getOperand(ArgOffset + I));
+  }
 
   if (BaseOpcode->Gradients && !ST->hasG16() && (IsA16 != IsG16)) {
     // 16 bit gradients are supported, but are tied to the A16 control
@@ -7502,8 +7495,8 @@ SDValue SITargetLowering::LowerINTRINSIC_W_CHAIN(SDValue Op,
 
     assert(NodePtr.getValueType() == MVT::i32 ||
            NodePtr.getValueType() == MVT::i64);
-    assert(RayDir.getValueType() == MVT::v4f16 ||
-           RayDir.getValueType() == MVT::v4f32);
+    assert(RayDir.getValueType() == MVT::v3f16 ||
+           RayDir.getValueType() == MVT::v3f32);
 
     if (!Subtarget->hasGFX10_AEncoding()) {
       emitRemovedIntrinsicError(DAG, DL, Op.getValueType());
@@ -9837,11 +9830,13 @@ bool SITargetLowering::isCanonicalized(Register Reg, MachineFunction &MF,
   if (Opcode == AMDGPU::G_FCANONICALIZE)
     return true;
 
-  if (Opcode == AMDGPU::G_FCONSTANT) {
-    auto F = MI->getOperand(1).getFPImm()->getValueAPF();
-    if (F.isNaN() && F.isSignaling())
+  Optional<FPValueAndVReg> FCR;
+  // Constant splat (can be padded with undef) or scalar constant.
+  if (mi_match(Reg, MRI, MIPatternMatch::m_GFCstOrSplat(FCR))) {
+    if (FCR->Value.isSignaling())
       return false;
-    return !F.isDenormal() || denormalsEnabledForType(MRI.getType(Reg), MF);
+    return !FCR->Value.isDenormal() ||
+           denormalsEnabledForType(MRI.getType(FCR->VReg), MF);
   }
 
   if (MaxDepth == 0)
@@ -11514,7 +11509,7 @@ void SITargetLowering::AdjustInstrPostInstrSelection(MachineInstr &MI,
     // Prefer VGPRs over AGPRs in mAI instructions where possible.
     // This saves a chain-copy of registers and better ballance register
     // use between vgpr and agpr as agpr tuples tend to be big.
-    if (const MCOperandInfo *OpInfo = MI.getDesc().OpInfo) {
+    if (MI.getDesc().OpInfo) {
       unsigned Opc = MI.getOpcode();
       const SIRegisterInfo *TRI = Subtarget->getRegisterInfo();
       for (auto I : { AMDGPU::getNamedOperandIdx(Opc, AMDGPU::OpName::src0),
@@ -12477,6 +12472,6 @@ SITargetLowering::getTypeLegalizationCost(const DataLayout &DL,
   if (Size <= 256)
     return Cost;
 
-  Cost.first = (Size + 255) / 256;
+  Cost.first += (Size + 255) / 256;
   return Cost;
 }

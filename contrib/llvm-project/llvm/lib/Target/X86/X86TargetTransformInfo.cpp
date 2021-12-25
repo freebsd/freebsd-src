@@ -236,47 +236,50 @@ InstructionCost X86TTIImpl::getArithmeticInstrCost(
     }
   }
 
-  if ((ISD == ISD::MUL || ISD == ISD::SDIV || ISD == ISD::SREM ||
-       ISD == ISD::UDIV || ISD == ISD::UREM) &&
+  // Vector multiply by pow2 will be simplified to shifts.
+  if (ISD == ISD::MUL &&
+      (Op2Info == TargetTransformInfo::OK_UniformConstantValue ||
+       Op2Info == TargetTransformInfo::OK_NonUniformConstantValue) &&
+      Opd2PropInfo == TargetTransformInfo::OP_PowerOf2)
+    return getArithmeticInstrCost(Instruction::Shl, Ty, CostKind, Op1Info,
+                                  Op2Info, TargetTransformInfo::OP_None,
+                                  TargetTransformInfo::OP_None);
+
+  // On X86, vector signed division by constants power-of-two are
+  // normally expanded to the sequence SRA + SRL + ADD + SRA.
+  // The OperandValue properties may not be the same as that of the previous
+  // operation; conservatively assume OP_None.
+  if ((ISD == ISD::SDIV || ISD == ISD::SREM) &&
       (Op2Info == TargetTransformInfo::OK_UniformConstantValue ||
        Op2Info == TargetTransformInfo::OK_NonUniformConstantValue) &&
       Opd2PropInfo == TargetTransformInfo::OP_PowerOf2) {
-    // Vector multiply by pow2 will be simplified to shifts.
-    if (ISD == ISD::MUL) {
-      InstructionCost Cost = getArithmeticInstrCost(
-          Instruction::Shl, Ty, CostKind, Op1Info, Op2Info,
-          TargetTransformInfo::OP_None, TargetTransformInfo::OP_None);
-      return Cost;
+    InstructionCost Cost =
+        2 * getArithmeticInstrCost(Instruction::AShr, Ty, CostKind, Op1Info,
+                                   Op2Info, TargetTransformInfo::OP_None,
+                                   TargetTransformInfo::OP_None);
+    Cost += getArithmeticInstrCost(Instruction::LShr, Ty, CostKind, Op1Info,
+                                   Op2Info, TargetTransformInfo::OP_None,
+                                   TargetTransformInfo::OP_None);
+    Cost += getArithmeticInstrCost(Instruction::Add, Ty, CostKind, Op1Info,
+                                   Op2Info, TargetTransformInfo::OP_None,
+                                   TargetTransformInfo::OP_None);
+
+    if (ISD == ISD::SREM) {
+      // For SREM: (X % C) is the equivalent of (X - (X/C)*C)
+      Cost += getArithmeticInstrCost(Instruction::Mul, Ty, CostKind, Op1Info,
+                                     Op2Info);
+      Cost += getArithmeticInstrCost(Instruction::Sub, Ty, CostKind, Op1Info,
+                                     Op2Info);
     }
 
-    if (ISD == ISD::SDIV || ISD == ISD::SREM) {
-      // On X86, vector signed division by constants power-of-two are
-      // normally expanded to the sequence SRA + SRL + ADD + SRA.
-      // The OperandValue properties may not be the same as that of the previous
-      // operation; conservatively assume OP_None.
-      InstructionCost Cost =
-          2 * getArithmeticInstrCost(Instruction::AShr, Ty, CostKind, Op1Info,
-                                     Op2Info, TargetTransformInfo::OP_None,
-                                     TargetTransformInfo::OP_None);
-      Cost += getArithmeticInstrCost(Instruction::LShr, Ty, CostKind, Op1Info,
-                                     Op2Info, TargetTransformInfo::OP_None,
-                                     TargetTransformInfo::OP_None);
-      Cost += getArithmeticInstrCost(Instruction::Add, Ty, CostKind, Op1Info,
-                                     Op2Info, TargetTransformInfo::OP_None,
-                                     TargetTransformInfo::OP_None);
+    return Cost;
+  }
 
-      if (ISD == ISD::SREM) {
-        // For SREM: (X % C) is the equivalent of (X - (X/C)*C)
-        Cost += getArithmeticInstrCost(Instruction::Mul, Ty, CostKind, Op1Info,
-                                       Op2Info);
-        Cost += getArithmeticInstrCost(Instruction::Sub, Ty, CostKind, Op1Info,
-                                       Op2Info);
-      }
-
-      return Cost;
-    }
-
-    // Vector unsigned division/remainder will be simplified to shifts/masks.
+  // Vector unsigned division/remainder will be simplified to shifts/masks.
+  if ((ISD == ISD::UDIV || ISD == ISD::UREM) &&
+      (Op2Info == TargetTransformInfo::OK_UniformConstantValue ||
+       Op2Info == TargetTransformInfo::OK_NonUniformConstantValue) &&
+      Opd2PropInfo == TargetTransformInfo::OP_PowerOf2) {
     if (ISD == ISD::UDIV)
       return getArithmeticInstrCost(Instruction::LShr, Ty, CostKind, Op1Info,
                                     Op2Info, TargetTransformInfo::OP_None,
@@ -660,6 +663,7 @@ InstructionCost X86TTIImpl::getArithmeticInstrCost(
     { ISD::MUL,     MVT::v8i32,      1 }, // pmulld (Skylake from agner.org)
     { ISD::MUL,     MVT::v4i32,      1 }, // pmulld (Skylake from agner.org)
     { ISD::MUL,     MVT::v8i64,      6 }, // 3*pmuludq/3*shift/2*add
+    { ISD::MUL,     MVT::i64,        1 }, // Skylake from http://www.agner.org/
 
     { ISD::FNEG,    MVT::v8f64,      1 }, // Skylake from http://www.agner.org/
     { ISD::FADD,    MVT::v8f64,      1 }, // Skylake from http://www.agner.org/
@@ -5188,10 +5192,10 @@ bool X86TTIImpl::areInlineCompatible(const Function *Caller,
   return (RealCallerBits & RealCalleeBits) == RealCalleeBits;
 }
 
-bool X86TTIImpl::areFunctionArgsABICompatible(
-    const Function *Caller, const Function *Callee,
-    SmallPtrSetImpl<Argument *> &Args) const {
-  if (!BaseT::areFunctionArgsABICompatible(Caller, Callee, Args))
+bool X86TTIImpl::areTypesABICompatible(const Function *Caller,
+                                       const Function *Callee,
+                                       const ArrayRef<Type *> &Types) const {
+  if (!BaseT::areTypesABICompatible(Caller, Callee, Types))
     return false;
 
   // If we get here, we know the target features match. If one function
@@ -5206,13 +5210,8 @@ bool X86TTIImpl::areFunctionArgsABICompatible(
   // Consider the arguments compatible if they aren't vectors or aggregates.
   // FIXME: Look at the size of vectors.
   // FIXME: Look at the element types of aggregates to see if there are vectors.
-  // FIXME: The API of this function seems intended to allow arguments
-  // to be removed from the set, but the caller doesn't check if the set
-  // becomes empty so that may not work in practice.
-  return llvm::none_of(Args, [](Argument *A) {
-    auto *EltTy = cast<PointerType>(A->getType())->getElementType();
-    return EltTy->isVectorTy() || EltTy->isAggregateType();
-  });
+  return llvm::none_of(Types,
+      [](Type *T) { return T->isVectorTy() || T->isAggregateType(); });
 }
 
 X86TTIImpl::TTI::MemCmpExpansionOptions

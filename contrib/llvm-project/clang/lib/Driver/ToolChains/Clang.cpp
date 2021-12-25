@@ -625,8 +625,9 @@ getFramePointerKind(const ArgList &Args, const llvm::Triple &Triple) {
 }
 
 /// Add a CC1 option to specify the debug compilation directory.
-static void addDebugCompDirArg(const ArgList &Args, ArgStringList &CmdArgs,
-                               const llvm::vfs::FileSystem &VFS) {
+static const char *addDebugCompDirArg(const ArgList &Args,
+                                      ArgStringList &CmdArgs,
+                                      const llvm::vfs::FileSystem &VFS) {
   if (Arg *A = Args.getLastArg(options::OPT_ffile_compilation_dir_EQ,
                                options::OPT_fdebug_compilation_dir_EQ)) {
     if (A->getOption().matches(options::OPT_ffile_compilation_dir_EQ))
@@ -638,6 +639,31 @@ static void addDebugCompDirArg(const ArgList &Args, ArgStringList &CmdArgs,
                  VFS.getCurrentWorkingDirectory()) {
     CmdArgs.push_back(Args.MakeArgString("-fdebug-compilation-dir=" + *CWD));
   }
+  StringRef Path(CmdArgs.back());
+  return Path.substr(Path.find('=') + 1).data();
+}
+
+static void addDebugObjectName(const ArgList &Args, ArgStringList &CmdArgs,
+                               const char *DebugCompilationDir,
+                               const char *OutputFileName) {
+  // No need to generate a value for -object-file-name if it was provided.
+  for (auto *Arg : Args.filtered(options::OPT_Xclang))
+    if (StringRef(Arg->getValue()).startswith("-object-file-name"))
+      return;
+
+  if (Args.hasArg(options::OPT_object_file_name_EQ))
+    return;
+
+  SmallString<128> ObjFileNameForDebug(OutputFileName);
+  if (ObjFileNameForDebug != "-" &&
+      !llvm::sys::path::is_absolute(ObjFileNameForDebug) &&
+      (!DebugCompilationDir ||
+       llvm::sys::path::is_absolute(DebugCompilationDir))) {
+    // Make the path absolute in the debug infos like MSVC does.
+    llvm::sys::fs::make_absolute(ObjFileNameForDebug);
+  }
+  CmdArgs.push_back(
+      Args.MakeArgString(Twine("-object-file-name=") + ObjFileNameForDebug));
 }
 
 /// Add a CC1 and CC1AS option to specify the debug file path prefix map.
@@ -976,11 +1002,7 @@ static bool ContainsCompileAction(const Action *A) {
   if (isa<CompileJobAction>(A) || isa<BackendJobAction>(A))
     return true;
 
-  for (const auto &AI : A->inputs())
-    if (ContainsCompileAction(AI))
-      return true;
-
-  return false;
+  return llvm::any_of(A->inputs(), ContainsCompileAction);
 }
 
 /// Check if -relax-all should be passed to the internal assembler.
@@ -1805,19 +1827,6 @@ void Clang::AddAArch64TargetArgs(const ArgList &Args,
     CmdArgs.push_back("-no-implicit-float");
 
   RenderAArch64ABI(Triple, Args, CmdArgs);
-
-  if (Arg *A = Args.getLastArg(options::OPT_mfix_cortex_a53_835769,
-                               options::OPT_mno_fix_cortex_a53_835769)) {
-    CmdArgs.push_back("-mllvm");
-    if (A->getOption().matches(options::OPT_mfix_cortex_a53_835769))
-      CmdArgs.push_back("-aarch64-fix-cortex-a53-835769=1");
-    else
-      CmdArgs.push_back("-aarch64-fix-cortex-a53-835769=0");
-  } else if (Triple.isAndroid()) {
-    // Enabled A53 errata (835769) workaround by default on android
-    CmdArgs.push_back("-mllvm");
-    CmdArgs.push_back("-aarch64-fix-cortex-a53-835769=1");
-  }
 
   // Forward the -mglobal-merge option for explicit control over the pass.
   if (Arg *A = Args.getLastArg(options::OPT_mglobal_merge,
@@ -5666,7 +5675,8 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
     CmdArgs.push_back("-fno-autolink");
 
   // Add in -fdebug-compilation-dir if necessary.
-  addDebugCompDirArg(Args, CmdArgs, D.getVFS());
+  const char *DebugCompilationDir =
+      addDebugCompDirArg(Args, CmdArgs, D.getVFS());
 
   addDebugPrefixMapArg(D, Args, CmdArgs);
 
@@ -5904,7 +5914,7 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
       // runtime.
       if (Args.hasFlag(options::OPT_fopenmp_target_new_runtime,
                        options::OPT_fno_openmp_target_new_runtime,
-                       /*Default=*/!getToolChain().getTriple().isAMDGCN()))
+                       /*Default=*/true))
         CmdArgs.push_back("-fopenmp-target-new-runtime");
 
       // When in OpenMP offloading mode, enable debugging on the device.
@@ -6997,18 +7007,18 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
 
   if (Arg *A = Args.getLastArg(options::OPT_moutline_atomics,
                                options::OPT_mno_outline_atomics)) {
-    if (A->getOption().matches(options::OPT_moutline_atomics)) {
-      // Option -moutline-atomics supported for AArch64 target only.
-      if (!Triple.isAArch64()) {
-        D.Diag(diag::warn_drv_moutline_atomics_unsupported_opt)
-            << Triple.getArchName();
-      } else {
+    // Option -moutline-atomics supported for AArch64 target only.
+    if (!Triple.isAArch64()) {
+      D.Diag(diag::warn_drv_moutline_atomics_unsupported_opt)
+          << Triple.getArchName() << A->getOption().getName();
+    } else {
+      if (A->getOption().matches(options::OPT_moutline_atomics)) {
         CmdArgs.push_back("-target-feature");
         CmdArgs.push_back("+outline-atomics");
+      } else {
+        CmdArgs.push_back("-target-feature");
+        CmdArgs.push_back("-outline-atomics");
       }
-    } else {
-      CmdArgs.push_back("-target-feature");
-      CmdArgs.push_back("-outline-atomics");
     }
   } else if (Triple.isAArch64() &&
              getToolChain().IsAArch64OutlineAtomicsDefault(Args)) {
@@ -7037,6 +7047,11 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
           << Str << TC.getTripleString();
     CmdArgs.push_back(Args.MakeArgString(Str));
   }
+
+  // Add the output path to the object file for CodeView debug infos.
+  if (EmitCodeView && Output.isFilename())
+    addDebugObjectName(Args, CmdArgs, DebugCompilationDir,
+                       Output.getFilename());
 
   // Add the "-o out -x type src.c" flags last. This is done primarily to make
   // the -cc1 command easier to edit when reproducing compiler crashes.
@@ -7111,11 +7126,11 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   Args.ClaimAllArgs(options::OPT_emit_llvm);
 }
 
-Clang::Clang(const ToolChain &TC)
+Clang::Clang(const ToolChain &TC, bool HasIntegratedBackend)
     // CAUTION! The first constructor argument ("clang") is not arbitrary,
     // as it is for other tools. Some operations on a Tool actually test
     // whether that tool is Clang based on the Tool's Name as a string.
-    : Tool("clang", "clang frontend", TC) {}
+    : Tool("clang", "clang frontend", TC), HasBackend(HasIntegratedBackend) {}
 
 Clang::~Clang() {}
 
@@ -7655,11 +7670,14 @@ void ClangAs::ConstructJob(Compilation &C, const JobAction &JA,
   Args.AddAllArgs(CmdArgs, options::OPT_I_Group);
 
   // Determine the original source input.
-  const Action *SourceAction = &JA;
-  while (SourceAction->getKind() != Action::InputClass) {
-    assert(!SourceAction->getInputs().empty() && "unexpected root action!");
-    SourceAction = SourceAction->getInputs()[0];
-  }
+  auto FindSource = [](const Action *S) -> const Action * {
+    while (S->getKind() != Action::InputClass) {
+      assert(!S->getInputs().empty() && "unexpected root action!");
+      S = S->getInputs()[0];
+    }
+    return S;
+  };
+  const Action *SourceAction = FindSource(&JA);
 
   // Forward -g and handle debug info related flags, assuming we are dealing
   // with an actual assembly file.
@@ -7678,6 +7696,10 @@ void ClangAs::ConstructJob(Compilation &C, const JobAction &JA,
 
   codegenoptions::DebugInfoKind DebugInfoKind = codegenoptions::NoDebugInfo;
 
+  // Add the -fdebug-compilation-dir flag if needed.
+  const char *DebugCompilationDir =
+      addDebugCompDirArg(Args, CmdArgs, C.getDriver().getVFS());
+
   if (SourceAction->getType() == types::TY_Asm ||
       SourceAction->getType() == types::TY_PP_Asm) {
     // You might think that it would be ok to set DebugInfoKind outside of
@@ -7686,8 +7708,6 @@ void ClangAs::ConstructJob(Compilation &C, const JobAction &JA,
     // and it's not clear whether that test is just overly restrictive.
     DebugInfoKind = (WantDebug ? codegenoptions::DebugInfoConstructor
                                : codegenoptions::NoDebugInfo);
-    // Add the -fdebug-compilation-dir flag if needed.
-    addDebugCompDirArg(Args, CmdArgs, C.getDriver().getVFS());
 
     addDebugPrefixMapArg(getToolChain().getDriver(), Args, CmdArgs);
 
@@ -7798,6 +7818,29 @@ void ClangAs::ConstructJob(Compilation &C, const JobAction &JA,
 
   Args.AddAllArgs(CmdArgs, options::OPT_mllvm);
 
+  if (DebugInfoKind > codegenoptions::NoDebugInfo && Output.isFilename())
+    addDebugObjectName(Args, CmdArgs, DebugCompilationDir,
+                       Output.getFilename());
+
+  // Fixup any previous commands that use -object-file-name because when we
+  // generated them, the final .obj name wasn't yet known.
+  for (Command &J : C.getJobs()) {
+    if (SourceAction != FindSource(&J.getSource()))
+      continue;
+    auto &JArgs = J.getArguments();
+    for (unsigned I = 0; I < JArgs.size(); ++I) {
+      if (StringRef(JArgs[I]).startswith("-object-file-name=") &&
+          Output.isFilename()) {
+        ArgStringList NewArgs(JArgs.begin(), JArgs.begin() + I);
+        addDebugObjectName(Args, NewArgs, DebugCompilationDir,
+                           Output.getFilename());
+        NewArgs.append(JArgs.begin() + I + 1, JArgs.end());
+        J.replaceArguments(NewArgs);
+        break;
+      }
+    }
+  }
+
   assert(Output.isFilename() && "Unexpected lipo output.");
   CmdArgs.push_back("-o");
   CmdArgs.push_back(Output.getFilename());
@@ -7878,7 +7921,7 @@ void OffloadBundler::ConstructJob(Compilation &C, const JobAction &JA,
     Triples += '-';
     Triples += CurTC->getTriple().normalize();
     if ((CurKind == Action::OFK_HIP || CurKind == Action::OFK_Cuda) &&
-        CurDep->getOffloadingArch()) {
+        !StringRef(CurDep->getOffloadingArch()).empty()) {
       Triples += '-';
       Triples += CurDep->getOffloadingArch();
     }

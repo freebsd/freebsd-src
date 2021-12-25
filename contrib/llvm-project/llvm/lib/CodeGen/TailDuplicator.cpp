@@ -207,35 +207,34 @@ bool TailDuplicator::tailDuplicateAndUpdate(
       // Add the new vregs as available values.
       DenseMap<Register, AvailableValsTy>::iterator LI =
           SSAUpdateVals.find(VReg);
-      for (unsigned j = 0, ee = LI->second.size(); j != ee; ++j) {
-        MachineBasicBlock *SrcBB = LI->second[j].first;
-        Register SrcReg = LI->second[j].second;
+      for (std::pair<MachineBasicBlock *, Register> &J : LI->second) {
+        MachineBasicBlock *SrcBB = J.first;
+        Register SrcReg = J.second;
         SSAUpdate.AddAvailableValue(SrcBB, SrcReg);
       }
 
+      SmallVector<MachineOperand *> DebugUses;
       // Rewrite uses that are outside of the original def's block.
-      MachineRegisterInfo::use_iterator UI = MRI->use_begin(VReg);
-      // Only remove instructions after loop, as DBG_VALUE_LISTs with multiple
-      // uses of VReg may invalidate the use iterator when erased.
-      SmallPtrSet<MachineInstr *, 4> InstrsToRemove;
-      while (UI != MRI->use_end()) {
-        MachineOperand &UseMO = *UI;
+      for (MachineOperand &UseMO :
+           llvm::make_early_inc_range(MRI->use_operands(VReg))) {
         MachineInstr *UseMI = UseMO.getParent();
-        ++UI;
+        // Rewrite debug uses last so that they can take advantage of any
+        // register mappings introduced by other users in its BB, since we
+        // cannot create new register definitions specifically for the debug
+        // instruction (as debug instructions should not affect CodeGen).
         if (UseMI->isDebugValue()) {
-          // SSAUpdate can replace the use with an undef. That creates
-          // a debug instruction that is a kill.
-          // FIXME: Should it SSAUpdate job to delete debug instructions
-          // instead of replacing the use with undef?
-          InstrsToRemove.insert(UseMI);
+          DebugUses.push_back(&UseMO);
           continue;
         }
         if (UseMI->getParent() == DefBB && !UseMI->isPHI())
           continue;
         SSAUpdate.RewriteUse(UseMO);
       }
-      for (auto *MI : InstrsToRemove)
-        MI->eraseFromParent();
+      for (auto *UseMO : DebugUses) {
+        MachineInstr *UseMI = UseMO->getParent();
+        UseMO->setReg(
+            SSAUpdate.GetValueInMiddleOfBlock(UseMI->getParent(), true));
+      }
     }
 
     SSAUpdateVRs.clear();
@@ -511,8 +510,8 @@ void TailDuplicator::updateSuccessorsPHIs(
           SSAUpdateVals.find(Reg);
       if (LI != SSAUpdateVals.end()) {
         // This register is defined in the tail block.
-        for (unsigned j = 0, ee = LI->second.size(); j != ee; ++j) {
-          MachineBasicBlock *SrcBB = LI->second[j].first;
+        for (const std::pair<MachineBasicBlock *, Register> &J : LI->second) {
+          MachineBasicBlock *SrcBB = J.first;
           // If we didn't duplicate a bb into a particular predecessor, we
           // might still have added an entry to SSAUpdateVals to correcly
           // recompute SSA. If that case, avoid adding a dummy extra argument
@@ -520,7 +519,7 @@ void TailDuplicator::updateSuccessorsPHIs(
           if (!SrcBB->isSuccessor(SuccBB))
             continue;
 
-          Register SrcReg = LI->second[j].second;
+          Register SrcReg = J.second;
           if (Idx != 0) {
             MI.getOperand(Idx).setReg(SrcReg);
             MI.getOperand(Idx + 1).setMBB(SrcBB);
@@ -531,8 +530,7 @@ void TailDuplicator::updateSuccessorsPHIs(
         }
       } else {
         // Live in tail block, must also be live in predecessors.
-        for (unsigned j = 0, ee = TDBBs.size(); j != ee; ++j) {
-          MachineBasicBlock *SrcBB = TDBBs[j];
+        for (MachineBasicBlock *SrcBB : TDBBs) {
           if (Idx != 0) {
             MI.getOperand(Idx).setReg(Reg);
             MI.getOperand(Idx + 1).setMBB(SrcBB);
