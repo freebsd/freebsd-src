@@ -158,6 +158,7 @@ deget(struct msdosfsmount *pmp, u_long dirclust, u_long diroffset,
 badoff:
 		vgone(nvp);
 		vput(nvp);
+		msdosfs_integrity_error(pmp);
 		return (EBADF);
 	}
 	ldep = malloc(sizeof(struct denode), M_MSDOSFSNODE, M_WAITOK | M_ZERO);
