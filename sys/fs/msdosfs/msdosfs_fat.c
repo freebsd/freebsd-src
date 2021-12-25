@@ -412,6 +412,7 @@ usemap_free(struct msdosfsmount *pmp, u_long cn)
 		printf("%s: Freeing unused sector %ld %ld %x\n",
 		    pmp->pm_mountp->mnt_stat.f_mntonname, cn, cn % N_INUSEBITS,
 		    (unsigned)pmp->pm_inusemap[cn / N_INUSEBITS]);
+		msdosfs_integrity_error(pmp);
 		return (EINTEGRITY);
 	}
 	pmp->pm_freeclustercount++;
