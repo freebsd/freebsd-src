@@ -89,7 +89,6 @@ static void dumpLocationList(raw_ostream &OS, const DWARFFormValue &FormValue,
   U->getLocationTable().dumpLocationList(&Offset, OS, U->getBaseAddress(), MRI,
                                          Ctx.getDWARFObj(), U, DumpOpts,
                                          Indent);
-  return;
 }
 
 static void dumpLocationExpr(raw_ostream &OS, const DWARFFormValue &FormValue,
@@ -105,7 +104,6 @@ static void dumpLocationExpr(raw_ostream &OS, const DWARFFormValue &FormValue,
                      Ctx.isLittleEndian(), 0);
   DWARFExpression(Data, U->getAddressByteSize(), U->getFormParams().Format)
       .print(OS, DumpOpts, MRI, U);
-  return;
 }
 
 static DWARFDie resolveReferencedType(DWARFDie D,
@@ -671,6 +669,8 @@ struct DWARFTypePrinter {
     if (D.getTag() == DW_TAG_skeleton_unit)
       return;
     if (D.getTag() == DW_TAG_subprogram)
+      return;
+    if (D.getTag() == DW_TAG_lexical_block)
       return;
     D = D.resolveTypeUnitReference();
     if (DWARFDie P = D.getParent())

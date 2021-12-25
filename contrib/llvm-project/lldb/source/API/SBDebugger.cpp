@@ -11,8 +11,6 @@
 
 #include "lldb/API/SBDebugger.h"
 
-#include "lldb/lldb-private.h"
-
 #include "lldb/API/SBBroadcaster.h"
 #include "lldb/API/SBCommandInterpreter.h"
 #include "lldb/API/SBCommandInterpreterRunOptions.h"
@@ -52,6 +50,7 @@
 #include "lldb/Target/TargetList.h"
 #include "lldb/Utility/Args.h"
 #include "lldb/Utility/State.h"
+#include "lldb/Version/Version.h"
 
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringRef.h"
@@ -750,6 +749,9 @@ SBStructuredData SBDebugger::GetBuildConfiguration() {
   AddBoolConfigEntry(
       *config_up, "lua", LLDB_ENABLE_LUA,
       "A boolean value that indicates if lua support is enabled in LLDB");
+  AddBoolConfigEntry(*config_up, "fbsdvmcore", LLDB_ENABLE_FBSDVMCORE,
+                     "A boolean value that indicates if fbsdvmcore support is "
+                     "enabled in LLDB");
   AddLLVMTargets(*config_up);
 
   SBStructuredData data;

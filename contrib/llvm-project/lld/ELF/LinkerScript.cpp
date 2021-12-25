@@ -47,10 +47,10 @@ using namespace llvm::support::endian;
 using namespace lld;
 using namespace lld::elf;
 
-LinkerScript *elf::script;
+std::unique_ptr<LinkerScript> elf::script;
 
 static bool isSectionPrefix(StringRef prefix, StringRef name) {
-  return name.startswith(prefix) || name == prefix.drop_back();
+  return name.consume_front(prefix) && (name.empty() || name[0] == '.');
 }
 
 static StringRef getOutputSectionName(const InputSectionBase *s) {
@@ -94,18 +94,21 @@ static StringRef getOutputSectionName(const InputSectionBase *s) {
   // cold parts in .text.split instead of .text.unlikely mitigates against poor
   // profile inaccuracy. Techniques such as hugepage remapping can make
   // conservative decisions at the section granularity.
-  if (config->zKeepTextSectionPrefix)
-    for (StringRef v : {".text.hot.", ".text.unknown.", ".text.unlikely.",
-                        ".text.startup.", ".text.exit.", ".text.split."})
-      if (isSectionPrefix(v, s->name))
-        return v.drop_back();
+  if (isSectionPrefix(".text", s->name)) {
+    if (config->zKeepTextSectionPrefix)
+      for (StringRef v : {".text.hot", ".text.unknown", ".text.unlikely",
+                          ".text.startup", ".text.exit", ".text.split"})
+        if (isSectionPrefix(v.substr(5), s->name.substr(5)))
+          return v;
+    return ".text";
+  }
 
   for (StringRef v :
-       {".text.", ".rodata.", ".data.rel.ro.", ".data.", ".bss.rel.ro.",
-        ".bss.", ".init_array.", ".fini_array.", ".ctors.", ".dtors.", ".tbss.",
-        ".gcc_except_table.", ".tdata.", ".ARM.exidx.", ".ARM.extab."})
+       {".data.rel.ro", ".data", ".rodata", ".bss.rel.ro", ".bss",
+        ".gcc_except_table", ".init_array", ".fini_array", ".tbss", ".tdata",
+        ".ARM.exidx", ".ARM.extab", ".ctors", ".dtors"})
     if (isSectionPrefix(v, s->name))
-      return v.drop_back();
+      return v;
 
   return s->name;
 }
@@ -557,22 +560,22 @@ LinkerScript::computeInputSections(const InputSectionDescription *cmd,
   return ret;
 }
 
-void LinkerScript::discard(InputSectionBase *s) {
-  if (s == in.shStrTab || s == mainPart->relrDyn)
-    error("discarding " + s->name + " section is not allowed");
+void LinkerScript::discard(InputSectionBase &s) {
+  if (&s == in.shStrTab || &s == mainPart->relrDyn)
+    error("discarding " + s.name + " section is not allowed");
 
   // You can discard .hash and .gnu.hash sections by linker scripts. Since
   // they are synthesized sections, we need to handle them differently than
   // other regular sections.
-  if (s == mainPart->gnuHashTab)
+  if (&s == mainPart->gnuHashTab)
     mainPart->gnuHashTab = nullptr;
-  if (s == mainPart->hashTab)
+  if (&s == mainPart->hashTab)
     mainPart->hashTab = nullptr;
 
-  s->markDead();
-  s->parent = nullptr;
-  for (InputSection *ds : s->dependentSections)
-    discard(ds);
+  s.markDead();
+  s.parent = nullptr;
+  for (InputSection *sec : s.dependentSections)
+    discard(*sec);
 }
 
 void LinkerScript::discardSynthetic(OutputSection &outCmd) {
@@ -586,7 +589,7 @@ void LinkerScript::discardSynthetic(OutputSection &outCmd) {
         std::vector<InputSectionBase *> matches =
             computeInputSections(isd, secs);
         for (InputSectionBase *s : matches)
-          discard(s);
+          discard(*s);
       }
   }
 }
@@ -615,7 +618,7 @@ void LinkerScript::processSectionCommands() {
     // Any input section assigned to it is discarded.
     if (osec->name == "/DISCARD/") {
       for (InputSectionBase *s : v)
-        discard(s);
+        discard(*s);
       discardSynthetic(*osec);
       osec->commands.clear();
       return false;
@@ -1335,7 +1338,7 @@ std::vector<PhdrEntry *> LinkerScript::createPhdrs() {
   // Process PHDRS and FILEHDR keywords because they are not
   // real output sections and cannot be added in the following loop.
   for (const PhdrsCommand &cmd : phdrsCommands) {
-    PhdrEntry *phdr = make<PhdrEntry>(cmd.type, cmd.flags ? *cmd.flags : PF_R);
+    PhdrEntry *phdr = make<PhdrEntry>(cmd.type, cmd.flags.getValueOr(PF_R));
 
     if (cmd.hasFilehdr)
       phdr->add(Out::elfHeader);

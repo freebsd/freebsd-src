@@ -101,6 +101,7 @@ namespace {
     // Avoid querying the MachineFunctionProperties for each operand.
     bool isFunctionRegBankSelected;
     bool isFunctionSelected;
+    bool isFunctionTracksDebugUserValues;
 
     using RegVector = SmallVector<Register, 16>;
     using RegMaskVector = SmallVector<const uint32_t *, 4>;
@@ -384,6 +385,8 @@ unsigned MachineVerifier::verify(const MachineFunction &MF) {
       MachineFunctionProperties::Property::RegBankSelected);
   isFunctionSelected = MF.getProperties().hasProperty(
       MachineFunctionProperties::Property::Selected);
+  isFunctionTracksDebugUserValues = MF.getProperties().hasProperty(
+      MachineFunctionProperties::Property::TracksDebugUserValues);
 
   LiveVars = nullptr;
   LiveInts = nullptr;
@@ -1605,12 +1608,16 @@ void MachineVerifier::verifyPreISelGenericInstruction(const MachineInstr *MI) {
     }
     break;
   }
+  case TargetOpcode::G_SHL:
+  case TargetOpcode::G_LSHR:
+  case TargetOpcode::G_ASHR:
   case TargetOpcode::G_ROTR:
   case TargetOpcode::G_ROTL: {
     LLT Src1Ty = MRI->getType(MI->getOperand(1).getReg());
     LLT Src2Ty = MRI->getType(MI->getOperand(2).getReg());
     if (Src1Ty.isVector() != Src2Ty.isVector()) {
-      report("Rotate requires operands to be either all scalars or all vectors",
+      report("Shifts and rotates require operands to be either all scalars or "
+             "all vectors",
              MI);
       break;
     }
@@ -1980,41 +1987,50 @@ MachineVerifier::visitMachineOperand(const MachineOperand *MO, unsigned MONum) {
         if (MO->isUndef())
           report("Generic virtual register use cannot be undef", MO, MONum);
 
-        // If we're post-Select, we can't have gvregs anymore.
-        if (isFunctionSelected) {
-          report("Generic virtual register invalid in a Selected function",
-                 MO, MONum);
-          return;
+        // Debug value instruction is permitted to use undefined vregs.
+        // This is a performance measure to skip the overhead of immediately
+        // pruning unused debug operands. The final undef substitution occurs
+        // when debug values are allocated in LDVImpl::handleDebugValue, so
+        // these verifications always apply after this pass.
+        if (isFunctionTracksDebugUserValues || !MO->isUse() ||
+            !MI->isDebugValue() || !MRI->def_empty(Reg)) {
+          // If we're post-Select, we can't have gvregs anymore.
+          if (isFunctionSelected) {
+            report("Generic virtual register invalid in a Selected function",
+                   MO, MONum);
+            return;
+          }
+
+          // The gvreg must have a type and it must not have a SubIdx.
+          LLT Ty = MRI->getType(Reg);
+          if (!Ty.isValid()) {
+            report("Generic virtual register must have a valid type", MO,
+                   MONum);
+            return;
+          }
+
+          const RegisterBank *RegBank = MRI->getRegBankOrNull(Reg);
+
+          // If we're post-RegBankSelect, the gvreg must have a bank.
+          if (!RegBank && isFunctionRegBankSelected) {
+            report("Generic virtual register must have a bank in a "
+                   "RegBankSelected function",
+                   MO, MONum);
+            return;
+          }
+
+          // Make sure the register fits into its register bank if any.
+          if (RegBank && Ty.isValid() &&
+              RegBank->getSize() < Ty.getSizeInBits()) {
+            report("Register bank is too small for virtual register", MO,
+                   MONum);
+            errs() << "Register bank " << RegBank->getName() << " too small("
+                   << RegBank->getSize() << ") to fit " << Ty.getSizeInBits()
+                   << "-bits\n";
+            return;
+          }
         }
 
-        // The gvreg must have a type and it must not have a SubIdx.
-        LLT Ty = MRI->getType(Reg);
-        if (!Ty.isValid()) {
-          report("Generic virtual register must have a valid type", MO,
-                 MONum);
-          return;
-        }
-
-        const RegisterBank *RegBank = MRI->getRegBankOrNull(Reg);
-
-        // If we're post-RegBankSelect, the gvreg must have a bank.
-        if (!RegBank && isFunctionRegBankSelected) {
-          report("Generic virtual register must have a bank in a "
-                 "RegBankSelected function",
-                 MO, MONum);
-          return;
-        }
-
-        // Make sure the register fits into its register bank if any.
-        if (RegBank && Ty.isValid() &&
-            RegBank->getSize() < Ty.getSizeInBits()) {
-          report("Register bank is too small for virtual register", MO,
-                 MONum);
-          errs() << "Register bank " << RegBank->getName() << " too small("
-                 << RegBank->getSize() << ") to fit " << Ty.getSizeInBits()
-                 << "-bits\n";
-          return;
-        }
         if (SubIdx)  {
           report("Generic virtual register does not allow subregister index", MO,
                  MONum);
@@ -2217,8 +2233,8 @@ void MachineVerifier::checkLiveness(const MachineOperand *MO, unsigned MONum) {
   if (LiveInts && Reg.isVirtual()) {
     if (LiveInts->hasInterval(Reg)) {
       LI = &LiveInts->getInterval(Reg);
-      if (SubRegIdx != 0 && !LI->empty() && !LI->hasSubRanges() &&
-          MRI->shouldTrackSubRegLiveness(Reg))
+      if (SubRegIdx != 0 && (MO->isDef() || !MO->isUndef()) && !LI->empty() &&
+          !LI->hasSubRanges() && MRI->shouldTrackSubRegLiveness(Reg))
         report("Live interval for subreg operand has no subranges", MO, MONum);
     } else {
       report("Virtual register has no live interval", MO, MONum);

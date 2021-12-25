@@ -879,8 +879,6 @@ template <class LP> void ObjFile::parse() {
                        sections[i].subsections);
 
   parseDebugInfo();
-  if (config->emitDataInCodeInfo)
-    parseDataInCode();
   if (compactUnwindSection)
     registerCompactUnwind();
 }
@@ -908,19 +906,14 @@ void ObjFile::parseDebugInfo() {
   compileUnit = it->get();
 }
 
-void ObjFile::parseDataInCode() {
+ArrayRef<data_in_code_entry> ObjFile::getDataInCode() const {
   const auto *buf = reinterpret_cast<const uint8_t *>(mb.getBufferStart());
   const load_command *cmd = findCommand(buf, LC_DATA_IN_CODE);
   if (!cmd)
-    return;
+    return {};
   const auto *c = reinterpret_cast<const linkedit_data_command *>(cmd);
-  dataInCodeEntries = {
-      reinterpret_cast<const data_in_code_entry *>(buf + c->dataoff),
-      c->datasize / sizeof(data_in_code_entry)};
-  assert(is_sorted(dataInCodeEntries, [](const data_in_code_entry &lhs,
-                                         const data_in_code_entry &rhs) {
-    return lhs.offset < rhs.offset;
-  }));
+  return {reinterpret_cast<const data_in_code_entry *>(buf + c->dataoff),
+          c->datasize / sizeof(data_in_code_entry)};
 }
 
 // Create pointers from symbols to their associated compact unwind entries.
@@ -1154,16 +1147,34 @@ DylibFile::DylibFile(MemoryBufferRef mb, DylibFile *umbrella,
   exportingFile = isImplicitlyLinked(installName) ? this : this->umbrella;
   if (const load_command *cmd = findCommand(hdr, LC_DYLD_INFO_ONLY)) {
     auto *c = reinterpret_cast<const dyld_info_command *>(cmd);
+    struct TrieEntry {
+      StringRef name;
+      uint64_t flags;
+    };
+
+    std::vector<TrieEntry> entries;
+    // Find all the $ld$* symbols to process first.
     parseTrie(buf + c->export_off, c->export_size,
               [&](const Twine &name, uint64_t flags) {
                 StringRef savedName = saver.save(name);
                 if (handleLDSymbol(savedName))
                   return;
-                bool isWeakDef = flags & EXPORT_SYMBOL_FLAGS_WEAK_DEFINITION;
-                bool isTlv = flags & EXPORT_SYMBOL_FLAGS_KIND_THREAD_LOCAL;
-                symbols.push_back(symtab->addDylib(savedName, exportingFile,
-                                                   isWeakDef, isTlv));
+                entries.push_back({savedName, flags});
               });
+
+    // Process the "normal" symbols.
+    for (TrieEntry &entry : entries) {
+      if (exportingFile->hiddenSymbols.contains(
+              CachedHashStringRef(entry.name)))
+        continue;
+
+      bool isWeakDef = entry.flags & EXPORT_SYMBOL_FLAGS_WEAK_DEFINITION;
+      bool isTlv = entry.flags & EXPORT_SYMBOL_FLAGS_KIND_THREAD_LOCAL;
+
+      symbols.push_back(
+          symtab->addDylib(entry.name, exportingFile, isWeakDef, isTlv));
+    }
+
   } else {
     error("LC_DYLD_INFO_ONLY not found in " + toString(this));
     return;
@@ -1238,19 +1249,35 @@ DylibFile::DylibFile(const InterfaceFile &interface, DylibFile *umbrella,
 
   exportingFile = isImplicitlyLinked(installName) ? this : umbrella;
   auto addSymbol = [&](const Twine &name) -> void {
-    symbols.push_back(symtab->addDylib(saver.save(name), exportingFile,
+    StringRef savedName = saver.save(name);
+    if (exportingFile->hiddenSymbols.contains(CachedHashStringRef(savedName)))
+      return;
+
+    symbols.push_back(symtab->addDylib(savedName, exportingFile,
                                        /*isWeakDef=*/false,
                                        /*isTlv=*/false));
   };
-  // TODO(compnerd) filter out symbols based on the target platform
-  // TODO: handle weak defs, thread locals
+
+  std::vector<const llvm::MachO::Symbol *> normalSymbols;
+  normalSymbols.reserve(interface.symbolsCount());
   for (const auto *symbol : interface.symbols()) {
     if (!symbol->getArchitectures().has(config->arch()))
       continue;
-
     if (handleLDSymbol(symbol->getName()))
       continue;
 
+    switch (symbol->getKind()) {
+    case SymbolKind::GlobalSymbol:               // Fallthrough
+    case SymbolKind::ObjectiveCClass:            // Fallthrough
+    case SymbolKind::ObjectiveCClassEHType:      // Fallthrough
+    case SymbolKind::ObjectiveCInstanceVariable: // Fallthrough
+      normalSymbols.push_back(symbol);
+    }
+  }
+
+  // TODO(compnerd) filter out symbols based on the target platform
+  // TODO: handle weak defs, thread locals
+  for (const auto *symbol : normalSymbols) {
     switch (symbol->getKind()) {
     case SymbolKind::GlobalSymbol:
       addSymbol(symbol->getName());
@@ -1296,6 +1323,8 @@ bool DylibFile::handleLDSymbol(StringRef originalName) {
     handleLDPreviousSymbol(name, originalName);
   else if (action == "install_name")
     handleLDInstallNameSymbol(name, originalName);
+  else if (action == "hide")
+    handleLDHideSymbol(name, originalName);
   return true;
 }
 
@@ -1362,6 +1391,29 @@ void DylibFile::handleLDInstallNameSymbol(StringRef name,
     warn("failed to parse os version, symbol '" + originalName + "' ignored");
   else if (version == config->platformInfo.minimum)
     this->installName = saver.save(installName);
+}
+
+void DylibFile::handleLDHideSymbol(StringRef name, StringRef originalName) {
+  StringRef symbolName;
+  bool shouldHide = true;
+  if (name.startswith("os")) {
+    // If it's hidden based on versions.
+    name = name.drop_front(2);
+    StringRef minVersion;
+    std::tie(minVersion, symbolName) = name.split('$');
+    VersionTuple versionTup;
+    if (versionTup.tryParse(minVersion)) {
+      warn("Failed to parse hidden version, symbol `" + originalName +
+           "` ignored.");
+      return;
+    }
+    shouldHide = versionTup == config->platformInfo.minimum;
+  } else {
+    symbolName = name;
+  }
+
+  if (shouldHide)
+    exportingFile->hiddenSymbols.insert(CachedHashStringRef(symbolName));
 }
 
 void DylibFile::checkAppExtensionSafety(bool dylibIsAppExtensionSafe) const {
@@ -1445,9 +1497,8 @@ static macho::Symbol *createBitcodeSymbol(const lto::InputFile::Symbol &objSym,
                                           BitcodeFile &file) {
   StringRef name = saver.save(objSym.getName());
 
-  // TODO: support weak references
   if (objSym.isUndefined())
-    return symtab->addUndefined(name, &file, /*isWeakRef=*/false);
+    return symtab->addUndefined(name, &file, /*isWeakRef=*/objSym.isWeak());
 
   // TODO: Write a test demonstrating why computing isPrivateExtern before
   // LTO compilation is important.
@@ -1478,6 +1529,7 @@ static macho::Symbol *createBitcodeSymbol(const lto::InputFile::Symbol &objSym,
 BitcodeFile::BitcodeFile(MemoryBufferRef mb, StringRef archiveName,
                          uint64_t offsetInArchive)
     : InputFile(BitcodeKind, mb) {
+  this->archiveName = std::string(archiveName);
   std::string path = mb.getBufferIdentifier().str();
   // ThinLTO assumes that all MemoryBufferRefs given to it have a unique
   // name. If two members with the same name are provided, this causes a

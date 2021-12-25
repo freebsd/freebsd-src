@@ -543,7 +543,7 @@ private:
 
   void verifySwiftErrorCall(CallBase &Call, const Value *SwiftErrorVal);
   void verifySwiftErrorValue(const Value *SwiftErrorVal);
-  void verifyTailCCMustTailAttrs(AttrBuilder Attrs, StringRef Context);
+  void verifyTailCCMustTailAttrs(const AttrBuilder &Attrs, StringRef Context);
   void verifyMustTailCall(CallInst &CI);
   bool verifyAttributeCount(AttributeList Attrs, unsigned Params);
   void verifyAttributeTypes(AttributeSet Attrs, const Value *V);
@@ -553,8 +553,6 @@ private:
   void verifyFunctionAttrs(FunctionType *FT, AttributeList Attrs,
                            const Value *V, bool IsIntrinsic);
   void verifyFunctionMetadata(ArrayRef<std::pair<unsigned, MDNode *>> MDs);
-  template <typename T>
-  void verifyODRTypeAsScopeOperand(const MDNode &MD, T * = nullptr);
 
   void visitConstantExprsRecursively(const Constant *EntryC);
   void visitConstantExpr(const ConstantExpr *CE);
@@ -604,26 +602,35 @@ void Verifier::visit(Instruction &I) {
   InstVisitor<Verifier>::visit(I);
 }
 
-// Helper to recursively iterate over indirect users. By
-// returning false, the callback can ask to stop recursing
-// further.
+// Helper to iterate over indirect users. By returning false, the callback can ask to stop traversing further.
 static void forEachUser(const Value *User,
                         SmallPtrSet<const Value *, 32> &Visited,
                         llvm::function_ref<bool(const Value *)> Callback) {
   if (!Visited.insert(User).second)
     return;
-  for (const Value *TheNextUser : User->materialized_users())
-    if (Callback(TheNextUser))
-      forEachUser(TheNextUser, Visited, Callback);
+
+  SmallVector<const Value *> WorkList;
+  append_range(WorkList, User->materialized_users());
+  while (!WorkList.empty()) {
+   const Value *Cur = WorkList.pop_back_val();
+    if (!Visited.insert(Cur).second)
+      continue;
+    if (Callback(Cur))
+      append_range(WorkList, Cur->materialized_users());
+  }
 }
 
 void Verifier::visitGlobalValue(const GlobalValue &GV) {
   Assert(!GV.isDeclaration() || GV.hasValidDeclarationLinkage(),
          "Global is external, but doesn't have external or weak linkage!", &GV);
 
-  if (const GlobalObject *GO = dyn_cast<GlobalObject>(&GV))
-    Assert(GO->getAlignment() <= Value::MaximumAlignment,
-           "huge alignment values are unsupported", GO);
+  if (const GlobalObject *GO = dyn_cast<GlobalObject>(&GV)) {
+
+    if (MaybeAlign A = GO->getAlign()) {
+      Assert(A->value() <= Value::MaximumAlignment,
+             "huge alignment values are unsupported", GO);
+    }
+  }
   Assert(!GV.hasAppendingLinkage() || isa<GlobalVariable>(GV),
          "Only global variables can have appending linkage!", &GV);
 
@@ -733,8 +740,9 @@ void Verifier::visitGlobalVariable(const GlobalVariable &GV) {
           Value *V = Op->stripPointerCasts();
           Assert(isa<GlobalVariable>(V) || isa<Function>(V) ||
                      isa<GlobalAlias>(V),
-                 "invalid llvm.used member", V);
-          Assert(V->hasName(), "members of llvm.used must be named", V);
+                 Twine("invalid ") + GV.getName() + " member", V);
+          Assert(V->hasName(),
+                 Twine("members of ") + GV.getName() + " must be named", V);
         }
       }
     }
@@ -860,19 +868,6 @@ void Verifier::visitNamedMDNode(const NamedMDNode &NMD) {
   }
 }
 
-template <typename T>
-void Verifier::verifyODRTypeAsScopeOperand(const MDNode &MD, T *) {
-  if (isa<T>(MD)) {
-    if (auto *N = dyn_cast_or_null<DICompositeType>(cast<T>(MD).getScope()))
-      // Of all the supported tags for DICompositeType(see visitDICompositeType)
-      // we know that enum type cannot be a scope.
-      AssertDI(N->getTag() != dwarf::DW_TAG_enumeration_type,
-               "enum type is not a scope; check enum type ODR "
-               "violation",
-               N, &MD);
-  }
-}
-
 void Verifier::visitMDNode(const MDNode &MD, AreDebugLocsAllowed AllowLocs) {
   // Only visit each node once.  Metadata can be mutually recursive, so this
   // avoids infinite recursion here, as well as being an optimization.
@@ -881,12 +876,6 @@ void Verifier::visitMDNode(const MDNode &MD, AreDebugLocsAllowed AllowLocs) {
 
   Assert(&MD.getContext() == &Context,
          "MDNode context does not match Module context!", &MD);
-
-  // Makes sure when a scope operand is a ODR type, the ODR type uniquing does
-  // not create invalid debug metadata.
-  // TODO: check that the non-ODR-type scope operand is valid.
-  verifyODRTypeAsScopeOperand<DIType>(MD);
-  verifyODRTypeAsScopeOperand<DILocalScope>(MD);
 
   switch (MD.getMetadataID()) {
   default:
@@ -2055,10 +2044,12 @@ void Verifier::verifyFunctionAttrs(FunctionType *FT, AttributeList Attrs,
   }
 
   if (Attrs.hasFnAttr(Attribute::VScaleRange)) {
-    std::pair<unsigned, unsigned> Args =
-        Attrs.getFnAttrs().getVScaleRangeArgs();
+    unsigned VScaleMin = Attrs.getFnAttrs().getVScaleRangeMin();
+    if (VScaleMin == 0)
+      CheckFailed("'vscale_range' minimum must be greater than 0", V);
 
-    if (Args.first > Args.second && Args.second != 0)
+    Optional<unsigned> VScaleMax = Attrs.getFnAttrs().getVScaleRangeMax();
+    if (VScaleMax && VScaleMin > VScaleMax)
       CheckFailed("'vscale_range' minimum cannot be greater than maximum", V);
   }
 
@@ -3328,7 +3319,7 @@ void Verifier::visitCallBase(CallBase &Call) {
   visitInstruction(Call);
 }
 
-void Verifier::verifyTailCCMustTailAttrs(AttrBuilder Attrs,
+void Verifier::verifyTailCCMustTailAttrs(const AttrBuilder &Attrs,
                                          StringRef Context) {
   Assert(!Attrs.contains(Attribute::InAlloca),
          Twine("inalloca attribute not allowed in ") + Context);
@@ -3733,15 +3724,15 @@ void Verifier::visitLoadInst(LoadInst &LI) {
   PointerType *PTy = dyn_cast<PointerType>(LI.getOperand(0)->getType());
   Assert(PTy, "Load operand must be a pointer.", &LI);
   Type *ElTy = LI.getType();
-  Assert(LI.getAlignment() <= Value::MaximumAlignment,
-         "huge alignment values are unsupported", &LI);
+  if (MaybeAlign A = LI.getAlign()) {
+    Assert(A->value() <= Value::MaximumAlignment,
+           "huge alignment values are unsupported", &LI);
+  }
   Assert(ElTy->isSized(), "loading unsized types is not allowed", &LI);
   if (LI.isAtomic()) {
     Assert(LI.getOrdering() != AtomicOrdering::Release &&
                LI.getOrdering() != AtomicOrdering::AcquireRelease,
            "Load cannot have Release ordering", &LI);
-    Assert(LI.getAlignment() != 0,
-           "Atomic load must specify explicit alignment", &LI);
     Assert(ElTy->isIntOrPtrTy() || ElTy->isFloatingPointTy(),
            "atomic load operand must have integer, pointer, or floating point "
            "type!",
@@ -3761,15 +3752,15 @@ void Verifier::visitStoreInst(StoreInst &SI) {
   Type *ElTy = SI.getOperand(0)->getType();
   Assert(PTy->isOpaqueOrPointeeTypeMatches(ElTy),
          "Stored value type does not match pointer operand type!", &SI, ElTy);
-  Assert(SI.getAlignment() <= Value::MaximumAlignment,
-         "huge alignment values are unsupported", &SI);
+  if (MaybeAlign A = SI.getAlign()) {
+    Assert(A->value() <= Value::MaximumAlignment,
+           "huge alignment values are unsupported", &SI);
+  }
   Assert(ElTy->isSized(), "storing unsized types is not allowed", &SI);
   if (SI.isAtomic()) {
     Assert(SI.getOrdering() != AtomicOrdering::Acquire &&
                SI.getOrdering() != AtomicOrdering::AcquireRelease,
            "Store cannot have Acquire ordering", &SI);
-    Assert(SI.getAlignment() != 0,
-           "Atomic store must specify explicit alignment", &SI);
     Assert(ElTy->isIntOrPtrTy() || ElTy->isFloatingPointTy(),
            "atomic store operand must have integer, pointer, or floating point "
            "type!",
@@ -3820,8 +3811,10 @@ void Verifier::visitAllocaInst(AllocaInst &AI) {
          "Cannot allocate unsized type", &AI);
   Assert(AI.getArraySize()->getType()->isIntegerTy(),
          "Alloca array size must have integer type", &AI);
-  Assert(AI.getAlignment() <= Value::MaximumAlignment,
-         "huge alignment values are unsupported", &AI);
+  if (MaybeAlign A = AI.getAlign()) {
+    Assert(A->value() <= Value::MaximumAlignment,
+           "huge alignment values are unsupported", &AI);
+  }
 
   if (AI.isSwiftError()) {
     verifySwiftErrorValue(&AI);

@@ -51,8 +51,6 @@ using namespace llvm;
 #define DEBUG_TYPE "asm-printer"
 
 extern cl::opt<bool> WasmKeepRegisters;
-extern cl::opt<bool> WasmEnableEmEH;
-extern cl::opt<bool> WasmEnableEmSjLj;
 
 //===----------------------------------------------------------------------===//
 // Helpers.
@@ -196,6 +194,13 @@ void WebAssemblyAsmPrinter::emitGlobalVariable(const GlobalVariable *GV) {
     Sym->setGlobalType(wasm::WasmGlobalType{uint8_t(Type), Mutable});
   }
 
+  // If the GlobalVariable refers to a table, we handle it here instead of
+  // in emitExternalDecls
+  if (Sym->isTable()) {
+    getTargetStreamer()->emitTableType(Sym);
+    return;
+  }
+
   emitVisibility(Sym, GV->getVisibility(), !GV->isDeclaration());
   if (GV->hasInitializer()) {
     assert(getSymbolPreferLocal(*GV) == Sym);
@@ -315,8 +320,9 @@ void WebAssemblyAsmPrinter::emitExternalDecls(const Module &M) {
       // will discard it later if it turns out not to be necessary.
       auto Signature = signatureFromMVTs(Results, Params);
       bool InvokeDetected = false;
-      auto *Sym = getMCSymbolForFunction(&F, WasmEnableEmEH || WasmEnableEmSjLj,
-                                         Signature.get(), InvokeDetected);
+      auto *Sym = getMCSymbolForFunction(
+          &F, WebAssembly::WasmEnableEmEH || WebAssembly::WasmEnableEmSjLj,
+          Signature.get(), InvokeDetected);
 
       // Multiple functions can be mapped to the same invoke symbol. For
       // example, two IR functions '__invoke_void_i8*' and '__invoke_void_i32'
