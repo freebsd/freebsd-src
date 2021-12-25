@@ -77,6 +77,7 @@ msdosfs_lookup_checker(struct msdosfsmount *pmp, struct vnode *dvp,
 	 */
 	if (vp == dvp) {
 		vput(vp);
+		msdosfs_integrity_error(pmp);
 		*vpp = NULL;
 		return (EBADF);
 	}
@@ -595,10 +596,13 @@ foundroot:
 			vput(*vpp);
 			goto restart;
 		}
-		return (msdosfs_lookup_checker(pmp, vdp, VTODE(*vpp), vpp));
+		error = msdosfs_lookup_checker(pmp, vdp, VTODE(*vpp), vpp);
+		if (error != 0)
+			return (error);
 	} else if (dp->de_StartCluster == scn && isadir) {
 		if (cnp->cn_namelen != 1 || cnp->cn_nameptr[0] != '.') {
 			/* fs is corrupted, non-dot lookup returned dvp */
+			msdosfs_integrity_error(pmp);
 			return (EBADF);
 		}
 		VREF(vdp);	/* we want ourself, ie "." */
