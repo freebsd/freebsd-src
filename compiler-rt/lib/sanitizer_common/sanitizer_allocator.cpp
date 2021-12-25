@@ -17,6 +17,7 @@
 #include "sanitizer_allocator_internal.h"
 #include "sanitizer_atomic.h"
 #include "sanitizer_common.h"
+#include "sanitizer_platform.h"
 
 namespace __sanitizer {
 
@@ -193,6 +194,16 @@ void SetAllocatorMayReturnNull(bool may_return_null) {
 void PrintHintAllocatorCannotReturnNull() {
   Report("HINT: if you don't care about these errors you may set "
          "allocator_may_return_null=1\n");
+}
+
+static atomic_uint8_t rss_limit_exceeded;
+
+bool IsRssLimitExceeded() {
+  return atomic_load(&rss_limit_exceeded, memory_order_relaxed);
+}
+
+void SetRssLimitExceeded(bool limit_exceeded) {
+  atomic_store(&rss_limit_exceeded, limit_exceeded, memory_order_relaxed);
 }
 
 } // namespace __sanitizer

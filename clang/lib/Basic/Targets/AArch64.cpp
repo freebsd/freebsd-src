@@ -307,6 +307,9 @@ void AArch64TargetInfo::getTargetDefines(const LangOptions &Opts,
   if (FPU & SveMode)
     Builder.defineMacro("__ARM_FEATURE_SVE", "1");
 
+  if ((FPU & NeonMode) && (FPU & SveMode))
+    Builder.defineMacro("__ARM_NEON_SVE_BRIDGE", "1");
+
   if (HasSVE2)
     Builder.defineMacro("__ARM_FEATURE_SVE2", "1");
 
@@ -474,10 +477,12 @@ ArrayRef<Builtin::Info> AArch64TargetInfo::getTargetBuiltins() const {
 Optional<std::pair<unsigned, unsigned>>
 AArch64TargetInfo::getVScaleRange(const LangOptions &LangOpts) const {
   if (LangOpts.VScaleMin || LangOpts.VScaleMax)
-    return std::pair<unsigned, unsigned>(LangOpts.VScaleMin,
-                                         LangOpts.VScaleMax);
+    return std::pair<unsigned, unsigned>(
+        LangOpts.VScaleMin ? LangOpts.VScaleMin : 1, LangOpts.VScaleMax);
+
   if (hasFeature("sve"))
-    return std::pair<unsigned, unsigned>(0, 16);
+    return std::pair<unsigned, unsigned>(1, 16);
+
   return None;
 }
 

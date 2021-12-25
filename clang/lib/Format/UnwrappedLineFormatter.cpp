@@ -62,7 +62,7 @@ public:
       Indent = Line.Level * IndentWidth + AdditionalIndent;
     } else {
       IndentForLevel.resize(Line.Level + 1);
-      Indent = getIndent(IndentForLevel, Line.Level);
+      Indent = getIndent(Line.Level);
     }
     if (static_cast<int>(Indent) + Offset >= 0)
       Indent += Offset;
@@ -97,8 +97,8 @@ private:
   /// For example, 'public:' labels in classes are offset by 1 or 2
   /// characters to the left from their level.
   int getIndentOffset(const FormatToken &RootToken) {
-    if (Style.Language == FormatStyle::LK_Java ||
-        Style.Language == FormatStyle::LK_JavaScript || Style.isCSharp())
+    if (Style.Language == FormatStyle::LK_Java || Style.isJavaScript() ||
+        Style.isCSharp())
       return 0;
     if (RootToken.isAccessSpecifier(false) ||
         RootToken.isObjCAccessSpecifier() ||
@@ -118,12 +118,12 @@ private:
   /// \p IndentForLevel must contain the indent for the level \c l
   /// at \p IndentForLevel[l], or a value < 0 if the indent for
   /// that level is unknown.
-  unsigned getIndent(ArrayRef<int> IndentForLevel, unsigned Level) {
+  unsigned getIndent(unsigned Level) const {
     if (IndentForLevel[Level] != -1)
       return IndentForLevel[Level];
     if (Level == 0)
       return 0;
-    return getIndent(IndentForLevel, Level - 1) + Style.IndentWidth;
+    return getIndent(Level - 1) + Style.IndentWidth;
   }
 
   const FormatStyle &Style;
@@ -393,11 +393,24 @@ private:
 
     // Try to merge a block with left brace wrapped that wasn't yet covered
     if (TheLine->Last->is(tok::l_brace)) {
-      return !Style.BraceWrapping.AfterFunction ||
-                     (I[1]->First->is(tok::r_brace) &&
-                      !Style.BraceWrapping.SplitEmptyRecord)
-                 ? tryMergeSimpleBlock(I, E, Limit)
-                 : 0;
+      const FormatToken *Tok = TheLine->First;
+      bool ShouldMerge = false;
+      if (Tok->is(tok::kw_typedef)) {
+        Tok = Tok->getNextNonComment();
+        assert(Tok);
+      }
+      if (Tok->isOneOf(tok::kw_class, tok::kw_struct)) {
+        ShouldMerge = !Style.BraceWrapping.AfterClass ||
+                      (I[1]->First->is(tok::r_brace) &&
+                       !Style.BraceWrapping.SplitEmptyRecord);
+      } else if (Tok->is(tok::kw_enum)) {
+        ShouldMerge = Style.AllowShortEnumsOnASingleLine;
+      } else {
+        ShouldMerge = !Style.BraceWrapping.AfterFunction ||
+                      (I[1]->First->is(tok::r_brace) &&
+                       !Style.BraceWrapping.SplitEmptyFunction);
+      }
+      return ShouldMerge ? tryMergeSimpleBlock(I, E, Limit) : 0;
     }
     // Try to merge a function block with left brace wrapped
     if (I[1]->First->is(TT_FunctionLBrace) &&
@@ -583,6 +596,9 @@ private:
                             tok::kw___finally, tok::kw_for, tok::r_brace,
                             Keywords.kw___except)) {
       if (Style.AllowShortBlocksOnASingleLine == FormatStyle::SBS_Never)
+        return 0;
+      if (Style.AllowShortBlocksOnASingleLine == FormatStyle::SBS_Empty &&
+          !I[1]->First->is(tok::r_brace))
         return 0;
       // Don't merge when we can't except the case when
       // the control statement block is empty
@@ -1015,9 +1031,9 @@ private:
     QueueType Queue;
 
     // Insert start element into queue.
-    StateNode *Node =
+    StateNode *RootNode =
         new (Allocator.Allocate()) StateNode(InitialState, false, nullptr);
-    Queue.push(QueueItem(OrderedPenalty(0, Count), Node));
+    Queue.push(QueueItem(OrderedPenalty(0, Count), RootNode));
     ++Count;
 
     unsigned Penalty = 0;
@@ -1044,9 +1060,9 @@ private:
 
       FormatDecision LastFormat = Node->State.NextToken->getDecision();
       if (LastFormat == FD_Unformatted || LastFormat == FD_Continue)
-        addNextStateToQueue(Penalty, Node, /*NewLine=*/false, &Count, &Queue);
+        addNextStateToQueue(Penalty, Node, /*NewLine=*/false, Count, Queue);
       if (LastFormat == FD_Unformatted || LastFormat == FD_Break)
-        addNextStateToQueue(Penalty, Node, /*NewLine=*/true, &Count, &Queue);
+        addNextStateToQueue(Penalty, Node, /*NewLine=*/true, Count, Queue);
     }
 
     if (Queue.empty()) {
@@ -1072,7 +1088,7 @@ private:
   /// Assume the current state is \p PreviousNode and has been reached with a
   /// penalty of \p Penalty. Insert a line break if \p NewLine is \c true.
   void addNextStateToQueue(unsigned Penalty, StateNode *PreviousNode,
-                           bool NewLine, unsigned *Count, QueueType *Queue) {
+                           bool NewLine, unsigned &Count, QueueType &Queue) {
     if (NewLine && !Indenter->canBreak(PreviousNode->State))
       return;
     if (!NewLine && Indenter->mustBreak(PreviousNode->State))
@@ -1085,8 +1101,8 @@ private:
 
     Penalty += Indenter->addTokenToState(Node->State, NewLine, true);
 
-    Queue->push(QueueItem(OrderedPenalty(Penalty, *Count), Node));
-    ++(*Count);
+    Queue.push(QueueItem(OrderedPenalty(Penalty, Count), Node));
+    ++Count;
   }
 
   /// Applies the best formatting by reconstructing the path in the
@@ -1184,8 +1200,7 @@ unsigned UnwrappedLineFormatter::format(
       bool FitsIntoOneLine =
           TheLine.Last->TotalLength + Indent <= ColumnLimit ||
           (TheLine.Type == LT_ImportStatement &&
-           (Style.Language != FormatStyle::LK_JavaScript ||
-            !Style.JavaScriptWrapImports)) ||
+           (!Style.isJavaScript() || !Style.JavaScriptWrapImports)) ||
           (Style.isCSharp() &&
            TheLine.InPPDirective); // don't split #regions in C#
       if (Style.ColumnLimit == 0)

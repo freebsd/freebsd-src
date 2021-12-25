@@ -386,8 +386,9 @@ template <> struct MDNodeKeyImpl<DIEnumerator> {
         IsUnsigned(N->isUnsigned()) {}
 
   bool isKeyOf(const DIEnumerator *RHS) const {
-    return APInt::isSameValue(Value, RHS->getValue()) &&
-           IsUnsigned == RHS->isUnsigned() && Name == RHS->getRawName();
+    return Value.getBitWidth() == RHS->getValue().getBitWidth() &&
+           Value == RHS->getValue() && IsUnsigned == RHS->isUnsigned() &&
+           Name == RHS->getRawName();
   }
 
   unsigned getHashValue() const { return hash_combine(Value, Name); }
@@ -1423,6 +1424,8 @@ public:
       BlockAddresses;
 
   DenseMap<const GlobalValue *, DSOLocalEquivalent *> DSOLocalEquivalents;
+
+  DenseMap<const GlobalValue *, NoCFIValue *> NoCFIValues;
 
   ConstantUniqueMap<ConstantExpr> ExprConstants;
 

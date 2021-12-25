@@ -2121,7 +2121,7 @@ bool ARMLoadStoreOpt::runOnMachineFunction(MachineFunction &Fn) {
   bool Modified = false;
   for (MachineBasicBlock &MBB : Fn) {
     Modified |= LoadStoreMultipleOpti(MBB);
-    if (STI->hasV5TOps())
+    if (STI->hasV5TOps() && !AFI->shouldSignReturnAddress())
       Modified |= MergeReturnIntoLDM(MBB);
     if (isThumb1)
       Modified |= CombineMovBx(MBB);
@@ -2349,9 +2349,8 @@ bool ARMPreAllocLoadStoreOpt::RescheduleOps(MachineBasicBlock *MBB,
     unsigned LastOpcode = 0;
     unsigned LastBytes = 0;
     unsigned NumMove = 0;
-    for (int i = Ops.size() - 1; i >= 0; --i) {
+    for (MachineInstr *Op : llvm::reverse(Ops)) {
       // Make sure each operation has the same kind.
-      MachineInstr *Op = Ops[i];
       unsigned LSMOpcode
         = getLoadStoreMultipleOpcode(Op->getOpcode(), ARM_AM::ia);
       if (LastOpcode && LSMOpcode != LastOpcode)

@@ -1224,17 +1224,15 @@ void DwarfDebug::beginModule(Module *M) {
         CU.getOrCreateGlobalVariableDIE(GV, sortGlobalExprs(GVMap[GV]));
     }
 
-    for (auto *Ty : CUNode->getEnumTypes()) {
-      // The enum types array by design contains pointers to
-      // MDNodes rather than DIRefs. Unique them here.
+    for (auto *Ty : CUNode->getEnumTypes())
       CU.getOrCreateTypeDIE(cast<DIType>(Ty));
-    }
+
     for (auto *Ty : CUNode->getRetainedTypes()) {
       // The retained types array by design contains pointers to
       // MDNodes rather than DIRefs. Unique them here.
       if (DIType *RT = dyn_cast<DIType>(Ty))
-          // There is no point in force-emitting a forward declaration.
-          CU.getOrCreateTypeDIE(RT);
+        // There is no point in force-emitting a forward declaration.
+        CU.getOrCreateTypeDIE(RT);
     }
     // Emit imported_modules last so that the relevant context is already
     // available.

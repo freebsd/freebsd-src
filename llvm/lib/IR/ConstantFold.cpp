@@ -1801,46 +1801,8 @@ Constant *llvm::ConstantFoldCompareInstruction(unsigned short pred,
   } else if (isa<ConstantFP>(C1) && isa<ConstantFP>(C2)) {
     const APFloat &C1V = cast<ConstantFP>(C1)->getValueAPF();
     const APFloat &C2V = cast<ConstantFP>(C2)->getValueAPF();
-    APFloat::cmpResult R = C1V.compare(C2V);
-    switch (pred) {
-    default: llvm_unreachable("Invalid FCmp Predicate");
-    case FCmpInst::FCMP_FALSE: return Constant::getNullValue(ResultTy);
-    case FCmpInst::FCMP_TRUE:  return Constant::getAllOnesValue(ResultTy);
-    case FCmpInst::FCMP_UNO:
-      return ConstantInt::get(ResultTy, R==APFloat::cmpUnordered);
-    case FCmpInst::FCMP_ORD:
-      return ConstantInt::get(ResultTy, R!=APFloat::cmpUnordered);
-    case FCmpInst::FCMP_UEQ:
-      return ConstantInt::get(ResultTy, R==APFloat::cmpUnordered ||
-                                        R==APFloat::cmpEqual);
-    case FCmpInst::FCMP_OEQ:
-      return ConstantInt::get(ResultTy, R==APFloat::cmpEqual);
-    case FCmpInst::FCMP_UNE:
-      return ConstantInt::get(ResultTy, R!=APFloat::cmpEqual);
-    case FCmpInst::FCMP_ONE:
-      return ConstantInt::get(ResultTy, R==APFloat::cmpLessThan ||
-                                        R==APFloat::cmpGreaterThan);
-    case FCmpInst::FCMP_ULT:
-      return ConstantInt::get(ResultTy, R==APFloat::cmpUnordered ||
-                                        R==APFloat::cmpLessThan);
-    case FCmpInst::FCMP_OLT:
-      return ConstantInt::get(ResultTy, R==APFloat::cmpLessThan);
-    case FCmpInst::FCMP_UGT:
-      return ConstantInt::get(ResultTy, R==APFloat::cmpUnordered ||
-                                        R==APFloat::cmpGreaterThan);
-    case FCmpInst::FCMP_OGT:
-      return ConstantInt::get(ResultTy, R==APFloat::cmpGreaterThan);
-    case FCmpInst::FCMP_ULE:
-      return ConstantInt::get(ResultTy, R!=APFloat::cmpGreaterThan);
-    case FCmpInst::FCMP_OLE:
-      return ConstantInt::get(ResultTy, R==APFloat::cmpLessThan ||
-                                        R==APFloat::cmpEqual);
-    case FCmpInst::FCMP_UGE:
-      return ConstantInt::get(ResultTy, R!=APFloat::cmpLessThan);
-    case FCmpInst::FCMP_OGE:
-      return ConstantInt::get(ResultTy, R==APFloat::cmpGreaterThan ||
-                                        R==APFloat::cmpEqual);
-    }
+    CmpInst::Predicate Predicate = CmpInst::Predicate(pred);
+    return ConstantInt::get(ResultTy, FCmpInst::compare(C1V, C2V, Predicate));
   } else if (auto *C1VTy = dyn_cast<VectorType>(C1->getType())) {
 
     // Fast path for splatted constants.
@@ -2215,9 +2177,8 @@ Constant *llvm::ConstantFoldGetElementPtr(Type *PointeeTy, Constant *C,
 
   if (C->isNullValue()) {
     bool isNull = true;
-    for (unsigned i = 0, e = Idxs.size(); i != e; ++i)
-      if (!isa<UndefValue>(Idxs[i]) &&
-          !cast<Constant>(Idxs[i])->isNullValue()) {
+    for (Value *Idx : Idxs)
+      if (!isa<UndefValue>(Idx) && !cast<Constant>(Idx)->isNullValue()) {
         isNull = false;
         break;
       }
@@ -2233,8 +2194,8 @@ Constant *llvm::ConstantFoldGetElementPtr(Type *PointeeTy, Constant *C,
 
       // The GEP returns a vector of pointers when one of more of
       // its arguments is a vector.
-      for (unsigned i = 0, e = Idxs.size(); i != e; ++i) {
-        if (auto *VT = dyn_cast<VectorType>(Idxs[i]->getType())) {
+      for (Value *Idx : Idxs) {
+        if (auto *VT = dyn_cast<VectorType>(Idx->getType())) {
           assert((!isa<VectorType>(GEPTy) || isa<ScalableVectorType>(GEPTy) ==
                                                  isa<ScalableVectorType>(VT)) &&
                  "Mismatched GEPTy vector types");

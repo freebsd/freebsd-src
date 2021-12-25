@@ -76,6 +76,24 @@ struct TypeErasedDataflowAnalysisState {
   Environment Env;
 };
 
+/// Transfers the state of a basic block by evaluating each of its statements in
+/// the context of `Analysis` and the states of its predecessors that are
+/// available in `BlockStates`. `HandleTransferredStmt` (if provided) will be
+/// applied to each statement in the block, after it is evaluated.
+///
+/// Requirements:
+///
+///   All predecessors of `Block` except those with loop back edges must have
+///   already been transferred. States in `BlockStates` that are set to
+///   `llvm::None` represent basic blocks that are not evaluated yet.
+TypeErasedDataflowAnalysisState transferBlock(
+    std::vector<llvm::Optional<TypeErasedDataflowAnalysisState>> &BlockStates,
+    const CFGBlock &Block, const Environment &InitEnv,
+    TypeErasedDataflowAnalysis &Analysis,
+    std::function<void(const CFGStmt &,
+                       const TypeErasedDataflowAnalysisState &)>
+        HandleTransferredStmt = nullptr);
+
 /// Performs dataflow analysis and returns a mapping from basic block IDs to
 /// dataflow analysis states that model the respective basic blocks. Indices
 /// of the returned vector correspond to basic block IDs.

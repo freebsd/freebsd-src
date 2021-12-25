@@ -981,6 +981,7 @@ DEF_TRAVERSE_TYPE(FunctionProtoType, {
     TRY_TO(TraverseStmt(NE));
 })
 
+DEF_TRAVERSE_TYPE(UsingType, {})
 DEF_TRAVERSE_TYPE(UnresolvedUsingType, {})
 DEF_TRAVERSE_TYPE(TypedefType, {})
 
@@ -1072,8 +1073,8 @@ DEF_TRAVERSE_TYPE(AtomicType, { TRY_TO(TraverseType(T->getValueType())); })
 
 DEF_TRAVERSE_TYPE(PipeType, { TRY_TO(TraverseType(T->getElementType())); })
 
-DEF_TRAVERSE_TYPE(ExtIntType, {})
-DEF_TRAVERSE_TYPE(DependentExtIntType,
+DEF_TRAVERSE_TYPE(BitIntType, {})
+DEF_TRAVERSE_TYPE(DependentBitIntType,
                   { TRY_TO(TraverseStmt(T->getNumBitsExpr())); })
 
 #undef DEF_TRAVERSE_TYPE
@@ -1252,6 +1253,7 @@ DEF_TRAVERSE_TYPELOC(FunctionProtoType, {
     TRY_TO(TraverseStmt(NE));
 })
 
+DEF_TRAVERSE_TYPELOC(UsingType, {})
 DEF_TRAVERSE_TYPELOC(UnresolvedUsingType, {})
 DEF_TRAVERSE_TYPELOC(TypedefType, {})
 
@@ -1358,8 +1360,8 @@ DEF_TRAVERSE_TYPELOC(AtomicType, { TRY_TO(TraverseTypeLoc(TL.getValueLoc())); })
 
 DEF_TRAVERSE_TYPELOC(PipeType, { TRY_TO(TraverseTypeLoc(TL.getValueLoc())); })
 
-DEF_TRAVERSE_TYPELOC(ExtIntType, {})
-DEF_TRAVERSE_TYPELOC(DependentExtIntType, {
+DEF_TRAVERSE_TYPELOC(BitIntType, {})
+DEF_TRAVERSE_TYPELOC(DependentBitIntType, {
   TRY_TO(TraverseStmt(TL.getTypePtr()->getNumBitsExpr()));
 })
 
@@ -2095,7 +2097,13 @@ bool RecursiveASTVisitor<Derived>::TraverseFunctionHelper(FunctionDecl *D) {
   }
 
   if (VisitBody) {
-    TRY_TO(TraverseStmt(D->getBody())); // Function body.
+    TRY_TO(TraverseStmt(D->getBody()));
+    // Body may contain using declarations whose shadows are parented to the
+    // FunctionDecl itself.
+    for (auto *Child : D->decls()) {
+      if (isa<UsingShadowDecl>(Child))
+        TRY_TO(TraverseDecl(Child));
+    }
   }
   return true;
 }
@@ -3223,6 +3231,11 @@ bool RecursiveASTVisitor<Derived>::VisitOMPUpdateClause(OMPUpdateClause *) {
 
 template <typename Derived>
 bool RecursiveASTVisitor<Derived>::VisitOMPCaptureClause(OMPCaptureClause *) {
+  return true;
+}
+
+template <typename Derived>
+bool RecursiveASTVisitor<Derived>::VisitOMPCompareClause(OMPCompareClause *) {
   return true;
 }
 

@@ -13,7 +13,10 @@
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/DebugInfo/DWARF/DWARFContext.h"
 #include "llvm/IR/LLVMContext.h"
+#include "llvm/Object/Binary.h"
+#include "llvm/ProfileData/InstrProfCorrelator.h"
 #include "llvm/ProfileData/InstrProfReader.h"
 #include "llvm/ProfileData/InstrProfWriter.h"
 #include "llvm/ProfileData/ProfileCommon.h"
@@ -233,6 +236,7 @@ static void overlapInput(const std::string &BaseFilename,
 
 /// Load an input into a writer context.
 static void loadInput(const WeightedFile &Input, SymbolRemapper *Remapper,
+                      const InstrProfCorrelator *Correlator,
                       WriterContext *WC) {
   std::unique_lock<std::mutex> CtxGuard{WC->Lock};
 
@@ -241,7 +245,7 @@ static void loadInput(const WeightedFile &Input, SymbolRemapper *Remapper,
   // invalid outside of this packaged task.
   std::string Filename = Input.Filename;
 
-  auto ReaderOrErr = InstrProfReader::create(Input.Filename);
+  auto ReaderOrErr = InstrProfReader::create(Input.Filename, Correlator);
   if (Error E = ReaderOrErr.takeError()) {
     // Skip the empty profiles by returning sliently.
     instrprof_error IPE = InstrProfError::take(std::move(E));
@@ -325,6 +329,7 @@ static void writeInstrProfile(StringRef OutputFilename,
 }
 
 static void mergeInstrProfile(const WeightedFileVector &Inputs,
+                              StringRef DebugInfoFilename,
                               SymbolRemapper *Remapper,
                               StringRef OutputFilename,
                               ProfileFormat OutputFormat, bool OutputSparse,
@@ -332,6 +337,15 @@ static void mergeInstrProfile(const WeightedFileVector &Inputs,
   if (OutputFormat != PF_Binary && OutputFormat != PF_Compact_Binary &&
       OutputFormat != PF_Ext_Binary && OutputFormat != PF_Text)
     exitWithError("unknown format is specified");
+
+  std::unique_ptr<InstrProfCorrelator> Correlator;
+  if (!DebugInfoFilename.empty()) {
+    if (auto Err =
+            InstrProfCorrelator::get(DebugInfoFilename).moveInto(Correlator))
+      exitWithError(std::move(Err), DebugInfoFilename);
+    if (auto Err = Correlator->correlateProfileData())
+      exitWithError(std::move(Err), DebugInfoFilename);
+  }
 
   std::mutex ErrorLock;
   SmallSet<instrprof_error, 4> WriterErrorCodes;
@@ -352,14 +366,15 @@ static void mergeInstrProfile(const WeightedFileVector &Inputs,
 
   if (NumThreads == 1) {
     for (const auto &Input : Inputs)
-      loadInput(Input, Remapper, Contexts[0].get());
+      loadInput(Input, Remapper, Correlator.get(), Contexts[0].get());
   } else {
     ThreadPool Pool(hardware_concurrency(NumThreads));
 
     // Load the inputs in parallel (N/NumThreads serial steps).
     unsigned Ctx = 0;
     for (const auto &Input : Inputs) {
-      Pool.async(loadInput, Input, Remapper, Contexts[Ctx].get());
+      Pool.async(loadInput, Input, Remapper, Correlator.get(),
+                 Contexts[Ctx].get());
       Ctx = (Ctx + 1) % NumThreads;
     }
     Pool.wait();
@@ -575,7 +590,7 @@ static void supplementInstrProfile(
   SmallSet<instrprof_error, 4> WriterErrorCodes;
   auto WC = std::make_unique<WriterContext>(OutputSparse, ErrorLock,
                                             WriterErrorCodes);
-  loadInput(Inputs[0], nullptr, WC.get());
+  loadInput(Inputs[0], nullptr, nullptr, WC.get());
   if (WC->Errors.size() > 0)
     exitWithError(std::move(WC->Errors[0].first), InstrFilename);
 
@@ -687,7 +702,7 @@ static void
 mergeSampleProfile(const WeightedFileVector &Inputs, SymbolRemapper *Remapper,
                    StringRef OutputFilename, ProfileFormat OutputFormat,
                    StringRef ProfileSymbolListFile, bool CompressAllSections,
-                   bool UseMD5, bool GenPartialProfile,
+                   bool UseMD5, bool GenPartialProfile, bool GenCSNestedProfile,
                    bool SampleMergeColdContext, bool SampleTrimColdContext,
                    bool SampleColdContextFrameDepth, FailureMode FailMode) {
   using namespace sampleprof;
@@ -696,7 +711,7 @@ mergeSampleProfile(const WeightedFileVector &Inputs, SymbolRemapper *Remapper,
   LLVMContext Context;
   sampleprof::ProfileSymbolList WriterList;
   Optional<bool> ProfileIsProbeBased;
-  Optional<bool> ProfileIsCS;
+  Optional<bool> ProfileIsCSFlat;
   for (const auto &Input : Inputs) {
     auto ReaderOrErr = SampleProfileReader::create(Input.Filename, Context,
                                                    FSDiscriminatorPassOption);
@@ -723,9 +738,10 @@ mergeSampleProfile(const WeightedFileVector &Inputs, SymbolRemapper *Remapper,
       exitWithError(
           "cannot merge probe-based profile with non-probe-based profile");
     ProfileIsProbeBased = FunctionSamples::ProfileIsProbeBased;
-    if (ProfileIsCS.hasValue() && ProfileIsCS != FunctionSamples::ProfileIsCS)
+    if (ProfileIsCSFlat.hasValue() &&
+        ProfileIsCSFlat != FunctionSamples::ProfileIsCSFlat)
       exitWithError("cannot merge CS profile with non-CS profile");
-    ProfileIsCS = FunctionSamples::ProfileIsCS;
+    ProfileIsCSFlat = FunctionSamples::ProfileIsCSFlat;
     for (SampleProfileMap::iterator I = Profiles.begin(), E = Profiles.end();
          I != E; ++I) {
       sampleprof_error Result = sampleprof_error::success;
@@ -748,7 +764,7 @@ mergeSampleProfile(const WeightedFileVector &Inputs, SymbolRemapper *Remapper,
       WriterList.merge(*ReaderList);
   }
 
-  if (ProfileIsCS && (SampleMergeColdContext || SampleTrimColdContext)) {
+  if (ProfileIsCSFlat && (SampleMergeColdContext || SampleTrimColdContext)) {
     // Use threshold calculated from profile summary unless specified.
     SampleProfileSummaryBuilder Builder(ProfileSummaryBuilder::DefaultCutoffs);
     auto Summary = Builder.computeSummaryForProfiles(ProfileMap);
@@ -761,6 +777,12 @@ mergeSampleProfile(const WeightedFileVector &Inputs, SymbolRemapper *Remapper,
         .trimAndMergeColdContextProfiles(
             SampleProfColdThreshold, SampleTrimColdContext,
             SampleMergeColdContext, SampleColdContextFrameDepth, false);
+  }
+
+  if (ProfileIsCSFlat && GenCSNestedProfile) {
+    CSProfileConverter CSConverter(ProfileMap);
+    CSConverter.convertProfiles();
+    ProfileIsCSFlat = FunctionSamples::ProfileIsCSFlat = false;
   }
 
   auto WriterOrErr =
@@ -941,7 +963,13 @@ static int merge_main(int argc, const char *argv[]) {
   cl::opt<unsigned> InstrProfColdThreshold(
       "instr-prof-cold-threshold", cl::init(0), cl::Hidden,
       cl::desc("User specified cold threshold for instr profile which will "
-               "override the cold threshold got from profile summary."));
+               "override the cold threshold got from profile summary. "));
+  cl::opt<bool> GenCSNestedProfile(
+      "gen-cs-nested-profile", cl::Hidden, cl::init(false),
+      cl::desc("Generate nested function profiles for CSSPGO"));
+  cl::opt<std::string> DebugInfoFilename(
+      "debug-info", cl::init(""), cl::Hidden,
+      cl::desc("Use the provided debug info to correlate the raw profile."));
 
   cl::ParseCommandLineOptions(argc, argv, "LLVM profile data merger\n");
 
@@ -982,15 +1010,15 @@ static int merge_main(int argc, const char *argv[]) {
   }
 
   if (ProfileKind == instr)
-    mergeInstrProfile(WeightedInputs, Remapper.get(), OutputFilename,
-                      OutputFormat, OutputSparse, NumThreads, FailureMode);
+    mergeInstrProfile(WeightedInputs, DebugInfoFilename, Remapper.get(),
+                      OutputFilename, OutputFormat, OutputSparse, NumThreads,
+                      FailureMode);
   else
     mergeSampleProfile(WeightedInputs, Remapper.get(), OutputFilename,
                        OutputFormat, ProfileSymbolListFile, CompressAllSections,
-                       UseMD5, GenPartialProfile, SampleMergeColdContext,
-                       SampleTrimColdContext, SampleColdContextFrameDepth,
-                       FailureMode);
-
+                       UseMD5, GenPartialProfile, GenCSNestedProfile,
+                       SampleMergeColdContext, SampleTrimColdContext,
+                       SampleColdContextFrameDepth, FailureMode);
   return 0;
 }
 
@@ -1015,7 +1043,7 @@ static void overlapInstrProfile(const std::string &BaseFilename,
     OS << "Sum of edge counts for profile " << TestFilename << " is 0.\n";
     exit(0);
   }
-  loadInput(WeightedInput, nullptr, &Context);
+  loadInput(WeightedInput, nullptr, nullptr, &Context);
   overlapInput(BaseFilename, TestFilename, &Context, Overlap, FuncFilter, OS,
                IsCS);
   Overlap.dump(OS);
@@ -1911,7 +1939,7 @@ std::error_code SampleOverlapAggregator::loadProfiles() {
   if (BaseReader->profileIsProbeBased() != TestReader->profileIsProbeBased())
     exitWithError(
         "cannot compare probe-based profile with non-probe-based profile");
-  if (BaseReader->profileIsCS() != TestReader->profileIsCS())
+  if (BaseReader->profileIsCSFlat() != TestReader->profileIsCSFlat())
     exitWithError("cannot compare CS profile with non-CS profile");
 
   // Load BaseHotThreshold and TestHotThreshold as 99-percentile threshold in

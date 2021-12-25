@@ -188,8 +188,8 @@ LValue CodeGenFunction::MakeNaturalAlignAddrLValue(llvm::Value *V, QualType T) {
   LValueBaseInfo BaseInfo;
   TBAAAccessInfo TBAAInfo;
   CharUnits Alignment = CGM.getNaturalTypeAlignment(T, &BaseInfo, &TBAAInfo);
-  return LValue::MakeAddr(Address(V, Alignment), T, getContext(), BaseInfo,
-                          TBAAInfo);
+  Address Addr(V, ConvertTypeForMem(T), Alignment);
+  return LValue::MakeAddr(Addr, T, getContext(), BaseInfo, TBAAInfo);
 }
 
 /// Given a value of type T* that may not be to a complete object,
@@ -200,7 +200,8 @@ CodeGenFunction::MakeNaturalAlignPointeeAddrLValue(llvm::Value *V, QualType T) {
   TBAAAccessInfo TBAAInfo;
   CharUnits Align = CGM.getNaturalTypeAlignment(T, &BaseInfo, &TBAAInfo,
                                                 /* forPointeeType= */ true);
-  return MakeAddrLValue(Address(V, Align), T, BaseInfo, TBAAInfo);
+  Address Addr(V, ConvertTypeForMem(T), Align);
+  return MakeAddrLValue(Addr, T, BaseInfo, TBAAInfo);
 }
 
 
@@ -243,7 +244,7 @@ TypeEvaluationKind CodeGenFunction::getEvaluationKind(QualType type) {
     case Type::Enum:
     case Type::ObjCObjectPointer:
     case Type::Pipe:
-    case Type::ExtInt:
+    case Type::BitInt:
       return TEK_Scalar;
 
     // Complexes.
@@ -1070,7 +1071,8 @@ void CodeGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
     auto AI = CurFn->arg_begin();
     if (CurFnInfo->getReturnInfo().isSRetAfterThis())
       ++AI;
-    ReturnValue = Address(&*AI, CurFnInfo->getReturnInfo().getIndirectAlign());
+    ReturnValue = Address(&*AI, ConvertType(RetTy),
+                          CurFnInfo->getReturnInfo().getIndirectAlign());
     if (!CurFnInfo->getReturnInfo().getIndirectByVal()) {
       ReturnValuePointer =
           CreateDefaultAlignTempAlloca(Int8PtrTy, "result.ptr");
@@ -1298,47 +1300,44 @@ QualType CodeGenFunction::BuildFunctionArgList(GlobalDecl GD,
 
 void CodeGenFunction::GenerateCode(GlobalDecl GD, llvm::Function *Fn,
                                    const CGFunctionInfo &FnInfo) {
+  assert(Fn && "generating code for null Function");
   const FunctionDecl *FD = cast<FunctionDecl>(GD.getDecl());
   CurGD = GD;
 
   FunctionArgList Args;
   QualType ResTy = BuildFunctionArgList(GD, Args);
 
-  // When generating code for a builtin with an inline declaration, use a
-  // mangled name to hold the actual body, while keeping an external definition
-  // in case the function pointer is referenced somewhere.
-  if (Fn) {
-    if (FD->isInlineBuiltinDeclaration()) {
-      std::string FDInlineName = (Fn->getName() + ".inline").str();
-      llvm::Module *M = Fn->getParent();
-      llvm::Function *Clone = M->getFunction(FDInlineName);
-      if (!Clone) {
-        Clone = llvm::Function::Create(Fn->getFunctionType(),
-                                       llvm::GlobalValue::InternalLinkage,
-                                       Fn->getAddressSpace(), FDInlineName, M);
-        Clone->addFnAttr(llvm::Attribute::AlwaysInline);
-      }
-      Fn->setLinkage(llvm::GlobalValue::ExternalLinkage);
-      Fn = Clone;
+  if (FD->isInlineBuiltinDeclaration()) {
+    // When generating code for a builtin with an inline declaration, use a
+    // mangled name to hold the actual body, while keeping an external
+    // definition in case the function pointer is referenced somewhere.
+    std::string FDInlineName = (Fn->getName() + ".inline").str();
+    llvm::Module *M = Fn->getParent();
+    llvm::Function *Clone = M->getFunction(FDInlineName);
+    if (!Clone) {
+      Clone = llvm::Function::Create(Fn->getFunctionType(),
+                                     llvm::GlobalValue::InternalLinkage,
+                                     Fn->getAddressSpace(), FDInlineName, M);
+      Clone->addFnAttr(llvm::Attribute::AlwaysInline);
     }
-
+    Fn->setLinkage(llvm::GlobalValue::ExternalLinkage);
+    Fn = Clone;
+  } else {
     // Detect the unusual situation where an inline version is shadowed by a
     // non-inline version. In that case we should pick the external one
     // everywhere. That's GCC behavior too. Unfortunately, I cannot find a way
     // to detect that situation before we reach codegen, so do some late
     // replacement.
-    else {
-      for (const FunctionDecl *PD = FD->getPreviousDecl(); PD;
-           PD = PD->getPreviousDecl()) {
-        if (LLVM_UNLIKELY(PD->isInlineBuiltinDeclaration())) {
-          std::string FDInlineName = (Fn->getName() + ".inline").str();
-          llvm::Module *M = Fn->getParent();
-          if (llvm::Function *Clone = M->getFunction(FDInlineName)) {
-            Clone->replaceAllUsesWith(Fn);
-            Clone->eraseFromParent();
-          }
-          break;
+    for (const FunctionDecl *PD = FD->getPreviousDecl(); PD;
+         PD = PD->getPreviousDecl()) {
+      if (LLVM_UNLIKELY(PD->isInlineBuiltinDeclaration())) {
+        std::string FDInlineName = (Fn->getName() + ".inline").str();
+        llvm::Module *M = Fn->getParent();
+        if (llvm::Function *Clone = M->getFunction(FDInlineName)) {
+          Clone->replaceAllUsesWith(Fn);
+          Clone->eraseFromParent();
         }
+        break;
       }
     }
   }
@@ -1347,8 +1346,7 @@ void CodeGenFunction::GenerateCode(GlobalDecl GD, llvm::Function *Fn,
   if (FD->hasAttr<NoDebugAttr>()) {
     // Clear non-distinct debug info that was possibly attached to the function
     // due to an earlier declaration without the nodebug attribute
-    if (Fn)
-      Fn->setSubprogram(nullptr);
+    Fn->setSubprogram(nullptr);
     // Disable debug info indefinitely for this function
     DebugInfo = nullptr;
   }
@@ -2202,12 +2200,13 @@ void CodeGenFunction::EmitVariablyModifiedType(QualType type) {
     case Type::Record:
     case Type::Enum:
     case Type::Elaborated:
+    case Type::Using:
     case Type::TemplateSpecialization:
     case Type::ObjCTypeParam:
     case Type::ObjCObject:
     case Type::ObjCInterface:
     case Type::ObjCObjectPointer:
-    case Type::ExtInt:
+    case Type::BitInt:
       llvm_unreachable("type class is never variably-modified!");
 
     case Type::Adjusted:

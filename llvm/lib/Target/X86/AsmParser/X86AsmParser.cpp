@@ -1759,7 +1759,8 @@ bool X86AsmParser::CreateMemForMSInlineAsm(
   // registers in a mmory expression, and though unaccessible via rip/eip.
   if (IsGlobalLV && (BaseReg || IndexReg)) {
     Operands.push_back(X86Operand::CreateMem(getPointerWidth(), Disp, Start,
-                                             End, Size, Identifier, Decl));
+                                             End, Size, Identifier, Decl,
+                                             FrontendSize));
     return false;
   }
   // Otherwise, we set the base register to a non-zero value
@@ -2551,8 +2552,6 @@ bool X86AsmParser::ParseIntelOperand(OperandVector &Operands) {
   StringRef ErrMsg;
   unsigned BaseReg = SM.getBaseReg();
   unsigned IndexReg = SM.getIndexReg();
-  if (IndexReg && BaseReg == X86::RIP)
-    BaseReg = 0;
   unsigned Scale = SM.getScale();
   if (!PtrInOperand)
     Size = SM.getElementSize() << 3;
@@ -4430,8 +4429,7 @@ bool X86AsmParser::MatchAndEmitATTInstruction(SMLoc IDLoc, unsigned &Opcode,
   // If exactly one matched, then we treat that as a successful match (and the
   // instruction will already have been filled in correctly, since the failing
   // matches won't have modified it).
-  unsigned NumSuccessfulMatches =
-      std::count(std::begin(Match), std::end(Match), Match_Success);
+  unsigned NumSuccessfulMatches = llvm::count(Match, Match_Success);
   if (NumSuccessfulMatches == 1) {
     if (!MatchingInlineAsm && validateInstruction(Inst, Operands))
       return true;
@@ -4479,7 +4477,7 @@ bool X86AsmParser::MatchAndEmitATTInstruction(SMLoc IDLoc, unsigned &Opcode,
 
   // If all of the instructions reported an invalid mnemonic, then the original
   // mnemonic was invalid.
-  if (std::count(std::begin(Match), std::end(Match), Match_MnemonicFail) == 4) {
+  if (llvm::count(Match, Match_MnemonicFail) == 4) {
     if (OriginalError == Match_MnemonicFail)
       return Error(IDLoc, "invalid instruction mnemonic '" + Base + "'",
                    Op.getLocRange(), MatchingInlineAsm);
@@ -4508,16 +4506,14 @@ bool X86AsmParser::MatchAndEmitATTInstruction(SMLoc IDLoc, unsigned &Opcode,
   }
 
   // If one instruction matched as unsupported, report this as unsupported.
-  if (std::count(std::begin(Match), std::end(Match),
-                 Match_Unsupported) == 1) {
+  if (llvm::count(Match, Match_Unsupported) == 1) {
     return Error(IDLoc, "unsupported instruction", EmptyRange,
                  MatchingInlineAsm);
   }
 
   // If one instruction matched with a missing feature, report this as a
   // missing feature.
-  if (std::count(std::begin(Match), std::end(Match),
-                 Match_MissingFeature) == 1) {
+  if (llvm::count(Match, Match_MissingFeature) == 1) {
     ErrorInfo = Match_MissingFeature;
     return ErrorMissingFeature(IDLoc, ErrorInfoMissingFeatures,
                                MatchingInlineAsm);
@@ -4525,8 +4521,7 @@ bool X86AsmParser::MatchAndEmitATTInstruction(SMLoc IDLoc, unsigned &Opcode,
 
   // If one instruction matched with an invalid operand, report this as an
   // operand failure.
-  if (std::count(std::begin(Match), std::end(Match),
-                 Match_InvalidOperand) == 1) {
+  if (llvm::count(Match, Match_InvalidOperand) == 1) {
     return Error(IDLoc, "invalid operand for instruction", EmptyRange,
                  MatchingInlineAsm);
   }
@@ -4674,8 +4669,7 @@ bool X86AsmParser::MatchAndEmitIntelInstruction(SMLoc IDLoc, unsigned &Opcode,
                  Op.getLocRange(), MatchingInlineAsm);
   }
 
-  unsigned NumSuccessfulMatches =
-      std::count(std::begin(Match), std::end(Match), Match_Success);
+  unsigned NumSuccessfulMatches = llvm::count(Match, Match_Success);
 
   // If matching was ambiguous and we had size information from the frontend,
   // try again with that. This handles cases like "movxz eax, m8/m16".
@@ -4721,16 +4715,14 @@ bool X86AsmParser::MatchAndEmitIntelInstruction(SMLoc IDLoc, unsigned &Opcode,
   }
 
   // If one instruction matched as unsupported, report this as unsupported.
-  if (std::count(std::begin(Match), std::end(Match),
-                 Match_Unsupported) == 1) {
+  if (llvm::count(Match, Match_Unsupported) == 1) {
     return Error(IDLoc, "unsupported instruction", EmptyRange,
                  MatchingInlineAsm);
   }
 
   // If one instruction matched with a missing feature, report this as a
   // missing feature.
-  if (std::count(std::begin(Match), std::end(Match),
-                 Match_MissingFeature) == 1) {
+  if (llvm::count(Match, Match_MissingFeature) == 1) {
     ErrorInfo = Match_MissingFeature;
     return ErrorMissingFeature(IDLoc, ErrorInfoMissingFeatures,
                                MatchingInlineAsm);
@@ -4738,14 +4730,12 @@ bool X86AsmParser::MatchAndEmitIntelInstruction(SMLoc IDLoc, unsigned &Opcode,
 
   // If one instruction matched with an invalid operand, report this as an
   // operand failure.
-  if (std::count(std::begin(Match), std::end(Match),
-                 Match_InvalidOperand) == 1) {
+  if (llvm::count(Match, Match_InvalidOperand) == 1) {
     return Error(IDLoc, "invalid operand for instruction", EmptyRange,
                  MatchingInlineAsm);
   }
 
-  if (std::count(std::begin(Match), std::end(Match),
-                 Match_InvalidImmUnsignedi4) == 1) {
+  if (llvm::count(Match, Match_InvalidImmUnsignedi4) == 1) {
     SMLoc ErrorLoc = ((X86Operand &)*Operands[ErrorInfo]).getStartLoc();
     if (ErrorLoc == SMLoc())
       ErrorLoc = IDLoc;

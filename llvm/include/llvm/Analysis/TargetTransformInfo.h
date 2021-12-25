@@ -1137,6 +1137,13 @@ public:
                   TTI::TargetCostKind CostKind = TTI::TCK_RecipThroughput,
                   const Instruction *I = nullptr) const;
 
+  /// \return The cost of VP Load and Store instructions.
+  InstructionCost
+  getVPMemoryOpCost(unsigned Opcode, Type *Src, Align Alignment,
+                    unsigned AddressSpace,
+                    TTI::TargetCostKind CostKind = TTI::TCK_RecipThroughput,
+                    const Instruction *I = nullptr) const;
+
   /// \return The cost of masked Load and Store instructions.
   InstructionCost getMaskedMemoryOpCost(
       unsigned Opcode, Type *Src, Align Alignment, unsigned AddressSpace,
@@ -1291,13 +1298,12 @@ public:
   bool areInlineCompatible(const Function *Caller,
                            const Function *Callee) const;
 
-  /// \returns True if the caller and callee agree on how \p Args will be passed
+  /// \returns True if the caller and callee agree on how \p Types will be
+  /// passed to or returned from the callee.
   /// to the callee.
-  /// \param[out] Args The list of compatible arguments.  The implementation may
-  /// filter out any incompatible args from this list.
-  bool areFunctionArgsABICompatible(const Function *Caller,
-                                    const Function *Callee,
-                                    SmallPtrSetImpl<Argument *> &Args) const;
+  /// \param Types List of types to check.
+  bool areTypesABICompatible(const Function *Caller, const Function *Callee,
+                             const ArrayRef<Type *> &Types) const;
 
   /// The type of load/store indexing.
   enum MemIndexedMode {
@@ -1388,12 +1394,17 @@ public:
   /// \returns True if the target supports scalable vectors.
   bool supportsScalableVectors() const;
 
+  /// \return true when scalable vectorization is preferred.
+  bool enableScalableVectorization() const;
+
   /// \name Vector Predication Information
   /// @{
   /// Whether the target supports the %evl parameter of VP intrinsic efficiently
-  /// in hardware. (see LLVM Language Reference - "Vector Predication
-  /// Intrinsics") Use of %evl is discouraged when that is not the case.
-  bool hasActiveVectorLength() const;
+  /// in hardware, for the given opcode and type/alignment. (see LLVM Language
+  /// Reference - "Vector Predication Intrinsics").
+  /// Use of %evl is discouraged when that is not the case.
+  bool hasActiveVectorLength(unsigned Opcode, Type *DataType,
+                             Align Alignment) const;
 
   struct VPLegalization {
     enum VPTransform {
@@ -1667,6 +1678,11 @@ public:
                                           unsigned AddressSpace,
                                           TTI::TargetCostKind CostKind,
                                           const Instruction *I) = 0;
+  virtual InstructionCost getVPMemoryOpCost(unsigned Opcode, Type *Src,
+                                            Align Alignment,
+                                            unsigned AddressSpace,
+                                            TTI::TargetCostKind CostKind,
+                                            const Instruction *I) = 0;
   virtual InstructionCost
   getMaskedMemoryOpCost(unsigned Opcode, Type *Src, Align Alignment,
                         unsigned AddressSpace,
@@ -1718,9 +1734,9 @@ public:
       unsigned SrcAlign, unsigned DestAlign) const = 0;
   virtual bool areInlineCompatible(const Function *Caller,
                                    const Function *Callee) const = 0;
-  virtual bool
-  areFunctionArgsABICompatible(const Function *Caller, const Function *Callee,
-                               SmallPtrSetImpl<Argument *> &Args) const = 0;
+  virtual bool areTypesABICompatible(const Function *Caller,
+                                     const Function *Callee,
+                                     const ArrayRef<Type *> &Types) const = 0;
   virtual bool isIndexedLoadLegal(MemIndexedMode Mode, Type *Ty) const = 0;
   virtual bool isIndexedStoreLegal(MemIndexedMode Mode, Type *Ty) const = 0;
   virtual unsigned getLoadStoreVecRegBitWidth(unsigned AddrSpace) const = 0;
@@ -1747,8 +1763,10 @@ public:
                                                ReductionFlags) const = 0;
   virtual bool shouldExpandReduction(const IntrinsicInst *II) const = 0;
   virtual unsigned getGISelRematGlobalCost() const = 0;
+  virtual bool enableScalableVectorization() const = 0;
   virtual bool supportsScalableVectors() const = 0;
-  virtual bool hasActiveVectorLength() const = 0;
+  virtual bool hasActiveVectorLength(unsigned Opcode, Type *DataType,
+                                     Align Alignment) const = 0;
   virtual InstructionCost getInstructionLatency(const Instruction *I) = 0;
   virtual VPLegalization
   getVPLegalizationStrategy(const VPIntrinsic &PI) const = 0;
@@ -2185,6 +2203,13 @@ public:
     return Impl.getMemoryOpCost(Opcode, Src, Alignment, AddressSpace,
                                 CostKind, I);
   }
+  InstructionCost getVPMemoryOpCost(unsigned Opcode, Type *Src, Align Alignment,
+                                    unsigned AddressSpace,
+                                    TTI::TargetCostKind CostKind,
+                                    const Instruction *I) override {
+    return Impl.getVPMemoryOpCost(Opcode, Src, Alignment, AddressSpace,
+                                  CostKind, I);
+  }
   InstructionCost getMaskedMemoryOpCost(unsigned Opcode, Type *Src,
                                         Align Alignment, unsigned AddressSpace,
                                         TTI::TargetCostKind CostKind) override {
@@ -2273,10 +2298,9 @@ public:
                            const Function *Callee) const override {
     return Impl.areInlineCompatible(Caller, Callee);
   }
-  bool areFunctionArgsABICompatible(
-      const Function *Caller, const Function *Callee,
-      SmallPtrSetImpl<Argument *> &Args) const override {
-    return Impl.areFunctionArgsABICompatible(Caller, Callee, Args);
+  bool areTypesABICompatible(const Function *Caller, const Function *Callee,
+                             const ArrayRef<Type *> &Types) const override {
+    return Impl.areTypesABICompatible(Caller, Callee, Types);
   }
   bool isIndexedLoadLegal(MemIndexedMode Mode, Type *Ty) const override {
     return Impl.isIndexedLoadLegal(Mode, Ty, getDataLayout());
@@ -2340,8 +2364,13 @@ public:
     return Impl.supportsScalableVectors();
   }
 
-  bool hasActiveVectorLength() const override {
-    return Impl.hasActiveVectorLength();
+  bool enableScalableVectorization() const override {
+    return Impl.enableScalableVectorization();
+  }
+
+  bool hasActiveVectorLength(unsigned Opcode, Type *DataType,
+                             Align Alignment) const override {
+    return Impl.hasActiveVectorLength(Opcode, DataType, Alignment);
   }
 
   InstructionCost getInstructionLatency(const Instruction *I) override {

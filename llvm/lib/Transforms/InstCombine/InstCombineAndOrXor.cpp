@@ -1795,6 +1795,55 @@ static Instruction *foldComplexAndOrPatterns(BinaryOperator &I,
     }
   }
 
+  // (~A & B & C) | ... --> ...
+  // (~A | B | C) | ... --> ...
+  // TODO: One use checks are conservative. We just need to check that a total
+  //       number of multiple used values does not exceed reduction
+  //       in operations.
+  if (match(Op0,
+            m_OneUse(m_c_BinOp(FlippedOpcode,
+                               m_BinOp(FlippedOpcode, m_Value(B), m_Value(C)),
+                               m_CombineAnd(m_Value(X), m_Not(m_Value(A)))))) ||
+      match(Op0, m_OneUse(m_c_BinOp(
+                     FlippedOpcode,
+                     m_c_BinOp(FlippedOpcode, m_Value(C),
+                               m_CombineAnd(m_Value(X), m_Not(m_Value(A)))),
+                     m_Value(B))))) {
+    // X = ~A
+    // (~A & B & C) | ~(A | B | C) --> ~(A | (B ^ C))
+    // (~A | B | C) & ~(A & B & C) --> (~A | (B ^ C))
+    if (match(Op1, m_OneUse(m_Not(m_c_BinOp(
+                       Opcode, m_c_BinOp(Opcode, m_Specific(A), m_Specific(B)),
+                       m_Specific(C))))) ||
+        match(Op1, m_OneUse(m_Not(m_c_BinOp(
+                       Opcode, m_c_BinOp(Opcode, m_Specific(B), m_Specific(C)),
+                       m_Specific(A))))) ||
+        match(Op1, m_OneUse(m_Not(m_c_BinOp(
+                       Opcode, m_c_BinOp(Opcode, m_Specific(A), m_Specific(C)),
+                       m_Specific(B)))))) {
+      Value *Xor = Builder.CreateXor(B, C);
+      return (Opcode == Instruction::Or)
+                 ? BinaryOperator::CreateNot(Builder.CreateOr(Xor, A))
+                 : BinaryOperator::CreateOr(Xor, X);
+    }
+
+    // (~A & B & C) | ~(A | B) --> (C | ~B) & ~A
+    // (~A | B | C) & ~(A & B) --> (C & ~B) | ~A
+    if (match(Op1, m_OneUse(m_Not(m_OneUse(
+                       m_c_BinOp(Opcode, m_Specific(A), m_Specific(B)))))))
+      return BinaryOperator::Create(
+          FlippedOpcode, Builder.CreateBinOp(Opcode, C, Builder.CreateNot(B)),
+          X);
+
+    // (~A & B & C) | ~(A | C) --> (B | ~C) & ~A
+    // (~A | B | C) & ~(A & C) --> (B & ~C) | ~A
+    if (match(Op1, m_OneUse(m_Not(m_OneUse(
+                       m_c_BinOp(Opcode, m_Specific(A), m_Specific(C)))))))
+      return BinaryOperator::Create(
+          FlippedOpcode, Builder.CreateBinOp(Opcode, B, Builder.CreateNot(C)),
+          X);
+  }
+
   return nullptr;
 }
 
@@ -2101,6 +2150,15 @@ Instruction *InstCombinerImpl::visitAnd(BinaryOperator &I) {
     Constant *Zero = ConstantInt::getNullValue(Ty);
     Value *Cmp = Builder.CreateICmpSLT(X, Zero, "isneg");
     return SelectInst::Create(Cmp, Y, Zero);
+  }
+  // If there's a 'not' of the shifted value, swap the select operands:
+  // ~(iN X s>> (N-1)) & Y --> (X s< 0) ? 0 : Y
+  if (match(&I, m_c_And(m_OneUse(m_Not(
+                            m_AShr(m_Value(X), m_SpecificInt(FullShift)))),
+                        m_Value(Y)))) {
+    Constant *Zero = ConstantInt::getNullValue(Ty);
+    Value *Cmp = Builder.CreateICmpSLT(X, Zero, "isneg");
+    return SelectInst::Create(Cmp, Zero, Y);
   }
 
   // (~x) & y  -->  ~(x | (~y))  iff that gets rid of inversions

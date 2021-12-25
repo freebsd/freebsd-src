@@ -73,6 +73,13 @@ public:
     llvm_unreachable("Unsupported register kind");
   }
 
+  void getUnrollingPreferences(Loop *L, ScalarEvolution &SE,
+                               TTI::UnrollingPreferences &UP,
+                               OptimizationRemarkEmitter *ORE);
+
+  void getPeelingPreferences(Loop *L, ScalarEvolution &SE,
+                             TTI::PeelingPreferences &PP);
+
   unsigned getMinVectorRegisterBitWidth() const {
     return ST->hasVInstructions() ? ST->getMinRVVVectorSizeInBits() : 0;
   }
@@ -178,7 +185,9 @@ public:
   }
 
   unsigned getMaxInterleaveFactor(unsigned VF) {
-    return ST->getMaxInterleaveFactor();
+    // If the loop will not be vectorized, don't interleave the loop.
+    // Let regular unroll to unroll the loop.
+    return VF == 1 ? 1 : ST->getMaxInterleaveFactor();
   }
 };
 

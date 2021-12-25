@@ -417,7 +417,7 @@ const Value *stripAndAccumulateMinimalOffsets(
                                                 AttributorAnalysis);
 }
 
-static const Value *getMinimalBaseOfAccsesPointerOperand(
+static const Value *getMinimalBaseOfAccessPointerOperand(
     Attributor &A, const AbstractAttribute &QueryingAA, const Instruction *I,
     int64_t &BytesOffset, const DataLayout &DL, bool AllowNonInbounds = false) {
   const Value *Ptr = getPointerOperand(I, /* AllowVolatile */ false);
@@ -2129,7 +2129,7 @@ static int64_t getKnownNonNullAndDerefBytesForUse(
 
   int64_t Offset;
   const Value *Base =
-      getMinimalBaseOfAccsesPointerOperand(A, QueryingAA, I, Offset, DL);
+      getMinimalBaseOfAccessPointerOperand(A, QueryingAA, I, Offset, DL);
   if (Base) {
     if (Base == &AssociatedValue &&
         getPointerOperand(I, /* AllowVolatile */ false) == UseV) {
@@ -6414,30 +6414,35 @@ struct AAPrivatizablePtrArgument final : public AAPrivatizablePtrImpl {
       return indicatePessimisticFixpoint();
     }
 
+    // Collect the types that will replace the privatizable type in the function
+    // signature.
+    SmallVector<Type *, 16> ReplacementTypes;
+    identifyReplacementTypes(PrivatizableType.getValue(), ReplacementTypes);
+
     // Verify callee and caller agree on how the promoted argument would be
     // passed.
-    // TODO: The use of the ArgumentPromotion interface here is ugly, we need a
-    // specialized form of TargetTransformInfo::areFunctionArgsABICompatible
-    // which doesn't require the arguments ArgumentPromotion wanted to pass.
     Function &Fn = *getIRPosition().getAnchorScope();
-    SmallPtrSet<Argument *, 1> ArgsToPromote, Dummy;
-    ArgsToPromote.insert(getAssociatedArgument());
     const auto *TTI =
         A.getInfoCache().getAnalysisResultForFunction<TargetIRAnalysis>(Fn);
-    if (!TTI ||
-        !ArgumentPromotionPass::areFunctionArgsABICompatible(
-            Fn, *TTI, ArgsToPromote, Dummy) ||
-        ArgsToPromote.empty()) {
+    if (!TTI) {
+      LLVM_DEBUG(dbgs() << "[AAPrivatizablePtr] Missing TTI for function "
+                        << Fn.getName() << "\n");
+      return indicatePessimisticFixpoint();
+    }
+
+    auto CallSiteCheck = [&](AbstractCallSite ACS) {
+      CallBase *CB = ACS.getInstruction();
+      return TTI->areTypesABICompatible(
+          CB->getCaller(), CB->getCalledFunction(), ReplacementTypes);
+    };
+    bool AllCallSitesKnown;
+    if (!A.checkForAllCallSites(CallSiteCheck, *this, true,
+                                AllCallSitesKnown)) {
       LLVM_DEBUG(
           dbgs() << "[AAPrivatizablePtr] ABI incompatibility detected for "
                  << Fn.getName() << "\n");
       return indicatePessimisticFixpoint();
     }
-
-    // Collect the types that will replace the privatizable type in the function
-    // signature.
-    SmallVector<Type *, 16> ReplacementTypes;
-    identifyReplacementTypes(PrivatizableType.getValue(), ReplacementTypes);
 
     // Register a rewrite of the argument.
     Argument *Arg = getAssociatedArgument();
@@ -6558,7 +6563,6 @@ struct AAPrivatizablePtrArgument final : public AAPrivatizablePtrImpl {
       return false;
     };
 
-    bool AllCallSitesKnown;
     if (!A.checkForAllCallSites(IsCompatiblePrivArgOfOtherCallSite, *this, true,
                                 AllCallSitesKnown))
       return indicatePessimisticFixpoint();
