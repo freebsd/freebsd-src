@@ -27,7 +27,7 @@ class _LIBCPP_TYPE_VIS random_device
 {
 #ifdef _LIBCPP_USING_DEV_RANDOM
     int __f_;
-#endif // defined(_LIBCPP_USING_DEV_RANDOM)
+#endif
 public:
     // types
     typedef unsigned result_type;
@@ -56,10 +56,8 @@ public:
     // property functions
     double entropy() const _NOEXCEPT;
 
-private:
-    // no copy functions
-    random_device(const random_device&); // = delete;
-    random_device& operator=(const random_device&); // = delete;
+    random_device(const random_device&) = delete;
+    void operator=(const random_device&) = delete;
 };
 
 #endif // !_LIBCPP_HAS_NO_RANDOM_DEVICE

@@ -1154,7 +1154,7 @@ static void computeKnownBitsFromOperator(const Operator *I,
       // If the negate has an NSW flag we can assume the sign bit of the result
       // will be 0 because that makes abs(INT_MIN) undefined.
       if (match(RHS, m_Neg(m_Specific(LHS))) &&
-          Q.IIQ.hasNoSignedWrap(cast<Instruction>(RHS)))
+          Q.IIQ.hasNoSignedWrap(cast<OverflowingBinaryOperator>(RHS)))
         Known.Zero.setSignBit();
     }
 
@@ -1709,23 +1709,25 @@ static void computeKnownBitsFromOperator(const Operator *I,
             !II->getFunction()->hasFnAttribute(Attribute::VScaleRange))
           break;
 
-        auto VScaleRange = II->getFunction()
-                               ->getFnAttribute(Attribute::VScaleRange)
-                               .getVScaleRangeArgs();
+        auto Attr = II->getFunction()->getFnAttribute(Attribute::VScaleRange);
+        Optional<unsigned> VScaleMax = Attr.getVScaleRangeMax();
 
-        if (VScaleRange.second == 0)
+        if (!VScaleMax)
           break;
+
+        unsigned VScaleMin = Attr.getVScaleRangeMin();
 
         // If vscale min = max then we know the exact value at compile time
         // and hence we know the exact bits.
-        if (VScaleRange.first == VScaleRange.second) {
-          Known.One = VScaleRange.first;
-          Known.Zero = VScaleRange.first;
+        if (VScaleMin == VScaleMax) {
+          Known.One = VScaleMin;
+          Known.Zero = VScaleMin;
           Known.Zero.flipAllBits();
           break;
         }
 
-        unsigned FirstZeroHighBit = 32 - countLeadingZeros(VScaleRange.second);
+        unsigned FirstZeroHighBit =
+            32 - countLeadingZeros(VScaleMax.getValue());
         if (FirstZeroHighBit < BitWidth)
           Known.Zero.setBitsFrom(FirstZeroHighBit);
 
@@ -4676,8 +4678,8 @@ bool llvm::isSafeToSpeculativelyExecute(const Value *V,
       return false;
     const DataLayout &DL = LI->getModule()->getDataLayout();
     return isDereferenceableAndAlignedPointer(
-        LI->getPointerOperand(), LI->getType(), MaybeAlign(LI->getAlignment()),
-        DL, CtxI, DT, TLI);
+        LI->getPointerOperand(), LI->getType(), MaybeAlign(LI->getAlign()), DL,
+        CtxI, DT, TLI);
   }
   case Instruction::Call: {
     auto *CI = cast<const CallInst>(Inst);
@@ -4974,14 +4976,6 @@ static bool canCreateUndefOrPoison(const Operator *Op, bool PoisonOnly,
 
   if (ConsiderFlags && Op->hasPoisonGeneratingFlags())
     return true;
-
-  // TODO: this should really be under the ConsiderFlags block, but currently
-  // these are not dropped by dropPoisonGeneratingFlags
-  if (const auto *FP = dyn_cast<FPMathOperator>(Op)) {
-    auto FMF = FP->getFastMathFlags();
-    if (FMF.noNaNs() || FMF.noInfs())
-      return true;
-  }
 
   unsigned Opcode = Op->getOpcode();
 

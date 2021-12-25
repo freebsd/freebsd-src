@@ -104,6 +104,8 @@ class MUTEX ThreadRegistry {
     return threads_.empty() ? nullptr : threads_[tid];
   }
 
+  u32 NumThreadsLocked() const { return threads_.size(); }
+
   u32 CreateThread(uptr user_id, bool detached, u32 parent_tid, void *arg);
 
   typedef void (*ThreadCallback)(ThreadContextBase *tctx, void *arg);
@@ -130,6 +132,11 @@ class MUTEX ThreadRegistry {
   void StartThread(u32 tid, tid_t os_id, ThreadType thread_type, void *arg);
   u32 ConsumeThreadUserId(uptr user_id);
   void SetThreadUserId(u32 tid, uptr user_id);
+
+  // OnFork must be called in the child process after fork to purge old
+  // threads that don't exist anymore (except for the current thread tid).
+  // Returns number of alive threads before fork.
+  u32 OnFork(u32 tid);
 
  private:
   const ThreadContextFactory context_factory_;
