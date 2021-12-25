@@ -2869,6 +2869,95 @@ mount_devctl_event(const char *type, struct mount *mp, bool donew)
 }
 
 /*
+ * Force remount specified mount point to read-only.  The argument
+ * must be busied to avoid parallel unmount attempts.
+ *
+ * Intended use is to prevent further writes if some metadata
+ * inconsistency is detected.  Note that the function still flushes
+ * all cached metadata and data for the mount point, which might be
+ * not always suitable.
+ */
+int
+vfs_remount_ro(struct mount *mp)
+{
+	struct vfsoptlist *opts;
+	struct vfsopt *opt;
+	struct vnode *vp_covered, *rootvp;
+	int error;
+
+	KASSERT(mp->mnt_lockref > 0,
+	    ("vfs_remount_ro: mp %p is not busied", mp));
+	KASSERT((mp->mnt_kern_flag & MNTK_UNMOUNT) == 0,
+	    ("vfs_remount_ro: mp %p is being unmounted (and busy?)", mp));
+
+	rootvp = NULL;
+	vp_covered = mp->mnt_vnodecovered;
+	error = vget(vp_covered, LK_EXCLUSIVE | LK_NOWAIT);
+	if (error != 0)
+		return (error);
+	VI_LOCK(vp_covered);
+	if ((vp_covered->v_iflag & VI_MOUNT) != 0) {
+		VI_UNLOCK(vp_covered);
+		vput(vp_covered);
+		return (EBUSY);
+	}
+	vp_covered->v_iflag |= VI_MOUNT;
+	VI_UNLOCK(vp_covered);
+	vfs_op_enter(mp);
+	vn_seqc_write_begin(vp_covered);
+
+	MNT_ILOCK(mp);
+	if ((mp->mnt_flag & MNT_RDONLY) != 0) {
+		MNT_IUNLOCK(mp);
+		error = EBUSY;
+		goto out;
+	}
+	mp->mnt_flag |= MNT_UPDATE | MNT_FORCE | MNT_RDONLY;
+	rootvp = vfs_cache_root_clear(mp);
+	MNT_IUNLOCK(mp);
+
+	opts = malloc(sizeof(struct vfsoptlist), M_MOUNT, M_WAITOK | M_ZERO);
+	TAILQ_INIT(opts);
+	opt = malloc(sizeof(struct vfsopt), M_MOUNT, M_WAITOK | M_ZERO);
+	opt->name = strdup("ro", M_MOUNT);
+	opt->value = NULL;
+	TAILQ_INSERT_TAIL(opts, opt, link);
+	vfs_mergeopts(opts, mp->mnt_opt);
+	mp->mnt_optnew = opts;
+
+	error = VFS_MOUNT(mp);
+
+	if (error == 0) {
+		MNT_ILOCK(mp);
+		mp->mnt_flag &= ~(MNT_UPDATE | MNT_FORCE);
+		MNT_IUNLOCK(mp);
+		vfs_deallocate_syncvnode(mp);
+		if (mp->mnt_opt != NULL)
+			vfs_freeopts(mp->mnt_opt);
+		mp->mnt_opt = mp->mnt_optnew;
+	} else {
+		MNT_ILOCK(mp);
+		mp->mnt_flag &= ~(MNT_UPDATE | MNT_FORCE | MNT_RDONLY);
+		MNT_IUNLOCK(mp);
+		vfs_freeopts(mp->mnt_optnew);
+	}
+	mp->mnt_optnew = NULL;
+
+out:
+	vfs_op_exit(mp);
+	VI_LOCK(vp_covered);
+	vp_covered->v_iflag &= ~VI_MOUNT;
+	VI_UNLOCK(vp_covered);
+	vput(vp_covered);
+	vn_seqc_write_end(vp_covered);
+	if (rootvp != NULL) {
+		vn_seqc_write_end(rootvp);
+		vrele(rootvp);
+	}
+	return (error);
+}
+
+/*
  * Suspend write operations on all local writeable filesystems.  Does
  * full sync of them in the process.
  *

@@ -1036,6 +1036,8 @@ void	vfs_register_for_notification(struct mount *, struct mount *,
 void	vfs_unregister_for_notification(struct mount *,
 	    struct mount_upper_node *);
 void	vfs_unregister_upper(struct mount *, struct mount_upper_node *);
+int	vfs_remount_ro(struct mount *mp);
+
 extern	TAILQ_HEAD(mntlist, mount) mountlist;	/* mounted filesystem list */
 extern	struct mtx_padalign mountlist_mtx;
 extern	struct nfs_public nfs_pub;
