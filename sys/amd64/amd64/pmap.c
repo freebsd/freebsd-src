@@ -8567,6 +8567,11 @@ pmap_is_prefaultable(pmap_t pmap, vm_offset_t addr)
 	boolean_t rv;
 
 	PG_V = pmap_valid_bit(pmap);
+
+	/*
+	 * Return TRUE if and only if the PTE for the specified virtual
+	 * address is allocated but invalid.
+	 */
 	rv = FALSE;
 	PMAP_LOCK(pmap);
 	pde = pmap_pde(pmap, addr);

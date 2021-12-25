@@ -5246,15 +5246,21 @@ pmap_is_modified(vm_page_t m)
 boolean_t
 pmap_is_prefaultable(pmap_t pmap, vm_offset_t addr)
 {
+	pd_entry_t *pde;
 	pt_entry_t *pte;
 	boolean_t rv;
 	int lvl;
 
+	/*
+	 * Return TRUE if and only if the L3 entry for the specified virtual
+	 * address is allocated but invalid.
+	 */
 	rv = FALSE;
 	PMAP_LOCK(pmap);
-	pte = pmap_pte(pmap, addr, &lvl);
-	if (pte != NULL && pmap_load(pte) != 0) {
-		rv = TRUE;
+	pde = pmap_pde(pmap, addr, &lvl);
+	if (pde != NULL && lvl == 2) {
+		pte = pmap_l2_to_l3(pde, addr);
+		rv = pmap_load(pte) == 0;
 	}
 	PMAP_UNLOCK(pmap);
 	return (rv);
