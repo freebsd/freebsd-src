@@ -3850,10 +3850,14 @@ pmap_is_prefaultable(pmap_t pmap, vm_offset_t addr)
 	pt_entry_t *l3;
 	boolean_t rv;
 
+	/*
+	 * Return TRUE if and only if the L3 entry for the specified virtual
+	 * address is allocated but invalid.
+	 */
 	rv = FALSE;
 	PMAP_LOCK(pmap);
 	l3 = pmap_l3(pmap, addr);
-	if (l3 != NULL && pmap_load(l3) != 0) {
+	if (l3 != NULL && pmap_load(l3) == 0) {
 		rv = TRUE;
 	}
 	PMAP_UNLOCK(pmap);
