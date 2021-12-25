@@ -65,6 +65,7 @@
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/stat.h>
+#include <sys/taskqueue.h>
 #include <sys/vnode.h>
 
 #include <geom/geom.h>
@@ -112,6 +113,7 @@ struct iconv_functions *msdosfs_iconv;
 
 static int	update_mp(struct mount *mp, struct thread *td);
 static int	mountmsdosfs(struct vnode *devvp, struct mount *mp);
+static void	msdosfs_remount_ro(void *arg, int pending);
 static vfs_fhtovp_t	msdosfs_fhtovp;
 static vfs_mount_t	msdosfs_mount;
 static vfs_root_t	msdosfs_root;
@@ -337,6 +339,13 @@ msdosfs_mount(struct mount *mp)
 			mp->mnt_flag &= ~MNT_RDONLY;
 			MNT_IUNLOCK(mp);
 		}
+
+		/*
+		 * Avoid namei() below.  The "from" option is not set.
+		 * Update of the devvp is pointless for this case.
+		 */
+		if ((pmp->pm_flags & MSDOSFS_ERR_RO) != 0)
+			return (0);
 	}
 	/*
 	 * Not an update, or updating the name: look up the name
@@ -470,6 +479,8 @@ mountmsdosfs(struct vnode *devvp, struct mount *mp)
 
 	lockinit(&pmp->pm_fatlock, 0, msdosfs_lock_msg, 0, 0);
 	lockinit(&pmp->pm_checkpath_lock, 0, "msdoscp", 0, 0);
+
+	TASK_INIT(&pmp->pm_rw2ro_task, 0, msdosfs_remount_ro, pmp);
 
 	/*
 	 * Initialize ownerships and permissions, since nothing else will
@@ -845,6 +856,53 @@ msdosfs_unmount(struct mount *mp, int mntflags)
 	mp->mnt_flag &= ~MNT_LOCAL;
 	MNT_IUNLOCK(mp);
 	return (error);
+}
+
+static void
+msdosfs_remount_ro(void *arg, int pending)
+{
+	struct msdosfsmount *pmp;
+	int error;
+
+	pmp = arg;
+
+	MSDOSFS_LOCK_MP(pmp);
+	if ((pmp->pm_flags & MSDOSFS_ERR_RO) != 0) {
+		while ((pmp->pm_flags & MSDOSFS_ERR_RO) != 0)
+			msleep(&pmp->pm_flags, &pmp->pm_fatlock, PVFS,
+			    "msdoserrro", hz);
+	} else if ((pmp->pm_mountp->mnt_flag & MNT_RDONLY) == 0) {
+		pmp->pm_flags |= MSDOSFS_ERR_RO;
+		MSDOSFS_UNLOCK_MP(pmp);
+		printf("%s: remounting read-only due to corruption\n",
+		    pmp->pm_mountp->mnt_stat.f_mntfromname);
+		error = vfs_remount_ro(pmp->pm_mountp);
+		if (error != 0)
+			printf("%s: remounting read-only failed: error %d\n",
+			    pmp->pm_mountp->mnt_stat.f_mntfromname, error);
+		else
+			printf("remounted %s read-only\n",
+			    pmp->pm_mountp->mnt_stat.f_mntfromname);
+		MSDOSFS_LOCK_MP(pmp);
+		pmp->pm_flags &= ~MSDOSFS_ERR_RO;
+		wakeup(&pmp->pm_flags);
+	}
+	MSDOSFS_UNLOCK_MP(pmp);
+
+	vfs_unbusy(pmp->pm_mountp);
+}
+
+void
+msdosfs_integrity_error(struct msdosfsmount *pmp)
+{
+	int error;
+
+	error = vfs_busy(pmp->pm_mountp, MBF_NOWAIT);
+	if (error == 0)
+		taskqueue_enqueue(taskqueue_thread, &pmp->pm_rw2ro_task);
+	else
+		printf("%s: integrity error busying failed, error %d\n",
+		    pmp->pm_mountp->mnt_stat.f_mntfromname, error);
 }
 
 static int

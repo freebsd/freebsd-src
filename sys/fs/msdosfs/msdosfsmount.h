@@ -59,6 +59,7 @@
 #ifndef MAKEFS
 #include <sys/lock.h>
 #include <sys/lockmgr.h>
+#include <sys/_task.h>
 #endif
 #include <sys/tree.h>
 
@@ -115,6 +116,7 @@ struct msdosfsmount {
 #ifndef MAKEFS
 	struct lock pm_fatlock;	/* lockmgr protecting allocations */
 	struct lock pm_checkpath_lock; /* protects doscheckpath result */
+	struct task pm_rw2ro_task; /* context for emergency remount ro */
 #endif
 };
 
@@ -263,5 +265,10 @@ struct msdosfs_args {
 #define	MSDOSFSMNT_WAITONFAT	0x40000000	/* mounted synchronous	*/
 #define	MSDOSFS_FATMIRROR	0x20000000	/* FAT is mirrored */
 #define	MSDOSFS_FSIMOD		0x01000000
+#define	MSDOSFS_ERR_RO		0x00800000	/* remouning ro due to error */
+
+#ifdef _KERNEL
+void msdosfs_integrity_error(struct msdosfsmount *pmp);
+#endif
 
 #endif /* !_MSDOSFS_MSDOSFSMOUNT_H_ */
