@@ -347,7 +347,7 @@ tcp_twstart(struct tcpcb *tp)
 	 * and might not be needed here any longer.
 	 */
 #ifdef TCPHPTS
-	tcp_hpts_remove(inp, HPTS_REMOVE_ALL);
+	tcp_hpts_remove(inp);
 #endif
 	tcp_discardcb(tp);
 	soisdisconnected(so);

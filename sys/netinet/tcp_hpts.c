@@ -100,25 +100,6 @@ __FBSDID("$FreeBSD$");
  * function (ctf_do_queued_segments())  requires that
  * you have defined the tfb_do_segment_nounlock() as
  * described above.
- *
- * Now the second function the tcp_hpts system provides is the ability
- * to abort a connection later. Why would you want to do this?
- * To not have to worry about untangling any recursive locks.
- *
- * The second feature of the input side of hpts is the
- * dropping of a connection. This is due to the way that
- * locking may have occured on the INP_WLOCK. So if
- * a stack wants to drop a connection it calls:
- *
- *     tcp_set_inp_to_drop(tp, ETIMEDOUT)
- *
- * To schedule the tcp_hpts system to call
- *
- *    tcp_drop(tp, drop_reason)
- *
- * at a future point. This is quite handy to prevent locking
- * issues when dropping connections.
- *
  */
 
 #include <sys/param.h>
@@ -222,14 +203,11 @@ struct tcp_hpts_entry {
 		p_avail:5;
 	uint8_t p_fill[3];	  /* Fill to 32 bits */
 	/* Cache line 0x40 */
-	TAILQ_HEAD(, inpcb) p_dropq;	/* Delayed drop queue */
 	struct hptsh {
 		TAILQ_HEAD(, inpcb)	head;
 		uint32_t		count;
 		uint32_t		gencnt;
 	} *p_hptss;			/* Hptsi wheel */
-	uint32_t p_dropq_cnt;		/* Count on drop queue */
-	uint32_t p_dropq_gencnt;
 	uint32_t p_hpts_sleep_time;	/* Current sleep interval having a max
 					 * of 255ms */
 	uint32_t overidden_sleep;	/* what was overrided by min-sleep for logging */
@@ -473,7 +451,7 @@ tcp_hpts_log(struct tcp_hpts_entry *hpts, struct tcpcb *tp, struct timeval *tv,
 	 * Unused logs are
 	 * 64 bit - delRate, rttProp, bw_inuse
 	 * 16 bit - cwnd_gain
-	 *  8 bit - bbr_state, bbr_substate, inhpts, ininput;
+	 *  8 bit - bbr_state, bbr_substate, inhpts;
 	 */
 	memset(&log.u_bbr, 0, sizeof(log.u_bbr));
 	log.u_bbr.flex1 = hpts->p_nxt_slot;
@@ -565,19 +543,6 @@ tcp_hpts_lock(struct inpcb *inp)
 	return (hpts);
 }
 
-static struct tcp_hpts_entry *
-tcp_dropq_lock(struct inpcb *inp)
-{
-	struct tcp_hpts_entry *hpts;
-
-	INP_LOCK_ASSERT(inp);
-
-	hpts = tcp_pace.rp_ent[inp->inp_dropq_cpu];
-	HPTS_LOCK(hpts);
-
-	return (hpts);
-}
-
 static void
 inp_hpts_release(struct inpcb *inp)
 {
@@ -588,68 +553,19 @@ inp_hpts_release(struct inpcb *inp)
 	MPASS(released == false);
 }
 
-static void
-tcp_dropq_remove(struct tcp_hpts_entry *hpts, struct inpcb *inp)
-{
-	bool released __diagused;
-
-	HPTS_MTX_ASSERT(hpts);
-	INP_WLOCK_ASSERT(inp);
-
-	if (inp->inp_in_dropq != IHPTS_ONQUEUE)
-		return;
-
-	MPASS(hpts->p_cpu == inp->inp_dropq_cpu);
-	if (__predict_true(inp->inp_dropq_gencnt == hpts->p_dropq_gencnt)) {
-		TAILQ_REMOVE(&hpts->p_dropq, inp, inp_dropq);
-		MPASS(hpts->p_dropq_cnt > 0);
-		hpts->p_dropq_cnt--;
-		inp->inp_in_dropq = IHPTS_NONE;
-		released = in_pcbrele_wlocked(inp);
-		MPASS(released == false);
-	} else {
-		/*
-		 * tcp_delayed_drop() now owns the TAILQ head of this inp.
-		 * Can't TAILQ_REMOVE, just mark it.
-		 */
-#ifdef INVARIANTS
-		struct inpcb *tmp;
-
-		TAILQ_FOREACH(tmp, &hpts->p_dropq, inp_dropq)
-			MPASS(tmp != inp);
-#endif
-		inp->inp_in_dropq = IHPTS_MOVING;
-	}
-
-}
-
 /*
  * Called normally with the INP_LOCKED but it
  * does not matter, the hpts lock is the key
  * but the lock order allows us to hold the
  * INP lock and then get the hpts lock.
- *
- * Valid values in the flags are
- * HPTS_REMOVE_OUTPUT - remove from the output of the hpts.
- * HPTS_REMOVE_DROPQ - remove from the drop queue of the hpts.
- * Note that you can use one or both values together
- * and get two actions.
  */
 void
-__tcp_hpts_remove(struct inpcb *inp, int32_t flags, int32_t line)
+tcp_hpts_remove(struct inpcb *inp)
 {
 	struct tcp_hpts_entry *hpts;
 	struct hptsh *hptsh;
 
 	INP_WLOCK_ASSERT(inp);
-
-	if (flags & HPTS_REMOVE_DROPQ) {
-		hpts = tcp_dropq_lock(inp);
-		tcp_dropq_remove(hpts, inp);
-		mtx_unlock(&hpts->p_mtx);
-	}
-
-	MPASS(flags & HPTS_REMOVE_OUTPUT);
 
 	hpts = tcp_hpts_lock(inp);
 	if (inp->inp_in_hpts == IHPTS_ONQUEUE) {
@@ -1074,32 +990,6 @@ tcp_hpts_insert_diag(struct inpcb *inp, uint32_t slot, int32_t line, struct hpts
 	return (slot_on);
 }
 
-void
-tcp_set_inp_to_drop(struct inpcb *inp, uint16_t reason)
-{
-	struct tcp_hpts_entry *hpts;
-	struct tcpcb *tp = intotcpcb(inp);
-
-	INP_WLOCK_ASSERT(inp);
-	inp->inp_hpts_drop_reas = reason;
-	if (inp->inp_in_dropq != IHPTS_NONE)
-		return;
-	hpts = tcp_dropq_lock(tp->t_inpcb);
-	MPASS(hpts->p_cpu == inp->inp_dropq_cpu);
-
-	TAILQ_INSERT_TAIL(&hpts->p_dropq, inp, inp_dropq);
-	inp->inp_in_dropq = IHPTS_ONQUEUE;
-	inp->inp_dropq_gencnt = hpts->p_dropq_gencnt;
-	hpts->p_dropq_cnt++;
-	in_pcbref(inp);
-
-	if ((hpts->p_hpts_active == 0) && (hpts->p_on_min_sleep == 0)){
-		hpts->p_direct_wake = 1;
-		tcp_wakehpts(hpts);
-	}
-	HPTS_UNLOCK(hpts);
-}
-
 uint16_t
 hpts_random_cpu(struct inpcb *inp){
 	/*
@@ -1109,12 +999,9 @@ hpts_random_cpu(struct inpcb *inp){
 	uint32_t ran;
 
 	/*
-	 * If one has been set use it i.e. we want both in and out on the
-	 * same hpts.
+	 * Shortcut if it is already set. XXXGL: does it happen?
 	 */
-	if (inp->inp_dropq_cpu_set) {
-		return (inp->inp_dropq_cpu);
-	} else if (inp->inp_hpts_cpu_set) {
+	if (inp->inp_hpts_cpu_set) {
 		return (inp->inp_hpts_cpu);
 	}
 	/* Nothing set use a random number */
@@ -1132,13 +1019,7 @@ hpts_cpuid(struct inpcb *inp, int *failed)
 #endif
 
 	*failed = 0;
-	/*
-	 * If one has been set use it i.e. we want both in and out on the
-	 * same hpts.
-	 */
-	if (inp->inp_dropq_cpu_set) {
-		return (inp->inp_dropq_cpu);
-	} else if (inp->inp_hpts_cpu_set) {
+	if (inp->inp_hpts_cpu_set) {
 		return (inp->inp_hpts_cpu);
 	}
 	/*
@@ -1202,57 +1083,6 @@ tcp_drop_in_pkts(struct tcpcb *tp)
 		if (m)
 			n = m->m_nextpkt;
 	}
-}
-
-/*
- * Delayed drop functionality is factored out into separate function,
- * but logic is similar to the logic of tcp_hptsi().
- */
-static void
-tcp_delayed_drop(struct tcp_hpts_entry *hpts)
-{
-	TAILQ_HEAD(, inpcb) head = TAILQ_HEAD_INITIALIZER(head);
-	struct inpcb *inp, *tmp;
-	struct tcpcb *tp;
-
-	HPTS_MTX_ASSERT(hpts);
-	NET_EPOCH_ASSERT();
-
-	TAILQ_SWAP(&head, &hpts->p_dropq, inpcb, inp_dropq);
-	hpts->p_dropq_cnt = 0;
-	hpts->p_dropq_gencnt++;
-	HPTS_UNLOCK(hpts);
-
-	TAILQ_FOREACH_SAFE(inp, &head, inp_dropq, tmp) {
-		INP_WLOCK(inp);
-		MPASS(inp->inp_hpts_drop_reas != 0);
-		if (__predict_false(inp->inp_in_dropq == IHPTS_MOVING)) {
-			inp->inp_in_dropq = IHPTS_NONE;
-			if (in_pcbrele_wlocked(inp) == false)
-				INP_WUNLOCK(inp);
-			continue;
-		}
-		MPASS(inp->inp_in_dropq == IHPTS_ONQUEUE);
-		inp->inp_in_dropq = IHPTS_NONE;
-		if ((inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED))) {
-			if (in_pcbrele_wlocked(inp) == false)
-				INP_WUNLOCK(inp);
-			continue;
-		}
-		CURVNET_SET(inp->inp_vnet);
-		if (__predict_true((tp = intotcpcb(inp)) != NULL)) {
-			MPASS(tp->t_inpcb == inp);
-			tcp_drop_in_pkts(tp);
-			tp = tcp_drop(tp, inp->inp_hpts_drop_reas);
-			if (tp == NULL)
-				INP_WLOCK(inp);
-		}
-		if (in_pcbrele_wlocked(inp) == false)
-			INP_WUNLOCK(inp);
-		CURVNET_RESTORE();
-	}
-
-	mtx_lock(&hpts->p_mtx); /* XXXGL */
 }
 
 static void
@@ -1392,10 +1222,6 @@ again:
 		hpts->p_nxt_slot = hpts->p_prev_slot;
 		hpts->p_runningslot = hpts_slot(hpts->p_prev_slot, 1);
 	}
-	KASSERT((((TAILQ_EMPTY(&hpts->p_dropq) != 0) && (hpts->p_dropq_cnt == 0)) ||
-		 ((TAILQ_EMPTY(&hpts->p_dropq) == 0) && (hpts->p_dropq_cnt > 0))),
-		("%s hpts:%p in_hpts cnt:%d and queue state mismatch",
-		 __FUNCTION__, hpts, hpts->p_dropq_cnt));
 	if (hpts->p_on_queue_cnt == 0) {
 		goto no_one;
 	}
@@ -1615,10 +1441,6 @@ no_one:
 	 * Check to see if we took an excess amount of time and need to run
 	 * more ticks (if we did not hit eno-bufs).
 	 */
-	KASSERT((((TAILQ_EMPTY(&hpts->p_dropq) != 0) && (hpts->p_dropq_cnt == 0)) ||
-		 ((TAILQ_EMPTY(&hpts->p_dropq) == 0) && (hpts->p_dropq_cnt > 0))),
-		("%s hpts:%p in_hpts cnt:%d queue state mismatch",
-		 __FUNCTION__, hpts, hpts->p_dropq_cnt));
 	hpts->p_prev_slot = hpts->p_cur_slot;
 	hpts->p_lasttick = hpts->p_curtick;
 	if ((from_callout == 0) || (loop_cnt > max_pacer_loops)) {
@@ -1660,11 +1482,6 @@ no_run:
 	 * input.
 	 */
 	hpts->p_wheel_complete = 1;
-	/*
-	 * Run any input that may be there not covered
-	 * in running data.
-	 */
-	tcp_delayed_drop(hpts);
 	/*
 	 * Now did we spend too long running input and need to run more ticks?
 	 * Note that if wrap_loop_cnt < 2 then we should have the conditions
@@ -1710,14 +1527,6 @@ __tcp_set_hpts(struct inpcb *inp, int32_t line)
 		inp->inp_hpts_cpu = hpts_cpuid(inp, &failed);
 		if (failed == 0)
 			inp->inp_hpts_cpu_set = 1;
-	}
-	mtx_unlock(&hpts->p_mtx);
-	hpts = tcp_dropq_lock(inp);
-	if ((inp->inp_dropq_cpu_set == 0) &&
-	    (inp->inp_in_dropq == 0)) {
-		inp->inp_dropq_cpu = hpts_cpuid(inp, &failed);
-		if (failed == 0)
-			inp->inp_dropq_cpu_set = 1;
 	}
 	mtx_unlock(&hpts->p_mtx);
 }
@@ -2037,7 +1846,6 @@ tcp_init_hptsi(void *st)
 		 */
 		mtx_init(&hpts->p_mtx, "tcp_hpts_lck",
 		    "hpts", MTX_DEF | MTX_DUPOK);
-		TAILQ_INIT(&hpts->p_dropq);
 		for (j = 0; j < NUM_OF_HPTSI_SLOTS; j++) {
 			TAILQ_INIT(&hpts->p_hptss[j].head);
 			hpts->p_hptss[j].count = 0;
@@ -2051,11 +1859,6 @@ tcp_init_hptsi(void *st)
 		    unit,
 		    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
 		    "");
-		SYSCTL_ADD_INT(&hpts->hpts_ctx,
-		    SYSCTL_CHILDREN(hpts->hpts_root),
-		    OID_AUTO, "in_qcnt", CTLFLAG_RD,
-		    &hpts->p_dropq_cnt, 0,
-		    "Count TCB's awaiting delayed drop");
 		SYSCTL_ADD_INT(&hpts->hpts_ctx,
 		    SYSCTL_CHILDREN(hpts->hpts_root),
 		    OID_AUTO, "out_qcnt", CTLFLAG_RD,

@@ -235,19 +235,15 @@ struct inpcb {
 	 */
 #if defined(__amd64__) || defined(__i386__)
 	uint8_t inp_in_hpts; /* on output hpts (lock b) */
-	uint8_t inp_in_dropq; /* on input hpts (lock b) */
 #else
 	uint32_t inp_in_hpts; /* on output hpts (lock b) */
-	uint32_t inp_in_dropq; /* on input hpts (lock b) */
 #endif
 	volatile uint16_t  inp_hpts_cpu; /* Lock (i) */
 	volatile uint16_t  inp_irq_cpu;	/* Set by LRO in behalf of or the driver */
 	u_int	inp_refcount;		/* (i) refcount */
 	int	inp_flags;		/* (i) generic IP/datagram flags */
 	int	inp_flags2;		/* (i) generic IP/datagram flags #2*/
-	uint16_t  inp_dropq_cpu; /* Lock (i) */
 	uint8_t inp_hpts_cpu_set :1,  /* on output hpts (i) */
-			 inp_dropq_cpu_set : 1,	/* on input hpts (i) */
 			 inp_hpts_calls :1,	/* (i) from output hpts */
 			 inp_irq_cpu_set :1,	/* (i) from LRO/Driver */
 			 inp_spare_bits2 : 3;
@@ -256,8 +252,6 @@ struct inpcb {
 	struct	socket *inp_socket;	/* (i) back pointer to socket */
 	int32_t 	 inp_hptsslot;	/* Hpts wheel slot this tcb is Lock(i&b) */
 	uint32_t         inp_hpts_drop_reas;	/* reason we are dropping the PCB (lock i&b) */
-	uint32_t	inp_dropq_gencnt;
-	TAILQ_ENTRY(inpcb) inp_dropq;	/* hpts drop queue next lock(b) */
 	struct	inpcbinfo *inp_pcbinfo;	/* (c) PCB list info */
 	struct	ucred	*inp_cred;	/* (c) cache of socket cred */
 	u_int32_t inp_flow;		/* (i) IPv6 flow information */

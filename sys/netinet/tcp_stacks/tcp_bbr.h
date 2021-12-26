@@ -269,7 +269,7 @@ struct bbr_log {
 	uint8_t n_sackblks;
 	uint8_t applied;	/* UU */
 	uint8_t inhpts;		/* UU */
-	uint8_t ininput;	/* UU */
+	uint8_t __spare;	/* UU */
 	uint8_t use_lt_bw;	/* UU */
 };
 
