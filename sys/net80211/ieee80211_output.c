@@ -3378,6 +3378,12 @@ ieee80211_tx_mgt_timeout(void *arg)
 {
 	struct ieee80211vap *vap = arg;
 
+	IEEE80211_DPRINTF(vap, IEEE80211_MSG_STATE | IEEE80211_MSG_DEBUG,
+	    "vap %p mode %s state %s flags %#x & %#x\n", vap,
+	    ieee80211_opmode_name[vap->iv_opmode],
+	    ieee80211_state_name[vap->iv_state],
+	    vap->iv_ic->ic_flags, IEEE80211_F_SCAN);
+
 	IEEE80211_LOCK(vap->iv_ic);
 	if (vap->iv_state != IEEE80211_S_INIT &&
 	    (vap->iv_ic->ic_flags & IEEE80211_F_SCAN) == 0) {
@@ -3423,6 +3429,11 @@ ieee80211_tx_mgt_cb(struct ieee80211_node *ni, void *arg, int status)
 	 * XXX what happens if !acked but response shows up before callback?
 	 */
 	if (vap->iv_state == ostate) {
+		IEEE80211_DPRINTF(vap, IEEE80211_MSG_STATE | IEEE80211_MSG_DEBUG,
+		    "ni %p mode %s state %s ostate %d arg %p status %d\n", ni,
+		    ieee80211_opmode_name[vap->iv_opmode],
+		    ieee80211_state_name[vap->iv_state], ostate, arg, status);
+
 		callout_reset(&vap->iv_mgtsend,
 			status == 0 ? IEEE80211_TRANS_WAIT*hz : 0,
 			ieee80211_tx_mgt_timeout, vap);
@@ -4170,8 +4181,13 @@ ieee80211_tx_complete(struct ieee80211_node *ni, struct mbuf *m, int status)
 				if_inc_counter(ifp, IFCOUNTER_OMCASTS, 1);
 		} else
 			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
-		if (m->m_flags & M_TXCB)
+		if (m->m_flags & M_TXCB) {
+			IEEE80211_DPRINTF(ni->ni_vap, IEEE80211_MSG_STATE | IEEE80211_MSG_DEBUG,
+			   "ni %p vap %p mode %s state %s m %p status %d\n", ni, ni->ni_vap,
+			   ieee80211_opmode_name[ni->ni_vap->iv_opmode],
+			   ieee80211_state_name[ni->ni_vap->iv_state], m, status);
 			ieee80211_process_callback(ni, m, status);
+		}
 		ieee80211_free_node(ni);
 	}
 	m_freem(m);
