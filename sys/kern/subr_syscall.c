@@ -285,7 +285,4 @@ syscallret(struct thread *td)
 		td->td_dbgflags &= ~(TDB_SCX | TDB_EXEC | TDB_FORK);
 		PROC_UNLOCK(p);
 	}
-
-	if (__predict_false(td->td_pflags & TDP_RFPPWAIT))
-		fork_rfppwait(td);
 }
