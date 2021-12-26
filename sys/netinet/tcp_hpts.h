@@ -114,11 +114,7 @@ struct hpts_diag {
 
 
 #ifdef _KERNEL
-#define tcp_hpts_remove(a, b) __tcp_hpts_remove(a, b, __LINE__)
-void __tcp_hpts_remove(struct inpcb *inp, int32_t flags, int32_t line);
-#define HPTS_REMOVE_DROPQ  0x01
-#define HPTS_REMOVE_OUTPUT 0x02
-#define HPTS_REMOVE_ALL    (HPTS_REMOVE_DROPQ | HPTS_REMOVE_OUTPUT)
+void tcp_hpts_remove(struct inpcb *);
 bool tcp_in_hpts(struct inpcb *);
 
 /*
