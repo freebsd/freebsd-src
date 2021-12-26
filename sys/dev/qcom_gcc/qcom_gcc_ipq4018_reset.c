@@ -53,7 +53,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dt-bindings/clock/qcom,gcc-ipq4019.h>
 
-#include <arm/qualcomm/qcom_gcc_ipq4018_var.h>
+#include "qcom_gcc_ipq4018_var.h"
 
 
 static const struct qcom_gcc_ipq4018_reset_entry gcc_ipq4019_reset_list[] = {
@@ -143,7 +143,6 @@ qcom_gcc_ipq4018_hwreset_assert(device_t dev, intptr_t id, bool reset)
 		return (EINVAL);
 	}
 
-	device_printf(dev, "%s: called; id=%d, reset=%d\n", __func__, id, reset);
 	mtx_lock(&sc->mtx);
 	reg = bus_read_4(sc->reg, gcc_ipq4019_reset_list[id].reg);
 	if (reset)
