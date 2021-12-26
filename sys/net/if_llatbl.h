@@ -222,6 +222,10 @@ void		lltable_prefix_free(int, struct sockaddr *,
 		    struct sockaddr *, u_int);
 int		lltable_sysctl_dumparp(int, struct sysctl_req *);
 
+struct lltable *in_lltable_get(struct ifnet *ifp);
+struct lltable *in6_lltable_get(struct ifnet *ifp);
+struct lltable *lltable_get(struct ifnet *ifp, int family);
+
 size_t		llentry_free(struct llentry *);
 
 /* helper functions */

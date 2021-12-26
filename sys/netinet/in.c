@@ -1704,6 +1704,17 @@ in_lltattach(struct ifnet *ifp)
 	return (llt);
 }
 
+struct lltable *
+in_lltable_get(struct ifnet *ifp)
+{
+	struct lltable *llt = NULL;
+
+	void *afdata_ptr = ifp->if_afdata[AF_INET];
+	if (afdata_ptr != NULL)
+		llt = ((struct in_ifinfo *)afdata_ptr)->ii_llt;
+	return (llt);
+}
+
 void *
 in_domifattach(struct ifnet *ifp)
 {
