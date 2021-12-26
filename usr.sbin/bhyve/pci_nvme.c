@@ -5,7 +5,7 @@
  * Copyright (c) 2018 Leon Dang
  * Copyright (c) 2020 Chuck Tuffli
  *
- * Function crc16 Copyright (c) 2017, Fedor Uporov 
+ * Function crc16 Copyright (c) 2017, Fedor Uporov
  *     Obtained from function ext2_crc16() in sys/fs/ext2fs/ext2_csum.c
  *
  * Redistribution and use in source and binary forms, with or without
@@ -780,7 +780,7 @@ pci_nvme_aer_get(struct pci_nvme_softc *sc)
 		sc->aer_count--;
 	}
 	pthread_mutex_unlock(&sc->aer_mtx);
-	
+
 	return (aer);
 }
 
@@ -1041,7 +1041,7 @@ pci_nvme_init_controller(struct vmctx *ctx, struct pci_nvme_softc *sc)
 	DPRINTF("%s mapping Admin-SQ guest 0x%lx, host: %p",
 	        __func__, sc->regs.asq, sc->submit_queues[0].qbase);
 
-	acqs = ((sc->regs.aqa >> NVME_AQA_REG_ACQS_SHIFT) & 
+	acqs = ((sc->regs.aqa >> NVME_AQA_REG_ACQS_SHIFT) &
 	    NVME_AQA_REG_ACQS_MASK) + 1;
 	sc->compl_queues[0].size = acqs;
 	sc->compl_queues[0].qbase = vm_map_gpa(ctx, sc->regs.acq,
@@ -1222,7 +1222,7 @@ nvme_opc_create_io_sq(struct pci_nvme_softc* sc, struct nvme_command* command,
 		DPRINTF("%s completed creating IOSQ qid %u",
 		         __func__, qid);
 	} else {
-		/* 
+		/*
 		 * Guest sent non-cont submission queue request.
 		 * This setting is unsupported by this emulation.
 		 */
@@ -1842,7 +1842,7 @@ pci_nvme_handle_admin_cmd(struct pci_nvme_softc* sc, uint64_t value)
 
 	sqhead = sq->head;
 	DPRINTF("sqhead %u, tail %u", sqhead, sq->tail);
-	
+
 	while (sqhead != atomic_load_acq_short(&sq->tail)) {
 		cmd = &(sq->qbase)[sqhead];
 		compl.cdw0 = 0;

@@ -525,7 +525,7 @@ ng_init(struct net_backend *be, const char *devname,
 	/*
 	 * The default ng_socket(4) buffer's size is too low.
 	 * Calculate the minimum value between NG_SBUF_MAX_SIZE
-	 * and kern.ipc.maxsockbuf. 
+	 * and kern.ipc.maxsockbuf.
 	 */
 	msbsz = sizeof(maxsbsz);
 	if (sysctlbyname("kern.ipc.maxsockbuf", &maxsbsz, &msbsz,

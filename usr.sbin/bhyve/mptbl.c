@@ -180,7 +180,7 @@ mpt_build_bus_entries(bus_entry_ptr mpeb)
 
 	memset(mpeb, 0, sizeof(*mpeb));
 	mpeb->type = MPCT_ENTRY_BUS;
-	mpeb->bus_id = 1;	
+	mpeb->bus_id = 1;
 	memcpy(mpeb->bus_type, MPE_BUSNAME_ISA, MPE_BUSNAME_LEN);
 }
 
@@ -243,7 +243,7 @@ mpt_build_ioint_entries(int_entry_ptr mpie, int id)
 
 	/*
 	 * The following config is taken from kernel mptable.c
-	 * mptable_parse_default_config_ints(...), for now 
+	 * mptable_parse_default_config_ints(...), for now
 	 * just use the default config, tweek later if needed.
 	 */
 
@@ -287,7 +287,7 @@ mpt_build_ioint_entries(int_entry_ptr mpie, int id)
 
 	/* Next, generate entries for any PCI INTx interrupts. */
 	for (bus = 0; bus <= PCI_BUSMAX; bus++)
-		pci_walk_lintr(bus, mpt_generate_pci_int, &mpie); 
+		pci_walk_lintr(bus, mpt_generate_pci_int, &mpie);
 }
 
 void

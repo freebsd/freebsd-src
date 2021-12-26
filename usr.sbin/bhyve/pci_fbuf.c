@@ -377,7 +377,7 @@ pci_fbuf_init(struct vmctx *ctx, struct pci_devinst *pi, nvlist_t *nvl)
 {
 	int error;
 	struct pci_fbuf_softc *sc;
-	
+
 	if (fbuf_sc != NULL) {
 		EPRINTLN("Only one frame buffer device is allowed.");
 		return (-1);

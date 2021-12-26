@@ -86,11 +86,11 @@ default_inout(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
 	return (0);
 }
 
-static void 
+static void
 register_default_iohandler(int start, int size)
 {
 	struct inout_port iop;
-	
+
 	VERIFY_IOPORT(start, size);
 
 	bzero(&iop, sizeof(iop));

@@ -221,7 +221,7 @@ _expand_config_value(const char *value, int depth)
 				fputc('%', valfp);
 				vp++;
 				break;
-			}				
+			}
 			if (vp[1] != '(' || vp[2] == '\0')
 				cp = NULL;
 			else

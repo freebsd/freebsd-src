@@ -117,7 +117,7 @@ struct pci_vtnet_softc {
 	int		resetting;	/* protected by tx_mtx */
 
 	uint64_t	vsc_features;	/* negotiated features */
-	
+
 	pthread_mutex_t	rx_mtx;
 	int		rx_merge;	/* merged rx bufs in use */
 
@@ -628,9 +628,9 @@ pci_vtnet_init(struct vmctx *ctx, struct pci_devinst *pi, nvlist_t *nvl)
 	sc->vsc_consts.vc_hv_caps |= VIRTIO_NET_F_MRG_RXBUF |
 	    netbe_get_cap(sc->vsc_be);
 
-	/* 
+	/*
 	 * Since we do not actually support multiqueue,
-	 * set the maximum virtqueue pairs to 1. 
+	 * set the maximum virtqueue pairs to 1.
 	 */
 	sc->vsc_config.max_virtqueue_pairs = 1;
 
@@ -643,7 +643,7 @@ pci_vtnet_init(struct vmctx *ctx, struct pci_devinst *pi, nvlist_t *nvl)
 
 	/* Link is always up. */
 	sc->vsc_config.status = 1;
-	
+
 	vi_softc_linkup(&sc->vsc_vs, &sc->vsc_consts, sc, pi, sc->vsc_queues);
 	sc->vsc_vs.vs_mtx = &sc->vsc_mtx;
 
@@ -660,12 +660,12 @@ pci_vtnet_init(struct vmctx *ctx, struct pci_devinst *pi, nvlist_t *nvl)
 
 	sc->rx_merge = 0;
 	sc->vhdrlen = sizeof(struct virtio_net_rxhdr) - 2;
-	pthread_mutex_init(&sc->rx_mtx, NULL); 
+	pthread_mutex_init(&sc->rx_mtx, NULL);
 
-	/* 
+	/*
 	 * Initialize tx semaphore & spawn TX processing thread.
 	 * As of now, only one thread for TX desc processing is
-	 * spawned. 
+	 * spawned.
 	 */
 	sc->tx_in_progress = 0;
 	pthread_mutex_init(&sc->tx_mtx, NULL);

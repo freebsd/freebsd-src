@@ -668,7 +668,7 @@
 
 /* Channel Count Control */
 #define HDA_CMD_VERB_GET_CONV_CHAN_COUNT			0xf2d
-#define HDA_CMD_VERB_SET_CONV_CHAN_COUNT			0x72d 
+#define HDA_CMD_VERB_SET_CONV_CHAN_COUNT			0x72d
 
 #define HDA_CMD_GET_CONV_CHAN_COUNT(cad, nid)				\
     (HDA_CMD_12BIT((cad), (nid),					\
@@ -677,20 +677,20 @@
     (HDA_CMD_12BIT((cad), (nid),					\
     HDA_CMD_VERB_SET_CONV_CHAN_COUNT, (payload)))
 
-#define HDA_CMD_VERB_GET_HDMI_DIP_SIZE			0xf2e 
+#define HDA_CMD_VERB_GET_HDMI_DIP_SIZE			0xf2e
 
 #define HDA_CMD_GET_HDMI_DIP_SIZE(cad, nid, arg)			\
     (HDA_CMD_12BIT((cad), (nid),					\
     HDA_CMD_VERB_GET_HDMI_DIP_SIZE, (arg)))
 
-#define HDA_CMD_VERB_GET_HDMI_ELDD			0xf2f 
+#define HDA_CMD_VERB_GET_HDMI_ELDD			0xf2f
 
 #define HDA_CMD_GET_HDMI_ELDD(cad, nid, off)				\
     (HDA_CMD_12BIT((cad), (nid),					\
     HDA_CMD_VERB_GET_HDMI_ELDD, (off)))
 
-#define HDA_CMD_VERB_GET_HDMI_DIP_INDEX			0xf30 
-#define HDA_CMD_VERB_SET_HDMI_DIP_INDEX			0x730 
+#define HDA_CMD_VERB_GET_HDMI_DIP_INDEX			0xf30
+#define HDA_CMD_VERB_SET_HDMI_DIP_INDEX			0x730
 
 #define HDA_CMD_GET_HDMI_DIP_INDEX(cad, nid)				\
     (HDA_CMD_12BIT((cad), (nid),					\
@@ -699,8 +699,8 @@
     (HDA_CMD_12BIT((cad), (nid),					\
     HDA_CMD_VERB_SET_HDMI_DIP_INDEX, (payload)))
 
-#define HDA_CMD_VERB_GET_HDMI_DIP_DATA			0xf31 
-#define HDA_CMD_VERB_SET_HDMI_DIP_DATA			0x731 
+#define HDA_CMD_VERB_GET_HDMI_DIP_DATA			0xf31
+#define HDA_CMD_VERB_SET_HDMI_DIP_DATA			0x731
 
 #define HDA_CMD_GET_HDMI_DIP_DATA(cad, nid)				\
     (HDA_CMD_12BIT((cad), (nid),					\
@@ -709,8 +709,8 @@
     (HDA_CMD_12BIT((cad), (nid),					\
     HDA_CMD_VERB_SET_HDMI_DIP_DATA, (payload)))
 
-#define HDA_CMD_VERB_GET_HDMI_DIP_XMIT			0xf32 
-#define HDA_CMD_VERB_SET_HDMI_DIP_XMIT			0x732 
+#define HDA_CMD_VERB_GET_HDMI_DIP_XMIT			0xf32
+#define HDA_CMD_VERB_SET_HDMI_DIP_XMIT			0x732
 
 #define HDA_CMD_GET_HDMI_DIP_XMIT(cad, nid)				\
     (HDA_CMD_12BIT((cad), (nid),					\
@@ -719,11 +719,11 @@
     (HDA_CMD_12BIT((cad), (nid),					\
     HDA_CMD_VERB_SET_HDMI_DIP_XMIT, (payload)))
 
-#define HDA_CMD_VERB_GET_HDMI_CP_CTRL			0xf33 
-#define HDA_CMD_VERB_SET_HDMI_CP_CTRL			0x733 
+#define HDA_CMD_VERB_GET_HDMI_CP_CTRL			0xf33
+#define HDA_CMD_VERB_SET_HDMI_CP_CTRL			0x733
 
-#define HDA_CMD_VERB_GET_HDMI_CHAN_SLOT			0xf34 
-#define HDA_CMD_VERB_SET_HDMI_CHAN_SLOT			0x734 
+#define HDA_CMD_VERB_GET_HDMI_CHAN_SLOT			0xf34
+#define HDA_CMD_VERB_SET_HDMI_CHAN_SLOT			0x734
 
 #define HDA_CMD_GET_HDMI_CHAN_SLOT(cad, nid)				\
     (HDA_CMD_12BIT((cad), (nid),					\

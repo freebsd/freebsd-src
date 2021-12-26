@@ -381,11 +381,11 @@ uart_drain(int fd, enum ev_type ev, void *arg)
 	struct uart_softc *sc;
 	int ch;
 
-	sc = arg;	
+	sc = arg;
 
 	assert(fd == sc->tty.rfd);
 	assert(ev == EVF_READ);
-	
+
 	/*
 	 * This routine is called in the context of the mevent thread
 	 * to take out the softc lock to protect against concurrent
@@ -422,7 +422,7 @@ uart_write(struct uart_softc *sc, int offset, uint8_t value)
 			sc->dll = value;
 			goto done;
 		}
-		
+
 		if (offset == REG_DLH) {
 			sc->dlh = value;
 			goto done;
@@ -540,7 +540,7 @@ uart_read(struct uart_softc *sc, int offset)
 			reg = sc->dll;
 			goto done;
 		}
-		
+
 		if (offset == REG_DLH) {
 			reg = sc->dlh;
 			goto done;
@@ -558,7 +558,7 @@ uart_read(struct uart_softc *sc, int offset)
 		iir = (sc->fcr & FCR_ENABLE) ? IIR_FIFO_MASK : 0;
 
 		intr_reason = uart_intr_reason(sc);
-			
+
 		/*
 		 * Deal with side effects of reading the IIR register
 		 */

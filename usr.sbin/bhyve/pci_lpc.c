@@ -161,7 +161,7 @@ lpc_uart_intr_assert(void *arg)
 static void
 lpc_uart_intr_deassert(void *arg)
 {
-	/* 
+	/*
 	 * The COM devices on the LPC bus generate edge triggered interrupts,
 	 * so nothing more to do here.
 	 */
