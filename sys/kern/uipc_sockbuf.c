@@ -1784,7 +1784,7 @@ sbtoxsockbuf(struct sockbuf *sb, struct xsockbuf *xsb)
 static int dummy;
 SYSCTL_INT(_kern, KERN_DUMMY, dummy, CTLFLAG_RW | CTLFLAG_SKIP, &dummy, 0, "");
 SYSCTL_OID(_kern_ipc, KIPC_MAXSOCKBUF, maxsockbuf,
-    CTLTYPE_ULONG | CTLFLAG_RW | CTLFLAG_NEEDGIANT, &sb_max, 0,
+    CTLTYPE_ULONG | CTLFLAG_RW | CTLFLAG_MPSAFE, &sb_max, 0,
     sysctl_handle_sb_max, "LU",
     "Maximum socket buffer size");
 SYSCTL_ULONG(_kern_ipc, KIPC_SOCKBUF_WASTE, sockbuf_waste_factor, CTLFLAG_RW,
