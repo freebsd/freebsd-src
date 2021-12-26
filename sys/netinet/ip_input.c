@@ -560,8 +560,9 @@ tooshort:
 
 	/*
 	 * Try to forward the packet, but if we fail continue.
-	 * ip_tryforward() does not generate redirects, so fall
-	 * through to normal processing if redirects are required.
+	 * ip_tryforward() may generate redirects these days.
+	 * XXX the logic below falling through to normal processing
+	 * if redirects are required should be revisited as well.
 	 * ip_tryforward() does inbound and outbound packet firewall
 	 * processing. If firewall has decided that destination becomes
 	 * our local address, it sets M_FASTFWD_OURS flag. In this
@@ -574,6 +575,10 @@ tooshort:
 	    IPSEC_CAPS(ipv4, m, IPSEC_CAP_OPERABLE) == 0)
 #endif
 	    ) {
+		/*
+		 * ip_dooptions() was run so we can ignore the source route (or
+		 * any IP options case) case for redirects in ip_tryforward().
+		 */
 		if ((m = ip_tryforward(m)) == NULL)
 			return;
 		if (m->m_flags & M_FASTFWD_OURS) {

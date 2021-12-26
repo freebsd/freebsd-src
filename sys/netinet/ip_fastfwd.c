@@ -60,14 +60,6 @@
  *
  * We take full advantage of hardware support for IP checksum and
  * fragmentation offloading.
- *
- * We don't do ICMP redirect in the fast forwarding path. I have had my own
- * cases where two core routers with Zebra routing suite would send millions
- * ICMP redirects to connected hosts if the destination router was not the
- * default gateway. In one case it was filling the routing table of a host
- * with approximately 300.000 cloned redirect entries until it ran out of
- * kernel memory. However the networking code proved very robust and it didn't
- * crash or fail in other ways.
  */
 
 /*
@@ -114,11 +106,68 @@ __FBSDID("$FreeBSD$");
 #define	V_ipsendredirects	VNET(ipsendredirects)
 
 static struct mbuf *
-ip_redir_alloc(struct mbuf *m, struct nhop_object *nh,
-    struct ip *ip, in_addr_t *addr)
+ip_redir_alloc(struct mbuf *m, struct nhop_object *nh, u_short ip_len,
+    struct in_addr *osrc, struct in_addr *newgw)
 {
-	struct mbuf *mcopy = m_gethdr(M_NOWAIT, m->m_type);
+	struct in_ifaddr *nh_ia;
+	struct mbuf *mcopy;
 
+	KASSERT(nh != NULL, ("%s: m %p nh is NULL\n", __func__, m));
+
+	/*
+	 * Only send a redirect if:
+	 * - Redirects are not disabled (must be checked by caller),
+	 * - We have not applied NAT (must be checked by caller as possible),
+	 * - Neither a MCAST or BCAST packet (must be checked by caller)
+	 *   [RFC1009 Appendix A.2].
+	 * - The packet does not do IP source routing or having any other
+	 *   IP options (this case was handled already by ip_input() calling
+	 *   ip_dooptions() [RFC792, p13],
+	 * - The packet is being forwarded out the same physical interface
+	 *   that it was received from [RFC1812, 5.2.7.2].
+	 */
+
+	/*
+	 * - The forwarding route was not created by a redirect
+	 *   [RFC1812, 5.2.7.2], or
+	 *   if it was to follow a default route (see below).
+	 * - The next-hop is reachable by us [RFC1009 Appendix A.2].
+	 */
+	if ((nh->nh_flags & (NHF_DEFAULT | NHF_REDIRECT |
+	    NHF_BLACKHOLE | NHF_REJECT)) != 0)
+		return (NULL);
+
+	/* Get the new gateway. */
+	if ((nh->nh_flags & NHF_GATEWAY) == 0 || nh->gw_sa.sa_family != AF_INET)
+		return (NULL);
+	newgw->s_addr = nh->gw4_sa.sin_addr.s_addr;
+
+	/*
+	 * - The resulting forwarding destination is not "This host on this
+	 *   network" [RFC1122, Section 3.2.1.3] (default route check above).
+	 */
+	if (newgw->s_addr == 0)
+		return (NULL);
+
+	/*
+	 * - We know how to reach the sender and the source address is
+	 *   directly connected to us [RFC792, p13].
+	 * + The new gateway address and the source address are on the same
+	 *   subnet [RFC1009 Appendix A.2, RFC1122 3.2.2.2, RFC1812, 5.2.7.2].
+	 * NB: if you think multiple logical subnets on the same wire should
+	 *     receive redirects read [RFC1812, APPENDIX C (14->15)].
+	 */
+	nh_ia = (struct in_ifaddr *)nh->nh_ifa;
+	if ((ntohl(osrc->s_addr) & nh_ia->ia_subnetmask) != nh_ia->ia_subnet)
+		return (NULL);
+
+	/* Prepare for sending the redirect. */
+
+	/*
+	 * Make a copy of as much as we need of the packet as the original
+	 * one will be forwarded but we need (a portion) for icmp_error().
+	 */
+	mcopy = m_gethdr(M_NOWAIT, m->m_type);
 	if (mcopy == NULL)
 		return (NULL);
 
@@ -132,23 +181,10 @@ ip_redir_alloc(struct mbuf *m, struct nhop_object *nh,
 		m_free(mcopy);
 		return (NULL);
 	}
-	mcopy->m_len = min(ntohs(ip->ip_len), M_TRAILINGSPACE(mcopy));
+	mcopy->m_len = min(ip_len, M_TRAILINGSPACE(mcopy));
 	mcopy->m_pkthdr.len = mcopy->m_len;
 	m_copydata(m, 0, mcopy->m_len, mtod(mcopy, caddr_t));
 
-	if (nh != NULL &&
-	    ((nh->nh_flags & (NHF_REDIRECT|NHF_DEFAULT)) == 0)) {
-		struct in_ifaddr *nh_ia = (struct in_ifaddr *)(nh->nh_ifa);
-		u_long src = ntohl(ip->ip_src.s_addr);
-
-		if (nh_ia != NULL &&
-		    (src & nh_ia->ia_subnetmask) == nh_ia->ia_subnet) {
-			if (nh->nh_flags & NHF_GATEWAY)
-				*addr = nh->gw4_sa.sin_addr.s_addr;
-			else
-				*addr = ip->ip_dst.s_addr;
-		}
-	}
 	return (mcopy);
 }
 
@@ -202,7 +238,7 @@ ip_tryforward(struct mbuf *m)
 	struct route ro;
 	struct sockaddr_in *dst;
 	const struct sockaddr *gw;
-	struct in_addr dest, odest, rtdest;
+	struct in_addr dest, odest, rtdest, osrc;
 	uint16_t ip_len, ip_off;
 	int error = 0;
 	struct m_tag *fwd_tag = NULL;
@@ -274,6 +310,7 @@ ip_tryforward(struct mbuf *m)
 	 */
 
 	odest.s_addr = dest.s_addr = ip->ip_dst.s_addr;
+	osrc.s_addr = ip->ip_src.s_addr;
 
 	/*
 	 * Run through list of ipfilter hooks for input packets
@@ -434,13 +471,11 @@ passout:
 	} else
 		gw = (const struct sockaddr *)dst;
 
-	/*
-	 * Handle redirect case.
-	 */
+	/* Handle redirect case. */
 	redest.s_addr = 0;
-	if (V_ipsendredirects && (nh->nh_ifp == m->m_pkthdr.rcvif) &&
-	    gw->sa_family == AF_INET)
-		mcopy = ip_redir_alloc(m, nh, ip, &redest.s_addr);
+	if (V_ipsendredirects && osrc.s_addr == ip->ip_src.s_addr &&
+	    nh->nh_ifp == m->m_pkthdr.rcvif)
+		mcopy = ip_redir_alloc(m, nh, ip_len, &osrc, &redest);
 
 	/*
 	 * Check if packet fits MTU or if hardware will fragment for us
@@ -514,7 +549,7 @@ passout:
 	/* Send required redirect */
 	if (mcopy != NULL) {
 		icmp_error(mcopy, ICMP_REDIRECT, ICMP_REDIRECT_HOST, redest.s_addr, 0);
-		mcopy = NULL; /* Freed by caller */
+		mcopy = NULL; /* Was consumed by callee. */
 	}
 
 consumed:
