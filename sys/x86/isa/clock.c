@@ -460,7 +460,7 @@ sysctl_machdep_i8254_freq(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_machdep, OID_AUTO, i8254_freq,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
     0, sizeof(u_int), sysctl_machdep_i8254_freq, "IU",
     "i8254 timer frequency");
 

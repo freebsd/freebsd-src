@@ -740,7 +740,7 @@ idle_sysctl_available(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_machdep, OID_AUTO, idle_available,
-    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
+    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
     0, 0, idle_sysctl_available, "A",
     "list of available idle functions");
 
@@ -787,7 +787,7 @@ cpu_idle_sysctl(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_machdep, OID_AUTO, idle,
-    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE,
     0, 0, cpu_idle_sysctl, "A",
     "currently selected idle function");
 
