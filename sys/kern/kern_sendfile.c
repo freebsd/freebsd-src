@@ -158,7 +158,7 @@ sfstat_sysctl(SYSCTL_HANDLER_ARGS)
 	return (SYSCTL_OUT(req, &s, sizeof(s)));
 }
 SYSCTL_PROC(_kern_ipc, OID_AUTO, sfstat,
-    CTLTYPE_OPAQUE | CTLFLAG_RW | CTLFLAG_NEEDGIANT, NULL, 0,
+    CTLTYPE_OPAQUE | CTLFLAG_RW | CTLFLAG_MPSAFE, NULL, 0,
     sfstat_sysctl, "I",
     "sendfile statistics");
 
