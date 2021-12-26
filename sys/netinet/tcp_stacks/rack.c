@@ -14043,7 +14043,6 @@ rack_do_compressed_ack_processing(struct tcpcb *tp, struct socket *so, struct mb
 			if (ctf_progress_timeout_check(tp, true)) {
 				rack_log_progress_event((struct tcp_rack *)tp->t_fb_ptr,
 							tp, tick, PROGRESS_DROP, __LINE__);
-				tcp_set_inp_to_drop(tp->t_inpcb, ETIMEDOUT);
 				/*
 				 * We cheat here and don't send a RST, we should send one
 				 * when the pacer drops the connection.
@@ -14059,7 +14058,7 @@ rack_do_compressed_ack_processing(struct tcpcb *tp, struct socket *so, struct mb
 				}
 				sched_unpin();
 #endif
-				INP_WUNLOCK(rack->rc_inp);
+				(void)tcp_drop(tp, ETIMEDOUT);
 				m_freem(m);
 				return (1);
 			}
