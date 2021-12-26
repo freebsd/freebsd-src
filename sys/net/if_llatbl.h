@@ -268,6 +268,7 @@ lla_lookup(struct lltable *llt, u_int flags, const struct sockaddr *l3addr)
 void llentry_request_feedback(struct llentry *lle);
 void llentry_mark_used(struct llentry *lle);
 time_t llentry_get_hittime(struct llentry *lle);
+int llentry_get_upper_family(const struct llentry *lle, int default_family);
 
 /*
  * Notify the LLE code that the entry was used by datapath.
