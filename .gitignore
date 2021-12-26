@@ -18,3 +18,4 @@ ID
 cscope.out
 ?cscope.out
 sys/*/conf/LINT*
+tags
