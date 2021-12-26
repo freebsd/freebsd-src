@@ -49,11 +49,12 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/extres/hwreset/hwreset.h>
 
+#include "clkdev_if.h"
 #include "hwreset_if.h"
 
 #include <dt-bindings/clock/qcom,gcc-ipq4019.h>
 
-#include <arm/qualcomm/qcom_gcc_ipq4018_var.h>
+#include "qcom_gcc_ipq4018_var.h"
 
 
 static int	qcom_gcc_ipq4018_modevent(module_t, int, void *);
@@ -121,6 +122,11 @@ qcom_gcc_ipq4018_attach(device_t dev)
 	 */
 	hwreset_register_ofw_provider(dev);
 
+	/*
+	 * Setup and register as a clock provider.
+	 */
+	qcom_gcc_ipq4018_clock_setup(sc);
+
 	return (0);
 }
 
@@ -130,6 +136,10 @@ qcom_gcc_ipq4018_detach(device_t dev)
 	struct qcom_gcc_ipq4018_softc *sc;
 
 	sc = device_get_softc(dev);
+
+	/*
+	 * TBD - deregistering reset/clock resources.
+	 */
 
 	if (sc->reg != NULL) {
 		bus_release_resource(sc->dev, SYS_RES_MEMORY,
@@ -148,6 +158,13 @@ static device_method_t qcom_gcc_ipq4018_methods[] = {
 	DEVMETHOD(hwreset_assert,	qcom_gcc_ipq4018_hwreset_assert),
 	DEVMETHOD(hwreset_is_asserted,	qcom_gcc_ipq4018_hwreset_is_asserted),
 
+	/* Clock interface */
+	DEVMETHOD(clkdev_read_4,	qcom_gcc_ipq4018_clock_read),
+	DEVMETHOD(clkdev_write_4,	qcom_gcc_ipq4018_clock_write),
+	DEVMETHOD(clkdev_modify_4,	qcom_gcc_ipq4018_clock_modify),
+	DEVMETHOD(clkdev_device_lock,	qcom_gcc_ipq4018_clock_lock),
+	DEVMETHOD(clkdev_device_unlock,	qcom_gcc_ipq4018_clock_unlock),
+
 	DEVMETHOD_END
 };
 
@@ -160,8 +177,8 @@ static devclass_t qcom_gcc_ipq4018_devclass;
 
 EARLY_DRIVER_MODULE(qcom_gcc_ipq4018, simplebus, qcom_gcc_ipq4018_driver,
     qcom_gcc_ipq4018_devclass, qcom_gcc_ipq4018_modevent, 0,
-    BUS_PASS_RESOURCE + BUS_PASS_ORDER_MIDDLE);
+    BUS_PASS_CPU + BUS_PASS_ORDER_EARLY);
 EARLY_DRIVER_MODULE(qcom_gcc_ipq4018, ofwbus, qcom_gcc_ipq4018_driver,
     qcom_gcc_ipq4018_devclass, qcom_gcc_ipq4018_modevent, 0,
-    BUS_PASS_RESOURCE + BUS_PASS_ORDER_MIDDLE);
-MODULE_VERSION(qcom_gcc_ipq4018_random, 1);
+    BUS_PASS_CPU + BUS_PASS_ORDER_EARLY);
+MODULE_VERSION(qcom_gcc_ipq4018, 1);

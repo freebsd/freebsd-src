@@ -4,9 +4,10 @@ arm/qualcomm/qcom_scm_legacy.c		standard
 arm/qualcomm/qcom_cpu_kpssv2.c		optional smp
 
 dev/qcom_rnd/qcom_rnd.c			optional qcom_rnd
-arm/qualcomm/qcom_gcc_ipq4018.c		optional qcom_gcc_ipq4018
-arm/qualcomm/qcom_gcc_ipq4018_reset.c	optional qcom_gcc_ipq4018
-arm/qualcomm/qcom_gcc_ipq4018_clock.c	optional qcom_gcc_ipq4018
+
+dev/qcom_gcc/qcom_gcc_ipq4018.c		optional qcom_gcc_ipq4018
+dev/qcom_gcc/qcom_gcc_ipq4018_reset.c	optional qcom_gcc_ipq4018
+dev/qcom_gcc/qcom_gcc_ipq4018_clock.c	optional qcom_gcc_ipq4018
 
 dev/qcom_clk/qcom_clk_fepll.c		optional qcom_gcc_ipq4018
 dev/qcom_clk/qcom_clk_fdiv.c		optional qcom_gcc_ipq4018
