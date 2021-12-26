@@ -852,7 +852,7 @@ sysctl_machdep_tsc_freq(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 SYSCTL_PROC(_machdep, OID_AUTO, tsc_freq,
-    CTLTYPE_U64 | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+    CTLTYPE_U64 | CTLFLAG_RW | CTLFLAG_MPSAFE,
     0, 0, sysctl_machdep_tsc_freq, "QU",
     "Time Stamp Counter frequency");
 
