@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/osd.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
+#include <sys/epoch.h>
 #include <sys/taskqueue.h>
 #include <sys/fcntl.h>
 #include <sys/jail.h>
@@ -531,15 +532,407 @@ sys_jail_set(struct thread *td, struct jail_set_args *uap)
 	return (error);
 }
 
+#if defined(INET) || defined(INET6)
+typedef int prison_addr_cmp_t(const void *, const void *);
+typedef bool prison_addr_valid_t(const void *);
+static const struct pr_family {
+	size_t			size;
+	prison_addr_cmp_t	*cmp;
+	prison_addr_valid_t	*valid;
+	int			ip_flag;
+} pr_families[PR_FAMILY_MAX] = {
+#ifdef INET
+	[PR_INET] = {
+		.size = sizeof(struct in_addr),
+		.cmp = prison_qcmp_v4,
+		.valid = prison_valid_v4,
+		.ip_flag = PR_IP4_USER,
+	 },
+#endif
+#ifdef INET6
+	[PR_INET6] = {
+		.size = sizeof(struct in6_addr),
+		.cmp = prison_qcmp_v6,
+		.valid = prison_valid_v6,
+		.ip_flag = PR_IP6_USER,
+	},
+#endif
+};
+
+/*
+ * Network address lists (pr_addrs) allocation for jails.  The addresses
+ * are accessed locklessly by the network stack, thus need to be protected by
+ * the network epoch.
+ */
+struct prison_ip {
+	struct epoch_context ctx;
+	uint32_t	ips;
+#ifdef FUTURE_C
+	union {
+		struct in_addr pr_ip4[];
+		struct in6_addr pr_ip6[];
+	};
+#else /* No future C :( */
+#define	PR_IP(pip, i)	((const char *)((pip) + 1) + pr_families[af].size * (i))
+#define	PR_IPD(pip, i)	((char *)((pip) + 1) + pr_families[af].size * (i))
+#endif
+};
+
+static struct prison_ip *
+prison_ip_alloc(const pr_family_t af, uint32_t cnt, int flags)
+{
+	struct prison_ip *pip;
+
+	pip = malloc(sizeof(struct prison_ip) + cnt * pr_families[af].size,
+	    M_PRISON, flags);
+	if (pip != NULL)
+		pip->ips = cnt;
+	return (pip);
+}
+
+/*
+ * Allocate and copyin user supplied address list, sorting and validating.
+ * kern_jail_set() helper.
+ */
+static struct prison_ip *
+prison_ip_copyin(const pr_family_t af, void *op, uint32_t cnt)
+{
+	prison_addr_cmp_t *const cmp = pr_families[af].cmp;
+	const size_t size = pr_families[af].size;
+	struct prison_ip *pip;
+
+	pip = prison_ip_alloc(af, cnt, M_WAITOK);
+	bcopy(op, pip + 1, cnt * size);
+	/*
+	 * IP addresses are all sorted but ip[0] to preserve
+	 * the primary IP address as given from userland.
+	 * This special IP is used for unbound outgoing
+	 * connections as well for "loopback" traffic in case
+	 * source address selection cannot find any more fitting
+	 * address to connect from.
+	 */
+	if (cnt > 1)
+		qsort((char *)(pip + 1) + size, cnt - 1, size,
+		    pr_families[af].cmp);
+	/*
+	 * Check for duplicate addresses and do some simple
+	 * zero and broadcast checks. If users give other bogus
+	 * addresses it is their problem.
+	 */
+	for (int i = 0; i < cnt; i++) {
+		if (!pr_families[af].valid(PR_IP(pip, i))) {
+			free(pip, M_PRISON);
+			return (NULL);
+		}
+		if (i + 1 < cnt &&
+		    (cmp(PR_IP(pip, 0), PR_IP(pip, i + 1)) == 0 ||
+		     cmp(PR_IP(pip, i), PR_IP(pip, i + 1)) == 0)) {
+			free(pip, M_PRISON);
+			return (NULL);
+		}
+	}
+
+	return (pip);
+}
+
+/*
+ * Allocate and dup parent prison address list.
+ * kern_jail_set() helper.
+ */
+static void
+prison_ip_dup(struct prison *ppr, struct prison *pr, const pr_family_t af)
+{
+
+	if (ppr->pr_addrs[af] != NULL) {
+		pr->pr_addrs[af] = prison_ip_alloc(af,
+		    ppr->pr_addrs[af]->ips, M_WAITOK);
+		bcopy(ppr->pr_addrs[af], pr->pr_addrs[af],
+		    pr->pr_addrs[af]->ips * pr_families[af].size);
+	}
+}
+
+/*
+ * Make sure the new set of IP addresses is a subset of the parent's list.
+ * Don't worry about the parent being unlocked, as any setting is done with
+ * allprison_lock held.
+ * kern_jail_set() helper.
+ */
+static bool
+prison_ip_parent_match(const struct prison_ip *ppip,
+    const struct prison_ip *pip, const pr_family_t af)
+{
+	prison_addr_cmp_t *const cmp = pr_families[af].cmp;
+	int i, j;
+
+	if (ppip == NULL)
+		return (false);
+
+	for (i = 0; i < ppip->ips; i++)
+		if (cmp(PR_IP(pip, 0), PR_IP(ppip, i)) == 0)
+			break;
+
+	if (i == ppip->ips)
+		/* Main address not present in parent. */
+		return (false);
+
+	if (pip->ips > 1) {
+		for (i = j = 1; i < pip->ips; i++) {
+			if (cmp(PR_IP(pip, i), PR_IP(ppip, 0)) == 0)
+				/* Equals to parent primary address. */
+				continue;
+			for (; j < ppip->ips; j++)
+				if (cmp(PR_IP(pip, i), PR_IP(ppip, j)) == 0)
+					break;
+			if (j == ppip->ips)
+				break;
+		}
+		if (j == ppip->ips)
+			/* Address not present in parent. */
+			return (false);
+	}
+	return (true);
+}
+
+/*
+ * Check for conflicting IP addresses.  We permit them if there is no more
+ * than one IP on each jail.  If there is a duplicate on a jail with more
+ * than one IP stop checking and return error.
+ * kern_jail_set() helper.
+ */
+static bool
+prison_ip_conflict_check(const struct prison *ppr, const struct prison *pr,
+    const struct prison_ip *pip, pr_family_t af)
+{
+	const struct prison *tppr, *tpr;
+	int descend;
+
+#ifdef VIMAGE
+	for (tppr = ppr; tppr != &prison0; tppr = tppr->pr_parent)
+		if (tppr->pr_flags & PR_VNET)
+			break;
+#else
+	tppr = &prison0;
+#endif
+	FOREACH_PRISON_DESCENDANT(tppr, tpr, descend) {
+		if (tpr == pr ||
+#ifdef VIMAGE
+		    (tpr != tppr && (tpr->pr_flags & PR_VNET)) ||
+#endif
+		    !prison_isalive(tpr)) {
+			descend = 0;
+			continue;
+		}
+		if (!(tpr->pr_flags & pr_families[af].ip_flag))
+			continue;
+		descend = 0;
+		if (tpr->pr_addrs[af] == NULL ||
+		    (pip->ips == 1 && tpr->pr_addrs[af]->ips == 1))
+			continue;
+		for (int i = 0; i < pip->ips; i++)
+			if (prison_ip_check(tpr, af, PR_IP(pip, i)) == 0)
+				return (false);
+	}
+
+	return (true);
+}
+
+_Static_assert(offsetof(struct prison_ip, ctx) == 0,
+    "prison must start with epoch context");
+static void
+prison_ip_free_deferred(epoch_context_t ctx)
+{
+
+	free(ctx, M_PRISON);
+}
+
+static void
+prison_ip_free(struct prison_ip *pip)
+{
+
+	if (pip != NULL)
+		NET_EPOCH_CALL(prison_ip_free_deferred, &pip->ctx);
+}
+
+static void
+prison_ip_set(struct prison *pr, const pr_family_t af, struct prison_ip *new)
+{
+	struct prison_ip **mem, *old;
+
+	mtx_assert(&pr->pr_mtx, MA_OWNED);
+
+	mem = &pr->pr_addrs[af];
+
+	old = *mem;
+	ck_pr_store_ptr(mem, new);
+	prison_ip_free(old);
+}
+
+/*
+ * Restrict a prison's IP address list with its parent's, possibly replacing
+ * it.  Return true if the replacement buffer was used (or would have been).
+ * kern_jail_set() helper.
+ */
+static bool
+prison_ip_restrict(struct prison *pr, const pr_family_t af,
+    struct prison_ip *new)
+{
+	const struct prison_ip *ppip = pr->pr_parent->pr_addrs[af];
+	const struct prison_ip *pip = pr->pr_addrs[af];
+	int (*const cmp)(const void *, const void *) = pr_families[af].cmp;
+	const size_t size = pr_families[af].size;
+	uint32_t ips;
+	bool alloced;
+
+	mtx_assert(&pr->pr_mtx, MA_OWNED);
+
+	/*
+	 * Due to epoch-synchronized access to the IP address lists we always
+	 * allocate a new list even if the old one has enough space.  We could
+	 * atomically update an IPv4 address inside a list, but that would
+	 * screw up sorting, and in case of IPv6 we can't even atomically write
+	 * one.
+	 */
+	ips = (pr->pr_flags & pr_families[af].ip_flag) ? pip->ips : ppip->ips;
+	if (ips == 0) {
+		prison_ip_set(pr, af, NULL);
+		return (false);
+	}
+	if (new == NULL) {
+		new = prison_ip_alloc(af, ips, M_NOWAIT);
+		if (new == NULL)
+			return (true);
+		alloced = true;
+	} else
+		alloced = false;
+	if (!(pr->pr_flags & pr_families[af].ip_flag)) {
+		/* This has no user settings, so just copy the parent's list. */
+		bcopy(ppip, new, ips * size);
+	} else {
+		/* Remove addresses that aren't in the parent. */
+		int i;
+
+		i = 0; /* index in pip */
+		ips = 0; /* index in new */
+
+		for (int pi = 0; pi < ppip->ips; pi++)
+			if (cmp(PR_IP(pip, 0), PR_IP(ppip, pi)) == 0) {
+				/* Found our primary address in parent. */
+				bcopy(PR_IP(pip, i), PR_IPD(new, ips), size);
+				i++;
+				ips++;
+				break;
+			}
+		for (int pi = 1; i < pip->ips; ) {
+			/* Check against primary, which is unsorted. */
+			if (cmp(PR_IP(pip, i), PR_IP(ppip, 0)) == 0) {
+				/* Matches parent's primary address. */
+				bcopy(PR_IP(pip, i), PR_IPD(new, ips), size);
+				i++;
+				ips++;
+				continue;
+			}
+			/* The rest are sorted. */
+			switch (pi >= ppip->ips ? -1 :
+				cmp(PR_IP(pip, i), PR_IP(ppip, pi))) {
+			case -1:
+				i++;
+				break;
+			case 0:
+				bcopy(PR_IP(pr, i), PR_IPD(new, ips), size);
+				i++;
+				pi++;
+				ips++;
+				break;
+			case 1:
+				pi++;
+				break;
+			}
+		}
+		if (ips == 0) {
+			if (alloced)
+				prison_ip_free(new);
+			new = NULL;
+		}
+	}
+	prison_ip_set(pr, af, new);
+	return (new != NULL ? true : false);
+}
+
+/*
+ * Fast-path check if an address belongs to a prison.
+ */
+int
+prison_ip_check(const struct prison *pr, const pr_family_t af,
+    const void *addr)
+{
+	int (*const cmp)(const void *, const void *) = pr_families[af].cmp;
+	const struct prison_ip *pip;
+	int i, a, z, d;
+
+	MPASS(mtx_owned(&pr->pr_mtx) ||
+	    in_epoch(net_epoch_preempt) ||
+	    sx_xlocked(&allprison_lock));
+
+	pip = ck_pr_load_ptr(&pr->pr_addrs[af]);
+	if (__predict_false(pip == NULL))
+		return (EAFNOSUPPORT);
+
+	/* Check the primary IP. */
+	if (cmp(PR_IP(pip, 0), addr) == 0)
+		return (0);
+
+	/*
+	 * All the other IPs are sorted so we can do a binary search.
+	 */
+	a = 0;
+	z = pip->ips - 2;
+	while (a <= z) {
+		i = (a + z) / 2;
+		d = cmp(PR_IP(pip, i + 1), addr);
+		if (d > 0)
+			z = i - 1;
+		else if (d < 0)
+			a = i + 1;
+		else
+			return (0);
+	}
+
+	return (EADDRNOTAVAIL);
+}
+
+/*
+ * Grab primary IP.  Historically required mutex, but nothing prevents
+ * us to support epoch-protected access.  Is it used in fast path?
+ * in{6}_jail.c helper
+ */
+const void *
+prison_ip_get0(const struct prison *pr, const pr_family_t af)
+{
+	const struct prison_ip *pip = pr->pr_addrs[af];
+
+	mtx_assert(&pr->pr_mtx, MA_OWNED);
+	MPASS(pip);
+
+	return (pip + 1);
+}
+
+u_int
+prison_ip_cnt(const struct prison *pr, const pr_family_t af)
+{
+
+	return (pr->pr_addrs[af]->ips);
+}
+#endif	/* defined(INET) || defined(INET6) */
+
 int
 kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 {
 	struct nameidata nd;
 #ifdef INET
-	struct in_addr *ip4;
+	struct prison_ip *ip4;
 #endif
 #ifdef INET6
-	struct in6_addr *ip6;
+	struct prison_ip *ip6;
 #endif
 	struct vfsopt *opt;
 	struct vfsoptlist *opts;
@@ -550,7 +943,6 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 	struct bool_flags *bf;
 	struct jailsys_flags *jsf;
 #if defined(INET) || defined(INET6)
-	struct prison *tppr;
 	void *op;
 #endif
 	unsigned long hid;
@@ -560,9 +952,6 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 	int gotchildmax, gotenforce, gothid, gotrsnum, gotslevel;
 	int jid, jsys, len, level;
 	int childmax, osreldt, rsnum, slevel;
-#if defined(INET) || defined(INET6)
-	int ii, ij;
-#endif
 #ifdef INET
 	int ip4s, redo_ip4;
 #endif
@@ -823,52 +1212,23 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 		ip4s = 0;
 	else if (error != 0)
 		goto done_free;
-	else if (ip4s & (sizeof(*ip4) - 1)) {
+	else if (ip4s & (sizeof(struct in_addr) - 1)) {
 		error = EINVAL;
 		goto done_free;
 	} else {
 		ch_flags |= PR_IP4_USER;
 		pr_flags |= PR_IP4_USER;
 		if (ip4s > 0) {
-			ip4s /= sizeof(*ip4);
+			ip4s /= sizeof(struct in_addr);
 			if (ip4s > jail_max_af_ips) {
 				error = EINVAL;
 				vfs_opterror(opts, "too many IPv4 addresses");
 				goto done_errmsg;
 			}
-			ip4 = malloc(ip4s * sizeof(*ip4), M_PRISON, M_WAITOK);
-			bcopy(op, ip4, ip4s * sizeof(*ip4));
-			/*
-			 * IP addresses are all sorted but ip[0] to preserve
-			 * the primary IP address as given from userland.
-			 * This special IP is used for unbound outgoing
-			 * connections as well for "loopback" traffic in case
-			 * source address selection cannot find any more fitting
-			 * address to connect from.
-			 */
-			if (ip4s > 1)
-				qsort(ip4 + 1, ip4s - 1, sizeof(*ip4),
-				    prison_qcmp_v4);
-			/*
-			 * Check for duplicate addresses and do some simple
-			 * zero and broadcast checks. If users give other bogus
-			 * addresses it is their problem.
-			 *
-			 * We do not have to care about byte order for these
-			 * checks so we will do them in NBO.
-			 */
-			for (ii = 0; ii < ip4s; ii++) {
-				if (ip4[ii].s_addr == INADDR_ANY ||
-				    ip4[ii].s_addr == INADDR_BROADCAST) {
-					error = EINVAL;
-					goto done_free;
-				}
-				if ((ii+1) < ip4s &&
-				    (ip4[0].s_addr == ip4[ii+1].s_addr ||
-				     ip4[ii].s_addr == ip4[ii+1].s_addr)) {
-					error = EINVAL;
-					goto done_free;
-				}
+			ip4 = prison_ip_copyin(PR_INET, op, ip4s);
+			if (ip4 == NULL) {
+				error = EINVAL;
+				goto done_free;
 			}
 		}
 	}
@@ -880,36 +1240,23 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 		ip6s = 0;
 	else if (error != 0)
 		goto done_free;
-	else if (ip6s & (sizeof(*ip6) - 1)) {
+	else if (ip6s & (sizeof(struct in6_addr) - 1)) {
 		error = EINVAL;
 		goto done_free;
 	} else {
 		ch_flags |= PR_IP6_USER;
 		pr_flags |= PR_IP6_USER;
 		if (ip6s > 0) {
-			ip6s /= sizeof(*ip6);
+			ip6s /= sizeof(struct in6_addr);
 			if (ip6s > jail_max_af_ips) {
 				error = EINVAL;
 				vfs_opterror(opts, "too many IPv6 addresses");
 				goto done_errmsg;
 			}
-			ip6 = malloc(ip6s * sizeof(*ip6), M_PRISON, M_WAITOK);
-			bcopy(op, ip6, ip6s * sizeof(*ip6));
-			if (ip6s > 1)
-				qsort(ip6 + 1, ip6s - 1, sizeof(*ip6),
-				    prison_qcmp_v6);
-			for (ii = 0; ii < ip6s; ii++) {
-				if (IN6_IS_ADDR_UNSPECIFIED(&ip6[ii])) {
-					error = EINVAL;
-					goto done_free;
-				}
-				if ((ii+1) < ip6s &&
-				    (IN6_ARE_ADDR_EQUAL(&ip6[0], &ip6[ii+1]) ||
-				     IN6_ARE_ADDR_EQUAL(&ip6[ii], &ip6[ii+1])))
-				{
-					error = EINVAL;
-					goto done_free;
-				}
+			ip6 = prison_ip_copyin(PR_INET6, op, ip6s);
+			if (ip6 == NULL) {
+				error = EINVAL;
+				goto done_free;
 			}
 		}
 	}
@@ -1276,14 +1623,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 				pr->pr_flags |= PR_IP4 | PR_IP4_USER;
 			else if (!(pr_flags & PR_IP4_USER)) {
 				pr->pr_flags |= ppr->pr_flags & PR_IP4;
-				if (ppr->pr_ip4 != NULL) {
-					pr->pr_ip4s = ppr->pr_ip4s;
-					pr->pr_ip4 = malloc(pr->pr_ip4s *
-					    sizeof(struct in_addr), M_PRISON,
-					    M_WAITOK);
-					bcopy(ppr->pr_ip4, pr->pr_ip4,
-					    pr->pr_ip4s * sizeof(*pr->pr_ip4));
-				}
+				prison_ip_dup(ppr, pr, PR_INET);
 			}
 #endif
 #ifdef INET6
@@ -1291,14 +1631,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 				pr->pr_flags |= PR_IP6 | PR_IP6_USER;
 			else if (!(pr_flags & PR_IP6_USER)) {
 				pr->pr_flags |= ppr->pr_flags & PR_IP6;
-				if (ppr->pr_ip6 != NULL) {
-					pr->pr_ip6s = ppr->pr_ip6s;
-					pr->pr_ip6 = malloc(pr->pr_ip6s *
-					    sizeof(struct in6_addr), M_PRISON,
-					    M_WAITOK);
-					bcopy(ppr->pr_ip6, pr->pr_ip6,
-					    pr->pr_ip6s * sizeof(*pr->pr_ip6));
-				}
+				prison_ip_dup(ppr, pr, PR_INET6);
 			}
 #endif
 		}
@@ -1408,143 +1741,31 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 	}
 #ifdef INET
 	if (ip4s > 0) {
-		if (ppr->pr_flags & PR_IP4) {
-			/*
-			 * Make sure the new set of IP addresses is a
-			 * subset of the parent's list.  Don't worry
-			 * about the parent being unlocked, as any
-			 * setting is done with allprison_lock held.
-			 */
-			for (ij = 0; ij < ppr->pr_ip4s; ij++)
-				if (ip4[0].s_addr == ppr->pr_ip4[ij].s_addr)
-					break;
-			if (ij == ppr->pr_ip4s) {
-				error = EPERM;
-				goto done_deref;
-			}
-			if (ip4s > 1) {
-				for (ii = ij = 1; ii < ip4s; ii++) {
-					if (ip4[ii].s_addr ==
-					    ppr->pr_ip4[0].s_addr)
-						continue;
-					for (; ij < ppr->pr_ip4s; ij++)
-						if (ip4[ii].s_addr ==
-						    ppr->pr_ip4[ij].s_addr)
-							break;
-					if (ij == ppr->pr_ip4s)
-						break;
-				}
-				if (ij == ppr->pr_ip4s) {
-					error = EPERM;
-					goto done_deref;
-				}
-			}
+		if ((ppr->pr_flags & PR_IP4) &&
+		    !prison_ip_parent_match(ppr->pr_addrs[PR_INET], ip4,
+		    PR_INET)) {
+			error = EPERM;
+			goto done_deref;
 		}
-		/*
-		 * Check for conflicting IP addresses.  We permit them
-		 * if there is no more than one IP on each jail.  If
-		 * there is a duplicate on a jail with more than one
-		 * IP stop checking and return error.
-		 */
-#ifdef VIMAGE
-		for (tppr = ppr; tppr != &prison0; tppr = tppr->pr_parent)
-			if (tppr->pr_flags & PR_VNET)
-				break;
-#else
-		tppr = &prison0;
-#endif
-		FOREACH_PRISON_DESCENDANT(tppr, tpr, descend) {
-			if (tpr == pr ||
-#ifdef VIMAGE
-			    (tpr != tppr && (tpr->pr_flags & PR_VNET)) ||
-#endif
-			    !prison_isalive(tpr)) {
-				descend = 0;
-				continue;
-			}
-			if (!(tpr->pr_flags & PR_IP4_USER))
-				continue;
-			descend = 0;
-			if (tpr->pr_ip4 == NULL ||
-			    (ip4s == 1 && tpr->pr_ip4s == 1))
-				continue;
-			for (ii = 0; ii < ip4s; ii++) {
-				if (prison_check_ip4_locked(tpr, &ip4[ii]) ==
-				    0) {
-					error = EADDRINUSE;
-					vfs_opterror(opts,
-					    "IPv4 addresses clash");
-					goto done_deref;
-				}
-			}
+		if (!prison_ip_conflict_check(ppr, pr, ip4, PR_INET)) {
+			error = EADDRINUSE;
+			vfs_opterror(opts, "IPv4 addresses clash");
+			goto done_deref;
 		}
 	}
 #endif
 #ifdef INET6
 	if (ip6s > 0) {
-		if (ppr->pr_flags & PR_IP6) {
-			/*
-			 * Make sure the new set of IP addresses is a
-			 * subset of the parent's list.
-			 */
-			for (ij = 0; ij < ppr->pr_ip6s; ij++)
-				if (IN6_ARE_ADDR_EQUAL(&ip6[0],
-				    &ppr->pr_ip6[ij]))
-					break;
-			if (ij == ppr->pr_ip6s) {
-				error = EPERM;
-				goto done_deref;
-			}
-			if (ip6s > 1) {
-				for (ii = ij = 1; ii < ip6s; ii++) {
-					if (IN6_ARE_ADDR_EQUAL(&ip6[ii],
-					     &ppr->pr_ip6[0]))
-						continue;
-					for (; ij < ppr->pr_ip6s; ij++)
-						if (IN6_ARE_ADDR_EQUAL(
-						    &ip6[ii], &ppr->pr_ip6[ij]))
-							break;
-					if (ij == ppr->pr_ip6s)
-						break;
-				}
-				if (ij == ppr->pr_ip6s) {
-					error = EPERM;
-					goto done_deref;
-				}
-			}
+		if ((ppr->pr_flags & PR_IP6) &&
+		    !prison_ip_parent_match(ppr->pr_addrs[PR_INET6], ip6,
+		    PR_INET6)) {
+			error = EPERM;
+			goto done_deref;
 		}
-		/* Check for conflicting IP addresses. */
-#ifdef VIMAGE
-		for (tppr = ppr; tppr != &prison0; tppr = tppr->pr_parent)
-			if (tppr->pr_flags & PR_VNET)
-				break;
-#else
-		tppr = &prison0;
-#endif
-		FOREACH_PRISON_DESCENDANT(tppr, tpr, descend) {
-			if (tpr == pr ||
-#ifdef VIMAGE
-			    (tpr != tppr && (tpr->pr_flags & PR_VNET)) ||
-#endif
-			    !prison_isalive(tpr)) {
-				descend = 0;
-				continue;
-			}
-			if (!(tpr->pr_flags & PR_IP6_USER))
-				continue;
-			descend = 0;
-			if (tpr->pr_ip6 == NULL ||
-			    (ip6s == 1 && tpr->pr_ip6s == 1))
-				continue;
-			for (ii = 0; ii < ip6s; ii++) {
-				if (prison_check_ip6_locked(tpr, &ip6[ii]) ==
-				    0) {
-					error = EADDRINUSE;
-					vfs_opterror(opts,
-					    "IPv6 addresses clash");
-					goto done_deref;
-				}
-			}
+		if (!prison_ip_conflict_check(ppr, pr, ip6, PR_INET6)) {
+			error = EADDRINUSE;
+			vfs_opterror(opts, "IPv6 addresses clash");
+			goto done_deref;
 		}
 	}
 #endif
@@ -1615,9 +1836,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 	redo_ip4 = 0;
 	if (pr_flags & PR_IP4_USER) {
 		pr->pr_flags |= PR_IP4;
-		free(pr->pr_ip4, M_PRISON);
-		pr->pr_ip4s = ip4s;
-		pr->pr_ip4 = ip4;
+		prison_ip_set(pr, PR_INET, ip4);
 		ip4 = NULL;
 		FOREACH_PRISON_DESCENDANT_LOCKED(pr, tpr, descend) {
 #ifdef VIMAGE
@@ -1626,7 +1845,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 				continue;
 			}
 #endif
-			if (prison_restrict_ip4(tpr, NULL)) {
+			if (prison_ip_restrict(tpr, PR_INET, NULL)) {
 				redo_ip4 = 1;
 				descend = 0;
 			}
@@ -1637,9 +1856,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 	redo_ip6 = 0;
 	if (pr_flags & PR_IP6_USER) {
 		pr->pr_flags |= PR_IP6;
-		free(pr->pr_ip6, M_PRISON);
-		pr->pr_ip6s = ip6s;
-		pr->pr_ip6 = ip6;
+		prison_ip_set(pr, PR_INET6, ip6);
 		ip6 = NULL;
 		FOREACH_PRISON_DESCENDANT_LOCKED(pr, tpr, descend) {
 #ifdef VIMAGE
@@ -1648,7 +1865,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 				continue;
 			}
 #endif
-			if (prison_restrict_ip6(tpr, NULL)) {
+			if (prison_ip_restrict(tpr, PR_INET6, NULL)) {
 				redo_ip6 = 1;
 				descend = 0;
 			}
@@ -1792,8 +2009,8 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 	 */
 #ifdef INET
 	while (redo_ip4) {
-		ip4s = pr->pr_ip4s;
-		ip4 = malloc(ip4s * sizeof(*ip4), M_PRISON, M_WAITOK);
+		ip4s = pr->pr_addrs[PR_INET]->ips;
+		ip4 = prison_ip_alloc(PR_INET, ip4s, M_WAITOK);
 		mtx_lock(&pr->pr_mtx);
 		redo_ip4 = 0;
 		FOREACH_PRISON_DESCENDANT_LOCKED(pr, tpr, descend) {
@@ -1803,7 +2020,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 				continue;
 			}
 #endif
-			if (prison_restrict_ip4(tpr, ip4)) {
+			if (prison_ip_restrict(tpr, PR_INET, ip4)) {
 				if (ip4 != NULL)
 					ip4 = NULL;
 				else
@@ -1815,8 +2032,8 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 #endif
 #ifdef INET6
 	while (redo_ip6) {
-		ip6s = pr->pr_ip6s;
-		ip6 = malloc(ip6s * sizeof(*ip6), M_PRISON, M_WAITOK);
+		ip6s = pr->pr_addrs[PR_INET6]->ips;
+		ip6 = prison_ip_alloc(PR_INET6, ip6s, M_WAITOK);
 		mtx_lock(&pr->pr_mtx);
 		redo_ip6 = 0;
 		FOREACH_PRISON_DESCENDANT_LOCKED(pr, tpr, descend) {
@@ -1826,7 +2043,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 				continue;
 			}
 #endif
-			if (prison_restrict_ip6(tpr, ip6)) {
+			if (prison_ip_restrict(tpr, PR_INET6, ip6)) {
 				if (ip6 != NULL)
 					ip6 = NULL;
 				else
@@ -1912,10 +2129,10 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 	}
  done_free:
 #ifdef INET
-	free(ip4, M_PRISON);
+	prison_ip_free(ip4);
 #endif
 #ifdef INET6
-	free(ip6, M_PRISON);
+	prison_ip_free(ip6);
 #endif
 	if (g_path != NULL)
 		free(g_path, M_TEMP);
@@ -2128,14 +2345,16 @@ kern_jail_get(struct thread *td, struct uio *optuio, int flags)
 	if (error != 0 && error != ENOENT)
 		goto done;
 #ifdef INET
-	error = vfs_setopt_part(opts, "ip4.addr", pr->pr_ip4,
-	    pr->pr_ip4s * sizeof(*pr->pr_ip4));
+	error = vfs_setopt_part(opts, "ip4.addr", pr->pr_addrs[PR_INET] + 1,
+	    pr->pr_addrs[PR_INET] ? pr->pr_addrs[PR_INET]->ips *
+	    pr_families[PR_INET].size : 0 );
 	if (error != 0 && error != ENOENT)
 		goto done;
 #endif
 #ifdef INET6
-	error = vfs_setopt_part(opts, "ip6.addr", pr->pr_ip6,
-	    pr->pr_ip6s * sizeof(*pr->pr_ip6));
+	error = vfs_setopt_part(opts, "ip6.addr", pr->pr_addrs[PR_INET6] + 1,
+	    pr->pr_addrs[PR_INET6] ? pr->pr_addrs[PR_INET6]->ips *
+	    pr_families[PR_INET6].size : 0 );
 	if (error != 0 && error != ENOENT)
 		goto done;
 #endif
@@ -2875,10 +3094,10 @@ prison_deref(struct prison *pr, int flags)
 			vrele(rpr->pr_root);
 		mtx_destroy(&rpr->pr_mtx);
 #ifdef INET
-		free(rpr->pr_ip4, M_PRISON);
+		prison_ip_free(rpr->pr_addrs[PR_INET]);
 #endif
 #ifdef INET6
-		free(rpr->pr_ip6, M_PRISON);
+		prison_ip_free(rpr->pr_addrs[PR_INET6]);
 #endif
 		if (rpr->pr_cpuset != NULL)
 			cpuset_rel(rpr->pr_cpuset);
@@ -3074,7 +3293,8 @@ prison_check_af(struct ucred *cred, int af)
 		if (pr->pr_flags & PR_IP4)
 		{
 			mtx_lock(&pr->pr_mtx);
-			if ((pr->pr_flags & PR_IP4) && pr->pr_ip4 == NULL)
+			if ((pr->pr_flags & PR_IP4) &&
+			    pr->pr_addrs[PR_INET] == NULL)
 				error = EAFNOSUPPORT;
 			mtx_unlock(&pr->pr_mtx);
 		}
@@ -3085,7 +3305,8 @@ prison_check_af(struct ucred *cred, int af)
 		if (pr->pr_flags & PR_IP6)
 		{
 			mtx_lock(&pr->pr_mtx);
-			if ((pr->pr_flags & PR_IP6) && pr->pr_ip6 == NULL)
+			if ((pr->pr_flags & PR_IP6) &&
+			    pr->pr_addrs[PR_INET6] == NULL)
 				error = EAFNOSUPPORT;
 			mtx_unlock(&pr->pr_mtx);
 		}
@@ -3179,7 +3400,7 @@ prison_ischild(struct prison *pr1, struct prison *pr2)
  * holds user references and it isn't being removed.
  */
 bool
-prison_isalive(struct prison *pr)
+prison_isalive(const struct prison *pr)
 {
 
 	if (__predict_false(pr->pr_state != PRISON_STATE_ALIVE))
@@ -3811,6 +4032,31 @@ prison_path(struct prison *pr1, struct prison *pr2)
 static SYSCTL_NODE(_security, OID_AUTO, jail, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "Jails");
 
+#if defined(INET) || defined(INET6)
+/*
+ * Copy address array to memory that would be then SYSCTL_OUT-ed.
+ * sysctl_jail_list() helper.
+ */
+static void
+prison_ip_copyout(struct prison *pr, const pr_family_t af, void **out, int *len)
+{
+	const size_t size = pr_families[af].size;
+
+ again:
+	mtx_assert(&pr->pr_mtx, MA_OWNED);
+	if (pr->pr_addrs[af] != NULL) {
+		if (*len < pr->pr_addrs[af]->ips) {
+			*len = pr->pr_addrs[af]->ips;
+			mtx_unlock(&pr->pr_mtx);
+			*out = realloc(*out, *len * size, M_TEMP, M_WAITOK);
+			mtx_lock(&pr->pr_mtx);
+			goto again;
+		}
+		bcopy(pr->pr_addrs[af] + 1, *out, pr->pr_addrs[af]->ips * size);
+	}
+}
+#endif
+
 static int
 sysctl_jail_list(SYSCTL_HANDLER_ARGS)
 {
@@ -3831,35 +4077,12 @@ sysctl_jail_list(SYSCTL_HANDLER_ARGS)
 	error = 0;
 	sx_slock(&allprison_lock);
 	FOREACH_PRISON_DESCENDANT(pr, cpr, descend) {
-#if defined(INET) || defined(INET6)
- again:
-#endif
 		mtx_lock(&cpr->pr_mtx);
 #ifdef INET
-		if (cpr->pr_ip4s > 0) {
-			if (ip4s < cpr->pr_ip4s) {
-				ip4s = cpr->pr_ip4s;
-				mtx_unlock(&cpr->pr_mtx);
-				ip4 = realloc(ip4, ip4s *
-				    sizeof(struct in_addr), M_TEMP, M_WAITOK);
-				goto again;
-			}
-			bcopy(cpr->pr_ip4, ip4,
-			    cpr->pr_ip4s * sizeof(struct in_addr));
-		}
+		prison_ip_copyout(cpr, PR_INET, (void **)&ip4, &ip4s);
 #endif
 #ifdef INET6
-		if (cpr->pr_ip6s > 0) {
-			if (ip6s < cpr->pr_ip6s) {
-				ip6s = cpr->pr_ip6s;
-				mtx_unlock(&cpr->pr_mtx);
-				ip6 = realloc(ip6, ip6s *
-				    sizeof(struct in6_addr), M_TEMP, M_WAITOK);
-				goto again;
-			}
-			bcopy(cpr->pr_ip6, ip6,
-			    cpr->pr_ip6s * sizeof(struct in6_addr));
-		}
+		prison_ip_copyout(cpr, PR_INET6, (void **)&ip6, &ip6s);
 #endif
 		bzero(xp, sizeof(*xp));
 		xp->pr_version = XPRISON_VERSION;
@@ -3869,10 +4092,10 @@ sysctl_jail_list(SYSCTL_HANDLER_ARGS)
 		strlcpy(xp->pr_host, cpr->pr_hostname, sizeof(xp->pr_host));
 		strlcpy(xp->pr_name, prison_name(pr, cpr), sizeof(xp->pr_name));
 #ifdef INET
-		xp->pr_ip4s = cpr->pr_ip4s;
+		xp->pr_ip4s = ip4s;
 #endif
 #ifdef INET6
-		xp->pr_ip6s = cpr->pr_ip6s;
+		xp->pr_ip6s = ip6s;
 #endif
 		mtx_unlock(&cpr->pr_mtx);
 		error = SYSCTL_OUT(req, xp, sizeof(*xp));
@@ -4559,18 +4782,29 @@ db_show_prison(struct prison *pr)
 	db_printf(" host.hostuuid   = %s\n", pr->pr_hostuuid);
 	db_printf(" host.hostid     = %lu\n", pr->pr_hostid);
 #ifdef INET
-	db_printf(" ip4s            = %d\n", pr->pr_ip4s);
-	for (ii = 0; ii < pr->pr_ip4s; ii++)
-		db_printf(" %s %s\n",
-		    ii == 0 ? "ip4.addr        =" : "                 ",
-		    inet_ntoa_r(pr->pr_ip4[ii], ip4buf));
+	if (pr->pr_addrs[PR_INET] != NULL) {
+		pr_family_t af = PR_INET;
+
+		db_printf(" ip4s            = %d\n", pr->pr_addrs[af]->ips);
+		for (ii = 0; ii < pr->pr_addrs[af]->ips; ii++)
+			db_printf(" %s %s\n",
+			    ii == 0 ? "ip4.addr        =" : "                 ",
+			    inet_ntoa_r(
+			    *(const struct in_addr *)PR_IP(pr, ii),
+			    ip4buf));
+	}
 #endif
 #ifdef INET6
-	db_printf(" ip6s            = %d\n", pr->pr_ip6s);
-	for (ii = 0; ii < pr->pr_ip6s; ii++)
-		db_printf(" %s %s\n",
-		    ii == 0 ? "ip6.addr        =" : "                 ",
-		    ip6_sprintf(ip6buf, &pr->pr_ip6[ii]));
+	if (pr->pr_addrs[PR_INET6] != NULL) {
+		pr_family_t af = PR_INET6;
+
+		db_printf(" ip6s            = %d\n", pr->pr_addrs[af]->ips);
+		for (ii = 0; ii < pr->pr_addrs[af]->ips; ii++)
+			db_printf(" %s %s\n",
+			    ii == 0 ? "ip6.addr        =" : "                 ",
+			    ip6_sprintf(ip6buf,
+			    (const struct in6_addr *)PR_IP(pr, ii)));
+	}
 #endif
 }
 

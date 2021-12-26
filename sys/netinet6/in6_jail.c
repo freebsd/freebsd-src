@@ -65,6 +65,13 @@ __FBSDID("$FreeBSD$");
 
 #include <netinet/in.h>
 
+static void
+prison_bcopy_primary_ip6(const struct prison *pr, struct in6_addr *ia6)
+{
+
+	bcopy(prison_ip_get0(pr, PR_INET6), ia6, sizeof(struct in6_addr));
+}
+
 int
 prison_qcmp_v6(const void *ip1, const void *ip2)
 {
@@ -84,86 +91,12 @@ prison_qcmp_v6(const void *ip1, const void *ip2)
 	return (rc);
 }
 
-int
-prison_restrict_ip6(struct prison *pr, struct in6_addr *newip6)
+bool
+prison_valid_v6(const void *ip)
 {
-	int ii, ij, used;
-	struct prison *ppr;
+	const struct in6_addr *ia = ip;
 
-	ppr = pr->pr_parent;
-	if (!(pr->pr_flags & PR_IP6_USER)) {
-		/* This has no user settings, so just copy the parent's list. */
-		if (pr->pr_ip6s < ppr->pr_ip6s) {
-			/*
-			 * There's no room for the parent's list.  Use the
-			 * new list buffer, which is assumed to be big enough
-			 * (if it was passed).  If there's no buffer, try to
-			 * allocate one.
-			 */
-			used = 1;
-			if (newip6 == NULL) {
-				newip6 = malloc(ppr->pr_ip6s * sizeof(*newip6),
-				    M_PRISON, M_NOWAIT);
-				if (newip6 != NULL)
-					used = 0;
-			}
-			if (newip6 != NULL) {
-				bcopy(ppr->pr_ip6, newip6,
-				    ppr->pr_ip6s * sizeof(*newip6));
-				free(pr->pr_ip6, M_PRISON);
-				pr->pr_ip6 = newip6;
-				pr->pr_ip6s = ppr->pr_ip6s;
-			}
-			return (used);
-		}
-		pr->pr_ip6s = ppr->pr_ip6s;
-		if (pr->pr_ip6s > 0)
-			bcopy(ppr->pr_ip6, pr->pr_ip6,
-			    pr->pr_ip6s * sizeof(*newip6));
-		else if (pr->pr_ip6 != NULL) {
-			free(pr->pr_ip6, M_PRISON);
-			pr->pr_ip6 = NULL;
-		}
-	} else if (pr->pr_ip6s > 0) {
-		/* Remove addresses that aren't in the parent. */
-		for (ij = 0; ij < ppr->pr_ip6s; ij++)
-			if (IN6_ARE_ADDR_EQUAL(&pr->pr_ip6[0],
-			    &ppr->pr_ip6[ij]))
-				break;
-		if (ij < ppr->pr_ip6s)
-			ii = 1;
-		else {
-			bcopy(pr->pr_ip6 + 1, pr->pr_ip6,
-			    --pr->pr_ip6s * sizeof(*pr->pr_ip6));
-			ii = 0;
-		}
-		for (ij = 1; ii < pr->pr_ip6s; ) {
-			if (IN6_ARE_ADDR_EQUAL(&pr->pr_ip6[ii],
-			    &ppr->pr_ip6[0])) {
-				ii++;
-				continue;
-			}
-			switch (ij >= ppr->pr_ip6s ? -1 :
-				prison_qcmp_v6(&pr->pr_ip6[ii], &ppr->pr_ip6[ij])) {
-			case -1:
-				bcopy(pr->pr_ip6 + ii + 1, pr->pr_ip6 + ii,
-				    (--pr->pr_ip6s - ii) * sizeof(*pr->pr_ip6));
-				break;
-			case 0:
-				ii++;
-				ij++;
-				break;
-			case 1:
-				ij++;
-				break;
-			}
-		}
-		if (pr->pr_ip6s == 0) {
-			free(pr->pr_ip6, M_PRISON);
-			pr->pr_ip6 = NULL;
-		}
-	}
-	return 0;
+	return (!IN6_IS_ADDR_UNSPECIFIED(ia));
 }
 
 /*
@@ -190,12 +123,12 @@ prison_get_ip6(struct ucred *cred, struct in6_addr *ia6)
 		mtx_unlock(&pr->pr_mtx);
 		return (0);
 	}
-	if (pr->pr_ip6 == NULL) {
+	if (pr->pr_addrs[PR_INET6] == NULL) {
 		mtx_unlock(&pr->pr_mtx);
 		return (EAFNOSUPPORT);
 	}
 
-	bcopy(&pr->pr_ip6[0], ia6, sizeof(struct in6_addr));
+	prison_bcopy_primary_ip6(pr, ia6);
 	mtx_unlock(&pr->pr_mtx);
 	return (0);
 }
@@ -287,7 +220,7 @@ prison_local_ip6(struct ucred *cred, struct in6_addr *ia6, int v6only)
 		mtx_unlock(&pr->pr_mtx);
 		return (0);
 	}
-	if (pr->pr_ip6 == NULL) {
+	if (pr->pr_addrs[PR_INET6] == NULL) {
 		mtx_unlock(&pr->pr_mtx);
 		return (EAFNOSUPPORT);
 	}
@@ -297,15 +230,15 @@ prison_local_ip6(struct ucred *cred, struct in6_addr *ia6, int v6only)
 		 * In case there is only 1 IPv6 address, and v6only is true,
 		 * then bind directly.
 		 */
-		if (v6only != 0 && pr->pr_ip6s == 1)
-			bcopy(&pr->pr_ip6[0], ia6, sizeof(struct in6_addr));
+		if (v6only != 0 && prison_ip_cnt(pr, PR_INET6) == 1)
+			prison_bcopy_primary_ip6(pr, ia6);
 		mtx_unlock(&pr->pr_mtx);
 		return (0);
 	}
 
 	error = prison_check_ip6_locked(pr, ia6);
 	if (error == EADDRNOTAVAIL && IN6_IS_ADDR_LOOPBACK(ia6)) {
-		bcopy(&pr->pr_ip6[0], ia6, sizeof(struct in6_addr));
+		prison_bcopy_primary_ip6(pr, ia6);
 		error = 0;
 	}
 
@@ -334,14 +267,14 @@ prison_remote_ip6(struct ucred *cred, struct in6_addr *ia6)
 		mtx_unlock(&pr->pr_mtx);
 		return (0);
 	}
-	if (pr->pr_ip6 == NULL) {
+	if (pr->pr_addrs[PR_INET6] == NULL) {
 		mtx_unlock(&pr->pr_mtx);
 		return (EAFNOSUPPORT);
 	}
 
 	if (IN6_IS_ADDR_LOOPBACK(ia6) &&
             prison_check_ip6_locked(pr, ia6) == EADDRNOTAVAIL) {
-		bcopy(&pr->pr_ip6[0], ia6, sizeof(struct in6_addr));
+		prison_bcopy_primary_ip6(pr, ia6);
 		mtx_unlock(&pr->pr_mtx);
 		return (0);
 	}
@@ -362,31 +295,11 @@ prison_remote_ip6(struct ucred *cred, struct in6_addr *ia6)
 int
 prison_check_ip6_locked(const struct prison *pr, const struct in6_addr *ia6)
 {
-	int i, a, z, d;
 
-	/*
-	 * Check the primary IP.
-	 */
-	if (IN6_ARE_ADDR_EQUAL(&pr->pr_ip6[0], ia6))
+	if (!(pr->pr_flags & PR_IP6))
 		return (0);
 
-	/*
-	 * All the other IPs are sorted so we can do a binary search.
-	 */
-	a = 0;
-	z = pr->pr_ip6s - 2;
-	while (a <= z) {
-		i = (a + z) / 2;
-		d = prison_qcmp_v6(&pr->pr_ip6[i+1], ia6);
-		if (d > 0)
-			z = i - 1;
-		else if (d < 0)
-			a = i + 1;
-		else
-			return (0);
-	}
-
-	return (EADDRNOTAVAIL);
+	return (prison_ip_check(pr, PR_INET6, ia6));
 }
 
 int
@@ -406,7 +319,7 @@ prison_check_ip6(const struct ucred *cred, const struct in6_addr *ia6)
 		mtx_unlock(&pr->pr_mtx);
 		return (0);
 	}
-	if (pr->pr_ip6 == NULL) {
+	if (pr->pr_addrs[PR_INET6] == NULL) {
 		mtx_unlock(&pr->pr_mtx);
 		return (EAFNOSUPPORT);
 	}
