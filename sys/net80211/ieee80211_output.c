@@ -1057,7 +1057,7 @@ ieee80211_mgmt_output(struct ieee80211_node *ni, struct mbuf *m, int type,
 	/* avoid printing too many frames */
 	if ((ieee80211_msg_debug(vap) && doprint(vap, type)) ||
 	    ieee80211_msg_dumppkts(vap)) {
-		printf("[%s] send %s on channel %u\n",
+		ieee80211_note(vap, "[%s] send %s on channel %u\n",
 		    ether_sprintf(wh->i_addr1),
 		    ieee80211_mgt_subtype_name(type),
 		    ieee80211_chan2ieee(ic, ic->ic_curchan));
