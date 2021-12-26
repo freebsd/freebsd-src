@@ -8,6 +8,14 @@ arm/qualcomm/qcom_gcc_ipq4018.c		optional qcom_gcc_ipq4018
 arm/qualcomm/qcom_gcc_ipq4018_reset.c	optional qcom_gcc_ipq4018
 arm/qualcomm/qcom_gcc_ipq4018_clock.c	optional qcom_gcc_ipq4018
 
+dev/qcom_clk/qcom_clk_fepll.c		optional qcom_gcc_ipq4018
+dev/qcom_clk/qcom_clk_fdiv.c		optional qcom_gcc_ipq4018
+dev/qcom_clk/qcom_clk_apssdiv.c		optional qcom_gcc_ipq4018
+dev/qcom_clk/qcom_clk_freqtbl.c		optional qcom_gcc_ipq4018
+dev/qcom_clk/qcom_clk_rcg2.c		optional qcom_gcc_ipq4018
+dev/qcom_clk/qcom_clk_branch2.c		optional qcom_gcc_ipq4018
+dev/qcom_clk/qcom_clk_ro_div.c		optional qcom_gcc_ipq4018
+
 dev/qcom_tlmm/qcom_tlmm_debug.c		optional qcom_tlmm_ipq4018
 dev/qcom_tlmm/qcom_tlmm_ipq4018.c	optional qcom_tlmm_ipq4018
 dev/qcom_tlmm/qcom_tlmm_ipq4018_hw.c	optional qcom_tlmm_ipq4018
