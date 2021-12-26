@@ -484,6 +484,12 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 	 */
 	thread_lock(td);
 	sched_fork(td, td2);
+	/*
+	 * Request AST to check for TDP_RFPPWAIT.  Do it here
+	 * to avoid calling thread_lock() again.
+	 */
+	if ((fr->fr_flags & RFPPWAIT) != 0)
+		td->td_flags |= TDF_ASTPENDING;
 	thread_unlock(td);
 
 	/*

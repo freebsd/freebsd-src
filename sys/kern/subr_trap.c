@@ -259,6 +259,8 @@ ast(struct trapframe *framep)
 	if (PMC_IS_PENDING_CALLCHAIN(td))
 		PMC_CALL_HOOK_UNLOCKED(td, PMC_FN_USER_CALLCHAIN_SOFT, (void *) framep);
 #endif
+	if ((td->td_pflags & TDP_RFPPWAIT) != 0)
+		fork_rfppwait(td);
 	if (flags & TDF_ALRMPEND) {
 		PROC_LOCK(p);
 		kern_psignal(p, SIGVTALRM);
