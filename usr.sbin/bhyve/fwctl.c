@@ -98,7 +98,7 @@ fwctl_send_rest(uint32_t *data, size_t len)
 	int i;
 
 	cdata = (uint8_t *) data;
-	u.w = 0;	
+	u.w = 0;
 
 	for (i = 0, u.w = 0; i < len; i++)
 		u.c[i] = *cdata++;

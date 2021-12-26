@@ -110,7 +110,7 @@ struct msix_table_entry {
 	uint32_t	vector_control;
 } __packed;
 
-/* 
+/*
  * In case the structure is modified to hold extra information, use a define
  * for the size that should be emulated.
  */
@@ -156,7 +156,7 @@ struct pci_devinst {
 		int	table_count;
 		uint32_t pba_offset;
 		int	pba_size;
-		int	function_mask; 	
+		int	function_mask;
 		struct msix_table_entry *table;	/* allocated at runtime */
 		uint8_t *mapped_addr;
 		size_t	mapped_size;
@@ -263,21 +263,21 @@ int	pci_pause(struct vmctx *ctx, const char *dev_name);
 int	pci_resume(struct vmctx *ctx, const char *dev_name);
 #endif
 
-static __inline void 
+static __inline void
 pci_set_cfgdata8(struct pci_devinst *pi, int offset, uint8_t val)
 {
 	assert(offset <= PCI_REGMAX);
 	*(uint8_t *)(pi->pi_cfgdata + offset) = val;
 }
 
-static __inline void 
+static __inline void
 pci_set_cfgdata16(struct pci_devinst *pi, int offset, uint16_t val)
 {
 	assert(offset <= (PCI_REGMAX - 1) && (offset & 1) == 0);
 	*(uint16_t *)(pi->pi_cfgdata + offset) = val;
 }
 
-static __inline void 
+static __inline void
 pci_set_cfgdata32(struct pci_devinst *pi, int offset, uint32_t val)
 {
 	assert(offset <= (PCI_REGMAX - 3) && (offset & 3) == 0);

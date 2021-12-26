@@ -75,7 +75,7 @@ rtc_time(struct vmctx *ctx)
 
 void
 rtc_init(struct vmctx *ctx)
-{	
+{
 	size_t himem;
 	size_t lomem;
 	int err;

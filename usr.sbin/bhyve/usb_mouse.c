@@ -535,8 +535,8 @@ umouse_request(void *scarg, struct usb_data_xfer *xfer)
 		eshort = data->blen > 0;
 		break;
 
-	case UREQ(UR_GET_STATUS, UT_READ_INTERFACE): 
-	case UREQ(UR_GET_STATUS, UT_READ_ENDPOINT): 
+	case UREQ(UR_GET_STATUS, UT_READ_INTERFACE):
+	case UREQ(UR_GET_STATUS, UT_READ_ENDPOINT):
 		DPRINTF(("umouse: (UR_GET_STATUS, UT_READ_INTERFACE)"));
 		if (data != NULL && len > 1) {
 			USETW(udata, 0);
@@ -752,7 +752,7 @@ umouse_data_handler(void *scarg, struct usb_data_xfer *xfer, int dir,
 
 		sc->polling = 0;
 		pthread_mutex_unlock(&sc->mtx);
-	} else { 
+	} else {
 		USB_DATA_SET_ERRCODE(data, USB_STALL);
 		err = USB_ERR_STALLED;
 	}

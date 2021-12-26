@@ -593,7 +593,7 @@ pci_vtcon_control_send(struct pci_vtcon_softc *sc,
 	vq_relchain(vq, req.idx, sizeof(struct pci_vtcon_control) + len);
 	vq_endchains(vq, 1);
 }
-    
+
 
 static void
 pci_vtcon_notify_tx(void *vsc, struct vqueue_info *vq)
@@ -696,7 +696,7 @@ pci_vtcon_init(struct vmctx *ctx, struct pci_devinst *pi, nvlist_t *nvl)
 	sc->vsc_config = calloc(1, sizeof(struct pci_vtcon_config));
 	sc->vsc_config->max_nr_ports = VTCON_MAXPORTS;
 	sc->vsc_config->cols = 80;
-	sc->vsc_config->rows = 25; 
+	sc->vsc_config->rows = 25;
 
 	vi_softc_linkup(&sc->vsc_vs, &vtcon_vi_consts, sc, pi, sc->vsc_queues);
 	sc->vsc_vs.vs_mtx = &sc->vsc_mtx;

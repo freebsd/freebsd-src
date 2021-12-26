@@ -628,7 +628,7 @@ pci_vtscsi_requestq_notify(void *vsc, struct vqueue_info *vq)
 }
 
 static int
-pci_vtscsi_init_queue(struct pci_vtscsi_softc *sc, 
+pci_vtscsi_init_queue(struct pci_vtscsi_softc *sc,
     struct pci_vtscsi_queue *queue, int num)
 {
 	struct pci_vtscsi_worker *worker;

@@ -111,7 +111,7 @@ timer_callback(int fd, enum ev_type type, void *param)
 #ifdef MEVENT_ECHO
 struct esync {
 	pthread_mutex_t	e_mt;
-	pthread_cond_t	e_cond;       
+	pthread_cond_t	e_cond;
 };
 
 static void

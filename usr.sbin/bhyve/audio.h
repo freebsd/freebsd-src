@@ -28,7 +28,7 @@
  * $FreeBSD$
  */
 
-#ifndef _AUDIO_EMUL_H_ 
+#ifndef _AUDIO_EMUL_H_
 #define _AUDIO_EMUL_H_
 
 #include <sys/types.h>

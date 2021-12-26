@@ -45,7 +45,7 @@
  * Configuration variables are stored in a tree.  The full path of a
  * variable is specified as a dot-separated name similar to sysctl(8)
  * OIDs.
- */ 
+ */
 
 /*
  * Fetches the value of a configuration variable.  If the "raw" value

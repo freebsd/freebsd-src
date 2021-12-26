@@ -489,7 +489,7 @@ pci_xhci_portregs_write(struct pci_xhci_softc *sc, uint64_t offset,
 
 		p->portsc &= XHCI_PS_PED | XHCI_PS_PLS_MASK |
 		             XHCI_PS_SPEED_MASK | XHCI_PS_PIC_MASK;
-  
+
 		if (XHCI_DEVINST_PTR(sc, port))
 			p->portsc |= XHCI_PS_CCS;
 
@@ -545,7 +545,7 @@ pci_xhci_portregs_write(struct pci_xhci_softc *sc, uint64_t offset,
 			break;
 		}
 		break;
-	case 4: 
+	case 4:
 		/* Port power management status and control register  */
 		p->portpmsc = value;
 		break;
@@ -599,7 +599,7 @@ pci_xhci_trb_next(struct pci_xhci_softc *sc, struct xhci_trb *curtrb,
 	if (XHCI_TRB_3_TYPE_GET(curtrb->dwTrb3) == XHCI_TRB_TYPE_LINK) {
 		if (guestaddr)
 			*guestaddr = curtrb->qwTrb0 & ~0xFUL;
-		
+
 		next = XHCI_GADDR(sc, curtrb->qwTrb0 & ~0xFUL);
 	} else {
 		if (guestaddr)
@@ -1264,7 +1264,7 @@ pci_xhci_cmd_set_tr(struct pci_xhci_softc *sc, uint32_t slot,
 		cmderr = pci_xhci_find_stream(sc, ep_ctx, streamid, &sctx);
 		if (sctx != NULL) {
 			assert(devep->ep_sctx != NULL);
-			
+
 			devep->ep_sctx[streamid].qwSctx0 = trb->qwTrb0;
 			devep->ep_sctx_trbs[streamid].ringaddr =
 			    trb->qwTrb0 & ~0xF;
@@ -1383,7 +1383,7 @@ pci_xhci_complete_commands(struct pci_xhci_softc *sc)
 
 	while (1) {
 		sc->opregs.cr_p = trb;
-	
+
 		type = XHCI_TRB_3_TYPE_GET(trb->dwTrb3);
 
 		if ((trb->dwTrb3 & XHCI_TRB_3_CYCLE_BIT) !=
@@ -1478,7 +1478,7 @@ pci_xhci_complete_commands(struct pci_xhci_softc *sc)
 		}
 
 		if (type != XHCI_TRB_TYPE_LINK) {
-			/* 
+			/*
 			 * insert command completion event and assert intr
 			 */
 			evtrb.qwTrb0 = crcr;
@@ -1606,7 +1606,7 @@ pci_xhci_xfer_complete(struct pci_xhci_softc *sc, struct usb_data_xfer *xfer,
 		if (XHCI_TRB_3_TYPE_GET(trbflags) == XHCI_TRB_TYPE_EVENT_DATA) {
 			DPRINTF(("pci_xhci EVENT_DATA edtla %u", edtla));
 			evtrb.qwTrb0 = trb->qwTrb0;
-			evtrb.dwTrb2 = (edtla & 0xFFFFF) | 
+			evtrb.dwTrb2 = (edtla & 0xFFFFF) |
 			         XHCI_TRB_2_ERROR_SET(err);
 			evtrb.dwTrb3 |= XHCI_TRB_3_ED_BIT;
 			edtla = 0;
@@ -2556,7 +2556,7 @@ pci_xhci_init_port(struct pci_xhci_softc *sc, int portn)
 	if (dev) {
 		port->portsc = XHCI_PS_CCS |		/* connected */
 		               XHCI_PS_PP;		/* port power */
-		
+
 		if (dev->dev_ue->ue_usbver == 2) {
 			port->portsc |= XHCI_PS_PLS_SET(UPS_PORT_LS_POLL) |
 		               XHCI_PS_SPEED_SET(dev->dev_ue->ue_usbspeed);
@@ -2565,7 +2565,7 @@ pci_xhci_init_port(struct pci_xhci_softc *sc, int portn)
 		               XHCI_PS_PED |		/* enabled */
 		               XHCI_PS_SPEED_SET(dev->dev_ue->ue_usbspeed);
 		}
-		
+
 		DPRINTF(("Init port %d 0x%x", portn, port->portsc));
 	} else {
 		port->portsc = XHCI_PS_PLS_SET(UPS_PORT_LS_RX_DET) | XHCI_PS_PP;

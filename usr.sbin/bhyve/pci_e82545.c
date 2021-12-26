@@ -264,7 +264,7 @@ struct e82545_softc {
 	uint32_t	esc_FCTTV;	/* x0170 flow ctl tx timer */
 	uint32_t	esc_LEDCTL;	/* x0E00 LED control */
 	uint32_t	esc_PBA;	/* x1000 pkt buffer allocation */
-	
+
 	/* Interrupt control */
 	int		esc_irq_asserted;
 	uint32_t	esc_ICR;	/* x00C0 cause read/clear */
@@ -294,12 +294,12 @@ struct e82545_softc {
 	uint32_t	esc_TIDV;	/* x3820 intr delay */
 	uint32_t	esc_TXDCTL;	/* x3828 desc control */
 	uint32_t	esc_TADV;	/* x382C intr absolute delay */
-	
+
 	/* L2 frame acceptance */
 	struct eth_uni	esc_uni[16];	/* 16 x unicast MAC addresses */
 	uint32_t	esc_fmcast[128]; /* Multicast filter bit-match */
 	uint32_t	esc_fvlan[128]; /* VLAN 4096-bit filter */
-	
+
 	/* Receive */
 	struct e1000_rx_desc *esc_rxdesc;
 	pthread_cond_t	esc_rx_cond;
@@ -320,7 +320,7 @@ struct e82545_softc {
 	uint32_t	esc_RADV;	/* x282C intr absolute delay */
 	uint32_t	esc_RSRPD;	/* x2C00 recv small packet detect */
 	uint32_t	esc_RXCSUM;     /* x5000 receive cksum ctl */
-	
+
 	/* IO Port register access */
 	uint32_t io_addr;
 
@@ -578,7 +578,7 @@ e82545_icr_assert(struct e82545_softc *sc, uint32_t bits)
 	uint32_t new;
 
 	DPRINTF("icr assert: 0x%x", bits);
-	
+
 	/*
 	 * An interrupt is only generated if bits are set that
 	 * aren't already in the ICR, these bits are unmasked,
@@ -654,7 +654,7 @@ e82545_intr_write(struct e82545_softc *sc, uint32_t offset, uint32_t value)
 {
 
 	DPRINTF("intr_write: off %x, val %x", offset, value);
-	
+
 	switch (offset) {
 	case E1000_ICR:
 		e82545_icr_deassert(sc, value);
@@ -688,7 +688,7 @@ e82545_intr_read(struct e82545_softc *sc, uint32_t offset)
 	retval = 0;
 
 	DPRINTF("intr_read: off %x", offset);
-	
+
 	switch (offset) {
 	case E1000_ICR:
 		retval = sc->esc_ICR;
@@ -734,10 +734,10 @@ e82545_rx_update_rdba(struct e82545_softc *sc)
 	/* XXX verify desc base/len within phys mem range */
 	sc->esc_rdba = (uint64_t)sc->esc_RDBAH << 32 |
 	    sc->esc_RDBAL;
-	
+
 	/* Cache host mapping of guest descriptor array */
 	sc->esc_rxdesc = paddr_guest2host(sc->esc_ctx,
-	    sc->esc_rdba, sc->esc_RDLEN);	
+	    sc->esc_rdba, sc->esc_RDLEN);
 }
 
 static void
@@ -792,7 +792,7 @@ static void
 e82545_tx_ctl(struct e82545_softc *sc, uint32_t val)
 {
 	int on;
-	
+
 	on = ((val & E1000_TCTL_EN) == E1000_TCTL_EN);
 
 	/* ignore TCTL_EN settings that don't change state */
@@ -1028,7 +1028,7 @@ e82545_txdesc_type(uint32_t lower)
 	int type;
 
 	type = 0;
-	
+
 	if (lower & E1000_TXD_CMD_DEXT)
 		type = lower & E1000_TXD_MASK;
 
@@ -1591,14 +1591,14 @@ e82545_read_ra(struct e82545_softc *sc, int reg)
 			 eu->eu_eth.octet[0];
 	}
 
-	return (retval);	
+	return (retval);
 }
 
 static void
 e82545_write_register(struct e82545_softc *sc, uint32_t offset, uint32_t value)
 {
 	int ridx;
-	
+
 	if (offset & 0x3) {
 		DPRINTF("Unaligned register write offset:0x%x value:0x%x", offset, value);
 		return;
@@ -1744,7 +1744,7 @@ e82545_write_register(struct e82545_softc *sc, uint32_t offset, uint32_t value)
 		break;
 	case E1000_VFTA ... (E1000_VFTA + (127*4)):
 		sc->esc_fvlan[(offset - E1000_VFTA) >> 2] = value;
-		break;		
+		break;
 	case E1000_EECD:
 	{
 		//DPRINTF("EECD write 0x%x -> 0x%x", sc->eeprom_control, value);
@@ -1799,7 +1799,7 @@ e82545_write_register(struct e82545_softc *sc, uint32_t offset, uint32_t value)
 		return;
 	}
 	case E1000_MANC:
-	case E1000_STATUS: 
+	case E1000_STATUS:
 		return;
 	default:
 		DPRINTF("Unknown write register: 0x%x value:%x", offset, value);
@@ -1892,7 +1892,7 @@ e82545_read_register(struct e82545_softc *sc, uint32_t offset)
 	case E1000_RSRPD:
 		retval = sc->esc_RSRPD;
 		break;
-	case E1000_RXCSUM:	       
+	case E1000_RXCSUM:
 		retval = sc->esc_RXCSUM;
 		break;
 	case E1000_TXCW:
@@ -1941,7 +1941,7 @@ e82545_read_register(struct e82545_softc *sc, uint32_t offset)
 		break;
 	case E1000_VFTA ... (E1000_VFTA + (127*4)):
 		retval = sc->esc_fvlan[(offset - E1000_VFTA) >> 2];
-		break;		
+		break;
 	case E1000_EECD:
 		//DPRINTF("EECD read %x", sc->eeprom_control);
 		retval = sc->eeprom_control;
@@ -2137,7 +2137,7 @@ e82545_read(struct vmctx *ctx, int vcpu, struct pci_devinst *pi, int baridx,
 {
 	struct e82545_softc *sc;
 	uint64_t retval;
-	
+
 	//DPRINTF("Read  bar:%d offset:0x%lx size:%d", baridx, offset, size);
 	sc = pi->pi_arg;
 	retval = 0;
@@ -2209,7 +2209,7 @@ e82545_reset(struct e82545_softc *sc, int drvr)
 	}
 	sc->esc_LEDCTL = 0x07061302;
 	sc->esc_PBA = 0x00100030;
-	
+
 	/* start nvm in opcode mode. */
 	sc->nvm_opaddr = 0;
 	sc->nvm_mode = E82545_NVM_MODE_OPADDR;
@@ -2223,7 +2223,7 @@ e82545_reset(struct e82545_softc *sc, int drvr)
 	sc->esc_ICS = 0;
 	sc->esc_IMS = 0;
 	sc->esc_IMC = 0;
-		
+
 	/* L2 filters */
 	if (!drvr) {
 		memset(sc->esc_fvlan, 0, sizeof(sc->esc_fvlan));
@@ -2239,7 +2239,7 @@ e82545_reset(struct e82545_softc *sc, int drvr)
 		for (i = 0; i < 16; i++)
 			sc->esc_uni[i].eu_valid = 0;
 	}
-	
+
 	/* receive */
 	if (!drvr) {
 		sc->esc_RDBAL = 0;
@@ -2307,7 +2307,7 @@ e82545_init(struct vmctx *ctx, struct pci_devinst *pi, nvlist_t *nvl)
 
 	pci_set_cfgdata8(pi,  PCIR_HDRTYPE, PCIM_HDRTYPE_NORMAL);
 	pci_set_cfgdata8(pi,  PCIR_INTPIN, 0x1);
-	
+
 	/* TODO: this card also supports msi, but the freebsd driver for it
 	 * does not, so I have not implemented it. */
 	pci_lintr_request(pi);
