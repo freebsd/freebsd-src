@@ -2654,8 +2654,8 @@ ieee80211_new_state_locked(struct ieee80211vap *vap,
 	}
 	ostate = vap->iv_state;
 	IEEE80211_DPRINTF(vap, IEEE80211_MSG_STATE,
-	    "%s: %s -> %s (nrunning %d nscanning %d)\n", __func__,
-	    ieee80211_state_name[ostate], ieee80211_state_name[nstate],
+	    "%s: %s -> %s (arg %d) (nrunning %d nscanning %d)\n", __func__,
+	    ieee80211_state_name[ostate], ieee80211_state_name[nstate], arg,
 	    nrunning, nscanning);
 	switch (nstate) {
 	case IEEE80211_S_SCAN:
