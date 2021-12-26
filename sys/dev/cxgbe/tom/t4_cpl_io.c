@@ -2299,7 +2299,7 @@ sendanother:
 		tp = intotcpcb(inp);
 		if (moretocome)
 			tp->t_flags |= TF_MORETOCOME;
-		error = tp->t_fb->tfb_tcp_output(tp);
+		error = tcp_output(tp);
 		if (moretocome)
 			tp->t_flags &= ~TF_MORETOCOME;
 	}

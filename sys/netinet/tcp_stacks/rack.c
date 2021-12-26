@@ -14171,7 +14171,7 @@ rack_do_compressed_ack_processing(struct tcpcb *tp, struct socket *so, struct mb
 	ctf_calc_rwin(so, tp);
 	if ((rack->r_wanted_output != 0) || (rack->r_fast_output != 0)) {
 	send_out_a_rst:
-		(void)tp->t_fb->tfb_tcp_output(tp);
+		(void)tcp_output(tp);
 		did_out = 1;
 	}
 	rack_free_trim(rack);
@@ -14657,7 +14657,7 @@ rack_do_segment_nounlock(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			if ((rack->r_wanted_output != 0) || (rack->r_fast_output != 0)) {
 do_output_now:
 				did_out = 1;
-				(void)tp->t_fb->tfb_tcp_output(tp);
+				(void)tcp_output(tp);
 			}
 			rack_start_hpts_timer(rack, tp, cts, 0, 0, 0);
 			rack_free_trim(rack);

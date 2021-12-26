@@ -902,7 +902,7 @@ tcp_sack_partialack(struct tcpcb *tp, struct tcphdr *th)
 			    highdata - maxseg), highdata, NULL);
 		}
 	}
-	(void) tp->t_fb->tfb_tcp_output(tp);
+	(void) tcp_output(tp);
 }
 
 #if 0

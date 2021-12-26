@@ -292,7 +292,7 @@ tcp_timer_delack(void *xtp)
 	tp->t_flags |= TF_ACKNOW;
 	TCPSTAT_INC(tcps_delack);
 	NET_EPOCH_ENTER(et);
-	(void) tp->t_fb->tfb_tcp_output(tp);
+	(void) tcp_output(tp);
 	INP_WUNLOCK(inp);
 	NET_EPOCH_EXIT(et);
 	CURVNET_RESTORE();
@@ -563,7 +563,7 @@ tcp_timer_persist(void *xtp)
 	tcp_setpersist(tp);
 	tp->t_flags |= TF_FORCEDATA;
 	NET_EPOCH_ENTER(et);
-	(void) tp->t_fb->tfb_tcp_output(tp);
+	(void) tcp_output(tp);
 	NET_EPOCH_EXIT(et);
 	tp->t_flags &= ~TF_FORCEDATA;
 
@@ -843,7 +843,7 @@ tcp_timer_rexmt(void * xtp)
 
 	cc_cong_signal(tp, NULL, CC_RTO);
 	NET_EPOCH_ENTER(et);
-	(void) tp->t_fb->tfb_tcp_output(tp);
+	(void) tcp_output(tp);
 	NET_EPOCH_EXIT(et);
 #ifdef TCPDEBUG
 	if (tp != NULL && (tp->t_inpcb->inp_socket->so_options & SO_DEBUG))
