@@ -593,7 +593,7 @@ tcp_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 		goto out_in_epoch;
 #endif
 	tcp_timer_activate(tp, TT_KEEP, TP_KEEPINIT(tp));
-	error = tp->t_fb->tfb_tcp_output(tp);
+	error = tcp_output(tp);
 out_in_epoch:
 	NET_EPOCH_EXIT(et);
 out:
@@ -690,7 +690,7 @@ tcp6_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 		    (error = tcp_offload_connect(so, nam)) == 0)
 			goto out_in_epoch;
 #endif
-		error = tp->t_fb->tfb_tcp_output(tp);
+		error = tcp_output(tp);
 		goto out_in_epoch;
 	} else {
 		if ((inp->inp_vflag & INP_IPV6) == 0) {
@@ -714,7 +714,7 @@ tcp6_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 #endif
 	tcp_timer_activate(tp, TT_KEEP, TP_KEEPINIT(tp));
 	NET_EPOCH_ENTER(et);
-	error = tp->t_fb->tfb_tcp_output(tp);
+	error = tcp_output(tp);
 #ifdef INET
 out_in_epoch:
 #endif
@@ -905,7 +905,7 @@ tcp_usr_shutdown(struct socket *so)
 	socantsendmore(so);
 	tcp_usrclosed(tp);
 	if (!(inp->inp_flags & INP_DROPPED))
-		error = tp->t_fb->tfb_tcp_output(tp);
+		error = tcp_output(tp);
 
 out:
 	TCPDEBUG2(PRU_SHUTDOWN);
@@ -953,7 +953,7 @@ tcp_usr_rcvd(struct socket *so, int flags)
 		tcp_offload_rcvd(tp);
 	else
 #endif
-	tp->t_fb->tfb_tcp_output(tp);
+	tcp_output(tp);
 	NET_EPOCH_EXIT(et);
 out:
 	TCPDEBUG2(PRU_RCVD);
@@ -1188,7 +1188,7 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 		    !(flags & PRUS_NOTREADY)) {
 			if (flags & PRUS_MORETOCOME)
 				tp->t_flags |= TF_MORETOCOME;
-			error = tp->t_fb->tfb_tcp_output(tp);
+			error = tcp_output(tp);
 			if (flags & PRUS_MORETOCOME)
 				tp->t_flags &= ~TF_MORETOCOME;
 		}
@@ -1255,7 +1255,7 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 		tp->snd_up = tp->snd_una + sbavail(&so->so_snd);
 		if ((flags & PRUS_NOTREADY) == 0) {
 			tp->t_flags |= TF_FORCEDATA;
-			error = tp->t_fb->tfb_tcp_output(tp);
+			error = tcp_output(tp);
 			tp->t_flags &= ~TF_FORCEDATA;
 		}
 	}
@@ -1312,7 +1312,7 @@ tcp_usr_ready(struct socket *so, struct mbuf *m, int count)
 	SOCKBUF_UNLOCK(&so->so_snd);
 	if (error == 0) {
 		NET_EPOCH_ENTER(et);
-		error = tp->t_fb->tfb_tcp_output(tp);
+		error = tcp_output(tp);
 		NET_EPOCH_EXIT(et);
 	}
 	INP_WUNLOCK(inp);
@@ -2238,7 +2238,7 @@ unlock_and_done:
 					struct epoch_tracker et;
 
 					NET_EPOCH_ENTER(et);
-					error = tp->t_fb->tfb_tcp_output(tp);
+					error = tcp_output(tp);
 					NET_EPOCH_EXIT(et);
 				}
 			}
@@ -2767,7 +2767,7 @@ tcp_disconnect(struct tcpcb *tp)
 		sbflush(&so->so_rcv);
 		tcp_usrclosed(tp);
 		if (!(inp->inp_flags & INP_DROPPED))
-			tp->t_fb->tfb_tcp_output(tp);
+			tcp_output(tp);
 	}
 }
 

@@ -381,7 +381,7 @@ ctf_process_inbound_raw(struct tcpcb *tp, struct socket *so, struct mbuf *m, int
 	 * 1) It returns 0 if all went well and you (the caller) need
 	 *    to release the lock.
 	 * 2) If nxt_pkt is set, then the function will surpress calls
-	 *    to tfb_tcp_output() since you are promising to call again
+	 *    to tcp_output() since you are promising to call again
 	 *    with another packet.
 	 * 3) If it returns 1, then you must free all the packets being
 	 *    shipped in, the tcb has been destroyed (or about to be destroyed).

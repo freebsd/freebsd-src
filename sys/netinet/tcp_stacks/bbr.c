@@ -11637,7 +11637,7 @@ bbr_do_segment_nounlock(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			if (bbr->r_wanted_output != 0) {
 				bbr->rc_output_starts_timer = 0;
 				did_out = 1;
-				(void)tp->t_fb->tfb_tcp_output(tp);
+				(void)tcp_output(tp);
 			} else
 				bbr_start_hpts_timer(bbr, tp, cts, 6, 0, 0);
 		}
@@ -11676,7 +11676,7 @@ bbr_do_segment_nounlock(struct mbuf *m, struct tcphdr *th, struct socket *so,
 							/* We are late */
 							bbr->r_ctl.rc_last_delay_val = 0;
 							BBR_STAT_INC(bbr_force_output);
-							(void)tp->t_fb->tfb_tcp_output(tp);
+							(void)tcp_output(tp);
 						}
 					}
 				}

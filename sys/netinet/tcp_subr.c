@@ -2398,7 +2398,7 @@ tcp_drop(struct tcpcb *tp, int errno)
 
 	if (TCPS_HAVERCVDSYN(tp->t_state)) {
 		tcp_state_change(tp, TCPS_CLOSED);
-		(void) tp->t_fb->tfb_tcp_output(tp);
+		(void) tcp_output(tp);
 		TCPSTAT_INC(tcps_drops);
 	} else
 		TCPSTAT_INC(tcps_conndrops);
@@ -3517,7 +3517,7 @@ tcp_mtudisc(struct inpcb *inp, int mtuoffer)
 		 */
 		tp->t_fb->tfb_tcp_mtu_chg(tp);
 	}
-	tp->t_fb->tfb_tcp_output(tp);
+	tcp_output(tp);
 }
 
 #ifdef INET

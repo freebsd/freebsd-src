@@ -1549,7 +1549,7 @@ again:
 				}
 			}
 			inp->inp_hpts_calls = 1;
-			error = tp->t_fb->tfb_tcp_output(tp);
+			error = tcp_output(tp);
 			inp->inp_hpts_calls = 0;
 			if (ninp && ninp->inp_ppcb) {
 				/*
