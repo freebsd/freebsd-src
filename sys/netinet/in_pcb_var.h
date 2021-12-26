@@ -44,6 +44,9 @@
  * Definitions shared between netinet/in_pcb.c and netinet6/in6_pcb.c
  */
 
+VNET_DECLARE(uint32_t, in_pcbhashseed);
+#define	V_in_pcbhashseed	VNET(in_pcbhashseed)
+
 bool	inp_smr_lock(struct inpcb *, const inp_lookup_t);
 int	in_pcb_lport(struct inpcb *, struct in_addr *, u_short *,
 	    struct ucred *, int);
