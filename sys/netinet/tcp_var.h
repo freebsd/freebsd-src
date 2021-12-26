@@ -385,6 +385,13 @@ struct tcp_function {
 };
 
 TAILQ_HEAD(tcp_funchead, tcp_function);
+
+static inline int
+tcp_output(struct tcpcb *tp)
+{
+
+	return (tp->t_fb->tfb_tcp_output(tp));
+}
 #endif	/* _KERNEL */
 
 /*
@@ -1064,7 +1071,7 @@ struct inpcb *
 	 tcp_drop_syn_sent(struct inpcb *, int);
 struct tcpcb *
 	 tcp_newtcpcb(struct inpcb *);
-int	 tcp_output(struct tcpcb *);
+int	 tcp_default_output(struct tcpcb *);
 void	 tcp_state_change(struct tcpcb *, int);
 void	 tcp_respond(struct tcpcb *, void *,
 	    struct tcphdr *, struct mbuf *, tcp_seq, tcp_seq, int);
