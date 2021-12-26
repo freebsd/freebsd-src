@@ -97,7 +97,7 @@ mmio_rb_lookup(struct mmio_rb_tree *rbt, uint64_t addr,
 		*entry = res;
 		return (0);
 	}
-	
+
 	return (ENOENT);
 }
 
@@ -173,7 +173,7 @@ access_memory(struct vmctx *ctx, int vcpu, uint64_t paddr, mem_cb_t *cb,
 {
 	struct mmio_rb_range *entry;
 	int err, perror, immutable;
-	
+
 	pthread_rwlock_rdlock(&mmio_rwlock);
 	/*
 	 * First check the per-vCPU cache
@@ -188,7 +188,7 @@ access_memory(struct vmctx *ctx, int vcpu, uint64_t paddr, mem_cb_t *cb,
 	if (entry == NULL) {
 		if (mmio_rb_lookup(&mmio_rb_root, paddr, &entry) == 0) {
 			/* Update the per-vCPU cache */
-			mmio_hint[vcpu] = entry;			
+			mmio_hint[vcpu] = entry;
 		} else if (mmio_rb_lookup(&mmio_rb_fallback, paddr, &entry)) {
 			perror = pthread_rwlock_unlock(&mmio_rwlock);
 			assert(perror == 0);
@@ -336,19 +336,19 @@ register_mem_fallback(struct mem_range *memp)
 	return (register_mem_int(&mmio_rb_fallback, memp));
 }
 
-int 
+int
 unregister_mem(struct mem_range *memp)
 {
 	struct mem_range *mr;
 	struct mmio_rb_range *entry = NULL;
 	int err, perror, i;
-	
+
 	pthread_rwlock_wrlock(&mmio_rwlock);
 	err = mmio_rb_lookup(&mmio_rb_root, memp->base, &entry);
 	if (err == 0) {
 		mr = &entry->mr_param;
 		assert(mr->name == memp->name);
-		assert(mr->base == memp->base && mr->size == memp->size); 
+		assert(mr->base == memp->base && mr->size == memp->size);
 		assert((mr->flags & MEM_F_IMMUTABLE) == 0);
 		RB_REMOVE(mmio_rb_tree, &mmio_rb_root, entry);
 
@@ -363,7 +363,7 @@ unregister_mem(struct mem_range *memp)
 
 	if (entry)
 		free(entry);
-	
+
 	return (err);
 }
 

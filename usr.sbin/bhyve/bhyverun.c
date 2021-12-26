@@ -1143,7 +1143,7 @@ do_open(const char *vmname)
 	if (vm_limit_rights(ctx) != 0)
 		err(EX_OSERR, "vm_limit_rights");
 #endif
- 
+
 	if (reinit) {
 		error = vm_reinit(ctx);
 		if (error) {
@@ -1384,7 +1384,7 @@ main(int argc, char *argv[])
 			set_config_bool("x86.mptable", false);
 			break;
 		case 'h':
-			usage(0);			
+			usage(0);
 		default:
 			usage(1);
 		}

@@ -28,7 +28,7 @@
  * $FreeBSD$
  */
 
-#ifndef _HDA_EMUL_H_ 
+#ifndef _HDA_EMUL_H_
 #define _HDA_EMUL_H_
 
 #include <stdio.h>

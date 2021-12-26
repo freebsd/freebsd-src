@@ -342,7 +342,7 @@ basl_compile(struct vmctx *ctx, int (*fwrite_section)(FILE *))
 			fmt = basl_verbose_iasl ?
 				"%s -p %s %s" :
 				"/bin/sh -c \"%s -p %s %s\" 1> /dev/null";
-				
+
 			snprintf(iaslbuf, sizeof(iaslbuf),
 				 fmt,
 				 BHYVE_ASL_COMPILER,
@@ -373,7 +373,7 @@ basl_make_templates(void)
 	err = 0;
 
 	/*
-	 * 
+	 *
 	 */
 	if ((tmpdir = getenv("BHYVE_TMPDIR")) == NULL || *tmpdir == '\0' ||
 	    (tmpdir = getenv("TMPDIR")) == NULL || *tmpdir == '\0') {
