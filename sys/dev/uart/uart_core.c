@@ -209,7 +209,7 @@ uart_pps_init(struct uart_softc *sc)
 #endif
 	TUNABLE_INT_FETCH("hw.uart.pps_mode", &sc->sc_pps_mode);
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "pps_mode",
-	    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_NEEDGIANT, sc, 0, 
+	    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE, sc, 0,
 	    uart_pps_mode_sysctl, "I", "pulse mode: 0/1/2=disabled/CTS/DCD; "
 	    "add 0x10 to invert, 0x20 for narrow pulse");
 
