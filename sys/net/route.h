@@ -448,6 +448,7 @@ void	rib_free_info(struct rt_addrinfo *info);
 void rib_flush_routes_family(int family);
 struct nhop_object *rib_lookup(uint32_t fibnum, const struct sockaddr *dst,
 	    uint32_t flags, uint32_t flowid);
+const char *rib_print_family(int family);
 #endif
 
 #endif
