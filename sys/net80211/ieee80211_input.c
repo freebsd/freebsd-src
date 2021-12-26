@@ -936,14 +936,18 @@ ieee80211_getbssid(const struct ieee80211vap *vap,
 void
 ieee80211_note(const struct ieee80211vap *vap, const char *fmt, ...)
 {
-	char buf[128];		/* XXX */
+	char buf[256];		/* XXX */
 	va_list ap;
+	int len;
 
 	va_start(ap, fmt);
-	vsnprintf(buf, sizeof(buf), fmt, ap);
+	len = vsnprintf(buf, sizeof(buf), fmt, ap);
 	va_end(ap);
 
 	if_printf(vap->iv_ifp, "%s", buf);	/* NB: no \n */
+
+	if (len >= sizeof(buf))
+		printf("%s: XXX buffer too small: len = %d\n", __func__, len);
 }
 
 void
@@ -951,14 +955,18 @@ ieee80211_note_frame(const struct ieee80211vap *vap,
 	const struct ieee80211_frame *wh,
 	const char *fmt, ...)
 {
-	char buf[128];		/* XXX */
+	char buf[256];		/* XXX */
 	va_list ap;
+	int len;
 
 	va_start(ap, fmt);
-	vsnprintf(buf, sizeof(buf), fmt, ap);
+	len = vsnprintf(buf, sizeof(buf), fmt, ap);
 	va_end(ap);
 	if_printf(vap->iv_ifp, "[%s] %s\n",
 		ether_sprintf(ieee80211_getbssid(vap, wh)), buf);
+
+	if (len >= sizeof(buf))
+		printf("%s: XXX buffer too small: len = %d\n", __func__, len);
 }
 
 void
@@ -966,13 +974,17 @@ ieee80211_note_mac(const struct ieee80211vap *vap,
 	const uint8_t mac[IEEE80211_ADDR_LEN],
 	const char *fmt, ...)
 {
-	char buf[128];		/* XXX */
+	char buf[256];		/* XXX */
 	va_list ap;
+	int len;
 
 	va_start(ap, fmt);
-	vsnprintf(buf, sizeof(buf), fmt, ap);
+	len = vsnprintf(buf, sizeof(buf), fmt, ap);
 	va_end(ap);
 	if_printf(vap->iv_ifp, "[%s] %s\n", ether_sprintf(mac), buf);
+
+	if (len >= sizeof(buf))
+		printf("%s: XXX buffer too small: len = %d\n", __func__, len);
 }
 
 void
@@ -980,16 +992,21 @@ ieee80211_discard_frame(const struct ieee80211vap *vap,
 	const struct ieee80211_frame *wh,
 	const char *type, const char *fmt, ...)
 {
+	char buf[256];		/* XXX */
 	va_list ap;
+	int len;
 
-	if_printf(vap->iv_ifp, "[%s] discard ",
-		ether_sprintf(ieee80211_getbssid(vap, wh)));
-	printf("%s frame, ", type != NULL ? type :
-	    ieee80211_mgt_subtype_name(wh->i_fc[0]));
 	va_start(ap, fmt);
-	vprintf(fmt, ap);
+	len = vsnprintf(buf, sizeof(buf), fmt, ap);
 	va_end(ap);
-	printf("\n");
+
+	if_printf(vap->iv_ifp, "[%s] discard %s frame, %s\n",
+	    ether_sprintf(ieee80211_getbssid(vap, wh)),
+	    type != NULL ? type : ieee80211_mgt_subtype_name(wh->i_fc[0]),
+	    buf);
+
+	if (len >= sizeof(buf))
+		printf("%s: XXX buffer too small: len = %d\n", __func__, len);
 }
 
 void
@@ -997,18 +1014,20 @@ ieee80211_discard_ie(const struct ieee80211vap *vap,
 	const struct ieee80211_frame *wh,
 	const char *type, const char *fmt, ...)
 {
+	char buf[256];		/* XXX */
 	va_list ap;
+	int len;
 
-	if_printf(vap->iv_ifp, "[%s] discard ",
-		ether_sprintf(ieee80211_getbssid(vap, wh)));
-	if (type != NULL)
-		printf("%s information element, ", type);
-	else
-		printf("information element, ");
 	va_start(ap, fmt);
-	vprintf(fmt, ap);
+	len = vsnprintf(buf, sizeof(buf), fmt, ap);
 	va_end(ap);
-	printf("\n");
+
+	if_printf(vap->iv_ifp, "[%s] discard%s%s information element, %s\n",
+	    ether_sprintf(ieee80211_getbssid(vap, wh)),
+	    type != NULL ? " " : "", type != NULL ? type : "", buf);
+
+	if (len >= sizeof(buf))
+		printf("%s: XXX buffer too small: len = %d\n", __func__, len);
 }
 
 void
@@ -1016,16 +1035,19 @@ ieee80211_discard_mac(const struct ieee80211vap *vap,
 	const uint8_t mac[IEEE80211_ADDR_LEN],
 	const char *type, const char *fmt, ...)
 {
+	char buf[256];		/* XXX */
 	va_list ap;
+	int len;
 
-	if_printf(vap->iv_ifp, "[%s] discard ", ether_sprintf(mac));
-	if (type != NULL)
-		printf("%s frame, ", type);
-	else
-		printf("frame, ");
 	va_start(ap, fmt);
-	vprintf(fmt, ap);
+	len = vsnprintf(buf, sizeof(buf), fmt, ap);
 	va_end(ap);
-	printf("\n");
+
+	if_printf(vap->iv_ifp, "[%s] discard%s%s frame, %s\n",
+	    ether_sprintf(mac),
+	    type != NULL ? " " : "", type != NULL ? type : "", buf);
+
+	if (len >= sizeof(buf))
+		printf("%s: XXX buffer too small: len = %d\n", __func__, len);
 }
 #endif /* IEEE80211_DEBUG */
