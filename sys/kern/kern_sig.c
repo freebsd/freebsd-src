@@ -3577,7 +3577,7 @@ sysctl_debug_num_cores_check (SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 SYSCTL_PROC(_debug, OID_AUTO, ncores,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, 0, sizeof(int),
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, 0, sizeof(int),
     sysctl_debug_num_cores_check, "I",
     "Maximum number of generated process corefiles while using index format");
 
