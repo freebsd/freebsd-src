@@ -603,11 +603,7 @@ cbb_func_filt(void *arg)
 		return (FILTER_HANDLED);
 	}
 
-	/*
-	 * nb: don't have to check for giant or not, since that's done in the
-	 * ISR dispatch and one can't hold Giant in a filter anyway...
-	 */
-	return ((*ih->filt)(ih->arg));	
+	return ((*ih->filt)(ih->arg));
 }
 
 static void
@@ -638,11 +634,6 @@ cbb_func_intr(void *arg)
 		}
 	}
 
-	/*
-	 * Call the registered ithread interrupt handler.  This entire routine
-	 * will be called with Giant if this isn't an MP safe driver, or not
-	 * if it is.  Either way, we don't have to worry.
-	 */
 	ih->intr(ih->arg);
 }
 
