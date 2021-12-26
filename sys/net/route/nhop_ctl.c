@@ -52,6 +52,11 @@ __FBSDID("$FreeBSD$");
 #include <net/route/nhop_var.h>
 #include <net/vnet.h>
 
+#define	DEBUG_MOD_NAME	nhop_ctl
+#define	DEBUG_MAX_LEVEL	LOG_DEBUG
+#include <net/route/route_debug.h>
+_DECLARE_DEBUG(LOG_INFO);
+
 /*
  * This file contains core functionality for the nexthop ("nhop") route subsystem.
  * The business logic needed to create nexhop objects is implemented here.
@@ -90,8 +95,6 @@ static void fill_sdl_from_ifp(struct sockaddr_dl_short *sdl, const struct ifnet 
 
 static void destroy_nhop_epoch(epoch_context_t ctx);
 static void destroy_nhop(struct nhop_priv *nh_priv);
-
-static void print_nhop(const char *prefix, const struct nhop_object *nh);
 
 _Static_assert(__offsetof(struct nhop_object, nh_ifp) == 32,
     "nhop_object: wrong nh_ifp offset");
@@ -139,7 +142,7 @@ get_aifp(const struct nhop_object *nh)
 			nh->gw_sa.sa_family == AF_LINK) {
 		aifp = ifnet_byindex(nh->gwl_sa.sdl_index);
 		if (aifp == NULL) {
-			DPRINTF("unable to get aifp for %s index %d",
+			FIB_NH_LOG(LOG_WARNING, nh, "unable to get aifp for %s index %d",
 				if_name(nh->nh_ifp), nh->gwl_sa.sdl_index);
 		}
 	}
@@ -226,7 +229,7 @@ set_nhop_gw_from_info(struct nhop_object *nh, struct rt_addrinfo *info)
 		struct sockaddr_dl *sdl = (struct sockaddr_dl *)gw;
 		struct ifnet *ifp = ifnet_byindex(sdl->sdl_index);
 		if (ifp == NULL) {
-			DPRINTF("invalid ifindex %d", sdl->sdl_index);
+			FIB_NH_LOG(LOG_WARNING, nh, "invalid ifindex %d", sdl->sdl_index);
 			return (EINVAL);
 		}
 		fill_sdl_from_ifp(&nh->gwl_sa, ifp);
@@ -244,7 +247,7 @@ set_nhop_gw_from_info(struct nhop_object *nh, struct rt_addrinfo *info)
 		 *   happy.
 		 */
 		if (gw->sa_len > sizeof(struct sockaddr_in6)) {
-			DPRINTF("nhop SA size too big: AF %d len %u",
+			FIB_NH_LOG(LOG_WARNING, nh, "nhop SA size too big: AF %d len %u",
 			    gw->sa_family, gw->sa_len);
 			return (ENOMEM);
 		}
@@ -525,7 +528,7 @@ reference_nhop_deps(struct nhop_object *nh)
 		ifa_free(nh->nh_ifa);
 		return (false);
 	}
-	DPRINTF("AIFP: %p nh_ifp %p", nh->nh_aifp, nh->nh_ifp);
+	FIB_NH_LOG(LOG_DEBUG, nh, "AIFP: %p nh_ifp %p", nh->nh_aifp, nh->nh_ifp);
 	if (!if_try_ref(nh->nh_ifp)) {
 		ifa_free(nh->nh_ifa);
 		if_rele(nh->nh_aifp);
@@ -552,7 +555,7 @@ finalize_nhop(struct nh_control *ctl, struct rt_addrinfo *info,
 	if (nh->nh_pksent == NULL) {
 		uma_zfree(nhops_zone, nh);
 		RTSTAT_INC(rts_nh_alloc_failure);
-		DPRINTF("nh_alloc_finalize failed");
+		FIB_NH_LOG(LOG_WARNING, nh, "counter_u64_alloc() failed");
 		return (ENOMEM);
 	}
 
@@ -560,7 +563,7 @@ finalize_nhop(struct nh_control *ctl, struct rt_addrinfo *info,
 		counter_u64_free(nh->nh_pksent);
 		uma_zfree(nhops_zone, nh);
 		RTSTAT_INC(rts_nh_alloc_failure);
-		DPRINTF("nh_alloc_finalize failed - reference failure");
+		FIB_NH_LOG(LOG_WARNING, nh, "interface reference failed");
 		return (EAGAIN);
 	}
 
@@ -574,8 +577,6 @@ finalize_nhop(struct nh_control *ctl, struct rt_addrinfo *info,
 
 	nh_priv->nh_fibnum = ctl->ctl_rh->rib_fibnum;
 
-	print_nhop("FINALIZE", nh);
-
 	if (link_nhop(ctl, nh_priv) == 0) {
 		/*
 		 * Adding nexthop to the datastructures
@@ -583,47 +584,20 @@ finalize_nhop(struct nh_control *ctl, struct rt_addrinfo *info,
 		 *  the epoch end, as nexthop is not used
 		 *  and return.
 		 */
-		DPRINTF("link_nhop failed!");
+		char nhbuf[48];
+		FIB_NH_LOG(LOG_WARNING, nh, "failed to link %s",
+		    nhop_print_buf(nh, nhbuf, sizeof(nhbuf)));
 		destroy_nhop(nh_priv);
 
 		return (ENOBUFS);
 	}
 
+#if DEBUG_MAX_LEVEL >= LOG_DEBUG
+	char nhbuf[48];
+	FIB_NH_LOG(LOG_DEBUG, nh, "finalized: %s", nhop_print_buf(nh, nhbuf, sizeof(nhbuf)));
+#endif
+
 	return (0);
-}
-
-static void
-print_nhop_sa(char *buf, size_t buflen, const struct sockaddr *sa)
-{
-
-	if (sa->sa_family == AF_INET) {
-		const struct sockaddr_in *sin4;
-		sin4 = (const struct sockaddr_in *)sa;
-		inet_ntop(AF_INET, &sin4->sin_addr, buf, buflen);
-	} else if (sa->sa_family == AF_INET6) {
-		const struct sockaddr_in6 *sin6;
-		sin6 = (const struct sockaddr_in6 *)sa;
-		inet_ntop(AF_INET6, &sin6->sin6_addr, buf, buflen);
-	} else if (sa->sa_family == AF_LINK) {
-		const struct sockaddr_dl *sdl;
-		sdl = (const struct sockaddr_dl *)sa;
-		snprintf(buf, buflen, "if#%d", sdl->sdl_index);
-	} else
-		snprintf(buf, buflen, "af:%d", sa->sa_family);
-}
-
-static void
-print_nhop(const char *prefix, const struct nhop_object *nh)
-{
-	char src_buf[INET6_ADDRSTRLEN], addr_buf[INET6_ADDRSTRLEN];
-
-	print_nhop_sa(src_buf, sizeof(src_buf), nh->nh_ifa->ifa_addr);
-	print_nhop_sa(addr_buf, sizeof(addr_buf), &nh->gw_sa);
-
-	DPRINTF("%s nhop priv %p: AF %d ifp %p %s addr %s src %p %s aifp %p %s mtu %d nh_flags %X",
-	    prefix, nh->nh_priv, nh->nh_priv->nh_upper_family, nh->nh_ifp,
-	    if_name(nh->nh_ifp), addr_buf, nh->nh_ifa, src_buf, nh->nh_aifp,
-	    if_name(nh->nh_aifp), nh->nh_mtu, nh->nh_flags);
 }
 
 static void
@@ -632,8 +606,6 @@ destroy_nhop(struct nhop_priv *nh_priv)
 	struct nhop_object *nh;
 
 	nh = nh_priv->nh;
-
-	print_nhop("DEL", nh);
 
 	if_rele(nh->nh_ifp);
 	if_rele(nh->nh_aifp);
@@ -682,6 +654,11 @@ nhop_free(struct nhop_object *nh)
 	if (!refcount_release(&nh_priv->nh_refcnt))
 		return;
 
+#if DEBUG_MAX_LEVEL >= LOG_DEBUG
+	char nhbuf[48];
+	FIB_NH_LOG(LOG_DEBUG, nh, "deleting %s", nhop_print_buf(nh, nhbuf, sizeof(nhbuf)));
+#endif
+
 	/*
 	 * There are only 2 places, where nh_linked can be decreased:
 	 *  rib destroy (nhops_destroy_rib) and this function.
@@ -706,7 +683,9 @@ nhop_free(struct nhop_object *nh)
 		ctl = nh_priv->nh_control;
 		if (unlink_nhop(ctl, nh_priv) == NULL) {
 			/* Do not try to reclaim */
-			DPRINTF("Failed to unlink nexhop %p", nh_priv);
+			char nhbuf[48];
+			FIB_NH_LOG(LOG_WARNING, nh, "failed to unlink %s",
+			    nhop_print_buf(nh, nhbuf, sizeof(nhbuf)));
 			NET_EPOCH_EXIT(et);
 			return;
 		}
@@ -845,6 +824,45 @@ nhops_update_ifmtu(struct rib_head *rh, struct ifnet *ifp, uint32_t mtu)
 }
 
 /*
+ * Prints nexthop @nh data in the provided @buf.
+ * Example: nh#33/inet/em0/192.168.0.1
+ */
+char *
+nhop_print_buf(const struct nhop_object *nh, char *buf, size_t bufsize)
+{
+	char abuf[INET6_ADDRSTRLEN];
+	struct nhop_priv *nh_priv = nh->nh_priv;
+	const char *upper_str = rib_print_family(nh->nh_priv->nh_upper_family);
+
+	switch (nh->gw_sa.sa_family) {
+#ifdef INET
+	case AF_INET:
+		inet_ntop(AF_INET, &nh->gw4_sa.sin_addr, abuf, sizeof(abuf));
+		snprintf(buf, bufsize, "nh#%d/%s/%s/%s", nh_priv->nh_idx, upper_str,
+		    if_name(nh->nh_ifp), abuf);
+		break;
+#endif
+#ifdef INET6
+	case AF_INET6:
+		inet_ntop(AF_INET6, &nh->gw6_sa.sin6_addr, abuf, sizeof(abuf));
+		snprintf(buf, bufsize, "nh#%d/%s/%s/%s", nh_priv->nh_idx, upper_str,
+		    if_name(nh->nh_ifp), abuf);
+		break;
+#endif
+	case AF_LINK:
+		snprintf(buf, bufsize, "nh#%d/%s/%s/resolve", nh_priv->nh_idx, upper_str,
+		    if_name(nh->nh_ifp));
+		break;
+	default:
+		snprintf(buf, bufsize, "nh#%d/%s/%s/????", nh_priv->nh_idx, upper_str,
+		    if_name(nh->nh_ifp));
+		break;
+	}
+
+	return (buf);
+}
+
+/*
  * Dumps a single entry to sysctl buffer.
  *
  * Layout:
@@ -865,8 +883,6 @@ dump_nhop_entry(struct rib_head *rh, struct nhop_object *nh, struct sysctl_req *
 	struct sockaddr_storage ss;
 	size_t addrs_len;
 	int error;
-
-	//DPRINTF("Dumping: head %p nh %p flags %X req %p\n", rh, nh, nh->nh_flags, w);
 
 	memset(&arpc, 0, sizeof(arpc));
 
@@ -949,7 +965,10 @@ nhops_dump_sysctl(struct rib_head *rh, struct sysctl_req *w)
 	ctl = rh->nh_control;
 
 	NHOPS_RLOCK(ctl);
-	DPRINTF("NHDUMP: count=%u", ctl->nh_head.items_count);
+#if DEBUG_MAX_LEVEL >= LOG_DEBUG
+	FIB_LOG(LOG_DEBUG, rh->rib_fibnum, rh->rib_family, "dump %u items",
+	    ctl->nh_head.items_count);
+#endif
 	CHT_SLIST_FOREACH(&ctl->nh_head, nhops, nh_priv) {
 		error = dump_nhop_entry(rh, nh_priv->nh, w);
 		if (error != 0) {
