@@ -316,7 +316,8 @@ struct tcptemp {
  * function below.
  */
 /* Flags for tcp functions */
-#define TCP_FUNC_BEING_REMOVED 0x01   	/* Can no longer be referenced */
+#define	TCP_FUNC_BEING_REMOVED	0x01   	/* Can no longer be referenced */
+#define	TCP_FUNC_OUTPUT_CANDROP	0x02   	/* tfb_tcp_output may ask tcp_drop */
 
 /*
  * If defining the optional tcp_timers, in the
@@ -386,12 +387,107 @@ struct tcp_function {
 
 TAILQ_HEAD(tcp_funchead, tcp_function);
 
+struct tcpcb * tcp_drop(struct tcpcb *, int);
+
+#ifdef _NETINET_IN_PCB_H_
+/*
+ * tcp_output()
+ * Handles tcp_drop request from advanced stacks and reports that inpcb is
+ * gone with negative return code.
+ * Drop in replacement for the default stack.
+ */
 static inline int
 tcp_output(struct tcpcb *tp)
 {
+	int rv;
 
-	return (tp->t_fb->tfb_tcp_output(tp));
+	INP_WLOCK_ASSERT(tp->t_inpcb);
+
+	rv = tp->t_fb->tfb_tcp_output(tp);
+	if (rv < 0) {
+		KASSERT(tp->t_fb->tfb_flags & TCP_FUNC_OUTPUT_CANDROP,
+		    ("TCP stack %s requested tcp_drop(%p)",
+		    tp->t_fb->tfb_tcp_block_name, tp));
+		tp = tcp_drop(tp, -rv);
+		if (tp)
+			INP_WUNLOCK(tp->t_inpcb);
+	}
+
+	return (rv);
 }
+
+/*
+ * tcp_output_unlock()
+ * Always returns unlocked, handles drop request from advanced stacks.
+ * Always returns positive error code.
+ */
+static inline int
+tcp_output_unlock(struct tcpcb *tp)
+{
+	int rv;
+
+	INP_WLOCK_ASSERT(tp->t_inpcb);
+
+	rv = tp->t_fb->tfb_tcp_output(tp);
+	if (rv < 0) {
+		KASSERT(tp->t_fb->tfb_flags & TCP_FUNC_OUTPUT_CANDROP,
+		    ("TCP stack %s requested tcp_drop(%p)",
+		    tp->t_fb->tfb_tcp_block_name, tp));
+		rv = -rv;
+		tp = tcp_drop(tp, rv);
+		if (tp)
+			INP_WUNLOCK(tp->t_inpcb);
+	} else
+		INP_WUNLOCK(tp->t_inpcb);
+
+	return (rv);
+}
+
+/*
+ * tcp_output_nodrop()
+ * Always returns locked.  It is caller's responsibility to run tcp_drop()!
+ * Useful in syscall implementations, when we want to perform some logging
+ * and/or tracing with tcpcb before calling tcp_drop().  To be used with
+ * tcp_unlock_or_drop() later.
+ *
+ * XXXGL: maybe don't allow stacks to return a drop request at certain
+ * TCP states? Why would it do in connect(2)? In recv(2)?
+ */
+static inline int
+tcp_output_nodrop(struct tcpcb *tp)
+{
+	int rv;
+
+	INP_WLOCK_ASSERT(tp->t_inpcb);
+
+	rv = tp->t_fb->tfb_tcp_output(tp);
+	KASSERT(rv >= 0 || tp->t_fb->tfb_flags & TCP_FUNC_OUTPUT_CANDROP,
+	    ("TCP stack %s requested tcp_drop(%p)",
+	    tp->t_fb->tfb_tcp_block_name, tp));
+	return (rv);
+}
+
+/*
+ * tcp_unlock_or_drop()
+ * Handle return code from tfb_tcp_output() after we have logged/traced,
+ * to be used with tcp_output_nodrop().
+ */
+static inline int
+tcp_unlock_or_drop(struct tcpcb *tp, int tcp_output_retval)
+{
+
+	INP_WLOCK_ASSERT(tp->t_inpcb);
+
+        if (tcp_output_retval < 0) {
+                tcp_output_retval = -tcp_output_retval;
+                if (tcp_drop(tp, tcp_output_retval) != NULL)
+                        INP_WUNLOCK(tp->t_inpcb);
+        } else
+		INP_WUNLOCK(tp->t_inpcb);
+
+	return (tcp_output_retval);
+}
+#endif	/* _NETINET_IN_PCB_H_ */
 #endif	/* _KERNEL */
 
 /*
@@ -979,8 +1075,6 @@ void	 tcp_twclose(struct tcptw *, int);
 void	 tcp_ctlinput(int, struct sockaddr *, void *);
 int	 tcp_ctloutput(struct socket *, struct sockopt *);
 void 	 tcp_ctlinput_viaudp(int, struct sockaddr *, void *, void *);
-struct tcpcb *
-	 tcp_drop(struct tcpcb *, int);
 void	 tcp_drain(void);
 void	 tcp_init(void);
 void	 tcp_fini(void *);

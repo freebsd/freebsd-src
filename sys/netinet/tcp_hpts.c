@@ -1550,6 +1550,8 @@ again:
 			}
 			inp->inp_hpts_calls = 1;
 			error = tcp_output(tp);
+			if (error < 0)
+				goto skip_pacing;
 			inp->inp_hpts_calls = 0;
 			if (ninp && ninp->inp_ppcb) {
 				/*
