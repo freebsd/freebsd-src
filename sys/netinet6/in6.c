@@ -2483,6 +2483,17 @@ in6_lltattach(struct ifnet *ifp)
 	return (llt);
 }
 
+struct lltable *
+in6_lltable_get(struct ifnet *ifp)
+{
+	struct lltable *llt = NULL;
+
+	void *afdata_ptr = ifp->if_afdata[AF_INET6];
+	if (afdata_ptr != NULL)
+		llt = ((struct in6_ifextra *)afdata_ptr)->lltable;
+	return (llt);
+}
+
 void *
 in6_domifattach(struct ifnet *ifp)
 {
