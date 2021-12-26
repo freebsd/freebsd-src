@@ -199,6 +199,7 @@ struct smbios_table_type3 {
 	uint8_t			psstate;	/* power supply state */
 	uint8_t			tstate;		/* thermal state */
 	uint8_t			security;	/* security status */
+	uint32_t		oemdata;	/* OEM-specific data */
 	uint8_t			uheight;	/* height in 'u's */
 	uint8_t			cords;		/* number of power cords */
 	uint8_t			elems;		/* number of element records */
@@ -417,6 +418,7 @@ struct smbios_table_type3 smbios_type3_template = {
 	SMBIOS_CHST_SAFE,
 	SMBIOS_CHST_SAFE,
 	SMBIOS_CHSC_NONE,
+	0,		/* OEM specific data, we have none */
 	0,		/* height in 'u's (0=enclosure height unspecified) */
 	0,		/* number of power cords (0=number unspecified) */
 	0,		/* number of contained element records */
