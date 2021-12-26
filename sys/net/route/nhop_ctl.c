@@ -28,6 +28,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 #include "opt_inet.h"
+#include "opt_inet6.h"
 #include "opt_route.h"
 
 #include <sys/param.h>
@@ -58,7 +59,7 @@ __FBSDID("$FreeBSD$");
  * Nexthops in the original sense are the objects containing all the necessary
  * information to forward the packet to the selected destination.
  * In particular, nexthop is defined by a combination of
- *  ifp, ifa, aifp, mtu, gw addr(if set), nh_type, nh_family, mask of rt_flags and
+ *  ifp, ifa, aifp, mtu, gw addr(if set), nh_type, nh_upper_family, mask of rt_flags and
  *    NHF_DEFAULT
  *
  * Additionally, each nexthop gets assigned its unique index (nexthop index).
@@ -278,13 +279,17 @@ fill_nhop_from_info(struct nhop_priv *nh_priv, struct rt_addrinfo *info)
 	rt_flags = info->rti_flags & NHOP_RT_FLAG_MASK;
 
 	nh->nh_priv->rt_flags = rt_flags;
-	nh_priv->nh_family = info->rti_info[RTAX_DST]->sa_family;
+	nh_priv->nh_upper_family = info->rti_info[RTAX_DST]->sa_family;
 	nh_priv->nh_type = 0; // hook responsibility to set nhop type
-
 	nh->nh_flags = convert_rt_to_nh_flags(rt_flags);
+
 	set_nhop_mtu_from_info(nh, info);
 	if ((error = set_nhop_gw_from_info(nh, info)) != 0)
 		return (error);
+	if (nh->gw_sa.sa_family == AF_LINK)
+		nh_priv->nh_neigh_family = nh_priv->nh_upper_family;
+	else
+		nh_priv->nh_neigh_family = nh->gw_sa.sa_family;
 
 	nh->nh_ifp = (info->rti_ifp != NULL) ? info->rti_ifp : info->rti_ifa->ifa_ifp;
 	nh->nh_ifa = info->rti_ifa;
@@ -401,6 +406,7 @@ get_nhop(struct rib_head *rnh, struct rt_addrinfo *info,
 static int
 alter_nhop_from_info(struct nhop_object *nh, struct rt_addrinfo *info)
 {
+	struct nhop_priv *nh_priv = nh->nh_priv;
 	struct sockaddr *info_gw;
 	int error;
 
@@ -410,8 +416,8 @@ alter_nhop_from_info(struct nhop_object *nh, struct rt_addrinfo *info)
 	/* XXX: allow only one of BLACKHOLE,REJECT,GATEWAY */
 
 	/* Allow some flags (FLAG1,STATIC,BLACKHOLE,REJECT) to be toggled on change. */
-	nh->nh_priv->rt_flags &= ~RTF_FMASK;
-	nh->nh_priv->rt_flags |= info->rti_flags & RTF_FMASK;
+	nh_priv->rt_flags &= ~RTF_FMASK;
+	nh_priv->rt_flags |= info->rti_flags & RTF_FMASK;
 
 	/* Consider gateway change */
 	info_gw = info->rti_info[RTAX_GATEWAY];
@@ -419,12 +425,16 @@ alter_nhop_from_info(struct nhop_object *nh, struct rt_addrinfo *info)
 		error = set_nhop_gw_from_info(nh, info);
 		if (error != 0)
 			return (error);
+		if (nh->gw_sa.sa_family == AF_LINK)
+			nh_priv->nh_neigh_family = nh_priv->nh_upper_family;
+		else
+			nh_priv->nh_neigh_family = nh->gw_sa.sa_family;
 		/* Update RTF_GATEWAY flag status */
-		nh->nh_priv->rt_flags &= ~RTF_GATEWAY;
-		nh->nh_priv->rt_flags |= (RTF_GATEWAY & info->rti_flags);
+		nh_priv->rt_flags &= ~RTF_GATEWAY;
+		nh_priv->rt_flags |= (RTF_GATEWAY & info->rti_flags);
 	}
 	/* Update datapath flags */
-	nh->nh_flags = convert_rt_to_nh_flags(nh->nh_priv->rt_flags);
+	nh->nh_flags = convert_rt_to_nh_flags(nh_priv->rt_flags);
 
 	if (info->rti_ifa != NULL)
 		nh->nh_ifa = info->rti_ifa;
@@ -458,7 +468,8 @@ nhop_create_from_nhop(struct rib_head *rnh, const struct nhop_object *nh_orig,
 	nh = nh_priv->nh;
 
 	/* Start with copying data from original nexthop */
-	nh_priv->nh_family = nh_orig->nh_priv->nh_family;
+	nh_priv->nh_upper_family = nh_orig->nh_priv->nh_upper_family;
+	nh_priv->nh_neigh_family = nh_orig->nh_priv->nh_neigh_family;
 	nh_priv->rt_flags = nh_orig->nh_priv->rt_flags;
 	nh_priv->nh_type = nh_orig->nh_priv->nh_type;
 
@@ -561,6 +572,8 @@ finalize_nhop(struct nh_control *ctl, struct rt_addrinfo *info,
 	/* Please see nhop_free() comments on the initial value */
 	refcount_init(&nh_priv->nh_linked, 2);
 
+	nh_priv->nh_fibnum = ctl->ctl_rh->rib_fibnum;
+
 	print_nhop("FINALIZE", nh);
 
 	if (link_nhop(ctl, nh_priv) == 0) {
@@ -608,7 +621,7 @@ print_nhop(const char *prefix, const struct nhop_object *nh)
 	print_nhop_sa(addr_buf, sizeof(addr_buf), &nh->gw_sa);
 
 	DPRINTF("%s nhop priv %p: AF %d ifp %p %s addr %s src %p %s aifp %p %s mtu %d nh_flags %X",
-	    prefix, nh->nh_priv, nh->nh_priv->nh_family, nh->nh_ifp,
+	    prefix, nh->nh_priv, nh->nh_priv->nh_upper_family, nh->nh_ifp,
 	    if_name(nh->nh_ifp), addr_buf, nh->nh_ifa, src_buf, nh->nh_aifp,
 	    if_name(nh->nh_aifp), nh->nh_mtu, nh->nh_flags);
 }
@@ -782,6 +795,31 @@ nhop_select_func(struct nhop_object *nh, uint32_t flowid)
 	return (nhop_select(nh, flowid));
 }
 
+/*
+ * Returns address family of the traffic uses the nexthop.
+ */
+int
+nhop_get_upper_family(const struct nhop_object *nh)
+{
+	return (nh->nh_priv->nh_upper_family);
+}
+
+/*
+ * Returns address family of the LLE or gateway that is used
+ * to forward the traffic to.
+ */
+int
+nhop_get_neigh_family(const struct nhop_object *nh)
+{
+	return (nh->nh_priv->nh_neigh_family);
+}
+
+uint32_t
+nhop_get_fibnum(const struct nhop_object *nh)
+{
+	return (nh->nh_priv->nh_fibnum);
+}
+
 void
 nhops_update_ifmtu(struct rib_head *rh, struct ifnet *ifp, uint32_t mtu)
 {
@@ -845,7 +883,7 @@ dump_nhop_entry(struct rib_head *rh, struct nhop_object *nh, struct sysctl_req *
 	pnhe->nh_fib = rh->rib_fibnum;
 	pnhe->ifindex = nh->nh_ifp->if_index;
 	pnhe->aifindex = nh->nh_aifp->if_index;
-	pnhe->nh_family = nh->nh_priv->nh_family;
+	pnhe->nh_family = nh->nh_priv->nh_upper_family;
 	pnhe->nh_type = nh->nh_priv->nh_type;
 	pnhe->nh_mtu = nh->nh_mtu;
 	pnhe->nh_flags = nh->nh_flags;
