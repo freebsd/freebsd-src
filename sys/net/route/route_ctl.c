@@ -118,6 +118,9 @@ SYSCTL_UINT(_net_route, OID_AUTO, ipv6_nexthop, CTLFLAG_RW | CTLFLAG_VNET,
 VNET_DEFINE_STATIC(uma_zone_t, rtzone);
 #define	V_rtzone	VNET(rtzone)
 
+/* Debug bits */
+SYSCTL_NODE(_net_route, OID_AUTO, debug, CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "");
+
 void
 vnet_rtzone_init()
 {
@@ -1428,6 +1431,20 @@ rib_flush_routes_family(int family)
 		if ((rnh = rt_tables_get_rnh(fibnum, family)) != NULL)
 			rib_flush_routes(rnh);
 	}
+}
+
+const char *
+rib_print_family(int family)
+{
+	switch (family) {
+	case AF_INET:
+		return ("inet");
+	case AF_INET6:
+		return ("inet6");
+	case AF_LINK:
+		return ("link");
+	}
+	return ("unknown");
 }
 
 static void
