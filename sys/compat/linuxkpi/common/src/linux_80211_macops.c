@@ -1,0 +1,615 @@
+/*-
+ * Copyright (c) 2021 The FreeBSD Foundation
+ *
+ * This software was developed by Björn Zeeb under sponsorship from
+ * the FreeBSD Foundation.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
+#include <sys/param.h>
+#include <sys/types.h>
+#include <sys/kernel.h>
+#include <sys/errno.h>
+
+#define	LINUXKPI_NET80211
+#include <net/mac80211.h>
+
+#include "linux_80211.h"
+
+int
+lkpi_80211_mo_start(struct ieee80211_hw *hw)
+{
+	struct lkpi_hw *lhw;
+	int error;
+
+	lhw = HW_TO_LHW(hw);
+	if (lhw->ops->start == NULL) {
+		error = EOPNOTSUPP;
+		goto out;
+	}
+
+	if ((lhw->sc_flags & LKPI_MAC80211_DRV_STARTED)) {
+		/* Trying to start twice is an error. */
+		error = EEXIST;
+		goto out;
+	}
+	error = lhw->ops->start(hw);
+	if (error == 0)
+		lhw->sc_flags |= LKPI_MAC80211_DRV_STARTED;
+
+out:
+	return (error);
+}
+
+void
+lkpi_80211_mo_stop(struct ieee80211_hw *hw)
+{
+	struct lkpi_hw *lhw;
+
+	lhw = HW_TO_LHW(hw);
+	if (lhw->ops->stop == NULL)
+		return;
+
+	lhw->ops->stop(hw);
+	lhw->sc_flags &= ~LKPI_MAC80211_DRV_STARTED;
+}
+
+int
+lkpi_80211_mo_set_frag_threshold(struct ieee80211_hw *hw, uint32_t frag_th)
+{
+	struct lkpi_hw *lhw;
+	int error;
+
+	lhw = HW_TO_LHW(hw);
+	if (lhw->ops->set_frag_threshold == NULL) {
+		error = EOPNOTSUPP;
+		goto out;
+	}
+
+	error = lhw->ops->set_frag_threshold(hw, frag_th);
+
+out:
+	return (error);
+}
+
+int
+lkpi_80211_mo_set_rts_threshold(struct ieee80211_hw *hw, uint32_t rts_th)
+{
+	struct lkpi_hw *lhw;
+	int error;
+
+	lhw = HW_TO_LHW(hw);
+	if (lhw->ops->set_rts_threshold == NULL) {
+		error = EOPNOTSUPP;
+		goto out;
+	}
+
+	error = lhw->ops->set_rts_threshold(hw, rts_th);
+
+out:
+	return (error);
+}
+
+
+int
+lkpi_80211_mo_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
+{
+	struct lkpi_hw *lhw;
+	struct lkpi_vif *lvif;
+	int error;
+
+	lhw = HW_TO_LHW(hw);
+	if (lhw->ops->add_interface == NULL) {
+		error = EOPNOTSUPP;
+		goto out;
+	}
+
+	lvif = VIF_TO_LVIF(vif);
+	LKPI_80211_LVIF_LOCK(lvif);
+	if (lvif->added_to_drv) {
+		LKPI_80211_LVIF_UNLOCK(lvif);
+		/* Trying to add twice is an error. */
+		error = EEXIST;
+		goto out;
+	}
+	LKPI_80211_LVIF_UNLOCK(lvif);
+
+	error = lhw->ops->add_interface(hw, vif);
+	if (error == 0) {
+		LKPI_80211_LVIF_LOCK(lvif);
+		lvif->added_to_drv = true;
+		LKPI_80211_LVIF_UNLOCK(lvif);
+	}
+
+out:
+	return (error);
+}
+
+void
+lkpi_80211_mo_remove_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
+{
+	struct lkpi_hw *lhw;
+	struct lkpi_vif *lvif;
+
+	lhw = HW_TO_LHW(hw);
+	if (lhw->ops->remove_interface == NULL)
+		return;
+
+	lvif = VIF_TO_LVIF(vif);
+	LKPI_80211_LVIF_LOCK(lvif);
+	if (!lvif->added_to_drv) {
+		LKPI_80211_LVIF_UNLOCK(lvif);
+		return;
+	}
+	LKPI_80211_LVIF_UNLOCK(lvif);
+
+	lhw->ops->remove_interface(hw, vif);
+	LKPI_80211_LVIF_LOCK(lvif);
+	lvif->added_to_drv = false;
+	LKPI_80211_LVIF_UNLOCK(lvif);
+}
+
+
+int
+lkpi_80211_mo_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+    struct ieee80211_scan_request *sr)
+{
+	struct lkpi_hw *lhw;
+	int error;
+
+	lhw = HW_TO_LHW(hw);
+	if (lhw->ops->hw_scan == NULL) {
+		/* XXX-BZ can we hide other scans like we can for sta_add..? */
+		error = EOPNOTSUPP;
+		goto out;
+	}
+
+	lhw->scan_flags |= LKPI_SCAN_RUNNING;
+	error = lhw->ops->hw_scan(hw, vif, sr);
+	if (error != 0)
+		lhw->scan_flags &= ~LKPI_SCAN_RUNNING;
+
+out:
+	return (error);
+}
+
+void
+lkpi_80211_mo_cancel_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
+{
+	struct lkpi_hw *lhw;
+
+	lhw = HW_TO_LHW(hw);
+	if (lhw->ops->cancel_hw_scan == NULL)
+		return;
+
+	lhw->ops->cancel_hw_scan(hw, vif);
+}
+
+void
+lkpi_80211_mo_sw_scan_complete(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
+{
+	struct lkpi_hw *lhw;
+
+	lhw = HW_TO_LHW(hw);
+	if (lhw->ops->sw_scan_complete == NULL)
+		return;
+
+	lhw->ops->sw_scan_complete(hw, vif);
+	lhw->scan_flags &= ~LKPI_SCAN_RUNNING;
+}
+
+void
+lkpi_80211_mo_sw_scan_start(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+    const u8 *addr)
+{
+	struct lkpi_hw *lhw;
+
+	lhw = HW_TO_LHW(hw);
+	if (lhw->ops->sw_scan_start == NULL)
+		return;
+
+	lhw->ops->sw_scan_start(hw, vif, addr);
+}
+
+
+/*
+ * We keep the Linux type here;  it really is an uintptr_t.
+ */
+u64
+lkpi_80211_mo_prepare_multicast(struct ieee80211_hw *hw,
+    struct netdev_hw_addr_list *mc_list)
+{
+	struct lkpi_hw *lhw;
+	u64 ptr;
+
+	lhw = HW_TO_LHW(hw);
+	if (lhw->ops->prepare_multicast == NULL)
+		return (0);
+
+	ptr = lhw->ops->prepare_multicast(hw, mc_list);
+	return (ptr);
+}
+
+void
+lkpi_80211_mo_configure_filter(struct ieee80211_hw *hw, unsigned int changed_flags,
+    unsigned int *total_flags, u64 mc_ptr)
+{
+	struct lkpi_hw *lhw;
+
+	lhw = HW_TO_LHW(hw);
+	if (lhw->ops->configure_filter == NULL)
+		return;
+
+	if (mc_ptr == 0)
+		return;
+
+	lhw->ops->configure_filter(hw, changed_flags, total_flags, mc_ptr);
+}
+
+
+/*
+ * So far we only called sta_{add,remove} as an alternative to sta_state.
+ * Let's keep the implementation simpler and hid sta_{add,remove} under the
+ * hood here calling them if state_state is not available from mo_sta_state.
+ */
+static int
+lkpi_80211_mo_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+    struct ieee80211_sta *sta)
+{
+	struct lkpi_hw *lhw;
+	struct lkpi_sta *lsta;
+	int error;
+
+	lhw = HW_TO_LHW(hw);
+	if (lhw->ops->sta_add == NULL) {
+		error = EOPNOTSUPP;
+		goto out;
+	}
+
+	lsta = STA_TO_LSTA(sta);
+	if (lsta->added_to_drv) {
+		error = EEXIST;
+		goto out;
+	}
+
+	error = lhw->ops->sta_add(hw, vif, sta);
+	if (error == 0)
+		lsta->added_to_drv = true;
+
+out:
+	return error;
+}
+
+static int
+lkpi_80211_mo_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+    struct ieee80211_sta *sta)
+{
+	struct lkpi_hw *lhw;
+	struct lkpi_sta *lsta;
+	int error;
+
+	lhw = HW_TO_LHW(hw);
+	if (lhw->ops->sta_remove == NULL) {
+		error = EOPNOTSUPP;
+		goto out;
+	}
+
+	lsta = STA_TO_LSTA(sta);
+	if (!lsta->added_to_drv) {
+		/* If we never added the sta, do not complain on cleanup. */
+		error = 0;
+		goto out;
+	}
+
+	error = lhw->ops->sta_remove(hw, vif, sta);
+	if (error == 0)
+		lsta->added_to_drv = false;
+
+out:
+	return error;
+}
+
+int
+lkpi_80211_mo_sta_state(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+    struct ieee80211_sta *sta, enum ieee80211_sta_state nstate)
+{
+	struct lkpi_hw *lhw;
+	struct lkpi_sta *lsta;
+	int error;
+
+	lhw = HW_TO_LHW(hw);
+	lsta = STA_TO_LSTA(sta);
+	if (lhw->ops->sta_state != NULL) {
+		error = lhw->ops->sta_state(hw, vif, sta, lsta->state, nstate);
+		if (error == 0) {
+			if (nstate == IEEE80211_STA_NOTEXIST)
+				lsta->added_to_drv = false;
+			else
+				lsta->added_to_drv = true;
+			lsta->state = nstate;
+		}
+		goto out;
+	}
+
+	/* XXX-BZ is the change state AUTH or ASSOC here? */
+	if (lsta->state < IEEE80211_STA_ASSOC && nstate == IEEE80211_STA_ASSOC)
+		error = lkpi_80211_mo_sta_add(hw, vif, sta);
+	else if (lsta->state >= IEEE80211_STA_ASSOC &&
+	    nstate < IEEE80211_STA_ASSOC)
+		error = lkpi_80211_mo_sta_remove(hw, vif, sta);
+	else
+		/* Nothing to do. */
+		error = 0;
+
+out:
+	/* XXX-BZ should we manage state in here? */
+	return (error);
+}
+
+int
+lkpi_80211_mo_config(struct ieee80211_hw *hw, uint32_t changed)
+{
+	struct lkpi_hw *lhw;
+	int error;
+
+	lhw = HW_TO_LHW(hw);
+	if (lhw->ops->config == NULL) {
+		error = EOPNOTSUPP;
+		goto out;
+	}
+
+	error = lhw->ops->config(hw, changed);
+
+out:
+	return (error);
+}
+
+
+int
+lkpi_80211_mo_assign_vif_chanctx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+    struct ieee80211_chanctx_conf *chanctx_conf)
+{
+	struct lkpi_hw *lhw;
+	int error;
+
+	lhw = HW_TO_LHW(hw);
+	if (lhw->ops->assign_vif_chanctx == NULL) {
+		error = EOPNOTSUPP;
+		goto out;
+	}
+
+	error = lhw->ops->assign_vif_chanctx(hw, vif, chanctx_conf);
+	if (error == 0)
+		vif->chanctx_conf = chanctx_conf;
+
+out:
+	return (error);
+}
+
+void
+lkpi_80211_mo_unassign_vif_chanctx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+    struct ieee80211_chanctx_conf **chanctx_conf)
+{
+	struct lkpi_hw *lhw;
+
+	lhw = HW_TO_LHW(hw);
+	if (lhw->ops->unassign_vif_chanctx == NULL)
+		return;
+
+	if (*chanctx_conf == NULL)
+		return;
+
+	lhw->ops->unassign_vif_chanctx(hw, vif, *chanctx_conf);
+	*chanctx_conf = NULL;
+}
+
+
+int
+lkpi_80211_mo_add_chanctx(struct ieee80211_hw *hw,
+    struct ieee80211_chanctx_conf *chanctx_conf)
+{
+	struct lkpi_hw *lhw;
+	int error;
+
+	lhw = HW_TO_LHW(hw);
+	if (lhw->ops->add_chanctx == NULL) {
+		error = EOPNOTSUPP;
+		goto out;
+	}
+
+	error = lhw->ops->add_chanctx(hw, chanctx_conf);
+
+out:
+	return (error);
+}
+
+void
+lkpi_80211_mo_change_chanctx(struct ieee80211_hw *hw,
+    struct ieee80211_chanctx_conf *chanctx_conf, uint32_t changed)
+{
+	struct lkpi_hw *lhw;
+
+	lhw = HW_TO_LHW(hw);
+	if (lhw->ops->change_chanctx == NULL)
+		return;
+
+	lhw->ops->change_chanctx(hw, chanctx_conf, changed);
+}
+
+void
+lkpi_80211_mo_remove_chanctx(struct ieee80211_hw *hw,
+    struct ieee80211_chanctx_conf *chanctx_conf)
+{
+	struct lkpi_hw *lhw;
+
+	lhw = HW_TO_LHW(hw);
+	if (lhw->ops->remove_chanctx == NULL)
+		return;
+
+	lhw->ops->remove_chanctx(hw, chanctx_conf);
+}
+
+void
+lkpi_80211_mo_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+    struct ieee80211_bss_conf *conf, uint32_t changed)
+{
+	struct lkpi_hw *lhw;
+
+	lhw = HW_TO_LHW(hw);
+	if (lhw->ops->bss_info_changed == NULL)
+		return;
+
+	lhw->ops->bss_info_changed(hw, vif, conf, changed);
+}
+
+
+int
+lkpi_80211_mo_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+    uint16_t ac, const struct ieee80211_tx_queue_params *txqp)
+{
+	struct lkpi_hw *lhw;
+	int error;
+
+	lhw = HW_TO_LHW(hw);
+	if (lhw->ops->conf_tx == NULL) {
+		error = EOPNOTSUPP;
+		goto out;
+	}
+
+	error = lhw->ops->conf_tx(hw, vif, ac, txqp);
+
+out:
+	return (error);
+}
+
+void
+lkpi_80211_mo_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+    uint32_t nqueues, bool drop)
+{
+	struct lkpi_hw *lhw;
+
+	lhw = HW_TO_LHW(hw);
+	if (lhw->ops->flush == NULL)
+		return;
+
+	lhw->ops->flush(hw, vif, nqueues, drop);
+}
+
+void
+lkpi_80211_mo_mgd_prepare_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+    struct ieee80211_prep_tx_info *txinfo)
+{
+	struct lkpi_hw *lhw;
+
+	lhw = HW_TO_LHW(hw);
+	if (lhw->ops->mgd_prepare_tx == NULL)
+		return;
+
+	lhw->ops->mgd_prepare_tx(hw, vif, txinfo);
+}
+
+void
+lkpi_80211_mo_mgd_complete_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+    struct ieee80211_prep_tx_info *txinfo)
+{
+	struct lkpi_hw *lhw;
+
+	lhw = HW_TO_LHW(hw);
+	if (lhw->ops->mgd_complete_tx == NULL)
+		return;
+
+	lhw->ops->mgd_complete_tx(hw, vif, txinfo);
+}
+
+void
+lkpi_80211_mo_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *txctrl,
+    struct sk_buff *skb)
+{
+	struct lkpi_hw *lhw;
+
+	lhw = HW_TO_LHW(hw);
+	if (lhw->ops->tx == NULL)
+		return;
+
+	lhw->ops->tx(hw, txctrl, skb);
+}
+
+void
+lkpi_80211_mo_wake_tx_queue(struct ieee80211_hw *hw, struct ieee80211_txq *txq)
+{
+	struct lkpi_hw *lhw;
+
+	lhw = HW_TO_LHW(hw);
+	if (lhw->ops->wake_tx_queue == NULL)
+		return;
+
+	lhw->ops->wake_tx_queue(hw, txq);
+}
+
+void
+lkpi_80211_mo_sync_rx_queues(struct ieee80211_hw *hw)
+{
+	struct lkpi_hw *lhw;
+
+	lhw = HW_TO_LHW(hw);
+	if (lhw->ops->sync_rx_queues == NULL)
+		return;
+
+	lhw->ops->sync_rx_queues(hw);
+}
+
+void
+lkpi_80211_mo_sta_pre_rcu_remove(struct ieee80211_hw *hw,
+    struct ieee80211_vif *vif, struct ieee80211_sta *sta)
+{
+	struct lkpi_hw *lhw;
+
+	lhw = HW_TO_LHW(hw);
+	if (lhw->ops->sta_pre_rcu_remove == NULL)
+		return;
+
+	lhw->ops->sta_pre_rcu_remove(hw, vif, sta);
+}
+
+int
+lkpi_80211_mo_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
+    struct ieee80211_vif *vif, struct ieee80211_sta *sta,
+    struct ieee80211_key_conf *kc)
+{
+	struct lkpi_hw *lhw;
+	int error;
+
+	lhw = HW_TO_LHW(hw);
+	if (lhw->ops->set_key == NULL) {
+		error = EOPNOTSUPP;
+		goto out;
+	}
+
+	error = lhw->ops->set_key(hw, cmd, vif, sta, kc);
+
+out:
+	return (error);
+}
