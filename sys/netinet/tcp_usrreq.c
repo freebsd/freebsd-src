@@ -594,6 +594,8 @@ tcp_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 #endif
 	tcp_timer_activate(tp, TT_KEEP, TP_KEEPINIT(tp));
 	error = tcp_output(tp);
+	KASSERT(error >= 0, ("TCP stack %s requested tcp_drop(%p) at connect()",
+	    tp->t_fb->tfb_tcp_block_name, tp));
 out_in_epoch:
 	NET_EPOCH_EXIT(et);
 out:
@@ -720,6 +722,8 @@ out_in_epoch:
 #endif
 	NET_EPOCH_EXIT(et);
 out:
+	KASSERT(error >= 0, ("TCP stack %s requested tcp_drop(%p) at connect()",
+	    tp->t_fb->tfb_tcp_block_name, tp));
 	/*
 	 * If the implicit bind in the connect call fails, restore
 	 * the flags we modified.
@@ -896,21 +900,20 @@ tcp_usr_shutdown(struct socket *so)
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("inp == NULL"));
 	INP_WLOCK(inp);
+	tp = intotcpcb(inp);
 	if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
 		error = ECONNRESET;
 		goto out;
 	}
-	tp = intotcpcb(inp);
 	TCPDEBUG1();
 	socantsendmore(so);
 	tcp_usrclosed(tp);
 	if (!(inp->inp_flags & INP_DROPPED))
-		error = tcp_output(tp);
-
+		error = tcp_output_nodrop(tp);
 out:
 	TCPDEBUG2(PRU_SHUTDOWN);
 	TCP_PROBE2(debug__user, tp, PRU_SHUTDOWN);
-	INP_WUNLOCK(inp);
+	error = tcp_unlock_or_drop(tp, error);
 	NET_EPOCH_EXIT(et);
 
 	return (error);
@@ -925,17 +928,18 @@ tcp_usr_rcvd(struct socket *so, int flags)
 	struct epoch_tracker et;
 	struct inpcb *inp;
 	struct tcpcb *tp = NULL;
-	int error = 0;
+	int outrv = 0, error = 0;
 
 	TCPDEBUG0;
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("tcp_usr_rcvd: inp == NULL"));
 	INP_WLOCK(inp);
+	NET_EPOCH_ENTER(et);
+	tp = intotcpcb(inp);
 	if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
 		error = ECONNRESET;
 		goto out;
 	}
-	tp = intotcpcb(inp);
 	TCPDEBUG1();
 	/*
 	 * For passively-created TFO connections, don't attempt a window
@@ -947,18 +951,17 @@ tcp_usr_rcvd(struct socket *so, int flags)
 	if (IS_FASTOPEN(tp->t_flags) &&
 	    (tp->t_state == TCPS_SYN_RECEIVED))
 		goto out;
-	NET_EPOCH_ENTER(et);
 #ifdef TCP_OFFLOAD
 	if (tp->t_flags & TF_TOE)
 		tcp_offload_rcvd(tp);
 	else
 #endif
-	tcp_output(tp);
-	NET_EPOCH_EXIT(et);
+		outrv = tcp_output_nodrop(tp);
 out:
 	TCPDEBUG2(PRU_RCVD);
 	TCP_PROBE2(debug__user, tp, PRU_RCVD);
-	INP_WUNLOCK(inp);
+	(void) tcp_unlock_or_drop(tp, outrv);
+	NET_EPOCH_EXIT(et);
 	return (error);
 }
 
@@ -999,6 +1002,7 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("tcp_usr_send: inp == NULL"));
 	INP_WLOCK(inp);
+	tp = intotcpcb(inp);
 	vflagsav = inp->inp_vflag;
 	incflagsav = inp->inp_inc.inc_flags;
 	restoreflags = false;
@@ -1018,7 +1022,6 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 		m_freem(control);	/* empty control, just free it */
 		control = NULL;
 	}
-	tp = intotcpcb(inp);
 	if ((flags & PRUS_OOB) != 0 &&
 	    (error = tcp_pru_options_support(tp, PRUS_OOB)) != 0)
 		goto out;
@@ -1188,7 +1191,7 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 		    !(flags & PRUS_NOTREADY)) {
 			if (flags & PRUS_MORETOCOME)
 				tp->t_flags |= TF_MORETOCOME;
-			error = tcp_output(tp);
+			error = tcp_output_nodrop(tp);
 			if (flags & PRUS_MORETOCOME)
 				tp->t_flags &= ~TF_MORETOCOME;
 		}
@@ -1255,7 +1258,7 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 		tp->snd_up = tp->snd_una + sbavail(&so->so_snd);
 		if ((flags & PRUS_NOTREADY) == 0) {
 			tp->t_flags |= TF_FORCEDATA;
-			error = tcp_output(tp);
+			error = tcp_output_nodrop(tp);
 			tp->t_flags &= ~TF_FORCEDATA;
 		}
 	}
@@ -1285,7 +1288,7 @@ out:
 		  ((flags & PRUS_EOF) ? PRU_SEND_EOF : PRU_SEND));
 	TCP_PROBE2(debug__user, tp, (flags & PRUS_OOB) ? PRU_SENDOOB :
 		   ((flags & PRUS_EOF) ? PRU_SEND_EOF : PRU_SEND));
-	INP_WUNLOCK(inp);
+	error = tcp_unlock_or_drop(tp, error);
 	NET_EPOCH_EXIT(et);
 	return (error);
 }
@@ -1310,12 +1313,13 @@ tcp_usr_ready(struct socket *so, struct mbuf *m, int count)
 	SOCKBUF_LOCK(&so->so_snd);
 	error = sbready(&so->so_snd, m, count);
 	SOCKBUF_UNLOCK(&so->so_snd);
-	if (error == 0) {
-		NET_EPOCH_ENTER(et);
-		error = tcp_output(tp);
-		NET_EPOCH_EXIT(et);
+	if (error) {
+		INP_WUNLOCK(inp);
+		return (error);
 	}
-	INP_WUNLOCK(inp);
+	NET_EPOCH_ENTER(et);
+	error = tcp_output_unlock(tp);
+	NET_EPOCH_EXIT(et);
 
 	return (error);
 }
@@ -2238,7 +2242,7 @@ unlock_and_done:
 					struct epoch_tracker et;
 
 					NET_EPOCH_ENTER(et);
-					error = tcp_output(tp);
+					error = tcp_output_nodrop(tp);
 					NET_EPOCH_EXIT(et);
 				}
 			}
@@ -2767,7 +2771,8 @@ tcp_disconnect(struct tcpcb *tp)
 		sbflush(&so->so_rcv);
 		tcp_usrclosed(tp);
 		if (!(inp->inp_flags & INP_DROPPED))
-			tcp_output(tp);
+			/* Ignore stack's drop request, we already at it. */
+			(void)tcp_output_nodrop(tp);
 	}
 }
 

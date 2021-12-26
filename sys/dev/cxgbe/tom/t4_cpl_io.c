@@ -2300,6 +2300,12 @@ sendanother:
 		if (moretocome)
 			tp->t_flags |= TF_MORETOCOME;
 		error = tcp_output(tp);
+		if (error < 0) {
+			INP_UNLOCK_ASSERT(inp);
+			SOCK_IO_SEND_UNLOCK(so);
+			error = -error;
+			goto out;
+		}
 		if (moretocome)
 			tp->t_flags &= ~TF_MORETOCOME;
 	}

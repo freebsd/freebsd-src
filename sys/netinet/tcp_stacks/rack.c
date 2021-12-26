@@ -6319,8 +6319,7 @@ rack_timeout_tlp(struct tcpcb *tp, struct tcp_rack *rack, uint32_t cts, uint8_t 
 	}
 	if (ctf_progress_timeout_check(tp, true)) {
 		rack_log_progress_event(rack, tp, tick, PROGRESS_DROP, __LINE__);
-		tcp_set_inp_to_drop(tp->t_inpcb, ETIMEDOUT);
-		return (1);
+		return (-ETIMEDOUT);	/* tcp_drop() */
 	}
 	/*
 	 * A TLP timer has expired. We have been idle for 2 rtts. So we now
@@ -6538,9 +6537,8 @@ rack_timeout_persist(struct tcpcb *tp, struct tcp_rack *rack, uint32_t cts)
 	if (ctf_progress_timeout_check(tp, false)) {
 		tcp_log_end_status(tp, TCP_EI_STATUS_PERSIST_MAX);
 		rack_log_progress_event(rack, tp, tick, PROGRESS_DROP, __LINE__);
-		tcp_set_inp_to_drop(inp, ETIMEDOUT);
 		counter_u64_add(rack_persists_lost_ends, rack->r_ctl.persist_lost_ends);
-		return (1);
+		return (-ETIMEDOUT);	/* tcp_drop() */
 	}
 	KASSERT(inp != NULL, ("%s: tp %p tp->t_inpcb == NULL", __func__, tp));
 	/*
@@ -6558,10 +6556,9 @@ rack_timeout_persist(struct tcpcb *tp, struct tcp_rack *rack, uint32_t cts)
 	    (ticks - tp->t_rcvtime >= tcp_maxpersistidle ||
 	     TICKS_2_USEC(ticks - tp->t_rcvtime) >= RACK_REXMTVAL(tp) * tcp_totbackoff)) {
 		KMOD_TCPSTAT_INC(tcps_persistdrop);
-		retval = 1;
 		tcp_log_end_status(tp, TCP_EI_STATUS_PERSIST_MAX);
-		tcp_set_inp_to_drop(rack->rc_inp, ETIMEDOUT);
 		counter_u64_add(rack_persists_lost_ends, rack->r_ctl.persist_lost_ends);
+		retval = -ETIMEDOUT;	/* tcp_drop() */
 		goto out;
 	}
 	if ((sbavail(&rack->rc_inp->inp_socket->so_snd) == 0) &&
@@ -6574,11 +6571,10 @@ rack_timeout_persist(struct tcpcb *tp, struct tcp_rack *rack, uint32_t cts)
 	 */
 	if (tp->t_state > TCPS_CLOSE_WAIT &&
 	    (ticks - tp->t_rcvtime) >= TCPTV_PERSMAX) {
-		retval = 1;
 		KMOD_TCPSTAT_INC(tcps_persistdrop);
 		tcp_log_end_status(tp, TCP_EI_STATUS_PERSIST_MAX);
-		tcp_set_inp_to_drop(rack->rc_inp, ETIMEDOUT);
 		counter_u64_add(rack_persists_lost_ends, rack->r_ctl.persist_lost_ends);
+		retval = -ETIMEDOUT;	/* tcp_drop() */
 		goto out;
 	}
 	t_template = tcpip_maketemplate(rack->rc_inp);
@@ -6669,8 +6665,7 @@ rack_timeout_keepalive(struct tcpcb *tp, struct tcp_rack *rack, uint32_t cts)
 dropit:
 	KMOD_TCPSTAT_INC(tcps_keepdrops);
 	tcp_log_end_status(tp, TCP_EI_STATUS_KEEP_MAX);
-	tcp_set_inp_to_drop(rack->rc_inp, ETIMEDOUT);
-	return (1);
+	return (-ETIMEDOUT);	/* tcp_drop() */
 }
 
 /*
@@ -6874,8 +6869,7 @@ rack_timeout_rxt(struct tcpcb *tp, struct tcp_rack *rack, uint32_t cts)
 	if (ctf_progress_timeout_check(tp, false)) {
 		tcp_log_end_status(tp, TCP_EI_STATUS_RETRAN);
 		rack_log_progress_event(rack, tp, tick, PROGRESS_DROP, __LINE__);
-		tcp_set_inp_to_drop(inp, ETIMEDOUT);
-		return (1);
+		return (-ETIMEDOUT);	/* tcp_drop() */
 	}
 	rack->r_ctl.rc_hpts_flags &= ~PACE_TMR_RXT;
 	rack->r_ctl.retran_during_recovery = 0;
@@ -6944,10 +6938,10 @@ rack_timeout_rxt(struct tcpcb *tp, struct tcp_rack *rack, uint32_t cts)
 drop_it:
 		tp->t_rxtshift = TCP_MAXRXTSHIFT;
 		KMOD_TCPSTAT_INC(tcps_timeoutdrop);
-		retval = 1;
-		tcp_set_inp_to_drop(rack->rc_inp,
-		    (tp->t_softerror ? (uint16_t) tp->t_softerror : ETIMEDOUT));
-		goto out;
+		/* XXXGL: previously t_softerror was casted to uint16_t */
+		MPASS(tp->t_softerror >= 0);
+		retval = tp->t_softerror ? -tp->t_softerror : -ETIMEDOUT;
+		goto out;	/* tcp_drop() */
 	}
 	if (tp->t_state == TCPS_SYN_SENT) {
 		/*
@@ -14164,7 +14158,12 @@ rack_do_compressed_ack_processing(struct tcpcb *tp, struct socket *so, struct mb
 	ctf_calc_rwin(so, tp);
 	if ((rack->r_wanted_output != 0) || (rack->r_fast_output != 0)) {
 	send_out_a_rst:
-		(void)tcp_output(tp);
+		if (tcp_output(tp) < 0) {
+#ifdef TCP_ACCOUNTING
+			sched_unpin();
+#endif
+			return (1);
+		}
 		did_out = 1;
 	}
 	rack_free_trim(rack);
@@ -14649,8 +14648,9 @@ rack_do_segment_nounlock(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		if (nxt_pkt == 0) {
 			if ((rack->r_wanted_output != 0) || (rack->r_fast_output != 0)) {
 do_output_now:
+				if (tcp_output(tp) < 0)
+					return (1);
 				did_out = 1;
-				(void)tcp_output(tp);
 			}
 			rack_start_hpts_timer(rack, tp, cts, 0, 0, 0);
 			rack_free_trim(rack);
@@ -16877,12 +16877,20 @@ rack_output(struct tcpcb *tp)
 	}
 	/* Do the timers, which may override the pacer */
 	if (rack->r_ctl.rc_hpts_flags & PACE_TMR_MASK) {
-		if (rack_process_timers(tp, rack, cts, hpts_calling, &doing_tlp)) {
+		int retval;
+
+		retval = rack_process_timers(tp, rack, cts, hpts_calling,
+		    &doing_tlp);
+		if (retval != 0) {
 			counter_u64_add(rack_out_size[TCP_MSS_ACCT_ATIMER], 1);
 #ifdef TCP_ACCOUNTING
 			sched_unpin();
 #endif
-			return (0);
+			/*
+			 * If timers want tcp_drop(), then pass error out,
+			 * otherwise suppress it.
+			 */
+			return (retval < 0 ? retval : 0);
 		}
 	}
 	if (rack->rc_in_persist) {
@@ -20393,6 +20401,7 @@ static struct tcp_function_block __tcp_rack = {
 	.tfb_tcp_mtu_chg = rack_mtu_change,
 	.tfb_pru_options = rack_pru_options,
 	.tfb_hwtls_change = rack_hw_tls_change,
+	.tfb_flags = TCP_FUNC_OUTPUT_CANDROP,
 };
 
 /*

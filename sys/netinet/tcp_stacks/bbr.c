@@ -4580,8 +4580,7 @@ bbr_timeout_tlp(struct tcpcb *tp, struct tcp_bbr *bbr, uint32_t cts)
 	}
 	if (ctf_progress_timeout_check(tp, true)) {
 		bbr_log_progress_event(bbr, tp, tick, PROGRESS_DROP, __LINE__);
-		tcp_set_inp_to_drop(bbr->rc_inp, ETIMEDOUT);
-		return (1);
+		return (-ETIMEDOUT);	/* tcp_drop() */
 	}
 	/* Did we somehow get into persists? */
 	if (bbr->rc_in_persist) {
@@ -4773,8 +4772,7 @@ bbr_timeout_persist(struct tcpcb *tp, struct tcp_bbr *bbr, uint32_t cts)
 	 */
 	if (ctf_progress_timeout_check(tp, true)) {
 		bbr_log_progress_event(bbr, tp, tick, PROGRESS_DROP, __LINE__);
-		tcp_set_inp_to_drop(bbr->rc_inp, ETIMEDOUT);
-		goto out;
+		return (-ETIMEDOUT);	/* tcp_drop() */
 	}
 	/*
 	 * Hack: if the peer is dead/unreachable, we do not time out if the
@@ -4787,8 +4785,7 @@ bbr_timeout_persist(struct tcpcb *tp, struct tcp_bbr *bbr, uint32_t cts)
 	    ticks - tp->t_rcvtime >= TCP_REXMTVAL(tp) * tcp_totbackoff)) {
 		KMOD_TCPSTAT_INC(tcps_persistdrop);
 		tcp_log_end_status(tp, TCP_EI_STATUS_PERSIST_MAX);
-		tcp_set_inp_to_drop(bbr->rc_inp, ETIMEDOUT);
-		goto out;
+		return (-ETIMEDOUT);	/* tcp_drop() */
 	}
 	if ((sbavail(&bbr->rc_inp->inp_socket->so_snd) == 0) &&
 	    tp->snd_una == tp->snd_max) {
@@ -4804,8 +4801,7 @@ bbr_timeout_persist(struct tcpcb *tp, struct tcp_bbr *bbr, uint32_t cts)
 	    (ticks - tp->t_rcvtime) >= TCPTV_PERSMAX) {
 		KMOD_TCPSTAT_INC(tcps_persistdrop);
 		tcp_log_end_status(tp, TCP_EI_STATUS_PERSIST_MAX);
-		tcp_set_inp_to_drop(bbr->rc_inp, ETIMEDOUT);
-		goto out;
+		return (-ETIMEDOUT);	/* tcp_drop() */
 	}
 	t_template = tcpip_maketemplate(bbr->rc_inp);
 	if (t_template) {
@@ -4877,8 +4873,7 @@ bbr_timeout_keepalive(struct tcpcb *tp, struct tcp_bbr *bbr, uint32_t cts)
 dropit:
 	KMOD_TCPSTAT_INC(tcps_keepdrops);
 	tcp_log_end_status(tp, TCP_EI_STATUS_KEEP_MAX);
-	tcp_set_inp_to_drop(bbr->rc_inp, ETIMEDOUT);
-	return (1);
+	return (-ETIMEDOUT);	/* tcp_drop() */
 }
 
 /*
@@ -4998,10 +4993,8 @@ bbr_timeout_rxt(struct tcpcb *tp, struct tcp_bbr *bbr, uint32_t cts)
 	 * and retransmit one segment.
 	 */
 	if (ctf_progress_timeout_check(tp, true)) {
-		retval = 1;
 		bbr_log_progress_event(bbr, tp, tick, PROGRESS_DROP, __LINE__);
-		tcp_set_inp_to_drop(bbr->rc_inp, ETIMEDOUT);
-		goto out;
+		return (-ETIMEDOUT);	/* tcp_drop() */
 	}
 	bbr_remxt_tmr(tp);
 	if ((bbr->r_ctl.rc_resend == NULL) ||
@@ -5017,11 +5010,11 @@ bbr_timeout_rxt(struct tcpcb *tp, struct tcp_bbr *bbr, uint32_t cts)
 	if (tp->t_rxtshift > TCP_MAXRXTSHIFT) {
 		tp->t_rxtshift = TCP_MAXRXTSHIFT;
 		KMOD_TCPSTAT_INC(tcps_timeoutdrop);
-		retval = 1;
 		tcp_log_end_status(tp, TCP_EI_STATUS_RETRAN);
-		tcp_set_inp_to_drop(bbr->rc_inp,
-		    (tp->t_softerror ? (uint16_t) tp->t_softerror : ETIMEDOUT));
-		goto out;
+		/* XXXGL: previously t_softerror was casted to uint16_t */
+		MPASS(tp->t_softerror >= 0);
+		retval = tp->t_softerror ? -tp->t_softerror : -ETIMEDOUT;
+		return (retval);	/* tcp_drop() */
 	}
 	if (tp->t_state == TCPS_SYN_SENT) {
 		/*
@@ -5194,7 +5187,7 @@ bbr_timeout_rxt(struct tcpcb *tp, struct tcp_bbr *bbr, uint32_t cts)
 	tp->snd_recover = tp->snd_max;
 	tp->t_flags |= TF_ACKNOW;
 	tp->t_rtttime = 0;
-out:
+
 	return (retval);
 }
 
@@ -11637,7 +11630,8 @@ bbr_do_segment_nounlock(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			if (bbr->r_wanted_output != 0) {
 				bbr->rc_output_starts_timer = 0;
 				did_out = 1;
-				(void)tcp_output(tp);
+				if (tcp_output(tp) < 0)
+					return (1);
 			} else
 				bbr_start_hpts_timer(bbr, tp, cts, 6, 0, 0);
 		}
@@ -11676,7 +11670,8 @@ bbr_do_segment_nounlock(struct mbuf *m, struct tcphdr *th, struct socket *so,
 							/* We are late */
 							bbr->r_ctl.rc_last_delay_val = 0;
 							BBR_STAT_INC(bbr_force_output);
-							(void)tcp_output(tp);
+							if (tcp_output(tp) < 0)
+								return (1);
 						}
 					}
 				}
@@ -12163,9 +12158,16 @@ bbr_output_wtime(struct tcpcb *tp, const struct timeval *tv)
 	hpts_calling = inp->inp_hpts_calls;
 	inp->inp_hpts_calls = 0;
 	if (bbr->r_ctl.rc_hpts_flags & PACE_TMR_MASK) {
-		if (bbr_process_timers(tp, bbr, cts, hpts_calling)) {
+		int retval;
+
+		retval = bbr_process_timers(tp, bbr, cts, hpts_calling);
+		if (retval != 0) {
 			counter_u64_add(bbr_out_size[TCP_MSS_ACCT_ATIMER], 1);
-			return (0);
+			/*
+			 * If timers want tcp_drop(), then pass error out,
+			 * otherwise suppress it.
+			 */
+			return (retval < 0 ? retval : 0);
 		}
 	}
 	bbr->rc_inp->inp_flags2 &= ~INP_MBUF_QUEUE_READY;
@@ -13234,10 +13236,9 @@ send:
 					 * is the only thing to do.
 					 */
 					BBR_STAT_INC(bbr_offset_drop);
-					tcp_set_inp_to_drop(inp, EFAULT);
 					SOCKBUF_UNLOCK(sb);
 					(void)m_free(m);
-					return (0);
+					return (-EFAULT); /* tcp_drop() */
 				}
 				len = rsm->r_end - rsm->r_start;
 			}
@@ -13891,7 +13892,7 @@ nomore:
 			bbr->oerror_cnt++;
 		if (bbr_max_net_error_cnt && (bbr->oerror_cnt >= bbr_max_net_error_cnt)) {
 			/* drop the session */
-			tcp_set_inp_to_drop(inp, ENETDOWN);
+			return (-ENETDOWN);
 		}
 		switch (error) {
 		case ENOBUFS:
@@ -14238,6 +14239,7 @@ struct tcp_function_block __tcp_bbr = {
 	.tfb_tcp_handoff_ok = bbr_handoff_ok,
 	.tfb_tcp_mtu_chg = bbr_mtu_chg,
 	.tfb_pru_options = bbr_pru_options,
+	.tfb_flags = TCP_FUNC_OUTPUT_CANDROP,
 };
 
 /*
