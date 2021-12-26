@@ -969,11 +969,10 @@ ctf_do_dropwithreset_conn(struct mbuf *m, struct tcpcb *tp, struct tcphdr *th,
     int32_t rstreason, int32_t tlen)
 {
 
-	if (tp->t_inpcb) {
-		tcp_set_inp_to_drop(tp->t_inpcb, ETIMEDOUT);
-	}
 	tcp_dropwithreset(m, th, tp, tlen, rstreason);
-	INP_WUNLOCK(tp->t_inpcb);
+	tp = tcp_drop(tp, ETIMEDOUT);
+	if (tp)
+		INP_WUNLOCK(tp->t_inpcb);
 }
 
 uint32_t
