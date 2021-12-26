@@ -1,6 +1,4 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause
- *
  * Copyright (c) 2020-2021 The FreeBSD Foundation
  *
  * This software was developed by Björn Zeeb under sponsorship from
