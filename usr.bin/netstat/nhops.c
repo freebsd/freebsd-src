@@ -312,8 +312,10 @@ print_nhop_entry_sysctl(const char *name, struct rt_msghdr *rtm, struct nhop_ext
 
 	xo_emit("{t:refcount/%*lu} ", wid_refcnt, nh->nh_refcount);
 	if (Wflag && nh->prepend_len) {
-		char *prepend_hex = "AABBCCDDEE";
-		xo_emit(" {:nhop-prepend/%*s}", wid_prepend, prepend_hex);
+		int max_bytes = MIN(nh->prepend_len, sizeof(buffer) / 2 - 1);
+		for (int i = 0; i < max_bytes; i++)
+			snprintf(&buffer[i * 2], 3, "%02X", nh->nh_prepend[i]);
+		xo_emit(" {:nhop-prepend/%*s}", wid_prepend, buffer);
 	}
 
 	xo_emit("\n");
