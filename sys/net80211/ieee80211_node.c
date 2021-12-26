@@ -895,6 +895,9 @@ ieee80211_sta_join1(struct ieee80211_node *selbs)
 			 * us to try to re-authenticate if we are operating
 			 * as a station.
 			 */
+			IEEE80211_DPRINTF(vap, IEEE80211_MSG_AUTH,
+			    "%s %p<%s> -> AUTH, FC0_SUBTYPE_DEAUTH\n",
+			    __func__, selbs, ether_sprintf(selbs->ni_macaddr));
 			ieee80211_new_state(vap, IEEE80211_S_AUTH,
 				IEEE80211_FC0_SUBTYPE_DEAUTH);
 		}
