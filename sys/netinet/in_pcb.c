@@ -49,7 +49,9 @@ __FBSDID("$FreeBSD$");
 #include "opt_rss.h"
 
 #include <sys/param.h>
+#include <sys/hash.h>
 #include <sys/systm.h>
+#include <sys/libkern.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
@@ -245,6 +247,16 @@ SYSCTL_COUNTER_U64(_net_inet_ip_rl, OID_AUTO, chgrl, CTLFLAG_RD,
 #endif /* RATELIMIT */
 
 #endif /* INET */
+
+VNET_DEFINE(uint32_t, in_pcbhashseed);
+static void
+in_pcbhashseed_init(void)
+{
+
+	V_in_pcbhashseed = arc4random();
+}
+VNET_SYSINIT(in_pcbhashseed_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_FIRST,
+    in_pcbhashseed_init, 0);
 
 /*
  * in_pcb.c: manage the Protocol Control Blocks.
@@ -2085,8 +2097,8 @@ in_pcblookup_local(struct inpcbinfo *pcbinfo, struct in_addr laddr,
 		 * Look for an unconnected (wildcard foreign addr) PCB that
 		 * matches the local address and port we're looking for.
 		 */
-		head = &pcbinfo->ipi_hashbase[INP_PCBHASH(INADDR_ANY, lport,
-		    0, pcbinfo->ipi_hashmask)];
+		head = &pcbinfo->ipi_hashbase[INP_PCBHASH_WILD(lport,
+		    pcbinfo->ipi_hashmask)];
 		CK_LIST_FOREACH(inp, head, inp_hash) {
 #ifdef INET6
 			/* XXX inp locking */
@@ -2214,7 +2226,7 @@ in_pcblookup_lbgroup(const struct inpcbinfo *pcbinfo,
 		if (grp->il_lport != lport)
 			continue;
 
-		idx = INP_PCBLBGROUP_PKTHASH(faddr->s_addr, lport, fport) %
+		idx = INP_PCBLBGROUP_PKTHASH(faddr, lport, fport) %
 		    grp->il_inpcnt;
 		if (grp->il_laddr.s_addr == laddr->s_addr) {
 			if (numa_domain == M_NODOM ||
@@ -2260,7 +2272,7 @@ in_pcblookup_hash_locked(struct inpcbinfo *pcbinfo, struct in_addr faddr,
 	 * First look for an exact match.
 	 */
 	tmpinp = NULL;
-	head = &pcbinfo->ipi_hashbase[INP_PCBHASH(faddr.s_addr, lport, fport,
+	head = &pcbinfo->ipi_hashbase[INP_PCBHASH(&faddr, lport, fport,
 	    pcbinfo->ipi_hashmask)];
 	CK_LIST_FOREACH(inp, head, inp_hash) {
 #ifdef INET6
@@ -2315,8 +2327,8 @@ in_pcblookup_hash_locked(struct inpcbinfo *pcbinfo, struct in_addr faddr,
 		 *      4. non-jailed, wild.
 		 */
 
-		head = &pcbinfo->ipi_hashbase[INP_PCBHASH(INADDR_ANY, lport,
-		    0, pcbinfo->ipi_hashmask)];
+		head = &pcbinfo->ipi_hashbase[INP_PCBHASH_WILD(lport,
+		    pcbinfo->ipi_hashmask)];
 		CK_LIST_FOREACH(inp, head, inp_hash) {
 #ifdef INET6
 			/* XXX inp locking */
@@ -2439,7 +2451,6 @@ in_pcbinshash(struct inpcb *inp)
 	struct inpcbporthead *pcbporthash;
 	struct inpcbinfo *pcbinfo = inp->inp_pcbinfo;
 	struct inpcbport *phd;
-	u_int32_t hashkey_faddr;
 	int so_options;
 
 	INP_WLOCK_ASSERT(inp);
@@ -2450,13 +2461,12 @@ in_pcbinshash(struct inpcb *inp)
 
 #ifdef INET6
 	if (inp->inp_vflag & INP_IPV6)
-		hashkey_faddr = INP6_PCBHASHKEY(&inp->in6p_faddr);
+		pcbhash = &pcbinfo->ipi_hashbase[INP6_PCBHASH(&inp->in6p_faddr,
+		    inp->inp_lport, inp->inp_fport, pcbinfo->ipi_hashmask)];
 	else
 #endif
-	hashkey_faddr = inp->inp_faddr.s_addr;
-
-	pcbhash = &pcbinfo->ipi_hashbase[INP_PCBHASH(hashkey_faddr,
-		 inp->inp_lport, inp->inp_fport, pcbinfo->ipi_hashmask)];
+		pcbhash = &pcbinfo->ipi_hashbase[INP_PCBHASH(&inp->inp_faddr,
+		    inp->inp_lport, inp->inp_fport, pcbinfo->ipi_hashmask)];
 
 	pcbporthash = &pcbinfo->ipi_porthashbase[
 	    INP_PCBPORTHASH(inp->inp_lport, pcbinfo->ipi_porthashmask)];
@@ -2516,7 +2526,6 @@ in_pcbrehash(struct inpcb *inp)
 {
 	struct inpcbinfo *pcbinfo = inp->inp_pcbinfo;
 	struct inpcbhead *head;
-	u_int32_t hashkey_faddr;
 
 	INP_WLOCK_ASSERT(inp);
 	INP_HASH_WLOCK_ASSERT(pcbinfo);
@@ -2526,13 +2535,12 @@ in_pcbrehash(struct inpcb *inp)
 
 #ifdef INET6
 	if (inp->inp_vflag & INP_IPV6)
-		hashkey_faddr = INP6_PCBHASHKEY(&inp->in6p_faddr);
+		head = &pcbinfo->ipi_hashbase[INP6_PCBHASH(&inp->in6p_faddr,
+		    inp->inp_lport, inp->inp_fport, pcbinfo->ipi_hashmask)];
 	else
 #endif
-	hashkey_faddr = inp->inp_faddr.s_addr;
-
-	head = &pcbinfo->ipi_hashbase[INP_PCBHASH(hashkey_faddr,
-		inp->inp_lport, inp->inp_fport, pcbinfo->ipi_hashmask)];
+		head = &pcbinfo->ipi_hashbase[INP_PCBHASH(&inp->inp_faddr,
+		    inp->inp_lport, inp->inp_fport, pcbinfo->ipi_hashmask)];
 
 	CK_LIST_REMOVE(inp, inp_hash);
 	CK_LIST_INSERT_HEAD(head, inp, inp_hash);

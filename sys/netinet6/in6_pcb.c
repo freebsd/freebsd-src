@@ -75,6 +75,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_route.h"
 #include "opt_rss.h"
 
+#include <sys/hash.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
@@ -787,8 +788,7 @@ in6_pcblookup_local(struct inpcbinfo *pcbinfo, struct in6_addr *laddr,
 		 * Look for an unconnected (wildcard foreign addr) PCB that
 		 * matches the local address and port we're looking for.
 		 */
-		head = &pcbinfo->ipi_hashbase[INP_PCBHASH(
-		    INP6_PCBHASHKEY(&in6addr_any), lport, 0,
+		head = &pcbinfo->ipi_hashbase[INP_PCBHASH_WILD(lport,
 		    pcbinfo->ipi_hashmask)];
 		CK_LIST_FOREACH(inp, head, inp_hash) {
 			/* XXX inp locking */
@@ -972,8 +972,8 @@ in6_pcblookup_lbgroup(const struct inpcbinfo *pcbinfo,
 		if (grp->il_lport != lport)
 			continue;
 
-		idx = INP_PCBLBGROUP_PKTHASH(INP6_PCBHASHKEY(faddr), lport,
-		    fport) % grp->il_inpcnt;
+		idx = INP6_PCBLBGROUP_PKTHASH(faddr, lport, fport) %
+		    grp->il_inpcnt;
 		if (IN6_ARE_ADDR_EQUAL(&grp->il6_laddr, laddr)) {
 			if (numa_domain == M_NODOM ||
 			    grp->il_numa_domain == numa_domain) {
@@ -1015,8 +1015,8 @@ in6_pcblookup_hash_locked(struct inpcbinfo *pcbinfo, struct in6_addr *faddr,
 	 * First look for an exact match.
 	 */
 	tmpinp = NULL;
-	head = &pcbinfo->ipi_hashbase[INP_PCBHASH(
-	    INP6_PCBHASHKEY(faddr), lport, fport, pcbinfo->ipi_hashmask)];
+	head = &pcbinfo->ipi_hashbase[INP6_PCBHASH(faddr, lport, fport,
+	    pcbinfo->ipi_hashmask)];
 	CK_LIST_FOREACH(inp, head, inp_hash) {
 		/* XXX inp locking */
 		if ((inp->inp_vflag & INP_IPV6) == 0)
@@ -1064,8 +1064,7 @@ in6_pcblookup_hash_locked(struct inpcbinfo *pcbinfo, struct in6_addr *faddr,
 		 *      3. non-jailed, non-wild.
 		 *      4. non-jailed, wild.
 		 */
-		head = &pcbinfo->ipi_hashbase[INP_PCBHASH(
-		    INP6_PCBHASHKEY(&in6addr_any), lport, 0,
+		head = &pcbinfo->ipi_hashbase[INP_PCBHASH_WILD(lport,
 		    pcbinfo->ipi_hashmask)];
 		CK_LIST_FOREACH(inp, head, inp_hash) {
 			/* XXX inp locking */
