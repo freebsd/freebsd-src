@@ -211,6 +211,7 @@ SUBDIR=	\
 	libmchain \
 	lindebugfs \
 	linuxkpi \
+	linuxkpi_wlan \
 	${_lio} \
 	lpt \
 	mac_biba \
