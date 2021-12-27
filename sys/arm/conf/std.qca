@@ -24,6 +24,11 @@ device 		syscon
 # Random
 device 		qcom_rnd
 
+# SPI
+device 		spibus
+device 		qcom_qup_spi
+device 		mx25l
+
 # interrupt controller
 device 		gic
 
