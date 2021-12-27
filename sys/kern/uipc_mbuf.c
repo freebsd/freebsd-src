@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/protosw.h>
 #include <sys/uio.h>
 #include <sys/vmmeter.h>
+#include <sys/sbuf.h>
 #include <sys/sdt.h>
 #include <vm/vm.h>
 #include <vm/vm_pageout.h>
@@ -2128,16 +2129,6 @@ struct mbufprofile {
 	uintmax_t segments[MP_BUCKETS];
 } mbprof;
 
-#define MP_MAXDIGITS 21	/* strlen("16,000,000,000,000,000,000") == 21 */
-#define MP_NUMLINES 6
-#define MP_NUMSPERLINE 16
-#define MP_EXTRABYTES 64	/* > strlen("used:\nwasted:\nsegments:\n") */
-/* work out max space needed and add a bit of spare space too */
-#define MP_MAXLINE ((MP_MAXDIGITS+1) * MP_NUMSPERLINE)
-#define MP_BUFSIZE ((MP_MAXLINE * MP_NUMLINES) + 1 + MP_EXTRABYTES)
-
-char mbprofbuf[MP_BUFSIZE];
-
 void
 m_profile(struct mbuf *m)
 {
@@ -2173,16 +2164,18 @@ m_profile(struct mbuf *m)
 	mbprof.wasted[fls(wasted)]++;
 }
 
-static void
-mbprof_textify(void)
+static int
+mbprof_handler(SYSCTL_HANDLER_ARGS)
 {
-	int offset;
-	char *c;
+	char buf[256];
+	struct sbuf sb;
+	int error;
 	uint64_t *p;
 
+	sbuf_new_for_sysctl(&sb, buf, sizeof(buf), req);
+
 	p = &mbprof.wasted[0];
-	c = mbprofbuf;
-	offset = snprintf(c, MP_MAXLINE + 10,
+	sbuf_printf(&sb,
 	    "wasted:\n"
 	    "%ju %ju %ju %ju %ju %ju %ju %ju "
 	    "%ju %ju %ju %ju %ju %ju %ju %ju\n",
@@ -2190,16 +2183,14 @@ mbprof_textify(void)
 	    p[8], p[9], p[10], p[11], p[12], p[13], p[14], p[15]);
 #ifdef BIG_ARRAY
 	p = &mbprof.wasted[16];
-	c += offset;
-	offset = snprintf(c, MP_MAXLINE,
+	sbuf_printf(&sb,
 	    "%ju %ju %ju %ju %ju %ju %ju %ju "
 	    "%ju %ju %ju %ju %ju %ju %ju %ju\n",
 	    p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7],
 	    p[8], p[9], p[10], p[11], p[12], p[13], p[14], p[15]);
 #endif
 	p = &mbprof.used[0];
-	c += offset;
-	offset = snprintf(c, MP_MAXLINE + 10,
+	sbuf_printf(&sb,
 	    "used:\n"
 	    "%ju %ju %ju %ju %ju %ju %ju %ju "
 	    "%ju %ju %ju %ju %ju %ju %ju %ju\n",
@@ -2207,16 +2198,14 @@ mbprof_textify(void)
 	    p[8], p[9], p[10], p[11], p[12], p[13], p[14], p[15]);
 #ifdef BIG_ARRAY
 	p = &mbprof.used[16];
-	c += offset;
-	offset = snprintf(c, MP_MAXLINE,
+	sbuf_printf(&sb,
 	    "%ju %ju %ju %ju %ju %ju %ju %ju "
 	    "%ju %ju %ju %ju %ju %ju %ju %ju\n",
 	    p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7],
 	    p[8], p[9], p[10], p[11], p[12], p[13], p[14], p[15]);
 #endif
 	p = &mbprof.segments[0];
-	c += offset;
-	offset = snprintf(c, MP_MAXLINE + 10,
+	sbuf_printf(&sb,
 	    "segments:\n"
 	    "%ju %ju %ju %ju %ju %ju %ju %ju "
 	    "%ju %ju %ju %ju %ju %ju %ju %ju\n",
@@ -2224,22 +2213,15 @@ mbprof_textify(void)
 	    p[8], p[9], p[10], p[11], p[12], p[13], p[14], p[15]);
 #ifdef BIG_ARRAY
 	p = &mbprof.segments[16];
-	c += offset;
-	offset = snprintf(c, MP_MAXLINE,
+	sbuf_printf(&sb,
 	    "%ju %ju %ju %ju %ju %ju %ju %ju "
 	    "%ju %ju %ju %ju %ju %ju %ju %jju",
 	    p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7],
 	    p[8], p[9], p[10], p[11], p[12], p[13], p[14], p[15]);
 #endif
-}
 
-static int
-mbprof_handler(SYSCTL_HANDLER_ARGS)
-{
-	int error;
-
-	mbprof_textify();
-	error = SYSCTL_OUT(req, mbprofbuf, strlen(mbprofbuf) + 1);
+	error = sbuf_finish(&sb);
+	sbuf_delete(&sb);
 	return (error);
 }
 
@@ -2261,12 +2243,12 @@ mbprof_clr_handler(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_kern_ipc, OID_AUTO, mbufprofile,
-    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT, NULL, 0,
+    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, 0,
     mbprof_handler, "A",
     "mbuf profiling statistics");
 
 SYSCTL_PROC(_kern_ipc, OID_AUTO, mbufprofileclr,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, NULL, 0,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, NULL, 0,
     mbprof_clr_handler, "I",
     "clear mbuf profiling statistics");
 #endif
