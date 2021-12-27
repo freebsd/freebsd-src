@@ -3390,7 +3390,7 @@ sysctl_debug_ng_dump_items(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_debug, OID_AUTO, ng_dump_items,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, 0, sizeof(int),
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, 0, sizeof(int),
     sysctl_debug_ng_dump_items, "I",
     "Number of allocated items");
 #endif	/* NETGRAPH_DEBUG */
