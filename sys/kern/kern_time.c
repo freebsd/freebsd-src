@@ -1266,13 +1266,11 @@ kern_ktimer_create(struct thread *td, clockid_t clock_id, struct sigevent *evp,
 	it = uma_zalloc(itimer_zone, M_WAITOK);
 	it->it_flags = 0;
 	it->it_usecount = 0;
-	it->it_active = 0;
 	timespecclear(&it->it_time.it_value);
 	timespecclear(&it->it_time.it_interval);
 	it->it_overrun = 0;
 	it->it_overrun_last = 0;
 	it->it_clockid = clock_id;
-	it->it_timerid = -1;
 	it->it_proc = p;
 	ksiginfo_init(&it->it_ksi);
 	it->it_ksi.ksi_flags |= KSI_INS | KSI_EXT;
@@ -1303,7 +1301,6 @@ kern_ktimer_create(struct thread *td, clockid_t clock_id, struct sigevent *evp,
 			goto out;
 		}
 	}
-	it->it_timerid = id;
 	p->p_itimers->its_timers[id] = it;
 	if (evp != NULL)
 		it->it_sigev = *evp;
@@ -1787,9 +1784,6 @@ itimers_alloc(struct proc *p)
 	struct itimers *its;
 
 	its = malloc(sizeof (struct itimers), M_SUBPROC, M_WAITOK | M_ZERO);
-	LIST_INIT(&its->its_virtual);
-	LIST_INIT(&its->its_prof);
-	TAILQ_INIT(&its->its_worklist);
 	PROC_LOCK(p);
 	if (p->p_itimers == NULL) {
 		p->p_itimers = its;
