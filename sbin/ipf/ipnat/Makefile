@@ -14,7 +14,6 @@ ipnat_y.c: ipnat_y.y
 	${YACC} -d ${.ALLSRC}
 	sed -e 's/yy/ipnat_yy/g' \
 	    -e 's/y.tab.c/ipnat_y.c/' \
-	    -e s/\"ipnat_y.y\"/\"..\\/tools\\/ipnat_y.y\"/ \
 	    y.tab.c > ${.TARGET}
 	sed -e 's/yy/ipnat_yy/g' \
 	    -e 's/y.tab.h/ipnat_y.h/' \

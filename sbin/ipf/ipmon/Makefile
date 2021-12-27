@@ -14,7 +14,6 @@ CLEANFILES+=	${GENHDRS} ipmon_y.c ipmon_l.c
 ipmon_y.c: ipmon_y.y
 	${YACC} -d ${.ALLSRC}
 	sed -e 's/yy/ipmon_yy/g' \
-	    -e 's/"ipmon_y.y"/"..\/tools\/ipmon_y.y"/' \
 	    y.tab.c > ${.TARGET}
 	sed -e 's/yy/ipmon_yy/g' \
 	    y.tab.h > ${.TARGET:.c=.h}
