@@ -101,7 +101,7 @@ sysctl_hw_sndverbose(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 SYSCTL_PROC(_hw_snd, OID_AUTO, verbose,
-    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_NEEDGIANT, 0, sizeof(int),
+    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE, 0, sizeof(int),
     sysctl_hw_sndverbose, "I",
     "verbosity level");
 
