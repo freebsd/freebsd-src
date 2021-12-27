@@ -934,12 +934,12 @@ tcp_usr_rcvd(struct socket *so, int flags)
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("tcp_usr_rcvd: inp == NULL"));
 	INP_WLOCK(inp);
-	NET_EPOCH_ENTER(et);
-	tp = intotcpcb(inp);
 	if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
-		error = ECONNRESET;
-		goto out;
+		INP_WUNLOCK(inp);
+		return (ECONNRESET);
 	}
+	tp = intotcpcb(inp);
+	NET_EPOCH_ENTER(et);
 	TCPDEBUG1();
 	/*
 	 * For passively-created TFO connections, don't attempt a window
