@@ -737,13 +737,13 @@ acpi_asus_attach(device_t dev)
 			    SYSCTL_CHILDREN(sc->sysctl_tree), OID_AUTO,
 			    acpi_asus_sysctls[i].name,
 			    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_ANYBODY |
-			    CTLFLAG_NEEDGIANT, sc, i, acpi_asus_sysctl, "I",
+			    CTLFLAG_MPSAFE, sc, i, acpi_asus_sysctl, "I",
 			    acpi_asus_sysctls[i].description);
 		} else {
 			SYSCTL_ADD_PROC(&sc->sysctl_ctx,
 			    SYSCTL_CHILDREN(sc->sysctl_tree), OID_AUTO,
 			    acpi_asus_sysctls[i].name,
-			    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+			    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
 			    sc, i, acpi_asus_sysctl, "I",
 			    acpi_asus_sysctls[i].description);
 		}

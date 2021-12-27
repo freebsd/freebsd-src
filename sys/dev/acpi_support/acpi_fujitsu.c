@@ -417,7 +417,7 @@ acpi_fujitsu_init(struct acpi_fujitsu_softc *sc)
 		    SYSCTL_CHILDREN(sc->sysctl_tree), OID_AUTO,
 		    sysctl_table[i].name,
 		    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_ANYBODY |
-		    CTLFLAG_NEEDGIANT, sc, i, acpi_fujitsu_sysctl, "I",
+		    CTLFLAG_MPSAFE, sc, i, acpi_fujitsu_sysctl, "I",
 		    sysctl_table[i].description);
 	}
 
