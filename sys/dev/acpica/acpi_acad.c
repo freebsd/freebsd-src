@@ -173,7 +173,7 @@ acpi_acad_attach(device_t dev)
 	acpi_sc = acpi_device_get_parent_softc(dev);
 	SYSCTL_ADD_PROC(&acpi_sc->acpi_sysctl_ctx,
 	    SYSCTL_CHILDREN(acpi_sc->acpi_sysctl_tree), OID_AUTO, "acline",
-	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_NEEDGIANT, &sc->status, 0,
+	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE, dev, 0,
 	    acpi_acad_sysctl, "I", "");
     }
 
@@ -219,14 +219,13 @@ acpi_acad_ioctl(u_long cmd, caddr_t addr, void *arg)
 static int
 acpi_acad_sysctl(SYSCTL_HANDLER_ARGS)
 {
-    int val, error;
+    device_t dev = oidp->oid_arg1;
+    struct acpi_acad_softc *sc = device_get_softc(dev);
+    int val;
 
-    if (acpi_acad_get_acline(&val) != 0)
-	return (ENXIO);
-
-    val = *(u_int *)oidp->oid_arg1;
-    error = sysctl_handle_int(oidp, &val, 0, req);
-    return (error);
+    acpi_acad_get_status(dev);
+    val = sc->status;
+    return (sysctl_handle_int(oidp, &val, 0, req));
 }
 
 static void
