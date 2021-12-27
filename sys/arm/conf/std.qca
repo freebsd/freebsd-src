@@ -24,7 +24,11 @@ device 		syscon
 # Random
 device 		qcom_rnd
 
+# interrupt controller
 device 		gic
+
+# cpu frequency
+device 		cpufreq
 
 # MMC/SD/SDIO Card slot support
 device 		mmc
