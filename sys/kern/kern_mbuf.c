@@ -223,7 +223,7 @@ sysctl_nmbclusters(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 SYSCTL_PROC(_kern_ipc, OID_AUTO, nmbclusters,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, &nmbclusters, 0,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, &nmbclusters, 0,
     sysctl_nmbclusters, "IU",
     "Maximum number of mbuf clusters allowed");
 
@@ -245,7 +245,7 @@ sysctl_nmbjumbop(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 SYSCTL_PROC(_kern_ipc, OID_AUTO, nmbjumbop,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, &nmbjumbop, 0,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, &nmbjumbop, 0,
     sysctl_nmbjumbop, "IU",
     "Maximum number of mbuf page size jumbo clusters allowed");
 
@@ -267,7 +267,7 @@ sysctl_nmbjumbo9(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 SYSCTL_PROC(_kern_ipc, OID_AUTO, nmbjumbo9,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, &nmbjumbo9, 0,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, &nmbjumbo9, 0,
     sysctl_nmbjumbo9, "IU",
     "Maximum number of mbuf 9k jumbo clusters allowed");
 
@@ -289,7 +289,7 @@ sysctl_nmbjumbo16(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 SYSCTL_PROC(_kern_ipc, OID_AUTO, nmbjumbo16,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, &nmbjumbo16, 0,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, &nmbjumbo16, 0,
     sysctl_nmbjumbo16, "IU",
     "Maximum number of mbuf 16k jumbo clusters allowed");
 
@@ -311,7 +311,7 @@ sysctl_nmbufs(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 SYSCTL_PROC(_kern_ipc, OID_AUTO, nmbufs,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
     &nmbufs, 0, sysctl_nmbufs, "IU",
     "Maximum number of mbufs allowed");
 
