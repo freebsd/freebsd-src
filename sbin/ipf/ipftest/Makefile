@@ -38,7 +38,6 @@ ipnat.tab.c ipnat.tab.h: ipnat_y.y
 ipnat_y.c: ipnat.tab.c
 	sed -e 's/yy/ipnat_yy/g' \
 	    -e 's/y.tab.c/ipnat_y.c/' \
-	    -e s/\"ipnat_y.y\"/\"..\\/tools\\/ipnat_y.y\"/ \
 	    ipnat.tab.c > ${.TARGET}
 
 ipnat_y.h: ipnat.tab.h
@@ -63,7 +62,6 @@ ippool.tab.c ippool.tab.h: ippool_y.y
 
 ippool_y.c: ippool.tab.c
 	sed -e 's/yy/ippool_yy/g' \
-	    -e 's/"ippool_y.y"/"..\/tools\/ippool_y.y"/' \
 	    ippool.tab.c > ${.TARGET}
 
 ippool_y.h: ippool.tab.h
@@ -87,7 +85,6 @@ ipf.tab.c ipf.tab.h: ipf_y.y
 
 ipf_y.c: ipf.tab.c
 	sed -e 's/yy/ipf_yy/g' \
-	    -e 's/"ipf_y.y"/"..\/tools\/ipf_y.y"/' \
 		ipf.tab.c > ${.TARGET}
 
 ipf_y.h: ipf.tab.h

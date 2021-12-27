@@ -13,7 +13,6 @@ CLEANFILES+=	${GENHDRS} ipf_y.c ipf_l.c
 ipf_y.c: ipf_y.y
 	${YACC} -d ${.ALLSRC}
 	sed -e 's/yy/ipf_yy/g' \
-	    -e 's/"ipf_y.y"/"..\/tools\/ipf_y.y"/' \
 	    y.tab.c > ${.TARGET}
 	sed -e 's/yy/ipf_yy/g' \
 	    y.tab.h > ${.TARGET:.c=.h}
