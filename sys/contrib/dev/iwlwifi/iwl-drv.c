@@ -38,8 +38,9 @@ MODULE_LICENSE("GPL");
 #elif defined(__FreeBSD__)
 #define DRV_DESCRIPTION	"Intel(R) Wireless WiFi based driver for FreeBSD"
 MODULE_LICENSE("BSD");
-MODULE_VERSION(iwl, 1);
-MODULE_DEPEND(iwl, linuxkpi, 1, 1, 1);
+MODULE_VERSION(if_iwlwifi, 1);
+MODULE_DEPEND(if_iwlwifi, linuxkpi, 1, 1, 1);
+MODULE_DEPEND(if_iwlwifi, linuxkpi_wlan, 1, 1, 1);
 #endif
 MODULE_DESCRIPTION(DRV_DESCRIPTION);
 
