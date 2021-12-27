@@ -158,10 +158,13 @@ nfsrv_dissectace(struct nfsrv_descript *nd, struct acl_entry *acep,
 			acep->ae_entry_type = ACL_ENTRY_TYPE_ALLOW;
 		else if (acetype == NFSV4ACE_DENIEDTYPE)
 			acep->ae_entry_type = ACL_ENTRY_TYPE_DENY;
+#ifdef notnow
+		/* FreeBSD does not support Audit/Alarm ACEs at this time. */
 		else if (acetype == NFSV4ACE_AUDITTYPE)
 			acep->ae_entry_type = ACL_ENTRY_TYPE_AUDIT;
 		else if (acetype == NFSV4ACE_ALARMTYPE)
 			acep->ae_entry_type = ACL_ENTRY_TYPE_ALARM;
+#endif
 		else
 			aceerr = NFSERR_ATTRNOTSUPP;
 	}
