@@ -263,15 +263,15 @@ acpi_tz_attach(device_t dev)
         SYSCTL_CHILDREN(acpi_tz_sysctl_tree), OID_AUTO, oidname,
 	CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "", "thermal_zone");
     SYSCTL_ADD_PROC(&sc->tz_sysctl_ctx, SYSCTL_CHILDREN(sc->tz_sysctl_tree),
-        OID_AUTO, "temperature", CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
+        OID_AUTO, "temperature", CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE,
 	&sc->tz_temperature, 0, sysctl_handle_int, "IK",
 	"current thermal zone temperature");
     SYSCTL_ADD_PROC(&sc->tz_sysctl_ctx, SYSCTL_CHILDREN(sc->tz_sysctl_tree),
-        OID_AUTO, "active", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, sc,
+        OID_AUTO, "active", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, sc,
 	0, acpi_tz_active_sysctl, "I", "cooling is active");
     SYSCTL_ADD_PROC(&sc->tz_sysctl_ctx, SYSCTL_CHILDREN(sc->tz_sysctl_tree),
         OID_AUTO, "passive_cooling",
-	CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, sc, 0,
+	CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, sc, 0,
 	acpi_tz_cooling_sysctl, "I",
 	"enable passive (speed reduction) cooling");
 
@@ -279,31 +279,31 @@ acpi_tz_attach(device_t dev)
 		   OID_AUTO, "thermal_flags", CTLFLAG_RD,
 		   &sc->tz_thflags, 0, "thermal zone flags");
     SYSCTL_ADD_PROC(&sc->tz_sysctl_ctx, SYSCTL_CHILDREN(sc->tz_sysctl_tree),
-        OID_AUTO, "_PSV", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, sc,
+        OID_AUTO, "_PSV", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, sc,
 	offsetof(struct acpi_tz_softc, tz_zone.psv), acpi_tz_temp_sysctl, "IK",
 	"passive cooling temp setpoint");
     SYSCTL_ADD_PROC(&sc->tz_sysctl_ctx, SYSCTL_CHILDREN(sc->tz_sysctl_tree),
-        OID_AUTO, "_HOT", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, sc,
+        OID_AUTO, "_HOT", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, sc,
 	offsetof(struct acpi_tz_softc, tz_zone.hot), acpi_tz_temp_sysctl, "IK",
 	"too hot temp setpoint (suspend now)");
     SYSCTL_ADD_PROC(&sc->tz_sysctl_ctx, SYSCTL_CHILDREN(sc->tz_sysctl_tree),
-        OID_AUTO, "_CRT", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, sc,
+        OID_AUTO, "_CRT", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, sc,
 	offsetof(struct acpi_tz_softc, tz_zone.crt), acpi_tz_temp_sysctl, "IK",
 	"critical temp setpoint (shutdown now)");
     SYSCTL_ADD_PROC(&sc->tz_sysctl_ctx, SYSCTL_CHILDREN(sc->tz_sysctl_tree),
-        OID_AUTO, "_ACx", CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
+        OID_AUTO, "_ACx", CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE,
 	&sc->tz_zone.ac, sizeof(sc->tz_zone.ac), sysctl_handle_opaque, "IK",
 	"");
     SYSCTL_ADD_PROC(&sc->tz_sysctl_ctx, SYSCTL_CHILDREN(sc->tz_sysctl_tree),
-        OID_AUTO, "_TC1", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, sc,
+        OID_AUTO, "_TC1", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, sc,
 	offsetof(struct acpi_tz_softc, tz_zone.tc1), acpi_tz_passive_sysctl,
 	"I", "thermal constant 1 for passive cooling");
     SYSCTL_ADD_PROC(&sc->tz_sysctl_ctx, SYSCTL_CHILDREN(sc->tz_sysctl_tree),
-        OID_AUTO, "_TC2", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, sc,
+        OID_AUTO, "_TC2", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, sc,
 	offsetof(struct acpi_tz_softc, tz_zone.tc2), acpi_tz_passive_sysctl,
 	"I", "thermal constant 2 for passive cooling");
     SYSCTL_ADD_PROC(&sc->tz_sysctl_ctx, SYSCTL_CHILDREN(sc->tz_sysctl_tree),
-        OID_AUTO, "_TSP", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, sc,
+        OID_AUTO, "_TSP", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, sc,
 	offsetof(struct acpi_tz_softc, tz_zone.tsp), acpi_tz_passive_sysctl,
 	"I", "thermal sampling period for passive cooling");
 

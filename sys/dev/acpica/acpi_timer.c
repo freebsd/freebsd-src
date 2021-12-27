@@ -374,7 +374,7 @@ acpi_timer_sysctl_freq(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_machdep, OID_AUTO, acpi_timer_freq,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, 0, sizeof(u_int),
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, 0, 0,
     acpi_timer_sysctl_freq, "I",
     "ACPI timer frequency");
 

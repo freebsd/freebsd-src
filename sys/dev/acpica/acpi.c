@@ -273,7 +273,7 @@ TUNABLE_STR("hw.acpi.remove_interface", acpi_remove_interface,
 static int acpi_debug_objects;
 TUNABLE_INT("debug.acpi.enable_debug_objects", &acpi_debug_objects);
 SYSCTL_PROC(_debug_acpi, OID_AUTO, enable_debug_objects,
-    CTLFLAG_RW | CTLTYPE_INT | CTLFLAG_NEEDGIANT, NULL, 0,
+    CTLFLAG_RW | CTLTYPE_INT | CTLFLAG_MPSAFE, NULL, 0,
     acpi_debug_objects_sysctl, "I",
     "Enable Debug objects");
 
@@ -559,31 +559,31 @@ acpi_attach(device_t dev)
 	CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "");
     SYSCTL_ADD_PROC(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
 	OID_AUTO, "supported_sleep_state",
-	CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
+	CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
 	0, 0, acpi_supported_sleep_state_sysctl, "A",
 	"List supported ACPI sleep states.");
     SYSCTL_ADD_PROC(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
 	OID_AUTO, "power_button_state",
-	CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+	CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE,
 	&sc->acpi_power_button_sx, 0, acpi_sleep_state_sysctl, "A",
 	"Power button ACPI sleep state.");
     SYSCTL_ADD_PROC(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
 	OID_AUTO, "sleep_button_state",
-	CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+	CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE,
 	&sc->acpi_sleep_button_sx, 0, acpi_sleep_state_sysctl, "A",
 	"Sleep button ACPI sleep state.");
     SYSCTL_ADD_PROC(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
 	OID_AUTO, "lid_switch_state",
-	CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+	CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE,
 	&sc->acpi_lid_switch_sx, 0, acpi_sleep_state_sysctl, "A",
 	"Lid ACPI sleep state. Set to S3 if you want to suspend your laptop when close the Lid.");
     SYSCTL_ADD_PROC(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
 	OID_AUTO, "standby_state",
-	CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+	CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE,
 	&sc->acpi_standby_sx, 0, acpi_sleep_state_sysctl, "A", "");
     SYSCTL_ADD_PROC(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
 	OID_AUTO, "suspend_state",
-	CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+	CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE,
 	&sc->acpi_suspend_sx, 0, acpi_sleep_state_sysctl, "A", "");
     SYSCTL_ADD_INT(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
 	OID_AUTO, "sleep_delay", CTLFLAG_RW, &sc->acpi_sleep_delay, 0,
@@ -4199,11 +4199,11 @@ acpi_debug_sysctl(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_debug_acpi, OID_AUTO, layer,
-    CTLFLAG_RW | CTLTYPE_STRING | CTLFLAG_NEEDGIANT, "debug.acpi.layer", 0,
+    CTLFLAG_RW | CTLTYPE_STRING | CTLFLAG_MPSAFE, "debug.acpi.layer", 0,
     acpi_debug_sysctl, "A",
     "");
 SYSCTL_PROC(_debug_acpi, OID_AUTO, level,
-    CTLFLAG_RW | CTLTYPE_STRING | CTLFLAG_NEEDGIANT, "debug.acpi.level", 0,
+    CTLFLAG_RW | CTLTYPE_STRING | CTLFLAG_MPSAFE, "debug.acpi.level", 0,
     acpi_debug_sysctl, "A",
     "");
 #endif /* ACPI_DEBUG */

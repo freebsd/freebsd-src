@@ -973,7 +973,7 @@ acpi_cpu_startup(void *arg)
 
     /* Add a sysctl handler to handle global Cx lowest setting */
     SYSCTL_ADD_PROC(&cpu_sysctl_ctx, SYSCTL_CHILDREN(cpu_sysctl_tree),
-	OID_AUTO, "cx_lowest", CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+	OID_AUTO, "cx_lowest", CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE,
 	NULL, 0, acpi_cpu_global_cx_lowest_sysctl, "A",
 	"Global lowest Cx sleep state to use");
 
@@ -1018,23 +1018,23 @@ acpi_cpu_startup_cx(struct acpi_cpu_softc *sc)
 		      "Cx/microsecond values for supported Cx states");
     SYSCTL_ADD_PROC(&sc->cpu_sysctl_ctx,
         SYSCTL_CHILDREN(device_get_sysctl_tree(sc->cpu_dev)), OID_AUTO,
-	"cx_lowest", CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+	"cx_lowest", CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE,
 	(void *)sc, 0, acpi_cpu_cx_lowest_sysctl, "A",
 	"lowest Cx sleep state to use");
     SYSCTL_ADD_PROC(&sc->cpu_sysctl_ctx,
         SYSCTL_CHILDREN(device_get_sysctl_tree(sc->cpu_dev)), OID_AUTO,
-	"cx_usage", CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
+	"cx_usage", CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
 	(void *)sc, 0, acpi_cpu_usage_sysctl, "A",
 	"percent usage for each Cx state");
     SYSCTL_ADD_PROC(&sc->cpu_sysctl_ctx,
         SYSCTL_CHILDREN(device_get_sysctl_tree(sc->cpu_dev)), OID_AUTO,
-	"cx_usage_counters", CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
+	"cx_usage_counters", CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
 	(void *)sc, 0, acpi_cpu_usage_counters_sysctl, "A",
 	"Cx sleep state counters");
 #if defined(__i386__) || defined(__amd64__)
     SYSCTL_ADD_PROC(&sc->cpu_sysctl_ctx,
         SYSCTL_CHILDREN(device_get_sysctl_tree(sc->cpu_dev)), OID_AUTO,
-	"cx_method", CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
+	"cx_method", CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
 	(void *)sc, 0, acpi_cpu_method_sysctl, "A", "Cx entrance methods");
 #endif
 
@@ -1339,33 +1339,29 @@ acpi_cpu_quirks_piix4(void)
 static int
 acpi_cpu_usage_sysctl(SYSCTL_HANDLER_ARGS)
 {
-    struct acpi_cpu_softc *sc;
-    struct sbuf	 sb;
-    char	 buf[128];
-    int		 i;
-    uintmax_t	 fract, sum, whole;
+	struct acpi_cpu_softc *sc = (struct acpi_cpu_softc *)arg1;
+	struct sbuf	 sb;
+	char		 buf[128];
+	int		 error, i;
+	uintmax_t	 fract, sum, whole;
 
-    sc = (struct acpi_cpu_softc *) arg1;
-    sum = 0;
-    for (i = 0; i < sc->cpu_cx_count; i++)
-	sum += sc->cpu_cx_stats[i];
-    sbuf_new(&sb, buf, sizeof(buf), SBUF_FIXEDLEN);
-    for (i = 0; i < sc->cpu_cx_count; i++) {
-	if (sum > 0) {
-	    whole = (uintmax_t)sc->cpu_cx_stats[i] * 100;
-	    fract = (whole % sum) * 100;
-	    sbuf_printf(&sb, "%u.%02u%% ", (u_int)(whole / sum),
-		(u_int)(fract / sum));
-	} else
-	    sbuf_printf(&sb, "0.00%% ");
-    }
-    sbuf_printf(&sb, "last %dus", sc->cpu_prev_sleep);
-    sbuf_trim(&sb);
-    sbuf_finish(&sb);
-    sysctl_handle_string(oidp, sbuf_data(&sb), sbuf_len(&sb), req);
-    sbuf_delete(&sb);
-
-    return (0);
+	sbuf_new_for_sysctl(&sb, buf, sizeof(buf), req);
+	sum = 0;
+	for (i = 0; i < sc->cpu_cx_count; i++)
+		sum += sc->cpu_cx_stats[i];
+	for (i = 0; i < sc->cpu_cx_count; i++) {
+		if (sum > 0) {
+			whole = (uintmax_t)sc->cpu_cx_stats[i] * 100;
+			fract = (whole % sum) * 100;
+			sbuf_printf(&sb, "%u.%02u%% ", (u_int)(whole / sum),
+			    (u_int)(fract / sum));
+		} else
+			sbuf_printf(&sb, "0.00%% ");
+	}
+	sbuf_printf(&sb, "last %dus", sc->cpu_prev_sleep);
+	error = sbuf_finish(&sb);
+	sbuf_delete(&sb);
+	return (error);
 }
 
 /*
@@ -1375,42 +1371,37 @@ acpi_cpu_usage_sysctl(SYSCTL_HANDLER_ARGS)
 static int
 acpi_cpu_usage_counters_sysctl(SYSCTL_HANDLER_ARGS)
 {
-    struct acpi_cpu_softc *sc;
-    struct sbuf	 sb;
-    char	 buf[128];
-    int		 i;
+	struct acpi_cpu_softc *sc = (struct acpi_cpu_softc *)arg1;
+	struct sbuf	 sb;
+	char		 buf[128];
+	int		 error, i;
 
-    sc = (struct acpi_cpu_softc *) arg1;
-
-    /* Print out the raw counters */
-    sbuf_new(&sb, buf, sizeof(buf), SBUF_FIXEDLEN);
-
-    for (i = 0; i < sc->cpu_cx_count; i++) {
-        sbuf_printf(&sb, "%u ", sc->cpu_cx_stats[i]);
-    }
-
-    sbuf_trim(&sb);
-    sbuf_finish(&sb);
-    sysctl_handle_string(oidp, sbuf_data(&sb), sbuf_len(&sb), req);
-    sbuf_delete(&sb);
-
-    return (0);
+	sbuf_new_for_sysctl(&sb, buf, sizeof(buf), req);
+	for (i = 0; i < sc->cpu_cx_count; i++) {
+		if (i > 0)
+			sbuf_putc(&sb, ' ');
+		sbuf_printf(&sb, "%u", sc->cpu_cx_stats[i]);
+	}
+	error = sbuf_finish(&sb);
+	sbuf_delete(&sb);
+	return (error);
 }
 
 #if defined(__i386__) || defined(__amd64__)
 static int
 acpi_cpu_method_sysctl(SYSCTL_HANDLER_ARGS)
 {
-	struct acpi_cpu_softc *sc;
+	struct acpi_cpu_softc *sc = (struct acpi_cpu_softc *)arg1;
 	struct acpi_cx *cx;
 	struct sbuf sb;
 	char buf[128];
-	int i;
+	int error, i;
 
-	sc = (struct acpi_cpu_softc *)arg1;
-	sbuf_new(&sb, buf, sizeof(buf), SBUF_FIXEDLEN);
+	sbuf_new_for_sysctl(&sb, buf, sizeof(buf), req);
 	for (i = 0; i < sc->cpu_cx_count; i++) {
 		cx = &sc->cpu_cx_states[i];
+		if (i > 0)
+			sbuf_putc(&sb, ' ');
 		sbuf_printf(&sb, "C%d/", i + 1);
 		if (cx->do_mwait) {
 			sbuf_cat(&sb, "mwait");
@@ -1425,13 +1416,10 @@ acpi_cpu_method_sysctl(SYSCTL_HANDLER_ARGS)
 		}
 		if (cx->type == ACPI_STATE_C1 && cx->p_lvlx != NULL)
 			sbuf_cat(&sb, "/iohlt");
-		sbuf_putc(&sb, ' ');
 	}
-	sbuf_trim(&sb);
-	sbuf_finish(&sb);
-	sysctl_handle_string(oidp, sbuf_data(&sb), sbuf_len(&sb), req);
+	error = sbuf_finish(&sb);
 	sbuf_delete(&sb);
-	return (0);
+	return (error);
 }
 #endif
 
