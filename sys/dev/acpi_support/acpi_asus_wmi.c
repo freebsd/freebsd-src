@@ -428,14 +428,14 @@ next:
 			SYSCTL_ADD_PROC(sc->sysctl_ctx,
 			    SYSCTL_CHILDREN(sc->sysctl_tree), OID_AUTO,
 			    acpi_asus_wmi_sysctls[i].name,
-			    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
+			    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE,
 			    sc, i, acpi_asus_wmi_sysctl, "I",
 			    acpi_asus_wmi_sysctls[i].description);
 		} else {
 			SYSCTL_ADD_PROC(sc->sysctl_ctx,
 			    SYSCTL_CHILDREN(sc->sysctl_tree), OID_AUTO,
 			    acpi_asus_wmi_sysctls[i].name,
-			    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+			    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
 			    sc, i, acpi_asus_wmi_sysctl, "I",
 			    acpi_asus_wmi_sysctls[i].description);
 		}
