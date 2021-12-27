@@ -69,7 +69,7 @@ sysctl_hw_snd_latency(SYSCTL_HANDLER_ARGS)
 	return err;
 }
 SYSCTL_PROC(_hw_snd, OID_AUTO, latency,
-    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_NEEDGIANT, 0, sizeof(int),
+    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE, 0, sizeof(int),
     sysctl_hw_snd_latency, "I",
     "buffering latency (0=low ... 10=high)");
 
@@ -92,7 +92,7 @@ sysctl_hw_snd_latency_profile(SYSCTL_HANDLER_ARGS)
 	return err;
 }
 SYSCTL_PROC(_hw_snd, OID_AUTO, latency_profile,
-    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_NEEDGIANT, 0, sizeof(int),
+    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE, 0, sizeof(int),
     sysctl_hw_snd_latency_profile, "I",
     "buffering latency profile (0=aggressive 1=safe)");
 
@@ -115,7 +115,7 @@ sysctl_hw_snd_timeout(SYSCTL_HANDLER_ARGS)
 	return err;
 }
 SYSCTL_PROC(_hw_snd, OID_AUTO, timeout,
-    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_NEEDGIANT, 0, sizeof(int),
+    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE, 0, sizeof(int),
     sysctl_hw_snd_timeout, "I",
     "interrupt timeout (1 - 10) seconds");
 

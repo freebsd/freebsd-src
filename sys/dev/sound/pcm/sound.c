@@ -1045,7 +1045,7 @@ pcm_sysinit(device_t dev)
             OID_AUTO, "buffersize", CTLFLAG_RD, &d->bufsz, 0, "allocated buffer size");
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
-	    "bitperfect", CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_NEEDGIANT, d,
+	    "bitperfect", CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE, d,
 	    sizeof(d), sysctl_dev_pcm_bitperfect, "I",
 	    "bit-perfect playback/recording (0=disable, 1=enable)");
 	SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),
@@ -1056,18 +1056,18 @@ pcm_sysinit(device_t dev)
 #ifdef SND_DEBUG
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
-	    "clone_flags", CTLTYPE_UINT | CTLFLAG_RWTUN | CTLFLAG_NEEDGIANT,
+	    "clone_flags", CTLTYPE_UINT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
 	    d, sizeof(d), sysctl_dev_pcm_clone_flags, "IU",
 	    "clone flags");
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
-	    "clone_deadline", CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_NEEDGIANT,
+	    "clone_deadline", CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
 	    d, sizeof(d), sysctl_dev_pcm_clone_deadline, "I",
 	    "clone expiration deadline (ms)");
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
 	    "clone_gc",
-	    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_NEEDGIANT, d, sizeof(d),
+	    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE, d, sizeof(d),
 	    sysctl_dev_pcm_clone_gc, "I", "clone garbage collector");
 #endif
 	if (d->flags & SD_F_AUTOVCHAN)
