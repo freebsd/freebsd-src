@@ -54,6 +54,9 @@ device 		gpio
 device 		qcom_tlmm_ipq4018
 device 		fdt_pinctrl
 
+# TCSR (core top control and status registers)
+device 		qcom_tcsr
+
 options 	FDT
 
 # Disable CP14 work in DDB as TZ won't let us by default
