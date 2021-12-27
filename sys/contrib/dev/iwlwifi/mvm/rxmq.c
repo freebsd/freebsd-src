@@ -506,6 +506,8 @@ static bool iwl_mvm_is_dup(struct ieee80211_sta *sta, int queue,
 		return false;
 
 	mvm_sta = iwl_mvm_sta_from_mac80211(sta);
+	if (WARN_ON(mvm_sta->dup_data == NULL))
+		return false;
 	dup_data = &mvm_sta->dup_data[queue];
 
 	/*

@@ -1734,8 +1734,8 @@ int iwl_mvm_drain_sta(struct iwl_mvm *mvm, struct iwl_mvm_sta *mvmsta,
 		break;
 	default:
 		ret = -EIO;
-		IWL_ERR(mvm, "Couldn't drain frames for staid %d\n",
-			mvmsta->sta_id);
+		IWL_ERR(mvm, "Couldn't drain frames for staid %d, status %#x\n",
+			mvmsta->sta_id, status);
 		break;
 	}
 
@@ -1835,8 +1835,10 @@ int iwl_mvm_rm_sta(struct iwl_mvm *mvm,
 
 	lockdep_assert_held(&mvm->mutex);
 
-	if (iwl_mvm_has_new_rx_api(mvm))
+	if (iwl_mvm_has_new_rx_api(mvm)) {
 		kfree(mvm_sta->dup_data);
+		mvm_sta->dup_data = NULL;
+	}
 
 	ret = iwl_mvm_drain_sta(mvm, mvm_sta, true);
 	if (ret)
