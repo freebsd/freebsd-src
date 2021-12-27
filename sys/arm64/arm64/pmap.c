@@ -2113,7 +2113,7 @@ retry:
 void
 pmap_release(pmap_t pmap)
 {
-	boolean_t rv;
+	boolean_t rv __diagused;
 	struct spglist free;
 	struct asid_set *set;
 	vm_page_t m;
@@ -2839,7 +2839,7 @@ pmap_pv_insert_l2(pmap_t pmap, vm_offset_t va, pd_entry_t l2e, u_int flags,
 static void
 pmap_remove_kernel_l2(pmap_t pmap, pt_entry_t *l2, vm_offset_t va)
 {
-	pt_entry_t newl2, oldl2;
+	pt_entry_t newl2, oldl2 __diagused;
 	vm_page_t ml3;
 	vm_paddr_t ml3pa;
 
@@ -5376,7 +5376,7 @@ pmap_ts_referenced(vm_page_t m)
 	pv_entry_t pv, pvf;
 	pmap_t pmap;
 	struct rwlock *lock;
-	pd_entry_t *pde, tpde;
+	pd_entry_t *pde, tpde __diagused;
 	pt_entry_t *pte, tpte;
 	vm_offset_t va;
 	vm_paddr_t pa;
@@ -6918,7 +6918,7 @@ pmap_map_io_transient(vm_page_t page[], vm_offset_t vaddr[], int count,
 {
 	vm_paddr_t paddr;
 	boolean_t needs_mapping;
-	int error, i;
+	int error __diagused, i;
 
 	/*
 	 * Allocate any KVA space that we need, this is done in a separate
