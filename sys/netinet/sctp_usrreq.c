@@ -73,7 +73,7 @@ sctp_init(void)
 	 */
 	sb_max_adj = (u_long)((u_quad_t)(SB_MAX) * MCLBYTES / (MSIZE + MCLBYTES));
 	SCTP_BASE_SYSCTL(sctp_sendspace) = min(sb_max_adj,
-	    (((uint32_t)nmbclusters / 2) * SCTP_DEFAULT_MAXSEGMENT));
+	    (((uint32_t)nmbclusters / 2) * MCLBYTES));
 	/*
 	 * Now for the recv window, should we take the same amount? or
 	 * should I do 1/2 the SB_MAX instead in the SB_MAX min above. For
