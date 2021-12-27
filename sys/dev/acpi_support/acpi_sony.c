@@ -137,14 +137,14 @@ acpi_sony_attach(device_t dev)
 			SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 			    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
 			    i, acpi_sony_oids[i].nodename ,
-			    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+			    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
 			    dev, i, sysctl_acpi_sony_gen_handler, "I",
 			    acpi_sony_oids[i].comment);
 		} else {
 			SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 			    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
 			    i, acpi_sony_oids[i].nodename ,
-			    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
+			    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE,
 			    dev, i, sysctl_acpi_sony_gen_handler, "I",
 			    acpi_sony_oids[i].comment);
 		}
