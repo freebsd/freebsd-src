@@ -246,7 +246,7 @@ devclass_sysctl_init(devclass_t dc)
 	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "");
 	SYSCTL_ADD_PROC(&dc->sysctl_ctx, SYSCTL_CHILDREN(dc->sysctl_tree),
 	    OID_AUTO, "%parent",
-	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
+	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
 	    dc, DEVCLASS_SYSCTL_PARENT, devclass_sysctl_handler, "A",
 	    "parent class");
 }
