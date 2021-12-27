@@ -1785,14 +1785,11 @@ static void
 itimers_alloc(struct proc *p)
 {
 	struct itimers *its;
-	int i;
 
 	its = malloc(sizeof (struct itimers), M_SUBPROC, M_WAITOK | M_ZERO);
 	LIST_INIT(&its->its_virtual);
 	LIST_INIT(&its->its_prof);
 	TAILQ_INIT(&its->its_worklist);
-	for (i = 0; i < TIMER_MAX; i++)
-		its->its_timers[i] = NULL;
 	PROC_LOCK(p);
 	if (p->p_itimers == NULL) {
 		p->p_itimers = its;
