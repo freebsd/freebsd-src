@@ -6246,13 +6246,12 @@ sctp_get_frag_point(struct sctp_tcb *stcb)
 	if (asoc->smallest_mtu % 4) {
 		overhead += (asoc->smallest_mtu % 4);
 	}
-	KASSERT(overhead % 4 == 0,
-	    ("overhead (%u) not a multiple of 4", overhead));
 	KASSERT(asoc->smallest_mtu > overhead,
 	    ("Association MTU (%u) too small for overhead (%u)",
 	    asoc->smallest_mtu, overhead));
-
 	frag_point = asoc->smallest_mtu - overhead;
+	KASSERT(frag_point % 4 == 0,
+	    ("frag_point (%u) not a multiple of 4", frag_point));
 	/* Honor MAXSEG socket option. */
 	if ((asoc->sctp_frag_point > 0) &&
 	    (asoc->sctp_frag_point < frag_point)) {
