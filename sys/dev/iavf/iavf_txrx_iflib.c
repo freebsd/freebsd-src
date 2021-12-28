@@ -670,7 +670,7 @@ iavf_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 	struct rx_ring		*rxr = &que->rxr;
 	union iavf_rx_desc	*cur;
 	u32		status, error;
-	u16		plen, vtag;
+	u16		plen;
 	u64		qword;
 	u8		ptype;
 	bool		eop;
@@ -701,10 +701,6 @@ iavf_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 
 		cur->wb.qword1.status_error_len = 0;
 		eop = (status & (1 << IAVF_RX_DESC_STATUS_EOF_SHIFT));
-		if (status & (1 << IAVF_RX_DESC_STATUS_L2TAG1P_SHIFT))
-			vtag = le16toh(cur->wb.qword0.lo_dword.l2tag1);
-		else
-			vtag = 0;
 
 		/*
 		** Make sure bad packets are discarded,
@@ -731,10 +727,11 @@ iavf_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 		iavf_rx_checksum(ri, status, error, ptype);
 	ri->iri_flowid = le32toh(cur->wb.qword0.hi_dword.rss);
 	ri->iri_rsstype = iavf_ptype_to_hash(ptype);
-	ri->iri_vtag = vtag;
-	ri->iri_nfrags = i;
-	if (vtag)
+	if (status & (1 << IAVF_RX_DESC_STATUS_L2TAG1P_SHIFT)) {
+		ri->iri_vtag = le16toh(cur->wb.qword0.lo_dword.l2tag1);
 		ri->iri_flags |= M_VLANTAG;
+	}
+	ri->iri_nfrags = i;
 	return (0);
 }
 

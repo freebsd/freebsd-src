@@ -285,7 +285,7 @@ ice_ift_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 	if_softc_ctx_t scctx = sc->scctx;
 	struct ice_rx_queue *rxq = &sc->pf_vsi.rx_queues[ri->iri_qsidx];
 	union ice_32b_rx_flex_desc *cur;
-	u16 status0, plen, vtag, ptype;
+	u16 status0, plen, ptype;
 	bool eop;
 	size_t cidx;
 	int i;
@@ -310,10 +310,6 @@ ice_ift_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 
 		cur->wb.status_error0 = 0;
 		eop = (status0 & BIT(ICE_RX_FLEX_DESC_STATUS0_EOF_S));
-		if (status0 & BIT(ICE_RX_FLEX_DESC_STATUS0_L2TAG1P_S))
-			vtag = le16toh(cur->wb.l2tag1);
-		else
-			vtag = 0;
 
 		/*
 		 * Make sure packets with bad L2 values are discarded.
@@ -340,10 +336,11 @@ ice_ift_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 				&ri->iri_csum_data, status0, ptype);
 	ri->iri_flowid = le32toh(RX_FLEX_NIC(&cur->wb, rss_hash));
 	ri->iri_rsstype = ice_ptype_to_hash(ptype);
-	ri->iri_vtag = vtag;
-	ri->iri_nfrags = i;
-	if (vtag)
+	if (status0 & BIT(ICE_RX_FLEX_DESC_STATUS0_L2TAG1P_S)) {
+		ri->iri_vtag = le16toh(cur->wb.l2tag1);
 		ri->iri_flags |= M_VLANTAG;
+	}
+	ri->iri_nfrags = i;
 	return (0);
 }
 
