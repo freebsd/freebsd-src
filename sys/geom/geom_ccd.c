@@ -166,10 +166,10 @@ struct ccd_s {
 	u_int		 sc_ndisks;		/* number of components */
 	struct ccdcinfo	 *sc_cinfo;		/* component info */
 	struct ccdiinfo	 *sc_itable;		/* interleave table */
-	u_int32_t	 sc_secsize;		/* # bytes per sector */
+	uint32_t	 sc_secsize;		/* # bytes per sector */
 	int		 sc_pick;		/* side of mirror picked */
 	daddr_t		 sc_blk[2];		/* mirror localization */
-	u_int32_t	 sc_offset;		/* actual offset used */
+	uint32_t	 sc_offset;		/* actual offset used */
 };
 
 static g_start_t g_ccd_start;

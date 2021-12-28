@@ -52,29 +52,29 @@ static MALLOC_DEFINE(M_MD_JMICRON, "md_jmicron_data", "GEOM_RAID JMicron metadat
 #define	JMICRON_MAX_SPARE	2
 
 struct jmicron_raid_conf {
-    u_int8_t		signature[2];
+    uint8_t		signature[2];
 #define	JMICRON_MAGIC		"JM"
 
-    u_int16_t		version;
+    uint16_t		version;
 #define	JMICRON_VERSION		0x0001
 
-    u_int16_t		checksum;
-    u_int8_t		filler_1[10];
-    u_int32_t		disk_id;
-    u_int32_t		offset;
-    u_int32_t		disk_sectors_high;
-    u_int16_t		disk_sectors_low;
-    u_int8_t		filler_2[2];
-    u_int8_t		name[16];
-    u_int8_t		type;
+    uint16_t		checksum;
+    uint8_t		filler_1[10];
+    uint32_t		disk_id;
+    uint32_t		offset;
+    uint32_t		disk_sectors_high;
+    uint16_t		disk_sectors_low;
+    uint8_t		filler_2[2];
+    uint8_t		name[16];
+    uint8_t		type;
 #define	JMICRON_T_RAID0		0
 #define	JMICRON_T_RAID1		1
 #define	JMICRON_T_RAID01	2
 #define	JMICRON_T_CONCAT	3
 #define	JMICRON_T_RAID5		5
 
-    u_int8_t		stripe_shift;
-    u_int16_t		flags;
+    uint8_t		stripe_shift;
+    uint16_t		flags;
 #define	JMICRON_F_READY		0x0001
 #define	JMICRON_F_BOOTABLE	0x0002
 #define	JMICRON_F_BADSEC	0x0004
@@ -82,13 +82,13 @@ struct jmicron_raid_conf {
 #define	JMICRON_F_UNSYNC	0x0020
 #define	JMICRON_F_NEWEST	0x0040
 
-    u_int8_t		filler_3[4];
-    u_int32_t		spare[JMICRON_MAX_SPARE];
-    u_int32_t		disks[JMICRON_MAX_DISKS];
+    uint8_t		filler_3[4];
+    uint32_t		spare[JMICRON_MAX_SPARE];
+    uint32_t		disks[JMICRON_MAX_DISKS];
 #define	JMICRON_DISK_MASK	0xFFFFFFF0
 #define	JMICRON_SEG_MASK	0x0000000F
-    u_int8_t		filler_4[32];
-    u_int8_t		filler_5[384];
+    uint8_t		filler_4[32];
+    uint8_t		filler_5[384];
 };
 
 struct g_raid_md_jmicron_perdisk {
