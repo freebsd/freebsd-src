@@ -906,6 +906,12 @@ native_lapic_calibrate_timer(void)
 	struct lapic *la;
 	register_t intr;
 
+#ifdef DEV_ATPIC
+	/* Fail if the local APIC is not present. */
+	if (!x2apic_mode && lapic_map == NULL)
+		return;
+#endif
+
 	intr = intr_disable();
 	la = &lapics[lapic_id()];
 
