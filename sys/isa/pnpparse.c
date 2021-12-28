@@ -47,7 +47,7 @@ __FBSDID("$FreeBSD$");
 #define I32(p)	(I16(p) + (I16((p)+2) << 16))
 
 void
-pnp_printf(u_int32_t id, char *fmt, ...)
+pnp_printf(uint32_t id, char *fmt, ...)
 {
 	va_list ap;
 
@@ -64,8 +64,8 @@ pnp_parse_desc(device_t dev, u_char tag, u_char *res, int len,
 	       struct isa_config *config, int ldn)
 {
 	char buf[100];
-	u_int32_t id;
-	u_int32_t compat_id;
+	uint32_t id;
+	uint32_t compat_id;
 	int temp;
 
 	id = isa_get_logicalid(dev);
@@ -414,7 +414,7 @@ pnp_parse_resources(device_t dev, u_char *resources, int len, int ldn)
 	u_char *start;
 	u_char *p;
 	u_char tag;
-	u_int32_t id;
+	uint32_t id;
 	int ncfgs;
 	int l;
 	int i;
