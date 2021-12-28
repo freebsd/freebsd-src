@@ -436,12 +436,12 @@ igb_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 	struct rx_ring *rxr = &que->rxr;
 	union e1000_adv_rx_desc *rxd;
 
-	uint16_t pkt_info, len, vtag;
+	uint16_t pkt_info, len;
 	uint32_t ptype, staterr;
 	int i, cidx;
 	bool eop;
 
-	staterr = i = vtag = 0;
+	staterr = i = 0;
 	cidx = ri->iri_cidx;
 
 	do {
@@ -459,13 +459,6 @@ igb_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 
 		rxd->wb.upper.status_error = 0;
 		eop = ((staterr & E1000_RXD_STAT_EOP) == E1000_RXD_STAT_EOP);
-
-		if (((sc->hw.mac.type == e1000_i350) ||
-		    (sc->hw.mac.type == e1000_i354)) &&
-		    (staterr & E1000_RXDEXT_STATERR_LB))
-			vtag = be16toh(rxd->wb.upper.vlan);
-		else
-			vtag = le16toh(rxd->wb.upper.vlan);
 
 		/* Make sure bad packets are discarded */
 		if (eop && ((staterr & E1000_RXDEXT_ERR_FRAME_ERR_MASK) != 0)) {
@@ -495,9 +488,13 @@ igb_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 	if ((scctx->isc_capenable & IFCAP_RXCSUM) != 0)
 		igb_rx_checksum(staterr, ri, ptype);
 
-	if ((scctx->isc_capenable & IFCAP_VLAN_HWTAGGING) != 0 &&
-	    (staterr & E1000_RXD_STAT_VP) != 0) {
-		ri->iri_vtag = vtag;
+	if (staterr & E1000_RXD_STAT_VP) {
+		if (((sc->hw.mac.type == e1000_i350) ||
+		    (sc->hw.mac.type == e1000_i354)) &&
+		    (staterr & E1000_RXDEXT_STATERR_LB))
+			ri->iri_vtag = be16toh(rxd->wb.upper.vlan);
+		else
+			ri->iri_vtag = le16toh(rxd->wb.upper.vlan);
 		ri->iri_flags |= M_VLANTAG;
 	}
 
