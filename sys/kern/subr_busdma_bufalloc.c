@@ -74,7 +74,7 @@ struct busdma_bufalloc {
 
 busdma_bufalloc_t 
 busdma_bufalloc_create(const char *name, bus_size_t minimum_alignment,
-    uma_alloc alloc_func, uma_free free_func, u_int32_t zcreate_flags)
+    uma_alloc alloc_func, uma_free free_func, uint32_t zcreate_flags)
 {
 	struct busdma_bufalloc *ba;
 	struct busdma_bufzone *bz;
