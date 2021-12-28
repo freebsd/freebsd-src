@@ -3,6 +3,9 @@ arm/qualcomm/ipq4018_mp.c		optional smp
 arm/qualcomm/qcom_scm_legacy.c		standard
 arm/qualcomm/qcom_cpu_kpssv2.c		optional smp
 
+arm/qualcomm/ipq4018_usb_hs_phy.c	optional qcom_ipq4018_hs_usbphy
+arm/qualcomm/ipq4018_usb_ss_phy.c	optional qcom_ipq4018_ss_usbphy
+
 dev/qcom_rnd/qcom_rnd.c			optional qcom_rnd
 
 dev/qcom_qup/qcom_spi.c			optional qcom_qup_spi
