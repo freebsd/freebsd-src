@@ -607,6 +607,7 @@ pmap_pte_exists(pmap_t pmap, vm_offset_t va, int level, const char *diag)
 {
 	pd_entry_t *l0p, *l1p, *l2p;
 	pt_entry_t desc, *l3p;
+	int walk_level __diagused;
 
 	KASSERT(level >= 0 && level < 4,
 	    ("%s: %s passed an out-of-range level (%d)", __func__, diag,
@@ -628,11 +629,17 @@ pmap_pte_exists(pmap_t pmap, vm_offset_t va, int level, const char *diag)
 				desc = pmap_load(l3p) & ATTR_DESCR_MASK;
 				if (desc == L3_PAGE && level == 3)
 					return (l3p);
-			}
-		}
-	}
+				else
+					walk_level = 3;
+			} else
+				walk_level = 2;
+		} else
+			walk_level = 1;
+	} else
+		walk_level = 0;
 	KASSERT(diag == NULL,
-	    ("%s: va %#lx is not mapped at level %d", diag, va, level));
+	    ("%s: va %#lx not mapped at level %d, desc %ld at level %d",
+	    diag, va, level, desc, walk_level));
 	return (NULL);
 }
 
