@@ -1273,7 +1273,7 @@ ipoib_get_net_dev_by_params(struct ib_device *dev, u8 port, u16 pkey,
 }
 
 static void
-ipoib_config_vlan(void *arg, struct ifnet *ifp, u_int16_t vtag)
+ipoib_config_vlan(void *arg, struct ifnet *ifp, uint16_t vtag)
 {
 	struct ipoib_dev_priv *parent;
 	struct ipoib_dev_priv *priv;
@@ -1344,7 +1344,7 @@ out:
 }
 
 static void
-ipoib_unconfig_vlan(void *arg, struct ifnet *ifp, u_int16_t vtag)
+ipoib_unconfig_vlan(void *arg, struct ifnet *ifp, uint16_t vtag)
 {
 	struct ipoib_dev_priv *parent;
 	struct ipoib_dev_priv *priv;
