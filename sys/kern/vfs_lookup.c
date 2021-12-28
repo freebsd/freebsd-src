@@ -1618,7 +1618,7 @@ void
 NDVALIDATE(struct nameidata *ndp)
 {
 	struct componentname *cnp;
-	u_int64_t used, orig;
+	uint64_t used, orig;
 
 	cnp = &ndp->ni_cnd;
 	orig = cnp->cn_origflags;

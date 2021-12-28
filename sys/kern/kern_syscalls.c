@@ -66,7 +66,7 @@ lkmressys(struct thread *td, struct nosys_args *args)
 static void
 syscall_thread_drain(struct sysent *se)
 {
-	u_int32_t cnt, oldcnt;
+	uint32_t cnt, oldcnt;
 
 	do {
 		oldcnt = se->sy_thrcnt;
@@ -82,7 +82,7 @@ syscall_thread_drain(struct sysent *se)
 int
 syscall_thread_enter(struct thread *td, struct sysent *se)
 {
-	u_int32_t cnt, oldcnt;
+	uint32_t cnt, oldcnt;
 
 	KASSERT((se->sy_thrcnt & SY_THR_STATIC) == 0,
 	    ("%s: not a static syscall", __func__));
@@ -99,7 +99,7 @@ syscall_thread_enter(struct thread *td, struct sysent *se)
 void
 syscall_thread_exit(struct thread *td, struct sysent *se)
 {
-	u_int32_t cnt, oldcnt;
+	uint32_t cnt, oldcnt;
 
 	KASSERT((se->sy_thrcnt & SY_THR_STATIC) == 0,
 	    ("%s: not a static syscall", __func__));
