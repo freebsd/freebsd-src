@@ -38,7 +38,6 @@
 
 extern	long	Maxmem;
 extern	u_int	basemem;
-extern	int	busdma_swi_pending;
 extern	u_int	cpu_exthigh;
 extern	u_int	cpu_feature;
 extern	u_int	cpu_feature2;
@@ -115,7 +114,6 @@ typedef void alias_for_inthand_t(void);
 
 bool	acpi_get_fadt_bootflags(uint16_t *flagsp);
 void	*alloc_fpusave(int flags);
-void	busdma_swi(void);
 u_int	cpu_auxmsr(void);
 vm_paddr_t cpu_getmaxphyaddr(void);
 bool	cpu_mwait_usable(void);

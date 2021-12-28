@@ -170,7 +170,6 @@ void	fork_trampoline(void);
 void	identify_cache(uint64_t);
 void	identify_cpu(u_int);
 void	install_cpu_errata(void);
-void	swi_vm(void *v);
 
 /* Functions to read the sanitised view of the special registers */
 void	update_special_regs(u_int);

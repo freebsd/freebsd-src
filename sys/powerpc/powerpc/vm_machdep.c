@@ -209,17 +209,6 @@ cpu_exit(struct thread *td)
 }
 
 /*
- * Software interrupt handler for queued VM system processing.
- */
-void
-swi_vm(void *dummy)
-{
-
-	if (busdma_swi_pending != 0)
-		busdma_swi();
-}
-
-/*
  * Tell whether this address is in some physical memory region.
  * Currently used by the kernel coredump code in order to avoid
  * dumping the ``ISA memory hole'' which could cause indefinite hangs,

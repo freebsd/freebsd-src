@@ -459,17 +459,6 @@ cpu_procctl(struct thread *td __unused, int idtype __unused, id_t id __unused,
 	return (EINVAL);
 }
 
-/*
- * Software interrupt handler for queued VM system processing.
- */
-void
-swi_vm(void *dummy)
-{
-
-	if (busdma_swi_pending)
-		busdma_swi();
-}
-
 int
 cpu_set_user_tls(struct thread *td, void *tls_base)
 {
