@@ -896,21 +896,20 @@ tcp_usr_shutdown(struct socket *so)
 	struct epoch_tracker et;
 
 	TCPDEBUG0;
-	NET_EPOCH_ENTER(et);
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("inp == NULL"));
 	INP_WLOCK(inp);
-	tp = intotcpcb(inp);
 	if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
-		error = ECONNRESET;
-		goto out;
+		INP_WUNLOCK(inp);
+		return (ECONNRESET);
 	}
+	tp = intotcpcb(inp);
+	NET_EPOCH_ENTER(et);
 	TCPDEBUG1();
 	socantsendmore(so);
 	tcp_usrclosed(tp);
 	if (!(inp->inp_flags & INP_DROPPED))
 		error = tcp_output_nodrop(tp);
-out:
 	TCPDEBUG2(PRU_SHUTDOWN);
 	TCP_PROBE2(debug__user, tp, PRU_SHUTDOWN);
 	error = tcp_unlock_or_drop(tp, error);
