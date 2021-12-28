@@ -172,10 +172,10 @@ typedef struct nlm4_stat nlm4_stat;
 
 struct nlm4_holder {
 	bool_t exclusive;
-	u_int32_t svid;
+	uint32_t svid;
 	netobj oh;
-	u_int64_t l_offset;
-	u_int64_t l_len;
+	uint64_t l_offset;
+	uint64_t l_len;
 };
 typedef struct nlm4_holder nlm4_holder;
 
@@ -183,9 +183,9 @@ struct nlm4_lock {
 	char *caller_name;
 	netobj fh;
 	netobj oh;
-	u_int32_t svid;
-	u_int64_t l_offset;
-	u_int64_t l_len;
+	uint32_t svid;
+	uint64_t l_offset;
+	uint64_t l_len;
 };
 typedef struct nlm4_lock nlm4_lock;
 
