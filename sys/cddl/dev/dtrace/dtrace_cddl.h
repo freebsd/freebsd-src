@@ -34,7 +34,7 @@
  */
 typedef struct kdtrace_proc {
 	int		p_dtrace_probes;	/* Are there probes for this proc? */
-	u_int64_t	p_dtrace_count;		/* Number of DTrace tracepoints */
+	uint64_t	p_dtrace_count;		/* Number of DTrace tracepoints */
 	void		*p_dtrace_helpers;	/* DTrace helpers, if any */
 	int		p_dtrace_model;
 	uint64_t	p_fasttrap_tp_gen;	/* Tracepoint hash table gen */
@@ -44,25 +44,25 @@ typedef struct kdtrace_proc {
  * Kernel DTrace extension to 'struct thread' for FreeBSD.
  */
 typedef struct kdtrace_thread {
-	u_int8_t	td_dtrace_stop;	/* Indicates a DTrace-desired stop */
-	u_int8_t	td_dtrace_sig;	/* Signal sent via DTrace's raise() */
-	u_int8_t	td_dtrace_inprobe; /* Are we in a probe? */
+	uint8_t		td_dtrace_stop;	/* Indicates a DTrace-desired stop */
+	uint8_t		td_dtrace_sig;	/* Signal sent via DTrace's raise() */
+	uint8_t		td_dtrace_inprobe; /* Are we in a probe? */
 	u_int		td_predcache;	/* DTrace predicate cache */
-	u_int64_t	td_dtrace_vtime; /* DTrace virtual time */
-	u_int64_t	td_dtrace_start; /* DTrace slice start time */
+	uint64_t	td_dtrace_vtime; /* DTrace virtual time */
+	uint64_t	td_dtrace_start; /* DTrace slice start time */
 
 	union __tdu {
 		struct __tds {
-			u_int8_t	_td_dtrace_on;
+			uint8_t		_td_dtrace_on;
 					/* Hit a fasttrap tracepoint. */
-			u_int8_t	_td_dtrace_step;
+			uint8_t		_td_dtrace_step;
 					/* About to return to kernel. */
-			u_int8_t	_td_dtrace_ret;
+			uint8_t		_td_dtrace_ret;
 					/* Handling a return probe. */
-			u_int8_t	_td_dtrace_ast;
+			uint8_t		_td_dtrace_ast;
 					/* Saved ast flag. */
 #ifdef __amd64__
-			u_int8_t	_td_dtrace_reg;
+			uint8_t		_td_dtrace_reg;
 #endif
 		} _tds;
 		u_long	_td_dtrace_ft;	/* Bitwise or of these flags. */
@@ -83,7 +83,7 @@ typedef struct kdtrace_thread {
 #ifdef __amd64__
 	uintptr_t	td_dtrace_regv;
 #endif
-	u_int64_t	td_hrtime;	/* Last time on cpu. */
+	uint64_t	td_hrtime;	/* Last time on cpu. */
 	void		*td_dtrace_sscr; /* Saved scratch space location. */
 	void		*td_systrace_args; /* syscall probe arguments. */
 	uint64_t	td_fasttrap_tp_gen; /* Tracepoint hash table gen. */
