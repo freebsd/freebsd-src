@@ -193,16 +193,16 @@ struct nstat32 {
 };
 
 struct iovec32 {
-	u_int32_t iov_base;
+	uint32_t iov_base;
 	int	iov_len;
 };
 
 struct msghdr32 {
-	u_int32_t	 msg_name;
+	uint32_t	 msg_name;
 	socklen_t	 msg_namelen;
-	u_int32_t	 msg_iov;
+	uint32_t	 msg_iov;
 	int		 msg_iovlen;
-	u_int32_t	 msg_control;
+	uint32_t	 msg_control;
 	socklen_t	 msg_controllen;
 	int		 msg_flags;
 };
@@ -216,10 +216,10 @@ struct stat32 {
 	ino_t st_ino;
 	nlink_t st_nlink;
 	mode_t	st_mode;
-	u_int16_t st_padding0;
+	uint16_t st_padding0;
 	uid_t	st_uid;
 	gid_t	st_gid;
-	u_int32_t st_padding1;
+	uint32_t st_padding1;
 	dev_t st_rdev;
 #ifdef	__STAT32_TIME_T_EXT
 	__int32_t st_atim_ext;
@@ -239,27 +239,27 @@ struct stat32 {
 	struct timespec32 st_birthtim;
 	off_t	st_size;
 	int64_t	st_blocks;
-	u_int32_t st_blksize;
-	u_int32_t st_flags;
-	u_int64_t st_gen;
-	u_int64_t st_spare[10];
+	uint32_t st_blksize;
+	uint32_t st_flags;
+	uint64_t st_gen;
+	uint64_t st_spare[10];
 };
 struct freebsd11_stat32 {
-	u_int32_t st_dev;
-	u_int32_t st_ino;
+	uint32_t st_dev;
+	uint32_t st_ino;
 	mode_t	st_mode;
-	u_int16_t st_nlink;
+	uint16_t st_nlink;
 	uid_t	st_uid;
 	gid_t	st_gid;
-	u_int32_t st_rdev;
+	uint32_t st_rdev;
 	struct timespec32 st_atim;
 	struct timespec32 st_mtim;
 	struct timespec32 st_ctim;
 	off_t	st_size;
 	int64_t	st_blocks;
-	u_int32_t st_blksize;
-	u_int32_t st_flags;
-	u_int32_t st_gen;
+	uint32_t st_blksize;
+	uint32_t st_flags;
+	uint32_t st_gen;
 	int32_t	st_lspare;
 	struct timespec32 st_birthtim;
 	unsigned int :(8 / 2) * (16 - (int)sizeof(struct timespec32));
@@ -280,15 +280,15 @@ struct ostat32 {
 	struct timespec32 st_ctim;
 	__int32_t st_blksize;
 	__int32_t st_blocks;
-	u_int32_t st_flags;
+	uint32_t st_flags;
 	__uint32_t st_gen;
 };
 
 struct jail32_v0 {
-	u_int32_t	version;
+	uint32_t	version;
 	uint32_t	path;
 	uint32_t	hostname;
-	u_int32_t	ip_number;
+	uint32_t	ip_number;
 };
 
 struct jail32 {
@@ -303,7 +303,7 @@ struct jail32 {
 };
 
 struct sigaction32 {
-	u_int32_t	sa_u;
+	uint32_t	sa_u;
 	int		sa_flags;
 	sigset_t	sa_mask;
 };
@@ -381,7 +381,7 @@ struct kinfo_proc32 {
 	u_int	ki_slptime;
 	u_int	ki_swtime;
 	u_int	ki_cow;
-	u_int64_t ki_runtime;
+	uint64_t ki_runtime;
 	struct	timeval32 ki_start;
 	struct	timeval32 ki_childtime;
 	int	ki_flag;

@@ -159,17 +159,17 @@ static TAILQ_HEAD(, linux_ioctl_handler_element) linux32_ioctl_handlers =
  */
 
 struct linux_hd_geometry {
-	u_int8_t	heads;
-	u_int8_t	sectors;
-	u_int16_t	cylinders;
-	u_int32_t	start;
+	uint8_t		heads;
+	uint8_t		sectors;
+	uint16_t	cylinders;
+	uint32_t	start;
 };
 
 struct linux_hd_big_geometry {
-	u_int8_t	heads;
-	u_int8_t	sectors;
-	u_int32_t	cylinders;
-	u_int32_t	start;
+	uint8_t		heads;
+	uint8_t		sectors;
+	uint32_t	cylinders;
+	uint32_t	start;
 };
 
 static int
@@ -1103,9 +1103,9 @@ struct l_dvd_layer {
 	u_char		track_density:4;
 	u_char		linear_density:4;
 	u_char		bca:1;
-	u_int32_t	start_sector;
-	u_int32_t	end_sector;
-	u_int32_t	end_sector_l0;
+	uint32_t	start_sector;
+	uint32_t	end_sector;
+	uint32_t	end_sector_l0;
 };
 
 struct l_dvd_physical {
@@ -1690,7 +1690,7 @@ struct linux_old_mixer_info {
 	char	name[32];
 };
 
-static u_int32_t dirbits[4] = { IOC_VOID, IOC_IN, IOC_OUT, IOC_INOUT };
+static uint32_t dirbits[4] = { IOC_VOID, IOC_IN, IOC_OUT, IOC_INOUT };
 
 #define	SETDIR(c)	(((c) & ~IOC_DIRMASK) | dirbits[args->cmd >> 30])
 

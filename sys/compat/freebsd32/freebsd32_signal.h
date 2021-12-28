@@ -32,8 +32,8 @@
 #define _COMPAT_FREEBSD32_SIGNAL_H_
 
 struct sigaltstack32 {
-	u_int32_t	ss_sp;		/* signal stack base */
-	u_int32_t	ss_size;	/* signal stack length */
+	uint32_t	ss_sp;		/* signal stack base */
+	uint32_t	ss_size;	/* signal stack length */
 	int		ss_flags;	/* SS_DISABLE and/or SS_ONSTACK */
 };
 
