@@ -4423,6 +4423,7 @@ iflib_if_ioctl(if_t ifp, u_long command, caddr_t data)
 				iflib_stop(ctx);
 			STATE_LOCK(ctx);
 			if_togglecapenable(ifp, setmask);
+			ctx->ifc_softc_ctx.isc_capenable ^= setmask;
 			STATE_UNLOCK(ctx);
 			if (bits & IFF_DRV_RUNNING && setmask & ~IFCAP_WOL)
 				iflib_init_locked(ctx);
