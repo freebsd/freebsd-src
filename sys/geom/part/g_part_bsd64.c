@@ -58,18 +58,18 @@ FEATURE(geom_part_bsd64, "GEOM partitioning class for 64-bit BSD disklabels");
 
 struct disklabel64 {
 	char	  d_reserved0[512];	/* reserved or unused */
-	u_int32_t d_magic;		/* the magic number */
-	u_int32_t d_crc;		/* crc32() d_magic through last part */
-	u_int32_t d_align;		/* partition alignment requirement */
-	u_int32_t d_npartitions;	/* number of partitions */
+	uint32_t d_magic;		/* the magic number */
+	uint32_t d_crc;		/* crc32() d_magic through last part */
+	uint32_t d_align;		/* partition alignment requirement */
+	uint32_t d_npartitions;	/* number of partitions */
 	struct uuid d_stor_uuid;	/* unique uuid for label */
 
-	u_int64_t d_total_size;		/* total size incl everything (bytes) */
-	u_int64_t d_bbase;		/* boot area base offset (bytes) */
+	uint64_t d_total_size;		/* total size incl everything (bytes) */
+	uint64_t d_bbase;		/* boot area base offset (bytes) */
 					/* boot area is pbase - bbase */
-	u_int64_t d_pbase;		/* first allocatable offset (bytes) */
-	u_int64_t d_pstop;		/* last allocatable offset+1 (bytes) */
-	u_int64_t d_abase;		/* location of backup copy if not 0 */
+	uint64_t d_pbase;		/* first allocatable offset (bytes) */
+	uint64_t d_pstop;		/* last allocatable offset+1 (bytes) */
+	uint64_t d_abase;		/* location of backup copy if not 0 */
 
 	u_char	  d_packname[64];
 	u_char    d_reserved[64];
@@ -86,15 +86,15 @@ struct disklabel64 {
 	 * is identified by its uuid.
 	 */
 	struct partition64 {		/* the partition table */
-		u_int64_t p_boffset;	/* slice relative offset, in bytes */
-		u_int64_t p_bsize;	/* size of partition, in bytes */
-		u_int8_t  p_fstype;
-		u_int8_t  p_unused01;	/* reserved, must be 0 */
-		u_int8_t  p_unused02;	/* reserved, must be 0 */
-		u_int8_t  p_unused03;	/* reserved, must be 0 */
-		u_int32_t p_unused04;	/* reserved, must be 0 */
-		u_int32_t p_unused05;	/* reserved, must be 0 */
-		u_int32_t p_unused06;	/* reserved, must be 0 */
+		uint64_t p_boffset;	/* slice relative offset, in bytes */
+		uint64_t p_bsize;	/* size of partition, in bytes */
+		uint8_t  p_fstype;
+		uint8_t  p_unused01;	/* reserved, must be 0 */
+		uint8_t  p_unused02;	/* reserved, must be 0 */
+		uint8_t  p_unused03;	/* reserved, must be 0 */
+		uint32_t p_unused04;	/* reserved, must be 0 */
+		uint32_t p_unused05;	/* reserved, must be 0 */
+		uint32_t p_unused06;	/* reserved, must be 0 */
 		struct uuid p_type_uuid;/* mount type as UUID */
 		struct uuid p_stor_uuid;/* unique uuid for storage */
 	} d_partitions[MAXPARTITIONS64];/* actually may be more */
