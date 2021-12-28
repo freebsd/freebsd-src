@@ -20,7 +20,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 12, 2008
+.Dd December 28, 2021
 .Dt MBUF_TAGS 9
 .Os
 .Sh NAME
@@ -29,7 +29,7 @@
 .Sh SYNOPSIS
 .In sys/mbuf.h
 .Ft "struct m_tag *"
-.Fn m_tag_alloc "uint32_t cookie" "int type" "int len" "int wait"
+.Fn m_tag_alloc "uint32_t cookie" "uint16_t type" "int len" "int wait"
 .Ft "struct m_tag *"
 .Fn m_tag_copy "struct m_tag *t" "int how"
 .Ft int
@@ -41,17 +41,17 @@
 .Ft void
 .Fn m_tag_delete_nonpersistent "struct mbuf *m"
 .Ft "struct m_tag *"
-.Fn m_tag_find "struct mbuf *m" "int type" "struct m_tag *start"
+.Fn m_tag_find "struct mbuf *m" "uint16_t type" "struct m_tag *start"
 .Ft "struct m_tag *"
 .Fn m_tag_first "struct mbuf *m"
 .Ft void
 .Fn m_tag_free "struct m_tag *t"
 .Ft "struct m_tag *"
-.Fn m_tag_get "int type" "int len" "int wait"
+.Fn m_tag_get "uint16_t type" "int len" "int wait"
 .Ft void
 .Fn m_tag_init "struct mbuf *m"
 .Ft struct m_tag *
-.Fn m_tag_locate "struct mbuf *m" "uint32_t cookie" "int type" "struct m_tag *t"
+.Fn m_tag_locate "struct mbuf *m" "uint32_t cookie" "uint16_t type" "struct m_tag *t"
 .Ft "struct m_tag *"
 .Fn m_tag_next "struct mbuf *m" "struct m_tag *t"
 .Ft void
