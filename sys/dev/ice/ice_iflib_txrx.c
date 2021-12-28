@@ -282,6 +282,7 @@ static int
 ice_ift_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 {
 	struct ice_softc *sc = (struct ice_softc *)arg;
+	if_softc_ctx_t scctx = sc->scctx;
 	struct ice_rx_queue *rxq = &sc->pf_vsi.rx_queues[ri->iri_qsidx];
 	union ice_32b_rx_flex_desc *cur;
 	u16 status0, plen, vtag, ptype;
@@ -334,7 +335,7 @@ ice_ift_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 	rxq->stats.rx_packets++;
 	rxq->stats.rx_bytes += ri->iri_len;
 
-	if ((iflib_get_ifp(sc->ctx)->if_capenable & IFCAP_RXCSUM) != 0)
+	if ((scctx->isc_capenable & IFCAP_RXCSUM) != 0)
 		ice_rx_checksum(rxq, &ri->iri_csum_flags,
 				&ri->iri_csum_data, status0, ptype);
 	ri->iri_flowid = le32toh(RX_FLEX_NIC(&cur->wb, rss_hash));
