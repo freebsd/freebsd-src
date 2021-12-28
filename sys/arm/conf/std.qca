@@ -61,3 +61,7 @@ options 	FDT
 
 # Disable CP14 work in DDB as TZ won't let us by default
 options 	ARM_FORCE_DBG_MONITOR_DISABLE
+
+# USB PHY support
+device 		qcom_ipq4018_hs_usbphy
+device 		qcom_ipq4018_ss_usbphy
