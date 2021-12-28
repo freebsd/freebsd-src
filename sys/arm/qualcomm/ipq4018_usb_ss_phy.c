@@ -74,8 +74,6 @@ ipq4018_usb_ss_phynode_phy_enable(struct phynode *phynode, bool enable)
 	dev = phynode_get_device(phynode);
 	sc = phynode_get_softc(phynode);
 
-	device_printf(dev, "%s: called, enable=%d\n", __func__, enable);
-
 	/*
 	 * For power-off - assert por, sleep for 10ms
 	 */
