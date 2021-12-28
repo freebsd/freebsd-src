@@ -90,7 +90,6 @@ struct	intr_entropy {
 
 struct	intr_event *clk_intr_event;
 struct	intr_event *tty_intr_event;
-void	*vm_ih;
 struct proc *intrproc;
 
 static MALLOC_DEFINE(M_ITHREAD, "ithread", "Interrupt Threads");
@@ -1639,8 +1638,6 @@ start_softintr(void *dummy)
 	if (swi_add(&clk_intr_event, "clk", NULL, NULL, SWI_CLOCK,
 	    INTR_MPSAFE, NULL))
 		panic("died while creating clk swi ithread");
-	if (swi_add(NULL, "vm", swi_vm, NULL, SWI_VM, INTR_MPSAFE, &vm_ih))
-		panic("died while creating vm swi ithread");
 }
 SYSINIT(start_softintr, SI_SUB_SOFTINTR, SI_ORDER_FIRST, start_softintr,
     NULL);

@@ -269,10 +269,3 @@ cpu_procctl(struct thread *td __unused, int idtype __unused, id_t id __unused,
 
 	return (EINVAL);
 }
-
-void
-swi_vm(void *v)
-{
-
-	/* Nothing to do here - busdma bounce buffers are not implemented. */
-}

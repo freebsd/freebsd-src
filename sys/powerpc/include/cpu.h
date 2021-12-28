@@ -146,7 +146,6 @@ void	cpu_halt(void);
 void	cpu_reset(void);
 void	flush_disable_caches(void);
 void	fork_trampoline(void);
-void	swi_vm(void *);
 int	cpu_machine_check(struct thread *, struct trapframe *, int *);
 
 

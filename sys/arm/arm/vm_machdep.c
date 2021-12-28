@@ -290,17 +290,6 @@ cpu_fork_kthread_handler(struct thread *td, void (*func)(void *), void *arg)
 	td->td_pcb->pcb_regs.sf_r5 = (register_t)arg;	/* first arg */
 }
 
-/*
- * Software interrupt handler for queued VM system processing.
- */
-void
-swi_vm(void *dummy)
-{
-
-	if (busdma_swi_pending)
-		busdma_swi();
-}
-
 void
 cpu_exit(struct thread *td)
 {
