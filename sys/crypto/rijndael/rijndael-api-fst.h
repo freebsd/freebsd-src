@@ -40,34 +40,34 @@
 
 /*  The structure for key information */
 typedef struct {
-    u_int8_t  direction;            /* Key used for encrypting or decrypting? */
+    uint8_t  direction;            /* Key used for encrypting or decrypting? */
     int   keyLen;                   /* Length of the key  */
     char  keyMaterial[RIJNDAEL_MAX_KEY_SIZE+1];  /* Raw key data in ASCII, e.g., user input or KAT values */
 	int   Nr;                       /* key-length-dependent number of rounds */
-	u_int32_t   rk[4*(RIJNDAEL_MAXNR + 1)];        /* key schedule */
-	u_int32_t   ek[4*(RIJNDAEL_MAXNR + 1)];        /* CFB1 key schedule (encryption only) */
+	uint32_t   rk[4*(RIJNDAEL_MAXNR + 1)];        /* key schedule */
+	uint32_t   ek[4*(RIJNDAEL_MAXNR + 1)];        /* CFB1 key schedule (encryption only) */
 } keyInstance;
 
 /*  The structure for cipher information */
 typedef struct {                    /* changed order of the components */
-    u_int8_t mode;                  /* MODE_ECB, MODE_CBC, or MODE_CFB1 */
-    u_int8_t IV[RIJNDAEL_MAX_IV_SIZE]; /* A possible Initialization Vector for ciphering */
+    uint8_t mode;                  /* MODE_ECB, MODE_CBC, or MODE_CFB1 */
+    uint8_t IV[RIJNDAEL_MAX_IV_SIZE]; /* A possible Initialization Vector for ciphering */
 } cipherInstance;
 
 /*  Function prototypes  */
 
-int rijndael_makeKey(keyInstance *, u_int8_t, int, const char *);
+int rijndael_makeKey(keyInstance *, uint8_t, int, const char *);
 
-int rijndael_cipherInit(cipherInstance *, u_int8_t, char *);
+int rijndael_cipherInit(cipherInstance *, uint8_t, char *);
 
-int rijndael_blockEncrypt(cipherInstance *, keyInstance *, const u_int8_t *,
-	int, u_int8_t *);
-int rijndael_padEncrypt(cipherInstance *, keyInstance *, const u_int8_t *,
-	int, u_int8_t *);
+int rijndael_blockEncrypt(cipherInstance *, keyInstance *, const uint8_t *,
+	int, uint8_t *);
+int rijndael_padEncrypt(cipherInstance *, keyInstance *, const uint8_t *,
+	int, uint8_t *);
 
-int rijndael_blockDecrypt(cipherInstance *, keyInstance *, const u_int8_t *,
-	int, u_int8_t *);
-int rijndael_padDecrypt(cipherInstance *, keyInstance *, const u_int8_t *,
-	int, u_int8_t *);
+int rijndael_blockDecrypt(cipherInstance *, keyInstance *, const uint8_t *,
+	int, uint8_t *);
+int rijndael_padDecrypt(cipherInstance *, keyInstance *, const uint8_t *,
+	int, uint8_t *);
 
 #endif /*  __RIJNDAEL_API_FST_H */
