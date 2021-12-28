@@ -65,3 +65,10 @@ options 	ARM_FORCE_DBG_MONITOR_DISABLE
 # USB PHY support
 device 		qcom_ipq4018_hs_usbphy
 device 		qcom_ipq4018_ss_usbphy
+
+# USB support
+device 		usb
+device 		xhci
+device 		dwc3
+device 		qcom_dwc3
+options		USB_HOST_ALIGN=64
