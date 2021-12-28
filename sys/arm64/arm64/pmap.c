@@ -5389,11 +5389,10 @@ pmap_ts_referenced(vm_page_t m)
 	pv_entry_t pv, pvf;
 	pmap_t pmap;
 	struct rwlock *lock;
-	pd_entry_t *pde, tpde __diagused;
 	pt_entry_t *pte, tpte;
 	vm_offset_t va;
 	vm_paddr_t pa;
-	int cleared, lvl, md_gen, not_cleared, pvh_gen;
+	int cleared, md_gen, not_cleared, pvh_gen;
 	struct spglist free;
 
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
@@ -5424,14 +5423,7 @@ retry:
 			}
 		}
 		va = pv->pv_va;
-		pde = pmap_pde(pmap, va, &lvl);
-		KASSERT(pde != NULL, ("pmap_ts_referenced: no l1 table found"));
-		KASSERT(lvl == 1,
-		    ("pmap_ts_referenced: invalid pde level %d", lvl));
-		tpde = pmap_load(pde);
-		KASSERT((tpde & ATTR_DESCR_MASK) == L1_TABLE,
-		    ("pmap_ts_referenced: found an invalid l1 table"));
-		pte = pmap_l1_to_l2(pde, va);
+		pte = pmap_pte_exists(pmap, va, 2, __func__);
 		tpte = pmap_load(pte);
 		if (pmap_pte_dirty(pmap, tpte)) {
 			/*
@@ -5441,7 +5433,6 @@ retry:
 			 */
 			vm_page_dirty(m);
 		}
-
 		if ((tpte & ATTR_AF) != 0) {
 			/*
 			 * Since this reference bit is shared by 512 4KB pages,
@@ -5472,7 +5463,7 @@ retry:
 		}
 		PMAP_UNLOCK(pmap);
 		/* Rotate the PV list if it has more than one entry. */
-		if (pv != NULL && TAILQ_NEXT(pv, pv_next) != NULL) {
+		if (TAILQ_NEXT(pv, pv_next) != NULL) {
 			TAILQ_REMOVE(&pvh->pv_list, pv, pv_next);
 			TAILQ_INSERT_TAIL(&pvh->pv_list, pv, pv_next);
 			pvh->pv_gen++;
@@ -5499,14 +5490,7 @@ small_mappings:
 				goto retry;
 			}
 		}
-		pde = pmap_pde(pmap, pv->pv_va, &lvl);
-		KASSERT(pde != NULL, ("pmap_ts_referenced: no l2 table found"));
-		KASSERT(lvl == 2,
-		    ("pmap_ts_referenced: invalid pde level %d", lvl));
-		tpde = pmap_load(pde);
-		KASSERT((tpde & ATTR_DESCR_MASK) == L2_TABLE,
-		    ("pmap_ts_referenced: found an invalid l2 table"));
-		pte = pmap_l2_to_l3(pde, pv->pv_va);
+		pte = pmap_pte_exists(pmap, pv->pv_va, 3, __func__);
 		tpte = pmap_load(pte);
 		if (pmap_pte_dirty(pmap, tpte))
 			vm_page_dirty(m);
@@ -5520,7 +5504,7 @@ small_mappings:
 		}
 		PMAP_UNLOCK(pmap);
 		/* Rotate the PV list if it has more than one entry. */
-		if (pv != NULL && TAILQ_NEXT(pv, pv_next) != NULL) {
+		if (TAILQ_NEXT(pv, pv_next) != NULL) {
 			TAILQ_REMOVE(&m->md.pv_list, pv, pv_next);
 			TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_next);
 			m->md.pv_gen++;
