@@ -268,7 +268,6 @@ int g_attr_changed(struct g_provider *pp, const char *attr, int flag);
 int g_media_changed(struct g_provider *pp, int flag);
 int g_media_gone(struct g_provider *pp, int flag);
 void g_orphan_provider(struct g_provider *pp, int error);
-void g_waitidlelock(void);
 struct g_event *g_alloc_event(int flag);
 void g_post_event_ep(g_event_t *func, void *arg, struct g_event *ep, ...);
 
