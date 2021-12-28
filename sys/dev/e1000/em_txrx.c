@@ -706,7 +706,7 @@ em_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 		i++;
 	} while (!eop);
 
-	if (if_getcapenable(ri->iri_ifp) & IFCAP_RXCSUM)
+	if (scctx->isc_capenable & IFCAP_RXCSUM)
 		em_receive_checksum(staterr, staterr >> 24, ri);
 
 	if (staterr & E1000_RXD_STAT_VP) {

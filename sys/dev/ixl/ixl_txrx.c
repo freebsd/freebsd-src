@@ -658,6 +658,7 @@ static int
 ixl_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 {
 	struct ixl_vsi		*vsi = arg;
+	if_softc_ctx_t		scctx = vsi->shared;
 	struct ixl_rx_queue	*que = &vsi->rx_queues[ri->iri_qsidx];
 	struct rx_ring		*rxr = &que->rxr;
 	union i40e_rx_desc	*cur;
@@ -719,7 +720,7 @@ ixl_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 	rxr->packets++;
 	rxr->rx_packets++;
 
-	if ((if_getcapenable(vsi->ifp) & IFCAP_RXCSUM) != 0)
+	if ((scctx->isc_capenable & IFCAP_RXCSUM) != 0)
 		rxr->csum_errs += ixl_rx_checksum(ri, status, error, ptype);
 	ri->iri_flowid = le32toh(cur->wb.qword0.hi_dword.rss);
 	ri->iri_rsstype = ixl_ptype_to_hash(ptype);

@@ -393,9 +393,9 @@ static int
 ixgbe_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 {
 	struct ixgbe_softc       *sc = arg;
+	if_softc_ctx_t		 scctx = sc->shared;
 	struct ix_rx_queue       *que = &sc->rx_queues[ri->iri_qsidx];
 	struct rx_ring           *rxr = &que->rxr;
-	struct ifnet             *ifp = iflib_get_ifp(sc->ctx);
 	union ixgbe_adv_rx_desc  *rxd;
 
 	uint16_t                  pkt_info, len, cidx, i;
@@ -433,7 +433,7 @@ ixgbe_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 		/* Make sure bad packets are discarded */
 		if (eop && (staterr & IXGBE_RXDADV_ERR_FRAME_ERR_MASK) != 0) {
 			if (sc->feat_en & IXGBE_FEATURE_VF)
-				if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
+				if_inc_counter(ri->iri_ifp, IFCOUNTER_IERRORS, 1);
 
 			rxr->rx_discarded++;
 			return (EBADMSG);
@@ -452,7 +452,7 @@ ixgbe_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 	rxr->packets++;
 	rxr->rx_bytes += ri->iri_len;
 
-	if ((ifp->if_capenable & IFCAP_RXCSUM) != 0)
+	if ((scctx->isc_capenable & IFCAP_RXCSUM) != 0)
 		ixgbe_rx_checksum(staterr, ri,  ptype);
 
 	ri->iri_flowid = le32toh(rxd->wb.lower.hi_dword.rss);
