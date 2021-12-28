@@ -44,7 +44,6 @@ extern register_t mimpid;
 struct dumperinfo;
 struct minidumpstate;
 
-void busdma_swi(void);
 int cpu_minidumpsys(struct dumperinfo *, const struct minidumpstate *);
 
 #endif /* !_MACHINE_MD_VAR_H_ */

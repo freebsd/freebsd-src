@@ -84,7 +84,6 @@
 extern char btext[];
 extern char etext[];
 
-void swi_vm(void *);
 void cpu_halt(void);
 void cpu_reset(void);
 

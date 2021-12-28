@@ -8,7 +8,6 @@
 #include <machine/frame.h>
 
 void	cpu_halt(void);
-void	swi_vm(void *);
 
 #ifdef _KERNEL
 #include <machine/cpu-v6.h>
