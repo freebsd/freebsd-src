@@ -6237,13 +6237,15 @@ sctp_get_frag_point(struct sctp_tcb *stcb)
 			overhead += sctp_get_auth_chunk_len(asoc->peer_hmac_id);
 		}
 	} else {
-		overhead += sizeof(struct sctp_idata_chunk);
+		overhead += sizeof(struct sctp_data_chunk);
 		if (sctp_auth_is_required_chunk(SCTP_DATA, asoc->peer_auth_chunks)) {
 			overhead += sctp_get_auth_chunk_len(asoc->peer_hmac_id);
 		}
 	}
+	KASSERT(overhead % 4 == 0,
+	    ("overhead (%u) not a multiple of 4", overhead));
 	/* Consider padding. */
-	if (asoc->smallest_mtu % 4) {
+	if (asoc->smallest_mtu % 4 > 0) {
 		overhead += (asoc->smallest_mtu % 4);
 	}
 	KASSERT(asoc->smallest_mtu > overhead,
