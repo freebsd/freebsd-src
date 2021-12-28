@@ -126,7 +126,7 @@ sysctl_vm_loadavg(SYSCTL_HANDLER_ARGS)
 {
 
 #ifdef SCTL_MASK32
-	u_int32_t la[4];
+	uint32_t la[4];
 
 	if (req->flags & SCTL_MASK32) {
 		la[0] = averunnable.ldavg[0];
