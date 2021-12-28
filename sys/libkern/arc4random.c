@@ -66,7 +66,7 @@ struct chacha20_s {
 	struct mtx mtx;
 	int numbytes;
 	time_t t_reseed;
-	u_int8_t m_buffer[CHACHA20_BUFFER_SIZE];
+	uint8_t m_buffer[CHACHA20_BUFFER_SIZE];
 	struct chacha_ctx ctx;
 #ifdef RANDOM_FENESTRASX
 	uint64_t seed_version;
@@ -87,7 +87,7 @@ static void
 chacha20_randomstir(struct chacha20_s *chacha20)
 {
 	struct timeval tv_now;
-	u_int8_t key[CHACHA20_KEYBYTES];
+	uint8_t key[CHACHA20_KEYBYTES];
 #ifdef RANDOM_FENESTRASX
 	uint64_t seed_version;
 
@@ -199,7 +199,7 @@ arc4rand(void *ptr, u_int len, int reseed)
 	struct chacha20_s *chacha20;
 	struct timeval tv;
 	u_int length;
-	u_int8_t *p;
+	uint8_t *p;
 
 #ifdef RANDOM_FENESTRASX
 	if (__predict_false(reseed))
