@@ -78,8 +78,7 @@
 #include <dev/usb/controller/avr32dci.h>
 
 #define	AVR32_BUS2SC(bus) \
-   ((struct avr32dci_softc *)(((uint8_t *)(bus)) - \
-    ((uint8_t *)&(((struct avr32dci_softc *)0)->sc_bus))))
+    __containerof(bus, struct avr32dci_softc, sc_bus)
 
 #define	AVR32_PC2SC(pc) \
    AVR32_BUS2SC(USB_DMATAG_TO_XROOT((pc)->tag_parent)->bus)

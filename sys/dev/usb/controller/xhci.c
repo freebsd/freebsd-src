@@ -281,7 +281,7 @@ xhci_reset_command_queue_locked(struct xhci_softc *sc)
 	/* set up command ring control base address */
 	addr = buf_res.physaddr;
 	phwr = buf_res.buffer;
-	addr += (uintptr_t)&((struct xhci_hw_root *)0)->hwr_commands[0];
+	addr += __offsetof(struct xhci_hw_root, hwr_commands[0]);
 
 	DPRINTF("CRCR=0x%016llx\n", (unsigned long long)addr);
 
@@ -337,7 +337,7 @@ xhci_start_controller(struct xhci_softc *sc)
 	memset(pdctxa, 0, sizeof(*pdctxa));
 
 	addr = buf_res.physaddr;
-	addr += (uintptr_t)&((struct xhci_dev_ctx_addr *)0)->qwSpBufPtr[0];
+	addr += __offsetof(struct xhci_dev_ctx_addr, qwSpBufPtr[0]);
 
 	/* slot 0 points to the table of scratchpad pointers */
 	pdctxa->qwBaaDevCtxAddr[0] = htole64(addr);
@@ -368,7 +368,7 @@ xhci_start_controller(struct xhci_softc *sc)
 
 	phwr = buf_res.buffer;
 	addr = buf_res.physaddr;
-	addr += (uintptr_t)&((struct xhci_hw_root *)0)->hwr_events[0];
+	addr += __offsetof(struct xhci_hw_root, hwr_events[0]);
 
 	/* reset hardware root structure */
 	memset(phwr, 0, sizeof(*phwr));
@@ -408,7 +408,7 @@ xhci_start_controller(struct xhci_softc *sc)
 
 	/* set up command ring control base address */
 	addr = buf_res.physaddr;
-	addr += (uintptr_t)&((struct xhci_hw_root *)0)->hwr_commands[0];
+	addr += __offsetof(struct xhci_hw_root, hwr_commands[0]);
 
 	DPRINTF("CRCR=0x%016llx\n", (unsigned long long)addr);
 
@@ -1100,7 +1100,7 @@ xhci_interrupt_poll(struct xhci_softc *sc)
 	 */
 
 	addr = buf_res.physaddr;
-	addr += (uintptr_t)&((struct xhci_hw_root *)0)->hwr_events[i];
+	addr += __offsetof(struct xhci_hw_root, hwr_events[i]);
 
 	/* try to clear busy bit */
 	addr |= XHCI_ERDP_LO_BUSY;
@@ -1164,7 +1164,7 @@ retry:
 	usb_pc_cpu_flush(&sc->sc_hw.root_pc);
 
 	addr = buf_res.physaddr;
-	addr += (uintptr_t)&((struct xhci_hw_root *)0)->hwr_commands[i];
+	addr += __offsetof(struct xhci_hw_root, hwr_commands[i]);
 
 	sc->sc_cmd_addr = htole64(addr);
 
