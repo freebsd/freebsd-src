@@ -79,8 +79,7 @@
 #include <dev/usb/controller/atmegadci.h>
 
 #define	ATMEGA_BUS2SC(bus) \
-   ((struct atmegadci_softc *)(((uint8_t *)(bus)) - \
-    ((uint8_t *)&(((struct atmegadci_softc *)0)->sc_bus))))
+    __containerof(bus, struct atmegadci_softc, sc_bus)
 
 #define	ATMEGA_PC2SC(pc) \
    ATMEGA_BUS2SC(USB_DMATAG_TO_XROOT((pc)->tag_parent)->bus)
