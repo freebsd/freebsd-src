@@ -1077,7 +1077,8 @@ t4_teardown_adapter_queues(struct adapter *sc)
 
 	ADAPTER_LOCK_ASSERT_NOTOWNED(sc);
 
-	if (!(sc->flags & IS_VF)) {
+	if (sc->sge.ctrlq != NULL) {
+		MPASS(!(sc->flags & IS_VF));	/* VFs don't allocate ctrlq. */
 		for_each_port(sc, i)
 			free_ctrlq(sc, i);
 	}
