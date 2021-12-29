@@ -5412,6 +5412,7 @@ retry_roundrobin:
 inmatchfail:
 	RWLOCK_EXIT(&softc->ipf_nat);
 
+	DT2(frb_natv4in, fr_info_t *, fin, int, rval);
 	switch (rval)
 	{
 	case -3 :
@@ -5423,7 +5424,6 @@ inmatchfail:
 	case -1 :
 		/* proxy failure detected by ipf_nat_in() */
 		if (passp != NULL) {
-			DT2(frb_natv4in, fr_info_t *, fin, int, rval);
 			NBUMPSIDED(0, ns_drop);
 			*passp = FR_BLOCK;
 			fin->fin_reason = FRB_NATV4;
