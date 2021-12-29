@@ -66,6 +66,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 #include <sys/types.h>
 #include <archive.h>
+#include <err.h>
 #include <errno.h>
 #include <getopt.h>
 #include <libgen.h>
@@ -193,7 +194,6 @@ main(int argc, char **argv)
 			Uflag = 0;
 			break;
 		case 'f':
-		case 'T':
 			bsdar->options |= AR_TR;
 			break;
 		case 'j':
@@ -225,6 +225,10 @@ main(int argc, char **argv)
 			break;
 		case 's':
 			bsdar->options |= AR_S;
+			break;
+		case 'T':
+			warnx("-T is deprecated");
+			bsdar->options |= AR_TR;
 			break;
 		case 't':
 			set_mode(bsdar, opt);
