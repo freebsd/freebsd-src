@@ -150,11 +150,11 @@ resolve_addr(const struct connection *conn, const char *address,
     struct addrinfo **ai, bool initiator_side)
 {
 	struct addrinfo hints;
-	char *arg, *addr, *ch;
+	char *arg, *addr, *ch, *tofree;
 	const char *port;
 	int error, colons = 0;
 
-	arg = checked_strdup(address);
+	tofree = arg = checked_strdup(address);
 
 	if (arg[0] == '\0') {
 		fail(conn, "empty address");
@@ -216,7 +216,7 @@ resolve_addr(const struct connection *conn, const char *address,
 		    address, gai_strerror(error));
 	}
 
-	free(addr);
+	free(tofree);
 }
 
 static struct iscsid_connection *
