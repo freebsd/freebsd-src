@@ -624,10 +624,9 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	tf->tf_x[0] = sig;
 	tf->tf_x[1] = (register_t)&fp->sf_si;
 	tf->tf_x[2] = (register_t)&fp->sf_uc;
-
-	tf->tf_elr = (register_t)catcher;
+	tf->tf_x[8] = (register_t)catcher;
 	tf->tf_sp = (register_t)fp;
-	tf->tf_lr = (register_t)p->p_sysent->sv_sigcode_base;
+	tf->tf_elr = (register_t)p->p_sysent->sv_sigcode_base;
 
 	/* Clear the single step flag while in the signal handler */
 	if ((td->td_pcb->pcb_flags & PCB_SINGLE_STEP) != 0) {

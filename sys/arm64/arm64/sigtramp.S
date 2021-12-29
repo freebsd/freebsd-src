@@ -31,6 +31,7 @@
 #include <machine/asm.h>
 
 ENTRY(sigcode)
+	blr	x8
 	mov	x0, sp
 	add	x0, x0, #SF_UC
 
