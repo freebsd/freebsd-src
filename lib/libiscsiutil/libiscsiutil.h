@@ -141,6 +141,14 @@ void			pdu_receive(struct pdu *request);
 void			pdu_send(struct pdu *response);
 void			pdu_delete(struct pdu *ip);
 
+void			text_send_request(struct connection *conn,
+			    struct keys *request_keys);
+struct keys *		text_read_response(struct connection *conn);
+struct keys *		text_read_request(struct connection *conn,
+			    struct pdu **requestp);
+void			text_send_response(struct pdu *request,
+			    struct keys *response_keys);
+
 void			connection_init(struct connection *conn,
 			    const struct connection_ops *ops, bool use_proxy);
 
