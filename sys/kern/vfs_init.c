@@ -83,34 +83,6 @@ SYSCTL_INT(_vfs, OID_AUTO, typenumhash, CTLFLAG_RDTUN, &vfs_typenumhash, 0,
     "change when file systems are loaded in a different order.");
 
 /*
- * A Zen vnode attribute structure.
- */
-const struct vattr va_null = {
-	.va_type = 	VNON,
-	.va_mode = 	VNOVAL,
-	.va_uid = 	VNOVAL,
-	.va_gid = 	VNOVAL,
-	.va_nlink = 	VNOVAL,
-	.va_fsid = 	VNOVAL,
-	.va_fileid = 	VNOVAL,
-	.va_size = 	VNOVAL,
-	.va_blocksize =	VNOVAL,
-	.va_gen = 	VNOVAL,
-	.va_flags = 	VNOVAL,
-	.va_rdev = 	VNOVAL,
-	.va_bytes = 	VNOVAL,
-	.va_vaflags = 	0,
-	.va_atime.tv_sec =	VNOVAL,
-	.va_atime.tv_nsec =	VNOVAL,
-	.va_mtime.tv_sec =	VNOVAL,
-	.va_mtime.tv_nsec =	VNOVAL,
-	.va_ctime.tv_sec =	VNOVAL,
-	.va_ctime.tv_nsec =	VNOVAL,
-	.va_birthtime.tv_sec =	VNOVAL,
-	.va_birthtime.tv_nsec =	VNOVAL,
-};
-
-/*
  * vfs_init.c
  *
  * Allocate and fill in operations vectors.

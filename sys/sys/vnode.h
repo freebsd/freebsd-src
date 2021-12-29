@@ -440,7 +440,7 @@ extern int		vttoif_tab[];
 				   filesystem is being unmounted */
 
 #define	VREF(vp)	vref(vp)
-#define	VATTR_NULL(vap)	(*(vap) = va_null)	/* initialize a vattr */
+#define	VATTR_NULL(vap)	vattr_null(vap)	/* initialize a vattr */
 #define	NULLVP	((struct vnode *)NULL)
 
 /*
@@ -450,7 +450,6 @@ extern	struct vnode *rootvnode;	/* root (i.e. "/") vnode */
 extern	struct mount *rootdevmp;	/* "/dev" mount */
 extern	u_long desiredvnodes;		/* number of vnodes desired */
 extern	struct uma_zone *namei_zone;
-extern	const struct vattr va_null;	/* predefined null vattr structure */
 
 extern	u_int vn_lock_pair_pause_max;
 
@@ -709,6 +708,7 @@ int	vaccess_acl_nfs4(enum vtype type, uid_t file_uid, gid_t file_gid,
 int	vaccess_acl_posix1e(enum vtype type, uid_t file_uid,
 	    gid_t file_gid, struct acl *acl, accmode_t accmode,
 	    struct ucred *cred);
+void	vattr_null(struct vattr *vap);
 void	vlazy(struct vnode *);
 void	vdrop(struct vnode *);
 void	vdropl(struct vnode *);
