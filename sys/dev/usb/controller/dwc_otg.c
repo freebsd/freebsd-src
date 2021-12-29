@@ -90,8 +90,7 @@
 #include <dev/usb/controller/dwc_otgreg.h>
 
 #define	DWC_OTG_BUS2SC(bus) \
-   ((struct dwc_otg_softc *)(((uint8_t *)(bus)) - \
-    ((uint8_t *)&(((struct dwc_otg_softc *)0)->sc_bus))))
+    __containerof(bus, struct dwc_otg_softc, sc_bus)
 
 #define	DWC_OTG_PC2UDEV(pc) \
    (USB_DMATAG_TO_XROOT((pc)->tag_parent)->udev)

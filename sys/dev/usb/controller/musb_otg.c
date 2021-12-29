@@ -82,8 +82,7 @@
 #define	MUSBOTG_INTR_ENDPT 1
 
 #define	MUSBOTG_BUS2SC(bus) \
-   ((struct musbotg_softc *)(((uint8_t *)(bus)) - \
-   USB_P2U(&(((struct musbotg_softc *)0)->sc_bus))))
+    __containerof(bus, struct musbotg_softc, sc_bus)
 
 #define	MUSBOTG_PC2SC(pc) \
    MUSBOTG_BUS2SC(USB_DMATAG_TO_XROOT((pc)->tag_parent)->bus)
