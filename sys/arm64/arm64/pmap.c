@@ -1223,10 +1223,35 @@ SYSCTL_ULONG(_vm_pmap_l2, OID_AUTO, promotions, CTLFLAG_RD,
     &pmap_l2_promotions, 0, "2MB page promotions");
 
 /*
- * Invalidate a single TLB entry.
+ * If the given value for "final_only" is false, then any cached intermediate-
+ * level entries, i.e., L{0,1,2}_TABLE entries, are invalidated in addition to
+ * any cached final-level entry, i.e., either an L{1,2}_BLOCK or L3_PAGE entry.
+ * Otherwise, just the cached final-level entry is invalidated.
  */
 static __inline void
-pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
+pmap_invalidate_kernel(uint64_t r, bool final_only)
+{
+	if (final_only)
+		__asm __volatile("tlbi vaale1is, %0" : : "r" (r));
+	else
+		__asm __volatile("tlbi vaae1is, %0" : : "r" (r));
+}
+
+static __inline void
+pmap_invalidate_user(uint64_t r, bool final_only)
+{
+	if (final_only)
+		__asm __volatile("tlbi vale1is, %0" : : "r" (r));
+	else
+		__asm __volatile("tlbi vae1is, %0" : : "r" (r));
+}
+
+/*
+ * Invalidates any cached final- and optionally intermediate-level TLB entries
+ * for the specified virtual address in the given virtual address space.
+ */
+static __inline void
+pmap_invalidate_page(pmap_t pmap, vm_offset_t va, bool final_only)
 {
 	uint64_t r;
 
@@ -1235,17 +1260,22 @@ pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
 	dsb(ishst);
 	if (pmap == kernel_pmap) {
 		r = atop(va);
-		__asm __volatile("tlbi vaae1is, %0" : : "r" (r));
+		pmap_invalidate_kernel(r, final_only);
 	} else {
 		r = ASID_TO_OPERAND(COOKIE_TO_ASID(pmap->pm_cookie)) | atop(va);
-		__asm __volatile("tlbi vae1is, %0" : : "r" (r));
+		pmap_invalidate_user(r, final_only);
 	}
 	dsb(ish);
 	isb();
 }
 
+/*
+ * Invalidates any cached final- and optionally intermediate-level TLB entries
+ * for the specified virtual address range in the given virtual address space.
+ */
 static __inline void
-pmap_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
+pmap_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva,
+    bool final_only)
 {
 	uint64_t end, r, start;
 
@@ -1256,18 +1286,22 @@ pmap_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 		start = atop(sva);
 		end = atop(eva);
 		for (r = start; r < end; r++)
-			__asm __volatile("tlbi vaae1is, %0" : : "r" (r));
+			pmap_invalidate_kernel(r, final_only);
 	} else {
 		start = end = ASID_TO_OPERAND(COOKIE_TO_ASID(pmap->pm_cookie));
 		start |= atop(sva);
 		end |= atop(eva);
 		for (r = start; r < end; r++)
-			__asm __volatile("tlbi vae1is, %0" : : "r" (r));
+			pmap_invalidate_user(r, final_only);
 	}
 	dsb(ish);
 	isb();
 }
 
+/*
+ * Invalidates all cached intermediate- and final-level TLB entries for the
+ * given virtual address space.
+ */
 static __inline void
 pmap_invalidate_all(pmap_t pmap)
 {
@@ -1513,7 +1547,7 @@ pmap_kenter(vm_offset_t sva, vm_size_t size, vm_paddr_t pa, int mode)
 		pa += PAGE_SIZE;
 		size -= PAGE_SIZE;
 	}
-	pmap_invalidate_range(kernel_pmap, sva, va);
+	pmap_invalidate_range(kernel_pmap, sva, va, true);
 }
 
 void
@@ -1533,7 +1567,7 @@ pmap_kremove(vm_offset_t va)
 
 	pte = pmap_pte_exists(kernel_pmap, va, 3, __func__);
 	pmap_clear(pte);
-	pmap_invalidate_page(kernel_pmap, va);
+	pmap_invalidate_page(kernel_pmap, va, true);
 }
 
 void
@@ -1555,7 +1589,7 @@ pmap_kremove_device(vm_offset_t sva, vm_size_t size)
 		va += PAGE_SIZE;
 		size -= PAGE_SIZE;
 	}
-	pmap_invalidate_range(kernel_pmap, sva, va);
+	pmap_invalidate_range(kernel_pmap, sva, va, true);
 }
 
 /*
@@ -1611,7 +1645,7 @@ pmap_qenter(vm_offset_t sva, vm_page_t *ma, int count)
 
 		va += L3_SIZE;
 	}
-	pmap_invalidate_range(kernel_pmap, sva, va);
+	pmap_invalidate_range(kernel_pmap, sva, va, true);
 }
 
 /*
@@ -1637,7 +1671,7 @@ pmap_qremove(vm_offset_t sva, int count)
 
 		va += PAGE_SIZE;
 	}
-	pmap_invalidate_range(kernel_pmap, sva, va);
+	pmap_invalidate_range(kernel_pmap, sva, va, true);
 }
 
 /***************************************************
@@ -1725,7 +1759,7 @@ _pmap_unwire_l3(pmap_t pmap, vm_offset_t va, vm_page_t m, struct spglist *free)
 		l1pg = PHYS_TO_VM_PAGE(tl0 & ~ATTR_MASK);
 		pmap_unwire_l3(pmap, va, l1pg, free);
 	}
-	pmap_invalidate_page(pmap, va);
+	pmap_invalidate_page(pmap, va, false);
 
 	/*
 	 * Put page on a list so that it is released after
@@ -1763,17 +1797,8 @@ pmap_abort_ptp(pmap_t pmap, vm_offset_t va, vm_page_t mpte)
 	struct spglist free;
 
 	SLIST_INIT(&free);
-	if (pmap_unwire_l3(pmap, va, mpte, &free)) {
-		/*
-		 * Although "va" was never mapped, the TLB could nonetheless
-		 * have intermediate entries that refer to the freed page
-		 * table pages.  Invalidate those entries.
-		 *
-		 * XXX redundant invalidation (See _pmap_unwire_l3().)
-		 */
-		pmap_invalidate_page(pmap, va);
+	if (pmap_unwire_l3(pmap, va, mpte, &free))
 		vm_page_free_pages_toq(&free, true);
-	}
 }
 
 void
@@ -2417,7 +2442,7 @@ reclaim_pv_chunk(pmap_t locked_pmap, struct rwlock **lockp)
 				if (pmap_pte_dirty(pmap, tpte))
 					vm_page_dirty(m);
 				if ((tpte & ATTR_AF) != 0) {
-					pmap_invalidate_page(pmap, va);
+					pmap_invalidate_page(pmap, va, true);
 					vm_page_aflag_set(m, PGA_REFERENCED);
 				}
 				CHANGE_PV_LIST_LOCK_TO_VM_PAGE(lockp, m);
@@ -2898,7 +2923,7 @@ pmap_remove_l2(pmap_t pmap, pt_entry_t *l2, vm_offset_t sva,
 	 * Since a promotion must break the 4KB page mappings before making
 	 * the 2MB page mapping, a pmap_invalidate_page() suffices.
 	 */
-	pmap_invalidate_page(pmap, sva);
+	pmap_invalidate_page(pmap, sva, true);
 
 	if (old_l2 & ATTR_SW_WIRED)
 		pmap->pm_stats.wired_count -= L2_SIZE / PAGE_SIZE;
@@ -2948,7 +2973,7 @@ pmap_remove_l3(pmap_t pmap, pt_entry_t *l3, vm_offset_t va,
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	old_l3 = pmap_load_clear(l3);
-	pmap_invalidate_page(pmap, va);
+	pmap_invalidate_page(pmap, va, true);
 	if (old_l3 & ATTR_SW_WIRED)
 		pmap->pm_stats.wired_count -= 1;
 	pmap_resident_count_dec(pmap, 1);
@@ -2997,7 +3022,7 @@ pmap_remove_l3_range(pmap_t pmap, pd_entry_t l2e, vm_offset_t sva,
 	for (l3 = pmap_l2_to_l3(&l2e, sva); sva != eva; l3++, sva += L3_SIZE) {
 		if (!pmap_l3_valid(pmap_load(l3))) {
 			if (va != eva) {
-				pmap_invalidate_range(pmap, va, sva);
+				pmap_invalidate_range(pmap, va, sva, true);
 				va = eva;
 			}
 			continue;
@@ -3025,7 +3050,7 @@ pmap_remove_l3_range(pmap_t pmap, pd_entry_t l2e, vm_offset_t sva,
 					 */
 					if (va != eva) {
 						pmap_invalidate_range(pmap, va,
-						    sva);
+						    sva, true);
 						va = eva;
 					}
 					rw_wunlock(*lockp);
@@ -3041,15 +3066,21 @@ pmap_remove_l3_range(pmap_t pmap, pd_entry_t l2e, vm_offset_t sva,
 					vm_page_aflag_clear(m, PGA_WRITEABLE);
 			}
 		}
-		if (va == eva)
-			va = sva;
 		if (l3pg != NULL && pmap_unwire_l3(pmap, sva, l3pg, free)) {
-			sva += L3_SIZE;
+			/*
+			 * _pmap_unwire_l3() has already invalidated the TLB
+			 * entries at all levels for "sva".  So, we need not
+			 * perform "sva += L3_SIZE;" here.  Moreover, we need
+			 * not perform "va = sva;" if "sva" is at the start
+			 * of a new valid range consisting of a single page.
+			 */
 			break;
 		}
+		if (va == eva)
+			va = sva;
 	}
 	if (va != eva)
-		pmap_invalidate_range(pmap, va, sva);
+		pmap_invalidate_range(pmap, va, sva, true);
 }
 
 /*
@@ -3104,7 +3135,7 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 			MPASS(pmap != kernel_pmap);
 			MPASS((pmap_load(l1) & ATTR_SW_MANAGED) == 0);
 			pmap_clear(l1);
-			pmap_invalidate_page(pmap, sva);
+			pmap_invalidate_page(pmap, sva, true);
 			pmap_resident_count_dec(pmap, L1_SIZE / PAGE_SIZE);
 			pmap_unuse_pt(pmap, sva, pmap_load(l0), &free);
 			continue;
@@ -3235,7 +3266,7 @@ retry:
 		if (tpte & ATTR_SW_WIRED)
 			pmap->pm_stats.wired_count--;
 		if ((tpte & ATTR_AF) != 0) {
-			pmap_invalidate_page(pmap, pv->pv_va);
+			pmap_invalidate_page(pmap, pv->pv_va, true);
 			vm_page_aflag_set(m, PGA_REFERENCED);
 		}
 
@@ -3300,7 +3331,7 @@ pmap_protect_l2(pmap_t pmap, pt_entry_t *l2, vm_offset_t sva, pt_entry_t mask,
 	 * Since a promotion must break the 4KB page mappings before making
 	 * the 2MB page mapping, a pmap_invalidate_page() suffices.
 	 */
-	pmap_invalidate_page(pmap, sva);
+	pmap_invalidate_page(pmap, sva, true);
 }
 
 /*
@@ -3357,7 +3388,7 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 			MPASS((pmap_load(l1) & ATTR_SW_MANAGED) == 0);
 			if ((pmap_load(l1) & mask) != nbits) {
 				pmap_store(l1, (pmap_load(l1) & ~mask) | nbits);
-				pmap_invalidate_page(pmap, sva);
+				pmap_invalidate_page(pmap, sva, true);
 			}
 			continue;
 		}
@@ -3398,7 +3429,8 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 			 */
 			if (!pmap_l3_valid(l3) || (l3 & mask) == nbits) {
 				if (va != va_next) {
-					pmap_invalidate_range(pmap, va, sva);
+					pmap_invalidate_range(pmap, va, sva,
+					    true);
 					va = va_next;
 				}
 				continue;
@@ -3421,7 +3453,7 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 				va = sva;
 		}
 		if (va != va_next)
-			pmap_invalidate_range(pmap, va, sva);
+			pmap_invalidate_range(pmap, va, sva, true);
 	}
 	PMAP_UNLOCK(pmap);
 }
@@ -3483,7 +3515,13 @@ pmap_update_entry(pmap_t pmap, pd_entry_t *pte, pd_entry_t newpte,
 	 * lookup the physical address.
 	 */
 	pmap_clear_bits(pte, ATTR_DESCR_VALID);
-	pmap_invalidate_range(pmap, va, va + size);
+
+	/*
+	 * When promoting, the L{1,2}_TABLE entry that is being replaced might
+	 * be cached, so we invalidate intermediate entries as well as final
+	 * entries.
+	 */
+	pmap_invalidate_range(pmap, va, va + size, false);
 
 	/* Create the new mapping */
 	pmap_store(pte, newpte);
@@ -3937,7 +3975,7 @@ havel3:
 			if (pmap_pte_dirty(pmap, orig_l3))
 				vm_page_dirty(om);
 			if ((orig_l3 & ATTR_AF) != 0) {
-				pmap_invalidate_page(pmap, va);
+				pmap_invalidate_page(pmap, va, true);
 				vm_page_aflag_set(om, PGA_REFERENCED);
 			}
 			CHANGE_PV_LIST_LOCK_TO_PHYS(&lock, opa);
@@ -3952,7 +3990,7 @@ havel3:
 		} else {
 			KASSERT((orig_l3 & ATTR_AF) != 0,
 			    ("pmap_enter: unmanaged mapping lacks ATTR_AF"));
-			pmap_invalidate_page(pmap, va);
+			pmap_invalidate_page(pmap, va, true);
 		}
 		orig_l3 = 0;
 	} else {
@@ -4010,7 +4048,7 @@ validate:
 		if ((orig_l3 & ~ATTR_AF) != (new_l3 & ~ATTR_AF)) {
 			/* same PA, different attributes */
 			orig_l3 = pmap_load_store(l3, new_l3);
-			pmap_invalidate_page(pmap, va);
+			pmap_invalidate_page(pmap, va, true);
 			if ((orig_l3 & ATTR_SW_MANAGED) != 0 &&
 			    pmap_pte_dirty(pmap, orig_l3))
 				vm_page_dirty(m);
@@ -4179,13 +4217,15 @@ pmap_enter_l2(pmap_t pmap, vm_offset_t va, pd_entry_t new_l2, u_int flags,
 			 * Both pmap_remove_l2() and pmap_remove_l3_range()
 			 * will leave the kernel page table page zero filled.
 			 * Nonetheless, the TLB could have an intermediate
-			 * entry for the kernel page table page.
+			 * entry for the kernel page table page, so request
+			 * an invalidation at all levels after clearing
+			 * the L2_TABLE entry.
 			 */
 			mt = PHYS_TO_VM_PAGE(pmap_load(l2) & ~ATTR_MASK);
 			if (pmap_insert_pt_page(pmap, mt, false))
 				panic("pmap_enter_l2: trie insert failed");
 			pmap_clear(l2);
-			pmap_invalidate_page(pmap, va);
+			pmap_invalidate_page(pmap, va, false);
 		}
 	}
 
@@ -5358,7 +5398,7 @@ retry:
 			if ((oldpte & ATTR_S1_AP_RW_BIT) ==
 			    ATTR_S1_AP(ATTR_S1_AP_RW))
 				vm_page_dirty(m);
-			pmap_invalidate_page(pmap, pv->pv_va);
+			pmap_invalidate_page(pmap, pv->pv_va, true);
 		}
 		PMAP_UNLOCK(pmap);
 	}
@@ -5456,7 +5496,7 @@ retry:
 			    (uintptr_t)pmap) & (Ln_ENTRIES - 1)) == 0 &&
 			    (tpte & ATTR_SW_WIRED) == 0) {
 				pmap_clear_bits(pte, ATTR_AF);
-				pmap_invalidate_page(pmap, va);
+				pmap_invalidate_page(pmap, va, true);
 				cleared++;
 			} else
 				not_cleared++;
@@ -5497,7 +5537,7 @@ small_mappings:
 		if ((tpte & ATTR_AF) != 0) {
 			if ((tpte & ATTR_SW_WIRED) == 0) {
 				pmap_clear_bits(pte, ATTR_AF);
-				pmap_invalidate_page(pmap, pv->pv_va);
+				pmap_invalidate_page(pmap, pv->pv_va, true);
 				cleared++;
 			} else
 				not_cleared++;
@@ -5640,12 +5680,12 @@ pmap_advise(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, int advice)
 			continue;
 maybe_invlrng:
 			if (va != va_next) {
-				pmap_invalidate_range(pmap, va, sva);
+				pmap_invalidate_range(pmap, va, sva, true);
 				va = va_next;
 			}
 		}
 		if (va != va_next)
-			pmap_invalidate_range(pmap, va, sva);
+			pmap_invalidate_range(pmap, va, sva, true);
 	}
 	PMAP_UNLOCK(pmap);
 }
@@ -5706,7 +5746,7 @@ restart:
 			    (oldl3 & ~ATTR_SW_DBM) | ATTR_S1_AP(ATTR_S1_AP_RO)))
 				cpu_spinwait();
 			vm_page_dirty(m);
-			pmap_invalidate_page(pmap, va);
+			pmap_invalidate_page(pmap, va, true);
 		}
 		PMAP_UNLOCK(pmap);
 	}
@@ -5729,7 +5769,7 @@ restart:
 		oldl3 = pmap_load(l3);
 		if ((oldl3 & (ATTR_S1_AP_RW_BIT | ATTR_SW_DBM)) == ATTR_SW_DBM){
 			pmap_set_bits(l3, ATTR_S1_AP(ATTR_S1_AP_RO));
-			pmap_invalidate_page(pmap, pv->pv_va);
+			pmap_invalidate_page(pmap, pv->pv_va, true);
 		}
 		PMAP_UNLOCK(pmap);
 	}
@@ -6825,7 +6865,7 @@ pmap_fault(pmap_t pmap, uint64_t esr, uint64_t far)
 			if ((pte & ATTR_S1_AP_RW_BIT) ==
 			    ATTR_S1_AP(ATTR_S1_AP_RO)) {
 				pmap_clear_bits(ptep, ATTR_S1_AP_RW_BIT);
-				pmap_invalidate_page(pmap, far);
+				pmap_invalidate_page(pmap, far, true);
 			}
 			rv = KERN_SUCCESS;
 		}
