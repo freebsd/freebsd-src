@@ -335,7 +335,9 @@ static int
 nss_configure(void)
 {
 	static time_t	 confmod;
+#ifndef NS_REREAD_CONF
 	static int	 already_initialized = 0;
+#endif
 	struct stat	 statbuf;
 	int		 result, isthreaded;
 	const char	*path;
