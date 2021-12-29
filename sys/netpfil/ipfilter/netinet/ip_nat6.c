@@ -3121,6 +3121,7 @@ maskloop:
 inmatchfail:
 	RWLOCK_EXIT(&softc->ipf_nat);
 
+	DT2(frb_natv6in, fr_info_t *, fin, int, rval);
 	switch (rval)
 	{
 	case -1 :
