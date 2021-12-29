@@ -179,7 +179,6 @@ static void _vm_phys_create_seg(vm_paddr_t start, vm_paddr_t end, int domain);
 static void vm_phys_create_seg(vm_paddr_t start, vm_paddr_t end);
 static void vm_phys_split_pages(vm_page_t m, int oind, struct vm_freelist *fl,
     int order, int tail);
-
 /*
  * Red-black tree helpers for vm fictitious range management.
  */
@@ -709,6 +708,18 @@ vm_phys_enq_range(vm_page_t m, u_int npages, struct vm_freelist *fl, int tail)
 		m += n;
 		npages -= n;
 	} while (npages > 0);
+}
+
+/*
+ * Set the pool for a contiguous, power of two-sized set of physical pages. 
+ */
+static void
+vm_phys_set_pool(int pool, vm_page_t m, int order)
+{
+	vm_page_t m_tmp;
+
+	for (m_tmp = m; m_tmp < &m[1 << order]; m_tmp++)
+		m_tmp->pool = pool;
 }
 
 /*
@@ -1271,18 +1282,6 @@ vm_phys_scan_contig(int domain, u_long npages, vm_paddr_t low, vm_paddr_t high,
 			return (m_run);
 	}
 	return (NULL);
-}
-
-/*
- * Set the pool for a contiguous, power of two-sized set of physical pages. 
- */
-void
-vm_phys_set_pool(int pool, vm_page_t m, int order)
-{
-	vm_page_t m_tmp;
-
-	for (m_tmp = m; m_tmp < &m[1 << order]; m_tmp++)
-		m_tmp->pool = pool;
 }
 
 /*
