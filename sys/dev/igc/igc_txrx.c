@@ -513,8 +513,7 @@ igc_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 	if ((scctx->isc_capenable & IFCAP_RXCSUM) != 0)
 		igc_rx_checksum(staterr, ri, ptype);
 
-	if ((scctx->isc_capenable & IFCAP_VLAN_HWTAGGING) != 0 &&
-	    (staterr & IGC_RXD_STAT_VP) != 0) {
+	if (staterr & IGC_RXD_STAT_VP) {
 		ri->iri_vtag = le16toh(rxd->wb.upper.vlan);
 		ri->iri_flags |= M_VLANTAG;
 	}
