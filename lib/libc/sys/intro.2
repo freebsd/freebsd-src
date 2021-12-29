@@ -474,7 +474,7 @@ The state protected by a robust mutex is not recoverable.
 The owner of a robust mutex terminated while holding the mutex lock.
 .It Er 97 EINTEGRITY Em "Integrity check failed" .
 An integrity check such as a check-hash or a cross-correlation failed.
-The integrity error falls between
+The integrity error falls in the kernel I/O stack between
 .Er EINVAL
 that identifies errors in parameters to a system call and
 .Er EIO
