@@ -168,6 +168,8 @@ static const struct alg {
 	const EVP_MD *(*evp_md)(void);
 	int pkey;
 } algs[] = {
+	{ .name = "ripemd160", .mac = CRYPTO_RIPEMD160, .type = T_HASH,
+	  .evp_md = EVP_ripemd160 },
 	{ .name = "sha1", .mac = CRYPTO_SHA1, .type = T_HASH,
 	  .evp_md = EVP_sha1 },
 	{ .name = "sha224", .mac = CRYPTO_SHA2_224, .type = T_HASH,

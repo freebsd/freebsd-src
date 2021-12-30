@@ -70,6 +70,7 @@ extern const struct auth_hash auth_hash_hmac_sha2_224;
 extern const struct auth_hash auth_hash_hmac_sha2_256;
 extern const struct auth_hash auth_hash_hmac_sha2_384;
 extern const struct auth_hash auth_hash_hmac_sha2_512;
+extern const struct auth_hash auth_hash_ripemd_160;
 extern const struct auth_hash auth_hash_sha1;
 extern const struct auth_hash auth_hash_sha2_224;
 extern const struct auth_hash auth_hash_sha2_256;
