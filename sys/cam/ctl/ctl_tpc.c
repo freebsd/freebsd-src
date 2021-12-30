@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
- * Copyright (c) 2014 Alexander Motin <mav@FreeBSD.org>
+ * Copyright (c) 2014-2021 Alexander Motin <mav@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -67,8 +67,8 @@ __FBSDID("$FreeBSD$");
 #define	TPC_MAX_LIST	8192
 #define	TPC_MAX_INLINE	0
 #define	TPC_MAX_LISTS	255
-#define	TPC_MAX_IO_SIZE	(1024 * 1024)
-#define	TPC_MAX_IOCHUNK_SIZE	(TPC_MAX_IO_SIZE * 16)
+#define	TPC_MAX_IO_SIZE	(8 * MIN(1024 * 1024, MAX(128 * 1024, maxphys)))
+#define	TPC_MAX_IOCHUNK_SIZE	(TPC_MAX_IO_SIZE * 4)
 #define	TPC_MIN_TOKEN_TIMEOUT	1
 #define	TPC_DFL_TOKEN_TIMEOUT	60
 #define	TPC_MAX_TOKEN_TIMEOUT	600
