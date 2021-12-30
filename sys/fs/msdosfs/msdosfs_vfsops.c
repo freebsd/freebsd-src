@@ -558,6 +558,14 @@ mountmsdosfs(struct vnode *devvp, struct mount *mp)
 	}
 
 	pmp->pm_HugeSectors *= pmp->pm_BlkPerSec;
+	if ((off_t)pmp->pm_HugeSectors * pmp->pm_BytesPerSec <
+	    pmp->pm_HugeSectors /* overflow */ ||
+	    (off_t)pmp->pm_HugeSectors * pmp->pm_BytesPerSec >
+	    cp->provider->mediasize /* past end of vol */) {
+		error = EINVAL;
+		goto error_exit;
+	}
+
 	pmp->pm_HiddenSects *= pmp->pm_BlkPerSec;	/* XXX not used? */
 	pmp->pm_FATsecs     *= pmp->pm_BlkPerSec;
 	SecPerClust         *= pmp->pm_BlkPerSec;
@@ -577,6 +585,10 @@ mountmsdosfs(struct vnode *devvp, struct mount *mp)
 		pmp->pm_firstcluster = pmp->pm_rootdirblk + pmp->pm_rootdirsize;
 	}
 
+	if (pmp->pm_HugeSectors <= pmp->pm_firstcluster) {
+		error = EINVAL;
+		goto error_exit;
+	}
 	pmp->pm_maxcluster = (pmp->pm_HugeSectors - pmp->pm_firstcluster) /
 	    SecPerClust + 1;
 	pmp->pm_fatsize = pmp->pm_FATsecs * DEV_BSIZE;	/* XXX not used? */
