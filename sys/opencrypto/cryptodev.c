@@ -449,6 +449,9 @@ cse_create(struct fcrypt *fcr, struct session2_op *sop)
 			return (EINVAL);
 		}
 		break;
+	case CRYPTO_RIPEMD160:
+		thash = &auth_hash_ripemd_160;
+		break;
 	case CRYPTO_SHA1:
 		thash = &auth_hash_sha1;
 		break;

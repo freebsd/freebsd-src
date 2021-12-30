@@ -1177,6 +1177,7 @@ swcr_setup_auth(struct swcr_session *ses,
 			    csp->csp_auth_klen, swa->sw_octx);
 		}
 		break;
+	case CRYPTO_RIPEMD160:
 	case CRYPTO_SHA1:
 	case CRYPTO_SHA2_224:
 	case CRYPTO_SHA2_256:
