@@ -4025,7 +4025,7 @@ sctp_add_remote_addr(struct sctp_tcb *stcb, struct sockaddr *newaddr,
 		stcb->asoc.smallest_mtu = net->mtu;
 	}
 	if (stcb->asoc.smallest_mtu > net->mtu) {
-		sctp_pathmtu_adjustment(stcb, net->mtu);
+		sctp_pathmtu_adjustment(stcb, net->mtu, true);
 	}
 #ifdef INET6
 	if (newaddr->sa_family == AF_INET6) {

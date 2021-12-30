@@ -5291,7 +5291,7 @@ sctp_common_input_processing(struct mbuf **mm, int iphlen, int offset, int lengt
 					/* UDP encapsulation turned on. */
 					net->mtu -= sizeof(struct udphdr);
 					if (stcb->asoc.smallest_mtu > net->mtu) {
-						sctp_pathmtu_adjustment(stcb, net->mtu);
+						sctp_pathmtu_adjustment(stcb, net->mtu, true);
 					}
 				} else if (port == 0) {
 					/* UDP encapsulation turned off. */
@@ -5331,7 +5331,7 @@ sctp_common_input_processing(struct mbuf **mm, int iphlen, int offset, int lengt
 			/* UDP encapsulation turned on. */
 			net->mtu -= sizeof(struct udphdr);
 			if (stcb->asoc.smallest_mtu > net->mtu) {
-				sctp_pathmtu_adjustment(stcb, net->mtu);
+				sctp_pathmtu_adjustment(stcb, net->mtu, true);
 			}
 		} else if (port == 0) {
 			/* UDP encapsulation turned off. */
@@ -5426,7 +5426,7 @@ sctp_common_input_processing(struct mbuf **mm, int iphlen, int offset, int lengt
 					/* UDP encapsulation turned on. */
 					net->mtu -= sizeof(struct udphdr);
 					if (stcb->asoc.smallest_mtu > net->mtu) {
-						sctp_pathmtu_adjustment(stcb, net->mtu);
+						sctp_pathmtu_adjustment(stcb, net->mtu, true);
 					}
 				} else if (port == 0) {
 					/* UDP encapsulation turned off. */
