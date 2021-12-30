@@ -40,9 +40,6 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
-# 20211229 libc++ moved to /lib
-OLD_LIBS+=usr/lib/libc++.so.1
-
 # 20211221 efi_set_variables_supported.3 should be efi_variables_supported.3
 OLD_FILES+=usr/share/man/man3/efi_set_variables_supported.3.gz
 
