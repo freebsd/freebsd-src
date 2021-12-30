@@ -156,6 +156,12 @@ g_label_msdosfs_taste(struct g_consumer *cp, char *label, size_t size)
 		G_LABEL_DEBUG(2,
 		    "MSDOSFS: FAT_FirstDataSector=0x%x, FAT_BytesPerSector=%d",
 		    fat_FirstDataSector, fat_BytesPerSector);
+		if (fat_BytesPerSector == 0 ||
+		    fat_BytesPerSector % pp->sectorsize != 0) {
+			G_LABEL_DEBUG(1, "MSDOSFS: %s: corrupted BPB",
+			    pp->name);
+			goto error;
+		}
 
 		for (offset = fat_BytesPerSector * fat_FirstDataSector;;
 		    offset += fat_BytesPerSector) {
