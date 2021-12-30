@@ -3,8 +3,8 @@
  *
  * Copyright (c) 2003 Silicon Graphics International Corp.
  * Copyright (c) 2009-2011 Spectra Logic Corporation
- * Copyright (c) 2012 The FreeBSD Foundation
- * Copyright (c) 2014-2015 Alexander Motin <mav@FreeBSD.org>
+ * Copyright (c) 2012,2021 The FreeBSD Foundation
+ * Copyright (c) 2014-2021 Alexander Motin <mav@FreeBSD.org>
  * All rights reserved.
  *
  * Portions of this software were developed by Edward Tomasz Napierala
@@ -97,16 +97,15 @@ __FBSDID("$FreeBSD$");
 #include <cam/ctl/ctl_error.h>
 
 /*
- * The idea here is that we'll allocate enough S/G space to hold a 1MB
- * I/O.  If we get an I/O larger than that, we'll split it.
+ * The idea here is to allocate enough S/G space to handle at least 1MB I/Os.
+ * On systems with small maxphys it can be 8 128KB segments.  On large systems
+ * it can be up to 8 1MB segments.  I/Os larger than that we'll split.
  */
-#define	CTLBLK_HALF_IO_SIZE	(512 * 1024)
-#define	CTLBLK_MAX_IO_SIZE	(CTLBLK_HALF_IO_SIZE * 2)
+#define	CTLBLK_MAX_SEGS		8
+#define	CTLBLK_HALF_SEGS	(CTLBLK_MAX_SEGS / 2)
 #define	CTLBLK_MIN_SEG		(128 * 1024)
-#define	CTLBLK_MAX_SEG		MIN(CTLBLK_HALF_IO_SIZE, maxphys)
-#define	CTLBLK_HALF_SEGS	MAX(CTLBLK_HALF_IO_SIZE / CTLBLK_MIN_SEG, 1)
-#define	CTLBLK_MAX_SEGS		(CTLBLK_HALF_SEGS * 2)
-#define	CTLBLK_NUM_SEGS		(CTLBLK_MAX_IO_SIZE / CTLBLK_MAX_SEG)
+#define	CTLBLK_MAX_SEG		MIN(1024 * 1024, MAX(CTLBLK_MIN_SEG, maxphys))
+#define	CTLBLK_MAX_IO_SIZE	(CTLBLK_MAX_SEG * CTLBLK_MAX_SEGS)
 
 #ifdef CTLBLK_DEBUG
 #define DPRINTF(fmt, args...) \
@@ -1146,10 +1145,10 @@ ctl_be_block_dispatch_dev(struct ctl_be_block_lun *be_lun,
 	 */
 	if (csw) {
 		max_iosize = dev->si_iosize_max;
-		if (max_iosize < PAGE_SIZE)
+		if (max_iosize <= 0)
 			max_iosize = DFLTPHYS;
 	} else
-		max_iosize = DFLTPHYS;
+		max_iosize = maxphys;
 
 	cur_offset = beio->io_offset;
 	for (i = 0; i < beio->num_segs; i++) {
@@ -1317,7 +1316,7 @@ ctl_be_block_cw_dispatch_ws(struct ctl_be_block_lun *be_lun,
 	else
 		pbo = 0;
 	len_left = (uint64_t)lbalen->len * cbe_lun->blocksize;
-	for (i = 0, lba = 0; i < CTLBLK_NUM_SEGS && len_left > 0; i++) {
+	for (i = 0, lba = 0; i < CTLBLK_MAX_SEGS && len_left > 0; i++) {
 		/*
 		 * Setup the S/G entry for this chunk.
 		 */
@@ -1585,11 +1584,10 @@ ctl_be_block_dispatch(struct ctl_be_block_lun *be_lun,
 	DPRINTF("%s at LBA %jx len %u @%ju\n",
 	       (beio->bio_cmd == BIO_READ) ? "READ" : "WRITE",
 	       (uintmax_t)lbalen->lba, lbalen->len, bptrlen->len);
+	lbas = CTLBLK_MAX_IO_SIZE;
 	if (lbalen->flags & CTL_LLF_COMPARE) {
 		beio->two_sglists = 1;
-		lbas = CTLBLK_HALF_IO_SIZE;
-	} else {
-		lbas = CTLBLK_MAX_IO_SIZE;
+		lbas /= 2;
 	}
 	lbas = MIN(lbalen->len - bptrlen->len, lbas / cbe_lun->blocksize);
 	beio->io_offset = (lbalen->lba + bptrlen->len) * cbe_lun->blocksize;
