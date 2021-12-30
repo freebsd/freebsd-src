@@ -233,7 +233,7 @@ sctp6_notify(struct sctp_inpcb *inp,
 		}
 		/* Update the association MTU */
 		if (stcb->asoc.smallest_mtu > next_mtu) {
-			sctp_pathmtu_adjustment(stcb, next_mtu);
+			sctp_pathmtu_adjustment(stcb, next_mtu, true);
 		}
 		/* Finally, start the PMTU timer if it was running before. */
 		if (timer_stopped) {
