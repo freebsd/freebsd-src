@@ -269,7 +269,7 @@ struct csession {
 	uint32_t	ses;
 	struct mtx	lock;		/* for op submission */
 
-	const struct enc_xform *txform;
+	u_int		blocksize;
 	int		hashsize;
 	int		ivsize;
 
@@ -499,7 +499,6 @@ cse_create(struct fcrypt *fcr, struct session2_op *sop)
 	cse->key = key;
 	cse->mackey = mackey;
 	cse->cses = cses;
-	cse->txform = txform;
 	if (sop->maclen != 0)
 		cse->hashsize = sop->maclen;
 	else if (thash != NULL)
@@ -507,6 +506,16 @@ cse_create(struct fcrypt *fcr, struct session2_op *sop)
 	else if (csp.csp_mode == CSP_MODE_AEAD)
 		cse->hashsize = txform->macsize;
 	cse->ivsize = csp.csp_ivlen;
+
+	/*
+	 * NB: This isn't necessarily the block size of the underlying
+	 * MAC or cipher but is instead a restriction on valid input
+	 * sizes.
+	 */
+	if (txform != NULL)
+		cse->blocksize = txform->blocksize;
+	else
+		cse->blocksize = 1;
 
 	mtx_lock(&fcr->lock);
 	TAILQ_INSERT_TAIL(&fcr->csessions, cse, next);
@@ -635,11 +644,9 @@ cryptodev_op(struct csession *cse, const struct crypt_op *cop)
 		return (E2BIG);
 	}
 
-	if (cse->txform) {
-		if ((cop->len % cse->txform->blocksize) != 0) {
-			SDT_PROBE1(opencrypto, dev, ioctl, error, __LINE__);
-			return (EINVAL);
-		}
+	if ((cop->len % cse->blocksize) != 0) {
+		SDT_PROBE1(opencrypto, dev, ioctl, error, __LINE__);
+		return (EINVAL);
 	}
 
 	if (cop->mac && cse->hashsize == 0) {
@@ -866,8 +873,12 @@ cryptodev_aead(struct csession *cse, struct crypt_aead *caead)
 		return (E2BIG);
 	}
 
-	if (cse->txform == NULL || cse->hashsize == 0 || caead->tag == NULL ||
-	    (caead->len % cse->txform->blocksize) != 0) {
+	if ((caead->len % cse->blocksize) != 0) {
+		SDT_PROBE1(opencrypto, dev, ioctl, error, __LINE__);
+		return (EINVAL);
+	}
+
+	if (cse->hashsize == 0 || caead->tag == NULL) {
 		SDT_PROBE1(opencrypto, dev, ioctl, error, __LINE__);
 		return (EINVAL);
 	}
