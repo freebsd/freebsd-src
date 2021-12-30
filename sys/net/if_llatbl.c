@@ -781,10 +781,14 @@ struct lltable *
 lltable_get(struct ifnet *ifp, int family)
 {
 	switch (family) {
+#ifdef INET
 	case AF_INET:
 		return (in_lltable_get(ifp));
+#endif
+#ifdef INET6
 	case AF_INET6:
 		return (in6_lltable_get(ifp));
+#endif
 	}
 
 	return (NULL);
