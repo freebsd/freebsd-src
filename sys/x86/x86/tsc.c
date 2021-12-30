@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 uint64_t	tsc_freq;
 int		tsc_is_invariant;
 int		tsc_perf_stat;
+static int	tsc_early_calib_exact;
 
 static eventhandler_tag tsc_levels_tag, tsc_pre_tag, tsc_post_tag;
 
@@ -133,6 +134,7 @@ tsc_freq_vmware(void)
 			tsc_freq = regs[0] | ((uint64_t)regs[1] << 32);
 	}
 	tsc_is_invariant = 1;
+	tsc_early_calib_exact = 1;
 }
 
 /*
@@ -707,6 +709,8 @@ tsc_calibrate(void)
 
 	if (tsc_disabled)
 		return;
+	if (tsc_early_calib_exact)
+		goto calibrated;
 
 	/*
 	 * Avoid using a low-quality timecounter to re-calibrate.  In
