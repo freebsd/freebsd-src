@@ -471,7 +471,6 @@ int	sysbeep(int hertz, sbintime_t duration);
 
 void	hardclock(int cnt, int usermode);
 void	hardclock_sync(int cpu);
-void	softclock(void *);
 void	statclock(int cnt, int usermode);
 void	profclock(int cnt, int usermode, uintfptr_t pc);
 
