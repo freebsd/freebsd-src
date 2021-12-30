@@ -17,7 +17,7 @@ NEWVERSWHAT=	"kboot loader" ${MACHINE_ARCH}
 INSTALLFLAGS=	-b
 
 # Architecture-specific loader code
-SRCS=		vers.c main.c hostcons.c hostdisk.c kbootfdt.c gfx_fb_stub.c
+SRCS=		vers.c main.c host_syscalls.c hostcons.c hostdisk.c kbootfdt.c gfx_fb_stub.c
 
 CFLAGS.gfx_fb_stub.c += -I${SRCTOP}/contrib/pnglite -I${SRCTOP}/sys/teken
 
