@@ -548,8 +548,7 @@ _rm_wlock(struct rmlock *rm)
 
 	if (CPU_CMP(&rm->rm_writecpus, &all_cpus)) {
 		/* Get all read tokens back */
-		readcpus = all_cpus;
-		CPU_ANDNOT(&readcpus, &rm->rm_writecpus);
+		CPU_ANDNOT(&readcpus, &all_cpus, &rm->rm_writecpus);
 		rm->rm_writecpus = all_cpus;
 
 		/*

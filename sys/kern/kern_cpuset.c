@@ -326,7 +326,7 @@ cpuset_init(struct cpuset *set, struct cpuset *parent,
 	set->cs_flags = 0;
 	mtx_lock_spin(&cpuset_lock);
 	set->cs_domain = domain;
-	CPU_AND(&set->cs_mask, &parent->cs_mask);
+	CPU_AND(&set->cs_mask, &set->cs_mask, &parent->cs_mask);
 	set->cs_id = id;
 	set->cs_parent = cpuset_ref(parent);
 	LIST_INSERT_HEAD(&parent->cs_children, set, cs_siblings);
@@ -645,8 +645,7 @@ cpuset_testupdate(struct cpuset *set, cpuset_t *mask, int augment_mask)
 	if (set->cs_flags & CPU_SET_RDONLY)
 		return (EPERM);
 	if (augment_mask) {
-		CPU_COPY(&set->cs_mask, &newmask);
-		CPU_AND(&newmask, mask);
+		CPU_AND(&newmask, &set->cs_mask, mask);
 	} else
 		CPU_COPY(mask, &newmask);
 
@@ -668,7 +667,7 @@ cpuset_update(struct cpuset *set, cpuset_t *mask)
 	struct cpuset *nset;
 
 	mtx_assert(&cpuset_lock, MA_OWNED);
-	CPU_AND(&set->cs_mask, mask);
+	CPU_AND(&set->cs_mask, &set->cs_mask, mask);
 	LIST_FOREACH(nset, &set->cs_children, cs_siblings) 
 		cpuset_update(nset, &set->cs_mask);
 
@@ -1083,8 +1082,7 @@ cpuset_setproc_setthread_mask(struct cpuset *tdset, struct cpuset *set,
 	 * restriction to the new set, otherwise take it wholesale.
 	 */
 	if (CPU_CMP(&tdset->cs_mask, &parent->cs_mask) != 0) {
-		CPU_COPY(&tdset->cs_mask, mask);
-		CPU_AND(mask, &set->cs_mask);
+		CPU_AND(mask, &tdset->cs_mask, &set->cs_mask);
 	} else
 		CPU_COPY(&set->cs_mask, mask);
 
@@ -1153,8 +1151,7 @@ cpuset_setproc_newbase(struct thread *td, struct cpuset *set,
 	pbase = cpuset_getbase(td->td_cpuset);
 
 	/* Copy process mask, then further apply the new root mask. */
-	CPU_COPY(&pbase->cs_mask, &nmask);
-	CPU_AND(&nmask, &nroot->cs_mask);
+	CPU_AND(&nmask, &pbase->cs_mask, &nroot->cs_mask);
 
 	domainset_copy(pbase->cs_domain, &ndomain);
 	DOMAINSET_AND(&ndomain.ds_mask, &set->cs_domain->ds_mask);
@@ -1946,7 +1943,7 @@ kern_cpuset_getaffinity(struct thread *td, cpulevel_t level, cpuwhich_t which,
 		case CPU_WHICH_PID:
 			FOREACH_THREAD_IN_PROC(p, ttd) {
 				thread_lock(ttd);
-				CPU_OR(mask, &ttd->td_cpuset->cs_mask);
+				CPU_OR(mask, mask, &ttd->td_cpuset->cs_mask);
 				thread_unlock(ttd);
 			}
 			break;

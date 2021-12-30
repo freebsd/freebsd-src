@@ -36,6 +36,7 @@
 
 #include <sys/_cpuset.h>
 
+#include <sys/_bitset.h>
 #include <sys/bitset.h>
 
 #define	_NCPUBITS	_BITSET_BITS
@@ -56,9 +57,10 @@
 #define	CPU_SUBSET(p, c)		__BIT_SUBSET(CPU_SETSIZE, p, c)
 #define	CPU_OVERLAP(p, c)		__BIT_OVERLAP(CPU_SETSIZE, p, c)
 #define	CPU_CMP(p, c)			__BIT_CMP(CPU_SETSIZE, p, c)
-#define	CPU_OR(d, s)			__BIT_OR(CPU_SETSIZE, d, s)
-#define	CPU_AND(d, s)			__BIT_AND(CPU_SETSIZE, d, s)
-#define	CPU_ANDNOT(d, s)		__BIT_ANDNOT(CPU_SETSIZE, d, s)
+#define	CPU_OR(d, s1, s2)		__BIT_OR2(CPU_SETSIZE, d, s1, s2)
+#define	CPU_AND(d, s1, s2)		__BIT_AND2(CPU_SETSIZE, d, s1, s2)
+#define	CPU_ANDNOT(d, s1, s2)		__BIT_ANDNOT2(CPU_SETSIZE, d, s1, s2)
+#define	CPU_XOR(d, s1, s2)		__BIT_XOR2(CPU_SETSIZE, d, s1, s2)
 #define	CPU_CLR_ATOMIC(n, p)		__BIT_CLR_ATOMIC(CPU_SETSIZE, n, p)
 #define	CPU_SET_ATOMIC(n, p)		__BIT_SET_ATOMIC(CPU_SETSIZE, n, p)
 #define	CPU_SET_ATOMIC_ACQ(n, p)	__BIT_SET_ATOMIC_ACQ(CPU_SETSIZE, n, p)
@@ -72,6 +74,20 @@
 #define	CPU_COUNT(p)			((int)__BIT_COUNT(CPU_SETSIZE, p))
 #define	CPUSET_FSET			__BITSET_FSET(_NCPUWORDS)
 #define	CPUSET_T_INITIALIZER(x)		__BITSET_T_INITIALIZER(x)
+
+#if !defined(_KERNEL)
+#define CPU_ALLOC_SIZE(_s)		__BITSET_SIZE(_s)
+#define CPU_ALLOC(_s)			__cpuset_alloc(_s)
+#define CPU_FREE(p)			__cpuset_free(p)
+
+#define CPU_ISSET_S(n, _s, p)		__BIT_ISSET(_s, n, p)
+#define CPU_SET_S(n, _s, p)		__BIT_SET(_s, n, p)
+#define CPU_ZERO_S(_s, p)		__BIT_ZERO(_s, p)
+
+#define	CPU_OR_S(_s, d, s1, s2)		__BIT_OR2(_s, d, s1, s2)
+#define	CPU_AND_S(_s, d, s1, s2)	__BIT_AND2(_s, d, s1, s2)
+#define	CPU_XOR_S(_s, d, s1, s2)	__BIT_XOR2(_s, d, s1, s2)
+#endif
 
 /*
  * Valid cpulevel_t values.

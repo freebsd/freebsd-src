@@ -1243,7 +1243,7 @@ pmap_invalidate_page_int(pmap_t pmap, vm_offset_t va)
 		cpuid = PCPU_GET(cpuid);
 		other_cpus = all_cpus;
 		CPU_CLR(cpuid, &other_cpus);
-		CPU_AND(&other_cpus, &pmap->pm_active);
+		CPU_AND(&other_cpus, &other_cpus, &pmap->pm_active);
 		mask = &other_cpus;
 	}
 	smp_masked_invlpg(*mask, va, pmap, pmap_curcpu_cb_dummy);
@@ -1276,7 +1276,7 @@ pmap_invalidate_range_int(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 		cpuid = PCPU_GET(cpuid);
 		other_cpus = all_cpus;
 		CPU_CLR(cpuid, &other_cpus);
-		CPU_AND(&other_cpus, &pmap->pm_active);
+		CPU_AND(&other_cpus, &other_cpus, &pmap->pm_active);
 		mask = &other_cpus;
 	}
 	smp_masked_invlpg_range(*mask, sva, eva, pmap, pmap_curcpu_cb_dummy);
@@ -1299,7 +1299,7 @@ pmap_invalidate_all_int(pmap_t pmap)
 		cpuid = PCPU_GET(cpuid);
 		other_cpus = all_cpus;
 		CPU_CLR(cpuid, &other_cpus);
-		CPU_AND(&other_cpus, &pmap->pm_active);
+		CPU_AND(&other_cpus, &other_cpus, &pmap->pm_active);
 		mask = &other_cpus;
 	}
 	smp_masked_invltlb(*mask, pmap, pmap_curcpu_cb_dummy);

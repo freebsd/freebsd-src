@@ -49,6 +49,7 @@
 .Nm CPU_OR ,
 .Nm CPU_AND ,
 .Nm CPU_ANDNOT ,
+.Nm CPU_XOR ,
 .Nm CPU_CLR_ATOMIC ,
 .Nm CPU_SET_ATOMIC ,
 .Nm CPU_SET_ATOMIC_ACQ ,
@@ -86,9 +87,10 @@
 .Fn CPU_OVERLAP "cpuset_t *cpuset1" "cpuset_t *cpuset2"
 .Ft bool
 .Fn CPU_CMP "cpuset_t *cpuset1" "cpuset_t *cpuset2"
-.Fn CPU_OR "cpuset_t *dst" "cpuset_t *src"
-.Fn CPU_AND "cpuset_t *dst" "cpuset_t *src"
-.Fn CPU_ANDNOT "cpuset_t *dst" "cpuset_t *src"
+.Fn CPU_OR "cpuset_t *dst" "cpuset_t *src1" "cpuset_t *src2"
+.Fn CPU_AND "cpuset_t *dst" "cpuset_t *src1" "cpuset_t *src2"
+.Fn CPU_ANDNOT "cpuset_t *dst" "cpuset_t *src1" "cpuset_t *src2"
+.Fn CPU_XOR "cpuset_t *dst" "cpuset_t *src1" "cpuset_t *src2"
 .\"
 .Fn CPU_CLR_ATOMIC "size_t cpu_idx" "cpuset_t *cpuset"
 .Fn CPU_SET_ATOMIC "size_t cpu_idx" "cpuset_t *cpuset"
