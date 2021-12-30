@@ -17,30 +17,23 @@ NEWVERSWHAT=	"kboot loader" ${MACHINE_ARCH}
 INSTALLFLAGS=	-b
 
 # Architecture-specific loader code
-SRCS=		conf.c vers.c main.c ppc64_elf_freebsd.c
-SRCS+=		host_syscall.S hostcons.c hostdisk.c kerneltramp.S kbootfdt.c
-SRCS+=		ucmpdi2.c gfx_fb_stub.c
+SRCS=		vers.c main.c hostcons.c hostdisk.c kbootfdt.c gfx_fb_stub.c
 
 CFLAGS.gfx_fb_stub.c += -I${SRCTOP}/contrib/pnglite -I${SRCTOP}/sys/teken
 
 .include	"${BOOTSRC}/fdt.mk"
 
-CFLAGS+=	-mcpu=powerpc64
+.PATH:	${.CURDIR}/arch/${MACHINE_ARCH}
+.include "${.CURDIR}/arch/${MACHINE_ARCH}/Makefile.inc"
 
 # Always add MI sources
 .include	"${BOOTSRC}/loader.mk"
 .PATH:		${SYSDIR}/libkern
+CFLAGS+=	-I${.CURDIR} -I${.CURDIR}/arch/${MACHINE_ARCH}
 
-CFLAGS+=	-Wall -DAIM
-# load address. set in linker script
-RELOC?=		0x0
-CFLAGS+=	-DRELOC=${RELOC}
-
-LDFLAGS=	-nostdlib -static -T ${.CURDIR}/ldscript.powerpc
+CFLAGS+=	-Wall
 
 DPADD=		${LDR_INTERP} ${LIBOFW} ${LIBFDT} ${LIBSA}
 LDADD=		${LDR_INTERP} ${LIBOFW} ${LIBFDT} ${LIBSA}
-
-MK_PIE=		no
 
 .include <bsd.prog.mk>

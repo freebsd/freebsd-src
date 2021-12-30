@@ -80,8 +80,10 @@ SUBDIR_DEPEND_forth+=	ficl
 SUBDIR_DEPEND_lua+=	liblua
 
 SUBDIR_DEPEND_efi+=	${INTERP_DEPENDS}
+SUBDIR_DEPEND_kboot+=	${INTERP_DEPENDS}
 .if ${MK_FDT} != "no"
 SUBDIR_DEPEND_efi+=	fdt
+SUBDIR_DEPEND_kboot+=	fdt
 .endif
 
 SUBDIR_DEPEND_uboot+=	${INTERP_DEPENDS}
