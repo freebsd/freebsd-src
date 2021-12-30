@@ -109,9 +109,6 @@ int
     sctp_dynamic_set_primary(struct sockaddr *sa, uint32_t vrf_id);
 
 void
-     sctp_mtu_size_reset(struct sctp_inpcb *, struct sctp_association *, uint32_t);
-
-void
 sctp_wakeup_the_read_socket(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
     int so_locked
     SCTP_UNUSED
