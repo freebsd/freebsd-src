@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+SHLIBDIR?=	/lib
+
 .include <src.opts.mk>
 
 PACKAGE=	clibs
