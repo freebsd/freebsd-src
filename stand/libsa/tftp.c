@@ -680,6 +680,13 @@ tftp_preload(struct open_file *f)
 	start = getsecs();
 	printf("Preloading %s ", tftpfile->path);
 #endif
+	if (tftpfile->currblock == 1)
+		bcopy(tftpfile->tftp_hdr->th_data,
+		    cache,
+		    tftpfile->validsize);
+	else
+		tftpfile->currblock = 0;
+
 	while (tftpfile->islastblock == 0) {
 		twiddle(32);
 		rc = tftp_getnextblock(tftpfile);
