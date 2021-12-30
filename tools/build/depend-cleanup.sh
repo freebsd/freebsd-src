@@ -78,3 +78,10 @@ fi
 clean_dep   cddl/lib/libspl atomic S
 # 20211207  cbdec8db18b5    switch to libthr-friendly pdfork
 clean_dep   lib/libc        pdfork S
+
+# 20211230  5e6a2d6eb220    libc++.so.1 path changed in ldscript
+if [ -e "$OBJTOP"/lib/libc++/libc++.ld ] && \
+    fgrep -q "/usr/lib/libc++.so" "$OBJTOP"/lib/libc++/libc++.ld; then
+	echo "Removing old libc++ linker script"
+	rm -f "$OBJTOP"/lib/libc++/libc++.ld
+fi
