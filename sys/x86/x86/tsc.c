@@ -702,7 +702,7 @@ void
 tsc_calibrate(void)
 {
 	struct timecounter *tc;
-	uint64_t freq_khz, tsc_start, tsc_end;
+	uint64_t freq, tsc_start, tsc_end;
 	u_int t_start, t_end;
 	register_t flags;
 	int cpu;
@@ -745,9 +745,9 @@ tsc_calibrate(void)
 		t_end += (uint64_t)tc->tc_counter_mask + 1;
 	}
 
-	freq_khz = tc->tc_frequency * (tsc_end - tsc_start) / (t_end - t_start);
+	freq = tc->tc_frequency * (tsc_end - tsc_start) / (t_end - t_start);
 
-	tsc_update_freq(freq_khz);
+	tsc_update_freq(freq);
 calibrated:
 	tc_init(&tsc_timecounter);
 	set_cputicker(rdtsc, tsc_freq, !tsc_is_invariant);
