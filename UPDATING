@@ -12,6 +12,13 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20220114:
+	The macros provided for the manipulation of CPU sets (e.g. CPU_AND)
+	have been modified to take 2 source arguments instead of only 1.
+	Externally maintained sources that use these macros will have to
+	be adapted. The FreeBSD version has been bumped to 1300524 to
+	reflect this change.
+
 20211218:
 	Commit 18f5b477ee66 adds two arguments to VOP_ALLOCATE().
 	Normally changes to VOP calls are not MFC'd, but a

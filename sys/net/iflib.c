@@ -4944,7 +4944,7 @@ get_ctx_core_offset(if_ctx_t ctx)
 	for (i = 0; i < scctx->isc_nrxqsets; i++)
 		CPU_SET(get_cpuid_for_queue(ctx, first_valid, i, false),
 		    &assigned_cpus);
-	CPU_AND(&assigned_cpus, &ctx->ifc_cpus);
+	CPU_AND(&assigned_cpus, &assigned_cpus, &ctx->ifc_cpus);
 	cores_consumed = CPU_COUNT(&assigned_cpus);
 
 	mtx_lock(&cpu_offset_mtx);

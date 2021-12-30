@@ -761,7 +761,7 @@ smp_topo_addleaf(struct cpu_group *parent, struct cpu_group *child, int share,
 			    parent,
 			    cpusetobj_strprint(cpusetbuf, &parent->cg_mask),
 			    cpusetobj_strprint(cpusetbuf2, &child->cg_mask));
-		CPU_OR(&parent->cg_mask, &child->cg_mask);
+		CPU_OR(&parent->cg_mask, &parent->cg_mask, &child->cg_mask);
 		parent->cg_count += child->cg_count;
 	}
 

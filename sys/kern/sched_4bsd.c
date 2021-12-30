@@ -1158,8 +1158,8 @@ forward_wakeup(int cpunum)
 		return (0);
 
 	CPU_SETOF(me, &dontuse);
-	CPU_OR(&dontuse, &stopped_cpus);
-	CPU_OR(&dontuse, &hlt_cpus_mask);
+	CPU_OR(&dontuse, &dontuse, &stopped_cpus);
+	CPU_OR(&dontuse, &dontuse, &hlt_cpus_mask);
 	CPU_ZERO(&map2);
 	if (forward_wakeup_use_loop) {
 		STAILQ_FOREACH(pc, &cpuhead, pc_allcpu) {
@@ -1172,8 +1172,7 @@ forward_wakeup(int cpunum)
 	}
 
 	if (forward_wakeup_use_mask) {
-		map = idle_cpus_mask;
-		CPU_ANDNOT(&map, &dontuse);
+		CPU_ANDNOT(&map, &idle_cpus_mask, &dontuse);
 
 		/* If they are both on, compare and use loop if different. */
 		if (forward_wakeup_use_loop) {
@@ -1359,8 +1358,7 @@ sched_add(struct thread *td, int flags)
 	        kick_other_cpu(td->td_priority, cpu);
 	} else {
 		if (!single_cpu) {
-			tidlemsk = idle_cpus_mask;
-			CPU_ANDNOT(&tidlemsk, &hlt_cpus_mask);
+			CPU_ANDNOT(&tidlemsk, &idle_cpus_mask, &hlt_cpus_mask);
 			CPU_CLR(cpuid, &tidlemsk);
 
 			if (!CPU_ISSET(cpuid, &idle_cpus_mask) &&
