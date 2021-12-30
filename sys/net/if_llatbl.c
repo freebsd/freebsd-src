@@ -443,7 +443,9 @@ char *
 llentry_print_buf(const struct llentry *lle, struct ifnet *ifp, int family,
     char *buf, size_t bufsize)
 {
+#if defined(INET) || defined(INET6)
 	char abuf[INET6_ADDRSTRLEN];
+#endif
 
 	const char *valid = (lle->r_flags & RLLE_VALID) ? "valid" : "no_l2";
 	const char *upper_str = rib_print_family(llentry_get_upper_family(lle, family));
@@ -781,10 +783,14 @@ struct lltable *
 lltable_get(struct ifnet *ifp, int family)
 {
 	switch (family) {
+#ifdef INET
 	case AF_INET:
 		return (in_lltable_get(ifp));
+#endif
+#ifdef INET6
 	case AF_INET6:
 		return (in6_lltable_get(ifp));
+#endif
 	}
 
 	return (NULL);
