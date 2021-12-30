@@ -298,6 +298,8 @@ dump_entries:
 				continue;
 next:			if ((c = *p++) == '\0')
 				break;
+			if (c == '%')
+				continue;
 			if (parm == KTR_PARMS)
 				errx(1, "too many parameters in \"%s\"", desc);
 			switch (c) {
