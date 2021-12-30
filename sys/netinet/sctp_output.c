@@ -4244,10 +4244,10 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 							mtu -= sizeof(struct udphdr);
 						}
 						if (mtu < net->mtu) {
-							if ((stcb != NULL) && (stcb->asoc.smallest_mtu > mtu)) {
-								sctp_mtu_size_reset(inp, &stcb->asoc, mtu);
-							}
 							net->mtu = mtu;
+							if ((stcb != NULL) && (stcb->asoc.smallest_mtu > mtu)) {
+								sctp_pathmtu_adjustment(stcb, mtu, true);
+							}
 						}
 					}
 				} else if (ro->ro_nh == NULL) {
@@ -4586,18 +4586,16 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 							mtu -= sizeof(struct udphdr);
 						}
 						if (mtu < net->mtu) {
-							if ((stcb != NULL) && (stcb->asoc.smallest_mtu > mtu)) {
-								sctp_mtu_size_reset(inp, &stcb->asoc, mtu);
-							}
 							net->mtu = mtu;
+							if ((stcb != NULL) && (stcb->asoc.smallest_mtu > mtu)) {
+								sctp_pathmtu_adjustment(stcb, mtu, false);
+							}
 						}
 					}
-				} else if (ifp) {
-					if (ND_IFINFO(ifp)->linkmtu &&
+				} else if (ifp != NULL) {
+					if ((ND_IFINFO(ifp)->linkmtu > 0) &&
 					    (stcb->asoc.smallest_mtu > ND_IFINFO(ifp)->linkmtu)) {
-						sctp_mtu_size_reset(inp,
-						    &stcb->asoc,
-						    ND_IFINFO(ifp)->linkmtu);
+						sctp_pathmtu_adjustment(stcb, ND_IFINFO(ifp)->linkmtu, false);
 					}
 				}
 			}

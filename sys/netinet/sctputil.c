@@ -2905,37 +2905,6 @@ sctp_calculate_len(struct mbuf *m)
 	return (tlen);
 }
 
-void
-sctp_mtu_size_reset(struct sctp_inpcb *inp,
-    struct sctp_association *asoc, uint32_t mtu)
-{
-	/*
-	 * Reset the P-MTU size on this association, this involves changing
-	 * the asoc MTU, going through ANY chunk+overhead larger than mtu to
-	 * allow the DF flag to be cleared.
-	 */
-	struct sctp_tmit_chunk *chk;
-	unsigned int eff_mtu, ovh;
-
-	asoc->smallest_mtu = mtu;
-	if (inp->sctp_flags & SCTP_PCB_FLAGS_BOUND_V6) {
-		ovh = SCTP_MIN_OVERHEAD;
-	} else {
-		ovh = SCTP_MIN_V4_OVERHEAD;
-	}
-	eff_mtu = mtu - ovh;
-	TAILQ_FOREACH(chk, &asoc->send_queue, sctp_next) {
-		if (chk->send_size > eff_mtu) {
-			chk->flags |= CHUNK_FLAGS_FRAGMENT_OK;
-		}
-	}
-	TAILQ_FOREACH(chk, &asoc->sent_queue, sctp_next) {
-		if (chk->send_size > eff_mtu) {
-			chk->flags |= CHUNK_FLAGS_FRAGMENT_OK;
-		}
-	}
-}
-
 /*
  * Given an association and starting time of the current RTT period, update
  * RTO in number of msecs. net should point to the current network.
