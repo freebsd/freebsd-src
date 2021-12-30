@@ -475,7 +475,7 @@ cpu_reset(void)
 	if (smp_started) {
 		map = all_cpus;
 		CPU_CLR(PCPU_GET(cpuid), &map);
-		CPU_ANDNOT(&map, &stopped_cpus);
+		CPU_ANDNOT(&map, &map, &stopped_cpus);
 		if (!CPU_EMPTY(&map)) {
 			printf("cpu_reset: Stopping other CPUs\n");
 			stop_cpus(map);

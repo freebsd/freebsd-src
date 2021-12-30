@@ -1,4 +1,4 @@
-/*-
+#/*-
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
  * Copyright (c) 2008,	Jeffrey Roberson <jeff@freebsd.org>
@@ -48,5 +48,12 @@
 
 __BITSET_DEFINE(_cpuset, CPU_SETSIZE);
 typedef struct _cpuset cpuset_t;
+
+#ifndef _KERNEL
+__BEGIN_DECLS
+cpuset_t *__cpuset_alloc(size_t set_size);
+void __cpuset_free(cpuset_t *ptr);
+__END_DECLS
+#endif
 
 #endif /* !_SYS__CPUSET_H_ */

@@ -30,6 +30,8 @@ SRCS+=	__getosreldate.c \
 	clock_getcpuclockid.c \
 	closedir.c \
 	confstr.c \
+	cpuset_alloc.c \
+	cpuset_free.c \
 	crypt.c \
 	ctermid.c \
 	daemon.c \

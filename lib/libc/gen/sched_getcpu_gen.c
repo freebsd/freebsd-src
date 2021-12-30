@@ -26,7 +26,6 @@
  * SUCH DAMAGE.
  */
 
-#define	_WITH_CPU_SET_T
 #include <sched.h>
 #include "libc_private.h"
 

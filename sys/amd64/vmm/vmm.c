@@ -1304,7 +1304,7 @@ vm_handle_rendezvous(struct vm *vm, int vcpuid)
 	mtx_lock(&vm->rendezvous_mtx);
 	while (vm->rendezvous_func != NULL) {
 		/* 'rendezvous_req_cpus' must be a subset of 'active_cpus' */
-		CPU_AND(&vm->rendezvous_req_cpus, &vm->active_cpus);
+		CPU_AND(&vm->rendezvous_req_cpus, &vm->rendezvous_req_cpus, &vm->active_cpus);
 
 		if (vcpuid != -1 &&
 		    CPU_ISSET(vcpuid, &vm->rendezvous_req_cpus) &&

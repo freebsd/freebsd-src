@@ -312,8 +312,6 @@
 /*
  * Dynamically allocate a bitset.
  */
-#define __BITSET_ALLOC(_s, mt, mf) malloc(__BITSET_SIZE((_s)), mt, (mf))
-
 #define	BIT_AND(_s, d, s)			__BIT_AND(_s, d, s)
 #define	BIT_AND2(_s, d, s1, s2)			__BIT_AND2(_s, d, s1, s2)
 #define	BIT_ANDNOT(_s, d, s)			__BIT_ANDNOT(_s, d, s)
@@ -351,7 +349,11 @@
 #define	BIT_XOR2(_s, d, s1, s2)			__BIT_XOR2(_s, d, s1, s2)
 #define	BIT_ZERO(_s, p)				__BIT_ZERO(_s, p)
 
-#define BITSET_ALLOC(_s, mt, mf)		__BITSET_ALLOC(_s, mt, mf)
+#if defined(_KERNEL)
+#define BITSET_ALLOC(_s, mt, mf)		malloc(__BITSET_SIZE((_s)), mt, (mf))
+#define	BITSET_FREE(p, mt)			free(p, mt)
+#endif /* _KERNEL */
+
 #define	BITSET_FSET(n)				__BITSET_FSET(n)
 #define	BITSET_SIZE(_s)				__BITSET_SIZE(_s)
 #define	BITSET_T_INITIALIZER(x)			__BITSET_T_INITIALIZER(x)
