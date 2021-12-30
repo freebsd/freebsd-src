@@ -1,88 +1,32 @@
-/*
- * 
- * $FreeBSD$
- */
-
 #include <machine/asm.h>
 
-ENTRY(host_read)
-	li %r0, 3 # SYS_read
-	sc
-	bso 1f
-	blr
-1:
-	li %r3, 0
-	blr
-END(host_read)
-
-ENTRY(host_write)
-	li %r0, 4 # SYS_write
-	sc
-	blr
-END(host_write)
-
-ENTRY(host_llseek)
-	li %r0, 140 # SYS_llseek
-	sc
-	blr
-END(host_llseek)
-
-ENTRY(host_open)
-	li %r0, 5 # SYS_open
-	sc
-	bso 1f
-	blr
-1:
-	li %r3, 0
-	blr
-END(host_open)
-
-ENTRY(host_close)
-	li %r0, 6 # SYS_close
+/*
+ * Emulate the Linux system call interface. The system call number is set in
+ * %r0, and %r3 -> %r8 have the 6 system call arguments. errno is returned
+ * as a negative value, but we use it more as a flag something went wrong
+ * rather than using its value.
+ *
+ * Return value in %r3. If it is positive or < -4096, it's a successful
+ * system call. If it is between -1 and -4095 then it's an failed system
+ * call with -x as the errno. Errors from the kernel are signaled via the
+ * the 'so' bit, but we don't test that here at all. There are at most 6
+ * arguments to system calls in Linux.
+ *
+ * We expose the raw system call result, rather than do the POSIX
+ * converion to -1 and setting errno.
+ *
+ * Note: The code this replaced used bso to set %r3 to 0 for the read and
+ * open system calls for reasons that are still under investigation.
+ */
+ENTRY(host_syscall)
+	mr	%r0, %r3	/* SYS_ number in $r0 */
+	mr	%r3, %r4	/* arg2 -> 1 */
+	mr	%r4, %r5	/* arg3 -> 2 */
+	mr	%r5, %r6	/* arg4 -> 3 */
+	mr	%r6, %r7	/* arg5 -> 4 */
+	mr	%r7, %r8	/* arg6 -> 5 */
+	mr	%r8, %r9	/* arg7 -> 6 */
 	sc
 	blr
-END(host_close)
-
-ENTRY(host_mmap)
-	li %r0, 90 # SYS_mmap
-	sc
-	blr
-END(host_mmap)
-
-ENTRY(host_uname)
-	li %r0, 122 # SYS_uname
-	sc
-	blr
-END(host_uname)
-
-ENTRY(host_gettimeofday)
-	li %r0, 78 # SYS_gettimeofday
-	sc
-	blr
-END(host_gettimeofday)
-
-ENTRY(host_select)
-	li %r0, 142 # SYS_select
-	sc
-	blr
-END(host_select)
-
-ENTRY(kexec_load)
-	lis	%r6,21	# KEXEC_ARCH_PPC64
-	li	%r0,268 # __NR_kexec_load
-	sc
-	blr
-END(kexec_load)
-
-ENTRY(host_reboot)
-	li %r0,88 # SYS_reboot
-	sc
-	blr
-END(host_reboot)
-
-ENTRY(host_getdents)
-	li %r0,141 # SYS_getdents
-	sc
-	blr
-END(host_getdents)
-
+/* Note: We're exposing the raw return value to the caller */	
+END(host_syscall)
