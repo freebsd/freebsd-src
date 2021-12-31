@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <ddb/ddb.h>
 
 #include <vm/vm.h>
+#include <vm/vm_extern.h>
 #include <vm/vm_param.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_object.h>
@@ -1645,10 +1646,10 @@ vm_phys_early_alloc(int domain, size_t alloc_size)
 	 * the phys_avail selection below.
 	 */
 	biggestsize = 0;
-	mem_index = 0;
 	mem_start = 0;
 	mem_end = -1;
 #ifdef NUMA
+	mem_index = 0;
 	if (mem_affinity != NULL) {
 		for (i = 0;; i++) {
 			size = mem_affinity[i].end - mem_affinity[i].start;
