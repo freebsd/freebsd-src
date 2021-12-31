@@ -656,10 +656,8 @@ vm_reserv_alloc_contig(vm_object_t object, vm_pindex_t pindex, int domain,
 	 * possible size satisfy the alignment and boundary requirements?
 	 */
 	pa = VM_RESERV_INDEX(object, pindex) << PAGE_SHIFT;
-	if ((pa & (alignment - 1)) != 0)
-		return (NULL);
 	size = npages << PAGE_SHIFT;
-	if (((pa ^ (pa + size - 1)) & ~(boundary - 1)) != 0)
+	if (!vm_addr_ok(pa, size, alignment, boundary))
 		return (NULL);
 
 	/*
@@ -682,8 +680,7 @@ vm_reserv_alloc_contig(vm_object_t object, vm_pindex_t pindex, int domain,
 		m = &rv->pages[index];
 		pa = VM_PAGE_TO_PHYS(m);
 		if (pa < low || pa + size > high ||
-		    (pa & (alignment - 1)) != 0 ||
-		    ((pa ^ (pa + size - 1)) & ~(boundary - 1)) != 0)
+		    !vm_addr_ok(pa, size, alignment, boundary))
 			goto out;
 		/* Handle vm_page_rename(m, new_object, ...). */
 		for (i = 0; i < npages; i++)
@@ -1333,7 +1330,7 @@ vm_reserv_reclaim_contig(int domain, u_long npages, vm_paddr_t low,
 	 * doesn't include a boundary-multiple within it.  Otherwise,
 	 * no boundary-constrained allocation is possible.
 	 */
-	if (size > boundary && boundary > 0)
+	if (!vm_addr_bound_ok(0, size, boundary))
 		return (NULL);
 	marker = &vm_rvd[domain].marker;
 	queue = &vm_rvd[domain].partpop;
@@ -1360,7 +1357,7 @@ vm_reserv_reclaim_contig(int domain, u_long npages, vm_paddr_t low,
 			/* This entire reservation is too high; go to next. */
 			continue;
 		}
-		if ((pa & (alignment - 1)) != 0) {
+		if (!vm_addr_align_ok(pa, alignment)) {
 			/* This entire reservation is unaligned; go to next. */
 			continue;
 		}
@@ -1397,12 +1394,10 @@ vm_reserv_reclaim_contig(int domain, u_long npages, vm_paddr_t low,
 			vm_reserv_unlock(rv);
 			m_ret = &rv->pages[posn];
 			pa = VM_PAGE_TO_PHYS(m_ret);
-			KASSERT((pa & (alignment - 1)) == 0,
-			    ("%s: adjusted address does not align to %lx",
-			    __func__, alignment));
-			KASSERT(((pa ^ (pa + size - 1)) & -boundary) == 0,
-			    ("%s: adjusted address spans boundary to %jx",
-			    __func__, (uintmax_t)boundary));
+			KASSERT(vm_addr_ok(pa, size, alignment, boundary),
+			    ("%s: adjusted address not aligned/bounded to "
+			     "%lx/%jx",
+			     __func__, alignment, (uintmax_t)boundary));
 			return (m_ret);
 		}
 		vm_reserv_domain_lock(domain);

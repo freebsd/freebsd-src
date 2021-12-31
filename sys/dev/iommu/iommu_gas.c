@@ -314,7 +314,7 @@ iommu_gas_match_one(struct iommu_gas_match_args *a, iommu_gaddr_t beg,
 		return (false);
 
 	/* No boundary crossing. */
-	if (iommu_test_boundary(a->entry->start + a->offset, a->size,
+	if (vm_addr_bound_ok(a->entry->start + a->offset, a->size,
 	    a->common->boundary))
 		return (true);
 

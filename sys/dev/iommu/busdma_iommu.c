@@ -619,8 +619,8 @@ iommu_bus_dmamap_load_something1(struct bus_dma_tag_iommu *tag,
 		if (buflen1 > tag->common.maxsegsz)
 			buflen1 = tag->common.maxsegsz;
 
-		KASSERT(((entry->start + offset) & (tag->common.alignment - 1))
-		    == 0,
+		KASSERT(vm_addr_align_ok(entry->start + offset,
+		    tag->common.alignment),
 		    ("alignment failed: ctx %p start 0x%jx offset %x "
 		    "align 0x%jx", ctx, (uintmax_t)entry->start, offset,
 		    (uintmax_t)tag->common.alignment));
@@ -631,7 +631,7 @@ iommu_bus_dmamap_load_something1(struct bus_dma_tag_iommu *tag,
 		    (uintmax_t)entry->start, (uintmax_t)entry->end,
 		    (uintmax_t)tag->common.lowaddr,
 		    (uintmax_t)tag->common.highaddr));
-		KASSERT(iommu_test_boundary(entry->start + offset, buflen1,
+		KASSERT(vm_addr_bound_ok(entry->start + offset, buflen1,
 		    tag->common.boundary),
 		    ("boundary failed: ctx %p start 0x%jx end 0x%jx "
 		    "boundary 0x%jx", ctx, (uintmax_t)entry->start,
