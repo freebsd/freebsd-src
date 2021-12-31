@@ -1123,8 +1123,16 @@ die_sou_resolve(tdesc_t *tdp, tdesc_t **tdpp __unused, void *private)
 			 */
 			if (mt->t_members == NULL)
 				continue;
-			if (mt->t_type == ARRAY && mt->t_ardef->ad_nelems == 0)
-				continue;
+			if (mt->t_type == ARRAY) {
+				if (mt->t_ardef->ad_nelems == 0)
+					continue;
+				mt = tdesc_basetype(mt->t_ardef->ad_contents);
+				if ((mt->t_flags & TDESC_F_RESOLVED) != 0 &&
+				    (mt->t_type == STRUCT ||
+				    mt->t_type == UNION) &&
+				    mt->t_members == NULL)
+					continue;
+			}
 			if ((mt->t_flags & TDESC_F_RESOLVED) != 0 &&
 			    (mt->t_type == STRUCT || mt->t_type == UNION))
 				continue;
