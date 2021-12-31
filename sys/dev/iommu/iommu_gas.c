@@ -329,7 +329,7 @@ iommu_gas_match_one(struct iommu_gas_match_args *a, iommu_gaddr_t beg,
 	/* IOMMU_PAGE_SIZE to create gap after new entry. */
 	if (start + a->offset + a->size + IOMMU_PAGE_SIZE <= end &&
 	    start + a->offset + a->size <= maxaddr &&
-	    iommu_test_boundary(start + a->offset, a->size,
+	    vm_addr_bound_ok(start + a->offset, a->size,
 	    a->common->boundary)) {
 		a->entry->start = start;
 		return (true);
