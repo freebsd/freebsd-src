@@ -501,7 +501,7 @@ bounce_bus_dmamem_alloc(bus_dma_tag_t dmat, void **vaddr, int flags,
 		CTR4(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error %d",
 		    __func__, dmat, dmat->common.flags, ENOMEM);
 		return (ENOMEM);
-	} else if (vtophys(*vaddr) & (dmat->common.alignment - 1)) {
+	} else if (!vm_addr_align_ok(vtophys(*vaddr), dmat->common.alignment)) {
 		printf("bus_dmamem_alloc failed to align memory properly.\n");
 	}
 	CTR4(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error %d",
@@ -644,8 +644,9 @@ _bus_dmamap_count_ma(bus_dma_tag_t dmat, bus_dmamap_t map, struct vm_page **ma,
 				sg_len = roundup2(sg_len,
 				    dmat->common.alignment);
 				sg_len = MIN(sg_len, max_sgsize);
-				KASSERT((sg_len & (dmat->common.alignment - 1))
-				    == 0, ("Segment size is not aligned"));
+				KASSERT(vm_addr_align_ok(sg_len,
+				    dmat->common.alignment),
+				    ("Segment size is not aligned"));
 				map->pagesneeded++;
 			}
 			if (((ma_offs + sg_len) & ~PAGE_MASK) != 0)
@@ -690,7 +691,6 @@ static bus_size_t
 _bus_dmamap_addseg(bus_dma_tag_t dmat, bus_dmamap_t map, vm_paddr_t curaddr,
     bus_size_t sgsize, bus_dma_segment_t *segs, int *segp)
 {
-	bus_addr_t baddr, bmask;
 	int seg;
 
 	KASSERT(curaddr <= BUS_SPACE_MAXADDR,
@@ -703,12 +703,8 @@ _bus_dmamap_addseg(bus_dma_tag_t dmat, bus_dmamap_t map, vm_paddr_t curaddr,
 	/*
 	 * Make sure we don't cross any boundaries.
 	 */
-	bmask = ~(dmat->common.boundary - 1);
-	if (dmat->common.boundary > 0) {
-		baddr = (curaddr + dmat->common.boundary) & bmask;
-		if (sgsize > (baddr - curaddr))
-			sgsize = (baddr - curaddr);
-	}
+	if (!vm_addr_bound_ok(curaddr, sgsize, dmat->common.boundary))
+		sgsize = roundup2(curaddr, dmat->common.boundary) - curaddr;
 
 	/*
 	 * Insert chunk into a segment, coalescing with
@@ -722,8 +718,8 @@ _bus_dmamap_addseg(bus_dma_tag_t dmat, bus_dmamap_t map, vm_paddr_t curaddr,
 	} else {
 		if (curaddr == segs[seg].ds_addr + segs[seg].ds_len &&
 		    (segs[seg].ds_len + sgsize) <= dmat->common.maxsegsz &&
-		    (dmat->common.boundary == 0 ||
-		     (segs[seg].ds_addr & bmask) == (curaddr & bmask)))
+		    vm_addr_bound_ok(segs[seg].ds_addr, segs[seg].ds_len,
+		    dmat->common.boundary))
 			segs[seg].ds_len += sgsize;
 		else {
 			if (++seg >= dmat->common.nsegments)
@@ -907,7 +903,8 @@ bounce_bus_dmamap_load_ma(bus_dma_tag_t dmat, bus_dmamap_t map,
 		    bus_dma_run_filter(&dmat->common, paddr)) {
 			sgsize = roundup2(sgsize, dmat->common.alignment);
 			sgsize = MIN(sgsize, max_sgsize);
-			KASSERT((sgsize & (dmat->common.alignment - 1)) == 0,
+			KASSERT(vm_addr_align_ok(sgsize,
+			    dmat->common.alignment),
 			    ("Segment size is not aligned"));
 			/*
 			 * Check if two pages of the user provided buffer

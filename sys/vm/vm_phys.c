@@ -179,6 +179,7 @@ static void _vm_phys_create_seg(vm_paddr_t start, vm_paddr_t end, int domain);
 static void vm_phys_create_seg(vm_paddr_t start, vm_paddr_t end);
 static void vm_phys_split_pages(vm_page_t m, int oind, struct vm_freelist *fl,
     int order, int tail);
+
 /*
  * Red-black tree helpers for vm fictitious range management.
  */
@@ -1465,8 +1466,7 @@ vm_phys_alloc_seg_contig(struct vm_phys_seg *seg, u_long npages,
 				pa = VM_PAGE_TO_PHYS(m_ret);
 				pa_end = pa + size;
 				if (pa >= low && pa_end <= high &&
-				    (pa & (alignment - 1)) == 0 &&
-				    rounddown2(pa ^ (pa_end - 1), boundary) == 0)
+				    vm_addr_ok(pa, size, alignment, boundary))
 					goto done;
 			}
 		}

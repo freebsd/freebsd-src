@@ -2032,10 +2032,8 @@ vm_map_alignspace(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 		 */
 		if (alignment == 0)
 			pmap_align_superpage(object, offset, addr, length);
-		else if ((*addr & (alignment - 1)) != 0) {
-			*addr &= ~(alignment - 1);
-			*addr += alignment;
-		}
+		else
+			*addr = roundup2(*addr, alignment);
 		aligned_addr = *addr;
 		if (aligned_addr == free_addr) {
 			/*

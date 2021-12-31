@@ -197,7 +197,7 @@ static bool
 alignment_bounce(bus_dma_tag_t dmat, bus_addr_t addr)
 {
 
-	return ((addr & (dmat->common.alignment - 1)) != 0);
+	return (!vm_addr_align_ok(addr, dmat->common.alignment));
 }
 
 static bool
@@ -616,7 +616,7 @@ bounce_bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 		    __func__, dmat, dmat->common.flags, ENOMEM);
 		free(*mapp, M_DEVBUF);
 		return (ENOMEM);
-	} else if (vtophys(*vaddr) & (dmat->alloc_alignment - 1)) {
+	} else if (!vm_addr_align_ok(vtophys(*vaddr), dmat->alloc_alignment)) {
 		printf("bus_dmamem_alloc failed to align memory properly.\n");
 	}
 	dmat->map_count++;
@@ -767,18 +767,13 @@ static bus_size_t
 _bus_dmamap_addseg(bus_dma_tag_t dmat, bus_dmamap_t map, bus_addr_t curaddr,
     bus_size_t sgsize, bus_dma_segment_t *segs, int *segp)
 {
-	bus_addr_t baddr, bmask;
 	int seg;
 
 	/*
 	 * Make sure we don't cross any boundaries.
 	 */
-	bmask = ~(dmat->common.boundary - 1);
-	if (dmat->common.boundary > 0) {
-		baddr = (curaddr + dmat->common.boundary) & bmask;
-		if (sgsize > (baddr - curaddr))
-			sgsize = (baddr - curaddr);
-	}
+	if (!vm_addr_bound_ok(curaddr, sgsize, dmat->common.boundary))
+		sgsize = roundup2(curaddr, dmat->common.boundary) - curaddr;
 
 	/*
 	 * Insert chunk into a segment, coalescing with
@@ -792,8 +787,8 @@ _bus_dmamap_addseg(bus_dma_tag_t dmat, bus_dmamap_t map, bus_addr_t curaddr,
 	} else {
 		if (curaddr == segs[seg].ds_addr + segs[seg].ds_len &&
 		    (segs[seg].ds_len + sgsize) <= dmat->common.maxsegsz &&
-		    (dmat->common.boundary == 0 ||
-		     (segs[seg].ds_addr & bmask) == (curaddr & bmask)))
+		    vm_addr_bound_ok(segs[seg].ds_addr, segs[seg].ds_len,
+		    dmat->common.boundary))
 			segs[seg].ds_len += sgsize;
 		else {
 			if (++seg >= dmat->common.nsegments)
