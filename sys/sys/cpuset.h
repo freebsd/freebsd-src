@@ -90,7 +90,7 @@
 #define	CPU_XOR_S(_s, d, s1, s2)	__BIT_XOR2(_s, d, s1, s2)
 
 #define	CPU_COUNT_S(_s, p)		((int)__BIT_COUNT(_s, p))
-#define	CPU_EQUAL_S(p, c)		(__BIT_CMP(_s, p, c) == 0)
+#define	CPU_EQUAL_S(_s, p, c)		(__BIT_CMP(_s, p, c) == 0)
 #endif
 
 /*
