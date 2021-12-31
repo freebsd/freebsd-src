@@ -418,6 +418,8 @@ static struct op_table_entry scsi_op_codes[] = {
 	{ 0x52,	D, "XDREAD(10)" },
 	/* 52       O          READ TRACK INFORMATION */
 	{ 0x52,	R, "READ TRACK INFORMATION" },
+	/* 53  O               XDWRITEREAD(10) */
+	{ 0x53,	D, "XDWRITEREAD(10)" },
 	/* 53       O          RESERVE TRACK */
 	{ 0x53,	R, "RESERVE TRACK" },
 	/* 54       O          SEND OPC INFORMATION */
@@ -461,6 +463,8 @@ static struct op_table_entry scsi_op_codes[] = {
 	{ 0x81,	T, "READ REVERSE(16)" },
 	/* 82  Z               REGENERATE(16) */
 	{ 0x82,	D, "REGENERATE(16)" },
+	/* 82   O              ALLOW OVERWRITE */
+	{ 0x82,	T, "ALLOW OVERWRITE" },
 	/* 83  OOOOO O    OO   EXTENDED COPY */
 	{ 0x83,	D | T | L | P | W | O | K | V, "EXTENDED COPY" },
 	/* 84  OOOOO O    OO   RECEIVE COPY RESULTS */
