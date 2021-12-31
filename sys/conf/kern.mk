@@ -193,14 +193,6 @@ CFLAGS+=	-mabi=elfv2
 .endif
 
 #
-# For MIPS we also tell gcc to use floating point emulation
-#
-.if ${MACHINE_CPUARCH} == "mips"
-CFLAGS+=	-msoft-float
-INLINE_LIMIT?=	8000
-.endif
-
-#
 # GCC 3.0 and above like to do certain optimizations based on the
 # assumption that the program is linked against libc.  Stop this.
 #
@@ -307,16 +299,6 @@ LD_EMULATION_arm=armelf_fbsd
 LD_EMULATION_armv6=armelf_fbsd
 LD_EMULATION_armv7=armelf_fbsd
 LD_EMULATION_i386=elf_i386_fbsd
-LD_EMULATION_mips= elf32btsmip_fbsd
-LD_EMULATION_mipshf= elf32btsmip_fbsd
-LD_EMULATION_mips64= elf64btsmip_fbsd
-LD_EMULATION_mips64hf= elf64btsmip_fbsd
-LD_EMULATION_mipsel= elf32ltsmip_fbsd
-LD_EMULATION_mipselhf= elf32ltsmip_fbsd
-LD_EMULATION_mips64el= elf64ltsmip_fbsd
-LD_EMULATION_mips64elhf= elf64ltsmip_fbsd
-LD_EMULATION_mipsn32= elf32btsmipn32_fbsd
-LD_EMULATION_mipsn32el= elf32btsmipn32_fbsd   # I don't think this is a thing that works
 LD_EMULATION_powerpc= elf32ppc_fbsd
 LD_EMULATION_powerpcspe= elf32ppc_fbsd
 LD_EMULATION_powerpc64= elf64ppc_fbsd

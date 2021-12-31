@@ -10,11 +10,9 @@
 .if !defined(KERNBUILDDIR)
 opt_global.h:
 	touch ${.TARGET}
-.if ${MACHINE} != "mips"
 	@echo "#define SMP 1" >> ${.TARGET}
 	@echo "#define MAC 1" >> ${.TARGET}
 	@echo "#define VIMAGE 1" >> ${.TARGET}
-.endif
 .if ${MK_BHYVE_SNAPSHOT} != "no"
 opt_bhyve_snapshot.h:
 	@echo "#define BHYVE_SNAPSHOT 1" > ${.TARGET}
