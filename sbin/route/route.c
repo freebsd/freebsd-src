@@ -893,22 +893,22 @@ newroute(int argc, char **argv)
 			case K_IFA:
 				if (!--argc)
 					usage(NULL);
-				getaddr(RTAX_IFA, *++argv, 0, nrflags);
+				getaddr(RTAX_IFA, *++argv, NULL, nrflags);
 				break;
 			case K_IFP:
 				if (!--argc)
 					usage(NULL);
-				getaddr(RTAX_IFP, *++argv, 0, nrflags);
+				getaddr(RTAX_IFP, *++argv, NULL, nrflags);
 				break;
 			case K_GENMASK:
 				if (!--argc)
 					usage(NULL);
-				getaddr(RTAX_GENMASK, *++argv, 0, nrflags);
+				getaddr(RTAX_GENMASK, *++argv, NULL, nrflags);
 				break;
 			case K_GATEWAY:
 				if (!--argc)
 					usage(NULL);
-				getaddr(RTAX_GATEWAY, *++argv, 0, nrflags);
+				getaddr(RTAX_GATEWAY, *++argv, NULL, nrflags);
 				gateway = *argv;
 				break;
 			case K_DST:
@@ -921,7 +921,7 @@ newroute(int argc, char **argv)
 			case K_NETMASK:
 				if (!--argc)
 					usage(NULL);
-				getaddr(RTAX_NETMASK, *++argv, 0, nrflags);
+				getaddr(RTAX_NETMASK, *++argv, NULL, nrflags);
 				/* FALLTHROUGH */
 			case K_NET:
 				nrflags |= F_FORCENET;
@@ -962,7 +962,7 @@ newroute(int argc, char **argv)
 				gateway = *argv;
 				getaddr(RTAX_GATEWAY, *argv, &hp, nrflags);
 			} else {
-				getaddr(RTAX_NETMASK, *argv, 0, nrflags);
+				getaddr(RTAX_NETMASK, *argv, NULL, nrflags);
 				nrflags |= F_FORCENET;
 			}
 		}
@@ -1233,7 +1233,7 @@ getaddr(int idx, char *str, struct hostent **hpp, int nrflags)
 		switch (idx) {
 		case RTAX_DST:
 			nrflags |= F_FORCENET;
-			getaddr(RTAX_NETMASK, str, 0, nrflags);
+			getaddr(RTAX_NETMASK, str, NULL, nrflags);
 			break;
 		}
 		return (0);
