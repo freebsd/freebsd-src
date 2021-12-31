@@ -318,7 +318,7 @@ static __inline int
 alignment_bounce(bus_dma_tag_t dmat, bus_addr_t addr)
 {
 
-	return (addr & (dmat->alignment - 1));
+	return (!vm_addr_align_ok(addr, dmat->alignment));
 }
 
 /*
@@ -1007,18 +1007,13 @@ static int
 _bus_dmamap_addseg(bus_dma_tag_t dmat, bus_dmamap_t map, bus_addr_t curaddr,
     bus_size_t sgsize, bus_dma_segment_t *segs, int *segp)
 {
-	bus_addr_t baddr, bmask;
 	int seg;
 
 	/*
 	 * Make sure we don't cross any boundaries.
 	 */
-	bmask = ~(dmat->boundary - 1);
-	if (dmat->boundary > 0) {
-		baddr = (curaddr + dmat->boundary) & bmask;
-		if (sgsize > (baddr - curaddr))
-			sgsize = (baddr - curaddr);
-	}
+	if (!vm_addr_bound_ok(curaddr, sgsize, dmat->boundary))
+		sgsize = roundup2(curaddr, dmat->boundary) - curaddr;
 
 	/*
 	 * Insert chunk into a segment, coalescing with
@@ -1032,8 +1027,8 @@ _bus_dmamap_addseg(bus_dma_tag_t dmat, bus_dmamap_t map, bus_addr_t curaddr,
 	} else {
 		if (curaddr == segs[seg].ds_addr + segs[seg].ds_len &&
 		    (segs[seg].ds_len + sgsize) <= dmat->maxsegsz &&
-		    (dmat->boundary == 0 ||
-		    (segs[seg].ds_addr & bmask) == (curaddr & bmask)))
+		    vm_addr_bound_ok(segs[seg].ds_addr, segs[seg].ds_len,
+		    dmat->boundary))
 			segs[seg].ds_len += sgsize;
 		else {
 			if (++seg >= dmat->nsegments)

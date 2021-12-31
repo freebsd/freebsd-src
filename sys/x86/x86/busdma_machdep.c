@@ -107,7 +107,7 @@ bus_dma_run_filter(struct bus_dma_tag_common *tc, vm_paddr_t paddr)
 	do {
 		if ((paddr >= BUS_SPACE_MAXADDR ||
 		    (paddr > tc->lowaddr && paddr <= tc->highaddr) ||
-		    (paddr & (tc->alignment - 1)) != 0) &&
+		    !vm_addr_align_ok(paddr, tc->alignment) &&
 		    (tc->filter == NULL ||
 		    (*tc->filter)(tc->filterarg, paddr) != 0))
 			retval = 1;
