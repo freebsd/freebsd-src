@@ -146,7 +146,8 @@ struct lro_entry {
 	uint16_t		compressed;
 	uint16_t		uncompressed;
 	uint16_t		window;
-	uint16_t		timestamp;	/* flag, not a TCP hdr field. */
+	uint16_t		timestamp : 1;
+	uint16_t		needs_merge : 1;
 	struct bintime		alloc_time;	/* time when entry was allocated */
 };
 
