@@ -548,6 +548,8 @@ next:
 	if (!TAILQ_EMPTY(&cc->cc_expireq)) {
 		td = cc->cc_thread;
 		if (TD_AWAITING_INTR(td)) {
+			thread_lock_block_wait(td);
+			THREAD_LOCK_ASSERT(td, MA_OWNED);
 			TD_CLR_IWAIT(td);
 			sched_add(td, SRQ_INTR);
 		} else
