@@ -277,12 +277,7 @@ linux_copyout_strings(struct image_params *imgp, uintptr_t *stack_base)
 	size_t execpath_len;
 	struct proc *p;
 
-	/* Calculate string base and vector table pointers. */
 	p = imgp->proc;
-	if (imgp->execpath != NULL && imgp->auxargs != NULL)
-		execpath_len = strlen(imgp->execpath) + 1;
-	else
-		execpath_len = 0;
 	arginfo = (struct ps_strings *)p->p_sysent->sv_psstrings;
 	destp = (uintptr_t)arginfo;
 
@@ -293,7 +288,8 @@ linux_copyout_strings(struct image_params *imgp, uintptr_t *stack_base)
 	if (error != 0)
 		return (error);
 
-	if (execpath_len != 0) {
+	if (imgp->execpath != NULL && imgp->auxargs != NULL) {
+		execpath_len = strlen(imgp->execpath) + 1;
 		destp -= execpath_len;
 		destp = rounddown2(destp, sizeof(void *));
 		imgp->execpathp = (void *)destp;
