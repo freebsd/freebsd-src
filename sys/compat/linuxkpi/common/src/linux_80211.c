@@ -786,7 +786,7 @@ lkpi_sta_scan_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 	{
 		int i, count;
 
-		for (i = 3; i > 0; i++) {
+		for (i = 3 * (hw->queues + 1); i > 0; i--) {
 			struct lkpi_txq *ltxq;
 			int tid;
 
@@ -815,7 +815,7 @@ lkpi_sta_scan_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 				ic_printf(vap->iv_ic, "%s: waiting for %d quuees "
 				    "to be allocated by driver\n", __func__, count);
 #endif
-			DELAY(100);
+			pause("lkpi80211txq", hz/10);
 		}
 #ifdef LINUXKPI_DEBUG_80211
 		if (count > 0)
