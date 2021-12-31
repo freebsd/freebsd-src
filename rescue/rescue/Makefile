@@ -99,12 +99,16 @@ CRUNCH_PROGS_sbin= 						\
 	md5 mdconfig mdmfs mknod mount mount_cd9660		\
 	mount_msdosfs mount_nfs mount_nullfs			\
 	mount_udf mount_unionfs newfs				\
-	newfs_msdos nos-tun ping reboot				\
+	newfs_msdos nos-tun reboot				\
 	restore rcorder route savecore		 		\
 	shutdown swapon sysctl tunefs umount
 
 .if ${MK_CCD} != "no"
 CRUNCH_PROGS_sbin+= ccdconfig
+.endif
+
+.if ${MK_INET} != "no" || ${MK_INET6} != "no"
+CRUNCH_PROGS_sbin+= ping
 .endif
 
 .if ${MK_INET6_SUPPORT} != "no"
