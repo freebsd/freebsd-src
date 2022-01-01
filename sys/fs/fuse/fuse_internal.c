@@ -1074,6 +1074,10 @@ fuse_internal_init_callback(struct fuse_ticket *tick, struct uio *uio)
 		fsess_set_notimpl(data->mp, FUSE_DESTROY);
 	}
 
+	if (!fuse_libabi_geq(data, 7, 19)) {
+		fsess_set_notimpl(data->mp, FUSE_FALLOCATE);
+	}
+
 	if (fuse_libabi_geq(data, 7, 23) && fiio->time_gran >= 1 &&
 	    fiio->time_gran <= 1000000000)
 		data->time_gran = fiio->time_gran;
