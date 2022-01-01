@@ -1656,6 +1656,8 @@ inp_next(struct inpcb_iterator *ii)
 				smr_enter(ipi->ipi_smr);
 				MPASS(inp != II_LIST_FIRST(ipi, hash));
 				inp = II_LIST_FIRST(ipi, hash);
+				if (inp == NULL)
+					break;
 			}
 		}
 
