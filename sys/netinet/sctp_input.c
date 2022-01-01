@@ -5352,12 +5352,14 @@ sctp_common_input_processing(struct mbuf **mm, int iphlen, int offset, int lengt
 			goto out;
 		}
 		if (ch->chunk_type == SCTP_SHUTDOWN_ACK) {
+			SCTP_STAT_INCR_COUNTER64(sctps_incontrolchunks);
 			sctp_send_shutdown_complete2(src, dst, sh,
 			    mflowtype, mflowid, fibnum,
 			    vrf_id, port);
 			goto out;
 		}
 		if (ch->chunk_type == SCTP_SHUTDOWN_COMPLETE) {
+			SCTP_STAT_INCR_COUNTER64(sctps_incontrolchunks);
 			goto out;
 		}
 		if (ch->chunk_type != SCTP_ABORT_ASSOCIATION) {
