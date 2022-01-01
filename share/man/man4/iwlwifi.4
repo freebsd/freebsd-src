@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 27, 2021
+.Dd January 1, 2022
 .Dt iwlwifi 4
 .Os
 .Sh NAME
@@ -35,14 +35,21 @@
 .Nd Intel IEEE 802.11a/b/g/n/ac/ax wireless network driver
 .Sh SYNOPSIS
 To load the driver as a module at boot time, place the following lines in
-.Xr loader.conf 5 :
+.Xr rc.conf 5 :
 .Bd -literal -offset indent
-if_iwlwifi_load="YES"
+kld_list="${kld_list} if_iwlwifi"
 .Ed
 .Pp
 The driver should automatically load any
 .Xr iwlwififw 4
-firmware needed for the particular chipset.
+firmware needed for the particular chipset in that case.
+.Pp
+It is anticipated that the driver will support auto-loading via
+.Xr devmatch 8
+in the future and will need no configuration at all.
+.Pp
+It is discouraged to load the driver from
+.Xr loader 8 .
 .Sh DESCRIPTION
 The
 .Nm
@@ -50,12 +57,14 @@ driver is derived from Intel's Linux iwlwifi driver and provides support for
 all chipsets supported by the
 .Em mvm
 part of that driver.
-This superseeds the
+.\" XXX-BZ find way to add full list of chipsets automatically
+.Nm
+will be a successor to
 .Xr iwm 4
-driver which provided support for a subset of these chipsets and still
-complements the
+and may superseed that driver in the future.
+It still complements the
 .Xr iwn 4
-driver supporting older chipsets.
+driver which supports older chipsets.
 .Pp
 The driver uses the
 .\" No LinuxKPI man pages so no .Xr here.
@@ -63,7 +72,9 @@ The driver uses the
 and
 .Em linuxkpi
 compat framework to bridge between the Linux and
-native FreeBSD driver code.
+native FreeBSD driver code as well as to the native
+.Xr net80211 4
+wireless stack.
 .Pp
 While
 .Nm
