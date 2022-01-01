@@ -159,6 +159,7 @@ union fuse_payloads_in {
 	];
 	fuse_copy_file_range_in	copy_file_range;
 	fuse_create_in	create;
+	fuse_fallocate_in fallocate;
 	fuse_flush_in	flush;
 	fuse_fsync_in	fsync;
 	fuse_fsync_in	fsyncdir;

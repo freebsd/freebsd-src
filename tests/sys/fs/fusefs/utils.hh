@@ -115,6 +115,14 @@ class FuseTest : public ::testing::Test {
 	void expect_destroy(int error);
 
 	/*
+	 * Create an expectation that FUSE_FALLOCATE will be called with the
+	 * given inode, offset, length, and mode, exactly times times and
+	 * returning error
+	 */
+	void expect_fallocate(uint64_t ino, uint64_t offset, uint64_t length,
+		uint32_t mode, int error, int times=1);
+
+	/*
 	 * Create an expectation that FUSE_FLUSH will be called times times for
 	 * the given inode
 	 */

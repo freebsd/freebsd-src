@@ -163,6 +163,7 @@ class Chgrp: public DefaultPermissions {};
 class CopyFileRange: public DefaultPermissions {};
 class Lookup: public DefaultPermissions {};
 class Open: public DefaultPermissions {};
+class PosixFallocate: public DefaultPermissions {};
 class Setattr: public DefaultPermissions {};
 class Unlink: public DefaultPermissions {};
 class Utimensat: public DefaultPermissions {};
@@ -498,7 +499,7 @@ TEST_F(Chgrp, ok)
 }
 
 /* A write by a non-owner should clear a file's SGID bit */
-TEST_F(CopyFileRange, clear_guid)
+TEST_F(CopyFileRange, clear_sgid)
 {
 	const char FULLPATH_IN[] = "mountpoint/in.txt";
 	const char RELPATH_IN[] = "in.txt";
@@ -874,6 +875,92 @@ TEST_F(Open, ok)
 
 	fd = open(FULLPATH, O_RDONLY);
 	ASSERT_LE(0, fd) << strerror(errno);
+	leak(fd);
+}
+
+/* A write by a non-owner should clear a file's SGID bit */
+TEST_F(PosixFallocate, clear_sgid)
+{
+	const char FULLPATH[] = "mountpoint/file.txt";
+	const char RELPATH[] = "file.txt";
+	struct stat sb;
+	uint64_t ino = 42;
+	mode_t oldmode = 02777;
+	mode_t newmode = 0777;
+	off_t fsize = 16;
+	off_t off = 8;
+	off_t len = 8;
+	int fd;
+
+	expect_getattr(FUSE_ROOT_ID, S_IFDIR | 0755, UINT64_MAX, 1);
+	FuseTest::expect_lookup(RELPATH, ino, S_IFREG | oldmode, fsize,
+	    1, UINT64_MAX, 0, 0);
+	expect_open(ino, 0, 1);
+	expect_fallocate(ino, off, len, 0, 0);
+	expect_chmod(ino, newmode, fsize);
+
+	fd = open(FULLPATH, O_WRONLY);
+	ASSERT_LE(0, fd) << strerror(errno);
+	EXPECT_EQ(0, posix_fallocate(fd, off, len)) << strerror(errno);
+	ASSERT_EQ(0, fstat(fd, &sb)) << strerror(errno);
+	EXPECT_EQ(S_IFREG | newmode, sb.st_mode);
+
+	leak(fd);
+}
+
+/* A write by a non-owner should clear a file's SUID bit */
+TEST_F(PosixFallocate, clear_suid)
+{
+	const char FULLPATH[] = "mountpoint/file.txt";
+	const char RELPATH[] = "file.txt";
+	struct stat sb;
+	uint64_t ino = 42;
+	mode_t oldmode = 04777;
+	mode_t newmode = 0777;
+	off_t fsize = 16;
+	off_t off = 8;
+	off_t len = 8;
+	int fd;
+
+	expect_getattr(FUSE_ROOT_ID, S_IFDIR | 0755, UINT64_MAX, 1);
+	FuseTest::expect_lookup(RELPATH, ino, S_IFREG | oldmode, fsize,
+	    1, UINT64_MAX, 0, 0);
+	expect_open(ino, 0, 1);
+	expect_fallocate(ino, off, len, 0, 0);
+	expect_chmod(ino, newmode, fsize);
+
+	fd = open(FULLPATH, O_WRONLY);
+	ASSERT_LE(0, fd) << strerror(errno);
+	EXPECT_EQ(0, posix_fallocate(fd, off, len)) << strerror(errno);
+	ASSERT_EQ(0, fstat(fd, &sb)) << strerror(errno);
+	EXPECT_EQ(S_IFREG | newmode, sb.st_mode);
+
+	leak(fd);
+}
+
+/*
+ * posix_fallcoate() of a file without writable permissions should succeed as
+ * long as the file descriptor is writable.  This is important when combined
+ * with O_CREAT
+ */
+TEST_F(PosixFallocate, posix_fallocate_of_newly_created_file)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	const uint64_t ino = 42;
+	off_t off = 8;
+	off_t len = 8;
+	int fd;
+
+	expect_getattr(FUSE_ROOT_ID, S_IFDIR | 0777, UINT64_MAX, 1);
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELPATH)
+		.WillOnce(Invoke(ReturnErrno(ENOENT)));
+	expect_create(RELPATH, ino);
+	expect_fallocate(ino, off, len, 0, 0);
+
+	fd = open(FULLPATH, O_CREAT | O_RDWR, 0);
+	ASSERT_LE(0, fd) << strerror(errno);
+	EXPECT_EQ(0, posix_fallocate(fd, off, len)) << strerror(errno);
 	leak(fd);
 }
 

@@ -127,6 +127,7 @@ SDT_PROBE_DEFINE2(fusefs, , vnops, trace, "int", "char*");
 /* vnode ops */
 static vop_access_t fuse_vnop_access;
 static vop_advlock_t fuse_vnop_advlock;
+static vop_allocate_t fuse_vnop_allocate;
 static vop_bmap_t fuse_vnop_bmap;
 static vop_close_t fuse_fifo_close;
 static vop_close_t fuse_vnop_close;
@@ -180,7 +181,7 @@ struct vop_vector fuse_fifoops = {
 VFS_VOP_VECTOR_REGISTER(fuse_fifoops);
 
 struct vop_vector fuse_vnops = {
-	.vop_allocate =	VOP_EINVAL,
+	.vop_allocate =	fuse_vnop_allocate,
 	.vop_default = &default_vnodeops,
 	.vop_access = fuse_vnop_access,
 	.vop_advlock = fuse_vnop_advlock,
@@ -548,6 +549,96 @@ fuse_vnop_advlock(struct vop_advlock_args *ap)
 out:
 	VOP_UNLOCK(vp);
 	return err;
+}
+
+static int
+fuse_vnop_allocate(struct vop_allocate_args *ap)
+{
+	struct vnode *vp = ap->a_vp;
+	off_t *len = ap->a_len;
+	off_t *offset = ap->a_offset;
+	struct ucred *cred = ap->a_cred;
+	struct fuse_filehandle *fufh;
+	struct mount *mp = vnode_mount(vp);
+	struct fuse_dispatcher fdi;
+	struct fuse_fallocate_in *ffi;
+	struct uio io;
+	pid_t pid = curthread->td_proc->p_pid;
+	struct fuse_vnode_data *fvdat = VTOFUD(vp);
+	off_t filesize;
+	int err;
+
+	if (fuse_isdeadfs(vp))
+		return (ENXIO);
+
+	switch (vp->v_type) {
+	case VFIFO:
+		return (ESPIPE);
+	case VLNK:
+	case VREG:
+		if (vfs_isrdonly(mp))
+			return (EROFS);
+		break;
+	default:
+		return (ENODEV);
+	}
+
+	if (vfs_isrdonly(mp))
+		return (EROFS);
+
+	if (fsess_not_impl(mp, FUSE_FALLOCATE))
+		return (EINVAL);
+
+	io.uio_offset = *offset;
+	io.uio_resid = *len;
+	err = vn_rlimit_fsize(vp, &io, curthread);
+	if (err)
+		return (err);
+
+	err = fuse_filehandle_getrw(vp, FWRITE, &fufh, cred, pid);
+	if (err)
+		return (err);
+
+	fuse_vnode_update(vp, FN_MTIMECHANGE | FN_CTIMECHANGE);
+
+	err = fuse_vnode_size(vp, &filesize, cred, curthread);
+	if (err)
+		return (err);
+	fuse_inval_buf_range(vp, filesize, *offset, *offset + *len);
+
+	fdisp_init(&fdi, sizeof(*ffi));
+	fdisp_make_vp(&fdi, FUSE_FALLOCATE, vp, curthread, cred);
+	ffi = fdi.indata;
+	ffi->fh = fufh->fh_id;
+	ffi->offset = *offset;
+	ffi->length = *len;
+	ffi->mode = 0;
+	err = fdisp_wait_answ(&fdi);
+
+	if (err == ENOSYS) {
+		fsess_set_notimpl(mp, FUSE_FALLOCATE);
+		err = EINVAL;
+	} else if (err == EOPNOTSUPP) {
+		/*
+		 * The file system server does not support FUSE_FALLOCATE with
+		 * the supplied mode.  That's effectively the same thing as
+		 * ENOSYS since we only ever issue mode=0.
+		 * TODO: revise this section once we support fspacectl.
+		 */
+		fsess_set_notimpl(mp, FUSE_FALLOCATE);
+		err = EINVAL;
+	} else if (!err) {
+		*offset += *len;
+		*len = 0;
+		fuse_vnode_undirty_cached_timestamps(vp, false);
+		fuse_internal_clear_suid_on_write(vp, cred, curthread);
+		if (*offset > fvdat->cached_attrs.va_size) {
+			fuse_vnode_setsize(vp, *offset, false);
+			getnanouptime(&fvdat->last_local_modify);
+		}
+	}
+
+	return (err);
 }
 
 /* {
