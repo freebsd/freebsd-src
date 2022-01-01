@@ -2,7 +2,8 @@
 
 BINDIR= ${LIBEXECDIR}/bsdinstall
 PROG=	distextract
-LIBADD=	archive dpv dialog m
+CFLAGS+= -I${SRCTOP}/contrib/bsddialog/lib
+LIBADD=	archive bsddialog m
 
 MAN=
 
