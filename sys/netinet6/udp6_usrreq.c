@@ -342,7 +342,6 @@ int
 udp6_input(struct mbuf **mp, int *offp, int proto)
 {
 	struct mbuf *m = *mp;
-	struct ifnet *ifp;
 	struct ip6_hdr *ip6;
 	struct udphdr *uh;
 	struct inpcb *inp;
@@ -357,8 +356,6 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 	uint8_t nxt;
 
 	NET_EPOCH_ASSERT();
-
-	ifp = m->m_pkthdr.rcvif;
 
 	if (m->m_len < off + sizeof(struct udphdr)) {
 		m = m_pullup(m, off + sizeof(struct udphdr));
@@ -1261,10 +1258,8 @@ static void
 udp6_detach(struct socket *so)
 {
 	struct inpcb *inp;
-	struct inpcbinfo *pcbinfo;
 	struct udpcb *up;
 
-	pcbinfo = udp_get_inpcbinfo(so->so_proto->pr_protocol);
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("udp6_detach: inp == NULL"));
 
