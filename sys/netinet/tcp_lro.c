@@ -921,6 +921,7 @@ tcp_set_entry_to_mbuf(struct lro_ctrl *lc, struct lro_entry *le,
 	le->next_seq = ntohl(th->th_seq) + tcp_data_len;
 	le->ack_seq = th->th_ack;
 	le->window = th->th_win;
+	le->flags = th->th_flags;
 	le->needs_merge = 0;
 
 	/* Setup new data pointers. */
@@ -1092,10 +1093,12 @@ again:
 		}
 		/* Try to append the new segment. */
 		if (__predict_false(ntohl(th->th_seq) != le->next_seq ||
+				    ((th->th_flags & TH_ACK) !=
+				      (le->flags & TH_ACK)) ||
 				    (tcp_data_len == 0 &&
 				     le->ack_seq == th->th_ack &&
 				     le->window == th->th_win))) {
-			/* Out of order packet or duplicate ACK. */
+			/* Out of order packet, non-ACK + ACK or dup ACK. */
 			tcp_push_and_replace(lc, le, m);
 			goto again;
 		}
