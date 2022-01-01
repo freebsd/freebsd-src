@@ -631,7 +631,7 @@ get_mcontext(struct thread *td, mcontext_t *mcp, int flags)
 	mcp->mc_gs = tp->tf_gs;
 	mcp->mc_flags = tp->tf_flags;
 	mcp->mc_len = sizeof(*mcp);
-	get_fpcontext(td, mcp, NULL, 0);
+	get_fpcontext(td, mcp, NULL, NULL);
 	update_pcb_bases(pcb);
 	mcp->mc_fsbase = pcb->pcb_fsbase;
 	mcp->mc_gsbase = pcb->pcb_gsbase;
