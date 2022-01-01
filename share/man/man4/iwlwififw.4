@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 30, 2021
+.Dd January 1, 2022
 .Dt iwlwififw 4
 .Os
 .Sh NAME
@@ -37,6 +37,8 @@
 The
 .Xr iwlwifi 4
 driver should auto-load any firmware needed.
+It is discouraged to load the driver or firmware manually from
+.Xr loader 8 .
 .Sh DESCRIPTION
 Multiple modules provide access to firmware for the various chipset
 models supported by the
