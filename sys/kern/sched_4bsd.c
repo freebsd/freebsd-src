@@ -1172,7 +1172,8 @@ forward_wakeup(int cpunum)
 	}
 
 	if (forward_wakeup_use_mask) {
-		CPU_ANDNOT(&map, &idle_cpus_mask, &dontuse);
+		map = idle_cpu_mask;
+		CPU_ANDNOT(&map, &map, &dontuse);
 
 		/* If they are both on, compare and use loop if different. */
 		if (forward_wakeup_use_loop) {
@@ -1358,7 +1359,8 @@ sched_add(struct thread *td, int flags)
 	        kick_other_cpu(td->td_priority, cpu);
 	} else {
 		if (!single_cpu) {
-			CPU_ANDNOT(&tidlemsk, &idle_cpus_mask, &hlt_cpus_mask);
+			tidlemsk = idle_cpus_mask;
+			CPU_ANDNOT(&tidlemsk, &tidlemsk, &hlt_cpus_mask);
 			CPU_CLR(cpuid, &tidlemsk);
 
 			if (!CPU_ISSET(cpuid, &idle_cpus_mask) &&
