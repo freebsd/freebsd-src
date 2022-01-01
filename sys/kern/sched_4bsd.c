@@ -1172,7 +1172,7 @@ forward_wakeup(int cpunum)
 	}
 
 	if (forward_wakeup_use_mask) {
-		map = idle_cpu_mask;
+		map = idle_cpus_mask;
 		CPU_ANDNOT(&map, &map, &dontuse);
 
 		/* If they are both on, compare and use loop if different. */
