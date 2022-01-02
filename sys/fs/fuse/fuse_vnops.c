@@ -1847,10 +1847,10 @@ fuse_vnop_readdir(struct vop_readdir_args *ap)
 	struct uio *uio = ap->a_uio;
 	struct ucred *cred = ap->a_cred;
 	struct fuse_filehandle *fufh = NULL;
+	struct mount *mp = vnode_mount(vp);
 	struct fuse_iov cookediov;
 	int err = 0;
 	u_long *cookies;
-	off_t startoff;
 	ssize_t tresid;
 	int ncookies;
 	bool closefufh = false;
@@ -1867,24 +1867,17 @@ fuse_vnop_readdir(struct vop_readdir_args *ap)
 	}
 
 	tresid = uio->uio_resid;
-	startoff = uio->uio_offset;
 	err = fuse_filehandle_get_dir(vp, &fufh, cred, pid);
-	if (err == EBADF && vnode_mount(vp)->mnt_flag & MNT_EXPORTED) {
+	if (err == EBADF && mp->mnt_flag & MNT_EXPORTED) {
+		KASSERT(fuse_get_mpdata(mp)->dataflags
+				& FSESS_NO_OPENDIR_SUPPORT,
+			("FUSE file systems that don't set "
+			 "FUSE_NO_OPENDIR_SUPPORT should not be exported"));
 		/* 
 		 * nfsd will do VOP_READDIR without first doing VOP_OPEN.  We
-		 * must implicitly open the directory here
+		 * must implicitly open the directory here.
 		 */
 		err = fuse_filehandle_open(vp, FREAD, &fufh, curthread, cred);
-		if (err == 0) {
-			/*
-			 * When a directory is opened, it must be read from
-			 * the beginning.  Hopefully, the "startoff" still
-			 * exists as an offset cookie for the directory.
-			 * If not, it will read the entire directory without
-			 * returning any entries and just return eof.
-			 */
-			uio->uio_offset = 0;
-		}
 		closefufh = true;
 	}
 	if (err)
@@ -1902,7 +1895,7 @@ fuse_vnop_readdir(struct vop_readdir_args *ap)
 #define DIRCOOKEDSIZE FUSE_DIRENT_ALIGN(FUSE_NAME_OFFSET + MAXNAMLEN + 1)
 	fiov_init(&cookediov, DIRCOOKEDSIZE);
 
-	err = fuse_internal_readdir(vp, uio, startoff, fufh, &cookediov,
+	err = fuse_internal_readdir(vp, uio, fufh, &cookediov,
 		&ncookies, cookies);
 
 	fiov_teardown(&cookediov);
@@ -2999,8 +2992,30 @@ fuse_vnop_vptofh(struct vop_vptofh_args *ap)
 	struct vattr va;
 	int err;
 
-	if (!(data->dataflags & FSESS_EXPORT_SUPPORT))
+	if (!(data->dataflags & FSESS_EXPORT_SUPPORT)) {
+		/* NFS requires lookups for "." and ".." */
+		SDT_PROBE2(fusefs, , vnops, trace, 1,
+			"VOP_VPTOFH without FUSE_EXPORT_SUPPORT");
 		return EOPNOTSUPP;
+	}
+	if ((mp->mnt_flag & MNT_EXPORTED) &&
+		!(data->dataflags & FSESS_NO_OPENDIR_SUPPORT))
+	{
+		/*
+		 * NFS is stateless, so nfsd must reopen a directory on every
+		 * call to VOP_READDIR, passing in the d_off field from the
+		 * final dirent of the previous invocation.  But without
+		 * FUSE_NO_OPENDIR_SUPPORT, the FUSE protocol does not
+		 * guarantee that d_off will be valid after a directory is
+		 * closed and reopened.  So prohibit exporting FUSE file
+		 * systems that don't set that flag.
+		 *
+		 * But userspace NFS servers don't have this problem.
+                 */
+		SDT_PROBE2(fusefs, , vnops, trace, 1,
+			"VOP_VPTOFH without FUSE_NO_OPENDIR_SUPPORT");
+		return EOPNOTSUPP;
+	}
 
 	err = fuse_internal_getattr(vp, &va, curthread->td_ucred, curthread);
 	if (err)
