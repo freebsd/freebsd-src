@@ -26,11 +26,31 @@
  * SUCH DAMAGE.
  */
 
+#include <errno.h>
 #include <sched.h>
+#include <string.h>
 
 int
 sched_getaffinity(pid_t pid, size_t cpusetsz, cpuset_t *cpuset)
 {
+	/*
+	 * Be more Linux-compatible:
+	 * - return EINVAL in passed size is less than size of cpuset_t
+	 *   in advance, instead of ERANGE from the syscall
+	 * - if passed size is larger than the size of cpuset_t, be
+	 *   permissive by claming it back to sizeof(cpuset_t) and
+	 *   zeroing the rest.
+	 */
+	if (cpusetsz < sizeof(cpuset_t)) {
+		errno = EINVAL;
+		return (-1);
+	}
+	if (cpusetsz > sizeof(cpuset_t)) {
+		memset((char *)cpuset + sizeof(cpuset_t), 0,
+		    cpusetsz - sizeof(cpuset_t));
+		cpusetsz = sizeof(cpuset_t);
+	}
+
 	return (cpuset_getaffinity(CPU_LEVEL_WHICH, CPU_WHICH_PID,
 	    pid == 0 ? -1 : pid, cpusetsz, cpuset));
 }
