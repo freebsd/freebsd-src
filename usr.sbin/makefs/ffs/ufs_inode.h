@@ -68,7 +68,7 @@ struct inode {
 #define	i_ffs1_mtimensec	i_din.ffs1_din.di_mtimensec
 #define	i_ffs1_nlink		i_din.ffs1_din.di_nlink
 #define	i_ffs1_rdev		i_din.ffs1_din.di_rdev
-#define	i_ffs1_shortlink	i_din.ffs1_din.db
+#define	i_ffs1_shortlink	i_din.ffs1_din.di_shortlink
 #define	i_ffs1_size		i_din.ffs1_din.di_size
 #define	i_ffs1_uid		i_din.ffs1_din.di_uid
 
@@ -89,7 +89,7 @@ struct inode {
 #define	i_ffs2_mtimensec	i_din.ffs2_din.di_mtimensec
 #define	i_ffs2_nlink		i_din.ffs2_din.di_nlink
 #define	i_ffs2_rdev		i_din.ffs2_din.di_rdev
-#define	i_ffs2_shortlink	i_din.ffs2_din.db
+#define	i_ffs2_shortlink	i_din.ffs2_din.di_shortlink
 #define	i_ffs2_size		i_din.ffs2_din.di_size
 #define	i_ffs2_uid		i_din.ffs2_din.di_uid
 

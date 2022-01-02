@@ -99,8 +99,8 @@ prtblknos(fs, dp)
 		if (size < fs->fs_maxsymlinklen) {
 			printf("symbolic link referencing %s\n",
 			    (fs->fs_magic == FS_UFS1_MAGIC) ?
-			    (char *)dp->dp1.di_db :
-			    (char *)dp->dp2.di_db);
+			    dp->dp1.di_shortlink :
+			    dp->dp2.di_shortlink);
 			return;
 		}
 		printf("symbolic link\n");

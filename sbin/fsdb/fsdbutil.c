@@ -136,11 +136,8 @@ printstat(const char *cp, ino_t inum, union dinode *dp)
 	if (DIP(dp, di_size) > 0 &&
 	    DIP(dp, di_size) < sblock.fs_maxsymlinklen &&
 	    DIP(dp, di_blocks) == 0) {
-	    if (sblock.fs_magic == FS_UFS1_MAGIC)
-		p = (caddr_t)dp->dp1.di_db;
-	    else
-		p = (caddr_t)dp->dp2.di_db;
-	    printf(" to `%.*s'\n", (int) DIP(dp, di_size), p);
+	    printf(" to `%.*s'\n", (int) DIP(dp, di_size),
+		DIP(dp, di_shortlink));
 	} else {
 	    putchar('\n');
 	}
