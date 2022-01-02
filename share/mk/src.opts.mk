@@ -1,6 +1,8 @@
 # $FreeBSD$
 #
-# Option file for FreeBSD /usr/src builds.
+# Option file for FreeBSD /usr/src builds, at least the userland and boot loader
+# portions of the tree. These options generally chose what parts of the tree to
+# include or omit and are FreeBSD source tree specific.
 #
 # Users define WITH_FOO and WITHOUT_FOO on the command line or in /etc/src.conf
 # and /etc/make.conf files. These translate in the build system to MK_FOO={yes,no}

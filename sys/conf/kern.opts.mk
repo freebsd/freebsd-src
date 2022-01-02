@@ -1,6 +1,9 @@
 # $FreeBSD$
 
-# Options set in the build system that affect the kernel somehow.
+# Options set in the build system which affect the building of kernel
+# modules. These select which parts to compile in or out (eg INET) or which
+# parts to omit (eg CDDL or SOURCELESS_HOST). Some of these will cause
+# config.mk to define symbols in various opt_*.h files.
 
 #
 # Define MK_* variables (which are either "yes" or "no") for users

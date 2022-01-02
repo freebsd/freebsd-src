@@ -1,6 +1,9 @@
 # $FreeBSD$
 #
-# Option file for src builds.
+# Option file for bmake builds. These options are available to all users of
+# bmake (including the source tree userland and kernel builds). They generally
+# control how binaries are made, shared vs dynamic, etc and some general options
+# relevant for all build environments.
 #
 # Users define WITH_FOO and WITHOUT_FOO on the command line or in /etc/src.conf
 # and /etc/make.conf files. These translate in the build system to MK_FOO={yes,no}
