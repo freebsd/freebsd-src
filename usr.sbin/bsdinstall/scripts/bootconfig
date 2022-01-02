@@ -74,7 +74,7 @@ update_uefi_bootentry()
 	fi
 
 	$DIALOG --backtitle 'FreeBSD Installer' --title 'Boot configuration' \
-	    --yesno 'There is multiple "FreeBSD" efi boot entries, would you like to remove them all and add a new one?' 0 0
+	    --yesno 'There are multiple "FreeBSD" EFI boot entries. Would you like to remove them all and add a new one?' 0 0
 	if [ $? -eq $DIALOG_OK ]; then
 		for entry in $(efibootmgr | awk '$NF == "FreeBSD" { sub(/.*Boot/,"", $1); sub(/\*/,"", $1); print $1 }'); do
 			efibootmgr -B -b ${entry}
