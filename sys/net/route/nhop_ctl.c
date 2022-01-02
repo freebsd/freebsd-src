@@ -830,7 +830,9 @@ nhops_update_ifmtu(struct rib_head *rh, struct ifnet *ifp, uint32_t mtu)
 char *
 nhop_print_buf(const struct nhop_object *nh, char *buf, size_t bufsize)
 {
+#if defined(INET) || defined(INET6)
 	char abuf[INET6_ADDRSTRLEN];
+#endif
 	struct nhop_priv *nh_priv = nh->nh_priv;
 	const char *upper_str = rib_print_family(nh->nh_priv->nh_upper_family);
 
