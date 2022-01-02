@@ -242,8 +242,6 @@ I_IS_UFS2(const struct inode *ip)
 		(ip)->i_din2->d##field = (val); 		\
 	} while (0)
 
-#define	SHORTLINK(ip)	(I_IS_UFS1(ip) ?			\
-    (caddr_t)(ip)->i_din1->di_db : (caddr_t)(ip)->i_din2->di_db)
 #define	IS_SNAPSHOT(ip)		((ip)->i_flags & SF_SNAPSHOT)
 #define	IS_UFS(vp)		((vp)->v_data != NULL)
 
