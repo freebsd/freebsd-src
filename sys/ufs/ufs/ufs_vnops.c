@@ -2311,7 +2311,7 @@ ufs_symlink(ap)
 	len = strlen(ap->a_target);
 	if (len < VFSTOUFS(vp->v_mount)->um_maxsymlinklen) {
 		ip = VTOI(vp);
-		bcopy(ap->a_target, SHORTLINK(ip), len);
+		bcopy(ap->a_target, DIP(ip, i_shortlink), len);
 		ip->i_size = len;
 		DIP_SET(ip, i_size, len);
 		UFS_INODE_SET_FLAG(ip, IN_SIZEMOD | IN_CHANGE | IN_UPDATE);
@@ -2481,7 +2481,7 @@ ufs_readlink(ap)
 
 	isize = ip->i_size;
 	if (isize < VFSTOUFS(vp->v_mount)->um_maxsymlinklen)
-		return (uiomove(SHORTLINK(ip), isize, ap->a_uio));
+		return (uiomove(DIP(ip, i_shortlink), isize, ap->a_uio));
 	return (VOP_READ(vp, ap->a_uio, 0, ap->a_cred));
 }
 

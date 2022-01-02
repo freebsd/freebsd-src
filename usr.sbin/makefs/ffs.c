@@ -704,7 +704,7 @@ ffs_build_dinode1(struct ufs1_dinode *dinp, dirbuf_t *dbufp, fsnode *cur,
 	} else if (S_ISLNK(cur->type)) {	/* symlink */
 		slen = strlen(cur->symlink);
 		if (slen < UFS1_MAXSYMLINKLEN) {	/* short link */
-			memcpy(dinp->di_db, cur->symlink, slen);
+			memcpy(dinp->di_shortlink, cur->symlink, slen);
 		} else
 			membuf = cur->symlink;
 		dinp->di_size = slen;
@@ -763,7 +763,7 @@ ffs_build_dinode2(struct ufs2_dinode *dinp, dirbuf_t *dbufp, fsnode *cur,
 	} else if (S_ISLNK(cur->type)) {	/* symlink */
 		slen = strlen(cur->symlink);
 		if (slen < UFS2_MAXSYMLINKLEN) {	/* short link */
-			memcpy(dinp->di_db, cur->symlink, slen);
+			memcpy(dinp->di_shortlink, cur->symlink, slen);
 		} else
 			membuf = cur->symlink;
 		dinp->di_size = slen;

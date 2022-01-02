@@ -342,7 +342,7 @@ ffs_truncate(vp, length, flags, cred)
 		if (length != 0)
 			panic("ffs_truncate: partial truncate of symlink");
 #endif
-		bzero(SHORTLINK(ip), (u_int)ip->i_size);
+		bzero(DIP(ip, i_shortlink), (u_int)ip->i_size);
 		ip->i_size = 0;
 		DIP_SET(ip, i_size, 0);
 		UFS_INODE_SET_FLAG(ip, IN_SIZEMOD | IN_CHANGE | IN_UPDATE);
