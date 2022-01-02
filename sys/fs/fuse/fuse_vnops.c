@@ -1846,6 +1846,7 @@ fuse_vnop_readdir(struct vop_readdir_args *ap)
 	struct uio *uio = ap->a_uio;
 	struct ucred *cred = ap->a_cred;
 	struct fuse_filehandle *fufh = NULL;
+	struct fuse_data *mpdata = fuse_get_mpdata(vnode_mount(vp));
 	struct fuse_iov cookediov;
 	int err = 0;
 	uint64_t *cookies;
@@ -1874,13 +1875,14 @@ fuse_vnop_readdir(struct vop_readdir_args *ap)
 		 * must implicitly open the directory here
 		 */
 		err = fuse_filehandle_open(vp, FREAD, &fufh, curthread, cred);
-		if (err == 0) {
+		if (err == 0 && !(mpdata->dataflags & FSESS_NO_OPEN_SUPPORT)) {
 			/*
-			 * When a directory is opened, it must be read from
-			 * the beginning.  Hopefully, the "startoff" still
-			 * exists as an offset cookie for the directory.
-			 * If not, it will read the entire directory without
-			 * returning any entries and just return eof.
+			 * FUSE does not require a directory entry's d_off
+			 * field to be valid outside of the lifetime of the
+			 * directory's FUSE file handle.  So we must read the
+			 * directory from the beginning.  However, if the file
+			 * system sets FUSE_NO_OPENDIR_SUPPORT, then the d_off
+			 * field will be valid for the lifetime of the dirent.
 			 */
 			uio->uio_offset = 0;
 		}
