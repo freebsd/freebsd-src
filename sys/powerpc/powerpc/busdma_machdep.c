@@ -708,8 +708,8 @@ _bus_dmamap_addseg(bus_dma_tag_t dmat, bus_dmamap_t map, bus_addr_t curaddr,
 	} else {
 		if (curaddr == segs[seg].ds_addr + segs[seg].ds_len &&
 		    (segs[seg].ds_len + sgsize) <= dmat->maxsegsz &&
-		    vm_addr_bound_ok(segs[seg].ds_addr, segs[seg].ds_len,
-		    dmat->boundary))
+		    vm_addr_bound_ok(segs[seg].ds_addr,
+		    segs[seg].ds_len + sgsize, dmat->boundary))
 			segs[seg].ds_len += sgsize;
 		else {
 			if (++seg >= dmat->nsegments)
