@@ -191,7 +191,7 @@ static int32_t bbr_hptsi_max_div = 2;	/* time, 0 means turned off. We need this
 static int32_t bbr_policer_call_from_rack_to = 0;
 static int32_t bbr_policer_detection_enabled = 1;
 static int32_t bbr_min_measurements_req = 1;	/* We need at least 2
-						 * measurments before we are
+						 * measurement before we are
 						 * "good" note that 2 == 1.
 						 * This is because we use a >
 						 * comparison. This means if
@@ -1402,7 +1402,7 @@ bbr_init_sysctls(void)
 	    SYSCTL_CHILDREN(bbr_measure),
 	    OID_AUTO, "min_measure_good_bw", CTLFLAG_RW,
 	    &bbr_min_measurements_req, 1,
-	    "What is the minimum measurment count we need before we switch to our b/w estimate");
+	    "What is the minimum measurement count we need before we switch to our b/w estimate");
 	SYSCTL_ADD_S32(&bbr_sysctl_ctx,
 	    SYSCTL_CHILDREN(bbr_measure),
 	    OID_AUTO, "min_measure_before_pace", CTLFLAG_RW,
@@ -1558,7 +1558,7 @@ bbr_init_sysctls(void)
 	    SYSCTL_CHILDREN(bbr_cwnd),
 	    OID_AUTO, "tar_rtt", CTLFLAG_RW,
 	    &bbr_cwndtarget_rtt_touse, 0,
-	    "Target cwnd rtt measurment to use (0=rtt_prop, 1=rtt_rack, 2=pkt_rtt, 3=srtt)?");
+	    "Target cwnd rtt measurement to use (0=rtt_prop, 1=rtt_rack, 2=pkt_rtt, 3=srtt)?");
 	SYSCTL_ADD_S32(&bbr_sysctl_ctx,
 	    SYSCTL_CHILDREN(bbr_cwnd),
 	    OID_AUTO, "may_shrink", CTLFLAG_RW,
@@ -2971,7 +2971,7 @@ use_initial_window:
 		rtt = (uint64_t)get_filter_value_small(&bbr->r_ctl.rc_rttprop);
 		if (rtt && (rtt < 0xffffffff)) {
 			/*
-			 * We have an RTT measurment. Use that in
+			 * We have an RTT measurement. Use that in
 			 * combination with our initial window to calculate
 			 * a b/w.
 			 */
