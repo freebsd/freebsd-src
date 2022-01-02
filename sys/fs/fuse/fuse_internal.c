@@ -586,11 +586,7 @@ fuse_internal_readdir(struct vnode *vp,
 		fnd_start = 1;
 	while (uio_resid(uio) > 0) {
 		fdi.iosize = sizeof(*fri);
-		if (fri == NULL)
-			fdisp_make_vp(&fdi, FUSE_READDIR, vp, NULL, NULL);
-		else
-			fdisp_refresh_vp(&fdi, FUSE_READDIR, vp, NULL, NULL);
-
+		fdisp_make_vp(&fdi, FUSE_READDIR, vp, NULL, NULL);
 		fri = fdi.indata;
 		fri->fh = fufh->fh_id;
 		fri->offset = uio_offset(uio);
@@ -628,6 +624,8 @@ fuse_internal_readdir_processdata(struct uio *uio,
 	int err = 0;
 	int oreclen;
 	size_t freclen;
+	int ents_copied = 0;
+	int ents_seen = 0;
 
 	struct dirent *de;
 	struct fuse_dirent *fudge;
@@ -638,7 +636,7 @@ fuse_internal_readdir_processdata(struct uio *uio,
 		return -1;
 	for (;;) {
 		if (bufsize < FUSE_NAME_OFFSET) {
-			err = -1;
+			err = (ents_seen == 0 || ents_copied > 0) ?  -1 : 0;
 			break;
 		}
 		fudge = (struct fuse_dirent *)buf;
@@ -649,7 +647,7 @@ fuse_internal_readdir_processdata(struct uio *uio,
 			 * This indicates a partial directory entry at the
 			 * end of the directory data.
 			 */
-			err = -1;
+			err = (ents_seen == 0 || ents_copied > 0) ?  -1 : 0;
 			break;
 		}
 #ifdef ZERO_PAD_INCOMPLETE_BUFS
@@ -671,6 +669,7 @@ fuse_internal_readdir_processdata(struct uio *uio,
 			err = -1;
 			break;
 		}
+		ents_seen++;
 		/*
 		 * Don't start to copy the directory entries out until
 		 * the requested offset in the directory is found.
@@ -702,6 +701,7 @@ fuse_internal_readdir_processdata(struct uio *uio,
 				cookies++;
 				(*ncookies)--;
 			}
+			ents_copied++;
 		} else if (startoff == fudge->off)
 			*fnd_start = 1;
 		buf = (char *)buf + freclen;
