@@ -96,10 +96,7 @@ __DEFAULT_DEPENDENT_OPTIONS = \
 # some memory-hungry workloads.
 #
 .if ${MACHINE_ARCH} == "armv6" || ${MACHINE_ARCH} == "armv7" \
-    || ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "mips" \
-    || ${MACHINE_ARCH} == "mipsel" || ${MACHINE_ARCH} == "mipselhf" \
-    || ${MACHINE_ARCH} == "mipshf" || ${MACHINE_ARCH} == "mipsn32" \
-    || ${MACHINE_ARCH} == "mipsn32el" || ${MACHINE_ARCH} == "powerpc" \
+    || ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "powerpc" \
     || ${MACHINE_ARCH} == "powerpcspe"
 __DEFAULT_NO_OPTIONS+= PIE
 .else
