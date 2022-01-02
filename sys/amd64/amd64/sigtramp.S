@@ -67,6 +67,9 @@ ENTRY(__vdso_sigcode)
  * Clang IAS + ld.lld combination cannot handle any of the segment
  * registers.  Also, clang IAS does not know %rflags/%fs.base/%gs.base
  * registers names, use dwarf registers numbers from psABI directly.
+ *
+ * LLVM libunwind from stable/13 cannot parse register numbers higher
+ * than 32.  Disable %rflags, %fs.base, and %gs.base annotations.
  */	
 	.cfi_offset	%fs,  SIGF_UC + UC_FS
 	.cfi_offset	%gs,  SIGF_UC + UC_GS
@@ -76,14 +79,14 @@ ENTRY(__vdso_sigcode)
 	.cfi_offset	%rip, SIGF_UC + UC_RIP
 #if 0
 	.cfi_offset	%cs,  SIGF_UC + UC_CS
-#endif
 	.cfi_offset	49 /* %rflags */, SIGF_UC + UC_RFLAGS
+#endif
 	.cfi_offset	%rsp, SIGF_UC + UC_RSP
 #if 0
 	.cfi_offset	%ss,  SIGF_UC + UC_SS
-#endif
 	.cfi_offset	58 /* %fs.base */, SIGF_UC + UC_FSBASE
 	.cfi_offset	59 /* %gs.base */, SIGF_UC + UC_GSBASE
+#endif
 	call	*SIGF_HANDLER(%rsp)	/* call signal handler */
 	lea	SIGF_UC(%rsp),%rdi	/* get ucontext_t */
 	pushq	$0			/* junk to fake return addr. */
