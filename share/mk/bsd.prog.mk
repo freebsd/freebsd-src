@@ -117,11 +117,6 @@ TAG_ARGS=	-T ${TAGS:[*]:S/ /,/g}
 LDFLAGS+= -static
 .endif
 
-# clang currently defaults to dynamic TLS for mips64 binaries
-.if ${MACHINE_ARCH:Mmips64*} && ${COMPILER_TYPE} == "clang"
-CFLAGS+= -ftls-model=initial-exec
-.endif
-
 .if ${MK_DEBUG_FILES} != "no"
 PROG_FULL=${PROG}.full
 # Use ${DEBUGDIR} for base system debug files, else .debug subdirectory
