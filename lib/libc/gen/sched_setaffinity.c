@@ -26,11 +26,22 @@
  * SUCH DAMAGE.
  */
 
+#include <errno.h>
 #include <sched.h>
+#include <string.h>
 
 int
 sched_setaffinity(pid_t pid, size_t cpusetsz, const cpuset_t *cpuset)
 {
+	cpuset_t c;
+
+	if (cpusetsz > sizeof(cpuset_t)) {
+		errno = EINVAL;
+		return (-1);
+	} else {
+		memset(&c, 0, sizeof(c));
+		memcpy(&c, cpuset, cpusetsz);
+	}
 	return (cpuset_setaffinity(CPU_LEVEL_WHICH, CPU_WHICH_PID,
-	    pid == 0 ? -1 : pid, cpusetsz, cpuset));
+	    pid == 0 ? -1 : pid, sizeof(cpuset_t), &c));
 }
