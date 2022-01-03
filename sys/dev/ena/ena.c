@@ -3278,6 +3278,18 @@ ena_timer_service(void *data)
 		ena_update_host_info(host_info, adapter->ifp);
 
 	if (unlikely(ENA_FLAG_ISSET(ENA_FLAG_TRIGGER_RESET, adapter))) {
+		/*
+		 * Timeout when validating version indicates that the device
+		 * became unresponsive. If that happens skip the reset and
+		 * reschedule timer service, so the reset can be retried later.
+		 */
+		if (ena_com_validate_version(adapter->ena_dev) ==
+		    ENA_COM_TIMER_EXPIRED) {
+			ena_log(adapter->pdev, WARN,
+			    "FW unresponsive, skipping reset\n");
+			ENA_TIMER_RESET(adapter);
+			return;
+		}
 		ena_log(adapter->pdev, WARN, "Trigger reset is on\n");
 		taskqueue_enqueue(adapter->reset_tq, &adapter->reset_task);
 		return;
