@@ -553,7 +553,6 @@ fuse_internal_mknod(struct vnode *dvp, struct vnode **vpp,
 int
 fuse_internal_readdir(struct vnode *vp,
     struct uio *uio,
-    off_t startoff,
     struct fuse_filehandle *fufh,
     struct fuse_iov *cookediov,
     int *ncookies,
@@ -562,7 +561,6 @@ fuse_internal_readdir(struct vnode *vp,
 	int err = 0;
 	struct fuse_dispatcher fdi;
 	struct fuse_read_in *fri = NULL;
-	int fnd_start;
 
 	if (uio_resid(uio) == 0)
 		return 0;
@@ -572,18 +570,6 @@ fuse_internal_readdir(struct vnode *vp,
 	 * Note that we DO NOT have a UIO_SYSSPACE here (so no need for p2p
 	 * I/O).
 	 */
-
-	/*
-	 * fnd_start is set non-zero once the offset in the directory gets
-	 * to the startoff.  This is done because directories must be read
-	 * from the beginning (offset == 0) when fuse_vnop_readdir() needs
-	 * to do an open of the directory.
-	 * If it is not set non-zero here, it will be set non-zero in
-	 * fuse_internal_readdir_processdata() when uio_offset == startoff.
-	 */
-	fnd_start = 0;
-	if (uio->uio_offset == startoff)
-		fnd_start = 1;
 	while (uio_resid(uio) > 0) {
 		fdi.iosize = sizeof(*fri);
 		fdisp_make_vp(&fdi, FUSE_READDIR, vp, NULL, NULL);
@@ -595,9 +581,8 @@ fuse_internal_readdir(struct vnode *vp,
 
 		if ((err = fdisp_wait_answ(&fdi)))
 			break;
-		if ((err = fuse_internal_readdir_processdata(uio, startoff,
-		    &fnd_start, fri->size, fdi.answ, fdi.iosize, cookediov,
-		    ncookies, &cookies)))
+		if ((err = fuse_internal_readdir_processdata(uio, fri->size,
+			fdi.answ, fdi.iosize, cookediov, ncookies, &cookies)))
 			break;
 	}
 
@@ -612,8 +597,6 @@ fuse_internal_readdir(struct vnode *vp,
  */
 int
 fuse_internal_readdir_processdata(struct uio *uio,
-    off_t startoff,
-    int *fnd_start,
     size_t reqsize,
     void *buf,
     size_t bufsize,
@@ -624,8 +607,6 @@ fuse_internal_readdir_processdata(struct uio *uio,
 	int err = 0;
 	int oreclen;
 	size_t freclen;
-	int ents_copied = 0;
-	int ents_seen = 0;
 
 	struct dirent *de;
 	struct fuse_dirent *fudge;
@@ -636,7 +617,7 @@ fuse_internal_readdir_processdata(struct uio *uio,
 		return -1;
 	for (;;) {
 		if (bufsize < FUSE_NAME_OFFSET) {
-			err = (ents_seen == 0 || ents_copied > 0) ?  -1 : 0;
+			err = -1;
 			break;
 		}
 		fudge = (struct fuse_dirent *)buf;
@@ -647,7 +628,7 @@ fuse_internal_readdir_processdata(struct uio *uio,
 			 * This indicates a partial directory entry at the
 			 * end of the directory data.
 			 */
-			err = (ents_seen == 0 || ents_copied > 0) ?  -1 : 0;
+			err = -1;
 			break;
 		}
 #ifdef ZERO_PAD_INCOMPLETE_BUFS
@@ -669,41 +650,32 @@ fuse_internal_readdir_processdata(struct uio *uio,
 			err = -1;
 			break;
 		}
-		ents_seen++;
-		/*
-		 * Don't start to copy the directory entries out until
-		 * the requested offset in the directory is found.
-		 */
-		if (*fnd_start != 0) {
-			fiov_adjust(cookediov, oreclen);
-			bzero(cookediov->base, oreclen);
+		fiov_adjust(cookediov, oreclen);
+		bzero(cookediov->base, oreclen);
 
-			de = (struct dirent *)cookediov->base;
-			de->d_fileno = fudge->ino;
-			de->d_off = fudge->off;
-			de->d_reclen = oreclen;
-			de->d_type = fudge->type;
-			de->d_namlen = fudge->namelen;
-			memcpy((char *)cookediov->base + sizeof(struct dirent) -
-			       MAXNAMLEN - 1,
-			       (char *)buf + FUSE_NAME_OFFSET, fudge->namelen);
-			dirent_terminate(de);
+		de = (struct dirent *)cookediov->base;
+		de->d_fileno = fudge->ino;
+		de->d_off = fudge->off;
+		de->d_reclen = oreclen;
+		de->d_type = fudge->type;
+		de->d_namlen = fudge->namelen;
+		memcpy((char *)cookediov->base + sizeof(struct dirent) -
+		       MAXNAMLEN - 1,
+		       (char *)buf + FUSE_NAME_OFFSET, fudge->namelen);
+		dirent_terminate(de);
 
-			err = uiomove(cookediov->base, cookediov->len, uio);
-			if (err)
+		err = uiomove(cookediov->base, cookediov->len, uio);
+		if (err)
+			break;
+		if (cookies != NULL) {
+			if (*ncookies == 0) {
+				err = -1;
 				break;
-			if (cookies != NULL) {
-				if (*ncookies == 0) {
-					err = -1;
-					break;
-				}
-				*cookies = fudge->off;
-				cookies++;
-				(*ncookies)--;
 			}
-			ents_copied++;
-		} else if (startoff == fudge->off)
-			*fnd_start = 1;
+			*cookies = fudge->off;
+			cookies++;
+			(*ncookies)--;
+		}
 		buf = (char *)buf + freclen;
 		bufsize -= freclen;
 		uio_setoffset(uio, fudge->off);
