@@ -726,7 +726,6 @@ disk_thread(void *arg)
 		/*
 		 * Check the request.
 		 */
-		assert(req->r_cmd == GGATE_CMD_READ || req->r_cmd == GGATE_CMD_WRITE);
 		assert(req->r_offset + req->r_length <= (uintmax_t)conn->c_mediasize);
 		assert((req->r_offset % conn->c_sectorsize) == 0);
 		assert((req->r_length % conn->c_sectorsize) == 0);
@@ -749,6 +748,19 @@ disk_thread(void *arg)
 			/* Free data memory here - better sooner. */
 			free(req->r_data);
 			req->r_data = NULL;
+			break;
+		case GGATE_CMD_FLUSH:
+			data = fsync(fd);
+			if (data != 0)
+				req->r_error = errno;
+			break;
+		default:
+			g_gate_log(LOG_DEBUG, "Unsupported request: %i", req->r_cmd);
+			req->r_error = EOPNOTSUPP;
+			if (req->r_data != NULL) {
+				free(req->r_data);
+				req->r_data = NULL;
+			}
 			break;
 		}
 		if (data != (ssize_t)req->r_length) {

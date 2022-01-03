@@ -57,6 +57,7 @@
 
 #define	GGATE_CMD_READ		0
 #define	GGATE_CMD_WRITE		1
+#define	GGATE_CMD_FLUSH		3
 
 extern int g_gate_devfd;
 extern int g_gate_verbose;
