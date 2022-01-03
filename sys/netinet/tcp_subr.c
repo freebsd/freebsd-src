@@ -1146,26 +1146,7 @@ static struct mtx isn_mtx;
 #define	ISN_LOCK()	mtx_lock(&isn_mtx)
 #define	ISN_UNLOCK()	mtx_unlock(&isn_mtx)
 
-/*
- * TCP initialization.
- */
-static void
-tcp_zone_change(void *tag)
-{
-
-	uma_zone_set_max(V_tcbinfo.ipi_zone, maxsockets);
-	uma_zone_set_max(V_tcpcb_zone, maxsockets);
-	tcp_tw_zone_change();
-}
-
-static int
-tcp_inpcb_init(void *mem, int size, int flags)
-{
-	struct inpcb *inp = mem;
-
-	INP_LOCK_INIT(inp, "inp", "tcpinp");
-	return (0);
-}
+INPCBSTORAGE_DEFINE(tcpcbstor, "tcpinp", "tcp_inpcb", "tcp", "tcphash");
 
 /*
  * Take a value and get the next power of 2 that doesn't overflow.
@@ -1439,8 +1420,8 @@ tcp_vnet_init(void *arg __unused)
 		printf("%s: WARNING: unable to initialise TCP stats\n",
 		    __func__);
 #endif
-	in_pcbinfo_init(&V_tcbinfo, "tcp", tcp_tcbhashsize, tcp_tcbhashsize,
-	    "tcp_inpcb", tcp_inpcb_init);
+	in_pcbinfo_init(&V_tcbinfo, &tcpcbstor, tcp_tcbhashsize,
+	    tcp_tcbhashsize);
 
 	/*
 	 * These have to be type stable for the benefit of the timers.
@@ -1526,8 +1507,6 @@ tcp_init(void *arg __unused)
 	ISN_LOCK_INIT();
 	EVENTHANDLER_REGISTER(shutdown_pre_sync, tcp_fini, NULL,
 		SHUTDOWN_PRI_DEFAULT);
-	EVENTHANDLER_REGISTER(maxsockets_change, tcp_zone_change, NULL,
-		EVENTHANDLER_PRI_ANY);
 
 	tcp_inp_lro_direct_queue = counter_u64_alloc(M_WAITOK);
 	tcp_inp_lro_wokeup_queue = counter_u64_alloc(M_WAITOK);
