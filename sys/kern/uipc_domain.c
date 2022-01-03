@@ -169,8 +169,6 @@ protosw_init(struct protosw *pr)
 	DEFAULT(pu->pru_sopoll, sopoll_generic);
 	DEFAULT(pu->pru_ready, pru_ready_notsupp);
 #undef DEFAULT
-	if (pr->pr_init)
-		(*pr->pr_init)();
 }
 
 /*
@@ -365,7 +363,6 @@ pffindproto(int family, int protocol, int type)
 int
 pf_proto_register(int family, struct protosw *npr)
 {
-	VNET_ITERATOR_DECL(vnet_iter);
 	struct domain *dp;
 	struct protosw *pr, *fpr;
 
@@ -424,15 +421,6 @@ pf_proto_register(int family, struct protosw *npr)
 
 	/* Job is done, no more protection required. */
 	mtx_unlock(&dom_mtx);
-
-	/* Initialize and activate the protocol. */
-	VNET_LIST_RLOCK();
-	VNET_FOREACH(vnet_iter) {
-		CURVNET_SET_QUIET(vnet_iter);
-		protosw_init(fpr);
-		CURVNET_RESTORE();
-	}
-	VNET_LIST_RUNLOCK();
 
 	return (0);
 }
@@ -498,7 +486,6 @@ pf_proto_unregister(int family, int protocol, int type)
 	dpr->pr_output = NULL;
 	dpr->pr_ctlinput = NULL;
 	dpr->pr_ctloutput = NULL;
-	dpr->pr_init = NULL;
 	dpr->pr_fasttimo = NULL;
 	dpr->pr_slowtimo = NULL;
 	dpr->pr_drain = NULL;

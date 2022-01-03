@@ -1422,13 +1422,9 @@ deregister_tcp_functions(struct tcp_function_block *blk, bool quiesce,
 	return (0);
 }
 
-void
-tcp_init(void)
+static void
+tcp_vnet_init(void *arg __unused)
 {
-	const char *tcbhash_tuneable;
-	int hashsize;
-
-	tcbhash_tuneable = "net.inet.tcp.tcbhashsize";
 
 #ifdef TCP_HHOOK
 	if (hhook_head_register(HHOOK_TYPE_TCP, HHOOK_TCP_EST_IN,
@@ -1443,46 +1439,7 @@ tcp_init(void)
 		printf("%s: WARNING: unable to initialise TCP stats\n",
 		    __func__);
 #endif
-	hashsize = TCBHASHSIZE;
-	TUNABLE_INT_FETCH(tcbhash_tuneable, &hashsize);
-	if (hashsize == 0) {
-		/*
-		 * Auto tune the hash size based on maxsockets.
-		 * A perfect hash would have a 1:1 mapping
-		 * (hashsize = maxsockets) however it's been
-		 * suggested that O(2) average is better.
-		 */
-		hashsize = maketcp_hashsize(maxsockets / 4);
-		/*
-		 * Our historical default is 512,
-		 * do not autotune lower than this.
-		 */
-		if (hashsize < 512)
-			hashsize = 512;
-		if (bootverbose && IS_DEFAULT_VNET(curvnet))
-			printf("%s: %s auto tuned to %d\n", __func__,
-			    tcbhash_tuneable, hashsize);
-	}
-	/*
-	 * We require a hashsize to be a power of two.
-	 * Previously if it was not a power of two we would just reset it
-	 * back to 512, which could be a nasty surprise if you did not notice
-	 * the error message.
-	 * Instead what we do is clip it to the closest power of two lower
-	 * than the specified hash value.
-	 */
-	if (!powerof2(hashsize)) {
-		int oldhashsize = hashsize;
-
-		hashsize = maketcp_hashsize(hashsize);
-		/* prevent absurdly low value */
-		if (hashsize < 16)
-			hashsize = 16;
-		printf("%s: WARNING: TCB hash size not a power of 2, "
-		    "clipped from %d to %d.\n", __func__, oldhashsize,
-		    hashsize);
-	}
-	in_pcbinfo_init(&V_tcbinfo, "tcp", hashsize, hashsize,
+	in_pcbinfo_init(&V_tcbinfo, "tcp", tcp_tcbhashsize, tcp_tcbhashsize,
 	    "tcp_inpcb", tcp_inpcb_init);
 
 	/*
@@ -1507,10 +1464,15 @@ tcp_init(void)
 	VNET_PCPUSTAT_ALLOC(tcpstat, M_WAITOK);
 
 	V_tcp_msl = TCPTV_MSL;
+}
+VNET_SYSINIT(tcp_vnet_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_FOURTH,
+    tcp_vnet_init, NULL);
 
-	/* Skip initialization of globals for non-default instances. */
-	if (!IS_DEFAULT_VNET(curvnet))
-		return;
+static void
+tcp_init(void *arg __unused)
+{
+	const char *tcbhash_tuneable;
+	int hashsize;
 
 	tcp_reass_global_init();
 
@@ -1530,7 +1492,6 @@ tcp_init(void)
 	tcp_persmax = TCPTV_PERSMAX;
 	tcp_rexmit_slop = TCPTV_CPU_VAR;
 	tcp_finwait2_timeout = TCPTV_FINWAIT2_TIMEOUT;
-	tcp_tcbhashsize = hashsize;
 
 	/* Setup the tcp function block list */
 	TAILQ_INIT(&t_functions);
@@ -1580,7 +1541,50 @@ tcp_init(void)
 #ifdef TCPPCAP
 	tcp_pcap_init();
 #endif
+
+	hashsize = TCBHASHSIZE;
+	tcbhash_tuneable = "net.inet.tcp.tcbhashsize";
+	TUNABLE_INT_FETCH(tcbhash_tuneable, &hashsize);
+	if (hashsize == 0) {
+		/*
+		 * Auto tune the hash size based on maxsockets.
+		 * A perfect hash would have a 1:1 mapping
+		 * (hashsize = maxsockets) however it's been
+		 * suggested that O(2) average is better.
+		 */
+		hashsize = maketcp_hashsize(maxsockets / 4);
+		/*
+		 * Our historical default is 512,
+		 * do not autotune lower than this.
+		 */
+		if (hashsize < 512)
+			hashsize = 512;
+		if (bootverbose)
+			printf("%s: %s auto tuned to %d\n", __func__,
+			    tcbhash_tuneable, hashsize);
+	}
+	/*
+	 * We require a hashsize to be a power of two.
+	 * Previously if it was not a power of two we would just reset it
+	 * back to 512, which could be a nasty surprise if you did not notice
+	 * the error message.
+	 * Instead what we do is clip it to the closest power of two lower
+	 * than the specified hash value.
+	 */
+	if (!powerof2(hashsize)) {
+		int oldhashsize = hashsize;
+
+		hashsize = maketcp_hashsize(hashsize);
+		/* prevent absurdly low value */
+		if (hashsize < 16)
+			hashsize = 16;
+		printf("%s: WARNING: TCB hash size not a power of 2, "
+		    "clipped from %d to %d.\n", __func__, oldhashsize,
+		    hashsize);
+	}
+	tcp_tcbhashsize = hashsize;
 }
+SYSINIT(tcp_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD, tcp_init, NULL);
 
 #ifdef VIMAGE
 static void

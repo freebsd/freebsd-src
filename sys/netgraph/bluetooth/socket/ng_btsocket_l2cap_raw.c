@@ -513,14 +513,10 @@ ng_btsocket_l2cap_raw_rtclean(void *context, int pending)
  * Initialize everything
  */
 
-void
-ng_btsocket_l2cap_raw_init(void)
+static void
+ng_btsocket_l2cap_raw_init(void *arg __unused)
 {
 	int	error = 0;
-
-	/* Skip initialization of globals for non-default instances. */
-	if (!IS_DEFAULT_VNET(curvnet))
-		return;
 
 	ng_btsocket_l2cap_raw_node = NULL;
 	ng_btsocket_l2cap_raw_debug_level = NG_BTSOCKET_WARN_LEVEL;
@@ -582,6 +578,8 @@ ng_btsocket_l2cap_raw_init(void)
 	TASK_INIT(&ng_btsocket_l2cap_raw_rt_task, 0,
 		ng_btsocket_l2cap_raw_rtclean, NULL);
 } /* ng_btsocket_l2cap_raw_init */
+SYSINIT(ng_btsocket_l2cap_raw_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD,
+    ng_btsocket_l2cap_raw_init, NULL);
 
 /*
  * Abort connection on socket

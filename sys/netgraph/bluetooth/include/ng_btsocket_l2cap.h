@@ -95,7 +95,6 @@ typedef struct ng_btsocket_l2cap_raw_pcb *	ng_btsocket_l2cap_raw_pcb_p;
 
 #ifdef _KERNEL
 
-void ng_btsocket_l2cap_raw_init       (void);
 void ng_btsocket_l2cap_raw_abort      (struct socket *);
 void ng_btsocket_l2cap_raw_close      (struct socket *);
 int  ng_btsocket_l2cap_raw_attach     (struct socket *, int, struct thread *);
@@ -191,7 +190,6 @@ typedef struct ng_btsocket_l2cap_pcb *	ng_btsocket_l2cap_pcb_p;
 
 #ifdef _KERNEL
 
-void ng_btsocket_l2cap_init       (void);
 void ng_btsocket_l2cap_abort      (struct socket *);
 void ng_btsocket_l2cap_close      (struct socket *);
 int  ng_btsocket_l2cap_accept     (struct socket *, struct sockaddr **);

@@ -198,8 +198,8 @@ udplite_inpcb_init(void *mem, int size, int flags)
 	return (0);
 }
 
-void
-udp_init(void)
+static void
+udp_init(void *arg __unused)
 {
 
 	/*
@@ -217,15 +217,12 @@ udp_init(void)
 	uma_zone_set_warning(V_udpcb_zone, "kern.ipc.maxsockets limit reached");
 	EVENTHANDLER_REGISTER(maxsockets_change, udp_zone_change, NULL,
 	    EVENTHANDLER_PRI_ANY);
-}
 
-void
-udplite_init(void)
-{
-
+	/* Additional pcbinfo for UDP-Lite */
 	in_pcbinfo_init(&V_ulitecbinfo, "udplite", UDBHASHSIZE,
 	    UDBHASHSIZE, "udplite_inpcb", udplite_inpcb_init);
 }
+VNET_SYSINIT(udp_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD, udp_init, NULL);
 
 /*
  * Kernel module interface for updating udpstat.  The argument is an index

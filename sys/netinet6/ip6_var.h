@@ -347,7 +347,6 @@ struct inpcb;
 int	icmp6_ctloutput(struct socket *, struct sockopt *sopt);
 
 struct in6_ifaddr;
-void	ip6_init(void);
 int	ip6proto_register(short);
 int	ip6proto_unregister(short);
 

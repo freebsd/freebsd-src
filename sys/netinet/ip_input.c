@@ -301,12 +301,10 @@ SYSCTL_PROC(_net_inet_ip, IPCTL_INTRDQDROPS, intr_direct_queue_drops,
  * IP initialization: fill in IP protocol switch table.
  * All protocols not implemented in kernel go to raw IP protocol handler.
  */
-void
-ip_init(void)
+static void
+ip_vnet_init(void *arg __unused)
 {
 	struct pfil_head_args args;
-	struct protosw *pr;
-	int i;
 
 	CK_STAILQ_INIT(&V_in_ifaddrhead);
 	V_in_ifaddrhashtbl = hashinit(INADDR_NHASH, M_IFADDR, &V_in_ifaddrhmask);
@@ -332,23 +330,27 @@ ip_init(void)
 		printf("%s: WARNING: unable to register output helper hook\n",
 		    __func__);
 
-	/* Skip initialization of globals for non-default instances. */
 #ifdef VIMAGE
-	if (!IS_DEFAULT_VNET(curvnet)) {
-		netisr_register_vnet(&ip_nh);
+	netisr_register_vnet(&ip_nh);
 #ifdef	RSS
-		netisr_register_vnet(&ip_direct_nh);
+	netisr_register_vnet(&ip_direct_nh);
 #endif
-		return;
-	}
 #endif
+}
+VNET_SYSINIT(ip_vnet_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_FOURTH,
+    ip_vnet_init, NULL);
+
+
+static void
+ip_init(const void *unused __unused)
+{
+	struct protosw *pr;
 
 	pr = pffindproto(PF_INET, IPPROTO_RAW, SOCK_RAW);
-	if (pr == NULL)
-		panic("ip_init: PF_INET not found");
+	KASSERT(pr, ("%s: PF_INET not found", __func__));
 
 	/* Initialize the entire ip_protox[] array to IPPROTO_RAW. */
-	for (i = 0; i < IPPROTO_MAX; i++)
+	for (int i = 0; i < IPPROTO_MAX; i++)
 		ip_protox[i] = pr - inetsw;
 	/*
 	 * Cycle through IP protocols and put them into the appropriate place
@@ -368,6 +370,7 @@ ip_init(void)
 	netisr_register(&ip_direct_nh);
 #endif
 }
+SYSINIT(ip_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD, ip_init, NULL);
 
 #ifdef VIMAGE
 static void

@@ -67,7 +67,6 @@ typedef struct ng_btsocket_hci_raw_pcb *	ng_btsocket_hci_raw_pcb_p;
 
 #ifdef _KERNEL
 
-void ng_btsocket_hci_raw_init       (void);
 void ng_btsocket_hci_raw_abort      (struct socket *);
 void ng_btsocket_hci_raw_close      (struct socket *);
 int  ng_btsocket_hci_raw_attach     (struct socket *, int, struct thread *);

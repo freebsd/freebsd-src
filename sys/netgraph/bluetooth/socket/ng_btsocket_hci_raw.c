@@ -728,15 +728,11 @@ NG_HCI_OCF(opcode) - 1))
  * Initialize everything
  */
 
-void
-ng_btsocket_hci_raw_init(void)
+static void
+ng_btsocket_hci_raw_init(void *arg __unused)
 {
 	bitstr_t	*f = NULL;
 	int		 error = 0;
-
-	/* Skip initialization of globals for non-default instances. */
-	if (!IS_DEFAULT_VNET(curvnet))
-		return;
 
 	ng_btsocket_hci_raw_node = NULL;
 	ng_btsocket_hci_raw_debug_level = NG_BTSOCKET_WARN_LEVEL;
@@ -889,6 +885,8 @@ ng_btsocket_hci_raw_init(void)
 	bit_set(f, NG_HCI_OCF_LE_READ_WHITE_LIST_SIZE - 1);
 
 } /* ng_btsocket_hci_raw_init */
+SYSINIT(ng_btsocket_hci_raw_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD,
+    ng_btsocket_hci_raw_init, NULL);
 
 /*
  * Abort connection on socket

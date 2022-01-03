@@ -66,7 +66,6 @@ extern struct mtx rawcb_mtx;
  * Generic protosw entries for raw socket protocols.
  */
 pr_ctlinput_t	raw_ctlinput;
-pr_init_t	raw_init;
 
 /*
  * Library routines for raw socket usrreq functions; will always be wrapped
