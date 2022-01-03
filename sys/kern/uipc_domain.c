@@ -116,12 +116,12 @@ struct pr_usrreqs nousrreqs = {
 };
 
 static void
-protosw_init(struct protosw *pr)
+pr_usrreqs_init(struct protosw *pr)
 {
 	struct pr_usrreqs *pu;
 
 	pu = pr->pr_usrreqs;
-	KASSERT(pu != NULL, ("protosw_init: %ssw[%d] has no usrreqs!",
+	KASSERT(pu != NULL, ("%s: %ssw[%d] has no usrreqs!", __func__,
 	    pr->pr_domain->dom_name,
 	    (int)(pr - pr->pr_domain->dom_protosw)));
 
@@ -191,8 +191,6 @@ domain_init(void *arg)
 	if (dp->dom_init)
 		(*dp->dom_init)();
 	for (pr = dp->dom_protosw; pr < dp->dom_protoswNPROTOSW; pr++) {
-		protosw_init(pr);
-
 		/*
 		 * Note that with VIMAGE enabled, domain_init() will be
 		 * re-invoked for each new vnet that's created.  The below lists
@@ -200,6 +198,7 @@ domain_init(void *arg)
 		 * state for non-default vnets.
 		 */
 		if (IS_DEFAULT_VNET(curvnet)) {
+			pr_usrreqs_init(pr);
 			rm_wlock(&pftimo_lock);
 			if (pr->pr_fasttimo != NULL)
 				LIST_INSERT_HEAD(&pffast_list, pr,
@@ -412,6 +411,7 @@ pf_proto_register(int family, struct protosw *npr)
 	/* Copy the new struct protosw over the spacer. */
 	bcopy(npr, fpr, sizeof(*fpr));
 
+	pr_usrreqs_init(fpr);
 	rm_wlock(&pftimo_lock);
 	if (fpr->pr_fasttimo != NULL)
 		LIST_INSERT_HEAD(&pffast_list, fpr, pr_fasttimos);
