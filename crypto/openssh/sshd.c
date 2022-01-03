@@ -141,8 +141,8 @@ __RCSID("$FreeBSD$");
 #ifdef LIBWRAP
 #include <tcpd.h>
 #include <syslog.h>
-int allow_severity;
-int deny_severity;
+extern int allow_severity;
+extern int deny_severity;
 #endif /* LIBWRAP */
 
 /* Re-exec fds */
@@ -1169,6 +1169,11 @@ server_accept_loop(int *sock_in, int *sock_out, int *newsock, int *config_s)
 	pid_t pid;
 	u_char rnd[256];
 	sigset_t nsigset, osigset;
+#ifdef LIBWRAP
+	struct request_info req;
+
+	request_init(&req, RQ_DAEMON, __progname, 0);
+#endif
 
 	/* setup fd set for accept */
 	fdset = NULL;
@@ -1290,6 +1295,31 @@ server_accept_loop(int *sock_in, int *sock_out, int *newsock, int *config_s)
 					usleep(100 * 1000);
 				continue;
 			}
+#ifdef LIBWRAP
+			/* Check whether logins are denied from this host. */
+			request_set(&req, RQ_FILE, *newsock,
+			    RQ_CLIENT_NAME, "", RQ_CLIENT_ADDR, "", 0);
+			sock_host(&req);
+			if (!hosts_access(&req)) {
+				const struct linger l = { .l_onoff = 1,
+				    .l_linger  = 0 };
+
+				(void )setsockopt(*newsock, SOL_SOCKET,
+				    SO_LINGER, &l, sizeof(l));
+				(void )close(*newsock);
+				/*
+				 * Mimic message from libwrap's refuse()
+				 * exactly.  sshguard, and supposedly lots
+				 * of custom made scripts rely on it.
+				 */
+				syslog(deny_severity,
+				    "refused connect from %s (%s)",
+				    eval_client(&req),
+				    eval_hostaddr(req.client));
+				debug("Connection refused by tcp wrapper");
+				continue;
+			}
+#endif /* LIBWRAP */
 			if (unset_nonblock(*newsock) == -1 ||
 			    pipe(startup_p) == -1)
 				continue;
@@ -2059,6 +2089,14 @@ main(int ac, char **av)
 	/* Reinitialize the log (because of the fork above). */
 	log_init(__progname, options.log_level, options.log_facility, log_stderr);
 
+#ifdef LIBWRAP
+	/*
+	 * We log refusals ourselves.  However, libwrap will report
+	 * syntax errors in hosts.allow via syslog(3).
+	 */
+	allow_severity = options.log_facility|LOG_INFO;
+	deny_severity = options.log_facility|LOG_WARNING;
+#endif
 	/* Avoid killing the process in high-pressure swapping environments. */
 	if (!inetd_flag && madvise(NULL, 0, MADV_PROTECT) != 0)
 		debug("madvise(): %.200s", strerror(errno));
@@ -2237,24 +2275,6 @@ main(int ac, char **av)
 #ifdef SSH_AUDIT_EVENTS
 	audit_connection_from(remote_ip, remote_port);
 #endif
-#ifdef LIBWRAP
-	allow_severity = options.log_facility|LOG_INFO;
-	deny_severity = options.log_facility|LOG_WARNING;
-	/* Check whether logins are denied from this host. */
-	if (ssh_packet_connection_is_on_socket(ssh)) {
-		struct request_info req;
-
-		request_init(&req, RQ_DAEMON, __progname, RQ_FILE, sock_in, 0);
-		fromhost(&req);
-
-		if (!hosts_access(&req)) {
-			debug("Connection refused by tcp wrapper");
-			refuse(&req);
-			/* NOTREACHED */
-			fatal("libwrap refuse returns");
-		}
-	}
-#endif /* LIBWRAP */
 
 	rdomain = ssh_packet_rdomain_in(ssh);
 
