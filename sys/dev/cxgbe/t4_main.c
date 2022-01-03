@@ -7072,7 +7072,7 @@ cxgbe_refresh_stats(struct vi_info *vi)
 	pi = vi->pi;
 	sc = vi->adapter;
 	tnl_cong_drops = 0;
-	t4_get_port_stats(sc, pi->tx_chan, &pi->stats);
+	t4_get_port_stats(sc, pi->port_id, &pi->stats);
 	chan_map = pi->rx_e_chan_map;
 	while (chan_map) {
 		i = ffs(chan_map) - 1;
