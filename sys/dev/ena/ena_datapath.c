@@ -40,6 +40,8 @@ __FBSDID("$FreeBSD$");
 #include <net/rss_config.h>
 #endif /* RSS */
 
+#include <netinet6/ip6_var.h>
+
 /*********************************************************************
  *  Static functions prototypes
  *********************************************************************/
@@ -712,6 +714,7 @@ ena_tx_csum(struct ena_com_tx_ctx *ena_tx_ctx, struct mbuf *mbuf,
 	uint16_t etype;
 	int ehdrlen;
 	struct ip *ip;
+	int ipproto;
 	int iphlen;
 	struct tcphdr *th;
 	int offset;
@@ -727,6 +730,9 @@ ena_tx_csum(struct ena_com_tx_ctx *ena_tx_ctx, struct mbuf *mbuf,
 		offload = true;
 
 	if ((mbuf->m_pkthdr.csum_flags & CSUM_OFFLOAD) != 0)
+		offload = true;
+
+	if ((mbuf->m_pkthdr.csum_flags & CSUM6_OFFLOAD) != 0)
 		offload = true;
 
 	if (!offload) {
@@ -750,8 +756,27 @@ ena_tx_csum(struct ena_com_tx_ctx *ena_tx_ctx, struct mbuf *mbuf,
 	}
 
 	mbuf_next = m_getptr(mbuf, ehdrlen, &offset);
-	ip = (struct ip *)(mtodo(mbuf_next, offset));
-	iphlen = ip->ip_hl << 2;
+
+	switch (etype) {
+	case ETHERTYPE_IP:
+		ip = (struct ip *)(mtodo(mbuf_next, offset));
+		iphlen = ip->ip_hl << 2;
+		ipproto = ip->ip_p;
+		ena_tx_ctx->l3_proto = ENA_ETH_IO_L3_PROTO_IPV4;
+		if ((ip->ip_off & htons(IP_DF)) != 0)
+			ena_tx_ctx->df = 1;
+		break;
+	case ETHERTYPE_IPV6:
+		ena_tx_ctx->l3_proto = ENA_ETH_IO_L3_PROTO_IPV6;
+		iphlen = ip6_lasthdr(mbuf, ehdrlen, IPPROTO_IPV6, &ipproto);
+		iphlen -= ehdrlen;
+		ena_tx_ctx->df = 1;
+		break;
+	default:
+		iphlen = 0;
+		ipproto = 0;
+		break;
+	}
 
 	mbuf_next = m_getptr(mbuf, iphlen + ehdrlen, &offset);
 	th = (struct tcphdr *)(mtodo(mbuf_next, offset));
@@ -764,27 +789,14 @@ ena_tx_csum(struct ena_com_tx_ctx *ena_tx_ctx, struct mbuf *mbuf,
 		ena_meta->l4_hdr_len = (th->th_off);
 	}
 
-	switch (etype) {
-	case ETHERTYPE_IP:
-		ena_tx_ctx->l3_proto = ENA_ETH_IO_L3_PROTO_IPV4;
-		if ((ip->ip_off & htons(IP_DF)) != 0)
-			ena_tx_ctx->df = 1;
-		break;
-	case ETHERTYPE_IPV6:
-		ena_tx_ctx->l3_proto = ENA_ETH_IO_L3_PROTO_IPV6;
-
-	default:
-		break;
-	}
-
-	if (ip->ip_p == IPPROTO_TCP) {
+	if (ipproto == IPPROTO_TCP) {
 		ena_tx_ctx->l4_proto = ENA_ETH_IO_L4_PROTO_TCP;
 		if ((mbuf->m_pkthdr.csum_flags &
 		    (CSUM_IP_TCP | CSUM_IP6_TCP)) != 0)
 			ena_tx_ctx->l4_csum_enable = 1;
 		else
 			ena_tx_ctx->l4_csum_enable = 0;
-	} else if (ip->ip_p == IPPROTO_UDP) {
+	} else if (ipproto == IPPROTO_UDP) {
 		ena_tx_ctx->l4_proto = ENA_ETH_IO_L4_PROTO_UDP;
 		if ((mbuf->m_pkthdr.csum_flags &
 		    (CSUM_IP_UDP | CSUM_IP6_UDP)) != 0)
