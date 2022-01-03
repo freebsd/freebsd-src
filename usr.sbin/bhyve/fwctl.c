@@ -540,12 +540,32 @@ fwctl_handler(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
 
 	return (0);
 }
-INOUT_PORT(fwctl_wreg, FWCTL_OUT, IOPORT_F_INOUT, fwctl_handler);
-INOUT_PORT(fwctl_rreg, FWCTL_IN,  IOPORT_F_IN,    fwctl_handler);
 
 void
 fwctl_init(void)
 {
+	struct inout_port iop;
+	int error;
+
+	bzero(&iop, sizeof(iop));
+	iop.name = "fwctl_wreg";
+	iop.port = FWCTL_OUT;
+	iop.size = 1;
+	iop.flags = IOPORT_F_INOUT;
+	iop.handler = fwctl_handler;
+	
+	error = register_inout(&iop);
+	assert(error == 0);
+
+	bzero(&iop, sizeof(iop));
+	iop.name = "fwctl_rreg";
+	iop.port = FWCTL_IN;
+	iop.size = 1;
+	iop.flags = IOPORT_F_IN;
+	iop.handler = fwctl_handler;
+
+	error = register_inout(&iop);
+	assert(error == 0);
 
 	ops[OP_GET_LEN] = &fgetlen_info;
 	ops[OP_GET]     = &fgetval_info;
