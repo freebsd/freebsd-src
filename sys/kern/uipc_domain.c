@@ -188,8 +188,6 @@ domain_init(void *arg)
 		return;
 	KASSERT((flags & DOMF_INITED) == 0 || !IS_DEFAULT_VNET(curvnet),
 	    ("Premature initialization of domain in non-default vnet"));
-	if (dp->dom_init)
-		(*dp->dom_init)();
 	for (pr = dp->dom_protosw; pr < dp->dom_protoswNPROTOSW; pr++) {
 		/*
 		 * Note that with VIMAGE enabled, domain_init() will be
@@ -237,8 +235,6 @@ vnet_domain_uninit(void *arg)
 
 	if ((atomic_load_acq_int(&dp->dom_flags) & DOMF_SUPPORTED) == 0)
 		return;
-	if (dp->dom_destroy)
-		(*dp->dom_destroy)();
 }
 #endif
 

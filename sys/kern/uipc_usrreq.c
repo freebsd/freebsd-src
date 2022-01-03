@@ -303,7 +303,6 @@ static void	unp_gc(__unused void *, int);
 static void	unp_scan(struct mbuf *, void (*)(struct filedescent **, int));
 static void	unp_discard(struct file *);
 static void	unp_freerights(struct filedescent **, int);
-static void	unp_init(void);
 static int	unp_internalize(struct mbuf **, struct thread *);
 static void	unp_internalize_fp(struct file *);
 static int	unp_externalize(struct mbuf *, struct mbuf **, int);
@@ -459,7 +458,6 @@ static struct protosw localsw[] = {
 static struct domain localdomain = {
 	.dom_family =		AF_LOCAL,
 	.dom_name =		"local",
-	.dom_init =		unp_init,
 	.dom_externalize =	unp_externalize,
 	.dom_dispose =		unp_dispose,
 	.dom_protosw =		localsw,
@@ -2148,14 +2146,9 @@ unp_zdtor(void *mem, int size __unused, void *arg __unused)
 #endif
 
 static void
-unp_init(void)
+unp_init(void *arg __unused)
 {
 	uma_dtor dtor;
-
-#ifdef VIMAGE
-	if (!IS_DEFAULT_VNET(curvnet))
-		return;
-#endif
 
 #ifdef INVARIANTS
 	dtor = unp_zdtor;
@@ -2177,6 +2170,7 @@ unp_init(void)
 	UNP_LINK_LOCK_INIT();
 	UNP_DEFERRED_LOCK_INIT();
 }
+SYSINIT(unp_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_SECOND, unp_init, NULL);
 
 static void
 unp_internalize_cleanup_rights(struct mbuf *control)
