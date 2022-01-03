@@ -6927,8 +6927,8 @@ void t4_get_port_stats(struct adapter *adap, int idx, struct port_stats *p)
 
 #define GET_STAT(name) \
 	t4_read_reg64(adap, \
-	(is_t4(adap) ? PORT_REG(idx, A_MPS_PORT_STAT_##name##_L) : \
-	T5_PORT_REG(idx, A_MPS_PORT_STAT_##name##_L)))
+	(is_t4(adap) ? PORT_REG(pi->tx_chan, A_MPS_PORT_STAT_##name##_L) : \
+	T5_PORT_REG(pi->tx_chan, A_MPS_PORT_STAT_##name##_L)))
 #define GET_STAT_COM(name) t4_read_reg64(adap, A_MPS_STAT_##name##_L)
 
 	p->tx_pause		= GET_STAT(TX_PORT_PAUSE);
