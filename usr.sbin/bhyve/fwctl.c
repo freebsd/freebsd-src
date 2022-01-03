@@ -472,16 +472,18 @@ fwctl_inb(void)
 static void
 fwctl_outw(uint16_t val)
 {
-	switch (be_state) {
-	case IDENT_WAIT:
-		if (val == 0) {
-			be_state = IDENT_SEND;
-			ident_idx = 0;
-		}
-		break;
-	default:
-		/* ignore */
-		break;
+	if (be_state == DORMANT) {
+		return;
+	}
+
+	if (val == 0) {
+		/*
+		 * The guest wants to read the signature. It's possible that the
+		 * guest is unaware of the fwctl state at this moment. For that
+		 * reason, reset the state machine unconditionally.
+		 */
+		be_state = IDENT_SEND;
+		ident_idx = 0;
 	}
 }
 
