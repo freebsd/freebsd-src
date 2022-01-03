@@ -345,7 +345,7 @@ struct domain inet6domain = {
 	.dom_ifmtu    =		in6_domifmtu
 };
 
-VNET_DOMAIN_SET(inet6);
+DOMAIN_SET(inet6);
 
 /*
  * Internet configuration info

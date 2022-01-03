@@ -87,19 +87,6 @@ void		vnet_domain_uninit(void *);
 	    SI_ORDER_FIRST, domain_add, & name ## domain);		\
 	SYSINIT(domain_init_ ## name, SI_SUB_PROTO_DOMAIN,		\
 	    SI_ORDER_SECOND, domain_init, & name ## domain);
-#ifdef VIMAGE
-#define	VNET_DOMAIN_SET(name)						\
-	SYSINIT(domain_add_ ## name, SI_SUB_PROTO_DOMAIN,		\
-	    SI_ORDER_FIRST, domain_add, & name ## domain);		\
-	VNET_SYSINIT(vnet_domain_init_ ## name, SI_SUB_PROTO_DOMAIN,	\
-	    SI_ORDER_SECOND, vnet_domain_init, & name ## domain);	\
-	VNET_SYSUNINIT(vnet_domain_uninit_ ## name,			\
-	    SI_SUB_PROTO_DOMAIN, SI_ORDER_SECOND, vnet_domain_uninit,	\
-	    & name ## domain)
-#else /* !VIMAGE */
-#define	VNET_DOMAIN_SET(name)	DOMAIN_SET(name)
-#endif /* VIMAGE */
-
 #endif /* _KERNEL */
 
 #endif /* !_SYS_DOMAIN_H_ */
