@@ -182,37 +182,13 @@ rip_delhash(struct inpcb *inp)
 }
 #endif /* INET */
 
-/*
- * Raw interface to IP protocol.
- */
-
-/*
- * Initialize raw connection block q.
- */
-static void
-rip_zone_change(void *tag)
-{
-
-	uma_zone_set_max(V_ripcbinfo.ipi_zone, maxsockets);
-}
-
-static int
-rip_inpcb_init(void *mem, int size, int flags)
-{
-	struct inpcb *inp = mem;
-
-	INP_LOCK_INIT(inp, "inp", "rawinp");
-	return (0);
-}
+INPCBSTORAGE_DEFINE(ripcbstor, "rawinp", "ripcb", "rip", "riphash");
 
 static void
 rip_init(void *arg __unused)
 {
 
-	in_pcbinfo_init(&V_ripcbinfo, "rip", INP_PCBHASH_RAW_SIZE, 1, "ripcb",
-	    rip_inpcb_init);
-	EVENTHANDLER_REGISTER(maxsockets_change, rip_zone_change, NULL,
-	    EVENTHANDLER_PRI_ANY);
+	in_pcbinfo_init(&V_ripcbinfo, &ripcbstor, INP_PCBHASH_RAW_SIZE, 1);
 }
 VNET_SYSINIT(rip_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD, rip_init, NULL);
 

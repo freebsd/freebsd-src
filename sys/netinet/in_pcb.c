@@ -518,19 +518,16 @@ abort_with_hash_wlock:
 CTASSERT(sizeof(struct inpcbhead) == sizeof(LIST_HEAD(, inpcb)));
 
 /*
- * Initialize an inpcbinfo -- we should be able to reduce the number of
- * arguments in time.
+ * Initialize an inpcbinfo - a per-VNET instance of connections db.
  */
-static void inpcb_dtor(void *, int, void *);
-static void inpcb_fini(void *, int);
 void
-in_pcbinfo_init(struct inpcbinfo *pcbinfo, const char *name,
-    u_int hash_nelements, int porthash_nelements, char *inpcbzone_name,
-    uma_init inpcbzone_init)
+in_pcbinfo_init(struct inpcbinfo *pcbinfo, struct inpcbstorage *pcbstor,
+    u_int hash_nelements, u_int porthash_nelements)
 {
 
-	mtx_init(&pcbinfo->ipi_lock, name, NULL, MTX_DEF);
-	mtx_init(&pcbinfo->ipi_hash_lock, "pcbinfohash", NULL, MTX_DEF);
+	mtx_init(&pcbinfo->ipi_lock, pcbstor->ips_infolock_name, NULL, MTX_DEF);
+	mtx_init(&pcbinfo->ipi_hash_lock, pcbstor->ips_hashlock_name,
+	    NULL, MTX_DEF);
 #ifdef VIMAGE
 	pcbinfo->ipi_vnet = curvnet;
 #endif
@@ -543,16 +540,9 @@ in_pcbinfo_init(struct inpcbinfo *pcbinfo, const char *name,
 	    &pcbinfo->ipi_porthashmask);
 	pcbinfo->ipi_lbgrouphashbase = hashinit(porthash_nelements, M_PCB,
 	    &pcbinfo->ipi_lbgrouphashmask);
-	pcbinfo->ipi_zone = uma_zcreate(inpcbzone_name, sizeof(struct inpcb),
-	    NULL, inpcb_dtor, inpcbzone_init, inpcb_fini, UMA_ALIGN_PTR,
-	    UMA_ZONE_SMR);
-	uma_zone_set_max(pcbinfo->ipi_zone, maxsockets);
-	uma_zone_set_warning(pcbinfo->ipi_zone,
-	    "kern.ipc.maxsockets limit reached");
+	pcbinfo->ipi_zone = pcbstor->ips_zone;
+	pcbinfo->ipi_portzone = pcbstor->ips_portzone;
 	pcbinfo->ipi_smr = uma_zone_get_smr(pcbinfo->ipi_zone);
-	pcbinfo->ipi_portzone = uma_zcreate(inpcbzone_name,
-	    sizeof(struct inpcbport), NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
-	uma_zone_set_smr(pcbinfo->ipi_portzone, pcbinfo->ipi_smr);
 }
 
 /*
@@ -570,10 +560,39 @@ in_pcbinfo_destroy(struct inpcbinfo *pcbinfo)
 	    pcbinfo->ipi_porthashmask);
 	hashdestroy(pcbinfo->ipi_lbgrouphashbase, M_PCB,
 	    pcbinfo->ipi_lbgrouphashmask);
-	uma_zdestroy(pcbinfo->ipi_zone);
-	uma_zdestroy(pcbinfo->ipi_portzone);
 	mtx_destroy(&pcbinfo->ipi_hash_lock);
 	mtx_destroy(&pcbinfo->ipi_lock);
+}
+
+/*
+ * Initialize a pcbstorage - per protocol zones to allocate inpcbs.
+ */
+static void inpcb_dtor(void *, int, void *);
+static void inpcb_fini(void *, int);
+void
+in_pcbstorage_init(void *arg)
+{
+	struct inpcbstorage *pcbstor = arg;
+
+	pcbstor->ips_zone = uma_zcreate(pcbstor->ips_zone_name,
+	    sizeof(struct inpcb), NULL, inpcb_dtor, pcbstor->ips_pcbinit,
+	    inpcb_fini, UMA_ALIGN_PTR, UMA_ZONE_SMR);
+	pcbstor->ips_portzone = uma_zcreate(pcbstor->ips_portzone_name,
+	    sizeof(struct inpcbport), NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
+	uma_zone_set_smr(pcbstor->ips_portzone,
+	    uma_zone_get_smr(pcbstor->ips_zone));
+}
+
+/*
+ * Destroy a pcbstorage - used by unloadable protocols.
+ */
+void
+in_pcbstorage_destroy(void *arg)
+{
+	struct inpcbstorage *pcbstor = arg;
+
+	uma_zdestroy(pcbstor->ips_zone);
+	uma_zdestroy(pcbstor->ips_portzone);
 }
 
 /*
