@@ -898,7 +898,7 @@ intr_pic_claim_root(device_t dev, intptr_t xref, intr_irq_filter_t *filter,
 /*
  * Add a handler to manage a sub range of a parents interrupts.
  */
-struct intr_pic *
+int
 intr_pic_add_handler(device_t parent, struct intr_pic *pic,
     intr_child_irq_filter_t *filter, void *arg, uintptr_t start,
     uintptr_t length)
@@ -912,7 +912,7 @@ intr_pic_add_handler(device_t parent, struct intr_pic *pic,
 	/* Find the parent PIC */
 	parent_pic = pic_lookup(parent, 0, FLAG_PIC);
 	if (parent_pic == NULL)
-		return (NULL);
+		return (ENXIO);
 
 	newchild = malloc(sizeof(*newchild), M_INTRNG, M_WAITOK | M_ZERO);
 	newchild->pc_pic = pic;
@@ -931,7 +931,7 @@ intr_pic_add_handler(device_t parent, struct intr_pic *pic,
 	SLIST_INSERT_HEAD(&parent_pic->pic_children, newchild, pc_next);
 	mtx_unlock_spin(&parent_pic->pic_child_lock);
 
-	return (pic);
+	return (0);
 }
 
 static int
