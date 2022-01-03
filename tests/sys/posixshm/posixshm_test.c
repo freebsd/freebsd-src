@@ -1434,9 +1434,19 @@ ATF_TC_BODY(largepage_mprotect, tc)
 
 	pscnt = pagesizes(ps);
 	for (int i = 1; i < pscnt; i++) {
+		/*
+		 * Reserve a contiguous region in the address space to avoid
+		 * spurious failures in the face of ASLR.
+		 */
+		addr = mmap(NULL, ps[i] * 2, PROT_NONE,
+		    MAP_ANON | MAP_ALIGNED(ffsl(ps[i]) - 1), -1, 0);
+		ATF_REQUIRE_MSG(addr != MAP_FAILED,
+		    "mmap(%zu bytes) failed; error=%d", ps[i], errno);
+		ATF_REQUIRE(munmap(addr, ps[i] * 2) == 0);
+
 		fd = shm_open_large(i, SHM_LARGEPAGE_ALLOC_DEFAULT, ps[i]);
-		addr = mmap(NULL, ps[i], PROT_READ | PROT_WRITE, MAP_SHARED, fd,
-		    0);
+		addr = mmap(addr, ps[i], PROT_READ | PROT_WRITE,
+		    MAP_SHARED | MAP_FIXED, fd, 0);
 		ATF_REQUIRE_MSG(addr != MAP_FAILED,
 		    "mmap(%zu bytes) failed; error=%d", ps[i], errno);
 
