@@ -593,13 +593,17 @@ cfginit(struct vmctx *ctx, struct pci_devinst *pi, int bus, int slot, int func)
 	 * We need to do this after PCIR_COMMAND got possibly updated, e.g.,
 	 * a BAR was enabled, as otherwise the PCIOCBARMMAP might fail on us.
 	 */
-	error = init_msix_table(ctx, sc);
-	if (error != 0) {
-		warnx("failed to initialize MSI-X table for PCI %d/%d/%d: %d",
-		    bus, slot, func, error);
-		goto done;
+	if (pci_msix_table_bar(pi) >= 0) {
+		error = init_msix_table(ctx, sc);
+		if (error != 0) {
+			warnx(
+			    "failed to initialize MSI-X table for PCI %d/%d/%d: %d",
+			    bus, slot, func, error);
+			goto done;
+		}
 	}
 
+	error = 0;				/* success */
 done:
 	return (error);
 }
