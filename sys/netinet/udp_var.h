@@ -36,8 +36,6 @@
 #ifndef _NETINET_UDP_VAR_H_
 #define	_NETINET_UDP_VAR_H_
 
-#include <sys/types.h>
-
 #include <netinet/ip_var.h>
 #include <netinet/udp.h>
 
