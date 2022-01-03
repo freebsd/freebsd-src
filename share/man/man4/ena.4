@@ -418,12 +418,12 @@ passed to queue 0 and there will be no hash information.
 .It ena%d: Failed to configure the device mode. Fallback to host mode policy.
 .It ena%d: unable to allocate LLQ bar resource. Fallback to host mode policy.
 .Pp
-Error occured during Low-latency Queue mode setup.
+Error occurred during Low-latency Queue mode setup.
 .br
 The device will work, but without the LLQ performance gain.
 .It ena%d: failed to enable write combining.
 .Pp
-Error occured while setting the Write Combining mode, required for the LLQ.
+Error occurred while setting the Write Combining mode, required for the LLQ.
 .It ena%d: failed to tear down irq: %d
 .It ena%d: dev has no parent while releasing res for irq: %d
 Release of the interrupts failed.
@@ -436,7 +436,7 @@ Requested MTU value is not supported and will not be set.
 .It ena%d: Failed to set MTU to %d
 .Pp
 This message appears when either MTU change feature is not supported, or device
-communication error has occured.
+communication error has occurred.
 .It ena%d: Keep alive watchdog timeout.
 .Pp
 Device stopped responding and will be reset.
@@ -445,7 +445,7 @@ Device stopped responding and will be reset.
 Packet was pushed to the NIC but not sent within given time limit.
 .br
 It may be caused by hang of the IO queue.
-.It ena%d: The number of lost tx completion is aboce the threshold (%d > %d). Reset the device
+.It ena%d: The number of lost tx completion is above the threshold (%d > %d). Reset the device
 .Pp
 If too many Tx weren't completed on time the device is going to be reset.
 .br
@@ -463,7 +463,7 @@ Reset task has been triggered, but the driver did not request it.
 Device reset will not be performed.
 .It ena%d: Device reset failed
 .Pp
-Error occured while trying to reset the device.
+Error occurred while trying to reset the device.
 .It ena%d: Cannot initialize device
 .It ena%d: Error, mac address are different
 .It ena%d: Error, device max mtu is smaller than ifp MTU
@@ -472,7 +472,7 @@ Error occured while trying to reset the device.
 .It ena%d: Failed to create I/O queues
 .It ena%d: Reset attempt failed. Can not reset the device
 .Pp
-Error occured while trying to restore the device after reset.
+Error occurred while trying to restore the device after reset.
 .It ena%d: Device reset completed successfully, Driver info: %s
 .Pp
 Device has been correctly restored after reset and is ready to use.
@@ -502,12 +502,12 @@ If happened during initialization of the IO queue, the interface will not be
 brought up.
 .It ena%d: NULL mbuf in rx_info
 .Pp
-Error occured while assembling mbuf from descriptors.
+Error occurred while assembling mbuf from descriptors.
 .It ena%d: tx_info doesn't have valid mbuf
 .It ena%d: Invalid req_id: %hu
 .It ena%d: failed to prepare tx bufs
 .Pp
-Error occured while preparing a packet for transmission.
+Error occurred while preparing a packet for transmission.
 .It ena%d: ioctl promisc/allmulti
 .Pp
 IOCTL request for the device to work in promiscuous/allmulti mode.
@@ -520,7 +520,7 @@ for more details.
 If an issue is identified with the released source code with a supported
 adapter, please email the specific information related to the issue to
 .Aq Mt mk@semihalf.com ,
-.Aq Mt ar@semihalf.com
+.Aq Mt dgr@semihalf.com
 and
 .Aq Mt mw@semihalf.com .
 .Sh SEE ALSO
