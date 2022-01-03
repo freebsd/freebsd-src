@@ -288,7 +288,6 @@ options 	SX_NOINLINE
 # PREEMPTION allows the threads that are in the kernel to be preempted by
 #	  higher priority [interrupt] threads.  It helps with interactivity
 #	  and allows interrupt threads to run sooner rather than waiting.
-#	  WARNING! Only tested on amd64 and i386.
 # FULL_PREEMPTION instructs the kernel to preempt non-realtime kernel
 #	  threads.  Its sole use is to expose race conditions and other
 #	  bugs during development.  Enabling this option will reduce
