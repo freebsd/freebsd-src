@@ -183,29 +183,21 @@ domain_init(void *arg)
 	struct protosw *pr;
 	int flags;
 
+	MPASS(IS_DEFAULT_VNET(curvnet));
+
 	flags = atomic_load_acq_int(&dp->dom_flags);
 	if ((flags & DOMF_SUPPORTED) == 0)
 		return;
-	KASSERT((flags & DOMF_INITED) == 0 || !IS_DEFAULT_VNET(curvnet),
-	    ("Premature initialization of domain in non-default vnet"));
+	MPASS((flags & DOMF_INITED) == 0);
+
 	for (pr = dp->dom_protosw; pr < dp->dom_protoswNPROTOSW; pr++) {
-		/*
-		 * Note that with VIMAGE enabled, domain_init() will be
-		 * re-invoked for each new vnet that's created.  The below lists
-		 * are intended to be system-wide, so avoid altering global
-		 * state for non-default vnets.
-		 */
-		if (IS_DEFAULT_VNET(curvnet)) {
-			pr_usrreqs_init(pr);
-			rm_wlock(&pftimo_lock);
-			if (pr->pr_fasttimo != NULL)
-				LIST_INSERT_HEAD(&pffast_list, pr,
-				    pr_fasttimos);
-			if (pr->pr_slowtimo != NULL)
-				LIST_INSERT_HEAD(&pfslow_list, pr,
-				    pr_slowtimos);
-			rm_wunlock(&pftimo_lock);
-		}
+		pr_usrreqs_init(pr);
+		rm_wlock(&pftimo_lock);
+		if (pr->pr_fasttimo != NULL)
+			LIST_INSERT_HEAD(&pffast_list, pr, pr_fasttimos);
+		if (pr->pr_slowtimo != NULL)
+			LIST_INSERT_HEAD(&pfslow_list, pr, pr_slowtimos);
+		rm_wunlock(&pftimo_lock);
 	}
 
 	/*
@@ -215,28 +207,8 @@ domain_init(void *arg)
 	max_datalen = MHLEN - max_hdr;
 	if (max_datalen < 1)
 		panic("%s: max_datalen < 1", __func__);
-	if (IS_DEFAULT_VNET(curvnet))
-		atomic_set_rel_int(&dp->dom_flags, DOMF_INITED);
+	atomic_set_rel_int(&dp->dom_flags, DOMF_INITED);
 }
-
-#ifdef VIMAGE
-void
-vnet_domain_init(void *arg)
-{
-
-	/* Virtualized case is no different -- call init functions. */
-	domain_init(arg);
-}
-
-void
-vnet_domain_uninit(void *arg)
-{
-	struct domain *dp = arg;
-
-	if ((atomic_load_acq_int(&dp->dom_flags) & DOMF_SUPPORTED) == 0)
-		return;
-}
-#endif
 
 /*
  * Add a new protocol domain to the list of supported domains

@@ -130,7 +130,7 @@ static struct domain		hv_socket_domain = {
 	.dom_protoswNPROTOSW =	&hv_socket_protosw[nitems(hv_socket_protosw)]
 };
 
-VNET_DOMAIN_SET(hv_socket_);
+DOMAIN_SET(hv_socket_);
 
 #define MAX_PORT			((uint32_t)0xFFFFFFFF)
 #define MIN_PORT			((uint32_t)0x0)

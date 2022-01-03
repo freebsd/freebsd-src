@@ -2702,4 +2702,4 @@ static struct domain routedomain = {
 	.dom_protoswNPROTOSW =	&routesw[nitems(routesw)]
 };
 
-VNET_DOMAIN_SET(route);
+DOMAIN_SET(route);

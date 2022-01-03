@@ -287,4 +287,4 @@ ng_btsocket_modevent(module_t mod, int event, void *data)
 	return (error);
 } /* ng_btsocket_modevent */
 
-VNET_DOMAIN_SET(ng_btsocket_);
+DOMAIN_SET(ng_btsocket_);

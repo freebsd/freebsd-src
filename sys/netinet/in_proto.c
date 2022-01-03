@@ -302,7 +302,7 @@ struct domain inetdomain = {
 	.dom_ifdetach =		in_domifdetach
 };
 
-VNET_DOMAIN_SET(inet);
+DOMAIN_SET(inet);
 #endif /* INET */
 
 SYSCTL_NODE(_net, PF_INET, inet, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,

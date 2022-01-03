@@ -1223,7 +1223,7 @@ ngs_mod_event(module_t mod, int event, void *data)
 	return (error);
 }
 
-VNET_DOMAIN_SET(ng);
+DOMAIN_SET(ng);
 
 SYSCTL_INT(_net_graph, OID_AUTO, family, CTLFLAG_RD, SYSCTL_NULL_INT_PTR, AF_NETGRAPH, "");
 static SYSCTL_NODE(_net_graph, OID_AUTO, data, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
