@@ -1907,7 +1907,7 @@ sdp_zone_change(void *tag)
 }
 
 static void
-sdp_init(void)
+sdp_init(void *arg __unused)
 {
 
 	LIST_INIT(&sdp_list);
@@ -1919,6 +1919,7 @@ sdp_init(void)
 	rx_comp_wq = create_singlethread_workqueue("rx_comp_wq");
 	ib_register_client(&sdp_client);
 }
+SYSINIT(sdp_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_SECOND, sdp_init, NULL);
 
 extern struct domain sdpdomain;
 
@@ -1966,7 +1967,6 @@ struct protosw sdpsw[] = {
 struct domain sdpdomain = {
 	.dom_family =		AF_INET_SDP,
 	.dom_name =		"SDP",
-	.dom_init =		sdp_init,
 	.dom_protosw =		sdpsw,
 	.dom_protoswNPROTOSW =	&sdpsw[sizeof(sdpsw)/sizeof(sdpsw[0])],
 };

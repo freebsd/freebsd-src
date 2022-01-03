@@ -51,11 +51,7 @@ struct domain {
 	int	dom_family;		/* AF_xxx */
 	char	*dom_name;
 	int	dom_flags;
-	void	(*dom_init)		/* initialize domain data structures */
-		(void);
 	int	(*dom_probe)(void);	/* check for support (optional) */
-	void	(*dom_destroy)		/* cleanup structures / state */
-		(void);
 	int	(*dom_externalize)	/* externalize access rights */
 		(struct mbuf *, struct mbuf **, int);
 	void	(*dom_dispose)		/* dispose of internalized rights */

@@ -251,7 +251,6 @@ db_print_domain(struct domain *d, const char *domain_name, int indent)
 	db_printf("dom_name: %s\n", d->dom_name);
 
 	db_print_indent(indent);
-	db_printf("dom_init: %p   ", d->dom_init);
 	db_printf("dom_externalize: %p   ", d->dom_externalize);
 	db_printf("dom_dispose: %p\n", d->dom_dispose);
 
