@@ -1218,7 +1218,8 @@ pci_ecfg_base(void)
 }
 
 #define	BUSIO_ROUNDUP		32
-#define	BUSMEM_ROUNDUP		(1024 * 1024)
+#define	BUSMEM32_ROUNDUP	(1024 * 1024)
+#define	BUSMEM64_ROUNDUP	(512 * 1024 * 1024)
 
 int
 init_pci(struct vmctx *ctx)
@@ -1320,14 +1321,14 @@ init_pci(struct vmctx *ctx)
 		pci_emul_iobase = roundup2(pci_emul_iobase, BUSIO_ROUNDUP);
 		bi->iolimit = pci_emul_iobase;
 
-		pci_emul_membase32 += BUSMEM_ROUNDUP;
+		pci_emul_membase32 += BUSMEM32_ROUNDUP;
 		pci_emul_membase32 = roundup2(pci_emul_membase32,
-		    BUSMEM_ROUNDUP);
+		    BUSMEM32_ROUNDUP);
 		bi->memlimit32 = pci_emul_membase32;
 
-		pci_emul_membase64 += BUSMEM_ROUNDUP;
+		pci_emul_membase64 += BUSMEM64_ROUNDUP;
 		pci_emul_membase64 = roundup2(pci_emul_membase64,
-		    BUSMEM_ROUNDUP);
+		    BUSMEM64_ROUNDUP);
 		bi->memlimit64 = pci_emul_membase64;
 	}
 
