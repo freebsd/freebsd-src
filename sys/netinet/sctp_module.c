@@ -91,7 +91,6 @@ struct protosw sctp6_stream_protosw = {
 	.pr_input =		sctp6_input,
 	.pr_ctlinput =		sctp6_ctlinput,
 	.pr_ctloutput =		sctp_ctloutput,
-	.pr_init =		sctp_init,
 	.pr_drain =		sctp_drain,
 	.pr_usrreqs =		&sctp6_usrreqs,
 };
@@ -105,7 +104,6 @@ struct protosw sctp6_seqpacket_protosw = {
 	.pr_ctlinput =		sctp6_ctlinput,
 	.pr_ctloutput =		sctp_ctloutput,
 #ifndef INET	/* Do not call initialization and drain routines twice. */
-	.pr_init =		sctp_init,
 	.pr_drain =		sctp_drain,
 #endif
 	.pr_usrreqs =		&sctp6_usrreqs,

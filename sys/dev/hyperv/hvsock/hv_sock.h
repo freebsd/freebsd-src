@@ -96,7 +96,6 @@ struct hvs_pcb {
 	((struct socket *)((hvspcb)->so))
 
 void	hvs_addr_init(struct sockaddr_hvs *, const struct hyperv_guid *);
-void	hvs_trans_init(void);
 void	hvs_trans_close(struct socket *);
 void	hvs_trans_detach(struct socket *);
 void	hvs_trans_abort(struct socket *);

@@ -143,7 +143,7 @@ div_inpcb_init(void *mem, int size, int flags)
 }
 
 static void
-div_init(void)
+div_init(void *arg __unused)
 {
 
 	/*
@@ -153,6 +153,7 @@ div_init(void)
 	 */
 	in_pcbinfo_init(&V_divcbinfo, "div", 1, 1, "divcb", div_inpcb_init);
 }
+VNET_SYSINIT(div_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD, div_init, NULL);
 
 static void
 div_destroy(void *unused __unused)
@@ -160,8 +161,7 @@ div_destroy(void *unused __unused)
 
 	in_pcbinfo_destroy(&V_divcbinfo);
 }
-VNET_SYSUNINIT(divert, SI_SUB_PROTO_DOMAININIT, SI_ORDER_ANY,
-    div_destroy, NULL);
+VNET_SYSUNINIT(divert, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD, div_destroy, NULL);
 
 /*
  * IPPROTO_DIVERT is not in the real IP protocol number space; this
@@ -775,7 +775,6 @@ struct protosw div_protosw = {
 	.pr_protocol =		IPPROTO_DIVERT,
 	.pr_flags =		PR_ATOMIC|PR_ADDR,
 	.pr_input =		div_input,
-	.pr_init =		div_init,
 	.pr_usrreqs =		&div_usrreqs
 };
 

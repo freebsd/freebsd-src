@@ -118,7 +118,6 @@ static struct protosw		hv_socket_protosw[] = {
 	.pr_domain =		&hv_socket_domain,
 	.pr_protocol =		HYPERV_SOCK_PROTO_TRANS,
 	.pr_flags =		PR_CONNREQUIRED,
-	.pr_init =		hvs_trans_init,
 	.pr_usrreqs =		&hvs_trans_usrreqs,
 },
 };
@@ -336,12 +335,9 @@ hvs_dom_probe(void)
 	return (0);
 }
 
-void
-hvs_trans_init(void)
+static void
+hvs_trans_init(void *arg __unused)
 {
-	/* Skip initialization of globals for non-default instances. */
-	if (!IS_DEFAULT_VNET(curvnet))
-		return;
 
 	HVSOCK_DBG(HVSOCK_DBG_VERBOSE,
 	    "%s: HyperV Socket hvs_trans_init called\n", __func__);
@@ -354,6 +350,8 @@ hvs_trans_init(void)
 	LIST_INIT(&hvs_trans_bound_socks);
 	LIST_INIT(&hvs_trans_connected_socks);
 }
+SYSINIT(hvs_trans_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD,
+    hvs_trans_init, NULL);
 
 /*
  * Called in two cases:

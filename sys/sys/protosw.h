@@ -52,7 +52,6 @@ struct sockopt;
  * Each protocol has a handle initializing one of these structures,
  * which is used for protocol-protocol and system-protocol communication.
  *
- * A protocol is called through the pr_init entry before any other.
  * Thereafter it is called every 200ms through the pr_fasttimo entry and
  * every 500ms through the pr_slowtimo for timer based actions.
  * The system will call the pr_drain entry if it is low on space and
@@ -73,7 +72,6 @@ typedef int	pr_input_t (struct mbuf **, int*, int);
 typedef int	pr_output_t (struct mbuf *, struct socket *, ...);
 typedef void	pr_ctlinput_t (int, struct sockaddr *, void *);
 typedef int	pr_ctloutput_t (struct socket *, struct sockopt *);
-typedef	void	pr_init_t (void);
 typedef	void	pr_fasttimo_t (void);
 typedef	void	pr_slowtimo_t (void);
 typedef	void	pr_drain_t (void);
@@ -89,7 +87,6 @@ struct protosw {
 	pr_ctlinput_t *pr_ctlinput;	/* control input (from below) */
 	pr_ctloutput_t *pr_ctloutput;	/* control output (from above) */
 /* utility hooks */
-	pr_init_t *pr_init;
 	pr_fasttimo_t *pr_fasttimo;	/* fast timeout (200ms) */
 	pr_slowtimo_t *pr_slowtimo;	/* slow timeout (500ms) */
 	pr_drain_t *pr_drain;		/* flush any excess space possible */

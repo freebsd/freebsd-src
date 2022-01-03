@@ -2691,7 +2691,6 @@ static struct protosw routesw[] = {
 	.pr_flags =		PR_ATOMIC|PR_ADDR,
 	.pr_output =		route_output,
 	.pr_ctlinput =		raw_ctlinput,
-	.pr_init =		raw_init,
 	.pr_usrreqs =		&route_usrreqs
 }
 };

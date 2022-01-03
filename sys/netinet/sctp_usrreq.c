@@ -58,8 +58,8 @@ __FBSDID("$FreeBSD$");
 extern const struct sctp_cc_functions sctp_cc_functions[];
 extern const struct sctp_ss_functions sctp_ss_functions[];
 
-void
-sctp_init(void)
+static void
+sctp_init(void *arg __unused)
 {
 	u_long sb_max_adj;
 
@@ -91,6 +91,7 @@ sctp_init(void)
 	SCTP_BASE_VAR(eh_tag) = EVENTHANDLER_REGISTER(rt_addrmsg,
 	    sctp_addr_change_event_handler, NULL, EVENTHANDLER_PRI_FIRST);
 }
+VNET_SYSINIT(sctp_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD, sctp_init, NULL);
 
 #ifdef VIMAGE
 static void

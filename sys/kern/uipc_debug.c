@@ -330,10 +330,7 @@ db_print_protosw(struct protosw *pr, const char *prname, int indent)
 	db_printf("pr_input: %p   ", pr->pr_input);
 	db_printf("pr_output: %p   ", pr->pr_output);
 	db_printf("pr_ctlinput: %p\n", pr->pr_ctlinput);
-
-	db_print_indent(indent);
 	db_printf("pr_ctloutput: %p   ", pr->pr_ctloutput);
-	db_printf("pr_init: %p\n", pr->pr_init);
 
 	db_print_indent(indent);
 	db_printf("pr_fasttimo: %p   ", pr->pr_fasttimo);

@@ -448,7 +448,6 @@ struct protosw keysw[] = {
 	.pr_flags =		PR_ATOMIC|PR_ADDR,
 	.pr_output =		key_output,
 	.pr_ctlinput =		raw_ctlinput,
-	.pr_init =		raw_init,
 	.pr_usrreqs =		&key_usrreqs
 }
 };

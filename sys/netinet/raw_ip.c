@@ -205,8 +205,8 @@ rip_inpcb_init(void *mem, int size, int flags)
 	return (0);
 }
 
-void
-rip_init(void)
+static void
+rip_init(void *arg __unused)
 {
 
 	in_pcbinfo_init(&V_ripcbinfo, "rip", INP_PCBHASH_RAW_SIZE, 1, "ripcb",
@@ -214,6 +214,7 @@ rip_init(void)
 	EVENTHANDLER_REGISTER(maxsockets_change, rip_zone_change, NULL,
 	    EVENTHANDLER_PRI_ANY);
 }
+VNET_SYSINIT(rip_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD, rip_init, NULL);
 
 #ifdef VIMAGE
 static void

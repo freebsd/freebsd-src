@@ -56,12 +56,13 @@ MTX_SYSINIT(rawcb_mtx, &rawcb_mtx, "rawcb", MTX_DEF);
 /*
  * Initialize raw connection block q.
  */
-void
-raw_init(void)
+static void
+raw_init(void *arg __unused)
 {
 
 	LIST_INIT(&V_rawcb_list);
 }
+VNET_SYSINIT(raw_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD, raw_init, NULL);
 
 /*
  * Raw protocol input routine.  Find the socket associated with the packet(s)
