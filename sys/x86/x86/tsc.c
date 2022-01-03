@@ -708,7 +708,14 @@ tsc_calibrate(void)
 	if (tsc_disabled)
 		return;
 
+	/*
+	 * Avoid using a low-quality timecounter to re-calibrate.  In
+	 * particular, old 32-bit platforms might only have the 8254 timer to
+	 * calibrate against.
+	 */
 	tc = atomic_load_ptr(&timecounter);
+	if (tc->tc_quality <= 0)
+		goto calibrated;
 
 	flags = intr_disable();
 	cpu = curcpu;
