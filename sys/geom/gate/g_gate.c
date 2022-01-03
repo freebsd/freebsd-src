@@ -468,7 +468,8 @@ g_gate_create(struct g_gate_ctl_create *ggio)
 	struct g_geom *gp;
 	struct g_provider *pp, *ropp;
 	struct g_consumer *cp;
-	char name[NAME_MAX];
+	char name[NAME_MAX + 1];
+	char readprov[NAME_MAX + 1];
 	int error = 0, unit;
 
 	if (ggio->gctl_mediasize <= 0) {
@@ -506,7 +507,9 @@ g_gate_create(struct g_gate_ctl_create *ggio)
 
 	sc = malloc(sizeof(*sc), M_GATE, M_WAITOK | M_ZERO);
 	sc->sc_flags = (ggio->gctl_flags & G_GATE_USERFLAGS);
-	strlcpy(sc->sc_info, ggio->gctl_info, sizeof(sc->sc_info));
+	memset(sc->sc_info, 0, sizeof(sc->sc_info));
+	strncpy(sc->sc_info, ggio->gctl_info,
+	    MIN(sizeof(sc->sc_info) - 1, sizeof(ggio->gctl_info)));
 	sc->sc_seq = 1;
 	bioq_init(&sc->sc_inqueue);
 	bioq_init(&sc->sc_outqueue);
@@ -523,9 +526,11 @@ g_gate_create(struct g_gate_ctl_create *ggio)
 	sc->sc_unit = g_gate_getunit(ggio->gctl_unit, &error);
 	if (sc->sc_unit < 0)
 		goto fail1;
-	if (ggio->gctl_unit == G_GATE_NAME_GIVEN)
-		snprintf(name, sizeof(name), "%s", ggio->gctl_name);
-	else {
+	if (ggio->gctl_unit == G_GATE_NAME_GIVEN) {
+		memset(name, 0, sizeof(name));
+		strncpy(name, ggio->gctl_name,
+		    MIN(sizeof(name) - 1, sizeof(ggio->gctl_name)));
+	} else {
 		snprintf(name, sizeof(name), "%s%d", G_GATE_PROVIDER_NAME,
 		    sc->sc_unit);
 	}
@@ -538,6 +543,8 @@ g_gate_create(struct g_gate_ctl_create *ggio)
 		error = EEXIST;
 		goto fail1;
 	}
+	// local stack buffer 'name' assigned here temporarily only.
+	// the real provider name is assigned below.
 	sc->sc_name = name;
 	g_gate_units[sc->sc_unit] = sc;
 	g_gate_nunits++;
@@ -548,10 +555,12 @@ g_gate_create(struct g_gate_ctl_create *ggio)
 	if (ggio->gctl_readprov[0] == '\0') {
 		ropp = NULL;
 	} else {
-		ropp = g_provider_by_name(ggio->gctl_readprov);
+		memset(readprov, 0, sizeof(readprov));
+		strncpy(readprov, ggio->gctl_readprov,
+		    MIN(sizeof(readprov) - 1, sizeof(ggio->gctl_readprov)));
+		ropp = g_provider_by_name(readprov);
 		if (ropp == NULL) {
-			G_GATE_DEBUG(1, "Provider %s doesn't exist.",
-			    ggio->gctl_readprov);
+			G_GATE_DEBUG(1, "Provider %s doesn't exist.", readprov);
 			error = EINVAL;
 			goto fail2;
 		}
@@ -633,6 +642,7 @@ fail1:
 static int
 g_gate_modify(struct g_gate_softc *sc, struct g_gate_ctl_modify *ggio)
 {
+	char readprov[NAME_MAX + 1];
 	struct g_provider *pp;
 	struct g_consumer *cp;
 	int done, error;
@@ -651,9 +661,11 @@ g_gate_modify(struct g_gate_softc *sc, struct g_gate_ctl_modify *ggio)
 		return (0);
 	}
 
-	if ((ggio->gctl_modify & GG_MODIFY_INFO) != 0)
-		(void)strlcpy(sc->sc_info, ggio->gctl_info, sizeof(sc->sc_info));
-
+	if ((ggio->gctl_modify & GG_MODIFY_INFO) != 0) {
+		memset(sc->sc_info, 0, sizeof(sc->sc_info));
+		strncpy(sc->sc_info, ggio->gctl_info,
+		    MIN(sizeof(sc->sc_info) - 1, sizeof(ggio->gctl_info)));
+	}
 	cp = NULL;
 
 	if ((ggio->gctl_modify & GG_MODIFY_READPROV) != 0) {
@@ -668,11 +680,15 @@ g_gate_modify(struct g_gate_softc *sc, struct g_gate_ctl_modify *ggio)
 		} else
 			mtx_unlock(&sc->sc_read_mtx);
 		if (ggio->gctl_readprov[0] != '\0') {
-			pp = g_provider_by_name(ggio->gctl_readprov);
+			memset(readprov, 0, sizeof(readprov));
+			strncpy(readprov, ggio->gctl_readprov,
+			    MIN(sizeof(readprov) - 1,
+			    sizeof(ggio->gctl_readprov)));
+			pp = g_provider_by_name(readprov);
 			if (pp == NULL) {
 				g_topology_unlock();
 				G_GATE_DEBUG(1, "Provider %s doesn't exist.",
-				    ggio->gctl_readprov);
+				    readprov);
 				return (EINVAL);
 			}
 			cp = g_new_consumer(sc->sc_provider->geom);

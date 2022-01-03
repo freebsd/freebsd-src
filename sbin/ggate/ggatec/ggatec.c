@@ -74,6 +74,7 @@ static int sendfd, recvfd;
 static uint32_t token;
 static pthread_t sendtd, recvtd;
 static int reconnect;
+static int initialbuffersize = 131072;
 
 static void
 usage(void)
@@ -94,18 +95,25 @@ send_thread(void *arg __unused)
 {
 	struct g_gate_ctl_io ggio;
 	struct g_gate_hdr hdr;
-	char buf[MAXPHYS];
-	ssize_t data;
+	size_t buf_capacity;
+	ssize_t numbytesprocd;
 	int error;
+	char *newbuf;
 
 	g_gate_log(LOG_NOTICE, "%s: started!", __func__);
 
+	buf_capacity = initialbuffersize;
+
 	ggio.gctl_version = G_GATE_VERSION;
 	ggio.gctl_unit = unit;
-	ggio.gctl_data = buf;
+	ggio.gctl_data = malloc(buf_capacity);
+	if (ggio.gctl_data == NULL) {
+		g_gate_log(LOG_ERR, "%s: Cannot alloc buffer.", __func__);
+		pthread_exit(NULL);
+	}
 
 	for (;;) {
-		ggio.gctl_length = sizeof(buf);
+		ggio.gctl_length = buf_capacity;
 		ggio.gctl_error = 0;
 		g_gate_ioctl(G_GATE_CMD_START, &ggio);
 		error = ggio.gctl_error;
@@ -118,17 +126,22 @@ send_thread(void *arg __unused)
 			/* Exit gracefully. */
 			g_gate_close_device();
 			exit(EXIT_SUCCESS);
-#if 0
+
 		case ENOMEM:
+		{
 			/* Buffer too small. */
-			ggio.gctl_data = realloc(ggio.gctl_data,
+			g_gate_log(LOG_DEBUG, "buffer too small. new size: %u",
 			    ggio.gctl_length);
-			if (ggio.gctl_data != NULL) {
-				bsize = ggio.gctl_length;
-				goto once_again;
+			newbuf = malloc(ggio.gctl_length);
+			if (newbuf != NULL) {
+				free(ggio.gctl_data);
+				ggio.gctl_data = newbuf;
+				buf_capacity = ggio.gctl_length;
+				continue;
 			}
 			/* FALLTHROUGH */
-#endif
+		}
+
 		case ENXIO:
 		default:
 			g_gate_xlog("ioctl(/dev/%s): %s.", G_GATE_CTL_NAME,
@@ -145,16 +158,12 @@ send_thread(void *arg __unused)
 		case BIO_WRITE:
 			hdr.gh_cmd = GGATE_CMD_WRITE;
 			break;
+		case BIO_FLUSH:
+			hdr.gh_cmd = GGATE_CMD_FLUSH;
+			break;
 		default:
-			g_gate_log(LOG_NOTICE, "Unknown gctl_cmd: %i", ggio.gctl_cmd);
-			ggio.gctl_error = EOPNOTSUPP;
-			g_gate_ioctl(G_GATE_CMD_DONE, &ggio);
-			continue;
-		}
-
-		/* Don't send requests for more data than we can handle the response for! */
-		if (ggio.gctl_length > MAXPHYS) {
-			g_gate_log(LOG_ERR, "Request too big: %zd", ggio.gctl_length);
+			g_gate_log(LOG_NOTICE, "Unknown gctl_cmd: %i",
+			    ggio.gctl_cmd);
 			ggio.gctl_error = EOPNOTSUPP;
 			g_gate_ioctl(G_GATE_CMD_DONE, &ggio);
 			continue;
@@ -166,12 +175,12 @@ send_thread(void *arg __unused)
 		hdr.gh_error = 0;
 		g_gate_swap2n_hdr(&hdr);
 
-		data = g_gate_send(sendfd, &hdr, sizeof(hdr), MSG_NOSIGNAL);
+		numbytesprocd = g_gate_send(sendfd, &hdr, sizeof(hdr), MSG_NOSIGNAL);
 		g_gate_log(LOG_DEBUG, "Sent hdr packet.");
 		g_gate_swap2h_hdr(&hdr);
 		if (reconnect)
 			break;
-		if (data != sizeof(hdr)) {
+		if (numbytesprocd != sizeof(hdr)) {
 			g_gate_log(LOG_ERR, "Lost connection 1.");
 			reconnect = 1;
 			pthread_kill(recvtd, SIGUSR1);
@@ -179,18 +188,19 @@ send_thread(void *arg __unused)
 		}
 
 		if (hdr.gh_cmd == GGATE_CMD_WRITE) {
-			data = g_gate_send(sendfd, ggio.gctl_data,
+			numbytesprocd = g_gate_send(sendfd, ggio.gctl_data,
 			    ggio.gctl_length, MSG_NOSIGNAL);
 			if (reconnect)
 				break;
-			if (data != ggio.gctl_length) {
-				g_gate_log(LOG_ERR, "Lost connection 2 (%zd != %zd).", data, (ssize_t)ggio.gctl_length);
+			if (numbytesprocd != ggio.gctl_length) {
+				g_gate_log(LOG_ERR, "Lost connection 2 (%zd != %zd).",
+				    numbytesprocd, (ssize_t)ggio.gctl_length);
 				reconnect = 1;
 				pthread_kill(recvtd, SIGUSR1);
 				break;
 			}
 			g_gate_log(LOG_DEBUG, "Sent %zd bytes (offset=%"
-			    PRIu64 ", length=%" PRIu32 ").", data,
+			    PRIu64 ", length=%" PRIu32 ").", numbytesprocd,
 			    hdr.gh_offset, hdr.gh_length);
 		}
 	}
@@ -203,22 +213,29 @@ recv_thread(void *arg __unused)
 {
 	struct g_gate_ctl_io ggio;
 	struct g_gate_hdr hdr;
-	char buf[MAXPHYS];
-	ssize_t data;
+	ssize_t buf_capacity;
+	ssize_t numbytesprocd;
+	char *newbuf;
 
 	g_gate_log(LOG_NOTICE, "%s: started!", __func__);
 
+	buf_capacity = initialbuffersize;
+
 	ggio.gctl_version = G_GATE_VERSION;
 	ggio.gctl_unit = unit;
-	ggio.gctl_data = buf;
+	ggio.gctl_data = malloc(buf_capacity);
+	if (ggio.gctl_data == NULL) {
+		g_gate_log(LOG_ERR, "%s: Cannot alloc buffer.", __func__);
+		pthread_exit(NULL);
+	}
 
 	for (;;) {
-		data = g_gate_recv(recvfd, &hdr, sizeof(hdr), MSG_WAITALL);
+		numbytesprocd = g_gate_recv(recvfd, &hdr, sizeof(hdr), MSG_WAITALL);
 		if (reconnect)
 			break;
 		g_gate_swap2h_hdr(&hdr);
-		if (data != sizeof(hdr)) {
-			if (data == -1 && errno == EAGAIN)
+		if (numbytesprocd != sizeof(hdr)) {
+			if (numbytesprocd == -1 && errno == EAGAIN)
 				continue;
 			g_gate_log(LOG_ERR, "Lost connection 3.");
 			reconnect = 1;
@@ -233,26 +250,33 @@ recv_thread(void *arg __unused)
 		ggio.gctl_length = hdr.gh_length;
 		ggio.gctl_error = hdr.gh_error;
 
-		/* Do not overflow our buffer if there is a bogus response. */
-		if (ggio.gctl_length > (off_t) sizeof(buf)) {
-			g_gate_log(LOG_ERR, "Received too big response: %zd", ggio.gctl_length);
-			break;
+		if (ggio.gctl_length > buf_capacity) {
+			newbuf = malloc(ggio.gctl_length);
+			if (newbuf != NULL) {
+				free(ggio.gctl_data);
+				ggio.gctl_data = newbuf;
+				buf_capacity = ggio.gctl_length;
+			} else {
+				g_gate_log(LOG_ERR, "Received too big response: %zd",
+				    ggio.gctl_length);
+				break;
+			}
 		}
 
 		if (ggio.gctl_error == 0 && ggio.gctl_cmd == GGATE_CMD_READ) {
-			data = g_gate_recv(recvfd, ggio.gctl_data,
+			numbytesprocd = g_gate_recv(recvfd, ggio.gctl_data,
 			    ggio.gctl_length, MSG_WAITALL);
 			if (reconnect)
 				break;
 			g_gate_log(LOG_DEBUG, "Received data packet.");
-			if (data != ggio.gctl_length) {
+			if (numbytesprocd != ggio.gctl_length) {
 				g_gate_log(LOG_ERR, "Lost connection 4.");
 				reconnect = 1;
 				pthread_kill(sendtd, SIGUSR1);
 				break;
 			}
 			g_gate_log(LOG_DEBUG, "Received %d bytes (offset=%"
-			    PRIu64 ", length=%" PRIu32 ").", data,
+			    PRIu64 ", length=%" PRIu32 ").", numbytesprocd,
 			    hdr.gh_offset, hdr.gh_length);
 		}
 
@@ -509,6 +533,16 @@ g_gatec_rescue(void)
 	g_gatec_loop();
 }
 
+static void
+init_initial_buffer_size()
+{
+	int value;
+	size_t intsize;
+	intsize = sizeof(initialbuffersize);
+	if (sysctlbyname("kern.maxphys", &value, &intsize, NULL, 0) == 0)
+		initialbuffersize = value;
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -623,6 +657,8 @@ main(int argc, char *argv[])
 	}
 	argc -= optind;
 	argv += optind;
+
+	init_initial_buffer_size();
 
 	switch (action) {
 	case CREATE:
