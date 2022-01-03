@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: icc,v 1.6 2019/11/15 21:03:14 christos Exp $
+# $File: icc,v 1.7 2021/04/26 15:56:00 christos Exp $
 # icc:  file(1) magic for International Color Consortium file formats
 
 #
@@ -123,9 +123,9 @@
 # seconds <= 59
 >>>>>34	ubeshort	x		\b:%.2u
 # vendor specific flags like 2 in HPCLJ5.ICM
->>>44	ubeshort	>0		\b, 0x%x vendor flags
+>>>44	ubeshort	>0		\b, %#x vendor flags
 # profile flags bits 0-2 of least 16 used by ICC
-#>>>44	ubelong		>0		\b, 0x%x flags
+#>>>44	ubelong		>0		\b, %#x flags
 # icEmbeddedProfileTrue
 >>>44	ubelong		&1		\b, embedded
 # icEmbeddedProfileFalse
@@ -138,9 +138,9 @@
 #>>>44	ubelong		^4		\b, no MCS
 # vendor specific device attributes 1~srgb.icc
 # E000D00h~CNB7QEDA.ICM C000A00h~CNB5FCAA.ICM 01040401h~CNB25PE3.ICM
->>>56	ubelong		>0		\b, 0x%x vendor attribute
+>>>56	ubelong		>0		\b, %#x vendor attribute
 # ICC device attributes bits 0-7 used
-#>>>60	ubelong		x		\b, 0x%x attribute
+#>>>60	ubelong		x		\b, %#x attribute
 # http://www.color.org/icc34.h
 >>>60	ubelong		&0x01		\b, transparent
 #>>>60	ubelong		^0x01		\b, reflective
@@ -159,7 +159,7 @@
 >>>60	ubelong		&0x80		\b, self-luminous
 #>>>60	ubelong		^0x80		\b, non-self-luminous
 # rendering intent 0-3 but 7AEA5027h in EE051__1.ICM 6CB1BCh in EE061__1.ICM
->>>64	ubelong		>3		\b, 0x%x rendering intent
+>>>64	ubelong		>3		\b, %#x rendering intent
 #>>>64	ubelong		=0		\b, perceptual
 >>>64	ubelong		=1		\b, relative colorimetric
 >>>64	ubelong		=2		\b, saturation
@@ -168,16 +168,16 @@
 >>>71	ubequad		!0xd6000100000000d3	\b, PCS
 # usually X~0.9642*65536=63189.8112~63190=F6D5h ; but also found
 # often F6D6 in gt5000r.icm, F6B8 in kodakce.icm, F6CA in RSWOP.icm
->>>>68	ubelong			!0x0000f6d5	X=0x%x
+>>>>68	ubelong			!0x0000f6d5	X=%#x
 # usually Y=1.0~00010000h but Y=0 in brmsl07f.icm
->>>>72	ubelong			!0x00010000	Y=0x%x
+>>>>72	ubelong			!0x00010000	Y=%#x
 # usually Z~0.8249*65536=54060.6464~54061=D32Dh ; but also found
 # D2F7 in hp1200c.icm, often D32C in A925A.icm, D309 in RSWOP.icm , D2F8 in kodak_dc.icm
->>>>76	ubelong			!0x0000d32d	Z=0x%x
+>>>>76	ubelong			!0x0000d32d	Z=%#x
 # Profile ID. MD5 fingerprinting method as defined in Internet RFC 1321.
->>>84	ubequad		>0		\b, 0x%llx MD5
+>>>84	ubequad		>0		\b, %#llx MD5
 # reserved in older versions should be zero but also found CDCDCDCDCDCDCDCD
-#>>100	ubequad		x		\b 0x%llx reserved
+#>>100	ubequad		x		\b %#llx reserved
 # tag table
 # 6 <= tags count <= 43
 #>>>128	ubelong		>43		\b, %u tags
@@ -191,8 +191,8 @@
 >>>>132	default		x		\b, no copyright tag
 # 1st tag
 #>>>132	string		x		\b, 1st tag %.4s
-#>>>136	ubelong		x		0x%x offset
-#>>>140	ubelong		x		0x%x len
+#>>>136	ubelong		x		%#x offset
+#>>>140	ubelong		x		%#x len
 # 2nd tag,...
 # look also for profileDescriptionTag "desc"
 >>>132	search/508	desc

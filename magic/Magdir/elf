@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: elf,v 1.80 2020/02/12 22:17:33 christos Exp $
+# $File: elf,v 1.87 2021/05/25 15:19:51 christos Exp $
 # elf:  file(1) magic for ELF executables
 #
 # We have to check the byte order flag to see what byte order all the
@@ -43,6 +43,14 @@
 >2	leshort		0x0214		2.0
 >0	leshort		&0x0008		(LP64)
 
+0	name		elf-riscv
+>0	lelong&0x00000001	0x00000001	RVC,
+>0	lelong&0x00000008	0x00000008	RVE,
+>0	lelong&0x00000006	0x00000000	soft-float ABI,
+>0	lelong&0x00000006	0x00000002	single-float ABI,
+>0	lelong&0x00000006	0x00000004	double-float ABI,
+>0	lelong&0x00000006	0x00000006	quad-float ABI,
+
 0	name		elf-le
 >16	leshort		0		no file type,
 !:mime	application/octet-stream
@@ -62,7 +70,12 @@
 # Core file detection is not reliable.
 #>>>(0x38+0xcc) string	>\0		of '%s'
 #>>>(0x38+0x10) lelong	>0		(signal %d),
->16	leshort		&0xff00		processor-specific,
+>16	leshort		&0xff00
+>>18	leshort		!8		processor-specific,
+>>18	leshort		8
+>>>16	leshort		0xFF80		PlayStation 2 IOP module,
+!:mime	application/x-sharedlib
+>>>16	leshort		!0xFF80		processor-specific,
 >18	clear		x
 >18	leshort		0		no machine,
 >18	leshort		1		AT&T WE32100,
@@ -111,6 +124,9 @@
 >18	leshort		19		Intel 80960,
 >18	leshort		20		PowerPC or cisco 4500,
 >18	leshort		21		64-bit PowerPC or cisco 7500,
+>>48	lelong		0		Unspecified or Power ELF V1 ABI,
+>>48	lelong		1		Power ELF V1 ABI,
+>>48	lelong		2		OpenPOWER ELF V2 ABI,
 >18	leshort		22		IBM S/390,
 >18	leshort		23		Cell SPU,
 >18	leshort		24		cisco SVIP,
@@ -179,7 +195,7 @@
 >18	leshort		90		Matsushita MN10200,
 >18	leshort		91		picoJava,
 >18	leshort		92		OpenRISC,
->18	leshort		93		ARC Cores Tangent-A5,
+>18	leshort		93		Synopsys ARCompact ARC700 cores,
 >18	leshort		94		Tensilica Xtensa,
 >18	leshort		95		Alphamosaic VideoCore,
 >18	leshort		96		Thompson Multimedia,
@@ -218,6 +234,7 @@
 >18	leshort		140		TI TMS320C6000 DSP family,
 >18	leshort		141		TI TMS320C2000 DSP family,
 >18	leshort		142		TI TMS320C55x DSP family,
+>18	leshort		144		TI Programmable Realtime Unit
 >18	leshort		160		STMicroelectronics 64bit VLIW DSP,
 >18	leshort		161		Cypress M8C,
 >18	leshort		162		Renesas R32C series,
@@ -248,6 +265,7 @@
 >18	leshort		189		Xilinx MicroBlaze 32-bit RISC,
 >18	leshort		190		NVIDIA CUDA architecture,
 >18	leshort		191		Tilera TILE-Gx,
+>18	leshort		195		Synopsys ARCv2/HS3x/HS4x cores,
 >18	leshort		197		Renesas RL78 family,
 >18	leshort		199		Renesas 78K0R,
 >18	leshort		200		Freescale 56800EX,
@@ -265,8 +283,28 @@
 >18	leshort		217		iCelero CoolEngine,
 >18	leshort		218		Nanoradio Optimized RISC,
 >18	leshort		243		UCB RISC-V,
+# only for 32-bit
+>>4	byte		1
+>>>36	use		elf-riscv
+# only for 64-bit
+>>4	byte		2
+>>>48	use		elf-riscv
+>18	leshort		244		Lanai 32-bit processor,
+>18	leshort		245		CEVA Processor Architecture Family,
+>18	leshort		246		CEVA X2 Processor Family,
 >18	leshort		247		eBPF,
->18	leshort		251             NEC VE,
+>18	leshort		248		Graphcore Intelligent Processing Unit,
+>18	leshort		249		Imagination Technologies,
+>18	leshort		250		Netronome Flow Processor,
+>18	leshort		251             NEC Vector Engine,
+>18	leshort		252		C-SKY processor family,
+>18	leshort		253		Synopsys ARCv3 64-bit ISA/HS6x cores,
+>18	leshort		254		MOS Technology MCS 6502 processor,
+>18	leshort		255		Synopsys ARCv3 32-bit,
+>18	leshort		256		Kalray VLIW core of the MPPA family,
+>18	leshort		257		WDC 65816/65C816,
+>18	leshort		258		LoongArch,
+>18	leshort		259		ChipON KungFu32,
 >18	leshort		0x1057		AVR (unofficial),
 >18	leshort		0x1059		MSP430 (unofficial),
 >18	leshort		0x1223		Adapteva Epiphany (unofficial),
@@ -296,7 +334,7 @@
 >18	leshort		0xfebb		NIOS (unofficial),
 >18	leshort		0xfeed		Moxie (unofficial),
 >18	default		x
->>18	leshort		x		*unknown arch 0x%x*
+>>18	leshort		x		*unknown arch %#x*
 >20	lelong		0		invalid version
 >20	lelong		1		version 1
 

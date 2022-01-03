@@ -138,8 +138,8 @@
 >>>>>>>>>>>>>>>0x002D	ubyte	2		\b, version=MSX2+
 >>>>>>>>>>>>>>>0x002D	ubyte	3		\b, version=MSX Turbo-R
 >>>>>>>>>>>>>>>0x002D	ubyte	>3		\b, version=Unknown MSX %d version
->>>>>>>>>>>>>>>0x0006	ubyte	x		\b, VDP.DR=0x%2x
->>>>>>>>>>>>>>>0x0007	ubyte	x		\b, VDP.DW=0x%2x
+>>>>>>>>>>>>>>>0x0006	ubyte	x		\b, VDP.DR=%#2x
+>>>>>>>>>>>>>>>0x0007	ubyte	x		\b, VDP.DW=%#2x
 >>>>>>>>>>>>>>>0x002B	ubyte&0xF	0		\b, charset=Japanese
 >>>>>>>>>>>>>>>0x002B	ubyte&0xF	1		\b, charset=International
 >>>>>>>>>>>>>>>0x002B	ubyte&0xF	2		\b, charset=Korean
@@ -188,32 +188,32 @@
 # MSX extension ROMs
 0	string/b		AB
 >2	uleshort	0x0010			MSX ROM
->>2	uleshort	x			\b, init=0x%4x
->>4	uleshort	>0			\b, stahdl=0x%4x
->>6	uleshort	>0			\b, devhdl=0x%4x
->>8	uleshort	>0			\b, bas=0x%4x
+>>2	uleshort	x			\b, init=%#4x
+>>4	uleshort	>0			\b, stahdl=%#4x
+>>6	uleshort	>0			\b, devhdl=%#4x
+>>8	uleshort	>0			\b, bas=%#4x
 >2	uleshort	0x4010			MSX ROM
->>2	uleshort	x			\b, init=0x%04x
->>4	uleshort	>0			\b, stahdl=0x%04x
->>6	uleshort	>0			\b, devhdl=0x%04x
->>8	uleshort	>0			\b, bas=0x%04x
+>>2	uleshort	x			\b, init=%#04x
+>>4	uleshort	>0			\b, stahdl=%#04x
+>>6	uleshort	>0			\b, devhdl=%#04x
+>>8	uleshort	>0			\b, bas=%#04x
 >2	uleshort	0x8010			MSX ROM
->>2	uleshort	x			\b, init=0x%04x
->>4	uleshort	>0			\b, stahdl=0x%04x
->>6	uleshort	>0			\b, devhdl=0x%04x
->>8	uleshort	>0			\b, bas=0x%04x
+>>2	uleshort	x			\b, init=%#04x
+>>4	uleshort	>0			\b, stahdl=%#04x
+>>6	uleshort	>0			\b, devhdl=%#04x
+>>8	uleshort	>0			\b, bas=%#04x
 0	string/b		AB\0\0
 >6	uleshort	0
 >>4	uleshort	>0x400F			MSX-BASIC extension ROM
->>>4	uleshort	>0			\b, stahdl=0x%04x
->>>6	uleshort	>0			\b, devhdl=0x%04x
+>>>4	uleshort	>0			\b, stahdl=%#04x
+>>>6	uleshort	>0			\b, devhdl=%#04x
 >>>0x1C		string		OPLL			\b, MSX-Music
 >>>>0x18	string		PAC2			\b (external)
 >>>>0x18	string		APRL			\b (internal)
 
 0	string/b		AB\0\0\0\0
 >6	uleshort	>0x400F			MSX device BIOS
->>6	uleshort	>0			\b, devhdl=0x%04x
+>>6	uleshort	>0			\b, devhdl=%#04x
 
 
 0	string/b		AB
@@ -233,38 +233,38 @@
 >>>>>>0x12	ubyte		x			\b%d
 >>>>>>0x13	ubyte/16	x			\b%d
 >>>>>>0x13	ubyte&0xF	x			\b%d
->>>>>2	uleshort	x			\b, init=0x%04x
->>>>>4	uleshort	>0			\b, stahdl=0x%04x
->>>>>6	uleshort	>0			\b, devhdl=0x%04x
->>>>>8	uleshort	>0			\b, bas=0x%04x
+>>>>>2	uleshort	x			\b, init=%#04x
+>>>>>4	uleshort	>0			\b, stahdl=%#04x
+>>>>>6	uleshort	>0			\b, devhdl=%#04x
+>>>>>8	uleshort	>0			\b, bas=%#04x
 >>>2	uleshort	0
 >>>>4	uleshort	0
 >>>>>6	uleshort	0
->>>>>>8	uleshort	>0			MSX BASIC program in ROM, bas=0x%04x
+>>>>>>8	uleshort	>0			MSX BASIC program in ROM, bas=%#04x
 
 0x4000	string/b		AB
 >0x4002	uleshort	>0x400F
 >>0x400A	string		\0\0\0\0\0\0	MSX ROM with nonstandard page order
->>>0x4002	uleshort	x			\b, init=0x%04x
->>>0x4004	uleshort	>0			\b, stahdl=0x%04x
->>>0x4006	uleshort	>0			\b, devhdl=0x%04x
->>>0x4008	uleshort	>0			\b, bas=0x%04x
+>>>0x4002	uleshort	x			\b, init=%#04x
+>>>0x4004	uleshort	>0			\b, stahdl=%#04x
+>>>0x4006	uleshort	>0			\b, devhdl=%#04x
+>>>0x4008	uleshort	>0			\b, bas=%#04x
 
 0x8000	string/b		AB
 >0x8002	uleshort	>0x400F
 >>0x800A	string		\0\0\0\0\0\0	MSX ROM with nonstandard page order
->>>0x8002	uleshort	x			\b, init=0x%04x
->>>0x8004	uleshort	>0			\b, stahdl=0x%04x
->>>0x8006	uleshort	>0			\b, devhdl=0x%04x
->>>0x8008	uleshort	>0			\b, bas=0x%04x
+>>>0x8002	uleshort	x			\b, init=%#04x
+>>>0x8004	uleshort	>0			\b, stahdl=%#04x
+>>>0x8006	uleshort	>0			\b, devhdl=%#04x
+>>>0x8008	uleshort	>0			\b, bas=%#04x
 
 
 0x3C000	string/b		AB
 >0x3C008	string		\0\0\0\0\0\0\0\0	MSX MegaROM with nonstandard page order
->>0x3C002	uleshort	x			\b, init=0x%04x
->>0x3C004	uleshort	>0			\b, stahdl=0x%04x
->>0x3C006	uleshort	>0			\b, devhdl=0x%04x
->>0x3C008	uleshort	>0			\b, bas=0x%04x
+>>0x3C002	uleshort	x			\b, init=%#04x
+>>0x3C004	uleshort	>0			\b, stahdl=%#04x
+>>0x3C006	uleshort	>0			\b, devhdl=%#04x
+>>0x3C008	uleshort	>0			\b, bas=%#04x
 
 # MSX BIN file
 #0	byte		0xFE

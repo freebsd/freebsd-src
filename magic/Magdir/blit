@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: blit,v 1.8 2009/09/19 16:28:08 christos Exp $
+# $File: blit,v 1.9 2021/07/03 14:01:46 christos Exp $
 # blit:  file(1) magic for 68K Blit stuff as seen from 680x0 machine
 #
 # Note that this 0407 conflicts with several other a.out formats...
@@ -14,7 +14,11 @@
 0	short		03401		VAX-order 68K Blit (standalone) executable
 0	long		0406		68k Blit mpx/mux executable
 0	short		0406		VAX-order2 68k Blit mpx/mux executable
+# GRR: line below is too general as it matches also TTComp archive, ASCII, 4K handled by ./archive
 0	short		03001		VAX-order 68k Blit mpx/mux executable
+# TODO:
+# skip TTComp archive, ASCII, 4K by looking for executable keyword like main
+#>0	search/5536	main\0		VAX-order 68k Blit mpx/mux executable
 # Need more values for WE32 DMD executables.
 # Note that 0520 is the same as COFF
 #0	short		0520		tty630 layers executable

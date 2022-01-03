@@ -1,20 +1,72 @@
 
 #------------------------------------------------------------------------------
-# $File: maple,v 1.8 2017/03/17 21:35:28 christos Exp $
+# $File: maple,v 1.10 2021/08/30 13:31:25 christos Exp $
 # maple:  file(1) magic for maple files
 # "H. Nanosecond" <aldomel@ix.netcom.com>
 # Maple V release 4, a multi-purpose math program
 #
 
 # maple library .lib
-0	string	\000MVR4\nI	MapleVr4 library
+# URL:		https://en.wikipedia.org/wiki/Maple_(software)
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/l/lib-maple-v-r4.trid.xml
+# Update:	Joerg Jenderek
+0	string	\000MVR4\nI	Maple Vr4 library
+#!:mime	application/octet-stream
+!:mime	application/x-maple-lib
+!:ext	lib
+
+# URL:		https://en.wikipedia.org/wiki/Maple_(software)
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/l/lib-maple-v-r5.trid.xml
+# From:		Joerg Jenderek
+0	string	\000MVR5\n	Maple Vr5 library
+#!:mime	application/octet-stream
+!:mime	application/x-maple-lib
+!:ext	lib
+
+# From:		Joerg Jenderek
+0x400	string	M7R0\nI		Maple Vr7 library
+#!:mime	application/octet-stream
+!:mime	application/x-maple-lib
+!:ext	lib
+# null terminated library name like: C:\Maple12/Cliffordlib\maple.lib ../Maplets/Tutors.lib
+>5	string	x		%s
+# probably library name padding with nil or points (0x2E)
+#>0xF8	uquad	x		\b, PADDING 0x%16.16llx
+# null terminated strings like: Exterior Clifford FunctionArithmetics
+# like: 1 20 40
+>0x115	ulelong	x		\b, %u string
+# plural s
+>0x115	ulelong	>1		\bs
+>0x119	string	x		1st '%s'
+# probably second name section padding with nil or points (0x2E)
+#>0x3F0	uquad	x		\b, 2nd PADDING 0x%16.16llx
+# line feed separated ASCII string with maximal 79 length
+#>0x407	string	x		\b, section "%s"
+>0x454	ubyte	!0x0a		\b, at 0x454 0x%x
 
 # .ind
 # no magic for these :-(
 # they are compiled indexes for maple files
 
 # .hdb
-0	string	\000\004\000\000	Maple help database
+# Update:	Joerg Jenderek
+# URL:		https://www.maplesoft.com/support/help/maple/view.aspx?path=Formats/HDB
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/h/hdb-maple.trid.xml
+# Note:		This format was replaced in Maple 18 by the Maple Help format (*.help)
+0	string	\000\004\000\000
+# skip xBASE Compound Index file *.CDX by looking for version
+>1028	string		version	Maple help database
+# length of string version
+#>>1024	ulelong		!7	\b, at 0x400 unexpected %u
+#!:mime application/octet-stream
+!:mime application/x-maple-hdb
+!:ext	hdb
+>1028	default		x
+# skip more xBASE Compound Index file *.CDX by looking for keyword Maple
+# like hsum.hdb
+>>4	search/0xCC41	Maple	Maple help database
+!:mime	application/x-maple-hdb
+!:ext	hdb
 
 # .mhp
 # this has the form <PACKAGE=name>

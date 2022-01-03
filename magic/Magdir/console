@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: console,v 1.55 2020/04/19 17:30:55 christos Exp $
+# $File: console,v 1.63 2021/04/26 15:56:00 christos Exp $
 # Console game magic
 # Toby Deshane <hac@shoelace.digivill.net>
 
@@ -125,6 +125,7 @@
 >0x14c		byte		x			(Rev.%02u)
 
 # Machine type. (SGB, CGB, SGB+CGB)
+# Old licensee code 0x33 is required for SGB, but not CGB.
 >0x14b		byte		0x33
 >>0x146		byte		0x03
 >>>0x143	byte&0x80	0x80	[SGB+CGB]
@@ -133,6 +134,8 @@
 >>>0x143	byte&0xC0	0x80	[CGB]
 >>>0x143	byte&0xC0	0xC0	[CGB ONLY]
 >0x14b		byte		!0x33
+>>0x143		byte&0xC0	0x80	[CGB]
+>>0x143		byte&0xC0	0xC0	[CGB ONLY]
 
 # Mapper.
 >0x147 byte 0x00  [ROM ONLY]
@@ -178,7 +181,7 @@
 # RAM size.
 >0x149 byte 1     \b, RAM: 16Kbit
 >0x149 byte 2     \b, RAM: 64Kbit
->0x149 byte 3     \b, RAM: 128Kbit
+>0x149 byte 3     \b, RAM: 256Kbit
 >0x149 byte 4     \b, RAM: 1Mbit
 >0x149 byte 5     \b, RAM: 512Kbit
 
@@ -486,17 +489,17 @@
 #------------------------------------------------------------------------------
 # Sony Playstation executables (Adam Sjoegren <asjo@diku.dk>) :
 0	string	PS-X\ EXE	Sony Playstation executable
->16	lelong	x		PC=0x%08x,
->20	lelong	!0		GP=0x%08x,
->24	lelong	!0		.text=[0x%08x,
->>28	lelong	x		\b0x%x],
->32	lelong	!0		.data=[0x%08x,
->>36	lelong	x		\b0x%x],
->40	lelong	!0		.bss=[0x%08x,
->>44	lelong	x		\b0x%x],
->48	lelong	!0		Stack=0x%08x,
+>16	lelong	x		PC=%#08x,
+>20	lelong	!0		GP=%#08x,
+>24	lelong	!0		.text=[%#08x,
+>>28	lelong	x		\b%#x],
+>32	lelong	!0		.data=[%#08x,
+>>36	lelong	x		\b%#x],
+>40	lelong	!0		.bss=[%#08x,
+>>44	lelong	x		\b%#x],
+>48	lelong	!0		Stack=%#08x,
 >48	lelong	=0		No Stack!,
->52	lelong	!0		StackSize=0x%x,
+>52	lelong	!0		StackSize=%#x,
 #>76	string	>\0		(%s)
 #  Area:
 >113	string	x		(%s)
@@ -768,7 +771,7 @@
 >>>>0x40	leshort		!0
 >>>>>0x40	lestring16	x	\b, metadata: "%s"
 >>0x17		byte		&0x40   \b, ROM:
->>>(0x18.l-26)	lelong		x	CRC32 0x%08x
+>>>(0x18.l-26)	lelong		x	CRC32 %#08x
 >>>(0x18.l-23)	string		x	"%s"
 
 # Type: scummVM savegame files
@@ -1003,6 +1006,11 @@
 # Reference: https://3dbrew.org/wiki/3DSX_Format
 0	string	3DSX	Nintendo 3DS Homebrew Application (3DSX)
 
+# Type: Nintendo 3DS Banner Model Data.
+# From: David Korth <gerbilsoft@gerbilsoft.com>
+# Reference: https://3dbrew.org/wiki/CBMD
+0	string	CBMD\0\0\0\0	Nintendo 3DS Banner Model Data
+
 #------------------------------------------------------------------------------
 # a7800: file(1) magic for the Atari 7800 raw ROM format.
 # From: David Korth <gerbilsoft@gerbilsoft.com>
@@ -1101,3 +1109,31 @@
 >0x2C	byte	>0x20	Nintendo Badge Arcade badge set:
 >>0x2C	string	x	"%.48s"
 >>0x24	ulelong	x	\b, set ID: %u
+
+#------------------------------------------------------------------------------
+# sufami: file(1) magic for Sufami Turbo ROM images.
+# From: David Korth <gerbilsoft@gerbilsoft.com>
+# References:
+# - https://problemkaputt.de/fullsnes.htm#snescartsufamiturbominicartridgeadaptor
+0	string		BANDAI\ SFC-ADX
+>0x10	string		!SFC-ADX\ BACKUP	Sufami Turbo ROM image:
+>>0x10	string/T	x	"%.14s"
+>>0x30	byte		x	\b, ID %02X
+>>0x31	byte		x	\b%02X
+>>0x32	byte		x	\b%02X
+>>0x33	ubyte		>0	\b, series index %u
+>>0x34	ubyte		0	[SlowROM]
+>>0x34	ubyte		1	[FastROM]
+>>0x35	ubyte		1	[SRAM]
+>>0x35	ubyte		3	[Special]
+
+# Type: Nintendo GameCube/Wii disc image (RVZ format)
+0	string		RVZ\001	Nintendo
+>0x48	belong		1	GameCube
+!:mime	application/x-gamecube-rom
+>0x48	belong		2	Wii
+!:mime	application/x-wii-rom
+>0x48	default		x	GameCube/Wii
+>0x48	belong		x	disc image (RVZ format):
+>>0x58	use		nintendo-gcn-disc-common
+

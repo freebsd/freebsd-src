@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: wordprocessors,v 1.24 2020/05/22 19:28:47 christos Exp $
+# $File: wordprocessors,v 1.26 2021/08/21 12:45:34 christos Exp $
 # wordprocessors:  file(1) magic fo word processors.
 #
 ####### PWP file format used on Smith Corona Personal Word Processors:
@@ -275,10 +275,13 @@
 
 # From:		Joerg Jenderek
 # URL:		https://en.wikipedia.org/wiki/StarOffice
+# Reference:	http://mark0.net/download/triddefs_xml.7z
+#		/defs/t/thm-staroffice.trid.xml
 # Note:		used in Star-, Open- and Libre-Office
 # named as soffice.StarConfigFile.6 or OpenOffice.org configuration by others
 0		ubeshort	0x0400
-#>(2.s+8)	ubequad		x		\b, gap 0x%16.16llx
+# non nil gap
+#>(2.s+8)	ubequad		x		\b, gap %#16.16llx
 # test for null value in gap after theme name maybe unreliable
 #>(2.s+9)	ubyte		0		\b, 0-byte
 # look for keyword GALRESRV near the end
@@ -288,19 +291,27 @@
 #>0		search/19299	GALRESRV	\b, GALRESRV FOUND
 #>2		uleshort	x		\b, name length %u
 # skip file2147.chk by check for positive name length like for sg16.thm "3D"
->2		uleshort	>0		StarOffice Gallery theme
+>2		uleshort	>0
+# skip dBase printer form T6.PRF with misidentified gallery 
+# name :\DBASE\IV\T6.txts by check for 1st object name or RESRV keyword
+# https://www.clicketyclick.dk/databases/xbase/xbase/dbase_ex.zip
+# template/t6/with_data/T6.PRF
+# by first char of object name or RESRV part of keyword GALRESRV
+>>(2.s+13)	ubyte		>0x1F		StarOffice Gallery theme
 !:mime		application/x-stargallery-thm
+# thm is also used for JPEG thumbnail images
 !:ext		thm
-# gallery name
->>2		pstring/h	x		%s
+# gallery name often 1 word like: 3D sounds Diagrams Flussdiagramme Fotos
+# or like private://gallery/hidden/imgppt "Cisco - WAN - LAN"
+>>>2		pstring/h	x		%s
 # number of objects
->>(2.s+4)	ulelong		x		\b, %u object
+>>>(2.s+4)	ulelong		x		\b, %u object
 # plural s
->>(2.s+4)	ulelong		!1		\bs
+>>>(2.s+4)	ulelong		!1		\bs
 # if available then display first object name 
->>(2.s+4)	ulelong		>0
+>>>(2.s+4)	ulelong		>0
 # partial file name, URL or internal name like "dd2*" of 1st object or RESRV
->>>(2.s+11)	pstring/h	x		\b, 1st %s
+>>>>(2.s+11)	pstring/h	x		\b, 1st %s
 
 # From:	Joerg Jenderek
 # URL:	http://fileformats.archiveteam.org/wiki/StarOffice_Gallery
@@ -309,7 +320,7 @@
 #	$HOME/.config/libreoffice/4/user/gallery
 0	string		SGA3	StarOffice Gallery thumbnails
 # Unknown like 0x04000?0001000142
-#>4	ubequad		x	\b, UNKNOWN 0x%16.16llx
+#>4	ubequad		x	\b, UNKNOWN %#16.16llx
 #!:mime	application/x-sdg
 !:mime	application/x-stargallery-sdg
 !:ext	sdg

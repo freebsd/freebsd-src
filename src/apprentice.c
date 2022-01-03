@@ -32,7 +32,7 @@
 #include "file.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$File: apprentice.c,v 1.297 2020/05/09 18:57:15 christos Exp $")
+FILE_RCSID("@(#)$File: apprentice.c,v 1.309 2021/09/24 13:59:19 christos Exp $")
 #endif	/* lint */
 
 #include "magic.h"
@@ -268,6 +268,8 @@ static const struct type_tbl_s type_tbl[] = {
 	{ XX("der"),		FILE_DER,		FILE_FMT_STR },
 	{ XX("guid"),		FILE_GUID,		FILE_FMT_STR },
 	{ XX("offset"),		FILE_OFFSET,		FILE_FMT_QUAD },
+	{ XX("bevarint"),	FILE_BEVARINT,		FILE_FMT_STR },
+	{ XX("levarint"),	FILE_LEVARINT,		FILE_FMT_STR },
 	{ XX_NULL,		FILE_INVALID,		FILE_FMT_NONE },
 };
 
@@ -543,6 +545,7 @@ file_ms_alloc(int flags)
 	ms->elf_notes_max = FILE_ELF_NOTES_MAX;
 	ms->regex_max = FILE_REGEX_MAX;
 	ms->bytes_max = FILE_BYTES_MAX;
+	ms->encoding_max = FILE_ENCODING_MAX;
 	return ms;
 free:
 	free(ms);
@@ -553,6 +556,7 @@ private void
 apprentice_unmap(struct magic_map *map)
 {
 	size_t i;
+	char *p;
 	if (map == NULL)
 		return;
 
@@ -560,15 +564,14 @@ apprentice_unmap(struct magic_map *map)
 	case MAP_TYPE_USER:
 		break;
 	case MAP_TYPE_MALLOC:
+		p = CAST(char *, map->p);
 		for (i = 0; i < MAGIC_SETS; i++) {
-			void *b = map->magic[i];
-			void *p = map->p;
-			if (CAST(char *, b) >= CAST(char *, p) &&
-			    CAST(char *, b) <= CAST(char *, p) + map->len)
+			char *b = RCAST(char *, map->magic[i]);
+			if (p != NULL && b >= p && b <= p + map->len)
 				continue;
-			free(map->magic[i]);
+			free(b);
 		}
-		free(map->p);
+		free(p);
 		break;
 #ifdef QUICK
 	case MAP_TYPE_MMAP:
@@ -851,6 +854,8 @@ typesize(int type)
 	case FILE_BEDOUBLE:
 	case FILE_LEDOUBLE:
 	case FILE_OFFSET:
+	case FILE_BEVARINT:
+	case FILE_LEVARINT:
 		return 8;
 
 	case FILE_GUID:
@@ -911,6 +916,8 @@ apprentice_magic_strength(const struct magic *m)
 	case FILE_DOUBLE:
 	case FILE_BEDOUBLE:
 	case FILE_LEDOUBLE:
+	case FILE_BEVARINT:
+	case FILE_LEVARINT:
 	case FILE_GUID:
 	case FILE_OFFSET:
 		ts = typesize(m->type);
@@ -1104,6 +1111,8 @@ set_test_type(struct magic *mstart, struct magic *m)
 	case FILE_DOUBLE:
 	case FILE_BEDOUBLE:
 	case FILE_LEDOUBLE:
+	case FILE_BEVARINT:
+	case FILE_LEVARINT:
 	case FILE_DER:
 	case FILE_GUID:
 	case FILE_OFFSET:
@@ -1334,6 +1343,12 @@ coalesce_entries(struct magic_set *ms, struct magic_entry *me, uint32_t nme,
 	for (i = 0; i < nme; i++)
 		mentrycount += me[i].cont_count;
 
+	if (mentrycount == 0) {
+		*ma = NULL;
+		*nma = 0;
+		return 0;
+	}
+
 	slen = sizeof(**ma) * mentrycount;
 	if ((*ma = CAST(struct magic *, malloc(slen))) == NULL) {
 		file_oomem(ms, slen);
@@ -1461,7 +1476,10 @@ apprentice_load(struct magic_set *ms, const char *fn, int action)
 		 */
 		set_last_default(ms, mset[j].me, mset[j].count);
 
-		/* coalesce per file arrays into a single one */
+		/* coalesce per file arrays into a single one, if needed */
+		if (mset[j].count == 0)
+			continue;
+
 		if (coalesce_entries(ms, mset[j].me, mset[j].count,
 		    &map->magic[j], &map->nmagic[j]) == -1) {
 			errs++;
@@ -1535,6 +1553,8 @@ file_signextend(struct magic_set *ms, struct magic *m, uint64_t v)
 		case FILE_BEDOUBLE:
 		case FILE_LEDOUBLE:
 		case FILE_OFFSET:
+		case FILE_BEVARINT:
+		case FILE_LEVARINT:
 			v = CAST(int64_t, v);
 			break;
 		case FILE_STRING:
@@ -1798,6 +1818,9 @@ parse_string_modifier(struct magic_set *ms, struct magic *m, const char **lp)
 			break;
 		case CHAR_TRIM:
 			m->str_flags |= STRING_TRIM;
+			break;
+		case CHAR_FULL_WORD:
+			m->str_flags |= STRING_FULL_WORD;
 			break;
 		case CHAR_PSTRING_1_LE:
 #define SET_LENGTH(a) m->str_flags = (m->str_flags & ~PSTRING_LEN) | (a)
@@ -2132,6 +2155,13 @@ parse(struct magic_set *ms, struct magic_entry *me, const char *line,
 		return -1;
 	}
 
+	if (m->type == FILE_NAME && cont_level != 0) {
+		if (ms->flags & MAGIC_CHECK)
+			file_magwarn(ms, "`name%s' entries can only be "
+			    "declared at top level", l);
+		return -1;
+	}
+
 	/* New-style anding: "0 byte&0x80 =0x80 dynamically linked" */
 	/* New and improved: ~ & | ^ + - * / % -- exciting, isn't it? */
 
@@ -2401,7 +2431,7 @@ parse_ext(struct magic_set *ms, struct magic_entry *me, const char *line,
 
 	return parse_extra(ms, me, line, len,
 	    CAST(off_t, offsetof(struct magic, ext)),
-	    sizeof(m->ext), "EXTENSION", ",!+-/@?_$", 0);
+	    sizeof(m->ext), "EXTENSION", ",!+-/@?_$&", 0); /* & for b&w */
 }
 
 /*
@@ -2459,11 +2489,7 @@ check_format_type(const char *ptr, int type, const char **estr)
 			}
 		} else
 			h = 0;
-		if (*ptr == '-')
-			ptr++;
-		if (*ptr == '.')
-			ptr++;
-		if (*ptr == '#')
+		while (*ptr && strchr("-.#", *ptr) != NULL)
 			ptr++;
 #define CHECKLEN() do { \
 	for (len = cnt = 0; isdigit(CAST(unsigned char, *ptr)); ptr++, cnt++) \
@@ -2741,7 +2767,7 @@ getvalue(struct magic_set *ms, struct magic *m, const char **p, int action)
 		ull = CAST(uint64_t, strtoull(*p, &ep, 0));
 		m->value.q = file_signextend(ms, m, ull);
 		if (*p == ep) {
-			file_magwarn(ms, "Unparseable number `%s'", *p);
+			file_magwarn(ms, "Unparsable number `%s'", *p);
 		} else {
 			size_t ts = typesize(m->type);
 			uint64_t x;
@@ -3389,6 +3415,36 @@ swap8(uint64_t sv)
 #endif
 	return rv;
 }
+
+protected uintmax_t 
+file_varint2uintmax_t(const unsigned char *us, int t, size_t *l)
+{
+        uintmax_t x = 0;
+        const unsigned char *c;
+        if (t == FILE_LEVARINT) {
+                for (c = us; *c; c++) {
+                        if ((*c & 0x80) == 0)
+                                break;
+                }
+		if (l)
+			*l = c - us + 1;
+                for (; c >= us; c--) {
+                        x |= *c & 0x7f;
+                        x <<= 7;
+                }
+        } else {
+                for (c = us; *c; c++) {
+			x |= *c & 0x7f;
+			if ((*c & 0x80) == 0)
+				break;
+			x <<= 7;
+                }
+		if (l)
+			*l = c - us + 1;
+        }
+	return x;
+}
+
 
 /*
  * byteswap a single magic entry

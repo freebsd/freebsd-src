@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: acorn,v 1.7 2019/04/19 00:42:27 christos Exp $
+# $File: acorn,v 1.8 2021/04/26 15:56:00 christos Exp $
 # acorn:  file(1) magic for files found on Acorn systems
 #
 
@@ -90,13 +90,13 @@
 # null terminated root directory object like IDEFS::IDE-4.$.Apps.GRAPHICS.!XFMPdemo
 >>>9	string	x	\b, root "%s"
 # load address 0xFFFtttdd, ttt is the object filetype and dddddddddd is time
->>>>&1	ulelong	x	\b, load address 0x%x
+>>>>&1	ulelong	x	\b, load address %#x
 # execution address 0xdddddddd dddddddddd is 40 bit unsigned centiseconds since 1.1.1900 UTC
->>>>&5	ulelong	x	\b, exec address 0x%x
+>>>>&5	ulelong	x	\b, exec address %#x
 # attributes (bits: 0~owner read,1~owner write,3~no delete,4~public read,5~public write)
->>>>&9	ulelong	x	\b, attributes 0x%x 
+>>>>&9	ulelong	x	\b, attributes %#x 
 # number of entries in this directory. for root dir 0
-#>>>&13	ulelong	x	\b, entries 0x%x 
+#>>>&13	ulelong	x	\b, entries %#x 
 # the entries start here with object name
 >>>>&17	string	x	\b, 1st object "%s"
 

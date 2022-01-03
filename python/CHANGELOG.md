@@ -1,5 +1,10 @@
 # Python `file-magic` Log of Changes
 
+## `0.4.1`
+
+- Create threadlocal objects so that the `detect_from_*` methods work properly
+
+
 ## `0.4.0`
 
 - Sync with current version of file:

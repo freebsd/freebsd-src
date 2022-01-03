@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: mathematica,v 1.9 2017/03/17 21:35:28 christos Exp $
+# $File: mathematica,v 1.13 2021/07/14 09:06:24 christos Exp $
 # mathematica:  file(1) magic for mathematica files
 # "H. Nanosecond" <aldomel@ix.netcom.com>
 # Mathematica a multi-purpose math program
@@ -13,7 +13,7 @@
 !:ext mb
 
 # .ma
-# multiple possibilites:
+# multiple possibilities:
 
 0	string	(*^\n\n::[\011frontEndVersion\ =\ 	Mathematica notebook
 #>41	string	>\0	%s
@@ -24,7 +24,7 @@
 #0	string	(*^\n\n::[\011Information	Mathematica notebook version 2.x
 #>675	string	>\0	%s #doesn't work well
 
-# there may be 'cr' instread of 'nl' in some does this matter?
+# there may be 'cr' instead of 'nl' in some does this matter?
 
 # generic:
 0	string	(*^\r\r::[\011	Mathematica notebook version 2.x
@@ -73,9 +73,90 @@
 
 #########################
 # MatLab v5
-0       string  MATLAB  Matlab v5 mat-file
+# URL:		http://fileformats.archiveteam.org/wiki/MAT
+# Reference:	https://www.mathworks.com/help/pdf_doc/matlab/matfile_format.pdf
+# first 116 bytes of header contain text in human-readable form
+0       string  MATLAB  Matlab v
+#>11	string/T	x	\b, at 11 "%.105s"
+#!:mime	application/octet-stream
+!:mime	application/x-matlab-data
+!:ext	mat
+#	https://de.mathworks.com/help/matlab/import_export/mat-file-versions.html
+# level of the MAT-file like: 5.0 7.0 or maybe 7.3
+#>7	string	x	LEVEL "%.3s"
+>7	ubyte	=0x35	\b5 mat-file
+>7	ubyte	!0x35
+>>7	string	x	\b%.3s mat-file
 >126    short   0x494d  (big endian)
->>124   beshort x       version 0x%04x
+>>124   beshort x       version %#04x
 >126    short   0x4d49  (little endian)
->>124   leshort x       version 0x%04x
-
+# 0x0100 for level 5.0 and 0x0200 for level 7.0
+>>124   leshort x       version %#04x
+# test again so that default clause works
+>126	short	x
+# created by MATLAB include Platform sometimes without leading comma (0x2C) or missing
+# like: GLNX86 PCWIN PCWIN64 SOL2 Windows\0407 nt posix
+>>20	search/2	Platform:\040	\b, platform
+>>>&0	string		x		%-0.2s
+>>>&2		ubyte	!0x2C		\b%c
+>>>>&0		ubyte	!0x2C		\b%c
+>>>>>&0		ubyte	!0x2C		\b%c
+>>>>>>&0	ubyte	!0x2C		\b%c
+>>>>>>>&0	ubyte	!0x2C		\b%c
+>>>>>>>>&0	ubyte	!0x2C		\b%c
+>>>>>>>>>&0	ubyte	!0x2C		\b%c
+# examples without Platform tag like one_by_zero_char.mat
+>>20	default		x
+>>>11	string		x	"%s"
+# created by MATLAB include time like: Fri Feb 20 15:26:59 2009
+>34	search/9/c	created\040on:\040	\b, created
+>>&0	string	x		%-.24s
+#	MatLab v4
+# From:	Joerg Jenderek
+# check for valid imaginary flag of Matlab matrix version 4
+13	ushort	0
+# check for valid ASCII matrix name
+>20	ubyte	>0x1F
+# skip some CD-ROM filesystem like test-hfs.iso by looking for valid big endian type flag
+>>0	ubelong&0xFFffFF00	0x00000300
+>>>0	use	matlab4
+# no example for 8-bit and 16-bit integers matrix
+>>0	ubelong&0xFFffFF00	0x00000400
+>>>0	use	matlab4
+>>0	ulelong		x
+# skip big endian variant by looking for valid low lttle endian type flag
+>>0	ulelong		<53
+>>>0	use	\^matlab4
+#	display information of Matlab v4 mat-file
+0	name	matlab4		Matlab v4 mat-file
+#!:mime	application/octet-stream
+!:mime	application/x-matlab-data
+!:ext	mat
+# 20-byte header with 5 long integers that contains information describing certain attributes of the Matrix
+# type flag decimal MOPT; maximal 4052=FD4h; maximal 52=34h for little endian
+#>0	ubelong		x	\b, type flag %u
+#>0	ubelong		x	(%#x)
+# M: 0~little endian 1~Big Endian 2~VAX D-float 3~VAX G-float 4~Cray
+#>0	ubelong/1000	x	\b, M=%u
+>0	ubelong/1000	0	(little endian)
+>0	ubelong/1000	1	(big endian)
+>0	ubelong/1000	2	(VAX D-float)
+>0	ubelong/1000	3	(VAX G-float)
+>0	ubelong/1000	4	(Cray)
+# namlen; the length of the matrix name
+#>16	ubelong		x	\b, name length %u
+# nul terminated matrix name like: fit_params testmatrix testsparsecomplex teststringarray
+#>20	string		x	\b, MATRIX NAME="%s"
+>16	pstring/L	x	%s
+# T indicates the matrix type: 0~numeric 1~text 2~sparse
+#>0	ubelong%10	x	\b, T=%u
+>0	ubelong%10	0	\b, numeric
+>0	ubelong%10	1	\b, text
+>0	ubelong%10	2	\b, sparse
+# mrows; number of rows in the matrix like: 1 3 8
+>4	ubelong		x	\b, rows %u
+# ncols; number of columns in the matrix like: 1 3 4 5 9 43
+>8	ubelong		x	\b, columns %u
+# imagf; imaginary flag; 1~matrix has an imaginary part 0~only real data
+>12	ubelong		!0	\b, imaginary
+# real; Real part of the matrix consists of mrows * ncols numbers

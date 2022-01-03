@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: ibm370,v 1.10 2017/03/17 21:35:28 christos Exp $
+# $File: ibm370,v 1.11 2021/03/14 16:51:45 christos Exp $
 # ibm370:  file(1) magic for IBM 370 and compatibles.
 #
 # "ibm370" said that 0x15d == 0535 was "ibm 370 pure executable".
@@ -46,3 +46,7 @@
 0	beshort		0535		SVR2 executable (USS/370)
 >12	belong		>0		not stripped
 >24	belong		>0		- version %d
+
+# NETDATA (https://en.wikipedia.org/wiki/NETDATA)
+#	-\INMR01 In EBCDIC
+0	string 		\x60\xe0\xc9\xd5\xd4\xd9\xf0\xf1	IBM NETDATA file
