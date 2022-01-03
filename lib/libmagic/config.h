@@ -1,13 +1,3 @@
-/* $FreeBSD$ */
-
-/* Get __FreeBSD_version. */
-#include <osreldate.h>
-
-/* Only specific versions of FreeBSD support xlocale */
-#if __FreeBSD_version >= 1000002 || (__FreeBSD_version < 1000000 && __FreeBSD_version >= 900506)
-#define FREEBSD_XLOCALE_SUPPORT 1
-#endif
-
 /* config.h.  Generated from config.h.in by configure.  */
 /* config.h.in.  Generated from configure.ac by autoheader.  */
 
@@ -17,6 +7,9 @@
 /* Define in built-in ELF support is used */
 #define BUILTIN_ELF 1
 
+/* Enable bzlib compression support */
+/* #undef BZLIBSUPPORT */
+
 /* Define for ELF core file support */
 #define ELFCORE 1
 
@@ -25,6 +18,9 @@
 
 /* Define to 1 if you have the `asprintf' function. */
 #define HAVE_ASPRINTF 1
+
+/* Define to 1 if you have the <bzlib.h> header file. */
+/* #undef HAVE_BZLIB_H */
 
 /* Define to 1 if you have the `ctime_r' function. */
 #define HAVE_CTIME_R 1
@@ -59,9 +55,7 @@
 #define HAVE_FORK 1
 
 /* Define to 1 if you have the `freelocale' function. */
-#ifdef FREEBSD_XLOCALE_SUPPORT
 #define HAVE_FREELOCALE 1
-#endif
 
 /* Define to 1 if fseeko (and presumably ftello) exists and is declared. */
 #define HAVE_FSEEKO 1
@@ -87,8 +81,14 @@
 /* Define to 1 if you have the <inttypes.h> header file. */
 #define HAVE_INTTYPES_H 1
 
+/* Define to 1 if you have the `bz2' library (-lbz2). */
+/* #undef HAVE_LIBBZ2 */
+
 /* Define to 1 if you have the `gnurx' library (-lgnurx). */
 /* #undef HAVE_LIBGNURX */
+
+/* Define to 1 if you have the `lzma' library (-llzma). */
+/* #undef HAVE_LIBLZMA */
 
 /* Define to 1 if you have the `seccomp' library (-lseccomp). */
 /* #undef HAVE_LIBSECCOMP */
@@ -98,6 +98,9 @@
 
 /* Define to 1 if you have the `localtime_r' function. */
 #define HAVE_LOCALTIME_R 1
+
+/* Define to 1 if you have the <lzma.h> header file. */
+/* #undef HAVE_LZMA_H */
 
 /* Define to 1 if mbrtowc and mbstate_t are properly declared. */
 #define HAVE_MBRTOWC 1
@@ -121,9 +124,7 @@
 #define HAVE_MMAP 1
 
 /* Define to 1 if you have the `newlocale' function. */
-#ifdef FREEBSD_XLOCALE_SUPPORT
 #define HAVE_NEWLOCALE 1
-#endif
 
 /* Define to 1 if you have the `pread' function. */
 #define HAVE_PREAD 1
@@ -210,9 +211,7 @@
 #define HAVE_UNISTD_H 1
 
 /* Define to 1 if you have the `uselocale' function. */
-#ifdef FREEBSD_XLOCALE_SUPPORT
 #define HAVE_USELOCALE 1
-#endif
 
 /* Define to 1 if you have the `utime' function. */
 #define HAVE_UTIME 1
@@ -252,9 +251,7 @@
 #define HAVE_WORKING_VFORK 1
 
 /* Define to 1 if you have the <xlocale.h> header file. */
-#ifdef FREEBSD_XLOCALE_SUPPORT
 #define HAVE_XLOCALE_H 1
-#endif
 
 /* Define to 1 if you have the <zlib.h> header file. */
 #define HAVE_ZLIB_H 1
@@ -333,6 +330,9 @@
 /* #  undef WORDS_BIGENDIAN */
 # endif
 #endif
+
+/* Enable xzlib compression support */
+/* #undef XZLIBSUPPORT */
 
 /* Enable zlib compression support */
 #define ZLIBSUPPORT 1
