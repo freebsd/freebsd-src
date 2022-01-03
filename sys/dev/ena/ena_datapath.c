@@ -48,7 +48,8 @@ __FBSDID("$FreeBSD$");
 
 static int	ena_tx_cleanup(struct ena_ring *);
 static int	ena_rx_cleanup(struct ena_ring *);
-static inline int validate_tx_req_id(struct ena_ring *, uint16_t);
+static inline int ena_get_tx_req_id(struct ena_ring *tx_ring,
+    struct ena_com_io_cq *io_cq, uint16_t *req_id);
 static void	ena_rx_hash_mbuf(struct ena_ring *, struct ena_com_rx_ctx *,
     struct mbuf *);
 static struct mbuf* ena_rx_mbuf(struct ena_ring *, struct ena_com_rx_buf_info *,
@@ -200,23 +201,27 @@ ena_qflush(if_t ifp)
  *********************************************************************/
 
 static inline int
-validate_tx_req_id(struct ena_ring *tx_ring, uint16_t req_id)
+ena_get_tx_req_id(struct ena_ring *tx_ring, struct ena_com_io_cq *io_cq,
+    uint16_t *req_id)
 {
 	struct ena_adapter *adapter = tx_ring->adapter;
-	struct ena_tx_buffer *tx_info = NULL;
+	int rc;
 
-	if (likely(req_id < tx_ring->ring_size)) {
-		tx_info = &tx_ring->tx_buffer_info[req_id];
-		if (tx_info->mbuf != NULL)
-			return (0);
-		ena_log(adapter->pdev, ERR,
-		    "tx_info doesn't have valid mbuf\n");
+	rc = ena_com_tx_comp_req_id_get(io_cq, req_id);
+	if (rc == ENA_COM_TRY_AGAIN)
+		return (EAGAIN);
+
+	if (unlikely(rc != 0)) {
+		ena_log(adapter->pdev, ERR, "Invalid req_id: %hu\n", *req_id);
+		counter_u64_add(tx_ring->tx_stats.bad_req_id, 1);
+		goto err;
 	}
 
-	ena_log(adapter->pdev, ERR, "Invalid req_id: %hu\n", req_id);
-	counter_u64_add(tx_ring->tx_stats.bad_req_id, 1);
+	if (tx_ring->tx_buffer_info[*req_id].mbuf != NULL)
+		return (0);
 
-	/* Trigger device reset */
+	ena_log(adapter->pdev, ERR, "tx_info doesn't have valid mbuf\n");
+err:
 	ena_trigger_reset(adapter, ENA_REGS_RESET_INV_TX_REQ_ID);
 
 	return (EFAULT);
@@ -262,11 +267,7 @@ ena_tx_cleanup(struct ena_ring *tx_ring)
 		struct ena_tx_buffer *tx_info;
 		struct mbuf *mbuf;
 
-		rc = ena_com_tx_comp_req_id_get(io_cq, &req_id);
-		if (unlikely(rc != 0))
-			break;
-
-		rc = validate_tx_req_id(tx_ring, req_id);
+		rc = ena_get_tx_req_id(tx_ring, io_cq, &req_id);
 		if (unlikely(rc != 0))
 			break;
 
