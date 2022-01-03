@@ -525,8 +525,9 @@ unionfs_noderem(struct vnode *vp)
 }
 
 /*
- * Get the unionfs node status.
- * You need exclusive lock this vnode.
+ * Get the unionfs node status object for the vnode corresponding to unp,
+ * for the process that owns td.  Allocate a new status object if one
+ * does not already exist.
  */
 void
 unionfs_get_node_status(struct unionfs_node *unp, struct thread *td,
