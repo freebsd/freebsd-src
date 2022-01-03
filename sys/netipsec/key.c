@@ -8300,8 +8300,9 @@ spdcache_destroy(void)
 	}
 }
 #endif
-void
-key_init(void)
+
+static void
+key_vnet_init(void *arg __unused)
 {
 	int i;
 
@@ -8327,9 +8328,13 @@ key_init(void)
 
 	LIST_INIT(&V_acqtree);
 	LIST_INIT(&V_spacqtree);
+}
+VNET_SYSINIT(key_vnet_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_SECOND,
+    key_vnet_init, NULL);
 
-	if (!IS_DEFAULT_VNET(curvnet))
-		return;
+static void
+key_init(void *arg __unused)
+{
 
 	ipsec_key_lft_zone = uma_zcreate("IPsec SA lft_c",
 	    sizeof(uint64_t) * 2, NULL, NULL, NULL, NULL,
@@ -8353,10 +8358,11 @@ key_init(void)
 	if (bootverbose)
 		printf("IPsec: Initialized Security Association Processing.\n");
 }
+SYSINIT(key_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_FIRST, key_init, NULL);
 
 #ifdef VIMAGE
-void
-key_destroy(void)
+static void
+key_vnet_destroy(void *arg __unused)
 {
 	struct secashead_queue sahdrainq;
 	struct secpolicy_queue drainq;
@@ -8451,10 +8457,18 @@ key_destroy(void)
 	SPACQ_UNLOCK();
 	hashdestroy(V_acqaddrhashtbl, M_IPSEC_SAQ, V_acqaddrhash_mask);
 	hashdestroy(V_acqseqhashtbl, M_IPSEC_SAQ, V_acqseqhash_mask);
+}
+VNET_SYSUNINIT(key_vnet_destroy, SI_SUB_PROTO_DOMAIN, SI_ORDER_SECOND,
+    key_vnet_destroy, NULL);
+#endif
 
-	if (!IS_DEFAULT_VNET(curvnet))
-		return;
-
+/*
+ * XXX: as long as domains are not unloadable, this function is never called,
+ * provided for consistensy and future unload support.
+ */
+static void
+key_destroy(void *arg __unused)
+{
 	uma_zdestroy(ipsec_key_lft_zone);
 
 #ifndef IPSEC_DEBUG2
@@ -8467,7 +8481,7 @@ key_destroy(void)
 	SPACQ_LOCK_DESTROY();
 	SPI_ALLOC_LOCK_DESTROY();
 }
-#endif
+SYSUNINIT(key_destroy, SI_SUB_PROTO_DOMAIN, SI_ORDER_FIRST, key_destroy, NULL);
 
 /* record data transfer on SA, and update timestamps */
 void
