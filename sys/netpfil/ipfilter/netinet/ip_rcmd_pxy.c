@@ -82,7 +82,7 @@ ipf_p_rcmd_new(void *arg, fr_info_t *fin, ap_session_t *aps, nat_t *nat)
 #ifdef IP_RCMD_PROXY_DEBUG
 		printf("ipf_p_rcmd_new:KMALLOCS(%d) failed\n", sizeof(*rc));
 #endif
-		return(-1);
+		return (-1);
 	}
 	aps->aps_sport = tcp->th_sport;
 	aps->aps_dport = tcp->th_dport;
@@ -90,7 +90,7 @@ ipf_p_rcmd_new(void *arg, fr_info_t *fin, ap_session_t *aps, nat_t *nat)
 	ipn = ipf_proxy_rule_rev(nat);
 	if (ipn == NULL) {
 		KFREE(rc);
-		return(-1);
+		return (-1);
 	}
 
 	aps->aps_data = rc;
@@ -99,7 +99,7 @@ ipf_p_rcmd_new(void *arg, fr_info_t *fin, ap_session_t *aps, nat_t *nat)
 
 	rc->rcmd_rule = ipn;
 
-	return(0);
+	return (0);
 }
 
 
@@ -129,7 +129,7 @@ ipf_rcmd_atoi(char *ptr)
 		i *= 10;
 		i += c - '0';
 	}
-	return(i);
+	return (i);
 }
 
 
@@ -167,12 +167,12 @@ ipf_p_rcmd_portmsg(fr_info_t *fin, ap_session_t *aps, nat_t *nat)
 
 	dlen = fin->fin_dlen - tcpsz;
 	if (dlen <= 0)
-		return(0);
+		return (0);
 
 	rc = (rcmdinfo_t *)aps->aps_data;
 	if ((rc->rcmd_portseq != 0) &&
 	    (tcp->th_seq != rc->rcmd_portseq))
-		return(0);
+		return (0);
 
 	bzero(portbuf, sizeof(portbuf));
 	COPYDATA(m, off, MIN(sizeof(portbuf), dlen), portbuf);
@@ -185,7 +185,7 @@ ipf_p_rcmd_portmsg(fr_info_t *fin, ap_session_t *aps, nat_t *nat)
 		printf("ipf_p_rcmd_portmsg:sp == 0 dlen %d [%s]\n",
 		       dlen, portbuf);
 #endif
-		return(0);
+		return (0);
 	}
 
 	if (rc->rcmd_port != 0 && sp != rc->rcmd_port) {
@@ -193,7 +193,7 @@ ipf_p_rcmd_portmsg(fr_info_t *fin, ap_session_t *aps, nat_t *nat)
 		printf("ipf_p_rcmd_portmsg:sp(%d) != rcmd_port(%d)\n",
 		       sp, rc->rcmd_port);
 #endif
-		return(0);
+		return (0);
 	}
 
 	rc->rcmd_port = sp;
@@ -241,7 +241,7 @@ ipf_p_rcmd_portmsg(fr_info_t *fin, ap_session_t *aps, nat_t *nat)
 		}
 	}
 	if (nat2 != NULL)
-		return(APR_ERR(1));
+		return (APR_ERR(1));
 
 	/*
 	 * Add skeleton NAT entry for connection which will come
@@ -311,8 +311,8 @@ ipf_p_rcmd_portmsg(fr_info_t *fin, ap_session_t *aps, nat_t *nat)
 		ip->ip_len = slen;
 	}
 	if (nat2 == NULL)
-		return(APR_ERR(1));
-	return(0);
+		return (APR_ERR(1));
+	return (0);
 }
 
 
@@ -320,8 +320,8 @@ int
 ipf_p_rcmd_out(void *arg, fr_info_t *fin, ap_session_t *aps, nat_t *nat)
 {
 	if (nat->nat_dir == NAT_OUTBOUND)
-		return(ipf_p_rcmd_portmsg(fin, aps, nat));
-	return(0);
+		return (ipf_p_rcmd_portmsg(fin, aps, nat));
+	return (0);
 }
 
 
@@ -329,6 +329,6 @@ int
 ipf_p_rcmd_in(void *arg, fr_info_t *fin, ap_session_t *aps, nat_t *nat)
 {
 	if (nat->nat_dir == NAT_INBOUND)
-		return(ipf_p_rcmd_portmsg(fin, aps, nat));
-	return(0);
+		return (ipf_p_rcmd_portmsg(fin, aps, nat));
+	return (0);
 }

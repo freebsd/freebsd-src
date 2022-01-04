@@ -283,7 +283,7 @@ colour:									\
 	if (color == C_BLACK)						\
 		deleteblack(head, parent, node);			\
 	head->count--;							\
-	return(old);							\
+	return (old);							\
 }									\
 									\
 void									\
@@ -350,8 +350,8 @@ _n##_rb_search(struct _n##_rb_head *head, void *key)			\
 			node = node->_f.right;				\
 	}								\
 	if (node == &_n##_rb_zero || match != 0)			\
-		return(NULL);						\
-	return(node);							\
+		return (NULL);						\
+	return (node);							\
 }
 
 #define	RBI_DELETE(_n, _h, _v)		_n##_rb_delete(_h, _v)

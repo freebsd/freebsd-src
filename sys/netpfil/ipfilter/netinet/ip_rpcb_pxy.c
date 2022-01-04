@@ -151,18 +151,18 @@ ipf_p_rpcb_new(void *arg, fr_info_t *fin, ap_session_t *aps, nat_t *nat)
 	nat = nat;	/* LINT */
 
 	if (fin->fin_v != 4)
-		return(-1);
+		return (-1);
 
 	KMALLOC(rs, rpcb_session_t *);
 	if (rs == NULL)
-		return(-1);
+		return (-1);
 
 	bzero((char *)rs, sizeof(*rs));
 	MUTEX_INIT(&rs->rs_rxlock, "ipf Sun RPCB proxy session lock");
 
 	aps->aps_data = rs;
 
-	return(0);
+	return (0);
 }
 
 /* --------------------------------------------------------------------	*/
@@ -208,7 +208,7 @@ ipf_p_rpcb_in(void *arg, fr_info_t *fin, ap_session_t *aps, nat_t *nat)
 
 	/* Disallow fragmented or illegally short packets. */
 	if ((fin->fin_flx & (FI_FRAG|FI_SHORT)) != 0)
-		return(APR_ERR(1));
+		return (APR_ERR(1));
 
 	/* Perform basic variable initialization. */
 	rs = (rpcb_session_t *)aps->aps_data;
@@ -220,7 +220,7 @@ ipf_p_rpcb_in(void *arg, fr_info_t *fin, ap_session_t *aps, nat_t *nat)
 
 	/* Disallow packets outside legal range for supported requests. */
 	if ((dlen < RPCB_REQMIN) || (dlen > RPCB_REQMAX))
-		return(APR_ERR(1));
+		return (APR_ERR(1));
 
 	/* Copy packet over to convenience buffer. */
 	rm = &rpcmsg;
@@ -234,7 +234,7 @@ ipf_p_rpcb_in(void *arg, fr_info_t *fin, ap_session_t *aps, nat_t *nat)
 	switch(rv)
 	{
 	case -1:
-		return(APR_ERR(1));
+		return (APR_ERR(1));
 		/*NOTREACHED*/
 		break;
 	case 0:
@@ -247,7 +247,7 @@ ipf_p_rpcb_in(void *arg, fr_info_t *fin, ap_session_t *aps, nat_t *nat)
 		IPF_PANIC(1, ("illegal rv %d (ipf_p_rpcb_req)", rv));
 	}
 
-	return(rv);
+	return (rv);
 }
 
 /* --------------------------------------------------------------------	*/
@@ -277,7 +277,7 @@ ipf_p_rpcb_out(void *arg, fr_info_t *fin, ap_session_t *aps, nat_t *nat)
 
 	/* Disallow fragmented or illegally short packets. */
 	if ((fin->fin_flx & (FI_FRAG|FI_SHORT)) != 0)
-		return(APR_ERR(1));
+		return (APR_ERR(1));
 
 	/* Perform basic variable initialization. */
 	rs = (rpcb_session_t *)aps->aps_data;
@@ -291,7 +291,7 @@ ipf_p_rpcb_out(void *arg, fr_info_t *fin, ap_session_t *aps, nat_t *nat)
 
 	/* Disallow packets outside legal range for supported requests. */
 	if ((dlen < RPCB_REPMIN) || (dlen > RPCB_REPMAX))
-		return(APR_ERR(1));
+		return (APR_ERR(1));
 
 	/* Copy packet over to convenience buffer. */
 	rm = &rpcmsg;
@@ -312,7 +312,7 @@ ipf_p_rpcb_out(void *arg, fr_info_t *fin, ap_session_t *aps, nat_t *nat)
 		        ipf_p_rpcb_deref(rs, rx);
 		        MUTEX_EXIT(&rs->rs_rxlock);
 		}
-		return(APR_ERR(1));
+		return (APR_ERR(1));
 		/*NOTREACHED*/
 		break;
 	case  0: /* Negative reply / request rejected */
@@ -350,7 +350,7 @@ ipf_p_rpcb_out(void *arg, fr_info_t *fin, ap_session_t *aps, nat_t *nat)
 		MUTEX_EXIT(&rs->rs_rxlock);
 	}
 
-	return(diff);
+	return (diff);
 }
 
 /*
@@ -420,7 +420,7 @@ ipf_p_rpcb_decodereq(fr_info_t *fin, nat_t *nat, rpcb_session_t *rs,
 	if ((B(p++) != RPCB_CALL) ||
 	    (B(p++) != RPCB_MSG_VERSION) ||
 	    (B(p++) != RPCB_PROG))
-		return(-1);
+		return (-1);
 
 	/* Record the RPCB version and procedure. */
 	rc->rc_vers = p++;
@@ -428,9 +428,9 @@ ipf_p_rpcb_decodereq(fr_info_t *fin, nat_t *nat, rpcb_session_t *rs,
 
 	/* Bypass RPC authentication stuff. */
 	if (ipf_p_rpcb_skipauth(rm, &rc->rc_authcred, &p) != 0)
-		return(-1);
+		return (-1);
 	if (ipf_p_rpcb_skipauth(rm, &rc->rc_authverf, &p) != 0)
-		return(-1);
+		return (-1);
 
 	/* Compare RPCB version and procedure numbers. */
 	switch(B(rc->rc_vers))
@@ -438,18 +438,18 @@ ipf_p_rpcb_decodereq(fr_info_t *fin, nat_t *nat, rpcb_session_t *rs,
 	case 2:
 		/* This proxy only supports PMAP_GETPORT. */
 		if (B(rc->rc_proc) != RPCB_GETPORT)
-			return(-1);
+			return (-1);
 
 		/* Portmap requests contain four 4 byte parameters. */
 		if (RPCB_BUF_EQ(rm, p, 16) == 0)
-			return(-1);
+			return (-1);
 
 		p += 2; /* Skip requested program and version numbers. */
 
 		/* Sanity check the requested protocol. */
 		xdr = B(p);
 		if (!(xdr == IPPROTO_UDP || xdr == IPPROTO_TCP))
-			return(-1);
+			return (-1);
 
 		rx.rx_type = RPCB_RES_PMAP;
 		rx.rx_proto = xdr;
@@ -465,23 +465,23 @@ ipf_p_rpcb_decodereq(fr_info_t *fin, nat_t *nat, rpcb_session_t *rs,
 			break;
 		case RPCB_GETADDRLIST:
 			if (B(rc->rc_vers) != 4)
-				return(-1);
+				return (-1);
 			rx.rx_type = RPCB_RES_LIST;
 			break;
 		default:
-			return(-1);
+			return (-1);
 		}
 
 		ra = &rc->rc_rpcbargs;
 
 		/* Decode the 'struct rpcb' request. */
 		if (ipf_p_rpcb_xdrrpcb(rm, p, ra) != 0)
-			return(-1);
+			return (-1);
 
 		/* Are the target address & port valid? */
 		if ((ra->ra_maddr.xu_ip != nat->nat_ndstaddr) ||
 		    (ra->ra_maddr.xu_port != nat->nat_ndport))
-		    	return(-1);
+		    	return (-1);
 
 		/* Do we need to rewrite this packet? */
 		if ((nat->nat_ndstaddr != nat->nat_odstaddr) ||
@@ -489,17 +489,17 @@ ipf_p_rpcb_decodereq(fr_info_t *fin, nat_t *nat, rpcb_session_t *rs,
 		    	mod = 1;
 		break;
 	default:
-		return(-1);
+		return (-1);
 	}
 
 	MUTEX_ENTER(&rs->rs_rxlock);
 	if (ipf_p_rpcb_insert(rs, &rx) != 0) {
 		MUTEX_EXIT(&rs->rs_rxlock);
-		return(-1);
+		return (-1);
 	}
 	MUTEX_EXIT(&rs->rs_rxlock);
 
-	return(mod);
+	return (mod);
 }
 
 /* --------------------------------------------------------------------	*/
@@ -522,7 +522,7 @@ ipf_p_rpcb_skipauth(rpc_msg_t *rm, xdr_auth_t *auth, u_32_t **buf)
 
 	/* Make sure we have enough space for expected fixed auth parms. */
 	if (RPCB_BUF_GEQ(rm, p, 8) == 0)
-		return(-1);
+		return (-1);
 
 	p++; /* We don't care about auth_flavor. */
 
@@ -531,7 +531,7 @@ ipf_p_rpcb_skipauth(rpc_msg_t *rm, xdr_auth_t *auth, u_32_t **buf)
 
 	/* Test for absurdity / illegality of auth_data length. */
 	if ((XDRALIGN(xdr) < xdr) || (RPCB_BUF_GEQ(rm, p, XDRALIGN(xdr)) == 0))
-		return(-1);
+		return (-1);
 
 	auth->xa_string.xs_str = (char *)p;
 
@@ -539,7 +539,7 @@ ipf_p_rpcb_skipauth(rpc_msg_t *rm, xdr_auth_t *auth, u_32_t **buf)
 
 	*buf = (u_32_t *)p;
 
-	return(0);
+	return (0);
 }
 
 /* --------------------------------------------------------------------	*/
@@ -557,15 +557,15 @@ ipf_p_rpcb_insert(rpcb_session_t *rs, rpcb_xact_t *rx)
 	rxp = ipf_p_rpcb_lookup(rs, rx->rx_xid);
 	if (rxp != NULL) {
 		++rxp->rx_ref;
-		return(0);
+		return (0);
 	}
 
 	if (V_rpcbcnt == RPCB_MAXREQS)
-		return(-1);
+		return (-1);
 
 	KMALLOC(rxp, rpcb_xact_t *);
 	if (rxp == NULL)
-		return(-1);
+		return (-1);
 
 	bcopy((char *)rx, (char *)rxp, sizeof(*rx));
 
@@ -580,7 +580,7 @@ ipf_p_rpcb_insert(rpcb_session_t *rs, rpcb_xact_t *rx)
 
 	++V_rpcbcnt;
 
-	return(0);
+	return (0);
 }
 
 /* --------------------------------------------------------------------	*/
@@ -598,24 +598,24 @@ static int
 ipf_p_rpcb_xdrrpcb(rpc_msg_t *rm, u_32_t *p, rpcb_args_t *ra)
 {
 	if (!RPCB_BUF_GEQ(rm, p, 20))
-		return(-1);
+		return (-1);
 
 	/* Bypass target program & version. */
 	p += 2;
 
 	/* Decode r_netid.  Must be "tcp" or "udp". */
 	if (ipf_p_rpcb_getproto(rm, &ra->ra_netid, &p) != 0)
-		return(-1);
+		return (-1);
 
 	/* Decode r_maddr. */
 	if (ipf_p_rpcb_getuaddr(rm, &ra->ra_maddr, &p) != 0)
-		return(-1);
+		return (-1);
 
 	/* Advance to r_owner and make sure it's empty. */
 	if (!RPCB_BUF_EQ(rm, p, 4) || (B(p) != 0))
-		return(-1);
+		return (-1);
 
-	return(0);
+	return (0);
 }
 
 /* --------------------------------------------------------------------	*/
@@ -637,7 +637,7 @@ ipf_p_rpcb_getuaddr(rpc_msg_t *rm, xdr_uaddr_t *xu, u_32_t **p)
 
 	/* Test for string length. */
 	if (!RPCB_BUF_GEQ(rm, *p, 4))
-		return(-1);
+		return (-1);
 
 	xu->xu_xslen = (*p)++;
 	xu->xu_xsstr = (char *)*p;
@@ -645,7 +645,7 @@ ipf_p_rpcb_getuaddr(rpc_msg_t *rm, xdr_uaddr_t *xu, u_32_t **p)
 	/* Length check */
 	l = B(xu->xu_xslen);
 	if (l < 11 || l > 23 || !RPCB_BUF_GEQ(rm, *p, XDRALIGN(l)))
-		return(-1);
+		return (-1);
 
 	/* Advance p */
 	*(char **)p += XDRALIGN(l);
@@ -662,7 +662,7 @@ ipf_p_rpcb_getuaddr(rpc_msg_t *rm, xdr_uaddr_t *xu, u_32_t **p)
 	 * an IP address and [ef] are the bytes of a L4 port.
 	 */
 	if (!(ISDIGIT(uastr[0]) && ISDIGIT(uastr[l-1])))
-		return(-1);
+		return (-1);
 	b = uastr;
 	for (c = &uastr[1], d = 0, dd = 0; c < &uastr[l-1]; c++) {
 		if (ISDIGIT(*c)) {
@@ -671,13 +671,13 @@ ipf_p_rpcb_getuaddr(rpc_msg_t *rm, xdr_uaddr_t *xu, u_32_t **p)
 		}
 		if (*c == '.') {
 			if (dd != 0)
-				return(-1);
+				return (-1);
 
 			/* Check for ASCII byte. */
 			*c = '\0';
 			t = ipf_p_rpcb_atoi(b);
 			if (t > 255)
-				return(-1);
+				return (-1);
 
 			/* Aim b at beginning of the next byte. */
 			b = c + 1;
@@ -691,18 +691,18 @@ ipf_p_rpcb_getuaddr(rpc_msg_t *rm, xdr_uaddr_t *xu, u_32_t **p)
 			dd = 1;
 			continue;
 		}
-		return(-1);
+		return (-1);
 	}
 	if (d != 5) /* String must contain exactly 5 periods. */
-		return(-1);
+		return (-1);
 
 	/* Handle the last byte (port low byte) */
 	t = ipf_p_rpcb_atoi(b);
 	if (t > 255)
-		return(-1);
+		return (-1);
 	pp[d - 4] = t & 0xff;
 
-	return(0);
+	return (0);
 }
 
 /* --------------------------------------------------------------------	*/
@@ -722,7 +722,7 @@ ipf_p_rpcb_atoi(char *ptr)
 		i *= 10;
 		i += c - '0';
 	}
-	return(i);
+	return (i);
 }
 
 /* --------------------------------------------------------------------	*/
@@ -794,7 +794,7 @@ ipf_p_rpcb_modreq(fr_info_t *fin, nat_t *nat, rpc_msg_t *rm, mb_t *m,
 		/* XXX Storage lengths. */
 	}
 
-	return(diff);
+	return (diff);
 }
 
 /* --------------------------------------------------------------------	*/
@@ -840,7 +840,7 @@ ipf_p_rpcb_decoderep(fr_info_t *fin, nat_t *nat, rpcb_session_t *rs,
 	MUTEX_ENTER(&rs->rs_rxlock);
 	if ((rx = ipf_p_rpcb_lookup(rs, xdr)) == NULL) {
 		MUTEX_EXIT(&rs->rs_rxlock);
-		return(-1);
+		return (-1);
 	}
 	++rx->rx_ref;        /* per thread reference */
 	MUTEX_EXIT(&rs->rs_rxlock);
@@ -849,28 +849,28 @@ ipf_p_rpcb_decoderep(fr_info_t *fin, nat_t *nat, rpcb_session_t *rs,
 
 	/* Test call vs reply */
 	if (B(p++) != RPCB_REPLY)
-		return(-1);
+		return (-1);
 
 	/* Test reply_stat */
 	switch(B(p++))
 	{
 	case RPCB_MSG_DENIED:
-		return(0);
+		return (0);
 	case RPCB_MSG_ACCEPTED:
 		break;
 	default:
-		return(-1);
+		return (-1);
 	}
 
 	/* Bypass RPC authentication stuff. */
 	if (ipf_p_rpcb_skipauth(rm, &rr->rr_authverf, &p) != 0)
-		return(-1);
+		return (-1);
 
 	/* Test accept status */
 	if (!RPCB_BUF_GEQ(rm, p, 4))
-		return(-1);
+		return (-1);
 	if (B(p++) != 0)
-		return(0);
+		return (0);
 
 	/* Parse out the expected reply */
 	switch(rx->rx_type)
@@ -878,27 +878,27 @@ ipf_p_rpcb_decoderep(fr_info_t *fin, nat_t *nat, rpcb_session_t *rs,
 	case RPCB_RES_PMAP:
 		/* There must be only one 4 byte argument. */
 		if (!RPCB_BUF_EQ(rm, p, 4))
-			return(-1);
+			return (-1);
 
 		rr->rr_v2 = p;
 		xdr = B(rr->rr_v2);
 
 		/* Reply w/ a 0 port indicates service isn't registered */
 		if (xdr == 0)
-			return(0);
+			return (0);
 
 		/* Is the value sane? */
 		if (xdr > 65535)
-			return(-1);
+			return (-1);
 
 		/* Create NAT & state table entries. */
 		if (ipf_p_rpcb_getnat(fin, nat, rx->rx_proto, (u_int)xdr) != 0)
-			return(-1);
+			return (-1);
 		break;
 	case RPCB_RES_STRING:
 		/* Expecting a XDR string; need 4 bytes for length */
 		if (!RPCB_BUF_GEQ(rm, p, 4))
-			return(-1);
+			return (-1);
 
 		rr->rr_v3.xu_str.xs_len = p++;
 		rr->rr_v3.xu_str.xs_str = (char *)p;
@@ -907,35 +907,35 @@ ipf_p_rpcb_decoderep(fr_info_t *fin, nat_t *nat, rpcb_session_t *rs,
 
 		/* A null string indicates an unregistered service */
 		if ((xdr == 0) && RPCB_BUF_EQ(rm, p, 0))
-			return(0);
+			return (0);
 
 		/* Decode the target IP address / port. */
 		if (ipf_p_rpcb_getuaddr(rm, &rr->rr_v3, &p) != 0)
-			return(-1);
+			return (-1);
 
 		/* Validate the IP address and port contained. */
 		if (nat->nat_odstaddr != rr->rr_v3.xu_ip)
-			return(-1);
+			return (-1);
 
 		/* Create NAT & state table entries. */
 		if (ipf_p_rpcb_getnat(fin, nat, rx->rx_proto,
 				     (u_int)rr->rr_v3.xu_port) != 0)
-			return(-1);
+			return (-1);
 		break;
 	case RPCB_RES_LIST:
 		if (!RPCB_BUF_GEQ(rm, p, 4))
-			return(-1);
+			return (-1);
 		/* rpcb_entry_list_ptr */
 		switch(B(p))
 		{
 		case 0:
-			return(0);
+			return (0);
 			/*NOTREACHED*/
 			break;
 		case 1:
 			break;
 		default:
-			return(-1);
+			return (-1);
 		}
 		rl = &rr->rr_v4;
 		rl->rl_list = p++;
@@ -944,31 +944,31 @@ ipf_p_rpcb_decoderep(fr_info_t *fin, nat_t *nat, rpcb_session_t *rs,
 		for(;;) {
 			re = &rl->rl_entries[rl->rl_cnt];
 			if (ipf_p_rpcb_getuaddr(rm, &re->re_maddr, &p) != 0)
-				return(-1);
+				return (-1);
 			if (ipf_p_rpcb_getproto(rm, &re->re_netid, &p) != 0)
-				return(-1);
+				return (-1);
 			/* re_semantics & re_pfamily length */
 			if (!RPCB_BUF_GEQ(rm, p, 12))
-				return(-1);
+				return (-1);
 			p++; /* Skipping re_semantics. */
 			xdr = B(p++);
 			if ((xdr != 4) || strncmp((char *)p, "inet", 4))
-				return(-1);
+				return (-1);
 			p++;
 			if (ipf_p_rpcb_getproto(rm, &re->re_proto, &p) != 0)
-				return(-1);
+				return (-1);
 			if (!RPCB_BUF_GEQ(rm, p, 4))
-				return(-1);
+				return (-1);
 			re->re_more = p;
 			if (B(re->re_more) > 1) /* 0,1 only legal values */
-				return(-1);
+				return (-1);
 			++rl->rl_cnt;
 			++cnt;
 			if (B(re->re_more) == 0)
 				break;
 			/* Replies in  max out at 2; TCP and/or UDP */
 			if (cnt > 2)
-				return(-1);
+				return (-1);
 			p++;
 		}
 
@@ -978,7 +978,7 @@ ipf_p_rpcb_decoderep(fr_info_t *fin, nat_t *nat, rpcb_session_t *rs,
 			                      re->re_proto.xp_proto,
 				              (u_int)re->re_maddr.xu_port);
 			if (rv != 0)
-				return(-1);
+				return (-1);
 		}
 		break;
 	default:
@@ -986,7 +986,7 @@ ipf_p_rpcb_decoderep(fr_info_t *fin, nat_t *nat, rpcb_session_t *rs,
 		IPF_PANIC(1, ("illegal rx_type %d", rx->rx_type));
 	}
 
-	return(1);
+	return (1);
 }
 
 /* --------------------------------------------------------------------	*/
@@ -1002,13 +1002,13 @@ ipf_p_rpcb_lookup(rpcb_session_t *rs, u_32_t xid)
 	rpcb_xact_t *rx;
 
 	if (rs->rs_rxlist == NULL)
-		return(NULL);
+		return (NULL);
 
 	for (rx = rs->rs_rxlist; rx != NULL; rx = rx->rx_next)
 		if (rx->rx_xid == xid)
 			break;
 
-	return(rx);
+	return (rx);
 }
 
 /* --------------------------------------------------------------------	*/
@@ -1060,7 +1060,7 @@ ipf_p_rpcb_getproto(rpc_msg_t *rm, xdr_proto_t *xp, u_32_t **p)
 
 	/* Must have 4 bytes for length & 4 bytes for "tcp" or "udp". */
 	if (!RPCB_BUF_GEQ(rm, p, 8))
-		return(-1);
+		return (-1);
 
 	xp->xp_xslen = (*p)++;
 	xp->xp_xsstr = (char *)*p;
@@ -1068,7 +1068,7 @@ ipf_p_rpcb_getproto(rpc_msg_t *rm, xdr_proto_t *xp, u_32_t **p)
 	/* Test the string length. */
 	len = B(xp->xp_xslen);
 	if (len != 3)
-	 	return(-1);
+	 	return (-1);
 
 	/* Test the actual string & record the protocol accordingly. */
 	if (!strncmp((char *)xp->xp_xsstr, "tcp\0", 4))
@@ -1076,13 +1076,13 @@ ipf_p_rpcb_getproto(rpc_msg_t *rm, xdr_proto_t *xp, u_32_t **p)
 	else if (!strncmp((char *)xp->xp_xsstr, "udp\0", 4))
 		xp->xp_proto = IPPROTO_UDP;
 	else {
-		return(-1);
+		return (-1);
 	}
 
 	/* Advance past the string. */
 	(*p)++;
 
-	return(0);
+	return (0);
 }
 
 /* --------------------------------------------------------------------	*/
@@ -1158,7 +1158,7 @@ ipf_p_rpcb_getnat(fr_info_t *fin, nat_t *nat, u_int proto, u_int port)
 
 	if ((natl != NULL) && (is != NULL)) {
 		MUTEX_DOWNGRADE(&softc->ipf_nat);
-		return(0);
+		return (0);
 	}
 
 	/* Slightly modify the following structures for actual use in creating
@@ -1206,7 +1206,7 @@ ipf_p_rpcb_getnat(fr_info_t *fin, nat_t *nat, u_int proto, u_int port)
 
 		if (natl == NULL) {
 			MUTEX_DOWNGRADE(&softc->ipf_nat);
-			return(-1);
+			return (-1);
 		}
 
 		natl->nat_ptr = ipn;
@@ -1234,11 +1234,11 @@ ipf_p_rpcb_getnat(fr_info_t *fin, nat_t *nat, u_int proto, u_int port)
 			 *
 			 * nat_delete(natl, NL_EXPIRE);
 			 */
-			return(-1);
+			return (-1);
 		}
 	}
 
-	return(0);
+	return (0);
 }
 
 /* --------------------------------------------------------------------	*/
@@ -1297,7 +1297,7 @@ ipf_p_rpcb_modv3(fr_info_t *fin, nat_t *nat, rpc_msg_t *rm, mb_t *m,
 	if (diff != 0)
 		ipf_p_rpcb_fixlen(fin, diff);
 
-	return(diff);
+	return (diff);
 }
 
 /* --------------------------------------------------------------------	*/
@@ -1376,7 +1376,7 @@ ipf_p_rpcb_modv4(fr_info_t *fin, nat_t *nat, rpc_msg_t *rm, mb_t *m,
 	if (diff != 0)
 		ipf_p_rpcb_fixlen(fin, diff);
 
-	return(diff);
+	return (diff);
 }
 
 

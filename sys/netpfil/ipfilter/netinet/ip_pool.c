@@ -228,7 +228,7 @@ main(int argc, char *argv[])
 
 	ipf_pool_fini();
 
-	return(0);
+	return (0);
 }
 
 
@@ -261,7 +261,7 @@ ipf_pool_soft_create(ipf_main_softc_t *softc)
 	KMALLOC(softp, ipf_pool_softc_t *);
 	if (softp == NULL) {
 		IPFERROR(70032);
-		return(NULL);
+		return (NULL);
 	}
 
 	bzero((char *)softp, sizeof(*softp));
@@ -270,10 +270,10 @@ ipf_pool_soft_create(ipf_main_softc_t *softc)
 	if (softp->ipf_radix == NULL) {
 		IPFERROR(70033);
 		KFREE(softp);
-		return(NULL);
+		return (NULL);
 	}
 
-	return(softp);
+	return (softp);
 }
 
 
@@ -292,7 +292,7 @@ ipf_pool_soft_init(ipf_main_softc_t *softc, void *arg)
 
 	ipf_rx_init(softp->ipf_radix);
 
-	return(0);
+	return (0);
 }
 
 
@@ -366,26 +366,26 @@ ipf_pool_node_add(ipf_main_softc_t *softc, void *arg, iplookupop_t *op,
 
 	if (op->iplo_size != sizeof(node)) {
 		IPFERROR(70014);
-		return(EINVAL);
+		return (EINVAL);
 	}
 
 	err = COPYIN(op->iplo_struct, &node, sizeof(node));
 	if (err != 0) {
 		IPFERROR(70015);
-		return(EFAULT);
+		return (EFAULT);
 	}
 
 	p = ipf_pool_find(arg, op->iplo_unit, op->iplo_name);
 	if (p == NULL) {
 		IPFERROR(70017);
-		return(ESRCH);
+		return (ESRCH);
 	}
 
 	if (node.ipn_addr.adf_family == AF_INET) {
 		if (node.ipn_addr.adf_len != offsetof(addrfamily_t, adf_addr) +
 					     sizeof(struct in_addr)) {
 			IPFERROR(70028);
-			return(EINVAL);
+			return (EINVAL);
 		}
 	}
 #ifdef USE_INET6
@@ -393,13 +393,13 @@ ipf_pool_node_add(ipf_main_softc_t *softc, void *arg, iplookupop_t *op,
 		if (node.ipn_addr.adf_len != offsetof(addrfamily_t, adf_addr) +
 					     sizeof(struct in6_addr)) {
 			IPFERROR(70034);
-			return(EINVAL);
+			return (EINVAL);
 		}
 	}
 #endif
 	if (node.ipn_mask.adf_len != node.ipn_addr.adf_len) {
 		IPFERROR(70029);
-		return(EINVAL);
+		return (EINVAL);
 	}
 
 	/*
@@ -410,7 +410,7 @@ ipf_pool_node_add(ipf_main_softc_t *softc, void *arg, iplookupop_t *op,
 		     node.ipn_mask.adf_addr.in4.s_addr) !=
 		    node.ipn_addr.adf_addr.in4.s_addr) {
 			IPFERROR(70035);
-			return(EINVAL);
+			return (EINVAL);
 		}
 	}
 #ifdef USE_INET6
@@ -419,7 +419,7 @@ ipf_pool_node_add(ipf_main_softc_t *softc, void *arg, iplookupop_t *op,
 				&node.ipn_mask.adf_addr.in6,
 				&node.ipn_addr.adf_addr.in6)) {
 			IPFERROR(70036);
-			return(EINVAL);
+			return (EINVAL);
 		}
 	}
 #endif
@@ -432,11 +432,11 @@ ipf_pool_node_add(ipf_main_softc_t *softc, void *arg, iplookupop_t *op,
 	m = ipf_pool_findeq(arg, p, &node.ipn_addr, &node.ipn_mask);
 	if (m != NULL) {
 		IPFERROR(70018);
-		return(EEXIST);
+		return (EEXIST);
 	}
 	err = ipf_pool_insert_node(softc, arg, p, &node);
 
-	return(err);
+	return (err);
 }
 
 
@@ -459,21 +459,21 @@ ipf_pool_node_del(ipf_main_softc_t *softc, void *arg, iplookupop_t *op,
 
 	if (op->iplo_size != sizeof(node)) {
 		IPFERROR(70019);
-		return(EINVAL);
+		return (EINVAL);
 	}
 	node.ipn_uid = uid;
 
 	err = COPYIN(op->iplo_struct, &node, sizeof(node));
 	if (err != 0) {
 		IPFERROR(70020);
-		return(EFAULT);
+		return (EFAULT);
 	}
 
 	if (node.ipn_addr.adf_family == AF_INET) {
 		if (node.ipn_addr.adf_len != offsetof(addrfamily_t, adf_addr) +
 					     sizeof(struct in_addr)) {
 			IPFERROR(70030);
-			return(EINVAL);
+			return (EINVAL);
 		}
 	}
 #ifdef USE_INET6
@@ -481,35 +481,35 @@ ipf_pool_node_del(ipf_main_softc_t *softc, void *arg, iplookupop_t *op,
 		if (node.ipn_addr.adf_len != offsetof(addrfamily_t, adf_addr) +
 					     sizeof(struct in6_addr)) {
 			IPFERROR(70037);
-			return(EINVAL);
+			return (EINVAL);
 		}
 	}
 #endif
 	if (node.ipn_mask.adf_len != node.ipn_addr.adf_len) {
 		IPFERROR(70031);
-		return(EINVAL);
+		return (EINVAL);
 	}
 
 	p = ipf_pool_find(arg, op->iplo_unit, op->iplo_name);
 	if (p == NULL) {
 		IPFERROR(70021);
-		return(ESRCH);
+		return (ESRCH);
 	}
 
 	m = ipf_pool_findeq(arg, p, &node.ipn_addr, &node.ipn_mask);
 	if (m == NULL) {
 		IPFERROR(70022);
-		return(ENOENT);
+		return (ENOENT);
 	}
 
 	if ((uid != 0) && (uid != m->ipn_uid)) {
 		IPFERROR(70024);
-		return(EACCES);
+		return (EACCES);
 	}
 
 	err = ipf_pool_remove_node(softc, arg, p, m);
 
-	return(err);
+	return (err);
 }
 
 
@@ -534,7 +534,7 @@ ipf_pool_table_add(ipf_main_softc_t *softc, void *arg, iplookupop_t *op)
 		err = ipf_pool_create(softc, arg, op);
 	}
 
-	return(err);
+	return (err);
 }
 
 
@@ -549,7 +549,7 @@ ipf_pool_table_add(ipf_main_softc_t *softc, void *arg, iplookupop_t *op)
 static int
 ipf_pool_table_del(ipf_main_softc_t *softc, void *arg, iplookupop_t *op)
 {
-	return(ipf_pool_destroy(softc, arg, op->iplo_unit, op->iplo_name));
+	return (ipf_pool_destroy(softc, arg, op->iplo_unit, op->iplo_name));
 }
 
 
@@ -572,7 +572,7 @@ ipf_pool_stats_get(ipf_main_softc_t *softc, void *arg, iplookupop_t *op)
 
 	if (op->iplo_size != sizeof(ipf_pool_stat_t)) {
 		IPFERROR(70001);
-		return(EINVAL);
+		return (EINVAL);
 	}
 
 	bcopy((char *)&softp->ipf_pool_stats, (char *)&stats, sizeof(stats));
@@ -595,10 +595,10 @@ ipf_pool_stats_get(ipf_main_softc_t *softc, void *arg, iplookupop_t *op)
 		err = COPYOUT(&stats, op->iplo_struct, sizeof(stats));
 		if (err != 0) {
 			IPFERROR(70026);
-			return(EFAULT);
+			return (EFAULT);
 		}
 	}
-	return(0);
+	return (0);
 }
 
 
@@ -636,7 +636,7 @@ ipf_pool_exists(ipf_pool_softc_t *softp, int unit, char *name)
 				    sizeof(p->ipo_name)) == 0)
 				break;
 	}
-	return(p);
+	return (p);
 }
 
 
@@ -659,9 +659,9 @@ ipf_pool_find(void *arg, int unit, char *name)
 
 	p = ipf_pool_exists(softp, unit, name);
 	if ((p != NULL) && (p->ipo_flags & IPOOL_DELETE))
-		return(NULL);
+		return (NULL);
 
-	return(p);
+	return (p);
 }
 
 
@@ -684,7 +684,7 @@ ipf_pool_select_add_ref(void *arg, int unit, char *name)
 	if (p != NULL) {
 		ATOMIC_INC32(p->ipo_ref);
 	}
-	return(p);
+	return (p);
 }
 
 
@@ -706,7 +706,7 @@ ipf_pool_findeq(ipf_pool_softc_t *softp, ip_pool_t *ipo, addrfamily_t *addr,
 	ipf_rdx_node_t *n;
 
 	n = ipo->ipo_head->lookup(ipo->ipo_head, addr, mask);
-	return(ip_pool_node_t *)n;
+	return (ip_pool_node_t *)n;
 }
 
 
@@ -734,7 +734,7 @@ ipf_pool_search(ipf_main_softc_t *softc, void *tptr, int ipversion, void *dptr,
 
 	ipo = tptr;
 	if (ipo == NULL)
-		return(-1);
+		return (-1);
 
 	rv = 1;
 	m = NULL;
@@ -754,7 +754,7 @@ ipf_pool_search(ipf_main_softc_t *softc, void *tptr, int ipversion, void *dptr,
 		v.adf_addr.in6 = addr->in6;
 #endif
 	} else
-		return(-1);
+		return (-1);
 
 	READ_ENTER(&softc->ipf_poolrw);
 
@@ -768,7 +768,7 @@ ipf_pool_search(ipf_main_softc_t *softc, void *tptr, int ipversion, void *dptr,
 		rv = m->ipn_info;
 	}
 	RWLOCK_EXIT(&softc->ipf_poolrw);
-	return(rv);
+	return (rv);
 }
 
 
@@ -794,19 +794,19 @@ ipf_pool_insert_node(ipf_main_softc_t *softc, ipf_pool_softc_t *softp,
 	if ((node->ipn_addr.adf_len > sizeof(*rn)) ||
 	    (node->ipn_addr.adf_len < 4)) {
 		IPFERROR(70003);
-		return(EINVAL);
+		return (EINVAL);
 	}
 
 	if ((node->ipn_mask.adf_len > sizeof(*rn)) ||
 	    (node->ipn_mask.adf_len < 4)) {
 		IPFERROR(70004);
-		return(EINVAL);
+		return (EINVAL);
 	}
 
 	KMALLOC(x, ip_pool_node_t *);
 	if (x == NULL) {
 		IPFERROR(70002);
-		return(ENOMEM);
+		return (ENOMEM);
 	}
 
 	*x = *node;
@@ -864,7 +864,7 @@ ipf_pool_insert_node(ipf_main_softc_t *softc, ipf_pool_softc_t *softp,
 	if (rn == NULL) {
 		KFREE(x);
 		IPFERROR(70005);
-		return(ENOMEM);
+		return (ENOMEM);
 	}
 
 	x->ipn_ref = 1;
@@ -874,7 +874,7 @@ ipf_pool_insert_node(ipf_main_softc_t *softc, ipf_pool_softc_t *softp,
 
 	softp->ipf_pool_stats.ipls_nodes++;
 
-	return(0);
+	return (0);
 }
 
 
@@ -911,24 +911,24 @@ ipf_pool_create(ipf_main_softc_t *softc, ipf_pool_softc_t *softp,
 		if (h != NULL) {
 			if ((h->ipo_flags & IPOOL_DELETE) == 0) {
 				IPFERROR(70006);
-				return(EEXIST);
+				return (EEXIST);
 			}
 			h->ipo_flags &= ~IPOOL_DELETE;
-			return(0);
+			return (0);
 		}
 	}
 
 	KMALLOC(h, ip_pool_t *);
 	if (h == NULL) {
 		IPFERROR(70007);
-		return(ENOMEM);
+		return (ENOMEM);
 	}
 	bzero(h, sizeof(*h));
 
 	if (ipf_rx_inithead(softp->ipf_radix, &h->ipo_head) != 0) {
 		KFREE(h);
 		IPFERROR(70008);
-		return(ENOMEM);
+		return (ENOMEM);
 	}
 
 	if ((op->iplo_arg & LOOKUP_ANON) != 0) {
@@ -968,7 +968,7 @@ ipf_pool_create(ipf_main_softc_t *softc, ipf_pool_softc_t *softp,
 
 	softp->ipf_pool_stats.ipls_pools++;
 
-	return(0);
+	return (0);
 }
 
 
@@ -1006,10 +1006,10 @@ ipf_pool_remove_node(ipf_main_softc_t *softc, ipf_pool_softc_t *softp,
 
 	if (ptr != NULL) {
 		ipf_pool_node_deref(softp, ipe);
-		return(0);
+		return (0);
 	}
 	IPFERROR(70027);
-	return(ESRCH);
+	return (ESRCH);
 }
 
 
@@ -1039,17 +1039,17 @@ ipf_pool_destroy(ipf_main_softc_t *softc, ipf_pool_softc_t *softp,
 	ipo = ipf_pool_exists(softp, unit, name);
 	if (ipo == NULL) {
 		IPFERROR(70009);
-		return(ESRCH);
+		return (ESRCH);
 	}
 
 	if (ipo->ipo_ref != 1) {
 		ipf_pool_clearnodes(softc, softp, ipo);
 		ipo->ipo_flags |= IPOOL_DELETE;
-		return(0);
+		return (0);
 	}
 
 	ipf_pool_free(softc, softp, ipo);
-	return(0);
+	return (0);
 }
 
 
@@ -1086,7 +1086,7 @@ ipf_pool_flush(ipf_main_softc_t *softc, void *arg, iplookupflush_t *fp)
 				num++;
 		}
 	}
-	return(num);
+	return (num);
 }
 
 
@@ -1169,7 +1169,7 @@ ipf_pool_deref(ipf_main_softc_t *softc, void *arg, void *pool)
 	else if ((ipo->ipo_ref == 1) && (ipo->ipo_flags & IPOOL_DELETE))
 		ipf_pool_destroy(softc, arg, ipo->ipo_unit, ipo->ipo_name);
 
-	return(0);
+	return (0);
 }
 
 
@@ -1280,7 +1280,7 @@ ipf_pool_iter_next(ipf_main_softc_t *softc, void *arg, ipftoken_t *token,
 
 	RWLOCK_EXIT(&softc->ipf_poolrw);
 	if (err != 0)
-		return(err);
+		return (err);
 
 	switch (ilp->ili_otype)
 	{
@@ -1313,7 +1313,7 @@ ipf_pool_iter_next(ipf_main_softc_t *softc, void *arg, ipftoken_t *token,
 	if (pnext == NULL)
 		ipf_token_mark_complete(token);
 
-	return(err);
+	return (err);
 }
 
 
@@ -1333,10 +1333,10 @@ ipf_pool_iter_deref(ipf_main_softc_t *softc, void *arg, int otype, int unit,
 	ipf_pool_softc_t *softp = arg;
 
 	if (data == NULL)
-		return(EINVAL);
+		return (EINVAL);
 
 	if (unit < 0 || unit > IPL_LOGMAX)
-		return(EINVAL);
+		return (EINVAL);
 
 	switch (otype)
 	{
@@ -1351,7 +1351,7 @@ ipf_pool_iter_deref(ipf_main_softc_t *softc, void *arg, int otype, int unit,
 		break;
 	}
 
-	return(0);
+	return (0);
 }
 
 
