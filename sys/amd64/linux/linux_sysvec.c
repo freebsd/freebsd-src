@@ -670,10 +670,10 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	/* Allocate space for the signal handler context. */
 	if ((td->td_pflags & TDP_ALTSTACK) != 0 && !oonstack &&
 	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
-		sp = (caddr_t)td->td_sigstk.ss_sp + td->td_sigstk.ss_size -
-		    sizeof(struct l_rt_sigframe);
+		sp = (caddr_t)td->td_sigstk.ss_sp + td->td_sigstk.ss_size;
 	} else
-		sp = (caddr_t)regs->tf_rsp - sizeof(struct l_rt_sigframe) - 128;
+		sp = (caddr_t)regs->tf_rsp - 128;
+	sp -= sizeof(struct l_rt_sigframe);
 	/* Align to 16 bytes. */
 	sfp = (struct l_rt_sigframe *)((unsigned long)sp & ~0xFul);
 
@@ -695,6 +695,8 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 
 	/* Copy the sigframe out to the user's stack. */
 	if (copyout(&sf, sfp, sizeof(*sfp)) != 0) {
+		uprintf("pid %d comm %s has trashed its stack, killing\n",
+		    p->p_pid, p->p_comm);
 		PROC_LOCK(p);
 		sigexit(td, SIGILL);
 	}
