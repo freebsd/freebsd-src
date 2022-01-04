@@ -47,7 +47,7 @@ ipf_p_ipsec_soft_create(ipf_main_softc_t *softc)
 
 	KMALLOC(softi, ipf_ipsec_softc_t *);
 	if (softi == NULL)
-		return(NULL);
+		return (NULL);
 
 	bzero((char *)softi, sizeof(*softi));
 	softi->ipsec_fr.fr_ref = 1;
@@ -56,7 +56,7 @@ ipf_p_ipsec_soft_create(ipf_main_softc_t *softc)
 	softi->ipsec_proxy_init = 1;
 	softi->ipsec_proxy_ttl = 60;
 
-	return(softi);
+	return (softi);
 }
 
 
@@ -67,20 +67,20 @@ ipf_p_ipsec_soft_init(ipf_main_softc_t *softc, void *arg)
 
 	softi->ipsec_nat_tqe = ipf_state_add_tq(softc, softi->ipsec_proxy_ttl);
 	if (softi->ipsec_nat_tqe == NULL)
-		return(-1);
+		return (-1);
 	softi->ipsec_state_tqe = ipf_nat_add_tq(softc, softi->ipsec_proxy_ttl);
 	if (softi->ipsec_state_tqe == NULL) {
 		if (ipf_deletetimeoutqueue(softi->ipsec_nat_tqe) == 0)
 			ipf_freetimeoutqueue(softc, softi->ipsec_nat_tqe);
 		softi->ipsec_nat_tqe = NULL;
-		return(-1);
+		return (-1);
 	}
 
 	softi->ipsec_nat_tqe->ifq_flags |= IFQF_PROXY;
 	softi->ipsec_state_tqe->ifq_flags |= IFQF_PROXY;
 	softi->ipsec_fr.fr_age[0] = softi->ipsec_proxy_ttl;
 	softi->ipsec_fr.fr_age[1] = softi->ipsec_proxy_ttl;
-	return(0);
+	return (0);
 }
 
 
@@ -140,7 +140,7 @@ ipf_p_ipsec_new(void *arg, fr_info_t *fin, ap_session_t *aps, nat_t *nat)
 	mb_t *m;
 
 	if (fin->fin_v != 4)
-		return(-1);
+		return (-1);
 
 	off = fin->fin_plen - fin->fin_dlen + fin->fin_ipoff;
 	bzero(softi->ipsec_buffer, sizeof(softi->ipsec_buffer));
@@ -149,24 +149,24 @@ ipf_p_ipsec_new(void *arg, fr_info_t *fin, ap_session_t *aps, nat_t *nat)
 
 	dlen = M_LEN(m) - off;
 	if (dlen < 16)
-		return(-1);
+		return (-1);
 	COPYDATA(m, off, MIN(sizeof(softi->ipsec_buffer), dlen),
 		 softi->ipsec_buffer);
 
 	if (ipf_nat_outlookup(fin, 0, IPPROTO_ESP, nat->nat_nsrcip,
 			  ip->ip_dst) != NULL)
-		return(-1);
+		return (-1);
 
 	np = nat->nat_ptr;
 	size = np->in_size;
 	KMALLOC(ipsec, ipsec_pxy_t *);
 	if (ipsec == NULL)
-		return(-1);
+		return (-1);
 
 	KMALLOCS(ipn, ipnat_t *, size);
 	if (ipn == NULL) {
 		KFREE(ipsec);
-		return(-1);
+		return (-1);
 	}
 
 	aps->aps_data = ipsec;
@@ -246,7 +246,7 @@ ipf_p_ipsec_new(void *arg, fr_info_t *fin, ap_session_t *aps, nat_t *nat)
 		(void) ipf_state_add(softc, &fi, &ipsec->ipsc_state, SI_WILDP);
 	}
 	ip->ip_p = p & 0xff;
-	return(0);
+	return (0);
 }
 
 
@@ -265,10 +265,10 @@ ipf_p_ipsec_inout(void *arg, fr_info_t *fin, ap_session_t *aps, nat_t *nat)
 	int p;
 
 	if ((fin->fin_out == 1) && (nat->nat_dir == NAT_INBOUND))
-		return(0);
+		return (0);
 
 	if ((fin->fin_out == 0) && (nat->nat_dir == NAT_OUTBOUND))
-		return(0);
+		return (0);
 
 	ipsec = aps->aps_data;
 
@@ -330,7 +330,7 @@ ipf_p_ipsec_inout(void *arg, fr_info_t *fin, ap_session_t *aps, nat_t *nat)
 		}
 		ip->ip_p = p;
 	}
-	return(0);
+	return (0);
 }
 
 
@@ -351,7 +351,7 @@ ipf_p_ipsec_match(fr_info_t *fin, ap_session_t *aps, nat_t *nat)
 	nat = nat;	/* LINT */
 
 	if ((fin->fin_dlen < sizeof(cookies)) || (fin->fin_flx & FI_FRAG))
-		return(-1);
+		return (-1);
 
 	off = fin->fin_plen - fin->fin_dlen + fin->fin_ipoff;
 	ipsec = aps->aps_data;
@@ -360,22 +360,22 @@ ipf_p_ipsec_match(fr_info_t *fin, ap_session_t *aps, nat_t *nat)
 
 	if ((cookies[0] != ipsec->ipsc_icookie[0]) ||
 	    (cookies[1] != ipsec->ipsc_icookie[1]))
-		return(-1);
+		return (-1);
 
 	if (ipsec->ipsc_rckset == 0) {
 		if ((cookies[2]|cookies[3]) == 0) {
-			return(0);
+			return (0);
 		}
 		ipsec->ipsc_rckset = 1;
 		ipsec->ipsc_rcookie[0] = cookies[2];
 		ipsec->ipsc_rcookie[1] = cookies[3];
-		return(0);
+		return (0);
 	}
 
 	if ((cookies[2] != ipsec->ipsc_rcookie[0]) ||
 	    (cookies[3] != ipsec->ipsc_rcookie[1]))
-		return(-1);
-	return(0);
+		return (-1);
+	return (0);
 }
 
 

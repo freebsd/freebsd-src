@@ -135,7 +135,7 @@ static int ipf_auth_flush(void *);
 int
 ipf_auth_main_load(void)
 {
-	return(0);
+	return (0);
 }
 
 
@@ -150,7 +150,7 @@ ipf_auth_main_load(void)
 int
 ipf_auth_main_unload(void)
 {
-	return(0);
+	return (0);
 }
 
 
@@ -169,7 +169,7 @@ ipf_auth_soft_create(ipf_main_softc_t *softc)
 
 	KMALLOC(softa, ipf_auth_softc_t *);
 	if (softa == NULL)
-		return(NULL);
+		return (NULL);
 
 	bzero((char *)softa, sizeof(*softa));
 
@@ -182,7 +182,7 @@ ipf_auth_soft_create(ipf_main_softc_t *softc)
 	cv_init(&softa->ipf_auth_wait, "ipf auth condvar", CV_DRIVER, NULL);
 #endif
 
-	return(softa);
+	return (softa);
 }
 
 /* ------------------------------------------------------------------------ */
@@ -202,19 +202,19 @@ ipf_auth_soft_init(ipf_main_softc_t *softc, void *arg)
 	KMALLOCS(softa->ipf_auth, frauth_t *,
 		 softa->ipf_auth_size * sizeof(*softa->ipf_auth));
 	if (softa->ipf_auth == NULL)
-		return(-1);
+		return (-1);
 	bzero((char *)softa->ipf_auth,
 	      softa->ipf_auth_size * sizeof(*softa->ipf_auth));
 
 	KMALLOCS(softa->ipf_auth_pkts, mb_t **,
 		 softa->ipf_auth_size * sizeof(*softa->ipf_auth_pkts));
 	if (softa->ipf_auth_pkts == NULL)
-		return(-2);
+		return (-2);
 	bzero((char *)softa->ipf_auth_pkts,
 	      softa->ipf_auth_size * sizeof(*softa->ipf_auth_pkts));
 
 
-	return(0);
+	return (0);
 }
 
 
@@ -274,7 +274,7 @@ ipf_auth_soft_fini(ipf_main_softc_t *softc, void *arg)
 		}
 	}
 
-	return(0);
+	return (0);
 }
 
 
@@ -340,7 +340,7 @@ ipf_auth_check(fr_info_t *fin, u_32_t *passp)
 	int i;
 
 	if (softa->ipf_auth_lock || !softa->ipf_auth_used)
-		return(NULL);
+		return (NULL);
 
 	ip = fin->fin_ip;
 	id = ip->ip_id;
@@ -426,7 +426,7 @@ ipf_auth_check(fr_info_t *fin, u_32_t *passp)
 			if (passp != NULL)
 				*passp = pass;
 			softa->ipf_auth_stats.fas_hits++;
-			return(fr);
+			return (fr);
 		}
 		i++;
 		if (i == softa->ipf_auth_size)
@@ -434,7 +434,7 @@ ipf_auth_check(fr_info_t *fin, u_32_t *passp)
 	}
 	RWLOCK_EXIT(&softa->ipf_authlk);
 	softa->ipf_auth_stats.fas_miss++;
-	return(NULL);
+	return (NULL);
 }
 
 
@@ -463,14 +463,14 @@ ipf_auth_new(mb_t *m, fr_info_t *fin)
 	int i;
 
 	if (softa->ipf_auth_lock)
-		return(0);
+		return (0);
 
 	WRITE_ENTER(&softa->ipf_authlk);
 	if (((softa->ipf_auth_end + 1) % softa->ipf_auth_size) ==
 	    softa->ipf_auth_start) {
 		softa->ipf_auth_stats.fas_nospace++;
 		RWLOCK_EXIT(&softa->ipf_authlk);
-		return(0);
+		return (0);
 	}
 
 	softa->ipf_auth_stats.fas_added++;
@@ -522,7 +522,7 @@ ipf_auth_new(mb_t *m, fr_info_t *fin)
 	RWLOCK_EXIT(&softa->ipf_authlk);
 	WAKEUP(&softa->ipf_auth_next, 0);
 #endif
-	return(1);
+	return (1);
 }
 
 
@@ -625,7 +625,7 @@ ipf_auth_ioctl(ipf_main_softc_t *softc, caddr_t data, ioctlcmd_t cmd,
 		error = EINVAL;
 		break;
 	}
-	return(error);
+	return (error);
 }
 
 
@@ -717,7 +717,7 @@ ipf_auth_precmd(ipf_main_softc_t *softc, ioctlcmd_t cmd, frentry_t *fr,
 
 	if ((cmd != SIOCADAFR) && (cmd != SIOCRMAFR)) {
 		IPFERROR(10006);
-		return(EIO);
+		return (EIO);
 	}
 
 	for (faep = &softa->ipf_auth_entries; ((fae = *faep) != NULL); ) {
@@ -773,7 +773,7 @@ ipf_auth_precmd(ipf_main_softc_t *softc, ioctlcmd_t cmd, frentry_t *fr,
 		IPFERROR(10010);
 		error = EINVAL;
 	}
-	return(error);
+	return (error);
 }
 
 
@@ -797,7 +797,7 @@ ipf_auth_flush(void *arg)
 	mb_t *m;
 
 	if (softa->ipf_auth_lock)
-		return(-1);
+		return (-1);
 
 	num_flushed = 0;
 
@@ -822,7 +822,7 @@ ipf_auth_flush(void *arg)
 	softa->ipf_auth_used = 0;
 	softa->ipf_auth_replies = 0;
 
-	return(num_flushed);
+	return (num_flushed);
 }
 
 
@@ -839,7 +839,7 @@ ipf_auth_waiting(ipf_main_softc_t *softc)
 {
 	ipf_auth_softc_t *softa = softc->ipf_auth_soft;
 
-	return(softa->ipf_auth_used != 0);
+	return (softa->ipf_auth_used != 0);
 }
 
 
@@ -864,12 +864,12 @@ ipf_auth_geniter(ipf_main_softc_t *softc, ipftoken_t *token,
 
 	if (itp->igi_data == NULL) {
 		IPFERROR(10011);
-		return(EFAULT);
+		return (EFAULT);
 	}
 
 	if (itp->igi_type != IPFGENITER_AUTH) {
 		IPFERROR(10012);
-		return(EINVAL);
+		return (EINVAL);
 	}
 
 	objp->ipfo_type = IPFOBJ_FRAUTH;
@@ -906,7 +906,7 @@ ipf_auth_geniter(ipf_main_softc_t *softc, ipftoken_t *token,
 
 	if (next->fae_next == NULL)
 		ipf_token_mark_complete(token);
-	return(error);
+	return (error);
 }
 
 
@@ -975,7 +975,7 @@ ipf_auth_wait(ipf_main_softc_t *softc, ipf_auth_softc_t *softa, char *data)
 ipf_auth_ioctlloop:
 	error = ipf_inobj(softc, data, NULL, au, IPFOBJ_FRAUTH);
 	if (error != 0)
-		return(error);
+		return (error);
 
 	/*
 	 * XXX Locks are held below over calls to copyout...a better
@@ -1004,7 +1004,7 @@ ipf_auth_ioctlloop:
 		if (error != 0) {
 			RWLOCK_EXIT(&softa->ipf_authlk);
 			SPL_X(s);
-			return(error);
+			return (error);
 		}
 
 		if (auth.fra_len != 0 && auth.fra_buf != NULL) {
@@ -1027,7 +1027,7 @@ ipf_auth_ioctlloop:
 				if (error != 0) {
 					RWLOCK_EXIT(&softa->ipf_authlk);
 					SPL_X(s);
-					return(error);
+					return (error);
 				}
 				m = m->m_next;
 			}
@@ -1042,7 +1042,7 @@ ipf_auth_ioctlloop:
 		RWLOCK_EXIT(&softa->ipf_authlk);
 		SPL_X(s);
 
-		return(0);
+		return (0);
 	}
 	RWLOCK_EXIT(&softa->ipf_authlk);
 	SPL_X(s);
@@ -1062,7 +1062,7 @@ ipf_auth_ioctlloop:
 	MUTEX_EXIT(&softa->ipf_auth_mx);
 	if (error == 0)
 		goto ipf_auth_ioctlloop;
-	return(error);
+	return (error);
 }
 
 
@@ -1087,7 +1087,7 @@ ipf_auth_reply(ipf_main_softc_t *softc, ipf_auth_softc_t *softa, char *data)
 
 	error = ipf_inobj(softc, data, NULL, &auth, IPFOBJ_FRAUTH);
 	if (error != 0)
-		return(error);
+		return (error);
 
 	SPL_NET(s);
 	WRITE_ENTER(&softa->ipf_authlk);
@@ -1105,13 +1105,13 @@ ipf_auth_reply(ipf_main_softc_t *softc, ipf_auth_softc_t *softa, char *data)
 		RWLOCK_EXIT(&softa->ipf_authlk);
 		SPL_X(s);
 		IPFERROR(10015);
-		return(ESRCH);
+		return (ESRCH);
 	}
 	if  (fra->fra_info.fin_id != au->fra_info.fin_id) {
 		RWLOCK_EXIT(&softa->ipf_authlk);
 		SPL_X(s);
 		IPFERROR(10019);
-		return(ESRCH);
+		return (ESRCH);
 	}
 
 	m = softa->ipf_auth_pkts[i];
@@ -1183,7 +1183,7 @@ ipf_auth_reply(ipf_main_softc_t *softc, ipf_auth_softc_t *softa, char *data)
 #endif /* _KERNEL */
 	SPL_X(s);
 
-	return(0);
+	return (0);
 }
 
 
@@ -1193,9 +1193,9 @@ ipf_auth_pre_scanlist(ipf_main_softc_t *softc, fr_info_t *fin, u_32_t pass)
 	ipf_auth_softc_t *softa = softc->ipf_auth_soft;
 
 	if (softa->ipf_auth_ip != NULL)
-		return(ipf_scanlist(fin, softc->ipf_pass));
+		return (ipf_scanlist(fin, softc->ipf_pass));
 
-	return(pass);
+	return (pass);
 }
 
 
@@ -1204,5 +1204,5 @@ ipf_auth_rulehead(ipf_main_softc_t *softc)
 {
 	ipf_auth_softc_t *softa = softc->ipf_auth_soft;
 
-	return(&softa->ipf_auth_ip);
+	return (&softa->ipf_auth_ip);
 }

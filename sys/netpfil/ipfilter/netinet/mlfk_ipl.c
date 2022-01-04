@@ -191,7 +191,7 @@ ipfilter_modevent(module_t mod, int type, void *unused)
 		error = EINVAL;
 		break;
 	}
-	return(error);
+	return (error);
 }
 
 
@@ -246,10 +246,10 @@ ipf_modload(void)
 	int i, j, error;
 
 	if (ipf_load_all() != 0)
-		return(EIO);
+		return (EIO);
 
 	if (ipf_fbsd_sysctl_create() != 0) {
-		return(EIO);
+		return (EIO);
 	}
 
 	for (i = 0; i < IPL_LOGSIZE; i++)
@@ -268,10 +268,10 @@ ipf_modload(void)
 
 	error = ipf_pfil_hook();
 	if (error != 0)
-		return(error);
+		return (error);
 	ipf_event_reg();
 
-	return(0);
+	return (0);
 }
 
 static void
@@ -309,7 +309,7 @@ ipf_modunload(void)
 
 	error = ipf_pfil_unhook();
 	if (error != 0)
-		return(error);
+		return (error);
 
 	for (i = 0; ipf_devfiles[i]; i++) {
 		if (ipf_devs[i] != NULL)
@@ -320,7 +320,7 @@ ipf_modunload(void)
 
 	printf("%s unloaded\n", ipfilter_version);
 
-	return(0);
+	return (0);
 }
 
 
@@ -449,7 +449,7 @@ ipfpoll(dev_t dev, int events, struct proc *td)
 	int revents;
 
 	if (unit < 0 || unit > IPL_LOGMAX)
-		return(0);
+		return (0);
 
 	revents = 0;
 
@@ -484,7 +484,7 @@ ipfpoll(dev_t dev, int events, struct proc *td)
 		selrecord(td, &V_ipfmain.ipf_selwait[unit]);
 	CURVNET_RESTORE();
 
-	return(revents);
+	return (revents);
 }
 
 
@@ -522,7 +522,7 @@ ipfopen(dev_t dev, int flags)
 			break;
 		}
 	}
-	return(error);
+	return (error);
 }
 
 
@@ -539,7 +539,7 @@ ipfclose(dev_t dev, int flags)
 		unit = ENXIO;
 	else
 		unit = 0;
-	return(unit);
+	return (unit);
 }
 
 /*
@@ -561,18 +561,18 @@ static int ipfread(dev, uio, ioflag)
 	int	unit = GET_MINOR(dev);
 
 	if (unit < 0)
-		return(ENXIO);
+		return (ENXIO);
 
 	CURVNET_SET(TD_TO_VNET(curthread));
 	if (V_ipfmain.ipf_running < 1) {
 		CURVNET_RESTORE();
-		return(EIO);
+		return (EIO);
 	}
 
 	if (unit == IPL_LOGSYNC) {
 		error = ipf_sync_read(&V_ipfmain, uio);
 		CURVNET_RESTORE();
-		return(error);
+		return (error);
 	}
 
 #ifdef IPFILTER_LOG
@@ -581,7 +581,7 @@ static int ipfread(dev, uio, ioflag)
 	error = ENXIO;
 #endif
 	CURVNET_RESTORE();
-	return(error);
+	return (error);
 }
 
 
@@ -605,15 +605,15 @@ static int ipfwrite(dev, uio, ioflag)
 	CURVNET_SET(TD_TO_VNET(curthread));
 	if (V_ipfmain.ipf_running < 1) {
 		CURVNET_RESTORE();
-		return(EIO);
+		return (EIO);
 	}
 
 	if (GET_MINOR(dev) == IPL_LOGSYNC) {
 		error = ipf_sync_write(&V_ipfmain, uio);
 		CURVNET_RESTORE();
-		return(error);
+		return (error);
 	}
-	return(ENXIO);
+	return (ENXIO);
 }
 
 static int
@@ -646,7 +646,7 @@ ipf_fbsd_sysctl_create(void)
 	    (void *)offsetof(ipf_auth_softc_t, ipf_auth_defaultage), 0, "");
 	SYSCTL_DYN_IPF_FRAG(_net_inet_ipf, OID_AUTO, "fr_ipfrttl", CTLFLAG_RW,
 	    (void *)offsetof(ipf_frag_softc_t, ipfr_ttl), 0, "");
-	return 0;
+	return (0);
 }
 
 static int
@@ -654,7 +654,7 @@ ipf_fbsd_sysctl_destroy(void)
 {
 	if (sysctl_ctx_free(&ipf_clist)) {
 		printf("sysctl_ctx_free failed");
-		return(ENOTEMPTY);
+		return (ENOTEMPTY);
 	}
-	return(0);
+	return (0);
 }

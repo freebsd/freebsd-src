@@ -169,8 +169,8 @@ ipf_check_wrapper6(void *arg, struct mbuf **mp, struct ifnet *ifp, int dir)
 int ipf_identify(char *s)
 {
 	if (strcmp(s, "ipl") == 0)
-		return(1);
-	return(0);
+		return (1);
+	return (0);
 }
 #endif /* IPFILTER_LKM */
 
@@ -211,12 +211,12 @@ ipfattach(ipf_main_softc_t *softc)
 	SPL_NET(s);
 	if (softc->ipf_running > 0) {
 		SPL_X(s);
-		return(EBUSY);
+		return (EBUSY);
 	}
 
 	if (ipf_init_all(softc) < 0) {
 		SPL_X(s);
-		return(EIO);
+		return (EIO);
 	}
 
 
@@ -234,7 +234,7 @@ ipfattach(ipf_main_softc_t *softc)
 	callout_init(&softc->ipf_slow_ch, 1);
 	callout_reset(&softc->ipf_slow_ch, (hz / IPF_HZ_DIVIDE) * IPF_HZ_MULT,
 		ipf_timer_func, softc);
-	return(0);
+	return (0);
 }
 
 
@@ -267,7 +267,7 @@ ipfdetach(ipf_main_softc_t *softc)
 
 	SPL_X(s);
 
-	return(0);
+	return (0);
 }
 
 
@@ -288,21 +288,21 @@ ipfioctl(struct cdev *dev, ioctlcmd_t cmd, caddr_t data,
 	{
 		V_ipfmain.ipf_interror = 130001;
 		CURVNET_RESTORE();
-		return(EPERM);
+		return (EPERM);
 	}
 
 	unit = GET_MINOR(dev);
 	if ((IPL_LOGMAX < unit) || (unit < 0)) {
 		V_ipfmain.ipf_interror = 130002;
 		CURVNET_RESTORE();
-		return(ENXIO);
+		return (ENXIO);
 	}
 
 	if (V_ipfmain.ipf_running <= 0) {
 		if (unit != IPL_LOGIPF && cmd != SIOCIPFINTERROR) {
 			V_ipfmain.ipf_interror = 130003;
 			CURVNET_RESTORE();
-			return(EIO);
+			return (EIO);
 		}
 		if (cmd != SIOCIPFGETNEXT && cmd != SIOCIPFGET &&
 		    cmd != SIOCIPFSET && cmd != SIOCFRENB &&
@@ -310,7 +310,7 @@ ipfioctl(struct cdev *dev, ioctlcmd_t cmd, caddr_t data,
 		    cmd != SIOCIPFINTERROR) {
 			V_ipfmain.ipf_interror = 130004;
 			CURVNET_RESTORE();
-			return(EIO);
+			return (EIO);
 		}
 	}
 
@@ -320,12 +320,12 @@ ipfioctl(struct cdev *dev, ioctlcmd_t cmd, caddr_t data,
 	CURVNET_RESTORE();
 	if (error != -1) {
 		SPL_X(s);
-		return(error);
+		return (error);
 	}
 
 	SPL_X(s);
 
-	return(error);
+	return (error);
 }
 
 
@@ -346,10 +346,10 @@ ipf_send_reset(fr_info_t *fin)
 
 	tcp = fin->fin_dp;
 	if (tcp->th_flags & TH_RST)
-		return(-1);		/* feedback loop */
+		return (-1);		/* feedback loop */
 
 	if (ipf_checkl4sum(fin) == -1)
-		return(-1);
+		return (-1);
 
 	tlen = fin->fin_dlen - (TCP_OFF(tcp) << 2) +
 			((tcp->th_flags & TH_SYN) ? 1 : 0) +
@@ -366,11 +366,11 @@ ipf_send_reset(fr_info_t *fin)
 	MGET(m, M_NOWAIT, MT_HEADER);
 #endif
 	if (m == NULL)
-		return(-1);
+		return (-1);
 	if (sizeof(*tcp2) + hlen > MLEN) {
 		if (!(MCLGET(m, M_NOWAIT))) {
 			FREE_MB_T(m);
-			return(-1);
+			return (-1);
 		}
 	}
 
@@ -414,7 +414,7 @@ ipf_send_reset(fr_info_t *fin)
 		ip6->ip6_dst = fin->fin_src6.in6;
 		tcp2->th_sum = in6_cksum(m, IPPROTO_TCP,
 					 sizeof(*ip6), sizeof(*tcp2));
-		return(ipf_send_ip(fin, m));
+		return (ipf_send_ip(fin, m));
 	}
 #endif
 	ip->ip_p = IPPROTO_TCP;
@@ -423,7 +423,7 @@ ipf_send_reset(fr_info_t *fin)
 	ip->ip_dst.s_addr = fin->fin_saddr;
 	tcp2->th_sum = in_cksum(m, hlen + sizeof(*tcp2));
 	ip->ip_len = htons(hlen + sizeof(*tcp2));
-	return(ipf_send_ip(fin, m));
+	return (ipf_send_ip(fin, m));
 }
 
 
@@ -473,7 +473,7 @@ ipf_send_ip(fr_info_t *fin, mb_t *m)
 	}
 #endif
 	default :
-		return(EINVAL);
+		return (EINVAL);
 	}
 #ifdef IPSEC
 	m->m_pkthdr.rcvif = NULL;
@@ -488,7 +488,7 @@ ipf_send_ip(fr_info_t *fin, mb_t *m)
 	fnew.fin_dp = (char *)ip + hlen;
 	(void) ipf_makefrip(hlen, ip, &fnew);
 
-	return(ipf_fastroute(m, &m, &fnew, NULL));
+	return (ipf_fastroute(m, &m, &fnew, NULL));
 }
 
 
@@ -507,24 +507,24 @@ ipf_send_icmp_err(int type, fr_info_t *fin, int dst)
 	ip_t *ip, *ip2;
 
 	if ((type < 0) || (type >= ICMP_MAXTYPE))
-		return(-1);
+		return (-1);
 
 	code = fin->fin_icode;
 #ifdef USE_INET6
 	/* See NetBSD ip_fil_netbsd.c r1.4: */
 	if ((code < 0) || (code >= sizeof(icmptoicmp6unreach)/sizeof(int)))
-		return(-1);
+		return (-1);
 #endif
 
 	if (ipf_checkl4sum(fin) == -1)
-		return(-1);
+		return (-1);
 #ifdef MGETHDR
 	MGETHDR(m, M_NOWAIT, MT_HEADER);
 #else
 	MGET(m, M_NOWAIT, MT_HEADER);
 #endif
 	if (m == NULL)
-		return(-1);
+		return (-1);
 	avail = MHLEN;
 
 	xtra = 0;
@@ -543,14 +543,14 @@ ipf_send_icmp_err(int type, fr_info_t *fin, int dst)
 				break;
 			default :
 				FREE_MB_T(m);
-				return(0);
+				return (0);
 			}
 
 		if (dst == 0) {
 			if (ipf_ifpaddr(&V_ipfmain, 4, FRI_NORMAL, ifp,
 					&dst6, NULL) == -1) {
 				FREE_MB_T(m);
-				return(-1);
+				return (-1);
 			}
 			dst4 = dst6.in4;
 		} else
@@ -577,7 +577,7 @@ ipf_send_icmp_err(int type, fr_info_t *fin, int dst)
 		if (iclen + max_linkhdr + fin->fin_plen > avail) {
 			if (!(MCLGET(m, M_NOWAIT))) {
 				FREE_MB_T(m);
-				return(-1);
+				return (-1);
 			}
 			avail = MCLBYTES;
 		}
@@ -587,7 +587,7 @@ ipf_send_icmp_err(int type, fr_info_t *fin, int dst)
 			if (ipf_ifpaddr(&V_ipfmain, 6, FRI_NORMAL, ifp,
 					&dst6, NULL) == -1) {
 				FREE_MB_T(m);
-				return(-1);
+				return (-1);
 			}
 		} else
 			dst6 = fin->fin_dst6;
@@ -595,13 +595,13 @@ ipf_send_icmp_err(int type, fr_info_t *fin, int dst)
 #endif
 	else {
 		FREE_MB_T(m);
-		return(-1);
+		return (-1);
 	}
 
 	avail -= (max_linkhdr + iclen);
 	if (avail < 0) {
 		FREE_MB_T(m);
-		return(-1);
+		return (-1);
 	}
 	if (xtra > avail)
 		xtra = avail;
@@ -663,7 +663,7 @@ ipf_send_icmp_err(int type, fr_info_t *fin, int dst)
 		ip->ip_p = IPPROTO_ICMP;
 	}
 	err = ipf_send_ip(fin, m);
-	return(err);
+	return (err);
 }
 
 
@@ -719,7 +719,7 @@ ipf_fastroute(mb_t *m0, mb_t **mpp, fr_info_t *fin, frdest_t *fdp)
 		 * currently "to <if>" and "to <if>:ip#" are not supported
 		 * for IPv6
 		 */
-		return(ip6_output(m, NULL, NULL, 0, NULL, NULL, NULL));
+		return (ip6_output(m, NULL, NULL, 0, NULL, NULL, NULL));
 	}
 #endif
 
@@ -907,7 +907,7 @@ done:
 	else
 		V_ipfmain.ipf_frouteok[1]++;
 
-	return(0);
+	return (0);
 bad:
 	if (error == EMSGSIZE) {
 		sifp = fin->fin_ifp;
@@ -951,7 +951,7 @@ ipf_ifpaddr(ipf_main_softc_t *softc, int v, int atype, void *ifptr,
 	struct ifnet *ifp;
 
 	if ((ifptr == NULL) || (ifptr == (void *)-1))
-		return(-1);
+		return (-1);
 
 	sin = NULL;
 	ifp = ifptr;
@@ -983,7 +983,7 @@ ipf_ifpaddr(ipf_main_softc_t *softc, int v, int atype, void *ifptr,
 	}
 
 	if (ifa == NULL || sin == NULL)
-		return(-1);
+		return (-1);
 
 	mask = ifa->ifa_netmask;
 	if (atype == FRI_BROADCAST)
@@ -992,16 +992,16 @@ ipf_ifpaddr(ipf_main_softc_t *softc, int v, int atype, void *ifptr,
 		sock = ifa->ifa_dstaddr;
 
 	if (sock == NULL)
-		return(-1);
+		return (-1);
 
 #ifdef USE_INET6
 	if (v == 6) {
-		return(ipf_ifpfillv6addr(atype, (struct sockaddr_in6 *)sock,
+		return (ipf_ifpfillv6addr(atype, (struct sockaddr_in6 *)sock,
 					 (struct sockaddr_in6 *)mask,
 					 inp, inpmask));
 	}
 #endif
-	return(ipf_ifpfillv4addr(atype, (struct sockaddr_in *)sock,
+	return (ipf_ifpfillv4addr(atype, (struct sockaddr_in *)sock,
 				 (struct sockaddr_in *)mask,
 				 &inp->in4, &inpmask->in4));
 }
@@ -1013,7 +1013,7 @@ ipf_newisn(fin)
 {
 	u_32_t newiss;
 	newiss = arc4random();
-	return(newiss);
+	return (newiss);
 }
 
 
@@ -1027,13 +1027,13 @@ ipf_checkv4sum(fr_info_t *fin)
 	mb_t *m;
 
 	if ((fin->fin_flx & FI_NOCKSUM) != 0)
-		return(0);
+		return (0);
 
 	if ((fin->fin_flx & FI_SHORT) != 0)
-		return(1);
+		return (1);
 
 	if (fin->fin_cksum != FI_CK_NEEDED)
-		return(fin->fin_cksum > FI_CK_NEEDED) ? 0 : -1;
+		return (fin->fin_cksum > FI_CK_NEEDED) ? 0 : -1;
 
 	m = fin->fin_m;
 	if (m == NULL) {
@@ -1047,7 +1047,7 @@ ipf_checkv4sum(fr_info_t *fin)
 		fin->fin_cksum = FI_CK_BAD;
 		fin->fin_flx |= FI_BAD;
 		DT2(ipf_fi_bad_checkv4sum_csum_ip_checked, fr_info_t *, fin, u_int, m->m_pkthdr.csum_flags & (CSUM_IP_CHECKED|CSUM_IP_VALID));
-		return(-1);
+		return (-1);
 	}
 	if (m->m_pkthdr.csum_flags & CSUM_DATA_VALID) {
 		/* Depending on the driver, UDP may have zero checksum */
@@ -1062,7 +1062,7 @@ ipf_checkv4sum(fr_info_t *fin)
 				 * consistent across all drivers)
 				 */
 				fin->fin_cksum = 1;
-				return(0);
+				return (0);
 			}
 		}
 
@@ -1079,19 +1079,19 @@ ipf_checkv4sum(fr_info_t *fin)
 			DT2(ipf_fi_bad_checkv4sum_sum, fr_info_t *, fin, u_int, sum);
 		} else {
 			fin->fin_cksum = FI_CK_SUMOK;
-			return(0);
+			return (0);
 		}
 	} else {
 		if (m->m_pkthdr.csum_flags == CSUM_DELAY_DATA) {
 			fin->fin_cksum = FI_CK_L4FULL;
-			return(0);
+			return (0);
 		} else if (m->m_pkthdr.csum_flags == CSUM_TCP ||
 			   m->m_pkthdr.csum_flags == CSUM_UDP) {
 			fin->fin_cksum = FI_CK_L4PART;
-			return(0);
+			return (0);
 		} else if (m->m_pkthdr.csum_flags == CSUM_IP) {
 			fin->fin_cksum = FI_CK_L4PART;
-			return(0);
+			return (0);
 		} else {
 			manual = 1;
 		}
@@ -1101,17 +1101,17 @@ skipauto:
 		if (ipf_checkl4sum(fin) == -1) {
 			fin->fin_flx |= FI_BAD;
 			DT2(ipf_fi_bad_checkv4sum_manual, fr_info_t *, fin, u_int, manual);
-			return(-1);
+			return (-1);
 		}
 	}
 #else
 	if (ipf_checkl4sum(fin) == -1) {
 		fin->fin_flx |= FI_BAD;
 		DT2(ipf_fi_bad_checkv4sum_checkl4sum, fr_info_t *, fin, u_int, -1);
-		return(-1);
+		return (-1);
 	}
 #endif
-	return(0);
+	return (0);
 }
 
 
@@ -1121,25 +1121,25 @@ ipf_checkv6sum(fr_info_t *fin)
 {
 	if ((fin->fin_flx & FI_NOCKSUM) != 0) {
 		DT(ipf_checkv6sum_fi_nocksum);
-		return(0);
+		return (0);
 	}
 
 	if ((fin->fin_flx & FI_SHORT) != 0) {
 		DT(ipf_checkv6sum_fi_short);
-		return(1);
+		return (1);
 	}
 
 	if (fin->fin_cksum != FI_CK_NEEDED) {
 		DT(ipf_checkv6sum_fi_ck_needed);
-		return(fin->fin_cksum > FI_CK_NEEDED) ? 0 : -1;
+		return (fin->fin_cksum > FI_CK_NEEDED) ? 0 : -1;
 	}
 
 	if (ipf_checkl4sum(fin) == -1) {
 		fin->fin_flx |= FI_BAD;
 		DT2(ipf_fi_bad_checkv6sum_checkl4sum, fr_info_t *, fin, u_int, -1);
-		return(-1);
+		return (-1);
 	}
-	return(0);
+	return (0);
 }
 #endif /* USE_INET6 */
 
@@ -1157,7 +1157,7 @@ mbufchainlen(struct mbuf *m0)
 		for (m = m0, len = 0; m != NULL; m = m->m_next)
 			len += m->m_len;
 	}
-	return(len);
+	return (len);
 }
 
 
@@ -1186,11 +1186,11 @@ ipf_pullup(mb_t *xmin, fr_info_t *fin, int len)
 	char *ip;
 
 	if (m == NULL)
-		return(NULL);
+		return (NULL);
 
 	ip = (char *)fin->fin_ip;
 	if ((fin->fin_flx & FI_COALESCE) != 0)
-		return(ip);
+		return (ip);
 
 	ipoff = fin->fin_ipoff;
 	if (fin->fin_dp != NULL)
@@ -1249,7 +1249,7 @@ ipf_pullup(mb_t *xmin, fr_info_t *fin, int len)
 
 			*fin->fin_mp = NULL;
 			fin->fin_m = NULL;
-			return(NULL);
+			return (NULL);
 		}
 
 		if (n == NULL)
@@ -1272,7 +1272,7 @@ ipf_pullup(mb_t *xmin, fr_info_t *fin, int len)
 
 	if (len == fin->fin_plen)
 		fin->fin_flx |= FI_COALESCE;
-	return(ip);
+	return (ip);
 }
 
 
@@ -1289,7 +1289,7 @@ ipf_inject(fr_info_t *fin, mb_t *m)
 		error = ip_output(m, NULL, NULL, IP_FORWARDING, NULL, NULL);
 	}
 
-	return(error);
+	return (error);
 }
 
 int ipf_pfil_unhook(void) {
@@ -1376,7 +1376,7 @@ ipf_event_dereg(void)
 u_32_t
 ipf_random(void)
 {
-	return(arc4random());
+	return (arc4random());
 }
 
 
@@ -1402,7 +1402,7 @@ ipf_pcksum(fr_info_t *fin, int hlen, u_int sum)
 	while (sum > 0xffff)
 		sum = (sum & 0xffff) + (sum >> 16);
 	sum2 = ~sum & 0xffff;
-	return(sum2);
+	return (sum2);
 }
 
 #ifdef	USE_INET6
@@ -1413,11 +1413,11 @@ ipf_pcksum6(struct mbuf *m, ip6_t *ip6, u_int32_t off, u_int32_t len)
 	int sum;
 
 	if (m->m_len < sizeof(struct ip6_hdr)) {
-		return(0xffff);
+		return (0xffff);
 	}
 
 	sum = in6_cksum(m, ip6->ip6_nxt, off, len);
-	return(sum);
+	return (sum);
 #else
 	u_short *sp;
 	u_int sum;
@@ -1439,7 +1439,7 @@ ipf_pcksum6(struct mbuf *m, ip6_t *ip6, u_int32_t off, u_int32_t len)
 	sum += *sp++;
 	sum += *sp++;
 	sum += *sp++;
-	return(ipf_pcksum(fin, off, sum));
+	return (ipf_pcksum(fin, off, sum));
 #endif
 }
 #endif

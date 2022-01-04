@@ -76,13 +76,13 @@ ipf_p_irc_complete(ircinfo_t *ircp, char *buf, size_t len)
 	ircp->irc_port = 0;
 
 	if (len < 31)
-		return(0);
+		return (0);
 	s = buf;
 	c = *s++;
 	i = len - 1;
 
 	if ((c != ':') && (c != 'P'))
-		return(0);
+		return (0);
 
 	if (c == ':') {
 		/*
@@ -92,14 +92,14 @@ ipf_p_irc_complete(ircinfo_t *ircp, char *buf, size_t len)
 		c = *s;
 		ircp->irc_snick = s;
 		if (!ISALPHA(c))
-			return(0);
+			return (0);
 		i--;
 		for (c = *s; !ISSPACE(c) && (i > 0); i--)
 			c = *s++;
 		if (i < 31)
-			return(0);
+			return (0);
 		if (c != 'P')
-			return(0);
+			return (0);
 	} else
 		ircp->irc_snick = NULL;
 
@@ -107,7 +107,7 @@ ipf_p_irc_complete(ircinfo_t *ircp, char *buf, size_t len)
 	 * Check command string
 	 */
 	if (strncmp(s, "PRIVMSG ", 8))
-		return(0);
+		return (0);
 	i -= 8;
 	s += 8;
 	c = *s;
@@ -117,11 +117,11 @@ ipf_p_irc_complete(ircinfo_t *ircp, char *buf, size_t len)
 	 * Loosely check that the destination is a nickname of some sort
 	 */
 	if (!ISALPHA(c))
-		return(0);
+		return (0);
 	for (; !ISSPACE(c) && (i > 0); i--)
 		c = *s++;
 	if (i < 20)
-		return(0);
+		return (0);
 	s++,
 	i--;
 
@@ -135,7 +135,7 @@ ipf_p_irc_complete(ircinfo_t *ircp, char *buf, size_t len)
 	}
 
 	if (strncmp(s, "\001DCC ", 4))
-		return(0);
+		return (0);
 
 	i -= 4;
 	s += 4;
@@ -149,36 +149,36 @@ ipf_p_irc_complete(ircinfo_t *ircp, char *buf, size_t len)
 			break;
 	}
 	if (!ipf_p_irc_dcctypes[j])
-		return(0);
+		return (0);
 
 	ircp->irc_type = s;
 	i -= k;
 	s += k;
 
 	if (i < 11)
-		return(0);
+		return (0);
 
 	/*
 	 * Check for the arg
 	 */
 	c = *s;
 	if (ISSPACE(c))
-		return(0);
+		return (0);
 	ircp->irc_arg = s;
 	for (; (c != ' ') && (c != '\001') && (i > 0); i--)
 		c = *s++;
 
 	if (c == '\001')	/* In reality a ^A can quote another ^A...*/
-		return(0);
+		return (0);
 
 	if (i < 5)
-		return(0);
+		return (0);
 
 	s++;
 	i--;
 	c = *s;
 	if (!ISDIGIT(c))
-		return(0);
+		return (0);
 	ircp->irc_addr = s;
 	/*
 	 * Get the IP#
@@ -190,17 +190,17 @@ ipf_p_irc_complete(ircinfo_t *ircp, char *buf, size_t len)
 	}
 
 	if (i < 4)
-		return(0);
+		return (0);
 
 	if (c != ' ')
-		return(0);
+		return (0);
 
 	ircp->irc_ipnum = l;
 	s++;
 	i--;
 	c = *s;
 	if (!ISDIGIT(c))
-		return(0);
+		return (0);
 	/*
 	 * Get the port#
 	 */
@@ -210,13 +210,13 @@ ipf_p_irc_complete(ircinfo_t *ircp, char *buf, size_t len)
 		c = *s++;
 	}
 	if (i < 3)
-		return(0);
+		return (0);
 	if (strncmp(s, "\001\r\n", 3))
-		return(0);
+		return (0);
 	s += 3;
 	ircp->irc_len = s - buf;
 	ircp->irc_port = l;
-	return(1);
+	return (1);
 }
 
 
@@ -226,11 +226,11 @@ ipf_p_irc_new(void *arg, fr_info_t *fin, ap_session_t *aps, nat_t *nat)
 	ircinfo_t *irc;
 
 	if (fin->fin_v != 4)
-		return(-1);
+		return (-1);
 
 	KMALLOC(irc, ircinfo_t *);
 	if (irc == NULL)
-		return(-1);
+		return (-1);
 
 	nat = nat;	/* LINT */
 
@@ -238,7 +238,7 @@ ipf_p_irc_new(void *arg, fr_info_t *fin, ap_session_t *aps, nat_t *nat)
 	aps->aps_psiz = sizeof(ircinfo_t);
 
 	bzero((char *)irc, sizeof(*irc));
-	return(0);
+	return (0);
 }
 
 
@@ -271,24 +271,24 @@ ipf_p_irc_send(fr_info_t *fin, nat_t *nat)
 
 	dlen = MSGDSIZE(m) - off;
 	if (dlen <= 0)
-		return(0);
+		return (0);
 	COPYDATA(m, off, MIN(sizeof(ctcpbuf), dlen), ctcpbuf);
 
 	if (dlen <= 0)
-		return(0);
+		return (0);
 	ctcpbuf[sizeof(ctcpbuf) - 1] = '\0';
 	*newbuf = '\0';
 
 	irc = nat->nat_aps->aps_data;
 	if (ipf_p_irc_complete(irc, ctcpbuf, dlen) == 0)
-		return(0);
+		return (0);
 
 	/*
 	 * check that IP address in the DCC reply is the same as the
 	 * sender of the command - prevents use for port scanning.
 	 */
 	if (irc->irc_ipnum != ntohl(nat->nat_osrcaddr))
-		return(0);
+		return (0);
 
 	a5 = irc->irc_port;
 
@@ -307,7 +307,7 @@ ipf_p_irc_send(fr_info_t *fin, nat_t *nat)
 	inc = nlen - olen;
 
 	if ((inc + fin->fin_plen) > 65535)
-		return(0);
+		return (0);
 
 #if SOLARIS
 	for (m1 = m; m1->b_cont; m1 = m1->b_cont)
@@ -373,7 +373,7 @@ ipf_p_irc_send(fr_info_t *fin, nat_t *nat)
 	 * security crap.
 	 */
 	if (ntohs(sp) < 1024)
-		return(0);
+		return (0);
 
 	/*
 	 * The server may not make the connection back from port 20, but
@@ -417,7 +417,7 @@ ipf_p_irc_send(fr_info_t *fin, nat_t *nat)
 		}
 		ip->ip_src = swip;
 	}
-	return(inc);
+	return (inc);
 }
 
 
@@ -425,5 +425,5 @@ int
 ipf_p_irc_out(void *arg, fr_info_t *fin, ap_session_t *aps, nat_t *nat)
 {
 	aps = aps;	/* LINT */
-	return(ipf_p_irc_send(fin, nat));
+	return (ipf_p_irc_send(fin, nat));
 }
