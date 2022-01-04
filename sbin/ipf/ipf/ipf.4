@@ -91,7 +91,7 @@ typedef struct  frentry {
         u_short fr_skip;        /* # of rules to skip */
         u_short fr_loglevel;    /* syslog log facility + priority */
         int     (*fr_func)(int, ip_t *, fr_info_t *));
-        char    fr_icode;       /* return ICMP code */;
+        char    fr_icode;       /* return ICMP code */
         char    fr_ifname[IFNAMSIZ];
 #ifdef BSD
         char    fr_oifname[IFNAMSIZ];
@@ -118,8 +118,8 @@ Flags which are recognised in fr_flags:
      FR_LOGP         0x000012   /* Log-pass */
      FR_LOGBODY      0x000020   /* log the body of packets too */
      FR_LOGFIRST     0x000040   /* log only the first packet to match */
-     FR_RETRST       0x000080   /* return a TCP RST packet if blocked */;
-     FR_RETICMP      0x000100   /* return an ICMP packet if blocked */;
+     FR_RETRST       0x000080   /* return a TCP RST packet if blocked */
+     FR_RETICMP      0x000100   /* return an ICMP packet if blocked */
      FR_FAKEICMP     0x00180    /* Return ICMP unreachable with fake source */
      FR_NOMATCH      0x000200   /* no match occured */
      FR_ACCOUNT      0x000400   /* count packet bytes */
@@ -210,7 +210,7 @@ struct	filterstats {
         u_long  fr_npkl;        /* packets unmatched and logged */
         u_long  fr_pkl;         /* packets logged */
         u_long  fr_skip;        /* packets to be logged but buffer full */
-        u_long  fr_ret;         /* packets for which a return is sent */;
+        u_long  fr_ret;         /* packets for which a return is sent */
         u_long  fr_acct;        /* packets for which counting was performed */
         u_long  fr_bnfr;        /* bad attempts to allocate fragment state */
         u_long  fr_nfr;         /* new fragment state kept */
