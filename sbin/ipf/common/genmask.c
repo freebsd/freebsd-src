@@ -26,15 +26,15 @@ int genmask(family, msk, mskp)
 #ifdef USE_INET6
 		case AF_INET6 :
 			if (inet_pton(AF_INET6, msk, &mskp->in4) != 1)
-				return(-1);
+				return (-1);
 			break;
 #endif
 		case AF_INET :
 			if (inet_aton(msk, &mskp->in4) == 0)
-				return(-1);
+				return (-1);
 			break;
 		default :
-			return(-1);
+			return (-1);
 			/*NOTREACHED*/
 		}
 	} else {
@@ -47,12 +47,12 @@ int genmask(family, msk, mskp)
 		{
 		case AF_INET6 :
 			if ((*endptr != '\0') || (bits < 0) || (bits > 128))
-				return(-1);
+				return (-1);
 			fill6bits(bits, mskp->i6);
 			break;
 		case AF_INET :
 			if (*endptr != '\0' || bits > 32 || bits < 0)
-				return(-1);
+				return (-1);
 			if (bits == 0)
 				addr = 0;
 			else
@@ -60,9 +60,9 @@ int genmask(family, msk, mskp)
 			mskp->in4.s_addr = addr;
 			break;
 		default :
-			return(-1);
+			return (-1);
 			/*NOTREACHED*/
 		}
 	}
-	return(0);
+	return (0);
 }

@@ -19,7 +19,7 @@ printpool_live(ip_pool_t *pool, int fd, char *name, int opts,
 	ipfobj_t obj;
 
 	if ((name != NULL) && strncmp(name, pool->ipo_name, FR_GROUPLEN))
-		return(pool->ipo_next);
+		return (pool->ipo_next);
 
 	if (fields == NULL)
 		printpooldata(pool, opts);
@@ -63,5 +63,5 @@ printpool_live(ip_pool_t *pool, int fd, char *name, int opts,
 
 	(void) ioctl(fd,SIOCIPFDELTOK, &iter.ili_key);
 
-	return(pool->ipo_next);
+	return (pool->ipo_next);
 }

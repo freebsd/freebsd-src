@@ -26,7 +26,7 @@ typedef	unsigned long	ulong;
 #include	<string.h>
 #include	"dltest.h"
 
-#define		CASERET(s)	case s:  return("s")
+#define		CASERET(s)	case s:  return ("s")
 
 	char	*dlprim();
 	char	*dlstate();
@@ -1056,7 +1056,7 @@ stringtoaddr(char *sp, char *addr)
 		p = NULL;
 	}
 
-	return(n);
+	return (n);
 }
 
 
@@ -1068,7 +1068,7 @@ hexnibble(char c)
 		'a', 'b', 'c', 'd', 'e', 'f'
 	};
 
-	return(hextab[c & 0x0f]);
+	return (hextab[c & 0x0f]);
 }
 
 char*
@@ -1106,7 +1106,7 @@ dlprim(u_long prim)
 		CASERET(DL_RESET_CON);
 		default:
 			(void) snprintf(primbuf, sizeof(primbuf), "unknown primitive 0x%x", prim);
-			return(primbuf);
+			return (primbuf);
 	}
 }
 
@@ -1140,7 +1140,7 @@ dlstate(u_long state)
 		CASERET(DL_SUBS_BIND_PND);
 		default:
 			(void) snprintf(statebuf, sizeof(statebuf), "unknown state 0x%x", state);
-			return(statebuf);
+			return (statebuf);
 	}
 }
 
@@ -1181,7 +1181,7 @@ dlerrno(u_long errno)
 
 		default:
 			(void) snprintf(errnobuf, sizeof(errnobuf), "unknown dlpi errno 0x%x", errno);
-			return(errnobuf);
+			return (errnobuf);
 	}
 }
 
@@ -1196,7 +1196,7 @@ dlpromisclevel(u_long level)
 		CASERET(DL_PROMISC_MULTI);
 		default:
 			(void) snprintf(levelbuf, sizeof(levelbuf), "unknown promisc level 0x%x", level);
-			return(levelbuf);
+			return (levelbuf);
 	}
 }
 
@@ -1212,7 +1212,7 @@ dlservicemode(u_long servicemode)
 		default:
 			(void) snprintf(servicemodebuf, sizeof(servicemodebuf),
 				"unknown provider service mode 0x%x", servicemode);
-			return(servicemodebuf);
+			return (servicemodebuf);
 	}
 }
 
@@ -1226,7 +1226,7 @@ dlstyle(long style)
 		CASERET(DL_STYLE2);
 		default:
 			(void) snprintf(stylebuf, sizeof(stylebuf), "unknown provider style 0x%x", style);
-			return(stylebuf);
+			return (stylebuf);
 	}
 }
 
@@ -1246,7 +1246,7 @@ dlmactype(u_long media)
 		CASERET(DL_CTCA);
 		default:
 			(void) snprintf(mediabuf, sizeof(mediabuf), "unknown media type 0x%x", media);
-			return(mediabuf);
+			return (mediabuf);
 	}
 }
 
@@ -1277,7 +1277,7 @@ strioctl(int fd, int cmd, int timout, int len, char *dp)
 	rc = ioctl(fd, I_STR, &sioc);
 
 	if (rc < 0)
-		return(rc);
+		return (rc);
 	else
-		return(sioc.ic_len);
+		return (sioc.ic_len);
 }

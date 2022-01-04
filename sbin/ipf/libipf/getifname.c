@@ -27,28 +27,28 @@ getifname(struct ifnet *ptr)
 	qif_t qif;
 
 	if ((void *)ptr == (void *)-1)
-		return("!");
+		return ("!");
 	if (ptr == NULL)
-		return("-");
+		return ("-");
 
 	if (kmemcpy((char *)&qif, (u_long)ptr, sizeof(qif)) == -1)
-		return("X");
+		return ("X");
 	ifname = strdup(qif.qf_name);
 	if ((ifname != NULL) && (*ifname == '\0')) {
 		free(ifname);
-		return("!");
+		return ("!");
 	}
-	return(ifname);
+	return (ifname);
 #else
 	struct ifnet netif;
 
 	if ((void *)ptr == (void *)-1)
-		return("!");
+		return ("!");
 	if (ptr == NULL)
-		return("-");
+		return ("-");
 
 	if (kmemcpy((char *)&netif, (u_long)ptr, sizeof(netif)) == -1)
-		return("X");
-	return(strdup(netif.if_xname));
+		return ("X");
+	return (strdup(netif.if_xname));
 #endif
 }

@@ -165,7 +165,7 @@ main(int argc, char *argv[])
 	if (fd != -1)
 		(void) close(fd);
 
-	return(exitstatus);
+	return (exitstatus);
 	/* NOTREACHED */
 }
 
@@ -174,11 +174,11 @@ static int
 opendevice(char *ipfdev, int check)
 {
 	if (opts & OPT_DONOTHING)
-		return(-2);
+		return (-2);
 
 	if (check && checkrev(ipfname) == -1) {
 		fprintf(stderr, "User/kernel version check failed\n");
-		return(-2);
+		return (-2);
 	}
 
 	if (!ipfdev)
@@ -188,7 +188,7 @@ opendevice(char *ipfdev, int check)
 		if ((fd = open(ipfdev, O_RDWR)) == -1)
 			if ((fd = open(ipfdev, O_RDONLY)) == -1)
 				ipferror(fd, "open device");
-	return(fd);
+	return (fd);
 }
 
 
@@ -208,9 +208,9 @@ get_flags(void)
 	if ((opendevice(ipfname, 1) != -2) &&
 	    (ioctl(fd, SIOCGETFF, &i) == -1)) {
 		ipferror(fd, "SIOCGETFF");
-		return(0);
+		return (0);
 	}
-	return(i);
+	return (i);
 }
 
 
@@ -256,7 +256,7 @@ ipf_interceptadd(int fd, ioctlfunc_t ioctlfunc, void *ptr)
 
 	if (ipf_addrule(fd, ioctlfunc, ptr) != 0)
 		exitstatus = 1;
-	return(0);
+	return (0);
 }
 
 
@@ -527,13 +527,13 @@ showversion(void)
 
 	if ((vfd = open(ipfname, O_RDONLY)) == -1) {
 		perror("open device");
-		return(1);
+		return (1);
 	}
 
 	if (ioctl(vfd, SIOCGETFS, &ipfo)) {
 		ipferror(vfd, "ioctl(SIOCGETFS)");
 		close(vfd);
-		return(1);
+		return (1);
 	}
 	close(vfd);
 	flags = get_flags();
@@ -574,5 +574,5 @@ showversion(void)
 	printf("Active list: %d\n", fio.f_active);
 	printf("Feature mask: %#x\n", fio.f_features);
 
-	return(0);
+	return (0);
 }

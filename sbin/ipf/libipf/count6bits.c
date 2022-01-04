@@ -25,5 +25,5 @@ count6bits(u_32_t *msk)
 				if (j & 0x80000000)
 					i++;
 		}
-	return(i);
+	return (i);
 }

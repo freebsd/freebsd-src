@@ -25,7 +25,7 @@ getnattype(nat_t *nat)
 	char *which;
 
 	if (!nat)
-		return("???");
+		return ("???");
 
 	switch (nat->nat_redir)
 	{
@@ -65,5 +65,5 @@ getnattype(nat_t *nat)
 		which = unknownbuf;
 		break;
 	}
-	return(which);
+	return (which);
 }
