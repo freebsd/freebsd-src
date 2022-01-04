@@ -47,9 +47,9 @@ openkmem(char *kern, char *core)
 	if (kvm_f == NULL)
 	    {
 		perror("openkmem:open");
-		return(-1);
+		return (-1);
 	    }
-	return(kvm_f != NULL);
+	return (kvm_f != NULL);
 }
 
 int
@@ -58,18 +58,18 @@ kmemcpy(register char *buf, long pos, register int n)
 	register int	r;
 
 	if (!n)
-		return(0);
+		return (0);
 
 	if (kvm_f == NULL)
 		if (openkmem(NULL, NULL) == -1)
-			return(-1);
+			return (-1);
 
 	while ((r = kvm_read(kvm_f, pos, buf, n)) < n)
 		if (r <= 0)
 		    {
 			fprintf(stderr, "pos=0x%lx ", (u_long)pos);
 			perror("kmemcpy:read");
-			return(-1);
+			return (-1);
 		    }
 		else
 		    {
@@ -77,7 +77,7 @@ kmemcpy(register char *buf, long pos, register int n)
 			pos += r;
 			n -= r;
 		    }
-	return(0);
+	return (0);
 }
 
 int
@@ -86,11 +86,11 @@ kstrncpy(register char *buf, long pos, register int n)
 	register int	r;
 
 	if (!n)
-		return(0);
+		return (0);
 
 	if (kvm_f == NULL)
 		if (openkmem(NULL, NULL) == -1)
-			return(-1);
+			return (-1);
 
 	while (n > 0)
 	    {
@@ -99,7 +99,7 @@ kstrncpy(register char *buf, long pos, register int n)
 		    {
 			fprintf(stderr, "pos=0x%lx ", (u_long)pos);
 			perror("kmemcpy:read");
-			return(-1);
+			return (-1);
 		    }
 		else
 		    {
@@ -110,5 +110,5 @@ kstrncpy(register char *buf, long pos, register int n)
 			n--;
 		    }
 	    }
-	return(0);
+	return (0);
 }

@@ -20,7 +20,7 @@ load_file(char *filename)
 	fp = fopen(filename + 7, "r");
 	if (fp == NULL) {
 		fprintf(stderr, "load_file cannot open '%s'\n", filename);
-		return(NULL);
+		return (NULL);
 	}
 
 	a = NULL;
@@ -40,7 +40,7 @@ load_file(char *filename)
 				linenum, filename);
 			fclose(fp);
 			alist_free(rtop);
-			return(NULL);
+			return (NULL);
 		}
 
 		/*
@@ -92,5 +92,5 @@ load_file(char *filename)
 	}
 	fclose(fp);
 
-	return(rtop);
+	return (rtop);
 }

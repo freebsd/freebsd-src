@@ -119,7 +119,7 @@ initdevice(char *device, int tout)
 		exit(-1);
 	    }
 #endif
-	return(fd);
+	return (fd);
 }
 
 
@@ -154,13 +154,13 @@ sendip(int fd, char *pkt, int len)
 	if (putmsg(fd, cp, dp, pri) == -1)
 	    {
 		perror("putmsg");
-		return(-1);
+		return (-1);
 	    }
 	if (ioctl(fd, I_FLUSH, FLUSHW) == -1)
 	    {
 		perror("I_FLUSHW");
-		return(-1);
+		return (-1);
 	    }
-	return(len);
+	return (len);
 }
 

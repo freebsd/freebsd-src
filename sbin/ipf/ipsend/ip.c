@@ -41,7 +41,7 @@ chksum(u_short *buf, int len)
 		sum += *buf++;
 	sum = (sum>>16) + (sum & 0xffff);
 	sum += (sum >>16);
-	return(~sum);
+	return (~sum);
 }
 
 
@@ -67,12 +67,12 @@ send_ether(int nfd, char *buf, int len, struct in_addr gwip)
 	else if (arp((char *)&gwip, (char *) &eh->ether_dhost) == -1)
 	    {
 		perror("arp");
-		return(-2);
+		return (-2);
 	    }
 	eh->ether_type = htons(ETHERTYPE_IP);
 	last_gw.s_addr = gwip.s_addr;
 	err = sendip(nfd, s, sizeof(*eh) + len);
-	return(err);
+	return (err);
 }
 
 
@@ -95,7 +95,7 @@ send_ip(int nfd, int mtu, ip_t *ip, struct in_addr gwip, int frag)
 		if (!ipbuf)
 		  {
 			perror("malloc failed");
-			return(-2);
+			return (-2);
 		  }
 	  }
 
@@ -109,7 +109,7 @@ send_ip(int nfd, int mtu, ip_t *ip, struct in_addr gwip, int frag)
 	else if (arp((char *)&gwip, (char *) &eh->ether_dhost) == -1)
 	    {
 		perror("arp");
-		return(-2);
+		return (-2);
 	    }
 	bcopy((char *) &eh->ether_dhost, last_arp, sizeof(last_arp));
 	eh->ether_type = htons(ETHERTYPE_IP);
@@ -159,7 +159,7 @@ send_ip(int nfd, int mtu, ip_t *ip, struct in_addr gwip, int frag)
 			fprintf(stderr, "mtu (%d) < ip header size (%d) + 8\n",
 				mtu, hlen);
 			fprintf(stderr, "can't fragment data\n");
-			return(-2);
+			return (-2);
 		}
 		ol = (IP_HL(ip) << 2) - sizeof(*ip);
 		for (i = 0, s = (char*)(ip + 1); ol > 0; )
@@ -229,7 +229,7 @@ send_ip(int nfd, int mtu, ip_t *ip, struct in_addr gwip, int frag)
 	    }
 
 	bcopy((char *)&ipsv, (char *)ip, sizeof(*ip));
-	return(err);
+	return (err);
 }
 
 
@@ -280,7 +280,7 @@ send_tcp(int nfd, int mtu, ip_t *ip, struct in_addr gwip)
 	t2->th_sum = chksum((u_short *)ip2, thlen + sizeof(ip_t));
 
 	bcopy((char *)t2, (char *)ip + hlen, thlen);
-	return(send_ip(nfd, mtu, ip, gwip, 1));
+	return (send_ip(nfd, mtu, ip, gwip, 1));
 }
 
 
@@ -310,7 +310,7 @@ send_udp(int nfd, int mtu, ip_t *ip, struct in_addr gwip)
 
 	bcopy((char *)&ti->ti_sport,
 	      (char *)ip + (IP_HL(ip) << 2), sizeof(udphdr_t));
-	return(send_ip(nfd, mtu, ip, gwip, 1));
+	return (send_ip(nfd, mtu, ip, gwip, 1));
 }
 
 
@@ -327,7 +327,7 @@ send_icmp(int nfd, int mtu, ip_t *ip, in_addr gwip)
 	ic->icmp_cksum = 0;
 	ic->icmp_cksum = chksum((u_short *)ic, sizeof(struct icmp));
 
-	return(send_ip(nfd, mtu, ip, gwip, 1));
+	return (send_ip(nfd, mtu, ip, gwip, 1));
 }
 
 

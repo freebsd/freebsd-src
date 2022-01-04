@@ -64,5 +64,5 @@ printpoolnode(ip_pool_node_t *np, int opts, wordtab_t *fields)
 			np->ipn_name, np->ipn_ref);
 #endif
 	}
-	return(np->ipn_next);
+	return (np->ipn_next);
 }

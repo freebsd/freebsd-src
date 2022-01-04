@@ -106,7 +106,7 @@ initdevice(char *device, int tout)
 		perror(ifr.ifr_name);
 		exit(1);
 	    }
-	return(fd);
+	return (fd);
 }
 
 
@@ -125,7 +125,7 @@ sendip(int fd, char *pkt, int len)
 	 * For ethernet, need at least 802.3 header and IP header.
 	 */
 	if (len < (sizeof(sa->sa_data) + sizeof(struct ip)))
-		return(-1);
+		return (-1);
 	/*
 	 * to avoid any output processing for IP, say we're not.
 	 */
@@ -148,13 +148,13 @@ sendip(int fd, char *pkt, int len)
 	if (putmsg(fd, cp, dp, 0) == -1)
 	    {
 		perror("putmsg");
-		return(-1);
+		return (-1);
 	    }
 
 	if (ioctl(fd, I_FLUSH, FLUSHW) == -1)
 	    {
 		perror("I_FLUSH");
-		return(-1);
+		return (-1);
 	    }
-	return(len);
+	return (len);
 }
