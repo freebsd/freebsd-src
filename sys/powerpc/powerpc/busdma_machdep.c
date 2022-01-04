@@ -172,7 +172,7 @@ run_filter(bus_dma_tag_t dmat, bus_addr_t paddr)
 		    paddr > dmat->lowaddr && paddr <= dmat->highaddr)
 			retval = 1;
 		if (dmat->filter == NULL &&
-		    vm_addr_align_ok(paddr, dmat->alignment))
+		    !vm_addr_align_ok(paddr, dmat->alignment))
 			retval = 1;
 		if (dmat->filter != NULL &&
 		    (*dmat->filter)(dmat->filterarg, paddr) != 0)
