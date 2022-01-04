@@ -259,7 +259,7 @@ ipf_proxy_main_load(void)
 		if (ap->apr_load != NULL)
 			(*ap->apr_load)();
 	}
-	return(0);
+	return (0);
 }
 
 
@@ -283,7 +283,7 @@ ipf_proxy_main_unload(void)
 		if (ap->apr_unload != NULL)
 			(*ap->apr_unload)();
 
-	return(0);
+	return (0);
 }
 
 
@@ -304,7 +304,7 @@ ipf_proxy_soft_create(ipf_main_softc_t *softc)
 
 	KMALLOC(softp, ipf_proxy_softc_t *);
 	if (softp == NULL)
-		return(softp);
+		return (softp);
 
 	bzero((char *)softp, sizeof(*softp));
 
@@ -320,11 +320,11 @@ ipf_proxy_soft_create(ipf_main_softc_t *softc)
 						    ipf_proxy_tuneables);
 	if (softp->ipf_proxy_tune == NULL) {
 		ipf_proxy_soft_destroy(softc, softp);
-		return(NULL);
+		return (NULL);
 	}
 	if (ipf_tune_array_link(softc, softp->ipf_proxy_tune) == -1) {
 		ipf_proxy_soft_destroy(softc, softp);
-		return(NULL);
+		return (NULL);
 	}
 
 	last = NULL;
@@ -349,10 +349,10 @@ ipf_proxy_soft_create(ipf_main_softc_t *softc)
 		last = apn;
 	}
 
-	return(softp);
+	return (softp);
 failed:
 	ipf_proxy_soft_destroy(softc, softp);
-	return(NULL);
+	return (NULL);
 }
 
 
@@ -372,7 +372,7 @@ ipf_proxy_create_clone(ipf_main_softc_t *softc, aproxy_t *orig)
 
 	KMALLOC(apn, aproxy_t *);
 	if (apn == NULL)
-		return(NULL);
+		return (NULL);
 
 	bcopy((char *)orig, (char *)apn, sizeof(*apn));
 	apn->apr_next = NULL;
@@ -382,14 +382,14 @@ ipf_proxy_create_clone(ipf_main_softc_t *softc, aproxy_t *orig)
 		apn->apr_soft = (*apn->apr_create)(softc);
 		if (apn->apr_soft == NULL) {
 			KFREE(apn);
-			return(NULL);
+			return (NULL);
 		}
 	}
 
 	apn->apr_parent = orig;
 	orig->apr_clones++;
 
-	return(apn);
+	return (apn);
 }
 
 
@@ -417,7 +417,7 @@ ipf_proxy_soft_init(ipf_main_softc_t *softc, void *arg)
 	KMALLOCS(softp->ips_sess_tab, ap_session_t **, size);
 
 	if (softp->ips_sess_tab == NULL)
-		return(-1);
+		return (-1);
 
 	bzero(softp->ips_sess_tab, size);
 
@@ -425,12 +425,12 @@ ipf_proxy_soft_init(ipf_main_softc_t *softc, void *arg)
 		if (ap->apr_init != NULL) {
 			err = (*ap->apr_init)(softc, ap->apr_soft);
 			if (err != 0)
-				return(-2);
+				return (-2);
 		}
 	}
 	softp->ips_init_run = 1;
 
-	return(0);
+	return (0);
 }
 
 
@@ -463,7 +463,7 @@ ipf_proxy_soft_fini(ipf_main_softc_t *softc, void *arg)
 	}
 	softp->ips_init_run = 0;
 
-	return(0);
+	return (0);
 }
 
 
@@ -554,7 +554,7 @@ ipf_proxy_add(void *arg, aproxy_t *ap)
 			if (softp->ips_proxy_debug & 0x01)
 				printf("ipf_proxy_add: %s/%d present (B)\n",
 				       a->apr_label, a->apr_p);
-			return(-1);
+			return (-1);
 		}
 
 	for (a = ap_proxylist; (a != NULL); a = a->apr_next)
@@ -564,13 +564,13 @@ ipf_proxy_add(void *arg, aproxy_t *ap)
 			if (softp->ips_proxy_debug & 0x01)
 				printf("ipf_proxy_add: %s/%d present (D)\n",
 				       a->apr_label, a->apr_p);
-			return(-1);
+			return (-1);
 		}
 	ap->apr_next = ap_proxylist;
 	ap_proxylist = ap;
 	if (ap->apr_load != NULL)
 		(*ap->apr_load)();
-	return(0);
+	return (0);
 }
 
 
@@ -611,7 +611,7 @@ ipf_proxy_ctl(ipf_main_softc_t *softc, void *arg, ap_ctl_t *ctl)
 			printf("ipf_proxy_ctl: %s/%d ctl error %d\n",
 				a->apr_label, a->apr_p, error);
 	}
-	return(error);
+	return (error);
 }
 
 
@@ -634,13 +634,13 @@ ipf_proxy_del(aproxy_t *ap)
 			a->apr_flags |= APR_DELETE;
 			if (ap->apr_ref == 0 && ap->apr_clones == 0) {
 				*app = a->apr_next;
-				return(0);
+				return (0);
 			}
-			return(1);
+			return (1);
 		}
 	}
 
-	return(-1);
+	return (-1);
 }
 
 
@@ -664,10 +664,10 @@ ipf_proxy_ok(fr_info_t *fin, tcphdr_t *tcp, ipnat_t *np)
 
 	if ((apr == NULL) || (apr->apr_flags & APR_DELETE) ||
 	    (fin->fin_p != apr->apr_p))
-		return(0);
+		return (0);
 	if ((tcp == NULL) && dport)
-		return(0);
-	return(1);
+		return (0);
+	return (1);
 }
 
 
@@ -696,7 +696,7 @@ ipf_proxy_ioctl(ipf_main_softc_t *softc, caddr_t data, ioctlcmd_t cmd,
 	case SIOCPROXY :
 		error = ipf_inobj(softc, data, NULL, &ctl, IPFOBJ_PROXYCTL);
 		if (error != 0) {
-			return(error);
+			return (error);
 		}
 		ptr = NULL;
 
@@ -729,7 +729,7 @@ ipf_proxy_ioctl(ipf_main_softc_t *softc, caddr_t data, ioctlcmd_t cmd,
 		IPFERROR(80004);
 		error = EINVAL;
 	}
-	return(error);
+	return (error);
 }
 
 
@@ -763,7 +763,7 @@ ipf_proxy_match(fr_info_t *fin, nat_t *nat)
 		if (softp->ips_proxy_debug & 0x08)
 			printf("ipf_proxy_match: flx 0x%x (BAD|SHORT)\n",
 				fin->fin_flx);
-		return(-1);
+		return (-1);
 	}
 
 	apr = ipn->in_apr;
@@ -771,7 +771,7 @@ ipf_proxy_match(fr_info_t *fin, nat_t *nat)
 		if (softp->ips_proxy_debug & 0x08)
 			printf("ipf_proxy_match:apr %lx apr_flags 0x%x\n",
 				(u_long)apr, apr ? apr->apr_flags : 0);
-		return(-1);
+		return (-1);
 	}
 
 	if (apr->apr_match != NULL) {
@@ -779,10 +779,10 @@ ipf_proxy_match(fr_info_t *fin, nat_t *nat)
 		if (result != 0) {
 			if (softp->ips_proxy_debug & 0x08)
 				printf("ipf_proxy_match: result %d\n", result);
-			return(-1);
+			return (-1);
 		}
 	}
-	return(0);
+	return (0);
 }
 
 
@@ -811,7 +811,7 @@ ipf_proxy_new(fr_info_t *fin, nat_t *nat)
 		if (softp->ips_proxy_debug & 0x08)
 			printf("ipf_proxy_new: nat_ptr %lx nat_aps %lx\n",
 				(u_long)nat->nat_ptr, (u_long)nat->nat_aps);
-		return(-1);
+		return (-1);
 	}
 
 	apr = nat->nat_ptr->in_apr;
@@ -821,7 +821,7 @@ ipf_proxy_new(fr_info_t *fin, nat_t *nat)
 		if (softp->ips_proxy_debug & 0x08)
 			printf("ipf_proxy_new: apr_flags 0x%x p %d/%d\n",
 				apr->apr_flags, fin->fin_p, apr->apr_p);
-		return(-1);
+		return (-1);
 	}
 
 	KMALLOC(aps, ap_session_t *);
@@ -829,7 +829,7 @@ ipf_proxy_new(fr_info_t *fin, nat_t *nat)
 		if (softp->ips_proxy_debug & 0x08)
 			printf("ipf_proxy_new: malloc failed (%lu)\n",
 				(u_long)sizeof(ap_session_t));
-		return(-1);
+		return (-1);
 	}
 
 	bzero((char *)aps, sizeof(*aps));
@@ -845,14 +845,14 @@ ipf_proxy_new(fr_info_t *fin, nat_t *nat)
 			if (softp->ips_proxy_debug & 0x08)
 				printf("ipf_proxy_new: new(%lx) failed\n",
 					(u_long)apr->apr_new);
-			return(-1);
+			return (-1);
 		}
 	aps->aps_nat = nat;
 	aps->aps_next = softp->ips_sess_list;
 	softp->ips_sess_list = aps;
 	nat->nat_aps = aps;
 
-	return(0);
+	return (0);
 }
 
 
@@ -892,7 +892,7 @@ ipf_proxy_check(fr_info_t *fin, nat_t *nat)
 		if (softp->ips_proxy_debug & 0x08)
 			printf("ipf_proxy_check: flx 0x%x (BAD)\n",
 			       fin->fin_flx);
-		return(-1);
+		return (-1);
 	}
 
 #ifndef IPFILTER_CKSUM
@@ -902,7 +902,7 @@ ipf_proxy_check(fr_info_t *fin, nat_t *nat)
 				fin->fin_p);
 		if (fin->fin_p == IPPROTO_TCP)
 			softc->ipf_stats[fin->fin_out].fr_tcpbad++;
-		return(-1);
+		return (-1);
 	}
 #endif
 
@@ -918,7 +918,7 @@ ipf_proxy_check(fr_info_t *fin, nat_t *nat)
 				if (softp->ips_proxy_debug & 0x08)
 					printf("ipf_proxy_check: %s %x\n",
 					       "coalesce failed", fin->fin_flx);
-				return(-1);
+				return (-1);
 			}
 #endif
 		ip = fin->fin_ip;
@@ -962,12 +962,12 @@ ipf_proxy_check(fr_info_t *fin, nat_t *nat)
 			printf("ipf_proxy_check: out %d err %x rv %d\n",
 				fin->fin_out, err, rv);
 		if (rv == 1)
-			return(-1);
+			return (-1);
 
 		if (rv == 2) {
 			ipf_proxy_deref(apr);
 			nat->nat_aps = NULL;
-			return(-1);
+			return (-1);
 		}
 
 		/*
@@ -1019,7 +1019,7 @@ ipf_proxy_check(fr_info_t *fin, nat_t *nat)
 		aps->aps_bytes += fin->fin_plen;
 		aps->aps_pkts++;
 	}
-	return(1);
+	return (1);
 }
 
 
@@ -1045,12 +1045,12 @@ ipf_proxy_lookup(void *arg, u_int pr, char *name)
 		if ((ap->apr_p == pr) &&
 		    !strncmp(name, ap->apr_label, sizeof(ap->apr_label))) {
 			ap->apr_ref++;
-			return(ap);
+			return (ap);
 		}
 
 	if (softp->ips_proxy_debug & 0x08)
 		printf("ipf_proxy_lookup: failed for %d/%s\n", pr, name);
-	return(NULL);
+	return (NULL);
 }
 
 
@@ -1254,7 +1254,7 @@ ipf_proxy_fixseqack(fr_info_t *fin, ip_t *ip, ap_session_t *aps, int inc)
 	if (softp->ips_proxy_debug & 0x10)
 		printf("ipf_proxy_fixseqack: seq %u ack %u\n",
 			(u_32_t)ntohl(tcp->th_seq), (u_32_t)ntohl(tcp->th_ack));
-	return(ch ? 2 : 0);
+	return (ch ? 2 : 0);
 }
 
 
@@ -1288,7 +1288,7 @@ ipf_proxy_rule_rev(nat_t *nat)
 
 	KMALLOCS(ipn, ipnat_t *, size);
 	if (ipn == NULL)
-		return(NULL);
+		return (NULL);
 
 	bzero((char *)ipn, size);
 
@@ -1347,7 +1347,7 @@ ipf_proxy_rule_rev(nat_t *nat)
 	bcopy(old->in_names, ipn->in_names, ipn->in_namelen);
 	MUTEX_INIT(&ipn->in_lock, "ipnat rev rule lock");
 
-	return(ipn);
+	return (ipn);
 }
 
 
@@ -1375,7 +1375,7 @@ ipf_proxy_rule_fwd(nat_t *nat)
 
 	KMALLOCS(ipn, ipnat_t *, size);
 	if (ipn == NULL)
-		return(NULL);
+		return (NULL);
 
 	bzero((char *)ipn, size);
 
@@ -1419,5 +1419,5 @@ ipf_proxy_rule_fwd(nat_t *nat)
 	bcopy(old->in_names, ipn->in_names, ipn->in_namelen);
 	MUTEX_INIT(&ipn->in_lock, "ipnat fwd rule lock");
 
-	return(ipn);
+	return (ipn);
 }

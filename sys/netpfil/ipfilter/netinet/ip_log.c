@@ -165,14 +165,14 @@ static ipftuneable_t ipf_log_tuneables[] = {
 int
 ipf_log_main_load(void)
 {
-	return(0);
+	return (0);
 }
 
 
 int
 ipf_log_main_unload(void)
 {
-	return(0);
+	return (0);
 }
 
 /* ------------------------------------------------------------------------ */
@@ -191,7 +191,7 @@ ipf_log_soft_create(ipf_main_softc_t *softc)
 
 	KMALLOC(softl, ipf_log_softc_t *);
 	if (softl == NULL)
-		return(NULL);
+		return (NULL);
 
 	bzero((char *)softl, sizeof(*softl));
 	bcopy((char *)magic, (char *)softl->ipl_magic, sizeof(magic));
@@ -201,11 +201,11 @@ ipf_log_soft_create(ipf_main_softc_t *softc)
 						  ipf_log_tuneables);
 	if (softl->ipf_log_tune == NULL) {
 		ipf_log_soft_destroy(softc, softl);
-		return(NULL);
+		return (NULL);
 	}
 	if (ipf_tune_array_link(softc, softl->ipf_log_tune) == -1) {
 		ipf_log_soft_destroy(softc, softl);
-		return(NULL);
+		return (NULL);
 	}
 
 	for (i = IPL_LOGMAX; i >= 0; i--) {
@@ -217,7 +217,7 @@ ipf_log_soft_create(ipf_main_softc_t *softc)
 	softl->ipl_log_init = 0;
 	softl->ipl_logsize = IPFILTER_LOGSIZE;
 
-	return(softl);
+	return (softl);
 }
 
 /* ------------------------------------------------------------------------ */
@@ -248,7 +248,7 @@ ipf_log_soft_init(ipf_main_softc_t *softc, void *arg)
 
 	softl->ipl_log_init = 1;
 
-	return(0);
+	return (0);
 }
 
 
@@ -266,7 +266,7 @@ ipf_log_soft_fini(ipf_main_softc_t *softc, void *arg)
 	int i;
 
 	if (softl->ipl_log_init == 0)
-		return(0);
+		return (0);
 
 	softl->ipl_log_init = 0;
 
@@ -294,7 +294,7 @@ ipf_log_soft_fini(ipf_main_softc_t *softc, void *arg)
 		MUTEX_EXIT(&softl->ipl_mutex[i]);
 	}
 
-	return(0);
+	return (0);
 }
 
 
@@ -361,7 +361,7 @@ ipf_log_pkt(fr_info_t *fin, u_int flags)
 
 	m = fin->fin_m;
 	if (m == NULL)
-		return(-1);
+		return (-1);
 
 	ipfl.fl_nattag.ipt_num[0] = 0;
 	ifp = fin->fin_ifp;
@@ -497,7 +497,7 @@ ipf_log_pkt(fr_info_t *fin, u_int flags)
 	sizes[1] = hlen + mlen;
 	types[1] = 1;
 # endif /* SOLARIS */
-	return(ipf_log_items(softc, IPL_LOGIPF, fin, ptrs, sizes, types, 2));
+	return (ipf_log_items(softc, IPL_LOGIPF, fin, ptrs, sizes, types, 2));
 }
 
 
@@ -543,14 +543,14 @@ ipf_log_items(ipf_main_softc_t *softc, int unit, fr_info_t *fin, void **items,
 	if ((softl->ipl_used[unit] + len) > softl->ipl_logsize) {
 		softl->ipl_logfail[unit]++;
 		MUTEX_EXIT(&softl->ipl_mutex[unit]);
-		return(-1);
+		return (-1);
 	}
 
 	KMALLOCS(buf, caddr_t, len);
 	if (buf == NULL) {
 		softl->ipl_logfail[unit]++;
 		MUTEX_EXIT(&softl->ipl_mutex[unit]);
-		return(-1);
+		return (-1);
 	}
 	ipl = (iplog_t *)buf;
 	ipl->ipl_magic = softl->ipl_magic[unit];
@@ -592,7 +592,7 @@ ipf_log_items(ipf_main_softc_t *softc, int unit, fr_info_t *fin, void **items,
 				MUTEX_EXIT(&softl->ipl_mutex[unit]);
 				SPL_X(s);
 				KFREES(buf, len);
-				return(0);
+				return (0);
 			}
 			bcopy((char *)fin, (char *)&softl->ipl_crc[unit],
 			      FI_LCSIZE);
@@ -628,7 +628,7 @@ ipf_log_items(ipf_main_softc_t *softc, int unit, fr_info_t *fin, void **items,
 # ifdef	IPL_SELECT
 	iplog_input_ready(unit);
 # endif
-	return(0);
+	return (0);
 }
 
 
@@ -656,7 +656,7 @@ ipf_log_read(ipf_main_softc_t *softc, minor_t unit, struct uio *uio)
 
 	if (softl->ipl_log_init == 0) {
 		IPFERROR(40007);
-		return(0);
+		return (0);
 	}
 
 	/*
@@ -665,18 +665,18 @@ ipf_log_read(ipf_main_softc_t *softc, minor_t unit, struct uio *uio)
 	 */
 	if (IPL_LOGMAX < unit) {
 		IPFERROR(40001);
-		return(ENXIO);
+		return (ENXIO);
 	}
 	if (uio->uio_resid == 0)
-		return(0);
+		return (0);
 
 	if (uio->uio_resid < sizeof(iplog_t)) {
 		IPFERROR(40002);
-		return(EINVAL);
+		return (EINVAL);
 	}
 	if (uio->uio_resid > softl->ipl_logsize) {
 		IPFERROR(40005);
-		return(EINVAL);
+		return (EINVAL);
 	}
 
 	/*
@@ -694,7 +694,7 @@ ipf_log_read(ipf_main_softc_t *softc, minor_t unit, struct uio *uio)
 			softl->ipl_readers[unit]--;
 			MUTEX_EXIT(&softl->ipl_mutex[unit]);
 			IPFERROR(40003);
-			return(EINTR);
+			return (EINTR);
 		}
 # else
 		MUTEX_EXIT(&softl->ipl_mutex[unit]);
@@ -706,7 +706,7 @@ ipf_log_read(ipf_main_softc_t *softc, minor_t unit, struct uio *uio)
 			softl->ipl_readers[unit]--;
 			MUTEX_EXIT(&softl->ipl_mutex[unit]);
 			IPFERROR(40004);
-			return(error);
+			return (error);
 		}
 # endif /* SOLARIS */
 	}
@@ -714,7 +714,7 @@ ipf_log_read(ipf_main_softc_t *softc, minor_t unit, struct uio *uio)
 		softl->ipl_readers[unit]--;
 		MUTEX_EXIT(&softl->ipl_mutex[unit]);
 		IPFERROR(40008);
-		return(EIO);
+		return (EIO);
 	}
 
 # if defined(BSD)
@@ -755,7 +755,7 @@ ipf_log_read(ipf_main_softc_t *softc, minor_t unit, struct uio *uio)
 	softl->ipl_readers[unit]--;
 	MUTEX_EXIT(&softl->ipl_mutex[unit]);
 	SPL_X(s);
-	return(error);
+	return (error);
 }
 
 
@@ -788,7 +788,7 @@ ipf_log_clear(ipf_main_softc_t *softc, minor_t unit)
 	bzero((char *)&softl->ipl_crc[unit], FI_CSIZE);
 	MUTEX_EXIT(&softl->ipl_mutex[unit]);
 	SPL_X(s);
-	return(used);
+	return (used);
 }
 
 
@@ -806,7 +806,7 @@ ipf_log_canread(ipf_main_softc_t *softc, int unit)
 {
 	ipf_log_softc_t *softl = softc->ipf_log_soft;
 
-	return(softl->iplt[unit] != NULL);
+	return (softl->iplt[unit] != NULL);
 }
 
 
@@ -825,9 +825,9 @@ ipf_log_bytesused(ipf_main_softc_t *softc, int unit)
 	ipf_log_softc_t *softl = softc->ipf_log_soft;
 
 	if (softl == NULL)
-		return(0);
+		return (0);
 
-	return(softl->ipl_used[unit]);
+	return (softl->ipl_used[unit]);
 }
 
 
@@ -846,9 +846,9 @@ ipf_log_failures(ipf_main_softc_t *softc, int unit)
 	ipf_log_softc_t *softl = softc->ipf_log_soft;
 
 	if (softl == NULL)
-		return(0);
+		return (0);
 
-	return(softl->ipl_logfail[unit]);
+	return (softl->ipl_logfail[unit]);
 }
 
 
@@ -867,8 +867,8 @@ ipf_log_logok(ipf_main_softc_t *softc, int unit)
 	ipf_log_softc_t *softl = softc->ipf_log_soft;
 
 	if (softl == NULL)
-		return(0);
+		return (0);
 
-	return(softl->ipl_logok[unit]);
+	return (softl->ipl_logok[unit]);
 }
 #endif /* IPFILTER_LOG */

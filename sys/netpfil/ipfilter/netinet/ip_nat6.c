@@ -172,26 +172,26 @@ ipf_nat6_ruleaddrinit(ipf_main_softc_t *softc, ipf_nat_softc_t *softn,
 	error = ipf_nat6_nextaddrinit(softc, n->in_names, &n->in_osrc, 1,
 				      n->in_ifps[idx]);
 	if (error != 0)
-		return(error);
+		return (error);
 
 	error = ipf_nat6_nextaddrinit(softc, n->in_names, &n->in_odst, 1,
 				      n->in_ifps[idx]);
 	if (error != 0)
-		return(error);
+		return (error);
 
 	error = ipf_nat6_nextaddrinit(softc, n->in_names, &n->in_nsrc, 1,
 				      n->in_ifps[idx]);
 	if (error != 0)
-		return(error);
+		return (error);
 
 	error = ipf_nat6_nextaddrinit(softc, n->in_names, &n->in_ndst, 1,
 				      n->in_ifps[idx]);
 	if (error != 0)
-		return(error);
+		return (error);
 
 	if (n->in_redir & NAT_DIVERTUDP)
 		ipf_nat6_builddivertmp(softn, n);
-	return(0);
+	return (0);
 }
 
 
@@ -385,12 +385,12 @@ ipf_nat6_hostmap(ipf_nat_softc_t *softn, ipnat_t *np,
 		    ((port == 0) || (port == hm->hm_port))) {
 			softn->ipf_nat_stats.ns_hm_addref++;
 			hm->hm_ref++;
-			return(hm);
+			return (hm);
 		}
 
 	if (np == NULL) {
 		softn->ipf_nat_stats.ns_hm_nullnp++;
-		return(NULL);
+		return (NULL);
 	}
 
 	KMALLOC(hm, hostmap_t *);
@@ -422,7 +422,7 @@ ipf_nat6_hostmap(ipf_nat_softc_t *softn, ipnat_t *np,
 	} else {
 		softn->ipf_nat_stats.ns_hm_newfail++;
 	}
-	return(hm);
+	return (hm);
 }
 
 
@@ -497,7 +497,7 @@ ipf_nat6_newmap(fr_info_t *fin, nat_t *nat, natinfo_t *ni)
 		if (IP6_ISONES(&np->in_nsrcmsk6) && (np->in_spnext == 0)) {
 			if (l > 0) {
 				NBUMPSIDE6DX(1, ns_exhausted, ns_exhausted_1);
-				return(-1);
+				return (-1);
 			}
 		}
 
@@ -523,7 +523,7 @@ ipf_nat6_newmap(fr_info_t *fin, nat_t *nat, natinfo_t *ni)
 			if ((l >= np->in_ppip) || ((l > 0) &&
 			     !(flags & IPN_TCPUDP))) {
 				NBUMPSIDE6DX(1, ns_exhausted, ns_exhausted_2);
-				return(-1);
+				return (-1);
 			}
 			/*
 			 * map-block - Calculate destination address.
@@ -558,7 +558,7 @@ ipf_nat6_newmap(fr_info_t *fin, nat_t *nat, natinfo_t *ni)
 				       &in, NULL) == -1) {
 				NBUMPSIDE6DX(1, ns_new_ifpaddr,
 					     ns_new_ifpaddr_1);
-				return(-1);
+				return (-1);
 			}
 
 		} else if (IP6_ISZERO(&np->in_nsrcip6) &&
@@ -568,7 +568,7 @@ ipf_nat6_newmap(fr_info_t *fin, nat_t *nat, natinfo_t *ni)
 			 */
 			if (l > 0) {
 				NBUMPSIDE6DX(1, ns_exhausted, ns_exhausted_3);
-				return(-1);
+				return (-1);
 			}
 			in = fin->fin_src6;
 
@@ -675,7 +675,7 @@ ipf_nat6_newmap(fr_info_t *fin, nat_t *nat, natinfo_t *ni)
 		    (!IP6_ISZERO(&np->in_snip6) &&
 		     IP6_EQ(&st_ip, &np->in_snip6))) {
 			NBUMPSIDE6D(1, ns_wrap);
-			return(-1);
+			return (-1);
 		}
 		l++;
 	} while (natl != NULL);
@@ -701,7 +701,7 @@ ipf_nat6_newmap(fr_info_t *fin, nat_t *nat, natinfo_t *ni)
 		((struct icmp6_hdr *)fin->fin_dp)->icmp6_id = port;
 		nat->nat_nicmpid = port;
 	}
-	return(0);
+	return (0);
 }
 
 
@@ -806,7 +806,7 @@ ipf_nat6_newrdr(fr_info_t *fin, nat_t *nat, natinfo_t *ni)
 		if (ipf_ifpaddr(softc, 6, FRI_NORMAL, fin->fin_ifp,
 			       &in, NULL) == -1) {
 			NBUMPSIDE6DX(0, ns_new_ifpaddr, ns_new_ifpaddr_2);
-			return(-1);
+			return (-1);
 		}
 
 	} else if (IP6_ISZERO(&np->in_ndstip6) &&
@@ -859,7 +859,7 @@ ipf_nat6_newrdr(fr_info_t *fin, nat_t *nat, natinfo_t *ni)
 	if (IP6_ISZERO(&in)) {
 		if (nport == dport) {
 			NBUMPSIDE6D(0, ns_xlate_null);
-			return(-1);
+			return (-1);
 		}
 		in = fin->fin_dst6;
 	}
@@ -880,7 +880,7 @@ ipf_nat6_newrdr(fr_info_t *fin, nat_t *nat, natinfo_t *ni)
 	fin->fin_data[1] = dp;
 	if (natl != NULL) {
 		NBUMPSIDE6D(0, ns_xlate_exists);
-		return(-1);
+		return (-1);
 	}
 
 	nat->nat_ndst6 = in;
@@ -904,7 +904,7 @@ ipf_nat6_newrdr(fr_info_t *fin, nat_t *nat, natinfo_t *ni)
 		nat->nat_nicmpid = nport;
 	}
 
-	return(move);
+	return (move);
 }
 
 /* ------------------------------------------------------------------------ */
@@ -954,7 +954,7 @@ ipf_nat6_add(fr_info_t *fin, ipnat_t *np, nat_t **natsave, u_int flags,
 
 	if (nsp->ns_active >= softn->ipf_nat_table_max) {
 		NBUMPSIDE6(fin->fin_out, ns_table_max);
-		return(NULL);
+		return (NULL);
 	}
 
 	move = 1;
@@ -981,7 +981,7 @@ ipf_nat6_add(fr_info_t *fin, ipnat_t *np, nat_t **natsave, u_int flags,
 			printf("table_max reduced to %d\n",
 				softn->ipf_nat_table_max);
 		}
-		return(NULL);
+		return (NULL);
 	}
 
 	if (flags & IPN_ICMPQUERY) {
@@ -1111,7 +1111,7 @@ done:
 		np->in_hits++;
 	if (natsave != NULL)
 		*natsave = nat;
-	return(nat);
+	return (nat);
 }
 
 
@@ -1221,7 +1221,7 @@ ipf_nat6_finalise(fr_info_t *fin, nat_t *nat)
 			fr->fr_ref++;
 			MUTEX_EXIT(&fr->fr_lock);
 		}
-		return(0);
+		return (0);
 	}
 
 	NBUMPSIDE6D(fin->fin_out, ns_unfinalised);
@@ -1230,7 +1230,7 @@ ipf_nat6_finalise(fr_info_t *fin, nat_t *nat)
 	 */
 	if (nat->nat_sync != NULL)
 		ipf_sync_del_nat(softc->ipf_sync_soft, nat->nat_sync);
-	return(-1);
+	return (-1);
 }
 
 
@@ -1339,7 +1339,7 @@ ipf_nat6_insert(ipf_main_softc_t *softc, ipf_nat_softc_t *softn, nat_t *nat)
 		nat->nat_mtu[1] = GETIFMTU_6(nat->nat_ifps[1]);
 	}
 
-	return(ipf_nat_hashtab_add(softc, softn, nat));
+	return (ipf_nat_hashtab_add(softc, softn, nat));
 }
 
 
@@ -1372,13 +1372,13 @@ ipf_nat6_icmperrorlookup(fr_info_t *fin, int dir)
 	type = icmp6->icmp6_type;
 	nside = &softn->ipf_nat_stats.ns_side6[fin->fin_out];
 	/*
-	 * Does it at least have the return(basic) IP header ?
+	 * Does it at least have the return (basic) IP header ?
 	 * Only a basic IP header (no options) should be with an ICMP error
 	 * header.  Also, if it's not an error type, then return.
 	 */
 	if (!(fin->fin_flx & FI_ICMPERR)) {
 		ATOMIC_INCL(nside->ns_icmp_basic);
-		return(NULL);
+		return (NULL);
 	}
 
 	/*
@@ -1386,7 +1386,7 @@ ipf_nat6_icmperrorlookup(fr_info_t *fin, int dir)
 	 */
 	if (fin->fin_plen < ICMP6ERR_IPICMPHLEN) {
 		ATOMIC_INCL(nside->ns_icmp_size);
-		return(NULL);
+		return (NULL);
 	}
 	oip6 = (ip6_t *)((char *)fin->fin_dp + 8);
 
@@ -1408,13 +1408,13 @@ ipf_nat6_icmperrorlookup(fr_info_t *fin, int dir)
 	if ((char *)oip6 + fin->fin_dlen - ICMPERR_ICMPHLEN >
 	    (char *)m->b_wptr) {
 		ATOMIC_INCL(nside->ns_icmp_mbuf);
-		return(NULL);
+		return (NULL);
 	}
 # else
 	if ((char *)oip6 + fin->fin_dlen - ICMPERR_ICMPHLEN >
 	    (char *)fin->fin_ip + M_LEN(m)) {
 		ATOMIC_INCL(nside->ns_icmp_mbuf);
-		return(NULL);
+		return (NULL);
 	}
 # endif
 	}
@@ -1422,7 +1422,7 @@ ipf_nat6_icmperrorlookup(fr_info_t *fin, int dir)
 
 	if (IP6_NEQ(&fin->fin_dst6, &oip6->ip6_src)) {
 		ATOMIC_INCL(nside->ns_icmp_address);
-		return(NULL);
+		return (NULL);
 	}
 
 	p = oip6->ip6_nxt;
@@ -1456,7 +1456,7 @@ ipf_nat6_icmperrorlookup(fr_info_t *fin, int dir)
 							 &oip6->ip6_src);
 			fin->fin_data[0] = data[0];
 			fin->fin_data[1] = data[1];
-			return(nat);
+			return (nat);
 		}
 	}
 
@@ -1465,7 +1465,7 @@ ipf_nat6_icmperrorlookup(fr_info_t *fin, int dir)
 		/* TRACE (fin,minlen) */
 		if (fin->fin_plen < ICMPERR_IPICMPHLEN + minlen) {
 			ATOMIC_INCL(nside->ns_icmp_short);
-			return(NULL);
+			return (NULL);
 		}
 
 		data[0] = fin->fin_data[0];
@@ -1483,7 +1483,7 @@ ipf_nat6_icmperrorlookup(fr_info_t *fin, int dir)
 		}
 		fin->fin_data[0] = data[0];
 		fin->fin_data[1] = data[1];
-		return(nat);
+		return (nat);
 	}
 	if (dir == NAT_INBOUND)
 		nat = ipf_nat6_inlookup(fin, 0, p, &oip6->ip6_dst,
@@ -1492,7 +1492,7 @@ ipf_nat6_icmperrorlookup(fr_info_t *fin, int dir)
 		nat = ipf_nat6_outlookup(fin, 0, p, &oip6->ip6_dst,
 					 &oip6->ip6_src);
 
-	return(nat);
+	return (nat);
 }
 
 
@@ -1531,7 +1531,7 @@ ipf_nat6_ip6subtract(i6addr_t *ip1, i6addr_t *ip2)
 		r += ds[i];
 	}
 
-	return(r);
+	return (r);
 }
 
 
@@ -1565,7 +1565,7 @@ ipf_nat6_icmperror(fr_info_t *fin, u_int *nflags, int dir)
 
 	if ((fin->fin_flx & (FI_SHORT|FI_FRAGBODY))) {
 		NBUMPSIDE6D(fin->fin_out, ns_icmp_short);
-		return(NULL);
+		return (NULL);
 	}
 
 	/*
@@ -1573,7 +1573,7 @@ ipf_nat6_icmperror(fr_info_t *fin, u_int *nflags, int dir)
 	 */
 	if ((fin->fin_v != 6) || !(nat = ipf_nat6_icmperrorlookup(fin, dir))) {
 		NBUMPSIDE6D(fin->fin_out, ns_icmp_notfound);
-		return(NULL);
+		return (NULL);
 	}
 
 	tcp = NULL;
@@ -1827,7 +1827,7 @@ ipf_nat6_icmperror(fr_info_t *fin, u_int *nflags, int dir)
 			}
 		} /* nat6_dir == NAT_INBOUND is impossible for icmp queries */
 	}
-	return(nat);
+	return (nat);
 }
 
 
@@ -1976,7 +1976,7 @@ ipf_nat6_inlookup(fr_info_t *fin, u_int flags, u_int p,
 			nat->nat_ifps[0] = ifp;
 			nat->nat_mtu[0] = GETIFMTU_6(ifp);
 		}
-		return(nat);
+		return (nat);
 	}
 
 	/*
@@ -1989,11 +1989,11 @@ ipf_nat6_inlookup(fr_info_t *fin, u_int flags, u_int p,
 find_in_wild_ports:
 	if (!(flags & NAT_TCPUDP) || !(flags & NAT_SEARCH)) {
 		NBUMPSIDE6DX(0, ns_lookup_miss, ns_lookup_miss_1);
-		return(NULL);
+		return (NULL);
 	}
 	if (softn->ipf_nat_stats.ns_wilds == 0 || (fin->fin_flx & FI_NOWILD)) {
 		NBUMPSIDE6D(0, ns_lookup_nowild);
-		return(NULL);
+		return (NULL);
 	}
 
 	RWLOCK_EXIT(&softc->ipf_nat);
@@ -2083,7 +2083,7 @@ find_in_wild_ports:
 	if (nat == NULL) {
 		NBUMPSIDE6DX(0, ns_lookup_miss, ns_lookup_miss_2);
 	}
-	return(nat);
+	return (nat);
 }
 
 
@@ -2294,7 +2294,7 @@ ipf_nat6_outlookup(fr_info_t *fin, u_int flags, u_int p,
 			nat->nat_ifps[1] = ifp;
 			nat->nat_mtu[1] = GETIFMTU_6(ifp);
 		}
-		return(nat);
+		return (nat);
 	}
 
 	/*
@@ -2307,11 +2307,11 @@ ipf_nat6_outlookup(fr_info_t *fin, u_int flags, u_int p,
 find_out_wild_ports:
 	if (!(flags & NAT_TCPUDP) || !(flags & NAT_SEARCH)) {
 		NBUMPSIDE6DX(1, ns_lookup_miss, ns_lookup_miss_3);
-		return(NULL);
+		return (NULL);
 	}
 	if (softn->ipf_nat_stats.ns_wilds == 0 || (fin->fin_flx & FI_NOWILD)) {
 		NBUMPSIDE6D(1, ns_lookup_nowild);
-		return(NULL);
+		return (NULL);
 	}
 
 	RWLOCK_EXIT(&softc->ipf_nat);
@@ -2400,7 +2400,7 @@ find_out_wild_ports:
 	if (nat == NULL) {
 		NBUMPSIDE6DX(1, ns_lookup_miss, ns_lookup_miss_4);
 	}
-	return(nat);
+	return (nat);
 }
 
 
@@ -2484,7 +2484,7 @@ ipf_nat6_lookupredir(natlookup_t *np)
 		}
  	}
 
-	return(nat);
+	return (nat);
 }
 
 
@@ -2518,7 +2518,7 @@ ipf_nat6_match(fr_info_t *fin, ipnat_t *np)
 	}
 	match ^= ((np->in_flags & IPN_NOTSRC) != 0);
 	if (match)
-		return(0);
+		return (0);
 
 	match = 0;
 	switch (np->in_odstatype)
@@ -2535,17 +2535,17 @@ ipf_nat6_match(fr_info_t *fin, ipnat_t *np)
 
 	match ^= ((np->in_flags & IPN_NOTDST) != 0);
 	if (match)
-		return(0);
+		return (0);
 
 	ft = &np->in_tuc;
 	if (!(fin->fin_flx & FI_TCPUDP) ||
 	    (fin->fin_flx & (FI_SHORT|FI_FRAGBODY))) {
 		if (ft->ftu_scmp || ft->ftu_dcmp)
-			return(0);
-		return(1);
+			return (0);
+		return (1);
 	}
 
-	return(ipf_tcpudpchk(&fin->fin_fi, ft));
+	return (ipf_tcpudpchk(&fin->fin_fi, ft));
 }
 
 
@@ -2581,7 +2581,7 @@ ipf_nat6_checkout(fr_info_t *fin, u_32_t *passp)
 	nat_t *nat;
 
 	if (softn->ipf_nat_stats.ns_rules == 0 || softn->ipf_nat_lock != 0)
-		return(0);
+		return (0);
 
 	icmp6 = NULL;
 	natfailed = 0;
@@ -2612,7 +2612,7 @@ ipf_nat6_checkout(fr_info_t *fin, u_32_t *passp)
 			 * so as to keep IPv6 working.
 			 */
 			if (icmp6->icmp6_type > ICMP6_ECHO_REPLY)
-				return(0);
+				return (0);
 
 			/*
 			 * This is an incoming packet, so the destination is
@@ -2748,7 +2748,7 @@ outmatchfail:
 		break;
 	}
 	fin->fin_ifp = sifp;
-	return(rval);
+	return (rval);
 }
 
 /* ------------------------------------------------------------------------ */
@@ -2809,7 +2809,7 @@ ipf_nat6_out(fr_info_t *fin, nat_t *nat, int natadd, u_32_t nflags)
 		skip = ipf_nat6_decap(fin, nat);
 		if (skip <= 0) {
 			NBUMPSIDE6D(1, ns_decap_fail);
-			return(-1);
+			return (-1);
 		}
 
 		m = fin->fin_m;
@@ -2832,7 +2832,7 @@ ipf_nat6_out(fr_info_t *fin, nat_t *nat, int natadd, u_32_t nflags)
 		fin->fin_flx |= FI_NATED;
 		if (np != NULL && np->in_tag.ipt_num[0] != 0)
 			fin->fin_nattag = &np->in_tag;
-		return(1);
+		return (1);
 		/* NOTREACHED */
 	    }
 
@@ -2845,7 +2845,7 @@ ipf_nat6_out(fr_info_t *fin, nat_t *nat, int natadd, u_32_t nflags)
 		m = M_DUP(np->in_divmp);
 		if (m == NULL) {
 			NBUMPSIDE6D(1, ns_divert_dup);
-			return(-1);
+			return (-1);
 		}
 
 		ip6 = MTOD(m, ip6_t *);
@@ -2939,7 +2939,7 @@ ipf_nat6_out(fr_info_t *fin, nat_t *nat, int natadd, u_32_t nflags)
 		i = 1;
 	}
 	fin->fin_flx |= FI_NATED;
-	return(i);
+	return (i);
 }
 
 
@@ -2974,7 +2974,7 @@ ipf_nat6_checkin(fr_info_t *fin, u_32_t *passp)
 	nat_t *nat;
 
 	if (softn->ipf_nat_stats.ns_rules == 0 || softn->ipf_nat_lock != 0)
-		return(0);
+		return (0);
 
 	tcp = NULL;
 	icmp6 = NULL;
@@ -3002,7 +3002,7 @@ ipf_nat6_checkin(fr_info_t *fin, u_32_t *passp)
 			 * so as to keep IPv6 working.
 			 */
 			if (icmp6->icmp6_type > ICMP6_ECHO_REPLY)
-				return(0);
+				return (0);
 
 			/*
 			 * This is an incoming packet, so the destination is
@@ -3140,7 +3140,7 @@ inmatchfail:
 		NBUMPSIDE6D(0, ns_translated);
 		break;
 	}
-	return(rval);
+	return (rval);
 }
 
 
@@ -3191,7 +3191,7 @@ ipf_nat6_in(fr_info_t *fin, nat_t *nat, int natadd, u_32_t nflags)
 			i = ipf_proxy_check(fin, nat);
 			if (i == -1) {
 				NBUMPSIDE6D(0, ns_ipf_proxy_fail);
-				return(-1);
+				return (-1);
 			}
 		}
 	}
@@ -3238,7 +3238,7 @@ ipf_nat6_in(fr_info_t *fin, nat_t *nat, int natadd, u_32_t nflags)
 		m = M_DUP(np->in_divmp);
 		if (m == NULL) {
 			NBUMPSIDE6D(0, ns_divert_dup);
-			return(-1);
+			return (-1);
 		}
 
 		ip6 = MTOD(m, ip6_t *);
@@ -3265,7 +3265,7 @@ ipf_nat6_in(fr_info_t *fin, nat_t *nat, int natadd, u_32_t nflags)
 		skip = ipf_nat6_decap(fin, nat);
 		if (skip <= 0) {
 			NBUMPSIDE6D(0, ns_decap_fail);
-			return(-1);
+			return (-1);
 		}
 
 		m = fin->fin_m;
@@ -3286,7 +3286,7 @@ ipf_nat6_in(fr_info_t *fin, nat_t *nat, int natadd, u_32_t nflags)
 		fin->fin_flx |= FI_NATED;
 		if (np != NULL && np->in_tag.ipt_num[0] != 0)
 			fin->fin_nattag = &np->in_tag;
-		return(1);
+		return (1);
 		/* NOTREACHED */
 	    }
 	}
@@ -3335,7 +3335,7 @@ ipf_nat6_in(fr_info_t *fin, nat_t *nat, int natadd, u_32_t nflags)
 	fin->fin_flx |= FI_NATED;
 	if (np != NULL && np->in_tag.ipt_num[0] != 0)
 		fin->fin_nattag = &np->in_tag;
-	return(1);
+	return (1);
 }
 
 
@@ -3385,7 +3385,7 @@ ipf_nat6_newrewrite(fr_info_t *fin, nat_t *nat, natinfo_t *nai)
 		if ((src_search == 0) && (np->in_spnext == 0) &&
 		    (dst_search == 0) && (np->in_dpnext == 0)) {
 			if (l > 0)
-				return(-1);
+				return (-1);
 		}
 
 		/*
@@ -3393,7 +3393,7 @@ ipf_nat6_newrewrite(fr_info_t *fin, nat_t *nat, natinfo_t *nai)
 		 */
 		if (ipf_nat6_nextaddr(fin, &np->in_nsrc, &frnat.fin_src6,
 				 &frnat.fin_src6) == -1) {
-			return(-1);
+			return (-1);
 		}
 
 		if (IP6_ISZERO(&np->in_nsrcip6) &&
@@ -3450,7 +3450,7 @@ ipf_nat6_newrewrite(fr_info_t *fin, nat_t *nat, natinfo_t *nai)
 
 		if (ipf_nat6_nextaddr(fin, &np->in_ndst, &frnat.fin_dst6,
 				      &frnat.fin_dst6) == -1)
-			return(-1);
+			return (-1);
 
 		if (IP6_ISZERO(&np->in_ndstip6) &&
 		    IP6_ISONES(&np->in_ndstmsk6)) {
@@ -3543,7 +3543,7 @@ ipf_nat6_newrewrite(fr_info_t *fin, nat_t *nat, natinfo_t *nai)
 		/* TRACE natl, in_stepnext, l */
 
 		if ((natl != NULL) && (l > 8))	/* XXX 8 is arbitrary */
-			return(-1);
+			return (-1);
 
 		np->in_stepnext &= 0x3;
 
@@ -3565,7 +3565,7 @@ ipf_nat6_newrewrite(fr_info_t *fin, nat_t *nat, natinfo_t *nai)
 		nat->nat_nicmpid = frnat.fin_data[1];
 	}
 
-	return(0);
+	return (0);
 }
 
 
@@ -3625,7 +3625,7 @@ ipf_nat6_newdivert(fr_info_t *fin, nat_t *nat, natinfo_t *nai)
 
 	if (natl != NULL) {
 		NBUMPSIDE6D(fin->fin_out, ns_divert_exist);
-		return(-1);
+		return (-1);
 	}
 
 	nat->nat_nsrc6 = frnat.fin_src6;
@@ -3642,7 +3642,7 @@ ipf_nat6_newdivert(fr_info_t *fin, nat_t *nat, natinfo_t *nai)
 	else
 		nat->nat_dir = NAT_DIVERTOUT;
 
-	return(0);
+	return (0);
 }
 
 
@@ -3672,7 +3672,7 @@ ipf_nat6_builddivertmp(ipf_nat_softc_t *softn, ipnat_t *np)
 	ALLOC_MB_T(np->in_divmp, len);
 	if (np->in_divmp == NULL) {
 		ATOMIC_INCL(softn->ipf_nat_stats.ns_divert_build);
-		return(-1);
+		return (-1);
 	}
 
 	/*
@@ -3697,7 +3697,7 @@ ipf_nat6_builddivertmp(ipf_nat_softc_t *softn, ipnat_t *np)
 		uh->uh_dport = htons(np->in_dpnext);
 	}
 
-	return(0);
+	return (0);
 }
 
 
@@ -3728,7 +3728,7 @@ ipf_nat6_decap(fr_info_t *fin, nat_t *nat)
 	mb_t *m;
 
 	if ((fin->fin_flx & FI_ICMPERR) != 0) {
-		return(0);
+		return (0);
 	}
 
 	m = fin->fin_m;
@@ -3739,17 +3739,17 @@ ipf_nat6_decap(fr_info_t *fin, nat_t *nat)
 	case NAT_DIVERTIN :
 	case NAT_DIVERTOUT :
 		if (fin->fin_plen < MINDECAP)
-			return(-1);
+			return (-1);
 		skip += sizeof(udphdr_t);
 		break;
 
 	case NAT_ENCAPIN :
 	case NAT_ENCAPOUT :
 		if (fin->fin_plen < (skip + sizeof(ip6_t)))
-			return(-1);
+			return (-1);
 		break;
 	default :
-		return(-1);
+		return (-1);
 		/* NOTREACHED */
 	}
 
@@ -3760,7 +3760,7 @@ ipf_nat6_decap(fr_info_t *fin, nat_t *nat)
 	 */
 	if (M_LEN(m) < skip + sizeof(ip6_t)) {
 		if (ipf_pr_pullup(fin, skip + sizeof(ip6_t)) == -1)
-			return(-1);
+			return (-1);
 	}
 
 	hdr = MTOD(fin->fin_m, char *);
@@ -3768,7 +3768,7 @@ ipf_nat6_decap(fr_info_t *fin, nat_t *nat)
 
 	if (ipf_pr_pullup(fin, skip + sizeof(ip6_t)) == -1) {
 		NBUMPSIDE6D(fin->fin_out, ns_decap_pullup);
-		return(-1);
+		return (-1);
 	}
 
 	fin->fin_hlen = sizeof(ip6_t);
@@ -3778,10 +3778,10 @@ ipf_nat6_decap(fr_info_t *fin, nat_t *nat)
 
 	if (ipf_makefrip(sizeof(ip6_t), (ip_t *)hdr, fin) == -1) {
 		NBUMPSIDE6D(fin->fin_out, ns_decap_bad);
-		return(-1);
+		return (-1);
 	}
 
-	return(skip);
+	return (skip);
 }
 
 
@@ -3838,7 +3838,7 @@ ipf_nat6_nextaddr(fr_info_t *fin, nat_addr_t *na, i6addr_t *old, i6addr_t *dst)
 	case FRI_PEERADDR :
 	case FRI_NETWORK :
 	default :
-		return(-1);
+		return (-1);
 	}
 
 	error = -1;
@@ -3865,7 +3865,7 @@ ipf_nat6_nextaddr(fr_info_t *fin, nat_addr_t *na, i6addr_t *old, i6addr_t *dst)
 			if (ipf_ifpaddr(softc, 6, na->na_atype,
 				       fin->fin_ifp, &newip, NULL) == -1) {
 				NBUMPSIDE6(fin->fin_out, ns_ifpaddrfail);
-				return(-1);
+				return (-1);
 			}
 			new = newip;
 		} else {
@@ -3880,7 +3880,7 @@ ipf_nat6_nextaddr(fr_info_t *fin, nat_addr_t *na, i6addr_t *old, i6addr_t *dst)
 		break;
 	}
 
-	return(error);
+	return (error);
 }
 
 
@@ -3924,11 +3924,11 @@ ipf_nat6_nextaddrinit(ipf_main_softc_t *softc, char *base, nat_addr_t *na,
 		}
 		if (na->na_func == NULL) {
 			IPFERROR(60072);
-			return(ESRCH);
+			return (ESRCH);
 		}
 		if (na->na_ptr == NULL) {
 			IPFERROR(60073);
-			return(ESRCH);
+			return (ESRCH);
 		}
 		break;
 	case FRI_DYNAMIC :
@@ -3950,7 +3950,7 @@ ipf_nat6_nextaddrinit(ipf_main_softc_t *softc, char *base, nat_addr_t *na,
 
 	case FRI_NONE :
 		IP6_ANDASSIGN(&na->na_addr[0].in6, &na->na_addr[1].in6);
-		return(0);
+		return (0);
 
 	case FRI_NORMAL :
 		IP6_ANDASSIGN(&na->na_addr[0].in6, &na->na_addr[1].in6);
@@ -3958,14 +3958,14 @@ ipf_nat6_nextaddrinit(ipf_main_softc_t *softc, char *base, nat_addr_t *na,
 
 	default :
 		IPFERROR(60074);
-		return(EINVAL);
+		return (EINVAL);
 	}
 
 	if (initial && (na->na_atype == FRI_NORMAL)) {
 		if (IP6_ISZERO(&na->na_addr[0].in6)) {
 			if (IP6_ISONES(&na->na_addr[1].in6) ||
 			    IP6_ISZERO(&na->na_addr[1].in6)) {
-				return(0);
+				return (0);
 			}
 		}
 
@@ -3975,7 +3975,7 @@ ipf_nat6_nextaddrinit(ipf_main_softc_t *softc, char *base, nat_addr_t *na,
 		}
 	}
 
-	return(0);
+	return (0);
 }
 
 
@@ -4015,9 +4015,9 @@ ipf_nat6_icmpquerytype(int icmptype)
 	case ICMP6_WRUREPLY:
 	case MLD6_MTRACE_RESP:
 	case MLD6_MTRACE:
-		return(1);
+		return (1);
 	default:
-		return(0);
+		return (0);
 	}
 }
 #endif /* USE_INET6 */
