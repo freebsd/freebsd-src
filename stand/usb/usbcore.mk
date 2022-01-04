@@ -126,14 +126,6 @@ CFLAGS += -DUSB_PCI_PROBE_LIST="\"uss820dci\""
 KSRCS+=	uss820dci.c
 .endif
 
-.if defined(HAVE_SAF1761OTG)
-CFLAGS += -DUSB_PCI_PROBE_LIST="\"saf1761otg\""
-CFLAGS += -DUSB_PCI_MEMORY_ADDRESS=0x900000007f100000ULL
-CFLAGS += -DUSB_PCI_MEMORY_SIZE=0x40000U
-KSRCS+=	saf1761_otg.c
-KSRCS+=	saf1761_otg_boot.c
-.endif
-
 #
 # USB core and templates
 #
