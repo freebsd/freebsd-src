@@ -134,7 +134,6 @@ tsc_freq_vmware(void)
 		if (regs[1] != UINT_MAX)
 			tsc_freq = regs[0] | ((uint64_t)regs[1] << 32);
 	}
-	tsc_is_invariant = 1;
 	tsc_early_calib_exact = 1;
 }
 
@@ -268,11 +267,6 @@ probe_tsc_freq(void)
 			tsc_perf_stat = 1;
 	}
 
-	if (vm_guest == VM_GUEST_VMWARE) {
-		tsc_freq_vmware();
-		return;
-	}
-
 	switch (cpu_vendor_id) {
 	case CPU_VENDOR_AMD:
 	case CPU_VENDOR_HYGON:
@@ -309,6 +303,11 @@ probe_tsc_freq(void)
 			    tsc_get_timecount_lfence;
 		}
 		break;
+	}
+
+	if (vm_guest == VM_GUEST_VMWARE) {
+		tsc_freq_vmware();
+		return;
 	}
 
 	if (tsc_freq_cpuid(&tsc_freq)) {
